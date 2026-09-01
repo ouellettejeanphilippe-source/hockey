@@ -421,7 +421,9 @@ function renderPool() {
   if (G.filter === 'C') list = list.filter(p => p.np === 'C');
   else if (G.filter === 'AG') list = list.filter(p => p.np === 'L');
   else if (G.filter === 'AD') list = list.filter(p => p.np === 'R');
-  else if (G.filter === 'LD' || G.filter === 'RD' || G.filter === 'D') list = list.filter(p => p.p === 'D');
+  else if (G.filter === 'LD') list = list.filter(p => p.p === 'D' && p.np !== 'R');
+  else if (G.filter === 'RD') list = list.filter(p => p.p === 'D' && p.np === 'R');
+  else if (G.filter === 'D') list = list.filter(p => p.p === 'D');
   else if (G.filter === 'G') list = list.filter(p => p.p === 'G');
 
   if (G.sortBy === 'SAL') {
@@ -443,70 +445,110 @@ function renderPool() {
     return;
   }
 
-  for (const p of list) {
-    const already = picked().includes(p);
-    const opts = openSlots(p);
-    const slot = (G.target !== null && !G.roster[G.target] && fits(p, SLOTS[G.target]))
-      ? SLOTS[G.target] : opts[0];
-    const over = (used + p.$) > CAP;
-    const pen = slot ? getPositionPenalty(p, slot) : 0;
-    const penStr = pen > 0 ? ` <span class="tag-pen">-${pen}</span>` : '';
-    const foStr = p.fo != null ? ` · ${Math.round(p.fo * 100)}% MJ` : '';
-    const htStr = p.ht != null ? ` · ${p.ht} CH/M` : '';
+  const poolColsDef = [
+    { key: 'AG', title: 'AG / LW', test: p => p.p !== 'G' && p.p !== 'D' && p.np === 'L' },
+    { key: 'C',  title: 'C',       test: p => p.p !== 'G' && p.p !== 'D' && (p.np === 'C' || (p.np !== 'L' && p.np !== 'R')) },
+    { key: 'AD', title: 'AD / RW', test: p => p.p !== 'G' && p.p !== 'D' && p.np === 'R' },
+    { key: 'LD', title: 'DG / LD', test: p => p.p === 'D' && p.np !== 'R' },
+    { key: 'RD', title: 'DD / RD', test: p => p.p === 'D' && p.np === 'R' },
+    { key: 'G',  title: 'G',       test: p => p.p === 'G' },
+  ];
 
-    const st = getPlayerDisplayStats(p);
+  const colsMap = new Map();
+  poolColsDef.forEach(col => {
+    const players = list.filter(col.test);
+    colsMap.set(col.key, { ...col, players });
+  });
 
-    const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
-    const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
+  poolColsDef.forEach(colDef => {
+    const colData = colsMap.get(colDef.key);
+    const colEl = document.createElement('div');
+    colEl.className = 'pool-col';
 
-    const stat = p.p === 'G'
-      ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA · ${st.so} BL`
-      : `${st.gp}PJ · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>${foStr}${htStr}`;
+    const headerEl = document.createElement('div');
+    headerEl.className = 'pool-col-header';
+    headerEl.innerHTML = `<span class="pool-col-title">${colDef.title}</span> <span class="pool-col-count">${colData.players.length}</span>`;
+    colEl.appendChild(headerEl);
 
-    const mainBadgeVal = p.p === 'G' ? st.w : st.pt;
-    const mainBadgeLbl = p.p === 'G' ? 'VIC' : 'PTS';
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'pool-col-cards';
 
-    const logo = getTeamLogoHtml(p.t, 20);
-    const headshot = getHeadshotHtml(p, 44);
+    if (!colData.players.length) {
+      cardsContainer.innerHTML = `<div class="empty-msg" style="padding:16px 4px;font-size:11px;">Aucun</div>`;
+    } else {
+      for (const p of colData.players) {
+        const already = picked().includes(p);
+        const opts = openSlots(p);
+        const slot = (G.target !== null && !G.roster[G.target] && fits(p, SLOTS[G.target]))
+          ? SLOTS[G.target] : opts[0];
+        const over = (used + p.$) > CAP;
+        const pen = slot ? getPositionPenalty(p, slot) : 0;
+        const penStr = pen > 0 ? ` <span class="tag-pen">-${pen}</span>` : '';
+        const foStr = p.fo != null ? ` · ${Math.round(p.fo * 100)}% MJ` : '';
+        const htStr = p.ht != null ? ` · ${p.ht} CH/M` : '';
 
-    const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
-    const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
+        const st = getPlayerDisplayStats(p);
 
-    const linksHtml = `<a class="ext-link" href="${nhlUrl}" target="_blank" title="Fiche NHL.com" onclick="event.stopPropagation()">NHL🔗</a> <a class="ext-link" href="${hdbUrl}" target="_blank" title="Fiche HockeyDB" onclick="event.stopPropagation()">HDB🔗</a>`;
+        const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
+        const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
 
-    const priceDisplay = st.salaryPrimary;
-    const subCapStr = st.salarySub;
+        const stat = p.p === 'G'
+          ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} SV`
+          : `${st.gp}PJ · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
 
-    const c = document.createElement('div');
-    c.className = 'card';
-    c.innerHTML = `
-      <div class="card-avatar">
-        ${headshot}
-        <div class="team-badge-sub">${logo}</div>
-      </div>
-      <div class="info">
-        <div class="nm">${p.n}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr} ${linksHtml}</div>
-        <div class="mt">${p.np} · ${p.t} ${p.s} ${st.factor > 1 ? '· <span class="tag">Prorata 82M</span>' : ''}</div>
-        <div class="st"><span class="big-stat-badge"><span class="big-stat-val">${mainBadgeVal}</span><span class="big-stat-lbl">${mainBadgeLbl}</span></span>${stat}</div>
-      </div>
-      <div class="right-block">
-        <div class="cp">${priceDisplay}${subCapStr}</div>
-        <button class="add" ${already || !slot || over ? 'disabled' : ''}>${already ? '✓ SIGNÉ' : '+ SIGNER'}</button>
-      </div>`;
+        const mainBadgeVal = p.p === 'G' ? st.w : st.pt;
+        const mainBadgeLbl = p.p === 'G' ? 'VIC' : 'PTS';
 
-    c.querySelector('.add').onclick = async () => {
-      if (already || !slot || over) return;
-      G.roster[slot.i] = p;
-      G.target = null;
-      await nextSpin(true, true);
-      render();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+        const logo = getTeamLogoHtml(p.t, 18);
+        const headshot = getHeadshotHtml(p, 36);
 
-    if (!G.fogOfWar) attachRadarEvents(c, p);
+        const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
+        const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
 
-    host.appendChild(c);
-  }
+        const linksHtml = `<a class="ext-link" href="${nhlUrl}" target="_blank" title="Fiche NHL.com" onclick="event.stopPropagation()">NHL🔗</a> <a class="ext-link" href="${hdbUrl}" target="_blank" title="Fiche HockeyDB" onclick="event.stopPropagation()">HDB🔗</a>`;
+
+        const priceDisplay = st.salaryPrimary;
+        const subCapStr = st.salarySub;
+
+        const c = document.createElement('div');
+        c.className = 'card';
+        c.innerHTML = `
+          <div class="card-row-top">
+            <div class="card-avatar" style="width:36px;height:36px;">
+              ${headshot}
+              <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
+            </div>
+            <div class="info">
+              <div class="nm" style="font-size:12.5px;">${p.n}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
+              <div class="mt" style="font-size:10px;">${p.np} · ${p.t} ${p.s}</div>
+            </div>
+          </div>
+          <div style="font-size:10.5px;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
+            <span><span class="big-stat-badge" style="padding:0 4px;"><span class="big-stat-val" style="font-size:12px;">${mainBadgeVal}</span><span class="big-stat-lbl">${mainBadgeLbl}</span></span>${stat}</span>
+            ${linksHtml}
+          </div>
+          <div class="card-row-bottom">
+            <div class="cp" style="font-size:12px;">${priceDisplay}${subCapStr}</div>
+            <button class="add" style="padding:5px 10px;font-size:11px;" ${already || !slot || over ? 'disabled' : ''}>${already ? '✓ SIGNÉ' : '+ SIGNER'}</button>
+          </div>`;
+
+        c.querySelector('.add').onclick = async () => {
+          if (already || !slot || over) return;
+          G.roster[slot.i] = p;
+          G.target = null;
+          await nextSpin(true, true);
+          render();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        if (!G.fogOfWar) attachRadarEvents(c, p);
+
+        cardsContainer.appendChild(c);
+      }
+    }
+    colEl.appendChild(cardsContainer);
+    host.appendChild(colEl);
+  });
 }
 
 function renderMain() {
