@@ -525,6 +525,16 @@ body {
   background: var(--panel-card-hover);
 }
 
+.card.dimmed {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+  background: rgba(10, 18, 30, 0.4);
+}
+.card.dimmed:hover {
+  border-color: var(--panel-border);
+  background: rgba(10, 18, 30, 0.4);
+}
+
 .card-avatar {
   flex: none;
   position: relative;
@@ -584,12 +594,17 @@ body {
 }
 
 .card .nm {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 800;
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.card .nm .lname {
+  color: #ffffff;
+  font-weight: 900;
+  letter-spacing: 0.02em;
 }
 
 .card .mt {
@@ -619,21 +634,21 @@ body {
 .big-stat-badge {
   display: inline-flex;
   align-items: baseline;
-  gap: 2px;
-  background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  padding: 1px 6px;
-  border-radius: 6px;
+  gap: 3px;
+  background: rgba(244, 196, 48, 0.15);
+  border: 1px solid rgba(244, 196, 48, 0.4);
+  padding: 2px 8px;
+  border-radius: 8px;
   margin-right: 6px;
   font-variant-numeric: tabular-nums;
 }
 .big-stat-val {
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 900;
-  color: var(--blue-bright);
+  color: var(--gold);
 }
 .big-stat-lbl {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   color: var(--sub);
 }
@@ -672,8 +687,8 @@ body {
 }
 
 .card .cp {
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 17px;
+  font-weight: 900;
   color: var(--green-neon);
 }
 
@@ -836,6 +851,51 @@ body {
   background: rgba(16, 33, 53, 0.9);
 }
 
+.slot-card.selected {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 2px var(--gold) inset, 0 0 16px var(--gold-glow) !important;
+  background: rgba(244, 196, 48, 0.12) !important;
+  animation: pulse-border 1.5s infinite;
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 2px var(--gold) inset, 0 0 8px var(--gold-glow); }
+  50% { box-shadow: 0 0 0 2px var(--gold) inset, 0 0 20px var(--gold-glow); }
+  100% { box-shadow: 0 0 0 2px var(--gold) inset, 0 0 8px var(--gold-glow); }
+}
+
+.chemistry-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: rgba(13, 26, 41, 0.8);
+  border: 1px solid var(--panel-border-glow);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 11px;
+}
+
+.chem-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 33, 53, 0.9);
+  border: 1px solid var(--panel-border);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  color: var(--text);
+}
+.chem-badge.good {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.chem-badge.bad {
+  border-color: var(--red);
+  color: var(--red);
+}
+
 .slot-card.oop {
   border-color: var(--red);
 }
@@ -881,7 +941,7 @@ body {
 }
 
 .slot-player-name {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 800;
   color: var(--text);
   line-height: 1.2;
@@ -890,18 +950,22 @@ body {
   text-overflow: ellipsis;
   max-width: 110px;
 }
+.slot-player-name .lname {
+  color: #ffffff;
+  font-weight: 900;
+}
 
 .slot-salary {
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 900;
   color: var(--green-neon);
   font-variant-numeric: tabular-nums;
 }
 
 .slot-big-stat {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 900;
-  color: var(--text);
+  color: var(--gold);
   line-height: 1;
   margin: 4px 0 2px;
   font-variant-numeric: tabular-nums;

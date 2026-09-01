@@ -9,7 +9,7 @@
  * des shards). Une seule implémentation, un seul endroit à corriger.
  */
 
-export const RATINGS_VERSION = 8;
+export const RATINGS_VERSION = 9;
 
 /* ---------- Plafonds / Masses salariales par époque (pour conversion en $ réel) ---------- */
 export const SEASON_ERA_CAP = {
@@ -141,8 +141,10 @@ export function rateSkaters(rows, realtimeById = null) {
     const gp = r.gamesPlayed || 0;
     if (gp <= 0) return null;
 
-    const natural = r.positionCode || 'C';
-    const isD = natural === 'D';
+    const isD = r.positionCode === 'D';
+    const natural = isD
+      ? (r.shootsCatches === 'R' ? 'RD' : 'LD')
+      : (r.positionCode || 'C');
     const extra = rt(r.playerId);
     const toiMin = (r.timeOnIcePerGame || 0) / 60;
 

@@ -1,5 +1,5 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
-import { SLOTS, CAP, REROLLS, fits, simulate, simulateMatch, getPositionPenalty } from './sim.js';
+import { SLOTS, CAP, REROLLS, fits, simulate, simulateMatch, getPositionPenalty, registerHiddenRatings, getHiddenRatings, getUnitSynergy } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS } from './logos.js';
 import { getArchetype, getEraFactor, getEraSalary, SEASON_ERA_CAP } from './ratings.js';
 
@@ -27,6 +27,63 @@ const TEAMFULL = {
 };
 const DEFUNCT = new Set(['QUE','HFD','MNS','AFM','ATL','KCS','CLR','CLE','CGS','OAK','WIN','PHX','MDA','ARI']);
 
+/* ---------- sauvegarde ---------- */
+
+function saveGame() {
+  if (G.done) {
+    clearSave();
+    return;
+  }
+  try {
+    const data = {
+      roster: G.roster,
+      left: G.left,
+      cur: G.cur ? { season: G.cur.season, team: G.cur.team } : null,
+      target: G.target,
+    };
+    localStorage.setItem('cap82_save', JSON.stringify(data));
+  } catch {}
+}
+
+function clearSave() {
+  try { localStorage.removeItem('cap82_save'); } catch {}
+}
+
+async function restoreSave() {
+  try {
+    const raw = localStorage.getItem('cap82_save');
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || !data.cur || !data.cur.season) return false;
+
+    const shard = await getShard(data.cur.season);
+    if (!shard || !shard.byTeam[data.cur.team]) return false;
+
+    // Charger les shards pour toutes les saisons des joueurs signés afin de remplir RATINGS_VAULT
+    if (data.roster) {
+      const rosterSeasons = new Set(Object.values(data.roster).filter(Boolean).map(p => p.s));
+      for (const sLabel of rosterSeasons) {
+        if (sLabel && sLabel !== data.cur.season) {
+          try { await getShard(sLabel); } catch {}
+        }
+      }
+    }
+
+    G.cur = { season: data.cur.season, team: data.cur.team, pool: shard.byTeam[data.cur.team] };
+    G.roster = data.roster || {};
+    G.left = data.left || { ...REROLLS };
+    G.target = data.target ?? null;
+
+    const colors = TEAM_COLORS[data.cur.team] || { primary: '#112236', accent: '#38bdf8' };
+    document.documentElement.style.setProperty('--team-primary', colors.primary);
+    document.documentElement.style.setProperty('--team-accent', colors.accent);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /* ---------- état ---------- */
 
 const G = {
@@ -34,6 +91,7 @@ const G = {
   cur: null,          // { season, team, pool }
   left: { ...REROLLS },
   target: null,
+  selectedSlot: null, // slot sélectionné pour déplacement / permutation
   filter: 'ALL',
   sortBy: 'PTS',
   statsProrata: false,
@@ -56,7 +114,10 @@ async function boot() {
     await loadIndex();
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
     setupEvents();
-    await nextSpin(true, true);
+    const restored = await restoreSave();
+    if (!restored) {
+      await nextSpin(true, true);
+    }
     $('boot').style.display = 'none';
     $('game').style.display = '';
     render();
@@ -127,7 +188,14 @@ async function getShard(label) {
   if (G.shards.has(label)) return G.shards.get(label);
   const shard = await loadSeason(label);
   const byTeam = {};
-  for (const p of shard.players) (byTeam[p.t] = byTeam[p.t] || []).push(p);
+  for (const p of shard.players) {
+    if (p.p === 'D' && (p.np === 'D' || !p.np)) {
+      const isRight = p.id ? (p.id % 2 === 1) : (p.n.length % 2 === 1);
+      p.np = isRight ? 'RD' : 'LD';
+    }
+    registerHiddenRatings(p);
+    (byTeam[p.t] = byTeam[p.t] || []).push(p);
+  }
   const entry = { players: shard.players, byTeam };
   G.shards.set(label, entry);
   return entry;
@@ -164,6 +232,7 @@ async function nextSpin(newSeason, newTeam) {
     document.documentElement.style.setProperty('--team-primary', colors.primary);
     document.documentElement.style.setProperty('--team-accent', colors.accent);
 
+    saveGame();
     prefetch([rnd(seasons), rnd(seasons)]);
     return;
   }
@@ -293,6 +362,15 @@ function getPlayerDisplayStats(p) {
   return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, eraSal, salaryPrimary, salarySub };
 }
 
+function formatPlayerName(fullName) {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(' ');
+  if (parts.length === 1) return `<strong class="lname">${fullName}</strong>`;
+  const lastName = parts.pop();
+  const firstName = parts.join(' ');
+  return `<span class="fname">${firstName}</span> <strong class="lname">${lastName}</strong>`;
+}
+
 function getHeadshotHtml(p, size = 44) {
   if (p.id) {
     return `<img class="headshot-img" src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" alt="${p.n}" onerror="this.onerror=null;this.replaceWith(document.createRange().createContextualFragment('<div class=\\'headshot-fallback\\'>👤</div>'));">`;
@@ -305,7 +383,7 @@ function slotCardEl(s) {
   const d = document.createElement('div');
   const pen = p ? getPositionPenalty(p, s) : 0;
 
-  d.className = 'slot-card' + (p ? '' : ' empty') + (G.target === s.i ? ' target' : '') + (pen > 0 ? ' oop' : '');
+  d.className = 'slot-card' + (p ? '' : ' empty') + (G.selectedSlot === s.i ? ' selected' : G.target === s.i ? ' target' : '') + (pen > 0 ? ' oop' : '');
 
   if (p) {
     const penTag = pen > 0 ? `<span class="tag-pen">-${pen}</span>` : '';
@@ -332,7 +410,7 @@ function slotCardEl(s) {
       <div class="slot-top">
         <div class="slot-player-group">
           ${headshotMini}
-          <div class="slot-player-name">${p.n} ${penTag}</div>
+          <div class="slot-player-name">${formatPlayerName(p.n)} ${penTag}</div>
         </div>
         <div class="slot-salary">${st.salaryPrimary}</div>
       </div>
@@ -346,8 +424,33 @@ function slotCardEl(s) {
     if (!G.fogOfWar) attachRadarEvents(d, p);
   } else {
     d.innerHTML = `<div class="empty-role-lbl">+ ${s.role}</div><div style="font-size:9.5px;color:var(--muted);margin-top:2px">${s.label}</div>`;
-    d.onclick = () => { G.target = (G.target === s.i ? null : s.i); render(); };
   }
+
+  d.onclick = () => {
+    if (G.selectedSlot !== null) {
+      if (G.selectedSlot === s.i) {
+        G.selectedSlot = null;
+      } else {
+        const srcIndex = G.selectedSlot;
+        const srcPlayer = G.roster[srcIndex];
+        const destPlayer = G.roster[s.i];
+
+        if (srcPlayer) G.roster[s.i] = srcPlayer; else delete G.roster[s.i];
+        if (destPlayer) G.roster[srcIndex] = destPlayer; else delete G.roster[srcIndex];
+
+        G.selectedSlot = null;
+        G.target = null;
+        saveGame();
+      }
+    } else {
+      if (p) {
+        G.selectedSlot = s.i;
+      } else {
+        G.target = (G.target === s.i ? null : s.i);
+      }
+    }
+    render();
+  };
   return d;
 }
 
@@ -381,10 +484,13 @@ function renderRoster() {
   populateCol('rdSlots', 'rdCnt', categories.RD);
   populateCol('gSlots', 'gCnt', categories.G);
 
+  renderChemistry();
+
   document.querySelectorAll('.slot-remove-btn').forEach(b => {
     b.onclick = ev => {
       ev.stopPropagation();
       delete G.roster[+b.dataset.i];
+      saveGame();
       render();
     };
   });
@@ -419,10 +525,10 @@ function renderPool() {
   const used = capUsed();
   let list = G.cur.pool.slice();
   if (G.filter === 'C') list = list.filter(p => p.np === 'C');
-  else if (G.filter === 'AG') list = list.filter(p => p.np === 'L');
-  else if (G.filter === 'AD') list = list.filter(p => p.np === 'R');
-  else if (G.filter === 'LD') list = list.filter(p => p.p === 'D' && p.np !== 'R');
-  else if (G.filter === 'RD') list = list.filter(p => p.p === 'D' && p.np === 'R');
+  else if (G.filter === 'AG') list = list.filter(p => p.np === 'L' || p.np === 'AG');
+  else if (G.filter === 'AD') list = list.filter(p => p.np === 'R' || p.np === 'AD');
+  else if (G.filter === 'LD') list = list.filter(p => p.p === 'D' && (p.np === 'LD' || p.np === 'L'));
+  else if (G.filter === 'RD') list = list.filter(p => p.p === 'D' && (p.np === 'RD' || p.np === 'R'));
   else if (G.filter === 'D') list = list.filter(p => p.p === 'D');
   else if (G.filter === 'G') list = list.filter(p => p.p === 'G');
 
@@ -446,11 +552,11 @@ function renderPool() {
   }
 
   const poolColsDef = [
-    { key: 'AG', title: 'AG / LW', test: p => p.p !== 'G' && p.p !== 'D' && p.np === 'L' },
-    { key: 'C',  title: 'C',       test: p => p.p !== 'G' && p.p !== 'D' && (p.np === 'C' || (p.np !== 'L' && p.np !== 'R')) },
-    { key: 'AD', title: 'AD / RW', test: p => p.p !== 'G' && p.p !== 'D' && p.np === 'R' },
-    { key: 'LD', title: 'DG / LD', test: p => p.p === 'D' && p.np !== 'R' },
-    { key: 'RD', title: 'DD / RD', test: p => p.p === 'D' && p.np === 'R' },
+    { key: 'AG', title: 'AG / LW', test: p => p.p !== 'G' && p.p !== 'D' && (p.np === 'L' || p.np === 'AG') },
+    { key: 'C',  title: 'C',       test: p => p.p !== 'G' && p.p !== 'D' && (p.np === 'C' || (p.np !== 'L' && p.np !== 'R' && p.np !== 'AG' && p.np !== 'AD')) },
+    { key: 'AD', title: 'AD / RW', test: p => p.p !== 'G' && p.p !== 'D' && (p.np === 'R' || p.np === 'AD') },
+    { key: 'LD', title: 'DG / LD', test: p => p.p === 'D' && (p.np === 'LD' || p.np === 'L') },
+    { key: 'RD', title: 'DD / RD', test: p => p.p === 'D' && (p.np === 'RD' || p.np === 'R') },
     { key: 'G',  title: 'G',       test: p => p.p === 'G' },
   ];
 
@@ -510,8 +616,13 @@ function renderPool() {
         const priceDisplay = st.salaryPrimary;
         const subCapStr = st.salarySub;
 
+        let btnLabel = '+ SIGNER';
+        if (already) btnLabel = '✓ SIGNÉ';
+        else if (!slot) btnLabel = '× POSITION PLEINE';
+        else if (over) btnLabel = '× HORS BUDGET';
+
         const c = document.createElement('div');
-        c.className = 'card';
+        c.className = 'card' + (already || !slot || over ? ' dimmed' : '');
         c.innerHTML = `
           <div class="card-row-top">
             <div class="card-avatar" style="width:36px;height:36px;">
@@ -519,7 +630,7 @@ function renderPool() {
               <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
             </div>
             <div class="info">
-              <div class="nm" style="font-size:12.5px;">${p.n}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
+              <div class="nm" style="font-size:13.5px;">${formatPlayerName(p.n)}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
               <div class="mt" style="font-size:10px;">${p.np} · ${p.t} ${p.s}</div>
             </div>
           </div>
@@ -529,7 +640,7 @@ function renderPool() {
           </div>
           <div class="card-row-bottom">
             <div class="cp" style="font-size:12px;">${priceDisplay}${subCapStr}</div>
-            <button class="add" style="padding:5px 10px;font-size:11px;" ${already || !slot || over ? 'disabled' : ''}>${already ? '✓ SIGNÉ' : '+ SIGNER'}</button>
+            <button class="add" style="padding:5px 10px;font-size:11px;" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
           </div>`;
 
         c.querySelector('.add').onclick = async () => {
@@ -537,6 +648,7 @@ function renderPool() {
           G.roster[slot.i] = p;
           G.target = null;
           await nextSpin(true, true);
+          saveGame();
           render();
           window.scrollTo({ top: 0, behavior: 'smooth' });
         };
@@ -549,6 +661,42 @@ function renderPool() {
     colEl.appendChild(cardsContainer);
     host.appendChild(colEl);
   });
+}
+
+function renderChemistry() {
+  const chemBar = $('chemBar');
+  if (!chemBar) return;
+
+  const trioNames = ['1er Trio', '2e Trio', '3e Trio', '4e Trio'];
+  const pairNames = ['1re Paire', '2e Paire', '3e Paire'];
+  let badges = [];
+
+  trioNames.forEach((name, unit) => {
+    const syn = getUnitSynergy(G.roster, 'F', unit);
+    if (syn && (syn.bonusOff !== 0 || syn.bonusDef !== 0)) {
+      const isGood = (syn.bonusOff + syn.bonusDef) > 0;
+      const isBad = (syn.bonusOff + syn.bonusDef) < 0;
+      const cls = isGood ? 'good' : isBad ? 'bad' : '';
+      badges.push(`<div class="chem-badge ${cls}"><strong>${name}:</strong> ${syn.name} (${syn.desc})</div>`);
+    }
+  });
+
+  pairNames.forEach((name, unit) => {
+    const syn = getUnitSynergy(G.roster, 'D', unit);
+    if (syn && (syn.bonusOff !== 0 || syn.bonusDef !== 0)) {
+      const isGood = (syn.bonusOff + syn.bonusDef) > 0;
+      const isBad = (syn.bonusOff + syn.bonusDef) < 0;
+      const cls = isGood ? 'good' : isBad ? 'bad' : '';
+      badges.push(`<div class="chem-badge ${cls}"><strong>${name}:</strong> ${syn.name} (${syn.desc})</div>`);
+    }
+  });
+
+  if (badges.length) {
+    chemBar.style.display = 'flex';
+    chemBar.innerHTML = badges.join('');
+  } else {
+    chemBar.style.display = 'none';
+  }
 }
 
 function renderMain() {
@@ -582,9 +730,10 @@ function showRadar(ev, p) {
     ? ['TEC', 'BLI', 'ROB', 'CLU', 'RÉF', 'OVR']
     : ['ATT', 'DÉF', 'ROB', 'CLU', 'VIT', 'OVR'];
 
+  const r = getHiddenRatings(p);
   const values = isG
-    ? [p.o, p.d, p.r, p.c, p.sp ?? p.o, p.v]
-    : [p.o, p.d, p.r, p.c, p.sp ?? 50, p.v];
+    ? [r.o, r.d, r.r, r.c, r.sp ?? r.o, r.v]
+    : [r.o, r.d, r.r, r.c, r.sp ?? 50, r.v];
 
   // Draw 6-axis polygon SVG
   const size = 160;
@@ -637,7 +786,7 @@ function showRadar(ev, p) {
   const eraSal = getEraSalary(p.$, p.s);
   tooltip.innerHTML = `
     <div class="radar-header">${p.n}</div>
-    <div class="radar-sub">${p.np} · ${p.t} · COTE ${p.v}</div>
+    <div class="radar-sub">${p.np} · ${p.t} · COTE ${r.v}</div>
     <div style="font-size:9.5px;color:var(--green-neon);margin-bottom:6px;font-weight:700;">
       Jeu 2026: ${money(p.$)} · Réel (${p.s}): ${money(eraSal)}
     </div>
@@ -820,9 +969,18 @@ $('mainBtn').onclick = () => {
   const rows = SLOTS.filter(s => G.roster[s.i]).map(s => {
     const p = G.roster[s.i];
     const logo = getTeamLogoHtml(p.t, 16);
+    const hr = getHiddenRatings(p);
+    const pmCls = (p.simPM || 0) > 0 ? 'pm-pos' : (p.simPM || 0) < 0 ? 'pm-neg' : '';
+    const pmStr = (p.simPM || 0) > 0 ? `+${p.simPM}` : `${p.simPM || 0}`;
+
+    const simStatStr = p.p === 'G'
+      ? `${p.simGP || 0}PJ · ${p.simW || 0}V-${p.simL || 0}D-${p.simOTL || 0}DP · ${((p.simGA || 0) / Math.max(1, p.simGP || 1)).toFixed(2)} MBA · ${p.simSO || 0} BL`
+      : `${p.simGP || 0}PJ · <b>${p.simG || 0}B</b> ${p.simA || 0}A · <b style="color:var(--gold);font-size:13px;">${p.simPTS || 0} PTS</b> · <span class="${pmCls}">${pmStr}</span>`;
+
     return `<div class="rrow">
-      <div class="rn" style="display:flex;align-items:center;gap:6px">${logo} <span>${p.n} <span class="sub">(${s.role})</span></span></div>
-      <div class="rs">OFF ${p.o} · DEF ${p.d} · ROB ${p.r} · CLU ${p.c} · <b>G ${p.v}</b></div></div>`;
+      <div class="rn" style="display:flex;align-items:center;gap:6px">${logo} <span>${formatPlayerName(p.n)} <span class="sub">(${s.role})</span></span></div>
+      <div class="rs">${simStatStr} &nbsp;|&nbsp; <span style="color:var(--gold);font-weight:800;">OVR ${hr.v}</span> (OFF ${hr.o} DEF ${hr.d} ROB ${hr.r} CLU ${hr.c})</div>
+    </div>`;
   }).join('');
 
   saveLeaderboard({
@@ -917,13 +1075,38 @@ $('mainBtn').onclick = () => {
 
       <div class="note">${note}</div>
       <div class="reveal"><h3>COTES CACHÉES RÉVÉLÉES</h3>${rows}</div>
-      <div style="text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center;">
-        ${playerRank <= 16 ? '<button class="btn go" id="playoffsBtn" style="background:var(--gold);color:#000;">🏆 LANCER LES SÉRIES ÉLIMINATOIRES (TOP 16)</button>' : ''}
+      <div style="text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn go" id="shareBtn" style="background:#0284c7;color:#fff;margin-top:0;">📋 COPIER LE RÉSULTAT</button>
+        ${playerRank <= 16 ? '<button class="btn go" id="playoffsBtn" style="background:var(--gold);color:#000;margin-top:0;">🏆 SÉRIES (TOP 16)</button>' : ''}
         <button class="btn go" id="again" style="margin-top:0">NOUVELLE PARTIE</button>
       </div>
 
       <div id="playoffsSection" style="display:none;margin-top:24px;border-top:1px solid var(--panel-border);padding-top:16px;"></div>
     </div>`;
+
+  const sBtn = $('shareBtn');
+  if (sBtn) {
+    sBtn.onclick = () => {
+      const topPlayer = picked().sort((a,b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0))[0];
+      const shareText = `🏒 Cap 82-0 — Alignement de 23 joueurs\n` +
+        `📊 Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n` +
+        `🏆 Rang ligue : ${playerRank}e / 32\n` +
+        `💵 Masse salariale : ${money(capUsed())} / ${money(CAP)}\n` +
+        `⭐ Vedette : ${topPlayer ? `${topPlayer.n} ('${topPlayer.s.slice(-2)})` : 'Inconnue'}\n` +
+        `👉 Essayez de faire 82-0 !`;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareText).then(() => {
+          sBtn.textContent = '✓ COPIÉ !';
+          setTimeout(() => { sBtn.textContent = '📋 COPIER LE RÉSULTAT'; }, 2500);
+        }).catch(() => {
+          sBtn.textContent = '✓ Fiche copiée';
+        });
+      } else {
+        sBtn.textContent = '✓ ' + `${r.W}-${r.L}-${r.OTL}`;
+      }
+    };
+  }
 
   if (playerRank <= 16) {
     const pBtn = $('playoffsBtn');
@@ -933,9 +1116,11 @@ $('mainBtn').onclick = () => {
   }
 
   $('again').onclick = async () => {
+    clearSave();
     G.roster = {}; G.left = { ...REROLLS }; G.target = null; G.done = false;
     $('resultHost').innerHTML = '';
     await nextSpin(true, true);
+    saveGame();
     render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
