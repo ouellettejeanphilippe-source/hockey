@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Bâtis un alignement de 23 joueurs de la LNH, 1970 à aujourd'hui, sous le plafond salarial. Vise la saison parfaite.">
+<title>Cap 82-0</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Cap <span>82-0</span></h1>
+<div class="sub">Chaque tour, la roulette sort une saison et une équipe. Tu piges un joueur dans ce vestiaire-là. Tu vois ses vraies stats et son salaire — ses cotes cachées (offensive, défensive, robustesse, clutch) ne sortent qu'à la simulation.</div>
+
+<div id="boot">Chargement…</div>
+
+<div id="game" style="display:none">
+
+  <div class="capbar">
+    <div class="row">
+      <div><div class="lbl">Plafond restant</div><div class="amt" id="capAmt">—</div></div>
+      <div style="text-align:right"><div class="lbl">Alignement</div><div class="amt" id="cnt" style="font-size:15px">0 / 23</div></div>
+    </div>
+    <div class="track"><div class="fill" id="capFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="spin" id="spin"></div>
+
+  <div class="filters" id="filters"></div>
+  <div class="pool" id="pool"></div>
+
+  <div class="grouplbl"><span>Attaque — 4 trios</span><span id="fcnt"></span></div>
+  <div id="fLines"></div>
+
+  <div class="grouplbl"><span>Défense — 3 paires</span><span id="dcnt"></span></div>
+  <div id="dLines"></div>
+
+  <div class="grouplbl"><span>Gardiens</span><span id="gcnt"></span></div>
+  <div class="unit l2" id="gLine"></div>
+
+  <div class="grouplbl"><span>Réservistes</span><span id="scnt"></span></div>
+  <div class="unit l3" id="sLine"></div>
+
+  <div id="resultHost"></div>
+</div>
+
+<div class="actions">
+  <button class="btn go" id="mainBtn" disabled>Chargement…</button>
+</div>
+
+<script type="module" src="js/game.js"></script>
+</body>
+</html>

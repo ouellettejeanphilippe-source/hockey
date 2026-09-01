@@ -1,0 +1,75 @@
+# Plan
+
+État au 1er septembre 2026. Coche les cases en avançant et ajoute une ligne au journal, en bas.
+
+## Fait
+
+### Fondations
+- [x] **F1** — Structure du dépôt, modules ES natifs, aucun build step
+- [x] **F2** — `js/ratings.js` : cotes offensive, défensive, robustesse, clutch, globale, normalisées par saison en z-score
+- [x] **F3** — Courbe salariale exponentielle calée sur l'échelle actuelle (0,78 M$ au plancher, ~19 M$ au sommet)
+- [x] **F4** — `js/sim.js` : alignement de 23 (4 trios, 3 paires, 2 gardiens, 3 réservistes)
+- [x] **F5** — Simulation Poisson 82 matchs, trios pondérés 34/28/22/16, paires 40/34/26
+- [x] **F6** — Robustesse active dans les matchs éreintants, clutch tranche les prolongations
+- [x] **F7** — Calibration validée sur 6 paliers de cote (tableau dans CLAUDE.md)
+
+### Données
+- [x] **D1** — `scripts/build_shards.py` : aspire l'API LNH saison par saison, écrit les shards
+- [x] **D3** — `scripts/rate.mjs` : le build appelle `js/ratings.js`, une seule implémentation des cotes
+- [x] **D4** — Joueur échangé dupliqué dans le vestiaire de chaque équipe, marqué `x:1`
+- [x] **D5** — `js/data.js` : chargeur trois niveaux (shard, API en direct, seed) avec cache IndexedDB
+- [x] **D6** — GitHub Action `build-data.yml` : manuel + rafraîchissement hebdo de la saison en cours
+
+### Jeu
+- [x] **J1** — Roulette saison + équipe, chargement asynchrone du shard, préchargement en arrière-plan
+- [x] **J2** — Rerolls : 6 année, 6 équipe, 4 passer
+- [x] **J3** — Ciblage manuel d'une case vide avant de choisir
+- [x] **J5** — Barre de plafond, blocage des joueurs hors budget
+- [x] **J6** — Écran de résultat avec barres d'équipe et révélation des cotes cachées
+
+## À faire — priorité haute
+
+- [ ] **D2** — **Vérifier le CORS de l'API LNH depuis un navigateur.** `js/data.js` a le niveau « API en direct » écrit et branché, mais personne ne l'a testé pour vrai. Ouvrir la console sur GitHub Pages et lancer `fetch('https://api.nhle.com/stats/rest/en/skater/summary?limit=1&cayenneExp=seasonId=20232024')`. Si ça passe, le jeu peut tourner sans aucune donnée commitée. Si ça bloque, retirer le niveau 2 du chargeur ou passer par un worker Cloudflare. **Noter le résultat ici.**
+
+- [ ] **D7** — **Premier build complet et vérification des noms de champs.** `scripts/build_shards.py` s'appuie sur `skaterFullName`, `positionCode`, `teamAbbrevs`, `savePct`, `goalsAgainstAverage`, `ppPoints`, `shPoints`, `gameWinningGoals`, `otGoals`, `timeOnIcePerGame`, et sur `hits`/`blockedShots` du rapport `realtime`. Documentés mais non testés contre l'API réelle. Lancer `--seed-only` d'abord, vérifier qu'un shard a des noms de joueurs plausibles et des cotes réparties, puis lancer le build complet.
+
+- [ ] **D8** — **Vérifier les codes d'équipe des franchises disparues.** Le dictionnaire `TEAMFULL` dans `js/game.js` devine `AFM` pour les Flames d'Atlanta, `CGS` pour les Golden Seals, `KCS` pour les Scouts. À confirmer contre `data/index.json` après le premier build, qui liste toutes les équipes réellement rencontrées. Corriger les manquants et les faux.
+
+- [ ] **D9** — Générer et commiter `data/seed.json` (sortie de `--seed-only`). Sans lui, aucun filet hors ligne.
+
+## À faire — priorité moyenne
+
+- [ ] **J4** — **Sortir les cotes cachées du DOM et de la mémoire accessible.** Elles sont dans les objets joueurs que `window.cap82.G` expose. Un curieux peut les lire dans la console. Piste : garder une table séparée indexée par identifiant, hors du `window`, et ne l'exposer qu'à la simulation. Bas risque, mais ça mine l'idée du jeu.
+
+- [ ] **J7** — Contrainte de position naturelle. Actuellement un défenseur peut aller dans n'importe quelle case D, et tout attaquant dans n'importe quelle case de trio. Utiliser `np` (C/L/R/D) pour restreindre : un centre en AG devrait coûter une pénalité de cote plutôt que d'être interdit.
+
+- [ ] **J8** — Sauvegarde de la partie en cours dans localStorage, pour survivre à un rafraîchissement.
+
+- [ ] **J9** — Partage du résultat : image ou lien encodant l'alignement, pour comparer avec du monde.
+
+- [ ] **S1** — Mode « défi du jour » : une graine déterministe par date, tout le monde a la même suite de roulettes. Tableau de meneurs local.
+
+## À faire — priorité basse
+
+- [ ] **S2** — Mode deux joueurs, repêchage en alternance sur la même suite de roulettes, puis série 4 de 7.
+- [ ] **S3** — Recalibrer la simulation avec des alignements réalistes plutôt qu'uniformes. La table actuelle utilise 23 joueurs de cote identique, ce qui n'arrive jamais en jeu. Bâtir 200 alignements aléatoires valides sous le plafond, tracer la distribution des fiches, ajuster pour que la médiane tombe autour de 41-33-8.
+- [ ] **S4** — Séries éliminatoires après la saison régulière.
+- [ ] **S5** — Étendre avant 1970. L'API couvre 1917. À valider : `timeOnIcePerGame` et `plusMinus` n'existent pas avant les années 1960, la cote défensive tomberait sur presque rien.
+- [ ] **S6** — Blessures : un joueur à faible robustesse rate des matchs, son trio est dégradé pendant ce temps.
+- [ ] **S7** — Service worker pour jouer complètement hors ligne après une première visite.
+
+## Décisions prises
+
+**Découpage par saison, pas par équipe.** La normalisation en z-score exige le bassin complet de la ligue pour l'année. Détail dans ARCHITECTURE.md.
+
+**Pas de sauvegarde progressive équipe par équipe.** L'idée produisait un cache où certaines saisons ont des z-scores calculés sur des bassins partiels. Le shard de saison entière donne le même bénéfice de taille sans le risque.
+
+**Pas de scraping de hockey-reference ni hockeydb.** Conditions d'utilisation, et leur HTML change sans préavis.
+
+**Pas de backend.** GitHub Pages sert du statique, coût zéro, rien à maintenir.
+
+## Journal
+
+| Date | Quoi |
+|---|---|
+| 2026-09-01 | Création du dépôt. Fondations, données et jeu en place. Reste D2, D7, D8, D9 à vérifier contre l'API réelle avant de considérer la base solide. |

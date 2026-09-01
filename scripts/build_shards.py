@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+"""
+Bâtit les shards de saison a partir de l'API officielle de la LNH.
+
+    python3 scripts/build_shards.py
+    python3 scripts/build_shards.py --start 1970 --end 2026 --min-gp 10
+    python3 scripts/build_shards.py --only 1981-82 1993-94   # refaire 2 saisons
+    python3 scripts/build_shards.py --seed-only              # juste data/seed.json
+
+Ecrit data/seasons/<saison>.json, data/index.json et data/seed.json.
+Aucune dependance Python. Requiert Node pour le calcul des cotes
+(scripts/rate.mjs appelle js/ratings.js, la meme implementation que le
+navigateur -- une seule formule, un seul endroit a corriger).
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA = os.path.join(ROOT, "data")
+SEASONS_DIR = os.path.join(DATA, "seasons")
+BASE = "https://api.nhle.com/stats/rest/en"
+UA = {"User-Agent": "Mozilla/5.0 (cap82-build)"}
+
+# Saisons du seed hors ligne : varier les epoques et inclure des franchises disparues
+SEED_SEASONS = [
+    "1970-71", "1976-77", "1981-82", "1985-86", "1992-93",
+    "1995-96", "2001-02", "2007-08", "2015-16", "2022-23",
+]
+
+
+def api(path, params, tries=4):
+    url = f"{BASE}/{path}?" + urllib.parse.urlencode(params)
+    for attempt in range(tries):
+        try:
+            req = urllib.request.Request(url, headers=UA)
+            with urllib.request.urlopen(req, timeout=90) as r:
+                return json.loads(r.read().decode("utf-8")).get("data", [])
+        except Exception as e:
+            if attempt == tries - 1:
+                print(f"    echec {path}: {e}", file=sys.stderr)
+                return []
+            time.sleep(2 * (attempt + 1))
+    return []
+
+
+def fetch_season(year, min_gp):
+    sid = f"{year}{year + 1}"
+    exp = f"seasonId={sid} and gameTypeId=2"
+    fact = f"gamesPlayed>={min_gp}"
+
+    skaters = api("skater/summary",
+                  {"limit": -1, "sort": "points", "cayenneExp": exp, "factCayenneExp": fact})
+    goalies = api("goalie/summary",
+                  {"limit": -1, "sort": "wins", "cayenneExp": exp, "factCayenneExp": fact})
+
+    realtime = None
+    if year >= 2005:
+        rows = api("skater/realtime", {"limit": -1, "sort": "hits", "cayenneExp": exp})
+        if rows:
+            realtime = {str(r["playerId"]): r for r in rows if r.get("playerId")}
+
+    return skaters, goalies, realtime
+
+
+def rate(label, min_gp, skaters, goalies, realtime):
+    """Delegue le calcul a js/ratings.js via Node."""
+    payload = json.dumps({
+        "label": label, "minGP": min_gp,
+        "skaters": skaters, "goalies": goalies, "realtime": realtime,
+    })
+    try:
+        out = subprocess.run(
+            ["node", os.path.join(ROOT, "scripts", "rate.mjs")],
+            input=payload, capture_output=True, text=True, check=True,
+        )
+    except FileNotFoundError:
+        sys.exit("Node est requis. Installe Node 18+ puis relance.")
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"rate.mjs a echoue pour {label}:\n{e.stderr}")
+    return json.loads(out.stdout)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--start", type=int, default=1970)
+    ap.add_argument("--end", type=int, default=2026)
+    ap.add_argument("--min-gp", type=int, default=10)
+    ap.add_argument("--only", nargs="*", default=None,
+                    help="refaire seulement ces saisons, format 1981-82")
+    ap.add_argument("--seed-only", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="reecrire meme si le shard existe deja")
+    args = ap.parse_args()
+
+    os.makedirs(SEASONS_DIR, exist_ok=True)
+
+    if args.only:
+        years = [int(s[:4]) for s in args.only]
+    elif args.seed_only:
+        years = [int(s[:4]) for s in SEED_SEASONS]
+    else:
+        years = list(range(args.start, args.end + 1))
+
+    built, teams_seen = [], set()
+
+    for year in years:
+        label = f"{year}-{str(year + 1)[2:]}"
+        path = os.path.join(SEASONS_DIR, f"{label}.json")
+
+        if os.path.exists(path) and not args.force and not args.seed_only:
+            with open(path, encoding="utf-8") as f:
+                shard = json.load(f)
+            built.append(label)
+            teams_seen.update(p["t"] for p in shard["players"])
+            print(f"{label}  (deja la, {len(shard['players'])} entrees)")
+            continue
+
+        print(f"{label}  ...", end=" ", flush=True)
+        skaters, goalies, realtime = fetch_season(year, args.min_gp)
+        if not skaters and not goalies:
+            print("aucune donnee (saison annulee ou a venir)")
+            continue
+
+        shard = rate(label, args.min_gp, skaters, goalies, realtime)
+
+        if not args.seed_only:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(shard, f, ensure_ascii=False, separators=(",", ":"))
+
+        built.append(label)
+        teams_seen.update(p["t"] for p in shard["players"])
+        size = os.path.getsize(path) // 1024 if os.path.exists(path) else 0
+        print(f"{len(shard['players'])} entrees, {size} Ko")
+        time.sleep(0.35)
+
+    # ---- index ----
+    if not args.seed_only:
+        existing = sorted(
+            f[:-5] for f in os.listdir(SEASONS_DIR) if f.endswith(".json")
+        )
+        index = {
+            "generated": time.strftime("%Y-%m-%d"),
+            "minGP": args.min_gp,
+            "seasons": existing,
+            "teams": sorted(teams_seen),
+        }
+        with open(os.path.join(DATA, "index.json"), "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=1)
+        print(f"\nindex.json : {len(existing)} saisons, {len(teams_seen)} equipes")
+
+    # ---- seed ----
+    seed_players, seed_labels = [], []
+    for label in SEED_SEASONS:
+        path = os.path.join(SEASONS_DIR, f"{label}.json")
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as f:
+            shard = json.load(f)
+        seed_players.extend(shard["players"])
+        seed_labels.append(label)
+
+    if seed_players:
+        seed = {"minGP": args.min_gp, "seasons": seed_labels, "players": seed_players}
+        seed_path = os.path.join(DATA, "seed.json")
+        with open(seed_path, "w", encoding="utf-8") as f:
+            json.dump(seed, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"seed.json  : {len(seed_labels)} saisons, "
+              f"{os.path.getsize(seed_path) // 1024} Ko")
+
+
+if __name__ == "__main__":
+    main()
