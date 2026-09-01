@@ -9,7 +9,7 @@
  * des shards). Une seule implémentation, un seul endroit à corriger.
  */
 
-export const RATINGS_VERSION = 4;
+export const RATINGS_VERSION = 5;
 
 /* ---------- outils statistiques ---------- */
 
@@ -36,6 +36,10 @@ export function salaryFor(ovr, pos) {
   let base = 775000 * Math.exp(0.0655 * Math.max(0, ovr - 50));
   if (pos === 'G') base *= 0.88;
   return Math.round(base / 25000) * 25000;
+}
+
+export function capPctFor(salary) {
+  return Math.round((salary / 95_500_000) * 1000) / 10;
 }
 
 /* ---------- patineurs ---------- */
@@ -102,6 +106,7 @@ export function rateSkaters(rows, realtimeById = null) {
 
     const htPerGame = extra && extra.hits != null ? Math.round((extra.hits / gp) * 10) / 10 : null;
     const foPct = r.faceoffWinPct != null ? Math.round(r.faceoffWinPct * 1000) / 1000 : null;
+    const sal = salaryFor(v, natural);
 
     return {
       n: r.skaterFullName,
@@ -117,7 +122,8 @@ export function rateSkaters(rows, realtimeById = null) {
       fo: foPct,
       toi: Math.round(toiMin * 10) / 10,
       o, d, r: rb, c, v,
-      $: salaryFor(v, natural),
+      $: sal,
+      cp: capPctFor(sal),
       teams: (r.teamAbbrevs || '???').split(',').map(s => s.trim()),
     };
   }).filter(Boolean);
@@ -147,6 +153,7 @@ export function rateGoalies(rows) {
     const v = Math.max(25, Math.min(99, Math.round(
       0.42 * o + 0.34 * d + 0.09 * rb + 0.15 * c
     )));
+    const sal = salaryFor(v, 'G');
 
     return {
       n: r.goalieFullName,
@@ -159,7 +166,8 @@ export function rateGoalies(rows) {
       ga: r.goalsAgainstAverage != null ? Math.round(r.goalsAgainstAverage * 100) / 100 : null,
       so: r.shutouts || 0,
       o, d, r: rb, c, v,
-      $: salaryFor(v, 'G'),
+      $: sal,
+      cp: capPctFor(sal),
       teams: (r.teamAbbrevs || '???').split(',').map(s => s.trim()),
     };
   }).filter(Boolean);

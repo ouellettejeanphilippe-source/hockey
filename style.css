@@ -2,14 +2,16 @@
   --bg:#0a1119; --panel:#13202f; --panel2:#0f1a26; --line:#22374d;
   --text:#e8eef6; --sub:#8ba0b6; --blue:#42adff; --gold:#e9b13c;
   --red:#e2564d; --green:#3fcb7d; --purple:#a97ce8;
+  --team-primary:#16273b; --team-accent:#42adff;
 }
 *{box-sizing:border-box}
 body{
   margin:0;background:var(--bg);
-  background-image:radial-gradient(circle at 12% -5%,#16273b 0%,var(--bg) 60%);
+  background-image:radial-gradient(circle at 12% -5%,var(--team-primary) 0%,var(--bg) 75%);
   color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   padding:14px 12px 96px;-webkit-text-size-adjust:100%;
+  transition:background-color 0.8s ease, background-image 0.8s ease;
 }
 h1{font-size:21px;margin:0 0 2px;letter-spacing:-.4px}
 h1 span{color:var(--blue)}
@@ -35,10 +37,13 @@ h1 span{color:var(--blue)}
 
 /* ---------- roulette ---------- */
 .spin{background:linear-gradient(160deg,#1a2c42,#111d2b);border:1px solid var(--line);
-  border-radius:14px;padding:16px 14px;margin-bottom:12px;text-align:center}
+  border-radius:14px;padding:16px 14px;margin-bottom:12px;text-align:center;
+  transition:border-color 0.8s ease, box-shadow 0.8s ease;}
+.spin-header{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:4px}
+.spin-logo{flex:none;display:inline-flex;align-items:center;justify-content:center}
 .spin .season{font-size:30px;font-weight:800;letter-spacing:-1px;color:var(--gold);
   font-variant-numeric:tabular-nums;line-height:1.1}
-.spin .team{font-size:15px;font-weight:600;margin-top:2px}
+.spin .team{font-size:18px;font-weight:700;margin-top:2px;display:flex;align-items:center;justify-content:center;gap:8px}
 .spin .teamfull{font-size:11.5px;color:var(--sub);margin-top:2px;min-height:15px}
 .spin .avail{font-size:11px;color:var(--sub);margin-top:8px}
 .spin .need{font-size:12px;color:var(--blue);font-weight:600;margin-top:6px}
@@ -49,7 +54,22 @@ h1 span{color:var(--blue)}
 .rerolls button:disabled{opacity:.35;cursor:default}
 .rerolls button b{display:block;font-size:10px;color:var(--sub);font-weight:600}
 
-/* ---------- alignement ---------- */
+/* ---------- alignement & colonnes par position ---------- */
+.roster-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+@media (min-width: 850px) {
+  .roster-board {
+    display: grid;
+    grid-template-columns: 2fr 1.3fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+}
+
 .grouplbl{font-size:10.5px;color:var(--sub);letter-spacing:.05em;text-transform:uppercase;
   margin:14px 0 6px;display:flex;justify-content:space-between}
 .unit{display:grid;gap:5px;margin-bottom:5px}
@@ -76,11 +96,13 @@ h1 span{color:var(--blue)}
 .pool{display:flex;flex-direction:column;gap:7px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
   padding:9px 11px;display:flex;align-items:center;gap:9px}
+.card .card-logo{flex:none;display:flex;align-items:center;justify-content:center}
 .card .info{flex:1;min-width:0}
 .card .nm{font-size:13.5px;font-weight:700}
-.card .mt{font-size:10.5px;color:var(--sub)}
+.card .mt{font-size:10.5px;color:var(--sub);display:flex;align-items:center;gap:4px}
 .card .st{font-size:10.5px;color:var(--sub);margin-top:2px;font-variant-numeric:tabular-nums}
 .card .cp{font-size:13px;font-weight:700;color:var(--gold);flex:none;text-align:right}
+.card .cap-pct{font-size:10px;color:var(--sub);font-weight:600;display:block}
 .card .add{flex:none;background:var(--blue);color:#04101c;border:none;border-radius:8px;
   padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer}
 .card .add:disabled{background:#233549;color:#5d7089}
