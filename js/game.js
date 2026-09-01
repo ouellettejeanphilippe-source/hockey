@@ -104,8 +104,20 @@ const G = {
 
 const picked = () => Object.values(G.roster);
 const capUsed = () => picked().reduce((s, p) => s + p.$, 0);
-const openSlots = p => SLOTS.filter(s => !G.roster[s.i] && fits(p, s));
+const openSlots = p => SLOTS.filter(s => !G.roster[s.i] && fits(p, s))
+  .sort((a, b) => getPositionPenalty(p, a) - getPositionPenalty(p, b) || a.i - b.i);
 const nextNeed = () => SLOTS.find(s => !G.roster[s.i]) || null;
+
+function getPositionLabel(p) {
+  if (!p) return '';
+  if (p.np === 'LD' || p.np === 'DG') return 'DG (LD)';
+  if (p.np === 'RD' || p.np === 'DD') return 'DD (RD)';
+  if (p.np === 'L' || p.np === 'AG') return 'AG (LW)';
+  if (p.np === 'R' || p.np === 'AD') return 'AD (RW)';
+  if (p.np === 'C') return 'C';
+  if (p.p === 'G') return 'G';
+  return p.np || p.p;
+}
 
 /* ---------- démarrage ---------- */
 
@@ -189,9 +201,8 @@ async function getShard(label) {
   const shard = await loadSeason(label);
   const byTeam = {};
   for (const p of shard.players) {
-    if (p.p === 'D' && (p.np === 'D' || !p.np)) {
-      const isRight = p.id ? (p.id % 2 === 1) : (p.n.length % 2 === 1);
-      p.np = isRight ? 'RD' : 'LD';
+    if ((p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (!p.np || p.np === 'D')) {
+      p.np = (p.shootsCatches === 'R' || p.shoots === 'R') ? 'RD' : 'LD';
     }
     registerHiddenRatings(p);
     (byTeam[p.t] = byTeam[p.t] || []).push(p);
@@ -266,9 +277,6 @@ function renderCap() {
   if ($('capMaxLbl')) {
     $('capMaxLbl').textContent = isEra ? `/ ${money(eraCapMax)} (${curSeason})` : `/ ${money(CAP)}`;
   }
-  if ($('subTitleCap')) {
-    $('subTitleCap').textContent = `BATTEZ LES BRUINS DE '23 · PLAFOND DE ${money(CAP)}`;
-  }
 
   const need = nextNeed();
   const lbl = $('nextNeedLbl');
@@ -334,8 +342,6 @@ function getSeasonMaxGP(season) {
   if (season === '2019-20') return 70;
   return 82;
 }
-
-import { getUnitSynergy } from './sim.js';
 
 function getPlayerDisplayStats(p) {
   const maxGP = getSeasonMaxGP(p.s);
@@ -527,9 +533,9 @@ function renderPool() {
   if (G.filter === 'C') list = list.filter(p => p.np === 'C');
   else if (G.filter === 'AG') list = list.filter(p => p.np === 'L' || p.np === 'AG');
   else if (G.filter === 'AD') list = list.filter(p => p.np === 'R' || p.np === 'AD');
-  else if (G.filter === 'LD') list = list.filter(p => p.p === 'D' && (p.np === 'LD' || p.np === 'L'));
-  else if (G.filter === 'RD') list = list.filter(p => p.p === 'D' && (p.np === 'RD' || p.np === 'R'));
-  else if (G.filter === 'D') list = list.filter(p => p.p === 'D');
+  else if (G.filter === 'LD') list = list.filter(p => (p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (p.np === 'LD' || p.np === 'L' || p.np === 'DG'));
+  else if (G.filter === 'RD') list = list.filter(p => (p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (p.np === 'RD' || p.np === 'R' || p.np === 'DD'));
+  else if (G.filter === 'D') list = list.filter(p => p.p === 'D' || p.p === 'LD' || p.p === 'RD');
   else if (G.filter === 'G') list = list.filter(p => p.p === 'G');
 
   if (G.sortBy === 'SAL') {
@@ -552,11 +558,11 @@ function renderPool() {
   }
 
   const poolColsDef = [
-    { key: 'AG', title: 'AG / LW', test: p => p.p !== 'G' && p.p !== 'D' && (p.np === 'L' || p.np === 'AG') },
-    { key: 'C',  title: 'C',       test: p => p.p !== 'G' && p.p !== 'D' && (p.np === 'C' || (p.np !== 'L' && p.np !== 'R' && p.np !== 'AG' && p.np !== 'AD')) },
-    { key: 'AD', title: 'AD / RW', test: p => p.p !== 'G' && p.p !== 'D' && (p.np === 'R' || p.np === 'AD') },
-    { key: 'LD', title: 'DG / LD', test: p => p.p === 'D' && (p.np === 'LD' || p.np === 'L') },
-    { key: 'RD', title: 'DD / RD', test: p => p.p === 'D' && (p.np === 'RD' || p.np === 'R') },
+    { key: 'AG', title: 'AG / LW', test: p => p.p !== 'G' && p.p !== 'D' && p.p !== 'LD' && p.p !== 'RD' && (p.np === 'L' || p.np === 'AG') },
+    { key: 'C',  title: 'C',       test: p => p.p !== 'G' && p.p !== 'D' && p.p !== 'LD' && p.p !== 'RD' && (p.np === 'C' || (p.np !== 'L' && p.np !== 'R' && p.np !== 'AG' && p.np !== 'AD')) },
+    { key: 'AD', title: 'AD / RW', test: p => p.p !== 'G' && p.p !== 'D' && p.p !== 'LD' && p.p !== 'RD' && (p.np === 'R' || p.np === 'AD') },
+    { key: 'LD', title: 'DG / LD', test: p => (p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (p.np === 'LD' || p.np === 'L' || p.np === 'DG') },
+    { key: 'RD', title: 'DD / RD', test: p => (p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (p.np === 'RD' || p.np === 'R' || p.np === 'DD') },
     { key: 'G',  title: 'G',       test: p => p.p === 'G' },
   ];
 
@@ -631,7 +637,7 @@ function renderPool() {
             </div>
             <div class="info">
               <div class="nm" style="font-size:13.5px;">${formatPlayerName(p.n)}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
-              <div class="mt" style="font-size:10px;">${p.np} · ${p.t} ${p.s}</div>
+              <div class="mt" style="font-size:10px;">${getPositionLabel(p)} · ${p.t} ${p.s}</div>
             </div>
           </div>
           <div style="font-size:10.5px;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
