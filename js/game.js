@@ -34,6 +34,10 @@ const G = {
   left: { ...REROLLS },
   target: null,
   filter: 'ALL',
+  sortBy: 'PTS',
+  statsProrata: false,
+  salaryCapPct: false,
+  fogOfWar: false,    // false = Hexagon ON, true = Fog of War (Hexagon OFF)
   done: false,
   loading: false,
   shards: new Map(),  // saison -> { players, byTeam }
@@ -50,6 +54,7 @@ async function boot() {
   try {
     await loadIndex();
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
+    setupEvents();
     await nextSpin(true, true);
     $('boot').style.display = 'none';
     $('game').style.display = '';
@@ -60,6 +65,53 @@ async function boot() {
       Vérifie que <span class="mono">data/index.json</span> existe, ou lance
       <span class="mono">python3 scripts/build_shards.py</span>.</div>`;
   }
+}
+
+function setupEvents() {
+  const tStats = $('toggleStatsBtn');
+  if (tStats) {
+    tStats.onclick = () => {
+      G.statsProrata = !G.statsProrata;
+      tStats.textContent = G.statsProrata ? '📊 PRO RATA 82M' : '📊 RÉELLES';
+      tStats.classList.toggle('active', G.statsProrata);
+      render();
+    };
+  }
+
+  const tSal = $('toggleSalBtn');
+  if (tSal) {
+    tSal.onclick = () => {
+      G.salaryCapPct = !G.salaryCapPct;
+      tSal.textContent = G.salaryCapPct ? '% CAP' : '$ CAP';
+      tSal.classList.toggle('active', G.salaryCapPct);
+      render();
+    };
+  }
+
+  const tFog = $('toggleFogBtn');
+  if (tFog) {
+    tFog.onclick = () => {
+      G.fogOfWar = !G.fogOfWar;
+      tFog.textContent = G.fogOfWar ? '🔒 FOG OF WAR' : '⬢ HEXA ON';
+      tFog.classList.toggle('active', !G.fogOfWar);
+      if (G.fogOfWar) hideRadar();
+      render();
+    };
+  }
+
+  const sSelect = $('sortSelect');
+  if (sSelect) {
+    sSelect.onchange = () => {
+      G.sortBy = sSelect.value;
+      render();
+    };
+  }
+
+  const lbBtn = $('openLeaderboardBtn');
+  if (lbBtn) lbBtn.onclick = showLeaderboard;
+
+  const closeLbBtn = $('closeLeaderboardBtn');
+  if (closeLbBtn) closeLbBtn.onclick = hideLeaderboard;
 }
 
 /* ---------- roulette ---------- */
@@ -186,6 +238,38 @@ function renderSpin() {
   $('rrP').onclick = () => reroll('pass', true, true);
 }
 
+function getSeasonMaxGP(season) {
+  if (season === '1994-95' || season === '2012-13') return 48;
+  if (season === '2020-21') return 56;
+  if (season === '2019-20') return 70;
+  return 82;
+}
+
+function getPlayerDisplayStats(p) {
+  const maxGP = getSeasonMaxGP(p.s);
+  const factor = (G.statsProrata && maxGP < 82) ? (82 / maxGP) : 1;
+
+  const gp = Math.round(p.gp * factor);
+  const g = Math.round(p.g * factor);
+  const a = Math.round(p.a * factor);
+  const pt = Math.round(p.pt * factor);
+  const pm = Math.round(p.pm * factor);
+  const w = Math.round((p.w ?? 0) * factor);
+  const l = Math.round((p.l ?? 0) * factor);
+  const so = Math.round((p.so ?? 0) * factor);
+
+  const salaryDisplay = G.salaryCapPct ? `${p.cp}% CAP` : money(p.$);
+
+  return { factor, maxGP, gp, g, a, pt, pm, w, l, so, salaryDisplay };
+}
+
+function getHeadshotHtml(p, size = 44) {
+  if (p.id) {
+    return `<img class="headshot-img" src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" alt="${p.n}" onerror="this.onerror=null;this.replaceWith(document.createRange().createContextualFragment('<div class=\\'headshot-fallback\\'>👤</div>'));">`;
+  }
+  return `<div class="headshot-fallback">👤</div>`;
+}
+
 function slotCardEl(s) {
   const p = G.roster[s.i];
   const d = document.createElement('div');
@@ -196,24 +280,38 @@ function slotCardEl(s) {
   if (p) {
     const penTag = pen > 0 ? `<span class="tag-pen">-${pen}</span>` : '';
     const logo = getTeamLogoHtml(p.t, 14);
+    const st = getPlayerDisplayStats(p);
 
-    let statValue = p.pt ?? p.w ?? 0;
+    let statValue = p.p === 'G' ? st.w : st.pt;
     let statUnit = p.p === 'G' ? 'V' : 'PTS';
+
+    const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
+    const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
+
     let subStats = p.p === 'G'
       ? `${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA`
-      : `${p.g}G ${p.a}A · ${p.pm > 0 ? '+' : ''}${p.pm}`;
+      : `${st.g}G ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
+
+    const headshotMini = p.id
+      ? `<img class="slot-headshot" src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" onerror="this.style.display='none'">`
+      : '';
 
     d.innerHTML = `
       <button class="slot-remove-btn" data-i="${s.i}" title="Retirer">✕</button>
       <div class="slot-top">
-        <div class="slot-player-name">${p.n} ${penTag}</div>
-        <div class="slot-salary">${money(p.$)}</div>
+        <div class="slot-player-group">
+          ${headshotMini}
+          <div class="slot-player-name">${p.n} ${penTag}</div>
+        </div>
+        <div class="slot-salary">${st.salaryDisplay}</div>
       </div>
       <div class="slot-big-stat">${statValue}<span class="stat-unit">${statUnit}</span></div>
       <div class="slot-bottom">
         <div class="slot-team-info">${logo} ${p.t} '${p.s.slice(-2)}</div>
         <div>${subStats}</div>
       </div>`;
+
+    if (!G.fogOfWar) attachRadarEvents(d, p);
   } else {
     d.innerHTML = `<div class="empty-role-lbl">+ ${s.role}</div><div style="font-size:9.5px;color:var(--muted);margin-top:2px">${s.label}</div>`;
     d.onclick = () => { G.target = (G.target === s.i ? null : s.i); render(); };
@@ -290,7 +388,16 @@ function renderPool() {
   else if (G.filter === 'D') list = list.filter(p => p.p === 'D');
   else if (G.filter === 'G') list = list.filter(p => p.p === 'G');
 
-  list.sort((a, b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0) || b.$ - a.$);
+  if (G.sortBy === 'SAL') {
+    list.sort((a, b) => b.$ - a.$ || (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0));
+  } else if (G.sortBy === 'PM') {
+    list.sort((a, b) => (b.pm ?? 0) - (a.pm ?? 0) || (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0));
+  } else if (G.sortBy === 'NAME') {
+    list.sort((a, b) => a.n.localeCompare(b.n));
+  } else {
+    // PTS
+    list.sort((a, b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0) || b.$ - a.$);
+  }
 
   const cntEl = $('poolCount');
   if (cntEl) cntEl.textContent = `${list.length} disponibles`;
@@ -310,23 +417,45 @@ function renderPool() {
     const penStr = pen > 0 ? ` <span class="tag-pen">-${pen}</span>` : '';
     const foStr = p.fo != null ? ` · ${Math.round(p.fo * 100)}% MJ` : '';
     const htStr = p.ht != null ? ` · ${p.ht} CH/M` : '';
-    const stat = p.p === 'G'
-      ? `${p.gp}PJ · ${p.w}V-${p.l}D · ${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA · ${p.so} BL`
-      : `${p.gp}PJ · ${p.g}B ${p.a}A ${p.pt}PTS · ${p.pm > 0 ? '+' : ''}${p.pm}${foStr}${htStr}`;
 
-    const logo = getTeamLogoHtml(p.t, 28);
-    const cpStr = p.cp ? `<span class="cap-pct">${p.cp}% du cap</span>` : '';
+    const st = getPlayerDisplayStats(p);
+
+    const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
+    const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
+
+    const stat = p.p === 'G'
+      ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA · ${st.so} BL`
+      : `${st.gp}PJ · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>${foStr}${htStr}`;
+
+    const mainBadgeVal = p.p === 'G' ? st.w : st.pt;
+    const mainBadgeLbl = p.p === 'G' ? 'VIC' : 'PTS';
+
+    const logo = getTeamLogoHtml(p.t, 20);
+    const headshot = getHeadshotHtml(p, 44);
+
+    const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
+    const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
+
+    const linksHtml = `<a class="ext-link" href="${nhlUrl}" target="_blank" title="Fiche NHL.com" onclick="event.stopPropagation()">NHL🔗</a> <a class="ext-link" href="${hdbUrl}" target="_blank" title="Fiche HockeyDB" onclick="event.stopPropagation()">HDB🔗</a>`;
+
+    const cpVal = p.cp ?? (Math.round((p.$ / 95_500_000) * 1000) / 10);
+    const priceDisplay = G.salaryCapPct ? `${cpVal}% CAP` : money(p.$);
+    const subCapStr = G.salaryCapPct ? `<span class="cap-pct">${money(p.$)}</span>` : `<span class="cap-pct">${cpVal}% du cap</span>`;
+
     const c = document.createElement('div');
     c.className = 'card';
     c.innerHTML = `
-      <div class="card-logo">${logo}</div>
+      <div class="card-avatar">
+        ${headshot}
+        <div class="team-badge-sub">${logo}</div>
+      </div>
       <div class="info">
-        <div class="nm">${p.n}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
-        <div class="mt">${p.np} · ${p.t} ${p.s}</div>
-        <div class="st">${stat}</div>
+        <div class="nm">${p.n}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr} ${linksHtml}</div>
+        <div class="mt">${p.np} · ${p.t} ${p.s} ${st.factor > 1 ? '· <span class="tag">Prorata 82M</span>' : ''}</div>
+        <div class="st"><span class="big-stat-badge"><span class="big-stat-val">${mainBadgeVal}</span><span class="big-stat-lbl">${mainBadgeLbl}</span></span>${stat}</div>
       </div>
       <div class="right-block">
-        <div class="cp">${money(p.$)}${cpStr}</div>
+        <div class="cp">${priceDisplay}${subCapStr}</div>
         <button class="add" ${already || !slot || over ? 'disabled' : ''}>${already ? '✓ SIGNÉ' : '+ SIGNER'}</button>
       </div>`;
 
@@ -338,6 +467,9 @@ function renderPool() {
       render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
+
+    if (!G.fogOfWar) attachRadarEvents(c, p);
+
     host.appendChild(c);
   }
 }
@@ -353,6 +485,152 @@ function renderMain() {
 
 function render() {
   renderCap(); renderSpin(); renderFilters(); renderPool(); renderRoster(); renderMain();
+}
+
+/* ---------- FIFA Radar Chart Tooltip ---------- */
+
+function attachRadarEvents(el, p) {
+  el.addEventListener('mouseenter', ev => showRadar(ev, p));
+  el.addEventListener('mousemove', ev => positionRadar(ev));
+  el.addEventListener('mouseleave', hideRadar);
+}
+
+function showRadar(ev, p) {
+  if (G.fogOfWar) return;
+  const tooltip = $('radarTooltip');
+  if (!tooltip) return;
+
+  const isG = p.p === 'G';
+  const labels = isG
+    ? ['TEC', 'BLI', 'ROB', 'CLU', 'RÉF', 'OVR']
+    : ['ATT', 'DÉF', 'ROB', 'CLU', 'VIT', 'OVR'];
+
+  const values = isG
+    ? [p.o, p.d, p.r, p.c, p.sp ?? p.o, p.v]
+    : [p.o, p.d, p.r, p.c, p.sp ?? 50, p.v];
+
+  // Draw 6-axis polygon SVG
+  const size = 160;
+  const center = size / 2;
+  const radius = 52;
+
+  const getCoord = (val, i) => {
+    const angle = (i * 60 - 90) * (Math.PI / 180);
+    const r = (val / 100) * radius;
+    return [center + r * Math.cos(angle), center + r * Math.sin(angle)];
+  };
+
+  // Background Grid (25, 50, 75, 100)
+  let gridSvg = '';
+  [0.25, 0.50, 0.75, 1.0].forEach(level => {
+    const points = [];
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * 60 - 90) * (Math.PI / 180);
+      const r = level * radius;
+      points.push(`${center + r * Math.cos(angle)},${center + r * Math.sin(angle)}`);
+    }
+    gridSvg += `<polygon points="${points.join(' ')}" fill="none" stroke="rgba(26,50,77,0.6)" stroke-width="1"/>`;
+  });
+
+  // Axis lines & labels
+  let axesSvg = '';
+  let labelsSvg = '';
+  for (let i = 0; i < 6; i++) {
+    const angle = (i * 60 - 90) * (Math.PI / 180);
+    const x2 = center + radius * Math.cos(angle);
+    const y2 = center + radius * Math.sin(angle);
+    axesSvg += `<line x1="${center}" y1="${center}" x2="${x2}" y2="${y2}" stroke="rgba(26,50,77,0.8)" stroke-width="1"/>`;
+
+    const lx = center + (radius + 15) * Math.cos(angle);
+    const ly = center + (radius + 15) * Math.sin(angle);
+    labelsSvg += `<text x="${lx}" y="${ly + 3}" fill="#829ab3" font-size="8" font-weight="800" text-anchor="middle">${labels[i]}</text>`;
+  }
+
+  // Player Value Polygon
+  const valPoints = values.slice(0, 6).map((v, i) => getCoord(v, i).join(',')).join(' ');
+  const polygonSvg = `<polygon points="${valPoints}" fill="rgba(244,196,48,0.35)" stroke="#f4c430" stroke-width="2"/>`;
+
+  // Value Dots
+  let dotsSvg = '';
+  values.slice(0, 6).forEach((v, i) => {
+    const [cx, cy] = getCoord(v, i);
+    dotsSvg += `<circle cx="${cx}" cy="${cy}" r="3" fill="#38bdf8"/>`;
+  });
+
+  tooltip.innerHTML = `
+    <div class="radar-header">${p.n}</div>
+    <div class="radar-sub">${p.np} · ${p.t} · COTE ${p.v}</div>
+    <svg class="radar-chart-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      ${gridSvg}
+      ${axesSvg}
+      ${polygonSvg}
+      ${dotsSvg}
+      ${labelsSvg}
+    </svg>`;
+
+  tooltip.style.display = 'block';
+  positionRadar(ev);
+}
+
+function positionRadar(ev) {
+  const tooltip = $('radarTooltip');
+  if (!tooltip || tooltip.style.display === 'none') return;
+  const x = Math.min(window.innerWidth - 225, ev.clientX + 15);
+  const y = Math.min(window.innerHeight - 240, ev.clientY + 15);
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+
+function hideRadar() {
+  const tooltip = $('radarTooltip');
+  if (tooltip) tooltip.style.display = 'none';
+}
+
+/* ---------- Leaderboard ---------- */
+
+function saveLeaderboard(entry) {
+  try {
+    const raw = localStorage.getItem('cap82_leaderboard');
+    const list = raw ? JSON.parse(raw) : [];
+    list.unshift(entry);
+    localStorage.setItem('cap82_leaderboard', JSON.stringify(list.slice(0, 20)));
+  } catch {}
+}
+
+function showLeaderboard() {
+  const modal = $('leaderboardModal');
+  const body = $('leaderboardBody');
+  if (!modal || !body) return;
+
+  try {
+    const raw = localStorage.getItem('cap82_leaderboard');
+    const list = raw ? JSON.parse(raw) : [];
+
+    if (!list.length) {
+      body.innerHTML = `<div class="empty-msg">Aucune saison enregistrée pour l'instant.<br>Complétez une saison pour figurer dans l'historique !</div>`;
+    } else {
+      body.innerHTML = list.map(item => `
+        <div class="leaderboard-item">
+          <div>
+            <div class="lb-score ${item.W === 82 ? 'perfect' : ''}">${item.W}-${item.L}-${item.OTL}</div>
+            <div style="font-size:10px;color:var(--text);margin-top:2px">${item.points} pts · Diff ${item.GF - item.GA > 0 ? '+' : ''}${item.GF - item.GA}</div>
+          </div>
+          <div class="lb-details">
+            <div>Masse: ${money(item.capUsed)} / ${money(CAP)}</div>
+            <div>${item.date}</div>
+          </div>
+        </div>`).join('');
+    }
+  } catch {
+    body.innerHTML = `<div class="empty-msg">Impossible d'accéder à l'historique.</div>`;
+  }
+
+  modal.style.display = 'flex';
+}
+
+function hideLeaderboard() {
+  const modal = $('leaderboardModal');
+  if (modal) modal.style.display = 'none';
 }
 
 /* ---------- simulation ---------- */
@@ -384,6 +662,12 @@ $('mainBtn').onclick = () => {
       <div class="rn" style="display:flex;align-items:center;gap:6px">${logo} <span>${p.n} <span class="sub">(${s.role})</span></span></div>
       <div class="rs">OFF ${p.o} · DEF ${p.d} · ROB ${p.r} · CLU ${p.c} · <b>G ${p.v}</b></div></div>`;
   }).join('');
+
+  saveLeaderboard({
+    W: r.W, L: r.L, OTL: r.OTL, points: r.points,
+    GF: r.GF, GA: r.GA, capUsed: capUsed(),
+    date: new Date().toLocaleDateString('fr-CA')
+  });
 
   $('resultHost').innerHTML = `
     <div class="result">

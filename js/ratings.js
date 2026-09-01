@@ -9,7 +9,7 @@
  * des shards). Une seule implémentation, un seul endroit à corriger.
  */
 
-export const RATINGS_VERSION = 5;
+export const RATINGS_VERSION = 6;
 
 /* ---------- outils statistiques ---------- */
 
@@ -94,6 +94,9 @@ export function rateSkaters(rows, realtimeById = null) {
     const zClu = 0.75 * z.gwg(((r.gameWinningGoals || 0) + (r.otGoals || 0)) / gp)
                + 0.25 * z.pts(per(r, 'points'));
 
+    const zSp = 0.50 * z.toi(toiMin) + 0.30 * z.shots(per(r, 'shots')) + 0.20 * z.sh(per(r, 'shPoints'));
+    const sp = scale(zSp, 52, 12);
+
     const o = scale(zOff);
     const d = scale(zDef);
     const rb = scale(zRob, 50, 12);
@@ -109,6 +112,7 @@ export function rateSkaters(rows, realtimeById = null) {
     const sal = salaryFor(v, natural);
 
     return {
+      id: r.playerId || null,
       n: r.skaterFullName,
       p: isD ? 'D' : 'F',
       np: natural,
@@ -121,7 +125,7 @@ export function rateSkaters(rows, realtimeById = null) {
       ht: htPerGame,
       fo: foPct,
       toi: Math.round(toiMin * 10) / 10,
-      o, d, r: rb, c, v,
+      o, d, r: rb, c, sp, v,
       $: sal,
       cp: capPctFor(sal),
       teams: (r.teamAbbrevs || '???').split(',').map(s => s.trim()),
@@ -149,6 +153,7 @@ export function rateGoalies(rows) {
     const rb = scale(z.gp(gp), 50, 12);                                   // Charge de travail
     const c = scale(0.6 * z.so((r.shutouts || 0) / gp)
                   + 0.4 * z.wpct((r.wins || 0) / gp), 50, 12);            // Clutch
+    const rf = scale(0.7 * z.svp(r.savePct) + 0.3 * (r.goalsAgainstAverage != null ? -z.gaa(r.goalsAgainstAverage) : 0), 52, 12); // Réflexes
 
     const v = Math.max(25, Math.min(99, Math.round(
       0.42 * o + 0.34 * d + 0.09 * rb + 0.15 * c
@@ -156,6 +161,7 @@ export function rateGoalies(rows) {
     const sal = salaryFor(v, 'G');
 
     return {
+      id: r.playerId || null,
       n: r.goalieFullName,
       p: 'G',
       np: 'G',
@@ -165,7 +171,7 @@ export function rateGoalies(rows) {
       sv: r.savePct != null ? Math.round(r.savePct * 1000) / 1000 : null,
       ga: r.goalsAgainstAverage != null ? Math.round(r.goalsAgainstAverage * 100) / 100 : null,
       so: r.shutouts || 0,
-      o, d, r: rb, c, v,
+      o, d, r: rb, c, sp: rf, v,
       $: sal,
       cp: capPctFor(sal),
       teams: (r.teamAbbrevs || '???').split(',').map(s => s.trim()),

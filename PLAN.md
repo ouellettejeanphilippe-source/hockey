@@ -71,3 +71,4 @@
 |---|---|
 | 2026-09-01 | Création du dépôt. Fondations, données et jeu en place. Reste D2, D7, D8, D9 à vérifier contre l'API réelle avant de considérer la base solide. |
 | 2026-09-01 | Réalisation des tâches de priorité haute D2, D7, D8, D9. Vérification CORS, génération de data/seed.json et data/index.json, et validation des codes d'équipe. |
+| 2026-09-01 | Amélioration UI/UX : Toggles (stats réelles/prorata 82M, $ cap/% cap, Fog of war / Hexagone FIFA), headshots LNH avec fallback, +/- colorés, badges de PTS/V en gros, tri du bassin, liens externes (NHL/HDB), et historique/leaderboard local. |

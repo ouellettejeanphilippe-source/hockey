@@ -34,9 +34,36 @@
 
   <div class="spin" id="spin"></div>
 
+  <!-- Options & Toggles Bar -->
+  <div class="toggles-bar">
+    <div class="toggle-group">
+      <span class="toggle-label">STATS :</span>
+      <button id="toggleStatsBtn" class="toggle-btn active" title="Basculer entre Vraies stats et Prorata 82 matchs">📊 RÉELLES</button>
+    </div>
+    <div class="toggle-group">
+      <span class="toggle-label">SALAIRE :</span>
+      <button id="toggleSalBtn" class="toggle-btn active" title="Basculer entre $ modernisé et % Cap">$ CAP</button>
+    </div>
+    <div class="toggle-group">
+      <span class="toggle-label">FOG OF WAR :</span>
+      <button id="toggleFogBtn" class="toggle-btn" title="Activer/Désactiver l'Hexagone de cotes au survol">⬢ HEXA ON</button>
+    </div>
+    <div class="toggle-group">
+      <button id="openLeaderboardBtn" class="toggle-btn gold">🏆 HISTORIQUE</button>
+    </div>
+  </div>
+
   <div class="section-title">
     <span>BASSIN DES JOUEURS DISPONIBLES</span>
-    <span class="sub-count" id="poolCount">0 joueurs</span>
+    <div class="pool-controls">
+      <select id="sortSelect" class="sort-select">
+        <option value="PTS">Trier par Points / Victoires</option>
+        <option value="SAL">Trier par Salaire ($)</option>
+        <option value="PM">Trier par Différentiel (+/-)</option>
+        <option value="NAME">Trier par Nom</option>
+      </select>
+      <span class="sub-count" id="poolCount">0 joueurs</span>
+    </div>
   </div>
   <div class="filters" id="filters"></div>
   <div class="pool" id="pool"></div>
@@ -88,6 +115,22 @@
   </div>
 
   <div id="resultHost"></div>
+</div>
+
+<!-- Radar Chart Tooltip (FIFA Style) -->
+<div id="radarTooltip" class="radar-tooltip" style="display:none;"></div>
+
+<!-- Leaderboard Modal -->
+<div id="leaderboardModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🏆 HISTORIQUE & MEILLEURS SCORES</h2>
+      <button id="closeLeaderboardBtn" class="close-btn">✕</button>
+    </div>
+    <div class="modal-body" id="leaderboardBody">
+      <div class="empty-msg">Aucune saison enregistrée pour l'instant.</div>
+    </div>
+  </div>
 </div>
 
 <div class="actions">
