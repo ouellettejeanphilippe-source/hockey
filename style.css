@@ -86,6 +86,11 @@ h1 span{color:var(--blue)}
 .card .add:disabled{background:#233549;color:#5d7089}
 .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);color:var(--purple);
   font-size:9px;padding:1px 5px;border-radius:4px;margin-left:5px;vertical-align:1px}
+.tag-pen{display:inline-block;background:rgba(226,86,77,0.15);border:1px solid var(--red);color:var(--red);
+  font-size:9px;font-weight:700;padding:1px 4px;border-radius:4px;margin-left:4px;vertical-align:1px}
+.pos-badge{font-size:9px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.empty-role{font-weight:600;font-size:11px}
+.slot.oop{border-color:var(--red)}
 .empty-msg{color:var(--sub);font-size:12.5px;padding:20px 4px;text-align:center;line-height:1.5}
 
 /* ---------- barre du bas ---------- */
