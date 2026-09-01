@@ -35,6 +35,14 @@
   <!-- Options & Toggles Bar -->
   <div class="toggles-bar">
     <div class="toggle-group">
+      <span class="toggle-label">DISPOSITION :</span>
+      <button id="toggleLayoutBtn" class="toggle-btn" title="Basculer entre Disposition Classique et Disposition Inversée avec Depth Chart sur Glace">📐 CLASSIQUE</button>
+    </div>
+    <div class="toggle-group">
+      <span class="toggle-label">CARTE :</span>
+      <button id="toggleViewBtn" class="toggle-btn active" title="Basculer entre Vue Compacte et Vue Détaillée">🎴 COMPACTE</button>
+    </div>
+    <div class="toggle-group">
       <span class="toggle-label">STATS :</span>
       <button id="toggleStatsBtn" class="toggle-btn active" title="Basculer entre Vraies stats et Prorata 82 matchs">📊 RÉELLES</button>
     </div>
@@ -139,6 +147,14 @@
     <div class="modal-body" id="leaderboardBody">
       <div class="empty-msg">Aucune saison enregistrée pour l'instant.</div>
     </div>
+  </div>
+</div>
+
+<!-- Hockey Card Modal -->
+<div id="hockeyCardModal" class="modal-backdrop" style="display:none;">
+  <div class="hockey-card-modal-content">
+    <button id="closeHockeyCardBtn" class="hockey-card-close-btn">✕</button>
+    <div id="hockeyCardBody"></div>
   </div>
 </div>
 

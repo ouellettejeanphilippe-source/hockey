@@ -94,6 +94,8 @@ const G = {
   selectedSlot: null, // slot sélectionné pour déplacement / permutation
   filter: 'ALL',
   sortBy: 'PTS',
+  compactView: true,  // true = Compact View (screenshot), false = Detailed View
+  layoutMode: 'classic', // 'classic' or 'rink'
   statsProrata: false,
   salaryMode: '2026', // '2026' or 'ERA'
   fogOfWar: false,    // false = Hexagon ON, true = Fog of War (Hexagon OFF)
@@ -142,6 +144,27 @@ async function boot() {
 }
 
 function setupEvents() {
+  const tLayout = $('toggleLayoutBtn');
+  if (tLayout) {
+    tLayout.onclick = () => {
+      G.layoutMode = G.layoutMode === 'classic' ? 'rink' : 'classic';
+      tLayout.textContent = G.layoutMode === 'rink' ? '🏒 INVERSÉE (RINK)' : '📐 CLASSIQUE';
+      tLayout.classList.toggle('active', G.layoutMode === 'rink');
+      document.body.classList.toggle('layout-rink', G.layoutMode === 'rink');
+      render();
+    };
+  }
+
+  const tView = $('toggleViewBtn');
+  if (tView) {
+    tView.onclick = () => {
+      G.compactView = !G.compactView;
+      tView.textContent = G.compactView ? '🎴 COMPACTE' : '🎴 DÉTAILLÉE';
+      tView.classList.toggle('active', G.compactView);
+      render();
+    };
+  }
+
   const tStats = $('toggleStatsBtn');
   if (tStats) {
     tStats.onclick = () => {
@@ -192,6 +215,24 @@ function setupEvents() {
 
   const closeBibleBtn = $('closeBibleBtn');
   if (closeBibleBtn) closeBibleBtn.onclick = hideBible;
+
+  const closeCardBtn = $('closeHockeyCardBtn');
+  if (closeCardBtn) closeCardBtn.onclick = hideHockeyCardModal;
+
+  window.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') {
+      hideHockeyCardModal();
+      hideLeaderboard();
+      hideBible();
+    }
+  });
+
+  const hockeyModal = $('hockeyCardModal');
+  if (hockeyModal) {
+    hockeyModal.onclick = ev => {
+      if (ev.target === hockeyModal) hideHockeyCardModal();
+    };
+  }
 }
 
 /* ---------- roulette ---------- */
@@ -461,34 +502,111 @@ function slotCardEl(s) {
 }
 
 function renderRoster() {
-  const categories = {
-    LW: SLOTS.filter(s => s.role === 'AG'),
-    C: SLOTS.filter(s => s.role === 'C'),
-    RW: SLOTS.filter(s => s.role === 'AD'),
-    LD: SLOTS.filter(s => s.role === 'DG'),
-    RD: SLOTS.filter(s => s.role === 'DD'),
-    G: SLOTS.filter(s => s.group === 'G' || s.scratch)
-  };
+  const board = $('rosterBoard');
+  if (!board) return;
 
-  const populateCol = (containerId, cntId, slotsList) => {
-    const container = $(containerId);
-    if (!container) return;
-    container.innerHTML = '';
-    let filled = 0;
-    slotsList.forEach(s => {
-      if (G.roster[s.i]) filled++;
-      container.appendChild(slotCardEl(s));
-    });
-    const cntEl = $(cntId);
-    if (cntEl) cntEl.textContent = `${filled}/${slotsList.length}`;
-  };
+  if (G.layoutMode === 'rink') {
+    board.className = 'roster-board rink-mode';
+    board.innerHTML = `
+      <div class="rink-surface">
+        <div class="rink-marking red-line"></div>
+        <div class="rink-marking blue-line-top"></div>
+        <div class="rink-marking blue-line-bottom"></div>
+        <div class="rink-marking center-circle"></div>
+        <div class="rink-marking crease"></div>
 
-  populateCol('lwSlots', 'lwCnt', categories.LW);
-  populateCol('cSlots', 'cCnt', categories.C);
-  populateCol('rwSlots', 'rwCnt', categories.RW);
-  populateCol('ldSlots', 'ldCnt', categories.LD);
-  populateCol('rdSlots', 'rdCnt', categories.RD);
-  populateCol('gSlots', 'gCnt', categories.G);
+        <div class="rink-zone zone-forwards">
+          <div class="rink-zone-title">💥 ATTAQUE (4 TRIOS)</div>
+          <div class="rink-lines-container" id="rinkForwards"></div>
+        </div>
+
+        <div class="rink-zone zone-defense">
+          <div class="rink-zone-title">🛡️ DÉFENSE (3 PAIRES)</div>
+          <div class="rink-lines-container" id="rinkDefense"></div>
+        </div>
+
+        <div class="rink-zone zone-goalies">
+          <div class="rink-zone-title">🥅 GARDIENS & RÉSERVES</div>
+          <div class="rink-lines-container" id="rinkGoalies"></div>
+        </div>
+      </div>`;
+
+    const fwHost = $('rinkForwards');
+    if (fwHost) {
+      for (let u = 0; u < 4; u++) {
+        const lineEl = document.createElement('div');
+        lineEl.className = 'rink-line-row';
+        const lwSlot = SLOTS.find(s => s.role === 'AG' && s.unit === u);
+        const cSlot = SLOTS.find(s => s.role === 'C' && s.unit === u);
+        const rwSlot = SLOTS.find(s => s.role === 'AD' && s.unit === u);
+        if (lwSlot) lineEl.appendChild(slotCardEl(lwSlot));
+        if (cSlot) lineEl.appendChild(slotCardEl(cSlot));
+        if (rwSlot) lineEl.appendChild(slotCardEl(rwSlot));
+        fwHost.appendChild(lineEl);
+      }
+    }
+
+    const defHost = $('rinkDefense');
+    if (defHost) {
+      for (let u = 0; u < 3; u++) {
+        const pairEl = document.createElement('div');
+        pairEl.className = 'rink-line-row def-pair';
+        const ldSlot = SLOTS.find(s => s.role === 'DG' && s.unit === u);
+        const rdSlot = SLOTS.find(s => s.role === 'DD' && s.unit === u);
+        if (ldSlot) pairEl.appendChild(slotCardEl(ldSlot));
+        if (rdSlot) pairEl.appendChild(slotCardEl(rdSlot));
+        defHost.appendChild(pairEl);
+      }
+    }
+
+    const gHost = $('rinkGoalies');
+    if (gHost) {
+      const gRow = document.createElement('div');
+      gRow.className = 'rink-line-row goalies-row';
+      const gSlots = SLOTS.filter(s => s.group === 'G' || s.scratch);
+      gSlots.forEach(s => gRow.appendChild(slotCardEl(s)));
+      gHost.appendChild(gRow);
+    }
+
+  } else {
+    board.className = 'roster-board';
+    board.innerHTML = `
+      <div class="roster-col col-lw"><div class="col-header"><span class="col-title">AG / LW</span><span class="col-count" id="lwCnt">0/4</span></div><div class="col-slots" id="lwSlots"></div></div>
+      <div class="roster-col col-c"><div class="col-header"><span class="col-title">C</span><span class="col-count" id="cCnt">0/4</span></div><div class="col-slots" id="cSlots"></div></div>
+      <div class="roster-col col-rw"><div class="col-header"><span class="col-title">AD / RW</span><span class="col-count" id="rwCnt">0/4</span></div><div class="col-slots" id="rwSlots"></div></div>
+      <div class="roster-col col-ld"><div class="col-header"><span class="col-title">DG / LD</span><span class="col-count" id="ldCnt">0/3</span></div><div class="col-slots" id="ldSlots"></div></div>
+      <div class="roster-col col-rd"><div class="col-header"><span class="col-title">DD / RD</span><span class="col-count" id="rdCnt">0/3</span></div><div class="col-slots" id="rdSlots"></div></div>
+      <div class="roster-col col-g"><div class="col-header"><span class="col-title">G / RÉSERVES</span><span class="col-count" id="gCnt">0/5</span></div><div class="col-slots" id="gSlots"></div></div>`;
+
+    const categories = {
+      LW: SLOTS.filter(s => s.role === 'AG'),
+      C: SLOTS.filter(s => s.role === 'C'),
+      RW: SLOTS.filter(s => s.role === 'AD'),
+      LD: SLOTS.filter(s => s.role === 'DG'),
+      RD: SLOTS.filter(s => s.role === 'DD'),
+      G: SLOTS.filter(s => s.group === 'G' || s.scratch)
+    };
+
+    const populateCol = (containerId, cntId, slotsList) => {
+      const container = $(containerId);
+      if (!container) return;
+      container.innerHTML = '';
+      let filled = 0;
+      slotsList.forEach(s => {
+        if (G.roster[s.i]) filled++;
+        container.appendChild(slotCardEl(s));
+      });
+      const cntEl = $(cntId);
+      if (cntEl) cntEl.textContent = `${filled}/${slotsList.length}`;
+    };
+
+    populateCol('lwSlots', 'lwCnt', categories.LW);
+    populateCol('cSlots', 'cCnt', categories.C);
+    populateCol('rwSlots', 'rwCnt', categories.RW);
+    populateCol('ldSlots', 'ldCnt', categories.LD);
+    populateCol('rdSlots', 'rdCnt', categories.RD);
+    populateCol('gSlots', 'gCnt', categories.G);
+  }
 
   renderChemistry();
 
@@ -627,29 +745,64 @@ function renderPool() {
         else if (!slot) btnLabel = '× POSITION PLEINE';
         else if (over) btnLabel = '× HORS BUDGET';
 
-        const c = document.createElement('div');
-        c.className = 'card' + (already || !slot || over ? ' dimmed' : '');
-        c.innerHTML = `
-          <div class="card-row-top">
-            <div class="card-avatar" style="width:36px;height:36px;">
-              ${headshot}
-              <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
-            </div>
-            <div class="info">
-              <div class="nm" style="font-size:13.5px;">${formatPlayerName(p.n)}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
-              <div class="mt" style="font-size:10px;">${getPositionLabel(p)} · ${p.t} ${p.s}</div>
-            </div>
-          </div>
-          <div style="font-size:10.5px;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
-            <span><span class="big-stat-badge" style="padding:0 4px;"><span class="big-stat-val" style="font-size:12px;">${mainBadgeVal}</span><span class="big-stat-lbl">${mainBadgeLbl}</span></span>${stat}</span>
-            ${linksHtml}
-          </div>
-          <div class="card-row-bottom">
-            <div class="cp" style="font-size:12px;">${priceDisplay}${subCapStr}</div>
-            <button class="add" style="padding:5px 10px;font-size:11px;" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
-          </div>`;
+        const compactSubStats = p.p === 'G'
+          ? `${st.gp}PJ · ${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA`
+          : `${st.g}G ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
 
-        c.querySelector('.add').onclick = async () => {
+        const c = document.createElement('div');
+        c.style.cursor = 'pointer';
+
+        if (G.compactView) {
+          c.className = 'card compact' + (already || !slot || over ? ' dimmed' : '');
+          c.innerHTML = `
+            <div class="compact-top">
+              <div class="compact-name">${formatPlayerName(p.n)}${p.x ? ' <span class="tag">échangé</span>' : ''}${penStr}</div>
+              <div class="compact-price">${priceDisplay}</div>
+            </div>
+            <div class="compact-middle">
+              <div class="compact-big-stat">
+                <span class="compact-stat-num">${mainBadgeVal}</span>
+                <span class="compact-stat-unit">${mainBadgeLbl}</span>
+              </div>
+              <div class="compact-headshot">
+                ${headshot}
+                <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
+              </div>
+            </div>
+            <div class="compact-sub-stats">${compactSubStats}</div>
+            <div class="card-row-bottom" style="margin-top:2px;">
+              <button class="add compact-add" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
+            </div>`;
+        } else {
+          c.className = 'card' + (already || !slot || over ? ' dimmed' : '');
+          c.innerHTML = `
+            <div class="card-row-top">
+              <div class="card-avatar" style="width:36px;height:36px;">
+                ${headshot}
+                <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
+              </div>
+              <div class="info">
+                <div class="nm" style="font-size:13.5px;">${formatPlayerName(p.n)}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
+                <div class="mt" style="font-size:10px;">${getPositionLabel(p)} · ${p.t} ${p.s}</div>
+              </div>
+            </div>
+            <div style="font-size:10.5px;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
+              <span><span class="big-stat-badge" style="padding:0 4px;"><span class="big-stat-val" style="font-size:12px;">${mainBadgeVal}</span><span class="big-stat-lbl">${mainBadgeLbl}</span></span>${stat}</span>
+              ${linksHtml}
+            </div>
+            <div class="card-row-bottom">
+              <div class="cp" style="font-size:12px;">${priceDisplay}${subCapStr}</div>
+              <button class="add" style="padding:5px 10px;font-size:11px;" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
+            </div>`;
+        }
+
+        c.onclick = (ev) => {
+          if (ev.target.closest('.add') || ev.target.closest('.ext-link')) return;
+          showHockeyCardModal(p);
+        };
+
+        c.querySelector('.add').onclick = async (ev) => {
+          ev.stopPropagation();
           if (already || !slot || over) return;
           G.roster[slot.i] = p;
           G.target = null;
@@ -947,6 +1100,167 @@ function showBible() {
 
 function hideBible() {
   const modal = $('bibleModal');
+  if (modal) modal.style.display = 'none';
+}
+
+/* ---------- Hockey Card Modal ---------- */
+
+function showHockeyCardModal(p) {
+  const modal = $('hockeyCardModal');
+  const body = $('hockeyCardBody');
+  if (!modal || !body) return;
+
+  const used = capUsed();
+  const already = picked().includes(p);
+  const opts = openSlots(p);
+  const slot = (G.target !== null && !G.roster[G.target] && fits(p, SLOTS[G.target]))
+    ? SLOTS[G.target] : opts[0];
+  const over = (used + p.$) > CAP;
+  const pen = slot ? getPositionPenalty(p, slot) : 0;
+  const penTag = pen > 0 ? ` <span class="tag-pen">-${pen} Pos</span>` : '';
+
+  const st = getPlayerDisplayStats(p);
+  const arch = getArchetype(p);
+  const logo = getTeamLogoHtml(p.t, 24);
+  const logoBg = getTeamLogoHtml(p.t, 140);
+  const headshot = getHeadshotHtml(p, 90);
+  const colors = TEAM_COLORS[p.t] || { primary: '#112236', accent: '#38bdf8' };
+
+  const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
+  const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
+
+  const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
+  const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
+
+  let btnLabel = '+ SIGNER CE JOUEUR';
+  if (already) btnLabel = '✓ DÉJÀ SIGNÉ';
+  else if (!slot) btnLabel = '× AUCUNE POSITION DISPONIBLE';
+  else if (over) btnLabel = '× HORS BUDGET SALARIAL';
+
+  let statsTableHtml = '';
+  if (p.p === 'G') {
+    statsTableHtml = `
+      <table class="hockey-card-stats-table">
+        <thead>
+          <tr>
+            <th>PJ</th><th>V</th><th>D</th><th>DP</th><th>MBA</th><th>%ARR</th><th>BL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${st.gp}</td>
+            <td style="color:var(--gold);font-weight:900;">${st.w}</td>
+            <td>${st.l}</td>
+            <td>${st.so ?? 0}</td>
+            <td>${p.ga ?? '—'}</td>
+            <td>${p.sv ?? '—'}</td>
+            <td>${p.so ?? 0}</td>
+          </tr>
+        </tbody>
+      </table>`;
+  } else {
+    const shotStr = p.sOG != null ? Math.round(p.sOG * (st.factor || 1)) : '—';
+    const hitStr = p.ht != null ? (p.ht * (st.factor || 1)).toFixed(1) : '—';
+    const foStr = p.fo != null ? `${Math.round(p.fo * 100)}%` : '—';
+
+    statsTableHtml = `
+      <table class="hockey-card-stats-table">
+        <thead>
+          <tr>
+            <th>PJ</th><th>B</th><th>A</th><th>PTS</th><th>+/-</th><th>TIRS</th><th>CH/M</th><th>MJ%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${st.gp}</td>
+            <td style="font-weight:800;">${st.g}</td>
+            <td style="font-weight:800;">${st.a}</td>
+            <td style="color:var(--gold);font-weight:900;font-size:15px;">${st.pt}</td>
+            <td class="${pmClass}">${pmStr}</td>
+            <td>${shotStr}</td>
+            <td>${hitStr}</td>
+            <td>${foStr}</td>
+          </tr>
+        </tbody>
+      </table>`;
+  }
+
+  let ratingsHtml = '';
+  if (!G.fogOfWar) {
+    const hr = getHiddenRatings(p);
+    const isG = p.p === 'G';
+    ratingsHtml = `
+      <div class="hockey-card-ratings">
+        <div class="rating-badge-item"><span>${isG ? 'TEC' : 'ATT'}</span> <strong>${hr.o}</strong></div>
+        <div class="rating-badge-item"><span>DÉF</span> <strong>${hr.d}</strong></div>
+        <div class="rating-badge-item"><span>ROB</span> <strong>${hr.r}</strong></div>
+        <div class="rating-badge-item"><span>CLU</span> <strong>${hr.c}</strong></div>
+        <div class="rating-badge-item ovr"><span>COTE</span> <strong>${hr.v}</strong></div>
+      </div>`;
+  } else {
+    ratingsHtml = `<div class="hockey-card-fog-msg">🔒 COTES CACHÉES (Fog of War actif)</div>`;
+  }
+
+  body.innerHTML = `
+    <div class="hockey-card-wrapper" style="--card-primary: ${colors.primary}; --card-accent: ${colors.accent};">
+      <div class="hockey-card-watermark">${logoBg}</div>
+      <div class="hockey-card-top-bar">
+        <div class="hockey-card-team-info">${logo} <span>${TEAMFULL[p.t] || p.t} · ${p.s}</span></div>
+        <div class="hockey-card-pos-tag">${getPositionLabel(p)}${penTag}</div>
+      </div>
+
+      <div class="hockey-card-main-area">
+        <div class="hockey-card-headshot-frame">
+          ${headshot}
+        </div>
+        <div class="hockey-card-identity">
+          <div class="hockey-card-player-name">${formatPlayerName(p.n)}</div>
+          <div class="hockey-card-archetype" title="${arch.desc}">${arch.icon} ${arch.label}</div>
+          <div class="hockey-card-salary-block">
+            <span class="salary-main">${st.salaryPrimary}</span>
+            <span class="salary-sub">${st.salarySub}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hockey-card-stats-section">
+        <div class="hockey-card-section-title">STATISTIQUES DE LA SAISON (${p.s})</div>
+        ${statsTableHtml}
+      </div>
+
+      <div class="hockey-card-ratings-section">
+        <div class="hockey-card-section-title">PROFIL & COTES DU JOUEUR</div>
+        ${ratingsHtml}
+      </div>
+
+      <div class="hockey-card-footer">
+        <div class="hockey-card-links">
+          <a href="${nhlUrl}" target="_blank" class="ext-link">Fiche LNH 🔗</a>
+          <a href="${hdbUrl}" target="_blank" class="ext-link">Fiche HDB 🔗</a>
+        </div>
+        <button id="modalSignBtn" class="add" style="padding:8px 14px;font-size:12px;font-weight:900;" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
+      </div>
+    </div>`;
+
+  const modalSignBtn = $('modalSignBtn');
+  if (modalSignBtn) {
+    modalSignBtn.onclick = async () => {
+      if (already || !slot || over) return;
+      G.roster[slot.i] = p;
+      G.target = null;
+      hideHockeyCardModal();
+      await nextSpin(true, true);
+      saveGame();
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+  }
+
+  modal.style.display = 'flex';
+}
+
+function hideHockeyCardModal() {
+  const modal = $('hockeyCardModal');
   if (modal) modal.style.display = 'none';
 }
 
