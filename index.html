@@ -4,45 +4,86 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Bâtis un alignement de 23 joueurs de la LNH, 1970 à aujourd'hui, sous le plafond salarial. Vise la saison parfaite.">
-<title>Cap 82-0</title>
+<title>Cap Crunch — Cap 82-0</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>Cap <span>82-0</span></h1>
-<div class="sub">Chaque tour, la roulette sort une saison et une équipe. Tu piges un joueur dans ce vestiaire-là. Tu vois ses vraies stats et son salaire — ses cotes cachées (offensive, défensive, robustesse, clutch) ne sortent qu'à la simulation.</div>
+<header class="app-header">
+  <a href="#" class="back-link">← RETOUR À NHL 82-0</a>
+  <div class="logo-badge">82-0</div>
+  <h1 class="main-title">CAP <span>CRUNCH</span></h1>
+  <div class="subtitle" id="subTitleCap">BATTEZ LES BRUINS DE '23 · PLAFOND DE $95.50M</div>
+</header>
 
-<div id="boot">Chargement…</div>
+<div id="boot">Chargement du vestiaire LNH…</div>
 
 <div id="game" style="display:none">
 
   <div class="capbar">
-    <div class="row">
-      <div><div class="lbl">Plafond restant</div><div class="amt" id="capAmt">—</div></div>
-      <div style="text-align:right"><div class="lbl">Alignement</div><div class="amt" id="cnt" style="font-size:15px">0 / 23</div></div>
+    <div class="capbar-header">
+      <div class="capbar-title">CAP SPACE REMAINING / PLAFOND RESTANT</div>
+      <div class="capbar-value"><span id="capAmt" class="amt">—</span> <span class="cap-max" id="capMaxLbl">/ $95.50M</span></div>
     </div>
     <div class="track"><div class="fill" id="capFill" style="width:0%"></div></div>
+    <div class="capbar-sub">
+      <span>ALIGNEMENT: <strong id="cnt">0 / 23</strong> SIGNÉS</span>
+      <span id="nextNeedLbl" class="next-need">—</span>
+    </div>
   </div>
 
   <div class="spin" id="spin"></div>
 
+  <div class="section-title">
+    <span>BASSIN DES JOUEURS DISPONIBLES</span>
+    <span class="sub-count" id="poolCount">0 joueurs</span>
+  </div>
   <div class="filters" id="filters"></div>
   <div class="pool" id="pool"></div>
 
-  <div class="roster-board">
-    <div class="roster-col">
-      <div class="grouplbl"><span>Attaque — 4 trios</span><span id="fcnt"></span></div>
-      <div id="fLines"></div>
+  <div class="section-title" style="margin-top:24px">
+    <span>VOTRE ALIGNEMENT (23 JOUEURS)</span>
+  </div>
+
+  <div class="roster-board" id="rosterBoard">
+    <div class="roster-col col-lw">
+      <div class="col-header">
+        <span class="col-title">AG / LW</span>
+        <span class="col-count" id="lwCnt">0/4</span>
+      </div>
+      <div class="col-slots" id="lwSlots"></div>
     </div>
-    <div class="roster-col">
-      <div class="grouplbl"><span>Défense — 3 paires</span><span id="dcnt"></span></div>
-      <div id="dLines"></div>
+
+    <div class="roster-col col-c">
+      <div class="col-header">
+        <span class="col-title">C</span>
+        <span class="col-count" id="cCnt">0/4</span>
+      </div>
+      <div class="col-slots" id="cSlots"></div>
     </div>
-    <div class="roster-col">
-      <div class="grouplbl"><span>Gardiens</span><span id="gcnt"></span></div>
-      <div class="unit l2" id="gLine"></div>
-      <div class="grouplbl" style="margin-top:16px"><span>Réservistes</span><span id="scnt"></span></div>
-      <div class="unit l3" id="sLine"></div>
+
+    <div class="roster-col col-rw">
+      <div class="col-header">
+        <span class="col-title">AD / RW</span>
+        <span class="col-count" id="rwCnt">0/4</span>
+      </div>
+      <div class="col-slots" id="rwSlots"></div>
+    </div>
+
+    <div class="roster-col col-d">
+      <div class="col-header">
+        <span class="col-title">D</span>
+        <span class="col-count" id="dCnt">0/6</span>
+      </div>
+      <div class="col-slots" id="dSlots"></div>
+    </div>
+
+    <div class="roster-col col-g">
+      <div class="col-header">
+        <span class="col-title">G / RESERVES</span>
+        <span class="col-count" id="gCnt">0/5</span>
+      </div>
+      <div class="col-slots" id="gSlots"></div>
     </div>
   </div>
 

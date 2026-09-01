@@ -86,7 +86,6 @@ async function nextSpin(newSeason, newTeam) {
     let shard;
     try { shard = await getShard(season); } catch { continue; }
 
-    // vestiaires assez garnis pour offrir un vrai choix
     let teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 8);
     if (!newTeam && G.cur && shard.byTeam[G.cur.team]?.length >= 8) {
       teams = [G.cur.team];
@@ -102,12 +101,10 @@ async function nextSpin(newSeason, newTeam) {
     G.cur = { season, team, pool };
     G.loading = false;
 
-    // Mise à jour douce de la couleur de thème selon l'équipe pigée
-    const colors = TEAM_COLORS[team] || { primary: '#16273b', accent: '#42adff' };
+    const colors = TEAM_COLORS[team] || { primary: '#112236', accent: '#38bdf8' };
     document.documentElement.style.setProperty('--team-primary', colors.primary);
     document.documentElement.style.setProperty('--team-accent', colors.accent);
 
-    // précharge deux saisons probables pendant que le joueur regarde le vestiaire
     prefetch([rnd(seasons), rnd(seasons)]);
     return;
   }
@@ -124,39 +121,58 @@ function renderCap() {
   a.textContent = money(rem);
   a.classList.toggle('over', rem < 0);
   const f = $('capFill');
-  f.style.width = Math.min(100, (used / CAP) * 100) + '%';
+  f.style.width = Math.min(100, Math.max(0, (used / CAP) * 100)) + '%';
   f.classList.toggle('over', rem < 0);
   $('cnt').textContent = `${picked().length} / 23`;
+
+  if ($('capMaxLbl')) $('capMaxLbl').textContent = `/ ${money(CAP)}`;
+  if ($('subTitleCap')) $('subTitleCap').textContent = `BATTEZ LES BRUINS DE '23 · PLAFOND DE ${money(CAP)}`;
+
+  const need = nextNeed();
+  const lbl = $('nextNeedLbl');
+  if (lbl) {
+    lbl.textContent = need ? `À COMBLER: ${need.role} (${need.label})` : 'ALIGNEMENT COMPLET';
+  }
 }
 
 function renderSpin() {
   const host = $('spin');
   if (G.loading) {
-    host.innerHTML = `<div class="season">…</div><div class="teamfull">Chargement de la saison</div>`;
+    host.innerHTML = `<div class="spin-card"><div class="spin-team-name">CHARGEMENT…</div></div>`;
     return;
   }
-  const need = nextNeed();
   const full = TEAMFULL[G.cur.team];
-  const dead = DEFUNCT.has(G.cur.team) ? ' · franchise disparue' : '';
-  const minGP = state.index.minGP ?? 10;
+  const dead = DEFUNCT.has(G.cur.team) ? ' · DISPARUE' : '';
 
-  const logoHtml = getTeamLogoHtml(G.cur.team, 40);
+  const logoHtml = getTeamLogoHtml(G.cur.team, 52);
 
   host.innerHTML = `
-    <div class="spin-header">
-      <div class="spin-logo">${logoHtml}</div>
-      <div>
-        <div class="season">${G.cur.season}</div>
-        <div class="team">${G.cur.team}</div>
+    <div class="spin-card">
+      <div class="spin-badge-top">${picked().length}/23 SIGNÉS</div>
+      <div class="spin-header">
+        <div class="spin-logo">${logoHtml}</div>
+        <div class="spin-title-group">
+          <div class="spin-team-name">${G.cur.team}</div>
+          <div class="spin-team-full">${full ? full + dead : ''} · ${G.cur.season}</div>
+        </div>
       </div>
-    </div>
-    <div class="teamfull">${full ? full + dead : ''}</div>
-    <div class="avail">${G.cur.pool.length} joueurs à ${minGP}+ matchs dans ce vestiaire</div>
-    <div class="need">${need ? 'À combler : ' + need.role + ' — ' + need.label : 'Alignement complet'}</div>
-    <div class="rerolls">
-      <button id="rrS" ${G.left.season ? '' : 'disabled'}>Autre année<b>${G.left.season} restants</b></button>
-      <button id="rrT" ${G.left.team ? '' : 'disabled'}>Autre équipe<b>${G.left.team} restants</b></button>
-      <button id="rrP" ${G.left.pass ? '' : 'disabled'}>Passer<b>${G.left.pass} restants</b></button>
+      <div class="spin-instruction">
+        Pige <strong>un joueur</strong> pour n'importe quel poste disponible — puis la roulette tourne à nouveau
+      </div>
+      <div class="rerolls">
+        <button id="rrS" class="reroll-btn" ${G.left.season ? '' : 'disabled'}>
+          🎲 AUTRE ANNÉE
+          <span class="badge">${G.left.season} RESTANTS</span>
+        </button>
+        <button id="rrT" class="reroll-btn" ${G.left.team ? '' : 'disabled'}>
+          🔄 AUTRE ÉQUIPE
+          <span class="badge">${G.left.team} RESTANTS</span>
+        </button>
+        <button id="rrP" class="reroll-btn" ${G.left.pass ? '' : 'disabled'}>
+          ⏭️ PASSER
+          <span class="badge">${G.left.pass} RESTANTS</span>
+        </button>
+      </div>
     </div>`;
 
   const reroll = async (kind, ns, nt) => {
@@ -170,62 +186,75 @@ function renderSpin() {
   $('rrP').onclick = () => reroll('pass', true, true);
 }
 
-function slotEl(s) {
+function slotCardEl(s) {
   const p = G.roster[s.i];
   const d = document.createElement('div');
   const pen = p ? getPositionPenalty(p, s) : 0;
-  d.className = 'slot' + (p ? '' : ' empty') + (G.target === s.i ? ' target' : '') + (pen > 0 ? ' oop' : '');
+
+  d.className = 'slot-card' + (p ? '' : ' empty') + (G.target === s.i ? ' target' : '') + (pen > 0 ? ' oop' : '');
+
   if (p) {
     const penTag = pen > 0 ? `<span class="tag-pen">-${pen}</span>` : '';
-    const stat = p.p === 'G'
-      ? `${p.w}V · ${p.sv ?? '—'}`
-      : `${p.pt}PTS${p.fo != null ? ` · ${Math.round(p.fo * 100)}%MJ` : ''}`;
     const logo = getTeamLogoHtml(p.t, 14);
-    const cpStr = p.cp ? `${p.cp}% cap` : '';
-    d.innerHTML = `<button class="rm" data-i="${s.i}">✕</button>
-      <div class="pos-badge">${s.role}</div>
-      <div class="pn">${p.n} ${penTag}</div>
-      <div class="pm">${logo} ${p.t} ${p.s} (${p.np})</div>
-      <div class="pm">${stat} · ${money(p.$)} <span class="cap-pct">(${cpStr})</span></div>`;
+
+    let statValue = p.pt ?? p.w ?? 0;
+    let statUnit = p.p === 'G' ? 'V' : 'PTS';
+    let subStats = p.p === 'G'
+      ? `${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA`
+      : `${p.g}G ${p.a}A · ${p.pm > 0 ? '+' : ''}${p.pm}`;
+
+    d.innerHTML = `
+      <button class="slot-remove-btn" data-i="${s.i}" title="Retirer">✕</button>
+      <div class="slot-top">
+        <div class="slot-player-name">${p.n} ${penTag}</div>
+        <div class="slot-salary">${money(p.$)}</div>
+      </div>
+      <div class="slot-big-stat">${statValue}<span class="stat-unit">${statUnit}</span></div>
+      <div class="slot-bottom">
+        <div class="slot-team-info">${logo} ${p.t} '${p.s.slice(-2)}</div>
+        <div>${subStats}</div>
+      </div>`;
   } else {
-    d.innerHTML = `<div class="pos-badge">${s.role}</div><div class="empty-role">${s.role}</div>`;
+    d.innerHTML = `<div class="empty-role-lbl">+ ${s.role}</div><div style="font-size:9.5px;color:var(--muted);margin-top:2px">${s.label}</div>`;
     d.onclick = () => { G.target = (G.target === s.i ? null : s.i); render(); };
   }
   return d;
 }
 
 function renderRoster() {
-  const mk = (host, group, units, cls) => {
-    host.innerHTML = '';
-    for (let u = 0; u < units; u++) {
-      const slots = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch);
-      if (!slots.length) continue;
-      const lab = document.createElement('div');
-      lab.className = 'unitlbl';
-      lab.textContent = slots[0].label;
-      host.appendChild(lab);
-      const row = document.createElement('div');
-      row.className = 'unit ' + cls;
-      slots.forEach(s => row.appendChild(slotEl(s)));
-      host.appendChild(row);
-    }
+  const categories = {
+    LW: SLOTS.filter(s => s.role === 'AG'),
+    C: SLOTS.filter(s => s.role === 'C'),
+    RW: SLOTS.filter(s => s.role === 'AD'),
+    D: SLOTS.filter(s => s.group === 'D'),
+    G: SLOTS.filter(s => s.group === 'G' || s.scratch)
   };
-  mk($('fLines'), 'F', 4, 'l3');
-  mk($('dLines'), 'D', 3, 'l2');
 
-  $('gLine').innerHTML = '';
-  SLOTS.filter(s => s.group === 'G' && !s.scratch).forEach(s => $('gLine').appendChild(slotEl(s)));
-  $('sLine').innerHTML = '';
-  SLOTS.filter(s => s.scratch).forEach(s => $('sLine').appendChild(slotEl(s)));
+  const populateCol = (containerId, cntId, slotsList, titleLabel) => {
+    const container = $(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    let filled = 0;
+    slotsList.forEach(s => {
+      if (G.roster[s.i]) filled++;
+      container.appendChild(slotCardEl(s));
+    });
+    const cntEl = $(cntId);
+    if (cntEl) cntEl.textContent = `${filled}/${slotsList.length}`;
+  };
 
-  const n = g => SLOTS.filter(s => s.group === g && !s.scratch && G.roster[s.i]).length;
-  $('fcnt').textContent = n('F') + '/12';
-  $('dcnt').textContent = n('D') + '/6';
-  $('gcnt').textContent = n('G') + '/2';
-  $('scnt').textContent = SLOTS.filter(s => s.scratch && G.roster[s.i]).length + '/3';
+  populateCol('lwSlots', 'lwCnt', categories.LW);
+  populateCol('cSlots', 'cCnt', categories.C);
+  populateCol('rwSlots', 'rwCnt', categories.RW);
+  populateCol('dSlots', 'dCnt', categories.D);
+  populateCol('gSlots', 'gCnt', categories.G);
 
-  document.querySelectorAll('.rm').forEach(b => {
-    b.onclick = ev => { ev.stopPropagation(); delete G.roster[+b.dataset.i]; render(); };
+  document.querySelectorAll('.slot-remove-btn').forEach(b => {
+    b.onclick = ev => {
+      ev.stopPropagation();
+      delete G.roster[+b.dataset.i];
+      render();
+    };
   });
 }
 
@@ -251,7 +280,7 @@ function renderFilters() {
 function renderPool() {
   const host = $('pool');
   host.innerHTML = '';
-  if (G.loading) { host.innerHTML = '<div class="empty-msg">…</div>'; return; }
+  if (G.loading) { host.innerHTML = '<div class="empty-msg">Recherche des joueurs dans le vestiaire…</div>'; return; }
 
   const used = capUsed();
   let list = G.cur.pool.slice();
@@ -263,8 +292,11 @@ function renderPool() {
 
   list.sort((a, b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0) || b.$ - a.$);
 
+  const cntEl = $('poolCount');
+  if (cntEl) cntEl.textContent = `${list.length} disponibles`;
+
   if (!list.length) {
-    host.innerHTML = `<div class="empty-msg">Aucun joueur de ce type dans ce vestiaire.<br>Change de filtre ou relance la roulette.</div>`;
+    host.innerHTML = `<div class="empty-msg">Aucun joueur correspondant dans ce vestiaire.<br>Change de filtre ou utilise les options de relance.</div>`;
     return;
   }
 
@@ -275,14 +307,14 @@ function renderPool() {
       ? SLOTS[G.target] : opts[0];
     const over = (used + p.$) > CAP;
     const pen = slot ? getPositionPenalty(p, slot) : 0;
-    const penStr = pen > 0 ? ` <span class="tag-pen">-${pen} cote</span>` : '';
+    const penStr = pen > 0 ? ` <span class="tag-pen">-${pen}</span>` : '';
     const foStr = p.fo != null ? ` · ${Math.round(p.fo * 100)}% MJ` : '';
     const htStr = p.ht != null ? ` · ${p.ht} CH/M` : '';
     const stat = p.p === 'G'
-      ? `${p.gp}PJ · ${p.w}V-${p.l}D · ${p.sv ?? '—'} · ${p.ga ?? '—'} MBA · ${p.so} BL`
-      : `${p.gp}PJ · ${p.g}B ${p.a}A ${p.pt}PTS · ${p.pm > 0 ? '+' : ''}${p.pm} · ${p.pim} PUN${foStr}${htStr}`;
+      ? `${p.gp}PJ · ${p.w}V-${p.l}D · ${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA · ${p.so} BL`
+      : `${p.gp}PJ · ${p.g}B ${p.a}A ${p.pt}PTS · ${p.pm > 0 ? '+' : ''}${p.pm}${foStr}${htStr}`;
 
-    const logo = getTeamLogoHtml(p.t, 24);
+    const logo = getTeamLogoHtml(p.t, 28);
     const cpStr = p.cp ? `<span class="cap-pct">${p.cp}% du cap</span>` : '';
     const c = document.createElement('div');
     c.className = 'card';
@@ -293,8 +325,10 @@ function renderPool() {
         <div class="mt">${p.np} · ${p.t} ${p.s}</div>
         <div class="st">${stat}</div>
       </div>
-      <div class="cp">${money(p.$)}${cpStr}</div>
-      <button class="add" ${already || !slot || over ? 'disabled' : ''}>${already ? '✓' : '+'}</button>`;
+      <div class="right-block">
+        <div class="cp">${money(p.$)}${cpStr}</div>
+        <button class="add" ${already || !slot || over ? 'disabled' : ''}>${already ? '✓ SIGNÉ' : '+ SIGNER'}</button>
+      </div>`;
 
     c.querySelector('.add').onclick = async () => {
       if (already || !slot || over) return;
@@ -312,9 +346,9 @@ function renderMain() {
   const b = $('mainBtn');
   const full = picked().length === 23;
   b.disabled = !full || G.done;
-  b.textContent = G.done ? 'Saison jouée'
-    : full ? 'Simuler la saison (82 matchs)'
-    : `Encore ${23 - picked().length} joueurs à trouver`;
+  b.textContent = G.done ? 'SAISON COMPLÉTÉE'
+    : full ? 'SIMULER LA SAISON (82 MATCHS)'
+    : `SIGNER ENCORE ${23 - picked().length} JOUEURS`;
 }
 
 function render() {
@@ -338,23 +372,23 @@ $('mainBtn').onclick = () => {
   const perfect = (r.L + r.OTL) === 0;
 
   const note = perfect
-    ? '82-0-0. Jamais vu, jamais approché. Les Bruins de 2022-23 ont fini 65-12-5.'
-    : r.W >= 65 ? `${r.W} victoires — mieux que le record de la LNH (65, Bruins 2022-23).`
-    : r.W >= 55 ? 'Une saison de rouleau compresseur, mais la perfection tient à la profondeur du quatrième trio.'
-    : "Le plafond t'a forcé des compromis. Regarde où ça a cédé.";
+    ? '82-0-0. Saison historique parfaite ! Les Bruins de 2022-23 ont fini 65-12-5.'
+    : r.W >= 65 ? `${r.W} victoires — mieux que le record réel de la LNH (65, Bruins 2022-23).`
+    : r.W >= 55 ? 'Une saison impressionnante, mais la perfection exige de la profondeur sur tous les trios.'
+    : "Le plafond a exigé des compromis. Analysez vos lignes ci-dessous pour voir où retravailler.";
 
   const rows = SLOTS.filter(s => G.roster[s.i]).map(s => {
     const p = G.roster[s.i];
     const logo = getTeamLogoHtml(p.t, 16);
     return `<div class="rrow">
-      <div class="rn" style="display:flex;align-items:center;gap:6px">${logo} <span>${p.n} <span class="sub">${s.role}</span></span></div>
-      <div class="rs">OFF ${p.o} · DEF ${p.d} · ROB ${p.r} · CLU ${p.c} · <b>${p.v}</b></div></div>`;
+      <div class="rn" style="display:flex;align-items:center;gap:6px">${logo} <span>${p.n} <span class="sub">(${s.role})</span></span></div>
+      <div class="rs">OFF ${p.o} · DEF ${p.d} · ROB ${p.r} · CLU ${p.c} · <b>G ${p.v}</b></div></div>`;
   }).join('');
 
   $('resultHost').innerHTML = `
     <div class="result">
       <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
-      <div class="rec">${r.points} points · ${r.GF} BP · ${r.GA} BC · ${r.GF - r.GA > 0 ? '+' : ''}${r.GF - r.GA}</div>
+      <div class="rec">${r.points} POINTS · ${r.GF} BP · ${r.GA} BC · DIFF ${r.GF - r.GA > 0 ? '+' : ''}${r.GF - r.GA}</div>
       <div class="bars">
         ${bar('Attaque', r.attaque)}
         ${bar('Brigade déf.', r.brigade)}
@@ -363,9 +397,9 @@ $('mainBtn').onclick = () => {
         ${bar('Clutch', r.clu)}
       </div>
       <div class="note">${note}</div>
-      <div class="reveal"><h3>Cotes cachées révélées</h3>${rows}</div>
+      <div class="reveal"><h3>COTES CACHÉES RÉVÉLÉES</h3>${rows}</div>
       <div style="text-align:center">
-        <button class="btn go" id="again" style="margin-top:16px">Nouvelle partie</button>
+        <button class="btn go" id="again" style="margin-top:20px">NOUVELLE PARTIE</button>
       </div>
     </div>`;
 
@@ -381,5 +415,5 @@ $('mainBtn').onclick = () => {
   $('resultHost').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
-window.cap82 = { G, cacheClear, simulate };  // crochet pour les tests
+window.cap82 = { G, cacheClear, simulate };
 boot();
