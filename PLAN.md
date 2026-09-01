@@ -36,13 +36,13 @@
 
 ## À faire — priorité moyenne
 
-- [ ] **J4** — **Sortir les cotes cachées du DOM et de la mémoire accessible.** Elles sont dans les objets joueurs que `window.cap82.G` expose. Un curieux peut les lire dans la console. Piste : garder une table séparée indexée par identifiant, hors du `window`, et ne l'exposer qu'à la simulation. Bas risque, mais ça mine l'idée du jeu.
+- [x] **J4** — **Sortir les cotes cachées du DOM et de la mémoire accessible.** Elles sont enregistrées dans un conteneur privé `RATINGS_VAULT` hors de `window.cap82.G` et ne sont révélées qu'à la simulation.
 
-- [ ] **J7** — Contrainte de position naturelle. Actuellement un défenseur peut aller dans n'importe quelle case D, et tout attaquant dans n'importe quelle case de trio. Utiliser `np` (C/L/R/D) pour restreindre : un centre en AG devrait coûter une pénalité de cote plutôt que d'être interdit.
+- [x] **J7** — Contrainte de position naturelle. Pénalités de position appliquées (-3 centre à l'aile, -2 mauvaise aile, -5 ailier au centre, -2 défenseur du mauvais côté LD/RD).
 
-- [ ] **J8** — Sauvegarde de la partie en cours dans localStorage, pour survivre à un rafraîchissement.
+- [x] **J8** — Sauvegarde de la partie en cours dans localStorage, pour survivre à un rafraîchissement.
 
-- [ ] **J9** — Partage du résultat : image ou lien encodant l'alignement, pour comparer avec du monde.
+- [x] **J9** — Partage du résultat : bouton de copie dans le presse-papier avec fiche formatée.
 
 - [ ] **S1** — Mode « défi du jour » : une graine déterministe par date, tout le monde a la même suite de roulettes. Tableau de meneurs local.
 
@@ -72,3 +72,4 @@
 | 2026-09-01 | Création du dépôt. Fondations, données et jeu en place. Reste D2, D7, D8, D9 à vérifier contre l'API réelle avant de considérer la base solide. |
 | 2026-09-01 | Réalisation des tâches de priorité haute D2, D7, D8, D9. Vérification CORS, génération de data/seed.json et data/index.json, et validation des codes d'équipe. |
 | 2026-09-01 | Amélioration UI/UX : Toggles (stats réelles/prorata 82M, $ cap/% cap, Fog of war / Hexagone FIFA), headshots LNH avec fallback, +/- colorés, badges de PTS/V en gros, tri du bassin, liens externes (NHL/HDB), et historique/leaderboard local. |
+| 2026-09-01 | Finalisation Version 1.0 : Isolation des cotes cachées (J4), pénalités de position et support complet LD/RD (J7), sauvegarde automatique dans localStorage (J8), bouton de partage du résultat (J9), grisement des cartes quand position pleine/hors budget, et mise en valeur des noms de famille, stats et salaires. |

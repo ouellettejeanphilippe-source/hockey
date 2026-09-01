@@ -28,10 +28,56 @@ SLOTS.push({ group: 'G', unit: 0, role: 'Auxiliaire', label: 'Gardiens' });
 });
 SLOTS.forEach((s, i) => { s.i = i; });
 
+const RATINGS_VAULT = new Map();
+
+export function getPlayerKey(p) {
+  if (p._rk) return p._rk;
+  if (p.id) return `${p.s}_${p.t}_${p.id}`;
+  return `${p.s}_${p.t}_${p.n}_${p.p}`;
+}
+
+export function registerHiddenRatings(p) {
+  if (!p) return;
+  const key = getPlayerKey(p);
+  p._rk = key;
+  if (p.o !== undefined) {
+    RATINGS_VAULT.set(key, {
+      o: p.o, d: p.d, r: p.r, c: p.c, v: p.v, sp: p.sp
+    });
+    delete p.o;
+    delete p.d;
+    delete p.r;
+    delete p.c;
+    delete p.v;
+    delete p.sp;
+  }
+}
+
+export function getHiddenRatings(p) {
+  if (!p) return { o: 50, d: 50, r: 50, c: 50, v: 50, sp: 50 };
+  const key = getPlayerKey(p);
+  if (RATINGS_VAULT.has(key)) return RATINGS_VAULT.get(key);
+  return {
+    o: p.o ?? 50,
+    d: p.d ?? 50,
+    r: p.r ?? 50,
+    c: p.c ?? 50,
+    v: p.v ?? 50,
+    sp: p.sp ?? 50,
+  };
+}
+
 export function getPositionPenalty(player, slot) {
   if (!slot || slot.scratch || slot.group === 'ANY') return 0;
   if (player.p === 'G') return slot.group === 'G' ? 0 : 999;
-  if (player.p === 'D') return slot.group === 'D' ? 0 : 999;
+  if (player.p === 'D') {
+    if (slot.group !== 'D') return 999;
+    const np = (player.np === 'RD' || player.np === 'R') ? 'RD' : 'LD';
+    const role = slot.role; // 'DG' (LD) or 'DD' (RD)
+    if (role === 'DG' && np === 'RD') return 2; // Right-handed D playing Left side (-2)
+    if (role === 'DD' && np === 'LD') return 2; // Left-handed D playing Right side (-2)
+    return 0;
+  }
   if (slot.group !== 'F') return 999;
 
   const np = player.np || 'C';
@@ -41,12 +87,12 @@ export function getPositionPenalty(player, slot) {
     if (role === 'C') return 0;
     return 3; // Center playing wing (-3)
   }
-  if (np === 'L') {
+  if (np === 'L' || np === 'LD' || np === 'AG') {
     if (role === 'AG') return 0;
     if (role === 'AD') return 2; // Opposite wing (-2)
     if (role === 'C') return 5;  // Winger at center (-5)
   }
-  if (np === 'R') {
+  if (np === 'R' || np === 'RD' || np === 'AD') {
     if (role === 'AD') return 0;
     if (role === 'AG') return 2; // Opposite wing (-2)
     if (role === 'C') return 5;  // Winger at center (-5)
@@ -112,7 +158,10 @@ export function getUnitSynergy(roster, group, unit) {
 }
 
 /* ---------- pondérations ---------- */
-const effStat = (player, slot, key) => Math.max(25, player[key] - getPositionPenalty(player, slot));
+const effStat = (player, slot, key) => {
+  const r = getHiddenRatings(player);
+  return Math.max(25, r[key] - getPositionPenalty(player, slot));
+};
 
 function unitAvg(roster, group, unit, key) {
   const ps = SLOTS
@@ -153,7 +202,8 @@ export function simulateMatch(rosterA, rosterB, isHeavy = false) {
   const robA  = 0.6 * weighted(rosterA, 'F', POIDS_TRIO, 'r') + 0.4 * weighted(rosterA, 'D', POIDS_PAIRE, 'r');
   const cluA  = 0.6 * weighted(rosterA, 'F', POIDS_TRIO, 'c') + 0.4 * weighted(rosterA, 'D', POIDS_PAIRE, 'c');
   const goaliesA = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => rosterA[s.i]);
-  const goalieA = goaliesA[0] || { o: 50, d: 50 };
+  const goalieA = goaliesA[0] || {};
+  const rGA = getHiddenRatings(goalieA);
 
   const fOffB = weighted(rosterB, 'F', POIDS_TRIO, 'o');
   const fDefB = weighted(rosterB, 'F', POIDS_TRIO, 'd');
@@ -162,15 +212,16 @@ export function simulateMatch(rosterA, rosterB, isHeavy = false) {
   const robB  = 0.6 * weighted(rosterB, 'F', POIDS_TRIO, 'r') + 0.4 * weighted(rosterB, 'D', POIDS_PAIRE, 'r');
   const cluB  = 0.6 * weighted(rosterB, 'F', POIDS_TRIO, 'c') + 0.4 * weighted(rosterB, 'D', POIDS_PAIRE, 'c');
   const goaliesB = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => rosterB[s.i]);
-  const goalieB = goaliesB[0] || { o: 50, d: 50 };
+  const goalieB = goaliesB[0] || {};
+  const rGB = getHiddenRatings(goalieB);
 
   const attA = 0.72 * fOffA + 0.28 * dOffA;
   const defA = 0.58 * dDefA + 0.42 * fDefA;
-  const gA = 0.6 * goalieA.o + 0.4 * goalieA.d;
+  const gA = 0.6 * rGA.o + 0.4 * rGA.d;
 
   const attB = 0.72 * fOffB + 0.28 * dOffB;
   const defB = 0.58 * dDefB + 0.42 * fDefB;
-  const gB = 0.6 * goalieB.o + 0.4 * goalieB.d;
+  const gB = 0.6 * rGB.o + 0.4 * rGB.d;
 
   const defenseA = 0.62 * defA + 0.38 * gA + (isHeavy ? (robA - 52) * 0.22 : 0);
   const defenseB = 0.62 * defB + 0.38 * gB + (isHeavy ? (robB - 52) * 0.22 : 0);
@@ -201,8 +252,24 @@ export function simulate(roster) {
   const rob  = 0.6 * weighted(roster, 'F', POIDS_TRIO, 'r') + 0.4 * weighted(roster, 'D', POIDS_PAIRE, 'r');
   const clu  = 0.6 * weighted(roster, 'F', POIDS_TRIO, 'c') + 0.4 * weighted(roster, 'D', POIDS_PAIRE, 'c');
 
-  const goalies = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => roster[s.i]);
-  const [starter, backup] = goalies;
+  const goalies = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => roster[s.i]).filter(Boolean);
+  const starter = goalies[0] || { p: 'G' };
+  const backup = goalies[1] || starter;
+
+  // Initialiser les statistiques simulées individuelles
+  for (const s of SLOTS) {
+    const p = roster[s.i];
+    if (p) {
+      p.simGP = 0; p.simG = 0; p.simA = 0; p.simPTS = 0; p.simPM = 0;
+      if (p.p === 'G') {
+        p.simW = 0; p.simL = 0; p.simOTL = 0; p.simGA = 0; p.simSO = 0;
+      }
+    }
+  }
+
+  const activeSkaters = SLOTS
+    .filter(s => s.group !== 'G' && !s.scratch && roster[s.i])
+    .map(s => ({ slot: s, player: roster[s.i] }));
 
   const attaque = 0.72 * fOff + 0.28 * dOff;
   const brigade = 0.58 * dDef + 0.42 * fDef;
@@ -213,20 +280,74 @@ export function simulate(roster) {
     const goalie = (g % 6 === 5) ? backup : starter;   // ~14 départs pour l'auxiliaire
     const heavy  = (g % 4 === 3);                      // matchs éreintants
 
+    goalie.simGP = (goalie.simGP || 0) + 1;
+    for (const item of activeSkaters) item.player.simGP = (item.player.simGP || 0) + 1;
+
+    const rG = getHiddenRatings(goalie);
     const defense = 0.62 * brigade
-                  + 0.38 * (0.6 * goalie.o + 0.4 * goalie.d)
+                  + 0.38 * (0.6 * rG.o + 0.4 * rG.d)
                   + (heavy ? (rob - 52) * 0.22 : 0);
 
     const xGF = Math.max(1.1, Math.min(7.5, 3.05 * Math.pow(attaque / 58, 1.55)));
     const xGA = Math.max(1.1, Math.min(7.5, 3.05 * Math.pow(58 / Math.max(20, defense), 1.55)));
 
     let gf = poisson(xGF), ga = poisson(xGA);
+    let win = false, otl = false;
 
     if (gf === ga) {
-      // prolongation tranchée par le clutch
       const pClutch = 1 / (1 + Math.exp(-(clu - 52) / 9));
-      if (Math.random() < pClutch) { gf++; W++; } else { ga++; OTL++; }
-    } else if (gf > ga) { W++; } else { L++; }
+      if (Math.random() < pClutch) { gf++; W++; win = true; } else { ga++; OTL++; otl = true; }
+    } else if (gf > ga) { W++; win = true; } else { L++; }
+
+    goalie.simGA += ga;
+    if (win) goalie.simW++;
+    else if (otl) goalie.simOTL++;
+    else goalie.simL++;
+    if (ga === 0) goalie.simSO++;
+
+    // Distribuer les buts et passes de l'équipe
+    for (let i = 0; i < gf; i++) {
+      const unitRoll = Math.random();
+      const unit = unitRoll < 0.34 ? 0 : unitRoll < 0.62 ? 1 : unitRoll < 0.84 ? 2 : 3;
+      const unitPlayers = activeSkaters.filter(x => x.slot.unit === unit || x.slot.group === 'D');
+
+      if (unitPlayers.length) {
+        // Scorer
+        const weights = unitPlayers.map(x => Math.pow(getHiddenRatings(x.player).o, 1.8));
+        const totalW = weights.reduce((a, b) => a + b, 0);
+        let r = Math.random() * totalW;
+        let scorerIdx = 0;
+        for (let j = 0; j < weights.length; j++) {
+          r -= weights[j];
+          if (r <= 0) { scorerIdx = j; break; }
+        }
+        const scorer = unitPlayers[scorerIdx].player;
+        scorer.simG++;
+        scorer.simPTS++;
+
+        // Passers
+        const passers = unitPlayers.filter((_, idx) => idx !== scorerIdx);
+        if (passers.length && Math.random() < 0.88) {
+          const p1 = passers[Math.floor(Math.random() * passers.length)].player;
+          p1.simA++; p1.simPTS++;
+          if (passers.length > 1 && Math.random() < 0.65) {
+            const p2 = passers.find(x => x.player !== p1)?.player;
+            if (p2) { p2.simA++; p2.simPTS++; }
+          }
+        }
+
+        // +/- sur but marqué
+        for (const item of unitPlayers) item.player.simPM++;
+      }
+    }
+
+    // +/- sur but alloué
+    for (let i = 0; i < ga; i++) {
+      const unitRoll = Math.random();
+      const unit = unitRoll < 0.34 ? 0 : unitRoll < 0.62 ? 1 : unitRoll < 0.84 ? 2 : 3;
+      const unitPlayers = activeSkaters.filter(x => x.slot.unit === unit || x.slot.group === 'D');
+      for (const item of unitPlayers) item.player.simPM--;
+    }
 
     GF += gf; GA += ga;
   }
@@ -235,6 +356,6 @@ export function simulate(roster) {
     W, L, OTL, GF, GA,
     points: W * 2 + OTL,
     attaque, brigade, rob, clu,
-    gRating: 0.6 * starter.o + 0.4 * starter.d,
+    gRating: 0.6 * getHiddenRatings(starter).o + 0.4 * getHiddenRatings(starter).d,
   };
 }
