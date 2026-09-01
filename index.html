@@ -50,6 +50,7 @@
     </div>
     <div class="toggle-group">
       <button id="openLeaderboardBtn" class="toggle-btn gold">🏆 HISTORIQUE</button>
+      <button id="openBibleBtn" class="toggle-btn gold" style="border-color:#38bdf8;color:#38bdf8;">📖 GAME BIBLE</button>
     </div>
   </div>
 
@@ -129,6 +130,62 @@
     </div>
     <div class="modal-body" id="leaderboardBody">
       <div class="empty-msg">Aucune saison enregistrée pour l'instant.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Game Bible Modal -->
+<div id="bibleModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-content" style="max-width: 680px;">
+    <div class="modal-header">
+      <h2>📖 GAME BIBLE — LES MATHS & RÈGLES DU JEU</h2>
+      <button id="closeBibleBtn" class="close-btn">✕</button>
+    </div>
+    <div class="modal-body" id="bibleBody" style="font-size:12.5px; line-height:1.6; color:var(--text);">
+      <h3 style="color:var(--gold); margin-top:0;">1. Normalisation des Cotes Cachées (Z-Score)</h3>
+      <p>Afin de comparer équitablement Wayne Gretzky en 1982 (212 pts dans une LNH à ~8 buts/match) et Sidney Crosby en 2011 (LNH à ~5.4 buts/match), les cotes ne sont pas attribuées selon des seuils bruts fixes, mais calculées en <strong>z-score par rapport aux contemporains de la même saison</strong>.</p>
+      <div class="math-box">
+        <code>Z = (X - μ) / σ</code><br>
+        <code>Cote = Max(25, Min(99, 52 + 13 × Z))</code>
+      </div>
+      <ul>
+        <li><strong>Attaque (OVR OFF)</strong> : Points/match (62%), Tirs/match (22%), Points en Avantage Numérique (16%).</li>
+        <li><strong>Défense (OVR DEF)</strong> : Differenciel (+/-) (45%), Points en Désavantage (20%), Temps de glace (35%), Tirs bloqués/match (+ Bonus +0.35 Z pour Défenseurs).</li>
+        <li><strong>Robustesse (ROB)</strong> : Minutes de punition/match (45%) et Mises en échec/match (55%).</li>
+        <li><strong>Clutch (CLU)</strong> : Buts gagnants & en prolongation/match (75%) et Points/match (25%).</li>
+      </ul>
+
+      <h3 style="color:var(--gold);">2. Ajustement par Époque ("Points d'Aujourd'hui")</h3>
+      <p>La moyenne de buts par match dans la LNH varie drastiquement selon les décennies. L'ajustement ramène toutes les performances sur la base de la LNH moderne (~3.15 buts par équipe/match) :</p>
+      <div class="math-box">
+        <code>Facteur d'époque = 3.15 / (Moyenne de buts/match de la saison)</code><br>
+        <code>Points Ajustés = Points Réels × Facteur d'époque</code>
+      </div>
+
+      <h3 style="color:var(--gold);">3. Échelle Salariale Exponentielle</h3>
+      <p>Le salaire de chaque joueur est dérivé de sa cote globale (OVR) par une courbe exponentielle alignée sur le plafond salarial moderne ($95.50M) :</p>
+      <div class="math-box">
+        <code>Salaire = 775 000$ × e^(0.0655 × (OVR - 50))</code>
+      </div>
+      <p><em>Exemples : Cote 50 = ~0.78M$ | Cote 75 = ~4.0M$ | Cote 90 = ~10.7M$ | Cote 99 = ~19.0M$.</em></p>
+
+      <h3 style="color:var(--gold);">4. Synergies de Trios & Paires</h3>
+      <p>Placer des joueurs complémentaires sur le même trio apporte des bonus directs aux cotes de l'unité :</p>
+      <ul>
+        <li><strong>Chimie Parfaite 🌟 (+4 OFF / +2 DEF)</strong> : Fabriqueur de jeu + Buteur/Sniper + Attaquant de puissance / Polyvalent.</li>
+        <li><strong>Tandem Moteur 🎯 (+3 OFF)</strong> : Fabriqueur de jeu + Buteur/Sniper.</li>
+        <li><strong>Trio d'Étouffement 🧱 (+4 DEF)</strong> : Au moins 2 joueurs à vocation défensive/physique.</li>
+        <li><strong>Paire Équilibrée ⚖️ (+3 OFF / +3 DEF)</strong> : Défenseur Offensif + Défenseur Défensif.</li>
+        <li><strong>Conflit de Rôles ⚠️ (-2 OFF / -2 DEF)</strong> : 3 Buteurs ou 3 Passeurs exclusifs sur le même trio.</li>
+      </ul>
+
+      <h3 style="color:var(--gold);">5. Moteur de Simulation de Matchs (Loi de Poisson)</h3>
+      <p>Les buts marqués et accordés dans chaque rencontre sont tirés indépendamment selon deux lois de Poisson d'espérance <code>λ_GF</code> et <code>λ_GA</code> :</p>
+      <div class="math-box">
+        <code>λ_GF = 3.05 × (Attaque Équipe / 58)^1.55</code><br>
+        <code>λ_GA = 3.05 × (58 / Défense Équipe)^1.55</code>
+      </div>
+      <p>Lors d'une égalité en fin de temps réglementaire, la prolongation est tranchée par la valeur de Clutch d'équipe via une fonction sigmoïde : <code>P(Victoire) = 1 / (1 + e^(-(Clutch - 52) / 9))</code>.</p>
     </div>
   </div>
 </div>
