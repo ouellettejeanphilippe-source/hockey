@@ -9,7 +9,7 @@
  * des shards). Une seule implémentation, un seul endroit à corriger.
  */
 
-export const RATINGS_VERSION = 3;
+export const RATINGS_VERSION = 4;
 
 /* ---------- outils statistiques ---------- */
 
@@ -100,6 +100,9 @@ export function rateSkaters(rows, realtimeById = null) {
           : 0.54 * o + 0.24 * d + 0.10 * rb + 0.12 * c
     )));
 
+    const htPerGame = extra && extra.hits != null ? Math.round((extra.hits / gp) * 10) / 10 : null;
+    const foPct = r.faceoffWinPct != null ? Math.round(r.faceoffWinPct * 1000) / 1000 : null;
+
     return {
       n: r.skaterFullName,
       p: isD ? 'D' : 'F',
@@ -110,6 +113,8 @@ export function rateSkaters(rows, realtimeById = null) {
       pt: r.points || 0,
       pm: r.plusMinus || 0,
       pim: r.penaltyMinutes || 0,
+      ht: htPerGame,
+      fo: foPct,
       toi: Math.round(toiMin * 10) / 10,
       o, d, r: rb, c, v,
       $: salaryFor(v, natural),

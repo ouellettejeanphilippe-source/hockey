@@ -26,6 +26,32 @@ SLOTS.push({ group: 'G', unit: 0, role: 'Auxiliaire', label: 'Gardiens' });
 });
 SLOTS.forEach((s, i) => { s.i = i; });
 
+export function getPositionPenalty(player, slot) {
+  if (!slot || slot.scratch || slot.group === 'ANY') return 0;
+  if (player.p === 'G') return slot.group === 'G' ? 0 : 999;
+  if (player.p === 'D') return slot.group === 'D' ? 0 : 999;
+  if (slot.group !== 'F') return 999;
+
+  const np = player.np || 'C';
+  const role = slot.role; // 'AG', 'C', 'AD'
+
+  if (np === 'C') {
+    if (role === 'C') return 0;
+    return 3; // Center playing wing (-3)
+  }
+  if (np === 'L') {
+    if (role === 'AG') return 0;
+    if (role === 'AD') return 2; // Opposite wing (-2)
+    if (role === 'C') return 5;  // Winger at center (-5)
+  }
+  if (np === 'R') {
+    if (role === 'AD') return 0;
+    if (role === 'AG') return 2; // Opposite wing (-2)
+    if (role === 'C') return 5;  // Winger at center (-5)
+  }
+  return 0;
+}
+
 export function fits(player, slot) {
   if (slot.group === 'ANY') return true;
   if (slot.group === 'G') return player.p === 'G';
@@ -34,18 +60,19 @@ export function fits(player, slot) {
 }
 
 /* ---------- pondérations ---------- */
-
-const POIDS_TRIO  = [0.34, 0.28, 0.22, 0.16];  // le 4e trio compte pour vrai
-const POIDS_PAIRE = [0.40, 0.34, 0.26];
+const effStat = (player, slot, key) => Math.max(25, player[key] - getPositionPenalty(player, slot));
 
 function unitAvg(roster, group, unit, key) {
   const ps = SLOTS
     .filter(s => s.group === group && s.unit === unit && !s.scratch)
-    .map(s => roster[s.i])
-    .filter(Boolean);
+    .map(s => ({ slot: s, player: roster[s.i] }))
+    .filter(x => x.player);
   if (!ps.length) return 50;
-  return ps.reduce((a, p) => a + p[key], 0) / ps.length;
+  return ps.reduce((a, x) => a + effStat(x.player, x.slot, key), 0) / ps.length;
 }
+
+const POIDS_TRIO  = [0.34, 0.28, 0.22, 0.16];  // le 4e trio compte pour vrai
+const POIDS_PAIRE = [0.40, 0.34, 0.26];
 
 const weighted = (roster, group, weights, key) =>
   weights.reduce((sum, w, i) => sum + w * unitAvg(roster, group, i, key), 0);
