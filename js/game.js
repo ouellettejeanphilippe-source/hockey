@@ -1,5 +1,6 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import { SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty } from './sim.js';
+import { getTeamLogoHtml, TEAM_COLORS } from './logos.js';
 
 const $ = id => document.getElementById(id);
 const money = n => '$' + (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
@@ -101,6 +102,11 @@ async function nextSpin(newSeason, newTeam) {
     G.cur = { season, team, pool };
     G.loading = false;
 
+    // Mise à jour douce de la couleur de thème selon l'équipe pigée
+    const colors = TEAM_COLORS[team] || { primary: '#16273b', accent: '#42adff' };
+    document.documentElement.style.setProperty('--team-primary', colors.primary);
+    document.documentElement.style.setProperty('--team-accent', colors.accent);
+
     // précharge deux saisons probables pendant que le joueur regarde le vestiaire
     prefetch([rnd(seasons), rnd(seasons)]);
     return;
@@ -134,9 +140,16 @@ function renderSpin() {
   const dead = DEFUNCT.has(G.cur.team) ? ' · franchise disparue' : '';
   const minGP = state.index.minGP ?? 10;
 
+  const logoHtml = getTeamLogoHtml(G.cur.team, 40);
+
   host.innerHTML = `
-    <div class="season">${G.cur.season}</div>
-    <div class="team">${G.cur.team}</div>
+    <div class="spin-header">
+      <div class="spin-logo">${logoHtml}</div>
+      <div>
+        <div class="season">${G.cur.season}</div>
+        <div class="team">${G.cur.team}</div>
+      </div>
+    </div>
     <div class="teamfull">${full ? full + dead : ''}</div>
     <div class="avail">${G.cur.pool.length} joueurs à ${minGP}+ matchs dans ce vestiaire</div>
     <div class="need">${need ? 'À combler : ' + need.role + ' — ' + need.label : 'Alignement complet'}</div>
@@ -167,11 +180,13 @@ function slotEl(s) {
     const stat = p.p === 'G'
       ? `${p.w}V · ${p.sv ?? '—'}`
       : `${p.pt}PTS${p.fo != null ? ` · ${Math.round(p.fo * 100)}%MJ` : ''}`;
+    const logo = getTeamLogoHtml(p.t, 14);
+    const cpStr = p.cp ? `${p.cp}% cap` : '';
     d.innerHTML = `<button class="rm" data-i="${s.i}">✕</button>
       <div class="pos-badge">${s.role}</div>
       <div class="pn">${p.n} ${penTag}</div>
-      <div class="pm">${p.t} ${p.s} (${p.np})</div>
-      <div class="pm">${stat} · ${money(p.$)}</div>`;
+      <div class="pm">${logo} ${p.t} ${p.s} (${p.np})</div>
+      <div class="pm">${stat} · ${money(p.$)} <span class="cap-pct">(${cpStr})</span></div>`;
   } else {
     d.innerHTML = `<div class="pos-badge">${s.role}</div><div class="empty-role">${s.role}</div>`;
     d.onclick = () => { G.target = (G.target === s.i ? null : s.i); render(); };
@@ -267,15 +282,18 @@ function renderPool() {
       ? `${p.gp}PJ · ${p.w}V-${p.l}D · ${p.sv ?? '—'} · ${p.ga ?? '—'} MBA · ${p.so} BL`
       : `${p.gp}PJ · ${p.g}B ${p.a}A ${p.pt}PTS · ${p.pm > 0 ? '+' : ''}${p.pm} · ${p.pim} PUN${foStr}${htStr}`;
 
+    const logo = getTeamLogoHtml(p.t, 24);
+    const cpStr = p.cp ? `<span class="cap-pct">${p.cp}% du cap</span>` : '';
     const c = document.createElement('div');
     c.className = 'card';
     c.innerHTML = `
+      <div class="card-logo">${logo}</div>
       <div class="info">
         <div class="nm">${p.n}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
         <div class="mt">${p.np} · ${p.t} ${p.s}</div>
         <div class="st">${stat}</div>
       </div>
-      <div class="cp">${money(p.$)}</div>
+      <div class="cp">${money(p.$)}${cpStr}</div>
       <button class="add" ${already || !slot || over ? 'disabled' : ''}>${already ? '✓' : '+'}</button>`;
 
     c.querySelector('.add').onclick = async () => {
@@ -327,8 +345,9 @@ $('mainBtn').onclick = () => {
 
   const rows = SLOTS.filter(s => G.roster[s.i]).map(s => {
     const p = G.roster[s.i];
+    const logo = getTeamLogoHtml(p.t, 16);
     return `<div class="rrow">
-      <div class="rn">${p.n} <span class="sub">${s.role}</span></div>
+      <div class="rn" style="display:flex;align-items:center;gap:6px">${logo} <span>${p.n} <span class="sub">${s.role}</span></span></div>
       <div class="rs">OFF ${p.o} · DEF ${p.d} · ROB ${p.r} · CLU ${p.c} · <b>${p.v}</b></div></div>`;
   }).join('');
 
