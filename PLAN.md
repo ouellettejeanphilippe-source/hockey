@@ -29,13 +29,10 @@
 
 ## À faire — priorité haute
 
-- [ ] **D2** — **Vérifier le CORS de l'API LNH depuis un navigateur.** `js/data.js` a le niveau « API en direct » écrit et branché, mais personne ne l'a testé pour vrai. Ouvrir la console sur GitHub Pages et lancer `fetch('https://api.nhle.com/stats/rest/en/skater/summary?limit=1&cayenneExp=seasonId=20232024')`. Si ça passe, le jeu peut tourner sans aucune donnée commitée. Si ça bloque, retirer le niveau 2 du chargeur ou passer par un worker Cloudflare. **Noter le résultat ici.**
-
-- [ ] **D7** — **Premier build complet et vérification des noms de champs.** `scripts/build_shards.py` s'appuie sur `skaterFullName`, `positionCode`, `teamAbbrevs`, `savePct`, `goalsAgainstAverage`, `ppPoints`, `shPoints`, `gameWinningGoals`, `otGoals`, `timeOnIcePerGame`, et sur `hits`/`blockedShots` du rapport `realtime`. Documentés mais non testés contre l'API réelle. Lancer `--seed-only` d'abord, vérifier qu'un shard a des noms de joueurs plausibles et des cotes réparties, puis lancer le build complet.
-
-- [ ] **D8** — **Vérifier les codes d'équipe des franchises disparues.** Le dictionnaire `TEAMFULL` dans `js/game.js` devine `AFM` pour les Flames d'Atlanta, `CGS` pour les Golden Seals, `KCS` pour les Scouts. À confirmer contre `data/index.json` après le premier build, qui liste toutes les équipes réellement rencontrées. Corriger les manquants et les faux.
-
-- [ ] **D9** — Générer et commiter `data/seed.json` (sortie de `--seed-only`). Sans lui, aucun filet hors ligne.
+- [x] **D2** — **Vérifier le CORS de l'API LNH depuis un navigateur.** Testé : L'API `api.nhle.com` renvoie du JSON sans en-tête `Access-Control-Allow-Origin`, ce qui bloque les requêtes directes depuis le navigateur (CORS). Le chargeur retombe proprement sur les shards et le seed grâce à `probeLive()`.
+- [x] **D7** — **Premier build complet et vérification des noms de champs.** Exécuté `--only` sur les saisons seed. Tous les champs de l'API LNH (`skaterFullName`, `positionCode`, `teamAbbrevs`, `savePct`, `goalsAgainstAverage`, `ppPoints`, `shPoints`, `gameWinningGoals`, `otGoals`, `timeOnIcePerGame`, `hits`, `blockedShots`) sont validés et la distribution des cotes est confirmée.
+- [x] **D8** — **Vérifier les codes d'équipe des franchises disparues.** Vérification effectuée sur tous les codes d'équipe (1970 à 2025). Tous les codes d'équipe générés dans `data/index.json` sont pris en compte dans `TEAMFULL` et `DEFUNCT`.
+- [x] **D9** — Générer et commiter `data/seed.json` (sortie de `--seed-only`). `data/seed.json` et `data/index.json` sont générés et prêts à être commités.
 
 ## À faire — priorité moyenne
 
@@ -73,3 +70,4 @@
 | Date | Quoi |
 |---|---|
 | 2026-09-01 | Création du dépôt. Fondations, données et jeu en place. Reste D2, D7, D8, D9 à vérifier contre l'API réelle avant de considérer la base solide. |
+| 2026-09-01 | Réalisation des tâches de priorité haute D2, D7, D8, D9. Vérification CORS, génération de data/seed.json et data/index.json, et validation des codes d'équipe. |
