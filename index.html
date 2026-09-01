@@ -42,7 +42,7 @@
     </div>
     <div class="toggle-group">
       <span class="toggle-label">SALAIRE :</span>
-      <button id="toggleSalBtn" class="toggle-btn active" title="Basculer entre $ modernisé et % Cap">$ CAP</button>
+      <button id="toggleSalBtn" class="toggle-btn active" title="Basculer entre Valeur 2026 (Jeu) et Valeur réelle (Époque)">💵 VALEUR 2026</button>
     </div>
     <div class="toggle-group">
       <span class="toggle-label">FOG OF WAR :</span>
@@ -98,17 +98,25 @@
       <div class="col-slots" id="rwSlots"></div>
     </div>
 
-    <div class="roster-col col-d">
+    <div class="roster-col col-ld">
       <div class="col-header">
-        <span class="col-title">D</span>
-        <span class="col-count" id="dCnt">0/6</span>
+        <span class="col-title">DG / LD</span>
+        <span class="col-count" id="ldCnt">0/3</span>
       </div>
-      <div class="col-slots" id="dSlots"></div>
+      <div class="col-slots" id="ldSlots"></div>
+    </div>
+
+    <div class="roster-col col-rd">
+      <div class="col-header">
+        <span class="col-title">DD / RD</span>
+        <span class="col-count" id="rdCnt">0/3</span>
+      </div>
+      <div class="col-slots" id="rdSlots"></div>
     </div>
 
     <div class="roster-col col-g">
       <div class="col-header">
-        <span class="col-title">G / RESERVES</span>
+        <span class="col-title">G / RÉSERVES</span>
         <span class="col-count" id="gCnt">0/5</span>
       </div>
       <div class="col-slots" id="gSlots"></div>
@@ -162,12 +170,13 @@
         <code>Points Ajustés = Points Réels × Facteur d'époque</code>
       </div>
 
-      <h3 style="color:var(--gold);">3. Échelle Salariale Exponentielle</h3>
-      <p>Le salaire de chaque joueur est dérivé de sa cote globale (OVR) par une courbe exponentielle alignée sur le plafond salarial moderne ($95.50M) :</p>
+      <h3 style="color:var(--gold);">3. Échelle Salariale Exponentielle & Toggles de Valeur</h3>
+      <p>Le salaire pour le jeu est dérivé de la cote globale (OVR) sur l'échelle salariale moderne de 2026 ($95.50M) :</p>
       <div class="math-box">
-        <code>Salaire = 775 000$ × e^(0.0655 × (OVR - 50))</code>
+        <code>Salaire 2026 = 775 000$ × e^(0.0655 × (OVR - 50))</code><br>
+        <code>Salaire Époque = Salaire 2026 × (Plafond de l'Époque / 95.5M$)</code>
       </div>
-      <p><em>Exemples : Cote 50 = ~0.78M$ | Cote 75 = ~4.0M$ | Cote 90 = ~10.7M$ | Cote 99 = ~19.0M$.</em></p>
+      <p><em>Le bouton SALAIRE permet de basculer entre la <strong>Valeur 2026</strong> (pondérée pour équilibrer le jeu sous le plafond actuel) et la <strong>Valeur Époque</strong> (salaire réel équivalent dans les dollars de la saison d'origine).</em></p>
 
       <h3 style="color:var(--gold);">4. Synergies de Trios & Paires</h3>
       <p>Placer des joueurs complémentaires sur le même trio apporte des bonus directs aux cotes de l'unité :</p>

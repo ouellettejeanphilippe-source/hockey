@@ -1,6 +1,7 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import { SLOTS, CAP, REROLLS, fits, simulate, simulateMatch, getPositionPenalty } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS } from './logos.js';
+import { getArchetype, getEraFactor, getEraSalary, SEASON_ERA_CAP } from './ratings.js';
 
 const $ = id => document.getElementById(id);
 const money = n => '$' + (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
@@ -36,7 +37,7 @@ const G = {
   filter: 'ALL',
   sortBy: 'PTS',
   statsProrata: false,
-  salaryCapPct: false,
+  salaryMode: '2026', // '2026' or 'ERA'
   fogOfWar: false,    // false = Hexagon ON, true = Fog of War (Hexagon OFF)
   done: false,
   loading: false,
@@ -81,9 +82,9 @@ function setupEvents() {
   const tSal = $('toggleSalBtn');
   if (tSal) {
     tSal.onclick = () => {
-      G.salaryCapPct = !G.salaryCapPct;
-      tSal.textContent = G.salaryCapPct ? '% CAP' : '$ CAP';
-      tSal.classList.toggle('active', G.salaryCapPct);
+      G.salaryMode = G.salaryMode === '2026' ? 'ERA' : '2026';
+      tSal.textContent = G.salaryMode === 'ERA' ? '📜 VALEUR ÉPOQUE' : '💵 VALEUR 2026';
+      tSal.classList.toggle('active', G.salaryMode === '2026');
       render();
     };
   }
@@ -175,16 +176,30 @@ async function nextSpin(newSeason, newTeam) {
 
 function renderCap() {
   const used = capUsed(), rem = CAP - used;
+  const isEra = G.salaryMode === 'ERA';
+  const curSeason = G.cur ? G.cur.season : '2025-26';
+  const eraCapMax = SEASON_ERA_CAP[curSeason] || CAP;
+  const remEra = getEraSalary(rem, curSeason);
+
   const a = $('capAmt');
-  a.textContent = money(rem);
+  if (isEra) {
+    a.textContent = money(remEra);
+  } else {
+    a.textContent = money(rem);
+  }
   a.classList.toggle('over', rem < 0);
+
   const f = $('capFill');
   f.style.width = Math.min(100, Math.max(0, (used / CAP) * 100)) + '%';
   f.classList.toggle('over', rem < 0);
   $('cnt').textContent = `${picked().length} / 23`;
 
-  if ($('capMaxLbl')) $('capMaxLbl').textContent = `/ ${money(CAP)}`;
-  if ($('subTitleCap')) $('subTitleCap').textContent = `BATTEZ LES BRUINS DE '23 · PLAFOND DE ${money(CAP)}`;
+  if ($('capMaxLbl')) {
+    $('capMaxLbl').textContent = isEra ? `/ ${money(eraCapMax)} (${curSeason})` : `/ ${money(CAP)}`;
+  }
+  if ($('subTitleCap')) {
+    $('subTitleCap').textContent = `BATTEZ LES BRUINS DE '23 · PLAFOND DE ${money(CAP)}`;
+  }
 
   const need = nextNeed();
   const lbl = $('nextNeedLbl');
@@ -251,7 +266,6 @@ function getSeasonMaxGP(season) {
   return 82;
 }
 
-import { getArchetype, getEraFactor } from './ratings.js';
 import { getUnitSynergy } from './sim.js';
 
 function getPlayerDisplayStats(p) {
@@ -268,9 +282,15 @@ function getPlayerDisplayStats(p) {
   const l = Math.round((p.l ?? 0) * factor);
   const so = Math.round((p.so ?? 0) * factor);
 
-  const salaryDisplay = G.salaryCapPct ? `${p.cp}% CAP` : money(p.$);
+  const eraSal = getEraSalary(p.$, p.s);
+  const isEra = G.salaryMode === 'ERA';
 
-  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, salaryDisplay };
+  const salaryPrimary = isEra ? `${money(eraSal)} ('${p.s.slice(-2)})` : money(p.$);
+  const salarySub = isEra
+    ? `<span class="cap-pct">Jeu 2026: ${money(p.$)}</span>`
+    : `<span class="cap-pct">Réel ${p.s}: ${money(eraSal)}</span>`;
+
+  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, eraSal, salaryPrimary, salarySub };
 }
 
 function getHeadshotHtml(p, size = 44) {
@@ -314,7 +334,7 @@ function slotCardEl(s) {
           ${headshotMini}
           <div class="slot-player-name">${p.n} ${penTag}</div>
         </div>
-        <div class="slot-salary">${st.salaryDisplay}</div>
+        <div class="slot-salary">${st.salaryPrimary}</div>
       </div>
       <div class="slot-arch-badge" title="${arch.desc}">${arch.icon} ${arch.label}</div>
       <div class="slot-big-stat">${statValue}<span class="stat-unit">${statUnit}</span></div>
@@ -336,11 +356,12 @@ function renderRoster() {
     LW: SLOTS.filter(s => s.role === 'AG'),
     C: SLOTS.filter(s => s.role === 'C'),
     RW: SLOTS.filter(s => s.role === 'AD'),
-    D: SLOTS.filter(s => s.group === 'D'),
+    LD: SLOTS.filter(s => s.role === 'DG'),
+    RD: SLOTS.filter(s => s.role === 'DD'),
     G: SLOTS.filter(s => s.group === 'G' || s.scratch)
   };
 
-  const populateCol = (containerId, cntId, slotsList, titleLabel) => {
+  const populateCol = (containerId, cntId, slotsList) => {
     const container = $(containerId);
     if (!container) return;
     container.innerHTML = '';
@@ -356,7 +377,8 @@ function renderRoster() {
   populateCol('lwSlots', 'lwCnt', categories.LW);
   populateCol('cSlots', 'cCnt', categories.C);
   populateCol('rwSlots', 'rwCnt', categories.RW);
-  populateCol('dSlots', 'dCnt', categories.D);
+  populateCol('ldSlots', 'ldCnt', categories.LD);
+  populateCol('rdSlots', 'rdCnt', categories.RD);
   populateCol('gSlots', 'gCnt', categories.G);
 
   document.querySelectorAll('.slot-remove-btn').forEach(b => {
@@ -376,7 +398,9 @@ function renderFilters() {
     ['C', 'Centres (C)'],
     ['AG', 'Ailiers G (AG)'],
     ['AD', 'Ailiers D (AD)'],
-    ['D', 'Défenseurs (D)'],
+    ['LD', 'Déf. Gauche (DG)'],
+    ['RD', 'Déf. Droit (DD)'],
+    ['D', 'Défenseurs (Tous)'],
     ['G', 'Gardiens (G)'],
   ].forEach(([k, l]) => {
     const b = document.createElement('button');
@@ -397,7 +421,7 @@ function renderPool() {
   if (G.filter === 'C') list = list.filter(p => p.np === 'C');
   else if (G.filter === 'AG') list = list.filter(p => p.np === 'L');
   else if (G.filter === 'AD') list = list.filter(p => p.np === 'R');
-  else if (G.filter === 'D') list = list.filter(p => p.p === 'D');
+  else if (G.filter === 'LD' || G.filter === 'RD' || G.filter === 'D') list = list.filter(p => p.p === 'D');
   else if (G.filter === 'G') list = list.filter(p => p.p === 'G');
 
   if (G.sortBy === 'SAL') {
@@ -450,9 +474,8 @@ function renderPool() {
 
     const linksHtml = `<a class="ext-link" href="${nhlUrl}" target="_blank" title="Fiche NHL.com" onclick="event.stopPropagation()">NHL🔗</a> <a class="ext-link" href="${hdbUrl}" target="_blank" title="Fiche HockeyDB" onclick="event.stopPropagation()">HDB🔗</a>`;
 
-    const cpVal = p.cp ?? (Math.round((p.$ / 95_500_000) * 1000) / 10);
-    const priceDisplay = G.salaryCapPct ? `${cpVal}% CAP` : money(p.$);
-    const subCapStr = G.salaryCapPct ? `<span class="cap-pct">${money(p.$)}</span>` : `<span class="cap-pct">${cpVal}% du cap</span>`;
+    const priceDisplay = st.salaryPrimary;
+    const subCapStr = st.salarySub;
 
     const c = document.createElement('div');
     c.className = 'card';
@@ -569,9 +592,13 @@ function showRadar(ev, p) {
     dotsSvg += `<circle cx="${cx}" cy="${cy}" r="3" fill="#38bdf8"/>`;
   });
 
+  const eraSal = getEraSalary(p.$, p.s);
   tooltip.innerHTML = `
     <div class="radar-header">${p.n}</div>
     <div class="radar-sub">${p.np} · ${p.t} · COTE ${p.v}</div>
+    <div style="font-size:9.5px;color:var(--green-neon);margin-bottom:6px;font-weight:700;">
+      Jeu 2026: ${money(p.$)} · Réel (${p.s}): ${money(eraSal)}
+    </div>
     <svg class="radar-chart-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
       ${gridSvg}
       ${axesSvg}
