@@ -775,6 +775,22 @@ body {
   gap: 4px;
 }
 
+.slot-arch-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gold);
+  background: rgba(244, 196, 48, 0.1);
+  border: 1px solid rgba(244, 196, 48, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin: 4px 0 2px;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 .slot-player-group {
   display: flex;
   align-items: center;
@@ -1126,6 +1142,16 @@ body {
   padding: 14px 18px;
   overflow-y: auto;
   flex: 1;
+}
+
+.math-box {
+  background: rgba(16, 33, 53, 0.8);
+  border: 1px dashed var(--blue-bright);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 8px 0 12px;
+  color: var(--gold);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .leaderboard-item {

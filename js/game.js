@@ -1,5 +1,5 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
-import { SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty } from './sim.js';
+import { SLOTS, CAP, REROLLS, fits, simulate, simulateMatch, getPositionPenalty } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS } from './logos.js';
 
 const $ = id => document.getElementById(id);
@@ -112,6 +112,12 @@ function setupEvents() {
 
   const closeLbBtn = $('closeLeaderboardBtn');
   if (closeLbBtn) closeLbBtn.onclick = hideLeaderboard;
+
+  const bibleBtn = $('openBibleBtn');
+  if (bibleBtn) bibleBtn.onclick = showBible;
+
+  const closeBibleBtn = $('closeBibleBtn');
+  if (closeBibleBtn) closeBibleBtn.onclick = hideBible;
 }
 
 /* ---------- roulette ---------- */
@@ -245,14 +251,18 @@ function getSeasonMaxGP(season) {
   return 82;
 }
 
+import { getArchetype, getEraFactor } from './ratings.js';
+import { getUnitSynergy } from './sim.js';
+
 function getPlayerDisplayStats(p) {
   const maxGP = getSeasonMaxGP(p.s);
   const factor = (G.statsProrata && maxGP < 82) ? (82 / maxGP) : 1;
+  const eraFactor = G.statsProrata ? getEraFactor(p.s) : 1;
 
   const gp = Math.round(p.gp * factor);
-  const g = Math.round(p.g * factor);
-  const a = Math.round(p.a * factor);
-  const pt = Math.round(p.pt * factor);
+  const g = Math.round(p.g * factor * eraFactor);
+  const a = Math.round(p.a * factor * eraFactor);
+  const pt = Math.round(p.pt * factor * eraFactor);
   const pm = Math.round(p.pm * factor);
   const w = Math.round((p.w ?? 0) * factor);
   const l = Math.round((p.l ?? 0) * factor);
@@ -260,7 +270,7 @@ function getPlayerDisplayStats(p) {
 
   const salaryDisplay = G.salaryCapPct ? `${p.cp}% CAP` : money(p.$);
 
-  return { factor, maxGP, gp, g, a, pt, pm, w, l, so, salaryDisplay };
+  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, salaryDisplay };
 }
 
 function getHeadshotHtml(p, size = 44) {
@@ -281,6 +291,7 @@ function slotCardEl(s) {
     const penTag = pen > 0 ? `<span class="tag-pen">-${pen}</span>` : '';
     const logo = getTeamLogoHtml(p.t, 14);
     const st = getPlayerDisplayStats(p);
+    const arch = getArchetype(p);
 
     let statValue = p.p === 'G' ? st.w : st.pt;
     let statUnit = p.p === 'G' ? 'V' : 'PTS';
@@ -305,6 +316,7 @@ function slotCardEl(s) {
         </div>
         <div class="slot-salary">${st.salaryDisplay}</div>
       </div>
+      <div class="slot-arch-badge" title="${arch.desc}">${arch.icon} ${arch.label}</div>
       <div class="slot-big-stat">${statValue}<span class="stat-unit">${statUnit}</span></div>
       <div class="slot-bottom">
         <div class="slot-team-info">${logo} ${p.t} '${p.s.slice(-2)}</div>
@@ -633,6 +645,87 @@ function hideLeaderboard() {
   if (modal) modal.style.display = 'none';
 }
 
+function simulatePlayoffs(top16Teams) {
+  const host = $('playoffsSection');
+  if (!host) return;
+
+  host.style.display = 'block';
+  host.scrollIntoView({ behavior: 'smooth' });
+
+  let roundTeams = top16Teams.slice();
+  let roundNum = 1;
+  const roundNames = ['Huitièmes de Finale', 'Quarts de Finale', 'Demi-Finales', 'FINALE DE LA COUPE STANLEY 🏆'];
+  let html = `<h2 style="color:var(--gold);text-align:center;font-size:20px;text-transform:uppercase;">🏆 SÉRIES ÉLIMINATOIRES — EN ROUTE VERS LA COUPE STANLEY</h2>`;
+
+  while (roundTeams.length > 1) {
+    const nextRound = [];
+    html += `<div style="background:rgba(10,20,32,0.8);border:1px solid var(--panel-border);border-radius:12px;padding:14px;margin-top:14px;">
+      <h3 style="color:var(--blue-bright);margin:0 0 10px;font-size:14px;text-transform:uppercase;">Ronde ${roundNum} : ${roundNames[roundNum - 1]}</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:10px;">`;
+
+    for (let i = 0; i < roundTeams.length / 2; i++) {
+      const teamA = roundTeams[i];
+      const teamB = roundTeams[roundTeams.length - 1 - i];
+
+      let winsA = 0, winsB = 0;
+      let gameLog = [];
+
+      while (winsA < 4 && winsB < 4) {
+        // match sim
+        const isPlayerA = teamA.isPlayer;
+        const isPlayerB = teamB.isPlayer;
+
+        let winnerA = Math.random() < (teamA.PTS / (teamA.PTS + teamB.PTS));
+        if (winnerA) winsA++; else winsB++;
+      }
+
+      const seriesWinner = winsA === 4 ? teamA : teamB;
+      nextRound.push(seriesWinner);
+
+      const isPlayerSeries = teamA.isPlayer || teamB.isPlayer;
+
+      html += `<div style="background:var(--panel-card);border:1px solid ${isPlayerSeries ? 'var(--gold)' : 'var(--panel-border)'};border-radius:8px;padding:10px;font-size:11.5px;">
+        <div style="display:flex;justify-content:space-between;font-weight:800;color:${teamA.isPlayer ? 'var(--gold)' : 'var(--text)'};">
+          <span>${getTeamLogoHtml(teamA.tag, 14)} ${teamA.name}</span>
+          <span>${winsA}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-weight:800;color:${teamB.isPlayer ? 'var(--gold)' : 'var(--text)'};margin-top:4px;">
+          <span>${getTeamLogoHtml(teamB.tag, 14)} ${teamB.name}</span>
+          <span>${winsB}</span>
+        </div>
+        <div style="font-size:9.5px;color:var(--sub);margin-top:6px;text-align:right;font-weight:700;">
+          Série : <strong>${seriesWinner.name} gagne (4-${Math.min(winsA, winsB)})</strong>
+        </div>
+      </div>`;
+    }
+
+    html += `</div></div>`;
+    roundTeams = nextRound;
+    roundNum++;
+  }
+
+  const champion = roundTeams[0];
+  const championIsPlayer = champion.isPlayer;
+
+  html += `<div style="text-align:center;margin-top:24px;background:rgba(244,196,48,0.15);border:2px solid var(--gold);border-radius:14px;padding:20px;">
+    <h2 style="color:var(--gold);font-size:26px;margin:0 0 6px;">🎉 CHAMPION DE LA COUPE STANLEY</h2>
+    <div style="font-size:22px;font-weight:900;color:var(--text);">${getTeamLogoHtml(champion.tag, 32)} ${champion.name}</div>
+    <p style="color:var(--sub);font-size:13px;margin-top:8px;">${championIsPlayer ? 'FÉLICITATIONS ! VOTRE FORMATION A CONQUIS LA COUPE STANLEY ! 🏆' : 'Votre équipe a donné son maximum. Tentez votre chance à nouveau pour le trophée ultime !'}</p>
+  </div>`;
+
+  host.innerHTML = html;
+}
+
+function showBible() {
+  const modal = $('bibleModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function hideBible() {
+  const modal = $('bibleModal');
+  if (modal) modal.style.display = 'none';
+}
+
 /* ---------- simulation ---------- */
 
 const bar = (label, val) => {
@@ -669,10 +762,58 @@ $('mainBtn').onclick = () => {
     date: new Date().toLocaleDateString('fr-CA')
   });
 
+  // Simulation de la ligue à 32 équipes
+  const leagueTeams = [
+    { name: 'Votre Formation', tag: 'YOU', isPlayer: true, roster: G.roster, W: r.W, L: r.L, OTL: r.OTL, GF: r.GF, GA: r.GA, PTS: r.points },
+  ];
+
+  // Sélection de 31 adversaires aléatoires dans l'histoire
+  const sampleOpponents = [
+    { name: 'MTL 1976-77', tag: 'MTL' }, { name: 'EDM 1983-84', tag: 'EDM' }, { name: 'BOS 2022-23', tag: 'BOS' },
+    { name: 'NYI 1981-82', tag: 'NYI' }, { name: 'PIT 1991-92', tag: 'PIT' }, { name: 'COL 2000-01', tag: 'COL' },
+    { name: 'DET 2001-02', tag: 'DET' }, { name: 'CHI 2012-13', tag: 'CHI' }, { name: 'VGK 2022-23', tag: 'VGK' },
+    { name: 'TPA 2018-19', tag: 'TBL' }, { name: 'WSH 2017-18', tag: 'WSH' }, { name: 'LAK 2011-12', tag: 'LAK' },
+    { name: 'NJD 1999-00', tag: 'NJD' }, { name: 'DAL 1998-99', tag: 'DAL' }, { name: 'NYR 1993-94', tag: 'NYR' },
+    { name: 'CGY 1988-89', tag: 'CGY' }, { name: 'PHI 1974-75', tag: 'PHI' }, { name: 'STL 2018-19', tag: 'STL' },
+    { name: 'CAR 2005-06', tag: 'CAR' }, { name: 'ANA 2006-07', tag: 'ANA' }, { name: 'SJS 2015-16', tag: 'SJS' },
+    { name: 'NSH 2016-17', tag: 'NSH' }, { name: 'FLA 2023-24', tag: 'FLA' }, { name: 'VAN 2010-11', tag: 'VAN' },
+    { name: 'BUF 1998-99', tag: 'BUF' }, { name: 'OTT 2006-07', tag: 'OTT' }, { name: 'WPG 2017-18', tag: 'WPG' },
+    { name: 'MIN 2021-22', tag: 'MIN' }, { name: 'TOR 1992-93', tag: 'TOR' }, { name: 'QUE 1992-93', tag: 'QUE' },
+    { name: 'HFD 1986-87', tag: 'HFD' }
+  ];
+
+  for (const opp of sampleOpponents) {
+    // Generer fiches réalistes simulees
+    const w = Math.floor(Math.random() * 32) + 28;
+    const otl = Math.floor(Math.random() * 10) + 4;
+    const l = 82 - w - otl;
+    const gf = Math.floor(w * 3.4 + Math.random() * 20);
+    const ga = Math.floor(l * 3.2 + Math.random() * 20);
+    leagueTeams.push({
+      name: opp.name, tag: opp.tag, isPlayer: false, W: w, L: l, OTL: otl, GF: gf, GA: ga, PTS: w * 2 + otl
+    });
+  }
+
+  leagueTeams.sort((a, b) => b.PTS - a.PTS || (b.GF - b.GA) - (a.GF - a.GA));
+  const playerRank = leagueTeams.findIndex(t => t.isPlayer) + 1;
+
+  const standingsRows = leagueTeams.map((t, idx) => `
+    <tr style="${t.isPlayer ? 'background:rgba(56,189,248,0.2);font-weight:800;color:var(--gold);' : ''}">
+      <td style="padding:6px;text-align:center;">${idx + 1}</td>
+      <td style="padding:6px;">${getTeamLogoHtml(t.tag, 16)} ${t.name}</td>
+      <td style="padding:6px;text-align:center;">82</td>
+      <td style="padding:6px;text-align:center;">${t.W}</td>
+      <td style="padding:6px;text-align:center;">${t.L}</td>
+      <td style="padding:6px;text-align:center;">${t.OTL}</td>
+      <td style="padding:6px;text-align:center;font-weight:900;color:var(--green-neon);">${t.PTS}</td>
+      <td style="padding:6px;text-align:center;">${t.GF}</td>
+      <td style="padding:6px;text-align:center;">${t.GA}</td>
+    </tr>`).join('');
+
   $('resultHost').innerHTML = `
     <div class="result">
       <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
-      <div class="rec">${r.points} POINTS · ${r.GF} BP · ${r.GA} BC · DIFF ${r.GF - r.GA > 0 ? '+' : ''}${r.GF - r.GA}</div>
+      <div class="rec">${r.points} POINTS · RANG AU CLASSEMENT : ${playerRank}e / 32</div>
       <div class="bars">
         ${bar('Attaque', r.attaque)}
         ${bar('Brigade déf.', r.brigade)}
@@ -680,12 +821,47 @@ $('mainBtn').onclick = () => {
         ${bar('Robustesse', r.rob)}
         ${bar('Clutch', r.clu)}
       </div>
+
+      <div style="margin-top:24px;">
+        <h3 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">🏆 CLASSEMENT GÉNÉRAL DE LA LIGUE (32 ÉQUIPES)</h3>
+        <div style="max-height:280px;overflow-y:auto;border:1px solid var(--panel-border);border-radius:10px;">
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+            <thead>
+              <tr style="background:rgba(0,0,0,0.4);color:var(--sub);text-align:center;">
+                <th style="padding:6px;">RANG</th>
+                <th style="padding:6px;text-align:left;">ÉQUIPE</th>
+                <th style="padding:6px;">PJ</th>
+                <th style="padding:6px;">V</th>
+                <th style="padding:6px;">D</th>
+                <th style="padding:6px;">DP</th>
+                <th style="padding:6px;">PTS</th>
+                <th style="padding:6px;">BP</th>
+                <th style="padding:6px;">BC</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${standingsRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="note">${note}</div>
       <div class="reveal"><h3>COTES CACHÉES RÉVÉLÉES</h3>${rows}</div>
-      <div style="text-align:center">
-        <button class="btn go" id="again" style="margin-top:20px">NOUVELLE PARTIE</button>
+      <div style="text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center;">
+        ${playerRank <= 16 ? '<button class="btn go" id="playoffsBtn" style="background:var(--gold);color:#000;">🏆 LANCER LES SÉRIES ÉLIMINATOIRES (TOP 16)</button>' : ''}
+        <button class="btn go" id="again" style="margin-top:0">NOUVELLE PARTIE</button>
       </div>
+
+      <div id="playoffsSection" style="display:none;margin-top:24px;border-top:1px solid var(--panel-border);padding-top:16px;"></div>
     </div>`;
+
+  if (playerRank <= 16) {
+    const pBtn = $('playoffsBtn');
+    if (pBtn) {
+      pBtn.onclick = () => simulatePlayoffs(leagueTeams.slice(0, 16));
+    }
+  }
 
   $('again').onclick = async () => {
     G.roster = {}; G.left = { ...REROLLS }; G.target = null; G.done = false;
