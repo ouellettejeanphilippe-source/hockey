@@ -1783,3 +1783,151 @@ body {
   display: flex;
   gap: 8px;
 }
+
+/* ---------- Mobile Vertical Mode (< 640px) Adjustments ---------- */
+@media (max-width: 639px) {
+  body {
+    padding: 10px 10px 100px;
+  }
+
+  .main-title {
+    font-size: 28px;
+  }
+
+  .subtitle {
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+  }
+
+  .capbar {
+    padding: 10px 12px;
+    top: 4px;
+  }
+
+  .capbar-value {
+    font-size: 17px;
+  }
+
+  .toggles-bar {
+    padding: 6px 8px;
+    gap: 6px 4px;
+    justify-content: flex-start;
+  }
+
+  .toggle-group {
+    gap: 4px;
+  }
+
+  .toggle-label {
+    font-size: 9px;
+  }
+
+  .toggle-btn {
+    font-size: 10px;
+    padding: 4px 7px;
+    border-radius: 5px;
+  }
+
+  .spin {
+    padding: 12px 10px;
+    border-radius: 12px;
+  }
+
+  .spin-team-name {
+    font-size: 20px;
+  }
+
+  .spin-team-full {
+    font-size: 11px;
+  }
+
+  .reroll-btn {
+    padding: 8px 4px;
+    font-size: 10.5px;
+  }
+
+  .pool-col {
+    min-width: 0;
+    border-radius: 12px;
+    padding: 8px;
+  }
+
+  .pool-col-cards {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+
+  .card.compact {
+    padding: 8px 10px;
+  }
+
+  .compact-name {
+    font-size: 13px;
+    max-width: 140px;
+  }
+
+  .compact-price {
+    font-size: 13px;
+  }
+
+  .compact-stat-num {
+    font-size: 26px;
+  }
+
+  .roster-col {
+    min-width: 0;
+    padding: 8px;
+    border-radius: 12px;
+  }
+
+  .slot-card {
+    padding: 6px 8px;
+    min-height: 76px;
+  }
+
+  .slot-player-name {
+    font-size: 12px;
+    max-width: 90px;
+  }
+
+  .slot-salary {
+    font-size: 13.5px;
+  }
+
+  .slot-big-stat {
+    font-size: 22px;
+  }
+
+  .slot-arch-badge {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  .roster-board.rink-mode {
+    padding: 8px;
+    border-radius: 14px;
+  }
+
+  .rink-surface {
+    padding: 8px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .rink-zone {
+    padding: 6px;
+  }
+
+  .rink-line-row {
+    gap: 4px;
+  }
+
+  .rink-line-row.def-pair {
+    max-width: 100%;
+  }
+
+  .rink-line-row.goalies-row .slot-card {
+    min-width: 80px;
+  }
+}
