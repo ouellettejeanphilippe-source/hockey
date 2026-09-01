@@ -70,9 +70,9 @@ export function getHiddenRatings(p) {
 export function getPositionPenalty(player, slot) {
   if (!slot || slot.scratch || slot.group === 'ANY') return 0;
   if (player.p === 'G') return slot.group === 'G' ? 0 : 999;
-  if (player.p === 'D') {
-    if (slot.group !== 'D') return 999;
-    const np = (player.np === 'RD' || player.np === 'R') ? 'RD' : 'LD';
+  if (player.p === 'D' || player.p === 'LD' || player.p === 'RD') {
+    if (slot.group !== 'D' && slot.group !== 'LD' && slot.group !== 'RD') return 999;
+    const np = (player.np === 'RD' || player.np === 'R' || player.p === 'RD') ? 'RD' : 'LD';
     const role = slot.role; // 'DG' (LD) or 'DD' (RD)
     if (role === 'DG' && np === 'RD') return 2; // Right-handed D playing Left side (-2)
     if (role === 'DD' && np === 'LD') return 2; // Left-handed D playing Right side (-2)
@@ -87,12 +87,12 @@ export function getPositionPenalty(player, slot) {
     if (role === 'C') return 0;
     return 3; // Center playing wing (-3)
   }
-  if (np === 'L' || np === 'LD' || np === 'AG') {
+  if (np === 'L' || np === 'AG') {
     if (role === 'AG') return 0;
     if (role === 'AD') return 2; // Opposite wing (-2)
     if (role === 'C') return 5;  // Winger at center (-5)
   }
-  if (np === 'R' || np === 'RD' || np === 'AD') {
+  if (np === 'R' || np === 'AD') {
     if (role === 'AD') return 0;
     if (role === 'AG') return 2; // Opposite wing (-2)
     if (role === 'C') return 5;  // Winger at center (-5)
@@ -104,7 +104,10 @@ export function fits(player, slot) {
   if (slot.group === 'ANY') return true;
   if (slot.group === 'G') return player.p === 'G';
   if (player.p === 'G') return false;
-  return player.p === slot.group;
+  if (slot.group === 'D' || slot.group === 'LD' || slot.group === 'RD') {
+    return player.p === 'D' || player.p === 'LD' || player.p === 'RD';
+  }
+  return player.p === slot.group || slot.group === 'F';
 }
 
 /* ---------- calcul de synergie des trios / paires ---------- */

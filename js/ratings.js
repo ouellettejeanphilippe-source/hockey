@@ -9,7 +9,7 @@
  * des shards). Une seule implémentation, un seul endroit à corriger.
  */
 
-export const RATINGS_VERSION = 9;
+export const RATINGS_VERSION = 10;
 
 /* ---------- Plafonds / Masses salariales par époque (pour conversion en $ réel) ---------- */
 export const SEASON_ERA_CAP = {
