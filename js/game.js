@@ -336,11 +336,12 @@ function renderRoster() {
     LW: SLOTS.filter(s => s.role === 'AG'),
     C: SLOTS.filter(s => s.role === 'C'),
     RW: SLOTS.filter(s => s.role === 'AD'),
-    D: SLOTS.filter(s => s.group === 'D'),
-    G: SLOTS.filter(s => s.group === 'G' || s.scratch)
+    D: SLOTS.filter(s => s.group === 'D' && !s.scratch),
+    G: SLOTS.filter(s => s.group === 'G' && !s.scratch),
+    RES: SLOTS.filter(s => s.scratch)
   };
 
-  const populateCol = (containerId, cntId, slotsList, titleLabel) => {
+  const populateCol = (containerId, cntId, slotsList) => {
     const container = $(containerId);
     if (!container) return;
     container.innerHTML = '';
@@ -358,6 +359,7 @@ function renderRoster() {
   populateCol('rwSlots', 'rwCnt', categories.RW);
   populateCol('dSlots', 'dCnt', categories.D);
   populateCol('gSlots', 'gCnt', categories.G);
+  populateCol('resSlots', 'resCnt', categories.RES);
 
   document.querySelectorAll('.slot-remove-btn').forEach(b => {
     b.onclick = ev => {
