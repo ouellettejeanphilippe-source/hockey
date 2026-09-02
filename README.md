@@ -23,6 +23,13 @@ python3 scripts/build_shards.py
 
 Environ 120 requêtes à l'API officielle de la LNH, 5 minutes. Requiert Python 3 et Node 18+, aucune dépendance à installer.
 
+Pour refaire seulement la cote globale, les salaires, les archétypes et les zones (aucun réseau, une seconde) :
+
+```bash
+python3 scripts/build_shards.py --rerate
+node scripts/check_ratings.mjs      # distribution des cotes et cohérence avec les vrais classements
+```
+
 ## Publier sur GitHub Pages
 
 1. Pousse le dépôt
@@ -44,15 +51,19 @@ Elles sont dérivées des vraies stats, pas inventées, et **normalisées par sa
 
 Gardiens : Technique (% d'arrêts), Blindage (moyenne de buts alloués), Robustesse (charge de travail), Clutch (blanchissages, % de victoires).
 
-Le salaire découle de la cote globale par une courbe exponentielle sur l'échelle salariale actuelle.
+La cote globale ajoute un bonus de vedette calculé sur le rang du joueur dans sa saison, divisé par le nombre d'équipes de la ligue cette année-là : un top-10 des marqueurs vaut la même chose en 1975 qu'en 2024. Les 100+ points de l'ère moderne tombent entre 88 et 99.
+
+Le salaire suit un barème par cote globale sur le plafond de 95,5 M$ (cote 70 → 2,3 M$, 80 → 5,6 M$, 88 → 11,5 M$, 99 → 18,5 M$). Un joueur de 100+ points coûte 12 à 18 M$, un défenseur de première paire 9 à 14 M$, et les trois premières saisons d'un joueur sont un contrat d'entrée (950 k$ + bonis). Quand un salaire réel publié existe (`data/salaries/`), il remplace le barème au prorata du plafond de l'année ; pour 1989-90 à 2003-04, le « plafond » est la masse salariale de l'équipe la plus dépensière.
+
+Chaque joueur porte aussi un archétype classique (franc-tireur, fabricant de jeu, attaquant de puissance, défenseur offensif…) et une zone d'efficacité (calibre 1er, 2e, 3e ou 4e trio) : un trio où tout le monde est dans sa zone gagne un bonus de chimie.
 
 ## La simulation
 
-82 matchs joués un par un. Les trios comptent 34/28/22/16 %, les paires 40/34/26 % — ton quatrième trio pèse pour vrai. Le partant prend environ 68 départs.
+Une ligue complète : ta formation plus 31 vraies équipes historiques (tirées des saisons sorties par la roulette, alignées automatiquement), 82 matchs chacune, 1 312 matchs. Les trios comptent 34/28/22/16 %, les paires 40/34/26 % — ton quatrième trio pèse pour vrai. Le partant prend environ 68 départs.
 
-Buts tirés d'une loi de Poisson autour d'espérances calculées depuis l'attaque, la brigade défensive et le gardien. Un match sur quatre est éreintant, où la robustesse d'équipe ajuste la défensive. Les égalités passent en prolongation, tranchée par le clutch.
+Buts tirés d'une loi de Poisson autour d'espérances calculées depuis l'attaque, la brigade défensive et le gardien, avec une part de chance par match et un « PDO » d'équipe pour la saison. Un match sur quatre est éreintant, où la robustesse d'équipe ajuste la défensive. Les égalités passent en prolongation, tranchée par le clutch. Un trio qui reste intact gagne en continuité ; un joueur qui a raté des matchs dans sa vraie saison se blesse plus souvent et laisse sa place à un réserviste. Buts et passes sont distribués selon la vraie production de chaque joueur cette année-là. Classement, meneurs, infirmerie, puis séries 4 de 7 pour les 16 premiers.
 
-Avec 23 joueurs de cote uniforme : cote 60 donne 47-31-5, cote 70 donne 67-13-1, cote 99 donne 81-1-0. Même une équipe parfaite perd en moyenne un match. Le 82-0 reste rare, c'est voulu.
+Avec 23 joueurs de cote uniforme contre la moyenne de la ligue : cote 60 donne 53-26-4, cote 70 donne 69-12-1, cote 99 donne 81-1-0. Même une équipe parfaite perd en moyenne un match. Le 82-0 reste rare, c'est voulu.
 
 ## Documentation
 

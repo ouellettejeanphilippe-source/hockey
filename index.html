@@ -52,7 +52,7 @@
     </div>
     <div class="toggle-group">
       <span class="toggle-label">FOG OF WAR :</span>
-      <button id="toggleFogBtn" class="toggle-btn" title="Activer/Désactiver l'Hexagone de cotes au survol">⬢ HEXA ON</button>
+      <button id="toggleFogBtn" class="toggle-btn" title="Cotes et hexagone masqués par défaut. Cliquer pour les afficher au survol.">🔒 FOG OF WAR</button>
     </div>
     <div class="toggle-group">
       <button id="openLeaderboardBtn" class="toggle-btn gold">🏆 HISTORIQUE</button>
@@ -186,25 +186,41 @@
         <code>Points Ajustés = Points Réels × Facteur d'époque</code>
       </div>
 
-      <h3 style="color:var(--gold);">3. Échelle Salariale Exponentielle & Toggles de Valeur</h3>
-      <p>Le salaire pour le jeu est dérivé de la cote globale (OVR) sur l'échelle salariale moderne de 2026 ($95.50M) :</p>
+      <h3 style="color:var(--gold);">3. Cote globale équilibrée par saison</h3>
+      <p>La cote globale (OVR) combine les sous-cotes, puis ajoute un <strong>bonus de vedette</strong> calculé sur le <strong>rang du joueur dans sa propre saison</strong>, divisé par le nombre d'équipes de la ligue cette année-là. Un top-10 des marqueurs vaut donc la même chose en 1975 (18 équipes) qu'en 2024 (32 équipes), et chaque saison a son propre barème. Les 100+ points de l'ère moderne tombent entre 88 et 99.</p>
       <div class="math-box">
-        <code>Salaire 2026 = 775 000$ × e^(0.0655 × (OVR - 50))</code><br>
-        <code>Salaire Époque = Salaire 2026 × (Plafond de l'Époque / 95.5M$)</code>
+        <code>OVR attaquant = 0.66×ATT + 0.16×DÉF + 0.05×ROB + 0.13×CLU + Vedette(rang / équipes, z)</code><br>
+        <code>OVR défenseur = 0.42×ATT + 0.48×DÉF + 0.05×ROB + 0.05×CLU + 6 + Vedette(rang parmi les D)</code><br>
+        <code>OVR gardien = 0.40×TEC + 0.32×BLI + 0.14×ROB + 0.14×CLU + Partant(% des matchs) + Rang</code>
       </div>
-      <p><em>Le bouton SALAIRE permet de basculer entre la <strong>Valeur 2026</strong> (pondérée pour équilibrer le jeu sous le plafond actuel) et la <strong>Valeur Époque</strong> (salaire réel équivalent dans les dollars de la saison d'origine).</em></p>
 
-      <h3 style="color:var(--gold);">4. Synergies de Trios & Paires</h3>
-      <p>Placer des joueurs complémentaires sur le même trio apporte des bonus directs aux cotes de l'unité :</p>
+      <h3 style="color:var(--gold);">4. Barème salarial & prorata du plafond</h3>
+      <p>Le salaire 2026 suit un barème par cote globale (interpolation logarithmique entre ancres) sur le plafond de 95,5 M$ :</p>
+      <div class="math-box">
+        <code>Cote 50 → 0,78 M$ · 70 → 2,3 M$ · 80 → 5,6 M$ · 85 → 8,8 M$ · 88 → 11,5 M$ · 92 → 13,75 M$ · 99 → 18,5 M$</code><br>
+        <code>Salaire Époque = Salaire 2026 × (Plafond de l'année / 95,5 M$)</code>
+      </div>
+      <p>Un joueur de 100+ points coûte 12 à 18 M$, un défenseur de première paire 9 à 14 M$ : il faut remplir le reste de l'alignement avec du 3e et 4e trio. Pour 1989-90 à 2003-04 (salaires publiés, pas de plafond), le « plafond » de l'année est la masse salariale de l'équipe la plus dépensière. <strong>🐣 Contrat d'entrée (ELC)</strong> : les trois premières saisons d'un joueur sont plafonnées à 950 k$ + bonis (max ~3,8 M$ pour une vedette). Quand un salaire réel publié est disponible, il remplace le barème, au prorata du plafond de l'année.</p>
+      <p><em>Le bouton SALAIRE bascule entre la <strong>Valeur 2026</strong> (celle qui compte sous le plafond du jeu) et la <strong>Valeur Époque</strong> (équivalent en dollars de la saison d'origine, marqué Réel ou Estimé).</em></p>
+
+      <h3 style="color:var(--gold);">5. Archétypes & zones d'efficacité</h3>
+      <p>Chaque joueur porte un archétype classique — Fabricant de jeu d'élite 🪄, Franc-tireur 🎯, Fabricant de jeu 🎨, Attaquant de puissance 💥, Attaquant complet ⚖️, Joueur d'énergie 🔋, Attaquant offensif ✨, Attaquant de profondeur 🏃 ; Défenseur offensif 🚀, physique 🛡️, défensif 🔒, polyvalent 🔄, de profondeur 🧱 ; Gardien d'élite, acrobatique, de fer, régulier — et une <strong>zone d'efficacité</strong> 📍 visible même sous le fog of war :</p>
       <ul>
-        <li><strong>Chimie Parfaite 🌟 (+4 OFF / +2 DEF)</strong> : Fabriqueur de jeu + Buteur/Sniper + Attaquant de puissance / Polyvalent.</li>
-        <li><strong>Tandem Moteur 🎯 (+3 OFF)</strong> : Fabriqueur de jeu + Buteur/Sniper.</li>
-        <li><strong>Trio d'Étouffement 🧱 (+4 DEF)</strong> : Au moins 2 joueurs à vocation défensive/physique.</li>
-        <li><strong>Paire Équilibrée ⚖️ (+3 OFF / +3 DEF)</strong> : Défenseur Offensif + Défenseur Défensif.</li>
-        <li><strong>Conflit de Rôles ⚠️ (-2 OFF / -2 DEF)</strong> : 3 Buteurs ou 3 Passeurs exclusifs sur le même trio.</li>
+        <li><strong>Calibre 1er trio</strong> : rend à 100 % sur les trios 1-2 (paires 1-2 pour un défenseur).</li>
+        <li><strong>Calibre 2e trio</strong> : trios 1-3 (paires 1-3).</li>
+        <li><strong>Calibre 3e trio</strong> : trios 3-4 (paires 2-3).</li>
+        <li><strong>Calibre 4e trio / Profondeur</strong> : trio 4 (paire 3).</li>
+      </ul>
+      <p>Trio ou paire où <strong>tout le monde est dans sa zone</strong> : <strong>✨ Trio optimal (+2 OFF / +2 DEF)</strong>. Deux joueurs ou plus hors de leur zone : <strong>⚠️ Trio mal assorti (-2 / -2)</strong>. Ces bonus s'ajoutent à la chimie des archétypes :</p>
+      <ul>
+        <li><strong>Chimie parfaite 🌟 (+4 OFF / +2 DEF)</strong> : Fabricant de jeu + Franc-tireur + Attaquant de puissance / complet.</li>
+        <li><strong>Tandem moteur 🎯 (+3 OFF)</strong> : Fabricant de jeu + Franc-tireur.</li>
+        <li><strong>Trio d'étouffement 🧱 (+4 DEF)</strong> : Au moins 2 joueurs à vocation défensive / physique.</li>
+        <li><strong>Paire équilibrée ⚖️ (+3 OFF / +3 DEF)</strong> : Défenseur offensif + Défenseur défensif.</li>
+        <li><strong>Conflit de rôles ⚠️ (-2 OFF / -2 DEF)</strong> : 3 Francs-tireurs ou 3 Fabricants d'élite sur le même trio.</li>
       </ul>
 
-      <h3 style="color:var(--gold);">5. Moteur de Simulation de Matchs (Loi de Poisson)</h3>
+      <h3 style="color:var(--gold);">6. Moteur de Simulation de Matchs (Loi de Poisson)</h3>
       <p>Les buts marqués et accordés dans chaque rencontre sont tirés indépendamment selon deux lois de Poisson d'espérance <code>λ_GF</code> et <code>λ_GA</code> :</p>
       <div class="math-box">
         <code>λ_GF = 3.05 × (Attaque Équipe / 58)^1.55</code><br>
