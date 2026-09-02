@@ -36,7 +36,7 @@ Le calcul a deux étages. L'étage 1 transforme les stats brutes en sous-cotes (
 
 ## Salaires réels
 
-`data/salaries/<saison>.json` (facultatif) : playerId → salaire ou cap hit publié, en dollars de l'époque, avec le plafond de l'année. Quand un joueur y figure, son salaire dans le jeu est le prorata de ce montant sur le plafond de 95,5 M$ ; sinon, le barème par cote. Pour 1989-90 à 2003-04 (salaires publiés, pas de plafond), le plafond de référence est la masse salariale de l'équipe la plus dépensière. Les fichiers sont assemblés par `scripts/build_salaries.py` depuis `data/salaries/sources/` (provenance dans `data/salaries/README.md`). Aucun scraping dans le build : les sources sont des fichiers déposés dans le dépôt.
+`data/salaries/<saison>.json` (facultatif) : playerId → salaire ou cap hit publié, en dollars de l'époque, avec le plafond de l'année. Quand un joueur y figure, son salaire dans le jeu est le prorata de ce montant sur le plafond de 95,5 M$ ; sinon, le barème par cote. Pour 1989-90 à 2003-04 (salaires publiés, pas de plafond), le plafond de référence est la masse salariale de l'équipe la plus dépensière, mesurée sur les salaires publiés de MarkerZone (1994-95 proratée par le lock-out, comme les salaires), et le salaire du jeu est lissé à moitié vers la valeur du même rang centile dans les cap hits d'aujourd'hui, pour que le plafond morde autant qu'en 2026 sans effacer les aubaines (`LISSAGE_AVANT_PLAFOND` dans `js/ratings.js`). Les fichiers sont assemblés par `scripts/build_salaries.py` depuis `data/salaries/sources/` (provenance dans `data/salaries/README.md`). Aucun scraping dans le build : les sources sont des fichiers déposés dans le dépôt.
 
 ## Ce qu'on ne fait pas
 
