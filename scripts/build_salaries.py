@@ -95,14 +95,19 @@ class SeasonIndex:
             shard = json.load(f)
         self.full = {}
         self.last = {}
+        self.first_initial = {}
         for p in shard["players"]:
             if p.get("id") is None:
                 continue
             self.full.setdefault(norm(p["n"]), set()).add(p["id"])
-            last = norm(p["n"].split(" ")[-1])
-            self.last.setdefault(last, {}).setdefault(p["id"], set()).add(p["t"])
+            parts = p["n"].split(" ")
+            self.last.setdefault(norm(parts[-1]), {}).setdefault(p["id"], set()).add(p["t"])
+            self.first_initial[p["id"]] = norm(parts[0])[:1]
 
-    def find(self, name, teams=None):
+    def find(self, name, teams=None, exact_only=False):
+        """Nom complet exact d'abord ; sinon nom de famille + meme initiale de
+        prenom (Alex / Alexander), et l'equipe doit concorder quand on la
+        connait. Jamais de devinette entre deux candidats."""
         ids = self.full.get(norm(name))
         if ids and len(ids) == 1:
             return next(iter(ids))
@@ -113,12 +118,15 @@ class SeasonIndex:
                 if len(hits) == 1:
                     return hits[0]
             return None
-        last = norm(name.split(" ")[-1])
-        cands = self.last.get(last, {})
+        if exact_only:
+            return None
+        parts = name.split(" ")
+        last = norm(parts[-1])
+        initial = norm(parts[0])[:1]
+        cands = {pid: ts for pid, ts in self.last.get(last, {}).items()
+                 if self.first_initial.get(pid) == initial}
         if teams:
-            hits = [pid for pid, ts in cands.items() if ts & teams]
-            if len(hits) == 1:
-                return hits[0]
+            cands = {pid: ts for pid, ts in cands.items() if ts & teams}
         if len(cands) == 1:
             return next(iter(cands))
         return None
@@ -202,16 +210,22 @@ def main():
         idx = SeasonIndex(season)
         players, chosen_src, counts = {}, {}, {}
         unmatched = 0
-        for prio, src, name, teams, amount in sorted(per[season], key=lambda x: x[0]):
-            pid = idx.find(name, teams)
-            if pid is None:
-                unmatched += 1
-                continue
-            if str(pid) in players:
-                continue
-            players[str(pid)] = amount
-            chosen_src[str(pid)] = src
-            counts[src] = counts.get(src, 0) + 1
+        rows = sorted(per[season], key=lambda x: x[0])
+        # Deux passes : les noms exacts d'abord, pour qu'un repli par nom de
+        # famille (Jody Hull absent du shard) ne vole pas l'identifiant d'un
+        # joueur present (Brett Hull) avant sa propre ligne.
+        for exact_only in (True, False):
+            for prio, src, name, teams, amount in rows:
+                pid = idx.find(name, teams, exact_only)
+                if pid is None:
+                    if not exact_only:
+                        unmatched += 1
+                    continue
+                if str(pid) in players:
+                    continue
+                players[str(pid)] = amount
+                chosen_src[str(pid)] = src
+                counts[src] = counts.get(src, 0) + 1
         if not players:
             continue
         out = {

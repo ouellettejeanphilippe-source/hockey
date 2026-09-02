@@ -49,11 +49,15 @@ les lignes de MarkerZone non appariées sont des joueurs à moins de 10 matchs
 dans la LNH, absents du shard. Un nom ambigu dans la saison est ignoré
 plutôt que deviné, sauf si l'équipe de l'époque tranche.
 
-Note de jeu : comme la référence d'avant 2005 est l'équipe la plus
-dépensière, une équipe médiane de ces années coûte environ 50 M$ 2026 une
-fois convertie, contre 85 à 92 M$ depuis 2005-06. Les vedettes restent au
-même prix (Gretzky 1995-96 : 16,6 M$ 2026 ; McDavid 2018-19 : 15,0 M$),
-mais le milieu de l'alignement est moins cher dans les années 1990.
+Lissage d'avant le plafond : comme la référence de 1989-2004 est l'équipe
+la plus dépensière, une équipe médiane de ces années ne coûterait que
+~50 M$ 2026 au prorata pur. Le jeu garde les écarts individuels (aubaines,
+contrats trop chers) mais mélange à parts égales le prorata et la valeur du
+même rang centile dans les cap hits réels de 2023-24 à 2025-26
+(`LISSAGE_AVANT_PLAFOND` et `SALAIRE_REF_CENTILES` dans `js/ratings.js`).
+Résultat : équipe médiane des années 1990 à 64-68 M$, équipe la plus riche
+à 96-112 M$, Gretzky 1995-96 à 15,4 M$, Brett Hull 1989-90 toujours une
+aubaine. La carte affiche le montant réel de l'époque dans tous les cas.
 
 ## Refaire
 

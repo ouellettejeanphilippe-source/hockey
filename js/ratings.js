@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 13;
+export const RATINGS_VERSION = 14;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -76,6 +76,48 @@ export function getEraSalary(salary2026, season, refCap = null) {
 export function getModernSalary(eraSalary, season, refCap = null) {
   const eraCap = refCap || eraCapFor(season);
   return Math.max(775_000, Math.round((eraSalary * CAP_REF / eraCap) / 25_000) * 25_000);
+}
+
+/* ---------- Lissage des salaires réels d'avant le plafond ----------
+ *
+ * Avant 2005-06, la référence du prorata est l'équipe la plus dépensière,
+ * et une équipe médiane de l'époque revient à ~50 M$ 2026 : le plafond ne
+ * mord presque plus. On garde les écarts individuels (aubaines, contrats
+ * trop chers) mais on rapproche le niveau de celui d'aujourd'hui : le
+ * salaire du jeu est un mélange entre le prorata et la valeur qu'occupe le
+ * même rang centile dans les cap hits réels de 2023-24 à 2025-26.
+ *
+ *   $ = (1 - LISSAGE_AVANT_PLAFOND) * prorata + LISSAGE_AVANT_PLAFOND * centile
+ *
+ * 0 = prorata pur (équipe médiane ~50 M$), 1 = rang pur (~80 M$, écarts
+ * individuels effacés). À 0,5 l'équipe médiane des années 1990 revient à
+ * 64-68 M$ et Brett Hull 1989-90 reste une aubaine.
+ */
+export const LISSAGE_AVANT_PLAFOND = 0.5;
+
+/** Cap hits réels 2023-24 à 2025-26 au prorata de 95,5 M$, centiles 0 à 100. */
+export const SALAIRE_REF_CENTILES = [
+  775_000, 775_000, 775_000, 800_000, 825_000, 850_000, 850_000, 850_000,
+  850_000, 850_000, 875_000, 875_000, 875_000, 875_000, 875_000, 875_000,
+  875_000, 900_000, 900_000, 925_000, 925_000, 925_000, 925_000, 950_000,
+  950_000, 950_000, 975_000, 975_000, 975_000, 975_000, 1_000_000, 1_000_000,
+  1_025_000, 1_025_000, 1_050_000, 1_050_000, 1_075_000, 1_125_000, 1_150_000, 1_250_000,
+  1_250_000, 1_350_000, 1_450_000, 1_525_000, 1_625_000, 1_725_000, 1_850_000, 2_000_000,
+  2_050_000, 2_175_000, 2_275_000, 2_450_000, 2_525_000, 2_725_000, 2_825_000, 2_925_000,
+  3_000_000, 3_150_000, 3_250_000, 3_325_000, 3_425_000, 3_525_000, 3_700_000, 3_775_000,
+  3_900_000, 4_000_000, 4_175_000, 4_350_000, 4_400_000, 4_550_000, 4_600_000, 4_825_000,
+  4_975_000, 5_075_000, 5_150_000, 5_400_000, 5_425_000, 5_550_000, 5_725_000, 5_850_000,
+  6_000_000, 6_250_000, 6_300_000, 6_500_000, 6_700_000, 6_850_000, 7_050_000, 7_150_000,
+  7_450_000, 7_750_000, 8_000_000, 8_250_000, 8_525_000, 8_825_000, 9_050_000, 9_300_000,
+  9_725_000, 10_300_000, 10_875_000, 11_950_000, 14_400_000,
+];
+
+/** Salaire moderne qu'occupe le rang centile q (0..1) parmi les salaires réels d'aujourd'hui. */
+export function salaryAtQuantile(q) {
+  const x = clamp(q, 0, 1) * 100;
+  const i = Math.min(99, Math.floor(x));
+  const t = x - i;
+  return SALAIRE_REF_CENTILES[i] * (1 - t) + SALAIRE_REF_CENTILES[i + 1] * t;
 }
 
 /* ---------- Moyennes de buts par saison (pour ajustement par époque) ---------- */
@@ -543,6 +585,22 @@ export function finalizeSeason(players, season, opts = {}) {
 
   const salaries = opts.salaries || null;
   const refCap = (salaries && salaries.cap) || eraCapFor(season);
+
+  // Avant le plafond : rang centile de chaque salaire réel dans la saison,
+  // pour le lissage (voir LISSAGE_AVANT_PLAFOND)
+  const lissage = year < 2005 && salaries ? LISSAGE_AVANT_PLAFOND : 0;
+  let realSorted = [];
+  if (lissage > 0) {
+    realSorted = players.map(p => (p.id != null ? salaries.players?.[p.id] : null))
+      .filter(v => v != null && v > 0).sort((a, b) => a - b);
+  }
+  const quantileOf = v => {
+    let lo = 0, hi = realSorted.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (realSorted[m] < v) lo = m + 1; else hi = m; }
+    let hi2 = lo;
+    while (hi2 < realSorted.length && realSorted[hi2] === v) hi2++;
+    return (lo + hi2) / 2 / realSorted.length;
+  };
   const firstSeason = opts.firstSeason || null;
   const entryYear = opts.entryYear || null;
 
@@ -582,7 +640,12 @@ export function finalizeSeason(players, season, opts = {}) {
     // Salaire : réel publié au prorata du plafond si disponible, sinon barème
     const real = salaries && p.id != null ? salaries.players?.[p.id] : null;
     if (real != null && real > 0) {
-      p.$ = getModernSalary(real, season, refCap);
+      let $ = getModernSalary(real, season, refCap);
+      if (lissage > 0 && realSorted.length) {
+        const cible = salaryAtQuantile(quantileOf(real));
+        $ = Math.max(775_000, Math.round(((1 - lissage) * $ + lissage * cible) / 25_000) * 25_000);
+      }
+      p.$ = $;
       p.realSal = Math.round(real);
       p.isReal = 1;
     } else {
