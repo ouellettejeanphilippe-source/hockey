@@ -20,8 +20,11 @@ export const SLOTS = [];
 ['Première paire', 'Deuxième paire', 'Troisième paire'].forEach((label, unit) => {
   ['DG', 'DD'].forEach(role => SLOTS.push({ group: 'D', unit, role, label }));
 });
+// Le partant et l'auxiliaire portent des unités différentes pour que la zone
+// d'efficacité d'un gardien (partant numéro un / partant / auxiliaire) sache
+// les distinguer. Le moteur, lui, ne filtre les gardiens que par groupe.
 SLOTS.push({ group: 'G', unit: 0, role: 'Partant', label: 'Gardiens' });
-SLOTS.push({ group: 'G', unit: 0, role: 'Auxiliaire', label: 'Gardiens' });
+SLOTS.push({ group: 'G', unit: 1, role: 'Auxiliaire', label: 'Gardiens' });
 [['F', 'Réserve F'], ['D', 'Réserve D'], ['ANY', 'Réserve']].forEach(([group, role]) => {
   SLOTS.push({ group, unit: 0, role, label: 'Réservistes', scratch: true });
 });

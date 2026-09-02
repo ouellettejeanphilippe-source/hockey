@@ -171,7 +171,8 @@
     <div class="modal-body bible" id="bibleBody">
       <h3>0. Comment on joue</h3>
       <p>La roulette sort une <strong>saison</strong> et une <strong>équipe</strong>. Tu signes <strong>un seul joueur</strong> de ce vestiaire, puis elle tourne à nouveau. Tu as 6 relances d'année, 6 relances d'équipe et 4 « passer ». Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques. Le 82-0 est le Graal.</p>
-      <p>Ce que tu vois avant de signer : les vraies stats, le salaire, l'âge, l'archétype et la <strong>zone d'efficacité</strong> (calibre 1er, 2e, 3e ou 4e trio). Ce que tu ne vois pas : les cotes cachées, révélées seulement à la simulation.</p>
+      <p>Ce que tu vois avant de signer : le salaire, l'archétype et la <strong>zone d'efficacité</strong> sur la carte, puis toutes les statistiques dans la fiche au clic. Ce que tu ne vois pas : les cotes cachées, révélées seulement à la simulation.</p>
+      <p>La carte propose automatiquement la case où le joueur rend le mieux : sa position naturelle d'abord, puis sa zone. Tu peux viser une autre case en la touchant dans l'alignement avant de signer.</p>
 
       <h3>1. Cotes cachées normalisées par saison (z-score)</h3>
       <p>Pour comparer Wayne Gretzky en 1982 (212 pts dans une LNH à ~8 buts par match) et Sidney Crosby en 2011, les cotes sont calculées en <strong>z-score contre les contemporains de la même saison</strong>.</p>
@@ -211,10 +212,11 @@
       <h3>6. Archétypes, zones et chimie</h3>
       <p>Chaque joueur porte un archétype (🪄 fabricant d'élite, 🎯 franc-tireur, 🎨 fabricant de jeu, 💥 puissance, ⚖️ complet, 🔋 énergie, ✨ offensif, 🏃 profondeur ; 🚀 défenseur offensif, 🛡️ physique, 🔒 défensif, 🔄 polyvalent, 🧱 profondeur ; gardiens 🧱 élite, ⚡ acrobate, 🔋 de fer, 🥅 régulier) et une <strong>zone d'efficacité</strong> :</p>
       <ul>
-        <li><strong>Calibre 1er trio</strong> : rend à 100 % sur les trios 1-2 (paires 1-2).</li>
-        <li><strong>Calibre 2e trio</strong> : trios 1-3 (paires 1-3).</li>
-        <li><strong>Calibre 3e trio</strong> : trios 3-4 (paires 2-3).</li>
-        <li><strong>Calibre 4e trio / profondeur</strong> : trio 4 (paire 3).</li>
+        <li><strong>Top 6</strong> (défenseurs : <strong>Top 4</strong>) : rend à 100 % sur les trios 1-2, les paires 1-2.</li>
+        <li><strong>Top 9</strong> (défenseurs : <strong>Top 6 D</strong>) : trios 1-3, les trois paires.</li>
+        <li><strong>Bottom 6</strong> (défenseurs : <strong>Bottom 4</strong>) : trios 3-4, paires 2-3.</li>
+        <li><strong>4e trio</strong> (défenseurs : <strong>3e paire</strong>) : la dernière unité seulement.</li>
+        <li>Gardiens : <strong>partant numéro un</strong>, <strong>partant</strong>, <strong>auxiliaire</strong>.</li>
       </ul>
       <p>Tout le monde dans sa zone : <strong>✨ trio optimal (+2 ATT / +2 DÉF)</strong>. Deux joueurs ou plus hors zone : <strong>⚠️ mal assorti (−2 / −2)</strong>. S'ajoute la chimie des archétypes :</p>
       <ul>

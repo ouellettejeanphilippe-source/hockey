@@ -15,7 +15,7 @@ python3 -m http.server 8000
 
 Ouvre http://localhost:8000. Les modules ES exigent `http://`, pas `file://`.
 
-L'écran est celui d'un directeur général : la jauge de plafond et le budget par case restante en haut, la roulette et le tableau de bord dessous, puis le vestiaire et l'alignement. Le vestiaire se range par position — une colonne par poste sur grand écran, des sections empilées sur téléphone. Sur téléphone, vestiaire et alignement se prennent par onglets ; sur écran large, l'alignement reste sous les yeux. Chaque carte de joueur dit où il irait, ce qu'il coûte en part de plafond, ce qu'il te resterait après, et si sa position lui vaut une pénalité.
+L'écran est celui d'un directeur général : la jauge de plafond et le budget par case restante en haut, la roulette et le tableau de bord dessous, puis le vestiaire et l'alignement. Le vestiaire se range par position — une colonne par poste sur grand écran, des sections empilées sur téléphone. Sur téléphone, vestiaire et alignement se prennent par onglets ; sur écran large, l'alignement reste sous les yeux. Chaque carte dit l'essentiel : le poste, le salaire, le chiffre clé, l'archétype, la zone d'efficacité et la case où le joueur irait. Un clic ouvre sa fiche complète — statistiques détaillées, salaire d'époque, pénalité de position et effet sur ton alignement.
 
 Pour la base complète — 1970-71 à aujourd'hui, tout joueur à 10+ matchs :
 
@@ -38,7 +38,7 @@ node scripts/check_ratings.mjs      # distribution des cotes et cohérence avec 
 2. Settings → Pages → Source : `main`, dossier `/`
 3. Onglet Actions → « Bâtir les données » → Run workflow
 
-L'Action génère les shards et les commite. Un rafraîchissement hebdomadaire tient la saison en cours à jour.
+L'Action génère les shards et les commite. Un rafraîchissement hebdomadaire tient la saison en cours à jour. Le mode `bios` ajoute les dates de naissance aux shards existants (~110 requêtes) : c'est lui qui allume l'âge et le tri par âge dans le jeu.
 
 ## Comment les cotes sont calculées
 

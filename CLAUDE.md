@@ -15,6 +15,10 @@ Lis `PLAN.md` — il contient l'état exact du projet, ce qui est fait, ce qui r
 ## Structure
 
 ```
+.github/workflows/build-data.yml  Action : bâtit les shards depuis l'API LNH et
+                            les commite (modes bios, rerate, seed, full). C'est
+                            la voie pour ajouter les dates de naissance quand
+                            l'API n'est pas joignable depuis le poste de travail
 index.html                  page unique (barre de plafond, roulette, tableau de
                             bord, deux volets vestiaire / alignement, modales)
 style.css                   tous les styles, mobile d'abord (390 px), deux
@@ -57,9 +61,19 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 
 **Pas de titre de page.** La barre du haut ne porte que le plafond restant, le compte de signés, le budget par case et les trois accès (historique, règles, options). Le nom du jeu vit dans l'onglet du navigateur, pas dans une bannière qui vole de la hauteur utile.
 
+**Le tableau de profondeur est une trame de six colonnes.** `.line-slots` pose toujours six colonnes : un trio prend deux colonnes par case, une paire trois. Les rangées s'alignent donc les unes sous les autres quel que soit l'effectif de l'unité, et `align-items: stretch` garde les blocs à la même largeur — c'est `align-items: start` qui les faisait rétrécir à la largeur de leur titre.
+
 **Le bassin se range par position, sur une colonne par poste.** Le volet du bassin est un conteneur de requête nommé `pool` ; quand il dépasse 1000 px, `.pool.by-pos` devient six vraies colonnes (AG, C, AD, DG, DD, G), sinon les en-têtes redeviennent de simples séparateurs et les cartes reprennent une grille fluide. Chaque colonne est elle-même un conteneur nommé `col` : sous 260 px la carte se compacte, sous 190 px elle perd son portrait. **Les conteneurs de requête doivent rester nommés** — sans nom, l'en-tête d'une colonne interroge la largeur de sa colonne au lieu de celle du volet, et la mise en page se défait en silence. Disposition : onglets sous 1080 px, volets empilés pleine largeur de 1080 à 1600 px (le bassin garde ses six colonnes, l'alignement s'étale dessous), côte à côte au-delà.
 
 **La couleur d'équipe ne porte jamais du texte.** `--team-primary` et `--team-accent` teintent les fonds, bordures et lueurs. Les états sélectionnés (chips, segments d'options) utilisent `--ui-accent`, fixe, parce qu'une équipe au bleu marine ou au noir rendait le texte foncé illisible sur son propre accent.
+
+**La carte ne porte que l'essentiel, la fiche porte tout.** Une carte du bassin montre le poste, le nom, le salaire, le chiffre clé, l'archétype, la zone d'efficacité, la case de destination et le bouton. Rien d'autre : les statistiques détaillées, l'âge, le contrat d'entrée, l'origine du salaire et l'impact sur l'alignement sont dans la fiche, à un clic. Même principe au tableau de bord — trois chiffres, l'explication en infobulle. On ne bloque pas une décision sous un mur de texte.
+
+**Le joueur va où il rend.** `slotFitScore` dans `js/game.js` classe les cases libres par position naturelle d'abord, puis par zone d'efficacité : un joueur de calibre quatrième trio se propose au quatrième trio, pas au premier parce qu'il était vide. Les réservistes viennent en dernier.
+
+**Le vocabulaire est celui du hockey.** Les zones s'appellent Top 6, Top 9, Bottom 6 et 4e trio chez les attaquants ; Top 4, Top 6 D, Bottom 4 et 3e paire chez les défenseurs ; partant numéro un, partant et auxiliaire chez les gardiens. Jamais « calibre 2 ».
+
+**La couleur d'équipe passe par `getTeamAccent`** (`js/logos.js`), qui éclaircit la teinte jusqu'à ce qu'elle reste visible sur fond sombre, et sert de `--team-line` : bordure des cartes du bassin, et bordure de chaque case de l'alignement à la couleur de l'équipe du joueur qui l'occupe. La couleur brute d'une équipe sombre ne porte jamais rien.
 
 **Toute commande visible doit fonctionner.** Si une donnée manque, on retire la commande plutôt que d'afficher des tirets : les dates de naissance (`bd`) ne sont pas dans les shards actuels, donc le tri par âge et la tuile « âge moyen » se masquent d'eux-mêmes (`agesAvailable()` dans `js/game.js`). `python3 scripts/build_shards.py --bios-only` les ajoute et tout réapparaît sans autre changement.
 

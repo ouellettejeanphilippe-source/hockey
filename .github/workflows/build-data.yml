@@ -1,0 +1,73 @@
+name: Bâtir les données
+
+# ARCHITECTURE.md décrit cette Action : elle régénère les shards de saison
+# depuis l'API publique de la LNH et les commite. Elle existe surtout parce
+# que l'API n'est pas toujours joignable depuis un poste de travail — sur un
+# exécuteur GitHub, elle l'est.
+#
+#   bios    ~110 requêtes, ajoute la date de naissance (bd) aux shards
+#           existants ; c'est ce qui allume l'âge et le tri par âge dans le jeu
+#   rerate  aucun réseau : rejoue l'étage 2 des cotes sur les shards existants
+#   seed    ~10 saisons marquantes, pour un dépôt neuf
+#   full    1970-71 à aujourd'hui, ~120 requêtes
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Quoi bâtir"
+        required: true
+        default: bios
+        type: choice
+        options: [bios, rerate, seed, full]
+  schedule:
+    # Rafraîchissement hebdomadaire de la saison en cours, le lundi
+    - cron: "17 9 * * 1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Bâtir
+        run: |
+          set -euo pipefail
+          case "${{ inputs.mode || 'full' }}" in
+            bios)   python3 scripts/build_shards.py --bios-only ;;
+            rerate) python3 scripts/build_shards.py --rerate ;;
+            seed)   python3 scripts/build_shards.py --seed-only ;;
+            *)      python3 scripts/build_shards.py ;;
+          esac
+
+      - name: Vérifier les cotes
+        run: node scripts/check_ratings.mjs
+
+      - name: Commiter si les données ont changé
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data; then
+            echo "Aucun changement dans data/."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git commit -m "Données : ${{ inputs.mode || 'rafraîchissement hebdomadaire' }}"
+          git push
