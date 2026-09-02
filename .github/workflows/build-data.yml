@@ -9,7 +9,12 @@ name: Bâtir les données
 #           existants ; c'est ce qui allume l'âge et le tri par âge dans le jeu
 #   rerate  aucun réseau : rejoue l'étage 2 des cotes sur les shards existants
 #   seed    ~10 saisons marquantes, pour un dépôt neuf
-#   full    1970-71 à aujourd'hui, ~120 requêtes
+#   full    1970-71 à aujourd'hui, ~120 requêtes, réécrit tout (--force) :
+#           c'est la seule voie pour qu'un changement à l'étage 1 des cotes
+#           entre dans les données
+#
+# Sans mode (déclenchement hebdomadaire), seule la saison en cours est
+# refaite : c'est la seule qui bouge encore.
 
 on:
   workflow_dispatch:
@@ -49,11 +54,17 @@ jobs:
       - name: Bâtir
         run: |
           set -euo pipefail
-          case "${{ inputs.mode || 'full' }}" in
-            bios)   python3 scripts/build_shards.py --bios-only ;;
-            rerate) python3 scripts/build_shards.py --rerate ;;
-            seed)   python3 scripts/build_shards.py --seed-only ;;
-            *)      python3 scripts/build_shards.py ;;
+          # `full` doit passer --force : sans lui, le script saute toute
+          # saison dont le shard existe deja et est a la bonne version, et
+          # un changement de formule a l'etage 1 n'entrait donc jamais dans
+          # les donnees. Sans mode (declenchement hebdomadaire), on ne
+          # refait que la saison en cours.
+          case "${{ inputs.mode || 'refresh' }}" in
+            bios)    python3 scripts/build_shards.py --bios-only ;;
+            rerate)  python3 scripts/build_shards.py --rerate ;;
+            seed)    python3 scripts/build_shards.py --seed-only ;;
+            full)    python3 scripts/build_shards.py --force ;;
+            *)       python3 scripts/build_shards.py --refresh-current ;;
           esac
 
       - name: Vérifier les cotes

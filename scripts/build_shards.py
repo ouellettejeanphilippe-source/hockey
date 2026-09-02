@@ -5,6 +5,7 @@ Bâtit les shards de saison a partir de l'API officielle de la LNH.
     python3 scripts/build_shards.py
     python3 scripts/build_shards.py --start 1970 --end 2026 --min-gp 10
     python3 scripts/build_shards.py --only 1981-82 1993-94   # refaire 2 saisons
+    python3 scripts/build_shards.py --force                  # tout rebatir, meme a jour
     python3 scripts/build_shards.py --seed-only              # juste data/seed.json
     python3 scripts/build_shards.py --bios-only              # ~110 requetes : ajoute les
         # dates de naissance (bd) aux shards existants, puis --rerate
@@ -128,6 +129,20 @@ def patch_bios(labels):
         time.sleep(0.35)
 
 
+def ratings_version():
+    """RATINGS_VERSION lu dans js/ratings.js, la source unique des cotes.
+
+    Sert a decider si un shard deja sur le disque a ete bati avec la formule
+    courante. On lit la valeur au lieu de la recopier ici : deux definitions
+    divergeraient en silence, ce que tout le reste du projet evite deja.
+    """
+    out = subprocess.run(
+        ["node", "-e",
+         "import('./js/ratings.js').then(m => console.log(m.RATINGS_VERSION))"],
+        cwd=ROOT, capture_output=True, text=True, check=True)
+    return int(out.stdout.strip())
+
+
 def load_salaries(label):
     """Salaires reels publies pour une saison, s'ils existent (voir docstring)."""
     path = os.path.join(SALARIES_DIR, f"{label}.json")
@@ -176,7 +191,9 @@ def main():
                     help="refaire seulement ces saisons, format 1981-82")
     ap.add_argument("--seed-only", action="store_true")
     ap.add_argument("--force", action="store_true",
-                    help="reecrire meme si le shard existe deja")
+                    help="reecrire meme si le shard existe deja et est a jour")
+    ap.add_argument("--refresh-current", action="store_true",
+                    help="refaire la saison en cours seulement (rafraichissement hebdomadaire)")
     ap.add_argument("--rerate", action="store_true",
                     help="sans API : refaire l'etage 2 des cotes sur les shards existants")
     ap.add_argument("--bios-only", action="store_true",
@@ -202,17 +219,38 @@ def main():
     built, teams_seen = [], set()
     fetched = 0
 
+    version = ratings_version()
+
+    # Rafraichissement hebdomadaire : la saison en cours change tous les
+    # jours pendant l'annee, il faut donc la refaire meme si son shard est
+    # deja la et deja a la bonne version.
+    if args.refresh_current:
+        now = time.gmtime()
+        # La saison de la LNH commence en octobre : avant ca, la saison
+        # « en cours » est encore celle qui porte l'annee precedente.
+        start = now.tm_year if now.tm_mon >= 10 else now.tm_year - 1
+        years = [start]
+        args.force = True
+        print(f"rafraichissement de la saison en cours : {start}-{str(start + 1)[2:]}")
+
     for year in years:
         label = f"{year}-{str(year + 1)[2:]}"
         path = os.path.join(SEASONS_DIR, f"{label}.json")
 
+        # On saute un shard deja sur le disque SEULEMENT s'il a ete bati avec
+        # la formule courante. Sans ce test, un changement de formule a
+        # l'etage 1 (les sous-cotes, qui exigent l'API) n'entrait jamais dans
+        # les donnees : le build complet voyait les fichiers en place et
+        # passait son tour, en 4 secondes et sans rien dire.
         if os.path.exists(path) and not args.force and not args.seed_only:
             with open(path, encoding="utf-8") as f:
                 shard = json.load(f)
-            built.append(label)
-            teams_seen.update(p["t"] for p in shard["players"])
-            print(f"{label}  (deja la, {len(shard['players'])} entrees)")
-            continue
+            if shard.get("v") == version:
+                built.append(label)
+                teams_seen.update(p["t"] for p in shard["players"])
+                print(f"{label}  (deja la, v{version}, {len(shard['players'])} entrees)")
+                continue
+            print(f"{label}  (v{shard.get('v')} -> v{version}, on rebatit)")
 
         print(f"{label}  ...", end=" ", flush=True)
         skaters, goalies, realtime = fetch_season(year, args.min_gp)
