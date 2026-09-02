@@ -1,7 +1,7 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import { SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings, getHiddenRatings, getUnitSynergy, getPlayerKey, createTeam, simulateLeague, playSeries, autoRoster } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS } from './logos.js';
-import { getArchetype, getEraFactor, getEraSalary, getLineZone, SEASON_ERA_CAP } from './ratings.js';
+import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP } from './ratings.js';
 
 const $ = id => document.getElementById(id);
 const money = n => '$' + (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
@@ -440,9 +440,15 @@ function zoneTagHtml(p) {
   return `<span class="zone-tag lz${z.level}" title="Zone d'efficacité : ${z.label} — rend à 100 % sur ${z.idealUnits.length > 1 ? 'les trios' : 'le trio'} ${z.idealUnits.map(u => u + 1).join(', ')}">📍 ${z.short}</span>`;
 }
 
+/** Âge dans la saison, si la date de naissance est dans le shard (API bios). */
+function ageTagHtml(p) {
+  const age = ageAtSeason(p.bd, p.s);
+  return age ? `<span class="age-tag" title="Âge au début de la saison ${p.s}">${age} ans</span>` : '';
+}
+
 /** Étiquette de contrat d'entrée. */
 function elcTagHtml(p) {
-  return p.elc ? `<span class="elc-tag" title="Contrat d'entrée : trois premières saisons dans la ligue, salaire plafonné à ~3,8 M$">🐣 ELC</span>` : '';
+  return p.elc ? `<span class="elc-tag" title="Contrat d'entrée : premier contrat d'un joueur de 24 ans ou moins (3 saisons à 18-21 ans, 2 à 22-23, 1 à 24). Base plafonnée selon l'époque, plus bonis de rendement.">🐣 ELC</span>` : '';
 }
 
 function formatPlayerName(fullName) {
@@ -498,7 +504,7 @@ function slotCardEl(s) {
         <div class="slot-salary">${st.salaryPrimary}</div>
       </div>
       <div class="slot-arch-badge" title="${arch.desc}">${arch.icon} ${arch.label}</div>
-      <div class="slot-tags">${zoneTagHtml(p)}${elcTagHtml(p)}</div>
+      <div class="slot-tags">${zoneTagHtml(p)}${elcTagHtml(p)}${ageTagHtml(p)}</div>
       <div class="slot-big-stat">${statValue}<span class="stat-unit">${statUnit}</span></div>
       <div class="slot-bottom">
         <div class="slot-team-info">${logo} ${p.t} '${p.s.slice(-2)}</div>
@@ -718,7 +724,7 @@ function renderPlayerCard(p, used) {
   const compactSubStats = p.p === 'G'
     ? `${st.gp}PJ · ${p.sv ?? '—'} %ARR · ${p.ga ?? '—'} MBA`
     : `<b class="ptsm">${st.ppgStr} PTS/M</b> · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
-  const tagsHtml = `<div class="card-tags">${zoneTagHtml(p)}${elcTagHtml(p)}</div>`;
+  const tagsHtml = `<div class="card-tags">${zoneTagHtml(p)}${elcTagHtml(p)}${ageTagHtml(p)}</div>`;
 
   const posBadge = `<span class="pos-badge ${getPositionClass(p)}">${getPositionLabel(p)}</span>`;
 
@@ -1308,7 +1314,7 @@ function showHockeyCardModal(p) {
         <div class="hockey-card-identity">
           <div class="hockey-card-player-name">${formatPlayerName(p.n)}</div>
           <div class="hockey-card-archetype" title="${arch.desc}">${arch.icon} ${arch.label}</div>
-          <div class="hockey-card-tags">${zoneTagHtml(p)}${elcTagHtml(p)}</div>
+          <div class="hockey-card-tags">${zoneTagHtml(p)}${elcTagHtml(p)}${ageTagHtml(p)}</div>
           <div class="hockey-card-salary-block">
             <span class="salary-main">${st.salaryPrimary}</span>
             <span class="salary-sub">${st.salarySub}</span>

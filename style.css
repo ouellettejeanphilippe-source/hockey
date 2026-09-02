@@ -1975,7 +1975,7 @@ body {
 
 /* ---------- zones d'efficacité, contrats d'entrée, PTS/M, compteurs de position ---------- */
 
-.zone-tag, .elc-tag {
+.zone-tag, .elc-tag, .age-tag {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -1995,6 +1995,7 @@ body {
 .zone-tag.lz3 { color: var(--text); }
 .zone-tag.lz4 { color: var(--muted); }
 .elc-tag { color: var(--green-neon); border-color: rgba(60, 208, 112, 0.45); }
+.age-tag { color: var(--sub); }
 
 .card-tags, .slot-tags, .hockey-card-tags {
   display: flex;

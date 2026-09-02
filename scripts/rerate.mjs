@@ -40,6 +40,45 @@ for (const [label, shard] of shards) {
   }
 }
 
+/*
+ * Cohorte d'identifiant LNH -> année d'entrée estimée. Les identifiants
+ * attribués depuis le début des années 1990 (>= 8455000) le sont dans
+ * l'ordre d'entrée dans la ligue (repêchage ou signature) ; en dessous,
+ * les anciens joueurs ont été numérotés par ordre alphabétique et la
+ * cohorte ne veut rien dire. Pour chaque tranche de 1 000 identifiants, on
+ * prend le 10e centile de la première saison (les joueurs qui arrivent
+ * tout de suite après leur entrée), lissé pour rester croissant.
+ */
+export function estimateEntryYears(first) {
+  const CHRONO_MIN = 8_455_000, BUCKET = 1000;
+  const buckets = new Map();
+  for (const [id, y] of Object.entries(first)) {
+    const n = Number(id);
+    if (n < CHRONO_MIN) continue;
+    const b = Math.floor(n / BUCKET);
+    if (!buckets.has(b)) buckets.set(b, []);
+    buckets.get(b).push(y);
+  }
+  const keys = [...buckets.keys()].sort((a, b) => a - b);
+  const p10 = new Map();
+  let running = 0;
+  for (const b of keys) {
+    const ys = buckets.get(b).sort((a, c) => a - c);
+    const v = ys[Math.floor(ys.length * 0.1)];
+    running = Math.max(running, v);
+    p10.set(b, running);
+  }
+  const out = {};
+  for (const id of Object.keys(first)) {
+    const n = Number(id);
+    if (n < CHRONO_MIN) continue;
+    const b = Math.floor(n / BUCKET);
+    if (p10.has(b)) out[id] = p10.get(b);
+  }
+  return out;
+}
+const entryYear = estimateEntryYears(firstSeason);
+
 export function loadSalaries(label) {
   const f = path.join(SALARIES_DIR, `${label}.json`);
   if (!fs.existsSync(f)) return null;
@@ -56,7 +95,7 @@ let done = 0;
 for (const [label, shard] of shards) {
   if (only.size && !only.has(label)) continue;
   const salaries = loadSalaries(label);
-  const out = rerateShard(shard, { salaries, firstSeason });
+  const out = rerateShard(shard, { salaries, firstSeason, entryYear });
   fs.writeFileSync(path.join(SEASONS_DIR, `${label}.json`), JSON.stringify(out));
   const elc = out.players.filter(p => p.elc).length;
   const real = out.players.filter(p => p.isReal).length;

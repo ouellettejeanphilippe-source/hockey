@@ -279,26 +279,66 @@ const SALARY_ANCHORS = [
 ];
 const LOG_ANCHORS = SALARY_ANCHORS.map(([v, s]) => [v, Math.log(s)]);
 
-/**
- * Contrat d'entrée : trois premières saisons dans la ligue. Base de 950 k$,
- * plus des bonis de rendement qui montent jusqu'à ~2,85 M$ pour une vedette
- * (comme les vrais contrats d'entrée : le plafond compte les bonis).
- * Une recrue de 100 points coûte donc ~3,8 M$ au lieu de 15 M$ — l'aubaine
- * est réelle sans être absurde.
+/*
+ * Contrats d'entrée, selon les façons de faire de l'époque :
+ *
+ *  - avant 1995-96 : aucun système. Les recrues négociaient librement
+ *    (Lindros 1992, Daigle 1993 : des contrats de vedette dès l'entrée),
+ *    c'est justement ce qui a mené au plafond des recrues. Pas de rabais.
+ *  - 1995-96 à 2003-04 (convention de 1995) : salaire de recrue plafonné
+ *    (850 k$ en 1995, ~1,3 M$ en 2004, soit ~2,7 % du plus gros budget
+ *    d'équipe), mais bonis de rendement sans vrai plafond — les jeunes
+ *    vedettes gagnaient 3 à 4 M$ avec les bonis.
+ *  - 2005-06 et après : base plafonnée (850 k$, 925 k$ dès 2011, 950 k$ dès
+ *    2020, ~1 % du plafond) et bonis plafonnés à 2,85 M$ (~3 %).
+ *
+ *  Le contrat d'entrée s'applique au premier contrat d'un joueur signé à
+ *  24 ans ou moins : 3 saisons s'il a 18-21 ans, 2 à 22-23, 1 à 24, aucun
+ *  à 25 ans et plus. Il « glisse » tant que le joueur ne joue pas 10
+ *  matchs, donc compter à partir de la première saison à 10+ matchs dans
+ *  la base est fidèle. L'âge vient de `bd` (date de naissance, API bios)
+ *  quand le shard l'a, sinon de la cohorte d'identifiant LNH
+ *  (opts.entryYear, voir scripts/rerate.mjs). Sans aucune de ces deux
+ *  informations, pas de contrat d'entrée : on ne devine pas.
  */
-export const ELC_SALARY = 950_000;
-export const ELC_MAX_BONUS = 2_850_000;
-
-export function elcSalaryFor(ovr) {
-  const bonus = ELC_MAX_BONUS * clamp((ovr - 70) / 29, 0, 1);
-  return Math.round((ELC_SALARY + bonus) / 25_000) * 25_000;
+/** Âge du joueur au 1er octobre de la saison, depuis sa date de naissance `bd` (AAAA-MM-JJ). */
+export function ageAtSeason(bd, season) {
+  if (!bd || !season) return null;
+  const by = parseInt(String(bd).slice(0, 4), 10);
+  if (!by) return null;
+  const year = parseInt(season.slice(0, 4), 10);
+  const md = String(bd).slice(5, 10);
+  return year - by - (md > '10-01' ? 1 : 0);
 }
 
-export function salaryFor(ovr, pos, elc = false) {
+export function elcEra(season) {
+  const year = parseInt(season.slice(0, 4), 10);
+  if (year < 1995) return null;
+  if (year < 2005) return { basePct: 0.027, bonusPct: 0.030 };
+  return { basePct: 0.010, bonusPct: 0.030 };
+}
+
+/** Nombre de saisons de contrat d'entrée selon l'âge à la première saison. */
+export function elcYearsForAge(age) {
+  if (age == null || Number.isNaN(age)) return 0;
+  if (age <= 21) return 3;
+  if (age <= 23) return 2;
+  if (age === 24) return 1;
+  return 0;
+}
+
+export function elcSalaryFor(ovr, season) {
+  const era = elcEra(season) || { basePct: 0.010, bonusPct: 0.030 };
+  const base = era.basePct * CAP_REF;
+  const bonus = era.bonusPct * CAP_REF * clamp((ovr - 70) / 29, 0, 1);
+  return Math.round((base + bonus) / 25_000) * 25_000;
+}
+
+export function salaryFor(ovr, pos, elc = false, season = '2025-26') {
   let base = Math.exp(lerpTable(ovr, LOG_ANCHORS));
   if (pos === 'G') base *= 0.90;
   base = Math.round(base / 25_000) * 25_000;
-  if (elc) base = Math.min(base, elcSalaryFor(ovr));
+  if (elc) base = Math.min(base, elcSalaryFor(ovr, season));
   return Math.max(775_000, base);
 }
 
@@ -370,6 +410,7 @@ export function rateSkaters(rows, realtimeById = null) {
       n: r.skaterFullName,
       p: isD ? 'D' : 'F',
       np: natural,
+      ...(r.birthDate ? { bd: String(r.birthDate).slice(0, 10) } : {}),
       gp,
       g: r.goals || 0,
       a: r.assists || 0,
@@ -417,6 +458,7 @@ export function rateGoalies(rows) {
       n: r.goalieFullName,
       p: 'G',
       np: 'G',
+      ...(r.birthDate ? { bd: String(r.birthDate).slice(0, 10) } : {}),
       gp,
       w: r.wins || 0,
       l: r.losses || 0,
@@ -471,6 +513,9 @@ function rankMap(list, score) {
  *   salaires réels publiés, convertis au prorata du plafond de l'année.
  * `opts.firstSeason` : { [id]: annéeDeDébut } ou null — première saison
  *   à 10+ matchs dans la base, pour les contrats d'entrée.
+ * `opts.entryYear` : { [id]: annéeD'entréeEstimée } ou null — cohorte
+ *   d'identifiant LNH (≈ année de repêchage ou de signature), sert d'âge
+ *   approximatif (18 ans à l'entrée) quand `by` manque.
  *
  * Mute et retourne `players`.
  */
@@ -498,6 +543,7 @@ export function finalizeSeason(players, season, opts = {}) {
   const salaries = opts.salaries || null;
   const refCap = (salaries && salaries.cap) || eraCapFor(season);
   const firstSeason = opts.firstSeason || null;
+  const entryYear = opts.entryYear || null;
 
   for (const p of players) {
     let v;
@@ -520,10 +566,17 @@ export function finalizeSeason(players, season, opts = {}) {
     }
     p.v = clamp(Math.round(v), 25, 99);
 
-    // Contrat d'entrée : trois premières saisons dans la base (jamais pour
-    // la première saison de la base, où tout le monde serait « recrue »).
+    // Contrat d'entrée : selon l'époque et l'âge à la première saison dans
+    // la base (jamais pour la première saison de la base, 1970-71, où tout
+    // le monde serait « recrue »).
     const debut = firstSeason && p.id != null ? firstSeason[p.id] : null;
-    p.elc = (debut != null && debut > 1970 && year - debut <= 2) ? 1 : 0;
+    let ageAtDebut = null;
+    if (debut != null) {
+      if (p.bd) ageAtDebut = ageAtSeason(p.bd, `${debut}-${String(debut + 1).slice(2)}`);
+      else if (entryYear && entryYear[p.id] != null) ageAtDebut = 18 + Math.max(0, debut - entryYear[p.id]);
+    }
+    const elcYears = elcEra(season) && debut != null && debut > 1970 ? elcYearsForAge(ageAtDebut) : 0;
+    p.elc = (year - debut) < elcYears ? 1 : 0;
 
     // Salaire : réel publié au prorata du plafond si disponible, sinon barème
     const real = salaries && p.id != null ? salaries.players?.[p.id] : null;
@@ -532,7 +585,7 @@ export function finalizeSeason(players, season, opts = {}) {
       p.realSal = Math.round(real);
       p.isReal = 1;
     } else {
-      p.$ = salaryFor(p.v, p.p, p.elc === 1);
+      p.$ = salaryFor(p.v, p.p, p.elc === 1, season);
       p.realSal = getEraSalary(p.$, season, refCap);
       p.isReal = 0;
     }
