@@ -27,6 +27,7 @@ scripts/build_shards.py     aspire l'API LNH, écrit les shards ; --rerate = ét
 scripts/rate.mjs            pont Node vers js/ratings.js (étage 1 + 2)
 scripts/rerate.mjs          étage 2 sur les shards existants (contrats d'entrée, salaires réels)
 scripts/build_salaries.py   assemble data/salaries/<saison>.json depuis data/salaries/sources/
+scripts/fetch_markerzone.py dépose les salaires publiés par MarkerZone (1989-90+) dans sources/ ; manuel, jamais dans l'Action
 scripts/check_ratings.mjs   distribution des cotes, zones, archétypes, force d'équipe vs classement
 scripts/calibrate_sim.mjs   tableau de calibration de la simulation
 scripts/smoke.mjs           test de fumée Playwright à 390 px

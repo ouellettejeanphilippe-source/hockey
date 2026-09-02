@@ -19,12 +19,19 @@ Sources, dans data/salaries/sources/ (voir data/salaries/README.md) :
                                   645 contrats (cap hit, duree, saison
                                   precedant la signature) -> applique a
                                   chaque saison couverte par le contrat
-  4. manual_<saison>.csv          colonnes player,team,salary — pour coller
+  4. markerzone_<saison>.csv      colonnes player,pos,team,salary,caphit,
+                                  une saison par fichier de 1989-90 a
+                                  2025-26, deposes par
+                                  scripts/fetch_markerzone.py
+                                  (MarkerZone.com). L'equipe (code du
+                                  shard) n'est connue qu'avant 2005-06.
+  5. manual_<saison>.csv          colonnes player,team,salary — pour coller
                                   a la main des chiffres pris ailleurs
-                                  (USA Today, hockeyzoneplus, markerzone...)
+                                  (USA Today, hockeyzoneplus, PuckPedia...)
 
 Priorite quand plusieurs sources donnent un chiffre : manuel > cap hit
-nhlnumbers > salaire Kaggle > salaire contractuel nhlnumbers > contrat
+nhlnumbers > cap hit MarkerZone > salaire Kaggle > salaire contractuel
+nhlnumbers > salaire MarkerZone (seule colonne avant 2005-06) > contrat
 CaPredictor. Le cap hit est prefere au salaire de l'annee, c'est lui qui
 compte sous le plafond.
 
@@ -101,8 +108,13 @@ class SeasonIndex:
         ids = self.full.get(norm(name))
         if ids and len(ids) == 1:
             return next(iter(ids))
-        if ids:
-            return None                      # homonymes exacts : on ne devine pas
+        if ids:                              # homonymes exacts : seule l'equipe peut trancher
+            if teams:
+                last = norm(name.split(" ")[-1])
+                hits = [pid for pid in ids if self.last.get(last, {}).get(pid, set()) & teams]
+                if len(hits) == 1:
+                    return hits[0]
+            return None
         last = norm(name.split(" ")[-1])
         cands = self.last.get(last, {})
         if teams:
@@ -159,7 +171,16 @@ def collect():
         except ValueError:
             continue
         for y in range(start, start + length):
-            add(season_label(y), 4, "capredictor contrat", r["player"], None, money(r["cap_hit"]))
+            add(season_label(y), 5, "capredictor contrat", r["player"], None, money(r["cap_hit"]))
+
+    for fn in sorted(os.listdir(SRC_DIR)) if os.path.isdir(SRC_DIR) else []:
+        m = re.match(r"markerzone_(\d{4}-\d{2})\.csv$", fn)
+        if not m:
+            continue
+        for r in read_csv(fn):
+            ts = teams_of(r.get("team", "")) or None
+            add(m.group(1), 1, "markerzone cap hit", r["player"], ts, money(r["caphit"]))
+            add(m.group(1), 4, "markerzone salaire", r["player"], ts, money(r["salary"]))
 
     for fn in sorted(os.listdir(SRC_DIR)) if os.path.isdir(SRC_DIR) else []:
         m = re.match(r"manual_(\d{4}-\d{2})\.csv$", fn)

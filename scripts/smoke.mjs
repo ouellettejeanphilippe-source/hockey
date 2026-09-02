@@ -33,6 +33,10 @@ page.on('console', m => {
   errors.push(`console: ${m.text()}`);
 });
 
+// Hors du serveur local, tout est bloqué (portraits, sonde de l'API) : sans
+// accès sortant, ces requêtes pendraient et « networkidle » n'arriverait jamais.
+await page.route(u => !u.href.startsWith(base), r => r.abort());
+
 await page.goto(base + '/', { waitUntil: 'networkidle' });
 await page.evaluate(() => { try { localStorage.clear(); } catch {} });
 await page.reload({ waitUntil: 'networkidle' });
