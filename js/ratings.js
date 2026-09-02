@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 15;
+export const RATINGS_VERSION = 16;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -358,6 +358,36 @@ function scale(z, center = 52, spread = 13, lo = 25, hi = 99) {
   return Math.max(lo, Math.min(hi, Math.round(center + spread * z)));
 }
 
+/* ---------- composantes à disponibilité variable ----------
+ *
+ * Toutes les statistiques n'existent pas dans toutes les époques. Ce qui
+ * remonte à 1970-71 : points, lancers, points en avantage et en désavantage
+ * numérique, +/-, punitions, buts gagnants. Ce qui n'existe qu'à partir de
+ * 1997-98 : le temps de glace et le % de mises au jeu. Ce qui n'existe qu'à
+ * partir de 2005-06 : les mises en échec et les tirs bloqués.
+ *
+ * `mix` additionne les composantes présentes et divise par la somme de
+ * LEURS poids : une composante absente cède sa place aux autres au lieu de
+ * compter comme un zéro. Sans ça, une saison d'avant 1998 perdait 35 % de
+ * sa cote défensive et 50 % de sa vitesse, et tout le monde se tassait sur
+ * la moyenne — écart-type de la défensive 7,1 avant 1998 contre 9,9 après,
+ * la vitesse carrément de moitié (4,7 contre 9,5). Une équipe des années
+ * 1970 se retrouvait donc plus uniforme qu'elle ne l'était vraiment.
+ *
+ * Quand tout est disponible, les poids somment déjà à 1 et `mix` rend
+ * exactement le même résultat qu'une somme pondérée ordinaire : les
+ * saisons modernes ne bougent pas.
+ */
+function mix(parts) {
+  let num = 0, den = 0;
+  for (const [w, z] of parts) {
+    if (z === null || z === undefined || Number.isNaN(z)) continue;
+    num += w * z;
+    den += w;
+  }
+  return den > 0 ? num / den : 0;
+}
+
 const per = (row, key) => (row[key] || 0) / (row.gamesPlayed || 1);
 
 /** Interpolation linéaire par morceaux sur une table [[x, y], ...] triée par x. */
@@ -470,15 +500,51 @@ export function capPctFor(salary) {
 
 /* ---------- patineurs : sous-cotes ---------- */
 
+/** Équipes d'une ligne de l'API (« MNS,WSH » -> ['MNS', 'WSH']). */
+function teamsOf(row) {
+  return String(row.teamAbbrevs || '').split(',').map(t => t.trim()).filter(t => t && t !== '???');
+}
+
 export function rateSkaters(rows, realtimeById = null) {
   const rt = id => (realtimeById && realtimeById[id]) || null;
   const hasRT = realtimeById && Object.keys(realtimeById).length > 0;
+  // Le temps de glace n'est publié qu'à partir de 1997-98 : avant, l'API
+  // renvoie 0 pour tout le monde, ce qui n'est pas la même chose que zéro
+  // minute jouée. On le traite alors comme absent (voir `mix`).
+  const hasTOI = rows.some(r => (r.timeOnIcePerGame || 0) > 0);
+
+  /*
+   * +/- relatif à l'équipe. Le +/- brut mesure autant la qualité du club
+   * que celle du joueur : un premier trio sur une équipe de fond de
+   * classement sort négatif quoi qu'il fasse. On retranche la moyenne par
+   * match de son propre vestiaire pour ne garder que son écart à ses
+   * coéquipiers. Disponible dans toutes les époques, contrairement au
+   * temps de glace qu'il remplace en partie.
+   */
+  const teamPM = new Map();
+  for (const r of rows) {
+    for (const t of teamsOf(r)) {
+      const acc = teamPM.get(t) || { sum: 0, n: 0 };
+      acc.sum += per(r, 'plusMinus');
+      acc.n += 1;
+      teamPM.set(t, acc);
+    }
+  }
+  const relPM = r => {
+    const ts = teamsOf(r);
+    let base = 0, k = 0;
+    for (const t of ts) {
+      const acc = teamPM.get(t);
+      if (acc && acc.n) { base += acc.sum / acc.n; k += 1; }
+    }
+    return per(r, 'plusMinus') - (k ? base / k : 0);
+  };
 
   const z = {
     pts:    zfn(rows.map(r => per(r, 'points'))),
     shots:  zfn(rows.map(r => per(r, 'shots'))),
     pp:     zfn(rows.map(r => per(r, 'ppPoints'))),
-    pm:     zfn(rows.map(r => per(r, 'plusMinus'))),
+    pm:     zfn(rows.map(relPM)),
     sh:     zfn(rows.map(r => per(r, 'shPoints'))),
     pim:    zfn(rows.map(r => per(r, 'penaltyMinutes'))),
     toi:    zfn(rows.map(r => (r.timeOnIcePerGame || 0) / 60)),
@@ -498,31 +564,47 @@ export function rateSkaters(rows, realtimeById = null) {
     const extra = rt(r.playerId);
     const toiMin = (r.timeOnIcePerGame || 0) / 60;
 
-    // OFFENSIVE
-    const zOff = 0.62 * z.pts(per(r, 'points'))
-               + 0.22 * z.shots(per(r, 'shots'))
-               + 0.16 * z.pp(per(r, 'ppPoints'));
+    // Absentes avant 1997-98 (TG) et avant 2005-06 (mises en échec,
+    // tirs bloqués) : `mix` redistribue leur poids sur le reste.
+    const zToi = hasTOI ? z.toi(toiMin) : null;
+    const zBlocks = extra ? z.blocks((extra.blockedShots || 0) / gp) : null;
+    const zHits = extra ? z.hits((extra.hits || 0) / gp) : null;
 
-    // DÉFENSIVE — +/-, buts en désavantage, temps de glace, tirs bloqués
-    let zDef = 0.45 * z.pm(per(r, 'plusMinus'))
-             + 0.20 * z.sh(per(r, 'shPoints'))
-             + 0.35 * z.toi(toiMin);
-    if (extra) {
-      zDef = 0.70 * zDef + 0.30 * z.blocks((extra.blockedShots || 0) / gp);
-    }
+    // OFFENSIVE — toutes époques
+    const zOff = mix([
+      [0.62, z.pts(per(r, 'points'))],
+      [0.22, z.shots(per(r, 'shots'))],
+      [0.16, z.pp(per(r, 'ppPoints'))],
+    ]);
+
+    // DÉFENSIVE — +/- relatif à l'équipe et buts en désavantage numérique
+    // dans toutes les époques ; temps de glace et tirs bloqués en renfort
+    // quand ils existent
+    let zDef = mix([
+      [0.45, z.pm(relPM(r))],
+      [0.20, z.sh(per(r, 'shPoints'))],
+      [0.35, zToi],
+    ]);
+    zDef = mix([[0.70, zDef], [0.30, zBlocks]]);
     if (isD) zDef += 0.35;  // bonus positionnel
 
-    // ROBUSTESSE
-    let zRob = z.pim(per(r, 'penaltyMinutes'));
-    if (extra) {
-      zRob = 0.45 * zRob + 0.55 * z.hits((extra.hits || 0) / gp);
-    }
+    // ROBUSTESSE — punitions dans toutes les époques, mises en échec après
+    const zRob = mix([
+      [0.45, z.pim(per(r, 'penaltyMinutes'))],
+      [0.55, zHits],
+    ]);
 
     // CLUTCH — buts gagnants et en prolongation
     const zClu = 0.75 * z.gwg(((r.gameWinningGoals || 0) + (r.otGoals || 0)) / gp)
                + 0.25 * z.pts(per(r, 'points'));
 
-    const zSp = 0.50 * z.toi(toiMin) + 0.30 * z.shots(per(r, 'shots')) + 0.20 * z.sh(per(r, 'shPoints'));
+    // VITESSE — sans TG, le volume de lancers et le désavantage numérique
+    // portent la cote à eux seuls plutôt que de la diviser par deux
+    const zSp = mix([
+      [0.50, zToi],
+      [0.30, z.shots(per(r, 'shots'))],
+      [0.20, z.sh(per(r, 'shPoints'))],
+    ]);
 
     const htPerGame = extra && extra.hits != null ? Math.round((extra.hits / gp) * 10) / 10 : null;
     const foPct = r.faceoffWinPct != null ? Math.round(r.faceoffWinPct * 1000) / 1000 : null;
@@ -602,6 +684,32 @@ export function rateGoalies(rows) {
  * Un second terme en z-score garde une trace de l'écart réel avec le
  * peloton (Gretzky 1982 n'est pas juste « premier »).
  */
+/*
+ * Mélange d'époque, même esprit que LISSAGE_AVANT_PLAFOND pour les salaires :
+ * un curseur entre le réalisme et la variété, plutôt qu'un choix tranché.
+ *
+ * Le rang divisé par le nombre d'équipes (q = rang / équipes) est la mesure
+ * réaliste : dans une ligue à 17 équipes, le 13e attaquant de la ligue est
+ * le 0,76e de son équipe, donc bien plus commun que le 13e d'une ligue à 32.
+ * Le rang divisé par une ligue de référence de 32 équipes est la mesure
+ * comparable : le 10e compteur de 1979 vaut alors le 10e compteur de 2024,
+ * ce que PLAN.md promet depuis le début et que le pur rang par équipe ne
+ * tenait pas (10e en 1978-79 sortait à 75, 10e en 2023-24 à 90).
+ *
+ *   q = (1 - LISSAGE_EPOQUES) * rang/équipes + LISSAGE_EPOQUES * rang/32
+ *
+ * 0 = réalisme pur (les vedettes d'avant 1990 sont écrasées, le vestiaire
+ * d'une saison à 14 équipes est uniformément moyen), 1 = variété pure (les
+ * ligues à 6 équipes produisent des alignements de superhéros et l'équilibre
+ * entre époques saute). À 0,5, une saison moderne ne bouge pas du tout
+ * (nTeams vaut déjà 32) et les vieilles saisons retrouvent des vedettes
+ * signables sans que la profondeur ne monte avec elles.
+ */
+export const LISSAGE_EPOQUES = 0.5;
+
+/** Taille de la ligue de référence pour le volet « comparable » du mélange. */
+export const LIGUE_REF = 32;
+
 const STAR_F_RANK = [[0.10, 14], [0.30, 12], [0.60, 9], [1.00, 4], [1.50, 0]];
 const STAR_F_Z    = [[1.50, 0], [2.50, 8], [3.20, 12], [4.00, 14]];
 const STAR_D_RANK = [[0.10, 17], [0.40, 17], [0.80, 17], [1.20, 13], [1.80, 5], [2.50, 0]];
@@ -683,22 +791,29 @@ export function finalizeSeason(players, season, opts = {}) {
   const firstSeason = opts.firstSeason || null;
   const entryYear = opts.entryYear || null;
 
+  // Rang -> position relative, mélangée entre l'époque et une ligue de
+  // référence de 32 équipes (voir LISSAGE_EPOQUES).
+  const qOf = rank => {
+    const r = rank + 0.5;
+    return (1 - LISSAGE_EPOQUES) * (r / nTeams) + LISSAGE_EPOQUES * (r / LIGUE_REF);
+  };
+
   for (const p of players) {
     let v;
     if (p.p === 'G') {
       const core = 0.40 * p.o + 0.32 * p.d + 0.14 * p.r + 0.14 * p.c;
       const share = p.gp / games;
       const starter = 10 * clamp((share - 0.25) / 0.50, 0, 1);
-      const rank = rkG.has(p) ? lerpTable((rkG.get(p) + 0.5) / nTeams, STAR_G_RANK) : 0;
+      const rank = rkG.has(p) ? lerpTable(qOf(rkG.get(p)), STAR_G_RANK) : 0;
       v = core + starter + rank;
     } else if (p.p === 'D') {
       const core = 0.42 * p.o + 0.48 * p.d + 0.05 * p.r + 0.05 * p.c + 6;
-      const q = (rkD.get(p) + 0.5) / nTeams;
+      const q = qOf(rkD.get(p));
       const star = 0.7 * lerpTable(q, STAR_D_RANK) + 0.3 * lerpTable(zD(prodPerGame(p)), STAR_D_Z);
       v = core + star;
     } else {
       const core = 0.66 * p.o + 0.16 * p.d + 0.05 * p.r + 0.13 * p.c;
-      const q = (rkF.get(p) + 0.5) / nTeams;
+      const q = qOf(rkF.get(p));
       const star = 0.7 * lerpTable(q, STAR_F_RANK) + 0.3 * lerpTable(zF(prodPerGame(p)), STAR_F_Z);
       v = core + star;
     }

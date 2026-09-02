@@ -36,6 +36,7 @@ function spearman(x, y) {
 
 const allF = [], allD = [], allG = [];
 const corr = [];
+const eras = [];
 
 for (const f of fs.readdirSync(SEASONS_DIR).filter(f => f.endsWith('.json')).sort()) {
   const shard = JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, f), 'utf8'));
@@ -63,6 +64,28 @@ for (const f of fs.readdirSync(SEASONS_DIR).filter(f => f.endsWith('.json')).sor
     gas.push(-G.reduce((s, g) => s + (g.ga || 3) * g.gp, 0) / G.reduce((s, g) => s + g.gp, 0));
   }
   if (xs.length >= 6) corr.push({ label, n: xs.length, w: spearman(xs, wins), gf: spearman(xs, gfs), ga: spearman(xs, gas) });
+
+  // Disponibilité des statistiques et amplitude des sous-cotes. Le temps de
+  // glace n'existe qu'à partir de 1997-98 et les mises en échec qu'à partir
+  // de 2005-06 : si `mix` fait sa job, l'écart-type des sous-cotes doit
+  // rester comparable de part et d'autre de ces deux frontières. Un
+  // écrasement dans la colonne « déf » ou « vit » avant 1998 veut dire
+  // qu'une composante absente est retombée à compter comme un zéro.
+  const sk = arr.filter(p => p.p !== 'G');
+  if (sk.length) {
+    const sd = xs => { const m = xs.reduce((a, b) => a + b, 0) / xs.length;
+      return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length); };
+    eras.push({
+      label,
+      toi: sk.some(p => (p.toi || 0) > 0),
+      ht: sk.some(p => p.ht != null),
+      sd: ['o', 'd', 'r', 'c', 'sp'].map(k => sd(sk.map(p => p[k]))),
+      top10: (() => {
+        const F = sk.filter(p => p.p === 'F').sort((a, b) => b.pt - a.pt).slice(0, 10);
+        return F.length ? F.reduce((s2, p) => s2 + p.v, 0) / F.length : 0;
+      })(),
+    });
+  }
 
   if (detail.has(label)) {
     console.log(`\n=== ${label} (${Object.keys(byTeam).length} équipes, v${shard.v})`);
@@ -99,6 +122,22 @@ for (const p of [...allF, ...allD, ...allG]) count[p.ak] = (count[p.ak] || 0) + 
 console.log('Archétypes :', Object.entries(count).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', '));
 const all = allF.length + allD.length + allG.length;
 console.log(`Contrats d'entrée : ${[...allF, ...allD, ...allG].filter(p => p.elc).length} / ${all}`);
+
+console.log('\nDisponibilité des stats et amplitude des sous-cotes (écart-type)');
+console.log("  saison    TG  MÉ     off    déf    rob    clu    vit   cote moy. des 10 meilleurs compteurs");
+for (const e of eras) {
+  console.log(`  ${e.label}  ${(e.toi ? 'oui' : ' — ').padStart(3)} ${(e.ht ? 'oui' : ' — ').padStart(3)}`
+    + e.sd.map(v => v.toFixed(1).padStart(7)).join('') + `   ${e.top10.toFixed(1).padStart(5)}`);
+}
+{
+  const grp = f => { const g = eras.filter(f); return g.length
+    ? ['déf', 'vit'].map((n, i) => `${n} ${(g.reduce((s2, e) => s2 + e.sd[i === 0 ? 1 : 4], 0) / g.length).toFixed(1)}`).join('  ')
+      + `  top10 ${(g.reduce((s2, e) => s2 + e.top10, 0) / g.length).toFixed(1)}`
+    : '—'; };
+  console.log(`  avant 1997-98 (sans TG)  : ${grp(e => !e.toi)}`);
+  console.log(`  1997-98 à 2004-05        : ${grp(e => e.toi && !e.ht)}`);
+  console.log(`  2005-06 et après         : ${grp(e => e.ht)}`);
+}
 
 console.log('\nForce d\'équipe (Spearman) ~ % victoires | buts pour | buts contre');
 for (const c of corr) console.log(`  ${c.label}  ${String(c.n).padStart(2)} éq.  ${c.w.toFixed(2)} | ${c.gf.toFixed(2)} | ${c.ga.toFixed(2)}`);
