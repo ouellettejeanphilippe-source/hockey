@@ -814,9 +814,13 @@ function playerCardEl(p) {
     dest = `<span class="dest-bad">aucune case libre</span>`;
   } else if (over) {
     dest = `<span class="dest-bad">hors budget</span>`;
-  } else {
+  } else if (isTargeted) {
     const penTxt = pen > 0 ? ` <span class="dest-bad">−${pen}</span>` : '';
-    dest = `<span class="${isTargeted ? 'dest-target' : 'dest-slot'}">${isTargeted ? '🎯' : '→'} ${esc(slot.label)} · ${esc(slot.role)}</span>${penTxt}`;
+    dest = `<span class="dest-target">🎯 ${esc(slot.label)} · ${esc(slot.role)}</span>${penTxt}`;
+  } else if (pen > 0) {
+    dest = `<span class="dest-bad">−${pen} hors position</span>`;
+  } else {
+    dest = '';
   }
 
   const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : 'Signer';
