@@ -813,6 +813,34 @@ body {
   border-radius: 4px;
 }
 
+.pos-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  flex: none;
+}
+.pos-badge.pos-f {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  color: var(--blue);
+}
+.pos-badge.pos-d {
+  background: rgba(192, 132, 252, 0.15);
+  border: 1px solid rgba(192, 132, 252, 0.5);
+  color: var(--purple);
+}
+.pos-badge.pos-g {
+  background: rgba(244, 196, 48, 0.15);
+  border: 1px solid rgba(244, 196, 48, 0.5);
+  color: var(--gold);
+}
+
 .empty-msg {
   color: var(--sub);
   font-size: 13px;
