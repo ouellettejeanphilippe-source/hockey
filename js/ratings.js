@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 14;
+export const RATINGS_VERSION = 15;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -362,6 +362,17 @@ const SALARY_ANCHORS = [
 ];
 const LOG_ANCHORS = SALARY_ANCHORS.map(([v, s]) => [v, Math.log(s)]);
 
+/**
+ * Barème pré-1990 (salaires estimées) : échelle plus tassée vers le haut
+ * pour éviter les explosions irréalistes sur les saisons à haut pointage,
+ * tout en conservant les joueurs aubaines dans le bas/milieu du barème.
+ */
+const PRE_1990_SALARY_ANCHORS = [
+  [50, 775_000], [60, 1_050_000], [70, 2_000_000], [75, 2_800_000], [80, 4_000_000],
+  [85, 5_800_000], [88, 7_200_000], [92, 8_800_000], [96, 10_200_000], [99, 11_500_000],
+];
+const PRE_1990_LOG_ANCHORS = PRE_1990_SALARY_ANCHORS.map(([v, s]) => [v, Math.log(s)]);
+
 /*
  * Contrats d'entrée, selon les façons de faire de l'époque :
  *
@@ -418,7 +429,8 @@ export function elcSalaryFor(ovr, season) {
 }
 
 export function salaryFor(ovr, pos, elc = false, season = '2025-26') {
-  let base = Math.exp(lerpTable(ovr, LOG_ANCHORS));
+  const anchors = !isRealEra(season) ? PRE_1990_LOG_ANCHORS : LOG_ANCHORS;
+  let base = Math.exp(lerpTable(ovr, anchors));
   if (pos === 'G') base *= 0.90;
   base = Math.round(base / 25_000) * 25_000;
   if (elc) base = Math.min(base, elcSalaryFor(ovr, season));
