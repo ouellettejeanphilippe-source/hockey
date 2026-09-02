@@ -9,7 +9,7 @@
  * des shards). Une seule implémentation, un seul endroit à corriger.
  */
 
-export const RATINGS_VERSION = 10;
+export const RATINGS_VERSION = 11;
 
 /* ---------- Plafonds / Masses salariales par époque (pour conversion en $ réel) ---------- */
 export const SEASON_ERA_CAP = {
@@ -73,18 +73,20 @@ export function getArchetype(p) {
   }
 
   // Forward (F)
-  const gRatio = p.g / Math.max(1, p.pt);
-  const aRatio = p.a / Math.max(1, p.pt);
+  const pt = p.pt || 0;
+  const gp = Math.max(1, p.gp || 1);
+  const gRatio = pt > 0 ? (p.g / pt) : 0;
+  const aRatio = pt > 0 ? (p.a / pt) : 0;
 
-  if (p.o >= 78 && aRatio >= 0.58) return { key: 'OFF_PLAYMAKER', label: 'Fabricant Élité', icon: '🪄', desc: 'Vision du jeu et passes magistrales' };
-  if (p.o >= 65 && gRatio >= 0.52) return { key: 'SNIPER', label: 'Buteur / Sniper', icon: '🎯', desc: 'Finition redoutable et lancer précis' };
-  if (p.o >= 65 && aRatio >= 0.55) return { key: 'PLAYMAKER', label: 'Fabriqueur de Jeu', icon: '🎯', desc: 'Distribue la rondelle avec précision' };
-  if (p.r >= 68 && p.o >= 60) return { key: 'POWER_FWD', label: 'Attaquant de Puissance', icon: '💥', desc: 'Marque dans le trafic et frappe fort' };
-  if (p.d >= 68) return { key: 'TWO_WAY_FWD', label: 'Polyvalent / Défensif', icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' };
-  if (p.r >= 70) return { key: 'ENFORCER', label: 'Énergique / Robustesse', icon: '🥊', desc: 'Physique intimidant et présence intense' };
-  if (p.o >= 60) return { key: 'SKILLED_FWD', label: 'Attaquant Talentueux', icon: '✨', desc: 'Aisance offensive naturelle' };
+  if (p.o >= 75 && aRatio >= 0.55) return { key: 'OFF_PLAYMAKER', label: "Fabricant d'Élite", icon: '🪄', desc: 'Vision du jeu et passes magistrales' };
+  if (p.o >= 55 && (gRatio >= 0.45 || (p.g / gp) >= 0.35)) return { key: 'SNIPER', label: 'Buteur / Sniper', icon: '🎯', desc: 'Finition redoutable et lancer précis' };
+  if (p.o >= 55 && aRatio >= 0.54) return { key: 'PLAYMAKER', label: 'Fabricant de Jeu', icon: '🎯', desc: 'Distribue la rondelle avec précision' };
+  if (p.r >= 58 && p.o >= 50) return { key: 'POWER_FWD', label: 'Attaquant de Puissance', icon: '💥', desc: 'Marque dans le trafic et frappe fort' };
+  if (p.d >= 55) return { key: 'TWO_WAY_FWD', label: 'Attaquant Polyvalent', icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' };
+  if (p.r >= 60) return { key: 'ENFORCER', label: 'Homme Fort', icon: '🥊', desc: 'Physique intimidant et présence intense' };
+  if (p.o >= 50) return { key: 'SKILLED_FWD', label: 'Attaquant Offensif', icon: '✨', desc: 'Aisance offensive naturelle' };
 
-  return { key: 'CHECKER', label: 'Laveur de Carreaux', icon: '🏃', desc: 'Profondeur et ardeur au travail' };
+  return { key: 'CHECKER', label: 'Attaquant de Soutien', icon: '🏃', desc: 'Profondeur et ardeur au travail' };
 }
 
 /* ---------- outils statistiques ---------- */

@@ -690,14 +690,27 @@ function renderPool() {
     colsMap.set(col.key, { ...col, players });
   });
 
+  const slotFilters = {
+    AG: s => s.role === 'AG',
+    C:  s => s.role === 'C',
+    AD: s => s.role === 'AD',
+    LD: s => s.role === 'DG',
+    RD: s => s.role === 'DD',
+    G:  s => s.group === 'G' || s.scratch
+  };
+
   poolColsDef.forEach(colDef => {
     const colData = colsMap.get(colDef.key);
     const colEl = document.createElement('div');
     colEl.className = 'pool-col';
 
+    const catSlots = SLOTS.filter(slotFilters[colDef.key] || (() => false));
+    const filledCount = catSlots.filter(s => G.roster[s.i]).length;
+    const totalCount = catSlots.length;
+
     const headerEl = document.createElement('div');
     headerEl.className = 'pool-col-header';
-    headerEl.innerHTML = `<span class="pool-col-title">${colDef.title}</span> <span class="pool-col-count">${colData.players.length}</span>`;
+    headerEl.innerHTML = `<span class="pool-col-title">${colDef.title}</span> <span class="pool-col-count">${filledCount}/${totalCount}</span>`;
     colEl.appendChild(headerEl);
 
     const cardsContainer = document.createElement('div');

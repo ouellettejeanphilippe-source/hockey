@@ -126,7 +126,7 @@ export function getUnitSynergy(roster, group, unit) {
     const hasTwoWay = archs.some(a => a === 'TWO_WAY_FWD');
 
     if (hasPM && hasSniper && (hasPower || hasTwoWay)) {
-      return { bonusOff: 4, bonusDef: 2, name: 'Chimie Parfaite 🌟', desc: 'Fabriqueur + Buteur + Power/Défensif' };
+      return { bonusOff: 4, bonusDef: 2, name: 'Chimie Parfaite 🌟', desc: 'Fabricant + Buteur + Power/Polyvalent' };
     }
     if (hasPM && hasSniper) {
       return { bonusOff: 3, bonusDef: 0, name: 'Tandem Moteur 🎯', desc: 'Passeur et Buteur combinés' };
