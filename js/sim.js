@@ -6,7 +6,7 @@
  * Toute modification des constantes doit être revalidée (voir PLAN.md, S3).
  */
 
-import { getArchetype, getLineZone, getEraFactor, seasonGames } from './ratings.js';
+import { getArchetype, getLineZone, getEraFactor, seasonGames, getSecondaryPosition } from './ratings.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
@@ -14,10 +14,10 @@ export const REROLLS = { season: 6, team: 6, pass: 4 };
 /* ---------- 23 joueurs : 4 trios, 3 paires, 2 gardiens, 3 réservistes ---------- */
 
 export const SLOTS = [];
-['Premier trio', 'Deuxième trio', 'Troisième trio', 'Quatrième trio'].forEach((label, unit) => {
+['Top 6', 'Top 6', 'Middle 6', 'Bottom 6'].forEach((label, unit) => {
   ['AG', 'C', 'AD'].forEach(role => SLOTS.push({ group: 'F', unit, role, label }));
 });
-['Première paire', 'Deuxième paire', 'Troisième paire'].forEach((label, unit) => {
+['Top 4', 'Top 4', 'Bottom 4'].forEach((label, unit) => {
   ['DG', 'DD'].forEach(role => SLOTS.push({ group: 'D', unit, role, label }));
 });
 // Le partant et l'auxiliaire portent des unités différentes pour que la zone
@@ -72,34 +72,41 @@ export function getHiddenRatings(p) {
 export function getPositionPenalty(player, slot) {
   if (!slot || slot.scratch || slot.group === 'ANY') return 0;
   if (player.p === 'G') return slot.group === 'G' ? 0 : 999;
+
+  const sec = getSecondaryPosition(player);
+
   if (player.p === 'D' || player.p === 'LD' || player.p === 'RD') {
     if (slot.group !== 'D' && slot.group !== 'LD' && slot.group !== 'RD') return 999;
     const np = (player.np === 'RD' || player.np === 'R' || player.p === 'RD') ? 'RD' : 'LD';
     const role = slot.role; // 'DG' (LD) or 'DD' (RD)
-    if (role === 'DG' && np === 'RD') return 2; // Right-handed D playing Left side (-2)
-    if (role === 'DD' && np === 'LD') return 2; // Left-handed D playing Right side (-2)
-    return 0;
+    const targetSide = role === 'DG' ? 'LD' : 'RD';
+    if (np === targetSide || sec === targetSide) return 0;
+    return 2; // Off-side D (-2)
   }
   if (slot.group !== 'F') return 999;
 
   const np = player.np || 'C';
   const role = slot.role; // 'AG', 'C', 'AD'
 
-  if (np === 'C') {
-    if (role === 'C') return 0;
+  const isPrimaryMatch = (role === 'C' && np === 'C') ||
+    (role === 'AG' && (np === 'L' || np === 'AG')) ||
+    (role === 'AD' && (np === 'R' || np === 'AD'));
+
+  const isSecMatch = sec && (
+    (role === 'C' && sec === 'C') ||
+    (role === 'AG' && (sec === 'L' || sec === 'AG')) ||
+    (role === 'AD' && (sec === 'R' || sec === 'AD'))
+  );
+
+  if (isPrimaryMatch || isSecMatch) return 0;
+
+  if (np === 'C' || sec === 'C') {
     return 3; // Center playing wing (-3)
   }
-  if (np === 'L' || np === 'AG') {
-    if (role === 'AG') return 0;
-    if (role === 'AD') return 2; // Opposite wing (-2)
-    if (role === 'C') return 5;  // Winger at center (-5)
+  if (role === 'C') {
+    return 5; // Winger playing center (-5)
   }
-  if (np === 'R' || np === 'AD') {
-    if (role === 'AD') return 0;
-    if (role === 'AG') return 2; // Opposite wing (-2)
-    if (role === 'C') return 5;  // Winger at center (-5)
-  }
-  return 0;
+  return 2; // Opposite wing (-2)
 }
 
 /**
