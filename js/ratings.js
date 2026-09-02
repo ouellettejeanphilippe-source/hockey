@@ -145,26 +145,26 @@ export function getEraFactor(season) {
 
 export const ARCHETYPES = {
   // Attaquants
-  OFF_PLAYMAKER: { label: "Fabricant de jeu d'élite", icon: '🪄', desc: 'Vision du jeu et passes magistrales' },
-  SNIPER:        { label: 'Franc-tireur / Marqueur',   icon: '🎯', desc: 'Lancer foudroyant et finition d\'élite' },
-  PLAYMAKER:     { label: 'Fabricant de jeu',          icon: '🎨', desc: 'Distribue la rondelle avec précision' },
-  POWER_FWD:     { label: 'Attaquant de puissance',    icon: '💥', desc: 'Marque dans le trafic et frappe fort' },
-  TWO_WAY_FWD:   { label: 'Attaquant complet',         icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' },
-  ENERGY:        { label: "Joueur d'énergie",          icon: '🔋', desc: 'Intensité, échec avant et mises en échec' },
-  SKILLED_FWD:   { label: 'Attaquant offensif',        icon: '✨', desc: 'Aisance offensive naturelle' },
-  CHECKER:       { label: 'Attaquant de profondeur',   icon: '🏃', desc: 'Profondeur et ardeur au travail' },
+  OFF_PLAYMAKER: { label: "Fabricant de jeu d'élite", short: 'Fabricant élite', icon: '🪄', desc: 'Vision du jeu et passes magistrales' },
+  SNIPER:        { label: 'Franc-tireur / Marqueur',   short: 'Franc-tireur',    icon: '🎯', desc: 'Lancer foudroyant et finition d\'élite' },
+  PLAYMAKER:     { label: 'Fabricant de jeu',          short: 'Fabricant',       icon: '🎨', desc: 'Distribue la rondelle avec précision' },
+  POWER_FWD:     { label: 'Attaquant de puissance',    short: 'Puissance',       icon: '💥', desc: 'Marque dans le trafic et frappe fort' },
+  TWO_WAY_FWD:   { label: 'Attaquant complet',         short: 'Complet',         icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' },
+  ENERGY:        { label: "Joueur d'énergie",          short: 'Énergie',         icon: '🔋', desc: 'Intensité, échec avant et mises en échec' },
+  SKILLED_FWD:   { label: 'Attaquant offensif',        short: 'Offensif',        icon: '✨', desc: 'Aisance offensive naturelle' },
+  CHECKER:       { label: 'Attaquant de profondeur',   short: 'Profondeur',      icon: '🏃', desc: 'Profondeur et ardeur au travail' },
   // Défenseurs
-  OFF_D:         { label: 'Défenseur offensif',        icon: '🚀', desc: 'Relance, tir frappé et avantage numérique' },
-  DEF_D:         { label: 'Défenseur physique',        icon: '🛡️', desc: 'Jeu physique et protection du territoire' },
-  STAY_D:        { label: 'Défenseur défensif',        icon: '🔒', desc: 'Sécurité et désavantage numérique' },
-  TWO_WAY_D:     { label: 'Défenseur polyvalent',      icon: '🔄', desc: 'Efficace dans toutes les situations' },
-  CHECKER_D:     { label: 'Défenseur de profondeur',   icon: '🧱', desc: 'Fiabilité et minutes tranquilles' },
+  OFF_D:         { label: 'Défenseur offensif',        short: 'Offensif',        icon: '🚀', desc: 'Relance, tir frappé et avantage numérique' },
+  DEF_D:         { label: 'Défenseur physique',        short: 'Physique',        icon: '🛡️', desc: 'Jeu physique et protection du territoire' },
+  STAY_D:        { label: 'Défenseur défensif',        short: 'Défensif',        icon: '🔒', desc: 'Sécurité et désavantage numérique' },
+  TWO_WAY_D:     { label: 'Défenseur polyvalent',      short: 'Polyvalent',      icon: '🔄', desc: 'Efficace dans toutes les situations' },
+  CHECKER_D:     { label: 'Défenseur de profondeur',   short: 'Profondeur',      icon: '🧱', desc: 'Fiabilité et minutes tranquilles' },
   // Gardiens
-  WALL:          { label: "Gardien d'élite",           icon: '🧱', desc: '% d\'arrêts et moyenne d\'élite' },
-  ACROBAT:       { label: 'Gardien acrobatique',       icon: '⚡', desc: 'Réflexes et arrêts spectaculaires' },
-  WORKHORSE:     { label: 'Gardien de fer',            icon: '🔋', desc: 'Grosse charge de travail' },
-  HYBRID_G:      { label: 'Gardien régulier',          icon: '🥅', desc: 'Style fiable et constant' },
-  UNKNOWN:       { label: 'Inconnu',                   icon: '❓', desc: '' },
+  WALL:          { label: "Gardien d'élite",           short: 'Élite',           icon: '🧱', desc: '% d\'arrêts et moyenne d\'élite' },
+  ACROBAT:       { label: 'Gardien acrobatique',       short: 'Acrobate',        icon: '⚡', desc: 'Réflexes et arrêts spectaculaires' },
+  WORKHORSE:     { label: 'Gardien de fer',            short: 'De fer',          icon: '🔋', desc: 'Grosse charge de travail' },
+  HYBRID_G:      { label: 'Gardien régulier',          short: 'Régulier',        icon: '🥅', desc: 'Style fiable et constant' },
+  UNKNOWN:       { label: 'Inconnu',                   short: 'Inconnu',         icon: '❓', desc: '' },
 };
 
 /**
@@ -235,23 +235,30 @@ export const ZONE_THRESHOLDS = {
   G: [80, 68],       // >= 80 : partant d'élite, >= 68 : partant, sinon auxiliaire
 };
 
+/*
+ * Les noms suivent le vocabulaire du hockey plutôt que des numéros : un
+ * joueur « top 6 » rend sur les deux premiers trios, un « top 9 » tient
+ * aussi le troisième, un « bottom 6 » appartient au bas de l'alignement.
+ * `short` est ce qui s'affiche sur les cartes, `label` la version longue
+ * de la fiche.
+ */
 export const LINE_ZONES = {
   F: [
-    { level: 1, label: 'Calibre 1er trio', short: '1er trio', idealUnits: [0, 1] },
-    { level: 2, label: 'Calibre 2e trio',  short: '2e trio',  idealUnits: [0, 1, 2] },
-    { level: 3, label: 'Calibre 3e trio',  short: '3e trio',  idealUnits: [2, 3] },
-    { level: 4, label: 'Calibre 4e trio',  short: '4e trio',  idealUnits: [3] },
+    { level: 1, label: 'Top 6 — deux premiers trios', short: 'Top 6',     idealUnits: [0, 1] },
+    { level: 2, label: 'Top 9 — trois premiers trios', short: 'Top 9',    idealUnits: [0, 1, 2] },
+    { level: 3, label: 'Bottom 6 — bas de l\'alignement', short: 'Bottom 6', idealUnits: [2, 3] },
+    { level: 4, label: 'Quatrième trio',               short: '4e trio',  idealUnits: [3] },
   ],
   D: [
-    { level: 1, label: 'Calibre 1re paire', short: '1re paire', idealUnits: [0, 1] },
-    { level: 2, label: 'Calibre 2e paire',  short: '2e paire',  idealUnits: [0, 1, 2] },
-    { level: 3, label: 'Calibre 3e paire',  short: '3e paire',  idealUnits: [1, 2] },
-    { level: 4, label: 'Profondeur',        short: 'Profondeur', idealUnits: [2] },
+    { level: 1, label: 'Top 4 — deux premières paires', short: 'Top 4',     idealUnits: [0, 1] },
+    { level: 2, label: 'Top 6 — les trois paires',      short: 'Top 6 D',   idealUnits: [0, 1, 2] },
+    { level: 3, label: 'Bottom 4 — bas de la brigade',  short: 'Bottom 4',  idealUnits: [1, 2] },
+    { level: 4, label: 'Troisième paire',               short: '3e paire',  idealUnits: [2] },
   ],
   G: [
-    { level: 1, label: "Partant d'élite", short: 'Partant élite', idealUnits: [0] },
-    { level: 2, label: 'Partant',         short: 'Partant',       idealUnits: [0, 1] },
-    { level: 3, label: 'Auxiliaire',      short: 'Auxiliaire',    idealUnits: [1] },
+    { level: 1, label: "Partant numéro un", short: 'Partant no 1', idealUnits: [0] },
+    { level: 2, label: 'Partant',           short: 'Partant',      idealUnits: [0, 1] },
+    { level: 3, label: 'Auxiliaire',        short: 'Auxiliaire',   idealUnits: [1] },
   ],
 };
 

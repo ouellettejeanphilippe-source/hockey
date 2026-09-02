@@ -18,7 +18,7 @@ import {
   getHiddenRatings, getUnitSynergy, getPlayerKey, createTeam, simulateLeague,
   playSeries, autoRoster,
 } from './sim.js';
-import { getTeamLogoHtml, TEAM_COLORS } from './logos.js';
+import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent } from './logos.js';
 import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP } from './ratings.js';
 
 const $ = id => document.getElementById(id);
@@ -83,9 +83,23 @@ const capUsed = () => picked().reduce((s, p) => s + p.$, 0);
 const capLeft = () => CAP - capUsed();
 const slotsLeft = () => 23 - picked().length;
 
-/** Cases ouvertes pour un joueur, les moins pénalisantes d'abord. */
+/**
+ * Où ce joueur va-t-il naturellement ? On classe les cases libres par ordre
+ * de bon sens : d'abord sa vraie position, puis sa zone d'efficacité, puis
+ * l'unité la plus haute de cette zone. Un joueur de calibre quatrième trio
+ * se propose donc au quatrième trio, pas au premier parce qu'il était vide.
+ */
+function slotFitScore(p, s) {
+  const pen = getPositionPenalty(p, s);
+  if (s.scratch) return 1000 + pen * 40 + s.i;      // les réservistes en dernier
+  const ideal = getLineZone(p, getHiddenRatings(p).v).idealUnits;
+  const dist = Math.min(...ideal.map(u => Math.abs(u - s.unit)));
+  return pen * 40 + (dist === 0 ? 0 : 12 + dist * 6) + s.unit;
+}
+
+/** Cases ouvertes pour un joueur, la plus sensée d'abord. */
 const openSlots = p => SLOTS.filter(s => !G.roster[s.i] && fits(p, s))
-  .sort((a, b) => getPositionPenalty(p, a) - getPositionPenalty(p, b) || a.i - b.i);
+  .sort((a, b) => slotFitScore(p, a) - slotFitScore(p, b) || a.i - b.i);
 
 const nextNeed = () => SLOTS.find(s => !G.roster[s.i]) || null;
 
@@ -179,8 +193,13 @@ async function restoreSave() {
 
 function applyTeamColors(team) {
   const c = TEAM_COLORS[team] || { primary: '#112236', accent: '#38bdf8' };
-  document.documentElement.style.setProperty('--team-primary', c.primary);
-  document.documentElement.style.setProperty('--team-accent', c.accent);
+  const line = getTeamAccent(team);
+  const root = document.documentElement.style;
+  root.setProperty('--team-primary', c.primary);
+  root.setProperty('--team-accent', c.accent);
+  // Version éclaircie, celle qui porte les bordures et les libellés : la
+  // couleur brute d'une équipe sombre serait invisible sur fond noir.
+  root.setProperty('--team-line', line);
 }
 
 const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
@@ -270,12 +289,14 @@ function zoneTag(p) {
   const z = getLineZone(p, getHiddenRatings(p).v);
   const where = z.idealUnits.map(u => u + 1).join(', ');
   const unit = isD(p) ? 'paires' : p.p === 'G' ? 'rôles' : 'trios';
-  return `<span class="tag tag-zone lz${z.level}" title="Zone d'efficacité : ${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">📍 ${esc(z.short)}</span>`;
+  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">${esc(z.short)}</span>`;
 }
 
-function archTag(p) {
+/** Archétype : icône plus libellé court sur les cartes, complet sur la fiche. */
+function archTag(p, full = false) {
   const a = getArchetype(p, getHiddenRatings(p));
-  return `<span class="tag tag-arch" title="${esc(a.desc)}">${a.icon} ${esc(a.label)}</span>`;
+  const txt = full ? a.label : (a.short || a.label);
+  return `<span class="tag tag-arch" title="${esc(a.label)} — ${esc(a.desc)}">${a.icon} ${esc(txt)}</span>`;
 }
 
 function ageTag(p) {
@@ -283,10 +304,10 @@ function ageTag(p) {
   return age ? `<span class="tag tag-age" title="Âge au début de la saison ${p.s}">${age} ans</span>` : '';
 }
 
-function elcTag(p) {
-  return p.elc
-    ? `<span class="tag tag-elc" title="Contrat d'entrée : premier contrat d'un joueur de 24 ans ou moins. Base plafonnée selon l'époque, plus bonis.">🐣 Contrat d'entrée</span>`
-    : '';
+function elcTag(p, full = false) {
+  if (!p.elc) return '';
+  const txt = full ? " Contrat d'entrée" : '';
+  return `<span class="tag tag-elc" title="Contrat d'entrée : premier contrat d'un joueur de 24 ans ou moins. Base plafonnée selon l'époque, plus bonis.">🐣${esc(txt)}</span>`;
 }
 
 function realTag(p) {
@@ -542,10 +563,10 @@ function renderSpin() {
 
   const targetSlot = G.target !== null ? SLOTS[G.target] : null;
   const instruction = targetSlot
-    ? `Case ciblée : <span class="target-on">${esc(targetSlot.label)} · ${esc(targetSlot.role)}</span>. Signe un joueur pour l'y placer, ou touche la case à nouveau pour annuler.`
+    ? `🎯 Case ciblée : <span class="target-on">${esc(slotShort(targetSlot))}</span> — touche-la à nouveau pour annuler.`
     : need
-      ? `Signe <strong>un joueur</strong> de ce vestiaire, puis la roulette tourne à nouveau. Prochaine case libre : <strong>${esc(need.label)} · ${esc(need.role)}</strong>.`
-      : `Alignement complet. Tu peux encore permuter tes joueurs avant de simuler.`;
+      ? `Signe <strong>un joueur</strong>, puis la roulette tourne.`
+      : `Alignement complet : permute tes joueurs ou simule.`;
 
   host.innerHTML = `
     <div class="spin-card">
@@ -593,6 +614,14 @@ function signedCount(def) {
     (def.group ? s.group === def.group : s.role === def.role)).length;
 }
 
+/** « Premier trio · AG » -> « 1er trio · AG », pour les espaces étroits. */
+const SLOT_SHORT = {
+  'Premier trio': '1er trio', 'Deuxième trio': '2e trio', 'Troisième trio': '3e trio',
+  'Quatrième trio': '4e trio', 'Première paire': '1re paire', 'Deuxième paire': '2e paire',
+  'Troisième paire': '3e paire', 'Gardiens': 'Gardien', 'Réservistes': 'Réserve',
+};
+const slotShort = s => s ? `${SLOT_SHORT[s.label] || s.label} · ${s.role}` : '—';
+
 function renderDash() {
   const host = $('dash');
   if (!host) return;
@@ -600,45 +629,37 @@ function renderDash() {
   const left = slotsLeft(), rem = capLeft();
   const maxPick = maxForPick();
   const need = nextNeed();
-
-  const needChips = POS_NEED.map(def => {
-    const n = signedCount(def);
-    const cls = n >= def.req ? 'done' : (need && (def.group ? need.group === def.group : need.role === def.role)) ? 'urgent' : '';
-    return `<span class="need-chip ${cls}" title="${esc(def.label)} : ${n} signés sur ${def.req} requis">${esc(def.label)} ${n}/${def.req}</span>`;
-  }).join('');
-  const scratchN = SLOTS.filter(s => s.scratch && G.roster[s.i]).length;
-
-  // Combien de joueurs de ce vestiaire sont réellement signables
   const pool = G.cur ? G.cur.pool : [];
   const affordable = pool.filter(p => !picked().includes(p) && openSlots(p).length && p.$ <= rem).length;
   const safe = pool.filter(p => !picked().includes(p) && openSlots(p).length && p.$ <= maxPick).length;
 
-  const budgetNote = left === 0
-    ? (rem >= 0 ? `Masse salariale : ${money(capUsed())}. Tu es sous le plafond.` : `Tu dépasses de ${money(-rem)} : retire un joueur.`)
-    : maxPick < MIN_SAL
-      ? `Il ne reste plus assez pour combler les ${left} cases au salaire plancher.`
-      : `Au-delà de ${money(maxPick)} pour ce joueur-ci, tu ne peux plus remplir les ${left - 1 >= 0 ? left - 1 : 0} cases suivantes au plancher de ${money(MIN_SAL)}.`;
-
   const budgetCls = left === 0 ? (rem >= 0 ? 'dash-good' : 'dash-bad')
     : maxPick < MIN_SAL ? 'dash-bad'
     : maxPick < 2_000_000 ? 'dash-warn' : '';
+  const poolCls = affordable === 0 && left > 0 ? 'dash-bad' : safe === 0 ? 'dash-warn' : '';
+
+  // Les explications vivent dans l'infobulle et dans les règles : le tableau
+  // de bord ne montre que le chiffre qui sert à trancher.
+  const needTitle = need
+    ? `Prochaine case libre de l'alignement : ${need.label} · ${need.role}. Touche une autre case dans l'alignement pour la viser à la place.`
+    : 'Les 23 cases sont comblées.';
+  const budgetTitle = left === 0
+    ? (rem >= 0 ? `Masse salariale : ${money(capUsed())}, sous le plafond de ${money(CAP)}.` : `Tu dépasses le plafond de ${money(-rem)} : retire un joueur.`)
+    : `Le maximum que tu peux mettre sur ce joueur-ci en gardant de quoi combler les ${left - 1} case${left - 1 > 1 ? 's' : ''} suivantes au salaire plancher de ${money(MIN_SAL)}. Il te reste ${money(rem)} pour ${left} cases.`;
+  const poolTitle = `${safe} joueur${safe > 1 ? 's' : ''} de ce vestiaire tiennent dans le budget du prochain choix, ${affordable} sous le plafond restant, ${pool.length} au total. Relances : ${G.left.season} année${G.left.season > 1 ? 's' : ''}, ${G.left.team} équipe${G.left.team > 1 ? 's' : ''}, ${G.left.pass} passe${G.left.pass > 1 ? 's' : ''}.`;
 
   host.innerHTML = `
-    <div class="dash-card">
+    <div class="dash-card" title="${esc(needTitle)}">
       <h3>À combler</h3>
-      <div class="needs">${needChips}<span class="need-chip ${scratchN >= 3 ? 'done' : ''}" title="Réservistes : remplacent les blessés">Rés. ${scratchN}/3</span></div>
-      <div class="dash-note">${need ? `Prochaine case : <strong>${esc(need.label)} · ${esc(need.role)}</strong>` : 'Toutes les cases sont comblées.'}</div>
+      <div class="dash-big sm">${need ? esc(slotShort(need)) : 'Complet'}</div>
     </div>
-    <div class="dash-card">
-      <h3>Budget du prochain choix</h3>
-      <div class="dash-line"><span class="dash-big ${budgetCls}">${left ? money(Math.max(0, maxPick)) : money(rem)}</span>
-        <span class="dash-note" style="margin:0">${left} case${left > 1 ? 's' : ''}</span></div>
-      <div class="dash-note">${budgetNote}</div>
+    <div class="dash-card" title="${esc(budgetTitle)}">
+      <h3>Budget <span class="h3-long">du choix</span></h3>
+      <div class="dash-big ${budgetCls}">${left ? money(Math.max(0, maxPick)) : money(rem)}</div>
     </div>
-    <div class="dash-card">
-      <h3>Ce vestiaire</h3>
-      <div class="dash-line"><span class="dash-big ${affordable === 0 && left > 0 ? 'dash-bad' : safe === 0 ? 'dash-warn' : ''}">${safe}</span><span class="dash-note" style="margin:0">sans risque</span></div>
-      <div class="dash-note">${affordable} joueur${affordable > 1 ? 's' : ''} sous le plafond restant, ${pool.length} au total. Relances : ${G.left.season} année${G.left.season > 1 ? 's' : ''}, ${G.left.team} équipe${G.left.team > 1 ? 's' : ''}, ${G.left.pass} passe${G.left.pass > 1 ? 's' : ''}.</div>
+    <div class="dash-card" title="${esc(poolTitle)}">
+      <h3><span class="h3-long">Ce </span>vestiaire</h3>
+      <div class="dash-big ${poolCls}">${safe}<span class="dash-unit">signables</span></div>
     </div>`;
 }
 
@@ -765,67 +786,52 @@ function playerCardEl(p) {
   el.className = 'pcard'
     + (already ? ' signed' : '')
     + ((already || !slot || over) ? ' locked' : '');
-  el.style.setProperty('--pos-color', positionColor(p));
+  el.title = 'Toucher la carte pour la fiche complète';
 
-  // Statistiques visibles selon le poste
-  const pmCls = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
-  const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
-  const stats = p.p === 'G'
-    ? `<span class="stat-big"><b>${st.w}</b><span>V</span></span>
-       <span><span class="k">PJ</span> <span class="v">${st.gp}</span></span>
-       <span><span class="k">D</span> <span class="v">${st.l}</span></span>
-       <span><span class="k">%ARR</span> <span class="v">${p.sv ?? '—'}</span></span>
-       <span><span class="k">MBA</span> <span class="v">${p.ga ?? '—'}</span></span>
-       <span><span class="k">BL</span> <span class="v">${st.so}</span></span>`
-    : `<span class="stat-big"><b>${st.pt}</b><span>PTS</span></span>
-       <span><span class="k">PJ</span> <span class="v">${st.gp}</span></span>
-       <span><span class="k">B-A</span> <span class="v">${st.g}-${st.a}</span></span>
-       <span class="ptsm">${st.ppgStr} PTS/M</span>
-       <span><span class="k">+/-</span> <span class="${pmCls}">${pmStr}</span></span>`;
+  // La carte ne porte que l'essentiel : qui, combien, ce qu'il vaut et où il
+  // va. Le détail des statistiques est dans la fiche, à un clic.
+  const bigVal = p.p === 'G' ? st.w : st.pt;
+  const bigUnit = p.p === 'G' ? 'V' : 'PTS';
 
-  // Destination et conséquence budgétaire
+  const tags = [
+    archTag(p),
+    zoneTag(p),
+    risky ? `<span class="tag tag-pen" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les 23.">⚠ bloque la fin</span>` : '',
+  ].filter(Boolean).join('');
+
   let dest;
   if (already) {
     const cur = SLOTS.find(s => G.roster[s.i] === p);
-    dest = `<span class="dest-slot">✓ Signé</span>${cur ? ` · ${esc(cur.label)} · ${esc(cur.role)}` : ''}`;
+    dest = `<span class="dest-ok">✓ signé</span>${cur ? ` · ${esc(cur.label)} · ${esc(cur.role)}` : ''}`;
   } else if (!slot) {
-    dest = `<span class="dest-bad">Aucune case libre à cette position</span>`;
+    dest = `<span class="dest-bad">aucune case libre</span>`;
   } else if (over) {
-    dest = `<span class="dest-bad">Hors budget</span> · il te reste ${money(rem)}`;
+    dest = `<span class="dest-bad">hors budget</span> · reste ${money(rem)}`;
   } else {
-    const after = rem - p.$;
-    const left = slotsLeft() - 1;
-    const penTxt = pen > 0 ? ` <span class="dest-bad">−${pen} hors position</span>` : '';
-    dest = `<span class="${isTargeted ? 'dest-target' : 'dest-slot'}">${isTargeted ? '🎯 ' : '→ '}${esc(slot.label)} · ${esc(slot.role)}</span>${penTxt}`
-      + `<br><span class="dest-after">Après : ${money(after)}${left > 0 ? ` · ${money(after / left)} / case` : ''}</span>`;
+    const penTxt = pen > 0 ? ` <span class="dest-bad">−${pen}</span>` : '';
+    dest = `<span class="${isTargeted ? 'dest-target' : 'dest-slot'}">${isTargeted ? '🎯' : '→'} ${esc(slot.label)} · ${esc(slot.role)}</span>${penTxt}`
+      + ` <span class="dest-after">· reste ${money(rem - p.$)}</span>`;
   }
 
-  const tags = [
-    archTag(p), zoneTag(p), ageTag(p), elcTag(p),
-    p.x ? `<span class="tag tag-traded" title="Joueur échangé en cours de saison : il apparaît dans le vestiaire de chaque équipe.">↔ Échangé</span>` : '',
-    risky ? `<span class="tag tag-pen" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les 23.">⚠ Bloque la fin</span>` : '',
-  ].filter(Boolean).join('');
-
-  const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : (isTargeted ? '🎯 Signer' : '+ Signer');
+  const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : 'Signer';
 
   el.innerHTML = `
-    <div class="pcard-avatar">${headshotHtml(p)}
-      <span class="pcard-team-badge">${getTeamLogoHtml(p.t, 13)}</span>
-    </div>
-    <div class="pcard-body">
-      <div class="pcard-row1">
+    <div class="pcard-head">
+      <div class="pcard-avatar">${headshotHtml(p)}
+        <span class="pcard-team-badge">${getTeamLogoHtml(p.t, 13)}</span>
+      </div>
+      <div class="pcard-id">
         <div class="pcard-name"><span class="pos-badge ${positionClass(p)}">${esc(positionLabel(p))}</span>${formatName(p.n)}</div>
-        <div class="pcard-price">
-          <span class="amt">${st.salaryMain}</span>
-          <span class="sub">${st.salarySub}</span>
-        </div>
       </div>
-      <div class="pcard-stats">${stats}</div>
+      <div class="pcard-price">${st.salaryMain}</div>
+    </div>
+    <div class="pcard-mid">
+      <div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
       <div class="tags">${tags}</div>
-      <div class="pcard-foot">
-        <div class="pcard-dest">${dest}</div>
-        <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
-      </div>
+    </div>
+    <div class="pcard-foot">
+      <div class="pcard-dest">${dest}</div>
+      <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
     </div>`;
 
   el.onclick = ev => {
@@ -975,6 +981,7 @@ function slotEl(s) {
     + (pen > 0 ? ' oop' : '');
 
   if (p) {
+    el.style.setProperty('--slot-line', getTeamAccent(p.t));
     const st = displayStats(p);
     const main = p.p === 'G' ? `${st.w} V` : `${st.pt} PTS`;
     const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr} PTS/M`;
@@ -1031,8 +1038,26 @@ function slotEl(s) {
   return el;
 }
 
-const UNIT_NAMES_F = ['Premier trio', 'Deuxième trio', 'Troisième trio', 'Quatrième trio'];
-const UNIT_NAMES_D = ['Première paire', 'Deuxième paire', 'Troisième paire'];
+/* Titres courts : à largeur égale, la colonne de droite reste lisible. */
+const UNIT_NAMES_F = ['1er trio', '2e trio', '3e trio', '4e trio'];
+const UNIT_NAMES_D = ['1re paire', '2e paire', '3e paire'];
+
+/* Version courte des libellés de chimie : l'en-tête d'une unité est étroit,
+   le texte complet reste dans l'infobulle. */
+const CHEM_SHORT = {
+  'Chimie parfaite 🌟': '🌟 Parfaite',
+  'Tandem moteur 🎯': '🎯 Tandem',
+  "Trio d'étouffement 🧱": '🧱 Étouffement',
+  'Conflit de rôles ⚠️': '⚠️ Conflit',
+  'Chimie standard 👍': '👍 Standard',
+  'Paire équilibrée ⚖️': '⚖️ Équilibrée',
+  'Paire hyper-offensive 🚀': '🚀 Hyper-off.',
+  'Paire hermétique 🔒': '🔒 Hermétique',
+  'Paire standard 👍': '👍 Standard',
+  'Trio standard 👍': '👍 Standard',
+};
+const chemShort = name => CHEM_SHORT[name] || name;
+const zoneShort = tag => !tag ? '' : tag.replace('Trio ', '').replace('Paire ', '').replace('optimale', 'optimal');
 
 function lineEl(title, slots, group, unit, cls = '') {
   const wrap = document.createElement('div');
@@ -1047,7 +1072,10 @@ function lineEl(title, slots, group, unit, cls = '') {
       const kind = sum > 0 ? 'good' : sum < 0 ? 'bad' : '';
       if (kind) wrap.classList.add(kind);
       const sign = v => (v > 0 ? `+${v}` : `${v}`);
-      chemHtml = `<span class="line-chem ${kind}" title="${esc(syn.desc || '')}">${esc(syn.name)} · ATT ${sign(syn.bonusOff || 0)} / DÉF ${sign(syn.bonusDef || 0)}</span>`;
+      const bits = [chemShort(syn.chem || syn.name)];
+      if (syn.zone) bits.push(zoneShort(syn.zone));
+      const full = `${syn.name}${syn.desc ? ' — ' + syn.desc : ''} · attaque ${sign(syn.bonusOff || 0)}, défense ${sign(syn.bonusDef || 0)}`;
+      chemHtml = `<span class="line-chem ${kind}" title="${esc(full)}">${esc(bits.join(' · '))} <b>${sign(syn.bonusOff || 0)}/${sign(syn.bonusDef || 0)}</b></span>`;
     } else {
       chemHtml = `<span class="line-chem">${filled}/${slots.length} · chimie à venir</span>`;
     }
@@ -1078,43 +1106,31 @@ function renderRoster() {
     host.appendChild(lineEl(name, slots, 'D', u, 'pair'));
   });
   host.appendChild(lineEl('Gardiens', SLOTS.filter(s => s.group === 'G' && !s.scratch), null, null, 'pair'));
-  host.appendChild(lineEl('Réservistes', SLOTS.filter(s => s.scratch), null, null, 'wide'));
+  host.appendChild(lineEl('Réservistes', SLOTS.filter(s => s.scratch), null, null));
 }
 
 function renderTeamSummary() {
   const host = $('teamSummary');
   if (!host) return;
 
-  const ps = picked();
-  const ages = ps.map(p => ageAtSeason(p.bd, p.s)).filter(Boolean);
-  const avgAge = ages.length ? (ages.reduce((a, b) => a + b, 0) / ages.length).toFixed(1) : null;
   const oop = SLOTS.filter(s => G.roster[s.i] && getPositionPenalty(G.roster[s.i], s) > 0).length;
-
   let optimal = 0, miscast = 0;
-  for (let u = 0; u < 4; u++) {
-    const syn = getUnitSynergy(G.roster, 'F', u);
-    if (syn.zone && syn.zone.startsWith('✨')) optimal++;
-    if (syn.zone && syn.zone.startsWith('⚠️')) miscast++;
-  }
-  for (let u = 0; u < 3; u++) {
-    const syn = getUnitSynergy(G.roster, 'D', u);
+  const units = [...Array(4).keys()].map(u => ['F', u]).concat([...Array(3).keys()].map(u => ['D', u]));
+  for (const [g, u] of units) {
+    const syn = getUnitSynergy(G.roster, g, u);
     if (syn.zone && syn.zone.startsWith('✨')) optimal++;
     if (syn.zone && syn.zone.startsWith('⚠️')) miscast++;
   }
 
-  const totalPts = ps.filter(p => p.p !== 'G').reduce((s, p) => s + displayStats(p).pt, 0);
-  const topSal = ps.length ? Math.max(...ps.map(p => p.$)) : 0;
+  const tile = (k, v, cls, title) =>
+    `<div class="sum-item" title="${esc(title)}"><div class="k">${k}</div><div class="v ${cls || ''}">${v}</div></div>`;
 
-  host.innerHTML = `
-    <div class="sum-item"><div class="k">Masse</div><div class="v">${money(capUsed())}</div></div>
-    <div class="sum-item"><div class="k">Plus gros contrat</div><div class="v">${ps.length ? money(topSal) : '—'}</div></div>
-    <div class="sum-item"><div class="k">Points cumulés</div><div class="v">${totalPts}</div></div>
-    ${avgAge
-      ? `<div class="sum-item"><div class="k">Âge moyen</div><div class="v">${avgAge}</div></div>`
-      : `<div class="sum-item"><div class="k">Cases vides</div><div class="v ${slotsLeft() ? 'dash-warn' : 'dash-good'}">${slotsLeft()}</div></div>`}
-    <div class="sum-item"><div class="k">Unités optimales</div><div class="v ${optimal ? 'dash-good' : ''}">${optimal}/7</div></div>
-    <div class="sum-item"><div class="k">Mal assorties</div><div class="v ${miscast ? 'dash-bad' : ''}">${miscast}</div></div>
-    <div class="sum-item"><div class="k">Hors position</div><div class="v ${oop ? 'dash-warn' : ''}">${oop}</div></div>`;
+  host.innerHTML =
+    tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(CAP)}. Il reste ${money(capLeft())}.`)
+    + tile('Cases vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', 'Cases encore à combler sur les 23.')
+    + tile('Unités optimales', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense. Les quatre trios et les trois paires comptent.")
+    + tile('Mal assorties', miscast, miscast ? 'dash-bad' : '', 'Unités où au moins deux joueurs jouent hors de leur zone : −2 en attaque et −2 en défense.')
+    + tile('Hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
 }
 
 function renderMain() {
@@ -1243,7 +1259,7 @@ function showPlayerModal(p) {
       + cell('%ARR', p.sv ?? '—') + cell('MBA', p.ga ?? '—')
     : cell('PJ', st.gp) + cell('B', st.g) + cell('A', st.a) + cell('PTS', st.pt, true)
       + cell('PTS/M', st.ppgStr) + cell('+/-', pmStr) + cell('PUN', p.pim ?? '—')
-      + cell('TG/M', p.toi != null ? p.toi.toFixed ? p.toi.toFixed(1) : p.toi : '—')
+      + cell('TG/M', p.toi ? Number(p.toi).toFixed(1) : '—')
       + (p.ht != null ? cell('MÉ/M', p.ht) : '')
       + (p.fo != null ? cell('MJ %', Math.round(p.fo * 100)) : '');
 
@@ -1279,7 +1295,7 @@ function showPlayerModal(p) {
             <div class="pcard-full-name">${formatName(p.n)}</div>
             <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
               <span class="pos-badge ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
-            <div class="tags pcard-full-tags">${archTag(p)}${zoneTag(p)}${ageTag(p)}${elcTag(p)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
+            <div class="tags pcard-full-tags">${archTag(p, true)}${zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
           </div>
         </div>
         <div class="pcard-full-salary">

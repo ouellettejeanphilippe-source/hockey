@@ -102,6 +102,50 @@ export const TEAM_COLORS = {
   CLR: { primary: '#00205b', secondary: '#c8102e', text: '#ffffff', accent: '#c8102e' },
 };
 
+/* ---------- teinte lisible ---------- */
+
+const hexToRgb = hex => {
+  const h = String(hex || '').replace('#', '');
+  const v = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const n = parseInt(v, 16);
+  return Number.isNaN(n) ? [56, 189, 248] : [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+
+const rgbToHex = ([r, g, b]) =>
+  '#' + [r, g, b].map(x => Math.round(Math.max(0, Math.min(255, x))).toString(16).padStart(2, '0')).join('');
+
+/** Luminance relative (WCAG), 0 = noir, 1 = blanc. */
+function luminance(hex) {
+  const [r, g, b] = hexToRgb(hex).map(v => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * Couleur d'équipe éclaircie jusqu'à rester visible sur le fond sombre du
+ * jeu. Sans ça, le bleu marine de St. Louis ou le noir des Kings donnent une
+ * bordure invisible et une étiquette illisible.
+ */
+export function readableAccent(hex, target = 0.30) {
+  let rgb = hexToRgb(hex);
+  let lum = luminance(rgbToHex(rgb));
+  let guard = 0;
+  while (lum < target && guard++ < 24) {
+    rgb = rgb.map(v => v + (255 - v) * 0.12);
+    lum = luminance(rgbToHex(rgb));
+  }
+  return rgbToHex(rgb);
+}
+
+/** Accent lisible d'une équipe, prêt à poser dans une variable CSS. */
+export function getTeamAccent(teamCode) {
+  const c = TEAM_COLORS[teamCode];
+  if (!c) return '#38bdf8';
+  return readableAccent(c.accent || c.primary);
+}
+
 /**
  * Retourne le HTML d'un logo pour le code d'équipe fourni.
  */
