@@ -427,11 +427,18 @@ body {
 }
 
 @media (min-width: 1100px) {
-  .pool {
+  body:not(.layout-rink) .pool {
     grid-template-columns: repeat(6, minmax(215px, 1fr));
     gap: 12px;
     overflow-x: auto;
     padding-bottom: 8px;
+  }
+}
+
+@media (min-width: 1100px) {
+  body.layout-rink .pool {
+    display: flex;
+    flex-direction: column;
   }
 }
 
@@ -831,7 +838,7 @@ body {
 }
 
 @media (min-width: 1100px) {
-  .roster-board {
+  body:not(.layout-rink) .roster-board {
     grid-template-columns: repeat(6, minmax(215px, 1fr));
     gap: 12px;
     overflow-x: auto;
@@ -1418,17 +1425,23 @@ body {
   }
   body.layout-rink .section-title:nth-of-type(2) { display: none; }
   body.layout-rink #chemBar { grid-area: chembar; }
-  body.layout-rink #rosterBoard { grid-area: roster; }
+  body.layout-rink #rosterBoard {
+    grid-area: roster;
+    max-height: 900px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
   body.layout-rink #resultHost { grid-area: result; }
 }
 
 .roster-board.rink-mode {
+  display: block;
   background: linear-gradient(180deg, #0d2137 0%, #081626 100%);
   border: 2px solid #28517e;
   border-radius: 20px;
   padding: 16px;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
   box-shadow: 0 12px 32px rgba(0,0,0,0.5), inset 0 0 50px rgba(56, 189, 248, 0.08);
 }
 
