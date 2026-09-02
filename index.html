@@ -4,235 +4,233 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Bâtis un alignement de 23 joueurs de la LNH, 1970 à aujourd'hui, sous le plafond salarial. Vise la saison parfaite.">
-<title>Cap Crunch — Cap 82-0</title>
+<meta name="theme-color" content="#070e17">
+<title>Cap 82-0 — Directeur général</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="app-header">
-  <h1 class="main-title">CAP <span>82-0</span></h1>
-  <div class="subtitle">ALIGNEMENT DE 23 JOUEURS · SAISON PARFAITE SOUS LE PLAFOND SALARIAL</div>
+<!-- ===== Barre du haut : plafond et accès, rien d'autre ===== -->
+<header class="topbar" id="topbar">
+  <div class="topbar-inner">
+    <div class="capgauge" id="capGauge" title="Plafond salarial de 95,5 M$ (valeur 2026)">
+      <div class="capgauge-row">
+        <span class="capgauge-label">Plafond restant</span>
+        <span class="capgauge-amt"><strong id="capAmt" class="amt">—</strong> <span class="capgauge-max" id="capMaxLbl">/ $95.5M</span></span>
+      </div>
+      <div class="track" aria-hidden="true"><div class="fill" id="capFill" style="width:0%"></div><div class="fill-marker" id="capMarker"></div></div>
+      <div class="capgauge-row small">
+        <span><strong id="cnt">0 / 23</strong> signés</span>
+        <span id="perSlotLbl" title="Budget moyen disponible par case restante">—/case</span>
+      </div>
+    </div>
+
+    <nav class="topbar-actions" aria-label="Menu">
+      <button class="icon-btn" id="openLeaderboardBtn" title="Historique de vos saisons">🏆<span class="icon-lbl">Historique</span></button>
+      <button class="icon-btn" id="openBibleBtn" title="Règles et mathématiques du jeu">📖<span class="icon-lbl">Règles</span></button>
+      <button class="icon-btn" id="openOptionsBtn" title="Options d'affichage">⚙️<span class="icon-lbl">Options</span></button>
+    </nav>
+  </div>
 </header>
 
-<div id="boot">Chargement du vestiaire LNH…</div>
-
-<div id="game" style="display:none">
-
-  <div class="capbar">
-    <div class="capbar-header">
-      <div class="capbar-title">CAP SPACE REMAINING / PLAFOND RESTANT</div>
-      <div class="capbar-value"><span id="capAmt" class="amt">—</span> <span class="cap-max" id="capMaxLbl">/ $95.50M</span></div>
-    </div>
-    <div class="track"><div class="fill" id="capFill" style="width:0%"></div></div>
-    <div class="capbar-sub">
-      <span>ALIGNEMENT: <strong id="cnt">0 / 23</strong> SIGNÉS</span>
-      <span id="nextNeedLbl" class="next-need">—</span>
-    </div>
-  </div>
-
-  <div class="spin" id="spin"></div>
-
-  <!-- Options & Toggles Bar -->
-  <div class="toggles-bar">
-    <div class="toggle-group">
-      <span class="toggle-label">DISPOSITION :</span>
-      <button id="toggleLayoutBtn" class="toggle-btn" title="Basculer entre Disposition Classique et Disposition Inversée avec Depth Chart sur Glace">📐 CLASSIQUE</button>
-    </div>
-    <div class="toggle-group">
-      <span class="toggle-label">CARTE :</span>
-      <button id="toggleViewBtn" class="toggle-btn active" title="Basculer entre Vue Compacte et Vue Détaillée">🎴 COMPACTE</button>
-    </div>
-    <div class="toggle-group">
-      <span class="toggle-label">STATS :</span>
-      <button id="toggleStatsBtn" class="toggle-btn active" title="Basculer entre Vraies stats et Prorata 82 matchs">📊 RÉELLES</button>
-    </div>
-    <div class="toggle-group">
-      <span class="toggle-label">SALAIRE :</span>
-      <button id="toggleSalBtn" class="toggle-btn active" title="Basculer entre Valeur 2026 (Jeu) et Valeur réelle (Époque)">💵 VALEUR 2026</button>
-    </div>
-    <div class="toggle-group">
-      <span class="toggle-label">FOG OF WAR :</span>
-      <button id="toggleFogBtn" class="toggle-btn" title="Cotes et hexagone masqués par défaut. Cliquer pour les afficher au survol.">🔒 FOG OF WAR</button>
-    </div>
-    <div class="toggle-group">
-      <button id="openLeaderboardBtn" class="toggle-btn gold">🏆 HISTORIQUE</button>
-      <button id="openBibleBtn" class="toggle-btn gold" style="border-color:#38bdf8;color:#38bdf8;">📖 GAME BIBLE</button>
-    </div>
-  </div>
-
-  <div class="section-title">
-    <span>BASSIN DES JOUEURS DISPONIBLES</span>
-    <div class="pool-controls">
-      <select id="sortSelect" class="sort-select">
-        <option value="PTS">Trier par Points / Victoires</option>
-        <option value="SAL">Trier par Salaire ($)</option>
-        <option value="PM">Trier par Différentiel (+/-)</option>
-        <option value="NAME">Trier par Nom</option>
-      </select>
-      <span class="sub-count" id="poolCount">0 joueurs</span>
-    </div>
-  </div>
-  <div class="filters" id="filters"></div>
-  <div class="pool" id="pool"></div>
-
-  <div class="section-title" style="margin-top:24px">
-    <span>VOTRE ALIGNEMENT (23 JOUEURS) — <small style="color:var(--gold);font-weight:600;">Cliquer un joueur signé pour le déplacer/permuter</small></span>
-  </div>
-
-  <div class="chemistry-bar" id="chemBar" style="display:none;"></div>
-
-  <div class="roster-board" id="rosterBoard">
-    <div class="roster-col col-lw">
-      <div class="col-header">
-        <span class="col-title">AG / LW</span>
-        <span class="col-count" id="lwCnt">0/4</span>
-      </div>
-      <div class="col-slots" id="lwSlots"></div>
-    </div>
-
-    <div class="roster-col col-c">
-      <div class="col-header">
-        <span class="col-title">C</span>
-        <span class="col-count" id="cCnt">0/4</span>
-      </div>
-      <div class="col-slots" id="cSlots"></div>
-    </div>
-
-    <div class="roster-col col-rw">
-      <div class="col-header">
-        <span class="col-title">AD / RW</span>
-        <span class="col-count" id="rwCnt">0/4</span>
-      </div>
-      <div class="col-slots" id="rwSlots"></div>
-    </div>
-
-    <div class="roster-col col-ld">
-      <div class="col-header">
-        <span class="col-title">DG / LD</span>
-        <span class="col-count" id="ldCnt">0/3</span>
-      </div>
-      <div class="col-slots" id="ldSlots"></div>
-    </div>
-
-    <div class="roster-col col-rd">
-      <div class="col-header">
-        <span class="col-title">DD / RD</span>
-        <span class="col-count" id="rdCnt">0/3</span>
-      </div>
-      <div class="col-slots" id="rdSlots"></div>
-    </div>
-
-    <div class="roster-col col-g">
-      <div class="col-header">
-        <span class="col-title">G / RÉSERVES</span>
-        <span class="col-count" id="gCnt">0/5</span>
-      </div>
-      <div class="col-slots" id="gSlots"></div>
-    </div>
-  </div>
-
-  <div id="resultHost"></div>
+<div id="boot" class="boot">
+  <div class="boot-puck"></div>
+  <div>Chargement du vestiaire LNH…</div>
 </div>
 
-<!-- Radar Chart Tooltip (FIFA Style) -->
+<main id="game" class="game" style="display:none">
+
+  <!-- ===== Espace de travail : roulette + tableau de bord + deux volets ===== -->
+  <div class="workspace" id="workspace">
+
+    <section class="draft" id="draft" aria-live="polite">
+      <div class="spin" id="spin"></div>
+      <div class="dash" id="dash"></div>
+    </section>
+
+    <div class="panes" id="panes" data-view="pool">
+
+      <!-- Volet gauche : bassin -->
+      <section class="pane pane-pool" id="panePool" aria-label="Bassin de joueurs">
+        <div class="pane-head">
+          <div class="pane-title">
+            <h2>Vestiaire</h2>
+            <span class="pane-meta" id="poolCount">—</span>
+          </div>
+          <div class="pool-tools">
+            <label class="search"><span aria-hidden="true">🔍</span><input id="searchInput" type="search" placeholder="Chercher un joueur…" autocomplete="off"></label>
+            <select id="sortSelect" class="select" aria-label="Trier le bassin">
+              <option value="PTS">Tri : points / victoires</option>
+              <option value="PPG">Tri : points par match</option>
+              <option value="SAL">Tri : salaire</option>
+              <option value="VAL">Tri : points par million</option>
+              <option value="PM">Tri : différentiel (+/-)</option>
+              <option value="AGE">Tri : âge</option>
+              <option value="NAME">Tri : nom</option>
+            </select>
+          </div>
+        </div>
+        <div class="filters" id="filters" role="tablist" aria-label="Filtrer par position"></div>
+        <div class="pool" id="pool"></div>
+      </section>
+
+      <!-- Volet droit : alignement -->
+      <section class="pane pane-roster" id="paneRoster" aria-label="Alignement">
+        <div class="pane-head">
+          <div class="pane-title">
+            <h2>Alignement</h2>
+            <span class="pane-meta" id="rosterMeta">0 / 23</span>
+          </div>
+          <div class="roster-hint" id="rosterHint">Touche un joueur signé pour le déplacer, une case vide pour la cibler.</div>
+        </div>
+        <div class="team-summary" id="teamSummary"></div>
+        <div class="roster" id="rosterBoard"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== Résultat de la saison ===== -->
+  <section id="resultHost" class="result-host" style="display:none"></section>
+</main>
+
+<!-- ===== Barre d'action (bas) ===== -->
+<div class="actionbar" id="actionbar" style="display:none">
+  <div class="actionbar-inner">
+    <div class="tabs" role="tablist" aria-label="Vue">
+      <button class="tab on" data-view="pool" role="tab" id="tabPool">Vestiaire <span class="tab-badge" id="tabPoolBadge"></span></button>
+      <button class="tab" data-view="roster" role="tab" id="tabRoster">Alignement <span class="tab-badge" id="tabRosterBadge">0/23</span></button>
+    </div>
+    <button class="btn go" id="mainBtn" disabled>Chargement…</button>
+  </div>
+</div>
+
+<!-- Radar (hexagone) quand le brouillard est levé -->
 <div id="radarTooltip" class="radar-tooltip" style="display:none;"></div>
 
-<!-- Leaderboard Modal -->
-<div id="leaderboardModal" class="modal-backdrop" style="display:none;">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2>🏆 HISTORIQUE & MEILLEURS SCORES</h2>
-      <button id="closeLeaderboardBtn" class="close-btn">✕</button>
-    </div>
-    <div class="modal-body" id="leaderboardBody">
-      <div class="empty-msg">Aucune saison enregistrée pour l'instant.</div>
-    </div>
-  </div>
-</div>
+<!-- Toast -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<!-- Hockey Card Modal -->
+<!-- ===== Modale : fiche de joueur ===== -->
 <div id="hockeyCardModal" class="modal-backdrop" style="display:none;">
-  <div class="hockey-card-modal-content">
-    <button id="closeHockeyCardBtn" class="hockey-card-close-btn">✕</button>
+  <div class="modal-sheet modal-card" role="dialog" aria-modal="true" aria-label="Fiche du joueur">
+    <button id="closeHockeyCardBtn" class="close-btn" aria-label="Fermer">✕</button>
     <div id="hockeyCardBody"></div>
   </div>
 </div>
 
-<!-- Game Bible Modal -->
-<div id="bibleModal" class="modal-backdrop" style="display:none;">
-  <div class="modal-content" style="max-width: 680px;">
+<!-- ===== Modale : historique ===== -->
+<div id="leaderboardModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Historique">
     <div class="modal-header">
-      <h2>📖 GAME BIBLE — LES MATHS & RÈGLES DU JEU</h2>
-      <button id="closeBibleBtn" class="close-btn">✕</button>
+      <h2>🏆 Historique de vos saisons</h2>
+      <button id="closeLeaderboardBtn" class="close-btn" aria-label="Fermer">✕</button>
     </div>
-    <div class="modal-body" id="bibleBody" style="font-size:12.5px; line-height:1.6; color:var(--text);">
-      <h3 style="color:var(--gold); margin-top:0;">1. Normalisation des Cotes Cachées (Z-Score)</h3>
-      <p>Afin de comparer équitablement Wayne Gretzky en 1982 (212 pts dans une LNH à ~8 buts/match) et Sidney Crosby en 2011 (LNH à ~5.4 buts/match), les cotes ne sont pas attribuées selon des seuils bruts fixes, mais calculées en <strong>z-score par rapport aux contemporains de la même saison</strong>.</p>
-      <div class="math-box">
-        <code>Z = (X - μ) / σ</code><br>
-        <code>Cote = Max(25, Min(99, 52 + 13 × Z))</code>
-      </div>
-      <ul>
-        <li><strong>Attaque (OVR OFF)</strong> : Points/match (62%), Tirs/match (22%), Points en Avantage Numérique (16%).</li>
-        <li><strong>Défense (OVR DEF)</strong> : Differenciel (+/-) (45%), Points en Désavantage (20%), Temps de glace (35%), Tirs bloqués/match (+ Bonus +0.35 Z pour Défenseurs).</li>
-        <li><strong>Robustesse (ROB)</strong> : Minutes de punition/match (45%) et Mises en échec/match (55%).</li>
-        <li><strong>Clutch (CLU)</strong> : Buts gagnants & en prolongation/match (75%) et Points/match (25%).</li>
-      </ul>
+    <div class="modal-body" id="leaderboardBody"></div>
+  </div>
+</div>
 
-      <h3 style="color:var(--gold);">2. Ajustement par Époque ("Points d'Aujourd'hui")</h3>
-      <p>La moyenne de buts par match dans la LNH varie drastiquement selon les décennies. L'ajustement ramène toutes les performances sur la base de la LNH moderne (~3.15 buts par équipe/match) :</p>
-      <div class="math-box">
-        <code>Facteur d'époque = 3.15 / (Moyenne de buts/match de la saison)</code><br>
-        <code>Points Ajustés = Points Réels × Facteur d'époque</code>
+<!-- ===== Modale : options ===== -->
+<div id="optionsModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-sheet modal-narrow" role="dialog" aria-modal="true" aria-label="Options">
+    <div class="modal-header">
+      <h2>⚙️ Options d'affichage</h2>
+      <button id="closeOptionsBtn" class="close-btn" aria-label="Fermer">✕</button>
+    </div>
+    <div class="modal-body options">
+      <div class="opt-row">
+        <div class="opt-text"><strong>Statistiques</strong><span>Vraies stats de la saison, ou prorata sur 82 matchs ajusté à l'époque (buts par match de l'année ramenés à 3,15).</span></div>
+        <div class="seg" data-opt="stats"><button data-val="real" class="on">Réelles</button><button data-val="prorata">Prorata 82 · époque</button></div>
       </div>
-
-      <h3 style="color:var(--gold);">3. Cote globale équilibrée par saison</h3>
-      <p>La cote globale (OVR) combine les sous-cotes, puis ajoute un <strong>bonus de vedette</strong> calculé sur le <strong>rang du joueur dans sa propre saison</strong>, divisé par le nombre d'équipes de la ligue cette année-là. Un top-10 des marqueurs vaut donc la même chose en 1975 (18 équipes) qu'en 2024 (32 équipes), et chaque saison a son propre barème. Les 100+ points de l'ère moderne tombent entre 88 et 99.</p>
-      <div class="math-box">
-        <code>OVR attaquant = 0.66×ATT + 0.16×DÉF + 0.05×ROB + 0.13×CLU + Vedette(rang / équipes, z)</code><br>
-        <code>OVR défenseur = 0.42×ATT + 0.48×DÉF + 0.05×ROB + 0.05×CLU + 6 + Vedette(rang parmi les D)</code><br>
-        <code>OVR gardien = 0.40×TEC + 0.32×BLI + 0.14×ROB + 0.14×CLU + Partant(% des matchs) + Rang</code>
+      <div class="opt-row">
+        <div class="opt-text"><strong>Salaires</strong><span>Valeur 2026 (celle qui compte sous le plafond du jeu) ou valeur de l'époque (réelle ou estimée).</span></div>
+        <div class="seg" data-opt="salary"><button data-val="2026" class="on">Valeur 2026</button><button data-val="ERA">Valeur époque</button></div>
       </div>
-
-      <h3 style="color:var(--gold);">4. Barème salarial & prorata du plafond</h3>
-      <p>Le salaire 2026 suit un barème par cote globale (interpolation logarithmique entre ancres) sur le plafond de 95,5 M$ :</p>
-      <div class="math-box">
-        <code>Cote 50 → 0,78 M$ · 70 → 2,3 M$ · 80 → 5,6 M$ · 85 → 8,8 M$ · 88 → 11,5 M$ · 92 → 13,75 M$ · 99 → 18,5 M$</code><br>
-        <code>Salaire Époque = Salaire 2026 × (Plafond de l'année / 95,5 M$)</code>
+      <div class="opt-row">
+        <div class="opt-text"><strong>Brouillard de guerre</strong><span>Les cotes cachées restent secrètes jusqu'à la simulation. Le lever affiche l'hexagone au survol : mode entraînement.</span></div>
+        <div class="seg" data-opt="fog"><button data-val="on" class="on">🔒 Actif</button><button data-val="off">⬢ Cotes visibles</button></div>
       </div>
-      <p>Un joueur de 100+ points coûte 12 à 18 M$, un défenseur de première paire 9 à 14 M$ : il faut remplir le reste de l'alignement avec du 3e et 4e trio. Pour 1989-90 à 2003-04 (salaires publiés, pas de plafond), le « plafond » de l'année est la masse salariale de l'équipe la plus dépensière. <strong>🐣 Contrat d'entrée (ELC)</strong>, selon les façons de faire de l'époque : rien avant 1995-96 (les recrues négociaient librement — Lindros, Daigle) ; de 1995-96 à 2003-04, base plafonnée (~2,7 % du plus gros budget d'équipe) avec bonis sans vrai plafond ; depuis 2005-06, base ~1 % du plafond (850 k$ → 950 k$) et bonis plafonnés à 2,85 M$. Il couvre le premier contrat d'un joueur de 24 ans ou moins : 3 saisons à 18-21 ans, 2 à 22-23, 1 à 24. L'âge vient de l'API (année de naissance) ou, à défaut, de la cohorte d'identifiant LNH. Quand un salaire réel publié est disponible, il remplace le barème, au prorata du plafond de l'année.</p>
-      <p><em>Le bouton SALAIRE bascule entre la <strong>Valeur 2026</strong> (celle qui compte sous le plafond du jeu) et la <strong>Valeur Époque</strong> (équivalent en dollars de la saison d'origine, marqué Réel ou Estimé).</em></p>
-
-      <h3 style="color:var(--gold);">5. Archétypes & zones d'efficacité</h3>
-      <p>Chaque joueur porte un archétype classique — Fabricant de jeu d'élite 🪄, Franc-tireur 🎯, Fabricant de jeu 🎨, Attaquant de puissance 💥, Attaquant complet ⚖️, Joueur d'énergie 🔋, Attaquant offensif ✨, Attaquant de profondeur 🏃 ; Défenseur offensif 🚀, physique 🛡️, défensif 🔒, polyvalent 🔄, de profondeur 🧱 ; Gardien d'élite, acrobatique, de fer, régulier — et une <strong>zone d'efficacité</strong> 📍 visible même sous le fog of war :</p>
-      <ul>
-        <li><strong>Calibre 1er trio</strong> : rend à 100 % sur les trios 1-2 (paires 1-2 pour un défenseur).</li>
-        <li><strong>Calibre 2e trio</strong> : trios 1-3 (paires 1-3).</li>
-        <li><strong>Calibre 3e trio</strong> : trios 3-4 (paires 2-3).</li>
-        <li><strong>Calibre 4e trio / Profondeur</strong> : trio 4 (paire 3).</li>
-      </ul>
-      <p>Trio ou paire où <strong>tout le monde est dans sa zone</strong> : <strong>✨ Trio optimal (+2 OFF / +2 DEF)</strong>. Deux joueurs ou plus hors de leur zone : <strong>⚠️ Trio mal assorti (-2 / -2)</strong>. Ces bonus s'ajoutent à la chimie des archétypes :</p>
-      <ul>
-        <li><strong>Chimie parfaite 🌟 (+4 OFF / +2 DEF)</strong> : Fabricant de jeu + Franc-tireur + Attaquant de puissance / complet.</li>
-        <li><strong>Tandem moteur 🎯 (+3 OFF)</strong> : Fabricant de jeu + Franc-tireur.</li>
-        <li><strong>Trio d'étouffement 🧱 (+4 DEF)</strong> : Au moins 2 joueurs à vocation défensive / physique.</li>
-        <li><strong>Paire équilibrée ⚖️ (+3 OFF / +3 DEF)</strong> : Défenseur offensif + Défenseur défensif.</li>
-        <li><strong>Conflit de rôles ⚠️ (-2 OFF / -2 DEF)</strong> : 3 Francs-tireurs ou 3 Fabricants d'élite sur le même trio.</li>
-      </ul>
-
-      <h3 style="color:var(--gold);">6. Moteur de Simulation de Matchs (Loi de Poisson)</h3>
-      <p>Les buts marqués et accordés dans chaque rencontre sont tirés indépendamment selon deux lois de Poisson d'espérance <code>λ_GF</code> et <code>λ_GA</code> :</p>
-      <div class="math-box">
-        <code>λ_GF = 3.05 × (Attaque Équipe / 58)^1.55</code><br>
-        <code>λ_GA = 3.05 × (58 / Défense Équipe)^1.55</code>
+      <div class="opt-row">
+        <div class="opt-text"><strong>Signables seulement</strong><span>Masquer les joueurs hors budget ou sans case libre.</span></div>
+        <div class="seg" data-opt="onlyFit"><button data-val="off" class="on">Tout voir</button><button data-val="on">Signables</button></div>
       </div>
-      <p>Lors d'une égalité en fin de temps réglementaire, la prolongation est tranchée par la valeur de Clutch d'équipe via une fonction sigmoïde : <code>P(Victoire) = 1 / (1 + e^(-(Clutch - 52) / 9))</code>.</p>
+      <div class="opt-row">
+        <div class="opt-text"><strong>Nouvelle partie</strong><span>Efface l'alignement en cours et relance la roulette. L'historique est conservé.</span></div>
+        <button class="btn danger" id="resetBtn">Recommencer</button>
+      </div>
     </div>
   </div>
 </div>
 
-<div class="actions">
-  <button class="btn go" id="mainBtn" disabled>Chargement…</button>
+<!-- ===== Modale : règles ===== -->
+<div id="bibleModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Règles du jeu">
+    <div class="modal-header">
+      <h2>📖 Règles et mathématiques du jeu</h2>
+      <button id="closeBibleBtn" class="close-btn" aria-label="Fermer">✕</button>
+    </div>
+    <div class="modal-body bible" id="bibleBody">
+      <h3>0. Comment on joue</h3>
+      <p>La roulette sort une <strong>saison</strong> et une <strong>équipe</strong>. Tu signes <strong>un seul joueur</strong> de ce vestiaire, puis elle tourne à nouveau. Tu as 6 relances d'année, 6 relances d'équipe et 4 « passer ». Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques. Le 82-0 est le Graal.</p>
+      <p>Ce que tu vois avant de signer : les vraies stats, le salaire, l'âge, l'archétype et la <strong>zone d'efficacité</strong> (calibre 1er, 2e, 3e ou 4e trio). Ce que tu ne vois pas : les cotes cachées, révélées seulement à la simulation.</p>
+
+      <h3>1. Cotes cachées normalisées par saison (z-score)</h3>
+      <p>Pour comparer Wayne Gretzky en 1982 (212 pts dans une LNH à ~8 buts par match) et Sidney Crosby en 2011, les cotes sont calculées en <strong>z-score contre les contemporains de la même saison</strong>.</p>
+      <div class="math-box"><code>Z = (X − μ) / σ</code><br><code>Cote = max(25, min(99, 52 + 13 × Z))</code></div>
+      <ul>
+        <li><strong>Attaque</strong> : points par match (62 %), tirs par match (22 %), points en avantage numérique (16 %).</li>
+        <li><strong>Défense</strong> : différentiel (45 %), points en désavantage (20 %), temps de glace (35 %), tirs bloqués, bonus positionnel pour les défenseurs.</li>
+        <li><strong>Robustesse</strong> : minutes de punition par match (45 %) et mises en échec par match (55 %).</li>
+        <li><strong>Clutch</strong> : buts gagnants et en prolongation par match (75 %) et points par match (25 %).</li>
+      </ul>
+
+      <h3>2. Ajustement par époque</h3>
+      <p>L'option « prorata 82 · époque » ramène les points sur la base de la LNH moderne (~3,15 buts par équipe par match) et sur 82 matchs pour les saisons écourtées.</p>
+      <div class="math-box"><code>Facteur d'époque = 3,15 / (buts par match de la saison)</code><br><code>Points ajustés = points réels × facteur</code></div>
+
+      <h3>3. Cote globale équilibrée par saison</h3>
+      <p>La cote globale combine les sous-cotes puis ajoute un <strong>bonus de vedette</strong> calculé sur le rang du joueur dans sa saison, divisé par le nombre d'équipes de la ligue cette année-là. Un top-10 des marqueurs vaut la même chose en 1975 (18 équipes) qu'en 2024 (32).</p>
+      <div class="math-box">
+        <code>Attaquant = 0,66×ATT + 0,16×DÉF + 0,05×ROB + 0,13×CLU + vedette(rang / équipes)</code><br>
+        <code>Défenseur = 0,42×ATT + 0,48×DÉF + 0,05×ROB + 0,05×CLU + 6 + vedette(rang parmi les D)</code><br>
+        <code>Gardien = 0,40×TEC + 0,32×BLI + 0,14×ROB + 0,14×CLU + partant + rang</code>
+      </div>
+
+      <h3>4. Salaires et plafond</h3>
+      <p>Le salaire 2026 suit un barème par cote globale (interpolation logarithmique entre ancres) sur le plafond de 95,5 M$ :</p>
+      <div class="math-box"><code>Cote 50 → 0,78 M$ · 70 → 2,3 M$ · 80 → 5,6 M$ · 85 → 8,8 M$ · 88 → 11,5 M$ · 92 → 13,75 M$ · 99 → 18,5 M$</code><br><code>Salaire époque = salaire 2026 × (plafond de l'année / 95,5 M$)</code></div>
+      <p>Quand un salaire réel publié existe (1989-90 et après), il remplace le barème au prorata du plafond de l'année ; la fiche indique <strong>Réel</strong> ou <strong>Estimé</strong>. Pour 1989-90 à 2003-04, le « plafond » est la masse salariale de l'équipe la plus dépensière, lissée à moitié vers le rang centile moderne.</p>
+      <p><strong>🐣 Contrat d'entrée</strong> : rien avant 1995-96 ; de 1995-96 à 2003-04, base plafonnée (~2,7 % du plus gros budget) avec bonis ; depuis 2005-06, base ~1 % du plafond et bonis plafonnés à 2,85 M$. Il couvre le premier contrat d'un joueur de 24 ans ou moins : 3 saisons à 18-21 ans, 2 à 22-23, 1 à 24.</p>
+
+      <h3>5. Positions et pénalités</h3>
+      <ul>
+        <li>Centre à l'aile : <strong>−3</strong> sur toutes les cotes. Ailier du mauvais côté : <strong>−2</strong>. Ailier au centre : <strong>−5</strong>.</li>
+        <li>Défenseur du mauvais côté (gaucher à droite ou l'inverse, d'après la main de tir) : <strong>−2</strong>.</li>
+        <li>Les réservistes remplacent les blessés à la première case compatible ; une case vide vaut un rappel de cote 40.</li>
+      </ul>
+
+      <h3>6. Archétypes, zones et chimie</h3>
+      <p>Chaque joueur porte un archétype (🪄 fabricant d'élite, 🎯 franc-tireur, 🎨 fabricant de jeu, 💥 puissance, ⚖️ complet, 🔋 énergie, ✨ offensif, 🏃 profondeur ; 🚀 défenseur offensif, 🛡️ physique, 🔒 défensif, 🔄 polyvalent, 🧱 profondeur ; gardiens 🧱 élite, ⚡ acrobate, 🔋 de fer, 🥅 régulier) et une <strong>zone d'efficacité</strong> :</p>
+      <ul>
+        <li><strong>Calibre 1er trio</strong> : rend à 100 % sur les trios 1-2 (paires 1-2).</li>
+        <li><strong>Calibre 2e trio</strong> : trios 1-3 (paires 1-3).</li>
+        <li><strong>Calibre 3e trio</strong> : trios 3-4 (paires 2-3).</li>
+        <li><strong>Calibre 4e trio / profondeur</strong> : trio 4 (paire 3).</li>
+      </ul>
+      <p>Tout le monde dans sa zone : <strong>✨ trio optimal (+2 ATT / +2 DÉF)</strong>. Deux joueurs ou plus hors zone : <strong>⚠️ mal assorti (−2 / −2)</strong>. S'ajoute la chimie des archétypes :</p>
+      <ul>
+        <li><strong>Chimie parfaite 🌟 (+4 / +2)</strong> : fabricant + franc-tireur + puissance ou complet.</li>
+        <li><strong>Tandem moteur 🎯 (+3 ATT)</strong> : fabricant + franc-tireur.</li>
+        <li><strong>Trio d'étouffement 🧱 (+4 DÉF)</strong> : au moins deux joueurs défensifs ou physiques.</li>
+        <li><strong>Paire équilibrée ⚖️ (+3 / +3)</strong> : défenseur offensif + défensif. Deux offensifs : +3 / −3. Deux défensifs : −1 / +4.</li>
+        <li><strong>Conflit de rôles ⚠️ (−2 / −2)</strong> : trois francs-tireurs ou trois fabricants d'élite ensemble.</li>
+      </ul>
+
+      <h3>7. La simulation</h3>
+      <p>Ta formation plus 31 vraies équipes historiques alignées automatiquement, 82 matchs chacune. Les trios pèsent 34/28/22/16 %, les paires 40/34/26 %. Le partant prend environ 68 départs. Buts tirés d'une loi de Poisson :</p>
+      <div class="math-box"><code>λ = 3,05 × (attaque / défense adverse)^1,55</code><br><code>P(victoire en prolongation) = 1 / (1 + e^(−(clutch − clutch adverse) / 9))</code></div>
+      <p>Un match sur quatre est éreintant (la robustesse ajuste la défense). Un trio intact gagne jusqu'à +2 de continuité. Un joueur qui a raté des matchs dans sa vraie saison se blesse plus souvent. Buts et passes sont distribués selon la vraie production de chacun. Puis les séries : 16 équipes, 4 de 7.</p>
+    </div>
+  </div>
 </div>
 
 <script type="module" src="js/game.js"></script>
