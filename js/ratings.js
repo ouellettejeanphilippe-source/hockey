@@ -9,7 +9,7 @@
  * des shards). Une seule implémentation, un seul endroit à corriger.
  */
 
-export const RATINGS_VERSION = 10;
+export const RATINGS_VERSION = 11;
 
 /* ---------- Plafonds / Masses salariales par époque (pour conversion en $ réel) ---------- */
 export const SEASON_ERA_CAP = {
@@ -28,6 +28,12 @@ export const SEASON_ERA_CAP = {
   '2019-20': 81_500_000,'2020-21': 81_500_000,'2021-22': 81_500_000,'2022-23': 82_500_000,
   '2023-24': 83_500_000,'2024-25': 88_000_000,'2025-26': 95_500_000,
 };
+
+export function isRealEra(season) {
+  if (!season) return false;
+  const year = parseInt(season.slice(0, 4), 10);
+  return year >= 1989;
+}
 
 export function getEraSalary(salary2026, season) {
   const eraCap = SEASON_ERA_CAP[season] || 95_500_000;
@@ -264,12 +270,21 @@ export function rateGoalies(rows) {
 export function buildSeasonShard(label, skaterRows, goalieRows, realtimeById, minGP) {
   const skaters = skaterRows.filter(r => (r.gamesPlayed || 0) >= minGP);
   const goalies = goalieRows.filter(r => (r.gamesPlayed || 0) >= minGP);
+  const realEra = isRealEra(label);
 
   const entries = [];
   for (const rec of [...rateSkaters(skaters, realtimeById), ...rateGoalies(goalies)]) {
     const { teams, ...base } = rec;
+    const realSal = getEraSalary(base.$, label);
     for (const t of teams) {
-      entries.push({ ...base, t, s: label, x: teams.length > 1 ? 1 : 0 });
+      entries.push({
+        ...base,
+        realSal,
+        isReal: realEra ? 1 : 0,
+        t,
+        s: label,
+        x: teams.length > 1 ? 1 : 0,
+      });
     }
   }
   return { season: label, minGP, v: RATINGS_VERSION, players: entries };

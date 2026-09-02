@@ -357,15 +357,18 @@ function getPlayerDisplayStats(p) {
   const l = Math.round((p.l ?? 0) * factor);
   const so = Math.round((p.so ?? 0) * factor);
 
-  const eraSal = getEraSalary(p.$, p.s);
+  const eraSal = p.realSal ?? getEraSalary(p.$, p.s);
   const isEra = G.salaryMode === 'ERA';
+  const startYr = parseInt(p.s ? p.s.slice(0, 4) : '2025', 10);
+  const isReal = p.isReal !== undefined ? !!p.isReal : (startYr >= 1989);
+  const tagEra = isReal ? 'Réel' : 'Estimé';
 
   const salaryPrimary = isEra ? `${money(eraSal)} ('${p.s.slice(-2)})` : money(p.$);
   const salarySub = isEra
-    ? `<span class="cap-pct">Jeu 2026: ${money(p.$)}</span>`
-    : `<span class="cap-pct">Réel ${p.s}: ${money(eraSal)}</span>`;
+    ? `<span class="cap-pct">Ajusté 2026: ${money(p.$)}</span>`
+    : `<span class="cap-pct">${tagEra} ${p.s}: ${money(eraSal)}</span>`;
 
-  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, eraSal, salaryPrimary, salarySub };
+  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, eraSal, isReal, tagEra, salaryPrimary, salarySub };
 }
 
 function formatPlayerName(fullName) {
@@ -789,12 +792,16 @@ function showRadar(ev, p) {
     dotsSvg += `<circle cx="${cx}" cy="${cy}" r="3" fill="#38bdf8"/>`;
   });
 
-  const eraSal = getEraSalary(p.$, p.s);
+  const eraSal = p.realSal ?? getEraSalary(p.$, p.s);
+  const startYr = parseInt(p.s ? p.s.slice(0, 4) : '2025', 10);
+  const isReal = p.isReal !== undefined ? !!p.isReal : (startYr >= 1989);
+  const tagEra = isReal ? 'Réel' : 'Estimé';
+
   tooltip.innerHTML = `
     <div class="radar-header">${p.n}</div>
     <div class="radar-sub">${p.np} · ${p.t} · COTE ${r.v}</div>
     <div style="font-size:9.5px;color:var(--green-neon);margin-bottom:6px;font-weight:700;">
-      Jeu 2026: ${money(p.$)} · Réel (${p.s}): ${money(eraSal)}
+      Ajusté 2026: ${money(p.$)} · ${tagEra} (${p.s}): ${money(eraSal)}
     </div>
     <svg class="radar-chart-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
       ${gridSvg}
