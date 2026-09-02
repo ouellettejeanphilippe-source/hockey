@@ -121,6 +121,13 @@ function getPositionLabel(p) {
   return p.np || p.p;
 }
 
+function getPositionClass(p) {
+  if (!p) return 'pos-f';
+  if (p.p === 'G') return 'pos-g';
+  if (p.p === 'D' || p.p === 'LD' || p.p === 'RD') return 'pos-d';
+  return 'pos-f';
+}
+
 /* ---------- démarrage ---------- */
 
 async function boot() {
@@ -641,6 +648,117 @@ function renderFilters() {
   });
 }
 
+function renderPlayerCard(p, used) {
+  const already = picked().includes(p);
+  const opts = openSlots(p);
+  const slot = (G.target !== null && !G.roster[G.target] && fits(p, SLOTS[G.target]))
+    ? SLOTS[G.target] : opts[0];
+  const over = (used + p.$) > CAP;
+  const pen = slot ? getPositionPenalty(p, slot) : 0;
+  const penStr = pen > 0 ? ` <span class="tag-pen">-${pen}</span>` : '';
+
+  const st = getPlayerDisplayStats(p);
+
+  const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
+  const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
+
+  const stat = p.p === 'G'
+    ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} SV`
+    : `${st.gp}PJ · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
+
+  const mainBadgeVal = p.p === 'G' ? st.w : st.pt;
+  const mainBadgeLbl = p.p === 'G' ? 'VIC' : 'PTS';
+
+  const logo = getTeamLogoHtml(p.t, 18);
+  const headshot = getHeadshotHtml(p, 36);
+
+  const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
+  const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
+
+  const linksHtml = `<a class="ext-link" href="${nhlUrl}" target="_blank" title="Fiche NHL.com" onclick="event.stopPropagation()">NHL🔗</a> <a class="ext-link" href="${hdbUrl}" target="_blank" title="Fiche HockeyDB" onclick="event.stopPropagation()">HDB🔗</a>`;
+
+  const priceDisplay = st.salaryPrimary;
+  const subCapStr = st.salarySub;
+
+  let btnLabel = '+ SIGNER';
+  if (already) btnLabel = '✓ SIGNÉ';
+  else if (!slot) btnLabel = '× POSITION PLEINE';
+  else if (over) btnLabel = '× HORS BUDGET';
+
+  const compactSubStats = p.p === 'G'
+    ? `${st.gp}PJ · ${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA`
+    : `${st.g}G ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
+
+  const posBadge = `<span class="pos-badge ${getPositionClass(p)}">${getPositionLabel(p)}</span>`;
+
+  const c = document.createElement('div');
+  c.style.cursor = 'pointer';
+
+  if (G.compactView) {
+    c.className = 'card compact' + (already || !slot || over ? ' dimmed' : '');
+    c.innerHTML = `
+      <div class="compact-top">
+        <div class="compact-name">${posBadge} ${formatPlayerName(p.n)}${p.x ? ' <span class="tag">échangé</span>' : ''}${penStr}</div>
+        <div class="compact-price">${priceDisplay}</div>
+      </div>
+      <div class="compact-middle">
+        <div class="compact-big-stat">
+          <span class="compact-stat-num">${mainBadgeVal}</span>
+          <span class="compact-stat-unit">${mainBadgeLbl}</span>
+        </div>
+        <div class="compact-headshot">
+          ${headshot}
+          <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
+        </div>
+      </div>
+      <div class="compact-sub-stats">${compactSubStats}</div>
+      <div class="card-row-bottom" style="margin-top:2px;">
+        <button class="add compact-add" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
+      </div>`;
+  } else {
+    c.className = 'card' + (already || !slot || over ? ' dimmed' : '');
+    c.innerHTML = `
+      <div class="card-row-top">
+        <div class="card-avatar" style="width:36px;height:36px;">
+          ${headshot}
+          <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
+        </div>
+        <div class="info">
+          <div class="nm" style="font-size:13.5px;">${posBadge} ${formatPlayerName(p.n)}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
+          <div class="mt" style="font-size:10px;">${p.t} ${p.s}</div>
+        </div>
+      </div>
+      <div style="font-size:10.5px;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
+        <span><span class="big-stat-badge" style="padding:0 4px;"><span class="big-stat-val" style="font-size:12px;">${mainBadgeVal}</span><span class="big-stat-lbl">${mainBadgeLbl}</span></span>${stat}</span>
+        ${linksHtml}
+      </div>
+      <div class="card-row-bottom">
+        <div class="cp" style="font-size:12px;">${priceDisplay}${subCapStr}</div>
+        <button class="add" style="padding:5px 10px;font-size:11px;" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
+      </div>`;
+  }
+
+  c.onclick = (ev) => {
+    if (ev.target.closest('.add') || ev.target.closest('.ext-link')) return;
+    showHockeyCardModal(p);
+  };
+
+  c.querySelector('.add').onclick = async (ev) => {
+    ev.stopPropagation();
+    if (already || !slot || over) return;
+    G.roster[slot.i] = p;
+    G.target = null;
+    await nextSpin(true, true);
+    saveGame();
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  if (!G.fogOfWar) attachRadarEvents(c, p);
+
+  return c;
+}
+
 function renderPool() {
   const host = $('pool');
   host.innerHTML = '';
@@ -672,6 +790,38 @@ function renderPool() {
 
   if (!list.length) {
     host.innerHTML = `<div class="empty-msg">Aucun joueur correspondant dans ce vestiaire.<br>Change de filtre ou utilise les options de relance.</div>`;
+    return;
+  }
+
+  if (G.layoutMode === 'rink') {
+    const colEl = document.createElement('div');
+    colEl.className = 'pool-col';
+
+    const filterTitles = {
+      ALL: 'TOUS LES JOUEURS (TOUTES POSITIONS)',
+      C: 'CENTRES (C)',
+      AG: 'AILIERS GAUCHE (AG)',
+      AD: 'AILIERS DROIT (AD)',
+      LD: 'DÉFENSEURS GAUCHE (DG)',
+      RD: 'DÉFENSEURS DROIT (DD)',
+      D: 'TOUS LES DÉFENSEURS',
+      G: 'GARDIENS (G)'
+    };
+
+    const headerEl = document.createElement('div');
+    headerEl.className = 'pool-col-header';
+    headerEl.innerHTML = `<span class="pool-col-title">${filterTitles[G.filter] || 'JOUEURS DISPONIBLES'}</span> <span class="pool-col-count">${list.length}</span>`;
+    colEl.appendChild(headerEl);
+
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'pool-col-cards';
+
+    for (const p of list) {
+      cardsContainer.appendChild(renderPlayerCard(p, used));
+    }
+
+    colEl.appendChild(cardsContainer);
+    host.appendChild(colEl);
     return;
   }
 
@@ -707,114 +857,7 @@ function renderPool() {
       cardsContainer.innerHTML = `<div class="empty-msg" style="padding:16px 4px;font-size:11px;">Aucun</div>`;
     } else {
       for (const p of colData.players) {
-        const already = picked().includes(p);
-        const opts = openSlots(p);
-        const slot = (G.target !== null && !G.roster[G.target] && fits(p, SLOTS[G.target]))
-          ? SLOTS[G.target] : opts[0];
-        const over = (used + p.$) > CAP;
-        const pen = slot ? getPositionPenalty(p, slot) : 0;
-        const penStr = pen > 0 ? ` <span class="tag-pen">-${pen}</span>` : '';
-        const foStr = p.fo != null ? ` · ${Math.round(p.fo * 100)}% MJ` : '';
-        const htStr = p.ht != null ? ` · ${p.ht} CH/M` : '';
-
-        const st = getPlayerDisplayStats(p);
-
-        const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
-        const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
-
-        const stat = p.p === 'G'
-          ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} SV`
-          : `${st.gp}PJ · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
-
-        const mainBadgeVal = p.p === 'G' ? st.w : st.pt;
-        const mainBadgeLbl = p.p === 'G' ? 'VIC' : 'PTS';
-
-        const logo = getTeamLogoHtml(p.t, 18);
-        const headshot = getHeadshotHtml(p, 36);
-
-        const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
-        const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
-
-        const linksHtml = `<a class="ext-link" href="${nhlUrl}" target="_blank" title="Fiche NHL.com" onclick="event.stopPropagation()">NHL🔗</a> <a class="ext-link" href="${hdbUrl}" target="_blank" title="Fiche HockeyDB" onclick="event.stopPropagation()">HDB🔗</a>`;
-
-        const priceDisplay = st.salaryPrimary;
-        const subCapStr = st.salarySub;
-
-        let btnLabel = '+ SIGNER';
-        if (already) btnLabel = '✓ SIGNÉ';
-        else if (!slot) btnLabel = '× POSITION PLEINE';
-        else if (over) btnLabel = '× HORS BUDGET';
-
-        const compactSubStats = p.p === 'G'
-          ? `${st.gp}PJ · ${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA`
-          : `${st.g}G ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
-
-        const c = document.createElement('div');
-        c.style.cursor = 'pointer';
-
-        if (G.compactView) {
-          c.className = 'card compact' + (already || !slot || over ? ' dimmed' : '');
-          c.innerHTML = `
-            <div class="compact-top">
-              <div class="compact-name">${formatPlayerName(p.n)}${p.x ? ' <span class="tag">échangé</span>' : ''}${penStr}</div>
-              <div class="compact-price">${priceDisplay}</div>
-            </div>
-            <div class="compact-middle">
-              <div class="compact-big-stat">
-                <span class="compact-stat-num">${mainBadgeVal}</span>
-                <span class="compact-stat-unit">${mainBadgeLbl}</span>
-              </div>
-              <div class="compact-headshot">
-                ${headshot}
-                <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
-              </div>
-            </div>
-            <div class="compact-sub-stats">${compactSubStats}</div>
-            <div class="card-row-bottom" style="margin-top:2px;">
-              <button class="add compact-add" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
-            </div>`;
-        } else {
-          c.className = 'card' + (already || !slot || over ? ' dimmed' : '');
-          c.innerHTML = `
-            <div class="card-row-top">
-              <div class="card-avatar" style="width:36px;height:36px;">
-                ${headshot}
-                <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
-              </div>
-              <div class="info">
-                <div class="nm" style="font-size:13.5px;">${formatPlayerName(p.n)}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
-                <div class="mt" style="font-size:10px;">${getPositionLabel(p)} · ${p.t} ${p.s}</div>
-              </div>
-            </div>
-            <div style="font-size:10.5px;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
-              <span><span class="big-stat-badge" style="padding:0 4px;"><span class="big-stat-val" style="font-size:12px;">${mainBadgeVal}</span><span class="big-stat-lbl">${mainBadgeLbl}</span></span>${stat}</span>
-              ${linksHtml}
-            </div>
-            <div class="card-row-bottom">
-              <div class="cp" style="font-size:12px;">${priceDisplay}${subCapStr}</div>
-              <button class="add" style="padding:5px 10px;font-size:11px;" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
-            </div>`;
-        }
-
-        c.onclick = (ev) => {
-          if (ev.target.closest('.add') || ev.target.closest('.ext-link')) return;
-          showHockeyCardModal(p);
-        };
-
-        c.querySelector('.add').onclick = async (ev) => {
-          ev.stopPropagation();
-          if (already || !slot || over) return;
-          G.roster[slot.i] = p;
-          G.target = null;
-          await nextSpin(true, true);
-          saveGame();
-          render();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-
-        if (!G.fogOfWar) attachRadarEvents(c, p);
-
-        cardsContainer.appendChild(c);
+        cardsContainer.appendChild(renderPlayerCard(p, used));
       }
     }
     colEl.appendChild(cardsContainer);
