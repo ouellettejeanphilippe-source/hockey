@@ -19,7 +19,7 @@ import {
   playSeries, autoRoster,
 } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent } from './logos.js';
-import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP } from './ratings.js';
+import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition } from './ratings.js';
 
 const $ = id => document.getElementById(id);
 const rnd = a => a[Math.floor(Math.random() * a.length)];
@@ -207,11 +207,20 @@ const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
 function positionLabel(p) {
   if (!p) return '';
   if (p.p === 'G') return 'G';
-  if (isD(p)) return (p.np === 'RD' || p.np === 'DD' || p.np === 'R') ? 'DD' : 'DG';
-  if (p.np === 'C') return 'C';
-  if (p.np === 'R' || p.np === 'AD') return 'AD';
-  if (p.np === 'L' || p.np === 'AG') return 'AG';
-  return p.np || 'F';
+  let primary = 'F';
+  if (isD(p)) primary = (p.np === 'RD' || p.np === 'DD' || p.np === 'R') ? 'DD' : 'DG';
+  else if (p.np === 'C') primary = 'C';
+  else if (p.np === 'R' || p.np === 'AD') primary = 'AD';
+  else if (p.np === 'L' || p.np === 'AG') primary = 'AG';
+
+  const sec = getSecondaryPosition(p);
+  if (!sec) return primary;
+  let secLabel = sec;
+  if (sec === 'LD') secLabel = 'DG';
+  if (sec === 'RD') secLabel = 'DD';
+  if (sec === 'L') secLabel = 'AG';
+  if (sec === 'R') secLabel = 'AD';
+  return `${primary} / ${secLabel}`;
 }
 
 function positionClass(p) {
@@ -292,11 +301,11 @@ function zoneTag(p) {
   return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">${esc(z.short)}</span>`;
 }
 
-/** Archétype : icône plus libellé court sur les cartes, complet sur la fiche. */
+/** Archétype : icône seulement dans le pick et le depth chart, libellé complet sur la fiche. */
 function archTag(p, full = false) {
   const a = getArchetype(p, getHiddenRatings(p));
-  const txt = full ? a.label : (a.short || a.label);
-  return `<span class="tag tag-arch" title="${esc(a.label)} — ${esc(a.desc)}">${a.icon} ${esc(txt)}</span>`;
+  const txt = full ? ` ${esc(a.label)}` : '';
+  return `<span class="tag tag-arch" title="${esc(a.label)} — ${esc(a.desc)}">${a.icon}${txt}</span>`;
 }
 
 function ageTag(p) {
@@ -614,11 +623,9 @@ function signedCount(def) {
     (def.group ? s.group === def.group : s.role === def.role)).length;
 }
 
-/** « Premier trio · AG » -> « 1er trio · AG », pour les espaces étroits. */
+/** Raccourcis pour les rôles et cases de l'alignement. */
 const SLOT_SHORT = {
-  'Premier trio': '1er trio', 'Deuxième trio': '2e trio', 'Troisième trio': '3e trio',
-  'Quatrième trio': '4e trio', 'Première paire': '1re paire', 'Deuxième paire': '2e paire',
-  'Troisième paire': '3e paire', 'Gardiens': 'Gardien', 'Réservistes': 'Réserve',
+  'Gardiens': 'Gardien', 'Réservistes': 'Réserve',
 };
 const slotShort = s => s ? `${SLOT_SHORT[s.label] || s.label} · ${s.role}` : '—';
 
@@ -806,11 +813,10 @@ function playerCardEl(p) {
   } else if (!slot) {
     dest = `<span class="dest-bad">aucune case libre</span>`;
   } else if (over) {
-    dest = `<span class="dest-bad">hors budget</span> · reste ${money(rem)}`;
+    dest = `<span class="dest-bad">hors budget</span>`;
   } else {
     const penTxt = pen > 0 ? ` <span class="dest-bad">−${pen}</span>` : '';
-    dest = `<span class="${isTargeted ? 'dest-target' : 'dest-slot'}">${isTargeted ? '🎯' : '→'} ${esc(slot.label)} · ${esc(slot.role)}</span>${penTxt}`
-      + ` <span class="dest-after">· reste ${money(rem - p.$)}</span>`;
+    dest = `<span class="${isTargeted ? 'dest-target' : 'dest-slot'}">${isTargeted ? '🎯' : '→'} ${esc(slot.label)} · ${esc(slot.role)}</span>${penTxt}`;
   }
 
   const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : 'Signer';
@@ -995,7 +1001,7 @@ function slotEl(s) {
       <div class="slot-name">${formatName(p.n)}</div>
       <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
       <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
-      <div class="slot-tags">${zoneTag(p)}${penTag}</div>`;
+      <div class="slot-tags">${archTag(p)}${zoneTag(p)}${penTag}</div>`;
     if (!G.fogOfWar) attachRadar(el, p);
     el.querySelector('.slot-remove').onclick = ev => {
       ev.stopPropagation();
@@ -1038,9 +1044,9 @@ function slotEl(s) {
   return el;
 }
 
-/* Titres courts : à largeur égale, la colonne de droite reste lisible. */
-const UNIT_NAMES_F = ['1er trio', '2e trio', '3e trio', '4e trio'];
-const UNIT_NAMES_D = ['1re paire', '2e paire', '3e paire'];
+/* Titres courts pour les lignes de l'alignement. */
+const UNIT_NAMES_F = ['Top 6', 'Top 6', 'Middle 6', 'Bottom 6'];
+const UNIT_NAMES_D = ['Top 4', 'Top 4', 'Bottom 4'];
 
 /* Version courte des libellés de chimie : l'en-tête d'une unité est étroit,
    le texte complet reste dans l'infobulle. */

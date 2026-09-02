@@ -244,16 +244,16 @@ export const ZONE_THRESHOLDS = {
  */
 export const LINE_ZONES = {
   F: [
-    { level: 1, label: 'Top 6 — deux premiers trios', short: 'Top 6',     idealUnits: [0, 1] },
-    { level: 2, label: 'Top 9 — trois premiers trios', short: 'Top 9',    idealUnits: [0, 1, 2] },
-    { level: 3, label: 'Bottom 6 — bas de l\'alignement', short: 'Bottom 6', idealUnits: [2, 3] },
-    { level: 4, label: 'Quatrième trio',               short: '4e trio',  idealUnits: [3] },
+    { level: 1, label: 'Top 6',        short: 'Top 6',      idealUnits: [0, 1] },
+    { level: 2, label: 'Middle 6',     short: 'Middle 6',   idealUnits: [1, 2] },
+    { level: 3, label: 'Bottom 6',     short: 'Bottom 6',   idealUnits: [2, 3] },
+    { level: 4, label: 'Profondeur',   short: 'Profondeur', idealUnits: [3] },
   ],
   D: [
-    { level: 1, label: 'Top 4 — deux premières paires', short: 'Top 4',     idealUnits: [0, 1] },
-    { level: 2, label: 'Top 6 — les trois paires',      short: 'Top 6 D',   idealUnits: [0, 1, 2] },
-    { level: 3, label: 'Bottom 4 — bas de la brigade',  short: 'Bottom 4',  idealUnits: [1, 2] },
-    { level: 4, label: 'Troisième paire',               short: '3e paire',  idealUnits: [2] },
+    { level: 1, label: 'Top 4',        short: 'Top 4',      idealUnits: [0, 1] },
+    { level: 2, label: 'Middle 4',     short: 'Middle 4',   idealUnits: [1, 2] },
+    { level: 3, label: 'Bottom 4',     short: 'Bottom 4',   idealUnits: [1, 2] },
+    { level: 4, label: 'Profondeur',   short: 'Profondeur', idealUnits: [2] },
   ],
   G: [
     { level: 1, label: "Partant numéro un", short: 'Partant no 1', idealUnits: [0] },
@@ -272,6 +272,39 @@ export function zoneLevelFor(pos, v) {
  * Zone de trio d'un joueur. Lit p.lz (posé par finalizeSeason) ; sinon
  * déduit de la cote globale passée en `v` (getHiddenRatings(p).v).
  */
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  return Math.abs(hash);
+}
+
+/** Position secondaire (polyvalence) d'un joueur. */
+export function getSecondaryPosition(p) {
+  if (!p || p.p === 'G') return null;
+  if (p.secP !== undefined) return p.secP;
+  const num = p.id || hashString(p.n || '');
+  if (p.p === 'D') {
+    // Défenseurs : ~40 % peuvent jouer des deux côtés
+    if (num % 5 < 2) {
+      const primary = (p.np === 'RD' || p.np === 'R' || p.p === 'RD') ? 'RD' : 'LD';
+      return primary === 'RD' ? 'LD' : 'RD';
+    }
+    return null;
+  }
+  // Attaquants
+  const np = p.np || 'C';
+  if (np === 'C') {
+    if (num % 5 < 2) return (num % 2 === 0) ? 'AG' : 'AD';
+  } else if (np === 'L' || np === 'AG') {
+    if (p.fo != null && p.fo >= 0.45) return 'C';
+    if (num % 5 < 2) return 'AD';
+  } else if (np === 'R' || np === 'AD') {
+    if (p.fo != null && p.fo >= 0.45) return 'C';
+    if (num % 5 < 2) return 'AG';
+  }
+  return null;
+}
+
 export function getLineZone(p, v = null) {
   const pos = !p ? 'F' : p.p === 'G' ? 'G' : p.p === 'D' ? 'D' : 'F';
   const zones = LINE_ZONES[pos];
