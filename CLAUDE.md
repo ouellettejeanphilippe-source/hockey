@@ -15,8 +15,10 @@ Lis `PLAN.md` — il contient l'état exact du projet, ce qui est fait, ce qui r
 ## Structure
 
 ```
-index.html                  page unique
-style.css                   tous les styles
+index.html                  page unique (barre de plafond, roulette, tableau de
+                            bord, deux volets vestiaire / alignement, modales)
+style.css                   tous les styles, mobile d'abord (390 px), deux
+                            volets à partir de 1080 px
 js/ratings.js               calcul des cotes cachées (partagé navigateur + build)
                             étage 1 : sous-cotes en z-score (exige l'API)
                             étage 2 : cote globale, salaire, archétype, zone (rejouable hors ligne)
@@ -51,7 +53,15 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 
 **Français québécois** dans toute l'interface et tous les commentaires. Abréviations de hockey en français : PJ, B, A, PTS, PUN, V, D, BL, MBA (moyenne de buts alloués), AG/C/AD, DG/DD.
 
-**Mobile d'abord.** Cible 390 px de large. Teste à cette largeur avant de déclarer une tâche terminée.
+**Mobile d'abord.** Cible 390 px de large. Teste à cette largeur avant de déclarer une tâche terminée. Rien ne doit déborder horizontalement de `document.documentElement` — seuls les conteneurs prévus (bande du tableau de bord, tableaux du résultat) défilent en x.
+
+**Pas de titre de page.** La barre du haut ne porte que le plafond restant, le compte de signés, le budget par case et les trois accès (historique, règles, options). Le nom du jeu vit dans l'onglet du navigateur, pas dans une bannière qui vole de la hauteur utile.
+
+**Le bassin se range par position, sur une colonne par poste.** Le volet du bassin est un conteneur de requête nommé `pool` ; quand il dépasse 1000 px, `.pool.by-pos` devient six vraies colonnes (AG, C, AD, DG, DD, G), sinon les en-têtes redeviennent de simples séparateurs et les cartes reprennent une grille fluide. Chaque colonne est elle-même un conteneur nommé `col` : sous 260 px la carte se compacte, sous 190 px elle perd son portrait. **Les conteneurs de requête doivent rester nommés** — sans nom, l'en-tête d'une colonne interroge la largeur de sa colonne au lieu de celle du volet, et la mise en page se défait en silence. Disposition : onglets sous 1080 px, volets empilés pleine largeur de 1080 à 1600 px (le bassin garde ses six colonnes, l'alignement s'étale dessous), côte à côte au-delà.
+
+**La couleur d'équipe ne porte jamais du texte.** `--team-primary` et `--team-accent` teintent les fonds, bordures et lueurs. Les états sélectionnés (chips, segments d'options) utilisent `--ui-accent`, fixe, parce qu'une équipe au bleu marine ou au noir rendait le texte foncé illisible sur son propre accent.
+
+**Toute commande visible doit fonctionner.** Si une donnée manque, on retire la commande plutôt que d'afficher des tirets : les dates de naissance (`bd`) ne sont pas dans les shards actuels, donc le tri par âge et la tuile « âge moyen » se masquent d'eux-mêmes (`agesAvailable()` dans `js/game.js`). `python3 scripts/build_shards.py --bios-only` les ajoute et tout réapparaît sans autre changement.
 
 **Pas de localStorage pour les données de saison** — trop petit. IndexedDB, comme dans `js/data.js`.
 
@@ -85,7 +95,7 @@ Sert la page — `python3 -m http.server 8000` — et ouvre `localhost:8000`. Le
 S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mjs http://localhost:8000` fait le test de fumée à 390 px :
 
 1. La page démarre, `#game` devient visible
-2. Auto-draft : cliquer le premier `.card .add:not([disabled])` en boucle jusqu'à 23/23, en utilisant les rerolls quand le bassin ne contient rien de plaçable
+2. Auto-draft conscient du budget : à chaque tour il lit le plafond restant, calcule ce qu'il peut mettre sur ce choix sans passer sous le plancher pour les cases suivantes, et clique le premier `.pcard .btn-sign:not([disabled])` qui tient dans ce budget. Sinon il relance ; en dernier recours il clique `#freeCapBtn`, le bouton de la bande de secours qui retire le plus gros contrat
 3. `#mainBtn` devient actif
 4. Cliquer : `.result .score` affiche une fiche, `.rrow` en compte 23
 5. Zéro erreur console

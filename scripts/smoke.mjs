@@ -43,23 +43,48 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');
 
+const MIN_SAL = 0.95;    // plancher réservé par case restante, en millions (marge sur les 0,775 M$ du barème)
+const parseM = t => parseFloat(String(t || '').replace(/[^0-9.]/g, '')) || 0;
+
 let signed = 0, guard = 0;
-while (signed < 23 && guard++ < 200) {
-  // Budget : une vedette tant qu'il reste plus de 4 M$ par case à combler,
-  // sinon le joueur plaçable le moins cher (le bassin est trié par points).
-  const btns = await page.$$('.card .add:not([disabled])');
-  const remaining = parseFloat(((await page.textContent('#capAmt')) || '').replace(/[^0-9.\-]/g, '')) || 0;
-  const perSlot = remaining / Math.max(1, 23 - signed);
-  const btn = btns.length ? (perSlot > 4 ? btns[0] : btns[btns.length - 1]) : null;
-  if (btn) {
-    await btn.click();
-    await page.waitForFunction(() => !document.querySelector('.empty-msg') || true);
-    await page.waitForTimeout(150);
-  } else {
+while (signed < 23 && guard++ < 260) {
+  const rem = parseM(await page.textContent('#capAmt'));
+  const left = 23 - signed;
+  // Budget maximal pour ce choix : au-delà, impossible de combler les cases
+  // suivantes au salaire plancher. C'est la règle affichée au tableau de bord.
+  const maxPick = rem - Math.max(0, left - 1) * MIN_SAL;
+
+  const cards = await page.$$('.pcard');
+  const infos = await page.$$eval('.pcard', els => els.map(el => ({
+    price: parseFloat((el.querySelector('.pcard-price .amt')?.textContent || '').replace(/[^0-9.]/g, '')) || 0,
+    ok: !!el.querySelector('.btn-sign:not([disabled])'),
+  })));
+
+  // Le meilleur joueur qu'on peut encore se payer sans se bloquer ; le bassin
+  // est trié par points, donc le premier qui passe est le plus productif.
+  let idx = infos.findIndex(c => c.ok && c.price <= maxPick);
+  if (idx < 0) {
+    // Rien de sûr ici : on relance plutôt que de crever le plancher
+    const rr = await page.$('#rrP:not([disabled])') || await page.$('#rrT:not([disabled])') || await page.$('#rrS:not([disabled])');
+    if (rr) { await rr.click(); await page.waitForTimeout(220); signed = parseInt((await page.textContent('#cnt')).trim(), 10) || signed; continue; }
+    // Plus de relance : on prend le moins cher disponible
+    let best = -1, bestPrice = Infinity;
+    infos.forEach((c, i) => { if (c.ok && c.price < bestPrice) { best = i; bestPrice = c.price; } });
+    idx = best;
+  }
+
+  if (idx < 0) {
+    // Impasse : on fait ce que la bande de secours propose au joueur, libérer
+    // de la masse salariale en retirant le plus gros contrat.
+    const free = await page.$('#freeCapBtn');
+    if (free) { await free.click(); await page.waitForTimeout(200); signed = parseInt((await page.textContent('#cnt')).trim(), 10) || signed; continue; }
     const rr = await page.$('#rrP:not([disabled])') || await page.$('#rrS:not([disabled])') || await page.$('#rrT:not([disabled])');
     if (!rr) break;
     await rr.click();
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(220);
+  } else {
+    await cards[idx].$eval('.btn-sign', b => b.click());
+    await page.waitForTimeout(160);
   }
   signed = parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
 }

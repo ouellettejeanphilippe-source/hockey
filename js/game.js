@@ -1,11 +1,39 @@
+/**
+ * Contrôleur d'interface — poste de directeur général.
+ *
+ * Trois zones : la roulette (quelle saison, quelle équipe, quelles relances),
+ * le tableau de bord (ce qu'il reste à combler et avec quel budget) et les
+ * deux volets vestiaire / alignement.
+ *
+ * Règle ferme : aucune cote cachée dans le DOM avant la simulation. Les
+ * cotes vivent dans le coffre de js/sim.js ; seules la zone d'efficacité
+ * (`lz`) et l'archétype (`ak`), qui sont dans le shard et volontairement
+ * publics, sont affichés. L'hexagone n'apparaît que si le joueur lève
+ * lui-même le brouillard de guerre dans les options.
+ */
+
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
-import { SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings, getHiddenRatings, getUnitSynergy, getPlayerKey, createTeam, simulateLeague, playSeries, autoRoster } from './sim.js';
+import {
+  SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
+  getHiddenRatings, getUnitSynergy, getPlayerKey, createTeam, simulateLeague,
+  playSeries, autoRoster,
+} from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS } from './logos.js';
 import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP } from './ratings.js';
 
 const $ = id => document.getElementById(id);
-const money = n => '$' + (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
 const rnd = a => a[Math.floor(Math.random() * a.length)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/** Salaire plancher de la LNH dans le barème du jeu : sert au calcul du budget restant. */
+const MIN_SAL = 775_000;
+
+const money = n => {
+  const m = n / 1e6;
+  const s = Math.abs(m) >= 10 ? m.toFixed(1) : m.toFixed(2);
+  return (n < 0 ? '−$' : '$') + s.replace('-', '').replace(/\.?0+$/, '') + 'M';
+};
+const pctCap = n => (n / CAP * 100).toFixed(1) + ' %';
 
 const TEAMFULL = {
   QUE: 'Nordiques de Québec', HFD: 'Whalers de Hartford', MNS: 'North Stars du Minnesota',
@@ -25,28 +53,85 @@ const TEAMFULL = {
   MIN: 'Wild du Minnesota', CAR: 'Hurricanes de la Caroline', VGK: 'Golden Knights de Vegas',
   SEA: 'Kraken de Seattle', UTA: 'Utah', UTM: 'Utah',
 };
-const DEFUNCT = new Set(['QUE','HFD','MNS','AFM','ATL','KCS','CLR','CLE','CGS','OAK','WIN','PHX','MDA','ARI']);
+const DEFUNCT = new Set(['QUE', 'HFD', 'MNS', 'AFM', 'ATL', 'KCS', 'CLR', 'CLE', 'CGS', 'OAK', 'WIN', 'PHX', 'MDA', 'ARI']);
+
+/* =====================================================================
+   État
+   ===================================================================== */
+
+const G = {
+  roster: {},
+  cur: null,            // { season, team, pool }
+  left: { ...REROLLS },
+  target: null,         // case ciblée par le joueur
+  selectedSlot: null,   // case sélectionnée pour un déplacement
+  filter: 'ALL',
+  sortBy: 'PTS',
+  search: '',
+  statsProrata: false,
+  salaryMode: '2026',   // '2026' | 'ERA'
+  fogOfWar: true,
+  onlyFit: false,
+  view: 'pool',         // volet affiché sur petit écran
+  done: false,
+  loading: false,
+  shards: new Map(),
+};
+
+const picked = () => Object.values(G.roster);
+const capUsed = () => picked().reduce((s, p) => s + p.$, 0);
+const capLeft = () => CAP - capUsed();
+const slotsLeft = () => 23 - picked().length;
+
+/** Cases ouvertes pour un joueur, les moins pénalisantes d'abord. */
+const openSlots = p => SLOTS.filter(s => !G.roster[s.i] && fits(p, s))
+  .sort((a, b) => getPositionPenalty(p, a) - getPositionPenalty(p, b) || a.i - b.i);
+
+const nextNeed = () => SLOTS.find(s => !G.roster[s.i]) || null;
+
+/**
+ * Somme maximale qu'on peut mettre sur ce joueur-ci sans se rendre incapable
+ * de remplir les cases suivantes au salaire plancher. C'est le vrai budget
+ * du directeur général, pas seulement le plafond restant.
+ */
+const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
 
 /* ---------- sauvegarde ---------- */
 
 function saveGame() {
-  if (G.done) {
-    clearSave();
-    return;
-  }
+  if (G.done) { clearSave(); return; }
   try {
-    const data = {
+    localStorage.setItem('cap82_save', JSON.stringify({
       roster: G.roster,
       left: G.left,
       cur: G.cur ? { season: G.cur.season, team: G.cur.team } : null,
       target: G.target,
-    };
-    localStorage.setItem('cap82_save', JSON.stringify(data));
-  } catch {}
+    }));
+  } catch { /* stockage indisponible */ }
 }
 
 function clearSave() {
-  try { localStorage.removeItem('cap82_save'); } catch {}
+  try { localStorage.removeItem('cap82_save'); } catch { /* ignore */ }
+}
+
+function saveOpts() {
+  try {
+    localStorage.setItem('cap82_opts', JSON.stringify({
+      statsProrata: G.statsProrata, salaryMode: G.salaryMode,
+      fogOfWar: G.fogOfWar, onlyFit: G.onlyFit, sortBy: G.sortBy,
+    }));
+  } catch { /* ignore */ }
+}
+
+function loadOpts() {
+  try {
+    const o = JSON.parse(localStorage.getItem('cap82_opts') || '{}');
+    if (typeof o.statsProrata === 'boolean') G.statsProrata = o.statsProrata;
+    if (o.salaryMode === 'ERA' || o.salaryMode === '2026') G.salaryMode = o.salaryMode;
+    if (typeof o.fogOfWar === 'boolean') G.fogOfWar = o.fogOfWar;
+    if (typeof o.onlyFit === 'boolean') G.onlyFit = o.onlyFit;
+    if (typeof o.sortBy === 'string') G.sortBy = o.sortBy;
+  } catch { /* ignore */ }
 }
 
 async function restoreSave() {
@@ -59,19 +144,15 @@ async function restoreSave() {
     const shard = await getShard(data.cur.season);
     if (!shard || !shard.byTeam[data.cur.team]) return false;
 
-    // Charger les shards pour toutes les saisons des joueurs signés afin de remplir RATINGS_VAULT
+    // Recharger les saisons des joueurs signés pour repeupler le coffre de cotes
     if (data.roster) {
-      const rosterSeasons = new Set(Object.values(data.roster).filter(Boolean).map(p => p.s));
-      for (const sLabel of rosterSeasons) {
-        if (sLabel && sLabel !== data.cur.season) {
-          try { await getShard(sLabel); } catch {}
+      const seasons = new Set(Object.values(data.roster).filter(Boolean).map(p => p.s));
+      for (const label of seasons) {
+        if (label && label !== data.cur.season) {
+          try { await getShard(label); } catch { /* saison indisponible */ }
         }
       }
-    }
-
-    // Relier chaque joueur sauvegardé à l'objet frais du shard (salaire,
-    // archétype et zone à jour après un changement de version des cotes)
-    if (data.roster) {
+      // Relier chaque joueur sauvegardé à l'objet frais du shard
       for (const [i, saved] of Object.entries(data.roster)) {
         if (!saved) continue;
         const entry = G.shards.get(saved.s);
@@ -85,183 +166,278 @@ async function restoreSave() {
     G.roster = data.roster || {};
     G.left = data.left || { ...REROLLS };
     G.target = data.target ?? null;
-
-    const colors = TEAM_COLORS[data.cur.team] || { primary: '#112236', accent: '#38bdf8' };
-    document.documentElement.style.setProperty('--team-primary', colors.primary);
-    document.documentElement.style.setProperty('--team-accent', colors.accent);
-
+    applyTeamColors(data.cur.team);
     return true;
   } catch {
     return false;
   }
 }
 
-/* ---------- état ---------- */
+/* =====================================================================
+   Outils d'affichage
+   ===================================================================== */
 
-const G = {
-  roster: {},
-  cur: null,          // { season, team, pool }
-  left: { ...REROLLS },
-  target: null,
-  selectedSlot: null, // slot sélectionné pour déplacement / permutation
-  filter: 'ALL',
-  sortBy: 'PTS',
-  compactView: true,  // true = Compact View (screenshot), false = Detailed View
-  layoutMode: 'classic', // 'classic' or 'rink'
-  statsProrata: false,
-  salaryMode: '2026', // '2026' or 'ERA'
-  fogOfWar: true,     // true = cotes et radar masqués (défaut), false = hexagone visible
-  done: false,
-  loading: false,
-  shards: new Map(),  // saison -> { players, byTeam }
-};
-
-const picked = () => Object.values(G.roster);
-const capUsed = () => picked().reduce((s, p) => s + p.$, 0);
-const openSlots = p => SLOTS.filter(s => !G.roster[s.i] && fits(p, s))
-  .sort((a, b) => getPositionPenalty(p, a) - getPositionPenalty(p, b) || a.i - b.i);
-const nextNeed = () => SLOTS.find(s => !G.roster[s.i]) || null;
-
-function getPositionLabel(p) {
-  if (!p) return '';
-  if (p.np === 'LD' || p.np === 'DG') return 'DG (LD)';
-  if (p.np === 'RD' || p.np === 'DD') return 'DD (RD)';
-  if (p.np === 'L' || p.np === 'AG') return 'AG (LW)';
-  if (p.np === 'R' || p.np === 'AD') return 'AD (RW)';
-  if (p.np === 'C') return 'C';
-  if (p.p === 'G') return 'G';
-  return p.np || p.p;
+function applyTeamColors(team) {
+  const c = TEAM_COLORS[team] || { primary: '#112236', accent: '#38bdf8' };
+  document.documentElement.style.setProperty('--team-primary', c.primary);
+  document.documentElement.style.setProperty('--team-accent', c.accent);
 }
 
-function getPositionClass(p) {
+const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
+
+function positionLabel(p) {
+  if (!p) return '';
+  if (p.p === 'G') return 'G';
+  if (isD(p)) return (p.np === 'RD' || p.np === 'DD' || p.np === 'R') ? 'DD' : 'DG';
+  if (p.np === 'C') return 'C';
+  if (p.np === 'R' || p.np === 'AD') return 'AD';
+  if (p.np === 'L' || p.np === 'AG') return 'AG';
+  return p.np || 'F';
+}
+
+function positionClass(p) {
   if (!p) return 'pos-f';
   if (p.p === 'G') return 'pos-g';
-  if (p.p === 'D' || p.p === 'LD' || p.p === 'RD') return 'pos-d';
+  if (isD(p)) return 'pos-d';
   return 'pos-f';
 }
 
-/* ---------- démarrage ---------- */
+function positionColor(p) {
+  if (!p) return 'var(--line)';
+  if (p.p === 'G') return '#fcd34d';
+  if (isD(p)) return '#c4b5fd';
+  return '#7dd3fc';
+}
+
+function formatName(full) {
+  if (!full) return '';
+  const parts = String(full).trim().split(' ');
+  if (parts.length === 1) return `<strong class="lname">${esc(full)}</strong>`;
+  const last = parts.pop();
+  return `<span class="fname">${esc(parts.join(' '))}</span> <strong class="lname">${esc(last)}</strong>`;
+}
+
+const seasonMaxGP = season =>
+  (season === '1994-95' || season === '2012-13') ? 48
+    : season === '2020-21' ? 56
+    : season === '2019-20' ? 70
+    : 82;
+
+/** Statistiques telles qu'affichées, selon les options (prorata, salaire). */
+function displayStats(p) {
+  const maxGP = seasonMaxGP(p.s);
+  const factor = (G.statsProrata && maxGP < 82) ? (82 / maxGP) : 1;
+  const eraF = G.statsProrata ? getEraFactor(p.s) : 1;
+
+  const gp = Math.round((p.gp || 0) * factor);
+  const g = Math.round((p.g || 0) * factor * eraF);
+  const a = Math.round((p.a || 0) * factor * eraF);
+  const pt = Math.round((p.pt || 0) * factor * eraF);
+  const pm = Math.round((p.pm || 0) * factor);
+  const w = Math.round((p.w ?? 0) * factor);
+  const l = Math.round((p.l ?? 0) * factor);
+  const so = p.so ?? 0;
+
+  const ppg = p.p === 'G' ? null : (gp > 0 ? pt / gp : 0);
+  const eraSal = p.realSal ?? getEraSalary(p.$, p.s);
+  const isEra = G.salaryMode === 'ERA';
+
+  return {
+    factor, gp, g, a, pt, pm, w, l, so,
+    ppg, ppgStr: ppg == null ? '' : ppg.toFixed(2),
+    eraSal, isReal: !!p.isReal,
+    salaryMain: isEra ? money(eraSal) : money(p.$),
+    salarySub: isEra
+      ? `${p.s} · 2026 : ${money(p.$)}`
+      : `${pctCap(p.$)} du plafond`,
+  };
+}
+
+/**
+ * Les dates de naissance (`bd`) ne sont dans les shards que si le build a pu
+ * joindre l'endpoint bios de la LNH. Sans elles, on masque tout ce qui parle
+ * d'âge plutôt que d'afficher des tirets partout.
+ */
+function agesAvailable() {
+  const pool = G.cur ? G.cur.pool : [];
+  return pool.some(p => p.bd) || picked().some(p => p.bd);
+}
+
+/** Valeur de tri « points par million », utile pour repérer les aubaines. */
+const valuePerM = p => ((p.p === 'G' ? (p.w ?? 0) * 2.4 : (p.pt || 0)) / Math.max(0.775, p.$ / 1e6));
+
+function zoneTag(p) {
+  const z = getLineZone(p, getHiddenRatings(p).v);
+  const where = z.idealUnits.map(u => u + 1).join(', ');
+  const unit = isD(p) ? 'paires' : p.p === 'G' ? 'rôles' : 'trios';
+  return `<span class="tag tag-zone lz${z.level}" title="Zone d'efficacité : ${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">📍 ${esc(z.short)}</span>`;
+}
+
+function archTag(p) {
+  const a = getArchetype(p, getHiddenRatings(p));
+  return `<span class="tag tag-arch" title="${esc(a.desc)}">${a.icon} ${esc(a.label)}</span>`;
+}
+
+function ageTag(p) {
+  const age = ageAtSeason(p.bd, p.s);
+  return age ? `<span class="tag tag-age" title="Âge au début de la saison ${p.s}">${age} ans</span>` : '';
+}
+
+function elcTag(p) {
+  return p.elc
+    ? `<span class="tag tag-elc" title="Contrat d'entrée : premier contrat d'un joueur de 24 ans ou moins. Base plafonnée selon l'époque, plus bonis.">🐣 Contrat d'entrée</span>`
+    : '';
+}
+
+function realTag(p) {
+  return p.isReal
+    ? `<span class="tag tag-real" title="Salaire réellement publié cette saison-là, converti au prorata du plafond de l'année.">Salaire réel</span>`
+    : `<span class="tag tag-est" title="Salaire estimé par le barème de cote globale : aucun montant publié pour cette saison.">Salaire estimé</span>`;
+}
+
+function headshotHtml(p) {
+  const fallback = `<span class="headshot-fallback">👤</span>`;
+  if (!p.id) return fallback;
+  return `${fallback}<img src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" alt="" loading="lazy" onerror="this.remove()">`;
+}
+
+/* ---------- toast ---------- */
+
+let toastTimer = null;
+function toast(msg, kind = '') {
+  const el = $('toast');
+  if (!el) return;
+  el.className = 'toast on' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = 'toast'; }, 2600);
+}
+
+/* =====================================================================
+   Démarrage
+   ===================================================================== */
 
 async function boot() {
   try {
+    loadOpts();
     await loadIndex();
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
     setupEvents();
     const restored = await restoreSave();
-    if (!restored) {
-      await nextSpin(true, true);
-    }
+    if (!restored) await nextSpin(true, true);
     $('boot').style.display = 'none';
     $('game').style.display = '';
+    $('actionbar').style.display = '';
     render();
   } catch (e) {
     $('boot').innerHTML = `<div class="err">Impossible de charger les données.<br>
-      <span class="mono">${e.message}</span><br><br>
+      <span class="mono">${esc(e.message)}</span><br><br>
       Vérifie que <span class="mono">data/index.json</span> existe, ou lance
       <span class="mono">python3 scripts/build_shards.py</span>.</div>`;
   }
 }
 
 function setupEvents() {
-  const tLayout = $('toggleLayoutBtn');
-  if (tLayout) {
-    tLayout.onclick = () => {
-      G.layoutMode = G.layoutMode === 'classic' ? 'rink' : 'classic';
-      tLayout.textContent = G.layoutMode === 'rink' ? '🏒 INVERSÉE (RINK)' : '📐 CLASSIQUE';
-      tLayout.classList.toggle('active', G.layoutMode === 'rink');
-      document.body.classList.toggle('layout-rink', G.layoutMode === 'rink');
-      render();
+  // Recherche et tri
+  const search = $('searchInput');
+  if (search) {
+    search.value = G.search;
+    search.oninput = () => { G.search = search.value.trim(); renderPool(); renderPoolMeta(); };
+  }
+  const sort = $('sortSelect');
+  if (sort) {
+    sort.value = G.sortBy;
+    sort.onchange = () => { G.sortBy = sort.value; saveOpts(); renderPool(); };
+  }
+  syncAgeControls();
+
+  // Onglets (petits écrans)
+  document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => setView(t.dataset.view);
+  });
+
+  // Modales
+  bindModal('leaderboardModal', 'openLeaderboardBtn', 'closeLeaderboardBtn', showLeaderboard);
+  bindModal('bibleModal', 'openBibleBtn', 'closeBibleBtn');
+  bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
+  bindModal('hockeyCardModal', null, 'closeHockeyCardBtn');
+
+  // Options
+  document.querySelectorAll('.seg').forEach(seg => {
+    seg.querySelectorAll('button').forEach(b => {
+      b.onclick = () => { setOption(seg.dataset.opt, b.dataset.val); syncOptionsUI(); render(); };
+    });
+  });
+
+  const reset = $('resetBtn');
+  if (reset) {
+    reset.onclick = async () => {
+      closeModal('optionsModal');
+      await newGame();
+      toast('Nouvelle partie : la roulette repart à zéro.');
     };
   }
-
-  const tView = $('toggleViewBtn');
-  if (tView) {
-    tView.onclick = () => {
-      G.compactView = !G.compactView;
-      tView.textContent = G.compactView ? '🎴 COMPACTE' : '🎴 DÉTAILLÉE';
-      tView.classList.toggle('active', G.compactView);
-      render();
-    };
-  }
-
-  const tStats = $('toggleStatsBtn');
-  if (tStats) {
-    tStats.onclick = () => {
-      G.statsProrata = !G.statsProrata;
-      tStats.textContent = G.statsProrata ? '📊 PRO RATA 82M' : '📊 RÉELLES';
-      tStats.classList.toggle('active', G.statsProrata);
-      render();
-    };
-  }
-
-  const tSal = $('toggleSalBtn');
-  if (tSal) {
-    tSal.onclick = () => {
-      G.salaryMode = G.salaryMode === '2026' ? 'ERA' : '2026';
-      tSal.textContent = G.salaryMode === 'ERA' ? '📜 VALEUR ÉPOQUE' : '💵 VALEUR 2026';
-      tSal.classList.toggle('active', G.salaryMode === '2026');
-      render();
-    };
-  }
-
-  const tFog = $('toggleFogBtn');
-  if (tFog) {
-    tFog.onclick = () => {
-      G.fogOfWar = !G.fogOfWar;
-      tFog.textContent = G.fogOfWar ? '🔒 FOG OF WAR' : '⬢ HEXA ON';
-      tFog.classList.toggle('active', !G.fogOfWar);
-      if (G.fogOfWar) hideRadar();
-      render();
-    };
-  }
-
-  const sSelect = $('sortSelect');
-  if (sSelect) {
-    sSelect.onchange = () => {
-      G.sortBy = sSelect.value;
-      render();
-    };
-  }
-
-  const lbBtn = $('openLeaderboardBtn');
-  if (lbBtn) lbBtn.onclick = showLeaderboard;
-
-  const closeLbBtn = $('closeLeaderboardBtn');
-  if (closeLbBtn) closeLbBtn.onclick = hideLeaderboard;
-
-  const bibleBtn = $('openBibleBtn');
-  if (bibleBtn) bibleBtn.onclick = showBible;
-
-  const closeBibleBtn = $('closeBibleBtn');
-  if (closeBibleBtn) closeBibleBtn.onclick = hideBible;
-
-  const closeCardBtn = $('closeHockeyCardBtn');
-  if (closeCardBtn) closeCardBtn.onclick = hideHockeyCardModal;
 
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
-      hideHockeyCardModal();
-      hideLeaderboard();
-      hideBible();
+      document.querySelectorAll('.modal-backdrop').forEach(m => { m.style.display = 'none'; });
+      if (G.selectedSlot !== null || G.target !== null) {
+        G.selectedSlot = null; G.target = null; render();
+      }
     }
   });
 
-  const hockeyModal = $('hockeyCardModal');
-  if (hockeyModal) {
-    hockeyModal.onclick = ev => {
-      if (ev.target === hockeyModal) hideHockeyCardModal();
-    };
-  }
+  $('mainBtn').onclick = runSeason;
 }
 
-/* ---------- roulette ---------- */
+function bindModal(modalId, openId, closeId, onOpen) {
+  const modal = $(modalId);
+  if (!modal) return;
+  if (openId && $(openId)) $(openId).onclick = () => { if (onOpen) onOpen(); modal.style.display = 'flex'; };
+  if (closeId && $(closeId)) $(closeId).onclick = () => { modal.style.display = 'none'; };
+  modal.onclick = ev => { if (ev.target === modal) modal.style.display = 'none'; };
+}
+
+const closeModal = id => { const m = $(id); if (m) m.style.display = 'none'; };
+
+function setOption(key, val) {
+  if (key === 'stats') G.statsProrata = val === 'prorata';
+  else if (key === 'salary') G.salaryMode = val;
+  else if (key === 'fog') { G.fogOfWar = val === 'on'; if (G.fogOfWar) hideRadar(); }
+  else if (key === 'onlyFit') G.onlyFit = val === 'on';
+  saveOpts();
+}
+
+function syncOptionsUI() {
+  const cur = {
+    stats: G.statsProrata ? 'prorata' : 'real',
+    salary: G.salaryMode,
+    fog: G.fogOfWar ? 'on' : 'off',
+    onlyFit: G.onlyFit ? 'on' : 'off',
+  };
+  document.querySelectorAll('.seg').forEach(seg => {
+    seg.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('on', b.dataset.val === cur[seg.dataset.opt]);
+    });
+  });
+}
+
+function setView(view) {
+  G.view = view;
+  $('panes').dataset.view = view;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === view));
+}
+
+/* =====================================================================
+   Roulette
+   ===================================================================== */
 
 async function getShard(label) {
   if (G.shards.has(label)) return G.shards.get(label);
   const shard = await loadSeason(label);
   const byTeam = {};
   for (const p of shard.players) {
-    if ((p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (!p.np || p.np === 'D')) {
+    if (isD(p) && (!p.np || p.np === 'D')) {
       p.np = (p.shootsCatches === 'R' || p.shoots === 'R') ? 'RD' : 'LD';
     }
     registerHiddenRatings(p);
@@ -274,13 +450,13 @@ async function getShard(label) {
 
 async function nextSpin(newSeason, newTeam) {
   G.loading = true;
-  render();
+  renderSpin();
 
   const need = nextNeed();
   const seasons = state.index.seasons;
 
   for (let attempt = 0; attempt < 25; attempt++) {
-    let season = (!newSeason && G.cur) ? G.cur.season : rnd(seasons);
+    const season = (!newSeason && G.cur) ? G.cur.season : rnd(seasons);
     let shard;
     try { shard = await getShard(season); } catch { continue; }
 
@@ -298,11 +474,7 @@ async function nextSpin(newSeason, newTeam) {
 
     G.cur = { season, team, pool };
     G.loading = false;
-
-    const colors = TEAM_COLORS[team] || { primary: '#112236', accent: '#38bdf8' };
-    document.documentElement.style.setProperty('--team-primary', colors.primary);
-    document.documentElement.style.setProperty('--team-accent', colors.accent);
-
+    applyTeamColors(team);
     saveGame();
     prefetch([rnd(seasons), rnd(seasons)]);
     return;
@@ -312,76 +484,86 @@ async function nextSpin(newSeason, newTeam) {
   G.cur = G.cur || { season: '—', team: '—', pool: [] };
 }
 
-/* ---------- rendu ---------- */
+/* =====================================================================
+   Rendu — plafond, roulette, tableau de bord
+   ===================================================================== */
 
 function renderCap() {
-  const used = capUsed(), rem = CAP - used;
+  const used = capUsed(), rem = capLeft(), left = slotsLeft();
   const isEra = G.salaryMode === 'ERA';
-  const curSeason = G.cur ? G.cur.season : '2025-26';
-  const eraCapMax = SEASON_ERA_CAP[curSeason] || CAP;
-  const remEra = getEraSalary(rem, curSeason);
+  const season = G.cur ? G.cur.season : '2025-26';
+  const eraCap = SEASON_ERA_CAP[season] || CAP;
 
-  const a = $('capAmt');
-  if (isEra) {
-    a.textContent = money(remEra);
-  } else {
-    a.textContent = money(rem);
-  }
-  a.classList.toggle('over', rem < 0);
+  const amt = $('capAmt');
+  amt.textContent = isEra ? money(getEraSalary(rem, season)) : money(rem);
 
-  const f = $('capFill');
-  f.style.width = Math.min(100, Math.max(0, (used / CAP) * 100)) + '%';
-  f.classList.toggle('over', rem < 0);
+  // Serré quand il reste moins de 1,5 M$ par case à combler
+  const tight = left > 0 && rem < left * 1_500_000;
+  amt.classList.toggle('over', rem < 0);
+  amt.classList.toggle('tight', rem >= 0 && tight);
+
+  $('capMaxLbl').textContent = isEra ? `/ ${money(eraCap)} (${season})` : `/ ${money(CAP)}`;
+
+  const fill = $('capFill');
+  fill.style.width = Math.min(100, Math.max(0, (used / CAP) * 100)) + '%';
+  fill.classList.toggle('over', rem < 0);
+  fill.classList.toggle('tight', rem >= 0 && tight);
+
+  // Repère : masse salariale « au rythme » pour 23 joueurs
+  const marker = $('capMarker');
+  if (marker) marker.style.left = Math.min(100, (picked().length / 23) * 100) + '%';
+
   $('cnt').textContent = `${picked().length} / 23`;
 
-  if ($('capMaxLbl')) {
-    $('capMaxLbl').textContent = isEra ? `/ ${money(eraCapMax)} (${curSeason})` : `/ ${money(CAP)}`;
-  }
-
-  const need = nextNeed();
-  const lbl = $('nextNeedLbl');
-  if (lbl) {
-    lbl.textContent = need ? `À COMBLER: ${need.role} (${need.label})` : 'ALIGNEMENT COMPLET';
+  const perSlot = $('perSlotLbl');
+  if (perSlot) {
+    perSlot.textContent = left > 0
+      ? `${money(rem / left)} / case restante`
+      : (rem >= 0 ? 'Sous le plafond ✓' : 'Plafond dépassé');
+    perSlot.className = left === 0 && rem < 0 ? 'dash-bad' : '';
   }
 }
 
 function renderSpin() {
   const host = $('spin');
-  if (G.loading) {
-    host.innerHTML = `<div class="spin-card"><div class="spin-team-name">CHARGEMENT…</div></div>`;
+  if (!host) return;
+
+  if (G.loading || !G.cur) {
+    host.innerHTML = `<div class="spin-card"><div class="spin-top">
+      <div class="spin-logo">🎲</div>
+      <div class="spin-id"><div class="spin-name">La roulette tourne…</div>
+      <div class="spin-full">Chargement du vestiaire</div></div></div></div>`;
     return;
   }
-  const full = TEAMFULL[G.cur.team];
-  const dead = DEFUNCT.has(G.cur.team) ? ' · DISPARUE' : '';
 
-  const logoHtml = getTeamLogoHtml(G.cur.team, 52);
+  const full = TEAMFULL[G.cur.team] || G.cur.team;
+  const dead = DEFUNCT.has(G.cur.team) ? ` <span class="spin-dead">· disparue</span>` : '';
+  const need = nextNeed();
+
+  const targetSlot = G.target !== null ? SLOTS[G.target] : null;
+  const instruction = targetSlot
+    ? `Case ciblée : <span class="target-on">${esc(targetSlot.label)} · ${esc(targetSlot.role)}</span>. Signe un joueur pour l'y placer, ou touche la case à nouveau pour annuler.`
+    : need
+      ? `Signe <strong>un joueur</strong> de ce vestiaire, puis la roulette tourne à nouveau. Prochaine case libre : <strong>${esc(need.label)} · ${esc(need.role)}</strong>.`
+      : `Alignement complet. Tu peux encore permuter tes joueurs avant de simuler.`;
 
   host.innerHTML = `
     <div class="spin-card">
-      <div class="spin-badge-top">${picked().length}/23 SIGNÉS</div>
-      <div class="spin-header">
-        <div class="spin-logo">${logoHtml}</div>
-        <div class="spin-title-group">
-          <div class="spin-team-name">${G.cur.team}</div>
-          <div class="spin-team-full">${full ? full + dead : ''} · ${G.cur.season}</div>
+      <div class="spin-top">
+        <div class="spin-logo">${getTeamLogoHtml(G.cur.team, 38)}</div>
+        <div class="spin-id">
+          <div class="spin-name">${esc(G.cur.team)}<span class="spin-season">${esc(G.cur.season)}</span></div>
+          <div class="spin-full">${esc(full)}${dead}</div>
         </div>
       </div>
-      <div class="spin-instruction">
-        Pige <strong>un joueur</strong> pour n'importe quel poste disponible — puis la roulette tourne à nouveau
-      </div>
+      <div class="spin-instruction">${instruction}</div>
       <div class="rerolls">
-        <button id="rrS" class="reroll-btn" ${G.left.season ? '' : 'disabled'}>
-          🎲 AUTRE ANNÉE
-          <span class="badge">${G.left.season} RESTANTS</span>
-        </button>
-        <button id="rrT" class="reroll-btn" ${G.left.team ? '' : 'disabled'}>
-          🔄 AUTRE ÉQUIPE
-          <span class="badge">${G.left.team} RESTANTS</span>
-        </button>
-        <button id="rrP" class="reroll-btn" ${G.left.pass ? '' : 'disabled'}>
-          ⏭️ PASSER
-          <span class="badge">${G.left.pass} RESTANTS</span>
-        </button>
+        <button id="rrS" class="reroll" ${G.left.season ? '' : 'disabled'} title="Retirer une autre saison au hasard">
+          🎲 Autre année<span class="rr-count">${G.left.season} restantes</span></button>
+        <button id="rrT" class="reroll" ${G.left.team ? '' : 'disabled'} title="Garder la saison, changer d'équipe">
+          🔄 Autre équipe<span class="rr-count">${G.left.team} restantes</span></button>
+        <button id="rrP" class="reroll" ${G.left.pass ? '' : 'disabled'} title="Passer ce vestiaire au complet">
+          ⏭️ Passer<span class="rr-count">${G.left.pass} restants</span></button>
       </div>
     </div>`;
 
@@ -396,974 +578,783 @@ function renderSpin() {
   $('rrP').onclick = () => reroll('pass', true, true);
 }
 
-function getSeasonMaxGP(season) {
-  if (season === '1994-95' || season === '2012-13') return 48;
-  if (season === '2020-21') return 56;
-  if (season === '2019-20') return 70;
-  return 82;
+/* Besoins par position (réservistes exclus) */
+const POS_NEED = [
+  { key: 'AG', label: 'AG', role: 'AG', req: 4 },
+  { key: 'C', label: 'C', role: 'C', req: 4 },
+  { key: 'AD', label: 'AD', role: 'AD', req: 4 },
+  { key: 'LD', label: 'DG', role: 'DG', req: 3 },
+  { key: 'RD', label: 'DD', role: 'DD', req: 3 },
+  { key: 'G', label: 'G', group: 'G', req: 2 },
+];
+
+function signedCount(def) {
+  return SLOTS.filter(s => !s.scratch && G.roster[s.i] &&
+    (def.group ? s.group === def.group : s.role === def.role)).length;
 }
 
-function getPlayerDisplayStats(p) {
-  const maxGP = getSeasonMaxGP(p.s);
-  const factor = (G.statsProrata && maxGP < 82) ? (82 / maxGP) : 1;
-  const eraFactor = G.statsProrata ? getEraFactor(p.s) : 1;
+function renderDash() {
+  const host = $('dash');
+  if (!host) return;
 
-  const gp = Math.round(p.gp * factor);
-  const g = Math.round(p.g * factor * eraFactor);
-  const a = Math.round(p.a * factor * eraFactor);
-  const pt = Math.round(p.pt * factor * eraFactor);
-  const pm = Math.round(p.pm * factor);
-  const w = Math.round((p.w ?? 0) * factor);
-  const l = Math.round((p.l ?? 0) * factor);
-  const so = Math.round((p.so ?? 0) * factor);
+  const left = slotsLeft(), rem = capLeft();
+  const maxPick = maxForPick();
+  const need = nextNeed();
 
-  // Points par match, sur les valeurs affichées (suit les bascules prorata / époque)
-  const ppg = p.p === 'G' ? null : (gp > 0 ? pt / gp : 0);
-  const ppgStr = ppg == null ? '' : ppg.toFixed(2);
+  const needChips = POS_NEED.map(def => {
+    const n = signedCount(def);
+    const cls = n >= def.req ? 'done' : (need && (def.group ? need.group === def.group : need.role === def.role)) ? 'urgent' : '';
+    return `<span class="need-chip ${cls}" title="${esc(def.label)} : ${n} signés sur ${def.req} requis">${esc(def.label)} ${n}/${def.req}</span>`;
+  }).join('');
+  const scratchN = SLOTS.filter(s => s.scratch && G.roster[s.i]).length;
 
-  const eraSal = p.realSal ?? getEraSalary(p.$, p.s);
-  const isEra = G.salaryMode === 'ERA';
-  const isReal = !!p.isReal;
-  const tagEra = isReal ? 'Réel' : 'Estimé';
+  // Combien de joueurs de ce vestiaire sont réellement signables
+  const pool = G.cur ? G.cur.pool : [];
+  const affordable = pool.filter(p => !picked().includes(p) && openSlots(p).length && p.$ <= rem).length;
+  const safe = pool.filter(p => !picked().includes(p) && openSlots(p).length && p.$ <= maxPick).length;
 
-  const salaryPrimary = isEra ? `${money(eraSal)} ('${p.s.slice(-2)})` : money(p.$);
-  const salarySub = isEra
-    ? `<span class="cap-pct">Ajusté 2026: ${money(p.$)}</span>`
-    : `<span class="cap-pct">${tagEra} ${p.s}: ${money(eraSal)}</span>`;
+  const budgetNote = left === 0
+    ? (rem >= 0 ? `Masse salariale : ${money(capUsed())}. Tu es sous le plafond.` : `Tu dépasses de ${money(-rem)} : retire un joueur.`)
+    : maxPick < MIN_SAL
+      ? `Il ne reste plus assez pour combler les ${left} cases au salaire plancher.`
+      : `Au-delà de ${money(maxPick)} pour ce joueur-ci, tu ne peux plus remplir les ${left - 1 >= 0 ? left - 1 : 0} cases suivantes au plancher de ${money(MIN_SAL)}.`;
 
-  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, ppg, ppgStr, eraSal, isReal, tagEra, salaryPrimary, salarySub };
+  const budgetCls = left === 0 ? (rem >= 0 ? 'dash-good' : 'dash-bad')
+    : maxPick < MIN_SAL ? 'dash-bad'
+    : maxPick < 2_000_000 ? 'dash-warn' : '';
+
+  host.innerHTML = `
+    <div class="dash-card">
+      <h3>À combler</h3>
+      <div class="needs">${needChips}<span class="need-chip ${scratchN >= 3 ? 'done' : ''}" title="Réservistes : remplacent les blessés">Rés. ${scratchN}/3</span></div>
+      <div class="dash-note">${need ? `Prochaine case : <strong>${esc(need.label)} · ${esc(need.role)}</strong>` : 'Toutes les cases sont comblées.'}</div>
+    </div>
+    <div class="dash-card">
+      <h3>Budget du prochain choix</h3>
+      <div class="dash-line"><span class="dash-big ${budgetCls}">${left ? money(Math.max(0, maxPick)) : money(rem)}</span>
+        <span class="dash-note" style="margin:0">${left} case${left > 1 ? 's' : ''}</span></div>
+      <div class="dash-note">${budgetNote}</div>
+    </div>
+    <div class="dash-card">
+      <h3>Ce vestiaire</h3>
+      <div class="dash-line"><span class="dash-big ${affordable === 0 && left > 0 ? 'dash-bad' : safe === 0 ? 'dash-warn' : ''}">${safe}</span><span class="dash-note" style="margin:0">sans risque</span></div>
+      <div class="dash-note">${affordable} joueur${affordable > 1 ? 's' : ''} sous le plafond restant, ${pool.length} au total. Relances : ${G.left.season} année${G.left.season > 1 ? 's' : ''}, ${G.left.team} équipe${G.left.team > 1 ? 's' : ''}, ${G.left.pass} passe${G.left.pass > 1 ? 's' : ''}.</div>
+    </div>`;
 }
 
-/** Étiquette de zone d'efficacité (calibre 1er trio, 2e trio…), visible même sous le fog of war. */
-function zoneTagHtml(p) {
-  const z = getLineZone(p, getHiddenRatings(p).v);
-  return `<span class="zone-tag lz${z.level}" title="Zone d'efficacité : ${z.label} — rend à 100 % sur ${z.idealUnits.length > 1 ? 'les trios' : 'le trio'} ${z.idealUnits.map(u => u + 1).join(', ')}">📍 ${z.short}</span>`;
-}
-
-/** Âge dans la saison, si la date de naissance est dans le shard (API bios). */
-function ageTagHtml(p) {
-  const age = ageAtSeason(p.bd, p.s);
-  return age ? `<span class="age-tag" title="Âge au début de la saison ${p.s}">${age} ans</span>` : '';
-}
-
-/** Étiquette de contrat d'entrée. */
-function elcTagHtml(p) {
-  return p.elc ? `<span class="elc-tag" title="Contrat d'entrée : premier contrat d'un joueur de 24 ans ou moins (3 saisons à 18-21 ans, 2 à 22-23, 1 à 24). Base plafonnée selon l'époque, plus bonis de rendement.">🐣 ELC</span>` : '';
-}
-
-function formatPlayerName(fullName) {
-  if (!fullName) return '';
-  const parts = fullName.trim().split(' ');
-  if (parts.length === 1) return `<strong class="lname">${fullName}</strong>`;
-  const lastName = parts.pop();
-  const firstName = parts.join(' ');
-  return `<span class="fname">${firstName}</span> <strong class="lname">${lastName}</strong>`;
-}
-
-function getHeadshotHtml(p, size = 44) {
-  if (p.id) {
-    return `<img class="headshot-img" src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" alt="${p.n}" onerror="this.onerror=null;this.replaceWith(document.createRange().createContextualFragment('<div class=\\'headshot-fallback\\'>👤</div>'));">`;
-  }
-  return `<div class="headshot-fallback">👤</div>`;
-}
-
-function slotCardEl(s) {
-  const p = G.roster[s.i];
-  const d = document.createElement('div');
-  const pen = p ? getPositionPenalty(p, s) : 0;
-
-  d.className = 'slot-card' + (p ? '' : ' empty') + (G.selectedSlot === s.i ? ' selected' : G.target === s.i ? ' target' : '') + (pen > 0 ? ' oop' : '');
-
-  if (p) {
-    const penTag = pen > 0 ? `<span class="tag-pen">-${pen}</span>` : '';
-    const logo = getTeamLogoHtml(p.t, 14);
-    const st = getPlayerDisplayStats(p);
-    const arch = getArchetype(p, getHiddenRatings(p));
-
-    let statValue = p.p === 'G' ? st.w : st.pt;
-    let statUnit = p.p === 'G' ? 'V' : 'PTS';
-
-    const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
-    const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
-
-    let subStats = p.p === 'G'
-      ? `${p.sv ?? '—'} %ARR · ${p.ga ?? '—'} MBA`
-      : `<b class="ptsm">${st.ppgStr} PTS/M</b> · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
-
-    const headshotMini = p.id
-      ? `<img class="slot-headshot" src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" onerror="this.style.display='none'">`
-      : '';
-
-    d.innerHTML = `
-      <button class="slot-remove-btn" data-i="${s.i}" title="Retirer">✕</button>
-      <div class="slot-top">
-        <div class="slot-player-group">
-          ${headshotMini}
-          <div class="slot-player-name">${formatPlayerName(p.n)} ${penTag}</div>
-        </div>
-        <div class="slot-salary">${st.salaryPrimary}</div>
-      </div>
-      <div class="slot-arch-badge" title="${arch.desc}">${arch.icon} ${arch.label}</div>
-      <div class="slot-tags">${zoneTagHtml(p)}${elcTagHtml(p)}${ageTagHtml(p)}</div>
-      <div class="slot-big-stat">${statValue}<span class="stat-unit">${statUnit}</span></div>
-      <div class="slot-bottom">
-        <div class="slot-team-info">${logo} ${p.t} '${p.s.slice(-2)}</div>
-        <div>${subStats}</div>
-      </div>`;
-
-    if (!G.fogOfWar) attachRadarEvents(d, p);
-  } else {
-    d.innerHTML = `<div class="empty-role-lbl">+ ${s.role}</div><div style="font-size:9.5px;color:var(--muted);margin-top:2px">${s.label}</div>`;
-  }
-
-  d.onclick = () => {
-    if (G.selectedSlot !== null) {
-      if (G.selectedSlot === s.i) {
-        G.selectedSlot = null;
-      } else {
-        const srcIndex = G.selectedSlot;
-        const srcPlayer = G.roster[srcIndex];
-        const destPlayer = G.roster[s.i];
-
-        if (srcPlayer) G.roster[s.i] = srcPlayer; else delete G.roster[s.i];
-        if (destPlayer) G.roster[srcIndex] = destPlayer; else delete G.roster[srcIndex];
-
-        G.selectedSlot = null;
-        G.target = null;
-        saveGame();
-      }
-    } else {
-      if (p) {
-        G.selectedSlot = s.i;
-      } else {
-        G.target = (G.target === s.i ? null : s.i);
-      }
-    }
-    render();
-  };
-  return d;
-}
-
-function renderRoster() {
-  const board = $('rosterBoard');
-  if (!board) return;
-
-  if (G.layoutMode === 'rink') {
-    board.className = 'roster-board rink-mode';
-    board.innerHTML = `
-      <div class="rink-surface">
-        <div class="rink-marking red-line"></div>
-        <div class="rink-marking blue-line-top"></div>
-        <div class="rink-marking blue-line-bottom"></div>
-        <div class="rink-marking center-circle"></div>
-        <div class="rink-marking crease"></div>
-
-        <div class="rink-zone zone-forwards">
-          <div class="rink-zone-title">💥 ATTAQUE (4 TRIOS)</div>
-          <div class="rink-lines-container" id="rinkForwards"></div>
-        </div>
-
-        <div class="rink-zone zone-defense">
-          <div class="rink-zone-title">🛡️ DÉFENSE (3 PAIRES)</div>
-          <div class="rink-lines-container" id="rinkDefense"></div>
-        </div>
-
-        <div class="rink-zone zone-goalies">
-          <div class="rink-zone-title">🥅 GARDIENS & RÉSERVES</div>
-          <div class="rink-lines-container" id="rinkGoalies"></div>
-        </div>
-      </div>`;
-
-    const fwHost = $('rinkForwards');
-    if (fwHost) {
-      for (let u = 0; u < 4; u++) {
-        const lineEl = document.createElement('div');
-        lineEl.className = 'rink-line-row';
-        const lwSlot = SLOTS.find(s => s.role === 'AG' && s.unit === u);
-        const cSlot = SLOTS.find(s => s.role === 'C' && s.unit === u);
-        const rwSlot = SLOTS.find(s => s.role === 'AD' && s.unit === u);
-        if (lwSlot) lineEl.appendChild(slotCardEl(lwSlot));
-        if (cSlot) lineEl.appendChild(slotCardEl(cSlot));
-        if (rwSlot) lineEl.appendChild(slotCardEl(rwSlot));
-        fwHost.appendChild(lineEl);
-      }
-    }
-
-    const defHost = $('rinkDefense');
-    if (defHost) {
-      for (let u = 0; u < 3; u++) {
-        const pairEl = document.createElement('div');
-        pairEl.className = 'rink-line-row def-pair';
-        const ldSlot = SLOTS.find(s => s.role === 'DG' && s.unit === u);
-        const rdSlot = SLOTS.find(s => s.role === 'DD' && s.unit === u);
-        if (ldSlot) pairEl.appendChild(slotCardEl(ldSlot));
-        if (rdSlot) pairEl.appendChild(slotCardEl(rdSlot));
-        defHost.appendChild(pairEl);
-      }
-    }
-
-    const gHost = $('rinkGoalies');
-    if (gHost) {
-      const gRow = document.createElement('div');
-      gRow.className = 'rink-line-row goalies-row';
-      const gSlots = SLOTS.filter(s => s.group === 'G' || s.scratch);
-      gSlots.forEach(s => gRow.appendChild(slotCardEl(s)));
-      gHost.appendChild(gRow);
-    }
-
-  } else {
-    board.className = 'roster-board';
-    board.innerHTML = `
-      <div class="roster-col col-lw"><div class="col-header"><span class="col-title">AG / LW</span><span class="col-count" id="lwCnt">0/4</span></div><div class="col-slots" id="lwSlots"></div></div>
-      <div class="roster-col col-c"><div class="col-header"><span class="col-title">C</span><span class="col-count" id="cCnt">0/4</span></div><div class="col-slots" id="cSlots"></div></div>
-      <div class="roster-col col-rw"><div class="col-header"><span class="col-title">AD / RW</span><span class="col-count" id="rwCnt">0/4</span></div><div class="col-slots" id="rwSlots"></div></div>
-      <div class="roster-col col-ld"><div class="col-header"><span class="col-title">DG / LD</span><span class="col-count" id="ldCnt">0/3</span></div><div class="col-slots" id="ldSlots"></div></div>
-      <div class="roster-col col-rd"><div class="col-header"><span class="col-title">DD / RD</span><span class="col-count" id="rdCnt">0/3</span></div><div class="col-slots" id="rdSlots"></div></div>
-      <div class="roster-col col-g"><div class="col-header"><span class="col-title">G / RÉSERVES</span><span class="col-count" id="gCnt">0/5</span></div><div class="col-slots" id="gSlots"></div></div>`;
-
-    const categories = {
-      LW: SLOTS.filter(s => s.role === 'AG'),
-      C: SLOTS.filter(s => s.role === 'C'),
-      RW: SLOTS.filter(s => s.role === 'AD'),
-      LD: SLOTS.filter(s => s.role === 'DG'),
-      RD: SLOTS.filter(s => s.role === 'DD'),
-      G: SLOTS.filter(s => s.group === 'G' || s.scratch)
-    };
-
-    const populateCol = (containerId, cntId, slotsList) => {
-      const container = $(containerId);
-      if (!container) return;
-      container.innerHTML = '';
-      let filled = 0;
-      slotsList.forEach(s => {
-        if (G.roster[s.i]) filled++;
-        container.appendChild(slotCardEl(s));
-      });
-      const cntEl = $(cntId);
-      if (cntEl) cntEl.textContent = `${filled}/${slotsList.length}`;
-    };
-
-    populateCol('lwSlots', 'lwCnt', categories.LW);
-    populateCol('cSlots', 'cCnt', categories.C);
-    populateCol('rwSlots', 'rwCnt', categories.RW);
-    populateCol('ldSlots', 'ldCnt', categories.LD);
-    populateCol('rdSlots', 'rdCnt', categories.RD);
-    populateCol('gSlots', 'gCnt', categories.G);
-  }
-
-  renderChemistry();
-
-  document.querySelectorAll('.slot-remove-btn').forEach(b => {
-    b.onclick = ev => {
-      ev.stopPropagation();
-      delete G.roster[+b.dataset.i];
-      saveGame();
-      render();
-    };
-  });
-}
+/* =====================================================================
+   Rendu — bassin
+   ===================================================================== */
 
 function renderFilters() {
-  const h = $('filters');
-  h.innerHTML = '';
-  [
-    ['ALL', 'Tous'],
-    ['C', 'Centres (C)'],
-    ['AG', 'Ailiers G (AG)'],
-    ['AD', 'Ailiers D (AD)'],
-    ['LD', 'Déf. Gauche (DG)'],
-    ['RD', 'Déf. Droit (DD)'],
-    ['D', 'Défenseurs (Tous)'],
-    ['G', 'Gardiens (G)'],
-  ].forEach(([k, l]) => {
-    const b = document.createElement('button');
-    b.className = G.filter === k ? 'on' : '';
-    b.textContent = l;
-    b.onclick = () => { G.filter = k; render(); };
-    h.appendChild(b);
+  const host = $('filters');
+  if (!host) return;
+  const defs = [
+    ['ALL', 'Tous', null],
+    ['C', 'Centres', POS_NEED[1]],
+    ['AG', 'Ailiers G.', POS_NEED[0]],
+    ['AD', 'Ailiers D.', POS_NEED[2]],
+    ['LD', 'Déf. gauche', POS_NEED[3]],
+    ['RD', 'Déf. droit', POS_NEED[4]],
+    ['G', 'Gardiens', POS_NEED[5]],
+  ];
+  host.innerHTML = defs.map(([key, label, def]) => {
+    let badge = '';
+    if (key === 'ALL') {
+      badge = `<span class="chip-need${picked().length >= 23 ? ' full' : ''}">${picked().length}/23</span>`;
+    } else if (def) {
+      const n = signedCount(def);
+      badge = `<span class="chip-need${n >= def.req ? ' full' : ''}">${n}/${def.req}</span>`;
+    }
+    return `<button class="chip${G.filter === key ? ' on' : ''}" data-f="${key}" role="tab" aria-selected="${G.filter === key}">${esc(label)}${badge}</button>`;
+  }).join('');
+
+  host.querySelectorAll('.chip').forEach(b => {
+    b.onclick = () => { G.filter = b.dataset.f; renderFilters(); renderPool(); renderPoolMeta(); };
   });
 }
 
-function renderPlayerCard(p, used) {
-  const already = picked().includes(p);
-  const opts = openSlots(p);
-  const slot = (G.target !== null && !G.roster[G.target] && fits(p, SLOTS[G.target]))
-    ? SLOTS[G.target] : opts[0];
-  const over = (used + p.$) > CAP;
-  const pen = slot ? getPositionPenalty(p, slot) : 0;
-  const penStr = pen > 0 ? ` <span class="tag-pen">-${pen}</span>` : '';
+function poolFiltered() {
+  if (!G.cur) return [];
+  let list = G.cur.pool.slice();
 
-  const st = getPlayerDisplayStats(p);
+  const f = G.filter;
+  if (f === 'C') list = list.filter(p => !isD(p) && p.p !== 'G' && p.np === 'C');
+  else if (f === 'AG') list = list.filter(p => !isD(p) && p.p !== 'G' && (p.np === 'L' || p.np === 'AG'));
+  else if (f === 'AD') list = list.filter(p => !isD(p) && p.p !== 'G' && (p.np === 'R' || p.np === 'AD'));
+  else if (f === 'LD') list = list.filter(p => isD(p) && (p.np === 'LD' || p.np === 'DG' || p.np === 'L'));
+  else if (f === 'RD') list = list.filter(p => isD(p) && (p.np === 'RD' || p.np === 'DD' || p.np === 'R'));
+  else if (f === 'G') list = list.filter(p => p.p === 'G');
 
-  const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
-  const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
-
-  const stat = p.p === 'G'
-    ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} %ARR`
-    : `${st.gp}PJ · <b class="ptsm">${st.ppgStr} PTS/M</b> · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
-
-  const mainBadgeVal = p.p === 'G' ? st.w : st.pt;
-  const mainBadgeLbl = p.p === 'G' ? 'VIC' : 'PTS';
-
-  const logo = getTeamLogoHtml(p.t, 18);
-  const headshot = getHeadshotHtml(p, 36);
-
-  const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
-  const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
-
-  const linksHtml = `<a class="ext-link" href="${nhlUrl}" target="_blank" title="Fiche NHL.com" onclick="event.stopPropagation()">NHL🔗</a> <a class="ext-link" href="${hdbUrl}" target="_blank" title="Fiche HockeyDB" onclick="event.stopPropagation()">HDB🔗</a>`;
-
-  const priceDisplay = st.salaryPrimary;
-  const subCapStr = st.salarySub;
-
-  let btnLabel = '+ SIGNER';
-  if (already) btnLabel = '✓ SIGNÉ';
-  else if (!slot) btnLabel = '× POSITION PLEINE';
-  else if (over) btnLabel = '× HORS BUDGET';
-
-  const compactSubStats = p.p === 'G'
-    ? `${st.gp}PJ · ${p.sv ?? '—'} %ARR · ${p.ga ?? '—'} MBA`
-    : `<b class="ptsm">${st.ppgStr} PTS/M</b> · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
-  const tagsHtml = `<div class="card-tags">${zoneTagHtml(p)}${elcTagHtml(p)}${ageTagHtml(p)}</div>`;
-
-  const posBadge = `<span class="pos-badge ${getPositionClass(p)}">${getPositionLabel(p)}</span>`;
-
-  const c = document.createElement('div');
-  c.style.cursor = 'pointer';
-
-  if (G.compactView) {
-    c.className = 'card compact' + (already || !slot || over ? ' dimmed' : '');
-    c.innerHTML = `
-      <div class="compact-top">
-        <div class="compact-name">${posBadge} ${formatPlayerName(p.n)}${p.x ? ' <span class="tag">échangé</span>' : ''}${penStr}</div>
-        <div class="compact-price">${priceDisplay}</div>
-      </div>
-      <div class="compact-middle">
-        <div class="compact-big-stat">
-          <span class="compact-stat-num">${mainBadgeVal}</span>
-          <span class="compact-stat-unit">${mainBadgeLbl}</span>
-        </div>
-        <div class="compact-headshot">
-          ${headshot}
-          <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
-        </div>
-      </div>
-      <div class="compact-sub-stats">${compactSubStats}</div>
-      ${tagsHtml}
-      <div class="card-row-bottom" style="margin-top:2px;">
-        <button class="add compact-add" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
-      </div>`;
-  } else {
-    c.className = 'card' + (already || !slot || over ? ' dimmed' : '');
-    c.innerHTML = `
-      <div class="card-row-top">
-        <div class="card-avatar" style="width:36px;height:36px;">
-          ${headshot}
-          <div class="team-badge-sub" style="width:14px;height:14px;">${logo}</div>
-        </div>
-        <div class="info">
-          <div class="nm" style="font-size:13.5px;">${posBadge} ${formatPlayerName(p.n)}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
-          <div class="mt" style="font-size:10px;">${p.t} ${p.s}</div>
-          ${tagsHtml}
-        </div>
-      </div>
-      <div style="font-size:10.5px;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
-        <span><span class="big-stat-badge" style="padding:0 4px;"><span class="big-stat-val" style="font-size:12px;">${mainBadgeVal}</span><span class="big-stat-lbl">${mainBadgeLbl}</span></span>${stat}</span>
-        ${linksHtml}
-      </div>
-      <div class="card-row-bottom">
-        <div class="cp" style="font-size:12px;">${priceDisplay}${subCapStr}</div>
-        <button class="add" style="padding:5px 10px;font-size:11px;" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
-      </div>`;
+  if (G.search) {
+    const q = G.search.toLowerCase();
+    list = list.filter(p => p.n.toLowerCase().includes(q));
   }
 
-  c.onclick = (ev) => {
-    if (ev.target.closest('.add') || ev.target.closest('.ext-link')) return;
-    showHockeyCardModal(p);
-  };
+  if (G.onlyFit) {
+    const rem = capLeft();
+    list = list.filter(p => !picked().includes(p) && openSlots(p).length && p.$ <= rem);
+  }
 
-  c.querySelector('.add').onclick = async (ev) => {
+  const key = p => (p.p === 'G' ? (p.w ?? 0) : (p.pt ?? 0));
+  const cmp = {
+    PTS: (a, b) => key(b) - key(a) || b.$ - a.$,
+    PPG: (a, b) => (displayStats(b).ppg ?? -1) - (displayStats(a).ppg ?? -1) || key(b) - key(a),
+    SAL: (a, b) => b.$ - a.$ || key(b) - key(a),
+    VAL: (a, b) => valuePerM(b) - valuePerM(a),
+    PM: (a, b) => (b.pm ?? 0) - (a.pm ?? 0) || key(b) - key(a),
+    AGE: (a, b) => (ageAtSeason(a.bd, a.s) ?? 99) - (ageAtSeason(b.bd, b.s) ?? 99) || key(b) - key(a),
+    NAME: (a, b) => a.n.localeCompare(b.n, 'fr'),
+  }[G.sortBy] || ((a, b) => key(b) - key(a));
+
+  return list.sort(cmp);
+}
+
+/** Masque le tri par âge quand aucune date de naissance n'est disponible. */
+function syncAgeControls() {
+  const sort = $('sortSelect');
+  if (!sort) return;
+  const opt = sort.querySelector('option[value="AGE"]');
+  if (!opt) return;
+  const ok = agesAvailable();
+  opt.hidden = !ok;
+  opt.disabled = !ok;
+  if (!ok && G.sortBy === 'AGE') { G.sortBy = 'PTS'; saveOpts(); }
+  sort.value = G.sortBy;
+}
+
+/* Une colonne par position, comme au tableau d'un vrai vestiaire. */
+const POOL_COLS = [
+  { key: 'AG', title: 'AG · ailier g.', need: POS_NEED[0], test: p => p.p === 'F' && (p.np === 'L' || p.np === 'AG') },
+  { key: 'C',  title: 'C · centre',         need: POS_NEED[1], test: p => p.p === 'F' && p.np !== 'L' && p.np !== 'AG' && p.np !== 'R' && p.np !== 'AD' },
+  { key: 'AD', title: 'AD · ailier d.',  need: POS_NEED[2], test: p => p.p === 'F' && (p.np === 'R' || p.np === 'AD') },
+  { key: 'DG', title: 'DG · déf. gauche', need: POS_NEED[3], test: p => isD(p) && p.np !== 'RD' && p.np !== 'DD' && p.np !== 'R' },
+  { key: 'DD', title: 'DD · déf. droit',  need: POS_NEED[4], test: p => isD(p) && (p.np === 'RD' || p.np === 'DD' || p.np === 'R') },
+  { key: 'G',  title: 'G · gardien',        need: POS_NEED[5], test: p => p.p === 'G' },
+];
+
+function renderPoolMeta() {
+  const list = poolFiltered();
+  const meta = $('poolCount');
+  if (meta) meta.textContent = `${list.length} joueur${list.length > 1 ? 's' : ''}`;
+  const badge = $('tabPoolBadge');
+  if (badge) badge.textContent = String(list.length);
+  const rMeta = $('rosterMeta');
+  if (rMeta) rMeta.textContent = `${picked().length} / 23 · ${money(capUsed())}`;
+  const rBadge = $('tabRosterBadge');
+  if (rBadge) rBadge.textContent = `${picked().length}/23`;
+}
+
+/** Case où irait ce joueur : la cible si compatible, sinon la moins pénalisée. */
+function destinationFor(p) {
+  if (G.target !== null && !G.roster[G.target] && fits(p, SLOTS[G.target])) return SLOTS[G.target];
+  return openSlots(p)[0] || null;
+}
+
+function playerCardEl(p) {
+  const already = picked().includes(p);
+  const slot = destinationFor(p);
+  const rem = capLeft();
+  const over = p.$ > rem;
+  const risky = !over && p.$ > maxForPick();
+  const pen = slot ? getPositionPenalty(p, slot) : 0;
+  const st = displayStats(p);
+  const isTargeted = G.target !== null && slot === SLOTS[G.target];
+
+  const el = document.createElement('div');
+  el.className = 'pcard'
+    + (already ? ' signed' : '')
+    + ((already || !slot || over) ? ' locked' : '');
+  el.style.setProperty('--pos-color', positionColor(p));
+
+  // Statistiques visibles selon le poste
+  const pmCls = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
+  const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
+  const stats = p.p === 'G'
+    ? `<span class="stat-big"><b>${st.w}</b><span>V</span></span>
+       <span><span class="k">PJ</span> <span class="v">${st.gp}</span></span>
+       <span><span class="k">D</span> <span class="v">${st.l}</span></span>
+       <span><span class="k">%ARR</span> <span class="v">${p.sv ?? '—'}</span></span>
+       <span><span class="k">MBA</span> <span class="v">${p.ga ?? '—'}</span></span>
+       <span><span class="k">BL</span> <span class="v">${st.so}</span></span>`
+    : `<span class="stat-big"><b>${st.pt}</b><span>PTS</span></span>
+       <span><span class="k">PJ</span> <span class="v">${st.gp}</span></span>
+       <span><span class="k">B-A</span> <span class="v">${st.g}-${st.a}</span></span>
+       <span class="ptsm">${st.ppgStr} PTS/M</span>
+       <span><span class="k">+/-</span> <span class="${pmCls}">${pmStr}</span></span>`;
+
+  // Destination et conséquence budgétaire
+  let dest;
+  if (already) {
+    const cur = SLOTS.find(s => G.roster[s.i] === p);
+    dest = `<span class="dest-slot">✓ Signé</span>${cur ? ` · ${esc(cur.label)} · ${esc(cur.role)}` : ''}`;
+  } else if (!slot) {
+    dest = `<span class="dest-bad">Aucune case libre à cette position</span>`;
+  } else if (over) {
+    dest = `<span class="dest-bad">Hors budget</span> · il te reste ${money(rem)}`;
+  } else {
+    const after = rem - p.$;
+    const left = slotsLeft() - 1;
+    const penTxt = pen > 0 ? ` <span class="dest-bad">−${pen} hors position</span>` : '';
+    dest = `<span class="${isTargeted ? 'dest-target' : 'dest-slot'}">${isTargeted ? '🎯 ' : '→ '}${esc(slot.label)} · ${esc(slot.role)}</span>${penTxt}`
+      + `<br><span class="dest-after">Après : ${money(after)}${left > 0 ? ` · ${money(after / left)} / case` : ''}</span>`;
+  }
+
+  const tags = [
+    archTag(p), zoneTag(p), ageTag(p), elcTag(p),
+    p.x ? `<span class="tag tag-traded" title="Joueur échangé en cours de saison : il apparaît dans le vestiaire de chaque équipe.">↔ Échangé</span>` : '',
+    risky ? `<span class="tag tag-pen" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les 23.">⚠ Bloque la fin</span>` : '',
+  ].filter(Boolean).join('');
+
+  const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : (isTargeted ? '🎯 Signer' : '+ Signer');
+
+  el.innerHTML = `
+    <div class="pcard-avatar">${headshotHtml(p)}
+      <span class="pcard-team-badge">${getTeamLogoHtml(p.t, 13)}</span>
+    </div>
+    <div class="pcard-body">
+      <div class="pcard-row1">
+        <div class="pcard-name"><span class="pos-badge ${positionClass(p)}">${esc(positionLabel(p))}</span>${formatName(p.n)}</div>
+        <div class="pcard-price">
+          <span class="amt">${st.salaryMain}</span>
+          <span class="sub">${st.salarySub}</span>
+        </div>
+      </div>
+      <div class="pcard-stats">${stats}</div>
+      <div class="tags">${tags}</div>
+      <div class="pcard-foot">
+        <div class="pcard-dest">${dest}</div>
+        <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
+      </div>
+    </div>`;
+
+  el.onclick = ev => {
+    if (ev.target.closest('.btn-sign')) return;
+    showPlayerModal(p);
+  };
+  el.querySelector('.btn-sign').onclick = ev => {
     ev.stopPropagation();
-    if (already || !slot || over) return;
-    G.roster[slot.i] = p;
-    G.target = null;
-    await nextSpin(true, true);
-    saveGame();
-    render();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    signPlayer(p);
   };
-
-  if (!G.fogOfWar) attachRadarEvents(c, p);
-
-  return c;
+  if (!G.fogOfWar) attachRadar(el, p);
+  return el;
 }
 
-/* Signés / requis par position, pour les en-têtes du bassin */
-const POS_NEED = {
-  AG: { role: 'AG', req: 4 }, C: { role: 'C', req: 4 }, AD: { role: 'AD', req: 4 },
-  LD: { role: 'DG', req: 3 }, RD: { role: 'DD', req: 3 }, G: { group: 'G', req: 2 },
-};
-function signedCount(key) {
-  const def = POS_NEED[key];
-  if (!def) return 0;
-  return SLOTS.filter(s => !s.scratch && G.roster[s.i] && (def.group ? s.group === def.group : s.role === def.role)).length;
+async function signPlayer(p) {
+  if (picked().includes(p)) return;
+  const slot = destinationFor(p);
+  if (!slot) { toast('Aucune case libre pour ce joueur.', 'bad'); return; }
+  if (p.$ > capLeft()) { toast('Hors budget : il te reste ' + money(capLeft()) + '.', 'bad'); return; }
+
+  const risky = p.$ > maxForPick();
+  G.roster[slot.i] = p;
+  G.target = null;
+  G.selectedSlot = null;
+
+  const pen = getPositionPenalty(p, slot);
+  toast(`${p.n} → ${slot.label} · ${slot.role}` + (pen > 0 ? ` (−${pen} hors position)` : ''), pen > 0 ? 'warn' : '');
+  if (risky && slotsLeft() > 0) {
+    setTimeout(() => toast(`Attention : ${money(capLeft())} pour ${slotsLeft()} cases, sous le plancher.`, 'warn'), 2700);
+  }
+
+  await nextSpin(true, true);
+  saveGame();
+  render();
+  document.getElementById('topbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-function needBadgeHtml(signed, req) {
-  return `<span class="pool-col-need${signed >= req ? ' full' : ''}" title="Signés / requis à cette position (réservistes exclus)">${signed}/${req}</span>`;
+
+/**
+ * Impasse : plus aucune signature possible dans ce vestiaire (tout est hors
+ * budget ou sans case libre). C'est récupérable — il faut libérer de la masse
+ * salariale — mais il faut le dire clairement plutôt que de laisser le joueur
+ * devant une grille de cartes toutes grisées.
+ */
+function blockedState() {
+  if (G.done || slotsLeft() === 0 || !G.cur) return null;
+  const rem = capLeft();
+  const free = G.cur.pool.filter(p => !picked().includes(p) && openSlots(p).length);
+  if (free.some(p => p.$ <= rem)) return null;
+  const cheapest = free.length ? free.reduce((a, b) => (b.$ < a.$ ? b : a)) : null;
+  const priciest = picked().slice().sort((a, b) => b.$ - a.$)[0] || null;
+  const rerolls = G.left.season + G.left.team + G.left.pass;
+  return { rem, cheapest, priciest, rerolls };
 }
-function needBadgeForFilter(filter) {
-  if (filter === 'ALL') return needBadgeHtml(picked().length, 23);
-  if (filter === 'D') return needBadgeHtml(signedCount('LD') + signedCount('RD'), 6);
-  const key = filter === 'AG' || filter === 'AD' || filter === 'C' || filter === 'LD' || filter === 'RD' || filter === 'G' ? filter : null;
-  return key ? needBadgeHtml(signedCount(key), POS_NEED[key].req) : '';
+
+function blockedBannerEl(st) {
+  const el = document.createElement('div');
+  el.className = 'blocked';
+  const slot = st.priciest ? SLOTS.find(s => G.roster[s.i] === st.priciest) : null;
+  el.innerHTML = `
+    <div class="blocked-title">⚠ Aucune signature possible ici</div>
+    <p>Il te reste <strong>${money(st.rem)}</strong> pour <strong>${slotsLeft()} case${slotsLeft() > 1 ? 's' : ''}</strong>.
+      ${st.cheapest ? `Le moins cher de ce vestiaire qui a une case libre coûte ${money(st.cheapest.$)}.` : 'Aucun joueur de ce vestiaire ne convient à une case libre.'}
+      ${st.rerolls ? `Tu peux relancer (${st.rerolls} relance${st.rerolls > 1 ? 's' : ''} restante${st.rerolls > 1 ? 's' : ''}) ou libérer de la masse salariale.` : 'Tes relances sont épuisées : il faut libérer de la masse salariale.'}</p>
+    ${st.priciest ? `<button class="btn danger" id="freeCapBtn">Retirer ${esc(st.priciest.n)} · ${money(st.priciest.$)}${slot ? ` (${esc(slot.role)})` : ''}</button>` : ''}`;
+  const btn = el.querySelector('#freeCapBtn');
+  if (btn && slot) {
+    btn.onclick = () => {
+      delete G.roster[slot.i];
+      G.selectedSlot = null;
+      saveGame();
+      render();
+      toast(`${st.priciest.n} retiré. ${money(capLeft())} de disponible.`, 'warn');
+    };
+  }
+  return el;
 }
 
 function renderPool() {
   const host = $('pool');
-  host.innerHTML = '';
-  if (G.loading) { host.innerHTML = '<div class="empty-msg">Recherche des joueurs dans le vestiaire…</div>'; return; }
+  if (!host) return;
 
-  const used = capUsed();
-  let list = G.cur.pool.slice();
-  if (G.filter === 'C') list = list.filter(p => p.np === 'C');
-  else if (G.filter === 'AG') list = list.filter(p => p.np === 'L' || p.np === 'AG');
-  else if (G.filter === 'AD') list = list.filter(p => p.np === 'R' || p.np === 'AD');
-  else if (G.filter === 'LD') list = list.filter(p => (p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (p.np === 'LD' || p.np === 'L' || p.np === 'DG'));
-  else if (G.filter === 'RD') list = list.filter(p => (p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (p.np === 'RD' || p.np === 'R' || p.np === 'DD'));
-  else if (G.filter === 'D') list = list.filter(p => p.p === 'D' || p.p === 'LD' || p.p === 'RD');
-  else if (G.filter === 'G') list = list.filter(p => p.p === 'G');
-
-  if (G.sortBy === 'SAL') {
-    list.sort((a, b) => b.$ - a.$ || (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0));
-  } else if (G.sortBy === 'PM') {
-    list.sort((a, b) => (b.pm ?? 0) - (a.pm ?? 0) || (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0));
-  } else if (G.sortBy === 'NAME') {
-    list.sort((a, b) => a.n.localeCompare(b.n));
-  } else {
-    // PTS
-    list.sort((a, b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0) || b.$ - a.$);
+  if (G.loading) {
+    host.className = 'pool';
+    host.innerHTML = `<div class="empty-msg">Ouverture du vestiaire…</div>`;
+    return;
   }
 
-  const cntEl = $('poolCount');
-  if (cntEl) cntEl.textContent = `${list.length} disponibles`;
-
+  const blocked = blockedState();
+  const list = poolFiltered();
   if (!list.length) {
-    host.innerHTML = `<div class="empty-msg">Aucun joueur correspondant dans ce vestiaire.<br>Change de filtre ou utilise les options de relance.</div>`;
+    host.className = 'pool';
+    host.innerHTML = '';
+    if (blocked) host.appendChild(blockedBannerEl(blocked));
+    host.insertAdjacentHTML('beforeend', `<div class="empty-msg">Aucun joueur ne correspond.<br>
+      ${G.search ? 'Efface la recherche' : G.onlyFit ? 'Désactive « signables seulement » dans les options' : 'Change de filtre'} ou utilise une relance.</div>`);
     return;
   }
 
-  if (G.layoutMode === 'rink') {
-    const colEl = document.createElement('div');
-    colEl.className = 'pool-col';
+  const frag = document.createDocumentFragment();
+  if (blocked) frag.appendChild(blockedBannerEl(blocked));
 
-    const filterTitles = {
-      ALL: 'TOUS LES JOUEURS (TOUTES POSITIONS)',
-      C: 'CENTRES (C)',
-      AG: 'AILIERS GAUCHE (AG)',
-      AD: 'AILIERS DROIT (AD)',
-      LD: 'DÉFENSEURS GAUCHE (DG)',
-      RD: 'DÉFENSEURS DROIT (DD)',
-      D: 'TOUS LES DÉFENSEURS',
-      G: 'GARDIENS (G)'
-    };
+  // Sans filtre de position, on range le vestiaire en six colonnes. La feuille
+  // de style décide si elles deviennent de vraies colonnes (écran large) ou de
+  // simples séparateurs dans une grille de cartes (écran étroit).
+  const byPos = G.filter === 'ALL';
+  host.className = 'pool' + (byPos ? ' by-pos' : '');
 
-    const headerEl = document.createElement('div');
-    headerEl.className = 'pool-col-header';
-    headerEl.innerHTML = `<span class="pool-col-title">${filterTitles[G.filter] || 'JOUEURS DISPONIBLES'}</span> <span class="pool-col-meta"><span class="pool-col-count">${list.length} dispo</span>${needBadgeForFilter(G.filter)}</span>`;
-    colEl.appendChild(headerEl);
-
-    const cardsContainer = document.createElement('div');
-    cardsContainer.className = 'pool-col-cards';
-
-    for (const p of list) {
-      cardsContainer.appendChild(renderPlayerCard(p, used));
+  if (byPos) {
+    for (const col of POOL_COLS) {
+      const players = list.filter(col.test);
+      const n = signedCount(col.need);
+      const el = document.createElement('div');
+      el.className = 'pool-col';
+      el.innerHTML = `<div class="pool-col-head">
+        <span class="pool-col-title">${esc(col.title)}</span>
+        <span class="pool-col-meta"><span>${players.length} dispo</span>
+        <span class="chip-need${n >= col.need.req ? ' full' : ''}" title="Signés sur requis à cette position">${n}/${col.need.req}</span></span>
+      </div>`;
+      const cards = document.createElement('div');
+      cards.className = 'pool-col-cards';
+      if (!players.length) cards.innerHTML = `<div class="empty-msg small">Aucun</div>`;
+      else for (const p of players) cards.appendChild(playerCardEl(p));
+      el.appendChild(cards);
+      frag.appendChild(el);
     }
-
-    colEl.appendChild(cardsContainer);
-    host.appendChild(colEl);
-    return;
+  } else {
+    for (const p of list) frag.appendChild(playerCardEl(p));
   }
 
-  const poolColsDef = [
-    { key: 'AG', title: 'AG / LW', test: p => p.p !== 'G' && p.p !== 'D' && p.p !== 'LD' && p.p !== 'RD' && (p.np === 'L' || p.np === 'AG') },
-    { key: 'C',  title: 'C',       test: p => p.p !== 'G' && p.p !== 'D' && p.p !== 'LD' && p.p !== 'RD' && (p.np === 'C' || (p.np !== 'L' && p.np !== 'R' && p.np !== 'AG' && p.np !== 'AD')) },
-    { key: 'AD', title: 'AD / RW', test: p => p.p !== 'G' && p.p !== 'D' && p.p !== 'LD' && p.p !== 'RD' && (p.np === 'R' || p.np === 'AD') },
-    { key: 'LD', title: 'DG / LD', test: p => (p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (p.np === 'LD' || p.np === 'L' || p.np === 'DG') },
-    { key: 'RD', title: 'DD / RD', test: p => (p.p === 'D' || p.p === 'LD' || p.p === 'RD') && (p.np === 'RD' || p.np === 'R' || p.np === 'DD') },
-    { key: 'G',  title: 'G',       test: p => p.p === 'G' },
-  ];
-
-  const colsMap = new Map();
-  poolColsDef.forEach(col => {
-    const players = list.filter(col.test);
-    colsMap.set(col.key, { ...col, players });
-  });
-
-  poolColsDef.forEach(colDef => {
-    const colData = colsMap.get(colDef.key);
-    const colEl = document.createElement('div');
-    colEl.className = 'pool-col';
-
-    const headerEl = document.createElement('div');
-    headerEl.className = 'pool-col-header';
-    headerEl.innerHTML = `<span class="pool-col-title">${colDef.title}</span> <span class="pool-col-meta"><span class="pool-col-count">${colData.players.length} dispo</span>${needBadgeHtml(signedCount(colDef.key), POS_NEED[colDef.key].req)}</span>`;
-    colEl.appendChild(headerEl);
-
-    const cardsContainer = document.createElement('div');
-    cardsContainer.className = 'pool-col-cards';
-
-    if (!colData.players.length) {
-      cardsContainer.innerHTML = `<div class="empty-msg" style="padding:16px 4px;font-size:11px;">Aucun</div>`;
-    } else {
-      for (const p of colData.players) {
-        cardsContainer.appendChild(renderPlayerCard(p, used));
-      }
-    }
-    colEl.appendChild(cardsContainer);
-    host.appendChild(colEl);
-  });
+  host.innerHTML = '';
+  host.appendChild(frag);
 }
 
-function renderChemistry() {
-  const chemBar = $('chemBar');
-  if (!chemBar) return;
+/* =====================================================================
+   Rendu — alignement
+   ===================================================================== */
 
-  const trioNames = ['1er Trio', '2e Trio', '3e Trio', '4e Trio'];
-  const pairNames = ['1re Paire', '2e Paire', '3e Paire'];
-  let badges = [];
+function slotEl(s) {
+  const p = G.roster[s.i];
+  const el = document.createElement('div');
+  const pen = p ? getPositionPenalty(p, s) : 0;
 
-  trioNames.forEach((name, unit) => {
-    const syn = getUnitSynergy(G.roster, 'F', unit);
-    if (syn && (syn.bonusOff !== 0 || syn.bonusDef !== 0)) {
-      const isGood = (syn.bonusOff + syn.bonusDef) > 0;
-      const isBad = (syn.bonusOff + syn.bonusDef) < 0;
-      const cls = isGood ? 'good' : isBad ? 'bad' : '';
-      badges.push(`<div class="chem-badge ${cls}"><strong>${name}:</strong> ${syn.name} (${syn.desc})</div>`);
-    }
-  });
+  el.className = 'slot'
+    + (p ? '' : ' empty')
+    + (G.selectedSlot === s.i ? ' selected' : '')
+    + (!p && G.target === s.i ? ' target' : '')
+    + (pen > 0 ? ' oop' : '');
 
-  pairNames.forEach((name, unit) => {
-    const syn = getUnitSynergy(G.roster, 'D', unit);
-    if (syn && (syn.bonusOff !== 0 || syn.bonusDef !== 0)) {
-      const isGood = (syn.bonusOff + syn.bonusDef) > 0;
-      const isBad = (syn.bonusOff + syn.bonusDef) < 0;
-      const cls = isGood ? 'good' : isBad ? 'bad' : '';
-      badges.push(`<div class="chem-badge ${cls}"><strong>${name}:</strong> ${syn.name} (${syn.desc})</div>`);
-    }
-  });
-
-  if (badges.length) {
-    chemBar.style.display = 'flex';
-    chemBar.innerHTML = badges.join('');
+  if (p) {
+    const st = displayStats(p);
+    const main = p.p === 'G' ? `${st.w} V` : `${st.pt} PTS`;
+    const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr} PTS/M`;
+    const penTag = pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position : −${pen} sur ses cotes">−${pen}</span>` : '';
+    el.innerHTML = `
+      <button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>
+      <div class="slot-top">
+        <span class="slot-role-tag">${esc(s.role)}</span>
+        <span class="slot-salary">${st.salaryMain}</span>
+      </div>
+      <div class="slot-name">${formatName(p.n)}</div>
+      <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
+      <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
+      <div class="slot-tags">${zoneTag(p)}${penTag}</div>`;
+    if (!G.fogOfWar) attachRadar(el, p);
+    el.querySelector('.slot-remove').onclick = ev => {
+      ev.stopPropagation();
+      delete G.roster[s.i];
+      G.selectedSlot = null;
+      saveGame();
+      render();
+      toast(`${p.n} retiré. ${money(capLeft())} de disponible.`);
+    };
   } else {
-    chemBar.style.display = 'none';
+    el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${esc(s.label)}</div>`;
   }
+
+  el.onclick = () => {
+    if (G.selectedSlot !== null) {
+      if (G.selectedSlot === s.i) {
+        G.selectedSlot = null;
+      } else {
+        const src = G.selectedSlot;
+        const a = G.roster[src], b = G.roster[s.i];
+        if (a) G.roster[s.i] = a; else delete G.roster[s.i];
+        if (b) G.roster[src] = b; else delete G.roster[src];
+        G.selectedSlot = null;
+        G.target = null;
+        saveGame();
+        toast(b ? 'Joueurs permutés.' : 'Joueur déplacé.');
+      }
+    } else if (p) {
+      G.selectedSlot = s.i;
+      toast('Touche une autre case pour déplacer ou permuter.');
+    } else {
+      G.target = (G.target === s.i ? null : s.i);
+      if (G.target !== null) {
+        setView('pool');
+        toast(`Case ciblée : ${s.label} · ${s.role}. Les signatures iront là.`);
+      }
+    }
+    render();
+  };
+  return el;
+}
+
+const UNIT_NAMES_F = ['Premier trio', 'Deuxième trio', 'Troisième trio', 'Quatrième trio'];
+const UNIT_NAMES_D = ['Première paire', 'Deuxième paire', 'Troisième paire'];
+
+function lineEl(title, slots, group, unit, cls = '') {
+  const wrap = document.createElement('div');
+  wrap.className = 'line';
+
+  let chemHtml = '<span class="line-chem">incomplet</span>';
+  if (group != null) {
+    const syn = getUnitSynergy(G.roster, group, unit);
+    const sum = (syn.bonusOff || 0) + (syn.bonusDef || 0);
+    const filled = slots.filter(s => G.roster[s.i]).length;
+    if (filled === slots.length) {
+      const kind = sum > 0 ? 'good' : sum < 0 ? 'bad' : '';
+      if (kind) wrap.classList.add(kind);
+      const sign = v => (v > 0 ? `+${v}` : `${v}`);
+      chemHtml = `<span class="line-chem ${kind}" title="${esc(syn.desc || '')}">${esc(syn.name)} · ATT ${sign(syn.bonusOff || 0)} / DÉF ${sign(syn.bonusDef || 0)}</span>`;
+    } else {
+      chemHtml = `<span class="line-chem">${filled}/${slots.length} · chimie à venir</span>`;
+    }
+  } else {
+    const filled = slots.filter(s => G.roster[s.i]).length;
+    chemHtml = `<span class="line-chem">${filled}/${slots.length} comblés</span>`;
+  }
+
+  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${chemHtml}</div>`;
+  const row = document.createElement('div');
+  row.className = 'line-slots' + (cls ? ' ' + cls : '');
+  slots.forEach(s => row.appendChild(slotEl(s)));
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function renderRoster() {
+  const host = $('rosterBoard');
+  if (!host) return;
+  host.innerHTML = '';
+
+  UNIT_NAMES_F.forEach((name, u) => {
+    const slots = SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch);
+    host.appendChild(lineEl(name, slots, 'F', u));
+  });
+  UNIT_NAMES_D.forEach((name, u) => {
+    const slots = SLOTS.filter(s => s.group === 'D' && s.unit === u && !s.scratch);
+    host.appendChild(lineEl(name, slots, 'D', u, 'pair'));
+  });
+  host.appendChild(lineEl('Gardiens', SLOTS.filter(s => s.group === 'G' && !s.scratch), null, null, 'pair'));
+  host.appendChild(lineEl('Réservistes', SLOTS.filter(s => s.scratch), null, null, 'wide'));
+}
+
+function renderTeamSummary() {
+  const host = $('teamSummary');
+  if (!host) return;
+
+  const ps = picked();
+  const ages = ps.map(p => ageAtSeason(p.bd, p.s)).filter(Boolean);
+  const avgAge = ages.length ? (ages.reduce((a, b) => a + b, 0) / ages.length).toFixed(1) : null;
+  const oop = SLOTS.filter(s => G.roster[s.i] && getPositionPenalty(G.roster[s.i], s) > 0).length;
+
+  let optimal = 0, miscast = 0;
+  for (let u = 0; u < 4; u++) {
+    const syn = getUnitSynergy(G.roster, 'F', u);
+    if (syn.zone && syn.zone.startsWith('✨')) optimal++;
+    if (syn.zone && syn.zone.startsWith('⚠️')) miscast++;
+  }
+  for (let u = 0; u < 3; u++) {
+    const syn = getUnitSynergy(G.roster, 'D', u);
+    if (syn.zone && syn.zone.startsWith('✨')) optimal++;
+    if (syn.zone && syn.zone.startsWith('⚠️')) miscast++;
+  }
+
+  const totalPts = ps.filter(p => p.p !== 'G').reduce((s, p) => s + displayStats(p).pt, 0);
+  const topSal = ps.length ? Math.max(...ps.map(p => p.$)) : 0;
+
+  host.innerHTML = `
+    <div class="sum-item"><div class="k">Masse</div><div class="v">${money(capUsed())}</div></div>
+    <div class="sum-item"><div class="k">Plus gros contrat</div><div class="v">${ps.length ? money(topSal) : '—'}</div></div>
+    <div class="sum-item"><div class="k">Points cumulés</div><div class="v">${totalPts}</div></div>
+    ${avgAge
+      ? `<div class="sum-item"><div class="k">Âge moyen</div><div class="v">${avgAge}</div></div>`
+      : `<div class="sum-item"><div class="k">Cases vides</div><div class="v ${slotsLeft() ? 'dash-warn' : 'dash-good'}">${slotsLeft()}</div></div>`}
+    <div class="sum-item"><div class="k">Unités optimales</div><div class="v ${optimal ? 'dash-good' : ''}">${optimal}/7</div></div>
+    <div class="sum-item"><div class="k">Mal assorties</div><div class="v ${miscast ? 'dash-bad' : ''}">${miscast}</div></div>
+    <div class="sum-item"><div class="k">Hors position</div><div class="v ${oop ? 'dash-warn' : ''}">${oop}</div></div>`;
 }
 
 function renderMain() {
   const b = $('mainBtn');
-  const full = picked().length === 23;
-  b.disabled = !full || G.done;
-  b.textContent = G.done ? 'SAISON COMPLÉTÉE'
-    : full ? 'SIMULER LA SAISON (82 MATCHS)'
-    : `SIGNER ENCORE ${23 - picked().length} JOUEURS`;
+  const n = picked().length;
+  const over = capLeft() < 0;
+  b.disabled = n !== 23 || G.done || over;
+  b.textContent = G.done ? 'Saison simulée'
+    : over ? `Plafond dépassé de ${money(-capLeft())}`
+    : n === 23 ? 'Simuler la saison · 82 matchs'
+    : `Encore ${23 - n} joueur${23 - n > 1 ? 's' : ''}`;
 }
 
 function render() {
-  renderCap(); renderSpin(); renderFilters(); renderPool(); renderRoster(); renderMain();
+  syncAgeControls();
+  renderCap();
+  renderSpin();
+  renderDash();
+  renderFilters();
+  renderPool();
+  renderPoolMeta();
+  renderRoster();
+  renderTeamSummary();
+  renderMain();
+  const hint = $('rosterHint');
+  if (hint) {
+    hint.textContent = G.selectedSlot !== null
+      ? 'Touche une autre case pour déplacer ou permuter le joueur choisi.'
+      : G.target !== null
+        ? 'Une case est ciblée : la prochaine signature ira là.'
+        : 'Touche un joueur signé pour le déplacer, une case vide pour la cibler.';
+  }
 }
 
-/* ---------- FIFA Radar Chart Tooltip ---------- */
+/* =====================================================================
+   Hexagone (seulement si le brouillard est levé)
+   ===================================================================== */
 
-function attachRadarEvents(el, p) {
+function attachRadar(el, p) {
   el.addEventListener('mouseenter', ev => showRadar(ev, p));
-  el.addEventListener('mousemove', ev => positionRadar(ev));
+  el.addEventListener('mousemove', positionRadar);
   el.addEventListener('mouseleave', hideRadar);
 }
 
 function showRadar(ev, p) {
   if (G.fogOfWar) return;
-  const tooltip = $('radarTooltip');
-  if (!tooltip) return;
+  const tip = $('radarTooltip');
+  if (!tip) return;
 
   const isG = p.p === 'G';
-  const labels = isG
-    ? ['TEC', 'BLI', 'ROB', 'CLU', 'RÉF', 'OVR']
-    : ['ATT', 'DÉF', 'ROB', 'CLU', 'VIT', 'OVR'];
-
+  const labels = isG ? ['TEC', 'BLI', 'ROB', 'CLU', 'RÉF', 'COTE'] : ['ATT', 'DÉF', 'ROB', 'CLU', 'VIT', 'COTE'];
   const r = getHiddenRatings(p);
-  const values = isG
-    ? [r.o, r.d, r.r, r.c, r.sp ?? r.o, r.v]
-    : [r.o, r.d, r.r, r.c, r.sp ?? 50, r.v];
+  const values = [r.o, r.d, r.r, r.c, r.sp ?? 50, r.v];
 
-  // Draw 6-axis polygon SVG
-  const size = 160;
-  const center = size / 2;
-  const radius = 52;
-
-  const getCoord = (val, i) => {
-    const angle = (i * 60 - 90) * (Math.PI / 180);
-    const r = (val / 100) * radius;
-    return [center + r * Math.cos(angle), center + r * Math.sin(angle)];
+  const size = 150, c = size / 2, rad = 48;
+  const coord = (val, i) => {
+    const ang = (i * 60 - 90) * Math.PI / 180;
+    const rr = (val / 100) * rad;
+    return [c + rr * Math.cos(ang), c + rr * Math.sin(ang)];
   };
 
-  // Background Grid (25, 50, 75, 100)
-  let gridSvg = '';
-  [0.25, 0.50, 0.75, 1.0].forEach(level => {
-    const points = [];
+  let grid = '';
+  for (const lvl of [0.25, 0.5, 0.75, 1]) {
+    const pts = [];
     for (let i = 0; i < 6; i++) {
-      const angle = (i * 60 - 90) * (Math.PI / 180);
-      const r = level * radius;
-      points.push(`${center + r * Math.cos(angle)},${center + r * Math.sin(angle)}`);
+      const ang = (i * 60 - 90) * Math.PI / 180;
+      pts.push(`${c + lvl * rad * Math.cos(ang)},${c + lvl * rad * Math.sin(ang)}`);
     }
-    gridSvg += `<polygon points="${points.join(' ')}" fill="none" stroke="rgba(26,50,77,0.6)" stroke-width="1"/>`;
-  });
-
-  // Axis lines & labels
-  let axesSvg = '';
-  let labelsSvg = '';
-  for (let i = 0; i < 6; i++) {
-    const angle = (i * 60 - 90) * (Math.PI / 180);
-    const x2 = center + radius * Math.cos(angle);
-    const y2 = center + radius * Math.sin(angle);
-    axesSvg += `<line x1="${center}" y1="${center}" x2="${x2}" y2="${y2}" stroke="rgba(26,50,77,0.8)" stroke-width="1"/>`;
-
-    const lx = center + (radius + 15) * Math.cos(angle);
-    const ly = center + (radius + 15) * Math.sin(angle);
-    labelsSvg += `<text x="${lx}" y="${ly + 3}" fill="#829ab3" font-size="8" font-weight="800" text-anchor="middle">${labels[i]}</text>`;
+    grid += `<polygon points="${pts.join(' ')}" fill="none" stroke="rgba(28,52,80,0.8)" stroke-width="1"/>`;
   }
+  let axes = '', lbls = '';
+  for (let i = 0; i < 6; i++) {
+    const ang = (i * 60 - 90) * Math.PI / 180;
+    axes += `<line x1="${c}" y1="${c}" x2="${c + rad * Math.cos(ang)}" y2="${c + rad * Math.sin(ang)}" stroke="rgba(28,52,80,1)" stroke-width="1"/>`;
+    lbls += `<text x="${c + (rad + 14) * Math.cos(ang)}" y="${c + (rad + 14) * Math.sin(ang) + 3}" fill="#93a9c0" font-size="8" font-weight="800" text-anchor="middle">${labels[i]}</text>`;
+  }
+  const poly = values.map((v, i) => coord(v, i).join(',')).join(' ');
+  const dots = values.map((v, i) => { const [x, y] = coord(v, i); return `<circle cx="${x}" cy="${y}" r="2.5" fill="#38bdf8"/>`; }).join('');
 
-  // Player Value Polygon
-  const valPoints = values.slice(0, 6).map((v, i) => getCoord(v, i).join(',')).join(' ');
-  const polygonSvg = `<polygon points="${valPoints}" fill="rgba(244,196,48,0.35)" stroke="#f4c430" stroke-width="2"/>`;
-
-  // Value Dots
-  let dotsSvg = '';
-  values.slice(0, 6).forEach((v, i) => {
-    const [cx, cy] = getCoord(v, i);
-    dotsSvg += `<circle cx="${cx}" cy="${cy}" r="3" fill="#38bdf8"/>`;
-  });
-
-  const eraSal = p.realSal ?? getEraSalary(p.$, p.s);
-  const startYr = parseInt(p.s ? p.s.slice(0, 4) : '2025', 10);
-  const isReal = p.isReal !== undefined ? !!p.isReal : (startYr >= 1989);
-  const tagEra = isReal ? 'Réel' : 'Estimé';
-
-  tooltip.innerHTML = `
-    <div class="radar-header">${p.n}</div>
-    <div class="radar-sub">${p.np} · ${p.t} · COTE ${r.v}</div>
-    <div style="font-size:9.5px;color:var(--green-neon);margin-bottom:6px;font-weight:700;">
-      Ajusté 2026: ${money(p.$)} · ${tagEra} (${p.s}): ${money(eraSal)}
-    </div>
+  tip.innerHTML = `
+    <div class="radar-header">${esc(p.n)}</div>
+    <div class="radar-sub">${esc(positionLabel(p))} · ${esc(p.t)} ${esc(p.s)} · cote ${r.v}</div>
     <svg class="radar-chart-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      ${gridSvg}
-      ${axesSvg}
-      ${polygonSvg}
-      ${dotsSvg}
-      ${labelsSvg}
+      ${grid}${axes}
+      <polygon points="${poly}" fill="rgba(244,196,48,0.32)" stroke="#f4c430" stroke-width="2"/>
+      ${dots}${lbls}
     </svg>`;
-
-  tooltip.style.display = 'block';
+  tip.style.display = 'block';
   positionRadar(ev);
 }
 
 function positionRadar(ev) {
-  const tooltip = $('radarTooltip');
-  if (!tooltip || tooltip.style.display === 'none') return;
-  const x = Math.min(window.innerWidth - 225, ev.clientX + 15);
-  const y = Math.min(window.innerHeight - 240, ev.clientY + 15);
-  tooltip.style.left = x + 'px';
-  tooltip.style.top = y + 'px';
+  const tip = $('radarTooltip');
+  if (!tip || tip.style.display === 'none') return;
+  tip.style.left = Math.min(window.innerWidth - 222, ev.clientX + 14) + 'px';
+  tip.style.top = Math.min(window.innerHeight - 250, ev.clientY + 14) + 'px';
 }
 
 function hideRadar() {
-  const tooltip = $('radarTooltip');
-  if (tooltip) tooltip.style.display = 'none';
+  const tip = $('radarTooltip');
+  if (tip) tip.style.display = 'none';
 }
 
-/* ---------- Leaderboard ---------- */
+/* =====================================================================
+   Fiche complète du joueur
+   ===================================================================== */
 
-function saveLeaderboard(entry) {
-  try {
-    const raw = localStorage.getItem('cap82_leaderboard');
-    const list = raw ? JSON.parse(raw) : [];
-    list.unshift(entry);
-    localStorage.setItem('cap82_leaderboard', JSON.stringify(list.slice(0, 20)));
-  } catch {}
-}
-
-function showLeaderboard() {
-  const modal = $('leaderboardModal');
-  const body = $('leaderboardBody');
-  if (!modal || !body) return;
-
-  try {
-    const raw = localStorage.getItem('cap82_leaderboard');
-    const list = raw ? JSON.parse(raw) : [];
-
-    if (!list.length) {
-      body.innerHTML = `<div class="empty-msg">Aucune saison enregistrée pour l'instant.<br>Complétez une saison pour figurer dans l'historique !</div>`;
-    } else {
-      body.innerHTML = list.map(item => `
-        <div class="leaderboard-item">
-          <div>
-            <div class="lb-score ${item.W === 82 ? 'perfect' : ''}">${item.W}-${item.L}-${item.OTL}</div>
-            <div style="font-size:10px;color:var(--text);margin-top:2px">${item.points} pts · Diff ${item.GF - item.GA > 0 ? '+' : ''}${item.GF - item.GA}</div>
-          </div>
-          <div class="lb-details">
-            <div>Masse: ${money(item.capUsed)} / ${money(CAP)}</div>
-            <div>${item.date}</div>
-          </div>
-        </div>`).join('');
-    }
-  } catch {
-    body.innerHTML = `<div class="empty-msg">Impossible d'accéder à l'historique.</div>`;
-  }
-
-  modal.style.display = 'flex';
-}
-
-function hideLeaderboard() {
-  const modal = $('leaderboardModal');
-  if (modal) modal.style.display = 'none';
-}
-
-function simulatePlayoffs(top16Teams) {
-  const host = $('playoffsSection');
-  if (!host) return;
-
-  host.style.display = 'block';
-  host.scrollIntoView({ behavior: 'smooth' });
-
-  let roundTeams = top16Teams.slice();
-  let roundNum = 1;
-  const roundNames = ['Huitièmes de Finale', 'Quarts de Finale', 'Demi-Finales', 'FINALE DE LA COUPE STANLEY 🏆'];
-  let html = `<h2 style="color:var(--gold);text-align:center;font-size:20px;text-transform:uppercase;">🏆 SÉRIES ÉLIMINATOIRES — EN ROUTE VERS LA COUPE STANLEY</h2>`;
-
-  while (roundTeams.length > 1) {
-    const nextRound = [];
-    html += `<div style="background:rgba(10,20,32,0.8);border:1px solid var(--panel-border);border-radius:12px;padding:14px;margin-top:14px;">
-      <h3 style="color:var(--blue-bright);margin:0 0 10px;font-size:14px;text-transform:uppercase;">Ronde ${roundNum} : ${roundNames[roundNum - 1]}</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:10px;">`;
-
-    for (let i = 0; i < roundTeams.length / 2; i++) {
-      const teamA = roundTeams[i];
-      const teamB = roundTeams[roundTeams.length - 1 - i];
-
-      // Série 4 de 7 jouée match par match avec les vrais alignements
-      const series = playSeries(teamA, teamB);
-      const winsA = series.wA, winsB = series.wB;
-      const seriesWinner = series.winner;
-      nextRound.push(seriesWinner);
-
-      const isPlayerSeries = teamA.isPlayer || teamB.isPlayer;
-
-      html += `<div style="background:var(--panel-card);border:1px solid ${isPlayerSeries ? 'var(--gold)' : 'var(--panel-border)'};border-radius:8px;padding:10px;font-size:11.5px;">
-        <div style="display:flex;justify-content:space-between;font-weight:800;color:${teamA.isPlayer ? 'var(--gold)' : 'var(--text)'};">
-          <span>${getTeamLogoHtml(teamA.tag, 14)} ${teamA.name}</span>
-          <span>${winsA}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-weight:800;color:${teamB.isPlayer ? 'var(--gold)' : 'var(--text)'};margin-top:4px;">
-          <span>${getTeamLogoHtml(teamB.tag, 14)} ${teamB.name}</span>
-          <span>${winsB}</span>
-        </div>
-        <div style="font-size:9.5px;color:var(--sub);margin-top:6px;text-align:right;font-weight:700;">
-          Série : <strong>${seriesWinner.name} gagne (4-${Math.min(winsA, winsB)})</strong>
-        </div>
-      </div>`;
-    }
-
-    html += `</div></div>`;
-    roundTeams = nextRound;
-    roundNum++;
-  }
-
-  const champion = roundTeams[0];
-  const championIsPlayer = champion.isPlayer;
-
-  html += `<div style="text-align:center;margin-top:24px;background:rgba(244,196,48,0.15);border:2px solid var(--gold);border-radius:14px;padding:20px;">
-    <h2 style="color:var(--gold);font-size:26px;margin:0 0 6px;">🎉 CHAMPION DE LA COUPE STANLEY</h2>
-    <div style="font-size:22px;font-weight:900;color:var(--text);">${getTeamLogoHtml(champion.tag, 32)} ${champion.name}</div>
-    <p style="color:var(--sub);font-size:13px;margin-top:8px;">${championIsPlayer ? 'FÉLICITATIONS ! VOTRE FORMATION A CONQUIS LA COUPE STANLEY ! 🏆' : 'Votre équipe a donné son maximum. Tentez votre chance à nouveau pour le trophée ultime !'}</p>
-  </div>`;
-
-  host.innerHTML = html;
-}
-
-function showBible() {
-  const modal = $('bibleModal');
-  if (modal) modal.style.display = 'flex';
-}
-
-function hideBible() {
-  const modal = $('bibleModal');
-  if (modal) modal.style.display = 'none';
-}
-
-/* ---------- Hockey Card Modal ---------- */
-
-function showHockeyCardModal(p) {
+function showPlayerModal(p) {
   const modal = $('hockeyCardModal');
   const body = $('hockeyCardBody');
   if (!modal || !body) return;
 
-  const used = capUsed();
   const already = picked().includes(p);
-  const opts = openSlots(p);
-  const slot = (G.target !== null && !G.roster[G.target] && fits(p, SLOTS[G.target]))
-    ? SLOTS[G.target] : opts[0];
-  const over = (used + p.$) > CAP;
+  const slot = destinationFor(p);
+  const rem = capLeft();
+  const over = p.$ > rem;
   const pen = slot ? getPositionPenalty(p, slot) : 0;
-  const penTag = pen > 0 ? ` <span class="tag-pen">-${pen} Pos</span>` : '';
-
-  const st = getPlayerDisplayStats(p);
-  const arch = getArchetype(p, getHiddenRatings(p));
-  const logo = getTeamLogoHtml(p.t, 24);
-  const logoBg = getTeamLogoHtml(p.t, 140);
-  const headshot = getHeadshotHtml(p, 90);
+  const st = displayStats(p);
   const colors = TEAM_COLORS[p.t] || { primary: '#112236', accent: '#38bdf8' };
 
-  const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
+  const cell = (k, v, hl = false) => `<div class="stat-cell${hl ? ' hl' : ''}"><div class="k">${k}</div><div class="v">${v}</div></div>`;
   const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
 
-  const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
+  const stats = p.p === 'G'
+    ? cell('PJ', st.gp) + cell('V', st.w, true) + cell('D', st.l) + cell('BL', st.so)
+      + cell('%ARR', p.sv ?? '—') + cell('MBA', p.ga ?? '—')
+    : cell('PJ', st.gp) + cell('B', st.g) + cell('A', st.a) + cell('PTS', st.pt, true)
+      + cell('PTS/M', st.ppgStr) + cell('+/-', pmStr) + cell('PUN', p.pim ?? '—')
+      + cell('TG/M', p.toi != null ? p.toi.toFixed ? p.toi.toFixed(1) : p.toi : '—')
+      + (p.ht != null ? cell('MÉ/M', p.ht) : '')
+      + (p.fo != null ? cell('MJ %', Math.round(p.fo * 100)) : '');
+
+  let ratings;
+  if (G.fogOfWar) {
+    ratings = `<div class="fog-msg">🔒 Les cotes cachées restent secrètes jusqu'à la simulation.<br>
+      Tu peux les afficher dans <strong>Options → brouillard de guerre</strong>, mais c'est le mode entraînement.</div>`;
+  } else {
+    const r = getHiddenRatings(p);
+    const rc = (k, v, cls = '') => `<div class="rating-cell ${cls}"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+    ratings = `<div class="rating-grid">
+      ${rc(p.p === 'G' ? 'TEC' : 'ATT', r.o)}${rc(p.p === 'G' ? 'BLI' : 'DÉF', r.d)}
+      ${rc('ROB', r.r)}${rc('CLU', r.c)}${rc(p.p === 'G' ? 'RÉF' : 'VIT', r.sp ?? '—')}${rc('COTE', r.v, 'ovr')}
+    </div>`;
+  }
+
+  const label = already ? '✓ Déjà signé' : !slot ? 'Aucune case libre' : over ? 'Hors budget' : `Signer · ${slot.role}`;
+  const destNote = already ? ''
+    : !slot ? `<div class="dash-note dash-bad">Toutes les cases compatibles sont prises. Déplace un joueur ou vise une autre position.</div>`
+    : over ? `<div class="dash-note dash-bad">${money(p.$)} pour ${money(rem)} restants.</div>`
+    : `<div class="dash-note">Ira au <strong>${esc(slot.label)} · ${esc(slot.role)}</strong>${pen > 0 ? ` avec une pénalité de <strong>−${pen}</strong> sur ses cotes` : ' sans pénalité'}. Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`;
+
   const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
-
-  let btnLabel = '+ SIGNER CE JOUEUR';
-  if (already) btnLabel = '✓ DÉJÀ SIGNÉ';
-  else if (!slot) btnLabel = '× AUCUNE POSITION DISPONIBLE';
-  else if (over) btnLabel = '× HORS BUDGET SALARIAL';
-
-  let statsTableHtml = '';
-  if (p.p === 'G') {
-    statsTableHtml = `
-      <table class="hockey-card-stats-table">
-        <thead>
-          <tr>
-            <th>PJ</th><th>V</th><th>D</th><th>DP</th><th>MBA</th><th>%ARR</th><th>BL</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>${st.gp}</td>
-            <td style="color:var(--gold);font-weight:900;">${st.w}</td>
-            <td>${st.l}</td>
-            <td>${st.so ?? 0}</td>
-            <td>${p.ga ?? '—'}</td>
-            <td>${p.sv ?? '—'}</td>
-            <td>${p.so ?? 0}</td>
-          </tr>
-        </tbody>
-      </table>`;
-  } else {
-    const shotStr = p.sOG != null ? Math.round(p.sOG * (st.factor || 1)) : '—';
-    const hitStr = p.ht != null ? (p.ht * (st.factor || 1)).toFixed(1) : '—';
-    const foStr = p.fo != null ? `${Math.round(p.fo * 100)}%` : '—';
-
-    statsTableHtml = `
-      <table class="hockey-card-stats-table">
-        <thead>
-          <tr>
-            <th>PJ</th><th>B</th><th>A</th><th>PTS</th><th>PTS/M</th><th>+/-</th><th>TIRS</th><th>CH/M</th><th>MJ%</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>${st.gp}</td>
-            <td style="font-weight:800;">${st.g}</td>
-            <td style="font-weight:800;">${st.a}</td>
-            <td style="color:var(--gold);font-weight:900;font-size:15px;">${st.pt}</td>
-            <td class="ptsm">${st.ppgStr}</td>
-            <td class="${pmClass}">${pmStr}</td>
-            <td>${shotStr}</td>
-            <td>${hitStr}</td>
-            <td>${foStr}</td>
-          </tr>
-        </tbody>
-      </table>`;
-  }
-
-  let ratingsHtml = '';
-  if (!G.fogOfWar) {
-    const hr = getHiddenRatings(p);
-    const isG = p.p === 'G';
-    ratingsHtml = `
-      <div class="hockey-card-ratings">
-        <div class="rating-badge-item"><span>${isG ? 'TEC' : 'ATT'}</span> <strong>${hr.o}</strong></div>
-        <div class="rating-badge-item"><span>DÉF</span> <strong>${hr.d}</strong></div>
-        <div class="rating-badge-item"><span>ROB</span> <strong>${hr.r}</strong></div>
-        <div class="rating-badge-item"><span>CLU</span> <strong>${hr.c}</strong></div>
-        <div class="rating-badge-item ovr"><span>COTE</span> <strong>${hr.v}</strong></div>
-      </div>`;
-  } else {
-    ratingsHtml = `<div class="hockey-card-fog-msg">🔒 COTES CACHÉES (Fog of War actif)</div>`;
-  }
+  const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
 
   body.innerHTML = `
-    <div class="hockey-card-wrapper" style="--card-primary: ${colors.primary}; --card-accent: ${colors.accent};">
-      <div class="hockey-card-watermark">${logoBg}</div>
-      <div class="hockey-card-top-bar">
-        <div class="hockey-card-team-info">${logo} <span>${TEAMFULL[p.t] || p.t} · ${p.s}</span></div>
-        <div class="hockey-card-pos-tag">${getPositionLabel(p)}${penTag}</div>
-      </div>
-
-      <div class="hockey-card-main-area">
-        <div class="hockey-card-headshot-frame">
-          ${headshot}
-        </div>
-        <div class="hockey-card-identity">
-          <div class="hockey-card-player-name">${formatPlayerName(p.n)}</div>
-          <div class="hockey-card-archetype" title="${arch.desc}">${arch.icon} ${arch.label}</div>
-          <div class="hockey-card-tags">${zoneTagHtml(p)}${elcTagHtml(p)}${ageTagHtml(p)}</div>
-          <div class="hockey-card-salary-block">
-            <span class="salary-main">${st.salaryPrimary}</span>
-            <span class="salary-sub">${st.salarySub}</span>
+    <div class="pcard-full" style="--card-primary:${colors.primary};--card-accent:${colors.accent}">
+      <div class="pcard-full-head">
+        <div class="pcard-full-watermark">${getTeamLogoHtml(p.t, 128)}</div>
+        <div class="pcard-full-top">
+          <div class="pcard-full-photo">${headshotHtml(p)}</div>
+          <div class="pcard-full-id">
+            <div class="pcard-full-name">${formatName(p.n)}</div>
+            <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
+              <span class="pos-badge ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
+            <div class="tags pcard-full-tags">${archTag(p)}${zoneTag(p)}${ageTag(p)}${elcTag(p)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
           </div>
         </div>
-      </div>
-
-      <div class="hockey-card-stats-section">
-        <div class="hockey-card-section-title">STATISTIQUES DE LA SAISON (${p.s})</div>
-        ${statsTableHtml}
-      </div>
-
-      <div class="hockey-card-ratings-section">
-        <div class="hockey-card-section-title">PROFIL & COTES DU JOUEUR</div>
-        ${ratingsHtml}
-      </div>
-
-      <div class="hockey-card-footer">
-        <div class="hockey-card-links">
-          <a href="${nhlUrl}" target="_blank" class="ext-link">Fiche LNH 🔗</a>
-          <a href="${hdbUrl}" target="_blank" class="ext-link">Fiche HDB 🔗</a>
+        <div class="pcard-full-salary">
+          <span class="big">${st.salaryMain}</span>
+          <span class="small">${st.salarySub}</span>
+          <span class="small">${G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`}</span>
         </div>
-        <button id="modalSignBtn" class="add" style="padding:8px 14px;font-size:12px;font-weight:900;" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-label">Statistiques ${G.statsProrata ? '(prorata 82 matchs, ajusté à l\'époque)' : `de la saison ${esc(p.s)}`}</div>
+        <div class="stat-grid">${stats}</div>
+        <div class="section-label">Profil et cotes</div>
+        ${ratings}
+        <div class="section-label">Impact sur ton alignement</div>
+        ${destNote}
+      </div>
+      <div class="pcard-full-foot">
+        <div class="ext-links">
+          <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ↗</a>
+          <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ↗</a>
+        </div>
+        <button class="btn go" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
       </div>
     </div>`;
 
-  const modalSignBtn = $('modalSignBtn');
-  if (modalSignBtn) {
-    modalSignBtn.onclick = async () => {
-      if (already || !slot || over) return;
-      G.roster[slot.i] = p;
-      G.target = null;
-      hideHockeyCardModal();
-      await nextSpin(true, true);
-      saveGame();
-      render();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  const btn = $('modalSignBtn');
+  if (btn) {
+    btn.onclick = () => {
+      closeModal('hockeyCardModal');
+      signPlayer(p);
     };
   }
-
   modal.style.display = 'flex';
 }
 
-function hideHockeyCardModal() {
-  const modal = $('hockeyCardModal');
-  if (modal) modal.style.display = 'none';
+/* =====================================================================
+   Historique
+   ===================================================================== */
+
+function saveLeaderboard(entry) {
+  try {
+    const list = JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]');
+    list.unshift(entry);
+    localStorage.setItem('cap82_leaderboard', JSON.stringify(list.slice(0, 20)));
+  } catch { /* ignore */ }
 }
 
-/* ---------- simulation ---------- */
+function showLeaderboard() {
+  const body = $('leaderboardBody');
+  if (!body) return;
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]'); } catch { /* ignore */ }
+
+  if (!list.length) {
+    body.innerHTML = `<div class="empty-msg">Aucune saison enregistrée.<br>Complète un alignement de 23 et simule pour apparaître ici.</div>`;
+    return;
+  }
+  const best = Math.max(...list.map(i => i.points || 0));
+  body.innerHTML = list.map(i => `
+    <div class="lb-item">
+      <div>
+        <div class="lb-score ${i.W === 82 ? 'perfect' : ''}">${i.W}-${i.L}-${i.OTL}</div>
+        <div class="dash-note">${i.points} pts · différentiel ${i.GF - i.GA > 0 ? '+' : ''}${i.GF - i.GA}${i.points === best ? ' · <span class="dash-warn">meilleure</span>' : ''}</div>
+      </div>
+      <div class="lb-details">
+        <div>${i.rank ? `${i.rank}e de ${i.nTeams}` : ''}</div>
+        <div>Masse : ${money(i.capUsed)}</div>
+        <div>${esc(i.date)}</div>
+      </div>
+    </div>`).join('');
+}
+
+/* =====================================================================
+   Simulation
+   ===================================================================== */
 
 const bar = (label, val) => {
   const pct = Math.max(0, Math.min(100, (val - 25) / 74 * 100));
@@ -1374,9 +1365,7 @@ const bar = (label, val) => {
 
 /**
  * Adversaires : de vraies équipes historiques prises dans les saisons déjà
- * chargées (celles de la roulette), alignées automatiquement. On complète
- * avec des saisons au hasard s'il en manque. Les joueurs déjà signés par le
- * joueur sont exclus des vestiaires adverses.
+ * chargées, alignées automatiquement. Les joueurs déjà signés sont exclus.
  */
 async function buildOpponents(count) {
   const exclude = new Set(picked().map(getPlayerKey));
@@ -1387,7 +1376,7 @@ async function buildOpponents(count) {
         const key = `${season}_${team}`;
         if (seen.has(key)) continue;
         const nF = pool.filter(p => p.p === 'F').length;
-        const nD = pool.filter(p => p.p === 'D').length;
+        const nD = pool.filter(p => isD(p)).length;
         const nG = pool.filter(p => p.p === 'G').length;
         if (nF < 12 || nD < 6 || nG < 2) continue;
         seen.add(key);
@@ -1401,209 +1390,229 @@ async function buildOpponents(count) {
     try { await getShard(rnd(state.index.seasons)); } catch { /* on réessaie */ }
     collect();
   }
-  const chosen = cands.sort(() => Math.random() - 0.5).slice(0, count);
-  return chosen.map(c => createTeam(`${c.team} ${c.season}`, c.team, autoRoster(c.pool, exclude), { season: c.season }));
+  return cands.sort(() => Math.random() - 0.5).slice(0, count)
+    .map(c => createTeam(`${c.team} ${c.season}`, c.team, autoRoster(c.pool, exclude), { season: c.season }));
 }
 
-$('mainBtn').onclick = async () => {
-  if (picked().length !== 23 || G.done) return;
+async function runSeason() {
+  if (picked().length !== 23 || G.done || capLeft() < 0) return;
   G.done = true;
   const mb = $('mainBtn');
   mb.disabled = true;
-  mb.textContent = 'SIMULATION DE LA LIGUE… (1 312 MATCHS)';
+  mb.textContent = 'Simulation de la ligue… 1 312 matchs';
+  await new Promise(r => setTimeout(r, 20));
 
   let opponents = [];
   try { opponents = await buildOpponents(31); } catch { opponents = []; }
-  if (opponents.length % 2 === 0 && opponents.length) opponents.pop();   // total pair avec le joueur
+  if (opponents.length && opponents.length % 2 === 0) opponents.pop();
 
   const you = createTeam('Votre formation', 'YOU', G.roster, { isPlayer: true });
-  let r, leagueTeams, leaders = [];
+  let r, teams, leaders = [];
   if (opponents.length) {
     const league = simulateLeague([you, ...opponents]);
-    leagueTeams = league.standings;
+    teams = league.standings;
     leaders = league.leaders;
     r = {
       W: you.W, L: you.L, OTL: you.OTL, GF: you.GF, GA: you.GA, points: you.PTS,
-      attaque: you.strength.att, brigade: you.strength.def, rob: you.strength.rob,
-      clu: you.strength.clu, gRating: you.strength.g,
+      attaque: you.strength.att, brigade: you.strength.def,
+      rob: you.strength.rob, clu: you.strength.clu, gRating: you.strength.g,
     };
   } else {
-    // Aucun vestiaire adverse disponible : saison contre la moyenne de la ligue
     r = simulate(G.roster);
     Object.assign(you, { W: r.W, L: r.L, OTL: r.OTL, GF: r.GF, GA: r.GA, PTS: r.points });
-    leagueTeams = [you];
+    teams = [you];
   }
-  const nTeams = leagueTeams.length;
+
+  renderResult(r, you, teams, leaders);
+}
+
+function renderResult(r, you, teams, leaders) {
+  const nTeams = teams.length;
+  const rank = teams.findIndex(t => t.isPlayer) + 1;
   const perfect = (r.L + r.OTL) === 0;
 
   const note = perfect
-    ? '82-0-0. Saison historique parfaite ! Les Bruins de 2022-23 ont fini 65-12-5.'
-    : r.W >= 65 ? `${r.W} victoires — mieux que le record réel de la LNH (65, Bruins 2022-23).`
-    : r.W >= 55 ? 'Une saison impressionnante, mais la perfection exige de la profondeur sur tous les trios.'
-    : "Le plafond a exigé des compromis. Analysez vos lignes ci-dessous pour voir où retravailler.";
+    ? '82-0-0. Saison parfaite. Les Bruins de 2022-23, meilleure saison de l\'histoire, ont fini 65-12-5.'
+    : r.W >= 65 ? `${r.W} victoires : mieux que le record réel de la LNH (65, Bruins de 2022-23).`
+    : r.W >= 55 ? 'Grosse saison, mais la perfection exige de la profondeur sur les quatre trios.'
+    : r.W >= 41 ? 'Saison au-dessus de la moyenne. Regarde tes trois derniers trios : c\'est souvent là que ça se joue.'
+    : 'Le plafond a coûté cher. Les cotes révélées ci-dessous montrent où le bât blesse.';
 
   const rows = SLOTS.filter(s => G.roster[s.i]).map(s => {
     const p = G.roster[s.i];
-    const logo = getTeamLogoHtml(p.t, 16);
     const hr = getHiddenRatings(p);
     const pmCls = (p.simPM || 0) > 0 ? 'pm-pos' : (p.simPM || 0) < 0 ? 'pm-neg' : '';
     const pmStr = (p.simPM || 0) > 0 ? `+${p.simPM}` : `${p.simPM || 0}`;
     const inj = p.simInj ? ` · <span class="inj">🩹 ${p.simInj} PJ ratés</span>` : '';
-
-    const simStatStr = p.p === 'G'
-      ? `${p.simGP || 0}PJ · ${p.simW || 0}V-${p.simL || 0}D-${p.simOTL || 0}DP · ${((p.simGA || 0) / Math.max(1, p.simGP || 1)).toFixed(2)} MBA · ${p.simSO || 0} BL${inj}`
-      : `${p.simGP || 0}PJ · <b>${p.simG || 0}B</b> ${p.simA || 0}A · <b style="color:var(--gold);font-size:13px;">${p.simPTS || 0} PTS</b> · <span class="${pmCls}">${pmStr}</span>${inj}`;
-
+    const stats = p.p === 'G'
+      ? `${p.simGP || 0} PJ · ${p.simW || 0}-${p.simL || 0}-${p.simOTL || 0} · ${((p.simGA || 0) / Math.max(1, p.simGP || 1)).toFixed(2)} MBA · ${p.simSO || 0} BL${inj}`
+      : `${p.simGP || 0} PJ · <b>${p.simG || 0} B</b> ${p.simA || 0} A · <b>${p.simPTS || 0} PTS</b> · <span class="${pmCls}">${pmStr}</span>${inj}`;
     return `<div class="rrow">
-      <div class="rn" style="display:flex;align-items:center;gap:6px">${logo} <span>${formatPlayerName(p.n)} <span class="sub">(${s.role})</span> ${zoneTagHtml(p)}</span></div>
-      <div class="rs">${simStatStr} &nbsp;|&nbsp; <span style="color:var(--gold);font-weight:800;">OVR ${hr.v}</span> (OFF ${hr.o} DEF ${hr.d} ROB ${hr.r} CLU ${hr.c})</div>
+      <div class="rn">${getTeamLogoHtml(p.t, 15)} <span>${formatName(p.n)} <span class="sub">${esc(s.role)}</span></span></div>
+      <div class="rs">${stats} · <span class="ovr">cote ${hr.v}</span> <span class="sub">(ATT ${hr.o} DÉF ${hr.d} ROB ${hr.r} CLU ${hr.c})</span></div>
     </div>`;
   }).join('');
 
-  saveLeaderboard({
-    W: r.W, L: r.L, OTL: r.OTL, points: r.points,
-    GF: r.GF, GA: r.GA, capUsed: capUsed(),
-    date: new Date().toLocaleDateString('fr-CA')
-  });
-
-  const playerRank = leagueTeams.findIndex(t => t.isPlayer) + 1;
+  const standings = teams.map((t, i) => `
+    <tr class="${t.isPlayer ? 'you' : ''}${i === 15 ? ' cut' : ''}">
+      <td>${i + 1}</td>
+      <td class="left"><div class="team-cell">${getTeamLogoHtml(t.tag, 15)}<span>${esc(t.name)}</span></div></td>
+      <td>${t.W + t.L + t.OTL}</td><td>${t.W}</td><td>${t.L}</td><td>${t.OTL}</td>
+      <td class="pts">${t.PTS}</td><td>${t.GF}</td><td>${t.GA}</td>
+      <td>${t.GF - t.GA > 0 ? '+' : ''}${t.GF - t.GA}</td>
+    </tr>`).join('');
 
   const leadersRows = leaders.map((l, i) => `
-    <tr style="${l.team.isPlayer ? 'background:rgba(56,189,248,0.2);color:var(--gold);font-weight:800;' : ''}">
-      <td style="padding:5px;text-align:center;">${i + 1}</td>
-      <td style="padding:5px;">${getTeamLogoHtml(l.team.tag, 14)} ${l.player.n} <span class="sub">(${l.team.name})</span></td>
-      <td style="padding:5px;text-align:center;">${l.player.simGP}</td>
-      <td style="padding:5px;text-align:center;">${l.player.simG}</td>
-      <td style="padding:5px;text-align:center;">${l.player.simA}</td>
-      <td style="padding:5px;text-align:center;font-weight:900;color:var(--green-neon);">${l.player.simPTS}</td>
+    <tr class="${l.team.isPlayer ? 'you' : ''}">
+      <td>${i + 1}</td>
+      <td class="left"><div class="team-cell">${getTeamLogoHtml(l.team.tag, 15)}<span>${esc(l.player.n)}</span></div></td>
+      <td>${l.player.simGP}</td><td>${l.player.simG}</td><td>${l.player.simA}</td>
+      <td class="pts">${l.player.simPTS}</td>
     </tr>`).join('');
 
-  const injuriesHtml = you.injuriesLog.length
-    ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li>🩹 <strong>${i.player.n}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés (match ${i.at})</li>`).join('')}</ul>`
-    : `<div class="sub">Aucune blessure cette saison. Chanceux.</div>`;
+  const injuries = you.injuriesLog && you.injuriesLog.length
+    ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${esc(i.player.n)}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
+    : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
 
-  const standingsRows = leagueTeams.map((t, idx) => `
-    <tr style="${t.isPlayer ? 'background:rgba(56,189,248,0.2);font-weight:800;color:var(--gold);' : ''}">
-      <td style="padding:6px;text-align:center;">${idx + 1}</td>
-      <td style="padding:6px;">${getTeamLogoHtml(t.tag, 16)} ${t.name}</td>
-      <td style="padding:6px;text-align:center;">${t.W + t.L + t.OTL}</td>
-      <td style="padding:6px;text-align:center;">${t.W}</td>
-      <td style="padding:6px;text-align:center;">${t.L}</td>
-      <td style="padding:6px;text-align:center;">${t.OTL}</td>
-      <td style="padding:6px;text-align:center;font-weight:900;color:var(--green-neon);">${t.PTS}</td>
-      <td style="padding:6px;text-align:center;">${t.GF}</td>
-      <td style="padding:6px;text-align:center;">${t.GA}</td>
-    </tr>`).join('');
+  saveLeaderboard({
+    W: r.W, L: r.L, OTL: r.OTL, points: r.points, GF: r.GF, GA: r.GA,
+    capUsed: capUsed(), rank, nTeams, date: new Date().toLocaleDateString('fr-CA'),
+  });
 
+  $('resultHost').style.display = '';
   $('resultHost').innerHTML = `
     <div class="result">
-      <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
-      <div class="rec">${r.points} POINTS · RANG AU CLASSEMENT : ${playerRank}e / ${nTeams}</div>
-      <div class="bars">
-        ${bar('Attaque', r.attaque)}
-        ${bar('Brigade déf.', r.brigade)}
-        ${bar('Gardien', r.gRating)}
-        ${bar('Robustesse', r.rob)}
-        ${bar('Clutch', r.clu)}
+      <div class="result-hero">
+        <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
+        <div class="rec">${r.points} points · ${rank}e de ${nTeams} · ${r.GF} buts pour, ${r.GA} contre · masse ${money(capUsed())}</div>
       </div>
+      <div class="note">${note}</div>
 
-      <div style="margin-top:24px;">
-        <h3 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">🏆 CLASSEMENT GÉNÉRAL DE LA LIGUE (${nTeams} ÉQUIPES, ${(nTeams * 82 / 2).toLocaleString('fr-CA')} MATCHS SIMULÉS)</h3>
-        <div style="max-height:280px;overflow-y:auto;border:1px solid var(--panel-border);border-radius:10px;">
-          <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
-            <thead>
-              <tr style="background:rgba(0,0,0,0.4);color:var(--sub);text-align:center;">
-                <th style="padding:6px;">RANG</th>
-                <th style="padding:6px;text-align:left;">ÉQUIPE</th>
-                <th style="padding:6px;">PJ</th>
-                <th style="padding:6px;">V</th>
-                <th style="padding:6px;">D</th>
-                <th style="padding:6px;">DP</th>
-                <th style="padding:6px;">PTS</th>
-                <th style="padding:6px;">BP</th>
-                <th style="padding:6px;">BC</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${standingsRows}
-            </tbody>
-          </table>
+      <div class="result-section">
+        <h3>Forces de votre formation</h3>
+        <div class="bars">
+          ${bar('Attaque', r.attaque)}
+          ${bar('Brigade déf.', r.brigade)}
+          ${bar('Gardien', r.gRating)}
+          ${bar('Robustesse', r.rob)}
+          ${bar('Clutch', r.clu)}
         </div>
       </div>
 
-      ${leaders.length ? `
-      <div style="margin-top:18px;">
-        <h3 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">⭐ MENEURS DE LA LIGUE</h3>
-        <div style="border:1px solid var(--panel-border);border-radius:10px;overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
-            <thead><tr style="background:rgba(0,0,0,0.4);color:var(--sub);text-align:center;">
-              <th style="padding:5px;">#</th><th style="padding:5px;text-align:left;">JOUEUR</th><th style="padding:5px;">PJ</th><th style="padding:5px;">B</th><th style="padding:5px;">A</th><th style="padding:5px;">PTS</th>
-            </tr></thead>
-            <tbody>${leadersRows}</tbody>
-          </table>
-        </div>
+      <div class="result-section">
+        <h3>Classement général · ${nTeams} équipes, ${(nTeams * 82 / 2).toLocaleString('fr-CA')} matchs</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Rang</th><th class="left">Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th>PTS</th><th>BP</th><th>BC</th><th>Diff</th></tr></thead>
+          <tbody>${standings}</tbody>
+        </table></div>
+      </div>
+
+      ${leaders.length ? `<div class="result-section">
+        <h3>Meneurs de la ligue</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>#</th><th class="left">Joueur</th><th>PJ</th><th>B</th><th>A</th><th>PTS</th></tr></thead>
+          <tbody>${leadersRows}</tbody>
+        </table></div>
       </div>` : ''}
 
-      <div style="margin-top:18px;">
-        <h3 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">🩹 INFIRMERIE DE VOTRE FORMATION</h3>
-        ${injuriesHtml}
+      <div class="result-section">
+        <h3>Infirmerie</h3>
+        ${injuries}
       </div>
 
-      <div class="note">${note}</div>
-      <div class="reveal"><h3>COTES CACHÉES RÉVÉLÉES</h3>${rows}</div>
-      <div style="text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <button class="btn go" id="shareBtn" style="background:#0284c7;color:#fff;margin-top:0;">📋 COPIER LE RÉSULTAT</button>
-        ${playerRank <= 16 ? '<button class="btn go" id="playoffsBtn" style="background:var(--gold);color:#000;margin-top:0;">🏆 SÉRIES (TOP 16)</button>' : ''}
-        <button class="btn go" id="again" style="margin-top:0">NOUVELLE PARTIE</button>
+      <div class="result-section">
+        <h3>Cotes cachées révélées</h3>
+        ${rows}
       </div>
 
-      <div id="playoffsSection" style="display:none;margin-top:24px;border-top:1px solid var(--panel-border);padding-top:16px;"></div>
+      <div class="result-actions">
+        <button class="btn blue" id="shareBtn">📋 Copier le résultat</button>
+        ${rank <= 16 ? '<button class="btn gold" id="playoffsBtn">🏆 Jouer les séries</button>' : ''}
+        <button class="btn go" id="againBtn">Nouvelle partie</button>
+      </div>
+      <div id="playoffsSection"></div>
     </div>`;
 
-  const sBtn = $('shareBtn');
-  if (sBtn) {
-    sBtn.onclick = () => {
-      const topPlayer = picked().sort((a,b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0))[0];
-      const shareText = `🏒 Cap 82-0 — Alignement de 23 joueurs\n` +
-        `📊 Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n` +
-        `🏆 Rang ligue : ${playerRank}e / ${nTeams}\n` +
-        `💵 Masse salariale : ${money(capUsed())} / ${money(CAP)}\n` +
-        `⭐ Vedette : ${topPlayer ? `${topPlayer.n} ('${topPlayer.s.slice(-2)})` : 'Inconnue'}\n` +
-        `👉 Essayez de faire 82-0 !`;
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(shareText).then(() => {
-          sBtn.textContent = '✓ COPIÉ !';
-          setTimeout(() => { sBtn.textContent = '📋 COPIER LE RÉSULTAT'; }, 2500);
-        }).catch(() => {
-          sBtn.textContent = '✓ Fiche copiée';
-        });
-      } else {
-        sBtn.textContent = '✓ ' + `${r.W}-${r.L}-${r.OTL}`;
-      }
-    };
-  }
-
-  if (playerRank <= 16) {
-    const pBtn = $('playoffsBtn');
-    if (pBtn) {
-      pBtn.onclick = () => simulatePlayoffs(leagueTeams.slice(0, 16));
+  $('shareBtn').onclick = () => {
+    const top = picked().slice().sort((a, b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0))[0];
+    const txt = `🏒 Cap 82-0\n`
+      + `Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n`
+      + `Rang : ${rank}e de ${nTeams}\n`
+      + `Masse salariale : ${money(capUsed())} / ${money(CAP)}\n`
+      + `Vedette : ${top ? `${top.n} (${top.t} ${top.s})` : '—'}\n`
+      + `Essaie de faire 82-0.`;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(txt)
+        .then(() => toast('Fiche copiée dans le presse-papier.'))
+        .catch(() => toast('Copie impossible sur ce navigateur.', 'bad'));
+    } else {
+      toast('Copie impossible sur ce navigateur.', 'bad');
     }
-  }
-
-  $('again').onclick = async () => {
-    clearSave();
-    G.roster = {}; G.left = { ...REROLLS }; G.target = null; G.done = false;
-    $('resultHost').innerHTML = '';
-    await nextSpin(true, true);
-    saveGame();
-    render();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (rank <= 16) $('playoffsBtn').onclick = () => runPlayoffs(teams.slice(0, 16));
+  $('againBtn').onclick = () => newGame();
 
   renderMain();
   $('resultHost').scrollIntoView({ behavior: 'smooth', block: 'start' });
-};
+}
+
+function runPlayoffs(top16) {
+  const host = $('playoffsSection');
+  if (!host) return;
+
+  const names = ['Premier tour', 'Deuxième tour', 'Demi-finales', 'Finale de la Coupe Stanley'];
+  let round = top16.slice(), n = 0;
+  let html = `<div class="result-section"><h3>🏆 Séries éliminatoires</h3>`;
+
+  while (round.length > 1) {
+    const next = [];
+    html += `<div class="series-round"><h4>${names[n] || `Ronde ${n + 1}`}</h4><div class="series-grid">`;
+    for (let i = 0; i < round.length / 2; i++) {
+      const A = round[i], B = round[round.length - 1 - i];
+      const s = playSeries(A, B);
+      next.push(s.winner);
+      const rowA = `<div class="series-row ${s.winner === A ? 'win' : 'lose'}"><div class="team-cell">${getTeamLogoHtml(A.tag, 15)}<span>${esc(A.name)}</span></div><span>${s.wA}</span></div>`;
+      const rowB = `<div class="series-row ${s.winner === B ? 'win' : 'lose'}"><div class="team-cell">${getTeamLogoHtml(B.tag, 15)}<span>${esc(B.name)}</span></div><span>${s.wB}</span></div>`;
+      html += `<div class="series ${A.isPlayer || B.isPlayer ? 'you' : ''}">${rowA}${rowB}</div>`;
+    }
+    html += `</div></div>`;
+    round = next;
+    n++;
+  }
+
+  const champ = round[0];
+  html += `<div class="champion">
+    <h3>Champion de la Coupe Stanley</h3>
+    <div class="champ-name">${getTeamLogoHtml(champ.tag, 30)} ${esc(champ.name)}</div>
+    <p>${champ.isPlayer ? 'Ta formation soulève la Coupe. 🏆' : 'Ta formation est tombée en chemin. Rebâtis et réessaie.'}</p>
+  </div></div>`;
+
+  host.innerHTML = html;
+  const btn = $('playoffsBtn');
+  if (btn) btn.disabled = true;
+  host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function newGame() {
+  clearSave();
+  G.roster = {};
+  G.left = { ...REROLLS };
+  G.target = null;
+  G.selectedSlot = null;
+  G.done = false;
+  G.search = '';
+  G.filter = 'ALL';
+  const search = $('searchInput');
+  if (search) search.value = '';
+  $('resultHost').innerHTML = '';
+  $('resultHost').style.display = 'none';
+  setView('pool');
+  await nextSpin(true, true);
+  saveGame();
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 window.cap82 = { G, cacheClear, simulate };
 boot();

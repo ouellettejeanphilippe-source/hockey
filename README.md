@@ -15,6 +15,8 @@ python3 -m http.server 8000
 
 Ouvre http://localhost:8000. Les modules ES exigent `http://`, pas `file://`.
 
+L'écran est celui d'un directeur général : la jauge de plafond et le budget par case restante en haut, la roulette et le tableau de bord dessous, puis le vestiaire et l'alignement. Le vestiaire se range par position — une colonne par poste sur grand écran, des sections empilées sur téléphone. Sur téléphone, vestiaire et alignement se prennent par onglets ; sur écran large, l'alignement reste sous les yeux. Chaque carte de joueur dit où il irait, ce qu'il coûte en part de plafond, ce qu'il te resterait après, et si sa position lui vaut une pénalité.
+
 Pour la base complète — 1970-71 à aujourd'hui, tout joueur à 10+ matchs :
 
 ```bash

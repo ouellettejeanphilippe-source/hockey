@@ -99,14 +99,23 @@ export function getPositionPenalty(player, slot) {
   return 0;
 }
 
+/**
+ * Un joueur peut-il occuper cette case ?
+ *
+ * Strict entre les groupes : un défenseur ne joue pas à l'aile et un
+ * attaquant ne joue pas en défense. Les cases de réserviste `ANY` prennent
+ * tout le monde. Les pénalités de `getPositionPenalty` servent aux
+ * mauvaises ailes et au centre à l'aile — pas à mélanger les groupes, qui
+ * donnait une pénalité de 999 et un joueur ramené à la cote plancher.
+ */
 export function fits(player, slot) {
   if (slot.group === 'ANY') return true;
   if (slot.group === 'G') return player.p === 'G';
   if (player.p === 'G') return false;
-  if (slot.group === 'D' || slot.group === 'LD' || slot.group === 'RD') {
-    return player.p === 'D' || player.p === 'LD' || player.p === 'RD';
-  }
-  return player.p === slot.group || slot.group === 'F';
+  const skaterIsD = player.p === 'D' || player.p === 'LD' || player.p === 'RD';
+  if (slot.group === 'D' || slot.group === 'LD' || slot.group === 'RD') return skaterIsD;
+  if (slot.group === 'F') return !skaterIsD;
+  return false;
 }
 
 /* ---------- calcul de synergie des trios / paires ---------- */
