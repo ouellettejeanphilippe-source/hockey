@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 12;
+export const RATINGS_VERSION = 13;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -30,7 +30,6 @@ export const CAP_REF = 95_500_000;
  * 1989-90 à 2003-04 : pas de plafond. On prend la masse salariale de
  *   l'équipe la plus dépensière de l'année comme « plafond » de référence,
  *   pour que le prorata vers 2026 reflète ce que payait vraiment le marché.
- *   Chiffres arrondis, d'après les rapports de l'époque.
  * Avant 1989-90 : estimation, les salaires n'étaient pas publiés.
  */
 export const SEASON_ERA_CAP = {
@@ -39,11 +38,13 @@ export const SEASON_ERA_CAP = {
   '1978-79': 1_900_000, '1979-80': 2_100_000, '1980-81': 2_400_000, '1981-82': 2_700_000,
   '1982-83': 3_000_000, '1983-84': 3_400_000, '1984-85': 3_800_000, '1985-86': 4_200_000,
   '1986-87': 4_700_000, '1987-88': 5_200_000, '1988-89': 5_800_000,
-  // plus gros budget d'équipe (pas de plafond)
-  '1989-90': 8_500_000, '1990-91': 10_000_000,'1991-92': 13_000_000,'1992-93': 17_000_000,
-  '1993-94': 22_000_000,'1994-95': 26_000_000,'1995-96': 31_000_000,'1996-97': 36_000_000,
-  '1997-98': 44_000_000,'1998-99': 50_000_000,'1999-00': 61_000_000,'2000-01': 63_000_000,
-  '2001-02': 70_000_000,'2002-03': 76_000_000,'2003-04': 78_000_000,
+  // plus gros budget d'équipe de la saison (pas de plafond), mesuré sur les
+  // salaires publiés de MarkerZone (scripts/fetch_markerzone.py) ; 1994-95
+  // est proraté sur les 48 matchs du lock-out, comme les salaires eux-mêmes
+  '1989-90': 8_500_000, '1990-91': 10_100_000,'1991-92': 13_000_000,'1992-93': 16_200_000,
+  '1993-94': 22_200_000,'1994-95': 16_100_000,'1995-96': 37_700_000,'1996-97': 41_900_000,
+  '1997-98': 45_700_000,'1998-99': 57_400_000,'1999-00': 61_300_000,'2000-01': 60_700_000,
+  '2001-02': 74_600_000,'2002-03': 72_100_000,'2003-04': 83_900_000,
   // plafond officiel
   '2005-06': 39_000_000,'2006-07': 44_000_000,'2007-08': 50_300_000,'2008-09': 56_700_000,
   '2009-10': 56_800_000,'2010-11': 59_400_000,'2011-12': 64_300_000,'2012-13': 60_000_000,

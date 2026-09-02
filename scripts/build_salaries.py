@@ -53,20 +53,18 @@ SEASONS_DIR = os.path.join(ROOT, "data", "seasons")
 SAL_DIR = os.path.join(ROOT, "data", "salaries")
 SRC_DIR = os.path.join(SAL_DIR, "sources")
 
-# Plafond officiel (2005-06+) ou plus gros budget d'equipe (1989-90 a 2003-04),
-# meme table que SEASON_ERA_CAP dans js/ratings.js.
-ERA_CAP = {
-    "1989-90": 8_500_000, "1990-91": 10_000_000, "1991-92": 13_000_000, "1992-93": 17_000_000,
-    "1993-94": 22_000_000, "1994-95": 26_000_000, "1995-96": 31_000_000, "1996-97": 36_000_000,
-    "1997-98": 44_000_000, "1998-99": 50_000_000, "1999-00": 61_000_000, "2000-01": 63_000_000,
-    "2001-02": 70_000_000, "2002-03": 76_000_000, "2003-04": 78_000_000,
-    "2005-06": 39_000_000, "2006-07": 44_000_000, "2007-08": 50_300_000, "2008-09": 56_700_000,
-    "2009-10": 56_800_000, "2010-11": 59_400_000, "2011-12": 64_300_000, "2012-13": 60_000_000,
-    "2013-14": 64_300_000, "2014-15": 69_000_000, "2015-16": 71_400_000, "2016-17": 73_000_000,
-    "2017-18": 75_000_000, "2018-19": 79_500_000, "2019-20": 81_500_000, "2020-21": 81_500_000,
-    "2021-22": 81_500_000, "2022-23": 82_500_000, "2023-24": 83_500_000, "2024-25": 88_000_000,
-    "2025-26": 95_500_000,
-}
+def load_era_cap():
+    """SEASON_ERA_CAP de js/ratings.js (plafond officiel, ou plus gros budget
+    d'equipe avant 2005-06) : une seule table, lue telle quelle."""
+    with open(os.path.join(ROOT, "js", "ratings.js"), encoding="utf-8") as f:
+        src = f.read()
+    block = src[src.index("SEASON_ERA_CAP = {"):]
+    block = block[:block.index("};")]
+    return {m.group(1): int(m.group(2).replace("_", ""))
+            for m in re.finditer(r"'(\d{4}-\d{2})':\s*([\d_]+)", block)}
+
+
+ERA_CAP = load_era_cap()
 
 TEAM_ALIAS = {"N.J": "NJD", "L.A": "LAK", "S.J": "SJS", "T.B": "TBL", "NJ": "NJD", "LA": "LAK",
               "SJ": "SJS", "TB": "TBL", "MON": "MTL", "WAS": "WSH", "CLB": "CBJ", "PHX": "ARI"}
