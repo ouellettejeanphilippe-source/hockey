@@ -9,7 +9,7 @@
  * des shards). Une seule implémentation, un seul endroit à corriger.
  */
 
-export const RATINGS_VERSION = 11;
+export const RATINGS_VERSION = 12;
 
 /* ---------- Plafonds / Masses salariales par époque (pour conversion en $ réel) ---------- */
 export const SEASON_ERA_CAP = {
@@ -65,32 +65,57 @@ export function getEraFactor(season) {
 export function getArchetype(p) {
   if (!p) return { key: 'UNKNOWN', label: 'Inconnu', icon: '❓', desc: '' };
   if (p.p === 'G') {
-    if (p.o >= 75 && p.d >= 75) return { key: 'WALL', label: 'Mur Hermétique', icon: '🧱', desc: '% d\'arrêts et moyenne d\'élite' };
-    if (p.sp >= 72) return { key: 'ACROBAT', label: 'Réflexes Acrobatiques', icon: '⚡', desc: 'Réflexes et arrêts spectaculaires' };
-    if (p.r >= 70) return { key: 'WORKHORSE', label: 'Gardien de Fer', icon: '🔋', desc: 'Grosse charge de travail' };
-    return { key: 'HYBRID_G', label: 'Gardien Standard', icon: '🥅', desc: 'Style équilibré' };
+    if (p.o >= 72 && p.d >= 72) return { key: 'WALL', label: 'Gardien d\'élite', icon: '🧱', desc: '% d\'arrêts et moyenne d\'élite' };
+    if (p.sp >= 70) return { key: 'ACROBAT', label: 'Gardien acrobatique', icon: '⚡', desc: 'Réflexes et arrêts spectaculaires' };
+    if (p.r >= 68) return { key: 'WORKHORSE', label: 'Gardien de fer', icon: '🔋', desc: 'Grosse charge de travail' };
+    return { key: 'HYBRID_G', label: 'Gardien régulier', icon: '🥅', desc: 'Style fiable et constant' };
   }
 
   if (p.p === 'D') {
-    if (p.o >= 68 || (p.o > p.d + 10)) return { key: 'OFF_D', label: 'Défenseur Offensif', icon: '🚀', desc: 'Relance, tir et avantage numérique' };
-    if (p.d >= 68 && p.r >= 60) return { key: 'DEF_D', label: 'Défenseur Physique', icon: '🛡️', desc: 'Défense hermétique et mises en échec' };
-    if (p.d >= 62) return { key: 'STAY_D', label: 'Défenseur Défensif', icon: '🔒', desc: 'Sécurité et désavantage numérique' };
-    return { key: 'TWO_WAY_D', label: 'Défenseur Mobile', icon: '🔄', desc: 'Jeu complet sur 200 pieds' };
+    if (p.o >= 68 || (p.o > p.d + 8)) return { key: 'OFF_D', label: 'Défenseur offensif', icon: '🚀', desc: 'Relance, tir frappé et avantage numérique' };
+    if (p.d >= 65 && p.r >= 58) return { key: 'DEF_D', label: 'Défenseur physique', icon: '🛡️', desc: 'Jeu physique et protection du territoire' };
+    if (p.d >= 62) return { key: 'STAY_D', label: 'Défenseur défensif', icon: '🔒', desc: 'Sécurité et désavantage numérique' };
+    if (p.o >= 58 && p.d >= 58) return { key: 'TWO_WAY_D', label: 'Défenseur polyvalent', icon: '🔄', desc: 'Efficace dans toutes les situations' };
+    return { key: 'CHECKER_D', label: 'Défenseur de profondeur', icon: '🧱', desc: 'Profondeur et fiabilité défensive' };
   }
 
   // Forward (F)
-  const gRatio = p.g / Math.max(1, p.pt);
-  const aRatio = p.a / Math.max(1, p.pt);
+  const pts = p.pt || (p.g + p.a) || 1;
+  const gRatio = p.g / Math.max(1, pts);
+  const aRatio = p.a / Math.max(1, pts);
 
-  if (p.o >= 78 && aRatio >= 0.58) return { key: 'OFF_PLAYMAKER', label: 'Fabricant Élité', icon: '🪄', desc: 'Vision du jeu et passes magistrales' };
-  if (p.o >= 65 && gRatio >= 0.52) return { key: 'SNIPER', label: 'Buteur / Sniper', icon: '🎯', desc: 'Finition redoutable et lancer précis' };
-  if (p.o >= 65 && aRatio >= 0.55) return { key: 'PLAYMAKER', label: 'Fabriqueur de Jeu', icon: '🎯', desc: 'Distribue la rondelle avec précision' };
-  if (p.r >= 68 && p.o >= 60) return { key: 'POWER_FWD', label: 'Attaquant de Puissance', icon: '💥', desc: 'Marque dans le trafic et frappe fort' };
-  if (p.d >= 68) return { key: 'TWO_WAY_FWD', label: 'Polyvalent / Défensif', icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' };
-  if (p.r >= 70) return { key: 'ENFORCER', label: 'Énergique / Robustesse', icon: '🥊', desc: 'Physique intimidant et présence intense' };
-  if (p.o >= 60) return { key: 'SKILLED_FWD', label: 'Attaquant Talentueux', icon: '✨', desc: 'Aisance offensive naturelle' };
+  if (p.o >= 75 && aRatio >= 0.58) return { key: 'OFF_PLAYMAKER', label: 'Fabricant de jeu d\'élite', icon: '🪄', desc: 'Vision du jeu et passes magistrales' };
+  if (p.o >= 62 && gRatio >= 0.48) return { key: 'SNIPER', label: 'Franc-tireur / Marqueur', icon: '🎯', desc: 'Lancer foudroyant et finition d\'élite' };
+  if (p.o >= 62 && aRatio >= 0.52) return { key: 'PLAYMAKER', label: 'Fabricant de jeu', icon: '🎨', desc: 'Distribue la rondelle avec précision' };
+  if (p.r >= 64 && p.o >= 58) return { key: 'POWER_FWD', label: 'Attaquant de puissance', icon: '💥', desc: 'Jeu physique, présence devant le filet' };
+  if (p.d >= 62) return { key: 'TWO_WAY_FWD', label: 'Attaquant complet', icon: '⚖️', desc: 'Excellence dans les deux sens de la patinoire' };
+  if (p.r >= 65) return { key: 'ENERGY', label: 'Joueur d\'énergie', icon: '🔋', desc: 'Intensité, échec avant et mises en échec' };
+  if (p.o >= 58) return { key: 'SKILLED_FWD', label: 'Attaquant offensif', icon: '✨', desc: 'Aisance offensive naturelle' };
 
-  return { key: 'CHECKER', label: 'Laveur de Carreaux', icon: '🏃', desc: 'Profondeur et ardeur au travail' };
+  return { key: 'CHECKER', label: 'Attaquant de profondeur', icon: '🏃', desc: 'Profondeur et ardeur au travail' };
+}
+
+export function getLineZone(p) {
+  if (!p) return { level: 4, label: '4e trio', idealUnits: [3] };
+  const ovr = p.v ?? (p.o ? Math.round(0.7 * p.o + 0.3 * p.d) : 50);
+
+  if (p.p === 'G') {
+    if (ovr >= 75) return { level: 1, label: 'Partant d\'élite', idealUnits: [0] };
+    return { level: 2, label: 'Auxiliaire / Tandem', idealUnits: [0, 1] };
+  }
+
+  if (p.p === 'D') {
+    if (ovr >= 80) return { level: 1, label: 'Bon Trios 1-2 (P1-P2)', idealUnits: [0, 1] };
+    if (ovr >= 73) return { level: 2, label: 'Bon Trios 1-3 (P1-P3)', idealUnits: [0, 1, 2] };
+    if (ovr >= 66) return { level: 3, label: 'Bon Trios 3-4 (P2-P3)', idealUnits: [1, 2] };
+    return { level: 4, label: 'Bon Trio 4 (P3)', idealUnits: [2] };
+  }
+
+  // Forward (F)
+  if (ovr >= 80) return { level: 1, label: 'Bon Trios 1-2', idealUnits: [0, 1] };
+  if (ovr >= 73) return { level: 2, label: 'Bon Trios 1-3', idealUnits: [0, 1, 2] };
+  if (ovr >= 66) return { level: 3, label: 'Bon Trios 3-4', idealUnits: [2, 3] };
+  return { level: 4, label: 'Bon Trio 4', idealUnits: [3] };
 }
 
 /* ---------- outils statistiques ---------- */
@@ -114,8 +139,11 @@ const per = (row, key) => (row[key] || 0) / (row.gamesPlayed || 1);
  * Salaire dérivé de la cote globale, sur l'échelle salariale actuelle.
  * cote 50 -> ~0,78 M$ | cote 75 -> ~4,0 M$ | cote 90 -> ~10,7 M$ | cote 99 -> ~19 M$
  */
-export function salaryFor(ovr, pos) {
-  let base = 775000 * Math.exp(0.0655 * Math.max(0, ovr - 50));
+export function salaryFor(ovr, pos, isELC = false) {
+  if (isELC) {
+    return 950000; // Contrat d'entrée (aubaine jeunes vedettes)
+  }
+  let base = 775000 * Math.exp(0.066 * Math.max(0, ovr - 50));
   if (pos === 'G') base *= 0.88;
   return Math.round(base / 25000) * 25000;
 }
@@ -155,9 +183,9 @@ export function rateSkaters(rows, realtimeById = null) {
     const toiMin = (r.timeOnIcePerGame || 0) / 60;
 
     // OFFENSIVE
-    const zOff = 0.62 * z.pts(per(r, 'points'))
-               + 0.22 * z.shots(per(r, 'shots'))
-               + 0.16 * z.pp(per(r, 'ppPoints'));
+    const zOff = 0.75 * z.pts(per(r, 'points'))
+               + 0.15 * z.shots(per(r, 'shots'))
+               + 0.10 * z.pp(per(r, 'ppPoints'));
 
     // DÉFENSIVE — +/-, buts en désavantage, temps de glace, tirs bloqués
     let zDef = 0.45 * z.pm(per(r, 'plusMinus'))
@@ -181,14 +209,17 @@ export function rateSkaters(rows, realtimeById = null) {
     const zSp = 0.50 * z.toi(toiMin) + 0.30 * z.shots(per(r, 'shots')) + 0.20 * z.sh(per(r, 'shPoints'));
     const sp = scale(zSp, 52, 12);
 
-    const o = scale(zOff);
+    const o = scale(zOff, 52, 17.0);
     const d = scale(zDef);
     const rb = scale(zRob, 50, 12);
     const c = scale(zClu, 50, 12);
 
+    const v_base_f = 0.70 * o + 0.18 * d + 0.04 * rb + 0.08 * c;
+    const v_base_d = 0.42 * o + 0.46 * d + 0.06 * rb + 0.06 * c;
+
     const v = Math.max(25, Math.min(99, Math.round(
-      isD ? 0.32 * o + 0.46 * d + 0.11 * rb + 0.11 * c
-          : 0.54 * o + 0.24 * d + 0.10 * rb + 0.12 * c
+      isD ? Math.max(v_base_d, 0.82 * o + 0.18 * d, 0.82 * d + 0.18 * o)
+          : Math.max(v_base_f, 0.90 * o + 0.10 * d, 0.88 * o + 0.12 * c)
     )));
 
     const htPerGame = extra && extra.hits != null ? Math.round((extra.hits / gp) * 10) / 10 : null;
@@ -240,7 +271,7 @@ export function rateGoalies(rows) {
     const rf = scale(0.7 * z.svp(r.savePct) + 0.3 * (r.goalsAgainstAverage != null ? -z.gaa(r.goalsAgainstAverage) : 0), 52, 12); // Réflexes
 
     const v = Math.max(25, Math.min(99, Math.round(
-      0.42 * o + 0.34 * d + 0.09 * rb + 0.15 * c
+      Math.max(0.48 * o + 0.36 * d + 0.06 * rb + 0.10 * c, 0.80 * o + 0.20 * d)
     )));
     const sal = salaryFor(v, 'G');
 
