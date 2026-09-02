@@ -7,7 +7,7 @@
  * Toute modification des constantes doit être revalidée (voir PLAN.md, S3).
  */
 
-import { getArchetype } from './ratings.js';
+import { getArchetype, getLineZone } from './ratings.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
@@ -118,26 +118,52 @@ export function getUnitSynergy(roster, group, unit) {
     .map(s => ({ slot: s, player: roster[s.i] }))
     .filter(x => x.player);
 
+  let zoneBonusOff = 0;
+  let zoneBonusDef = 0;
+  let zoneText = '';
+
+  if (ps.length > 0) {
+    let idealCount = 0;
+    let miscastCount = 0;
+    for (const x of ps) {
+      const z = getLineZone(x.player);
+      if (z.idealUnits && z.idealUnits.includes(unit)) {
+        idealCount++;
+      } else {
+        miscastCount++;
+      }
+    }
+    if (idealCount === ps.length) {
+      zoneBonusOff += 2;
+      zoneBonusDef += 2;
+      zoneText = ' ✨ Trio Optimal';
+    } else if (miscastCount > 1) {
+      zoneBonusOff -= 2;
+      zoneBonusDef -= 2;
+      zoneText = ' ⚠️ Trio Inadapté';
+    }
+  }
+
   if (group === 'F' && ps.length === 3) {
     const archs = ps.map(x => getArchetype(x.player).key);
     const hasPM = archs.some(a => a === 'PLAYMAKER' || a === 'OFF_PLAYMAKER');
     const hasSniper = archs.some(a => a === 'SNIPER');
-    const hasPower = archs.some(a => a === 'POWER_FWD' || a === 'ENFORCER');
+    const hasPower = archs.some(a => a === 'POWER_FWD' || a === 'ENFORCER' || a === 'ENERGY');
     const hasTwoWay = archs.some(a => a === 'TWO_WAY_FWD');
 
     if (hasPM && hasSniper && (hasPower || hasTwoWay)) {
-      return { bonusOff: 4, bonusDef: 2, name: 'Chimie Parfaite 🌟', desc: 'Fabriqueur + Buteur + Power/Défensif' };
+      return { bonusOff: 4 + zoneBonusOff, bonusDef: 2 + zoneBonusDef, name: `Chimie Parfaite 🌟${zoneText}`, desc: 'Fabriqueur + Buteur + Power/Défensif' };
     }
     if (hasPM && hasSniper) {
-      return { bonusOff: 3, bonusDef: 0, name: 'Tandem Moteur 🎯', desc: 'Passeur et Buteur combinés' };
+      return { bonusOff: 3 + zoneBonusOff, bonusDef: 0 + zoneBonusDef, name: `Tandem Moteur 🎯${zoneText}`, desc: 'Passeur et Buteur combinés' };
     }
-    if (archs.filter(a => a === 'TWO_WAY_FWD' || a === 'ENFORCER' || a === 'CHECKER').length >= 2) {
-      return { bonusOff: 0, bonusDef: 4, name: 'Trio d\'Étouffement 🧱', desc: 'Haute responsabilité défensive' };
+    if (archs.filter(a => a === 'TWO_WAY_FWD' || a === 'ENERGY' || a === 'CHECKER').length >= 2) {
+      return { bonusOff: 0 + zoneBonusOff, bonusDef: 4 + zoneBonusDef, name: `Trio d'Étouffement 🧱${zoneText}`, desc: 'Haute responsabilité défensive' };
     }
     if (archs.filter(a => a === 'SNIPER').length === 3 || archs.filter(a => a === 'OFF_PLAYMAKER').length === 3) {
-      return { bonusOff: -2, bonusDef: -2, name: 'Conflit de Rôles ⚠️', desc: 'Même profil sur le même trio' };
+      return { bonusOff: -2 + zoneBonusOff, bonusDef: -2 + zoneBonusDef, name: `Conflit de Rôles ⚠️${zoneText}`, desc: 'Même profil sur le même trio' };
     }
-    return { bonusOff: 1, bonusDef: 1, name: 'Chimie Standard 👍', desc: 'Complémentarité correcte' };
+    return { bonusOff: 1 + zoneBonusOff, bonusDef: 1 + zoneBonusDef, name: `Chimie Standard 👍${zoneText}`, desc: 'Complémentarité correcte' };
   }
 
   if (group === 'D' && ps.length === 2) {
@@ -146,18 +172,18 @@ export function getUnitSynergy(roster, group, unit) {
     const hasDefD = archs.some(a => a === 'DEF_D' || a === 'STAY_D');
 
     if (hasOffD && hasDefD) {
-      return { bonusOff: 3, bonusDef: 3, name: 'Paire Équilibrée ⚖️', desc: 'Offensif + Défensif' };
+      return { bonusOff: 3 + zoneBonusOff, bonusDef: 3 + zoneBonusDef, name: `Paire Équilibrée ⚖️${zoneText}`, desc: 'Offensif + Défensif' };
     }
     if (archs.filter(a => a === 'OFF_D').length === 2) {
-      return { bonusOff: 3, bonusDef: -3, name: 'Paire Hyper-Offensive 🚀', desc: 'Grave risque en repli' };
+      return { bonusOff: 3 + zoneBonusOff, bonusDef: -3 + zoneBonusDef, name: `Paire Hyper-Offensive 🚀${zoneText}`, desc: 'Grave risque en repli' };
     }
     if (archs.filter(a => a === 'DEF_D' || a === 'STAY_D').length === 2) {
-      return { bonusOff: -1, bonusDef: 4, name: 'Paire Hermétique 🔒', desc: 'Excellente sécurité' };
+      return { bonusOff: -1 + zoneBonusOff, bonusDef: 4 + zoneBonusDef, name: `Paire Hermétique 🔒${zoneText}`, desc: 'Excellente sécurité' };
     }
-    return { bonusOff: 1, bonusDef: 1, name: 'Paire Standard 👍', desc: 'Complémentarité fluide' };
+    return { bonusOff: 1 + zoneBonusOff, bonusDef: 1 + zoneBonusDef, name: `Paire Standard 👍${zoneText}`, desc: 'Complémentarité fluide' };
   }
 
-  return { bonusOff: 0, bonusDef: 0, name: 'Neutre', desc: '' };
+  return { bonusOff: zoneBonusOff, bonusDef: zoneBonusDef, name: zoneText.trim() || 'Neutre', desc: '' };
 }
 
 /* ---------- pondérations ---------- */

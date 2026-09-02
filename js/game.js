@@ -1,7 +1,7 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import { SLOTS, CAP, REROLLS, fits, simulate, simulateMatch, getPositionPenalty, registerHiddenRatings, getHiddenRatings, getUnitSynergy } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS } from './logos.js';
-import { getArchetype, getEraFactor, getEraSalary, SEASON_ERA_CAP } from './ratings.js';
+import { getArchetype, getEraFactor, getEraSalary, getLineZone, SEASON_ERA_CAP } from './ratings.js';
 
 const $ = id => document.getElementById(id);
 const money = n => '$' + (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
@@ -98,7 +98,7 @@ const G = {
   layoutMode: 'classic', // 'classic' or 'rink'
   statsProrata: false,
   salaryMode: '2026', // '2026' or 'ERA'
-  fogOfWar: false,    // false = Hexagon ON, true = Fog of War (Hexagon OFF)
+  fogOfWar: true,     // true = Fog of War ON (Hexagon OFF par défaut)
   done: false,
   loading: false,
   shards: new Map(),  // saison -> { players, byTeam }
@@ -408,15 +408,12 @@ function getPlayerDisplayStats(p) {
   const eraSal = p.realSal ?? getEraSalary(p.$, p.s);
   const isEra = G.salaryMode === 'ERA';
   const startYr = parseInt(p.s ? p.s.slice(0, 4) : '2025', 10);
-  const isReal = p.isReal !== undefined ? !!p.isReal : (startYr >= 1989);
-  const tagEra = isReal ? 'Réel' : 'Estimé';
-
   const salaryPrimary = isEra ? `${money(eraSal)} ('${p.s.slice(-2)})` : money(p.$);
   const salarySub = isEra
     ? `<span class="cap-pct">Ajusté 2026: ${money(p.$)}</span>`
-    : `<span class="cap-pct">${tagEra} ${p.s}: ${money(eraSal)}</span>`;
+    : `<span class="cap-pct">Époque (${p.s}): ${money(eraSal)}</span>`;
 
-  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, eraSal, isReal, tagEra, salaryPrimary, salarySub };
+  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, eraSal, salaryPrimary, salarySub };
 }
 
 function formatPlayerName(fullName) {
@@ -665,9 +662,12 @@ function renderPlayerCard(p, used) {
   const pmClass = st.pm > 0 ? 'pm-pos' : st.pm < 0 ? 'pm-neg' : '';
   const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
 
+  const ptsM = (p.gp || 0) > 0 ? (st.pt / st.gp).toFixed(2) : '0.00';
+  const lineZone = getLineZone(p);
+
   const stat = p.p === 'G'
-    ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} SV`
-    : `${st.gp}PJ · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
+    ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} %ARR`
+    : `${st.gp}PJ · <b style="color:var(--accent);">${ptsM} P/M</b> · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
 
   const mainBadgeVal = p.p === 'G' ? st.w : st.pt;
   const mainBadgeLbl = p.p === 'G' ? 'VIC' : 'PTS';
@@ -689,8 +689,8 @@ function renderPlayerCard(p, used) {
   else if (over) btnLabel = '× HORS BUDGET';
 
   const compactSubStats = p.p === 'G'
-    ? `${st.gp}PJ · ${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA`
-    : `${st.g}G ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
+    ? `${st.gp}PJ · ${p.sv ?? '—'} %ARR · ${p.ga ?? '—'} MBA`
+    : `<b style="color:var(--accent);">${ptsM} P/M</b> · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
 
   const posBadge = `<span class="pos-badge ${getPositionClass(p)}">${getPositionLabel(p)}</span>`;
 
@@ -989,15 +989,12 @@ function showRadar(ev, p) {
   });
 
   const eraSal = p.realSal ?? getEraSalary(p.$, p.s);
-  const startYr = parseInt(p.s ? p.s.slice(0, 4) : '2025', 10);
-  const isReal = p.isReal !== undefined ? !!p.isReal : (startYr >= 1989);
-  const tagEra = isReal ? 'Réel' : 'Estimé';
 
   tooltip.innerHTML = `
     <div class="radar-header">${p.n}</div>
     <div class="radar-sub">${p.np} · ${p.t} · COTE ${r.v}</div>
     <div style="font-size:9.5px;color:var(--green-neon);margin-bottom:6px;font-weight:700;">
-      Ajusté 2026: ${money(p.$)} · ${tagEra} (${p.s}): ${money(eraSal)}
+      Ajusté 2026: ${money(p.$)} · Époque (${p.s}): ${money(eraSal)}
     </div>
     <svg class="radar-chart-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
       ${gridSvg}
@@ -1213,11 +1210,12 @@ function showHockeyCardModal(p) {
     const hitStr = p.ht != null ? (p.ht * (st.factor || 1)).toFixed(1) : '—';
     const foStr = p.fo != null ? `${Math.round(p.fo * 100)}%` : '—';
 
+    const ptsMModal = (p.gp || 0) > 0 ? (st.pt / st.gp).toFixed(2) : '0.00';
     statsTableHtml = `
       <table class="hockey-card-stats-table">
         <thead>
           <tr>
-            <th>PJ</th><th>B</th><th>A</th><th>PTS</th><th>+/-</th><th>TIRS</th><th>CH/M</th><th>MJ%</th>
+            <th>PJ</th><th>B</th><th>A</th><th>PTS</th><th>PTS/M</th><th>+/-</th><th>TIRS</th><th>CH/M</th><th>MJ%</th>
           </tr>
         </thead>
         <tbody>
@@ -1226,6 +1224,7 @@ function showHockeyCardModal(p) {
             <td style="font-weight:800;">${st.g}</td>
             <td style="font-weight:800;">${st.a}</td>
             <td style="color:var(--gold);font-weight:900;font-size:15px;">${st.pt}</td>
+            <td style="font-weight:800;color:var(--accent);">${ptsMModal}</td>
             <td class="${pmClass}">${pmStr}</td>
             <td>${shotStr}</td>
             <td>${hitStr}</td>
@@ -1266,6 +1265,7 @@ function showHockeyCardModal(p) {
         <div class="hockey-card-identity">
           <div class="hockey-card-player-name">${formatPlayerName(p.n)}</div>
           <div class="hockey-card-archetype" title="${arch.desc}">${arch.icon} ${arch.label}</div>
+          <div class="hockey-card-zone-tag" style="font-size:11px;color:var(--text-dim);margin-top:2px;">📍 ${getLineZone(p).label}</div>
           <div class="hockey-card-salary-block">
             <span class="salary-main">${st.salaryPrimary}</span>
             <span class="salary-sub">${st.salarySub}</span>
