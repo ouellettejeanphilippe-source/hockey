@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 16;
+export const RATINGS_VERSION = 17;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -94,6 +94,13 @@ export function getModernSalary(eraSalary, season, refCap = null) {
  * 64-68 M$ et Brett Hull 1989-90 reste une aubaine.
  */
 export const LISSAGE_AVANT_PLAFOND = 0.5;
+
+/**
+ * Part de la moyenne du vestiaire retranchée du +/- d'un joueur, pour
+ * séparer sa contribution de celle de son club sans effacer un club qui
+ * était vraiment bon. Voir le commentaire dans `rateSkaters`.
+ */
+export const LISSAGE_EQUIPE = 0.5;
 
 /** Cap hits réels 2023-24 à 2025-26 au prorata de 95,5 M$, centiles 0 à 100. */
 export const SALAIRE_REF_CENTILES = [
@@ -514,12 +521,23 @@ export function rateSkaters(rows, realtimeById = null) {
   const hasTOI = rows.some(r => (r.timeOnIcePerGame || 0) > 0);
 
   /*
-   * +/- relatif à l'équipe. Le +/- brut mesure autant la qualité du club
-   * que celle du joueur : un premier trio sur une équipe de fond de
-   * classement sort négatif quoi qu'il fasse. On retranche la moyenne par
-   * match de son propre vestiaire pour ne garder que son écart à ses
-   * coéquipiers. Disponible dans toutes les époques, contrairement au
-   * temps de glace qu'il remplace en partie.
+   * +/- partiellement relatif à l'équipe, troisième curseur du même genre
+   * que LISSAGE_AVANT_PLAFOND et LISSAGE_EPOQUES.
+   *
+   * Le +/- brut mesure autant la qualité du club que celle du joueur : un
+   * premier trio sur une équipe de fond de classement sort négatif quoi
+   * qu'il fasse. Mais retrancher toute la moyenne du vestiaire corrige
+   * trop : la qualité d'une équipe est en partie réelle, et un joueur
+   * défensif d'élite se retrouvait puni d'avoir joué sur une bonne équipe.
+   * Mesuré à correction complète : corrélation -0,81 entre le pourcentage
+   * de victoires d'une équipe et le changement de cote défensive de ses
+   * joueurs, soit -6,8 points pour les 10 meilleures équipes et +6,3 pour
+   * les 10 pires. Bob Gainey 1978-79, quatre Selke d'affilée, tombait de
+   * 56 à 44 pour avoir joué dans le vestiaire du Canadien.
+   *
+   * On ne retranche donc que LISSAGE_EQUIPE de la moyenne du vestiaire.
+   * 0 = +/- brut (le club porte le joueur), 1 = écart pur à ses
+   * coéquipiers (le club est effacé, même quand il est mérité).
    */
   const teamPM = new Map();
   for (const r of rows) {
@@ -537,7 +555,7 @@ export function rateSkaters(rows, realtimeById = null) {
       const acc = teamPM.get(t);
       if (acc && acc.n) { base += acc.sum / acc.n; k += 1; }
     }
-    return per(r, 'plusMinus') - (k ? base / k : 0);
+    return per(r, 'plusMinus') - LISSAGE_EQUIPE * (k ? base / k : 0);
   };
 
   const z = {
