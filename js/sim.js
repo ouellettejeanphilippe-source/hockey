@@ -145,13 +145,21 @@ export function getUnitSynergy(roster, group, unit) {
 
   // Zone d'efficacité : chaque joueur a un calibre (1er trio, 2e trio…) et
   // des trios où il rend à 100 %. Tout le monde à sa place -> bonus ;
-  // au moins deux joueurs hors de leur zone -> malus.
-  const inZone = ps.map((x, i) => getLineZone(x.player, hidden[i].v).idealUnits.includes(unit));
-  const miscast = inZone.filter(ok => !ok).length;
+  // joueur hors de sa zone -> pénalité accrue selon l'écart.
+  const zoneDists = ps.map((x, i) => {
+    const ideal = getLineZone(x.player, hidden[i].v).idealUnits;
+    return Math.min(...ideal.map(u => Math.abs(u - unit)));
+  });
+  const totalDist = zoneDists.reduce((a, b) => a + b, 0);
+  const miscast = zoneDists.filter(d => d > 0).length;
   const unitWord = group === 'F' ? 'Trio' : 'Paire';
   let zone = null;
-  if (miscast === 0) zone = { off: 2, def: 2, tag: group === 'F' ? '✨ Trio optimal' : '✨ Paire optimale' };
-  else if (miscast >= 2) zone = { off: -2, def: -2, tag: group === 'F' ? '⚠️ Trio mal assorti' : '⚠️ Paire mal assortie' };
+  if (miscast === 0) {
+    zone = { off: 2, def: 2, tag: group === 'F' ? '✨ Trio optimal' : '✨ Paire optimale' };
+  } else {
+    const pen = Math.min(12, totalDist * 3);
+    zone = { off: -pen, def: -pen, tag: group === 'F' ? '⚠️ Trio mal assorti' : '⚠️ Paire mal assortie' };
+  }
 
   const withZone = (bonusOff, bonusDef, name, desc) => ({
     bonusOff: bonusOff + (zone ? zone.off : 0),
