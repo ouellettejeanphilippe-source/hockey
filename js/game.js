@@ -1,7 +1,7 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
-import { SLOTS, CAP, REROLLS, fits, simulate, simulateMatch, getPositionPenalty, registerHiddenRatings, getHiddenRatings, getUnitSynergy } from './sim.js';
+import { SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings, getHiddenRatings, getUnitSynergy, getPlayerKey, createTeam, simulateLeague, playSeries, autoRoster } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS } from './logos.js';
-import { getArchetype, getEraFactor, getEraSalary, SEASON_ERA_CAP } from './ratings.js';
+import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP } from './ratings.js';
 
 const $ = id => document.getElementById(id);
 const money = n => '$' + (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
@@ -69,6 +69,18 @@ async function restoreSave() {
       }
     }
 
+    // Relier chaque joueur sauvegardé à l'objet frais du shard (salaire,
+    // archétype et zone à jour après un changement de version des cotes)
+    if (data.roster) {
+      for (const [i, saved] of Object.entries(data.roster)) {
+        if (!saved) continue;
+        const entry = G.shards.get(saved.s);
+        const key = getPlayerKey(saved);
+        const fresh = entry && entry.players.find(q => getPlayerKey(q) === key);
+        data.roster[i] = fresh || saved;
+      }
+    }
+
     G.cur = { season: data.cur.season, team: data.cur.team, pool: shard.byTeam[data.cur.team] };
     G.roster = data.roster || {};
     G.left = data.left || { ...REROLLS };
@@ -98,7 +110,7 @@ const G = {
   layoutMode: 'classic', // 'classic' or 'rink'
   statsProrata: false,
   salaryMode: '2026', // '2026' or 'ERA'
-  fogOfWar: false,    // false = Hexagon ON, true = Fog of War (Hexagon OFF)
+  fogOfWar: true,     // true = cotes et radar masqués (défaut), false = hexagone visible
   done: false,
   loading: false,
   shards: new Map(),  // saison -> { players, byTeam }
@@ -405,10 +417,13 @@ function getPlayerDisplayStats(p) {
   const l = Math.round((p.l ?? 0) * factor);
   const so = Math.round((p.so ?? 0) * factor);
 
+  // Points par match, sur les valeurs affichées (suit les bascules prorata / époque)
+  const ppg = p.p === 'G' ? null : (gp > 0 ? pt / gp : 0);
+  const ppgStr = ppg == null ? '' : ppg.toFixed(2);
+
   const eraSal = p.realSal ?? getEraSalary(p.$, p.s);
   const isEra = G.salaryMode === 'ERA';
-  const startYr = parseInt(p.s ? p.s.slice(0, 4) : '2025', 10);
-  const isReal = p.isReal !== undefined ? !!p.isReal : (startYr >= 1989);
+  const isReal = !!p.isReal;
   const tagEra = isReal ? 'Réel' : 'Estimé';
 
   const salaryPrimary = isEra ? `${money(eraSal)} ('${p.s.slice(-2)})` : money(p.$);
@@ -416,7 +431,24 @@ function getPlayerDisplayStats(p) {
     ? `<span class="cap-pct">Ajusté 2026: ${money(p.$)}</span>`
     : `<span class="cap-pct">${tagEra} ${p.s}: ${money(eraSal)}</span>`;
 
-  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, eraSal, isReal, tagEra, salaryPrimary, salarySub };
+  return { factor, eraFactor, maxGP, gp, g, a, pt, pm, w, l, so, ppg, ppgStr, eraSal, isReal, tagEra, salaryPrimary, salarySub };
+}
+
+/** Étiquette de zone d'efficacité (calibre 1er trio, 2e trio…), visible même sous le fog of war. */
+function zoneTagHtml(p) {
+  const z = getLineZone(p, getHiddenRatings(p).v);
+  return `<span class="zone-tag lz${z.level}" title="Zone d'efficacité : ${z.label} — rend à 100 % sur ${z.idealUnits.length > 1 ? 'les trios' : 'le trio'} ${z.idealUnits.map(u => u + 1).join(', ')}">📍 ${z.short}</span>`;
+}
+
+/** Âge dans la saison, si la date de naissance est dans le shard (API bios). */
+function ageTagHtml(p) {
+  const age = ageAtSeason(p.bd, p.s);
+  return age ? `<span class="age-tag" title="Âge au début de la saison ${p.s}">${age} ans</span>` : '';
+}
+
+/** Étiquette de contrat d'entrée. */
+function elcTagHtml(p) {
+  return p.elc ? `<span class="elc-tag" title="Contrat d'entrée : premier contrat d'un joueur de 24 ans ou moins (3 saisons à 18-21 ans, 2 à 22-23, 1 à 24). Base plafonnée selon l'époque, plus bonis de rendement.">🐣 ELC</span>` : '';
 }
 
 function formatPlayerName(fullName) {
@@ -446,7 +478,7 @@ function slotCardEl(s) {
     const penTag = pen > 0 ? `<span class="tag-pen">-${pen}</span>` : '';
     const logo = getTeamLogoHtml(p.t, 14);
     const st = getPlayerDisplayStats(p);
-    const arch = getArchetype(p);
+    const arch = getArchetype(p, getHiddenRatings(p));
 
     let statValue = p.p === 'G' ? st.w : st.pt;
     let statUnit = p.p === 'G' ? 'V' : 'PTS';
@@ -455,8 +487,8 @@ function slotCardEl(s) {
     const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
 
     let subStats = p.p === 'G'
-      ? `${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA`
-      : `${st.g}G ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
+      ? `${p.sv ?? '—'} %ARR · ${p.ga ?? '—'} MBA`
+      : `<b class="ptsm">${st.ppgStr} PTS/M</b> · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
 
     const headshotMini = p.id
       ? `<img class="slot-headshot" src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" onerror="this.style.display='none'">`
@@ -472,6 +504,7 @@ function slotCardEl(s) {
         <div class="slot-salary">${st.salaryPrimary}</div>
       </div>
       <div class="slot-arch-badge" title="${arch.desc}">${arch.icon} ${arch.label}</div>
+      <div class="slot-tags">${zoneTagHtml(p)}${elcTagHtml(p)}${ageTagHtml(p)}</div>
       <div class="slot-big-stat">${statValue}<span class="stat-unit">${statUnit}</span></div>
       <div class="slot-bottom">
         <div class="slot-team-info">${logo} ${p.t} '${p.s.slice(-2)}</div>
@@ -666,8 +699,8 @@ function renderPlayerCard(p, used) {
   const pmStr = st.pm > 0 ? `+${st.pm}` : `${st.pm}`;
 
   const stat = p.p === 'G'
-    ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} SV`
-    : `${st.gp}PJ · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
+    ? `${st.gp}PJ · ${st.w}V-${st.l}D · ${p.sv ?? '—'} %ARR`
+    : `${st.gp}PJ · <b class="ptsm">${st.ppgStr} PTS/M</b> · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
 
   const mainBadgeVal = p.p === 'G' ? st.w : st.pt;
   const mainBadgeLbl = p.p === 'G' ? 'VIC' : 'PTS';
@@ -689,8 +722,9 @@ function renderPlayerCard(p, used) {
   else if (over) btnLabel = '× HORS BUDGET';
 
   const compactSubStats = p.p === 'G'
-    ? `${st.gp}PJ · ${p.sv ?? '—'} SV · ${p.ga ?? '—'} MBA`
-    : `${st.g}G ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
+    ? `${st.gp}PJ · ${p.sv ?? '—'} %ARR · ${p.ga ?? '—'} MBA`
+    : `<b class="ptsm">${st.ppgStr} PTS/M</b> · ${st.g}B ${st.a}A · <span class="${pmClass}">${pmStr}</span>`;
+  const tagsHtml = `<div class="card-tags">${zoneTagHtml(p)}${elcTagHtml(p)}${ageTagHtml(p)}</div>`;
 
   const posBadge = `<span class="pos-badge ${getPositionClass(p)}">${getPositionLabel(p)}</span>`;
 
@@ -715,6 +749,7 @@ function renderPlayerCard(p, used) {
         </div>
       </div>
       <div class="compact-sub-stats">${compactSubStats}</div>
+      ${tagsHtml}
       <div class="card-row-bottom" style="margin-top:2px;">
         <button class="add compact-add" ${already || !slot || over ? 'disabled' : ''}>${btnLabel}</button>
       </div>`;
@@ -729,6 +764,7 @@ function renderPlayerCard(p, used) {
         <div class="info">
           <div class="nm" style="font-size:13.5px;">${posBadge} ${formatPlayerName(p.n)}${p.x ? '<span class="tag">échangé</span>' : ''}${penStr}</div>
           <div class="mt" style="font-size:10px;">${p.t} ${p.s}</div>
+          ${tagsHtml}
         </div>
       </div>
       <div style="font-size:10.5px;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
@@ -760,6 +796,26 @@ function renderPlayerCard(p, used) {
   if (!G.fogOfWar) attachRadarEvents(c, p);
 
   return c;
+}
+
+/* Signés / requis par position, pour les en-têtes du bassin */
+const POS_NEED = {
+  AG: { role: 'AG', req: 4 }, C: { role: 'C', req: 4 }, AD: { role: 'AD', req: 4 },
+  LD: { role: 'DG', req: 3 }, RD: { role: 'DD', req: 3 }, G: { group: 'G', req: 2 },
+};
+function signedCount(key) {
+  const def = POS_NEED[key];
+  if (!def) return 0;
+  return SLOTS.filter(s => !s.scratch && G.roster[s.i] && (def.group ? s.group === def.group : s.role === def.role)).length;
+}
+function needBadgeHtml(signed, req) {
+  return `<span class="pool-col-need${signed >= req ? ' full' : ''}" title="Signés / requis à cette position (réservistes exclus)">${signed}/${req}</span>`;
+}
+function needBadgeForFilter(filter) {
+  if (filter === 'ALL') return needBadgeHtml(picked().length, 23);
+  if (filter === 'D') return needBadgeHtml(signedCount('LD') + signedCount('RD'), 6);
+  const key = filter === 'AG' || filter === 'AD' || filter === 'C' || filter === 'LD' || filter === 'RD' || filter === 'G' ? filter : null;
+  return key ? needBadgeHtml(signedCount(key), POS_NEED[key].req) : '';
 }
 
 function renderPool() {
@@ -813,7 +869,7 @@ function renderPool() {
 
     const headerEl = document.createElement('div');
     headerEl.className = 'pool-col-header';
-    headerEl.innerHTML = `<span class="pool-col-title">${filterTitles[G.filter] || 'JOUEURS DISPONIBLES'}</span> <span class="pool-col-count">${list.length}</span>`;
+    headerEl.innerHTML = `<span class="pool-col-title">${filterTitles[G.filter] || 'JOUEURS DISPONIBLES'}</span> <span class="pool-col-meta"><span class="pool-col-count">${list.length} dispo</span>${needBadgeForFilter(G.filter)}</span>`;
     colEl.appendChild(headerEl);
 
     const cardsContainer = document.createElement('div');
@@ -850,7 +906,7 @@ function renderPool() {
 
     const headerEl = document.createElement('div');
     headerEl.className = 'pool-col-header';
-    headerEl.innerHTML = `<span class="pool-col-title">${colDef.title}</span> <span class="pool-col-count">${colData.players.length}</span>`;
+    headerEl.innerHTML = `<span class="pool-col-title">${colDef.title}</span> <span class="pool-col-meta"><span class="pool-col-count">${colData.players.length} dispo</span>${needBadgeHtml(signedCount(colDef.key), POS_NEED[colDef.key].req)}</span>`;
     colEl.appendChild(headerEl);
 
     const cardsContainer = document.createElement('div');
@@ -1094,19 +1150,10 @@ function simulatePlayoffs(top16Teams) {
       const teamA = roundTeams[i];
       const teamB = roundTeams[roundTeams.length - 1 - i];
 
-      let winsA = 0, winsB = 0;
-      let gameLog = [];
-
-      while (winsA < 4 && winsB < 4) {
-        // match sim
-        const isPlayerA = teamA.isPlayer;
-        const isPlayerB = teamB.isPlayer;
-
-        let winnerA = Math.random() < (teamA.PTS / (teamA.PTS + teamB.PTS));
-        if (winnerA) winsA++; else winsB++;
-      }
-
-      const seriesWinner = winsA === 4 ? teamA : teamB;
+      // Série 4 de 7 jouée match par match avec les vrais alignements
+      const series = playSeries(teamA, teamB);
+      const winsA = series.wA, winsB = series.wB;
+      const seriesWinner = series.winner;
       nextRound.push(seriesWinner);
 
       const isPlayerSeries = teamA.isPlayer || teamB.isPlayer;
@@ -1170,7 +1217,7 @@ function showHockeyCardModal(p) {
   const penTag = pen > 0 ? ` <span class="tag-pen">-${pen} Pos</span>` : '';
 
   const st = getPlayerDisplayStats(p);
-  const arch = getArchetype(p);
+  const arch = getArchetype(p, getHiddenRatings(p));
   const logo = getTeamLogoHtml(p.t, 24);
   const logoBg = getTeamLogoHtml(p.t, 140);
   const headshot = getHeadshotHtml(p, 90);
@@ -1217,7 +1264,7 @@ function showHockeyCardModal(p) {
       <table class="hockey-card-stats-table">
         <thead>
           <tr>
-            <th>PJ</th><th>B</th><th>A</th><th>PTS</th><th>+/-</th><th>TIRS</th><th>CH/M</th><th>MJ%</th>
+            <th>PJ</th><th>B</th><th>A</th><th>PTS</th><th>PTS/M</th><th>+/-</th><th>TIRS</th><th>CH/M</th><th>MJ%</th>
           </tr>
         </thead>
         <tbody>
@@ -1226,6 +1273,7 @@ function showHockeyCardModal(p) {
             <td style="font-weight:800;">${st.g}</td>
             <td style="font-weight:800;">${st.a}</td>
             <td style="color:var(--gold);font-weight:900;font-size:15px;">${st.pt}</td>
+            <td class="ptsm">${st.ppgStr}</td>
             <td class="${pmClass}">${pmStr}</td>
             <td>${shotStr}</td>
             <td>${hitStr}</td>
@@ -1266,6 +1314,7 @@ function showHockeyCardModal(p) {
         <div class="hockey-card-identity">
           <div class="hockey-card-player-name">${formatPlayerName(p.n)}</div>
           <div class="hockey-card-archetype" title="${arch.desc}">${arch.icon} ${arch.label}</div>
+          <div class="hockey-card-tags">${zoneTagHtml(p)}${elcTagHtml(p)}${ageTagHtml(p)}</div>
           <div class="hockey-card-salary-block">
             <span class="salary-main">${st.salaryPrimary}</span>
             <span class="salary-sub">${st.salarySub}</span>
@@ -1323,11 +1372,68 @@ const bar = (label, val) => {
     <div class="bv">${Math.round(val)}</div></div>`;
 };
 
-$('mainBtn').onclick = () => {
+/**
+ * Adversaires : de vraies équipes historiques prises dans les saisons déjà
+ * chargées (celles de la roulette), alignées automatiquement. On complète
+ * avec des saisons au hasard s'il en manque. Les joueurs déjà signés par le
+ * joueur sont exclus des vestiaires adverses.
+ */
+async function buildOpponents(count) {
+  const exclude = new Set(picked().map(getPlayerKey));
+  const cands = [], seen = new Set();
+  const collect = () => {
+    for (const [season, entry] of G.shards) {
+      for (const [team, pool] of Object.entries(entry.byTeam)) {
+        const key = `${season}_${team}`;
+        if (seen.has(key)) continue;
+        const nF = pool.filter(p => p.p === 'F').length;
+        const nD = pool.filter(p => p.p === 'D').length;
+        const nG = pool.filter(p => p.p === 'G').length;
+        if (nF < 12 || nD < 6 || nG < 2) continue;
+        seen.add(key);
+        cands.push({ season, team, pool });
+      }
+    }
+  };
+  collect();
+  let tries = 0;
+  while (cands.length < count && tries++ < 12) {
+    try { await getShard(rnd(state.index.seasons)); } catch { /* on réessaie */ }
+    collect();
+  }
+  const chosen = cands.sort(() => Math.random() - 0.5).slice(0, count);
+  return chosen.map(c => createTeam(`${c.team} ${c.season}`, c.team, autoRoster(c.pool, exclude), { season: c.season }));
+}
+
+$('mainBtn').onclick = async () => {
   if (picked().length !== 23 || G.done) return;
   G.done = true;
+  const mb = $('mainBtn');
+  mb.disabled = true;
+  mb.textContent = 'SIMULATION DE LA LIGUE… (1 312 MATCHS)';
 
-  const r = simulate(G.roster);
+  let opponents = [];
+  try { opponents = await buildOpponents(31); } catch { opponents = []; }
+  if (opponents.length % 2 === 0 && opponents.length) opponents.pop();   // total pair avec le joueur
+
+  const you = createTeam('Votre formation', 'YOU', G.roster, { isPlayer: true });
+  let r, leagueTeams, leaders = [];
+  if (opponents.length) {
+    const league = simulateLeague([you, ...opponents]);
+    leagueTeams = league.standings;
+    leaders = league.leaders;
+    r = {
+      W: you.W, L: you.L, OTL: you.OTL, GF: you.GF, GA: you.GA, points: you.PTS,
+      attaque: you.strength.att, brigade: you.strength.def, rob: you.strength.rob,
+      clu: you.strength.clu, gRating: you.strength.g,
+    };
+  } else {
+    // Aucun vestiaire adverse disponible : saison contre la moyenne de la ligue
+    r = simulate(G.roster);
+    Object.assign(you, { W: r.W, L: r.L, OTL: r.OTL, GF: r.GF, GA: r.GA, PTS: r.points });
+    leagueTeams = [you];
+  }
+  const nTeams = leagueTeams.length;
   const perfect = (r.L + r.OTL) === 0;
 
   const note = perfect
@@ -1342,13 +1448,14 @@ $('mainBtn').onclick = () => {
     const hr = getHiddenRatings(p);
     const pmCls = (p.simPM || 0) > 0 ? 'pm-pos' : (p.simPM || 0) < 0 ? 'pm-neg' : '';
     const pmStr = (p.simPM || 0) > 0 ? `+${p.simPM}` : `${p.simPM || 0}`;
+    const inj = p.simInj ? ` · <span class="inj">🩹 ${p.simInj} PJ ratés</span>` : '';
 
     const simStatStr = p.p === 'G'
-      ? `${p.simGP || 0}PJ · ${p.simW || 0}V-${p.simL || 0}D-${p.simOTL || 0}DP · ${((p.simGA || 0) / Math.max(1, p.simGP || 1)).toFixed(2)} MBA · ${p.simSO || 0} BL`
-      : `${p.simGP || 0}PJ · <b>${p.simG || 0}B</b> ${p.simA || 0}A · <b style="color:var(--gold);font-size:13px;">${p.simPTS || 0} PTS</b> · <span class="${pmCls}">${pmStr}</span>`;
+      ? `${p.simGP || 0}PJ · ${p.simW || 0}V-${p.simL || 0}D-${p.simOTL || 0}DP · ${((p.simGA || 0) / Math.max(1, p.simGP || 1)).toFixed(2)} MBA · ${p.simSO || 0} BL${inj}`
+      : `${p.simGP || 0}PJ · <b>${p.simG || 0}B</b> ${p.simA || 0}A · <b style="color:var(--gold);font-size:13px;">${p.simPTS || 0} PTS</b> · <span class="${pmCls}">${pmStr}</span>${inj}`;
 
     return `<div class="rrow">
-      <div class="rn" style="display:flex;align-items:center;gap:6px">${logo} <span>${formatPlayerName(p.n)} <span class="sub">(${s.role})</span></span></div>
+      <div class="rn" style="display:flex;align-items:center;gap:6px">${logo} <span>${formatPlayerName(p.n)} <span class="sub">(${s.role})</span> ${zoneTagHtml(p)}</span></div>
       <div class="rs">${simStatStr} &nbsp;|&nbsp; <span style="color:var(--gold);font-weight:800;">OVR ${hr.v}</span> (OFF ${hr.o} DEF ${hr.d} ROB ${hr.r} CLU ${hr.c})</div>
     </div>`;
   }).join('');
@@ -1359,46 +1466,27 @@ $('mainBtn').onclick = () => {
     date: new Date().toLocaleDateString('fr-CA')
   });
 
-  // Simulation de la ligue à 32 équipes
-  const leagueTeams = [
-    { name: 'Votre Formation', tag: 'YOU', isPlayer: true, roster: G.roster, W: r.W, L: r.L, OTL: r.OTL, GF: r.GF, GA: r.GA, PTS: r.points },
-  ];
-
-  // Sélection de 31 adversaires aléatoires dans l'histoire
-  const sampleOpponents = [
-    { name: 'MTL 1976-77', tag: 'MTL' }, { name: 'EDM 1983-84', tag: 'EDM' }, { name: 'BOS 2022-23', tag: 'BOS' },
-    { name: 'NYI 1981-82', tag: 'NYI' }, { name: 'PIT 1991-92', tag: 'PIT' }, { name: 'COL 2000-01', tag: 'COL' },
-    { name: 'DET 2001-02', tag: 'DET' }, { name: 'CHI 2012-13', tag: 'CHI' }, { name: 'VGK 2022-23', tag: 'VGK' },
-    { name: 'TPA 2018-19', tag: 'TBL' }, { name: 'WSH 2017-18', tag: 'WSH' }, { name: 'LAK 2011-12', tag: 'LAK' },
-    { name: 'NJD 1999-00', tag: 'NJD' }, { name: 'DAL 1998-99', tag: 'DAL' }, { name: 'NYR 1993-94', tag: 'NYR' },
-    { name: 'CGY 1988-89', tag: 'CGY' }, { name: 'PHI 1974-75', tag: 'PHI' }, { name: 'STL 2018-19', tag: 'STL' },
-    { name: 'CAR 2005-06', tag: 'CAR' }, { name: 'ANA 2006-07', tag: 'ANA' }, { name: 'SJS 2015-16', tag: 'SJS' },
-    { name: 'NSH 2016-17', tag: 'NSH' }, { name: 'FLA 2023-24', tag: 'FLA' }, { name: 'VAN 2010-11', tag: 'VAN' },
-    { name: 'BUF 1998-99', tag: 'BUF' }, { name: 'OTT 2006-07', tag: 'OTT' }, { name: 'WPG 2017-18', tag: 'WPG' },
-    { name: 'MIN 2021-22', tag: 'MIN' }, { name: 'TOR 1992-93', tag: 'TOR' }, { name: 'QUE 1992-93', tag: 'QUE' },
-    { name: 'HFD 1986-87', tag: 'HFD' }
-  ];
-
-  for (const opp of sampleOpponents) {
-    // Generer fiches réalistes simulees
-    const w = Math.floor(Math.random() * 32) + 28;
-    const otl = Math.floor(Math.random() * 10) + 4;
-    const l = 82 - w - otl;
-    const gf = Math.floor(w * 3.4 + Math.random() * 20);
-    const ga = Math.floor(l * 3.2 + Math.random() * 20);
-    leagueTeams.push({
-      name: opp.name, tag: opp.tag, isPlayer: false, W: w, L: l, OTL: otl, GF: gf, GA: ga, PTS: w * 2 + otl
-    });
-  }
-
-  leagueTeams.sort((a, b) => b.PTS - a.PTS || (b.GF - b.GA) - (a.GF - a.GA));
   const playerRank = leagueTeams.findIndex(t => t.isPlayer) + 1;
+
+  const leadersRows = leaders.map((l, i) => `
+    <tr style="${l.team.isPlayer ? 'background:rgba(56,189,248,0.2);color:var(--gold);font-weight:800;' : ''}">
+      <td style="padding:5px;text-align:center;">${i + 1}</td>
+      <td style="padding:5px;">${getTeamLogoHtml(l.team.tag, 14)} ${l.player.n} <span class="sub">(${l.team.name})</span></td>
+      <td style="padding:5px;text-align:center;">${l.player.simGP}</td>
+      <td style="padding:5px;text-align:center;">${l.player.simG}</td>
+      <td style="padding:5px;text-align:center;">${l.player.simA}</td>
+      <td style="padding:5px;text-align:center;font-weight:900;color:var(--green-neon);">${l.player.simPTS}</td>
+    </tr>`).join('');
+
+  const injuriesHtml = you.injuriesLog.length
+    ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li>🩹 <strong>${i.player.n}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés (match ${i.at})</li>`).join('')}</ul>`
+    : `<div class="sub">Aucune blessure cette saison. Chanceux.</div>`;
 
   const standingsRows = leagueTeams.map((t, idx) => `
     <tr style="${t.isPlayer ? 'background:rgba(56,189,248,0.2);font-weight:800;color:var(--gold);' : ''}">
       <td style="padding:6px;text-align:center;">${idx + 1}</td>
       <td style="padding:6px;">${getTeamLogoHtml(t.tag, 16)} ${t.name}</td>
-      <td style="padding:6px;text-align:center;">82</td>
+      <td style="padding:6px;text-align:center;">${t.W + t.L + t.OTL}</td>
       <td style="padding:6px;text-align:center;">${t.W}</td>
       <td style="padding:6px;text-align:center;">${t.L}</td>
       <td style="padding:6px;text-align:center;">${t.OTL}</td>
@@ -1410,7 +1498,7 @@ $('mainBtn').onclick = () => {
   $('resultHost').innerHTML = `
     <div class="result">
       <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
-      <div class="rec">${r.points} POINTS · RANG AU CLASSEMENT : ${playerRank}e / 32</div>
+      <div class="rec">${r.points} POINTS · RANG AU CLASSEMENT : ${playerRank}e / ${nTeams}</div>
       <div class="bars">
         ${bar('Attaque', r.attaque)}
         ${bar('Brigade déf.', r.brigade)}
@@ -1420,7 +1508,7 @@ $('mainBtn').onclick = () => {
       </div>
 
       <div style="margin-top:24px;">
-        <h3 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">🏆 CLASSEMENT GÉNÉRAL DE LA LIGUE (32 ÉQUIPES)</h3>
+        <h3 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">🏆 CLASSEMENT GÉNÉRAL DE LA LIGUE (${nTeams} ÉQUIPES, ${(nTeams * 82 / 2).toLocaleString('fr-CA')} MATCHS SIMULÉS)</h3>
         <div style="max-height:280px;overflow-y:auto;border:1px solid var(--panel-border);border-radius:10px;">
           <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
             <thead>
@@ -1443,6 +1531,24 @@ $('mainBtn').onclick = () => {
         </div>
       </div>
 
+      ${leaders.length ? `
+      <div style="margin-top:18px;">
+        <h3 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">⭐ MENEURS DE LA LIGUE</h3>
+        <div style="border:1px solid var(--panel-border);border-radius:10px;overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+            <thead><tr style="background:rgba(0,0,0,0.4);color:var(--sub);text-align:center;">
+              <th style="padding:5px;">#</th><th style="padding:5px;text-align:left;">JOUEUR</th><th style="padding:5px;">PJ</th><th style="padding:5px;">B</th><th style="padding:5px;">A</th><th style="padding:5px;">PTS</th>
+            </tr></thead>
+            <tbody>${leadersRows}</tbody>
+          </table>
+        </div>
+      </div>` : ''}
+
+      <div style="margin-top:18px;">
+        <h3 style="color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">🩹 INFIRMERIE DE VOTRE FORMATION</h3>
+        ${injuriesHtml}
+      </div>
+
       <div class="note">${note}</div>
       <div class="reveal"><h3>COTES CACHÉES RÉVÉLÉES</h3>${rows}</div>
       <div style="text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
@@ -1460,7 +1566,7 @@ $('mainBtn').onclick = () => {
       const topPlayer = picked().sort((a,b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0))[0];
       const shareText = `🏒 Cap 82-0 — Alignement de 23 joueurs\n` +
         `📊 Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n` +
-        `🏆 Rang ligue : ${playerRank}e / 32\n` +
+        `🏆 Rang ligue : ${playerRank}e / ${nTeams}\n` +
         `💵 Masse salariale : ${money(capUsed())} / ${money(CAP)}\n` +
         `⭐ Vedette : ${topPlayer ? `${topPlayer.n} ('${topPlayer.s.slice(-2)})` : 'Inconnue'}\n` +
         `👉 Essayez de faire 82-0 !`;

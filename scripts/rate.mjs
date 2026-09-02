@@ -1,7 +1,7 @@
 /**
  * Pont entre le script Python de build et js/ratings.js.
  *
- * Lit sur stdin { label, minGP, skaters, goalies, realtime } et écrit le
+ * Lit sur stdin { label, minGP, skaters, goalies, realtime, salaries } et écrit le
  * shard sur stdout. Existe pour qu'il n'y ait qu'UNE implémentation des
  * cotes — celle que le navigateur utilise aussi.
  *
@@ -14,7 +14,7 @@ let raw = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', c => { raw += c; });
 process.stdin.on('end', () => {
-  const { label, minGP, skaters, goalies, realtime } = JSON.parse(raw);
-  const shard = buildSeasonShard(label, skaters, goalies, realtime || null, minGP);
+  const { label, minGP, skaters, goalies, realtime, salaries } = JSON.parse(raw);
+  const shard = buildSeasonShard(label, skaters, goalies, realtime || null, minGP, { salaries: salaries || null });
   process.stdout.write(JSON.stringify(shard));
 });

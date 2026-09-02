@@ -5,40 +5,76 @@
  * sinon des cotes calculées avec deux formules différentes se retrouvent
  * mélangées dans le cache IndexedDB.
  *
- * Utilisé par le navigateur (API en direct) ET par scripts/rate.mjs (build
- * des shards). Une seule implémentation, un seul endroit à corriger.
+ * Utilisé par le navigateur (API en direct), par scripts/rate.mjs (build
+ * des shards depuis l'API) ET par scripts/rerate.mjs (recalcul hors ligne
+ * de la cote globale, du salaire, de l'archétype et de la zone de trio à
+ * partir des sous-cotes déjà dans les shards). Une seule implémentation,
+ * un seul endroit à corriger.
+ *
+ * Deux étages :
+ *   1. rateSkaters / rateGoalies — sous-cotes o, d, r, c, sp en z-score
+ *      contre les contemporains de la saison. Exige les stats brutes.
+ *   2. finalizeSeason — cote globale (v), salaire ($), archétype (ak) et
+ *      zone de trio (lz). N'exige que les sous-cotes et les stats du
+ *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 11;
+export const RATINGS_VERSION = 12;
 
-/* ---------- Plafonds / Masses salariales par époque (pour conversion en $ réel) ---------- */
+/** Plafond de référence du jeu (2025-26), en dollars. */
+export const CAP_REF = 95_500_000;
+
+/* ---------- Plafond (ou plus gros budget d'équipe) par saison ----------
+ *
+ * 2005-06 et après : plafond officiel de la LNH.
+ * 1989-90 à 2003-04 : pas de plafond. On prend la masse salariale de
+ *   l'équipe la plus dépensière de l'année comme « plafond » de référence,
+ *   pour que le prorata vers 2026 reflète ce que payait vraiment le marché.
+ *   Chiffres arrondis, d'après les rapports de l'époque.
+ * Avant 1989-90 : estimation, les salaires n'étaient pas publiés.
+ */
 export const SEASON_ERA_CAP = {
   '1970-71': 850_000,   '1971-72': 950_000,   '1972-73': 1_050_000, '1973-74': 1_150_000,
   '1974-75': 1_300_000, '1975-76': 1_450_000, '1976-77': 1_600_000, '1977-78': 1_750_000,
   '1978-79': 1_900_000, '1979-80': 2_100_000, '1980-81': 2_400_000, '1981-82': 2_700_000,
   '1982-83': 3_000_000, '1983-84': 3_400_000, '1984-85': 3_800_000, '1985-86': 4_200_000,
-  '1986-87': 4_700_000, '1987-88': 5_200_000, '1988-89': 5_800_000, '1989-90': 6_500_000,
-  '1990-91': 7_500_000, '1991-92': 8_800_000, '1992-93': 10_200_000,'1993-94': 12_000_000,
-  '1994-95': 14_000_000,'1995-96': 16_000_000,'1996-97': 18_500_000,'1997-98': 21_000_000,
-  '1998-99': 23_500_000,'1999-00': 26_000_000,'2000-01': 28_500_000,'2001-02': 31_000_000,
-  '2002-03': 33_500_000,'2003-04': 36_000_000,'2005-06': 39_000_000,'2006-07': 44_000_000,
-  '2007-08': 50_300_000,'2008-09': 56_700_000,'2009-10': 56_800_000,'2010-11': 59_400_000,
-  '2011-12': 64_300_000,'2012-13': 60_000_000,'2013-14': 64_300_000,'2014-15': 69_000_000,
-  '2015-16': 71_400_000,'2016-17': 73_000_000,'2017-18': 75_000_000,'2018-19': 79_500_000,
-  '2019-20': 81_500_000,'2020-21': 81_500_000,'2021-22': 81_500_000,'2022-23': 82_500_000,
-  '2023-24': 83_500_000,'2024-25': 88_000_000,'2025-26': 95_500_000,
+  '1986-87': 4_700_000, '1987-88': 5_200_000, '1988-89': 5_800_000,
+  // plus gros budget d'équipe (pas de plafond)
+  '1989-90': 8_500_000, '1990-91': 10_000_000,'1991-92': 13_000_000,'1992-93': 17_000_000,
+  '1993-94': 22_000_000,'1994-95': 26_000_000,'1995-96': 31_000_000,'1996-97': 36_000_000,
+  '1997-98': 44_000_000,'1998-99': 50_000_000,'1999-00': 61_000_000,'2000-01': 63_000_000,
+  '2001-02': 70_000_000,'2002-03': 76_000_000,'2003-04': 78_000_000,
+  // plafond officiel
+  '2005-06': 39_000_000,'2006-07': 44_000_000,'2007-08': 50_300_000,'2008-09': 56_700_000,
+  '2009-10': 56_800_000,'2010-11': 59_400_000,'2011-12': 64_300_000,'2012-13': 60_000_000,
+  '2013-14': 64_300_000,'2014-15': 69_000_000,'2015-16': 71_400_000,'2016-17': 73_000_000,
+  '2017-18': 75_000_000,'2018-19': 79_500_000,'2019-20': 81_500_000,'2020-21': 81_500_000,
+  '2021-22': 81_500_000,'2022-23': 82_500_000,'2023-24': 83_500_000,'2024-25': 88_000_000,
+  '2025-26': 95_500_000,
 };
 
+/** Vrai si des salaires publiés existent pour la saison (1989-90 et après). */
 export function isRealEra(season) {
   if (!season) return false;
   const year = parseInt(season.slice(0, 4), 10);
   return year >= 1989;
 }
 
-export function getEraSalary(salary2026, season) {
-  const eraCap = SEASON_ERA_CAP[season] || 95_500_000;
-  const ratio = eraCap / 95_500_000;
+export function eraCapFor(season) {
+  return SEASON_ERA_CAP[season] || CAP_REF;
+}
+
+/** Salaire 2026 -> salaire de l'époque, au prorata du plafond de l'année. */
+export function getEraSalary(salary2026, season, refCap = null) {
+  const eraCap = refCap || eraCapFor(season);
+  const ratio = eraCap / CAP_REF;
   return Math.max(35_000, Math.round((salary2026 * ratio) / 10_000) * 10_000);
+}
+
+/** Salaire de l'époque -> salaire 2026, au prorata du plafond de l'année. */
+export function getModernSalary(eraSalary, season, refCap = null) {
+  const eraCap = refCap || eraCapFor(season);
+  return Math.max(775_000, Math.round((eraSalary * CAP_REF / eraCap) / 25_000) * 25_000);
 }
 
 /* ---------- Moyennes de buts par saison (pour ajustement par époque) ---------- */
@@ -62,35 +98,139 @@ export function getEraFactor(season) {
   return 3.15 / avg;
 }
 
-export function getArchetype(p) {
-  if (!p) return { key: 'UNKNOWN', label: 'Inconnu', icon: '❓', desc: '' };
+/* ---------- Archétypes classiques ---------- */
+
+export const ARCHETYPES = {
+  // Attaquants
+  OFF_PLAYMAKER: { label: "Fabricant de jeu d'élite", icon: '🪄', desc: 'Vision du jeu et passes magistrales' },
+  SNIPER:        { label: 'Franc-tireur / Marqueur',   icon: '🎯', desc: 'Lancer foudroyant et finition d\'élite' },
+  PLAYMAKER:     { label: 'Fabricant de jeu',          icon: '🎨', desc: 'Distribue la rondelle avec précision' },
+  POWER_FWD:     { label: 'Attaquant de puissance',    icon: '💥', desc: 'Marque dans le trafic et frappe fort' },
+  TWO_WAY_FWD:   { label: 'Attaquant complet',         icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' },
+  ENERGY:        { label: "Joueur d'énergie",          icon: '🔋', desc: 'Intensité, échec avant et mises en échec' },
+  SKILLED_FWD:   { label: 'Attaquant offensif',        icon: '✨', desc: 'Aisance offensive naturelle' },
+  CHECKER:       { label: 'Attaquant de profondeur',   icon: '🏃', desc: 'Profondeur et ardeur au travail' },
+  // Défenseurs
+  OFF_D:         { label: 'Défenseur offensif',        icon: '🚀', desc: 'Relance, tir frappé et avantage numérique' },
+  DEF_D:         { label: 'Défenseur physique',        icon: '🛡️', desc: 'Jeu physique et protection du territoire' },
+  STAY_D:        { label: 'Défenseur défensif',        icon: '🔒', desc: 'Sécurité et désavantage numérique' },
+  TWO_WAY_D:     { label: 'Défenseur polyvalent',      icon: '🔄', desc: 'Efficace dans toutes les situations' },
+  CHECKER_D:     { label: 'Défenseur de profondeur',   icon: '🧱', desc: 'Fiabilité et minutes tranquilles' },
+  // Gardiens
+  WALL:          { label: "Gardien d'élite",           icon: '🧱', desc: '% d\'arrêts et moyenne d\'élite' },
+  ACROBAT:       { label: 'Gardien acrobatique',       icon: '⚡', desc: 'Réflexes et arrêts spectaculaires' },
+  WORKHORSE:     { label: 'Gardien de fer',            icon: '🔋', desc: 'Grosse charge de travail' },
+  HYBRID_G:      { label: 'Gardien régulier',          icon: '🥅', desc: 'Style fiable et constant' },
+  UNKNOWN:       { label: 'Inconnu',                   icon: '❓', desc: '' },
+};
+
+/**
+ * Clé d'archétype à partir des sous-cotes et des stats.
+ * `r` = objet de cotes { o, d, r, c, sp } ; `p` = fiche (p, g, a, pt).
+ */
+export function archetypeKey(p, r) {
+  if (!p || !r) return 'UNKNOWN';
   if (p.p === 'G') {
-    if (p.o >= 75 && p.d >= 75) return { key: 'WALL', label: 'Mur Hermétique', icon: '🧱', desc: '% d\'arrêts et moyenne d\'élite' };
-    if (p.sp >= 72) return { key: 'ACROBAT', label: 'Réflexes Acrobatiques', icon: '⚡', desc: 'Réflexes et arrêts spectaculaires' };
-    if (p.r >= 70) return { key: 'WORKHORSE', label: 'Gardien de Fer', icon: '🔋', desc: 'Grosse charge de travail' };
-    return { key: 'HYBRID_G', label: 'Gardien Standard', icon: '🥅', desc: 'Style équilibré' };
+    if (r.o >= 66 && r.d >= 66) return 'WALL';
+    if ((r.sp ?? 0) >= 62) return 'ACROBAT';
+    if (r.r >= 60) return 'WORKHORSE';
+    return 'HYBRID_G';
   }
 
   if (p.p === 'D') {
-    if (p.o >= 68 || (p.o > p.d + 10)) return { key: 'OFF_D', label: 'Défenseur Offensif', icon: '🚀', desc: 'Relance, tir et avantage numérique' };
-    if (p.d >= 68 && p.r >= 60) return { key: 'DEF_D', label: 'Défenseur Physique', icon: '🛡️', desc: 'Défense hermétique et mises en échec' };
-    if (p.d >= 62) return { key: 'STAY_D', label: 'Défenseur Défensif', icon: '🔒', desc: 'Sécurité et désavantage numérique' };
-    return { key: 'TWO_WAY_D', label: 'Défenseur Mobile', icon: '🔄', desc: 'Jeu complet sur 200 pieds' };
+    if (r.o >= 64 || r.o > r.d + 8) return 'OFF_D';
+    if (r.d >= 62 && r.r >= 57) return 'DEF_D';
+    if (r.d >= 61) return 'STAY_D';
+    if (r.o >= 48 && r.d >= 54) return 'TWO_WAY_D';
+    return 'CHECKER_D';
   }
 
-  // Forward (F)
-  const gRatio = p.g / Math.max(1, p.pt);
-  const aRatio = p.a / Math.max(1, p.pt);
+  // Attaquants
+  const pts = Math.max(1, p.pt || ((p.g || 0) + (p.a || 0)));
+  const gRatio = (p.g || 0) / pts;
+  const aRatio = (p.a || 0) / pts;
 
-  if (p.o >= 78 && aRatio >= 0.58) return { key: 'OFF_PLAYMAKER', label: 'Fabricant Élité', icon: '🪄', desc: 'Vision du jeu et passes magistrales' };
-  if (p.o >= 65 && gRatio >= 0.52) return { key: 'SNIPER', label: 'Buteur / Sniper', icon: '🎯', desc: 'Finition redoutable et lancer précis' };
-  if (p.o >= 65 && aRatio >= 0.55) return { key: 'PLAYMAKER', label: 'Fabriqueur de Jeu', icon: '🎯', desc: 'Distribue la rondelle avec précision' };
-  if (p.r >= 68 && p.o >= 60) return { key: 'POWER_FWD', label: 'Attaquant de Puissance', icon: '💥', desc: 'Marque dans le trafic et frappe fort' };
-  if (p.d >= 68) return { key: 'TWO_WAY_FWD', label: 'Polyvalent / Défensif', icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' };
-  if (p.r >= 70) return { key: 'ENFORCER', label: 'Énergique / Robustesse', icon: '🥊', desc: 'Physique intimidant et présence intense' };
-  if (p.o >= 60) return { key: 'SKILLED_FWD', label: 'Attaquant Talentueux', icon: '✨', desc: 'Aisance offensive naturelle' };
+  // Vedettes : passeur ou marqueur, selon la part de buts
+  if (r.o >= 76) return aRatio >= 0.55 ? 'OFF_PLAYMAKER' : 'SNIPER';
+  if (r.o >= 60) {
+    if (gRatio >= 0.47) return 'SNIPER';
+    if (aRatio >= 0.60) return 'PLAYMAKER';
+    if (r.r >= 58) return 'POWER_FWD';
+    if (r.d >= 60) return 'TWO_WAY_FWD';
+    return 'SKILLED_FWD';
+  }
+  if (r.r >= 58 && r.o >= 52) return 'POWER_FWD';
+  if (r.d >= 57) return 'TWO_WAY_FWD';
+  if (r.r >= 58) return 'ENERGY';
+  if (r.o >= 52) return 'SKILLED_FWD';
+  return 'CHECKER';
+}
 
-  return { key: 'CHECKER', label: 'Laveur de Carreaux', icon: '🏃', desc: 'Profondeur et ardeur au travail' };
+/**
+ * Archétype d'un joueur. Lit p.ak (posé par finalizeSeason, présent dans
+ * les shards) et retombe sur un calcul à partir de `ratings` sinon — les
+ * cotes sont retirées de l'objet joueur dans le navigateur, il faut donc
+ * passer getHiddenRatings(p) quand p.ak manque.
+ */
+export function getArchetype(p, ratings = null) {
+  if (!p) return { key: 'UNKNOWN', ...ARCHETYPES.UNKNOWN };
+  const key = p.ak || archetypeKey(p, ratings || (p.o !== undefined ? p : null));
+  return { key, ...(ARCHETYPES[key] || ARCHETYPES.UNKNOWN) };
+}
+
+/* ---------- Zones de trio (calibre) ---------- */
+
+/*
+ * Calibre déduit de la cote globale. Seuils calés sur la distribution de
+ * toutes les saisons (voir PLAN.md) :
+ *   attaquants — 1er trio ≈ 13 % du haut, 2e ≈ 22 % suivants, 3e ≈ 30 %, 4e le reste
+ *   défenseurs — 1re paire ≈ 20 %, 2e ≈ 25 %, 3e ≈ 30 %, profondeur le reste
+ */
+export const ZONE_THRESHOLDS = {
+  F: [65, 56, 48],   // >= 65 : 1er trio, >= 56 : 2e, >= 48 : 3e, sinon 4e
+  D: [71, 63, 56],   // >= 71 : 1re paire, >= 63 : 2e, >= 56 : 3e, sinon profondeur
+  G: [80, 68],       // >= 80 : partant d'élite, >= 68 : partant, sinon auxiliaire
+};
+
+export const LINE_ZONES = {
+  F: [
+    { level: 1, label: 'Calibre 1er trio', short: '1er trio', idealUnits: [0, 1] },
+    { level: 2, label: 'Calibre 2e trio',  short: '2e trio',  idealUnits: [0, 1, 2] },
+    { level: 3, label: 'Calibre 3e trio',  short: '3e trio',  idealUnits: [2, 3] },
+    { level: 4, label: 'Calibre 4e trio',  short: '4e trio',  idealUnits: [3] },
+  ],
+  D: [
+    { level: 1, label: 'Calibre 1re paire', short: '1re paire', idealUnits: [0, 1] },
+    { level: 2, label: 'Calibre 2e paire',  short: '2e paire',  idealUnits: [0, 1, 2] },
+    { level: 3, label: 'Calibre 3e paire',  short: '3e paire',  idealUnits: [1, 2] },
+    { level: 4, label: 'Profondeur',        short: 'Profondeur', idealUnits: [2] },
+  ],
+  G: [
+    { level: 1, label: "Partant d'élite", short: 'Partant élite', idealUnits: [0] },
+    { level: 2, label: 'Partant',         short: 'Partant',       idealUnits: [0, 1] },
+    { level: 3, label: 'Auxiliaire',      short: 'Auxiliaire',    idealUnits: [1] },
+  ],
+};
+
+export function zoneLevelFor(pos, v) {
+  const t = ZONE_THRESHOLDS[pos] || ZONE_THRESHOLDS.F;
+  for (let i = 0; i < t.length; i++) if (v >= t[i]) return i + 1;
+  return t.length + 1;
+}
+
+/**
+ * Zone de trio d'un joueur. Lit p.lz (posé par finalizeSeason) ; sinon
+ * déduit de la cote globale passée en `v` (getHiddenRatings(p).v).
+ */
+export function getLineZone(p, v = null) {
+  const pos = !p ? 'F' : p.p === 'G' ? 'G' : p.p === 'D' ? 'D' : 'F';
+  const zones = LINE_ZONES[pos];
+  let level = p && p.lz;
+  if (!level) {
+    const ovr = v ?? (p && p.v);
+    level = ovr != null ? zoneLevelFor(pos, ovr) : zones.length;
+  }
+  return zones[Math.min(zones.length, Math.max(1, level)) - 1];
 }
 
 /* ---------- outils statistiques ---------- */
@@ -110,21 +250,103 @@ function scale(z, center = 52, spread = 13, lo = 25, hi = 99) {
 
 const per = (row, key) => (row[key] || 0) / (row.gamesPlayed || 1);
 
+/** Interpolation linéaire par morceaux sur une table [[x, y], ...] triée par x. */
+function lerpTable(x, pts) {
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    if (x <= pts[i][0]) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+      return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+    }
+  }
+  return pts[pts.length - 1][1];
+}
+
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+
+/* ---------- salaire ---------- */
+
 /**
- * Salaire dérivé de la cote globale, sur l'échelle salariale actuelle.
- * cote 50 -> ~0,78 M$ | cote 75 -> ~4,0 M$ | cote 90 -> ~10,7 M$ | cote 99 -> ~19 M$
+ * Barème salarial 2026 par cote globale (interpolation en log entre ancres).
+ *   50 -> 0,78 M$ | 70 -> 2,3 M$ | 80 -> 5,6 M$ | 85 -> 8,8 M$
+ *   88 -> 11,5 M$ | 92 -> 14,5 M$ | 96 -> 17,5 M$ | 99 -> 19,5 M$
+ * Un 100+ points (cote 88-99) coûte donc 12 à 19 M$, un défenseur de
+ * première paire 9 à 14 M$, et il faut remplir le reste avec du 3e-4e trio.
  */
-export function salaryFor(ovr, pos) {
-  let base = 775000 * Math.exp(0.0655 * Math.max(0, ovr - 50));
-  if (pos === 'G') base *= 0.88;
-  return Math.round(base / 25000) * 25000;
+const SALARY_ANCHORS = [
+  [50, 775_000], [60, 1_050_000], [70, 2_300_000], [75, 3_600_000], [80, 5_600_000],
+  [85, 8_800_000], [88, 11_500_000], [92, 13_750_000], [96, 16_250_000], [99, 18_500_000],
+];
+const LOG_ANCHORS = SALARY_ANCHORS.map(([v, s]) => [v, Math.log(s)]);
+
+/*
+ * Contrats d'entrée, selon les façons de faire de l'époque :
+ *
+ *  - avant 1995-96 : aucun système. Les recrues négociaient librement
+ *    (Lindros 1992, Daigle 1993 : des contrats de vedette dès l'entrée),
+ *    c'est justement ce qui a mené au plafond des recrues. Pas de rabais.
+ *  - 1995-96 à 2003-04 (convention de 1995) : salaire de recrue plafonné
+ *    (850 k$ en 1995, ~1,3 M$ en 2004, soit ~2,7 % du plus gros budget
+ *    d'équipe), mais bonis de rendement sans vrai plafond — les jeunes
+ *    vedettes gagnaient 3 à 4 M$ avec les bonis.
+ *  - 2005-06 et après : base plafonnée (850 k$, 925 k$ dès 2011, 950 k$ dès
+ *    2020, ~1 % du plafond) et bonis plafonnés à 2,85 M$ (~3 %).
+ *
+ *  Le contrat d'entrée s'applique au premier contrat d'un joueur signé à
+ *  24 ans ou moins : 3 saisons s'il a 18-21 ans, 2 à 22-23, 1 à 24, aucun
+ *  à 25 ans et plus. Il « glisse » tant que le joueur ne joue pas 10
+ *  matchs, donc compter à partir de la première saison à 10+ matchs dans
+ *  la base est fidèle. L'âge vient de `bd` (date de naissance, API bios)
+ *  quand le shard l'a, sinon de la cohorte d'identifiant LNH
+ *  (opts.entryYear, voir scripts/rerate.mjs). Sans aucune de ces deux
+ *  informations, pas de contrat d'entrée : on ne devine pas.
+ */
+/** Âge du joueur au 1er octobre de la saison, depuis sa date de naissance `bd` (AAAA-MM-JJ). */
+export function ageAtSeason(bd, season) {
+  if (!bd || !season) return null;
+  const by = parseInt(String(bd).slice(0, 4), 10);
+  if (!by) return null;
+  const year = parseInt(season.slice(0, 4), 10);
+  const md = String(bd).slice(5, 10);
+  return year - by - (md > '10-01' ? 1 : 0);
+}
+
+export function elcEra(season) {
+  const year = parseInt(season.slice(0, 4), 10);
+  if (year < 1995) return null;
+  if (year < 2005) return { basePct: 0.027, bonusPct: 0.030 };
+  return { basePct: 0.010, bonusPct: 0.030 };
+}
+
+/** Nombre de saisons de contrat d'entrée selon l'âge à la première saison. */
+export function elcYearsForAge(age) {
+  if (age == null || Number.isNaN(age)) return 0;
+  if (age <= 21) return 3;
+  if (age <= 23) return 2;
+  if (age === 24) return 1;
+  return 0;
+}
+
+export function elcSalaryFor(ovr, season) {
+  const era = elcEra(season) || { basePct: 0.010, bonusPct: 0.030 };
+  const base = era.basePct * CAP_REF;
+  const bonus = era.bonusPct * CAP_REF * clamp((ovr - 70) / 29, 0, 1);
+  return Math.round((base + bonus) / 25_000) * 25_000;
+}
+
+export function salaryFor(ovr, pos, elc = false, season = '2025-26') {
+  let base = Math.exp(lerpTable(ovr, LOG_ANCHORS));
+  if (pos === 'G') base *= 0.90;
+  base = Math.round(base / 25_000) * 25_000;
+  if (elc) base = Math.min(base, elcSalaryFor(ovr, season));
+  return Math.max(775_000, base);
 }
 
 export function capPctFor(salary) {
-  return Math.round((salary / 95_500_000) * 1000) / 10;
+  return Math.round((salary / CAP_REF) * 1000) / 10;
 }
 
-/* ---------- patineurs ---------- */
+/* ---------- patineurs : sous-cotes ---------- */
 
 export function rateSkaters(rows, realtimeById = null) {
   const rt = id => (realtimeById && realtimeById[id]) || null;
@@ -179,27 +401,16 @@ export function rateSkaters(rows, realtimeById = null) {
                + 0.25 * z.pts(per(r, 'points'));
 
     const zSp = 0.50 * z.toi(toiMin) + 0.30 * z.shots(per(r, 'shots')) + 0.20 * z.sh(per(r, 'shPoints'));
-    const sp = scale(zSp, 52, 12);
-
-    const o = scale(zOff);
-    const d = scale(zDef);
-    const rb = scale(zRob, 50, 12);
-    const c = scale(zClu, 50, 12);
-
-    const v = Math.max(25, Math.min(99, Math.round(
-      isD ? 0.32 * o + 0.46 * d + 0.11 * rb + 0.11 * c
-          : 0.54 * o + 0.24 * d + 0.10 * rb + 0.12 * c
-    )));
 
     const htPerGame = extra && extra.hits != null ? Math.round((extra.hits / gp) * 10) / 10 : null;
     const foPct = r.faceoffWinPct != null ? Math.round(r.faceoffWinPct * 1000) / 1000 : null;
-    const sal = salaryFor(v, natural);
 
     return {
       id: r.playerId || null,
       n: r.skaterFullName,
       p: isD ? 'D' : 'F',
       np: natural,
+      ...(r.birthDate ? { bd: String(r.birthDate).slice(0, 10) } : {}),
       gp,
       g: r.goals || 0,
       a: r.assists || 0,
@@ -209,15 +420,17 @@ export function rateSkaters(rows, realtimeById = null) {
       ht: htPerGame,
       fo: foPct,
       toi: Math.round(toiMin * 10) / 10,
-      o, d, r: rb, c, sp, v,
-      $: sal,
-      cp: capPctFor(sal),
+      o: scale(zOff),
+      d: scale(zDef),
+      r: scale(zRob, 50, 12),
+      c: scale(zClu, 50, 12),
+      sp: scale(zSp, 52, 12),
       teams: (r.teamAbbrevs || '???').split(',').map(s => s.trim()),
     };
   }).filter(Boolean);
 }
 
-/* ---------- gardiens ---------- */
+/* ---------- gardiens : sous-cotes ---------- */
 
 export function rateGoalies(rows) {
   const z = {
@@ -232,60 +445,205 @@ export function rateGoalies(rows) {
     const gp = r.gamesPlayed || 0;
     if (gp <= 0) return null;
 
+    const zGaa = r.goalsAgainstAverage != null ? -z.gaa(r.goalsAgainstAverage) : 0;
     const o = scale(z.svp(r.savePct));                                    // Technique
-    const d = scale(r.goalsAgainstAverage != null ? -z.gaa(r.goalsAgainstAverage) : 0);  // Blindage
+    const d = scale(zGaa);                                                // Blindage
     const rb = scale(z.gp(gp), 50, 12);                                   // Charge de travail
     const c = scale(0.6 * z.so((r.shutouts || 0) / gp)
                   + 0.4 * z.wpct((r.wins || 0) / gp), 50, 12);            // Clutch
-    const rf = scale(0.7 * z.svp(r.savePct) + 0.3 * (r.goalsAgainstAverage != null ? -z.gaa(r.goalsAgainstAverage) : 0), 52, 12); // Réflexes
-
-    const v = Math.max(25, Math.min(99, Math.round(
-      0.42 * o + 0.34 * d + 0.09 * rb + 0.15 * c
-    )));
-    const sal = salaryFor(v, 'G');
+    const rf = scale(0.7 * z.svp(r.savePct) + 0.3 * zGaa, 52, 12);       // Réflexes
 
     return {
       id: r.playerId || null,
       n: r.goalieFullName,
       p: 'G',
       np: 'G',
+      ...(r.birthDate ? { bd: String(r.birthDate).slice(0, 10) } : {}),
       gp,
       w: r.wins || 0,
       l: r.losses || 0,
       sv: r.savePct != null ? Math.round(r.savePct * 1000) / 1000 : null,
       ga: r.goalsAgainstAverage != null ? Math.round(r.goalsAgainstAverage * 100) / 100 : null,
       so: r.shutouts || 0,
-      o, d, r: rb, c, sp: rf, v,
-      $: sal,
-      cp: capPctFor(sal),
+      o, d, r: rb, c, sp: rf,
       teams: (r.teamAbbrevs || '???').split(',').map(s => s.trim()),
     };
   }).filter(Boolean);
 }
 
-/**
- * Assemble un shard de saison. Un joueur échangé est dupliqué dans le
- * vestiaire de CHAQUE équipe où il a passé, marqué x:1.
- */
-export function buildSeasonShard(label, skaterRows, goalieRows, realtimeById, minGP) {
-  const skaters = skaterRows.filter(r => (r.gamesPlayed || 0) >= minGP);
-  const goalies = goalieRows.filter(r => (r.gamesPlayed || 0) >= minGP);
-  const realEra = isRealEra(label);
+/* ---------- étage 2 : cote globale, salaire, archétype, zone ---------- */
 
+/*
+ * Bonus de vedette, par rang dans la saison. Le rang est divisé par le
+ * nombre d'équipes de la ligue cette année-là (q = rang / équipes) pour
+ * qu'un top-10 dans une ligue à 14 équipes ne vaille pas un top-10 à 32.
+ * Un second terme en z-score garde une trace de l'écart réel avec le
+ * peloton (Gretzky 1982 n'est pas juste « premier »).
+ */
+const STAR_F_RANK = [[0.10, 14], [0.30, 12], [0.60, 9], [1.00, 4], [1.50, 0]];
+const STAR_F_Z    = [[1.50, 0], [2.50, 8], [3.20, 12], [4.00, 14]];
+const STAR_D_RANK = [[0.10, 17], [0.40, 17], [0.80, 17], [1.20, 13], [1.80, 5], [2.50, 0]];
+const STAR_D_Z    = [[1.00, 0], [2.00, 12], [3.00, 16], [4.00, 17]];
+const STAR_G_RANK = [[0.10, 12], [0.30, 9], [0.60, 5], [1.00, 0]];
+
+/** Nombre de matchs d'une saison écourtée, sinon 82 (80 avant 1992-93, sans effet ici). */
+export function seasonGames(season) {
+  if (season === '1994-95' || season === '2012-13') return 48;
+  if (season === '2020-21') return 56;
+  if (season === '2019-20') return 70;
+  return 82;
+}
+
+/** Production par match, avec plancher de 30 matchs pour éviter les petits échantillons. */
+const prodPerGame = p => (p.pt || 0) / Math.max(p.gp || 1, 30);
+
+function rankMap(list, score) {
+  const sorted = [...list].sort((a, b) => score(b) - score(a));
+  const m = new Map();
+  sorted.forEach((p, i) => m.set(p, i));
+  return m;
+}
+
+/**
+ * Cote globale, salaire, archétype et zone pour une saison complète.
+ *
+ * `players` : une entrée unique par joueur (avec `teams`, avant duplication
+ *   par équipe), portant o, d, r, c, sp et les stats du shard.
+ * `opts.salaries` : { cap, players: { [id]: salaireÉpoque } } ou null —
+ *   salaires réels publiés, convertis au prorata du plafond de l'année.
+ * `opts.firstSeason` : { [id]: annéeDeDébut } ou null — première saison
+ *   à 10+ matchs dans la base, pour les contrats d'entrée.
+ * `opts.entryYear` : { [id]: annéeD'entréeEstimée } ou null — cohorte
+ *   d'identifiant LNH (≈ année de repêchage ou de signature), sert d'âge
+ *   approximatif (18 ans à l'entrée) quand `by` manque.
+ *
+ * Mute et retourne `players`.
+ */
+export function finalizeSeason(players, season, opts = {}) {
+  const year = parseInt(season.slice(0, 4), 10);
+  const teams = new Set();
+  for (const p of players) for (const t of (p.teams || [])) if (t && t !== '???') teams.add(t);
+  const nTeams = Math.max(6, opts.nTeams || teams.size || 32);
+
+  const F = players.filter(p => p.p === 'F');
+  const D = players.filter(p => p.p === 'D');
+  const G = players.filter(p => p.p === 'G');
+
+  const zF = zfn(F.map(prodPerGame));
+  const zD = zfn(D.map(prodPerGame));
+  const rkF = rankMap(F, prodPerGame);
+  const rkD = rankMap(D, prodPerGame);
+
+  // Gardiens : seuls ceux qui ont joué au moins 40 % des matchs sont classés
+  const games = seasonGames(season);
+  const gScore = g => 0.6 * g.o + 0.4 * g.d;
+  const qualG = G.filter(g => g.gp >= 0.4 * games);
+  const rkG = rankMap(qualG, gScore);
+
+  const salaries = opts.salaries || null;
+  const refCap = (salaries && salaries.cap) || eraCapFor(season);
+  const firstSeason = opts.firstSeason || null;
+  const entryYear = opts.entryYear || null;
+
+  for (const p of players) {
+    let v;
+    if (p.p === 'G') {
+      const core = 0.40 * p.o + 0.32 * p.d + 0.14 * p.r + 0.14 * p.c;
+      const share = p.gp / games;
+      const starter = 10 * clamp((share - 0.25) / 0.50, 0, 1);
+      const rank = rkG.has(p) ? lerpTable((rkG.get(p) + 0.5) / nTeams, STAR_G_RANK) : 0;
+      v = core + starter + rank;
+    } else if (p.p === 'D') {
+      const core = 0.42 * p.o + 0.48 * p.d + 0.05 * p.r + 0.05 * p.c + 6;
+      const q = (rkD.get(p) + 0.5) / nTeams;
+      const star = 0.7 * lerpTable(q, STAR_D_RANK) + 0.3 * lerpTable(zD(prodPerGame(p)), STAR_D_Z);
+      v = core + star;
+    } else {
+      const core = 0.66 * p.o + 0.16 * p.d + 0.05 * p.r + 0.13 * p.c;
+      const q = (rkF.get(p) + 0.5) / nTeams;
+      const star = 0.7 * lerpTable(q, STAR_F_RANK) + 0.3 * lerpTable(zF(prodPerGame(p)), STAR_F_Z);
+      v = core + star;
+    }
+    p.v = clamp(Math.round(v), 25, 99);
+
+    // Contrat d'entrée : selon l'époque et l'âge à la première saison dans
+    // la base (jamais pour la première saison de la base, 1970-71, où tout
+    // le monde serait « recrue »).
+    const debut = firstSeason && p.id != null ? firstSeason[p.id] : null;
+    let ageAtDebut = null;
+    if (debut != null) {
+      if (p.bd) ageAtDebut = ageAtSeason(p.bd, `${debut}-${String(debut + 1).slice(2)}`);
+      else if (entryYear && entryYear[p.id] != null) ageAtDebut = 18 + Math.max(0, debut - entryYear[p.id]);
+    }
+    const elcYears = elcEra(season) && debut != null && debut > 1970 ? elcYearsForAge(ageAtDebut) : 0;
+    p.elc = (year - debut) < elcYears ? 1 : 0;
+
+    // Salaire : réel publié au prorata du plafond si disponible, sinon barème
+    const real = salaries && p.id != null ? salaries.players?.[p.id] : null;
+    if (real != null && real > 0) {
+      p.$ = getModernSalary(real, season, refCap);
+      p.realSal = Math.round(real);
+      p.isReal = 1;
+    } else {
+      p.$ = salaryFor(p.v, p.p, p.elc === 1, season);
+      p.realSal = getEraSalary(p.$, season, refCap);
+      p.isReal = 0;
+    }
+    p.cp = capPctFor(p.$);
+
+    p.ak = archetypeKey(p, p);
+    p.lz = zoneLevelFor(p.p === 'G' ? 'G' : p.p === 'D' ? 'D' : 'F', p.v);
+  }
+  return players;
+}
+
+/** Duplique chaque joueur dans le vestiaire de CHAQUE équipe où il a passé, marqué x:1. */
+export function expandByTeam(players, label) {
   const entries = [];
-  for (const rec of [...rateSkaters(skaters, realtimeById), ...rateGoalies(goalies)]) {
+  for (const rec of players) {
     const { teams, ...base } = rec;
-    const realSal = getEraSalary(base.$, label);
     for (const t of teams) {
-      entries.push({
-        ...base,
-        realSal,
-        isReal: realEra ? 1 : 0,
-        t,
-        s: label,
-        x: teams.length > 1 ? 1 : 0,
-      });
+      entries.push({ ...base, t, s: label, x: teams.length > 1 ? 1 : 0 });
     }
   }
-  return { season: label, minGP, v: RATINGS_VERSION, players: entries };
+  return entries;
+}
+
+/**
+ * Regroupe les entrées d'un shard (une par équipe) en joueurs uniques avec
+ * leur liste d'équipes — l'inverse d'expandByTeam.
+ */
+export function collapseByTeam(entries) {
+  const byKey = new Map();
+  for (const e of entries) {
+    const key = e.id != null ? `id:${e.id}` : `n:${e.n}|${e.p}`;
+    let rec = byKey.get(key);
+    if (!rec) {
+      const { t, s, x, ...base } = e;
+      rec = { ...base, teams: [] };
+      byKey.set(key, rec);
+    }
+    if (e.t && !rec.teams.includes(e.t)) rec.teams.push(e.t);
+  }
+  return [...byKey.values()];
+}
+
+/**
+ * Assemble un shard de saison à partir des stats brutes de l'API.
+ */
+export function buildSeasonShard(label, skaterRows, goalieRows, realtimeById, minGP, opts = {}) {
+  const skaters = skaterRows.filter(r => (r.gamesPlayed || 0) >= minGP);
+  const goalies = goalieRows.filter(r => (r.gamesPlayed || 0) >= minGP);
+  const players = finalizeSeason([...rateSkaters(skaters, realtimeById), ...rateGoalies(goalies)], label, opts);
+  return { season: label, minGP, v: RATINGS_VERSION, players: expandByTeam(players, label) };
+}
+
+/**
+ * Recalcule l'étage 2 d'un shard existant, sans l'API. Les sous-cotes
+ * o, d, r, c, sp restent telles quelles ; v, $, archétype et zone sont
+ * refaits avec la formule courante.
+ */
+export function rerateShard(shard, opts = {}) {
+  const players = finalizeSeason(collapseByTeam(shard.players), shard.season, opts);
+  return { season: shard.season, minGP: shard.minGP, v: RATINGS_VERSION, players: expandByTeam(players, shard.season) };
 }

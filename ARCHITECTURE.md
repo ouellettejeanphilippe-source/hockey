@@ -32,6 +32,12 @@ Préchargement : au démarrage, le jeu charge une saison au hasard. Pendant que 
 
 `js/ratings.js` — une seule implémentation, en JavaScript, utilisée à la fois par le navigateur (source 2) et par le script de build via Node (source 1). Une seule formule, un seul endroit à corriger. `scripts/build_shards.py` appelle donc `node scripts/rate.mjs` plutôt que de réimplémenter la logique en Python.
 
+Le calcul a deux étages. L'étage 1 transforme les stats brutes en sous-cotes (offensive, défensive, robustesse, clutch, vitesse) en z-score contre la saison. L'étage 2 (`finalizeSeason`) ne lit que ce qui est déjà dans le shard : cote globale (avec un bonus de vedette par rang dans la saison, normalisé par le nombre d'équipes), salaire, archétype, zone de trio et contrat d'entrée. `scripts/rerate.mjs` rejoue l'étage 2 sur les 55 shards sans réseau, ce qui permet d'ajuster le barème salarial ou les archétypes sans refaire les 120 requêtes à l'API. Le contrat d'entrée dépend de la première saison du joueur dans toute la base, donc le build enchaîne toujours ce recalcul à la fin.
+
+## Salaires réels
+
+`data/salaries/<saison>.json` (facultatif) : playerId → salaire ou cap hit publié, en dollars de l'époque, avec le plafond de l'année. Quand un joueur y figure, son salaire dans le jeu est le prorata de ce montant sur le plafond de 95,5 M$ ; sinon, le barème par cote. Pour 1989-90 à 2003-04 (salaires publiés, pas de plafond), le plafond de référence est la masse salariale de l'équipe la plus dépensière. Les fichiers sont assemblés par `scripts/build_salaries.py` depuis `data/salaries/sources/` (provenance dans `data/salaries/README.md`). Aucun scraping dans le build : les sources sont des fichiers déposés dans le dépôt.
+
 ## Ce qu'on ne fait pas
 
 **Pas de backend.** GitHub Pages sert des fichiers statiques. Aucun serveur à maintenir, aucun coût.

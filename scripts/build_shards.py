@@ -6,11 +6,24 @@ Bâtit les shards de saison a partir de l'API officielle de la LNH.
     python3 scripts/build_shards.py --start 1970 --end 2026 --min-gp 10
     python3 scripts/build_shards.py --only 1981-82 1993-94   # refaire 2 saisons
     python3 scripts/build_shards.py --seed-only              # juste data/seed.json
+    python3 scripts/build_shards.py --bios-only              # ~110 requetes : ajoute les
+        # dates de naissance (bd) aux shards existants, puis --rerate
+    python3 scripts/build_shards.py --rerate                 # sans API : refaire
+        # cote globale, salaires, archetypes, zones et contrats d'entree
+        # sur les shards existants (scripts/rerate.mjs), puis index et seed
 
 Ecrit data/seasons/<saison>.json, data/index.json et data/seed.json.
 Aucune dependance Python. Requiert Node pour le calcul des cotes
 (scripts/rate.mjs appelle js/ratings.js, la meme implementation que le
 navigateur -- une seule formule, un seul endroit a corriger).
+
+Salaires reels : si data/salaries/<saison>.json existe
+({"cap": <plafond ou plus gros budget d'equipe>, "players": {"<playerId>": <salaire>}}),
+ces salaires remplacent le bareme, au prorata du plafond de l'annee.
+
+Apres chaque build, scripts/rerate.mjs repasse sur tous les shards pour
+poser les contrats d'entree (premiere saison de chaque joueur dans la
+base), ce qui exige de connaitre toutes les saisons.
 """
 
 import argparse
@@ -26,6 +39,7 @@ import urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 SEASONS_DIR = os.path.join(DATA, "seasons")
+SALARIES_DIR = os.path.join(DATA, "salaries")
 BASE = "https://api.nhle.com/stats/rest/en"
 UA = {"User-Agent": "Mozilla/5.0 (cap82-build)"}
 
@@ -67,7 +81,71 @@ def fetch_season(year, min_gp):
         if rows:
             realtime = {str(r["playerId"]): r for r in rows if r.get("playerId")}
 
+    # Annee de naissance (contrats d'entree selon l'age). Facultatif : si le
+    # point bios ne repond pas, js/ratings.js retombe sur la cohorte
+    # d'identifiant (scripts/rerate.mjs).
+    births = fetch_bios(year)
+    for r in skaters + goalies:
+        if r.get("playerId") in births:
+            r["birthDate"] = births[r["playerId"]]
+
     return skaters, goalies, realtime
+
+
+def fetch_bios(year):
+    """{ playerId: 'AAAA-MM-JJ' } pour les patineurs et gardiens de la saison."""
+    exp = f"seasonId={year}{year + 1} and gameTypeId=2"
+    births = {}
+    for path in ("skater/bios", "goalie/bios"):
+        for r in api(path, {"limit": -1, "sort": "playerId", "cayenneExp": exp}):
+            bd = r.get("birthDate")
+            if r.get("playerId") and bd and str(bd)[:4].isdigit():
+                births[r["playerId"]] = str(bd)[:10]
+    return births
+
+
+def patch_bios(labels):
+    """Ajoute la date de naissance (bd) aux shards existants sans refaire les cotes."""
+    for label in labels:
+        path = os.path.join(SEASONS_DIR, f"{label}.json")
+        if not os.path.exists(path):
+            continue
+        print(f"{label}  bios ...", end=" ", flush=True)
+        births = fetch_bios(int(label[:4]))
+        if not births:
+            print("aucune donnee")
+            continue
+        with open(path, encoding="utf-8") as f:
+            shard = json.load(f)
+        n = 0
+        for p in shard["players"]:
+            if p.get("id") in births:
+                p["bd"] = births[p["id"]]
+                n += 1
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(shard, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"{n} dates de naissance")
+        time.sleep(0.35)
+
+
+def load_salaries(label):
+    """Salaires reels publies pour une saison, s'ils existent (voir docstring)."""
+    path = os.path.join(SALARIES_DIR, f"{label}.json")
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        raw = json.load(f)
+    return {"cap": raw.get("cap"), "players": raw.get("players", {})}
+
+
+def rerate_all():
+    """Etage 2 des cotes sur tous les shards (contrats d'entree, salaires reels)."""
+    try:
+        subprocess.run(["node", os.path.join(ROOT, "scripts", "rerate.mjs")], check=True)
+    except FileNotFoundError:
+        sys.exit("Node est requis. Installe Node 18+ puis relance.")
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"rerate.mjs a echoue : {e}")
 
 
 def rate(label, min_gp, skaters, goalies, realtime):
@@ -75,6 +153,7 @@ def rate(label, min_gp, skaters, goalies, realtime):
     payload = json.dumps({
         "label": label, "minGP": min_gp,
         "skaters": skaters, "goalies": goalies, "realtime": realtime,
+        "salaries": load_salaries(label),
     })
     try:
         out = subprocess.run(
@@ -98,11 +177,22 @@ def main():
     ap.add_argument("--seed-only", action="store_true")
     ap.add_argument("--force", action="store_true",
                     help="reecrire meme si le shard existe deja")
+    ap.add_argument("--rerate", action="store_true",
+                    help="sans API : refaire l'etage 2 des cotes sur les shards existants")
+    ap.add_argument("--bios-only", action="store_true",
+                    help="ajouter les dates de naissance aux shards existants, puis --rerate")
     args = ap.parse_args()
 
     os.makedirs(SEASONS_DIR, exist_ok=True)
 
-    if args.only:
+    if args.bios_only:
+        labels = args.only or sorted(f[:-5] for f in os.listdir(SEASONS_DIR) if f.endswith(".json"))
+        patch_bios(labels)
+        args.rerate = True
+
+    if args.rerate:
+        years = []
+    elif args.only:
         years = [int(s[:4]) for s in args.only]
     elif args.seed_only:
         years = [int(s[:4]) for s in SEED_SEASONS]
@@ -110,6 +200,7 @@ def main():
         years = list(range(args.start, args.end + 1))
 
     built, teams_seen = [], set()
+    fetched = 0
 
     for year in years:
         label = f"{year}-{str(year + 1)[2:]}"
@@ -136,16 +227,26 @@ def main():
                 json.dump(shard, f, ensure_ascii=False, separators=(",", ":"))
 
         built.append(label)
+        fetched += 1
         teams_seen.update(p["t"] for p in shard["players"])
         size = os.path.getsize(path) // 1024 if os.path.exists(path) else 0
         print(f"{len(shard['players'])} entrees, {size} Ko")
         time.sleep(0.35)
+
+    # ---- etage 2 : contrats d'entree et salaires reels, sur tous les shards ----
+    if args.rerate or (fetched and not args.seed_only):
+        print("\nrecalcul de l'etage 2 (cote globale, salaires, archetypes, zones)...")
+        rerate_all()
 
     # ---- index ----
     if not args.seed_only:
         existing = sorted(
             f[:-5] for f in os.listdir(SEASONS_DIR) if f.endswith(".json")
         )
+        if args.rerate:
+            for label in existing:
+                with open(os.path.join(SEASONS_DIR, f"{label}.json"), encoding="utf-8") as f:
+                    teams_seen.update(p["t"] for p in json.load(f)["players"])
         index = {
             "generated": time.strftime("%Y-%m-%d"),
             "minGP": args.min_gp,

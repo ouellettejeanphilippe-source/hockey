@@ -44,13 +44,19 @@
 
 - [x] **J9** — Partage du résultat : bouton de copie dans le presse-papier avec fiche formatée.
 
+- [x] **C1** — Cote globale relative à la saison (rang / nombre d'équipes + z-score), barème salarial réaliste (100+ pts = 12 à 18 M$, défenseur de 1re paire 9 à 14 M$), contrats d'entrée selon l'époque (aucun avant 1995-96 ; 1995-2004 base ~2,7 % du budget + bonis ; 2005+ base ~1 % + bonis ≤ 2,85 M$) et l'âge à la première saison (3 saisons à 18-21 ans, 2 à 22-23, 1 à 24 ; âge = année de naissance de l'API bios, sinon cohorte d'identifiant LNH, sinon pas de contrat d'entrée). `RATINGS_VERSION = 12`, 55 shards recalculés hors ligne (`--rerate`).
+- [x] **C2** — Archétypes classiques (fabricant de jeu d'élite, franc-tireur, attaquant de puissance, complet, énergie, profondeur ; défenseur offensif, physique, défensif, polyvalent, profondeur ; gardiens) posés dans les shards (`ak`), plus zones d'efficacité (`lz`) : calibre 1er trio → trios 1-2, 2e → 1-3, 3e → 3-4, 4e → 4. Bonus « ✨ Trio optimal » +2/+2, malus « ⚠️ mal assorti » -2/-2.
+- [x] **C3** — Salaires réels : `data/salaries/<saison>.json` (playerId → $ de l'époque, prorata du plafond de l'année ; 1989-2004 = plus gros budget d'équipe comme plafond). Assemblés par `scripts/build_salaries.py` depuis trois sources GitHub (couverture complète 2016-17 et 2017-18, partielle 2008-09 à 2025-26). Les cartes marquent « Réel » seulement quand le chiffre vient de là.
+- [ ] **C4** — Étendre les salaires réels à 1989-2015 et 2018+ : déposer des `manual_<saison>.csv` (USA Today, hockeyzoneplus, markerzone, PuckPedia — inaccessibles depuis l'environnement de build), puis `build_salaries.py` et `--rerate`.
+- [x] **L1** — Simulation de ligue complète : 32 équipes (31 vraies équipes historiques alignées automatiquement), 82 rondes, chance par match et PDO de saison, continuité des trios, blessures au prorata des PJ réels, buts et passes selon la vraie production, séries 4 de 7 jouées match par match. Classement, meneurs et infirmerie à l'écran de résultat.
+- [x] **U1** — Interface : compteur signés/requis par position dans les en-têtes du bassin, fog of war par défaut, PTS/M sur les cartes et la fiche, étiquettes de zone et de contrat d'entrée, fiche relue depuis le shard au rechargement.
 - [ ] **S1** — Mode « défi du jour » : une graine déterministe par date, tout le monde a la même suite de roulettes. Tableau de meneurs local.
 
 ## À faire — priorité basse
 
 - [ ] **S2** — Mode deux joueurs, repêchage en alternance sur la même suite de roulettes, puis série 4 de 7.
 - [ ] **S3** — Recalibrer la simulation avec des alignements réalistes plutôt qu'uniformes. La table actuelle utilise 23 joueurs de cote identique, ce qui n'arrive jamais en jeu. Bâtir 200 alignements aléatoires valides sous le plafond, tracer la distribution des fiches, ajuster pour que la médiane tombe autour de 41-33-8.
-- [ ] **S4** — Séries éliminatoires après la saison régulière.
+- [x] **S4** — Séries éliminatoires après la saison régulière (top 16, séries simulées avec les alignements).
 - [ ] **S5** — Étendre avant 1970. L'API couvre 1917. À valider : `timeOnIcePerGame` et `plusMinus` n'existent pas avant les années 1960, la cote défensive tomberait sur presque rien.
 - [ ] **S6** — Blessures : un joueur à faible robustesse rate des matchs, son trio est dégradé pendant ce temps.
 - [ ] **S7** — Service worker pour jouer complètement hors ligne après une première visite.
@@ -65,6 +71,10 @@
 
 **Pas de backend.** GitHub Pages sert du statique, coût zéro, rien à maintenir.
 
+**Cote globale relative à la saison, pas absolue.** Un top-10 des marqueurs vaut la même chose en 1975 et en 2024 (rang divisé par le nombre d'équipes). Une équipe exceptionnelle ou nulle peut encore déséquilibrer sa saison, c'est voulu : on équilibre les époques sans effacer la réalité. Mesuré par `scripts/check_ratings.mjs`.
+
+**Pas de scraping de sites de salaires depuis le build.** Les salaires réels arrivent par `data/salaries/sources/` (fichiers déposés, provenance documentée), jamais par un scraper dans l'Action.
+
 ## Journal
 
 | Date | Quoi |
@@ -75,3 +85,4 @@
 | 2026-09-01 | Finalisation Version 1.0 : Isolation des cotes cachées (J4), pénalités de position et support complet LD/RD (J7), sauvegarde automatique dans localStorage (J8), bouton de partage du résultat (J9), grisement des cartes quand position pleine/hors budget, et mise en valeur des noms de famille, stats et salaires. |
 | 2026-09-01 | Séparation complète des LD/RD (DG/DD) basée sur la main de tir de l'API LNH, régénération des 55 shards et seed.json, attribution prioritaire des cases sans pénalité dans openSlots, nettoyage de l'en-tête et amélioration UI/UX pour écrans 1080p+. |
 | 2026-09-01 | Ajout du support des salaires réels (1989-1990 à aujourd'hui) et des estimations relatives par époque (1970 à 1989). Intégration de `realSal` et `isReal` dans les shards, mise à jour des cartes de joueurs, emplacements et info-bulles radar avec étiquettes « Réel » vs « Estimé ». |
+| 2026-09-02 | Refonte cotes/salaires (C1-C3) : `RATINGS_VERSION` 12, étage 2 rejouable hors ligne (`--rerate`, `scripts/rerate.mjs`), cote globale relative à la saison (corrélation force d'équipe ~ classement reconstitué : 0,81 en moyenne sur 55 saisons, min 0,52), barème salarial par ancres, contrats d'entrée, archétypes classiques et zones d'efficacité dans les shards, salaires réels 2008-09 à 2025-26 depuis trois sources GitHub (le champ `isReal` de la veille était en fait une estimation). Contrats d'entrée par époque et par âge (cohorte d'identifiant LNH quand l'année de naissance manque) : 18,7 % des entrées, 0 avant 1995-96. Simulation de ligue complète (L1) avec blessures, chance, continuité et séries. Calibration refaite (tableau CLAUDE.md). Interface U1. Test de fumée `scripts/smoke.mjs`. |

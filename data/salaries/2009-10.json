@@ -1,0 +1,14 @@
+{
+ "season": "2009-10",
+ "cap": 56800000,
+ "note": "Salaires ou cap hits publies, en dollars de la saison. Voir data/salaries/README.md.",
+ "sources": {
+  "capredictor contrat": 4
+ },
+ "players": {
+  "8468083": 6083333,
+  "8470281": 5538462,
+  "8466148": 5275000,
+  "8471309": 3954545
+ }
+}
