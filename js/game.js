@@ -1187,13 +1187,13 @@ function showRadar(ev, p) {
   if (!tip) return;
 
   const isG = p.p === 'G';
-  const labels = isG ? ['TEC', 'BLI', 'ROB', 'CLU', 'RÉF', 'COTE'] : ['ATT', 'DÉF', 'ROB', 'CLU', 'VIT', 'COTE'];
+  const labels = isG ? ['TEC', 'BLI', 'ROB', 'CLU', 'RÉF'] : ['ATT', 'DÉF', 'ROB', 'CLU', 'VIT'];
   const r = getHiddenRatings(p);
-  const values = [r.o, r.d, r.r, r.c, r.sp ?? 50, r.v];
+  const values = [r.o, r.d, r.r, r.c, r.sp ?? 50];
 
   const size = 150, c = size / 2, rad = 48;
   const coord = (val, i) => {
-    const ang = (i * 60 - 90) * Math.PI / 180;
+    const ang = (i * 72 - 90) * Math.PI / 180;
     const rr = (val / 100) * rad;
     return [c + rr * Math.cos(ang), c + rr * Math.sin(ang)];
   };
@@ -1201,15 +1201,15 @@ function showRadar(ev, p) {
   let grid = '';
   for (const lvl of [0.25, 0.5, 0.75, 1]) {
     const pts = [];
-    for (let i = 0; i < 6; i++) {
-      const ang = (i * 60 - 90) * Math.PI / 180;
+    for (let i = 0; i < 5; i++) {
+      const ang = (i * 72 - 90) * Math.PI / 180;
       pts.push(`${c + lvl * rad * Math.cos(ang)},${c + lvl * rad * Math.sin(ang)}`);
     }
     grid += `<polygon points="${pts.join(' ')}" fill="none" stroke="rgba(28,52,80,0.8)" stroke-width="1"/>`;
   }
   let axes = '', lbls = '';
-  for (let i = 0; i < 6; i++) {
-    const ang = (i * 60 - 90) * Math.PI / 180;
+  for (let i = 0; i < 5; i++) {
+    const ang = (i * 72 - 90) * Math.PI / 180;
     axes += `<line x1="${c}" y1="${c}" x2="${c + rad * Math.cos(ang)}" y2="${c + rad * Math.sin(ang)}" stroke="rgba(28,52,80,1)" stroke-width="1"/>`;
     lbls += `<text x="${c + (rad + 14) * Math.cos(ang)}" y="${c + (rad + 14) * Math.sin(ang) + 3}" fill="#93a9c0" font-size="8" font-weight="800" text-anchor="middle">${labels[i]}</text>`;
   }
@@ -1218,7 +1218,7 @@ function showRadar(ev, p) {
 
   tip.innerHTML = `
     <div class="radar-header">${esc(p.n)}</div>
-    <div class="radar-sub">${esc(positionLabel(p))} · ${esc(p.t)} ${esc(p.s)} · cote ${r.v}</div>
+    <div class="radar-sub">${esc(positionLabel(p))} · ${esc(p.t)} ${esc(p.s)}</div>
     <svg class="radar-chart-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
       ${grid}${axes}
       <polygon points="${poly}" fill="rgba(244,196,48,0.32)" stroke="#f4c430" stroke-width="2"/>

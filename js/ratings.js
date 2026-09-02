@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 14;
+export const RATINGS_VERSION = 15;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -306,13 +306,40 @@ export function getSecondaryPosition(p) {
 }
 
 export function getLineZone(p, v = null) {
-  const pos = !p ? 'F' : p.p === 'G' ? 'G' : p.p === 'D' ? 'D' : 'F';
-  const zones = LINE_ZONES[pos];
-  let level = p && p.lz;
-  if (!level) {
-    const ovr = v ?? (p && p.v);
-    level = ovr != null ? zoneLevelFor(pos, ovr) : zones.length;
+  if (!p) return LINE_ZONES.F[0];
+  const isD = p.p === 'D' || p.p === 'LD' || p.p === 'RD';
+  const pos = p.p === 'G' ? 'G' : isD ? 'D' : 'F';
+  const ovr = v ?? (p && p.v);
+
+  const rating = ovr ?? 50;
+
+  // 1. Étoiles (Stars)
+  if (pos === 'G' && rating >= 80) {
+    return { level: 1, label: "Partant numéro un", short: 'Partant no 1', idealUnits: [0] };
   }
+  if (pos === 'F' && rating >= 78) {
+    return { level: 1, label: 'Top 3', short: 'Top 3', idealUnits: [0] };
+  }
+  if (pos === 'D' && rating >= 78) {
+    return { level: 1, label: 'Top 2', short: 'Top 2', idealUnits: [0] };
+  }
+
+  // 2. Joueurs hyper versatiles
+  const sec = getSecondaryPosition(p);
+  if (sec) {
+    if (pos === 'F') {
+      if (rating >= 56) return { level: 2, label: 'Top 9', short: 'Top 9', idealUnits: [0, 1, 2] };
+      return { level: 3, label: 'Bottom 9', short: 'Bottom 9', idealUnits: [1, 2, 3] };
+    }
+    if (pos === 'D') {
+      if (rating >= 63) return { level: 2, label: 'Top 6 D', short: 'Top 6 D', idealUnits: [0, 1, 2] };
+      return { level: 3, label: 'Bottom 6 D', short: 'Bottom 6 D', idealUnits: [1, 2] };
+    }
+  }
+
+  // 3. Zones standard
+  const zones = LINE_ZONES[pos];
+  const level = zoneLevelFor(pos, rating);
   return zones[Math.min(zones.length, Math.max(1, level)) - 1];
 }
 
