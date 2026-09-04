@@ -10,6 +10,8 @@ Hébergé sur GitHub Pages. Aucun backend, aucune dépendance npm, aucun framewo
 
 Lis `ARCHITECTURE.md` — il explique pourquoi le découpage se fait par saison et non par équipe. Ce choix n'est pas arbitraire et le défaire casse la normalisation par époque.
 
+Lis `MOTEUR.md` — c'est la spécification de la refonte de la simulation par événements, avec les mesures qui appuient chaque choix. Si tu touches à `js/sim.js`, lis-le avant.
+
 Lis `PLAN.md` — il contient l'état exact du projet, ce qui est fait, ce qui reste, et l'ordre de priorité. Coche les cases au fur et à mesure et ajoute une ligne au journal en bas.
 
 ## Structure
@@ -35,7 +37,9 @@ scripts/rerate.mjs          étage 2 sur les shards existants (contrats d'entré
 scripts/build_salaries.py   assemble data/salaries/<saison>.json depuis data/salaries/sources/
 scripts/fetch_markerzone.py dépose les salaires publiés par MarkerZone (1989-90+) dans sources/ ; manuel, jamais dans l'Action
 scripts/check_ratings.mjs   distribution des cotes, zones, archétypes, force d'équipe vs classement
-scripts/calibrate_sim.mjs   tableau de calibration de la simulation
+scripts/calibrate_sim.mjs   tableau de calibration de la simulation (banc uniforme)
+scripts/check_monotonie.mjs améliorer son équipe la rend-elle meilleure ? (vraies équipes)
+scripts/mock_zones.mjs      le malus de zone ferme-t-il l'empilement ?
 scripts/smoke.mjs           test de fumée Playwright à 390 px
 data/index.json             liste des saisons disponibles
 data/seasons/<saison>.json  un shard par saison
@@ -85,16 +89,26 @@ Les constantes de `js/sim.js` sont calibrées. Repères actuels, 23 joueurs de c
 
 | Cote | Fiche |
 |---|---|
-| 50 | 22-53-7 |
-| 60 | 53-26-4 |
-| 70 | 69-12-1 |
-| 80 | 75-6-0 |
-| 90 | 80-2-0 |
-| 99 | 81-1-0 |
+| 50 | 21-54-6 |
+| 60 | 44-34-5 |
+| 70 | 61-19-2 |
+| 80 | 59-22-1 |
+| 90 | 64-18-0 |
+| 99 | 69-13-0 |
 
-(Les zones d'efficacité jouent : à cote uniforme 50, tout le monde est calibre 4e trio, donc les trois premiers trios sont « mal assortis ».)
+(Les zones d'efficacité jouent, et beaucoup : à cote uniforme 50, tout le monde est calibre 4e trio, donc les trois premiers trios sont « mal assortis » ; à cote uniforme élevée, c'est l'inverse — tout le monde est top 6, donc les 3e et 4e trios gaspillent du talent. Un alignement uniforme est le pire cas de l'un et de l'autre, et c'est voulu.)
 
-Si tu changes `POIDS_TRIO`, `POIDS_PAIRE`, les exposants de `xGF`/`xGA`, la courbe du clutch ou les bonus de zone, tu dois refaire tourner ce tableau et le mettre à jour ici et dans `PLAN.md`. La cible : une équipe parfaite perd quand même environ un match en moyenne. Le 82-0 doit rester rare, sinon le jeu n'a pas d'enjeu.
+Le palier 80 se tient au palier 70, à un ou deux matchs près. C'est un artefact du banc : douze attaquants identiques franchissent tous ensemble la frontière d'archétype de `o = 76`, et un trio de trois francs-tireurs identiques bascule en « conflit de rôles ». Un vrai vestiaire n'a jamais cette forme.
+
+**Le vrai test de monotonie est ailleurs.** `node scripts/check_monotonie.mjs` range les 1395 vraies équipes-saisons par force, les aligne avec `autoRoster` et les fait jouer : les victoires simulées doivent monter d'un décile au suivant, sans exception. C'est ce test qui fait autorité — améliorer ses joueurs ne doit jamais rendre l'équipe pire. Si celui-ci monte et que la table ci-dessus a une marche, la marche est un artefact du banc uniforme.
+
+Si tu changes `POIDS_TRIO`, `POIDS_PAIRE`, les exposants de `xGF`/`xGA`, la courbe du clutch, `ZONE_THRESHOLDS` ou les constantes `ZONE_PEN_*`, tu dois refaire tourner ce tableau et le mettre à jour ici et dans `PLAN.md`. La cible : une équipe parfaite perd quand même quelques matchs. Le 82-0 doit rester rare, sinon le jeu n'a pas d'enjeu.
+
+Repère de garde-fou, avec `node scripts/mock_zones.mjs` : le meilleur alignement légal atteignable sous le plafond doit rester proche de la meilleure vraie équipe de l'histoire (indice 68,0, les Bruins de 1970-71). Il est à 69,3. Sans malus de zone il serait à 83,8, soit quinze points au-dessus de tout ce qui a existé.
+
+`ZONE_PEN_SOUS` et `ZONE_PEN_MAX` ne tirent pas sur la même chose. Sur un alignement empilé la pénalité sature, donc seul le plafond mord ; sur une vraie équipe elle reste dessous, donc seul le coefficient mord. Un coefficient bas avec un plafond haut ferme donc l'empilement sans toucher aux vraies équipes — monter le coefficient punit les deux.
+
+**Les zones sont calibrées sur la réalité.** Une vraie équipe aligne 6 attaquants de top 6, 4 défenseurs de top 4 et 1 partant. `ZONE_THRESHOLDS` est réglé pour que la ligue y atterrisse **en moyenne** — 6,5 / 3,9 / 1,05 mesurés sur les 1396 équipes-saisons — et non au plancher : le Canadien de 1976-77 en a neuf, Detroit la même année en a trois. Si tu retouches ces seuils, revérifie cette distribution avant tout le reste.
 
 ```bash
 node scripts/calibrate_sim.mjs

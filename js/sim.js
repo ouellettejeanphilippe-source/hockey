@@ -6,10 +6,72 @@
  * Toute modification des constantes doit être revalidée (voir PLAN.md, S3).
  */
 
-import { getArchetype, getLineZone, getEraFactor, seasonGames, getSecondaryPosition } from './ratings.js';
+import { getArchetype, getLineZone, getEraFactor, seasonGames, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
+
+/*
+ * Pénalité de zone : ce qu'on perd à placer un joueur ailleurs que dans son
+ * calibre. Elle est ASYMÉTRIQUE, et c'est elle qui ferme l'empilement.
+ *
+ * Empiler, c'est mettre un joueur de top 6 SOUS sa zone — au 3e ou au 4e trio,
+ * du talent qu'on paie et qu'on gaspille. C'est un choix, on le punit fort.
+ * Une équipe faible place ses joueurs AU-DESSUS de la leur parce qu'elle n'a
+ * personne de mieux ; la punir autant reviendrait à la punir deux fois, une
+ * fois par ses cotes et une fois par des trios qu'elle ne peut pas éviter.
+ *
+ * Le malus « sous sa zone » est PROPORTIONNEL au talent gaspillé — l'écart
+ * entre la cote du joueur et le calibre attendu de la case. Un forfait par
+ * cran, essayé d'abord, crée un piège : les seuils de zone étant absolus,
+ * améliorer un défenseur de 70 à 80 lui fait franchir le seuil de la 1re paire
+ * (71), ce qui rend d'un coup la 3e paire « sous-employée » et fait PERDRE des
+ * matchs à l'équipe. Mesuré : 70 -> 55-25, 80 -> 43-38. Un malus proportionnel
+ * ne peut pas s'inverser, puisqu'il retire une fraction de ce qu'on vient de
+ * gagner.
+ *
+ * Mesuré avec `node scripts/mock_zones.mjs`, sur le meilleur alignement légal
+ * atteignable sous le plafond (cueillette libre sur 55 saisons), comparé à de
+ * vraies équipes :
+ *
+ *   réglage                  EMPILÉ  MTL 76-77  BOS 70-71  NYI 92-93  DET 76-77
+ *   aucun malus                83,8       67,7       68,0       58,8       47,3
+ *   ancien (forfait 3, max 12) 82,4       69,3       68,6       59,7       44,0
+ *   EN VIGUEUR (0,40, max 70)  69,3       66,5       65,9       59,4       47,9
+ *
+ * L'empilement perd quinze points et se retrouve à 69,3, à peine au-dessus de
+ * la meilleure équipe de l'histoire. Les vraies équipes témoins ne bougent
+ * pas : la chasse aux aubaines reste payante, mais on ne peut plus empiler
+ * douze vedettes.
+ *
+ * Les deux constantes ne tirent pas sur la même chose. Sur un alignement
+ * empilé la pénalité sature, donc c'est ZONE_PEN_MAX qui mord ; sur une vraie
+ * équipe elle reste sous le plafond, donc c'est ZONE_PEN_SOUS qui mord. Un
+ * coefficient bas et un plafond haut épargnent donc les vraies équipes tout en
+ * fermant l'empilement — un coefficient élevé punit les deux.
+ *
+ * La monotonie se vérifie avec `node scripts/check_monotonie.mjs`, sur de
+ * vraies équipes. `calibrate_sim.mjs` aligne douze joueurs identiques, ce qui
+ * fabrique une marche artificielle à o = 76 (frontière d'archétype) : sa table
+ * n'est pas le juge de la monotonie.
+ */
+export const ZONE_PEN_SOUS = 0.40;   // fraction de l'excédent de cote, par joueur mal placé
+export const ZONE_PEN_DESSUS = 3;    // forfait par cran, quand le joueur est surclassé
+export const ZONE_PEN_MAX = 70;      // plafond par unité
+
+/**
+ * Calibre attendu d'une case : la cote plancher de la meilleure zone dont
+ * cette unité fait partie. Sert de référence au malus proportionnel — un
+ * joueur qui vaut ce calibre-là n'est pas gaspillé, il est à sa place.
+ */
+function calibreAttendu(group, unit) {
+  const pos = group === 'D' ? 'D' : 'F';
+  const zones = LINE_ZONES[pos];
+  for (let i = 0; i < zones.length; i++) {
+    if (zones[i].idealUnits.includes(unit)) return ZONE_THRESHOLDS[pos][i] ?? 40;
+  }
+  return 40;
+}
 
 /* ---------- 23 joueurs : 4 trios, 3 paires, 2 gardiens, 3 réservistes ---------- */
 
@@ -145,19 +207,29 @@ export function getUnitSynergy(roster, group, unit) {
 
   // Zone d'efficacité : chaque joueur a un calibre (1er trio, 2e trio…) et
   // des trios où il rend à 100 %. Tout le monde à sa place -> bonus ;
-  // joueur hors de sa zone -> pénalité accrue selon l'écart.
+  // joueur hors de sa zone -> pénalité selon l'écart, ASYMÉTRIQUE.
   const zoneDists = ps.map((x, i) => {
     const ideal = getLineZone(x.player, hidden[i].v).idealUnits;
-    return Math.min(...ideal.map(u => Math.abs(u - unit)));
+    const ecart = Math.min(...ideal.map(u => Math.abs(u - unit)));
+    if (ecart === 0) return { ecart, pen: 0 };
+    // Sous sa zone = un top 6 au 4e trio : le malus est PROPORTIONNEL au
+    // talent gaspillé, jamais forfaitaire, sinon franchir un seuil de zone
+    // vers le haut pourrait rendre l'équipe pire (voir le commentaire des
+    // constantes). Au-dessus = il n'a personne de mieux, malus léger.
+    const sous = unit > Math.max(...ideal);
+    const pen = sous
+      ? ZONE_PEN_SOUS * Math.max(0, hidden[i].v - calibreAttendu(group, unit))
+      : ZONE_PEN_DESSUS * ecart;
+    return { ecart, pen };
   });
-  const totalDist = zoneDists.reduce((a, b) => a + b, 0);
-  const miscast = zoneDists.filter(d => d > 0).length;
+  const totalPen = zoneDists.reduce((s, z) => s + z.pen, 0);
+  const miscast = zoneDists.filter(z => z.ecart > 0).length;
   const unitWord = group === 'F' ? 'Trio' : 'Paire';
   let zone = null;
   if (miscast === 0) {
     zone = { off: 2, def: 2, tag: group === 'F' ? '✨ Trio optimal' : '✨ Paire optimale' };
   } else {
-    const pen = Math.min(12, totalDist * 3);
+    const pen = Math.min(ZONE_PEN_MAX, totalPen);
     zone = { off: -pen, def: -pen, tag: group === 'F' ? '⚠️ Trio mal assorti' : '⚠️ Paire mal assortie' };
   }
 
