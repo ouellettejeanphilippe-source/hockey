@@ -115,10 +115,26 @@ function match(A, B) {
   return ga > gb;
 }
 
+/** Bruit gaussien standard. */
+function gauss() {
+  let u = 0, v = 0;
+  while (!u) u = Math.random();
+  while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+/* Variance de série : « gardien chaud », étincelle, usure. Tirée une fois par
+ * série et appliquée à la défensive des deux camps. 0 = ce que fait
+ * playSeries aujourd'hui (aucune variance : l'expression pure de la qualité). */
+const VAR_SERIE = Number(process.env.VAR_SERIE ?? 0);
+
 /** 4 de 7, comme playSeries. */
 function serie(A, B) {
+  const kA = 1 + gauss() * VAR_SERIE, kB = 1 + gauss() * VAR_SERIE;
+  const A2 = { att: A.att, def: A.def * kA, g: A.g * kA };
+  const B2 = { att: B.att, def: B.def * kB, g: B.g * kB };
   let a = 0, b = 0;
-  while (a < 4 && b < 4) { if (match(A, B)) a++; else b++; }
+  while (a < 4 && b < 4) { if (match(A2, B2)) a++; else b++; }
   return a === 4;
 }
 
