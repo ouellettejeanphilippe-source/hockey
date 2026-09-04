@@ -53,6 +53,7 @@ const detail = new Set(process.argv.slice(2));
 /* ---------- constantes reprises de js/sim.js ---------- */
 const POIDS_TRIO = [0.34, 0.28, 0.22, 0.16];
 const POIDS_PAIRE = [0.40, 0.34, 0.26];
+const ECHELLE = Number(process.env.ECHELLE ?? 22);   // etalement de la production sur l'echelle des cotes
 const EXPOSANT = 1.55;
 const BASE_XG = 3.05;
 
@@ -148,7 +149,7 @@ function indices(eq) {
   // B — production calibrée. Le ratio (1 = joueur moyen de sa saison) est
   // ramené sur la même échelle que les sous-cotes pour que la formule xG
   // reste comparable entre les modèles.
-  const ech = p => 50 + 22 * (prod(p) - 1);
+  const ech = p => 50 + ECHELLE * (prod(p) - 1);
   const attB = 0.62 * pondere(F, POIDS_TRIO, 3, ech) + 0.38 * pondere(D, POIDS_PAIRE, 2, ech);
 
   // défensive commune aux trois
