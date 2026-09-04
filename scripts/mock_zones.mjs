@@ -10,8 +10,8 @@
  * qu'un joueur peut atteindre — puis le compare à de vraies équipes, avec et
  * sans malus de zone.
  *
- * Reproduit lineChemistry de js/sim.js : +2 quand toute l'unité est à sa
- * place, sinon -min(plafond, somme des écarts x pénalité).
+ * Reproduit getUnitSynergy de js/sim.js : +2 quand toute l'unité est à sa
+ * place, sinon -min(ZONE_PEN_MAX, somme des écarts x pénalité asymétrique).
  *
  *   node scripts/mock_zones.mjs
  */
@@ -19,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CAP } from '../js/sim.js';
+import { CAP, ZONE_PEN_SOUS, ZONE_PEN_DESSUS, ZONE_PEN_MAX } from '../js/sim.js';
 import { ZONE_THRESHOLDS, LINE_ZONES } from '../js/ratings.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -35,14 +35,19 @@ const zoneDe = (pos, v) => {
   return t.length + 1;
 };
 const idealDe = (pos, niveau) => LINE_ZONES[pos][Math.min(LINE_ZONES[pos].length, niveau) - 1].idealUnits;
+const calibreAttendu = (pos, unit) => {
+  const zones = LINE_ZONES[pos];
+  for (let i = 0; i < zones.length; i++) if (zones[i].idealUnits.includes(unit)) return ZONE_THRESHOLDS[pos][i] ?? 40;
+  return 40;
+};
 
 /**
  * Indice composite d'un alignement.
  * `sous`   : pénalité par cran quand le joueur joue SOUS sa zone (talent gaspillé)
  * `dessus` : pénalité par cran quand il joue AU-DESSUS (il n'a pas mieux)
- * Les deux à 3 avec plafond 12 = ce que fait js/sim.js aujourd'hui.
+ * Par défaut : les constantes en vigueur, importées de js/sim.js.
  */
-function indice(F, D, G, { sous = 3, dessus = 3, plafond = 12, malus = true } = {}) {
+function indice(F, D, G, { sous = ZONE_PEN_SOUS, dessus = ZONE_PEN_DESSUS, plafond = ZONE_PEN_MAX, malus = true } = {}) {
   const unite = (js, poids, taille, pos) => {
     let off = 0, def = 0;
     for (let u = 0; u < poids.length; u++) {
@@ -56,7 +61,11 @@ function indice(F, D, G, { sous = 3, dessus = 3, plafond = 12, malus = true } = 
           if (ideal.includes(u)) continue;
           parfait = false;
           const ecart = Math.min(...ideal.map(x => Math.abs(x - u)));
-          pen += ecart * (u > Math.max(...ideal) ? sous : dessus);
+          // même formule que getUnitSynergy : proportionnel sous la zone,
+          // forfaitaire au-dessus
+          pen += u > Math.max(...ideal)
+            ? sous * Math.max(0, p.v - calibreAttendu(pos, u))
+            : dessus * ecart;
         }
         const b = parfait ? 2 : -Math.min(plafond, pen);
         o += b; d += b;
@@ -134,10 +143,10 @@ const ligne = (lab, opts) => {
 };
 console.log(`  ${'réglage'.padEnd(24)} ${'EMPILÉ'.padStart(6)}  ${refs.map(([l]) => l.padStart(9)).join('  ')}`);
 ligne('aucun malus', { malus: false });
-ligne('actuel (3/3, cap 12)', { sous: 3, dessus: 3, plafond: 12 });
-ligne('symétrique fort (15/15)', { sous: 15, dessus: 15, plafond: 60 });
-ligne('ASYMÉTRIQUE (18/3)', { sous: 18, dessus: 3, plafond: 60 });
-ligne('asymétrique (24/3)', { sous: 24, dessus: 3, plafond: 72 });
+ligne('proportionnel 0,3', { sous: 0.30, plafond: 40 });
+ligne('proportionnel 0,45', { sous: 0.45, plafond: 40 });
+ligne(`EN VIGUEUR (${ZONE_PEN_SOUS}/${ZONE_PEN_DESSUS}, cap ${ZONE_PEN_MAX})`, {});
+ligne('proportionnel 0,8', { sous: 0.80, plafond: 55 });
 console.log(`
   Empiler = jouer SOUS sa zone (un top 6 au 4e trio, du talent gaspillé).
   Une mauvaise équipe joue AU-DESSUS de la sienne, faute de mieux. Punir

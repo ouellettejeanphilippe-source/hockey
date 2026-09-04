@@ -85,16 +85,22 @@ Les constantes de `js/sim.js` sont calibrées. Repères actuels, 23 joueurs de c
 
 | Cote | Fiche |
 |---|---|
-| 50 | 22-53-7 |
-| 60 | 53-26-4 |
-| 70 | 69-12-1 |
-| 80 | 75-6-0 |
-| 90 | 80-2-0 |
-| 99 | 81-1-0 |
+| 50 | 17-59-6 |
+| 60 | 45-33-4 |
+| 70 | 60-21-1 |
+| 80 | 60-22-1 |
+| 90 | 68-14-0 |
+| 99 | 74-8-0 |
 
-(Les zones d'efficacité jouent : à cote uniforme 50, tout le monde est calibre 4e trio, donc les trois premiers trios sont « mal assortis ».)
+(Les zones d'efficacité jouent, et beaucoup : à cote uniforme 50, tout le monde est calibre 4e trio, donc les trois premiers trios sont « mal assortis » ; à cote uniforme élevée, c'est l'inverse — tout le monde est top 6, donc les 3e et 4e trios gaspillent du talent. Un alignement uniforme est le pire cas de l'un et de l'autre, et c'est voulu.)
 
-Si tu changes `POIDS_TRIO`, `POIDS_PAIRE`, les exposants de `xGF`/`xGA`, la courbe du clutch ou les bonus de zone, tu dois refaire tourner ce tableau et le mettre à jour ici et dans `PLAN.md`. La cible : une équipe parfaite perd quand même environ un match en moyenne. Le 82-0 doit rester rare, sinon le jeu n'a pas d'enjeu.
+Le palier 70 et le palier 80 se tiennent : c'est là que les défenseurs franchissent le seuil de la 1re paire (71), ce qui rend d'un coup la 3e paire sous-employée. Le malus proportionnel empêche l'inversion, pas l'aplatissement.
+
+**Le tableau doit descendre, pas monter, quand la cote monte est un test.** Si une ligne du tableau devient meilleure que la ligne au-dessus, une constante de zone est en cause : améliorer ses joueurs ne doit jamais rendre l'équipe pire.
+
+Si tu changes `POIDS_TRIO`, `POIDS_PAIRE`, les exposants de `xGF`/`xGA`, la courbe du clutch, `ZONE_THRESHOLDS` ou les constantes `ZONE_PEN_*`, tu dois refaire tourner ce tableau et le mettre à jour ici et dans `PLAN.md`. La cible : une équipe parfaite perd quand même quelques matchs. Le 82-0 doit rester rare, sinon le jeu n'a pas d'enjeu.
+
+Repère de garde-fou, avec `node scripts/mock_zones.mjs` : le meilleur alignement légal atteignable sous le plafond doit rester proche de la meilleure vraie équipe de l'histoire (indice 68,0, les Bruins de 1970-71). Il est à 73,6. Sans malus de zone il serait à 83,8, soit quinze points au-dessus de tout ce qui a existé.
 
 ```bash
 node scripts/calibrate_sim.mjs
