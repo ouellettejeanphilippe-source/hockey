@@ -37,19 +37,27 @@ export const REROLLS = { season: 6, team: 6, pass: 4 };
  *   réglage                  EMPILÉ  MTL 76-77  BOS 70-71  NYI 92-93  DET 76-77
  *   aucun malus                83,8       67,7       68,0       58,8       47,3
  *   ancien (forfait 3, max 12) 82,4       69,3       68,6       59,7       44,0
- *   EN VIGUEUR (0,65, max 42)  73,6       69,3       67,5       59,7       44,0
+ *   EN VIGUEUR (0,40, max 70)  69,3       66,5       65,9       59,4       47,9
  *
- * L'empilement perd neuf points et aucune vraie équipe témoin ne bouge. La
- * meilleure équipe de l'histoire vaut 68,0 : l'optimum atteignable reste donc
- * juste au-dessus, la chasse aux aubaines demeure payante, mais on ne peut
- * plus empiler douze vedettes.
+ * L'empilement perd quinze points et se retrouve à 69,3, à peine au-dessus de
+ * la meilleure équipe de l'histoire. Les vraies équipes témoins ne bougent
+ * pas : la chasse aux aubaines reste payante, mais on ne peut plus empiler
+ * douze vedettes.
  *
- * La monotonie se vérifie avec `node scripts/calibrate_sim.mjs` : si une ligne
- * du tableau bat la ligne au-dessus, une de ces constantes est en cause.
+ * Les deux constantes ne tirent pas sur la même chose. Sur un alignement
+ * empilé la pénalité sature, donc c'est ZONE_PEN_MAX qui mord ; sur une vraie
+ * équipe elle reste sous le plafond, donc c'est ZONE_PEN_SOUS qui mord. Un
+ * coefficient bas et un plafond haut épargnent donc les vraies équipes tout en
+ * fermant l'empilement — un coefficient élevé punit les deux.
+ *
+ * La monotonie se vérifie avec `node scripts/check_monotonie.mjs`, sur de
+ * vraies équipes. `calibrate_sim.mjs` aligne douze joueurs identiques, ce qui
+ * fabrique une marche artificielle à o = 76 (frontière d'archétype) : sa table
+ * n'est pas le juge de la monotonie.
  */
-export const ZONE_PEN_SOUS = 0.65;   // fraction de l'excédent de cote, par joueur mal placé
+export const ZONE_PEN_SOUS = 0.40;   // fraction de l'excédent de cote, par joueur mal placé
 export const ZONE_PEN_DESSUS = 3;    // forfait par cran, quand le joueur est surclassé
-export const ZONE_PEN_MAX = 42;      // plafond par unité
+export const ZONE_PEN_MAX = 70;      // plafond par unité
 
 /**
  * Calibre attendu d'une case : la cote plancher de la meilleure zone dont

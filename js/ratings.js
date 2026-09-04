@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 17;
+export const RATINGS_VERSION = 18;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -236,10 +236,29 @@ export function getArchetype(p, ratings = null) {
  *   attaquants — 1er trio ≈ 13 % du haut, 2e ≈ 22 % suivants, 3e ≈ 30 %, 4e le reste
  *   défenseurs — 1re paire ≈ 20 %, 2e ≈ 25 %, 3e ≈ 30 %, profondeur le reste
  */
+/*
+ * Seuils de zone, calibrés sur la distribution réelle de `v`.
+ *
+ * Une vraie équipe de la LNH aligne exactement 6 attaquants de top 6, 4
+ * défenseurs de top 4 et 1 partant. Les seuils précédents (F 65/56/48,
+ * D 71/63/56, G 80/68) étaient de 5 à 20 points trop sévères : mesurés sur les
+ * 1396 équipes-saisons des shards, ils ne donnaient en moyenne que 2,5
+ * attaquants de top 6, 1,7 défenseur de top 4 et 0,29 partant par équipe.
+ * 1000 équipes sur 1396 n'avaient aucun partant numéro un, et 8 % aucun
+ * attaquant de top 6.
+ *
+ * Ceux-ci sont pris dans la distribution de `v` : la valeur qui fait atterrir
+ * la ligue entière sur 6, 4 et 1 par équipe EN MOYENNE — la moyenne, pas le
+ * plancher, pour qu'une équipe dominante puisse en avoir huit et une équipe
+ * faible trois. Résultat mesuré : 6,5 / 4,0 / 1,05 par équipe, écart entre
+ * bonnes et mauvaises équipes doublé (7,7 contre 4,7 attaquants de top 6 pour
+ * les premier et dernier déciles), et stable de 1970 à 2020 parce que `v` est
+ * déjà normalisée par époque.
+ */
 export const ZONE_THRESHOLDS = {
-  F: [65, 56, 48],   // >= 65 : 1er trio, >= 56 : 2e, >= 48 : 3e, sinon 4e
-  D: [71, 63, 56],   // >= 71 : 1re paire, >= 63 : 2e, >= 56 : 3e, sinon profondeur
-  G: [80, 68],       // >= 80 : partant d'élite, >= 68 : partant, sinon auxiliaire
+  F: [55, 46, 40],   // >= 55 : 1er trio, >= 46 : 2e, >= 40 : 3e, sinon 4e
+  D: [61, 50, 44],   // >= 61 : 1re paire, >= 50 : 2e, >= 44 : 3e, sinon profondeur
+  G: [60, 52],       // >= 60 : partant d'élite, >= 52 : partant, sinon auxiliaire
 };
 
 /*
