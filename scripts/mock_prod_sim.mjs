@@ -3,9 +3,16 @@
  * que la simulation par sous-cotes ?
  *
  * Ne touche à rien. Lit les shards, reconstruit les 1396 équipes-saisons,
- * fait jouer 82 matchs à chacune contre une équipe moyenne de sa propre
- * saison, et compare la fiche simulée à la VRAIE fiche de l'équipe
+ * joue un VRAI CALENDRIER dans chaque saison — 82 rondes, les équipes de
+ * l'année appariées au hasard, chaque match opposant deux vraies équipes,
+ * comme simulateLeague — et compare la fiche simulée à la VRAIE fiche
  * (reconstituée des fiches de gardiens, comme check_ratings.mjs).
+ *
+ * CALENDRIER=0 revient au raccourci « contre un adversaire moyen ». Il est
+ * plus rapide mais il COMPRIME les fiches : personne n'affronte de vraies
+ * mauvaises équipes, donc les grandes équipes ne peuvent pas se détacher.
+ * C'est un artefact de banc d'essai, pas un défaut de modèle — ne pas
+ * conclure sur l'étalement à partir de ce mode.
  *
  * Quatre modèles comparés :
  *   A  attaque = sous-cote o          (ce que fait sim.js aujourd'hui)
@@ -61,7 +68,8 @@ const PM_PLAFOND = Number(process.env.PM_PLAFOND ?? 0.18);
  * 0 = +/- brut (le joueur porte la qualité de son club)
  * 1 = entièrement relatif à ses coéquipiers
  * Même curseur que LISSAGE_EQUIPE dans js/ratings.js, qui vaut 0,5. */
-const LISSAGE_PM = Number(process.env.LISSAGE_PM ?? 0.5);      // ≈ +15 sur 82 matchs
+const LISSAGE_PM = Number(process.env.LISSAGE_PM ?? 0.5);
+const ESSAIS_N = Number(process.env.ESSAIS ?? 5);      // ≈ +15 sur 82 matchs
 
 const poisson = (lam) => {
   const L = Math.exp(-lam);
@@ -175,6 +183,35 @@ function indices(eq) {
   };
 }
 
+/** Vrai calendrier : 82 rondes, les équipes de la saison appariées au hasard,
+ * chaque match opposant deux vraies équipes — comme simulateLeague. Une équipe
+ * chôme par ronde quand le compte est impair. */
+function joueSaison(indices, essais) {
+  const n = indices.length;
+  const V = new Array(n).fill(0), D = new Array(n).fill(0);
+  for (let e = 0; e < essais; e++) {
+    for (let r = 0; r < 82; r++) {
+      const ordre = [...indices.keys()];
+      for (let i = ordre.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ordre[i], ordre[j]] = [ordre[j], ordre[i]];
+      }
+      for (let i = 0; i + 1 < ordre.length; i += 2) {
+        const a = ordre[i], b = ordre[i + 1];
+        const A = indices[a], B = indices[b];
+        const defA = 0.62 * A.def + 0.38 * A.g;
+        const defB = 0.62 * B.def + 0.38 * B.g;
+        const xA = Math.max(1.1, Math.min(7.5, BASE_XG * Math.pow(A.att / Math.max(20, defB), EXPOSANT)));
+        const xB = Math.max(1.1, Math.min(7.5, BASE_XG * Math.pow(B.att / Math.max(20, defA), EXPOSANT)));
+        let ga = poisson(xA), gb = poisson(xB);
+        while (ga === gb) { if (Math.random() < 0.5) ga++; else gb++; }
+        if (ga > gb) { V[a]++; D[b]++; } else { V[b]++; D[a]++; }
+      }
+    }
+  }
+  return indices.map((_, i) => V[i] / Math.max(1, V[i] + D[i]));
+}
+
 /** 82 matchs contre une équipe moyenne de sa saison. Poisson, comme sim.js. */
 function joue82(att, def, gard, attMoy, defMoy, gMoy, essais = Number(process.env.ESSAIS ?? 5)) {
   let v = 0, d = 0;
@@ -202,14 +239,20 @@ for (const f of fichiers) {
   if (eqs.length < 6) continue;
 
   const idx = eqs.map(indices);
+  const CALENDRIER = process.env.CALENDRIER !== '0';
   for (const m of ['A', 'B', 'C', 'D']) {
-    const attMoy = moy(idx.map(i => i[m].att));
-    const defMoy = moy(idx.map(i => i[m].def));
-    const gMoy = moy(idx.map(i => i[m].g));
-    eqs.forEach((eq, k) => {
-      const i = idx[k][m];
-      eq[`sim${m}`] = joue82(i.att, i.def, i.g, attMoy, defMoy, gMoy);
-    });
+    if (CALENDRIER) {
+      const pcts = joueSaison(idx.map(i => i[m]), ESSAIS_N);
+      eqs.forEach((eq, k) => { eq[`sim${m}`] = pcts[k]; });
+    } else {
+      const attMoy = moy(idx.map(i => i[m].att));
+      const defMoy = moy(idx.map(i => i[m].def));
+      const gMoy = moy(idx.map(i => i[m].g));
+      eqs.forEach((eq, k) => {
+        const i = idx[k][m];
+        eq[`sim${m}`] = joue82(i.att, i.def, i.g, attMoy, defMoy, gMoy);
+      });
+    }
   }
   lignes.push(...eqs);
 }
