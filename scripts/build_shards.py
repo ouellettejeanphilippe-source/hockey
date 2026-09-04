@@ -281,10 +281,16 @@ def main():
         existing = sorted(
             f[:-5] for f in os.listdir(SEASONS_DIR) if f.endswith(".json")
         )
-        if args.rerate:
-            for label in existing:
-                with open(os.path.join(SEASONS_DIR, f"{label}.json"), encoding="utf-8") as f:
-                    teams_seen.update(p["t"] for p in json.load(f)["players"])
+        # L'index decrit TOUT le jeu de donnees, pas seulement ce qu'on vient
+        # de rebatir : on rebalaye donc les 55 shards a chaque fois. Ce
+        # rebalayage etait garde derriere `if args.rerate`, si bien qu'un
+        # --only ou un --refresh-current tronquait la liste d'equipes aux
+        # seules saisons traitees -- 18 equipes au lieu de 44 apres un
+        # --only 1976-77 -- et retrecissait le bassin de la roulette en
+        # silence.
+        for label in existing:
+            with open(os.path.join(SEASONS_DIR, f"{label}.json"), encoding="utf-8") as f:
+                teams_seen.update(p["t"] for p in json.load(f)["players"])
         index = {
             "generated": time.strftime("%Y-%m-%d"),
             "minGP": args.min_gp,

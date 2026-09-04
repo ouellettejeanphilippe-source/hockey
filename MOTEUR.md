@@ -75,14 +75,28 @@ portent `gp, g, a, pt, pm, pim, ht, fo, toi` ; les gardiens `gp, w, l, sv, ga, s
 | Champ | Source API | Sert à |
 |---|---|---|
 | `sh` lancers du patineur | `skater/summary.shots` | volume de lancers par joueur |
-| `s%` pourcentage de tir | `skater/summary.shootingPct` | probabilité qu'un lancer devienne un but |
 | `sa` lancers contre du gardien | `goalie/summary.shotsAgainst` | calibrer la suppression de lancers |
-| `sv` arrêts du gardien | `goalie/summary.saves` | déjà là sous forme de % |
-| `a1` / `a2` passes 1re / 2e | rapports `powerplay` / `penaltykill` | attribuer les passes |
+
+**Deux champs, pas cinq.** Le reste se déduit et n'a pas à être stocké :
+
+- **% de tir** d'un joueur = `g / sh`
+- **arrêts** d'un gardien = `sa × sv`, `sv` étant déjà dans le shard
+
+**Fait.** `RATINGS_VERSION` 19. Et le travail était plus petit que prévu :
+`build_shards.py` récupérait déjà `shots` — `rateSkaters` le lit pour calculer
+la sous-cote `sp`. Les deux champs étaient simplement jetés à l'écriture du
+shard. Aucun changement au script d'aspiration, deux lignes dans `ratings.js`.
 
 C'est de l'**étage 1** : ces champs viennent des stats brutes, donc il faut un
-build complet par l'Action (`full`), pas un `--rerate`. C'est le seul prérequis
-bloquant de toute la refonte, et il est petit.
+build complet, pas un `--rerate`.
+
+### Ce qui manque encore
+
+Les **passes principales et secondaires** ne sont pas dans `skater/summary`.
+Elles existent dans les rapports `powerplay` et `penaltykill`, mais seulement
+pour ces situations-là, pas à forces égales. Le moteur utilisera donc une
+répartition moyenne d'époque plutôt qu'une propension par joueur. C'est une
+approximation assumée, pas un oubli.
 
 ---
 

@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 18;
+export const RATINGS_VERSION = 19;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -658,6 +658,9 @@ export function rateSkaters(rows, realtimeById = null) {
       pt: r.points || 0,
       pm: r.plusMinus || 0,
       pim: r.penaltyMinutes || 0,
+      // Lancers : la primitive du moteur par événements (voir MOTEUR.md). Le
+      // pourcentage de tir ne se stocke pas, il se déduit — g / sh.
+      sh: r.shots || 0,
       ht: htPerGame,
       fo: foPct,
       toi: Math.round(toiMin * 10) / 10,
@@ -704,6 +707,9 @@ export function rateGoalies(rows) {
       w: r.wins || 0,
       l: r.losses || 0,
       sv: r.savePct != null ? Math.round(r.savePct * 1000) / 1000 : null,
+      // Lancers contre : la cible objective de la défensive (voir MOTEUR.md).
+      // Les arrêts ne se stockent pas, ils se déduisent — sa × sv.
+      sa: r.shotsAgainst || 0,
       ga: r.goalsAgainstAverage != null ? Math.round(r.goalsAgainstAverage * 100) / 100 : null,
       so: r.shutouts || 0,
       o, d, r: rb, c, sp: rf,
