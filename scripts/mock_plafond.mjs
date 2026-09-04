@@ -106,6 +106,76 @@ function saison(nous, adversaires) {
   return { V, D, n: V + D };
 }
 
+/** Un match entre deux indices. Renvoie true si A gagne. */
+function match(A, B) {
+  const xA = Math.max(1.1, Math.min(7.5, BASE_XG * Math.pow(A.att / Math.max(20, 0.62 * B.def + 0.38 * B.g), EXPOSANT)));
+  const xB = Math.max(1.1, Math.min(7.5, BASE_XG * Math.pow(B.att / Math.max(20, 0.62 * A.def + 0.38 * A.g), EXPOSANT)));
+  let ga = poisson(xA), gb = poisson(xB);
+  while (ga === gb) { if (Math.random() < 0.5) ga++; else gb++; }
+  return ga > gb;
+}
+
+/** 4 de 7, comme playSeries. */
+function serie(A, B) {
+  let a = 0, b = 0;
+  while (a < 4 && b < 4) { if (match(A, B)) a++; else b++; }
+  return a === 4;
+}
+
+/** Saison complète de la ligue, puis séries à 16 équipes. */
+function saisonEtSeries(nous, adversaires) {
+  const tous = [nous, ...adversaires];
+  const V = new Array(tous.length).fill(0);
+  for (let r = 0; r < 82; r++) {
+    const ordre = [...tous.keys()];
+    for (let i = ordre.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ordre[i], ordre[j]] = [ordre[j], ordre[i]]; }
+    for (let i = 0; i + 1 < ordre.length; i += 2) {
+      const a = ordre[i], b = ordre[i + 1];
+      if (match(tous[a], tous[b])) V[a]++; else V[b]++;
+    }
+  }
+  const rang = [...tous.keys()].sort((x, y) => V[y] - V[x]);
+  const nSeries = Math.min(16, tous.length - (tous.length % 2));
+  const qualifies = rang.slice(0, nSeries);
+  const notreRang = rang.indexOf(0);
+  if (notreRang >= nSeries) return { qualifie: false, coupe: false, victoires: V[0] };
+  let carre = qualifies.slice();
+  while (carre.length > 1) {
+    const suivant = [];
+    for (let i = 0; i < carre.length / 2; i++) {
+      const A = carre[i], B = carre[carre.length - 1 - i];
+      suivant.push(serie(tous[A], tous[B]) ? A : B);
+    }
+    carre = suivant;
+  }
+  return { qualifie: true, coupe: carre[0] === 0, victoires: V[0] };
+}
+
+if (process.env.SERIES === '1') {
+  console.log('\nChances de COUPE d\'une équipe de qualité uniforme (séries à 16, 4 rondes de 4 de 7).\n');
+  for (const lab of SAISONS) {
+    const f = path.join(SEASONS_DIR, `${lab}.json`);
+    if (!fs.existsSync(f)) continue;
+    const adv = equipesReelles(JSON.parse(fs.readFileSync(f, 'utf8')));
+    if (adv.length < 17) { console.log(`  ${lab} : moins de 17 vraies équipes, sauté`); continue; }
+    console.log(`--- ${lab} (${adv.length} vraies équipes) ---`);
+    console.log('  niveau   fiche      séries   COUPE');
+    for (const niveau of [60, 70, 80, 90, 99]) {
+      const nous = { att: niveau, def: niveau, g: niveau };
+      const ennemis = adv.map(a => ({ att: a.attD, def: a.defD, g: a.g }));
+      let q = 0, c = 0, v = 0;
+      for (let e = 0; e < ESSAIS; e++) {
+        const r = saisonEtSeries(nous, ennemis);
+        if (r.qualifie) q++; if (r.coupe) c++; v += r.victoires;
+      }
+      const n = adv.length + 1;
+      console.log(`  ${String(niveau).padEnd(6)}  ${(v / ESSAIS * 82 / Math.round(82 * (n - (n % 2)) / n)).toFixed(0).padStart(2)}-${(82 - v / ESSAIS * 82 / Math.round(82 * (n - (n % 2)) / n)).toFixed(0).padStart(2)}   ${(100 * q / ESSAIS).toFixed(0).padStart(4)}%   ${(100 * c / ESSAIS).toFixed(0).padStart(4)}%`);
+    }
+    console.log();
+  }
+  process.exit(0);
+}
+
 console.log('\nÉquipe de 23 joueurs de qualité uniforme, contre les vraies équipes de la saison.');
 console.log(`${ESSAIS} essais par palier. Cible CLAUDE.md : une équipe parfaite perd ~1 match, le 82-0 reste rare.\n`);
 
