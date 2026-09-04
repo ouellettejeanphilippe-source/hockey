@@ -7,13 +7,29 @@
  * saison, et compare la fiche simulée à la VRAIE fiche de l'équipe
  * (reconstituée des fiches de gardiens, comme check_ratings.mjs).
  *
- * Trois modèles comparés :
+ * Quatre modèles comparés :
  *   A  attaque = sous-cote o          (ce que fait sim.js aujourd'hui)
  *   B  attaque = production calibrée sur la moyenne de sa saison
  *   C  B + ajustement +/- asymétrique (malus plein, bonus au sixième, borné)
+ *   D  comme C, mais le +/- est lissé contre la moyenne du vestiaire
  *
- * La défensive reste sur la sous-cote d dans les trois cas : aucune
+ * La défensive reste sur la sous-cote d dans les quatre cas : aucune
  * statistique de l'époque ne la remplace.
+ *
+ * MISE EN GARDE — deux biais connus de ce banc d'essai :
+ *
+ * 1. La sous-cote d est DÉJÀ bâtie sur le +/-, déjà lissée à LISSAGE_EQUIPE
+ *    contre le vestiaire (js/ratings.js, ligne ~558). Les modèles C et D
+ *    comptent donc le +/- deux fois. Une partie du gain de C sur A n'est pas
+ *    une découverte sur la défensive : c'est une fuite d'identité d'équipe
+ *    réinjectée dans une mesure qui sert ensuite à prédire cette équipe.
+ *
+ * 2. Le banc prédit la fiche d'une ÉQUIPE, avec chaque joueur parmi ses vrais
+ *    coéquipiers. Il ne peut donc pas voir le biais qui compte pour le jeu :
+ *    un alignement bâti de joueurs de 1977, 1994 et 2019 importerait, avec un
+ *    +/- brut, la qualité de vestiaires qui n'existent plus. C'est pour ça
+ *    que LISSAGE_PM = 0,5 est recommandé malgré un rho marginalement moins
+ *    bon que le +/- brut — l'écart est de l'ordre du bruit de Poisson.
  *
  *   node scripts/mock_prod_sim.mjs
  *   node scripts/mock_prod_sim.mjs 1976-77 1983-84   # + détail de ces saisons
@@ -39,7 +55,13 @@ const BASE_XG = 3.05;
  * Soit 0,88 but de -20 à 0, mais seulement 0,14 de 0 à +30. */
 const PM_MALUS = Number(process.env.PM_MALUS ?? 14);          // points de défensive par (+/- par match) négatif
 const PM_BONUS = PM_MALUS / 6;
-const PM_PLAFOND = Number(process.env.PM_PLAFOND ?? 0.18);      // ≈ +15 sur 82 matchs
+const PM_PLAFOND = Number(process.env.PM_PLAFOND ?? 0.18);
+
+/* Part de la moyenne du vestiaire retranchée du +/- avant l'ajustement.
+ * 0 = +/- brut (le joueur porte la qualité de son club)
+ * 1 = entièrement relatif à ses coéquipiers
+ * Même curseur que LISSAGE_EQUIPE dans js/ratings.js, qui vaut 0,5. */
+const LISSAGE_PM = Number(process.env.LISSAGE_PM ?? 0.5);      // ≈ +15 sur 82 matchs
 
 const poisson = (lam) => {
   const L = Math.exp(-lam);
@@ -134,10 +156,22 @@ function indices(eq) {
   const dPM = 0.62 * pondere(F, POIDS_TRIO, 3, p => p.d + ajust(p))
             + 0.38 * pondere(D, POIDS_PAIRE, 2, p => p.d + ajust(p));
 
+  // D — comme C, mais le +/- est mesuré contre la moyenne du vestiaire :
+  // un joueur ne doit pas être crédité de la qualité de son club.
+  const alignement = [...F, ...D];
+  const pmMoyEq = moy(alignement.map(p => (p.pm || 0) / Math.max(1, p.gp)));
+  const ajustEq = (p) => {
+    const pm = (p.pm || 0) / Math.max(1, p.gp) - LISSAGE_PM * pmMoyEq;
+    return pm < 0 ? PM_MALUS * pm : PM_BONUS * Math.min(pm, PM_PLAFOND);
+  };
+  const dPMeq = 0.62 * pondere(F, POIDS_TRIO, 3, p => p.d + ajustEq(p))
+              + 0.38 * pondere(D, POIDS_PAIRE, 2, p => p.d + ajustEq(p));
+
   return {
     A: { att: attA, def: defBase, g: gard },
     B: { att: attB, def: defBase, g: gard },
     C: { att: attB, def: dPM, g: gard },
+    D: { att: attB, def: dPMeq, g: gard },
   };
 }
 
@@ -168,7 +202,7 @@ for (const f of fichiers) {
   if (eqs.length < 6) continue;
 
   const idx = eqs.map(indices);
-  for (const m of ['A', 'B', 'C']) {
+  for (const m of ['A', 'B', 'C', 'D']) {
     const attMoy = moy(idx.map(i => i[m].att));
     const defMoy = moy(idx.map(i => i[m].def));
     const gMoy = moy(idx.map(i => i[m].g));
@@ -187,16 +221,17 @@ console.log('Corrélation de Spearman entre le % de victoires SIMULÉ et le VRAI
 const noms = {
   A: 'A  sous-cotes o/d (sim.js actuel)',
   B: 'B  production calibrée + d',
-  C: 'C  production + d + ajustement +/-',
+  C: 'C  production + d + ajustement +/- brut',
+  D: `D  comme C, +/- relatif au vestiaire (${LISSAGE_PM})`,
 };
-for (const m of ['A', 'B', 'C']) {
+for (const m of ['A', 'B', 'C', 'D']) {
   const s = lignes.map(l => l[`sim${m}`]);
   const err = moy(lignes.map(l => Math.abs(l[`sim${m}`] - l.vraiPct) * 82));
   console.log(`  ${noms[m].padEnd(38)}  rho = ${spearman(s, vrai).toFixed(3)}   erreur moyenne ${err.toFixed(1)} victoires sur 82`);
 }
 
 console.log('\nÉtalement des fiches simulées (victoires sur 82) :');
-for (const m of ['A', 'B', 'C']) {
+for (const m of ['A', 'B', 'C', 'D']) {
   const w = lignes.map(l => l[`sim${m}`] * 82);
   console.log(`  ${m}  min ${Math.min(...w).toFixed(0)}  médiane ${w.sort((a, b) => a - b)[Math.floor(w.length / 2)].toFixed(0)}  max ${Math.max(...w).toFixed(0)}`);
 }
@@ -210,21 +245,21 @@ const TEMOINS = [
   ['2016-17', 'COL'], ['2021-22', 'FLA'],
 ];
 console.log('\nÉquipes témoins — victoires sur 82 (le vrai est ramené au prorata) :\n');
-console.log('  saison    éq    vrai     A     B     C');
+console.log('  saison    éq    vrai     A     B     C     D');
 for (const [s, t] of TEMOINS) {
   const l = lignes.find(x => x.saison === s && x.t === t);
   if (!l) { console.log(`  ${s}  ${t}   (absente)`); continue; }
   const f = (x) => (x * 82).toFixed(0).padStart(5);
-  console.log(`  ${s}  ${t.padEnd(4)} ${f(l.vraiPct)} ${f(l.simA)} ${f(l.simB)} ${f(l.simC)}`);
+  console.log(`  ${s}  ${t.padEnd(4)} ${f(l.vraiPct)} ${f(l.simA)} ${f(l.simB)} ${f(l.simC)} ${f(l.simD)}`);
 }
 
 for (const s of detail) {
   const eqs = lignes.filter(l => l.saison === s).sort((a, b) => b.vraiPct - a.vraiPct);
   if (!eqs.length) continue;
-  console.log(`\n--- ${s} ---\n  éq    vrai     A     B     C`);
+  console.log(`\n--- ${s} ---\n  éq    vrai     A     B     C     D`);
   for (const l of eqs) {
     const f = (x) => (x * 82).toFixed(0).padStart(5);
-    console.log(`  ${l.t.padEnd(4)} ${f(l.vraiPct)} ${f(l.simA)} ${f(l.simB)} ${f(l.simC)}`);
+    console.log(`  ${l.t.padEnd(4)} ${f(l.vraiPct)} ${f(l.simA)} ${f(l.simB)} ${f(l.simC)} ${f(l.simD)}`);
   }
 }
 console.log();
