@@ -127,14 +127,23 @@ lancers_equipe = BASE_LANCERS × (pression_offensive / suppression_adverse)
 constante, pas un curseur d'époque.
 
 La **pression offensive** vient des lancers par minute de chaque joueur, pondérés
-par sa part de temps de glace. La **suppression** vient du corps de défenseurs et
-des attaquants, et — c'est nouveau — elle a enfin une cible objective à laquelle
-se caler : les lancers contre réels de chaque équipe, disponibles depuis 1970-71,
-avec un écart de 18 à 30 % entre la meilleure et la pire équipe de chaque saison.
+par sa part de temps de glace.
 
-**C'est la première fois que la défensive a une mesure à viser.** Jusqu'ici on
-n'avait que le +/-, qui est une différence et pas un volume. Cette cible-là est
-un vrai volume, mesuré, par équipe, toutes époques.
+La **suppression**, elle, s'est révélée être autre chose que ce que ce paragraphe
+disait dans sa première version. On pariait qu'elle viendrait du corps de
+défenseurs, avec les lancers contre réels comme cible à atteindre. **Mesuré
+(étape 8.3) : l'alignement ne prédit pas le volume de lancers concédés** —
+corrélation −0,17, et 8 % d'écart reproduit contre 56 % de réel. La suppression
+se réduit donc à la **possession** :
+
+```
+suppression_adverse = possession_adverse ^ 0,150
+```
+
+Le reste de l'écart réel entre défensives existe, mais il tient au système et à
+l'entraîneur, pas aux joueurs signés. Le moteur ne le vendra pas au joueur comme
+quelque chose qui s'achète. **La qualité de la brigade agit au 4.4, sur la
+probabilité qu'un lancer entre, pas ici sur leur nombre.**
 
 ### 4.3 Qui tire
 
@@ -146,13 +155,21 @@ gars au quatrième tire deux fois moins. Aucune règle spéciale n'est nécessai
 ### 4.4 But ou arrêt
 
 ```
-P(but) = %tir_du_tireur × ajustement_epoque ÷ qualite_du_gardien
+P(but) = %tir_du_tireur × facteur_gardien × (1 − K × z_def_adverse)
 ```
 
 Le gardien passe donc sur **chaque** lancer. Avec ~28 lancers par match, deux
 points de pourcentage d'arrêts valent environ **0,6 but par match**. Le gardien
 devient le levier individuel le plus lourd de l'alignement — ce qui est vrai au
 hockey et faux dans le moteur actuel, où il ne pèse que 0,38 d'un terme.
+
+Le troisième terme est la **défensive de l'équipe adverse**, et c'est ici qu'elle
+agit — pas sur le volume. `z_def_adverse` est la cote défensive de l'alignement
+en écart-type de sa saison, pondérée par la part de glace des unités.
+**Mesuré : `K` est entre 0,029 et 0,050**, soit 3 à 5 millièmes d'arrêts par
+écart-type, survivant au contrôle par l'identité du gardien (étape 8.3). Un
+défenseur ne bloque donc pas des lancers dans ce moteur : il rend ceux qui
+passent moins dangereux, ce qui est exactement ce que les données disent.
 
 ### 4.5 Les passes
 
@@ -201,6 +218,11 @@ Le quatrième trio joue 16 % des minutes. Un quatrième trio faible encaisse des
 lancers pendant treize minutes par match, tous les soirs. Empiler des vedettes en
 haut en négligeant le bas devient une stratégie **avec un coût mesurable**, pas
 une punition abstraite.
+
+Et le coût n'est pas celui qu'on annonçait ici. Ce n'est pas que le quatrième
+trio *encaisse plus de lancers* — mesuré, il n'en encaisse pas plus. C'est que
+les lancers encaissés pendant ses présences entrent plus souvent. Même treize
+minutes, plus dangereuses.
 
 ### 5.4 Les traits, rares et ciblés
 
@@ -310,10 +332,79 @@ c'est lui qui attrape les erreurs d'attribution que l'œil ne voit pas.
    fin, et le volume de lancers est reproduit presque exactement. Le résidu de
    2,7 % sur les buts vient de ce que seuls 18 patineurs tirent alors qu'une
    vraie équipe en aligne davantage, et de l'absence d'avantage numérique.
-3. **Calibrer la suppression de lancers** contre les lancers contre réels. La
-   maquette utilise les vrais taux de chaque équipe ; le vrai moteur devra les
-   dériver de l'alignement. C'est le morceau neuf, et le seul dont je ne peux
-   pas prédire la difficulté.
+3. **Calibrer la suppression de lancers** contre les lancers contre réels.
+   **Fait — et la réponse n'est pas celle que ce document attendait.**
+   `scripts/check_suppression.mjs`, sur les 1392 équipes-saisons.
+
+   La section 4.2 pariait que la brigade défensive ferait baisser le *volume*
+   de lancers concédés. **Mesuré, elle ne le fait pas** : la cote défensive de
+   l'alignement corrèle à **−0,17** avec les lancers contre, et le modèle
+   complet — possession, brigade, quatre trios — n'en reproduit que 8 % d'écart
+   entre la meilleure et la pire défensive, là où le réel en montre 56 %.
+   L'alignement n'explique pratiquement pas qui concède des lancers.
+
+   Le signal, lui, est ailleurs. La même cote défensive corrèle à **+0,45** avec
+   le pourcentage d'arrêts de l'équipe et à **−0,45** avec ses buts alloués :
+
+   | signal de l'alignement | lancers contre | % d'arrêts | buts contre |
+   |---|---|---|---|
+   | possession | −0,19 | +0,25 | −0,30 |
+   | brigade défensive (cote `d`) | −0,17 | **+0,45** | −0,43 |
+   | quatre trios (cote `d`) | −0,18 | **+0,45** | −0,45 |
+   | +/- de l'équipe | −0,23 | +0,59 | −0,58 |
+
+   **Conséquence de design, et elle est nette : la défensive passe par la
+   qualité des lancers, pas par leur nombre.** Une bonne brigade ne réduit pas
+   le volume de rondelles dirigées vers son filet ; elle réduit la probabilité
+   que chacune entre. C'est cohérent avec ce que le hockey mesuré dit depuis
+   quinze ans, et ça tombe bien : la primitive du moteur est justement le
+   lancer, donc le curseur se pose exactement là où l'événement se résout.
+
+   **La circularité a été testée, pas supposée.** La cote `d` est bâtie sur le
+   +/-, qui dépend des buts que *son* gardien a alloués : un bon gardien gonfle
+   la cote défensive de tout son vestiaire, et la corrélation de 0,45
+   apparaîtrait même si personne ne défendait. Deux indices que le doute était
+   fondé — la brigade (0,450) et les quatre trios (0,452) prédisent le % d'arrêts
+   *exactement* aussi bien, alors qu'un vrai signal défensif devrait pencher du
+   côté des défenseurs. Le test qui tranche : **le même gardien, d'une saison à
+   l'autre**, comparé à sa propre moyenne de carrière corrigée de l'époque, sur
+   312 gardiens à trois saisons et plus. Le signal survit à **+0,23**. Il est
+   donc réel, et à peu près moitié moins fort que la corrélation brute.
+
+   Les deux constantes que le moteur portera :
+
+   ```
+   VOLUME    lancers = base × possession^0,150
+             la brigade n'y entre pas : 0,3 % par écart-type
+
+   QUALITÉ   P(but) = %tir_du_tireur × facteur_gardien × (1 − K × z_def_adverse)
+             K entre 0,029 et 0,050
+   ```
+
+   `K` est encadré plutôt que fixé, et les deux bornes sont des mesures, pas des
+   marges de sécurité : la borne basse (2,9 millièmes d'arrêts par écart-type)
+   vient du test contrôlé par gardien, qui efface au passage l'équipe qui suit
+   son gardien d'un club à l'autre, donc elle sous-estime ; la borne haute
+   (5,0 millièmes) ne contrôle rien, donc elle contient le gardien qui gonfle
+   son vestiaire. Le vrai chiffre est entre les deux, et c'est l'étape 5 qui
+   choisira où, sur le seul critère qui compte : la monotonie et le réalisme du
+   plafond.
+
+   **Ce que ça change pour le joueur.** Signer une brigade défensive reste
+   payant, mais ça ne se voit pas dans les lancers concédés — ça se voit dans le
+   pourcentage d'arrêts de ton gardien. Un écart-type d'alignement défensif vaut
+   de 3 à 5 millièmes d'arrêts, soit environ 0,08 à 0,14 but par match. Sur 82
+   matchs, entre 7 et 12 buts. Et l'effet est **multiplicatif avec le gardien** :
+   la même brigade rapporte davantage devant un gardien qui voit beaucoup de
+   rondelles.
+
+   **Un piège de mesure de plus, et il est gros.** Écarter les joueurs échangés,
+   comme le fait la maquette du moteur, est catastrophique ici : retirer un
+   *gardien* échangé retire d'un coup tous les lancers contre de son équipe, et
+   l'écart entre la meilleure et la pire défensive explose à **185 %** au lieu
+   des 56 % réels. Ce script répartit donc les totaux d'un joueur également
+   entre ses `k` équipes — faux dans le détail, sans biais systématique, et
+   chaque équipe reste complète.
 
    **Trois pièges de mesure, trouvés en bâtissant la maquette.** Chacun donnait
    un écart qu'on aurait pris pour un défaut du modèle :
@@ -351,10 +442,15 @@ Honnêtement, pour que personne n'attende ça d'elle :
 - **Le temps de glace réel n'existe pas avant 1997-98.** Les parts de temps de
   glace par unité restent donc un modèle, pas une mesure, sur la moitié des
   saisons.
-- **La défensive individuelle reste approximée.** On gagne une cible d'équipe
-  (les lancers contre), pas une mesure par joueur. Le +/- reste le seul signal
-  individuel d'avant 1998, avec ses défauts connus : asymétrique (le malus vaut
-  six fois le bonus, mesuré) et dépendant du vestiaire (lissé à `LISSAGE_EQUIPE`).
+- **La défensive individuelle reste approximée, et l'étape 3 l'a confirmé plus
+  durement que prévu.** On croyait gagner une cible d'équipe — les lancers contre
+  — et elle ne répond pas à l'alignement (corrélation −0,17). Ce qui répond, la
+  qualité des lancers concédés, ne se sépare pas proprement du gardien : d'où un
+  `K` encadré entre 0,029 et 0,050 plutôt que mesuré. Et le signal ne distingue
+  pas les défenseurs des attaquants (0,450 contre 0,452) — il mesure la qualité
+  du vestiaire, pas celle de la brigade. Le +/- reste le seul signal individuel
+  d'avant 1998, avec ses défauts connus : asymétrique (le malus vaut six fois le
+  bonus, mesuré) et dépendant du vestiaire (lissé à `LISSAGE_EQUIPE`).
 - **`sp` n'est pas de la vitesse.** C'est du temps de glace et du volume de tirs :
   mesuré, Chára sort plus « rapide » que Gaudreau. Le champ n'est lu par aucune
   formule de simulation. À retirer de la carte des patineurs ou à renommer pour ce

@@ -42,6 +42,8 @@ scripts/check_monotonie.mjs améliorer son équipe la rend-elle meilleure ? (vra
 scripts/mock_zones.mjs      le malus de zone ferme-t-il l'empilement ?
 scripts/check_lancers.mjs   les deux constantes d'époque du moteur (voir MOTEUR.md)
 scripts/mock_moteur.mjs     maquette du moteur par événements, comparée aux vrais totaux
+scripts/check_suppression.mjs  la défensive de l'alignement : volume de lancers
+                            concédés ou qualité ? (réponse : la qualité)
 scripts/smoke.mjs           test de fumée Playwright à 390 px
 data/index.json             liste des saisons disponibles
 data/seasons/<saison>.json  un shard par saison
