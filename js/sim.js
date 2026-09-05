@@ -6,7 +6,7 @@
  * Toute modification des constantes doit être revalidée (voir PLAN.md, S3).
  */
 
-import { getArchetype, getLineZone, getEraFactor, seasonGames, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
+import { getArchetype, getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
@@ -285,27 +285,8 @@ const effStat = (player, slot, key) => {
   return Math.max(25, r[key] - getPositionPenalty(player, slot));
 };
 
-function unitAvg(roster, group, unit, key) {
-  const ps = SLOTS
-    .filter(s => s.group === group && s.unit === unit && !s.scratch)
-    .map(s => ({ slot: s, player: roster[s.i] }))
-    .filter(x => x.player);
-  if (!ps.length) return 50;
-
-  const syn = getUnitSynergy(roster, group, unit);
-  let bonus = 0;
-  if (key === 'o') bonus = syn.bonusOff || 0;
-  if (key === 'd') bonus = syn.bonusDef || 0;
-
-  const base = ps.reduce((a, x) => a + effStat(x.player, x.slot, key), 0) / ps.length;
-  return Math.max(20, Math.min(99, base + bonus));
-}
-
 const POIDS_TRIO  = [0.34, 0.28, 0.22, 0.16];  // le 4e trio compte pour vrai
 const POIDS_PAIRE = [0.40, 0.34, 0.26];
-
-const weighted = (roster, group, weights, key) =>
-  weights.reduce((sum, w, i) => sum + w * unitAvg(roster, group, i, key), 0);
 
 function poisson(lambda) {
   const L = Math.exp(-lambda);
@@ -314,173 +295,305 @@ function poisson(lambda) {
   return k - 1;
 }
 
-/* ---------- simulation de match unique entre 2 équipes ---------- */
+/* ======================================================================
+ *  LE MOTEUR PAR ÉVÉNEMENTS — la primitive est le LANCER
+ *
+ *  Spécification et mesures : MOTEUR.md. En deux phrases : le rythme du
+ *  hockey n'a pas bougé en 55 ans (27 à 31 lancers par équipe par match,
+ *  17 % d'amplitude) pendant que les buts variaient de 55 %. Donc si on
+ *  tire des LANCERS plutôt que des buts, l'époque se normalise avec deux
+ *  nombres mesurés par saison au lieu d'un facteur bricolé sur le pointage.
+ *
+ *  Un match se joue lancer par lancer. Chaque lancer a un tireur, un
+ *  gardien, et deux issues. Les trois égalités de la feuille de match se
+ *  ferment donc PAR CONSTRUCTION, jamais par un ajustement après coup :
+ *
+ *    buts de l'équipe   = somme des buts de ses joueurs
+ *    lancers            = arrêts du gardien adverse + buts
+ *    passes             <= 2 par but
+ *
+ *  `scripts/check_feuilles.mjs` les vérifie sur chaque match d'une saison.
+ * ====================================================================== */
 
-export function simulateMatch(rosterA, rosterB, isHeavy = false) {
-  const fOffA = weighted(rosterA, 'F', POIDS_TRIO, 'o');
-  const fDefA = weighted(rosterA, 'F', POIDS_TRIO, 'd');
-  const dOffA = weighted(rosterA, 'D', POIDS_PAIRE, 'o');
-  const dDefA = weighted(rosterA, 'D', POIDS_PAIRE, 'd');
-  const robA  = 0.6 * weighted(rosterA, 'F', POIDS_TRIO, 'r') + 0.4 * weighted(rosterA, 'D', POIDS_PAIRE, 'r');
-  const cluA  = 0.6 * weighted(rosterA, 'F', POIDS_TRIO, 'c') + 0.4 * weighted(rosterA, 'D', POIDS_PAIRE, 'c');
-  const goaliesA = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => rosterA[s.i]);
-  const goalieA = goaliesA[0] || {};
-  const rGA = getHiddenRatings(goalieA);
+/*
+ * Lancers par équipe par match. Mesuré à 27-31 sur 55 saisons, et stable :
+ * c'est une vraie constante, pas un curseur d'époque.
+ *
+ * La valeur portée ici est légèrement au-dessus de la moyenne mesurée parce
+ * qu'elle est l'ENTRÉE du moteur, pas sa sortie : elle est réglée pour que
+ * `node scripts/check_feuilles.mjs` retombe sur 28,5 lancers par équipe par
+ * match une fois toutes les pondérations passées.
+ */
+export const LANCERS_BASE = 29.0;
 
-  const fOffB = weighted(rosterB, 'F', POIDS_TRIO, 'o');
-  const fDefB = weighted(rosterB, 'F', POIDS_TRIO, 'd');
-  const dOffB = weighted(rosterB, 'D', POIDS_PAIRE, 'o');
-  const dDefB = weighted(rosterB, 'D', POIDS_PAIRE, 'd');
-  const robB  = 0.6 * weighted(rosterB, 'F', POIDS_TRIO, 'r') + 0.4 * weighted(rosterB, 'D', POIDS_PAIRE, 'r');
-  const cluB  = 0.6 * weighted(rosterB, 'F', POIDS_TRIO, 'c') + 0.4 * weighted(rosterB, 'D', POIDS_PAIRE, 'c');
-  const goaliesB = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => rosterB[s.i]);
-  const goalieB = goaliesB[0] || {};
-  const rGB = getHiddenRatings(goalieB);
+/** Part des lancers d'une équipe prise par les défenseurs. */
+export const PART_LANCERS_D = 0.25;
 
-  const attA = 0.72 * fOffA + 0.28 * dOffA;
-  const defA = 0.58 * dDefA + 0.42 * fDefA;
-  const gA = 0.6 * rGA.o + 0.4 * rGA.d;
+/*
+ * La suppression de lancers. `scripts/check_suppression.mjs`, sur 1392
+ * équipes-saisons : l'alignement n'explique PAS le volume de lancers
+ * concédés — la cote défensive y corrèle à −0,17, et le modèle complet ne
+ * reproduit que 8 % d'écart entre la meilleure et la pire défensive là où
+ * le réel en montre 56 %. Ce qui reste tient à la possession seule.
+ *
+ * Le reste de l'écart existe, mais il appartient au système et à
+ * l'entraîneur, pas aux joueurs signés. On ne le vend donc pas au joueur
+ * comme quelque chose qui s'achète.
+ */
+export const ALPHA_POSSESSION = 0.150;
 
-  const attB = 0.72 * fOffB + 0.28 * dOffB;
-  const defB = 0.58 * dDefB + 0.42 * fDefB;
-  const gB = 0.6 * rGB.o + 0.4 * rGB.d;
+/*
+ * La défensive, elle, agit sur la QUALITÉ des lancers. Même mesure : la
+ * cote défensive de l'alignement corrèle à +0,45 avec le pourcentage
+ * d'arrêts de l'équipe et −0,45 avec ses buts alloués. Une bonne brigade
+ * ne réduit pas le nombre de rondelles vers son filet, elle réduit la
+ * probabilité que chacune entre.
+ *
+ * La circularité a été testée : la cote `d` est bâtie sur le +/-, donc un
+ * bon gardien gonfle la cote défensive de tout son vestiaire. Le test du
+ * MÊME gardien d'une saison à l'autre, contre sa propre moyenne de
+ * carrière corrigée de l'époque (312 gardiens), laisse survivre +0,23.
+ *
+ * D'où un intervalle mesuré plutôt qu'un nombre : 0,029 (test contrôlé par
+ * gardien, qui efface au passage l'équipe qui suit son gardien) à 0,050
+ * (sans contrôle, donc contaminé par le gardien). On prend le milieu.
+ */
+export const K_DEFENSE = 0.040;
 
-  const defenseA = 0.62 * defA + 0.38 * gA + (isHeavy ? (robA - 52) * 0.22 : 0);
-  const defenseB = 0.62 * defB + 0.38 * gB + (isHeavy ? (robB - 52) * 0.22 : 0);
+/** Cote défensive d'équipe : moyenne et écart-type des 1392 équipes-saisons. */
+export const MOY_DEF_EQUIPE = 57.6;
+export const ECART_DEF_EQUIPE = 4.3;
 
-  const xGFA = Math.max(1.1, Math.min(7.5, 3.05 * Math.pow(attA / Math.max(20, defenseB), 1.55)));
-  const xGFB = Math.max(1.1, Math.min(7.5, 3.05 * Math.pow(attB / Math.max(20, defenseA), 1.55)));
+/*
+ * Conversion d'un bonus de chimie ou d'un malus de zone (en points de cote)
+ * en facteur multiplicatif sur les buts attendus de l'unité. La moitié de
+ * l'effet passe par le volume de lancers, l'autre par leur qualité — le
+ * produit vaut donc exactement `exp(bonus / SYN_ECHELLE)`.
+ *
+ * C'est le seul curseur libre du moteur : tout le reste est mesuré. Il se
+ * règle sur `mock_zones.mjs` (l'empilement doit rester près de la meilleure
+ * équipe de l'histoire) et `check_monotonie.mjs` (améliorer son équipe ne
+ * doit jamais la rendre pire).
+ */
+export const SYN_ECHELLE = 50;
 
-  let gfA = poisson(xGFA), gfB = poisson(xGFB);
-  let ot = false;
+/*
+ * L'ÉQUIPE de référence, et non le joueur de référence.
+ *
+ * Mesuré avec `node scripts/check_neutre.mjs` sur les 1395 équipes-saisons
+ * alignées par `autoRoster`. La distinction n'est pas cosmétique : un
+ * alignement retient les 18 meilleurs patineurs d'un club et son gardien
+ * numéro un, qui tirent 27 % de plus que le régulier moyen de la ligue,
+ * finissent 2 % mieux et arrêtent 10 % de plus. Normaliser sur le joueur
+ * moyen plutôt que sur l'équipe moyenne donnait une équipe médiane à 60
+ * victoires.
+ *
+ * Tout dans le moteur est exprimé en écart à ces quatre nombres, si bien
+ * qu'un match entre deux équipes de référence produit exactement
+ * LANCERS_BASE lancers et CIBLE_PCT_TIR de finition.
+ */
+export const REF = { pression: 1.272, zDef: 0.672, fg: 0.895, pctTir: 1.022 };
 
-  if (gfA === gfB) {
-    ot = true;
-    const diffClutch = cluA - cluB;
-    const pClutch = 1 / (1 + Math.exp(-diffClutch / 9));
-    if (Math.random() < pClutch) gfA++; else gfB++;
-  }
+/*
+ * Le pourcentage de tir de référence, et donc l'ancrage du pointage : c'est
+ * lui qui décide combien la ligue simulée marque, toutes époques confondues.
+ * Réglé pour que `check_feuilles.mjs` retombe sur ~3,1 buts par équipe par
+ * match, la référence moderne de `SEASON_GOAL_AVG`.
+ *
+ * Il absorbe l'écart entre le tireur de référence et le tireur MOYEN d'un
+ * alignement réel : les gros tireurs prennent plus de lancers que leur part
+ * d'effectif, et ils finissent mieux que la moyenne. Le régler à la main sur
+ * la sortie mesurée vaut mieux que de propager cette pondération dans quatre
+ * formules qui divergeraient ensuite.
+ */
+export const CIBLE_PCT_TIR = 0.0966;
+export const PCT_TIR_MAX = 0.35;
 
-  return { gfA, gfB, ot, winner: gfA > gfB ? 'A' : 'B' };
+/** Un but reçoit une passe principale, puis parfois une secondaire. */
+export const P_PASSE_1 = 0.85;
+export const P_PASSE_2 = 0.62;
+
+/** Volume de tirs et finition d'un rappel de la ligue mineure. */
+const RAPPEL_LANCERS = 0.70;
+const RAPPEL_PCT_TIR = 0.80;
+
+const borne = (x, min, max) => Math.max(min, Math.min(max, x));
+
+/**
+ * Volume de tirs d'un joueur, en écart à sa ligue. Un ailier de 1981 et un
+ * ailier de 2015 se comparent alors correctement : chacun est divisé par le
+ * régulier moyen de sa propre saison, à sa propre position.
+ */
+function lancersRel(p) {
+  if (!p) return RAPPEL_LANCERS;
+  const est_D = p.p === 'D' || p.p === 'LD' || p.p === 'RD';
+  const base = seasonLancers(p.s)[est_D ? 3 : 2];
+  const perso = (p.sh || 0) / Math.max(1, p.gp || 1);
+  if (!perso || !base) return RAPPEL_LANCERS;
+  return borne(perso / base, 0.25, 2.60);
 }
 
-/* ---------- simulation ---------- */
+/**
+ * Finition d'un joueur, en écart au % de tir de sa ligue. Sous 20 lancers
+ * dans sa saison, le rapport ne veut rien dire et on le prend pour moyen.
+ */
+function pctTirRel(p) {
+  if (!p) return RAPPEL_PCT_TIR;
+  const lancers = p.sh || 0;
+  if (lancers < 20) return 1;
+  const ligue = seasonLancers(p.s)[1];
+  if (!ligue) return 1;
+  return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20);
+}
 
-export function simulate(roster) {
-  const fOff = weighted(roster, 'F', POIDS_TRIO, 'o');
-  const fDef = weighted(roster, 'F', POIDS_TRIO, 'd');
-  const dOff = weighted(roster, 'D', POIDS_PAIRE, 'o');
-  const dDef = weighted(roster, 'D', POIDS_PAIRE, 'd');
-  const rob  = 0.6 * weighted(roster, 'F', POIDS_TRIO, 'r') + 0.4 * weighted(roster, 'D', POIDS_PAIRE, 'r');
-  const clu  = 0.6 * weighted(roster, 'F', POIDS_TRIO, 'c') + 0.4 * weighted(roster, 'D', POIDS_PAIRE, 'c');
+/**
+ * Facteur du gardien : de combien il laisse passer, relativement à la ligue
+ * de SA saison. Un gardien à ,920 en 1975 était hors norme, le même chiffre
+ * en 2015 est ordinaire — c'est le rapport qui compte, jamais la valeur.
+ */
+function facteurGardien(g) {
+  if (!g) return 1.20;
+  const svLigue = 1 - seasonLancers(g.s)[1] / 100;
+  const sv = g.sv || svLigue;
+  return borne((1 - sv) / Math.max(0.02, 1 - svLigue), 0.55, 1.60);
+}
 
-  const goalies = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => roster[s.i]).filter(Boolean);
-  const starter = goalies[0] || { p: 'G' };
-  const backup = goalies[1] || starter;
+/* Exposés pour `scripts/check_neutre.mjs`, qui mesure le profil de l'équipe
+ * moyenne — jamais recopiés ailleurs, une seule implémentation par formule. */
+export const facteurGardienDe = facteurGardien;
+export const pctTirRelDe = pctTirRel;
 
-  // Initialiser les statistiques simulées individuelles
-  for (const s of SLOTS) {
-    const p = roster[s.i];
-    if (p) {
-      p.simGP = 0; p.simG = 0; p.simA = 0; p.simPTS = 0; p.simPM = 0;
-      if (p.p === 'G') {
-        p.simW = 0; p.simL = 0; p.simOTL = 0; p.simGA = 0; p.simSO = 0;
-      }
+/** Propension à la passe : la part de points qu'un joueur récolte en passes. */
+const propensionPasse = p =>
+  ((p.a || 0) / Math.max(1, p.pt || 1) + 0.05) * (p.p === 'D' ? 0.7 : 1);
+
+/**
+ * Le profil de match d'un alignement : combien il tire, comment il défend,
+ * et qui est sur la glace à chaque présence.
+ *
+ * La chimie d'unité et le malus de zone entrent ici — moitié sur le volume
+ * de lancers, moitié sur leur qualité. C'est ce qui rend le placement d'un
+ * joueur décisif : une vedette au quatrième trio tire deux fois moins ET
+ * traîne le malus de zone de l'unité.
+ */
+export function profilMatch(team, lineup) {
+  const unites = { F: [], D: [] };
+  for (const [group, poids] of [['F', POIDS_TRIO], ['D', POIDS_PAIRE]]) {
+    for (let u = 0; u < poids.length; u++) {
+      const slots = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch);
+      const syn = getUnitSynergy(lineup, group, u);
+      const tog = team ? Math.min(CONTINUITY_MAX, (team.together.get(`${group}${u}`) || 0) / CONTINUITY_GAMES) : 0;
+      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + tog) / SYN_ECHELLE));
+      const volume = slots.reduce((a, s) => a + lancersRel(lineup[s.i]), 0) / slots.length;
+      unites[group].push({
+        joueurs: slots.map(s => lineup[s.i]).filter(Boolean),
+        poids: poids[u] * volume * mod,
+        qualite: mod,
+      });
     }
   }
 
-  const activeSkaters = SLOTS
-    .filter(s => s.group !== 'G' && !s.scratch && roster[s.i])
-    .map(s => ({ slot: s, player: roster[s.i] }));
+  const somme = (g, poids) => unites[g].reduce((a, x, i) => a + x.poids, 0);
+  const pression = (1 - PART_LANCERS_D) * somme('F') + PART_LANCERS_D * somme('D');
 
-  const attaque = 0.72 * fOff + 0.28 * dOff;
-  const brigade = 0.58 * dDef + 0.42 * fDef;
-
-  let W = 0, L = 0, OTL = 0, GF = 0, GA = 0;
-
-  for (let g = 0; g < 82; g++) {
-    const goalie = (g % 6 === 5) ? backup : starter;   // ~14 départs pour l'auxiliaire
-    const heavy  = (g % 4 === 3);                      // matchs éreintants
-
-    goalie.simGP = (goalie.simGP || 0) + 1;
-    for (const item of activeSkaters) item.player.simGP = (item.player.simGP || 0) + 1;
-
-    const rG = getHiddenRatings(goalie);
-    const defense = 0.62 * brigade
-                  + 0.38 * (0.6 * rG.o + 0.4 * rG.d)
-                  + (heavy ? (rob - 52) * 0.22 : 0);
-
-    const xGF = Math.max(1.1, Math.min(7.5, 3.05 * Math.pow(attaque / 58, 1.55)));
-    const xGA = Math.max(1.1, Math.min(7.5, 3.05 * Math.pow(58 / Math.max(20, defense), 1.55)));
-
-    let gf = poisson(xGF), ga = poisson(xGA);
-    let win = false, otl = false;
-
-    if (gf === ga) {
-      const pClutch = 1 / (1 + Math.exp(-(clu - 52) / 9));
-      if (Math.random() < pClutch) { gf++; W++; win = true; } else { ga++; OTL++; otl = true; }
-    } else if (gf > ga) { W++; win = true; } else { L++; }
-
-    goalie.simGA += ga;
-    if (win) goalie.simW++;
-    else if (otl) goalie.simOTL++;
-    else goalie.simL++;
-    if (ga === 0) goalie.simSO++;
-
-    // Distribuer les buts et passes de l'équipe
-    for (let i = 0; i < gf; i++) {
-      const unitRoll = Math.random();
-      const unit = unitRoll < 0.34 ? 0 : unitRoll < 0.62 ? 1 : unitRoll < 0.84 ? 2 : 3;
-      const unitPlayers = activeSkaters.filter(x => x.slot.unit === unit || x.slot.group === 'D');
-
-      if (unitPlayers.length) {
-        // Scorer
-        const weights = unitPlayers.map(x => Math.pow(getHiddenRatings(x.player).o, 1.8));
-        const totalW = weights.reduce((a, b) => a + b, 0);
-        let r = Math.random() * totalW;
-        let scorerIdx = 0;
-        for (let j = 0; j < weights.length; j++) {
-          r -= weights[j];
-          if (r <= 0) { scorerIdx = j; break; }
-        }
-        const scorer = unitPlayers[scorerIdx].player;
-        scorer.simG++;
-        scorer.simPTS++;
-
-        // Passers
-        const passers = unitPlayers.filter((_, idx) => idx !== scorerIdx);
-        if (passers.length && Math.random() < 0.88) {
-          const p1 = passers[Math.floor(Math.random() * passers.length)].player;
-          p1.simA++; p1.simPTS++;
-          if (passers.length > 1 && Math.random() < 0.65) {
-            const p2 = passers.find(x => x.player !== p1)?.player;
-            if (p2) { p2.simA++; p2.simPTS++; }
-          }
-        }
-
-        // +/- sur but marqué
-        for (const item of unitPlayers) item.player.simPM++;
-      }
-    }
-
-    // +/- sur but alloué
-    for (let i = 0; i < ga; i++) {
-      const unitRoll = Math.random();
-      const unit = unitRoll < 0.34 ? 0 : unitRoll < 0.62 ? 1 : unitRoll < 0.84 ? 2 : 3;
-      const unitPlayers = activeSkaters.filter(x => x.slot.unit === unit || x.slot.group === 'D');
-      for (const item of unitPlayers) item.player.simPM--;
-    }
-
-    GF += gf; GA += ga;
-  }
+  const coteDef = 0.5 * (
+    POIDS_TRIO.reduce((a, w, u) => a + w * unitAvgLineup(team, lineup, 'F', u, 'd'), 0) +
+    POIDS_PAIRE.reduce((a, w, u) => a + w * unitAvgLineup(team, lineup, 'D', u, 'd'), 0));
 
   return {
-    W, L, OTL, GF, GA,
-    points: W * 2 + OTL,
-    attaque, brigade, rob, clu,
-    gRating: 0.6 * getHiddenRatings(starter).o + 0.4 * getHiddenRatings(starter).d,
+    unites,
+    pression: borne(pression, 0.40, 2.40),
+    zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
   };
 }
+
+/*
+ * L'adversaire de la saison solo : strictement moyen sur les quatre axes.
+ * Il faut le dire explicitement, sinon un profil sans joueurs hérite des
+ * valeurs de RAPPEL — un tireur de ligue mineure et pas de gardien — et la
+ * saison solo devient un tir au but contre un filet désert.
+ */
+const PROFIL_NEUTRE = {
+  unites: null,
+  pression: REF.pression, zDef: REF.zDef,
+  pctTirDefaut: REF.pctTir, fgDefaut: REF.fg,
+};
+
+/** Tire une unité au prorata de son poids de présence. */
+function choisirUnite(unites) {
+  let r = Math.random() * unites.reduce((a, x) => a + x.poids, 0);
+  for (const x of unites) { r -= x.poids; if (r <= 0) return x; }
+  return unites[unites.length - 1];
+}
+
+/**
+ * Un côté du match : l'attaque de `off` tire sur le gardien de `def`.
+ *
+ * Retourne le nombre de buts. Quand `feuille` est fourni, chaque lancer
+ * crédite aussi le tireur, les passeurs, le +/- des cinq patineurs sur la
+ * glace, et les arrêts du gardien. Rien n'est réparti après coup : la
+ * feuille de match EST la suite des lancers.
+ */
+function jouerCote(off, def, gardien, chance, heavy, feuille) {
+  const attendu = LANCERS_BASE
+    * (off.pression / REF.pression)
+    * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION);
+  const lancers = Math.max(6, poisson(attendu));
+
+  const zDef = def.zDef + (heavy && def.rob ? (def.rob - 52) / 25 : 0);
+  const facteurDef = Math.max(0.55, 1 - K_DEFENSE * (zDef - REF.zDef));
+  const fg = gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20);
+
+  let buts = 0, tires = 0;
+  for (let i = 0; i < lancers; i++) {
+    let tireur = null, unite = null, glace = null;
+    if (off.unites) {
+      const trio = choisirUnite(off.unites.F);
+      const paire = choisirUnite(off.unites.D);
+      unite = Math.random() < PART_LANCERS_D ? paire : trio;
+      glace = [...trio.joueurs, ...paire.joueurs];
+      // Une unité entièrement blessée ne tire pas : le lancer n'a alors pas
+      // lieu du tout, plutôt que de devenir un but sans marqueur — c'est ce
+      // qui faisait fuir une poignée de buts et de lancers par saison hors
+      // des feuilles de match.
+      if (!glace.length) continue;
+      tireur = weightedPick(unite.joueurs.length ? unite.joueurs : glace, lancersRel);
+    }
+    tires++;
+
+    const p = borne(
+      CIBLE_PCT_TIR
+        * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir
+        * (fg / REF.fg) * facteurDef * (unite ? unite.qualite : 1) * chance,
+      0.005, PCT_TIR_MAX);
+
+    if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
+
+    if (Math.random() < p) {
+      buts++;
+      if (feuille && tireur) {
+        tireur.simG++; tireur.simPTS++;
+        const co = glace.filter(x => x !== tireur);
+        if (co.length && Math.random() < P_PASSE_1) {
+          const a1 = weightedPick(co, propensionPasse);
+          a1.simA++; a1.simPTS++;
+          const reste = co.filter(x => x !== a1);
+          if (reste.length && Math.random() < P_PASSE_2) {
+            const a2 = weightedPick(reste, propensionPasse);
+            a2.simA++; a2.simPTS++;
+          }
+        }
+        for (const x of glace) x.simPM++;
+      }
+    } else if (feuille && gardien) {
+      gardien.simSV = (gardien.simSV || 0) + 1;
+    }
+  }
+
+  if (feuille && gardien) gardien.simSA = (gardien.simSA || 0) + tires;
+  return buts;
+}
+
 
 /* ======================================================================
  *  Simulation de ligue complète
@@ -542,7 +655,11 @@ function injuryLength() {   // moyenne ~8 matchs, plafond 40
 
 export function initSimStats(p) {
   p.simGP = 0; p.simG = 0; p.simA = 0; p.simPTS = 0; p.simPM = 0; p.simInj = 0;
-  if (p.p === 'G') { p.simW = 0; p.simL = 0; p.simOTL = 0; p.simGA = 0; p.simSO = 0; }
+  p.simSH = 0;
+  if (p.p === 'G') {
+    p.simW = 0; p.simL = 0; p.simOTL = 0; p.simGA = 0; p.simSO = 0;
+    p.simSA = 0; p.simSV = 0;
+  }
 }
 
 export function createTeam(name, tag, roster, opts = {}) {
@@ -614,35 +731,29 @@ export function teamStrength(team, lineup = activeLineup(team)) {
 
 const goalieRating = g => g ? (0.6 * getHiddenRatings(g).o + 0.4 * getHiddenRatings(g).d) : REPLACEMENT;
 
-function pickGoalie(lineup, gameIdx) {
+function pickGoalie(lineup, gameIdx, team = null) {
   const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]);
   const [starter, backup] = gs;
   const useBackup = gameIdx % 6 === 5;           // ~14 départs pour l'auxiliaire
-  return (useBackup ? (backup || starter) : (starter || backup)) || null;
+  const g = (useBackup ? (backup || starter) : (starter || backup)) || null;
+  if (g || !team) return g;
+
+  // Les deux gardiens blessés le même soir : le club en habille un d'urgence
+  // plutôt que de laisser le filet désert. Sans ça les lancers de l'adversaire
+  // n'avaient personne à qui être crédités, et la feuille de match perdait
+  // une centaine de lancers par saison — assez pour casser l'identité de
+  // ligue « lancers pour = lancers contre » que `check_feuilles.mjs` vérifie.
+  // Il joue à pleine cote : c'est généreux, mais l'événement est rare et
+  // l'équipe a déjà perdu sa rotation.
+  return SLOTS.filter(s => s.group === 'G' && !s.scratch)
+    .map(s => team.roster[s.i]).filter(Boolean)
+    .sort((a, b) => (team.injured.get(a) || 0) - (team.injured.get(b) || 0))[0] || null;
 }
 
 function pickUnit(weights) {
   let r = Math.random() * weights.reduce((a, b) => a + b, 0);
   for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) return i; }
   return weights.length - 1;
-}
-
-/** Cote offensive moyenne d'une unité telle qu'alignée (rappel = 40). */
-function unitOff(lineup, group, unit) {
-  const slots = SLOTS.filter(s => s.group === group && s.unit === unit && !s.scratch);
-  return slots.reduce((a, s) => a + (lineup[s.i] ? getHiddenRatings(lineup[s.i]).o : REPLACEMENT), 0) / slots.length;
-}
-
-/**
- * Poids de présence sur la glace pour un but : temps de glace × qualité
- * offensive au carré — un premier trio dominant marque plus que sa part de
- * minutes, un quatrième trio de cote 45 presque rien.
- */
-function scoringWeights(lineup) {
-  return {
-    F: POIDS_TRIO.map((w, u) => w * Math.pow(unitOff(lineup, 'F', u) / 60, 2)),
-    D: POIDS_PAIRE.map((w, u) => w * Math.pow(unitOff(lineup, 'D', u) / 60, 2)),
-  };
 }
 
 function onIce(lineup, weights = { F: POIDS_TRIO, D: POIDS_PAIRE }) {
@@ -659,34 +770,19 @@ function weightedPick(list, wfn) {
   return list[list.length - 1];
 }
 
-const perGame = (p, k) => (p[k] || 0) / Math.max(1, p.gp || 1);
 
-/** Buts, passes et +/- distribués sur l'alignement d'après la vraie production du joueur. */
-function creditGoals(lineup, goalie, gf, ga, win, otl) {
+/**
+ * Ce qui ne vient pas des lancers : les présences et la fiche du gardien.
+ * Les buts, les passes et le +/- des buts marqués sont crédités dans
+ * `jouerCote`, lancer par lancer. Ne reste ici que le −1 des buts alloués,
+ * qui appartient à l'unité qui était sur la glace de NOTRE côté.
+ */
+function crediterMatch(lineup, goalie, ga, win, otl) {
   for (const p of Object.values(lineup)) if (p && p.p !== 'G') p.simGP++;
   if (goalie) {
     goalie.simGP++; goalie.simGA += ga;
     if (win) goalie.simW++; else if (otl) goalie.simOTL++; else goalie.simL++;
     if (ga === 0) goalie.simSO++;
-  }
-  const sw = scoringWeights(lineup);
-  for (let i = 0; i < gf; i++) {
-    const ice = onIce(lineup, sw);
-    if (!ice.length) continue;
-    const scorer = weightedPick(ice, p => perGame(p, 'g') * getEraFactor(p.s) + 0.02);
-    scorer.simG++; scorer.simPTS++;
-    const others = ice.filter(p => p !== scorer);
-    if (others.length && Math.random() < 0.85) {
-      const aW = p => (perGame(p, 'a') * getEraFactor(p.s) + 0.04) * (p.p === 'D' ? 0.7 : 1);
-      const a1 = weightedPick(others, aW);
-      a1.simA++; a1.simPTS++;
-      const rest = others.filter(p => p !== a1);
-      if (rest.length && Math.random() < 0.60) {
-        const a2 = weightedPick(rest, aW);
-        a2.simA++; a2.simPTS++;
-      }
-    }
-    for (const p of ice) p.simPM++;
   }
   for (let i = 0; i < ga; i++) for (const p of onIce(lineup)) p.simPM--;
 }
@@ -720,30 +816,36 @@ function applyInjuries(team, lineup, heavy) {
 }
 
 /**
- * Un match entre deux équipes. `track` = false pour les séries : pas de
- * stats individuelles ni de blessures.
+ * Un match entre deux équipes, joué lancer par lancer.
+ *
+ * `track` = false ne sert plus qu'à ne rien inscrire aux fiches : les
+ * blessures et l'usure, elles, s'appliquent aussi en séries — c'est
+ * exactement ce que l'ancien moteur sautait, et pourquoi une équipe de
+ * niveau 80 gagnait la Coupe 99 % du temps (MOTEUR.md 5.5).
  */
 export function playGame(A, B, gameIdx, track = true) {
   const heavy = gameIdx % 4 === 3;
   const LA = activeLineup(A), LB = activeLineup(B);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
-  const gA = pickGoalie(LA, A.games), gB = pickGoalie(LB, B.games);
+  const gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
 
-  const defA = 0.62 * sA.def + 0.38 * goalieRating(gA) + (heavy ? (sA.rob - 52) * 0.22 : 0);
-  const defB = 0.62 * sB.def + 0.38 * goalieRating(gB) + (heavy ? (sB.rob - 52) * 0.22 : 0);
+  const pA = profilMatch(A, LA), pB = profilMatch(B, LB);
+  pA.rob = sA.rob; pB.rob = sB.rob;
 
-  let xA = 3.05 * Math.pow(sA.att / Math.max(20, defB), 1.55);
-  let xB = 3.05 * Math.pow(sB.att / Math.max(20, defA), 1.55);
-  xA *= Math.exp(gauss() * LUCK_GAME + A.luck - B.luck);
-  xB *= Math.exp(gauss() * LUCK_GAME + B.luck - A.luck);
-  xA = Math.max(1.1, Math.min(7.5, xA));
-  xB = Math.max(1.1, Math.min(7.5, xB));
+  // La chance est du PDO : elle porte sur la finition, pas sur le volume.
+  const chanceA = Math.exp(gauss() * LUCK_GAME + A.luck - B.luck);
+  const chanceB = Math.exp(gauss() * LUCK_GAME + B.luck - A.luck);
 
-  let gfA = poisson(xA), gfB = poisson(xB), ot = false;
+  let gfA = jouerCote(pA, pB, gB, chanceA, heavy, track);
+  let gfB = jouerCote(pB, pA, gA, chanceB, heavy, track);
+  let ot = false;
+
   if (gfA === gfB) {
     ot = true;
     const p = 1 / (1 + Math.exp(-(sA.clu - sB.clu) / 9));
-    if (Math.random() < p) gfA++; else gfB++;
+    // Le but gagnant appartient à un joueur, comme tous les autres.
+    if (Math.random() < p) { gfA++; if (track) butProlongation(pA, gB); }
+    else { gfB++; if (track) butProlongation(pB, gA); }
   }
   const winA = gfA > gfB;
 
@@ -752,13 +854,80 @@ export function playGame(A, B, gameIdx, track = true) {
     if (winA) { A.W++; if (ot) B.OTL++; else B.L++; }
     else { B.W++; if (ot) A.OTL++; else A.L++; }
     A.PTS = A.W * 2 + A.OTL; B.PTS = B.W * 2 + B.OTL;
-    creditGoals(LA, gA, gfA, gfB, winA, !winA && ot);
-    creditGoals(LB, gB, gfB, gfA, !winA, winA && ot);
+    crediterMatch(LA, gA, gfB, winA, !winA && ot);
+    crediterMatch(LB, gB, gfA, !winA, winA && ot);
     updateTogether(A, LA); updateTogether(B, LB);
-    applyInjuries(A, LA, heavy); applyInjuries(B, LB, heavy);
-    A.games++; B.games++;
   }
+  applyInjuries(A, LA, heavy); applyInjuries(B, LB, heavy);
+  if (track) { A.games++; B.games++; }
   return { gfA, gfB, ot, winner: winA ? A : B };
+}
+
+/** Le but de la prolongation : un tireur, une passe, du +/-, comme les autres. */
+function butProlongation(off, gardien) {
+  if (gardien) gardien.simSA = (gardien.simSA || 0) + 1;
+  if (!off.unites) return;
+  const trio = choisirUnite(off.unites.F);
+  const paire = choisirUnite(off.unites.D);
+  const glace = [...trio.joueurs, ...paire.joueurs];
+  if (!glace.length) return;
+  const tireur = weightedPick(glace, p => lancersRel(p) * pctTirRel(p));
+  tireur.simSH = (tireur.simSH || 0) + 1;
+  tireur.simG++; tireur.simPTS++;
+  const co = glace.filter(x => x !== tireur);
+  if (co.length && Math.random() < P_PASSE_1) {
+    const a1 = weightedPick(co, propensionPasse);
+    a1.simA++; a1.simPTS++;
+  }
+  for (const x of glace) x.simPM++;
+}
+
+/**
+ * Saison solo : 82 matchs contre un adversaire strictement moyen.
+ *
+ * Sert de repli quand les 31 vraies équipes n'ont pas pu être chargées, et
+ * de banc d'essai à `calibrate_sim.mjs` et `check_monotonie.mjs`. Le moteur
+ * est le même que celui d'un vrai match — seul l'adversaire est une
+ * abstraction plutôt qu'un vestiaire.
+ */
+export function simulate(roster) {
+  const team = createTeam('Solo', 'YOU', roster);
+  for (const s of SLOTS) if (roster[s.i]) initSimStats(roster[s.i]);
+
+  const force = teamStrength(team);
+  let W = 0, L = 0, OTL = 0, GF = 0, GA = 0;
+
+  for (let g = 0; g < 82; g++) {
+    const heavy = g % 4 === 3;
+    const lineup = activeLineup(team);
+    const gardien = pickGoalie(lineup, g, team);
+    const profil = profilMatch(team, lineup);
+    profil.rob = force.rob;
+
+    const chance = Math.exp(gauss() * LUCK_GAME + team.luck);
+    let gf = jouerCote(profil, PROFIL_NEUTRE, null, chance, heavy, true);
+    let ga = jouerCote(PROFIL_NEUTRE, profil, gardien, 1, heavy, true);
+    let win = false, otl = false;
+
+    if (gf === ga) {
+      const p = 1 / (1 + Math.exp(-(force.clu - 52) / 9));
+      if (Math.random() < p) { gf++; W++; win = true; butProlongation(profil, null); }
+      else { ga++; OTL++; otl = true; if (gardien) gardien.simSA = (gardien.simSA || 0) + 1; }
+    } else if (gf > ga) { W++; win = true; } else { L++; }
+
+    crediterMatch(lineup, gardien, ga, win, otl);
+    updateTogether(team, lineup);
+    applyInjuries(team, lineup, heavy);
+    team.games++;
+    GF += gf; GA += ga;
+  }
+
+  return {
+    W, L, OTL, GF, GA,
+    points: W * 2 + OTL,
+    attaque: force.att, brigade: force.def, rob: force.rob, clu: force.clu,
+    gRating: force.g,
+  };
 }
 
 /**

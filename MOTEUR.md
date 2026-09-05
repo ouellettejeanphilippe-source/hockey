@@ -296,20 +296,25 @@ Ces quatre règles ont chacune été apprises en la brisant, cette session.
 
 La refonte se juge sur des nombres, pas sur une impression. Dans l'ordre :
 
-| Test | Cible |
-|---|---|
-| Buts de la ligue par saison | retombe sur `SEASON_GOAL_AVG` réel, toutes les 55 saisons |
-| Lancers par équipe par match | ≈ 28, écart entre équipes de 18 à 30 % comme le réel |
-| % d'arrêts des gardiens | distribution proche du réel de leur saison |
-| Totaux des joueurs sur 82 matchs | ≈ leurs vrais totaux, saison par saison |
-| Cohérence de chaque feuille de match | buts = somme des joueurs ; lancers = arrêts + buts ; passes ≤ 2 par but |
-| `check_monotonie.mjs` | monotone, dix déciles sur dix |
-| `check_ratings.mjs` | corrélation ≈ 0,80 |
-| Chances de Coupe par palier | **à décider** — mais plus 100 % |
-| `smoke.mjs` à 390 px | 0 erreur console |
+| Test | Cible | Mesuré |
+|---|---|---|
+| Buts de la ligue par match | ≈ 3,1, la référence moderne | **3,06 à 3,11** ✓ |
+| Lancers par équipe par match | ≈ 28,5 | **28,2 à 28,5** ✓ |
+| Cohérence de la feuille de match | les quatre égalités, sur 1312 matchs | **aucun écart** ✓ |
+| Totaux des joueurs sur 82 matchs | ≈ leurs vrais totaux | biais −15 %, erreur 34 % dont 26 de bruit ⚠ |
+| `check_monotonie.mjs` | monotone, dix déciles sur dix | **10/10, et colle au réel** ✓ |
+| `check_ratings.mjs` | corrélation ≈ 0,80 | **0,804** ✓ |
+| Plafond du jeu | près du sommet historique, pas au-dessus | **63,5 V contre 62,7** ✓ |
+| Chances de Coupe | plus 100 %, et un vrai pari | **40 % au plafond, 60 % à MTL 76-77** ✓ |
+| `smoke.mjs` à 390 px | 0 erreur console | **0** ✓ |
 
-Le contrôle de cohérence des feuilles de match mérite d'être un test permanent :
-c'est lui qui attrape les erreurs d'attribution que l'œil ne voit pas.
+Le contrôle de cohérence des feuilles de match est devenu un test permanent,
+`scripts/check_feuilles.mjs` : c'est lui qui attrape les erreurs d'attribution
+que l'œil ne voit pas. Il en a déjà trouvé deux que rien d'autre n'aurait
+signalées — une unité entièrement blessée produisait un but sans marqueur, et
+une équipe dont les deux gardiens étaient blessés recevait des lancers que
+personne ne pouvait créditer. Une centaine de lancers par saison disparaissaient
+ainsi de la comptabilité, sans que le pointage ait l'air faux.
 
 ---
 
@@ -421,12 +426,63 @@ c'est lui qui attrape les erreurs d'attribution que l'œil ne voit pas.
    - **Ne faire jouer que les partants.** Un partant arrête **4,7 à 7,1
      millièmes** de mieux que la moyenne de sa ligue, parce que les auxiliaires
      la tirent vers le bas. Sous-produisait les buts de 4 %.
-4. **Refondre `playGame`.** `simulateLeague`, `playSeries` et l'interface ne
-   bougent pas : seul le contenu d'un match change.
-5. **Refaire la calibration** et le tableau de `CLAUDE.md`, qui sera de nouveau
-   périmé — il l'était déjà de 3 à 6 victoires par ligne avant cette session.
-6. **Remesurer les chances de Coupe**, et seulement là décider de la variance de
-   série.
+4. **Refondre `playGame`. Fait.** `simulateLeague`, `playSeries` et l'interface
+   n'ont pas bougé : seul le contenu d'un match a changé. Les quatre égalités
+   se ferment sur les 1312 matchs d'une ligue (`check_feuilles.mjs`), et les
+   repères d'époque retombent sur le réel — 28,4 lancers et 3,1 buts par
+   équipe par match.
+
+   **Deux choses ont dû être mesurées avant que le moteur tienne debout.**
+
+   - **Normaliser sur l'ÉQUIPE moyenne, pas sur le joueur moyen.** Un
+     alignement retient les 18 meilleurs patineurs d'un club et son gardien
+     numéro un : mesuré, ils tirent **27 % de plus** que le régulier moyen de
+     la ligue, finissent 2 % mieux et arrêtent 10 % de plus. Normaliser sur le
+     joueur moyen mettait l'équipe médiane à **60 victoires**. D'où `REF`, les
+     quatre nombres de `check_neutre.mjs` ; tout le moteur s'exprime en écart
+     à eux, si bien qu'un match entre deux équipes de référence produit
+     exactement `LANCERS_BASE` lancers.
+   - **Un banc synthétique ne peut plus servir de calibration.** L'ancienne
+     table alignait 23 joueurs inventés `{o:r, d:r, …}`. Le moteur se nourrit
+     des vraies statistiques, que ces joueurs n'ont pas : ils jouaient comme
+     23 rappels de la ligue mineure quelle que soit leur cote. La table tire
+     maintenant de vrais joueurs-saisons du calibre voulu.
+
+   Résultat sur `check_monotonie.mjs`, le test qui fait autorité — les
+   victoires simulées suivent maintenant le réel décile par décile :
+
+   | décile | simulé | réel |
+   |---|---|---|
+   | 1 | 28,6 | 27,1 |
+   | 5 | 42,0 | 43,2 |
+   | 10 | 52,1 | 56,2 |
+
+   **Ce qui reste en travers.** Les totaux individuels ont un biais de −15 % et
+   une erreur moyenne de 34 % par joueur. Mesuré, 26 points de cette erreur
+   sont du **bruit de tirage irréductible** — une saison de 82 matchs est un
+   tirage, et un marqueur de 30 buts a un écart-type de 18 % même si le moteur
+   est parfait. Reste ~22 % de systématique, qui vient de la place : le moteur
+   décide de l'utilisation d'un joueur par son rang dans l'alignement, pas par
+   son vrai temps de glace. Le biais de −15 %, lui, est correct plutôt que
+   fautif — dix-huit joueurs qui gardaient chacun son vrai volume de tirs
+   dépasseraient les 29 lancers d'équipe. On ne peut pas aligner dix-huit
+   premiers trios et les faire tous tirer autant.
+5. **Refaire la calibration. Fait.** Table par palier et repères du plafond
+   remis à jour dans `CLAUDE.md`. `SYN_ECHELLE` est la seule constante libre du
+   moteur ; réglée à 50, le meilleur alignement légal atteint 63,5 victoires
+   contre 62,7 au Canadien de 1976-77 — la parité avec le sommet historique,
+   qui est exactement la cible.
+6. **Remesurer les chances de Coupe. Fait, et le trou est bouché.** Le meilleur
+   alignement légal la gagne **40 %** du temps, le Canadien de 1976-77 **60 %**
+   (40 ligues chacun, `check_plafond.mjs`). L'ancien moteur la donnait à 99 %
+   dès le niveau 80. Deux causes, et aucune n'a demandé de variance inventée :
+   les blessures et l'usure s'appliquent maintenant **aussi en séries**, et le
+   malus de zone empêche l'alignement du joueur de dominer tout le champ.
+
+   **Attention au bruit sur cette mesure-là.** Une Coupe est un événement
+   composé de quatre séries : à 6 ligues j'ai lu 33 %, à 16 ligues 38 %, à 16
+   autres 75 %. Il faut au moins 40 ligues pour que le chiffre veuille dire
+   quelque chose, et il reste à ±8 points. Ne conclus rien d'un `ESSAIS=6`.
 7. **Les traits**, une fois le moteur stable, parce qu'ils se greffent sur des
    types d'événements qui doivent d'abord exister.
 

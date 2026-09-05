@@ -37,13 +37,19 @@ scripts/rerate.mjs          étage 2 sur les shards existants (contrats d'entré
 scripts/build_salaries.py   assemble data/salaries/<saison>.json depuis data/salaries/sources/
 scripts/fetch_markerzone.py dépose les salaires publiés par MarkerZone (1989-90+) dans sources/ ; manuel, jamais dans l'Action
 scripts/check_ratings.mjs   distribution des cotes, zones, archétypes, force d'équipe vs classement
-scripts/calibrate_sim.mjs   tableau de calibration de la simulation (banc uniforme)
+scripts/build_lancers.mjs   régénère SEASON_LANCERS de js/ratings.js depuis les shards
+scripts/calibrate_sim.mjs   tableau de calibration (de vrais joueurs d'une même cote)
 scripts/check_monotonie.mjs améliorer son équipe la rend-elle meilleure ? (vraies équipes)
 scripts/mock_zones.mjs      le malus de zone ferme-t-il l'empilement ?
 scripts/check_lancers.mjs   les deux constantes d'époque du moteur (voir MOTEUR.md)
 scripts/mock_moteur.mjs     maquette du moteur par événements, comparée aux vrais totaux
 scripts/check_suppression.mjs  la défensive de l'alignement : volume de lancers
                             concédés ou qualité ? (réponse : la qualité)
+scripts/check_neutre.mjs    de quoi est faite l'équipe MOYENNE, une fois alignée
+                            (les quatre nombres de REF dans js/sim.js)
+scripts/check_feuilles.mjs  les égalités de la feuille de match, les repères
+                            d'époque, et les totaux des joueurs
+scripts/check_plafond.mjs   le plafond du jeu en victoires et en Coupes
 scripts/smoke.mjs           test de fumée Playwright à 390 px
 data/index.json             liste des saisons disponibles
 data/seasons/<saison>.json  un shard par saison
@@ -87,38 +93,68 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 
 **Pas de localStorage pour les données de saison** — trop petit. IndexedDB, comme dans `js/data.js`.
 
+## Le moteur de match
+
+**L'événement de base est le lancer, pas le but.** C'est la refonte décrite dans `MOTEUR.md`, et ce qui la motive est mesuré : sur 55 saisons les lancers par équipe par match vont de 27 à 31 (17 % d'amplitude) pendant que les buts varient de 55 %. Le tempo n'a pas bougé, la finition oui. Un match se joue donc lancer par lancer — un tireur, un gardien, deux issues — et toute la feuille de match en découle.
+
+Les trois égalités se ferment **par construction**, jamais par un ajustement après coup, et `node scripts/check_feuilles.mjs` les vérifie sur les 1312 matchs d'une ligue :
+
+```
+buts d'une équipe    = somme des buts de ses joueurs
+lancers d'un gardien = ses arrêts + les buts alloués
+passes              <= 2 par but
+lancers pour        = lancers contre, à l'échelle de la ligue
+```
+
+**La défensive agit sur la qualité des lancers, pas sur leur nombre.** Mesuré sur 1392 équipes-saisons : la cote défensive d'un alignement corrèle à −0,17 avec les lancers concédés et à +0,45 avec le pourcentage d'arrêts de l'équipe. Une bonne brigade ne réduit pas le volume de rondelles vers son filet, elle réduit la probabilité que chacune entre. Le volume, lui, ne tient qu'à la possession (`possession^0,150`). Ne recâble pas la défensive sur le volume : la mesure dit non.
+
+**Tout est exprimé en écart à `REF`**, l'équipe moyenne une fois alignée — pas le joueur moyen de la ligue. La distinction n'est pas cosmétique : un alignement retient les 18 meilleurs patineurs d'un club et son gardien numéro un, qui tirent 27 % de plus que le régulier moyen, finissent 2 % mieux et arrêtent 10 % de plus. Normaliser sur le joueur moyen donnait une équipe médiane à 60 victoires. `node scripts/check_neutre.mjs` remesure ces quatre nombres.
+
+**Une seule constante est libre : `SYN_ECHELLE`.** Elle convertit un bonus de chimie ou un malus de zone (en points de cote) en facteur multiplicatif sur les buts attendus d'une unité, moitié par le volume moitié par la qualité. Tout le reste — `LANCERS_BASE`, `ALPHA_POSSESSION`, `K_DEFENSE`, `REF` — est mesuré. `LANCERS_BASE` et `CIBLE_PCT_TIR` sont réglés sur la *sortie* de `check_feuilles.mjs` (≈ 28,5 lancers et ≈ 3,1 buts par équipe par match), pas sur la moyenne brute des shards.
+
 ## Recalibrer la simulation
 
-Les constantes de `js/sim.js` sont calibrées. Repères actuels, 23 joueurs de cote uniforme, moyenne sur 12 essais :
+Repères actuels, de vrais joueurs-saisons d'une même cote, moyenne sur 12 essais (`node scripts/calibrate_sim.mjs`) :
 
-| Cote | Fiche |
-|---|---|
-| 50 | 21-54-6 |
-| 60 | 44-34-5 |
-| 70 | 61-19-2 |
-| 80 | 59-22-1 |
-| 90 | 64-18-0 |
-| 99 | 69-13-0 |
+| Cote | Fiche | BP-BC |
+|---|---|---|
+| 50 | 9-68-5 | 136-361 |
+| 60 | 30-46-6 | 224-296 |
+| 70 | 42-36-5 | 257-258 |
+| 80 | 46-32-4 | 258-241 |
+| 90 | 56-24-2 | 293-213 |
+| 99 | 69-13-1 | 336-176 |
 
-(Les zones d'efficacité jouent, et beaucoup : à cote uniforme 50, tout le monde est calibre 4e trio, donc les trois premiers trios sont « mal assortis » ; à cote uniforme élevée, c'est l'inverse — tout le monde est top 6, donc les 3e et 4e trios gaspillent du talent. Un alignement uniforme est le pire cas de l'un et de l'autre, et c'est voulu.)
+Le banc **ne peut plus être synthétique**. L'ancienne table alignait 23 joueurs inventés `{o:r, d:r, …}` ; le moteur par événements se nourrit des vraies statistiques — lancers, buts par lancer, pourcentage d'arrêts — que des joueurs inventés n'ont pas, et un tel banc joue comme 23 rappels de la ligue mineure quelle que soit sa cote. On tire donc de vrais joueurs-saisons dont la cote est celle du palier.
 
-Le palier 80 se tient au palier 70, à un ou deux matchs près. C'est un artefact du banc : douze attaquants identiques franchissent tous ensemble la frontière d'archétype de `o = 76`, et un trio de trois francs-tireurs identiques bascule en « conflit de rôles ». Un vrai vestiaire n'a jamais cette forme.
+Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous ensemble les seuils de zone, ce qui fabrique des marches artificielles.
 
-**Le vrai test de monotonie est ailleurs.** `node scripts/check_monotonie.mjs` range les 1395 vraies équipes-saisons par force, les aligne avec `autoRoster` et les fait jouer : les victoires simulées doivent monter d'un décile au suivant, sans exception. C'est ce test qui fait autorité — améliorer ses joueurs ne doit jamais rendre l'équipe pire. Si celui-ci monte et que la table ci-dessus a une marche, la marche est un artefact du banc uniforme.
+**Le vrai test de monotonie est ailleurs.** `node scripts/check_monotonie.mjs` range les 1395 vraies équipes-saisons par force, les aligne avec `autoRoster` et les fait jouer. C'est ce test qui fait autorité — améliorer ses joueurs ne doit jamais rendre l'équipe pire. Il suit maintenant le réel de très près :
 
-Si tu changes `POIDS_TRIO`, `POIDS_PAIRE`, les exposants de `xGF`/`xGA`, la courbe du clutch, `ZONE_THRESHOLDS` ou les constantes `ZONE_PEN_*`, tu dois refaire tourner ce tableau et le mettre à jour ici et dans `PLAN.md`. La cible : une équipe parfaite perd quand même quelques matchs. Le 82-0 doit rester rare, sinon le jeu n'a pas d'enjeu.
+| décile | victoires simulées | vraies victoires |
+|---|---|---|
+| 1 | 28,6 | 27,1 |
+| 5 | 42,0 | 43,2 |
+| 10 | 52,1 | 56,2 |
 
-Repère de garde-fou, avec `node scripts/mock_zones.mjs` : le meilleur alignement légal atteignable sous le plafond doit rester proche de la meilleure vraie équipe de l'histoire (indice 68,0, les Bruins de 1970-71). Il est à 69,3. Sans malus de zone il serait à 83,8, soit quinze points au-dessus de tout ce qui a existé.
+**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **63,5-17,8-0,8** et gagne la Coupe **40 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 62,7-16,4-3,0 et la gagne **60 %**. C'est la cible : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
+
+`node scripts/mock_zones.mjs` garde le repère sur l'indice de cotes : le meilleur alignement légal est à 69,3 contre 68,0 pour les Bruins de 1970-71. Sans malus de zone il serait à 83,8.
 
 `ZONE_PEN_SOUS` et `ZONE_PEN_MAX` ne tirent pas sur la même chose. Sur un alignement empilé la pénalité sature, donc seul le plafond mord ; sur une vraie équipe elle reste dessous, donc seul le coefficient mord. Un coefficient bas avec un plafond haut ferme donc l'empilement sans toucher aux vraies équipes — monter le coefficient punit les deux.
 
 **Les zones sont calibrées sur la réalité.** Une vraie équipe aligne 6 attaquants de top 6, 4 défenseurs de top 4 et 1 partant. `ZONE_THRESHOLDS` est réglé pour que la ligue y atterrisse **en moyenne** — 6,5 / 3,9 / 1,05 mesurés sur les 1396 équipes-saisons — et non au plancher : le Canadien de 1976-77 en a neuf, Detroit la même année en a trois. Si tu retouches ces seuils, revérifie cette distribution avant tout le reste.
 
+Si tu changes `POIDS_TRIO`, `POIDS_PAIRE`, `SYN_ECHELLE`, `K_DEFENSE`, `REF`, la courbe du clutch, `ZONE_THRESHOLDS` ou les constantes `ZONE_PEN_*`, refais tourner les quatre et reporte-les ici et dans `PLAN.md` :
+
 ```bash
-node scripts/calibrate_sim.mjs
+node scripts/check_feuilles.mjs      # les égalités et les repères d'époque
+node scripts/calibrate_sim.mjs       # la table par palier de cote
+node scripts/check_monotonie.mjs     # monotone sur dix déciles
+node scripts/check_plafond.mjs       # victoires et Coupes au plafond
 ```
 
-La partie réelle se joue dans `simulateLeague` : 32 équipes (le joueur + 31 vraies équipes historiques alignées automatiquement), 82 rondes d'appariements, 1 312 matchs, avec chance, continuité des trios, blessures au prorata des matchs vraiment joués et distribution des buts et passes selon la vraie production de chaque joueur. Le moteur de match est le même que `simulate`.
+La partie réelle se joue dans `simulateLeague` : 32 équipes (le joueur + 31 vraies équipes historiques alignées automatiquement), 82 rondes d'appariements, 1 312 matchs, avec chance, continuité des trios et blessures au prorata des matchs vraiment joués. **Les blessures s'appliquent aussi en séries** — c'est ce que l'ancien moteur sautait, et pourquoi la Coupe se gagnait à tout coup.
 
 ## Tester
 
