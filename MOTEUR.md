@@ -296,11 +296,40 @@ c'est lui qui attrape les erreurs d'attribution que l'œil ne voit pas.
 1. **Ajouter `sh`, `s%`, `sa`, `a1`, `a2` aux shards.** Étage 1, donc un `full`
    par l'Action. Bloquant pour tout le reste, et petit. Ne casse rien en attendant :
    les champs sont simplement ignorés par le moteur actuel.
-2. **Maquette hors ligne du moteur**, sur le modèle de `mock_prod_sim.mjs` :
-   générer les feuilles de match de vraies équipes-saisons et comparer aux vrais
-   totaux. C'est là qu'on saura si le modèle tient, **avant** de toucher à `sim.js`.
-3. **Calibrer la suppression de lancers** contre les lancers contre réels. C'est
-   le morceau neuf, et le seul dont je ne peux pas prédire la difficulté.
+2. **Maquette hors ligne du moteur** — `scripts/mock_moteur.mjs`. **Fait.**
+   Résultat sur 124 équipes-saisons de six époques :
+
+   | | biais | erreur moyenne par équipe |
+   |---|---|---|
+   | lancers d'équipe | −0,2 % | 1,8 % |
+   | buts d'équipe | −2,7 % | 6,4 % |
+   | % d'arrêts | −2,9 millièmes | 3,7 |
+   | cohérence des feuilles de match | **aucune incohérence** | |
+
+   **Le modèle tient.** Les trois égalités se ferment sur chaque match, pas à la
+   fin, et le volume de lancers est reproduit presque exactement. Le résidu de
+   2,7 % sur les buts vient de ce que seuls 18 patineurs tirent alors qu'une
+   vraie équipe en aligne davantage, et de l'absence d'avantage numérique.
+3. **Calibrer la suppression de lancers** contre les lancers contre réels. La
+   maquette utilise les vrais taux de chaque équipe ; le vrai moteur devra les
+   dériver de l'alignement. C'est le morceau neuf, et le seul dont je ne peux
+   pas prédire la difficulté.
+
+   **Trois pièges de mesure, trouvés en bâtissant la maquette.** Chacun donnait
+   un écart qu'on aurait pris pour un défaut du modèle :
+
+   - **Les joueurs échangés sont comptés deux fois.** Un `x:1` porte ses totaux
+     de saison complète dans *chaque* équipe. Sommer par équipe gonfle les
+     lancers de **43 % en 1995-96** et de 14,5 % en 2023-24. Les écarter des
+     deux côtés fausse en sens inverse, parce que les patineurs sont échangés
+     souvent et les gardiens presque jamais : l'identité de ligue (lancers pour
+     = lancers contre) donne le facteur de correction.
+   - **Un nombre impair d'équipes.** Une équipe chôme à chaque ronde, donc
+     chacune joue moins de 82 matchs : **−3,1 % de volume à 29 équipes**, −0,2 %
+     à 32. Il faut proratiser sur les matchs réellement joués.
+   - **Ne faire jouer que les partants.** Un partant arrête **4,7 à 7,1
+     millièmes** de mieux que la moyenne de sa ligue, parce que les auxiliaires
+     la tirent vers le bas. Sous-produisait les buts de 4 %.
 4. **Refondre `playGame`.** `simulateLeague`, `playSeries` et l'interface ne
    bougent pas : seul le contenu d'un match change.
 5. **Refaire la calibration** et le tableau de `CLAUDE.md`, qui sera de nouveau

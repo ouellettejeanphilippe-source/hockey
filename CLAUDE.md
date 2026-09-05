@@ -40,6 +40,8 @@ scripts/check_ratings.mjs   distribution des cotes, zones, archétypes, force d'
 scripts/calibrate_sim.mjs   tableau de calibration de la simulation (banc uniforme)
 scripts/check_monotonie.mjs améliorer son équipe la rend-elle meilleure ? (vraies équipes)
 scripts/mock_zones.mjs      le malus de zone ferme-t-il l'empilement ?
+scripts/check_lancers.mjs   les deux constantes d'époque du moteur (voir MOTEUR.md)
+scripts/mock_moteur.mjs     maquette du moteur par événements, comparée aux vrais totaux
 scripts/smoke.mjs           test de fumée Playwright à 390 px
 data/index.json             liste des saisons disponibles
 data/seasons/<saison>.json  un shard par saison
