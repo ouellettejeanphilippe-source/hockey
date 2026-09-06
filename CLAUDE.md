@@ -27,7 +27,7 @@ style.css                   tous les styles, mobile d'abord (390 px), deux
                             volets à partir de 1080 px
 js/ratings.js               calcul des cotes cachées (partagé navigateur + build)
                             étage 1 : sous-cotes en z-score (exige l'API)
-                            étage 2 : cote globale, salaire, archétype, zone (rejouable hors ligne)
+                            étage 2 : valeur, salaire, archétype, zone (rejouable hors ligne)
 js/data.js                  chargeur trois niveaux + cache IndexedDB
 js/traits.js                les traits, tirés des votes de `data/trophees.js`
 js/sim.js                   structure de l'alignement + simulation de saison + ligue complète
@@ -37,7 +37,7 @@ scripts/rate.mjs            pont Node vers js/ratings.js (étage 1 + 2)
 scripts/rerate.mjs          étage 2 sur les shards existants (contrats d'entrée, salaires réels)
 scripts/build_salaries.py   assemble data/salaries/<saison>.json depuis data/salaries/sources/
 scripts/fetch_markerzone.py dépose les salaires publiés par MarkerZone (1989-90+) dans sources/ ; manuel, jamais dans l'Action
-scripts/check_ratings.mjs   distribution des cotes, zones, archétypes, force d'équipe vs classement
+scripts/check_ratings.mjs   distribution des valeurs, zones, archétypes, force d'équipe vs classement
 scripts/build_lancers.mjs   régénère SEASON_LANCERS de js/ratings.js depuis les shards
 scripts/calibrate_sim.mjs   tableau de calibration (de vrais joueurs d'une même cote)
 scripts/check_monotonie.mjs améliorer son équipe la rend-elle meilleure ? (vraies équipes)
@@ -76,7 +76,7 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 
 **Toucher à une formule de cote veut dire incrémenter `RATINGS_VERSION`** dans `js/ratings.js`. La version est dans la clé du cache IndexedDB. Sans incrément, un joueur se retrouve avec des cotes calculées par deux formules différentes dans le même alignement.
 
-**Deux étages de cotes.** L'étage 1 (`rateSkaters`, `rateGoalies` : sous-cotes o, d, r, c, sp) exige les stats brutes de l'API. L'étage 2 (`finalizeSeason` : cote globale, salaire, archétype `ak`, zone `lz`, contrat d'entrée `elc`) ne lit que le shard, donc `python3 scripts/build_shards.py --rerate` le rejoue sur les 55 saisons en une seconde, sans réseau. Si tu changes l'étage 2, c'est la commande à lancer ; si tu changes l'étage 1, il faut l'API. Le build normal enchaîne toujours un `--rerate` à la fin, parce que les contrats d'entrée dépendent de la première saison de chaque joueur dans toute la base et de sa cohorte d'identifiant (âge estimé quand l'API bios n'a pas donné la date de naissance `bd` ; `python3 scripts/build_shards.py --bios-only` l'ajoute aux shards existants en ~110 requêtes, et les cartes affichent alors l'âge). Règles d'époque dans `elcEra` : rien avant 1995-96.
+**Deux étages de cotes.** L'étage 1 (`rateSkaters`, `rateGoalies` : sous-cotes o, d, r, c) exige les stats brutes de l'API. L'étage 2 (`finalizeSeason` : valeur `v`, salaire, archétype `ak`, zone `lz`, contrat d'entrée `elc`) ne lit que le shard, donc `python3 scripts/build_shards.py --rerate` le rejoue sur les 55 saisons en une seconde, sans réseau. Si tu changes l'étage 2, c'est la commande à lancer ; si tu changes l'étage 1, il faut l'API. Le build normal enchaîne toujours un `--rerate` à la fin, parce que les contrats d'entrée dépendent de la première saison de chaque joueur dans toute la base et de sa cohorte d'identifiant (âge estimé quand l'API bios n'a pas donné la date de naissance `bd` ; `python3 scripts/build_shards.py --bios-only` l'ajoute aux shards existants en ~110 requêtes, et les cartes affichent alors l'âge). Règles d'époque dans `elcEra` : rien avant 1995-96.
 
 **La valeur est relative à la saison par construction** : c'est un rang à l'intérieur de la saison, donc 1975 (18 équipes) et 2024 (32) s'équilibrent d'eux-mêmes. Vérifie avec `node scripts/check_ratings.mjs` : la corrélation entre la force d'une équipe et son vrai classement (reconstitué des fiches de gardiens) doit rester autour de 0,8 — elle est à **0,801**.
 
@@ -96,7 +96,7 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 
 **La couleur d'équipe ne porte jamais du texte.** `--team-primary` et `--team-accent` teintent les fonds, bordures et lueurs. Les états sélectionnés (chips, segments d'options) utilisent `--ui-accent`, fixe, parce qu'une équipe au bleu marine ou au noir rendait le texte foncé illisible sur son propre accent.
 
-**La carte ne porte que l'essentiel, la fiche porte tout.** Une carte du bassin montre le poste, le nom, le salaire, le chiffre clé, l'archétype, la zone d'efficacité, la case de destination et le bouton. Rien d'autre : les statistiques détaillées, l'âge, le contrat d'entrée, l'origine du salaire et l'impact sur l'alignement sont dans la fiche, à un clic. Même principe au tableau de bord — trois chiffres, l'explication en infobulle. On ne bloque pas une décision sous un mur de texte.
+**La carte ne porte que l'essentiel, la fiche porte tout.** Une carte du bassin montre le poste, le nom, le salaire, le chiffre clé, les traits, l'archétype, la zone d'efficacité, la case de destination et le bouton. Rien d'autre : les statistiques détaillées, le profil mesuré, l'âge, le contrat d'entrée, l'origine du salaire et l'impact sur l'alignement sont dans la fiche, à un clic. Même principe au tableau de bord — trois chiffres, l'explication en infobulle. On ne bloque pas une décision sous un mur de texte.
 
 **Le joueur va où il rend.** `slotFitScore` dans `js/game.js` classe les cases libres par position naturelle d'abord, puis par zone d'efficacité : un joueur de calibre quatrième trio se propose au quatrième trio, pas au premier parce qu'il était vide. Les réservistes viennent en dernier.
 
@@ -105,6 +105,8 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 **La couleur d'équipe passe par `getTeamAccent`** (`js/logos.js`), qui éclaircit la teinte jusqu'à ce qu'elle reste visible sur fond sombre, et sert de `--team-line` : bordure des cartes du bassin, et bordure de chaque case de l'alignement à la couleur de l'équipe du joueur qui l'occupe. La couleur brute d'une équipe sombre ne porte jamais rien.
 
 **Toute commande visible doit fonctionner.** Si une donnée manque, on retire la commande plutôt que d'afficher des tirets : les dates de naissance (`bd`) ne sont pas dans les shards actuels, donc le tri par âge et la tuile « âge moyen » se masquent d'eux-mêmes (`agesAvailable()` dans `js/game.js`). `python3 scripts/build_shards.py --bios-only` les ajoute et tout réapparaît sans autre changement.
+
+**Aucune cote dans le DOM, jamais.** `registerHiddenRatings` sort `o`, `d`, `r`, `c`, `v` de l'objet joueur vers un coffre privé dès le chargement, et `sp` est simplement supprimée — aucune formule ne la lit. Un joueur curieux qui ouvre l'inspecteur ne doit rien pouvoir en tirer.
 
 **Pas de localStorage pour les données de saison** — trop petit. IndexedDB, comme dans `js/data.js`.
 
