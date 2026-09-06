@@ -1076,7 +1076,6 @@ const UNIT_NAMES_D = ['Top 4', 'Top 4', 'Bottom 4'];
 const CHEM_SHORT = {
   'Chimie parfaite 🌟': '🌟 Parfaite',
   'Tandem moteur 🎯': '🎯 Tandem',
-  "Trio d'étouffement 🧱": '🧱 Étouffement',
   'Conflit de rôles ⚠️': '⚠️ Conflit',
   'Chimie standard 👍': '👍 Standard',
   'Paire équilibrée ⚖️': '⚖️ Équilibrée',

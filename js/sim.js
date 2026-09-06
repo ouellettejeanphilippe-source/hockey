@@ -6,7 +6,7 @@
  * Toute modification des constantes doit être revalidée (voir PLAN.md, S3).
  */
 
-import { getArchetype, getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
+import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe } from './traits.js';
@@ -204,9 +204,10 @@ export function getUnitSynergy(roster, group, unit) {
   const full = (group === 'F' && ps.length === 3) || (group === 'D' && ps.length === 2);
   if (!full) return { bonusOff: 0, bonusDef: 0, name: 'Neutre', desc: '', zone: null };
 
-  // Les cotes sont hors de l'objet joueur (coffre) : on les passe explicitement
+  // Les cotes ne servent plus qu'à la ZONE d'efficacité — le calibre d'un
+  // joueur, c'est-à-dire la ligne où il rend. La chimie, elle, se calcule
+  // plus bas sur les vraies statistiques.
   const hidden = ps.map(x => getHiddenRatings(x.player));
-  const archs = ps.map((x, i) => getArchetype(x.player, hidden[i]).key);
 
   // Zone d'efficacité : chaque joueur a un calibre (1er trio, 2e trio…) et
   // des trios où il rend à 100 %. Tout le monde à sa place -> bonus ;
@@ -227,7 +228,6 @@ export function getUnitSynergy(roster, group, unit) {
   });
   const totalPen = zoneDists.reduce((s, z) => s + z.pen, 0);
   const miscast = zoneDists.filter(z => z.ecart > 0).length;
-  const unitWord = group === 'F' ? 'Trio' : 'Paire';
   let zone = null;
   if (miscast === 0) {
     zone = { off: 2, def: 2, tag: group === 'F' ? '✨ Trio optimal' : '✨ Paire optimale' };
@@ -245,41 +245,127 @@ export function getUnitSynergy(roster, group, unit) {
     chem: name,
   });
 
-  if (group === 'F') {
-    const hasPM = archs.some(a => a === 'PLAYMAKER' || a === 'OFF_PLAYMAKER');
-    const hasSniper = archs.some(a => a === 'SNIPER');
-    const hasPower = archs.some(a => a === 'POWER_FWD' || a === 'ENERGY');
-    const hasTwoWay = archs.some(a => a === 'TWO_WAY_FWD');
+  const ch = group === 'F' ? chimieTrio(ps.map(x => x.player)) : chimiePaire(ps.map(x => x.player));
+  return withZone(ch.off, ch.def, ch.name, ch.desc);
+}
 
-    if (hasPM && hasSniper && (hasPower || hasTwoWay)) {
-      return withZone(4, 2, 'Chimie parfaite 🌟', 'Fabricant + Marqueur + Puissance/Complet');
-    }
-    if (hasPM && hasSniper) {
-      return withZone(3, 0, 'Tandem moteur 🎯', 'Fabricant de jeu et marqueur combinés');
-    }
-    if (archs.filter(a => a === 'TWO_WAY_FWD' || a === 'ENERGY' || a === 'CHECKER' || a === 'POWER_FWD').length >= 2) {
-      return withZone(0, 4, "Trio d'étouffement 🧱", 'Haute responsabilité défensive');
-    }
-    if (archs.filter(a => a === 'SNIPER').length === 3 || archs.filter(a => a === 'OFF_PLAYMAKER').length === 3) {
-      return withZone(-2, -2, 'Conflit de rôles ⚠️', 'Même profil sur le même trio');
-    }
-    return withZone(1, 1, 'Chimie standard 👍', 'Complémentarité correcte');
-  }
+/* ---------- la chimie, calculée sur les vraies statistiques ---------- */
+/*
+ * L'ancienne chimie lisait l'ARCHÉTYPE, qui est lui-même dérivé des cotes
+ * cachées. C'était le dernier endroit du moteur qui raisonnait sur une cote
+ * plutôt que sur ce que le joueur a vraiment fait, et ça se voyait : un trio
+ * pouvait basculer en « conflit de rôles » parce que trois cotes offensives
+ * franchissaient ensemble une frontière d'archétype, sans qu'aucun de ces
+ * joueurs n'ait le même profil de production.
+ *
+ * Le PENCHANT d'un attaquant est maintenant lu directement dans sa fiche :
+ * la part de sa production qui vient de ses buts, en écart au régulier moyen
+ * de sa saison. Un franc-tireur est au-dessus, un fabricant de jeu en dessous.
+ * Aucune cote n'entre là-dedans.
+ *
+ * Deux nombres décident du trio, et ils disent la même chose que le hockey :
+ *
+ *   ÉCART    entre le plus tireur et le plus passeur. Un trio a besoin de
+ *            quelqu'un qui finit ET de quelqu'un qui sert. Deux francs-tireurs
+ *            et un fabricant, c'est excellent ; trois fabricants, personne ne
+ *            tire.
+ *   EXCÈS    à quel point tout le trio penche du même bord. Trois francs-
+ *            tireurs se disputent la même rondelle.
+ *
+ * La mesure est SANS ÉCHELLE — elle ne regarde que l'équilibre, jamais le
+ * niveau. C'est délibéré : le moteur modélise déjà le volume de tirs et la
+ * finition de chacun, donc récompenser un trio parce qu'il produit beaucoup
+ * le compterait deux fois. Seule la POIDS de l'effet suit la production, parce
+ * qu'organiser les rôles compte davantage quand il y a de l'offensive à
+ * organiser.
+ */
+export const CHIMIE_ECART = 14;    // ce que vaut la complémentarité des rôles
+export const CHIMIE_EXCES = 12;    // ce que coûte un trio qui penche du même bord
+export const CHIMIE_PAIRE = 3.0;   // complémentarité d'une paire de défenseurs
+export const PAIRE_RISQUE = 2.6;   // ce qu'une paire offensive concède en repli
 
-  // Paires de défenseurs
-  const hasOffD = archs.some(a => a === 'OFF_D');
-  const hasDefD = archs.some(a => a === 'DEF_D' || a === 'STAY_D');
+/** Production offensive d'un joueur, en écart au régulier moyen de sa saison. */
+function production(p) {
+  if (!p) return 0.6;
+  const est_D = p.p === 'D' || p.p === 'LD' || p.p === 'RD';
+  const ref = seasonLancers(p.s)[est_D ? 5 : 4];
+  const perso = (p.pt || 0) / Math.max(1, p.gp || 1);
+  if (!ref) return 1;
+  return borne(perso / ref, 0.2, 3.0);
+}
 
-  if (hasOffD && hasDefD) {
-    return withZone(3, 3, 'Paire équilibrée ⚖️', 'Offensif + Défensif');
+/**
+ * Le penchant d'un attaquant : positif = il finit, négatif = il sert.
+ *
+ * C'est la part de ses points qui vient de ses buts, moins celle du régulier
+ * moyen de sa saison — mesurée, pas codée en dur, parce qu'une époque à forte
+ * production de passes ferait autrement passer tout le monde pour des
+ * fabricants de jeu. Sous 15 points le rapport ne veut rien dire.
+ */
+function penchant(p) {
+  if (!p || (p.pt || 0) < 15) return 0;
+  const ligue = seasonLancers(p.s)[6] || 0.40;
+  return borne((p.g || 0) / Math.max(1, p.pt) - ligue, -0.30, 0.35);
+}
+
+function chimieTrio(joueurs) {
+  const pen = joueurs.map(penchant);
+  const ecart = Math.max(...pen) - Math.min(...pen);
+  const exces = Math.abs(pen.reduce((s, x) => s + x, 0) / pen.length);
+  const poids = borne(joueurs.reduce((s, p) => s + production(p), 0) / joueurs.length, 0.45, 1.35);
+
+  const off = poids * (CHIMIE_ECART * ecart - CHIMIE_EXCES * exces);
+  const moy = pen.reduce((s, x) => s + x, 0) / pen.length;
+
+  let name, desc;
+  if (off >= 3) {
+    name = 'Chimie parfaite 🌟';
+    desc = 'Quelqu\'un pour finir, quelqu\'un pour servir';
+  } else if (off >= 1.2) {
+    name = 'Tandem moteur 🎯';
+    desc = 'Les rôles se complètent';
+  } else if (off <= -1.2) {
+    name = 'Conflit de rôles ⚠️';
+    desc = moy > 0 ? 'Trois tireurs pour une rondelle' : 'Personne pour finir le jeu';
+  } else {
+    name = 'Chimie standard 👍';
+    desc = 'Complémentarité correcte';
   }
-  if (archs.filter(a => a === 'OFF_D').length === 2) {
-    return withZone(3, -3, 'Paire hyper-offensive 🚀', 'Grave risque en repli');
+  // La chimie de trio ne touche QUE l'attaque : la défensive passe par la cote
+  // `d` et par les traits, où elle est mesurée. La faire agir ici aussi
+  // reviendrait à la compter deux fois.
+  return { off: Math.round(off * 10) / 10, def: 0, name, desc };
+}
+
+/**
+ * Une paire de défenseurs. Le même principe, sur l'axe qui compte pour eux :
+ * ce que chacun produit en attaque. Une paire dont les deux montent laisse
+ * plus de retours — mesuré sur les vraies équipes, c'est le seul effet de
+ * composition qui se voit chez les défenseurs.
+ */
+function chimiePaire(joueurs) {
+  const prod = joueurs.map(production);
+  const ecart = Math.abs(prod[0] - prod[1]);
+  const moy = (prod[0] + prod[1]) / 2;
+
+  const off = CHIMIE_PAIRE * Math.min(1, ecart) + 1.5 * (moy - 1);
+  const def = -PAIRE_RISQUE * Math.max(0, moy - 1.2) + 2.2 * Math.max(0, 0.85 - moy);
+
+  let name, desc;
+  if (moy > 1.35 && ecart < 0.5) {
+    name = 'Paire hyper-offensive 🚀';
+    desc = 'Les deux montent : grave risque en repli';
+  } else if (moy < 0.75) {
+    name = 'Paire hermétique 🔒';
+    desc = 'Peu d\'attaque, beaucoup de sécurité';
+  } else if (ecart >= 0.45) {
+    name = 'Paire équilibrée ⚖️';
+    desc = 'Un qui monte, un qui couvre';
+  } else {
+    name = 'Paire standard 👍';
+    desc = 'Complémentarité fluide';
   }
-  if (archs.filter(a => a === 'DEF_D' || a === 'STAY_D').length === 2) {
-    return withZone(-1, 4, 'Paire hermétique 🔒', 'Excellente sécurité');
-  }
-  return withZone(1, 1, `${unitWord} standard 👍`, 'Complémentarité fluide');
+  return { off: Math.round(off * 10) / 10, def: Math.round(def * 10) / 10, name, desc };
 }
 
 /* ---------- pondérations ---------- */
@@ -327,7 +413,7 @@ function poisson(lambda) {
  * `node scripts/check_feuilles.mjs` retombe sur 28,5 lancers par équipe par
  * match une fois toutes les pondérations passées.
  */
-export const LANCERS_BASE = 29.0;
+export const LANCERS_BASE = 28.7;
 
 /** Part des lancers d'une équipe prise par les défenseurs. */
 export const PART_LANCERS_D = 0.25;
@@ -422,7 +508,7 @@ export const REF = { pression: 1.272, zDef: 0.672, fg: 0.895, pctTir: 1.022 };
  * Règle qui en découle : ne jamais régler ces deux nombres sur une seule
  * exécution de `check_feuilles.mjs`.
  */
-export const CIBLE_PCT_TIR = 0.0966;
+export const CIBLE_PCT_TIR = 0.0927;
 export const PCT_TIR_MAX = 0.35;
 
 /** Un but reçoit une passe principale, puis parfois une secondaire. */
