@@ -165,69 +165,102 @@
     </div>
     <div class="modal-body bible" id="bibleBody">
       <h3>0. Comment on joue</h3>
-      <p>La roulette sort une <strong>saison</strong> et une <strong>équipe</strong>. Tu signes <strong>un seul joueur</strong> de ce vestiaire, puis elle tourne à nouveau. Tu as 6 relances d'année, 6 relances d'équipe et 4 « passer ». Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques. Le 82-0 est le Graal.</p>
-      <p>Ce que tu vois avant de signer : le salaire, l'archétype et la <strong>zone d'efficacité</strong> sur la carte, puis toutes les statistiques dans la fiche au clic. Ce que tu ne vois pas : les cotes cachées, révélées seulement à la simulation.</p>
-      <p>La carte propose automatiquement la case où le joueur rend le mieux : sa position naturelle d'abord, puis sa zone. Tu peux viser une autre case en la touchant dans l'alignement avant de signer.</p>
+      <p>La roulette sort une <strong>saison</strong> et une <strong>équipe</strong>. Tu signes <strong>un seul joueur</strong> de ce vestiaire, puis elle tourne à nouveau. Tu as 6 relances d'année, 6 relances d'équipe et 4 « passer ». Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques et les séries. Le 82-0 est le Graal ; la Coupe est le vrai but. Une partie prend cinq à dix minutes : c'est un sudoku de hockey.</p>
+      <p><strong>Le jeu récompense la chasse aux aubaines.</strong> Les salaires sont ceux qui ont vraiment été payés, et un contrat ne suit pas toujours la saison : Fedorov 1993-94 coûte 1,15 M$. Trouver ces joueurs-là est le métier. Le garde-fou, c'est la <strong>zone d'efficacité</strong> (section 5) : un joueur ne rend pas partout dans l'alignement, alors on ne peut pas empiler douze vedettes sous-payées sans en gaspiller la moitié.</p>
+      <p>Ce que tu vois avant de signer : le salaire, l'archétype, la zone et les traits sur la carte, puis toutes les statistiques et le <strong>profil mesuré</strong> dans la fiche au clic. Ce que tu ne vois pas : <strong>aucune cote</strong>. Le jeu n'en affiche nulle part. Un joueur se juge sur ce qu'il a fait.</p>
+      <p>La carte propose la case où le joueur rend le mieux : sa position naturelle d'abord, puis sa zone. Quand la seule case libre est <strong>sous sa zone</strong>, la carte le dit en rouge avant que tu signes. Tu peux viser une autre case en la touchant dans l'alignement, ou déplacer quelqu'un après coup.</p>
+      <p><strong>Budget du choix</strong> : le plafond restant moins le salaire plancher (0,775 M$) de chaque case qu'il te restera à combler. Dépasser ce budget, c'est te condamner à ne pas finir tes 23.</p>
 
-      <h3>1. Cotes cachées normalisées par saison (z-score)</h3>
-      <p>Pour comparer Wayne Gretzky en 1982 (212 pts dans une LNH à ~8 buts par match) et Sidney Crosby en 2011, les cotes sont calculées en <strong>z-score contre les contemporains de la même saison</strong>.</p>
-      <div class="math-box"><code>Z = (X − μ) / σ</code><br><code>Cote = max(25, min(99, 52 + 13 × Z))</code></div>
+      <h3>1. La valeur d'un joueur : son rang, pas une cote</h3>
+      <p>Chaque joueur reçoit une <strong>valeur</strong> interne qui est son <strong>rang statistique dans sa propre saison</strong>, projeté sur l'échelle historique de sa position. Elle sert à trois choses : sa zone d'efficacité, son salaire quand aucun montant réel n'est publié, et l'alignement automatique des 31 équipes adverses. Elle ne s'affiche jamais.</p>
       <ul>
-        <li><strong>Attaque</strong> : points par match (62 %), tirs par match (22 %), points en avantage numérique (16 %).</li>
-        <li><strong>Défense</strong> : différentiel (45 %), points en désavantage (20 %), temps de glace (35 %), tirs bloqués, bonus positionnel pour les défenseurs.</li>
-        <li><strong>Robustesse</strong> : minutes de punition par match (45 %) et mises en échec par match (55 %).</li>
-        <li><strong>Clutch</strong> : buts gagnants et en prolongation par match (75 %) et points par match (25 %).</li>
+        <li><strong>Attaquant</strong> : production 46 % (points par match), volume de lancers 14 %, différentiel 20 %, usage 20 % (temps de glace, sinon part des matchs joués).</li>
+        <li><strong>Défenseur</strong> : production 30 %, lancers 10 %, différentiel 36 %, usage 24 %.</li>
+        <li><strong>Gardien</strong> : écart d'arrêts à sa ligue 72 %, charge de travail 28 %.</li>
       </ul>
+      <p>Chaque terme est divisé par le <strong>régulier moyen de la saison</strong> du joueur, pour que 60 points en 1981 et 60 points en 2003 ne se ressemblent pas. Le différentiel est lissé de la moitié de celui de son vestiaire, sinon le premier trio d'une équipe faible serait puni de l'être. Et un taux sur huit matchs ne veut rien dire : chaque taux est ramené vers la moyenne au prorata de l'échantillon.</p>
+      <div class="math-box"><code>poids de l'échantillon = PJ / (PJ + 22)</code></div>
+      <p><strong>Ce que le rang ne voit pas, et c'est assumé</strong> : la défensive d'un attaquant avant 1998, et tout ce que le +/- attribue au joueur alors que c'est l'équipe. Les traits (section 7) existent pour ça.</p>
 
       <h3>2. Ajustement par époque</h3>
-      <p>L'option « prorata 82 · époque » ramène les points sur la base de la LNH moderne (~3,15 buts par équipe par match) et sur 82 matchs pour les saisons écourtées.</p>
+      <p>L'option « prorata 82 · époque » ramène les points sur la base de la LNH moderne (~3,15 buts par équipe par match) et sur 82 matchs pour les saisons écourtées. C'est un confort de lecture : le moteur, lui, compare toujours un joueur au régulier moyen de sa saison.</p>
       <div class="math-box"><code>Facteur d'époque = 3,15 / (buts par match de la saison)</code><br><code>Points ajustés = points réels × facteur</code></div>
 
-      <h3>3. Cote globale équilibrée par saison</h3>
-      <p>La cote globale combine les sous-cotes puis ajoute un <strong>bonus de vedette</strong> calculé sur le rang du joueur dans sa saison, divisé par le nombre d'équipes de la ligue cette année-là. Un top-10 des marqueurs vaut la même chose en 1975 (18 équipes) qu'en 2024 (32).</p>
-      <div class="math-box">
-        <code>Attaquant = 0,66×ATT + 0,16×DÉF + 0,05×ROB + 0,13×CLU + vedette(rang / équipes)</code><br>
-        <code>Défenseur = 0,42×ATT + 0,48×DÉF + 0,05×ROB + 0,05×CLU + 6 + vedette(rang parmi les D)</code><br>
-        <code>Gardien = 0,40×TEC + 0,32×BLI + 0,14×ROB + 0,14×CLU + partant + rang</code>
-      </div>
-
-      <h3>4. Salaires et plafond</h3>
-      <p>Le salaire 2026 suit un barème par cote globale (interpolation logarithmique entre ancres) sur le plafond de 95,5 M$ :</p>
-      <div class="math-box"><code>Cote 50 → 0,78 M$ · 70 → 2,3 M$ · 80 → 5,6 M$ · 85 → 8,8 M$ · 88 → 11,5 M$ · 92 → 13,75 M$ · 99 → 18,5 M$</code><br><code>Salaire époque = salaire 2026 × (plafond de l'année / 95,5 M$)</code></div>
-      <p>Quand un salaire réel publié existe (1989-90 et après), il remplace le barème au prorata du plafond de l'année ; la fiche indique <strong>Réel</strong> ou <strong>Estimé</strong>. Pour 1989-90 à 2003-04, le « plafond » est la masse salariale de l'équipe la plus dépensière, lissée à moitié vers le rang centile moderne.</p>
+      <h3>3. Salaires et plafond</h3>
+      <p>Quand un salaire réel publié existe (1989-90 et après), c'est lui, au prorata du plafond de l'année ; la fiche indique <strong>Salaire réel</strong>. Pour 1989-90 à 2003-04, le « plafond » est la masse salariale de l'équipe la plus dépensière, lissée à moitié vers le rang centile moderne. Sinon, <strong>Salaire estimé</strong> par un barème sur la valeur :</p>
+      <div class="math-box"><code>Valeur 50 → 0,78 M$ · 70 → 2,3 M$ · 80 → 5,6 M$ · 85 → 8,8 M$ · 88 → 11,5 M$ · 92 → 13,75 M$ · 99 → 18,5 M$</code><br><code>Avant 1989-90, barème tassé vers le haut : 99 → 11,5 M$</code><br><code>Salaire époque = salaire 2026 × (plafond de l'année / 95,5 M$)</code></div>
       <p><strong>🐣 Contrat d'entrée</strong> : rien avant 1995-96 ; de 1995-96 à 2003-04, base plafonnée (~2,7 % du plus gros budget) avec bonis ; depuis 2005-06, base ~1 % du plafond et bonis plafonnés à 2,85 M$. Il couvre le premier contrat d'un joueur de 24 ans ou moins : 3 saisons à 18-21 ans, 2 à 22-23, 1 à 24.</p>
 
-      <h3>5. Positions et pénalités</h3>
+      <h3>4. Positions et pénalités</h3>
       <ul>
-        <li>Centre à l'aile : <strong>−3</strong> sur toutes les cotes. Ailier du mauvais côté : <strong>−2</strong>. Ailier au centre : <strong>−5</strong>.</li>
+        <li>Centre à l'aile : <strong>−3</strong>. Ailier du mauvais côté : <strong>−2</strong>. Ailier au centre : <strong>−5</strong>.</li>
         <li>Défenseur du mauvais côté (gaucher à droite ou l'inverse, d'après la main de tir) : <strong>−2</strong>.</li>
-        <li>Les réservistes remplacent les blessés à la première case compatible ; une case vide vaut un rappel de cote 40.</li>
+        <li>Un défenseur ne joue jamais à l'attaque, ni l'inverse. Les cases de réserve prennent tout le monde.</li>
+        <li>Les réservistes remplacent les blessés à la première case compatible ; une case vide est comblée par un rappel de la ligue mineure, qui tire 30 % moins et finit 20 % moins bien que le régulier moyen.</li>
       </ul>
 
-      <h3>6. Archétypes, zones et chimie</h3>
-      <p>Chaque joueur porte un archétype (🪄 fabricant d'élite, 🎯 franc-tireur, 🎨 fabricant de jeu, 💥 puissance, ⚖️ complet, 🔋 énergie, ✨ offensif, 🏃 profondeur ; 🚀 défenseur offensif, 🛡️ physique, 🔒 défensif, 🔄 polyvalent, 🧱 profondeur ; gardiens 🧱 élite, ⚡ acrobate, 🔋 de fer, 🥅 régulier) et une <strong>zone d'efficacité</strong> :</p>
+      <h3>5. Zones d'efficacité : le garde-fou</h3>
+      <p>Chaque joueur a une zone, les unités où il rend à 100 %. Elle vient de sa valeur, et de sa polyvalence pour les zones « 9 » et « 6 D » :</p>
       <ul>
-        <li><strong>Top 3 / Top 2</strong> : vedettes d'élite. Rendent à 100 % sur le 1er trio ou la 1re paire seulement.</li>
-        <li><strong>Top 6 / Top 4</strong> : joueurs de premier plan. Trios 1-2, paires 1-2.</li>
-        <li><strong>Top 9 / Bottom 9</strong> : joueurs hyper versatiles. Trios 1-3 ou 2-4 (paires 1-3 ou 2-3 pour D).</li>
-        <li><strong>Middle 6 / Middle 4</strong> : trios 2-3, paires 1-2.</li>
-        <li><strong>Bottom 6 / Bottom 4</strong> : trios 3-4, paires 2-3.</li>
-        <li><strong>Profondeur</strong> : la dernière unité seulement.</li>
-        <li>Gardiens : <strong>partant numéro un</strong>, <strong>partant</strong>, <strong>auxiliaire</strong>.</li>
+        <li><strong>Attaquants</strong> — Top 3 : 1er trio seulement. Top 6 : trios 1-2. Top 9 (polyvalent) : trios 1-3. Middle 6 : trios 2-3. Bottom 9 (polyvalent) : trios 2-4. Bottom 6 : trios 3-4. Profondeur : 4e trio.</li>
+        <li><strong>Défenseurs</strong> — Top 2 : 1re paire seulement. Top 4 : paires 1-2. Top 6 D (polyvalent) : paires 1-3. Middle 4 et Bottom 4 : paires 2-3. Bottom 6 D (polyvalent) : paires 2-3. Profondeur : 3e paire.</li>
+        <li><strong>Gardiens</strong> — partant numéro un, partant (les deux rôles), auxiliaire. Pas de malus chez les gardiens.</li>
       </ul>
-      <p>Tout le monde dans sa zone : <strong>✨ trio optimal (+2 ATT / +2 DÉF)</strong>. Un ou plusieurs joueurs hors zone : <strong>⚠️ mal assorti (−3 à −12 selon l'écart)</strong>. S'ajoute la chimie des archétypes :</p>
+      <p>Une unité où tout le monde est dans sa zone reçoit <strong>✨ optimal, +2 en attaque et +2 en défense</strong>. Sinon elle est <strong>⚠️ mal assortie</strong>, et le malus est <strong>asymétrique</strong> :</p>
+      <div class="math-box"><code>Sous sa zone (un Top 6 au 4e trio) : −0,40 × (sa valeur − le calibre attendu de la case), par joueur</code><br><code>Au-dessus de sa zone (un Bottom 6 au 1er trio) : −3 par cran</code><br><code>Plafond : −70 par unité</code></div>
+      <p>Empiler, c'est mettre du talent qu'on paie <em>sous</em> sa zone, et on le punit fort. Une équipe faible qui place ses joueurs <em>au-dessus</em> de la leur n'a personne de mieux : on la punit à peine. Le malus est proportionnel plutôt que forfaitaire pour qu'améliorer un joueur ne puisse jamais rendre l'équipe pire.</p>
+      <p>Ces points se convertissent en buts attendus de l'unité, moitié par le volume de lancers, moitié par leur qualité :</p>
+      <div class="math-box"><code>facteur sur les buts attendus = e^(points / 42)</code><br><code>−10 → −21 % · −20 → −38 % · −50 → −70 %</code></div>
+      <p>C'est le mécanisme qui décide de la partie. Mesuré : le meilleur alignement légal sous le plafond, cueilli librement dans 55 saisons, fait environ 62-65 victoires et gagne la Coupe deux fois sur trois. Le Canadien de 1976-77 fait pareil. Sans le malus, l'empilement se placerait loin au-dessus de toute vraie équipe de l'histoire.</p>
+
+      <h3>6. La chimie : lue dans la fiche</h3>
+      <p>Aucune cote n'entre dans la chimie. Le <strong>penchant</strong> d'un attaquant est la part de ses points qui vient de ses buts, moins celle de sa ligue (≈ 0,42, stable sur 55 ans). Positif = il finit, négatif = il sert. Sous 15 points, le penchant est nul.</p>
+      <p>Deux nombres décident d'un trio : l'<strong>écart</strong> entre le plus tireur et le plus passeur (un trio a besoin de quelqu'un qui finit <em>et</em> de quelqu'un qui sert), et l'<strong>excès</strong>, à quel point le trio penche du même bord (trois tireurs pour une rondelle).</p>
+      <div class="math-box"><code>chimie du trio = production moyenne × (14 × écart − 12 × excès)</code><br><code>🌟 Chimie parfaite ≥ +3 · 🎯 Tandem moteur ≥ +1,2 · 👍 Standard · ⚠️ Conflit de rôles ≤ −1,2</code></div>
+      <p>La mesure regarde l'équilibre, jamais le niveau : le moteur compte déjà le volume et la finition de chacun, et récompenser un trio parce qu'il produit compterait deux fois. Seul le poids suit la production. <strong>La chimie de trio ne touche que l'attaque.</strong></p>
+      <p>Une paire de défenseurs se lit sur la production de chacun : un qui monte et un qui couvre, c'est ⚖️ équilibré ; deux qui montent, c'est 🚀 hyper-offensif, et la paire concède en repli ; deux qui ne produisent rien, c'est 🔒 hermétique.</p>
+      <div class="math-box"><code>attaque = 3 × écart de production + 1,5 × (production moyenne − 1)</code><br><code>défense = −2,6 × (production moyenne − 1,2) si les deux montent · +2,2 × (0,85 − production moyenne) si hermétique</code></div>
+      <p>Un trio ou une paire qui reste intact gagne jusqu'à <strong>+2 de continuité</strong>, un point par 25 matchs.</p>
+      <p>L'<strong>archétype</strong> (🎯 franc-tireur, 🪄 fabricant, 💥 puissance, ⚖️ complet, 🔋 énergie… ; 🚀 défenseur offensif, 🔒 défensif… ; 🧱 mur, ⚡ acrobate, 🔋 de fer) décrit la <strong>saison</strong> sur quatre axes : production, penchant, lancers, punitions, chacun sur le régulier moyen de l'année. Il aide à lire un vestiaire ; il n'entre pas dans le moteur. Gretzky 1981-82 sort franc-tireur, Gretzky 1985-86 fabricant : les deux sont vrais.</p>
+
+      <h3>7. Les traits : ce que la feuille de pointage ne dit pas</h3>
+      <p>Un trait n'existe que là où les colonnes sont aveugles. Le moteur lit déjà les lancers, la finition, les arrêts et le +/- ; un trait « franc-tireur » recompterait ce qu'il compte déjà. Deux étages, et rien d'autre. Un trait <strong>appartient au joueur, pas à sa case</strong> : un Selke au 4e trio défend comme au 1er. Seule condition : être habillé. Un réserviste ne compte pas.</p>
+      <p><strong>Les votés</strong>, une saison à la fois (lauréat, puis finaliste) :</p>
       <ul>
-        <li><strong>Chimie parfaite 🌟 (+4 / +2)</strong> : fabricant + franc-tireur + puissance ou complet.</li>
-        <li><strong>Tandem moteur 🎯 (+3 ATT)</strong> : fabricant + franc-tireur.</li>
-        <li><strong>Trio d'étouffement 🧱 (+4 DÉF)</strong> : au moins deux joueurs défensifs ou physiques.</li>
-        <li><strong>Paire équilibrée ⚖️ (+3 / +3)</strong> : défenseur offensif + défensif. Deux offensifs : +3 / −3. Deux défensifs : −1 / +4.</li>
-        <li><strong>Conflit de rôles ⚠️ (−2 / −2)</strong> : trois francs-tireurs ou trois fabricants d'élite ensemble.</li>
+        <li>🛡️ <strong>Selke</strong> et 🧱 <strong>Norris</strong> : l'équipe concède 2 % de buts en moins (1 % pour un finaliste), sur tout le match.</li>
+        <li>🥅 <strong>Vezina</strong> : le gardien laisse passer 4 % de moins (2 %). Seulement depuis 1981-82 : avant, le Vezina allait au club qui allouait le moins de buts, ce que le moteur mesure déjà.</li>
+        <li>🏆 <strong>Conn Smythe</strong> : <strong>en séries seulement</strong>, +3 % d'attaque, ou un gardien 4 % plus dur à battre.</li>
+      </ul>
+      <p><strong>Les réputations</strong>, sur toute une carrière, 179 joueurs marquants dont un amateur affirmerait le trait sans hésiter :</p>
+      <ul>
+        <li>⚡ <strong>Vitesse</strong> : +3,5 % de lancers pour lui. S'éteint après 34 ans quand l'âge est connu.</li>
+        <li>💣 <strong>Lancer</strong> : ses lancers entrent 3 % plus souvent.</li>
+        <li>🪄 <strong>Créateur</strong> : toute son équipe finit 0,6 % mieux.</li>
+        <li>🧭 <strong>Meneur</strong> : +2 de clutch en prolongation (plafonné à 9 par équipe) et +1 % en séries.</li>
+        <li>🥊 <strong>Colosse</strong> : l'adversaire finit 0,3 % moins bien.</li>
+        <li>🧤 <strong>Voleur</strong> : le gardien laisse passer 1,2 % de moins, toutes époques. Il rachète le trou du Vezina d'avant 1981-82.</li>
+      </ul>
+      <p><strong>Les canaux d'équipe saturent</strong> : la défensive au mieux −6 %, l'attaque +5 %, les séries +6 %, le gardien −6 %. Le quatrième Norris d'un vestiaire n'apporte pas autant que le premier. Vitesse et lancer, qui portent sur les lancers de leur seul porteur, ne sont pas bornés. Mesuré : une vraie équipe qui porte onze à treize traits gagne trois à quatre matchs de plus que la même rejouée sans.</p>
+      <p>Rareté : 1 % des joueurs-saisons portent un trait voté, 9 % une réputation. Ne rien porter veut dire « rien de particulier », ce qui est vrai. Sept saisons n'ont aucun Selke possible (créé en 1977-78).</p>
+
+      <h3>8. Le moteur : un match se joue lancer par lancer</h3>
+      <p>En 55 saisons, les lancers par équipe par match vont de 27 à 31 pendant que les buts varient de 55 % : le rythme n'a pas bougé, la finition oui. L'événement de base est donc le <strong>lancer</strong>, avec un tireur, un gardien et deux issues. La feuille de match en découle sans aucun ajustement après coup : les buts d'une équipe sont la somme de ceux de ses joueurs, les lancers d'un gardien sont ses arrêts plus les buts alloués, chaque but reçoit au plus deux passes (85 % une première, puis 62 % une seconde).</p>
+      <div class="math-box"><code>lancers attendus = 28,7 × (pression / référence) × (pression adverse / référence)^−0,15</code><br><code>P(but) = 9,27 % × finition du tireur × facteur du gardien × facteur défensif × traits × chimie de l'unité × chance</code></div>
+      <ul>
+        <li><strong>Qui tire</strong> : un trio est tiré au prorata de son temps de glace (34/28/22/16 %), de son volume de lancers et de sa chimie ; une paire pareil (40/34/26 %). Les défenseurs prennent 25 % des lancers. Dans l'unité, le tireur est tiré au prorata de ses lancers par match dans sa vraie saison.</li>
+        <li><strong>Finition</strong> : le pourcentage de tir du joueur, sur celui de sa ligue. Sous 20 lancers dans sa saison, il est pris pour moyen.</li>
+        <li><strong>Gardien</strong> : ce qu'il laisse passer par rapport à la ligue de sa saison. Un ,920 en 1975 est hors norme, le même chiffre en 2015 est ordinaire. L'auxiliaire part un match sur six.</li>
+        <li><strong>Défensive</strong> : elle agit sur la <strong>qualité</strong> des lancers, pas leur nombre. Mesuré sur 1392 équipes-saisons : la brigade d'un alignement n'explique pas les lancers concédés, elle explique le pourcentage d'arrêts. L'unité qui défend est tirée <strong>présence par présence</strong>, au prorata de son temps de glace seul, et chaque écart-type de brigade retire 4 % à la probabilité de but. Un 4e trio poreux coûte donc pendant ses propres treize minutes.</li>
+        <li><strong>Référence</strong> : tout est exprimé en écart à l'<strong>équipe moyenne une fois alignée</strong>, pas au joueur moyen. Les 18 meilleurs patineurs d'un club et son partant tirent 27 % de plus que le régulier moyen et arrêtent 10 % de plus.</li>
+        <li><strong>Chance</strong> : du PDO. Un bruit de 10 % sur la finition à chaque match, et un biais d'équipe de 3,5 % tiré une fois pour la saison. Le même alignement rejoué varie d'environ ±5 victoires.</li>
+        <li><strong>Prolongation</strong> : sigmoïde sur le clutch des deux équipes, plus les meneurs, divisée par 9. Le but gagnant appartient à un joueur comme les autres.</li>
+        <li><strong>Usure</strong> : un match sur quatre est éreintant ; la robustesse de l'alignement ajuste alors la défensive et les blessures y sont 50 % plus fréquentes.</li>
+        <li><strong>Blessures</strong> : chaque match, 0,15 % plus 1,5 % × (part des matchs ratés dans sa vraie saison)². Durée moyenne huit matchs, plafond quarante. Un réserviste prend la place, sinon un rappel. <strong>Les blessures s'appliquent aussi en séries.</strong></li>
       </ul>
 
-      <h3>7. La simulation</h3>
-      <p>Ta formation plus 31 vraies équipes historiques alignées automatiquement, 82 matchs chacune. Les trios pèsent 34/28/22/16 %, les paires 40/34/26 %. Le partant prend environ 68 départs. Buts tirés d'une loi de Poisson :</p>
-      <div class="math-box"><code>λ = 3,05 × (attaque / défense adverse)^1,55</code><br><code>P(victoire en prolongation) = 1 / (1 + e^(−(clutch − clutch adverse) / 9))</code></div>
-      <p>Un match sur quatre est éreintant (la robustesse ajuste la défense). Un trio intact gagne jusqu'à +2 de continuité. Un joueur qui a raté des matchs dans sa vraie saison se blesse plus souvent. Buts et passes sont distribués selon la vraie production de chacun. Puis les séries : 16 équipes, 4 de 7.</p>
+      <h3>9. La ligue et les séries</h3>
+      <p>Ta formation plus 31 vraies équipes historiques tirées au hasard dans 55 saisons et alignées automatiquement (les 18 meilleurs patineurs par valeur, position par position). 82 rondes d'appariements, 1 312 matchs. Les 16 premiers font les séries, quatre rondes 4 de 7, sans statistiques mais avec blessures et usure.</p>
+      <p>Repères, mesurés sur le moteur : l'équipe moyenne fait 41 victoires. Une vraie équipe du dernier décile en fait 26, du premier 52. Le meilleur alignement légal fait 62 à 65 et gagne la Coupe deux fois sur trois. Le 82-0 n'est pas atteignable, et c'est voulu : dominer est possible, la Coupe reste un pari.</p>
     </div>
   </div>
 </div>
