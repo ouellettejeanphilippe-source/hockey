@@ -18,7 +18,13 @@
  * Il sort aussi les repères d'époque du moteur, qui doivent retomber sur le
  * réel : ~28,5 lancers et ~3,1 buts par équipe par match.
  *
+ * Les 32 équipes sont tirées au hasard dans les 55 saisons, ce qui fait varier
+ * les repères d'époque de ±0,15 but d'une exécution à l'autre. `LIGUES=n`
+ * moyenne sur n tirages : c'est ce qu'il faut pour RÉGLER `LANCERS_BASE` et
+ * `CIBLE_PCT_TIR`, sous peine de courir après du bruit.
+ *
  *   node scripts/check_feuilles.mjs
+ *   LIGUES=5 node scripts/check_feuilles.mjs
  */
 
 import fs from 'node:fs';
@@ -34,7 +40,9 @@ import { equipeReelle } from './lib/vestiaires.mjs';
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
 const saisons = fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sort();
+const LIGUES = Number(process.env.LIGUES ?? 1);
 
+function batirLigue() {
 const equipes = [];
 const vus = new Set();
 while (equipes.length < 32) {
@@ -53,11 +61,18 @@ while (equipes.length < 32) {
   equipes.push(createTeam(`${tag} ${shard.season}`, tag, autoRoster(pool), { season: shard.season }));
 }
 
-simulateLeague(equipes);
+  simulateLeague(equipes);
+  return equipes;
+}
 
 const joueursDe = t => SLOTS.map(s => t.roster[s.i]).filter(Boolean);
 let ecartsButs = 0, ecartsGardien = 0, tropDePasses = 0;
 let lancersPour = 0, lancersContre = 0, buts = 0, matchs = 0;
+const ecarts = [];
+
+const ligues = [];
+for (let i = 0; i < LIGUES; i++) ligues.push(batirLigue());
+const equipes = ligues.flat();
 
 for (const t of equipes) {
   const js = joueursDe(t);
@@ -81,7 +96,7 @@ for (const t of equipes) {
 
 const butsSimules = buts, lancersSimules = lancersPour;
 const ok = x => (x === 0 ? '✓' : `✗ ${x}`);
-console.log(`\n32 équipes, ${matchs / 2} matchs\n`);
+console.log(`\n${LIGUES} ligue(s) de 32 équipes, ${matchs / 2} matchs\n`);
 console.log(`  1. buts d'équipe = somme des joueurs        ${ok(ecartsButs)}`);
 console.log(`  2. lancers du gardien = arrêts + buts       ${ok(ecartsGardien)}`);
 console.log(`  3. passes <= 2 par but                      ${ok(tropDePasses)}`);
@@ -100,7 +115,6 @@ console.log(`  4. lancers pour = lancers contre            `
  * une ligue à 3,1, donc son total doit baisser d'autant. C'est le rapport à
  * sa propre ligue qui doit tenir, jamais le chiffre brut.
  */
-const ecarts = [];
 for (const t of equipes) {
   for (const p of joueursDe(t).filter(x => x.p !== 'G' && x.simGP >= 40 && (x.gp || 0) >= 40)) {
     const reelParMatch = (p.g || 0) / p.gp;

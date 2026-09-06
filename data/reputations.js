@@ -22,43 +22,99 @@
  *              aux jambes qui la portaient.
  * 💣 TIR       la puissance et la précision du lancer, pas le volume ni le
  *              pourcentage (ceux-là sont déjà dans le sommaire).
+ * 🪄 CREATEUR  la vision : il rend son équipe plus dangereuse, ce que la
+ *              colonne des passes ne dit qu'à moitié.
  * 🧭 MENEUR    l'ascendant : le gars qu'on veut sur la glace en avril et en
  *              prolongation.
- * 🥊 COLOSSE   le poids physique et l'intimidation. Le plus discutable des
- *              quatre, et le plus faible en effet, pour cette raison.
+ * 🥊 COLOSSE   le poids physique et l'intimidation. Le plus discutable du lot,
+ *              et le plus faible en effet, pour cette raison.
+ * 🧤 VOLEUR    le gardien qu'on se rappelle. Il couvre TOUTES les époques, et
+ *              c'est ce qui rachète le trou du Vezina : avant 1981-82 ce
+ *              trophée n'était pas un vote, donc Dryden, Parent, Tony Esposito
+ *              et Giacomin n'avaient aucun trait alors qu'ils sont exactement
+ *              les gardiens dont on se souvient.
+ *
+ * COMBIEN DE NOMS ? Assez pour que « les joueurs marquants » veuille dire
+ * quelque chose sur 55 saisons, pas assez pour que porter un trait cesse
+ * d'être remarquable. Le juge est `scripts/check_traits.mjs` : il mesure la
+ * part de joueurs-saisons qui en portent un, et l'effet sur une vraie équipe.
+ * Allonger la liste sans rebaisser les magnitudes de `js/traits.js` gonflerait
+ * les grandes équipes en silence.
  */
 
 export const REPUTATIONS = {
   VITESSE: [
-    'Yvan Cournoyer', 'Guy Lafleur', 'Bobby Orr', 'Gilbert Perreault',
-    'Paul Coffey', 'Mike Gartner', 'Sergei Fedorov', 'Pavel Bure',
-    'Alexander Mogilny', 'Peter Bondra', 'Paul Kariya', 'Teemu Selanne',
-    'Marian Gaborik', 'Scott Niedermayer', 'Sergei Makarov', 'Denis Savard',
-    'Michael Grabner', 'Carl Hagelin', 'Bobby Hull', 'Mike Modano',
+    // 1970-80 : le patinage qu'on décrivait avant que quiconque le chronomètre
+    'Yvan Cournoyer', 'Guy Lafleur', 'Bobby Orr', 'Bobby Hull', 'Gilbert Perreault',
+    'Marcel Dionne', 'Rick Middleton', 'Steve Shutt', 'Paul Coffey', 'Mike Gartner',
+    'Denis Savard', 'Sergei Makarov',
+    // 1990-2005 : l'ère des ailiers fusée
+    'Sergei Fedorov', 'Pavel Bure', 'Alexander Mogilny', 'Peter Bondra',
+    'Paul Kariya', 'Teemu Selanne', 'Ziggy Palffy', 'Tony Amonte',
+    'Sami Kapanen', 'Brian Leetch', 'Scott Niedermayer', 'Mike Modano',
+    'Marian Gaborik', 'Michael Grabner', 'Carl Hagelin',
+    // aujourd'hui
     'Connor McDavid', 'Nathan MacKinnon', 'Dylan Larkin', 'Cale Makar',
-    'Erik Karlsson', 'Mathew Barzal',
+    'Erik Karlsson', 'Quinn Hughes', 'Mathew Barzal', 'Jack Eichel',
+    'Johnny Gaudreau', 'Taylor Hall', 'Kyle Connor', 'Andrei Svechnikov',
+    'Sebastian Aho', 'Mika Zibanejad',
   ],
   TIR: [
-    'Bobby Hull', 'Brett Hull', 'Al MacInnis', 'Al Iafrate', 'Ray Bourque',
-    'Mike Bossy', 'Mario Lemieux', 'Brendan Shanahan', 'Denis Potvin',
-    'Guy Lafleur', 'Joe Sakic', 'Ilya Kovalchuk', 'Jarome Iginla',
-    'Cam Neely', 'Pavel Bure', 'Teemu Selanne', 'Luc Robitaille',
-    'Alex Ovechkin', 'Steven Stamkos', 'Shea Weber', 'Zdeno Chara',
-    'Auston Matthews', 'David Pastrnak', 'Patrik Laine',
+    'Bobby Hull', 'Guy Lafleur', 'Phil Esposito', 'Marcel Dionne', 'Denis Potvin',
+    'Mike Bossy', 'Michel Goulet', 'Charlie Simmer', 'Al Secord', 'Ray Bourque',
+    'Al MacInnis', 'Al Iafrate', 'Brett Hull', 'Mario Lemieux', 'Cam Neely',
+    'Dino Ciccarelli', 'Brendan Shanahan', 'Kevin Stevens', 'Dave Andreychuk',
+    'Bernie Nicholls', 'Pavel Bure', 'Teemu Selanne', 'Luc Robitaille',
+    'Jaromir Jagr', 'Keith Tkachuk', 'John LeClair', 'Markus Naslund',
+    'Joe Sakic', 'Ilya Kovalchuk', 'Jarome Iginla', 'Shea Weber', 'Zdeno Chara',
+    'Alex Ovechkin', 'Steven Stamkos', 'Evgeni Malkin', 'Phil Kessel',
+    'Vladimir Tarasenko', 'Auston Matthews', 'David Pastrnak', 'Patrik Laine',
+    'Leon Draisaitl', 'Nathan MacKinnon',
+  ],
+  CREATEUR: [
+    'Bobby Orr', 'Bobby Clarke', 'Marcel Dionne', 'Bryan Trottier',
+    'Denis Savard', 'Peter Stastny', 'Bobby Smith', 'Neal Broten',
+    'Wayne Gretzky', 'Mario Lemieux', 'Paul Coffey', 'Adam Oates',
+    'Dale Hawerchuk', 'Doug Gilmour', 'Ron Francis', 'Steve Yzerman',
+    'Craig Janney', 'Brian Leetch', 'Igor Larionov', 'Peter Forsberg',
+    'Joe Thornton', 'Nicklas Backstrom', 'Henrik Sedin', 'Sidney Crosby',
+    'Pavel Datsyuk', 'Nikita Kucherov', 'Connor McDavid', 'Artemi Panarin',
+    'Mitch Marner',
   ],
   MENEUR: [
-    'Jean Beliveau', 'Gordie Howe', 'Bobby Clarke', 'Bryan Trottier', 'Denis Potvin',
-    'Larry Robinson', 'Wayne Gretzky', 'Mark Messier', 'Mario Lemieux',
-    'Steve Yzerman', 'Ray Bourque', 'Joe Sakic', 'Scott Stevens',
-    'Nicklas Lidstrom', 'Jarome Iginla', 'Zdeno Chara', 'Sidney Crosby',
-    'Jonathan Toews', 'Patrice Bergeron',
+    'Jean Beliveau', 'Gordie Howe', 'Phil Esposito', 'Bobby Clarke',
+    'Bryan Trottier', 'Denis Potvin', 'Larry Robinson', 'Wayne Gretzky',
+    'Mark Messier', 'Mario Lemieux', 'Steve Yzerman', 'Ray Bourque',
+    'Guy Carbonneau', 'Doug Gilmour', 'Chris Chelios', 'Trevor Linden',
+    'Joe Nieuwendyk', 'Brian Bellows', 'Joe Sakic', 'Scott Stevens',
+    'Nicklas Lidstrom', "Rod Brind'Amour", 'Mats Sundin', 'Daniel Alfredsson',
+    'Jarome Iginla', 'Zdeno Chara', 'Shea Weber', 'Sidney Crosby',
+    'Jonathan Toews', 'Patrice Bergeron', 'Anze Kopitar',
   ],
   COLOSSE: [
-    'Gordie Howe', 'Larry Robinson', 'Denis Potvin', 'Clark Gillies',
-    "Terry O'Reilly", 'Bob Probert', 'Cam Neely', 'Mark Messier',
-    'Scott Stevens', 'Chris Chelios', 'Eric Lindros', 'Chris Pronger',
-    'Adam Foote', 'Zdeno Chara', 'Dustin Byfuglien', 'Milan Lucic',
-    'Tom Wilson',
+    'Gordie Howe', 'Dave Schultz', 'Larry Robinson', 'Denis Potvin',
+    'Clark Gillies', "Terry O'Reilly", 'Bob Probert', 'Cam Neely',
+    'Wendel Clark', 'Rick Tocchet', 'Mark Messier', 'Scott Stevens',
+    'Chris Chelios', 'Ulf Samuelsson', 'Marty McSorley', 'Owen Nolan',
+    'Keith Tkachuk', 'Gary Roberts', 'Darius Kasparaitis', 'Eric Lindros',
+    'Chris Pronger', 'Adam Foote', 'Zdeno Chara', 'Dion Phaneuf',
+    'Dustin Byfuglien', 'Milan Lucic', 'Brad Marchand', 'Matthew Tkachuk',
+    'Tom Wilson', 'Ryan Reaves',
+  ],
+  VOLEUR: [
+    // Avant 1981-82 le Vezina n'était pas un vote : sans cette liste, les
+    // gardiens dont on se souvient le mieux n'auraient aucun trait.
+    'Jacques Plante', 'Glenn Hall', 'Gump Worsley', 'Eddie Giacomin',
+    'Tony Esposito', 'Ken Dryden', 'Bernie Parent', 'Rogie Vachon',
+    'Gerry Cheevers', 'Billy Smith',
+    'Grant Fuhr', 'Ron Hextall', 'Mike Vernon', 'Andy Moog', 'Tom Barrasso',
+    'Patrick Roy', 'Ed Belfour', 'Dominik Hasek', 'Martin Brodeur',
+    'Curtis Joseph', 'Mike Richter', 'John Vanbiesbrouck', 'Felix Potvin',
+    'Olie Kolzig', 'Nikolai Khabibulin', 'Jose Theodore', 'Miikka Kiprusoff',
+    'Roberto Luongo', 'Henrik Lundqvist', 'Tim Thomas', 'Ryan Miller',
+    'Cam Ward', 'Corey Crawford', 'Jonathan Quick', 'Carey Price',
+    'Marc-Andre Fleury', 'Pekka Rinne', 'Braden Holtby', 'Sergei Bobrovsky',
+    'Andrei Vasilevskiy', 'Connor Hellebuyck', 'Igor Shesterkin',
   ],
 };
 

@@ -22,10 +22,17 @@
  * LES RÉPUTATIONS (`data/reputations.js`) — le consensus des amateurs, sur
  * toute une carrière, là où aucune colonne ne parle :
  *
- *   VITESSE  le patinage                         → il obtient plus de lancers
- *   TIR      la puissance du lancer              → SES lancers entrent plus
- *   MENEUR   l'ascendant                         → prolongation et séries
- *   COLOSSE  le poids physique                   → l'adversaire finit moins bien
+ *   VITESSE   le patinage                        → il obtient plus de lancers
+ *   TIR       la puissance du lancer             → SES lancers entrent plus
+ *   CREATEUR  la vision                          → son équipe finit mieux
+ *   MENEUR    l'ascendant                        → prolongation et séries
+ *   COLOSSE   le poids physique                  → l'adversaire finit moins bien
+ *   VOLEUR    le gardien qu'on se rappelle       → il laisse passer moins
+ *
+ * VOLEUR rachète au passage le trou du Vezina : avant 1981-82 ce trophée
+ * n'était pas un vote, donc Dryden, Parent, Tony Esposito et Giacomin
+ * n'avaient aucun trait alors qu'ils sont exactement les gardiens dont on se
+ * souvient.
  *
  * Les deux étages obéissent à la même règle et se complètent : un vote dit ce
  * qu'une SAISON valait, une réputation dit ce qu'un JOUEUR était. Ni l'un ni
@@ -95,6 +102,14 @@ export const TRAITS = {
     label: 'Présence physique', short: 'Colosse', icon: '🥊', reputation: true,
     desc: 'Son poids physique pèse sur l\'adversaire toute la soirée',
   },
+  CREATEUR: {
+    label: 'Créateur de jeu', short: 'Créateur', icon: '🪄', reputation: true,
+    desc: 'Sa vision rend toute son équipe plus dangereuse',
+  },
+  VOLEUR: {
+    label: 'Gardien légendaire', short: 'Voleur', icon: '🧤', reputation: true,
+    desc: 'Le gardien dont on se rappelle les arrêts, toutes époques',
+  },
 };
 
 /*
@@ -132,14 +147,24 @@ export const EFFET = {
    * probabilité que les siens entrent. Ils le suivent donc partout, y compris
    * au quatrième trio, sans qu'il faille rien de plus.
    *
-   * MENEUR et COLOSSE portent sur l'équipe. COLOSSE est le plus faible du lot
-   * parce qu'il est le plus discutable : l'intimidation est réelle, sa taille
-   * ne l'est pas.
+   * CREATEUR, MENEUR et COLOSSE portent sur l'équipe. COLOSSE est le plus
+   * faible du lot parce qu'il est le plus discutable : l'intimidation est
+   * réelle, sa taille ne l'est pas.
+   *
+   * LES MAGNITUDES SUIVENT LA LONGUEUR DE LA LISTE. Passer de 86 à 215
+   * entrées a fait grimper l'effet d'une grande équipe de +3,9 à +5,5
+   * victoires sans qu'on touche à un seul nombre : une équipe des années
+   * Lemieux porte treize traits, pas quatre. Vitesse et lancer sont donc
+   * redescendus de 1,060 et 1,050 à 1,035 et 1,030. Allonger `reputations.js`
+   * sans refaire tourner `check_traits.mjs` gonflerait les grandes équipes en
+   * silence — c'est le piège de ce fichier-ci.
    */
-  VITESSE: { lancers:       [1.100,  1.100] },
-  TIR:     { finition:      [1.080,  1.080] },
-  MENEUR:  { meneur:        [3.000,  3.000], series: [1.015, 1.015] },
-  COLOSSE: { defense:       [0.995,  0.995] },
+  VITESSE:  { lancers:      [1.035,  1.035] },
+  TIR:      { finition:     [1.030,  1.030] },
+  CREATEUR: { attaque:      [1.006,  1.006] },
+  MENEUR:   { meneur:       [2.000,  2.000], series: [1.010, 1.010] },
+  COLOSSE:  { defense:      [0.997,  0.997] },
+  VOLEUR:   { gardien:      [0.988,  0.988] },
 };
 
 /** Normalise une table de trophée en `saison|nom` -> 0 (gagnant) ou 1 (finaliste). */
@@ -199,6 +224,26 @@ export function getTraits(p) {
   return out;
 }
 
+/*
+ * SATURATION DES CANAUX D'ÉQUIPE. Mesuré : le meilleur alignement légal sous
+ * le plafond ramasse 25 traits, contre 9 au Canadien de 1976-77 — parce que
+ * l'optimiseur choisit les joueurs les mieux cotés, qui sont exactement les
+ * joueurs marquants. Sans borne, les traits deviennent un deuxième axe
+ * d'empilement par-dessus les cotes, et la Coupe de cet alignement passe à
+ * 67 %.
+ *
+ * Le quatrième Norris d'un vestiaire n'apporte pas autant que le premier :
+ * on ne défend pas deux fois la même rondelle. Les canaux d'ÉQUIPE sont donc
+ * bornés. Les canaux de JOUEUR (vitesse, lancer) ne le sont pas : ils portent
+ * sur les lancers de leur porteur, donc ils ne s'additionnent pas.
+ */
+export const BORNES = {
+  defense: 0.94,   // plancher : au mieux 6 % de buts en moins
+  attaque: 1.05,   // plafond
+  series: 1.06,
+  gardien: 0.94,
+};
+
 const produit = (p, champ) => {
   let f = 1;
   for (const t of getTraits(p)) {
@@ -216,7 +261,7 @@ const produit = (p, champ) => {
 export function facteurDefensifEquipe(joueurs) {
   let f = 1;
   for (const p of joueurs) if (p && p.p !== 'G') f *= produit(p, 'defense');
-  return f;
+  return Math.max(BORNES.defense, f);
 }
 
 /** Facteur sur le gardien : en dessous de 1 = il laisse passer moins. */
@@ -224,7 +269,7 @@ export function facteurTraitGardien(gardien, series = false) {
   if (!gardien) return 1;
   let f = produit(gardien, 'gardien');
   if (series) f *= produit(gardien, 'seriesGardien');
-  return f;
+  return Math.max(BORNES.gardien, f);
 }
 
 /** Volume de lancers d'un joueur : sa vitesse lui en donne plus. */
@@ -248,6 +293,16 @@ export function bonusMeneurEquipe(joueurs) {
 }
 
 /**
+ * Facteur offensif d'équipe : la vision des créateurs, sur tous les lancers.
+ * `joueurs` est l'alignement habillé.
+ */
+export function facteurAttaqueEquipe(joueurs) {
+  let f = 1;
+  for (const p of joueurs) if (p && p.p !== 'G') f *= produit(p, 'attaque');
+  return Math.min(BORNES.attaque, f);
+}
+
+/**
  * Facteur offensif d'équipe EN SÉRIES. Le Conn Smythe ne rend qu'en avril :
  * c'est tout l'intérêt du trait, et le seul du lot qui distingue la saison des
  * séries.
@@ -255,5 +310,5 @@ export function bonusMeneurEquipe(joueurs) {
 export function facteurSeriesEquipe(joueurs) {
   let f = 1;
   for (const p of joueurs) if (p && p.p !== 'G') f *= produit(p, 'series');
-  return f;
+  return Math.min(BORNES.series, f);
 }
