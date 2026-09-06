@@ -1024,7 +1024,7 @@ function slotEl(s) {
       <div class="slot-name">${formatName(p.n)}</div>
       <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
       <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
-      <div class="slot-tags">${archTag(p)}${zoneTag(p)}${penTag}</div>`;
+      <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${penTag}</div>`;
     if (!G.fogOfWar) attachRadar(el, p);
     el.querySelector('.slot-remove').onclick = ev => {
       ev.stopPropagation();

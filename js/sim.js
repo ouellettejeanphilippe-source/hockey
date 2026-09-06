@@ -7,7 +7,8 @@
  */
 
 import { getArchetype, getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
-import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe } from './traits.js';
+import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
+         facteurLancersJoueur, facteurFinitionJoueur, bonusMeneurEquipe } from './traits.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
@@ -431,7 +432,9 @@ function lancersRel(p) {
   const base = seasonLancers(p.s)[est_D ? 3 : 2];
   const perso = (p.sh || 0) / Math.max(1, p.gp || 1);
   if (!perso || !base) return RAPPEL_LANCERS;
-  return borne(perso / base, 0.25, 2.60);
+  // La réputation de vitesse agit ici, sur le joueur : elle lui donne plus de
+  // rondelles, où qu'on le place dans l'alignement.
+  return borne(perso / base, 0.25, 2.60) * facteurLancersJoueur(p);
 }
 
 /**
@@ -444,7 +447,8 @@ function pctTirRel(p) {
   if (lancers < 20) return 1;
   const ligue = seasonLancers(p.s)[1];
   if (!ligue) return 1;
-  return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20);
+  // La réputation de lancer agit ici : ce sont SES rondelles qui entrent plus.
+  return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20) * facteurFinitionJoueur(p);
 }
 
 /**
@@ -521,6 +525,7 @@ export function profilMatch(team, lineup) {
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles),
     traitSeries: facteurSeriesEquipe(habilles),
+    meneur: bonusMeneurEquipe(habilles),
   };
 }
 
@@ -877,7 +882,7 @@ export function playGame(A, B, gameIdx, track = true, series = false) {
 
   if (gfA === gfB) {
     ot = true;
-    const p = 1 / (1 + Math.exp(-(sA.clu - sB.clu) / 9));
+    const p = 1 / (1 + Math.exp(-((sA.clu + pA.meneur) - (sB.clu + pB.meneur)) / 9));
     // Le but gagnant appartient à un joueur, comme tous les autres.
     if (Math.random() < p) { gfA++; if (track) butProlongation(pA, pB, gB); }
     else { gfB++; if (track) butProlongation(pB, pA, gA); }
@@ -948,7 +953,7 @@ export function simulate(roster) {
     let win = false, otl = false;
 
     if (gf === ga) {
-      const p = 1 / (1 + Math.exp(-(force.clu - 52) / 9));
+      const p = 1 / (1 + Math.exp(-(force.clu + profil.meneur - 52) / 9));
       if (Math.random() < p) { gf++; W++; win = true; butProlongation(profil, PROFIL_NEUTRE, null); }
       else { ga++; OTL++; otl = true; butProlongation(PROFIL_NEUTRE, profil, gardien); }
     } else if (gf > ga) { W++; win = true; } else { L++; }

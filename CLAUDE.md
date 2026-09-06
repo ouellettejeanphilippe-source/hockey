@@ -54,6 +54,7 @@ scripts/check_plafond.mjs   le plafond du jeu en victoires et en Coupes
 scripts/check_traits.mjs    les traits : rareté, couverture d'époque, effet mesuré
 scripts/smoke.mjs           test de fumée Playwright à 390 px
 data/trophees.js            Selke, Norris, Vezina, Conn Smythe — gagnants et finalistes
+data/reputations.js         les réputations curées : vitesse, lancer, meneur, colosse
 data/index.json             liste des saisons disponibles
 data/seasons/<saison>.json  un shard par saison
 data/seed.json              filet hors ligne
@@ -117,22 +118,37 @@ lancers pour        = lancers contre, à l'échelle de la ligue
 
 ## Les traits
 
-**Un trait n'existe que là où le sommaire est aveugle.** C'est la règle qui tient `js/traits.js`, et elle décide de tout le reste. Le moteur lit déjà les lancers, les buts par lancer, le pourcentage d'arrêts, le +/- et les matchs joués — un trait « franc-tireur » ou « homme de fer » ne ferait que recompter ce que le moteur compte déjà, et il le compterait moins bien. Ce qui manque au sommaire, c'est le jugement : qui défendait vraiment, quel gardien tenait vraiment son équipe, qui se transformait en avril.
+**Un trait n'existe que là où le sommaire est aveugle.** C'est la règle qui tient `js/traits.js`, et elle décide de tout le reste. Le moteur lit déjà les lancers, les buts par lancer, le pourcentage d'arrêts, le +/- et les matchs joués — un trait « franc-tireur » ou « homme de fer » ne ferait que recompter ce que le moteur compte déjà, et il le compterait moins bien. Ce qui manque au sommaire, c'est le reste : qui défendait vraiment, qui patinait vite, qui avait le lancer qu'on craignait, qui menait un vestiaire.
 
-D'où quatre traits, tous tirés de scrutins publics à population complète (`data/trophees.js`), chacun sur **un seul** type d'événement :
+**Deux étages, et rien d'autre.**
+
+Les **votés** (`data/trophees.js`) — scrutins publics, population complète, une saison à la fois :
 
 | trait | effet | quand |
 |---|---|---|
-| 🛡️ Selke | moins de buts alloués pendant ses présences | saison et séries |
+| 🛡️ Selke | moins de buts alloués | saison et séries |
 | 🧱 Norris | idem, pour un défenseur | saison et séries |
 | 🥅 Vezina | facteur sur chaque lancer qu'il voit | saison et séries |
 | 🏆 Conn Smythe | bonus offensif, ou un gardien plus dur à battre | **séries seulement** |
 
+Les **réputations** (`data/reputations.js`) — le consensus des amateurs, sur toute une carrière :
+
+| trait | effet | porte sur |
+|---|---|---|
+| ⚡ Vitesse | il obtient plus de lancers | le joueur |
+| 💣 Lancer | ses lancers entrent plus souvent | le joueur |
+| 🧭 Meneur | prolongation et séries | l'équipe |
+| 🥊 Colosse | l'adversaire finit moins bien | l'équipe |
+
+Un vote dit ce qu'une **saison** valait ; une réputation dit ce qu'un **joueur** était. Ni l'un ni l'autre n'est dans le sommaire, et c'est pour ça qu'ils existent.
+
+**La règle qui garde `data/reputations.js` honnête : on n'y met que ce qu'un amateur affirmerait sans hésiter.** Pas « il était bon » — ça, les colonnes le disent. C'est le seul endroit du dépôt qui repose sur du jugement plutôt que sur une mesure, et le contrepoids est double : les effets sont petits, et `check_traits.mjs` vérifie que **chaque nom existe dans les shards**, parce qu'un nom mal orthographié serait un trait mort dont personne ne saurait rien. Une réputation de vitesse s'éteint après 34 ans quand la date de naissance est connue.
+
 **Un trait appartient au joueur, pas à sa case.** Il rend partout dans l'alignement : un lauréat du Selke au quatrième trio défend aussi bien qu'au premier. C'est le malus de zone qui punit de mal placer un joueur, et il le fait déjà — faire porter la punition deux fois reviendrait à dire qu'un Selke oublie comment défendre quand on l'écrit sur la troisième ligne de la feuille. Seule condition : être **habillé**. Un trait sur un réserviste ne compte pas, il regarde le match. `check_traits.mjs` le vérifie en inversant l'ordre de l'alignement : le facteur doit être identique au dix-millième.
 
-**Un trait est rare par construction :** mesuré à **1,02 %** des 36 820 joueurs-saisons, et aucune saison n'en est dépourvue (`node scripts/check_traits.mjs`). Ne pas en avoir veut dire « rien de particulier », ce qui est vrai — contrairement à une cote, qui doit exister pour tout le monde et ment donc quand elle est inconnue.
+**Un trait est rare par construction :** mesuré à **4,6 %** des 36 820 joueurs-saisons — 1,02 % pour les votés, 3,6 % pour les réputations, qui durent une carrière au lieu d'une saison. Aucune saison n'en est dépourvue, et un seul joueur-saison sur cinq cents en porte trois (`node scripts/check_traits.mjs`). Ne pas en avoir veut dire « rien de particulier », ce qui est vrai — contrairement à une cote, qui doit exister pour tout le monde et ment donc quand elle est inconnue.
 
-**Effet mesuré : −10,4 buts alloués et +1,3 victoire** pour une vraie équipe qui en porte trois ou quatre, la même équipe rejouée sans. Les victoires sont bruitées ; les buts alloués sont le signal propre, puisque c'est là que trois des quatre traits agissent. Un trait doit se voir sans décider la saison à lui seul.
+**Effet mesuré : +4,5 buts marqués, −10,3 buts alloués et +3,9 victoires** pour une vraie équipe qui en porte sept à dix, la même équipe rejouée sans. Les victoires sont bruitées ; les deux colonnes de buts sont le signal propre — les votés pèsent sur les buts alloués, la vitesse et le lancer sur les buts marqués. Un trait doit se voir sans décider la saison à lui seul.
 
 **Deux limites d'époque, écrites pour qu'on ne les redécouvre pas.** Le Selke naît en 1977-78 : sept saisons n'ont aucun attaquant défensif décoré, et rien ne peut le corriger puisque le vote n'a pas eu lieu. Et le Vezina d'avant 1981-82 n'était **pas un vote** — il allait aux gardiens du club ayant alloué le moins de buts, ce qui récompense la brigade autant que le gardien, et le moteur mesure déjà cette brigade. Ces onze saisons sont donc écartées du trait même si `data/trophees.js` les porte.
 
@@ -165,7 +181,7 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 | 5 | 42,5 | 43,2 |
 | 10 | 53,2 | 56,2 |
 
-**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **61,5-19,3-1,3** en ligue et gagne la Coupe **41 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 63,0-15,5-3,5 et la gagne **44 %** (80 ligues chacun). Les deux se tiennent : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
+**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **63,5-18,1-0,4** en ligue et gagne la Coupe **55 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 66,1-13,1-2,9 et la gagne **60 %** (20 ligues chacun, donc ±11 points). Les deux se tiennent : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu, mais c'est le curseur à baisser si la Coupe devient trop facile. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
 `node scripts/mock_zones.mjs` garde le repère sur l'indice de cotes : le meilleur alignement légal est à 69,3 contre 68,0 pour les Bruins de 1970-71. Sans malus de zone il serait à 83,8.
 
