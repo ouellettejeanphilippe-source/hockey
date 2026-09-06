@@ -7,7 +7,7 @@
  */
 
 import { getArchetype, getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
-import { facteurDefensifUnite, facteurTraitGardien, facteurSeriesUnite } from './traits.js';
+import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe } from './traits.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
@@ -498,8 +498,6 @@ export function profilMatch(team, lineup) {
         // présences, point.
         presence: poids[u],
         coteDef: unitAvgLineup(team, lineup, group, u, 'd'),
-        traitDef: facteurDefensifUnite(joueurs),
-        traitSeries: facteurSeriesUnite(joueurs),
       });
     }
   }
@@ -511,10 +509,18 @@ export function profilMatch(team, lineup) {
     POIDS_TRIO.reduce((a, w, u) => a + w * unites.F[u].coteDef, 0) +
     POIDS_PAIRE.reduce((a, w, u) => a + w * unites.D[u].coteDef, 0));
 
+  // Les traits appartiennent au JOUEUR, pas à sa case : ils rendent partout
+  // dans l'alignement, du premier trio au troisième duo. C'est le malus de
+  // zone qui punit de mal placer quelqu'un, et il le fait déjà. Seule
+  // condition : être habillé — `lineup` ne contient pas les réservistes.
+  const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
+
   return {
     unites,
     pression: borne(pression, 0.40, 2.40),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
+    traitDef: facteurDefensifEquipe(habilles),
+    traitSeries: facteurSeriesEquipe(habilles),
   };
 }
 
@@ -561,6 +567,8 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
   const usure = heavy && def.rob ? (def.rob - 52) / 25 : 0;
   const fg = (gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20))
     * facteurTraitGardien(gardien, series);
+  // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
+  const traits = (def.traitDef ?? 1) * (series ? (off.traitSeries ?? 1) : 1);
 
   let buts = 0, tires = 0;
   for (let i = 0; i < lancers; i++) {
@@ -590,8 +598,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
       const dPaire = choisirPresence(def.unites.D);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
-      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z + usure - REF.zDef))
-        * dTrio.traitDef * dPaire.traitDef;
+      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z + usure - REF.zDef));
     } else {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef + usure - REF.zDef));
     }
@@ -599,8 +606,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir
-        * (fg / REF.fg) * facteurDef * (unite ? unite.qualite : 1) * chance
-        * (series && unite ? unite.traitSeries : 1),
+        * (fg / REF.fg) * facteurDef * traits * (unite ? unite.qualite : 1) * chance,
       0.005, PCT_TIR_MAX);
 
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;

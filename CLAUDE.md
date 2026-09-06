@@ -128,15 +128,17 @@ D'où quatre traits, tous tirés de scrutins publics à population complète (`d
 | 🥅 Vezina | facteur sur chaque lancer qu'il voit | saison et séries |
 | 🏆 Conn Smythe | bonus offensif, ou un gardien plus dur à battre | **séries seulement** |
 
+**Un trait appartient au joueur, pas à sa case.** Il rend partout dans l'alignement : un lauréat du Selke au quatrième trio défend aussi bien qu'au premier. C'est le malus de zone qui punit de mal placer un joueur, et il le fait déjà — faire porter la punition deux fois reviendrait à dire qu'un Selke oublie comment défendre quand on l'écrit sur la troisième ligne de la feuille. Seule condition : être **habillé**. Un trait sur un réserviste ne compte pas, il regarde le match. `check_traits.mjs` le vérifie en inversant l'ordre de l'alignement : le facteur doit être identique au dix-millième.
+
 **Un trait est rare par construction :** mesuré à **1,02 %** des 36 820 joueurs-saisons, et aucune saison n'en est dépourvue (`node scripts/check_traits.mjs`). Ne pas en avoir veut dire « rien de particulier », ce qui est vrai — contrairement à une cote, qui doit exister pour tout le monde et ment donc quand elle est inconnue.
 
-**Effet mesuré : −10,3 buts alloués et +1,3 victoire** pour une vraie équipe qui en porte trois ou quatre, la même équipe rejouée sans. Les victoires sont bruitées ; les buts alloués sont le signal propre, puisque c'est là que trois des quatre traits agissent. Un trait doit se voir sans décider la saison à lui seul.
+**Effet mesuré : −10,4 buts alloués et +1,3 victoire** pour une vraie équipe qui en porte trois ou quatre, la même équipe rejouée sans. Les victoires sont bruitées ; les buts alloués sont le signal propre, puisque c'est là que trois des quatre traits agissent. Un trait doit se voir sans décider la saison à lui seul.
 
 **Deux limites d'époque, écrites pour qu'on ne les redécouvre pas.** Le Selke naît en 1977-78 : sept saisons n'ont aucun attaquant défensif décoré, et rien ne peut le corriger puisque le vote n'a pas eu lieu. Et le Vezina d'avant 1981-82 n'était **pas un vote** — il allait aux gardiens du club ayant alloué le moins de buts, ce qui récompense la brigade autant que le gardien, et le moteur mesure déjà cette brigade. Ces onze saisons sont donc écartées du trait même si `data/trophees.js` les porte.
 
 **Pourquoi les traits agissent en propre plutôt que par la cote `d`.** `K_DEFENSE` est mesuré à 0,04 par écart-type d'alignement, donc un point de cote défensive vaut moins d'un pour cent de probabilité de but : faire passer un Selke par sa cote `d` lui ferait sauver un but par saison, invisible. C'est justement l'aveu du sommaire — le +/- ne voit pas ce que le vote voit.
 
-**La défense se joue présence par présence.** Le moteur tire l'unité défensive adverse à chaque lancer, au prorata de son temps de glace seul (jamais de son volume de tirs : une unité ne défend pas plus souvent parce qu'elle attaque plus). C'est ce qui rend un quatrième trio poreux coûteux pendant ses propres treize minutes, et c'est ce qui donne aux traits un endroit où mordre. Le −1 du +/- va donc aux joueurs qui étaient vraiment sur la glace.
+**La défense se joue présence par présence.** Le moteur tire l'unité défensive adverse à chaque lancer, au prorata de son temps de glace seul (jamais de son volume de tirs : une unité ne défend pas plus souvent parce qu'elle attaque plus). C'est ce qui rend un quatrième trio poreux coûteux pendant ses propres treize minutes, et c'est ce qui donne au +/- des joueurs qui étaient vraiment sur la glace. **Les traits, eux, ne passent pas par là** — ils sont attachés au joueur et agissent sur tout le match.
 
 ## Recalibrer la simulation
 
@@ -144,12 +146,12 @@ Repères actuels, de vrais joueurs-saisons d'une même cote, moyenne sur 12 essa
 
 | Cote | Fiche | BP-BC |
 |---|---|---|
-| 50 | 13-65-4 | 137-344 |
-| 60 | 27-50-5 | 213-304 |
-| 70 | 38-39-5 | 242-267 |
-| 80 | 43-35-4 | 237-235 |
-| 90 | 56-25-2 | 280-209 |
-| 99 | 68-14-1 | 327-169 |
+| 50 | 9-67-5 | 135-352 |
+| 60 | 30-46-5 | 211-292 |
+| 70 | 41-37-4 | 254-266 |
+| 80 | 45-34-3 | 246-234 |
+| 90 | 57-24-2 | 275-206 |
+| 99 | 66-15-1 | 323-168 |
 
 Le banc **ne peut plus être synthétique**. L'ancienne table alignait 23 joueurs inventés `{o:r, d:r, …}` ; le moteur par événements se nourrit des vraies statistiques — lancers, buts par lancer, pourcentage d'arrêts — que des joueurs inventés n'ont pas, et un tel banc joue comme 23 rappels de la ligue mineure quelle que soit sa cote. On tire donc de vrais joueurs-saisons dont la cote est celle du palier.
 
@@ -159,11 +161,11 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 
 | décile | victoires simulées | vraies victoires |
 |---|---|---|
-| 1 | 28,6 | 27,1 |
-| 5 | 42,6 | 43,2 |
-| 10 | 52,8 | 56,2 |
+| 1 | 29,0 | 27,1 |
+| 5 | 42,5 | 43,2 |
+| 10 | 53,2 | 56,2 |
 
-**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **61,1-19,6-1,3** en ligue et gagne la Coupe **50 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 62,7-15,7-3,5 et la gagne **40 %**. Les deux se tiennent, ce qui est la cible. C'est la cible : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
+**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **61,5-19,3-1,3** en ligue et gagne la Coupe **41 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 63,0-15,5-3,5 et la gagne **44 %** (80 ligues chacun). Les deux se tiennent : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
 `node scripts/mock_zones.mjs` garde le repère sur l'indice de cotes : le meilleur alignement légal est à 69,3 contre 68,0 pour les Bruins de 1970-71. Sans malus de zone il serait à 83,8.
 

@@ -304,8 +304,8 @@ La refonte se juge sur des nombres, pas sur une impression. Dans l'ordre :
 | Totaux des joueurs sur 82 matchs | ≈ leurs vrais totaux | biais −15 %, erreur 34 % dont 26 de bruit ⚠ |
 | `check_monotonie.mjs` | monotone, dix déciles sur dix | **10/10, et colle au réel** ✓ |
 | `check_ratings.mjs` | corrélation ≈ 0,80 | **0,804** ✓ |
-| Plafond du jeu | près du sommet historique, pas au-dessus | **64,3 V contre 62,8** ✓ |
-| Chances de Coupe | plus 100 %, et un vrai pari | **50 % au plafond, 40 % à MTL 76-77** ✓ |
+| Plafond du jeu | près du sommet historique, pas au-dessus | **62,3 V contre 62,0** ✓ |
+| Chances de Coupe | plus 100 %, et un vrai pari | **41 % au plafond, 44 % à MTL 76-77**, sur 80 ligues ✓ |
 | Rareté des traits | assez rare pour vouloir dire quelque chose | **1,02 % des joueurs-saisons** ✓ |
 | `smoke.mjs` à 390 px | 0 erreur console | **0** ✓ |
 
@@ -513,9 +513,18 @@ ainsi de la comptabilité, sans que le pointage ait l'air faux.
    | Vezina | facteur sur chaque lancer qu'il voit | toujours |
    | Conn Smythe | bonus offensif, ou un gardien plus dur à battre | **séries seulement** |
 
+   **Un trait appartient au joueur, pas à sa case.** Il rend partout dans
+   l'alignement : un lauréat du Selke au quatrième trio défend aussi bien
+   qu'au premier. C'est le malus de zone qui punit de mal placer quelqu'un, et
+   il le fait déjà — le faire porter deux fois reviendrait à dire qu'un Selke
+   oublie comment défendre quand on l'écrit sur la troisième ligne de la
+   feuille. Seule condition : être **habillé**, un réserviste regarde le
+   match. `check_traits.mjs` le vérifie en inversant l'ordre de l'alignement :
+   le facteur doit être identique au dix-millième.
+
    **Mesuré** (`scripts/check_traits.mjs`) : **1,02 %** des 36 820
    joueurs-saisons portent un trait, aucune saison n'en est dépourvue, et une
-   vraie équipe qui en porte trois ou quatre alloue **10,3 buts de moins** et
+   vraie équipe qui en porte trois ou quatre alloue **10,4 buts de moins** et
    gagne 1,3 match de plus que la même équipe rejouée sans. Visible, jamais
    décisif à soi seul.
 
@@ -527,6 +536,8 @@ ainsi de la comptabilité, sans que le pointage ait l'air faux.
    adverse est désormais tirée à chaque lancer, au prorata de son temps de
    glace **seul** — une unité ne défend pas plus souvent parce qu'elle
    attaque plus. Le −1 du +/- va donc aux joueurs qui étaient vraiment là.
+   Les traits, eux, ne passent pas par ce canal : ils sont attachés au joueur
+   et pèsent sur tout le match.
 
    **Pourquoi les traits agissent en propre et non par la cote `d`.**
    `K_DEFENSE` est mesuré à 0,04 par écart-type, donc un point de cote

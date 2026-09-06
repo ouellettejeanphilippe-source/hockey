@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getTraits, TRAITS, VEZINA_VOTE_DEPUIS } from '../js/traits.js';
-import { autoRoster, registerHiddenRatings, simulate } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, simulate, createTeam, activeLineup, profilMatch } from '../js/sim.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
@@ -101,6 +101,37 @@ for (const [cle, n] of cibles) {
     + `   ${(avec.W - sans.W >= 0 ? '+' : '')}${(avec.W - sans.W).toFixed(1).padStart(5)}`
     + `   ${avec.GA.toFixed(0).padStart(7)}  ${sans.GA.toFixed(0).padStart(7)}`);
 }
+/* ---------- 4 : le trait suit-il le joueur, où qu'il soit ? ---------- */
+/*
+ * C'est la règle : un trait appartient au JOUEUR, pas à sa case. Un lauréat du
+ * Selke doit défendre aussi bien au quatrième trio qu'au premier — c'est le
+ * malus de zone qui punit de mal le placer, et il le fait déjà.
+ *
+ * On le vérifie sans simuler : le facteur défensif d'équipe se lit dans le
+ * profil de match, et il doit être le MÊME quel que soit l'ordre des joueurs
+ * dans l'alignement. Un seul écart voudrait dire que le trait est reparti se
+ * cacher dans une unité.
+ */
+{
+  const [saison, tag] = cibles[0][0].split('|');
+  const ps = JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, `${saison}.json`), 'utf8'))
+    .players.filter(p => p.t === tag && p.gp >= 10);
+  const profilDe = (ordre) => {
+    const pool = ordre.map(p => ({ ...p }));
+    pool.forEach(registerHiddenRatings);
+    const team = createTeam(tag, tag, autoRoster(pool));
+    return profilMatch(team, activeLineup(team)).traitDef;
+  };
+  const normal = profilDe(ps);
+  const inverse = profilDe(ps.slice().reverse());
+  const ok = Math.abs(normal - inverse) < 1e-9;
+  console.log(`\n  LE TRAIT SUIT-IL LE JOUEUR ? (${tag} ${saison})\n`);
+  console.log(`    facteur défensif, ordre normal   ${normal.toFixed(4)}`);
+  console.log(`    facteur défensif, ordre inversé  ${inverse.toFixed(4)}`);
+  console.log(`    ${ok ? '✓ identique — le trait ne dépend pas de la case'
+    : '✗ DIFFÉRENT — le trait dépend de la place dans l\'alignement'}`);
+}
+
 console.log(`\n  écart moyen : ${(moy(ecarts) >= 0 ? '+' : '')}${moy(ecarts).toFixed(1)} victoires`
   + `, ${(moy(ecartsBC) >= 0 ? '+' : '')}${moy(ecartsBC).toFixed(1)} buts alloués`);
 console.log('  Les victoires sont bruitées à dix essais ; les BUTS ALLOUÉS sont le');
