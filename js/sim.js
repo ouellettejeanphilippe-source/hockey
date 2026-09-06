@@ -8,7 +8,8 @@
 
 import { getArchetype, getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
-         facteurLancersJoueur, facteurFinitionJoueur, bonusMeneurEquipe } from './traits.js';
+         facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
+         bonusMeneurEquipe } from './traits.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
@@ -407,6 +408,19 @@ export const REF = { pression: 1.272, zDef: 0.672, fg: 0.895, pctTir: 1.022 };
  * d'effectif, et ils finissent mieux que la moyenne. Le régler à la main sur
  * la sortie mesurée vaut mieux que de propager cette pondération dans quatre
  * formules qui divergeraient ensuite.
+ *
+ * ET UNE MISE EN GARDE PAYÉE COMPTANT. En passant `data/reputations.js` de 86
+ * à 215 entrées, j'ai lu 3,19 buts par équipe par match sur cinq exécutions et
+ * conclu que les réputations gonflaient le pointage de 3 %. J'ai donc rabaissé
+ * les deux constantes — puis relu 2,99 avec les nouvelles. Ni l'un ni l'autre
+ * n'était vrai : `check_feuilles.mjs` tire 32 équipes au hasard dans 55
+ * saisons, ce qui fait varier le repère de ±0,15 but d'une exécution à
+ * l'autre, et je courais après ce bruit-là. Sur cinq ligues moyennées
+ * (`LIGUES=5`), les valeurs d'origine retombent pile sur la cible. Les deux
+ * constantes n'ont donc PAS bougé, et c'est ce qu'il fallait conclure.
+ *
+ * Règle qui en découle : ne jamais régler ces deux nombres sur une seule
+ * exécution de `check_feuilles.mjs`.
  */
 export const CIBLE_PCT_TIR = 0.0966;
 export const PCT_TIR_MAX = 0.35;
@@ -524,6 +538,7 @@ export function profilMatch(team, lineup) {
     pression: borne(pression, 0.40, 2.40),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles),
+    traitAtt: facteurAttaqueEquipe(habilles),
     traitSeries: facteurSeriesEquipe(habilles),
     meneur: bonusMeneurEquipe(habilles),
   };
@@ -573,7 +588,8 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
   const fg = (gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20))
     * facteurTraitGardien(gardien, series);
   // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
-  const traits = (def.traitDef ?? 1) * (series ? (off.traitSeries ?? 1) : 1);
+  const traits = (def.traitDef ?? 1) * (off.traitAtt ?? 1)
+    * (series ? (off.traitSeries ?? 1) : 1);
 
   let buts = 0, tires = 0;
   for (let i = 0; i < lancers; i++) {

@@ -54,7 +54,7 @@ scripts/check_plafond.mjs   le plafond du jeu en victoires et en Coupes
 scripts/check_traits.mjs    les traits : rareté, couverture d'époque, effet mesuré
 scripts/smoke.mjs           test de fumée Playwright à 390 px
 data/trophees.js            Selke, Norris, Vezina, Conn Smythe — gagnants et finalistes
-data/reputations.js         les réputations curées : vitesse, lancer, meneur, colosse
+data/reputations.js         les réputations curées : 179 joueurs marquants
 data/index.json             liste des saisons disponibles
 data/seasons/<saison>.json  un shard par saison
 data/seed.json              filet hors ligne
@@ -131,14 +131,18 @@ Les **votés** (`data/trophees.js`) — scrutins publics, population complète, 
 | 🥅 Vezina | facteur sur chaque lancer qu'il voit | saison et séries |
 | 🏆 Conn Smythe | bonus offensif, ou un gardien plus dur à battre | **séries seulement** |
 
-Les **réputations** (`data/reputations.js`) — le consensus des amateurs, sur toute une carrière :
+Les **réputations** (`data/reputations.js`) — le consensus des amateurs, sur toute une carrière, **179 joueurs marquants** :
 
 | trait | effet | porte sur |
 |---|---|---|
 | ⚡ Vitesse | il obtient plus de lancers | le joueur |
 | 💣 Lancer | ses lancers entrent plus souvent | le joueur |
+| 🪄 Créateur | son équipe finit mieux | l'équipe |
 | 🧭 Meneur | prolongation et séries | l'équipe |
 | 🥊 Colosse | l'adversaire finit moins bien | l'équipe |
+| 🧤 Voleur | le gardien laisse passer moins | l'équipe |
+
+**🧤 Voleur rachète le trou du Vezina.** Avant 1981-82 ce trophée n'était pas un vote, donc Dryden, Parent, Tony Esposito et Giacomin n'avaient aucun trait — alors qu'ils sont exactement les gardiens dont on se souvient. La réputation couvre toutes les époques et comble ça.
 
 Un vote dit ce qu'une **saison** valait ; une réputation dit ce qu'un **joueur** était. Ni l'un ni l'autre n'est dans le sommaire, et c'est pour ça qu'ils existent.
 
@@ -146,9 +150,13 @@ Un vote dit ce qu'une **saison** valait ; une réputation dit ce qu'un **joueur*
 
 **Un trait appartient au joueur, pas à sa case.** Il rend partout dans l'alignement : un lauréat du Selke au quatrième trio défend aussi bien qu'au premier. C'est le malus de zone qui punit de mal placer un joueur, et il le fait déjà — faire porter la punition deux fois reviendrait à dire qu'un Selke oublie comment défendre quand on l'écrit sur la troisième ligne de la feuille. Seule condition : être **habillé**. Un trait sur un réserviste ne compte pas, il regarde le match. `check_traits.mjs` le vérifie en inversant l'ordre de l'alignement : le facteur doit être identique au dix-millième.
 
-**Un trait est rare par construction :** mesuré à **4,6 %** des 36 820 joueurs-saisons — 1,02 % pour les votés, 3,6 % pour les réputations, qui durent une carrière au lieu d'une saison. Aucune saison n'en est dépourvue, et un seul joueur-saison sur cinq cents en porte trois (`node scripts/check_traits.mjs`). Ne pas en avoir veut dire « rien de particulier », ce qui est vrai — contrairement à une cote, qui doit exister pour tout le monde et ment donc quand elle est inconnue.
+**Les deux étages n'ont pas la même rareté, et c'est voulu.** Mesuré : **1,02 %** des 36 820 joueurs-saisons portent un trait voté, **8,8 %** une réputation, **9,8 %** au total. Un vote est décerné une fois par saison ; une réputation dure une carrière, et « les joueurs marquants de 55 saisons » se compte en centaines. Ne pas en avoir veut dire « rien de particulier », ce qui est vrai — contrairement à une cote, qui doit exister pour tout le monde et ment donc quand elle est inconnue.
 
-**Effet mesuré : +4,5 buts marqués, −10,3 buts alloués et +3,9 victoires** pour une vraie équipe qui en porte sept à dix, la même équipe rejouée sans. Les victoires sont bruitées ; les deux colonnes de buts sont le signal propre — les votés pèsent sur les buts alloués, la vitesse et le lancer sur les buts marqués. Un trait doit se voir sans décider la saison à lui seul.
+**Les canaux d'équipe saturent, et c'est ce qui empêche les traits de devenir un deuxième axe d'empilement.** Mesuré : le meilleur alignement légal sous le plafond ramasse **25 traits** contre 9 au Canadien de 1976-77 — l'optimiseur choisit les joueurs les mieux cotés, qui sont exactement les joueurs marquants. Sans borne, sa Coupe passait à 67 %, au-dessus de la meilleure vraie équipe de l'histoire. Le quatrième Norris d'un vestiaire n'apporte pas autant que le premier : on ne défend pas deux fois la même rondelle. Les canaux d'**équipe** sont donc bornés (`BORNES` dans `js/traits.js`) ; ceux de **joueur** — vitesse, lancer — ne le sont pas, puisqu'ils portent sur les lancers de leur seul porteur et ne s'additionnent pas.
+
+**Les magnitudes suivent la longueur de la liste.** Passer de 86 à 215 entrées a fait grimper l'effet d'une grande équipe de +3,9 à **+5,5 victoires sans qu'on touche à un seul nombre** — une équipe des années Lemieux porte treize traits, pas quatre. Vitesse et lancer sont donc redescendus de 1,060 et 1,050 à 1,035 et 1,030. **Allonger `data/reputations.js` sans refaire tourner `check_traits.mjs` gonflerait les grandes équipes en silence** : c'est le piège de ce fichier-là.
+
+**Effet mesuré : +14,0 buts marqués, −3,3 buts alloués et +3,4 victoires** pour une vraie équipe qui en porte onze à treize (les Penguins de Lemieux, les Red Wings de 2002), la même équipe rejouée sans. Les victoires sont bruitées ; les deux colonnes de buts sont le signal propre — les votés pèsent sur les buts alloués, la vitesse et le lancer sur les buts marqués. Un trait doit se voir sans décider la saison à lui seul.
 
 **Deux limites d'époque, écrites pour qu'on ne les redécouvre pas.** Le Selke naît en 1977-78 : sept saisons n'ont aucun attaquant défensif décoré, et rien ne peut le corriger puisque le vote n'a pas eu lieu. Et le Vezina d'avant 1981-82 n'était **pas un vote** — il allait aux gardiens du club ayant alloué le moins de buts, ce qui récompense la brigade autant que le gardien, et le moteur mesure déjà cette brigade. Ces onze saisons sont donc écartées du trait même si `data/trophees.js` les porte.
 
@@ -181,7 +189,7 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 | 5 | 42,5 | 43,2 |
 | 10 | 53,2 | 56,2 |
 
-**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **63,5-18,1-0,4** en ligue et gagne la Coupe **55 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 66,1-13,1-2,9 et la gagne **60 %** (20 ligues chacun, donc ±11 points). Les deux se tiennent : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu, mais c'est le curseur à baisser si la Coupe devient trop facile. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
+**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **63,9-17,5-0,6** en ligue et gagne la Coupe **58 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 62,3-16,6-3,2 et la gagne **63 %** (24 ligues chacun, donc ±10 points). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
 `node scripts/mock_zones.mjs` garde le repère sur l'indice de cotes : le meilleur alignement légal est à 69,3 contre 68,0 pour les Bruins de 1970-71. Sans malus de zone il serait à 83,8.
 
@@ -192,12 +200,14 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 Si tu changes `POIDS_TRIO`, `POIDS_PAIRE`, `SYN_ECHELLE`, `K_DEFENSE`, `REF`, la courbe du clutch, `ZONE_THRESHOLDS` ou les constantes `ZONE_PEN_*`, refais tourner les quatre et reporte-les ici et dans `PLAN.md` :
 
 ```bash
-node scripts/check_feuilles.mjs      # les égalités et les repères d'époque
+LIGUES=5 node scripts/check_feuilles.mjs   # les égalités et les repères d'époque
 node scripts/calibrate_sim.mjs       # la table par palier de cote
 node scripts/check_monotonie.mjs     # monotone sur dix déciles
 node scripts/check_plafond.mjs       # victoires et Coupes au plafond
 node scripts/check_traits.mjs        # les traits restent rares et se voient
 ```
+
+**Ne règle jamais `LANCERS_BASE` ni `CIBLE_PCT_TIR` sur une seule exécution de `check_feuilles.mjs`.** Le script tire 32 équipes au hasard dans 55 saisons, ce qui fait varier le repère de ±0,15 but. En élargissant les réputations j'ai lu 3,19 buts sur cinq exécutions, conclu à une inflation de 3 %, rabaissé les deux constantes — puis relu 2,99. Les deux lectures étaient du bruit : sur cinq ligues moyennées (`LIGUES=5`), les valeurs d'origine retombent sur la cible et n'ont pas eu à bouger.
 
 **Les chances de Coupe demandent 40 ligues, pas 6.** Une Coupe est un événement composé de quatre séries : à 6 ligues j'ai lu 33 %, à 16 ligues 38 %, à 16 autres 75 %. À 40 ligues c'est stable à ±8 points. Ne conclus rien d'un `ESSAIS=6`.
 

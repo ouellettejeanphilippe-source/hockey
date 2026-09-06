@@ -304,9 +304,9 @@ La refonte se juge sur des nombres, pas sur une impression. Dans l'ordre :
 | Totaux des joueurs sur 82 matchs | ≈ leurs vrais totaux | biais −15 %, erreur 34 % dont 26 de bruit ⚠ |
 | `check_monotonie.mjs` | monotone, dix déciles sur dix | **10/10, et colle au réel** ✓ |
 | `check_ratings.mjs` | corrélation ≈ 0,80 | **0,804** ✓ |
-| Plafond du jeu | près du sommet historique, pas au-dessus | **65,8 V contre 66,2** ✓ |
-| Chances de Coupe | plus 100 %, et un vrai pari | **55 % au plafond, 60 % à MTL 76-77**, sur 20 ligues ✓ |
-| Rareté des traits | assez rare pour vouloir dire quelque chose | **4,6 % des joueurs-saisons** ✓ |
+| Plafond du jeu | près du sommet historique, pas au-dessus | **65,3 V contre 65,0** ✓ |
+| Chances de Coupe | plus 100 %, et un vrai pari | **58 % au plafond, 63 % à MTL 76-77**, sur 24 ligues ✓ |
+| Rareté des traits | assez rare pour vouloir dire quelque chose | **9,8 % des joueurs-saisons** ✓ |
 | `smoke.mjs` à 390 px | 0 erreur console | **0** ✓ |
 
 Le contrôle de cohérence des feuilles de match est devenu un test permanent,
@@ -562,8 +562,14 @@ ainsi de la comptabilité, sans que le pointage ait l'air faux.
    |---|---|---|
    | ⚡ Vitesse | il obtient plus de lancers | le joueur |
    | 💣 Lancer | ses lancers entrent plus souvent | le joueur |
+   | 🪄 Créateur | son équipe finit mieux | l'équipe |
    | 🧭 Meneur | prolongation et séries | l'équipe |
    | 🥊 Colosse | l'adversaire finit moins bien | l'équipe |
+   | 🧤 Voleur | le gardien laisse passer moins | l'équipe |
+
+   **🧤 Voleur rachète le trou du Vezina** : avant 1981-82 ce trophée n'était
+   pas un vote, donc Dryden, Parent, Tony Esposito et Giacomin n'avaient aucun
+   trait alors qu'ils sont exactement les gardiens dont on se souvient.
 
    Un vote dit ce qu'une **saison** valait ; une réputation dit ce qu'un
    **joueur** était. C'est le seul endroit du dépôt qui repose sur du jugement
@@ -573,16 +579,34 @@ ainsi de la comptabilité, sans que le pointage ait l'air faux.
    rien. Une réputation de vitesse s'éteint après 34 ans quand la date de
    naissance est connue : elle ne survit pas aux jambes qui la portaient.
 
-   **Mesuré avec les deux étages** : 4,6 % des joueurs-saisons portent un
-   trait (1,0 % votés, 3,6 % réputations — celles-ci durent une carrière), et
-   une vraie équipe qui en porte sept à dix marque 4,5 buts de plus, en alloue
-   10,3 de moins et gagne 3,9 matchs de plus que la même rejouée sans.
+   **Mesuré avec les deux étages, 179 joueurs** : 9,8 % des joueurs-saisons
+   portent un trait (1,0 % votés, 8,8 % réputations — celles-ci durent une
+   carrière), et une vraie équipe qui en porte onze à treize marque 14 buts de
+   plus, en alloue 3 de moins et gagne 3,4 matchs de plus que la même rejouée
+   sans.
 
-   **Une conséquence à surveiller** : les réputations ont fait monter les
-   chances de Coupe des grandes équipes de ~42 % à ~55-60 %, parce qu'elles
-   favorisent exactement les joueurs marquants dont ces équipes sont faites.
-   C'est voulu, mais c'est le curseur à baisser en premier si la Coupe devient
-   trop facile.
+   **Deux pièges trouvés en allongeant la liste, tous deux silencieux.**
+
+   - **Les magnitudes suivent la longueur de la liste.** Passer de 86 à 215
+     entrées a fait grimper l'effet d'une grande équipe de +3,9 à +5,5
+     victoires *sans qu'on touche à un seul nombre* : une équipe des années
+     Lemieux porte treize traits, pas quatre. Vitesse et lancer sont donc
+     redescendus de 1,060 et 1,050 à 1,035 et 1,030.
+   - **Les traits devenaient un deuxième axe d'empilement.** Le meilleur
+     alignement légal sous le plafond ramasse **25 traits** contre 9 au
+     Canadien de 1976-77, parce que l'optimiseur choisit les joueurs les mieux
+     cotés, qui sont exactement les joueurs marquants. Sa Coupe passait à
+     67 %, au-dessus de la meilleure vraie équipe de l'histoire. Les canaux
+     d'ÉQUIPE saturent donc (`BORNES`) : le quatrième Norris d'un vestiaire
+     n'apporte pas autant que le premier, on ne défend pas deux fois la même
+     rondelle. Les canaux de JOUEUR ne saturent pas — ils portent sur les
+     lancers de leur seul porteur.
+
+   **Une conséquence assumée** : les réputations ont fait monter les chances de
+   Coupe des grandes équipes de ~42 % à ~58-63 %, parce qu'elles favorisent
+   exactement les joueurs marquants dont ces équipes sont faites. L'ordre, lui,
+   est redevenu le bon après la saturation — l'alignement optimal ne devance
+   plus le Canadien de 1976-77.
 
 ---
 
