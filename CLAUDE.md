@@ -64,13 +64,23 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 
 ## Règles fermes
 
+**Il n'y a plus de cote globale.** La valeur d'un joueur (`v`) est son **rang statistique** dans sa saison, projeté sur la distribution historique par position (`valeurDeSaison` et `VALEUR_CENTILES` dans `js/ratings.js`). Le rang vient des colonnes — production, volume de lancers, différentiel lissé du vestiaire, usage — et l'échelle est celle que le jeu utilisait déjà. Cette séparation est délibérée : **changer qui est premier est un choix de conception, changer combien de joueurs valent 70 en serait un autre**, et on n'en veut qu'un à la fois. C'est ce qui garantit que les seuils de zone, la courbe des salaires et l'économie du plafond continuent de valoir ce qu'ils valaient.
+
+**Les cotes ne s'affichent nulle part.** Ni hexagone au survol, ni chiffre global sur la carte, ni grille ATT/DÉF/ROB/CLU sur la fiche, ni option « brouillard de guerre » — elle n'existait que pour les révéler. La fiche porte à la place un **profil mesuré** : production, lancers, penchant et robustesse, chacun en écart au régulier moyen de la saison du joueur. Un joueur se juge sur ce qu'il a fait.
+
+**Les sous-cotes `o`, `d`, `r`, `c` restent internes** : le moteur lit `d` pour la défensive d'équipe, `r` pour l'usure et `c` pour la prolongation. Elles ne sortent jamais dans le DOM.
+
+**Un taux sur huit matchs ne veut rien dire.** Chaque terme de taux est ramené vers la moyenne au prorata de l'échantillon (`gp / (gp + FIABILITE)`, FIABILITE = 22). Sans ça la corrélation force/classement tombait à 0,77 et les rappels occupaient les hauts de classement.
+
 **Une seule implémentation des cotes.** `js/ratings.js` est la source unique. Le navigateur l'importe, et `scripts/build_shards.py` y accède via `scripts/rate.mjs`. Ne réimplémente jamais la formule en Python — ça produirait deux définitions qui divergent silencieusement.
 
 **Toucher à une formule de cote veut dire incrémenter `RATINGS_VERSION`** dans `js/ratings.js`. La version est dans la clé du cache IndexedDB. Sans incrément, un joueur se retrouve avec des cotes calculées par deux formules différentes dans le même alignement.
 
 **Deux étages de cotes.** L'étage 1 (`rateSkaters`, `rateGoalies` : sous-cotes o, d, r, c, sp) exige les stats brutes de l'API. L'étage 2 (`finalizeSeason` : cote globale, salaire, archétype `ak`, zone `lz`, contrat d'entrée `elc`) ne lit que le shard, donc `python3 scripts/build_shards.py --rerate` le rejoue sur les 55 saisons en une seconde, sans réseau. Si tu changes l'étage 2, c'est la commande à lancer ; si tu changes l'étage 1, il faut l'API. Le build normal enchaîne toujours un `--rerate` à la fin, parce que les contrats d'entrée dépendent de la première saison de chaque joueur dans toute la base et de sa cohorte d'identifiant (âge estimé quand l'API bios n'a pas donné la date de naissance `bd` ; `python3 scripts/build_shards.py --bios-only` l'ajoute aux shards existants en ~110 requêtes, et les cartes affichent alors l'âge). Règles d'époque dans `elcEra` : rien avant 1995-96.
 
-**La cote globale est relative à la saison.** Un bonus de vedette est calculé sur le rang du joueur dans sa saison, divisé par le nombre d'équipes de la ligue cette année-là. C'est ce qui équilibre 1975 (18 équipes) et 2024 (32). Vérifie avec `node scripts/check_ratings.mjs` : la corrélation entre la force d'une équipe et son vrai classement (reconstitué des fiches de gardiens) doit rester autour de 0,8.
+**La valeur est relative à la saison par construction** : c'est un rang à l'intérieur de la saison, donc 1975 (18 équipes) et 2024 (32) s'équilibrent d'eux-mêmes. Vérifie avec `node scripts/check_ratings.mjs` : la corrélation entre la force d'une équipe et son vrai classement (reconstitué des fiches de gardiens) doit rester autour de 0,8 — elle est à **0,801**.
+
+**Ce que le rang statistique ne peut pas voir, et c'est assumé.** `finalizeSeason` ne lit que le shard, qui ne porte ni les points en désavantage numérique ni les tirs bloqués — deux signaux défensifs que l'ancienne cote pouvait utiliser parce qu'elle était calculée à l'étage 1, sur l'API. Le différentiel lissé les remplace, et il porte donc plus de poids chez les défenseurs (0,36) que chez les attaquants (0,20). C'est aussi le terme le plus discutable : le +/- est en partie un résultat d'équipe, et lui donner du poids gonfle mécaniquement la corrélation qu'on mesure ensuite. `LISSAGE_EQUIPE` en retranche la moitié.
 
 **Modules ES natifs, pas de build step.** `<script type="module">`. Aucun bundler, aucun transpileur, aucun `node_modules`. Le dépôt doit pouvoir être servi tel quel.
 
@@ -211,13 +221,13 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 
 | décile | victoires simulées | vraies victoires |
 |---|---|---|
-| 1 | 29,5 | 27,1 |
-| 5 | 43,1 | 43,2 |
-| 10 | 54,2 | 56,2 |
+| 1 | 26,4 | 27,1 |
+| 5 | 42,0 | 43,3 |
+| 10 | 52,0 | 56,6 |
 
-**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **63,6-17,7-0,7** en ligue et gagne la Coupe **30 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 63,3-15,6-3,1 et la gagne **35 %** (20 ligues chacun, donc ±11 points). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
+**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **61,9-19,1-1,1** en ligue et gagne la Coupe **60 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 62,1-16,6-3,4 et la gagne **40 %** (20 ligues chacun, donc ±11 points). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
-`node scripts/mock_zones.mjs` garde le repère sur l'indice de cotes : le meilleur alignement légal est à 69,3 contre 68,0 pour les Bruins de 1970-71. Sans malus de zone il serait à 83,8.
+`node scripts/mock_zones.mjs` garde le repère sur l'indice de valeur : le meilleur alignement légal est à **65,0**, exactement le Canadien de 1976-77, contre 65,5 pour les Bruins de 1970-71. Sans malus de zone il serait à 79,5. La valeur bâtie sur les statistiques a resserré cet écart d'elle-même — l'ancienne cote plaçait l'empilement à 69,3, au-dessus de toutes les vraies équipes.
 
 `ZONE_PEN_SOUS` et `ZONE_PEN_MAX` ne tirent pas sur la même chose. Sur un alignement empilé la pénalité sature, donc seul le plafond mord ; sur une vraie équipe elle reste dessous, donc seul le coefficient mord. Un coefficient bas avec un plafond haut ferme donc l'empilement sans toucher aux vraies équipes — monter le coefficient punit les deux.
 

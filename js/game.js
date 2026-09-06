@@ -19,7 +19,7 @@ import {
   playSeries, autoRoster,
 } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent } from './logos.js';
-import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition } from './ratings.js';
+import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 
 const $ = id => document.getElementById(id);
@@ -71,7 +71,6 @@ const G = {
   search: '',
   statsProrata: false,
   salaryMode: '2026',   // '2026' | 'ERA'
-  fogOfWar: true,
   onlyFit: false,
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -133,7 +132,7 @@ function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode,
-      fogOfWar: G.fogOfWar, onlyFit: G.onlyFit, sortBy: G.sortBy,
+      onlyFit: G.onlyFit, sortBy: G.sortBy,
     }));
   } catch { /* ignore */ }
 }
@@ -143,7 +142,6 @@ function loadOpts() {
     const o = JSON.parse(localStorage.getItem('cap82_opts') || '{}');
     if (typeof o.statsProrata === 'boolean') G.statsProrata = o.statsProrata;
     if (o.salaryMode === 'ERA' || o.salaryMode === '2026') G.salaryMode = o.salaryMode;
-    if (typeof o.fogOfWar === 'boolean') G.fogOfWar = o.fogOfWar;
     if (typeof o.onlyFit === 'boolean') G.onlyFit = o.onlyFit;
     if (typeof o.sortBy === 'string') G.sortBy = o.sortBy;
   } catch { /* ignore */ }
@@ -451,7 +449,6 @@ const closeModal = id => { const m = $(id); if (m) m.style.display = 'none'; };
 function setOption(key, val) {
   if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
-  else if (key === 'fog') { G.fogOfWar = val === 'on'; if (G.fogOfWar) hideRadar(); }
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
   saveOpts();
 }
@@ -460,7 +457,6 @@ function syncOptionsUI() {
   const cur = {
     stats: G.statsProrata ? 'prorata' : 'real',
     salary: G.salaryMode,
-    fog: G.fogOfWar ? 'on' : 'off',
     onlyFit: G.onlyFit ? 'on' : 'off',
   };
   document.querySelectorAll('.seg').forEach(seg => {
@@ -871,7 +867,6 @@ function playerCardEl(p) {
     ev.stopPropagation();
     signPlayer(p);
   };
-  if (!G.fogOfWar) attachRadar(el, p);
   return el;
 }
 
@@ -1025,7 +1020,6 @@ function slotEl(s) {
       <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
       <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
       <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${penTag}</div>`;
-    if (!G.fogOfWar) attachRadar(el, p);
     el.querySelector('.slot-remove').onclick = ev => {
       ev.stopPropagation();
       delete G.roster[s.i];
@@ -1197,70 +1191,44 @@ function render() {
    Hexagone (seulement si le brouillard est levé)
    ===================================================================== */
 
-function attachRadar(el, p) {
-  el.addEventListener('mouseenter', ev => showRadar(ev, p));
-  el.addEventListener('mousemove', positionRadar);
-  el.addEventListener('mouseleave', hideRadar);
-}
+/**
+ * Le profil mesuré : les mêmes axes que ceux qui décident de l'archétype et
+ * de la valeur, exprimés en écart au régulier moyen de la saison du joueur.
+ * 1,00 = exactement le régulier moyen ; 2,00 = le double.
+ */
+function profilMesure(p) {
+  const gp = Math.max(1, p.gp || 1);
+  const [, pctTir, shF, shD, ptF, ptD, partButs, pimF] = seasonLancers(p.s);
+  const cell = (k, v, t) =>
+    `<div class="profil-cell" title="${esc(t)}"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`;
 
-function showRadar(ev, p) {
-  if (G.fogOfWar) return;
-  const tip = $('radarTooltip');
-  if (!tip) return;
-
-  const isG = p.p === 'G';
-  const labels = isG ? ['TEC', 'BLI', 'ROB', 'CLU', 'RÉF'] : ['ATT', 'DÉF', 'ROB', 'CLU', 'VIT'];
-  const r = getHiddenRatings(p);
-  const values = [r.o, r.d, r.r, r.c, r.sp ?? 50];
-
-  const size = 150, c = size / 2, rad = 48;
-  const coord = (val, i) => {
-    const ang = (i * 72 - 90) * Math.PI / 180;
-    const rr = (val / 100) * rad;
-    return [c + rr * Math.cos(ang), c + rr * Math.sin(ang)];
-  };
-
-  let grid = '';
-  for (const lvl of [0.25, 0.5, 0.75, 1]) {
-    const pts = [];
-    for (let i = 0; i < 5; i++) {
-      const ang = (i * 72 - 90) * Math.PI / 180;
-      pts.push(`${c + lvl * rad * Math.cos(ang)},${c + lvl * rad * Math.sin(ang)}`);
-    }
-    grid += `<polygon points="${pts.join(' ')}" fill="none" stroke="rgba(28,52,80,0.8)" stroke-width="1"/>`;
+  if (p.p === 'G') {
+    const svLigue = 1 - (pctTir || 10.5) / 100;
+    const ecart = ((p.sv ?? svLigue) - svLigue) * 1000;
+    return `<div class="profil-grid">
+      ${cell('ARRÊTS', (ecart >= 0 ? '+' : '') + ecart.toFixed(1), `Millièmes d'arrêts au-dessus de sa ligue en ${p.s} (${(svLigue * 1000).toFixed(0)}).`)}
+      ${cell('CHARGE', ((p.sa || 0) / gp).toFixed(1), 'Lancers vus par match.')}
+      ${cell('DÉPARTS', p.gp, 'Matchs joués — un partant se reconnaît autant à sa charge qu\'à son pourcentage.')}
+    </div>`;
   }
-  let axes = '', lbls = '';
-  for (let i = 0; i < 5; i++) {
-    const ang = (i * 72 - 90) * Math.PI / 180;
-    axes += `<line x1="${c}" y1="${c}" x2="${c + rad * Math.cos(ang)}" y2="${c + rad * Math.sin(ang)}" stroke="rgba(28,52,80,1)" stroke-width="1"/>`;
-    lbls += `<text x="${c + (rad + 14) * Math.cos(ang)}" y="${c + (rad + 14) * Math.sin(ang) + 3}" fill="#93a9c0" font-size="8" font-weight="800" text-anchor="middle">${labels[i]}</text>`;
-  }
-  const poly = values.map((v, i) => coord(v, i).join(',')).join(' ');
-  const dots = values.map((v, i) => { const [x, y] = coord(v, i); return `<circle cx="${x}" cy="${y}" r="2.5" fill="#38bdf8"/>`; }).join('');
 
-  tip.innerHTML = `
-    <div class="radar-header">${esc(p.n)}</div>
-    <div class="radar-sub">${esc(positionLabel(p))} · ${esc(p.t)} ${esc(p.s)}</div>
-    <svg class="radar-chart-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      ${grid}${axes}
-      <polygon points="${poly}" fill="rgba(244,196,48,0.32)" stroke="#f4c430" stroke-width="2"/>
-      ${dots}${lbls}
-    </svg>`;
-  tip.style.display = 'block';
-  positionRadar(ev);
+  const est_D = p.p === 'D';
+  const r = (x) => x.toFixed(2);
+  const prod = (p.pt || 0) / gp / (est_D ? (ptD || 0.35) : (ptF || 0.62));
+  const vol = (p.sh || 0) / gp / (est_D ? (shD || 1.35) : (shF || 1.75));
+  const pen = (p.pt || 0) >= 15 ? (p.g || 0) / p.pt - (partButs || 0.40) : 0;
+  const dur = (p.pim || 0) / gp / (pimF || 0.90);
+
+  return `<div class="profil-grid">
+    ${cell('PRODUCTION', r(prod), `Points par match, sur le régulier moyen de ${p.s}. 1,00 = la moyenne.`)}
+    ${cell('LANCERS', r(vol), `Lancers par match, sur le régulier moyen de ${p.s}.`)}
+    ${cell('PENCHANT', (pen >= 0 ? '+' : '') + pen.toFixed(2), pen >= 0
+      ? 'Il finit plus que la moyenne : ses points sont surtout des buts.'
+      : 'Il sert plus qu\'il ne finit : ses points sont surtout des passes.')}
+    ${cell('ROBUSTESSE', r(dur), `Minutes de punition par match, sur le régulier moyen de ${p.s}.`)}
+  </div>`;
 }
 
-function positionRadar(ev) {
-  const tip = $('radarTooltip');
-  if (!tip || tip.style.display === 'none') return;
-  tip.style.left = Math.min(window.innerWidth - 222, ev.clientX + 14) + 'px';
-  tip.style.top = Math.min(window.innerHeight - 250, ev.clientY + 14) + 'px';
-}
-
-function hideRadar() {
-  const tip = $('radarTooltip');
-  if (tip) tip.style.display = 'none';
-}
 
 /* =====================================================================
    Fiche complète du joueur
@@ -1291,18 +1259,12 @@ function showPlayerModal(p) {
       + (p.ht != null ? cell('MÉ/M', p.ht) : '')
       + (p.fo != null ? cell('MJ %', Math.round(p.fo * 100)) : '');
 
-  let ratings;
-  if (G.fogOfWar) {
-    ratings = `<div class="fog-msg">🔒 Les cotes cachées restent secrètes jusqu'à la simulation.<br>
-      Tu peux les afficher dans <strong>Options → brouillard de guerre</strong>, mais c'est le mode entraînement.</div>`;
-  } else {
-    const r = getHiddenRatings(p);
-    const rc = (k, v, cls = '') => `<div class="rating-cell ${cls}"><div class="k">${k}</div><div class="v">${v}</div></div>`;
-    ratings = `<div class="rating-grid">
-      ${rc(p.p === 'G' ? 'TEC' : 'ATT', r.o)}${rc(p.p === 'G' ? 'BLI' : 'DÉF', r.d)}
-      ${rc('ROB', r.r)}${rc('CLU', r.c)}${rc(p.p === 'G' ? 'RÉF' : 'VIT', r.sp ?? '—')}${rc('COTE', r.v, 'ovr')}
-    </div>`;
-  }
+  /*
+   * Plus de cotes sur la fiche. Un joueur se juge sur ce qu'il a fait, et
+   * « ce qu'il a fait » se lit en écart au régulier moyen de SA saison —
+   * sinon 60 points en 1981 et 60 points en 2003 auraient l'air pareils.
+   */
+  const ratings = profilMesure(p);
 
   const label = already ? '✓ Déjà signé' : !slot ? 'Aucune case libre' : over ? 'Hors budget' : `Signer · ${slot.role}`;
   const destNote = already ? ''
@@ -1335,7 +1297,7 @@ function showPlayerModal(p) {
       <div class="modal-body">
         <div class="section-label">Statistiques ${G.statsProrata ? '(prorata 82 matchs, ajusté à l\'époque)' : `de la saison ${esc(p.s)}`}</div>
         <div class="stat-grid">${stats}</div>
-        <div class="section-label">Profil et cotes</div>
+        <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
         ${ratings}
         <div class="section-label">Impact sur ton alignement</div>
         ${destNote}
@@ -1480,11 +1442,10 @@ function renderResult(r, you, teams, leaders) {
     : r.W >= 65 ? `${r.W} victoires : mieux que le record réel de la LNH (65, Bruins de 2022-23).`
     : r.W >= 55 ? 'Grosse saison, mais la perfection exige de la profondeur sur les quatre trios.'
     : r.W >= 41 ? 'Saison au-dessus de la moyenne. Regarde tes trois derniers trios : c\'est souvent là que ça se joue.'
-    : 'Le plafond a coûté cher. Les cotes révélées ci-dessous montrent où le bât blesse.';
+    : 'Le plafond a coûté cher. La feuille de match ci-dessous montre où le bât blesse.';
 
   const rows = SLOTS.filter(s => G.roster[s.i]).map(s => {
     const p = G.roster[s.i];
-    const hr = getHiddenRatings(p);
     const pmCls = (p.simPM || 0) > 0 ? 'pm-pos' : (p.simPM || 0) < 0 ? 'pm-neg' : '';
     const pmStr = (p.simPM || 0) > 0 ? `+${p.simPM}` : `${p.simPM || 0}`;
     const inj = p.simInj ? ` · <span class="inj">🩹 ${p.simInj} PJ ratés</span>` : '';
@@ -1493,7 +1454,7 @@ function renderResult(r, you, teams, leaders) {
       : `${p.simGP || 0} PJ · <b>${p.simG || 0} B</b> ${p.simA || 0} A · <b>${p.simPTS || 0} PTS</b> · <span class="${pmCls}">${pmStr}</span>${inj}`;
     return `<div class="rrow">
       <div class="rn">${getTeamLogoHtml(p.t, 15)} <span>${formatName(p.n)} <span class="sub">${esc(s.role)}</span></span></div>
-      <div class="rs">${stats} · <span class="ovr">cote ${hr.v}</span> <span class="sub">(ATT ${hr.o} DÉF ${hr.d} ROB ${hr.r} CLU ${hr.c})</span></div>
+      <div class="rs">${stats}${p.p === 'G' ? '' : ` · <span class="sub">${p.simSH || 0} lancers</span>`}</div>
     </div>`;
   }).join('');
 

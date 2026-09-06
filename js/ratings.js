@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 20;
+export const RATINGS_VERSION = 21;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -1024,26 +1024,174 @@ function rankMap(list, score) {
  *
  * Mute et retourne `players`.
  */
+/* ---------- La valeur d'un joueur, lue dans ses statistiques ---------- */
+/*
+ * LA COTE GLOBALE N'EXISTE PLUS COMME COTE. Elle mélangeait les sous-cotes
+ * `o`, `d`, `r`, `c` — donc des z-scores de z-scores — avec un bonus de rang.
+ * On ne pouvait ni la lire ni la contester : c'était un chiffre qui tombait
+ * du ciel et décidait de la zone, du salaire et de l'alignement automatique.
+ *
+ * Ce qui la remplace tient en deux temps.
+ *
+ *  1. UN SCORE, tiré des colonnes du joueur et de rien d'autre. Chaque terme
+ *     est divisé par le régulier moyen de SA saison, donc un ailier de 1981 et
+ *     un ailier de 2015 se comparent.
+ *  2. UNE PROJECTION sur la distribution historique de la valeur, par
+ *     position. Le RANG vient des statistiques ; l'ÉCHELLE, elle, est celle
+ *     que le jeu utilisait déjà.
+ *
+ * Le deuxième temps n'est pas un artifice : c'est ce qui garantit que les
+ * seuils de zone, la courbe des salaires et l'économie du plafond continuent
+ * de valoir ce qu'ils valaient. Changer qui est premier est un choix de
+ * conception ; changer combien de joueurs valent 70 en serait un autre, et on
+ * n'en veut qu'un à la fois.
+ */
+export const VALEUR_CENTILES = {
+  F: [
+    34, 37, 38, 39, 39, 40, 40, 40, 41, 41,
+    41, 42, 42, 42, 42, 43, 43, 43, 43, 44,
+    44, 44, 44, 45, 45, 45, 45, 46, 46, 46,
+    46, 46, 47, 47, 47, 47, 48, 48, 48, 48,
+    49, 49, 49, 49, 50, 50, 50, 50, 51, 51,
+    51, 51, 52, 52, 52, 53, 53, 53, 54, 54,
+    54, 54, 55, 55, 55, 56, 56, 57, 57, 57,
+    58, 58, 58, 59, 59, 60, 60, 61, 61, 61,
+    62, 63, 63, 64, 64, 65, 66, 66, 67, 68,
+    69, 70, 72, 74, 76, 79, 82, 85, 89, 95,
+    99,
+  ],
+  D: [
+    36, 44, 46, 47, 48, 49, 49, 50, 50, 50,
+    51, 51, 51, 52, 52, 52, 53, 53, 53, 53,
+    54, 54, 54, 54, 54, 55, 55, 55, 55, 55,
+    56, 56, 56, 56, 56, 57, 57, 57, 57, 57,
+    58, 58, 58, 58, 58, 59, 59, 59, 59, 59,
+    59, 60, 60, 60, 60, 60, 61, 61, 61, 61,
+    62, 62, 62, 62, 63, 63, 63, 64, 64, 64,
+    65, 65, 65, 66, 66, 67, 67, 68, 69, 69,
+    70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+    81, 82, 83, 84, 86, 87, 89, 90, 93, 96,
+    99,
+  ],
+  G: [
+    26, 28, 29, 30, 31, 33, 34, 36, 37, 38,
+    39, 40, 40, 41, 41, 42, 43, 44, 44, 45,
+    45, 46, 46, 47, 47, 48, 48, 48, 49, 49,
+    50, 50, 51, 51, 51, 52, 52, 52, 53, 53,
+    54, 54, 55, 55, 55, 56, 56, 57, 57, 58,
+    58, 58, 59, 59, 60, 60, 61, 61, 62, 62,
+    62, 63, 64, 64, 65, 65, 66, 66, 67, 67,
+    68, 68, 69, 69, 70, 71, 71, 72, 73, 74,
+    74, 75, 76, 76, 77, 78, 79, 79, 80, 81,
+    81, 82, 83, 84, 85, 86, 87, 89, 91, 93,
+    99,
+  ],
+};
+
+/** La valeur du centile q (0..1) parmi les joueurs de cette position. */
+function valeurAuCentile(pos, q) {
+  const t = VALEUR_CENTILES[pos] || VALEUR_CENTILES.F;
+  const x = clamp(q, 0, 1) * 100;
+  const i = Math.min(99, Math.floor(x));
+  const f = x - i;
+  return Math.round(t[i] * (1 - f) + t[i + 1] * f);
+}
+
+/*
+ * Le score d'un patineur. Quatre termes, tous mesurés, tous disponibles
+ * depuis 1970-71 sauf le temps de glace, dont le poids se redistribue quand
+ * il manque.
+ *
+ *   PRODUCTION   points par match, sur le régulier moyen de sa saison
+ *   VOLUME       lancers par match, idem — il sépare le joueur utilisé du
+ *                joueur chanceux
+ *   DIFFÉRENTIEL +/- par match, lissé de la moyenne de son vestiaire, sinon
+ *                un premier trio d'équipe faible est puni de l'être
+ *   USAGE        temps de glace quand il existe, part des matchs joués sinon
+ *
+ * Les trois premiers sont des TAUX, et un taux sur huit matchs ne veut rien
+ * dire : un rappel à quatre points en huit soirs afficherait la production
+ * d'une vedette. Chacun est donc ramené vers la moyenne au prorata de
+ * l'échantillon (`gp / (gp + FIABILITE)`) — mesuré, sans ça la ligue tombait à
+ * 3,8 attaquants de top 6 par équipe au lieu de 6, les recrues occupant les
+ * hauts de classement.
+ *
+ * Les poids diffèrent par position parce que le métier diffère : un défenseur
+ * n'est pas jugé sur ses points au même titre qu'un ailier.
+ */
+export const POIDS_VALEUR = {
+  F: { prod: 0.46, vol: 0.14, pm: 0.20, usage: 0.20 },
+  D: { prod: 0.30, vol: 0.10, pm: 0.36, usage: 0.24 },
+};
+
+/** Poids d'un échantillon : un taux sur huit matchs pèse le tiers d'un vrai. */
+export const FIABILITE = 22;
+const fiable = (gp, valeur, moyenne = 1) => {
+  const w = gp / (gp + FIABILITE);
+  return w * valeur + (1 - w) * moyenne;
+};
+
+function scorePatineur(p, ctx) {
+  const gp = Math.max(1, p.gp || 0);
+  const est_D = p.p === 'D';
+  const [, , shF, shD, ptF, ptD] = seasonLancers(p.s || ctx.season);
+  const w = POIDS_VALEUR[est_D ? 'D' : 'F'];
+
+  const prod = fiable(gp, (p.pt || 0) / gp / (est_D ? (ptD || 0.35) : (ptF || 0.62)));
+  const vol = fiable(gp, (p.sh || 0) / gp / (est_D ? (shD || 1.35) : (shF || 1.75)));
+  const pm = fiable(gp, ((p.pm || 0) - LISSAGE_EQUIPE * (ctx.pmEquipe.get(p.t ?? p.teams?.[0]) || 0)) / gp, 0);
+  const usage = p.toi ? fiable(gp, p.toi / (est_D ? 21 : 16)) : gp / ctx.games;
+
+  // Racine sur la production : l'écart entre le 1er et le 20e marqueur compte
+  // plus que celui entre le 200e et le 220e, mais pas au carré.
+  return w.prod * Math.sqrt(Math.max(0, prod))
+    + w.vol * Math.sqrt(Math.max(0, vol))
+    + w.pm * clamp(pm / 0.35, -1.5, 1.5)
+    + w.usage * clamp(usage, 0, 1.6);
+}
+
+/*
+ * Le score d'un gardien : ce qu'il arrête de plus que sa ligue, et combien de
+ * soirs il le fait. Un auxiliaire à ,930 en douze départs n'est pas un numéro
+ * un, et la part de matchs le dit.
+ */
+function scoreGardien(p, ctx) {
+  const svLigue = 1 - (seasonLancers(p.s || ctx.season)[1] || 10.5) / 100;
+  const ecart = fiable(p.gp || 0, ((p.sv ?? svLigue) - svLigue) / 0.020, 0);
+  const charge = clamp((p.gp || 0) / ctx.games / 0.55, 0, 1.4);
+  return 0.72 * clamp(ecart, -2.5, 2.5) + 0.28 * charge * 2.5;
+}
+
+/** La valeur d'un joueur : son rang statistique, sur l'échelle du jeu. */
+export function valeurDeSaison(players, season, games) {
+  const pmEquipe = new Map();
+  const acc = new Map();
+  for (const p of players) {
+    if (p.p === 'G') continue;
+    for (const t of (p.teams || [p.t]).filter(Boolean)) {
+      const a = acc.get(t) || { s: 0, n: 0 };
+      a.s += p.pm || 0; a.n += 1;
+      acc.set(t, a);
+    }
+  }
+  for (const [t, a] of acc) pmEquipe.set(t, a.n ? a.s / a.n : 0);
+  const ctx = { season, games, pmEquipe };
+
+  for (const groupe of ['F', 'D', 'G']) {
+    const liste = players.filter(p => p.p === groupe);
+    if (!liste.length) continue;
+    const notes = liste.map(p => ({
+      p, sc: groupe === 'G' ? scoreGardien(p, ctx) : scorePatineur(p, ctx),
+    }));
+    notes.sort((a, b) => a.sc - b.sc);
+    const n = notes.length;
+    notes.forEach((x, i) => { x.p.v = valeurAuCentile(groupe, n > 1 ? i / (n - 1) : 0.5); });
+  }
+}
+
 export function finalizeSeason(players, season, opts = {}) {
   const year = parseInt(season.slice(0, 4), 10);
-  const teams = new Set();
-  for (const p of players) for (const t of (p.teams || [])) if (t && t !== '???') teams.add(t);
-  const nTeams = Math.max(6, opts.nTeams || teams.size || 32);
-
-  const F = players.filter(p => p.p === 'F');
-  const D = players.filter(p => p.p === 'D');
-  const G = players.filter(p => p.p === 'G');
-
-  const zF = zfn(F.map(prodPerGame));
-  const zD = zfn(D.map(prodPerGame));
-  const rkF = rankMap(F, prodPerGame);
-  const rkD = rankMap(D, prodPerGame);
-
-  // Gardiens : seuls ceux qui ont joué au moins 40 % des matchs sont classés
   const games = seasonGames(season);
-  const gScore = g => 0.6 * g.o + 0.4 * g.d;
-  const qualG = G.filter(g => g.gp >= 0.4 * games);
-  const rkG = rankMap(qualG, gScore);
 
   const salaries = opts.salaries || null;
   const refCap = (salaries && salaries.cap) || eraCapFor(season);
@@ -1066,33 +1214,11 @@ export function finalizeSeason(players, season, opts = {}) {
   const firstSeason = opts.firstSeason || null;
   const entryYear = opts.entryYear || null;
 
-  // Rang -> position relative, mélangée entre l'époque et une ligue de
-  // référence de 32 équipes (voir LISSAGE_EPOQUES).
-  const qOf = rank => {
-    const r = rank + 0.5;
-    return (1 - LISSAGE_EPOQUES) * (r / nTeams) + LISSAGE_EPOQUES * (r / LIGUE_REF);
-  };
+  // La valeur ne vient plus des sous-cotes : elle est le rang statistique du
+  // joueur dans sa saison, projeté sur l'échelle du jeu (voir valeurDeSaison).
+  valeurDeSaison(players, season, games);
 
   for (const p of players) {
-    let v;
-    if (p.p === 'G') {
-      const core = 0.40 * p.o + 0.32 * p.d + 0.14 * p.r + 0.14 * p.c;
-      const share = p.gp / games;
-      const starter = 10 * clamp((share - 0.25) / 0.50, 0, 1);
-      const rank = rkG.has(p) ? lerpTable(qOf(rkG.get(p)), STAR_G_RANK) : 0;
-      v = core + starter + rank;
-    } else if (p.p === 'D') {
-      const core = 0.42 * p.o + 0.48 * p.d + 0.05 * p.r + 0.05 * p.c + 6;
-      const q = qOf(rkD.get(p));
-      const star = 0.7 * lerpTable(q, STAR_D_RANK) + 0.3 * lerpTable(zD(prodPerGame(p)), STAR_D_Z);
-      v = core + star;
-    } else {
-      const core = 0.66 * p.o + 0.16 * p.d + 0.05 * p.r + 0.13 * p.c;
-      const q = qOf(rkF.get(p));
-      const star = 0.7 * lerpTable(q, STAR_F_RANK) + 0.3 * lerpTable(zF(prodPerGame(p)), STAR_F_Z);
-      v = core + star;
-    }
-    p.v = clamp(Math.round(v), 25, 99);
 
     // Contrat d'entrée : selon l'époque et l'âge à la première saison dans
     // la base (jamais pour la première saison de la base, 1970-71, où tout

@@ -1452,6 +1452,22 @@ a { color: var(--blue); }
 }
 .stat-cell.hl .v { color: var(--gold); }
 
+.profil-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+.profil-cell {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.22);
+}
+.profil-cell .k { font-size: 8.5px; font-weight: 900; color: var(--muted); letter-spacing: 0.08em; }
+.profil-cell .v { font-size: 16px; font-weight: 900; font-variant-numeric: tabular-nums; }
+
 .rating-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
