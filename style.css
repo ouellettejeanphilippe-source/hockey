@@ -1468,34 +1468,6 @@ a { color: var(--blue); }
 .profil-cell .k { font-size: 8.5px; font-weight: 900; color: var(--muted); letter-spacing: 0.08em; }
 .profil-cell .v { font-size: 16px; font-weight: 900; font-variant-numeric: tabular-nums; }
 
-.rating-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
-  gap: 5px;
-}
-.rating-cell {
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-s);
-  padding: 6px 4px;
-  text-align: center;
-}
-.rating-cell .k { font-size: 8.5px; font-weight: 900; color: var(--muted); letter-spacing: 0.08em; }
-.rating-cell .v { font-size: 16px; font-weight: 900; font-variant-numeric: tabular-nums; }
-.rating-cell.ovr { border-color: var(--gold); background: var(--gold-soft); }
-.rating-cell.ovr .v { color: var(--gold); }
-
-.fog-msg {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px dashed var(--line);
-  border-radius: var(--r-s);
-  padding: 12px;
-  text-align: center;
-  font-size: 11.5px;
-  color: var(--muted);
-  line-height: 1.5;
-}
-
 .pcard-full-foot {
   display: flex;
   align-items: center;
@@ -1518,25 +1490,6 @@ a { color: var(--blue); }
   white-space: nowrap;
 }
 .ext-link:hover { color: var(--blue); border-color: var(--blue); }
-
-/* ---------------------------------------------------------------
-   Hexagone (radar)
-   --------------------------------------------------------------- */
-
-.radar-tooltip {
-  position: fixed;
-  z-index: 95;
-  width: 210px;
-  background: rgba(6, 14, 24, 0.97);
-  border: 1px solid var(--team-accent);
-  border-radius: var(--r-m);
-  padding: 9px 10px;
-  box-shadow: var(--shadow-2);
-  pointer-events: none;
-}
-.radar-header { font-size: 12.5px; font-weight: 900; }
-.radar-sub { font-size: 10px; color: var(--sub); margin-bottom: 4px; font-weight: 700; }
-.radar-chart-svg { display: block; margin: 0 auto; }
 
 /* ---------------------------------------------------------------
    Toast
@@ -1677,7 +1630,6 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .rrow .rn .sub { color: var(--muted); font-weight: 600; font-size: 10px; }
 .rrow .rs { color: var(--sub); font-variant-numeric: tabular-nums; font-size: 11px; }
 .rrow .rs b { color: var(--text); }
-.rrow .ovr { color: var(--gold); font-weight: 900; }
 .rrow .inj { color: var(--red); font-weight: 700; }
 
 .inj-list { margin: 0; padding-left: 18px; font-size: 11.5px; color: var(--sub); line-height: 1.6; }
@@ -1833,7 +1785,6 @@ table.data .pts { font-weight: 900; color: var(--green); }
 
 /* Impression : la fiche de saison seulement */
 @media print {
-  .topbar, .actionbar, .draft, .panes, .toast, .radar-tooltip { display: none !important; }
   body { background: #fff; color: #000; }
   .result { border: 0; box-shadow: none; }
 }

@@ -773,7 +773,7 @@ export function rateSkaters(rows, realtimeById = null) {
 
   /*
    * +/- partiellement relatif à l'équipe, troisième curseur du même genre
-   * que LISSAGE_AVANT_PLAFOND et LISSAGE_EPOQUES.
+   * que LISSAGE_AVANT_PLAFOND.
    *
    * Le +/- brut mesure autant la qualité du club que celle du joueur : un
    * premier trio sur une équipe de fond de classement sort négatif quoi
@@ -959,37 +959,6 @@ export function rateGoalies(rows) {
  * Un second terme en z-score garde une trace de l'écart réel avec le
  * peloton (Gretzky 1982 n'est pas juste « premier »).
  */
-/*
- * Mélange d'époque, même esprit que LISSAGE_AVANT_PLAFOND pour les salaires :
- * un curseur entre le réalisme et la variété, plutôt qu'un choix tranché.
- *
- * Le rang divisé par le nombre d'équipes (q = rang / équipes) est la mesure
- * réaliste : dans une ligue à 17 équipes, le 13e attaquant de la ligue est
- * le 0,76e de son équipe, donc bien plus commun que le 13e d'une ligue à 32.
- * Le rang divisé par une ligue de référence de 32 équipes est la mesure
- * comparable : le 10e compteur de 1979 vaut alors le 10e compteur de 2024,
- * ce que PLAN.md promet depuis le début et que le pur rang par équipe ne
- * tenait pas (10e en 1978-79 sortait à 75, 10e en 2023-24 à 90).
- *
- *   q = (1 - LISSAGE_EPOQUES) * rang/équipes + LISSAGE_EPOQUES * rang/32
- *
- * 0 = réalisme pur (les vedettes d'avant 1990 sont écrasées, le vestiaire
- * d'une saison à 14 équipes est uniformément moyen), 1 = variété pure (les
- * ligues à 6 équipes produisent des alignements de superhéros et l'équilibre
- * entre époques saute). À 0,5, une saison moderne ne bouge pas du tout
- * (nTeams vaut déjà 32) et les vieilles saisons retrouvent des vedettes
- * signables sans que la profondeur ne monte avec elles.
- */
-export const LISSAGE_EPOQUES = 0.5;
-
-/** Taille de la ligue de référence pour le volet « comparable » du mélange. */
-export const LIGUE_REF = 32;
-
-const STAR_F_RANK = [[0.10, 14], [0.30, 12], [0.60, 9], [1.00, 4], [1.50, 0]];
-const STAR_F_Z    = [[1.50, 0], [2.50, 8], [3.20, 12], [4.00, 14]];
-const STAR_D_RANK = [[0.10, 17], [0.40, 17], [0.80, 17], [1.20, 13], [1.80, 5], [2.50, 0]];
-const STAR_D_Z    = [[1.00, 0], [2.00, 12], [3.00, 16], [4.00, 17]];
-const STAR_G_RANK = [[0.10, 12], [0.30, 9], [0.60, 5], [1.00, 0]];
 
 /** Nombre de matchs d'une saison écourtée, sinon 82 (80 avant 1992-93, sans effet ici). */
 export function seasonGames(season) {
@@ -997,16 +966,6 @@ export function seasonGames(season) {
   if (season === '2020-21') return 56;
   if (season === '2019-20') return 70;
   return 82;
-}
-
-/** Production par match, avec plancher de 30 matchs pour éviter les petits échantillons. */
-const prodPerGame = p => (p.pt || 0) / Math.max(p.gp || 1, 30);
-
-function rankMap(list, score) {
-  const sorted = [...list].sort((a, b) => score(b) - score(a));
-  const m = new Map();
-  sorted.forEach((p, i) => m.set(p, i));
-  return m;
 }
 
 /**

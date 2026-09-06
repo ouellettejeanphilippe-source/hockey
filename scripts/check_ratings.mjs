@@ -1,6 +1,6 @@
 /**
- * Vérification des cotes sur les shards en place : distribution de la cote
- * globale, part de chaque zone de trio, répartition des archétypes, cibles
+ * Vérification des cotes sur les shards en place : distribution de la valeur,
+ * part de chaque zone de trio, répartition des archétypes, cibles
  * salariales, et surtout la cohérence entre la force d'une équipe (moyenne
  * des cotes de son alignement) et son vrai classement — reconstitué depuis
  * les fiches des gardiens (V-D), les buts des patineurs et la moyenne des
@@ -79,7 +79,7 @@ for (const f of fs.readdirSync(SEASONS_DIR).filter(f => f.endsWith('.json')).sor
       label,
       toi: sk.some(p => (p.toi || 0) > 0),
       ht: sk.some(p => p.ht != null),
-      sd: ['o', 'd', 'r', 'c', 'sp'].map(k => sd(sk.map(p => p[k]))),
+      sd: ['o', 'd', 'r', 'c'].map(k => sd(sk.map(p => p[k]))),
       top10: (() => {
         const F = sk.filter(p => p.p === 'F').sort((a, b) => b.pt - a.pt).slice(0, 10);
         return F.length ? F.reduce((s2, p) => s2 + p.v, 0) / F.length : 0;
@@ -102,16 +102,16 @@ for (const f of fs.readdirSync(SEASONS_DIR).filter(f => f.endsWith('.json')).sor
 }
 
 const P = a => ['p10', 'p50', 'p85', 'p95', 'p99', 'max'].map((n, i) => `${n}=${pct(a.map(p => p.v), [0.1, 0.5, 0.85, 0.95, 0.99, 1][i])}`).join('  ');
-console.log(`\nCote globale — F : ${P(allF)}`);
-console.log(`Cote globale — D : ${P(allD)}`);
-console.log(`Cote globale — G : ${P(allG)}`);
+console.log(`\nValeur — F : ${P(allF)}`);
+console.log(`Valeur — D : ${P(allD)}`);
+console.log(`Valeur — G : ${P(allG)}`);
 const share = (a, zones) => zones.map(z => `${z.short} ${(100 * a.filter(p => p.lz === z.level).length / a.length).toFixed(0)} %`).join(' · ');
 console.log(`Zones F : ${share(allF, LINE_ZONES.F)}`);
 console.log(`Zones D : ${share(allD, LINE_ZONES.D)}`);
 console.log(`Zones G : ${share(allG, LINE_ZONES.G)}`);
 
 const h = allF.filter(p => p.pt >= 100);
-console.log(`100+ points (${h.length}) : cote min ${Math.min(...h.map(p => p.v))}, p10 ${pct(h.map(p => p.v), 0.1)}, médiane ${pct(h.map(p => p.v), 0.5)}, max ${Math.max(...h.map(p => p.v))}`);
+console.log(`100+ points (${h.length}) : valeur min ${Math.min(...h.map(p => p.v))}, p10 ${pct(h.map(p => p.v), 0.1)}, médiane ${pct(h.map(p => p.v), 0.5)}, max ${Math.max(...h.map(p => p.v))}`);
 const hm = h.filter(p => parseInt(p.s.slice(0, 4), 10) >= 1995);
 console.log(`100+ points depuis 1995 (${hm.length}) : cote min ${Math.min(...hm.map(p => p.v))}, médiane ${pct(hm.map(p => p.v), 0.5)}`);
 const d5 = allD.filter(p => p.pt >= 50 && p.pt <= 60 && p.gp >= 60);
@@ -124,14 +124,14 @@ const all = allF.length + allD.length + allG.length;
 console.log(`Contrats d'entrée : ${[...allF, ...allD, ...allG].filter(p => p.elc).length} / ${all}`);
 
 console.log('\nDisponibilité des stats et amplitude des sous-cotes (écart-type)');
-console.log("  saison    TG  MÉ     off    déf    rob    clu    vit   cote moy. des 10 meilleurs compteurs");
+console.log("  saison    TG  MÉ     off    déf    rob    clu   valeur moy. des 10 meilleurs compteurs");
 for (const e of eras) {
   console.log(`  ${e.label}  ${(e.toi ? 'oui' : ' — ').padStart(3)} ${(e.ht ? 'oui' : ' — ').padStart(3)}`
     + e.sd.map(v => v.toFixed(1).padStart(7)).join('') + `   ${e.top10.toFixed(1).padStart(5)}`);
 }
 {
   const grp = f => { const g = eras.filter(f); return g.length
-    ? ['déf', 'vit'].map((n, i) => `${n} ${(g.reduce((s2, e) => s2 + e.sd[i === 0 ? 1 : 4], 0) / g.length).toFixed(1)}`).join('  ')
+    ? ['déf'].map((n) => `${n} ${(g.reduce((s2, e) => s2 + e.sd[1], 0) / g.length).toFixed(1)}`).join('  ')
       + `  top10 ${(g.reduce((s2, e) => s2 + e.top10, 0) / g.length).toFixed(1)}`
     : '—'; };
   console.log(`  avant 1997-98 (sans TG)  : ${grp(e => !e.toi)}`);

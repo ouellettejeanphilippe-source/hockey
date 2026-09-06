@@ -107,9 +107,12 @@ export function registerHiddenRatings(p) {
   if (!p) return;
   const key = getPlayerKey(p);
   p._rk = key;
+  // `sp` est dans les shards mais aucune formule ne le lit : c'était du temps
+  // de glace et du volume de tirs déguisés en vitesse (mesuré, Chára sortait
+  // plus « rapide » que Gaudreau). On le retire de l'objet sans le garder.
   if (p.o !== undefined) {
     RATINGS_VAULT.set(key, {
-      o: p.o, d: p.d, r: p.r, c: p.c, v: p.v, sp: p.sp
+      o: p.o, d: p.d, r: p.r, c: p.c, v: p.v
     });
     delete p.o;
     delete p.d;
@@ -121,7 +124,7 @@ export function registerHiddenRatings(p) {
 }
 
 export function getHiddenRatings(p) {
-  if (!p) return { o: 50, d: 50, r: 50, c: 50, v: 50, sp: 50 };
+  if (!p) return { o: 50, d: 50, r: 50, c: 50, v: 50 };
   const key = getPlayerKey(p);
   if (RATINGS_VAULT.has(key)) return RATINGS_VAULT.get(key);
   return {
@@ -130,7 +133,6 @@ export function getHiddenRatings(p) {
     r: p.r ?? 50,
     c: p.c ?? 50,
     v: p.v ?? 50,
-    sp: p.sp ?? 50,
   };
 }
 

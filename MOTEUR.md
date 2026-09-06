@@ -629,7 +629,9 @@ Honnêtement, pour que personne n'attende ça d'elle :
   du vestiaire, pas celle de la brigade. Le +/- reste le seul signal individuel
   d'avant 1998, avec ses défauts connus : asymétrique (le malus vaut six fois le
   bonus, mesuré) et dépendant du vestiaire (lissé à `LISSAGE_EQUIPE`).
-- **`sp` n'est pas de la vitesse.** C'est du temps de glace et du volume de tirs :
-  mesuré, Chára sort plus « rapide » que Gaudreau. Le champ n'est lu par aucune
-  formule de simulation. À retirer de la carte des patineurs ou à renommer pour ce
-  qu'il est.
+- ~~**`sp` n'est pas de la vitesse.**~~ **Réglé.** C'était du temps de glace et du
+  volume de tirs : mesuré, Chára sortait plus « rapide » que Gaudreau. Aucune
+  formule ne la lisait, et l'hexagone qui l'affichait a disparu avec les cotes.
+  Le champ reste dans les shards — le retirer demanderait un build complet — mais
+  il est supprimé de l'objet joueur au chargement et n'existe plus nulle part
+  ailleurs. La vitesse, la vraie, est maintenant une réputation (⚡).
