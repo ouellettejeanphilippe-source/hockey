@@ -20,6 +20,7 @@ import {
 } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent } from './logos.js';
 import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition } from './ratings.js';
+import { getTraits, TRAITS } from './traits.js';
 
 const $ = id => document.getElementById(id);
 const rnd = a => a[Math.floor(Math.random() * a.length)];
@@ -306,6 +307,23 @@ function archTag(p, full = false) {
   const a = getArchetype(p, getHiddenRatings(p));
   const txt = full ? ` ${esc(a.label)}` : '';
   return `<span class="tag tag-arch" title="${esc(a.label)} — ${esc(a.desc)}">${a.icon}${txt}</span>`;
+}
+
+/**
+ * Les traits : rares, donc ils ont leur place sur la carte. Un joueur sur cent
+ * en porte un, et c'est la seule chose que la feuille de pointage ne dit pas —
+ * afficher une icône ne coûte rien à la lisibilité et signale exactement ce
+ * qu'on ne peut pas déduire des colonnes.
+ */
+function traitTags(p, full = false) {
+  return getTraits(p).map(t => {
+    const meta = TRAITS[t.cle];
+    const niveau = t.niveau === 0 ? 'Lauréat' : 'Finaliste';
+    const txt = full ? ` ${esc(meta.label)}${t.niveau ? ' (finaliste)' : ''}` : '';
+    return `<span class="tag tag-trait${t.niveau ? ' est-finaliste' : ''}"`
+      + ` title="${esc(meta.short)} ${esc(p.s)} — ${niveau}. ${esc(meta.desc)}.">`
+      + `${meta.icon}${txt}</span>`;
+  }).join('');
 }
 
 function ageTag(p) {
@@ -801,6 +819,7 @@ function playerCardEl(p) {
   const bigUnit = p.p === 'G' ? 'V' : 'PTS';
 
   const tags = [
+    traitTags(p),
     archTag(p),
     zoneTag(p),
     risky ? `<span class="tag tag-pen" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les 23.">⚠ bloque la fin</span>` : '',
@@ -1305,7 +1324,7 @@ function showPlayerModal(p) {
             <div class="pcard-full-name">${formatName(p.n)}</div>
             <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
               <span class="pos-badge ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
-            <div class="tags pcard-full-tags">${archTag(p, true)}${zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
+            <div class="tags pcard-full-tags">${traitTags(p, true)}${archTag(p, true)}${zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
           </div>
         </div>
         <div class="pcard-full-salary">

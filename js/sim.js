@@ -7,6 +7,7 @@
  */
 
 import { getArchetype, getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
+import { facteurDefensifUnite, facteurTraitGardien, facteurSeriesUnite } from './traits.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
@@ -375,7 +376,7 @@ export const ECART_DEF_EQUIPE = 4.3;
  * équipe de l'histoire) et `check_monotonie.mjs` (améliorer son équipe ne
  * doit jamais la rendre pire).
  */
-export const SYN_ECHELLE = 50;
+export const SYN_ECHELLE = 42;
 
 /*
  * L'ÉQUIPE de référence, et non le joueur de référence.
@@ -485,26 +486,43 @@ export function profilMatch(team, lineup) {
       const tog = team ? Math.min(CONTINUITY_MAX, (team.together.get(`${group}${u}`) || 0) / CONTINUITY_GAMES) : 0;
       const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + tog) / SYN_ECHELLE));
       const volume = slots.reduce((a, s) => a + lancersRel(lineup[s.i]), 0) / slots.length;
+      const joueurs = slots.map(s => lineup[s.i]).filter(Boolean);
       unites[group].push({
-        joueurs: slots.map(s => lineup[s.i]).filter(Boolean),
+        joueurs,
+        // Poids OFFENSIF : temps de glace, volume de tirs et chimie. C'est lui
+        // qui décide qui tire.
         poids: poids[u] * volume * mod,
         qualite: mod,
+        // Poids DÉFENSIF : le temps de glace seul. Une unité ne défend pas
+        // plus souvent parce qu'elle tire plus — elle défend sa part de
+        // présences, point.
+        presence: poids[u],
+        coteDef: unitAvgLineup(team, lineup, group, u, 'd'),
+        traitDef: facteurDefensifUnite(joueurs),
+        traitSeries: facteurSeriesUnite(joueurs),
       });
     }
   }
 
-  const somme = (g, poids) => unites[g].reduce((a, x, i) => a + x.poids, 0);
+  const somme = (g) => unites[g].reduce((a, x) => a + x.poids, 0);
   const pression = (1 - PART_LANCERS_D) * somme('F') + PART_LANCERS_D * somme('D');
 
   const coteDef = 0.5 * (
-    POIDS_TRIO.reduce((a, w, u) => a + w * unitAvgLineup(team, lineup, 'F', u, 'd'), 0) +
-    POIDS_PAIRE.reduce((a, w, u) => a + w * unitAvgLineup(team, lineup, 'D', u, 'd'), 0));
+    POIDS_TRIO.reduce((a, w, u) => a + w * unites.F[u].coteDef, 0) +
+    POIDS_PAIRE.reduce((a, w, u) => a + w * unites.D[u].coteDef, 0));
 
   return {
     unites,
     pression: borne(pression, 0.40, 2.40),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
   };
+}
+
+/** Tire une unité au prorata de sa part de présences, sans le volume de tirs. */
+function choisirPresence(unites) {
+  let r = Math.random() * unites.reduce((a, x) => a + x.presence, 0);
+  for (const x of unites) { r -= x.presence; if (r <= 0) return x; }
+  return unites[unites.length - 1];
 }
 
 /*
@@ -534,15 +552,15 @@ function choisirUnite(unites) {
  * glace, et les arrêts du gardien. Rien n'est réparti après coup : la
  * feuille de match EST la suite des lancers.
  */
-function jouerCote(off, def, gardien, chance, heavy, feuille) {
+function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
   const attendu = LANCERS_BASE
     * (off.pression / REF.pression)
     * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION);
   const lancers = Math.max(6, poisson(attendu));
 
-  const zDef = def.zDef + (heavy && def.rob ? (def.rob - 52) / 25 : 0);
-  const facteurDef = Math.max(0.55, 1 - K_DEFENSE * (zDef - REF.zDef));
-  const fg = gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20);
+  const usure = heavy && def.rob ? (def.rob - 52) / 25 : 0;
+  const fg = (gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20))
+    * facteurTraitGardien(gardien, series);
 
   let buts = 0, tires = 0;
   for (let i = 0; i < lancers; i++) {
@@ -561,10 +579,28 @@ function jouerCote(off, def, gardien, chance, heavy, feuille) {
     }
     tires++;
 
+    // Qui DÉFEND cette présence-là. Le moteur tirait jusqu'ici sur la cote
+    // défensive moyenne de l'équipe, si bien qu'un quatrième trio poreux ne
+    // coûtait rien pendant ses propres treize minutes. La défense se joue
+    // maintenant présence par présence : c'est ce qui rend la profondeur et
+    // les traits mordants au lieu d'être décoratifs.
+    let defGlace = null, facteurDef;
+    if (def.unites) {
+      const dTrio = choisirPresence(def.unites.F);
+      const dPaire = choisirPresence(def.unites.D);
+      defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
+      const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
+      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z + usure - REF.zDef))
+        * dTrio.traitDef * dPaire.traitDef;
+    } else {
+      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef + usure - REF.zDef));
+    }
+
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir
-        * (fg / REF.fg) * facteurDef * (unite ? unite.qualite : 1) * chance,
+        * (fg / REF.fg) * facteurDef * (unite ? unite.qualite : 1) * chance
+        * (series && unite ? unite.traitSeries : 1),
       0.005, PCT_TIR_MAX);
 
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
@@ -584,6 +620,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille) {
           }
         }
         for (const x of glace) x.simPM++;
+        if (defGlace) for (const x of defGlace) x.simPM--;
       }
     } else if (feuille && gardien) {
       gardien.simSV = (gardien.simSV || 0) + 1;
@@ -756,13 +793,6 @@ function pickUnit(weights) {
   return weights.length - 1;
 }
 
-function onIce(lineup, weights = { F: POIDS_TRIO, D: POIDS_PAIRE }) {
-  const fu = pickUnit(weights.F), du = pickUnit(weights.D);
-  return SLOTS
-    .filter(s => !s.scratch && ((s.group === 'F' && s.unit === fu) || (s.group === 'D' && s.unit === du)))
-    .map(s => lineup[s.i]).filter(Boolean);
-}
-
 function weightedPick(list, wfn) {
   const ws = list.map(wfn);
   let r = Math.random() * ws.reduce((a, b) => a + b, 0);
@@ -773,9 +803,9 @@ function weightedPick(list, wfn) {
 
 /**
  * Ce qui ne vient pas des lancers : les présences et la fiche du gardien.
- * Les buts, les passes et le +/- des buts marqués sont crédités dans
- * `jouerCote`, lancer par lancer. Ne reste ici que le −1 des buts alloués,
- * qui appartient à l'unité qui était sur la glace de NOTRE côté.
+ * Tout le reste — buts, passes, +/- des deux côtés — est crédité dans
+ * `jouerCote`, lancer par lancer, aux joueurs qui étaient vraiment sur la
+ * glace.
  */
 function crediterMatch(lineup, goalie, ga, win, otl) {
   for (const p of Object.values(lineup)) if (p && p.p !== 'G') p.simGP++;
@@ -784,7 +814,6 @@ function crediterMatch(lineup, goalie, ga, win, otl) {
     if (win) goalie.simW++; else if (otl) goalie.simOTL++; else goalie.simL++;
     if (ga === 0) goalie.simSO++;
   }
-  for (let i = 0; i < ga; i++) for (const p of onIce(lineup)) p.simPM--;
 }
 
 function updateTogether(team, lineup) {
@@ -823,7 +852,7 @@ function applyInjuries(team, lineup, heavy) {
  * exactement ce que l'ancien moteur sautait, et pourquoi une équipe de
  * niveau 80 gagnait la Coupe 99 % du temps (MOTEUR.md 5.5).
  */
-export function playGame(A, B, gameIdx, track = true) {
+export function playGame(A, B, gameIdx, track = true, series = false) {
   const heavy = gameIdx % 4 === 3;
   const LA = activeLineup(A), LB = activeLineup(B);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
@@ -836,16 +865,16 @@ export function playGame(A, B, gameIdx, track = true) {
   const chanceA = Math.exp(gauss() * LUCK_GAME + A.luck - B.luck);
   const chanceB = Math.exp(gauss() * LUCK_GAME + B.luck - A.luck);
 
-  let gfA = jouerCote(pA, pB, gB, chanceA, heavy, track);
-  let gfB = jouerCote(pB, pA, gA, chanceB, heavy, track);
+  let gfA = jouerCote(pA, pB, gB, chanceA, heavy, track, series);
+  let gfB = jouerCote(pB, pA, gA, chanceB, heavy, track, series);
   let ot = false;
 
   if (gfA === gfB) {
     ot = true;
     const p = 1 / (1 + Math.exp(-(sA.clu - sB.clu) / 9));
     // Le but gagnant appartient à un joueur, comme tous les autres.
-    if (Math.random() < p) { gfA++; if (track) butProlongation(pA, gB); }
-    else { gfB++; if (track) butProlongation(pB, gA); }
+    if (Math.random() < p) { gfA++; if (track) butProlongation(pA, pB, gB); }
+    else { gfB++; if (track) butProlongation(pB, pA, gA); }
   }
   const winA = gfA > gfB;
 
@@ -864,8 +893,11 @@ export function playGame(A, B, gameIdx, track = true) {
 }
 
 /** Le but de la prolongation : un tireur, une passe, du +/-, comme les autres. */
-function butProlongation(off, gardien) {
+function butProlongation(off, def, gardien) {
   if (gardien) gardien.simSA = (gardien.simSA || 0) + 1;
+  if (def && def.unites) {
+    for (const x of [...choisirPresence(def.unites.F).joueurs, ...choisirPresence(def.unites.D).joueurs]) x.simPM--;
+  }
   if (!off.unites) return;
   const trio = choisirUnite(off.unites.F);
   const paire = choisirUnite(off.unites.D);
@@ -911,8 +943,8 @@ export function simulate(roster) {
 
     if (gf === ga) {
       const p = 1 / (1 + Math.exp(-(force.clu - 52) / 9));
-      if (Math.random() < p) { gf++; W++; win = true; butProlongation(profil, null); }
-      else { ga++; OTL++; otl = true; if (gardien) gardien.simSA = (gardien.simSA || 0) + 1; }
+      if (Math.random() < p) { gf++; W++; win = true; butProlongation(profil, PROFIL_NEUTRE, null); }
+      else { ga++; OTL++; otl = true; butProlongation(PROFIL_NEUTRE, profil, gardien); }
     } else if (gf > ga) { W++; win = true; } else { L++; }
 
     crediterMatch(lineup, gardien, ga, win, otl);
@@ -959,7 +991,7 @@ export function simulateLeague(teams, games = 82) {
 export function playSeries(A, B) {
   let wA = 0, wB = 0, g = 0;
   while (wA < 4 && wB < 4) {
-    const r = playGame(A, B, g++, false);
+    const r = playGame(A, B, g++, false, true);
     if (r.winner === A) wA++; else wB++;
   }
   return { winner: wA === 4 ? A : B, wA, wB };

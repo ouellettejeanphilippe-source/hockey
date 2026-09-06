@@ -29,6 +29,7 @@ js/ratings.js               calcul des cotes cachées (partagé navigateur + bui
                             étage 1 : sous-cotes en z-score (exige l'API)
                             étage 2 : cote globale, salaire, archétype, zone (rejouable hors ligne)
 js/data.js                  chargeur trois niveaux + cache IndexedDB
+js/traits.js                les traits, tirés des votes de `data/trophees.js`
 js/sim.js                   structure de l'alignement + simulation de saison + ligue complète
 js/game.js                  contrôleur d'interface
 scripts/build_shards.py     aspire l'API LNH, écrit les shards ; --rerate = étage 2 sans API
@@ -50,7 +51,9 @@ scripts/check_neutre.mjs    de quoi est faite l'équipe MOYENNE, une fois align�
 scripts/check_feuilles.mjs  les égalités de la feuille de match, les repères
                             d'époque, et les totaux des joueurs
 scripts/check_plafond.mjs   le plafond du jeu en victoires et en Coupes
+scripts/check_traits.mjs    les traits : rareté, couverture d'époque, effet mesuré
 scripts/smoke.mjs           test de fumée Playwright à 390 px
+data/trophees.js            Selke, Norris, Vezina, Conn Smythe — gagnants et finalistes
 data/index.json             liste des saisons disponibles
 data/seasons/<saison>.json  un shard par saison
 data/seed.json              filet hors ligne
@@ -110,7 +113,30 @@ lancers pour        = lancers contre, à l'échelle de la ligue
 
 **Tout est exprimé en écart à `REF`**, l'équipe moyenne une fois alignée — pas le joueur moyen de la ligue. La distinction n'est pas cosmétique : un alignement retient les 18 meilleurs patineurs d'un club et son gardien numéro un, qui tirent 27 % de plus que le régulier moyen, finissent 2 % mieux et arrêtent 10 % de plus. Normaliser sur le joueur moyen donnait une équipe médiane à 60 victoires. `node scripts/check_neutre.mjs` remesure ces quatre nombres.
 
-**Une seule constante est libre : `SYN_ECHELLE`.** Elle convertit un bonus de chimie ou un malus de zone (en points de cote) en facteur multiplicatif sur les buts attendus d'une unité, moitié par le volume moitié par la qualité. Tout le reste — `LANCERS_BASE`, `ALPHA_POSSESSION`, `K_DEFENSE`, `REF` — est mesuré. `LANCERS_BASE` et `CIBLE_PCT_TIR` sont réglés sur la *sortie* de `check_feuilles.mjs` (≈ 28,5 lancers et ≈ 3,1 buts par équipe par match), pas sur la moyenne brute des shards.
+**Une seule constante est libre : `SYN_ECHELLE`** (42). Elle convertit un bonus de chimie ou un malus de zone (en points de cote) en facteur multiplicatif sur les buts attendus d'une unité, moitié par le volume moitié par la qualité. Tout le reste — `LANCERS_BASE`, `ALPHA_POSSESSION`, `K_DEFENSE`, `REF` — est mesuré. `LANCERS_BASE` et `CIBLE_PCT_TIR` sont réglés sur la *sortie* de `check_feuilles.mjs` (≈ 28,5 lancers et ≈ 3,1 buts par équipe par match), pas sur la moyenne brute des shards.
+
+## Les traits
+
+**Un trait n'existe que là où le sommaire est aveugle.** C'est la règle qui tient `js/traits.js`, et elle décide de tout le reste. Le moteur lit déjà les lancers, les buts par lancer, le pourcentage d'arrêts, le +/- et les matchs joués — un trait « franc-tireur » ou « homme de fer » ne ferait que recompter ce que le moteur compte déjà, et il le compterait moins bien. Ce qui manque au sommaire, c'est le jugement : qui défendait vraiment, quel gardien tenait vraiment son équipe, qui se transformait en avril.
+
+D'où quatre traits, tous tirés de scrutins publics à population complète (`data/trophees.js`), chacun sur **un seul** type d'événement :
+
+| trait | effet | quand |
+|---|---|---|
+| 🛡️ Selke | moins de buts alloués pendant ses présences | saison et séries |
+| 🧱 Norris | idem, pour un défenseur | saison et séries |
+| 🥅 Vezina | facteur sur chaque lancer qu'il voit | saison et séries |
+| 🏆 Conn Smythe | bonus offensif, ou un gardien plus dur à battre | **séries seulement** |
+
+**Un trait est rare par construction :** mesuré à **1,02 %** des 36 820 joueurs-saisons, et aucune saison n'en est dépourvue (`node scripts/check_traits.mjs`). Ne pas en avoir veut dire « rien de particulier », ce qui est vrai — contrairement à une cote, qui doit exister pour tout le monde et ment donc quand elle est inconnue.
+
+**Effet mesuré : −10,3 buts alloués et +1,3 victoire** pour une vraie équipe qui en porte trois ou quatre, la même équipe rejouée sans. Les victoires sont bruitées ; les buts alloués sont le signal propre, puisque c'est là que trois des quatre traits agissent. Un trait doit se voir sans décider la saison à lui seul.
+
+**Deux limites d'époque, écrites pour qu'on ne les redécouvre pas.** Le Selke naît en 1977-78 : sept saisons n'ont aucun attaquant défensif décoré, et rien ne peut le corriger puisque le vote n'a pas eu lieu. Et le Vezina d'avant 1981-82 n'était **pas un vote** — il allait aux gardiens du club ayant alloué le moins de buts, ce qui récompense la brigade autant que le gardien, et le moteur mesure déjà cette brigade. Ces onze saisons sont donc écartées du trait même si `data/trophees.js` les porte.
+
+**Pourquoi les traits agissent en propre plutôt que par la cote `d`.** `K_DEFENSE` est mesuré à 0,04 par écart-type d'alignement, donc un point de cote défensive vaut moins d'un pour cent de probabilité de but : faire passer un Selke par sa cote `d` lui ferait sauver un but par saison, invisible. C'est justement l'aveu du sommaire — le +/- ne voit pas ce que le vote voit.
+
+**La défense se joue présence par présence.** Le moteur tire l'unité défensive adverse à chaque lancer, au prorata de son temps de glace seul (jamais de son volume de tirs : une unité ne défend pas plus souvent parce qu'elle attaque plus). C'est ce qui rend un quatrième trio poreux coûteux pendant ses propres treize minutes, et c'est ce qui donne aux traits un endroit où mordre. Le −1 du +/- va donc aux joueurs qui étaient vraiment sur la glace.
 
 ## Recalibrer la simulation
 
@@ -118,12 +144,12 @@ Repères actuels, de vrais joueurs-saisons d'une même cote, moyenne sur 12 essa
 
 | Cote | Fiche | BP-BC |
 |---|---|---|
-| 50 | 9-68-5 | 136-361 |
-| 60 | 30-46-6 | 224-296 |
-| 70 | 42-36-5 | 257-258 |
-| 80 | 46-32-4 | 258-241 |
-| 90 | 56-24-2 | 293-213 |
-| 99 | 69-13-1 | 336-176 |
+| 50 | 13-65-4 | 137-344 |
+| 60 | 27-50-5 | 213-304 |
+| 70 | 38-39-5 | 242-267 |
+| 80 | 43-35-4 | 237-235 |
+| 90 | 56-25-2 | 280-209 |
+| 99 | 68-14-1 | 327-169 |
 
 Le banc **ne peut plus être synthétique**. L'ancienne table alignait 23 joueurs inventés `{o:r, d:r, …}` ; le moteur par événements se nourrit des vraies statistiques — lancers, buts par lancer, pourcentage d'arrêts — que des joueurs inventés n'ont pas, et un tel banc joue comme 23 rappels de la ligue mineure quelle que soit sa cote. On tire donc de vrais joueurs-saisons dont la cote est celle du palier.
 
@@ -134,10 +160,10 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 | décile | victoires simulées | vraies victoires |
 |---|---|---|
 | 1 | 28,6 | 27,1 |
-| 5 | 42,0 | 43,2 |
-| 10 | 52,1 | 56,2 |
+| 5 | 42,6 | 43,2 |
+| 10 | 52,8 | 56,2 |
 
-**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **63,5-17,8-0,8** et gagne la Coupe **40 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 62,7-16,4-3,0 et la gagne **60 %**. C'est la cible : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
+**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **61,1-19,6-1,3** en ligue et gagne la Coupe **50 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 62,7-15,7-3,5 et la gagne **40 %**. Les deux se tiennent, ce qui est la cible. C'est la cible : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
 `node scripts/mock_zones.mjs` garde le repère sur l'indice de cotes : le meilleur alignement légal est à 69,3 contre 68,0 pour les Bruins de 1970-71. Sans malus de zone il serait à 83,8.
 
@@ -152,7 +178,10 @@ node scripts/check_feuilles.mjs      # les égalités et les repères d'époque
 node scripts/calibrate_sim.mjs       # la table par palier de cote
 node scripts/check_monotonie.mjs     # monotone sur dix déciles
 node scripts/check_plafond.mjs       # victoires et Coupes au plafond
+node scripts/check_traits.mjs        # les traits restent rares et se voient
 ```
+
+**Les chances de Coupe demandent 40 ligues, pas 6.** Une Coupe est un événement composé de quatre séries : à 6 ligues j'ai lu 33 %, à 16 ligues 38 %, à 16 autres 75 %. À 40 ligues c'est stable à ±8 points. Ne conclus rien d'un `ESSAIS=6`.
 
 La partie réelle se joue dans `simulateLeague` : 32 équipes (le joueur + 31 vraies équipes historiques alignées automatiquement), 82 rondes d'appariements, 1 312 matchs, avec chance, continuité des trios et blessures au prorata des matchs vraiment joués. **Les blessures s'appliquent aussi en séries** — c'est ce que l'ancien moteur sautait, et pourquoi la Coupe se gagnait à tout coup.
 

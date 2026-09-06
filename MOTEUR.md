@@ -304,8 +304,9 @@ La refonte se juge sur des nombres, pas sur une impression. Dans l'ordre :
 | Totaux des joueurs sur 82 matchs | ≈ leurs vrais totaux | biais −15 %, erreur 34 % dont 26 de bruit ⚠ |
 | `check_monotonie.mjs` | monotone, dix déciles sur dix | **10/10, et colle au réel** ✓ |
 | `check_ratings.mjs` | corrélation ≈ 0,80 | **0,804** ✓ |
-| Plafond du jeu | près du sommet historique, pas au-dessus | **63,5 V contre 62,7** ✓ |
-| Chances de Coupe | plus 100 %, et un vrai pari | **40 % au plafond, 60 % à MTL 76-77** ✓ |
+| Plafond du jeu | près du sommet historique, pas au-dessus | **64,3 V contre 62,8** ✓ |
+| Chances de Coupe | plus 100 %, et un vrai pari | **50 % au plafond, 40 % à MTL 76-77** ✓ |
+| Rareté des traits | assez rare pour vouloir dire quelque chose | **1,02 % des joueurs-saisons** ✓ |
 | `smoke.mjs` à 390 px | 0 erreur console | **0** ✓ |
 
 Le contrôle de cohérence des feuilles de match est devenu un test permanent,
@@ -483,8 +484,62 @@ ainsi de la comptabilité, sans que le pointage ait l'air faux.
    composé de quatre séries : à 6 ligues j'ai lu 33 %, à 16 ligues 38 %, à 16
    autres 75 %. Il faut au moins 40 ligues pour que le chiffre veuille dire
    quelque chose, et il reste à ±8 points. Ne conclus rien d'un `ESSAIS=6`.
-7. **Les traits**, une fois le moteur stable, parce qu'ils se greffent sur des
-   types d'événements qui doivent d'abord exister.
+7. **Les traits. Fait**, et la règle qui les gouverne s'est révélée plus
+   tranchante que la section 5.4 ne l'annonçait : **un trait n'existe que là
+   où le sommaire est aveugle.**
+
+   La section 5.4 proposait trois étages, en commençant par les traits
+   « factuels » tirés de l'API — bagarreur, homme de fer, spécialiste des
+   mises au jeu, cogneur. À l'implémentation, aucun ne survit :
+
+   - **Homme de fer** recompte `gpShare`, que `injuryChance` lit déjà. Un
+     joueur à 82 matchs a déjà la probabilité de blessure la plus basse du
+     moteur. Le trait n'ajoute rien.
+   - **Spécialiste des mises au jeu** (1997-98+) et **cogneur** (2005-06+)
+     n'existent pas avant leur saison de collecte. Les accorder, c'est donner
+     aux modernes un levier que 1975 ne peut pas avoir — l'invariant d'équité
+     entre époques dit non.
+   - **Bagarreur** se lit dans `pim`, déjà dans la cote de robustesse.
+
+   Restent les **votés**, et ils sont exactement ce qui manque : le sommaire
+   ne dit pas qui défendait vraiment, quel gardien tenait vraiment son
+   équipe, qui se transformait en avril. Quatre traits, un type d'événement
+   chacun, tous depuis `data/trophees.js` :
+
+   | trait | effet | quand |
+   |---|---|---|
+   | Selke | moins de buts alloués pendant ses présences | toujours |
+   | Norris | idem, pour un défenseur | toujours |
+   | Vezina | facteur sur chaque lancer qu'il voit | toujours |
+   | Conn Smythe | bonus offensif, ou un gardien plus dur à battre | **séries seulement** |
+
+   **Mesuré** (`scripts/check_traits.mjs`) : **1,02 %** des 36 820
+   joueurs-saisons portent un trait, aucune saison n'en est dépourvue, et une
+   vraie équipe qui en porte trois ou quatre alloue **10,3 buts de moins** et
+   gagne 1,3 match de plus que la même équipe rejouée sans. Visible, jamais
+   décisif à soi seul.
+
+   **Une structure a dû changer pour que les traits aient où mordre : la
+   défense se joue maintenant présence par présence.** Le moteur tirait la
+   qualité défensive de la MOYENNE d'équipe, si bien qu'un quatrième trio
+   poreux ne coûtait rien pendant ses propres treize minutes, et qu'un Selke
+   ne défendait pas plus quand il était sur la glace. L'unité défensive
+   adverse est désormais tirée à chaque lancer, au prorata de son temps de
+   glace **seul** — une unité ne défend pas plus souvent parce qu'elle
+   attaque plus. Le −1 du +/- va donc aux joueurs qui étaient vraiment là.
+
+   **Pourquoi les traits agissent en propre et non par la cote `d`.**
+   `K_DEFENSE` est mesuré à 0,04 par écart-type, donc un point de cote
+   défensive vaut moins d'un pour cent de probabilité de but : un Selke qui
+   passerait par sa cote sauverait un but par saison. C'est précisément
+   l'aveu du sommaire — le +/- ne voit pas ce que le vote voit.
+
+   **Deux limites d'époque, assumées.** Le Selke naît en 1977-78 : sept
+   saisons n'ont aucun attaquant défensif décoré, et le vote n'ayant pas eu
+   lieu, rien ne peut le corriger. Et le Vezina d'avant 1981-82 n'était pas un
+   vote — il allait aux gardiens du club ayant alloué le moins de buts, ce qui
+   récompense la brigade autant que le gardien, et le moteur mesure déjà cette
+   brigade. Ces onze saisons sont écartées du trait.
 
 ---
 
