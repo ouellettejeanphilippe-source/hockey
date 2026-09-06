@@ -17,6 +17,14 @@
  *   VEZINA   le meilleur gardien                 → un facteur sur chaque lancer qu'il voit
  *   SMYTHE   le plus utile des SÉRIES            → en séries seulement
  *
+ * UN TRAIT APPARTIENT AU JOUEUR, PAS À SA CASE. Il rend partout dans
+ * l'alignement : un lauréat du Selke au quatrième trio défend aussi bien
+ * qu'au premier. C'est le malus de zone qui punit de mal placer un joueur, et
+ * il le fait déjà ; faire porter la punition deux fois reviendrait à dire
+ * qu'un Selke oublie comment défendre quand on l'écrit sur la troisième ligne
+ * de la feuille. Seule condition : être HABILLÉ. Un trait sur un réserviste ne
+ * compte pas — il regarde le match.
+ *
  * Un trait est RARE par construction : environ un pour cent des joueurs-saisons.
  * Ne pas en avoir veut dire « rien de particulier », ce qui est vrai et
  * n'invente rien — contrairement à une cote, qui doit exister pour les 33 141
@@ -65,19 +73,24 @@ export const TRAITS = {
  * but. Faire passer un Selke par la cote `d` lui ferait donc sauver un but par
  * saison — invisible. C'est justement l'aveu du sommaire : le +/- ne voit pas
  * ce que le vote voit. Le trait agit donc en propre, sur la qualité des
- * lancers pendant ses présences.
+ * lancers que son équipe concède.
  *
- * À MESURER, et c'est assumé : 6 % pour un gagnant est un choix prudent. Un
- * lauréat du Selke est typiquement 10 à 20 % meilleur que ses coéquipiers sur
- * les buts alloués à forces égales, mais cette mesure-là n'existe pas avant
- * 2007 dans des données publiques. On prend donc le bas de la fourchette.
+ * Les nombres sont petits parce qu'ils s'appliquent à TOUT le match et non
+ * aux seules présences du joueur. Deux pour cent sur 230 buts alloués, c'est
+ * cinq buts ; une équipe qui en porte trois ou quatre en sauve dix. Le
+ * réglage vise cette sortie-là, mesurée par `scripts/check_traits.mjs` : un
+ * trait doit se voir dans la colonne des buts alloués sans décider la saison.
+ *
+ * À MESURER, et c'est assumé : la mesure qui trancherait — les buts alloués à
+ * forces égales pendant ses présences — n'existe pas dans des données
+ * publiques avant 2007. On prend donc le bas de la fourchette plausible.
  */
 export const EFFET = {
   //                       gagnant  finaliste
-  SELKE:  { defense:       [0.94,   0.97] },
-  NORRIS: { defense:       [0.94,   0.97] },
-  VEZINA: { gardien:       [0.96,   0.98] },
-  SMYTHE: { series:        [1.08,   1.08], seriesGardien: [0.95, 0.95] },
+  SELKE:  { defense:       [0.980,  0.990] },
+  NORRIS: { defense:       [0.980,  0.990] },
+  VEZINA: { gardien:       [0.960,  0.980] },
+  SMYTHE: { series:        [1.030,  1.030], seriesGardien: [0.960, 0.960] },
 };
 
 /** Normalise une table de trophée en `saison|nom` -> 0 (gagnant) ou 1 (finaliste). */
@@ -129,12 +142,13 @@ const produit = (p, champ) => {
 };
 
 /**
- * Facteur sur la probabilité qu'un lancer devienne un but, pendant les
- * présences de cette unité défensive. En dessous de 1 = elle étouffe.
+ * Facteur sur la probabilité qu'un lancer devienne un but, pour toute
+ * l'équipe. En dessous de 1 = elle étouffe. `joueurs` est l'alignement
+ * HABILLÉ : un trait sur un réserviste ne compte pas.
  */
-export function facteurDefensifUnite(joueurs) {
+export function facteurDefensifEquipe(joueurs) {
   let f = 1;
-  for (const p of joueurs) f *= produit(p, 'defense');
+  for (const p of joueurs) if (p && p.p !== 'G') f *= produit(p, 'defense');
   return f;
 }
 
@@ -147,12 +161,12 @@ export function facteurTraitGardien(gardien, series = false) {
 }
 
 /**
- * Facteur offensif d'une unité EN SÉRIES. Le Conn Smythe ne rend qu'en avril :
+ * Facteur offensif d'équipe EN SÉRIES. Le Conn Smythe ne rend qu'en avril :
  * c'est tout l'intérêt du trait, et le seul du lot qui distingue la saison des
  * séries.
  */
-export function facteurSeriesUnite(joueurs) {
+export function facteurSeriesEquipe(joueurs) {
   let f = 1;
-  for (const p of joueurs) if (p.p !== 'G') f *= produit(p, 'series');
+  for (const p of joueurs) if (p && p.p !== 'G') f *= produit(p, 'series');
   return f;
 }
