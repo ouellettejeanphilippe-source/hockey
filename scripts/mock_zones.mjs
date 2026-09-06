@@ -16,14 +16,10 @@
  *   node scripts/mock_zones.mjs
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { CAP, ZONE_PEN_SOUS, ZONE_PEN_DESSUS, ZONE_PEN_MAX } from '../js/sim.js';
 import { ZONE_THRESHOLDS, LINE_ZONES } from '../js/ratings.js';
+import { meilleurAlignementLegal, equipesTemoins } from './lib/vestiaires.mjs';
 
-const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
 
 const POIDS_TRIO = [0.34, 0.28, 0.22, 0.16];
 const POIDS_PAIRE = [0.40, 0.34, 0.26];
@@ -81,55 +77,8 @@ function indice(F, D, G, { sous = ZONE_PEN_SOUS, dessus = ZONE_PEN_DESSUS, plafo
 }
 
 /* --- tous les joueurs de toutes les époques --- */
-const best = new Map();
-for (const f of fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sort()) {
-  for (const p of JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, f), 'utf8')).players) {
-    if (p.gp < 20) continue;
-    const k = `${p.id}|${p.s}`;
-    if (!best.has(k) || p.v > best.get(k).v) best.set(k, p);
-  }
-}
-const tous = [...best.values()];
-
-/* --- meilleur alignement légal : remplir au moins cher, puis améliorer au
-       meilleur gain par dollar tant que le plafond le permet --- */
-const BESOIN = { F: 12, D: 6, G: 2 };
-const roster = {};
-for (const [pos, n] of Object.entries(BESOIN)) {
-  roster[pos] = tous.filter(p => p.p === pos).sort((a, b) => a.$ - b.$).slice(0, n);
-}
-let masse = Object.values(roster).flat().reduce((s, p) => s + p.$, 0);
-for (let tour = 0; tour < 4000; tour++) {
-  let meilleur = null;
-  for (const pos of Object.keys(BESOIN)) {
-    const cur = roster[pos];
-    const pire = cur.reduce((a, b) => (a.v <= b.v ? a : b));
-    const ids = new Set(cur.map(p => `${p.id}|${p.s}`));
-    for (const c of tous) {
-      if (c.p !== pos || ids.has(`${c.id}|${c.s}`) || c.v <= pire.v) continue;
-      const cout = c.$ - pire.$;
-      if (masse + cout > CAP) continue;
-      const r = cout > 0 ? (c.v - pire.v) / cout : Infinity;
-      if (!meilleur || r > meilleur.r) meilleur = { r, pos, pire, c, cout };
-    }
-  }
-  if (!meilleur) break;
-  roster[meilleur.pos] = roster[meilleur.pos].filter(p => p !== meilleur.pire).concat(meilleur.c);
-  masse += meilleur.cout;
-}
-const tri = a => a.slice().sort((x, y) => y.v - x.v);
-const EMP = [tri(roster.F), tri(roster.D), tri(roster.G)];
-
-/* --- vraies équipes témoins --- */
-const TEMOINS = [['MTL 76-77', '1976-77', 'MTL'], ['BOS 70-71', '1970-71', 'BOS'],
-                 ['NYI 92-93', '1992-93', 'NYI'], ['DET 76-77', '1976-77', 'DET']];
-const refs = TEMOINS.map(([lab, s, t]) => {
-  const ps = JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, `${s}.json`), 'utf8'))
-    .players.filter(p => p.t === t && p.gp >= 10);
-  return [lab, [tri(ps.filter(p => p.p === 'F')).slice(0, 12),
-                tri(ps.filter(p => p.p === 'D')).slice(0, 6),
-                ps.filter(p => p.p === 'G').sort((a, b) => b.gp - a.gp)]];
-});
+const { unites: EMP, masse } = meilleurAlignementLegal();
+const refs = equipesTemoins();
 
 console.log(`\nMeilleur alignement légal, cueillette libre sur 55 saisons : ${(masse / 1e6).toFixed(1)} / ${(CAP / 1e6).toFixed(1)} M$`);
 console.log(`  Premier trio : ${EMP[0].slice(0, 3).map(p => `${p.n} ${p.s} (${(p.$ / 1e6).toFixed(1)}M, cote ${p.v})`).join(', ')}`);

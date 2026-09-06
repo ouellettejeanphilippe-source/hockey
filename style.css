@@ -814,6 +814,20 @@ a { color: var(--blue); }
   line-height: 1.4;
 }
 .tag-arch { color: #d8b4fe; border-color: rgba(192, 132, 252, 0.32); }
+/* Les traits sont rares (1 % des joueurs-saisons) : ils ont donc le droit de
+   se voir plus que le reste. Le finaliste est le même signal, en sourdine. */
+.tag-trait {
+  color: #0b1220;
+  background: var(--gold);
+  border-color: var(--gold);
+  font-weight: 700;
+}
+.tag-trait.est-finaliste {
+  color: var(--gold);
+  background: rgba(0, 0, 0, 0.28);
+  border-color: rgba(244, 196, 48, 0.5);
+  font-weight: 600;
+}
 .tag-zone { color: var(--blue); border-color: rgba(56, 189, 248, 0.32); }
 .tag-zone.lz1 { color: #0b1220; background: var(--gold); border-color: var(--gold); }
 .tag-zone.lz2 { color: #7dd3fc; border-color: rgba(125, 211, 252, 0.45); }
