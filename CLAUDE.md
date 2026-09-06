@@ -51,6 +51,7 @@ scripts/check_neutre.mjs    de quoi est faite l'équipe MOYENNE, une fois align�
 scripts/check_feuilles.mjs  les égalités de la feuille de match, les repères
                             d'époque, et les totaux des joueurs
 scripts/check_plafond.mjs   le plafond du jeu en victoires et en Coupes
+scripts/check_chimie.mjs    la chimie de trio dit-elle ce que le hockey dit ?
 scripts/check_traits.mjs    les traits : rareté, couverture d'époque, effet mesuré
 scripts/smoke.mjs           test de fumée Playwright à 390 px
 data/trophees.js            Selke, Norris, Vezina, Conn Smythe — gagnants et finalistes
@@ -63,13 +64,23 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 
 ## Règles fermes
 
+**Il n'y a plus de cote globale.** La valeur d'un joueur (`v`) est son **rang statistique** dans sa saison, projeté sur la distribution historique par position (`valeurDeSaison` et `VALEUR_CENTILES` dans `js/ratings.js`). Le rang vient des colonnes — production, volume de lancers, différentiel lissé du vestiaire, usage — et l'échelle est celle que le jeu utilisait déjà. Cette séparation est délibérée : **changer qui est premier est un choix de conception, changer combien de joueurs valent 70 en serait un autre**, et on n'en veut qu'un à la fois. C'est ce qui garantit que les seuils de zone, la courbe des salaires et l'économie du plafond continuent de valoir ce qu'ils valaient.
+
+**Les cotes ne s'affichent nulle part.** Ni hexagone au survol, ni chiffre global sur la carte, ni grille ATT/DÉF/ROB/CLU sur la fiche, ni option « brouillard de guerre » — elle n'existait que pour les révéler. La fiche porte à la place un **profil mesuré** : production, lancers, penchant et robustesse, chacun en écart au régulier moyen de la saison du joueur. Un joueur se juge sur ce qu'il a fait.
+
+**Les sous-cotes `o`, `d`, `r`, `c` restent internes** : le moteur lit `d` pour la défensive d'équipe, `r` pour l'usure et `c` pour la prolongation. Elles ne sortent jamais dans le DOM.
+
+**Un taux sur huit matchs ne veut rien dire.** Chaque terme de taux est ramené vers la moyenne au prorata de l'échantillon (`gp / (gp + FIABILITE)`, FIABILITE = 22). Sans ça la corrélation force/classement tombait à 0,77 et les rappels occupaient les hauts de classement.
+
 **Une seule implémentation des cotes.** `js/ratings.js` est la source unique. Le navigateur l'importe, et `scripts/build_shards.py` y accède via `scripts/rate.mjs`. Ne réimplémente jamais la formule en Python — ça produirait deux définitions qui divergent silencieusement.
 
 **Toucher à une formule de cote veut dire incrémenter `RATINGS_VERSION`** dans `js/ratings.js`. La version est dans la clé du cache IndexedDB. Sans incrément, un joueur se retrouve avec des cotes calculées par deux formules différentes dans le même alignement.
 
 **Deux étages de cotes.** L'étage 1 (`rateSkaters`, `rateGoalies` : sous-cotes o, d, r, c, sp) exige les stats brutes de l'API. L'étage 2 (`finalizeSeason` : cote globale, salaire, archétype `ak`, zone `lz`, contrat d'entrée `elc`) ne lit que le shard, donc `python3 scripts/build_shards.py --rerate` le rejoue sur les 55 saisons en une seconde, sans réseau. Si tu changes l'étage 2, c'est la commande à lancer ; si tu changes l'étage 1, il faut l'API. Le build normal enchaîne toujours un `--rerate` à la fin, parce que les contrats d'entrée dépendent de la première saison de chaque joueur dans toute la base et de sa cohorte d'identifiant (âge estimé quand l'API bios n'a pas donné la date de naissance `bd` ; `python3 scripts/build_shards.py --bios-only` l'ajoute aux shards existants en ~110 requêtes, et les cartes affichent alors l'âge). Règles d'époque dans `elcEra` : rien avant 1995-96.
 
-**La cote globale est relative à la saison.** Un bonus de vedette est calculé sur le rang du joueur dans sa saison, divisé par le nombre d'équipes de la ligue cette année-là. C'est ce qui équilibre 1975 (18 équipes) et 2024 (32). Vérifie avec `node scripts/check_ratings.mjs` : la corrélation entre la force d'une équipe et son vrai classement (reconstitué des fiches de gardiens) doit rester autour de 0,8.
+**La valeur est relative à la saison par construction** : c'est un rang à l'intérieur de la saison, donc 1975 (18 équipes) et 2024 (32) s'équilibrent d'eux-mêmes. Vérifie avec `node scripts/check_ratings.mjs` : la corrélation entre la force d'une équipe et son vrai classement (reconstitué des fiches de gardiens) doit rester autour de 0,8 — elle est à **0,801**.
+
+**Ce que le rang statistique ne peut pas voir, et c'est assumé.** `finalizeSeason` ne lit que le shard, qui ne porte ni les points en désavantage numérique ni les tirs bloqués — deux signaux défensifs que l'ancienne cote pouvait utiliser parce qu'elle était calculée à l'étage 1, sur l'API. Le différentiel lissé les remplace, et il porte donc plus de poids chez les défenseurs (0,36) que chez les attaquants (0,20). C'est aussi le terme le plus discutable : le +/- est en partie un résultat d'équipe, et lui donner du poids gonfle mécaniquement la corrélation qu'on mesure ensuite. `LISSAGE_EQUIPE` en retranche la moitié.
 
 **Modules ES natifs, pas de build step.** `<script type="module">`. Aucun bundler, aucun transpileur, aucun `node_modules`. Le dépôt doit pouvoir être servi tel quel.
 
@@ -115,6 +126,31 @@ lancers pour        = lancers contre, à l'échelle de la ligue
 **Tout est exprimé en écart à `REF`**, l'équipe moyenne une fois alignée — pas le joueur moyen de la ligue. La distinction n'est pas cosmétique : un alignement retient les 18 meilleurs patineurs d'un club et son gardien numéro un, qui tirent 27 % de plus que le régulier moyen, finissent 2 % mieux et arrêtent 10 % de plus. Normaliser sur le joueur moyen donnait une équipe médiane à 60 victoires. `node scripts/check_neutre.mjs` remesure ces quatre nombres.
 
 **Une seule constante est libre : `SYN_ECHELLE`** (42). Elle convertit un bonus de chimie ou un malus de zone (en points de cote) en facteur multiplicatif sur les buts attendus d'une unité, moitié par le volume moitié par la qualité. Tout le reste — `LANCERS_BASE`, `ALPHA_POSSESSION`, `K_DEFENSE`, `REF` — est mesuré. `LANCERS_BASE` et `CIBLE_PCT_TIR` sont réglés sur la *sortie* de `check_feuilles.mjs` (≈ 28,5 lancers et ≈ 3,1 buts par équipe par match), pas sur la moyenne brute des shards.
+
+## La chimie et les archétypes se lisent dans la fiche, pas dans la cote
+
+**C'était le dernier endroit du moteur qui raisonnait sur une cote.** La chimie lisait l'archétype, et l'archétype comparait `o`, `d` et `r` à des seuils : un trio pouvait donc basculer en « conflit de rôles » parce que trois z-scores franchissaient ensemble une frontière, sans qu'aucun de ces joueurs n'ait le même profil de production. Les deux se calculent maintenant sur les vraies statistiques, en écart au régulier moyen de la saison du joueur.
+
+**Le penchant d'un attaquant** est la part de ses points qui vient de ses buts, moins celle de sa ligue (mesurée, ≈ 0,42 et remarquablement stable sur 55 ans). Positif = il finit, négatif = il sert.
+
+**Deux nombres décident d'un trio**, et ils disent ce que le hockey dit :
+
+| | |
+|---|---|
+| **écart** | entre le plus tireur et le plus passeur — un trio a besoin de quelqu'un qui finit *et* de quelqu'un qui sert |
+| **excès** | à quel point tout le trio penche du même bord — trois francs-tireurs se disputent la même rondelle |
+
+Mesuré avec de vrais joueurs (`node scripts/check_chimie.mjs`) : deux francs-tireurs et un fabricant **+8,5**, un franc-tireur et deux fabricants +7,7, trois francs-tireurs **−2,2**, trois fabricants **−4,9**, trois joueurs moyens +2,0.
+
+**La mesure est sans échelle** — elle ne regarde que l'équilibre, jamais le niveau. C'est délibéré : le moteur modélise déjà le volume de tirs et la finition de chacun, donc récompenser un trio parce qu'il produit beaucoup le compterait deux fois. Seul le *poids* de l'effet suit la production, parce qu'organiser les rôles compte davantage quand il y a de l'offensive à organiser.
+
+**La chimie de trio ne touche que l'attaque.** La défensive passe par la cote `d` et par les traits, où elle est mesurée ; la faire agir ici aussi reviendrait à la compter deux fois. Chez les défenseurs, en revanche, la composition a un effet défensif réel et mesuré : une paire dont les deux montent laisse plus de retours.
+
+**L'archétype suit les mêmes quatre axes**, tous disponibles depuis 1970-71 : production, penchant, volume de lancers, minutes de punition — chacun divisé par le régulier moyen de sa saison. `archetypeKey(p)` ne prend plus de cotes en second argument, il n'y en a plus à passer.
+
+**Ce que l'archétype décrit, c'est la SAISON, pas la légende.** Gretzky 1981-82 (92 buts) sort franc-tireur ; Gretzky 1985-86 (163 passes) sort fabricant d'élite. C'est correct : la réputation 🪄 Créateur est là pour dire ce que le joueur *était*, l'archétype dit ce qu'il *a fait cette année-là*.
+
+**Ce que ça ne mesure pas, et c'est assumé** : rien ici ne voit la défensive d'un attaquant, parce que le sommaire ne la porte pas avant 1998. Un attaquant peu productif et peu puni sort « complet » plutôt que « défensif » — c'est la meilleure lecture possible de ses colonnes, et le trait Selke existe pour les cas où le vote sait ce que le sommaire ignore.
 
 ## Les traits
 
@@ -170,12 +206,12 @@ Repères actuels, de vrais joueurs-saisons d'une même cote, moyenne sur 12 essa
 
 | Cote | Fiche | BP-BC |
 |---|---|---|
-| 50 | 9-67-5 | 135-352 |
-| 60 | 30-46-5 | 211-292 |
-| 70 | 41-37-4 | 254-266 |
-| 80 | 45-34-3 | 246-234 |
-| 90 | 57-24-2 | 275-206 |
-| 99 | 66-15-1 | 323-168 |
+| 50 | 11-66-6 | 133-342 |
+| 60 | 28-48-6 | 209-284 |
+| 70 | 40-37-5 | 245-254 |
+| 80 | 48-30-4 | 246-217 |
+| 90 | 59-22-0 | 284-194 |
+| 99 | 69-13-0 | 324-157 |
 
 Le banc **ne peut plus être synthétique**. L'ancienne table alignait 23 joueurs inventés `{o:r, d:r, …}` ; le moteur par événements se nourrit des vraies statistiques — lancers, buts par lancer, pourcentage d'arrêts — que des joueurs inventés n'ont pas, et un tel banc joue comme 23 rappels de la ligue mineure quelle que soit sa cote. On tire donc de vrais joueurs-saisons dont la cote est celle du palier.
 
@@ -185,13 +221,13 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 
 | décile | victoires simulées | vraies victoires |
 |---|---|---|
-| 1 | 29,0 | 27,1 |
-| 5 | 42,5 | 43,2 |
-| 10 | 53,2 | 56,2 |
+| 1 | 26,4 | 27,1 |
+| 5 | 42,0 | 43,3 |
+| 10 | 52,0 | 56,6 |
 
-**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **63,9-17,5-0,6** en ligue et gagne la Coupe **58 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 62,3-16,6-3,2 et la gagne **63 %** (24 ligues chacun, donc ±10 points). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
+**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **61,9-19,1-1,1** en ligue et gagne la Coupe **60 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 62,1-16,6-3,4 et la gagne **40 %** (20 ligues chacun, donc ±11 points). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
-`node scripts/mock_zones.mjs` garde le repère sur l'indice de cotes : le meilleur alignement légal est à 69,3 contre 68,0 pour les Bruins de 1970-71. Sans malus de zone il serait à 83,8.
+`node scripts/mock_zones.mjs` garde le repère sur l'indice de valeur : le meilleur alignement légal est à **65,0**, exactement le Canadien de 1976-77, contre 65,5 pour les Bruins de 1970-71. Sans malus de zone il serait à 79,5. La valeur bâtie sur les statistiques a resserré cet écart d'elle-même — l'ancienne cote plaçait l'empilement à 69,3, au-dessus de toutes les vraies équipes.
 
 `ZONE_PEN_SOUS` et `ZONE_PEN_MAX` ne tirent pas sur la même chose. Sur un alignement empilé la pénalité sature, donc seul le plafond mord ; sur une vraie équipe elle reste dessous, donc seul le coefficient mord. Un coefficient bas avec un plafond haut ferme donc l'empilement sans toucher aux vraies équipes — monter le coefficient punit les deux.
 

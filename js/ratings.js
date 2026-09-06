@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 19;
+export const RATINGS_VERSION = 21;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -156,40 +156,189 @@ export const SEASON_GOAL_AVG = {
  *   [1] % de tir de la ligue
  *   [2] lancers par match d'un attaquant régulier (20 PJ et plus)
  *   [3] lancers par match d'un défenseur régulier
+ *   [4] points par match d'un attaquant régulier
+ *   [5] points par match d'un défenseur régulier
+ *   [6] part des points d'un attaquant régulier qui vient de ses buts
+ *   [7] minutes de punition par match d'un attaquant régulier
  *
- * Les deux derniers expriment le volume de tirs d'un joueur en écart à sa
- * ligue, pour qu'un ailier de 1981 et un ailier de 2015 se comparent.
+ * Les quatre derniers expriment le volume de tirs et la production d'un joueur
+ * en écart à sa ligue, pour qu'un ailier de 1981 et un ailier de 2015 se
+ * comparent. La production sert à la chimie de trio (`js/sim.js`), qui se
+ * calcule sur les vraies statistiques et non sur une cote.
  *
  * NE PAS ÉDITER À LA MAIN — `node scripts/build_lancers.mjs` la régénère
  * depuis les shards, et `--check` dit si elle est périmée.
  */
 export const SEASON_LANCERS = {
   /* <lancers> */
-  '1970-71': [31.01, 10.03, 2.00, 1.50], '1971-72': [29.57, 10.21, 1.96, 1.50], '1972-73': [30.84, 10.56, 2.06, 1.43],
-  '1973-74': [29.44, 10.84, 1.93, 1.42], '1974-75': [29.73, 11.49, 1.98, 1.45], '1975-76': [29.40, 11.60, 2.02, 1.42],
-  '1976-77': [28.98, 11.43, 1.91, 1.43], '1977-78': [28.24, 11.59, 1.83, 1.44], '1978-79': [28.69, 12.16, 1.81, 1.39],
-  '1979-80': [28.62, 12.23, 1.83, 1.41], '1980-81': [29.46, 12.96, 1.86, 1.48], '1981-82': [29.74, 13.36, 1.91, 1.47],
-  '1982-83': [29.50, 13.05, 1.75, 1.43], '1983-84': [29.47, 13.37, 1.74, 1.44], '1984-85': [29.85, 12.97, 1.75, 1.42],
-  '1985-86': [29.95, 13.13, 1.82, 1.39], '1986-87': [28.88, 12.63, 1.72, 1.34], '1987-88': [29.51, 12.51, 1.72, 1.42],
-  '1988-89': [29.52, 12.67, 1.73, 1.36], '1989-90': [29.16, 12.58, 1.76, 1.35], '1990-91': [28.56, 12.01, 1.67, 1.38],
-  '1991-92': [29.47, 11.71, 1.71, 1.38], '1992-93': [30.55, 11.84, 1.74, 1.43], '1993-94': [29.40, 10.93, 1.67, 1.41],
-  '1994-95': [27.69, 10.60, 1.69, 1.43], '1995-96': [29.55, 10.57, 1.74, 1.34], '1996-97': [28.88, 10.09, 1.73, 1.30],
-  '1997-98': [26.74, 9.84, 1.60, 1.18], '1998-99': [26.90, 9.77, 1.61, 1.21], '1999-00': [27.23, 10.07, 1.64, 1.20],
-  '2000-01': [26.91, 10.18, 1.59, 1.21], '2001-02': [26.66, 9.78, 1.59, 1.19], '2002-03': [27.40, 9.60, 1.66, 1.22],
-  '2003-04': [26.87, 9.52, 1.62, 1.25], '2005-06': [29.13, 10.33, 1.78, 1.21], '2006-07': [28.71, 9.96, 1.76, 1.18],
-  '2007-08': [28.09, 9.64, 1.75, 1.18], '2008-09': [29.36, 9.66, 1.80, 1.22], '2009-10': [29.64, 9.28, 1.81, 1.23],
-  '2010-11': [29.81, 9.11, 1.84, 1.25], '2011-12': [28.64, 9.23, 1.71, 1.27], '2012-13': [27.74, 9.48, 1.74, 1.29],
-  '2013-14': [29.18, 9.13, 1.74, 1.35], '2014-15': [28.86, 9.17, 1.73, 1.34], '2015-16': [29.00, 9.15, 1.69, 1.35],
-  '2016-17': [29.22, 9.30, 1.70, 1.39], '2017-18': [30.95, 9.43, 1.78, 1.50], '2018-19': [30.54, 9.70, 1.77, 1.44],
-  '2019-20': [30.39, 9.73, 1.79, 1.49], '2020-21': [27.90, 10.30, 1.73, 1.45], '2021-22': [30.03, 10.34, 1.80, 1.43],
-  '2022-23': [30.02, 10.36, 1.81, 1.38], '2023-24': [29.12, 10.53, 1.75, 1.27], '2024-25': [27.16, 10.96, 1.63, 1.24],
-  '2025-26': [26.94, 11.39, 1.58, 1.22],
+  '1970-71': [31.01, 10.03, 2.00, 1.50, 0.54, 0.31, 0.428, 0.62],
+  '1971-72': [29.57, 10.21, 1.96, 1.50, 0.52, 0.32, 0.431, 0.55],
+  '1972-73': [30.84, 10.56, 2.06, 1.43, 0.60, 0.31, 0.423, 0.57],
+  '1971-72': [29.57, 10.21, 1.96, 1.50, 0.52, 0.32, 0.431, 0.55],
+  '1972-73': [30.84, 10.56, 2.06, 1.43, 0.60, 0.31, 0.423, 0.57],
+  '1973-74': [29.44, 10.84, 1.93, 1.42, 0.55, 0.32, 0.426, 0.57],
+  '1972-73': [30.84, 10.56, 2.06, 1.43, 0.60, 0.31, 0.423, 0.57],
+  '1973-74': [29.44, 10.84, 1.93, 1.42, 0.55, 0.32, 0.426, 0.57],
+  '1974-75': [29.73, 11.49, 1.98, 1.45, 0.60, 0.35, 0.421, 0.66],
+  '1973-74': [29.44, 10.84, 1.93, 1.42, 0.55, 0.32, 0.426, 0.57],
+  '1974-75': [29.73, 11.49, 1.98, 1.45, 0.60, 0.35, 0.421, 0.66],
+  '1975-76': [29.40, 11.60, 2.02, 1.42, 0.62, 0.34, 0.423, 0.70],
+  '1974-75': [29.73, 11.49, 1.98, 1.45, 0.60, 0.35, 0.421, 0.66],
+  '1975-76': [29.40, 11.60, 2.02, 1.42, 0.62, 0.34, 0.423, 0.70],
+  '1976-77': [28.98, 11.43, 1.91, 1.43, 0.58, 0.34, 0.431, 0.62],
+  '1975-76': [29.40, 11.60, 2.02, 1.42, 0.62, 0.34, 0.423, 0.70],
+  '1976-77': [28.98, 11.43, 1.91, 1.43, 0.58, 0.34, 0.431, 0.62],
+  '1977-78': [28.24, 11.59, 1.83, 1.44, 0.58, 0.34, 0.429, 0.70],
+  '1976-77': [28.98, 11.43, 1.91, 1.43, 0.58, 0.34, 0.431, 0.62],
+  '1977-78': [28.24, 11.59, 1.83, 1.44, 0.58, 0.34, 0.429, 0.70],
+  '1978-79': [28.69, 12.16, 1.81, 1.39, 0.60, 0.36, 0.430, 0.72],
+  '1977-78': [28.24, 11.59, 1.83, 1.44, 0.58, 0.34, 0.429, 0.70],
+  '1978-79': [28.69, 12.16, 1.81, 1.39, 0.60, 0.36, 0.430, 0.72],
+  '1979-80': [28.62, 12.23, 1.83, 1.41, 0.60, 0.37, 0.433, 0.75],
+  '1978-79': [28.69, 12.16, 1.81, 1.39, 0.60, 0.36, 0.430, 0.72],
+  '1979-80': [28.62, 12.23, 1.83, 1.41, 0.60, 0.37, 0.433, 0.75],
+  '1980-81': [29.46, 12.96, 1.86, 1.48, 0.64, 0.40, 0.432, 1.03],
+  '1979-80': [28.62, 12.23, 1.83, 1.41, 0.60, 0.37, 0.433, 0.75],
+  '1980-81': [29.46, 12.96, 1.86, 1.48, 0.64, 0.40, 0.432, 1.03],
+  '1981-82': [29.74, 13.36, 1.91, 1.47, 0.69, 0.40, 0.426, 1.04],
+  '1980-81': [29.46, 12.96, 1.86, 1.48, 0.64, 0.40, 0.432, 1.03],
+  '1981-82': [29.74, 13.36, 1.91, 1.47, 0.69, 0.40, 0.426, 1.04],
+  '1982-83': [29.50, 13.05, 1.75, 1.43, 0.62, 0.38, 0.428, 0.81],
+  '1981-82': [29.74, 13.36, 1.91, 1.47, 0.69, 0.40, 0.426, 1.04],
+  '1982-83': [29.50, 13.05, 1.75, 1.43, 0.62, 0.38, 0.428, 0.81],
+  '1983-84': [29.47, 13.37, 1.74, 1.44, 0.63, 0.39, 0.426, 0.86],
+  '1982-83': [29.50, 13.05, 1.75, 1.43, 0.62, 0.38, 0.428, 0.81],
+  '1983-84': [29.47, 13.37, 1.74, 1.44, 0.63, 0.39, 0.426, 0.86],
+  '1984-85': [29.85, 12.97, 1.75, 1.42, 0.63, 0.39, 0.424, 0.90],
+  '1983-84': [29.47, 13.37, 1.74, 1.44, 0.63, 0.39, 0.426, 0.86],
+  '1984-85': [29.85, 12.97, 1.75, 1.42, 0.63, 0.39, 0.424, 0.90],
+  '1985-86': [29.95, 13.13, 1.82, 1.39, 0.65, 0.38, 0.419, 1.07],
+  '1984-85': [29.85, 12.97, 1.75, 1.42, 0.63, 0.39, 0.424, 0.90],
+  '1985-86': [29.95, 13.13, 1.82, 1.39, 0.65, 0.38, 0.419, 1.07],
+  '1986-87': [28.88, 12.63, 1.72, 1.34, 0.58, 0.36, 0.423, 1.18],
+  '1985-86': [29.95, 13.13, 1.82, 1.39, 0.65, 0.38, 0.419, 1.07],
+  '1986-87': [28.88, 12.63, 1.72, 1.34, 0.58, 0.36, 0.423, 1.18],
+  '1987-88': [29.51, 12.51, 1.72, 1.42, 0.58, 0.37, 0.423, 1.39],
+  '1986-87': [28.88, 12.63, 1.72, 1.34, 0.58, 0.36, 0.423, 1.18],
+  '1987-88': [29.51, 12.51, 1.72, 1.42, 0.58, 0.37, 0.423, 1.39],
+  '1988-89': [29.52, 12.67, 1.73, 1.36, 0.59, 0.37, 0.425, 1.36],
+  '1987-88': [29.51, 12.51, 1.72, 1.42, 0.58, 0.37, 0.423, 1.39],
+  '1988-89': [29.52, 12.67, 1.73, 1.36, 0.59, 0.37, 0.425, 1.36],
+  '1989-90': [29.16, 12.58, 1.76, 1.35, 0.59, 0.36, 0.425, 1.25],
+  '1988-89': [29.52, 12.67, 1.73, 1.36, 0.59, 0.37, 0.425, 1.36],
+  '1989-90': [29.16, 12.58, 1.76, 1.35, 0.59, 0.36, 0.425, 1.25],
+  '1990-91': [28.56, 12.01, 1.67, 1.38, 0.54, 0.35, 0.422, 1.29],
+  '1989-90': [29.16, 12.58, 1.76, 1.35, 0.59, 0.36, 0.425, 1.25],
+  '1990-91': [28.56, 12.01, 1.67, 1.38, 0.54, 0.35, 0.422, 1.29],
+  '1991-92': [29.47, 11.71, 1.71, 1.38, 0.56, 0.35, 0.416, 1.30],
+  '1990-91': [28.56, 12.01, 1.67, 1.38, 0.54, 0.35, 0.422, 1.29],
+  '1991-92': [29.47, 11.71, 1.71, 1.38, 0.56, 0.35, 0.416, 1.30],
+  '1992-93': [30.55, 11.84, 1.74, 1.43, 0.57, 0.37, 0.419, 1.16],
+  '1991-92': [29.47, 11.71, 1.71, 1.38, 0.56, 0.35, 0.416, 1.30],
+  '1992-93': [30.55, 11.84, 1.74, 1.43, 0.57, 0.37, 0.419, 1.16],
+  '1993-94': [29.40, 10.93, 1.67, 1.41, 0.50, 0.33, 0.427, 1.05],
+  '1992-93': [30.55, 11.84, 1.74, 1.43, 0.57, 0.37, 0.419, 1.16],
+  '1993-94': [29.40, 10.93, 1.67, 1.41, 0.50, 0.33, 0.427, 1.05],
+  '1994-95': [27.69, 10.60, 1.69, 1.43, 0.49, 0.32, 0.420, 1.07],
+  '1993-94': [29.40, 10.93, 1.67, 1.41, 0.50, 0.33, 0.427, 1.05],
+  '1994-95': [27.69, 10.60, 1.69, 1.43, 0.49, 0.32, 0.420, 1.07],
+  '1995-96': [29.55, 10.57, 1.74, 1.34, 0.51, 0.30, 0.419, 1.06],
+  '1994-95': [27.69, 10.60, 1.69, 1.43, 0.49, 0.32, 0.420, 1.07],
+  '1995-96': [29.55, 10.57, 1.74, 1.34, 0.51, 0.30, 0.419, 1.06],
+  '1996-97': [28.88, 10.09, 1.73, 1.30, 0.47, 0.28, 0.420, 0.99],
+  '1995-96': [29.55, 10.57, 1.74, 1.34, 0.51, 0.30, 0.419, 1.06],
+  '1996-97': [28.88, 10.09, 1.73, 1.30, 0.47, 0.28, 0.420, 0.99],
+  '1997-98': [26.74, 9.84, 1.60, 1.18, 0.42, 0.26, 0.421, 1.01],
+  '1996-97': [28.88, 10.09, 1.73, 1.30, 0.47, 0.28, 0.420, 0.99],
+  '1997-98': [26.74, 9.84, 1.60, 1.18, 0.42, 0.26, 0.421, 1.01],
+  '1998-99': [26.90, 9.77, 1.61, 1.21, 0.42, 0.24, 0.411, 0.83],
+  '1997-98': [26.74, 9.84, 1.60, 1.18, 0.42, 0.26, 0.421, 1.01],
+  '1998-99': [26.90, 9.77, 1.61, 1.21, 0.42, 0.24, 0.411, 0.83],
+  '1999-00': [27.23, 10.07, 1.64, 1.20, 0.45, 0.26, 0.413, 0.74],
+  '1998-99': [26.90, 9.77, 1.61, 1.21, 0.42, 0.24, 0.411, 0.83],
+  '1999-00': [27.23, 10.07, 1.64, 1.20, 0.45, 0.26, 0.413, 0.74],
+  '2000-01': [26.91, 10.18, 1.59, 1.21, 0.45, 0.27, 0.409, 0.85],
+  '1999-00': [27.23, 10.07, 1.64, 1.20, 0.45, 0.26, 0.413, 0.74],
+  '2000-01': [26.91, 10.18, 1.59, 1.21, 0.45, 0.27, 0.409, 0.85],
+  '2001-02': [26.66, 9.78, 1.59, 1.19, 0.42, 0.24, 0.410, 0.83],
+  '2000-01': [26.91, 10.18, 1.59, 1.21, 0.45, 0.27, 0.409, 0.85],
+  '2001-02': [26.66, 9.78, 1.59, 1.19, 0.42, 0.24, 0.410, 0.83],
+  '2002-03': [27.40, 9.60, 1.66, 1.22, 0.43, 0.25, 0.406, 0.78],
+  '2001-02': [26.66, 9.78, 1.59, 1.19, 0.42, 0.24, 0.410, 0.83],
+  '2002-03': [27.40, 9.60, 1.66, 1.22, 0.43, 0.25, 0.406, 0.78],
+  '2003-04': [26.87, 9.52, 1.62, 1.25, 0.41, 0.26, 0.411, 0.82],
+  '2002-03': [27.40, 9.60, 1.66, 1.22, 0.43, 0.25, 0.406, 0.78],
+  '2003-04': [26.87, 9.52, 1.62, 1.25, 0.41, 0.26, 0.411, 0.82],
+  '2005-06': [29.13, 10.33, 1.78, 1.21, 0.49, 0.30, 0.412, 0.82],
+  '2003-04': [26.87, 9.52, 1.62, 1.25, 0.41, 0.26, 0.411, 0.82],
+  '2005-06': [29.13, 10.33, 1.78, 1.21, 0.49, 0.30, 0.412, 0.82],
+  '2006-07': [28.71, 9.96, 1.76, 1.18, 0.47, 0.29, 0.412, 0.76],
+  '2005-06': [29.13, 10.33, 1.78, 1.21, 0.49, 0.30, 0.412, 0.82],
+  '2006-07': [28.71, 9.96, 1.76, 1.18, 0.47, 0.29, 0.412, 0.76],
+  '2007-08': [28.09, 9.64, 1.75, 1.18, 0.45, 0.28, 0.412, 0.75],
+  '2006-07': [28.71, 9.96, 1.76, 1.18, 0.47, 0.29, 0.412, 0.76],
+  '2007-08': [28.09, 9.64, 1.75, 1.18, 0.45, 0.28, 0.412, 0.75],
+  '2008-09': [29.36, 9.66, 1.80, 1.22, 0.46, 0.30, 0.413, 0.79],
+  '2007-08': [28.09, 9.64, 1.75, 1.18, 0.45, 0.28, 0.412, 0.75],
+  '2008-09': [29.36, 9.66, 1.80, 1.22, 0.46, 0.30, 0.413, 0.79],
+  '2009-10': [29.64, 9.28, 1.81, 1.23, 0.44, 0.29, 0.420, 0.70],
+  '2008-09': [29.36, 9.66, 1.80, 1.22, 0.46, 0.30, 0.413, 0.79],
+  '2009-10': [29.64, 9.28, 1.81, 1.23, 0.44, 0.29, 0.420, 0.70],
+  '2010-11': [29.81, 9.11, 1.84, 1.25, 0.45, 0.28, 0.420, 0.67],
+  '2009-10': [29.64, 9.28, 1.81, 1.23, 0.44, 0.29, 0.420, 0.70],
+  '2010-11': [29.81, 9.11, 1.84, 1.25, 0.45, 0.28, 0.420, 0.67],
+  '2011-12': [28.64, 9.23, 1.71, 1.27, 0.41, 0.28, 0.421, 0.63],
+  '2010-11': [29.81, 9.11, 1.84, 1.25, 0.45, 0.28, 0.420, 0.67],
+  '2011-12': [28.64, 9.23, 1.71, 1.27, 0.41, 0.28, 0.421, 0.63],
+  '2012-13': [27.74, 9.48, 1.74, 1.29, 0.44, 0.29, 0.411, 0.65],
+  '2011-12': [28.64, 9.23, 1.71, 1.27, 0.41, 0.28, 0.421, 0.63],
+  '2012-13': [27.74, 9.48, 1.74, 1.29, 0.44, 0.29, 0.411, 0.65],
+  '2013-14': [29.18, 9.13, 1.74, 1.35, 0.43, 0.29, 0.416, 0.63],
+  '2012-13': [27.74, 9.48, 1.74, 1.29, 0.44, 0.29, 0.411, 0.65],
+  '2013-14': [29.18, 9.13, 1.74, 1.35, 0.43, 0.29, 0.416, 0.63],
+  '2014-15': [28.86, 9.17, 1.73, 1.34, 0.42, 0.29, 0.416, 0.51],
+  '2013-14': [29.18, 9.13, 1.74, 1.35, 0.43, 0.29, 0.416, 0.63],
+  '2014-15': [28.86, 9.17, 1.73, 1.34, 0.42, 0.29, 0.416, 0.51],
+  '2015-16': [29.00, 9.15, 1.69, 1.35, 0.41, 0.28, 0.422, 0.52],
+  '2014-15': [28.86, 9.17, 1.73, 1.34, 0.42, 0.29, 0.416, 0.51],
+  '2015-16': [29.00, 9.15, 1.69, 1.35, 0.41, 0.28, 0.422, 0.52],
+  '2016-17': [29.22, 9.30, 1.70, 1.39, 0.42, 0.29, 0.426, 0.48],
+  '2015-16': [29.00, 9.15, 1.69, 1.35, 0.41, 0.28, 0.422, 0.52],
+  '2016-17': [29.22, 9.30, 1.70, 1.39, 0.42, 0.29, 0.426, 0.48],
+  '2017-18': [30.95, 9.43, 1.78, 1.50, 0.46, 0.31, 0.420, 0.44],
+  '2016-17': [29.22, 9.30, 1.70, 1.39, 0.42, 0.29, 0.426, 0.48],
+  '2017-18': [30.95, 9.43, 1.78, 1.50, 0.46, 0.31, 0.420, 0.44],
+  '2018-19': [30.54, 9.70, 1.77, 1.44, 0.47, 0.30, 0.424, 0.42],
+  '2017-18': [30.95, 9.43, 1.78, 1.50, 0.46, 0.31, 0.420, 0.44],
+  '2018-19': [30.54, 9.70, 1.77, 1.44, 0.47, 0.30, 0.424, 0.42],
+  '2019-20': [30.39, 9.73, 1.79, 1.49, 0.47, 0.31, 0.425, 0.44],
+  '2018-19': [30.54, 9.70, 1.77, 1.44, 0.47, 0.30, 0.424, 0.42],
+  '2019-20': [30.39, 9.73, 1.79, 1.49, 0.47, 0.31, 0.425, 0.44],
+  '2020-21': [27.90, 10.30, 1.73, 1.45, 0.47, 0.31, 0.427, 0.41],
+  '2019-20': [30.39, 9.73, 1.79, 1.49, 0.47, 0.31, 0.425, 0.44],
+  '2020-21': [27.90, 10.30, 1.73, 1.45, 0.47, 0.31, 0.427, 0.41],
+  '2021-22': [30.03, 10.34, 1.80, 1.43, 0.48, 0.33, 0.427, 0.47],
+  '2020-21': [27.90, 10.30, 1.73, 1.45, 0.47, 0.31, 0.427, 0.41],
+  '2021-22': [30.03, 10.34, 1.80, 1.43, 0.48, 0.33, 0.427, 0.47],
+  '2022-23': [30.02, 10.36, 1.81, 1.38, 0.49, 0.33, 0.424, 0.48],
+  '2021-22': [30.03, 10.34, 1.80, 1.43, 0.48, 0.33, 0.427, 0.47],
+  '2022-23': [30.02, 10.36, 1.81, 1.38, 0.49, 0.33, 0.424, 0.48],
+  '2023-24': [29.12, 10.53, 1.75, 1.27, 0.48, 0.31, 0.428, 0.47],
+  '2022-23': [30.02, 10.36, 1.81, 1.38, 0.49, 0.33, 0.424, 0.48],
+  '2023-24': [29.12, 10.53, 1.75, 1.27, 0.48, 0.31, 0.428, 0.47],
+  '2024-25': [27.16, 10.96, 1.63, 1.24, 0.47, 0.31, 0.423, 0.42],
+  '2023-24': [29.12, 10.53, 1.75, 1.27, 0.48, 0.31, 0.428, 0.47],
+  '2024-25': [27.16, 10.96, 1.63, 1.24, 0.47, 0.31, 0.423, 0.42],
+  '2025-26': [26.94, 11.39, 1.58, 1.22, 0.48, 0.32, 0.422, 0.47],
+  '2024-25': [27.16, 10.96, 1.63, 1.24, 0.47, 0.31, 0.423, 0.42],
+  '2025-26': [26.94, 11.39, 1.58, 1.22, 0.48, 0.32, 0.422, 0.47],
+  '2025-26': [26.94, 11.39, 1.58, 1.22, 0.48, 0.32, 0.422, 0.47],
   /* </lancers> */
 };
 
 /** Les quatre repères de lancers d'une saison, avec un repli moderne. */
 export function seasonLancers(season) {
-  return SEASON_LANCERS[season] || [29.00, 10.50, 1.75, 1.35];
+  return SEASON_LANCERS[season] || [29.00, 10.50, 1.75, 1.35, 0.62, 0.35, 0.400, 0.90];
 }
 
 export function getEraFactor(season) {
@@ -227,53 +376,87 @@ export const ARCHETYPES = {
  * Clé d'archétype à partir des sous-cotes et des stats.
  * `r` = objet de cotes { o, d, r, c, sp } ; `p` = fiche (p, g, a, pt).
  */
-export function archetypeKey(p, r) {
-  if (!p || !r) return 'UNKNOWN';
+/*
+ * L'archétype se lit dans la FICHE du joueur, pas dans ses cotes.
+ *
+ * L'ancienne version comparait `r.o`, `r.d`, `r.r` à des seuils : elle
+ * décrivait donc la cote, pas le joueur, et deux joueurs de production
+ * identique pouvaient sortir avec des archétypes différents parce qu'un
+ * z-score franchissait un seuil. Tout se lit maintenant dans ce que le joueur
+ * a vraiment fait, en écart au régulier moyen de SA saison — un ailier de 1981
+ * et un ailier de 2015 se comparent donc correctement.
+ *
+ * Les quatre axes, tous mesurés, tous disponibles depuis 1970-71 :
+ *
+ *   PRODUCTION  points par match / le régulier moyen de sa saison
+ *   PENCHANT    part de ses points venant de ses buts, en écart à sa ligue
+ *   VOLUME      lancers par match / le régulier moyen de sa saison
+ *   ROBUSTESSE  minutes de punition par match / le régulier moyen
+ *
+ * Ce qui manque encore et qu'on assume : rien ici ne mesure la défensive d'un
+ * attaquant, parce que le sommaire ne la porte pas avant 1998. Un attaquant
+ * peu productif et peu puni sort « complet » plutôt que « défensif » — c'est
+ * la meilleure lecture possible de ses colonnes, et le trait Selke est là pour
+ * les cas où le vote sait ce que le sommaire ignore.
+ */
+export function archetypeKey(p) {
+  if (!p) return 'UNKNOWN';
+  const gp = Math.max(1, p.gp || 0);
+  const [, pctTirLigue, shF, shD, ptF, ptD, partButs, pimF] = seasonLancers(p.s);
+
   if (p.p === 'G') {
-    if (r.o >= 66 && r.d >= 66) return 'WALL';
-    if ((r.sp ?? 0) >= 62) return 'ACROBAT';
-    if (r.r >= 60) return 'WORKHORSE';
+    const svLigue = 1 - (pctTirLigue || 10.5) / 100;
+    const ecart = (p.sv || svLigue) - svLigue;
+    const charge = (p.sa || 0) / gp / 28.5;      // rondelles vues, en écart à la ligue
+    // Le % d'arrêts d'un gardien à douze départs ne veut rien dire : le mur
+    // demande donc un vrai échantillon en plus d'un vrai écart.
+    if (gp >= 25 && ecart >= 0.012) return 'WALL';
+    if (charge >= 1.10 && ecart >= 0.004) return 'ACROBAT';  // bombardé et il tient
+    if (gp >= 55) return 'WORKHORSE';            // il joue tous les soirs
     return 'HYBRID_G';
   }
 
-  if (p.p === 'D') {
-    if (r.o >= 64 || r.o > r.d + 8) return 'OFF_D';
-    if (r.d >= 62 && r.r >= 57) return 'DEF_D';
-    if (r.d >= 61) return 'STAY_D';
-    if (r.o >= 48 && r.d >= 54) return 'TWO_WAY_D';
+  const est_D = p.p === 'D' || p.p === 'LD' || p.p === 'RD';
+  const prod = (p.pt || 0) / gp / (est_D ? (ptD || 0.35) : (ptF || 0.62));
+  const volume = (p.sh || 0) / gp / (est_D ? (shD || 1.35) : (shF || 1.75));
+  const dur = (p.pim || 0) / gp / (pimF || 0.90);
+  const pen = (p.pt || 0) >= 15 ? (p.g || 0) / p.pt - (partButs || 0.40) : 0;
+
+  if (est_D) {
+    if (prod >= 1.55) return 'OFF_D';            // il fait l'attaque de sa brigade
+    if (prod >= 0.90) return 'TWO_WAY_D';
+    if (dur >= 1.30) return 'DEF_D';             // peu de points, beaucoup de bâton
+    if (prod >= 0.45) return 'STAY_D';
     return 'CHECKER_D';
   }
 
-  // Attaquants
-  const pts = Math.max(1, p.pt || ((p.g || 0) + (p.a || 0)));
-  const gRatio = (p.g || 0) / pts;
-  const aRatio = (p.a || 0) / pts;
-
-  // Vedettes : passeur ou marqueur, selon la part de buts
-  if (r.o >= 76) return aRatio >= 0.55 ? 'OFF_PLAYMAKER' : 'SNIPER';
-  if (r.o >= 60) {
-    if (gRatio >= 0.47) return 'SNIPER';
-    if (aRatio >= 0.60) return 'PLAYMAKER';
-    if (r.r >= 58) return 'POWER_FWD';
-    if (r.d >= 60) return 'TWO_WAY_FWD';
+  // Attaquants — vedettes d'abord, puis le milieu, puis le bas.
+  // Chez les vedettes on lit la part de PASSES plutôt que le penchant : un
+  // marqueur de 90 buts a beaucoup d'aides dans l'absolu sans être un
+  // fabricant de jeu, et l'écart à la ligue ne le voit pas.
+  if (prod >= 1.85) return (p.a || 0) / Math.max(1, p.pt) >= 0.60 ? 'OFF_PLAYMAKER' : 'SNIPER';
+  if (prod >= 1.15) {
+    if (pen >= 0.05 || volume >= 1.45) return 'SNIPER';
+    if (pen <= -0.06) return 'PLAYMAKER';
+    if (dur >= 1.45) return 'POWER_FWD';
     return 'SKILLED_FWD';
   }
-  if (r.r >= 58 && r.o >= 52) return 'POWER_FWD';
-  if (r.d >= 57) return 'TWO_WAY_FWD';
-  if (r.r >= 58) return 'ENERGY';
-  if (r.o >= 52) return 'SKILLED_FWD';
+  if (prod >= 0.55) {
+    if (dur >= 1.60) return 'POWER_FWD';
+    return 'TWO_WAY_FWD';
+  }
+  if (dur >= 1.40) return 'ENERGY';
   return 'CHECKER';
 }
 
 /**
- * Archétype d'un joueur. Lit p.ak (posé par finalizeSeason, présent dans
- * les shards) et retombe sur un calcul à partir de `ratings` sinon — les
- * cotes sont retirées de l'objet joueur dans le navigateur, il faut donc
- * passer getHiddenRatings(p) quand p.ak manque.
+ * Archétype d'un joueur. Lit `p.ak` (posé par finalizeSeason, présent dans
+ * les shards) et le recalcule sinon. Le second argument n'existe plus : il n'y
+ * a plus de cote à passer, l'archétype ne lit que la fiche.
  */
 export function getArchetype(p, ratings = null) {
   if (!p) return { key: 'UNKNOWN', ...ARCHETYPES.UNKNOWN };
-  const key = p.ak || archetypeKey(p, ratings || (p.o !== undefined ? p : null));
+  const key = p.ak || archetypeKey(p);
   return { key, ...(ARCHETYPES[key] || ARCHETYPES.UNKNOWN) };
 }
 
@@ -841,26 +1024,174 @@ function rankMap(list, score) {
  *
  * Mute et retourne `players`.
  */
+/* ---------- La valeur d'un joueur, lue dans ses statistiques ---------- */
+/*
+ * LA COTE GLOBALE N'EXISTE PLUS COMME COTE. Elle mélangeait les sous-cotes
+ * `o`, `d`, `r`, `c` — donc des z-scores de z-scores — avec un bonus de rang.
+ * On ne pouvait ni la lire ni la contester : c'était un chiffre qui tombait
+ * du ciel et décidait de la zone, du salaire et de l'alignement automatique.
+ *
+ * Ce qui la remplace tient en deux temps.
+ *
+ *  1. UN SCORE, tiré des colonnes du joueur et de rien d'autre. Chaque terme
+ *     est divisé par le régulier moyen de SA saison, donc un ailier de 1981 et
+ *     un ailier de 2015 se comparent.
+ *  2. UNE PROJECTION sur la distribution historique de la valeur, par
+ *     position. Le RANG vient des statistiques ; l'ÉCHELLE, elle, est celle
+ *     que le jeu utilisait déjà.
+ *
+ * Le deuxième temps n'est pas un artifice : c'est ce qui garantit que les
+ * seuils de zone, la courbe des salaires et l'économie du plafond continuent
+ * de valoir ce qu'ils valaient. Changer qui est premier est un choix de
+ * conception ; changer combien de joueurs valent 70 en serait un autre, et on
+ * n'en veut qu'un à la fois.
+ */
+export const VALEUR_CENTILES = {
+  F: [
+    34, 37, 38, 39, 39, 40, 40, 40, 41, 41,
+    41, 42, 42, 42, 42, 43, 43, 43, 43, 44,
+    44, 44, 44, 45, 45, 45, 45, 46, 46, 46,
+    46, 46, 47, 47, 47, 47, 48, 48, 48, 48,
+    49, 49, 49, 49, 50, 50, 50, 50, 51, 51,
+    51, 51, 52, 52, 52, 53, 53, 53, 54, 54,
+    54, 54, 55, 55, 55, 56, 56, 57, 57, 57,
+    58, 58, 58, 59, 59, 60, 60, 61, 61, 61,
+    62, 63, 63, 64, 64, 65, 66, 66, 67, 68,
+    69, 70, 72, 74, 76, 79, 82, 85, 89, 95,
+    99,
+  ],
+  D: [
+    36, 44, 46, 47, 48, 49, 49, 50, 50, 50,
+    51, 51, 51, 52, 52, 52, 53, 53, 53, 53,
+    54, 54, 54, 54, 54, 55, 55, 55, 55, 55,
+    56, 56, 56, 56, 56, 57, 57, 57, 57, 57,
+    58, 58, 58, 58, 58, 59, 59, 59, 59, 59,
+    59, 60, 60, 60, 60, 60, 61, 61, 61, 61,
+    62, 62, 62, 62, 63, 63, 63, 64, 64, 64,
+    65, 65, 65, 66, 66, 67, 67, 68, 69, 69,
+    70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+    81, 82, 83, 84, 86, 87, 89, 90, 93, 96,
+    99,
+  ],
+  G: [
+    26, 28, 29, 30, 31, 33, 34, 36, 37, 38,
+    39, 40, 40, 41, 41, 42, 43, 44, 44, 45,
+    45, 46, 46, 47, 47, 48, 48, 48, 49, 49,
+    50, 50, 51, 51, 51, 52, 52, 52, 53, 53,
+    54, 54, 55, 55, 55, 56, 56, 57, 57, 58,
+    58, 58, 59, 59, 60, 60, 61, 61, 62, 62,
+    62, 63, 64, 64, 65, 65, 66, 66, 67, 67,
+    68, 68, 69, 69, 70, 71, 71, 72, 73, 74,
+    74, 75, 76, 76, 77, 78, 79, 79, 80, 81,
+    81, 82, 83, 84, 85, 86, 87, 89, 91, 93,
+    99,
+  ],
+};
+
+/** La valeur du centile q (0..1) parmi les joueurs de cette position. */
+function valeurAuCentile(pos, q) {
+  const t = VALEUR_CENTILES[pos] || VALEUR_CENTILES.F;
+  const x = clamp(q, 0, 1) * 100;
+  const i = Math.min(99, Math.floor(x));
+  const f = x - i;
+  return Math.round(t[i] * (1 - f) + t[i + 1] * f);
+}
+
+/*
+ * Le score d'un patineur. Quatre termes, tous mesurés, tous disponibles
+ * depuis 1970-71 sauf le temps de glace, dont le poids se redistribue quand
+ * il manque.
+ *
+ *   PRODUCTION   points par match, sur le régulier moyen de sa saison
+ *   VOLUME       lancers par match, idem — il sépare le joueur utilisé du
+ *                joueur chanceux
+ *   DIFFÉRENTIEL +/- par match, lissé de la moyenne de son vestiaire, sinon
+ *                un premier trio d'équipe faible est puni de l'être
+ *   USAGE        temps de glace quand il existe, part des matchs joués sinon
+ *
+ * Les trois premiers sont des TAUX, et un taux sur huit matchs ne veut rien
+ * dire : un rappel à quatre points en huit soirs afficherait la production
+ * d'une vedette. Chacun est donc ramené vers la moyenne au prorata de
+ * l'échantillon (`gp / (gp + FIABILITE)`) — mesuré, sans ça la ligue tombait à
+ * 3,8 attaquants de top 6 par équipe au lieu de 6, les recrues occupant les
+ * hauts de classement.
+ *
+ * Les poids diffèrent par position parce que le métier diffère : un défenseur
+ * n'est pas jugé sur ses points au même titre qu'un ailier.
+ */
+export const POIDS_VALEUR = {
+  F: { prod: 0.46, vol: 0.14, pm: 0.20, usage: 0.20 },
+  D: { prod: 0.30, vol: 0.10, pm: 0.36, usage: 0.24 },
+};
+
+/** Poids d'un échantillon : un taux sur huit matchs pèse le tiers d'un vrai. */
+export const FIABILITE = 22;
+const fiable = (gp, valeur, moyenne = 1) => {
+  const w = gp / (gp + FIABILITE);
+  return w * valeur + (1 - w) * moyenne;
+};
+
+function scorePatineur(p, ctx) {
+  const gp = Math.max(1, p.gp || 0);
+  const est_D = p.p === 'D';
+  const [, , shF, shD, ptF, ptD] = seasonLancers(p.s || ctx.season);
+  const w = POIDS_VALEUR[est_D ? 'D' : 'F'];
+
+  const prod = fiable(gp, (p.pt || 0) / gp / (est_D ? (ptD || 0.35) : (ptF || 0.62)));
+  const vol = fiable(gp, (p.sh || 0) / gp / (est_D ? (shD || 1.35) : (shF || 1.75)));
+  const pm = fiable(gp, ((p.pm || 0) - LISSAGE_EQUIPE * (ctx.pmEquipe.get(p.t ?? p.teams?.[0]) || 0)) / gp, 0);
+  const usage = p.toi ? fiable(gp, p.toi / (est_D ? 21 : 16)) : gp / ctx.games;
+
+  // Racine sur la production : l'écart entre le 1er et le 20e marqueur compte
+  // plus que celui entre le 200e et le 220e, mais pas au carré.
+  return w.prod * Math.sqrt(Math.max(0, prod))
+    + w.vol * Math.sqrt(Math.max(0, vol))
+    + w.pm * clamp(pm / 0.35, -1.5, 1.5)
+    + w.usage * clamp(usage, 0, 1.6);
+}
+
+/*
+ * Le score d'un gardien : ce qu'il arrête de plus que sa ligue, et combien de
+ * soirs il le fait. Un auxiliaire à ,930 en douze départs n'est pas un numéro
+ * un, et la part de matchs le dit.
+ */
+function scoreGardien(p, ctx) {
+  const svLigue = 1 - (seasonLancers(p.s || ctx.season)[1] || 10.5) / 100;
+  const ecart = fiable(p.gp || 0, ((p.sv ?? svLigue) - svLigue) / 0.020, 0);
+  const charge = clamp((p.gp || 0) / ctx.games / 0.55, 0, 1.4);
+  return 0.72 * clamp(ecart, -2.5, 2.5) + 0.28 * charge * 2.5;
+}
+
+/** La valeur d'un joueur : son rang statistique, sur l'échelle du jeu. */
+export function valeurDeSaison(players, season, games) {
+  const pmEquipe = new Map();
+  const acc = new Map();
+  for (const p of players) {
+    if (p.p === 'G') continue;
+    for (const t of (p.teams || [p.t]).filter(Boolean)) {
+      const a = acc.get(t) || { s: 0, n: 0 };
+      a.s += p.pm || 0; a.n += 1;
+      acc.set(t, a);
+    }
+  }
+  for (const [t, a] of acc) pmEquipe.set(t, a.n ? a.s / a.n : 0);
+  const ctx = { season, games, pmEquipe };
+
+  for (const groupe of ['F', 'D', 'G']) {
+    const liste = players.filter(p => p.p === groupe);
+    if (!liste.length) continue;
+    const notes = liste.map(p => ({
+      p, sc: groupe === 'G' ? scoreGardien(p, ctx) : scorePatineur(p, ctx),
+    }));
+    notes.sort((a, b) => a.sc - b.sc);
+    const n = notes.length;
+    notes.forEach((x, i) => { x.p.v = valeurAuCentile(groupe, n > 1 ? i / (n - 1) : 0.5); });
+  }
+}
+
 export function finalizeSeason(players, season, opts = {}) {
   const year = parseInt(season.slice(0, 4), 10);
-  const teams = new Set();
-  for (const p of players) for (const t of (p.teams || [])) if (t && t !== '???') teams.add(t);
-  const nTeams = Math.max(6, opts.nTeams || teams.size || 32);
-
-  const F = players.filter(p => p.p === 'F');
-  const D = players.filter(p => p.p === 'D');
-  const G = players.filter(p => p.p === 'G');
-
-  const zF = zfn(F.map(prodPerGame));
-  const zD = zfn(D.map(prodPerGame));
-  const rkF = rankMap(F, prodPerGame);
-  const rkD = rankMap(D, prodPerGame);
-
-  // Gardiens : seuls ceux qui ont joué au moins 40 % des matchs sont classés
   const games = seasonGames(season);
-  const gScore = g => 0.6 * g.o + 0.4 * g.d;
-  const qualG = G.filter(g => g.gp >= 0.4 * games);
-  const rkG = rankMap(qualG, gScore);
 
   const salaries = opts.salaries || null;
   const refCap = (salaries && salaries.cap) || eraCapFor(season);
@@ -883,33 +1214,11 @@ export function finalizeSeason(players, season, opts = {}) {
   const firstSeason = opts.firstSeason || null;
   const entryYear = opts.entryYear || null;
 
-  // Rang -> position relative, mélangée entre l'époque et une ligue de
-  // référence de 32 équipes (voir LISSAGE_EPOQUES).
-  const qOf = rank => {
-    const r = rank + 0.5;
-    return (1 - LISSAGE_EPOQUES) * (r / nTeams) + LISSAGE_EPOQUES * (r / LIGUE_REF);
-  };
+  // La valeur ne vient plus des sous-cotes : elle est le rang statistique du
+  // joueur dans sa saison, projeté sur l'échelle du jeu (voir valeurDeSaison).
+  valeurDeSaison(players, season, games);
 
   for (const p of players) {
-    let v;
-    if (p.p === 'G') {
-      const core = 0.40 * p.o + 0.32 * p.d + 0.14 * p.r + 0.14 * p.c;
-      const share = p.gp / games;
-      const starter = 10 * clamp((share - 0.25) / 0.50, 0, 1);
-      const rank = rkG.has(p) ? lerpTable(qOf(rkG.get(p)), STAR_G_RANK) : 0;
-      v = core + starter + rank;
-    } else if (p.p === 'D') {
-      const core = 0.42 * p.o + 0.48 * p.d + 0.05 * p.r + 0.05 * p.c + 6;
-      const q = qOf(rkD.get(p));
-      const star = 0.7 * lerpTable(q, STAR_D_RANK) + 0.3 * lerpTable(zD(prodPerGame(p)), STAR_D_Z);
-      v = core + star;
-    } else {
-      const core = 0.66 * p.o + 0.16 * p.d + 0.05 * p.r + 0.13 * p.c;
-      const q = qOf(rkF.get(p));
-      const star = 0.7 * lerpTable(q, STAR_F_RANK) + 0.3 * lerpTable(zF(prodPerGame(p)), STAR_F_Z);
-      v = core + star;
-    }
-    p.v = clamp(Math.round(v), 25, 99);
 
     // Contrat d'entrée : selon l'époque et l'âge à la première saison dans
     // la base (jamais pour la première saison de la base, 1970-71, où tout
@@ -941,7 +1250,7 @@ export function finalizeSeason(players, season, opts = {}) {
     }
     p.cp = capPctFor(p.$);
 
-    p.ak = archetypeKey(p, p);
+    p.ak = archetypeKey(p);
     p.lz = zoneLevelFor(p.p === 'G' ? 'G' : p.p === 'D' ? 'D' : 'F', p.v);
   }
   return players;
