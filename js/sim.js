@@ -434,6 +434,69 @@ export const PART_LANCERS_D = 0.25;
 export const ALPHA_POSSESSION = 0.150;
 
 /*
+ * LA POSSESSION SE PARTAGE, ELLE NE S'ADDITIONNE PAS. Deux plafonds, mesurés,
+ * qui ferment la brèche que le malus de zone ne peut pas atteindre.
+ *
+ * Le volume d'une unité était la moyenne des lancers par match de ses
+ * joueurs, sans borne : un trio de trois tireurs à 2,6 fois le régulier
+ * moyen tirait 2,6 fois plus qu'un trio moyen ET faisait tirer l'équipe
+ * d'autant. Or au hockey une ligne n'a qu'une rondelle. Mesuré avec
+ * `scripts/check_tireurs.mjs` : le meilleur alignement légal choisi sur ce
+ * que le moteur lit (lancers × finition) plutôt que sur la valeur faisait
+ * 70,8 victoires en solo, 40 lancers et 5,7 buts par match, et gagnait la
+ * Coupe trois fois sur trois — au-dessus de tout ce que le jeu documente.
+ * Le malus de zone écrasait bien ses trios 2 à 4 au quart, mais son
+ * premier trio, trois étoiles à leur place, prenait 52 % des lancers de
+ * l'équipe au lieu de 34 % et suffisait à lui seul.
+ *
+ * VOLUME_UNITE_MAX borne le volume d'une unité au 99e centile des vrais
+ * premiers trios (mesuré 2,07 sur 479 équipes-saisons alignées, médiane
+ * 1,51) : il ne touche que 1 % des vraies équipes. PRESSION_MAX borne la
+ * pression d'équipe au maximum réel, environ 38 lancers par match, soit
+ * 1,35 fois la référence.
+ *
+ * Effet mesuré : l'empilement de tireurs retombe à 63-64 victoires en solo,
+ * exactement le niveau de l'empilement par valeur (63,3) et du Canadien de
+ * 1976-77 (61,3). Les déciles des vraies équipes ne bougent pas (26,6 /
+ * 42,0 / 51,3 contre 26,1 / 41,9 / 51,6), ni les repères de la ligue
+ * (27,2 lancers et 2,95 buts par match). Un plafond plus serré, 1,6, fermait
+ * davantage mais touchait 37 % des vrais premiers trios et coûtait trois
+ * victoires au Canadien : trop.
+ *
+ * Le malus de zone n'est pas touché. Les deux mécanismes se complètent : le
+ * malus punit le talent mal placé, ces plafonds empêchent le talent bien
+ * placé de compenser à lui seul.
+ */
+export const VOLUME_UNITE_MAX = 2.0;
+export const PRESSION_MAX = 1.35;
+
+/*
+ * LA FINITION D'UNE ÉQUIPE A UN PLAFOND, ELLE AUSSI. Les deux bornes
+ * ci-dessus ferment le volume ; celle-ci ferme la qualité. Mesuré sur 708
+ * vraies équipes-saisons alignées : la finition de l'équipe (le % de tir de
+ * ses patineurs habillés, pondéré par leurs lancers, relatif à la ligue) va
+ * de 0,99 en médiane à 1,21 au 99e centile et 1,28 au maximum. Un
+ * alignement PARFAITEMENT monté — chaque joueur dans sa zone, chaque trio
+ * avec un passeur et deux tireurs, chaque paire équilibrée — arrive à 1,35
+ * en cueillant les meilleurs finisseurs de 55 saisons, et sans borne il
+ * faisait 74 victoires, 469 buts et la Coupe trois fois sur trois même avec
+ * les bornes de volume (78 victoires et 628 buts avant elles).
+ *
+ * FINITION_MAX = 1,20, le 99e centile : au-dessus, la finition de tous les
+ * tireurs est ramenée d'autant, et la chimie continue de s'appliquer
+ * par-dessus — c'est elle qu'on veut récompenser, pas l'addition de douze
+ * pourcentages de tir que l'histoire n'a jamais vue ensemble.
+ *
+ * Effet mesuré (`scripts/check_tireurs.mjs`) : l'alignement parfait retombe
+ * à 68-70 victoires, un peu au-dessus du Canadien de 1976-77 (61-63) — c'est
+ * le plafond voulu : parfaitement monté, on bat la meilleure équipe de
+ * l'histoire de quelques matchs, et la Coupe reste un pari. L'empilement
+ * par valeur reste à 59-61 et l'empilement de tireurs sans zones tombe à 52.
+ * Les vraies équipes ne bougent pas.
+ */
+export const FINITION_MAX = 1.20;
+
+/*
  * La défensive, elle, agit sur la QUALITÉ des lancers. Même mesure : la
  * cote défensive de l'alignement corrèle à +0,45 avec le pourcentage
  * d'arrêts de l'équipe et −0,45 avec ses buts alloués. Une bonne brigade
@@ -591,7 +654,8 @@ export function profilMatch(team, lineup) {
       const syn = getUnitSynergy(lineup, group, u);
       const tog = team ? Math.min(CONTINUITY_MAX, (team.together.get(`${group}${u}`) || 0) / CONTINUITY_GAMES) : 0;
       const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + tog) / SYN_ECHELLE));
-      const volume = slots.reduce((a, s) => a + lancersRel(lineup[s.i]), 0) / slots.length;
+      const volume = Math.min(VOLUME_UNITE_MAX,
+        slots.reduce((a, s) => a + lancersRel(lineup[s.i]), 0) / slots.length);
       const joueurs = slots.map(s => lineup[s.i]).filter(Boolean);
       unites[group].push({
         joueurs,
@@ -621,9 +685,17 @@ export function profilMatch(team, lineup) {
   // condition : être habillé — `lineup` ne contient pas les réservistes.
   const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
 
+  // La finition de l'équipe : le % de tir de ses patineurs, pondéré par leurs
+  // lancers. Au-dessus de FINITION_MAX, tous ses tireurs sont ramenés d'autant.
+  let sL = 0, sLF = 0;
+  for (const p of habilles) if (p.p !== 'G') { const l = lancersRel(p); sL += l; sLF += l * pctTirRel(p); }
+  const finEquipe = sL ? sLF / sL : 1;
+
   return {
     unites,
-    pression: borne(pression, 0.40, 2.40),
+    pression: borne(pression, 0.40, REF.pression * PRESSION_MAX),
+    finEquipe,
+    finitionFacteur: Math.min(1, FINITION_MAX / finEquipe),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles),
     traitAtt: facteurAttaqueEquipe(habilles),
@@ -715,7 +787,8 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir
-        * (fg / REF.fg) * facteurDef * traits * (unite ? unite.qualite : 1) * chance,
+        * (fg / REF.fg) * facteurDef * traits * (unite ? unite.qualite : 1) * chance
+        * (off.finitionFacteur ?? 1),
       0.005, PCT_TIR_MAX);
 
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;

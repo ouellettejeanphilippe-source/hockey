@@ -97,6 +97,23 @@ function slotFitScore(p, s) {
   return pen * 40 + (dist === 0 ? 0 : 12 + dist * 6) + s.unit;
 }
 
+/**
+ * Où ce joueur se situe par rapport à sa zone dans cette case : 'sous' (un
+ * Top 6 au 4e trio, le talent gaspillé que le moteur punit fort), 'dessus'
+ * (un Bottom 6 au 1er trio, puni à peine) ou null. Les gardiens et les
+ * réservistes n'ont pas de malus de zone.
+ */
+function zoneEcart(p, s) {
+  if (!p || !s || s.scratch || s.group === 'G' || p.p === 'G') return null;
+  const ideal = getLineZone(p, getHiddenRatings(p).v).idealUnits;
+  if (s.unit > Math.max(...ideal)) return 'sous';
+  if (s.unit < Math.min(...ideal)) return 'dessus';
+  return null;
+}
+
+const ZONE_SOUS_TITLE = 'Sous sa zone : ici, son talent est gaspillé et toute l\'unité porte un malus proportionnel à ce qu\'on perd. Vise une autre case dans l\'alignement ou déplace quelqu\'un.';
+const ZONE_DESSUS_TITLE = 'Au-dessus de sa zone : −3 par cran, léger. Il tient la case faute de mieux.';
+
 /** Cases ouvertes pour un joueur, la plus sensée d'abord. */
 const openSlots = p => SLOTS.filter(s => !G.roster[s.i] && fits(p, s))
   .sort((a, b) => slotFitScore(p, a) - slotFitScore(p, b) || a.i - b.i);
@@ -829,13 +846,18 @@ function playerCardEl(p) {
     dest = `<span class="dest-bad">aucune case libre</span>`;
   } else if (over) {
     dest = `<span class="dest-bad">hors budget</span>`;
-  } else if (isTargeted) {
-    const penTxt = pen > 0 ? ` <span class="dest-bad">−${pen}</span>` : '';
-    dest = `<span class="dest-target">🎯 ${esc(slot.label)} · ${esc(slot.role)}</span>${penTxt}`;
-  } else if (pen > 0) {
-    dest = `<span class="dest-bad">−${pen} hors position</span>`;
   } else {
-    dest = '';
+    // La destination n'est dite que quand elle mérite un avertissement : la
+    // case visée, une pénalité de position, ou une case hors de sa zone. Le
+    // « sous sa zone » est celui qui coûte cher, il se dit en rouge AVANT la
+    // signature plutôt qu'après dans le volet de l'alignement.
+    const ecart = zoneEcart(p, slot);
+    const bits = [];
+    if (isTargeted) bits.push(`<span class="dest-target">🎯 ${esc(slot.label)} · ${esc(slot.role)}</span>`);
+    if (pen > 0) bits.push(`<span class="dest-bad">−${pen} hors position</span>`);
+    if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ sous sa zone${isTargeted ? '' : ` : ${esc(slot.label)} · ${esc(slot.role)}`}</span>`);
+    else if (ecart === 'dessus') bits.push(`<span class="dest-warn" title="${esc(ZONE_DESSUS_TITLE)}">▲ au-dessus de sa zone</span>`);
+    dest = bits.join(' · ');
   }
 
   const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : 'Signer';
@@ -882,7 +904,10 @@ async function signPlayer(p) {
   G.selectedSlot = null;
 
   const pen = getPositionPenalty(p, slot);
-  toast(`${p.n} → ${slot.label} · ${slot.role}` + (pen > 0 ? ` (−${pen} hors position)` : ''), pen > 0 ? 'warn' : '');
+  const sous = zoneEcart(p, slot) === 'sous';
+  toast(`${p.n} → ${slot.label} · ${slot.role}`
+    + (pen > 0 ? ` (−${pen} hors position)` : '')
+    + (sous ? ' · ▼ sous sa zone' : ''), pen > 0 || sous ? 'warn' : '');
   if (risky && slotsLeft() > 0) {
     setTimeout(() => toast(`Attention : ${money(capLeft())} pour ${slotsLeft()} cases, sous le plancher.`, 'warn'), 2700);
   }
@@ -1009,7 +1034,10 @@ function slotEl(s) {
     const st = displayStats(p);
     const main = p.p === 'G' ? `${st.w} V` : `${st.pt} PTS`;
     const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr} PTS/M`;
-    const penTag = pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position : −${pen} sur ses cotes">−${pen}</span>` : '';
+    const penTag = pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position : −${pen}">−${pen}</span>` : '';
+    const ecart = zoneEcart(p, s);
+    const zoneEcartTag = ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼ zone</span>`
+      : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲ zone</span>` : '';
     el.innerHTML = `
       <button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>
       <div class="slot-top">
@@ -1019,7 +1047,7 @@ function slotEl(s) {
       <div class="slot-name">${formatName(p.n)}</div>
       <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
       <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
-      <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${penTag}</div>`;
+      <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${zoneEcartTag}${penTag}</div>`;
     el.querySelector('.slot-remove').onclick = ev => {
       ev.stopPropagation();
       delete G.roster[s.i];
@@ -1093,7 +1121,7 @@ function lineEl(title, slots, group, unit, cls = '') {
     if (filled === slots.length) {
       const kind = sum > 0 ? 'good' : sum < 0 ? 'bad' : '';
       if (kind) wrap.classList.add(kind);
-      const sign = v => (v > 0 ? `+${v}` : `${v}`);
+      const sign = x => { const v = Math.round(x * 10) / 10; return v > 0 ? `+${v}` : `${v}`; };
       const bits = [chemShort(syn.chem || syn.name)];
       if (syn.zone) bits.push(zoneShort(syn.zone));
       const full = `${syn.name}${syn.desc ? ' — ' + syn.desc : ''} · attaque ${sign(syn.bonusOff || 0)}, défense ${sign(syn.bonusDef || 0)}`;
@@ -1270,7 +1298,7 @@ function showPlayerModal(p) {
   const destNote = already ? ''
     : !slot ? `<div class="dash-note dash-bad">Toutes les cases compatibles sont prises. Déplace un joueur ou vise une autre position.</div>`
     : over ? `<div class="dash-note dash-bad">${money(p.$)} pour ${money(rem)} restants.</div>`
-    : `<div class="dash-note">Ira au <strong>${esc(slot.label)} · ${esc(slot.role)}</strong>${pen > 0 ? ` avec une pénalité de <strong>−${pen}</strong> sur ses cotes` : ' sans pénalité'}. Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`;
+    : `<div class="dash-note${zoneEcart(p, slot) === 'sous' ? ' dash-bad' : ''}">Ira au <strong>${esc(slot.label)} · ${esc(slot.role)}</strong>${pen > 0 ? ` avec une pénalité de <strong>−${pen}</strong> hors position` : ' sans pénalité de position'}${zoneEcart(p, slot) === 'sous' ? `, <strong>sous sa zone</strong> : son talent y est gaspillé et l'unité porte un malus. Vise une autre case ou déplace quelqu'un.` : zoneEcart(p, slot) === 'dessus' ? ', au-dessus de sa zone (−3 par cran, léger).' : ', dans sa zone.'} Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`;
 
   const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
   const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
@@ -1526,7 +1554,7 @@ function renderResult(r, you, teams, leaders) {
       </div>
 
       <div class="result-section">
-        <h3>Cotes cachées révélées</h3>
+        <h3>Feuille de match de ta formation</h3>
         ${rows}
       </div>
 

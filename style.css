@@ -24,6 +24,7 @@
   --green-soft: rgba(60, 208, 112, 0.14);
   --red: #f87171;
   --red-soft: rgba(248, 113, 113, 0.14);
+  --orange: #fb923c;
   --violet: #c084fc;
 
   --team-primary: #112236;
@@ -839,6 +840,7 @@ a { color: var(--blue); }
 .tag-est { color: var(--muted); }
 .tag-traded { color: var(--violet); }
 .tag-pen { color: var(--red); border-color: rgba(248, 113, 113, 0.45); background: var(--red-soft); }
+.tag-zone-up { color: var(--orange); border-color: rgba(251, 146, 60, 0.4); background: rgba(251, 146, 60, 0.12); }
 
 /* Bas de carte : où il va, et le bouton */
 .pcard-foot {
@@ -862,6 +864,7 @@ a { color: var(--blue); }
 .pcard-dest .dest-ok { color: var(--green); }
 .pcard-dest .dest-after { font-weight: 600; }
 .pcard-dest .dest-bad { color: var(--red); }
+.pcard-dest .dest-warn { color: var(--orange); }
 
 .btn-sign {
   flex: none;
