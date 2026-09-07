@@ -3,8 +3,8 @@
  *
  * `check_plafond.mjs` mesure le meilleur alignement légal choisi sur la
  * valeur. Mais le moteur ne lit pas la valeur : chez un patineur il lit ses
- * lancers par match et sa finition, relatifs à sa saison — les passes sont
- * distribuées après le but et ne créent rien. Deux alignements en profitent :
+ * lancers par match, sa finition et, depuis les bornes, la création de ses
+ * coéquipiers, tous relatifs à sa saison. Deux alignements en profitent :
  *
  *   TIREURS   glouton sur lancers × finition par dollar, zones ignorées.
  *             Le malus de zone écrase ses trios 2 à 4 ; il doit finir SOUS

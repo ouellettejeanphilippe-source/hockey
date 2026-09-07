@@ -19,7 +19,7 @@ import {
   playSeries, autoRoster,
 } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent } from './logos.js';
-import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers } from './ratings.js';
+import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 
 const $ = id => document.getElementById(id);
@@ -1250,6 +1250,7 @@ function profilMesure(p) {
   return `<div class="profil-grid">
     ${cell('PRODUCTION', r(prod), `Points par match, sur le régulier moyen de ${p.s}. 1,00 = la moyenne.`)}
     ${cell('LANCERS', r(vol), `Lancers par match, sur le régulier moyen de ${p.s}.`)}
+    ${cell('CRÉATION', r(passesRelatives(p)), `Passes par match, sur le régulier moyen de ${p.s} à sa position. C'est ce qu'il apporte aux lancers des autres : ses coéquipiers finissent mieux à ses côtés.`)}
     ${cell('PENCHANT', (pen >= 0 ? '+' : '') + pen.toFixed(2), pen >= 0
       ? 'Il finit plus que la moyenne : ses points sont surtout des buts.'
       : 'Il sert plus qu\'il ne finit : ses points sont surtout des passes.')}

@@ -1,7 +1,7 @@
 /*
  * Régénère la table `SEASON_LANCERS` de js/ratings.js depuis les shards.
  *
- * Quatre nombres par saison, tous mesurés, aucun réglé à la main :
+ * Neuf nombres par saison, tous mesurés, aucun réglé à la main :
  *
  *   [0] lancers par équipe par match     le rythme de l'époque
  *   [1] % de tir de la ligue             la finition de l'époque
@@ -11,6 +11,7 @@
  *   [5] POINTS par match d'un défenseur régulier
  *   [6] part des points d'un attaquant régulier qui vient de ses BUTS
  *   [7] minutes de punition par match d'un attaquant régulier
+ *   [8] part des points d'un défenseur régulier qui vient de ses buts
  *
  * Les quatre derniers servent à exprimer le volume de tirs et la production
  * d'un joueur en ÉCART À SA LIGUE, pour qu'un ailier de 1981 et un ailier de
@@ -68,13 +69,15 @@ for (const f of fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sor
     +moyenne(D, 'pt').toFixed(2),
     +(F.reduce((a, p) => a + (p.g || 0), 0)
       / Math.max(1, F.reduce((a, p) => a + (p.pt || 0), 0))).toFixed(3),
-    +moyenne(F, 'pim').toFixed(2)]);
+    +moyenne(F, 'pim').toFixed(2),
+    +(D.reduce((a, p) => a + (p.g || 0), 0)
+      / Math.max(1, D.reduce((a, p) => a + (p.pt || 0), 0))).toFixed(3)]);
 }
 
 let bloc = '';
 for (let i = 0; i < lignes.length; i += 1) {
   bloc += '  ' + lignes.slice(i, i + 3)
-    .map(([s, ...v]) => `'${s}': [${v.map((x, j) => x.toFixed(j === 6 ? 3 : 2)).join(', ')}],`)
+    .map(([s, ...v]) => `'${s}': [${v.map((x, j) => x.toFixed(j === 6 || j === 8 ? 3 : 2)).join(', ')}],`)
     .join('\n  ') + '\n';
 }
 

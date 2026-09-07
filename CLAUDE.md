@@ -39,6 +39,8 @@ scripts/build_salaries.py   assemble data/salaries/<saison>.json depuis data/sal
 scripts/fetch_markerzone.py dépose les salaires publiés par MarkerZone (1989-90+) dans sources/ ; manuel, jamais dans l'Action
 scripts/check_ratings.mjs   distribution des valeurs, zones, archétypes, force d'équipe vs classement
 scripts/build_lancers.mjs   régénère SEASON_LANCERS de js/ratings.js depuis les shards
+                            (neuf nombres par saison, dont les parts de buts
+                            dans les points, qui servent à la création)
 scripts/calibrate_sim.mjs   tableau de calibration (de vrais joueurs d'une même cote)
 scripts/check_monotonie.mjs améliorer son équipe la rend-elle meilleure ? (vraies équipes)
 scripts/mock_zones.mjs      le malus de zone ferme-t-il l'empilement ?
@@ -47,7 +49,7 @@ scripts/mock_moteur.mjs     maquette du moteur par événements, comparée aux v
 scripts/check_suppression.mjs  la défensive de l'alignement : volume de lancers
                             concédés ou qualité ? (réponse : la qualité)
 scripts/check_neutre.mjs    de quoi est faite l'équipe MOYENNE, une fois alignée
-                            (les quatre nombres de REF dans js/sim.js)
+                            (les cinq nombres de REF dans js/sim.js)
 scripts/check_feuilles.mjs  les égalités de la feuille de match, les repères
                             d'époque, et les totaux des joueurs
 scripts/check_plafond.mjs   le plafond du jeu en victoires et en Coupes
@@ -79,7 +81,7 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 
 **Toucher à une formule de cote veut dire incrémenter `RATINGS_VERSION`** dans `js/ratings.js`. La version est dans la clé du cache IndexedDB. Sans incrément, un joueur se retrouve avec des cotes calculées par deux formules différentes dans le même alignement.
 
-**Deux étages de cotes.** L'étage 1 (`rateSkaters`, `rateGoalies` : sous-cotes o, d, r, c) exige les stats brutes de l'API. L'étage 2 (`finalizeSeason` : valeur `v`, salaire, archétype `ak`, zone `lz`, contrat d'entrée `elc`) ne lit que le shard, donc `python3 scripts/build_shards.py --rerate` le rejoue sur les 55 saisons en une seconde, sans réseau. Si tu changes l'étage 2, c'est la commande à lancer ; si tu changes l'étage 1, il faut l'API. Le build normal enchaîne toujours un `--rerate` à la fin, parce que les contrats d'entrée dépendent de la première saison de chaque joueur dans toute la base et de sa cohorte d'identifiant (âge estimé quand l'API bios n'a pas donné la date de naissance `bd` ; `python3 scripts/build_shards.py --bios-only` l'ajoute aux shards existants en ~110 requêtes, et les cartes affichent alors l'âge). Règles d'époque dans `elcEra` : rien avant 1995-96.
+**Deux étages de cotes.** L'étage 1 (`rateSkaters`, `rateGoalies` : sous-cotes o, d, r, c) exige les stats brutes de l'API. L'étage 2 (`finalizeSeason` : valeur `v`, salaire, archétype `ak`, zone `lz`, contrat d'entrée `elc`, contexte de création `cx`) ne lit que le shard, donc `python3 scripts/build_shards.py --rerate` le rejoue sur les 55 saisons en une seconde, sans réseau. Si tu changes l'étage 2, c'est la commande à lancer ; si tu changes l'étage 1, il faut l'API. Le build normal enchaîne toujours un `--rerate` à la fin, parce que les contrats d'entrée dépendent de la première saison de chaque joueur dans toute la base et de sa cohorte d'identifiant (âge estimé quand l'API bios n'a pas donné la date de naissance `bd` ; `python3 scripts/build_shards.py --bios-only` l'ajoute aux shards existants en ~110 requêtes, et les cartes affichent alors l'âge). Règles d'époque dans `elcEra` : rien avant 1995-96.
 
 **La valeur est relative à la saison par construction** : c'est un rang à l'intérieur de la saison, donc 1975 (18 équipes) et 2024 (32) s'équilibrent d'eux-mêmes. Vérifie avec `node scripts/check_ratings.mjs` : la corrélation entre la force d'une équipe et son vrai classement (reconstitué des fiches de gardiens) doit rester autour de 0,8 — elle est à **0,801**.
 
@@ -130,9 +132,11 @@ lancers pour        = lancers contre, à l'échelle de la ligue
 
 **Tout est exprimé en écart à `REF`**, l'équipe moyenne une fois alignée — pas le joueur moyen de la ligue. La distinction n'est pas cosmétique : un alignement retient les 18 meilleurs patineurs d'un club et son gardien numéro un, qui tirent 27 % de plus que le régulier moyen, finissent 2 % mieux et arrêtent 10 % de plus. Normaliser sur le joueur moyen donnait une équipe médiane à 60 victoires. `node scripts/check_neutre.mjs` remesure ces quatre nombres.
 
-**Trois bornes au 99e centile des vraies équipes, et le vrai plafond du jeu.** Le volume d'une unité est plafonné à `VOLUME_UNITE_MAX` (2,0 fois le régulier moyen), la pression d'équipe à `PRESSION_MAX` (1,35 fois la référence, environ 38 lancers par match) et la finition d'équipe — le % de tir des patineurs habillés, pondéré par leurs lancers — à `FINITION_MAX` (1,20 fois la ligue). Chacune est le 99e centile mesuré sur les vraies équipes alignées, donc elles ne touchent qu'une vraie équipe sur cent. `node scripts/check_tireurs.mjs` mesure les deux alignements que la valeur ne voit pas : **TIREURS**, glouton sur lancers × finition en ignorant les zones, faisait 70,8 victoires en solo et la Coupe trois fois sur trois avant les bornes — son premier trio, trois étoiles à leur place, prenait 52 % des lancers ; il fait maintenant **52**, sous l'empilement par valeur (59-61). **PARFAIT**, chaque joueur dans sa zone, chaque trio deux tireurs et un passeur en chimie parfaite, chaque paire équilibrée, faisait 78 victoires et 628 buts ; il fait maintenant **68-70**, quelques matchs de mieux que le Canadien de 1976-77 (61-63), et c'est le plafond voulu : monter son alignement parfaitement vaut huit à dix victoires sur le simple empilement, on bat la meilleure équipe de l'histoire, la Coupe reste un pari. Le malus de zone n'est pas touché : il punit le talent mal placé, les bornes empêchent le talent bien placé de compenser à lui seul, et la chimie s'applique par-dessus les bornes parce que c'est elle qu'on récompense. **Les passes restent décoratives dans le moteur** — un fabricant ne crée pas de lancers pour ses ailiers — et c'est la raison de fond pour laquelle la valeur et le moteur peuvent diverger ; c'est assumé pour l'instant.
+**Trois bornes au 99e centile des vraies équipes, et le vrai plafond du jeu.** Le volume d'une unité est plafonné à `VOLUME_UNITE_MAX` (2,0 fois le régulier moyen), la pression d'équipe à `PRESSION_MAX` (1,35 fois la référence, environ 38 lancers par match) et la finition d'équipe — le % de tir des patineurs habillés, pondéré par leurs lancers — à `FINITION_MAX` (1,20 fois la ligue). Chacune est le 99e centile mesuré sur les vraies équipes alignées, donc elles ne touchent qu'une vraie équipe sur cent. `node scripts/check_tireurs.mjs` mesure les deux alignements que la valeur ne voit pas : **TIREURS**, glouton sur lancers × finition en ignorant les zones, faisait 70,8 victoires en solo et la Coupe trois fois sur trois avant les bornes — son premier trio, trois étoiles à leur place, prenait 52 % des lancers ; il fait maintenant **52**, sous l'empilement par valeur (59-61). **PARFAIT**, chaque joueur dans sa zone, chaque trio deux tireurs et un passeur en chimie parfaite, chaque paire équilibrée, faisait 78 victoires et 628 buts ; il fait maintenant **68-70**, quelques matchs de mieux que le Canadien de 1976-77 (61-63), et c'est le plafond voulu : monter son alignement parfaitement vaut huit à dix victoires sur le simple empilement, on bat la meilleure équipe de l'histoire, la Coupe reste un pari. Le malus de zone n'est pas touché : il punit le talent mal placé, les bornes empêchent le talent bien placé de compenser à lui seul, et la chimie s'applique par-dessus les bornes parce que c'est elle qu'on récompense.
 
-**Une seule constante est libre : `SYN_ECHELLE`** (42). Elle convertit un bonus de chimie ou un malus de zone (en points de cote) en facteur multiplicatif sur les buts attendus d'une unité, moitié par le volume moitié par la qualité. Tout le reste — `LANCERS_BASE`, `ALPHA_POSSESSION`, `K_DEFENSE`, `REF` — est mesuré. `LANCERS_BASE` et `CIBLE_PCT_TIR` sont réglés sur la *sortie* de `check_feuilles.mjs` (≈ 28,5 lancers et ≈ 3,1 buts par équipe par match), pas sur la moyenne brute des shards.
+**Les passes causent les buts.** Chaque lancer porte la **création** des quatre coéquipiers sur la glace — leurs passes par match, relatives au régulier moyen de leur position et de leur saison (`passesRelatives`, `js/ratings.js`) — rapportée au **contexte** que le tireur a vraiment eu (`p.cx`, posé dans le shard par `contexteDeCreation` à l'étage 2, en rangeant son équipe par valeur en trios et en paires) et élevée à `BETA_CREATION` (0,5). Le contexte est ce qui évite de compter deux fois : le % de tir d'un joueur contient déjà ses vrais coéquipiers, et sans lui l'erreur systématique par joueur de `check_feuilles.mjs` passait de 19,5 à 24,8 % et le Canadien de 1976-77 gagnait deux matchs de plus sans qu'on ait touché à ses joueurs. Avec le contexte, un joueur rejoué avec ses vrais coéquipiers marque comme dans la vraie vie — **Kurri 1984-85 marque 71 buts à côté de Gretzky, son vrai total, 49 à côté d'un centre de quatrième trio, 17 au quatrième trio** — et les déciles ne bougent pas. `BETA_CREATION` est la deuxième constante libre du moteur avec `SYN_ECHELLE` : les colonnes ne peuvent pas la mesurer, pour la raison ci-dessus ; elle se règle sur l'ordre des plafonds de `check_tireurs.mjs` et sur ce que Kurri gagne à côté de Gretzky. La création entre dans la finition d'équipe, donc sous `FINITION_MAX`. L'attribution des passes après le but (85 % une première, 62 % une seconde, au prorata de la propension) ne change pas : c'est la feuille de match, pas la cause. `REF.crea` (1,260) est la création moyenne de l'équipe alignée, mesurée par `check_neutre.mjs`, et ne sert que de contexte de secours quand le shard n'en porte pas.
+
+**Deux constantes sont libres : `SYN_ECHELLE`** (42) **et `BETA_CREATION`** (0,5, voir ci-dessus). `SYN_ECHELLE` Elle convertit un bonus de chimie ou un malus de zone (en points de cote) en facteur multiplicatif sur les buts attendus d'une unité, moitié par le volume moitié par la qualité. Tout le reste — `LANCERS_BASE`, `ALPHA_POSSESSION`, `K_DEFENSE`, `REF` — est mesuré. `LANCERS_BASE` et `CIBLE_PCT_TIR` sont réglés sur la *sortie* de `check_feuilles.mjs` (≈ 28,5 lancers et ≈ 3,1 buts par équipe par match), pas sur la moyenne brute des shards.
 
 ## La chimie et les archétypes se lisent dans la fiche, pas dans la cote
 
@@ -213,12 +217,12 @@ Repères actuels, de vrais joueurs-saisons d'une même cote, moyenne sur 12 essa
 
 | Cote | Fiche | BP-BC |
 |---|---|---|
-| 50 | 10-66-6 | 126-337 |
-| 60 | 25-49-7 | 196-293 |
-| 70 | 42-35-5 | 230-238 |
-| 80 | 34-42-7 | 179-225 |
-| 90 | 47-34-1 | 219-203 |
-| 99 | 64-18-0 | 249-138 |
+| 50 | 8-69-5 | 106-346 |
+| 60 | 25-50-6 | 180-275 |
+| 70 | 39-38-5 | 223-242 |
+| 80 | 37-39-6 | 193-223 |
+| 90 | 51-30-1 | 229-198 |
+| 99 | 63-19-0 | 239-139 |
 
 La marche à 80 est l'artefact que le paragraphe suivant décrit : 23 joueurs à 80 franchissent ensemble le seuil « Top 3 » (78), donc les trios 2 à 4 sont tous « sous leur zone ». Elle était déjà là avant les bornes de possession (34-42 mesuré sur l'ancien moteur) et n'apparaît sur aucune vraie équipe. Le palier 99 est passé de 69 à 64 victoires avec `FINITION_MAX` : 23 joueurs de 99 sont exactement l'addition de pourcentages de tir que la borne refuse.
 

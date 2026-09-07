@@ -19,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, profilMatch, createTeam, activeLineup, SLOTS, facteurGardienDe, pctTirRelDe } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, profilMatch, createTeam, activeLineup, SLOTS, facteurGardienDe, pctTirRelDe, REF } from '../js/sim.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
@@ -27,7 +27,7 @@ const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
 const moy = (a) => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 const median = (a) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
 
-const pressions = [], zDefs = [], fgs = [], pcts = [];
+const pressions = [], zDefs = [], fgs = [], pcts = [], creas = [];
 for (const f of fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sort()) {
   const shard = JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, f), 'utf8'));
   const parEquipe = {};
@@ -45,6 +45,8 @@ for (const f of fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sor
     const prof = profilMatch(team, lineup);
     pressions.push(prof.pression);
     zDefs.push(prof.zDef);
+    // rapportée à REF.crea en vigueur : la valeur brute est creaEquipe × REF.crea
+    creas.push(prof.creaEquipe);
 
     const gardien = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]).find(Boolean);
     if (gardien) fgs.push(facteurGardienDe(gardien));
@@ -65,6 +67,7 @@ ligne('pression', pressions);
 ligne('zDef', zDefs);
 ligne('facteur gardien', fgs);
 ligne('% de tir relatif', pcts);
+ligne('création (passes rel.)', creas);
 
 console.log(`
   À METTRE DANS PROFIL_NEUTRE
@@ -73,4 +76,5 @@ console.log(`
     zDef          ${moy(zDefs).toFixed(3)}
     fgDefaut      ${moy(fgs).toFixed(3)}
     pctTirDefaut  ${moy(pcts).toFixed(3)}
+    crea          ${moy(creas).toFixed(3)}   (REF.crea en vigueur : ${REF.crea})
 `);
