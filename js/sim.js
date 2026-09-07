@@ -6,7 +6,8 @@
  * Toute modification des constantes doit être revalidée (voir PLAN.md, S3).
  */
 
-import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS } from './ratings.js';
+import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS,
+         POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour } from './ratings.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe } from './traits.js';
@@ -376,8 +377,8 @@ const effStat = (player, slot, key) => {
   return Math.max(25, r[key] - getPositionPenalty(player, slot));
 };
 
-const POIDS_TRIO  = [0.34, 0.28, 0.22, 0.16];  // le 4e trio compte pour vrai
-const POIDS_PAIRE = [0.40, 0.34, 0.26];
+// POIDS_TRIO et POIDS_PAIRE (temps de glace des unités) vivent dans
+// js/ratings.js : l'étage 2 des cotes s'en sert pour le contexte de création.
 
 function poisson(lambda) {
   const L = Math.exp(-lambda);
@@ -497,6 +498,45 @@ export const PRESSION_MAX = 1.35;
 export const FINITION_MAX = 1.20;
 
 /*
+ * LES PASSES CAUSENT LES BUTS. Jusqu'ici la passe était DÉCORATIVE : un but
+ * tiré, on l'attribuait après coup aux coéquipiers sur la glace, au prorata
+ * de leur propension à la passe. Gretzky 1985-86 et ses 163 passes ne
+ * faisaient pas marquer Kurri d'un seul but de plus — le moteur ne lisait
+ * chez un patineur que ses lancers et sa finition, et la valeur (donc les
+ * zones et le salaire) comptait les points. C'est cet écart qui rendait un
+ * tireur de 40 buts toujours préférable à un passeur de 90 points, et qui a
+ * produit l'empilement de tireurs que `check_tireurs.mjs` mesure.
+ *
+ * Maintenant chaque lancer porte la CRÉATION des quatre autres patineurs sur
+ * la glace : leurs passes par match, relatives au régulier moyen de leur
+ * position et de leur saison (`passesRelatives`, js/ratings.js). Un lancer
+ * pris à côté d'un fabricant de jeu entre plus souvent ; à côté de quatre
+ * joueurs qui ne servent personne, moins. Le tireur reste celui qui tire —
+ * la création agit sur la qualité du lancer, pas sur qui le prend.
+ *
+ * LE PIÈGE, ET COMMENT ON L'ÉVITE. Le % de tir d'un joueur contient DÉJÀ
+ * l'effet de ses vrais coéquipiers : Kurri finissait à 20 % à côté de
+ * Gretzky. Ajouter la création par-dessus compterait les grandes équipes
+ * deux fois — mesuré : l'erreur systématique par joueur de
+ * `check_feuilles.mjs` passait de 19,5 à 24,8 % et le Canadien de 1976-77
+ * gagnait deux matchs de plus, sans qu'on ait rien changé à ses joueurs.
+ * La création se lit donc en ÉCART AU CONTEXTE que le tireur a vraiment
+ * eu (`p.cx`, posé dans le shard par `contexteDeCreation`, étage 2) : rejoué
+ * avec ses vrais coéquipiers, un joueur marque comme dans la vraie vie ;
+ * placé à côté d'un meilleur passeur, il marque plus ; à côté de moins bons,
+ * moins. REF.crea ne sert que de contexte de secours, quand le shard n'en
+ * porte pas.
+ *
+ * BETA_CREATION est la deuxième constante libre du moteur, avec SYN_ECHELLE :
+ * les colonnes ne peuvent pas la mesurer, pour la raison ci-dessus. Elle se
+ * règle sur l'ordre des plafonds de `check_tireurs.mjs` (PARFAIT > Canadien
+ * 1976-77 > empilement par valeur > TIREURS) et sur ce qu'un joueur de
+ * quatrième trio gagne à jouer à côté de Gretzky — avec 0,5, un tiers de
+ * finition en plus, ce qui est à peu près ce que l'histoire raconte.
+ */
+export const BETA_CREATION = 0.5;
+
+/*
  * La défensive, elle, agit sur la QUALITÉ des lancers. Même mesure : la
  * cote défensive de l'alignement corrèle à +0,45 avec le pourcentage
  * d'arrêts de l'équipe et −0,45 avec ses buts alloués. Une bonne brigade
@@ -546,7 +586,7 @@ export const SYN_ECHELLE = 42;
  * qu'un match entre deux équipes de référence produit exactement
  * LANCERS_BASE lancers et CIBLE_PCT_TIR de finition.
  */
-export const REF = { pression: 1.272, zDef: 0.672, fg: 0.895, pctTir: 1.022 };
+export const REF = { pression: 1.272, zDef: 0.672, fg: 0.895, pctTir: 1.022, crea: 1.260 };
 
 /*
  * Le pourcentage de tir de référence, et donc l'ancrage du pointage : c'est
@@ -616,6 +656,21 @@ function pctTirRel(p) {
   return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20) * facteurFinitionJoueur(p);
 }
 
+const passesRel = passesRelatives;
+
+/**
+ * Le facteur de création d'un lancer : la création des coéquipiers sur la
+ * glace, rapportée à celle que le tireur a vraiment eue (`cx`), élevée à
+ * BETA_CREATION. Vaut 1 pour un joueur rejoué avec ses vrais coéquipiers.
+ */
+function facteurCreation(glace, tireur) {
+  let s = 0, n = 0;
+  for (const p of glace) if (p !== tireur) { s += passesRel(p); n++; }
+  if (!n) return 1;
+  const contexte = (tireur && tireur.cx) || REF.crea;
+  return Math.pow((s / n) / contexte, BETA_CREATION);
+}
+
 /**
  * Facteur du gardien : de combien il laisse passer, relativement à la ligue
  * de SA saison. Un gardien à ,920 en 1975 était hors norme, le même chiffre
@@ -632,6 +687,7 @@ function facteurGardien(g) {
  * moyenne — jamais recopiés ailleurs, une seule implémentation par formule. */
 export const facteurGardienDe = facteurGardien;
 export const pctTirRelDe = pctTirRel;
+export const passesRelDe = passesRel;
 
 /** Propension à la passe : la part de points qu'un joueur récolte en passes. */
 const propensionPasse = p =>
@@ -687,14 +743,37 @@ export function profilMatch(team, lineup) {
 
   // La finition de l'équipe : le % de tir de ses patineurs, pondéré par leurs
   // lancers. Au-dessus de FINITION_MAX, tous ses tireurs sont ramenés d'autant.
-  let sL = 0, sLF = 0;
-  for (const p of habilles) if (p.p !== 'G') { const l = lancersRel(p); sL += l; sLF += l * pctTirRel(p); }
-  const finEquipe = sL ? sLF / sL : 1;
+  let sL = 0;
+  for (const p of habilles) if (p.p !== 'G') sL += lancersRel(p);
+  // La création dans CET alignement, et ce qu'elle change à chaque tireur par
+  // rapport à son contexte réel. Elle entre dans la finition d'équipe, donc
+  // sous le même plafond : un passeur de génie ne fait pas dépasser ce que
+  // l'histoire a vu. `creaEquipe` sert à `check_neutre.mjs`.
+  const moyU = (g, poids) => {
+    let s = 0, w = 0;
+    poids.forEach((wt, u) => {
+      const js = unites[g][u].joueurs;
+      if (js.length) { s += wt * js.reduce((a, p) => a + passesRel(p), 0) / js.length; w += wt; }
+    });
+    return w ? s / w : RAPPEL_PASSES;
+  };
+  const Fbar = moyU('F', POIDS_TRIO), Dbar = moyU('D', POIDS_PAIRE);
+  const creaEquipe = 0.56 * Fbar + 0.44 * Dbar;
+  let sLC = 0;
+  for (const [g, taille] of [['F', 3], ['D', 2]]) {
+    for (const un of unites[g]) for (const p of un.joueurs) {
+      const memes = un.joueurs.filter(x => x !== p).map(passesRel);
+      while (memes.length < taille - 1) memes.push(RAPPEL_PASSES);
+      const autour = creationAutour(g === 'D', memes, g === 'D' ? Fbar : Dbar);
+      sLC += lancersRel(p) * pctTirRel(p) * Math.pow(autour / (p.cx || REF.crea), BETA_CREATION);
+    }
+  }
+  const finEquipe = sL ? sLC / sL : 1;
 
   return {
     unites,
     pression: borne(pression, 0.40, REF.pression * PRESSION_MAX),
-    finEquipe,
+    finEquipe, creaEquipe,
     finitionFacteur: Math.min(1, FINITION_MAX / finEquipe),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles),
@@ -784,9 +863,13 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef + usure - REF.zDef));
     }
 
+    // Les passes causent les buts : la création des coéquipiers sur la glace
+    // change la probabilité que CE lancer entre.
+    const crea = glace ? facteurCreation(glace, tireur) : 1;
+
     const p = borne(
       CIBLE_PCT_TIR
-        * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir
+        * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir * crea
         * (fg / REF.fg) * facteurDef * traits * (unite ? unite.qualite : 1) * chance
         * (off.finitionFacteur ?? 1),
       0.005, PCT_TIR_MAX);

@@ -178,6 +178,20 @@ sur l'époque, une passe secondaire, aux coéquipiers sur la glace au prorata de
 leur propension à la passe (`a` ÷ `pt` de leur vraie saison). Un fabricant de jeu
 au premier trio récolte donc des passes ; le même au quatrième en récolte moins.
 
+**Amendement (septembre 2026) : les passes CAUSENT les buts.** Telle qu'écrite,
+cette section faisait de la passe une décoration : Gretzky 1985-86 et ses 163
+passes ne faisaient pas marquer Kurri d'un seul but de plus, et un tireur de
+40 buts valait toujours plus qu'un passeur de 90 points — c'est l'empilement
+de tireurs que `scripts/check_tireurs.mjs` mesure. Chaque lancer porte
+maintenant la **création** des quatre coéquipiers sur la glace (leurs passes
+par match, relatives à leur position et à leur saison : `passesRelatives`),
+rapportée au **contexte** que le tireur a vraiment eu (`p.cx`, posé dans le
+shard par `contexteDeCreation`, étage 2) et élevée à `BETA_CREATION` = 0,5.
+Le contexte est ce qui évite de compter deux fois : le % de tir d'un joueur
+contient déjà ses vrais coéquipiers. Rejoué avec eux, il marque comme dans la
+vraie vie ; à côté d'un meilleur passeur, plus. L'attribution des passes après
+le but ne change pas.
+
 ### 4.6 La normalisation par époque
 
 Deux nombres par saison, tous deux tirés de l'API :
