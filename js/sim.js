@@ -471,6 +471,32 @@ export const VOLUME_UNITE_MAX = 2.0;
 export const PRESSION_MAX = 1.35;
 
 /*
+ * LA FINITION D'UNE ÉQUIPE A UN PLAFOND, ELLE AUSSI. Les deux bornes
+ * ci-dessus ferment le volume ; celle-ci ferme la qualité. Mesuré sur 708
+ * vraies équipes-saisons alignées : la finition de l'équipe (le % de tir de
+ * ses patineurs habillés, pondéré par leurs lancers, relatif à la ligue) va
+ * de 0,99 en médiane à 1,21 au 99e centile et 1,28 au maximum. Un
+ * alignement PARFAITEMENT monté — chaque joueur dans sa zone, chaque trio
+ * avec un passeur et deux tireurs, chaque paire équilibrée — arrive à 1,35
+ * en cueillant les meilleurs finisseurs de 55 saisons, et sans borne il
+ * faisait 74 victoires, 469 buts et la Coupe trois fois sur trois même avec
+ * les bornes de volume (78 victoires et 628 buts avant elles).
+ *
+ * FINITION_MAX = 1,20, le 99e centile : au-dessus, la finition de tous les
+ * tireurs est ramenée d'autant, et la chimie continue de s'appliquer
+ * par-dessus — c'est elle qu'on veut récompenser, pas l'addition de douze
+ * pourcentages de tir que l'histoire n'a jamais vue ensemble.
+ *
+ * Effet mesuré (`scripts/check_tireurs.mjs`) : l'alignement parfait retombe
+ * à 68-70 victoires, un peu au-dessus du Canadien de 1976-77 (61-63) — c'est
+ * le plafond voulu : parfaitement monté, on bat la meilleure équipe de
+ * l'histoire de quelques matchs, et la Coupe reste un pari. L'empilement
+ * par valeur reste à 59-61 et l'empilement de tireurs sans zones tombe à 52.
+ * Les vraies équipes ne bougent pas.
+ */
+export const FINITION_MAX = 1.20;
+
+/*
  * La défensive, elle, agit sur la QUALITÉ des lancers. Même mesure : la
  * cote défensive de l'alignement corrèle à +0,45 avec le pourcentage
  * d'arrêts de l'équipe et −0,45 avec ses buts alloués. Une bonne brigade
@@ -659,9 +685,17 @@ export function profilMatch(team, lineup) {
   // condition : être habillé — `lineup` ne contient pas les réservistes.
   const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
 
+  // La finition de l'équipe : le % de tir de ses patineurs, pondéré par leurs
+  // lancers. Au-dessus de FINITION_MAX, tous ses tireurs sont ramenés d'autant.
+  let sL = 0, sLF = 0;
+  for (const p of habilles) if (p.p !== 'G') { const l = lancersRel(p); sL += l; sLF += l * pctTirRel(p); }
+  const finEquipe = sL ? sLF / sL : 1;
+
   return {
     unites,
     pression: borne(pression, 0.40, REF.pression * PRESSION_MAX),
+    finEquipe,
+    finitionFacteur: Math.min(1, FINITION_MAX / finEquipe),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles),
     traitAtt: facteurAttaqueEquipe(habilles),
@@ -753,7 +787,8 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir
-        * (fg / REF.fg) * facteurDef * traits * (unite ? unite.qualite : 1) * chance,
+        * (fg / REF.fg) * facteurDef * traits * (unite ? unite.qualite : 1) * chance
+        * (off.finitionFacteur ?? 1),
       0.005, PCT_TIR_MAX);
 
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;

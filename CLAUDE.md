@@ -51,8 +51,9 @@ scripts/check_neutre.mjs    de quoi est faite l'équipe MOYENNE, une fois align�
 scripts/check_feuilles.mjs  les égalités de la feuille de match, les repères
                             d'époque, et les totaux des joueurs
 scripts/check_plafond.mjs   le plafond du jeu en victoires et en Coupes
-scripts/check_tireurs.mjs   l'empilement de TIREURS (ce que le moteur lit, pas
-                            la valeur) : doit retomber au même plafond
+scripts/check_tireurs.mjs   les deux alignements que la valeur ne voit pas :
+                            TIREURS sans zones (~52 V) et PARFAIT (~68-70 V,
+                            le vrai plafond du jeu)
 scripts/check_chimie.mjs    la chimie de trio dit-elle ce que le hockey dit ?
 scripts/check_traits.mjs    les traits : rareté, couverture d'époque, effet mesuré
 scripts/smoke.mjs           test de fumée Playwright à 390 px
@@ -129,7 +130,7 @@ lancers pour        = lancers contre, à l'échelle de la ligue
 
 **Tout est exprimé en écart à `REF`**, l'équipe moyenne une fois alignée — pas le joueur moyen de la ligue. La distinction n'est pas cosmétique : un alignement retient les 18 meilleurs patineurs d'un club et son gardien numéro un, qui tirent 27 % de plus que le régulier moyen, finissent 2 % mieux et arrêtent 10 % de plus. Normaliser sur le joueur moyen donnait une équipe médiane à 60 victoires. `node scripts/check_neutre.mjs` remesure ces quatre nombres.
 
-**La possession se partage, elle ne s'additionne pas.** Le volume d'une unité est plafonné à `VOLUME_UNITE_MAX` (2,0 fois le régulier moyen, le 99e centile des vrais premiers trios) et la pression d'équipe à `PRESSION_MAX` (1,35 fois la référence, environ 38 lancers par match, le maximum réel). Sans ces deux bornes, `node scripts/check_tireurs.mjs` — le meilleur alignement légal choisi sur ce que le moteur lit, lancers × finition, plutôt que sur la valeur — faisait **70,8 victoires** en solo, 40 lancers et 5,7 buts par match, et la Coupe trois fois sur trois. Le malus de zone écrasait bien ses trios 2 à 4 au quart, mais son premier trio, trois étoiles à leur place, prenait 52 % des lancers de l'équipe et suffisait seul. Avec les bornes il retombe à **60,4**, le niveau de l'empilement par valeur (61,5) et du Canadien de 1976-77 (61,5) ; les déciles des vraies équipes ne bougent pas (26,4 / 41,7 / 52,1). Le malus de zone n'est pas touché : il punit le talent mal placé, les bornes empêchent le talent bien placé de compenser à lui seul. **Les passes restent décoratives dans le moteur** — un fabricant ne crée pas de lancers pour ses ailiers — et c'est la raison de fond pour laquelle la valeur et le moteur peuvent diverger ; c'est assumé pour l'instant, et ce sont ces deux bornes qui empêchent la divergence de mener à la Coupe systématique.
+**Trois bornes au 99e centile des vraies équipes, et le vrai plafond du jeu.** Le volume d'une unité est plafonné à `VOLUME_UNITE_MAX` (2,0 fois le régulier moyen), la pression d'équipe à `PRESSION_MAX` (1,35 fois la référence, environ 38 lancers par match) et la finition d'équipe — le % de tir des patineurs habillés, pondéré par leurs lancers — à `FINITION_MAX` (1,20 fois la ligue). Chacune est le 99e centile mesuré sur les vraies équipes alignées, donc elles ne touchent qu'une vraie équipe sur cent. `node scripts/check_tireurs.mjs` mesure les deux alignements que la valeur ne voit pas : **TIREURS**, glouton sur lancers × finition en ignorant les zones, faisait 70,8 victoires en solo et la Coupe trois fois sur trois avant les bornes — son premier trio, trois étoiles à leur place, prenait 52 % des lancers ; il fait maintenant **52**, sous l'empilement par valeur (59-61). **PARFAIT**, chaque joueur dans sa zone, chaque trio deux tireurs et un passeur en chimie parfaite, chaque paire équilibrée, faisait 78 victoires et 628 buts ; il fait maintenant **68-70**, quelques matchs de mieux que le Canadien de 1976-77 (61-63), et c'est le plafond voulu : monter son alignement parfaitement vaut huit à dix victoires sur le simple empilement, on bat la meilleure équipe de l'histoire, la Coupe reste un pari. Le malus de zone n'est pas touché : il punit le talent mal placé, les bornes empêchent le talent bien placé de compenser à lui seul, et la chimie s'applique par-dessus les bornes parce que c'est elle qu'on récompense. **Les passes restent décoratives dans le moteur** — un fabricant ne crée pas de lancers pour ses ailiers — et c'est la raison de fond pour laquelle la valeur et le moteur peuvent diverger ; c'est assumé pour l'instant.
 
 **Une seule constante est libre : `SYN_ECHELLE`** (42). Elle convertit un bonus de chimie ou un malus de zone (en points de cote) en facteur multiplicatif sur les buts attendus d'une unité, moitié par le volume moitié par la qualité. Tout le reste — `LANCERS_BASE`, `ALPHA_POSSESSION`, `K_DEFENSE`, `REF` — est mesuré. `LANCERS_BASE` et `CIBLE_PCT_TIR` sont réglés sur la *sortie* de `check_feuilles.mjs` (≈ 28,5 lancers et ≈ 3,1 buts par équipe par match), pas sur la moyenne brute des shards.
 
@@ -212,14 +213,14 @@ Repères actuels, de vrais joueurs-saisons d'une même cote, moyenne sur 12 essa
 
 | Cote | Fiche | BP-BC |
 |---|---|---|
-| 50 | 9-67-6 | 124-336 |
-| 60 | 26-49-7 | 188-285 |
-| 70 | 40-38-4 | 232-246 |
-| 80 | 32-44-6 | 180-230 |
-| 90 | 49-31-2 | 234-211 |
-| 99 | 69-13-0 | 293-136 |
+| 50 | 10-66-6 | 126-337 |
+| 60 | 25-49-7 | 196-293 |
+| 70 | 42-35-5 | 230-238 |
+| 80 | 34-42-7 | 179-225 |
+| 90 | 47-34-1 | 219-203 |
+| 99 | 64-18-0 | 249-138 |
 
-La marche à 80 est l'artefact que le paragraphe suivant décrit : 23 joueurs à 80 franchissent ensemble le seuil « Top 3 » (78), donc les trios 2 à 4 sont tous « sous leur zone ». Elle était déjà là avant les bornes de possession (34-42 mesuré sur l'ancien moteur) et n'apparaît sur aucune vraie équipe.
+La marche à 80 est l'artefact que le paragraphe suivant décrit : 23 joueurs à 80 franchissent ensemble le seuil « Top 3 » (78), donc les trios 2 à 4 sont tous « sous leur zone ». Elle était déjà là avant les bornes de possession (34-42 mesuré sur l'ancien moteur) et n'apparaît sur aucune vraie équipe. Le palier 99 est passé de 69 à 64 victoires avec `FINITION_MAX` : 23 joueurs de 99 sont exactement l'addition de pourcentages de tir que la borne refuse.
 
 Le banc **ne peut plus être synthétique**. L'ancienne table alignait 23 joueurs inventés `{o:r, d:r, …}` ; le moteur par événements se nourrit des vraies statistiques — lancers, buts par lancer, pourcentage d'arrêts — que des joueurs inventés n'ont pas, et un tel banc joue comme 23 rappels de la ligue mineure quelle que soit sa cote. On tire donc de vrais joueurs-saisons dont la cote est celle du palier.
 
@@ -248,7 +249,7 @@ LIGUES=5 node scripts/check_feuilles.mjs   # les égalités et les repères d'é
 node scripts/calibrate_sim.mjs       # la table par palier de cote
 node scripts/check_monotonie.mjs     # monotone sur dix déciles
 node scripts/check_plafond.mjs       # victoires et Coupes au plafond
-node scripts/check_tireurs.mjs       # l'empilement de tireurs retombe au même plafond
+node scripts/check_tireurs.mjs       # tireurs sans zones ~52, alignement parfait ~68-70
 node scripts/check_traits.mjs        # les traits restent rares et se voient
 ```
 
