@@ -76,6 +76,13 @@ def fetch_season(year, min_gp):
     goalies = api("goalie/summary",
                   {"limit": -1, "sort": "wins", "cayenneExp": exp, "factCayenneExp": fact})
 
+    # Unites speciales par equipe : occasions et buts en avantage numerique.
+    # La ligue les compte depuis 1977-78 ; avant, le moteur garde ses reperes
+    # d'epoque. Le point team/powerplay ne donne pas le code d'equipe, on le
+    # retrouve par l'identifiant (voir team_codes). Tolerant : un champ
+    # absent ou renomme laisse le bloc vide plutot que de casser le build.
+    avantages = fetch_powerplay(year) if year >= 1977 else {}
+
     realtime = None
     if year >= 2005:
         rows = api("skater/realtime", {"limit": -1, "sort": "hits", "cayenneExp": exp})
@@ -90,7 +97,50 @@ def fetch_season(year, min_gp):
         if r.get("playerId") in births:
             r["birthDate"] = births[r["playerId"]]
 
-    return skaters, goalies, realtime
+    return skaters, goalies, realtime, avantages
+
+
+_TEAM_CODES = None
+
+
+def team_codes():
+    """identifiant d'equipe -> code a trois lettres, une requete pour toutes."""
+    global _TEAM_CODES
+    if _TEAM_CODES is None:
+        rows = api("team", {})
+        _TEAM_CODES = {}
+        for r in rows:
+            code = r.get("triCode") or r.get("rawTricode")
+            if r.get("id") is not None and code:
+                _TEAM_CODES[r["id"]] = code
+    return _TEAM_CODES
+
+
+def _champ(row, *cles):
+    for k in cles:
+        if k in row and row[k] is not None:
+            return row[k]
+    return None
+
+
+def fetch_powerplay(year):
+    sid = f"{year}{year + 1}"
+    rows = api("team/powerplay", {"limit": -1, "cayenneExp": f"seasonId={sid} and gameTypeId=2"})
+    if not rows:
+        return {}
+    codes = team_codes()
+    out = {}
+    for r in rows:
+        code = codes.get(r.get("teamId")) or r.get("teamAbbrev") or r.get("triCode")
+        gp = _champ(r, "gamesPlayed")
+        occ = _champ(r, "ppOpportunities", "powerPlayOpportunities", "ppOpp")
+        buts = _champ(r, "ppGoalsFor", "powerPlayGoalsFor", "ppGoals")
+        if not code or not gp or occ is None:
+            continue
+        out[code] = {"gp": gp, "occ": occ, "but": buts if buts is not None else 0}
+    if not out:
+        print(f"    team/powerplay {sid} : champs inattendus {sorted(rows[0].keys())[:12]}...", file=sys.stderr)
+    return out
 
 
 def fetch_bios(year):
@@ -163,12 +213,12 @@ def rerate_all():
         sys.exit(f"rerate.mjs a echoue : {e}")
 
 
-def rate(label, min_gp, skaters, goalies, realtime):
+def rate(label, min_gp, skaters, goalies, realtime, avantages=None):
     """Delegue le calcul a js/ratings.js via Node."""
     payload = json.dumps({
         "label": label, "minGP": min_gp,
         "skaters": skaters, "goalies": goalies, "realtime": realtime,
-        "salaries": load_salaries(label),
+        "salaries": load_salaries(label), "avantages": avantages or {},
     })
     try:
         out = subprocess.run(
@@ -253,12 +303,12 @@ def main():
             print(f"{label}  (v{shard.get('v')} -> v{version}, on rebatit)")
 
         print(f"{label}  ...", end=" ", flush=True)
-        skaters, goalies, realtime = fetch_season(year, args.min_gp)
+        skaters, goalies, realtime, avantages = fetch_season(year, args.min_gp)
         if not skaters and not goalies:
             print("aucune donnee (saison annulee ou a venir)")
             continue
 
-        shard = rate(label, args.min_gp, skaters, goalies, realtime)
+        shard = rate(label, args.min_gp, skaters, goalies, realtime, avantages)
 
         if not args.seed_only:
             with open(path, "w", encoding="utf-8") as f:

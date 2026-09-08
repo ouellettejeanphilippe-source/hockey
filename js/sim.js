@@ -655,7 +655,7 @@ export const REF = { pression: 1.233, zDef: 0.169, fg: 0.899, pctTir: 1.025, cre
  * 43,4 dans la réalité. À 1,045, la moyenne retombe exactement sur le réel,
  * et les dix déciles de `check_monotonie.mjs` avec elle.
  */
-export const PCT_TIR_NEUTRE = 1.045;
+export const PCT_TIR_NEUTRE = 0.965;
 
 /*
  * Le pourcentage de tir de référence, et donc l'ancrage du pointage : c'est
@@ -684,6 +684,89 @@ export const PCT_TIR_NEUTRE = 1.045;
  */
 export const CIBLE_PCT_TIR = 0.0927;
 export const PCT_TIR_MAX = 0.35;
+
+/* ======================================================================
+ *  LES UNITÉS SPÉCIALES — punitions, avantage et désavantage numériques
+ *
+ *  Un match n'est pas soixante minutes à cinq contre cinq. Chaque punition
+ *  mineure donne deux minutes à l'adversaire — ou moins, s'il marque — et
+ *  pendant ces deux minutes tout change : l'équipe en avantage tire à peu
+ *  près deux fois plus vite et finit mieux, l'équipe en désavantage tire à
+ *  peine et défend avec ses quatre meilleurs. Le moteur joue donc chaque
+ *  avantage comme un petit match dans le match, avec les mêmes lancers, les
+ *  mêmes gardiens et les mêmes égalités de feuille.
+ *
+ *  CE QUI EST MESURÉ SUR LES JOUEURS : qui prend les punitions (les minutes
+ *  de punition par match de chaque patineur habillé, relatives au régulier
+ *  moyen de sa saison, colonne [7] de SEASON_LANCERS), qui tire et qui finit
+ *  en avantage (les cinq meilleurs à la création et à la finition), qui
+ *  défend en désavantage (les quatre meilleures cotes défensives). Les
+ *  shards ne portent ni les buts en avantage numérique ni les occasions :
+ *  ce sont des colonnes de l'API qui n'ont jamais été aspirées.
+ *
+ *  CE QUI EST UN REPÈRE D'ÉPOQUE, PAS UNE MESURE DU DÉPÔT : le nombre
+ *  d'occasions par équipe par match (`AVANTAGES_EPOQUE`), lu dans les
+ *  tables publiques de la ligue — à peu près 4 en 1970, 5,3 au milieu des
+ *  années 1980, 5,8 dans la répression de 2005-06, 3 depuis 2015. Ce sont
+ *  des valeurs approximatives, à valider quand l'API sera joignable
+ *  (colonnes powerPlayGoals et powerPlayOpportunities). Le rapport entre la
+ *  finition en avantage et à forces égales (`AN_QUALITE`, ~1,45 : 12,5 %
+ *  contre 8,5 % de nos jours) et les cadences de tirs (0,95 par minute en
+ *  avantage, 0,28 en désavantage) viennent des mêmes tables.
+ *
+ *  LES DEUX CONSTANTES RÉGLÉES SUR LA SORTIE, comme LANCERS_BASE et
+ *  CIBLE_PCT_TIR : `FE_TIRS` et `FE_QUALITE` ramènent le cinq contre cinq
+ *  d'autant que les unités spéciales ajoutent, pour que
+ *  `LIGUES=5 node scripts/check_feuilles.mjs` retombe sur 28,5 lancers et
+ *  3,1 buts par équipe par match, avec un but sur cinq en avantage numérique.
+ * ====================================================================== */
+
+/** Occasions d'avantage numérique par équipe par match, par époque. */
+export const AVANTAGES_EPOQUE = [
+  [1970, 4.0], [1975, 4.6], [1980, 5.0], [1985, 5.3], [1990, 5.3], [1995, 4.8],
+  [2000, 4.3], [2005, 5.8], [2010, 3.6], [2015, 3.0], [2020, 2.9], [2026, 2.8],
+];
+/**
+ * Les occasions d'avantage d'un joueur-saison : mesurées dans sa saison
+ * (colonne [9] de SEASON_LANCERS, posée par build_lancers.mjs depuis le bloc
+ * `an` des shards) quand elles existent, sinon le repère d'époque.
+ */
+export function occasionsDe(p) {
+  const mesure = seasonLancers(p && p.s)[9];
+  if (mesure > 0) return mesure;
+  return occasionsEpoque(parseInt((p && p.s || '').slice(0, 4), 10) || null);
+}
+export function occasionsEpoque(annee) {
+  const t = AVANTAGES_EPOQUE;
+  if (!annee || annee <= t[0][0]) return t[0][1];
+  for (let i = 1; i < t.length; i++) {
+    if (annee <= t[i][0]) {
+      const [a0, v0] = t[i - 1], [a1, v1] = t[i];
+      return v0 + (v1 - v0) * (annee - a0) / (a1 - a0);
+    }
+  }
+  return t[t.length - 1][1];
+}
+export const AN_MINUTES = 2;          // une mineure
+export const AN_TIRS_MIN = 0.60;      // lancers par minute de l'équipe en avantage (fenêtre de deux minutes, coupée par le but)
+export const DN_TIRS_MIN = 0.09;      // lancers par minute de l'équipe en désavantage
+export const AN_QUALITE = 1.25;       // sur la finition à forces égales ; l'unité choisit déjà les meilleurs finisseurs — JP veut un avantage qui compte
+export const DN_QUALITE = 1.00;       // finition en désavantage
+export const FE_TIRS = 1.16;          // le cinq contre cinq, réglé sur la sortie
+export const FE_QUALITE = 1.03;       // idem, sur la finition
+/*
+ * La part des lancers d'un joueur d'avantage numérique qui vient de
+ * l'avantage. Son volume réel (`sh` par match) la contient déjà : à forces
+ * égales il ne doit garder que le reste, sinon il tire deux fois — mesuré,
+ * Bondra 2001-02 faisait 93 buts au lieu de 46. Repère public : un joueur
+ * de première unité prend le quart à la moitié de ses tirs en avantage.
+ */
+export const PART_AN_TIRS = [0.35, 0.15];   // première unité, deuxième unité
+export const POIDS_AN = [0.65, 0.35];        // part du temps d'avantage de chaque unité
+export const POIDS_DN = [0.60, 0.40];
+export const PART_LANCERS_D_AN = 0.38;       // en avantage, la pointe tire plus (Lidström) — repère public
+export const DISCIPLINE_MIN = 0.5;    // bornes de l'indiscipline d'un alignement
+export const DISCIPLINE_MAX = 1.8;
 
 /** Période d'un instant du match : 1, 2, 3, puis la prolongation. */
 export const periodeDe = t => (t < 20 ? 1 : t < 40 ? 2 : t < 60 ? 3 : 4);
@@ -765,6 +848,77 @@ export const passesRelDe = passesRel;
 const propensionPasse = p =>
   ((p.a || 0) / Math.max(1, p.pt || 1) + 0.05) * (p.p === 'D' ? 0.7 : 1);
 
+/** Minutes de punition par match d'un patineur, relatives au régulier moyen de sa saison. */
+function punitionsRel(p) {
+  if (!p || !p.gp) return 1;
+  const base = seasonLancers(p.s)[7];
+  if (!base) return 1;
+  return borne(((p.pim || 0) / p.gp) / base, 0, 6);
+}
+
+/** L'année médiane des joueurs habillés : c'est elle qui fixe l'époque du match. */
+function anneeDe(joueurs) {
+  const annees = joueurs.map(p => parseInt((p.s || '').slice(0, 4), 10)).filter(Boolean).sort((a, b) => a - b);
+  return annees.length ? annees[Math.floor(annees.length / 2)] : 2015;
+}
+
+const coteD = p => (p ? getHiddenRatings(p).d : REPLACEMENT);
+const est_Def = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
+
+/**
+ * Les unités spéciales d'un alignement, DEUX par situation comme dans la
+ * vraie ligue. L'avantage range les attaquants par création et finition,
+ * les défenseurs pareil : les trois et deux premiers font la première
+ * unité (65 % du temps d'avantage), les suivants la deuxième. Le
+ * désavantage range par cote défensive, deux et deux, deux unités (60/40).
+ * Une seule unité par situation donnait 2,2 tirs d'avantage par match à
+ * chacun de ses cinq joueurs — Datsyuk 2006-07 à 240 tirs d'avantage sur
+ * une saison — parce que la vraie ligue les répartit sur dix.
+ *
+ * Elles ont la forme des unités ordinaires pour que `jouerCote` les joue
+ * sans rien savoir : `choisirUnite` tire sur `poids`, `choisirPresence` sur
+ * `presence`.
+ */
+function unitesSpeciales(habilles) {
+  const F = habilles.filter(p => p && p.p !== 'G' && !est_Def(p));
+  const D = habilles.filter(est_Def);
+  const offensif = p => lancersRel(p) * pctTirRel(p) + passesRel(p);
+  // QUAND LES SHARDS LE DISENT, ON LE LIT. Les points en avantage disent qui
+  // jouait l'avantage, les points en désavantage qui le tuait : deux
+  // colonnes de l'API que le build garde depuis RATINGS_VERSION 24. Sans
+  // elles (shards plus anciens), on devine par la valeur offensive et la
+  // cote défensive. Le classement mêle les deux pour départager les zéros.
+  const mesure = habilles.some(p => p && p.ppp != null);
+  const parMatch = (p, k) => ((p[k] || 0) / Math.max(1, p.gp || 1));
+  const clAN = mesure ? p => parMatch(p, 'ppp') * 10 + offensif(p) : offensif;
+  const clDN = mesure ? p => (parMatch(p, 'shp') + parMatch(p, 'shg')) * 200 + coteD(p) : coteD;
+  const ranges = (liste, cle) => liste.slice().sort((a, b) => cle(b) - cle(a));
+  const unite = (joueurs, poids) => ({
+    joueurs, poids, presence: poids, qualite: 1,
+    coteDef: joueurs.length ? joueurs.reduce((a, p) => a + coteD(p), 0) / joueurs.length : REPLACEMENT,
+  });
+  const Fo = ranges(F, clAN), Do = ranges(D, clAN), Fd = ranges(F, clDN), Dd = ranges(D, clDN);
+  const anF = [Fo.slice(0, 3), Fo.slice(3, 6)], anD = [Do.slice(0, 2), Do.slice(2, 4)];
+  const dnF = [Fd.slice(0, 2), Fd.slice(2, 4)], dnD = [Dd.slice(0, 2), Dd.slice(2, 4)];
+  // La part d'avantage d'un joueur : SES buts en avantage sur ses buts quand
+  // le shard les porte (dix buts et plus pour que le rapport veuille dire
+  // quelque chose), sinon la constante de son unité.
+  const partAN = new Map();
+  const partDe = (p, u) => (p.ppg != null && (p.g || 0) >= 10) ? borne(p.ppg / p.g, 0, 0.6) : PART_AN_TIRS[u];
+  anF.forEach((js, u) => js.forEach(p => partAN.set(p, partDe(p, u))));
+  anD.forEach((js, u) => js.forEach(p => partAN.set(p, partDe(p, u))));
+  const premiere = [...anF[0], ...anD[0]];
+  const volume = premiere.length ? borne(premiere.reduce((a, p) => a + lancersRel(p), 0) / premiere.length, 0.6, 1.6) : 1;
+  const garnir = (unites, poids) => unites.map((js, u) => unite(js, poids[u])).filter(x => x.joueurs.length);
+  return {
+    avantage: { F: garnir(anF, POIDS_AN), D: garnir(anD, POIDS_AN), volume, partAN },
+    desavantage: { F: garnir(dnF, POIDS_DN), D: garnir(dnD, POIDS_DN) },
+  };
+}
+
+/** Le volume d'un joueur à forces égales : ses lancers, moins sa part d'avantage. */
+const lancersFE = (p, partAN) => lancersRel(p) * (1 - ((partAN && partAN.get(p)) || 0));
+
 /**
  * Le profil de match d'un alignement : combien il tire, comment il défend,
  * et qui est sur la glace à chaque présence.
@@ -775,6 +929,9 @@ const propensionPasse = p =>
  * traîne le malus de zone de l'unité.
  */
 export function profilMatch(team, lineup) {
+  const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
+  const speciales = unitesSpeciales(habilles);
+  const membresAN = speciales.avantage.partAN;
   const unites = { F: [], D: [] };
   for (const [group, poids] of [['F', POIDS_TRIO], ['D', POIDS_PAIRE]]) {
     for (let u = 0; u < poids.length; u++) {
@@ -783,7 +940,7 @@ export function profilMatch(team, lineup) {
       const tog = team ? Math.min(CONTINUITY_MAX, (team.together.get(`${group}${u}`) || 0) / CONTINUITY_GAMES) : 0;
       const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + tog) / SYN_ECHELLE));
       const volume = Math.min(VOLUME_UNITE_MAX,
-        slots.reduce((a, s) => a + lancersRel(lineup[s.i]), 0) / slots.length);
+        slots.reduce((a, s) => a + lancersFE(lineup[s.i], membresAN), 0) / slots.length);
       const joueurs = slots.map(s => lineup[s.i]).filter(Boolean);
       unites[group].push({
         joueurs,
@@ -811,7 +968,6 @@ export function profilMatch(team, lineup) {
   // dans l'alignement, du premier trio au troisième duo. C'est le malus de
   // zone qui punit de mal placer quelqu'un, et il le fait déjà. Seule
   // condition : être habillé — `lineup` ne contient pas les réservistes.
-  const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
 
   // La finition de l'équipe : le % de tir de ses patineurs, pondéré par leurs
   // lancers. Au-dessus de FINITION_MAX, tous ses tireurs sont ramenés d'autant.
@@ -842,8 +998,21 @@ export function profilMatch(team, lineup) {
   }
   const finEquipe = sL ? sLC / sL : 1;
 
+  const patineurs = habilles.filter(p => p.p !== 'G');
+
   return {
     unites,
+    ...speciales,
+    patineurs,
+    // L'indiscipline : combien cet alignement prend de punitions, relativement
+    // à un alignement de réguliers moyens de la même époque. 1 = la moyenne.
+    discipline: patineurs.length
+      ? borne(patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length, DISCIPLINE_MIN, DISCIPLINE_MAX)
+      : 1,
+    annee: anneeDe(habilles),
+    // Les occasions d'avantage de cet alignement : mesurées par saison quand
+    // les shards les portent, repère d'époque sinon (voir occasionsDe).
+    occasions: patineurs.length ? patineurs.reduce((a, p) => a + occasionsDe(p), 0) / patineurs.length : null,
     pression: borne(pression, 0.40, REF.pression * PRESSION_MAX),
     finEquipe, creaEquipe,
     finitionFacteur: Math.min(1, FINITION_MAX / finEquipe),
@@ -869,7 +1038,8 @@ function choisirPresence(unites) {
  * saison solo devient un tir au but contre un filet désert.
  */
 const PROFIL_NEUTRE = {
-  unites: null,
+  unites: null, avantage: null, desavantage: null, patineurs: [],
+  discipline: 1, annee: null, occasions: null,
   pression: REF.pression, zDef: REF.zDef,
   pctTirDefaut: PCT_TIR_NEUTRE, fgDefaut: REF.fg,
 };
@@ -889,11 +1059,45 @@ function choisirUnite(unites) {
  * glace, et les arrêts du gardien. Rien n'est réparti après coup : la
  * feuille de match EST la suite des lancers.
  */
-function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, journal = null, cote = 'A') {
-  const attendu = LANCERS_BASE
+function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, journal = null, cote = 'A', st = null) {
+  /*
+   * `st` décrit une situation spéciale ; sans lui, c'est le cinq contre cinq
+   * sur tout le match. Champs :
+   *   mode        'FE' (forces égales), 'AN' (avantage), 'DN' (désavantage)
+   *   part        part du match jouée à forces égales (les minutes qui
+   *               restent une fois les punitions retirées), FE seulement
+   *   lancers     lancers attendus, AN et DN (remplace le calcul de pression)
+   *   fenetre     [début, fin] en minutes : les instants des tirs y tombent
+   *   fenetres    les fenêtres d'avantage à ÉVITER pour les instants du FE
+   *   arretAuBut  le premier but termine la situation (un avantage s'arrête
+   *               sur le but) ; l'instant est rendu dans st.finBut
+   *   unitesOff   unités qui attaquent, à la place de off.unites
+   *   unitesDef   unités qui défendent, à la place de def.unites
+   *   qualite     facteur sur la finition
+   */
+  const mode = st?.mode || 'FE';
+  const attenduBase = LANCERS_BASE
     * (off.pression / REF.pression)
     * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION);
-  const lancers = Math.max(6, poisson(attendu));
+  const attendu = st?.lancers != null ? st.lancers : attenduBase * (st?.part ?? 1) * (st ? FE_TIRS : 1);
+  const lancers = st?.lancers != null ? poisson(attendu) : Math.max(6, poisson(attendu));
+  const unitesOff = st?.unitesOff !== undefined ? st.unitesOff : off.unites;
+  const unitesDef = st?.unitesDef !== undefined ? st.unitesDef : def.unites;
+  const qualite = st?.qualite ?? 1;
+  // Les instants : uniformes dans le match hors des fenêtres d'avantage (FE),
+  // ou dans la fenêtre, triés (AN, DN : un avantage se joue dans l'ordre,
+  // puisque le premier but le termine).
+  // Toujours calculés, journal ou non : l'instant du but qui termine un
+  // avantage décide de sa durée, donc du temps qui reste à forces égales.
+  // (Sans instant, un avantage coupé finissait à 0:00 et rendait du temps
+  // négatif au cinq contre cinq — mesuré : 55 lancers par match.)
+  let instants;
+  if (st?.fenetre) {
+    const [t0, t1] = st.fenetre;
+    instants = Array.from({ length: lancers }, () => t0 + Math.random() * (t1 - t0)).sort((a, b) => a - b);
+  } else {
+    instants = Array.from({ length: lancers }, () => instantForcesEgales(st?.fenetres, journal?.prolongation));
+  }
 
   const usure = heavy && def.rob ? (def.rob - 52) / 25 : 0;
   const fg = (gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20))
@@ -908,19 +1112,24 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // match, chaque lancer reçoit un instant tiré dans les 60 minutes, et la
     // feuille se lit dans l'ordre une fois les deux côtés fusionnés. Assez
     // pour un sommaire crédible, et ça ne touche à aucune probabilité.
-    const instant = journal ? (journal.prolongation ? 60 + Math.random() * 5 : Math.random() * 60) : 0;
+    const instant = instants[i];
     let tireur = null, unite = null, glace = null;
-    if (off.unites) {
-      const trio = choisirUnite(off.unites.F);
-      const paire = choisirUnite(off.unites.D);
-      unite = Math.random() < PART_LANCERS_D ? paire : trio;
+    if (unitesOff) {
+      const trio = choisirUnite(unitesOff.F);
+      const paire = choisirUnite(unitesOff.D);
+      unite = Math.random() < (mode === 'AN' ? PART_LANCERS_D_AN : PART_LANCERS_D) ? paire : trio;
       glace = [...trio.joueurs, ...paire.joueurs];
       // Une unité entièrement blessée ne tire pas : le lancer n'a alors pas
       // lieu du tout, plutôt que de devenir un but sans marqueur — c'est ce
       // qui faisait fuir une poignée de buts et de lancers par saison hors
       // des feuilles de match.
       if (!glace.length) continue;
-      tireur = weightedPick(unite.joueurs.length ? unite.joueurs : glace, lancersRel);
+      const membres = mode === 'FE' && off.avantage ? off.avantage.partAN : null;
+      // En avantage la rondelle circule : le tireur se tire sur la RACINE de
+      // son volume, sinon le canonnier de l'unité prenait un tir sur trois
+      // et doublait sa saison (Larmer 1992-93 : 61 buts au lieu de 29).
+      tireur = weightedPick(unite.joueurs.length ? unite.joueurs : glace,
+        mode === 'AN' ? p => Math.sqrt(lancersRel(p)) : p => lancersFE(p, membres));
     }
     tires++;
 
@@ -930,9 +1139,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // maintenant présence par présence : c'est ce qui rend la profondeur et
     // les traits mordants au lieu d'être décoratifs.
     let defGlace = null, facteurDef;
-    if (def.unites) {
-      const dTrio = choisirPresence(def.unites.F);
-      const dPaire = choisirPresence(def.unites.D);
+    if (unitesDef) {
+      const dTrio = choisirPresence(unitesDef.F);
+      const dPaire = choisirPresence(unitesDef.D);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z + usure - REF.zDef));
@@ -942,13 +1151,17 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
 
     // Les passes causent les buts : la création des coéquipiers sur la glace
     // change la probabilité que CE lancer entre.
-    const crea = glace ? facteurCreation(glace, tireur) : 1;
+    // En avantage numérique la création ne compte qu'à moitié : le % de tir
+    // réel d'un joueur d'avantage contient déjà son vrai avantage, et cinq
+    // élites autour de lui la comptaient deux fois (mesuré : Zetterberg
+    // 2006-07 à 110 buts au lieu de 48).
+    const crea = glace ? (mode === 'AN' ? Math.sqrt(facteurCreation(glace, tireur)) : facteurCreation(glace, tireur)) : 1;
 
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir * crea
         * (fg / REF.fg) * facteurDef * traits * (unite ? unite.qualite : 1) * chance
-        * (off.finitionFacteur ?? 1),
+        * (off.finitionFacteur ?? 1) * qualite * (mode === 'FE' && st ? FE_QUALITE : 1),
       0.005, PCT_TIR_MAX);
 
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
@@ -956,15 +1169,16 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // Chaque lancer entre au journal avec son tireur et son gardien : c'est
     // ce que le direct des séries rejoue, tir par tir. Le sommaire, lui, ne
     // lit que les buts.
-    const lancer = journal ? { cote, instant, tireur, gardien, but: false } : null;
+    const lancer = journal ? { cote, instant, tireur, gardien, but: false, mode } : null;
     if (lancer) journal.lancers.push(lancer);
 
     if (Math.random() < p) {
       buts++;
       if (lancer) lancer.but = true;
       if (journal && tireur) {
-        journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien });
+        journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien, an: mode === 'AN', dn: mode === 'DN' });
       }
+      if (feuille && tireur && mode === 'AN') tireur.simPPG = (tireur.simPPG || 0) + 1;
       // Les passeurs sont tirés dès qu'il y a un but : la feuille de saison
       // les crédite, le journal du match les nomme. En séries on ne tient pas
       // les statistiques, mais le sommaire, lui, doit dire qui a aidé.
@@ -982,10 +1196,16 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
         if (feuille) {
           tireur.simG++; tireur.simPTS++;
           for (const a of passeurs) { a.simA++; a.simPTS++; }
-          for (const x of glace) x.simPM++;
-          if (defGlace) for (const x of defGlace) x.simPM--;
+          // Le +/- ne compte pas les buts en avantage numérique — la règle de
+          // la ligue — mais il compte ceux en désavantage.
+          if (mode !== 'AN') {
+            for (const x of glace) x.simPM++;
+            if (defGlace) for (const x of defGlace) x.simPM--;
+          }
         }
       }
+      // Un avantage numérique s'arrête sur le but.
+      if (st?.arretAuBut) { st.finBut = instant; break; }
     } else {
       if (feuille && gardien) gardien.simSV = (gardien.simSV || 0) + 1;
       if (journal) journal.arrets[cote === 'A' ? 'B' : 'A']++;
@@ -1057,7 +1277,7 @@ function injuryLength() {   // moyenne ~8 matchs, plafond 40
 
 export function initSimStats(p) {
   p.simGP = 0; p.simG = 0; p.simA = 0; p.simPTS = 0; p.simPM = 0; p.simInj = 0;
-  p.simSH = 0;
+  p.simSH = 0; p.simPIM = 0; p.simPPG = 0;
   if (p.p === 'G') {
     p.simW = 0; p.simL = 0; p.simOTL = 0; p.simGA = 0; p.simSO = 0;
     p.simSA = 0; p.simSV = 0;
@@ -1230,8 +1450,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   const chanceA = Math.exp(gauss() * LUCK_GAME + A.luck - B.luck);
   const chanceB = Math.exp(gauss() * LUCK_GAME + B.luck - A.luck);
 
-  let gfA = jouerCote(pA, pB, gB, chanceA, heavy, track, series, journal, 'A');
-  let gfB = jouerCote(pB, pA, gA, chanceB, heavy, track, series, journal, 'B');
+  let { gfA, gfB } = jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, LA, LB);
   let ot = false;
 
   if (gfA === gfB) {
@@ -1266,6 +1485,67 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
 }
 
 /** Le but de la prolongation : un tireur, une passe, du +/-, comme les autres. */
+/** Un instant à forces égales : n'importe où dans le match, hors des avantages. */
+function instantForcesEgales(fenetres, prolongation) {
+  for (let k = 0; k < 12; k++) {
+    const t = prolongation ? 60 + Math.random() * 5 : Math.random() * 60;
+    if (!fenetres || !fenetres.some(([a, b]) => t >= a && t < b)) return t;
+  }
+  return Math.random() * 60;
+}
+
+/**
+ * Les soixante minutes d'un match : les punitions d'abord, chacune jouée
+ * comme un petit match dans le match (l'avantage tire, le désavantage tire
+ * un peu, le premier but termine la fenêtre), puis le cinq contre cinq sur
+ * les minutes qui restent. Les deux côtés passent par `jouerCote`, donc les
+ * égalités de la feuille tiennent par construction.
+ *
+ * `LA` et `LB` sont les alignements du jour (pour créditer le puni) ; l'un
+ * ou l'autre peut manquer (adversaire neutre de la saison solo).
+ */
+function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, LA = null, LB = null) {
+  const occasions = pA.occasions && pB.occasions ? (pA.occasions + pB.occasions) / 2
+    : (pA.occasions || pB.occasions || occasionsEpoque(pA.annee || pB.annee));
+  let gfA = 0, gfB = 0;
+  const fenetres = [];
+  let minutesAN = 0;
+
+  const avantage = (cote, off, def, gOff, gDef, chOff, chDef, puni) => {
+    // `puni` : l'alignement qui prend la punition (celui d'en face)
+    const n = poisson(occasions * (puni ? puni.discipline : 1));
+    for (let k = 0; k < n; k++) {
+      const t0 = Math.random() * (60 - AN_MINUTES);
+      const coupable = puni && puni.patineurs.length ? weightedPick(puni.patineurs, p => punitionsRel(p) + 0.05) : null;
+      if (coupable && track) coupable.simPIM = (coupable.simPIM || 0) + AN_MINUTES;
+      if (journal) journal.punitions.push({ cote: cote === 'A' ? 'B' : 'A', instant: t0, joueur: coupable, minutes: AN_MINUTES });
+      const st = {
+        mode: 'AN', lancers: AN_TIRS_MIN * AN_MINUTES * (off.avantage ? off.avantage.volume : 1),
+        fenetre: [t0, t0 + AN_MINUTES], arretAuBut: true,
+        unitesOff: off.avantage, unitesDef: def.desavantage, qualite: AN_QUALITE,
+      };
+      const b = jouerCote(off, def, gDef, chOff, heavy, track, series, journal, cote, st);
+      const fin = st.finBut != null ? st.finBut : t0 + AN_MINUTES;
+      fenetres.push([t0, fin]);
+      minutesAN += fin - t0;
+      // L'équipe en désavantage tire aussi, peu, avec ses quatre.
+      const dn = {
+        mode: 'DN', lancers: DN_TIRS_MIN * (fin - t0), fenetre: [t0, fin],
+        unitesOff: def.desavantage, unitesDef: off.avantage, qualite: DN_QUALITE,
+      };
+      const bd = jouerCote(def, off, gOff, chDef, heavy, track, series, journal, cote === 'A' ? 'B' : 'A', dn);
+      if (cote === 'A') { gfA += b; gfB += bd; } else { gfB += b; gfA += bd; }
+    }
+  };
+  avantage('A', pA, pB, gA, gB, chanceA, chanceB, pB);
+  avantage('B', pB, pA, gB, gA, chanceB, chanceA, pA);
+
+  const part = Math.max(0.5, (60 - minutesAN) / 60);
+  gfA += jouerCote(pA, pB, gB, chanceA, heavy, track, series, journal, 'A', { mode: 'FE', part, fenetres });
+  gfB += jouerCote(pB, pA, gA, chanceB, heavy, track, series, journal, 'B', { mode: 'FE', part, fenetres });
+  return { gfA, gfB };
+}
+
 function butProlongation(off, def, gardien, track = true, journal = null, cote = 'A') {
   if (track && gardien) gardien.simSA = (gardien.simSA || 0) + 1;
   if (track && def && def.unites) {
@@ -1318,8 +1598,7 @@ export function simulate(roster) {
     profil.rob = force.rob;
 
     const chance = Math.exp(gauss() * LUCK_GAME + team.luck);
-    let gf = jouerCote(profil, PROFIL_NEUTRE, null, chance, heavy, true);
-    let ga = jouerCote(PROFIL_NEUTRE, profil, gardien, 1, heavy, true);
+    let { gfA: gf, gfB: ga } = jouerSoixanteMinutes(profil, PROFIL_NEUTRE, gardien, null, chance, 1, heavy, true, false, null, lineup, null);
     let win = false, otl = false;
 
     if (gf === ga) {
@@ -1372,7 +1651,8 @@ export function simulateLeague(teams, games = 82) {
 export function feuilleVierge() {
   return {
     buts: [],
-    lancers: [],                                          // chaque tir, daté, avec tireur et gardien
+    lancers: [],                                          // chaque tir, daté, avec tireur, gardien et mode (FE, AN, DN)
+    punitions: [],                                        // { cote (l'équipe punie), instant, joueur, minutes }
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
     prolongation: false,

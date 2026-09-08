@@ -204,6 +204,64 @@ absolue. Esposito à 13,8 % en 1970-71 et Kane à 16,0 % en 2015-16 se comparent
 alors correctement. `SEASON_GOAL_AVG` existe déjà et sert d'ancrage de contrôle :
 la ligue simulée doit retomber sur le vrai nombre de buts de l'année.
 
+### 4.7 Les punitions et les unités spéciales (septembre 2026)
+
+Un match n'est pas soixante minutes à cinq contre cinq. Chaque punition mineure
+donne deux minutes à l'adversaire — ou moins, s'il marque — et pendant ces deux
+minutes tout change. Le moteur joue donc chaque avantage comme **un petit match
+dans le match** (`jouerSoixanteMinutes`, js/sim.js), avec les mêmes lancers, les
+mêmes gardiens et les mêmes égalités de feuille :
+
+```
+punitions de B   ~ Poisson(occasions_époque × indiscipline_B)
+pour chacune     fenêtre [t, t+2] :
+                   A tire  AN_TIRS_MIN × 2 × volume de sa 1re unité, le premier but ferme la fenêtre
+                   B tire  DN_TIRS_MIN × (durée), avec ses quatre de désavantage
+cinq contre cinq  sur les minutes qui restent, tirs × FE_TIRS, finition × FE_QUALITE
+```
+
+**Ce qui est mesuré sur les joueurs** : qui prend les punitions (les minutes de
+punition par match de chaque patineur habillé, relatives au régulier moyen de sa
+saison — colonne [7] de `SEASON_LANCERS`), qui tire et qui finit en avantage (les
+deux unités : trois attaquants et deux défenseurs rangés par création et
+finition, 65 % du temps pour la première), qui défend en désavantage (deux
+unités de quatre, rangées par cote défensive, 60/40). La qualité d'un avantage
+émerge donc des joueurs : leur % de tir, leur création (comptée à moitié — leur
+% de tir réel contient déjà leur vrai avantage), la cote défensive des quatre
+d'en face.
+
+**Ce qui est un repère d'époque, pas une mesure du dépôt** : le nombre
+d'occasions par équipe par match (`AVANTAGES_EPOQUE` : ≈ 4 en 1970, 5,3 au
+milieu des années 1980, 5,8 dans la répression de 2005-06, 3 depuis 2015), lu
+dans les tables publiques de la ligue. Les shards ne portaient ni les buts en
+avantage ni les occasions ; depuis `RATINGS_VERSION` 24 le build les garde
+(`ppg`, `ppp`, `shg`, `shp` par patineur, bloc `an` par équipe depuis 1977-78) et
+le moteur les lit quand ils sont là — unités, part d'avantage de chaque joueur,
+occasions par saison — au lieu de deviner. Il faut une passe de l'Action en mode
+`full` (tâche M1).
+
+**Le piège, trouvé en mesurant** : un joueur d'avantage numérique tirait deux
+fois. Son volume réel (`sh` par match) contient déjà ses tirs d'avantage ; lui
+donner en plus tous ceux de l'unité faisait de Bondra 2001-02 un marqueur de 93
+buts au lieu de 46, et l'erreur systématique par joueur de `check_feuilles.mjs`
+montait de 20 à 36 %. Trois choses la ramènent : à forces égales un joueur
+d'avantage ne garde que le reste de son volume (`PART_AN_TIRS`, 35 % pour la
+première unité, 15 % pour la deuxième) ; l'avantage se répartit sur DEUX unités
+et la pointe y tire plus (`PART_LANCERS_D_AN`) ; et le tireur d'avantage se tire
+sur la RACINE de son volume, parce que la rondelle circule. Résultat : Selanne
+2006-07 fait 44 à 47 buts pour 48 réels, Datsyuk 27 pour 27, et le reste
+systématique retombe à 19 %.
+
+**Les deux constantes réglées sur la sortie**, comme `LANCERS_BASE` et
+`CIBLE_PCT_TIR` : `FE_TIRS` et `FE_QUALITE` ramènent le cinq contre cinq de ce
+que les unités spéciales ajoutent, pour que `LIGUES=5 node
+scripts/check_feuilles.mjs` retombe sur 28,5 lancers et 3,1 buts par équipe par
+match, avec un but sur quatre en avantage numérique. Le +/- ne compte pas les
+buts en avantage (règle de la ligue), il compte ceux en désavantage. La feuille
+porte les punitions (`punitions`), chaque lancer porte sa situation (`mode`),
+et chaque but en avantage ou en désavantage est marqué (`an`, `dn`) : le
+sommaire et le direct des séries le disent.
+
 ---
 
 ## 5. Ce qui rend les choix intéressants

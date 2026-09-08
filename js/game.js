@@ -1788,6 +1788,8 @@ function leagueStats(teams) {
     buts: top(patineurs, x => x.p.simG * 1000 + x.p.simPTS),
     passes: top(patineurs, x => x.p.simA * 1000 + x.p.simPTS),
     plusmoins: top(patineurs, x => x.p.simPM),
+    avantage: top(patineurs, x => (x.p.simPPG || 0) * 1000 + x.p.simG),
+    punitions: top(patineurs, x => (x.p.simPIM || 0) * 1000 + x.p.simPTS),
     // Un gardien a besoin d'un vrai échantillon : 25 départs, comme la ligue
     // l'exige pour ses propres championnats.
     arrets: top(gardiens.filter(x => x.p.simGP >= 25), x => (x.p.simSA ? x.p.simSV / x.p.simSA : 0)),
@@ -1814,6 +1816,10 @@ const PALMARES = [
     vals: p => [p.simGP, `<b>${p.simA}</b>`, p.simPTS] },
   { cle: 'plusmoins', titre: 'Différentiel', cols: ['PJ', 'PTS', '+/-'], heros: 2,
     vals: p => [p.simGP, p.simPTS, `<b>${p.simPM > 0 ? '+' : ''}${p.simPM}</b>`] },
+  { cle: 'avantage', titre: 'Avantage numérique', cols: ['PJ', 'B', 'BAN'], heros: 2,
+    vals: p => [p.simGP, p.simG, `<b>${p.simPPG || 0}</b>`] },
+  { cle: 'punitions', titre: 'Punitions', cols: ['PJ', 'PTS', 'PUN'], heros: 2,
+    vals: p => [p.simGP, p.simPTS, `<b>${p.simPIM || 0}</b>`] },
   { cle: 'moyenne', titre: 'Gardiens · MBA', cols: ['PJ', 'V', 'BL', 'MBA'], heros: 3,
     vals: p => [p.simGP, p.simW, p.simSO, `<b>${(p.simGA / Math.max(1, p.simGP)).toFixed(2)}</b>`] },
   { cle: 'arrets', titre: 'Gardiens · %ARR', cols: ['PJ', 'ARR', 'TIRS', '%ARR'], heros: 3,
@@ -2104,17 +2110,27 @@ function showGameModal(iSerie, iMatch) {
   const nomA = teamLabel(A), nomB = teamLabel(B);
 
   const parPeriode = [1, 2, 3, 4].map(per => {
-    const buts = f.buts.filter(b => periodeDe(b.instant) === per);
+    const buts = f.buts.filter(b => periodeDe(b.instant) === per).map(b => ({ ...b, type: 'but' }));
+    const punitions = (f.punitions || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'punition' }));
     if (!buts.length && per === 4) return '';
-    const lignes = buts.map(b => {
+    const items = [...buts, ...punitions].sort((x, y) => x.instant - y.instant);
+    const lignes = items.map(b => {
       const t = b.cote === 'A' ? A : B;
+      if (b.type === 'punition') {
+        return `<div class="som-but som-pun">
+          <span class="som-tps">${tempsDeJeu(b.instant)}</span>
+          <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
+          <span class="som-qui">Punition${b.joueur ? ` à <strong>${formatName(b.joueur.n)}</strong>` : ''} · ${b.minutes} min</span>
+        </div>`;
+      }
       const aides = b.passeurs.length
         ? `<span class="som-aides">${b.passeurs.map(p => formatName(p.n)).join(', ')}</span>`
         : '<span class="som-aides sans">sans aide</span>';
+      const situation = b.an ? '<span class="som-sit an">AN</span>' : b.dn ? '<span class="som-sit dn">DN</span>' : '';
       return `<div class="som-but">
         <span class="som-tps">${tempsDeJeu(b.instant)}</span>
         <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
-        <span class="som-qui"><strong>${formatName(b.marqueur.n)}</strong> ${aides}</span>
+        <span class="som-qui">${situation}<strong>${formatName(b.marqueur.n)}</strong> ${aides}</span>
         <span class="som-recit">${esc(recitDeBut(b))}</span>
       </div>`;
     }).join('') || '<div class="som-vide">Aucun but.</div>';

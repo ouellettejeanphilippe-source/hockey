@@ -71,6 +71,7 @@ function evenementsDuMatch(f, graine) {
     }
   }
   for (const b of f.buts) ev.push({ type: 'but', cote: b.cote, instant: b.instant, but: b });
+  for (const x of (f.punitions || [])) ev.push({ type: 'punition', cote: x.cote, instant: x.instant, joueur: x.joueur, minutes: x.minutes });
   for (let per = 1; per <= 3; per++) ev.push({ type: 'periode', per, instant: per * 20 - 1e-6 });
   ev.push({ type: 'fin', instant: f.ot ? finOT + 1e-6 : 60 });
   ev.sort((x, y) => x.instant - y.instant);
@@ -137,6 +138,7 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
 
   let enchainer = localStorage.getItem(CLE_ENCHAINER) === '1';
 
+  let horlogeEquipe = () => null;
   /* Le tableau indicateur : deux équipes, le pointage, l'horloge. */
   function dessinerBoard(s, gA, gB, horloge) {
     const cote = (t, buts, pos) => {
@@ -148,7 +150,7 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
       </div>`;
     };
     board.innerHTML = `${cote(s.A, gA, 'a')}
-      <div class="live-horloge"><span class="live-per">${horloge.per}</span><span class="live-temps">${horloge.temps}</span><span class="live-tirs">${horloge.tirs}</span></div>
+      <div class="live-horloge"><span class="live-per">${horloge.per}</span><span class="live-temps">${horloge.temps}</span><span class="live-tirs">${horloge.tirs}</span><span class="live-situation">${horloge.situation || ''}</span></div>
       ${cote(s.B, gB, 'b')}`;
   }
 
@@ -158,6 +160,13 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
     const wBvant = iMatch - wAvant;
     const ev = evenementsDuMatch(f, (s.i + 1) * 1000 + iMatch);
     let iEv = 0, t = 0, gA = 0, gB = 0, tA = 0, tB = 0, pause = 0, fini = false, dernier = performance.now();
+    /* Les fenêtres d'avantage : [début, fin, côté qui en profite]. La fin est
+       la mineure entière ou le but en avantage qui l'a fermée. */
+    const fenetres = (f.punitions || []).map(x => {
+      const profite = x.cote === 'A' ? 'B' : 'A';
+      const but = f.buts.find(b => b.an && b.cote === profite && b.instant >= x.instant && b.instant <= x.instant + x.minutes);
+      return [x.instant, but ? but.instant : x.instant + x.minutes, profite];
+    });
 
     head.innerHTML = `<span class="live-ronde">${ctx.esc(rondes[s.ronde] || `Ronde ${s.ronde + 1}`)}</span>
       <span class="live-match">Match ${iMatch + 1}</span>
@@ -172,7 +181,11 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
       const enOT = f.ot && t >= 60;
       const per = enOT ? 4 : t >= 60 ? 3 : periodeDe(t);
       const temps = !enOT && t >= 60 ? '20:00' : tempsDeJeu(Math.min(t, 64.999));
-      return { per: per === 4 ? 'PROL.' : `${per}${per === 1 ? 're' : 'e'} PÉR.`, temps, tirs: `${tA} – ${tB} tirs` };
+      // L'avantage en cours : la fenêtre de deux minutes d'une punition, ou
+      // moins si un but l'a fermée — c'est le tableau indicateur qui le dit.
+      const an = fenetres.find(([a, b]) => t >= a && t < b);
+      return { per: per === 4 ? 'PROL.' : `${per}${per === 1 ? 're' : 'e'} PÉR.`, temps, tirs: `${tA} – ${tB} tirs`,
+        situation: an ? `AN ${ctx.tagCourt(horlogeEquipe(an[2]))} · ${Math.max(0, Math.ceil((an[1] - t) * 60 / 5) * 5)} s` : '' };
     };
     dessinerBoard(s, gA, gB, horloge());
 
@@ -181,12 +194,16 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
       board.querySelector('.live-per').textContent = h.per;
       board.querySelector('.live-temps').textContent = h.temps;
       board.querySelector('.live-tirs').textContent = h.tirs;
+      const sit = board.querySelector('.live-situation');
+      sit.textContent = h.situation || '';
+      sit.classList.toggle('on', !!h.situation);
       board.querySelector('[data-cote="A"]').textContent = gA;
       board.querySelector('[data-cote="B"]').textContent = gB;
     };
 
     const gardien = cote => (cote === 'A' ? f.gardienB : f.gardienA);   // le gardien qui FAIT face au tir
     const equipe = cote => (cote === 'A' ? s.A : s.B);
+    horlogeEquipe = equipe;
     /* Les couleurs de l'équipe qui tire, posées sur la ligne du fil. */
     const couleurs = cote => { const b = ctx.band(equipe(cote).tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
 
@@ -204,7 +221,7 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
         const b = e.but;
         const aides = b.passeurs.length ? ` (${b.passeurs.map(nom).join(', ')})` : ' (sans aide)';
         ligne(`but ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
-          <span><b class="live-but-mot">BUT</b> <b>${ctx.esc(nom(b.marqueur))}</b>${ctx.esc(aides)} — ${ctx.esc(recitDeBut(b))} <span class="live-score">${gA}-${gB}</span></span>`, couleurs(e.cote));
+          <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${ctx.esc(nom(b.marqueur))}</b>${ctx.esc(aides)} — ${ctx.esc(recitDeBut(b))} <span class="live-score">${gA}-${gB}</span></span>`, couleurs(e.cote));
         majBoard();
         const cell = board.querySelector(`[data-cote="${e.cote}"]`);
         cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
@@ -216,6 +233,12 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
         board.appendChild(ban);
         setTimeout(() => ban.remove(), PAUSE_BUT + 200);
         return PAUSE_BUT;
+      }
+      if (e.type === 'punition') {
+        const puni = equipe(e.cote), profite = equipe(e.cote === 'A' ? 'B' : 'A');
+        ligne(`punition ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
+          <span><b class="live-pun-mot">PUNITION</b> ${e.joueur ? `<b>${ctx.esc(nom(e.joueur))}</b>, ` : ''}${e.minutes} min — avantage numérique pour ${ctx.esc(ctx.teamShort(profite))}.</span>`, couleurs(e.cote));
+        return 500;
       }
       if (e.type === 'periode') {
         ligne('periode', `Fin de la ${ctx.esc(NOM_PERIODE[e.per])} · <b>${gA}-${gB}</b> · tirs ${f.tirs.A[e.per]} – ${f.tirs.B[e.per]}${e.per === 3 && f.ot ? ' · égalité, on va en prolongation' : ''}`);

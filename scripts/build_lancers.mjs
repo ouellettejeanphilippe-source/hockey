@@ -1,7 +1,7 @@
 /*
  * Régénère la table `SEASON_LANCERS` de js/ratings.js depuis les shards.
  *
- * Neuf nombres par saison, tous mesurés, aucun réglé à la main :
+ * Onze nombres par saison, tous mesurés, aucun réglé à la main :
  *
  *   [0] lancers par équipe par match     le rythme de l'époque
  *   [1] % de tir de la ligue             la finition de l'époque
@@ -12,6 +12,12 @@
  *   [6] part des points d'un attaquant régulier qui vient de ses BUTS
  *   [7] minutes de punition par match d'un attaquant régulier
  *   [8] part des points d'un défenseur régulier qui vient de ses buts
+ *   [9] occasions d'avantage numérique par équipe par match (0 = inconnu)
+ *  [10] % d'avantage numérique de la ligue (0 = inconnu)
+ *
+ * Les deux derniers viennent du bloc `an` du shard (team/powerplay, depuis
+ * 1977-78) ; tant que l'Action n'a pas rebâti les shards avec ce bloc, ils
+ * valent 0 et le moteur garde ses repères d'époque (AVANTAGES_EPOQUE).
  *
  * Les quatre derniers servent à exprimer le volume de tirs et la production
  * d'un joueur en ÉCART À SA LIGUE, pour qu'un ailier de 1981 et un ailier de
@@ -60,6 +66,14 @@ for (const f of fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sor
   const D = reguliers.filter(p => p.p === 'D');
   if (!F.length || !D.length) continue;
 
+  // Unités spéciales de la saison, si le shard les porte
+  let occ = 0, pct = 0;
+  if (shard.an) {
+    let gp = 0, o = 0, b = 0;
+    for (const t of Object.values(shard.an)) { gp += t.gp || 0; o += t.occ || 0; b += t.but || 0; }
+    if (gp && o) { occ = o / gp; pct = 100 * b / o; }
+  }
+
   lignes.push([shard.season,
     +(lancers / matchs).toFixed(2),
     +(100 * buts / lancers).toFixed(2),
@@ -71,7 +85,9 @@ for (const f of fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sor
       / Math.max(1, F.reduce((a, p) => a + (p.pt || 0), 0))).toFixed(3),
     +moyenne(F, 'pim').toFixed(2),
     +(D.reduce((a, p) => a + (p.g || 0), 0)
-      / Math.max(1, D.reduce((a, p) => a + (p.pt || 0), 0))).toFixed(3)]);
+      / Math.max(1, D.reduce((a, p) => a + (p.pt || 0), 0))).toFixed(3),
+    +occ.toFixed(2),
+    +pct.toFixed(2)]);
 }
 
 let bloc = '';

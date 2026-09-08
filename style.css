@@ -2239,6 +2239,15 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-per { font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: 0.1em; color: var(--gold); }
 .live-temps { font-family: var(--display); font-size: 30px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
 .live-tirs { font-size: 10px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
+/* L'avantage numérique en cours, sous l'horloge : qui en profite, et ce qui reste. */
+.live-situation { display: none; margin-top: 2px; padding: 1px 7px; border-radius: 4px; background: var(--gold); color: #1a1400; font-family: var(--display); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; white-space: nowrap; }
+.live-situation.on { display: inline-block; }
+.live-ligne.punition { background: color-mix(in srgb, var(--eq-band, transparent) 14%, transparent); border: 1px solid color-mix(in srgb, var(--eq-band, transparent) 40%, transparent); color: var(--text); }
+.live-pun-mot { font-family: var(--display); font-size: 13px; letter-spacing: 0.1em; color: var(--live); margin-right: 4px; }
+.som-sit { display: inline-block; margin-right: 5px; padding: 0 5px; border-radius: 3px; font-family: var(--display); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; }
+.som-sit.an { background: var(--gold); color: #1a1400; }
+.som-sit.dn { background: var(--live); color: #fff; }
+.som-pun { color: var(--sub); }
 
 .live-etat:empty { display: none; }
 .live-etat { padding: 10px 14px 0; }
