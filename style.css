@@ -25,6 +25,7 @@
   --red: #f87171;
   --red-soft: rgba(248, 113, 113, 0.14);
   --orange: #fb923c;
+  --live: #e6006e;   /* le bandeau des cartes de pointage : porte un fond, jamais du texte */
   --violet: #c084fc;
 
   --team-primary: #112236;
@@ -593,6 +594,11 @@ a { color: var(--blue); }
    simples séparateurs pleine largeur. */
 .pool-col { display: contents; }
 
+.pool-col-head.pos-f, .pool-col-head.pos-d, .pool-col-head.pos-g { background: none; }
+.pool-col-head.pos-f { color: #38bdf8; }
+.pool-col-head.pos-d { color: #a78bfa; }
+.pool-col-head.pos-g { color: #fbbf24; }
+.pool-col-head .pool-col-title { color: currentColor; }
 .pool-col-head {
   grid-column: 1 / -1;
   display: flex;
@@ -600,8 +606,10 @@ a { color: var(--blue); }
   justify-content: space-between;
   gap: 8px;
   margin-top: 4px;
-  padding: 5px 2px;
+  padding: 5px 2px 5px 9px;
   border-bottom: 1px solid var(--line-soft);
+  border-left: 3px solid currentColor;
+  border-radius: 2px 0 0 2px;
 }
 .pool-col:first-of-type .pool-col-head { margin-top: 0; }
 .pool-col-title {
@@ -702,7 +710,7 @@ a { color: var(--blue); }
   border: 1px solid var(--line);
   border-left: 3px solid var(--team-line, var(--ui-accent));
   border-radius: var(--r-m);
-  padding: 9px 10px;
+  overflow: hidden;
   cursor: pointer;
   transition: border-color .15s, box-shadow .15s, transform .1s;
 }
@@ -764,22 +772,38 @@ a { color: var(--blue); }
   white-space: nowrap;
 }
 
-.pos-badge {
-  display: inline-block;
-  padding: 0 5px;
-  margin-right: 5px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  vertical-align: 1.5px;
-  border: 1px solid currentColor;
-  background: rgba(0, 0, 0, 0.3);
-  white-space: nowrap;
+/*
+ * LE BANDEAU DE CARTE. Une carte de pointage dit d'abord ce qu'on regarde,
+ * en couleur et en gros, avant de donner les chiffres : c'est ce que fait ce
+ * bandeau, et c'est ce qui remplace le petit badge de poste noyé dans le nom.
+ * La couleur porte un FOND, jamais du texte de contenu — même règle que les
+ * couleurs d'équipe.
+ */
+.pcard-band, .slot-band {
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 9px; color: #fff;
+  font-size: 9.5px; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase;
 }
-.pos-f { color: #7dd3fc; }
-.pos-d { color: #c4b5fd; }
-.pos-g { color: #fcd34d; }
+.pcard-band .pb-code, .slot-band > span:first-child { flex: none; }
+.pcard-band .pb-long {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 700; opacity: 0.72; letter-spacing: 0.04em;
+}
+.pcard-band .pb-team {
+  flex: none; display: inline-flex; align-items: center; gap: 3px;
+  font-weight: 700; opacity: 0.8; letter-spacing: 0; text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.pcard-band .pb-team img, .pcard-band .pb-team svg { filter: brightness(1.6); }
+.pcard-inner { display: flex; flex-direction: column; gap: 7px; padding: 8px 10px 9px; }
+
+/* Une couleur par poste, franche : on lit la position avant le nom. */
+.pos-f { background: #0369a1; }
+.pos-d { background: #6d28d9; }
+.pos-g { background: #b45309; }
+/* Un joueur déjà signé, ou hors d'atteinte, perd sa couleur. */
+.pcard-band.signe, .slot-band.signe { background: #15803d; }
+.pcard-band.off, .slot-band.off { background: #24384f; color: var(--sub); }
 
 /* Milieu : le chiffre qui compte, et ce qu'il est */
 .pcard-mid { display: flex; align-items: center; gap: 10px; min-height: 30px; }
@@ -982,10 +1006,9 @@ a { color: var(--blue); }
   border: 1px solid var(--line);
   border-left: 3px solid var(--slot-line, var(--line));
   background: linear-gradient(180deg, var(--panel-2), #0b1826);
-  padding: 6px 7px 6px 8px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 3px;
   cursor: pointer;
   transition: border-color .15s, transform .1s, background .15s;
 }
@@ -1022,19 +1045,11 @@ a { color: var(--blue); }
 .slot.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .slot.oop { border-color: rgba(248, 113, 113, 0.5); }
 
-.slot-top {
-  display: flex;
-  align-items: flex-start;
-  gap: 5px;
-  justify-content: space-between;
-}
-.slot-role-tag {
-  font-size: 8.5px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  text-transform: uppercase;
-}
+.slot-band { justify-content: space-between; padding: 3px 7px; font-size: 8.5px; }
+.slot-inner { display: flex; flex-direction: column; gap: 3px; padding: 5px 7px 6px 8px; }
+.slot.empty { padding: 6px 7px; justify-content: center; }
+.slot-band .slot-salary { color: #fff; opacity: 0.9; }
+.slot-band.off .slot-salary { color: var(--muted); opacity: 1; }
 .slot-salary {
   font-size: 10px;
   font-weight: 900;
@@ -1537,6 +1552,15 @@ a { color: var(--blue); }
 }
 
 .result-hero { text-align: center; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+/* Le bandeau dit tout de suite ce qui compte : es-tu en séries ? La couleur
+   porte un fond, jamais du texte — même règle que les couleurs d'équipe. */
+.hero-band {
+  display: inline-block; margin-bottom: 9px; padding: 4px 13px;
+  border-radius: 999px; background: var(--blue-deep); color: #fff;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase;
+}
+.hero-band.or { background: var(--gold); color: #1a1400; }
+.hero-band.out { background: var(--live); }
 .result .score {
   font-size: 42px;
   font-weight: 900;
@@ -1661,7 +1685,9 @@ table.data .pts { font-weight: 900; color: var(--green); }
   color: var(--blue);
   margin-bottom: 8px;
 }
-.series-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+/* Assez large pour deux cartes de match entières, sinon le carrousel se
+   réduit à une carte et demie et on ne voit plus la série. */
+.series-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(296px, 1fr)); gap: 8px; }
 .series {
   background: var(--panel-2);
   border: 1px solid var(--line);
@@ -1844,22 +1870,59 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .stat-tab.on { background: var(--ui-accent); color: var(--ui-on-accent); border-color: var(--ui-accent); }
 .data td.sub-cell { color: var(--muted); font-size: 10.5px; }
 
-/* ---- les matchs d'une série ---- */
+/* ---- les matchs d'une série : des cartes de pointage ---- */
 .serie-recit {
   padding: 6px 9px 0; font-size: 11px; line-height: 1.45; color: var(--sub);
 }
-.serie-games { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 9px 9px; }
-.serie-game {
-  display: inline-flex; align-items: baseline; gap: 5px; cursor: pointer;
-  padding: 4px 8px; border-radius: var(--r-s);
-  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03);
-  color: var(--text); font-size: 11px; font-family: var(--mono);
+/*
+ * Un carrousel plutôt qu'une grille : une série peut aller à sept matchs, et
+ * sept cartes empilées noieraient le tableau des séries. On en voit deux et
+ * demie à 390 px, ce qui dit qu'il y en a d'autres.
+ */
+.serie-games {
+  display: flex; gap: 8px; padding: 9px;
+  overflow-x: auto; scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin;
 }
-.serie-game:hover { border-color: var(--ui-accent); background: rgba(56, 189, 248, 0.1); }
-.serie-game .sg-n { color: var(--muted); font-size: 10px; }
-.serie-game .sg-score { font-weight: 700; }
-.serie-game .sg-who { color: var(--sub); font-size: 10px; }
-.serie-game em { color: var(--gold); font-style: normal; }
+.mcard {
+  flex: none; width: 138px; scroll-snap-align: start;
+  display: flex; flex-direction: column; cursor: pointer; overflow: hidden;
+  padding: 0; text-align: left; color: var(--text);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  transition: border-color 0.15s, transform 0.15s;
+}
+.mcard:hover { border-color: var(--ui-accent); transform: translateY(-1px); }
+.mcard-top {
+  padding: 5px 8px; background: var(--blue-deep); color: #fff;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  text-align: center;
+}
+.mcard.ot .mcard-top { background: var(--live); }
+.mcard.or .mcard-top { background: var(--gold); color: #1a1400; }
+/* Le match décisif qui s'est réglé en prolongation : l'or, souligné de rose. */
+.mcard.or .mcard-top { box-shadow: inset 0 -3px 0 transparent; }
+.mcard.or.ot .mcard-top { box-shadow: inset 0 -3px 0 var(--live); }
+.mcard-body { display: flex; flex-direction: column; gap: 7px; padding: 9px 9px 8px; }
+.mcard-logos { display: flex; justify-content: center; gap: 8px; }
+/* Les écussons, en pastilles rondes comme sur une carte de pointage. */
+.mcard-logos .team-logo-img, .mcard-logos .team-logo-inline {
+  border-radius: 50%; padding: 3px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--line);
+}
+.mcard-rows { display: flex; flex-direction: column; gap: 2px; }
+.mcard-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+}
+.mcard-row b { font-size: 20px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.mcard-eq { font-size: 11.5px; font-weight: 700; }
+.mcard-row.lose { color: var(--muted); }
+.mcard-row.lose b { font-weight: 700; }
+.mcard-foot {
+  font-size: 9.5px; color: var(--muted); font-family: var(--mono);
+  padding-top: 5px; border-top: 1px solid var(--line-soft);
+}
 
 /* ---- le sommaire ---- */
 .sommaire { font-size: 12.5px; }
@@ -1909,4 +1972,18 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .slot-salary.renfort {
   color: var(--muted); font-weight: 700; font-size: 9.5px;
   letter-spacing: 0.05em; text-transform: uppercase;
+}
+
+.series-legende { margin: -2px 0 10px; font-size: 11px; color: var(--muted); }
+.series-legende .lg {
+  display: inline-block; border-radius: 3px; padding: 0 5px; margin-right: 2px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.series-legende .lg-or { background: var(--gold); color: #1a1400; }
+.series-legende .lg-ot { background: var(--live); color: #fff; }
+
+/* La fiche n'a pas de bandeau : le poste y reste une pastille. */
+.pos-chip {
+  display: inline-block; padding: 1px 7px; border-radius: 999px;
+  font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em; color: #fff;
 }
