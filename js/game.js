@@ -704,8 +704,7 @@ function renderSpin() {
   const targetSlot = G.target !== null ? SLOTS[G.target] : null;
   const instruction = targetSlot
     ? `${ico('i-target')} Case ciblée : <span class="target-on">${esc(slotShort(targetSlot))}</span> — touche-la à nouveau pour annuler.`
-    : need
-      ? `Signe <strong>un joueur</strong>, puis la roulette tourne.`
+    : need ? ''
       : `Alignement complet : permute tes joueurs ou simule.`;
 
   // La carte du vestiaire se lit comme une carte de pointage : le code et
@@ -723,7 +722,7 @@ function renderSpin() {
         </div>
         ${url ? `<a class="spin-ext" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(G.cur.season)} de cette équipe sur Hockey-Reference">${ico('i-ext')}</a>` : ''}
       </div>
-      <div class="spin-instruction">${instruction}</div>
+      ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
       <div class="rerolls">
         <button id="rrS" class="reroll" ${G.left.season ? '' : 'disabled'} title="Retirer une autre saison au hasard">
           <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season} restantes</span></button>
@@ -1893,7 +1892,14 @@ function renderResult(r, you, teams, leaders) {
           ${rank === 1 ? '1er de la ligue' : rank <= 16 ? `${rank}e de ${nTeams} · en séries` : `${rank}e de ${nTeams} · éliminé`}
         </div>
         <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
-        <div class="rec">${r.points} points · ${r.GF} buts pour, ${r.GA} contre · masse ${money(capUsed())}</div>
+        <div class="result-strip">
+          <div class="rs-cell"><span class="k">PTS</span><b>${r.points}</b></div>
+          <div class="rs-cell"><span class="k">Rang</span><b>${rank}<small>/${nTeams}</small></b></div>
+          <div class="rs-cell"><span class="k">BP</span><b>${r.GF}</b></div>
+          <div class="rs-cell"><span class="k">BC</span><b>${r.GA}</b></div>
+          <div class="rs-cell"><span class="k">Diff</span><b class="${r.GF - r.GA >= 0 ? 'pm-pos' : 'pm-neg'}">${r.GF - r.GA > 0 ? '+' : ''}${r.GF - r.GA}</b></div>
+          <div class="rs-cell"><span class="k">Masse</span><b>${money(capUsed())}</b></div>
+        </div>
       </div>
       <div class="note">${note}</div>
 
