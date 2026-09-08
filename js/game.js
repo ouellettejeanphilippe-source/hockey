@@ -1,9 +1,17 @@
 /**
  * Contrôleur d'interface — poste de directeur général.
  *
- * Trois zones : la roulette (quelle saison, quelle équipe, quelles relances),
- * le tableau de bord (ce qu'il reste à combler et avec quel budget) et les
- * deux volets vestiaire / alignement.
+ * Trois zones : la roulette (quelle saison, quelle équipe, quelle unité), le
+ * tableau de bord (ce qu'il reste à combler et avec quel budget) et les deux
+ * volets main / alignement.
+ *
+ * LE VESTIAIRE EST UNE MAIN, PAS UN CATALOGUE. On ne te montre jamais les
+ * trente joueurs d'un club : seulement ce que ce club met à la place que tu
+ * combles (tirage VESTIAIRE, une équipe, son unité entière) ou ce que trois
+ * clubs mettent à cette case exacte (tirage LOTO, trois candidats). La main
+ * est DÉRIVÉE à chaque rendu de l'équipe sortie et de la case courante —
+ * viser une autre case dans l'alignement change la main sans relancer la
+ * roulette, puisque c'est le même club qu'on regarde d'un autre angle.
  *
  * Règle ferme : aucune cote cachée dans le DOM avant la simulation. Les
  * cotes vivent dans le coffre de js/sim.js ; seules la zone d'efficacité
@@ -14,9 +22,10 @@
 
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
-  SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
+  SLOTS, CAP, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague,
-  playSeries, autoRoster, tirsTotal, periodeDe, MODES, casesDuMode, uniteDeCase,
+  playSeries, autoRoster, tirsTotal, periodeDe, MODES, modeDe, casesDuMode, uniteDeCase,
+  uniteEquivalente, joueurEquivalent,
 } from './sim.js';
 import { recitDeBut, recitDeMatch, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamInk, getTeamBand, teamSeasonUrl } from './logos.js';
@@ -67,27 +76,18 @@ const DEFUNCT = new Set(['QUE', 'HFD', 'MNS', 'AFM', 'ATL', 'KCS', 'CLR', 'CLE',
 
 const G = {
   roster: {},
-  cur: null,            // { season, team, pool }
-  left: { ...REROLLS },
+  /*
+   * Ce que la roulette a sorti : une liste de vestiaires `{ season, team,
+   * pool }` — un seul en tirage VESTIAIRE, trois en tirage LOTO. La main
+   * qu'on te tend s'en déduit à chaque rendu (`candidats`).
+   */
+  tirage: [],
+  relances: 0,          // relances restantes (tirage LOTO seulement)
   target: null,         // case ciblée par le joueur
   selectedSlot: null,   // case sélectionnée pour un déplacement
-  filter: 'ALL',
-  /*
-   * Deux façons de lire le même vestiaire, et c'est un vrai choix de lecture.
-   * 'POS' range en six colonnes, une par poste — sur téléphone on les balaie
-   * du doigt plutôt que de dérouler six sections empilées, parce qu'un
-   * vestiaire de trente joueurs faisait six écrans de haut. 'LIST' les met
-   * tous ensemble dans l'ordre du tri : c'est la vue du chasseur d'aubaine,
-   * qui veut voir le meilleur pointeur du vestiaire sans se demander à quel
-   * poste il joue.
-   */
-  poolView: 'POS',      // POS | LIST
-  sortBy: 'PTS',
-  search: '',
   statsProrata: false,
   salaryMode: '2026',   // '2026' | 'ERA'
-  onlyFit: false,
-  mode: 'CLASSIQUE',    // CLASSIQUE | TRIOS | EXPRESS (voir MODES dans sim.js)
+  mode: 'CLASSIQUE',    // CLASSIQUE | LOTO | EXPRESS | LOTO_EXPRESS (voir MODES dans sim.js)
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -98,6 +98,8 @@ const G = {
 const MODE = () => MODES[G.mode] || MODES.CLASSIQUE;
 /** Les cases que TU combles : les 23 d'habitude, six en express. */
 const casesActives = () => casesDuMode(G.mode);
+/** Le premier vestiaire sorti — celui qui colore l'interface en tirage VESTIAIRE. */
+const vestiaire = () => G.tirage[0] || null;
 /** Un renfort est fourni par le mode express : il occupe une case, ne coûte rien. */
 const estRenfort = p => !!(p && p._renfort);
 
@@ -152,23 +154,49 @@ const ZONE_DESSUS_TITLE = 'Au-dessus de sa zone : −3 par cran, léger. Il tien
 const nextNeed = () => casesActives().find(s => !G.roster[s.i]) || null;
 
 /**
- * L'unité qu'on est en train de bâtir : en mode PAR UNITÉ, on comble le
- * premier trio au complet avant de passer au deuxième, et tout ce qui ne
- * va pas dans cette unité-là n'est pas signable ce tour-ci. C'est ce qui
- * fait sortir un trio entier d'un seul vestiaire — sans cette contrainte,
- * la destination automatique envoyait chaque joueur dans SA zone et la
- * roulette tournait presque à chaque signature.
+ * LA CASE COURANTE : celle que tu vises, sinon la première vide dans l'ordre
+ * de l'alignement (premier trio, puis le deuxième… les paires, les gardiens,
+ * les réservistes). C'est elle qui dit quelle unité équivalente on te montre
+ * en tirage VESTIAIRE, et quel joueur exact en tirage LOTO.
  */
-const uniteCourante = () => uniteDeCase(nextNeed());
+const caseCourante = () => (G.target !== null && !G.roster[G.target] && casesActives().includes(SLOTS[G.target]))
+  ? SLOTS[G.target] : nextNeed();
+const uniteCourante = () => uniteDeCase(caseCourante());
 
-/** Cases ouvertes pour un joueur, la plus sensée d'abord. */
-const openSlots = p => {
-  let libres = casesActives().filter(s => !G.roster[s.i] && fits(p, s));
-  if (MODE().parUnite) {
-    const u = uniteCourante();
-    const dedans = libres.filter(s => uniteDeCase(s) === u);
-    if (dedans.length || u) libres = dedans;
+/**
+ * LA MAIN : les joueurs qu'on te propose à ce tour. Dérivée du tirage et de
+ * la case courante, jamais stockée — viser une autre case la recompose du
+ * même club. Les joueurs déjà signés sont exclus de l'alignement équivalent,
+ * donc un club qui ressort montre son trio recomposé sans eux.
+ */
+function candidats() {
+  const c = caseCourante();
+  if (!c || !G.tirage.length) return [];
+  const exclude = new Set(picked().map(getPersonKey));
+  if (MODE().loto) {
+    const vus = new Set();
+    const out = [];
+    for (const v of G.tirage) {
+      const p = joueurEquivalent(v.pool, c, exclude);
+      if (!p || vus.has(getPersonKey(p))) continue;
+      vus.add(getPersonKey(p));
+      out.push(p);
+    }
+    return out;
   }
+  return uniteEquivalente(vestiaire().pool, uniteDeCase(c), exclude);
+}
+
+/**
+ * Cases ouvertes pour un joueur, la plus sensée d'abord. La main est celle
+ * d'une unité : un joueur de premier trio va au premier trio, jamais
+ * ailleurs — c'est la règle du jeu, pas une commodité. En LOTO la main est
+ * celle d'une seule case, et il n'y en a pas d'autre.
+ */
+const openSlots = p => {
+  const c = caseCourante();
+  let libres = casesActives().filter(s => !G.roster[s.i] && fits(p, s));
+  libres = MODE().loto ? libres.filter(s => s === c) : libres.filter(s => uniteDeCase(s) === uniteDeCase(c));
   return libres.sort((a, b) => slotFitScore(p, a) - slotFitScore(p, b) || a.i - b.i);
 };
 
@@ -186,8 +214,8 @@ function saveGame() {
   try {
     localStorage.setItem('cap82_save', JSON.stringify({
       roster: G.roster,
-      left: G.left,
-      cur: G.cur ? { season: G.cur.season, team: G.cur.team } : null,
+      relances: G.relances,
+      tirage: G.tirage.map(v => ({ season: v.season, team: v.team })),
       target: G.target,
       mode: G.mode,
       renfort: G.renfort,
@@ -202,8 +230,7 @@ function clearSave() {
 function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
-      statsProrata: G.statsProrata, salaryMode: G.salaryMode,
-      onlyFit: G.onlyFit, sortBy: G.sortBy, mode: G.mode, poolView: G.poolView,
+      statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode,
     }));
   } catch { /* ignore */ }
 }
@@ -213,9 +240,7 @@ function loadOpts() {
     const o = JSON.parse(localStorage.getItem('cap82_opts') || '{}');
     if (typeof o.statsProrata === 'boolean') G.statsProrata = o.statsProrata;
     if (o.salaryMode === 'ERA' || o.salaryMode === '2026') G.salaryMode = o.salaryMode;
-    if (typeof o.onlyFit === 'boolean') G.onlyFit = o.onlyFit;
-    if (typeof o.sortBy === 'string') G.sortBy = o.sortBy;
-    if (o.poolView === 'POS' || o.poolView === 'LIST') G.poolView = o.poolView;
+    // Un mode disparu (l'ancien « Par unité ») retombe sur le classique.
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
   } catch { /* ignore */ }
 }
@@ -225,16 +250,22 @@ async function restoreSave() {
     const raw = localStorage.getItem('cap82_save');
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data || !data.cur || !data.cur.season) return false;
+    // Une sauvegarde d'avant les mains (`cur` au lieu de `tirage`) ne se
+    // reprend pas : le vestiaire qu'elle décrit n'existe plus sous ces règles.
+    if (!data || !Array.isArray(data.tirage) || !data.tirage.length || !MODES[data.mode]) return false;
 
-    const shard = await getShard(data.cur.season);
-    if (!shard || !shard.byTeam[data.cur.team]) return false;
+    const tirage = [];
+    for (const v of data.tirage) {
+      const shard = await getShard(v.season);
+      if (!shard || !shard.byTeam[v.team]) return false;
+      tirage.push({ season: v.season, team: v.team, pool: shard.byTeam[v.team] });
+    }
 
     // Recharger les saisons des joueurs signés pour repeupler le coffre de cotes
     if (data.roster) {
       const seasons = new Set(Object.values(data.roster).filter(Boolean).map(p => p.s));
       for (const label of seasons) {
-        if (label && label !== data.cur.season) {
+        if (label && !G.shards.has(label)) {
           try { await getShard(label); } catch { /* saison indisponible */ }
         }
       }
@@ -252,13 +283,13 @@ async function restoreSave() {
 
     // Le mode fait partie de la partie, pas des préférences : une partie
     // express reprise en classique n'aurait plus le bon plafond.
-    if (data.mode && MODES[data.mode]) G.mode = data.mode;
+    G.mode = data.mode;
     G.renfort = data.renfort || null;
-    G.cur = { season: data.cur.season, team: data.cur.team, pool: shard.byTeam[data.cur.team] };
+    G.tirage = tirage;
     G.roster = data.roster || {};
-    G.left = data.left || { ...REROLLS };
+    G.relances = Number.isFinite(data.relances) ? data.relances : MODE().relances;
     G.target = data.target ?? null;
-    applyTeamColors(data.cur.team);
+    applyTeamColors(MODE().loto ? null : tirage[0].team);
     return true;
   } catch {
     return false;
@@ -269,8 +300,9 @@ async function restoreSave() {
    Outils d'affichage
    ===================================================================== */
 
+/* Sans équipe (tirage LOTO : trois clubs, aucun ne domine), les couleurs neutres. */
 function applyTeamColors(team) {
-  const c = TEAM_COLORS[team] || { primary: '#112236', accent: '#38bdf8' };
+  const c = (team && TEAM_COLORS[team]) || { primary: '#112236', accent: '#38bdf8' };
   const line = getTeamAccent(team);
   const root = document.documentElement.style;
   root.setProperty('--team-primary', c.primary);
@@ -378,12 +410,8 @@ function displayStats(p) {
  * d'âge plutôt que d'afficher des tirets partout.
  */
 function agesAvailable() {
-  const pool = G.cur ? G.cur.pool : [];
-  return pool.some(p => p.bd) || picked().some(p => p.bd);
+  return G.tirage.some(v => v.pool.some(p => p.bd)) || picked().some(p => p.bd);
 }
-
-/** Valeur de tri « points par million », utile pour repérer les aubaines. */
-const valuePerM = p => ((p.p === 'G' ? (p.w ?? 0) * 2.4 : (p.pt || 0)) / Math.max(0.775, p.$ / 1e6));
 
 function zoneTag(p) {
   const z = getLineZone(p, getHiddenRatings(p).v);
@@ -467,7 +495,11 @@ async function boot() {
     // bouton, qui montrait alors autre chose que ce qu'on regardait.
     syncOptionsUI();
     const restored = await restoreSave();
-    if (!restored) await nextSpin(true, true);
+    if (!restored) {
+      G.relances = MODE().relances;
+      if (MODE().renfort) await chargerRenfort();
+      await nextSpin();
+    }
     $('boot').style.display = 'none';
     $('game').style.display = '';
     $('actionbar').style.display = '';
@@ -481,19 +513,6 @@ async function boot() {
 }
 
 function setupEvents() {
-  // Recherche et tri
-  const search = $('searchInput');
-  if (search) {
-    search.value = G.search;
-    search.oninput = () => { G.search = search.value.trim(); renderPool(); renderPoolMeta(); };
-  }
-  const sort = $('sortSelect');
-  if (sort) {
-    sort.value = G.sortBy;
-    sort.onchange = () => { G.sortBy = sort.value; saveOpts(); renderPool(); };
-  }
-  syncAgeControls();
-
   // Onglets (petits écrans)
   document.querySelectorAll('.tab').forEach(t => {
     t.onclick = () => setView(t.dataset.view);
@@ -546,22 +565,17 @@ const closeModal = id => { const m = $(id); if (m) m.style.display = 'none'; };
 const openModal = id => { const m = $(id); if (m) m.style.display = 'flex'; };
 
 function setOption(key, val) {
-  if (key === 'poolView') {
-    G.poolView = val === 'LIST' ? 'LIST' : 'POS';
-    // Demander les six colonnes quand un filtre n'en laisse qu'une seule ne
-    // voudrait rien dire : le bouton lève le filtre plutôt que de ne rien
-    // faire. Une commande visible doit toujours faire quelque chose.
-    if (G.poolView === 'POS' && G.filter !== 'ALL') { G.filter = 'ALL'; renderFilters(); }
-  }
-  else if (key === 'stats') G.statsProrata = val === 'prorata';
+  if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
-  else if (key === 'onlyFit') G.onlyFit = val === 'on';
-  else if (key === 'mode') {
-    if (!MODES[val] || val === G.mode) return;
-    G.mode = val;
+  else if (key === 'format' || key === 'tirage') {
+    // Le mode est le produit du format (combien de cases) et du tirage (d'où
+    // viennent les joueurs) : changer l'un garde l'autre.
+    const m = modeDe(key === 'format' ? val : MODE().format, key === 'tirage' ? val : MODE().tirage);
+    if (m === G.mode) return;
+    G.mode = m;
     saveOpts();
     // L'alignement en cours n'a plus de sens sous d'autres règles.
-    newGame().then(() => toast(`${MODES[val].nom} : ${MODES[val].desc}`));
+    newGame().then(() => toast(`${MODES[m].nom} : ${MODES[m].desc}`));
     return;
   }
   saveOpts();
@@ -571,9 +585,8 @@ function syncOptionsUI() {
   const cur = {
     stats: G.statsProrata ? 'prorata' : 'real',
     salary: G.salaryMode,
-    onlyFit: G.onlyFit ? 'on' : 'off',
-    mode: G.mode,
-    poolView: G.poolView,
+    format: MODE().format,
+    tirage: MODE().tirage,
   };
   const d = $('modeDesc');
   if (d) d.textContent = MODE().desc;
@@ -610,40 +623,71 @@ async function getShard(label) {
   return entry;
 }
 
-async function nextSpin(newSeason, newTeam) {
-  G.loading = true;
-  renderSpin();
-
-  const need = nextNeed();
+/**
+ * Un vestiaire au hasard : une saison, une équipe qui a de quoi s'aligner,
+ * jamais un club déjà dans `deja` (le tirage précédent, ou les deux autres
+ * clubs du même loto).
+ */
+async function vestiaireAuHasard(deja) {
   const seasons = state.index.seasons;
-
-  for (let attempt = 0; attempt < 25; attempt++) {
-    const season = (!newSeason && G.cur) ? G.cur.season : rnd(seasons);
+  for (let essai = 0; essai < 12; essai++) {
+    const season = rnd(seasons);
     let shard;
     try { shard = await getShard(season); } catch { continue; }
-
-    let teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 8);
-    if (!newTeam && G.cur && shard.byTeam[G.cur.team]?.length >= 8) {
-      teams = [G.cur.team];
-    } else if (G.cur) {
-      teams = teams.filter(t => !(season === G.cur.season && t === G.cur.team));
-    }
+    const teams = Object.keys(shard.byTeam)
+      .filter(t => shard.byTeam[t].length >= 8 && !deja.has(`${season}_${t}`));
     if (!teams.length) continue;
-
     const team = rnd(teams);
-    const pool = shard.byTeam[team];
-    if (need && !pool.some(p => openSlots(p).length)) continue;
+    return { season, team, pool: shard.byTeam[team] };
+  }
+  return null;
+}
 
-    G.cur = { season, team, pool };
-    G.loading = false;
-    applyTeamColors(team);
-    saveGame();
-    prefetch([rnd(seasons), rnd(seasons)]);
-    return;
+/**
+ * LA ROULETTE TOURNE. Elle ne sort pas n'importe quoi : la main doit
+ * contenir au moins un joueur qui a une case et qui tient dans le budget du
+ * choix — sans relance en tirage VESTIAIRE, une main de trois contrats à
+ * neuf millions quand il reste six millions serait une impasse, pas un
+ * tirage. Vingt essais sur ce critère, puis on se contente d'un joueur sous
+ * le plafond restant, puis d'un joueur plaçable : la bande de secours fait
+ * le reste. C'est le même geste que l'ancienne roulette, qui refusait déjà
+ * un vestiaire sans aucune case libre.
+ */
+async function nextSpin() {
+  G.loading = true;
+  G.selectedSlot = null;
+  renderSpin();
+
+  const besoin = nextNeed();
+  const n = MODE().loto ? 3 : 1;
+  const avant = new Set(G.tirage.map(v => `${v.season}_${v.team}`));
+  let dernier = null;
+
+  for (let attempt = 0; attempt < 30 && besoin; attempt++) {
+    const deja = new Set(avant);
+    const tirage = [];
+    for (let k = 0; k < n; k++) {
+      const v = await vestiaireAuHasard(deja);
+      if (!v) break;
+      deja.add(`${v.season}_${v.team}`);
+      tirage.push(v);
+    }
+    if (tirage.length < n) continue;
+
+    G.tirage = tirage;
+    const main = candidats().filter(p => !isPicked(p) && openSlots(p).length);
+    if (!main.length) continue;
+    dernier = tirage;
+    const plafond = attempt < 20 ? maxForPick() : attempt < 26 ? capLeft() : Infinity;
+    if (!main.some(p => p.$ <= plafond)) continue;
+    break;
   }
 
+  if (dernier) G.tirage = dernier;
   G.loading = false;
-  G.cur = G.cur || { season: '—', team: '—', pool: [] };
+  applyTeamColors(MODE().loto ? null : vestiaire()?.team);
+  saveGame();
+  prefetch([rnd(state.index.seasons), rnd(state.index.seasons)]);
 }
 
 /* =====================================================================
@@ -653,7 +697,7 @@ async function nextSpin(newSeason, newTeam) {
 function renderCap() {
   const used = capUsed(), rem = capLeft(), left = slotsLeft();
   const isEra = G.salaryMode === 'ERA';
-  const season = G.cur ? G.cur.season : '2025-26';
+  const season = vestiaire()?.season || '2025-26';
   const eraCap = SEASON_ERA_CAP[season] || CAP;
 
   const amt = $('capAmt');
@@ -690,7 +734,7 @@ function renderSpin() {
   const host = $('spin');
   if (!host) return;
 
-  if (G.loading || !G.cur) {
+  if (G.loading || !G.tirage.length) {
     host.innerHTML = `<div class="spin-card"><div class="spin-top">
       <div class="spin-logo">${ico('i-dice')}</div>
       <div class="spin-id"><div class="spin-name">La roulette tourne…</div>
@@ -698,74 +742,87 @@ function renderSpin() {
     return;
   }
 
-  const full = TEAMFULL[G.cur.team] || G.cur.team;
-  const dead = DEFUNCT.has(G.cur.team) ? ` <span class="spin-dead">· disparue</span>` : '';
   const need = nextNeed();
-
+  const c = caseCourante();
   const targetSlot = G.target !== null ? SLOTS[G.target] : null;
   const instruction = targetSlot
     ? `${ico('i-target')} Case ciblée : <span class="target-on">${esc(slotShort(targetSlot))}</span> — touche-la à nouveau pour annuler.`
     : need ? ''
       : `Alignement complet : permute tes joueurs ou simule.`;
 
-  // La carte du vestiaire se lit comme une carte de pointage : le code et
-  // l'année en surtitre, le NOM de l'équipe en gros, l'écusson en filigrane.
-  // Le lien mène à la vraie saison de ce club sur Hockey-Reference.
-  const url = teamSeasonUrl(G.cur.team, G.cur.season);
+  if (MODE().loto) {
+    // TROIS CLUBS, UN CHOIX. La carte porte la case qu'on comble en gros —
+    // c'est elle qu'on décide — et les trois clubs en pastilles, chacune
+    // vers sa vraie saison sur Hockey-Reference. Les cartes de la main
+    // portent déjà chacune la couleur de leur vestiaire.
+    const clubs = G.tirage.map(v => {
+      const url = teamSeasonUrl(v.team, v.season);
+      const dead = DEFUNCT.has(v.team) ? ' spin-club-dead' : '';
+      const inner = `${getTeamLogoHtml(v.team, 18)}<span class="spin-club-code">${esc(v.team)}</span><span class="spin-club-season">${esc(v.season)}</span>`;
+      return url
+        ? `<a class="spin-club${dead}" href="${url}" target="_blank" rel="noopener" title="${esc(TEAMFULL[v.team] || v.team)} ${esc(v.season)} sur Hockey-Reference">${inner}</a>`
+        : `<span class="spin-club${dead}">${inner}</span>`;
+    }).join('');
+    host.innerHTML = `
+      <div class="spin-card">
+        <div class="spin-top">
+          <div class="spin-logo">${ico('i-dice')}</div>
+          <div class="spin-id">
+            <div class="spin-kicker"><span class="spin-code">Loto</span><span class="spin-season">${G.tirage.length} clubs</span></div>
+            <div class="spin-name">${c ? esc(slotShort(c)) : 'Alignement complet'}</div>
+          </div>
+        </div>
+        <div class="spin-clubs">${clubs}</div>
+        ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
+        <div class="rerolls">
+          <button id="rrL" class="reroll" ${G.relances > 0 && need ? '' : 'disabled'} title="Relancer les trois clubs d'un coup">
+            <span class="rr-lbl">${ico('i-dice')}Relancer les trois</span><span class="rr-count">${G.relances} restante${G.relances > 1 ? 's' : ''}</span></button>
+        </div>
+      </div>`;
+    ajusterCartes(host);
+    $('rrL').onclick = async () => {
+      if (G.relances <= 0 || !need) return;
+      G.relances--;
+      await nextSpin();
+      render();
+    };
+    return;
+  }
+
+  // UN CLUB, SON UNITÉ. La carte du vestiaire se lit comme une carte de
+  // pointage : le code, l'année et l'UNITÉ qu'on regarde en surtitre, le NOM
+  // de l'équipe en gros, l'écusson en filigrane. Le lien mène à la vraie
+  // saison de ce club sur Hockey-Reference. Pas de relance : ce qui sort,
+  // tu le joues.
+  const v = vestiaire();
+  const full = TEAMFULL[v.team] || v.team;
+  const dead = DEFUNCT.has(v.team) ? ` <span class="spin-dead">· disparue</span>` : '';
+  const url = teamSeasonUrl(v.team, v.season);
   host.innerHTML = `
     <div class="spin-card">
-      <div class="spin-watermark" aria-hidden="true">${getTeamLogoHtml(G.cur.team, 150)}</div>
+      <div class="spin-watermark" aria-hidden="true">${getTeamLogoHtml(v.team, 150)}</div>
       <div class="spin-top">
-        <div class="spin-logo">${getTeamLogoHtml(G.cur.team, 40)}</div>
+        <div class="spin-logo">${getTeamLogoHtml(v.team, 40)}</div>
         <div class="spin-id">
-          <div class="spin-kicker"><span class="spin-code">${esc(G.cur.team)}</span><span class="spin-season">${esc(G.cur.season)}</span>${dead}</div>
+          <div class="spin-kicker"><span class="spin-code">${esc(v.team)}</span><span class="spin-season">${esc(v.season)}</span>${c ? `<span class="spin-season spin-unite">${esc(uniteNom(c))}</span>` : ''}${dead}</div>
           <div class="spin-name">${esc(full)}</div>
         </div>
-        ${url ? `<a class="spin-ext" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(G.cur.season)} de cette équipe sur Hockey-Reference">${ico('i-ext')}</a>` : ''}
+        ${url ? `<a class="spin-ext" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(v.season)} de cette équipe sur Hockey-Reference">${ico('i-ext')}</a>` : ''}
       </div>
       ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
-      <div class="rerolls">
-        <button id="rrS" class="reroll" ${G.left.season ? '' : 'disabled'} title="Retirer une autre saison au hasard">
-          <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season} restantes</span></button>
-        <button id="rrT" class="reroll" ${G.left.team ? '' : 'disabled'} title="Garder la saison, changer d'équipe">
-          <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team} restantes</span></button>
-        <button id="rrP" class="reroll" ${G.left.pass ? '' : 'disabled'} title="Passer ce vestiaire au complet">
-          <span class="rr-lbl">${ico('i-skip')}Passer</span><span class="rr-count">${G.left.pass} restants</span></button>
-      </div>
     </div>`;
-
-  const reroll = async (kind, ns, nt) => {
-    if (!G.left[kind]) return;
-    G.left[kind]--;
-    await nextSpin(ns, nt);
-    render();
-  };
   ajusterCartes(host);
-  $('rrS').onclick = () => reroll('season', true, false);
-  $('rrT').onclick = () => reroll('team', false, true);
-  $('rrP').onclick = () => reroll('pass', true, true);
 }
 
-/* Besoins par position (réservistes exclus) */
-const POS_NEED = [
-  { key: 'AG', label: 'AG', role: 'AG', req: 4 },
-  { key: 'C', label: 'C', role: 'C', req: 4 },
-  { key: 'AD', label: 'AD', role: 'AD', req: 4 },
-  { key: 'LD', label: 'DG', role: 'DG', req: 3 },
-  { key: 'RD', label: 'DD', role: 'DD', req: 3 },
-  { key: 'G', label: 'G', group: 'G', req: 2 },
-];
-
-function signedCount(def) {
-  return SLOTS.filter(s => !s.scratch && G.roster[s.i] &&
-    (def.group ? s.group === def.group : s.role === def.role)).length;
-}
-
-/** Raccourcis pour les rôles et cases de l'alignement. */
-const SLOT_SHORT = {
-  'Gardiens': 'Gardien', 'Réservistes': 'Réserve',
-};
-const slotShort = s => s ? `${SLOT_SHORT[s.label] || s.label} · ${s.role}` : '—';
+/*
+ * UNE CASE SE NOMME PAR SON RANG, PAS PAR SA ZONE. « Top 6 · C » désignait
+ * aussi bien le premier trio que le deuxième — Lemieux allait « au Top 6 »
+ * et on ne savait pas lequel. « 2e trio · C » le dit. La zone reste sur la
+ * pastille du joueur, là où elle sert à décider.
+ */
+const uniteNom = s => !s ? '' : s.scratch ? 'Réserve' : s.group === 'G' ? 'Gardiens'
+  : s.group === 'D' ? UNIT_NAMES_D[s.unit] : UNIT_NAMES_F[s.unit];
+const slotShort = s => s ? `${uniteNom(s)} · ${s.role}` : '—';
 
 function renderDash() {
   const host = $('dash');
@@ -773,8 +830,8 @@ function renderDash() {
 
   const left = slotsLeft(), rem = capLeft();
   const maxPick = maxForPick();
-  const need = nextNeed();
-  const pool = G.cur ? G.cur.pool : [];
+  const need = caseCourante();
+  const pool = candidats();
   const affordable = pool.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem).length;
   const safe = pool.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= maxPick).length;
 
@@ -786,12 +843,13 @@ function renderDash() {
   // Les explications vivent dans l'infobulle et dans les règles : le tableau
   // de bord ne montre que le chiffre qui sert à trancher.
   const needTitle = need
-    ? `Prochaine case libre de l'alignement : ${need.label} · ${need.role}. Touche une autre case dans l'alignement pour la viser à la place.`
-    : 'Les 23 cases sont comblées.';
+    ? `Case qu'on comble : ${slotShort(need)}. ${MODE().loto ? 'La main est le joueur que trois clubs mettent à cette case exacte.' : `La main est ce que ce club met à cette unité (${uniteNom(need).toLowerCase()}).`} Touche une autre case vide dans l'alignement pour la viser à la place : la main se recompose du même tirage.`
+    : `Les ${totalCases()} cases sont comblées.`;
   const budgetTitle = left === 0
-    ? (rem >= 0 ? `Masse salariale : ${money(capUsed())}, sous le plafond de ${money(CAP)}.` : `Tu dépasses le plafond de ${money(-rem)} : retire un joueur.`)
+    ? (rem >= 0 ? `Masse salariale : ${money(capUsed())}, sous le plafond de ${money(MODE().cap)}.` : `Tu dépasses le plafond de ${money(-rem)} : retire un joueur.`)
     : `Le maximum que tu peux mettre sur ce joueur-ci en gardant de quoi combler les ${left - 1} case${left - 1 > 1 ? 's' : ''} suivantes au salaire plancher de ${money(MIN_SAL)}. Il te reste ${money(rem)} pour ${left} cases.`;
-  const poolTitle = `${safe} joueur${safe > 1 ? 's' : ''} de ce vestiaire tiennent dans le budget du prochain choix, ${affordable} sous le plafond restant, ${pool.length} au total. Relances : ${G.left.season} année${G.left.season > 1 ? 's' : ''}, ${G.left.team} équipe${G.left.team > 1 ? 's' : ''}, ${G.left.pass} passe${G.left.pass > 1 ? 's' : ''}.`;
+  const poolTitle = `${safe} joueur${safe > 1 ? 's' : ''} de cette main tiennent dans le budget du prochain choix, ${affordable} sous le plafond restant, ${pool.length} au total.`
+    + (MODE().loto ? ` Relances : ${G.relances}.` : ' Aucune relance dans ce tirage.');
 
   host.innerHTML = `
     <div class="dash-card" title="${esc(needTitle)}">
@@ -803,7 +861,7 @@ function renderDash() {
       <div class="dash-big ${budgetCls}">${left ? money(Math.max(0, maxPick)) : money(rem)}</div>
     </div>
     <div class="dash-card" title="${esc(poolTitle)}">
-      <h3><span class="h3-long">Ce </span>vestiaire</h3>
+      <h3><span class="h3-long">Cette </span>main</h3>
       <div class="dash-big ${poolCls}">${safe}<span class="dash-unit">signables</span></div>
     </div>
     ${G.renfort ? `<div class="dash-card" title="Les dix-sept autres cases sont comblées par cette vraie équipe. Elles ne coûtent rien au plafond et ne se modifient pas.">
@@ -816,106 +874,23 @@ function renderDash() {
    Rendu — bassin
    ===================================================================== */
 
-function renderFilters() {
-  const host = $('filters');
-  if (!host) return;
-  /*
-   * TOUJOURS AG, C, AD, DG, DD, G — le même ordre et les mêmes sigles que les
-   * colonnes du bassin, les rangées du tableau de profondeur et les bandeaux
-   * de carte. Les pastilles disaient « Centres » avant « Ailiers G. », donc
-   * dans un ordre qui n'était celui de rien d'autre dans le jeu, et les
-   * libellés longs débordaient la rangée à 390 px : on ne voyait plus les
-   * gardiens. Le mot complet reste dans l'infobulle.
-   */
-  const defs = [
-    ['ALL', 'Tous', 'Tout le vestiaire', null],
-    ['AG', 'AG', 'Ailiers gauches', POS_NEED[0]],
-    ['C', 'C', 'Centres', POS_NEED[1]],
-    ['AD', 'AD', 'Ailiers droits', POS_NEED[2]],
-    ['LD', 'DG', 'Défenseurs gauches', POS_NEED[3]],
-    ['RD', 'DD', 'Défenseurs droits', POS_NEED[4]],
-    ['G', 'G', 'Gardiens', POS_NEED[5]],
-  ];
-  host.innerHTML = defs.map(([key, label, titre, def]) => {
-    let badge = '';
-    if (key === 'ALL') {
-      badge = `<span class="chip-need${slotsLeft() === 0 ? ' full' : ''}">${signes().length}/${totalCases()}</span>`;
-    } else if (def) {
-      const n = signedCount(def);
-      badge = `<span class="chip-need${n >= def.req ? ' full' : ''}">${n}/${def.req}</span>`;
-    }
-    return `<button class="chip${G.filter === key ? ' on' : ''}" data-f="${key}" role="tab"`
-      + ` title="${esc(titre)}" aria-label="${esc(titre)}" aria-selected="${G.filter === key}">${esc(label)}${badge}</button>`;
-  }).join('');
-
-  host.querySelectorAll('.chip').forEach(b => {
-    b.onclick = () => { G.filter = b.dataset.f; renderFilters(); renderPool(); renderPoolMeta(); };
-  });
-}
-
+/*
+ * LA MAIN SE LIT DANS L'ORDRE DE L'UNITÉ — AG, C, AD ; DG, DD ; partant,
+ * auxiliaire — parce que c'est l'ordre du tableau de profondeur et des
+ * bandeaux. Trois cartes n'ont besoin ni de tri, ni de recherche, ni de
+ * filtre : ces commandes sont parties avec le vestiaire de trente joueurs.
+ */
 function poolFiltered() {
-  if (!G.cur) return [];
-  let list = G.cur.pool.slice();
-
-  const f = G.filter;
-  if (f === 'C') list = list.filter(p => !isD(p) && p.p !== 'G' && p.np === 'C');
-  else if (f === 'AG') list = list.filter(p => !isD(p) && p.p !== 'G' && (p.np === 'L' || p.np === 'AG'));
-  else if (f === 'AD') list = list.filter(p => !isD(p) && p.p !== 'G' && (p.np === 'R' || p.np === 'AD'));
-  else if (f === 'LD') list = list.filter(p => isD(p) && (p.np === 'LD' || p.np === 'DG' || p.np === 'L'));
-  else if (f === 'RD') list = list.filter(p => isD(p) && (p.np === 'RD' || p.np === 'DD' || p.np === 'R'));
-  else if (f === 'G') list = list.filter(p => p.p === 'G');
-
-  if (G.search) {
-    const q = G.search.toLowerCase();
-    list = list.filter(p => p.n.toLowerCase().includes(q));
-  }
-
-  if (G.onlyFit) {
-    const rem = capLeft();
-    list = list.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem);
-  }
-
-  const key = p => (p.p === 'G' ? (p.w ?? 0) : (p.pt ?? 0));
-  const cmp = {
-    PTS: (a, b) => key(b) - key(a) || b.$ - a.$,
-    PPG: (a, b) => (displayStats(b).ppg ?? -1) - (displayStats(a).ppg ?? -1) || key(b) - key(a),
-    SAL: (a, b) => b.$ - a.$ || key(b) - key(a),
-    VAL: (a, b) => valuePerM(b) - valuePerM(a),
-    PM: (a, b) => (b.pm ?? 0) - (a.pm ?? 0) || key(b) - key(a),
-    AGE: (a, b) => (ageAtSeason(a.bd, a.s) ?? 99) - (ageAtSeason(b.bd, b.s) ?? 99) || key(b) - key(a),
-    NAME: (a, b) => a.n.localeCompare(b.n, 'fr'),
-  }[G.sortBy] || ((a, b) => key(b) - key(a));
-
-  return list.sort(cmp);
+  return candidats();
 }
-
-/** Masque le tri par âge quand aucune date de naissance n'est disponible. */
-function syncAgeControls() {
-  const sort = $('sortSelect');
-  if (!sort) return;
-  const opt = sort.querySelector('option[value="AGE"]');
-  if (!opt) return;
-  const ok = agesAvailable();
-  opt.hidden = !ok;
-  opt.disabled = !ok;
-  if (!ok && G.sortBy === 'AGE') { G.sortBy = 'PTS'; saveOpts(); }
-  sort.value = G.sortBy;
-}
-
-/* Une colonne par position, comme au tableau d'un vrai vestiaire. */
-const POOL_COLS = [
-  { key: 'AG', title: 'AG · ailier g.', need: POS_NEED[0], test: p => p.p === 'F' && (p.np === 'L' || p.np === 'AG') },
-  { key: 'C',  title: 'C · centre',         need: POS_NEED[1], test: p => p.p === 'F' && p.np !== 'L' && p.np !== 'AG' && p.np !== 'R' && p.np !== 'AD' },
-  { key: 'AD', title: 'AD · ailier d.',  need: POS_NEED[2], test: p => p.p === 'F' && (p.np === 'R' || p.np === 'AD') },
-  { key: 'DG', title: 'DG · déf. gauche', need: POS_NEED[3], test: p => isD(p) && p.np !== 'RD' && p.np !== 'DD' && p.np !== 'R' },
-  { key: 'DD', title: 'DD · déf. droit',  need: POS_NEED[4], test: p => isD(p) && (p.np === 'RD' || p.np === 'DD' || p.np === 'R') },
-  { key: 'G',  title: 'G · gardien',        need: POS_NEED[5], test: p => p.p === 'G' },
-];
 
 function renderPoolMeta() {
   const list = poolFiltered();
   const meta = $('poolCount');
-  if (meta) meta.textContent = `${list.length} joueur${list.length > 1 ? 's' : ''}`;
+  if (meta) {
+    const c = caseCourante();
+    meta.textContent = c ? `${list.length} joueur${list.length > 1 ? 's' : ''} · ${MODE().loto ? slotShort(c) : uniteNom(c)}` : 'Complet';
+  }
   const badge = $('tabPoolBadge');
   if (badge) badge.textContent = String(list.length);
   const rMeta = $('rosterMeta');
@@ -927,8 +902,7 @@ function renderPoolMeta() {
 /** Case où irait ce joueur : la cible si compatible, sinon la moins pénalisée. */
 function destinationFor(p) {
   const vise = G.target !== null ? SLOTS[G.target] : null;
-  const viseOK = vise && !G.roster[G.target] && fits(p, vise)
-    && (!MODE().parUnite || uniteDeCase(vise) === uniteCourante());
+  const viseOK = vise && !G.roster[G.target] && fits(p, vise) && uniteDeCase(vise) === uniteCourante();
   if (viseOK) return vise;
   return openSlots(p)[0] || null;
 }
@@ -968,7 +942,7 @@ function playerCardEl(p) {
   let dest;
   if (already) {
     const cur = SLOTS.find(s => G.roster[s.i] === p);
-    dest = `<span class="dest-ok">✓ signé</span>${cur ? ` · ${esc(cur.label)} · ${esc(cur.role)}` : ''}`;
+    dest = `<span class="dest-ok">✓ signé</span>${cur ? ` · ${esc(slotShort(cur))}` : ''}`;
   } else if (!slot) {
     dest = `<span class="dest-bad">aucune case libre</span>`;
   } else if (over) {
@@ -980,10 +954,10 @@ function playerCardEl(p) {
     // signature plutôt qu'après dans le volet de l'alignement.
     const ecart = zoneEcart(p, slot);
     const bits = [];
-    if (isTargeted) bits.push(`<span class="dest-target">${ico('i-target')} ${esc(slot.label)} · ${esc(slot.role)}</span>`);
-    if (risky) bits.push(`<span class="dest-bad" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les 23.">⚠ bloque la fin</span>`);
+    if (isTargeted) bits.push(`<span class="dest-target">${ico('i-target')} ${esc(slotShort(slot))}</span>`);
+    if (risky) bits.push(`<span class="dest-bad" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les ${totalCases()}.">⚠ bloque la fin</span>`);
     if (pen > 0) bits.push(`<span class="dest-bad">−${pen} hors position</span>`);
-    if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ sous sa zone${isTargeted ? '' : ` : ${esc(slot.label)} · ${esc(slot.role)}`}</span>`);
+    if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ sous sa zone${isTargeted ? '' : ` : ${esc(slotShort(slot))}`}</span>`);
     else if (ecart === 'dessus') bits.push(`<span class="dest-warn" title="${esc(ZONE_DESSUS_TITLE)}">▲ au-dessus de sa zone</span>`);
     dest = bits.join(' · ');
   }
@@ -1044,7 +1018,7 @@ async function signPlayer(p) {
 
   const pen = getPositionPenalty(p, slot);
   const sous = zoneEcart(p, slot) === 'sous';
-  toast(`${p.n} → ${slot.label} · ${slot.role}`
+  toast(`${p.n} → ${slotShort(slot)}`
     + (pen > 0 ? ` (−${pen} hors position)` : '')
     + (sous ? ' · ▼ sous sa zone' : ''), pen > 0 || sous ? 'warn' : '');
   if (risky && slotsLeft() > 0) {
@@ -1054,13 +1028,9 @@ async function signPlayer(p) {
     setTimeout(() => toast(msg, 'warn'), 2700);
   }
 
-  // Mode PAR UNITÉ : on reste dans le même vestiaire tant que le trio (ou la
-  // paire) n'est pas complet, et seulement si ce vestiaire peut encore le
-  // compléter. Sinon la roulette tourne, comme d'habitude.
-  const suite = nextNeed();
-  const memeUnite = MODE().parUnite && suite && uniteDeCase(suite) === uniteDeCase(slot)
-    && G.cur?.pool.some(x => !isPicked(x) && fits(x, suite) && x.$ <= capLeft());
-  if (!memeUnite) await nextSpin(true, true);
+  // Une signature, un tour : la roulette tourne à chaque fois, dans les
+  // deux tirages. Ton premier trio sort de trois clubs, pas d'un seul.
+  await nextSpin();
   saveGame();
   render();
   document.getElementById('topbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1073,13 +1043,14 @@ async function signPlayer(p) {
  * devant une grille de cartes toutes grisées.
  */
 function blockedState() {
-  if (G.done || slotsLeft() === 0 || !G.cur) return null;
+  if (G.done || slotsLeft() === 0 || !G.tirage.length) return null;
   const rem = capLeft();
-  const free = G.cur.pool.filter(p => !isPicked(p) && openSlots(p).length);
+  const free = candidats().filter(p => !isPicked(p) && openSlots(p).length);
   if (free.some(p => p.$ <= rem)) return null;
   const cheapest = free.length ? free.reduce((a, b) => (b.$ < a.$ ? b : a)) : null;
-  const priciest = picked().slice().sort((a, b) => b.$ - a.$)[0] || null;
-  const rerolls = G.left.season + G.left.team + G.left.pass;
+  // Seuls tes propres contrats se libèrent : un renfort ne coûte rien.
+  const priciest = signes().slice().sort((a, b) => b.$ - a.$)[0] || null;
+  const rerolls = MODE().loto ? G.relances : 0;
   return { rem, cheapest, priciest, rerolls };
 }
 
@@ -1087,11 +1058,17 @@ function blockedBannerEl(st) {
   const el = document.createElement('div');
   el.className = 'blocked';
   const slot = st.priciest ? SLOTS.find(s => G.roster[s.i] === st.priciest) : null;
+  const vise = G.target !== null;
+  const issue = st.rerolls
+    ? `Tu peux relancer (${st.rerolls} relance${st.rerolls > 1 ? 's' : ''} restante${st.rerolls > 1 ? 's' : ''})${vise ? ', viser une autre case' : ''} ou libérer de la masse salariale.`
+    : vise ? 'Vise une autre case, ou libère de la masse salariale.'
+      : MODE().loto ? 'Tes relances sont épuisées : il faut libérer de la masse salariale.'
+        : 'Ce tirage ne se relance pas : il faut libérer de la masse salariale.';
   el.innerHTML = `
     <div class="blocked-title">⚠ Aucune signature possible ici</div>
     <p>Il te reste <strong>${money(st.rem)}</strong> pour <strong>${slotsLeft()} case${slotsLeft() > 1 ? 's' : ''}</strong>.
-      ${st.cheapest ? `Le moins cher de ce vestiaire qui a une case libre coûte ${money(st.cheapest.$)}.` : 'Aucun joueur de ce vestiaire ne convient à une case libre.'}
-      ${st.rerolls ? `Tu peux relancer (${st.rerolls} relance${st.rerolls > 1 ? 's' : ''} restante${st.rerolls > 1 ? 's' : ''}) ou libérer de la masse salariale.` : 'Tes relances sont épuisées : il faut libérer de la masse salariale.'}</p>
+      ${st.cheapest ? `Le moins cher de cette main coûte ${money(st.cheapest.$)}.` : 'Aucun joueur de cette main ne convient à la case.'}
+      ${issue}</p>
     ${st.priciest ? `<button class="btn danger" id="freeCapBtn">Retirer ${esc(st.priciest.n)} · ${money(st.priciest.$)}${slot ? ` (${esc(slot.role)})` : ''}</button>` : ''}`;
   const btn = el.querySelector('#freeCapBtn');
   if (btn && slot) {
@@ -1129,50 +1106,18 @@ function renderPool() {
   if (blocked && notice) notice.appendChild(blockedBannerEl(blocked));
 
   const list = poolFiltered();
+  host.className = 'pool';
   if (!list.length) {
-    host.className = 'pool';
-    host.innerHTML = `<div class="empty-msg">Aucun joueur ne correspond.<br>
-      ${G.search ? 'Efface la recherche' : G.onlyFit ? 'Désactive « signables seulement » dans les options' : 'Change de filtre'} ou utilise une relance.</div>`;
+    host.innerHTML = `<div class="empty-msg">${slotsLeft() === 0
+      ? 'Alignement complet : permute tes joueurs ou simule.'
+      : 'Ce tirage ne met personne à cette case.<br>Vise une autre case dans l\'alignement' + (MODE().loto && G.relances ? ' ou relance.' : '.')}</div>`;
     return;
   }
 
+  // La main, dans l'ordre de l'unité : trois cartes de front sur grand
+  // écran, une colonne sur téléphone. Rien d'autre à ranger.
   const frag = document.createDocumentFragment();
-
-  /*
-   * Six colonnes, une par poste — sauf si on a demandé la liste complète, ou
-   * si un filtre de position ne laisse déjà qu'un seul poste : ranger une
-   * colonne en six colonnes n'a pas de sens. La feuille de style décide
-   * ensuite de leur forme : de vraies colonnes côte à côte sur grand écran,
-   * une bande qu'on balaie du doigt sur téléphone.
-   */
-  const byPos = G.poolView === 'POS' && G.filter === 'ALL';
-  host.className = 'pool' + (byPos ? ' by-pos' : '');
-
-  if (byPos) {
-    for (const col of POOL_COLS) {
-      const players = list.filter(col.test);
-      const n = signedCount(col.need);
-      const el = document.createElement('div');
-      el.className = 'pool-col';
-      // Le liseré relie l'en-tête à la couleur des cartes de la colonne :
-      // on retrouve son poste sans relire le titre.
-      const ton = col.key === 'G' ? 'pos-g' : (col.key === 'DG' || col.key === 'DD') ? 'pos-d' : 'pos-f';
-      el.innerHTML = `<div class="pool-col-head ${ton}">
-        <span class="pool-col-title">${esc(col.title)}</span>
-        <span class="pool-col-meta"><span>${players.length} dispo</span>
-        <span class="chip-need${n >= col.need.req ? ' full' : ''}" title="Signés sur requis à cette position">${n}/${col.need.req}</span></span>
-      </div>`;
-      const cards = document.createElement('div');
-      cards.className = 'pool-col-cards';
-      if (!players.length) cards.innerHTML = `<div class="empty-msg small">Aucun</div>`;
-      else for (const p of players) cards.appendChild(playerCardEl(p));
-      el.appendChild(cards);
-      frag.appendChild(el);
-    }
-  } else {
-    for (const p of list) frag.appendChild(playerCardEl(p));
-  }
-
+  for (const p of list) frag.appendChild(playerCardEl(p));
   host.innerHTML = '';
   host.appendChild(frag);
   ajusterCartes(host);
@@ -1330,7 +1275,7 @@ function slotEl(s) {
       G.target = (G.target === s.i ? null : s.i);
       if (G.target !== null) {
         setView('pool');
-        toast(`Case ciblée : ${s.label} · ${s.role}. Les signatures iront là.`);
+        toast(`Case ciblée : ${slotShort(s)}. La main se recompose pour cette case.`);
       }
     }
     render();
@@ -1451,11 +1396,9 @@ function renderMain() {
 }
 
 function render() {
-  syncAgeControls();
   renderCap();
   renderSpin();
   renderDash();
-  renderFilters();
   renderPool();
   renderPoolMeta();
   renderRoster();
@@ -1555,7 +1498,7 @@ function showPlayerModal(p) {
   const destNote = already ? ''
     : !slot ? `<div class="dash-note dash-bad">Toutes les cases compatibles sont prises. Déplace un joueur ou vise une autre position.</div>`
     : over ? `<div class="dash-note dash-bad">${money(p.$)} pour ${money(rem)} restants.</div>`
-    : `<div class="dash-note${zoneEcart(p, slot) === 'sous' ? ' dash-bad' : ''}">Ira au <strong>${esc(slot.label)} · ${esc(slot.role)}</strong>${pen > 0 ? ` avec une pénalité de <strong>−${pen}</strong> hors position` : ' sans pénalité de position'}${zoneEcart(p, slot) === 'sous' ? `, <strong>sous sa zone</strong> : son talent y est gaspillé et l'unité porte un malus. Vise une autre case ou déplace quelqu'un.` : zoneEcart(p, slot) === 'dessus' ? ', au-dessus de sa zone (−3 par cran, léger).' : ', dans sa zone.'} Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`;
+    : `<div class="dash-note${zoneEcart(p, slot) === 'sous' ? ' dash-bad' : ''}">Ira au <strong>${esc(slotShort(slot))}</strong>${pen > 0 ? ` avec une pénalité de <strong>−${pen}</strong> hors position` : ' sans pénalité de position'}${zoneEcart(p, slot) === 'sous' ? `, <strong>sous sa zone</strong> : son talent y est gaspillé et l'unité porte un malus. Vise une autre case ou déplace quelqu'un.` : zoneEcart(p, slot) === 'dessus' ? ', au-dessus de sa zone (−3 par cran, léger).' : ', dans sa zone.'} Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`;
 
   const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
   const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
@@ -2195,19 +2138,16 @@ async function chargerRenfort() {
 async function newGame() {
   clearSave();
   G.roster = {};
-  G.left = { ...REROLLS };
+  G.tirage = [];
+  G.relances = MODE().relances;
   G.target = null;
   G.selectedSlot = null;
   G.done = false;
-  G.search = '';
-  G.filter = 'ALL';
-  const search = $('searchInput');
-  if (search) search.value = '';
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
   setView('pool');
   if (MODE().renfort) await chargerRenfort();
-  await nextSpin(true, true);
+  await nextSpin();
   saveGame();
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
