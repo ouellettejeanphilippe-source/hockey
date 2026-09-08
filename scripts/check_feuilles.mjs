@@ -147,4 +147,11 @@ console.log(`\n  REPÈRES D'ÉPOQUE (cible ${LANCERS_BASE} lancers, `
   + `${(LANCERS_BASE * CIBLE_PCT_TIR).toFixed(2)} buts par équipe par match)\n`);
 console.log(`    lancers par équipe par match   ${(lancersPour / matchs).toFixed(2)}`);
 console.log(`    buts par équipe par match      ${(buts / matchs).toFixed(2)}`);
-console.log(`    % de tir de la ligue           ${(100 * buts / lancersPour).toFixed(2)} %\n`);
+console.log(`    % de tir de la ligue           ${(100 * buts / lancersPour).toFixed(2)} %`);
+
+// Les unités spéciales : un but sur cinq en avantage numérique, et un
+// nombre d'occasions par match qui suit l'époque (voir AVANTAGES_EPOQUE).
+let butsAN = 0, minutesPun = 0;
+for (const t of equipes) for (const p of joueursDe(t)) { butsAN += p.simPPG || 0; minutesPun += p.simPIM || 0; }
+console.log(`    buts en avantage numérique     ${(100 * butsAN / Math.max(1, buts)).toFixed(1)} % des buts, ${(butsAN / matchs).toFixed(2)} par équipe par match`);
+console.log(`    punitions par équipe par match ${(minutesPun / 2 / matchs).toFixed(2)} (cible : la moyenne d'époque, 2,8 à 5,8)\n`);
