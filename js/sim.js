@@ -1345,6 +1345,7 @@ export function createTeam(name, tag, roster, opts = {}) {
     together: new Map(),     // unité -> matchs consécutifs intacts
     togetherSig: new Map(),
     injuriesLog: [],         // { player, games, at }
+    journal: [],             // un match par entrée : { n, adv, gf, ga, ot, win } — de quoi raconter la saison
     luck: gauss() * LUCK_SEASON,
     W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0, games: 0,
     strength: null,
@@ -1530,6 +1531,10 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     crediterMatch(LA, gA, gfB, winA, !winA && ot);
     crediterMatch(LB, gB, gfA, !winA, winA && ot);
     updateTogether(A, LA); updateTogether(B, LB);
+    // Le journal de la saison : ce qu'il faut pour raconter une séquence,
+    // un début de saison, une raclée. Le moteur n'y lit jamais rien.
+    if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA });
+    if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB });
   }
   applyInjuries(A, LA, heavy); applyInjuries(B, LB, heavy);
   if (track) { A.games++; B.games++; }
@@ -1563,34 +1568,61 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
   const fenetres = [];
   let minutesAN = 0;
 
-  const avantage = (cote, off, def, gOff, gDef, chOff, chDef, puni) => {
-    // `puni` : l'alignement qui prend la punition (celui d'en face)
+  /*
+   * UNE SEULE LIGNE DU TEMPS. Chaque équipe prend son nombre de punitions
+   * (Poisson sur les occasions de l'époque et son indiscipline), puis TOUTES
+   * les mineures du match sont posées sur les soixante minutes sans jamais
+   * se chevaucher : une situation à la fois, comme au vrai tableau
+   * indicateur. Avant, chaque côté tirait ses instants dans son coin et le
+   * direct montrait les deux clubs en avantage en même temps, des fenêtres
+   * qui s'enchaînaient sans fin. Ce qui est joué ne change pas — même nombre
+   * de fenêtres, mêmes lancers, mêmes probabilités — seul l'INSTANT change,
+   * et le temps n'est qu'attribué (MOTEUR.md). Règles portées : deux
+   * minutes, le premier but de l'avantage la ferme, un but en désavantage ne
+   * la ferme pas, et le puni prend ses deux minutes de punition. Le cinq
+   * contre trois et le quatre contre quatre ne sont pas modélisés.
+   */
+  const mineures = [];
+  const tirerMineures = (cote, puni) => {
     const n = poisson(occasions * (puni ? puni.discipline : 1));
-    for (let k = 0; k < n; k++) {
-      const t0 = Math.random() * (60 - AN_MINUTES);
-      const coupable = puni && puni.patineurs.length ? weightedPick(puni.patineurs, p => punitionsRel(p) + 0.05) : null;
-      if (coupable && track) coupable.simPIM = (coupable.simPIM || 0) + AN_MINUTES;
-      if (journal) journal.punitions.push({ cote: cote === 'A' ? 'B' : 'A', instant: t0, joueur: coupable, minutes: AN_MINUTES });
-      const st = {
-        mode: 'AN', lancers: AN_TIRS_MIN * AN_MINUTES * (off.avantage ? off.avantage.volume : 1),
-        fenetre: [t0, t0 + AN_MINUTES], arretAuBut: true,
-        unitesOff: off.avantage, unitesDef: def.desavantage, qualite: AN_QUALITE,
-      };
-      const b = jouerCote(off, def, gDef, chOff, heavy, track, series, journal, cote, st);
-      const fin = st.finBut != null ? st.finBut : t0 + AN_MINUTES;
-      fenetres.push([t0, fin]);
-      minutesAN += fin - t0;
-      // L'équipe en désavantage tire aussi, peu, avec ses quatre.
-      const dn = {
-        mode: 'DN', lancers: DN_TIRS_MIN * (fin - t0), fenetre: [t0, fin],
-        unitesOff: def.desavantage, unitesDef: off.avantage, qualite: DN_QUALITE,
-      };
-      const bd = jouerCote(def, off, gOff, chDef, heavy, track, series, journal, cote === 'A' ? 'B' : 'A', dn);
-      if (cote === 'A') { gfA += b; gfB += bd; } else { gfB += b; gfA += bd; }
-    }
+    for (let k = 0; k < n; k++) mineures.push({ cote, puni });
   };
-  avantage('A', pA, pB, gA, gB, chanceA, chanceB, pB);
-  avantage('B', pB, pA, gB, gA, chanceB, chanceA, pA);
+  tirerMineures('A', pB);   // `cote` = l'équipe qui PROFITE ; `puni` = l'alignement qui écope
+  tirerMineures('B', pA);
+  // Les départs : n fenêtres de deux minutes dans 60, dans un ordre mêlé,
+  // séparées par des écarts tirés au hasard (partition uniforme du temps libre).
+  shuffle(mineures);
+  const libre = Math.max(0, 60 - mineures.length * AN_MINUTES);
+  const coupures = Array.from({ length: mineures.length }, () => Math.random() * libre).sort((a, b) => a - b);
+  mineures.forEach((m, k) => { m.t0 = coupures[k] + k * AN_MINUTES; });
+
+  for (const m of mineures) {
+    const cote = m.cote;
+    const [off, def, gOff, gDef, chOff, chDef] = cote === 'A'
+      ? [pA, pB, gA, gB, chanceA, chanceB] : [pB, pA, gB, gA, chanceB, chanceA];
+    const t0 = m.t0;
+    const coupable = m.puni && m.puni.patineurs.length ? weightedPick(m.puni.patineurs, p => punitionsRel(p) + 0.05) : null;
+    if (coupable && track) coupable.simPIM = (coupable.simPIM || 0) + AN_MINUTES;
+    const entree = journal ? { cote: cote === 'A' ? 'B' : 'A', instant: t0, joueur: coupable, minutes: AN_MINUTES, fin: t0 + AN_MINUTES } : null;
+    if (entree) journal.punitions.push(entree);
+    const st = {
+      mode: 'AN', lancers: AN_TIRS_MIN * AN_MINUTES * (off.avantage ? off.avantage.volume : 1),
+      fenetre: [t0, t0 + AN_MINUTES], arretAuBut: true,
+      unitesOff: off.avantage, unitesDef: def.desavantage, qualite: AN_QUALITE,
+    };
+    const b = jouerCote(off, def, gDef, chOff, heavy, track, series, journal, cote, st);
+    const fin = st.finBut != null ? st.finBut : t0 + AN_MINUTES;
+    if (entree) { entree.fin = fin; entree.butAN = st.finBut != null; }
+    fenetres.push([t0, fin]);
+    minutesAN += fin - t0;
+    // L'équipe en désavantage tire aussi, peu, avec ses quatre.
+    const dn = {
+      mode: 'DN', lancers: DN_TIRS_MIN * (fin - t0), fenetre: [t0, fin],
+      unitesOff: def.desavantage, unitesDef: off.avantage, qualite: DN_QUALITE,
+    };
+    const bd = jouerCote(def, off, gOff, chDef, heavy, track, series, journal, cote === 'A' ? 'B' : 'A', dn);
+    if (cote === 'A') { gfA += b; gfB += bd; } else { gfB += b; gfA += bd; }
+  }
 
   const part = Math.max(0.5, (60 - minutesAN) / 60);
   gfA += jouerCote(pA, pB, gB, chanceA, heavy, track, series, journal, 'A', { mode: 'FE', part, fenetres });
@@ -1684,9 +1716,18 @@ export function simulateLeague(teams, games = 82) {
     for (const s of SLOTS) if (t.roster[s.i]) initSimStats(t.roster[s.i]);
     t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
   }
+  // Le calendrier : une journée par ronde, ses seize matchs avec leur
+  // pointage. C'est ce que l'écran rejoue jour après jour, et ce qu'on peut
+  // consulter après pour vérifier la saison de n'importe quelle équipe.
+  const calendrier = [];
   for (let r = 0; r < games; r++) {
     const order = shuffle(teams.slice());
-    for (let i = 0; i < order.length; i += 2) playGame(order[i], order[i + 1], r);
+    const jour = [];
+    for (let i = 0; i < order.length; i += 2) {
+      const res = playGame(order[i], order[i + 1], r);
+      jour.push({ A: order[i], B: order[i + 1], gfA: res.gfA, gfB: res.gfB, ot: res.ot });
+    }
+    calendrier.push(jour);
   }
   const standings = teams.slice().sort((a, b) =>
     b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA) || b.GF - a.GF);
@@ -1696,7 +1737,59 @@ export function simulateLeague(teams, games = 82) {
     if (p && p.p !== 'G') skaters.push({ player: p, team: t });
   }
   const leaders = skaters.sort((a, b) => b.player.simPTS - a.player.simPTS || b.player.simG - a.player.simG).slice(0, 10);
-  return { standings, leaders };
+  return { standings, leaders, calendrier };
+}
+
+/* Les champs de fiche que la simulation écrit, patineurs et gardiens. */
+const CHAMPS_SIM = ['simGP', 'simG', 'simA', 'simPTS', 'simPM', 'simInj', 'simSH', 'simPIM', 'simPPG',
+  'simW', 'simL', 'simOTL', 'simGA', 'simSO', 'simSA', 'simSV'];
+const CHAMPS_EQUIPE = ['W', 'L', 'OTL', 'GF', 'GA', 'PTS', 'games'];
+
+/**
+ * LES SÉRIES ONT LEURS PROPRES STATISTIQUES. Le moteur n'a qu'un jeu de
+ * compteurs (`sim*`) ; plutôt que d'en câbler un second dans chaque lancer,
+ * on photographie les fiches de saison avant les séries, on laisse les
+ * séries s'y inscrire par-dessus, puis `separerSeries` rend à la saison ses
+ * chiffres et pose la différence dans `p.po` — les statistiques des séries,
+ * à part. Les compteurs d'équipe et le journal reprennent aussi leur état
+ * de fin de saison.
+ */
+export function photoStats(teams) {
+  const photo = new Map();
+  for (const t of teams) {
+    photo.set(t, Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, t[k]])));
+    photo.get(t).journal = t.journal ? t.journal.length : 0;
+    photo.get(t).blessures = t.injuriesLog ? t.injuriesLog.length : 0;
+    for (const s of SLOTS) {
+      const p = t.roster[s.i];
+      if (p) photo.set(p, Object.fromEntries(CHAMPS_SIM.map(k => [k, p[k]])));
+    }
+  }
+  return photo;
+}
+
+export function separerSeries(teams, photo) {
+  for (const t of teams) {
+    const e = photo.get(t);
+    if (!e) continue;
+    t.po = Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, (t[k] || 0) - (e[k] || 0)]));
+    t.poJournal = t.journal ? t.journal.slice(e.journal) : [];
+    t.poBlessures = t.injuriesLog ? t.injuriesLog.slice(e.blessures) : [];
+    if (t.journal) t.journal.length = e.journal;
+    if (t.injuriesLog) t.injuriesLog.length = e.blessures;
+    for (const k of CHAMPS_EQUIPE) t[k] = e[k];
+    for (const s of SLOTS) {
+      const p = t.roster[s.i];
+      const q = p && photo.get(p);
+      if (!q) continue;
+      p.po = {};
+      for (const k of CHAMPS_SIM) {
+        if (p[k] === undefined && q[k] === undefined) continue;
+        p.po[k.slice(3)] = (p[k] || 0) - (q[k] || 0);
+        p[k] = q[k];
+      }
+    }
+  }
 }
 
 /** Une feuille de match vierge, prête à recevoir le journal d'un match. */
@@ -1720,12 +1813,12 @@ export const tirsTotal = (feuille, cote) => feuille.tirs[cote].reduce((a, b) => 
  * `feuilles` porte le sommaire de chaque match : buts avec leur instant,
  * tirs par période, arrêts. C'est ce que l'écran des séries raconte.
  */
-export function playSeries(A, B) {
+export function playSeries(A, B, track = false) {
   let wA = 0, wB = 0, g = 0;
   const feuilles = [];
   while (wA < 4 && wB < 4) {
     const feuille = feuilleVierge();
-    const r = playGame(A, B, g++, false, true, feuille);
+    const r = playGame(A, B, g++, track, true, feuille);
     if (r.winner === A) wA++; else wB++;
     feuille.numero = g;
     feuille.serie = `${wA}-${wB}`;
@@ -1739,11 +1832,23 @@ export function playSeries(A, B) {
  * joueur restant qui y convient (cote cachée moins pénalité de position),
  * premier trio d'abord. `exclude` = clés de joueurs à ne pas utiliser.
  */
+/*
+ * LE CENTRE D'ABORD, PUIS LES AILES. Case par case dans l'ordre AG, C, AD,
+ * le glouton mettait le meilleur attaquant du club à l'aile gauche du
+ * premier trio quel que soit son poste — Yzerman à −3, parce que 3 points
+ * de pénalité ne pèsent rien contre 30 de valeur — et le vrai centre
+ * n'arrivait qu'après. Le centre de chaque trio se comble donc avant ses
+ * ailiers ; un centre de trop passe encore à l'aile, comme dans la vraie
+ * ligue, mais plus l'inverse.
+ */
+const ORDRE_AUTO = [...SLOTS].sort((a, b) => cleAuto(a) - cleAuto(b));
+function cleAuto(s) { return s.i + (s.group === 'F' && !s.scratch && s.role === 'C' ? -1.5 : 0); }
+
 export function autoRoster(pool, exclude = new Set()) {
   const avail = pool.filter(p => !exclude.has(getPersonKey(p)));
   const roster = {};
   const used = new Set();
-  for (const s of SLOTS) {
+  for (const s of ORDRE_AUTO) {
     let best = null, bestScore = -Infinity;
     for (const p of avail) {
       if (used.has(getPersonKey(p)) || !fits(p, s)) continue;

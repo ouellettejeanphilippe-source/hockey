@@ -18,7 +18,16 @@
  */
 
 import { tirsTotal, periodeDe } from './sim.js';
-import { recitDeBut, tempsDeJeu, NOM_PERIODE } from './recit.js';
+import { recitDeBut, tempsRestant, NOM_PERIODE } from './recit.js';
+
+/*
+ * L'HORLOGE DESCEND. Un tableau indicateur de hockey compte à rebours,
+ * 20:00 vers 0:00, et le fil du direct dit le temps qu'il restait quand le
+ * but est entré — c'est ce qu'on voit à la télé. La feuille officielle du
+ * sommaire, elle, garde le temps écoulé (js/game.js) : les deux conventions
+ * existent dans la vraie ligue, chacune à sa place.
+ */
+const tempsDeJeu = tempsRestant;
 
 /* Une graine, un générateur : mulberry32, assez pour des instants de tirs. */
 function rng(seed) {
@@ -71,7 +80,14 @@ function evenementsDuMatch(f, graine) {
     }
   }
   for (const b of f.buts) ev.push({ type: 'but', cote: b.cote, instant: b.instant, but: b });
-  for (const x of (f.punitions || [])) ev.push({ type: 'punition', cote: x.cote, instant: x.instant, joueur: x.joueur, minutes: x.minutes });
+  for (const x of (f.punitions || [])) {
+    ev.push({ type: 'punition', cote: x.cote, instant: x.instant, joueur: x.joueur, minutes: x.minutes });
+    // La fin de la mineure, quand elle est allée au bout : le puni revient.
+    // Fermée par un but, c'est le but qui le dit. Une feuille d'avant
+    // (sans `fin`) se contente des deux minutes.
+    const fin = x.fin ?? (x.instant + x.minutes);
+    if (!x.butAN && fin < 60) ev.push({ type: 'finPunition', cote: x.cote, instant: fin + 1e-4, joueur: x.joueur });
+  }
   for (let per = 1; per <= 3; per++) ev.push({ type: 'periode', per, instant: per * 20 - 1e-6 });
   ev.push({ type: 'fin', instant: f.ot ? finOT + 1e-6 : 60 });
   ev.sort((x, y) => x.instant - y.instant);
@@ -161,9 +177,11 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
     const ev = evenementsDuMatch(f, (s.i + 1) * 1000 + iMatch);
     let iEv = 0, t = 0, gA = 0, gB = 0, tA = 0, tB = 0, pause = 0, fini = false, dernier = performance.now();
     /* Les fenêtres d'avantage : [début, fin, côté qui en profite]. La fin est
-       la mineure entière ou le but en avantage qui l'a fermée. */
+       celle que le moteur a jouée (la mineure entière, ou le but en avantage
+       qui l'a fermée) ; une feuille d'avant la retrouve par le but. */
     const fenetres = (f.punitions || []).map(x => {
       const profite = x.cote === 'A' ? 'B' : 'A';
+      if (x.fin != null) return [x.instant, x.fin, profite];
       const but = f.buts.find(b => b.an && b.cote === profite && b.instant >= x.instant && b.instant <= x.instant + x.minutes);
       return [x.instant, but ? but.instant : x.instant + x.minutes, profite];
     });
@@ -177,10 +195,11 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
     ligne('debut', `Mise au jeu. ${ctx.esc(cap(ctx.teamShort(s.A)))} contre ${ctx.esc(ctx.teamShort(s.B))}, ${ctx.esc((rondes[s.ronde] || '').toLowerCase())}, match ${iMatch + 1}.`);
 
     const horloge = () => {
-      // Sans prolongation, 60:00 est la fin de la 3e période, pas 00:00 de la 4e.
+      // Sans prolongation, 60:00 est la fin de la 3e période (0:00 au
+      // tableau), pas le début de la 4e.
       const enOT = f.ot && t >= 60;
       const per = enOT ? 4 : t >= 60 ? 3 : periodeDe(t);
-      const temps = !enOT && t >= 60 ? '20:00' : tempsDeJeu(Math.min(t, 64.999));
+      const temps = !enOT && t >= 60 ? '00:00' : tempsDeJeu(Math.min(t, 64.999));
       // L'avantage en cours : la fenêtre de deux minutes d'une punition, ou
       // moins si un but l'a fermée — c'est le tableau indicateur qui le dit.
       const an = fenetres.find(([a, b]) => t >= a && t < b);
@@ -229,7 +248,8 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
         const ban = document.createElement('div');
         ban.className = 'live-banniere';
         ban.setAttribute('style', couleurs(e.cote));
-        ban.innerHTML = `<span>${b.gagnant ? 'BUT GAGNANT' : 'BUT'}</span><b>${ctx.esc(nom(b.marqueur))}</b>`;
+        // Le visage du marqueur dans la bannière : c'est lui qu'on célèbre.
+        ban.innerHTML = `${ctx.mug ? `<span class="live-visage">${ctx.mug(b.marqueur)}</span>` : ''}<span class="live-ban-txt"><span>${b.gagnant ? 'BUT GAGNANT' : 'BUT'}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</span><b>${ctx.esc(nom(b.marqueur))}</b></span>`;
         board.appendChild(ban);
         setTimeout(() => ban.remove(), PAUSE_BUT + 200);
         return PAUSE_BUT;
@@ -239,6 +259,12 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
         ligne(`punition ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
           <span><b class="live-pun-mot">PUNITION</b> ${e.joueur ? `<b>${ctx.esc(nom(e.joueur))}</b>, ` : ''}${e.minutes} min — avantage numérique pour ${ctx.esc(ctx.teamShort(profite))}.</span>`, couleurs(e.cote));
         return 500;
+      }
+      if (e.type === 'finPunition') {
+        const puni = equipe(e.cote);
+        ligne('periode', `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
+          <span>Fin de la punition${e.joueur ? ` de <b>${ctx.esc(nom(e.joueur))}</b>` : ''} : ${ctx.esc(ctx.teamShort(puni))} revient à cinq.</span>`);
+        return 0;
       }
       if (e.type === 'periode') {
         ligne('periode', `Fin de la ${ctx.esc(NOM_PERIODE[e.per])} · <b>${gA}-${gB}</b> · tirs ${f.tirs.A[e.per]} – ${f.tirs.B[e.per]}${e.per === 3 && f.ot ? ' · égalité, on va en prolongation' : ''}`);
@@ -333,4 +359,154 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
 
   if (!miennes.length) { fermer(); return; }
   jouerMatch(miennes[0], 0);
+}
+
+/* =====================================================================
+   La saison en direct : le calendrier rejoué jour par jour
+   ===================================================================== */
+
+const VITESSES_SAISON = [1, 2, 4, 8];        // journées par seconde
+const CLE_VITESSE_SAISON = 'cap82_saison_vitesse';
+
+/**
+ * LA SAISON SE REGARDE JOUR APRÈS JOUR. Les 82 journées sont déjà jouées
+ * (`simulateLeague` a rendu le calendrier) ; l'écran les fait défiler comme
+ * un fil de résultats : ton match du jour en gros, les quinze autres en
+ * liste, et le classement qui bouge sous tes yeux. On passe à la fin quand
+ * on veut ; le résultat complet ne se dessine qu'après.
+ *
+ *   calendrier  [jour][match] = { A, B, gfA, gfB, ot }
+ *   teams       les 32 équipes (leurs compteurs sont ceux de FIN de saison :
+ *               le classement du jour se recalcule à partir du calendrier)
+ *   you         ton équipe
+ *   ctx         { esc, teamLabel, teamShort, tagCourt, logo, band }
+ */
+export function diffuserSaison({ calendrier, teams, you, ctx, onTermine }) {
+  const modal = document.getElementById('liveModal');
+  if (!modal || !calendrier.length) { onTermine(); return; }
+  const $ = id => modal.querySelector(id);
+  const head = $('.live-head'), board = $('.live-board'), feed = $('.live-feed'),
+    controls = $('.live-controls'), etat = $('.live-etat');
+
+  let vitesse = Number(localStorage.getItem(CLE_VITESSE_SAISON)) || 2;
+  if (!VITESSES_SAISON.includes(vitesse)) vitesse = 2;
+  let timer = null, termine = false, jour = 0;
+
+  // Le classement du jour : on cumule le calendrier jusqu'à la journée.
+  const fiche = new Map(teams.map(t => [t, { W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0 }]));
+  const cumuler = m => {
+    const a = fiche.get(m.A), b = fiche.get(m.B);
+    if (!a || !b) return;
+    a.GF += m.gfA; a.GA += m.gfB; b.GF += m.gfB; b.GA += m.gfA;
+    const gagneA = m.gfA > m.gfB;
+    if (gagneA) { a.W++; if (m.ot) b.OTL++; else b.L++; } else { b.W++; if (m.ot) a.OTL++; else a.L++; }
+    a.PTS = a.W * 2 + a.OTL; b.PTS = b.W * 2 + b.OTL;
+  };
+  const classement = () => teams.slice().sort((x, y) => {
+    const a = fiche.get(x), b = fiche.get(y);
+    return b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA);
+  });
+
+  const fermer = () => {
+    if (termine) return;
+    termine = true;
+    clearTimeout(timer);
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    onTermine();
+  };
+  $('.live-close').onclick = fermer;
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  feed.innerHTML = '';
+  etat.innerHTML = '';
+
+  const couleurs = t => { const b = ctx.band(t.tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
+
+  function dessinerJour(j) {
+    const matchs = calendrier[j];
+    for (const m of matchs) cumuler(m);
+    const mien = matchs.find(m => m.A === you || m.B === you);
+    const rang = classement().indexOf(you) + 1;
+    const f = fiche.get(you);
+
+    head.innerHTML = `<span class="live-ronde">Saison régulière</span>
+      <span class="live-match">Journée ${j + 1} / ${calendrier.length}</span>
+      <span class="live-serie">${f.W}-${f.L}-${f.OTL} · ${f.PTS} pts · ${rang}e</span>`;
+
+    // Ton match du jour, en gros, comme un tableau indicateur.
+    if (mien) {
+      const gagneA = mien.gfA > mien.gfB;
+      const cote = (t, buts, pos, gagne) => {
+        const b = ctx.band(t.tag);
+        return `<div class="live-eq ${pos}${gagne ? '' : ' perdant'}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
+          <div class="live-eq-band">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
+          <div class="live-eq-nom">${ctx.esc(ctx.teamLabel(t))}</div>
+          <div class="live-eq-buts">${buts}</div>
+        </div>`;
+      };
+      board.innerHTML = `${cote(mien.A, mien.gfA, 'a', gagneA)}
+        <div class="live-horloge"><span class="live-per">FINAL</span><span class="live-temps">${mien.ot ? 'PROL.' : '—'}</span><span class="live-tirs">${(mien.A === you) === gagneA ? 'Victoire' : mien.ot ? 'Défaite en prolongation' : 'Défaite'}</span></div>
+        ${cote(mien.B, mien.gfB, 'b', !gagneA)}`;
+    } else {
+      board.innerHTML = `<div class="live-horloge"><span class="live-per">CONGÉ</span><span class="live-tirs">Les NHL Stars ne jouent pas aujourd'hui</span></div>`;
+    }
+
+    // Les autres matchs du jour, en fil — le plus récent en tête.
+    const autres = matchs.filter(m => m !== mien);
+    const ligne = document.createElement('div');
+    ligne.className = 'live-ligne periode live-jour';
+    ligne.innerHTML = `<b>Journée ${j + 1}</b>`;
+    const liste = document.createElement('div');
+    liste.className = 'live-jour-matchs';
+    liste.innerHTML = autres.map(m => {
+      const gagneA = m.gfA > m.gfB;
+      return `<span class="live-jour-match">${ctx.logo(m.A.tag, 13)}<span class="${gagneA ? 'g' : 'p'}">${ctx.esc(ctx.tagCourt(m.A))} ${m.gfA}</span>
+        <span class="sep">–</span><span class="${gagneA ? 'p' : 'g'}">${m.gfB} ${ctx.esc(ctx.tagCourt(m.B))}</span>${ctx.logo(m.B.tag, 13)}${m.ot ? '<em>P</em>' : ''}</span>`;
+    }).join('');
+    // On garde les dix derniers jours dans le fil : au-delà, c'est le
+    // calendrier de l'écran de résultat qui sert.
+    feed.prepend(liste);
+    feed.prepend(ligne);
+    while (feed.children.length > 20) feed.lastElementChild.remove();
+
+    // Le haut du classement, et toi, en pied.
+    const top = classement().slice(0, 8);
+    const rangee = (t, i) => { const g = fiche.get(t); return `<div class="live-autre${t === you ? ' toi' : ''}"><span>${i + 1}. ${ctx.esc(ctx.teamShort(t))}</span><span class="v">${g.PTS}</span><span class="p">${g.W}-${g.L}-${g.OTL}</span></div>`; };
+    etat.innerHTML = `<div class="live-bilan"><div class="live-autres"><span class="k">Classement</span>${top.map(rangee).join('')}${rang > 8 ? rangee(you, rang - 1) : ''}</div></div>`;
+  }
+
+  const suivant = () => {
+    if (termine) return;
+    if (jour >= calendrier.length) { finDeSaison(); return; }
+    dessinerJour(jour++);
+    timer = setTimeout(suivant, 1000 / vitesse);
+  };
+  const jusquAuBout = () => {
+    clearTimeout(timer);
+    while (jour < calendrier.length) dessinerJour(jour++);
+    finDeSaison();
+  };
+  function finDeSaison() {
+    clearTimeout(timer);
+    const rang = classement().indexOf(you) + 1;
+    const f = fiche.get(you);
+    etat.insertAdjacentHTML('afterbegin', `<div class="live-bilan ${rang <= 16 ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">Saison terminée · ${f.W}-${f.L}-${f.OTL} · ${rang}e${rang <= 16 ? ' · en séries' : ' · éliminé'}</div></div>`);
+    boutons(`<button class="btn gold live-suite">Voir le bilan de la saison</button>`);
+    controls.querySelector('.live-suite').onclick = fermer;
+  }
+
+  const boutons = html => { controls.innerHTML = html; };
+  boutons(`<div class="seg live-vitesse" title="Journées par seconde">${VITESSES_SAISON.map(v => `<button data-v="${v}" class="${v === vitesse ? 'on' : ''}">×${v}</button>`).join('')}</div>
+    <button class="btn live-fin">Passer à la fin</button>`);
+  controls.querySelectorAll('.live-vitesse button').forEach(b => {
+    b.onclick = () => {
+      vitesse = Number(b.dataset.v);
+      localStorage.setItem(CLE_VITESSE_SAISON, String(vitesse));
+      controls.querySelectorAll('.live-vitesse button').forEach(x => x.classList.toggle('on', x === b));
+    };
+  });
+  controls.querySelector('.live-fin').onclick = jusquAuBout;
+
+  suivant();
 }

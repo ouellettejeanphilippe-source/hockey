@@ -100,6 +100,12 @@ const enabled = await page.$eval('#mainBtn', b => !b.disabled);
 console.log(`3. #mainBtn actif : ${enabled}`);
 if (enabled) {
   await page.click('#mainBtn');
+  // La saison se regarde jour par jour : on saute à la fin, puis au bilan.
+  await page.waitForSelector('#liveModal .live-fin', { timeout: 60000 });
+  await page.click('#liveModal .live-fin');
+  await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
+  console.log('   saison rejouée jour par jour');
+  await page.click('#liveModal .live-suite');
   await page.waitForSelector('.result .score', { timeout: 60000 });
   const score = await page.textContent('.result .score');
   const rows = await page.$$eval('.rrow', r => r.length);
