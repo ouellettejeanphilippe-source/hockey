@@ -13,9 +13,27 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="site.webmanifest">
 <meta name="apple-mobile-web-app-title" content="Cap 82-0">
+<!-- La police d'affichage (Barlow Condensed, dans fonts/) est déclarée dans
+     style.css et préchargée ici : une condensée, comme sur une carte de
+     pointage ou un maillot. Elle ne porte que les chiffres et les titres ;
+     le corps du texte reste en police système. -->
+<link rel="preload" href="fonts/BarlowCondensed-800-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/><path d="M12 14v4M8 20h8"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/><path d="M9 8h7M9 11.5h5"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h12M20 17h0"/><circle cx="16" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="17" r="2"/></symbol>
+  <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 9h13l-3-3M20 15H7l3 3"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7V5z" fill="currentColor" stroke="none"/><path d="M18 5v14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8"/><path d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></symbol>
+  <symbol id="i-cup" viewBox="0 0 24 24"><path d="M8 3h8l1 4H7l1-4z"/><path d="M9 7v3a3 3 0 0 0 6 0V7"/><path d="M12 13v5M7 21h10M9 18h6"/></symbol>
+</svg>
 
 <!-- ===== Barre du haut : plafond et accès, rien d'autre ===== -->
 <header class="topbar" id="topbar">
@@ -33,9 +51,9 @@
     </div>
 
     <nav class="topbar-actions" aria-label="Menu">
-      <button class="icon-btn" id="openLeaderboardBtn" title="Historique de vos saisons">🏆<span class="icon-lbl">Historique</span></button>
-      <button class="icon-btn" id="openBibleBtn" title="Règles et mathématiques du jeu">📖<span class="icon-lbl">Règles</span></button>
-      <button class="icon-btn" id="openOptionsBtn" title="Options d'affichage">⚙️<span class="icon-lbl">Options</span></button>
+      <button class="icon-btn" id="openLeaderboardBtn" title="Historique de vos saisons"><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg><span class="icon-lbl">Historique</span></button>
+      <button class="icon-btn" id="openBibleBtn" title="Règles et mathématiques du jeu"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span class="icon-lbl">Règles</span></button>
+      <button class="icon-btn" id="openOptionsBtn" title="Options d'affichage"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span class="icon-lbl">Options</span></button>
     </nav>
   </div>
 </header>
@@ -72,7 +90,7 @@
               <button data-val="POS" class="on" title="Six colonnes, une par poste — balaie pour changer de poste">Par poste</button>
               <button data-val="LIST" title="Tous les joueurs ensemble, dans l'ordre du tri">Tous</button>
             </div>
-            <label class="search"><span aria-hidden="true">🔍</span><input id="searchInput" type="search" placeholder="Chercher un joueur…" autocomplete="off"></label>
+            <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="searchInput" type="search" placeholder="Chercher un joueur…" autocomplete="off"></label>
             <select id="sortSelect" class="select" aria-label="Trier le bassin">
               <option value="PTS">Tri : points / victoires</option>
               <option value="PPG">Tri : points par match</option>
@@ -150,7 +168,7 @@
 <div id="leaderboardModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Historique">
     <div class="modal-header">
-      <h2>🏆 Historique de vos saisons</h2>
+      <h2><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg>Historique de vos saisons</h2>
       <button id="closeLeaderboardBtn" class="close-btn" aria-label="Fermer">✕</button>
     </div>
     <div class="modal-body" id="leaderboardBody"></div>
@@ -161,7 +179,7 @@
 <div id="optionsModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet modal-narrow" role="dialog" aria-modal="true" aria-label="Options">
     <div class="modal-header">
-      <h2>⚙️ Options d'affichage</h2>
+      <h2><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg>Options d'affichage</h2>
       <button id="closeOptionsBtn" class="close-btn" aria-label="Fermer">✕</button>
     </div>
     <div class="modal-body options">
@@ -198,7 +216,7 @@
 <div id="bibleModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Règles du jeu">
     <div class="modal-header">
-      <h2>📖 Règles et mathématiques du jeu</h2>
+      <h2><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles et mathématiques du jeu</h2>
       <button id="closeBibleBtn" class="close-btn" aria-label="Fermer">✕</button>
     </div>
     <div class="modal-body bible" id="bibleBody">
@@ -309,7 +327,7 @@
 
       <h3>9. La ligue et les séries</h3>
       <p>Ta formation plus 31 vraies équipes historiques tirées au hasard dans 55 saisons et alignées automatiquement (les 18 meilleurs patineurs par valeur, position par position). 82 rondes d'appariements, 1 312 matchs. Un même joueur-saison ne peut habiller qu'une seule équipe de la ligue, la tienne comprise.</p>
-      <p>À la fin de la saison, les <strong>statistiques de la ligue</strong> donnent les meneurs pour les points, les buts, les passes et le différentiel, plus les gardiens au pourcentage d'arrêts, à la moyenne de buts alloués et aux victoires (25 départs minimum pour les deux premiers, comme la vraie ligue l'exige). Chaque équipe historique est cliquable vers sa saison sur HockeyDB.</p>
+      <p>À la fin de la saison, les <strong>statistiques de la ligue</strong> donnent les meneurs pour les points, les buts, les passes et le différentiel, plus les gardiens au pourcentage d'arrêts, à la moyenne de buts alloués et aux victoires (25 départs minimum pour les deux premiers, comme la vraie ligue l'exige). Chaque équipe historique est cliquable vers sa saison sur Hockey-Reference (adresse vérifiée pour chacune des 44 franchises).</p>
       <p>Les 16 premiers font les séries : quatre rondes 4 de 7, avec blessures et usure. Chaque match se joue <strong>lancer par lancer comme les autres</strong> et garde son sommaire — les buts avec leur temps et leurs passes, les tirs par période, les arrêts de chaque gardien. Clique un match pour l'ouvrir. Le temps d'un but n'est pas simulé par le moteur : chaque lancer reçoit un instant tiré dans les 60 minutes, ce qui met la feuille en ordre sans toucher à aucune probabilité. Les phrases qui accompagnent les buts décrivent ce qui vient d'arriver — elles ne décident de rien.</p>
       <p>Repères, mesurés sur le moteur : l'équipe moyenne fait 41 victoires. Une vraie équipe du dernier décile en fait 26, du premier 52. Le Canadien de 1976-77 en fait 61 à 63. Un alignement parfaitement monté en fait 68 à 70 et gagne la Coupe deux fois sur trois, pas plus. Le 82-0 n'est pas atteignable, et c'est voulu : dominer est possible, la Coupe reste un pari.</p>
     </div>

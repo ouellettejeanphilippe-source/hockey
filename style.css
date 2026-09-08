@@ -3,6 +3,62 @@
    Mobile d'abord (cible 390 px), deux volets à partir de 1080 px.
    ===================================================================== */
 
+/* ---------------------------------------------------------------
+   La police d'affichage, hébergée ici (fonts/, licence OFL 1.1)
+   ---------------------------------------------------------------
+   Barlow Condensed, trois graisses, sous-ensembles latin et latin étendu.
+   Servie par le dépôt plutôt que par Google : pas de requête vers un tiers,
+   pas de bandeau qui change de forme quand le réseau tarde, et le jeu reste
+   entier hors ligne. 110 Ko en tout. */
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fonts/BarlowCondensed-600-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fonts/BarlowCondensed-600-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/BarlowCondensed-700-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/BarlowCondensed-700-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("fonts/BarlowCondensed-800-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("fonts/BarlowCondensed-800-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   --bg: #060c14;
   --bg-2: #091423;
@@ -30,6 +86,11 @@
 
   --team-primary: #112236;
   --team-accent: #38bdf8;
+  /* Le bandeau : couleur BRUTE de l'équipe, encre mesurée dessus, liseré de
+     la couleur secondaire (voir getTeamBand, js/logos.js). */
+  --team-band: #112236;
+  --team-ink: #ffffff;
+  --team-stripe: #38bdf8;
 
   /* Teinte des états sélectionnés : fixe, pour rester lisible même quand
      la couleur de l'équipe est très foncée (bleu marine, noir…). */
@@ -47,6 +108,11 @@
   --actionbar-h: 68px;
 
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  /* LA POLICE D'AFFICHAGE. Une condensée, pour les chiffres et les titres
+     seulement : c'est la lettre des cartes de pointage, des maillots et des
+     tableaux indicateurs, et c'est elle qui fait qu'un chiffre a l'air d'un
+     pointage plutôt que d'un paragraphe en gras. Le corps reste en système. */
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
 
   color-scheme: dark;
 }
@@ -71,6 +137,17 @@ body {
 }
 
 h1, h2, h3, h4 { margin: 0; font-weight: 800; }
+
+/* Les icônes du sprite (index.html) : un trait, la couleur du texte. */
+.ico {
+  width: 16px; height: 16px; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+  vertical-align: -3px;
+}
+.modal-header h2 .ico { width: 15px; height: 15px; margin-right: 7px; }
+.btn .ico { width: 15px; height: 15px; margin-right: 6px; }
+.result-section > h3 .ico { margin-right: 5px; }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 input, select { font: inherit; color: inherit; }
@@ -96,7 +173,11 @@ a { color: var(--blue); }
   background: linear-gradient(180deg, rgba(6, 12, 20, 0.97) 0%, rgba(6, 12, 20, 0.92) 70%, rgba(6, 12, 20, 0.75) 100%);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
-  padding: 8px 12px calc(8px + env(safe-area-inset-top, 0px) * 0);
+  /* Le filet du haut est de la couleur du vestiaire en cours : c'est le
+     bandeau d'une diffusion, et il change à chaque tour de roulette. */
+  box-shadow: inset 0 3px 0 var(--team-band);
+  padding: 11px 12px 8px;
+  transition: box-shadow .3s;
 }
 
 .topbar-inner {
@@ -116,7 +197,8 @@ a { color: var(--blue); }
 .icon-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  color: var(--sub);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -126,7 +208,7 @@ a { color: var(--blue); }
   min-height: 36px;
   transition: border-color .15s, background .15s, transform .1s;
 }
-.icon-btn:hover { border-color: var(--ui-accent); background: var(--panel-3); }
+.icon-btn:hover { border-color: var(--ui-accent); background: var(--panel-3); color: var(--text); }
 .icon-btn:active { transform: scale(0.97); }
 .icon-lbl {
   display: none;
@@ -168,8 +250,10 @@ a { color: var(--blue); }
 }
 .capgauge-amt { white-space: nowrap; }
 .capgauge-amt .amt {
-  font-size: 18px;
-  font-weight: 900;
+  font-family: var(--display);
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 800;
   color: var(--green);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.3px;
@@ -258,10 +342,14 @@ a { color: var(--blue); }
 
 /* ---------- Roulette ---------- */
 
-.draft { display: grid; gap: 10px; }
+.draft { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+/* `minmax(0, …)` et non `auto` : une piste `auto` s'élargit au contenu, et le
+   nom d'équipe en capitales condensées — insécable, coupé aux points de
+   suspension — poussait la carte hors de l'écran à 390 px. */
 
 .spin-card {
   position: relative;
+  min-width: 0;
   overflow: hidden;
   border-radius: var(--r-l);
   border: 1px solid color-mix(in srgb, var(--team-accent) 45%, var(--line));
@@ -290,6 +378,25 @@ a { color: var(--blue); }
   position: relative;
   z-index: 1;
 }
+.spin-watermark {
+  position: absolute; right: -26px; top: -22px;
+  opacity: 0.11; pointer-events: none;
+  filter: grayscale(0.2);
+}
+.spin-watermark img, .spin-watermark .team-logo-inline { width: 150px; height: 150px; }
+.spin-ext {
+  flex: none; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  color: var(--sub); border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.3);
+}
+.spin-ext:hover { color: var(--text); border-color: var(--team-accent); }
+.spin-kicker {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--display); font-weight: 700; font-size: 13px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold);
+}
+.spin-code { opacity: 0.9; }
 .spin-logo {
   flex: none;
   width: 48px;
@@ -302,10 +409,14 @@ a { color: var(--blue); }
 }
 .spin-id { flex: 1; min-width: 0; }
 .spin-name {
-  font-size: 21px;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  line-height: 1.1;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .spin-full {
   font-size: 11.5px;
@@ -318,13 +429,13 @@ a { color: var(--blue); }
 }
 .spin-season {
   display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 999px;
+  padding: 1px 7px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: var(--text);
-  font-size: 10.5px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
 .spin-dead { color: var(--red); font-weight: 800; }
@@ -367,9 +478,10 @@ a { color: var(--blue); }
   /* Les trois libellés tiennent sur UNE ligne à 390 px : « Autre équipe »
      passait à deux et son compteur descendait d'un cran sous les deux
      autres, trois boutons identiques qui ne se ressemblaient plus. */
-  font-size: clamp(8px, 3cqi, 10.5px);
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-family: var(--display);
+  font-size: clamp(10px, 3.6cqi, 12.5px);
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -378,8 +490,11 @@ a { color: var(--blue); }
 .reroll:hover:not(:disabled) { background: rgba(0, 0, 0, 0.5); border-color: var(--team-accent); }
 .reroll:active:not(:disabled) { transform: scale(0.97); }
 .reroll:disabled { opacity: 0.34; }
+.reroll .rr-lbl { display: inline-flex; align-items: center; gap: 4px; }
+.reroll .rr-lbl .ico { width: 13px; height: 13px; }
 .reroll .rr-count {
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--gold);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
@@ -414,7 +529,7 @@ a { color: var(--blue); }
 /* Deux lignes réservées : « BUDGET DU CHOIX » passait à la ligne quand ses
    voisins tenaient sur une, et les trois chiffres ne s'alignaient plus. */
 .dash-card h3 { margin-bottom: 3px; min-height: 24px; }
-.dash-big.sm { font-size: 12.5px; letter-spacing: 0; }
+.dash-big.sm { font-size: 16px; letter-spacing: 0.01em; }
 .h3-long { display: none; }
 .dash-line { flex-wrap: wrap; }
 
@@ -429,8 +544,10 @@ a { color: var(--blue); }
   min-height: 24px;
 }
 .dash-big {
-  font-size: 17px;
-  font-weight: 900;
+  font-family: var(--display);
+  font-size: 23px;
+  line-height: 1;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.3px;
 }
@@ -492,9 +609,11 @@ a { color: var(--blue); }
   justify-content: space-between;
 }
 .pane-title h2 {
-  font-size: 13px;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.08em;
   color: var(--text);
 }
 .pane-meta {
@@ -597,8 +716,10 @@ a { color: var(--blue); }
   border: 1px solid var(--line);
   background: var(--panel-2);
   color: var(--sub);
-  font-size: 11.5px;
-  font-weight: 800;
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   white-space: nowrap;
   transition: background .15s, border-color .15s, color .15s;
 }
@@ -785,22 +906,8 @@ a { color: var(--blue); }
   .pool.by-pos .pool-col:nth-child(6) .pool-col-head { --pos-line: #fcd34d; }
 }
 
-/* Colonne étroite : le salaire passe sous le nom, le bouton prend toute la
-   largeur. Sous 190 px, le portrait s'efface. */
-@container col (max-width: 250px) {
-  .pcard { padding: 8px 9px; gap: 6px; }
-  .pcard-head { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 7px; }
-  .pcard-price { font-size: 12.5px; }
-  .pcard-name { min-height: 28px; }
-  .pcard-name .lname { font-size: 12.5px; }
-  .pcard-mid { flex-wrap: wrap; gap: 6px; }
-  .pcard-dest { font-size: 10px; }
-}
-@container col (max-width: 190px) {
-  .pcard-inner { grid-template-columns: minmax(0, 1fr); }
-  .pcard-avatar { display: none; }
-  .pcard-band .pb-team span { display: none; }
-}
+/* Les règles de colonne étroite vivent après les règles de base de la carte,
+   plus bas : voir « COLONNE ÉTROITE ». */
 
 
 
@@ -854,14 +961,18 @@ a { color: var(--blue); }
   font-size: 10.5px; line-height: 1.2; font-weight: 600;
   letter-spacing: 0.02em; color: var(--sub);
 }
-.pcard-name .lname { font-size: 14px; line-height: 1.25; font-weight: 900; }
+.pcard-name .lname {
+  font-family: var(--display); font-size: 17.5px; line-height: 1;
+  font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em;
+}
 .pcard-price {
   /* Le prix se pose sur la ligne du nom de famille, pas sur celle du prénom :
      deux gros caractères côte à côte, le petit texte gris au-dessus. */
   align-self: end;
-  font-size: 14.5px;
-  line-height: 1.25;
-  font-weight: 900;
+  font-family: var(--display);
+  font-size: 17.5px;
+  line-height: 1;
+  font-weight: 800;
   color: var(--gold);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.4px;
@@ -890,10 +1001,12 @@ a { color: var(--blue); }
 .pcard-band, .slot-band {
   display: flex; align-items: center; gap: 7px;
   white-space: nowrap; overflow: hidden;
-  padding: 4px 9px;
+  padding: 4px 9px 6px;
   font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
-  background: var(--team-line, #38bdf8);
-  color: var(--team-ink, #08131f);
+  background: var(--team-band, #112236);
+  color: var(--team-ink, #ffffff);
+  /* Le liseré du maillot, dessiné à l'intérieur : la hauteur ne bouge pas. */
+  box-shadow: inset 0 -2px 0 var(--team-stripe, #38bdf8);
 }
 .pcard-band .pb-team { display: inline-flex; align-items: center; gap: 4px; }
 .pcard-band .pb-season {
@@ -905,9 +1018,12 @@ a { color: var(--blue); }
 .pb-pos, .sb-role {
   flex: none; padding: 1px 6px; border-radius: 4px;
   font-size: 9px; font-weight: 900; letter-spacing: 0.06em;
-  background: rgba(255, 255, 255, 0.3); color: inherit;
+  /* Un verre teinté de l'encre : lisible sur un aplat clair comme foncé. */
+  background: color-mix(in srgb, var(--team-ink, #ffffff) 22%, transparent); color: inherit;
 }
 .pcard-band .pb-pos.off, .slot-band .sb-role.off { background: rgba(0, 0, 0, 0.2); }
+.pcard.signed .pcard-band { --team-band: #1f7a3f; --team-ink: #ffffff; --team-stripe: var(--green); }
+.pcard.locked:not(.signed) .pcard-band { --team-band: #24384f; --team-ink: #93a9c0; --team-stripe: #2e4a68; }
 
 /*
  * LA CARTE EST UNE GRILLE À RANGÉES FIXES, et c'est ce qui la rend propre.
@@ -952,15 +1068,16 @@ a { color: var(--blue); }
 .pcard-mid .tags > * { flex: none; }
 .pcard-big { flex: none; display: flex; align-items: baseline; gap: 3px; }
 .pcard-big b {
-  font-size: 25px;
-  font-weight: 900;
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 800;
   line-height: 1;
-  letter-spacing: -1px;
+  letter-spacing: 0;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 .pcard-big span { font-size: 9.5px; font-weight: 900; letter-spacing: 0.08em; color: var(--muted); }
-.pcard-mid .tags { flex: 1; min-width: 0; justify-content: flex-end; }
+.pcard-mid .tags { flex: 1; min-width: 0; justify-content: flex-end; transform-origin: right center; }
 
 .pm-pos { color: var(--green); font-weight: 800; }
 .pm-neg { color: var(--red); font-weight: 800; }
@@ -1034,20 +1151,56 @@ a { color: var(--blue); }
   min-height: 32px;
   padding: 6px 14px;
   border-radius: var(--r-s);
-  border: 1px solid var(--green);
-  background: rgba(60, 208, 112, 0.14);
-  color: var(--green);
-  font-size: 11.5px;
-  font-weight: 900;
-  letter-spacing: 0.03em;
+  border: 1px solid #2fbf62;
+  background: linear-gradient(180deg, #3cd070, #22a552);
+  color: #04200f;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
-  transition: background .15s, transform .1s;
+  box-shadow: 0 2px 8px rgba(60, 208, 112, 0.22);
+  transition: filter .15s, transform .1s;
 }
-.btn-sign:hover:not(:disabled) { background: rgba(60, 208, 112, 0.3); }
+.btn-sign:hover:not(:disabled) { filter: brightness(1.1); }
 .btn-sign:active:not(:disabled) { transform: scale(0.96); }
-.btn-sign:disabled { border-color: var(--line); background: transparent; color: var(--muted); }
-.btn-sign.is-signed { color: var(--green); border-color: rgba(60, 208, 112, 0.5); }
+.btn-sign:disabled { border-color: var(--line); background: transparent; color: var(--muted); box-shadow: none; }
+.btn-sign.is-signed { background: transparent; color: var(--green); border-color: rgba(60, 208, 112, 0.5); box-shadow: none; }
 
+
+/*
+ * COLONNE ÉTROITE (six colonnes à 1080 px : environ 160 px chacune). Mesuré
+ * avant : le portrait restait, le nom se coupait à « B.. » et la pastille de
+ * zone sortait de la carte — on signait sans savoir qui. Sous 250 px le
+ * portrait cède donc la place (il est dans la fiche), les chiffres se
+ * compactent d'un cran, et les étiquettes restent sur UNE rangée : la carte
+ * garde sa hauteur, c'est le contenu qui se coupe, jamais la boîte qui
+ * grandit. Sous 190 px, le code d'équipe s'efface du bandeau ; sa couleur
+ * le dit déjà.
+ *
+ * CE BLOC VIT APRÈS LES RÈGLES DE BASE DE LA CARTE, et c'est ce qui le fait
+ * exister : placé avant, à spécificité égale, `.pcard-avatar { display: grid }`
+ * et `.pcard-inner { grid-template-columns: 40px … }` le recouvraient — c'est
+ * pour ça que les six colonnes à 1080 px étaient cassées sans que personne
+ * ait vu la règle fautive.
+ */
+@container col (max-width: 235px) {
+  .pcard-inner { grid-template-columns: 36px minmax(0, 1fr); gap: 5px 7px; padding: 7px 8px 8px; }
+  .pcard-avatar { width: 36px; height: 36px; }
+  .pcard-name .lname { font-size: 15px; }
+  .pcard-price { font-size: 14px; }
+  .pcard-big b { font-size: 24px; }
+  .pcard-mid { flex-wrap: nowrap; gap: 6px; }
+  .pcard-dest { font-size: 10px; }
+}
+@container col (max-width: 200px) {
+  .pcard-inner { grid-template-columns: minmax(0, 1fr); }
+  .pcard-avatar { display: none; }
+}
+@container col (max-width: 190px) {
+  .pcard-band .pb-team span { display: none; }
+}
 
 /* ---------------------------------------------------------------
    Alignement
@@ -1090,9 +1243,10 @@ a { color: var(--blue); }
   color: var(--muted);
 }
 .sum-item .v {
-  font-size: 14px;
-  font-weight: 900;
-  line-height: 1.15;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.3px;
   margin-top: 2px;
@@ -1123,10 +1277,11 @@ a { color: var(--blue); }
   border-bottom: 1px solid var(--line-soft);
 }
 .line-name {
-  font-size: 10.5px;
-  font-weight: 900;
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--sub);
   white-space: nowrap;
 }
@@ -1203,8 +1358,9 @@ a { color: var(--blue); }
 .slot.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .slot.oop { border-color: rgba(248, 113, 113, 0.5); }
 
-.slot-band { padding: 3px 7px; font-size: 8.5px; gap: 5px;
-  background: var(--slot-line, #38bdf8); color: var(--slot-ink, #08131f); }
+.slot-band { padding: 3px 7px 5px; font-size: 8.5px; gap: 5px;
+  background: var(--slot-band, #112236); color: var(--slot-ink, #ffffff);
+  box-shadow: inset 0 -2px 0 var(--slot-stripe, #38bdf8); }
 /* Quand la case est trop étroite pour tout, c'est l'ÉCUSSON qui cède : le
    poste et le salaire sont des chiffres de décision, la couleur du bandeau
    dit déjà l'équipe, et la ligne du dessous l'écrit en toutes lettres. */
@@ -1215,21 +1371,26 @@ a { color: var(--blue); }
 .slot-band .slot-salary { margin-left: auto; flex: none; color: inherit; opacity: 0.85; }
 /* Le poste ne rétrécit jamais non plus : c'est la case, pas une décoration. */
 .slot-band .sb-role { flex: none; }
-.slot-band.off { background: #24384f; color: var(--sub); }
+.slot-band.off { background: #24384f; color: var(--sub); box-shadow: inset 0 -2px 0 #2e4a68; }
 .slot-band.off .slot-salary { color: var(--muted); }
 .slot-inner { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 3px; padding: 5px 7px 6px 8px; }
 .slot.empty { padding: 6px 7px; justify-content: center; }
 .slot-salary {
-  font-size: 10px;
-  font-weight: 900;
+  font-family: var(--display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   color: var(--gold);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .slot-name {
-  font-size: 11.5px;
-  font-weight: 900;
-  line-height: 1.3;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 1;
   /* Une ligne, coupée au besoin. La fiche porte le nom complet. */
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -1252,6 +1413,7 @@ a { color: var(--blue); }
   margin-top: auto;
   display: flex; flex-wrap: nowrap; gap: 3px;
   overflow: hidden;
+  transform-origin: left center;
 }
 .slot-tags > * { flex: none; }
 .slot-tags .tag { font-size: 8.5px; padding: 1px 5px; }
@@ -1303,7 +1465,7 @@ a { color: var(--blue); }
   align-items: center;
   gap: 9px;
 }
-.actionbar .btn.go { flex: 1 1 46%; font-size: 12.5px; padding: 10px 10px; }
+.actionbar .btn.go { flex: 1 1 46%; font-size: 14.5px; letter-spacing: 0.04em; padding: 10px 8px; line-height: 1.1; }
 .actionbar .tabs { flex: 1 1 54%; }
 
 .tabs {
@@ -1327,8 +1489,11 @@ a { color: var(--blue); }
   border-radius: 999px;
   background: none;
   color: var(--sub);
-  font-size: 11.5px;
-  font-weight: 800;
+  font-family: var(--display);
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   white-space: nowrap;
   transition: background .15s, color .15s;
 }
@@ -1344,15 +1509,18 @@ a { color: var(--blue); }
 }
 
 .btn {
+  display: inline-flex; align-items: center; justify-content: center;
   min-height: 44px;
   padding: 10px 16px;
   border-radius: var(--r-m);
   border: 1px solid var(--line);
   background: var(--panel-2);
   color: var(--text);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.03em;
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   transition: transform .1s, filter .15s, background .15s;
 }
 .btn:hover:not(:disabled) { filter: brightness(1.12); }
@@ -1588,8 +1756,8 @@ a { color: var(--blue); }
 }
 .pcard-full-photo img { width: 100%; height: 100%; object-fit: cover; }
 .pcard-full-id { min-width: 0; flex: 1; }
-.pcard-full-name { font-size: 19px; font-weight: 900; line-height: 1.15; overflow-wrap: anywhere; }
-.pcard-full-name .fname { color: var(--sub); font-weight: 600; font-size: 15px; display: block; }
+.pcard-full-name { font-family: var(--display); font-size: 28px; font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; overflow-wrap: anywhere; }
+.pcard-full-name .fname { color: var(--sub); font-weight: 600; font-size: 16px; text-transform: none; letter-spacing: 0.02em; display: block; margin-bottom: 2px; }
 .pcard-full-team {
   font-size: 11.5px;
   font-weight: 700;
@@ -1613,8 +1781,10 @@ a { color: var(--blue); }
   position: relative;
 }
 .pcard-full-salary .big {
-  font-size: 22px;
-  font-weight: 900;
+  font-family: var(--display);
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 800;
   color: var(--gold);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.5px;
@@ -1651,8 +1821,10 @@ a { color: var(--blue); }
   text-transform: uppercase;
 }
 .stat-cell .v {
-  font-size: 15px;
-  font-weight: 900;
+  font-family: var(--display);
+  font-size: 21px;
+  line-height: 1;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   margin-top: 1px;
 }
@@ -1682,7 +1854,7 @@ a { color: var(--blue); }
   font-size: 7.5px; font-weight: 900; color: var(--muted); letter-spacing: 0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.profil-cell .v { font-size: 16px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.profil-cell .v { font-family: var(--display); font-size: 22px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
 
 .pcard-full-foot {
   display: flex;
@@ -1695,6 +1867,7 @@ a { color: var(--blue); }
   background: var(--panel-2);
 }
 .ext-links { display: flex; gap: 6px; flex-wrap: wrap; }
+.ext-link .ico { width: 12px; height: 12px; margin-left: 3px; vertical-align: -2px; }
 .ext-link {
   font-size: 10.5px;
   font-weight: 800;
@@ -1760,9 +1933,10 @@ a { color: var(--blue); }
 .hero-band.or { background: var(--gold); color: #1a1400; }
 .hero-band.out { background: var(--live); }
 .result .score {
-  font-size: 42px;
-  font-weight: 900;
-  letter-spacing: -2px;
+  font-family: var(--display);
+  font-size: 60px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
 }
@@ -1932,8 +2106,11 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 .champion h3 { color: var(--gold); font-size: 15px; text-transform: uppercase; letter-spacing: 0.08em; }
 .champion .champ-name {
-  font-size: 21px;
-  font-weight: 900;
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   margin-top: 6px;
   display: flex;
   align-items: center;
@@ -1959,10 +2136,10 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .topbar { padding: 9px 16px; }
   .topbar-inner { gap: 14px; }
   .icon-lbl { display: inline; }
-  .draft { grid-template-columns: minmax(300px, 1.05fr) 1.4fr; align-items: start; }
+  .draft { grid-template-columns: minmax(300px, 1.05fr) minmax(0, 1.4fr); align-items: start; }
   .dash { padding: 10px 14px; }
   .dash .dash-card { padding-left: 14px; margin-left: 14px; }
-  .dash-big.sm { font-size: 14px; }
+  .dash-big.sm { font-size: 18px; }
   .h3-long { display: inline; }
   .pane { --pane-pad: 14px; }
   .pane-head { flex-direction: row; align-items: center; justify-content: space-between; }
@@ -1976,7 +2153,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .opt-text { flex: 1; }
   .seg { flex: none; }
   .result { padding: 20px 22px 24px; }
-  .result .score { font-size: 52px; }
+  .result .score { font-size: 76px; }
   .line-slots { grid-template-columns: repeat(3, 1fr); }
   .line-slots.pair { grid-template-columns: repeat(2, 1fr); }
   .line-slots.wide { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
@@ -2004,11 +2181,11 @@ table.data .pts { font-weight: 900; color: var(--green); }
   }
   .tabs { display: none; }
   .actionbar-inner { justify-content: center; }
-  .actionbar .btn.go { flex: 0 1 520px; font-size: 14px; padding: 12px 18px; }
+  .actionbar .btn.go { flex: 0 1 520px; font-size: 18px; padding: 12px 18px; }
 }
 
 @media (min-width: 1400px) {
-  .draft { grid-template-columns: minmax(340px, 0.9fr) 2fr; }
+  .draft { grid-template-columns: minmax(340px, 0.9fr) minmax(0, 2fr); }
 }
 
 /* Écrans très larges : assez de place pour les six colonnes ET l'alignement
@@ -2136,7 +2313,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .mcard-row {
   display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
 }
-.mcard-row b { font-size: 20px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.mcard-row b { font-family: var(--display); font-size: 26px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .mcard-eq { font-size: 11.5px; font-weight: 700; }
 .mcard-row.lose { color: var(--muted); }
 .mcard-row.lose b { font-weight: 700; }

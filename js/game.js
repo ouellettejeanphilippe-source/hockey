@@ -19,7 +19,10 @@ import {
   playSeries, autoRoster, tirsTotal, periodeDe, MODES, casesDuMode, uniteDeCase,
 } from './sim.js';
 import { recitDeBut, recitDeMatch, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
-import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamInk } from './logos.js';
+import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamInk, getTeamBand, teamSeasonUrl } from './logos.js';
+
+/* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
+const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
 import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 
@@ -274,7 +277,12 @@ function applyTeamColors(team) {
   // Version éclaircie, celle qui porte les bordures et les libellés : la
   // couleur brute d'une équipe sombre serait invisible sur fond noir.
   root.setProperty('--team-line', line);
-  root.setProperty('--team-ink', getTeamInk(team));
+  // Le bandeau, lui, garde la couleur BRUTE : un aplat n'a pas besoin d'être
+  // clair pour se voir, il a besoin d'une encre qui contraste (getTeamBand).
+  const band = getTeamBand(team);
+  root.setProperty('--team-band', band.bg);
+  root.setProperty('--team-ink', band.ink);
+  root.setProperty('--team-stripe', band.stripe);
 }
 
 const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
@@ -683,7 +691,7 @@ function renderSpin() {
 
   if (G.loading || !G.cur) {
     host.innerHTML = `<div class="spin-card"><div class="spin-top">
-      <div class="spin-logo">🎲</div>
+      <div class="spin-logo">${ico('i-dice')}</div>
       <div class="spin-id"><div class="spin-name">La roulette tourne…</div>
       <div class="spin-full">Chargement du vestiaire</div></div></div></div>`;
     return;
@@ -695,28 +703,34 @@ function renderSpin() {
 
   const targetSlot = G.target !== null ? SLOTS[G.target] : null;
   const instruction = targetSlot
-    ? `🎯 Case ciblée : <span class="target-on">${esc(slotShort(targetSlot))}</span> — touche-la à nouveau pour annuler.`
+    ? `${ico('i-target')} Case ciblée : <span class="target-on">${esc(slotShort(targetSlot))}</span> — touche-la à nouveau pour annuler.`
     : need
       ? `Signe <strong>un joueur</strong>, puis la roulette tourne.`
       : `Alignement complet : permute tes joueurs ou simule.`;
 
+  // La carte du vestiaire se lit comme une carte de pointage : le code et
+  // l'année en surtitre, le NOM de l'équipe en gros, l'écusson en filigrane.
+  // Le lien mène à la vraie saison de ce club sur Hockey-Reference.
+  const url = teamSeasonUrl(G.cur.team, G.cur.season);
   host.innerHTML = `
     <div class="spin-card">
+      <div class="spin-watermark" aria-hidden="true">${getTeamLogoHtml(G.cur.team, 150)}</div>
       <div class="spin-top">
-        <div class="spin-logo">${getTeamLogoHtml(G.cur.team, 38)}</div>
+        <div class="spin-logo">${getTeamLogoHtml(G.cur.team, 40)}</div>
         <div class="spin-id">
-          <div class="spin-name">${esc(G.cur.team)}<span class="spin-season">${esc(G.cur.season)}</span></div>
-          <div class="spin-full">${esc(full)}${dead}</div>
+          <div class="spin-kicker"><span class="spin-code">${esc(G.cur.team)}</span><span class="spin-season">${esc(G.cur.season)}</span>${dead}</div>
+          <div class="spin-name">${esc(full)}</div>
         </div>
+        ${url ? `<a class="spin-ext" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(G.cur.season)} de cette équipe sur Hockey-Reference">${ico('i-ext')}</a>` : ''}
       </div>
       <div class="spin-instruction">${instruction}</div>
       <div class="rerolls">
         <button id="rrS" class="reroll" ${G.left.season ? '' : 'disabled'} title="Retirer une autre saison au hasard">
-          🎲 Autre année<span class="rr-count">${G.left.season} restantes</span></button>
+          <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season} restantes</span></button>
         <button id="rrT" class="reroll" ${G.left.team ? '' : 'disabled'} title="Garder la saison, changer d'équipe">
-          🔄 Autre équipe<span class="rr-count">${G.left.team} restantes</span></button>
+          <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team} restantes</span></button>
         <button id="rrP" class="reroll" ${G.left.pass ? '' : 'disabled'} title="Passer ce vestiaire au complet">
-          ⏭️ Passer<span class="rr-count">${G.left.pass} restants</span></button>
+          <span class="rr-lbl">${ico('i-skip')}Passer</span><span class="rr-count">${G.left.pass} restants</span></button>
       </div>
     </div>`;
 
@@ -933,6 +947,11 @@ function playerCardEl(p) {
     + (already ? ' signed' : '')
     + ((already || !slot || over) ? ' locked' : '');
   el.title = 'Toucher la carte pour la fiche complète';
+  const band = getTeamBand(p.t);
+  el.style.setProperty('--team-line', getTeamAccent(p.t));
+  el.style.setProperty('--team-band', band.bg);
+  el.style.setProperty('--team-ink', band.ink);
+  el.style.setProperty('--team-stripe', band.stripe);
 
   // La carte ne porte que l'essentiel : qui, combien, ce qu'il vaut et où il
   // va. Le détail des statistiques est dans la fiche, à un clic.
@@ -943,7 +962,6 @@ function playerCardEl(p) {
     traitTags(p),
     archTag(p),
     zoneTag(p),
-    risky ? `<span class="tag tag-pen" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les 23.">⚠ bloque la fin</span>` : '',
   ].filter(Boolean).join('');
 
   let dest;
@@ -961,7 +979,8 @@ function playerCardEl(p) {
     // signature plutôt qu'après dans le volet de l'alignement.
     const ecart = zoneEcart(p, slot);
     const bits = [];
-    if (isTargeted) bits.push(`<span class="dest-target">🎯 ${esc(slot.label)} · ${esc(slot.role)}</span>`);
+    if (isTargeted) bits.push(`<span class="dest-target">${ico('i-target')} ${esc(slot.label)} · ${esc(slot.role)}</span>`);
+    if (risky) bits.push(`<span class="dest-bad" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les 23.">⚠ bloque la fin</span>`);
     if (pen > 0) bits.push(`<span class="dest-bad">−${pen} hors position</span>`);
     if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ sous sa zone${isTargeted ? '' : ` : ${esc(slot.label)} · ${esc(slot.role)}`}</span>`);
     else if (ecart === 'dessus') bits.push(`<span class="dest-warn" title="${esc(ZONE_DESSUS_TITLE)}">▲ au-dessus de sa zone</span>`);
@@ -1028,7 +1047,10 @@ async function signPlayer(p) {
     + (pen > 0 ? ` (−${pen} hors position)` : '')
     + (sous ? ' · ▼ sous sa zone' : ''), pen > 0 || sous ? 'warn' : '');
   if (risky && slotsLeft() > 0) {
-    setTimeout(() => toast(`Attention : ${money(capLeft())} pour ${slotsLeft()} cases, sous le plancher.`, 'warn'), 2700);
+    // Le message se compose maintenant : composé au déclenchement, il disait
+    // « pour 0 cases » quand la dernière signature arrivait entre-temps.
+    const msg = `Attention : ${money(capLeft())} pour ${slotsLeft()} cases, sous le plancher.`;
+    setTimeout(() => toast(msg, 'warn'), 2700);
   }
 
   // Mode PAR UNITÉ : on reste dans le même vestiaire tant que le trio (ou la
@@ -1152,7 +1174,44 @@ function renderPool() {
 
   host.innerHTML = '';
   host.appendChild(frag);
+  ajusterCartes(host);
 }
+
+/*
+ * LE NOM DE FAMILLE, LES POINTS, LE SALAIRE ET LES ICÔNES SONT TOUJOURS
+ * ENTIERS. C'est la règle de JP, et elle remplace les points de suspension
+ * sur ces quatre-là : une carte qu'on signe sans avoir lu le nom ne sert à
+ * rien. La boîte ne grandit toujours pas — les hauteurs restent fixes — mais
+ * le contenu s'adapte : le nom rétrécit sa police jusqu'à tenir (plancher
+ * 10 px), et la rangée d'étiquettes se réduit à l'échelle quand elle est
+ * plus large que sa place (elle est alignée à droite, on la réduit vers la
+ * droite). Les points et le salaire ne rétrécissent jamais : c'est le nom
+ * qui cède la place, puisque c'est lui qui a le plus de marge.
+ *
+ * Lectures d'abord, écritures ensuite : mesurer puis écrire élément par
+ * élément forcerait une remise en page par carte.
+ */
+function ajusterCartes(root) {
+  const noms = [...root.querySelectorAll('.pcard-name .lname, .slot-name')];
+  const tags = [...root.querySelectorAll('.pcard-mid .tags, .slot-tags')];
+  for (const el of noms) el.style.fontSize = '';
+  for (const el of tags) el.style.transform = '';
+  const mesN = noms.map(el => [el, el.scrollWidth, el.clientWidth, parseFloat(getComputedStyle(el).fontSize)]);
+  const mesT = tags.map(el => [el, el.scrollWidth, el.clientWidth]);
+  for (const [el, sw, cw, fs] of mesN) {
+    if (sw > cw && cw > 0) el.style.fontSize = `${Math.max(10, Math.floor(fs * cw / sw * 10) / 10 - 0.2)}px`;
+  }
+  for (const [el, sw, cw] of mesT) {
+    if (sw > cw && cw > 0) el.style.transform = `scale(${Math.max(0.6, cw / sw).toFixed(3)})`;
+  }
+}
+let ajusteTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(ajusteTimer);
+  ajusteTimer = setTimeout(() => ajusterCartes(document), 120);
+});
+// La police d'affichage arrive après le premier rendu : on remesure avec elle.
+if (document.fonts?.ready) document.fonts.ready.then(() => ajusterCartes(document));
 
 /* =====================================================================
    Rendu — alignement
@@ -1201,7 +1260,10 @@ function slotEl(s) {
 
   if (p) {
     el.style.setProperty('--slot-line', getTeamAccent(p.t));
-    el.style.setProperty('--slot-ink', getTeamInk(p.t));
+    const band = getTeamBand(p.t);
+    el.style.setProperty('--slot-band', band.bg);
+    el.style.setProperty('--slot-ink', band.ink);
+    el.style.setProperty('--slot-stripe', band.stripe);
     const st = displayStats(p);
     const main = p.p === 'G' ? `${st.w} V` : `${st.pt} PTS`;
     /* La case est étroite : la ligne de statistiques y tient en une seule,
@@ -1347,6 +1409,7 @@ function renderRoster() {
   });
   host.appendChild(lineEl('Gardiens', SLOTS.filter(s => s.group === 'G' && !s.scratch), null, null, 'pair'));
   host.appendChild(lineEl('Réservistes', SLOTS.filter(s => s.scratch), null, null));
+  ajusterCartes(host);
 }
 
 function renderTeamSummary() {
@@ -1523,8 +1586,9 @@ function showPlayerModal(p) {
       </div>
       <div class="pcard-full-foot">
         <div class="ext-links">
-          <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ↗</a>
-          <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ↗</a>
+          <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ${ico('i-ext')}</a>
+          <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ${ico('i-ext')}</a>
+          ${teamSeasonUrl(p.t, p.s) ? `<a class="ext-link" href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de son équipe sur Hockey-Reference">${esc(p.t)} ${esc(p.s)} ${ico('i-ext')}</a>` : ''}
         </div>
         <button class="btn go" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
       </div>
@@ -1688,23 +1752,15 @@ function teamLabel(t) {
 }
 
 /**
- * La page de cette saison de la LNH sur HockeyDB, où l'équipe et ses joueurs
- * se retrouvent. HockeyDB n'a pas d'adresse stable par équipe-saison sans
- * son identifiant interne ; la page de saison, elle, se déduit du libellé.
+ * Le nom d'une équipe historique, cliquable vers SA saison sur
+ * Hockey-Reference (`teamSeasonUrl`, js/logos.js) : une adresse par
+ * équipe-saison, pas la page de la ligue où il fallait ensuite la chercher.
  */
-function hockeydbUrl(season) {
-  if (!season) return null;
-  const a = parseInt(season.slice(0, 4), 10);
-  if (!a) return null;
-  return `https://www.hockeydb.com/ihdb/stats/leagues/seasons/nhl${a}${a + 1}.html`;
-}
-
-/** Le nom d'une équipe historique, cliquable vers sa saison sur HockeyDB. */
 function teamCell(t, taille = 15) {
   const label = esc(teamLabel(t));
-  const url = t.isPlayer ? null : hockeydbUrl(t.season);
+  const url = t.isPlayer ? null : teamSeasonUrl(t.tag, t.season);
   const nom = url
-    ? `<a class="team-link" href="${url}" target="_blank" rel="noopener" title="Voir la saison ${esc(t.season)} sur HockeyDB">${label}</a>`
+    ? `<a class="team-link" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(t.season)} de cette équipe sur Hockey-Reference">${label}</a>`
     : `<span>${label}</span>`;
   return `<div class="team-cell">${getTeamLogoHtml(t.tag, taille)}${nom}</div>`;
 }
@@ -1876,8 +1932,8 @@ function renderResult(r, you, teams, leaders) {
       </div>
 
       <div class="result-actions">
-        <button class="btn blue" id="shareBtn">📋 Copier le résultat</button>
-        ${rank <= 16 ? '<button class="btn gold" id="playoffsBtn">🏆 Jouer les séries</button>' : ''}
+        <button class="btn blue" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
+        ${rank <= 16 ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
         <button class="btn go" id="againBtn">Nouvelle partie</button>
       </div>
       <div id="playoffsSection"></div>
@@ -1945,7 +2001,7 @@ function runPlayoffs(top16) {
   }
   const champion = ronde[0];
 
-  let html = `<div class="result-section"><h3>🏆 Séries éliminatoires</h3>
+  let html = `<div class="result-section"><h3>${ico('i-cup')}Séries éliminatoires</h3>
     <p class="series-legende">Touche un match pour son sommaire.
       <span class="lg lg-or">or</span> le match qui a réglé la série ·
       <span class="lg lg-ot">rose</span> réglé en prolongation</p>`;
