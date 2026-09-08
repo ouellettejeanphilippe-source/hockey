@@ -286,6 +286,13 @@ function positionLabel(p) {
   return `${primary} / ${secLabel}`;
 }
 
+/* Le poste écrit au long, pour le bandeau de carte. */
+const POSTE_LONG = {
+  AG: 'Ailier gauche', C: 'Centre', AD: 'Ailier droit',
+  DG: 'Défenseur gauche', DD: 'Défenseur droit', G: 'Gardien', F: 'Attaquant',
+};
+const posteLong = p => POSTE_LONG[positionLabel(p).split(' / ')[0]] || '';
+
 function positionClass(p) {
   if (!p) return 'pos-f';
   if (p.p === 'G') return 'pos-g';
@@ -929,23 +936,32 @@ function playerCardEl(p) {
 
   const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : 'Signer';
 
+  // Le bandeau dit d'un coup d'oeil ce qu'on regarde — le poste — et change
+  // de couleur quand la carte change d'état. Il porte un fond, jamais du
+  // texte de contenu : la même règle que les couleurs d'équipe.
+  const etat = already ? 'signe' : over || !slot ? 'off' : '';
   el.innerHTML = `
-    <div class="pcard-head">
-      <div class="pcard-avatar">${headshotHtml(p)}
-        <span class="pcard-team-badge">${getTeamLogoHtml(p.t, 13)}</span>
-      </div>
-      <div class="pcard-id">
-        <div class="pcard-name"><span class="pos-badge ${positionClass(p)}">${esc(positionLabel(p))}</span>${formatName(p.n)}</div>
-      </div>
-      <div class="pcard-price">${st.salaryMain}</div>
+    <div class="pcard-band ${positionClass(p)} ${etat}">
+      <span class="pb-code">${esc(positionLabel(p))}</span>
+      <span class="pb-long">${esc(posteLong(p))}</span>
+      <span class="pb-team">${getTeamLogoHtml(p.t, 13)} ${esc(p.s)}</span>
     </div>
-    <div class="pcard-mid">
-      <div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
-      <div class="tags">${tags}</div>
-    </div>
-    <div class="pcard-foot">
-      <div class="pcard-dest">${dest}</div>
-      <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
+    <div class="pcard-inner">
+      <div class="pcard-head">
+        <div class="pcard-avatar">${headshotHtml(p)}</div>
+        <div class="pcard-id">
+          <div class="pcard-name">${formatName(p.n)}</div>
+        </div>
+        <div class="pcard-price">${st.salaryMain}</div>
+      </div>
+      <div class="pcard-mid">
+        <div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
+        <div class="tags">${tags}</div>
+      </div>
+      <div class="pcard-foot">
+        <div class="pcard-dest">${dest}</div>
+        <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
+      </div>
     </div>`;
 
   el.onclick = ev => {
@@ -1067,7 +1083,10 @@ function renderPool() {
       const n = signedCount(col.need);
       const el = document.createElement('div');
       el.className = 'pool-col';
-      el.innerHTML = `<div class="pool-col-head">
+      // Le liseré relie l'en-tête à la couleur des cartes de la colonne :
+      // on retrouve son poste sans relire le titre.
+      const ton = col.key === 'G' ? 'pos-g' : (col.key === 'DG' || col.key === 'DD') ? 'pos-d' : 'pos-f';
+      el.innerHTML = `<div class="pool-col-head ${ton}">
         <span class="pool-col-title">${esc(col.title)}</span>
         <span class="pool-col-meta"><span>${players.length} dispo</span>
         <span class="chip-need${n >= col.need.req ? ' full' : ''}" title="Signés sur requis à cette position">${n}/${col.need.req}</span></span>
@@ -1115,16 +1134,18 @@ function slotEl(s) {
     el.innerHTML = `
       ${estRenfort(p) ? ''
         : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
-      <div class="slot-top">
-        <span class="slot-role-tag">${esc(s.role)}</span>
+      <div class="slot-band ${positionClass(p)}${estRenfort(p) ? ' off' : ''}">
+        <span>${esc(s.role)}</span>
         ${estRenfort(p)
           ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
           : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
-      <div class="slot-name">${formatName(p.n)}</div>
-      <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
-      <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
-      <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${zoneEcartTag}${penTag}</div>`;
+      <div class="slot-inner">
+        <div class="slot-name">${formatName(p.n)}</div>
+        <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
+        <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
+        <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${zoneEcartTag}${penTag}</div>
+      </div>`;
     el.querySelector('.slot-remove')?.addEventListener('click', ev => {
       ev.stopPropagation();
       delete G.roster[s.i];
@@ -1391,7 +1412,7 @@ function showPlayerModal(p) {
           <div class="pcard-full-id">
             <div class="pcard-full-name">${formatName(p.n)}</div>
             <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
-              <span class="pos-badge ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
+              <span class="pos-chip ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
             <div class="tags pcard-full-tags">${traitTags(p, true)}${archTag(p, true)}${zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
           </div>
         </div>
@@ -1713,8 +1734,11 @@ function renderResult(r, you, teams, leaders) {
   $('resultHost').innerHTML = `
     <div class="result">
       <div class="result-hero">
+        <div class="hero-band ${rank === 1 ? 'or' : rank <= 16 ? '' : 'out'}">
+          ${rank === 1 ? '1er de la ligue' : rank <= 16 ? `${rank}e de ${nTeams} · en séries` : `${rank}e de ${nTeams} · éliminé`}
+        </div>
         <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
-        <div class="rec">${r.points} points · ${rank}e de ${nTeams} · ${r.GF} buts pour, ${r.GA} contre · masse ${money(capUsed())}</div>
+        <div class="rec">${r.points} points · ${r.GF} buts pour, ${r.GA} contre · masse ${money(capUsed())}</div>
       </div>
       <div class="note">${note}</div>
 
@@ -1822,7 +1846,10 @@ function runPlayoffs(top16) {
   }
   const champion = ronde[0];
 
-  let html = '<div class="result-section"><h3>🏆 Séries éliminatoires</h3>';
+  let html = `<div class="result-section"><h3>🏆 Séries éliminatoires</h3>
+    <p class="series-legende">Touche un match pour son sommaire.
+      <span class="lg lg-or">or</span> le match qui a réglé la série ·
+      <span class="lg lg-ot">rose</span> réglé en prolongation</p>`;
   for (let r = 0; r < n; r++) {
     const dedans = G.series.filter(s => s.ronde === r);
     html += `<div class="series-round"><h4>${esc(RONDES[r] || `Ronde ${r + 1}`)}</h4><div class="series-grid">`;
@@ -1836,12 +1863,44 @@ function runPlayoffs(top16) {
   </div></div>`;
 
   host.innerHTML = html;
-  host.querySelectorAll('.serie-game').forEach(b => {
+  host.querySelectorAll('.mcard').forEach(b => {
     b.onclick = () => showGameModal(Number(b.dataset.serie), Number(b.dataset.match));
   });
   const btn = $('playoffsBtn');
   if (btn) btn.disabled = true;
   host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** Le tag et l'année courte : « MTL '76 », ce qui tient dans une carte. */
+const tagCourt = t => t.isPlayer ? 'TOI' : `${t.tag}${t.season ? ` '${t.season.slice(2, 4)}` : ''}`;
+
+/**
+ * Une carte de match, dans le langage des cartes de pointage : un bandeau
+ * coloré qui dit ce qu'on regarde, les deux écussons, puis les deux lignes
+ * de pointage — le gagnant en clair, le perdant en gris. Le bandeau porte
+ * la couleur, jamais le texte de la carte : c'est la même règle que pour
+ * les couleurs d'équipe.
+ */
+function matchCardHtml(s, f, i) {
+  // Le bandeau porte une information, pas une décoration : l'or marque le
+  // match qui a réglé la série, le rose celui qui est allé en prolongation.
+  const decisif = i === s.feuilles.length - 1;
+  const ton = decisif ? 'or' : f.ot ? 'ot' : '';
+  const titre = f.ot ? `M${i + 1} · prolongation` : `Match ${i + 1}`;
+  const ligne = (t, buts, gagne) => `<span class="mcard-row ${gagne ? 'win' : 'lose'}">
+      <span class="mcard-eq">${esc(tagCourt(t))}</span><b>${buts}</b></span>`;
+  return `<button class="mcard ${ton}${f.ot ? ' ot' : ''}" data-serie="${s.i}" data-match="${i}"
+    title="Sommaire du match ${i + 1}">
+    <span class="mcard-top">${esc(titre)}</span>
+    <span class="mcard-body">
+      <span class="mcard-logos">${getTeamLogoHtml(s.A.tag, 34)}${getTeamLogoHtml(s.B.tag, 34)}</span>
+      <span class="mcard-rows">
+        ${ligne(s.A, f.gfA, f.vainqueur === 'A')}
+        ${ligne(s.B, f.gfB, f.vainqueur === 'B')}
+      </span>
+      <span class="mcard-foot">${tirsTotal(f, 'A')} — ${tirsTotal(f, 'B')} tirs</span>
+    </span>
+  </button>`;
 }
 
 /** Une série : les deux équipes, et chaque match cliquable vers son sommaire. */
@@ -1850,16 +1909,7 @@ function serieHtml(s) {
   const nomV = teamShort(gagne ? s.A : s.B), nomP = teamShort(gagne ? s.B : s.A);
   const rangee = (t, w, vain) => `<div class="series-row ${vain ? 'win' : 'lose'}">
     ${teamCell(t, 15)}<span>${w}</span></div>`;
-  const matchs = s.feuilles.map((f, i) => {
-    const pour = f.vainqueur === 'A' ? f.gfA : f.gfB;
-    const contre = f.vainqueur === 'A' ? f.gfB : f.gfA;
-    const tag = (f.vainqueur === 'A' ? s.A : s.B).tag;
-    return `<button class="serie-game" data-serie="${s.i}" data-match="${i}"
-      title="Sommaire du match ${i + 1}">
-      <span class="sg-n">M${i + 1}</span>
-      <span class="sg-score">${pour}-${contre}</span>
-      <span class="sg-who">${esc(tag)}${f.ot ? ' <em>P</em>' : ''}</span></button>`;
-  }).join('');
+  const matchs = s.feuilles.map((f, i) => matchCardHtml(s, f, i)).join('');
   return `<div class="series ${s.A.isPlayer || s.B.isPlayer ? 'you' : ''}">
     ${rangee(s.A, s.wA, gagne)}${rangee(s.B, s.wB, !gagne)}
     <div class="serie-recit">${esc(recitDeSerie(Math.max(s.wA, s.wB), Math.min(s.wA, s.wB), nomV, nomP, s.feuilles))}</div>
