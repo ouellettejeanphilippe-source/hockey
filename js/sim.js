@@ -721,10 +721,18 @@ export const PCT_TIR_MAX = 0.35;
  *  3,1 buts par équipe par match, avec un but sur cinq en avantage numérique.
  * ====================================================================== */
 
-/** Occasions d'avantage numérique par équipe par match, par époque. */
+/**
+ * Occasions d'avantage numérique par équipe par match, par époque — le REPLI
+ * quand une saison n'a pas la mesure (colonne [9] de SEASON_LANCERS, posée
+ * depuis les shards de RATINGS_VERSION 24) : les sept saisons d'avant 1977-78,
+ * où la ligue ne les comptait pas, et l'adversaire neutre. Mesuré sur les
+ * shards : 4,25 en 1980-81, 4,63 en 1985-86, 5,04 en 1995-96, 5,85 en
+ * 2005-06, 3,11 en 2015-16, 2,88 en 2025-26 — les repères publics d'avant la
+ * mesure disaient 5,3 pour les années 1980, c'était trop.
+ */
 export const AVANTAGES_EPOQUE = [
-  [1970, 4.0], [1975, 4.6], [1980, 5.0], [1985, 5.3], [1990, 5.3], [1995, 4.8],
-  [2000, 4.3], [2005, 5.8], [2010, 3.6], [2015, 3.0], [2020, 2.9], [2026, 2.8],
+  [1970, 3.8], [1977, 4.0], [1980, 4.25], [1985, 4.63], [1990, 4.57], [1995, 5.04],
+  [2000, 4.59], [2005, 5.85], [2010, 3.54], [2015, 3.11], [2020, 2.89], [2026, 2.88],
 ];
 /**
  * Les occasions d'avantage d'un joueur-saison : mesurées dans sa saison
@@ -750,9 +758,9 @@ export function occasionsEpoque(annee) {
 export const AN_MINUTES = 2;          // une mineure
 export const AN_TIRS_MIN = 0.60;      // lancers par minute de l'équipe en avantage (fenêtre de deux minutes, coupée par le but)
 export const DN_TIRS_MIN = 0.09;      // lancers par minute de l'équipe en désavantage
-export const AN_QUALITE = 1.25;       // sur la finition à forces égales ; l'unité choisit déjà les meilleurs finisseurs — JP veut un avantage qui compte
+export const AN_QUALITE = 1.35;       // réglé sur la mesure : part des buts d'avantage simulée = réelle (26,5 %) chez les mêmes joueurs (check_feuilles)
 export const DN_QUALITE = 1.00;       // finition en désavantage
-export const FE_TIRS = 1.16;          // le cinq contre cinq, réglé sur la sortie
+export const FE_TIRS = 1.20;          // le cinq contre cinq, réglé sur la sortie
 export const FE_QUALITE = 1.03;       // idem, sur la finition
 /*
  * La part des lancers d'un joueur d'avantage numérique qui vient de
