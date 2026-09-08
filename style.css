@@ -101,8 +101,12 @@
   --r-m: 12px;
   --r-l: 18px;
 
-  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --shadow-2: 0 10px 30px rgba(0, 0, 0, 0.45);
+  /* À PLAT. JP : « y a trop de 3D dans l'interface ». Plus d'ombres portées,
+     plus de reflets, plus de dégradés sur les boutons et les cartes : des
+     aplats, des filets d'un pixel, et la couleur qui dit quelque chose. Les
+     deux jetons restent définis pour que rien ne casse, mais ils sont vides. */
+  --shadow-1: none;
+  --shadow-2: none;
 
   --topbar-h: 88px;
   --actionbar-h: 68px;
@@ -125,8 +129,6 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(1200px 600px at 50% -280px, color-mix(in srgb, var(--team-primary) 55%, transparent) 0%, transparent 70%),
-    radial-gradient(900px 500px at 90% 0%, rgba(56, 189, 248, 0.06) 0%, transparent 60%),
     var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -170,7 +172,7 @@ a { color: var(--blue); }
   position: sticky;
   top: 0;
   z-index: 60;
-  background: linear-gradient(180deg, rgba(6, 12, 20, 0.97) 0%, rgba(6, 12, 20, 0.92) 70%, rgba(6, 12, 20, 0.75) 100%);
+  background: rgba(6, 12, 20, 0.96);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
   /* Le filet du haut est de la couleur du vestiaire en cours : c'est le
@@ -275,11 +277,11 @@ a { color: var(--blue); }
 .fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--blue-deep), var(--blue) 55%, var(--green));
+  background: var(--green);
   transition: width .35s cubic-bezier(.4, 0, .2, 1);
 }
-.fill.tight { background: linear-gradient(90deg, var(--blue-deep), var(--gold)); }
-.fill.over { background: linear-gradient(90deg, #b91c1c, var(--red)); }
+.fill.tight { background: var(--gold); }
+.fill.over { background: var(--red); }
 .fill-marker {
   position: absolute;
   top: -2px;
@@ -354,9 +356,7 @@ a { color: var(--blue); }
   position: relative; overflow: hidden;
   border-radius: var(--r-l);
   border: 1px solid color-mix(in srgb, var(--team-accent) 45%, var(--line));
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--team-primary) 80%, #050b13) 0%, #08131f 62%);
-  box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--team-primary) 38%, #08131f);
 }
 /* `minmax(0, …)` et non `auto` : une piste `auto` s'élargit au contenu, et le
    nom d'équipe en capitales condensées — insécable, coupé aux points de
@@ -376,7 +376,6 @@ a { color: var(--blue); }
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(340px 140px at 88% -30%, color-mix(in srgb, var(--team-accent) 26%, transparent), transparent 70%);
   pointer-events: none;
 }
 
@@ -636,10 +635,30 @@ a { color: var(--blue); }
   white-space: nowrap;
 }
 
-.pool-tools { display: flex; gap: 7px; flex-wrap: wrap; }
+.pool-tools { display: flex; gap: 7px; flex-wrap: nowrap; }
+/*
+ * DEUX RANGÉES AVANT LES CARTES, PAS QUATRE. Sur téléphone, le titre du
+ * volet répète l'onglet du bas (« Vestiaire · 27 »), et la bascule, la
+ * recherche et le tri prenaient chacun leur rangée. Le titre s'efface donc
+ * tant qu'il y a des onglets, la bascule devient deux icônes, le tri
+ * raccourcit ses libellés, et les trois tiennent sur une ligne au-dessus
+ * des sept pastilles.
+ */
+@media (max-width: 1079.98px) {
+  .pane-title { display: none; }
+  .pool-tools { min-width: 0; }
+  .pool-tools > * { min-width: 0; }
+  .search { flex: 1 1 0; }
+  .seg-view { flex: none; }
+  .seg-view .lbl { display: none; }
+  .seg-view button { padding: 4px 9px; }
+  .select { flex: 0 1 auto; max-width: 108px; padding-left: 7px; padding-right: 4px; }
+}
+.seg-view .ico { width: 15px; height: 15px; }
+.seg-view button { display: inline-flex; align-items: center; gap: 5px; }
 
 .search {
-  flex: 1 1 160px;
+  flex: 1 1 120px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -927,7 +946,7 @@ a { color: var(--blue); }
   display: flex;
   flex-direction: column;
   gap: 7px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--team-line, #38bdf8) 7%, var(--panel-2)) 0%, #0b1826 100%);
+  background: color-mix(in srgb, var(--team-line, #38bdf8) 6%, var(--panel-2));
   /* UN CONTOUR, PAS UNE BARRE. La couleur d'équipe cerne la carte sur tout
      son pourtour, d'un trait fin et clair — c'est ce qui la détache du fond
      sans lui coller une bande sur le flanc. */
@@ -1163,8 +1182,8 @@ a { color: var(--blue); }
   min-height: 32px;
   padding: 6px 14px;
   border-radius: var(--r-s);
-  border: 1px solid #2fbf62;
-  background: linear-gradient(180deg, #3cd070, #22a552);
+  border: 1px solid var(--green);
+  background: var(--green);
   color: #04200f;
   font-family: var(--display);
   font-size: 15px;
@@ -1172,7 +1191,6 @@ a { color: var(--blue); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(60, 208, 112, 0.22);
   transition: filter .15s, transform .1s;
 }
 .btn-sign:hover:not(:disabled) { filter: brightness(1.1); }
@@ -1330,7 +1348,7 @@ a { color: var(--blue); }
   height: 98px;
   border-radius: var(--r-s);
   border: 1px solid color-mix(in srgb, var(--slot-line, #38bdf8) 62%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--slot-line, #38bdf8) 6%, var(--panel-2)) 0%, #0b1826 100%);
+  background: color-mix(in srgb, var(--slot-line, #38bdf8) 6%, var(--panel-2));
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1465,7 +1483,7 @@ a { color: var(--blue); }
   right: 0;
   bottom: 0;
   z-index: 55;
-  background: linear-gradient(0deg, rgba(6, 12, 20, 0.98) 60%, rgba(6, 12, 20, 0.86));
+  background: rgba(6, 12, 20, 0.96);
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
@@ -1541,10 +1559,10 @@ a { color: var(--blue); }
 
 .btn.go {
   flex: 1 1 auto;
-  background: linear-gradient(180deg, #16a34a, #12833c);
+  background: #16a34a;
   border-color: #1b9c4c;
   color: #f0fff5;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.28);
+  box-shadow: none;
 }
 .btn.go:disabled {
   background: var(--panel-2);
@@ -1552,8 +1570,8 @@ a { color: var(--blue); }
   color: var(--muted);
   box-shadow: none;
 }
-.btn.gold { background: linear-gradient(180deg, #f4c430, #d9a916); border-color: #f4c430; color: #1a1200; }
-.btn.blue { background: linear-gradient(180deg, #0ea5e9, #0369a1); border-color: #38bdf8; color: #f0f9ff; }
+.btn.gold { background: var(--gold); border-color: var(--gold); color: #1a1200; }
+.btn.blue { background: #0284c7; border-color: #0284c7; color: #f0f9ff; }
 .btn.danger { background: rgba(248, 113, 113, 0.14); border-color: rgba(248, 113, 113, 0.5); color: var(--red); }
 
 /* ---------------------------------------------------------------
@@ -1736,8 +1754,8 @@ a { color: var(--blue); }
 .pcard-full-head {
   position: relative;
   overflow: hidden;
-  padding: 16px 14px 13px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--card-primary, #112236) 82%, #050b13), #08131f 70%);
+  padding: 14px 14px 0;
+  background: color-mix(in srgb, var(--card-primary, #112236) 40%, #08131f);
   border-bottom: 1px solid var(--line);
 }
 .pcard-full-watermark {
@@ -1749,25 +1767,29 @@ a { color: var(--blue); }
 }
 .pcard-full-watermark img, .pcard-full-watermark svg { width: 128px; height: 128px; }
 
+/*
+ * LE PORTRAIT EN GRAND, comme sur une carte de collection : détouré (les
+ * portraits de la LNH ont un fond transparent), sans cadre, posé sur la
+ * ligne du bandeau, le nom et le salaire à sa droite. Le petit carré
+ * encadré d'avant ressemblait à une photo de passeport.
+ */
 .pcard-full-top {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
 }
 .pcard-full-photo {
   flex: none;
-  width: 72px;
-  height: 72px;
-  border-radius: 14px;
-  overflow: hidden;
-  background: #0a1521;
-  border: 2px solid var(--card-accent, var(--blue));
+  width: 126px;
+  height: 126px;
+  align-self: flex-end;
   display: grid;
-  place-items: center;
+  place-items: end center;
 }
-.pcard-full-photo img { width: 100%; height: 100%; object-fit: cover; }
-.pcard-full-id { min-width: 0; flex: 1; }
+.pcard-full-photo img { width: 100%; height: 100%; object-fit: contain; object-position: bottom; }
+.pcard-full-photo .headshot-fallback { font-size: 72px; line-height: 1; opacity: 0.35; margin-bottom: 8px; }
+.pcard-full-id { min-width: 0; flex: 1; padding-bottom: 12px; }
 .pcard-full-name { font-family: var(--display); font-size: 28px; font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; overflow-wrap: anywhere; }
 .pcard-full-name .fname { color: var(--sub); font-weight: 600; font-size: 16px; text-transform: none; letter-spacing: 0.02em; display: block; margin-bottom: 2px; }
 .pcard-full-team {
@@ -1787,9 +1809,7 @@ a { color: var(--blue); }
   align-items: baseline;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 10px;
-  padding-top: 9px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 8px;
   position: relative;
 }
 .pcard-full-salary .big {
@@ -1952,7 +1972,7 @@ a { color: var(--blue); }
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
 }
-.result .score.perfect { color: var(--gold); text-shadow: 0 0 26px rgba(244, 196, 48, 0.35); }
+.result .score.perfect { color: var(--gold); }
 .result .rec { font-size: 12px; font-weight: 800; color: var(--sub); margin-top: 3px; }
 /* Le tableau indicateur : six chiffres sur une ligne sous le pointage, comme
    une bande de diffusion. Les libellés raccourcissent, jamais les chiffres. */
@@ -1998,7 +2018,7 @@ a { color: var(--blue); }
   border-radius: 999px;
   overflow: hidden;
 }
-.bar .bf { height: 100%; background: linear-gradient(90deg, var(--blue-deep), var(--gold)); }
+.bar .bf { height: 100%; background: var(--blue); }
 .bar .bv { width: 26px; flex: none; text-align: right; font-weight: 900; font-variant-numeric: tabular-nums; }
 
 .table-wrap {
@@ -2015,6 +2035,8 @@ table.data {
   font-variant-numeric: tabular-nums;
   min-width: 460px;
 }
+table.data td.stat, table.data td.pts { font-family: var(--display); font-size: 15px; font-weight: 700; }
+table.data th.heros, table.data td.heros { color: var(--gold); }
 table.data thead th {
   position: sticky;
   top: 0;
@@ -2090,49 +2112,69 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 .result-actions .btn { flex: 1 1 180px; }
 
-.series-round {
-  background: rgba(9, 20, 35, 0.7);
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
-  padding: 11px;
-  margin-top: 10px;
-}
+.series-round { margin-top: 16px; }
+/* Le titre de ronde : une ligne de tableau indicateur, filet à droite. */
 .series-round h4 {
-  font-size: 11px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--display);
+  font-size: 15px; font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--blue);
-  margin-bottom: 8px;
+  letter-spacing: 0.1em;
+  color: var(--text);
+  margin-bottom: 9px;
 }
+.series-round h4::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
 /* Assez large pour deux cartes de match entières, sinon le carrousel se
    réduit à une carte et demie et on ne voit plus la série. */
 .series-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(296px, 1fr)); gap: 8px; }
+/*
+ * UNE SÉRIE EST UN TABLEAU INDICATEUR : deux rangées, une par équipe, le
+ * nombre de victoires en gros à droite, le gagnant en clair et son chiffre
+ * en or, le perdant en gris. Même langage que la bande sous le pointage.
+ */
 .series {
-  background: var(--panel-2);
+  background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--r-s);
-  padding: 8px 9px;
-  font-size: 11.5px;
+  border-radius: var(--r-m);
+  padding: 0;
+  overflow: hidden;
+  font-size: 12.5px;
 }
 .series.you { border-color: var(--gold); }
-.series-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 800; }
-.series-row + .series-row { margin-top: 3px; }
-.series-row.win { color: var(--green); }
+.series-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 11px; font-weight: 700;
+}
+.series-row + .series-row { border-top: 1px solid var(--line-soft); }
+.series-row.win { color: var(--text); background: rgba(255, 255, 255, 0.03); }
 .series-row.lose { color: var(--muted); }
 .series-row .team-cell { flex: 1; min-width: 0; }
+.series-row > span:last-child {
+  font-family: var(--display); font-size: 24px; font-weight: 800; line-height: 1;
+  min-width: 26px; text-align: right; font-variant-numeric: tabular-nums;
+}
+.series-row.win > span:last-child { color: var(--gold); }
 
 .champion {
   text-align: center;
-  margin-top: 16px;
-  padding: 18px 14px;
-  border: 2px solid var(--gold);
+  margin-top: 18px;
+  padding: 0;
+  border: 1px solid var(--gold);
   border-radius: var(--r-l);
-  background: var(--gold-soft);
+  background: var(--panel);
+  overflow: hidden;
 }
-.champion h3 { color: var(--gold); font-size: 15px; text-transform: uppercase; letter-spacing: 0.08em; }
+/* Le bandeau d'or dit ce qu'on regarde, comme sur toutes les cartes. */
+.champion h3 {
+  background: var(--gold); color: #1a1400;
+  padding: 6px 12px;
+  font-family: var(--display); font-size: 14px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
 .champion .champ-name {
   font-family: var(--display);
-  font-size: 28px;
+  padding: 14px 12px 0;
+  font-size: 32px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -2143,7 +2185,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   gap: 9px;
   flex-wrap: wrap;
 }
-.champion p { color: var(--sub); font-size: 12.5px; margin: 8px 0 0; }
+.champion p { color: var(--sub); font-size: 12.5px; margin: 8px 0 0; padding: 0 12px 14px; }
 
 /* ---------------------------------------------------------------
    Points d'arrêt
@@ -2306,16 +2348,19 @@ table.data .pts { font-weight: 900; color: var(--green); }
   -webkit-overflow-scrolling: touch; scrollbar-width: thin;
 }
 .stat-tab {
-  flex: none; padding: 6px 11px; border-radius: 999px; cursor: pointer;
+  flex: none; padding: 6px 11px; border-radius: var(--r-s); cursor: pointer;
   border: 1px solid var(--line); background: var(--panel-2, #0f1e30);
-  color: var(--sub); font-size: 11.5px; font-weight: 700; white-space: nowrap;
+  color: var(--sub); white-space: nowrap;
+  font-family: var(--display); font-size: 13.5px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
 }
 .stat-tab.on { background: var(--ui-accent); color: var(--ui-on-accent); border-color: var(--ui-accent); }
 .data td.sub-cell { color: var(--muted); font-size: 10.5px; }
 
 /* ---- les matchs d'une série : des cartes de pointage ---- */
 .serie-recit {
-  padding: 6px 9px 0; font-size: 11px; line-height: 1.45; color: var(--sub);
+  padding: 8px 11px 0; font-size: 11px; line-height: 1.45; color: var(--sub);
+  border-top: 1px solid var(--line-soft);
 }
 /*
  * Un carrousel plutôt qu'une grille : une série peut aller à sept matchs, et

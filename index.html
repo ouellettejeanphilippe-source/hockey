@@ -32,6 +32,8 @@
   <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
   <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8"/><path d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></symbol>
+  <symbol id="i-cols" viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="9.5" y="4" width="5" height="16" rx="1"/><rect x="16" y="4" width="5" height="16" rx="1"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
   <symbol id="i-cup" viewBox="0 0 24 24"><path d="M8 3h8l1 4H7l1-4z"/><path d="M9 7v3a3 3 0 0 0 6 0V7"/><path d="M12 13v5M7 21h10M9 18h6"/></symbol>
 </svg>
 
@@ -87,18 +89,20 @@
                  qu'on balaie du doigt sur téléphone) ou tout le monde ensemble,
                  rangé par le tri courant. -->
             <div class="seg seg-view" data-opt="poolView" role="tablist" aria-label="Affichage du vestiaire">
-              <button data-val="POS" class="on" title="Six colonnes, une par poste — balaie pour changer de poste">Par poste</button>
-              <button data-val="LIST" title="Tous les joueurs ensemble, dans l'ordre du tri">Tous</button>
+              <button data-val="POS" class="on" title="Par poste : six colonnes, une par poste — balaie pour changer de poste"><svg class="ico" aria-hidden="true"><use href="#i-cols"/></svg><span class="lbl">Par poste</span></button>
+              <button data-val="LIST" title="Tous : les joueurs ensemble, dans l'ordre du tri"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg><span class="lbl">Tous</span></button>
             </div>
             <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="searchInput" type="search" placeholder="Chercher un joueur…" autocomplete="off"></label>
-            <select id="sortSelect" class="select" aria-label="Trier le bassin">
-              <option value="PTS">Tri : points / victoires</option>
-              <option value="PPG">Tri : points par match</option>
-              <option value="SAL">Tri : salaire</option>
-              <option value="VAL">Tri : points par million</option>
-              <option value="PM">Tri : différentiel (+/-)</option>
-              <option value="AGE">Tri : âge</option>
-              <option value="NAME">Tri : nom</option>
+            <!-- Libellés courts : le tri partage sa rangée avec la recherche et
+                 la bascule sur téléphone. L'infobulle dit le reste. -->
+            <select id="sortSelect" class="select" aria-label="Trier le bassin" title="Trier le bassin">
+              <option value="PTS">Points / V</option>
+              <option value="PPG">Pts par match</option>
+              <option value="SAL">Salaire</option>
+              <option value="VAL">Pts par M$</option>
+              <option value="PM">Différentiel</option>
+              <option value="AGE">Âge</option>
+              <option value="NAME">Nom</option>
             </select>
           </div>
         </div>

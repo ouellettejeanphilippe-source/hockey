@@ -739,6 +739,7 @@ function renderSpin() {
     await nextSpin(ns, nt);
     render();
   };
+  ajusterCartes(host);
   $('rrS').onclick = () => reroll('season', true, false);
   $('rrT').onclick = () => reroll('team', false, true);
   $('rrP').onclick = () => reroll('pass', true, true);
@@ -1191,14 +1192,16 @@ function renderPool() {
  * élément forcerait une remise en page par carte.
  */
 function ajusterCartes(root) {
-  const noms = [...root.querySelectorAll('.pcard-name .lname, .slot-name')];
+  const noms = [...root.querySelectorAll('.pcard-name .lname, .slot-name, .spin-name')];
   const tags = [...root.querySelectorAll('.pcard-mid .tags, .slot-tags')];
   for (const el of noms) el.style.fontSize = '';
   for (const el of tags) el.style.transform = '';
   const mesN = noms.map(el => [el, el.scrollWidth, el.clientWidth, parseFloat(getComputedStyle(el).fontSize)]);
   const mesT = tags.map(el => [el, el.scrollWidth, el.clientWidth]);
   for (const [el, sw, cw, fs] of mesN) {
-    if (sw > cw && cw > 0) el.style.fontSize = `${Math.max(10, Math.floor(fs * cw / sw * 10) / 10 - 0.2)}px`;
+    // Le nom du vestiaire a un plancher plus haut : c'est un titre, pas une étiquette.
+    const plancher = el.classList.contains('spin-name') ? 17 : 10;
+    if (sw > cw && cw > 0) el.style.fontSize = `${Math.max(plancher, Math.floor(fs * cw / sw * 10) / 10 - 0.2)}px`;
   }
   for (const [el, sw, cw] of mesT) {
     if (sw > cw && cw > 0) el.style.transform = `scale(${Math.max(0.6, cw / sw).toFixed(3)})`;
@@ -1567,12 +1570,12 @@ function showPlayerModal(p) {
             <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
               <span class="pos-chip ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
             <div class="tags pcard-full-tags">${traitTags(p, true)}${archTag(p, true)}${zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
+            <div class="pcard-full-salary">
+              <span class="big">${st.salaryMain}</span>
+              <span class="small">${st.salarySub}</span>
+              <span class="small">${G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`}</span>
+            </div>
           </div>
-        </div>
-        <div class="pcard-full-salary">
-          <span class="big">${st.salaryMain}</span>
-          <span class="small">${st.salarySub}</span>
-          <span class="small">${G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`}</span>
         </div>
       </div>
       <div class="modal-body">
