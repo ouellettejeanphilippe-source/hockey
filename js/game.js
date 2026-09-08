@@ -19,7 +19,7 @@ import {
   playSeries, autoRoster, tirsTotal, periodeDe, MODES, casesDuMode, uniteDeCase,
 } from './sim.js';
 import { recitDeBut, recitDeMatch, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
-import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent } from './logos.js';
+import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamInk } from './logos.js';
 import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 
@@ -263,6 +263,7 @@ function applyTeamColors(team) {
   // Version éclaircie, celle qui porte les bordures et les libellés : la
   // couleur brute d'une équipe sombre serait invisible sur fond noir.
   root.setProperty('--team-line', line);
+  root.setProperty('--team-ink', getTeamInk(team));
 }
 
 const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
@@ -384,7 +385,7 @@ function archTag(p, full = false) {
  * afficher une icône ne coûte rien à la lisibilité et signale exactement ce
  * qu'on ne peut pas déduire des colonnes.
  */
-function traitTags(p, full = false) {
+function traitTagList(p, full = false) {
   return getTraits(p).map(t => {
     const meta = TRAITS[t.cle];
     const niveau = t.niveau === 0 ? 'Lauréat' : 'Finaliste';
@@ -392,8 +393,9 @@ function traitTags(p, full = false) {
     return `<span class="tag tag-trait${t.niveau ? ' est-finaliste' : ''}"`
       + ` title="${esc(meta.short)} ${esc(p.s)} — ${niveau}. ${esc(meta.desc)}.">`
       + `${meta.icon}${txt}</span>`;
-  }).join('');
+  });
 }
+const traitTags = (p, full = false) => traitTagList(p, full).join('');
 
 function ageTag(p) {
   const age = ageAtSeason(p.bd, p.s);
@@ -940,28 +942,30 @@ function playerCardEl(p) {
   // de couleur quand la carte change d'état. Il porte un fond, jamais du
   // texte de contenu : la même règle que les couleurs d'équipe.
   const etat = already ? 'signe' : over || !slot ? 'off' : '';
+  // LE BANDEAU PORTE LA COULEUR DE L'ÉQUIPE, le poste et la provenance : tout
+  // ce qui identifie la carte tient sur une ligne au lieu d'être éparpillé.
+  // Le corps range le reste sur deux lignes à côté du portrait, plutôt que de
+  // l'empiler : même information, deux fois moins de hauteur.
   el.innerHTML = `
-    <div class="pcard-band ${positionClass(p)} ${etat}">
-      <span class="pb-code">${esc(positionLabel(p))}</span>
-      <span class="pb-long">${esc(posteLong(p))}</span>
-      <span class="pb-team">${getTeamLogoHtml(p.t, 13)} ${esc(p.s)}</span>
+    <div class="pcard-band">
+      <span class="pb-pos ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</span>
+      <span class="pb-team">${getTeamLogoHtml(p.t, 14)}<span>${esc(p.t)}</span></span>
+      <span class="pb-season">${esc(p.s)}</span>
     </div>
     <div class="pcard-inner">
-      <div class="pcard-head">
-        <div class="pcard-avatar">${headshotHtml(p)}</div>
-        <div class="pcard-id">
+      <div class="pcard-avatar">${headshotHtml(p)}</div>
+      <div class="pcard-body">
+        <div class="pcard-head">
           <div class="pcard-name">${formatName(p.n)}</div>
+          <div class="pcard-price">${st.salaryMain}</div>
         </div>
-        <div class="pcard-price">${st.salaryMain}</div>
+        <div class="pcard-mid">
+          <div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
+          <div class="tags">${tags}</div>
+        </div>
       </div>
-      <div class="pcard-mid">
-        <div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
-        <div class="tags">${tags}</div>
-      </div>
-      <div class="pcard-foot">
-        <div class="pcard-dest">${dest}</div>
-        <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
-      </div>
+      <div class="pcard-dest">${dest}</div>
+      <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
     </div>`;
 
   el.onclick = ev => {
@@ -1110,6 +1114,36 @@ function renderPool() {
    Rendu — alignement
    ===================================================================== */
 
+/*
+ * LE BANDEAU D'UNE CASE EST ÉTROIT — trois cases par trio sur un quart de
+ * l'écran, soit environ cent pixels. « Réserve F » n'y tient pas à côté du
+ * salaire, et le libellé se coupait à « RÉ… ». On abrège donc dans le
+ * bandeau seulement, et seulement là où c'est nécessaire : la case vide, elle,
+ * garde le mot entier puisqu'elle a toute la place, et les gardiens gardent
+ * « Partant » et « Auxiliaire » puisqu'ils ne sont que deux par rangée.
+ */
+const ROLE_COURT = {
+  'Réserve F': 'Rés. F', 'Réserve D': 'Rés. D', 'Réserve': 'Rés.',
+};
+const roleCourt = r => ROLE_COURT[r] || r;
+
+/*
+ * LA CASE NE PORTE QUE LE VERDICT DE PLACEMENT : la zone d'efficacité,
+ * l'écart à cette zone, la pénalité de position. Rien d'autre.
+ *
+ * Elle portait aussi les traits et l'archétype, et c'est ce qui la salissait :
+ * quatre cases par trio sur un quart d'écran font des cases de cent pixels,
+ * où la quatrième étiquette se coupait en deux et laissait un moignon au
+ * bord. Les traits n'ont pas disparu — ils sont sur la carte du bassin, au
+ * moment où on décide de signer, et sur la fiche. Le tableau de profondeur,
+ * lui, répond à une seule question : ce joueur est-il à sa place ?
+ */
+const SLOT_TAGS_MAX = 3;
+function slotTags(p, zoneEcartTag, penTag) {
+  return [zoneTag(p), zoneEcartTag, penTag]
+    .filter(Boolean).slice(0, SLOT_TAGS_MAX).join('');
+}
+
 function slotEl(s) {
   const p = G.roster[s.i];
   const el = document.createElement('div');
@@ -1123,28 +1157,35 @@ function slotEl(s) {
 
   if (p) {
     el.style.setProperty('--slot-line', getTeamAccent(p.t));
+    el.style.setProperty('--slot-ink', getTeamInk(p.t));
     const st = displayStats(p);
     const main = p.p === 'G' ? `${st.w} V` : `${st.pt} PTS`;
-    const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr} PTS/M`;
+    /* La case est étroite : la ligne de statistiques y tient en une seule,
+       donc on abrège « PTS/M » en « /M ». La fiche donne le libellé complet. */
+    const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr}/M`;
     const penTag = pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position : −${pen}">−${pen}</span>` : '';
     const ecart = zoneEcart(p, s);
-    const zoneEcartTag = ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼ zone</span>`
-      : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲ zone</span>` : '';
+    /* Une flèche seule : « ▼ zone » et « ▲ zone » poussaient la pénalité de
+       position hors de la case sur les écrans où un trio n'a que cent pixels
+       par joueur. L'infobulle dit la phrase entière. */
+    const zoneEcartTag = ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
+      : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>` : '';
     if (estRenfort(p)) el.classList.add('renfort');
     el.innerHTML = `
       ${estRenfort(p) ? ''
         : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
-      <div class="slot-band ${positionClass(p)}${estRenfort(p) ? ' off' : ''}">
-        <span>${esc(s.role)}</span>
+      <div class="slot-band${estRenfort(p) ? ' off' : ''}">
+        <span class="sb-role ${positionClass(p)}">${esc(roleCourt(s.role))}</span>
+        <span class="sb-logo">${getTeamLogoHtml(p.t, 12)}</span>
         ${estRenfort(p)
           ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
           : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
         <div class="slot-name">${formatName(p.n)}</div>
-        <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
-        <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
-        <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${zoneEcartTag}${penTag}</div>
+        <div class="slot-meta">${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</div>
+        <div class="slot-meta">${main} · ${secondary}</div>
+        <div class="slot-tags">${slotTags(p, zoneEcartTag, penTag)}</div>
       </div>`;
     el.querySelector('.slot-remove')?.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -1188,9 +1229,15 @@ function slotEl(s) {
   return el;
 }
 
-/* Titres courts pour les lignes de l'alignement. */
-const UNIT_NAMES_F = ['Top 6', 'Top 6', 'Middle 6', 'Bottom 6'];
-const UNIT_NAMES_D = ['Top 4', 'Top 4', 'Bottom 4'];
+/*
+ * Titres des rangées du tableau de profondeur. On les nomme par leur RANG —
+ * 1er trio, 2e paire — et non par leur zone : deux rangées s'appelaient
+ * « Top 6 » et deux autres « Top 4 », si bien qu'on ne savait plus laquelle
+ * on regardait. La zone reste écrite sur la case vide et sur l'étiquette du
+ * joueur, là où elle sert à décider.
+ */
+const UNIT_NAMES_F = ['1er trio', '2e trio', '3e trio', '4e trio'];
+const UNIT_NAMES_D = ['1re paire', '2e paire', '3e paire'];
 
 /* Version courte des libellés de chimie : l'en-tête d'une unité est étroit,
    le texte complet reste dans l'infobulle. */
@@ -1275,10 +1322,10 @@ function renderTeamSummary() {
     `<div class="sum-item" title="${esc(title)}"><div class="k">${k}</div><div class="v ${cls || ''}">${v}</div></div>`;
 
   host.innerHTML =
-    tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(CAP)}. Il reste ${money(capLeft())}.`)
-    + tile('Cases vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', 'Cases encore à combler sur les 23.')
-    + tile('Unités optimales', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense. Les quatre trios et les trois paires comptent.")
-    + tile('Mal assorties', miscast, miscast ? 'dash-bad' : '', 'Unités où au moins deux joueurs jouent hors de leur zone : −2 en attaque et −2 en défense.')
+    tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
+    + tile('Vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
+    + tile('Optimales', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense. Les quatre trios et les trois paires comptent.")
+    + tile('Mal assorties', miscast, miscast ? 'dash-bad' : '', 'Unités où au moins un joueur joue hors de sa zone.')
     + tile('Hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
 }
 
@@ -1646,21 +1693,29 @@ function leagueStats(teams) {
   };
 }
 
-/* Les sept palmarès, chacun avec ses colonnes. */
+/*
+ * Les sept palmarès, chacun avec ses colonnes. `heros` est l'indice de la
+ * COLONNE QUI DONNE SON NOM AU PALMARÈS — les points chez les pointeurs, les
+ * buts chez les buteurs. Elle est écrite ici plutôt que devinée à la dernière
+ * colonne parce qu'elle n'y est pas toujours, et c'est la seule que le
+ * téléphone garde : à 390 px un tableau de sept colonnes défilait
+ * horizontalement, si bien qu'un palmarès des pointeurs s'ouvrait sans
+ * montrer les points.
+ */
 const PALMARES = [
-  { cle: 'points', titre: 'Pointeurs', cols: ['PJ', 'B', 'A', 'PTS'],
+  { cle: 'points', titre: 'Pointeurs', cols: ['PJ', 'B', 'A', 'PTS'], heros: 3,
     vals: p => [p.simGP, p.simG, p.simA, `<b>${p.simPTS}</b>`] },
-  { cle: 'buts', titre: 'Buteurs', cols: ['PJ', 'B', 'L', '%'],
+  { cle: 'buts', titre: 'Buteurs', cols: ['PJ', 'B', 'L', '%'], heros: 1,
     vals: p => [p.simGP, `<b>${p.simG}</b>`, p.simSH || 0, p.simSH ? (100 * p.simG / p.simSH).toFixed(1) : '—'] },
-  { cle: 'passes', titre: 'Passeurs', cols: ['PJ', 'A', 'PTS'],
+  { cle: 'passes', titre: 'Passeurs', cols: ['PJ', 'A', 'PTS'], heros: 1,
     vals: p => [p.simGP, `<b>${p.simA}</b>`, p.simPTS] },
-  { cle: 'plusmoins', titre: 'Différentiel', cols: ['PJ', 'PTS', '+/-'],
+  { cle: 'plusmoins', titre: 'Différentiel', cols: ['PJ', 'PTS', '+/-'], heros: 2,
     vals: p => [p.simGP, p.simPTS, `<b>${p.simPM > 0 ? '+' : ''}${p.simPM}</b>`] },
-  { cle: 'moyenne', titre: 'Gardiens · MBA', cols: ['PJ', 'V', 'BL', 'MBA'],
+  { cle: 'moyenne', titre: 'Gardiens · MBA', cols: ['PJ', 'V', 'BL', 'MBA'], heros: 3,
     vals: p => [p.simGP, p.simW, p.simSO, `<b>${(p.simGA / Math.max(1, p.simGP)).toFixed(2)}</b>`] },
-  { cle: 'arrets', titre: 'Gardiens · %ARR', cols: ['PJ', 'ARR', 'TIRS', '%ARR'],
+  { cle: 'arrets', titre: 'Gardiens · %ARR', cols: ['PJ', 'ARR', 'TIRS', '%ARR'], heros: 3,
     vals: p => [p.simGP, p.simSV || 0, p.simSA || 0, `<b>${p.simSA ? (p.simSV / p.simSA).toFixed(3).slice(1) : '—'}</b>`] },
-  { cle: 'victoires', titre: 'Gardiens · victoires', cols: ['PJ', 'V', 'D', 'BL'],
+  { cle: 'victoires', titre: 'Gardiens · victoires', cols: ['PJ', 'V', 'D', 'BL'], heros: 1,
     vals: p => [p.simGP, `<b>${p.simW}</b>`, p.simL, p.simSO] },
 ];
 
@@ -1673,11 +1728,11 @@ function palmaresHtml(stats) {
         <td>${n + 1}</td>
         <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 14)}<span>${esc(x.p.n)}</span></div></td>
         <td class="sub-cell">${esc(x.t.isPlayer ? 'toi' : `${x.t.tag} ${(x.t.season || '').slice(2)}`)}</td>
-        ${d.vals(x.p).map(v => `<td>${v}</td>`).join('')}
+        ${d.vals(x.p).map((v, c) => `<td class="stat${c === d.heros ? ' heros' : ''}">${v}</td>`).join('')}
       </tr>`).join('');
     return `<div class="stat-table" data-stat="${d.cle}"${i === 0 ? '' : ' hidden'}>
       <div class="table-wrap"><table class="data">
-        <thead><tr><th>#</th><th class="left">Joueur</th><th>Éq.</th>${d.cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+        <thead><tr><th>#</th><th class="left">Joueur</th><th>Éq.</th>${d.cols.map((c, i) => `<th class="stat${i === d.heros ? ' heros' : ''}">${c}</th>`).join('')}</tr></thead>
         <tbody>${rows || '<tr><td colspan="8">Aucun joueur admissible.</td></tr>'}</tbody>
       </table></div></div>`;
   }).join('');
@@ -1951,7 +2006,10 @@ function showGameModal(iSerie, iMatch) {
     ? `<div class="som-gard"><span>${formatName(g.n)}</span><span>${arrets} arrêts sur ${tirs}</span></div>`
     : '';
 
-  $('gameModalTitle').innerHTML = `Match ${iMatch + 1} · ${esc(nomA)} ${f.gfA} — ${f.gfB} ${esc(nomB)}`
+  /* Le titre ne répète pas le pointage : les deux lignes juste dessous le
+     donnent, avec les écusson et les tirs. Trois lignes de titre sur un
+     téléphone repoussaient le sommaire sous le pli pour rien. */
+  $('gameModalTitle').innerHTML = `Match ${iMatch + 1} · ${esc(teamShort(A))} — ${esc(teamShort(B))}`
     + (f.ot ? ' <span class="som-ot">prolongation</span>' : '');
   $('gameModalBody').innerHTML = `
     <div class="som-recap">${esc(recitDeMatch(f, teamShort(A), teamShort(B), tirsA, tirsB))}</div>
