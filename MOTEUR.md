@@ -233,9 +233,12 @@ d'en face.
 **Ce qui est un repère d'époque, pas une mesure du dépôt** : le nombre
 d'occasions par équipe par match (`AVANTAGES_EPOQUE` : ≈ 4 en 1970, 5,3 au
 milieu des années 1980, 5,8 dans la répression de 2005-06, 3 depuis 2015), lu
-dans les tables publiques de la ligue. Les shards ne portent ni les buts en
-avantage ni les occasions — ce sont des colonnes de l'API jamais aspirées, à
-valider dès qu'elle sera joignable.
+dans les tables publiques de la ligue. Les shards ne portaient ni les buts en
+avantage ni les occasions ; depuis `RATINGS_VERSION` 24 le build les garde
+(`ppg`, `ppp`, `shg`, `shp` par patineur, bloc `an` par équipe depuis 1977-78) et
+le moteur les lit quand ils sont là — unités, part d'avantage de chaque joueur,
+occasions par saison — au lieu de deviner. Il faut une passe de l'Action en mode
+`full` (tâche M1).
 
 **Le piège, trouvé en mesurant** : un joueur d'avantage numérique tirait deux
 fois. Son volume réel (`sh` par match) contient déjà ses tirs d'avantage ; lui

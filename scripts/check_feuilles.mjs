@@ -154,4 +154,18 @@ console.log(`    % de tir de la ligue           ${(100 * buts / lancersPour).toF
 let butsAN = 0, minutesPun = 0;
 for (const t of equipes) for (const p of joueursDe(t)) { butsAN += p.simPPG || 0; minutesPun += p.simPIM || 0; }
 console.log(`    buts en avantage numérique     ${(100 * butsAN / Math.max(1, buts)).toFixed(1)} % des buts, ${(butsAN / matchs).toFixed(2)} par équipe par match`);
-console.log(`    punitions par équipe par match ${(minutesPun / 2 / matchs).toFixed(2)} (cible : la moyenne d'époque, 2,8 à 5,8)\n`);
+console.log(`    punitions par équipe par match ${(minutesPun / 2 / matchs).toFixed(2)} (cible : la moyenne d'époque, 2,8 à 5,8)`);
+
+// Quand les shards portent les buts en avantage réels (RATINGS_VERSION 24,
+// après une passe de l'Action), on compare joueur par joueur : la part des
+// buts d'avantage simulée contre la vraie, sur les 40 matchs et plus.
+const avecAN = [];
+for (const t of equipes) for (const p of joueursDe(t)) if (p.ppg != null && (p.simGP || 0) >= 40 && (p.g || 0) >= 10 && p.gp) avecAN.push(p);
+if (avecAN.length) {
+  const sim = avecAN.reduce((a, p) => a + (p.simPPG || 0), 0) / Math.max(1, avecAN.reduce((a, p) => a + (p.simG || 0), 0));
+  const reel = avecAN.reduce((a, p) => a + (p.ppg || 0), 0) / Math.max(1, avecAN.reduce((a, p) => a + (p.g || 0), 0));
+  console.log(`    part des buts en avantage, joueurs   simulée ${(100 * sim).toFixed(1)} % · réelle ${(100 * reel).toFixed(1)} % (${avecAN.length} patineurs)`);
+} else {
+  console.log(`    (les shards ne portent pas encore les buts en avantage réels : lancer l'Action en mode full)`);
+}
+console.log('');

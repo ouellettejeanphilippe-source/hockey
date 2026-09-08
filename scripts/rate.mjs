@@ -14,7 +14,7 @@ let raw = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', c => { raw += c; });
 process.stdin.on('end', () => {
-  const { label, minGP, skaters, goalies, realtime, salaries } = JSON.parse(raw);
-  const shard = buildSeasonShard(label, skaters, goalies, realtime || null, minGP, { salaries: salaries || null });
+  const { label, minGP, skaters, goalies, realtime, salaries, avantages } = JSON.parse(raw);
+  const shard = buildSeasonShard(label, skaters, goalies, realtime || null, minGP, { salaries: salaries || null, avantages: avantages || null });
   process.stdout.write(JSON.stringify(shard));
 });

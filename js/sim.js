@@ -726,6 +726,16 @@ export const AVANTAGES_EPOQUE = [
   [1970, 4.0], [1975, 4.6], [1980, 5.0], [1985, 5.3], [1990, 5.3], [1995, 4.8],
   [2000, 4.3], [2005, 5.8], [2010, 3.6], [2015, 3.0], [2020, 2.9], [2026, 2.8],
 ];
+/**
+ * Les occasions d'avantage d'un joueur-saison : mesurées dans sa saison
+ * (colonne [9] de SEASON_LANCERS, posée par build_lancers.mjs depuis le bloc
+ * `an` des shards) quand elles existent, sinon le repère d'époque.
+ */
+export function occasionsDe(p) {
+  const mesure = seasonLancers(p && p.s)[9];
+  if (mesure > 0) return mesure;
+  return occasionsEpoque(parseInt((p && p.s || '').slice(0, 4), 10) || null);
+}
 export function occasionsEpoque(annee) {
   const t = AVANTAGES_EPOQUE;
   if (!annee || annee <= t[0][0]) return t[0][1];
@@ -873,17 +883,30 @@ function unitesSpeciales(habilles) {
   const F = habilles.filter(p => p && p.p !== 'G' && !est_Def(p));
   const D = habilles.filter(est_Def);
   const offensif = p => lancersRel(p) * pctTirRel(p) + passesRel(p);
+  // QUAND LES SHARDS LE DISENT, ON LE LIT. Les points en avantage disent qui
+  // jouait l'avantage, les points en désavantage qui le tuait : deux
+  // colonnes de l'API que le build garde depuis RATINGS_VERSION 24. Sans
+  // elles (shards plus anciens), on devine par la valeur offensive et la
+  // cote défensive. Le classement mêle les deux pour départager les zéros.
+  const mesure = habilles.some(p => p && p.ppp != null);
+  const parMatch = (p, k) => ((p[k] || 0) / Math.max(1, p.gp || 1));
+  const clAN = mesure ? p => parMatch(p, 'ppp') * 10 + offensif(p) : offensif;
+  const clDN = mesure ? p => (parMatch(p, 'shp') + parMatch(p, 'shg')) * 200 + coteD(p) : coteD;
   const ranges = (liste, cle) => liste.slice().sort((a, b) => cle(b) - cle(a));
   const unite = (joueurs, poids) => ({
     joueurs, poids, presence: poids, qualite: 1,
     coteDef: joueurs.length ? joueurs.reduce((a, p) => a + coteD(p), 0) / joueurs.length : REPLACEMENT,
   });
-  const Fo = ranges(F, offensif), Do = ranges(D, offensif), Fd = ranges(F, coteD), Dd = ranges(D, coteD);
+  const Fo = ranges(F, clAN), Do = ranges(D, clAN), Fd = ranges(F, clDN), Dd = ranges(D, clDN);
   const anF = [Fo.slice(0, 3), Fo.slice(3, 6)], anD = [Do.slice(0, 2), Do.slice(2, 4)];
   const dnF = [Fd.slice(0, 2), Fd.slice(2, 4)], dnD = [Dd.slice(0, 2), Dd.slice(2, 4)];
+  // La part d'avantage d'un joueur : SES buts en avantage sur ses buts quand
+  // le shard les porte (dix buts et plus pour que le rapport veuille dire
+  // quelque chose), sinon la constante de son unité.
   const partAN = new Map();
-  anF.forEach((js, u) => js.forEach(p => partAN.set(p, PART_AN_TIRS[u])));
-  anD.forEach((js, u) => js.forEach(p => partAN.set(p, PART_AN_TIRS[u])));
+  const partDe = (p, u) => (p.ppg != null && (p.g || 0) >= 10) ? borne(p.ppg / p.g, 0, 0.6) : PART_AN_TIRS[u];
+  anF.forEach((js, u) => js.forEach(p => partAN.set(p, partDe(p, u))));
+  anD.forEach((js, u) => js.forEach(p => partAN.set(p, partDe(p, u))));
   const premiere = [...anF[0], ...anD[0]];
   const volume = premiere.length ? borne(premiere.reduce((a, p) => a + lancersRel(p), 0) / premiere.length, 0.6, 1.6) : 1;
   const garnir = (unites, poids) => unites.map((js, u) => unite(js, poids[u])).filter(x => x.joueurs.length);
@@ -987,6 +1010,9 @@ export function profilMatch(team, lineup) {
       ? borne(patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length, DISCIPLINE_MIN, DISCIPLINE_MAX)
       : 1,
     annee: anneeDe(habilles),
+    // Les occasions d'avantage de cet alignement : mesurées par saison quand
+    // les shards les portent, repère d'époque sinon (voir occasionsDe).
+    occasions: patineurs.length ? patineurs.reduce((a, p) => a + occasionsDe(p), 0) / patineurs.length : null,
     pression: borne(pression, 0.40, REF.pression * PRESSION_MAX),
     finEquipe, creaEquipe,
     finitionFacteur: Math.min(1, FINITION_MAX / finEquipe),
@@ -1013,7 +1039,7 @@ function choisirPresence(unites) {
  */
 const PROFIL_NEUTRE = {
   unites: null, avantage: null, desavantage: null, patineurs: [],
-  discipline: 1, annee: null,
+  discipline: 1, annee: null, occasions: null,
   pression: REF.pression, zDef: REF.zDef,
   pctTirDefaut: PCT_TIR_NEUTRE, fgDefaut: REF.fg,
 };
@@ -1479,8 +1505,8 @@ function instantForcesEgales(fenetres, prolongation) {
  * ou l'autre peut manquer (adversaire neutre de la saison solo).
  */
 function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, LA = null, LB = null) {
-  const annee = pA.annee && pB.annee ? (pA.annee + pB.annee) / 2 : (pA.annee || pB.annee);
-  const occasions = occasionsEpoque(annee);
+  const occasions = pA.occasions && pB.occasions ? (pA.occasions + pB.occasions) / 2
+    : (pA.occasions || pB.occasions || occasionsEpoque(pA.annee || pB.annee));
   let gfA = 0, gfB = 0;
   const fenetres = [];
   let minutesAN = 0;
