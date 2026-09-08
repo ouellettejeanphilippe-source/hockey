@@ -238,14 +238,25 @@ export function recitDeSerie(wV, wP, nomV, nomP, feuilles) {
    Le récit d'une saison
    ===================================================================== */
 
-const pluriel = (n, un, des) => `${n} ${n > 1 ? des : un}`;
+const virgule = x => String(x).replace('.', ',');
+const rangMot = r => (r === 1 ? 'premier' : `${r}e`);
+/* Les petits nombres s'écrivent en lettres dans une phrase : « six victoires de suite ». */
+const LETTRES = ['zéro', 'une', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze'];
+const enLettres = (n, masc = false) => (n === 1 && masc ? 'un' : LETTRES[n] ?? String(n));
+/* « une seule blessure », « six victoires », « un jeu blanc » : le nombre en lettres quand il est petit. */
+const pluriel = (n, un, des, masc = false) => `${enLettres(n, masc)} ${n > 1 ? des : un}`;
 
 /**
- * La saison racontée, en quelques paragraphes : la fiche et le rang, l'arc
- * (le départ, la meilleure et la pire séquence, la fin), les vedettes de
- * l'attaque, le gardien, l'infirmerie. Tout vient du journal et des fiches
- * simulées ; rien n'est inventé, seulement la tournure, tirée sur une graine
- * de la saison pour que le texte tienne quand on le relit.
+ * La saison racontée, en quelques paragraphes qui se lisent comme un
+ * article : la fiche et le rang, puis l'arc de la saison (le départ, la
+ * meilleure et la pire séquence, la fin), les soirs qu'on retient, les
+ * vedettes de l'attaque, le gardien, l'infirmerie. Tout vient du journal et
+ * des fiches simulées ; rien n'est inventé, seulement la tournure, tirée sur
+ * une graine de la saison pour que le texte tienne quand on le relit.
+ *
+ * JP : *plus fluide les résumés de saison, genre écris comme il faut*. Donc
+ * des phrases complètes, liées entre elles, et pas une suite de chiffres
+ * séparés par des points.
  *
  *   equipe    l'équipe du joueur, avec `journal`, `injuriesLog`, `roster`
  *   rang, n   son rang et le nombre d'équipes
@@ -258,80 +269,93 @@ export function recitDeSaison(equipe, rang, n, ctx) {
   const g2 = graine(`b${equipe.GF}${equipe.GA}${rang}`);
   const g3 = graine(`c${equipe.W}${equipe.PTS}`);
   const paras = [];
-
-  /* 1. La fiche et le rang. */
+  const club = 'Les NHL Stars';
   const fiche = `${equipe.W}-${equipe.L}-${equipe.OTL}`;
-  const enSeries = rang <= 16;
+  const pts = equipe.PTS;
+  const diff = equipe.GF - equipe.GA;
+  const diffStr = `${diff > 0 ? '+' : ''}${diff}`;
+
+  /* 1. La fiche, le rang et ce qu'ils veulent dire. */
   let ouverture;
   if (rang === 1) ouverture = pige([
-    `Première de la ligue. Ta formation termine à ${fiche}, ${equipe.PTS} points, et personne n'a suivi.`,
-    `${fiche}, ${equipe.PTS} points, le premier rang : la saison régulière n'a pas eu d'autre patron.`,
-    `Le premier rang, avec ${equipe.PTS} points et une fiche de ${fiche}. Le trophée du Président, si on le remettait ici.`], g);
+    `${club} ont dominé la saison régulière du début à la fin et terminent au premier rang de la ligue, avec une fiche de ${fiche} et ${pts} points. Personne n'a réussi à suivre.`,
+    `Avec ${pts} points et une fiche de ${fiche}, ${club.toLowerCase()} ont fini au sommet de la ligue. Si le trophée du Président se remettait ici, il serait dans leur vestiaire.`,
+    `La saison régulière n'a pas eu d'autre patron : ${club.toLowerCase()} terminent premiers, forts d'une fiche de ${fiche} et de ${pts} points.`], g);
   else if (rang <= 4) ouverture = pige([
-    `${rang}e de ${n}, ${fiche}, ${equipe.PTS} points : une saison de tête, et l'avantage de la glace pour commencer.`,
-    `Ta formation finit ${rang}e avec ${equipe.PTS} points (${fiche}). Une des quatre grosses équipes de l'année.`,
-    `${equipe.PTS} points et le ${rang}e rang : un club qu'on voyait venir dès l'automne.`], g);
-  else if (enSeries) ouverture = pige([
-    `${rang}e de ${n} avec ${equipe.PTS} points (${fiche}) : les séries, sans le luxe.`,
-    `Ta formation termine ${rang}e, ${fiche}, ${equipe.PTS} points. Qualifiée, mais rien n'a été donné.`,
-    `${fiche} pour ${equipe.PTS} points, ${rang}e rang : la place en séries s'est prise, pas reçue.`], g);
+    `${club} ont connu une saison de tête et terminent au ${rangMot(rang)} rang de la ligue, avec une fiche de ${fiche} et ${pts} points, ce qui leur donne l'avantage de la glace pour amorcer les séries.`,
+    `Avec ${pts} points et une fiche de ${fiche}, ${club.toLowerCase()} finissent ${rang}e sur ${n} : l'une des quatre grosses équipes de l'année, et un club qu'on voyait venir dès l'automne.`,
+    `Le ${rangMot(rang)} rang, ${pts} points, une fiche de ${fiche} : ${club.toLowerCase()} ont fait partie du haut du classement toute l'année.`], g);
+  else if (rang <= 16) ouverture = pige([
+    `${club} ont décroché leur place en séries en terminant au ${rangMot(rang)} rang de la ligue, avec une fiche de ${fiche} et ${pts} points. Rien n'a été donné, mais l'essentiel est là.`,
+    `Avec ${pts} points et une fiche de ${fiche}, ${club.toLowerCase()} finissent ${rang}e sur ${n} équipes, ce qui suffit pour les séries sans laisser beaucoup de marge.`,
+    `${club} terminent la saison au ${rangMot(rang)} rang, ${fiche} pour ${pts} points : une qualification qui s'est prise sur la glace plutôt que reçue.`], g);
   else if (rang <= 20) ouverture = pige([
-    `${rang}e de ${n}, ${fiche}, ${equipe.PTS} points : la ligne des séries est passée à quelques points.`,
-    `Ta formation finit ${rang}e avec ${equipe.PTS} points. Éliminée, de peu.`,
-    `${fiche}, ${equipe.PTS} points, ${rang}e rang. Le printemps se regarde à la télé, mais pas de loin.`], g);
+    `${club} ont raté les séries de peu : le ${rangMot(rang)} rang sur ${n}, avec une fiche de ${fiche} et ${pts} points, à quelques points seulement de la ligne.`,
+    `Avec ${pts} points et une fiche de ${fiche}, ${club.toLowerCase()} terminent ${rang}e, juste sous la ligne des séries. Le printemps se regarde à la télé, mais de pas très loin.`,
+    `La saison des NHL Stars s'arrête au ${rangMot(rang)} rang, ${fiche} pour ${pts} points, à une ou deux victoires d'une place en séries.`], g);
   else ouverture = pige([
-    `${rang}e de ${n}, ${fiche}, ${equipe.PTS} points : une saison à oublier, ou à disséquer.`,
-    `Ta formation termine ${rang}e avec ${equipe.PTS} points. La feuille de match ci-dessous dit où ça a cassé.`,
-    `${fiche}. ${equipe.PTS} points. Le ${rang}e rang sur ${n} : il y a eu plus de soirs de défaite que de victoire.`], g);
-  const diff = equipe.GF - equipe.GA;
-  const bilanButs = diff >= 40 ? pige([`Différentiel de +${diff} : on a gagné en marquant.`, `+${diff} au différentiel, ${equipe.GF} buts marqués : l'attaque a porté le club.`], g2)
-    : diff >= 12 ? pige([`Un différentiel de +${diff}, solide sans être écrasant.`, `${equipe.GF} buts pour, ${equipe.GA} contre : le compte est bon.`], g2)
-    : diff >= -12 ? pige([`Différentiel de ${diff > 0 ? '+' : ''}${diff} : une équipe qui a joué des matchs serrés toute l'année.`, `${equipe.GF} buts pour, ${equipe.GA} contre. Chaque soir s'est joué à un but.`], g2)
-    : pige([`Différentiel de ${diff} : on a trop concédé pour ce qu'on marquait.`, `${equipe.GA} buts alloués contre ${equipe.GF} marqués. Le problème est écrit là.`], g2);
+    `${club} ont connu une saison difficile et terminent au ${rangMot(rang)} rang sur ${n}, avec une fiche de ${fiche} et seulement ${pts} points.`,
+    `Avec ${pts} points et une fiche de ${fiche}, ${club.toLowerCase()} finissent ${rang}e sur ${n} équipes : une saison à oublier, ou à disséquer, selon l'humeur.`,
+    `Il y a eu plus de soirs de défaite que de victoire chez les NHL Stars, qui terminent ${rang}e avec ${pts} points et une fiche de ${fiche}.`], g);
+  const bilanButs = diff >= 40 ? pige([`Ils ont gagné en marquant : ${equipe.GF} buts pour, ${equipe.GA} contre, un différentiel de ${diffStr} qui dit bien que l'attaque a porté le club.`,
+      `Le différentiel de ${diffStr} raconte le reste : avec ${equipe.GF} buts marqués contre ${equipe.GA} accordés, c'est l'attaque qui a fait la différence.`], g2)
+    : diff >= 12 ? pige([`Ils ont marqué ${equipe.GF} buts et en ont accordé ${equipe.GA}, un différentiel de ${diffStr}, solide sans être écrasant.`,
+      `Le compte est bon : ${equipe.GF} buts pour, ${equipe.GA} contre, et un différentiel de ${diffStr} qui reflète une équipe bien équilibrée.`], g2)
+    : diff >= -12 ? pige([`Avec ${equipe.GF} buts marqués et ${equipe.GA} accordés, un différentiel de ${diffStr}, c'est une équipe qui a joué des matchs serrés toute l'année.`,
+      `Le différentiel de ${diffStr} (${equipe.GF} buts pour, ${equipe.GA} contre) montre une saison où presque chaque soir s'est décidé par un but.`], g2)
+    : pige([`Ils ont trop concédé pour ce qu'ils marquaient : ${equipe.GA} buts accordés contre ${equipe.GF} marqués, un différentiel de ${diffStr} où le problème est écrit en toutes lettres.`,
+      `Le différentiel de ${diffStr} ne ment pas : avec ${equipe.GF} buts pour et ${equipe.GA} contre, la défensive a coûté cher.`], g2);
   paras.push(`${ouverture} ${bilanButs}`);
 
-  /* 2. L'arc : le départ, les séquences, la fin. */
-  const dix = J.slice(0, 10);
-  const vDix = dix.filter(m => m.win).length;
-  let sequences = [];
+  /* 2. L'arc de la saison : le départ, les séquences, la fin, les prolongations. */
+  const vDix = J.slice(0, 10).filter(m => m.win).length;
   let cur = 0, best = { n: 0, fin: 0 }, curP = 0, pire = { n: 0, fin: 0 };
   J.forEach((m, i) => {
     if (m.win) { cur++; curP = 0; if (cur > best.n) best = { n: cur, fin: i }; }
     else { curP++; cur = 0; if (curP > pire.n) pire = { n: curP, fin: i }; }
   });
-  const depart = vDix >= 8 ? pige([`Le départ a été canon : ${vDix} victoires en dix matchs.`, `${vDix} des dix premiers matchs gagnés : le ton était donné en octobre.`], g3)
-    : vDix >= 6 ? pige([`Bon départ, ${vDix} victoires dans les dix premiers.`, `Une entrée de saison propre : ${vDix}-${10 - vDix} après dix matchs.`], g3)
-    : vDix >= 4 ? pige([`Le départ a été moyen : ${vDix} victoires en dix matchs, le temps de trouver ses trios.`, `${vDix}-${10 - vDix} après dix matchs, sans plus.`], g3)
-    : pige([`Le départ a été pénible : ${vDix} victoire${vDix > 1 ? 's' : ''} seulement dans les dix premiers.`, `${vDix}-${10 - vDix} après dix matchs. Le vestiaire a dû se parler.`], g3);
-  sequences.push(depart);
-  if (best.n >= 6) sequences.push(pige([`La meilleure séquence : ${best.n} victoires de suite, bouclée au match ${best.fin + 1}.`,
-    `Entre les matchs ${best.fin + 2 - best.n} et ${best.fin + 1}, ${best.n} victoires d'affilée — la ligue a compris.`,
-    `${best.n} gains consécutifs jusqu'au match ${best.fin + 1} : la séquence de l'année.`], g));
-  else if (best.n >= 4) sequences.push(pige([`Une séquence de ${best.n} victoires, autour du match ${best.fin + 1}.`, `Au mieux, ${best.n} victoires de suite.`], g));
-  if (pire.n >= 6) sequences.push(pige([`Il y a eu du plus dur : ${pire.n} défaites de suite jusqu'au match ${pire.fin + 1}.`,
-    `${pire.n} défaites d'affilée, fin au match ${pire.fin + 1}. Un creux qui a coûté le classement.`], g2));
-  else if (pire.n >= 4) sequences.push(pige([`Une traversée du désert de ${pire.n} défaites, autour du match ${pire.fin + 1}.`, `${pire.n} revers de suite au pire moment.`], g2));
-  const fin10 = J.slice(-10);
-  const vFin = fin10.filter(m => m.win).length;
-  if (vFin >= 7) sequences.push(pige([`Et la fin de saison a été forte : ${vFin} victoires dans les dix derniers.`, `Le club arrive au printemps lancé, ${vFin}-${10 - vFin} sur les dix derniers matchs.`], g3));
-  else if (vFin <= 3) sequences.push(pige([`La fin a été laborieuse : ${vFin} victoire${vFin > 1 ? 's' : ''} dans les dix derniers.`, `${vFin}-${10 - vFin} sur les dix derniers matchs : on arrive en avril à bout de souffle.`], g3));
+  const arc = [];
+  arc.push(vDix >= 8 ? pige([`La saison s'est ouverte en trombe, avec ${enLettres(vDix)} victoires dans les dix premiers matchs : le ton était donné dès octobre.`,
+      `Le départ a été canon. Après dix matchs, la fiche montrait déjà ${vDix}-${10 - vDix}, et la ligue savait à quoi s'en tenir.`], g3)
+    : vDix >= 6 ? pige([`Le club a pris un bon départ, avec ${enLettres(vDix)} victoires dans ses dix premiers matchs.`,
+      `L'entrée en saison a été propre : une fiche de ${vDix}-${10 - vDix} après dix matchs, sans coup d'éclat mais sans faux pas.`], g3)
+    : vDix >= 4 ? pige([`Le départ a été ordinaire, ${enLettres(vDix)} victoires en dix matchs, le temps de trouver ses trios et son rythme.`,
+      `Après dix matchs, la fiche montrait ${vDix}-${10 - vDix}, ni plus ni moins, le temps que les unités se trouvent.`], g3)
+    : pige([`Le début de saison a été pénible, avec ${pluriel(vDix, 'seule victoire', 'victoires seulement')} dans les dix premiers matchs, et le vestiaire a dû se parler assez tôt.`,
+      `Rien n'a été facile au départ : ${vDix}-${10 - vDix} après dix matchs, et déjà du retard à rattraper au classement.`], g3));
+  if (best.n >= 6) arc.push(pige([`C'est entre les matchs ${best.fin + 2 - best.n} et ${best.fin + 1} que l'équipe a trouvé sa vitesse de croisière, en alignant ${enLettres(best.n)} victoires d'affilée, la plus longue séquence de l'année.`,
+      `Le meilleur moment de la saison est venu avec une séquence de ${enLettres(best.n)} victoires consécutives, bouclée au match ${best.fin + 1}, qui a remis le club à sa place au classement.`,
+      `Puis il y a eu la séquence de l'année : ${enLettres(best.n)} gains de suite jusqu'au match ${best.fin + 1}, et la ligue a compris à qui elle avait affaire.`], g));
+  else if (best.n >= 4) arc.push(pige([`Au mieux, l'équipe a enchaîné ${enLettres(best.n)} victoires de suite autour du match ${best.fin + 1}.`,
+      `Sa plus longue séquence victorieuse, ${enLettres(best.n)} matchs, s'est terminée au match ${best.fin + 1}.`], g));
+  if (pire.n >= 6) arc.push(pige([`Il y a eu du plus difficile aussi : ${enLettres(pire.n)} défaites de suite jusqu'au match ${pire.fin + 1}, un creux qui a pesé lourd au classement.`,
+      `À l'inverse, la traversée du désert a duré ${enLettres(pire.n)} matchs, ${enLettres(pire.n)} revers d'affilée qui ont pris fin au match ${pire.fin + 1}.`], g2));
+  else if (pire.n >= 4) arc.push(pige([`Le passage à vide le plus long a duré ${enLettres(pire.n)} défaites, autour du match ${pire.fin + 1}.`,
+      `Il a fallu encaisser ${enLettres(pire.n)} revers consécutifs autour du match ${pire.fin + 1}, sans que le vestiaire ne se défasse.`], g2));
+  const vFin = J.slice(-10).filter(m => m.win).length;
+  if (vFin >= 7) arc.push(pige([`Surtout, la fin de saison a été forte : ${enLettres(vFin)} victoires dans les dix derniers matchs, et un club qui arrive au printemps lancé.`,
+      `Le sprint final a été à la hauteur, avec une fiche de ${vFin}-${10 - vFin} sur les dix derniers matchs.`], g3));
+  else if (vFin <= 3) arc.push(pige([`La fin de saison a été laborieuse, avec ${pluriel(vFin, 'seule victoire', 'victoires seulement')} dans les dix derniers matchs : on est arrivé en avril à bout de souffle.`,
+      `Les dix derniers matchs, joués à ${vFin}-${10 - vFin}, ont montré une équipe fatiguée.`], g3));
   const ot = J.filter(m => m.ot).length, otW = J.filter(m => m.ot && m.win).length;
-  if (ot >= 12) sequences.push(pige([`${ot} matchs sont allés en prolongation, ${otW} gagnés.`, `Une saison de prolongations : ${ot}, dont ${otW} victoires.`], g));
-  paras.push(sequences.join(' '));
+  if (ot >= 12) arc.push(pige([`Au total, ${ot} matchs sont allés en prolongation, et l'équipe en a gagné ${otW}.`,
+      `Ce fut aussi une saison de prolongations : ${ot} matchs s'y sont rendus, dont ${otW} victoires.`], g));
+  paras.push(arc.join(' '));
 
   /* 3. Les soirs qu'on retient. */
   const soirs = [];
   const raclee = J.reduce((a, m) => (m.gf - m.ga > (a ? a.gf - a.ga : 0) ? m : a), null);
   const gifle = J.reduce((a, m) => (m.ga - m.gf > (a ? a.ga - a.gf : 0) ? m : a), null);
-  if (raclee && raclee.gf - raclee.ga >= 5) soirs.push(pige([`La plus grosse soirée : ${raclee.gf}-${raclee.ga} contre ${ctx.nomEquipe(raclee.adv)} au match ${raclee.n}.`,
-    `Au match ${raclee.n}, ${ctx.nomEquipe(raclee.adv)} a mangé un ${raclee.gf}-${raclee.ga}.`], g2));
-  if (gifle && gifle.ga - gifle.gf >= 5) soirs.push(pige([`La pire : un ${gifle.ga}-${gifle.gf} encaissé devant ${ctx.nomEquipe(gifle.adv)} au match ${gifle.n}.`,
-    `Le soir à oublier : ${gifle.ga}-${gifle.gf} contre ${ctx.nomEquipe(gifle.adv)}, match ${gifle.n}.`], g3));
+  if (raclee && raclee.gf - raclee.ga >= 5) soirs.push(pige([`Parmi les soirs à retenir, le ${raclee.gf}-${raclee.ga} infligé aux ${ctx.nomEquipe(raclee.adv)} au match ${raclee.n} reste la plus grosse démonstration de l'année.`,
+      `La soirée la plus complète est venue au match ${raclee.n}, quand les ${ctx.nomEquipe(raclee.adv)} ont encaissé un ${raclee.gf}-${raclee.ga} sans appel.`], g2));
+  if (gifle && gifle.ga - gifle.gf >= 5) soirs.push(pige([`${soirs.length ? 'À l\'inverse, l' : 'L'}e ${gifle.ga}-${gifle.gf} encaissé devant les ${ctx.nomEquipe(gifle.adv)} au match ${gifle.n} est celui qu'on préférera oublier.`,
+      `${soirs.length ? 'Le revers de la médaille est venu' : 'Le soir à oublier est venu'} au match ${gifle.n}, avec un ${gifle.ga}-${gifle.gf} contre les ${ctx.nomEquipe(gifle.adv)}.`], g3));
   const blanchissages = J.filter(m => m.ga === 0).length;
-  if (blanchissages >= 6) soirs.push(pige([`${pluriel(blanchissages, 'jeu blanc', 'jeux blancs')} dans l'année.`, `Les gardiens ont signé ${blanchissages} jeux blancs.`], g));
+  if (blanchissages >= 6) soirs.push(pige([`Les gardiens ont aussi signé ${enLettres(blanchissages)} jeux blancs dans l'année.`,
+      `Et ${enLettres(blanchissages)} fois dans la saison, l'adversaire est reparti sans avoir marqué.`], g));
   if (soirs.length) paras.push(soirs.join(' '));
 
-  /* 4. Les vedettes : les trois meilleurs pointeurs, le gardien. */
+  /* 4. Les vedettes de l'attaque, puis le gardien. */
   const joueurs = Object.values(equipe.roster || {}).filter(Boolean);
   const pat = joueurs.filter(p => p.p !== 'G' && p.simGP).sort((a, b) => b.simPTS - a.simPTS || b.simG - a.simG);
   const gards = joueurs.filter(p => p.p === 'G' && p.simGP).sort((a, b) => b.simGP - a.simGP);
@@ -339,31 +363,33 @@ export function recitDeSaison(equipe, rang, n, ctx) {
     const p1 = pat[0];
     const buteur = pat.slice().sort((a, b) => b.simG - a.simG)[0];
     const v = [];
-    v.push(pige([`${nomCourt(p1.n)} a mené l'attaque avec ${p1.simPTS} points (${p1.simG} buts, ${p1.simA} passes) en ${p1.simGP} matchs.`,
-      `Le premier violon : ${nomCourt(p1.n)}, ${p1.simG} buts et ${p1.simA} passes pour ${p1.simPTS} points.`,
-      `${p1.simPTS} points pour ${nomCourt(p1.n)}, le meilleur pointeur du club, ${p1.simG} buts et ${p1.simA} passes.`], g));
-    if (buteur !== p1 && buteur.simG >= 25) v.push(pige([`${nomCourt(buteur.n)} a été le buteur : ${buteur.simG} buts.`,
-      `Pour les buts, c'est ${nomCourt(buteur.n)} qu'on regardait : ${buteur.simG}.`], g2));
-    if (pat[1] && pat[2]) v.push(pige([`Derrière, ${nomCourt(pat[1].n)} (${pat[1].simPTS}) et ${nomCourt(pat[2].n)} (${pat[2].simPTS}).`,
-      `${nomCourt(pat[1].n)} et ${nomCourt(pat[2].n)} suivent, ${pat[1].simPTS} et ${pat[2].simPTS} points.`], g3));
+    v.push(pige([`À l'attaque, c'est ${nomCourt(p1.n)} qui a porté le club, avec ${p1.simG} buts et ${p1.simA} passes pour ${p1.simPTS} points en ${p1.simGP} matchs.`,
+      `Le premier violon de l'attaque a été ${nomCourt(p1.n)}, meilleur pointeur de l'équipe avec ${p1.simPTS} points, dont ${p1.simG} buts, en ${p1.simGP} matchs.`,
+      `Offensivement, tout est passé par ${nomCourt(p1.n)} : ${p1.simPTS} points, ${p1.simG} buts et ${p1.simA} passes en ${p1.simGP} matchs.`], g));
+    if (buteur !== p1 && buteur.simG >= 25) v.push(pige([`Pour les buts, c'est plutôt ${nomCourt(buteur.n)} qu'on regardait, avec ${buteur.simG} filets.`,
+      `${nomCourt(buteur.n)} a été le buteur du groupe, avec ${buteur.simG} buts.`], g2));
+    if (pat[1] && pat[2]) v.push(pige([`${nomCourt(pat[1].n)} et ${nomCourt(pat[2].n)} ont suivi, avec ${pat[1].simPTS} et ${pat[2].simPTS} points.`,
+      `Derrière lui, ${nomCourt(pat[1].n)} a récolté ${pat[1].simPTS} points et ${nomCourt(pat[2].n)} ${pat[2].simPTS}.`], g3));
     const pmBest = pat.slice().sort((a, b) => b.simPM - a.simPM)[0];
-    if (pmBest && pmBest.simPM >= 25) v.push(pige([`${nomCourt(pmBest.n)} termine à +${pmBest.simPM}, le meilleur différentiel de l'équipe.`,
-      `Le +${pmBest.simPM} de ${nomCourt(pmBest.n)} dit tout de ses présences.`], g));
+    if (pmBest && pmBest.simPM >= 25) v.push(pige([`Le meilleur différentiel de l'équipe appartient à ${nomCourt(pmBest.n)}, qui termine à +${pmBest.simPM}, ce qui en dit long sur ses présences.`,
+      `Et le +${pmBest.simPM} de ${nomCourt(pmBest.n)}, le meilleur du club, résume bien ce qui se passait quand il était sur la glace.`], g));
     paras.push(v.join(' '));
   }
   if (gards.length) {
     const g1 = gards[0];
     const pct = g1.simSA ? g1.simSV / g1.simSA : 0;
-    const mba = g1.simGA / Math.max(1, g1.simGP);
-    const pctStr = pct.toFixed(3).slice(1);
-    const phraseG = pct >= 0.920 ? pige([`Devant le filet, ${nomCourt(g1.n)} a été une muraille : ${pctStr} d'efficacité, ${mba.toFixed(2)} de moyenne en ${g1.simGP} départs.`,
-      `${nomCourt(g1.n)} a volé des matchs toute l'année : ${pctStr}, ${mba.toFixed(2)}, ${g1.simW} victoires.`], g2)
-      : pct >= 0.905 ? pige([`${nomCourt(g1.n)} a tenu le filet honnêtement : ${pctStr}, ${mba.toFixed(2)} de moyenne, ${g1.simW} victoires en ${g1.simGP} départs.`,
-        `Le gardien numéro un, ${nomCourt(g1.n)} : ${g1.simGP} départs, ${pctStr} d'efficacité, ${g1.simW} victoires.`], g2)
-      : pige([`Devant le filet, ça a été plus difficile : ${nomCourt(g1.n)} termine à ${pctStr} et ${mba.toFixed(2)} de moyenne.`,
-        `${nomCourt(g1.n)} a eu une saison ordinaire : ${pctStr}, ${mba.toFixed(2)} de moyenne en ${g1.simGP} départs.`], g2);
+    const mba = virgule((g1.simGA / Math.max(1, g1.simGP)).toFixed(2));
+    const pctStr = virgule(pct.toFixed(3).slice(1));
+    const phraseG = pct >= 0.920 ? pige([`Devant le filet, ${nomCourt(g1.n)} a été une muraille toute l'année : un taux d'efficacité de ${pctStr}, une moyenne de ${mba} et ${g1.simW} victoires en ${g1.simGP} départs.`,
+        `${nomCourt(g1.n)} a volé des matchs du début à la fin. En ${g1.simGP} départs, il a maintenu un taux d'efficacité de ${pctStr} et une moyenne de ${mba}, pour ${g1.simW} victoires.`], g2)
+      : pct >= 0.905 ? pige([`Devant le filet, ${nomCourt(g1.n)} a tenu son bout honnêtement, avec un taux d'efficacité de ${pctStr}, une moyenne de ${mba} et ${g1.simW} victoires en ${g1.simGP} départs.`,
+        `Le gardien numéro un, ${nomCourt(g1.n)}, a pris ${g1.simGP} départs et en a gagné ${g1.simW}, avec un taux d'efficacité de ${pctStr} et une moyenne de ${mba}.`], g2)
+      : pige([`Devant le filet, ça a été plus difficile : ${nomCourt(g1.n)} termine avec un taux d'efficacité de ${pctStr} et une moyenne de ${mba} en ${g1.simGP} départs.`,
+        `${nomCourt(g1.n)} a connu une saison ordinaire devant le filet, ${pctStr} d'efficacité et ${mba} de moyenne en ${g1.simGP} départs, ce qui n'a pas aidé la cause.`], g2);
     const g2n = gards[1];
-    const aux = g2n && g2n.simGP >= 10 ? ` ${nomCourt(g2n.n)} a pris ${g2n.simGP} départs en relève${g2n.simSO ? `, dont ${pluriel(g2n.simSO, 'jeu blanc', 'jeux blancs')}` : ''}.` : '';
+    const aux = g2n && g2n.simGP >= 10
+      ? ` ${nomCourt(g2n.n)} l'a relevé ${g2n.simGP} fois${g2n.simSO ? `, signant au passage ${pluriel(g2n.simSO, 'jeu blanc', 'jeux blancs', true)}` : ''}.`
+      : '';
     paras.push(phraseG + aux);
   }
 
@@ -373,11 +399,12 @@ export function recitDeSaison(equipe, rang, n, ctx) {
     const longue = bless.slice().sort((a, b) => b.games - a.games)[0];
     const total = bless.reduce((a, b) => a + b.games, 0);
     paras.push(bless.length >= 6
-      ? pige([`L'infirmerie a été pleine : ${bless.length} blessures, ${total} matchs ratés au total, ${nomCourt(longue.player.n)} absent ${longue.games} matchs.`,
-        `${bless.length} blessures dans l'année, ${total} matchs perdus. La plus longue : ${nomCourt(longue.player.n)}, ${longue.games} matchs.`], g3)
-      : pige([`${pluriel(bless.length, 'blessure', 'blessures')} cette saison, la plus longue à ${nomCourt(longue.player.n)} (${longue.games} matchs).`,
-        `Côté santé, ${pluriel(bless.length, 'blessure', 'blessures')} seulement ; ${nomCourt(longue.player.n)} a raté ${longue.games} matchs.`], g3));
-  } else paras.push(pige(['Aucune blessure de toute la saison. Ça n\'arrive jamais.', 'Le médecin de l\'équipe a eu une année tranquille : aucune blessure.'], g));
+      ? pige([`L'infirmerie n'a pas désempli : ${bless.length} blessures et ${total} matchs ratés au total, la plus longue absence étant celle de ${nomCourt(longue.player.n)}, à l'écart pendant ${longue.games} matchs.`,
+        `Côté santé, la saison a été dure, avec ${bless.length} blessures qui ont coûté ${total} matchs à l'équipe ; ${nomCourt(longue.player.n)} a été le plus touché, avec ${longue.games} matchs manqués.`], g3)
+      : pige([`Côté santé, l'équipe s'en est bien tirée : ${pluriel(bless.length, 'seule blessure', 'blessures')}, la plus longue ayant tenu ${nomCourt(longue.player.n)} à l'écart pendant ${longue.games} matchs.`,
+        `L'infirmerie est restée calme, avec ${pluriel(bless.length, 'blessure', 'blessures')} seulement ; ${nomCourt(longue.player.n)} a raté ${longue.games} matchs, et c'est la plus longue absence de l'année.`], g3));
+  } else paras.push(pige(['Et pour une fois, l\'infirmerie est restée vide toute la saison : pas une seule blessure, ce qui n\'arrive à peu près jamais.',
+    'Le médecin de l\'équipe a eu une année tranquille, sans une seule blessure à soigner de toute la saison.'], g));
 
   return paras;
 }
