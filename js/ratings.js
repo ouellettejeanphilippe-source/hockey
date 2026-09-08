@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 22;
+export const RATINGS_VERSION = 23;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -1175,10 +1175,30 @@ function valeurAuCentile(pos, q) {
  *
  * Les poids diffèrent par position parce que le métier diffère : un défenseur
  * n'est pas jugé sur ses points au même titre qu'un ailier.
+ *
+ * LE DIFFÉRENTIEL A ÉTÉ RAMENÉ DE 0,36 À 0,24 CHEZ LES DÉFENSEURS, mesuré.
+ * À 0,36 il faisait sortir Jeff Schultz 2009-10 — 23 points, +50 dans un
+ * Washington qui écrasait la ligue — à 97, donc « Top 2 », étiquette qui
+ * envoie le joueur le mettre en première paire ; rejoué, il vaut exactement
+ * une case vide (40,4 victoires contre 40,3 sans personne, 46,9 avec
+ * Lidström). Le +/- est en partie un résultat d'équipe, et `LISSAGE_EQUIPE`
+ * n'en retire que la moitié. Le poids libéré va à la production et à l'usage,
+ * qui sont ce que l'entraîneur, lui, a vraiment décidé.
+ *
+ * Mesuré sur les 55 saisons : Schultz passe de 97 à 89, Craig Muni 1988-89
+ * de 94 à 86, et les défenseurs à valeur 85+ produisant moins de 0,40 point
+ * par match tombent de 94 à 38 sur 735. Chris Chelios 1992-93, lui, monte de
+ * 88 à 92 — il était sous-évalué. La corrélation entre la force d'une équipe
+ * et son vrai classement passe de 0,801 à 0,793, ce qui reste le repère.
+ * Descendre le différentiel plus bas (0,16) ferait mieux sur les cas
+ * aberrants (8 sur 735) mais coûterait la corrélation (0,783) : c'est le
+ * repère qui fait autorité, donc on s'arrête ici. Baisser le différentiel ne
+ * crée pas d'aubaine défensive : un alignement glouton sur la cote `d` par
+ * dollar ne fait que 40,5 victoires, faute de marquer.
  */
 export const POIDS_VALEUR = {
   F: { prod: 0.46, vol: 0.14, pm: 0.20, usage: 0.20 },
-  D: { prod: 0.30, vol: 0.10, pm: 0.36, usage: 0.24 },
+  D: { prod: 0.34, vol: 0.10, pm: 0.24, usage: 0.32 },
 };
 
 /** Poids d'un échantillon : un taux sur huit matchs pèse le tiers d'un vrai. */

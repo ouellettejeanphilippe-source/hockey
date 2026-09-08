@@ -27,7 +27,7 @@ const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
 const moy = (a) => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 const median = (a) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
 
-const pressions = [], zDefs = [], fgs = [], pcts = [], creas = [];
+const pressions = [], zDefs = [], fgs = [], pcts = [], creas = [], fins = [];
 for (const f of fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sort()) {
   const shard = JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, f), 'utf8'));
   const parEquipe = {};
@@ -56,6 +56,7 @@ for (const f of fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sor
     const w = patineurs.map(p => (p.sh || 0) / Math.max(1, p.gp || 1));
     const tot = w.reduce((s, x) => s + x, 0);
     if (tot > 0) pcts.push(patineurs.reduce((s, p, i) => s + w[i] * pctTirRelDe(p), 0) / tot);
+    fins.push(prof.finEquipe);
   }
 }
 
@@ -68,6 +69,7 @@ ligne('zDef', zDefs);
 ligne('facteur gardien', fgs);
 ligne('% de tir relatif', pcts);
 ligne('création (passes rel.)', creas);
+ligne('finition effective', fins);
 
 console.log(`
   À METTRE DANS PROFIL_NEUTRE
@@ -77,4 +79,11 @@ console.log(`
     fgDefaut      ${moy(fgs).toFixed(3)}
     pctTirDefaut  ${moy(pcts).toFixed(3)}
     crea          ${moy(creas).toFixed(3)}   (REF.crea en vigueur : ${REF.crea})
+
+  pctTirDefaut est la FORCE OFFENSIVE de l'adversaire neutre, et il se règle
+  sur la SORTIE et non sur cette moyenne : la mesure ci-dessus ignore ce que
+  le neutre encaisse (il n'a ni unités ni création), donc la lui donner telle
+  quelle laisse toute équipe alignée gagner trois matchs de trop en solo. Le
+  juge est \`check_monotonie.mjs\` : la moyenne des dix déciles doit tomber sur
+  celle du réel. Même règle que LANCERS_BASE et CIBLE_PCT_TIR.
 `);

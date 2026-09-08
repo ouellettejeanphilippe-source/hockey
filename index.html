@@ -110,6 +110,17 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <!-- ===== Modale : fiche de joueur ===== -->
+<!-- ===== Modale : sommaire d'un match de séries ===== -->
+<div id="gameModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h2 id="gameModalTitle">Sommaire</h2>
+      <button id="closeGameBtn" class="close-btn" aria-label="Fermer">✕</button>
+    </div>
+    <div class="modal-body sommaire" id="gameModalBody"></div>
+  </div>
+</div>
+
 <div id="hockeyCardModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet modal-card" role="dialog" aria-modal="true" aria-label="Fiche du joueur">
     <button id="closeHockeyCardBtn" class="close-btn" aria-label="Fermer">✕</button>
@@ -136,6 +147,15 @@
       <button id="closeOptionsBtn" class="close-btn" aria-label="Fermer">✕</button>
     </div>
     <div class="modal-body options">
+      <div class="opt-row opt-modes">
+        <div class="opt-text"><strong>Façon de jouer</strong><span id="modeDesc">Vingt-trois joueurs, un par tour, sous le plafond de 95,5 M$.</span></div>
+        <div class="seg seg-wrap" data-opt="mode">
+          <button data-val="CLASSIQUE" class="on">Classique<em>23 joueurs</em></button>
+          <button data-val="TRIOS">Par unité<em>trios entiers</em></button>
+          <button data-val="EXPRESS">Express<em>6 joueurs</em></button>
+        </div>
+        <p class="opt-note">Changer de façon de jouer relance une partie.</p>
+      </div>
       <div class="opt-row">
         <div class="opt-text"><strong>Statistiques</strong><span>Vraies stats de la saison, ou prorata sur 82 matchs ajusté à l'époque (buts par match de l'année ramenés à 3,15).</span></div>
         <div class="seg" data-opt="stats"><button data-val="real" class="on">Réelles</button><button data-val="prorata">Prorata 82 · époque</button></div>
@@ -170,6 +190,14 @@
       <p>Ce que tu vois avant de signer : le salaire, l'archétype, la zone et les traits sur la carte, puis toutes les statistiques et le <strong>profil mesuré</strong> dans la fiche au clic. Ce que tu ne vois pas : <strong>aucune cote</strong>. Le jeu n'en affiche nulle part. Un joueur se juge sur ce qu'il a fait.</p>
       <p>La carte propose la case où le joueur rend le mieux : sa position naturelle d'abord, puis sa zone. Quand la seule case libre est <strong>sous sa zone</strong>, la carte le dit en rouge avant que tu signes. Tu peux viser une autre case en la touchant dans l'alignement, ou déplacer quelqu'un après coup.</p>
       <p><strong>Budget du choix</strong> : le plafond restant moins le salaire plancher (0,775 M$) de chaque case qu'il te restera à combler. Dépasser ce budget, c'est te condamner à ne pas finir tes 23.</p>
+
+      <h3>0b. Trois façons de jouer</h3>
+      <p>Le moteur ne change pas d'un mode à l'autre : ce sont toujours 23 cases, le même malus de zone et la même ligue de 32 équipes. Ce qui change, c'est ce qu'on te demande de bâtir. Le mode se choisit dans les <strong>options</strong>, et en changer relance une partie.</p>
+      <ul>
+        <li><strong>Classique</strong> — 23 joueurs, un par tour, sous 95,5 M$. La partie complète, cinq à dix minutes.</li>
+        <li><strong>Par unité</strong> — le même alignement, mais la roulette ne tourne qu'une fois l'unité <em>complète</em> : ton premier trio sort d'un seul vestiaire, puis le deuxième d'un autre. Neuf tours au lieu de vingt-trois, et la chimie devient le cœur du jeu plutôt qu'un bonus qu'on découvre à la fin. Pendant que tu combles un trio, seuls les attaquants sont signables.</li>
+        <li><strong>Express</strong> — six cases seulement : un trio, une paire, un partant. Le reste de l'alignement t'est fourni par une vraie équipe tirée au hasard, affichée au tableau de bord ; ces joueurs ne coûtent rien au plafond et ne se déplacent pas. Le plafond suit : <strong>34 M$</strong>, la médiane mesurée de ce qu'une vraie équipe met sur ces six cases-là (25e centile 23 M$, 75e centile 43 M$ sur les 1395 équipes-saisons). Deux minutes.</li>
+      </ul>
 
       <h3>1. La valeur d'un joueur : son rang, pas une cote</h3>
       <p>Chaque joueur reçoit une <strong>valeur</strong> interne qui est son <strong>rang statistique dans sa propre saison</strong>, projeté sur l'échelle historique de sa position. Elle sert à trois choses : sa zone d'efficacité, son salaire quand aucun montant réel n'est publié, et l'alignement automatique des 31 équipes adverses. Elle ne s'affiche jamais.</p>
@@ -262,7 +290,9 @@
       </ul>
 
       <h3>9. La ligue et les séries</h3>
-      <p>Ta formation plus 31 vraies équipes historiques tirées au hasard dans 55 saisons et alignées automatiquement (les 18 meilleurs patineurs par valeur, position par position). 82 rondes d'appariements, 1 312 matchs. Les 16 premiers font les séries, quatre rondes 4 de 7, sans statistiques mais avec blessures et usure.</p>
+      <p>Ta formation plus 31 vraies équipes historiques tirées au hasard dans 55 saisons et alignées automatiquement (les 18 meilleurs patineurs par valeur, position par position). 82 rondes d'appariements, 1 312 matchs. Un même joueur-saison ne peut habiller qu'une seule équipe de la ligue, la tienne comprise.</p>
+      <p>À la fin de la saison, les <strong>statistiques de la ligue</strong> donnent les meneurs pour les points, les buts, les passes et le différentiel, plus les gardiens au pourcentage d'arrêts, à la moyenne de buts alloués et aux victoires (25 départs minimum pour les deux premiers, comme la vraie ligue l'exige). Chaque équipe historique est cliquable vers sa saison sur HockeyDB.</p>
+      <p>Les 16 premiers font les séries : quatre rondes 4 de 7, avec blessures et usure. Chaque match se joue <strong>lancer par lancer comme les autres</strong> et garde son sommaire — les buts avec leur temps et leurs passes, les tirs par période, les arrêts de chaque gardien. Clique un match pour l'ouvrir. Le temps d'un but n'est pas simulé par le moteur : chaque lancer reçoit un instant tiré dans les 60 minutes, ce qui met la feuille en ordre sans toucher à aucune probabilité. Les phrases qui accompagnent les buts décrivent ce qui vient d'arriver — elles ne décident de rien.</p>
       <p>Repères, mesurés sur le moteur : l'équipe moyenne fait 41 victoires. Une vraie équipe du dernier décile en fait 26, du premier 52. Le Canadien de 1976-77 en fait 61 à 63. Un alignement parfaitement monté en fait 68 à 70 et gagne la Coupe deux fois sur trois, pas plus. Le 82-0 n'est pas atteignable, et c'est voulu : dominer est possible, la Coupe reste un pari.</p>
     </div>
   </div>
