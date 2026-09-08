@@ -6,6 +6,13 @@
 <meta name="description" content="Bâtis un alignement de 23 joueurs de la LNH, 1970 à aujourd'hui, sous le plafond salarial. Vise la saison parfaite.">
 <meta name="theme-color" content="#070e17">
 <title>Cap 82-0 — Directeur général</title>
+<!-- La marque du jeu est sa jauge de plafond : c'est le seul élément visible
+     à chaque instant de la partie. Le SVG sert d'icône partout où il est
+     accepté, les PNG couvrent iOS et l'écran d'accueil. -->
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Cap 82-0">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -58,6 +65,13 @@
             <span class="pane-meta" id="poolCount">—</span>
           </div>
           <div class="pool-tools">
+            <!-- Deux façons de lire le même vestiaire : par poste (six colonnes
+                 qu'on balaie du doigt sur téléphone) ou tout le monde ensemble,
+                 rangé par le tri courant. -->
+            <div class="seg seg-view" data-opt="poolView" role="tablist" aria-label="Affichage du vestiaire">
+              <button data-val="POS" class="on" title="Six colonnes, une par poste — balaie pour changer de poste">Par poste</button>
+              <button data-val="LIST" title="Tous les joueurs ensemble, dans l'ordre du tri">Tous</button>
+            </div>
             <label class="search"><span aria-hidden="true">🔍</span><input id="searchInput" type="search" placeholder="Chercher un joueur…" autocomplete="off"></label>
             <select id="sortSelect" class="select" aria-label="Trier le bassin">
               <option value="PTS">Tri : points / victoires</option>
@@ -71,6 +85,10 @@
           </div>
         </div>
         <div class="filters" id="filters" role="tablist" aria-label="Filtrer par position"></div>
+        <!-- La bande de secours vit HORS du bassin : depuis que les colonnes
+             se balaient à l'horizontale, tout ce qui est dans `#pool` est une
+             colonne de la bande, et un avertissement n'en est pas une. -->
+        <div id="poolNotice"></div>
         <div class="pool" id="pool"></div>
       </section>
 

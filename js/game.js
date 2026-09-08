@@ -68,6 +68,16 @@ const G = {
   target: null,         // case ciblée par le joueur
   selectedSlot: null,   // case sélectionnée pour un déplacement
   filter: 'ALL',
+  /*
+   * Deux façons de lire le même vestiaire, et c'est un vrai choix de lecture.
+   * 'POS' range en six colonnes, une par poste — sur téléphone on les balaie
+   * du doigt plutôt que de dérouler six sections empilées, parce qu'un
+   * vestiaire de trente joueurs faisait six écrans de haut. 'LIST' les met
+   * tous ensemble dans l'ordre du tri : c'est la vue du chasseur d'aubaine,
+   * qui veut voir le meilleur pointeur du vestiaire sans se demander à quel
+   * poste il joue.
+   */
+  poolView: 'POS',      // POS | LIST
   sortBy: 'PTS',
   search: '',
   statsProrata: false,
@@ -189,7 +199,7 @@ function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode,
-      onlyFit: G.onlyFit, sortBy: G.sortBy, mode: G.mode,
+      onlyFit: G.onlyFit, sortBy: G.sortBy, mode: G.mode, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
 }
@@ -201,6 +211,7 @@ function loadOpts() {
     if (o.salaryMode === 'ERA' || o.salaryMode === '2026') G.salaryMode = o.salaryMode;
     if (typeof o.onlyFit === 'boolean') G.onlyFit = o.onlyFit;
     if (typeof o.sortBy === 'string') G.sortBy = o.sortBy;
+    if (o.poolView === 'POS' || o.poolView === 'LIST') G.poolView = o.poolView;
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
   } catch { /* ignore */ }
 }
@@ -442,6 +453,10 @@ async function boot() {
     await loadIndex();
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
     setupEvents();
+    // Les segments démarrent sur la valeur écrite dans le HTML : sans cette
+    // ligne, un réglage relu du stockage s'appliquait au rendu mais pas au
+    // bouton, qui montrait alors autre chose que ce qu'on regardait.
+    syncOptionsUI();
     const restored = await restoreSave();
     if (!restored) await nextSpin(true, true);
     $('boot').style.display = 'none';
@@ -522,7 +537,14 @@ const closeModal = id => { const m = $(id); if (m) m.style.display = 'none'; };
 const openModal = id => { const m = $(id); if (m) m.style.display = 'flex'; };
 
 function setOption(key, val) {
-  if (key === 'stats') G.statsProrata = val === 'prorata';
+  if (key === 'poolView') {
+    G.poolView = val === 'LIST' ? 'LIST' : 'POS';
+    // Demander les six colonnes quand un filtre n'en laisse qu'une seule ne
+    // voudrait rien dire : le bouton lève le filtre plutôt que de ne rien
+    // faire. Une commande visible doit toujours faire quelque chose.
+    if (G.poolView === 'POS' && G.filter !== 'ALL') { G.filter = 'ALL'; renderFilters(); }
+  }
+  else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
   else if (key === 'mode') {
@@ -542,6 +564,7 @@ function syncOptionsUI() {
     salary: G.salaryMode,
     onlyFit: G.onlyFit ? 'on' : 'off',
     mode: G.mode,
+    poolView: G.poolView,
   };
   const d = $('modeDesc');
   if (d) d.textContent = MODE().desc;
@@ -781,16 +804,24 @@ function renderDash() {
 function renderFilters() {
   const host = $('filters');
   if (!host) return;
+  /*
+   * TOUJOURS AG, C, AD, DG, DD, G — le même ordre et les mêmes sigles que les
+   * colonnes du bassin, les rangées du tableau de profondeur et les bandeaux
+   * de carte. Les pastilles disaient « Centres » avant « Ailiers G. », donc
+   * dans un ordre qui n'était celui de rien d'autre dans le jeu, et les
+   * libellés longs débordaient la rangée à 390 px : on ne voyait plus les
+   * gardiens. Le mot complet reste dans l'infobulle.
+   */
   const defs = [
-    ['ALL', 'Tous', null],
-    ['C', 'Centres', POS_NEED[1]],
-    ['AG', 'Ailiers G.', POS_NEED[0]],
-    ['AD', 'Ailiers D.', POS_NEED[2]],
-    ['LD', 'Déf. gauche', POS_NEED[3]],
-    ['RD', 'Déf. droit', POS_NEED[4]],
-    ['G', 'Gardiens', POS_NEED[5]],
+    ['ALL', 'Tous', 'Tout le vestiaire', null],
+    ['AG', 'AG', 'Ailiers gauches', POS_NEED[0]],
+    ['C', 'C', 'Centres', POS_NEED[1]],
+    ['AD', 'AD', 'Ailiers droits', POS_NEED[2]],
+    ['LD', 'DG', 'Défenseurs gauches', POS_NEED[3]],
+    ['RD', 'DD', 'Défenseurs droits', POS_NEED[4]],
+    ['G', 'G', 'Gardiens', POS_NEED[5]],
   ];
-  host.innerHTML = defs.map(([key, label, def]) => {
+  host.innerHTML = defs.map(([key, label, titre, def]) => {
     let badge = '';
     if (key === 'ALL') {
       badge = `<span class="chip-need${slotsLeft() === 0 ? ' full' : ''}">${signes().length}/${totalCases()}</span>`;
@@ -798,7 +829,8 @@ function renderFilters() {
       const n = signedCount(def);
       badge = `<span class="chip-need${n >= def.req ? ' full' : ''}">${n}/${def.req}</span>`;
     }
-    return `<button class="chip${G.filter === key ? ' on' : ''}" data-f="${key}" role="tab" aria-selected="${G.filter === key}">${esc(label)}${badge}</button>`;
+    return `<button class="chip${G.filter === key ? ' on' : ''}" data-f="${key}" role="tab"`
+      + ` title="${esc(titre)}" aria-label="${esc(titre)}" aria-selected="${G.filter === key}">${esc(label)}${badge}</button>`;
   }).join('');
 
   host.querySelectorAll('.chip').forEach(b => {
@@ -1055,6 +1087,15 @@ function renderPool() {
   const host = $('pool');
   if (!host) return;
 
+  /*
+   * L'avertissement d'impasse a son propre conteneur, au-dessus du bassin.
+   * Dans le bassin il devenait une colonne de la bande qu'on balaie — donc
+   * un panneau de plus à faire défiler, alors que c'est justement le moment
+   * où le joueur est bloqué et doit le lire tout de suite.
+   */
+  const notice = $('poolNotice');
+  if (notice) notice.innerHTML = '';
+
   if (G.loading) {
     host.className = 'pool';
     host.innerHTML = `<div class="empty-msg">Ouverture du vestiaire…</div>`;
@@ -1062,23 +1103,26 @@ function renderPool() {
   }
 
   const blocked = blockedState();
+  if (blocked && notice) notice.appendChild(blockedBannerEl(blocked));
+
   const list = poolFiltered();
   if (!list.length) {
     host.className = 'pool';
-    host.innerHTML = '';
-    if (blocked) host.appendChild(blockedBannerEl(blocked));
-    host.insertAdjacentHTML('beforeend', `<div class="empty-msg">Aucun joueur ne correspond.<br>
-      ${G.search ? 'Efface la recherche' : G.onlyFit ? 'Désactive « signables seulement » dans les options' : 'Change de filtre'} ou utilise une relance.</div>`);
+    host.innerHTML = `<div class="empty-msg">Aucun joueur ne correspond.<br>
+      ${G.search ? 'Efface la recherche' : G.onlyFit ? 'Désactive « signables seulement » dans les options' : 'Change de filtre'} ou utilise une relance.</div>`;
     return;
   }
 
   const frag = document.createDocumentFragment();
-  if (blocked) frag.appendChild(blockedBannerEl(blocked));
 
-  // Sans filtre de position, on range le vestiaire en six colonnes. La feuille
-  // de style décide si elles deviennent de vraies colonnes (écran large) ou de
-  // simples séparateurs dans une grille de cartes (écran étroit).
-  const byPos = G.filter === 'ALL';
+  /*
+   * Six colonnes, une par poste — sauf si on a demandé la liste complète, ou
+   * si un filtre de position ne laisse déjà qu'un seul poste : ranger une
+   * colonne en six colonnes n'a pas de sens. La feuille de style décide
+   * ensuite de leur forme : de vraies colonnes côte à côte sur grand écran,
+   * une bande qu'on balaie du doigt sur téléphone.
+   */
+  const byPos = G.poolView === 'POS' && G.filter === 'ALL';
   host.className = 'pool' + (byPos ? ' by-pos' : '');
 
   if (byPos) {

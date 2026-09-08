@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Cap 82-0">
+  <!--
+    LA MARQUE DU JEU EST SA JAUGE DE PLAFOND. C'est le seul élément qu'on voit
+    à chaque instant de la partie, en haut de l'écran : une barre qui va du
+    cyan au vert et une rondelle en tête. Un « 82 » aurait été illisible à
+    seize pixels ; une barre pleine sur fond marine se reconnaît même en
+    pastille d'onglet, et la rondelle dorée dit le sport.
+
+    Le dégradé est en coordonnées d'objet et s'arrête là où la rondelle
+    commence : sinon tout le vert se cachait derrière elle et la marque
+    n'était plus que cyan.
+  -->
+  <defs>
+    <linearGradient id="cap" gradientUnits="userSpaceOnUse" x1="9" y1="0" x2="33" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#3cd070"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0d1a29"/>
+  <rect x="9" y="27.5" width="46" height="9" rx="4.5" fill="#16283c"/>
+  <rect x="9" y="27.5" width="31" height="9" rx="4.5" fill="url(#cap)"/>
+  <ellipse cx="40" cy="32" rx="7.5" ry="8.5" fill="#0b1420" stroke="#f4c430" stroke-width="3.2"/>
+</svg>

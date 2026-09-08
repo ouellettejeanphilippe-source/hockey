@@ -23,6 +23,9 @@ Lis `PLAN.md` — il contient l'état exact du projet, ce qui est fait, ce qui r
                             l'API n'est pas joignable depuis le poste de travail
 index.html                  page unique (barre de plafond, roulette, tableau de
                             bord, deux volets vestiaire / alignement, modales)
+favicon.svg                 la marque : la jauge de plafond et une rondelle
+icon-180/192/512.png        rasterisées depuis favicon.svg (iOS, écran d'accueil)
+site.webmanifest            nom, couleurs et icônes pour l'installation
 style.css                   tous les styles, mobile d'abord (390 px), deux
                             volets à partir de 1080 px
 js/ratings.js               calcul des cotes cachées (partagé navigateur + build)
@@ -124,6 +127,10 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 **Une rangée du tableau de profondeur porte son RANG, pas sa zone** — 1er trio, 2e trio, 1re paire. Deux rangées s'appelaient « Top 6 » et deux autres « Top 4 », si bien qu'on ne savait plus laquelle on regardait. La zone reste écrite sur la case vide et sur l'étiquette du joueur, là où elle sert à décider. Et la case ne porte que le **verdict de placement** — zone, écart de zone, pénalité de position : les traits et l'archétype sont sur la carte du bassin, au moment où on décide de signer, et sur la fiche.
 
 **Sur téléphone, un tableau garde sa colonne vedette.** Sept colonnes dans 390 px se coupaient au « PJ » : on ouvrait le palmarès des pointeurs sans jamais voir un point. `heros` dans `PALMARES` (`js/game.js`) nomme la colonne qui donne son titre au palmarès — elle n'est pas toujours la dernière — et c'est la seule que le téléphone garde.
+
+**Toujours AG, C, AD, DG, DD, G.** Le même ordre et les mêmes sigles partout : les colonnes du bassin, les pastilles de filtre, les cases du tableau de profondeur, les bandeaux de carte. Les pastilles disaient « Centres » avant « Ailiers G. » — un ordre qui n'était celui de rien d'autre dans le jeu — et leurs libellés longs débordaient la rangée à 390 px, si bien qu'on ne voyait plus les gardiens. Le mot complet vit dans l'infobulle. Sept pastilles ne tiennent pas en pilules sur une rangée de téléphone : sous 560 px elles deviennent une grille de sept colonnes égales, le compteur empilé sous le sigle.
+
+**Le bassin se lit de deux façons, et le bouton « Par poste / Tous » choisit.** *Par poste* range en six colonnes ; sur téléphone elles deviennent une **bande qu'on balaie**, une colonne par écran, la suivante affleurant à 87 % de largeur — c'est l'affordance du balayage et elle ne coûte pas une ligne de JavaScript. Six sections empilées faisaient six écrans de haut, et il fallait dérouler tout un poste pour voir le suivant. *Tous* met tout le vestiaire ensemble dans l'ordre du tri : c'est la vue du chasseur d'aubaine, qui veut le meilleur pointeur sans se demander à quel poste il joue. Demander les six colonnes pendant qu'un filtre n'en laisse qu'une lève le filtre plutôt que de ne rien faire. **Tout ce qui vit dans `#pool` est une colonne de la bande** : la bande de secours d'impasse a donc son propre conteneur, `#poolNotice`, au-dessus.
 
 **Le joueur va où il rend.** `slotFitScore` dans `js/game.js` classe les cases libres par position naturelle d'abord, puis par zone d'efficacité : un joueur de calibre quatrième trio se propose au quatrième trio, pas au premier parce qu'il était vide. Les réservistes viennent en dernier.
 

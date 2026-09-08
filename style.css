@@ -347,6 +347,10 @@ a { color: var(--blue); }
   /* `minmax(0, 1fr)` et non `1fr` : sinon un libellé insécable élargit sa
      colonne et les trois boutons cessent d'être identiques. */
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Le corps du texte se mesure sur CETTE rangée et non sur l'écran : à 768 px
+     le volet de la roulette rétrécit alors que la fenêtre s'élargit, et les
+     libellés en `vw` débordaient de leur bouton. */
+  container-type: inline-size;
   gap: 6px;
   margin-top: 10px;
 }
@@ -363,11 +367,12 @@ a { color: var(--blue); }
   /* Les trois libellés tiennent sur UNE ligne à 390 px : « Autre équipe »
      passait à deux et son compteur descendait d'un cran sous les deux
      autres, trois boutons identiques qui ne se ressemblaient plus. */
-  font-size: clamp(9px, 2.4vw, 10.5px);
+  font-size: clamp(8px, 3cqi, 10.5px);
   font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   white-space: nowrap;
+  overflow: hidden;
   transition: background .15s, border-color .15s, transform .1s;
 }
 .reroll:hover:not(:disabled) { background: rgba(0, 0, 0, 0.5); border-color: var(--team-accent); }
@@ -406,18 +411,22 @@ a { color: var(--blue); }
 }
 .dash .dash-card:first-child { border-left: 0; padding-left: 0; margin-left: 0; }
 .dash .needs, .dash .dash-note { display: none; }
-.dash-card h3 { margin-bottom: 3px; }
+/* Deux lignes réservées : « BUDGET DU CHOIX » passait à la ligne quand ses
+   voisins tenaient sur une, et les trois chiffres ne s'alignaient plus. */
+.dash-card h3 { margin-bottom: 3px; min-height: 24px; }
 .dash-big.sm { font-size: 12.5px; letter-spacing: 0; }
 .h3-long { display: none; }
 .dash-line { flex-wrap: wrap; }
 
 .dash-card h3 {
   font-size: 9.5px;
+  line-height: 1.25;
   text-transform: uppercase;
   letter-spacing: 0.13em;
   color: var(--muted);
   font-weight: 800;
   margin-bottom: 6px;
+  min-height: 24px;
 }
 .dash-big {
   font-size: 17px;
@@ -462,10 +471,11 @@ a { color: var(--blue); }
 .panes[data-view="roster"] .pane-pool { display: none; }
 
 .pane {
+  --pane-pad: 11px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r-l);
-  padding: 11px;
+  padding: var(--pane-pad);
   min-width: 0;
 }
 
@@ -546,6 +556,36 @@ a { color: var(--blue); }
   scrollbar-width: none;
 }
 .filters::-webkit-scrollbar { display: none; }
+
+/*
+ * SEPT PASTILLES DANS 390 PX. Avec les libellés courts elles réclamaient
+ * encore 512 px sur une rangée de 342 : la rangée défilait, et les gardiens
+ * — la position la plus rare et la plus chère à combler — vivaient hors de
+ * l'écran. On les met donc sur une grille de sept colonnes égales et on
+ * empile le compteur sous le sigle : chaque pastille devient un onglet de
+ * poste avec sa jauge, tout tient, rien ne défile.
+ */
+@container pool (max-width: 559.98px) {
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+  }
+  .chip {
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    padding: 5px 2px;
+    min-height: 42px;
+    border-radius: var(--r-s);
+    font-size: 11px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .chip .chip-need { padding: 0 3px; font-size: 9px; background: none; }
+  .chip.on .chip-need { background: none; }
+}
 .chip {
   flex: none;
   display: inline-flex;
@@ -595,10 +635,69 @@ a { color: var(--blue); }
   align-items: start;
 }
 
-/* Une colonne par position. En dessous du seuil de largeur, `display: contents`
-   remet les cartes dans la grille du bassin et les en-têtes deviennent de
-   simples séparateurs pleine largeur. */
+/*
+ * LE BASSIN SE LIT DE DEUX FAÇONS, et le bouton « Par poste / Tous » choisit.
+ *
+ * En liste, les cartes coulent dans la grille : c'est la vue du chasseur
+ * d'aubaine, tous les joueurs mêlés dans l'ordre du tri.
+ *
+ * Par poste, six colonnes. Sur grand écran elles sont côte à côte. Sur
+ * téléphone elles deviennent une BANDE QU'ON BALAIE : les six sections
+ * empilées faisaient six écrans de haut, et il fallait dérouler tout un
+ * poste pour voir le suivant. Une colonne par écran, on glisse.
+ */
 .pool-col { display: contents; }
+
+/* ---- la bande qu'on balaie : sous le seuil des vraies colonnes ---- */
+@container pool (max-width: 999.98px) {
+  .pool.by-pos {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    /* Le débordement est celui de CETTE bande, jamais celui de la page :
+       on la déborde volontairement des marges du volet pour que la colonne
+       suivante affleure le bord de l'écran. */
+    margin: 0 calc(-1 * var(--pane-pad, 12px));
+    padding: 0 var(--pane-pad, 12px) 4px;
+    scroll-padding: 0 var(--pane-pad, 12px);
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .pool.by-pos::-webkit-scrollbar { display: none; }
+  .pool.by-pos .pool-col {
+    /* 87 % : la colonne suivante affleure. C'est l'affordance du balayage,
+       et elle ne coûte pas une ligne de JavaScript — sans ce bout de colonne
+       visible, rien ne dit qu'il y en a cinq autres à droite. */
+    flex: 0 0 87%;
+    max-width: 340px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    container-type: inline-size;
+    container-name: col;
+  }
+  .pool.by-pos .pool-col-head {
+    grid-column: auto;
+    margin: 0;
+    padding: 7px 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid currentColor;
+    border-radius: var(--r-s);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .pool.by-pos .pool-col-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+  }
+}
 
 .pool-col-head.pos-f, .pool-col-head.pos-d, .pool-col-head.pos-g { background: none; }
 .pool-col-head.pos-f { color: #38bdf8; }
@@ -1382,6 +1481,11 @@ a { color: var(--blue); }
   transition: background .15s, color .15s;
 }
 .seg button.on { background: var(--ui-accent); color: var(--ui-on-accent); }
+/* Le bascule d'affichage du bassin vit dans la barre d'outils, pas dans une
+   modale : c'est un geste de lecture, pas un réglage. Il est donc plus petit
+   que les segments des options. */
+.seg-view { flex: none; padding: 2px; }
+.seg-view button { flex: none; min-height: 28px; padding: 4px 10px; font-size: 11px; }
 
 /* Règles */
 
@@ -1860,10 +1964,12 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .dash .dash-card { padding-left: 14px; margin-left: 14px; }
   .dash-big.sm { font-size: 14px; }
   .h3-long { display: inline; }
-  .pane { padding: 14px; }
+  .pane { --pane-pad: 14px; }
   .pane-head { flex-direction: row; align-items: center; justify-content: space-between; }
   .pane-title { flex: none; }
-  .pool-tools { flex: 1; justify-content: flex-end; max-width: 460px; }
+  /* La bascule d'affichage s'ajoute à la recherche et au tri : 460 px les
+     faisaient passer sur deux rangées. */
+  .pool-tools { flex: 1; justify-content: flex-end; max-width: 620px; }
   .modal-backdrop { align-items: center; padding: 20px; }
   .modal-sheet { border-radius: var(--r-l); max-height: 88vh; }
   .opt-row { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }
@@ -1953,8 +2059,8 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .pcard-full .modal-body { overflow: visible; padding: 14px; }
 
 /* Bande de secours quand plus aucune signature n'est possible */
+#poolNotice:not(:empty) { margin-bottom: 9px; }
 .blocked {
-  grid-column: 1 / -1;
   background: var(--red-soft);
   border: 1px solid rgba(248, 113, 113, 0.5);
   border-radius: var(--r-m);

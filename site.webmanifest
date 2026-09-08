@@ -1,0 +1,18 @@
+{
+  "name": "Cap 82-0 — Directeur général",
+  "short_name": "Cap 82-0",
+  "description": "Bâtis un alignement de 23 joueurs de la LNH, 1970 à aujourd'hui, sous le plafond salarial. Vise la saison parfaite.",
+  "lang": "fr-CA",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#060c14",
+  "theme_color": "#070e17",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
