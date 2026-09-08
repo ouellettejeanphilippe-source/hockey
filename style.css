@@ -691,6 +691,11 @@ a { color: var(--blue); }
   .pcard-mid .tags { flex-basis: 100%; justify-content: flex-start; }
   .pcard-dest { font-size: 10px; }
 }
+@container col (max-width: 190px) {
+  .pcard-inner { grid-template-columns: minmax(0, 1fr); }
+  .pcard-avatar { display: none; }
+  .pcard-band .pb-team span { display: none; }
+}
 
 
 
@@ -698,17 +703,21 @@ a { color: var(--blue); }
   display: flex;
   flex-direction: column;
   gap: 7px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--team-line, #38bdf8) 7%, var(--panel-2)) 0%, #0b1826 100%);
+  /* UN CONTOUR, PAS UNE BARRE. La couleur d'équipe cerne la carte sur tout
+     son pourtour, d'un trait fin et clair — c'est ce qui la détache du fond
+     sans lui coller une bande sur le flanc. */
+  border: 1px solid color-mix(in srgb, var(--team-line, #38bdf8) 62%, transparent);
   border-radius: var(--r-m);
   overflow: hidden;
   cursor: pointer;
   transition: border-color .15s, box-shadow .15s, transform .1s;
 }
 .pcard:hover { border-color: var(--team-line, var(--ui-accent)); }
+.pcard.locked { border-color: var(--line); }
 .pcard:active { transform: scale(0.995); }
 .pcard.locked { opacity: 0.45; }
-.pcard.signed { border-color: rgba(60, 208, 112, 0.4); }
+.pcard.signed { border-color: rgba(60, 208, 112, 0.55); }
 
 /* Haut de carte : le nom, le prix. Le portrait est parti avec le reste. */
 .pcard-head {
@@ -737,32 +746,65 @@ a { color: var(--blue); }
 
 /*
  * LE BANDEAU DE CARTE. Une carte de pointage dit d'abord ce qu'on regarde,
- * en couleur, avant de donner les chiffres : c'est ce que fait ce bandeau,
- * et c'est ce qui remplace le petit badge de poste noyé dans le nom.
+ * avant de donner les chiffres : ici c'est le poste, l'équipe et l'année.
+ * Ces trois-là étaient éparpillés — un badge dans le nom, un écusson collé
+ * au portrait, une année dans une ligne de contexte ; les réunir sur une
+ * ligne libère le corps de la carte, sans rien retirer.
  *
- * IL EST TEINTÉ, PAS PLEIN. Une carte de pointage est seule à l'écran et
- * peut porter un aplat saturé ; le bassin en aligne trente, et trente
- * aplats se battent entre eux au lieu de guider l'oeil. Le fond garde donc
- * la teinte du poste à basse opacité, le texte la porte en clair, et la
- * couleur pleine est réservée à ce qui doit ressortir seul : le bandeau
- * d'une carte de match, la pastille d'un résultat.
+ * LE FOND EST UN APLAT PLEIN DE LA COULEUR DE L'ÉQUIPE. Pas une teinte : un
+ * aplat, comme sur une vraie carte de pointage. C'est ce qui donne à chaque
+ * vestiaire son air, et ce qui fait qu'on reconnaît un Canadien d'un Bruin
+ * avant d'avoir lu quoi que ce soit.
+ *
+ * L'ENCRE EST CALCULÉE, PAS CHOISIE. `getTeamAccent` garantit une luminance
+ * d'au moins 0,30, donc l'aplat va du marine éclairci au blanc cassé : du
+ * blanc dessus serait illisible une fois sur trois. `getTeamInk` regarde la
+ * luminance réelle et rend du blanc ou du bleu nuit. C'est ce qui permet
+ * enfin de poser du texte SUR la couleur d'équipe, ce que la règle
+ * interdisait tant qu'on ne savait pas la lire.
  */
 .pcard-band, .slot-band {
   display: flex; align-items: center; gap: 7px;
-  padding: 3px 9px;
-  font-size: 9.5px; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase;
-  border-bottom: 1px solid var(--line-soft);
+  padding: 4px 9px;
+  font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+  background: var(--team-line, #38bdf8);
+  color: var(--team-ink, #08131f);
 }
-.slot-band > span:first-child { flex: none; }
-.pcard-inner { display: flex; flex-direction: column; gap: 7px; padding: 8px 10px 9px; }
+.pcard-band .pb-team { display: inline-flex; align-items: center; gap: 4px; }
+.pcard-band .pb-season {
+  margin-left: auto; font-weight: 800; letter-spacing: 0;
+  font-variant-numeric: tabular-nums; opacity: 0.78;
+}
 
-/* Une teinte par poste : on lit la position avant le nom, sans crier. */
-.pcard-band.pos-f, .slot-band.pos-f { background: rgba(56, 189, 248, 0.14); color: #7dd3fc; }
-.pcard-band.pos-d, .slot-band.pos-d { background: rgba(167, 139, 250, 0.15); color: #c4b5fd; }
-.pcard-band.pos-g, .slot-band.pos-g { background: rgba(251, 191, 36, 0.14); color: #fcd34d; }
-/* Un joueur déjà signé, ou hors d'atteinte, perd sa couleur. */
-.pcard-band.signe, .slot-band.signe { background: rgba(60, 208, 112, 0.16); color: #6ee7a0; }
-.pcard-band.off, .slot-band.off { background: rgba(255, 255, 255, 0.04); color: var(--muted); }
+/* Le chip de poste, sur l'aplat : un verre translucide, encre de l'équipe. */
+.pb-pos, .sb-role {
+  flex: none; padding: 1px 6px; border-radius: 4px;
+  font-size: 9px; font-weight: 900; letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.3); color: inherit;
+}
+.pcard-band .pb-pos.off, .slot-band .sb-role.off { background: rgba(0, 0, 0, 0.2); }
+
+/*
+ * Le corps : le portrait à gauche sur toute la hauteur, le reste à droite
+ * sur deux lignes. Empilées, ces deux lignes plus le portrait faisaient
+ * quatre rangées pour la même information.
+ */
+.pcard-inner {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 7px 9px;
+  padding: 8px 10px 9px;
+}
+.pcard-body { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.pcard-avatar {
+  width: 40px; height: 40px; border-radius: 9px; overflow: hidden;
+  background: #0a1521; border: 1px solid var(--line);
+  display: grid; place-items: center;
+}
+.pcard-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pcard-avatar .headshot-fallback { font-size: 17px; opacity: 0.35; }
+.pcard-dest, .pcard-inner > .btn-sign { grid-column: 1 / -1; }
 
 /* Milieu : le chiffre qui compte, et ce qu'il est */
 .pcard-mid { display: flex; align-items: center; gap: 10px; min-height: 30px; }
@@ -812,11 +854,13 @@ a { color: var(--blue); }
   border-color: rgba(244, 196, 48, 0.5);
   font-weight: 600;
 }
-.tag-zone { color: var(--blue); border-color: rgba(56, 189, 248, 0.32); }
-.tag-zone.lz1 { color: #0b1220; background: var(--gold); border-color: var(--gold); }
-.tag-zone.lz2 { color: #7dd3fc; border-color: rgba(125, 211, 252, 0.45); }
-.tag-zone.lz3 { color: var(--sub); }
-.tag-zone.lz4 { color: var(--muted); }
+/* La zone dit où le joueur rend : quatre paliers, quatre aplats, du plus
+   clair au plus sourd. C'est l'étiquette qu'on cherche des yeux. */
+.tag-zone { color: #08131f; background: #7dd3fc; border-color: #7dd3fc; }
+.tag-zone.lz1 { background: var(--gold); border-color: var(--gold); }
+.tag-zone.lz2 { background: #7dd3fc; border-color: #7dd3fc; }
+.tag-zone.lz3 { background: #64809b; border-color: #64809b; color: #08131f; }
+.tag-zone.lz4 { background: transparent; border-color: var(--line); color: var(--muted); }
 .tag-elc { color: var(--green); border-color: rgba(60, 208, 112, 0.35); }
 .tag-age { color: var(--sub); }
 .tag-real { color: var(--green); border-color: rgba(60, 208, 112, 0.35); }
@@ -954,9 +998,8 @@ a { color: var(--blue); }
   position: relative;
   min-height: 92px;
   border-radius: var(--r-s);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--slot-line, var(--line));
-  background: var(--panel-2);
+  border: 1px solid color-mix(in srgb, var(--slot-line, #38bdf8) 62%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--slot-line, #38bdf8) 6%, var(--panel-2)) 0%, #0b1826 100%);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -996,11 +1039,14 @@ a { color: var(--blue); }
 .slot.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .slot.oop { border-color: rgba(248, 113, 113, 0.5); }
 
-.slot-band { justify-content: space-between; padding: 3px 7px; font-size: 8.5px; }
+.slot-band { padding: 3px 7px; font-size: 8.5px; gap: 5px;
+  background: var(--slot-line, #38bdf8); color: var(--slot-ink, #08131f); }
+.slot-band .sb-logo { display: inline-flex; }
+.slot-band .slot-salary { margin-left: auto; color: inherit; opacity: 0.85; }
+.slot-band.off { background: #24384f; color: var(--sub); }
+.slot-band.off .slot-salary { color: var(--muted); }
 .slot-inner { display: flex; flex-direction: column; gap: 3px; padding: 5px 7px 6px 8px; }
 .slot.empty { padding: 6px 7px; justify-content: center; }
-.slot-band .slot-salary { color: var(--gold); }
-.slot-band.off .slot-salary { color: var(--muted); }
 .slot-salary {
   font-size: 10px;
   font-weight: 900;
@@ -1021,7 +1067,6 @@ a { color: var(--blue); }
   font-variant-numeric: tabular-nums;
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
   gap: 3px 6px;
 }
 .slot-tags { margin-top: auto; display: flex; flex-wrap: wrap; gap: 3px; }
@@ -1839,7 +1884,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   flex: none; width: 138px; scroll-snap-align: start;
   display: flex; flex-direction: column; cursor: pointer; overflow: hidden;
   padding: 0; text-align: left; color: var(--text);
-  background: var(--panel); border: 1px solid var(--line);
+  background: var(--panel); border: 1px solid #2e4a68;
   border-radius: var(--r-m);
   transition: border-color 0.15s, transform 0.15s;
 }

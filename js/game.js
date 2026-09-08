@@ -19,7 +19,7 @@ import {
   playSeries, autoRoster, tirsTotal, periodeDe, MODES, casesDuMode, uniteDeCase,
 } from './sim.js';
 import { recitDeBut, recitDeMatch, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
-import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent } from './logos.js';
+import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamInk } from './logos.js';
 import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 
@@ -263,6 +263,7 @@ function applyTeamColors(team) {
   // Version éclaircie, celle qui porte les bordures et les libellés : la
   // couleur brute d'une équipe sombre serait invisible sur fond noir.
   root.setProperty('--team-line', line);
+  root.setProperty('--team-ink', getTeamInk(team));
 }
 
 const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
@@ -905,12 +906,9 @@ function playerCardEl(p) {
   const bigVal = p.p === 'G' ? st.w : st.pt;
   const bigUnit = p.p === 'G' ? 'V' : 'PTS';
 
-  // L'ARCHÉTYPE N'EST PAS SUR LA CARTE. Son icône seule n'apprend rien à qui
-  // ne connaît pas le code, et il est écrit au long dans la fiche, à un clic.
-  // Ne restent que les traits — rares, donc porteurs — et la zone, qui dit où
-  // le joueur rend et sans laquelle on ne peut pas décider.
   const tags = [
     traitTags(p),
+    archTag(p),
     zoneTag(p),
     risky ? `<span class="tag tag-pen" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les 23.">⚠ bloque la fin</span>` : '',
   ].filter(Boolean).join('');
@@ -943,20 +941,27 @@ function playerCardEl(p) {
   // de couleur quand la carte change d'état. Il porte un fond, jamais du
   // texte de contenu : la même règle que les couleurs d'équipe.
   const etat = already ? 'signe' : over || !slot ? 'off' : '';
-  // Le bandeau ne porte QUE le poste : tout le bassin sort du même vestiaire,
-  // affiché juste au-dessus par la roulette, donc l'écusson et la saison sur
-  // chaque carte répétaient trente fois ce qu'on savait déjà. Le portrait est
-  // parti avec eux — il est souvent vide et n'aide pas à décider.
+  // LE BANDEAU PORTE LA COULEUR DE L'ÉQUIPE, le poste et la provenance : tout
+  // ce qui identifie la carte tient sur une ligne au lieu d'être éparpillé.
+  // Le corps range le reste sur deux lignes à côté du portrait, plutôt que de
+  // l'empiler : même information, deux fois moins de hauteur.
   el.innerHTML = `
-    <div class="pcard-band ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</div>
+    <div class="pcard-band">
+      <span class="pb-pos ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</span>
+      <span class="pb-team">${getTeamLogoHtml(p.t, 14)}<span>${esc(p.t)}</span></span>
+      <span class="pb-season">${esc(p.s)}</span>
+    </div>
     <div class="pcard-inner">
-      <div class="pcard-head">
-        <div class="pcard-name">${formatName(p.n)}</div>
-        <div class="pcard-price">${st.salaryMain}</div>
-      </div>
-      <div class="pcard-mid">
-        <div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
-        <div class="tags">${tags}</div>
+      <div class="pcard-avatar">${headshotHtml(p)}</div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">${formatName(p.n)}</div>
+          <div class="pcard-price">${st.salaryMain}</div>
+        </div>
+        <div class="pcard-mid">
+          <div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
+          <div class="tags">${tags}</div>
+        </div>
       </div>
       ${dest ? `<div class="pcard-dest">${dest}</div>` : ''}
       <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
@@ -1121,6 +1126,7 @@ function slotEl(s) {
 
   if (p) {
     el.style.setProperty('--slot-line', getTeamAccent(p.t));
+    el.style.setProperty('--slot-ink', getTeamInk(p.t));
     const st = displayStats(p);
     const main = p.p === 'G' ? `${st.w} V` : `${st.pt} PTS`;
     const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr} PTS/M`;
@@ -1132,16 +1138,18 @@ function slotEl(s) {
     el.innerHTML = `
       ${estRenfort(p) ? ''
         : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
-      <div class="slot-band ${positionClass(p)}${estRenfort(p) ? ' off' : ''}">
-        <span>${esc(s.role)}</span>
+      <div class="slot-band${estRenfort(p) ? ' off' : ''}">
+        <span class="sb-role ${positionClass(p)}">${esc(s.role)}</span>
+        <span class="sb-logo">${getTeamLogoHtml(p.t, 12)}</span>
         ${estRenfort(p)
           ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
           : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
         <div class="slot-name">${formatName(p.n)}</div>
-        <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span><span>${main}</span></div>
-        <div class="slot-tags">${traitTags(p)}${zoneTag(p)}${zoneEcartTag}${penTag}</div>
+        <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
+        <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
+        <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${zoneEcartTag}${penTag}</div>
       </div>`;
     el.querySelector('.slot-remove')?.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -1271,16 +1279,12 @@ function renderTeamSummary() {
   const tile = (k, v, cls, title) =>
     `<div class="sum-item" title="${esc(title)}"><div class="k">${k}</div><div class="v ${cls || ''}">${v}</div></div>`;
 
-  // TROIS CHIFFRES, PAS CINQ. « Mal assorties » et « hors position » sont
-  // déjà écrits sur les unités et les cases concernées, en rouge : les
-  // répéter en tuile ne disait rien de plus et noyait les trois qui comptent.
-  // Ils restent dans l'infobulle des unités optimales.
   host.innerHTML =
     tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
     + tile('Cases vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
-    + tile('Unités optimales', `${optimal}/7`, optimal ? 'dash-good' : '',
-      "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense."
-      + ` Actuellement ${miscast} unité${miscast > 1 ? 's' : ''} mal assortie${miscast > 1 ? 's' : ''} et ${oop} joueur${oop > 1 ? 's' : ''} hors position.`);
+    + tile('Unités optimales', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense. Les quatre trios et les trois paires comptent.")
+    + tile('Mal assorties', miscast, miscast ? 'dash-bad' : '', 'Unités où au moins un joueur joue hors de sa zone.')
+    + tile('Hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
 }
 
 function renderMain() {
