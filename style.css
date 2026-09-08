@@ -685,18 +685,11 @@ a { color: var(--blue); }
 @container col (max-width: 250px) {
   .pcard { padding: 8px 9px; gap: 6px; }
   .pcard-head { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 7px; }
-  .pcard-avatar { width: 32px; height: 32px; border-radius: 8px; }
   .pcard-price { font-size: 12.5px; }
   .pcard-name { font-size: 12.5px; }
   .pcard-mid { flex-wrap: wrap; gap: 6px; }
   .pcard-mid .tags { flex-basis: 100%; justify-content: flex-start; }
-  .pcard-foot { flex-direction: column; align-items: stretch; gap: 6px; }
-  .btn-sign { width: 100%; }
   .pcard-dest { font-size: 10px; }
-}
-@container col (max-width: 190px) {
-  .pcard-head { grid-template-columns: minmax(0, 1fr); }
-  .pcard-avatar { display: none; }
 }
 
 
@@ -706,54 +699,24 @@ a { color: var(--blue); }
   flex-direction: column;
   gap: 7px;
   background: var(--panel-2);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--team-line, #38bdf8) 9%, var(--panel-2)) 0%, #0b1826 100%);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--team-line, var(--ui-accent));
   border-radius: var(--r-m);
   overflow: hidden;
   cursor: pointer;
   transition: border-color .15s, box-shadow .15s, transform .1s;
 }
-.pcard:hover { border-color: var(--team-line, var(--ui-accent)); box-shadow: var(--shadow-1); }
+.pcard:hover { border-color: var(--team-line, var(--ui-accent)); }
 .pcard:active { transform: scale(0.995); }
 .pcard.locked { opacity: 0.45; }
-.pcard.signed { border-left-color: var(--green); }
+.pcard.signed { border-color: rgba(60, 208, 112, 0.4); }
 
-/* Haut de carte : portrait, identité, salaire */
+/* Haut de carte : le nom, le prix. Le portrait est parti avec le reste. */
 .pcard-head {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
-  align-items: center;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 9px;
 }
-.pcard-avatar {
-  position: relative;
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
-  overflow: hidden;
-  background: #0a1521;
-  border: 1px solid var(--line);
-  display: grid;
-  place-items: center;
-}
-.headshot-fallback { font-size: 17px; opacity: 0.45; }
-.pcard-team-badge {
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: #050c14;
-  border: 1px solid var(--line);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-.pcard-team-badge img, .pcard-team-badge svg { width: 11px; height: 11px; }
-
-.pcard-id { min-width: 0; }
 .pcard-name {
   font-size: 13.5px;
   line-height: 1.25;
@@ -774,36 +737,32 @@ a { color: var(--blue); }
 
 /*
  * LE BANDEAU DE CARTE. Une carte de pointage dit d'abord ce qu'on regarde,
- * en couleur et en gros, avant de donner les chiffres : c'est ce que fait ce
- * bandeau, et c'est ce qui remplace le petit badge de poste noyé dans le nom.
- * La couleur porte un FOND, jamais du texte de contenu — même règle que les
- * couleurs d'équipe.
+ * en couleur, avant de donner les chiffres : c'est ce que fait ce bandeau,
+ * et c'est ce qui remplace le petit badge de poste noyé dans le nom.
+ *
+ * IL EST TEINTÉ, PAS PLEIN. Une carte de pointage est seule à l'écran et
+ * peut porter un aplat saturé ; le bassin en aligne trente, et trente
+ * aplats se battent entre eux au lieu de guider l'oeil. Le fond garde donc
+ * la teinte du poste à basse opacité, le texte la porte en clair, et la
+ * couleur pleine est réservée à ce qui doit ressortir seul : le bandeau
+ * d'une carte de match, la pastille d'un résultat.
  */
 .pcard-band, .slot-band {
   display: flex; align-items: center; gap: 7px;
-  padding: 4px 9px; color: #fff;
+  padding: 3px 9px;
   font-size: 9.5px; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase;
+  border-bottom: 1px solid var(--line-soft);
 }
-.pcard-band .pb-code, .slot-band > span:first-child { flex: none; }
-.pcard-band .pb-long {
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-weight: 700; opacity: 0.72; letter-spacing: 0.04em;
-}
-.pcard-band .pb-team {
-  flex: none; display: inline-flex; align-items: center; gap: 3px;
-  font-weight: 700; opacity: 0.8; letter-spacing: 0; text-transform: none;
-  font-variant-numeric: tabular-nums;
-}
-.pcard-band .pb-team img, .pcard-band .pb-team svg { filter: brightness(1.6); }
+.slot-band > span:first-child { flex: none; }
 .pcard-inner { display: flex; flex-direction: column; gap: 7px; padding: 8px 10px 9px; }
 
-/* Une couleur par poste, franche : on lit la position avant le nom. */
-.pos-f { background: #0369a1; }
-.pos-d { background: #6d28d9; }
-.pos-g { background: #b45309; }
+/* Une teinte par poste : on lit la position avant le nom, sans crier. */
+.pcard-band.pos-f, .slot-band.pos-f { background: rgba(56, 189, 248, 0.14); color: #7dd3fc; }
+.pcard-band.pos-d, .slot-band.pos-d { background: rgba(167, 139, 250, 0.15); color: #c4b5fd; }
+.pcard-band.pos-g, .slot-band.pos-g { background: rgba(251, 191, 36, 0.14); color: #fcd34d; }
 /* Un joueur déjà signé, ou hors d'atteinte, perd sa couleur. */
-.pcard-band.signe, .slot-band.signe { background: #15803d; }
-.pcard-band.off, .slot-band.off { background: #24384f; color: var(--sub); }
+.pcard-band.signe, .slot-band.signe { background: rgba(60, 208, 112, 0.16); color: #6ee7a0; }
+.pcard-band.off, .slot-band.off { background: rgba(255, 255, 255, 0.04); color: var(--muted); }
 
 /* Milieu : le chiffre qui compte, et ce qu'il est */
 .pcard-mid { display: flex; align-items: center; gap: 10px; min-height: 30px; }
@@ -867,14 +826,6 @@ a { color: var(--blue); }
 .tag-zone-up { color: var(--orange); border-color: rgba(251, 146, 60, 0.4); background: rgba(251, 146, 60, 0.12); }
 
 /* Bas de carte : où il va, et le bouton */
-.pcard-foot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: space-between;
-  padding-top: 7px;
-  border-top: 1px solid var(--line-soft);
-}
 .pcard-dest {
   min-width: 0;
   font-size: 10.5px;
@@ -891,7 +842,7 @@ a { color: var(--blue); }
 .pcard-dest .dest-warn { color: var(--orange); }
 
 .btn-sign {
-  flex: none;
+  width: 100%;
   min-height: 32px;
   padding: 6px 14px;
   border-radius: var(--r-s);
@@ -1005,7 +956,7 @@ a { color: var(--blue); }
   border-radius: var(--r-s);
   border: 1px solid var(--line);
   border-left: 3px solid var(--slot-line, var(--line));
-  background: linear-gradient(180deg, var(--panel-2), #0b1826);
+  background: var(--panel-2);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1048,8 +999,8 @@ a { color: var(--blue); }
 .slot-band { justify-content: space-between; padding: 3px 7px; font-size: 8.5px; }
 .slot-inner { display: flex; flex-direction: column; gap: 3px; padding: 5px 7px 6px 8px; }
 .slot.empty { padding: 6px 7px; justify-content: center; }
-.slot-band .slot-salary { color: #fff; opacity: 0.9; }
-.slot-band.off .slot-salary { color: var(--muted); opacity: 1; }
+.slot-band .slot-salary { color: var(--gold); }
+.slot-band.off .slot-salary { color: var(--muted); }
 .slot-salary {
   font-size: 10px;
   font-weight: 900;
@@ -1070,6 +1021,7 @@ a { color: var(--blue); }
   font-variant-numeric: tabular-nums;
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
   gap: 3px 6px;
 }
 .slot-tags { margin-top: auto; display: flex; flex-wrap: wrap; gap: 3px; }
@@ -1730,7 +1682,6 @@ table.data .pts { font-weight: 900; color: var(--green); }
 /* Téléphones larges */
 @media (min-width: 430px) {
   .pcard { grid-template-columns: 48px 1fr; }
-  .pcard-avatar { width: 48px; height: 48px; }
 }
 
 /* Tablette : deux colonnes de cartes, en-tête sur une ligne */
@@ -1823,8 +1774,8 @@ table.data .pts { font-weight: 900; color: var(--green); }
    --------------------------------------------------------------- */
 
 /* Portrait : l'emoji reste sous l'image et réapparaît si elle ne charge pas */
-.pcard-avatar, .pcard-full-photo { position: relative; }
-.pcard-avatar img, .pcard-full-photo img {
+.pcard-full-photo { position: relative; }
+.pcard-full-photo img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1985,5 +1936,5 @@ table.data .pts { font-weight: 900; color: var(--green); }
 /* La fiche n'a pas de bandeau : le poste y reste une pastille. */
 .pos-chip {
   display: inline-block; padding: 1px 7px; border-radius: 999px;
-  font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em; color: #fff;
+  font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em;
 }

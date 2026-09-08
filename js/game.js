@@ -905,9 +905,12 @@ function playerCardEl(p) {
   const bigVal = p.p === 'G' ? st.w : st.pt;
   const bigUnit = p.p === 'G' ? 'V' : 'PTS';
 
+  // L'ARCHÉTYPE N'EST PAS SUR LA CARTE. Son icône seule n'apprend rien à qui
+  // ne connaît pas le code, et il est écrit au long dans la fiche, à un clic.
+  // Ne restent que les traits — rares, donc porteurs — et la zone, qui dit où
+  // le joueur rend et sans laquelle on ne peut pas décider.
   const tags = [
     traitTags(p),
-    archTag(p),
     zoneTag(p),
     risky ? `<span class="tag tag-pen" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les 23.">⚠ bloque la fin</span>` : '',
   ].filter(Boolean).join('');
@@ -940,28 +943,23 @@ function playerCardEl(p) {
   // de couleur quand la carte change d'état. Il porte un fond, jamais du
   // texte de contenu : la même règle que les couleurs d'équipe.
   const etat = already ? 'signe' : over || !slot ? 'off' : '';
+  // Le bandeau ne porte QUE le poste : tout le bassin sort du même vestiaire,
+  // affiché juste au-dessus par la roulette, donc l'écusson et la saison sur
+  // chaque carte répétaient trente fois ce qu'on savait déjà. Le portrait est
+  // parti avec eux — il est souvent vide et n'aide pas à décider.
   el.innerHTML = `
-    <div class="pcard-band ${positionClass(p)} ${etat}">
-      <span class="pb-code">${esc(positionLabel(p))}</span>
-      <span class="pb-long">${esc(posteLong(p))}</span>
-      <span class="pb-team">${getTeamLogoHtml(p.t, 13)} ${esc(p.s)}</span>
-    </div>
+    <div class="pcard-band ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</div>
     <div class="pcard-inner">
       <div class="pcard-head">
-        <div class="pcard-avatar">${headshotHtml(p)}</div>
-        <div class="pcard-id">
-          <div class="pcard-name">${formatName(p.n)}</div>
-        </div>
+        <div class="pcard-name">${formatName(p.n)}</div>
         <div class="pcard-price">${st.salaryMain}</div>
       </div>
       <div class="pcard-mid">
         <div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
         <div class="tags">${tags}</div>
       </div>
-      <div class="pcard-foot">
-        <div class="pcard-dest">${dest}</div>
-        <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
-      </div>
+      ${dest ? `<div class="pcard-dest">${dest}</div>` : ''}
+      <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
     </div>`;
 
   el.onclick = ev => {
@@ -1142,9 +1140,8 @@ function slotEl(s) {
       </div>
       <div class="slot-inner">
         <div class="slot-name">${formatName(p.n)}</div>
-        <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
-        <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
-        <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${zoneEcartTag}${penTag}</div>
+        <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span><span>${main}</span></div>
+        <div class="slot-tags">${traitTags(p)}${zoneTag(p)}${zoneEcartTag}${penTag}</div>
       </div>`;
     el.querySelector('.slot-remove')?.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -1274,12 +1271,16 @@ function renderTeamSummary() {
   const tile = (k, v, cls, title) =>
     `<div class="sum-item" title="${esc(title)}"><div class="k">${k}</div><div class="v ${cls || ''}">${v}</div></div>`;
 
+  // TROIS CHIFFRES, PAS CINQ. « Mal assorties » et « hors position » sont
+  // déjà écrits sur les unités et les cases concernées, en rouge : les
+  // répéter en tuile ne disait rien de plus et noyait les trois qui comptent.
+  // Ils restent dans l'infobulle des unités optimales.
   host.innerHTML =
-    tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(CAP)}. Il reste ${money(capLeft())}.`)
-    + tile('Cases vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', 'Cases encore à combler sur les 23.')
-    + tile('Unités optimales', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense. Les quatre trios et les trois paires comptent.")
-    + tile('Mal assorties', miscast, miscast ? 'dash-bad' : '', 'Unités où au moins deux joueurs jouent hors de leur zone : −2 en attaque et −2 en défense.')
-    + tile('Hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
+    tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
+    + tile('Cases vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
+    + tile('Unités optimales', `${optimal}/7`, optimal ? 'dash-good' : '',
+      "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense."
+      + ` Actuellement ${miscast} unité${miscast > 1 ? 's' : ''} mal assortie${miscast > 1 ? 's' : ''} et ${oop} joueur${oop > 1 ? 's' : ''} hors position.`);
 }
 
 function renderMain() {
