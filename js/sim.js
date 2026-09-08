@@ -953,9 +953,15 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
 
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
     if (journal) journal.tirs[cote][periodeDe(instant)]++;
+    // Chaque lancer entre au journal avec son tireur et son gardien : c'est
+    // ce que le direct des séries rejoue, tir par tir. Le sommaire, lui, ne
+    // lit que les buts.
+    const lancer = journal ? { cote, instant, tireur, gardien, but: false } : null;
+    if (lancer) journal.lancers.push(lancer);
 
     if (Math.random() < p) {
       buts++;
+      if (lancer) lancer.but = true;
       if (journal && tireur) {
         journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien });
       }
@@ -1282,8 +1288,10 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
     for (const x of glace) x.simPM++;
   }
   if (journal) {
+    const instant = 60 + Math.random() * 5;
     journal.tirs[cote][4]++;
-    journal.buts.push({ cote, instant: 60 + Math.random() * 5, marqueur: tireur, passeurs, gardien, gagnant: true });
+    journal.lancers.push({ cote, instant, tireur, gardien, but: true });
+    journal.buts.push({ cote, instant, marqueur: tireur, passeurs, gardien, gagnant: true });
   }
 }
 
@@ -1364,6 +1372,7 @@ export function simulateLeague(teams, games = 82) {
 export function feuilleVierge() {
   return {
     buts: [],
+    lancers: [],                                          // chaque tir, daté, avec tireur et gardien
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
     prolongation: false,

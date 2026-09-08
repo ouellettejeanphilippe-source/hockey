@@ -100,6 +100,13 @@ export const TEAM_COLORS = {
   UTA: { primary: '#000000', secondary: '#69b3e7', text: '#ffffff', accent: '#69b3e7' },
   ATL: { primary: '#002d62', secondary: '#5c768d', text: '#ffffff', accent: '#5c768d' },
   CLR: { primary: '#00205b', secondary: '#c8102e', text: '#ffffff', accent: '#c8102e' },
+  // Les cinq franchises des années 1970 qui n'avaient pas de couleur : elles
+  // tombaient sur le bleu par défaut, et Atlanta ressemblait à Kansas City.
+  AFM: { primary: '#c8102e', secondary: '#ffc72c', text: '#ffffff', accent: '#c8102e' },
+  CLE: { primary: '#c8102e', secondary: '#000000', text: '#ffffff', accent: '#c8102e' },
+  KCS: { primary: '#0038a8', secondary: '#c8102e', text: '#ffffff', accent: '#ffc72c' },
+  CGS: { primary: '#00843d', secondary: '#ffc72c', text: '#ffffff', accent: '#00843d' },
+  OAK: { primary: '#00843d', secondary: '#ffc72c', text: '#ffffff', accent: '#00843d' },
 };
 
 /* ---------- teinte lisible ---------- */
@@ -158,6 +165,64 @@ export function getTeamInk(teamCode) {
   const surBlanc = 1.05 / (L + 0.05);
   const surFonce = (L + 0.05) / 0.05;
   return surFonce >= surBlanc ? '#08131f' : '#ffffff';
+}
+
+/*
+ * LE BANDEAU PORTE LA COULEUR BRUTE DE L'ÉQUIPE, PAS SA VERSION ÉCLAIRCIE.
+ * `getTeamAccent` éclaircit jusqu'à une luminance de 0,30 pour qu'une bordure
+ * reste visible sur le fond sombre — mais posé en aplat plein, ce rouge de
+ * Chicago devenait rose saumon et le marine de Toronto un bleu poudre : des
+ * couleurs de maillot délavées, et c'est ce qui faisait « cheap ». Un aplat
+ * n'a pas besoin d'être clair pour se voir : il a besoin d'une encre qui
+ * contraste. On garde donc le rouge, le marine, le noir des Kings, et on
+ * mesure l'encre dessus (blanc ou bleu nuit, le meilleur rapport WCAG). Si
+ * aucune des deux n'atteint 4,5:1 — un ton moyen, comme le vert des North
+ * Stars — on éclaircit juste assez pour que l'encre foncée y arrive.
+ *
+ * `stripe` est la couleur secondaire, le liseré du maillot : il souligne le
+ * bandeau et c'est lui qui distingue Edmonton (marine, liseré orange) de
+ * Toronto (marine, liseré marine).
+ */
+export function getTeamBand(teamCode) {
+  const c = TEAM_COLORS[teamCode];
+  if (!c) return { bg: '#112236', ink: '#ffffff', stripe: '#38bdf8' };
+  let bg = c.primary;
+  let ink = inkFor(bg);
+  if (contrast(bg, ink) < 4.5) {
+    bg = readableAccent(bg, 0.36);
+    ink = inkFor(bg);
+  }
+  const stripe = c.secondary && c.secondary.toLowerCase() !== bg.toLowerCase() ? c.secondary : (c.accent || '#ffffff');
+  return { bg, ink, stripe };
+}
+
+function contrast(bg, ink) {
+  const a = luminance(bg), b = luminance(ink);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+function inkFor(bg) {
+  return contrast(bg, '#ffffff') >= contrast(bg, '#08131f') ? '#ffffff' : '#08131f';
+}
+
+/*
+ * LA SAISON D'UNE ÉQUIPE SUR HOCKEY-REFERENCE. Une adresse par équipe et par
+ * saison, stable, vérifiée pour chacun des 44 codes du dépôt (une requête par
+ * code, le 8 septembre 2026 : toutes répondent 200 avec le bon titre). Ce
+ * n'est pas du scraping — on n'en lit rien, on y envoie. Les codes diffèrent
+ * des nôtres pour six franchises, et trois changent avec l'époque : les
+ * Black Hawks s'écrivent CBH jusqu'en 1985-86, les Mighty Ducks MDA jusqu'en
+ * 2005-06, et Vegas est VEG. L'année de l'adresse est celle de la FIN de la
+ * saison : 1976-77 → 1977.
+ */
+const HR_CODES = { AFM: 'ATF', HFD: 'HAR', VGK: 'VEG' };
+export function teamSeasonUrl(teamCode, season) {
+  if (!teamCode || !season) return null;
+  const debut = parseInt(String(season).slice(0, 4), 10);
+  if (!debut) return null;
+  let code = HR_CODES[teamCode] || teamCode;
+  if (teamCode === 'CHI' && debut <= 1985) code = 'CBH';
+  if (teamCode === 'ANA' && debut <= 2005) code = 'MDA';
+  return `https://www.hockey-reference.com/teams/${code}/${debut + 1}.html`;
 }
 
 export function getTeamAccent(teamCode) {
