@@ -2188,6 +2188,108 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .champion p { color: var(--sub); font-size: 12.5px; margin: 8px 0 0; padding: 0 12px 14px; }
 
 /* ---------------------------------------------------------------
+   Les séries en direct
+   ---------------------------------------------------------------
+   Plein écran, un match à la fois. En haut le tableau indicateur (deux
+   équipes aux couleurs de leur bandeau, le pointage, l'horloge), dessous le
+   fil des événements, le plus récent en tête, et en pied les commandes :
+   la vitesse, « aller à la fin », puis le match suivant. À plat, comme le
+   reste. */
+.modal-backdrop.live { align-items: stretch; padding: 0; backdrop-filter: none; background: var(--bg); }
+.live-sheet {
+  display: flex; flex-direction: column; width: 100%; max-width: 900px; margin: 0 auto;
+  height: 100dvh; background: var(--bg);
+}
+.live-top {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px 8px; border-bottom: 1px solid var(--line-soft);
+}
+.live-head { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.live-ronde { font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
+.live-match { font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.live-serie { font-size: 11.5px; color: var(--sub); font-weight: 700; }
+.live-close { position: static; flex: none; }
+
+.live-board {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch; gap: 8px; padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.live-eq { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; background: var(--panel); }
+.live-eq-band {
+  display: flex; align-items: center; gap: 6px; padding: 4px 9px 6px;
+  background: var(--eq-band); color: var(--eq-ink);
+  box-shadow: inset 0 -2px 0 var(--eq-stripe);
+  font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.live-eq.b .live-eq-band { flex-direction: row-reverse; }
+.live-eq-nom { padding: 6px 9px 0; font-size: 11px; font-weight: 700; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live-eq.b .live-eq-nom { text-align: right; }
+.live-eq-buts {
+  font-family: var(--display); font-size: 64px; line-height: 1; font-weight: 800;
+  padding: 4px 9px 8px; font-variant-numeric: tabular-nums;
+}
+.live-eq.b .live-eq-buts { text-align: right; }
+.live-eq-buts.flash { animation: butFlash 1.2s ease; }
+@keyframes butFlash { 0% { color: var(--gold); transform: scale(1.18); } 100% { color: inherit; transform: none; } }
+.live-horloge {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-width: 86px; padding: 8px 6px; text-align: center;
+}
+.live-per { font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: 0.1em; color: var(--gold); }
+.live-temps { font-family: var(--display); font-size: 30px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.live-tirs { font-size: 10px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
+
+.live-etat:empty { display: none; }
+.live-etat { padding: 10px 14px 0; }
+.live-bilan { border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; background: var(--panel); }
+.live-bilan-titre {
+  padding: 7px 12px; font-family: var(--display); font-size: 18px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase; background: var(--green); color: #04200f;
+}
+.live-bilan.perdu .live-bilan-titre { background: var(--live); color: #fff; }
+.live-coupe { padding: 10px 12px; font-family: var(--display); font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); border: 1px solid var(--gold); border-radius: var(--r-m); margin-bottom: 8px; text-align: center; }
+.live-autres { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.live-autres .k { font-size: 9.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.live-autre { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.live-autre .v { font-family: var(--display); font-size: 16px; font-weight: 800; color: var(--gold); }
+.live-autre .p { color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live-autre > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.live-feed { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 4px; }
+.live-ligne {
+  display: flex; align-items: baseline; gap: 8px; padding: 6px 10px;
+  border-radius: var(--r-s); font-size: 12.5px; line-height: 1.4;
+  animation: ligneIn .25s ease;
+}
+@keyframes ligneIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.live-ligne .team-logo-img, .live-ligne .team-logo-inline { flex: none; align-self: center; }
+.live-tps { flex: none; font-family: var(--mono); font-size: 10.5px; color: var(--muted); min-width: 38px; }
+.live-ligne.arret { color: var(--sub); }
+.live-ligne.debut, .live-ligne.periode, .live-ligne.fin { color: var(--sub); background: rgba(255, 255, 255, 0.04); }
+.live-ligne.fin { color: var(--text); }
+.live-ligne.but { background: color-mix(in srgb, var(--gold) 12%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent); color: var(--text); }
+.live-ligne.but.gagnant { border-color: var(--gold); }
+.live-but-mot { font-family: var(--display); font-size: 15px; letter-spacing: 0.1em; color: var(--gold); margin-right: 4px; }
+.live-score { font-family: var(--display); font-weight: 800; font-size: 14px; color: var(--gold); margin-left: 4px; }
+
+.live-controls {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line-soft);
+}
+.live-controls .btn { flex: 1 1 160px; min-height: 42px; }
+.live-vitesse { flex: none; }
+.live-vitesse button { min-width: 44px; }
+
+@media (max-width: 479.98px) {
+  .live-eq-buts { font-size: 48px; }
+  .live-temps { font-size: 24px; }
+  .live-horloge { min-width: 70px; }
+  .live-eq-nom { display: none; }
+}
+
+/* ---------------------------------------------------------------
    Points d'arrêt
    --------------------------------------------------------------- */
 

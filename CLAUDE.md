@@ -41,6 +41,8 @@ fonts/                      Barlow Condensed (OFL 1.1), trois graisses, héberg�
 js/traits.js                les traits, tirés des votes de `data/trophees.js`
 js/recit.js                 les mots du sommaire d'un match : il ne décide de
                             rien, il raconte ce que le moteur a déjà joué
+js/direct.js                les séries en direct : rejoue la feuille d'un match
+                            dans le temps, plein écran, un match à la fois
 js/sim.js                   structure de l'alignement + simulation de saison + ligue complète
 js/game.js                  contrôleur d'interface
 scripts/build_shards.py     aspire l'API LNH, écrit les shards ; --rerate = étage 2 sans API
@@ -194,6 +196,8 @@ lancers pour        = lancers contre, à l'échelle de la ligue
 ## Les séries se jouent match par match
 
 **Chaque match de séries garde sa feuille**, et c'est la même simulation qu'avant : on ne jetait simplement pas ce que le moteur produisait déjà. `feuilleVierge()` ouvre un journal, `playGame` le remplit lancer par lancer — buts avec leur instant, leurs passeurs et le gardien battu, tirs par période, arrêts — et `playSeries` retourne les feuilles de tous les matchs. Les égalités de la feuille de match tiennent ici aussi : les buts d'un côté sont ceux du journal, et les tirs d'un côté valent les arrêts de l'autre plus les buts.
+
+**Tes séries se regardent en direct, un match à la fois, et le tableau ne se dessine qu'après.** JP : *les séries, ça devrait être simulé un match à la fois, en plein écran, jeu par jeu, pour avoir un côté mystère et excitant*. `js/direct.js` ne décide de rien : `runPlayoffs` a déjà tout joué, et `diffuserSeries` REJOUE la feuille de chaque match du joueur dans le temps — l'horloge avance (×1, ×2 ou ×4 minutes de jeu par seconde, mémorisé), les tirs et les buts tombent à leur instant, l'horloge s'arrête une seconde sur un but, la fin de période et la fin du match sont des lignes du fil. Le fil met le plus récent en tête, donc rien ne défile. Les tirs arrêtés n'ont pas d'instant dans la feuille : on le leur donne au hasard dans leur période, avec une graine sur la série et le match, donc rejouer redonne la même diffusion. Après la série, un bilan (remportée ou éliminé, et « pendant ce temps » les autres séries de la ronde), puis la ronde suivante ; à la fin, ou si on ferme le direct, `dessinerTableauDesSeries` dessine le tableau complet comme avant. **Le mystère tient à ce seul ordre** : rien du tableau n'existe dans le DOM tant que le direct n'est pas fini.
 
 **Le temps n'est pas simulé, il est attribué.** Le moteur ne modélise pas l'horloge ; quand un journal est ouvert, chaque lancer reçoit un instant tiré uniformément dans les 60 minutes (ou dans les 5 premières de la prolongation), et la feuille se lit dans l'ordre une fois les deux côtés fusionnés. Assez pour un sommaire crédible, et **aucune probabilité n'en dépend**.
 

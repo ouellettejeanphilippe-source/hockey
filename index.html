@@ -161,6 +161,20 @@
   </div>
 </div>
 
+<!-- ===== Les séries en direct : plein écran, un match à la fois ===== -->
+<div id="liveModal" class="modal-backdrop live" style="display:none;">
+  <div class="live-sheet" role="dialog" aria-modal="true" aria-label="Séries en direct">
+    <div class="live-top">
+      <div class="live-head"></div>
+      <button class="close-btn live-close" aria-label="Quitter le direct et voir le tableau">✕</button>
+    </div>
+    <div class="live-board"></div>
+    <div class="live-etat"></div>
+    <div class="live-feed" aria-live="polite"></div>
+    <div class="live-controls"></div>
+  </div>
+</div>
+
 <div id="hockeyCardModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet modal-card" role="dialog" aria-modal="true" aria-label="Fiche du joueur">
     <button id="closeHockeyCardBtn" class="close-btn" aria-label="Fermer">✕</button>
@@ -332,7 +346,7 @@
       <h3>9. La ligue et les séries</h3>
       <p>Ta formation plus 31 vraies équipes historiques tirées au hasard dans 55 saisons et alignées automatiquement (les 18 meilleurs patineurs par valeur, position par position). 82 rondes d'appariements, 1 312 matchs. Un même joueur-saison ne peut habiller qu'une seule équipe de la ligue, la tienne comprise.</p>
       <p>À la fin de la saison, les <strong>statistiques de la ligue</strong> donnent les meneurs pour les points, les buts, les passes et le différentiel, plus les gardiens au pourcentage d'arrêts, à la moyenne de buts alloués et aux victoires (25 départs minimum pour les deux premiers, comme la vraie ligue l'exige). Chaque équipe historique est cliquable vers sa saison sur Hockey-Reference (adresse vérifiée pour chacune des 44 franchises).</p>
-      <p>Les 16 premiers font les séries : quatre rondes 4 de 7, avec blessures et usure. Chaque match se joue <strong>lancer par lancer comme les autres</strong> et garde son sommaire — les buts avec leur temps et leurs passes, les tirs par période, les arrêts de chaque gardien. Clique un match pour l'ouvrir. Le temps d'un but n'est pas simulé par le moteur : chaque lancer reçoit un instant tiré dans les 60 minutes, ce qui met la feuille en ordre sans toucher à aucune probabilité. Les phrases qui accompagnent les buts décrivent ce qui vient d'arriver — elles ne décident de rien.</p>
+      <p>Les 16 premiers font les séries : quatre rondes 4 de 7, avec blessures et usure. <strong>Tes séries se regardent en direct</strong>, plein écran, un match à la fois : l'horloge tourne, les tirs et les buts tombent au moment où ils sont arrivés, et tu ne connais le résultat qu'à la fin. Le moteur a déjà joué le match ; l'écran ne fait que le rejouer dans le temps. Chaque match se joue <strong>lancer par lancer comme les autres</strong> et garde son sommaire — les buts avec leur temps et leurs passes, les tirs par période, les arrêts de chaque gardien. Clique un match pour l'ouvrir. Le temps d'un but n'est pas simulé par le moteur : chaque lancer reçoit un instant tiré dans les 60 minutes, ce qui met la feuille en ordre sans toucher à aucune probabilité. Les phrases qui accompagnent les buts décrivent ce qui vient d'arriver — elles ne décident de rien.</p>
       <p>Repères, mesurés sur le moteur : l'équipe moyenne fait 41 victoires. Une vraie équipe du dernier décile en fait 26, du premier 52. Le Canadien de 1976-77 en fait 61 à 63. Un alignement parfaitement monté en fait 68 à 70 et gagne la Coupe deux fois sur trois, pas plus. Le 82-0 n'est pas atteignable, et c'est voulu : dominer est possible, la Coupe reste un pari.</p>
     </div>
   </div>

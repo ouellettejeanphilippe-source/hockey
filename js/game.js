@@ -20,6 +20,7 @@ import {
 } from './sim.js';
 import { recitDeBut, recitDeMatch, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamInk, getTeamBand, teamSeasonUrl } from './logos.js';
+import { diffuserSeries } from './direct.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -2009,7 +2010,21 @@ function runPlayoffs(top16) {
     n++;
   }
   const champion = ronde[0];
+  const btn = $('playoffsBtn');
+  if (btn) btn.disabled = true;
 
+  // LE DIRECT D'ABORD. Tout est déjà joué ; on ne dessine le tableau qu'une
+  // fois que le joueur a regardé ses séries match par match — ou qu'il a
+  // fermé le direct. Le mystère tient à ce seul ordre.
+  diffuserSeries({
+    series: G.series, rondes: RONDES,
+    ctx: { esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand },
+    onTermine: () => dessinerTableauDesSeries(host, n, champion),
+  });
+}
+
+/** Le tableau complet des séries, toutes rondes, tous les matchs cliquables. */
+function dessinerTableauDesSeries(host, n, champion) {
   let html = `<div class="result-section"><h3>${ico('i-cup')}Séries éliminatoires</h3>
     <p class="series-legende">Touche un match pour son sommaire.
       <span class="lg lg-or">or</span> le match qui a réglé la série ·
@@ -2030,8 +2045,6 @@ function runPlayoffs(top16) {
   host.querySelectorAll('.mcard').forEach(b => {
     b.onclick = () => showGameModal(Number(b.dataset.serie), Number(b.dataset.match));
   });
-  const btn = $('playoffsBtn');
-  if (btn) btn.disabled = true;
   host.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
