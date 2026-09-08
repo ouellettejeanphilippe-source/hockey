@@ -30,6 +30,8 @@ js/ratings.js               calcul des cotes cachées (partagé navigateur + bui
                             étage 2 : valeur, salaire, archétype, zone (rejouable hors ligne)
 js/data.js                  chargeur trois niveaux + cache IndexedDB
 js/traits.js                les traits, tirés des votes de `data/trophees.js`
+js/recit.js                 les mots du sommaire d'un match : il ne décide de
+                            rien, il raconte ce que le moteur a déjà joué
 js/sim.js                   structure de l'alignement + simulation de saison + ligue complète
 js/game.js                  contrôleur d'interface
 scripts/build_shards.py     aspire l'API LNH, écrit les shards ; --rerate = étage 2 sans API
@@ -68,6 +70,10 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 ```
 
 ## Règles fermes
+
+**Trois façons de jouer, un seul moteur.** `MODES` dans `js/sim.js` : **Classique** (23 joueurs un par tour, 95,5 M$), **Par unité** (les mêmes 23, mais la roulette ne tourne qu'une fois le trio ou la paire COMPLET — neuf tours, et pendant qu'on comble un trio seuls les attaquants sont signables) et **Express** (six cases — un trio, une paire, un partant — le reste fourni par une vraie équipe tirée au hasard, hors plafond et non modifiable, sous 34 M$, la médiane mesurée de ce qu'une vraie équipe met sur ces six cases-là). Le moteur, les 23 cases, le malus de zone et la ligue de 32 équipes ne changent jamais : c'est ce qu'on demande de bâtir qui change. `casesDuMode` donne les cases actives, `uniteDeCase` dit ce qui se comble d'un seul vestiaire.
+
+**Un joueur-saison ne peut habiller qu'une équipe.** Un joueur échangé est dans le vestiaire de CHAQUE club où il a passé, avec un objet distinct par club : comparer les objets laissait signer deux fois le même homme (Budaj 2015-16 avec le Colorado, puis avec Los Angeles) et l'aligner dans deux équipes de la même ligue. `getPersonKey` identifie la personne, `getPlayerKey` reste la clé du coffre des cotes — les deux existent et ne servent pas à la même chose.
 
 **Il n'y a plus de cote globale.** La valeur d'un joueur (`v`) est son **rang statistique** dans sa saison, projeté sur la distribution historique par position (`valeurDeSaison` et `VALEUR_CENTILES` dans `js/ratings.js`). Le rang vient des colonnes — production, volume de lancers, différentiel lissé du vestiaire, usage — et l'échelle est celle que le jeu utilisait déjà. Cette séparation est délibérée : **changer qui est premier est un choix de conception, changer combien de joueurs valent 70 en serait un autre**, et on n'en veut qu'un à la fois. C'est ce qui garantit que les seuils de zone, la courbe des salaires et l'économie du plafond continuent de valoir ce qu'ils valaient.
 
@@ -130,13 +136,25 @@ lancers pour        = lancers contre, à l'échelle de la ligue
 
 **La défensive agit sur la qualité des lancers, pas sur leur nombre.** Mesuré sur 1392 équipes-saisons : la cote défensive d'un alignement corrèle à −0,17 avec les lancers concédés et à +0,45 avec le pourcentage d'arrêts de l'équipe. Une bonne brigade ne réduit pas le volume de rondelles vers son filet, elle réduit la probabilité que chacune entre. Le volume, lui, ne tient qu'à la possession (`possession^0,150`). Ne recâble pas la défensive sur le volume : la mesure dit non.
 
+**Un seul nombre du moteur ne se mesure pas : `PCT_TIR_NEUTRE`.** L'adversaire de la saison solo n'a pas d'unités, donc il ne porte ni création, ni chimie, ni malus de zone, alors qu'il encaisse une attaque qui en porte. Lui donner la finition brute mesurée (`REF.pctTir`) laissait toute vraie équipe gagner une victoire de trop en solo (44,4 en moyenne sur 465 équipes-saisons contre 43,4 réelles). Il se règle donc sur la SORTIE, comme `LANCERS_BASE` et `CIBLE_PCT_TIR` : à 1,045 la moyenne retombe sur le réel. `check_neutre.mjs` sort les cinq nombres de `REF` et le rappelle.
+
 **Tout est exprimé en écart à `REF`**, l'équipe moyenne une fois alignée — pas le joueur moyen de la ligue. La distinction n'est pas cosmétique : un alignement retient les 18 meilleurs patineurs d'un club et son gardien numéro un, qui tirent 27 % de plus que le régulier moyen, finissent 2 % mieux et arrêtent 10 % de plus. Normaliser sur le joueur moyen donnait une équipe médiane à 60 victoires. `node scripts/check_neutre.mjs` remesure ces quatre nombres.
 
-**Trois bornes au 99e centile des vraies équipes, et le vrai plafond du jeu.** Le volume d'une unité est plafonné à `VOLUME_UNITE_MAX` (2,0 fois le régulier moyen), la pression d'équipe à `PRESSION_MAX` (1,35 fois la référence, environ 38 lancers par match) et la finition d'équipe — le % de tir des patineurs habillés, pondéré par leurs lancers — à `FINITION_MAX` (1,20 fois la ligue). Chacune est le 99e centile mesuré sur les vraies équipes alignées, donc elles ne touchent qu'une vraie équipe sur cent. `node scripts/check_tireurs.mjs` mesure les deux alignements que la valeur ne voit pas : **TIREURS**, glouton sur lancers × finition en ignorant les zones, faisait 70,8 victoires en solo et la Coupe trois fois sur trois avant les bornes — son premier trio, trois étoiles à leur place, prenait 52 % des lancers ; il fait maintenant **52**, sous l'empilement par valeur (59-61). **PARFAIT**, chaque joueur dans sa zone, chaque trio deux tireurs et un passeur en chimie parfaite, chaque paire équilibrée, faisait 78 victoires et 628 buts ; il fait maintenant **68-70**, quelques matchs de mieux que le Canadien de 1976-77 (61-63), et c'est le plafond voulu : monter son alignement parfaitement vaut huit à dix victoires sur le simple empilement, on bat la meilleure équipe de l'histoire, la Coupe reste un pari. Le malus de zone n'est pas touché : il punit le talent mal placé, les bornes empêchent le talent bien placé de compenser à lui seul, et la chimie s'applique par-dessus les bornes parce que c'est elle qu'on récompense.
+**Trois bornes au 99e centile des vraies équipes, et le vrai plafond du jeu.** Le volume d'une unité est plafonné à `VOLUME_UNITE_MAX` (2,0 fois le régulier moyen), la pression d'équipe à `PRESSION_MAX` (1,35 fois la référence, environ 38 lancers par match) et la finition d'équipe — le % de tir des patineurs habillés, pondéré par leurs lancers — à `FINITION_MAX` (1,20 fois la ligue). Chacune est le 99e centile mesuré sur les vraies équipes alignées, donc elles ne touchent qu'une vraie équipe sur cent. `node scripts/check_tireurs.mjs` mesure les deux alignements que la valeur ne voit pas : **TIREURS**, glouton sur lancers × finition en ignorant les zones, faisait 70,8 victoires en solo et la Coupe trois fois sur trois avant les bornes — son premier trio, trois étoiles à leur place, prenait 52 % des lancers ; il fait maintenant **53**, sous l'empilement par valeur (58-60). **PARFAIT**, chaque joueur dans sa zone, chaque trio deux tireurs et un passeur en chimie parfaite, chaque paire équilibrée, faisait 78 victoires et 628 buts ; il fait maintenant **71**, quelques matchs de mieux que le Canadien de 1976-77 (67), et c'est le plafond voulu : monter son alignement parfaitement vaut huit à dix victoires sur le simple empilement, on bat la meilleure équipe de l'histoire, la Coupe reste un pari. Le malus de zone n'est pas touché : il punit le talent mal placé, les bornes empêchent le talent bien placé de compenser à lui seul, et la chimie s'applique par-dessus les bornes parce que c'est elle qu'on récompense.
 
 **Les passes causent les buts.** Chaque lancer porte la **création** des quatre coéquipiers sur la glace — leurs passes par match, relatives au régulier moyen de leur position et de leur saison (`passesRelatives`, `js/ratings.js`) — rapportée au **contexte** que le tireur a vraiment eu (`p.cx`, posé dans le shard par `contexteDeCreation` à l'étage 2, en rangeant son équipe par valeur en trios et en paires) et élevée à `BETA_CREATION` (0,5). Le contexte est ce qui évite de compter deux fois : le % de tir d'un joueur contient déjà ses vrais coéquipiers, et sans lui l'erreur systématique par joueur de `check_feuilles.mjs` passait de 19,5 à 24,8 % et le Canadien de 1976-77 gagnait deux matchs de plus sans qu'on ait touché à ses joueurs. Avec le contexte, un joueur rejoué avec ses vrais coéquipiers marque comme dans la vraie vie — **Kurri 1984-85 marque 71 buts à côté de Gretzky, son vrai total, 49 à côté d'un centre de quatrième trio, 17 au quatrième trio** — et les déciles ne bougent pas. `BETA_CREATION` est la deuxième constante libre du moteur avec `SYN_ECHELLE` : les colonnes ne peuvent pas la mesurer, pour la raison ci-dessus ; elle se règle sur l'ordre des plafonds de `check_tireurs.mjs` et sur ce que Kurri gagne à côté de Gretzky. La création entre dans la finition d'équipe, donc sous `FINITION_MAX`. L'attribution des passes après le but (85 % une première, 62 % une seconde, au prorata de la propension) ne change pas : c'est la feuille de match, pas la cause. `REF.crea` (1,260) est la création moyenne de l'équipe alignée, mesurée par `check_neutre.mjs`, et ne sert que de contexte de secours quand le shard n'en porte pas.
 
 **Deux constantes sont libres : `SYN_ECHELLE`** (42) **et `BETA_CREATION`** (0,5, voir ci-dessus). `SYN_ECHELLE` Elle convertit un bonus de chimie ou un malus de zone (en points de cote) en facteur multiplicatif sur les buts attendus d'une unité, moitié par le volume moitié par la qualité. Tout le reste — `LANCERS_BASE`, `ALPHA_POSSESSION`, `K_DEFENSE`, `REF` — est mesuré. `LANCERS_BASE` et `CIBLE_PCT_TIR` sont réglés sur la *sortie* de `check_feuilles.mjs` (≈ 28,5 lancers et ≈ 3,1 buts par équipe par match), pas sur la moyenne brute des shards.
+
+## Les séries se jouent match par match
+
+**Chaque match de séries garde sa feuille**, et c'est la même simulation qu'avant : on ne jetait simplement pas ce que le moteur produisait déjà. `feuilleVierge()` ouvre un journal, `playGame` le remplit lancer par lancer — buts avec leur instant, leurs passeurs et le gardien battu, tirs par période, arrêts — et `playSeries` retourne les feuilles de tous les matchs. Les égalités de la feuille de match tiennent ici aussi : les buts d'un côté sont ceux du journal, et les tirs d'un côté valent les arrêts de l'autre plus les buts.
+
+**Le temps n'est pas simulé, il est attribué.** Le moteur ne modélise pas l'horloge ; quand un journal est ouvert, chaque lancer reçoit un instant tiré uniformément dans les 60 minutes (ou dans les 5 premières de la prolongation), et la feuille se lit dans l'ordre une fois les deux côtés fusionnés. Assez pour un sommaire crédible, et **aucune probabilité n'en dépend**.
+
+**`js/recit.js` met des mots, jamais des buts.** Si une phrase et la feuille se contredisent, c'est la phrase qui est fausse. La tournure suit le marqueur (un défenseur décoche de la ligne bleue, un franc-tireur du cercle), ses traits (💣 Lancer et ⚡ Vitesse sont exactement ce que le sommaire ne dit pas), le nombre de passes et le moment. Le tirage est **déterministe** sur le nom et l'instant : rouvrir un sommaire redonne le même récit, parce qu'un texte qui change quand on le relit fait douter du reste.
+
+**Les statistiques de la ligue** sortent des rosters à la fin de la saison : pointeurs, buteurs, passeurs, différentiel, et les gardiens au pourcentage d'arrêts, à la moyenne et aux victoires. Les deux premiers palmarès de gardiens exigent 25 départs, comme la vraie ligue. Chaque équipe historique porte son nom complet et pointe vers sa saison sur HockeyDB — l'adresse se déduit du libellé (`nhl19992000.html`) faute d'identifiant d'équipe stable, et **elle n'a pas pu être vérifiée depuis l'environnement de développement**, dont la politique réseau refuse le domaine.
 
 ## La chimie et les archétypes se lisent dans la fiche, pas dans la cote
 
@@ -217,12 +235,12 @@ Repères actuels, de vrais joueurs-saisons d'une même cote, moyenne sur 12 essa
 
 | Cote | Fiche | BP-BC |
 |---|---|---|
-| 50 | 8-69-5 | 106-346 |
-| 60 | 25-50-6 | 180-275 |
-| 70 | 39-38-5 | 223-242 |
-| 80 | 37-39-6 | 193-223 |
-| 90 | 51-30-1 | 229-198 |
-| 99 | 63-19-0 | 239-139 |
+| 50 | 7-71-4 | 98-343 |
+| 60 | 26-51-5 | 193-287 |
+| 70 | 47-31-4 | 276-247 |
+| 80 | 36-40-6 | 198-229 |
+| 90 | 48-32-2 | 220-198 |
+| 99 | 67-15-0 | 265-139 |
 
 La marche à 80 est l'artefact que le paragraphe suivant décrit : 23 joueurs à 80 franchissent ensemble le seuil « Top 3 » (78), donc les trios 2 à 4 sont tous « sous leur zone ». Elle était déjà là avant les bornes de possession (34-42 mesuré sur l'ancien moteur) et n'apparaît sur aucune vraie équipe. Le palier 99 est passé de 69 à 64 victoires avec `FINITION_MAX` : 23 joueurs de 99 sont exactement l'addition de pourcentages de tir que la borne refuse.
 
@@ -234,11 +252,11 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 
 | décile | victoires simulées | vraies victoires |
 |---|---|---|
-| 1 | 26,4 | 27,1 |
-| 5 | 42,0 | 43,3 |
-| 10 | 52,0 | 56,6 |
+| 1 | 27,6 | 27,2 |
+| 5 | 43,8 | 43,4 |
+| 10 | 53,7 | 56,4 |
 
-**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **61,9-19,1-1,1** en ligue et gagne la Coupe **60 %** du temps ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 62,1-16,6-3,4 et la gagne **40 %** (20 ligues chacun, donc ±11 points). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
+**Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **62,3-19,7** en ligue et gagne la Coupe 2 fois sur 3 ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 64,7-15,0 et 1 fois sur 3 (3 ligues chacun, donc du bruit pur sur les Coupes — il en faut 40 pour conclure). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
 `node scripts/mock_zones.mjs` garde le repère sur l'indice de valeur : le meilleur alignement légal est à **65,0**, exactement le Canadien de 1976-77, contre 65,5 pour les Bruins de 1970-71. Sans malus de zone il serait à 79,5. La valeur bâtie sur les statistiques a resserré cet écart d'elle-même — l'ancienne cote plaçait l'empilement à 69,3, au-dessus de toutes les vraies équipes.
 

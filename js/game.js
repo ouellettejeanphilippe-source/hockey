@@ -15,9 +15,10 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
-  getHiddenRatings, getUnitSynergy, getPlayerKey, createTeam, simulateLeague,
-  playSeries, autoRoster,
+  getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague,
+  playSeries, autoRoster, tirsTotal, periodeDe, MODES, casesDuMode, uniteDeCase,
 } from './sim.js';
+import { recitDeBut, recitDeMatch, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent } from './logos.js';
 import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
@@ -72,16 +73,36 @@ const G = {
   statsProrata: false,
   salaryMode: '2026',   // '2026' | 'ERA'
   onlyFit: false,
+  mode: 'CLASSIQUE',    // CLASSIQUE | TRIOS | EXPRESS (voir MODES dans sim.js)
+  renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
   loading: false,
   shards: new Map(),
 };
 
+const MODE = () => MODES[G.mode] || MODES.CLASSIQUE;
+/** Les cases que TU combles : les 23 d'habitude, six en express. */
+const casesActives = () => casesDuMode(G.mode);
+/** Un renfort est fourni par le mode express : il occupe une case, ne coûte rien. */
+const estRenfort = p => !!(p && p._renfort);
+
 const picked = () => Object.values(G.roster);
-const capUsed = () => picked().reduce((s, p) => s + p.$, 0);
-const capLeft = () => CAP - capUsed();
-const slotsLeft = () => 23 - picked().length;
+/** Les joueurs que tu as signés toi-même — les seuls qui touchent au plafond. */
+const signes = () => picked().filter(p => !estRenfort(p));
+/**
+ * Ce joueur-SAISON est-il déjà signé ? Comparer les objets ne suffit pas :
+ * un joueur échangé est dans le vestiaire de chacune de ses équipes, avec un
+ * objet par équipe, et on pouvait donc le signer deux fois.
+ */
+const isPicked = p => {
+  const k = getPersonKey(p);
+  return picked().some(x => getPersonKey(x) === k);
+};
+const capUsed = () => signes().reduce((s, p) => s + p.$, 0);
+const capLeft = () => MODE().cap - capUsed();
+const slotsLeft = () => casesActives().filter(s => !G.roster[s.i]).length;
+const totalCases = () => casesActives().length;
 
 /**
  * Où ce joueur va-t-il naturellement ? On classe les cases libres par ordre
@@ -114,11 +135,28 @@ function zoneEcart(p, s) {
 const ZONE_SOUS_TITLE = 'Sous sa zone : ici, son talent est gaspillé et toute l\'unité porte un malus proportionnel à ce qu\'on perd. Vise une autre case dans l\'alignement ou déplace quelqu\'un.';
 const ZONE_DESSUS_TITLE = 'Au-dessus de sa zone : −3 par cran, léger. Il tient la case faute de mieux.';
 
-/** Cases ouvertes pour un joueur, la plus sensée d'abord. */
-const openSlots = p => SLOTS.filter(s => !G.roster[s.i] && fits(p, s))
-  .sort((a, b) => slotFitScore(p, a) - slotFitScore(p, b) || a.i - b.i);
+const nextNeed = () => casesActives().find(s => !G.roster[s.i]) || null;
 
-const nextNeed = () => SLOTS.find(s => !G.roster[s.i]) || null;
+/**
+ * L'unité qu'on est en train de bâtir : en mode PAR UNITÉ, on comble le
+ * premier trio au complet avant de passer au deuxième, et tout ce qui ne
+ * va pas dans cette unité-là n'est pas signable ce tour-ci. C'est ce qui
+ * fait sortir un trio entier d'un seul vestiaire — sans cette contrainte,
+ * la destination automatique envoyait chaque joueur dans SA zone et la
+ * roulette tournait presque à chaque signature.
+ */
+const uniteCourante = () => uniteDeCase(nextNeed());
+
+/** Cases ouvertes pour un joueur, la plus sensée d'abord. */
+const openSlots = p => {
+  let libres = casesActives().filter(s => !G.roster[s.i] && fits(p, s));
+  if (MODE().parUnite) {
+    const u = uniteCourante();
+    const dedans = libres.filter(s => uniteDeCase(s) === u);
+    if (dedans.length || u) libres = dedans;
+  }
+  return libres.sort((a, b) => slotFitScore(p, a) - slotFitScore(p, b) || a.i - b.i);
+};
 
 /**
  * Somme maximale qu'on peut mettre sur ce joueur-ci sans se rendre incapable
@@ -137,6 +175,8 @@ function saveGame() {
       left: G.left,
       cur: G.cur ? { season: G.cur.season, team: G.cur.team } : null,
       target: G.target,
+      mode: G.mode,
+      renfort: G.renfort,
     }));
   } catch { /* stockage indisponible */ }
 }
@@ -149,7 +189,7 @@ function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode,
-      onlyFit: G.onlyFit, sortBy: G.sortBy,
+      onlyFit: G.onlyFit, sortBy: G.sortBy, mode: G.mode,
     }));
   } catch { /* ignore */ }
 }
@@ -161,6 +201,7 @@ function loadOpts() {
     if (o.salaryMode === 'ERA' || o.salaryMode === '2026') G.salaryMode = o.salaryMode;
     if (typeof o.onlyFit === 'boolean') G.onlyFit = o.onlyFit;
     if (typeof o.sortBy === 'string') G.sortBy = o.sortBy;
+    if (o.mode && MODES[o.mode]) G.mode = o.mode;
   } catch { /* ignore */ }
 }
 
@@ -188,10 +229,16 @@ async function restoreSave() {
         const entry = G.shards.get(saved.s);
         const key = getPlayerKey(saved);
         const fresh = entry && entry.players.find(q => getPlayerKey(q) === key);
-        data.roster[i] = fresh || saved;
+        // Un renfort reste un renfort : sans la marque, il compterait au
+        // plafond au rechargement et la partie deviendrait injouable.
+        data.roster[i] = saved._renfort ? { ...(fresh || saved), _renfort: true } : (fresh || saved);
       }
     }
 
+    // Le mode fait partie de la partie, pas des préférences : une partie
+    // express reprise en classique n'aurait plus le bon plafond.
+    if (data.mode && MODES[data.mode]) G.mode = data.mode;
+    G.renfort = data.renfort || null;
     G.cur = { season: data.cur.season, team: data.cur.team, pool: shard.byTeam[data.cur.team] };
     G.roster = data.roster || {};
     G.left = data.left || { ...REROLLS };
@@ -424,6 +471,7 @@ function setupEvents() {
   bindModal('bibleModal', 'openBibleBtn', 'closeBibleBtn');
   bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
   bindModal('hockeyCardModal', null, 'closeHockeyCardBtn');
+  bindModal('gameModal', null, 'closeGameBtn');
 
   // Options
   document.querySelectorAll('.seg').forEach(seg => {
@@ -462,11 +510,20 @@ function bindModal(modalId, openId, closeId, onOpen) {
 }
 
 const closeModal = id => { const m = $(id); if (m) m.style.display = 'none'; };
+const openModal = id => { const m = $(id); if (m) m.style.display = 'flex'; };
 
 function setOption(key, val) {
   if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
+  else if (key === 'mode') {
+    if (!MODES[val] || val === G.mode) return;
+    G.mode = val;
+    saveOpts();
+    // L'alignement en cours n'a plus de sens sous d'autres règles.
+    newGame().then(() => toast(`${MODES[val].nom} : ${MODES[val].desc}`));
+    return;
+  }
   saveOpts();
 }
 
@@ -475,7 +532,10 @@ function syncOptionsUI() {
     stats: G.statsProrata ? 'prorata' : 'real',
     salary: G.salaryMode,
     onlyFit: G.onlyFit ? 'on' : 'off',
+    mode: G.mode,
   };
+  const d = $('modeDesc');
+  if (d) d.textContent = MODE().desc;
   document.querySelectorAll('.seg').forEach(seg => {
     seg.querySelectorAll('button').forEach(b => {
       b.classList.toggle('on', b.dataset.val === cur[seg.dataset.opt]);
@@ -563,18 +623,18 @@ function renderCap() {
   amt.classList.toggle('over', rem < 0);
   amt.classList.toggle('tight', rem >= 0 && tight);
 
-  $('capMaxLbl').textContent = isEra ? `/ ${money(eraCap)} (${season})` : `/ ${money(CAP)}`;
+  $('capMaxLbl').textContent = isEra ? `/ ${money(eraCap)} (${season})` : `/ ${money(MODE().cap)}`;
 
   const fill = $('capFill');
-  fill.style.width = Math.min(100, Math.max(0, (used / CAP) * 100)) + '%';
+  fill.style.width = Math.min(100, Math.max(0, (used / MODE().cap) * 100)) + '%';
   fill.classList.toggle('over', rem < 0);
   fill.classList.toggle('tight', rem >= 0 && tight);
 
   // Repère : masse salariale « au rythme » pour 23 joueurs
   const marker = $('capMarker');
-  if (marker) marker.style.left = Math.min(100, (picked().length / 23) * 100) + '%';
+  if (marker) marker.style.left = Math.min(100, (signes().length / totalCases()) * 100) + '%';
 
-  $('cnt').textContent = `${picked().length} / 23`;
+  $('cnt').textContent = `${signes().length} / ${totalCases()}`;
 
   const perSlot = $('perSlotLbl');
   if (perSlot) {
@@ -668,8 +728,8 @@ function renderDash() {
   const maxPick = maxForPick();
   const need = nextNeed();
   const pool = G.cur ? G.cur.pool : [];
-  const affordable = pool.filter(p => !picked().includes(p) && openSlots(p).length && p.$ <= rem).length;
-  const safe = pool.filter(p => !picked().includes(p) && openSlots(p).length && p.$ <= maxPick).length;
+  const affordable = pool.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem).length;
+  const safe = pool.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= maxPick).length;
 
   const budgetCls = left === 0 ? (rem >= 0 ? 'dash-good' : 'dash-bad')
     : maxPick < MIN_SAL ? 'dash-bad'
@@ -698,7 +758,11 @@ function renderDash() {
     <div class="dash-card" title="${esc(poolTitle)}">
       <h3><span class="h3-long">Ce </span>vestiaire</h3>
       <div class="dash-big ${poolCls}">${safe}<span class="dash-unit">signables</span></div>
-    </div>`;
+    </div>
+    ${G.renfort ? `<div class="dash-card" title="Les dix-sept autres cases sont comblées par cette vraie équipe. Elles ne coûtent rien au plafond et ne se modifient pas.">
+      <h3>Renfort</h3>
+      <div class="dash-big sm">${getTeamLogoHtml(G.renfort.team, 15)} ${esc(G.renfort.team)} <span class="dash-unit">${esc(G.renfort.season)}</span></div>
+    </div>` : ''}`;
 }
 
 /* =====================================================================
@@ -720,7 +784,7 @@ function renderFilters() {
   host.innerHTML = defs.map(([key, label, def]) => {
     let badge = '';
     if (key === 'ALL') {
-      badge = `<span class="chip-need${picked().length >= 23 ? ' full' : ''}">${picked().length}/23</span>`;
+      badge = `<span class="chip-need${slotsLeft() === 0 ? ' full' : ''}">${signes().length}/${totalCases()}</span>`;
     } else if (def) {
       const n = signedCount(def);
       badge = `<span class="chip-need${n >= def.req ? ' full' : ''}">${n}/${def.req}</span>`;
@@ -752,7 +816,7 @@ function poolFiltered() {
 
   if (G.onlyFit) {
     const rem = capLeft();
-    list = list.filter(p => !picked().includes(p) && openSlots(p).length && p.$ <= rem);
+    list = list.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem);
   }
 
   const key = p => (p.p === 'G' ? (p.w ?? 0) : (p.pt ?? 0));
@@ -799,19 +863,22 @@ function renderPoolMeta() {
   const badge = $('tabPoolBadge');
   if (badge) badge.textContent = String(list.length);
   const rMeta = $('rosterMeta');
-  if (rMeta) rMeta.textContent = `${picked().length} / 23 · ${money(capUsed())}`;
+  if (rMeta) rMeta.textContent = `${signes().length} / ${totalCases()} · ${money(capUsed())}`;
   const rBadge = $('tabRosterBadge');
-  if (rBadge) rBadge.textContent = `${picked().length}/23`;
+  if (rBadge) rBadge.textContent = `${signes().length}/${totalCases()}`;
 }
 
 /** Case où irait ce joueur : la cible si compatible, sinon la moins pénalisée. */
 function destinationFor(p) {
-  if (G.target !== null && !G.roster[G.target] && fits(p, SLOTS[G.target])) return SLOTS[G.target];
+  const vise = G.target !== null ? SLOTS[G.target] : null;
+  const viseOK = vise && !G.roster[G.target] && fits(p, vise)
+    && (!MODE().parUnite || uniteDeCase(vise) === uniteCourante());
+  if (viseOK) return vise;
   return openSlots(p)[0] || null;
 }
 
 function playerCardEl(p) {
-  const already = picked().includes(p);
+  const already = isPicked(p);
   const slot = destinationFor(p);
   const rem = capLeft();
   const over = p.$ > rem;
@@ -893,7 +960,7 @@ function playerCardEl(p) {
 }
 
 async function signPlayer(p) {
-  if (picked().includes(p)) return;
+  if (isPicked(p)) { toast(`${p.n} est déjà dans ton alignement.`, 'warn'); return; }
   const slot = destinationFor(p);
   if (!slot) { toast('Aucune case libre pour ce joueur.', 'bad'); return; }
   if (p.$ > capLeft()) { toast('Hors budget : il te reste ' + money(capLeft()) + '.', 'bad'); return; }
@@ -912,7 +979,13 @@ async function signPlayer(p) {
     setTimeout(() => toast(`Attention : ${money(capLeft())} pour ${slotsLeft()} cases, sous le plancher.`, 'warn'), 2700);
   }
 
-  await nextSpin(true, true);
+  // Mode PAR UNITÉ : on reste dans le même vestiaire tant que le trio (ou la
+  // paire) n'est pas complet, et seulement si ce vestiaire peut encore le
+  // compléter. Sinon la roulette tourne, comme d'habitude.
+  const suite = nextNeed();
+  const memeUnite = MODE().parUnite && suite && uniteDeCase(suite) === uniteDeCase(slot)
+    && G.cur?.pool.some(x => !isPicked(x) && fits(x, suite) && x.$ <= capLeft());
+  if (!memeUnite) await nextSpin(true, true);
   saveGame();
   render();
   document.getElementById('topbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -927,7 +1000,7 @@ async function signPlayer(p) {
 function blockedState() {
   if (G.done || slotsLeft() === 0 || !G.cur) return null;
   const rem = capLeft();
-  const free = G.cur.pool.filter(p => !picked().includes(p) && openSlots(p).length);
+  const free = G.cur.pool.filter(p => !isPicked(p) && openSlots(p).length);
   if (free.some(p => p.$ <= rem)) return null;
   const cheapest = free.length ? free.reduce((a, b) => (b.$ < a.$ ? b : a)) : null;
   const priciest = picked().slice().sort((a, b) => b.$ - a.$)[0] || null;
@@ -1038,29 +1111,34 @@ function slotEl(s) {
     const ecart = zoneEcart(p, s);
     const zoneEcartTag = ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼ zone</span>`
       : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲ zone</span>` : '';
+    if (estRenfort(p)) el.classList.add('renfort');
     el.innerHTML = `
-      <button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>
+      ${estRenfort(p) ? ''
+        : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
       <div class="slot-top">
         <span class="slot-role-tag">${esc(s.role)}</span>
-        <span class="slot-salary">${st.salaryMain}</span>
+        ${estRenfort(p)
+          ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
+          : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-name">${formatName(p.n)}</div>
       <div class="slot-meta"><span>${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</span></div>
       <div class="slot-meta"><span>${main}</span><span>${secondary}</span></div>
       <div class="slot-tags">${traitTags(p)}${archTag(p)}${zoneTag(p)}${zoneEcartTag}${penTag}</div>`;
-    el.querySelector('.slot-remove').onclick = ev => {
+    el.querySelector('.slot-remove')?.addEventListener('click', ev => {
       ev.stopPropagation();
       delete G.roster[s.i];
       G.selectedSlot = null;
       saveGame();
       render();
       toast(`${p.n} retiré. ${money(capLeft())} de disponible.`);
-    };
+    });
   } else {
     el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${esc(s.label)}</div>`;
   }
 
   el.onclick = () => {
+    if (estRenfort(p)) { toast('Les renforts sont fournis : tu ne peux pas les déplacer.', 'warn'); return; }
     if (G.selectedSlot !== null) {
       if (G.selectedSlot === s.i) {
         G.selectedSlot = null;
@@ -1185,13 +1263,13 @@ function renderTeamSummary() {
 
 function renderMain() {
   const b = $('mainBtn');
-  const n = picked().length;
+  const reste = slotsLeft();
   const over = capLeft() < 0;
-  b.disabled = n !== 23 || G.done || over;
+  b.disabled = reste > 0 || G.done || over;
   b.textContent = G.done ? 'Saison simulée'
     : over ? `Plafond dépassé de ${money(-capLeft())}`
-    : n === 23 ? 'Simuler la saison · 82 matchs'
-    : `Encore ${23 - n} joueur${23 - n > 1 ? 's' : ''}`;
+    : reste === 0 ? 'Simuler la saison · 82 matchs'
+    : `Encore ${reste} joueur${reste > 1 ? 's' : ''}`;
 }
 
 function render() {
@@ -1268,7 +1346,7 @@ function showPlayerModal(p) {
   const body = $('hockeyCardBody');
   if (!modal || !body) return;
 
-  const already = picked().includes(p);
+  const already = isPicked(p);
   const slot = destinationFor(p);
   const rem = capLeft();
   const over = p.$ > rem;
@@ -1403,7 +1481,9 @@ const bar = (label, val) => {
  * chargées, alignées automatiquement. Les joueurs déjà signés sont exclus.
  */
 async function buildOpponents(count) {
-  const exclude = new Set(picked().map(getPlayerKey));
+  // Par joueur-SAISON : sans ça, un adversaire pouvait aligner le même homme
+  // que toi sous les couleurs de l'autre équipe où il a passé cette année-là.
+  const exclude = new Set(picked().map(getPersonKey));
   const cands = [], seen = new Set();
   const collect = () => {
     for (const [season, entry] of G.shards) {
@@ -1425,12 +1505,21 @@ async function buildOpponents(count) {
     try { await getShard(rnd(state.index.seasons)); } catch { /* on réessaie */ }
     collect();
   }
-  return cands.sort(() => Math.random() - 0.5).slice(0, count)
-    .map(c => createTeam(`${c.team} ${c.season}`, c.team, autoRoster(c.pool, exclude), { season: c.season }));
+  // `exclude` s'accumule : deux équipes de la ligue ne peuvent pas habiller
+  // le même joueur-saison, ce qui arrivait pour un joueur échangé quand les
+  // deux clubs de la transaction sortaient tous les deux au tirage.
+  const out = [];
+  for (const c of cands.sort(() => Math.random() - 0.5)) {
+    if (out.length >= count) break;
+    const roster = autoRoster(c.pool, exclude);
+    for (const p of Object.values(roster)) exclude.add(getPersonKey(p));
+    out.push(createTeam(`${c.team} ${c.season}`, c.team, roster, { season: c.season }));
+  }
+  return out;
 }
 
 async function runSeason() {
-  if (picked().length !== 23 || G.done || capLeft() < 0) return;
+  if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
   G.done = true;
   const mb = $('mainBtn');
   mb.disabled = true;
@@ -1459,6 +1548,119 @@ async function runSeason() {
   }
 
   renderResult(r, you, teams, leaders);
+}
+
+/* =====================================================================
+   Résultat — noms d'équipe, statistiques de ligue, sommaires de match
+   ===================================================================== */
+
+/**
+ * Le nom court pour un récit : « Bruins 1970-71 ». Le nom complet porte la
+ * ville, ce qui donne « Bruins de Boston 1997-98 s'en tire contre Bruins de
+ * Boston 1990-91 » — vrai, mais illisible.
+ */
+function teamShort(t) {
+  if (!t) return '—';
+  if (t.isPlayer) return 'ta formation';
+  const full = TEAMFULL[t.tag] || t.tag;
+  const nom = full.split(/ (?:de |des |du |d')/)[0];
+  return t.season ? `${nom} ${t.season}` : nom;
+}
+
+/** « Bruins de Boston 1970-71 » plutôt que « BOS 1970-71 ». */
+function teamLabel(t) {
+  if (!t) return '—';
+  if (t.isPlayer) return t.name;
+  const full = TEAMFULL[t.tag] || t.tag;
+  return t.season ? `${full} ${t.season}` : full;
+}
+
+/**
+ * La page de cette saison de la LNH sur HockeyDB, où l'équipe et ses joueurs
+ * se retrouvent. HockeyDB n'a pas d'adresse stable par équipe-saison sans
+ * son identifiant interne ; la page de saison, elle, se déduit du libellé.
+ */
+function hockeydbUrl(season) {
+  if (!season) return null;
+  const a = parseInt(season.slice(0, 4), 10);
+  if (!a) return null;
+  return `https://www.hockeydb.com/ihdb/stats/leagues/seasons/nhl${a}${a + 1}.html`;
+}
+
+/** Le nom d'une équipe historique, cliquable vers sa saison sur HockeyDB. */
+function teamCell(t, taille = 15) {
+  const label = esc(teamLabel(t));
+  const url = t.isPlayer ? null : hockeydbUrl(t.season);
+  const nom = url
+    ? `<a class="team-link" href="${url}" target="_blank" rel="noopener" title="Voir la saison ${esc(t.season)} sur HockeyDB">${label}</a>`
+    : `<span>${label}</span>`;
+  return `<div class="team-cell">${getTeamLogoHtml(t.tag, taille)}${nom}</div>`;
+}
+
+/**
+ * Les meneurs de la ligue, toutes équipes confondues. Le classement seul ne
+ * dit pas qui a marqué : après 1 312 matchs, c'est la première chose qu'on
+ * veut lire.
+ */
+function leagueStats(teams) {
+  const patineurs = [], gardiens = [];
+  for (const t of teams) {
+    for (const s of SLOTS) {
+      const p = t.roster[s.i];
+      if (!p || !p.simGP) continue;
+      (p.p === 'G' ? gardiens : patineurs).push({ p, t });
+    }
+  }
+  const top = (list, cle, n = 10) => list.slice().sort((a, b) => cle(b) - cle(a)).slice(0, n);
+  return {
+    points: top(patineurs, x => x.p.simPTS * 1000 + x.p.simG),
+    buts: top(patineurs, x => x.p.simG * 1000 + x.p.simPTS),
+    passes: top(patineurs, x => x.p.simA * 1000 + x.p.simPTS),
+    plusmoins: top(patineurs, x => x.p.simPM),
+    // Un gardien a besoin d'un vrai échantillon : 25 départs, comme la ligue
+    // l'exige pour ses propres championnats.
+    arrets: top(gardiens.filter(x => x.p.simGP >= 25), x => (x.p.simSA ? x.p.simSV / x.p.simSA : 0)),
+    moyenne: top(gardiens.filter(x => x.p.simGP >= 25), x => -(x.p.simGA / Math.max(1, x.p.simGP))),
+    victoires: top(gardiens, x => x.p.simW * 1000 + x.p.simSO),
+  };
+}
+
+/* Les sept palmarès, chacun avec ses colonnes. */
+const PALMARES = [
+  { cle: 'points', titre: 'Pointeurs', cols: ['PJ', 'B', 'A', 'PTS'],
+    vals: p => [p.simGP, p.simG, p.simA, `<b>${p.simPTS}</b>`] },
+  { cle: 'buts', titre: 'Buteurs', cols: ['PJ', 'B', 'L', '%'],
+    vals: p => [p.simGP, `<b>${p.simG}</b>`, p.simSH || 0, p.simSH ? (100 * p.simG / p.simSH).toFixed(1) : '—'] },
+  { cle: 'passes', titre: 'Passeurs', cols: ['PJ', 'A', 'PTS'],
+    vals: p => [p.simGP, `<b>${p.simA}</b>`, p.simPTS] },
+  { cle: 'plusmoins', titre: 'Différentiel', cols: ['PJ', 'PTS', '+/-'],
+    vals: p => [p.simGP, p.simPTS, `<b>${p.simPM > 0 ? '+' : ''}${p.simPM}</b>`] },
+  { cle: 'moyenne', titre: 'Gardiens · MBA', cols: ['PJ', 'V', 'BL', 'MBA'],
+    vals: p => [p.simGP, p.simW, p.simSO, `<b>${(p.simGA / Math.max(1, p.simGP)).toFixed(2)}</b>`] },
+  { cle: 'arrets', titre: 'Gardiens · %ARR', cols: ['PJ', 'ARR', 'TIRS', '%ARR'],
+    vals: p => [p.simGP, p.simSV || 0, p.simSA || 0, `<b>${p.simSA ? (p.simSV / p.simSA).toFixed(3).slice(1) : '—'}</b>`] },
+  { cle: 'victoires', titre: 'Gardiens · victoires', cols: ['PJ', 'V', 'D', 'BL'],
+    vals: p => [p.simGP, `<b>${p.simW}</b>`, p.simL, p.simSO] },
+];
+
+function palmaresHtml(stats) {
+  const onglets = PALMARES.map((d, i) =>
+    `<button class="stat-tab${i === 0 ? ' on' : ''}" data-stat="${d.cle}">${esc(d.titre)}</button>`).join('');
+  const tables = PALMARES.map((d, i) => {
+    const rows = stats[d.cle].map((x, n) => `
+      <tr class="${x.t.isPlayer ? 'you' : ''}">
+        <td>${n + 1}</td>
+        <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 14)}<span>${esc(x.p.n)}</span></div></td>
+        <td class="sub-cell">${esc(x.t.isPlayer ? 'toi' : `${x.t.tag} ${(x.t.season || '').slice(2)}`)}</td>
+        ${d.vals(x.p).map(v => `<td>${v}</td>`).join('')}
+      </tr>`).join('');
+    return `<div class="stat-table" data-stat="${d.cle}"${i === 0 ? '' : ' hidden'}>
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>#</th><th class="left">Joueur</th><th>Éq.</th>${d.cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>${rows || '<tr><td colspan="8">Aucun joueur admissible.</td></tr>'}</tbody>
+      </table></div></div>`;
+  }).join('');
+  return `<div class="stat-tabs" role="tablist">${onglets}</div>${tables}`;
 }
 
 function renderResult(r, you, teams, leaders) {
@@ -1490,19 +1692,13 @@ function renderResult(r, you, teams, leaders) {
   const standings = teams.map((t, i) => `
     <tr class="${t.isPlayer ? 'you' : ''}${i === 15 ? ' cut' : ''}">
       <td>${i + 1}</td>
-      <td class="left"><div class="team-cell">${getTeamLogoHtml(t.tag, 15)}<span>${esc(t.name)}</span></div></td>
+      <td class="left">${teamCell(t)}</td>
       <td>${t.W + t.L + t.OTL}</td><td>${t.W}</td><td>${t.L}</td><td>${t.OTL}</td>
       <td class="pts">${t.PTS}</td><td>${t.GF}</td><td>${t.GA}</td>
       <td>${t.GF - t.GA > 0 ? '+' : ''}${t.GF - t.GA}</td>
     </tr>`).join('');
 
-  const leadersRows = leaders.map((l, i) => `
-    <tr class="${l.team.isPlayer ? 'you' : ''}">
-      <td>${i + 1}</td>
-      <td class="left"><div class="team-cell">${getTeamLogoHtml(l.team.tag, 15)}<span>${esc(l.player.n)}</span></div></td>
-      <td>${l.player.simGP}</td><td>${l.player.simG}</td><td>${l.player.simA}</td>
-      <td class="pts">${l.player.simPTS}</td>
-    </tr>`).join('');
+  const stats = teams.length > 1 ? leagueStats(teams) : null;
 
   const injuries = you.injuriesLog && you.injuriesLog.length
     ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${esc(i.player.n)}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
@@ -1541,12 +1737,9 @@ function renderResult(r, you, teams, leaders) {
         </table></div>
       </div>
 
-      ${leaders.length ? `<div class="result-section">
-        <h3>Meneurs de la ligue</h3>
-        <div class="table-wrap"><table class="data">
-          <thead><tr><th>#</th><th class="left">Joueur</th><th>PJ</th><th>B</th><th>A</th><th>PTS</th></tr></thead>
-          <tbody>${leadersRows}</tbody>
-        </table></div>
+      ${stats ? `<div class="result-section">
+        <h3>Statistiques de la ligue</h3>
+        ${palmaresHtml(stats)}
       </div>` : ''}
 
       <div class="result-section">
@@ -1566,6 +1759,13 @@ function renderResult(r, you, teams, leaders) {
       </div>
       <div id="playoffsSection"></div>
     </div>`;
+
+  document.querySelectorAll('.stat-tab').forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll('.stat-tab').forEach(x => x.classList.toggle('on', x === b));
+      document.querySelectorAll('.stat-table').forEach(t => { t.hidden = t.dataset.stat !== b.dataset.stat; });
+    };
+  });
 
   $('shareBtn').onclick = () => {
     const top = picked().slice().sort((a, b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0))[0];
@@ -1591,41 +1791,159 @@ function renderResult(r, you, teams, leaders) {
   $('resultHost').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+/* =====================================================================
+   Séries — match par match, avec sommaire
+   ===================================================================== */
+
+const RONDES = ['Premier tour', 'Deuxième tour', 'Demi-finales', 'Finale de la Coupe Stanley'];
+
+/**
+ * Les séries, jouées match par match. Chaque match garde sa feuille — buts
+ * avec leur instant, tirs par période, arrêts — et le sommaire s'ouvre d'un
+ * clic. C'est la même simulation qu'avant : on ne jetait simplement pas ce
+ * que le moteur produisait déjà.
+ */
 function runPlayoffs(top16) {
   const host = $('playoffsSection');
   if (!host) return;
 
-  const names = ['Premier tour', 'Deuxième tour', 'Demi-finales', 'Finale de la Coupe Stanley'];
-  let round = top16.slice(), n = 0;
-  let html = `<div class="result-section"><h3>🏆 Séries éliminatoires</h3>`;
-
-  while (round.length > 1) {
-    const next = [];
-    html += `<div class="series-round"><h4>${names[n] || `Ronde ${n + 1}`}</h4><div class="series-grid">`;
-    for (let i = 0; i < round.length / 2; i++) {
-      const A = round[i], B = round[round.length - 1 - i];
+  G.series = [];
+  let ronde = top16.slice(), n = 0;
+  while (ronde.length > 1) {
+    const suivant = [];
+    for (let i = 0; i < ronde.length / 2; i++) {
+      const A = ronde[i], B = ronde[ronde.length - 1 - i];
       const s = playSeries(A, B);
-      next.push(s.winner);
-      const rowA = `<div class="series-row ${s.winner === A ? 'win' : 'lose'}"><div class="team-cell">${getTeamLogoHtml(A.tag, 15)}<span>${esc(A.name)}</span></div><span>${s.wA}</span></div>`;
-      const rowB = `<div class="series-row ${s.winner === B ? 'win' : 'lose'}"><div class="team-cell">${getTeamLogoHtml(B.tag, 15)}<span>${esc(B.name)}</span></div><span>${s.wB}</span></div>`;
-      html += `<div class="series ${A.isPlayer || B.isPlayer ? 'you' : ''}">${rowA}${rowB}</div>`;
+      suivant.push(s.winner);
+      G.series.push({ ...s, A, B, ronde: n, i: G.series.length });
     }
-    html += `</div></div>`;
-    round = next;
+    ronde = suivant;
     n++;
   }
+  const champion = ronde[0];
 
-  const champ = round[0];
+  let html = '<div class="result-section"><h3>🏆 Séries éliminatoires</h3>';
+  for (let r = 0; r < n; r++) {
+    const dedans = G.series.filter(s => s.ronde === r);
+    html += `<div class="series-round"><h4>${esc(RONDES[r] || `Ronde ${r + 1}`)}</h4><div class="series-grid">`;
+    for (const s of dedans) html += serieHtml(s);
+    html += '</div></div>';
+  }
   html += `<div class="champion">
     <h3>Champion de la Coupe Stanley</h3>
-    <div class="champ-name">${getTeamLogoHtml(champ.tag, 30)} ${esc(champ.name)}</div>
-    <p>${champ.isPlayer ? 'Ta formation soulève la Coupe. 🏆' : 'Ta formation est tombée en chemin. Rebâtis et réessaie.'}</p>
+    <div class="champ-name">${getTeamLogoHtml(champion.tag, 30)} ${esc(teamLabel(champion))}</div>
+    <p>${champion.isPlayer ? 'Ta formation soulève la Coupe. 🏆' : 'Ta formation est tombée en chemin. Rebâtis et réessaie.'}</p>
   </div></div>`;
 
   host.innerHTML = html;
+  host.querySelectorAll('.serie-game').forEach(b => {
+    b.onclick = () => showGameModal(Number(b.dataset.serie), Number(b.dataset.match));
+  });
   const btn = $('playoffsBtn');
   if (btn) btn.disabled = true;
   host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** Une série : les deux équipes, et chaque match cliquable vers son sommaire. */
+function serieHtml(s) {
+  const gagne = s.winner === s.A;
+  const nomV = teamShort(gagne ? s.A : s.B), nomP = teamShort(gagne ? s.B : s.A);
+  const rangee = (t, w, vain) => `<div class="series-row ${vain ? 'win' : 'lose'}">
+    ${teamCell(t, 15)}<span>${w}</span></div>`;
+  const matchs = s.feuilles.map((f, i) => {
+    const pour = f.vainqueur === 'A' ? f.gfA : f.gfB;
+    const contre = f.vainqueur === 'A' ? f.gfB : f.gfA;
+    const tag = (f.vainqueur === 'A' ? s.A : s.B).tag;
+    return `<button class="serie-game" data-serie="${s.i}" data-match="${i}"
+      title="Sommaire du match ${i + 1}">
+      <span class="sg-n">M${i + 1}</span>
+      <span class="sg-score">${pour}-${contre}</span>
+      <span class="sg-who">${esc(tag)}${f.ot ? ' <em>P</em>' : ''}</span></button>`;
+  }).join('');
+  return `<div class="series ${s.A.isPlayer || s.B.isPlayer ? 'you' : ''}">
+    ${rangee(s.A, s.wA, gagne)}${rangee(s.B, s.wB, !gagne)}
+    <div class="serie-recit">${esc(recitDeSerie(Math.max(s.wA, s.wB), Math.min(s.wA, s.wB), nomV, nomP, s.feuilles))}</div>
+    <div class="serie-games">${matchs}</div>
+  </div>`;
+}
+
+/** Le sommaire d'un match : buts période par période, tirs, gardiens, récit. */
+function showGameModal(iSerie, iMatch) {
+  const s = G.series[iSerie];
+  if (!s) return;
+  const f = s.feuilles[iMatch];
+  const A = s.A, B = s.B;
+  const tirsA = tirsTotal(f, 'A'), tirsB = tirsTotal(f, 'B');
+  const nomA = teamLabel(A), nomB = teamLabel(B);
+
+  const parPeriode = [1, 2, 3, 4].map(per => {
+    const buts = f.buts.filter(b => periodeDe(b.instant) === per);
+    if (!buts.length && per === 4) return '';
+    const lignes = buts.map(b => {
+      const t = b.cote === 'A' ? A : B;
+      const aides = b.passeurs.length
+        ? `<span class="som-aides">${b.passeurs.map(p => formatName(p.n)).join(', ')}</span>`
+        : '<span class="som-aides sans">sans aide</span>';
+      return `<div class="som-but">
+        <span class="som-tps">${tempsDeJeu(b.instant)}</span>
+        <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
+        <span class="som-qui"><strong>${formatName(b.marqueur.n)}</strong> ${aides}</span>
+        <span class="som-recit">${esc(recitDeBut(b))}</span>
+      </div>`;
+    }).join('') || '<div class="som-vide">Aucun but.</div>';
+    return `<div class="som-per">
+      <div class="som-per-head"><span>${esc(NOM_PERIODE[per])}</span>
+        <span class="som-tirs">tirs ${f.tirs.A[per]} — ${f.tirs.B[per]}</span></div>
+      ${lignes}</div>`;
+  }).join('');
+
+  const gard = (g, arrets, tirs) => g
+    ? `<div class="som-gard"><span>${formatName(g.n)}</span><span>${arrets} arrêts sur ${tirs}</span></div>`
+    : '';
+
+  $('gameModalTitle').innerHTML = `Match ${iMatch + 1} · ${esc(nomA)} ${f.gfA} — ${f.gfB} ${esc(nomB)}`
+    + (f.ot ? ' <span class="som-ot">prolongation</span>' : '');
+  $('gameModalBody').innerHTML = `
+    <div class="som-recap">${esc(recitDeMatch(f, teamShort(A), teamShort(B), tirsA, tirsB))}</div>
+    <div class="som-lignes">
+      <div class="som-ligne"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
+      <div class="som-ligne"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
+    </div>
+    ${parPeriode}
+    <div class="som-per">
+      <div class="som-per-head"><span>Gardiens</span><span class="som-tirs">après ${iMatch + 1} match${iMatch ? 's' : ''} : ${f.serie}</span></div>
+      ${gard(f.gardienA, f.arrets.A, tirsB)}
+      ${gard(f.gardienB, f.arrets.B, tirsA)}
+    </div>`;
+  openModal('gameModal');
+}
+
+/**
+ * EXPRESS : le reste de l'alignement vient d'une vraie équipe, tirée au
+ * hasard. Ces joueurs occupent leur case, ne coûtent rien au plafond et ne
+ * se déplacent pas — ils sont le club dont tu hérites, et c'est par-dessus
+ * qu'on te demande de bâtir un trio, une paire et un partant.
+ */
+async function chargerRenfort() {
+  G.renfort = null;
+  const actives = new Set(casesActives().map(s => s.i));
+  for (let essai = 0; essai < 14; essai++) {
+    const season = rnd(state.index.seasons);
+    let shard;
+    try { shard = await getShard(season); } catch { continue; }
+    const teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 20);
+    if (!teams.length) continue;
+    const team = rnd(teams);
+    const roster = autoRoster(shard.byTeam[team]);
+    if (Object.keys(roster).length < 20) continue;
+    for (const s of SLOTS) {
+      if (actives.has(s.i) || !roster[s.i]) continue;
+      G.roster[s.i] = { ...roster[s.i], _renfort: true };
+    }
+    G.renfort = { season, team };
+    return true;
+  }
+  return false;
 }
 
 async function newGame() {
@@ -1642,6 +1960,7 @@ async function newGame() {
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
   setView('pool');
+  if (MODE().renfort) await chargerRenfort();
   await nextSpin(true, true);
   saveGame();
   render();

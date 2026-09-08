@@ -16,6 +16,46 @@ export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
 
 /*
+ * LES TROIS FAÇONS DE JOUER. Le moteur ne change pas d'un mode à l'autre —
+ * ce sont toujours 23 cases, le même malus de zone et la même ligue de 32
+ * équipes. Ce qui change, c'est ce qu'on te demande de bâtir.
+ *
+ *   CLASSIQUE  23 joueurs, un par tour, sous 95,5 M$. La partie complète.
+ *   TRIOS      les mêmes 23 joueurs, mais la roulette ne tourne qu'une fois
+ *              l'unité COMPLÈTE : ton premier trio sort d'un seul vestiaire.
+ *              Neuf tours au lieu de vingt-trois, et la chimie devient le
+ *              coeur du jeu plutôt qu'un bonus qu'on découvre à la fin.
+ *   EXPRESS    six cases seulement — un trio, une paire, un partant — et le
+ *              reste de l'alignement t'est fourni par une vraie équipe.
+ *              Le plafond suit : 34 M$, la médiane mesurée de ce qu'une
+ *              vraie équipe met sur ces six cases-là (p25 23 M$, p75 43 M$
+ *              sur les 1395 équipes-saisons). Deux minutes de jeu.
+ */
+export const MODES = {
+  CLASSIQUE: {
+    nom: 'Classique', court: '23 joueurs', cap: CAP, parUnite: false, renfort: false,
+    desc: 'Vingt-trois joueurs, un par tour, sous le plafond de 95,5 M$.',
+  },
+  TRIOS: {
+    nom: 'Par unité', court: 'trios entiers', cap: CAP, parUnite: true, renfort: false,
+    desc: 'Même alignement, mais chaque trio et chaque paire sortent d\'un seul vestiaire. Neuf tours.',
+  },
+  EXPRESS: {
+    nom: 'Express', court: '6 joueurs', cap: 34_000_000, parUnite: false, renfort: true,
+    desc: 'Un trio, une paire, un partant. Le reste de l\'alignement vient d\'une vraie équipe.',
+  },
+};
+
+/** Les cases que le joueur comble lui-même dans ce mode. */
+export function casesDuMode(mode) {
+  if (!MODES[mode]?.renfort) return SLOTS;
+  return SLOTS.filter(s => !s.scratch && s.unit === 0 && (s.group === 'F' || s.group === 'D' || s.group === 'G'));
+}
+
+/** L'unité d'une case : ce qui se comble d'un seul vestiaire en mode par unité. */
+export const uniteDeCase = s => !s ? '' : s.scratch ? 'R' : s.group === 'G' ? 'G' : `${s.group}${s.unit}`;
+
+/*
  * Pénalité de zone : ce qu'on perd à placer un joueur ailleurs que dans son
  * calibre. Elle est ASYMÉTRIQUE, et c'est elle qui ferme l'empilement.
  *
@@ -102,6 +142,20 @@ export function getPlayerKey(p) {
   if (p._rk) return p._rk;
   if (p.id) return `${p.s}_${p.t}_${p.id}`;
   return `${p.s}_${p.t}_${p.n}_${p.p}`;
+}
+
+/**
+ * Le JOUEUR-SAISON, sans son équipe. Un joueur échangé en cours de saison est
+ * dans le vestiaire de CHAQUE équipe où il a passé (marqué `x:1`), avec un
+ * objet distinct par équipe : comparer les objets laissait donc signer deux
+ * fois le même joueur-saison — Budaj 2015-16 avec le Colorado, puis le même
+ * Budaj avec Los Angeles — et aligner le même homme dans deux clubs de la
+ * même ligue. `getPlayerKey` porte l'équipe parce qu'elle sert de clé au
+ * coffre des cotes ; celle-ci identifie la personne.
+ */
+export function getPersonKey(p) {
+  if (!p) return '';
+  return p.id != null ? `${p.s}_${p.id}` : `${p.s}_${p.n}_${p.p}`;
 }
 
 export function registerHiddenRatings(p) {
@@ -586,7 +640,22 @@ export const SYN_ECHELLE = 42;
  * qu'un match entre deux équipes de référence produit exactement
  * LANCERS_BASE lancers et CIBLE_PCT_TIR de finition.
  */
-export const REF = { pression: 1.272, zDef: 0.672, fg: 0.895, pctTir: 1.022, crea: 1.260 };
+export const REF = { pression: 1.233, zDef: 0.169, fg: 0.899, pctTir: 1.025, crea: 1.277 };
+
+/*
+ * La force offensive de l'adversaire neutre, et la seule valeur de REF qui
+ * NE SE LIT PAS dans `check_neutre.mjs` : elle se règle sur la SORTIE, comme
+ * LANCERS_BASE et CIBLE_PCT_TIR.
+ *
+ * La raison est une asymétrie assumée. L'adversaire neutre n'a pas d'unités :
+ * il ne porte donc ni création, ni chimie, ni malus de zone, alors qu'il
+ * encaisse une attaque qui en porte. Lui donner la finition brute mesurée
+ * (REF.pctTir = 1,025) laissait toute vraie équipe alignée gagner une
+ * victoire de trop en solo — 44,4 en moyenne sur 465 équipes-saisons contre
+ * 43,4 dans la réalité. À 1,045, la moyenne retombe exactement sur le réel,
+ * et les dix déciles de `check_monotonie.mjs` avec elle.
+ */
+export const PCT_TIR_NEUTRE = 1.045;
 
 /*
  * Le pourcentage de tir de référence, et donc l'ancrage du pointage : c'est
@@ -615,6 +684,9 @@ export const REF = { pression: 1.272, zDef: 0.672, fg: 0.895, pctTir: 1.022, cre
  */
 export const CIBLE_PCT_TIR = 0.0927;
 export const PCT_TIR_MAX = 0.35;
+
+/** Période d'un instant du match : 1, 2, 3, puis la prolongation. */
+export const periodeDe = t => (t < 20 ? 1 : t < 40 ? 2 : t < 60 ? 3 : 4);
 
 /** Un but reçoit une passe principale, puis parfois une secondaire. */
 export const P_PASSE_1 = 0.85;
@@ -799,7 +871,7 @@ function choisirPresence(unites) {
 const PROFIL_NEUTRE = {
   unites: null,
   pression: REF.pression, zDef: REF.zDef,
-  pctTirDefaut: REF.pctTir, fgDefaut: REF.fg,
+  pctTirDefaut: PCT_TIR_NEUTRE, fgDefaut: REF.fg,
 };
 
 /** Tire une unité au prorata de son poids de présence. */
@@ -817,7 +889,7 @@ function choisirUnite(unites) {
  * glace, et les arrêts du gardien. Rien n'est réparti après coup : la
  * feuille de match EST la suite des lancers.
  */
-function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
+function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, journal = null, cote = 'A') {
   const attendu = LANCERS_BASE
     * (off.pression / REF.pression)
     * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION);
@@ -832,6 +904,11 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
 
   let buts = 0, tires = 0;
   for (let i = 0; i < lancers; i++) {
+    // Le moteur ne modélise pas le temps : quand on tient le journal d'un
+    // match, chaque lancer reçoit un instant tiré dans les 60 minutes, et la
+    // feuille se lit dans l'ordre une fois les deux côtés fusionnés. Assez
+    // pour un sommaire crédible, et ça ne touche à aucune probabilité.
+    const instant = journal ? (journal.prolongation ? 60 + Math.random() * 5 : Math.random() * 60) : 0;
     let tireur = null, unite = null, glace = null;
     if (off.unites) {
       const trio = choisirUnite(off.unites.F);
@@ -875,26 +952,37 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false) {
       0.005, PCT_TIR_MAX);
 
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
+    if (journal) journal.tirs[cote][periodeDe(instant)]++;
 
     if (Math.random() < p) {
       buts++;
-      if (feuille && tireur) {
-        tireur.simG++; tireur.simPTS++;
+      if (journal && tireur) {
+        journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien });
+      }
+      // Les passeurs sont tirés dès qu'il y a un but : la feuille de saison
+      // les crédite, le journal du match les nomme. En séries on ne tient pas
+      // les statistiques, mais le sommaire, lui, doit dire qui a aidé.
+      if (tireur && glace) {
         const co = glace.filter(x => x !== tireur);
+        const entree = journal ? journal.buts[journal.buts.length - 1] : null;
+        const passeurs = [];
         if (co.length && Math.random() < P_PASSE_1) {
           const a1 = weightedPick(co, propensionPasse);
-          a1.simA++; a1.simPTS++;
+          passeurs.push(a1);
           const reste = co.filter(x => x !== a1);
-          if (reste.length && Math.random() < P_PASSE_2) {
-            const a2 = weightedPick(reste, propensionPasse);
-            a2.simA++; a2.simPTS++;
-          }
+          if (reste.length && Math.random() < P_PASSE_2) passeurs.push(weightedPick(reste, propensionPasse));
         }
-        for (const x of glace) x.simPM++;
-        if (defGlace) for (const x of defGlace) x.simPM--;
+        if (entree) entree.passeurs = passeurs;
+        if (feuille) {
+          tireur.simG++; tireur.simPTS++;
+          for (const a of passeurs) { a.simA++; a.simPTS++; }
+          for (const x of glace) x.simPM++;
+          if (defGlace) for (const x of defGlace) x.simPM--;
+        }
       }
-    } else if (feuille && gardien) {
-      gardien.simSV = (gardien.simSV || 0) + 1;
+    } else {
+      if (feuille && gardien) gardien.simSV = (gardien.simSV || 0) + 1;
+      if (journal) journal.arrets[cote === 'A' ? 'B' : 'A']++;
     }
   }
 
@@ -1123,7 +1211,7 @@ function applyInjuries(team, lineup, heavy) {
  * exactement ce que l'ancien moteur sautait, et pourquoi une équipe de
  * niveau 80 gagnait la Coupe 99 % du temps (MOTEUR.md 5.5).
  */
-export function playGame(A, B, gameIdx, track = true, series = false) {
+export function playGame(A, B, gameIdx, track = true, series = false, journal = null) {
   const heavy = gameIdx % 4 === 3;
   const LA = activeLineup(A), LB = activeLineup(B);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
@@ -1136,16 +1224,24 @@ export function playGame(A, B, gameIdx, track = true, series = false) {
   const chanceA = Math.exp(gauss() * LUCK_GAME + A.luck - B.luck);
   const chanceB = Math.exp(gauss() * LUCK_GAME + B.luck - A.luck);
 
-  let gfA = jouerCote(pA, pB, gB, chanceA, heavy, track, series);
-  let gfB = jouerCote(pB, pA, gA, chanceB, heavy, track, series);
+  let gfA = jouerCote(pA, pB, gB, chanceA, heavy, track, series, journal, 'A');
+  let gfB = jouerCote(pB, pA, gA, chanceB, heavy, track, series, journal, 'B');
   let ot = false;
 
   if (gfA === gfB) {
     ot = true;
+    if (journal) journal.prolongation = true;
     const p = 1 / (1 + Math.exp(-((sA.clu + pA.meneur) - (sB.clu + pB.meneur)) / 9));
     // Le but gagnant appartient à un joueur, comme tous les autres.
-    if (Math.random() < p) { gfA++; if (track) butProlongation(pA, pB, gB); }
-    else { gfB++; if (track) butProlongation(pB, pA, gA); }
+    if (Math.random() < p) { gfA++; butProlongation(pA, pB, gB, track, journal, 'A'); }
+    else { gfB++; butProlongation(pB, pA, gA, track, journal, 'B'); }
+  }
+  if (journal) {
+    Object.assign(journal, {
+      A, B, gfA, gfB, ot, gardienA: gA, gardienB: gB,
+      vainqueur: gfA > gfB ? 'A' : 'B',
+    });
+    journal.buts.sort((x, y) => x.instant - y.instant);
   }
   const winA = gfA > gfB;
 
@@ -1164,9 +1260,9 @@ export function playGame(A, B, gameIdx, track = true, series = false) {
 }
 
 /** Le but de la prolongation : un tireur, une passe, du +/-, comme les autres. */
-function butProlongation(off, def, gardien) {
-  if (gardien) gardien.simSA = (gardien.simSA || 0) + 1;
-  if (def && def.unites) {
+function butProlongation(off, def, gardien, track = true, journal = null, cote = 'A') {
+  if (track && gardien) gardien.simSA = (gardien.simSA || 0) + 1;
+  if (track && def && def.unites) {
     for (const x of [...choisirPresence(def.unites.F).joueurs, ...choisirPresence(def.unites.D).joueurs]) x.simPM--;
   }
   if (!off.unites) return;
@@ -1175,14 +1271,20 @@ function butProlongation(off, def, gardien) {
   const glace = [...trio.joueurs, ...paire.joueurs];
   if (!glace.length) return;
   const tireur = weightedPick(glace, p => lancersRel(p) * pctTirRel(p));
-  tireur.simSH = (tireur.simSH || 0) + 1;
-  tireur.simG++; tireur.simPTS++;
+  const passeurs = [];
   const co = glace.filter(x => x !== tireur);
-  if (co.length && Math.random() < P_PASSE_1) {
-    const a1 = weightedPick(co, propensionPasse);
-    a1.simA++; a1.simPTS++;
+  let a1 = null;
+  if (co.length && Math.random() < P_PASSE_1) { a1 = weightedPick(co, propensionPasse); passeurs.push(a1); }
+  if (track) {
+    tireur.simSH = (tireur.simSH || 0) + 1;
+    tireur.simG++; tireur.simPTS++;
+    if (a1) { a1.simA++; a1.simPTS++; }
+    for (const x of glace) x.simPM++;
   }
-  for (const x of glace) x.simPM++;
+  if (journal) {
+    journal.tirs[cote][4]++;
+    journal.buts.push({ cote, instant: 60 + Math.random() * 5, marqueur: tireur, passeurs, gardien, gagnant: true });
+  }
 }
 
 /**
@@ -1258,14 +1360,37 @@ export function simulateLeague(teams, games = 82) {
   return { standings, leaders };
 }
 
-/** Série 4 de 7 entre deux équipes, sans stats ni blessures. */
+/** Une feuille de match vierge, prête à recevoir le journal d'un match. */
+export function feuilleVierge() {
+  return {
+    buts: [],
+    tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
+    arrets: { A: 0, B: 0 },
+    prolongation: false,
+  };
+}
+
+/** Tirs d'un côté, toutes périodes confondues. */
+export const tirsTotal = (feuille, cote) => feuille.tirs[cote].reduce((a, b) => a + b, 0);
+
+/**
+ * Série 4 de 7 entre deux équipes. Les blessures et l'usure s'appliquent
+ * (c'est ce que l'ancien moteur sautait), les statistiques de saison non.
+ * `feuilles` porte le sommaire de chaque match : buts avec leur instant,
+ * tirs par période, arrêts. C'est ce que l'écran des séries raconte.
+ */
 export function playSeries(A, B) {
   let wA = 0, wB = 0, g = 0;
+  const feuilles = [];
   while (wA < 4 && wB < 4) {
-    const r = playGame(A, B, g++, false, true);
+    const feuille = feuilleVierge();
+    const r = playGame(A, B, g++, false, true, feuille);
     if (r.winner === A) wA++; else wB++;
+    feuille.numero = g;
+    feuille.serie = `${wA}-${wB}`;
+    feuilles.push(feuille);
   }
-  return { winner: wA === 4 ? A : B, wA, wB };
+  return { winner: wA === 4 ? A : B, wA, wB, feuilles };
 }
 
 /**
@@ -1274,17 +1399,17 @@ export function playSeries(A, B) {
  * premier trio d'abord. `exclude` = clés de joueurs à ne pas utiliser.
  */
 export function autoRoster(pool, exclude = new Set()) {
-  const avail = pool.filter(p => !exclude.has(getPlayerKey(p)));
+  const avail = pool.filter(p => !exclude.has(getPersonKey(p)));
   const roster = {};
   const used = new Set();
   for (const s of SLOTS) {
     let best = null, bestScore = -Infinity;
     for (const p of avail) {
-      if (used.has(p) || !fits(p, s)) continue;
-      const score = getHiddenRatings(p).v - getPositionPenalty(p, s) - (s.scratch ? 0 : 0);
+      if (used.has(getPersonKey(p)) || !fits(p, s)) continue;
+      const score = getHiddenRatings(p).v - getPositionPenalty(p, s);
       if (score > bestScore) { best = p; bestScore = score; }
     }
-    if (best) { roster[s.i] = best; used.add(best); }
+    if (best) { roster[s.i] = best; used.add(getPersonKey(best)); }
   }
   return roster;
 }
