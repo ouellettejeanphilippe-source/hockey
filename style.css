@@ -2265,13 +2265,33 @@ table.data .pts { font-weight: 900; color: var(--green); }
 @keyframes ligneIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .live-ligne .team-logo-img, .live-ligne .team-logo-inline { flex: none; align-self: center; }
 .live-tps { flex: none; font-family: var(--mono); font-size: 10.5px; color: var(--muted); min-width: 38px; }
-.live-ligne.arret { color: var(--sub); }
+.live-ligne.arret { color: var(--sub); background: color-mix(in srgb, var(--eq-band, transparent) 9%, transparent); }
 .live-ligne.debut, .live-ligne.periode, .live-ligne.fin { color: var(--sub); background: rgba(255, 255, 255, 0.04); }
 .live-ligne.fin { color: var(--text); }
-.live-ligne.but { background: color-mix(in srgb, var(--gold) 12%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent); color: var(--text); }
-.live-ligne.but.gagnant { border-color: var(--gold); }
-.live-but-mot { font-family: var(--display); font-size: 15px; letter-spacing: 0.1em; color: var(--gold); margin-right: 4px; }
-.live-score { font-family: var(--display); font-weight: 800; font-size: 14px; color: var(--gold); margin-left: 4px; }
+/* Un but prend les couleurs de l'équipe qui marque : l'aplat de son bandeau,
+   son encre, son liseré. On sait qui a marqué avant d'avoir lu. */
+.live-ligne.but { background: var(--eq-band, var(--gold)); color: var(--eq-ink, #1a1400); box-shadow: inset 0 -2px 0 var(--eq-stripe, transparent); padding: 8px 10px 10px; }
+.live-ligne.but .live-tps { color: inherit; opacity: 0.75; }
+.live-ligne.but.gagnant { outline: 2px solid var(--gold); outline-offset: 1px; }
+.live-but-mot { font-family: var(--display); font-size: 15px; letter-spacing: 0.1em; margin-right: 4px; }
+.live-score { font-family: var(--display); font-weight: 800; font-size: 14px; margin-left: 4px; }
+.live-tally { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; letter-spacing: 0.1em; color: var(--muted); }
+.live-tally-sep { font-family: var(--display); font-size: 11px; letter-spacing: 0.06em; color: var(--sub); }
+.live-pastilles { color: var(--gold); }
+/* La bannière de but, par-dessus le tableau indicateur, le temps de la pause. */
+.live-board { position: relative; }
+.live-banniere {
+  position: absolute; left: 14px; right: 14px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 10px 14px; border-radius: var(--r-m);
+  background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 -3px 0 var(--eq-stripe);
+  font-family: var(--display); text-transform: uppercase; letter-spacing: 0.08em;
+  animation: banniere 1.6s ease forwards; pointer-events: none;
+}
+.live-banniere span { font-size: 18px; font-weight: 700; }
+.live-banniere b { font-size: 30px; font-weight: 800; line-height: 1; }
+@keyframes banniere { 0% { opacity: 0; transform: translateY(-50%) scale(0.92); } 12% { opacity: 1; transform: translateY(-50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+.live-enchainer { flex: none; }
 
 .live-controls {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -2280,7 +2300,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 .live-controls .btn { flex: 1 1 160px; min-height: 42px; }
 .live-vitesse { flex: none; }
-.live-vitesse button { min-width: 44px; }
+.live-vitesse button { min-width: 40px; }
 
 @media (max-width: 479.98px) {
   .live-eq-buts { font-size: 48px; }

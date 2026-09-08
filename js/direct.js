@@ -32,8 +32,11 @@ function rng(seed) {
   };
 }
 
-const VITESSES = [1, 2, 4];          // minutes de jeu par seconde réelle
+const VITESSES = [0.5, 1, 2, 4, 8];  // minutes de jeu par seconde réelle
+const ETIQ_VITESSE = { 0.5: '×½', 1: '×1', 2: '×2', 4: '×4', 8: '×8' };
 const CLE_VITESSE = 'cap82_direct_vitesse';
+const CLE_ENCHAINER = 'cap82_direct_enchainer';
+const PAUSE_ENCHAINER = 2600;        // ms : avant le match suivant, en mode enchaîné
 const PAUSE_BUT = 1400;              // ms : l'horloge s'arrête sur un but
 const PAUSE_PERIODE = 1100;          // ms : entre deux périodes
 
@@ -51,7 +54,12 @@ function evenementsDuMatch(f, graine) {
   const alea = rng(graine);
   const ev = [];
   const finOT = f.ot ? Math.max(...f.buts.filter(b => b.instant >= 60).map(b => b.instant), 60.5) : 0;
-  for (const cote of ['A', 'B']) {
+  // Le journal moderne date chaque lancer et nomme le tireur : on le prend.
+  // Une feuille plus ancienne (partie sauvegardée) n'a que les comptes par
+  // période, et on date les arrêts nous-mêmes.
+  if (f.lancers && f.lancers.length) {
+    for (const l of f.lancers) if (!l.but) ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien });
+  } else for (const cote of ['A', 'B']) {
     for (let per = 1; per <= 4; per++) {
       const buts = f.buts.filter(b => b.cote === cote && periodeDe(b.instant) === per).length;
       const arrets = Math.max(0, (f.tirs[cote][per] || 0) - buts);
@@ -117,12 +125,17 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
   let iSerie = 0;
 
   const boutons = html => { controls.innerHTML = html; };
-  const ligne = (cls, html) => {
+  const ligne = (cls, html, style = '') => {
     const el = document.createElement('div');
     el.className = `live-ligne ${cls}`;
+    if (style) el.setAttribute('style', style);
     el.innerHTML = html;
     feed.prepend(el);
   };
+  /* Les victoires de la série, en pastilles : ●●○○ contre ●○○○. */
+  const pastilles = (w, vainqueur) => `<span class="live-pastilles${vainqueur ? ' on' : ''}">${'●'.repeat(w)}${'○'.repeat(4 - w)}</span>`;
+
+  let enchainer = localStorage.getItem(CLE_ENCHAINER) === '1';
 
   /* Le tableau indicateur : deux équipes, le pointage, l'horloge. */
   function dessinerBoard(s, gA, gB, horloge) {
@@ -148,7 +161,8 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
 
     head.innerHTML = `<span class="live-ronde">${ctx.esc(rondes[s.ronde] || `Ronde ${s.ronde + 1}`)}</span>
       <span class="live-match">Match ${iMatch + 1}</span>
-      <span class="live-serie">${ctx.esc(cap(etatDeSerie(ctx, s, wAvant, wBvant)))}</span>`;
+      <span class="live-serie">${ctx.esc(cap(etatDeSerie(ctx, s, wAvant, wBvant)))}</span>
+      <span class="live-tally">${pastilles(wAvant)} <span class="live-tally-sep">${ctx.esc(ctx.tagCourt(s.A))} · ${ctx.esc(ctx.tagCourt(s.B))}</span> ${pastilles(wBvant)}</span>`;
     feed.innerHTML = '';
     etat.textContent = '';
     ligne('debut', `Mise au jeu. ${ctx.esc(cap(ctx.teamShort(s.A)))} contre ${ctx.esc(ctx.teamShort(s.B))}, ${ctx.esc((rondes[s.ronde] || '').toLowerCase())}, match ${iMatch + 1}.`);
@@ -173,13 +187,16 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
 
     const gardien = cote => (cote === 'A' ? f.gardienB : f.gardienA);   // le gardien qui FAIT face au tir
     const equipe = cote => (cote === 'A' ? s.A : s.B);
+    /* Les couleurs de l'équipe qui tire, posées sur la ligne du fil. */
+    const couleurs = cote => { const b = ctx.band(equipe(cote).tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
 
     const appliquer = e => {
       if (e.type === 'arret') {
         if (e.cote === 'A') tA++; else tB++;
-        const g = gardien(e.cote);
-        ligne('arret', `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(e.cote).tag, 13)}
-          <span>Tir de ${ctx.esc(ctx.teamShort(equipe(e.cote)))}${g ? `, arrêt de <b>${ctx.esc(nom(g))}</b>` : ', arrêt'}.</span>`);
+        const g = e.gardien || gardien(e.cote);
+        const qui = e.tireur ? `Lancer de <b>${ctx.esc(nom(e.tireur))}</b>` : `Tir de ${ctx.esc(ctx.teamShort(equipe(e.cote)))}`;
+        ligne(`arret ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(e.cote).tag, 13)}
+          <span>${qui}${g ? `, arrêt de <b>${ctx.esc(nom(g))}</b>` : ', arrêt'}.</span>`, couleurs(e.cote));
         return 0;
       }
       if (e.type === 'but') {
@@ -187,10 +204,17 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
         const b = e.but;
         const aides = b.passeurs.length ? ` (${b.passeurs.map(nom).join(', ')})` : ' (sans aide)';
         ligne(`but ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
-          <span><b class="live-but-mot">BUT</b> <b>${ctx.esc(nom(b.marqueur))}</b>${ctx.esc(aides)} — ${ctx.esc(recitDeBut(b))} <span class="live-score">${gA}-${gB}</span></span>`);
+          <span><b class="live-but-mot">BUT</b> <b>${ctx.esc(nom(b.marqueur))}</b>${ctx.esc(aides)} — ${ctx.esc(recitDeBut(b))} <span class="live-score">${gA}-${gB}</span></span>`, couleurs(e.cote));
         majBoard();
         const cell = board.querySelector(`[data-cote="${e.cote}"]`);
         cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
+        // La bannière de but, aux couleurs du marqueur, le temps de la pause.
+        const ban = document.createElement('div');
+        ban.className = 'live-banniere';
+        ban.setAttribute('style', couleurs(e.cote));
+        ban.innerHTML = `<span>${b.gagnant ? 'BUT GAGNANT' : 'BUT'}</span><b>${ctx.esc(nom(b.marqueur))}</b>`;
+        board.appendChild(ban);
+        setTimeout(() => ban.remove(), PAUSE_BUT + 200);
         return PAUSE_BUT;
       }
       if (e.type === 'periode') {
@@ -229,8 +253,9 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
       majBoard();
     };
 
-    boutons(`<div class="seg live-vitesse">${VITESSES.map(v => `<button data-v="${v}" class="${v === vitesse ? 'on' : ''}">×${v}</button>`).join('')}</div>
-      <button class="btn live-fin">Aller à la fin du match</button>`);
+    boutons(`<div class="seg live-vitesse" title="Minutes de jeu par seconde">${VITESSES.map(v => `<button data-v="${v}" class="${v === vitesse ? 'on' : ''}">${ETIQ_VITESSE[v]}</button>`).join('')}</div>
+      <button class="chip live-enchainer${enchainer ? ' on' : ''}" title="Passer au match suivant tout seul, sans cliquer">Enchaîner</button>
+      <button class="btn live-fin">Fin du match</button>`);
     controls.querySelectorAll('.live-vitesse button').forEach(b => {
       b.onclick = () => {
         vitesse = Number(b.dataset.v);
@@ -238,6 +263,11 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
         controls.querySelectorAll('.live-vitesse button').forEach(x => x.classList.toggle('on', x === b));
       };
     });
+    controls.querySelector('.live-enchainer').onclick = ev => {
+      enchainer = !enchainer;
+      localStorage.setItem(CLE_ENCHAINER, enchainer ? '1' : '0');
+      ev.currentTarget.classList.toggle('on', enchainer);
+    };
     controls.querySelector('.live-fin').onclick = jusquAuBout;
 
     dernier = performance.now();
@@ -249,7 +279,14 @@ export function diffuserSeries({ series, rondes, ctx, onTermine }) {
     const serieFinie = wA >= 4 || wB >= 4;
     if (!serieFinie) {
       boutons(`<button class="btn go live-suite">Match ${iMatch + 2}</button>`);
-      controls.querySelector('.live-suite').onclick = () => jouerMatch(s, iMatch + 1);
+      const suivant = () => jouerMatch(s, iMatch + 1);
+      controls.querySelector('.live-suite').onclick = suivant;
+      // En mode enchaîné, le match suivant part tout seul — sauf si on a
+      // sauté à la fin, signe qu'on veut lire le résultat.
+      if (enchainer) {
+        const attente = setTimeout(() => { if (!termine && controls.querySelector('.live-suite')) suivant(); }, PAUSE_ENCHAINER);
+        controls.querySelector('.live-suite').addEventListener('click', () => clearTimeout(attente), { once: true });
+      }
       return;
     }
     const moi = s.A.isPlayer ? s.A : s.B;
