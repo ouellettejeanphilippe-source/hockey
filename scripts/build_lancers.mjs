@@ -91,7 +91,7 @@ for (const f of fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sor
 }
 
 let bloc = '';
-for (let i = 0; i < lignes.length; i += 1) {
+for (let i = 0; i < lignes.length; i += 3) {
   bloc += '  ' + lignes.slice(i, i + 3)
     .map(([s, ...v]) => `'${s}': [${v.map((x, j) => x.toFixed(j === 6 || j === 8 ? 3 : 2)).join(', ')}],`)
     .join('\n  ') + '\n';

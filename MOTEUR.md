@@ -256,7 +256,9 @@ systématique retombe à 19 %.
 `CIBLE_PCT_TIR` : `FE_TIRS` et `FE_QUALITE` ramènent le cinq contre cinq de ce
 que les unités spéciales ajoutent, pour que `LIGUES=5 node
 scripts/check_feuilles.mjs` retombe sur 28,5 lancers et 3,1 buts par équipe par
-match, avec un but sur quatre en avantage numérique. Le +/- ne compte pas les
+match, avec un but sur quatre en avantage numérique — et, depuis que les shards
+portent les buts en avantage réels, `AN_QUALITE` se règle sur la part des buts
+d'avantage des mêmes joueurs, simulée contre réelle (25,8 % contre 25,8 %). Le +/- ne compte pas les
 buts en avantage (règle de la ligue), il compte ceux en désavantage. La feuille
 porte les punitions (`punitions`), chaque lancer porte sa situation (`mode`),
 et chaque but en avantage ou en désavantage est marqué (`an`, `dn`) : le
