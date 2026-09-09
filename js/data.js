@@ -44,12 +44,27 @@ async function cacheGet(key) {
   } catch { return null; }
 }
 
+/*
+ * LE CLONE SE FAIT AVANT LA PREMIÈRE ATTENTE. `cachePut` n'est pas attendu
+ * par l'appelant : le shard est retourné tout de suite, et `getShard`
+ * (js/game.js) sort aussitôt les cotes `o d r c v` des objets joueurs vers
+ * le coffre privé. Quand le `put` arrivait après `await openDB()`, il
+ * clonait des joueurs DÉJÀ dépouillés — et à la visite suivante, servie du
+ * cache, tout le monde valait 50 : Lemieux 1986-87 « Middle 6 » au deuxième
+ * trio, Ponikarovsky « Top 6 » parce que sa saison, elle, venait d'être
+ * chargée fraîche. On fige donc une copie pendant qu'elle est entière.
+ */
 async function cachePut(key, val) {
+  let copie;
+  try { copie = structuredClone(val); } catch { copie = JSON.parse(JSON.stringify(val)); }
   try {
     const db = await openDB();
-    db.transaction(STORE, 'readwrite').objectStore(STORE).put(val, key);
+    db.transaction(STORE, 'readwrite').objectStore(STORE).put(copie, key);
   } catch { /* cache best-effort */ }
 }
+
+/** Un shard mis en cache avant le correctif ci-dessus n'a plus de cotes : on le jette. */
+const cacheEntier = shard => !!shard?.players?.length && shard.players.some(p => p.o !== undefined);
 
 export async function cacheClear() {
   try {
@@ -164,7 +179,7 @@ async function _loadSeason(label) {
   const key = `${label}@${RATINGS_VERSION}`;
 
   const hit = await cacheGet(key);
-  if (hit) return hit;
+  if (hit && cacheEntier(hit)) return hit;
 
   const minGP = state.index?.minGP ?? 10;
 

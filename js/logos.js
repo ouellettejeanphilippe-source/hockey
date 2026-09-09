@@ -57,9 +57,23 @@ const INLINE_LOGOS = {
   CGS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="58" font-size="24" font-weight="900" fill="#ffc72c" text-anchor="middle">SEALS</text></svg>`,
   OAK: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="58" font-size="24" font-weight="900" fill="#ffffff" text-anchor="middle">OAK</text></svg>`,
   MDA: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M20 20 L80 80 M80 20 L20 80" stroke="#00685e" stroke-width="12"/><ellipse cx="50" cy="50" rx="30" ry="22" fill="#00685e"/><polygon points="35,45 65,45 50,65" fill="#f0592b"/></svg>`,
+
+  // TON équipe : les NHL Stars. Un écusson d'étoiles à l'ancienne, noir,
+  // blanc et orange — dessiné ici, pas emprunté : une rondelle noire, l'étoile
+  // blanche, le liseré orange et le mot STARS sur la bande.
+  YOU: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="47" fill="#0b0b0b" stroke="#f47a20" stroke-width="5"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="#ffffff" stroke-width="2"/>
+    <polygon points="50,14 58.5,36 82,36 63,50 70,73 50,59 30,73 37,50 18,36 41.5,36" fill="#ffffff"/>
+    <polygon points="50,24 55,37 69,37 58,45.5 62.5,59 50,50.5 37.5,59 42,45.5 31,37 45,37" fill="#f47a20"/>
+    <rect x="14" y="70" width="72" height="16" rx="3" fill="#f47a20"/>
+    <text x="50" y="82.5" font-family="Arial Narrow, Arial, sans-serif" font-weight="900" font-size="13.5" letter-spacing="1.5" fill="#0b0b0b" text-anchor="middle">NHL STARS</text>
+  </svg>`,
 };
 
 export const TEAM_COLORS = {
+  // Les NHL Stars, ton équipe : noir, blanc, orange, comme les vieux chandails du match des étoiles.
+  YOU: { primary: '#0b0b0b', secondary: '#f47a20', text: '#ffffff', accent: '#f47a20' },
   MTL: { primary: '#af1e2d', secondary: '#192168', text: '#ffffff', accent: '#af1e2d' },
   TOR: { primary: '#00205b', secondary: '#001030', text: '#ffffff', accent: '#003399' },
   BOS: { primary: '#ffb81c', secondary: '#111111', text: '#111111', accent: '#ffb81c' },

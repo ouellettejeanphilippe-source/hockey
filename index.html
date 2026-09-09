@@ -26,14 +26,9 @@
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/><path d="M9 8h7M9 11.5h5"/></symbol>
   <symbol id="i-gear" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h12M20 17h0"/><circle cx="16" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="17" r="2"/></symbol>
   <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 9h13l-3-3M20 15H7l3 3"/></symbol>
-  <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7V5z" fill="currentColor" stroke="none"/><path d="M18 5v14"/></symbol>
-  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
   <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
   <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8"/><path d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></symbol>
-  <symbol id="i-cols" viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="9.5" y="4" width="5" height="16" rx="1"/><rect x="16" y="4" width="5" height="16" rx="1"/></symbol>
-  <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
   <symbol id="i-cup" viewBox="0 0 24 24"><path d="M8 3h8l1 4H7l1-4z"/><path d="M9 7v3a3 3 0 0 0 6 0V7"/><path d="M12 13v5M7 21h10M9 18h6"/></symbol>
 </svg>
 
@@ -77,39 +72,18 @@
 
     <div class="panes" id="panes" data-view="pool">
 
-      <!-- Volet gauche : bassin -->
-      <section class="pane pane-pool" id="panePool" aria-label="Bassin de joueurs">
+      <!-- Volet gauche : la main. Ce que l'équipe sortie met à l'unité qu'on
+           comble (tirage vestiaire), ou ce que trois équipes mettent à la case
+           exacte (tirage loto). Deux ou trois cartes : ni tri, ni recherche, ni
+           filtre — ces commandes sont parties avec le vestiaire de trente. -->
+      <section class="pane pane-pool" id="panePool" aria-label="La main">
         <div class="pane-head">
           <div class="pane-title">
-            <h2>Vestiaire</h2>
+            <h2>La main</h2>
             <span class="pane-meta" id="poolCount">—</span>
           </div>
-          <div class="pool-tools">
-            <!-- Deux façons de lire le même vestiaire : par poste (six colonnes
-                 qu'on balaie du doigt sur téléphone) ou tout le monde ensemble,
-                 rangé par le tri courant. -->
-            <div class="seg seg-view" data-opt="poolView" role="tablist" aria-label="Affichage du vestiaire">
-              <button data-val="POS" class="on" title="Par poste : six colonnes, une par poste — balaie pour changer de poste"><svg class="ico" aria-hidden="true"><use href="#i-cols"/></svg><span class="lbl">Par poste</span></button>
-              <button data-val="LIST" title="Tous : les joueurs ensemble, dans l'ordre du tri"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg><span class="lbl">Tous</span></button>
-            </div>
-            <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="searchInput" type="search" placeholder="Chercher un joueur…" autocomplete="off"></label>
-            <!-- Libellés courts : le tri partage sa rangée avec la recherche et
-                 la bascule sur téléphone. L'infobulle dit le reste. -->
-            <select id="sortSelect" class="select" aria-label="Trier le bassin" title="Trier le bassin">
-              <option value="PTS">Points / V</option>
-              <option value="PPG">Pts par match</option>
-              <option value="SAL">Salaire</option>
-              <option value="VAL">Pts par M$</option>
-              <option value="PM">Différentiel</option>
-              <option value="AGE">Âge</option>
-              <option value="NAME">Nom</option>
-            </select>
-          </div>
         </div>
-        <div class="filters" id="filters" role="tablist" aria-label="Filtrer par position"></div>
-        <!-- La bande de secours vit HORS du bassin : depuis que les colonnes
-             se balaient à l'horizontale, tout ce qui est dans `#pool` est une
-             colonne de la bande, et un avertissement n'en est pas une. -->
+        <!-- La bande de secours vit HORS de la main, au-dessus des cartes. -->
         <div id="poolNotice"></div>
         <div class="pool" id="pool"></div>
       </section>
@@ -137,7 +111,7 @@
 <div class="actionbar" id="actionbar" style="display:none">
   <div class="actionbar-inner">
     <div class="tabs" role="tablist" aria-label="Vue">
-      <button class="tab on" data-view="pool" role="tab" id="tabPool">Vestiaire <span class="tab-badge" id="tabPoolBadge"></span></button>
+      <button class="tab on" data-view="pool" role="tab" id="tabPool">La main <span class="tab-badge" id="tabPoolBadge"></span></button>
       <button class="tab" data-view="roster" role="tab" id="tabRoster">Alignement <span class="tab-badge" id="tabRosterBadge">0/23</span></button>
     </div>
     <button class="btn go" id="mainBtn" disabled>Chargement…</button>
@@ -202,13 +176,19 @@
     </div>
     <div class="modal-body options">
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Façon de jouer</strong><span id="modeDesc">Vingt-trois joueurs, un par tour, sous le plafond de 95,5 M$.</span></div>
-        <div class="seg seg-wrap" data-opt="mode">
-          <button data-val="CLASSIQUE" class="on">Classique<em>23 joueurs</em></button>
-          <button data-val="TRIOS">Par unité<em>trios entiers</em></button>
+        <div class="opt-text"><strong>Alignement</strong><span>Les 23 cases sous 95,5 M$, ou six cases (un trio, une paire, un partant) sous 34 M$, le reste fourni par une vraie équipe.</span></div>
+        <div class="seg seg-wrap" data-opt="format">
+          <button data-val="COMPLET" class="on">Complet<em>23 joueurs</em></button>
           <button data-val="EXPRESS">Express<em>6 joueurs</em></button>
         </div>
-        <p class="opt-note">Changer de façon de jouer relance une partie.</p>
+      </div>
+      <div class="opt-row opt-modes">
+        <div class="opt-text"><strong>Tirage</strong><span id="modeDesc">Vingt-trois joueurs, un par tour, chacun pris dans l'unité équivalente d'une vraie équipe. Aucune relance.</span></div>
+        <div class="seg seg-wrap" data-opt="tirage">
+          <button data-val="VESTIAIRE" class="on">Vestiaire<em>une équipe, son unité</em></button>
+          <button data-val="LOTO">Loto<em>trois équipes, un choix</em></button>
+        </div>
+        <p class="opt-note">Changer d'alignement ou de tirage relance une partie.</p>
       </div>
       <div class="opt-row">
         <div class="opt-text"><strong>Statistiques</strong><span>Vraies stats de la saison, ou prorata sur 82 matchs ajusté à l'époque (buts par match de l'année ramenés à 3,15).</span></div>
@@ -217,10 +197,6 @@
       <div class="opt-row">
         <div class="opt-text"><strong>Salaires</strong><span>Valeur 2026 (celle qui compte sous le plafond du jeu) ou valeur de l'époque (réelle ou estimée).</span></div>
         <div class="seg" data-opt="salary"><button data-val="2026" class="on">Valeur 2026</button><button data-val="ERA">Valeur époque</button></div>
-      </div>
-      <div class="opt-row">
-        <div class="opt-text"><strong>Signables seulement</strong><span>Masquer les joueurs hors budget ou sans case libre.</span></div>
-        <div class="seg" data-opt="onlyFit"><button data-val="off" class="on">Tout voir</button><button data-val="on">Signables</button></div>
       </div>
       <div class="opt-row">
         <div class="opt-text"><strong>Nouvelle partie</strong><span>Efface l'alignement en cours et relance la roulette. L'historique est conservé.</span></div>
@@ -239,24 +215,29 @@
     </div>
     <div class="modal-body bible" id="bibleBody">
       <h3>0. Comment on joue</h3>
-      <p>La roulette sort une <strong>saison</strong> et une <strong>équipe</strong>. Tu signes <strong>un seul joueur</strong> de ce vestiaire, puis elle tourne à nouveau. Tu as 6 relances d'année, 6 relances d'équipe et 4 « passer ». Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques et les séries. Le 82-0 est le Graal ; la Coupe est le vrai but. Une partie prend cinq à dix minutes : c'est un sudoku de hockey.</p>
-      <p><strong>Le jeu récompense la chasse aux aubaines.</strong> Les salaires sont ceux qui ont vraiment été payés, et un contrat ne suit pas toujours la saison : Fedorov 1993-94 coûte 1,15 M$. Trouver ces joueurs-là est le métier. Le garde-fou, c'est la <strong>zone d'efficacité</strong> (section 5) : un joueur ne rend pas partout dans l'alignement, alors on ne peut pas empiler douze vedettes sous-payées sans en gaspiller la moitié.</p>
+      <p>Tu combles ton alignement <strong>case par case</strong>, dans l'ordre du tableau de profondeur : le premier trio, puis le deuxième, les paires, les gardiens, les réservistes — ou n'importe quelle case vide que tu touches pour la viser. À chaque tour la roulette sort une <strong>saison</strong> et une <strong>équipe</strong>, et te tend une <strong>main</strong> : pas tout le vestiaire, seulement ce que ce club met à la place que tu combles. Ton premier trio se bâtit avec des joueurs de premier trio, ta troisième paire avec des joueurs de troisième paire. Tu en signes un, la roulette tourne. Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques et les séries. Le 82-0 est le Graal ; la Coupe est le vrai but. Une partie prend cinq à dix minutes : c'est un sudoku de hockey.</p>
+      <p><strong>Le jeu récompense l'œil.</strong> Les salaires sont ceux qui ont vraiment été payés, et un contrat ne suit pas toujours la saison : Fedorov 1993-94 coûte 1,15 M$. Reconnaître, dans une main de trois, celui qui vaut son prix est le métier. Le garde-fou, c'est la <strong>zone d'efficacité</strong> (section 5) : un joueur ne rend pas partout dans l'alignement, et la main ne te propose de toute façon que des joueurs de la bonne unité.</p>
       <p>Ce que tu vois avant de signer : le salaire, l'archétype, la zone et les traits sur la carte, puis toutes les statistiques et le <strong>profil mesuré</strong> dans la fiche au clic. Ce que tu ne vois pas : <strong>aucune cote</strong>. Le jeu n'en affiche nulle part. Un joueur se juge sur ce qu'il a fait.</p>
-      <p>La carte propose la case où le joueur rend le mieux : sa position naturelle d'abord, puis sa zone. Quand la seule case libre est <strong>sous sa zone</strong>, la carte le dit en rouge avant que tu signes. Tu peux viser une autre case en la touchant dans l'alignement, ou déplacer quelqu'un après coup.</p>
-      <p><strong>Budget du choix</strong> : le plafond restant moins le salaire plancher (0,775 M$) de chaque case qu'il te restera à combler. Dépasser ce budget, c'est te condamner à ne pas finir tes 23.</p>
+      <p>La carte dit la case où le joueur ira : sa position naturelle dans l'unité qu'on comble, sinon la case libre la moins pénalisée. Tu peux viser une autre case vide en la touchant dans l'alignement — la main se recompose du même tirage pour cette case-là — ou déplacer quelqu'un après coup.</p>
+      <p><strong>Budget du choix</strong> : le plafond restant moins le salaire plancher (0,775 M$) de chaque case qu'il te restera à combler. Dépasser ce budget, c'est te condamner à ne pas finir tes 23. La roulette refuse de sortir une main où rien ne tient dans ce budget tant qu'elle peut faire autrement.</p>
 
-      <h3>0b. Trois façons de jouer</h3>
-      <p>Le moteur ne change pas d'un mode à l'autre : ce sont toujours 23 cases, le même malus de zone et la même ligue de 32 équipes. Ce qui change, c'est ce qu'on te demande de bâtir. Le mode se choisit dans les <strong>options</strong>, et en changer relance une partie.</p>
+      <h3>0b. Deux alignements, deux tirages</h3>
+      <p>Le moteur ne change pas d'un mode à l'autre : ce sont toujours 23 cases, le même malus de zone et la même ligue de 32 équipes. Ce qui change, c'est ce qu'on te demande de bâtir, et comment la roulette te le propose. Les deux réglages sont dans les <strong>options</strong>, et en changer relance une partie.</p>
+      <p><strong>L'alignement</strong> dit combien de cases tu combles :</p>
       <ul>
-        <li><strong>Classique</strong> — 23 joueurs, un par tour, sous 95,5 M$. La partie complète, cinq à dix minutes.</li>
-        <li><strong>Par unité</strong> — le même alignement, mais la roulette ne tourne qu'une fois l'unité <em>complète</em> : ton premier trio sort d'un seul vestiaire, puis le deuxième d'un autre. Neuf tours au lieu de vingt-trois, et la chimie devient le cœur du jeu plutôt qu'un bonus qu'on découvre à la fin. Pendant que tu combles un trio, seuls les attaquants sont signables.</li>
+        <li><strong>Complet</strong> — les 23, sous 95,5 M$. La partie complète, cinq à dix minutes.</li>
         <li><strong>Express</strong> — six cases seulement : un trio, une paire, un partant. Le reste de l'alignement t'est fourni par une vraie équipe tirée au hasard, affichée au tableau de bord ; ces joueurs ne coûtent rien au plafond et ne se déplacent pas. Le plafond suit : <strong>34 M$</strong>, la médiane mesurée de ce qu'une vraie équipe met sur ces six cases-là (25e centile 23 M$, 75e centile 43 M$ sur les 1395 équipes-saisons). Deux minutes.</li>
+      </ul>
+      <p><strong>Le tirage</strong> dit d'où viennent les joueurs de la main. Dans les deux cas on aligne la vraie équipe sortie de la roulette par valeur, position par position, et on ne te montre que ce qu'elle met à l'<em>unité équivalente</em> :</p>
+      <ul>
+        <li><strong>Vestiaire</strong> — la roulette sort <strong>une</strong> équipe et te montre son unité entière : son premier trio si tu combles le tien, sa deuxième paire, ses deux gardiens, ses trois réservistes. Tu en signes un. <strong>Aucune relance</strong> : ce qui sort, tu le joues.</li>
+        <li><strong>Loto</strong> — la roulette sort <strong>trois</strong> équipes et te montre, de chacune, le joueur de la case exacte : l'ailier gauche du premier trio de trois clubs. Tu en choisis un. Les <strong>relances</strong> relancent les trois clubs d'un coup — huit pour l'alignement complet, trois en express.</li>
       </ul>
 
       <h3>1. La valeur d'un joueur : son rang, pas une cote</h3>
       <p>Chaque joueur reçoit une <strong>valeur</strong> interne qui est son <strong>rang statistique dans sa propre saison</strong>, projeté sur l'échelle historique de sa position. Elle sert à trois choses : sa zone d'efficacité, son salaire quand aucun montant réel n'est publié, et l'alignement automatique des 31 équipes adverses. Elle ne s'affiche jamais.</p>
       <ul>
-        <li><strong>Attaquant</strong> : production 46 % (points par match), volume de lancers 14 %, différentiel 20 %, usage 20 % (temps de glace, sinon part des matchs joués).</li>
+        <li><strong>Attaquant</strong> : production 54 % (points par match, à la puissance 0,75 pour que le premier se détache du vingtième), volume de lancers 10 %, différentiel 12 % (une mauvaise équipe coûte au plus la moitié de ce qu'une grande donne), usage 24 % (temps de glace, sinon part des matchs joués). Un fabricant de jeu qui tire peu — Oates, Federko, Stastny — n'est plus puni de servir plutôt que de finir.</li>
         <li><strong>Défenseur</strong> : production 30 %, lancers 10 %, différentiel 36 %, usage 24 %.</li>
         <li><strong>Gardien</strong> : écart d'arrêts à sa ligue 72 %, charge de travail 28 %.</li>
       </ul>
@@ -347,7 +328,8 @@
       <h3>9. La ligue et les séries</h3>
       <p>Ta formation plus 31 vraies équipes historiques tirées au hasard dans 55 saisons et alignées automatiquement (les 18 meilleurs patineurs par valeur, position par position). 82 rondes d'appariements, 1 312 matchs. Un même joueur-saison ne peut habiller qu'une seule équipe de la ligue, la tienne comprise.</p>
       <p>À la fin de la saison, les <strong>statistiques de la ligue</strong> donnent les meneurs pour les points, les buts, les passes et le différentiel, plus les gardiens au pourcentage d'arrêts, à la moyenne de buts alloués et aux victoires (25 départs minimum pour les deux premiers, comme la vraie ligue l'exige). Chaque équipe historique est cliquable vers sa saison sur Hockey-Reference (adresse vérifiée pour chacune des 44 franchises).</p>
-      <p>Les 16 premiers font les séries : quatre rondes 4 de 7, avec blessures et usure. <strong>Tes séries se regardent en direct</strong>, plein écran, un match à la fois : l'horloge tourne, les tirs et les buts tombent au moment où ils sont arrivés, et tu ne connais le résultat qu'à la fin. Le moteur a déjà joué le match ; l'écran ne fait que le rejouer dans le temps. Chaque match se joue <strong>lancer par lancer comme les autres</strong> et garde son sommaire — les buts avec leur temps et leurs passes, les tirs par période, les arrêts de chaque gardien. Clique un match pour l'ouvrir. Le temps d'un but n'est pas simulé par le moteur : chaque lancer reçoit un instant tiré dans les 60 minutes, ce qui met la feuille en ordre sans toucher à aucune probabilité. Les phrases qui accompagnent les buts décrivent ce qui vient d'arriver — elles ne décident de rien.</p>
+      <p>Ton équipe s'appelle les <strong>NHL Stars</strong> — noir, blanc et orange, comme les vieux chandails du match des étoiles. <strong>La saison se regarde jour par jour</strong> : les 82 journées défilent avec ton match du jour en gros, les quinze autres en fil et le classement qui bouge ; on passe à la fin quand on veut. Tout est déjà joué, l'écran rejoue. Après, le <strong>calendrier complet</strong> se consulte journée par journée, chaque équipe ouvre son alignement avec ses 23 fiches simulées et ses 82 résultats, et chaque nom ouvre la fiche du joueur avec ses statistiques simulées à côté de sa vraie saison. Les palmarès rangent tous les joueurs de la ligue, pas seulement dix. Le <strong>récit de la saison</strong>, en tête du bilan, met des mots sur ce qui est arrivé : le départ, les séquences, les soirs qu'on retient, les vedettes, le gardien, l'infirmerie — il ne décide de rien, il raconte.</p>
+      <p>Les 16 premiers font les séries : quatre rondes 4 de 7, avec blessures et usure. <strong>Tes séries se regardent en direct</strong>, plein écran, un match à la fois : l'horloge <strong>descend</strong> comme au tableau indicateur, les tirs et les buts tombent au moment où ils sont arrivés, et tu ne connais le résultat qu'à la fin. Le moteur a déjà joué le match ; l'écran ne fait que le rejouer dans le temps. Chaque match se joue <strong>lancer par lancer comme les autres</strong> et garde son sommaire — les buts avec leur temps écoulé (la convention de la feuille officielle) et leurs passes, les punitions, les tirs par période, les arrêts de chaque gardien. Clique un match pour l'ouvrir. Le temps d'un but n'est pas simulé par le moteur : chaque lancer reçoit un instant tiré dans les 60 minutes, ce qui met la feuille en ordre sans toucher à aucune probabilité. <strong>Les punitions se suivent sur une seule ligne du temps</strong> : une situation à la fois, deux minutes, fermée par le premier but de l'avantage (pas par un but en désavantage), et le puni revient au jeu. Les phrases qui accompagnent les buts décrivent ce qui vient d'arriver — elles ne décident de rien. <strong>Les statistiques des séries sont tenues à part</strong> de celles de la saison : leurs propres palmarès, leurs propres fiches.</p>
       <p>Repères, mesurés sur le moteur : l'équipe moyenne fait 41 victoires. Une vraie équipe du dernier décile en fait 26, du premier 52. Le Canadien de 1976-77 en fait 61 à 63. Un alignement parfaitement monté en fait 68 à 70 et gagne la Coupe deux fois sur trois, pas plus. Le 82-0 n'est pas atteignable, et c'est voulu : dominer est possible, la Coupe reste un pari.</p>
     </div>
   </div>
