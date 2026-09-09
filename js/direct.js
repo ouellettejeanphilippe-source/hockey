@@ -372,7 +372,8 @@ const CLE_VITESSE_SAISON = 'cap82_saison_vitesse';
  * LA SAISON SE REGARDE JOUR APRÈS JOUR. Les 82 journées sont déjà jouées
  * (`simulateLeague` a rendu le calendrier) ; l'écran les fait défiler comme
  * un fil de résultats : ton match du jour en gros, les quinze autres en
- * liste, et le classement qui bouge sous tes yeux. On passe à la fin quand
+ * liste, et le classement qui bouge sous tes yeux. On met en pause entre
+ * deux journées, on avance d'une journée à la fois, on passe à la fin quand
  * on veut ; le résultat complet ne se dessine qu'après.
  *
  *   calendrier  [jour][match] = { A, B, gfA, gfB, ot }
@@ -390,7 +391,9 @@ export function diffuserSaison({ calendrier, teams, you, ctx, onTermine }) {
 
   let vitesse = Number(localStorage.getItem(CLE_VITESSE_SAISON)) || 2;
   if (!VITESSES_SAISON.includes(vitesse)) vitesse = 2;
-  let timer = null, termine = false, jour = 0;
+  // La pause tombe ENTRE deux journées : la journée affichée reste entière,
+  // avec ses seize résultats et son classement, le temps qu'on veut.
+  let timer = null, termine = false, jour = 0, enPause = false;
 
   // Le classement du jour : on cumule le calendrier jusqu'à la journée.
   const fiche = new Map(teams.map(t => [t, { W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0 }]));
@@ -411,11 +414,20 @@ export function diffuserSaison({ calendrier, teams, you, ctx, onTermine }) {
     if (termine) return;
     termine = true;
     clearTimeout(timer);
+    window.removeEventListener('keydown', clavier);
     modal.style.display = 'none';
     document.body.style.overflow = '';
     onTermine();
   };
   $('.live-close').onclick = fermer;
+  // La barre d'espace met en pause et repart, comme un lecteur vidéo.
+  const clavier = ev => {
+    if (ev.key !== ' ' || ev.target.closest('input, textarea, select')) return;
+    if (!controls.querySelector('.live-pause')) return;
+    ev.preventDefault();
+    pauser(!enPause);
+  };
+  window.addEventListener('keydown', clavier);
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
   feed.innerHTML = '';
@@ -477,10 +489,27 @@ export function diffuserSaison({ calendrier, teams, you, ctx, onTermine }) {
   }
 
   const suivant = () => {
-    if (termine) return;
+    if (termine || enPause) return;
     if (jour >= calendrier.length) { finDeSaison(); return; }
     dessinerJour(jour++);
     timer = setTimeout(suivant, 1000 / vitesse);
+  };
+  /* En pause, le temps ne repart pas ; on reprend, ou on avance d'une journée. */
+  const pauser = oui => {
+    if (termine) return;
+    enPause = oui;
+    clearTimeout(timer);
+    modal.classList.toggle('en-pause', oui);
+    const b = controls.querySelector('.live-pause');
+    if (b) { b.textContent = oui ? 'Reprendre' : 'Pause'; b.setAttribute('aria-pressed', oui ? 'true' : 'false'); }
+    const pas = controls.querySelector('.live-pas');
+    if (pas) pas.hidden = !oui;
+    if (!oui) suivant();
+  };
+  const uneJournee = () => {
+    if (termine || jour >= calendrier.length) { finDeSaison(); return; }
+    dessinerJour(jour++);
+    if (jour >= calendrier.length) finDeSaison();
   };
   const jusquAuBout = () => {
     clearTimeout(timer);
@@ -489,6 +518,8 @@ export function diffuserSaison({ calendrier, teams, you, ctx, onTermine }) {
   };
   function finDeSaison() {
     clearTimeout(timer);
+    enPause = false;
+    modal.classList.remove('en-pause');
     const rang = classement().indexOf(you) + 1;
     const f = fiche.get(you);
     etat.insertAdjacentHTML('afterbegin', `<div class="live-bilan ${rang <= 16 ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">Saison terminée · ${f.W}-${f.L}-${f.OTL} · ${rang}e${rang <= 16 ? ' · en séries' : ' · éliminé'}</div></div>`);
@@ -498,6 +529,8 @@ export function diffuserSaison({ calendrier, teams, you, ctx, onTermine }) {
 
   const boutons = html => { controls.innerHTML = html; };
   boutons(`<div class="seg live-vitesse" title="Journées par seconde">${VITESSES_SAISON.map(v => `<button data-v="${v}" class="${v === vitesse ? 'on' : ''}">×${v}</button>`).join('')}</div>
+    <button class="btn live-pause" aria-pressed="false" title="Arrêter le temps entre deux journées (barre d'espace)">Pause</button>
+    <button class="btn live-pas" hidden title="Avancer d'une journée">Journée suivante</button>
     <button class="btn live-fin">Passer à la fin</button>`);
   controls.querySelectorAll('.live-vitesse button').forEach(b => {
     b.onclick = () => {
@@ -506,6 +539,8 @@ export function diffuserSaison({ calendrier, teams, you, ctx, onTermine }) {
       controls.querySelectorAll('.live-vitesse button').forEach(x => x.classList.toggle('on', x === b));
     };
   });
+  controls.querySelector('.live-pause').onclick = () => pauser(!enPause);
+  controls.querySelector('.live-pas').onclick = uneJournee;
   controls.querySelector('.live-fin').onclick = jusquAuBout;
 
   suivant();
