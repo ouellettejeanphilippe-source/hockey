@@ -13,6 +13,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe } from './traits.js';
 
 export const CAP = 95_500_000;
+export const REROLLS = { season: 6, team: 6, pass: 4 };
 
 /*
  * LES FAÇONS DE JOUER : deux formats, deux tirages, quatre modes. Le moteur
@@ -27,42 +28,37 @@ export const CAP = 95_500_000;
  *             mesurée de ce qu'une vraie équipe met sur ces six cases-là
  *             (p25 23 M$, p75 43 M$ sur les 1395 équipes-saisons).
  *
- * Le tirage dit D'OÙ viennent les joueurs qu'on te propose. Dans les deux
- * cas c'est l'UNITÉ ÉQUIVALENTE : on aligne la vraie équipe sortie de la
- * roulette (`autoRoster`, les 23 cases par valeur) et on ne te montre que
- * ce qu'elle met à la place que tu combles. Ton premier trio se bâtit avec
- * des joueurs de premier trio, ta troisième paire avec des joueurs de
- * troisième paire. Il n'y a plus de vestiaire de trente cartes où l'on
- * cueille l'aubaine du fond de banc pour l'aligner en haut.
- *   VESTIAIRE  la roulette sort UNE équipe et te montre son unité
- *              équivalente entière — un trio, une paire, ses deux gardiens,
- *              ses trois réservistes. Tu en signes un. Pas de relance : ce
- *              qui sort, tu le joues.
+ * Le tirage dit D'OÙ viennent les joueurs qu'on te propose :
+ *   VESTIAIRE  le jeu d'origine. La roulette sort UNE équipe et tout son
+ *              vestiaire ; tu signes un joueur, n'importe lequel, pour
+ *              n'importe quelle case libre, et elle tourne. Six relances
+ *              d'année, six d'équipe, quatre passes (REROLLS). C'est la
+ *              chasse aux aubaines, et JP y tient : « fallait pas enlever
+ *              l'ancien mode de jeu ».
  *   LOTO       la roulette sort TROIS équipes et te montre, de chacune, le
  *              joueur de LA case exacte — l'ailier gauche du premier trio
- *              de trois clubs. Tu en choisis un. Les relances relancent les
- *              trois d'un coup, et elles sont comptées.
+ *              de trois clubs, alignés par valeur (`autoRoster`). Tu en
+ *              choisis un. Les relances relancent les trois d'un coup, et
+ *              elles sont comptées.
  */
 export const MODES = {
   CLASSIQUE: {
     nom: 'Classique', format: 'COMPLET', tirage: 'VESTIAIRE', cap: CAP, renfort: false, loto: false, relances: 0,
-    desc: 'Vingt-trois joueurs, un par tour, chacun pris dans l\'unité équivalente d\'une vraie équipe. Aucune relance.',
+    desc: 'Vingt-trois joueurs, un par tour, dans le vestiaire d\'une vraie équipe. Six relances d\'année, six d\'équipe, quatre passes.',
   },
   LOTO: {
     nom: 'Loto', format: 'COMPLET', tirage: 'LOTO', cap: CAP, renfort: false, loto: true, relances: 8,
     desc: 'Vingt-trois cases, et pour chacune le même joueur de trois équipes : tu choisis. Huit relances.',
   },
   EXPRESS: {
-    nom: 'Express', format: 'EXPRESS', tirage: 'VESTIAIRE', cap: 34_000_000, renfort: false, loto: false, relances: 0,
-    desc: 'Un trio, une paire, un partant, pris dans les unités équivalentes. Le reste vient d\'une vraie équipe.',
+    nom: 'Express', format: 'EXPRESS', tirage: 'VESTIAIRE', cap: 34_000_000, renfort: true, loto: false, relances: 0,
+    desc: 'Un trio, une paire, un partant, pris dans le vestiaire d\'une vraie équipe à chaque tour. Le reste vient d\'une autre vraie équipe.',
   },
   LOTO_EXPRESS: {
-    nom: 'Loto express', format: 'EXPRESS', tirage: 'LOTO', cap: 34_000_000, renfort: false, loto: true, relances: 3,
+    nom: 'Loto express', format: 'EXPRESS', tirage: 'LOTO', cap: 34_000_000, renfort: true, loto: true, relances: 3,
     desc: 'Six cases, trois candidats pour chacune, trois relances. Le reste vient d\'une vraie équipe.',
   },
 };
-MODES.EXPRESS.renfort = true;
-MODES.LOTO_EXPRESS.renfort = true;
 
 /** La clé de mode pour un format et un tirage donnés. */
 export function modeDe(format, tirage) {
@@ -75,25 +71,15 @@ export function casesDuMode(mode) {
   return SLOTS.filter(s => !s.scratch && s.unit === 0 && (s.group === 'F' || s.group === 'D' || s.group === 'G'));
 }
 
-/**
- * L'unité d'une case : ce qui sort ensemble de l'alignement équivalent d'une
- * équipe. Un trio, une paire, les deux gardiens, les trois réservistes.
- */
+/** L'unité d'une case : un trio, une paire, les deux gardiens, les trois réservistes. */
 export const uniteDeCase = s => !s ? '' : s.scratch ? 'R' : s.group === 'G' ? 'G' : `${s.group}${s.unit}`;
 
 /**
- * L'UNITÉ ÉQUIVALENTE d'un vestiaire : ce que cette vraie équipe, alignée
- * par valeur, met aux cases de l'unité demandée. C'est la main qu'on te
- * tend en tirage VESTIAIRE. `exclude` retire les joueurs déjà signés, donc
- * un club qui ressort après qu'on lui a pris son centre montre son trio
+ * Le joueur que cette équipe met à CETTE case, une fois alignée par valeur :
+ * la main du tirage LOTO. `exclude` retire les joueurs déjà signés, donc un
+ * club qui ressort après qu'on lui a pris son centre montre son alignement
  * recomposé, comme il l'aurait fait.
  */
-export function uniteEquivalente(pool, unite, exclude = new Set()) {
-  const roster = autoRoster(pool, exclude);
-  return SLOTS.filter(s => uniteDeCase(s) === unite).map(s => roster[s.i]).filter(Boolean);
-}
-
-/** Le joueur que cette équipe met à CETTE case : la main du tirage LOTO. */
 export function joueurEquivalent(pool, slot, exclude = new Set()) {
   if (!slot) return null;
   return autoRoster(pool, exclude)[slot.i] || null;

@@ -667,18 +667,155 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   white-space: nowrap;
 }
 
-/* ---------------------------------------------------------------
-   La main — cartes de joueurs
-   --------------------------------------------------------------- */
+.pool-tools { display: flex; gap: 7px; flex-wrap: nowrap; }
+/*
+ * DEUX RANGÉES AVANT LES CARTES, PAS QUATRE. Sur téléphone, le titre du
+ * volet répète l'onglet du bas (« Vestiaire · 27 »), et la bascule, la
+ * recherche et le tri prenaient chacun leur rangée. Le titre s'efface donc
+ * tant qu'il y a des onglets, la bascule devient deux icônes, le tri
+ * raccourcit ses libellés, et les trois tiennent sur une ligne au-dessus
+ * des sept pastilles.
+ */
+@media (max-width: 1079.98px) {
+  .pane-title { display: none; }
+  .pool-tools { min-width: 0; }
+  .pool-tools > * { min-width: 0; }
+  .search { flex: 1 1 0; }
+  .seg-view { flex: none; }
+  .seg-view .lbl { display: none; }
+  .seg-view button { padding: 4px 9px; }
+  .select { flex: 0 1 auto; max-width: 108px; padding-left: 7px; padding-right: 4px; }
+}
+.seg-view .ico { width: 15px; height: 15px; }
+.seg-view button { display: inline-flex; align-items: center; gap: 5px; }
+
+.search {
+  flex: 1 1 120px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-s);
+  padding: 0 9px;
+  min-height: 36px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.search:focus-within { border-color: var(--ui-accent); }
+.search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  padding: 8px 0;
+  font-size: 12.5px;
+}
+.search input::placeholder { color: var(--muted); }
+
+.select {
+  flex: 0 1 auto;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-s);
+  padding: 8px 9px;
+  min-height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sub);
+}
+.select:focus { border-color: var(--ui-accent); outline: none; }
+
+/* Filtres de position */
+
+.filters {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 9px;
+  scrollbar-width: none;
+}
+.filters::-webkit-scrollbar { display: none; }
 
 /*
- * LA MAIN EST UNE RANGÉE DE DEUX OU TROIS CARTES, pas un vestiaire de
- * trente. Le tri, la recherche, les sept pastilles de position et les six
- * colonnes qu'on balayait du doigt sont partis avec lui : on ne cherche pas
- * dans trois cartes, on les lit. Une colonne sur téléphone, les cartes de
- * front dès que le volet est assez large — un trio tient sur une ligne.
- * Le conteneur reste nommé : la carte s'y mesure.
+ * SEPT PASTILLES DANS 390 PX. Avec les libellés courts elles réclamaient
+ * encore 512 px sur une rangée de 342 : la rangée défilait, et les gardiens
+ * — la position la plus rare et la plus chère à combler — vivaient hors de
+ * l'écran. On les met donc sur une grille de sept colonnes égales et on
+ * empile le compteur sous le sigle : chaque pastille devient un onglet de
+ * poste avec sa jauge, tout tient, rien ne défile.
  */
+@container pool (max-width: 559.98px) {
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+  }
+  .chip {
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    padding: 5px 2px;
+    min-height: 42px;
+    border-radius: var(--r-s);
+    font-size: 11px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .chip .chip-need { padding: 0 3px; font-size: 9px; background: none; }
+  .chip.on .chip-need { background: none; }
+}
+.chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  min-height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--sub);
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.chip:hover { border-color: var(--ui-accent); color: var(--text); }
+.chip.on {
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: var(--ui-on-accent);
+}
+.chip-need {
+  font-size: 9.5px;
+  font-weight: 900;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.chip.on .chip-need { background: rgba(0, 0, 0, 0.22); }
+.chip .chip-need.full { color: var(--green); }
+.chip.on .chip-need.full { color: #04321a; background: rgba(255, 255, 255, 0.5); }
+
+/* ---------------------------------------------------------------
+   Bassin — cartes de joueurs
+   --------------------------------------------------------------- */
+
+/* EN TIRAGE LOTO, LA MAIN EST UNE RANGÉE DE TROIS CARTES, pas un vestiaire :
+   le tri, la recherche et les sept pastilles n'y servent à rien et se
+   cachent ; le titre du volet reste. Le vestiaire complet du tirage
+   Vestiaire garde tout, comme avant. */
+.pane-pool.loto .pool-tools, .pane-pool.loto .filters { display: none; }
+.pane-pool.loto .pane-title { display: flex; }
+
 .pane-pool { container-type: inline-size; container-name: pool; }
 
 .pool {
@@ -689,12 +826,159 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   align-items: start;
 }
 
+/*
+ * LE BASSIN SE LIT DE DEUX FAÇONS, et le bouton « Par poste / Tous » choisit.
+ *
+ * En liste, les cartes coulent dans la grille : c'est la vue du chasseur
+ * d'aubaine, tous les joueurs mêlés dans l'ordre du tri.
+ *
+ * Par poste, six colonnes. Sur grand écran elles sont côte à côte. Sur
+ * téléphone elles deviennent une BANDE QU'ON BALAIE : les six sections
+ * empilées faisaient six écrans de haut, et il fallait dérouler tout un
+ * poste pour voir le suivant. Une colonne par écran, on glisse.
+ */
+.pool-col { display: contents; }
+
+/* ---- la bande qu'on balaie : sous le seuil des vraies colonnes ---- */
+@container pool (max-width: 999.98px) {
+  .pool.by-pos {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    /* Le débordement est celui de CETTE bande, jamais celui de la page :
+       on la déborde volontairement des marges du volet pour que la colonne
+       suivante affleure le bord de l'écran. */
+    margin: 0 calc(-1 * var(--pane-pad, 12px));
+    padding: 0 var(--pane-pad, 12px) 4px;
+    scroll-padding: 0 var(--pane-pad, 12px);
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .pool.by-pos::-webkit-scrollbar { display: none; }
+  .pool.by-pos .pool-col {
+    /* 87 % : la colonne suivante affleure. C'est l'affordance du balayage,
+       et elle ne coûte pas une ligne de JavaScript — sans ce bout de colonne
+       visible, rien ne dit qu'il y en a cinq autres à droite. */
+    flex: 0 0 87%;
+    max-width: 340px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    container-type: inline-size;
+    container-name: col;
+  }
+  .pool.by-pos .pool-col-head {
+    grid-column: auto;
+    margin: 0;
+    padding: 7px 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid currentColor;
+    border-radius: var(--r-s);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .pool.by-pos .pool-col-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+  }
+}
+
+.pool-col-head.pos-f, .pool-col-head.pos-d, .pool-col-head.pos-g { background: none; }
+.pool-col-head.pos-f { color: #38bdf8; }
+.pool-col-head.pos-d { color: #a78bfa; }
+.pool-col-head.pos-g { color: #fbbf24; }
+.pool-col-head .pool-col-title { color: currentColor; }
+.pool-col-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 5px 2px 5px 9px;
+  border-bottom: 1px solid var(--line-soft);
+  border-left: 3px solid currentColor;
+  border-radius: 2px 0 0 2px;
+}
+.pool-col:first-of-type .pool-col-head { margin-top: 0; }
+.pool-col-title {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--sub);
+}
+.pool-col-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pool-col-cards { display: contents; }
+.empty-msg.small { padding: 10px 4px; font-size: 11px; }
+
+/* Deux à trois cartes de front dès que le volet est un peu large */
 @container pool (min-width: 560px) {
   .pool { grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); }
 }
 
+/* Grand écran : six vraies colonnes, une par position, chacune défilant
+   avec la page et gardant son en-tête en tête de colonne. */
+@container pool (min-width: 1000px) {
+  .pool.by-pos { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
+  .pool.by-pos .pool-col {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    container-type: inline-size;
+    container-name: col;
+  }
+  .pool.by-pos .pool-col-head {
+    grid-column: auto;
+    margin: 0;
+    padding: 6px 9px;
+    min-height: 42px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-bottom: 2px solid var(--pos-line, var(--line));
+    border-radius: var(--r-s);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .pool.by-pos .pool-col-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+  }
+  .pool.by-pos .pool-col:nth-child(1) .pool-col-head,
+  .pool.by-pos .pool-col:nth-child(2) .pool-col-head,
+  .pool.by-pos .pool-col:nth-child(3) .pool-col-head { --pos-line: #7dd3fc; }
+  .pool.by-pos .pool-col:nth-child(4) .pool-col-head,
+  .pool.by-pos .pool-col:nth-child(5) .pool-col-head { --pos-line: #c4b5fd; }
+  .pool.by-pos .pool-col:nth-child(6) .pool-col-head { --pos-line: #fcd34d; }
+}
+
 /* Les règles de colonne étroite vivent après les règles de base de la carte,
    plus bas : voir « COLONNE ÉTROITE ». */
+
 
 
 
@@ -1450,6 +1734,8 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   transition: background .15s, color .15s;
 }
 .seg button.on { background: var(--ui-accent); color: var(--ui-on-accent); }
+.seg-view { flex: none; padding: 2px; }
+.seg-view button { flex: none; min-height: 28px; padding: 4px 10px; font-size: 11px; }
 /* Le bascule d'affichage du bassin vit dans la barre d'outils, pas dans une
    modale : c'est un geste de lecture, pas un réglage. Il est donc plus petit
    que les segments des options. */
@@ -2129,6 +2415,9 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .pane { --pane-pad: 14px; }
   .pane-head { flex-direction: row; align-items: center; justify-content: space-between; }
   .pane-title { flex: none; }
+  /* La bascule d'affichage s'ajoute à la recherche et au tri : 460 px les
+     faisaient passer sur deux rangées. */
+  .pool-tools { flex: 1; justify-content: flex-end; max-width: 620px; }
   .modal-backdrop { align-items: center; padding: 20px; }
   .modal-sheet { border-radius: var(--r-l); max-height: 88vh; }
   .opt-row { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }

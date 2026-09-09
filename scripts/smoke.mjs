@@ -5,8 +5,9 @@
  *   node scripts/smoke.mjs http://localhost:8000
  *
  * 1. la page démarre, #game visible
- * 2. auto-draft jusqu'à 23/23 dans la main de chaque tour (tirage VESTIAIRE,
- *    donc sans relance ; #freeCapBtn en dernier recours)
+ * 2. auto-draft jusqu'à 23/23 dans le vestiaire de chaque tour (tirage
+ *    VESTIAIRE : relances quand rien ne tient dans le budget, #freeCapBtn en
+ *    dernier recours)
  * 3. #mainBtn actif, clic : .result .score et 23 .rrow
  * 4. zéro erreur console
  * 5. le même parcours en tirage LOTO (#rrL quand rien ne tient dans le budget)
@@ -69,8 +70,10 @@ async function drafter(etiquette) {
     // budget fait l'affaire, l'auto-draft ne juge pas.
     let idx = infos.findIndex(c => c.ok && c.price <= maxPick);
     if (idx < 0) {
-      // Rien de sûr : en loto on relance, sinon on prend le moins cher
-      const rr = await page.$('#rrL:not([disabled])');
+      // Rien de sûr : on relance (les trois clubs en loto ; passer, autre
+      // équipe ou autre année en vestiaire), sinon on prend le moins cher
+      const rr = await page.$('#rrL:not([disabled])') || await page.$('#rrP:not([disabled])')
+        || await page.$('#rrT:not([disabled])') || await page.$('#rrS:not([disabled])');
       if (rr) { await rr.click(); await page.waitForTimeout(260); signed = await lireSignes(); continue; }
       let best = -1, bestPrice = Infinity;
       infos.forEach((c, i) => { if (c.ok && c.price < bestPrice) { best = i; bestPrice = c.price; } });
