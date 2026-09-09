@@ -10,7 +10,7 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe } from './sim.js';
+import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles } from './sim.js';
 import { recitDeBut, recitDeMatch, recitDeSaison, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { diffuserSeries } from './direct.js';
@@ -174,10 +174,12 @@ function brancherPalmares(host, stats, mode) {
 function calendrierHtml(calendrier, jour) {
   const j = calendrier[jour];
   if (!j) return '';
-  const carte = m => {
+  const carte = (m, k) => {
     const gagneA = m.gfA > m.gfB;
     const eq = (t, buts, gagne) => `<div class="cal-eq ${gagne ? 'win' : 'lose'}${t.isPlayer ? ' toi' : ''}">${getTeamLogoHtml(t.tag, 16)}${lienEquipe(t, 'saison', `<span>${esc(tagCourt(t))}</span>`)}<b>${buts}</b></div>`;
-    return `<div class="cal-match${m.A.isPlayer || m.B.isPlayer ? ' toi' : ''}">${eq(m.A, m.gfA, gagneA)}${eq(m.B, m.gfB, !gagneA)}${m.ot ? '<span class="cal-ot">P</span>' : ''}</div>`;
+    // Chaque match de saison a sa feuille : la carte ouvre son sommaire.
+    const somm = m.feuille ? ` data-sommaire="saison|${jour}|${k}" role="button" tabindex="0" title="Sommaire du match"` : '';
+    return `<div class="cal-match${m.A.isPlayer || m.B.isPlayer ? ' toi' : ''}${m.feuille ? ' ouvrable' : ''}"${somm}>${eq(m.A, m.gfA, gagneA)}${eq(m.B, m.gfB, !gagneA)}${m.ot ? '<span class="cal-ot">P</span>' : ''}</div>`;
   };
   return `<div class="cal-grille">${j.map(carte).join('')}</div>`;
 }
@@ -453,22 +455,69 @@ export function runPlayoffs(top16) {
 }
 
 /** Le tableau complet des séries, toutes rondes, tous les matchs cliquables. */
+/*
+ * L'ARBRE DES SÉRIES. Un vrai tableau : les seize équipes aux deux bords,
+ * les rondes qui convergent vers la finale au centre, le champion au-dessus.
+ * Chaque nœud est une petite carte de pointage (deux rangées, le gagnant en
+ * clair, ses victoires en or) et mène au détail de sa série, dessous. La
+ * structure ne suppose rien de l'ordre des séries : on part de la finale et
+ * on remonte, pour chaque équipe, la série qu'elle a gagnée à la ronde
+ * d'avant. Sur téléphone l'arbre se balaie en largeur, comme un tableau.
+ */
+function arbreHtml(n, champion) {
+  const finale = G.series.find(s => s.ronde === n - 1);
+  if (!finale) return '';
+  const nourrit = (s, t) => G.series.find(x => x.ronde === s.ronde - 1 && x.winner === t) || null;
+  // Les colonnes d'un côté : [ronde n-2, ..., ronde 0], chacune dans l'ordre
+  // vertical qui met les deux séries mères sous leur fille.
+  const cote = (s, t) => {
+    const colonnes = Array.from({ length: n - 1 }, () => []);
+    const descendre = (x) => {
+      if (!x) return;
+      colonnes[n - 2 - x.ronde].push(x);
+      descendre(nourrit(x, x.A));
+      descendre(nourrit(x, x.B));
+    };
+    descendre(nourrit(s, t));
+    return colonnes;
+  };
+  const gauche = cote(finale, finale.A), droite = cote(finale, finale.B);
+  const noeud = (s, pos) => {
+    const rangee = (t, w, vain) => `<span class="bk-row ${vain ? 'win' : 'lose'}">${getTeamLogoHtml(t.tag, 16)}<span class="bk-nom">${esc(tagCourt(t))}</span><b>${w}</b></span>`;
+    const gagne = s.winner === s.A;
+    return `<a class="bk-serie ${pos}${s.A.isPlayer || s.B.isPlayer ? ' you' : ''}" href="#serie-${s.i}" title="${esc(teamShort(s.A))} — ${esc(teamShort(s.B))} : le détail de la série">
+      ${rangee(s.A, s.wA, gagne)}${rangee(s.B, s.wB, !gagne)}</a>`;
+  };
+  const colonne = (liste, pos, r) => `<div class="bk-col ${pos}" data-ronde="${r}"><div class="bk-ronde">${esc(RONDES[r] ? RONDES[r].replace('Finale de la Coupe Stanley', 'Finale') : `Ronde ${r + 1}`)}</div><div class="bk-noeuds">${liste.map(s => noeud(s, pos)).join('')}</div></div>`;
+  const colsG = gauche.slice().reverse().map((l, k) => colonne(l, 'g', k)).join('');
+  const colsD = droite.map((l, k) => colonne(l, 'd', n - 2 - k)).join('');
+  return `<div class="bracket-scroll"><div class="bracket" style="--rondes:${n}">
+    ${colsG}
+    <div class="bk-col finale"><div class="bk-ronde">Finale</div><div class="bk-noeuds">
+      <div class="bk-champion">${getTeamLogoHtml(champion.tag, 34)}<span class="bk-champ-mot">Champion</span><b>${esc(teamShort(champion))}</b></div>
+      ${noeud(finale, 'f')}</div></div>
+    ${colsD}
+  </div></div>`;
+}
+
 function dessinerTableauDesSeries(host, n, champion) {
   let html = `<div class="result-section"><h3>${ico('i-cup')}Séries éliminatoires</h3>
-    <p class="series-legende">Touche un match pour son sommaire.
+    <p class="series-legende">Touche une série de l'arbre pour son détail, un match pour son sommaire.
       <span class="lg lg-or">or</span> le match qui a réglé la série ·
-      <span class="lg lg-ot">rose</span> réglé en prolongation</p>`;
+      <span class="lg lg-ot">rose</span> réglé en prolongation</p>
+    ${arbreHtml(n, champion)}
+    <div class="champion">
+      <h3>Champion de la Coupe Stanley</h3>
+      <div class="champ-name">${getTeamLogoHtml(champion.tag, 30)} ${esc(teamLabel(champion))}</div>
+      <p>${champion.isPlayer ? 'Les NHL Stars soulèvent la Coupe. 🏆' : 'Les NHL Stars sont tombés en chemin. Rebâtis et réessaie.'}</p>
+    </div>`;
   for (let r = 0; r < n; r++) {
     const dedans = G.series.filter(s => s.ronde === r);
     html += `<div class="series-round"><h4>${esc(RONDES[r] || `Ronde ${r + 1}`)}</h4><div class="series-grid">`;
     for (const s of dedans) html += serieHtml(s);
     html += '</div></div>';
   }
-  html += `<div class="champion">
-    <h3>Champion de la Coupe Stanley</h3>
-    <div class="champ-name">${getTeamLogoHtml(champion.tag, 30)} ${esc(teamLabel(champion))}</div>
-    <p>${champion.isPlayer ? 'Les NHL Stars soulèvent la Coupe. 🏆' : 'Les NHL Stars sont tombés en chemin. Rebâtis et réessaie.'}</p>
-  </div></div>`;
+  html += '</div>';
 
   // Les statistiques des séries, à part de celles de la saison : les seize
   // équipes, tous ceux qui ont joué un match. Le titre dit lesquelles.
@@ -531,31 +580,96 @@ function serieHtml(s) {
   const rangee = (t, w, vain) => `<div class="series-row ${vain ? 'win' : 'lose'}">
     ${teamCell(t, 15)}<span>${w}</span></div>`;
   const matchs = s.feuilles.map((f, i) => matchCardHtml(s, f, i)).join('');
-  return `<div class="series ${s.A.isPlayer || s.B.isPlayer ? 'you' : ''}">
+  return `<div class="series ${s.A.isPlayer || s.B.isPlayer ? 'you' : ''}" id="serie-${s.i}">
     ${rangee(s.A, s.wA, gagne)}${rangee(s.B, s.wB, !gagne)}
     <div class="serie-recit">${esc(recitDeSerie(Math.max(s.wA, s.wB), Math.min(s.wA, s.wB), nomV, nomP, s.feuilles))}</div>
     <div class="serie-games">${matchs}</div>
   </div>`;
 }
 
-/** Le sommaire d'un match : buts période par période, tirs, gardiens, récit. */
+/** Le sommaire d'un match de séries : le compte d'avant vient des rondes d'avant et des matchs d'avant. */
 function showGameModal(iSerie, iMatch) {
   const s = G.series[iSerie];
   if (!s) return;
-  const f = s.feuilles[iMatch];
-  const A = s.A, B = s.B;
+  const avant = compterFeuilles(G.series.filter(x => x.ronde < s.ronde).flatMap(x => x.feuilles));
+  compterFeuilles(s.feuilles.slice(0, iMatch), avant);
+  sommaireDeMatch({
+    f: s.feuilles[iMatch], A: s.A, B: s.B, mode: 'series', avant,
+    titre: `Match ${iMatch + 1}`, pied: `après ${iMatch + 1} match${iMatch ? 's' : ''} : ${s.feuilles[iMatch].serie}`,
+  });
+}
+
+/** Le sommaire d'un match de saison, depuis le calendrier : le compte d'avant, ce sont les journées d'avant. */
+function sommaireDeSaison(jour, k) {
+  const cal = G.ligue && G.ligue.calendrier;
+  const m = cal && cal[jour] && cal[jour][k];
+  if (!m || !m.feuille) return;
+  const avant = compterFeuilles(cal.slice(0, jour).flat().map(x => x.feuille));
+  sommaireDeMatch({ f: m.feuille, A: m.A, B: m.B, mode: 'saison', avant, titre: `Journée ${jour + 1}`, pied: 'saison régulière' });
+}
+
+// Tout ce qui porte `data-sommaire` ouvre un sommaire : « saison|jour|k »
+// ou « series|iSerie|iMatch ». Un seul écouteur, comme pour les fiches.
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-sommaire]');
+  if (!el || ev.target.closest('.lien-joueur, .lien-equipe')) return;
+  const [quoi, a, b] = el.dataset.sommaire.split('|');
+  if (quoi === 'saison') sommaireDeSaison(Number(a), Number(b));
+  else if (quoi === 'series') showGameModal(Number(a), Number(b));
+});
+document.addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter' && ev.key !== ' ') return;
+  const el = ev.target.closest && ev.target.closest('[data-sommaire]');
+  if (!el) return;
+  ev.preventDefault();
+  el.click();
+});
+
+/* « 1er », « 12e » : le rang d'un but ou d'une passe. */
+const ord = n => (n === 1 ? '1er' : `${n}e`);
+const ordF = n => (n === 1 ? '1re' : `${n}e`);
+
+/** La clé `data-sommaire` d'une feuille, qu'elle vienne du calendrier ou des séries ; null sinon. */
+export function cleDeSommaire(feuille) {
+  if (!feuille) return null;
+  const cal = G.ligue && G.ligue.calendrier;
+  if (cal) for (let j = 0; j < cal.length; j++) {
+    const k = cal[j].findIndex(m => m.feuille === feuille);
+    if (k >= 0) return `saison|${j}|${k}`;
+  }
+  for (const s of G.series || []) {
+    const k = s.feuilles.indexOf(feuille);
+    if (k >= 0) return `series|${s.i}|${k}`;
+  }
+  return null;
+}
+
+/**
+ * Le sommaire d'un match : buts période par période, tirs, gardiens, récit.
+ * `avant` est le compte des feuilles d'avant ce match (compterFeuilles), pour
+ * dire « (12e) » après le marqueur et chaque passeur — le rang du but ou de
+ * la passe dans la saison ou dans les séries, comme au tableau indicateur.
+ */
+function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = '', pied = '' }) {
   const tirsA = tirsTotal(f, 'A'), tirsB = tirsTotal(f, 'B');
-  const nomA = teamLabel(A), nomB = teamLabel(B);
+  const compte = new Map();
+  const rang = (p, cle) => { const c = avant.get(p); const k = `${cle}|${getPlayerKey(p)}`; compte.set(k, (compte.get(k) || 0) + 1); return (c ? c[cle] : 0) + compte.get(k); };
+  // Les buts se comptent dans l'ordre du temps, quelle que soit la période affichée.
+  const rangs = new Map();
+  for (const b of f.buts.slice().sort((x, y) => x.instant - y.instant)) {
+    rangs.set(b, { g: b.marqueur ? rang(b.marqueur, 'g') : 0, a: (b.passeurs || []).map(p => rang(p, 'a')) });
+  }
 
   const parPeriode = [1, 2, 3, 4].map(per => {
-    const buts = f.buts.filter(b => periodeDe(b.instant) === per).map(b => ({ ...b, type: 'but' }));
+    const buts = f.buts.filter(b => periodeDe(b.instant) === per).map(b => ({ ...b, type: 'but', rang: rangs.get(b) }));
     const punitions = (f.punitions || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'punition' }));
     if (!buts.length && per === 4) return '';
     const items = [...buts, ...punitions].sort((x, y) => x.instant - y.instant);
     const lignes = items.map(b => {
       const t = b.cote === 'A' ? A : B;
       // Chaque nom ouvre la fiche avec ses statistiques des SÉRIES.
-      const lien = p => lienJoueur(p, t, 'series', `<strong>${formatName(p.n)}</strong>`);
+      const lien = p => lienJoueur(p, t, mode, `<strong>${formatName(p.n)}</strong>`);
+      const r = b.rang || { g: 0, a: [] };
       if (b.type === 'punition') {
         return `<div class="som-but som-pun">
           <span class="som-tps">${tempsDeJeu(b.instant)}</span>
@@ -564,13 +678,13 @@ function showGameModal(iSerie, iMatch) {
         </div>`;
       }
       const aides = b.passeurs.length
-        ? `<span class="som-aides">${b.passeurs.map(p => lienJoueur(p, t, 'series', esc(p.n))).join(', ')}</span>`
+        ? `<span class="som-aides">${b.passeurs.map((p, k) => `${lienJoueur(p, t, mode, esc(p.n))} <span class="som-xe">(${ordF(r.a[k] || 0)})</span>`).join(', ')}</span>`
         : '<span class="som-aides sans">sans aide</span>';
       const situation = b.an ? '<span class="som-sit an">AN</span>' : b.dn ? '<span class="som-sit dn">DN</span>' : '';
       return `<div class="som-but">
         <span class="som-tps">${tempsDeJeu(b.instant)}</span>
         <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
-        <span class="som-qui">${situation}${lien(b.marqueur)} ${aides}</span>
+        <span class="som-qui">${situation}${lien(b.marqueur)} <span class="som-xe">(${ord(r.g)})</span> ${aides}</span>
         <span class="som-recit">${esc(recitDeBut(b))}</span>
       </div>`;
     }).join('') || '<div class="som-vide">Aucun but.</div>';
@@ -581,13 +695,13 @@ function showGameModal(iSerie, iMatch) {
   }).join('');
 
   const gard = (g, arrets, tirs, t) => g
-    ? `<div class="som-gard"><span>${lienJoueur(g, t, 'series')}</span><span>${arrets} arrêts sur ${tirs}</span></div>`
+    ? `<div class="som-gard"><span>${lienJoueur(g, t, mode)}</span><span>${arrets} arrêts sur ${tirs}</span></div>`
     : '';
 
   /* Le titre ne répète pas le pointage : les deux lignes juste dessous le
      donnent, avec les écusson et les tirs. Trois lignes de titre sur un
      téléphone repoussaient le sommaire sous le pli pour rien. */
-  $('gameModalTitle').innerHTML = `Match ${iMatch + 1} · ${esc(teamShort(A))} — ${esc(teamShort(B))}`
+  $('gameModalTitle').innerHTML = `${esc(titre)} · ${esc(teamShort(A))} — ${esc(teamShort(B))}`
     + (f.ot ? ' <span class="som-ot">prolongation</span>' : '');
   $('gameModalBody').innerHTML = `
     <div class="som-recap">${esc(recitDeMatch(f, teamShort(A), teamShort(B), tirsA, tirsB))}</div>
@@ -597,7 +711,7 @@ function showGameModal(iSerie, iMatch) {
     </div>
     ${parPeriode}
     <div class="som-per">
-      <div class="som-per-head"><span>Gardiens</span><span class="som-tirs">après ${iMatch + 1} match${iMatch ? 's' : ''} : ${f.serie}</span></div>
+      <div class="som-per-head"><span>Gardiens</span><span class="som-tirs">${esc(pied)}</span></div>
       ${gard(f.gardienA, f.arrets.A, tirsB, A)}
       ${gard(f.gardienB, f.arrets.B, tirsA, B)}
     </div>`;

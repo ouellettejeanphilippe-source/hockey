@@ -28,7 +28,7 @@ import {
 } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamBand, teamSeasonUrl } from './logos.js';
 import { diffuserSaison } from './direct.js';
-import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt } from './bilan.js';
+import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire } from './bilan.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -1985,12 +1985,13 @@ function showTeamModal(t, mode = 'saison') {
     <td class="stat">${S.SO || 0}</td></tr>`;
 
   const journal = mode === 'series' ? (t.poJournal || []) : (t.journal || []);
-  const resultats = journal.map(m => `<tr class="${m.win ? 'gagne' : 'perdu'}">
+  // Chaque match de la liste ouvre son sommaire, quand sa feuille existe.
+  const resultats = journal.map(m => { const cle = cleDeSommaire(m.feuille); return `<tr class="${m.win ? 'gagne' : 'perdu'}${cle ? ' ouvrable' : ''}"${cle ? ` data-sommaire="${esc(cle)}" title="Sommaire du match"` : ''}>
     <td class="sub-cell">${m.n}</td>
     <td class="left"><div class="team-cell">${getTeamLogoHtml(m.adv.tag, 14)}${lienEquipe(m.adv, mode, `<span>${esc(teamLabel(m.adv))}</span>`)}</div></td>
     <td class="stat ${m.win ? 'v' : 'd'}">${m.win ? 'V' : m.ot ? 'DP' : 'D'}</td>
     <td class="stat">${m.gf}-${m.ga}${m.ot ? ' <small>P</small>' : ''}</td>
-    <td class="sub-cell">${m.gardien ? esc(m.gardien.n) : ''}</td></tr>`).join('');
+    <td class="sub-cell">${m.gardien ? esc(m.gardien.n) : ''}</td></tr>`; }).join('');
 
   const bilan = mode === 'series' && t.po ? t.po : t;
   $('gameModalTitle').innerHTML = `${getTeamLogoHtml(t.tag, 20)} ${esc(teamLabel(t))} <span class="som-ot">${mode === 'series' ? 'séries' : `${bilan.W}-${bilan.L}-${bilan.OTL} · ${bilan.PTS} pts`}</span>`;

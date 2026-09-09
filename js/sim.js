@@ -1634,8 +1634,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     updateTogether(A, LA); updateTogether(B, LB);
     // Le journal de la saison : ce qu'il faut pour raconter une séquence,
     // un début de saison, une raclée. Le moteur n'y lit jamais rien.
-    if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA });
-    if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB });
+    if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
+    if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB, feuille: journal });
   }
   applyInjuries(A, LA, heavy); applyInjuries(B, LB, heavy);
   if (track) { A.games++; B.games++; }
@@ -1842,8 +1842,14 @@ export function simulateLeague(teams, games = 82, { graine = null } = {}) {
     const order = shuffle(teams.slice());
     const jour = [];
     for (let i = 0; i < order.length; i += 2) {
-      const res = playGame(order[i], order[i + 1], r);
-      jour.push({ A: order[i], B: order[i + 1], gfA: res.gfA, gfB: res.gfB, ot: res.ot });
+      // CHAQUE MATCH DE SAISON GARDE SA FEUILLE, comme un match de séries :
+      // ses buts avec leurs passeurs, ses gardiens, ses tirs par période.
+      // C'est ce qui permet de lire les statistiques de la ligue à n'importe
+      // quelle journée, d'ouvrir le sommaire d'un match du calendrier, et
+      // de dire « son 12e but » quand il compte.
+      const feuille = feuilleVierge();
+      const res = playGame(order[i], order[i + 1], r, true, false, feuille);
+      jour.push({ A: order[i], B: order[i + 1], gfA: res.gfA, gfB: res.gfB, ot: res.ot, feuille });
     }
     calendrier.push(jour);
   }
@@ -1924,6 +1930,38 @@ export function feuilleVierge() {
 
 /** Tirs d'un côté, toutes périodes confondues. */
 export const tirsTotal = (feuille, cote) => feuille.tirs[cote].reduce((a, b) => a + b, 0);
+
+/**
+ * CE QUE DES FEUILLES DE MATCH DISENT DE CHAQUE JOUEUR, cumulé : buts,
+ * passes, points des patineurs ; matchs, victoires, tirs reçus, arrêts et
+ * buts alloués des gardiens. La clé est l'objet joueur. `compte` se passe
+ * d'un appel à l'autre pour cumuler jour après jour, ou match après match,
+ * sans tout relire.
+ */
+export function compterFeuilles(feuilles, compte = new Map()) {
+  const de = p => {
+    let c = compte.get(p);
+    if (!c) { c = { g: 0, a: 0, pts: 0, gp: 0, w: 0, sa: 0, sv: 0, ga: 0 }; compte.set(p, c); }
+    return c;
+  };
+  for (const f of feuilles) {
+    if (!f) continue;
+    for (const b of f.buts) {
+      if (b.marqueur) { const c = de(b.marqueur); c.g++; c.pts++; }
+      for (const a of b.passeurs || []) { const c = de(a); c.a++; c.pts++; }
+    }
+    for (const cote of ['A', 'B']) {
+      const g = cote === 'A' ? f.gardienA : f.gardienB;
+      if (!g) continue;
+      const c = de(g);
+      const contre = cote === 'A' ? 'B' : 'A';
+      const alloues = f.buts.filter(b => b.cote === contre && b.gardien === g).length;
+      c.gp++; c.ga += alloues; c.sv += f.arrets[cote] || 0; c.sa += (f.arrets[cote] || 0) + alloues;
+      if (f.vainqueur === cote) c.w++;
+    }
+  }
+  return compte;
+}
 
 /**
  * Série 4 de 7 entre deux équipes. Les blessures et l'usure s'appliquent
