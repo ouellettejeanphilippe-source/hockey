@@ -882,8 +882,17 @@ export const DISCIPLINE_MAX = 1.8;
 export const periodeDe = t => (t < 20 ? 1 : t < 40 ? 2 : t < 60 ? 3 : 4);
 
 /** Un but reçoit une passe principale, puis parfois une secondaire. */
-export const P_PASSE_1 = 0.85;
-export const P_PASSE_2 = 0.62;
+export const P_PASSE_1 = 0.95;   // réel : 1,66 passe par but sur 55 saisons (0,95 + 0,95 × 0,75 = 1,66)
+export const P_PASSE_2 = 0.75;
+/*
+ * LE POIDS D'UN DÉFENSEUR DANS LE TIRAGE DES PASSEURS. La propension est la
+ * part de passes dans les points, RELATIVE — un défenseur en a une haute par
+ * nature — et deux des quatre coéquipiers sur la glace sont des défenseurs :
+ * à 0,7 ils récoltaient 45 % des passes de la ligue contre 29,7 % réels sur
+ * 55 saisons (27 % en 1975-76, 31 % en 2024-25), et Bowen Byram finissait à
+ * 94 points. Réglé sur la mesure : 0,3 donne 29,7 %.
+ */
+export const PASSE_D = 0.3;
 
 /** Volume de tirs et finition d'un rappel de la ligue mineure. */
 const RAPPEL_LANCERS = 0.70;
@@ -956,7 +965,7 @@ export const passesRelDe = passesRel;
 
 /** Propension à la passe : la part de points qu'un joueur récolte en passes. */
 const propensionPasse = p =>
-  ((p.a || 0) / Math.max(1, p.pt || 1) + 0.05) * (p.p === 'D' ? 0.7 : 1);
+  ((p.a || 0) / Math.max(1, p.pt || 1) + 0.05) * (p.p === 'D' ? PASSE_D : 1);
 
 /** Minutes de punition par match d'un patineur, relatives au régulier moyen de sa saison. */
 function punitionsRel(p) {
@@ -1225,9 +1234,20 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const instant = instants[i];
     let tireur = null, unite = null, glace = null;
     if (unitesOff) {
-      const trio = choisirUnite(unitesOff.F);
-      const paire = choisirUnite(unitesOff.D);
-      unite = hasard() < (mode === 'AN' ? PART_LANCERS_D_AN : PART_LANCERS_D) ? paire : trio;
+      // QUI TIRE, ET QUI EST SUR LA GLACE AVEC LUI. L'unité qui tire se tire
+      // au poids offensif (présence × volume × chimie) ; l'AUTRE unité, celle
+      // qui l'accompagne, se tire à la présence seule. Les deux se tiraient
+      // au poids offensif, si bien qu'une première paire qui tire beaucoup
+      // était « sur la glace » pour la majorité des buts pour de l'équipe,
+      // en récoltait les passes et la création, et ne payait que sa part de
+      // présence sur les buts contre : Bourque et Potvin à +144 sur une
+      // équipe à +150, et les défenseurs à +22 % de passes (JP : *+140 quand
+      // t'as genre 80 points c'est cave en sale*). Une paire ne monte pas
+      // avec un trio parce qu'elle tire ; elle est là parce que c'est son tour.
+      const tireDef = hasard() < (mode === 'AN' ? PART_LANCERS_D_AN : PART_LANCERS_D);
+      const trio = tireDef ? choisirPresence(unitesOff.F) : choisirUnite(unitesOff.F);
+      const paire = tireDef ? choisirUnite(unitesOff.D) : choisirPresence(unitesOff.D);
+      unite = tireDef ? paire : trio;
       glace = [...trio.joueurs, ...paire.joueurs];
       // Une unité entièrement blessée ne tire pas : le lancer n'a alors pas
       // lieu du tout, plutôt que de devenir un but sans marqueur — c'est ce
@@ -1717,11 +1737,15 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
     for (const x of [...choisirPresence(def.unites.F).joueurs, ...choisirPresence(def.unites.D).joueurs]) x.simPM--;
   }
   if (!off.unites) return;
-  const trio = choisirUnite(off.unites.F);
-  const paire = choisirUnite(off.unites.D);
+  // Même règle qu'au cinq contre cinq : l'unité qui tire au poids offensif,
+  // l'autre à la présence.
+  const tireDef = hasard() < PART_LANCERS_D;
+  const trio = tireDef ? choisirPresence(off.unites.F) : choisirUnite(off.unites.F);
+  const paire = tireDef ? choisirUnite(off.unites.D) : choisirPresence(off.unites.D);
+  const unite = tireDef ? paire : trio;
   const glace = [...trio.joueurs, ...paire.joueurs];
   if (!glace.length) return;
-  const tireur = weightedPick(glace, p => lancersRel(p) * pctTirRel(p));
+  const tireur = weightedPick(unite.joueurs.length ? unite.joueurs : glace, p => lancersRel(p) * pctTirRel(p));
   const passeurs = [];
   const co = glace.filter(x => x !== tireur);
   let a1 = null;
