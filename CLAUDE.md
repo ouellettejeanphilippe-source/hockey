@@ -17,6 +17,8 @@ Lis `PLAN.md` — il contient l'état exact du projet, ce qui est fait, ce qui r
 ## Structure
 
 ```
+.github/workflows/verifier.yml    Action : à chaque PR, check_graine, check_feuilles
+                            (une ligue) et le test de fumée dans Chromium
 .github/workflows/build-data.yml  Action : bâtit les shards depuis l'API LNH et
                             les commite (modes bios, rerate, seed, full). C'est
                             la voie pour ajouter les dates de naissance quand
@@ -43,8 +45,13 @@ js/recit.js                 les mots du sommaire d'un match : il ne décide de
                             rien, il raconte ce que le moteur a déjà joué
 js/direct.js                les séries en direct : rejoue la feuille d'un match
                             dans le temps, plein écran, un match à la fois
-js/sim.js                   structure de l'alignement + simulation de saison + ligue complète
+js/sim.js                   structure de l'alignement + simulation de saison + ligue complète ;
+                            TOUT son hasard passe par `hasard()`, graine par saison
+js/bilan.js                 le bilan de saison : onglets, palmarès, calendrier, séries et
+                            sommaires ; branché au contrôleur par `brancherBilan`
 js/game.js                  contrôleur d'interface
+sw.js                       travailleur de service : la coquille hors ligne (réseau d'abord),
+                            les portraits en cache ; les shards restent à IndexedDB
 scripts/build_shards.py     aspire l'API LNH, écrit les shards ; --rerate = étage 2 sans API
 scripts/rate.mjs            pont Node vers js/ratings.js (étage 1 + 2)
 scripts/rerate.mjs          étage 2 sur les shards existants (contrats d'entrée, salaires réels)
@@ -66,7 +73,10 @@ scripts/check_suppression.mjs  la défensive de l'alignement : volume de lancers
 scripts/check_neutre.mjs    de quoi est faite l'équipe MOYENNE, une fois alignée
                             (les cinq nombres de REF dans js/sim.js)
 scripts/check_feuilles.mjs  les égalités de la feuille de match, les repères
-                            d'époque, et les totaux des joueurs
+                            d'époque, et les totaux des joueurs (échoue si une
+                            égalité casse : c'est ce que l'Action vérifie)
+scripts/check_graine.mjs    la même graine rejoue-t-elle la même saison ? (un
+                            `Math.random` glissé dans js/sim.js le fait échouer)
 scripts/check_plafond.mjs   le plafond du jeu en victoires et en Coupes
 scripts/check_tireurs.mjs   les deux alignements que la valeur ne voit pas :
                             TIREURS sans zones (~52 V) et PARFAIT (~68-70 V,
@@ -187,6 +197,10 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 **Pas de localStorage pour les données de saison** — trop petit. IndexedDB, comme dans `js/data.js`.
 
 ## Le moteur de match
+
+**Tout le hasard du moteur passe par `hasard()`, et chaque saison porte sa graine.** `js/sim.js` n'appelle jamais `Math.random` directement : `grainerHasard(graine)` remplace le générateur par un sfc32 déterministe, `simulateLeague` tire une graine s'il n'en reçoit pas et la rend (`league.graine`), et le générateur reste en place pour les séries jouées ensuite. La chance de saison (`t.luck`) est tirée SOUS la graine, dans `simulateLeague`, pas à `createTeam` — c'est ce qui a fait échouer le premier essai de `check_graine.mjs`. C'est ce qui rend « Rejouer la saison » et l'historique possibles, et ce qui rend le défi du jour (S1) à portée : il ne manque plus que la roulette. `node scripts/check_graine.mjs` le vérifie à chaque PR.
+
+**Les départs des gardiens se partagent selon la vraie saison des deux** (`partAuxiliaire`, bornée par `PART_AUX_MIN` 0,12 et `PART_AUX_MAX` 0,50). L'auxiliaire jouait un match sur six quel que fût son rôle : un partant qui avait joué 30 matchs en jouait 68, un tandem 1A-1B ne valait rien de plus qu'un partant et un rappel, et la case auxiliaire était de l'argent mort. Mesuré après (`check_monotonie.mjs`, 4 essais) : monotone sur dix déciles, 27,1 / 41,7 / 51,0 (c'était 28,1 / 42,0 / 52,0 ; le dernier décile perd un match parce que les grandes équipes donnent maintenant ses vrais départs à leur second). `check_feuilles.mjs` sur cinq ligues : 28,3 lancers, 3,20 buts, égalités intactes.
 
 **L'événement de base est le lancer, pas le but.** C'est la refonte décrite dans `MOTEUR.md`, et ce qui la motive est mesuré : sur 55 saisons les lancers par équipe par match vont de 27 à 31 (17 % d'amplitude) pendant que les buts varient de 55 %. Le tempo n'a pas bougé, la finition oui. Un match se joue donc lancer par lancer — un tireur, un gardien, deux issues — et toute la feuille de match en découle.
 
@@ -331,11 +345,11 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 
 | décile | victoires simulées | vraies victoires |
 |---|---|---|
-| 1 | 28,1 | 27,5 |
-| 5 | 42,0 | 42,9 |
-| 10 | 52,0 | 56,3 |
+| 1 | 27,1 | 27,5 |
+| 5 | 41,7 | 42,9 |
+| 10 | 51,0 | 56,3 |
 
-(Remesuré après `RATINGS_VERSION` 25 et le centre-d'abord d'`autoRoster` : monotone sur les dix déciles ; c'était 27,6 / 42,9 / 52,3 avant.)
+(Remesuré après le partage des départs des gardiens : monotone sur les dix déciles ; c'était 28,1 / 42,0 / 52,0 après `RATINGS_VERSION` 25 et le centre-d'abord d'`autoRoster`, et 27,6 / 42,9 / 52,3 avant.)
 
 **Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` (avec les unités spéciales) : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **64,3-17,3** en ligue et gagne la Coupe 1 fois sur 3 ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 60,7-18,3 et 1 fois sur 3 (3 ligues chacun, donc du bruit pur sur les Coupes — il en faut 40 pour conclure). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
@@ -348,6 +362,7 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 Si tu changes `POIDS_TRIO`, `POIDS_PAIRE`, `SYN_ECHELLE`, `K_DEFENSE`, `REF`, la courbe du clutch, `ZONE_THRESHOLDS` ou les constantes `ZONE_PEN_*`, refais tourner les quatre et reporte-les ici et dans `PLAN.md` :
 
 ```bash
+node scripts/check_graine.mjs        # la même graine rejoue la même saison
 LIGUES=5 node scripts/check_feuilles.mjs   # les égalités et les repères d'époque
 node scripts/calibrate_sim.mjs       # la table par palier de cote
 node scripts/check_monotonie.mjs     # monotone sur dix déciles
@@ -372,8 +387,11 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 2. Auto-draft conscient du budget : à chaque tour il lit le plafond restant, calcule ce qu'il peut mettre sur ce choix sans passer sous le plancher pour les cases suivantes, et clique le premier `.pcard .btn-sign:not([disabled])` qui tient dans ce budget. Sinon il relance (passer, autre équipe, autre année) ; en dernier recours il clique `#freeCapBtn`, le bouton de la bande de secours qui retire le plus gros contrat
 3. `#mainBtn` devient actif
 4. Cliquer : la saison se rejoue jour par jour dans `#liveModal` (`.live-fin` passe à la fin, `.live-suite` ouvre le bilan), puis `.result .score` affiche une fiche et `.rrow` en compte 23
-5. Le même parcours en tirage Loto (`#rrL` relance quand rien ne tient dans le budget)
-6. Zéro erreur console
+5. « Rejouer la saison » (`#replayBtn`) rejoue le même alignement contre les mêmes clubs, puis l'historique (`.lb-replay`) relit un alignement et repart une saison
+6. Le même parcours en tirage Loto (`#rrL` relance quand rien ne tient dans le budget)
+7. Zéro erreur console (les portraits refusés ne sont demandés qu'une fois : `PORTRAITS_ABSENTS`)
+
+L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `check_feuilles.mjs` sur une ligue. Les scripts de calibration (monotonie, plafond, tireurs) restent à lancer à la main.
 
 ## Ce qu'il ne faut pas faire
 

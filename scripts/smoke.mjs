@@ -116,6 +116,33 @@ if (enabled) {
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
   const po = await page.$('#playoffsBtn');
   if (po) { await po.click(); await page.waitForTimeout(500); console.log('   séries simulées'); }
+
+  // Rejouer la saison : même alignement, mêmes clubs, d'autres dés. Le direct
+  // des séries couvre l'écran : on le quitte d'abord.
+  const liveSeries = await page.$('#liveModal .live-close');
+  if (liveSeries && await liveSeries.isVisible()) { await liveSeries.click(); await page.waitForTimeout(300); }
+  await page.click('#replayBtn');
+  await page.waitForSelector('#liveModal .live-fin', { timeout: 60000 });
+  await page.click('#liveModal .live-fin');
+  await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
+  await page.click('#liveModal .live-suite');
+  await page.waitForSelector('.result .score', { timeout: 60000 });
+  console.log(`   rejouée : fiche ${(await page.textContent('.result .score')).trim()}`);
+
+  // L'historique garde l'alignement : « Rejouer » relit les 23 joueurs et
+  // repart une saison.
+  await page.click('#openLeaderboardBtn');
+  const entrees = await page.$$('.lb-replay');
+  console.log(`   historique : ${entrees.length} alignements rejouables`);
+  if (entrees.length) {
+    await entrees[0].click();
+    await page.waitForSelector('#liveModal .live-fin', { timeout: 90000 });
+    await page.click('#liveModal .live-fin');
+    await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
+    await page.click('#liveModal .live-suite');
+    await page.waitForSelector('.result .score', { timeout: 60000 });
+    console.log(`   reprise de l'historique : fiche ${(await page.textContent('.result .score')).trim()}`);
+  }
 }
 
 // Le tirage LOTO : trois clubs par case, des relances. Même parcours. Le

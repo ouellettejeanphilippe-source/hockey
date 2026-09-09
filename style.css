@@ -1792,6 +1792,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .lb-score.perfect { color: var(--gold); }
 .lb-details { text-align: right; font-size: 10.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.lb-details .lb-replay { margin-top: 5px; margin-left: auto; }
 .empty-msg {
   text-align: center;
   color: var(--muted);
