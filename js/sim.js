@@ -75,13 +75,31 @@ export function casesDuMode(mode) {
 export const uniteDeCase = s => !s ? '' : s.scratch ? 'R' : s.group === 'G' ? 'G' : `${s.group}${s.unit}`;
 
 /**
- * Le joueur que cette équipe met à CETTE case, une fois alignée par valeur :
- * la main du tirage LOTO. `exclude` retire les joueurs déjà signés, donc un
- * club qui ressort après qu'on lui a pris son centre montre son alignement
- * recomposé, comme il l'aurait fait.
+ * Le joueur que cette équipe met à CETTE case : la main du tirage LOTO.
+ *
+ * TROIS JOUEURS QUI JOUENT LA POSITION DE LA CASE, et JP l'a dit : *ça me
+ * semblait évident*. La première version prenait ce qu'`autoRoster` posait à
+ * la case, et le glouton y mettait volontiers un centre à −3 ou un ailier
+ * droit à −2 quand ils valaient plus que le vrai ailier gauche. Maintenant,
+ * pour une case habillée, on range les joueurs du club qui jouent cette
+ * position SANS pénalité (leur poste, ou leur poste secondaire) par valeur,
+ * et on prend celui du rang de la case : le deuxième ailier gauche du club
+ * pour ton deuxième trio, son deuxième gardien pour ton auxiliaire. Un club
+ * qui n'en a pas assez donne son dernier ; un club qui n'en a aucun retombe
+ * sur l'alignement automatique. Les cases de réserve n'ont pas de position
+ * établie : elles gardent ce qu'`autoRoster` y met. `exclude` retire les
+ * joueurs déjà signés, donc un club qui ressort après qu'on lui a pris son
+ * ailier montre le suivant.
  */
 export function joueurEquivalent(pool, slot, exclude = new Set()) {
   if (!slot) return null;
+  if (!slot.scratch) {
+    const naturels = pool
+      .filter(p => !exclude.has(getPersonKey(p)) && fits(p, slot) && getPositionPenalty(p, slot) === 0)
+      .sort((a, b) => getHiddenRatings(b).v - getHiddenRatings(a).v);
+    const p = naturels[slot.unit] ?? naturels[naturels.length - 1];
+    if (p) return p;
+  }
   return autoRoster(pool, exclude)[slot.i] || null;
 }
 
