@@ -1792,6 +1792,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .lb-score.perfect { color: var(--gold); }
 .lb-details { text-align: right; font-size: 10.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.lb-details .lb-replay { margin-top: 5px; margin-left: auto; }
 .empty-msg {
   text-align: center;
   color: var(--muted);
@@ -2393,6 +2394,52 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-controls .live-pause, .live-controls .live-pas { flex: 1 1 120px; }
 #liveModal.en-pause .live-pause { background: var(--gold); border-color: var(--gold); color: #1a1200; }
 
+/* LES ONGLETS DE LA PAUSE. Une barre plate au-dessus du fil, l'onglet
+   ouvert souligné d'or comme ceux du bilan ; le contenu prend la place du
+   fil et défile pareil. */
+.live-onglets {
+  display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line-soft);
+  overflow-x: auto; scrollbar-width: none;
+}
+.live-onglets button {
+  flex: none; padding: 9px 12px; background: none; border: 0; border-bottom: 2px solid transparent;
+  color: var(--sub); font-family: var(--display); font-size: 14px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; white-space: nowrap;
+}
+.live-onglets button.on { color: var(--gold); border-bottom-color: var(--gold); }
+.live-stats { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 10px; }
+.live-stats > * { flex: none; }   /* les tableaux gardent leur hauteur, le volet défile */
+.live-stats[hidden], .live-onglets[hidden], .live-feed[hidden] { display: none; }
+.live-tableau { border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel); overflow: hidden; }
+.live-tableau-titre {
+  padding: 7px 10px; font-family: var(--display); font-size: 13px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); border-bottom: 1px solid var(--line-soft);
+}
+.live-tableau table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.live-tableau th, .live-tableau td { padding: 5px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line-soft); }
+.live-tableau th { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.live-tableau td.nom, .live-tableau th:nth-child(2), .live-tableau td.eq, .live-tableau th:nth-child(3) { text-align: left; }
+.live-tableau td.nom { max-width: 160px; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 5px; }
+.live-tableau td.eq { color: var(--muted); font-size: 11px; }
+.live-tableau .heros { color: var(--gold); font-weight: 800; }
+.live-tableau tr.toi td { color: var(--gold); }
+.live-tableau tbody tr:last-child td { border-bottom: 0; }
+.live-face { table-layout: fixed; }
+.live-face th:first-child { text-align: left; color: var(--sub); font-weight: 700; text-transform: none; letter-spacing: 0; font-family: inherit; width: 40%; }
+.live-face td { white-space: normal; text-align: center; }
+.live-face thead th:not(:first-child) { text-align: center; }
+.live-but-ligne { display: flex; align-items: baseline; gap: 6px; padding: 5px 10px; font-size: 12px; border-bottom: 1px solid var(--line-soft); }
+.live-but-ligne:last-child { border-bottom: 0; }
+.live-but-ligne.toi b { color: var(--gold); }
+.live-xe { color: var(--sub); font-size: 11px; }
+.live-vide { color: var(--muted); font-size: 12.5px; padding: 20px; text-align: center; }
+/* Les buts de ton match du jour, sous le tableau indicateur. */
+.live-buteurs { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel); max-height: 138px; overflow-y: auto; }
+@media (max-width: 479.98px) {
+  .live-tableau td.nom { max-width: 110px; }
+  .live-tableau th, .live-tableau td { padding: 4px 5px; }
+}
+
 @media (max-width: 479.98px) {
   .live-eq-buts { font-size: 48px; }
   .live-temps { font-size: 24px; }
@@ -2745,6 +2792,54 @@ table.data td small { font-size: 9px; color: var(--muted); }
 }
 
 .series-legende { margin: -2px 0 10px; font-size: 11px; color: var(--muted); }
+
+/* L'ARBRE DES SÉRIES. Sept colonnes (trois rondes de chaque côté, la finale
+   au centre) qui convergent ; chaque colonne répartit ses séries sur toute
+   la hauteur, donc deux séries mères encadrent leur fille. Un nœud est une
+   carte de pointage miniature. Sur téléphone l'arbre garde sa largeur et se
+   balaie dans son propre conteneur — c'est un tableau. */
+.bracket-scroll { overflow-x: auto; margin: 0 0 12px; padding-bottom: 6px; scrollbar-width: thin; }
+.bracket { display: grid; grid-template-columns: repeat(7, minmax(112px, 1fr)); grid-template-rows: auto 1fr; gap: 6px; min-width: 820px; align-items: stretch; }
+.bk-col { display: contents; }
+.bk-col .bk-ronde { grid-row: 1; }
+.bk-noeuds { grid-row: 2; display: flex; flex-direction: column; justify-content: space-around; gap: 6px; min-width: 0; }
+.bk-col.finale .bk-noeuds { justify-content: center; gap: 10px; }
+.bk-ronde {
+  font-family: var(--display); font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-align: center; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; padding-bottom: 2px;
+}
+.bk-serie {
+  display: flex; flex-direction: column; text-decoration: none; color: inherit;
+  border: 1px solid var(--line); border-radius: var(--r-s); background: var(--panel); overflow: hidden;
+  position: relative;
+}
+.bk-serie:hover, .bk-serie:focus-visible { border-color: var(--ui-accent); }
+.bk-serie.you { border-color: var(--gold); }
+/* Le trait qui relie un nœud à la ronde suivante : un filet, pas une flèche. */
+.bk-serie.g::after, .bk-serie.d::after { content: ""; position: absolute; top: 50%; width: 6px; height: 1px; background: var(--line); }
+.bk-serie.g::after { right: -7px; }
+.bk-serie.d::after { left: -7px; }
+.bk-row { display: flex; align-items: center; gap: 5px; padding: 4px 6px; font-size: 11.5px; font-weight: 700; min-width: 0; }
+.bk-row + .bk-row { border-top: 1px solid var(--line-soft); }
+.bk-row img, .bk-row svg { width: 16px; height: 16px; flex: none; }
+.bk-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-row b { font-family: var(--display); font-size: 17px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.bk-row.win { color: var(--text); background: rgba(255, 255, 255, 0.03); }
+.bk-row.win b { color: var(--gold); }
+.bk-row.lose { color: var(--muted); }
+.bk-champion {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 6px;
+  border: 1px solid var(--gold); border-radius: var(--r-s); text-align: center;
+}
+.bk-champion img, .bk-champion svg { width: 34px; height: 34px; }
+.bk-champ-mot { font-family: var(--display); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+.bk-champion b { font-family: var(--display); font-size: 15px; font-weight: 800; line-height: 1.1; }
+.series { scroll-margin-top: calc(var(--topbar-h, 55px) + 52px); }
+.cal-match.ouvrable, tr.ouvrable { cursor: pointer; }
+tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
+.cal-match.ouvrable:hover, .cal-match.ouvrable:focus-visible { border-color: var(--ui-accent); }
+.som-xe { color: var(--muted); font-size: 11px; font-weight: 600; }
 .series-legende .lg {
   display: inline-block; border-radius: 3px; padding: 0 5px; margin-right: 2px;
   font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;

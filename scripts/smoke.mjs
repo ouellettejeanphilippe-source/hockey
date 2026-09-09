@@ -103,7 +103,17 @@ const enabled = await page.$eval('#mainBtn', b => !b.disabled);
 console.log(`3. #mainBtn actif : ${enabled}`);
 if (enabled) {
   await page.click('#mainBtn');
-  // La saison se regarde jour par jour : on saute à la fin, puis au bilan.
+  // La saison se regarde jour par jour. On met en pause, on ouvre l'onglet
+  // des statistiques du jour (les meneurs, tirés des feuilles de match),
+  // on reprend ; puis on saute à la fin, puis au bilan.
+  await page.waitForSelector('#liveModal .live-pause', { timeout: 60000 });
+  await page.waitForTimeout(1200);
+  await page.click('#liveModal .live-pause');
+  await page.click('#liveModal .live-onglets button[data-onglet="stats"]');
+  const tableaux = await page.$$eval('#liveModal .live-stats .live-tableau', l => l.length);
+  const meneurs = await page.$$eval('#liveModal .live-stats tbody tr', l => l.length);
+  console.log(`   pause de saison : ${tableaux} tableaux, ${meneurs} meneurs`);
+  await page.click('#liveModal .live-pause');
   await page.waitForSelector('#liveModal .live-fin', { timeout: 60000 });
   await page.click('#liveModal .live-fin');
   await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
@@ -113,9 +123,53 @@ if (enabled) {
   const score = await page.textContent('.result .score');
   const rows = await page.$$eval('.rrow', r => r.length);
   console.log(`4. fiche ${score.trim()}, ${rows} rangées`);
+  if (!meneurs) errors.push('pause de saison : aucun meneur dans l\'onglet des statistiques');
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
   const po = await page.$('#playoffsBtn');
-  if (po) { await po.click(); await page.waitForTimeout(500); console.log('   séries simulées'); }
+  if (po) {
+    await po.click();
+    // Un match de séries en direct : pause, l'onglet des statistiques du
+    // match, reprise ; puis la fin du match, où le fil dit le xième but.
+    await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
+    await page.waitForTimeout(800);
+    await page.click('#liveModal .live-pause');
+    await page.click('#liveModal .live-onglets button[data-onglet="stats"]');
+    const face = await page.$$eval('#liveModal .live-face tbody tr', l => l.length);
+    await page.click('#liveModal .live-pause');
+    await page.click('#liveModal .live-fin');
+    await page.waitForTimeout(300);
+    const fil = await page.$eval('#liveModal .live-feed', e => e.textContent);
+    const xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
+    console.log(`   séries simulées : ${face} lignes de statistiques du match, ${xe}`);
+    if (!face) errors.push('pause de séries : aucune statistique du match');
+  }
+
+  // Rejouer la saison : même alignement, mêmes clubs, d'autres dés. Le direct
+  // des séries couvre l'écran : on le quitte d'abord.
+  const liveSeries = await page.$('#liveModal .live-close');
+  if (liveSeries && await liveSeries.isVisible()) { await liveSeries.click(); await page.waitForTimeout(300); }
+  await page.click('#replayBtn');
+  await page.waitForSelector('#liveModal .live-fin', { timeout: 60000 });
+  await page.click('#liveModal .live-fin');
+  await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
+  await page.click('#liveModal .live-suite');
+  await page.waitForSelector('.result .score', { timeout: 60000 });
+  console.log(`   rejouée : fiche ${(await page.textContent('.result .score')).trim()}`);
+
+  // L'historique garde l'alignement : « Rejouer » relit les 23 joueurs et
+  // repart une saison.
+  await page.click('#openLeaderboardBtn');
+  const entrees = await page.$$('.lb-replay');
+  console.log(`   historique : ${entrees.length} alignements rejouables`);
+  if (entrees.length) {
+    await entrees[0].click();
+    await page.waitForSelector('#liveModal .live-fin', { timeout: 90000 });
+    await page.click('#liveModal .live-fin');
+    await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
+    await page.click('#liveModal .live-suite');
+    await page.waitForSelector('.result .score', { timeout: 60000 });
+    console.log(`   reprise de l'historique : fiche ${(await page.textContent('.result .score')).trim()}`);
+  }
 }
 
 // Le tirage LOTO : trois clubs par case, des relances. Même parcours. Le

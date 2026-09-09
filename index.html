@@ -173,6 +173,8 @@
     </div>
     <div class="live-board"></div>
     <div class="live-etat"></div>
+    <div class="live-onglets" role="tablist" hidden></div>
+    <div class="live-stats" hidden></div>
     <div class="live-feed" aria-live="polite"></div>
     <div class="live-controls"></div>
   </div>
@@ -369,5 +371,13 @@
 </div>
 
 <script type="module" src="js/game.js"></script>
+<script>
+// Le travailleur de service (sw.js) garde la coquille du jeu pour les
+// visites sans réseau. Chemin relatif : GitHub Pages sert le jeu dans un
+// sous-dossier. Un navigateur sans travailleur joue exactement pareil.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
 </body>
 </html>

@@ -24,12 +24,11 @@ import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague,
-  playSeries, autoRoster, tirsTotal, periodeDe, MODES, modeDe, casesDuMode,
-  joueurEquivalent, photoStats, separerSeries,
+  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent,
 } from './sim.js';
-import { recitDeBut, recitDeMatch, recitDeSerie, recitDeSaison, tempsDeJeu, NOM_PERIODE } from './recit.js';
-import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamInk, getTeamBand, teamSeasonUrl } from './logos.js';
-import { diffuserSeries, diffuserSaison } from './direct.js';
+import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamBand, teamSeasonUrl } from './logos.js';
+import { diffuserSaison } from './direct.js';
+import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire } from './bilan.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -481,10 +480,20 @@ function realTag(p) {
     : `<span class="tag tag-est" title="Salaire estimé par le barème de cote globale : aucun montant publié pour cette saison.">Salaire estimé</span>`;
 }
 
+/*
+ * Les portraits que le réseau a refusés. `onerror` retire l'image, mais le
+ * rendu suivant la recréait et la redemandait : le test de fumée comptait
+ * 1330 requêtes en échec sur une partie, du trafic mobile pour rien. Un
+ * identifiant tombé ici ne sort plus que l'émoji de secours.
+ */
+const PORTRAITS_ABSENTS = new Set();
+const portraitAbsent = id => { PORTRAITS_ABSENTS.add(Number(id)); };
+
 function headshotHtml(p) {
   const fallback = `<span class="headshot-fallback">👤</span>`;
+  if (PORTRAITS_ABSENTS.has(Number(p.id))) return fallback;
   if (!p.id) return fallback;
-  return `${fallback}<img src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" alt="" loading="lazy" onerror="this.remove()">`;
+  return `${fallback}<img src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" alt="" loading="lazy" onerror="this.remove();cap82.portraitAbsent(${Number(p.id)})">`;
 }
 
 /* ---------- toast ---------- */
@@ -504,6 +513,11 @@ function toast(msg, kind = '') {
    ===================================================================== */
 
 async function boot() {
+  // Le bilan (js/bilan.js) reçoit ici tout ce qu'il lui faut du contrôleur.
+  brancherBilan({
+    $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur,
+    money, newGame, openModal, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast,
+  });
   try {
     loadOpts();
     await loadIndex();
@@ -576,26 +590,67 @@ function setupEvents() {
 
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
-      document.querySelectorAll('.modal-backdrop').forEach(m => { m.style.display = 'none'; });
+      document.querySelectorAll('.modal-backdrop').forEach(fermerModale);
       if (G.selectedSlot !== null || G.target !== null) {
         G.selectedSlot = null; G.target = null; render();
       }
     }
+    if (ev.key === 'Tab') piegerFocus(ev);
   });
 
   $('mainBtn').onclick = runSeason;
 }
 
+/*
+ * LE FOCUS RESTE DANS LA MODALE. Au clavier, Tab sortait de la fiche sans
+ * qu'on s'en rende compte et continuait dans la page derrière. Une modale
+ * qui s'ouvre prend le focus (son bouton de fermeture, sinon son premier
+ * élément focalisable), Tab et Maj+Tab tournent à l'intérieur, et la
+ * fermeture rend le focus à ce qui l'avait avant.
+ */
+const FOCALISABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+let focusAvantModale = null;
+
+const modaleOuverte = () => [...document.querySelectorAll('.modal-backdrop')].filter(m => m.style.display !== 'none' && m.offsetParent !== null).pop() || null;
+
+function ouvrirModale(m) {
+  if (!m) return;
+  if (!modaleOuverte()) focusAvantModale = document.activeElement;
+  m.style.display = 'flex';
+  const cible = m.querySelector('.close-btn') || m.querySelector(FOCALISABLE);
+  if (cible) cible.focus({ preventScroll: true });
+}
+
+function fermerModale(m) {
+  if (!m || m.style.display === 'none') return;
+  m.style.display = 'none';
+  if (!modaleOuverte() && focusAvantModale && document.contains(focusAvantModale)) {
+    focusAvantModale.focus({ preventScroll: true });
+    focusAvantModale = null;
+  }
+}
+
+function piegerFocus(ev) {
+  const m = modaleOuverte();
+  if (!m) return;
+  const items = [...m.querySelectorAll(FOCALISABLE)].filter(el => el.offsetParent !== null);
+  if (!items.length) { ev.preventDefault(); return; }
+  const premier = items[0], dernier = items[items.length - 1];
+  if (!m.contains(document.activeElement)) { ev.preventDefault(); premier.focus(); return; }
+  if (ev.shiftKey && document.activeElement === premier) { ev.preventDefault(); dernier.focus(); }
+  else if (!ev.shiftKey && document.activeElement === dernier) { ev.preventDefault(); premier.focus(); }
+}
+
 function bindModal(modalId, openId, closeId, onOpen) {
   const modal = $(modalId);
   if (!modal) return;
-  if (openId && $(openId)) $(openId).onclick = () => { if (onOpen) onOpen(); modal.style.display = 'flex'; };
-  if (closeId && $(closeId)) $(closeId).onclick = () => { modal.style.display = 'none'; };
-  modal.onclick = ev => { if (ev.target === modal) modal.style.display = 'none'; };
+  if (openId && $(openId)) $(openId).onclick = () => { if (onOpen) onOpen(); ouvrirModale(modal); };
+  if (closeId && $(closeId)) $(closeId).onclick = () => fermerModale(modal);
+  modal.onclick = ev => { if (ev.target === modal) fermerModale(modal); };
 }
 
-const closeModal = id => { const m = $(id); if (m) m.style.display = 'none'; };
-const openModal = id => { const m = $(id); if (m) m.style.display = 'flex'; };
+const closeModal = id => fermerModale($(id));
+const openModal = id => ouvrirModale($(id));
 
 function setOption(key, val) {
   if (key === 'poolView') {
@@ -1901,7 +1956,7 @@ function showPlayerModal(p, opts = {}) {
       signPlayer(p);
     };
   }
-  modal.style.display = 'flex';
+  ouvrirModale(modal);
 }
 
 /*
@@ -1930,12 +1985,13 @@ function showTeamModal(t, mode = 'saison') {
     <td class="stat">${S.SO || 0}</td></tr>`;
 
   const journal = mode === 'series' ? (t.poJournal || []) : (t.journal || []);
-  const resultats = journal.map(m => `<tr class="${m.win ? 'gagne' : 'perdu'}">
+  // Chaque match de la liste ouvre son sommaire, quand sa feuille existe.
+  const resultats = journal.map(m => { const cle = cleDeSommaire(m.feuille); return `<tr class="${m.win ? 'gagne' : 'perdu'}${cle ? ' ouvrable' : ''}"${cle ? ` data-sommaire="${esc(cle)}" title="Sommaire du match"` : ''}>
     <td class="sub-cell">${m.n}</td>
     <td class="left"><div class="team-cell">${getTeamLogoHtml(m.adv.tag, 14)}${lienEquipe(m.adv, mode, `<span>${esc(teamLabel(m.adv))}</span>`)}</div></td>
     <td class="stat ${m.win ? 'v' : 'd'}">${m.win ? 'V' : m.ot ? 'DP' : 'D'}</td>
     <td class="stat">${m.gf}-${m.ga}${m.ot ? ' <small>P</small>' : ''}</td>
-    <td class="sub-cell">${m.gardien ? esc(m.gardien.n) : ''}</td></tr>`).join('');
+    <td class="sub-cell">${m.gardien ? esc(m.gardien.n) : ''}</td></tr>`; }).join('');
 
   const bilan = mode === 'series' && t.po ? t.po : t;
   $('gameModalTitle').innerHTML = `${getTeamLogoHtml(t.tag, 20)} ${esc(teamLabel(t))} <span class="som-ot">${mode === 'series' ? 'séries' : `${bilan.W}-${bilan.L}-${bilan.OTL} · ${bilan.PTS} pts`}</span>`;
@@ -1980,7 +2036,7 @@ function showLeaderboard() {
     return;
   }
   const best = Math.max(...list.map(i => i.points || 0));
-  body.innerHTML = list.map(i => `
+  body.innerHTML = list.map((i, idx) => `
     <div class="lb-item">
       <div>
         <div class="lb-score ${i.W === 82 ? 'perfect' : ''}">${i.W}-${i.L}-${i.OTL}</div>
@@ -1990,8 +2046,12 @@ function showLeaderboard() {
         <div>${i.rank ? `${i.rank}e de ${i.nTeams}` : ''}</div>
         <div>Masse : ${money(i.capUsed)}</div>
         <div>${esc(i.date)}</div>
+        ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Rejouer</button>` : ''}
       </div>
     </div>`).join('');
+  body.querySelectorAll('.lb-replay').forEach(b => {
+    b.onclick = () => reprendreAlignement(list[Number(b.dataset.idx)]);
+  });
 }
 
 /* =====================================================================
@@ -2047,7 +2107,13 @@ async function buildOpponents(count) {
   return out;
 }
 
-async function runSeason() {
+/**
+ * La saison. Sans option, 31 vraies équipes sont tirées et le moteur tire
+ * sa graine ; `adversaires` rejoue les mêmes 31 clubs (« Rejouer la
+ * saison ») et `graine` la même suite de dés. La ligue jouée garde les deux
+ * dans `G.ligue`, et l'historique les emporte.
+ */
+async function runSeason(opts = {}) {
   if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
   G.done = true;
   const mb = $('mainBtn');
@@ -2056,27 +2122,37 @@ async function runSeason() {
   await new Promise(r => setTimeout(r, 20));
 
   let opponents = [];
-  try { opponents = await buildOpponents(31); } catch { opponents = []; }
+  if (opts.adversaires) {
+    opponents = opts.adversaires.map(a => createTeam(a.name, a.tag, a.roster, { season: a.season }));
+  } else {
+    try { opponents = await buildOpponents(31); } catch { opponents = []; }
+  }
   if (opponents.length && opponents.length % 2 === 0) opponents.pop();
 
   const you = createTeam('NHL Stars', 'YOU', G.roster, { isPlayer: true });
-  let r, teams, leaders = [], calendrier = [];
+  let r, teams, leaders = [], calendrier = [], graine = null;
   if (opponents.length) {
-    const league = simulateLeague([you, ...opponents]);
+    const league = simulateLeague([you, ...opponents], 82, { graine: opts.graine || null });
     teams = league.standings;
     leaders = league.leaders;
     calendrier = league.calendrier;
+    graine = league.graine;
     r = {
       W: you.W, L: you.L, OTL: you.OTL, GF: you.GF, GA: you.GA, points: you.PTS,
       attaque: you.strength.att, brigade: you.strength.def,
       rob: you.strength.rob, clu: you.strength.clu, gRating: you.strength.g,
     };
   } else {
-    r = simulate(G.roster);
+    r = simulate(G.roster, { graine: opts.graine || null });
+    graine = r.graine;
     Object.assign(you, { W: r.W, L: r.L, OTL: r.OTL, GF: r.GF, GA: r.GA, PTS: r.points });
     teams = [you];
   }
-  G.ligue = { you, teams, calendrier };
+  G.ligue = {
+    you, teams, calendrier, graine,
+    // De quoi rejouer : les mêmes 31 clubs, à partir des mêmes alignements.
+    adversaires: opponents.map(t => ({ name: t.name, tag: t.tag, roster: t.roster, season: t.season })),
+  };
 
   // LA SAISON SE REGARDE JOUR PAR JOUR. Tout est joué ; l'écran rejoue le
   // calendrier, une journée à la fois, et le résultat ne se dessine qu'après
@@ -2089,578 +2165,6 @@ async function runSeason() {
       onTermine: montrer,
     });
   } else montrer();
-}
-
-/* =====================================================================
-   Résultat — noms d'équipe, statistiques de ligue, sommaires de match
-   ===================================================================== */
-
-/**
- * Le nom court pour un récit : « Bruins 1970-71 ». Le nom complet porte la
- * ville, ce qui donne « Bruins de Boston 1997-98 s'en tire contre Bruins de
- * Boston 1990-91 » — vrai, mais illisible.
- */
-function teamShort(t) {
-  if (!t) return '—';
-  if (t.isPlayer) return 'NHL Stars';
-  const full = TEAMFULL[t.tag] || t.tag;
-  const nom = full.split(/ (?:de |des |du |d')/)[0];
-  return t.season ? `${nom} ${t.season}` : nom;
-}
-
-/** « Bruins de Boston 1970-71 » plutôt que « BOS 1970-71 ». */
-function teamLabel(t) {
-  if (!t) return '—';
-  if (t.isPlayer) return t.name;
-  const full = TEAMFULL[t.tag] || t.tag;
-  return t.season ? `${full} ${t.season}` : full;
-}
-
-/**
- * Le nom d'une équipe historique, cliquable vers SA saison sur
- * Hockey-Reference (`teamSeasonUrl`, js/logos.js) : une adresse par
- * équipe-saison, pas la page de la ligue où il fallait ensuite la chercher.
- */
-function teamCell(t, taille = 15) {
-  const label = esc(teamLabel(t));
-  const url = t.isPlayer ? null : teamSeasonUrl(t.tag, t.season);
-  const nom = url
-    ? `<a class="team-link" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(t.season)} de cette équipe sur Hockey-Reference">${label}</a>`
-    : `<span>${label}</span>`;
-  return `<div class="team-cell">${getTeamLogoHtml(t.tag, taille)}${nom}</div>`;
-}
-
-/**
- * Les meneurs de la ligue, toutes équipes confondues. Le classement seul ne
- * dit pas qui a marqué : après 1 312 matchs, c'est la première chose qu'on
- * veut lire.
- */
-/**
- * TOUS LES JOUEURS, PAS DIX. Chaque palmarès range la ligue entière (ceux
- * qui ont joué) : après 1 312 matchs on veut pouvoir vérifier n'importe qui,
- * pas seulement le podium. Les gardiens des deux premiers palmarès exigent
- * un quart des matchs, comme la vraie ligue (25 départs sur 82).
- */
-function leagueStats(teams, mode = 'saison') {
-  const patineurs = [], gardiens = [];
-  for (const t of teams) {
-    for (const s of SLOTS) {
-      const p = t.roster[s.i];
-      const S = p && statsSim(p, mode);
-      if (!S || !S.GP) continue;
-      (p.p === 'G' ? gardiens : patineurs).push({ p, t, S });
-    }
-  }
-  const matchs = Math.max(1, ...teams.map(t => (mode === 'series' && t.po ? t.po.games : t.games) || 0));
-  const seuilG = Math.max(1, Math.round(matchs * 25 / 82));
-  const top = (list, cle) => list.slice().sort((a, b) => cle(b) - cle(a));
-  return {
-    points: top(patineurs, x => x.S.PTS * 1000 + x.S.G),
-    buts: top(patineurs, x => x.S.G * 1000 + x.S.PTS),
-    passes: top(patineurs, x => x.S.A * 1000 + x.S.PTS),
-    plusmoins: top(patineurs, x => x.S.PM),
-    avantage: top(patineurs, x => (x.S.PPG || 0) * 1000 + x.S.G),
-    punitions: top(patineurs, x => (x.S.PIM || 0) * 1000 + x.S.PTS),
-    arrets: top(gardiens.filter(x => x.S.GP >= seuilG), x => (x.S.SA ? x.S.SV / x.S.SA : 0)),
-    moyenne: top(gardiens.filter(x => x.S.GP >= seuilG), x => -(x.S.GA / Math.max(1, x.S.GP))),
-    victoires: top(gardiens, x => x.S.W * 1000 + x.S.SO),
-  };
-}
-
-/*
- * Les neuf palmarès, chacun avec ses colonnes. `heros` est l'indice de la
- * COLONNE QUI DONNE SON NOM AU PALMARÈS — les points chez les pointeurs, les
- * buts chez les buteurs. Elle est écrite ici plutôt que devinée à la dernière
- * colonne parce qu'elle n'y est pas toujours, et c'est la seule que le
- * téléphone garde : à 390 px un tableau de sept colonnes défilait
- * horizontalement, si bien qu'un palmarès des pointeurs s'ouvrait sans
- * montrer les points.
- */
-const PALMARES = [
-  { cle: 'points', titre: 'Pointeurs', cols: ['PJ', 'B', 'A', 'PTS'], heros: 3,
-    vals: S => [S.GP, S.G, S.A, `<b>${S.PTS}</b>`] },
-  { cle: 'buts', titre: 'Buteurs', cols: ['PJ', 'B', 'L', '%'], heros: 1,
-    vals: S => [S.GP, `<b>${S.G}</b>`, S.SH || 0, S.SH ? (100 * S.G / S.SH).toFixed(1) : '—'] },
-  { cle: 'passes', titre: 'Passeurs', cols: ['PJ', 'A', 'PTS'], heros: 1,
-    vals: S => [S.GP, `<b>${S.A}</b>`, S.PTS] },
-  { cle: 'plusmoins', titre: 'Différentiel', cols: ['PJ', 'PTS', '+/-'], heros: 2,
-    vals: S => [S.GP, S.PTS, `<b>${S.PM > 0 ? '+' : ''}${S.PM}</b>`] },
-  { cle: 'avantage', titre: 'Avantage numérique', cols: ['PJ', 'B', 'BAN'], heros: 2,
-    vals: S => [S.GP, S.G, `<b>${S.PPG || 0}</b>`] },
-  { cle: 'punitions', titre: 'Punitions', cols: ['PJ', 'PTS', 'PUN'], heros: 2,
-    vals: S => [S.GP, S.PTS, `<b>${S.PIM || 0}</b>`] },
-  { cle: 'moyenne', titre: 'Gardiens · MBA', cols: ['PJ', 'V', 'BL', 'MBA'], heros: 3,
-    vals: S => [S.GP, S.W, S.SO, `<b>${(S.GA / Math.max(1, S.GP)).toFixed(2)}</b>`] },
-  { cle: 'arrets', titre: 'Gardiens · %ARR', cols: ['PJ', 'ARR', 'TIRS', '%ARR'], heros: 3,
-    vals: S => [S.GP, S.SV || 0, S.SA || 0, `<b>${S.SA ? (S.SV / S.SA).toFixed(3).slice(1) : '—'}</b>`] },
-  { cle: 'victoires', titre: 'Gardiens · victoires', cols: ['PJ', 'V', 'D', 'BL'], heros: 1,
-    vals: S => [S.GP, `<b>${S.W}</b>`, S.L, S.SO] },
-];
-
-/*
- * Les tables se construisent À LA DEMANDE, onglet par onglet : neuf tables de
- * sept cents rangées d'un coup, c'est six mille lignes de DOM pour en lire
- * une. Le premier onglet est construit tout de suite, les autres au clic.
- */
-function palmaresHtml(stats, mode = 'saison') {
-  const id = `palm-${mode}`;
-  const onglets = PALMARES.map((d, i) =>
-    `<button class="stat-tab${i === 0 ? ' on' : ''}" data-stat="${d.cle}">${esc(d.titre)}</button>`).join('');
-  const tables = PALMARES.map((d, i) =>
-    `<div class="stat-table" data-stat="${d.cle}"${i === 0 ? '' : ' hidden'}>${i === 0 ? tablePalmares(d, stats, mode) : ''}</div>`).join('');
-  return `<div class="palmares" data-mode="${mode}" id="${id}"><div class="stat-tabs" role="tablist">${onglets}</div>${tables}</div>`;
-}
-function tablePalmares(d, stats, mode) {
-  const rows = stats[d.cle].map((x, n) => `
-    <tr class="${x.t.isPlayer ? 'you' : ''}">
-      <td>${n + 1}</td>
-      <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 14)}${lienJoueur(x.p, x.t, mode, `<span>${esc(x.p.n)}</span>`)}</div></td>
-      <td class="sub-cell">${lienEquipe(x.t, mode, esc(x.t.isPlayer ? 'NHL' : `${x.t.tag} ${(x.t.season || '').slice(2)}`))}</td>
-      ${d.vals(x.S).map((v, c) => `<td class="stat${c === d.heros ? ' heros' : ''}">${v}</td>`).join('')}
-    </tr>`).join('');
-  return `<div class="table-wrap haute"><table class="data">
-      <thead><tr><th>#</th><th class="left">Joueur</th><th>Éq.</th>${d.cols.map((c, i) => `<th class="stat${i === d.heros ? ' heros' : ''}">${c}</th>`).join('')}</tr></thead>
-      <tbody>${rows || '<tr><td colspan="8">Aucun joueur admissible.</td></tr>'}</tbody>
-    </table></div>`;
-}
-function brancherPalmares(host, stats, mode) {
-  host.querySelectorAll('.stat-tab').forEach(b => {
-    b.onclick = () => {
-      host.querySelectorAll('.stat-tab').forEach(x => x.classList.toggle('on', x === b));
-      host.querySelectorAll('.stat-table').forEach(t => {
-        t.hidden = t.dataset.stat !== b.dataset.stat;
-        if (!t.hidden && !t.innerHTML) t.innerHTML = tablePalmares(PALMARES.find(d => d.cle === t.dataset.stat), stats, mode);
-      });
-    };
-  });
-}
-
-/**
- * LE CALENDRIER, CONSULTABLE. Une journée à la fois, ses seize matchs, et
- * un curseur pour aller à n'importe quel jour. C'est la preuve que la ligue
- * a vraiment joué : chaque pointage est là, chaque équipe est cliquable.
- */
-function calendrierHtml(calendrier, jour) {
-  const j = calendrier[jour];
-  if (!j) return '';
-  const carte = m => {
-    const gagneA = m.gfA > m.gfB;
-    const eq = (t, buts, gagne) => `<div class="cal-eq ${gagne ? 'win' : 'lose'}${t.isPlayer ? ' toi' : ''}">${getTeamLogoHtml(t.tag, 16)}${lienEquipe(t, 'saison', `<span>${esc(tagCourt(t))}</span>`)}<b>${buts}</b></div>`;
-    return `<div class="cal-match${m.A.isPlayer || m.B.isPlayer ? ' toi' : ''}">${eq(m.A, m.gfA, gagneA)}${eq(m.B, m.gfB, !gagneA)}${m.ot ? '<span class="cal-ot">P</span>' : ''}</div>`;
-  };
-  return `<div class="cal-grille">${j.map(carte).join('')}</div>`;
-}
-
-/*
- * LES ONGLETS DU BILAN. Le pointage, la bande de six chiffres et les trois
- * boutons restent en tête ; chaque onglet ouvre un seul volet. « Séries »
- * n'apparaît qu'une fois les séries jouées, et c'est là que le tableau et
- * leurs statistiques se dessinent.
- */
-const ONGLETS_BILAN = [
-  { cle: 'bilan', titre: 'Bilan' },
-  { cle: 'classement', titre: 'Classement' },
-  { cle: 'calendrier', titre: 'Calendrier' },
-  { cle: 'stats', titre: 'Statistiques' },
-  { cle: 'alignement', titre: 'Alignement' },
-  { cle: 'series', titre: 'Séries' },
-];
-function montrerVolet(cle) {
-  const tabs = $('resultTabs');
-  if (!tabs) return;
-  tabs.querySelectorAll('.result-tab').forEach(b => {
-    const on = b.dataset.volet === cle;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-selected', on ? 'true' : 'false');
-    // Sur téléphone la barre défile en x : l'onglet ouvert reste visible.
-    // On déplace la barre elle-même, jamais la page.
-    if (on) {
-      const g = b.offsetLeft - 12, d = b.offsetLeft + b.offsetWidth + 12 - tabs.clientWidth;
-      if (tabs.scrollLeft > g) tabs.scrollTo({ left: g, behavior: 'smooth' });
-      else if (tabs.scrollLeft < d) tabs.scrollTo({ left: d, behavior: 'smooth' });
-    }
-  });
-  document.querySelectorAll('#resultHost .result-pane').forEach(p => { p.hidden = p.dataset.volet !== cle; });
-  // L'onglet reste en vue : si la page a défilé sous la barre, on y remonte.
-  const haut = tabs.getBoundingClientRect().top;
-  const barre = parseFloat(getComputedStyle(tabs).top) || 0;
-  if (haut < barre - 1) tabs.scrollIntoView({ block: 'start' });
-}
-function brancherOnglets(tabs) {
-  tabs.querySelectorAll('.result-tab').forEach(b => { b.onclick = () => montrerVolet(b.dataset.volet); });
-}
-
-function renderResult(r, you, teams, leaders, calendrier = []) {
-  const nTeams = teams.length;
-  const rank = teams.findIndex(t => t.isPlayer) + 1;
-  const perfect = (r.L + r.OTL) === 0;
-
-  const note = perfect
-    ? '82-0-0. Saison parfaite. Les Bruins de 2022-23, meilleure saison de l\'histoire, ont fini 65-12-5.'
-    : r.W >= 65 ? `${r.W} victoires : mieux que le record réel de la LNH (65, Bruins de 2022-23).`
-    : r.W >= 55 ? 'Grosse saison, mais la perfection exige de la profondeur sur les quatre trios.'
-    : r.W >= 41 ? 'Saison au-dessus de la moyenne. Regarde tes trois derniers trios : c\'est souvent là que ça se joue.'
-    : 'Le plafond a coûté cher. La feuille de match ci-dessous montre où le bât blesse.';
-
-  const rows = SLOTS.filter(s => G.roster[s.i]).map(s => {
-    const p = G.roster[s.i];
-    const pmCls = (p.simPM || 0) > 0 ? 'pm-pos' : (p.simPM || 0) < 0 ? 'pm-neg' : '';
-    const pmStr = (p.simPM || 0) > 0 ? `+${p.simPM}` : `${p.simPM || 0}`;
-    const inj = p.simInj ? ` · <span class="inj">🩹 ${p.simInj} PJ ratés</span>` : '';
-    const stats = p.p === 'G'
-      ? `${p.simGP || 0} PJ · ${p.simW || 0}-${p.simL || 0}-${p.simOTL || 0} · ${((p.simGA || 0) / Math.max(1, p.simGP || 1)).toFixed(2)} MBA · ${p.simSO || 0} BL${inj}`
-      : `${p.simGP || 0} PJ · <b>${p.simG || 0} B</b> ${p.simA || 0} A · <b>${p.simPTS || 0} PTS</b> · <span class="${pmCls}">${pmStr}</span>${inj}`;
-    return `<div class="rrow">
-      <div class="rn">${getTeamLogoHtml(p.t, 15)} ${lienJoueur(p, you, 'saison', `<span>${formatName(p.n)} <span class="sub">${esc(s.role)}</span></span>`)}</div>
-      <div class="rs">${stats}${p.p === 'G' ? '' : ` · <span class="sub">${p.simSH || 0} lancers</span>`}</div>
-    </div>`;
-  }).join('');
-
-  // Chaque rangée du classement ouvre l'équipe : son alignement, ses 82
-  // matchs. Le lien vers Hockey-Reference reste dans la cellule.
-  const standings = teams.map((t, i) => `
-    <tr class="${t.isPlayer ? 'you' : ''}${i === 15 ? ' cut' : ''}">
-      <td>${i + 1}</td>
-      <td class="left"><div class="team-cell">${getTeamLogoHtml(t.tag, 15)}${lienEquipe(t, 'saison', `<span>${esc(teamLabel(t))}</span>`)}${t.isPlayer || !teamSeasonUrl(t.tag, t.season) ? '' : `<a class="team-ext" href="${teamSeasonUrl(t.tag, t.season)}" target="_blank" rel="noopener" title="La saison ${esc(t.season)} de cette équipe sur Hockey-Reference">${ico('i-ext')}</a>`}</div></td>
-      <td>${t.W + t.L + t.OTL}</td><td>${t.W}</td><td>${t.L}</td><td>${t.OTL}</td>
-      <td class="pts">${t.PTS}</td><td>${t.GF}</td><td>${t.GA}</td>
-      <td>${t.GF - t.GA > 0 ? '+' : ''}${t.GF - t.GA}</td>
-    </tr>`).join('');
-
-  const stats = teams.length > 1 ? leagueStats(teams) : null;
-  const recit = teams.length > 1 ? recitDeSaison(you, rank, nTeams, { nomEquipe: teamShort }) : [];
-
-  const injuries = you.injuriesLog && you.injuriesLog.length
-    ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${esc(i.player.n)}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
-    : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
-
-  saveLeaderboard({
-    W: r.W, L: r.L, OTL: r.OTL, points: r.points, GF: r.GF, GA: r.GA,
-    capUsed: capUsed(), rank, nTeams, date: new Date().toLocaleDateString('fr-CA'),
-  });
-
-  // LE BILAN EST UN TABLEAU DE BORD À ONGLETS, PAS UNE LONGUE PAGE. JP :
-  // *better season tabs for information instead of long page, like a manager
-  // game*. Le pointage et les trois boutons restent en tête ; tout le reste
-  // vit dans un volet à la fois. Les volets sont tous dans le DOM (les
-  // palmarès restent construits onglet par onglet), seul l'affichage change.
-  const volets = {
-    bilan: `<div class="note">${note}</div>
-      ${recit.length ? `<div class="result-section recit-saison">
-        <h3>Le récit de la saison</h3>
-        ${recit.map(p => `<p>${esc(p)}</p>`).join('')}
-      </div>` : ''}
-      <div class="result-section">
-        <h3>Forces des NHL Stars</h3>
-        <div class="bars">
-          ${bar('Attaque', r.attaque)}
-          ${bar('Brigade déf.', r.brigade)}
-          ${bar('Gardien', r.gRating)}
-          ${bar('Robustesse', r.rob)}
-          ${bar('Clutch', r.clu)}
-        </div>
-      </div>
-      <div class="result-section">
-        <h3>Infirmerie</h3>
-        ${injuries}
-      </div>`,
-    classement: `<div class="result-section">
-        <h3>Classement général · ${nTeams} équipes, ${(nTeams * 82 / 2).toLocaleString('fr-CA')} matchs</h3>
-        <p class="series-legende">Touche une équipe pour son alignement et ses 82 matchs.</p>
-        <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rang</th><th class="left">Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th>PTS</th><th>BP</th><th>BC</th><th>Diff</th></tr></thead>
-          <tbody>${standings}</tbody>
-        </table></div>
-      </div>`,
-    calendrier: calendrier.length ? `<div class="result-section" id="calendrierSection">
-        <h3>Calendrier · ${calendrier.length} journées</h3>
-        <div class="cal-barre">
-          <button class="btn small" id="calPrev" title="Journée précédente">‹</button>
-          <input type="range" id="calJour" min="1" max="${calendrier.length}" value="${calendrier.length}" aria-label="Journée">
-          <span class="cal-titre" id="calTitre">Journée ${calendrier.length}</span>
-          <button class="btn small" id="calNext" title="Journée suivante">›</button>
-        </div>
-        <div id="calHost">${calendrierHtml(calendrier, calendrier.length - 1)}</div>
-      </div>` : '',
-    stats: stats ? `<div class="result-section">
-        <h3>Statistiques de la ligue · tous les joueurs</h3>
-        ${palmaresHtml(stats, 'saison')}
-      </div>` : '',
-    alignement: `<div class="result-section">
-        <h3>Feuille de match des NHL Stars</h3>
-        <p class="series-legende">Touche un nom pour sa fiche et ses statistiques simulées.</p>
-        ${rows}
-      </div>`,
-    series: `<div id="playoffsSection"></div>`,
-  };
-
-  $('resultHost').style.display = '';
-  $('resultHost').innerHTML = `
-    <div class="result">
-      <div class="result-hero">
-        <div class="hero-band ${rank === 1 ? 'or' : rank <= 16 ? '' : 'out'}">
-          ${rank === 1 ? '1er de la ligue' : rank <= 16 ? `${rank}e de ${nTeams} · en séries` : `${rank}e de ${nTeams} · éliminé`}
-        </div>
-        <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
-        <div class="result-strip">
-          <div class="rs-cell"><span class="k">PTS</span><b>${r.points}</b></div>
-          <div class="rs-cell"><span class="k">Rang</span><b>${rank}<small>/${nTeams}</small></b></div>
-          <div class="rs-cell"><span class="k">BP</span><b>${r.GF}</b></div>
-          <div class="rs-cell"><span class="k">BC</span><b>${r.GA}</b></div>
-          <div class="rs-cell"><span class="k">Diff</span><b class="${r.GF - r.GA >= 0 ? 'pm-pos' : 'pm-neg'}">${r.GF - r.GA > 0 ? '+' : ''}${r.GF - r.GA}</b></div>
-          <div class="rs-cell"><span class="k">Masse</span><b>${money(capUsed())}</b></div>
-        </div>
-      </div>
-
-      <div class="result-actions">
-        ${rank <= 16 ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
-        <button class="btn blue" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
-        <button class="btn go" id="againBtn">Nouvelle partie</button>
-      </div>
-
-      <div class="result-tabs" role="tablist" id="resultTabs">
-        ${ONGLETS_BILAN.map(o => `<button class="result-tab${o.cle === 'bilan' ? ' on' : ''}" role="tab" data-volet="${o.cle}" aria-selected="${o.cle === 'bilan'}"${volets[o.cle] && o.cle !== 'series' ? '' : ' hidden'}>${esc(o.titre)}</button>`).join('')}
-      </div>
-      ${ONGLETS_BILAN.map(o => `<div class="result-pane" data-volet="${o.cle}"${o.cle === 'bilan' ? '' : ' hidden'}>${volets[o.cle]}</div>`).join('')}
-    </div>`;
-
-  brancherOnglets($('resultTabs'));
-  if (stats) brancherPalmares($('palm-saison'), stats, 'saison');
-
-  if (calendrier.length) {
-    const range = $('calJour');
-    const montrerJour = j => {
-      j = Math.max(1, Math.min(calendrier.length, j));
-      range.value = j;
-      $('calTitre').textContent = `Journée ${j}`;
-      $('calHost').innerHTML = calendrierHtml(calendrier, j - 1);
-    };
-    range.oninput = () => montrerJour(Number(range.value));
-    $('calPrev').onclick = () => montrerJour(Number(range.value) - 1);
-    $('calNext').onclick = () => montrerJour(Number(range.value) + 1);
-  }
-
-  $('shareBtn').onclick = () => {
-    const top = picked().slice().sort((a, b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0))[0];
-    const txt = `🏒 Cap 82-0\n`
-      + `Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n`
-      + `Rang : ${rank}e de ${nTeams}\n`
-      + `Masse salariale : ${money(capUsed())} / ${money(CAP)}\n`
-      + `Vedette : ${top ? `${top.n} (${top.t} ${top.s})` : '—'}\n`
-      + `Essaie de faire 82-0.`;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(txt)
-        .then(() => toast('Fiche copiée dans le presse-papier.'))
-        .catch(() => toast('Copie impossible sur ce navigateur.', 'bad'));
-    } else {
-      toast('Copie impossible sur ce navigateur.', 'bad');
-    }
-  };
-
-  if (rank <= 16) $('playoffsBtn').onclick = () => runPlayoffs(teams.slice(0, 16));
-  $('againBtn').onclick = () => newGame();
-
-  renderMain();
-  $('resultHost').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-/* =====================================================================
-   Séries — match par match, avec sommaire
-   ===================================================================== */
-
-const RONDES = ['Premier tour', 'Deuxième tour', 'Demi-finales', 'Finale de la Coupe Stanley'];
-
-/**
- * Les séries, jouées match par match. Chaque match garde sa feuille — buts
- * avec leur instant, tirs par période, arrêts — et le sommaire s'ouvre d'un
- * clic. C'est la même simulation qu'avant : on ne jetait simplement pas ce
- * que le moteur produisait déjà.
- */
-function runPlayoffs(top16) {
-  const host = $('playoffsSection');
-  if (!host) return;
-
-  // LES SÉRIES ONT LEURS STATISTIQUES À PART : photo des fiches de saison,
-  // les séries s'inscrivent par-dessus, puis on sépare (js/sim.js).
-  const photo = photoStats(G.ligue ? G.ligue.teams : top16);
-  G.series = [];
-  let ronde = top16.slice(), n = 0;
-  while (ronde.length > 1) {
-    const suivant = [];
-    for (let i = 0; i < ronde.length / 2; i++) {
-      const A = ronde[i], B = ronde[ronde.length - 1 - i];
-      const s = playSeries(A, B, true);
-      suivant.push(s.winner);
-      G.series.push({ ...s, A, B, ronde: n, i: G.series.length });
-    }
-    ronde = suivant;
-    n++;
-  }
-  separerSeries(G.ligue ? G.ligue.teams : top16, photo);
-  const champion = ronde[0];
-  const btn = $('playoffsBtn');
-  if (btn) btn.disabled = true;
-
-  // LE DIRECT D'ABORD. Tout est déjà joué ; on ne dessine le tableau qu'une
-  // fois que le joueur a regardé ses séries match par match — ou qu'il a
-  // fermé le direct. Le mystère tient à ce seul ordre.
-  diffuserSeries({
-    series: G.series, rondes: RONDES,
-    ctx: { esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
-    onTermine: () => dessinerTableauDesSeries(host, n, champion),
-  });
-}
-
-/** Le tableau complet des séries, toutes rondes, tous les matchs cliquables. */
-function dessinerTableauDesSeries(host, n, champion) {
-  let html = `<div class="result-section"><h3>${ico('i-cup')}Séries éliminatoires</h3>
-    <p class="series-legende">Touche un match pour son sommaire.
-      <span class="lg lg-or">or</span> le match qui a réglé la série ·
-      <span class="lg lg-ot">rose</span> réglé en prolongation</p>`;
-  for (let r = 0; r < n; r++) {
-    const dedans = G.series.filter(s => s.ronde === r);
-    html += `<div class="series-round"><h4>${esc(RONDES[r] || `Ronde ${r + 1}`)}</h4><div class="series-grid">`;
-    for (const s of dedans) html += serieHtml(s);
-    html += '</div></div>';
-  }
-  html += `<div class="champion">
-    <h3>Champion de la Coupe Stanley</h3>
-    <div class="champ-name">${getTeamLogoHtml(champion.tag, 30)} ${esc(teamLabel(champion))}</div>
-    <p>${champion.isPlayer ? 'Les NHL Stars soulèvent la Coupe. 🏆' : 'Les NHL Stars sont tombés en chemin. Rebâtis et réessaie.'}</p>
-  </div></div>`;
-
-  // Les statistiques des séries, à part de celles de la saison : les seize
-  // équipes, tous ceux qui ont joué un match. Le titre dit lesquelles.
-  const equipes = [...new Set(G.series.flatMap(s => [s.A, s.B]))];
-  const statsSeries = leagueStats(equipes, 'series');
-  html += `<div class="result-section">
-    <h3>Statistiques des séries · à part de la saison</h3>
-    <p class="series-legende">Touche une équipe pour son alignement en séries, un nom pour sa fiche.</p>
-    <div class="cal-grille equipes-series">${equipes.map(t => `<div class="cal-match"><div class="cal-eq${t.isPlayer ? ' toi' : ''}">${getTeamLogoHtml(t.tag, 16)}${lienEquipe(t, 'series', `<span>${esc(teamLabel(t))}</span>`)}<b>${t.po ? `${t.po.W}-${t.po.L + t.po.OTL}` : ''}</b></div></div>`).join('')}</div>
-    ${palmaresHtml(statsSeries, 'series')}
-  </div>`;
-
-  host.innerHTML = html;
-  host.querySelectorAll('.mcard').forEach(b => {
-    b.onclick = () => showGameModal(Number(b.dataset.serie), Number(b.dataset.match));
-  });
-  brancherPalmares($('palm-series'), statsSeries, 'series');
-  // L'onglet « Séries » n'existait pas encore : il apparaît et s'ouvre.
-  const onglet = document.querySelector('#resultTabs .result-tab[data-volet="series"]');
-  if (onglet) { onglet.hidden = false; montrerVolet('series'); }
-  else host.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-/** Le tag et l'année courte : « MTL '76 », ce qui tient dans une carte. */
-const tagCourt = t => t.isPlayer ? 'NHL' : `${t.tag}${t.season ? ` '${t.season.slice(2, 4)}` : ''}`;
-
-/**
- * Une carte de match, dans le langage des cartes de pointage : un bandeau
- * coloré qui dit ce qu'on regarde, les deux écussons, puis les deux lignes
- * de pointage — le gagnant en clair, le perdant en gris. Le bandeau porte
- * la couleur, jamais le texte de la carte : c'est la même règle que pour
- * les couleurs d'équipe.
- */
-function matchCardHtml(s, f, i) {
-  // Le bandeau porte une information, pas une décoration : l'or marque le
-  // match qui a réglé la série, le rose celui qui est allé en prolongation.
-  const decisif = i === s.feuilles.length - 1;
-  const ton = decisif ? 'or' : f.ot ? 'ot' : '';
-  const titre = f.ot ? `M${i + 1} · prolongation` : `Match ${i + 1}`;
-  const ligne = (t, buts, gagne) => `<span class="mcard-row ${gagne ? 'win' : 'lose'}">
-      <span class="mcard-eq">${esc(tagCourt(t))}</span><b>${buts}</b></span>`;
-  return `<button class="mcard ${ton}${f.ot ? ' ot' : ''}" data-serie="${s.i}" data-match="${i}"
-    title="Sommaire du match ${i + 1}">
-    <span class="mcard-top">${esc(titre)}</span>
-    <span class="mcard-body">
-      <span class="mcard-logos">${getTeamLogoHtml(s.A.tag, 34)}${getTeamLogoHtml(s.B.tag, 34)}</span>
-      <span class="mcard-rows">
-        ${ligne(s.A, f.gfA, f.vainqueur === 'A')}
-        ${ligne(s.B, f.gfB, f.vainqueur === 'B')}
-      </span>
-      <span class="mcard-foot">${tirsTotal(f, 'A')} — ${tirsTotal(f, 'B')} tirs</span>
-    </span>
-  </button>`;
-}
-
-/** Une série : les deux équipes, et chaque match cliquable vers son sommaire. */
-function serieHtml(s) {
-  const gagne = s.winner === s.A;
-  const nomV = teamShort(gagne ? s.A : s.B), nomP = teamShort(gagne ? s.B : s.A);
-  const rangee = (t, w, vain) => `<div class="series-row ${vain ? 'win' : 'lose'}">
-    ${teamCell(t, 15)}<span>${w}</span></div>`;
-  const matchs = s.feuilles.map((f, i) => matchCardHtml(s, f, i)).join('');
-  return `<div class="series ${s.A.isPlayer || s.B.isPlayer ? 'you' : ''}">
-    ${rangee(s.A, s.wA, gagne)}${rangee(s.B, s.wB, !gagne)}
-    <div class="serie-recit">${esc(recitDeSerie(Math.max(s.wA, s.wB), Math.min(s.wA, s.wB), nomV, nomP, s.feuilles))}</div>
-    <div class="serie-games">${matchs}</div>
-  </div>`;
-}
-
-/** Le sommaire d'un match : buts période par période, tirs, gardiens, récit. */
-function showGameModal(iSerie, iMatch) {
-  const s = G.series[iSerie];
-  if (!s) return;
-  const f = s.feuilles[iMatch];
-  const A = s.A, B = s.B;
-  const tirsA = tirsTotal(f, 'A'), tirsB = tirsTotal(f, 'B');
-  const nomA = teamLabel(A), nomB = teamLabel(B);
-
-  const parPeriode = [1, 2, 3, 4].map(per => {
-    const buts = f.buts.filter(b => periodeDe(b.instant) === per).map(b => ({ ...b, type: 'but' }));
-    const punitions = (f.punitions || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'punition' }));
-    if (!buts.length && per === 4) return '';
-    const items = [...buts, ...punitions].sort((x, y) => x.instant - y.instant);
-    const lignes = items.map(b => {
-      const t = b.cote === 'A' ? A : B;
-      // Chaque nom ouvre la fiche avec ses statistiques des SÉRIES.
-      const lien = p => lienJoueur(p, t, 'series', `<strong>${formatName(p.n)}</strong>`);
-      if (b.type === 'punition') {
-        return `<div class="som-but som-pun">
-          <span class="som-tps">${tempsDeJeu(b.instant)}</span>
-          <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
-          <span class="som-qui">Punition${b.joueur ? ` à ${lien(b.joueur)}` : ''} · ${b.minutes} min${b.butAN ? ' · écourtée par le but' : ''}</span>
-        </div>`;
-      }
-      const aides = b.passeurs.length
-        ? `<span class="som-aides">${b.passeurs.map(p => lienJoueur(p, t, 'series', esc(p.n))).join(', ')}</span>`
-        : '<span class="som-aides sans">sans aide</span>';
-      const situation = b.an ? '<span class="som-sit an">AN</span>' : b.dn ? '<span class="som-sit dn">DN</span>' : '';
-      return `<div class="som-but">
-        <span class="som-tps">${tempsDeJeu(b.instant)}</span>
-        <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
-        <span class="som-qui">${situation}${lien(b.marqueur)} ${aides}</span>
-        <span class="som-recit">${esc(recitDeBut(b))}</span>
-      </div>`;
-    }).join('') || '<div class="som-vide">Aucun but.</div>';
-    return `<div class="som-per">
-      <div class="som-per-head"><span>${esc(NOM_PERIODE[per])}</span>
-        <span class="som-tirs">tirs ${f.tirs.A[per]} — ${f.tirs.B[per]}</span></div>
-      ${lignes}</div>`;
-  }).join('');
-
-  const gard = (g, arrets, tirs, t) => g
-    ? `<div class="som-gard"><span>${lienJoueur(g, t, 'series')}</span><span>${arrets} arrêts sur ${tirs}</span></div>`
-    : '';
-
-  /* Le titre ne répète pas le pointage : les deux lignes juste dessous le
-     donnent, avec les écusson et les tirs. Trois lignes de titre sur un
-     téléphone repoussaient le sommaire sous le pli pour rien. */
-  $('gameModalTitle').innerHTML = `Match ${iMatch + 1} · ${esc(teamShort(A))} — ${esc(teamShort(B))}`
-    + (f.ot ? ' <span class="som-ot">prolongation</span>' : '');
-  $('gameModalBody').innerHTML = `
-    <div class="som-recap">${esc(recitDeMatch(f, teamShort(A), teamShort(B), tirsA, tirsB))}</div>
-    <div class="som-lignes">
-      <div class="som-ligne"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
-      <div class="som-ligne"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
-    </div>
-    ${parPeriode}
-    <div class="som-per">
-      <div class="som-per-head"><span>Gardiens</span><span class="som-tirs">après ${iMatch + 1} match${iMatch ? 's' : ''} : ${f.serie}</span></div>
-      ${gard(f.gardienA, f.arrets.A, tirsB, A)}
-      ${gard(f.gardienB, f.arrets.B, tirsA, B)}
-    </div>`;
-  openModal('gameModal');
 }
 
 /**
@@ -2691,6 +2195,55 @@ async function chargerRenfort() {
   return false;
 }
 
+/**
+ * REJOUER LA SAISON : le même alignement, les mêmes 31 clubs, d'autres dés.
+ * Après vingt minutes à bâtir 23 joueurs, une seule saison ne dit pas grand-
+ * chose — la variance du moteur vaut facilement cinq victoires. Les équipes
+ * sont recréées à partir des mêmes alignements (le moteur remet les fiches à
+ * zéro), le moteur tire une nouvelle graine, et l'écran rejoue tout.
+ */
+async function rejouerSaison() {
+  if (!G.ligue || !G.done) return;
+  const adversaires = G.ligue.adversaires || [];
+  G.done = false;
+  $('resultHost').innerHTML = '';
+  $('resultHost').style.display = 'none';
+  renderMain();
+  await runSeason(adversaires.length ? { adversaires } : {});
+}
+
+/**
+ * REPRENDRE UN ALIGNEMENT DE L'HISTORIQUE : les 23 joueurs sont relus dans
+ * leurs shards (rechargés au besoin), le mode de l'époque est remis, et la
+ * saison part tout de suite — contre 31 nouveaux clubs, sur de nouveaux dés.
+ */
+async function reprendreAlignement(entree) {
+  if (!entree || !Array.isArray(entree.alignement)) return;
+  closeModal('leaderboardModal');
+  toast('On relit l\'alignement…');
+  const roster = {};
+  for (const a of entree.alignement) {
+    if (!a) continue;
+    if (!G.shards.has(a.s)) { try { await getShard(a.s); } catch { /* saison indisponible */ } }
+    const entry = G.shards.get(a.s);
+    const fresh = entry && entry.players.find(q => getPlayerKey(q) === a.k);
+    if (!fresh) { toast(`La saison ${a.s} n'est plus disponible : impossible de reprendre cet alignement.`, 'bad'); return; }
+    roster[a.i] = a.r ? { ...fresh, _renfort: true } : fresh;
+  }
+  if (entree.mode && MODES[entree.mode] && entree.mode !== G.mode) { G.mode = entree.mode; saveOpts(); }
+  clearSave();
+  G.roster = roster;
+  G.tirage = [];
+  G.target = null;
+  G.selectedSlot = null;
+  G.done = false;
+  G.ligue = null;
+  $('resultHost').innerHTML = '';
+  $('resultHost').style.display = 'none';
+  render();
+  await runSeason();
+}
+
 async function newGame() {
   clearSave();
   G.roster = {};
@@ -2714,5 +2267,5 @@ async function newGame() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-window.cap82 = { G, cacheClear, simulate };
+window.cap82 = { G, cacheClear, simulate, portraitAbsent };
 boot();

@@ -479,13 +479,67 @@ const effStat = (player, slot, key) => {
   return Math.max(25, r[key] - getPositionPenalty(player, slot));
 };
 
+/* ======================================================================
+   Le hasard du moteur
+   ======================================================================
+   TOUT le hasard de la simulation passe par `hasard()`, jamais par
+   `Math.random` directement : c'est ce qui rend une saison REJOUABLE. Une
+   graine (`grainerHasard`) remplace le générateur par un sfc32 déterministe,
+   donc la même graine, les mêmes équipes et le même ordre d'appels redonnent
+   les 1312 mêmes matchs — le défi du jour, « rejouer la saison » et un test
+   reproductible en dépendent. `simulateLeague` tire une graine s'il n'en
+   reçoit pas et la rend, pour qu'aucune saison ne soit perdue.
+   ====================================================================== */
+
+let hasard = Math.random;
+
+/** Hache un texte ou un nombre en 32 bits (cyrb53 tronqué, suffit ici). */
+export function graineDe(x) {
+  const str = String(x);
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h1 ^ h2) >>> 0;
+}
+
+/** Un générateur sfc32 sur une graine 32 bits, uniforme dans [0, 1). */
+export function generateur(graine) {
+  let a = 0x9e3779b9, b = 0x243f6a88, c = 0xb7e15162, d = graineDe(graine) | 0;
+  const suivant = () => {
+    a |= 0; b |= 0; c |= 0; d |= 0;
+    const t = (a + b | 0) + d | 0;
+    d = d + 1 | 0;
+    a = b ^ (b >>> 9);
+    b = c + (c << 3) | 0;
+    c = (c << 21) | (c >>> 11);
+    c = c + t | 0;
+    return (t >>> 0) / 4294967296;
+  };
+  for (let i = 0; i < 12; i++) suivant();   // on jette l'échauffement
+  return suivant;
+}
+
+/** Remplace le hasard du moteur par un générateur graine (ou le rend au vrai hasard). */
+export function grainerHasard(graine = null) {
+  hasard = graine === null || graine === undefined ? Math.random : generateur(graine);
+  return hasard;
+}
+
+/** Une graine lisible, tirée du vrai hasard : c'est ce que la saison porte. */
+export const nouvelleGraine = () => Math.floor(Math.random() * 0xffffffff).toString(36);
+
 // POIDS_TRIO et POIDS_PAIRE (temps de glace des unités) vivent dans
 // js/ratings.js : l'étage 2 des cotes s'en sert pour le contexte de création.
 
 function poisson(lambda) {
   const L = Math.exp(-lambda);
   let k = 0, p = 1;
-  do { k++; p *= Math.random(); } while (p > L);
+  do { k++; p *= hasard(); } while (p > L);
   return k - 1;
 }
 
@@ -828,8 +882,17 @@ export const DISCIPLINE_MAX = 1.8;
 export const periodeDe = t => (t < 20 ? 1 : t < 40 ? 2 : t < 60 ? 3 : 4);
 
 /** Un but reçoit une passe principale, puis parfois une secondaire. */
-export const P_PASSE_1 = 0.85;
-export const P_PASSE_2 = 0.62;
+export const P_PASSE_1 = 0.95;   // réel : 1,66 passe par but sur 55 saisons (0,95 + 0,95 × 0,75 = 1,66)
+export const P_PASSE_2 = 0.75;
+/*
+ * LE POIDS D'UN DÉFENSEUR DANS LE TIRAGE DES PASSEURS. La propension est la
+ * part de passes dans les points, RELATIVE — un défenseur en a une haute par
+ * nature — et deux des quatre coéquipiers sur la glace sont des défenseurs :
+ * à 0,7 ils récoltaient 45 % des passes de la ligue contre 29,7 % réels sur
+ * 55 saisons (27 % en 1975-76, 31 % en 2024-25), et Bowen Byram finissait à
+ * 94 points. Réglé sur la mesure : 0,3 donne 29,7 %.
+ */
+export const PASSE_D = 0.3;
 
 /** Volume de tirs et finition d'un rappel de la ligue mineure. */
 const RAPPEL_LANCERS = 0.70;
@@ -902,7 +965,7 @@ export const passesRelDe = passesRel;
 
 /** Propension à la passe : la part de points qu'un joueur récolte en passes. */
 const propensionPasse = p =>
-  ((p.a || 0) / Math.max(1, p.pt || 1) + 0.05) * (p.p === 'D' ? 0.7 : 1);
+  ((p.a || 0) / Math.max(1, p.pt || 1) + 0.05) * (p.p === 'D' ? PASSE_D : 1);
 
 /** Minutes de punition par match d'un patineur, relatives au régulier moyen de sa saison. */
 function punitionsRel(p) {
@@ -1082,7 +1145,7 @@ export function profilMatch(team, lineup) {
 
 /** Tire une unité au prorata de sa part de présences, sans le volume de tirs. */
 function choisirPresence(unites) {
-  let r = Math.random() * unites.reduce((a, x) => a + x.presence, 0);
+  let r = hasard() * unites.reduce((a, x) => a + x.presence, 0);
   for (const x of unites) { r -= x.presence; if (r <= 0) return x; }
   return unites[unites.length - 1];
 }
@@ -1102,7 +1165,7 @@ const PROFIL_NEUTRE = {
 
 /** Tire une unité au prorata de son poids de présence. */
 function choisirUnite(unites) {
-  let r = Math.random() * unites.reduce((a, x) => a + x.poids, 0);
+  let r = hasard() * unites.reduce((a, x) => a + x.poids, 0);
   for (const x of unites) { r -= x.poids; if (r <= 0) return x; }
   return unites[unites.length - 1];
 }
@@ -1150,7 +1213,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
   let instants;
   if (st?.fenetre) {
     const [t0, t1] = st.fenetre;
-    instants = Array.from({ length: lancers }, () => t0 + Math.random() * (t1 - t0)).sort((a, b) => a - b);
+    instants = Array.from({ length: lancers }, () => t0 + hasard() * (t1 - t0)).sort((a, b) => a - b);
   } else {
     instants = Array.from({ length: lancers }, () => instantForcesEgales(st?.fenetres, journal?.prolongation));
   }
@@ -1171,9 +1234,20 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const instant = instants[i];
     let tireur = null, unite = null, glace = null;
     if (unitesOff) {
-      const trio = choisirUnite(unitesOff.F);
-      const paire = choisirUnite(unitesOff.D);
-      unite = Math.random() < (mode === 'AN' ? PART_LANCERS_D_AN : PART_LANCERS_D) ? paire : trio;
+      // QUI TIRE, ET QUI EST SUR LA GLACE AVEC LUI. L'unité qui tire se tire
+      // au poids offensif (présence × volume × chimie) ; l'AUTRE unité, celle
+      // qui l'accompagne, se tire à la présence seule. Les deux se tiraient
+      // au poids offensif, si bien qu'une première paire qui tire beaucoup
+      // était « sur la glace » pour la majorité des buts pour de l'équipe,
+      // en récoltait les passes et la création, et ne payait que sa part de
+      // présence sur les buts contre : Bourque et Potvin à +144 sur une
+      // équipe à +150, et les défenseurs à +22 % de passes (JP : *+140 quand
+      // t'as genre 80 points c'est cave en sale*). Une paire ne monte pas
+      // avec un trio parce qu'elle tire ; elle est là parce que c'est son tour.
+      const tireDef = hasard() < (mode === 'AN' ? PART_LANCERS_D_AN : PART_LANCERS_D);
+      const trio = tireDef ? choisirPresence(unitesOff.F) : choisirUnite(unitesOff.F);
+      const paire = tireDef ? choisirUnite(unitesOff.D) : choisirPresence(unitesOff.D);
+      unite = tireDef ? paire : trio;
       glace = [...trio.joueurs, ...paire.joueurs];
       // Une unité entièrement blessée ne tire pas : le lancer n'a alors pas
       // lieu du tout, plutôt que de devenir un but sans marqueur — c'est ce
@@ -1228,7 +1302,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const lancer = journal ? { cote, instant, tireur, gardien, but: false, mode } : null;
     if (lancer) journal.lancers.push(lancer);
 
-    if (Math.random() < p) {
+    if (hasard() < p) {
       buts++;
       if (lancer) lancer.but = true;
       if (journal && tireur) {
@@ -1242,11 +1316,11 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
         const co = glace.filter(x => x !== tireur);
         const entree = journal ? journal.buts[journal.buts.length - 1] : null;
         const passeurs = [];
-        if (co.length && Math.random() < P_PASSE_1) {
+        if (co.length && hasard() < P_PASSE_1) {
           const a1 = weightedPick(co, propensionPasse);
           passeurs.push(a1);
           const reste = co.filter(x => x !== a1);
-          if (reste.length && Math.random() < P_PASSE_2) passeurs.push(weightedPick(reste, propensionPasse));
+          if (reste.length && hasard() < P_PASSE_2) passeurs.push(weightedPick(reste, propensionPasse));
         }
         if (entree) entree.passeurs = passeurs;
         if (feuille) {
@@ -1298,14 +1372,14 @@ const CONTINUITY_GAMES = 25;
 
 function gauss() {
   let u = 0, v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
+  while (u === 0) u = hasard();
+  while (v === 0) v = hasard();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
 const shuffle = a => {
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(hasard() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -1327,11 +1401,12 @@ export function injuryChance(p, heavy = false) {
 
 function injuryLength() {   // moyenne ~8 matchs, plafond 40
   let n = 1;
-  while (n < 40 && Math.random() < 0.875) n++;
+  while (n < 40 && hasard() < 0.875) n++;
   return n;
 }
 
 export function initSimStats(p) {
+  delete p.po;   // les statistiques des séries d'une saison rejouée ne survivent pas
   p.simGP = 0; p.simG = 0; p.simA = 0; p.simPTS = 0; p.simPM = 0; p.simInj = 0;
   p.simSH = 0; p.simPIM = 0; p.simPPG = 0;
   if (p.p === 'G') {
@@ -1350,7 +1425,7 @@ export function createTeam(name, tag, roster, opts = {}) {
     togetherSig: new Map(),
     injuriesLog: [],         // { player, games, at }
     journal: [],             // un match par entrée : { n, adv, gf, ga, ot, win } — de quoi raconter la saison
-    luck: gauss() * LUCK_SEASON,
+    luck: gauss() * LUCK_SEASON,   // retirée sous la graine par simulateLeague
     W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0, games: 0,
     strength: null,
   };
@@ -1410,10 +1485,32 @@ export function teamStrength(team, lineup = activeLineup(team)) {
 
 const goalieRating = g => g ? (0.6 * getHiddenRatings(g).o + 0.4 * getHiddenRatings(g).d) : REPLACEMENT;
 
+/*
+ * LES DÉPARTS SE PARTAGENT COMME DANS LA VRAIE SAISON DES DEUX GARDIENS.
+ * L'auxiliaire jouait un match sur six, quel que fût son vrai rôle : un
+ * partant qui avait joué 30 matchs dans sa vraie saison en jouait 68 ici, et
+ * un tandem 1A-1B ne valait rien de plus qu'un partant et un rappel — la case
+ * auxiliaire était de l'argent mort. La part de l'auxiliaire est maintenant
+ * sa part réelle des matchs des deux (Dryden 56 sur 78 en 1972-73 laisse 22
+ * à son second ; un partant de 65 laisse 17), bornée pour qu'un partant
+ * reste le partant : de PART_AUX_MIN à PART_AUX_MAX. Les départs sont posés
+ * en rotation régulière, sans hasard, comme avant.
+ */
+export const PART_AUX_MIN = 0.12;   // au moins ~10 départs : le corps a ses limites
+export const PART_AUX_MAX = 0.50;   // un vrai tandem, jamais plus que la moitié
+
+export function partAuxiliaire(starter, backup) {
+  if (!starter || !backup) return 0;
+  const gs = gpShare(starter), gb = gpShare(backup);
+  if (gs + gb <= 0) return 1 / 6;
+  return Math.max(PART_AUX_MIN, Math.min(PART_AUX_MAX, gb / (gs + gb)));
+}
+
 function pickGoalie(lineup, gameIdx, team = null) {
   const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]);
   const [starter, backup] = gs;
-  const useBackup = gameIdx % 6 === 5;           // ~14 départs pour l'auxiliaire
+  const part = partAuxiliaire(starter, backup);
+  const useBackup = Math.floor((gameIdx + 1) * part) > Math.floor(gameIdx * part);
   const g = (useBackup ? (backup || starter) : (starter || backup)) || null;
   if (g || !team) return g;
 
@@ -1430,14 +1527,14 @@ function pickGoalie(lineup, gameIdx, team = null) {
 }
 
 function pickUnit(weights) {
-  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+  let r = hasard() * weights.reduce((a, b) => a + b, 0);
   for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) return i; }
   return weights.length - 1;
 }
 
 function weightedPick(list, wfn) {
   const ws = list.map(wfn);
-  let r = Math.random() * ws.reduce((a, b) => a + b, 0);
+  let r = hasard() * ws.reduce((a, b) => a + b, 0);
   for (let i = 0; i < list.length; i++) { r -= ws[i]; if (r <= 0) return list[i]; }
   return list[list.length - 1];
 }
@@ -1477,7 +1574,7 @@ function applyInjuries(team, lineup, heavy) {
   }
   for (const p of Object.values(lineup)) {
     if (!p || team.injured.has(p)) continue;
-    if (Math.random() < injuryChance(p, heavy)) {
+    if (hasard() < injuryChance(p, heavy)) {
       const n = injuryLength();
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
@@ -1515,7 +1612,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     if (journal) journal.prolongation = true;
     const p = 1 / (1 + Math.exp(-((sA.clu + pA.meneur) - (sB.clu + pB.meneur)) / 9));
     // Le but gagnant appartient à un joueur, comme tous les autres.
-    if (Math.random() < p) { gfA++; butProlongation(pA, pB, gB, track, journal, 'A'); }
+    if (hasard() < p) { gfA++; butProlongation(pA, pB, gB, track, journal, 'A'); }
     else { gfB++; butProlongation(pB, pA, gA, track, journal, 'B'); }
   }
   if (journal) {
@@ -1537,8 +1634,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     updateTogether(A, LA); updateTogether(B, LB);
     // Le journal de la saison : ce qu'il faut pour raconter une séquence,
     // un début de saison, une raclée. Le moteur n'y lit jamais rien.
-    if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA });
-    if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB });
+    if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
+    if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB, feuille: journal });
   }
   applyInjuries(A, LA, heavy); applyInjuries(B, LB, heavy);
   if (track) { A.games++; B.games++; }
@@ -1549,10 +1646,10 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
 /** Un instant à forces égales : n'importe où dans le match, hors des avantages. */
 function instantForcesEgales(fenetres, prolongation) {
   for (let k = 0; k < 12; k++) {
-    const t = prolongation ? 60 + Math.random() * 5 : Math.random() * 60;
+    const t = prolongation ? 60 + hasard() * 5 : hasard() * 60;
     if (!fenetres || !fenetres.some(([a, b]) => t >= a && t < b)) return t;
   }
-  return Math.random() * 60;
+  return hasard() * 60;
 }
 
 /**
@@ -1597,7 +1694,7 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
   // séparées par des écarts tirés au hasard (partition uniforme du temps libre).
   shuffle(mineures);
   const libre = Math.max(0, 60 - mineures.length * AN_MINUTES);
-  const coupures = Array.from({ length: mineures.length }, () => Math.random() * libre).sort((a, b) => a - b);
+  const coupures = Array.from({ length: mineures.length }, () => hasard() * libre).sort((a, b) => a - b);
   mineures.forEach((m, k) => { m.t0 = coupures[k] + k * AN_MINUTES; });
 
   for (const m of mineures) {
@@ -1640,15 +1737,19 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
     for (const x of [...choisirPresence(def.unites.F).joueurs, ...choisirPresence(def.unites.D).joueurs]) x.simPM--;
   }
   if (!off.unites) return;
-  const trio = choisirUnite(off.unites.F);
-  const paire = choisirUnite(off.unites.D);
+  // Même règle qu'au cinq contre cinq : l'unité qui tire au poids offensif,
+  // l'autre à la présence.
+  const tireDef = hasard() < PART_LANCERS_D;
+  const trio = tireDef ? choisirPresence(off.unites.F) : choisirUnite(off.unites.F);
+  const paire = tireDef ? choisirUnite(off.unites.D) : choisirPresence(off.unites.D);
+  const unite = tireDef ? paire : trio;
   const glace = [...trio.joueurs, ...paire.joueurs];
   if (!glace.length) return;
-  const tireur = weightedPick(glace, p => lancersRel(p) * pctTirRel(p));
+  const tireur = weightedPick(unite.joueurs.length ? unite.joueurs : glace, p => lancersRel(p) * pctTirRel(p));
   const passeurs = [];
   const co = glace.filter(x => x !== tireur);
   let a1 = null;
-  if (co.length && Math.random() < P_PASSE_1) { a1 = weightedPick(co, propensionPasse); passeurs.push(a1); }
+  if (co.length && hasard() < P_PASSE_1) { a1 = weightedPick(co, propensionPasse); passeurs.push(a1); }
   if (track) {
     tireur.simSH = (tireur.simSH || 0) + 1;
     tireur.simG++; tireur.simPTS++;
@@ -1656,7 +1757,7 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
     for (const x of glace) x.simPM++;
   }
   if (journal) {
-    const instant = 60 + Math.random() * 5;
+    const instant = 60 + hasard() * 5;
     journal.tirs[cote][4]++;
     journal.lancers.push({ cote, instant, tireur, gardien, but: true });
     journal.buts.push({ cote, instant, marqueur: tireur, passeurs, gardien, gagnant: true });
@@ -1671,8 +1772,11 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
  * est le même que celui d'un vrai match — seul l'adversaire est une
  * abstraction plutôt qu'un vestiaire.
  */
-export function simulate(roster) {
+export function simulate(roster, { graine = null } = {}) {
+  if (graine === null || graine === undefined) graine = nouvelleGraine();
+  grainerHasard(graine);
   const team = createTeam('Solo', 'YOU', roster);
+  team.luck = gauss() * LUCK_SEASON;
   for (const s of SLOTS) if (roster[s.i]) initSimStats(roster[s.i]);
 
   const force = teamStrength(team);
@@ -1691,7 +1795,7 @@ export function simulate(roster) {
 
     if (gf === ga) {
       const p = 1 / (1 + Math.exp(-(force.clu + profil.meneur - 52) / 9));
-      if (Math.random() < p) { gf++; W++; win = true; butProlongation(profil, PROFIL_NEUTRE, null); }
+      if (hasard() < p) { gf++; W++; win = true; butProlongation(profil, PROFIL_NEUTRE, null); }
       else { ga++; OTL++; otl = true; butProlongation(PROFIL_NEUTRE, profil, gardien); }
     } else if (gf > ga) { W++; win = true; } else { L++; }
 
@@ -1714,11 +1818,21 @@ export function simulate(roster) {
  * Saison complète : chaque « ronde » apparie toutes les équipes au hasard,
  * 82 rondes -> 82 matchs par équipe. Nombre d'équipes pair requis.
  */
-export function simulateLeague(teams, games = 82) {
+export function simulateLeague(teams, games = 82, { graine = null } = {}) {
   if (teams.length % 2) throw new Error("nombre d'équipes pair requis");
+  // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
+  // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
+  // Le générateur reste en place après : les séries, jouées ensuite par
+  // l'interface, continuent la même suite.
+  if (graine === null || graine === undefined) graine = nouvelleGraine();
+  grainerHasard(graine);
   for (const t of teams) {
     for (const s of SLOTS) if (t.roster[s.i]) initSimStats(t.roster[s.i]);
     t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
+    // La chance de saison est tirée ICI, sous la graine, et non à
+    // `createTeam` : sinon deux saisons de même graine différaient déjà
+    // avant le premier lancer (check_graine.mjs l'a attrapé).
+    t.luck = gauss() * LUCK_SEASON;
   }
   // Le calendrier : une journée par ronde, ses seize matchs avec leur
   // pointage. C'est ce que l'écran rejoue jour après jour, et ce qu'on peut
@@ -1728,8 +1842,14 @@ export function simulateLeague(teams, games = 82) {
     const order = shuffle(teams.slice());
     const jour = [];
     for (let i = 0; i < order.length; i += 2) {
-      const res = playGame(order[i], order[i + 1], r);
-      jour.push({ A: order[i], B: order[i + 1], gfA: res.gfA, gfB: res.gfB, ot: res.ot });
+      // CHAQUE MATCH DE SAISON GARDE SA FEUILLE, comme un match de séries :
+      // ses buts avec leurs passeurs, ses gardiens, ses tirs par période.
+      // C'est ce qui permet de lire les statistiques de la ligue à n'importe
+      // quelle journée, d'ouvrir le sommaire d'un match du calendrier, et
+      // de dire « son 12e but » quand il compte.
+      const feuille = feuilleVierge();
+      const res = playGame(order[i], order[i + 1], r, true, false, feuille);
+      jour.push({ A: order[i], B: order[i + 1], gfA: res.gfA, gfB: res.gfB, ot: res.ot, feuille });
     }
     calendrier.push(jour);
   }
@@ -1741,7 +1861,7 @@ export function simulateLeague(teams, games = 82) {
     if (p && p.p !== 'G') skaters.push({ player: p, team: t });
   }
   const leaders = skaters.sort((a, b) => b.player.simPTS - a.player.simPTS || b.player.simG - a.player.simG).slice(0, 10);
-  return { standings, leaders, calendrier };
+  return { standings, leaders, calendrier, graine };
 }
 
 /* Les champs de fiche que la simulation écrit, patineurs et gardiens. */
@@ -1810,6 +1930,38 @@ export function feuilleVierge() {
 
 /** Tirs d'un côté, toutes périodes confondues. */
 export const tirsTotal = (feuille, cote) => feuille.tirs[cote].reduce((a, b) => a + b, 0);
+
+/**
+ * CE QUE DES FEUILLES DE MATCH DISENT DE CHAQUE JOUEUR, cumulé : buts,
+ * passes, points des patineurs ; matchs, victoires, tirs reçus, arrêts et
+ * buts alloués des gardiens. La clé est l'objet joueur. `compte` se passe
+ * d'un appel à l'autre pour cumuler jour après jour, ou match après match,
+ * sans tout relire.
+ */
+export function compterFeuilles(feuilles, compte = new Map()) {
+  const de = p => {
+    let c = compte.get(p);
+    if (!c) { c = { g: 0, a: 0, pts: 0, gp: 0, w: 0, sa: 0, sv: 0, ga: 0 }; compte.set(p, c); }
+    return c;
+  };
+  for (const f of feuilles) {
+    if (!f) continue;
+    for (const b of f.buts) {
+      if (b.marqueur) { const c = de(b.marqueur); c.g++; c.pts++; }
+      for (const a of b.passeurs || []) { const c = de(a); c.a++; c.pts++; }
+    }
+    for (const cote of ['A', 'B']) {
+      const g = cote === 'A' ? f.gardienA : f.gardienB;
+      if (!g) continue;
+      const c = de(g);
+      const contre = cote === 'A' ? 'B' : 'A';
+      const alloues = f.buts.filter(b => b.cote === contre && b.gardien === g).length;
+      c.gp++; c.ga += alloues; c.sv += f.arrets[cote] || 0; c.sa += (f.arrets[cote] || 0) + alloues;
+      if (f.vainqueur === cote) c.w++;
+    }
+  }
+  return compte;
+}
 
 /**
  * Série 4 de 7 entre deux équipes. Les blessures et l'usure s'appliquent

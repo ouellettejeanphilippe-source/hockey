@@ -1,0 +1,49 @@
+name: Vérifier
+
+# Ce que protège cette Action, à chaque PR et à chaque poussée sur main :
+#
+#   check_graine    la même graine rejoue la même saison (un `Math.random`
+#                   glissé dans js/sim.js la fait échouer)
+#   check_feuilles  les quatre égalités de la feuille de match, sur une ligue
+#                   de 1312 matchs — la colonne vertébrale du moteur
+#   smoke           le parcours complet à 390 px dans Chromium : vestiaire,
+#                   loto, saison, séries, zéro erreur console
+#
+# Les scripts de calibration (monotonie, plafond, tireurs) sont trop longs
+# pour tourner ici ; ils restent à lancer à la main, voir CLAUDE.md.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Le moteur se rejoue sur sa graine
+        run: node scripts/check_graine.mjs
+
+      - name: Les égalités de la feuille de match
+        run: LIGUES=1 node scripts/check_feuilles.mjs
+
+      - name: Installer Playwright (Chromium)
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.47.2
+          npx playwright install --with-deps chromium
+
+      - name: Test de fumée à 390 px
+        run: |
+          python3 -m http.server 8000 >/dev/null 2>&1 &
+          for i in $(seq 1 20); do curl -sf http://localhost:8000/ >/dev/null && break; sleep 0.5; done
+          node scripts/smoke.mjs http://localhost:8000
