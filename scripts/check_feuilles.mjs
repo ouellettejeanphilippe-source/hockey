@@ -169,3 +169,8 @@ if (avecAN.length) {
   console.log(`    (les shards ne portent pas encore les buts en avantage réels : lancer l'Action en mode full)`);
 }
 console.log('');
+
+// Les quatre égalités sont des invariants, pas des repères : si l'une casse,
+// le script échoue, et l'Action « Vérifier » avec lui.
+const casses = [ecartsButs, ecartsGardien, tropDePasses, lancersPour !== lancersContre ? 1 : 0].filter(Boolean).length;
+if (casses) { console.error(`${casses} égalité(s) de la feuille de match cassée(s)`); process.exit(1); }
