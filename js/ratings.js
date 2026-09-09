@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 24;
+export const RATINGS_VERSION = 25;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -1094,9 +1094,38 @@ function valeurAuCentile(pos, q) {
  * dollar ne fait que 40,5 victoires, faute de marquer.
  */
 export const POIDS_VALEUR = {
-  F: { prod: 0.46, vol: 0.14, pm: 0.20, usage: 0.20 },
+  F: { prod: 0.54, vol: 0.10, pm: 0.12, usage: 0.24 },
   D: { prod: 0.34, vol: 0.10, pm: 0.24, usage: 0.32 },
 };
+/*
+ * CHEZ LES ATTAQUANTS, LA PRODUCTION PÈSE PLUS, ET LE +/- D'UNE MAUVAISE
+ * ÉQUIPE COÛTE MOINS. JP a montré Adam Oates 2001-02 — 78 points, cinquième
+ * pointeur de la ligue — étiqueté « Top 9 » : 102 lancers et un −4 le
+ * tiraient à 68, 59e attaquant de sa saison. Ce n'était pas un cas : 89 des
+ * 550 « dix meilleurs pointeurs » des 55 saisons sortaient sous Top 3 —
+ * Stastny 1981-82 (139 points) à 71, Hawerchuk 1985-86 (105) à 63, Federko
+ * 1984-85 (103) à 66 — tous des fabricants de jeu qui tirent peu, ou des
+ * vedettes de clubs faibles. Mesuré sur les 55 saisons (`check_ratings.mjs`
+ * et le compte des top 10 sous 78) :
+ *
+ *   réglage                                  corr.  top 10 sous Top 3
+ *   ancien (0,46 / 0,14 / 0,20 / 0,20, √)     0,793      89 / 550
+ *   0,52 / 0,10 / 0,14 / 0,24                 0,785      45
+ *   idem, production^0,75, +/- plancher −0,75 0,780      24
+ *   EN VIGUEUR (0,54 / 0,10 / 0,12 / 0,24, ^0,75, −0,75)  0,777      17
+ *
+ * La corrélation cède 0,016, et une part de ce chiffre est l'artefact que le
+ * commentaire de `LISSAGE_EQUIPE` décrit : le +/- est en partie un résultat
+ * d'équipe, donc lui donner du poids gonfle mécaniquement la corrélation
+ * qu'on mesure ensuite. Les dix-sept qui restent sont des vedettes de clubs
+ * en perdition (Sakic 1989-90 à −40, Ovechkin 2013-14 à −35), entre 68 et
+ * 77 — Top 6, plus Top 9. La production à la puissance 0,75 plutôt qu'à la
+ * racine sépare mieux le premier du vingtième ; le plancher du +/- fait
+ * qu'une mauvaise équipe coûte au plus la moitié de ce qu'une grande donne.
+ * Les défenseurs ne bougent pas : leur réglage a sa propre mesure (Schultz).
+ */
+const PROD_PUISSANCE_F = 0.75;
+const PM_PLANCHER_F = -0.75;
 
 /** Poids d'un échantillon : un taux sur huit matchs pèse le tiers d'un vrai. */
 export const FIABILITE = 22;
@@ -1118,9 +1147,9 @@ function scorePatineur(p, ctx) {
 
   // Racine sur la production : l'écart entre le 1er et le 20e marqueur compte
   // plus que celui entre le 200e et le 220e, mais pas au carré.
-  return w.prod * Math.sqrt(Math.max(0, prod))
+  return w.prod * Math.pow(Math.max(0, prod), est_D ? 0.5 : PROD_PUISSANCE_F)
     + w.vol * Math.sqrt(Math.max(0, vol))
-    + w.pm * clamp(pm / 0.35, -1.5, 1.5)
+    + w.pm * clamp(pm / 0.35, est_D ? -1.5 : PM_PLANCHER_F, 1.5)
     + w.usage * clamp(usage, 0, 1.6);
 }
 
