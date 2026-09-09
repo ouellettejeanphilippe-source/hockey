@@ -2163,9 +2163,33 @@ table.data .pts { font-weight: 900; color: var(--green); }
   flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 14px;
 }
-.result-actions .btn { flex: 1 1 180px; }
+.result-actions .btn { flex: 1 1 150px; }
+
+/* LE BILAN À ONGLETS. Une barre collée sous la barre du haut, comme la
+   navigation d'un jeu de gestion : un onglet, un volet, jamais une longue
+   page. L'onglet ouvert porte un filet d'or, pas un fond. */
+.result-tabs {
+  position: sticky; top: var(--topbar-h); z-index: 5;
+  display: flex; gap: 2px; margin: 16px -14px 0; padding: 0 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.result-tabs::-webkit-scrollbar { display: none; }
+.result-tab {
+  flex: 1 0 auto; min-height: 42px; padding: 8px 10px 6px;
+  border: 0; border-bottom: 3px solid transparent; background: none;
+  color: var(--sub); white-space: nowrap; cursor: pointer;
+  font-family: var(--display); font-size: 15px; font-weight: 800;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  transition: color .15s, border-color .15s;
+}
+.result-tab:hover { color: var(--text); }
+.result-tab.on { color: var(--gold); border-bottom-color: var(--gold); }
+.result-pane > .result-section:first-child { margin-top: 16px; }
+.result-pane > .note { margin-top: 16px; }
 
 .series-round { margin-top: 16px; }
 /* Le titre de ronde : une ligne de tableau indicateur, filet à droite. */

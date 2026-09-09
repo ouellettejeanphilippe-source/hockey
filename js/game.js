@@ -1411,6 +1411,18 @@ window.addEventListener('resize', () => {
 // La police d'affichage arrive après le premier rendu : on remesure avec elle.
 if (document.fonts?.ready) document.fonts.ready.then(() => ajusterCartes(document));
 
+// LA HAUTEUR RÉELLE DE LA BARRE DU HAUT. Elle fait 84 px sur téléphone et
+// 55 px à partir de 680 px, et deux choses se collent dessous — le volet de
+// l'alignement en grand écran, la barre d'onglets du bilan. `--topbar-h`
+// était une constante à 88 px, donc un jour de 33 px en grand écran ; on la
+// mesure, et elle suit la police et le redimensionnement.
+const topbar = document.querySelector('.topbar');
+if (topbar && 'ResizeObserver' in window) {
+  new ResizeObserver(() => {
+    document.documentElement.style.setProperty('--topbar-h', `${Math.round(topbar.offsetHeight)}px`);
+  }).observe(topbar);
+}
+
 /* =====================================================================
    Rendu — alignement
    ===================================================================== */
@@ -2239,6 +2251,45 @@ function calendrierHtml(calendrier, jour) {
   return `<div class="cal-grille">${j.map(carte).join('')}</div>`;
 }
 
+/*
+ * LES ONGLETS DU BILAN. Le pointage, la bande de six chiffres et les trois
+ * boutons restent en tête ; chaque onglet ouvre un seul volet. « Séries »
+ * n'apparaît qu'une fois les séries jouées, et c'est là que le tableau et
+ * leurs statistiques se dessinent.
+ */
+const ONGLETS_BILAN = [
+  { cle: 'bilan', titre: 'Bilan' },
+  { cle: 'classement', titre: 'Classement' },
+  { cle: 'calendrier', titre: 'Calendrier' },
+  { cle: 'stats', titre: 'Statistiques' },
+  { cle: 'alignement', titre: 'Alignement' },
+  { cle: 'series', titre: 'Séries' },
+];
+function montrerVolet(cle) {
+  const tabs = $('resultTabs');
+  if (!tabs) return;
+  tabs.querySelectorAll('.result-tab').forEach(b => {
+    const on = b.dataset.volet === cle;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    // Sur téléphone la barre défile en x : l'onglet ouvert reste visible.
+    // On déplace la barre elle-même, jamais la page.
+    if (on) {
+      const g = b.offsetLeft - 12, d = b.offsetLeft + b.offsetWidth + 12 - tabs.clientWidth;
+      if (tabs.scrollLeft > g) tabs.scrollTo({ left: g, behavior: 'smooth' });
+      else if (tabs.scrollLeft < d) tabs.scrollTo({ left: d, behavior: 'smooth' });
+    }
+  });
+  document.querySelectorAll('#resultHost .result-pane').forEach(p => { p.hidden = p.dataset.volet !== cle; });
+  // L'onglet reste en vue : si la page a défilé sous la barre, on y remonte.
+  const haut = tabs.getBoundingClientRect().top;
+  const barre = parseFloat(getComputedStyle(tabs).top) || 0;
+  if (haut < barre - 1) tabs.scrollIntoView({ block: 'start' });
+}
+function brancherOnglets(tabs) {
+  tabs.querySelectorAll('.result-tab').forEach(b => { b.onclick = () => montrerVolet(b.dataset.volet); });
+}
+
 function renderResult(r, you, teams, leaders, calendrier = []) {
   const nTeams = teams.length;
   const rank = teams.findIndex(t => t.isPlayer) + 1;
@@ -2288,6 +2339,61 @@ function renderResult(r, you, teams, leaders, calendrier = []) {
     capUsed: capUsed(), rank, nTeams, date: new Date().toLocaleDateString('fr-CA'),
   });
 
+  // LE BILAN EST UN TABLEAU DE BORD À ONGLETS, PAS UNE LONGUE PAGE. JP :
+  // *better season tabs for information instead of long page, like a manager
+  // game*. Le pointage et les trois boutons restent en tête ; tout le reste
+  // vit dans un volet à la fois. Les volets sont tous dans le DOM (les
+  // palmarès restent construits onglet par onglet), seul l'affichage change.
+  const volets = {
+    bilan: `<div class="note">${note}</div>
+      ${recit.length ? `<div class="result-section recit-saison">
+        <h3>Le récit de la saison</h3>
+        ${recit.map(p => `<p>${esc(p)}</p>`).join('')}
+      </div>` : ''}
+      <div class="result-section">
+        <h3>Forces des NHL Stars</h3>
+        <div class="bars">
+          ${bar('Attaque', r.attaque)}
+          ${bar('Brigade déf.', r.brigade)}
+          ${bar('Gardien', r.gRating)}
+          ${bar('Robustesse', r.rob)}
+          ${bar('Clutch', r.clu)}
+        </div>
+      </div>
+      <div class="result-section">
+        <h3>Infirmerie</h3>
+        ${injuries}
+      </div>`,
+    classement: `<div class="result-section">
+        <h3>Classement général · ${nTeams} équipes, ${(nTeams * 82 / 2).toLocaleString('fr-CA')} matchs</h3>
+        <p class="series-legende">Touche une équipe pour son alignement et ses 82 matchs.</p>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Rang</th><th class="left">Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th>PTS</th><th>BP</th><th>BC</th><th>Diff</th></tr></thead>
+          <tbody>${standings}</tbody>
+        </table></div>
+      </div>`,
+    calendrier: calendrier.length ? `<div class="result-section" id="calendrierSection">
+        <h3>Calendrier · ${calendrier.length} journées</h3>
+        <div class="cal-barre">
+          <button class="btn small" id="calPrev" title="Journée précédente">‹</button>
+          <input type="range" id="calJour" min="1" max="${calendrier.length}" value="${calendrier.length}" aria-label="Journée">
+          <span class="cal-titre" id="calTitre">Journée ${calendrier.length}</span>
+          <button class="btn small" id="calNext" title="Journée suivante">›</button>
+        </div>
+        <div id="calHost">${calendrierHtml(calendrier, calendrier.length - 1)}</div>
+      </div>` : '',
+    stats: stats ? `<div class="result-section">
+        <h3>Statistiques de la ligue · tous les joueurs</h3>
+        ${palmaresHtml(stats, 'saison')}
+      </div>` : '',
+    alignement: `<div class="result-section">
+        <h3>Feuille de match des NHL Stars</h3>
+        <p class="series-legende">Touche un nom pour sa fiche et ses statistiques simulées.</p>
+        ${rows}
+      </div>`,
+    series: `<div id="playoffsSection"></div>`,
+  };
+
   $('resultHost').style.display = '';
   $('resultHost').innerHTML = `
     <div class="result">
@@ -2305,67 +2411,20 @@ function renderResult(r, you, teams, leaders, calendrier = []) {
           <div class="rs-cell"><span class="k">Masse</span><b>${money(capUsed())}</b></div>
         </div>
       </div>
-      <div class="note">${note}</div>
-
-      ${recit.length ? `<div class="result-section recit-saison">
-        <h3>Le récit de la saison</h3>
-        ${recit.map(p => `<p>${esc(p)}</p>`).join('')}
-      </div>` : ''}
-
-      <div class="result-section">
-        <h3>Forces des NHL Stars</h3>
-        <div class="bars">
-          ${bar('Attaque', r.attaque)}
-          ${bar('Brigade déf.', r.brigade)}
-          ${bar('Gardien', r.gRating)}
-          ${bar('Robustesse', r.rob)}
-          ${bar('Clutch', r.clu)}
-        </div>
-      </div>
-
-      <div class="result-section">
-        <h3>Classement général · ${nTeams} équipes, ${(nTeams * 82 / 2).toLocaleString('fr-CA')} matchs</h3>
-        <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rang</th><th class="left">Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th>PTS</th><th>BP</th><th>BC</th><th>Diff</th></tr></thead>
-          <tbody>${standings}</tbody>
-        </table></div>
-      </div>
-
-      ${calendrier.length ? `<div class="result-section" id="calendrierSection">
-        <h3>Calendrier · ${calendrier.length} journées</h3>
-        <div class="cal-barre">
-          <button class="btn small" id="calPrev" title="Journée précédente">‹</button>
-          <input type="range" id="calJour" min="1" max="${calendrier.length}" value="${calendrier.length}" aria-label="Journée">
-          <span class="cal-titre" id="calTitre">Journée ${calendrier.length}</span>
-          <button class="btn small" id="calNext" title="Journée suivante">›</button>
-        </div>
-        <div id="calHost">${calendrierHtml(calendrier, calendrier.length - 1)}</div>
-      </div>` : ''}
-
-      ${stats ? `<div class="result-section">
-        <h3>Statistiques de la ligue · tous les joueurs</h3>
-        ${palmaresHtml(stats, 'saison')}
-      </div>` : ''}
-
-      <div class="result-section">
-        <h3>Infirmerie</h3>
-        ${injuries}
-      </div>
-
-      <div class="result-section">
-        <h3>Feuille de match des NHL Stars</h3>
-        <p class="series-legende">Touche un nom pour sa fiche et ses statistiques simulées.</p>
-        ${rows}
-      </div>
 
       <div class="result-actions">
-        <button class="btn blue" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
         ${rank <= 16 ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
+        <button class="btn blue" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
         <button class="btn go" id="againBtn">Nouvelle partie</button>
       </div>
-      <div id="playoffsSection"></div>
+
+      <div class="result-tabs" role="tablist" id="resultTabs">
+        ${ONGLETS_BILAN.map(o => `<button class="result-tab${o.cle === 'bilan' ? ' on' : ''}" role="tab" data-volet="${o.cle}" aria-selected="${o.cle === 'bilan'}"${volets[o.cle] && o.cle !== 'series' ? '' : ' hidden'}>${esc(o.titre)}</button>`).join('')}
+      </div>
+      ${ONGLETS_BILAN.map(o => `<div class="result-pane" data-volet="${o.cle}"${o.cle === 'bilan' ? '' : ' hidden'}>${volets[o.cle]}</div>`).join('')}
     </div>`;
 
+  brancherOnglets($('resultTabs'));
   if (stats) brancherPalmares($('palm-saison'), stats, 'saison');
 
   if (calendrier.length) {
@@ -2486,7 +2545,10 @@ function dessinerTableauDesSeries(host, n, champion) {
     b.onclick = () => showGameModal(Number(b.dataset.serie), Number(b.dataset.match));
   });
   brancherPalmares($('palm-series'), statsSeries, 'series');
-  host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // L'onglet « Séries » n'existait pas encore : il apparaît et s'ouvre.
+  const onglet = document.querySelector('#resultTabs .result-tab[data-volet="series"]');
+  if (onglet) { onglet.hidden = false; montrerVolet('series'); }
+  else host.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 /** Le tag et l'année courte : « MTL '76 », ce qui tient dans une carte. */
