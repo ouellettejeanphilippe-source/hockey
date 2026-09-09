@@ -26,9 +26,14 @@
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/><path d="M9 8h7M9 11.5h5"/></symbol>
   <symbol id="i-gear" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h12M20 17h0"/><circle cx="16" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="17" r="2"/></symbol>
   <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 9h13l-3-3M20 15H7l3 3"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7V5z" fill="currentColor" stroke="none"/><path d="M18 5v14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
   <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
   <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8"/><path d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></symbol>
+  <symbol id="i-cols" viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="9.5" y="4" width="5" height="16" rx="1"/><rect x="16" y="4" width="5" height="16" rx="1"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
   <symbol id="i-cup" viewBox="0 0 24 24"><path d="M8 3h8l1 4H7l1-4z"/><path d="M9 7v3a3 3 0 0 0 6 0V7"/><path d="M12 13v5M7 21h10M9 18h6"/></symbol>
 </svg>
 
@@ -72,18 +77,42 @@
 
     <div class="panes" id="panes" data-view="pool">
 
-      <!-- Volet gauche : la main. Ce que l'équipe sortie met à l'unité qu'on
-           comble (tirage vestiaire), ou ce que trois équipes mettent à la case
-           exacte (tirage loto). Deux ou trois cartes : ni tri, ni recherche, ni
-           filtre — ces commandes sont parties avec le vestiaire de trente. -->
-      <section class="pane pane-pool" id="panePool" aria-label="La main">
+      <!-- Volet gauche : le vestiaire (tirage Vestiaire, tout le club) ou la
+           main (tirage Loto, trois cartes). Les outils de tri, de recherche et
+           de filtre ne servent qu'au vestiaire complet : le volet porte la
+           classe `loto` quand ils se cachent. -->
+      <section class="pane pane-pool" id="panePool" aria-label="Bassin de joueurs">
         <div class="pane-head">
           <div class="pane-title">
-            <h2>La main</h2>
+            <h2 id="poolTitle">Vestiaire</h2>
             <span class="pane-meta" id="poolCount">—</span>
           </div>
+          <div class="pool-tools">
+            <!-- Deux façons de lire le même vestiaire : par poste (six colonnes
+                 qu'on balaie du doigt sur téléphone) ou tout le monde ensemble,
+                 rangé par le tri courant. -->
+            <div class="seg seg-view" data-opt="poolView" role="tablist" aria-label="Affichage du vestiaire">
+              <button data-val="POS" class="on" title="Par poste : six colonnes, une par poste — balaie pour changer de poste"><svg class="ico" aria-hidden="true"><use href="#i-cols"/></svg><span class="lbl">Par poste</span></button>
+              <button data-val="LIST" title="Tous : les joueurs ensemble, dans l'ordre du tri"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg><span class="lbl">Tous</span></button>
+            </div>
+            <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="searchInput" type="search" placeholder="Chercher un joueur…" autocomplete="off"></label>
+            <!-- Libellés courts : le tri partage sa rangée avec la recherche et
+                 la bascule sur téléphone. L'infobulle dit le reste. -->
+            <select id="sortSelect" class="select" aria-label="Trier le bassin" title="Trier le bassin">
+              <option value="PTS">Points / V</option>
+              <option value="PPG">Pts par match</option>
+              <option value="SAL">Salaire</option>
+              <option value="VAL">Pts par M$</option>
+              <option value="PM">Différentiel</option>
+              <option value="AGE">Âge</option>
+              <option value="NAME">Nom</option>
+            </select>
+          </div>
         </div>
-        <!-- La bande de secours vit HORS de la main, au-dessus des cartes. -->
+        <div class="filters" id="filters" role="tablist" aria-label="Filtrer par position"></div>
+        <!-- La bande de secours vit HORS du bassin : depuis que les colonnes
+             se balaient à l'horizontale, tout ce qui est dans `#pool` est une
+             colonne de la bande, et un avertissement n'en est pas une. -->
         <div id="poolNotice"></div>
         <div class="pool" id="pool"></div>
       </section>
@@ -111,7 +140,7 @@
 <div class="actionbar" id="actionbar" style="display:none">
   <div class="actionbar-inner">
     <div class="tabs" role="tablist" aria-label="Vue">
-      <button class="tab on" data-view="pool" role="tab" id="tabPool">La main <span class="tab-badge" id="tabPoolBadge"></span></button>
+      <button class="tab on" data-view="pool" role="tab" id="tabPool"><span id="tabPoolLbl">Vestiaire</span> <span class="tab-badge" id="tabPoolBadge"></span></button>
       <button class="tab" data-view="roster" role="tab" id="tabRoster">Alignement <span class="tab-badge" id="tabRosterBadge">0/23</span></button>
     </div>
     <button class="btn go" id="mainBtn" disabled>Chargement…</button>
@@ -183,9 +212,9 @@
         </div>
       </div>
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Tirage</strong><span id="modeDesc">Vingt-trois joueurs, un par tour, chacun pris dans l'unité équivalente d'une vraie équipe. Aucune relance.</span></div>
+        <div class="opt-text"><strong>Tirage</strong><span id="modeDesc">Vingt-trois joueurs, un par tour, dans le vestiaire d'une vraie équipe. Six relances d'année, six d'équipe, quatre passes.</span></div>
         <div class="seg seg-wrap" data-opt="tirage">
-          <button data-val="VESTIAIRE" class="on">Vestiaire<em>une équipe, son unité</em></button>
+          <button data-val="VESTIAIRE" class="on">Vestiaire<em>une équipe, tout son club</em></button>
           <button data-val="LOTO">Loto<em>trois équipes, un choix</em></button>
         </div>
         <p class="opt-note">Changer d'alignement ou de tirage relance une partie.</p>
@@ -197,6 +226,10 @@
       <div class="opt-row">
         <div class="opt-text"><strong>Salaires</strong><span>Valeur 2026 (celle qui compte sous le plafond du jeu) ou valeur de l'époque (réelle ou estimée).</span></div>
         <div class="seg" data-opt="salary"><button data-val="2026" class="on">Valeur 2026</button><button data-val="ERA">Valeur époque</button></div>
+      </div>
+      <div class="opt-row">
+        <div class="opt-text"><strong>Signables seulement</strong><span>Masquer les joueurs hors budget ou sans case libre (tirage Vestiaire).</span></div>
+        <div class="seg" data-opt="onlyFit"><button data-val="off" class="on">Tout voir</button><button data-val="on">Signables</button></div>
       </div>
       <div class="opt-row">
         <div class="opt-text"><strong>Nouvelle partie</strong><span>Efface l'alignement en cours et relance la roulette. L'historique est conservé.</span></div>
@@ -215,11 +248,11 @@
     </div>
     <div class="modal-body bible" id="bibleBody">
       <h3>0. Comment on joue</h3>
-      <p>Tu combles ton alignement <strong>case par case</strong>, dans l'ordre du tableau de profondeur : le premier trio, puis le deuxième, les paires, les gardiens, les réservistes — ou n'importe quelle case vide que tu touches pour la viser. À chaque tour la roulette sort une <strong>saison</strong> et une <strong>équipe</strong>, et te tend une <strong>main</strong> : pas tout le vestiaire, seulement ce que ce club met à la place que tu combles. Ton premier trio se bâtit avec des joueurs de premier trio, ta troisième paire avec des joueurs de troisième paire. Tu en signes un, la roulette tourne. Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques et les séries. Le 82-0 est le Graal ; la Coupe est le vrai but. Une partie prend cinq à dix minutes : c'est un sudoku de hockey.</p>
-      <p><strong>Le jeu récompense l'œil.</strong> Les salaires sont ceux qui ont vraiment été payés, et un contrat ne suit pas toujours la saison : Fedorov 1993-94 coûte 1,15 M$. Reconnaître, dans une main de trois, celui qui vaut son prix est le métier. Le garde-fou, c'est la <strong>zone d'efficacité</strong> (section 5) : un joueur ne rend pas partout dans l'alignement, et la main ne te propose de toute façon que des joueurs de la bonne unité.</p>
+      <p>La roulette sort une <strong>saison</strong> et une <strong>équipe</strong>. Tu signes <strong>un seul joueur</strong> de ce vestiaire, puis elle tourne à nouveau. Tu as 6 relances d'année, 6 relances d'équipe et 4 « passer ». Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques et les séries. Le 82-0 est le Graal ; la Coupe est le vrai but. Une partie prend cinq à dix minutes : c'est un sudoku de hockey.</p>
+      <p><strong>Le jeu récompense la chasse aux aubaines.</strong> Les salaires sont ceux qui ont vraiment été payés, et un contrat ne suit pas toujours la saison : Fedorov 1993-94 coûte 1,15 M$. Trouver ces joueurs-là est le métier. Le garde-fou, c'est la <strong>zone d'efficacité</strong> (section 5) : un joueur ne rend pas partout dans l'alignement, alors on ne peut pas empiler douze vedettes sous-payées sans en gaspiller la moitié.</p>
       <p>Ce que tu vois avant de signer : le salaire, l'archétype, la zone et les traits sur la carte, puis toutes les statistiques et le <strong>profil mesuré</strong> dans la fiche au clic. Ce que tu ne vois pas : <strong>aucune cote</strong>. Le jeu n'en affiche nulle part. Un joueur se juge sur ce qu'il a fait.</p>
-      <p>La carte dit la case où le joueur ira : sa position naturelle dans l'unité qu'on comble, sinon la case libre la moins pénalisée. Tu peux viser une autre case vide en la touchant dans l'alignement — la main se recompose du même tirage pour cette case-là — ou déplacer quelqu'un après coup.</p>
-      <p><strong>Budget du choix</strong> : le plafond restant moins le salaire plancher (0,775 M$) de chaque case qu'il te restera à combler. Dépasser ce budget, c'est te condamner à ne pas finir tes 23. La roulette refuse de sortir une main où rien ne tient dans ce budget tant qu'elle peut faire autrement.</p>
+      <p>La carte propose la case où le joueur rend le mieux : sa position naturelle d'abord, puis sa zone. Quand la seule case libre est <strong>sous sa zone</strong>, la carte le dit en rouge avant que tu signes. Tu peux viser une autre case en la touchant dans l'alignement, ou déplacer quelqu'un après coup.</p>
+      <p><strong>Budget du choix</strong> : le plafond restant moins le salaire plancher (0,775 M$) de chaque case qu'il te restera à combler. Dépasser ce budget, c'est te condamner à ne pas finir tes 23.</p>
 
       <h3>0b. Deux alignements, deux tirages</h3>
       <p>Le moteur ne change pas d'un mode à l'autre : ce sont toujours 23 cases, le même malus de zone et la même ligue de 32 équipes. Ce qui change, c'est ce qu'on te demande de bâtir, et comment la roulette te le propose. Les deux réglages sont dans les <strong>options</strong>, et en changer relance une partie.</p>
@@ -228,10 +261,10 @@
         <li><strong>Complet</strong> — les 23, sous 95,5 M$. La partie complète, cinq à dix minutes.</li>
         <li><strong>Express</strong> — six cases seulement : un trio, une paire, un partant. Le reste de l'alignement t'est fourni par une vraie équipe tirée au hasard, affichée au tableau de bord ; ces joueurs ne coûtent rien au plafond et ne se déplacent pas. Le plafond suit : <strong>34 M$</strong>, la médiane mesurée de ce qu'une vraie équipe met sur ces six cases-là (25e centile 23 M$, 75e centile 43 M$ sur les 1395 équipes-saisons). Deux minutes.</li>
       </ul>
-      <p><strong>Le tirage</strong> dit d'où viennent les joueurs de la main. Dans les deux cas on aligne la vraie équipe sortie de la roulette par valeur, position par position, et on ne te montre que ce qu'elle met à l'<em>unité équivalente</em> :</p>
+      <p><strong>Le tirage</strong> dit d'où viennent les joueurs :</p>
       <ul>
-        <li><strong>Vestiaire</strong> — la roulette sort <strong>une</strong> équipe et te montre son unité entière : son premier trio si tu combles le tien, sa deuxième paire, ses deux gardiens, ses trois réservistes. Tu en signes un. <strong>Aucune relance</strong> : ce qui sort, tu le joues.</li>
-        <li><strong>Loto</strong> — la roulette sort <strong>trois</strong> équipes et te montre, de chacune, le joueur de la case exacte : l'ailier gauche du premier trio de trois clubs. Tu en choisis un. Les <strong>relances</strong> relancent les trois clubs d'un coup — huit pour l'alignement complet, trois en express.</li>
+        <li><strong>Vestiaire</strong> — le jeu d'origine, décrit ci-dessus : une équipe, tout son club, un joueur par tour pour n'importe quelle case libre, et les relances d'année, d'équipe et de passe.</li>
+        <li><strong>Loto</strong> — la roulette sort <strong>trois</strong> équipes et te montre, de chacune, le joueur de la case exacte que tu combles : l'ailier gauche du premier trio de trois clubs, chacun aligné par valeur. Tu en choisis un. Viser une autre case vide recompose la main des mêmes trois clubs ; les <strong>relances</strong> relancent les trois clubs d'un coup — huit pour l'alignement complet, trois en express.</li>
       </ul>
 
       <h3>1. La valeur d'un joueur : son rang, pas une cote</h3>
