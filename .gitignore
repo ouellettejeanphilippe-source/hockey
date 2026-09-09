@@ -1,2 +1,4 @@
 scripts/smoke-*.png
 __pycache__/
+server.log
+*.zip
