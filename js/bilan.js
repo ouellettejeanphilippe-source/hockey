@@ -432,7 +432,7 @@ export function runPlayoffs(top16) {
     const suivant = [];
     for (let i = 0; i < ronde.length / 2; i++) {
       const A = ronde[i], B = ronde[ronde.length - 1 - i];
-      const s = playSeries(A, B, true);
+      const s = playSeries(A, B, true, n);   // la ronde : l'usure s'accumule
       suivant.push(s.winner);
       G.series.push({ ...s, A, B, ronde: n, i: G.series.length });
     }

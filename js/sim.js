@@ -708,7 +708,58 @@ export const BETA_CREATION = 0.5;
  * gardien, qui efface au passage l'équipe qui suit son gardien) à 0,050
  * (sans contrôle, donc contaminé par le gardien). On prend le milieu.
  */
-export const K_DEFENSE = 0.040;
+export const K_DEFENSE = 0.050;   // le haut de l'intervalle mesuré : voir ROBUSTESSE ci-dessous, et check_builds.mjs
+
+/*
+ * LA DÉFENSIVE AGIT AUSSI, UN PEU, SUR LE VOLUME. `check_suppression.mjs` a
+ * mesuré −0,17 de corrélation entre la cote défensive d'un alignement et les
+ * lancers concédés : faible, mais pas nulle, et on l'avait arrondie à zéro.
+ * L'écart-type des lancers contre entre équipes est d'environ 7 % ; −0,17 ×
+ * 7 % donne 1,2 % de lancers en moins par écart-type de brigade. C'est ce que
+ * la mesure autorise, pas plus : la qualité reste le canal principal.
+ */
+export const K_VOLUME_DEF = 0.012;
+
+/*
+ * LA ROBUSTESSE — le canal que le moteur n'avait pas.
+ *
+ * JP : *je veux que les joueurs défensifs et/ou robustes aient plus d'impact,
+ * pour augmenter les builds possibles*. Mesuré avant (`check_builds.mjs`) :
+ * la robustesse `r` n'entrait que dans l'usure des soirs éreintants, à
+ * travers K_DEFENSE — moins d'un demi-pour cent des buts alloués, rien. Un
+ * bâti robuste ne menait nulle part.
+ *
+ * Ce que la robustesse fait maintenant, et c'est du hockey :
+ *
+ *   1. Les SOIRS ÉREINTANTS (un match sur quatre) et TOUS les matchs de
+ *      séries, la finition de chaque équipe suit l'écart de robustesse entre
+ *      les deux clubs : exp(K_ROB × intensité × (rob_off − rob_def)), en
+ *      écarts-types de robustesse d'alignement. Une équipe qui a des jambes
+ *      finit mieux et laisse moins entrer quand le match est dur.
+ *   2. L'USURE S'ACCUMULE EN SÉRIES : l'intensité monte de ROB_SERIES par
+ *      ronde (1,0 au premier tour, 1,75 en finale). C'est ce que MOTEUR.md
+ *      5.5 annonçait — « l'usure s'accumule sur quatre rondes » — et que rien
+ *      ne faisait.
+ *   3. Les BLESSURES lisent `r` : un joueur robuste se blesse moins, un
+ *      joueur fragile plus (ROB_BLESSURE par écart-type de joueur), en plus
+ *      des matchs joués réels qui portaient déjà sa fragilité.
+ *
+ * Ce canal ne se mesure pas dans les shards (pas de séparation saison /
+ * séries, pas de matchs éreintants réels), donc K_ROB est une constante
+ * LIBRE, la troisième avec SYN_ECHELLE et BETA_CREATION, réglée sur une
+ * cible de jeu : un bâti robuste (`check_builds.mjs`) doit rejoindre le bâti
+ * de valeur en saison et le dépasser en séries, sans que la monotonie des
+ * vraies équipes ni les égalités de la feuille bougent. Une vraie équipe a
+ * une robustesse d'alignement de 48,1 ± 2,4 (120 vraies équipes alignées) :
+ * à K_ROB = 0,10, la vraie équipe la plus dure de son époque gagne deux ou
+ * trois matchs de plus, pas dix.
+ */
+export const K_ROB = 0.07;
+export const ROB_SERIES = 0.15;
+export const ROB_BLESSURE = 0.35;
+export const MOY_ROB_EQUIPE = 48.1;
+export const ECART_ROB_EQUIPE = 2.4;
+const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_ROB_EQUIPE, -3, 3) : 0);
 
 /** Cote défensive d'équipe : moyenne et écart-type des 1392 équipes-saisons. */
 export const MOY_DEF_EQUIPE = 57.6;
@@ -1178,7 +1229,7 @@ function choisirUnite(unites) {
  * glace, et les arrêts du gardien. Rien n'est réparti après coup : la
  * feuille de match EST la suite des lancers.
  */
-function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, journal = null, cote = 'A', st = null) {
+function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, journal = null, cote = 'A', st = null, ronde = 0) {
   /*
    * `st` décrit une situation spéciale ; sans lui, c'est le cinq contre cinq
    * sur tout le match. Champs :
@@ -1197,7 +1248,8 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
   const mode = st?.mode || 'FE';
   const attenduBase = LANCERS_BASE
     * (off.pression / REF.pression)
-    * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION);
+    * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION)
+    * (1 - K_VOLUME_DEF * ((def.zDef ?? REF.zDef) - REF.zDef));
   const attendu = st?.lancers != null ? st.lancers : attenduBase * (st?.part ?? 1) * (st ? FE_TIRS : 1);
   const lancers = st?.lancers != null ? poisson(attendu) : Math.max(6, poisson(attendu));
   const unitesOff = st?.unitesOff !== undefined ? st.unitesOff : off.unites;
@@ -1218,7 +1270,10 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     instants = Array.from({ length: lancers }, () => instantForcesEgales(st?.fenetres, journal?.prolongation));
   }
 
-  const usure = heavy && def.rob ? (def.rob - 52) / 25 : 0;
+  // La robustesse : les soirs éreintants et tous les matchs de séries, où
+  // l'usure s'accumule de ronde en ronde (voir K_ROB).
+  const intensite = series ? 1 + ROB_SERIES * ronde : heavy ? 1 : 0;
+  const facteurRob = intensite ? Math.exp(K_ROB * intensite * (robZ(off) - robZ(def))) : 1;
   const fg = (gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20))
     * facteurTraitGardien(gardien, series);
   // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
@@ -1274,9 +1329,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       const dPaire = choisirPresence(unitesDef.D);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
-      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z + usure - REF.zDef));
+      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef));
     } else {
-      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef + usure - REF.zDef));
+      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef - REF.zDef));
     }
 
     // Les passes causent les buts : la création des coéquipiers sur la glace
@@ -1290,7 +1345,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir * crea
-        * (fg / REF.fg) * facteurDef * traits * (unite ? unite.qualite : 1) * chance
+        * (fg / REF.fg) * facteurDef * facteurRob * traits * (unite ? unite.qualite : 1) * chance
         * (off.finitionFacteur ?? 1) * qualite * (mode === 'FE' && st ? FE_QUALITE : 1),
       0.005, PCT_TIR_MAX);
 
@@ -1396,6 +1451,8 @@ export function injuryChance(p, heavy = false) {
   let pr = 0.0015 + 0.015 * frail * frail;
   if (p.p === 'G') pr *= 0.5;
   if (heavy) pr *= 1.5;
+  // Un joueur robuste se blesse moins (r est à 50 ± 12 par joueur).
+  pr *= Math.exp(-ROB_BLESSURE * (getHiddenRatings(p).r - 50) / 12);
   return pr;
 }
 
@@ -1591,7 +1648,7 @@ function applyInjuries(team, lineup, heavy) {
  * exactement ce que l'ancien moteur sautait, et pourquoi une équipe de
  * niveau 80 gagnait la Coupe 99 % du temps (MOTEUR.md 5.5).
  */
-export function playGame(A, B, gameIdx, track = true, series = false, journal = null) {
+export function playGame(A, B, gameIdx, track = true, series = false, journal = null, ronde = 0) {
   const heavy = gameIdx % 4 === 3;
   const LA = activeLineup(A), LB = activeLineup(B);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
@@ -1604,7 +1661,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   const chanceA = Math.exp(gauss() * LUCK_GAME + A.luck - B.luck);
   const chanceB = Math.exp(gauss() * LUCK_GAME + B.luck - A.luck);
 
-  let { gfA, gfB } = jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, LA, LB);
+  let { gfA, gfB } = jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, LA, LB, ronde);
   let ot = false;
 
   if (gfA === gfB) {
@@ -1662,7 +1719,7 @@ function instantForcesEgales(fenetres, prolongation) {
  * `LA` et `LB` sont les alignements du jour (pour créditer le puni) ; l'un
  * ou l'autre peut manquer (adversaire neutre de la saison solo).
  */
-function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, LA = null, LB = null) {
+function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, LA = null, LB = null, ronde = 0) {
   const occasions = pA.occasions && pB.occasions ? (pA.occasions + pB.occasions) / 2
     : (pA.occasions || pB.occasions || occasionsEpoque(pA.annee || pB.annee));
   let gfA = 0, gfB = 0;
@@ -1711,7 +1768,7 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
       fenetre: [t0, t0 + AN_MINUTES], arretAuBut: true,
       unitesOff: off.avantage, unitesDef: def.desavantage, qualite: AN_QUALITE,
     };
-    const b = jouerCote(off, def, gDef, chOff, heavy, track, series, journal, cote, st);
+    const b = jouerCote(off, def, gDef, chOff, heavy, track, series, journal, cote, st, ronde);
     const fin = st.finBut != null ? st.finBut : t0 + AN_MINUTES;
     if (entree) { entree.fin = fin; entree.butAN = st.finBut != null; }
     fenetres.push([t0, fin]);
@@ -1721,13 +1778,13 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
       mode: 'DN', lancers: DN_TIRS_MIN * (fin - t0), fenetre: [t0, fin],
       unitesOff: def.desavantage, unitesDef: off.avantage, qualite: DN_QUALITE,
     };
-    const bd = jouerCote(def, off, gOff, chDef, heavy, track, series, journal, cote === 'A' ? 'B' : 'A', dn);
+    const bd = jouerCote(def, off, gOff, chDef, heavy, track, series, journal, cote === 'A' ? 'B' : 'A', dn, ronde);
     if (cote === 'A') { gfA += b; gfB += bd; } else { gfB += b; gfA += bd; }
   }
 
   const part = Math.max(0.5, (60 - minutesAN) / 60);
-  gfA += jouerCote(pA, pB, gB, chanceA, heavy, track, series, journal, 'A', { mode: 'FE', part, fenetres });
-  gfB += jouerCote(pB, pA, gA, chanceB, heavy, track, series, journal, 'B', { mode: 'FE', part, fenetres });
+  gfA += jouerCote(pA, pB, gB, chanceA, heavy, track, series, journal, 'A', { mode: 'FE', part, fenetres }, ronde);
+  gfB += jouerCote(pB, pA, gA, chanceB, heavy, track, series, journal, 'B', { mode: 'FE', part, fenetres }, ronde);
   return { gfA, gfB };
 }
 
@@ -1969,12 +2026,12 @@ export function compterFeuilles(feuilles, compte = new Map()) {
  * `feuilles` porte le sommaire de chaque match : buts avec leur instant,
  * tirs par période, arrêts. C'est ce que l'écran des séries raconte.
  */
-export function playSeries(A, B, track = false) {
+export function playSeries(A, B, track = false, ronde = 0) {
   let wA = 0, wB = 0, g = 0;
   const feuilles = [];
   while (wA < 4 && wB < 4) {
     const feuille = feuilleVierge();
-    const r = playGame(A, B, g++, track, true, feuille);
+    const r = playGame(A, B, g++, track, true, feuille, ronde);
     if (r.winner === A) wA++; else wB++;
     feuille.numero = g;
     feuille.serie = `${wA}-${wB}`;

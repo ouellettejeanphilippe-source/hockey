@@ -81,6 +81,9 @@ scripts/check_plafond.mjs   le plafond du jeu en victoires et en Coupes
 scripts/check_tireurs.mjs   les deux alignements que la valeur ne voit pas :
                             TIREURS sans zones (~52 V) et PARFAIT (~68-70 V,
                             le vrai plafond du jeu)
+scripts/check_builds.mjs    combien de façons de bâtir mènent quelque part :
+                            valeur inclinée vers l'offensive, la défensive, la
+                            robustesse, en solo et en ligue avec les Coupes
 scripts/check_chimie.mjs    la chimie de trio dit-elle ce que le hockey dit ?
 scripts/check_traits.mjs    les traits : rareté, couverture d'époque, effet mesuré
 scripts/smoke.mjs           test de fumée Playwright à 390 px
@@ -201,6 +204,17 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 **Tout le hasard du moteur passe par `hasard()`, et chaque saison porte sa graine.** `js/sim.js` n'appelle jamais `Math.random` directement : `grainerHasard(graine)` remplace le générateur par un sfc32 déterministe, `simulateLeague` tire une graine s'il n'en reçoit pas et la rend (`league.graine`), et le générateur reste en place pour les séries jouées ensuite. La chance de saison (`t.luck`) est tirée SOUS la graine, dans `simulateLeague`, pas à `createTeam` — c'est ce qui a fait échouer le premier essai de `check_graine.mjs`. C'est ce qui rend « Rejouer la saison » et l'historique possibles, et ce qui rend le défi du jour (S1) à portée : il ne manque plus que la roulette. `node scripts/check_graine.mjs` le vérifie à chaque PR.
 
 **Les départs des gardiens se partagent selon la vraie saison des deux** (`partAuxiliaire`, bornée par `PART_AUX_MIN` 0,12 et `PART_AUX_MAX` 0,50). L'auxiliaire jouait un match sur six quel que fût son rôle : un partant qui avait joué 30 matchs en jouait 68, un tandem 1A-1B ne valait rien de plus qu'un partant et un rappel, et la case auxiliaire était de l'argent mort. Mesuré après (`check_monotonie.mjs`, 4 essais) : monotone sur dix déciles, 27,1 / 41,7 / 51,0 (c'était 28,1 / 42,0 / 52,0 ; le dernier décile perd un match parce que les grandes équipes donnent maintenant ses vrais départs à leur second). `check_feuilles.mjs` sur cinq ligues : 28,3 lancers, 3,20 buts, égalités intactes.
+
+**La défensive et la robustesse sont deux axes de bâti, pas des décorations.** JP : *je veux que les joueurs défensifs et/ou robustes aient plus d'impact, pour augmenter les builds possibles*. Mesuré avant (`check_builds.mjs`, des alignements légaux bâtis en glouton sur la valeur inclinée vers une sous-cote) : la robustesse `r` n'entrait que dans l'usure des soirs éreintants, à travers `K_DEFENSE` — moins d'un demi-pour cent des buts alloués, rien ; un glouton pur sur `r` remplissait le vestiaire de bagarreurs à 99 pour 19 M$ et gagnait seize matchs. Trois changements. **(1) `K_DEFENSE` passe de 0,040 à 0,050**, le haut de l'intervalle mesuré (0,029 contrôlé par gardien, 0,050 sans contrôle). **(2) La brigade agit aussi, un peu, sur le volume** : `K_VOLUME_DEF` 0,012 par écart-type, ce que la corrélation de −0,17 de `check_suppression.mjs` autorise et pas plus. **(3) La robustesse a son canal** : les soirs éreintants (un match sur quatre) et TOUS les matchs de séries, la finition de chaque équipe suit l'écart de robustesse entre les deux clubs, `exp(K_ROB × intensité × (rob_off − rob_def))` en écarts-types d'alignement (48,1 ± 2,4 sur 120 vraies équipes, borné à ±3), et l'intensité monte de `ROB_SERIES` par ronde — l'usure qui s'accumule que MOTEUR.md 5.5 annonçait. Les blessures lisent aussi `r` (`ROB_BLESSURE` 0,35 par écart-type de joueur). `K_ROB` (0,07) est la **troisième constante libre** du moteur avec `SYN_ECHELLE` et `BETA_CREATION` : les shards ne séparent ni saison et séries ni soirs éreintants, rien ne le mesure, et il se règle sur une cible de jeu. À 0,10 et 0,25 par ronde le bâti robuste gagnait la Coupe quatre fois sur quatre : trop, la Coupe reste un pari. À 0,07 et 0,15, mesuré en ligue (4 ligues, 4 essais) :
+
+| bâti (valeur inclinée) | V | rang | Coupes |
+|---|---|---|---|
+| VALEUR | 63,8 | 2,0 | 2/4 |
+| DÉFENSIF | 65,8 | 1,3 | 2/4 |
+| ROBUSTE | 55,3 | 4,8 | 2/4 |
+| DÉF+ROB | 57,5 | 4,0 | 2/4 |
+
+Le défensif rejoint la valeur en saison et alloue vingt buts de moins ; le robuste paie son penchant en saison et le regagne en séries, où il soulève la Coupe aussi souvent que l'empilement — c'est l'équipe bâtie pour les séries, et c'est un bâti de plus. Quatre ligues ne disent rien de précis sur les Coupes (il en faut 40) ; ce qu'elles disent, c'est l'ordre. Le pur `d` (95 M$ de vedettes défensives, valeur 85) fait 69-70 : la valeur sous-estime la défensive que le moteur récompense, et c'est assumé tant qu'il reste sous PARFAIT. **Les plafonds bougent d'environ deux matchs vers le haut** (`check_tireurs.mjs` : TIREURS 52,9, PARFAIT 74,3 contre 71-72 ; `check_plafond.mjs` : le Canadien de 1976-77 à 62,5 en solo contre 60,7, l'empilé à 63,7 en ligue et 0 Coupe sur 3), parce que les bonnes équipes ont une bonne brigade et que `K_DEFENSE` a monté — c'est le même mouvement que les déciles de la monotonie, vers le réel. Les traits ne changent pas de nature (`check_traits.mjs` : +3,3 victoires, +10,1 buts marqués, −4,9 alloués pour une équipe qui en porte onze à quatorze). Si le plafond doit redescendre, le curseur est `FINITION_MAX`, pas ces canaux.
 
 **L'événement de base est le lancer, pas le but.** C'est la refonte décrite dans `MOTEUR.md`, et ce qui la motive est mesuré : sur 55 saisons les lancers par équipe par match vont de 27 à 31 (17 % d'amplitude) pendant que les buts varient de 55 %. Le tempo n'a pas bougé, la finition oui. Un match se joue donc lancer par lancer — un tireur, un gardien, deux issues — et toute la feuille de match en découle.
 
@@ -353,11 +367,11 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 
 | décile | victoires simulées | vraies victoires |
 |---|---|---|
-| 1 | 27,1 | 27,5 |
-| 5 | 41,7 | 42,9 |
-| 10 | 51,0 | 56,3 |
+| 1 | 26,1 | 27,5 |
+| 5 | 41,0 | 42,9 |
+| 10 | 51,6 | 56,3 |
 
-(Remesuré après le partage des départs des gardiens : monotone sur les dix déciles ; c'était 28,1 / 42,0 / 52,0 après `RATINGS_VERSION` 25 et le centre-d'abord d'`autoRoster`, et 27,6 / 42,9 / 52,3 avant.)
+(Remesuré après les canaux défensif et robuste : monotone sur les dix déciles, et l'écart entre le premier et le dernier décile s'élargit de 23,9 à 25,5 matchs, vers les 28,8 réels ; c'était 27,1 / 41,7 / 51,0 après le partage des départs des gardiens, 28,1 / 42,0 / 52,0 après `RATINGS_VERSION` 25, et 27,6 / 42,9 / 52,3 avant.)
 
 **Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` (avec les unités spéciales) : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **64,3-17,3** en ligue et gagne la Coupe 1 fois sur 3 ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 60,7-18,3 et 1 fois sur 3 (3 ligues chacun, donc du bruit pur sur les Coupes — il en faut 40 pour conclure). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
@@ -377,6 +391,7 @@ node scripts/check_monotonie.mjs     # monotone sur dix déciles
 node scripts/check_plafond.mjs       # victoires et Coupes au plafond
 node scripts/check_tireurs.mjs       # tireurs sans zones ~52, alignement parfait ~68-70
 node scripts/check_traits.mjs        # les traits restent rares et se voient
+ESSAIS=4 LIGUES=4 node scripts/check_builds.mjs   # les bâtis défensif et robuste mènent quelque part
 ```
 
 **Ne règle jamais `LANCERS_BASE` ni `CIBLE_PCT_TIR` sur une seule exécution de `check_feuilles.mjs`.** Le script tire 32 équipes au hasard dans 55 saisons, ce qui fait varier le repère de ±0,15 but. En élargissant les réputations j'ai lu 3,19 buts sur cinq exécutions, conclu à une inflation de 3 %, rabaissé les deux constantes — puis relu 2,99. Les deux lectures étaient du bruit : sur cinq ligues moyennées (`LIGUES=5`), les valeurs d'origine retombent sur la cible et n'ont pas eu à bouger.

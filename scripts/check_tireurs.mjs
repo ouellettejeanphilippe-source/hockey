@@ -212,11 +212,11 @@ if (LIGUES > 0) {
     const { standings } = simulateLeague([vous, ...adversaires(31)]);
     W.push(vous.W);
     rangs.push(standings.findIndex(t => t.isPlayer) + 1);
-    let ronde = standings.slice(0, 16);
+    let ronde = standings.slice(0, 16), n = 0;
     while (ronde.length > 1) {
       const suivant = [];
-      for (let j = 0; j < ronde.length / 2; j++) suivant.push(playSeries(ronde[j], ronde[ronde.length - 1 - j]).winner);
-      ronde = suivant;
+      for (let j = 0; j < ronde.length / 2; j++) suivant.push(playSeries(ronde[j], ronde[ronde.length - 1 - j], false, n).winner);
+      ronde = suivant; n++;
     }
     if (ronde[0].isPlayer) coupes++;
   }

@@ -96,14 +96,14 @@ for (const [nom, unites] of sujetsLigue) {
     rangs.push(standings.findIndex(t => t.isPlayer) + 1);
     fiches.push({ W: vous.W, L: vous.L, OTL: vous.OTL });
 
-    let ronde = standings.slice(0, 16);
+    let ronde = standings.slice(0, 16), n = 0;
     while (ronde.length > 1) {
       if (ronde.length === 2 && ronde.some(t => t.isPlayer)) finales++;
       const suivant = [];
       for (let j = 0; j < ronde.length / 2; j++) {
-        suivant.push(playSeries(ronde[j], ronde[ronde.length - 1 - j]).winner);
+        suivant.push(playSeries(ronde[j], ronde[ronde.length - 1 - j], false, n).winner);
       }
-      ronde = suivant;
+      ronde = suivant; n++;
     }
     if (ronde[0].isPlayer) coupes++;
   }
