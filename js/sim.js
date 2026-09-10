@@ -10,7 +10,7 @@ import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZON
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour } from './ratings.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
-         bonusMeneurEquipe } from './traits.js';
+         bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe } from './traits.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
@@ -759,7 +759,8 @@ export const ROB_SERIES = 0.15;
 export const ROB_BLESSURE = 0.35;
 export const MOY_ROB_EQUIPE = 48.1;
 export const ECART_ROB_EQUIPE = 2.4;
-const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_ROB_EQUIPE, -3, 3) : 0);
+// Les colosses (js/traits.js) ajoutent leur poids, en écarts-types, dans leurs grosses saisons.
+const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_ROB_EQUIPE + (t.traitRob || 0), -3, 3) : 0);
 
 /** Cote défensive d'équipe : moyenne et écart-type des 1392 équipes-saisons. */
 export const MOY_DEF_EQUIPE = 57.6;
@@ -1188,6 +1189,7 @@ export function profilMatch(team, lineup) {
     finitionFacteur: Math.min(1, FINITION_MAX / finEquipe),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles),
+    traitRob: bonusRobustesseEquipe(habilles),
     traitAtt: facteurAttaqueEquipe(habilles),
     traitSeries: facteurSeriesEquipe(habilles),
     meneur: bonusMeneurEquipe(habilles),
@@ -1329,7 +1331,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       const dPaire = choisirPresence(unitesDef.D);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
-      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef));
+      // Le bidirectionnel (et le Selke) étouffe PENDANT SES PRÉSENCES : c'est
+      // le seul trait qui passe par ici, voir EFFET dans js/traits.js.
+      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef)) * facteurPresenceUnite(defGlace);
     } else {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef - REF.zDef));
     }

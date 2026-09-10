@@ -1503,6 +1503,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .slot-tags > * { flex: none; }
 .slot-tags .tag { font-size: 8.5px; padding: 1px 5px; }
+.slot-icones { font-size: 10px; line-height: 16px; letter-spacing: -1px; white-space: nowrap; }
 /* Rien ne rétrécit : la case a une hauteur fixe, ses rangées aussi. */
 .slot-inner > * { flex: none; }
 

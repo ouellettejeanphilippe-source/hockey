@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 25;
+export const RATINGS_VERSION = 26;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -130,13 +130,15 @@ export function mesuresDeSaison(players) {
   if (!reguliers.length) return out;
   const parMatch = (p, k) => (p[k] || 0) / Math.max(1, p.gp || 1);
   // Le différentiel du club, pour le corriger à moitié.
+  // Le club : `t` dans le navigateur, `teams[0]` à l'étage 2 (joueurs repliés).
+  const clubDe = p => p.t || (p.teams && p.teams[0]) || '?';
   const club = new Map();
   for (const p of reguliers) {
-    const c = club.get(p.t) || { s: 0, n: 0 };
+    const c = club.get(clubDe(p)) || { s: 0, n: 0 };
     c.s += parMatch(p, 'pm'); c.n++;
-    club.set(p.t, c);
+    club.set(clubDe(p), c);
   }
-  const diffRel = p => { const c = club.get(p.t); return parMatch(p, 'pm') - LISSAGE_EQUIPE * (c && c.n ? c.s / c.n : 0); };
+  const diffRel = p => { const c = club.get(clubDe(p)); return parMatch(p, 'pm') - LISSAGE_EQUIPE * (c && c.n ? c.s / c.n : 0); };
   const aDN = reguliers.some(p => p.shp != null);
   const aTOI = reguliers.some(p => (p.toi || 0) > 0);
   const aHT = reguliers.some(p => p.ht != null && p.ht > 0);
@@ -557,23 +559,31 @@ export const ZONE_THRESHOLDS = {
  * `short` est ce qui s'affiche sur les cartes, `label` la version longue
  * de la fiche.
  */
+/*
+ * L'ÉTIQUETTE DIT LE TRIO OU LA PAIRE. JP : *améliorer les tags Bottom 6 et
+ * cie pour refléter au max les trios où un joueur jouerait ; Middle 6 veut
+ * rien dire pour un défenseur*. `short`, sur la carte, est donc le rang des
+ * unités où le joueur rend à 100 % (`idealUnits`) — « 2e-3e trio »,
+ * « 1re-2e paire » — et `label`, sur la fiche, garde le mot du hockey devant.
+ * Les unités et les seuils ne bougent pas : c'est le mot qui change.
+ */
 export const LINE_ZONES = {
   F: [
-    { level: 1, label: 'Top 6',        short: 'Top 6',      idealUnits: [0, 1] },
-    { level: 2, label: 'Middle 6',     short: 'Middle 6',   idealUnits: [1, 2] },
-    { level: 3, label: 'Bottom 6',     short: 'Bottom 6',   idealUnits: [2, 3] },
-    { level: 4, label: 'Profondeur',   short: 'Profondeur', idealUnits: [3] },
+    { level: 1, label: 'Top 6 · 1er ou 2e trio',     short: '1er-2e trio', mini: 'T1-2', idealUnits: [0, 1] },
+    { level: 2, label: 'Middle 6 · 2e ou 3e trio',   short: '2e-3e trio',  mini: 'T2-3', idealUnits: [1, 2] },
+    { level: 3, label: 'Bottom 6 · 3e ou 4e trio',   short: '3e-4e trio',  mini: 'T3-4', idealUnits: [2, 3] },
+    { level: 4, label: 'Profondeur · 4e trio',       short: '4e trio',     mini: 'T4',   idealUnits: [3] },
   ],
   D: [
-    { level: 1, label: 'Top 4',        short: 'Top 4',      idealUnits: [0, 1] },
-    { level: 2, label: 'Middle 4',     short: 'Middle 4',   idealUnits: [1, 2] },
-    { level: 3, label: 'Bottom 4',     short: 'Bottom 4',   idealUnits: [1, 2] },
-    { level: 4, label: 'Profondeur',   short: 'Profondeur', idealUnits: [2] },
+    { level: 1, label: 'Top 4 · 1re ou 2e paire',    short: '1re-2e paire', mini: 'P1-2', idealUnits: [0, 1] },
+    { level: 2, label: '2e paire, tient la 3e',      short: '2e paire',     mini: 'P2',   idealUnits: [1, 2] },
+    { level: 3, label: '3e paire, peut tenir la 2e', short: '3e paire',     mini: 'P3',   idealUnits: [1, 2] },
+    { level: 4, label: 'Profondeur · 3e paire',      short: 'Réserve D',    mini: 'rés.', idealUnits: [2] },
   ],
   G: [
-    { level: 1, label: "Partant numéro un", short: 'Partant no 1', idealUnits: [0] },
-    { level: 2, label: 'Partant',           short: 'Partant',      idealUnits: [0, 1] },
-    { level: 3, label: 'Auxiliaire',        short: 'Auxiliaire',   idealUnits: [1] },
+    { level: 1, label: "Partant numéro un", short: 'Partant no 1', mini: 'no 1',  idealUnits: [0] },
+    { level: 2, label: 'Partant',           short: 'Partant',      mini: 'part.', idealUnits: [0, 1] },
+    { level: 3, label: 'Auxiliaire',        short: 'Auxiliaire',   mini: 'aux.',  idealUnits: [1] },
   ],
 };
 
@@ -630,25 +640,25 @@ export function getLineZone(p, v = null) {
 
   // 1. Étoiles (Stars)
   if (pos === 'G' && rating >= 80) {
-    return { level: 1, label: "Partant numéro un", short: 'Partant no 1', idealUnits: [0] };
+    return { level: 1, label: "Partant numéro un", short: 'Partant no 1', mini: 'no 1', idealUnits: [0] };
   }
   if (pos === 'F' && rating >= 78) {
-    return { level: 1, label: 'Top 3', short: 'Top 3', idealUnits: [0] };
+    return { level: 1, label: 'Top 3 · 1er trio', short: '1er trio', mini: 'T1', idealUnits: [0] };
   }
   if (pos === 'D' && rating >= 78) {
-    return { level: 1, label: 'Top 2', short: 'Top 2', idealUnits: [0] };
+    return { level: 1, label: 'Top 2 · 1re paire', short: '1re paire', mini: 'P1', idealUnits: [0] };
   }
 
   // 2. Joueurs hyper versatiles
   const sec = getSecondaryPosition(p);
   if (sec) {
     if (pos === 'F') {
-      if (rating >= 56) return { level: 2, label: 'Top 9', short: 'Top 9', idealUnits: [0, 1, 2] };
-      return { level: 3, label: 'Bottom 9', short: 'Bottom 9', idealUnits: [1, 2, 3] };
+      if (rating >= 56) return { level: 2, label: 'Top 9 · 1er au 3e trio', short: '1er-3e trio', mini: 'T1-3', idealUnits: [0, 1, 2] };
+      return { level: 3, label: 'Bottom 9 · 2e au 4e trio', short: '2e-4e trio', mini: 'T2-4', idealUnits: [1, 2, 3] };
     }
     if (pos === 'D') {
-      if (rating >= 63) return { level: 2, label: 'Top 6 D', short: 'Top 6 D', idealUnits: [0, 1, 2] };
-      return { level: 3, label: 'Bottom 6 D', short: 'Bottom 6 D', idealUnits: [1, 2] };
+      if (rating >= 63) return { level: 2, label: 'Top 6 D · 1re à 3e paire', short: '1re-3e paire', mini: 'P1-3', idealUnits: [0, 1, 2] };
+      return { level: 3, label: 'Bottom 6 D · 2e ou 3e paire', short: '2e-3e paire', mini: 'P2-3', idealUnits: [1, 2] };
     }
   }
 
@@ -1288,6 +1298,17 @@ export function finalizeSeason(players, season, opts = {}) {
   valeurDeSaison(players, season, games);
   // Le contexte de création lit la valeur (pour ranger les trios) : après.
   contexteDeCreation(players, season);
+  // Les deux mesures que la carte porte (🛡️ Défensif, 🪨 Robuste) et que les
+  // traits lisent pour ne rendre que dans les grosses saisons : `md` et `mr`,
+  // les centiles de défensive et de robustesse parmi les réguliers de la
+  // saison et de la position (voir mesuresDeSaison). Publics : ce sont des
+  // colonnes rangées, pas des cotes.
+  const mesures = mesuresDeSaison(players);
+  for (const p of players) {
+    const m = mesures.get(p);
+    if (m && m.def != null) p.md = Math.round(m.def * 100) / 100; else delete p.md;
+    if (m && m.rob != null) p.mr = Math.round(m.rob * 100) / 100; else delete p.mr;
+  }
 
   for (const p of players) {
 
