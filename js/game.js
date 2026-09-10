@@ -32,7 +32,7 @@ import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSomma
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
-import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives } from './ratings.js';
+import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives, mesuresDeSaison, SEUIL_MESURE } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 
 const $ = id => document.getElementById(id);
@@ -716,9 +716,32 @@ async function getShard(label) {
     registerHiddenRatings(p);
     (byTeam[p.t] = byTeam[p.t] || []).push(p);
   }
-  const entry = { players: shard.players, byTeam };
+  // Les deux mesures que la carte ne disait pas (défensive, robustesse),
+  // rangées parmi les réguliers de la saison : voir `mesuresDeSaison`.
+  const entry = { players: shard.players, byTeam, mesures: mesuresDeSaison(shard.players) };
   G.shards.set(label, entry);
   return entry;
+}
+
+/** La défensive et la robustesse mesurées d'un joueur, ou null (gardien, moins de 20 matchs). */
+function mesure(p) {
+  const entry = p && G.shards.get(p.s);
+  return (entry && entry.mesures && entry.mesures.get(p)) || null;
+}
+
+/*
+ * 🛡️ Défensif, 🪨 Robuste : les étiquettes de ce que le joueur a fait sans la
+ * rondelle, au 85e centile des réguliers de sa saison et de sa position. Elles
+ * sont sur la carte pour qu'un bâti défensif ou robuste se trouve sans ouvrir
+ * chaque fiche ; la fiche donne les colonnes derrière.
+ */
+function mesureTags(p, full = false) {
+  const m = mesure(p);
+  if (!m) return '';
+  const tags = [];
+  if (m.def != null && m.def >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Défensif — ${Math.round(m.def * 100)}e centile des réguliers de ${esc(p.s)} à sa position : différentiel corrigé de son club, points en désavantage, temps de glace.">🛡️${full ? ' Défensif' : ''}</span>`);
+  if (m.rob != null && m.rob >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Robuste — ${Math.round(m.rob * 100)}e centile des réguliers de ${esc(p.s)} à sa position : minutes de punition et mises en échec. Il pèse les soirs éreintants et en séries.">🪨${full ? ' Robuste' : ''}</span>`);
+  return tags.join('');
 }
 
 /**
@@ -1114,6 +1137,8 @@ function poolFiltered() {
     SAL: (a, b) => b.$ - a.$ || key(b) - key(a),
     VAL: (a, b) => valuePerM(b) - valuePerM(a),
     PM: (a, b) => (b.pm ?? 0) - (a.pm ?? 0) || key(b) - key(a),
+    DEF: (a, b) => ((mesure(b) || {}).def ?? -1) - ((mesure(a) || {}).def ?? -1) || key(b) - key(a),
+    ROB: (a, b) => ((mesure(b) || {}).rob ?? -1) - ((mesure(a) || {}).rob ?? -1) || key(b) - key(a),
     AGE: (a, b) => (ageAtSeason(a.bd, a.s) ?? 99) - (ageAtSeason(b.bd, b.s) ?? 99) || key(b) - key(a),
     NAME: (a, b) => a.n.localeCompare(b.n, 'fr'),
   }[G.sortBy] || ((a, b) => key(b) - key(a));
@@ -1206,6 +1231,7 @@ function playerCardEl(p) {
   const tags = [
     traitTags(p),
     archTag(p),
+    mesureTags(p),
     zoneTag(p),
   ].filter(Boolean).join('');
 
@@ -1770,14 +1796,25 @@ function profilMesure(p) {
   const pen = (p.pt || 0) >= 15 ? (p.g || 0) / p.pt - (partButs || 0.40) : 0;
   const dur = (p.pim || 0) / gp / (pimF || 0.90);
 
-  return `<div class="profil-grid">
+  // Avec la rondelle, puis sans : la seconde rangée porte ce qui décide des
+  // étiquettes 🛡️ Défensif et 🪨 Robuste, en colonnes claires.
+  const m = mesure(p);
+  const signe = x => (x >= 0 ? '+' : '') + Math.round(x);
+  return `<div class="profil-titre">Avec la rondelle</div>
+  <div class="profil-grid">
     ${cell('PRODUCTION', r(prod), `Points par match, sur le régulier moyen de ${p.s}. 1,00 = la moyenne.`)}
     ${cell('LANCERS', r(vol), `Lancers par match, sur le régulier moyen de ${p.s}.`)}
     ${cell('CRÉATION', r(passesRelatives(p)), `Passes par match, sur le régulier moyen de ${p.s} à sa position. C'est ce qu'il apporte aux lancers des autres : ses coéquipiers finissent mieux à ses côtés.`)}
     ${cell('PENCHANT', (pen >= 0 ? '+' : '') + pen.toFixed(2), pen >= 0
       ? 'Il finit plus que la moyenne : ses points sont surtout des buts.'
       : 'Il sert plus qu\'il ne finit : ses points sont surtout des passes.')}
-    ${cell('ROBUSTESSE', r(dur), `Minutes de punition par match, sur le régulier moyen de ${p.s}.`)}
+  </div>
+  <div class="profil-titre">Sans la rondelle${m ? ` · défensive ${Math.round(m.def * 100)}e centile, robustesse ${Math.round(m.rob * 100)}e` : ''}</div>
+  <div class="profil-grid">
+    ${m ? cell('DIFFÉRENTIEL', signe(m.diff82), `Son +/- par 82 matchs, corrigé à moitié de celui de son club — un bon joueur d'un mauvais club n'est pas puni deux fois.`) : ''}
+    ${m && m.dn82 != null ? cell('DÉSAVANTAGE', Math.round(m.dn82), `Points en désavantage numérique par 82 matchs : qui tue les punitions.`) : ''}
+    ${p.toi ? cell('MINUTES', p.toi.toFixed(1), 'Temps de glace par match, en minutes.') : ''}
+    ${cell('ROBUSTESSE', r(dur), `Minutes de punition par match, sur le régulier moyen de ${p.s}${p.ht != null ? ` · ${p.ht} mises en échec par match` : ''}.`)}
   </div>`;
 }
 
@@ -1929,7 +1966,7 @@ function showPlayerModal(p, opts = {}) {
             <div class="pcard-full-name">${formatName(p.n)}</div>
             <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
               <span class="pos-chip ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
-            <div class="tags pcard-full-tags">${traitTags(p, true)}${archTag(p, true)}${zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
+            <div class="tags pcard-full-tags">${traitTags(p, true)}${archTag(p, true)}${mesureTags(p, true)}${zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
             <div class="pcard-full-salary">
               <span class="big">${st.salaryMain}</span>
               <span class="small">${st.salarySub}</span>

@@ -102,6 +102,72 @@ export const LISSAGE_AVANT_PLAFOND = 0.5;
  */
 export const LISSAGE_EQUIPE = 0.5;
 
+/*
+ * LES DEUX MESURES QUE LA CARTE NE DISAIT PAS : la défensive et la robustesse.
+ *
+ * JP : *je veux que les joueurs défensifs et/ou robustes aient plus d'impact,
+ * pour augmenter les builds possibles* — puis, quand on lui a dit que rien sur
+ * la carte ne les désigne : *pas fou*. Le moteur lit `d` et `r`, qui restent
+ * cachées ; ce qui se montre, c'est ce que le joueur A FAIT, rangé parmi les
+ * réguliers de sa saison et de sa position :
+ *
+ *   défensive   son différentiel corrigé à moitié de celui de son club (comme
+ *               la cote, LISSAGE_EQUIPE), ses points en désavantage numérique
+ *               (quand le shard les porte) et son temps de glace (depuis
+ *               1997-98) — la moyenne des rangs disponibles
+ *   robustesse  ses minutes de punition et ses mises en échec (depuis 2005-06)
+ *
+ * Chaque rang est un centile parmi les réguliers (20 matchs et plus) de la
+ * même position. Un joueur au SEUIL_MESURE (85e centile) porte l'étiquette
+ * 🛡️ Défensif ou 🪨 Robuste sur sa carte, et le bassin se trie sur les deux.
+ * Ce ne sont pas des cotes : les colonnes sont sur la fiche, chacune en clair.
+ */
+export const SEUIL_MESURE = 0.85;
+
+export function mesuresDeSaison(players) {
+  const out = new Map();
+  const reguliers = players.filter(p => p && p.p !== 'G' && (p.gp || 0) >= 20);
+  if (!reguliers.length) return out;
+  const parMatch = (p, k) => (p[k] || 0) / Math.max(1, p.gp || 1);
+  // Le différentiel du club, pour le corriger à moitié.
+  const club = new Map();
+  for (const p of reguliers) {
+    const c = club.get(p.t) || { s: 0, n: 0 };
+    c.s += parMatch(p, 'pm'); c.n++;
+    club.set(p.t, c);
+  }
+  const diffRel = p => { const c = club.get(p.t); return parMatch(p, 'pm') - LISSAGE_EQUIPE * (c && c.n ? c.s / c.n : 0); };
+  const aDN = reguliers.some(p => p.shp != null);
+  const aTOI = reguliers.some(p => (p.toi || 0) > 0);
+  const aHT = reguliers.some(p => p.ht != null && p.ht > 0);
+  /** Le centile de chaque joueur d'un groupe sur une mesure (0 = le plus bas, 1 = le plus haut). */
+  const rangs = (groupe, f) => {
+    const tri = groupe.map(p => [p, f(p)]).sort((a, b) => a[1] - b[1]);
+    const m = new Map();
+    tri.forEach(([p], i) => m.set(p, tri.length > 1 ? i / (tri.length - 1) : 0.5));
+    return m;
+  };
+  const moyenne = liste => (liste.length ? liste.reduce((a, b) => a + b, 0) / liste.length : null);
+  for (const pos of ['F', 'D']) {
+    const groupe = reguliers.filter(p => (p.p === 'D') === (pos === 'D'));
+    if (!groupe.length) continue;
+    const rDiff = rangs(groupe, diffRel);
+    const rDN = aDN ? rangs(groupe, p => parMatch(p, 'shp')) : null;
+    const rTOI = aTOI ? rangs(groupe, p => p.toi || 0) : null;
+    const rPIM = rangs(groupe, p => parMatch(p, 'pim'));
+    const rHT = aHT ? rangs(groupe, p => p.ht || 0) : null;
+    for (const p of groupe) {
+      out.set(p, {
+        def: moyenne([rDiff.get(p), rDN ? rDN.get(p) : null, rTOI ? rTOI.get(p) : null].filter(x => x != null)),
+        rob: moyenne([rPIM.get(p), rHT ? rHT.get(p) : null].filter(x => x != null)),
+        diff82: diffRel(p) * 82,
+        dn82: aDN ? parMatch(p, 'shp') * 82 : null,
+      });
+    }
+  }
+  return out;
+}
+
 /** Cap hits réels 2023-24 à 2025-26 au prorata de 95,5 M$, centiles 0 à 100. */
 export const SALAIRE_REF_CENTILES = [
   775_000, 775_000, 775_000, 800_000, 825_000, 850_000, 850_000, 850_000,
