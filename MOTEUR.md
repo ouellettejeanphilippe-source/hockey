@@ -336,6 +336,12 @@ Le moteur par lancers donne la variance naturellement :
 - les **blessures** s'activent en séries comme en saison
 - l'**usure** s'accumule sur quatre rondes
 
+**Fait, septembre 2026 :** l'usure s'accumule vraiment sur quatre rondes. Tous
+les matchs de séries sont éreintants, la finition de chaque équipe suit l'écart
+de robustesse entre les deux clubs (`K_ROB`, js/sim.js) et l'intensité monte de
+`ROB_SERIES` par ronde. Un bâti robuste fait une saison moyenne et soulève la
+Coupe aussi souvent que l'empilement de valeur (`check_builds.mjs`).
+
 **À mesurer** : quelle amplitude de tirage ramène une équipe forte de 99 % à
 quelque chose comme 40 à 60 % de chances de Coupe. Mon test préliminaire dit que
 la variance seule ne suffit pas — la vraie cause est que l'alignement du joueur
