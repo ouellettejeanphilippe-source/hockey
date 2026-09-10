@@ -10,7 +10,7 @@ import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZON
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour } from './ratings.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
-         bonusMeneurEquipe } from './traits.js';
+         bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe } from './traits.js';
 
 export const CAP = 95_500_000;
 export const REROLLS = { season: 6, team: 6, pass: 4 };
@@ -759,7 +759,8 @@ export const ROB_SERIES = 0.15;
 export const ROB_BLESSURE = 0.35;
 export const MOY_ROB_EQUIPE = 48.1;
 export const ECART_ROB_EQUIPE = 2.4;
-const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_ROB_EQUIPE, -3, 3) : 0);
+// Les colosses (js/traits.js) ajoutent leur poids, en écarts-types, dans leurs grosses saisons.
+const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_ROB_EQUIPE + (t.traitRob || 0), -3, 3) : 0);
 
 /** Cote défensive d'équipe : moyenne et écart-type des 1392 équipes-saisons. */
 export const MOY_DEF_EQUIPE = 57.6;
@@ -1063,8 +1064,8 @@ function unitesSpeciales(habilles) {
   const clAN = mesure ? p => parMatch(p, 'ppp') * 10 + offensif(p) : offensif;
   const clDN = mesure ? p => (parMatch(p, 'shp') + parMatch(p, 'shg')) * 200 + coteD(p) : coteD;
   const ranges = (liste, cle) => liste.slice().sort((a, b) => cle(b) - cle(a));
-  const unite = (joueurs, poids) => ({
-    joueurs, poids, presence: poids, qualite: 1,
+  const unite = (joueurs, poids, rang = 0) => ({
+    joueurs, poids, presence: poids, qualite: 1, rang,
     coteDef: joueurs.length ? joueurs.reduce((a, p) => a + coteD(p), 0) / joueurs.length : REPLACEMENT,
   });
   const Fo = ranges(F, clAN), Do = ranges(D, clAN), Fd = ranges(F, clDN), Dd = ranges(D, clDN);
@@ -1079,7 +1080,7 @@ function unitesSpeciales(habilles) {
   anD.forEach((js, u) => js.forEach(p => partAN.set(p, partDe(p, u))));
   const premiere = [...anF[0], ...anD[0]];
   const volume = premiere.length ? borne(premiere.reduce((a, p) => a + lancersRel(p), 0) / premiere.length, 0.6, 1.6) : 1;
-  const garnir = (unites, poids) => unites.map((js, u) => unite(js, poids[u])).filter(x => x.joueurs.length);
+  const garnir = (unites, poids) => unites.map((js, u) => unite(js, poids[u], u)).filter(x => x.joueurs.length);
   return {
     avantage: { F: garnir(anF, POIDS_AN), D: garnir(anD, POIDS_AN), volume, partAN },
     desavantage: { F: garnir(dnF, POIDS_DN), D: garnir(dnD, POIDS_DN) },
@@ -1114,6 +1115,7 @@ export function profilMatch(team, lineup) {
       const joueurs = slots.map(s => lineup[s.i]).filter(Boolean);
       unites[group].push({
         joueurs,
+        rang: u,   // le rang de l'unité : l'appariement des trios le lit
         // Poids OFFENSIF : temps de glace, volume de tirs et chimie. C'est lui
         // qui décide qui tire.
         poids: poids[u] * volume * mod,
@@ -1188,10 +1190,86 @@ export function profilMatch(team, lineup) {
     finitionFacteur: Math.min(1, FINITION_MAX / finEquipe),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles),
+    traitRob: bonusRobustesseEquipe(habilles),
     traitAtt: facteurAttaqueEquipe(habilles),
     traitSeries: facteurSeriesEquipe(habilles),
     meneur: bonusMeneurEquipe(habilles),
   };
+}
+
+/*
+ * LE +/- VA À CEUX QUI ÉTAIENT SUR LA GLACE — et ce ne sont pas toujours les
+ * cinq de la case. JP, devant une table d'équipe : *the +/- is not really
+ * linked to who is on ice when the goals are scored* — un quatrième trio
+ * entier à −28, −28, −26 sur une équipe de 50 victoires, une première paire
+ * à +32 et +32. Mesuré (`check_pm.mjs`, deux ligues de vraies équipes) :
+ * l'écart du 1er au 4e trio était de 31,5 buts contre 11,2 dans la vraie
+ * ligue, et deux coéquipiers d'une même unité finissaient à 2,6 buts l'un de
+ * l'autre contre 11,2. Trois mécaniques du vrai hockey manquaient.
+ *
+ *   APPARIEMENT   le quatrième trio ne défend pas contre le premier trio
+ *                 adverse à sa part de présence : l'entraîneur apparie. À
+ *                 chaque lancer, l'unité qui défend se tire à la présence
+ *                 PONDÉRÉE par la proximité de rang avec le trio qui
+ *                 attaque, exp(−APPARIEMENT × |rang − rang|) sur des rangs
+ *                 ramenés à [0, 1]. Ça change ce qui est joué (les meilleurs
+ *                 défendent plus contre les meilleurs) — remesuré par
+ *                 check_feuilles et check_monotonie.
+ *   PROPRE        la première paire joue avec le premier trio, la troisième
+ *                 avec le quatrième : la paire qui accompagne le trio qui
+ *                 tire (et le trio qui accompagne la paire qui tire) se tire
+ *                 de la même façon, avec APPARIEMENT_PROPRE. Sans ça la
+ *                 première paire finissait à −1 quand la vraie est à +9.
+ *   MÉLANGE       les changements à la volée. Quand un but est marqué, chacun
+ *                 des cinq nominaux de chaque côté est, avec la probabilité
+ *                 P_MELANGE, remplacé au +/- par un coéquipier d'une autre
+ *                 unité du même groupe (tiré à la présence) : il venait de
+ *                 sauter sur la glace, ou de la quitter. Ça ne change RIEN à
+ *                 ce qui est joué ni aux passes — seulement qui reçoit le
+ *                 +1 et le −1, et la somme des +/- reste 5 × le différentiel.
+ *
+ * Mesuré après, huit ligues (`check_pm.mjs`) : écart du 1er au 4e trio 12,2
+ * contre 10,3 réel ; coéquipiers d'unité à 9,3 buts l'un de l'autre contre
+ * 11,9 ; corrélation joueur par joueur 0,51. Le réglage se lit dans ce script.
+ */
+export const APPARIEMENT = 2.5;
+export const APPARIEMENT_PROPRE = 5.0;
+export const P_MELANGE = 0.40;
+
+/**
+ * Une unité tirée à la présence, appariée au rang d'une autre : l'unité qui
+ * défend contre le trio qui attaque, ET la paire qui accompagne son propre
+ * trio (la première paire joue avec le premier trio — c'est ce qui lui
+ * donne son +/- dans la vraie ligue, +9 contre −1 sans ça).
+ */
+function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT) {
+  if (!unites.length) return unites[0];
+  const nDef = unites.length;
+  const cible = nOff > 1 ? rangOff / (nOff - 1) : 0;
+  const poids = unites.map(x => x.presence * Math.exp(-k * Math.abs((nDef > 1 ? (x.rang || 0) / (nDef - 1) : 0) - cible)));
+  let r = hasard() * poids.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < unites.length; i++) { r -= poids[i]; if (r <= 0) return unites[i]; }
+  return unites[unites.length - 1];
+}
+
+/** Les cinq crédités du +/- : les nominaux, dont une part vient de changer. */
+function surLaGlace(trio, paire, unites, garde = null) {
+  const out = [];
+  for (const [u, groupe] of [[trio, unites.F], [paire, unites.D]]) {
+    if (!u) continue;
+    for (const p of u.joueurs) {
+      if (p !== garde && groupe.length > 1 && hasard() < P_MELANGE) {
+        const autres = groupe.filter(x => x !== u && x.joueurs.length);
+        if (autres.length) {
+          const v = choisirPresence(autres);
+          out.push(v.joueurs[Math.floor(hasard() * v.joueurs.length)]);
+          continue;
+        }
+      }
+      out.push(p);
+    }
+  }
+  return out;
 }
 
 /** Tire une unité au prorata de sa part de présences, sans le volume de tirs. */
@@ -1287,7 +1365,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // feuille se lit dans l'ordre une fois les deux côtés fusionnés. Assez
     // pour un sommaire crédible, et ça ne touche à aucune probabilité.
     const instant = instants[i];
-    let tireur = null, unite = null, glace = null;
+    let tireur = null, unite = null, glace = null, trioOff = null, paireOff = null;
     if (unitesOff) {
       // QUI TIRE, ET QUI EST SUR LA GLACE AVEC LUI. L'unité qui tire se tire
       // au poids offensif (présence × volume × chimie) ; l'AUTRE unité, celle
@@ -1300,10 +1378,12 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       // t'as genre 80 points c'est cave en sale*). Une paire ne monte pas
       // avec un trio parce qu'elle tire ; elle est là parce que c'est son tour.
       const tireDef = hasard() < (mode === 'AN' ? PART_LANCERS_D_AN : PART_LANCERS_D);
-      const trio = tireDef ? choisirPresence(unitesOff.F) : choisirUnite(unitesOff.F);
-      const paire = tireDef ? choisirUnite(unitesOff.D) : choisirPresence(unitesOff.D);
-      unite = tireDef ? paire : trio;
-      glace = [...trio.joueurs, ...paire.joueurs];
+      const trio = tireDef ? null : choisirUnite(unitesOff.F);
+      const paire = tireDef ? choisirUnite(unitesOff.D) : choisirApparie(unitesOff.D, trio.rang || 0, unitesOff.F.length, APPARIEMENT_PROPRE);
+      const trioAcc = tireDef ? choisirApparie(unitesOff.F, paire.rang || 0, unitesOff.D.length, APPARIEMENT_PROPRE) : trio;
+      unite = tireDef ? paire : trioAcc;
+      trioOff = trioAcc; paireOff = paire;
+      glace = [...trioAcc.joueurs, ...paire.joueurs];
       // Une unité entièrement blessée ne tire pas : le lancer n'a alors pas
       // lieu du tout, plutôt que de devenir un but sans marqueur — c'est ce
       // qui faisait fuir une poignée de buts et de lancers par saison hors
@@ -1323,13 +1403,17 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // coûtait rien pendant ses propres treize minutes. La défense se joue
     // maintenant présence par présence : c'est ce qui rend la profondeur et
     // les traits mordants au lieu d'être décoratifs.
-    let defGlace = null, facteurDef;
+    let defGlace = null, facteurDef, dTrio = null, dPaire = null;
     if (unitesDef) {
-      const dTrio = choisirPresence(unitesDef.F);
-      const dPaire = choisirPresence(unitesDef.D);
+      // Appariée au trio qui attaque : le premier défend contre le premier.
+      const rangOff = trioOff ? (trioOff.rang || 0) : 0, nOff = unitesOff ? unitesOff.F.length : 1;
+      dTrio = choisirApparie(unitesDef.F, rangOff, nOff);
+      dPaire = choisirApparie(unitesDef.D, rangOff, nOff);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
-      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef));
+      // Le bidirectionnel (et le Selke) étouffe PENDANT SES PRÉSENCES : c'est
+      // le seul trait qui passe par ici, voir EFFET dans js/traits.js.
+      facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef)) * facteurPresenceUnite(defGlace);
     } else {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef - REF.zDef));
     }
@@ -1384,8 +1468,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
           // Le +/- ne compte pas les buts en avantage numérique — la règle de
           // la ligue — mais il compte ceux en désavantage.
           if (mode !== 'AN') {
-            for (const x of glace) x.simPM++;
-            if (defGlace) for (const x of defGlace) x.simPM--;
+            // Les changements à la volée : voir P_MELANGE.
+            for (const x of surLaGlace(trioOff, paireOff, unitesOff, tireur)) x.simPM++;
+            if (defGlace) for (const x of surLaGlace(dTrio, dPaire, unitesDef)) x.simPM--;
           }
         }
       }

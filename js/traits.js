@@ -66,6 +66,16 @@ import { SELKE, NORRIS, VEZINA, SMYTHE } from '../data/trophees.js';
 import { REPUTATIONS, AGE_MAX_VITESSE } from '../data/reputations.js';
 import { ageAtSeason } from './ratings.js';
 
+/*
+ * LA GROSSE SAISON d'une réputation gardée par la mesure : le 70e centile de
+ * la mesure du trait (`md` pour le bidirectionnel, `mr` pour le colosse).
+ * Plus bas que le 85e de l'étiquette de la carte, parce que la liste répond
+ * déjà de la qualité — la mesure ne sert qu'à écarter les années creuses.
+ * Mesuré : au 85e, Gainey ne gardait que 4 de ses 16 saisons et Danault 4 de
+ * 11 ; au 70e, 7 et 7, et les saisons de fin de carrière tombent toujours.
+ */
+export const SEUIL_GROSSE_SAISON = 0.70;
+
 /** Première saison où le Vezina est un vote sur le meilleur gardien. */
 export const VEZINA_VOTE_DEPUIS = '1981-82';
 
@@ -99,8 +109,12 @@ export const TRAITS = {
     desc: 'Le gars qu\'on veut sur la glace en prolongation et en avril',
   },
   COLOSSE: {
-    label: 'Présence physique', short: 'Colosse', icon: '🥊', reputation: true,
-    desc: 'Son poids physique pèse sur l\'adversaire toute la soirée',
+    label: 'Présence physique', short: 'Colosse', icon: '🥊', reputation: true, grosseSaison: 'mr',
+    desc: 'Son poids physique pèse sur l\'équipe les soirs éreintants et en séries — dans ses grosses saisons',
+  },
+  BIDIR: {
+    label: 'Attaquant bidirectionnel', short: 'Bidirectionnel', icon: '🔁', reputation: true, grosseSaison: 'md',
+    desc: 'Un dieu des deux sens de la patinoire : quand il est sur la glace, l\'adversaire n\'entre pas — dans ses grosses saisons',
   },
   CREATEUR: {
     label: 'Créateur de jeu', short: 'Créateur', icon: '🪄', reputation: true,
@@ -132,9 +146,29 @@ export const TRAITS = {
  * forces égales pendant ses présences — n'existe pas dans des données
  * publiques avant 2007. On prend donc le bas de la fourchette plausible.
  */
+/*
+ * LA PRÉSENCE : le canal du bidirectionnel. JP : *ajouter trait two-way pour
+ * joueur genre Bergeron, Gainey, Danault, qui les rendent all-star level,
+ * mais juste leurs grosses saisons*. Le canal d'équipe du Selke (2 % sur tout
+ * le match, borné à 6 % pour tout le vestiaire) ne peut pas faire ça : il
+ * sature, et il ne distingue pas le gars qui est sur la glace de celui qui
+ * regarde. `presence` agit sur les lancers concédés PENDANT SES PRÉSENCES —
+ * l'unité défensive est tirée à chaque lancer — et c'est exactement ce qu'un
+ * trio d'étouffement fait : Bergeron contre le premier trio adverse. C'est
+ * le seul trait qui passe par la présence, et pour cette raison ; il n'est
+ * pas contraire à « un trait appartient au joueur » : le facteur suit le
+ * joueur sur n'importe quel trio, il ne dépend que des minutes qu'il joue.
+ * Deux bidirectionnels sur la même unité ne s'additionnent pas (le plus
+ * fort compte) ; quatre trios qui en portent un couvrent tout le match.
+ *
+ * Qui le porte : les lauréats et finalistes du Selke, par le vote, et la
+ * liste BIDIR de `data/reputations.js` dans les saisons où les colonnes le
+ * montrent au 85e centile défensif (`md`, voir mesuresDeSaison) — les
+ * grosses saisons, mesurées, pas décrétées.
+ */
 export const EFFET = {
   //                        gagnant  finaliste
-  SELKE:   { defense:       [0.980,  0.990] },
+  SELKE:   { defense:       [0.980,  0.990], presence: [0.91, 0.94] },
   NORRIS:  { defense:       [0.980,  0.990] },
   VEZINA:  { gardien:       [0.960,  0.980] },
   SMYTHE:  { series:        [1.030,  1.030], seriesGardien: [0.960, 0.960] },
@@ -163,7 +197,14 @@ export const EFFET = {
   TIR:      { finition:     [1.030,  1.030] },
   CREATEUR: { attaque:      [1.006,  1.006] },
   MENEUR:   { meneur:       [2.000,  2.000], series: [1.010, 1.010] },
-  COLOSSE:  { defense:      [0.997,  0.997] },
+  /*
+   * COLOSSE pèse sur la ROBUSTESSE de l'équipe (en écarts-types d'alignement,
+   * le canal K_ROB de js/sim.js) plutôt que sur la finition adverse : c'est
+   * les soirs éreintants et en séries qu'un Pronger ou un Lucic se fait
+   * sentir. Seulement dans ses grosses saisons (`mr`).
+   */
+  COLOSSE:  { robustesse:   [0.50,   0.50] },
+  BIDIR:    { presence:     [0.91,   0.91] },
   VOLEUR:   { gardien:      [0.988,  0.988] },
 };
 
@@ -218,6 +259,14 @@ export function getTraits(p) {
       const age = ageAtSeason(p.bd, p.s);
       if (age && age > AGE_MAX_VITESSE) continue;
     }
+    // Les GROSSES SAISONS seulement : un bidirectionnel ou un colosse ne rend
+    // que dans les saisons où les colonnes le montrent au-dessus de
+    // SEUIL_GROSSE_SAISON sur sa mesure (`md`, `mr`, posées à l'étage 2).
+    // Une saison sans mesure (moins de vingt matchs) ne porte pas le trait.
+    const gate = TRAITS[k].grosseSaison;
+    if (gate && !(p[gate] >= SEUIL_GROSSE_SAISON)) continue;
+    // Un Selke cette saison-là porte déjà l'effet de présence : pas deux fois.
+    if (k === 'BIDIR' && out.some(x => x.cle === 'SELKE')) continue;
     out.push({ cle: k, niveau: 0, reputation: true });
   }
   CACHE.set(cle, out);
@@ -242,6 +291,7 @@ export const BORNES = {
   attaque: 1.05,   // plafond
   series: 1.06,
   gardien: 0.94,
+  robustesse: 1.8, // en écarts-types d'alignement : trois colosses, pas dix
 };
 
 const produit = (p, champ) => {
@@ -262,6 +312,30 @@ export function facteurDefensifEquipe(joueurs) {
   let f = 1;
   for (const p of joueurs) if (p && p.p !== 'G') f *= produit(p, 'defense');
   return Math.max(BORNES.defense, f);
+}
+
+/**
+ * Facteur sur un lancer concédé PENDANT LES PRÉSENCES de ces joueurs (l'unité
+ * défensive tirée à ce lancer). Le plus fort compte, jamais le produit : deux
+ * bidirectionnels sur le même trio ne défendent pas deux fois la même rondelle.
+ */
+export function facteurPresenceUnite(joueurs) {
+  let f = 1;
+  for (const p of joueurs) if (p && p.p !== 'G') f = Math.min(f, produit(p, 'presence'));
+  return f;
+}
+
+/**
+ * Ce que les colosses ajoutent à la robustesse de l'équipe, en écarts-types
+ * d'alignement (le canal K_ROB). Borné : le poids physique sature lui aussi.
+ */
+export function bonusRobustesseEquipe(joueurs) {
+  let s = 0;
+  for (const p of joueurs) if (p && p.p !== 'G') for (const t of getTraits(p)) {
+    const e = EFFET[t.cle]?.robustesse;
+    if (e) s += e[t.niveau] ?? 0;
+  }
+  return Math.min(BORNES.robustesse, s);
 }
 
 /** Facteur sur le gardien : en dessous de 1 = il laisse passer moins. */

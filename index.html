@@ -303,8 +303,8 @@
       <h3>5. Zones d'efficacité : le garde-fou</h3>
       <p>Chaque joueur a une zone, les unités où il rend à 100 %. Elle vient de sa valeur, et de sa polyvalence pour les zones « 9 » et « 6 D » :</p>
       <ul>
-        <li><strong>Attaquants</strong> — Top 3 : 1er trio seulement. Top 6 : trios 1-2. Top 9 (polyvalent) : trios 1-3. Middle 6 : trios 2-3. Bottom 9 (polyvalent) : trios 2-4. Bottom 6 : trios 3-4. Profondeur : 4e trio.</li>
-        <li><strong>Défenseurs</strong> — Top 2 : 1re paire seulement. Top 4 : paires 1-2. Top 6 D (polyvalent) : paires 1-3. Middle 4 et Bottom 4 : paires 2-3. Bottom 6 D (polyvalent) : paires 2-3. Profondeur : 3e paire.</li>
+        <li><strong>Attaquants</strong> — l'étiquette dit les trios où il rend à 100 % : « 1er trio » (Top 3), « 1er-2e trio » (Top 6), « 1er-3e trio » (Top 9, polyvalent), « 2e-3e trio » (Middle 6), « 2e-4e trio » (Bottom 9, polyvalent), « 3e-4e trio » (Bottom 6), « 4e trio ».</li>
+        <li><strong>Défenseurs</strong> — « 1re paire » (Top 2), « 1re-2e paire » (Top 4), « 1re-3e paire » (Top 6 D, polyvalent), « 2e paire » (tient la 3e), « 3e paire » (peut tenir la 2e), « Réserve D ».</li>
         <li><strong>Gardiens</strong> — partant numéro un, partant (les deux rôles), auxiliaire. Pas de malus chez les gardiens.</li>
       </ul>
       <p>Une unité où tout le monde est dans sa zone reçoit <strong>✨ optimal, +2 en attaque et +2 en défense</strong>. Sinon elle est <strong>⚠️ mal assortie</strong>, et le malus est <strong>asymétrique</strong> :</p>
@@ -323,13 +323,13 @@
       <div class="math-box"><code>attaque = 3 × écart de production + 1,5 × (production moyenne − 1)</code><br><code>défense = −2,6 × (production moyenne − 1,2) si les deux montent · +2,2 × (0,85 − production moyenne) si hermétique</code></div>
       <p>Un trio ou une paire qui reste intact gagne jusqu'à <strong>+2 de continuité</strong>, un point par 25 matchs.</p>
       <p>L'<strong>archétype</strong> (🎯 franc-tireur, 🪄 fabricant, 💥 puissance, ⚖️ complet, 🔋 énergie… ; 🚀 défenseur offensif, 🔒 défensif… ; 🧱 mur, ⚡ acrobate, 🔋 de fer) décrit la <strong>saison</strong> sur quatre axes : production, penchant, lancers, punitions, chacun sur le régulier moyen de l'année. Il aide à lire un vestiaire ; il n'entre pas dans le moteur. Gretzky 1981-82 sort franc-tireur, Gretzky 1985-86 fabricant : les deux sont vrais.</p>
-      <p>Deux étiquettes disent ce qu'un joueur fait <strong>sans la rondelle</strong>, au 85e centile des réguliers de sa saison et de sa position : <strong>🛡️ Défensif</strong> (son différentiel corrigé de celui de son club, ses points en désavantage numérique, son temps de glace) et <strong>🪨 Robuste</strong> (ses minutes de punition, ses mises en échec). Le bassin se trie sur les deux. Une brigade défensive alloue moins de buts ; une équipe robuste pèse les soirs éreintants et en séries, où l'usure s'accumule de ronde en ronde.</p>
+      <p>Deux étiquettes disent ce qu'un joueur fait <strong>sans la rondelle</strong>, au 85e centile des réguliers de sa saison et de sa position : <strong>🧊 Défensif</strong> (son différentiel corrigé de celui de son club, ses points en désavantage numérique, son temps de glace) et <strong>🪨 Robuste</strong> (ses minutes de punition, ses mises en échec). Le bassin se trie sur les deux. Une brigade défensive alloue moins de buts ; une équipe robuste pèse les soirs éreintants et en séries, où l'usure s'accumule de ronde en ronde.</p>
 
       <h3>7. Les traits : ce que la feuille de pointage ne dit pas</h3>
       <p>Un trait n'existe que là où les colonnes sont aveugles. Le moteur lit déjà les lancers, la finition, les arrêts et le +/- ; un trait « franc-tireur » recompterait ce qu'il compte déjà. Deux étages, et rien d'autre. Un trait <strong>appartient au joueur, pas à sa case</strong> : un Selke au 4e trio défend comme au 1er. Seule condition : être habillé. Un réserviste ne compte pas.</p>
       <p><strong>Les votés</strong>, une saison à la fois (lauréat, puis finaliste) :</p>
       <ul>
-        <li>🛡️ <strong>Selke</strong> et 🧱 <strong>Norris</strong> : l'équipe concède 2 % de buts en moins (1 % pour un finaliste), sur tout le match.</li>
+        <li>🛡️ <strong>Selke</strong> et 🧱 <strong>Norris</strong> : l'équipe concède 2 % de buts en moins (1 % pour un finaliste), sur tout le match. Le Selke étouffe en plus <strong>pendant ses présences</strong> : les lancers concédés quand son trio est sur la glace entrent 9 % moins (6 % pour un finaliste).</li>
         <li>🥅 <strong>Vezina</strong> : le gardien laisse passer 4 % de moins (2 %). Seulement depuis 1981-82 : avant, le Vezina allait au club qui allouait le moins de buts, ce que le moteur mesure déjà.</li>
         <li>🏆 <strong>Conn Smythe</strong> : <strong>en séries seulement</strong>, +3 % d'attaque, ou un gardien 4 % plus dur à battre.</li>
       </ul>
@@ -339,7 +339,8 @@
         <li>💣 <strong>Lancer</strong> : ses lancers entrent 3 % plus souvent.</li>
         <li>🪄 <strong>Créateur</strong> : toute son équipe finit 0,6 % mieux.</li>
         <li>🧭 <strong>Meneur</strong> : +2 de clutch en prolongation (plafonné à 9 par équipe) et +1 % en séries.</li>
-        <li>🥊 <strong>Colosse</strong> : l'adversaire finit 0,3 % moins bien.</li>
+        <li>🔁 <strong>Bidirectionnel</strong> : les dieux des deux sens (Gainey, Carbonneau, Bergeron, Danault…), <strong>dans leurs grosses saisons seulement</strong> — celles où les colonnes les montrent au 85e centile défensif. Même effet de présence que le Selke : 9 % de buts en moins quand ils sont sur la glace.</li>
+        <li>🥊 <strong>Colosse</strong> : dans ses grosses saisons (85e centile de robustesse), il ajoute un demi-écart-type à la robustesse de l'équipe, qui pèse les soirs éreintants et en séries (plafond : 1,8 par équipe).</li>
         <li>🧤 <strong>Voleur</strong> : le gardien laisse passer 1,2 % de moins, toutes époques. Il rachète le trou du Vezina d'avant 1981-82.</li>
       </ul>
       <p><strong>Les canaux d'équipe saturent</strong> : la défensive au mieux −6 %, l'attaque +5 %, les séries +6 %, le gardien −6 %. Le quatrième Norris d'un vestiaire n'apporte pas autant que le premier. Vitesse et lancer, qui portent sur les lancers de leur seul porteur, ne sont pas bornés. Mesuré : une vraie équipe qui porte onze à treize traits gagne trois à quatre matchs de plus que la même rejouée sans.</p>

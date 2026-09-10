@@ -619,6 +619,24 @@ ainsi de la comptabilité, sans que le pointage ait l'air faux.
    Les traits, eux, ne passent pas par ce canal : ils sont attachés au joueur
    et pèsent sur tout le match.
 
+   **Et l'entraîneur apparie, et les cinq changent à la volée.** Tirer les
+   unités à la présence seule laissait le quatrième trio défendre contre le
+   premier trio adverse aussi souvent que contre le quatrième, et créditait
+   toujours les cinq de la case : un quatrième trio entier à −28, −28, −26,
+   deux paires à +32 et +32, l'écart du 1er au 4e trio à 31,5 buts contre
+   11,2 dans la vraie ligue (`scripts/check_pm.mjs`). Trois choses depuis.
+   L'unité qui défend se tire à la présence pondérée par la proximité de rang
+   avec le trio qui attaque (`APPARIEMENT` 2,5) ; la paire qui accompagne le
+   trio qui tire, de même (`APPARIEMENT_PROPRE` 5,0 : la première paire joue
+   avec le premier trio) ; et au moment d'un but, chacun des cinq nominaux de
+   chaque côté est remplacé, à 40 % (`P_MELANGE`), par un coéquipier d'une
+   autre unité tiré à la présence — il venait de sauter sur la glace, ou de
+   la quitter. Le mélange ne touche que le +/- ; l'appariement, lui, change
+   ce qui est joué, et c'est mesuré : la monotonie se rapproche du réel
+   (27,1 / 42,7 / 54,8), les repères d'époque ne bougent pas. Après : écart
+   du 1er au 4e trio 12,2 contre 10,3, coéquipiers d'unité à 9,3 buts l'un de
+   l'autre contre 11,9.
+
    **Pourquoi les traits agissent en propre et non par la cote `d`.**
    `K_DEFENSE` est mesuré à 0,04 par écart-type, donc un point de cote
    défensive vaut moins d'un pour cent de probabilité de but : un Selke qui

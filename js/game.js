@@ -431,11 +431,11 @@ function agesAvailable() {
   return G.tirage.some(v => v.pool.some(p => p.bd)) || picked().some(p => p.bd);
 }
 
-function zoneTag(p) {
+function zoneTag(p, mini = false) {
   const z = getLineZone(p, getHiddenRatings(p).v);
   const where = z.idealUnits.map(u => u + 1).join(', ');
   const unit = isD(p) ? 'paires' : p.p === 'G' ? 'rôles' : 'trios';
-  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">${esc(z.short)}</span>`;
+  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">${esc(mini ? (z.mini || z.short) : z.short)}</span>`;
 }
 
 /** Archétype : icône seulement dans le pick et le depth chart, libellé complet sur la fiche. */
@@ -739,7 +739,7 @@ function mesureTags(p, full = false) {
   const m = mesure(p);
   if (!m) return '';
   const tags = [];
-  if (m.def != null && m.def >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Défensif — ${Math.round(m.def * 100)}e centile des réguliers de ${esc(p.s)} à sa position : différentiel corrigé de son club, points en désavantage, temps de glace.">🛡️${full ? ' Défensif' : ''}</span>`);
+  if (m.def != null && m.def >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Défensif — ${Math.round(m.def * 100)}e centile des réguliers de ${esc(p.s)} à sa position : différentiel corrigé de son club, points en désavantage, temps de glace.">🧊${full ? ' Défensif' : ''}</span>`);
   if (m.rob != null && m.rob >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Robuste — ${Math.round(m.rob * 100)}e centile des réguliers de ${esc(p.s)} à sa position : minutes de punition et mises en échec. Il pèse les soirs éreintants et en séries.">🪨${full ? ' Robuste' : ''}</span>`);
   return tags.join('');
 }
@@ -1532,10 +1532,30 @@ const roleCourt = r => ROLE_COURT[r] || r;
  * moment où on décide de signer, et sur la fiche. Le tableau de profondeur,
  * lui, répond à une seule question : ce joueur est-il à sa place ?
  */
-const SLOT_TAGS_MAX = 3;
+const SLOT_TAGS_MAX = 8;   // les icônes de traits devant le verdict, la rangée se réduit à l'échelle au besoin
+/*
+ * La case porte le verdict de placement — zone, écart, pénalité — et, devant,
+ * les ICÔNES du joueur : ses traits et ses étiquettes mesurées. JP : *à voir
+ * les icônes dans l'alignement* — on lit d'un coup d'œil son trio
+ * d'étouffement et ses colosses une fois l'alignement monté.
+ */
 function slotTags(p, zoneEcartTag, penTag) {
-  return [zoneTag(p), zoneEcartTag, penTag]
+  // Les icônes, serrées, sans cadre : la case est étroite. Le survol donne le mot.
+  const icones = [...getTraits(p).map(t => TRAITS[t.cle]), ...mesureIcones(p)];
+  const compact = icones.length
+    ? `<span class="slot-icones" title="${esc(icones.map(i => i.short).join(' · '))}">${icones.map(i => i.icon).join('')}</span>` : '';
+  return [compact, zoneTag(p, true), zoneEcartTag, penTag]
     .filter(Boolean).slice(0, SLOT_TAGS_MAX).join('');
+}
+
+/** Les étiquettes mesurées d'un joueur, en icônes : `[{ icon, short }]`. */
+function mesureIcones(p) {
+  const m = mesure(p);
+  if (!m) return [];
+  const out = [];
+  if (m.def != null && m.def >= SEUIL_MESURE) out.push({ icon: '🧊', short: 'Défensif' });
+  if (m.rob != null && m.rob >= SEUIL_MESURE) out.push({ icon: '🪨', short: 'Robuste' });
+  return out;
 }
 
 function slotEl(s) {

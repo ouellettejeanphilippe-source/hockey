@@ -26,8 +26,17 @@
  *              colonne des passes ne dit qu'à moitié.
  * 🧭 MENEUR    l'ascendant : le gars qu'on veut sur la glace en avril et en
  *              prolongation.
- * 🥊 COLOSSE   le poids physique et l'intimidation. Le plus discutable du lot,
- *              et le plus faible en effet, pour cette raison.
+ * 🥊 COLOSSE   le poids physique et l'intimidation. Ne rend que dans ses
+ *              GROSSES SAISONS (robustesse mesurée au 85e centile, `mr`),
+ *              et il pèse alors sur la robustesse de l'équipe : les soirs
+ *              éreintants et les séries.
+ * 🔁 BIDIR     les dieux des deux sens de la patinoire — Gainey, Carbonneau,
+ *              Bergeron, Danault. JP : *ajouter trait two-way pour joueur
+ *              genre Bergeron, Gainey, Danault, qui les rendent all-star
+ *              level, mais juste leurs grosses saisons*. Ne rend donc que
+ *              dans les saisons où les colonnes le montrent au 85e centile
+ *              défensif (`md`) ; les lauréats et finalistes du Selke portent
+ *              le même effet par le vote, sans passer par cette liste.
  * 🧤 VOLEUR    le gardien qu'on se rappelle. Il couvre TOUTES les époques, et
  *              c'est ce qui rachète le trou du Vezina : avant 1981-82 ce
  *              trophée n'était pas un vote, donc Dryden, Parent, Tony Esposito
@@ -91,6 +100,21 @@ export const REPUTATIONS = {
     'Jarome Iginla', 'Zdeno Chara', 'Shea Weber', 'Sidney Crosby',
     'Jonathan Toews', 'Patrice Bergeron', 'Anze Kopitar',
   ],
+  BIDIR: [
+    // 1970-90 : les centres et ailiers qu'on envoyait contre Lafleur et Gretzky
+    'Bobby Clarke', 'Bob Gainey', 'Craig Ramsay', 'Don Luce', 'Doug Jarvis',
+    'Bryan Trottier', 'Steve Kasper', 'Guy Carbonneau', 'Troy Murray', 'Dave Poulin',
+    'Rick Meagher', 'Dirk Graham', 'Joel Otto', 'Esa Tikkanen',
+    // 1990-2010
+    'Sergei Fedorov', 'Doug Gilmour', 'Ron Francis', 'Steve Yzerman', 'Michael Peca',
+    'Jere Lehtinen', 'John Madden', 'Kris Draper', "Rod Brind'Amour", 'Peter Forsberg',
+    'Pavel Datsyuk', 'Henrik Zetterberg', 'Mike Richards', 'Ryan Kesler',
+    // aujourd'hui
+    'Jonathan Toews', 'Patrice Bergeron', 'Anze Kopitar', 'Mikko Koivu', 'Jordan Staal',
+    'Sean Couturier', "Ryan O'Reilly", 'Mark Stone', 'Aleksander Barkov', 'Phillip Danault',
+    'Brad Marchand', 'Nico Hischier', 'Anthony Cirelli', 'Elias Lindholm', 'Nick Suzuki',
+    'Mitch Marner',
+  ],
   COLOSSE: [
     'Gordie Howe', 'Dave Schultz', 'Larry Robinson', 'Denis Potvin',
     'Clark Gillies', "Terry O'Reilly", 'Bob Probert', 'Cam Neely',
@@ -100,6 +124,7 @@ export const REPUTATIONS = {
     'Chris Pronger', 'Adam Foote', 'Zdeno Chara', 'Dion Phaneuf',
     'Dustin Byfuglien', 'Milan Lucic', 'Brad Marchand', 'Matthew Tkachuk',
     'Tom Wilson', 'Ryan Reaves',
+    'Derian Hatcher', 'Rob Blake', 'Tie Domi', 'Dustin Brown', 'Radko Gudas', 'Chris Neil',
   ],
   VOLEUR: [
     // Avant 1981-82 le Vezina n'était pas un vote : sans cette liste, les
