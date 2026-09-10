@@ -24,11 +24,10 @@ import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague,
-  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent,
-} from './sim.js';
+  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, teamStrength } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamBand, teamSeasonUrl } from './logos.js';
-import { diffuserSaison } from './direct.js';
-import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire } from './bilan.js';
+import { ouvrirSaison } from './saison.js';
+import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -103,6 +102,17 @@ const G = {
   statsProrata: false,
   salaryMode: '2026',   // '2026' | 'ERA'
   mode: 'CLASSIQUE',    // CLASSIQUE | LOTO | EXPRESS | LOTO_EXPRESS (voir MODES dans sim.js)
+  /*
+   * UNE SAISON, LA COUPE CETTE ANNÉE-LÀ. JP : *ajouter un mode : choisir une
+   * saison et tenter de gagner la Coupe cette année-là*. `epoque` est une
+   * saison (« 1985-86 ») ou null. Fixée, la roulette ne sort que des clubs
+   * de cette année-là (la relance d'année n'a plus de sens et se retire), le
+   * renfort express en vient aussi, et la ligue est faite de TOUS ses vrais
+   * clubs plutôt que de 31 clubs tirés dans 55 ans — quatorze en 1970-71,
+   * vingt et un en 1985-86, trente-deux en 2024-25. Les séries prennent
+   * seize équipes, ou la plus grande puissance de deux qui tient.
+   */
+  epoque: null,
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -231,6 +241,7 @@ function saveGame() {
       tirage: G.tirage.map(v => ({ season: v.season, team: v.team })),
       target: G.target,
       mode: G.mode,
+      epoque: G.epoque,
       renfort: G.renfort,
     }));
   } catch { /* stockage indisponible */ }
@@ -243,7 +254,7 @@ function clearSave() {
 function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
-      statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode,
+      statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode, epoque: G.epoque,
       onlyFit: G.onlyFit, sortBy: G.sortBy, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
@@ -259,6 +270,8 @@ function loadOpts() {
     if (o.poolView === 'POS' || o.poolView === 'LIST') G.poolView = o.poolView;
     // Un mode disparu (l'ancien « Par unité ») retombe sur le classique.
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
+    // Les saisons ne sont pas encore chargées ici : `boot` vérifie après.
+    if (typeof o.epoque === 'string') G.epoque = o.epoque;
   } catch { /* ignore */ }
 }
 
@@ -301,6 +314,7 @@ async function restoreSave() {
     // Le mode fait partie de la partie, pas des préférences : une partie
     // express reprise en classique n'aurait plus le bon plafond.
     G.mode = data.mode;
+    G.epoque = typeof data.epoque === 'string' && state.index.seasons.includes(data.epoque) ? data.epoque : null;
     G.renfort = data.renfort || null;
     G.tirage = tirage;
     G.roster = data.roster || {};
@@ -522,6 +536,7 @@ async function boot() {
     loadOpts();
     await loadIndex();
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
+    if (G.epoque && !state.index.seasons.includes(G.epoque)) G.epoque = null;
     setupEvents();
     // Les segments démarrent sur la valeur écrite dans le HTML : sans cette
     // ligne, un réglage relu du stockage s'appliquait au rendu mais pas au
@@ -590,7 +605,9 @@ function setupEvents() {
 
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
-      document.querySelectorAll('.modal-backdrop').forEach(fermerModale);
+      // L'écran de saison et le direct ont leur propre sortie : Échap ne
+      // les ferme pas, ça laisserait la saison à moitié révélée.
+      document.querySelectorAll('.modal-backdrop:not(.live)').forEach(fermerModale);
       if (G.selectedSlot !== null || G.target !== null) {
         G.selectedSlot = null; G.target = null; render();
       }
@@ -663,6 +680,18 @@ function setOption(key, val) {
   else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
+  else if (key === 'ligue') {
+    // Toutes les époques, ou une saison fixée : la partie repart, parce que
+    // le vestiaire en cours vient d'une autre année.
+    const sel = $('epoqueSelect');
+    const epoque = val === 'UNE' ? (sel && sel.value) || state.index.seasons[state.index.seasons.length - 1] : null;
+    if (epoque === G.epoque) return;
+    G.epoque = epoque;
+    saveOpts();
+    syncOptionsUI();
+    newGame().then(() => toast(epoque ? `Saison ${epoque} : gagne la Coupe cette année-là.` : 'Toutes les époques : 55 saisons dans la roulette.'));
+    return;
+  }
   else if (key === 'format' || key === 'tirage') {
     // Le mode est le produit du format (combien de cases) et du tirage (d'où
     // viennent les joueurs) : changer l'un garde l'autre.
@@ -685,9 +714,21 @@ function syncOptionsUI() {
     format: MODE().format,
     tirage: MODE().tirage,
     poolView: G.poolView,
+    ligue: G.epoque ? 'UNE' : 'TOUTES',
   };
   const d = $('modeDesc');
   if (d) d.textContent = MODE().desc;
+  // Le choix de la saison : la liste des saisons disponibles, visible quand
+  // la ligue est fixée à une année.
+  const sel = $('epoqueSelect');
+  if (sel) {
+    if (!sel.options.length) {
+      sel.innerHTML = state.index.seasons.slice().reverse().map(s => `<option value="${s}">${s}</option>`).join('');
+      sel.onchange = () => { if (G.epoque && sel.value !== G.epoque) setOption('ligue', 'UNE'); };
+    }
+    sel.value = G.epoque || state.index.seasons[state.index.seasons.length - 1];
+    sel.hidden = !G.epoque;
+  }
   document.querySelectorAll('.seg').forEach(seg => {
     seg.querySelectorAll('button').forEach(b => {
       b.classList.toggle('on', b.dataset.val === cur[seg.dataset.opt]);
@@ -752,7 +793,7 @@ function mesureTags(p, full = false) {
 async function vestiaireAuHasard(deja) {
   const seasons = state.index.seasons;
   for (let essai = 0; essai < 12; essai++) {
-    const season = rnd(seasons);
+    const season = G.epoque || rnd(seasons);
     let shard;
     try { shard = await getShard(season); } catch { continue; }
     const teams = Object.keys(shard.byTeam)
@@ -788,7 +829,7 @@ async function nextSpin(newSeason = true, newTeam = true) {
   if (!MODE().loto) {
     const cur = vestiaire();
     for (let attempt = 0; attempt < 25 && besoin; attempt++) {
-      const season = (!newSeason && cur) ? cur.season : rnd(seasons);
+      const season = G.epoque || ((!newSeason && cur) ? cur.season : rnd(seasons));
       let shard;
       try { shard = await getShard(season); } catch { continue; }
 
@@ -810,7 +851,7 @@ async function nextSpin(newSeason = true, newTeam = true) {
     G.loading = false;
     applyTeamColors(vestiaire()?.team);
     saveGame();
-    prefetch([rnd(seasons), rnd(seasons)]);
+    if (!G.epoque) prefetch([rnd(seasons), rnd(seasons)]);
     return;
   }
 
@@ -842,7 +883,7 @@ async function nextSpin(newSeason = true, newTeam = true) {
   G.loading = false;
   applyTeamColors(null);
   saveGame();
-  prefetch([rnd(seasons), rnd(seasons)]);
+  if (!G.epoque) prefetch([rnd(seasons), rnd(seasons)]);
 }
 
 /* =====================================================================
@@ -965,7 +1006,7 @@ function renderSpin() {
       </div>
       ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
       <div class="rerolls">
-        <button id="rrS" class="reroll" ${G.left.season && need ? '' : 'disabled'} title="Retirer une autre saison au hasard">
+        <button id="rrS" class="reroll" ${G.left.season && need && !G.epoque ? '' : 'disabled'} title="${G.epoque ? `La ligue est fixée à ${esc(G.epoque)} : pas d'autre année` : 'Retirer une autre saison au hasard'}">
           <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season} restantes</span></button>
         <button id="rrT" class="reroll" ${G.left.team && need ? '' : 'disabled'} title="Garder la saison, changer d'équipe">
           <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team} restantes</span></button>
@@ -2100,7 +2141,7 @@ function showLeaderboard() {
         <div class="dash-note">${i.points} pts · différentiel ${i.GF - i.GA > 0 ? '+' : ''}${i.GF - i.GA}${i.points === best ? ' · <span class="dash-warn">meilleure</span>' : ''}</div>
       </div>
       <div class="lb-details">
-        <div>${i.rank ? `${i.rank}e de ${i.nTeams}` : ''}</div>
+        <div>${i.rank ? `${i.rank}e de ${i.nTeams}` : ''}${i.epoque ? ` · saison ${esc(i.epoque)}` : ''}</div>
         <div>Masse : ${money(i.capUsed)}</div>
         <div>${esc(i.date)}</div>
         ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Rejouer</button>` : ''}
@@ -2131,8 +2172,11 @@ async function buildOpponents(count) {
   // que toi sous les couleurs de l'autre équipe où il a passé cette année-là.
   const exclude = new Set(picked().map(getPersonKey));
   const cands = [], seen = new Set();
+  // UNE SAISON : la ligue, c'est tous les vrais clubs de cette année-là.
+  if (G.epoque) { try { await getShard(G.epoque); } catch { /* le shard est déjà là depuis la roulette */ } }
   const collect = () => {
     for (const [season, entry] of G.shards) {
+      if (G.epoque && season !== G.epoque) continue;
       for (const [team, pool] of Object.entries(entry.byTeam)) {
         const key = `${season}_${team}`;
         if (seen.has(key)) continue;
@@ -2147,16 +2191,19 @@ async function buildOpponents(count) {
   };
   collect();
   let tries = 0;
-  while (cands.length < count && tries++ < 12) {
+  while (!G.epoque && cands.length < count && tries++ < 12) {
     try { await getShard(rnd(state.index.seasons)); } catch { /* on réessaie */ }
     collect();
   }
   // `exclude` s'accumule : deux équipes de la ligue ne peuvent pas habiller
   // le même joueur-saison, ce qui arrivait pour un joueur échangé quand les
   // deux clubs de la transaction sortaient tous les deux au tirage.
+  // Une saison fixée prend TOUS ses clubs, dans l'ordre du shard ; la ligue
+  // doit compter un nombre pair d'équipes avec la tienne, et c'est le club
+  // le plus faible qui cède sa place quand il le faut (voir runSeason).
   const out = [];
-  for (const c of cands.sort(() => Math.random() - 0.5)) {
-    if (out.length >= count) break;
+  for (const c of G.epoque ? cands : cands.sort(() => Math.random() - 0.5)) {
+    if (!G.epoque && out.length >= count) break;
     const roster = autoRoster(c.pool, exclude);
     for (const p of Object.values(roster)) exclude.add(getPersonKey(p));
     out.push(createTeam(`${c.team} ${c.season}`, c.team, roster, { season: c.season }));
@@ -2184,7 +2231,12 @@ async function runSeason(opts = {}) {
   } else {
     try { opponents = await buildOpponents(31); } catch { opponents = []; }
   }
-  if (opponents.length && opponents.length % 2 === 0) opponents.pop();
+  // Un nombre pair d'équipes, la tienne comprise. Dans une saison fixée,
+  // c'est le club le plus faible qui cède sa place, pas un club au hasard.
+  if (opponents.length && opponents.length % 2 === 0) {
+    if (G.epoque) opponents.sort((a, b) => teamStrength(b).total - teamStrength(a).total);
+    opponents.pop();
+  }
 
   const you = createTeam('NHL Stars', 'YOU', G.roster, { isPlayer: true });
   let r, teams, leaders = [], calendrier = [], graine = null;
@@ -2206,19 +2258,19 @@ async function runSeason(opts = {}) {
     teams = [you];
   }
   G.ligue = {
-    you, teams, calendrier, graine,
+    you, teams, calendrier, graine, epoque: G.epoque,
     // De quoi rejouer : les mêmes 31 clubs, à partir des mêmes alignements.
     adversaires: opponents.map(t => ({ name: t.name, tag: t.tag, roster: t.roster, season: t.season })),
   };
 
-  // LA SAISON SE REGARDE JOUR PAR JOUR. Tout est joué ; l'écran rejoue le
-  // calendrier, une journée à la fois, et le résultat ne se dessine qu'après
-  // — ou dès qu'on saute à la fin.
+  // L'ÉCRAN DE SAISON. Tout est joué ; l'écran révèle le calendrier au
+  // rythme du joueur — une journée, dix, la fin, ou son match en direct —
+  // et le bilan ne se dessine qu'après.
   const montrer = () => renderResult(r, you, teams, leaders, calendrier);
   if (calendrier.length) {
-    diffuserSaison({
-      calendrier, teams, you,
-      ctx: { esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand },
+    ouvrirSaison({
+      calendrier, teams, you, enSeries: nombreEnSeries(teams.length), epoque: G.epoque,
+      ctx: { esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
       onTermine: montrer,
     });
   } else montrer();
@@ -2234,7 +2286,7 @@ async function chargerRenfort() {
   G.renfort = null;
   const actives = new Set(casesActives().map(s => s.i));
   for (let essai = 0; essai < 14; essai++) {
-    const season = rnd(state.index.seasons);
+    const season = G.epoque || rnd(state.index.seasons);
     let shard;
     try { shard = await getShard(season); } catch { continue; }
     const teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 20);
@@ -2288,6 +2340,8 @@ async function reprendreAlignement(entree) {
     roster[a.i] = a.r ? { ...fresh, _renfort: true } : fresh;
   }
   if (entree.mode && MODES[entree.mode] && entree.mode !== G.mode) { G.mode = entree.mode; saveOpts(); }
+  G.epoque = typeof entree.epoque === 'string' && state.index.seasons.includes(entree.epoque) ? entree.epoque : null;
+  saveOpts(); syncOptionsUI();
   clearSave();
   G.roster = roster;
   G.tirage = [];
