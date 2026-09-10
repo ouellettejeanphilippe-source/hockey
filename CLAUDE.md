@@ -214,7 +214,7 @@ data/salaries/<saison>.json salaires réels publiés (playerId -> $ de l'époque
 | ROBUSTE | 55,3 | 4,8 | 2/4 |
 | DÉF+ROB | 57,5 | 4,0 | 2/4 |
 
-Le défensif rejoint la valeur en saison et alloue vingt buts de moins ; le robuste paie son penchant en saison et le regagne en séries, où il soulève la Coupe aussi souvent que l'empilement — c'est l'équipe bâtie pour les séries, et c'est un bâti de plus. Quatre ligues ne disent rien de précis sur les Coupes (il en faut 40) ; ce qu'elles disent, c'est l'ordre. Le pur `d` (95 M$ de vedettes défensives, valeur 85) fait 69-70 : la valeur sous-estime la défensive que le moteur récompense, et c'est assumé tant qu'il reste sous PARFAIT.
+Le défensif rejoint la valeur en saison et alloue vingt buts de moins ; le robuste paie son penchant en saison et le regagne en séries, où il soulève la Coupe aussi souvent que l'empilement — c'est l'équipe bâtie pour les séries, et c'est un bâti de plus. Quatre ligues ne disent rien de précis sur les Coupes (il en faut 40) ; ce qu'elles disent, c'est l'ordre. Le pur `d` (95 M$ de vedettes défensives, valeur 85) fait 69-70 : la valeur sous-estime la défensive que le moteur récompense, et c'est assumé tant qu'il reste sous PARFAIT. **Les plafonds bougent d'environ deux matchs vers le haut** (`check_tireurs.mjs` : TIREURS 52,9, PARFAIT 74,3 contre 71-72 ; `check_plafond.mjs` : le Canadien de 1976-77 à 62,5 en solo contre 60,7, l'empilé à 63,7 en ligue et 0 Coupe sur 3), parce que les bonnes équipes ont une bonne brigade et que `K_DEFENSE` a monté — c'est le même mouvement que les déciles de la monotonie, vers le réel. Les traits ne changent pas de nature (`check_traits.mjs` : +3,3 victoires, +10,1 buts marqués, −4,9 alloués pour une équipe qui en porte onze à quatorze). Si le plafond doit redescendre, le curseur est `FINITION_MAX`, pas ces canaux.
 
 **L'événement de base est le lancer, pas le but.** C'est la refonte décrite dans `MOTEUR.md`, et ce qui la motive est mesuré : sur 55 saisons les lancers par équipe par match vont de 27 à 31 (17 % d'amplitude) pendant que les buts varient de 55 %. Le tempo n'a pas bougé, la finition oui. Un match se joue donc lancer par lancer — un tireur, un gardien, deux issues — et toute la feuille de match en découle.
 
@@ -367,11 +367,11 @@ Il reste dégénéré par nature : 23 joueurs de même calibre franchissent tous
 
 | décile | victoires simulées | vraies victoires |
 |---|---|---|
-| 1 | 27,1 | 27,5 |
-| 5 | 41,7 | 42,9 |
-| 10 | 51,0 | 56,3 |
+| 1 | 26,1 | 27,5 |
+| 5 | 41,0 | 42,9 |
+| 10 | 51,6 | 56,3 |
 
-(Remesuré après le partage des départs des gardiens : monotone sur les dix déciles ; c'était 28,1 / 42,0 / 52,0 après `RATINGS_VERSION` 25 et le centre-d'abord d'`autoRoster`, et 27,6 / 42,9 / 52,3 avant.)
+(Remesuré après les canaux défensif et robuste : monotone sur les dix déciles, et l'écart entre le premier et le dernier décile s'élargit de 23,9 à 25,5 matchs, vers les 28,8 réels ; c'était 27,1 / 41,7 / 51,0 après le partage des départs des gardiens, 28,1 / 42,0 / 52,0 après `RATINGS_VERSION` 25, et 27,6 / 42,9 / 52,3 avant.)
 
 **Le plafond du jeu se mesure en victoires et en Coupes, pas en indice.** `node scripts/check_plafond.mjs` (avec les unités spéciales) : le meilleur alignement légal atteignable sous le plafond (cueillette libre sur 55 saisons) fait **64,3-17,3** en ligue et gagne la Coupe 1 fois sur 3 ; le Canadien de 1976-77, meilleure vraie équipe de l'histoire, fait 60,7-18,3 et 1 fois sur 3 (3 ligues chacun, donc du bruit pur sur les Coupes — il en faut 40 pour conclure). Les deux se tiennent, et l'ordre est le bon : dominer est possible, le 82-0 ne l'est pas, et la Coupe reste un pari. **Les réputations ont poussé ces deux chiffres vers le haut** — de 41 et 44 % avant elles — parce qu'elles favorisent exactement les joueurs marquants dont les grandes équipes sont faites. C'est voulu ; si la Coupe devient trop facile, le curseur est dans `EFFET` et `BORNES`. L'ancien moteur donnait la Coupe à 99 % dès le niveau 80.
 
