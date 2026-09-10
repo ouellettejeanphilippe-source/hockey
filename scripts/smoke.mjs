@@ -8,7 +8,9 @@
  * 2. auto-draft jusqu'à 23/23 dans le vestiaire de chaque tour (tirage
  *    VESTIAIRE : relances quand rien ne tient dans le budget, #freeCapBtn en
  *    dernier recours)
- * 3. #mainBtn actif, clic : .result .score et 23 .rrow
+ * 3. #mainBtn actif, clic : l'écran de saison (une journée, les meneurs, un
+ *    match en direct, la fin), le bilan : .result .score et 23 .rrow ; puis
+ *    l'écran des séries jusqu'au tableau
  * 4. zéro erreur console
  * 5. le même parcours en tirage LOTO (#rrL quand rien ne tient dans le budget)
  * Écrit des captures dans scripts/smoke-*.png.
@@ -101,59 +103,81 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
 
 const enabled = await page.$eval('#mainBtn', b => !b.disabled);
 console.log(`3. #mainBtn actif : ${enabled}`);
-if (enabled) {
-  await page.click('#mainBtn');
-  // La saison se regarde jour par jour. On met en pause, on ouvre l'onglet
-  // des statistiques du jour (les meneurs, tirés des feuilles de match),
-  // on reprend ; puis on saute à la fin, puis au bilan.
-  await page.waitForSelector('#liveModal .live-pause', { timeout: 60000 });
-  await page.waitForTimeout(1200);
+/* L'écran de saison : on avance d'une journée, on lit les meneurs, on regarde
+   un match en direct (pause, statistiques, reprise, fin), puis on passe à la
+   fin et au bilan. */
+async function traverserSaison(etiquette) {
+  await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
+  await page.click('#hubModal .hub-jour');
+  await page.waitForTimeout(150);
+  const jour = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+  await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
+  const tableaux = await page.$$eval('#hubModal .hub-volet .live-tableau', l => l.length);
+  const meneurs = await page.$$eval('#hubModal .hub-volet tbody tr', l => l.length);
+  console.log(`   ${etiquette} : ${jour} · meneurs : ${tableaux} tableaux, ${meneurs} rangées`);
+  if (!meneurs) errors.push(`${etiquette} : aucun meneur dans l'onglet des meneurs`);
+  // Le match en direct, sur demande seulement.
+  await page.click('#hubModal .hub-regarder');
+  await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
+  await page.waitForTimeout(800);
   await page.click('#liveModal .live-pause');
   await page.click('#liveModal .live-onglets button[data-onglet="stats"]');
-  const tableaux = await page.$$eval('#liveModal .live-stats .live-tableau', l => l.length);
-  const meneurs = await page.$$eval('#liveModal .live-stats tbody tr', l => l.length);
-  console.log(`   pause de saison : ${tableaux} tableaux, ${meneurs} meneurs`);
+  const face = await page.$$eval('#liveModal .live-face tbody tr', l => l.length);
   await page.click('#liveModal .live-pause');
-  await page.waitForSelector('#liveModal .live-fin', { timeout: 60000 });
   await page.click('#liveModal .live-fin');
   await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
-  console.log('   saison rejouée jour par jour');
+  const fil = await page.$eval('#liveModal .live-feed', e => e.textContent);
+  const xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
   await page.click('#liveModal .live-suite');
+  await page.waitForTimeout(150);
+  const apres = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+  console.log(`   match en direct : ${face} lignes de statistiques, ${xe} · puis ${apres}`);
+  if (!face) errors.push(`${etiquette} : aucune statistique du match en direct`);
+  await page.click('#hubModal .hub-fin');
+  await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
+  await page.click('#hubModal .hub-suite');
   await page.waitForSelector('.result .score', { timeout: 60000 });
+}
+
+if (enabled) {
+  await page.click('#mainBtn');
+  await traverserSaison('saison');
   const score = await page.textContent('.result .score');
   const rows = await page.$$eval('.rrow', r => r.length);
   console.log(`4. fiche ${score.trim()}, ${rows} rangées`);
-  if (!meneurs) errors.push('pause de saison : aucun meneur dans l\'onglet des statistiques');
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
   const po = await page.$('#playoffsBtn');
   if (po) {
     await po.click();
-    // Un match de séries en direct : pause, l'onglet des statistiques du
-    // match, reprise ; puis la fin du match, où le fil dit le xième but.
-    await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
-    await page.waitForTimeout(800);
-    await page.click('#liveModal .live-pause');
-    await page.click('#liveModal .live-onglets button[data-onglet="stats"]');
-    const face = await page.$$eval('#liveModal .live-face tbody tr', l => l.length);
-    await page.click('#liveModal .live-pause');
-    await page.click('#liveModal .live-fin');
-    await page.waitForTimeout(300);
-    const fil = await page.$eval('#liveModal .live-feed', e => e.textContent);
-    const xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
-    console.log(`   séries simulées : ${face} lignes de statistiques du match, ${xe}`);
-    if (!face) errors.push('pause de séries : aucune statistique du match');
+    // L'écran des séries : un match de plus dans la ronde, le tableau, puis
+    // le prochain match en direct, puis tout jusqu'à la Coupe.
+    await page.waitForSelector('#hubModal .hub-jour', { timeout: 20000 });
+    await page.click('#hubModal .hub-jour');
+    await page.click('#hubModal .hub-onglets button[data-onglet="tableau"]');
+    const noeuds = await page.$$eval('#hubModal .bk-serie', l => l.length);
+    const regarder = await page.$('#hubModal .hub-regarder');
+    let xe = 'pas de match à regarder';
+    if (regarder) {
+      await regarder.click();
+      await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
+      await page.click('#liveModal .live-fin');
+      await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
+      const fil = await page.$eval('#liveModal .live-feed', e => e.textContent);
+      xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
+      await page.click('#liveModal .live-suite');
+    }
+    await page.click('#hubModal .hub-fin');
+    await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
+    await page.click('#hubModal .hub-suite');
+    await page.waitForSelector('#resultTabs .result-tab[data-volet="series"]:not([hidden])', { timeout: 10000 });
+    const series = await page.$$eval('#playoffsSection .bk-serie', l => l.length);
+    console.log(`   séries : ${noeuds} nœuds au tableau en cours, ${xe}, ${series} séries au tableau final`);
+    if (!series) errors.push('séries : aucun tableau final');
   }
 
-  // Rejouer la saison : même alignement, mêmes clubs, d'autres dés. Le direct
-  // des séries couvre l'écran : on le quitte d'abord.
-  const liveSeries = await page.$('#liveModal .live-close');
-  if (liveSeries && await liveSeries.isVisible()) { await liveSeries.click(); await page.waitForTimeout(300); }
+  // Rejouer la saison : même alignement, mêmes clubs, d'autres dés.
   await page.click('#replayBtn');
-  await page.waitForSelector('#liveModal .live-fin', { timeout: 60000 });
-  await page.click('#liveModal .live-fin');
-  await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
-  await page.click('#liveModal .live-suite');
-  await page.waitForSelector('.result .score', { timeout: 60000 });
+  await traverserSaison('rejouée');
   console.log(`   rejouée : fiche ${(await page.textContent('.result .score')).trim()}`);
 
   // L'historique garde l'alignement : « Rejouer » relit les 23 joueurs et
@@ -163,19 +187,12 @@ if (enabled) {
   console.log(`   historique : ${entrees.length} alignements rejouables`);
   if (entrees.length) {
     await entrees[0].click();
-    await page.waitForSelector('#liveModal .live-fin', { timeout: 90000 });
-    await page.click('#liveModal .live-fin');
-    await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
-    await page.click('#liveModal .live-suite');
-    await page.waitForSelector('.result .score', { timeout: 60000 });
+    await traverserSaison('historique');
     console.log(`   reprise de l'historique : fiche ${(await page.textContent('.result .score')).trim()}`);
   }
 }
 
-// Le tirage LOTO : trois clubs par case, des relances. Même parcours. Le
-// direct des séries couvre l'écran : on le quitte d'abord.
-const live = await page.$('#liveModal .live-close');
-if (live && await live.isVisible()) { await live.click(); await page.waitForTimeout(300); }
+// Le tirage LOTO : trois clubs par case, des relances. Même parcours.
 await page.click('#openOptionsBtn');
 await page.click('.seg[data-opt="tirage"] button[data-val="LOTO"]');
 await page.waitForTimeout(400);

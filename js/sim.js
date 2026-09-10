@@ -1227,14 +1227,34 @@ export function profilMatch(team, lineup) {
  *                 sauter sur la glace, ou de la quitter. Ça ne change RIEN à
  *                 ce qui est joué ni aux passes — seulement qui reçoit le
  *                 +1 et le −1, et la somme des +/- reste 5 × le différentiel.
+ *   LE RYTHME     JP, après tout ça : *les +/- des joueurs sont toujours
+ *                 démesurés*. Sur six vraies équipes dominantes rejouées, la
+ *                 distribution triée des +/- d'une équipe faisait une MARCHE
+ *                 après cinq joueurs — le premier trio et la première paire à
+ *                 +85, puis +40 — là où la vraie descend en pente (Canadien
+ *                 1976-77 : 128, 91, 91, 83, 75, 75, 51, 49…). Le premier trio
+ *                 était sur la glace pour la moitié des buts pour (il tire,
+ *                 c'est son poids offensif) et pour le tiers des buts contre
+ *                 (sa présence). Dans la vraie ligue les deux parts se
+ *                 tiennent : le premier trio joue contre le premier trio, et
+ *                 le rythme monte des deux côtés quand il est là. Le −1 se
+ *                 tire donc au POIDS OFFENSIF de l'unité qui défendait (avec
+ *                 l'appariement), pas à sa présence seule. Crédit seulement :
+ *                 la probabilité du but reste calculée sur l'unité tirée à la
+ *                 présence, ce qui est joué ne change pas. La marche disparaît
+ *                 (Islanders 1977-78 : 45 42 39 39 33 29 26 26 contre 58 55 50
+ *                 46 41 39 35 35 réels), et le meilleur +/- d'une équipe à +60
+ *                 passe de 0,63 à 0,55 fois son différentiel (réel 0,36 sur
+ *                 380 équipes, mais 0,55 pour le Canadien de 1976-77 : une
+ *                 équipe à +150 fait des +80, c'est le hockey).
  *
- * Mesuré après, huit ligues (`check_pm.mjs`) : écart du 1er au 4e trio 12,2
- * contre 10,3 réel ; coéquipiers d'unité à 9,3 buts l'un de l'autre contre
- * 11,9 ; corrélation joueur par joueur 0,51. Le réglage se lit dans ce script.
+ * Mesuré après, huit ligues (`check_pm.mjs`) : voir CLAUDE.md, le réglage se
+ * lit dans ce script.
  */
 export const APPARIEMENT = 2.5;
 export const APPARIEMENT_PROPRE = 5.0;
 export const P_MELANGE = 0.40;
+export const RYTHME_CREDIT = 0.5;   // 0 : le −1 à la présence seule ; 1 : au poids offensif entier
 
 /**
  * Une unité tirée à la présence, appariée au rang d'une autre : l'unité qui
@@ -1242,11 +1262,13 @@ export const P_MELANGE = 0.40;
  * trio (la première paire joue avec le premier trio — c'est ce qui lui
  * donne son +/- dans la vraie ligue, +9 contre −1 sans ça).
  */
-function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT) {
+function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT, cle = 'presence') {
   if (!unites.length) return unites[0];
   const nDef = unites.length;
   const cible = nOff > 1 ? rangOff / (nOff - 1) : 0;
-  const poids = unites.map(x => x.presence * Math.exp(-k * Math.abs((nDef > 1 ? (x.rang || 0) / (nDef - 1) : 0) - cible)));
+  // `rythme` : la présence, inclinée vers le poids offensif (voir RYTHME_CREDIT).
+  const de = x => (cle === 'rythme' ? x.presence * Math.pow((x.poids || x.presence) / (x.presence || 1), RYTHME_CREDIT) : (x[cle] || x.presence));
+  const poids = unites.map(x => de(x) * Math.exp(-k * Math.abs((nDef > 1 ? (x.rang || 0) / (nDef - 1) : 0) - cible)));
   let r = hasard() * poids.reduce((a, b) => a + b, 0);
   for (let i = 0; i < unites.length; i++) { r -= poids[i]; if (r <= 0) return unites[i]; }
   return unites[unites.length - 1];
@@ -1404,9 +1426,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // maintenant présence par présence : c'est ce qui rend la profondeur et
     // les traits mordants au lieu d'être décoratifs.
     let defGlace = null, facteurDef, dTrio = null, dPaire = null;
+    const rangOff = trioOff ? (trioOff.rang || 0) : 0, nOff = unitesOff ? unitesOff.F.length : 1;
     if (unitesDef) {
       // Appariée au trio qui attaque : le premier défend contre le premier.
-      const rangOff = trioOff ? (trioOff.rang || 0) : 0, nOff = unitesOff ? unitesOff.F.length : 1;
       dTrio = choisirApparie(unitesDef.F, rangOff, nOff);
       dPaire = choisirApparie(unitesDef.D, rangOff, nOff);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
@@ -1469,8 +1491,18 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
           // la ligue — mais il compte ceux en désavantage.
           if (mode !== 'AN') {
             // Les changements à la volée : voir P_MELANGE.
-            for (const x of surLaGlace(trioOff, paireOff, unitesOff, tireur)) x.simPM++;
-            if (defGlace) for (const x of surLaGlace(dTrio, dPaire, unitesDef)) x.simPM--;
+            // `simPlus` et `simMoins` (les buts pour et contre sur la glace)
+            // ne servent qu'à check_pm.mjs ; le +/- est leur différence.
+            for (const x of surLaGlace(trioOff, paireOff, unitesOff, tireur)) { x.simPM++; x.simPlus = (x.simPlus || 0) + 1; }
+            if (defGlace) {
+              // LE −1 SUIT LE RYTHME. Voir CREDIT_AU_RYTHME : ceux qui étaient là
+              // quand ça rentre se tirent au poids offensif de leur unité, pas à
+              // la présence seule — le premier trio est sur la glace pour une
+              // part des buts contre proche de sa part des buts pour.
+              const cTrio = choisirApparie(unitesDef.F, rangOff, nOff, APPARIEMENT, 'rythme');
+              const cPaire = choisirApparie(unitesDef.D, rangOff, nOff, APPARIEMENT, 'rythme');
+              for (const x of surLaGlace(cTrio, cPaire, unitesDef)) { x.simPM--; x.simMoins = (x.simMoins || 0) + 1; }
+            }
           }
         }
       }
@@ -1549,7 +1581,7 @@ function injuryLength() {   // moyenne ~8 matchs, plafond 40
 
 export function initSimStats(p) {
   delete p.po;   // les statistiques des séries d'une saison rejouée ne survivent pas
-  p.simGP = 0; p.simG = 0; p.simA = 0; p.simPTS = 0; p.simPM = 0; p.simInj = 0;
+  p.simGP = 0; p.simG = 0; p.simA = 0; p.simPTS = 0; p.simPM = 0; p.simPlus = 0; p.simMoins = 0; p.simInj = 0;
   p.simSH = 0; p.simPIM = 0; p.simPPG = 0;
   if (p.p === 'G') {
     p.simW = 0; p.simL = 0; p.simOTL = 0; p.simGA = 0; p.simSO = 0;
@@ -1876,7 +1908,7 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
 function butProlongation(off, def, gardien, track = true, journal = null, cote = 'A') {
   if (track && gardien) gardien.simSA = (gardien.simSA || 0) + 1;
   if (track && def && def.unites) {
-    for (const x of [...choisirPresence(def.unites.F).joueurs, ...choisirPresence(def.unites.D).joueurs]) x.simPM--;
+    for (const x of [...choisirPresence(def.unites.F).joueurs, ...choisirPresence(def.unites.D).joueurs]) { x.simPM--; x.simMoins = (x.simMoins || 0) + 1; }
   }
   if (!off.unites) return;
   // Même règle qu'au cinq contre cinq : l'unité qui tire au poids offensif,
@@ -1896,7 +1928,7 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
     tireur.simSH = (tireur.simSH || 0) + 1;
     tireur.simG++; tireur.simPTS++;
     if (a1) { a1.simA++; a1.simPTS++; }
-    for (const x of glace) x.simPM++;
+    for (const x of glace) { x.simPM++; x.simPlus = (x.simPlus || 0) + 1; }
   }
   if (journal) {
     const instant = 60 + hasard() * 5;

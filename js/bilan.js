@@ -13,7 +13,7 @@
 import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles } from './sim.js';
 import { recitDeBut, recitDeMatch, recitDeSaison, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { diffuserSeries } from './direct.js';
+import { ouvrirSeries } from './saison.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
 let $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, newGame, openModal, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast;
@@ -226,6 +226,7 @@ function brancherOnglets(tabs) {
 export function renderResult(r, you, teams, leaders, calendrier = []) {
   const nTeams = teams.length;
   const rank = teams.findIndex(t => t.isPlayer) + 1;
+  const enSeries = nTeams > 1 ? nombreEnSeries(nTeams) : 0;
   const perfect = (r.L + r.OTL) === 0;
 
   const note = perfect
@@ -252,7 +253,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   // Chaque rangée du classement ouvre l'équipe : son alignement, ses 82
   // matchs. Le lien vers Hockey-Reference reste dans la cellule.
   const standings = teams.map((t, i) => `
-    <tr class="${t.isPlayer ? 'you' : ''}${i === 15 ? ' cut' : ''}">
+    <tr class="${t.isPlayer ? 'you' : ''}${i === enSeries - 1 ? ' cut' : ''}">
       <td>${i + 1}</td>
       <td class="left"><div class="team-cell">${getTeamLogoHtml(t.tag, 15)}${lienEquipe(t, 'saison', `<span>${esc(teamLabel(t))}</span>`)}${t.isPlayer || !teamSeasonUrl(t.tag, t.season) ? '' : `<a class="team-ext" href="${teamSeasonUrl(t.tag, t.season)}" target="_blank" rel="noopener" title="La saison ${esc(t.season)} de cette équipe sur Hockey-Reference">${ico('i-ext')}</a>`}</div></td>
       <td>${t.W + t.L + t.OTL}</td><td>${t.W}</td><td>${t.L}</td><td>${t.OTL}</td>
@@ -273,6 +274,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     // De quoi rouvrir et rejouer cette équipe : la clé de chaque joueur-
     // saison (légère), le mode, et la graine de la saison jouée.
     mode: G.mode,
+    epoque: G.ligue && G.ligue.epoque || null,
     graine: G.ligue && G.ligue.graine || null,
     alignement: SLOTS.map(s => {
       const p = G.roster[s.i];
@@ -339,8 +341,8 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   $('resultHost').innerHTML = `
     <div class="result">
       <div class="result-hero">
-        <div class="hero-band ${rank === 1 ? 'or' : rank <= 16 ? '' : 'out'}">
-          ${rank === 1 ? '1er de la ligue' : rank <= 16 ? `${rank}e de ${nTeams} · en séries` : `${rank}e de ${nTeams} · éliminé`}
+        <div class="hero-band ${rank === 1 ? 'or' : rank <= enSeries ? '' : 'out'}">
+          ${rank === 1 ? '1er de la ligue' : rank <= enSeries ? `${rank}e de ${nTeams} · en séries` : `${rank}e de ${nTeams} · éliminé`}
         </div>
         <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
         <div class="result-strip">
@@ -354,7 +356,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       </div>
 
       <div class="result-actions">
-        ${rank <= 16 ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
+        ${rank <= enSeries ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
         <button class="btn blue" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
         <button class="btn" id="replayBtn" title="Le même alignement, les mêmes 31 clubs, d'autres dés">${ico('i-dice')}Rejouer la saison</button>
         <button class="btn go" id="againBtn">Nouvelle partie</button>
@@ -399,7 +401,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     }
   };
 
-  if (rank <= 16) $('playoffsBtn').onclick = () => runPlayoffs(teams.slice(0, 16));
+  if (rank <= enSeries) $('playoffsBtn').onclick = () => runPlayoffs(teams.slice(0, enSeries));
   $('againBtn').onclick = () => newGame();
   $('replayBtn').onclick = () => rejouerSaison();
 
@@ -411,7 +413,19 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
    Séries — match par match, avec sommaire
    ===================================================================== */
 
-const RONDES = ['Premier tour', 'Deuxième tour', 'Demi-finales', 'Finale de la Coupe Stanley'];
+/* Les noms des rondes, selon combien il y en a : seize équipes en font quatre,
+   huit en font trois (les ligues d'avant 1980 n'ont pas seize clubs). */
+const RONDES_PAR_N = {
+  4: ['Premier tour', 'Deuxième tour', 'Demi-finales', 'Finale de la Coupe Stanley'],
+  3: ['Quarts de finale', 'Demi-finales', 'Finale de la Coupe Stanley'],
+  2: ['Demi-finales', 'Finale de la Coupe Stanley'],
+  1: ['Finale de la Coupe Stanley'],
+};
+let RONDES = RONDES_PAR_N[4];
+/** Combien d'équipes vont en séries : seize, ou la plus grande puissance de deux qui tient dans la ligue. */
+export function nombreEnSeries(nTeams) {
+  return Math.min(16, 2 ** Math.floor(Math.log2(Math.max(2, nTeams))));
+}
 
 /**
  * Les séries, jouées match par match. Chaque match garde sa feuille — buts
@@ -422,6 +436,7 @@ const RONDES = ['Premier tour', 'Deuxième tour', 'Demi-finales', 'Finale de la 
 export function runPlayoffs(top16) {
   const host = $('playoffsSection');
   if (!host) return;
+  RONDES = RONDES_PAR_N[Math.round(Math.log2(top16.length))] || RONDES_PAR_N[4];
 
   // LES SÉRIES ONT LEURS STATISTIQUES À PART : photo des fiches de saison,
   // les séries s'inscrivent par-dessus, puis on sépare (js/sim.js).
@@ -444,11 +459,11 @@ export function runPlayoffs(top16) {
   const btn = $('playoffsBtn');
   if (btn) btn.disabled = true;
 
-  // LE DIRECT D'ABORD. Tout est déjà joué ; on ne dessine le tableau qu'une
-  // fois que le joueur a regardé ses séries match par match — ou qu'il a
-  // fermé le direct. Le mystère tient à ce seul ordre.
-  diffuserSeries({
-    series: G.series, rondes: RONDES,
+  // L'ÉCRAN DES SÉRIES D'ABORD. Tout est déjà joué ; on ne dessine le
+  // tableau complet qu'une fois que le joueur a révélé ses séries match par
+  // match — ou qu'il a passé à la fin. Le mystère tient à ce seul ordre.
+  ouvrirSeries({
+    series: G.series, rondes: RONDES, you: top16.find(t => t.isPlayer) || null,
     ctx: { esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
     onTermine: () => dessinerTableauDesSeries(host, n, champion),
   });
@@ -509,7 +524,7 @@ function dessinerTableauDesSeries(host, n, champion) {
     <div class="champion">
       <h3>Champion de la Coupe Stanley</h3>
       <div class="champ-name">${getTeamLogoHtml(champion.tag, 30)} ${esc(teamLabel(champion))}</div>
-      <p>${champion.isPlayer ? 'Les NHL Stars soulèvent la Coupe. 🏆' : 'Les NHL Stars sont tombés en chemin. Rebâtis et réessaie.'}</p>
+      <p>${champion.isPlayer ? `Les NHL Stars soulèvent la Coupe${G.ligue && G.ligue.epoque ? ` de ${esc(G.ligue.epoque)}` : ''}. 🏆` : `Les NHL Stars sont tombés en chemin${G.ligue && G.ligue.epoque ? ` en ${esc(G.ligue.epoque)}` : ''}. Rebâtis et réessaie.`}</p>
     </div>`;
   for (let r = 0; r < n; r++) {
     const dedans = G.series.filter(s => s.ronde === r);
