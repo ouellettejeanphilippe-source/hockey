@@ -1185,6 +1185,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   line-height: 1.4;
 }
 .tag-arch { color: #d8b4fe; border-color: rgba(192, 132, 252, 0.32); }
+.tag-mesure { color: #9fe3cf; border-color: rgba(159, 227, 207, 0.35); }
 /* Les traits sont rares (1 % des joueurs-saisons) : ils ont donc le droit de
    se voir plus que le reste. Le finaliste est le même signal, en sourdine. */
 .tag-trait {
@@ -1931,6 +1932,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   gap: 6px;
   margin: 6px 0 2px;
 }
+.profil-titre { margin-top: 8px; font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .profil-cell {
   border: 1px solid var(--line);
   border-radius: 8px;
