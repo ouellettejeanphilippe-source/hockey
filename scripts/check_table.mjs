@@ -130,10 +130,17 @@ for (let i = 0; i < MATCHS; i++) {
    vérification qui a trouvé que `poser()` effaçait les compteurs d'un joueur
    à chaque mise au jeu. */
 {
+  /*
+   * DÉTERMINISTE, et ce n'est pas un détail : la première version tirait ses
+   * clubs avec `Math.random`, donc elle passait quatorze fois et rougissait
+   * la quinzième — sur `main`, une fois. Une vérification d'égalité qui
+   * dépend du tirage n'est pas une vérification, c'est une loterie. Les
+   * clubs sont maintenant pris à pas fixe dans la liste triée.
+   */
   const casses = [];
   for (let i = 0; i < 120; i++) {
-    const a = clubs[Math.floor(Math.random() * clubs.length)];
-    const b = clubs[Math.floor(Math.random() * clubs.length)];
+    const a = clubs[(i * 37) % clubs.length];
+    const b = clubs[(i * 91 + 13) % clubs.length];
     const r = jouerMatchAuto(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `e${i}`);
     const somme = f => f.marqueurs.reduce((x, y) => x + y.buts, 0);
     if (somme(r.A) !== r.gfA) casses.push(`match ${i} : les buts des joueurs (${somme(r.A)}) ne font pas ceux de l'équipe (${r.gfA})`);
@@ -142,11 +149,25 @@ for (let i = 0; i < MATCHS; i++) {
     if (r.B.gardien.alloues !== r.gfA) casses.push(`match ${i} : le gardien B a alloué ${r.B.gardien.alloues} pour ${r.gfA} buts`);
     if (r.A.gardien.arrets + r.A.gardien.alloues !== r.B.tirs) casses.push(`match ${i} : les lancers de B (${r.B.tirs}) ne font pas les arrêts + buts du gardien A (${r.A.gardien.arrets + r.A.gardien.alloues})`);
     if (r.B.gardien.arrets + r.B.gardien.alloues !== r.A.tirs) casses.push(`match ${i} : idem de l'autre bord`);
-    for (const f of [r.A, r.B]) for (const l of f.marqueurs) if (l.passes > l.buts + f.marqueurs.length * 2) casses.push(`match ${i} : trop de passes`);
+    /*
+     * LES PASSES. Première version, et elle était fausse : elle comparait les
+     * passes d'un joueur à `ses buts + 2 fois le nombre de marqueurs`, un
+     * seuil inventé qui ne veut rien dire — un fabricant de jeu sur une
+     * équipe qui marque six fois le dépassait sans qu'aucune règle ne soit
+     * cassée, et l'Action est tombée là-dessus sur `main`.
+     *
+     * La VRAIE égalité est exacte, et elle vient du moteur : un but crédite
+     * au plus UNE passe (`appliquerTir` : `piece.derniere`, s'il y en a une).
+     * Donc les passes d'une équipe ne peuvent jamais dépasser ses buts.
+     */
+    for (const [f, gf] of [[r.A, r.gfA], [r.B, r.gfB]]) {
+      const pa = f.marqueurs.reduce((x, y) => x + y.passes, 0);
+      if (pa > gf) casses.push(`match ${i} : ${pa} passes pour ${gf} buts (un but en crédite au plus une)`);
+    }
   }
   console.log(`\nLes égalités de la feuille, sur 120 matchs :`);
   if (casses.length) { console.log(`  ÉCHEC — ${casses.length} :\n    ${casses.slice(0, 5).join('\n    ')}`); process.exitCode = 1; }
-  else console.log('  buts des joueurs = buts de l\'équipe · buts alloués = buts de l\'autre · lancers = arrêts + buts ✓');
+  else console.log('  buts des joueurs = buts de l\'équipe · buts alloués = buts de l\'autre · lancers = arrêts + buts · passes ≤ buts ✓');
 }
 
 console.log(`\n${MATCHS} matchs :`);

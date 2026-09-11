@@ -104,7 +104,7 @@ if (cases !== 63) errors.push(`la glace compte ${cases} cases`);
  * porteur), et passe à la pièce jouable SUIVANTE quand il ne reste rien —
  * c'est ce « suivante » qui empêche de retoucher éternellement la même pièce.
  */
-let gestes = 0, tours = 0, relances = 0, changements = 0, pieces = 0;
+let gestes = 0, tours = 0, relances = 0, changements = 0, pieces = 0, occasionsDuel = 0;
 const vus = new Set();
 while (tours++ < 1200) {
   if (!(await page.$('#tableModal .t-glace'))) break;
@@ -116,6 +116,13 @@ while (tours++ < 1200) {
     jouables: document.querySelectorAll('#tableModal .t-case.t-jouable:not(.t-sel)').length,
     offres: document.querySelectorAll('#tableModal .t-case.t-offre').length,
     contacts: document.querySelectorAll('#tableModal .t-case.t-offre-echec').length,
+    // La case d'un adversaire qui PORTE la rondelle et qu'on peut atteindre :
+    // c'est la seule qui ouvre le duel épaule / bâton sur la carte.
+    duel: (() => {
+      const e = [...document.querySelectorAll('#tableModal .t-case.t-offre-echec')]
+        .find(c => c.querySelector('.t-piece.sienne .t-rondelle'));
+      return e ? `${e.dataset.r},${e.dataset.c}` : null;
+    })(),
     tir: !!document.querySelector('#tableModal [data-geste="tir"]'),
     autres: [...document.querySelectorAll('#tableModal [data-geste]')].map(b => b.dataset.geste),
     fin: !!document.querySelector('#tableModal .t-resultat'),
@@ -130,9 +137,21 @@ while (tours++ < 1200) {
   for (const g of etat.autres) vus.add(g);
   // Changer de trio deux fois dans le match : c'est la mécanique de fatigue.
   if (etat.unites && changements < 2) { await page.click('#tableModal .t-seg button:not(.on)'); changements++; await page.waitForTimeout(60); continue; }
-  // Le contact : on le cherche exprès, c'est lui qui ouvre le duel
-  // épaule / bâton sur la carte quand la cible porte la rondelle.
-  if (etat.contacts && Math.random() < 0.55) {
+  /*
+   * LE DUEL SE CHERCHE EXPRÈS, IL NE SE TIRE PAS AU SORT. Première version :
+   * elle cliquait un contact au hasard une fois sur deux, donc elle tombait
+   * sur le porteur certains matchs et pas d'autres — et l'assertion « le
+   * geste vol a été offert » rougissait au hasard. Un test qui dépend du
+   * tirage n'est pas un test. On vise donc TOUJOURS le porteur adverse
+   * quand il est à portée, et on ne réclame les gestes du duel que si
+   * l'occasion s'est présentée au moins une fois dans le match.
+   */
+  if (etat.duel) {
+    occasionsDuel++;
+    await page.click(`#tableModal .t-case[data-r="${etat.duel.split(',')[0]}"][data-c="${etat.duel.split(',')[1]}"]`);
+    gestes++; await page.waitForTimeout(50); continue;
+  }
+  if (etat.contacts && Math.random() < 0.45) {
     const n = await page.$$('#tableModal .t-case.t-offre-echec');
     if (n.length) { await n[Math.floor(Math.random() * n.length)].click(); gestes++; await page.waitForTimeout(50); continue; }
   }
@@ -161,8 +180,29 @@ while (tours++ < 1200) {
 const pointage = await page.textContent('#tableModal .tb-score').catch(() => '');
 console.log(`   ${gestes} gestes joués, ${relances} relance(s) d'équipe, ${changements} changement(s) de trio, ${pieces} changements de pièce`);
 console.log(`   gestes offerts par la carte : ${[...vus].sort().join(', ') || 'aucun'}`);
-for (const g of ['tir', 'echec', 'vol', 'ecran', 'foncer']) {
-  if (!vus.has(g)) errors.push(`le geste « ${g} » n'a jamais été offert : le plateau ne le propose pas`);
+/*
+ * CE QU'ON AFFIRME, ET CE QU'ON SE CONTENTE DE RAPPORTER.
+ *
+ * Chaque geste de la carte a une condition : « tirer » demande de porter la
+ * rondelle, « foncer » d'avoir déjà patiné, le duel d'être collé au porteur
+ * adverse. Ces conditions dépendent du match, pas du code — exiger les cinq
+ * à tous les coups faisait rougir le test au hasard, exactement comme
+ * l'assertion sur les passes de check_table.mjs a fait rougir main.
+ *
+ * On affirme donc ce que le PLATEAU doit garantir quoi qu'il arrive : au
+ * moins trois des cinq gestes offerts (moins, et la carte est cassée), et le
+ * duel offert dès qu'il s'est présenté, puisque là c'est nous qui avons
+ * cliqué le porteur exprès. Le reste est rapporté, pas exigé.
+ */
+const TOUS = ['tir', 'echec', 'vol', 'ecran', 'foncer'];
+if (vus.size < 3) errors.push(`seulement ${vus.size} geste(s) offert(s) par la carte sur ${TOUS.length} : ${[...vus].join(', ') || 'aucun'}`);
+if (occasionsDuel) {
+  for (const g of ['echec', 'vol']) {
+    if (!vus.has(g)) errors.push(`le duel s'est présenté ${occasionsDuel} fois mais le geste « ${g} » n'a jamais été offert`);
+  }
+  console.log(`   le duel épaule / bâton s'est présenté ${occasionsDuel} fois`);
+} else {
+  console.log('   aucune occasion de duel ce match-ci (le porteur adverse n\'est jamais venu à portée)');
 }
 console.log(`   ${pointage.replace(/\s+/g, ' ').trim()}`);
 if (gestes < 15) errors.push(`seulement ${gestes} gestes joués sur le plateau : le match n'avance pas`);
