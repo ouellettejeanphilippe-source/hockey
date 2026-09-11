@@ -199,13 +199,30 @@ export function fondEquipe(teamCode, cible = 0.045) {
   if (luminance(base) < cible) base = c.accent || base;
   if (luminance(base) < cible) return null;   // tout le club est noir : le fond de la palette suffit
   // Assombrir vers le noir jusqu'à la cible, par dichotomie sur le mélange.
-  const rgb = hexToRgb(base);
+  const rgb = saturer(hexToRgb(base), CHROMA_FOND);
   let lo = 0, hi = 1, k = 1;
   for (let i = 0; i < 20; i++) {
     k = (lo + hi) / 2;
     if (luminance(rgbToHex(rgb.map(v => v * k))) > cible) hi = k; else lo = k;
   }
   return rgbToHex(rgb.map(v => v * k));
+}
+
+/*
+ * ASSOMBRIR SANS DÉLAVER. Multiplier les trois canaux par un même facteur
+ * garde la teinte mais rapproche les canaux les uns des autres en valeur
+ * absolue : l'or des Bruins arrivait en bas de l'échelle sous la forme d'un
+ * brun de terre, et JP a dit le mot — *c'est drabe un peu*. On écarte donc
+ * chaque canal de sa moyenne d'un facteur constant après l'assombrissement.
+ * La luminance ne bouge presque pas (la moyenne est conservée), la teinte
+ * non plus, mais le brun redevient un ambre : c'est la couleur du club qu'on
+ * doit reconnaître sur un écran de téléphone, pas une ombre.
+ */
+const CHROMA_FOND = 1.45;
+
+function saturer(rgb, f) {
+  const moy = (rgb[0] + rgb[1] + rgb[2]) / 3;
+  return rgb.map(v => Math.max(0, Math.min(255, moy + (v - moy) * f)));
 }
 
 /** Accent lisible d'une équipe, prêt à poser dans une variable CSS. */
@@ -335,6 +352,23 @@ export function couleurVive(teamCode) {
     if (x && contrast(x, FOND_PAGE) >= VISIBLE) return x;
   }
   return '#ffffff';
+}
+
+/**
+ * LA COULEUR DU CLUB, MESURÉE SUR SON PROPRE FOND DE CARTE.
+ *
+ * Depuis que la carte porte la vraie couleur du club, saturée, l'accent de
+ * l'interface — le salaire, le chiffre clé — se retrouvait écrit en rouge sur
+ * un fond rouge : le rouge de Washington est à 1,89:1 sur son propre fond, et
+ * 33 des 44 clubs passent sous 4,5:1. Même règle que le bandeau : on MESURE.
+ * Si la couleur du club se lit sur sa carte, elle reste ; sinon c'est l'encre
+ * du fond qui prend le relais (blanc, ou bleu nuit sur un fond clair). On ne
+ * délave jamais la couleur pour la sauver : ou elle se lit, ou elle cède.
+ */
+export function viveSurFond(teamCode, fond) {
+  const base = couleurVive(teamCode);
+  if (!fond) return base;
+  return contrast(base, fond) >= 4.5 ? base : inkFor(fond);
 }
 
 /** L'ancienne couleur éclaircie. Gardée pour les fonds et les lueurs, jamais pour un trait. */

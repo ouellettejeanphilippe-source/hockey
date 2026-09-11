@@ -25,7 +25,7 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent } from './sim.js';
-import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, getTeamBand, teamSeasonUrl } from './logos.js';
+import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
 
@@ -450,7 +450,11 @@ function applyTeamColors(team) {
   root.setProperty('--team-primary', c.primary);
   root.setProperty('--team-accent', c.accent);
   // Le fond d'un bloc aux couleurs du club : sa vraie couleur, assombrie.
-  root.setProperty('--team-fond', fondEquipe(code) || 'var(--panel-0)');
+  const fond = fondEquipe(code);
+  root.setProperty('--team-fond', fond || 'var(--panel-0)');
+  // L'accent À L'INTÉRIEUR d'une carte ou d'une case, mesuré sur le fond du
+  // club : le rouge de Washington ne se lit pas sur le rouge de Washington.
+  root.setProperty('--team-or', viveSurFond(code, fond));
   // La VRAIE couleur du club, jamais éclaircie : c'est elle qui cerne une
   // carte et qui borde une case (voir `couleurVive`, js/logos.js).
   root.setProperty('--team-line', vive);
@@ -1141,8 +1145,10 @@ function renderSpin() {
   const url = teamSeasonUrl(v.team, v.season);
   host.innerHTML = `
     <div class="spin-card">
-      <div class="spin-watermark" aria-hidden="true">${getTeamLogoHtml(v.team, 150)}</div>
       <div class="spin-top">
+        <!-- L'écusson fantôme vit DANS le bandeau, pas derrière tout le bloc :
+             c'est le grand logo en filigrane d'un bandeau de diffusion. -->
+        <div class="spin-watermark" aria-hidden="true">${getTeamLogoHtml(v.team, 150)}</div>
         <div class="spin-logo">${getTeamLogoHtml(v.team, 40)}</div>
         <div class="spin-id">
           <div class="spin-kicker"><span class="spin-code">${esc(v.team)}</span><span class="spin-season">${esc(v.season)}</span>${dead}</div>
