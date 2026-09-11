@@ -467,6 +467,10 @@ function applyTeamColors(team) {
   root.setProperty('--team-stripe-ink', band.stripeInk);
   root.setProperty('--team-bouton', band.bouton);
   root.setProperty('--team-bouton-ink', band.boutonInk);
+  // LA PLAQUE : la SECONDE couleur du club, en aplat. Un bandeau de diffusion
+  // est bicolore, et c'est le deuxième bloc qui fait qu'on reconnaît un club.
+  root.setProperty('--team-plaque', band.plaque);
+  root.setProperty('--team-plaque-ink', band.plaqueInk);
   // L'accent de toute l'interface suit le club.
   root.setProperty('--gold', vive);
   root.setProperty('--gold-soft', `color-mix(in srgb, ${vive} 15%, transparent)`);
@@ -1422,6 +1426,11 @@ function playerCardEl(p) {
   el.style.setProperty('--team-stripe-ink', band.stripeInk);
   el.style.setProperty('--team-bouton', band.bouton);
   el.style.setProperty('--team-bouton-ink', band.boutonInk);
+  // La plaque de l'écusson : la SECONDE couleur du club. Elle se pose ici et
+  // pas seulement sur `:root` — en loto, trois clubs sont à l'écran en même
+  // temps, et la plaque de chacun doit être la sienne.
+  el.style.setProperty('--team-plaque', band.plaque);
+  el.style.setProperty('--team-plaque-ink', band.plaqueInk);
 
   // La carte ne porte que l'essentiel : qui, combien, ce qu'il vaut et où il
   // va. Le détail des statistiques est dans la fiche, à un clic.

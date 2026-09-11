@@ -3572,3 +3572,55 @@ a.spin-club:hover {
 /* En loto il n'y a qu'une relance : elle prend toute la rangée, sinon
    « Relancer les trois » se coupe dans un tiers d'écran. */
 .rerolls:not(:has(> :nth-child(2))) { grid-template-columns: minmax(0, 1fr); }
+
+/* =====================================================================
+   LA SECONDE COULEUR DU CLUB PORTE L'ÉCUSSON
+
+   JP : *utilise pas juste couleur primaire, mais secondaire aussi, pour
+   contraste et vibe équipe*. Un bandeau de diffusion est BICOLORE : un bloc
+   de la couleur de fond, un bloc de la couleur qui tranche. Jusqu'ici la
+   secondaire n'était qu'un liseré d'un pixel et le fond d'un bouton ; elle
+   devient la PLAQUE qui porte l'écusson — le noir sur l'or des Bruins, le
+   blanc sur le marine de Toronto, le rouge sur le bleu des Nordiques,
+   l'orange sur le marine d'Edmonton. `getTeamBand.plaque` la mesure : elle
+   doit se détacher de l'aplat, sinon c'est l'encre du bandeau qui la prend.
+   ===================================================================== */
+
+/*
+ * LA PLAQUE NE PORTE JAMAIS L'ÉCUSSON, et c'est une leçon d'une seule
+ * mesure : les écussons de la LNH sont servis en variante « light », donc
+ * clairs, faits pour un fond sombre. Posés sur la plaque blanche de Toronto
+ * ou de Tampa, ils disparaissent. La seconde couleur devient donc le
+ * DRAPEAU au bord de la bande — un bloc plein, toute la hauteur, comme la
+ * barre de couleur d'un bandeau de diffusion — et l'écusson reste sur
+ * l'aplat, où l'encre est déjà mesurée.
+ */
+.spin-top { padding-left: 28px; }
+.spin-top::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 14px;
+  background: var(--team-plaque);
+  z-index: 1;
+}
+.spin-top .spin-logo {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  width: 44px;
+  height: 44px;
+}
+
+/* Sur une carte, le drapeau serait un trait de plus : c'est l'ANNÉE qui
+   passe sur la plaque, en bout de bandeau. Aucun écusson dessus, donc aucun
+   risque, et la bande devient bicolore d'un bout à l'autre. */
+.pcard-band .pb-season {
+  background: var(--team-plaque, transparent);
+  color: var(--team-plaque-ink, inherit);
+  opacity: 1;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.pcard.signed .pcard-band { --team-plaque: rgba(255, 255, 255, 0.22); --team-plaque-ink: #ffffff; }
+.pcard.locked:not(.signed) .pcard-band { --team-plaque: rgba(255, 255, 255, 0.12); --team-plaque-ink: #93a9c0; }
