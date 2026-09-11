@@ -4,12 +4,28 @@
 
 // Logos SVG inline intégrés pour les franchises disparues / historiques sans URL officielle active
 const INLINE_LOGOS = {
-  // Nordiques de Québec (Fleur de lys / N rouge avec bâton)
+  /*
+   * NORDIQUES DE QUÉBEC. JP : *les Nordiques ont pas le bon logo*. C'était un
+   * « N » rouge avec une fleur de lys collée à côté, ce qui n'a jamais été
+   * l'écusson du club. Le vrai est un IGLOU bleu — un dôme, son tunnel
+   * d'entrée à gauche, et le creux au milieu qui dessine un N — traversé
+   * d'un bâton de hockey rouge, et semé des fleurs de lys du chandail.
+   * Dessiné ici, pas emprunté.
+   */
   QUE: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="48" fill="#00529b" stroke="#ffffff" stroke-width="3"/>
-    <path d="M22 75 V28 L50 62 V28 H62 V75 L34 41 V75 Z" fill="#e31837"/>
-    <circle cx="73" cy="33" r="6" fill="#e31837"/>
-    <path d="M73 48 C70 54 66 58 60 62 C68 64 73 70 73 78 C73 70 78 64 86 62 C80 58 76 54 73 48 Z" fill="#ffffff"/>
+    <g fill="#00529b">
+      <path d="M16 78 V56 A34 34 0 0 1 84 56 V78 H64 V56 A14 14 0 0 0 36 56 V78 Z"/>
+      <path d="M4 78 V68 A13 13 0 0 1 30 68 V78 Z"/>
+    </g>
+    <g fill="#e31837">
+      <path d="M30 34 L82 16 L84.5 23 L36 39.5 Z"/>
+      <path d="M22 33 C26 31 31 31 34 33 L36.5 39.5 C32 42 26 42 22 39.5 Z"/>
+    </g>
+    <g fill="#ffffff">
+      <path d="M50 60 C48.6 63 46.8 65 44 66.6 C47.6 67.8 50 70.6 50 74 C50 70.6 52.4 67.8 56 66.6 C53.2 65 51.4 63 50 60 Z"/>
+      <path d="M24 60 C22.9 62.3 21.5 63.8 19.4 65 C22.1 65.9 24 68 24 70.6 C24 68 25.9 65.9 28.6 65 C26.5 63.8 25.1 62.3 24 60 Z"/>
+      <path d="M76 60 C74.9 62.3 73.5 63.8 71.4 65 C74.1 65.9 76 68 76 70.6 C76 68 77.9 65.9 80.6 65 C78.5 63.8 77.1 62.3 76 60 Z"/>
+    </g>
   </svg>`,
 
   // Whalers de Hartford (Baleine W/H verte et bleue)
@@ -160,6 +176,38 @@ export function readableAccent(hex, target = 0.30) {
   return rgbToHex(rgb);
 }
 
+/**
+ * LE FOND D'UNE CARTE AUX COULEURS DU CLUB.
+ *
+ * JP : *utilise vraiment les palettes colorées des équipes, le noir, c'est le
+ * background dude*. Une carte teintée à 13 % sur du noir, ce n'est pas la
+ * couleur d'un club, c'est un soupçon. On prend donc sa VRAIE couleur et on
+ * l'assombrit jusqu'à une luminance de travail — le marine de Toronto reste
+ * marine, le rouge de Montréal reste rouge, l'or de Boston devient un ambre
+ * profond — assez sombre pour qu'un nom blanc se lise par-dessus, assez
+ * coloré pour qu'on reconnaisse le vestiaire sans lire le bandeau.
+ *
+ * Un club dont la couleur principale est déjà plus noire que la cible (les
+ * Kings, les Bruins) prend sa deuxième couleur : le noir, lui, est déjà le
+ * fond de la page.
+ */
+export function fondEquipe(teamCode, cible = 0.045) {
+  const c = TEAM_COLORS[teamCode];
+  if (!c) return null;
+  let base = c.primary;
+  if (luminance(base) < cible) base = c.secondary || c.accent || base;
+  if (luminance(base) < cible) base = c.accent || base;
+  if (luminance(base) < cible) return null;   // tout le club est noir : le fond de la palette suffit
+  // Assombrir vers le noir jusqu'à la cible, par dichotomie sur le mélange.
+  const rgb = hexToRgb(base);
+  let lo = 0, hi = 1, k = 1;
+  for (let i = 0; i < 20; i++) {
+    k = (lo + hi) / 2;
+    if (luminance(rgbToHex(rgb.map(v => v * k))) > cible) hi = k; else lo = k;
+  }
+  return rgbToHex(rgb.map(v => v * k));
+}
+
 /** Accent lisible d'une équipe, prêt à poser dans une variable CSS. */
 /**
  * L'encre à poser SUR un aplat de la couleur d'équipe — le seul endroit du
@@ -197,9 +245,12 @@ export function getTeamInk(teamCode) {
  * bandeau et c'est lui qui distingue Edmonton (marine, liseré orange) de
  * Toronto (marine, liseré marine).
  */
+const FOND_PAGE = '#0a0b0e';
+const VISIBLE = 2.4;   // contraste minimal contre le fond pour qu'un trait existe
+
 export function getTeamBand(teamCode) {
   const c = TEAM_COLORS[teamCode];
-  if (!c) return { bg: '#1b1f26', ink: '#ffffff', stripe: '#8ab4f0', stripeInk: '#0a0b0e' };
+  if (!c) return { bg: '#1b1f26', ink: '#ffffff', stripe: '#8ab4f0', stripeInk: '#0a0b0e', bouton: '#8ab4f0', boutonInk: '#0a0b0e' };
   let bg = c.primary;
   let ink = inkFor(bg);
   if (contrast(bg, ink) < 4.5) {
@@ -212,13 +263,30 @@ export function getTeamBand(teamCode) {
   // sombre ; un bouton plein doit porter du texte, donc on l'éclaircit juste
   // assez pour qu'une encre passe le 4,5:1 — la même mesure que le bandeau.
   if (contrast(stripe, inkFor(stripe)) < 4.5) stripe = readableAccent(stripe, 0.30);
-  return { bg, ink, stripe, stripeInk: inkFor(stripe) };
+  /*
+   * LE BOUTON doit aussi se voir SUR LA CARTE, et pas seulement porter du
+   * texte : la secondaire de la Caroline est le noir, et un bouton noir sur
+   * une carte presque noire disparaissait. Quand la secondaire se confond
+   * avec le fond, c'est la couleur vive du club qui prend le bouton.
+   */
+  const bouton = contrast(stripe, FOND_PAGE) >= VISIBLE ? stripe : couleurVive(teamCode);
+  return { bg, ink, stripe, stripeInk: inkFor(stripe), bouton, boutonInk: inkFor(bouton) };
 }
 
 function contrast(bg, ink) {
   const a = luminance(bg), b = luminance(ink);
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
+/**
+ * L'ENCRE QUI VA SUR UNE COULEUR. Exportée parce que l'interface prend
+ * maintenant la couleur de l'équipe courante (`applyTeamColors`) : ce qui
+ * était écrit en laiton passe à l'orange des NHL Stars pendant la saison, au
+ * rouge du club sorti pendant le repêchage, et il faut une encre lisible
+ * dessus à chaque fois. Même mesure que le bandeau : les deux rapports de
+ * contraste WCAG, on garde la meilleure.
+ */
+export const encreSur = couleur => inkFor(couleur);
+
 function inkFor(bg) {
   return contrast(bg, '#ffffff') >= contrast(bg, '#0a0b0e') ? '#ffffff' : '#0a0b0e';
 }
@@ -244,9 +312,35 @@ export function teamSeasonUrl(teamCode, season) {
   return `https://www.hockey-reference.com/teams/${code}/${debut + 1}.html`;
 }
 
+/**
+ * LA COULEUR VIVE D'UNE ÉQUIPE : SA VRAIE COULEUR, JAMAIS DÉLAVÉE.
+ *
+ * JP : *les vraies couleurs des équipes, pas délavées*. `getTeamAccent`
+ * ÉCLAIRCISSAIT la couleur jusqu'à ce qu'elle se voie sur le fond sombre :
+ * le rouge de Chicago virait rose, le marine de Toronto bleu poudre. On ne
+ * délave plus rien — on CHOISIT : parmi les couleurs brutes du club
+ * (primaire, secondaire, accent), la première qui se détache vraiment du
+ * fond de page. Le rouge de Chicago passe (3,5:1), le marine de Toronto non,
+ * et c'est alors son blanc qui prend le relais — le blanc de son chandail,
+ * pas un bleu délavé. Aucune n'atteint le seuil (un club tout en noir) : le
+ * blanc, comme sur la glace.
+ *
+ * Sert au contour d'une carte, à la bordure d'une case, et à l'accent de
+ * toute l'interface quand elle prend les couleurs d'une équipe.
+ */
+export function couleurVive(teamCode) {
+  const c = TEAM_COLORS[teamCode];
+  if (!c) return '#8ab4f0';
+  for (const x of [c.accent, c.primary, c.secondary]) {
+    if (x && contrast(x, FOND_PAGE) >= VISIBLE) return x;
+  }
+  return '#ffffff';
+}
+
+/** L'ancienne couleur éclaircie. Gardée pour les fonds et les lueurs, jamais pour un trait. */
 export function getTeamAccent(teamCode) {
   const c = TEAM_COLORS[teamCode];
-  if (!c) return '#38bdf8';
+  if (!c) return '#8ab4f0';
   return readableAccent(c.accent || c.primary);
 }
 

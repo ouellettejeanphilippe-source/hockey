@@ -13,7 +13,14 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe } from './traits.js';
 
 export const CAP = 95_500_000;
-export const REROLLS = { season: 6, team: 6, pass: 4 };
+/*
+ * LES RELANCES. JP : *limiter les rolls à 2*. C'était six années, six
+ * équipes et quatre passes — seize façons de refuser un vestiaire, donc
+ * aucune décision difficile avant le huitième tour. À deux chacune, une
+ * relance coûte quelque chose : on la garde pour le moment où la roulette
+ * sort un club sans gardien, pas pour l'esthétique du premier trio.
+ */
+export const REROLLS = { season: 2, team: 2, pass: 2 };
 
 /*
  * LES FAÇONS DE JOUER : deux formats, deux tirages, quatre modes. Le moteur
@@ -31,8 +38,8 @@ export const REROLLS = { season: 6, team: 6, pass: 4 };
  * Le tirage dit D'OÙ viennent les joueurs qu'on te propose :
  *   VESTIAIRE  le jeu d'origine. La roulette sort UNE équipe et tout son
  *              vestiaire ; tu signes un joueur, n'importe lequel, pour
- *              n'importe quelle case libre, et elle tourne. Six relances
- *              d'année, six d'équipe, quatre passes (REROLLS). C'est la
+ *              n'importe quelle case libre, et elle tourne. Deux relances
+ *              d'année, deux d'équipe, deux passes (REROLLS). C'est la
  *              chasse aux aubaines, et JP y tient : « fallait pas enlever
  *              l'ancien mode de jeu ».
  *   LOTO       la roulette sort TROIS équipes et te montre, de chacune, le
@@ -44,10 +51,10 @@ export const REROLLS = { season: 6, team: 6, pass: 4 };
 export const MODES = {
   CLASSIQUE: {
     nom: 'Classique', format: 'COMPLET', tirage: 'VESTIAIRE', cap: CAP, renfort: false, loto: false, relances: 0,
-    desc: 'Vingt-trois joueurs, un par tour, dans le vestiaire d\'une vraie équipe. Six relances d\'année, six d\'équipe, quatre passes.',
+    desc: 'Vingt-trois joueurs, un par tour, dans le vestiaire d\'une vraie équipe. Deux relances d\'année, deux d\'équipe, deux passes.',
   },
   LOTO: {
-    nom: 'Loto', format: 'COMPLET', tirage: 'LOTO', cap: CAP, renfort: false, loto: true, relances: 8,
+    nom: 'Loto', format: 'COMPLET', tirage: 'LOTO', cap: CAP, renfort: false, loto: true, relances: 2,
     desc: 'Vingt-trois cases, et pour chacune le même joueur de trois équipes : tu choisis. Huit relances.',
   },
   EXPRESS: {
@@ -55,7 +62,7 @@ export const MODES = {
     desc: 'Un trio, une paire, un partant, pris dans le vestiaire d\'une vraie équipe à chaque tour. Le reste vient d\'une autre vraie équipe.',
   },
   LOTO_EXPRESS: {
-    nom: 'Loto express', format: 'EXPRESS', tirage: 'LOTO', cap: 34_000_000, renfort: true, loto: true, relances: 3,
+    nom: 'Loto express', format: 'EXPRESS', tirage: 'LOTO', cap: 34_000_000, renfort: true, loto: true, relances: 2,
     desc: 'Six cases, trois candidats pour chacune, trois relances. Le reste vient d\'une vraie équipe.',
   },
 };
