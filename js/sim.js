@@ -1023,6 +1023,7 @@ function facteurGardien(g) {
  * moyenne — jamais recopiés ailleurs, une seule implémentation par formule. */
 export const facteurGardienDe = facteurGardien;
 export const pctTirRelDe = pctTirRel;
+export const lancersRelDe = lancersRel;
 export const passesRelDe = passesRel;
 
 /** Propension à la passe : la part de points qu'un joueur récolte en passes. */
