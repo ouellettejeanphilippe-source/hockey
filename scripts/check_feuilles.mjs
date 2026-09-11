@@ -65,7 +65,10 @@ while (equipes.length < 32) {
   return equipes;
 }
 
-const joueursDe = t => SLOTS.map(s => t.roster[s.i]).filter(Boolean);
+// Le gardien de rappel n'occupe aucune case (il n'est pas de l'équipe), mais
+// il prend de vrais lancers : sans lui, « lancers pour = lancers contre »
+// manquerait les soirs où un club s'est retrouvé sans auxiliaire.
+const joueursDe = t => [...SLOTS.map(s => t.roster[s.i]), t.rappelG].filter(Boolean);
 let ecartsButs = 0, ecartsGardien = 0, tropDePasses = 0;
 let lancersPour = 0, lancersContre = 0, buts = 0, matchs = 0;
 const ecarts = [];

@@ -91,13 +91,16 @@ export const uniteDeCase = s => !s ? '' : s.scratch ? 'R' : s.group === 'G' ? 'G
  * joueurs déjà signés, donc un club qui ressort après qu'on lui a pris son
  * ailier montre le suivant.
  */
-export function joueurEquivalent(pool, slot, exclude = new Set()) {
+export function joueurEquivalent(pool, slot, exclude = new Set(), rang = null) {
   if (!slot) return null;
   if (!slot.scratch) {
+    // Le rang demandé, sinon celui de la case. L'interface le calcule pour
+    // que l'échelle descende toujours (voir `rangDeLaMain`, js/game.js).
+    const n = Number.isFinite(rang) ? Math.max(0, rang) : slot.unit;
     const naturels = pool
       .filter(p => !exclude.has(getPersonKey(p)) && fits(p, slot) && getPositionPenalty(p, slot) === 0)
       .sort((a, b) => getHiddenRatings(b).v - getHiddenRatings(a).v);
-    const p = naturels[slot.unit] ?? naturels[naturels.length - 1];
+    const p = naturels[n] ?? naturels[naturels.length - 1];
     if (p) return p;
   }
   return autoRoster(pool, exclude)[slot.i] || null;
@@ -1680,24 +1683,52 @@ export function partAuxiliaire(starter, backup) {
   return Math.max(PART_AUX_MIN, Math.min(PART_AUX_MAX, gb / (gs + gb)));
 }
 
+/*
+ * AUCUN GARDIEN NE JOUE 82 MATCHS. JP : *pas de gardiens avec 82 matchs lol*.
+ * Un club qui perd son auxiliaire — tu l'as signé, ou il est blessé — laissait
+ * son partant prendre TOUS les départs : Lindgren 82 matchs le soir où les
+ * Capitals t'ont vendu Thompson. Le record réel est de 79 (Luongo 2006-07) et
+ * la ligue moderne plafonne à 65 : dans la vraie vie, le club rappelle un
+ * gardien. C'est ce que fait le moteur. Le rappel est un vrai objet joueur —
+ * il prend des lancers, fait des arrêts, gagne et perd des matchs, donc les
+ * égalités de la feuille tiennent — à la cote d'un rappel de la ligue mineure
+ * et à un pourcentage d'arrêts sous la moyenne de son époque. Il ne figure
+ * dans aucune case de l'alignement : il n'est pas dans ton équipe, il dépanne.
+ */
+const RAPPEL_SV = 0.015;   // écart au % d'arrêts de la ligue, en points de sv
+export const PART_SANS_AUX = 0.20;   // la part du rappel quand la case auxiliaire est vide
+
+function gardienDeRappel(team, modele) {
+  if (!team) return null;
+  if (!team.rappelG) {
+    const saison = (modele && modele.s) || team.season || '2024-25';
+    const svLigue = 1 - seasonLancers(saison)[1] / 100;
+    const g = { n: 'Gardien de rappel', p: 'G', t: team.tag, s: saison, gp: 0,
+                sv: Math.max(0.02, svLigue - RAPPEL_SV), o: REPLACEMENT, d: REPLACEMENT,
+                r: 50, c: 50, v: REPLACEMENT, _rappel: 1 };
+    initSimStats(g);
+    team.rappelG = g;
+  }
+  return team.rappelG;
+}
+
 function pickGoalie(lineup, gameIdx, team = null) {
   const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]);
   const [starter, backup] = gs;
-  const part = partAuxiliaire(starter, backup);
+  // Sans auxiliaire — tu l'as signé, il est blessé — le club rappelle, et le
+  // rappel prend la part d'un auxiliaire ordinaire : le partant retombe sous
+  // les 70 départs, là où la vraie ligue le tient.
+  const part = backup ? partAuxiliaire(starter, backup) : (starter ? PART_SANS_AUX : 1);
   const useBackup = Math.floor((gameIdx + 1) * part) > Math.floor(gameIdx * part);
-  const g = (useBackup ? (backup || starter) : (starter || backup)) || null;
-  if (g || !team) return g;
-
-  // Les deux gardiens blessés le même soir : le club en habille un d'urgence
-  // plutôt que de laisser le filet désert. Sans ça les lancers de l'adversaire
-  // n'avaient personne à qui être crédités, et la feuille de match perdait
-  // une centaine de lancers par saison — assez pour casser l'identité de
-  // ligue « lancers pour = lancers contre » que `check_feuilles.mjs` vérifie.
-  // Il joue à pleine cote : c'est généreux, mais l'événement est rare et
-  // l'équipe a déjà perdu sa rotation.
-  return SLOTS.filter(s => s.group === 'G' && !s.scratch)
-    .map(s => team.roster[s.i]).filter(Boolean)
-    .sort((a, b) => (team.injured.get(a) || 0) - (team.injured.get(b) || 0))[0] || null;
+  const g = (useBackup ? backup : starter) || null;
+  if (g) return g;
+  // Personne dans le filet : le rappel. Sans lui les lancers de l'adversaire
+  // n'avaient personne à qui être crédités, et la feuille perdait une
+  // centaine de lancers par saison — assez pour casser l'identité de ligue
+  // « lancers pour = lancers contre » que `check_feuilles.mjs` vérifie. Le
+  // club habillait alors un de ses gardiens BLESSÉS, à pleine cote ; il
+  // habille maintenant un rappel, qui garde comme un rappel.
+  return gardienDeRappel(team, starter || backup) || starter || backup || null;
 }
 
 function pickUnit(weights) {
@@ -1989,11 +2020,20 @@ export function simulate(roster, { graine = null } = {}) {
 }
 
 /**
- * Saison complète : chaque « ronde » apparie toutes les équipes au hasard,
- * 82 rondes -> 82 matchs par équipe. Nombre d'équipes pair requis.
+ * Saison complète : chaque journée apparie des équipes au hasard, et chacune
+ * joue exactement `games` matchs.
+ *
+ * LA CÉDULE ACCEPTE UN NOMBRE IMPAIR D'ÉQUIPES. Une ligue d'une saison fixée
+ * compte tous ses vrais clubs PLUS le tien — trente-trois en 2024-25 — et
+ * c'était jusqu'ici le club le plus faible qui cédait sa place. Il n'a plus
+ * à le faire : quand l'effectif est impair, une équipe est en congé chaque
+ * journée (celle à qui il reste le moins de matchs à jouer), comme dans la
+ * vraie ligue où tout le monde ne joue pas le même soir. Le nombre de
+ * journées s'allonge de ce qu'il faut — 85 pour trente-trois clubs — et
+ * chaque équipe finit ses 82 matchs, donc le classement se compare toujours
+ * à nombre de matchs égal.
  */
 export function simulateLeague(teams, games = 82, { graine = null } = {}) {
-  if (teams.length % 2) throw new Error("nombre d'équipes pair requis");
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   // Le générateur reste en place après : les séries, jouées ensuite par
@@ -2012,8 +2052,17 @@ export function simulateLeague(teams, games = 82, { graine = null } = {}) {
   // pointage. C'est ce que l'écran rejoue jour après jour, et ce qu'on peut
   // consulter après pour vérifier la saison de n'importe quelle équipe.
   const calendrier = [];
-  for (let r = 0; r < games; r++) {
-    const order = shuffle(teams.slice());
+  // Ce qu'il reste à jouer à chaque équipe. Une journée apparie tout le monde
+  // quand l'effectif est pair ; sinon celle qui a le moins de matchs à jouer
+  // est en congé, ce qui garde les restes à un match les uns des autres et
+  // fait retomber tout le monde sur `games` à la fin.
+  const restant = new Map(teams.map(t => [t, games]));
+  for (let r = 0; restant.size; r++) {
+    const order = shuffle(teams.filter(t => restant.get(t) > 0));
+    if (order.length < 2) break;
+    // Tri stable : l'ordre du brassage départage les équipes à égalité.
+    order.sort((a, b) => restant.get(b) - restant.get(a));
+    if (order.length % 2) order.pop();
     const jour = [];
     for (let i = 0; i < order.length; i += 2) {
       // CHAQUE MATCH DE SAISON GARDE SA FEUILLE, comme un match de séries :
@@ -2024,8 +2073,11 @@ export function simulateLeague(teams, games = 82, { graine = null } = {}) {
       const feuille = feuilleVierge();
       const res = playGame(order[i], order[i + 1], r, true, false, feuille);
       jour.push({ A: order[i], B: order[i + 1], gfA: res.gfA, gfB: res.gfB, ot: res.ot, feuille });
+      restant.set(order[i], restant.get(order[i]) - 1);
+      restant.set(order[i + 1], restant.get(order[i + 1]) - 1);
     }
     calendrier.push(jour);
+    for (const [t, n] of restant) if (n <= 0) restant.delete(t);
   }
   const standings = teams.slice().sort((a, b) =>
     b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA) || b.GF - a.GF);

@@ -132,7 +132,7 @@ body {
     var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.45;
   padding-bottom: calc(var(--actionbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
   overflow-x: hidden;
@@ -205,7 +205,7 @@ a { color: var(--blue); }
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 7px 11px;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1;
   min-height: 36px;
   transition: border-color .15s, background .15s, transform .1s;
@@ -214,7 +214,7 @@ a { color: var(--blue); }
 .icon-btn:active { transform: scale(0.97); }
 .icon-lbl {
   display: none;
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--sub);
   text-transform: uppercase;
@@ -239,13 +239,13 @@ a { color: var(--blue); }
 }
 .capgauge-row.small {
   margin-top: 5px;
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--sub);
 }
 .capgauge-row.small strong { color: var(--text); font-variant-numeric: tabular-nums; }
 .capgauge-label {
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -254,7 +254,7 @@ a { color: var(--blue); }
 .capgauge-amt { white-space: nowrap; }
 .capgauge-amt .amt {
   font-family: var(--display);
-  font-size: 24px;
+  font-size: 27px;
   line-height: 1;
   font-weight: 800;
   color: var(--green);
@@ -263,7 +263,11 @@ a { color: var(--blue); }
 }
 .capgauge-amt .amt.tight { color: var(--gold); }
 .capgauge-amt .amt.over { color: var(--red); }
-.capgauge-max { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.capgauge-max { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* L'écriture a grossi : sur un téléphone étroit, « / 95,5 M$ » passait sous
+   les trois boutons. Le plafond restant, lui, ne se coupe jamais — c'est le
+   rappel du maximum qui cède, puisque le maximum ne change jamais. */
+@media (max-width: 430px) { .capgauge-max { display: none; } }
 
 .track {
   position: relative;
@@ -401,7 +405,7 @@ a { color: var(--blue); }
 .spin-ext:hover { color: var(--text); border-color: var(--team-accent); }
 .spin-kicker {
   display: flex; align-items: center; gap: 6px;
-  font-family: var(--display); font-weight: 700; font-size: 13px;
+  font-family: var(--display); font-weight: 700; font-size: 14.5px;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold);
 }
 .spin-code { opacity: 0.9; }
@@ -418,7 +422,7 @@ a { color: var(--blue); }
 .spin-id { flex: 1; min-width: 0; }
 .spin-name {
   font-family: var(--display);
-  font-size: 24px;
+  font-size: 27px;
   font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -427,7 +431,7 @@ a { color: var(--blue); }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .spin-full {
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--gold);
   margin-top: 2px;
@@ -442,7 +446,7 @@ a { color: var(--blue); }
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: var(--text);
-  font-size: 12px;
+  font-size: 13.5px;
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
@@ -452,7 +456,7 @@ a { color: var(--blue); }
   position: relative;
   z-index: 1;
   margin-top: 9px;
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--sub);
   line-height: 1.4;
 }
@@ -487,7 +491,7 @@ a { color: var(--blue); }
      passait à deux et son compteur descendait d'un cran sous les deux
      autres, trois boutons identiques qui ne se ressemblaient plus. */
   font-family: var(--display);
-  font-size: clamp(10px, 3.6cqi, 12.5px);
+  font-size: clamp(11px, 3.6cqi, 14px);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -501,7 +505,7 @@ a { color: var(--blue); }
 .reroll .rr-lbl { display: inline-flex; align-items: center; gap: 4px; }
 .reroll .rr-lbl .ico { width: 13px; height: 13px; }
 .reroll .rr-count {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--gold);
   font-variant-numeric: tabular-nums;
@@ -529,14 +533,14 @@ a { color: var(--blue); }
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(0, 0, 0, 0.34);
   color: var(--text);
-  font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: 0.05em;
+  font-family: var(--display); font-weight: 700; font-size: 14.5px; letter-spacing: 0.05em;
   white-space: nowrap; overflow: hidden;
   text-decoration: none;
 }
 a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 0.5); }
 .spin-club .team-logo-img, .spin-club .team-logo-inline { flex: none; }
 .spin-club-code { text-transform: uppercase; }
-.spin-club-season { color: var(--gold); font-variant-numeric: tabular-nums; letter-spacing: 0; font-size: 12px; }
+.spin-club-season { color: var(--gold); font-variant-numeric: tabular-nums; letter-spacing: 0; font-size: 13.5px; }
 .spin-club-dead .spin-club-code { color: var(--red); }
 /* L'unité qu'on regarde, en surtitre à côté de l'année : « 1er trio ». */
 .spin-unite { color: var(--gold); text-transform: none; letter-spacing: 0.02em; }
@@ -572,12 +576,12 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 /* Deux lignes réservées : « BUDGET DU CHOIX » passait à la ligne quand ses
    voisins tenaient sur une, et les trois chiffres ne s'alignaient plus. */
 .dash-card h3 { margin-bottom: 3px; min-height: 24px; }
-.dash-big.sm { font-size: 16px; letter-spacing: 0.01em; }
+.dash-big.sm { font-size: 18px; letter-spacing: 0.01em; }
 .h3-long { display: none; }
 .dash-line { flex-wrap: wrap; }
 
 .dash-card h3 {
-  font-size: 9.5px;
+  font-size: 10.5px;
   line-height: 1.25;
   text-transform: uppercase;
   letter-spacing: 0.13em;
@@ -588,14 +592,14 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .dash-big {
   font-family: var(--display);
-  font-size: 23px;
+  font-size: 26px;
   line-height: 1;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.3px;
 }
-.dash-note { font-size: 10.5px; color: var(--sub); margin-top: 3px; line-height: 1.35; }
-.dash-unit { font-size: 9.5px; font-weight: 800; color: var(--muted); margin-left: 4px; letter-spacing: 0.05em; }
+.dash-note { font-size: 12px; color: var(--sub); margin-top: 3px; line-height: 1.35; }
+.dash-unit { font-size: 10.5px; font-weight: 800; color: var(--muted); margin-left: 4px; letter-spacing: 0.05em; }
 .dash-card { cursor: help; }
 .dash-good { color: var(--green); }
 .dash-warn { color: var(--gold); }
@@ -614,7 +618,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--panel-2);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--sub);
   font-variant-numeric: tabular-nums;
@@ -653,14 +657,14 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .pane-title h2 {
   font-family: var(--display);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text);
 }
 .pane-meta {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
   color: var(--sub);
   font-variant-numeric: tabular-nums;
@@ -699,7 +703,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   border-radius: var(--r-s);
   padding: 0 9px;
   min-height: 36px;
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--muted);
 }
 .search:focus-within { border-color: var(--ui-accent); }
@@ -710,7 +714,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   border: 0;
   outline: none;
   padding: 8px 0;
-  font-size: 12.5px;
+  font-size: 14px;
 }
 .search input::placeholder { color: var(--muted); }
 
@@ -721,7 +725,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   border-radius: var(--r-s);
   padding: 8px 9px;
   min-height: 36px;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--sub);
 }
@@ -761,11 +765,11 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
     padding: 5px 2px;
     min-height: 42px;
     border-radius: var(--r-s);
-    font-size: 11px;
+    font-size: 12.5px;
     min-width: 0;
     overflow: hidden;
   }
-  .chip .chip-need { padding: 0 3px; font-size: 9px; background: none; }
+  .chip .chip-need { padding: 0 3px; font-size: 10px; background: none; }
   .chip.on .chip-need { background: none; }
 }
 .chip {
@@ -780,7 +784,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   background: var(--panel-2);
   color: var(--sub);
   font-family: var(--display);
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   white-space: nowrap;
@@ -793,7 +797,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   color: var(--ui-on-accent);
 }
 .chip-need {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 900;
   padding: 1px 5px;
   border-radius: 999px;
@@ -909,7 +913,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .pool-col:first-of-type .pool-col-head { margin-top: 0; }
 .pool-col-title {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.11em;
@@ -919,14 +923,14 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .pool-col-cards { display: contents; }
-.empty-msg.small { padding: 10px 4px; font-size: 11px; }
+.empty-msg.small { padding: 10px 4px; font-size: 12.5px; }
 
 /* Deux à trois cartes de front dès que le volet est un peu large */
 @container pool (min-width: 560px) {
@@ -1029,11 +1033,11 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .pcard-name .fname {
-  font-size: 10.5px; line-height: 1.2; font-weight: 600;
+  font-size: 12px; line-height: 1.2; font-weight: 600;
   letter-spacing: 0.02em; color: var(--sub);
 }
 .pcard-name .lname {
-  font-family: var(--display); font-size: 17.5px; line-height: 1;
+  font-family: var(--display); font-size: 19.5px; line-height: 1;
   font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em;
 }
 .pcard-price {
@@ -1041,7 +1045,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
      deux gros caractères côte à côte, le petit texte gris au-dessus. */
   align-self: end;
   font-family: var(--display);
-  font-size: 17.5px;
+  font-size: 19.5px;
   line-height: 1;
   font-weight: 800;
   color: var(--gold);
@@ -1073,7 +1077,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   display: flex; align-items: center; gap: 7px;
   white-space: nowrap; overflow: hidden;
   padding: 4px 9px 6px;
-  font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 10.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
   background: var(--team-band, #112236);
   color: var(--team-ink, #ffffff);
   /* Le liseré du maillot, dessiné à l'intérieur : la hauteur ne bouge pas. */
@@ -1088,7 +1092,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 /* Le chip de poste, sur l'aplat : un verre translucide, encre de l'équipe. */
 .pb-pos, .sb-role {
   flex: none; padding: 1px 6px; border-radius: 4px;
-  font-size: 9px; font-weight: 900; letter-spacing: 0.06em;
+  font-size: 10px; font-weight: 900; letter-spacing: 0.06em;
   /* Un verre teinté de l'encre : lisible sur un aplat clair comme foncé. */
   background: color-mix(in srgb, var(--team-ink, #ffffff) 22%, transparent); color: inherit;
 }
@@ -1112,7 +1116,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .pcard-inner {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
-  grid-template-rows: auto 15px 32px;
+  grid-template-rows: auto 17px 34px;
   align-items: start;
   gap: 6px 9px;
   padding: 8px 10px 9px;
@@ -1139,7 +1143,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   width: 100%; height: 100%; object-fit: cover;
   transform: scale(1.35); transform-origin: 50% 42%;
 }
-.pcard-avatar .headshot-fallback { font-size: 17px; opacity: 0.35; }
+.pcard-avatar .headshot-fallback { font-size: 19px; opacity: 0.35; }
 .pcard-dest, .pcard-inner > .btn-sign { grid-column: 1 / -1; }
 .pcard-inner > .btn-sign { align-self: end; }
 
@@ -1155,14 +1159,14 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .pcard-big { flex: none; display: flex; align-items: baseline; gap: 3px; }
 .pcard-big b {
   font-family: var(--display);
-  font-size: 30px;
+  font-size: 33.5px;
   font-weight: 800;
   line-height: 1;
   letter-spacing: 0;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.pcard-big span { font-size: 9.5px; font-weight: 900; letter-spacing: 0.08em; color: var(--muted); }
+.pcard-big span { font-size: 10.5px; font-weight: 900; letter-spacing: 0.08em; color: var(--muted); }
 .pcard-mid .tags { flex: 1; min-width: 0; justify-content: flex-end; transform-origin: right center; }
 
 .pm-pos { color: var(--green); font-weight: 800; }
@@ -1176,7 +1180,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   gap: 3px;
   padding: 2px 6px;
   border-radius: 5px;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 800;
   border: 1px solid var(--line);
   background: rgba(0, 0, 0, 0.28);
@@ -1218,7 +1222,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 /* Bas de carte : où il va, et le bouton */
 .pcard-dest {
   min-width: 0;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--muted);
   line-height: 15px;
@@ -1242,7 +1246,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   background: var(--green);
   color: #04200f;
   font-family: var(--display);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1274,11 +1278,11 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 @container col (max-width: 235px) {
   .pcard-inner { grid-template-columns: 36px minmax(0, 1fr); gap: 5px 7px; padding: 7px 8px 8px; }
   .pcard-avatar { width: 36px; height: 36px; }
-  .pcard-name .lname { font-size: 15px; }
-  .pcard-price { font-size: 14px; }
-  .pcard-big b { font-size: 24px; }
+  .pcard-name .lname { font-size: 17px; }
+  .pcard-price { font-size: 15.5px; }
+  .pcard-big b { font-size: 27px; }
   .pcard-mid { flex-wrap: nowrap; gap: 6px; }
-  .pcard-dest { font-size: 10px; }
+  .pcard-dest { font-size: 11px; }
 }
 @container col (max-width: 200px) {
   .pcard-inner { grid-template-columns: minmax(0, 1fr); }
@@ -1293,7 +1297,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
    --------------------------------------------------------------- */
 
 .roster-hint {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--muted);
   line-height: 1.4;
 }
@@ -1320,7 +1324,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   min-width: 0;
 }
 .sum-item .k {
-  font-size: 8.5px;
+  font-size: 9.5px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1330,6 +1334,9 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .sum-item .v {
   font-family: var(--display);
+  /* Seul chiffre de l'interface que l'agrandissement général n'a pas suivi :
+     la tuile ne fait qu'un cinquième de 390 px, et « 30,9 M$ » y coupait au
+     point de suspension. Un salaire ne se coupe jamais. */
   font-size: 17px;
   font-weight: 800;
   line-height: 1;
@@ -1364,7 +1371,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .line-name {
   font-family: var(--display);
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1373,7 +1380,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .line-chem {
   min-width: 0;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-align: right;
   color: var(--muted);
@@ -1401,7 +1408,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
  */
 .slot {
   position: relative;
-  height: 98px;
+  height: 106px;
   border-radius: var(--r-s);
   border: 1px solid color-mix(in srgb, var(--slot-line, #38bdf8) 62%, transparent);
   background: color-mix(in srgb, var(--slot-line, #38bdf8) 6%, var(--panel-2));
@@ -1423,12 +1430,12 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   gap: 2px;
 }
 .slot.empty .slot-role {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 900;
   color: var(--sub);
   letter-spacing: 0.05em;
 }
-.slot.empty .slot-sub { font-size: 9px; color: var(--muted); }
+.slot.empty .slot-sub { font-size: 10px; color: var(--muted); }
 .slot.empty.target {
   border-style: solid;
   border-color: var(--gold);
@@ -1444,7 +1451,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .slot.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .slot.oop { border-color: rgba(248, 113, 113, 0.5); }
 
-.slot-band { padding: 3px 7px 5px; font-size: 8.5px; gap: 5px;
+.slot-band { padding: 3px 7px 5px; font-size: 9.5px; gap: 5px;
   background: var(--slot-band, #112236); color: var(--slot-ink, #ffffff);
   box-shadow: inset 0 -2px 0 var(--slot-stripe, #38bdf8); }
 /* Quand la case est trop étroite pour tout, c'est l'ÉCUSSON qui cède : le
@@ -1463,7 +1470,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .slot.empty { padding: 6px 7px; justify-content: center; }
 .slot-salary {
   font-family: var(--display);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--gold);
@@ -1472,7 +1479,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .slot-name {
   font-family: var(--display);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.01em;
@@ -1482,7 +1489,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .slot-name .fname { display: none; }
 .slot-meta {
-  font-size: 9.5px;
+  font-size: 10.5px;
   line-height: 1.35;
   color: var(--sub);
   font-variant-numeric: tabular-nums;
@@ -1502,8 +1509,8 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   transform-origin: left center;
 }
 .slot-tags > * { flex: none; }
-.slot-tags .tag { font-size: 8.5px; padding: 1px 5px; }
-.slot-icones { font-size: 10px; line-height: 16px; letter-spacing: -1px; white-space: nowrap; }
+.slot-tags .tag { font-size: 9.5px; padding: 1px 5px; }
+.slot-icones { font-size: 11px; line-height: 16px; letter-spacing: -1px; white-space: nowrap; }
 /* Rien ne rétrécit : la case a une hauteur fixe, ses rangées aussi. */
 .slot-inner > * { flex: none; }
 
@@ -1519,7 +1526,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   border: 1px solid var(--line);
   background: rgba(0, 0, 0, 0.55);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
   opacity: 0;
   transition: opacity .15s, color .15s, border-color .15s;
@@ -1552,7 +1559,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   align-items: center;
   gap: 9px;
 }
-.actionbar .btn.go { flex: 1 1 46%; font-size: 14.5px; letter-spacing: 0.04em; padding: 10px 8px; line-height: 1.1; }
+.actionbar .btn.go { flex: 1 1 46%; font-size: 16px; letter-spacing: 0.04em; padding: 10px 8px; line-height: 1.1; }
 .actionbar .tabs { flex: 1 1 54%; }
 
 .tabs {
@@ -1577,7 +1584,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   background: none;
   color: var(--sub);
   font-family: var(--display);
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1586,7 +1593,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .tab.on { background: var(--panel-3); color: var(--text); }
 .tab-badge {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 900;
   padding: 1px 5px;
   border-radius: 999px;
@@ -1604,7 +1611,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   background: var(--panel-2);
   color: var(--text);
   font-family: var(--display);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -1675,7 +1682,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   border-bottom: 1px solid var(--line);
   background: var(--panel-2);
 }
-.modal-header h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; }
+.modal-header h2 { font-size: 15.5px; text-transform: uppercase; letter-spacing: 0.06em; }
 
 .close-btn {
   flex: none;
@@ -1687,7 +1694,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--sub);
-  font-size: 14px;
+  font-size: 15.5px;
   z-index: 3;
 }
 .close-btn:hover { color: var(--red); border-color: var(--red); }
@@ -1711,8 +1718,8 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   border-bottom: 1px solid var(--line-soft);
 }
 .opt-row:last-child { border-bottom: 0; padding-bottom: 0; }
-.opt-text strong { display: block; font-size: 13px; }
-.opt-text span { display: block; font-size: 11.5px; color: var(--sub); margin-top: 2px; line-height: 1.45; }
+.opt-text strong { display: block; font-size: 14.5px; }
+.opt-text span { display: block; font-size: 13px; color: var(--sub); margin-top: 2px; line-height: 1.45; }
 
 .seg {
   display: flex;
@@ -1730,24 +1737,24 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   border-radius: 6px;
   background: none;
   color: var(--sub);
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
   transition: background .15s, color .15s;
 }
 .seg button.on { background: var(--ui-accent); color: var(--ui-on-accent); }
 .seg-view { flex: none; padding: 2px; }
-.seg-view button { flex: none; min-height: 28px; padding: 4px 10px; font-size: 11px; }
+.seg-view button { flex: none; min-height: 28px; padding: 4px 10px; font-size: 12.5px; }
 /* Le bascule d'affichage du bassin vit dans la barre d'outils, pas dans une
    modale : c'est un geste de lecture, pas un réglage. Il est donc plus petit
    que les segments des options. */
 
 /* Règles */
 
-.bible { font-size: 12.5px; line-height: 1.62; color: var(--text); }
+.bible { font-size: 14px; line-height: 1.62; color: var(--text); }
 .bible h3 {
   color: var(--gold);
-  font-size: 12.5px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 18px 0 7px;
@@ -1768,7 +1775,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .math-box code {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--blue);
   white-space: pre;
 }
@@ -1787,18 +1794,18 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   margin-bottom: 7px;
 }
 .lb-score {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.5px;
 }
 .lb-score.perfect { color: var(--gold); }
-.lb-details { text-align: right; font-size: 10.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.lb-details { text-align: right; font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums; }
 .lb-details .lb-replay { margin-top: 5px; margin-left: auto; }
 .empty-msg {
   text-align: center;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 14px;
   padding: 28px 14px;
   line-height: 1.6;
 }
@@ -1846,12 +1853,12 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   place-items: end center;
 }
 .pcard-full-photo img { width: 100%; height: 100%; object-fit: contain; object-position: bottom; }
-.pcard-full-photo .headshot-fallback { font-size: 72px; line-height: 1; opacity: 0.35; margin-bottom: 8px; }
+.pcard-full-photo .headshot-fallback { font-size: 80.5px; line-height: 1; opacity: 0.35; margin-bottom: 8px; }
 .pcard-full-id { min-width: 0; flex: 1; padding-bottom: 12px; }
-.pcard-full-name { font-family: var(--display); font-size: 28px; font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; overflow-wrap: anywhere; }
-.pcard-full-name .fname { color: var(--sub); font-weight: 600; font-size: 16px; text-transform: none; letter-spacing: 0.02em; display: block; margin-bottom: 2px; }
+.pcard-full-name { font-family: var(--display); font-size: 31.5px; font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; overflow-wrap: anywhere; }
+.pcard-full-name .fname { color: var(--sub); font-weight: 600; font-size: 18px; text-transform: none; letter-spacing: 0.02em; display: block; margin-bottom: 2px; }
 .pcard-full-team {
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--gold);
   margin-top: 3px;
@@ -1872,17 +1879,17 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .pcard-full-salary .big {
   font-family: var(--display);
-  font-size: 30px;
+  font-size: 33.5px;
   line-height: 1;
   font-weight: 800;
   color: var(--gold);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.5px;
 }
-.pcard-full-salary .small { font-size: 11px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.pcard-full-salary .small { font-size: 12.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
 
 .section-label {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.13em;
@@ -1904,7 +1911,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   text-align: center;
 }
 .stat-cell .k {
-  font-size: 8.5px;
+  font-size: 9.5px;
   font-weight: 900;
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -1912,7 +1919,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .stat-cell .v {
   font-family: var(--display);
-  font-size: 21px;
+  font-size: 23.5px;
   line-height: 1;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -1933,7 +1940,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   gap: 6px;
   margin: 6px 0 2px;
 }
-.profil-titre { margin-top: 8px; font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.profil-titre { margin-top: 8px; font-family: var(--display); font-size: 13.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .profil-cell {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1942,10 +1949,10 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   background: rgba(0, 0, 0, 0.22);
 }
 .profil-cell .k {
-  font-size: 7.5px; font-weight: 900; color: var(--muted); letter-spacing: 0.01em;
+  font-size: 8.5px; font-weight: 900; color: var(--muted); letter-spacing: 0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.profil-cell .v { font-family: var(--display); font-size: 22px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.profil-cell .v { font-family: var(--display); font-size: 24.5px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
 
 .pcard-full-foot {
   display: flex;
@@ -1960,7 +1967,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .ext-links { display: flex; gap: 6px; flex-wrap: wrap; }
 .ext-link .ico { width: 12px; height: 12px; margin-left: 3px; vertical-align: -2px; }
 .ext-link {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--sub);
   text-decoration: none;
@@ -1987,7 +1994,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   background: rgba(9, 20, 35, 0.97);
   border: 1px solid var(--team-accent);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 700;
   box-shadow: var(--shadow-2);
   opacity: 0;
@@ -2019,20 +2026,20 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .hero-band {
   display: inline-block; margin-bottom: 9px; padding: 4px 13px;
   border-radius: 999px; background: var(--blue-deep); color: #fff;
-  font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase;
+  font-size: 12px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase;
 }
 .hero-band.or { background: var(--gold); color: #1a1400; }
 .hero-band.out { background: var(--live); }
 .result .score {
   font-family: var(--display);
-  font-size: 60px;
+  font-size: 67px;
   font-weight: 800;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
 }
 .result .score.perfect { color: var(--gold); }
-.result .rec { font-size: 12px; font-weight: 800; color: var(--sub); margin-top: 3px; }
+.result .rec { font-size: 13.5px; font-weight: 800; color: var(--sub); margin-top: 3px; }
 /* Le tableau indicateur : six chiffres sur une ligne sous le pointage, comme
    une bande de diffusion. Les libellés raccourcissent, jamais les chiffres. */
 .result-strip {
@@ -2043,11 +2050,11 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .rs-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: 0 4px; border-left: 1px solid rgba(255, 255, 255, 0.08); }
 .rs-cell:first-child { border-left: 0; }
-.rs-cell .k { font-size: 8.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.rs-cell b { font-family: var(--display); font-size: 22px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rs-cell b small { font-size: 12px; color: var(--muted); font-weight: 700; }
+.rs-cell .k { font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.rs-cell b { font-family: var(--display); font-size: 24.5px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rs-cell b small { font-size: 13.5px; color: var(--muted); font-weight: 700; }
 .result .note {
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--sub);
   line-height: 1.55;
   background: rgba(0, 0, 0, 0.24);
@@ -2059,7 +2066,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 
 .result-section { margin-top: 18px; }
 .result-section > h3 {
-  font-size: 11.5px;
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.11em;
   color: var(--gold);
@@ -2067,7 +2074,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 
 .bars { display: flex; flex-direction: column; gap: 6px; }
-.bar { display: flex; align-items: center; gap: 9px; font-size: 11.5px; }
+.bar { display: flex; align-items: center; gap: 9px; font-size: 13px; }
 .bar .bl { width: 88px; flex: none; color: var(--sub); font-weight: 700; }
 .bar .bt {
   flex: 1;
@@ -2090,18 +2097,18 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 table.data {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11.5px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
   min-width: 460px;
 }
-table.data td.stat, table.data td.pts { font-family: var(--display); font-size: 15px; font-weight: 700; }
+table.data td.stat, table.data td.pts { font-family: var(--display); font-size: 17px; font-weight: 700; }
 table.data th.heros, table.data td.heros { color: var(--gold); }
 table.data thead th {
   position: sticky;
   top: 0;
   background: #0a1523;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -2128,12 +2135,12 @@ table.data .pts { font-weight: 900; color: var(--green); }
   justify-content: space-between;
   padding: 7px 0;
   border-bottom: 1px solid var(--line-soft);
-  font-size: 11.5px;
+  font-size: 13px;
 }
 .rrow .rn { display: flex; align-items: center; gap: 6px; font-weight: 800; min-width: 0; }
 .rrow .rn img, .rrow .rn svg { width: 15px; height: 15px; flex: none; }
-.rrow .rn .sub { color: var(--muted); font-weight: 600; font-size: 10px; }
-.rrow .rs { color: var(--sub); font-variant-numeric: tabular-nums; font-size: 11px; }
+.rrow .rn .sub { color: var(--muted); font-weight: 600; font-size: 11px; }
+.rrow .rs { color: var(--sub); font-variant-numeric: tabular-nums; font-size: 12.5px; }
 .rrow .rs b { color: var(--text); }
 .rrow .inj { color: var(--red); font-weight: 700; }
 
@@ -2159,7 +2166,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .stat-table td.sub-cell, .stat-table th:nth-child(3) { white-space: nowrap; }
 }
 
-.inj-list { margin: 0; padding-left: 18px; font-size: 11.5px; color: var(--sub); line-height: 1.6; }
+.inj-list { margin: 0; padding-left: 18px; font-size: 13px; color: var(--sub); line-height: 1.6; }
 .inj-list strong { color: var(--text); }
 
 .result-actions {
@@ -2186,7 +2193,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   flex: 1 0 auto; min-height: 42px; padding: 8px 10px 6px;
   border: 0; border-bottom: 3px solid transparent; background: none;
   color: var(--sub); white-space: nowrap; cursor: pointer;
-  font-family: var(--display); font-size: 15px; font-weight: 800;
+  font-family: var(--display); font-size: 17px; font-weight: 800;
   letter-spacing: 0.06em; text-transform: uppercase;
   transition: color .15s, border-color .15s;
 }
@@ -2200,7 +2207,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .series-round h4 {
   display: flex; align-items: center; gap: 10px;
   font-family: var(--display);
-  font-size: 15px; font-weight: 800;
+  font-size: 17px; font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text);
@@ -2221,7 +2228,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   border-radius: var(--r-m);
   padding: 0;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: 14px;
 }
 .series.you { border-color: var(--gold); }
 .series-row {
@@ -2233,7 +2240,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .series-row.lose { color: var(--muted); }
 .series-row .team-cell { flex: 1; min-width: 0; }
 .series-row > span:last-child {
-  font-family: var(--display); font-size: 24px; font-weight: 800; line-height: 1;
+  font-family: var(--display); font-size: 27px; font-weight: 800; line-height: 1;
   min-width: 26px; text-align: right; font-variant-numeric: tabular-nums;
 }
 .series-row.win > span:last-child { color: var(--gold); }
@@ -2251,13 +2258,13 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .champion h3 {
   background: var(--gold); color: #1a1400;
   padding: 6px 12px;
-  font-family: var(--display); font-size: 14px; font-weight: 800;
+  font-family: var(--display); font-size: 15.5px; font-weight: 800;
   text-transform: uppercase; letter-spacing: 0.14em;
 }
 .champion .champ-name {
   font-family: var(--display);
   padding: 14px 12px 0;
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -2268,7 +2275,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   gap: 9px;
   flex-wrap: wrap;
 }
-.champion p { color: var(--sub); font-size: 12.5px; margin: 8px 0 0; padding: 0 12px 14px; }
+.champion p { color: var(--sub); font-size: 14px; margin: 8px 0 0; padding: 0 12px 14px; }
 
 /* ---------------------------------------------------------------
    Les séries en direct
@@ -2288,9 +2295,9 @@ table.data .pts { font-weight: 900; color: var(--green); }
   padding: 10px 14px 8px; border-bottom: 1px solid var(--line-soft);
 }
 .live-head { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.live-ronde { font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
-.live-match { font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-.live-serie { font-size: 11.5px; color: var(--sub); font-weight: 700; }
+.live-ronde { font-family: var(--display); font-size: 17px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
+.live-match { font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.live-serie { font-size: 13px; color: var(--sub); font-weight: 700; }
 .live-close { position: static; flex: none; }
 
 .live-board {
@@ -2303,13 +2310,13 @@ table.data .pts { font-weight: 900; color: var(--green); }
   display: flex; align-items: center; gap: 6px; padding: 4px 9px 6px;
   background: var(--eq-band); color: var(--eq-ink);
   box-shadow: inset 0 -2px 0 var(--eq-stripe);
-  font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 11px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;
 }
 .live-eq.b .live-eq-band { flex-direction: row-reverse; }
-.live-eq-nom { padding: 6px 9px 0; font-size: 11px; font-weight: 700; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live-eq-nom { padding: 6px 9px 0; font-size: 12.5px; font-weight: 700; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .live-eq.b .live-eq-nom { text-align: right; }
 .live-eq-buts {
-  font-family: var(--display); font-size: 64px; line-height: 1; font-weight: 800;
+  font-family: var(--display); font-size: 71.5px; line-height: 1; font-weight: 800;
   padding: 4px 9px 8px; font-variant-numeric: tabular-nums;
 }
 .live-eq.b .live-eq-buts { text-align: right; }
@@ -2319,15 +2326,15 @@ table.data .pts { font-weight: 900; color: var(--green); }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   min-width: 86px; padding: 8px 6px; text-align: center;
 }
-.live-per { font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: 0.1em; color: var(--gold); }
-.live-temps { font-family: var(--display); font-size: 30px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
-.live-tirs { font-size: 10px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
+.live-per { font-family: var(--display); font-size: 14.5px; font-weight: 700; letter-spacing: 0.1em; color: var(--gold); }
+.live-temps { font-family: var(--display); font-size: 33.5px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.live-tirs { font-size: 11px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
 /* L'avantage numérique en cours, sous l'horloge : qui en profite, et ce qui reste. */
-.live-situation { display: none; margin-top: 2px; padding: 1px 7px; border-radius: 4px; background: var(--gold); color: #1a1400; font-family: var(--display); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; white-space: nowrap; }
+.live-situation { display: none; margin-top: 2px; padding: 1px 7px; border-radius: 4px; background: var(--gold); color: #1a1400; font-family: var(--display); font-size: 12.5px; font-weight: 800; letter-spacing: 0.06em; white-space: nowrap; }
 .live-situation.on { display: inline-block; }
 .live-ligne.punition { background: color-mix(in srgb, var(--eq-band, transparent) 14%, transparent); border: 1px solid color-mix(in srgb, var(--eq-band, transparent) 40%, transparent); color: var(--text); }
-.live-pun-mot { font-family: var(--display); font-size: 13px; letter-spacing: 0.1em; color: var(--live); margin-right: 4px; }
-.som-sit { display: inline-block; margin-right: 5px; padding: 0 5px; border-radius: 3px; font-family: var(--display); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; }
+.live-pun-mot { font-family: var(--display); font-size: 14.5px; letter-spacing: 0.1em; color: var(--live); margin-right: 4px; }
+.som-sit { display: inline-block; margin-right: 5px; padding: 0 5px; border-radius: 3px; font-family: var(--display); font-size: 12.5px; font-weight: 800; letter-spacing: 0.06em; }
 .som-sit.an { background: var(--gold); color: #1a1400; }
 .som-sit.dn { background: var(--live); color: #fff; }
 .som-pun { color: var(--sub); }
@@ -2336,27 +2343,27 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-etat { padding: 10px 14px 0; }
 .live-bilan { border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; background: var(--panel); }
 .live-bilan-titre {
-  padding: 7px 12px; font-family: var(--display); font-size: 18px; font-weight: 800;
+  padding: 7px 12px; font-family: var(--display); font-size: 20px; font-weight: 800;
   letter-spacing: 0.08em; text-transform: uppercase; background: var(--green); color: #04200f;
 }
 .live-bilan.perdu .live-bilan-titre { background: var(--live); color: #fff; }
-.live-coupe { padding: 10px 12px; font-family: var(--display); font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); border: 1px solid var(--gold); border-radius: var(--r-m); margin-bottom: 8px; text-align: center; }
-.live-autres { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
-.live-autres .k { font-size: 9.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.live-coupe { padding: 10px 12px; font-family: var(--display); font-size: 24.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); border: 1px solid var(--gold); border-radius: var(--r-m); margin-bottom: 8px; text-align: center; }
+.live-autres { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+.live-autres .k { font-size: 10.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
 .live-autre { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: baseline; }
-.live-autre .v { font-family: var(--display); font-size: 16px; font-weight: 800; color: var(--gold); }
+.live-autre .v { font-family: var(--display); font-size: 18px; font-weight: 800; color: var(--gold); }
 .live-autre .p { color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .live-autre > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .live-feed { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 4px; }
 .live-ligne {
   display: flex; align-items: baseline; gap: 8px; padding: 6px 10px;
-  border-radius: var(--r-s); font-size: 12.5px; line-height: 1.4;
+  border-radius: var(--r-s); font-size: 14px; line-height: 1.4;
   animation: ligneIn .25s ease;
 }
 @keyframes ligneIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .live-ligne .team-logo-img, .live-ligne .team-logo-inline { flex: none; align-self: center; }
-.live-tps { flex: none; font-family: var(--mono); font-size: 10.5px; color: var(--muted); min-width: 38px; }
+.live-tps { flex: none; font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 38px; }
 .live-ligne.arret { color: var(--sub); background: color-mix(in srgb, var(--eq-band, transparent) 9%, transparent); }
 .live-ligne.debut, .live-ligne.periode, .live-ligne.fin { color: var(--sub); background: rgba(255, 255, 255, 0.04); }
 .live-ligne.fin { color: var(--text); }
@@ -2365,10 +2372,10 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-ligne.but { background: var(--eq-band, var(--gold)); color: var(--eq-ink, #1a1400); box-shadow: inset 0 -2px 0 var(--eq-stripe, transparent); padding: 8px 10px 10px; }
 .live-ligne.but .live-tps { color: inherit; opacity: 0.75; }
 .live-ligne.but.gagnant { outline: 2px solid var(--gold); outline-offset: 1px; }
-.live-but-mot { font-family: var(--display); font-size: 15px; letter-spacing: 0.1em; margin-right: 4px; }
-.live-score { font-family: var(--display); font-weight: 800; font-size: 14px; margin-left: 4px; }
-.live-tally { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; letter-spacing: 0.1em; color: var(--muted); }
-.live-tally-sep { font-family: var(--display); font-size: 11px; letter-spacing: 0.06em; color: var(--sub); }
+.live-but-mot { font-family: var(--display); font-size: 17px; letter-spacing: 0.1em; margin-right: 4px; }
+.live-score { font-family: var(--display); font-weight: 800; font-size: 15.5px; margin-left: 4px; }
+.live-tally { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; letter-spacing: 0.1em; color: var(--muted); }
+.live-tally-sep { font-family: var(--display); font-size: 12.5px; letter-spacing: 0.06em; color: var(--sub); }
 .live-pastilles { color: var(--gold); }
 /* La bannière de but, par-dessus le tableau indicateur, le temps de la pause. */
 .live-board { position: relative; }
@@ -2380,8 +2387,8 @@ table.data .pts { font-weight: 900; color: var(--green); }
   font-family: var(--display); text-transform: uppercase; letter-spacing: 0.08em;
   animation: banniere 1.6s ease forwards; pointer-events: none;
 }
-.live-banniere span { font-size: 18px; font-weight: 700; }
-.live-banniere b { font-size: 30px; font-weight: 800; line-height: 1; }
+.live-banniere span { font-size: 20px; font-weight: 700; }
+.live-banniere b { font-size: 33.5px; font-weight: 800; line-height: 1; }
 @keyframes banniere { 0% { opacity: 0; transform: translateY(-50%) scale(0.92); } 12% { opacity: 1; transform: translateY(-50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
 .live-enchainer { flex: none; }
 
@@ -2419,18 +2426,18 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .hub-volet > * { flex: none; }
 .hub-volet .live-tableau tr.toi td { color: var(--gold); }
 .hub-volet .live-tableau tr.cut td { border-bottom: 2px solid var(--gold); }
-.hub-volet .live-tableau td.role { color: var(--muted); font-family: var(--display); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.hub-volet .live-tableau td.role { color: var(--muted); font-family: var(--display); font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; }
 .hub-volet .live-tableau tr.blesse td.nom { color: var(--live); }
-.hub-bl { font-size: 10.5px; font-weight: 800; color: var(--live); }
+.hub-bl { font-size: 12px; font-weight: 800; color: var(--live); }
 .hub-titre {
-  font-family: var(--display); font-size: 13px; font-weight: 800; letter-spacing: 0.1em;
+  font-family: var(--display); font-size: 14.5px; font-weight: 800; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--muted); margin-top: 6px;
   display: flex; align-items: center; gap: 8px;
 }
 .hub-titre::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
-.hub-note, .hub-carte-note { font-size: 12.5px; color: var(--sub); line-height: 1.45; }
+.hub-note, .hub-carte-note { font-size: 14px; color: var(--sub); line-height: 1.45; }
 .hub-carte-note { padding: 8px 12px 10px; }
-.live-vide { font-size: 12.5px; color: var(--muted); padding: 8px 0; }
+.live-vide { font-size: 14px; color: var(--muted); padding: 8px 0; }
 
 /* Le tableau indicateur de ton match, dans le volet : la même grille que le
    direct, sans le filet du dessous, et cliquable vers le sommaire. */
@@ -2444,43 +2451,43 @@ table.data .pts { font-weight: 900; color: var(--green); }
    sous son nom, un mot sur les affrontements de la saison. */
 .hub-match { border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel); overflow: hidden; }
 .hub-match-titre {
-  padding: 5px 12px; font-family: var(--display); font-size: 12px; font-weight: 800;
+  padding: 5px 12px; font-family: var(--display); font-size: 13.5px; font-weight: 800;
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold);
   border-bottom: 1px solid var(--line-soft);
 }
 .hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 8px; padding: 10px 12px 8px; }
-.hub-vs { align-self: center; font-family: var(--display); font-size: 16px; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); }
+.hub-vs { align-self: center; font-family: var(--display); font-size: 18px; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); }
 .hub-eq { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
 .hub-eq-band {
   display: flex; align-items: center; gap: 6px; padding: 5px 8px;
   background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 -2px 0 var(--eq-stripe);
-  font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: 0.06em;
+  font-family: var(--display); font-size: 17px; font-weight: 800; letter-spacing: 0.06em;
 }
 .hub-eq.b .hub-eq-band { flex-direction: row-reverse; }
-.hub-eq-nom { padding: 6px 8px 0; font-size: 11px; font-weight: 700; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hub-eq-fiche { padding: 2px 8px 7px; font-family: var(--display); font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub-eq-nom { padding: 6px 8px 0; font-size: 12.5px; font-weight: 700; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub-eq-fiche { padding: 2px 8px 7px; font-family: var(--display); font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-eq.b .hub-eq-nom, .hub-eq.b .hub-eq-fiche { text-align: right; }
-.hub-match-note { padding: 0 12px 10px; font-size: 12px; color: var(--sub); }
+.hub-match-note { padding: 0 12px 10px; font-size: 13.5px; color: var(--sub); }
 
 /* TES MATCHS, un par ligne : la journée, le verdict, le pointage, l'adversaire. */
 .hub-jeux { display: flex; flex-direction: column; gap: 4px; }
 .hub-jeu {
   display: flex; align-items: center; gap: 8px; padding: 6px 10px;
   border: 1px solid var(--line); border-radius: var(--r-s); background: var(--panel);
-  font-size: 12.5px; cursor: pointer;
+  font-size: 14px; cursor: pointer;
 }
 .hub-jeu:hover, .hub-jeu:focus-visible { border-color: var(--ui-accent); }
 .hub-jeu.v { border-left: 3px solid var(--green); }
 .hub-jeu.d { border-left: 3px solid var(--live); }
 .hub-jeu.or { border-color: var(--gold); }
-.hub-jeu-n { flex: none; min-width: 30px; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
-.hub-jeu-res { flex: none; min-width: 22px; font-family: var(--display); font-size: 14px; font-weight: 800; }
+.hub-jeu-n { flex: none; min-width: 30px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.hub-jeu-res { flex: none; min-width: 22px; font-family: var(--display); font-size: 15.5px; font-weight: 800; }
 .hub-jeu.v .hub-jeu-res { color: var(--green); }
 .hub-jeu.d .hub-jeu-res { color: var(--live); }
-.hub-jeu-score { flex: none; font-family: var(--display); font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hub-jeu-score { flex: none; font-family: var(--display); font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .hub-jeu-adv { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hub-jeu em { flex: none; font-style: normal; font-size: 9px; font-weight: 900; color: var(--live); }
-.hub-jeu-serie { flex: none; font-family: var(--display); font-size: 12px; color: var(--muted); }
+.hub-jeu em { flex: none; font-style: normal; font-size: 10px; font-weight: 900; color: var(--live); }
+.hub-jeu-serie { flex: none; font-family: var(--display); font-size: 13.5px; color: var(--muted); }
 
 /* UNE SÉRIE, en tableau indicateur : deux rangées, les victoires en gros. */
 .hub-series { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
@@ -2491,18 +2498,18 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .hub-sr-band {
   display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 4px;
   background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 -2px 0 var(--eq-stripe);
-  font-family: var(--display); font-size: 13px; font-weight: 800; letter-spacing: 0.06em;
+  font-family: var(--display); font-size: 14.5px; font-weight: 800; letter-spacing: 0.06em;
 }
-.hub-sr-nom { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hub-sr .live-pastilles { font-size: 11px; letter-spacing: 0.1em; }
-.hub-sr-w { font-family: var(--display); font-size: 26px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; min-width: 22px; text-align: right; }
+.hub-sr-nom { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub-sr .live-pastilles { font-size: 12.5px; letter-spacing: 0.1em; }
+.hub-sr-w { font-family: var(--display); font-size: 29px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; min-width: 22px; text-align: right; }
 .hub-sr.lose { color: var(--muted); }
 .hub-sr.lose .hub-sr-band { opacity: 0.75; }
 .hub-sr.win .hub-sr-w { color: var(--gold); }
 .hub-serie.grande .hub-sr { padding: 9px 12px; }
-.hub-serie.grande .hub-sr-w { font-size: 34px; }
-.hub-serie.grande .hub-sr-nom { font-size: 13px; }
-.hub-serie-etat { padding: 6px 12px 8px; border-top: 1px solid var(--line-soft); font-size: 12px; font-weight: 700; color: var(--sub); }
+.hub-serie.grande .hub-sr-w { font-size: 38px; }
+.hub-serie.grande .hub-sr-nom { font-size: 14.5px; }
+.hub-serie-etat { padding: 6px 12px 8px; border-top: 1px solid var(--line-soft); font-size: 13.5px; font-weight: 700; color: var(--sub); }
 
 /* Le tableau des séries en cours : un nœud à venir est en pointillé, un nœud
    en cours n'a pas encore de gagnant. */
@@ -2520,7 +2527,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 .live-onglets button {
   flex: none; padding: 9px 12px; background: none; border: 0; border-bottom: 2px solid transparent;
-  color: var(--sub); font-family: var(--display); font-size: 14px; font-weight: 700;
+  color: var(--sub); font-family: var(--display); font-size: 15.5px; font-weight: 700;
   letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; white-space: nowrap;
 }
 .live-onglets button.on { color: var(--gold); border-bottom-color: var(--gold); }
@@ -2529,15 +2536,15 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-stats[hidden], .live-onglets[hidden], .live-feed[hidden] { display: none; }
 .live-tableau { border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel); overflow: hidden; }
 .live-tableau-titre {
-  padding: 7px 10px; font-family: var(--display); font-size: 13px; font-weight: 800;
+  padding: 7px 10px; font-family: var(--display); font-size: 14.5px; font-weight: 800;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); border-bottom: 1px solid var(--line-soft);
 }
-.live-tableau table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.live-tableau table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .live-tableau th, .live-tableau td { padding: 5px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line-soft); }
-.live-tableau th { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.live-tableau th { font-family: var(--display); font-size: 13.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .live-tableau td.nom, .live-tableau th:nth-child(2), .live-tableau td.eq, .live-tableau th:nth-child(3) { text-align: left; }
 .live-tableau td.nom { max-width: 160px; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 5px; }
-.live-tableau td.eq { color: var(--muted); font-size: 11px; }
+.live-tableau td.eq { color: var(--muted); font-size: 12.5px; }
 .live-tableau .heros { color: var(--gold); font-weight: 800; }
 .live-tableau tr.toi td { color: var(--gold); }
 .live-tableau tbody tr:last-child td { border-bottom: 0; }
@@ -2545,11 +2552,11 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-face th:first-child { text-align: left; color: var(--sub); font-weight: 700; text-transform: none; letter-spacing: 0; font-family: inherit; width: 40%; }
 .live-face td { white-space: normal; text-align: center; }
 .live-face thead th:not(:first-child) { text-align: center; }
-.live-but-ligne { display: flex; align-items: baseline; gap: 6px; padding: 5px 10px; font-size: 12px; border-bottom: 1px solid var(--line-soft); }
+.live-but-ligne { display: flex; align-items: baseline; gap: 6px; padding: 5px 10px; font-size: 13.5px; border-bottom: 1px solid var(--line-soft); }
 .live-but-ligne:last-child { border-bottom: 0; }
 .live-but-ligne.toi b { color: var(--gold); }
-.live-xe { color: var(--sub); font-size: 11px; }
-.live-vide { color: var(--muted); font-size: 12.5px; padding: 20px; text-align: center; }
+.live-xe { color: var(--sub); font-size: 12.5px; }
+.live-vide { color: var(--muted); font-size: 14px; padding: 20px; text-align: center; }
 /* Les buts de ton match du jour, sous le tableau indicateur. */
 .live-buteurs { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel); max-height: 138px; overflow-y: auto; }
 @media (max-width: 479.98px) {
@@ -2558,8 +2565,8 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 
 @media (max-width: 479.98px) {
-  .live-eq-buts { font-size: 48px; }
-  .live-temps { font-size: 24px; }
+  .live-eq-buts { font-size: 54px; }
+  .live-temps { font-size: 27px; }
   .live-horloge { min-width: 70px; }
   .live-eq-nom { display: none; }
 }
@@ -2575,7 +2582,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 
 /* Tablette : deux colonnes de cartes, en-tête sur une ligne */
 @media (min-width: 680px) {
-  body { font-size: 14px; }
+  body { font-size: 15.5px; }
   .game { padding: 14px 16px; }
   .topbar { padding: 9px 16px; }
   .topbar-inner { gap: 14px; }
@@ -2590,7 +2597,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   }
   .capgauge-row, .capgauge-row.small { display: contents; }
   .capgauge .track { margin: 0; }
-  .capgauge-row.small span:first-child { font-size: 11px; color: var(--sub); }
+  .capgauge-row.small span:first-child { font-size: 12.5px; color: var(--sub); }
   .capgauge-max { margin-left: -8px; }
   /* Le bloc de la roulette : le nom à gauche, les relances à droite, la bande
      des chiffres dessous sur toute la largeur. */
@@ -2601,7 +2608,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .dash { padding: 9px 18px; }
   .dash .dash-card { display: flex; align-items: baseline; gap: 9px; padding-left: 16px; margin-left: 16px; }
   .dash-card h3 { min-height: 0; margin: 0; }
-  .dash-big.sm { font-size: 18px; }
+  .dash-big.sm { font-size: 20px; }
   .h3-long { display: inline; }
   .pane { --pane-pad: 14px; }
   .pane-head { flex-direction: row; align-items: center; justify-content: space-between; }
@@ -2616,9 +2623,9 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .opt-text { flex: 1; }
   .seg { flex: none; }
   .result { padding: 20px 22px 24px; }
-  .result .score { font-size: 76px; }
-  .rs-cell b { font-size: 28px; }
-  .rs-cell .k { font-size: 9.5px; }
+  .result .score { font-size: 85px; }
+  .rs-cell b { font-size: 31.5px; }
+  .rs-cell .k { font-size: 10.5px; }
   .line-slots { grid-template-columns: repeat(3, 1fr); }
   .line-slots.pair { grid-template-columns: repeat(2, 1fr); }
   .line-slots.wide { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
@@ -2646,11 +2653,11 @@ table.data .pts { font-weight: 900; color: var(--green); }
   }
   .tabs { display: none; }
   .actionbar-inner { justify-content: center; }
-  .actionbar .btn.go { flex: 0 1 520px; font-size: 18px; padding: 12px 18px; }
+  .actionbar .btn.go { flex: 0 1 520px; font-size: 20px; padding: 12px 18px; }
 }
 
 @media (min-width: 1400px) {
-  .spin-name { font-size: 30px; }
+  .spin-name { font-size: 33.5px; }
 }
 
 /* Écrans très larges : assez de place pour les six colonnes ET l'alignement
@@ -2708,10 +2715,10 @@ table.data .pts { font-weight: 900; color: var(--green); }
   border-radius: var(--r-m);
   padding: 12px 13px;
 }
-.blocked-title { font-size: 12.5px; font-weight: 900; color: var(--red); }
-.blocked p { margin: 5px 0 9px; font-size: 12px; color: var(--sub); line-height: 1.5; }
+.blocked-title { font-size: 14px; font-weight: 900; color: var(--red); }
+.blocked p { margin: 5px 0 9px; font-size: 13.5px; color: var(--sub); line-height: 1.5; }
 .blocked strong { color: var(--text); }
-.blocked .btn { width: 100%; font-size: 12px; }
+.blocked .btn { width: 100%; font-size: 13.5px; }
 @media (min-width: 680px) { .blocked .btn { width: auto; } }
 
 /* =====================================================================
@@ -2729,15 +2736,15 @@ table.data .pts { font-weight: 900; color: var(--green); }
   flex: none; padding: 6px 11px; border-radius: var(--r-s); cursor: pointer;
   border: 1px solid var(--line); background: var(--panel-2, #0f1e30);
   color: var(--sub); white-space: nowrap;
-  font-family: var(--display); font-size: 13.5px; font-weight: 700;
+  font-family: var(--display); font-size: 15px; font-weight: 700;
   letter-spacing: 0.05em; text-transform: uppercase;
 }
 .stat-tab.on { background: var(--ui-accent); color: var(--ui-on-accent); border-color: var(--ui-accent); }
-.data td.sub-cell { color: var(--muted); font-size: 10.5px; }
+.data td.sub-cell { color: var(--muted); font-size: 12px; }
 
 /* ---- les matchs d'une série : des cartes de pointage ---- */
 .serie-recit {
-  padding: 8px 11px 0; font-size: 11px; line-height: 1.45; color: var(--sub);
+  padding: 8px 11px 0; font-size: 12.5px; line-height: 1.45; color: var(--sub);
   border-top: 1px solid var(--line-soft);
 }
 /*
@@ -2761,7 +2768,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .mcard:hover { border-color: var(--ui-accent); transform: translateY(-1px); }
 .mcard-top {
   padding: 5px 8px; background: var(--blue-deep); color: #fff;
-  font-size: 9.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
   text-align: center;
 }
 .mcard.ot .mcard-top { background: var(--live); }
@@ -2781,18 +2788,18 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .mcard-row {
   display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
 }
-.mcard-row b { font-family: var(--display); font-size: 26px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.mcard-eq { font-size: 11.5px; font-weight: 700; }
+.mcard-row b { font-family: var(--display); font-size: 29px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.mcard-eq { font-size: 13px; font-weight: 700; }
 .mcard-row.lose { color: var(--muted); }
 .mcard-row.lose b { font-weight: 700; }
 .mcard-foot {
-  font-size: 9.5px; color: var(--muted); font-family: var(--mono);
+  font-size: 10.5px; color: var(--muted); font-family: var(--mono);
   padding-top: 5px; border-top: 1px solid var(--line-soft);
 }
 
 /* ---- le sommaire ---- */
-.sommaire { font-size: 12.5px; }
-.som-ot { color: var(--gold); font-size: 11px; font-weight: 700; }
+.sommaire { font-size: 14px; }
+.som-ot { color: var(--gold); font-size: 12.5px; font-weight: 700; }
 .som-recap {
   padding: 10px 12px; margin-bottom: 12px; border-radius: var(--r-m);
   background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2);
@@ -2803,13 +2810,13 @@ table.data .pts { font-weight: 900; color: var(--green); }
   display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
   padding: 7px 2px; border-bottom: 1px solid var(--line-soft);
 }
-.som-ligne span:nth-child(2) { font-size: 19px; font-weight: 800; }
-.som-ligne span:nth-child(3) { color: var(--muted); font-size: 11px; min-width: 54px; text-align: right; }
+.som-ligne span:nth-child(2) { font-size: 21.5px; font-weight: 800; }
+.som-ligne span:nth-child(3) { color: var(--muted); font-size: 12.5px; min-width: 54px; text-align: right; }
 .som-per { margin-bottom: 12px; }
 .som-per-head {
   display: flex; justify-content: space-between; align-items: baseline;
   padding-bottom: 5px; margin-bottom: 5px; border-bottom: 1px solid var(--line);
-  font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  font-size: 12.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--sub);
 }
 .som-tirs { color: var(--muted); font-weight: 600; letter-spacing: 0; text-transform: none; }
@@ -2817,30 +2824,30 @@ table.data .pts { font-weight: 900; color: var(--green); }
   display: grid; grid-template-columns: 42px 18px 1fr; gap: 4px 6px;
   padding: 6px 0; border-bottom: 1px solid var(--line-soft);
 }
-.som-tps { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.som-tps { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
 .som-qui { min-width: 0; }
-.som-aides { color: var(--sub); font-size: 11px; }
+.som-aides { color: var(--sub); font-size: 12.5px; }
 .som-aides.sans { color: var(--muted); font-style: italic; }
-.som-recit { grid-column: 3 / -1; color: var(--muted); font-size: 11px; line-height: 1.45; }
-.som-vide { color: var(--muted); font-size: 11.5px; padding: 4px 0; }
+.som-recit { grid-column: 3 / -1; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.som-vide { color: var(--muted); font-size: 13px; padding: 4px 0; }
 .som-gard {
   display: flex; justify-content: space-between; gap: 10px;
-  padding: 5px 0; border-bottom: 1px solid var(--line-soft); font-size: 11.5px;
+  padding: 5px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px;
 }
 .som-gard span:last-child { color: var(--sub); }
 
 /* ---- les trois façons de jouer, et les renforts du mode express ---- */
 .seg-wrap { flex-wrap: wrap; }
 .seg-wrap button { display: flex; flex-direction: column; align-items: center; gap: 1px; line-height: 1.2; }
-.seg-wrap button em { font-style: normal; font-size: 9.5px; opacity: 0.75; font-weight: 600; }
-.opt-note { margin: 6px 0 0; font-size: 10.5px; color: var(--muted); }
+.seg-wrap button em { font-style: normal; font-size: 10.5px; opacity: 0.75; font-weight: 600; }
+.opt-note { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
 /* La note d'un mode prend toute la largeur de sa rangée : posée en troisième
    dans une rangée horizontale, elle écrasait la description en colonne. */
 .opt-modes { flex-wrap: wrap; }
 .opt-select {
   flex: 1 1 100%; min-height: 38px; padding: 6px 10px; border-radius: var(--r-s);
   border: 1px solid var(--line); background: var(--panel); color: var(--text);
-  font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: 0.04em;
+  font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: 0.04em;
 }
 .opt-select[hidden] { display: none; }
 .opt-modes .opt-note { flex: 1 1 100%; }
@@ -2856,7 +2863,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   background: rgba(0, 0, 0, 0.25); display: grid; place-items: center;
 }
 .live-visage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.35); transform-origin: 50% 42%; }
-.live-visage .headshot-fallback { font-size: 24px; opacity: 0.4; }
+.live-visage .headshot-fallback { font-size: 27px; opacity: 0.4; }
 .live-ban-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 
 /* ---- un nom cliquable ouvre la fiche, une équipe ouvre sa page ---- */
@@ -2874,49 +2881,49 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .table-wrap.haute { max-height: 62vh; }
 table.data tr.gagne td.stat.v { color: var(--green); font-weight: 900; }
 table.data tr.perdu td.stat.d { color: var(--red); font-weight: 900; }
-table.data td small { font-size: 9px; color: var(--muted); }
+table.data td small { font-size: 10px; color: var(--muted); }
 
 /* ---- le récit de la saison ---- */
-.recit-saison p { font-size: 13px; line-height: 1.55; color: var(--text); margin: 0 0 9px; }
-.recit-saison p:first-child { font-size: 14px; }
+.recit-saison p { font-size: 14.5px; line-height: 1.55; color: var(--text); margin: 0 0 9px; }
+.recit-saison p:first-child { font-size: 15.5px; }
 
 /* ---- le calendrier : une journée, ses seize matchs ---- */
 .cal-barre { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
 .cal-barre input[type="range"] { flex: 1; min-width: 0; accent-color: var(--ui-accent); }
-.cal-titre { font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; min-width: 96px; text-align: center; }
-.btn.small { padding: 4px 10px; min-height: 30px; font-size: 14px; }
+.cal-titre { font-family: var(--display); font-size: 17px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; min-width: 96px; text-align: center; }
+.btn.small { padding: 4px 10px; min-height: 30px; font-size: 15.5px; }
 .cal-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 .cal-match {
   position: relative; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px;
   border: 1px solid var(--line); border-radius: var(--r-s); background: var(--panel-2);
 }
 .cal-match.toi { border-color: var(--gold); }
-.cal-eq { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 12px; }
-.cal-eq b { margin-left: auto; font-family: var(--display); font-size: 16px; font-weight: 800; }
+.cal-eq { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 13.5px; }
+.cal-eq b { margin-left: auto; font-family: var(--display); font-size: 18px; font-weight: 800; }
 .cal-eq.lose { color: var(--muted); }
 .cal-eq.win b { color: var(--text); }
 .cal-eq.toi span { color: var(--gold); }
-.cal-ot { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: 900; color: var(--live); }
-.equipes-series .cal-eq { font-size: 11.5px; }
+.cal-ot { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 10px; font-weight: 900; color: var(--live); }
+.equipes-series .cal-eq { font-size: 13px; }
 
 /* ---- la saison en direct : le fil des journées ---- */
 .live-jour { justify-content: space-between; }
-.live-jour-matchs { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 2px 10px 8px; font-size: 11.5px; color: var(--sub); }
+.live-jour-matchs { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 2px 10px 8px; font-size: 13px; color: var(--sub); }
 .live-jour-match { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .live-jour-match .g { color: var(--text); font-weight: 800; }
 .live-jour-match .p { color: var(--muted); }
 .live-jour-match .sep { color: var(--muted); }
-.live-jour-match em { font-style: normal; font-size: 9px; font-weight: 900; color: var(--live); }
+.live-jour-match em { font-style: normal; font-size: 10px; font-weight: 900; color: var(--live); }
 .live-eq.perdant .live-eq-buts { opacity: 0.55; }
 .live-board .live-horloge:only-child { grid-column: 1 / -1; }
 .live-autre.toi span { color: var(--gold); }
 .slot.renfort { opacity: 0.72; border-style: dashed; }
 .slot-salary.renfort {
-  color: var(--muted); font-weight: 700; font-size: 9.5px;
+  color: var(--muted); font-weight: 700; font-size: 10.5px;
   letter-spacing: 0.05em; text-transform: uppercase;
 }
 
-.series-legende { margin: -2px 0 10px; font-size: 11px; color: var(--muted); }
+.series-legende { margin: -2px 0 10px; font-size: 12.5px; color: var(--muted); }
 
 /* L'ARBRE DES SÉRIES. Sept colonnes (trois rondes de chaque côté, la finale
    au centre) qui convergent ; chaque colonne répartit ses séries sur toute
@@ -2930,7 +2937,7 @@ table.data td small { font-size: 9px; color: var(--muted); }
 .bk-noeuds { grid-row: 2; display: flex; flex-direction: column; justify-content: space-around; gap: 6px; min-width: 0; }
 .bk-col.finale .bk-noeuds { justify-content: center; gap: 10px; }
 .bk-ronde {
-  font-family: var(--display); font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  font-family: var(--display); font-size: 12.5px; font-weight: 700; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--muted); text-align: center; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; padding-bottom: 2px;
 }
@@ -2945,11 +2952,11 @@ table.data td small { font-size: 9px; color: var(--muted); }
 .bk-serie.g::after, .bk-serie.d::after { content: ""; position: absolute; top: 50%; width: 6px; height: 1px; background: var(--line); }
 .bk-serie.g::after { right: -7px; }
 .bk-serie.d::after { left: -7px; }
-.bk-row { display: flex; align-items: center; gap: 5px; padding: 4px 6px; font-size: 11.5px; font-weight: 700; min-width: 0; }
+.bk-row { display: flex; align-items: center; gap: 5px; padding: 4px 6px; font-size: 13px; font-weight: 700; min-width: 0; }
 .bk-row + .bk-row { border-top: 1px solid var(--line-soft); }
 .bk-row img, .bk-row svg { width: 16px; height: 16px; flex: none; }
 .bk-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bk-row b { font-family: var(--display); font-size: 17px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.bk-row b { font-family: var(--display); font-size: 19px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .bk-row.win { color: var(--text); background: rgba(255, 255, 255, 0.03); }
 .bk-row.win b { color: var(--gold); }
 .bk-row.lose { color: var(--muted); }
@@ -2958,16 +2965,16 @@ table.data td small { font-size: 9px; color: var(--muted); }
   border: 1px solid var(--gold); border-radius: var(--r-s); text-align: center;
 }
 .bk-champion img, .bk-champion svg { width: 34px; height: 34px; }
-.bk-champ-mot { font-family: var(--display); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
-.bk-champion b { font-family: var(--display); font-size: 15px; font-weight: 800; line-height: 1.1; }
+.bk-champ-mot { font-family: var(--display); font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+.bk-champion b { font-family: var(--display); font-size: 17px; font-weight: 800; line-height: 1.1; }
 .series { scroll-margin-top: calc(var(--topbar-h, 55px) + 52px); }
 .cal-match.ouvrable, tr.ouvrable { cursor: pointer; }
 tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 .cal-match.ouvrable:hover, .cal-match.ouvrable:focus-visible { border-color: var(--ui-accent); }
-.som-xe { color: var(--muted); font-size: 11px; font-weight: 600; }
+.som-xe { color: var(--muted); font-size: 12.5px; font-weight: 600; }
 .series-legende .lg {
   display: inline-block; border-radius: 3px; padding: 0 5px; margin-right: 2px;
-  font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
 }
 .series-legende .lg-or { background: var(--gold); color: #1a1400; }
 .series-legende .lg-ot { background: var(--live); color: #fff; }
@@ -2975,5 +2982,5 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 /* La fiche n'a pas de bandeau : le poste y reste une pastille. */
 .pos-chip {
   display: inline-block; padding: 1px 7px; border-radius: 999px;
-  font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em;
+  font-size: 10.5px; font-weight: 900; letter-spacing: 0.06em;
 }
