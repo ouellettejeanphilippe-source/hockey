@@ -3359,3 +3359,216 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
    filet, jamais les deux bordures. */
 .cal-match { border-color: transparent; }
 .cal-match.toi { border-color: var(--gold); }
+
+/* =====================================================================
+   LE HAUT EST UN TABLEAU INDICATEUR DE DIFFUSION
+
+   JP : *ya encore trop d'encadrés à mon goût dans le haut, pis avec le
+   noir, ça manque de couleur et punch, c'est drabe un peu* — puis, dans la
+   foulée : *pense à un broadcast télé*.
+
+   Les deux remarques ont la même réponse. Un bandeau de télévision n'empile
+   pas des cartes arrondies qui flottent : il pose des BANDES pleine largeur,
+   bord à bord, un drapeau de couleur au flanc, et sépare ses chiffres par
+   des filets. Et il n'a pas peur de la couleur — le bloc d'identité est un
+   APLAT PLEIN de la couleur du club, encre mesurée par-dessus, parce que
+   c'est là qu'on regarde. Le noir reste le décor : il est tout ce qu'il y a
+   sous la bande.
+
+   Ce qui disparaît : le cadre du bloc de la roulette, les trois cadres des
+   relances, les sept cadres des pastilles, les trois cadres de la barre
+   d'outils, les trois pastilles des accès du haut. Dix-sept contours pour
+   un nom d'équipe et sept sigles.
+   ===================================================================== */
+
+/* ---- 1. Le bloc de la roulette touche les deux bords ---- */
+.draft {
+  margin: -12px -12px 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--panel-0);
+  border-bottom: 1px solid var(--line);
+}
+/* Le filet de couleur en tête de bande : la ligne d'un bandeau de diffusion,
+   et le seul endroit du bloc où la couleur VIVE du club passe en trait. */
+.draft::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--team-line);
+  z-index: 3;
+}
+.spin-card { padding: 0; }
+
+/* ---- 2. L'identité est un aplat plein aux couleurs du club ---- */
+.spin-top {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 14px;
+  background: var(--team-band);
+  color: var(--team-ink);
+  /* Le liseré de la secondaire, dessiné SOUS l'aplat comme dans le bandeau
+     d'une carte. Pas de drapeau au flanc : la secondaire d'un club est
+     souvent le noir, et un drapeau noir sur le noir de la page n'existe
+     pas — c'est la bande elle-même qui porte la couleur, bord à bord. */
+  border-bottom: 2px solid var(--team-stripe);
+}
+/* Tout ce qui vit sur l'aplat se mesure à l'encre du bandeau, jamais à une
+   couleur d'interface : selon le club, cette encre est blanche ou bleu nuit,
+   et un `rgba(255,255,255,…)` écrit en dur disparaît une fois sur deux. */
+.spin-top .spin-kicker { color: inherit; opacity: 0.88; }
+.spin-top .spin-name { color: inherit; }
+.spin-top .spin-season {
+  background: color-mix(in srgb, var(--team-ink) 16%, transparent);
+  border: 0;
+  border-radius: 2px;
+  color: inherit;
+}
+/* L'écusson est posé à même la bande : dans un bandeau de diffusion, un
+   logo n'a pas de cadre, il EST la marque. */
+.spin-top .spin-logo {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  width: 44px;
+  height: 44px;
+}
+.spin-top .spin-ext {
+  color: inherit;
+  background: none;
+  border: 0;
+  opacity: 0.7;
+}
+.spin-top .spin-ext:hover { opacity: 1; }
+/* L'écusson en filigrane, au fond de la bande. */
+.spin-watermark {
+  right: -34px; top: 50%; transform: translateY(-50%);
+  opacity: 0.13; filter: none;
+}
+
+/* ---- 3. Les relances : trois cellules, deux filets ---- */
+.rerolls {
+  margin-top: 0;
+  gap: 0;
+  padding: 0 14px;
+}
+.reroll {
+  border: 0;
+  border-left: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
+  padding: 9px 4px;
+}
+.reroll:first-child { border-left: 0; }
+.reroll:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--team-line) 12%, transparent);
+  border-color: var(--line-soft);
+}
+
+/* ---- 4. La bande des chiffres : une seule bande noire, des filets ---- */
+.dash {
+  background: transparent;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* ---- 5. La barre d'outils du bassin : un filet dessous, pas une boîte ---- */
+.pool-tools .search, .pool-tools .select {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.pool-tools .search:focus-within, .pool-tools .select:focus { border-bottom-color: var(--gold); }
+.pool-tools .seg { background: transparent; border: 0; padding: 0; gap: 4px; }
+.pool-tools .seg button {
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  min-height: 36px;
+}
+.pool-tools .seg button.on {
+  background: transparent;
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+/* ---- 6. Sept pastilles deviennent sept onglets de poste ---- */
+.chip {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+}
+.chip:hover { color: var(--text); }
+.chip.on {
+  background: color-mix(in srgb, var(--gold) 14%, transparent);
+  border-bottom-color: var(--gold);
+  color: var(--text);
+}
+.chip.on .chip-need { background: none; color: var(--gold); }
+.chip.on .chip-need.full { color: var(--green); background: none; }
+@container pool (max-width: 559.98px) {
+  .chip { border-radius: 0; }
+}
+
+/* ---- 7. La barre du haut : trois icônes, aucune pastille ---- */
+.topbar {
+  /* Le filet du haut prend la couleur VIVE du club : la couleur brute d'un
+     club sombre ne se voyait pas sur le charbon de la barre. */
+  box-shadow: inset 0 3px 0 var(--team-line);
+}
+.icon-btn {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  padding: 7px 5px;
+}
+.icon-btn:hover { background: transparent; border-color: transparent; color: var(--gold); }
+
+/* ---- 8. Les en-têtes de colonne deviennent des rails ---- */
+/* Un titre de poste dans une boîte arrondie par-dessus des cartes qui en
+   sont déjà : le drapeau de couleur et un filet disent la même chose. */
+@container pool (max-width: 999.98px) {
+  .pool.by-pos .pool-col-head {
+    border: 0;
+    border-left: 3px solid currentColor;
+    border-radius: 0;
+    background: var(--bg);
+  }
+}
+@container pool (min-width: 1000px) {
+  .pool.by-pos .pool-col-head {
+    border: 0;
+    border-left: 3px solid currentColor;
+    border-bottom: 2px solid var(--pos-line, var(--line-soft));
+    border-radius: 0;
+    background: var(--panel);
+  }
+}
+
+/* ---- 9. L'accent, à l'intérieur d'une carte, se mesure sur la carte ---- */
+/* La carte porte maintenant la vraie couleur du club, saturée : le rouge de
+   Washington écrit sur le rouge de Washington ne se lisait plus. `--team-or`
+   (`viveSurFond`, js/logos.js) garde la couleur du club quand elle passe le
+   4,5:1 sur ce fond-là, et rend la main à l'encre du fond sinon. */
+.pcard, .slot { --gold: var(--team-or, var(--gold)); }
+
+/* ---- 10. Les trois clubs du loto : trois cellules, deux filets ---- */
+/* Même grammaire que les relances juste au-dessus : sous la bande, tout est
+   une cellule séparée d'un filet, jamais une pastille encadrée. */
+.spin-clubs { margin-top: 0; gap: 0; padding: 0 14px; }
+.spin-club {
+  border: 0;
+  border-left: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
+  min-height: 42px;
+}
+.spin-club:first-child { border-left: 0; }
+a.spin-club:hover {
+  background: color-mix(in srgb, var(--team-line) 12%, transparent);
+  border-color: var(--line-soft);
+}
+/* En loto il n'y a qu'une relance : elle prend toute la rangée, sinon
+   « Relancer les trois » se coupe dans un tiers d'écran. */
+.rerolls:not(:has(> :nth-child(2))) { grid-template-columns: minmax(0, 1fr); }
