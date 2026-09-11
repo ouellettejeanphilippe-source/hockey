@@ -11,7 +11,8 @@
  */
 
 import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles } from './sim.js';
-import { recitDeBut, recitDeMatch, recitDeSaison, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
+import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
+import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
 
@@ -214,6 +215,8 @@ function montrerVolet(cle) {
     }
   });
   document.querySelectorAll('#resultHost .result-pane').forEach(p => { p.hidden = p.dataset.volet !== cle; });
+  // Un deck caché mesure zéro : il se remesure en s'ouvrant.
+  brancherEntractes($('resultHost'));
   // L'onglet reste en vue : si la page a défilé sous la barre, on y remonte.
   const haut = tabs.getBoundingClientRect().top;
   const barre = parseFloat(getComputedStyle(tabs).top) || 0;
@@ -262,7 +265,13 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     </tr>`).join('');
 
   const stats = teams.length > 1 ? leagueStats(teams) : null;
-  const recit = teams.length > 1 ? recitDeSaison(you, rank, nTeams, { nomEquipe: teamShort }) : [];
+  /*
+   * LE RAPPORT D'ENTRACTE REMPLACE LE RÉCIT. JP : *au lieu de résumé en
+   * phrases, trop répétitives, fait un genre de tableau de stats, des
+   * tableaux même, style ce qu'on voit pendant les entractes*. Les cartons
+   * se balaient du doigt (js/entracte.js) et sortent des compteurs.
+   */
+  const cartons = teams.length > 1 ? deck(cartesDeSaison({ you, teams, rang: rank, ctx: { teamShort } }), { cle: 'saison' }) : '';
 
   const injuries = you.injuriesLog && you.injuriesLog.length
     ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${esc(i.player.n)}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
@@ -289,9 +298,9 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   // palmarès restent construits onglet par onglet), seul l'affichage change.
   const volets = {
     bilan: `<div class="note">${note}</div>
-      ${recit.length ? `<div class="result-section recit-saison">
-        <h3>Le récit de la saison</h3>
-        ${recit.map(p => `<p>${esc(p)}</p>`).join('')}
+      ${cartons ? `<div class="result-section">
+        <h3>Le rapport de saison</h3>
+        ${cartons}
       </div>` : ''}
       <div class="result-section">
         <h3>Forces des NHL Stars</h3>
@@ -369,6 +378,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     </div>`;
 
   brancherOnglets($('resultTabs'));
+  brancherEntractes($('resultHost'));
   if (stats) brancherPalmares($('palm-saison'), stats, 'saison');
 
   if (calendrier.length) {
@@ -678,6 +688,21 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
     rangs.set(b, { g: b.marqueur ? rang(b.marqueur, 'g') : 0, a: (b.passeurs || []).map(p => rang(p, 'a')) });
   }
 
+  /*
+   * UNE TOURNURE NE SE RÉPÈTE PAS DANS LE MÊME MATCH. Les phrases de but
+   * sont tirées d'une banque finie : à six buts, deux d'entre eux tombaient
+   * sur « sur une passe transversale parfaite », et la deuxième lecture
+   * décrédibilisait la première. La deuxième s'efface donc — le but, lui,
+   * garde sa ligne de sommaire.
+   */
+  const ditesDeja = new Set();
+  const recitUnique = b => {
+    const t = recitDeBut(b);
+    if (ditesDeja.has(t)) return '';
+    ditesDeja.add(t);
+    return t;
+  };
+
   const parPeriode = [1, 2, 3, 4].map(per => {
     const buts = f.buts.filter(b => periodeDe(b.instant) === per).map(b => ({ ...b, type: 'but', rang: rangs.get(b) }));
     const punitions = (f.punitions || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'punition' }));
@@ -703,7 +728,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
         <span class="som-tps">${tempsDeJeu(b.instant)}</span>
         <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
         <span class="som-qui">${situation}${lien(b.marqueur)} <span class="som-xe">(${ord(r.g)})</span> ${aides}</span>
-        <span class="som-recit">${esc(recitDeBut(b))}</span>
+        <span class="som-recit">${esc(recitUnique(b))}</span>
       </div>`;
     }).join('') || '<div class="som-vide">Aucun but.</div>';
     return `<div class="som-per">
@@ -721,8 +746,11 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
      téléphone repoussaient le sommaire sous le pli pour rien. */
   $('gameModalTitle').innerHTML = `${esc(titre)} · ${esc(teamShort(A))} — ${esc(teamShort(B))}`
     + (f.ot ? ' <span class="som-ot">prolongation</span>' : '');
+  // LES CARTONS D'ABORD, PAS UNE PHRASE. Le sommaire s'ouvrait sur un résumé
+  // écrit ; les trois étoiles et le tableau du match disent la même chose en
+  // chiffres, et ne se répètent pas d'un match à l'autre.
   $('gameModalBody').innerHTML = `
-    <div class="som-recap">${esc(recitDeMatch(f, teamShort(A), teamShort(B), tirsA, tirsB))}</div>
+    ${deck(cartesDeMatch({ f, A, B, ctx: { teamShort } }), { cle: 'match' })}
     <div class="som-lignes">
       <div class="som-ligne"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
       <div class="som-ligne"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
@@ -734,4 +762,5 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       ${gard(f.gardienB, f.arrets.B, tirsA, B)}
     </div>`;
   openModal('gameModal');
+  brancherEntractes($('gameModalBody'));
 }

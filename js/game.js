@@ -95,6 +95,14 @@ const G = {
    * qui veut voir le meilleur pointeur du vestiaire sans se demander à quel
    * poste il joue.
    */
+  /*
+   * LA PALETTE. JP : *bleu foncé pis jaune, ça fait cheap* ; *plusieurs
+   * palettes ?* ; *je joue sur écrans OLED, donc pas de limites de noir*.
+   * Trois jeux de jetons dans style.css, posés sur <html> : graphite (le
+   * défaut, neutre et laiton), oled (le vrai noir) et glace (ardoise et
+   * acier). Rien d'autre ne change dans l'interface.
+   */
+  palette: 'graphite',  // graphite | oled | glace
   poolView: 'POS',      // POS | LIST
   sortBy: 'PTS',
   search: '',
@@ -323,11 +331,17 @@ function clearSave() {
   try { localStorage.removeItem('cap82_save'); } catch { /* ignore */ }
 }
 
+const PALETTES = ['graphite', 'oled', 'glace'];
+/** Pose la palette sur <html> : c'est le seul endroit qui la connaît. */
+function appliquerPalette() {
+  document.documentElement.dataset.palette = G.palette;
+}
+
 function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode, epoque: G.epoque,
-      repechage: G.repechage,
+      repechage: G.repechage, palette: G.palette,
       onlyFit: G.onlyFit, sortBy: G.sortBy, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
@@ -341,6 +355,7 @@ function loadOpts() {
     if (typeof o.onlyFit === 'boolean') G.onlyFit = o.onlyFit;
     if (typeof o.sortBy === 'string') G.sortBy = o.sortBy;
     if (o.poolView === 'POS' || o.poolView === 'LIST') G.poolView = o.poolView;
+    if (PALETTES.includes(o.palette)) G.palette = o.palette;
     // Un mode disparu (l'ancien « Par unité ») retombe sur le classique.
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
     // Les saisons ne sont pas encore chargées ici : `boot` vérifie après.
@@ -424,6 +439,7 @@ function applyTeamColors(team) {
   root.setProperty('--team-band', band.bg);
   root.setProperty('--team-ink', band.ink);
   root.setProperty('--team-stripe', band.stripe);
+  root.setProperty('--team-stripe-ink', band.stripeInk);
 }
 
 const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
@@ -610,6 +626,7 @@ async function boot() {
   });
   try {
     loadOpts();
+    appliquerPalette();
     await loadIndex();
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
     if (G.epoque && !state.index.seasons.includes(G.epoque)) G.epoque = null;
@@ -753,6 +770,15 @@ function setOption(key, val) {
     // faire. Une commande visible doit toujours faire quelque chose.
     if (G.poolView === 'POS' && G.filter !== 'ALL') { G.filter = 'ALL'; renderFilters(); }
   }
+  else if (key === 'palette') {
+    // La palette ne touche qu'à des couleurs : pas de nouvelle partie.
+    if (!PALETTES.includes(val) || val === G.palette) return;
+    G.palette = val;
+    appliquerPalette();
+    saveOpts();
+    syncOptionsUI();
+    return;
+  }
   else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
@@ -804,6 +830,7 @@ function syncOptionsUI() {
     poolView: G.poolView,
     ligue: G.epoque ? 'UNE' : 'TOUTES',
     repechage: G.repechage,
+    palette: G.palette,
   };
   const d = $('modeDesc');
   if (d) d.textContent = MODE().desc;
@@ -1355,6 +1382,8 @@ function playerCardEl(p) {
   el.style.setProperty('--team-band', band.bg);
   el.style.setProperty('--team-ink', band.ink);
   el.style.setProperty('--team-stripe', band.stripe);
+  // Le bouton « Signer » porte la couleur secondaire du club (voir style.css).
+  el.style.setProperty('--team-stripe-ink', band.stripeInk);
 
   // La carte ne porte que l'essentiel : qui, combien, ce qu'il vaut et où il
   // va. Le détail des statistiques est dans la fiche, à un clic.
