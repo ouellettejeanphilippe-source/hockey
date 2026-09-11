@@ -31,7 +31,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague,
+  SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, compterFeuilles,
   LANCERS_BASE, CIBLE_PCT_TIR,
 } from '../js/sim.js';
 import { seasonLancers as seasonLancersDe } from '../js/ratings.js';
@@ -61,7 +61,8 @@ while (equipes.length < 32) {
   equipes.push(createTeam(`${tag} ${shard.season}`, tag, autoRoster(pool), { season: shard.season }));
 }
 
-  simulateLeague(equipes);
+  const ligue = simulateLeague(equipes);
+  equipes.feuilles = ligue.calendrier.flat().map(m => m.feuille);
   return equipes;
 }
 
@@ -97,6 +98,28 @@ for (const t of equipes) {
   matchs += t.games;
 }
 
+/*
+ * 5. LA FEUILLE REDONNE LA FICHE. `compterFeuilles` relit les sommaires de
+ * match et doit retrouver EXACTEMENT ce que le moteur a compté en jouant —
+ * matchs, buts, passes, points, +/-, tirs, punitions ; matchs, victoires,
+ * blanchissages, lancers, arrêts et buts alloués d'un gardien. C'est ce qui
+ * permet à l'écran de saison de dire la fiche d'un joueur à une date donnée
+ * sans rien inventer : il ne compte que les feuilles déjà révélées.
+ */
+let ecartsFiche = 0, joueursVerifies = 0;
+for (const l of ligues) {
+  const compte = compterFeuilles(l.feuilles || []);
+  const vide = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0 };
+  for (const t of l) for (const p of joueursDe(t)) {
+    const c = compte.get(p) || vide;
+    joueursVerifies++;
+    const attendu = p.p === 'G'
+      ? [[c.gp, p.simGP], [c.w, p.simW], [c.bl, p.simSO], [c.sa, p.simSA], [c.sv, p.simSV], [c.ga, p.simGA]]
+      : [[c.gp, p.simGP], [c.g, p.simG], [c.a, p.simA], [c.pts, p.simPTS], [c.pm, p.simPM], [c.sh, p.simSH], [c.pim, p.simPIM]];
+    if (attendu.some(([x, y]) => x !== (y || 0))) ecartsFiche++;
+  }
+}
+
 const butsSimules = buts, lancersSimules = lancersPour;
 const ok = x => (x === 0 ? '✓' : `✗ ${x}`);
 console.log(`\n${LIGUES} ligue(s) de 32 équipes, ${matchs / 2} matchs\n`);
@@ -105,6 +128,7 @@ console.log(`  2. lancers du gardien = arrêts + buts       ${ok(ecartsGardien)}
 console.log(`  3. passes <= 2 par but                      ${ok(tropDePasses)}`);
 console.log(`  4. lancers pour = lancers contre            `
   + `${lancersPour === lancersContre ? '✓' : `✗ ${lancersPour} vs ${lancersContre}`}`);
+console.log(`  5. la feuille redonne la fiche du joueur    ${ok(ecartsFiche)} (${joueursVerifies} joueurs)`);
 
 /* ---------- les joueurs se reconnaissent-ils ? ---------- */
 /*
@@ -173,7 +197,7 @@ if (avecAN.length) {
 }
 console.log('');
 
-// Les quatre égalités sont des invariants, pas des repères : si l'une casse,
+// Les cinq égalités sont des invariants, pas des repères : si l'une casse,
 // le script échoue, et l'Action « Vérifier » avec lui.
-const casses = [ecartsButs, ecartsGardien, tropDePasses, lancersPour !== lancersContre ? 1 : 0].filter(Boolean).length;
+const casses = [ecartsButs, ecartsGardien, tropDePasses, lancersPour !== lancersContre ? 1 : 0, ecartsFiche].filter(Boolean).length;
 if (casses) { console.error(`${casses} égalité(s) de la feuille de match cassée(s)`); process.exit(1); }
