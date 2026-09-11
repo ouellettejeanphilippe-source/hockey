@@ -24,7 +24,7 @@ import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague,
-  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, teamStrength } from './sim.js';
+  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
@@ -106,13 +106,26 @@ const G = {
    * UNE SAISON, LA COUPE CETTE ANNÉE-LÀ. JP : *ajouter un mode : choisir une
    * saison et tenter de gagner la Coupe cette année-là*. `epoque` est une
    * saison (« 1985-86 ») ou null. Fixée, la roulette ne sort que des clubs
-   * de cette année-là (la relance d'année n'a plus de sens et se retire), le
-   * renfort express en vient aussi, et la ligue est faite de TOUS ses vrais
+   * de cette année-là tant que le repêchage y reste (voir `repechage` : la
+   * relance d'année n'a alors plus de sens et se retire), le renfort express
+   * en vient aussi, et la ligue est faite de TOUS ses vrais
    * clubs plutôt que de 31 clubs tirés dans 55 ans — quatorze en 1970-71,
-   * vingt et un en 1985-86, trente-deux en 2024-25. Les séries prennent
+   * vingt et un en 1985-86, trente-deux en 2024-25 — PLUS la tienne, qui ne
+   * retranche personne (la cédule sait jouer un effectif impair). Les séries prennent
    * seize équipes, ou la plus grande puissance de deux qui tient.
    */
   epoque: null,
+  /*
+   * LE FANTASY DRAFT TOUTES ÉPOQUES, DANS UNE SAISON À GAGNER. JP : *possible
+   * de fantasy draft toutes les saisons en mode saison avec année à gagner*.
+   * La ligue (`epoque`) dit CONTRE QUI tu joues ; le repêchage dit D'OÙ
+   * viennent tes joueurs. « SAISON » est le jeu d'origine — les clubs de
+   * l'année choisie seulement ; « TOUTES » ouvre la roulette aux 55 saisons
+   * et te laisse bâtir une équipe de rêve pour aller chercher la Coupe de
+   * 1970-71. Sans saison fixée le réglage ne veut rien dire : la roulette
+   * sort déjà n'importe quelle année.
+   */
+  repechage: 'SAISON',  // SAISON | TOUTES (n'a d'effet qu'avec une saison fixée)
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -121,6 +134,12 @@ const G = {
 };
 
 const MODE = () => MODES[G.mode] || MODES.CLASSIQUE;
+/**
+ * La saison à laquelle la ROULETTE est tenue : celle de la ligue quand elle
+ * est fixée et que le repêchage reste dans l'année, sinon null — et null veut
+ * dire « n'importe laquelle des 55 ». La ligue, elle, lit toujours `G.epoque`.
+ */
+const epoqueDuTirage = () => (G.epoque && G.repechage === 'SAISON') ? G.epoque : null;
 /** Les cases que TU combles : les 23 d'habitude, six en express. */
 const casesActives = () => casesDuMode(G.mode);
 /** Le premier vestiaire sorti — celui qui colore l'interface en tirage VESTIAIRE. */
@@ -188,6 +207,27 @@ const caseCourante = () => (G.target !== null && !G.roster[G.target] && casesAct
   ? SLOTS[G.target] : nextNeed();
 
 /**
+ * LE RANG AUQUEL LES TROIS CLUBS TE TENDENT UN JOUEUR, EN LOTO.
+ *
+ * C'était le rang de la CASE (le deuxième ailier gauche pour le deuxième
+ * trio), et ça se contournait : on signait le numéro un à la première case,
+ * on le DÉPLAÇAIT au quatrième trio, la case du premier trio redevenait
+ * libre, et les trois clubs retendaient leurs numéros un. JP : *patcher que
+ * je peux repêcher pleins d'étoiles en mode loto en changeant joueur de
+ * trio*. Le rang ne peut donc plus remonter : c'est le rang de la case OU le
+ * nombre de joueurs que tu as déjà signés à cette position-là, le plus bas
+ * des deux — l'échelle descend, peu importe où tu les ranges ensuite. En
+ * remplissant les cases dans l'ordre, les deux nombres sont égaux et rien ne
+ * change. Les renforts de l'express ne comptent pas : ils ne sont pas de ton
+ * repêchage.
+ */
+function rangDeLaMain(c) {
+  if (c.scratch) return 0;
+  const deja = signes().filter(p => fits(p, c) && getPositionPenalty(p, c) === 0).length;
+  return Math.max(c.unit, deja);
+}
+
+/**
  * LES JOUEURS QU'ON TE PROPOSE À CE TOUR. En VESTIAIRE, tout le club sorti.
  * En LOTO, la main : le joueur que chacun des trois clubs met à la case
  * courante, dérivée à chaque rendu et jamais stockée — viser une autre case
@@ -200,10 +240,11 @@ function candidats() {
   const c = caseCourante();
   if (!c) return [];
   const exclude = new Set(picked().map(getPersonKey));
+  const rang = rangDeLaMain(c);
   const vus = new Set();
   const out = [];
   for (const v of G.tirage) {
-    const p = joueurEquivalent(v.pool, c, exclude);
+    const p = joueurEquivalent(v.pool, c, exclude, rang);
     if (!p || vus.has(getPersonKey(p))) continue;
     vus.add(getPersonKey(p));
     out.push(p);
@@ -242,6 +283,7 @@ function saveGame() {
       target: G.target,
       mode: G.mode,
       epoque: G.epoque,
+      repechage: G.repechage,
       renfort: G.renfort,
     }));
   } catch { /* stockage indisponible */ }
@@ -255,6 +297,7 @@ function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode, epoque: G.epoque,
+      repechage: G.repechage,
       onlyFit: G.onlyFit, sortBy: G.sortBy, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
@@ -272,6 +315,7 @@ function loadOpts() {
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
     // Les saisons ne sont pas encore chargées ici : `boot` vérifie après.
     if (typeof o.epoque === 'string') G.epoque = o.epoque;
+    if (o.repechage === 'SAISON' || o.repechage === 'TOUTES') G.repechage = o.repechage;
   } catch { /* ignore */ }
 }
 
@@ -315,6 +359,7 @@ async function restoreSave() {
     // express reprise en classique n'aurait plus le bon plafond.
     G.mode = data.mode;
     G.epoque = typeof data.epoque === 'string' && state.index.seasons.includes(data.epoque) ? data.epoque : null;
+    G.repechage = data.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
     G.renfort = data.renfort || null;
     G.tirage = tirage;
     G.roster = data.roster || {};
@@ -680,6 +725,18 @@ function setOption(key, val) {
   else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
+  else if (key === 'repechage') {
+    // D'où viennent les joueurs, sans toucher à la ligue qu'on affronte.
+    const v = val === 'TOUTES' ? 'TOUTES' : 'SAISON';
+    if (v === G.repechage) return;
+    G.repechage = v;
+    saveOpts();
+    syncOptionsUI();
+    newGame().then(() => toast(v === 'TOUTES'
+      ? `Repêchage sur 55 saisons. La Coupe à gagner reste celle de ${G.epoque}.`
+      : `Repêchage dans les clubs de ${G.epoque}.`));
+    return;
+  }
   else if (key === 'ligue') {
     // Toutes les époques, ou une saison fixée : la partie repart, parce que
     // le vestiaire en cours vient d'une autre année.
@@ -715,6 +772,7 @@ function syncOptionsUI() {
     tirage: MODE().tirage,
     poolView: G.poolView,
     ligue: G.epoque ? 'UNE' : 'TOUTES',
+    repechage: G.repechage,
   };
   const d = $('modeDesc');
   if (d) d.textContent = MODE().desc;
@@ -729,6 +787,9 @@ function syncOptionsUI() {
     sel.value = G.epoque || state.index.seasons[state.index.seasons.length - 1];
     sel.hidden = !G.epoque;
   }
+  // Le repêchage ne se pose que si une saison est fixée.
+  const rep = $('repechageRow');
+  if (rep) rep.hidden = !G.epoque;
   document.querySelectorAll('.seg').forEach(seg => {
     seg.querySelectorAll('button').forEach(b => {
       b.classList.toggle('on', b.dataset.val === cur[seg.dataset.opt]);
@@ -793,7 +854,7 @@ function mesureTags(p, full = false) {
 async function vestiaireAuHasard(deja) {
   const seasons = state.index.seasons;
   for (let essai = 0; essai < 12; essai++) {
-    const season = G.epoque || rnd(seasons);
+    const season = epoqueDuTirage() || rnd(seasons);
     let shard;
     try { shard = await getShard(season); } catch { continue; }
     const teams = Object.keys(shard.byTeam)
@@ -829,7 +890,7 @@ async function nextSpin(newSeason = true, newTeam = true) {
   if (!MODE().loto) {
     const cur = vestiaire();
     for (let attempt = 0; attempt < 25 && besoin; attempt++) {
-      const season = G.epoque || ((!newSeason && cur) ? cur.season : rnd(seasons));
+      const season = epoqueDuTirage() || ((!newSeason && cur) ? cur.season : rnd(seasons));
       let shard;
       try { shard = await getShard(season); } catch { continue; }
 
@@ -851,7 +912,7 @@ async function nextSpin(newSeason = true, newTeam = true) {
     G.loading = false;
     applyTeamColors(vestiaire()?.team);
     saveGame();
-    if (!G.epoque) prefetch([rnd(seasons), rnd(seasons)]);
+    if (!epoqueDuTirage()) prefetch([rnd(seasons), rnd(seasons)]);
     return;
   }
 
@@ -883,7 +944,7 @@ async function nextSpin(newSeason = true, newTeam = true) {
   G.loading = false;
   applyTeamColors(null);
   saveGame();
-  if (!G.epoque) prefetch([rnd(seasons), rnd(seasons)]);
+  if (!epoqueDuTirage()) prefetch([rnd(seasons), rnd(seasons)]);
 }
 
 /* =====================================================================
@@ -1006,7 +1067,7 @@ function renderSpin() {
       </div>
       ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
       <div class="rerolls">
-        <button id="rrS" class="reroll" ${G.left.season && need && !G.epoque ? '' : 'disabled'} title="${G.epoque ? `La ligue est fixée à ${esc(G.epoque)} : pas d'autre année` : 'Retirer une autre saison au hasard'}">
+        <button id="rrS" class="reroll" ${G.left.season && need && !epoqueDuTirage() ? '' : 'disabled'} title="${epoqueDuTirage() ? `Le repêchage est fixé à ${esc(G.epoque)} : pas d'autre année` : 'Retirer une autre saison au hasard'}">
           <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season} restantes</span></button>
         <button id="rrT" class="reroll" ${G.left.team && need ? '' : 'disabled'} title="Garder la saison, changer d'équipe">
           <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team} restantes</span></button>
@@ -2198,9 +2259,8 @@ async function buildOpponents(count) {
   // `exclude` s'accumule : deux équipes de la ligue ne peuvent pas habiller
   // le même joueur-saison, ce qui arrivait pour un joueur échangé quand les
   // deux clubs de la transaction sortaient tous les deux au tirage.
-  // Une saison fixée prend TOUS ses clubs, dans l'ordre du shard ; la ligue
-  // doit compter un nombre pair d'équipes avec la tienne, et c'est le club
-  // le plus faible qui cède sa place quand il le faut (voir runSeason).
+  // Une saison fixée prend TOUS ses clubs, dans l'ordre du shard, et personne
+  // n'est retranché : ta formation est la 33e équipe (voir runSeason).
   const out = [];
   for (const c of G.epoque ? cands : cands.sort(() => Math.random() - 0.5)) {
     if (!G.epoque && out.length >= count) break;
@@ -2222,7 +2282,7 @@ async function runSeason(opts = {}) {
   G.done = true;
   const mb = $('mainBtn');
   mb.disabled = true;
-  mb.textContent = 'Simulation de la ligue… 1 312 matchs';
+  mb.textContent = 'Simulation de la ligue… 82 matchs par équipe';
   await new Promise(r => setTimeout(r, 20));
 
   let opponents = [];
@@ -2231,12 +2291,12 @@ async function runSeason(opts = {}) {
   } else {
     try { opponents = await buildOpponents(31); } catch { opponents = []; }
   }
-  // Un nombre pair d'équipes, la tienne comprise. Dans une saison fixée,
-  // c'est le club le plus faible qui cède sa place, pas un club au hasard.
-  if (opponents.length && opponents.length % 2 === 0) {
-    if (G.epoque) opponents.sort((a, b) => teamStrength(b).total - teamStrength(a).total);
-    opponents.pop();
-  }
+  // TU ES LA 33e ÉQUIPE. Une saison fixée met dans la ligue TOUS ses vrais
+  // clubs, et la tienne par-dessus : trente-trois en 2024-25, vingt-deux en
+  // 1985-86. C'était le club le plus faible qui cédait sa place pour garder
+  // l'effectif pair ; la cédule sait maintenant faire jouer un nombre impair
+  // d'équipes (une en congé chaque journée, 82 matchs pour tout le monde —
+  // voir `simulateLeague`), donc plus personne n'est retranché.
 
   const you = createTeam('NHL Stars', 'YOU', G.roster, { isPlayer: true });
   let r, teams, leaders = [], calendrier = [], graine = null;
@@ -2286,7 +2346,7 @@ async function chargerRenfort() {
   G.renfort = null;
   const actives = new Set(casesActives().map(s => s.i));
   for (let essai = 0; essai < 14; essai++) {
-    const season = G.epoque || rnd(state.index.seasons);
+    const season = epoqueDuTirage() || rnd(state.index.seasons);
     let shard;
     try { shard = await getShard(season); } catch { continue; }
     const teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 20);

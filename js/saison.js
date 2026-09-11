@@ -157,6 +157,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   const compte = new Map();
   const equipeDe = new Map();
   for (const t of teams) for (const p of Object.values(t.roster || {})) if (p) equipeDe.set(p, t);
+  // Le gardien de rappel n'a pas de case, mais il a une équipe.
+  for (const t of teams) if (t.rappelG) equipeDe.set(t.rappelG, t);
   const fiche = new Map(teams.map(t => [t, { W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0 }]));
   const miens = [];   // { j, k, m } : tes matchs joués, dans l'ordre
   const cumuler = m => {
