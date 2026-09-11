@@ -126,6 +126,16 @@ const G = {
    * sort déjà n'importe quelle année.
    */
   repechage: 'SAISON',  // SAISON | TOUTES (n'a d'effet qu'avec une saison fixée)
+  /*
+   * LA CASE DE LA MAIN (tirage LOTO). JP : *déplacer joueur en mode loto
+   * devrait pas changer le choix de joueur*. La main se dérivait de la
+   * PREMIÈRE CASE VIDE à chaque rendu : déplacer un signé d'un trio à
+   * l'autre changeait donc la case courante, et les trois joueurs offerts
+   * changeaient avec elle — on rangeait son alignement et son choix se
+   * dérobait. La case de la main est maintenant épinglée : elle ne bouge
+   * qu'en signant, en relançant, ou en visant expressément une autre case.
+   */
+  mainCase: null,       // index de case, ou null (se recalcule alors)
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -207,6 +217,24 @@ const caseCourante = () => (G.target !== null && !G.roster[G.target] && casesAct
   ? SLOTS[G.target] : nextNeed();
 
 /**
+ * LA CASE DE LA MAIN, en LOTO : celle pour laquelle les trois clubs t'ont
+ * tendu un joueur. Elle est ÉPINGLÉE — elle ne change qu'en signant (la case
+ * se remplit), en relançant, ou en visant expressément une autre case, parce
+ * que viser est un geste volontaire. Déplacer ou permuter des joueurs déjà
+ * signés ne la touche pas : ranger son alignement ne doit pas dérober le
+ * choix qu'on est en train de faire.
+ */
+function caseDeLaMain() {
+  // Viser une case recompose la main des mêmes trois clubs : c'est voulu.
+  if (G.target !== null && !G.roster[G.target] && casesActives().includes(SLOTS[G.target])) G.mainCase = G.target;
+  const epinglee = G.mainCase !== null ? SLOTS[G.mainCase] : null;
+  if (epinglee && !G.roster[G.mainCase] && casesActives().includes(epinglee)) return epinglee;
+  const s = nextNeed();
+  G.mainCase = s ? s.i : null;
+  return s;
+}
+
+/**
  * LE RANG AUQUEL LES TROIS CLUBS TE TENDENT UN JOUEUR, EN LOTO.
  *
  * C'était le rang de la CASE (le deuxième ailier gauche pour le deuxième
@@ -229,15 +257,16 @@ function rangDeLaMain(c) {
 
 /**
  * LES JOUEURS QU'ON TE PROPOSE À CE TOUR. En VESTIAIRE, tout le club sorti.
- * En LOTO, la main : le joueur que chacun des trois clubs met à la case
- * courante, dérivée à chaque rendu et jamais stockée — viser une autre case
- * la recompose des mêmes clubs. Les joueurs déjà signés sont exclus de
- * l'alignement, donc un club qui ressort montre son trio recomposé sans eux.
+ * En LOTO, la main : le joueur que chacun des trois clubs met à la case de
+ * la main (épinglée, voir `caseDeLaMain`) — viser une autre case la
+ * recompose des mêmes clubs, déplacer un joueur signé n'y touche pas. Les
+ * joueurs déjà signés sont exclus de l'alignement, donc un club qui ressort
+ * montre son trio recomposé sans eux.
  */
 function candidats() {
   if (!G.tirage.length) return [];
   if (!MODE().loto) return vestiaire().pool;
-  const c = caseCourante();
+  const c = caseDeLaMain();
   if (!c) return [];
   const exclude = new Set(picked().map(getPersonKey));
   const rang = rangDeLaMain(c);
@@ -259,7 +288,7 @@ function candidats() {
  */
 const openSlots = p => {
   let libres = casesActives().filter(s => !G.roster[s.i] && fits(p, s));
-  if (MODE().loto) { const c = caseCourante(); libres = libres.filter(s => s === c); }
+  if (MODE().loto) { const c = caseDeLaMain(); libres = libres.filter(s => s === c); }
   return libres.sort((a, b) => slotFitScore(p, a) - slotFitScore(p, b) || a.i - b.i);
 };
 
@@ -281,6 +310,7 @@ function saveGame() {
       left: G.left,
       tirage: G.tirage.map(v => ({ season: v.season, team: v.team })),
       target: G.target,
+      mainCase: G.mainCase,
       mode: G.mode,
       epoque: G.epoque,
       repechage: G.repechage,
@@ -366,6 +396,7 @@ async function restoreSave() {
     G.relances = Number.isFinite(data.relances) ? data.relances : MODE().relances;
     G.left = data.left || { ...REROLLS };
     G.target = data.target ?? null;
+    G.mainCase = Number.isInteger(data.mainCase) && SLOTS[data.mainCase] ? data.mainCase : null;
     applyTeamColors(MODE().loto ? null : tirage[0].team);
     return true;
   } catch {
@@ -1743,6 +1774,8 @@ function slotEl(s) {
       toast('Touche une autre case pour déplacer ou permuter.');
     } else {
       G.target = (G.target === s.i ? null : s.i);
+      // Retirer sa visée rend la main à la première case vide.
+      if (G.target === null) G.mainCase = null;
       if (G.target !== null) {
         setView('pool');
         toast(`Case ciblée : ${slotShort(s)}. ${MODE().loto ? 'La main se recompose pour cette case.' : 'Les signatures iront là.'}`);
@@ -2406,6 +2439,7 @@ async function reprendreAlignement(entree) {
   G.roster = roster;
   G.tirage = [];
   G.target = null;
+  G.mainCase = null;
   G.selectedSlot = null;
   G.done = false;
   G.ligue = null;
@@ -2422,6 +2456,7 @@ async function newGame() {
   G.relances = MODE().relances;
   G.left = { ...REROLLS };
   G.target = null;
+  G.mainCase = null;
   G.selectedSlot = null;
   G.done = false;
   G.search = '';

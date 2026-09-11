@@ -464,6 +464,9 @@ export function runPlayoffs(top16) {
   // match — ou qu'il a passé à la fin. Le mystère tient à ce seul ordre.
   ouvrirSeries({
     series: G.series, rondes: RONDES, you: top16.find(t => t.isPlayer) || null,
+    // La saison est finie et `separerSeries` vient de rendre à chaque fiche
+    // ses chiffres de saison : l'écran des séries peut donc la montrer.
+    saison: { teams: (G.ligue ? G.ligue.teams : top16), enSeries: top16.length },
     ctx: { esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
     onTermine: () => dessinerTableauDesSeries(host, n, champion),
   });

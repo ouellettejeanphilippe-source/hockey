@@ -2429,6 +2429,52 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .hub-volet .live-tableau td.role { color: var(--muted); font-family: var(--display); font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; }
 .hub-volet .live-tableau tr.blesse td.nom { color: var(--live); }
 .hub-bl { font-size: 12px; font-weight: 800; color: var(--live); }
+/* LE MENU : les pastilles de choix (patineurs / gardiens, les équipes), les
+   en-têtes qui trient, et le tableau qui défile en x dans sa boîte. JP :
+   *penser comme un menu de NHL avec des onglets … avec tris, plus moins,
+   tirs, pourcentage*. Une pastille dit ce qu'on regarde, un en-tête dit
+   comment c'est rangé, et l'or marque la colonne de tri comme il marque la
+   colonne vedette. */
+.hub-chips {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.hub-chips::-webkit-scrollbar { display: none; }
+.hub-chips button {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 11px; min-height: 34px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px;
+  color: var(--sub); font-family: var(--display); font-size: 14px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+}
+.hub-chips button.on { background: var(--ui-accent); border-color: var(--ui-accent); color: #04121f; }
+.hub-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.hub-table th.tri { cursor: pointer; user-select: none; }
+.hub-table th.tri:hover { color: var(--text); }
+.hub-table th.tri-on { color: var(--gold); }
+.hub-table th.tri-on i { font-style: normal; font-size: 10px; margin-left: 2px; }
+.hub-table td.tri-on { color: var(--text); font-weight: 800; }
+.hub-table .heros.tri-on { color: var(--gold); }
+.hub-plus {
+  width: 100%; padding: 8px; background: var(--panel-2); border: 0; border-top: 1px solid var(--line-soft);
+  color: var(--sub); font-family: var(--display); font-size: 13.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.hub-plus:hover { color: var(--text); background: var(--panel-3); }
+.hub-table-note { padding: 6px 10px 8px; font-size: 12.5px; color: var(--muted); }
+/* L'en-tête de l'équipe ouverte : l'aplat de son bandeau, sa fiche dessous. */
+.hub-eq-entete { border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; background: var(--panel); }
+.hub-eq-entete-band {
+  display: flex; align-items: center; gap: 8px; padding: 7px 11px;
+  background: var(--eq-band); color: var(--eq-ink);
+  box-shadow: inset 0 -2px 0 var(--eq-stripe);
+  font-family: var(--display); font-size: 16px; font-weight: 800; letter-spacing: 0.04em;
+}
+.hub-eq-entete-fiche {
+  padding: 7px 11px; font-family: var(--display); font-size: 15px; letter-spacing: 0.05em;
+  color: var(--sub); font-variant-numeric: tabular-nums;
+}
+
 .hub-titre {
   font-family: var(--display); font-size: 14.5px; font-weight: 800; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--muted); margin-top: 6px;

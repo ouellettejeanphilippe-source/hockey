@@ -56,66 +56,230 @@ function coquille(label) {
 function onglets(barre, volet, liste, rendre) {
   let courant = liste[0].cle;
   barre.innerHTML = liste.map(o => `<button type="button" data-onglet="${o.cle}" class="${o.cle === courant ? 'on' : ''}">${o.titre}</button>`).join('');
+  // La pastille choisie reste en vue : la rangée des équipes en compte
+  // trente-trois, et la tienne est rarement la première.
+  const apresRendu = () => {
+    // On déplace la RANGÉE de pastilles, jamais le volet : `scrollIntoView`
+    // faisait descendre le volet jusqu'aux pastilles du bas et on ouvrait le
+    // classement final au 21e rang.
+    volet.querySelectorAll('.hub-chips').forEach(rangee => {
+      const on = rangee.querySelector('button.on');
+      if (on) rangee.scrollLeft = on.offsetLeft - (rangee.clientWidth - on.offsetWidth) / 2;
+    });
+  };
   const montrer = cle => {
     courant = cle;
     barre.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.onglet === cle));
     volet.innerHTML = rendre(cle);
     volet.scrollTop = 0;
+    apresRendu();
   };
   barre.querySelectorAll('button').forEach(b => { b.onclick = () => montrer(b.dataset.onglet); });
-  return { montrer, rafraichir: () => { volet.innerHTML = rendre(courant); }, courant: () => courant };
+  return { montrer, rafraichir: () => { volet.innerHTML = rendre(courant); apresRendu(); }, courant: () => courant };
 }
 
-/* Un tableau de meneurs : rang, nom, équipe, colonnes, la vedette en or. */
-function tableauMeneurs(ctx, titre, lignes, colonnes, heros) {
-  if (!lignes.length) return '';
-  return `<div class="live-tableau"><div class="live-tableau-titre">${titre}</div>
-    <table><thead><tr><th>#</th><th>Joueur</th><th>Éq.</th>${colonnes.map(c => `<th class="${c === heros ? 'heros' : ''}">${c}</th>`).join('')}</tr></thead>
-    <tbody>${lignes.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}"><td>${i + 1}</td><td class="nom">${ctx.esc(l.nom)}</td><td class="eq">${ctx.esc(l.eq)}</td>${l.vals.map((v, k) => `<td class="${colonnes[k] === heros ? 'heros' : ''}">${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-}
+/* =====================================================================
+   LES TABLEAUX DE JOUEURS — le menu, pas la vitrine
 
-/* Les meneurs d'un compte de feuilles : pointeurs, buteurs, gardiens. */
-function meneursHtml(ctx, compte, equipeDe, you, titre, minGardien = 5) {
-  const entrees = [...compte.entries()];
-  const ligne = (p, vals) => ({ nom: nom(p), eq: ctx.tagCourt(equipeDe.get(p) || { tag: '?' }), toi: equipeDe.get(p) === you, vals });
-  const pat = entrees.filter(([p]) => p.p !== 'G');
-  const pointeurs = pat.slice().sort((a, b) => b[1].pts - a[1].pts || b[1].g - a[1].g).slice(0, 15).map(([p, c]) => ligne(p, [c.g, c.a, c.pts]));
-  const buteurs = pat.slice().sort((a, b) => b[1].g - a[1].g || b[1].pts - a[1].pts).slice(0, 10).map(([p, c]) => ligne(p, [c.g, c.a, c.pts]));
-  const gardiens = entrees.filter(([p, c]) => p.p === 'G' && c.gp >= minGardien).sort((a, b) => b[1].w - a[1].w || (b[1].sv / Math.max(1, b[1].sa)) - (a[1].sv / Math.max(1, a[1].sa))).slice(0, 10)
-    .map(([p, c]) => ligne(p, [c.gp, c.w, c.gp - c.w, pct(c.sv, c.sa), (c.ga / Math.max(1, c.gp)).toFixed(2)]));
-  return tableauMeneurs(ctx, `Pointeurs · ${titre}`, pointeurs, ['B', 'A', 'PTS'], 'PTS')
-    + tableauMeneurs(ctx, 'Buteurs', buteurs, ['B', 'A', 'PTS'], 'B')
-    + tableauMeneurs(ctx, `Gardiens · ${minGardien} match${minGardien > 1 ? 's' : ''} et plus`, gardiens, ['PJ', 'V', 'D', '%ARR', 'MBA'], 'V')
-    || '<div class="live-vide">Aucun match joué encore.</div>';
-}
+   JP : *penser comme un menu de NHL avec des onglets, séries et saison,
+   aussi, meneurs, plus de joueurs, possible de voir chaque équipe, avec
+   tris, plus moins, tirs, pourcentage, etc.* Les meneurs montraient quinze
+   pointeurs, dix buteurs, dix gardiens, dans un ordre imposé, et on ne
+   pouvait pas ouvrir une autre équipe que la sienne. Maintenant : TOUS ceux
+   qui ont joué, toutes les colonnes d'une fiche de hockey, et chaque
+   en-tête trie. Les chiffres viennent des feuilles de match révélées
+   (`compterFeuilles`), donc ils ne disent jamais plus que ce que le joueur
+   a déjà vu.
+   ===================================================================== */
 
-/* Ton alignement et ce que chacun a fait jusqu'ici, tiré des feuilles. */
-function equipeHtml(ctx, you, compte, matchsJoues) {
-  const roster = you.roster || {};
-  const blesses = new Map();
-  for (const b of (you.injuriesLog || [])) {
-    // `at` est le numéro du match où la blessure est arrivée ; on ne révèle
-    // que celles qu'on a déjà vues, et on dit ce qu'il reste à rater.
-    const reste = b.at + b.games - (matchsJoues + 1);
-    if (b.at <= matchsJoues + 1 && reste > 0) blesses.set(b.player, reste);
-  }
-  const rangee = s => {
-    const p = roster[s.i];
-    if (!p) return '';
-    const c = compte.get(p) || { g: 0, a: 0, pts: 0, gp: 0, w: 0, sa: 0, sv: 0, ga: 0 };
-    const stats = p.p === 'G'
-      ? `<td>${c.gp}</td><td>${c.w}</td><td>${pct(c.sv, c.sa)}</td><td>${(c.ga / Math.max(1, c.gp)).toFixed(2)}</td>`
-      : `<td>${c.g}</td><td>${c.a}</td><td class="heros">${c.pts}</td>`;
-    const bl = blesses.get(p);
-    return `<tr class="${bl ? 'blesse' : ''}"><td class="role">${ctx.esc(caseCourte(s))}</td><td class="nom">${ctx.esc(nom(p))}${bl ? ` <span class="hub-bl" title="Blessé">🩹 ${bl}</span>` : ''}</td>${stats}</tr>`;
+const pct3 = x => x.toFixed(3).replace(/^0/, '');
+const plusMoins = n => (n > 0 ? `+${n}` : `${n}`);
+const VIDE = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0 };
+
+/*
+ * Les colonnes : lire (`v`), écrire (`fmt`), trier. `bas` dit que le
+ * meilleur est le plus petit — la moyenne de buts alloués, et elle seule.
+ */
+const COL_PAT = [
+  { cle: 'gp', t: 'PJ', v: c => c.gp },
+  { cle: 'b', t: 'B', v: c => c.g },
+  { cle: 'a', t: 'A', v: c => c.a },
+  { cle: 'pts', t: 'PTS', v: c => c.pts, heros: true },
+  { cle: 'pm', t: '+/-', v: c => c.pm, fmt: plusMoins },
+  { cle: 'sh', t: 'T', v: c => c.sh },
+  { cle: 'pct', t: '%T', v: c => (c.sh ? 100 * c.g / c.sh : 0), fmt: x => x.toFixed(1) },
+  { cle: 'pim', t: 'PUN', v: c => c.pim },
+];
+const COL_GAR = [
+  { cle: 'gp', t: 'PJ', v: c => c.gp },
+  { cle: 'v', t: 'V', v: c => c.w, heros: true },
+  { cle: 'd', t: 'D', v: c => c.l },
+  { cle: 'arr', t: '%ARR', v: c => c.sv / Math.max(1, c.sa), fmt: pct3 },
+  { cle: 'mba', t: 'MBA', v: c => c.ga / Math.max(1, c.gp), fmt: x => x.toFixed(2), bas: true },
+  { cle: 'bl', t: 'BL', v: c => c.bl },
+];
+
+/** Le tri par défaut d'une colonne : du plus grand au plus petit, sauf la MBA. */
+const triDe = (colonnes, cle) => ({ cle, asc: !!(colonnes.find(c => c.cle === cle) || {}).bas });
+
+/* Les quatre tableaux du menu et leurs colonnes, pour que le tri s'applique
+   au bon endroit sans que l'écran ait à le savoir. */
+const COLS_DE = { meneursPAT: COL_PAT, meneursGAR: COL_GAR, eqPat: COL_PAT, eqGar: COL_GAR };
+
+/** L'état d'un menu : la vue des meneurs, les tris, l'équipe ouverte, la limite. */
+const menuNeuf = () => ({
+  vue: 'PAT', limite: 60, equipe: null,
+  tris: {
+    meneursPAT: triDe(COL_PAT, 'pts'), meneursGAR: triDe(COL_GAR, 'v'),
+    eqPat: triDe(COL_PAT, 'pts'), eqGar: triDe(COL_GAR, 'v'),
+  },
+});
+
+/** Une clé d'équipe stable dans le DOM : le code et la saison. */
+const cleEquipe = t => `${t.tag}|${t.season || ''}`;
+
+/*
+ * LES FICHES DE LA SAISON, AU FORMAT DU MENU. L'écran des séries montre
+ * aussi la saison qui vient de finir — un menu de jeu laisse toujours
+ * revenir en arrière — et la saison, elle, est entièrement connue : ses
+ * chiffres se lisent directement des fiches du moteur plutôt que des
+ * feuilles révélées.
+ */
+function compteDeFiches(teams) {
+  const compte = new Map();
+  const pose = p => {
+    if (!p) return;
+    compte.set(p, p.p === 'G'
+      ? { g: 0, a: 0, pts: 0, gp: p.simGP || 0, w: p.simW || 0, l: (p.simL || 0) + (p.simOTL || 0),
+          sa: p.simSA || 0, sv: p.simSV || 0, ga: p.simGA || 0, bl: p.simSO || 0, pm: 0, sh: 0, pim: 0 }
+      : { g: p.simG || 0, a: p.simA || 0, pts: p.simPTS || 0, gp: p.simGP || 0, w: 0, l: 0,
+          sa: 0, sv: 0, ga: 0, bl: 0, pm: p.simPM || 0, sh: p.simSH || 0, pim: p.simPIM || 0 });
   };
-  const pat = SLOTS.filter(s => s.group !== 'G' && roster[s.i]);
-  const gar = SLOTS.filter(s => s.group === 'G' && roster[s.i]);
-  return `<div class="live-tableau hub-equipe"><div class="live-tableau-titre">Patineurs · ${matchsJoues} match${matchsJoues > 1 ? 's' : ''}</div>
-    <table><thead><tr><th>Case</th><th>Joueur</th><th>B</th><th>A</th><th class="heros">PTS</th></tr></thead><tbody>${pat.map(rangee).join('')}</tbody></table></div>
-    <div class="live-tableau hub-equipe"><div class="live-tableau-titre">Gardiens</div>
-    <table><thead><tr><th>Case</th><th>Joueur</th><th>PJ</th><th>V</th><th>%ARR</th><th>MBA</th></tr></thead><tbody>${gar.map(rangee).join('')}</tbody></table></div>
-    ${blesses.size ? '' : '<div class="hub-note">Aucun blessé. 🩹 à côté d\'un nom dirait les matchs qu\'il lui reste à rater.</div>'}`;
+  for (const t of teams) { for (const s of SLOTS) pose(t.roster[s.i]); pose(t.rappelG); }
+  return compte;
+}
+
+/**
+ * Un tableau de joueurs triable. `id` préfixe les `data-tri` pour que deux
+ * tableaux du même volet ne se marchent pas dessus ; `tete` est la colonne
+ * de gauche — le code d'équipe aux meneurs, la case dans une équipe.
+ */
+function tableJoueurs(ctx, { titre, id, colonnes, lignes, tri, tete = 'eq', limite = 0, note = '' }) {
+  if (!lignes.length) return `<div class="live-tableau"><div class="live-tableau-titre">${ctx.esc(titre)}</div><div class="live-vide">Aucun match joué encore.</div></div>`;
+  const col = colonnes.find(c => c.cle === tri.cle) || colonnes[colonnes.length - 1];
+  const rangs = lignes.slice().sort((x, y) => {
+    const d = col.v(x.c) - col.v(y.c);
+    return (tri.asc ? d : -d) || (y.c.pts - x.c.pts) || (y.c.gp - x.c.gp);
+  });
+  const vues = limite && rangs.length > limite ? rangs.slice(0, limite) : rangs;
+  const th = c => `<th data-tri="${id}|${c.cle}" role="button" tabindex="0" title="Trier par ${ctx.esc(c.t)}"
+    class="tri${c.cle === col.cle ? ' tri-on' : ''}${c.heros ? ' heros' : ''}">${c.t}${c.cle === col.cle ? `<i>${tri.asc ? '▲' : '▼'}</i>` : ''}</th>`;
+  const cellules = l => colonnes.map(c => {
+    const val = c.v(l.c);
+    return `<td class="${c.heros ? 'heros' : ''}${c.cle === col.cle ? ' tri-on' : ''}">${c.fmt ? c.fmt(val) : val}</td>`;
+  }).join('');
+  // Onze colonnes ne tiennent pas dans 390 px : le tableau défile en x dans
+  // son propre conteneur, comme tous les tableaux du jeu.
+  return `<div class="live-tableau hub-table"><div class="live-tableau-titre">${ctx.esc(titre)}</div>
+    <div class="hub-scroll"><table><thead><tr><th>#</th><th>Joueur</th><th>${tete === 'eq' ? 'Éq.' : 'Case'}</th>${colonnes.map(th).join('')}</tr></thead>
+    <tbody>${vues.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}${l.blesse ? ' blesse' : ''}">
+      <td>${i + 1}</td><td class="nom">${ctx.esc(l.nom)}${l.blesse ? ` <span class="hub-bl" title="Blessé">🩹 ${l.blesse}</span>` : ''}</td>
+      <td class="${tete === 'eq' ? 'eq' : 'role'}">${ctx.esc(tete === 'eq' ? l.eq : l.role)}</td>${cellules(l)}</tr>`).join('')}</tbody></table></div>
+    ${vues.length < rangs.length ? `<button type="button" class="hub-plus" data-plus="${id}">Voir les ${rangs.length - vues.length} autres</button>` : ''}
+    ${note ? `<div class="hub-note hub-table-note">${note}</div>` : ''}</div>`;
+}
+
+/** Une rangée de pastilles de choix (vue, équipe) : c'est le menu. */
+const chips = (liste, actif, attr) => `<div class="hub-chips">${liste.map(o =>
+  `<button type="button" data-${attr}="${o.cle}" class="${o.cle === actif ? 'on' : ''}"${o.titre ? ` title="${o.titre}"` : ''}>${o.html || o.nom}</button>`).join('')}</div>`;
+
+/**
+ * LES MENEURS : tous ceux qui ont joué, patineurs ou gardiens, triables sur
+ * n'importe quelle colonne. `etat` garde la vue, le tri et la limite
+ * d'affichage entre deux rendus — le volet se refait à chaque journée.
+ */
+function meneursHtml(ctx, compte, equipeDe, you, titre, menu, minGardien = 1) {
+  const entrees = [...compte.entries()];
+  if (!entrees.length) return '<div class="live-vide">Aucun match joué encore.</div>';
+  const ligne = ([p, c]) => ({ nom: nom(p), eq: ctx.tagCourt(equipeDe.get(p) || { tag: '—' }), toi: equipeDe.get(p) === you, c });
+  const gardiens = menu.vue === 'GAR';
+  const lignes = entrees.filter(([p, c]) => (gardiens ? p.p === 'G' && c.gp >= minGardien : p.p !== 'G' && c.gp > 0)).map(ligne);
+  return chips([{ cle: 'PAT', nom: 'Patineurs' }, { cle: 'GAR', nom: 'Gardiens' }], menu.vue, 'vue')
+    + tableJoueurs(ctx, {
+      titre: `${gardiens ? 'Gardiens' : 'Patineurs'} · ${titre}`, id: `meneurs${menu.vue}`,
+      colonnes: gardiens ? COL_GAR : COL_PAT, lignes,
+      tri: menu.tris[`meneurs${menu.vue}`], limite: menu.limite,
+      note: 'Touche un en-tête pour trier ; glisse le tableau pour voir toutes les colonnes.',
+    });
+}
+
+/**
+ * LES ÉQUIPES : n'importe quel club de la ligue, son alignement et ce que
+ * chacun a fait à ce jour. La case de chaque joueur reste affichée — c'est
+ * une feuille d'équipe, pas un palmarès — et les colonnes se trient pareil.
+ */
+function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blessesDe }) {
+  if (!teams.length) return '<div class="live-vide">Aucune équipe.</div>';
+  const t = teams.find(x => x === menu.equipe) || (teams.includes(you) ? you : teams[0]);
+  menu.equipe = t;
+  const pastille = x => ({
+    cle: cleEquipe(x), nom: ctx.tagCourt(x), titre: ctx.teamLabel(x),
+    html: `${ctx.logo(x.tag, 15)}<span>${ctx.esc(ctx.tagCourt(x))}</span>`,
+  });
+  const choix = chips(teams.map(pastille), cleEquipe(t), 'equipe');
+  const joues = matchsDe(t);
+  const blesses = blessesDe ? blessesDe(t, joues) : new Map();
+  const rangee = s => {
+    const p = t.roster[s.i];
+    if (!p) return null;
+    // Pas de rangée en or ici : c'est une feuille d'équipe, l'or ne dirait
+    // rien de plus que l'en-tête. Il reste aux meneurs, où il te trouve.
+    return { nom: nom(p), role: caseCourte(s), blesse: blesses.get(p) || 0, c: compte.get(p) || VIDE };
+  };
+  const pat = SLOTS.filter(s => s.group !== 'G').map(rangee).filter(Boolean);
+  const gar = SLOTS.filter(s => s.group === 'G').map(rangee).filter(Boolean);
+  // Le gardien de rappel n'a pas de case, mais il a gardé des matchs.
+  if (t.rappelG && compte.get(t.rappelG)) gar.push({ nom: nom(t.rappelG), role: 'Rappel', c: compte.get(t.rappelG) });
+  const f = ficheDe(t);
+  return `${choix}
+    <div class="hub-eq-entete" style="--eq-band:${ctx.band(t.tag).bg};--eq-ink:${ctx.band(t.tag).ink};--eq-stripe:${ctx.band(t.tag).stripe}">
+      <div class="hub-eq-entete-band">${ctx.logo(t.tag, 24)}<span>${ctx.esc(ctx.teamLabel(t))}</span></div>
+      <div class="hub-eq-entete-fiche">${ctx.esc(f)}</div>
+    </div>
+    ${tableJoueurs(ctx, { titre: `Patineurs · ${joues} match${joues > 1 ? 's' : ''}`, id: 'eqPat', colonnes: COL_PAT, lignes: pat, tri: menu.tris.eqPat, tete: 'role' })}
+    ${tableJoueurs(ctx, { titre: 'Gardiens', id: 'eqGar', colonnes: COL_GAR, lignes: gar, tri: menu.tris.eqGar, tete: 'role' })}`;
+}
+
+/**
+ * Le menu réagit : trier une colonne, changer de vue, ouvrir une équipe,
+ * voir tout le monde. Un seul écouteur par écran, posé sur le volet — c'est
+ * le contenu du volet qui est refait à chaque journée, pas le volet.
+ */
+function brancherMenu(volet, menu, equipes, rafraichir) {
+  const agir = ev => {
+    const el = ev.target.closest('[data-tri], [data-vue], [data-equipe], [data-plus]');
+    if (!el || !volet.contains(el)) return;
+    const d = el.dataset;
+    if (d.tri) {
+      const [id, cle] = d.tri.split('|');
+      const colonnes = COLS_DE[id];
+      if (!colonnes) return;
+      const t = menu.tris[id];
+      menu.tris[id] = t && t.cle === cle ? { cle, asc: !t.asc } : triDe(colonnes, cle);
+    } else if (d.vue) menu.vue = d.vue === 'GAR' ? 'GAR' : 'PAT';
+    else if (d.equipe) menu.equipe = equipes().find(t => cleEquipe(t) === d.equipe) || menu.equipe;
+    else if (d.plus) menu.limite = 0;
+    ev.preventDefault();
+    rafraichir();
+  };
+  const touche = ev => { if (ev.key === 'Enter' || ev.key === ' ') agir(ev); };
+  volet.addEventListener('click', agir);
+  volet.addEventListener('keydown', touche);
+  // LE VOLET EST PARTAGÉ par l'écran de saison et l'écran des séries (la même
+  // coquille `#hubModal`) : sans débrancher en fermant, le menu de la saison
+  // répondait encore aux clics de celui des séries et réécrivait le volet
+  // avec son propre classement.
+  return () => { volet.removeEventListener('click', agir); volet.removeEventListener('keydown', touche); };
 }
 
 /* Le bloc d'une équipe dans la carte du prochain match : écusson, nom, fiche. */
@@ -268,16 +432,37 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     return `<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
   };
 
+  /*
+   * LE MENU : les meneurs de toute la ligue et la feuille de n'importe
+   * quelle équipe, triables. L'état (vue, tris, équipe ouverte) survit aux
+   * rendus — le volet se refait à chaque journée.
+   */
+  const menu = menuNeuf();
+  const matchsDe = t => { const g = fiche.get(t); return g ? g.W + g.L + g.OTL : 0; };
+  /* Les blessés d'une équipe à ce jour : on ne révèle que ce qui est arrivé. */
+  const blessesDe = (t, joues) => {
+    const m = new Map();
+    for (const b of (t.injuriesLog || [])) {
+      const reste = b.at + b.games - (joues + 1);
+      if (b.at <= joues + 1 && reste > 0) m.set(b.player, reste);
+    }
+    return m;
+  };
+
   const tabs = onglets(barre, volet, [
     { cle: 'journee', titre: 'Journée' }, { cle: 'classement', titre: 'Classement' }, { cle: 'meneurs', titre: 'Meneurs' },
-    { cle: 'equipe', titre: 'Équipe' }, { cle: 'fiche', titre: 'Fiche' },
+    { cle: 'equipes', titre: 'Équipes' }, { cle: 'fiche', titre: 'Ma fiche' },
   ], cle => {
     if (cle === 'classement') return voletClassement();
-    if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`);
-    if (cle === 'equipe') return equipeHtml(ctx, you, compte, miens.length);
+    if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
+    if (cle === 'equipes') return equipesHtml(ctx, {
+      teams: classement(), compte, you, menu, matchsDe, blessesDe,
+      ficheDe: t => { const g = fiche.get(t); return `${g.W}-${g.L}-${g.OTL} · ${g.PTS} pts · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'} · ${g.GF} BP · ${g.GA} BC`; },
+    });
     if (cle === 'fiche') return voletFiche();
     return voletJournee();
   });
+  const debrancherMenu = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir());
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -346,6 +531,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   const fermer = () => {
     if (termine) return;
     termine = true;
+    debrancherMenu();
     window.removeEventListener('keydown', clavier);
     modal.style.display = 'none';
     document.body.style.overflow = '';
@@ -395,7 +581,7 @@ function etatDeSerie(ctx, s, wA, wB) {
  *   you      ton équipe
  *   ctx      { esc, teamLabel, teamShort, tagCourt, logo, band, mug }
  */
-export function ouvrirSeries({ series, rondes, you, ctx, onTermine }) {
+export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermine }) {
   const ui = coquille('Les séries');
   if (!ui || !series.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -409,7 +595,10 @@ export function ouvrirSeries({ series, rondes, you, ctx, onTermine }) {
   let ronde = 0, termine = false;
   const maSerie = r => deRonde(r).find(s => s.A === you || s.B === you) || null;
   const equipeDe = new Map();
-  for (const s of series) for (const t of [s.A, s.B]) for (const p of Object.values(t.roster || {})) if (p) equipeDe.set(p, t);
+  for (const s of series) for (const t of [s.A, s.B]) {
+    for (const p of Object.values(t.roster || {})) if (p) equipeDe.set(p, t);
+    if (t.rappelG) equipeDe.set(t.rappelG, t);
+  }
   const feuillesRevelees = () => series.flatMap(s => s.feuilles.slice(0, revele.get(s)));
   const nomRonde = r => rondes[r] || `Ronde ${r + 1}`;
   const nomRondeCourt = r => nomRonde(r).replace('Finale de la Coupe Stanley', 'Finale');
@@ -514,14 +703,63 @@ export function ouvrirSeries({ series, rondes, you, ctx, onTermine }) {
     </div></div>`;
   };
 
+  /*
+   * LE MÊME MENU QU'À LA SAISON : les meneurs des séries et la feuille de
+   * n'importe quelle équipe encore en vie, triables. Les chiffres ne
+   * comptent que les matchs révélés.
+   */
+  const menu = menuNeuf();
+  /* Les clubs des séries, dans l'ordre où ils sont tombés : les survivants d'abord. */
+  const clubs = () => {
+    const vus = [];
+    for (let r = nRondes - 1; r >= 0; r--) for (const s of deRonde(r)) for (const t of [s.A, s.B]) if (!vus.includes(t)) vus.push(t);
+    return vus;
+  };
+  const ficheSeries = t => {
+    let v = 0, d = 0;
+    for (const s of series) {
+      if (s.A !== t && s.B !== t) continue;
+      const cote = s.A === t ? 'A' : 'B';
+      for (const f of s.feuilles.slice(0, revele.get(s))) { if (f.vainqueur === cote) v++; else d++; }
+    }
+    return { v, d };
+  };
+
+  /*
+   * LA SAISON RESTE À UN ONGLET. Une fois les séries commencées, le
+   * classement final et les meneurs de la saison n'étaient plus consultables
+   * qu'en fermant l'écran : un menu de jeu laisse revenir en arrière.
+   */
+  const compteSaison = saison && saison.teams ? compteDeFiches(saison.teams) : null;
+  const voletSaison = () => {
+    const ts = saison.teams;
+    const rangee = (t, i) => `<tr class="${t === you ? 'toi' : ''}${i === (saison.enSeries || 16) - 1 ? ' cut' : ''}">
+      <td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 14)} ${ctx.esc(ctx.teamShort(t))}</td>
+      <td>${t.W + t.L + t.OTL}</td><td>${t.W}</td><td>${t.L}</td><td>${t.OTL}</td><td class="heros">${t.PTS}</td>
+      <td>${t.GF}</td><td>${t.GA}</td><td>${t.GF - t.GA > 0 ? '+' : ''}${t.GF - t.GA}</td></tr>`;
+    return `<div class="live-tableau hub-classement"><div class="live-tableau-titre">Classement final · saison régulière</div>
+      <div class="hub-scroll"><table><thead><tr><th>#</th><th>Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th class="heros">PTS</th><th>BP</th><th>BC</th><th>Diff</th></tr></thead>
+      <tbody>${ts.map(rangee).join('')}</tbody></table></div></div>
+      ${meneursHtml(ctx, compteSaison, equipeDe, you, 'saison régulière', menu, 25)}`;
+  };
+
   const tabs = onglets(barre, volet, [
-    { cle: 'tableau', titre: 'Tableau' }, { cle: 'serie', titre: 'Ma série' }, { cle: 'ronde', titre: 'La ronde' }, { cle: 'meneurs', titre: 'Meneurs' },
+    { cle: 'tableau', titre: 'Tableau' }, { cle: 'serie', titre: 'Ma série' }, { cle: 'ronde', titre: 'La ronde' },
+    { cle: 'meneurs', titre: 'Meneurs' }, { cle: 'equipes', titre: 'Équipes' },
+    ...(compteSaison ? [{ cle: 'saison', titre: 'Saison' }] : []),
   ], cle => {
+    if (cle === 'saison') return voletSaison();
     if (cle === 'serie') return voletSerie();
     if (cle === 'ronde') return voletRonde();
-    if (cle === 'meneurs') return meneursHtml(ctx, compterFeuilles(feuillesRevelees()), equipeDe, you, 'séries', 1);
+    if (cle === 'meneurs') return meneursHtml(ctx, compterFeuilles(feuillesRevelees()), equipeDe, you, 'séries', menu, 1);
+    if (cle === 'equipes') return equipesHtml(ctx, {
+      teams: clubs(), compte: compterFeuilles(feuillesRevelees()), you, menu,
+      matchsDe: t => { const f = ficheSeries(t); return f.v + f.d; },
+      ficheDe: t => { const f = ficheSeries(t); return `${f.v}-${f.d} en séries`; },
+    });
     return voletTableau();
   });
+  const debrancherMenu = brancherMenu(volet, menu, clubs, () => tabs.rafraichir());
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -600,6 +838,7 @@ export function ouvrirSeries({ series, rondes, you, ctx, onTermine }) {
   const fermer = () => {
     if (termine) return;
     termine = true;
+    debrancherMenu();
     window.removeEventListener('keydown', clavier);
     modal.style.display = 'none';
     document.body.style.overflow = '';

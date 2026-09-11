@@ -1496,7 +1496,13 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
             // Les changements à la volée : voir P_MELANGE.
             // `simPlus` et `simMoins` (les buts pour et contre sur la glace)
             // ne servent qu'à check_pm.mjs ; le +/- est leur différence.
-            for (const x of surLaGlace(trioOff, paireOff, unitesOff, tireur)) { x.simPM++; x.simPlus = (x.simPlus || 0) + 1; }
+            const glacePour = surLaGlace(trioOff, paireOff, unitesOff, tireur);
+            for (const x of glacePour) { x.simPM++; x.simPlus = (x.simPlus || 0) + 1; }
+            // LE BUT PORTE QUI ÉTAIT SUR LA GLACE. Le +/- est crédité ici, en
+            // direct, et la feuille de match n'en gardait rien : impossible
+            // de dire le +/- d'un joueur À CE JOUR-LÀ sans le recompter. Les
+            // deux listes sont exactement celles qu'on vient de créditer.
+            if (entree) entree.pour = glacePour;
             if (defGlace) {
               // LE −1 SUIT LE RYTHME. Voir CREDIT_AU_RYTHME : ceux qui étaient là
               // quand ça rentre se tirent au poids offensif de leur unité, pas à
@@ -1504,7 +1510,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
               // part des buts contre proche de sa part des buts pour.
               const cTrio = choisirApparie(unitesDef.F, rangOff, nOff, APPARIEMENT, 'rythme');
               const cPaire = choisirApparie(unitesDef.D, rangOff, nOff, APPARIEMENT, 'rythme');
-              for (const x of surLaGlace(cTrio, cPaire, unitesDef)) { x.simPM--; x.simMoins = (x.simMoins || 0) + 1; }
+              const glaceContre = surLaGlace(cTrio, cPaire, unitesDef);
+              for (const x of glaceContre) { x.simPM--; x.simMoins = (x.simMoins || 0) + 1; }
+              if (entree) entree.contre = glaceContre;
             }
           }
         }
@@ -1824,6 +1832,13 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     Object.assign(journal, {
       A, B, gfA, gfB, ot, gardienA: gA, gardienB: gB,
       vainqueur: gfA > gfB ? 'A' : 'B',
+      // LES PATINEURS HABILLÉS CE SOIR-LÀ : c'est ce qui donne les matchs
+      // joués d'un patineur à une date donnée (un blessé n'est pas de la
+      // liste). Les gardiens n'en sont pas : leur match se compte au filet.
+      alignes: {
+        A: Object.values(LA).filter(p => p && p.p !== 'G'),
+        B: Object.values(LB).filter(p => p && p.p !== 'G'),
+      },
     });
     journal.buts.sort((x, y) => x.instant - y.instant);
   }
@@ -1938,8 +1953,10 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
 
 function butProlongation(off, def, gardien, track = true, journal = null, cote = 'A') {
   if (track && gardien) gardien.simSA = (gardien.simSA || 0) + 1;
+  let glaceContre = [];
   if (track && def && def.unites) {
-    for (const x of [...choisirPresence(def.unites.F).joueurs, ...choisirPresence(def.unites.D).joueurs]) { x.simPM--; x.simMoins = (x.simMoins || 0) + 1; }
+    glaceContre = [...choisirPresence(def.unites.F).joueurs, ...choisirPresence(def.unites.D).joueurs];
+    for (const x of glaceContre) { x.simPM--; x.simMoins = (x.simMoins || 0) + 1; }
   }
   if (!off.unites) return;
   // Même règle qu'au cinq contre cinq : l'unité qui tire au poids offensif,
@@ -1965,7 +1982,7 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
     const instant = 60 + hasard() * 5;
     journal.tirs[cote][4]++;
     journal.lancers.push({ cote, instant, tireur, gardien, but: true });
-    journal.buts.push({ cote, instant, marqueur: tireur, passeurs, gardien, gagnant: true });
+    journal.buts.push({ cote, instant, marqueur: tireur, passeurs, gardien, gagnant: true, pour: glace, contre: glaceContre });
   }
 }
 
@@ -2167,15 +2184,22 @@ export const tirsTotal = (feuille, cote) => feuille.tirs[cote].reduce((a, b) => 
 export function compterFeuilles(feuilles, compte = new Map()) {
   const de = p => {
     let c = compte.get(p);
-    if (!c) { c = { g: 0, a: 0, pts: 0, gp: 0, w: 0, sa: 0, sv: 0, ga: 0 }; compte.set(p, c); }
+    if (!c) { c = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0 }; compte.set(p, c); }
     return c;
   };
   for (const f of feuilles) {
     if (!f) continue;
+    // Les matchs joués d'un patineur : les soirs où il était habillé.
+    for (const cote of ['A', 'B']) for (const p of (f.alignes?.[cote] || [])) de(p).gp++;
     for (const b of f.buts) {
       if (b.marqueur) { const c = de(b.marqueur); c.g++; c.pts++; }
       for (const a of b.passeurs || []) { const c = de(a); c.a++; c.pts++; }
+      // Le +/- va à ceux que le moteur a mis sur la glace pour ce but-là.
+      for (const x of b.pour || []) de(x).pm++;
+      for (const x of b.contre || []) de(x).pm--;
     }
+    for (const l of f.lancers || []) if (l.tireur) de(l.tireur).sh++;
+    for (const pu of f.punitions || []) if (pu.joueur) de(pu.joueur).pim += pu.minutes || 2;
     for (const cote of ['A', 'B']) {
       const g = cote === 'A' ? f.gardienA : f.gardienB;
       if (!g) continue;
@@ -2183,7 +2207,8 @@ export function compterFeuilles(feuilles, compte = new Map()) {
       const contre = cote === 'A' ? 'B' : 'A';
       const alloues = f.buts.filter(b => b.cote === contre && b.gardien === g).length;
       c.gp++; c.ga += alloues; c.sv += f.arrets[cote] || 0; c.sa += (f.arrets[cote] || 0) + alloues;
-      if (f.vainqueur === cote) c.w++;
+      if (f.vainqueur === cote) c.w++; else c.l++;
+      if (!alloues) c.bl++;
     }
   }
   return compte;
