@@ -24,9 +24,10 @@ import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague,
-  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent } from './sim.js';
+  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
+import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
@@ -103,6 +104,14 @@ const G = {
    * acier). Rien d'autre ne change dans l'interface.
    */
   palette: 'graphite',  // graphite | oled | glace
+  /*
+   * LE MODE BONUS. JP : *mode bonus genre blood bowl, fft et autres jeux de
+   * sport de table*. Ce réglage ne touche PAS au repêchage : les 23 cases, le
+   * plafond et la roulette sont exactement les mêmes. Il dit ce qu'on fait de
+   * l'alignement une fois bâti — la saison de 82 matchs (le jeu d'origine) ou
+   * le tournoi sur table (js/tournoi.js, js/plateau.js, js/table.js).
+   */
+  bonus: 'SAISON',      // SAISON | TABLE
   poolView: 'POS',      // POS | LIST
   sortBy: 'PTS',
   search: '',
@@ -322,6 +331,7 @@ function saveGame() {
       mode: G.mode,
       epoque: G.epoque,
       repechage: G.repechage,
+      bonus: G.bonus,
       renfort: G.renfort,
     }));
   } catch { /* stockage indisponible */ }
@@ -341,7 +351,7 @@ function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode, epoque: G.epoque,
-      repechage: G.repechage, palette: G.palette,
+      repechage: G.repechage, palette: G.palette, bonus: G.bonus,
       onlyFit: G.onlyFit, sortBy: G.sortBy, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
@@ -359,6 +369,7 @@ function loadOpts() {
     // Un mode disparu (l'ancien « Par unité ») retombe sur le classique.
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
     // Les saisons ne sont pas encore chargées ici : `boot` vérifie après.
+    if (o.bonus === 'TABLE' || o.bonus === 'SAISON') G.bonus = o.bonus;
     if (typeof o.epoque === 'string') G.epoque = o.epoque;
     if (o.repechage === 'SAISON' || o.repechage === 'TOUTES') G.repechage = o.repechage;
   } catch { /* ignore */ }
@@ -405,6 +416,7 @@ async function restoreSave() {
     G.mode = data.mode;
     G.epoque = typeof data.epoque === 'string' && state.index.seasons.includes(data.epoque) ? data.epoque : null;
     G.repechage = data.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
+    G.bonus = data.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
     G.renfort = data.renfort || null;
     G.tirage = tirage;
     G.roster = data.roster || {};
@@ -817,6 +829,18 @@ function setOption(key, val) {
   else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
+  else if (key === 'bonus') {
+    // Ce réglage ne change rien au repêchage en cours : on peut le basculer
+    // à n'importe quel moment, même l'alignement à moitié bâti.
+    const v = val === 'TABLE' ? 'TABLE' : 'SAISON';
+    if (v === G.bonus) return;
+    G.bonus = v;
+    saveOpts(); saveGame(); syncOptionsUI(); renderMain();
+    toast(v === 'TABLE'
+      ? 'Sur table : ton alignement ira jouer un tournoi de six clubs sur un plateau.'
+      : 'La saison : 82 matchs et les séries.');
+    return;
+  }
   else if (key === 'repechage') {
     // D'où viennent les joueurs, sans toucher à la ligue qu'on affronte.
     const v = val === 'TOUTES' ? 'TOUTES' : 'SAISON';
@@ -866,6 +890,7 @@ function syncOptionsUI() {
     ligue: G.epoque ? 'UNE' : 'TOUTES',
     repechage: G.repechage,
     palette: G.palette,
+    bonus: G.bonus,
   };
   const d = $('modeDesc');
   if (d) d.textContent = MODE().desc;
@@ -1969,9 +1994,9 @@ function renderMain() {
   const reste = slotsLeft();
   const over = capLeft() < 0;
   b.disabled = reste > 0 || G.done || over;
-  b.textContent = G.done ? 'Saison simulée'
+  b.textContent = G.done ? (G.bonus === 'TABLE' ? 'Tournoi joué' : 'Saison simulée')
     : over ? `Plafond dépassé de ${money(-capLeft())}`
-    : reste === 0 ? 'Simuler la saison · 82 matchs'
+    : reste === 0 ? (G.bonus === 'TABLE' ? `Au tournoi sur table · ${CLUBS_TOURNOI} clubs` : 'Simuler la saison · 82 matchs')
     : `Encore ${reste} joueur${reste > 1 ? 's' : ''}`;
 }
 
@@ -2389,6 +2414,9 @@ async function buildOpponents(count) {
  */
 async function runSeason(opts = {}) {
   if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
+  // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
+  // simulateLeague ici — le tournoi a son propre moteur, celui du plateau.
+  if (G.bonus === 'TABLE' && !opts.adversaires) { await lancerTournoi(); return; }
   G.done = true;
   // LA SAISON SE JOUE DANS TES COULEURS : noir, blanc, orange. Le repêchage
   // portait celles du vestiaire sorti ; à partir d'ici, c'est ton club.
@@ -2447,6 +2475,95 @@ async function runSeason(opts = {}) {
       onTermine: montrer,
     });
   } else montrer();
+}
+
+/* ======================================================================
+   LE TOURNOI SUR TABLE
+   ======================================================================
+   JP : *mode bonus genre blood bowl, fft et autres jeux de sport de table* ;
+   puis *viser un modèle à la blood bowl, mais plus rapide, surtout pour genre
+   les séries, ou faire mini saisons et séries*.
+
+   Le repêchage ne change pas d'un poil : mêmes 23 cases, même plafond, même
+   roulette. C'est l'aval qui change — au lieu des 82 matchs de
+   `simulateLeague`, ton alignement va jouer un tournoi de six clubs sur un
+   plateau, cinq matchs de saison et deux rondes de séries, et tu joues chaque
+   geste toi-même.
+   ====================================================================== */
+
+const ctxTable = () => ({ esc, band: getTeamBand, vive: couleurVive, logo: getTeamLogoHtml, mug: headshotHtml });
+
+async function lancerTournoi() {
+  applyTeamColors('YOU');
+  const mb = $('mainBtn');
+  mb.disabled = true;
+  mb.textContent = `Tirage des ${CLUBS_TOURNOI - 1} clubs du tournoi…`;
+  await new Promise(r => setTimeout(r, 20));
+  let rivaux = [];
+  try { rivaux = await buildOpponents(CLUBS_TOURNOI - 1); } catch { rivaux = []; }
+  if (rivaux.length < CLUBS_TOURNOI - 1) {
+    toast('Impossible de réunir assez de clubs pour le tournoi.');
+    mb.disabled = false; renderMain();
+    return;
+  }
+  G.done = true;
+  const clubs = [
+    { nom: 'NHL Stars', tag: 'YOU', roster: G.roster },
+    ...rivaux.slice(0, CLUBS_TOURNOI - 1).map(t => ({ nom: t.name, tag: t.tag, roster: t.roster })),
+  ];
+  const T = nouveauTournoi(clubs, nouvelleGraine());
+  G.tournoi = T;
+  ouvrirTournoi({ T, ctx: ctxTable(), onTermine: montrerBilanTournoi });
+}
+
+/**
+ * Le bilan du tournoi : le classement final, les séries, et ce que TES
+ * joueurs ont fait sur le plateau. Les fiches se cumulent des feuilles de
+ * chaque match — comme `compterFeuilles` le fait pour la saison, en plus
+ * petit : un match sur table ne compte que des buts et des passes.
+ */
+function montrerBilanTournoi(T) {
+  const cl = classementTournoi(T);
+  const finale = T.series && T.series.rondes[1][0];
+  // Ce que les tiens ont fait, cumulé des feuilles de tes matchs.
+  const fiches = new Map();
+  for (const mt of [...T.journees.flat(), ...(T.series ? T.series.rondes.flat() : [])]) {
+    if (!mt.r) continue;
+    for (const cote of ['A', 'B']) {
+      const idx = cote === 'A' ? mt.a : mt.b;
+      if (idx !== 0) continue;
+      for (const l of mt.r[cote].marqueurs) {
+        const f = fiches.get(l.p) || { p: l.p, b: 0, a: 0 };
+        f.b += l.buts; f.a += l.passes;
+        fiches.set(l.p, f);
+      }
+    }
+  }
+  const meneurs = [...fiches.values()].sort((x, y) => (y.b + y.a) - (x.b + x.a) || y.b - x.b).slice(0, 10);
+  const gagne = T.champion === 0;
+  $('gameModalTitle').textContent = 'Le tournoi sur table';
+  $('gameModalBody').innerHTML = `
+    <p class="tr-verdict ${gagne ? 'gagne' : ''}">${gagne
+      ? 'Tu remportes le tournoi sur table.'
+      : `${esc(T.clubs[T.champion ?? 0].nom)} remporte le tournoi.`}</p>
+    ${finale && finale.r ? `<p class="tr-note">Finale : ${esc(T.clubs[finale.a].nom)} ${finale.r.gfA} – ${finale.r.gfB} ${esc(T.clubs[finale.b].nom)}.</p>` : ''}
+    <h3 class="tr-jour">Le classement de la saison</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>#</th><th>Club</th><th>PJ</th><th>V</th><th>D</th><th>BP</th><th>BC</th><th>PTS</th></tr></thead>
+      <tbody>${cl.map((x, n) => `<tr class="${x.i === 0 ? 'mien' : ''}">
+        <td>${n + 1}</td><td>${getTeamLogoHtml(x.c.tag, 18)} ${esc(x.c.nom)}</td>
+        <td>${x.f.PJ}</td><td>${x.f.V}</td><td>${x.f.D}</td><td>${x.f.BP}</td><td>${x.f.BC}</td><td><b>${x.f.PTS}</b></td>
+      </tr>`).join('')}</tbody></table></div>
+    ${meneurs.length ? `<h3 class="tr-jour">Tes meneurs sur le plateau</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Joueur</th><th>B</th><th>A</th><th>PTS</th></tr></thead>
+      <tbody>${meneurs.map(f => `<tr><td>${lienJoueur(f.p)}</td><td>${f.b}</td><td>${f.a}</td><td><b>${f.b + f.a}</b></td></tr>`).join('')}</tbody>
+    </table></div>` : ''}
+    <div class="tr-actions"><button type="button" id="tournoiNouveau" class="btn">Nouvelle partie</button></div>`;
+  openModal('gameModal');
+  const b = $('tournoiNouveau');
+  if (b) b.onclick = () => { closeModal('gameModal'); newGame(); };
+  renderMain();
 }
 
 /**

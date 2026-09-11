@@ -6,8 +6,14 @@ name: Vérifier
 #                   glissé dans js/sim.js la fait échouer)
 #   check_feuilles  les quatre égalités de la feuille de match, sur une ligue
 #                   de 1312 matchs — la colonne vertébrale du moteur
+#   check_table     les égalités de la feuille d'un match SUR TABLE (les buts
+#                   des joueurs font ceux de l'équipe, les lancers font les
+#                   arrêts plus les buts) — l'équivalent de check_feuilles
+#                   pour le moteur du mode bonus
 #   smoke           le parcours complet à 390 px dans Chromium : vestiaire,
 #                   loto, saison, séries, zéro erreur console
+#   smoke_table     le même, en mode bonus : le tournoi, le plateau, un match
+#                   joué geste par geste, le bilan
 #
 # Les scripts de calibration (monotonie, plafond, tireurs) sont trop longs
 # pour tourner ici ; ils restent à lancer à la main, voir CLAUDE.md.
@@ -37,6 +43,9 @@ jobs:
       - name: Les égalités de la feuille de match
         run: LIGUES=1 node scripts/check_feuilles.mjs
 
+      - name: Les égalités de la feuille sur table
+        run: MATCHS=60 node scripts/check_table.mjs
+
       - name: Installer Playwright (Chromium)
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.47.2
@@ -47,3 +56,6 @@ jobs:
           python3 -m http.server 8000 >/dev/null 2>&1 &
           for i in $(seq 1 20); do curl -sf http://localhost:8000/ >/dev/null && break; sleep 0.5; done
           node scripts/smoke.mjs http://localhost:8000
+
+      - name: Test de fumée du mode bonus « Sur table »
+        run: node scripts/smoke_table.mjs http://localhost:8000

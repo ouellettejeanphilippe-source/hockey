@@ -3624,3 +3624,168 @@ a.spin-club:hover {
 }
 .pcard.signed .pcard-band { --team-plaque: rgba(255, 255, 255, 0.22); --team-plaque-ink: #ffffff; }
 .pcard.locked:not(.signed) .pcard-band { --team-plaque: rgba(255, 255, 255, 0.12); --team-plaque-ink: #93a9c0; }
+
+/* =====================================================================
+   SUR TABLE — le plateau du mode bonus
+   =====================================================================
+   Un jeu de table se lit d'un coup : une glace, des pièces, des cotes. Tout
+   est à plat (règle du dépôt : plus de 3D), tout passe par les jetons de
+   palette, et la couleur d'une pièce est la couleur BRUTE de son club, avec
+   l'encre que `getTeamBand` mesure — posée en `--pf` et `--pi` sur la pièce.
+
+   La cellule se mesure sur la largeur ET sur la hauteur : sept colonnes dans
+   390 px font 44 px, mais onze rangées de 44 px font 484 px, et sur un
+   téléphone court le bas du plateau passerait sous les boutons. `min()` sur
+   les deux, donc, et la glace tient toujours à l'écran.
+   ===================================================================== */
+
+.table-sheet { max-width: 560px; }
+.t-titre { flex-direction: column; align-items: flex-start; gap: 0; }
+.t-titre-1 { font-family: var(--display); font-size: 17px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
+.t-titre-2 { font-size: 12.5px; color: var(--sub); }
+
+/* ---------- le tableau indicateur ---------- */
+.t-tete { border-bottom: 1px solid var(--line-soft); }
+.tb-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 8px 12px; }
+.tb-eq { display: flex; align-items: center; gap: 6px; min-width: 0; font-family: var(--display); text-transform: uppercase; letter-spacing: 0.05em; }
+.tb-b { justify-content: flex-end; }
+.tb-nom { font-size: 13.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-eq b { font-size: 30px; font-weight: 800; line-height: 1; }
+.tb-a b { color: var(--t-a-ink, var(--text)); background: var(--t-a, var(--panel-2)); padding: 2px 9px; border-radius: var(--r-s); }
+.tb-b b { color: var(--t-b-ink, var(--text)); background: var(--t-b, var(--panel-2)); padding: 2px 9px; border-radius: var(--r-s); }
+.tb-milieu { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.tb-periode { font-family: var(--display); font-size: 13px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--gold); }
+.tb-presence { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.tb-etat { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 12px 7px; border-top: 1px solid var(--line-soft); }
+.tb-tour { font-family: var(--display); font-size: 13.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sub); }
+.tb-tour.mien { color: var(--gold); }
+.tb-relance { font-size: 11.5px; color: var(--muted); }
+.tb-relance.on { color: var(--green); }
+
+/* ---------- la glace ---------- */
+.t-plateau { display: flex; justify-content: center; padding: 8px 6px; overflow: auto; }
+.t-glace {
+  --tcell: min(12.8vw, 6.4vh, 48px);
+  display: grid; grid-template-columns: repeat(7, var(--tcell));
+  grid-auto-rows: var(--tcell);
+  background: var(--fond-creux); border: 1px solid var(--line);
+}
+.t-case {
+  position: relative; padding: 0; border: 0; background: transparent; cursor: default;
+  border-right: 1px solid rgba(255, 255, 255, 0.04); border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex; align-items: center; justify-content: center;
+}
+/* Les zones de la patinoire : des aplats, jamais des dégradés. */
+.t-enclave { background: rgba(138, 180, 240, 0.13); }
+.t-coin { background: rgba(138, 180, 240, 0.05); }
+.t-but { background: rgba(215, 177, 113, 0.14); }
+.t-bleue { box-shadow: inset 0 2px 0 var(--blue-deep); }
+.t-centre { box-shadow: inset 0 2px 0 rgba(229, 112, 122, 0.55); }
+.t-jouable { cursor: pointer; }
+.t-jouable::after { content: ''; position: absolute; inset: 2px; border: 1px dashed var(--gold); border-radius: 4px; opacity: 0.55; }
+.t-sel::after { opacity: 1; border-style: solid; border-width: 2px; }
+
+/* Ce qu'une case PROPOSE à la pièce choisie. Trois couleurs, trois gestes. */
+.t-offre { cursor: pointer; }
+.t-offre-deplacer { background: var(--green-soft); box-shadow: inset 0 0 0 1px rgba(70, 201, 139, 0.45); }
+.t-offre-passe { box-shadow: inset 0 0 0 2px var(--blue); }
+.t-offre-echec { box-shadow: inset 0 0 0 2px var(--red); }
+.t-pas { font-family: var(--display); font-size: 12px; font-weight: 800; color: var(--green); }
+.t-cote {
+  position: absolute; right: 1px; bottom: 0; font-family: var(--display);
+  font-size: 11px; font-weight: 800; color: var(--text);
+  background: var(--fond-creux); padding: 0 3px; border-radius: 3px;
+}
+
+/* Une pièce : la couleur brute de son club, l'encre mesurée dessus. */
+.t-piece {
+  position: absolute; inset: 2px; border-radius: 5px;
+  background: var(--pf); color: var(--pi);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  font-family: var(--display); line-height: 1; overflow: hidden;
+}
+.t-piece { border: 1.5px solid var(--pl, transparent); }
+.t-piece.gardien { border-radius: 3px; border-style: double; border-width: 3px; }
+.t-piece.etourdi { opacity: 0.38; }
+.t-role { font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; opacity: 0.8; }
+.t-nom { font-size: 11.5px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 1px; }
+.t-rondelle { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 1.5px var(--fond-creux); }
+.t-rondelle.t-seule { position: static; width: 12px; height: 12px; background: var(--gold); }
+
+/* ---------- le bas : le dé, la pièce, les gestes, le fil ---------- */
+.t-bas { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 14px; }
+
+.t-unites { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.t-unites-t { font-family: var(--display); font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.t-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
+.t-seg button { border: 0; background: var(--panel); color: var(--sub); font-family: var(--display); font-size: 12.5px; font-weight: 700; padding: 4px 8px; cursor: pointer; }
+.t-seg button + button { border-left: 1px solid var(--line); }
+.t-seg button.on { background: var(--ui-accent); color: #101216; }
+
+.t-de {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 8px 0; padding: 8px 10px; background: var(--panel-2);
+  border-left: 3px solid var(--muted);
+}
+.t-de.ok { border-left-color: var(--green); }
+.t-de.rate { border-left-color: var(--red); }
+.t-de-face { font-family: var(--display); font-size: 27px; font-weight: 800; line-height: 1; min-width: 34px; text-align: center; background: var(--fond-creux); border: 1px solid var(--line); border-radius: var(--r-s); padding: 2px 0; }
+.t-de-calcul { font-size: 12.5px; color: var(--sub); }
+.t-de-verdict { font-family: var(--display); font-size: 14px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+.t-de.ok .t-de-verdict { color: var(--green); }
+.t-de.rate .t-de-verdict { color: var(--red); }
+.t-de-boutons { margin-left: auto; display: flex; gap: 6px; }
+.t-de-boutons button { font-family: var(--display); font-size: 13px; font-weight: 700; padding: 5px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: var(--r-s); cursor: pointer; }
+.t-relancer { border-color: var(--gold) !important; color: var(--gold) !important; }
+
+.t-carte { padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.t-carte.t-vide, .t-carte.t-attente { font-size: 12.5px; color: var(--muted); padding: 10px 0; }
+.t-fiche { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.t-fiche-role { font-family: var(--display); font-size: 12px; font-weight: 800; letter-spacing: 0.08em; color: var(--sur-or); background: var(--gold); padding: 1px 6px; border-radius: 3px; }
+.t-fiche-nom { font-family: var(--display); font-size: 17px; font-weight: 800; letter-spacing: 0.03em; }
+.t-axes { display: flex; gap: 6px; margin-left: auto; }
+.t-axe { display: flex; flex-direction: column; align-items: center; min-width: 26px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-s); padding: 1px 3px; }
+.t-axe i { font-style: normal; font-size: 9.5px; color: var(--muted); letter-spacing: 0.06em; }
+.t-axe b { font-family: var(--display); font-size: 15px; font-weight: 800; }
+.t-hab { display: inline-block; margin-top: 7px; font-size: 12px; padding: 3px 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: var(--r-s); }
+.t-hab.on { color: var(--gold); border-color: var(--gold); }
+.t-gestes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.t-geste { display: inline-flex; align-items: baseline; gap: 5px; font-family: var(--display); font-size: 14px; font-weight: 700; padding: 6px 11px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: var(--r-s); cursor: pointer; }
+.t-geste b { font-size: 15px; color: var(--gold); }
+.t-geste i { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.t-tir { border-color: var(--gold); }
+.t-aide { margin: 7px 0 0; font-size: 11.5px; color: var(--muted); }
+
+.t-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 9px 0; }
+.t-actions button { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; padding: 7px 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: var(--r-s); cursor: pointer; }
+.t-evident { border-color: var(--gold) !important; color: var(--gold) !important; }
+
+.t-fil { border-top: 1px solid var(--line-soft); padding-top: 7px; }
+.t-evt { font-size: 12.5px; color: var(--sub); padding: 3px 0; border-bottom: 1px solid var(--line-soft); }
+.t-evt:first-child { color: var(--text); }
+.t-evt-but { color: var(--gold); font-weight: 700; }
+.t-evt-revirement { color: var(--red); }
+.t-evt-periode, .t-evt-fin { color: var(--gold); font-family: var(--display); font-size: 13.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* ---------- le tournoi (dans la coquille #hubModal) ---------- */
+.tr-jour { font-family: var(--display); font-size: 14.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); margin: 12px 0 5px; }
+.tr-match { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 7px; padding: 6px 8px; background: var(--panel); border-bottom: 1px solid var(--line-soft); }
+.tr-match.mien { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--gold); }
+.tr-c { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 12.5px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-match .tr-c:last-child { justify-content: flex-end; }
+.tr-c.gagne { color: var(--text); font-weight: 700; }
+.tr-p { font-family: var(--display); font-size: 17px; font-weight: 800; white-space: nowrap; }
+.tr-p i { font-style: normal; display: block; font-size: 9.5px; color: var(--red); letter-spacing: 0.08em; }
+.tr-attente { color: var(--muted); font-size: 12.5px; display: block; text-align: center; }
+.tr-note { font-size: 11.5px; color: var(--muted); margin: 6px 0 0; }
+.tr-club { font-size: 12.5px; color: var(--sub); padding-bottom: 6px; }
+.tbl tr.coupure td { border-bottom: 2px solid var(--gold); }
+.tbl tr.mien td { background: var(--gold-soft); }
+
+.hub-prochain { padding: 2px 0 4px; }
+.hub-quoi { font-family: var(--display); font-size: 13px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--gold); }
+.hub-duel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+.hub-club { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: 0.03em; }
+.hub-vs { font-size: 11.5px; color: var(--muted); }
+.hub-carte-fin .hub-gros { font-family: var(--display); font-size: 21px; font-weight: 800; letter-spacing: 0.03em; }
+.hub-carte-fin.gagne .hub-gros { color: var(--gold); }

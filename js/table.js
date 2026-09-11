@@ -63,19 +63,24 @@ import { getTraits } from './traits.js';
    se voie d'un coup sur un téléphone de 390 px.
 
      r0    filet adverse           (gardien adverse)
-     r1-2  l'enclave adverse       +1 au tir
+     r1-2  l'enclave adverse       +2 au tir
      r3    la ligne bleue adverse  la pointe
-     r4-6  la zone neutre          r5 = la ligne rouge, le cercle de mise au jeu
-     r7    ta ligne bleue
-     r8-9  ton territoire
-     r10   ton filet               (ton gardien)
+     r4    la ligne rouge          le cercle de mise au jeu
+     r5    ta ligne bleue
+     r6-7  ton territoire
+     r8    ton filet               (ton gardien)
+
+   Neuf rangées et non onze : à trois pas de patin sur une glace de onze,
+   une équipe passait son match à traverser la zone neutre, et le score
+   tombait sous deux buts (`check_table.mjs`). Sept rangées de patineurs,
+   c'est une rondelle qui circule.
 
    Tu attaques TOUJOURS vers le haut. Le plateau ne se retourne jamais : à
    la troisième période on ne veut pas se demander de quel bord on joue.
    ====================================================================== */
 
 export const COLS = 7;
-export const RANGS = 11;
+export const RANGS = 9;
 export const FILET_HAUT = 0;
 export const FILET_BAS = RANGS - 1;
 export const BUT_COL = 3;                     // le centre du filet
@@ -90,7 +95,7 @@ export function natureCase(r, c, but) {
   if (d === 0) return 'filet';
   if (d <= 2) return c >= 1 && c <= 5 ? 'enclave' : 'coin';
   if (d === 3) return 'pointe';
-  if (d <= 6) return 'neutre';
+  if (d <= 5) return 'neutre';
   return 'repli';
 }
 
@@ -136,17 +141,23 @@ export function statsDeTable(p) {
   const estD = p.p === 'D' || p.p === 'LD' || p.p === 'RD';
 
   // LE PATIN. Un joueur de la LNH patine ; l'écart est mince et c'est voulu,
-  // sinon la moitié du plateau devient injouable. Quatre cases de base, une
-  // de plus pour une réputation de vitesse ou pour qui va chercher beaucoup
-  // de rondelles, une de moins pour un gros défenseur.
-  let PA = 4;
+  // sinon la moitié du plateau devient injouable. Trois cases de base, une de
+  // plus pour une réputation de vitesse ou pour qui va chercher beaucoup de
+  // rondelles, une de moins pour un défenseur et une autre pour un gros.
+  //
+  // Trois et non quatre, et c'est un choix d'ÉCRAN autant que de jeu : à
+  // quatre pas sur une glace de sept colonnes, une pièce atteignait
+  // trente-sept cases, et trente-sept cases allumées d'un coup, ça ne se lit
+  // pas — on choisit au hasard faute de pouvoir comparer. À trois, on voit
+  // ses options.
+  let PA = 3;
   if (traits.has('VITESSE')) PA++;
   if (vol >= 1.35) PA++;
   if (estD && robu(p) >= 0.85) PA--;
   if (estD) PA--;
 
   return {
-    PA: borne(PA, 3, 6),
+    PA: borne(PA, 2, 5),
     MA: surSix(1.4 + 2.2 * pas),
     TI: surSix(0.9 + 2.6 * vol * fin),
     FO: surSix(1.5 + 4.0 * robu(p)),
@@ -242,7 +253,14 @@ const passe = (de, mod, seuil) => de === 6 || (de !== 1 && de + mod >= seuil);
    ====================================================================== */
 
 export const PERIODES = 3;
-export const PRESENCES_PAR_PERIODE = 5;    // par équipe : douze présences chacune par match
+/*
+ * CINQ PRÉSENCES PAR ÉQUIPE PAR PÉRIODE, quinze par match. Mesuré à six :
+ * 2,78 buts au lieu de 2,53, mais le match s'allonge d'un cinquième et le
+ * premier décile repasse à 97 victoires sur 100 contre le dixième. JP a
+ * demandé « plus rapide » ; cinq est le réglage qui donne des pointages de
+ * hockey (2-1, 3-2, 4-3, 1-0) dans le moins de tours possible.
+ */
+export const PRESENCES_PAR_PERIODE = 5;
 export const PRESENCES_PROLONGATION = 2;   // la mort subite est courte, sinon on n'en sort plus
 
 /* Les cinq cases d'une unité, et l'unité de chaque groupe. */
@@ -275,8 +293,8 @@ export function gardienDe(roster) {
 /* Les places de départ d'une mise au jeu au centre. Symétriques, jamais en
  * conflit, et chaque pièce dans son couloir : l'ailier gauche à gauche. */
 const DEPART = {
-  A: { AG: [6, 1], C: [6, 3], AD: [6, 5], DG: [8, 2], DD: [8, 4] },
-  B: { AG: [4, 5], C: [4, 3], AD: [4, 1], DG: [2, 4], DD: [2, 2] },
+  A: { AG: [5, 1], C: [5, 3], AD: [5, 5], DG: [7, 2], DD: [7, 4] },
+  B: { AG: [3, 5], C: [3, 3], AD: [3, 1], DG: [1, 4], DD: [1, 2] },
 };
 
 /**
@@ -291,9 +309,25 @@ export function equipeDeTable(nom, tag, roster, cote) {
     tri: 0, pai: 0,              // l'unité qui saute : premier trio, première paire
     relance: true,               // la relance d'équipe de la période
     buts: 0, tirs: 0, revirements: 0, echecs: 0,
+    /*
+     * LA FICHE VIT SUR L'ÉQUIPE, PAS SUR LA PIÈCE. `poser()` reconstruit les
+     * cinq pièces à CHAQUE mise au jeu — donc après chaque but et chaque
+     * période. Les compteurs portés par la pièce repartaient de zéro, et le
+     * bilan d'un tournoi ne montrait que les buts marqués depuis la dernière
+     * mise au jeu. Le joueur (`p`) est la clé, il ne change jamais.
+     */
+    fiches: new Map(),           // joueur -> { p, buts, passes, tirs }
+    arrets: 0, alloues: 0,       // ceux du gardien, pour la même raison
     pieces: [],
     but: filetDe(cote),
   };
+}
+
+/** La ligne de fiche d'un joueur dans son équipe, créée au besoin. */
+function fiche(eq, joueur) {
+  let f = eq.fiches.get(joueur);
+  if (!f) { f = { p: joueur, buts: 0, passes: 0, tirs: 0 }; eq.fiches.set(joueur, f); }
+  return f;
 }
 
 /** Pose les cinq patineurs d'une équipe à leurs places de mise au jeu. */
@@ -344,10 +378,11 @@ export function nouveauMatch(A, B, graine) {
 
 /** Toutes les pièces sur la glace, gardiens compris. */
 export const surLaGlace = m => [...m.A.pieces, ...m.B.pieces];
-const adverse = cote => (cote === 'A' ? 'B' : 'A');
-const eqDe = (m, cote) => (cote === 'A' ? m.A : m.B);
-const porteur = m => (m.rondelle && m.rondelle.piece) || null;
-const libre = m => (m.rondelle && m.rondelle.libre) || null;
+export const adverse = cote => (cote === 'A' ? 'B' : 'A');
+export const eqDe = (m, cote) => (cote === 'A' ? m.A : m.B);
+export const porteur = m => (m.rondelle && m.rondelle.piece) || null;
+export const libre = m => (m.rondelle && m.rondelle.libre) || null;
+export const caseLibre = (m, r, c) => !occupee(m, r, c);
 const occupee = (m, r, c) => surLaGlace(m).find(x => x.r === r && x.c === c) || null;
 
 /** Les bâtons adverses qui contrôlent cette case : le « tackle zone ». */
@@ -556,16 +591,19 @@ export function appliquerTir(m, piece, jet) {
   const eq = eqDe(m, piece.eq);
   const advG = eqDe(m, adverse(piece.eq)).piece_g;
   eq.tirs++; piece.tirs++; piece.agi = true;
+  fiche(eq, piece.p).tirs++;
   if (jet.reussi) {
-    eq.buts++; piece.buts++; advG.alloues++;
+    eq.buts++; piece.buts++;
+    advG.alloues++; eqDe(m, adverse(piece.eq)).alloues++;
+    fiche(eq, piece.p).buts++;
     const passeur = piece.derniere && piece.derniere !== piece ? piece.derniere : null;
-    if (passeur) passeur.passes++;
+    if (passeur) { passeur.passes++; fiche(eq, passeur.p).passes++; }
     dire(m, `BUT — ${nomDe(piece)}${passeur ? ` (${nomDe(passeur)})` : ''}. ${m.A.buts} – ${m.B.buts}`, 'but');
     m.dernierBut = { piece, passeur, periode: m.periode };
     finirPresence(m, true);
     return true;
   }
-  advG.arrets++;
+  advG.arrets++; eqDe(m, adverse(piece.eq)).arrets++;
   dire(m, `${nomDe(advG)} bloque le tir de ${nomDe(piece)}.`, 'arret');
   m.rondelle = { piece: advG };
   revirement(m, `Le gardien garde la rondelle.`);
@@ -866,8 +904,9 @@ export function resultatDe(m) {
   const fiche = eq => ({
     nom: eq.nom, tag: eq.tag, buts: eq.buts, tirs: eq.tirs,
     revirements: eq.revirements, echecs: eq.echecs,
-    marqueurs: eq.pieces.filter(x => x.buts || x.passes).map(x => ({ p: x.p, buts: x.buts, passes: x.passes })),
-    gardien: { p: eq.piece_g.p, arrets: eq.piece_g.arrets, alloues: eq.piece_g.alloues },
+    marqueurs: [...eq.fiches.values()].filter(f => f.buts || f.passes)
+      .map(f => ({ p: f.p, buts: f.buts, passes: f.passes })),
+    gardien: { p: eq.gardien, arrets: eq.arrets, alloues: eq.alloues },
   });
   return {
     A: fiche(m.A), B: fiche(m.B),
@@ -878,3 +917,26 @@ export function resultatDe(m) {
     graine: m.graine,
   };
 }
+
+/**
+ * LE CHANGEMENT DE TRIO, juste après une mise au jeu. C'est le seul moment où
+ * les cinq pièces sont à leur place de départ, donc le seul moment où on peut
+ * en changer sans tordre le plateau — et c'est exactement le moment du vrai
+ * hockey. C'est ici que le repêchage compte : quatre trios, trois paires, et
+ * c'est toi qui décides qui saute contre qui.
+ */
+export function changerUnite(m, cote, tri, pai) {
+  const eq = eqDe(m, cote);
+  const p = porteur(m);
+  const roleAvait = p && p.eq === cote ? p.role : null;
+  eq.tri = tri; eq.pai = pai;
+  poser(eq);
+  if (roleAvait) m.rondelle = { piece: eq.pieces.find(x => x.role === roleAvait) };
+}
+
+/** Vient-on de faire une mise au jeu ? (les cinq pièces sont à leur place de départ) */
+export const auCentre = (m, cote) =>
+  eqDe(m, cote).pieces.every(x => {
+    const [r, c] = DEPART[cote][x.role];
+    return x.r === r && x.c === c;
+  });

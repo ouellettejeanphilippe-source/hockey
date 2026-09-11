@@ -169,6 +169,19 @@
   </div>
 </div>
 
+<!-- ===== SUR TABLE : le plateau, plein écran ===== -->
+<div id="tableModal" class="modal-backdrop live" style="display:none;">
+  <div class="live-sheet table-sheet" role="dialog" aria-modal="true" aria-label="Match sur table">
+    <div class="live-top">
+      <div class="live-head t-titre"></div>
+      <button class="close-btn table-close" aria-label="Laisser le match se finir tout seul">✕</button>
+    </div>
+    <div class="t-tete"></div>
+    <div class="t-plateau"></div>
+    <div class="t-bas"></div>
+  </div>
+</div>
+
 <!-- ===== Modale : sommaire d'un match de séries ===== -->
 <div id="gameModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet">
@@ -253,6 +266,18 @@
         <div class="seg seg-wrap" data-opt="repechage">
           <button data-val="SAISON" class="on">Dans la saison<em>les clubs de l'année</em></button>
           <button data-val="TOUTES">Toutes les époques<em>fantasy draft, 55 saisons</em></button>
+        </div>
+      </div>
+      <!-- LE MODE BONUS. JP : *mode bonus genre blood bowl, fft et autres jeux
+           de sport de table*, puis *viser un modèle à la blood bowl, mais plus
+           rapide*. Le repêchage ne change pas d'un poil : c'est ce qu'on FAIT
+           de l'alignement une fois bâti qui change. La saison complète reste
+           le jeu ; le tournoi sur table est l'autre façon de s'en servir. -->
+      <div class="opt-row opt-modes">
+        <div class="opt-text"><strong>Une fois l'alignement bâti</strong><span>La saison : 82 matchs simulés et les séries, le jeu d'origine. Sur table : un tournoi de six clubs joué sur un plateau, à la Blood Bowl — cinq matchs, les quatre premiers en séries, et c'est toi qui joues chaque geste.</span></div>
+        <div class="seg seg-wrap" data-opt="bonus">
+          <button data-val="SAISON" class="on">La saison<em>82 matchs, simulés</em></button>
+          <button data-val="TABLE">Sur table<em>un tournoi sur plateau</em></button>
         </div>
       </div>
       <div class="opt-row opt-modes">

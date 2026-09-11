@@ -19,13 +19,16 @@
  *   node scripts/check_table.mjs
  *   MATCHS=400 node scripts/check_table.mjs
  *
- * RÉGLAGE ACTUEL (240 matchs) : 2,88 but par équipe par match, 26,7 % de
- * prolongations, 3,81 gestes par présence, et les pointages les plus
- * fréquents sont 2-1, 3-2, 4-3, 5-4, 1-0 — du hockey. La parité va de 93
- * victoires sur 100 pour le premier décile contre le dixième à 51 sur 100
- * entre deux équipes du même décile. Trois réglages y sont arrivés, chacun
- * mesuré ici : `md` (deux crans de talent pour un point de dé), le 6 qui
- * réussit toujours, et la sortie de zone du gardien.
+ * RÉGLAGE ACTUEL (240 matchs) : 2,53 buts par équipe par match, 22,9 % de
+ * prolongations (la vraie ligue : ~23 %), 3,70 gestes par présence, et les
+ * pointages les plus fréquents sont 2-1, 3-2, 4-3, 1-0 — du hockey. La parité
+ * va de 92 victoires sur 100 pour le premier décile contre le dixième à 50
+ * sur 100 entre deux équipes du même décile.
+ *
+ * Cinq réglages y sont arrivés, chacun mesuré ici et aucun deviné : `md`
+ * (deux crans de talent pour un point de dé), le 6 qui réussit toujours et le
+ * 1 qui casse toujours, la sortie de zone du gardien, une pièce qui bouge une
+ * fois et agit une fois, et la glace à neuf rangées avec trois pas de patin.
  */
 
 import fs from 'node:fs';
@@ -91,6 +94,32 @@ for (let i = 0; i < MATCHS; i++) {
   const cle = `${Math.max(r.gfA, r.gfB)}-${Math.min(r.gfA, r.gfB)}`;
   pointages.set(cle, (pointages.get(cle) || 0) + 1);
 }
+/* ---------- les égalités de la feuille ----------
+   La même exigence que `check_feuilles.mjs` sur le moteur par événements : la
+   feuille d'un match sur table doit se refermer sur elle-même, par
+   construction et jamais par un ajustement après coup. C'est cette
+   vérification qui a trouvé que `poser()` effaçait les compteurs d'un joueur
+   à chaque mise au jeu. */
+{
+  const casses = [];
+  for (let i = 0; i < 120; i++) {
+    const a = clubs[Math.floor(Math.random() * clubs.length)];
+    const b = clubs[Math.floor(Math.random() * clubs.length)];
+    const r = jouerMatchAuto(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `e${i}`);
+    const somme = f => f.marqueurs.reduce((x, y) => x + y.buts, 0);
+    if (somme(r.A) !== r.gfA) casses.push(`match ${i} : les buts des joueurs (${somme(r.A)}) ne font pas ceux de l'équipe (${r.gfA})`);
+    if (somme(r.B) !== r.gfB) casses.push(`match ${i} : idem de l'autre bord`);
+    if (r.A.gardien.alloues !== r.gfB) casses.push(`match ${i} : le gardien A a alloué ${r.A.gardien.alloues} pour ${r.gfB} buts`);
+    if (r.B.gardien.alloues !== r.gfA) casses.push(`match ${i} : le gardien B a alloué ${r.B.gardien.alloues} pour ${r.gfA} buts`);
+    if (r.A.gardien.arrets + r.A.gardien.alloues !== r.B.tirs) casses.push(`match ${i} : les lancers de B (${r.B.tirs}) ne font pas les arrêts + buts du gardien A (${r.A.gardien.arrets + r.A.gardien.alloues})`);
+    if (r.B.gardien.arrets + r.B.gardien.alloues !== r.A.tirs) casses.push(`match ${i} : idem de l'autre bord`);
+    for (const f of [r.A, r.B]) for (const l of f.marqueurs) if (l.passes > l.buts + f.marqueurs.length * 2) casses.push(`match ${i} : trop de passes`);
+  }
+  console.log(`\nLes égalités de la feuille, sur 120 matchs :`);
+  if (casses.length) { console.log(`  ÉCHEC — ${casses.length} :\n    ${casses.slice(0, 5).join('\n    ')}`); process.exitCode = 1; }
+  else console.log('  buts des joueurs = buts de l\'équipe · buts alloués = buts de l\'autre · lancers = arrêts + buts ✓');
+}
+
 console.log(`\n${MATCHS} matchs :`);
 console.log(`  buts par équipe par match   ${(buts / n).toFixed(2)}   (le moteur par événements : 3,1)`);
 console.log(`  tirs par équipe par match   ${(tirs / n).toFixed(2)}`);
