@@ -287,7 +287,52 @@ export function getTeamBand(teamCode) {
    * avec le fond, c'est la couleur vive du club qui prend le bouton.
    */
   const bouton = contrast(stripe, FOND_PAGE) >= VISIBLE ? stripe : couleurVive(teamCode);
-  return { bg, ink, stripe, stripeInk: inkFor(stripe), bouton, boutonInk: inkFor(bouton) };
+  /*
+   * LA PLAQUE : LA SECONDE COULEUR DU CLUB, EN APLAT.
+   *
+   * JP : *utilise pas juste couleur primaire, mais secondaire aussi, pour
+   * contraste et vibe équipe*. Un bandeau de diffusion est BICOLORE — un
+   * bloc de la couleur de fond, un bloc de la couleur qui tranche — et c'est
+   * ce deuxième bloc qui fait qu'on reconnaît un club d'un coup d'oeil : le
+   * noir sur l'or des Bruins, le blanc sur le marine de Toronto, le rouge sur
+   * le bleu des Nordiques. La secondaire n'est donc plus seulement un liseré
+   * d'un pixel : elle porte l'écusson.
+   *
+   * Deux mesures, dans cet ordre. Il faut d'abord que la plaque SE DÉTACHE de
+   * l'aplat (`separe`) — deux bleus marine côte à côte ne font pas deux
+   * blocs, ils font une tache. Sinon c'est l'encre du bandeau (blanc ou bleu
+   * nuit) qui prend la plaque, comme une plaque de chandail blanc. Ensuite,
+   * ce qui s'écrit dessus se mesure sur elle (`plaqueInk`).
+   */
+  const seconde = c.secondary && c.secondary.toLowerCase() !== bg.toLowerCase()
+    ? c.secondary : (c.accent || ink);
+  const plaque = separe(seconde, bg) ? seconde : ink;
+  return {
+    bg, ink, stripe, stripeInk: inkFor(stripe), bouton, boutonInk: inkFor(bouton),
+    plaque, plaqueInk: inkFor(plaque),
+  };
+}
+
+/*
+ * DEUX APLATS VOISINS SE LISENT-ILS COMME DEUX BLOCS ?
+ *
+ * Le rapport WCAG ne regarde que la luminance, et il dit non au rouge des
+ * Rangers sur leur bleu (1,75) — alors que c'est précisément le bandeau des
+ * Rangers. Il dit non aussi au rouge des Nordiques sur leur bleu (1,66) et au
+ * rouge du Wild sur son vert forêt (1,41). Un écart de TEINTE sépare tout
+ * aussi bien qu'un écart de clarté : on accepte donc la plaque si l'un des
+ * deux est franc — le contraste de luminance, ou la distance entre les deux
+ * couleurs. Ce qui reste refusé est exactement ce qu'on voulait refuser : le
+ * marine de Toronto sur son marine plus sombre (1,22 et 46), le tan d'Anaheim
+ * sur son orange (1,01 et 81).
+ */
+const SEPARE_LUM = 1.8;
+const SEPARE_DIST = 90;
+
+function separe(a, b) {
+  if (contrast(a, b) >= SEPARE_LUM) return true;
+  const [ra, ga, ba] = hexToRgb(a), [rb, gb, bb] = hexToRgb(b);
+  return Math.hypot(ra - rb, ga - gb, ba - bb) >= SEPARE_DIST;
 }
 
 function contrast(bg, ink) {
