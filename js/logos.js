@@ -199,15 +199,20 @@ export function getTeamInk(teamCode) {
  */
 export function getTeamBand(teamCode) {
   const c = TEAM_COLORS[teamCode];
-  if (!c) return { bg: '#112236', ink: '#ffffff', stripe: '#38bdf8' };
+  if (!c) return { bg: '#1b1f26', ink: '#ffffff', stripe: '#8ab4f0', stripeInk: '#0a0b0e' };
   let bg = c.primary;
   let ink = inkFor(bg);
   if (contrast(bg, ink) < 4.5) {
     bg = readableAccent(bg, 0.36);
     ink = inkFor(bg);
   }
-  const stripe = c.secondary && c.secondary.toLowerCase() !== bg.toLowerCase() ? c.secondary : (c.accent || '#ffffff');
-  return { bg, ink, stripe };
+  let stripe = c.secondary && c.secondary.toLowerCase() !== bg.toLowerCase() ? c.secondary : (c.accent || '#ffffff');
+  // LE BOUTON SIGNER PORTE LA COULEUR SECONDAIRE DU CLUB. JP : *bouton signer
+  // de la couleur secondaire de l'équipe*. Un liseré d'un pixel peut être
+  // sombre ; un bouton plein doit porter du texte, donc on l'éclaircit juste
+  // assez pour qu'une encre passe le 4,5:1 — la même mesure que le bandeau.
+  if (contrast(stripe, inkFor(stripe)) < 4.5) stripe = readableAccent(stripe, 0.30);
+  return { bg, ink, stripe, stripeInk: inkFor(stripe) };
 }
 
 function contrast(bg, ink) {
@@ -215,7 +220,7 @@ function contrast(bg, ink) {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 function inkFor(bg) {
-  return contrast(bg, '#ffffff') >= contrast(bg, '#08131f') ? '#ffffff' : '#08131f';
+  return contrast(bg, '#ffffff') >= contrast(bg, '#0a0b0e') ? '#ffffff' : '#0a0b0e';
 }
 
 /*
