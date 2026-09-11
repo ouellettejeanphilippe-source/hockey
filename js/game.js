@@ -25,7 +25,7 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent } from './sim.js';
-import { getTeamLogoHtml, TEAM_COLORS, getTeamAccent, getTeamBand, teamSeasonUrl } from './logos.js';
+import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
 
@@ -423,23 +423,50 @@ async function restoreSave() {
    Outils d'affichage
    ===================================================================== */
 
-/* Sans équipe (tirage LOTO : trois clubs, aucun ne domine), les couleurs neutres. */
+/**
+ * L'INTERFACE PREND LES COULEURS D'UNE ÉQUIPE.
+ *
+ * JP : *je voudrais plus noir, et tout le reste, couleurs des équipes, donc
+ * noir et orange et blanc pendant la saison, couleurs des équipes pendant le
+ * draft* ; *je veux de la couleur, mais en accents et dans les cartes* ; *les
+ * vraies couleurs des équipes, pas délavées*.
+ *
+ * Le décor est noir. Tout ce qui portait du laiton — l'onglet ouvert, le
+ * titre d'une section, la colonne vedette, les points d'un carton, le chiffre
+ * qui compte — prend la COULEUR VIVE du club courant : celle du vestiaire
+ * sorti pendant le repêchage, celle des NHL Stars (noir, blanc, orange) dès
+ * que la saison commence. Une seule variable fait tout ça, `--gold`, parce
+ * qu'elle était déjà l'accent de toute la feuille de style ; l'encre qui va
+ * dessus se mesure (`encreSur`), sinon un accent clair porterait du blanc.
+ *
+ * Sans équipe (tirage LOTO : trois clubs, aucun ne domine), c'est ta propre
+ * équipe qui donne le ton — tu es le directeur général, c'est ton bureau.
+ */
 function applyTeamColors(team) {
-  const c = (team && TEAM_COLORS[team]) || { primary: '#112236', accent: '#38bdf8' };
-  const line = getTeamAccent(team);
+  const code = team && TEAM_COLORS[team] ? team : 'YOU';
+  const c = TEAM_COLORS[code];
+  const vive = couleurVive(code);
   const root = document.documentElement.style;
   root.setProperty('--team-primary', c.primary);
   root.setProperty('--team-accent', c.accent);
-  // Version éclaircie, celle qui porte les bordures et les libellés : la
-  // couleur brute d'une équipe sombre serait invisible sur fond noir.
-  root.setProperty('--team-line', line);
-  // Le bandeau, lui, garde la couleur BRUTE : un aplat n'a pas besoin d'être
-  // clair pour se voir, il a besoin d'une encre qui contraste (getTeamBand).
-  const band = getTeamBand(team);
+  // Le fond d'un bloc aux couleurs du club : sa vraie couleur, assombrie.
+  root.setProperty('--team-fond', fondEquipe(code) || 'var(--panel-0)');
+  // La VRAIE couleur du club, jamais éclaircie : c'est elle qui cerne une
+  // carte et qui borde une case (voir `couleurVive`, js/logos.js).
+  root.setProperty('--team-line', vive);
+  // Le bandeau garde la couleur BRUTE : un aplat n'a pas besoin d'être clair
+  // pour se voir, il a besoin d'une encre qui contraste (getTeamBand).
+  const band = getTeamBand(code);
   root.setProperty('--team-band', band.bg);
   root.setProperty('--team-ink', band.ink);
   root.setProperty('--team-stripe', band.stripe);
   root.setProperty('--team-stripe-ink', band.stripeInk);
+  root.setProperty('--team-bouton', band.bouton);
+  root.setProperty('--team-bouton-ink', band.boutonInk);
+  // L'accent de toute l'interface suit le club.
+  root.setProperty('--gold', vive);
+  root.setProperty('--gold-soft', `color-mix(in srgb, ${vive} 15%, transparent)`);
+  root.setProperty('--sur-or', encreSur(vive));
 }
 
 const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
@@ -1378,12 +1405,17 @@ function playerCardEl(p) {
     + ((already || !slot || over) ? ' locked' : '');
   el.title = 'Toucher la carte pour la fiche complète';
   const band = getTeamBand(p.t);
-  el.style.setProperty('--team-line', getTeamAccent(p.t));
+  el.style.setProperty('--team-line', couleurVive(p.t));
+  // LE CORPS DE LA CARTE PORTE LA VRAIE COULEUR DU CLUB, assombrie juste
+  // assez pour qu'un nom blanc se lise dessus (`fondEquipe`, js/logos.js).
+  el.style.setProperty('--team-fond', fondEquipe(p.t) || '');
   el.style.setProperty('--team-band', band.bg);
   el.style.setProperty('--team-ink', band.ink);
   el.style.setProperty('--team-stripe', band.stripe);
   // Le bouton « Signer » porte la couleur secondaire du club (voir style.css).
   el.style.setProperty('--team-stripe-ink', band.stripeInk);
+  el.style.setProperty('--team-bouton', band.bouton);
+  el.style.setProperty('--team-bouton-ink', band.boutonInk);
 
   // La carte ne porte que l'essentiel : qui, combien, ce qu'il vaut et où il
   // va. Le détail des statistiques est dans la fiche, à un clic.
@@ -1732,7 +1764,8 @@ function slotEl(s) {
     + (pen > 0 ? ' oop' : '');
 
   if (p) {
-    el.style.setProperty('--slot-line', getTeamAccent(p.t));
+    el.style.setProperty('--slot-line', couleurVive(p.t));
+    el.style.setProperty('--slot-fond', fondEquipe(p.t, 0.035) || '');
     const band = getTeamBand(p.t);
     el.style.setProperty('--slot-band', band.bg);
     el.style.setProperty('--slot-ink', band.ink);
@@ -2342,6 +2375,9 @@ async function buildOpponents(count) {
 async function runSeason(opts = {}) {
   if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
   G.done = true;
+  // LA SAISON SE JOUE DANS TES COULEURS : noir, blanc, orange. Le repêchage
+  // portait celles du vestiaire sorti ; à partir d'ici, c'est ton club.
+  applyTeamColors('YOU');
   const mb = $('mainBtn');
   mb.disabled = true;
   mb.textContent = 'Simulation de la ligue… 82 matchs par équipe';
