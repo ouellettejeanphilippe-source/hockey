@@ -26,7 +26,7 @@ import {
   COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, PERIODES, PRESENCES_PAR_PERIODE, PRESENCES_PROLONGATION,
   equipeDeTable, nouveauMatch, iaPresence, resultatDe, surLaGlace, porteur, libre, eqDe,
   statsDeTable, uniteDe, changerUnite, souffleDe, peutJouer, deplacementsDe, ciblesEchecDe,
-  reglesDuPlateau,
+  reglesDuPlateau, peutTirer, distanceAuFilet, PORTEE_TIR,
 } from '../js/table.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -164,7 +164,7 @@ const nom = x => `${(x.p && x.p.n) || 'Rappel'} (${x.eq}${x.role})`;
    LE DÉROULEMENT : un match doit toujours finir, et finir sur un gagnant.
    ====================================================================== */
 let casses = new Map();
-let nuls = 0, jamaisFinis = 0, presencesTotal = 0, matchsAvecOT = 0, gestesTotal = 0;
+let nuls = 0, jamaisFinis = 0, presencesTotal = 0, matchsAvecOT = 0, gestesTotal = 0, tirsHorsPortee = 0;
 const parType = {};
 const ajouter = (regle, quoi) => {
   const l = casses.get(regle) || [];
@@ -199,7 +199,18 @@ for (let i = 0; i < MATCHS; i++) {
     // On vérifie entre CHAQUE geste, pas seulement entre deux présences :
     // un chevauchement ou une rondelle perdue peut naître et disparaître à
     // l'intérieur d'une même présence sans qu'on le voie jamais.
-    iaPresence(m, (type) => { gestesTotal++; parType[type] = (parType[type] || 0) + 1; verifier(); });
+    iaPresence(m, (type, piece) => {
+      gestesTotal++; parType[type] = (parType[type] || 0) + 1;
+      // ON NE TIRE QUE DE LA ZONE OFFENSIVE. C'est ce qui a fait disparaître
+      // les « buts randoms du milieu » : 28 % des buts venaient de la zone
+      // neutre ou de plus loin, et un tir du fond de son propre territoire
+      // avait un meilleur modificateur qu'un tir de l'enclave.
+      if (type === 'tir' && !peutTirer(m, piece)) {
+        tirsHorsPortee++;
+        ajouter('on ne tire que de la zone offensive', `match ${i} : tir à ${distanceAuFilet(m, piece)} cases du filet (portée ${PORTEE_TIR})`);
+      }
+      verifier();
+    });
     presencesTotal++;
     verifier();
   }
@@ -212,7 +223,7 @@ for (let i = 0; i < MATCHS; i++) {
 console.log(`${clubs.length} vraies équipes · ${MATCHS} matchs · ${presencesTotal} présences et ${gestesTotal} gestes vérifiés\n`);
 console.log('LES RÈGLES DU PLATEAU');
 let echecs = 0;
-for (const [nomRegle] of REGLES.concat([['un match finit toujours sur un gagnant']])) {
+for (const [nomRegle] of REGLES.concat([['on ne tire que de la zone offensive'], ['un match finit toujours sur un gagnant']])) {
   const l = casses.get(nomRegle);
   if (l) { echecs++; console.log(`  ✗ ${nomRegle}\n      ${l.join('\n      ')}`); }
   else console.log(`  ✓ ${nomRegle}`);
