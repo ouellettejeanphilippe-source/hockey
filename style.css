@@ -3726,6 +3726,10 @@ a.spin-club:hover {
   pointer-events: none; z-index: 1;
   display: flex; align-items: center; justify-content: center;
 }
+/* `hidden` ne suffit PAS ici : une règle d'auteur qui pose `display` bat la
+   feuille du navigateur, donc la rondelle libre restait sur la glace en
+   permanence, à l'endroit où elle avait été ramassée. */
+.t-rondelle-libre-jeton[hidden] { display: none; }
 .t-rondelle-libre-jeton::after {
   content: ''; width: 13px; height: 13px; border-radius: 50%;
   background: var(--gold); box-shadow: 0 0 0 2px var(--fond-creux);
@@ -3767,7 +3771,6 @@ a.spin-club:hover {
   margin: 8px 0; padding: 8px 10px; background: var(--panel-2);
   border-left: 3px solid var(--muted);
 }
-.t-de.sienne { opacity: 0.92; }
 .t-de.ok { border-left-color: var(--green); }
 .t-de.rate { border-left-color: var(--red); }
 .t-de-face { font-family: var(--display); font-size: 27px; font-weight: 800; line-height: 1; min-width: 34px; text-align: center; background: var(--fond-creux); border: 1px solid var(--line); border-radius: var(--r-s); padding: 2px 0; }
@@ -3893,3 +3896,100 @@ a.spin-club:hover {
   .t-jeton.visee { animation: none; box-shadow: 0 0 0 3px var(--red); }
   .t-eclat { animation: none; }
 }
+
+
+/* ======================================================================
+   LE DÉ SE JETTE SUR LA GLACE, ET LE VERDICT ÉCLATE OÙ IL TOMBE.
+
+   JP : *je veux voir les dés et résultats sur la glace genre, animation*.
+   Le dé vivait dans une boîte sous le plateau : on tirait au filet, puis on
+   baissait les yeux pour savoir si ça rentrait. Il est maintenant posé sur
+   la case du geste, il roule, il s'arrête sur son chiffre — et le mot du
+   moteur (BUT !, ARRÊT, REVIREMENT) éclate sur la case où c'est arrivé.
+
+   Les deux jetons sont placés comme les pièces, par `--tr` et `--tc`, donc
+   ils suivent la même grille sans une seule mesure en JavaScript. Ils ne
+   prennent aucun clic : la case dessous reste jouable.
+   ====================================================================== */
+.t-de-glace, .t-flash {
+  position: absolute; top: 0; left: 0;
+  width: var(--tcell); height: var(--tcell);
+  transform: translate(calc(var(--tc) * var(--tcell)), calc(var(--tr) * var(--tcell)));
+  pointer-events: none; z-index: 8;
+}
+.t-flash { z-index: 9; }
+
+/* Le dé se pose AU-DESSUS de sa case — sauf tout en haut de la glace, où il
+   sortirait du plateau : là il se pose dessous. */
+.t-dg {
+  position: absolute; left: 50%; bottom: calc(100% - 6px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  padding: 3px 7px; border-radius: var(--r-s);
+  background: var(--panel); border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  animation: t-dg-tombe 200ms cubic-bezier(0.2, 1.4, 0.5, 1);
+}
+.t-de-glace.dessous .t-dg { bottom: auto; top: calc(100% - 6px); }
+.t-dg.ok { border-left-color: var(--green); }
+.t-dg.rate { border-left-color: var(--red); }
+/* L'ANIMATION PASSE PAR `translate` ET `scale`, PAS PAR `transform` : c'est
+   `transform` qui centre la boîte sur sa case, et une animation dessus
+   effacerait ce centrage — la boîte sauterait d'une demi-largeur. */
+@keyframes t-dg-tombe { from { opacity: 0; translate: 0 -8px; scale: 0.9; } }
+
+/* Aux deux bords de la glace, la boîte s'aligne sur la case au lieu de s'y
+   centrer : centrée, elle sortirait du plateau et se ferait couper. */
+.t-de-glace.bord-g .t-dg, .t-flash.bord-g .t-flash-mot { left: 0; right: auto; }
+.t-de-glace.bord-d .t-dg, .t-flash.bord-d .t-flash-mot { left: auto; right: 0; }
+.t-de-glace.bord-g .t-dg, .t-de-glace.bord-d .t-dg { transform: none; }
+.t-flash.bord-g .t-flash-mot, .t-flash.bord-d .t-flash-mot { transform: translateY(-50%); }
+
+/* Le tambour : trois fois les six faces, une fenêtre d'un chiffre de haut. */
+.t-dg-fenetre {
+  --fh: 21px;
+  display: block; width: 15px; height: var(--fh); overflow: hidden;
+  font-family: var(--display); font-size: 19px; font-weight: 800; text-align: center;
+}
+.t-dg-tambour {
+  display: block;
+  transform: translateY(calc((12 + var(--face)) * -1 * var(--fh)));
+  animation: t-dg-roule 520ms cubic-bezier(0.15, 0.85, 0.25, 1);
+}
+.t-dg-tambour b { display: block; height: var(--fh); line-height: var(--fh); font-weight: 800; }
+@keyframes t-dg-roule { from { transform: translateY(0); } }
+
+.t-dg-calcul { font-family: var(--display); font-size: 13.5px; font-weight: 700; color: var(--sub); }
+.t-dg-calcul b { font-size: 16px; color: var(--text); }
+.t-dg.ok .t-dg-calcul b { color: var(--green); }
+.t-dg.rate .t-dg-calcul b { color: var(--red); }
+.t-dg-calcul i { font-style: normal; font-size: 11.5px; color: var(--muted); margin-left: 3px; }
+.t-dg-mot { font-size: 11px; color: var(--muted); }
+
+/* Le verdict : un mot, plein cadre sur la case, qui grossit et s'efface. */
+.t-flash-mot {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  font-family: var(--display); font-size: 18px; font-weight: 800;
+  letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
+  padding: 2px 7px; border-radius: var(--r-s);
+  animation: t-flash-e 1200ms ease-out forwards;
+}
+.t-flash-or { background: var(--gold); color: var(--sur-or); }
+/* L'encre de ces trois-là est le FOND DE LA PAGE : il est presque noir dans
+   les trois palettes, et le vert, le bleu et le rouge d'accent sont clairs. */
+.t-flash-chaud { background: var(--green); color: var(--bg); }
+.t-flash-froid { background: var(--blue); color: var(--bg); }
+.t-flash-rouge { background: var(--red); color: var(--bg); }
+@keyframes t-flash-e {
+  0% { opacity: 0; scale: 0.6; }
+  18% { opacity: 1; scale: 1.12; }
+  30% { scale: 1; }
+  75% { opacity: 1; translate: 0 0; scale: 1; }
+  100% { opacity: 0; translate: 0 -14px; scale: 1; }
+}
+
+/* Qui préfère l'immobilité la garde : le bon chiffre est déjà à sa place. */
+@media (prefers-reduced-motion: reduce) {
+  .t-dg, .t-dg-tambour { animation: none; }
+  .t-flash-mot { animation: t-flash-fixe 1200ms steps(1) forwards; }
+}
+@keyframes t-flash-fixe { 0%, 90% { opacity: 1; } 100% { opacity: 0; } }
