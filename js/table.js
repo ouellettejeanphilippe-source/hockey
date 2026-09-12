@@ -86,11 +86,45 @@ export const FILET_BAS = RANGS - 1;
 export const BUT_COL = 3;                     // le centre du filet
 export const RANG_MIN = 1, RANG_MAX = RANGS - 2;   // là où les patineurs vont
 
+/*
+ * LA PORTÉE DU TIR : on ne tire que de la zone offensive.
+ *
+ * JP, après avoir joué : *buts randoms du milieu ?*. Mesuré sur 200 matchs,
+ * il avait raison et c'était pire qu'aléatoire — la géométrie du jeu était à
+ * l'ENVERS :
+ *
+ *   distance 1-2 (l'enclave)      74 % et 64 % des tirs entraient
+ *   distance 3   (la pointe)      40 %
+ *   distance 5   (le centre)      78 %
+ *   distance 7   (son propre bout) 75 %
+ *
+ * Vingt-huit pour cent des buts venaient de la zone neutre ou de plus loin,
+ * et un tir pris du fond de son territoire avait un MEILLEUR modificateur
+ * (+1,09) qu'un tir de l'enclave (+0,84). La raison : la pénalité de distance
+ * était plafonnée à −2 pendant le réglage arcade, alors que les bâtons qui
+ * gênent un tir devant le filet valent −2 à −3. Se planter au centre de la
+ * glace, où il n'y a personne, était donc le meilleur endroit pour marquer.
+ *
+ * Une pénalité plus forte n'aurait rien réglé : la borne à ±2 écrase déjà
+ * tout ce qui dépasse (le brut valait −4,6 à la pointe et −2,4 au centre, et
+ * les deux tombaient à −2), et le 6 qui réussit toujours donne un but à
+ * n'importe quel tir une fois sur six. C'est une RÈGLE qui manquait, pas un
+ * chiffre : on ne tire pas de sa propre zone. Au-delà de la ligne bleue,
+ * ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert.
+ */
+export const PORTEE_TIR = 3;
+
 /** Le filet qu'une équipe attaque : 'A' monte, 'B' descend. */
 export const filetDe = cote => (cote === 'A' ? FILET_HAUT : FILET_BAS);
 
 /** « 1re », « 2e » : l'ordinal féminin d'une période. */
 export const ordP = n => (n === 1 ? '1re' : `${n}e`);
+
+/** La distance d'une pièce au filet qu'elle attaque. */
+export const distanceAuFilet = (m, piece) => Math.abs(piece.r - eqDe(m, piece.eq).but);
+
+/** Peut-elle tirer d'où elle est ? Seulement depuis la zone offensive. */
+export const peutTirer = (m, piece) => !piece.gardien && distanceAuFilet(m, piece) <= PORTEE_TIR;
 
 /** La nature d'une case, du point de vue de l'équipe qui attaque vers `but`. */
 export function natureCase(r, c, but) {
@@ -625,10 +659,25 @@ export function ecranVaut(p) {
   return (p.md ?? 0) >= 0.80 ? 3 : 2;
 }
 
+/*
+ * UN BÂTON NE GÊNE UN TIR QUE S'IL EST ENTRE LE TIREUR ET LE FILET.
+ *
+ * N'importe quel adversaire collé au tireur gênait son tir, y compris celui
+ * qui était DERRIÈRE lui — un défenseur dans son dos bloquait la rondelle,
+ * ce qui n'a aucun sens. Et ça faisait de l'enclave le pire endroit d'où
+ * tirer : devant le filet on est entouré (2,3 bâtons en moyenne mesurés),
+ * donc le tir de l'enclave partait à −2,3 pendant qu'un tir du centre de la
+ * glace, où il n'y a personne, partait à zéro. Compter seulement ce qui est
+ * du côté du filet rend au net-front ce qu'il doit être : l'endroit où on
+ * marque, pas l'endroit où on se fait étouffer.
+ */
 export function batonsTir(m, cote, r, c) {
+  const but = eqDe(m, cote).but;
+  const moi = Math.abs(r - but);
   let n = 0;
   for (const x of surLaGlace(m)) {
     if (x.eq === cote || x.etourdi || dist(x, { r, c }) !== 1) continue;
+    if (Math.abs(x.r - but) > moi) continue;      // il est derrière le tireur
     n += x.ecran ? ecranVaut(x.p) : 1;
   }
   return n;
@@ -936,7 +985,7 @@ export function appliquerPasse(m, piece, cible, jet) {
 
 export function tirer(m, piece) {
   const mod = modTir(m, piece) + (piece.hab === 'DECOCHE' && piece.habDispo ? 2 : 0);
-  eqDe(m, piece.eq).modsTir.push(mod);
+  eqDe(m, piece.eq).modsTir.push({ mod, d: Math.abs(piece.r - eqDe(m, piece.eq).but) });
   return jeter(m, mod, 'tir');
 }
 
@@ -1252,10 +1301,14 @@ function meilleurGeste(m, piece) {
     if (!piece.agi) {
       // Tirer : ce que ça rapporte, c'est un but. Un tir raté rend la
       // rondelle au gardien, donc ça se pèse.
-      options.push({ type: 'tir', val: chances(modTir(m, piece) + bonus('DECOCHE'), SEUIL_TIR) * 11 - 1.5 });
+      if (peutTirer(m, piece)) options.push({ type: 'tir', val: chances(modTir(m, piece) + bonus('DECOCHE'), SEUIL_TIR) * 11 - 1.5 });
       for (const cible of receveursDe(m, piece)) {
         const gain = valeurCase(cible.r, cible.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
-        const tir = chances(modTir(m, cible), SEUIL_TIR) - chances(modTir(m, piece), SEUIL_TIR);
+        // Ce que la passe ouvre : la chance de tir du receveur, zéro s'il est
+        // hors de portée. Sans ça le glouton passait à quelqu'un de mieux
+        // « placé » qui ne pouvait pas tirer non plus.
+        const tirIci = peutTirer(m, piece) ? chances(modTir(m, piece), SEUIL_TIR) : 0;
+        const tir = (peutTirer(m, cible) ? chances(modTir(m, cible), SEUIL_TIR) : 0) - tirIci;
         if (gain <= 0 && tir <= 0.02) continue;
         options.push({ type: 'passe', cible, val: chances(modPasse(m, piece, cible) + bonus('VOILEE')) * (2.5 + gain * 0.5 + tir * 9) });
       }
@@ -1350,7 +1403,7 @@ export function iaPresence(m, surGeste = null) {
        * rondelle au gardien, ce qui est exactement le prix d'un mauvais tir.
        */
       const p = porteur(m);
-      if (p && p.eq === cote && !p.gardien && !p.agi) {
+      if (p && p.eq === cote && !p.agi && peutTirer(m, p)) {
         gestes.push({ piece: p, type: 'tir' });
         jouerGeste(m, p, { type: 'tir' }, cote, true);
         if (surGeste) surGeste('tir', p);
@@ -1551,9 +1604,11 @@ export function reglesDuPlateau() {
       titre: 'La glace',
       points: [
         `${COLS} colonnes, ${RANGS} rangées. Les deux rangées du bout sont les filets : seuls les gardiens y sont.`,
+        `ON NE TIRE QUE DE LA ZONE OFFENSIVE : à ${PORTEE_TIR} cases du filet ou moins. Au-delà de la ligne bleue ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert. Il faut entrer.`,
         'L\'enclave — les deux rangées devant un filet, sauf les coins — vaut +2 au tir, et un tir raté pris de là laisse un retour.',
         'Un coin vaut −1 au tir, une bande −1 de plus : c\'est le côté court.',
         'La ligne bleue, c\'est la pointe : c\'est de là que le tir frappé vaut son bonus.',
+        'Un adversaire collé au tireur ne gêne son tir que s\'il est ENTRE lui et le filet. Celui qui est dans son dos ne bloque rien.',
       ],
     },
     {
@@ -1581,10 +1636,10 @@ export function reglesDuPlateau() {
         ['Patiner', 'non', `jusqu'à PA cases, en contournant les pièces`, '—'],
         ['Esquiver', 'oui', 'quitter avec la rondelle une case tenue par un bâton adverse', 'revirement'],
         ['Passer', 'oui', 'donner la rondelle à un coéquipier', 'revirement'],
-        ['Tirer', 'oui', 'un but', 'le gardien la garde — sauf de l\'enclave, ou raté d\'un seul point : retour'],
+        ['Tirer', 'oui', `un but — de la zone offensive seulement, à ${PORTEE_TIR} cases ou moins`, 'le gardien la garde — sauf de l\'enclave, ou raté d\'un seul point : retour'],
         ['Épaule', 'oui', 'n\'importe quel adversaire adjacent : il tombe et recule d\'une case', 'sur le porteur, revirement ; sur un autre, ta pièce est hors position'],
         ['Bâton', 'oui', 'sur le porteur seulement : tu prends la rondelle sans le toucher', 'revirement'],
-        ['Se placer devant', 'non', 'jusqu\'à ta prochaine présence, tu gênes double les tirs pris à côté de toi', '—'],
+        ['Se placer devant', 'non', 'jusqu\'à ta prochaine présence, tu gênes double les tirs pris à côté de toi — si tu es du côté du filet', '—'],
         ['Foncer', 'non', 'tu dépenses ton geste pour patiner une seconde fois', '—'],
       ],
     },

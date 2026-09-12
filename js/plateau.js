@@ -26,7 +26,7 @@ import {
   COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, SEUIL, SEUIL_TIR, PERIODES, PRESENCES_PAR_PERIODE,
   HABILETES, GABARITS, TIRS, nouveauMatch, surLaGlace, eqDe, adverse, porteur, libre, actives, peutJouer,
   deplacementsDe, receveursDe, ciblesEchecDe, ciblesVolDe, natureCase, dist, batons, chances,
-  modTir, modPasse, modEchec, modEsquive, modVol,
+  modTir, modPasse, modEchec, modEsquive, modVol, peutTirer, distanceAuFilet, PORTEE_TIR,
   deplacer, appliquerEsquive, passer, appliquerPasse, tirer, appliquerTir,
   mettreEnEchec, appliquerEchec, voler, appliquerVol,
   seMettreDevant, foncer, souffleDe, essouffle, pasDe, uniteDe, statsDeTable,
@@ -248,7 +248,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const so = souffleDe(m, sel), soMax = st.SO;
     const gestes = [];
 
-    if (aLaRondelle && !sel.agi) {
+    if (aLaRondelle && !sel.agi && peutTirer(m, sel)) {
       const mod = modTir(m, sel) + bonus('DECOCHE');
       gestes.push(bouton('tir', 'Tirer', mod, SEUIL_TIR, 't-tir'));
     }
@@ -268,7 +268,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       }
     }
 
+    const horsPortee = aLaRondelle && !peutTirer(m, sel);
     const aide = cible ? `Choisis l'épaule ou le bâton sur ${esc(nomCourt(cible.p))}.`
+      : horsPortee ? `Trop loin pour tirer : il faut entrer dans la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Il en est à ${distanceAuFilet(m, sel)}.`
       : aLaRondelle ? 'Touche une case allumée pour patiner, un coéquipier pour lui passer, un adversaire pour le frapper.'
       : 'Touche une case allumée pour patiner, un adversaire adjacent pour le frapper.';
 

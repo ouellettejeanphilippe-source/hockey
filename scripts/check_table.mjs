@@ -119,7 +119,7 @@ for (let i = 0; i < MATCHS; i++) {
   echecs += r.A.echecs + r.B.echecs;
   revirements += r.A.revirements + r.B.revirements;
   for (const f of [r.A, r.B]) for (const l of (f.physique || [])) vols += l.vols;
-  for (const f of [r.A, r.B]) for (const v of f.modsTir) mods.push(v);
+  for (const f of [r.A, r.B]) for (const v of f.modsTir) mods.push(v.mod);
   const cle = `${Math.max(r.gfA, r.gfB)}-${Math.min(r.gfA, r.gfB)}`;
   pointages.set(cle, (pointages.get(cle) || 0) + 1);
 }
