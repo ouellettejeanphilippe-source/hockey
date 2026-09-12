@@ -51,7 +51,7 @@
 
 import { generateur, getHiddenRatings, SLOTS } from './sim.js';
 import { pctTirRelDe, lancersRelDe, passesRelDe, facteurGardienDe } from './sim.js';
-import { archetypeKey, ARCHETYPES } from './ratings.js';
+import { archetypeKey, ARCHETYPES, GABARIT_PETIT, GABARIT_MOYEN, GABARIT_MATADOR } from './ratings.js';
 import { getTraits } from './traits.js';
 
 /* ======================================================================
@@ -115,6 +115,7 @@ export const dist = (a, b) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c))
      MA  maniement   passer, recevoir, esquiver, ramasser
      TI  tir         faire entrer la rondelle
      FO  force       enlever la rondelle, et la garder
+     SO  souffle     combien de présences il tient avant de changer
 
    Le gardien n'en a qu'un, AR (arrêt), et il vient de `facteurGardienDe` —
    le même rapport au % d'arrêts de SA ligue que le moteur par événements
@@ -129,10 +130,10 @@ const surSix = x => borne(Math.round(x), 1, 6);
 const robu = p => (typeof p?.mr === 'number' ? p.mr : 0.5);
 
 export function statsDeTable(p) {
-  if (!p) return { PA: 3, MA: 3, TI: 3, FO: 3, AR: 3 };
+  if (!p) return { PA: 3, MA: 3, TI: 3, FO: 3, SO: 3, AR: 3, gb: GABARIT_MOYEN, ts: 'P' };
   if (p.p === 'G') {
     // facteurGardienDe : combien il laisse passer. Plus c'est bas, meilleur.
-    return { PA: 2, MA: 3, TI: 1, FO: 3, AR: surSix(8 - 4.2 * facteurGardienDe(p)) };
+    return { PA: 2, MA: 3, TI: 1, FO: 3, SO: 9, AR: surSix(8 - 4.2 * facteurGardienDe(p)), gb: gabaritDe(p), ts: 'P' };
   }
   const vol = lancersRelDe(p);        // 0,25 à 2,60 — son volume de rondelles
   const fin = pctTirRelDe(p);         // 0,35 à 2,20 — sa finition
@@ -150,20 +151,127 @@ export function statsDeTable(p) {
   // trente-sept cases, et trente-sept cases allumées d'un coup, ça ne se lit
   // pas — on choisit au hasard faute de pouvoir comparer. À trois, on voit
   // ses options.
-  let PA = 3;
+  let PA = 4;
   if (traits.has('VITESSE')) PA++;
   if (vol >= 1.35) PA++;
   if (estD && robu(p) >= 0.85) PA--;
   if (estD) PA--;
 
+  /*
+   * LE SOUFFLE : combien de présences il tient avant d'être vidé. Il vient de
+   * `r`, la sous-cote d'usure — c'est SA raison d'être dans ce dépôt (« le
+   * moteur lit `d` pour la défensive d'équipe, `r` pour l'usure »). Le
+   * nombre qu'on affiche est le souffle, jamais la cote : la règle « aucune
+   * cote dans le DOM » tient, exactement comme PA vient de `lancersRelDe`.
+   */
+  const usure = getHiddenRatings(p).r ?? 50;
+  const g = gabaritDe(p);
+
   return {
-    PA: borne(PA, 2, 5),
+    PA: borne(PA + (g === GABARIT_PETIT ? 1 : g === GABARIT_MATADOR ? -1 : 0), 2, 6),
     MA: surSix(1.4 + 2.2 * pas),
     TI: surSix(0.9 + 2.6 * vol * fin),
-    FO: surSix(1.5 + 4.0 * robu(p)),
+    FO: surSix(1.5 + 4.0 * robu(p)) + (g === GABARIT_MATADOR ? 1 : g === GABARIT_PETIT ? -1 : 0),
+    SO: borne(Math.round(1.4 + 3.1 * (usure - 30) / 45) + (g === GABARIT_MOYEN ? 1 : g === GABARIT_PETIT ? -1 : 0), 2, 6),
     AR: 3,
+    gb: g,
+    ts: TIRS[p.ts] ? p.ts : tirParDefaut(p),
   };
 }
+
+/* ======================================================================
+   LES CINQ TIRS — la variété des gestes
+   ======================================================================
+   JP : *mises en échec, tirs, vitesse plus élevées, etc, faire variété
+   d'actions* ; *t'as peut-être même accès aux informations de vitesse et
+   pourcentage de tir et cie par la LNH*.
+
+   Oui, en partie : `skater/shottype` de l'API donne les tirs et les buts de
+   chaque joueur PAR TYPE, et `scripts/build_shards.py --gestes-only` en tire
+   la signature de chacun (`ts` dans le shard). Ovechkin sort frappé,
+   Draisaitl sur réception, Crosby et McDavid revers, les deux Tkachuk
+   déviation, Matthews poignet — ça se reconnaît sans explication.
+
+   La signature est ce qui DÉPASSE LA LIGUE, pas ce qui domine son propre
+   total : à comparer les types entre eux, 774 joueurs sur 797 sortaient
+   « poignet » en 2021-22, parce que tout le monde tire surtout du poignet.
+
+   La colonne ne couvre que 2009-10 et après. Les quarante-cinq autres
+   saisons prennent `tirParDefaut` — la position et l'archétype — et le jeu
+   est le même pour tout le monde : c'est l'APTITUDE qui vient de la donnée
+   quand elle existe, jamais l'existence de l'action. Même principe que
+   `AVANTAGES_EPOQUE` pour l'avantage numérique.
+
+   Chaque tir a un contexte où il vaut mieux que les autres, et c'est là tout
+   l'intérêt : le plateau ne demande plus « tires-tu ? » mais « d'où ? ».
+   ====================================================================== */
+
+export const TIRS = {
+  P: { nom: 'Tir du poignet', icon: '🎯', desc: 'Bon partout, mauvais nulle part.', mod: () => 0 },
+  F: { nom: 'Tir frappé', icon: '💣', desc: '+1 de loin (la pointe), −1 collé au filet.',
+       mod: c => (c.loin >= 3 ? 1 : c.loin <= 1 ? -1 : 0) },
+  E: { nom: 'Tir sur réception', icon: '⚡', desc: '+2 s\'il vient de recevoir la passe : le une-deux.',
+       mod: c => (c.recu ? 2 : 0) },
+  R: { nom: 'Revers', icon: '🌀', desc: '+1 sous la pression d\'un bâton adverse.',
+       mod: c => (c.batons > 0 ? 1 : 0) },
+  D: { nom: 'Déviation', icon: '🔻', desc: '+2 dans l\'enclave, −2 ailleurs : il vit devant le filet.',
+       mod: c => (c.enclave ? 2 : -2) },
+};
+
+/* Avant 2009-10 : la position et l'archétype disent le tir. Un défenseur
+ * décoche de la pointe, un franc-tireur tire du poignet, un attaquant de
+ * puissance dévie devant le filet. */
+function tirParDefaut(p) {
+  if (!p) return 'P';
+  const estD = p.p === 'D' || p.p === 'LD' || p.p === 'RD';
+  const ak = archetypeKey(p);
+  if (estD) return ak === 'OFF_D' || ak === 'TWO_WAY_D' ? 'F' : 'F';
+  if (ak === 'POWER_FWD' || ak === 'ENERGY' || ak === 'CHECKER') return 'D';
+  if (ak === 'OFF_PLAYMAKER' || ak === 'PLAYMAKER') return 'R';
+  if (ak === 'SNIPER') return 'E';
+  return 'P';
+}
+
+/* ======================================================================
+   LE GABARIT — petit et rapide, moyen, matador
+   ======================================================================
+   JP : *donner différent bonus selon petit joueur rapide, moyen, matador*.
+
+   Le gabarit (`gb` dans le shard) est un RANG DANS LA SAISON, calculé à
+   l'étage 2 des cotes sur la vraie taille et le vrai poids de la LNH
+   (`gabaritDeSaison`, js/ratings.js) : 6 pi 2 po et 200 livres, c'était un
+   gros en 1975 et c'est la moyenne en 2020, donc un club de 1975 a autant de
+   matadors qu'un club de 2020. C'est ce qu'il faut d'un jeu qui mélange les
+   époques.
+
+   Trois jeux de bonus, et c'est un vrai triangle — chacun bat un autre :
+
+     🐇 PETIT ET RAPIDE   il patine (+1 PA) et se faufile (+1 à l'esquive),
+                          mais il encaisse mal (−1 FO, et une mise en échec
+                          le laisse au sol une présence de plus) et il donne
+                          tout (−1 de souffle)
+     ⚖️ MOYEN             il joue toute la soirée (+1 de souffle) et il garde
+                          le jeu vivant (+1 à la passe) ; aucune faiblesse
+     🐂 MATADOR           il frappe (+1 FO), une mise en échec ratée ne lui
+                          coûte pas la présence, et il protège la rondelle
+                          (un bâton adverse de moins à l'esquive) ; mais il
+                          est lourd (−1 PA)
+
+   Le petit se sauve du matador, le matador écrase le moyen dans le coin, le
+   moyen est encore là en troisième période quand les deux autres soufflent.
+   ====================================================================== */
+
+export const GABARITS = {
+  [GABARIT_PETIT]:   { cle: 'PETIT',   nom: 'Petit et rapide', icon: '🐇', desc: 'Il patine et se faufile, mais il encaisse mal et il s\'essouffle.' },
+  // 🐇 🐎 🐂 : un triangle qui se retient sans légende. Le moyen portait ⚖️,
+  // la même icône que l'archétype « Complet » de ratings.js — deux étiquettes
+  // identiques côte à côte sur la carte, ça se lit comme un doublon.
+  [GABARIT_MOYEN]:   { cle: 'MOYEN',   nom: 'Gabarit moyen',   icon: '🐎', desc: 'Aucune faiblesse : il joue toute la soirée et garde le jeu vivant.' },
+  [GABARIT_MATADOR]: { cle: 'MATADOR', nom: 'Matador',         icon: '🐂', desc: 'Il frappe, il protège la rondelle, mais il est lourd.' },
+};
+
+/** Le gabarit d'un joueur ; moyen quand la taille et le poids manquent. */
+export const gabaritDe = p => (p && (p.gb === 0 || p.gb === 1 || p.gb === 2) ? p.gb : GABARIT_MOYEN);
 
 /* ======================================================================
    LES HABILETÉS — l'étage FFT
@@ -213,7 +321,23 @@ export function habileteDe(p) {
    ====================================================================== */
 
 export const SEUIL = 4;          // un geste ordinaire : une fois sur deux
-export const SEUIL_TIR = 5;      // un but, ça se mérite
+/*
+ * LE SEUIL DU TIR, ET C'EST UN CHOIX DE GENRE, PAS DE SIMULATION.
+ *
+ * JP : *faut pas faire comme la vraie NHL, c'est un mode arcade, oui avec
+ * stratégie et deepness, mais pas genre vraie hockey*.
+ *
+ * À 5+, un but se méritait et le plateau rendait 2 buts par équipe par
+ * match : du hockey crédible, et un jeu de table plate. Le moteur par
+ * événements (js/sim.js) est là pour la crédibilité — il tient les 55
+ * saisons, les égalités de la feuille et la monotonie sur dix déciles. Le
+ * plateau, lui, est un jeu d'arcade : on veut des pointages de borne, des
+ * remontées, et qu'une présence finisse sur une rondelle au fond du filet
+ * plutôt que sur un dégagement. Le tir se joue donc au même seuil que tout
+ * le reste, et c'est la POSITION qui décide — l'enclave, l'angle, les
+ * bâtons, le tir signature.
+ */
+export const SEUIL_TIR = 4;
 export const MOD_MAX = 2, MOD_MIN = -2;   // un geste n'est jamais sûr ni jamais perdu
 
 /*
@@ -260,7 +384,7 @@ export const PERIODES = 3;
  * demandé « plus rapide » ; cinq est le réglage qui donne des pointages de
  * hockey (2-1, 3-2, 4-3, 1-0) dans le moins de tours possible.
  */
-export const PRESENCES_PAR_PERIODE = 5;
+export const PRESENCES_PAR_PERIODE = 6;
 export const PRESENCES_PROLONGATION = 2;   // la mort subite est courte, sinon on n'en sort plus
 
 /* Les cinq cases d'une unité, et l'unité de chaque groupe. */
@@ -316,8 +440,23 @@ export function equipeDeTable(nom, tag, roster, cote) {
      * bilan d'un tournoi ne montrait que les buts marqués depuis la dernière
      * mise au jeu. Le joueur (`p`) est la clé, il ne change jamais.
      */
-    fiches: new Map(),           // joueur -> { p, buts, passes, tirs }
+    fiches: new Map(),           // joueur -> { p, buts, passes, tirs, echecs, vols }
     arrets: 0, alloues: 0,       // ceux du gardien, pour la même raison
+    /*
+     * LE SOUFFLE. JP : *fatigue (changement)*. Chaque présence passée sur la
+     * glace coûte un point ; à zéro, la pièce est essoufflée — un de moins à
+     * tous ses jets et un pas de patin en moins. Un joueur au banc en reprend
+     * un par présence. C'est ce qui rend les quatre trios et les trois paires
+     * NÉCESSAIRES plutôt que décoratifs : on ne finit pas un match avec son
+     * premier trio, comme on ne le fait pas dans la vraie vie.
+     * Sur l'équipe, clé = le joueur : `poser()` reconstruit les pièces à
+     * chaque mise au jeu, elles ne peuvent rien retenir (voir `fiches`).
+     */
+    souffle: new Map(),          // joueur -> souffle restant
+    // Le modificateur BRUT de chaque tir tenté, avant que la borne l'écrase :
+    // c'est la seule façon de voir si le plateau offre des occasions ou si
+    // tout le monde tire du fond de la patinoire (`check_table.mjs`).
+    modsTir: [],
     pieces: [],
     but: filetDe(cote),
   };
@@ -326,7 +465,7 @@ export function equipeDeTable(nom, tag, roster, cote) {
 /** La ligne de fiche d'un joueur dans son équipe, créée au besoin. */
 function fiche(eq, joueur) {
   let f = eq.fiches.get(joueur);
-  if (!f) { f = { p: joueur, buts: 0, passes: 0, tirs: 0 }; eq.fiches.set(joueur, f); }
+  if (!f) { f = { p: joueur, buts: 0, passes: 0, tirs: 0, echecs: 0, vols: 0 }; eq.fiches.set(joueur, f); }
   return f;
 }
 
@@ -336,6 +475,7 @@ function poser(eq) {
   eq.pieces = unite.map(({ role, p }) => {
     const [r, c] = DEPART[eq.cote][role];
     const st = statsDeTable(p);
+    if (p && !eq.souffle.has(p)) eq.souffle.set(p, st.SO);
     return {
       role, p, eq: eq.cote, r, c, st,
       hab: habileteDe(p),
@@ -343,6 +483,7 @@ function poser(eq) {
       etourdi: 0,          // présences où la pièce ne peut pas agir
       agi: false,          // a déjà fait son geste cette présence-ci
       deplace: false,      // a déjà patiné cette présence-ci
+      ecran: 0,            // présences où il se place devant les tirs
       buts: 0, passes: 0, tirs: 0,
     };
   });
@@ -385,10 +526,79 @@ export const libre = m => (m.rondelle && m.rondelle.libre) || null;
 export const caseLibre = (m, r, c) => !occupee(m, r, c);
 const occupee = (m, r, c) => surLaGlace(m).find(x => x.r === r && x.c === c) || null;
 
+/** Le souffle restant d'une pièce. */
+export const souffleDe = (m, piece) => {
+  if (!piece || !piece.p) return piece?.st?.SO ?? 3;
+  const eq = eqDe(m, piece.eq);
+  const v = eq.souffle.get(piece.p);
+  return v === undefined ? piece.st.SO : v;
+};
+
+/** Essoufflée : plus de souffle du tout. Un de moins à tous ses jets. */
+export const essouffle = (m, piece) => souffleDe(m, piece) <= 0;
+const malusSouffle = (m, piece) => (essouffle(m, piece) ? -1 : 0);
+
+/** Les pas de patin d'une pièce, essoufflement compris. */
+export const pasDe = (m, piece) => Math.max(1, piece.st.PA - (essouffle(m, piece) ? 1 : 0));
+
+/** Les vingt patineurs d'un alignement : les quatre trios et les trois paires. */
+function tousLesPatineurs(roster) {
+  const out = [];
+  for (let u = 0; u < 4; u++) for (const { p } of uniteDe(roster, u, 0).slice(0, 3)) if (p) out.push(p);
+  for (let u = 0; u < 3; u++) for (const { p } of uniteDe(roster, 0, u).slice(3)) if (p) out.push(p);
+  return out;
+}
+
+/**
+ * Le souffle après une présence : les cinq qui étaient sur la glace en
+ * perdent un, tous les autres en reprennent un. Personne ne descend sous
+ * zéro et personne ne dépasse son maximum.
+ */
+function respirer(eq) {
+  const glace = new Set(eq.pieces.map(x => x.p).filter(Boolean));
+  for (const x of eq.pieces) {
+    if (!x.p) continue;
+    eq.souffle.set(x.p, Math.max(0, (eq.souffle.get(x.p) ?? x.st.SO) - 1));
+  }
+  for (const p of tousLesPatineurs(eq.roster)) {
+    if (glace.has(p)) continue;
+    const max = statsDeTable(p).SO;
+    eq.souffle.set(p, Math.min(max, (eq.souffle.get(p) ?? max) + 1));
+  }
+}
+
 /** Les bâtons adverses qui contrôlent cette case : le « tackle zone ». */
 export function batons(m, cote, r, c) {
   return surLaGlace(m).filter(x => x.eq !== cote && !x.etourdi && dist(x, { r, c }) === 1).length;
 }
+
+/**
+ * Les bâtons qui gênent un TIR depuis cette case. Une pièce qui s'est placée
+ * devant (l'écran) compte double, ou triple quand elle bloque vraiment des
+ * tirs dans la vraie vie — `bl`, les tirs bloqués par match, que
+ * `skater/realtime` donne depuis 2005-06. Avant, c'est la mesure défensive
+ * `md` qui répond : l'action existe pour les 55 saisons, c'est l'aptitude
+ * qui vient de la colonne quand la colonne existe.
+ */
+export function ecranVaut(p) {
+  if (!p) return 2;
+  if (typeof p.bl === 'number') return p.bl >= 1.4 ? 3 : 2;
+  return (p.md ?? 0) >= 0.80 ? 3 : 2;
+}
+
+export function batonsTir(m, cote, r, c) {
+  let n = 0;
+  for (const x of surLaGlace(m)) {
+    if (x.eq === cote || x.etourdi || dist(x, { r, c }) !== 1) continue;
+    n += x.ecran ? ecranVaut(x.p) : 1;
+  }
+  return n;
+}
+
+/** Un voleur de rondelle : `tk`, les vols par match (2005-06+), sinon `md`. */
+export const bonVoleur = p => (typeof p?.tk === 'number' ? p.tk >= 0.70 : (p?.md ?? 0) >= 0.80);
+/** Un frappeur : `ht`, les mises en échec par match (2005-06+), sinon la robustesse mesurée. */
+export const bonFrappeur = p => (typeof p?.ht === 'number' && p.ht > 0 ? p.ht >= 2.2 : (p?.mr ?? 0) >= 0.80);
 
 function dire(m, texte, genre = '') {
   m.fil.unshift({ texte, genre, periode: m.periode, presence: m.presence });
@@ -419,15 +629,20 @@ export const nomDe = piece => (piece && piece.p && piece.p.n) || 'Rappel';
 
 /** Le modificateur d'une esquive : quitter une case tenue par des bâtons adverses. */
 export function modEsquive(m, piece, vers) {
-  const tenue = batons(m, piece.eq, piece.r, piece.c);
-  return md(piece.st.MA) - Math.max(0, tenue - 1) - (batons(m, piece.eq, vers.r, vers.c) > 0 ? 1 : 0);
+  // Le matador protège la rondelle : un bâton adverse de moins sur lui.
+  const tenue = Math.max(0, batons(m, piece.eq, piece.r, piece.c) - (piece.st.gb === GABARIT_MATADOR ? 1 : 0));
+  const petit = piece.st.gb === GABARIT_PETIT ? 1 : 0;
+  return md(piece.st.MA) + petit + malusSouffle(m, piece)
+    - Math.max(0, tenue - 1) - (batons(m, piece.eq, vers.r, vers.c) > 0 ? 1 : 0);
 }
 
 /** Le modificateur d'une passe : la distance, et les bâtons autour du receveur. */
 export function modPasse(m, piece, cible) {
   const d = dist(piece, cible);
-  const loin = d <= 2 ? 0 : d <= 4 ? -1 : d <= 6 ? -2 : -3;
-  return md(piece.st.MA) + loin - batons(m, piece.eq, cible.r, cible.c);
+  // ARCADE : la passe est le geste qui fait le jeu, elle doit rester vivante.
+  const loin = d <= 4 ? 0 : d <= 6 ? -1 : -2;
+  const moyen = piece.st.gb === GABARIT_MOYEN ? 1 : 0;
+  return md(piece.st.MA) + loin + moyen + malusSouffle(m, piece) - batons(m, piece.eq, cible.r, cible.c);
 }
 
 /** Le modificateur d'un tir : la finition contre le gardien, la distance, l'enclave, la couverture. */
@@ -435,22 +650,56 @@ export function modTir(m, piece) {
   const eq = eqDe(m, piece.eq);
   const g = eqDe(m, adverse(piece.eq)).piece_g;
   const d = Math.abs(piece.r - eq.but);
-  const loin = d <= 2 ? 0 : d <= 4 ? -1 : d <= 6 ? -2 : -3;
+  // ARCADE : la distance pèse, mais elle ne ferme jamais le jeu. À −3 du fond
+  // de la patinoire, personne ne tentait rien d'autre que d'avancer.
+  const loin = d <= 2 ? 0 : d <= 4 ? -1 : -2;
   const nature = natureCase(piece.r, piece.c, eq.but);
   const place = nature === 'enclave' ? 2 : nature === 'coin' ? -1 : 0;
   // L'angle : tirer d'une bande, c'est tirer dans le côté court.
   const angle = Math.abs(piece.c - BUT_COL) >= 3 ? -1 : 0;
-  return md(piece.st.TI) - md(g.st.AR) + loin + place + angle - batons(m, piece.eq, piece.r, piece.c);
+  const gene = batonsTir(m, piece.eq, piece.r, piece.c);
+  // LE TIR SIGNATURE : chacun a un contexte où il vaut mieux que les autres.
+  // `recu` dit qu'il vient de recevoir la passe — c'est le une-deux.
+  const tir = TIRS[piece.st.ts] || TIRS.P;
+  const signature = tir.mod({ loin: d, enclave: nature === 'enclave', batons: gene, recu: !!piece.derniere });
+  return md(piece.st.TI) - md(g.st.AR) + loin + place + angle + signature + malusSouffle(m, piece) - gene;
 }
 
 /** Le modificateur d'une mise en échec : la force contre la force. */
+/*
+ * LA PROTECTION DU PORTEUR. Celui qui a la rondelle la protège : un de plus
+ * à qui doit la lui enlever, par l'épaule comme par le bâton.
+ *
+ * Sans elle, cinq défenseurs pouvaient chacun tenter une mise en échec OU un
+ * vol contre le même porteur, chacun à la moitié — la rondelle changeait de
+ * camp presque à toutes les présences. Mesuré : six revirements par équipe
+ * par match, deux virgule six tirs seulement, et les buts tombés de 2,7 à
+ * 1,6 alors que la QUALITÉ des tirs tentés était bonne (+0,78 de
+ * modificateur moyen). Ce n'était pas les tirs qui étaient mauvais, c'est
+ * qu'on n'en arrivait plus là.
+ */
+export const PROTECTION_PORTEUR = 1;
+
 export function modEchec(m, piece, cible) {
-  return md(piece.st.FO) - md(cible.st.FO);
+  const porte = porteur(m) === cible ? PROTECTION_PORTEUR : 0;
+  return md(piece.st.FO) - md(cible.st.FO) - porte + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece);
+}
+
+/**
+ * LE VOL DE RONDELLE : la route du bâton, à côté de celle de l'épaule.
+ * Maniement contre maniement — un joueur habile enlève la rondelle à un
+ * costaud sans le toucher. Pas de mise au sol, pas de poussée : juste la
+ * rondelle. C'est le geste du Selke, et c'est ce qui donne un deuxième
+ * chemin défensif à qui ne frappe pas.
+ */
+export function modVol(m, piece, cible) {
+  return md(piece.st.MA) - md(cible.st.MA) - PROTECTION_PORTEUR
+    + (bonVoleur(piece.p) ? 1 : 0) + malusSouffle(m, piece);
 }
 
 /** Le modificateur pour ramasser une rondelle libre. */
 export function modRamasser(m, piece, ou) {
-  return md(piece.st.MA) - batons(m, piece.eq, ou.r, ou.c);
+  return md(piece.st.MA) + malusSouffle(m, piece) - batons(m, piece.eq, ou.r, ou.c);
 }
 
 /* ---------- le jet, la relance, le revirement ---------- */
@@ -511,7 +760,7 @@ export function deplacementsDe(m, piece) {
   const out = [];
   while (file.length) {
     const cur = file.shift();
-    if (cur.n >= piece.st.PA) continue;
+    if (cur.n >= pasDe(m, piece)) continue;
     for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
       if (!dr && !dc) continue;
       const r = cur.r + dr, c = cur.c + dc, cle = `${r},${c}`;
@@ -528,9 +777,27 @@ export function deplacementsDe(m, piece) {
 export const receveursDe = (m, piece) =>
   eqDe(m, piece.eq).pieces.filter(x => x !== piece && !x.etourdi);
 
-/** Les porteurs adverses adjacents : les cibles d'une mise en échec. */
+/*
+ * LES CIBLES D'UNE MISE EN ÉCHEC : N'IMPORTE QUEL ADVERSAIRE ADJACENT.
+ *
+ * JP : *ajouter contacts physique* ; *mises en échec [...] plus élevées, faire
+ * variété d'actions*. On ne pouvait frapper que le PORTEUR, donc le contact
+ * n'existait qu'une fois par présence au mieux. Au hockey on frappe pour
+ * ouvrir une voie autant que pour reprendre la rondelle — mettre l'ailier
+ * adverse au sol devant son filet vaut le geste même s'il n'a rien dans les
+ * mains. Le risque suit la cible : rater le PORTEUR, c'est se faire déjouer,
+ * donc un revirement et la présence finie ; rater un joueur SANS la rondelle,
+ * c'est se retrouver hors position, donc sa propre pièce au sol une présence.
+ * On ne peut pas perdre une rondelle qu'on n'a pas.
+ */
 export const ciblesEchecDe = (m, piece) =>
   eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.etourdi && dist(x, piece) === 1);
+
+/** Les cibles d'un vol : le porteur adverse, et lui seul. */
+export const ciblesVolDe = (m, piece) => {
+  const p = porteur(m);
+  return p && p.eq !== piece.eq && !p.gardien && !p.etourdi && dist(p, piece) === 1 ? [p] : [];
+};
 
 /**
  * Le déplacement. Sans la rondelle, patiner est libre : on ne fait pas rouler
@@ -544,16 +811,37 @@ export function deplacer(m, piece, vers) {
   piece.deplace = true;
   if (!avecRondelle || tenue === 0) {
     piece.r = vers.r; piece.c = vers.c;
+    ramasserEnPassant(m, piece);
     return { ok: true, jet: null };
   }
   const mod = modEsquive(m, piece, vers) + (piece.hab === 'PATIN' && piece.habDispo ? 2 : 0);
   return { ok: true, jet: jeter(m, mod, 'esquive'), vers, piece };
 }
 
+/**
+ * PATINER SUR LA RONDELLE, C'EST LA PRENDRE.
+ *
+ * Elle traînait par terre et il fallait DEUX activations pour la récupérer :
+ * un déplacement pour aller dessus, puis un geste (avec son dé) pour la
+ * ramasser. Mesuré : un tiers des présences commençaient sur une rondelle
+ * libre, et elles se passaient entières à aller la chercher. Dans un jeu de
+ * borne, on patine dessus et on l'a. Le geste `ramasser`, avec son dé, reste
+ * pour la pièce qui est DÉJÀ dessus quand son tour arrive.
+ */
+function ramasserEnPassant(m, piece) {
+  const l = libre(m);
+  if (!l || l.r !== piece.r || l.c !== piece.c) return false;
+  m.rondelle = { piece };
+  piece.derniere = null;
+  dire(m, `${nomDe(piece)} récupère la rondelle libre.`, 'ok');
+  return true;
+}
+
 export function appliquerEsquive(m, piece, vers, jet) {
   if (piece.hab === 'PATIN' && piece.habDispo) piece.habDispo = false;
   if (jet.reussi) {
     piece.r = vers.r; piece.c = vers.c;
+    ramasserEnPassant(m, piece);
     dire(m, `${nomDe(piece)} se défait de la couverture.`, 'ok');
     return true;
   }
@@ -583,6 +871,7 @@ export function appliquerPasse(m, piece, cible, jet) {
 
 export function tirer(m, piece) {
   const mod = modTir(m, piece) + (piece.hab === 'DECOCHE' && piece.habDispo ? 2 : 0);
+  eqDe(m, piece.eq).modsTir.push(mod);
   return jeter(m, mod, 'tir');
 }
 
@@ -604,6 +893,30 @@ export function appliquerTir(m, piece, jet) {
     return true;
   }
   advG.arrets++; eqDe(m, adverse(piece.eq)).arrets++;
+  /*
+   * LE RETOUR, et c'est le geste qui fait le mode.
+   *
+   * Un arrêt donnait TOUJOURS la rondelle au gardien, donc tout tir raté
+   * finissait la présence. Mesuré : la moitié des présences mouraient sans
+   * tir et l'autre moitié sur un revirement, et le plateau plafonnait à trois
+   * buts par équipe par match quelle que soit la façon dont on tirait dessus.
+   *
+   * Maintenant, un tir pris DE L'ENCLAVE — ou raté de justesse — laisse un
+   * retour libre devant le filet, et la présence continue : n'importe qui
+   * peut sauter dessus. C'est la mêlée devant le but des jeux de borne, et
+   * c'est aussi la profondeur qu'on cherche — aller au filet ne donne plus
+   * seulement +2 au tir, ça donne une DEUXIÈME chance. Un tir de la pointe,
+   * lui, finit dans la mitaine : tirer de loin reste un choix, pas un
+   * réflexe.
+   */
+  const eqAdv = eqDe(m, adverse(piece.eq));
+  const enclave = natureCase(piece.r, piece.c, eq.but) === 'enclave';
+  const deJustesse = jet.de === jet.seuil - 1;
+  if (enclave || deJustesse) {
+    rebondir(m, piece.r, piece.c);
+    dire(m, `${nomDe(advG)} repousse le tir de ${nomDe(piece)} — retour devant le filet.`, 'retour');
+    return false;
+  }
   dire(m, `${nomDe(advG)} bloque le tir de ${nomDe(piece)}.`, 'arret');
   m.rondelle = { piece: advG };
   revirement(m, `Le gardien garde la rondelle.`);
@@ -616,22 +929,114 @@ export function mettreEnEchec(m, piece, cible) {
 }
 
 export function appliquerEchec(m, piece, cible, jet) {
-  const epaule = piece.hab === 'EPAULE' && piece.habDispo;
+  // Le matador finit sa mise en échec : un échec manqué ne lui coûte pas la
+  // présence, exactement comme l'habileté Coup d'épaule.
+  const solide = (piece.hab === 'EPAULE' && piece.habDispo) || piece.st.gb === GABARIT_MATADOR;
   if ((piece.hab === 'ACTIF' || piece.hab === 'EPAULE') && piece.habDispo) piece.habDispo = false;
+  const eq = eqDe(m, piece.eq);
+  const avaitLaRondelle = porteur(m) === cible;
   piece.agi = true;
-  eqDe(m, piece.eq).echecs++;
+  eq.echecs++;
   if (jet.reussi) {
-    cible.etourdi = 2;           // il reste au sol pour cette présence et la suivante
-    if (porteur(m) === cible) { m.rondelle = { piece }; piece.derniere = null; }
-    dire(m, `${nomDe(piece)} met ${nomDe(cible)} en échec et récupère.`, 'echec');
+    fiche(eq, piece.p).echecs++;
+    /*
+     * COMBIEN DE TEMPS ON RESTE AU SOL, et c'est le réglage qui a failli tuer
+     * le jeu. Mesuré : vingt-deux mises en échec par équipe par match — le
+     * vrai chiffre de la LNH — mais chacune sortait l'adversaire pour sa
+     * présence SUIVANTE au complet. Une équipe jouait donc sans un ou deux
+     * patineurs en permanence, et les buts sont tombés de 2,7 à 1,8.
+     *
+     * Au hockey, un joueur plaqué se relève. Frapper quelqu'un qui n'a pas la
+     * rondelle ouvre une voie MAINTENANT (il sort de la couverture pour le
+     * reste de ta présence) et c'est tout ; seul un coup sur le PORTEUR, qui
+     * te coûte la présence si tu le manques, le garde au sol jusqu'à sa
+     * prochaine présence. Le risque paie le résultat.
+     */
+    cible.etourdi = avaitLaRondelle ? (cible.st.gb === GABARIT_PETIT ? 3 : 2) : 1;
+    pousser(m, piece, cible);
+    // LE CONTRE-ATTAQUE. Enlever la rondelle et rester planté là ne menait
+    // nulle part : la présence finissait sur place. Qui la gagne REPART avec
+    // — son déplacement se rouvre, et c'est ça, une échappée.
+    if (avaitLaRondelle) { m.rondelle = { piece }; piece.derniere = null; piece.deplace = false; }
+    dire(m, `${nomDe(piece)} met ${nomDe(cible)} en échec${avaitLaRondelle ? ' et récupère' : ''}.`, 'echec');
     return true;
   }
-  if (epaule) {
+  if (!avaitLaRondelle) {
+    // Rien à perdre, mais on est allé se promener : la pièce est hors position.
+    if (!solide) piece.etourdi = 1;
+    dire(m, `${nomDe(piece)} manque ${nomDe(cible)}${solide ? ', mais reste debout' : ' et se retrouve hors position'}.`, 'rate');
+    return false;
+  }
+  if (solide) {
     dire(m, `${nomDe(piece)} manque sa mise en échec, mais reste debout.`, 'rate');
     return false;
   }
   revirement(m, `${nomDe(piece)} manque sa mise en échec et se fait déjouer.`);
   return false;
+}
+
+/** La poussée : le frappé recule d'une case, s'il y a de la place. */
+function pousser(m, piece, cible) {
+  const dr = Math.sign(cible.r - piece.r), dc = Math.sign(cible.c - piece.c);
+  const r = cible.r + dr, c = cible.c + dc;
+  if (dansLaGlace(r, c) && !occupee(m, r, c)) { cible.r = r; cible.c = c; }
+}
+
+/* ---------- le vol de rondelle ---------- */
+
+export function voler(m, piece, cible) {
+  return jeter(m, modVol(m, piece, cible) + (piece.hab === 'ACTIF' && piece.habDispo ? 2 : 0), 'vol');
+}
+
+export function appliquerVol(m, piece, cible, jet) {
+  if (piece.hab === 'ACTIF' && piece.habDispo) piece.habDispo = false;
+  const eq = eqDe(m, piece.eq);
+  piece.agi = true;
+  if (jet.reussi) {
+    fiche(eq, piece.p).vols++;
+    m.rondelle = { piece };
+    piece.derniere = null;
+    piece.deplace = false;      // il repart avec : voir la contre-attaque
+    dire(m, `${nomDe(piece)} soutire la rondelle à ${nomDe(cible)}.`, 'vol');
+    return true;
+  }
+  revirement(m, `${nomDe(piece)} tend le bâton et ${nomDe(cible)} le contourne.`);
+  return false;
+}
+
+/* ---------- se placer devant : l'écran ---------- */
+
+/**
+ * LE BLOCAGE DE TIR, sans réaction. Blood Bowl n'a pas de gestes hors tour, et
+ * on n'en veut pas non plus : ça doublerait la durée d'un match. Se placer
+ * devant est donc une POSTURE — la pièce dépense son geste, et jusqu'à ta
+ * prochaine présence elle compte double (ou triple pour qui bloque vraiment)
+ * dans les bâtons qui gênent un tir. C'est le seul geste purement défensif du
+ * plateau, et le seul qui n'a pas de dé : se coucher devant une rondelle, ça
+ * ne rate pas, ça fait juste mal.
+ */
+export function seMettreDevant(m, piece) {
+  piece.agi = true;
+  piece.ecran = 2;
+  dire(m, `${nomDe(piece)} se place devant le tir.`, 'ecran');
+  return true;
+}
+
+/* ---------- foncer : le deuxième élan ---------- */
+
+/**
+ * FONCER. JP : *vitesse plus élevées*. Monter le patin de tout le monde
+ * allumait quarante cases d'un coup et rendait le plateau illisible ; un
+ * DEUXIÈME élan, lui, est une décision de plus, pas trente options de plus.
+ * La pièce dépense son geste pour repatiner — elle ne tirera donc pas ce
+ * tour-ci. C'est la montée du défenseur, et c'est le petit gabarit qui en
+ * profite le plus, avec ses cinq ou six pas.
+ */
+export function foncer(m, piece) {
+  piece.agi = true;
+  piece.deplace = false;
+  dire(m, `${nomDe(piece)} pousse la rondelle et accélère.`, 'fonce');
+  return true;
 }
 
 export function ramasser(m, piece) {
@@ -666,8 +1071,9 @@ export const actives = m => eqDe(m, m.tour).pieces.filter(peutJouer);
 
 export function finirPresence(m, butMarque = false) {
   const eq = eqDe(m, m.tour);
+  respirer(eq);
   for (const x of eq.pieces) { x.agi = false; x.deplace = false; }
-  for (const x of surLaGlace(m)) if (x.etourdi) x.etourdi--;
+  for (const x of surLaGlace(m)) { if (x.etourdi) x.etourdi--; if (x.ecran) x.ecran--; }
 
   // MORT SUBITE : en prolongation, le premier but finit tout.
   if (m.prolongation && butMarque) { m.fini = true; dire(m, `Fin du match. ${m.A.buts} \u2013 ${m.B.buts}`, 'fin'); return; }
@@ -774,6 +1180,11 @@ function meilleurGeste(m, piece) {
         if (gain <= 0 && tir <= 0.02) continue;
         options.push({ type: 'passe', cible, val: chances(modPasse(m, piece, cible) + bonus('VOILEE')) * (2.5 + gain * 0.5 + tir * 9) });
       }
+      // FONCER : dépenser son geste pour un deuxième élan. Ça ne vaut que
+      // quand on est encore loin et qu'on a du patin à dépenser.
+      if (piece.deplace && Math.abs(piece.r - eq.but) >= 4) {
+        options.push({ type: 'foncer', val: 1.6 + pasDe(m, piece) * 0.25 });
+      }
     }
     if (!piece.deplace) {
       let mieux = null;
@@ -789,15 +1200,32 @@ function meilleurGeste(m, piece) {
   } else if (rondelleLibre && !piece.agi && dist(piece, rondelleLibre) === 0) {
     options.push({ type: 'ramasser', val: chances(modRamasser(m, piece, piece)) * 9 });
   } else {
-    // Sans la rondelle : l'échec avant. Mettre en échec le porteur adverse,
-    // ou converger vers lui (ou vers la rondelle libre).
-    if (!piece.agi) for (const cible of ciblesEchecDe(m, piece)) {
-      if (porteur(m) !== cible) continue;
-      const sansRisque = piece.hab === 'EPAULE' && piece.habDispo;
-      const c = chances(modEchec(m, piece, cible) + bonus('ACTIF') + bonus('EPAULE'));
-      options.push({ type: 'echec', cible, val: c * 9 - (sansRisque ? 0 : 3.2) });
+    const p = porteur(m);
+    if (!piece.agi) {
+      // LES DEUX ROUTES DÉFENSIVES. L'épaule met au sol et pousse ; le bâton
+      // prend la rondelle sans toucher. Un costaud choisit la première, un
+      // habile la seconde, et le glouton les compare honnêtement.
+      for (const cible of ciblesEchecDe(m, piece)) {
+        const porte = p === cible;
+        const solide = (piece.hab === 'EPAULE' && piece.habDispo) || piece.st.gb === GABARIT_MATADOR;
+        const c = chances(modEchec(m, piece, cible) + bonus('ACTIF') + bonus('EPAULE'));
+        // Frapper un joueur SANS la rondelle ouvre une voie : ça vaut moins,
+        // mais ça ne risque que la position de sa propre pièce.
+        const gain = porte ? 9 : 2.0;
+        const risque = porte ? (solide ? 0 : 3.2) : (solide ? 0.4 : 1.6);
+        options.push({ type: 'echec', cible, val: c * gain - risque });
+      }
+      for (const cible of ciblesVolDe(m, piece)) {
+        options.push({ type: 'vol', cible, val: chances(modVol(m, piece, cible) + bonus('ACTIF')) * 9 - 3.2 });
+      }
+      // SE PLACER DEVANT : quand l'adversaire porte la rondelle près de notre
+      // filet et qu'on ne peut pas la lui prendre, on bouche la voie.
+      if (p && p.eq !== piece.eq && !piece.ecran) {
+        const menace = Math.abs(p.r - eqDe(m, p.eq).but) <= 3 && dist(piece, p) === 1;
+        if (menace) options.push({ type: 'ecran', val: 3.4 });
+      }
     }
-    const vise = rondelleLibre || porteur(m);
+    const vise = rondelleLibre || p;
     if (vise && !piece.deplace) {
       let mieux = null;
       const d0 = dist(piece, vise);
@@ -820,6 +1248,7 @@ function meilleurGeste(m, piece) {
  */
 export function iaPresence(m) {
   const cote = m.tour;
+  iaChanger(m, cote);
   const gestes = [];
   let garde = 0;
   while (m.tour === cote && !m.fini && garde++ < 12) {
@@ -829,7 +1258,23 @@ export function iaPresence(m) {
       if (!g) continue;
       if (!joue || g.val > joue.val) joue = { piece, ...g };
     }
-    if (!joue || joue.val <= 0) break;
+    if (!joue || joue.val <= 0) {
+      /*
+       * ON LANCE AU FILET. Mesuré : la moitié des présences finissaient
+       * « plus rien d'utile à faire » — la pièce qui portait la rondelle
+       * gardait son geste et la présence expirait avec la rondelle dans le
+       * coin. C'est du hockey défensif, et ce n'est pas ce mode-ci : quand
+       * il ne reste rien de mieux, le porteur lance. Un tir raté rend la
+       * rondelle au gardien, ce qui est exactement le prix d'un mauvais tir.
+       */
+      const p = porteur(m);
+      if (p && p.eq === cote && !p.gardien && !p.agi) {
+        gestes.push({ piece: p, type: 'tir' });
+        jouerGeste(m, p, { type: 'tir' }, cote, true);
+        continue;
+      }
+      break;
+    }
     gestes.push({ piece: joue.piece, type: joue.type });
     jouerGeste(m, joue.piece, joue, cote, true);
   }
@@ -870,7 +1315,41 @@ export function jouerGeste(m, piece, action, cote, ia = false) {
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
     return appliquerRamasser(m, piece, jet);
   }
+  if (action.type === 'vol') {
+    let jet = voler(m, piece, action.cible);
+    if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
+    return appliquerVol(m, piece, action.cible, jet);
+  }
+  // Les deux gestes sans dé : se placer devant, et foncer.
+  if (action.type === 'ecran') return seMettreDevant(m, piece);
+  if (action.type === 'foncer') return foncer(m, piece);
   return false;
+}
+
+/**
+ * L'IA CHANGE SES TRIOS. Sans ça, elle finirait le match avec son premier
+ * trio à zéro de souffle pendant que le joueur, lui, roule ses quatre unités
+ * — et la fatigue deviendrait un impôt que seul l'humain paie. Elle change
+ * dès que la moyenne de souffle de l'unité tombe à un, et elle prend l'unité
+ * la plus reposée. Le coût est le même pour elle : ses pièces rentrent de
+ * son bout de glace et elle perd sa position.
+ */
+function iaChanger(m, cote) {
+  const eq = eqDe(m, cote);
+  if (porteur(m) && porteur(m).eq === cote && !auCentre(m, cote)) return;   // pas pendant sa montée
+  const moyenne = (joueurs) => {
+    const vals = joueurs.filter(Boolean).map(p => eq.souffle.get(p) ?? statsDeTable(p).SO);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 9;
+  };
+  const trios = [0, 1, 2, 3].map(u => uniteDe(eq.roster, u, 0).slice(0, 3).map(x => x.p));
+  const paires = [0, 1, 2].map(u => uniteDe(eq.roster, 0, u).slice(3).map(x => x.p));
+  let tri = eq.tri, pai = eq.pai;
+  if (moyenne(trios[eq.tri]) <= 1) tri = trios.map((t, i) => [moyenne(t), i]).sort((a, b) => b[0] - a[0])[0][1];
+  if (moyenne(paires[eq.pai]) <= 1) pai = paires.map((t, i) => [moyenne(t), i]).sort((a, b) => b[0] - a[0])[0][1];
+  if (tri !== eq.tri || pai !== eq.pai) {
+    changerUnite(m, cote, tri, pai);
+    dire(m, `${eq.nom} change ses lignes.`, 'changement');
+  }
 }
 
 /**
@@ -903,9 +1382,11 @@ export function jouerMatchAuto(A, B, graine) {
 export function resultatDe(m) {
   const fiche = eq => ({
     nom: eq.nom, tag: eq.tag, buts: eq.buts, tirs: eq.tirs,
-    revirements: eq.revirements, echecs: eq.echecs,
+    revirements: eq.revirements, echecs: eq.echecs, modsTir: eq.modsTir,
     marqueurs: [...eq.fiches.values()].filter(f => f.buts || f.passes)
       .map(f => ({ p: f.p, buts: f.buts, passes: f.passes })),
+    physique: [...eq.fiches.values()].filter(f => f.echecs || f.vols)
+      .map(f => ({ p: f.p, echecs: f.echecs, vols: f.vols })),
     gardien: { p: eq.gardien, arrets: eq.arrets, alloues: eq.alloues },
   });
   return {

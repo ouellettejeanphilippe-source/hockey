@@ -97,14 +97,16 @@ console.log(`   la glace : ${cases} cases (attendu 63)`);
 if (cases !== 63) errors.push(`la glace compte ${cases} cases`);
 
 /*
- * Le joueur automatique : il fait ce qu'un pouce ferait. Il prend la pièce
- * qui a la rondelle (l'écran l'a déjà choisie pour lui), tire quand il peut,
- * sinon joue une case allumée, sinon passe à la pièce jouable SUIVANTE — et
- * c'est ce « suivante » qui compte : sans lui, on retouche éternellement la
- * même pièce et rien n'avance.
+ * Le joueur automatique : il fait ce qu'un pouce ferait, et il doit toucher à
+ * TOUT — sinon il ne teste que la moitié du plateau. Il tire quand il peut,
+ * joue une case allumée (patiner, passer, frapper), prend un geste de la
+ * carte (ramasser, foncer, se placer devant, l'épaule ou le bâton sur le
+ * porteur), et passe à la pièce jouable SUIVANTE quand il ne reste rien —
+ * c'est ce « suivante » qui empêche de retoucher éternellement la même pièce.
  */
-let gestes = 0, tours = 0, relances = 0, piece = 0, deses = 0;
-while (tours++ < 900) {
+let gestes = 0, tours = 0, relances = 0, changements = 0, pieces = 0, occasionsDuel = 0;
+const vus = new Set();
+while (tours++ < 1200) {
   if (!(await page.$('#tableModal .t-glace'))) break;
   const etat = await page.evaluate(() => ({
     suite: !!document.querySelector('#tableModal .t-suite'),
@@ -113,34 +115,95 @@ while (tours++ < 900) {
     sel: !!document.querySelector('#tableModal .t-case.t-sel'),
     jouables: document.querySelectorAll('#tableModal .t-case.t-jouable:not(.t-sel)').length,
     offres: document.querySelectorAll('#tableModal .t-case.t-offre').length,
+    contacts: document.querySelectorAll('#tableModal .t-case.t-offre-echec').length,
+    // La case d'un adversaire qui PORTE la rondelle et qu'on peut atteindre :
+    // c'est la seule qui ouvre le duel épaule / bâton sur la carte.
+    duel: (() => {
+      const e = [...document.querySelectorAll('#tableModal .t-case.t-offre-echec')]
+        .find(c => c.querySelector('.t-piece.sienne .t-rondelle'));
+      return e ? `${e.dataset.r},${e.dataset.c}` : null;
+    })(),
     tir: !!document.querySelector('#tableModal [data-geste="tir"]'),
-    ramasser: !!document.querySelector('#tableModal [data-geste="ramasser"]'),
+    autres: [...document.querySelectorAll('#tableModal [data-geste]')].map(b => b.dataset.geste),
     fin: !!document.querySelector('#tableModal .t-resultat'),
-    unites: !!document.querySelector('#tableModal .t-seg button'),
+    unites: !!document.querySelector('#tableModal .t-seg button:not(.on)'),
   }));
   if (etat.fin) break;
   if (etat.suite) {
-    // Une relance d'équipe à l'occasion : c'est la mécanique qu'on teste.
-    if (etat.relance && relances < 3) { await page.click('#tableModal .t-relancer'); relances++; await page.waitForTimeout(60); }
-    await page.click('#tableModal .t-suite'); await page.waitForTimeout(60); continue;
+    if (etat.relance && relances < 3) { await page.click('#tableModal .t-relancer'); relances++; await page.waitForTimeout(50); }
+    await page.click('#tableModal .t-suite'); await page.waitForTimeout(50); continue;
   }
-  if (!etat.mien) { await page.waitForTimeout(200); continue; }
-  // On change de trio une fois, pour vérifier que le bouton fait quelque chose.
-  if (etat.unites && piece === 0) { await page.click('#tableModal .t-seg button:not(.on)'); piece = 1; await page.waitForTimeout(80); continue; }
-  if (etat.tir) { await page.click('#tableModal [data-geste="tir"]'); gestes++; await page.waitForTimeout(60); continue; }
-  if (etat.ramasser) { await page.click('#tableModal [data-geste="ramasser"]'); gestes++; await page.waitForTimeout(60); continue; }
+  if (!etat.mien) { await page.waitForTimeout(180); continue; }
+  for (const g of etat.autres) vus.add(g);
+  // Changer de trio deux fois dans le match : c'est la mécanique de fatigue.
+  if (etat.unites && changements < 2) { await page.click('#tableModal .t-seg button:not(.on)'); changements++; await page.waitForTimeout(60); continue; }
+  /*
+   * LE DUEL SE CHERCHE EXPRÈS, IL NE SE TIRE PAS AU SORT. Première version :
+   * elle cliquait un contact au hasard une fois sur deux, donc elle tombait
+   * sur le porteur certains matchs et pas d'autres — et l'assertion « le
+   * geste vol a été offert » rougissait au hasard. Un test qui dépend du
+   * tirage n'est pas un test. On vise donc TOUJOURS le porteur adverse
+   * quand il est à portée, et on ne réclame les gestes du duel que si
+   * l'occasion s'est présentée au moins une fois dans le match.
+   */
+  if (etat.duel) {
+    occasionsDuel++;
+    await page.click(`#tableModal .t-case[data-r="${etat.duel.split(',')[0]}"][data-c="${etat.duel.split(',')[1]}"]`);
+    gestes++; await page.waitForTimeout(50); continue;
+  }
+  if (etat.contacts && Math.random() < 0.45) {
+    const n = await page.$$('#tableModal .t-case.t-offre-echec');
+    if (n.length) { await n[Math.floor(Math.random() * n.length)].click(); gestes++; await page.waitForTimeout(50); continue; }
+  }
+  if (etat.tir) { await page.click('#tableModal [data-geste="tir"]'); gestes++; await page.waitForTimeout(50); continue; }
+  if (etat.offres && Math.random() < 0.62) {
+    const n = await page.$$('#tableModal .t-case.t-offre');
+    await n[Math.floor(Math.random() * n.length)].click();
+    gestes++; await page.waitForTimeout(50); continue;
+  }
+  if (etat.autres.length) {
+    const n = await page.$$('#tableModal [data-geste]');
+    await n[Math.floor(Math.random() * n.length)].click();
+    gestes++; await page.waitForTimeout(50); continue;
+  }
   if (etat.offres) {
     const n = await page.$$('#tableModal .t-case.t-offre');
     await n[Math.floor(Math.random() * n.length)].click();
-    gestes++; await page.waitForTimeout(60); continue;
+    gestes++; await page.waitForTimeout(50); continue;
   }
-  if (etat.jouables) { await page.click('#tableModal .t-case.t-jouable:not(.t-sel)'); deses++; await page.waitForTimeout(60); continue; }
+  if (etat.jouables) { await page.click('#tableModal .t-case.t-jouable:not(.t-sel)'); pieces++; await page.waitForTimeout(50); continue; }
   const fp = await page.$('#tableModal .t-passer');
-  if (fp) { await fp.click(); await page.waitForTimeout(80); continue; }
+  if (fp) { await fp.click(); await page.waitForTimeout(60); continue; }
   break;
 }
+
 const pointage = await page.textContent('#tableModal .tb-score').catch(() => '');
-console.log(`   ${gestes} gestes joués, ${relances} relance(s) d'équipe, ${deses} changements de pièce`);
+console.log(`   ${gestes} gestes joués, ${relances} relance(s) d'équipe, ${changements} changement(s) de trio, ${pieces} changements de pièce`);
+console.log(`   gestes offerts par la carte : ${[...vus].sort().join(', ') || 'aucun'}`);
+/*
+ * CE QU'ON AFFIRME, ET CE QU'ON SE CONTENTE DE RAPPORTER.
+ *
+ * Chaque geste de la carte a une condition : « tirer » demande de porter la
+ * rondelle, « foncer » d'avoir déjà patiné, le duel d'être collé au porteur
+ * adverse. Ces conditions dépendent du match, pas du code — exiger les cinq
+ * à tous les coups faisait rougir le test au hasard, exactement comme
+ * l'assertion sur les passes de check_table.mjs a fait rougir main.
+ *
+ * On affirme donc ce que le PLATEAU doit garantir quoi qu'il arrive : au
+ * moins trois des cinq gestes offerts (moins, et la carte est cassée), et le
+ * duel offert dès qu'il s'est présenté, puisque là c'est nous qui avons
+ * cliqué le porteur exprès. Le reste est rapporté, pas exigé.
+ */
+const TOUS = ['tir', 'echec', 'vol', 'ecran', 'foncer'];
+if (vus.size < 3) errors.push(`seulement ${vus.size} geste(s) offert(s) par la carte sur ${TOUS.length} : ${[...vus].join(', ') || 'aucun'}`);
+if (occasionsDuel) {
+  for (const g of ['echec', 'vol']) {
+    if (!vus.has(g)) errors.push(`le duel s'est présenté ${occasionsDuel} fois mais le geste « ${g} » n'a jamais été offert`);
+  }
+  console.log(`   le duel épaule / bâton s'est présenté ${occasionsDuel} fois`);
+} else {
+  console.log('   aucune occasion de duel ce match-ci (le porteur adverse n\'est jamais venu à portée)');
+}
 console.log(`   ${pointage.replace(/\s+/g, ' ').trim()}`);
 if (gestes < 15) errors.push(`seulement ${gestes} gestes joués sur le plateau : le match n'avance pas`);
 await page.screenshot({ path: 'scripts/smoke-table.png' });

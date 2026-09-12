@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 26;
+export const RATINGS_VERSION = 27;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 export const CAP_REF = 95_500_000;
@@ -123,6 +123,52 @@ export const LISSAGE_EQUIPE = 0.5;
  * Ce ne sont pas des cotes : les colonnes sont sur la fiche, chacune en clair.
  */
 export const SEUIL_MESURE = 0.85;
+
+/*
+ * LE GABARIT : petit et rapide, moyen, matador.
+ *
+ * Le mode bonus « Sur table » (js/table.js) donne un jeu de bonus différent
+ * à chacun — le petit patine et se faufile, le matador frappe et protège la
+ * rondelle, le moyen joue toute la soirée. Il fallait donc classer les
+ * joueurs par gabarit, et la question n'est pas « combien il mesure » mais
+ * « comment il se comparait À SON ÉPOQUE » : 6 pi 2 po et 200 livres, c'était
+ * un gros en 1975 et c'est la moyenne en 2020. La taille moyenne de la ligue
+ * est passée de 72,3 à 73,4 pouces et le poids de 189 à 201 livres.
+ *
+ * Le gabarit est donc un RANG DANS LA SAISON, comme la valeur : l'indice est
+ * la moyenne des deux centiles (taille, poids) parmi les joueurs de la même
+ * saison, et les trois tiers donnent les trois gabarits. Un club de 1975 a
+ * donc autant de matadors qu'un club de 2020, ce qui est exactement ce qu'on
+ * veut d'un jeu qui mélange les époques.
+ *
+ * `hgt` (pouces) et `wgt` (livres) viennent de `skater/bios` et
+ * `goalie/bios` de l'API de la LNH — des mesures de la ligue, pas un
+ * substitut tiré des colonnes. Un joueur sans les deux n'a pas de gabarit
+ * (`gb` absent) et le plateau le traite en moyen.
+ */
+export const GABARIT_PETIT = 0, GABARIT_MOYEN = 1, GABARIT_MATADOR = 2;
+
+export function gabaritDeSaison(players) {
+  const out = new Map();
+  const mesures = players.filter(p => p && p.hgt > 0 && p.wgt > 0);
+  if (mesures.length < 20) return out;   // trop peu pour ranger quoi que ce soit
+  const centiles = cle => {
+    const tries = mesures.map(p => p[cle]).sort((a, b) => a - b);
+    return v => {
+      let lo = 0, hi = tries.length;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (tries[m] < v) lo = m + 1; else hi = m; }
+      let hi2 = lo;
+      while (hi2 < tries.length && tries[hi2] === v) hi2++;
+      return (lo + hi2) / 2 / tries.length;
+    };
+  };
+  const cH = centiles('hgt'), cW = centiles('wgt');
+  for (const p of mesures) {
+    const indice = (cH(p.hgt) + cW(p.wgt)) / 2;
+    out.set(p, indice < 1 / 3 ? GABARIT_PETIT : indice < 2 / 3 ? GABARIT_MOYEN : GABARIT_MATADOR);
+  }
+  return out;
+}
 
 export function mesuresDeSaison(players) {
   const out = new Map();
@@ -1304,10 +1350,14 @@ export function finalizeSeason(players, season, opts = {}) {
   // saison et de la position (voir mesuresDeSaison). Publics : ce sont des
   // colonnes rangées, pas des cotes.
   const mesures = mesuresDeSaison(players);
+  const gabarits = gabaritDeSaison(players);
   for (const p of players) {
     const m = mesures.get(p);
     if (m && m.def != null) p.md = Math.round(m.def * 100) / 100; else delete p.md;
     if (m && m.rob != null) p.mr = Math.round(m.rob * 100) / 100; else delete p.mr;
+    // Le gabarit, rangé dans la saison : 0 petit, 1 moyen, 2 matador.
+    const g = gabarits.get(p);
+    if (g != null) p.gb = g; else delete p.gb;
   }
 
   for (const p of players) {

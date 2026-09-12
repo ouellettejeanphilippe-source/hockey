@@ -3789,3 +3789,22 @@ a.spin-club:hover {
 .hub-vs { font-size: 11.5px; color: var(--muted); }
 .hub-carte-fin .hub-gros { font-family: var(--display); font-size: 21px; font-weight: 800; letter-spacing: 0.03em; }
 .hub-carte-fin.gagne .hub-gros { color: var(--gold); }
+
+/* ---------- Sur table : les étiquettes de la pièce choisie ---------- */
+.t-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.t-tag {
+  font-size: 11.5px; padding: 2px 7px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--sub); border-radius: var(--r-s); white-space: nowrap;
+}
+.t-tag.on { color: var(--gold); border-color: var(--gold); }
+.t-tag.usee { color: var(--muted); opacity: 0.7; }
+.t-tag.alerte { color: var(--red); border-color: var(--red); }
+.t-axe-so b { color: var(--green); }
+.t-axe-so.vide b { color: var(--red); }
+.t-echec { border-color: var(--red) !important; }
+.t-vol { border-color: var(--blue) !important; }
+.t-seg button em { display: block; font-style: normal; font-size: 8.5px; letter-spacing: 0.08em; opacity: 0.85; }
+.t-seg button.vide { color: var(--red); }
+.t-seg button.on.vide { color: #6b1d22; }
+.t-vide-air, .t-ecran { position: absolute; bottom: 0; left: 1px; font-size: 9px; line-height: 1; }
+.t-ecran { left: auto; right: 1px; }
