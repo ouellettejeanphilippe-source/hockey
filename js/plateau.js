@@ -30,7 +30,7 @@ import {
   deplacer, appliquerEsquive, passer, appliquerPasse, tirer, appliquerTir,
   mettreEnEchec, appliquerEchec, voler, appliquerVol,
   seMettreDevant, foncer, souffleDe, essouffle, pasDe, uniteDe, statsDeTable,
-  relancer, finirPresence, iaPresence, resultatDe, changerUnite, nomDe, reglesDuPlateau,
+  relancer, finirPresence, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
 
@@ -62,6 +62,17 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   let cible = null;        // l'adversaire visé, quand deux gestes sont possibles
   let attente = null;      // un jet en attente : { jet, appliquer }
   let iaEnCours = false;
+  /*
+   * CE QUE L'ADVERSAIRE EST EN TRAIN DE FAIRE. `dernier` est le geste qu'on
+   * REGARDE — sa pièce se cercle, sa cible clignote — et `deIA` le dé de ce
+   * geste-là, montré en lecture seule. Les deux valent null dès que la main
+   * revient. Sans eux, le plateau montrait l'état FINAL de la présence
+   * adverse pendant que le fil racontait encore le premier geste : on lisait
+   * l'histoire après en avoir vu la fin.
+   */
+  let dernier = null;      // { piece, cible } — le geste qu'on regarde
+  let deIA = null;         // le dé de ce geste, en lecture seule
+  let eclat = null;        // la bannière d'un but : { eq, texte }
 
   /*
    * LA COULEUR VIVE CERNE LA PIÈCE. Le bandeau d'un club dont la primaire est
@@ -162,63 +173,121 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     return false;
   }
 
-  function glace() {
-    const l = libre(m), p = porteur(m);
+  /* ======================================================================
+     LA GLACE : bâtie une fois, mise à jour ensuite
+     ======================================================================
+     JP : *meilleure animation et clarté de ce qui arrive, autant tour CPU
+     que user*.
+
+     Le plateau se réécrivait en entier (`innerHTML`) à chaque rendu, donc
+     chaque pièce était un élément NEUF : impossible de l'animer, et tout se
+     téléportait. La grille est maintenant construite une seule fois, et les
+     pièces vivent dans une couche par-dessus, une par case du plateau,
+     repérées par leur équipe et leur rôle. Bouger une pièce, c'est changer
+     deux variables CSS — le navigateur fait glisser le reste.
+
+     La clé est l'équipe et le RÔLE, pas l'objet : `changerUnite` remplace les
+     cinq objets d'un coup, et on veut voir le nouvel ailier entrer en
+     glissant depuis le banc, pas apparaître d'un claquement de doigts.
+     ====================================================================== */
+
+  let grilleFaite = false;
+
+  function batirGlace() {
     let html = '<div class="t-glace" role="grid" aria-label="La patinoire">';
     for (let r = 0; r < RANGS; r++) {
       for (let c = 0; c < COLS; c++) {
-        // Les gardiens ne sont pas sur la glace des patineurs : chacun tient
-        // le centre de son filet, sur sa rangée à lui.
-        const gard = r === 0 ? B.piece_g : r === RANGS - 1 ? A.piece_g : null;
-        const piece = surLaGlace(m).find(x => x.r === r && x.c === c)
-          || (gard && gard.c === c ? gard : null);
         const nature = natureCase(r, c, 0);
         const filet = r === 0 || r === RANGS - 1;
-        const o = filet ? null : offre(r, c);
         const cls = ['t-case', `t-${nature}`];
         if (filet) cls.push('t-but');
         if (r === 4) cls.push('t-centre');
         if (r === 3 || r === 5) cls.push('t-bleue');
-        if (o) cls.push(`t-offre t-offre-${o.type === 'duel' ? 'echec' : o.type}`);
-        if (piece && piece === sel) cls.push('t-sel');
-        if (l && l.r === r && l.c === c) cls.push('t-rondelle-libre');
-        const jouable = piece && piece.eq === 'A' && !piece.gardien && aMoi() && !attente && aDesOptions(piece);
-        if (jouable) cls.push('t-jouable');
-        let dedans = '';
-        if (piece) {
-          const b = piece.eq === 'A' ? bA : bB;
-          dedans = `<span class="t-piece ${piece.eq === 'A' ? 'mienne' : 'sienne'} ${piece.gardien ? 'gardien' : ''} ${piece.etourdi ? 'etourdi' : ''}"
-             style="--pf:${b.bg};--pi:${b.ink};--pl:${piece.eq === 'A' ? vA : vB}">
-             <span class="t-role">${piece.gardien ? 'G' : esc(piece.role)}</span>
-             <span class="t-nom">${esc(nomCourt(piece.p))}</span>
-             ${p === piece ? '<span class="t-rondelle" aria-label="a la rondelle"></span>' : ''}
-             ${!piece.gardien && essouffle(m, piece) ? '<span class="t-vide-air" title="Essoufflé">😮‍💨</span>' : ''}
-             ${piece.ecran ? '<span class="t-ecran" title="Il se place devant les tirs">🛡️</span>' : ''}
-           </span>`;
-        } else if (l && l.r === r && l.c === c) {
-          dedans = '<span class="t-rondelle t-seule" aria-label="rondelle libre"></span>';
-        } else if (o && o.type === 'deplacer') {
-          dedans = `<span class="t-pas">${o.mod === null ? '' : cote(o.mod, SEUIL)}</span>`;
-        }
-        /*
-         * CHAQUE CIBLE PORTE SA COTE. JP : *je pense à hoops tactics sur
-         * Android genre*. C'est la même famille — un plateau qu'on touche,
-         * et chaque option annoncée avec ses chances AVANT qu'on s'engage.
-         * Une case de déplacement montre son seuil d'esquive ; un coéquipier
-         * et un porteur adverse montrent le leur aussi, sinon on choisit à
-         * l'aveugle celui qu'on veut rejoindre.
-         */
-        if (o && (o.type === 'passe' || o.type === 'echec' || o.type === 'duel')) {
-          dedans += `<span class="t-cote">${cote(o.mod, o.seuil)}</span>`;
-        }
-        html += `<button type="button" class="${cls.join(' ')}" data-r="${r}" data-c="${c}"
-                   ${filet || (!o && !jouable) ? 'tabindex="-1"' : ''}>${dedans}</button>`;
+        html += `<button type="button" class="${cls.join(' ')}" data-r="${r}" data-c="${c}"><span class="t-marque"></span></button>`;
       }
     }
-    return html + '</div>';
+    html += '<div class="t-pieces" aria-hidden="true"></div>';
+    html += '<div class="t-rondelle-libre-jeton" hidden></div>';
+    html += '</div>';
+    $('.t-plateau').innerHTML = html;
+    grilleFaite = true;
   }
 
-  /* ---------- la carte de la pièce choisie et les boutons ---------- */
+  /* Toutes les pièces à dessiner, gardiens compris, avec leur clé stable. */
+  const jetons = () => [
+    ...surLaGlace(m).map(x => [`${x.eq}-${x.role}`, x]),
+    ['A-G', A.piece_g], ['B-G', B.piece_g],
+  ];
+
+  function majGlace() {
+    if (!grilleFaite) batirGlace();
+    const l = libre(m), p = porteur(m);
+    const grille = $('.t-glace');
+
+    // 1. Les cases : ce qu'elles PROPOSENT à la pièce choisie.
+    for (const cel of grille.querySelectorAll('.t-case')) {
+      const r = +cel.dataset.r, c = +cel.dataset.c;
+      const filet = r === 0 || r === RANGS - 1;
+      const o = filet ? null : offre(r, c);
+      const piece = surLaGlace(m).find(x => x.r === r && x.c === c);
+      const jouable = piece && piece.eq === 'A' && aMoi() && !attente && !deIA && aDesOptions(piece);
+      cel.classList.toggle('t-offre', !!o);
+      for (const t of ['deplacer', 'passe', 'echec']) {
+        cel.classList.toggle(`t-offre-${t}`, !!o && (o.type === t || (t === 'echec' && o.type === 'duel')));
+      }
+      cel.classList.toggle('t-jouable', !!jouable);
+      cel.classList.toggle('t-sel', !!piece && piece === sel);
+      cel.tabIndex = (o || jouable) ? 0 : -1;
+      // L'étiquette : la cote du geste que cette case propose.
+      const marque = cel.querySelector('.t-marque');
+      marque.textContent = !o ? ''
+        : o.type === 'deplacer' ? (o.mod === null ? '' : cote(o.mod, SEUIL))
+        : cote(o.mod, o.seuil);
+      marque.className = `t-marque${o && o.type !== 'deplacer' ? ' t-cote' : o ? ' t-pas' : ''}`;
+    }
+
+    // 2. La rondelle libre, posée sur sa case.
+    const jeton = grille.querySelector('.t-rondelle-libre-jeton');
+    jeton.hidden = !l;
+    if (l) { jeton.style.setProperty('--tr', l.r); jeton.style.setProperty('--tc', l.c); }
+
+    // 3. Les pièces : on DÉPLACE les éléments, on ne les recrée pas.
+    const couche = grille.querySelector('.t-pieces');
+    const vues = new Set();
+    for (const [cle, x] of jetons()) {
+      vues.add(cle);
+      let el = couche.querySelector(`[data-jeton="${cle}"]`);
+      if (!el) {
+        el = document.createElement('div');
+        el.dataset.jeton = cle;
+        el.className = 't-jeton';
+        couche.appendChild(el);
+      }
+      const b = x.eq === 'A' ? bA : bB;
+      el.style.setProperty('--tr', x.r);
+      el.style.setProperty('--tc', x.c);
+      el.style.setProperty('--pf', b.bg);
+      el.style.setProperty('--pi', b.ink);
+      el.style.setProperty('--pl', x.eq === 'A' ? vA : vB);
+      const jouableIci = x.eq === 'A' && !x.gardien && aMoi() && !attente && aDesOptions(x);
+      el.className = `t-jeton t-piece ${x.eq === 'A' ? 'mienne' : 'sienne'}`
+        + (x.gardien ? ' gardien' : '') + (x.etourdi ? ' etourdi' : '')
+        + (jouableIci ? ' jouable' : '')
+        + (x === sel ? ' choisie' : '')
+        + (dernier && dernier.piece === x ? ' agit' : '')
+        + (dernier && dernier.cible === x ? ' visee' : '');
+      const nom = esc(nomCourt(x.p));
+      const role = x.gardien ? 'G' : esc(x.role);
+      const rond = p === x ? '<span class="t-rondelle" aria-label="a la rondelle"></span>' : '';
+      const air = !x.gardien && essouffle(m, x) ? '<span class="t-vide-air" title="Essoufflé">😮‍💨</span>' : '';
+      const ecr = x.ecran ? '<span class="t-ecran" title="Il se place devant les tirs">🛡️</span>' : '';
+      const dedans = `<span class="t-role">${role}</span><span class="t-nom">${nom}</span>${rond}${air}${ecr}`;
+      if (el.dataset.contenu !== dedans) { el.innerHTML = dedans; el.dataset.contenu = dedans; }
+    }
+    for (const el of couche.querySelectorAll('[data-jeton]')) {
+      if (!vues.has(el.dataset.jeton)) el.remove();
+    }
+  }
 
   /*
    * LA CARTE DE LA PIÈCE CHOISIE. JP : *archétype clair dans la carte de
@@ -309,10 +378,26 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   /* ---------- le dé ---------- */
 
+  const MOT_JET = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle' };
+
   function de() {
+    /*
+     * LE DÉ DE L'ADVERSAIRE SE LIT COMME LE TIEN. Même boîte, mêmes nombres,
+     * sans bouton : on voit ce qu'il a joué, ce qu'il lui fallait, et ce que
+     * ça a donné. Sans lui, la présence adverse n'était qu'un fil de phrases.
+     */
+    if (deIA) {
+      const j = deIA;
+      return `
+      <div class="t-de sienne ${j.reussi ? 'ok' : 'rate'}" role="status">
+        <span class="t-de-face">${j.de}</span>
+        <span class="t-de-calcul">${esc(MOT_JET[j.quoi] || 'Jet')} · ${j.de}${j.mod >= 0 ? ` + ${j.mod}` : ` − ${-j.mod}`} = <b>${j.total}</b> contre ${j.seuil}+</span>
+        <span class="t-de-verdict">${j.reussi ? 'Réussi' : 'Raté'}${j.relance ? ' (relance)' : ''}</span>
+      </div>`;
+    }
     if (!attente) return '';
     const j = attente.jet;
-    const mot = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle' }[j.quoi] || 'Jet';
+    const mot = MOT_JET[j.quoi] || 'Jet';
     const peutRelancer = !j.reussi && !j.relance && A.relance && attente.cote === 'A';
     return `
       <div class="t-de ${j.reussi ? 'ok' : 'rate'}" role="status">
@@ -396,16 +481,21 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   /* ---------- le rendu ---------- */
   function rendre() {
-    if (regles) {
-      $('.t-tete').innerHTML = '';
-      $('.t-plateau').innerHTML = '';
-      $('.t-bas').innerHTML = reglesHtml();
-      return;
-    }
-    $('.t-tete').innerHTML = tete();
-    $('.t-plateau').innerHTML = glace();
+    // Le volet des règles couvre le match ; le plateau se CACHE, il ne se
+    // vide pas — la grille est bâtie une fois et les pièces glissent dessus.
+    $('.t-tete').hidden = regles;
+    $('.t-plateau').hidden = regles;
+    if (regles) { $('.t-bas').innerHTML = reglesHtml(); return; }
+    veillerButs();
+    $('.t-tete').innerHTML = tete() + banniere();
+    if (!grilleFaite) batirGlace();
+    majGlace();
     $('.t-bas').innerHTML = unites() + de() + carte() + boutons() + fil();
   }
+
+  /* La bannière d'un but : elle passe une seconde sur le tableau indicateur. */
+  const banniere = () => (eclat
+    ? `<div class="t-eclat t-eclat-${eclat.eq}">BUT ! <span>${esc(eclat.texte)}</span></div>` : '');
 
   function boutons() {
     if (m.fini) return '<div class="t-actions"><button type="button" class="t-resultat t-evident">Voir le résultat</button></div>';
@@ -479,29 +569,65 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   }
 
   /* ---------- la présence de l'adversaire, geste par geste ---------- */
+
+  /*
+   * L'ADVERSAIRE JOUE DEVANT TOI, PAS AVANT TOI. La première version
+   * demandait au moteur la présence ENTIÈRE (`iaPresence`), puis rejouait le
+   * fil au rythme de la lecture — donc le plateau montrait déjà l'état final
+   * pendant qu'on lisait le premier geste. Maintenant `iaGeste` ne joue QU'UN
+   * geste : on le montre (la pièce se cercle, sa cible clignote, son dé
+   * s'affiche), on attend, puis on demande le suivant. Ce qui est joué ne
+   * change pas d'un iota — c'est le même moteur, la même graine, le même
+   * ordre. Seul le moment où on le regarde change.
+   */
+  const PAUSE_DE = 780;     // un geste avec un dé : on lit le jet
+  const PAUSE_SEC = 520;    // un geste sans dé : écran, foncer
+
   function tourAdverse() {
     iaEnCours = true;
-    const avant = m.fil.length;
-    iaPresence(m);
-    // On rejoue le fil de sa présence au rythme de la lecture : d'un coup,
-    // on ne comprendrait pas ce qui vient d'arriver.
-    const nouveaux = m.fil.length - avant;
-    let montre = 0;
-    const cache = m.fil.slice();
-    const tic = () => {
-      montre++;
-      m.fil = cache.slice(Math.max(0, nouveaux - montre));
+    sel = null; cible = null;
+    const cote = m.tour;
+    let garde = 0;
+
+    const fin = () => {
+      // Le garde-fou doit quand même rendre la main : sans ça, une présence
+      // qui tourne en rond gèlerait le match sur le tour de l'adversaire.
+      if (!m.fini && m.tour === cote) finirPresence(m);
+      dernier = null; deIA = null;
+      iaEnCours = false;
+      choisirSeul();
       rendre();
-      if (montre < nouveaux) setTimeout(tic, 620);
-      else {
-        m.fil = cache;
-        iaEnCours = false;
-        choisirSeul();
-        rendre();
-        if (!m.fini && m.tour === 'B') tourAdverse();
-      }
+      if (!m.fini && m.tour === 'B') tourAdverse();
     };
-    if (nouveaux > 0) setTimeout(tic, 260); else { iaEnCours = false; rendre(); }
+
+    const pas = () => {
+      if (m.fini || m.tour !== cote || garde++ >= GESTES_MAX) { fin(); return; }
+      const joue = iaGeste(m);
+      if (!joue) { fin(); return; }        // iaGeste a fini la présence lui-même
+      dernier = { piece: joue.piece, cible: joue.cible || null };
+      deIA = joue.jet || null;
+      rendre();
+      setTimeout(pas, joue.jet ? PAUSE_DE : PAUSE_SEC);
+    };
+    setTimeout(pas, 320);
+  }
+
+  /*
+   * UN BUT SE VOIT AVANT DE SE LIRE. Le pointage montait d'un cran et c'était
+   * tout : au milieu d'une présence adverse, on ne savait même pas quel geste
+   * l'avait fait entrer. Un seul veilleur sert les deux camps — le tien comme
+   * le sien — parce qu'un but est un but, et il n'y a qu'un endroit où le
+   * pointage change.
+   */
+  const butsVus = { A: A.buts, B: B.buts };
+  function veillerButs() {
+    for (const [c, eq] of [['A', A], ['B', B]]) {
+      if (eq.buts > butsVus[c]) {
+        butsVus[c] = eq.buts;
+        eclat = { eq: c, texte: eq.nom };
+        setTimeout(() => { eclat = null; if (!regles) $('.t-tete').innerHTML = tete() + banniere(); }, 1800);
+      }
+    }
   }
 
   /* ---------- les clics ---------- */
