@@ -57,34 +57,74 @@ import { getTraits } from './traits.js';
 /* ======================================================================
    LE PLATEAU
    ======================================================================
-   Sept colonnes, onze rangées. Les rangées 0 et 10 sont les filets : seuls
+   Neuf colonnes, onze rangées. Les rangées 0 et 10 sont les filets : seuls
    les gardiens y vont. Les patineurs vivent sur les neuf rangées du milieu,
-   soit 63 cases — assez pour que la position compte, assez peu pour que tout
-   se voie d'un coup sur un téléphone de 390 px.
+   soit 81 cases.
 
      r0    filet adverse           (gardien adverse)
-     r1-2  l'enclave adverse       +2 au tir
-     r3    la ligne bleue adverse  la pointe
-     r4    la ligne rouge          le cercle de mise au jeu
-     r5    ta ligne bleue
-     r6-7  ton territoire
-     r8    ton filet               (ton gardien)
+     r1    l'enclave adverse       +3 au tir, et un retour si ça rate
+     r2-3  la zone offensive       on peut tirer, sans le bonus
+     r4-6  la zone neutre          r5 = la ligne rouge, la mise au jeu
+     r7-9  ton territoire
+     r10   ton filet               (ton gardien)
 
-   Neuf rangées et non onze : à trois pas de patin sur une glace de onze,
-   une équipe passait son match à traverser la zone neutre, et le score
-   tombait sous deux buts (`check_table.mjs`). Sept rangées de patineurs,
-   c'est une rondelle qui circule.
+   JP, après avoir joué : *ya pas assez de cases et c'est trop facile aller
+   vers l'enclave, limiter déplacement et agrandir le rink*. La glace faisait
+   sept sur neuf — 49 cases jouables — et un ailier à PA 6 la traversait
+   presque d'un seul élan. Trois choses ont bougé ENSEMBLE, parce qu'aucune ne
+   tient seule (mesuré sur 130 matchs par géométrie) :
+
+     agrandir seul       7×11 à patin plein : 3,96 buts, et 30,5 cases
+                         allumées d'un coup — illisible ET plat
+     raccourcir seul     7×11 plafonné à 3 pas : 1,85 but. C'est l'ancienne
+                         note du dépôt, et elle disait vrai
+     les deux ensemble   9×11, patin plafonné à 4, huit présences par période,
+                         l'enclave ramenée à UNE rangée qui vaut +3
+
+   Ce qui rend la combinaison jouable, c'est que la zone offensive garde sa
+   taille pendant que la glace s'allonge : allonger le rink allonge la ZONE
+   NEUTRE, pas le territoire où on marque. Et le patin est plafonné en absolu
+   (4) sur une glace plus grande, donc il est limité en RELATIF : quatre pas
+   sur neuf rangées jouables au lieu de six sur sept.
+
+   Mesuré après (130 matchs) : 81 cases jouables au lieu de 49, l'enclave
+   atteinte dans 10 % des présences au lieu de 26, et la part du plateau
+   allumée d'un coup passe de 50 % à 40 %.
+
+   LE PATIN EN LIGNE DROITE a été essayé et écarté : huit rayons au lieu d'un
+   éventail ramènent les cases allumées de 24,6 à 12,9, mais l'IA ne sait plus
+   contourner le trafic et le score tombe à 1,9 but. C'est une bonne idée qui
+   demande une autre IA.
 
    Tu attaques TOUJOURS vers le haut. Le plateau ne se retourne jamais : à
    la troisième période on ne veut pas se demander de quel bord on joue.
    ====================================================================== */
 
-export const COLS = 7;
+export const COLS = 9;
 export const RANGS = 9;
 export const FILET_HAUT = 0;
 export const FILET_BAS = RANGS - 1;
-export const BUT_COL = 3;                     // le centre du filet
+export const BUT_COL = (COLS - 1) / 2;        // le centre du filet
 export const RANG_MIN = 1, RANG_MAX = RANGS - 2;   // là où les patineurs vont
+export const MI_GLACE = (RANGS - 1) / 2;      // la ligne du centre, où on met au jeu
+
+/*
+ * LA GLACE EST DÉCRITE PAR SA TAILLE, JAMAIS PAR SES NOMBRES.
+ *
+ * `BUT_COL`, les bandes de `natureCase`, les places de départ et la valeur
+ * qu'une case a pour l'IA étaient écrites en dur pour une glace de 7 sur 9 :
+ * le centre du filet valait 3, l'enclave allait de la colonne 1 à la 5, le
+ * repli commençait à six cases du filet, et la valeur d'une case était
+ * `10 − distance`. Changer une seule dimension cassait les quatre en silence
+ * — une valeur de case NÉGATIVE au fond de la glace, une enclave décentrée,
+ * deux pièces hors du plateau à la mise au jeu. Tout se dérive maintenant de
+ * COLS et RANGS, donc la géométrie se règle en changeant deux nombres.
+ */
+
+/** La zone offensive garde la MÊME taille quelle que soit la longueur de la glace. */
+export const RANGS_ENCLAVE = 1;               // la seule rangée collée au filet
+export const RANGS_POINTE = 3;                // la troisième : la pointe
+export const DEMI_ENCLAVE = 2;                // sa largeur, de part et d'autre du filet
 
 /*
  * LA PORTÉE DU TIR : on ne tire que de la zone offensive.
@@ -111,6 +151,11 @@ export const RANG_MIN = 1, RANG_MAX = RANGS - 2;   // là où les patineurs vont
  * n'importe quel tir une fois sur six. C'est une RÈGLE qui manquait, pas un
  * chiffre : on ne tire pas de sa propre zone. Au-delà de la ligne bleue,
  * ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert.
+ *
+ * ELLE RESTE À TROIS, MÊME SUR UNE GLACE PLUS LARGE. Portée à quatre, elle
+ * laisserait tirer de la ligne rouge sur neuf rangées — exactement ce que
+ * cette règle avait retiré. C'est l'ENCLAVE qui a rétréci, pas le droit de
+ * tirer : on tire toujours d'aussi loin, mais le point qui paie est plus petit.
  */
 export const PORTEE_TIR = 3;
 
@@ -130,9 +175,11 @@ export const peutTirer = (m, piece) => !piece.gardien && distanceAuFilet(m, piec
 export function natureCase(r, c, but) {
   const d = Math.abs(r - but);
   if (d === 0) return 'filet';
-  if (d <= 2) return c >= 1 && c <= 5 ? 'enclave' : 'coin';
-  if (d === 3) return 'pointe';
-  if (d <= 5) return 'neutre';
+  if (d <= RANGS_ENCLAVE) return Math.abs(c - BUT_COL) <= DEMI_ENCLAVE ? 'enclave' : 'coin';
+  if (d === RANGS_POINTE) return 'pointe';
+  // Le repli est le dernier tiers de la glace : allonger la patinoire allonge
+  // la zone neutre, pas la zone offensive — c'est ce qui rend l'enclave loin.
+  if (d <= RANGS - 4) return 'neutre';
   return 'repli';
 }
 
@@ -455,8 +502,14 @@ export function gardienDe(roster) {
 /* Les places de départ d'une mise au jeu au centre. Symétriques, jamais en
  * conflit, et chaque pièce dans son couloir : l'ailier gauche à gauche. */
 const DEPART = {
-  A: { AG: [5, 1], C: [5, 3], AD: [5, 5], DG: [7, 2], DD: [7, 4] },
-  B: { AG: [3, 5], C: [3, 3], AD: [3, 1], DG: [1, 4], DD: [1, 2] },
+  A: {
+    AG: [MI_GLACE + 1, BUT_COL - 2], C: [MI_GLACE + 1, BUT_COL], AD: [MI_GLACE + 1, BUT_COL + 2],
+    DG: [MI_GLACE + 3, BUT_COL - 1], DD: [MI_GLACE + 3, BUT_COL + 1],
+  },
+  B: {
+    AG: [MI_GLACE - 1, BUT_COL + 2], C: [MI_GLACE - 1, BUT_COL], AD: [MI_GLACE - 1, BUT_COL - 2],
+    DG: [MI_GLACE - 3, BUT_COL + 1], DD: [MI_GLACE - 3, BUT_COL - 1],
+  },
 };
 
 /**
@@ -612,7 +665,17 @@ export const essouffle = (m, piece) => souffleDe(m, piece) <= 0;
 const malusSouffle = (m, piece) => (essouffle(m, piece) ? -1 : 0);
 
 /** Les pas de patin d'une pièce, essoufflement compris. */
-export const pasDe = (m, piece) => Math.max(1, piece.st.PA - (essouffle(m, piece) ? 1 : 0));
+/*
+ * LE PATIN EST PLAFONNÉ. `PA` va de 2 à 6 ; sans plafond, un ailier rapide
+ * traversait presque la glace d'un seul élan, et le nombre de cases allumées
+ * croît comme le CARRÉ du nombre de pas (un éventail de k pas en atteint
+ * (2k+1)²). Le plafond est ce qui permet d'agrandir la glace sans rendre le
+ * choix illisible : quatre pas sur neuf rangées jouables, au lieu de six sur
+ * sept. Le talent se voit encore entre 2 et 4 ; il ne traverse plus le rink.
+ */
+export const PAS_MAX = 4;
+export const pasDe = (m, piece) =>
+  Math.max(1, Math.min(PAS_MAX, piece.st.PA) - (essouffle(m, piece) ? 1 : 0));
 
 /** Les vingt patineurs d'un alignement : les quatre trios et les trois paires. */
 function tousLesPatineurs(roster) {
@@ -742,7 +805,10 @@ export function modTir(m, piece) {
   // de la patinoire, personne ne tentait rien d'autre que d'avancer.
   const loin = d <= 2 ? 0 : d <= 4 ? -1 : -2;
   const nature = natureCase(piece.r, piece.c, eq.but);
-  const place = nature === 'enclave' ? 2 : nature === 'coin' ? -1 : 0;
+  // L'enclave ne fait plus qu'une rangée et ne s'atteint qu'une présence sur
+  // sept au lieu d'une sur quatre : y arriver doit payer beaucoup plus cher,
+  // sinon le jeu devient du hockey défensif crédible et plate.
+  const place = nature === 'enclave' ? 4 : nature === 'coin' ? -1 : 0;
   // L'angle : tirer d'une bande, c'est tirer dans le côté court.
   const angle = Math.abs(piece.c - BUT_COL) >= 3 ? -1 : 0;
   const gene = batonsTir(m, piece.eq, piece.r, piece.c);
@@ -1230,8 +1296,12 @@ function sortieDeZone(m) {
   if (!p || !p.gardien) return;
   const eq = eqDe(m, p.eq);
   if (p.eq !== m.tour) return;
+  // LA SORTIE DE ZONE VA VERS L'AVANT. Le gardien relançait au plus PROCHE,
+  // donc au fond de sa propre zone : sur une glace de onze rangées, l'équipe
+  // repartait de zéro à chaque arrêt et n'atteignait plus jamais le filet.
+  // Il relance à la pièce la plus avancée — c'est la passe de sortie de zone.
   const relais = eq.pieces.filter(x => !x.etourdi)
-    .sort((a, b) => dist(a, p) - dist(b, p) || (a.role.startsWith('D') ? -1 : 1))[0];
+    .sort((a, b) => Math.abs(a.r - eq.but) - Math.abs(b.r - eq.but))[0];
   if (!relais) return;
   m.rondelle = { piece: relais };
   relais.derniere = null;
@@ -1286,7 +1356,7 @@ function finirMatch(m) {
 /* Ce que vaut une case pour qui attaque `but` : proche du filet et au centre. */
 function valeurCase(r, c, but) {
   const d = Math.abs(r - but);
-  return (10 - d) * 1.0 + (3 - Math.abs(c - BUT_COL)) * 0.6;
+  return (RANGS + 1 - d) * 1.0 + (BUT_COL - Math.abs(c - BUT_COL)) * 0.6;
 }
 
 /** Le meilleur geste d'une pièce, et ce qu'il vaut. */
@@ -1310,7 +1380,12 @@ function meilleurGeste(m, piece) {
         const tirIci = peutTirer(m, piece) ? chances(modTir(m, piece), SEUIL_TIR) : 0;
         const tir = (peutTirer(m, cible) ? chances(modTir(m, cible), SEUIL_TIR) : 0) - tirIci;
         if (gain <= 0 && tir <= 0.02) continue;
-        options.push({ type: 'passe', cible, val: chances(modPasse(m, piece, cible) + bonus('VOILEE')) * (2.5 + gain * 0.5 + tir * 9) });
+        // Le terrain gagné par une PASSE pesait 0,5 contre 0,9 pour le patin :
+        // la passe était escomptée plus que le patin, ce qui est à l'envers dès
+        // que la glace est longue — une passe traverse la moitié du rink d'un
+        // geste, un patin en fait quatre cases. À 2,0, la passe redevient la
+        // façon de sortir de sa zone.
+        options.push({ type: 'passe', cible, val: chances(modPasse(m, piece, cible) + bonus('VOILEE')) * (2.5 + gain * 2.0 + tir * 9) });
       }
       // FONCER : dépenser son geste pour un deuxième élan. Ça ne vaut que
       // quand on est encore loin et qu'on a du patin à dépenser.
@@ -1641,7 +1716,8 @@ export function reglesDuPlateau() {
       points: [
         `${COLS} colonnes, ${RANGS} rangées. Les deux rangées du bout sont les filets : seuls les gardiens y sont.`,
         `ON NE TIRE QUE DE LA ZONE OFFENSIVE : à ${PORTEE_TIR} cases du filet ou moins. Au-delà de la ligne bleue ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert. Il faut entrer.`,
-        'L\'enclave — les deux rangées devant un filet, sauf les coins — vaut +2 au tir, et un tir raté pris de là laisse un retour.',
+        `L'enclave — la rangée collée au filet, sauf les coins — vaut +4 au tir, et un tir raté pris de là laisse un retour. Elle est petite : y arriver est le jeu.`,
+        `Le patin est plafonné à ${PAS_MAX} cases, quel que soit le PA de la pièce : la glace est grande, on ne la traverse pas d'un élan.`,
         'Un coin vaut −1 au tir, une bande −1 de plus : c\'est le côté court.',
         'La ligne bleue, c\'est la pointe : c\'est de là que le tir frappé vaut son bonus.',
         'Un adversaire collé au tireur ne gêne son tir que s\'il est ENTRE lui et le filet. Celui qui est dans son dos ne bloque rien.',

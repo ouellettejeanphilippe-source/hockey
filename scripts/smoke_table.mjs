@@ -23,6 +23,8 @@ catch { pw = require(execSync('npm root -g').toString().trim() + '/playwright');
 const { chromium } = pw;
 
 const base = process.argv[2] || 'http://localhost:8000';
+// La glace vient du moteur : le test lit la même source que le jeu.
+const { COLS: COLS_ATTENDU, RANGS: RANGS_ATTENDU } = await import('../js/table.js');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const errors = [];
@@ -108,8 +110,8 @@ await page.click('#tableModal .t-regles-fermer');
 await page.waitForSelector('#tableModal .t-glace', { timeout: 5000 });
 
 const cases = await page.$$eval('#tableModal .t-case', l => l.length);
-console.log(`   la glace : ${cases} cases (attendu 63)`);
-if (cases !== 63) errors.push(`la glace compte ${cases} cases`);
+console.log(`   la glace : ${cases} cases (attendu ${COLS_ATTENDU * RANGS_ATTENDU})`);
+if (cases !== COLS_ATTENDU * RANGS_ATTENDU) errors.push(`la glace compte ${cases} cases`);
 
 /*
  * Le joueur automatique : il fait ce qu'un pouce ferait, et il doit toucher à

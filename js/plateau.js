@@ -197,7 +197,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   let grilleFaite = false;
 
   function batirGlace() {
-    let html = '<div class="t-glace" role="grid" aria-label="La patinoire">';
+    // La feuille de style ne devine JAMAIS la géométrie : le nombre de colonnes
+    // lui est donné par le moteur, donc changer COLS suffit.
+    let html = `<div class="t-glace" role="grid" aria-label="La patinoire" style="--tcols:${COLS}">`;
     for (let r = 0; r < RANGS; r++) {
       for (let c = 0; c < COLS; c++) {
         const nature = natureCase(r, c, 0);
