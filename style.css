@@ -3808,3 +3808,19 @@ a.spin-club:hover {
 .t-seg button.on.vide { color: #6b1d22; }
 .t-vide-air, .t-ecran { position: absolute; bottom: 0; left: 1px; font-size: 9px; line-height: 1; }
 .t-ecran { left: auto; right: 1px; }
+
+/* ---------- Sur table : le volet des règles, par-dessus le plateau ---------- */
+.table-regles { flex: none; font-family: var(--display); font-size: 19px; font-weight: 800; width: 30px; height: 30px; padding: 0; border-radius: 50%; }
+.t-regles { padding: 4px 0 20px; }
+.t-regles-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; border-bottom: 1px solid var(--line); }
+.t-regles h3 { margin: 0; font-family: var(--display); font-size: 19px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+.t-regles-fermer { font-family: var(--display); font-size: 13.5px; font-weight: 700; padding: 5px 11px; border: 1px solid var(--gold); background: transparent; color: var(--gold); border-radius: var(--r-s); cursor: pointer; }
+.t-regles section { margin-top: 14px; }
+.t-regles h4 { margin: 0 0 5px; font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text); }
+.t-regles ul { margin: 0; padding-left: 17px; }
+.t-regles li { font-size: 13px; line-height: 1.5; color: var(--sub); margin-bottom: 5px; }
+.t-regles .tbl { font-size: 12px; }
+.t-regles .t-regle-nom { font-family: var(--display); font-weight: 700; color: var(--text); white-space: nowrap; }
+/* Les mêmes règles dans la page des règles du jeu, au style de la bible. */
+.bible h4 { margin: 14px 0 4px; font-family: var(--display); font-size: 15.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+.bible .t-regle-nom { font-family: var(--display); font-weight: 700; white-space: nowrap; }

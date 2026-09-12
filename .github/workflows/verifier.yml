@@ -10,6 +10,10 @@ name: Vérifier
 #                   des joueurs font ceux de l'équipe, les lancers font les
 #                   arrêts plus les buts) — l'équivalent de check_feuilles
 #                   pour le moteur du mode bonus
+#   check_regles    les douze règles du plateau, vérifiées entre chaque geste :
+#                   une pièce par case, la rondelle toujours jouable, le
+#                   porteur jamais au sol, un match qui finit sur un gagnant —
+#                   et les règles écrites comparées aux gestes réellement joués
 #   smoke           le parcours complet à 390 px dans Chromium : vestiaire,
 #                   loto, saison, séries, zéro erreur console
 #   smoke_table     le même, en mode bonus : le tournoi, le plateau, un match
@@ -45,6 +49,9 @@ jobs:
 
       - name: Les égalités de la feuille sur table
         run: MATCHS=60 node scripts/check_table.mjs
+
+      - name: Les règles du plateau tiennent
+        run: MATCHS=80 node scripts/check_regles.mjs
 
       - name: Installer Playwright (Chromium)
         run: |

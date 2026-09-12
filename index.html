@@ -174,6 +174,7 @@
   <div class="live-sheet table-sheet" role="dialog" aria-modal="true" aria-label="Match sur table">
     <div class="live-top">
       <div class="live-head t-titre"></div>
+      <button class="icon-btn table-regles" title="Les règles du plateau" aria-label="Les règles du plateau">?</button>
       <button class="close-btn table-close" aria-label="Laisser le match se finir tout seul">✕</button>
     </div>
     <div class="t-tete"></div>
@@ -322,6 +323,15 @@
       <p>Ce que tu vois avant de signer : le salaire, l'archétype, la zone et les traits sur la carte, puis toutes les statistiques et le <strong>profil mesuré</strong> dans la fiche au clic. Ce que tu ne vois pas : <strong>aucune cote</strong>. Le jeu n'en affiche nulle part. Un joueur se juge sur ce qu'il a fait.</p>
       <p>La carte propose la case où le joueur rend le mieux : sa position naturelle d'abord, puis sa zone. Quand la seule case libre est <strong>sous sa zone</strong>, la carte le dit en rouge avant que tu signes. Tu peux viser une autre case en la touchant dans l'alignement, ou déplacer quelqu'un après coup.</p>
       <p><strong>Budget du choix</strong> : le plafond restant moins le salaire plancher (0,775 M$) de chaque case qu'il te restera à combler. Dépasser ce budget, c'est te condamner à ne pas finir tes 23.</p>
+
+      <!-- Les règles du mode bonus sont ÉCRITES DANS LE CODE et injectées ici
+           par `remplirReglesDuPlateau` (js/game.js) depuis `reglesDuPlateau()`
+           (js/table.js) : l'écran du plateau lit la même source, et personne
+           ne recopie un chiffre qui finira par mentir. -->
+      <h3>0a. Le mode bonus « Sur table »</h3>
+      <p>Un <strong>quatrième réglage</strong> dans les options dit ce qu'on fait de l'alignement une fois bâti : la saison de 82 matchs (le jeu d'origine) ou un <strong>tournoi de six clubs joué sur un plateau</strong>, à la Blood Bowl, où c'est toi qui joues chaque geste. Le repêchage ne change pas d'un poil — mêmes 23 cases, même plafond, même roulette.</p>
+      <p>C'est un jeu d'<strong>arcade</strong>, pas une simulation : cinq buts par équipe par match, des pointages de borne. La crédibilité, c'est la saison qui la porte.</p>
+      <div id="reglesPlateau"></div>
 
       <h3>0b. Deux alignements, deux tirages</h3>
       <p>Le moteur ne change pas d'un mode à l'autre : ce sont toujours 23 cases, le même malus de zone et la même ligue de 32 équipes. Ce qui change, c'est ce qu'on te demande de bâtir, et comment la roulette te le propose. Les deux réglages sont dans les <strong>options</strong>, et en changer relance une partie.</p>
