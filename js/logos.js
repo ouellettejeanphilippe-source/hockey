@@ -116,6 +116,10 @@ export const TEAM_COLORS = {
   DAL: { primary: '#006847', secondary: '#8f8f8f', text: '#ffffff', accent: '#006847' },
   SJS: { primary: '#006d75', secondary: '#ea6d10', text: '#ffffff', accent: '#006d75' },
   TBL: { primary: '#002868', secondary: '#001438', text: '#ffffff', accent: '#002868' },
+  // Ottawa manquait : 978 joueurs-saisons sur 33 ans retombaient sur l'ardoise
+  // de secours, et `applyTeamColors` repeignait TOUTE l'interface aux couleurs
+  // des NHL Stars quand la roulette sortait les Sénateurs.
+  OTT: { primary: '#c8102e', secondary: '#c2912c', text: '#ffffff', accent: '#c8102e' },
   FLA: { primary: '#041e42', secondary: '#c8102e', text: '#ffffff', accent: '#c8102e' },
   ANA: { primary: '#f47a38', secondary: '#b3995d', text: '#ffffff', accent: '#f47a38' },
   MDA: { primary: '#00685e', secondary: '#f0592b', text: '#ffffff', accent: '#00685e' },
