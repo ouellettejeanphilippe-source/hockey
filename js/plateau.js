@@ -71,8 +71,11 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * l'histoire après en avoir vu la fin.
    */
   let dernier = null;      // { piece, cible } — le geste qu'on regarde
-  let deIA = null;         // le dé de ce geste, en lecture seule
+  let deGlace = null;      // { jet, cote, r, c } — le dé, POSÉ SUR LA CASE du geste
+  let flash = null;        // { r, c, texte, ton } — le verdict, là où il tombe
   let eclat = null;        // la bannière d'un but : { eq, texte }
+  let minuteurFlash = 0;
+  let noJet = 0;          // un dé neuf est un ÉLÉMENT neuf : sinon l'animation ne repart pas
 
   /*
    * LA COULEUR VIVE CERNE LA PIÈCE. Le bandeau d'un club dont la primaire est
@@ -208,6 +211,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     }
     html += '<div class="t-pieces" aria-hidden="true"></div>';
     html += '<div class="t-rondelle-libre-jeton" hidden></div>';
+    // Le dé et le verdict vivent SUR la glace, posés sur la case du geste.
+    html += '<div class="t-de-glace" role="status" hidden></div>';
+    html += '<div class="t-flash" role="status" aria-live="polite" hidden></div>';
     html += '</div>';
     $('.t-plateau').innerHTML = html;
     grilleFaite = true;
@@ -230,7 +236,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const filet = r === 0 || r === RANGS - 1;
       const o = filet ? null : offre(r, c);
       const piece = surLaGlace(m).find(x => x.r === r && x.c === c);
-      const jouable = piece && piece.eq === 'A' && aMoi() && !attente && !deIA && aDesOptions(piece);
+      const jouable = piece && piece.eq === 'A' && aMoi() && !attente && aDesOptions(piece);
       cel.classList.toggle('t-offre', !!o);
       for (const t of ['deplacer', 'passe', 'echec']) {
         cel.classList.toggle(`t-offre-${t}`, !!o && (o.type === t || (t === 'echec' && o.type === 'duel')));
@@ -287,7 +293,118 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     for (const el of couche.querySelectorAll('[data-jeton]')) {
       if (!vues.has(el.dataset.jeton)) el.remove();
     }
+
+    // 4. Le dé, posé sur la case du geste, et le verdict qui suit.
+    poserSurGlace(grille.querySelector('.t-de-glace'), deGlace, deGlaceHtml);
+    poserSurGlace(grille.querySelector('.t-flash'), flash, flashHtml);
   }
+
+  /* ======================================================================
+     LE DÉ SE JETTE SUR LA GLACE, LÀ OÙ LE GESTE SE JOUE.
+
+     JP : *je veux voir les dés et résultats sur la glace genre, animation*.
+     Le dé vivait sous le plateau, dans une boîte de texte : on tirait au
+     filet et on baissait les yeux pour savoir si ça rentrait. Il est
+     maintenant POSÉ SUR LA CASE de la pièce qui agit — il tombe, il roule
+     (six faces qui défilent), il s'arrête sur son chiffre — et le verdict
+     du moteur (BUT !, ARRÊT, REVIREMENT, VOLÉE !) éclate sur la case où la
+     chose est arrivée : le filet pour un tir, la victime pour un contact.
+
+     Trois précautions. Le dé se pose AU-DESSUS de sa case, sauf en haut de
+     la glace où il se pose dessous (`dessous`) : sinon il sort du plateau.
+     Il n'intercepte aucun clic (`pointer-events: none`) — la case dessous
+     reste jouable. Et il porte une clé (`data-cle`) : sans elle, deux jets
+     de suite réutilisaient le même élément et l'animation ne repartait pas,
+     donc le deuxième dé apparaissait déjà arrêté.
+     ====================================================================== */
+
+  /* Poser une chose sur une case, ou la cacher. `html(x)` en fait le contenu. */
+  function poserSurGlace(el, x, html) {
+    if (!el) return;
+    el.hidden = !x;
+    if (!x) { el.dataset.cle = ''; el.innerHTML = ''; return; }
+    el.style.setProperty('--tr', x.r);
+    el.style.setProperty('--tc', x.c);
+    /*
+     * ON NE SORT JAMAIS DE LA GLACE. Une boîte centrée sur la case déborde du
+     * plateau dès la première ou la dernière colonne, et la rangée du haut
+     * n'a rien au-dessus d'elle : trois ancrages au lieu d'un, choisis par la
+     * case. Mesuré avant : le dé partait à −14 px, donc coupé.
+     */
+    el.classList.toggle('dessous', x.r <= 1);
+    el.classList.toggle('bord-g', x.c <= 1);
+    el.classList.toggle('bord-d', x.c >= COLS - 2);
+    const cle = html(x, true);
+    if (el.dataset.cle !== cle) { el.dataset.cle = cle; el.innerHTML = html(x); }
+  }
+
+  const signe = n => (n >= 0 ? `+${n}` : `−${-n}`);
+
+  /*
+   * LES SIX FACES DÉFILENT, PUIS LE DÉ S'ARRÊTE. Le tambour est un ruban de
+   * six chiffres qu'une animation CSS fait passer derrière une fenêtre de la
+   * taille d'un chiffre ; il se fige sur la face tirée. Aucune minuterie en
+   * JavaScript : l'animation part toute seule quand l'élément est écrit, et
+   * `prefers-reduced-motion` la coupe sans rien casser — le bon chiffre est
+   * déjà à la bonne place.
+   */
+  function deGlaceHtml(d, cleSeule) {
+    const j = d.jet;
+    if (cleSeule) return `${d.n}`;
+    // Le tambour porte TROIS fois les six faces : l'animation le fait défiler
+    // du premier bloc jusqu'à la bonne face du troisième, donc douze à
+    // dix-sept chiffres passent avant qu'il s'arrête. Avec un seul bloc, il
+    // n'y aurait rien à faire défiler.
+    const faces = [0, 1, 2].map(() => [1, 2, 3, 4, 5, 6].map(n => `<b>${n}</b>`).join('')).join('');
+    return `
+      <span class="t-dg ${j.reussi ? 'ok' : 'rate'} ${d.cote === 'A' ? 'mien' : 'sien'}">
+        <span class="t-dg-fenetre"><span class="t-dg-tambour" style="--face:${j.de - 1}">${faces}</span></span>
+        <span class="t-dg-calcul">${signe(j.mod)} = <b>${j.total}</b><i>sur ${j.seuil}+</i></span>
+        <span class="t-dg-mot">${esc(MOT_JET[j.quoi] || 'Jet')}${j.relance ? ' · relance' : ''}</span>
+      </span>`;
+  }
+
+  const flashHtml = (f, cleSeule) =>
+    (cleSeule ? `${f.n}` : `<span class="t-flash-mot t-flash-${f.ton}">${esc(f.texte)}</span>`);
+
+  /*
+   * LE VERDICT VIENT DU MOTEUR, JAMAIS D'UNE SUPPOSITION. Après un geste, on
+   * relit ce que le moteur vient d'écrire au fil et on garde le premier genre
+   * qui a un mot — du plus ancien au plus neuf, sinon un but suivi de sa mise
+   * au jeu s'annoncerait « mise au jeu ». Si le moteur n'a rien dit de
+   * notable, il n'y a pas de verdict : on n'invente pas d'événement.
+   */
+  const VERDICTS = {
+    but:        ['BUT !', 'or', 'filet'],
+    retour:     ['RETOUR !', 'chaud', 'filet'],
+    arret:      ['ARRÊT', 'froid', 'filet'],
+    vol:        ['VOLÉE !', 'chaud', 'cible'],
+    echec:      ['ÉCHEC !', 'chaud', 'cible'],
+    rate:       ['MANQUÉ', 'rouge', 'cible'],
+    revirement: ['REVIREMENT', 'rouge', 'defaut'],
+  };
+
+  function verdict(avant, ou) {
+    const neufs = m.fil.slice(0, Math.max(0, m.fil.length - avant)).reverse();
+    flash = null;
+    for (const e of neufs) {
+      const v = VERDICTS[e.genre];
+      if (!v) continue;
+      const place = ou[v[2]] || ou.defaut;
+      if (!place) break;
+      flash = { r: place.r, c: place.c, texte: v[0], ton: v[1], n: ++noJet };
+      break;
+    }
+    clearTimeout(minuteurFlash);
+    if (flash) minuteurFlash = setTimeout(() => { flash = null; if (!regles) majGlace(); }, 1200);
+  }
+
+  /* Les trois endroits où un verdict peut tomber, pour un geste donné. */
+  const placesDe = (piece, cible) => ({
+    defaut: piece ? { r: piece.r, c: piece.c } : null,
+    cible: cible ? { r: cible.r, c: cible.c } : (piece ? { r: piece.r, c: piece.c } : null),
+    filet: piece ? { r: eqDe(m, piece.eq).but, c: BUT_COL } : null,
+  });
 
   /*
    * LA CARTE DE LA PIÈCE CHOISIE. JP : *archétype clair dans la carte de
@@ -380,33 +497,22 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   const MOT_JET = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle' };
 
+  /*
+   * SOUS LE PLATEAU IL NE RESTE QUE LA DÉCISION. Les chiffres sont sur la
+   * glace (voir `deGlaceHtml`) ; ici on ne garde que ce qui demande un clic —
+   * dépenser la relance d'équipe, ou accepter. Les répéter aux deux endroits
+   * ferait lire deux fois la même chose, et le regard resterait en bas.
+   */
   function de() {
-    /*
-     * LE DÉ DE L'ADVERSAIRE SE LIT COMME LE TIEN. Même boîte, mêmes nombres,
-     * sans bouton : on voit ce qu'il a joué, ce qu'il lui fallait, et ce que
-     * ça a donné. Sans lui, la présence adverse n'était qu'un fil de phrases.
-     */
-    if (deIA) {
-      const j = deIA;
-      return `
-      <div class="t-de sienne ${j.reussi ? 'ok' : 'rate'}" role="status">
-        <span class="t-de-face">${j.de}</span>
-        <span class="t-de-calcul">${esc(MOT_JET[j.quoi] || 'Jet')} · ${j.de}${j.mod >= 0 ? ` + ${j.mod}` : ` − ${-j.mod}`} = <b>${j.total}</b> contre ${j.seuil}+</span>
-        <span class="t-de-verdict">${j.reussi ? 'Réussi' : 'Raté'}${j.relance ? ' (relance)' : ''}</span>
-      </div>`;
-    }
     if (!attente) return '';
     const j = attente.jet;
-    const mot = MOT_JET[j.quoi] || 'Jet';
     const peutRelancer = !j.reussi && !j.relance && A.relance && attente.cote === 'A';
     return `
-      <div class="t-de ${j.reussi ? 'ok' : 'rate'}" role="status">
-        <span class="t-de-face">${j.de}</span>
-        <span class="t-de-calcul">${esc(mot)} · ${j.de}${j.mod >= 0 ? ` + ${j.mod}` : ` − ${-j.mod}`} = <b>${j.total}</b> contre ${j.seuil}+</span>
-        <span class="t-de-verdict">${j.reussi ? 'Réussi' : 'Raté'}${j.relance ? ' (relance)' : ''}</span>
+      <div class="t-de ${j.reussi ? 'ok' : 'rate'}">
+        <span class="t-de-verdict">${esc(MOT_JET[j.quoi] || 'Jet')} · ${j.reussi ? 'réussi' : 'raté'}</span>
         <span class="t-de-boutons">
           ${peutRelancer ? '<button type="button" class="t-relancer">🎲 Relance d\'équipe</button>' : ''}
-          <button type="button" class="t-suite">${peutRelancer ? 'Accepter' : 'Continuer'}</button>
+          <button type="button" class="t-suite t-evident">${peutRelancer ? 'Accepter' : 'Continuer'}</button>
         </span>
       </div>`;
   }
@@ -509,18 +615,28 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   /* ---------- jouer un geste ---------- */
 
-  /* Un jet part : on le montre, et la suite attend que le joueur confirme. */
-  function lancer(jet, cote, appliquer) {
-    attente = { jet, cote, appliquer };
+  /*
+   * Un jet part : le dé tombe SUR LA CASE du geste, et la suite attend que le
+   * joueur confirme. `ou` est l'endroit du geste, capturé MAINTENANT — après
+   * l'application, la pièce a bougé, la rondelle a changé de camp, et on ne
+   * saurait plus où poser le verdict.
+   */
+  function lancer(jet, cote, appliquer, ou) {
+    attente = { jet, cote, appliquer, ou };
+    deGlace = { jet, cote, r: ou.defaut.r, c: ou.defaut.c, n: ++noJet };
+    flash = null;
     rendre();
   }
 
   function resoudre() {
     if (!attente) return;
-    const { jet, appliquer } = attente;
+    const { jet, appliquer, ou } = attente;
     attente = null;
     cible = null;
+    deGlace = null;
+    const avant = m.fil.length;
     appliquer(jet);
+    verdict(avant, ou);
     apres();
   }
 
@@ -551,21 +667,30 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   function agir(o) {
     if (o.type === 'duel') { cible = o.cible; rendre(); return; }
     if (o.type === 'deplacer') {
-      const d = deplacer(m, sel, o.vers);
-      if (!d.jet) { apres(); return; }
-      const piece = sel, vers = o.vers;
-      lancer(d.jet, 'A', j => appliquerEsquive(m, piece, vers, j));
+      const piece = sel, vers = o.vers, ou = placesDe(piece, null), avant = m.fil.length;
+      const d = deplacer(m, piece, vers);
+      // Patiner d'une case libre ne demande pas de dé : le geste est déjà
+      // joué, il ne reste qu'à dire ce que le moteur en a fait.
+      if (!d.jet) { verdict(avant, ou); apres(); return; }
+      lancer(d.jet, 'A', j => appliquerEsquive(m, piece, vers, j), ou);
       return;
     }
     if (o.type === 'passe') {
       const piece = sel, cible = o.cible;
-      lancer(passer(m, piece, cible), 'A', j => appliquerPasse(m, piece, cible, j));
+      lancer(passer(m, piece, cible), 'A', j => appliquerPasse(m, piece, cible, j), placesDe(piece, cible));
       return;
     }
     if (o.type === 'echec') {
       const piece = sel, cible = o.cible;
-      lancer(mettreEnEchec(m, piece, cible), 'A', j => appliquerEchec(m, piece, cible, j));
+      lancer(mettreEnEchec(m, piece, cible), 'A', j => appliquerEchec(m, piece, cible, j), placesDe(piece, cible));
     }
+  }
+
+  /* Un geste SANS dé (se placer devant, foncer) a droit à son verdict aussi. */
+  function sansDe(piece, faire) {
+    const ou = placesDe(piece, null), avant = m.fil.length;
+    faire();
+    verdict(avant, ou);
   }
 
   /* ---------- la présence de l'adversaire, geste par geste ---------- */
@@ -593,7 +718,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       // Le garde-fou doit quand même rendre la main : sans ça, une présence
       // qui tourne en rond gèlerait le match sur le tour de l'adversaire.
       if (!m.fini && m.tour === cote) finirPresence(m);
-      dernier = null; deIA = null;
+      dernier = null; deGlace = null;
       iaEnCours = false;
       choisirSeul();
       rendre();
@@ -602,10 +727,14 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
     const pas = () => {
       if (m.fini || m.tour !== cote || garde++ >= GESTES_MAX) { fin(); return; }
+      const avant = m.fil.length;
       const joue = iaGeste(m);
       if (!joue) { fin(); return; }        // iaGeste a fini la présence lui-même
       dernier = { piece: joue.piece, cible: joue.cible || null };
-      deIA = joue.jet || null;
+      // Le dé de l'adversaire tombe sur SA case, comme le tien sur la tienne,
+      // et son verdict éclate au même endroit que le tien l'aurait fait.
+      deGlace = joue.jet ? { jet: joue.jet, cote, r: joue.piece.r, c: joue.piece.c, n: ++noJet } : null;
+      verdict(avant, placesDe(joue.piece, joue.cible || null));
       rendre();
       setTimeout(pas, joue.jet ? PAUSE_DE : PAUSE_SEC);
     };
@@ -650,17 +779,17 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const geste = t.closest('[data-geste]');
     if (geste && sel && aMoi() && !attente) {
       const piece = sel, quoi = geste.dataset.geste, vise = cible;
-      if (quoi === 'tir') lancer(tirer(m, piece), 'A', j => appliquerTir(m, piece, j));
-      else if (quoi === 'echec' && vise) { cible = null; lancer(mettreEnEchec(m, piece, vise), 'A', j => appliquerEchec(m, piece, vise, j)); }
-      else if (quoi === 'vol' && vise) { cible = null; lancer(voler(m, piece, vise), 'A', j => appliquerVol(m, piece, vise, j)); }
-      else if (quoi === 'ecran') { seMettreDevant(m, piece); cible = null; apres(); }
-      else if (quoi === 'foncer') { foncer(m, piece); cible = null; rendre(); }
+      if (quoi === 'tir') lancer(tirer(m, piece), 'A', j => appliquerTir(m, piece, j), placesDe(piece, null));
+      else if (quoi === 'echec' && vise) { cible = null; lancer(mettreEnEchec(m, piece, vise), 'A', j => appliquerEchec(m, piece, vise, j), placesDe(piece, vise)); }
+      else if (quoi === 'vol' && vise) { cible = null; lancer(voler(m, piece, vise), 'A', j => appliquerVol(m, piece, vise, j), placesDe(piece, vise)); }
+      else if (quoi === 'ecran') { sansDe(piece, () => seMettreDevant(m, piece)); cible = null; apres(); }
+      else if (quoi === 'foncer') { sansDe(piece, () => foncer(m, piece)); cible = null; rendre(); }
       return;
     }
-    if (t.closest('.t-relancer')) { attente.jet = relancer(m, attente.jet, 'A'); rendre(); return; }
+    if (t.closest('.t-relancer')) { attente.jet = relancer(m, attente.jet, 'A'); deGlace = { ...deGlace, jet: attente.jet, n: ++noJet }; rendre(); return; }
     if (t.closest('.t-suite')) { resoudre(); return; }
     if (t.closest('.t-deselect')) { sel = null; cible = null; rendre(); return; }
-    if (t.closest('.t-passer')) { sel = null; cible = null; finirPresence(m); apres(); return; }
+    if (t.closest('.t-passer')) { sel = null; cible = null; deGlace = null; flash = null; finirPresence(m); apres(); return; }
     const uni = t.closest('.t-seg button');
     if (uni) {
       const quoi = uni.parentElement.dataset.u, v = +uni.dataset.v;
