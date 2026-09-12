@@ -3666,8 +3666,11 @@ a.spin-club:hover {
 .t-plateau { display: flex; justify-content: center; padding: 8px 6px; overflow: auto; }
 .t-plateau[hidden], .t-tete[hidden] { display: none; }
 .t-glace {
-  --tcell: min(12.8vw, 6.4vh, 48px);
-  display: grid; grid-template-columns: repeat(7, var(--tcell));
+  /* NEUF COLONNES : la case rétrécit de 48 à 44 px pour que la glace tienne
+     encore dans 390 px — neuf fois 48 déborderait. La borne en vw suit, sinon
+     c'est elle qui déborderait sur un écran plus étroit. */
+  --tcell: min(10.6vw, 6.2vh, 44px);
+  display: grid; grid-template-columns: repeat(var(--tcols, 9), var(--tcell));
   grid-auto-rows: var(--tcell);
   background: var(--fond-creux); border: 1px solid var(--line);
   position: relative;
@@ -3751,8 +3754,8 @@ a.spin-club:hover {
 .t-piece { border: 1.5px solid var(--pl, transparent); }
 .t-piece.gardien { border-radius: 3px; border-style: double; border-width: 3px; }
 .t-piece.etourdi { opacity: 0.38; }
-.t-role { font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; opacity: 0.8; }
-.t-nom { font-size: 11.5px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 1px; }
+.t-role { font-size: 9px; font-weight: 800; letter-spacing: 0.04em; opacity: 0.8; }
+.t-nom { font-size: 10.5px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 1px; }
 .t-rondelle { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 1.5px var(--fond-creux); }
 .t-rondelle.t-seule { position: static; width: 12px; height: 12px; background: var(--gold); }
 
