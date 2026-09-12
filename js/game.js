@@ -119,6 +119,14 @@ const G = {
   onlyFit: false,
   statsProrata: false,
   salaryMode: '2026',   // '2026' | 'ERA'
+  /*
+   * LE BROUILLON DE L'ÉCRAN « NOUVELLE PARTIE ». Les cinq réglages de partie
+   * s'y posent sans toucher au jeu ; `demarrerPartie` les applique d'un coup.
+   * Semé depuis l'état VIVANT `G`, jamais depuis les préférences :
+   * `restoreSave` écrase G sans rappeler `saveOpts`, donc `cap82_opts` peut
+   * être en désaccord avec la partie qu'on joue. Jamais persisté.
+   */
+  brouillon: null,      // { mode, epoque, epoqueChoisie, repechage, bonus } | null
   mode: 'CLASSIQUE',    // CLASSIQUE | LOTO | EXPRESS | LOTO_EXPRESS (voir MODES dans sim.js)
   /*
    * UNE SAISON, LA COUPE CETTE ANNÉE-LÀ. JP : *ajouter un mode : choisir une
@@ -170,6 +178,11 @@ const MODE = () => MODES[G.mode] || MODES.CLASSIQUE;
 const epoqueDuTirage = () => (G.epoque && G.repechage === 'SAISON') ? G.epoque : null;
 /** Les cases que TU combles : les 23 d'habitude, six en express. */
 const casesActives = () => casesDuMode(G.mode);
+
+/** Les cinq réglages qui définissent LA PARTIE : ils n'existent que sur #partieModal. */
+const REGLAGES_PARTIE = new Set(['format', 'tirage', 'ligue', 'repechage', 'bonus']);
+/** Un démarrage à la fois : deux clics ne doivent pas mettre deux roulettes en vol. */
+let demarrageEnCours = false;
 /** Le premier vestiaire sorti — celui qui colore l'interface en tirage VESTIAIRE. */
 const vestiaire = () => G.tirage[0] || null;
 /** Un renfort est fourni par le mode express : il occupe une case, ne coûte rien. */
@@ -670,8 +683,13 @@ async function boot() {
   // Le bilan (js/bilan.js) reçoit ici tout ce qu'il lui faut du contrôleur.
   brancherBilan({
     $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur,
-    money, newGame, openModal, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast,
+    capMax: () => MODE().cap,
+    money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
+    saveLeaderboard, statsSim, toast,
   });
+  // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
+  let vierge = false;
+  try { vierge = !localStorage.getItem('cap82_opts') && !localStorage.getItem('cap82_save'); } catch { /* stockage indisponible */ }
   try {
     loadOpts();
     appliquerPalette();
@@ -684,16 +702,19 @@ async function boot() {
     // bouton, qui montrait alors autre chose que ce qu'on regardait.
     syncOptionsUI();
     const restored = await restoreSave();
-    if (!restored) {
-      G.relances = MODE().relances;
-      G.left = { ...REROLLS };
-      if (MODE().renfort) await chargerRenfort();
-      await nextSpin();
-    }
+    if (!restored) await demarrerPartie();     // une seule séquence, plus de copie ici
     $('boot').style.display = 'none';
     $('game').style.display = '';
     $('actionbar').style.display = '';
     render();
+    /*
+     * L'écran s'ouvre PAR-DESSUS une partie déjà bâtie, à la première visite
+     * seulement. Le retarder aurait rendu l'écran bloquant, or Échap ferme
+     * toute modale non-`live` : on aurait laissé le joueur devant un espace de
+     * travail vide. Le prix est une requête de shard à la toute première
+     * visite, et « Commencer » sans rien changer se contente alors de refermer.
+     */
+    if (vierge) ouvrirNouvellePartie();
   } catch (e) {
     $('boot').innerHTML = `<div class="err">Impossible de charger les données.<br>
       <span class="mono">${esc(e.message)}</span><br><br>
@@ -725,22 +746,63 @@ function setupEvents() {
   bindModal('leaderboardModal', 'openLeaderboardBtn', 'closeLeaderboardBtn', showLeaderboard);
   bindModal('bibleModal', 'openBibleBtn', 'closeBibleBtn', remplirReglesDuPlateau);
   bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
+  bindModal('partieModal', 'openPartieBtn', 'closePartieBtn', semerBrouillon, oublierBrouillon);
   bindModal('hockeyCardModal', null, 'closeHockeyCardBtn');
   bindModal('gameModal', null, 'closeGameBtn');
 
   // Options
   document.querySelectorAll('.seg').forEach(seg => {
     seg.querySelectorAll('button').forEach(b => {
-      b.onclick = () => { setOption(seg.dataset.opt, b.dataset.val); syncOptionsUI(); render(); };
+      b.onclick = () => {
+        // Un réglage de PARTIE ne fait que garnir le brouillon : pas de
+        // newGame, et pas de render() non plus — reconstruire le bassin
+        // derrière une modale ouverte coûte un `ajusterCartes` pour rien.
+        if (REGLAGES_PARTIE.has(seg.dataset.opt)) { poserBrouillon(seg.dataset.opt, b.dataset.val); return; }
+        setOption(seg.dataset.opt, b.dataset.val);
+        syncOptionsUI();
+        render();
+      };
     });
   });
 
-  const reset = $('resetBtn');
-  if (reset) {
-    reset.onclick = async () => {
-      closeModal('optionsModal');
-      await newGame();
-      toast('Nouvelle partie : la roulette repart à zéro.');
+  /*
+   * LE BOUTON DU PIED. C'est le SEUL endroit d'où part une partie neuve, et il
+   * ne peut pas partir deux fois : `demarrageEnCours` tient la porte pendant
+   * que les shards chargent. L'écran reste OUVERT pendant ce temps — il bloque
+   * le reste de l'interface, et si un shard ne répond pas on a encore un
+   * endroit où revenir.
+   */
+  const go = $('npGo');
+  if (go) {
+    go.onclick = async () => {
+      if (demarrageEnCours || !G.brouillon) return;
+      const b = { ...G.brouillon };
+      const act = actionDuBouton(b);
+      if (act === 'RIEN') { closeModal('partieModal'); return; }
+      if (act === 'BONUS') {
+        // Le mode bonus ne touche pas au repêchage : c'est le seul réglage de
+        // partie qu'on bascule l'alignement à moitié bâti, et il le reste.
+        G.bonus = b.bonus;
+        closeModal('partieModal');
+        saveOpts(); saveGame(); syncOptionsUI(); renderMain();
+        toast(b.bonus === 'TABLE'
+          ? 'Sur table : ton alignement ira jouer un tournoi de six clubs sur un plateau.'
+          : 'La saison : 82 matchs et les séries.');
+        return;
+      }
+      demarrageEnCours = true;
+      go.disabled = true;
+      try {
+        await demarrerPartie(b);
+        closeModal('partieModal');
+        toast(`${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''} : la roulette repart à zéro.`);
+      } catch {
+        toast('Impossible de charger cette saison. Réessaie ou change de ligue.');
+      } finally {
+        demarrageEnCours = false;
+        go.disabled = false;
+        majPiedPartie();
+      }
     };
   }
 
@@ -782,6 +844,7 @@ function ouvrirModale(m) {
 function fermerModale(m) {
   if (!m || m.style.display === 'none') return;
   m.style.display = 'none';
+  if (m._auFermer) m._auFermer();
   if (!modaleOuverte() && focusAvantModale && document.contains(focusAvantModale)) {
     focusAvantModale.focus({ preventScroll: true });
     focusAvantModale = null;
@@ -799,9 +862,12 @@ function piegerFocus(ev) {
   else if (!ev.shiftKey && document.activeElement === dernier) { ev.preventDefault(); premier.focus(); }
 }
 
-function bindModal(modalId, openId, closeId, onOpen) {
+function bindModal(modalId, openId, closeId, onOpen, onClose) {
   const modal = $(modalId);
   if (!modal) return;
+  // Les trois sorties — ✕, clic sur le fond, Échap — passent toutes par
+  // `fermerModale` : une seule ligne les couvre.
+  modal._auFermer = onClose || null;
   if (openId && $(openId)) $(openId).onclick = () => { if (onOpen) onOpen(); ouvrirModale(modal); };
   if (closeId && $(closeId)) $(closeId).onclick = () => fermerModale(modal);
   modal.onclick = ev => { if (ev.target === modal) fermerModale(modal); };
@@ -830,85 +896,143 @@ function setOption(key, val) {
   else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
-  else if (key === 'bonus') {
-    // Ce réglage ne change rien au repêchage en cours : on peut le basculer
-    // à n'importe quel moment, même l'alignement à moitié bâti.
-    const v = val === 'TABLE' ? 'TABLE' : 'SAISON';
-    if (v === G.bonus) return;
-    G.bonus = v;
-    saveOpts(); saveGame(); syncOptionsUI(); renderMain();
-    toast(v === 'TABLE'
-      ? 'Sur table : ton alignement ira jouer un tournoi de six clubs sur un plateau.'
-      : 'La saison : 82 matchs et les séries.');
-    return;
-  }
-  else if (key === 'repechage') {
-    // D'où viennent les joueurs, sans toucher à la ligue qu'on affronte.
-    const v = val === 'TOUTES' ? 'TOUTES' : 'SAISON';
-    if (v === G.repechage) return;
-    G.repechage = v;
-    saveOpts();
-    syncOptionsUI();
-    newGame().then(() => toast(v === 'TOUTES'
-      ? `Repêchage sur 55 saisons. La Coupe à gagner reste celle de ${G.epoque}.`
-      : `Repêchage dans les clubs de ${G.epoque}.`));
-    return;
-  }
-  else if (key === 'ligue') {
-    // Toutes les époques, ou une saison fixée : la partie repart, parce que
-    // le vestiaire en cours vient d'une autre année.
-    const sel = $('epoqueSelect');
-    const epoque = val === 'UNE' ? (sel && sel.value) || state.index.seasons[state.index.seasons.length - 1] : null;
-    if (epoque === G.epoque) return;
-    G.epoque = epoque;
-    saveOpts();
-    syncOptionsUI();
-    newGame().then(() => toast(epoque ? `Saison ${epoque} : gagne la Coupe cette année-là.` : 'Toutes les époques : 55 saisons dans la roulette.'));
-    return;
-  }
-  else if (key === 'format' || key === 'tirage') {
-    // Le mode est le produit du format (combien de cases) et du tirage (d'où
-    // viennent les joueurs) : changer l'un garde l'autre.
-    const m = modeDe(key === 'format' ? val : MODE().format, key === 'tirage' ? val : MODE().tirage);
-    if (m === G.mode) return;
-    G.mode = m;
-    saveOpts();
-    // L'alignement en cours n'a plus de sens sous d'autres règles.
-    newGame().then(() => toast(`${MODES[m].nom} : ${MODES[m].desc}`));
-    return;
-  }
   saveOpts();
 }
 
+/* =====================================================================
+   L'ÉCRAN « NOUVELLE PARTIE » : on compose, puis on lance
+   =====================================================================
+   JP : *faire bouton new game aussi, qui permet de choisir les options du jeu
+   au lieu d'un menu option, pour faire plus « jeu »*.
+
+   DEUX INVARIANTS. (1) Un réglage de PARTIE ne touche jamais `G` avant le
+   bouton du pied, et UN SEUL `demarrerPartie()` part par clic — `setOption`
+   lançait un `newGame()` non attendu dans quatre branches, donc changer le
+   format puis le tirage mettait deux `chargerRenfort()` et deux `nextSpin()`
+   en vol, et le plus lent écrivait `G.tirage`. (2) Un réglage qui, changé,
+   oblige à jeter l'alignement est un réglage de PARTIE ; les quatre qui
+   restent dans les options peuvent changer au milieu d'un tour sans rien
+   perdre.
+   ===================================================================== */
+
+/** Les valeurs de départ viennent de l'état VIVANT, jamais des préférences. */
+function semerBrouillon() {
+  const dernier = state.index.seasons[state.index.seasons.length - 1];
+  G.brouillon = {
+    mode: G.mode, epoque: G.epoque, repechage: G.repechage, bonus: G.bonus,
+    // La saison RETENUE, même quand la ligue est « toutes les époques » : un
+    // aller-retour ne doit pas ramener la dernière saison de la liste.
+    epoqueChoisie: G.epoque || dernier,
+  };
+  syncOptionsUI();
+  majPiedPartie();
+}
+
+function oublierBrouillon() { G.brouillon = null; syncOptionsUI(); }
+
+function poserBrouillon(key, val) {
+  const b = G.brouillon;
+  if (!b) return;
+  if (key === 'format' || key === 'tirage') {
+    // Le mode est le PRODUIT des deux : la clé se compose une seule fois, ici.
+    const M = MODES[b.mode] || MODES.CLASSIQUE;
+    b.mode = modeDe(key === 'format' ? val : M.format, key === 'tirage' ? val : M.tirage);
+  } else if (key === 'ligue') b.epoque = val === 'UNE' ? b.epoqueChoisie : null;
+  else if (key === 'repechage') b.repechage = val === 'TOUTES' ? 'TOUTES' : 'SAISON';
+  else if (key === 'bonus') b.bonus = val === 'TABLE' ? 'TABLE' : 'SAISON';
+  syncOptionsUI();
+  majPiedPartie();
+}
+
+/**
+ * Ce que le bouton du pied va faire : RIEN (rien n'est signé et rien n'a
+ * changé — on referme), BONUS (le seul réglage qui ne touche pas au
+ * repêchage : on garde l'alignement) ou DEMARRER.
+ */
+function actionDuBouton(b) {
+  const enPartie = !G.done && G.tirage.length > 0;
+  const memeRepechage = b.mode === G.mode && b.epoque === G.epoque && b.repechage === G.repechage;
+  if (!enPartie || !memeRepechage) return 'DEMARRER';
+  if (b.bonus !== G.bonus) return 'BONUS';
+  return signes().length ? 'DEMARRER' : 'RIEN';
+}
+
+function majPiedPartie() {
+  const b = G.brouillon;
+  if (!b) return;
+  const M = MODES[b.mode] || MODES.CLASSIQUE;
+  // Aucun chiffre recopié à la main : tout vient de MODES, casesDuMode et
+  // REROLLS. Une constante recopiée est une constante qui ment tôt ou tard —
+  // le dépôt en porte déjà la preuve dans deux `desc` de MODES.
+  $('npResume').textContent = [
+    `${casesDuMode(b.mode).length} cases`,
+    money(M.cap),
+    M.loto ? `trois clubs par case · ${M.relances} relances`
+      : `un vestiaire au complet · ${REROLLS.season}/${REROLLS.team}/${REROLLS.pass} relances`,
+    b.epoque ? `ligue ${b.epoque}` : 'toutes les époques',
+    b.epoque && b.repechage === 'TOUTES' ? 'repêchage toutes époques' : null,
+    b.bonus === 'TABLE' ? 'sur table' : null,
+  ].filter(Boolean).join(' · ');
+
+  const n = signes().length;
+  const enPartie = !G.done && G.tirage.length > 0;
+  const rep = $('npReprise');
+  rep.hidden = !(enPartie && n > 0);
+  if (!rep.hidden) rep.textContent = `Une partie est en cours : ${n} joueur${n > 1 ? 's' : ''} signé${n > 1 ? 's' : ''}. Ferme cet écran (✕) pour y revenir.`;
+
+  const act = actionDuBouton(b);
+  const efface = act === 'DEMARRER' && enPartie && n > 0;
+  $('npGoVerbe').textContent = efface ? 'Recommencer' : act === 'BONUS' ? 'Appliquer' : 'Commencer';
+  // La note n'est JAMAIS vide : le bouton ne change pas de hauteur.
+  $('npGoNote').textContent = efface ? `efface ${n} joueur${n > 1 ? 's' : ''}`
+    : act === 'DEMARRER' ? 'la roulette repart' : "rien n'est effacé";
+  $('npGo').classList.toggle('efface', efface);
+}
+
+function ouvrirNouvellePartie() { semerBrouillon(); openModal('partieModal'); }
+
 function syncOptionsUI() {
+  // Le BROUILLON gagne tant qu'il existe : l'écran montre ce qu'on est en
+  // train de composer, pas la partie en cours. `G` porte les mêmes noms de
+  // champs, donc une seule ligne suffit.
+  const src = G.brouillon || G;
+  const M = MODES[src.mode] || MODES.CLASSIQUE;
   const cur = {
     stats: G.statsProrata ? 'prorata' : 'real',
     salary: G.salaryMode,
     onlyFit: G.onlyFit ? 'on' : 'off',
-    format: MODE().format,
-    tirage: MODE().tirage,
     poolView: G.poolView,
-    ligue: G.epoque ? 'UNE' : 'TOUTES',
-    repechage: G.repechage,
     palette: G.palette,
-    bonus: G.bonus,
+    format: M.format,
+    tirage: M.tirage,
+    ligue: src.epoque ? 'UNE' : 'TOUTES',
+    repechage: src.repechage,
+    bonus: src.bonus,
   };
-  const d = $('modeDesc');
-  if (d) d.textContent = MODE().desc;
-  // Le choix de la saison : la liste des saisons disponibles, visible quand
-  // la ligue est fixée à une année.
   const sel = $('epoqueSelect');
   if (sel) {
     if (!sel.options.length) {
-      sel.innerHTML = state.index.seasons.slice().reverse().map(s => `<option value="${s}">${s}</option>`).join('');
-      sel.onchange = () => { if (G.epoque && sel.value !== G.epoque) setOption('ligue', 'UNE'); };
+      sel.innerHTML = state.index.seasons.slice().reverse().map(x => `<option value="${x}">${x}</option>`).join('');
+      // Choisir dans la liste ne relance plus rien : ça garnit le brouillon.
+      sel.onchange = () => {
+        if (!G.brouillon) return;
+        G.brouillon.epoqueChoisie = sel.value;
+        G.brouillon.epoque = sel.value;
+        majPiedPartie();
+      };
     }
-    sel.value = G.epoque || state.index.seasons[state.index.seasons.length - 1];
-    sel.hidden = !G.epoque;
+    sel.value = (G.brouillon ? G.brouillon.epoqueChoisie : G.epoque) || state.index.seasons[state.index.seasons.length - 1];
+    // ON DÉSACTIVE, ON NE CACHE PLUS. `piegerFocus` filtre sur `offsetParent`,
+    // donc une rangée qui disparaît change l'ordre de tabulation à chaque
+    // clic — et « on réserve la place, on ne la prend pas ».
+    sel.disabled = !src.epoque;
   }
-  // Le repêchage ne se pose que si une saison est fixée.
   const rep = $('repechageRow');
-  if (rep) rep.hidden = !G.epoque;
+  if (rep) {
+    rep.hidden = false;
+    rep.classList.toggle('desactive', !src.epoque);
+    rep.querySelectorAll('.seg button').forEach(x => { x.disabled = !src.epoque; });
+  }
   document.querySelectorAll('.seg').forEach(seg => {
     seg.querySelectorAll('button').forEach(b => {
       b.classList.toggle('on', b.dataset.val === cur[seg.dataset.opt]);
@@ -1085,6 +1209,8 @@ function renderCap() {
   amt.classList.toggle('tight', rem >= 0 && tight);
 
   $('capMaxLbl').textContent = isEra ? `/ ${money(eraCap)} (${season})` : `/ ${money(MODE().cap)}`;
+  // Le `title` était écrit en dur à 95,5 M$ dans le HTML : il mentait en Express.
+  $('capGauge').title = `Plafond salarial de ${money(MODE().cap)} (valeur 2026)`;
 
   const fill = $('capFill');
   fill.style.width = Math.min(100, Math.max(0, (used / MODE().cap) * 100)) + '%';
@@ -2461,6 +2587,11 @@ async function runSeason(opts = {}) {
   }
   G.ligue = {
     you, teams, calendrier, graine, epoque: G.epoque,
+    // Les trois réglages sont FIGÉS ici, avec la graine : l'écran « Nouvelle
+    // partie » peut muter G pendant qu'un bilan est encore à l'écran, et
+    // l'historique doit enregistrer la partie qui a été jouée, pas celle
+    // qu'on est en train de composer.
+    mode: G.mode, repechage: G.repechage, bonus: G.bonus,
     // De quoi rejouer : les mêmes 31 clubs, à partir des mêmes alignements.
     adversaires: opponents.map(t => ({ name: t.name, tag: t.tag, roster: t.roster, season: t.season })),
   };
@@ -2582,7 +2713,7 @@ function montrerBilanTournoi(T) {
     <div class="tr-actions"><button type="button" id="tournoiNouveau" class="btn">Nouvelle partie</button></div>`;
   openModal('gameModal');
   const b = $('tournoiNouveau');
-  if (b) b.onclick = () => { closeModal('gameModal'); newGame(); };
+  if (b) b.onclick = () => { closeModal('gameModal'); ouvrirNouvellePartie(); };
   renderMain();
 }
 
@@ -2651,6 +2782,10 @@ async function reprendreAlignement(entree) {
   }
   if (entree.mode && MODES[entree.mode] && entree.mode !== G.mode) { G.mode = entree.mode; saveOpts(); }
   G.epoque = typeof entree.epoque === 'string' && state.index.seasons.includes(entree.epoque) ? entree.epoque : null;
+  // Sans ces deux-là, reprendre un vieil alignement pendant que « Sur table »
+  // traîne l'envoyait au plateau au lieu des 82 matchs.
+  G.repechage = entree.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
+  G.bonus = entree.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
   saveOpts(); syncOptionsUI();
   clearSave();
   G.roster = roster;
@@ -2666,10 +2801,35 @@ async function reprendreAlignement(entree) {
   await runSeason();
 }
 
-async function newGame() {
+/**
+ * DÉMARRER UNE PARTIE. Le SEUL endroit qui pose les réglages de partie et qui
+ * fait tourner la roulette. `boot` en portait une copie, et `newGame` l'autre :
+ * deux séquences à garder d'accord, donc une qui dérive.
+ *
+ * L'ORDRE EST UN INVARIANT : les réglages, puis les DEUX compteurs de relances
+ * (ils sont distincts — `G.relances` en loto, `G.left` en vestiaire), puis le
+ * renfort (il écrit dans le roster), puis la roulette. L'inverse écraserait
+ * des signatures.
+ */
+async function demarrerPartie(r = {}) {
+  if (r.mode && MODES[r.mode]) G.mode = r.mode;
+  // La saison se valide ICI aussi : `boot` en était le seul garde-fou, et une
+  // saison absente de l'index donne ZÉRO adversaire à `buildOpponents` — la
+  // saison bascule alors en solo, sans classement ni séries, sans un mot.
+  if ('epoque' in r) G.epoque = (typeof r.epoque === 'string' && state.index.seasons.includes(r.epoque)) ? r.epoque : null;
+  if (r.repechage) G.repechage = r.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
+  if (r.bonus) G.bonus = r.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
+
   clearSave();
   G.roster = {};
   G.tirage = [];
+  // TROIS ÉTATS QUE `newGame` NE REMETTAIT PAS À ZÉRO. `chargerRenfort` était
+  // le seul endroit qui nullifiait `G.renfort`, et il n'est appelé qu'en
+  // express : la carte « Renfort » du tableau de bord survivait donc à un
+  // Express → Complet, en annonçant un club qui ne fournit plus personne.
+  G.renfort = null;
+  G.ligue = null;
+  G.tournoi = null;
   G.relances = MODE().relances;
   G.left = { ...REROLLS };
   G.target = null;
@@ -2685,7 +2845,9 @@ async function newGame() {
   setView('pool');
   if (MODE().renfort) await chargerRenfort();
   await nextSpin();
+  saveOpts();            // les cinq restent les valeurs de départ de la prochaine fois
   saveGame();
+  syncOptionsUI();
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

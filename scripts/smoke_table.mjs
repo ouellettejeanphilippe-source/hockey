@@ -42,15 +42,15 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');
 
-/* ---------- choisir le mode bonus ---------- */
-await page.click('#openOptionsBtn');
-await page.waitForSelector('[data-opt="bonus"]', { state: 'visible', timeout: 10000 });
-await page.click('[data-opt="bonus"] button[data-val="TABLE"]');
-await page.waitForTimeout(200);
-const choisi = await page.$eval('[data-opt="bonus"] button[data-val="TABLE"]', b => b.classList.contains('on'));
+/* ---------- l'écran « Nouvelle partie » : choisir « Sur table » ----------
+   Le localStorage vient d'être vidé, donc l'écran est déjà ouvert : plus rien
+   à ouvrir. Rien ne s'applique avant le clic sur le pied. */
+await page.waitForSelector('#partieModal [data-opt="bonus"]', { state: 'visible', timeout: 30000 });
+await page.click('#partieModal [data-opt="bonus"] button[data-val="TABLE"]');
+const choisi = await page.$eval('#partieModal [data-opt="bonus"] button[data-val="TABLE"]', b => b.classList.contains('on'));
 if (!choisi) errors.push('l\'option « Sur table » ne se marque pas');
-await page.click('#closeOptionsBtn').catch(() => page.keyboard.press('Escape'));
-await page.waitForTimeout(200);
+await page.click('#npGo');
+await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 console.log(`   option « Sur table » choisie : ${choisi}`);
 
 /* ---------- l'auto-draft, identique au test de fumée principal ---------- */
