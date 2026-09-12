@@ -92,6 +92,21 @@ console.log(`4. tournoi ouvert : ${tete}`);
 /* ---------- le plateau : on joue vraiment un match ---------- */
 await page.click('#hubModal .hub-jouer');
 await page.waitForSelector('#tableModal .t-glace', { timeout: 20000 });
+/* LES RÈGLES SE LISENT PENDANT QU'ON JOUE : c'est un jeu de table, et un jeu
+   de table dont il faut sortir pour lire les règles n'en est pas un. */
+await page.click('#tableModal .table-regles');
+await page.waitForSelector('#tableModal .t-regles', { timeout: 5000 });
+const sections = await page.$$eval('#tableModal .t-regles section h4', l => l.map(e => e.textContent.trim()));
+const gestesEcrits = await page.$$eval('#tableModal .t-regles .t-regle-nom', l => l.length);
+console.log(`   règles : ${sections.length} sections (${sections.join(', ')}), ${gestesEcrits} gestes décrits`);
+if (sections.length < 8) errors.push(`la page des règles n'a que ${sections.length} sections`);
+if (gestesEcrits < 8) errors.push(`la page des règles ne décrit que ${gestesEcrits} gestes`);
+const debordeRegles = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+if (debordeRegles > 1) errors.push(`les règles débordent de ${debordeRegles} px à 390 px`);
+await page.screenshot({ path: 'scripts/smoke-table-regles.png' });
+await page.click('#tableModal .t-regles-fermer');
+await page.waitForSelector('#tableModal .t-glace', { timeout: 5000 });
+
 const cases = await page.$$eval('#tableModal .t-case', l => l.length);
 console.log(`   la glace : ${cases} cases (attendu 63)`);
 if (cases !== 63) errors.push(`la glace compte ${cases} cases`);
@@ -146,6 +161,19 @@ while (tours++ < 1200) {
    * quand il est à portée, et on ne réclame les gestes du duel que si
    * l'occasion s'est présentée au moins une fois dans le match.
    */
+  /*
+   * LE DUEL SE RÉSOUT AVANT D'EN ROUVRIR UN AUTRE. Toucher le porteur ouvre
+   * le choix épaule / bâton sur la carte mais ne consomme rien — la case
+   * reste une offre. Le joueur automatique la retouchait donc en boucle :
+   * 1186 duels ouverts et le match encore à 0-0 en première période. Quand
+   * le choix est à l'écran, on tranche.
+   */
+  const duelOuvert = etat.autres.includes('echec') || etat.autres.includes('vol');
+  if (duelOuvert) {
+    const quoi = etat.autres.includes('vol') && Math.random() < 0.5 ? 'vol' : 'echec';
+    await page.click(`#tableModal [data-geste="${quoi}"]`);
+    gestes++; await page.waitForTimeout(50); continue;
+  }
   if (etat.duel) {
     occasionsDuel++;
     await page.click(`#tableModal .t-case[data-r="${etat.duel.split(',')[0]}"][data-c="${etat.duel.split(',')[1]}"]`);

@@ -20,7 +20,7 @@
  * joueur qui a déjà vu l'écran de saison n'a rien à réapprendre.
  */
 
-import { equipeDeTable, jouerMatchAuto, resultatDe } from './table.js';
+import { equipeDeTable, jouerMatchAuto, resultatDe, gagnantDuMatch } from './table.js';
 import { ouvrirTable } from './plateau.js';
 
 export const CLUBS = 6;              // toi et cinq vrais clubs
@@ -86,7 +86,9 @@ export function inscrire(T, match) {
   const { gfA, gfB } = match.r;
   fa.PJ++; fb.PJ++;
   fa.BP += gfA; fa.BC += gfB; fb.BP += gfB; fb.BC += gfA;
-  if (gfA > gfB) { fa.V++; fb.D++; } else { fb.V++; fa.D++; }
+  // `gagnantDuMatch` et non `gfA > gfB` : un match que douze prolongations
+  // n'ont pas départagé se réglait en donnant la victoire à B par accident.
+  if (gagnantDuMatch(match.r) === 'A') { fa.V++; fb.D++; } else { fb.V++; fa.D++; }
   fa.PTS = fa.V * 2; fb.PTS = fb.V * 2;
 }
 
@@ -113,7 +115,7 @@ export function ouvrirLesSeries(T) {
 }
 
 /** Le gagnant d'un match des séries, par indice de club. */
-export const gagnantDe = mt => (!mt.r ? null : mt.r.gfA > mt.r.gfB ? mt.a : mt.b);
+export const gagnantDe = mt => (!mt.r ? null : gagnantDuMatch(mt.r) === 'A' ? mt.a : mt.b);
 
 /** Une fois la demi-finale jouée, la finale connaît ses deux clubs. */
 export function composerFinale(T) {

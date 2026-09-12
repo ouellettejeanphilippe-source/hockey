@@ -26,11 +26,11 @@ import {
   COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, SEUIL, SEUIL_TIR, PERIODES, PRESENCES_PAR_PERIODE,
   HABILETES, GABARITS, TIRS, nouveauMatch, surLaGlace, eqDe, adverse, porteur, libre, actives, peutJouer,
   deplacementsDe, receveursDe, ciblesEchecDe, ciblesVolDe, natureCase, dist, batons, chances,
-  modTir, modPasse, modEchec, modEsquive, modRamasser, modVol,
+  modTir, modPasse, modEchec, modEsquive, modVol,
   deplacer, appliquerEsquive, passer, appliquerPasse, tirer, appliquerTir,
-  mettreEnEchec, appliquerEchec, ramasser, appliquerRamasser, voler, appliquerVol,
+  mettreEnEchec, appliquerEchec, voler, appliquerVol,
   seMettreDevant, foncer, souffleDe, essouffle, pasDe, uniteDe, statsDeTable,
-  relancer, finirPresence, iaPresence, resultatDe, changerUnite, nomDe,
+  relancer, finirPresence, iaPresence, resultatDe, changerUnite, nomDe, reglesDuPlateau,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
 
@@ -57,6 +57,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const { esc, band, logo, vive } = ctx;
 
   const m = nouveauMatch(A, B, graine);
+  let regles = false;      // le volet des règles, par-dessus tout
   let sel = null;          // la pièce choisie
   let cible = null;        // l'adversaire visé, quand deux gestes sont possibles
   let attente = null;      // un jet en attente : { jet, appliquer }
@@ -153,7 +154,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const p = porteur(m), l = libre(m);
     if (!piece.agi) {
       if (p === piece) return true;                                     // tirer, passer
-      if (l && l.r === piece.r && l.c === piece.c) return true;         // ramasser
       if (ciblesEchecDe(m, piece).length) return true;                  // frapper, voler
       if (piece.deplace) return true;                                   // foncer
       if (!piece.ecran && p !== piece) return true;                     // se placer devant
@@ -245,16 +245,12 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const arc = ARCHETYPES[archetypeKey(sel.p)] || ARCHETYPES.UNKNOWN;
     const gab = GABARITS[st.gb], tir = TIRS[st.ts] || TIRS.P;
     const aLaRondelle = porteur(m) === sel;
-    const surRondelle = libre(m) && libre(m).r === sel.r && libre(m).c === sel.c;
     const so = souffleDe(m, sel), soMax = st.SO;
     const gestes = [];
 
     if (aLaRondelle && !sel.agi) {
       const mod = modTir(m, sel) + bonus('DECOCHE');
       gestes.push(bouton('tir', 'Tirer', mod, SEUIL_TIR, 't-tir'));
-    }
-    if (surRondelle && !sel.agi && !aLaRondelle) {
-      gestes.push(bouton('ramasser', 'Ramasser', modRamasser(m, sel, sel), SEUIL));
     }
     // FONCER : dépenser son geste pour un deuxième élan. Sans dé.
     if (sel.deplace && !sel.agi) {
@@ -304,7 +300,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   const AXE_MOT = {
     PA: 'Patin : de combien de cases il bouge',
-    MA: 'Maniement : passer, esquiver, ramasser',
+    MA: 'Maniement : passer, esquiver, protéger la rondelle',
     TI: 'Tir : faire entrer la rondelle',
     FO: 'Force : enlever la rondelle, et la garder',
   };
@@ -314,7 +310,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   function de() {
     if (!attente) return '';
     const j = attente.jet;
-    const mot = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', ramasser: 'Rondelle' }[j.quoi] || 'Jet';
+    const mot = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle' }[j.quoi] || 'Jet';
     const peutRelancer = !j.reussi && !j.relance && A.relance && attente.cote === 'A';
     return `
       <div class="t-de ${j.reussi ? 'ok' : 'rate'}" role="status">
@@ -368,12 +364,42 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       </div>`;
   }
 
+  /*
+   * LES RÈGLES, LISIBLES PENDANT QU'ON JOUE. Un jeu de table dont il faut
+   * sortir pour lire les règles n'est pas un jeu de table. Le volet se pose
+   * par-dessus le plateau, et son contenu vient de `reglesDuPlateau()` —
+   * la même source que la page des règles du jeu, avec les constantes lues
+   * en direct, donc jamais en retard sur le code.
+   */
+  const reglesHtml = () => `
+    <div class="t-regles">
+      <div class="t-regles-tete">
+        <h3>Les règles du plateau</h3>
+        <button type="button" class="t-regles-fermer">Retour au match</button>
+      </div>
+      ${reglesDuPlateau().map(sec => `
+        <section>
+          <h4>${esc(sec.titre)}</h4>
+          ${sec.points ? `<ul>${sec.points.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+          ${sec.rangees ? `<div class="tbl-wrap"><table class="tbl">
+            <thead><tr>${sec.colonnes.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+            <tbody>${sec.rangees.map(r => `<tr>${r.map((v, i) => `<td${i === 0 ? ' class="t-regle-nom"' : ''}>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table></div>` : ''}
+        </section>`).join('')}
+    </div>`;
+
   /* ---------- le fil ---------- */
   const fil = () => `<div class="t-fil">${m.fil.slice(0, 7).map(e =>
     `<div class="t-evt t-evt-${e.genre}">${esc(e.texte)}</div>`).join('')}</div>`;
 
   /* ---------- le rendu ---------- */
   function rendre() {
+    if (regles) {
+      $('.t-tete').innerHTML = '';
+      $('.t-plateau').innerHTML = '';
+      $('.t-bas').innerHTML = reglesHtml();
+      return;
+    }
     $('.t-tete').innerHTML = tete();
     $('.t-plateau').innerHTML = glace();
     $('.t-bas').innerHTML = unites() + de() + carte() + boutons() + fil();
@@ -479,6 +505,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   /* ---------- les clics ---------- */
   modal.onclick = ev => {
     const t = ev.target;
+    if (t.closest('.table-regles')) { regles = !regles; rendre(); return; }
+    if (t.closest('.t-regles-fermer')) { regles = false; rendre(); return; }
+    if (regles) return;                       // le volet des règles couvre tout
     if (t.closest('.t-resultat') || t.closest('.table-close')) { fermer(); return; }
     if (iaEnCours) return;      // le récit de la présence adverse court encore
     const caseGlace = t.closest('.t-case');
@@ -494,7 +523,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (geste && sel && aMoi() && !attente) {
       const piece = sel, quoi = geste.dataset.geste, vise = cible;
       if (quoi === 'tir') lancer(tirer(m, piece), 'A', j => appliquerTir(m, piece, j));
-      else if (quoi === 'ramasser') lancer(ramasser(m, piece), 'A', j => appliquerRamasser(m, piece, j));
       else if (quoi === 'echec' && vise) { cible = null; lancer(mettreEnEchec(m, piece, vise), 'A', j => appliquerEchec(m, piece, vise, j)); }
       else if (quoi === 'vol' && vise) { cible = null; lancer(voler(m, piece, vise), 'A', j => appliquerVol(m, piece, vise, j)); }
       else if (quoi === 'ecran') { seMettreDevant(m, piece); cible = null; apres(); }
@@ -526,6 +554,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   }
 
   $('.t-titre').innerHTML = `<span class="t-titre-1">${esc(titre)}</span><span class="t-titre-2">${esc(sousTitre)}</span>`;
+  // Pas d'écouteur direct sur le bouton « ? » : `modal.onclick` le sert déjà
+  // par délégation, et les deux ensemble basculaient le volet deux fois — il
+  // s'ouvrait et se refermait dans le même clic.
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
   choisirSeul();

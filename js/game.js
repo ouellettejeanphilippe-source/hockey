@@ -28,6 +28,7 @@ import {
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
+import { reglesDuPlateau } from './table.js';
 import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
@@ -722,7 +723,7 @@ function setupEvents() {
 
   // Modales
   bindModal('leaderboardModal', 'openLeaderboardBtn', 'closeLeaderboardBtn', showLeaderboard);
-  bindModal('bibleModal', 'openBibleBtn', 'closeBibleBtn');
+  bindModal('bibleModal', 'openBibleBtn', 'closeBibleBtn', remplirReglesDuPlateau);
   bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
   bindModal('hockeyCardModal', null, 'closeHockeyCardBtn');
   bindModal('gameModal', null, 'closeGameBtn');
@@ -2492,6 +2493,25 @@ async function runSeason(opts = {}) {
    ====================================================================== */
 
 const ctxTable = () => ({ esc, band: getTeamBand, vive: couleurVive, logo: getTeamLogoHtml, mug: headshotHtml });
+
+/*
+ * LES RÈGLES DU PLATEAU DANS LA PAGE DES RÈGLES, depuis la même source que
+ * l'écran du match (`reglesDuPlateau`, js/table.js). `CLAUDE.md` a annoncé
+ * pendant tout un temps « cinq présences par période » quand le code en
+ * jouait six : une règle recopiée est une règle qui ment tôt ou tard.
+ */
+function remplirReglesDuPlateau() {
+  const hote = $('reglesPlateau');
+  if (!hote || hote.dataset.pret) return;
+  hote.dataset.pret = '1';
+  hote.innerHTML = reglesDuPlateau().map(sec => `
+    <h4>${esc(sec.titre)}</h4>
+    ${sec.points ? `<ul>${sec.points.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    ${sec.rangees ? `<div class="tbl-wrap"><table class="tbl">
+      <thead><tr>${sec.colonnes.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${sec.rangees.map(r => `<tr>${r.map((v, i) => `<td${i === 0 ? ' class="t-regle-nom"' : ''}>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></div>` : ''}`).join('');
+}
 
 async function lancerTournoi() {
   applyTeamColors('YOU');
