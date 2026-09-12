@@ -3664,11 +3664,13 @@ a.spin-club:hover {
 
 /* ---------- la glace ---------- */
 .t-plateau { display: flex; justify-content: center; padding: 8px 6px; overflow: auto; }
+.t-plateau[hidden], .t-tete[hidden] { display: none; }
 .t-glace {
   --tcell: min(12.8vw, 6.4vh, 48px);
   display: grid; grid-template-columns: repeat(7, var(--tcell));
   grid-auto-rows: var(--tcell);
   background: var(--fond-creux); border: 1px solid var(--line);
+  position: relative;
 }
 .t-case {
   position: relative; padding: 0; border: 0; background: transparent; cursor: default;
@@ -3697,9 +3699,47 @@ a.spin-club:hover {
   background: var(--fond-creux); padding: 0 3px; border-radius: 3px;
 }
 
+/* ======================================================================
+   LES PIÈCES GLISSENT, ELLES NE SE TÉLÉPORTENT PAS.
+
+   La grille est bâtie une fois ; les pièces vivent dans une couche par
+   -dessus (`.t-pieces`) et se placent par transformation, `--tr` et `--tc`
+   étant leur rangée et leur colonne. Un patin de trois cases est donc un
+   MOUVEMENT qu'on suit des yeux, et non un jeton qui disparaît d'un bout de
+   la glace pour reparaître à l'autre. C'est aussi ce qui rend la présence
+   adverse lisible : on voit qui bouge.
+   ====================================================================== */
+.t-pieces { position: absolute; inset: 0; pointer-events: none; }
+.t-jeton {
+  position: absolute; top: 2px; left: 2px;
+  width: calc(var(--tcell) - 4px); height: calc(var(--tcell) - 4px);
+  transform: translate(calc(var(--tc) * var(--tcell)), calc(var(--tr) * var(--tcell)));
+  transition: transform 240ms cubic-bezier(0.34, 0.9, 0.4, 1);
+  pointer-events: none; z-index: 2;
+}
+/* La rondelle libre : le même placement, donc elle glisse avec le reste. */
+.t-rondelle-libre-jeton {
+  position: absolute; top: 0; left: 0;
+  width: var(--tcell); height: var(--tcell);
+  transform: translate(calc(var(--tc) * var(--tcell)), calc(var(--tr) * var(--tcell)));
+  transition: transform 240ms cubic-bezier(0.34, 0.9, 0.4, 1);
+  pointer-events: none; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.t-rondelle-libre-jeton::after {
+  content: ''; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 0 2px var(--fond-creux);
+}
+/* Qui agit, et sur qui. Deux états, deux couleurs, aucun texte à lire. */
+.t-jeton.jouable { box-shadow: 0 0 0 1px var(--gold); }
+.t-jeton.choisie { z-index: 4; box-shadow: 0 0 0 2px var(--gold); }
+.t-jeton.agit { z-index: 5; box-shadow: 0 0 0 2px var(--ui-accent); }
+.t-jeton.visee { z-index: 5; animation: t-vise 560ms ease-in-out infinite alternate; }
+@keyframes t-vise { from { box-shadow: 0 0 0 0 var(--red); } to { box-shadow: 0 0 0 3px var(--red); } }
+
 /* Une pièce : la couleur brute de son club, l'encre mesurée dessus. */
 .t-piece {
-  position: absolute; inset: 2px; border-radius: 5px;
+  border-radius: 5px;
   background: var(--pf); color: var(--pi);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
   font-family: var(--display); line-height: 1; overflow: hidden;
@@ -3727,6 +3767,7 @@ a.spin-club:hover {
   margin: 8px 0; padding: 8px 10px; background: var(--panel-2);
   border-left: 3px solid var(--muted);
 }
+.t-de.sienne { opacity: 0.92; }
 .t-de.ok { border-left-color: var(--green); }
 .t-de.rate { border-left-color: var(--red); }
 .t-de-face { font-family: var(--display); font-size: 27px; font-weight: 800; line-height: 1; min-width: 34px; text-align: center; background: var(--fond-creux); border: 1px solid var(--line); border-radius: var(--r-s); padding: 2px 0; }
@@ -3824,3 +3865,31 @@ a.spin-club:hover {
 /* Les mêmes règles dans la page des règles du jeu, au style de la bible. */
 .bible h4 { margin: 14px 0 4px; font-family: var(--display); font-size: 15.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
 .bible .t-regle-nom { font-family: var(--display); font-weight: 700; white-space: nowrap; }
+
+
+/* ======================================================================
+   CE QUI VIENT D'ARRIVER SE VOIT AVANT DE SE LIRE.
+
+   JP : *meilleur animation et clarté de ce qui arrive, autant tour cpu que
+   user*. Un but montait le pointage d'un cran, sans rien d'autre : au milieu
+   d'une présence adverse, on ne savait même pas quel geste l'avait fait
+   entrer. La bannière passe une seconde et huit sur le tableau indicateur,
+   aux couleurs du club qui marque.
+   ====================================================================== */
+.t-eclat {
+  margin-top: 6px; padding: 5px 10px; border-radius: var(--r-s);
+  font-family: var(--display); font-size: 16px; font-weight: 800;
+  letter-spacing: 0.1em; text-transform: uppercase; text-align: center;
+  animation: t-eclat-e 240ms ease-out;
+}
+.t-eclat span { font-weight: 700; letter-spacing: 0.04em; opacity: 0.9; }
+.t-eclat-A { background: var(--t-a); color: var(--t-a-ink); }
+.t-eclat-B { background: var(--t-b); color: var(--t-b-ink); }
+@keyframes t-eclat-e { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* Qui préfère l'immobilité la garde : rien ici ne PORTE d'information. */
+@media (prefers-reduced-motion: reduce) {
+  .t-jeton, .t-rondelle-libre-jeton { transition: none; }
+  .t-jeton.visee { animation: none; box-shadow: 0 0 0 3px var(--red); }
+  .t-eclat { animation: none; }
+}

@@ -1373,8 +1373,59 @@ function meilleurGeste(m, piece) {
 }
 
 /**
- * L'IA joue UNE présence complète. Rend la liste des gestes joués, pour que
- * l'écran puisse les rejouer un à un plutôt que de sauter d'un coup.
+ * LE PROCHAIN GESTE DE L'IA, sans le jouer. Sépare la DÉCISION de
+ * l'EXÉCUTION, ce qui permet à l'écran de jouer la présence adverse un geste
+ * à la fois — jusqu'ici il la jouait d'un coup et racontait le fil ensuite,
+ * donc le plateau montrait déjà l'état FINAL pendant qu'on lisait le premier
+ * geste. On voyait la fin avant l'histoire.
+ */
+function iaProchainGeste(m, cote) {
+  let joue = null;
+  for (const piece of actives(m)) {
+    const g = meilleurGeste(m, piece);
+    if (!g) continue;
+    if (!joue || g.val > joue.val) joue = { piece, ...g };
+  }
+  if (joue && joue.val > 0) return joue;
+  /*
+   * ON LANCE AU FILET. Mesuré : la moitié des présences finissaient
+   * « plus rien d'utile à faire » — la pièce qui portait la rondelle
+   * gardait son geste et la présence expirait avec la rondelle dans le
+   * coin. C'est du hockey défensif, et ce n'est pas ce mode-ci : quand
+   * il ne reste rien de mieux, le porteur lance, s'il est à portée.
+   */
+  const p = porteur(m);
+  if (p && p.eq === cote && !p.agi && peutTirer(m, p)) return { piece: p, type: 'tir' };
+  return null;
+}
+
+/**
+ * L'IA joue UN SEUL geste. Rend `{ piece, type }`, ou null quand il ne lui
+ * reste rien — auquel cas elle a terminé sa présence. C'est ce que l'écran
+ * appelle sur une minuterie pour que le plateau et le fil avancent ensemble.
+ */
+export const GESTES_MAX = 12;   // le garde-fou d'une présence
+
+export function iaGeste(m) {
+  if (m.fini) return null;
+  const cote = m.tour;
+  const eq = eqDe(m, cote);
+  // Le changement de trio se décide au banc, avant le premier geste.
+  if (eq.pieces.every(x => !x.agi && !x.deplace)) iaChanger(m, cote);
+  const joue = iaProchainGeste(m, cote);
+  if (!joue) {
+    dire(m, `${eq.nom} a fini sa présence.`, 'fin-presence');
+    finirPresence(m);
+    return null;
+  }
+  const jet = jouerGeste(m, joue.piece, joue, cote, true);
+  return { ...joue, jet };
+}
+
+/**
+ * L'IA joue UNE présence complète, d'un coup. C'est ce que les matchs du
+ * tournoi joués à vide utilisent, et ce que `check_table.mjs` et
+ * `check_regles.mjs` mesurent ; l'écran, lui, passe par `iaGeste`.
  *
  * `surGeste` est appelé après CHAQUE geste : c'est la couture qui permet à
  * `check_regles.mjs` de vérifier l'état du plateau entre deux gestes et pas
@@ -1383,79 +1434,64 @@ function meilleurGeste(m, piece) {
  */
 export function iaPresence(m, surGeste = null) {
   const cote = m.tour;
-  iaChanger(m, cote);
   const gestes = [];
   let garde = 0;
-  while (m.tour === cote && !m.fini && garde++ < 12) {
-    let joue = null;
-    for (const piece of actives(m)) {
-      const g = meilleurGeste(m, piece);
-      if (!g) continue;
-      if (!joue || g.val > joue.val) joue = { piece, ...g };
-    }
-    if (!joue || joue.val <= 0) {
-      /*
-       * ON LANCE AU FILET. Mesuré : la moitié des présences finissaient
-       * « plus rien d'utile à faire » — la pièce qui portait la rondelle
-       * gardait son geste et la présence expirait avec la rondelle dans le
-       * coin. C'est du hockey défensif, et ce n'est pas ce mode-ci : quand
-       * il ne reste rien de mieux, le porteur lance. Un tir raté rend la
-       * rondelle au gardien, ce qui est exactement le prix d'un mauvais tir.
-       */
-      const p = porteur(m);
-      if (p && p.eq === cote && !p.agi && peutTirer(m, p)) {
-        gestes.push({ piece: p, type: 'tir' });
-        jouerGeste(m, p, { type: 'tir' }, cote, true);
-        if (surGeste) surGeste('tir', p);
-        continue;
-      }
-      break;
-    }
+  while (m.tour === cote && !m.fini && garde++ < GESTES_MAX) {
+    const joue = iaGeste(m);
+    if (!joue) break;
     gestes.push({ piece: joue.piece, type: joue.type });
-    jouerGeste(m, joue.piece, joue, cote, true);
     if (surGeste) surGeste(joue.type, joue.piece);
   }
-  if (m.tour === cote && !m.fini) { dire(m, `${eqDe(m, cote).nom} a fini sa présence.`, 'fin-presence'); finirPresence(m); }
+  // LE GARDE-FOU DOIT QUAND MÊME FINIR LA PRÉSENCE. Sans ça, une présence
+  // qui atteint la limite laisse le tour à la même équipe pour toujours et
+  // la boucle appelante ne s'arrête jamais.
+  if (m.tour === cote && !m.fini) finirPresence(m);
   return gestes;
 }
 
 /**
  * Joue un geste de bout en bout : le jet, la relance si l'IA en veut une, et
  * l'application. L'écran humain, lui, appelle les deux moitiés séparément
- * pour offrir la relance entre les deux.
+ * pour offrir la relance entre les deux. Rend le JET quand il y en a eu un,
+ * pour que l'écran puisse le montrer aussi quand c'est l'adversaire qui joue.
  */
 export function jouerGeste(m, piece, action, cote, ia = false) {
   if (action.type === 'deplacer') {
     const d = deplacer(m, piece, action.vers);
-    if (!d.jet) return true;
+    if (!d.jet) return null;
     let jet = d.jet;
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
-    return appliquerEsquive(m, piece, action.vers, jet);
+    appliquerEsquive(m, piece, action.vers, jet);
+    return jet;
   }
   if (action.type === 'passe') {
     let jet = passer(m, piece, action.cible);
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
-    return appliquerPasse(m, piece, action.cible, jet);
+    appliquerPasse(m, piece, action.cible, jet);
+    return jet;
   }
   if (action.type === 'tir') {
     let jet = tirer(m, piece);
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
-    return appliquerTir(m, piece, jet);
+    appliquerTir(m, piece, jet);
+    return jet;
   }
   if (action.type === 'echec') {
     let jet = mettreEnEchec(m, piece, action.cible);
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
-    return appliquerEchec(m, piece, action.cible, jet);
+    appliquerEchec(m, piece, action.cible, jet);
+    return jet;
   }
   if (action.type === 'vol') {
     let jet = voler(m, piece, action.cible);
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
-    return appliquerVol(m, piece, action.cible, jet);
+    appliquerVol(m, piece, action.cible, jet);
+    return jet;
   }
   // Les deux gestes sans dé : se placer devant, et foncer.
-  if (action.type === 'ecran') return seMettreDevant(m, piece);
-  if (action.type === 'foncer') return foncer(m, piece);
-  return false;
+  if (action.type === 'ecran') { seMettreDevant(m, piece); return null; }
+  if (action.type === 'foncer') { foncer(m, piece); return null; }
+  return null;
 }
 
 /**

@@ -105,9 +105,13 @@ let echecs = 0, vols = 0, revirements = 0;
 const mods = [];
 const pointages = new Map();
 
+/* DÉTERMINISTE, comme les égalités : les clubs se tirent à pas fixe dans la
+   liste triée. Avec Math.random, la même version du moteur rendait 5,13 puis
+   5,54 buts par équipe par match d'une exécution à l'autre — de quoi croire à
+   une régression qui n'existe pas, ou pire, à une amélioration. */
 for (let i = 0; i < MATCHS; i++) {
-  const a = clubs[Math.floor(Math.random() * clubs.length)];
-  const b = clubs[Math.floor(Math.random() * clubs.length)];
+  const a = clubs[(i * 53) % clubs.length];
+  const b = clubs[(i * 149 + 7) % clubs.length];
   const A = equipeDeTable(a.nom, a.tag, a.roster, 'A');
   const B = equipeDeTable(b.nom, b.tag, b.roster, 'B');
   const m = nouveauMatch(A, B, `t${i}`);
@@ -190,8 +194,8 @@ console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(10
 {
   let gestes = 0, presences = 0;
   for (let i = 0; i < 40; i++) {
-    const a = clubs[Math.floor(Math.random() * clubs.length)];
-    const b = clubs[Math.floor(Math.random() * clubs.length)];
+    const a = clubs[(i * 71) % clubs.length];
+    const b = clubs[(i * 197 + 11) % clubs.length];
     const m = nouveauMatch(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `g${i}`);
     let garde2 = 0;
     while (!m.fini && garde2++ < 200) { gestes += iaPresence(m).length; presences++; }
@@ -203,8 +207,8 @@ console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(10
 {
   let essouffles = 0, mesures = 0;
   for (let i = 0; i < 24; i++) {
-    const a = clubs[Math.floor(Math.random() * clubs.length)];
-    const b = clubs[Math.floor(Math.random() * clubs.length)];
+    const a = clubs[(i * 89) % clubs.length];
+    const b = clubs[(i * 211 + 3) % clubs.length];
     const m = nouveauMatch(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `f${i}`);
     let g = 0;
     while (!m.fini && g++ < 200) {
