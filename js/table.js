@@ -123,8 +123,9 @@ export const MI_GLACE = (RANGS - 1) / 2;      // la ligne du centre, où on met 
 
 /** La zone offensive garde la MÊME taille quelle que soit la longueur de la glace. */
 export const RANGS_ENCLAVE = 1;               // la seule rangée collée au filet
-export const RANGS_POINTE = 3;                // la troisième : la pointe
 export const DEMI_ENCLAVE = 2;                // sa largeur, de part et d'autre du filet
+export const BONUS_ENCLAVE = 4;               // ce que vaut un tir pris de là
+export const MALUS_COIN = -1;                 // et ce que coûte le mauvais angle
 
 /*
  * LA PORTÉE DU TIR : on ne tire que de la zone offensive.
@@ -172,13 +173,25 @@ export const distanceAuFilet = (m, piece) => Math.abs(piece.r - eqDe(m, piece.eq
 export const peutTirer = (m, piece) => !piece.gardien && distanceAuFilet(m, piece) <= PORTEE_TIR;
 
 /** La nature d'une case, du point de vue de l'équipe qui attaque vers `but`. */
+/*
+ * L'ÉCHELLE DES ZONES NE LAISSE AUCUN TROU.
+ *
+ * Elle en avait un : l'enclave ramenée à UNE rangée, la pointe fixée à la
+ * troisième, la rangée d = 2 tombait dans le `neutre` — alors qu'on y tire
+ * (`PORTEE_TIR` vaut 3) et qu'elle est collée au filet. Les coins collés au
+ * but disparaissaient du même coup, donc tirer de l'angle ne coûtait plus
+ * rien. La zone offensive se dérive maintenant de PORTEE_TIR : tout ce d'où
+ * l'on peut tirer est de la zone offensive, l'enclave en est le coeur, et
+ * tout ce qui déborde en largeur est un coin, quelle que soit la distance.
+ */
 export function natureCase(r, c, but) {
   const d = Math.abs(r - but);
   if (d === 0) return 'filet';
-  if (d <= RANGS_ENCLAVE) return Math.abs(c - BUT_COL) <= DEMI_ENCLAVE ? 'enclave' : 'coin';
-  if (d === RANGS_POINTE) return 'pointe';
-  // Le repli est le dernier tiers de la glace : allonger la patinoire allonge
-  // la zone neutre, pas la zone offensive — c'est ce qui rend l'enclave loin.
+  const large = Math.abs(c - BUT_COL) > DEMI_ENCLAVE;
+  if (d <= RANGS_ENCLAVE) return large ? 'coin' : 'enclave';
+  if (d <= PORTEE_TIR) return large ? 'coin' : 'pointe';
+  // Le repli est le dernier tiers : allonger la patinoire allonge la zone
+  // neutre, pas la zone offensive — c'est ce qui rend l'enclave loin.
   if (d <= RANGS - 4) return 'neutre';
   return 'repli';
 }
@@ -808,7 +821,7 @@ export function modTir(m, piece) {
   // L'enclave ne fait plus qu'une rangée et ne s'atteint qu'une présence sur
   // sept au lieu d'une sur quatre : y arriver doit payer beaucoup plus cher,
   // sinon le jeu devient du hockey défensif crédible et plate.
-  const place = nature === 'enclave' ? 4 : nature === 'coin' ? -1 : 0;
+  const place = nature === 'enclave' ? BONUS_ENCLAVE : nature === 'coin' ? MALUS_COIN : 0;
   // L'angle : tirer d'une bande, c'est tirer dans le côté court.
   const angle = Math.abs(piece.c - BUT_COL) >= 3 ? -1 : 0;
   const gene = batonsTir(m, piece.eq, piece.r, piece.c);
@@ -1716,10 +1729,10 @@ export function reglesDuPlateau() {
       points: [
         `${COLS} colonnes, ${RANGS} rangées. Les deux rangées du bout sont les filets : seuls les gardiens y sont.`,
         `ON NE TIRE QUE DE LA ZONE OFFENSIVE : à ${PORTEE_TIR} cases du filet ou moins. Au-delà de la ligne bleue ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert. Il faut entrer.`,
-        `L'enclave — la rangée collée au filet, sauf les coins — vaut +4 au tir, et un tir raté pris de là laisse un retour. Elle est petite : y arriver est le jeu.`,
-        `Le patin est plafonné à ${PAS_MAX} cases, quel que soit le PA de la pièce : la glace est grande, on ne la traverse pas d'un élan.`,
-        'Un coin vaut −1 au tir, une bande −1 de plus : c\'est le côté court.',
-        'La ligne bleue, c\'est la pointe : c\'est de là que le tir frappé vaut son bonus.',
+        `LA ZONE OFFENSIVE, du filet vers l'arrière : l'ENCLAVE (${RANGS_ENCLAVE === 1 ? 'la rangée collée au filet' : `les ${RANGS_ENCLAVE} rangées collées au filet`}, ${DEMI_ENCLAVE * 2 + 1} colonnes au centre) vaut ${BONUS_ENCLAVE >= 0 ? '+' : ''}${BONUS_ENCLAVE} au tir ; la POINTE, le reste de la zone, ne vaut rien de plus ; et tout ce qui déborde en largeur est un COIN, à ${MALUS_COIN} — c'est le mauvais angle.`,
+        `L'enclave est petite, et un tir raté pris de là laisse un retour devant le filet : y arriver est le jeu.`,
+        `Le patin est plafonné à ${PAS_MAX} cases, quel que soit le PA de la pièce : la glace est large, on ne la traverse pas d'un élan.`,
+        'Une bande coûte −1 de plus : c\'est le côté court.',
         'Un adversaire collé au tireur ne gêne son tir que s\'il est ENTRE lui et le filet. Celui qui est dans son dos ne bloque rien.',
       ],
     },
@@ -1745,7 +1758,7 @@ export function reglesDuPlateau() {
       titre: 'Les huit gestes',
       colonnes: ['geste', 'dé', 'ce que ça fait', 'un échec coûte'],
       rangees: [
-        ['Patiner', 'non', `jusqu'à PA cases, en contournant les pièces`, '—'],
+        ['Patiner', 'non', `jusqu'à PA cases, plafonné à ${PAS_MAX}, en contournant les pièces`, '—'],
         ['Esquiver', 'oui', 'quitter avec la rondelle une case tenue par un bâton adverse', 'revirement'],
         ['Passer', 'oui', 'donner la rondelle à un coéquipier', 'revirement'],
         ['Tirer', 'oui', `un but — de la zone offensive seulement, à ${PORTEE_TIR} cases ou moins`, 'le gardien la garde — sauf de l\'enclave, ou raté d\'un seul point : retour'],
@@ -1759,7 +1772,7 @@ export function reglesDuPlateau() {
       titre: 'La rondelle',
       points: [
         'Qui met le pied sur une rondelle libre la prend : sans dé, sans dépenser son geste. Une pièce au sol, elle, ne ramasse rien.',
-        'Quand le gardien a la rondelle, il la relance à son défenseur le plus proche au début de la présence.',
+        'Quand le gardien a la rondelle, il la relance à sa pièce la PLUS AVANCÉE au début de la présence : c\'est la sortie de zone.',
         'Après un but : mise au jeu au centre, les deux équipes rentrent à leur place, et le centre le plus habile gagne la rondelle.',
         'On ne frappe pas avec la rondelle dans les mains, et on ne pousse jamais personne sur la rondelle.',
       ],

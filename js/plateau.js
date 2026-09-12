@@ -23,7 +23,7 @@
  */
 
 import {
-  COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, SEUIL, SEUIL_TIR, PERIODES, PRESENCES_PAR_PERIODE,
+  COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, MI_GLACE, SEUIL, SEUIL_TIR, PERIODES, PRESENCES_PAR_PERIODE,
   HABILETES, GABARITS, TIRS, nouveauMatch, surLaGlace, eqDe, adverse, porteur, libre, actives, peutJouer,
   deplacementsDe, receveursDe, ciblesEchecDe, ciblesVolDe, natureCase, dist, batons, chances,
   modTir, modPasse, modEchec, modEsquive, modVol, peutTirer, distanceAuFilet, PORTEE_TIR,
@@ -206,8 +206,12 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         const filet = r === 0 || r === RANGS - 1;
         const cls = ['t-case', `t-${nature}`];
         if (filet) cls.push('t-but');
-        if (r === 4) cls.push('t-centre');
-        if (r === 3 || r === 5) cls.push('t-bleue');
+        // Les lignes se DÉDUISENT de la glace : la rouge au centre, les bleues
+        // au bord de chaque zone offensive. Elles étaient écrites en dur pour
+        // neuf rangées (4, puis 3 et 5) et auraient menti à la première
+        // rangée ajoutée.
+        if (r === MI_GLACE) cls.push('t-centre');
+        if (r === PORTEE_TIR || r === RANGS - 1 - PORTEE_TIR) cls.push('t-bleue');
         html += `<button type="button" class="${cls.join(' ')}" data-r="${r}" data-c="${c}"><span class="t-marque"></span></button>`;
       }
     }
