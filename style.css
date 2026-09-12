@@ -2818,6 +2818,49 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .modal-sheet { border-radius: var(--r-l); max-height: 88vh; }
   .opt-row { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }
   .opt-modes .opt-text { flex: 1 1 220px; }
+
+/* ---- l'écran « Nouvelle partie » : on compose, puis on lance ----
+   JP : *faire bouton new game aussi, qui permet de choisir les options du jeu
+   au lieu d'un menu option, pour faire plus « jeu »*.
+   Le corps réutilise `.options` / `.opt-row` / `.seg-wrap` tels quels : les
+   rangées sont DÉPLACÉES, pas redessinées. Rien n'y change de hauteur — la
+   liste des saisons et la rangée du repêchage restent dans le flux et se
+   DÉSACTIVENT au lieu de se cacher, parce que `piegerFocus` filtre sur
+   `offsetParent` et qu'une rangée qui disparaît change l'ordre de tabulation
+   à chaque clic. */
+.np-body .opt-row.desactive { opacity: 0.5; }
+.np-body .seg button:disabled { cursor: default; }
+.np-body .opt-select:disabled { opacity: 0.5; }
+.np-reprise {
+  margin: 0; padding: 6px 0 6px 9px; font-size: 12.5px; color: var(--sub);
+  border-left: 2px solid var(--gold);
+}
+/* Le pied est un FRÈRE de `.modal-body` : `.modal-sheet` est une colonne flex
+   qui cache son débordement, donc seul le corps défile et le pied reste en
+   vue. `flex: none` : sans lui il s'écrase quand le corps est haut. */
+.np-pied {
+  flex: none; display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; background: var(--panel-0); border-top: 1px solid var(--line);
+}
+/* Une seule ligne, ellipse au bout : la hauteur du pied ne bouge jamais. */
+.np-resume {
+  flex: 1 1 auto; min-width: 0; margin: 0; font-size: 12.5px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.np-go {
+  flex: none; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  min-width: 136px; line-height: 1.15;
+  background: var(--ui-accent); border-color: var(--ui-accent); color: var(--ui-on-accent);
+}
+/* La note n'est jamais vide (voir `majPiedPartie`) : rien à réserver. */
+.np-go-note { font-size: 10.5px; font-weight: 600; text-transform: none; opacity: 0.8; white-space: nowrap; }
+/* Le bouton qui EFFACE le dit avec la couleur du dépôt : plein rouge, encre du
+   fond — le patron de `.t-flash-rouge`. Jamais le vert de `.btn.go` : ce
+   vert-là dit « contrat signé », un état acquis, pas une destruction. */
+.np-go.efface { background: var(--red); border-color: var(--red); color: var(--bg); }
+.np-go:disabled { background: var(--panel-2); border-color: var(--line); color: var(--muted); }
+/* Quatre pastilles dans la barre du haut : sur téléphone elles se serrent. */
+@media (max-width: 560px) { .topbar-actions { gap: 2px; } }
   .opt-text { flex: 1; }
   .seg { flex: none; }
   .result { padding: 20px 22px 24px; }

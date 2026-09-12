@@ -48,6 +48,15 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');
 
+/* PREMIÈRE VISITE : le localStorage vient d'être vidé, donc l'écran « Nouvelle
+   partie » s'ouvre par-dessus. Ce n'est pas un `if` : c'est garanti, donc on
+   l'attend durement — le test prouve du même coup que l'écran s'ouvre. Rien
+   n'est signé et rien n'a changé, alors « Commencer » se contente de fermer. */
+await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 });
+await page.click('#npGo');
+await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
+console.log('   écran « Nouvelle partie » : ouvert à la première visite, refermé');
+
 const MIN_SAL = 0.95;    // plancher réservé par case restante, en millions (marge sur les 0,775 M$ du barème)
 const parseM = t => parseFloat(String(t || '').replace(/[^0-9.]/g, '')) || 0;
 const lireSignes = async () => parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
@@ -192,10 +201,16 @@ if (enabled) {
   }
 }
 
-// Le tirage LOTO : trois clubs par case, des relances. Même parcours.
-await page.click('#openOptionsBtn');
-await page.click('.seg[data-opt="tirage"] button[data-val="LOTO"]');
-await page.waitForTimeout(400);
+/* Le tirage LOTO : trois clubs par case, des relances. Il vit maintenant dans
+   l'écran « Nouvelle partie », et RIEN ne s'applique avant le clic sur le pied
+   — c'est tout l'objet de l'écran, et c'est ce que ce passage vérifie. */
+await page.click('#openPartieBtn');
+await page.waitForSelector('#partieModal .seg[data-opt="tirage"]', { state: 'visible', timeout: 10000 });
+await page.click('#partieModal .seg[data-opt="tirage"] button[data-val="LOTO"]');
+const armeLoto = await page.$eval('#partieModal .seg[data-opt="tirage"] button[data-val="LOTO"]', b => b.classList.contains('on'));
+if (!armeLoto) errors.push('le tirage « Loto » ne se marque pas dans l\'écran Nouvelle partie');
+await page.click('#npGo');
+await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 await page.waitForSelector('#rrL', { timeout: 30000 });
 const lotoSigned = await drafter('loto');
 console.log(`5. loto : ${lotoSigned}/23 signés, relances restantes : ${(await page.textContent('#rrL .rr-count')).trim()}`);

@@ -55,7 +55,7 @@ export const MODES = {
   },
   LOTO: {
     nom: 'Loto', format: 'COMPLET', tirage: 'LOTO', cap: CAP, renfort: false, loto: true, relances: 2,
-    desc: 'Vingt-trois cases, et pour chacune le même joueur de trois équipes : tu choisis. Huit relances.',
+    desc: 'Vingt-trois cases, et pour chacune le même joueur de trois équipes : tu choisis. Deux relances.',
   },
   EXPRESS: {
     nom: 'Express', format: 'EXPRESS', tirage: 'VESTIAIRE', cap: 34_000_000, renfort: true, loto: false, relances: 0,
@@ -63,7 +63,7 @@ export const MODES = {
   },
   LOTO_EXPRESS: {
     nom: 'Loto express', format: 'EXPRESS', tirage: 'LOTO', cap: 34_000_000, renfort: true, loto: true, relances: 2,
-    desc: 'Six cases, trois candidats pour chacune, trois relances. Le reste vient d\'une vraie équipe.',
+    desc: 'Six cases, trois candidats pour chacune, deux relances. Le reste vient d\'une vraie équipe.',
   },
 };
 

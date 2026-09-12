@@ -17,10 +17,10 @@ import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, newGame, openModal, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast;
+let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, newGame, openModal, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast } = c);
+  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast } = c);
 }
 
 /* =====================================================================
@@ -282,7 +282,9 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     capUsed: capUsed(), rank, nTeams, date: new Date().toLocaleDateString('fr-CA'),
     // De quoi rouvrir et rejouer cette équipe : la clé de chaque joueur-
     // saison (légère), le mode, et la graine de la saison jouée.
-    mode: G.mode,
+    mode: (G.ligue && G.ligue.mode) || G.mode,
+    repechage: (G.ligue && G.ligue.repechage) || G.repechage,
+    bonus: (G.ligue && G.ligue.bonus) || G.bonus,
     epoque: G.ligue && G.ligue.epoque || null,
     graine: G.ligue && G.ligue.graine || null,
     alignement: SLOTS.map(s => {
@@ -399,7 +401,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     const txt = `🏒 Cap 82-0\n`
       + `Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n`
       + `Rang : ${rank}e de ${nTeams}\n`
-      + `Masse salariale : ${money(capUsed())} / ${money(CAP)}\n`
+      + `Masse salariale : ${money(capUsed())} / ${money(capMax())}\n`
       + `Vedette : ${top ? `${top.n} (${top.t} ${top.s})` : '—'}\n`
       + `Essaie de faire 82-0.`;
     if (navigator.clipboard?.writeText) {
@@ -412,7 +414,8 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   };
 
   if (rank <= enSeries) $('playoffsBtn').onclick = () => runPlayoffs(teams.slice(0, enSeries));
-  $('againBtn').onclick = () => newGame();
+  // C'est LE moment où on change de format : le bouton ouvre l'écran.
+  $('againBtn').onclick = () => ouvrirNouvellePartie();
   $('replayBtn').onclick = () => rejouerSaison();
 
   renderMain();

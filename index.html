@@ -35,12 +35,13 @@
   <symbol id="i-cols" viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="9.5" y="4" width="5" height="16" rx="1"/><rect x="16" y="4" width="5" height="16" rx="1"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
   <symbol id="i-cup" viewBox="0 0 24 24"><path d="M8 3h8l1 4H7l1-4z"/><path d="M9 7v3a3 3 0 0 0 6 0V7"/><path d="M12 13v5M7 21h10M9 18h6"/></symbol>
+  <symbol id="i-new" viewBox="0 0 24 24"><ellipse cx="10" cy="13.5" rx="7" ry="3.2"/><path d="M3 13.5v2.4c0 1.8 3.1 3.2 7 3.2s7-1.4 7-3.2v-2.4"/><path d="M19.5 4v6M16.5 7h6"/></symbol>
 </svg>
 
 <!-- ===== Barre du haut : plafond et accès, rien d'autre ===== -->
 <header class="topbar" id="topbar">
   <div class="topbar-inner">
-    <div class="capgauge" id="capGauge" title="Plafond salarial de 95,5 M$ (valeur 2026)">
+    <div class="capgauge" id="capGauge">
       <div class="capgauge-row">
         <span class="capgauge-label">Plafond restant</span>
         <span class="capgauge-amt"><strong id="capAmt" class="amt">—</strong> <span class="capgauge-max" id="capMaxLbl">/ $95.5M</span></span>
@@ -53,6 +54,7 @@
     </div>
 
     <nav class="topbar-actions" aria-label="Menu">
+      <button class="icon-btn" id="openPartieBtn" title="Nouvelle partie : format, tirage, ligue et mode"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg><span class="icon-lbl">Nouvelle</span></button>
       <button class="icon-btn" id="openLeaderboardBtn" title="Historique de vos saisons"><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg><span class="icon-lbl">Historique</span></button>
       <button class="icon-btn" id="openBibleBtn" title="Règles et mathématiques du jeu"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span class="icon-lbl">Règles</span></button>
       <button class="icon-btn" id="openOptionsBtn" title="Options d'affichage"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span class="icon-lbl">Options</span></button>
@@ -237,6 +239,51 @@
     </div>
     <div class="modal-body options">
       <div class="opt-row opt-modes">
+        <div class="opt-text"><strong>Palette</strong><span>Graphite : un fond neutre et du laiton. OLED : le vrai noir, pour que l'écran s'éteigne entre les cartes. Glace : de l'ardoise froide et de l'acier, sans jaune.</span></div>
+        <div class="seg seg-wrap" data-opt="palette">
+          <button data-val="graphite" class="on">Graphite<em>neutre et laiton</em></button>
+          <button data-val="oled">OLED<em>vrai noir</em></button>
+          <button data-val="glace">Glace<em>ardoise et acier</em></button>
+        </div>
+      </div>
+      <div class="opt-row">
+        <div class="opt-text"><strong>Statistiques</strong><span>Vraies stats de la saison, ou prorata sur 82 matchs ajusté à l'époque (buts par match de l'année ramenés à 3,15).</span></div>
+        <div class="seg" data-opt="stats"><button data-val="real" class="on">Réelles</button><button data-val="prorata">Prorata 82 · époque</button></div>
+      </div>
+      <div class="opt-row">
+        <div class="opt-text"><strong>Salaires</strong><span>Valeur 2026 (celle qui compte sous le plafond du jeu) ou valeur de l'époque (réelle ou estimée).</span></div>
+        <div class="seg" data-opt="salary"><button data-val="2026" class="on">Valeur 2026</button><button data-val="ERA">Valeur époque</button></div>
+      </div>
+      <div class="opt-row">
+        <div class="opt-text"><strong>Signables seulement</strong><span>Masquer les joueurs hors budget ou sans case libre (tirage Vestiaire).</span></div>
+        <div class="seg" data-opt="onlyFit"><button data-val="off" class="on">Tout voir</button><button data-val="on">Signables</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modale : nouvelle partie — les réglages QUI DÉFINISSENT LA PARTIE =====
+     JP : *faire bouton new game aussi, qui permet de choisir les options du jeu
+     au lieu d'un menu option, pour faire plus « jeu »*.
+
+     Rien ici ne s'applique au clic : l'écran écrit un BROUILLON (`G.brouillon`)
+     et c'est le bouton du pied qui démarre, UNE fois. Avant, `setOption`
+     lançait un `newGame()` non attendu dans quatre branches — changer le
+     format PUIS le tirage mettait deux roulettes en vol, et la plus lente
+     écrivait `G.tirage`. Les réglages d'AFFICHAGE restent dans #optionsModal.
+
+     Modale ORDINAIRE, pas `live` : fermer ne détruit jamais rien, donc Échap
+     et le clic sur le fond restent ce qu'ils sont partout ailleurs. -->
+<div id="partieModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-sheet modal-narrow" role="dialog" aria-modal="true" aria-labelledby="npTitre">
+    <div class="modal-header">
+      <h2 id="npTitre"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg>Nouvelle partie</h2>
+      <button id="closePartieBtn" class="close-btn" aria-label="Fermer sans rien changer">✕</button>
+    </div>
+
+    <div class="modal-body options np-body">
+      <p class="np-reprise" id="npReprise" hidden></p>
+      <div class="opt-row opt-modes">
         <div class="opt-text"><strong>Alignement</strong><span>Les 23 cases sous 95,5 M$, ou six cases (un trio, une paire, un partant) sous 34 M$, le reste fourni par une vraie équipe.</span></div>
         <div class="seg seg-wrap" data-opt="format">
           <button data-val="COMPLET" class="on">Complet<em>23 joueurs</em></button>
@@ -244,12 +291,11 @@
         </div>
       </div>
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Tirage</strong><span id="modeDesc">Vingt-trois joueurs, un par tour, dans le vestiaire d'une vraie équipe. Deux relances d'année, deux d'équipe, deux passes.</span></div>
+        <div class="opt-text"><strong>Tirage</strong><span>Vestiaire : une équipe et tout son club, un joueur par tour pour n'importe quelle case libre, avec les relances d'année, d'équipe et de passe. Loto : trois équipes, et de chacune le joueur qui joue la position de la case courante.</span></div>
         <div class="seg seg-wrap" data-opt="tirage">
           <button data-val="VESTIAIRE" class="on">Vestiaire<em>une équipe, tout son club</em></button>
           <button data-val="LOTO">Loto<em>trois équipes, un choix</em></button>
         </div>
-        <p class="opt-note">Changer d'alignement ou de tirage relance une partie.</p>
       </div>
       <div class="opt-row opt-modes">
         <div class="opt-text"><strong>Ligue</strong><span>Toutes les époques : la roulette sort n'importe quelle année, et 31 clubs de 55 ans t'attendent. Une saison : tous les vrais clubs de cette année-là, ta formation en plus (la 33e équipe en 2024-25) — gagne la Coupe cette année-là.</span></div>
@@ -281,30 +327,13 @@
           <button data-val="TABLE">Sur table<em>un tournoi sur plateau</em></button>
         </div>
       </div>
-      <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Palette</strong><span>Graphite : un fond neutre et du laiton. OLED : le vrai noir, pour que l'écran s'éteigne entre les cartes. Glace : de l'ardoise froide et de l'acier, sans jaune.</span></div>
-        <div class="seg seg-wrap" data-opt="palette">
-          <button data-val="graphite" class="on">Graphite<em>neutre et laiton</em></button>
-          <button data-val="oled">OLED<em>vrai noir</em></button>
-          <button data-val="glace">Glace<em>ardoise et acier</em></button>
-        </div>
-      </div>
-      <div class="opt-row">
-        <div class="opt-text"><strong>Statistiques</strong><span>Vraies stats de la saison, ou prorata sur 82 matchs ajusté à l'époque (buts par match de l'année ramenés à 3,15).</span></div>
-        <div class="seg" data-opt="stats"><button data-val="real" class="on">Réelles</button><button data-val="prorata">Prorata 82 · époque</button></div>
-      </div>
-      <div class="opt-row">
-        <div class="opt-text"><strong>Salaires</strong><span>Valeur 2026 (celle qui compte sous le plafond du jeu) ou valeur de l'époque (réelle ou estimée).</span></div>
-        <div class="seg" data-opt="salary"><button data-val="2026" class="on">Valeur 2026</button><button data-val="ERA">Valeur époque</button></div>
-      </div>
-      <div class="opt-row">
-        <div class="opt-text"><strong>Signables seulement</strong><span>Masquer les joueurs hors budget ou sans case libre (tirage Vestiaire).</span></div>
-        <div class="seg" data-opt="onlyFit"><button data-val="off" class="on">Tout voir</button><button data-val="on">Signables</button></div>
-      </div>
-      <div class="opt-row">
-        <div class="opt-text"><strong>Nouvelle partie</strong><span>Efface l'alignement en cours et relance la roulette. L'historique est conservé.</span></div>
-        <button class="btn danger" id="resetBtn">Recommencer</button>
-      </div>
+    </div>
+
+    <div class="np-pied">
+      <p class="np-resume" id="npResume"></p>
+      <button type="button" class="btn np-go" id="npGo">
+        <span id="npGoVerbe">Commencer</span><span class="np-go-note" id="npGoNote">la roulette repart</span>
+      </button>
     </div>
   </div>
 </div>
