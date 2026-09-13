@@ -42,6 +42,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, getHiddenRatings, SLOTS } from '../js/sim.js';
+import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { equipeDeTable, jouerMatchAuto, nouveauMatch, iaPresence, resultatDe,
          statsDeTable, PERIODES, PRESENCES_PAR_PERIODE, GABARITS, TIRS,
          surLaGlace, essouffle } from '../js/table.js';
@@ -170,12 +171,19 @@ for (let i = 0; i < MATCHS; i++) {
     }
   }
   console.log(`\nLes égalités de la feuille, sur 120 matchs :`);
-  if (casses.length) { console.log(`  ÉCHEC — ${casses.length} :\n    ${casses.slice(0, 5).join('\n    ')}`); process.exitCode = 1; }
+  if (casses.length) console.log(`  ÉCHEC — ${casses.length} :\n    ${casses.slice(0, 5).join('\n    ')}`);
   else console.log('  buts des joueurs = buts de l\'équipe · buts alloués = buts de l\'autre · lancers = arrêts + buts · passes ≤ buts ✓');
+  exiger('les égalités de la feuille', !casses.length, casses.length ? `${casses.length} cassées` : '120 matchs');
 }
 
 console.log(`\n${MATCHS} matchs :`);
 console.log(`  buts par équipe par match   ${(buts / n).toFixed(2)}   (cible arcade : 5 à 6)`);
+// La cible ARCADE, celle de CLAUDE.md — jamais celle du moteur par événements.
+// On ne juge qu'à partir de 40 matchs : sous ça, un garde-fou ne distingue
+// plus le réglage du bruit, et un garde-fou qui crie pour du bruit se fait
+// désactiver.
+if (MATCHS >= 40) borne('buts par équipe par match', buts / n, 5, 6);
+else informer('buts par équipe par match', `${(buts / n).toFixed(2)} — ${MATCHS} matchs, trop peu pour juger`);
 console.log(`  tirs par équipe par match   ${(tirs / n).toFixed(2)}`);
 console.log(`  mises en échec              ${(echecs / n).toFixed(2)} par équipe par match`);
 console.log(`  vols de rondelle            ${(vols / n).toFixed(2)} par équipe par match`);
@@ -201,6 +209,7 @@ console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(10
     while (!m.fini && garde2++ < 200) { gestes += iaPresence(m).length; presences++; }
   }
   console.log(`  gestes par présence         ${(gestes / presences).toFixed(2)}   (cible : 4 à 6)`);
+  borne('gestes par présence', gestes / presences, 4, 6);
 }
 
 /* ---------- la fatigue : est-ce qu'elle mord, et combien ---------- */
@@ -235,6 +244,7 @@ const decile = i => {
   return out;
 };
 
+const parite = {};
 console.log(`\nLe fort contre le faible (${PAR_DECILE} clubs par décile, tout le monde contre tout le monde, aller-retour) :`);
 for (const [ia, ib, mot] of [[0, 9, 'le 1er décile contre le 10e'], [0, 4, 'le 1er contre le 5e'], [4, 9, 'le 5e contre le 10e'], [2, 2, 'deux équipes du 3e décile']]) {
   const A = decile(ia), B = decile(ib);
@@ -253,4 +263,27 @@ for (const [ia, ib, mot] of [[0, 9, 'le 1er décile contre le 10e'], [0, 4, 'le 
     }
   }
   console.log(`  ${mot.padEnd(32)} ${(100 * v / n).toFixed(0)} victoires sur 100 (${n} matchs), différentiel ${(bu / n).toFixed(2)} par match`);
+  parite[`${ia}${ib}`] = 100 * v / n;
 }
+
+/*
+ * LA PARITÉ SE JUGE, ET EN DEUX TEMPS. Les bornes sont larges exprès : ce
+ * qu'on garde, ce n'est pas un chiffre, c'est la PROPRIÉTÉ — « le talent se
+ * voit, la Coupe reste un pari ». Onze rangées de glace l'avaient cassée en
+ * silence (83 victoires sur 100 pour le premier décile contre le dixième :
+ * un match plus long est un match moins hasardeux), et rien n'avait rougi.
+ */
+// Même règle : à PAR_DECILE=2 il ne reste que huit duels par paire, et la
+// lecture monte à 88 sur 100 sans que rien n'ait bougé dans le moteur.
+const jugeable = PAR_DECILE >= 6;
+if (jugeable) {
+  borne('le 1er décile bat le 10e', parite['09'], 60, 80, ' sur 100');
+  borne('deux clubs du même décile', parite['22'], 44, 56, ' sur 100');
+} else {
+  informer('la parité', `${parite['09'].toFixed(0)} / ${parite['22'].toFixed(0)} — ${PAR_DECILE} clubs par décile, trop peu pour juger`);
+}
+if (jugeable) exiger('la parité est ORDONNÉE',
+  parite['09'] >= parite['04'] && parite['04'] >= parite['22'] && parite['49'] >= parite['22'],
+  `1er/10e ${parite['09'].toFixed(0)} · 1er/5e ${parite['04'].toFixed(0)} · 5e/10e ${parite['49'].toFixed(0)} · même décile ${parite['22'].toFixed(0)}`);
+
+verdict('Le plateau tient-il ses cibles ?');

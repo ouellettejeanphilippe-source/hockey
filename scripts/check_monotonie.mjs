@@ -23,6 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, simulate, registerHiddenRatings } from '../js/sim.js';
+import { exiger, borne, monte, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
@@ -59,15 +60,27 @@ const n = Math.floor(rows.length / 10);
 console.log(`\n${rows.length} vraies équipes-saisons, ${ESSAIS} essais chacune\n`);
 console.log('  décile de force   victoires simulées   vraies victoires (sur 82)');
 
-let precedent = -Infinity, monotone = true;
+const deciles = [];
 for (let d = 0; d < 10; d++) {
   const tranche = rows.slice(d * n, (d + 1) * n);
   const w = tranche.reduce((a, x) => a + x.W, 0) / tranche.length;
   const v = tranche.reduce((a, x) => a + x.vrai, 0) / tranche.length * 82;
-  if (w < precedent) monotone = false;
-  precedent = w;
+  deciles.push(w);
   console.log(`  ${String(d + 1).padStart(8)}          ${w.toFixed(1).padStart(6)}              ${v.toFixed(1).padStart(6)}`);
 }
-console.log(monotone
-  ? '\n  ✓ monotone : chaque décile gagne plus que le précédent.\n'
-  : '\n  ✗ NON MONOTONE : un décile plus fort gagne moins. Une constante de zone est en cause.\n');
+
+/*
+ * C'EST LE TEST QUI FAIT AUTORITÉ, et il ne pouvait pas échouer. « Améliorer
+ * ses joueurs ne doit jamais rendre l'équipe pire » est la propriété la plus
+ * forte du moteur ; elle était imprimée avec une croix et un code de sortie 0.
+ *
+ * La tolérance d'un tiers de victoire absorbe le bruit d'échantillon entre
+ * deux déciles voisins (`ESSAIS` vaut 1 par défaut, sur ~139 équipes par
+ * décile) sans rien laisser passer d'une vraie inversion : quand le moteur
+ * s'est cassé, l'inversion se comptait en matchs, pas en dixièmes.
+ */
+monte('monotone sur les dix déciles', deciles, 1 / 3);
+borne('le 1er décile', deciles[0], 22, 32, ' V');
+borne('le 10e décile', deciles[9], 50, 60, ' V');
+borne('l\'écart du 1er au 10e', deciles[9] - deciles[0], 20, 34, ' V');   // réel : 28,8
+verdict('Améliorer son équipe la rend-elle meilleure ?');

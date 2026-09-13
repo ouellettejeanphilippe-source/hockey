@@ -57,16 +57,68 @@ await page.click('#npGo');
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
 console.log('   écran « Nouvelle partie » : ouvert à la première visite, refermé');
 
+/*
+ * DEUX RÈGLES FERMES QUE RIEN NE VÉRIFIAIT.
+ *
+ * `sansDebordement` — « rien ne doit déborder horizontalement de
+ * `document.documentElement` ; seuls les conteneurs prévus défilent en x ».
+ * Le mode bonus l'avait déjà, le jeu principal non : on pouvait donc casser
+ * la mise en page à 390 px et sortir du vert.
+ *
+ * `sansCote` — « aucune cote dans le DOM, jamais. Un joueur curieux qui ouvre
+ * l'inspecteur ne doit rien pouvoir en tirer. » Ce que ça prouve : aucun
+ * élément ne porte un attribut nommé comme une sous-cote, et le document ne
+ * contient aucun `data-` qui les nomme. Ce que ça ne prouve pas : qu'un
+ * gabarit n'écrive pas une cote dans du TEXTE sous un autre nom — les cotes
+ * vivent dans un coffre privé, la page ne peut pas les redonner pour qu'on
+ * compare. C'est le mode de régression réel (`data-v="${p.v}"` glissé dans un
+ * gabarit) qui est couvert, pas la malveillance.
+ */
+const COTES = ['o', 'd', 'r', 'c', 'v', 'sp'];
+async function sansDebordement(ou) {
+  const trop = await page.evaluate(() => {
+    const el = document.documentElement;
+    return el.scrollWidth - el.clientWidth;
+  });
+  if (trop > 0) errors.push(`débordement horizontal de ${trop} px — ${ou}`);
+  return trop;
+}
+async function sansCote(ou) {
+  const fautes = await page.evaluate(cotes => {
+    const out = [];
+    // Pas `data-cote` : dans `js/direct.js` le mot veut dire CÔTÉ (A ou B), pas
+    // cote. Deux mots homographes en québécois, et le premier jet du garde-fou
+    // a rougi sur le tableau indicateur du direct.
+    const interdits = new Set([...cotes, ...cotes.map(k => `data-${k}`), 'data-valeur', 'data-rating']);
+    const SVG = 'http://www.w3.org/2000/svg';
+    for (const el of document.querySelectorAll('*')) {
+      // Le SVG a ses propres `d`, `r` et `c` — la géométrie d'un tracé n'est
+      // pas une cote, et les icônes du sprite en sont pleines.
+      if (el.namespaceURI === SVG || el.closest('svg')) continue;
+      for (const at of el.attributes) {
+        if (interdits.has(at.name)) out.push(`<${el.tagName.toLowerCase()} ${at.name}="${at.value}">`);
+      }
+    }
+    return out.slice(0, 3);
+  }, COTES);
+  for (const f of fautes) errors.push(`une cote dans le DOM — ${ou} : ${f}`);
+  return fautes.length;
+}
+
 const MIN_SAL = 0.95;    // plancher réservé par case restante, en millions (marge sur les 0,775 M$ du barème)
 const parseM = t => parseFloat(String(t || '').replace(/[^0-9.]/g, '')) || 0;
 const lireSignes = async () => parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
+// Le total vient du COMPTEUR, pas d'une constante : l'Express en a six, le
+// Complet vingt-trois, et `casesDuMode` est la seule source de vérité.
+const lireTotal = async () => parseInt(((await page.textContent('#cnt')).split('/')[1] || '23').trim(), 10) || 23;
 
 /** L'auto-draft : la main de chaque tour, jusqu'à 23/23. */
 async function drafter(etiquette) {
+  const total = await lireTotal();
   let signed = 0, guard = 0;
-  while (signed < 23 && guard++ < 320) {
+  while (signed < total && guard++ < 320) {
     const rem = parseM(await page.textContent('#capAmt'));
-    const left = 23 - signed;
+    const left = total - signed;
     // Budget maximal pour ce choix : au-delà, impossible de combler les cases
     // suivantes au salaire plancher. C'est la règle affichée au tableau de bord.
     const maxPick = rem - Math.max(0, left - 1) * MIN_SAL;
@@ -102,12 +154,16 @@ async function drafter(etiquette) {
     await page.waitForTimeout(200);
     signed = await lireSignes();
   }
-  console.log(`   ${etiquette} : ${signed}/23 signés`);
-  return signed;
+  console.log(`   ${etiquette} : ${signed}/${total} signés`);
+  return { signed, total };
 }
 
-let signed = await drafter('vestiaire');
+let { signed } = await drafter('vestiaire');
 console.log(`2. ${signed}/23 signés`);
+// Le vestiaire est plein : c'est le moment où le DOM porte le plus de cartes,
+// donc le moment où une cote qui fuit se verrait, et où la mise en page est
+// la plus chargée.
+console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await sansCote('vestiaire plein')} cote(s) dans le DOM`);
 await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
 
 const enabled = await page.$eval('#mainBtn', b => !b.disabled);
@@ -154,6 +210,9 @@ if (enabled) {
   const score = await page.textContent('.result .score');
   const rows = await page.$$eval('.rrow', r => r.length);
   console.log(`4. fiche ${score.trim()}, ${rows} rangées`);
+  // Le bilan porte les tableaux les plus larges du jeu (onze colonnes) : s'il
+  // y a un débordement quelque part, il est ici.
+  await sansDebordement('bilan de saison');
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
   const po = await page.$('#playoffsBtn');
   if (po) {
@@ -212,11 +271,42 @@ if (!armeLoto) errors.push('le tirage « Loto » ne se marque pas dans l\'écran
 await page.click('#npGo');
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 await page.waitForSelector('#rrL', { timeout: 30000 });
-const lotoSigned = await drafter('loto');
+const { signed: lotoSigned } = await drafter('loto');
 console.log(`5. loto : ${lotoSigned}/23 signés, relances restantes : ${(await page.textContent('#rrL .rr-count')).trim()}`);
 await page.screenshot({ path: 'scripts/smoke-loto.png', fullPage: false });
 
-console.log(`6. erreurs console : ${errors.length} (ressources externes non chargées : ${netErrors})`);
+/*
+ * LE FORMAT EXPRESS, que rien ne couvrait. Six cases — un trio, une paire, un
+ * partant — sous 34 M$, et le reste de l'alignement fourni par une vraie
+ * équipe tirée au hasard, hors plafond et non modifiable. C'est un chemin de
+ * code entier (`casesDuMode`, `G.renfort`, le plafond qui change) qui n'avait
+ * aucun test : le compteur, la roulette, le renfort et la simulation.
+ */
+await page.click('#openPartieBtn');
+await page.waitForSelector('#partieModal .seg[data-opt="format"]', { state: 'visible', timeout: 10000 });
+await page.click('#partieModal .seg[data-opt="format"] button[data-val="EXPRESS"]');
+await page.click('#partieModal .seg[data-opt="tirage"] button[data-val="VESTIAIRE"]');
+await page.click('#npGo');
+await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
+await page.waitForTimeout(400);
+const expTotal = await lireTotal();
+if (expTotal !== 6) errors.push(`l'Express devrait offrir six cases, le compteur en annonce ${expTotal}`);
+const expCap = parseM(await page.textContent('#capAmt'));
+if (expCap > 40) errors.push(`le plafond de l'Express devrait être sous 34 M$, la jauge annonce ${expCap}`);
+const { signed: expSigned } = await drafter('express');
+// Les dix-sept autres cases viennent du renfort : l'alignement doit être
+// COMPLET même si le joueur n'en a comblé que six.
+const expRemplies = await page.$$eval('.slot', els => els.filter(e => !e.classList.contains('empty')).length);
+const expPret = await page.$eval('#mainBtn', b => !b.disabled);
+console.log(`6. express : ${expSigned}/${expTotal} signés sous ${expCap.toFixed(1)} M$, `
+  + `${expRemplies} cases remplies avec le renfort, bouton prêt : ${expPret}`);
+if (expSigned < 6) errors.push(`l'Express n'a comblé que ${expSigned} cases sur six`);
+if (expRemplies < 23) errors.push(`le renfort de l'Express ne remplit que ${expRemplies} cases sur 23`);
+if (!expPret) errors.push('l\'Express ne débloque pas le bouton de simulation');
+await sansDebordement('express');
+await sansCote('express');
+
+console.log(`7. erreurs console : ${errors.length} (ressources externes non chargées : ${netErrors})`);
 for (const e of errors) console.log('   ', e);
 await browser.close();
-process.exit((errors.length || signed < 23 || lotoSigned < 23) ? 1 : 0);
+process.exit((errors.length || signed < 23 || lotoSigned < 23 || expSigned < 6) ? 1 : 0);
