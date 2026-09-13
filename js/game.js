@@ -162,6 +162,24 @@ const G = {
    * qu'en signant, en relançant, ou en visant expressément une autre case.
    */
   mainCase: null,       // index de case, ou null (se recalcule alors)
+  /*
+   * L'ÉCHELLE DU LOTO, ET LA DETTE DE TOUR. Deux compteurs qui existent pour
+   * la même raison : retirer un joueur ne doit rien RENDRE.
+   *
+   * `echelle` : le rang le plus bas déjà atteint à chaque poste. Le rang de la
+   * main se calculait sur les joueurs SIGNÉS, donc vider une case le faisait
+   * remonter et trois nouveaux numéros un se retendaient — le même exploit que
+   * le déplacement de trio, rouvert par le ✕.
+   *
+   * `dette` : le nombre de cases vidées dont le tour n'a pas encore été
+   * repayé. Signer fait tourner la roulette ; retirer rendait la masse
+   * salariale ET gardait le vestiaire neuf, donc « signer le moins cher puis
+   * ✕ » était un « Passer » gratuit et illimité. La roulette ne tourne plus
+   * tant que la dette n'est pas payée : on peut toujours changer d'idée, ça ne
+   * donne simplement plus de tour de plus.
+   */
+  echelle: {},
+  dette: 0,
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -283,7 +301,20 @@ function caseDeLaMain() {
 function rangDeLaMain(c) {
   if (c.scratch) return 0;
   const deja = signes().filter(p => fits(p, c) && getPositionPenalty(p, c) === 0).length;
-  return Math.max(c.unit, deja);
+  // Le plancher : le rang le plus bas déjà atteint à ce poste. Sans lui, le ✕
+  // faisait remonter l'échelle — on signait, on retirait, et trois numéros un
+  // se retendaient. « L'échelle descend quoi qu'on fasse de ses joueurs
+  // ensuite » vaut aussi pour les retirer.
+  return Math.max(c.unit, deja, G.echelle[c.role] || 0);
+}
+
+/** Le plancher se pose APRÈS chaque signature : c'est elle qui fait descendre. */
+function poserEchelle() {
+  for (const c of casesActives()) {
+    if (c.scratch) continue;
+    const deja = signes().filter(p => fits(p, c) && getPositionPenalty(p, c) === 0).length;
+    if (deja > (G.echelle[c.role] || 0)) G.echelle[c.role] = deja;
+  }
 }
 
 /**
@@ -342,6 +373,8 @@ function saveGame() {
       tirage: G.tirage.map(v => ({ season: v.season, team: v.team })),
       target: G.target,
       mainCase: G.mainCase,
+      echelle: G.echelle,
+      dette: G.dette,
       mode: G.mode,
       epoque: G.epoque,
       repechage: G.repechage,
@@ -438,6 +471,11 @@ async function restoreSave() {
     G.left = data.left || { ...REROLLS };
     G.target = data.target ?? null;
     G.mainCase = Number.isInteger(data.mainCase) && SLOTS[data.mainCase] ? data.mainCase : null;
+    // Les deux compteurs qui empêchent le ✕ d'être une relance : une partie
+    // reprise doit les retrouver, sinon recharger la page les remet à zéro et
+    // rouvre l'exploit.
+    G.echelle = (data.echelle && typeof data.echelle === 'object') ? { ...data.echelle } : {};
+    G.dette = Number.isFinite(data.dette) && data.dette > 0 ? data.dette : 0;
     applyTeamColors(MODE().loto ? null : tirage[0].team);
     return true;
   } catch {
@@ -1685,9 +1723,13 @@ async function signPlayer(p) {
     setTimeout(() => toast(msg, 'warn'), 2700);
   }
 
-  // Une signature, un tour : la roulette tourne à chaque fois, dans les
-  // deux tirages. Ton premier trio sort de trois clubs, pas d'un seul.
-  await nextSpin();
+  poserEchelle();
+  // Une signature, un tour : la roulette tourne à chaque fois, dans les deux
+  // tirages. Ton premier trio sort de trois clubs, pas d'un seul. SAUF si une
+  // case a été vidée depuis : ce tour-là a déjà été joué, la signature le
+  // repaie et la roulette reste où elle est.
+  if (G.dette > 0) G.dette--;
+  else await nextSpin();
   saveGame();
   render();
   document.getElementById('topbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1732,9 +1774,11 @@ function blockedBannerEl(st) {
     btn.onclick = () => {
       delete G.roster[slot.i];
       G.selectedSlot = null;
+      G.dette++;   // une case vidée est une case vidée, même pour se sortir d'une impasse
       saveGame();
       render();
-      toast(`${st.priciest.n} retiré. ${money(capLeft())} de disponible.`, 'warn');
+      toast(`${st.priciest.n} retiré. ${money(capLeft())} de disponible, `
+        + `et la roulette ne tournera pas pour cette case.`, 'warn');
     };
   }
   return el;
@@ -1975,9 +2019,14 @@ function slotEl(s) {
       ev.stopPropagation();
       delete G.roster[s.i];
       G.selectedSlot = null;
+      // Le tour est déjà joué : la prochaine signature comble cette case sans
+      // faire tourner la roulette. Sans ça, « signer le moins cher puis ✕ »
+      // était un « Passer » gratuit et illimité.
+      if (!estRenfort(p)) G.dette++;
       saveGame();
       render();
-      toast(`${p.n} retiré. ${money(capLeft())} de disponible.`);
+      toast(`${p.n} retiré. ${money(capLeft())} de disponible, `
+        + `et la roulette ne tournera pas pour cette case.`, 'warn');
     });
   } else {
     el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${esc(s.label)}</div>`;
@@ -2790,6 +2839,8 @@ async function reprendreAlignement(entree) {
   clearSave();
   G.roster = roster;
   G.tirage = [];
+  G.echelle = {};
+  G.dette = 0;
   G.target = null;
   G.mainCase = null;
   G.selectedSlot = null;
@@ -2823,6 +2874,8 @@ async function demarrerPartie(r = {}) {
   clearSave();
   G.roster = {};
   G.tirage = [];
+  G.echelle = {};
+  G.dette = 0;
   // TROIS ÉTATS QUE `newGame` NE REMETTAIT PAS À ZÉRO. `chargerRenfort` était
   // le seul endroit qui nullifiait `G.renfort`, et il n'est appelé qu'en
   // express : la carte « Renfort » du tableau de bord survivait donc à un

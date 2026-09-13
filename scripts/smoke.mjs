@@ -271,6 +271,102 @@ if (!armeLoto) errors.push('le tirage « Loto » ne se marque pas dans l\'écran
 await page.click('#npGo');
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 await page.waitForSelector('#rrL', { timeout: 30000 });
+
+/*
+ * LE ✕ N'EST PAS UNE RELANCE. Deux exploits d'une même formule, éprouvés ici
+ * sur un alignement vide, avant que l'auto-draft le remplisse.
+ *
+ *   (1) Signer fait tourner la roulette ; retirer rendait la masse salariale
+ *       en GARDANT le vestiaire neuf. « Signer le moins cher puis ✕ » était
+ *       donc un « Passer » gratuit et illimité. La signature suivante repaie
+ *       maintenant le tour au lieu de faire tourner la roulette.
+ *   (2) Le rang de la main comptait les joueurs SIGNÉS : vider une case le
+ *       faisait remonter, et le club retendait le joueur qu'on venait de
+ *       retirer — le même exploit que le déplacement de trio, rouvert par le
+ *       ✕. C'est ce que teste le retour du nom : il ne doit PAS revenir.
+ *
+ * Le premier jet de ce garde-fou comparait la main avant et après sans viser
+ * la même case, et passait donc exploit ouvert ou non : signer déplace la
+ * main à la case suivante, et la roulette avait tourné entre les deux.
+ */
+{
+  // LES NOMS SEULS. Le texte entier d'une carte porte aussi sa case de
+  // destination (« 1er trio · AG » contre « 2e trio · AG ») : deux mains
+  // identiques s'y liraient toujours différentes.
+  const mainNoms = async () => (await page.$$eval('.pcard .pcard-name', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim()))).join(' | ');
+  // `.pb-team` — le premier jet lisait `.pcard-team`, qui n'existe pas : les
+  // deux lectures valaient la chaîne vide, donc « la roulette n'a pas tourné »
+  // était vrai par construction. Un sélecteur qui ne matche rien est un test
+  // qui passe toujours.
+  const clubs = () => page.$$eval('.pcard .pb-team', els => els.map(e => e.textContent.trim()).join('~'));
+  const carte = await page.$('.pcard:has(.btn-sign:not([disabled]))');
+  if (!carte) { errors.push('aucun joueur signable pour éprouver le ✕'); }
+  else {
+    const nom = (await carte.$eval('.pcard-name', e => e.textContent.replace(/\s+/g, ' ').trim())).toUpperCase();
+    await carte.$eval('.btn-sign', b => b.click());
+    await page.waitForTimeout(400);
+    const clubsApresSignature = await clubs();
+
+    await page.click('#tabRoster');
+    await page.waitForTimeout(220);
+    const retirer = await page.$('.slot .slot-remove');
+    if (!retirer) errors.push('aucune case remplie à retirer pour éprouver le ✕');
+    else {
+      await retirer.evaluate(el => el.click());
+      await page.waitForTimeout(350);
+      if (await lireSignes() !== 0) errors.push('le ✕ n\'a pas vidé la case');
+
+      // On revise la MÊME case : signer avait déplacé la main à la suivante.
+      const vide = await page.$('.slot');
+      if (vide) { await vide.evaluate(el => el.click()); await page.waitForTimeout(350); }
+      await page.click('#tabPool');
+      await page.waitForTimeout(250);
+
+      /*
+       * COMMENT ON LIT L'ÉCHELLE SANS POUVOIR LA LIRE. Le rang n'est nulle
+       * part dans le DOM, et regarder si le joueur retiré revient ne dit rien :
+       * la roulette avait tourné à la signature, donc son club n'est plus là.
+       * Mais deux cases de MÊME poste et de rang différent, elles, se
+       * comparent — la case du 1er trio a vu son échelle descendre d'un cran,
+       * donc elle doit maintenant offrir EXACTEMENT ce qu'offre la case du 2e
+       * trio. Sans le plancher, la première retend des numéros un pendant que
+       * la seconde tend des numéros deux.
+       */
+      const cases = await page.$$('.slot');
+      const mainDe = async (n) => {
+        await page.click('#tabRoster');
+        await page.waitForTimeout(200);
+        await (await page.$$('.slot'))[n].evaluate(el => el.click());
+        await page.waitForTimeout(320);
+        await page.click('#tabPool');
+        await page.waitForTimeout(220);
+        return mainNoms();
+      };
+      if (cases.length > 3) {
+        const premier = await mainDe(0);   // AG du 1er trio, échelle descendue à 1
+        const second = await mainDe(3);    // AG du 2e trio, rang 1 par nature
+        if (premier !== second) errors.push(`le ✕ fait remonter l'échelle : la case du 1er trio offre « ${premier.slice(0, 60)} » quand celle du 2e offre « ${second.slice(0, 60)} »`);
+        else console.log(`   le ✕ éprouvé : après avoir signé puis retiré un ${nom.split(' ')[0] ? 'ailier' : 'joueur'}, la case du 1er trio offre la même main que celle du 2e — l'échelle ne remonte pas`);
+      }
+
+      // Et la signature qui repaie la dette ne fait pas tourner la roulette.
+      const b2 = await page.$('.pcard .btn-sign:not([disabled])');
+      if (b2) {
+        await b2.click();
+        await page.waitForTimeout(400);
+        if ((await clubs()) !== clubsApresSignature) errors.push('la signature qui repaie la dette a fait tourner la roulette');
+        else console.log('   la signature suivante repaie le tour : la roulette ne tourne pas');
+        await page.click('#tabRoster');
+        await page.waitForTimeout(220);
+        const r = await page.$('.slot .slot-remove');
+        if (r) { await r.evaluate(el => el.click()); await page.waitForTimeout(320); }
+        await page.click('#tabPool');
+        await page.waitForTimeout(220);
+      }
+    }
+  }
+}
+
 const { signed: lotoSigned } = await drafter('loto');
 console.log(`5. loto : ${lotoSigned}/23 signés, relances restantes : ${(await page.textContent('#rrL .rr-count')).trim()}`);
 await page.screenshot({ path: 'scripts/smoke-loto.png', fullPage: false });
