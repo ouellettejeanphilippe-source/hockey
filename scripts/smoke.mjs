@@ -282,6 +282,28 @@ if (enabled) {
     const series = await page.$$eval('#playoffsSection .bk-serie', l => l.length);
     console.log(`   séries : ${noeuds} nœuds au tableau en cours, ${xe}, ${series} séries au tableau final`);
     if (!series) errors.push('séries : aucun tableau final');
+
+    /*
+     * LA COUPE ENTRE DANS L'HISTORIQUE. `saveLeaderboard` n'était appelé qu'au
+     * bilan de la SAISON, donc avant la première série, et rien ne réécrivait
+     * l'entrée : le seul but du jeu n'était enregistré nulle part. On lit
+     * l'entrée du dessus, qui est celle qu'on vient de jouer.
+     */
+    const po2 = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]')[0] || null; }
+      catch { return null; }
+    });
+    if (!po2 || !po2.series) errors.push('les séries ne sont pas enregistrées dans l\'historique');
+    else if (!Number.isFinite(po2.series.V) || !po2.series.rondes) errors.push(`le verdict des séries est incomplet : ${JSON.stringify(po2.series)}`);
+    else console.log(`   historique : ${po2.series.coupe ? '🏆 Coupe' : po2.series.ronde} · séries ${po2.series.V}-${po2.series.D} · format ${po2.mode}`);
+    // Et l'écran de l'historique le montre, avec le compte des Coupes en tête.
+    await page.click('#openLeaderboardBtn');
+    await page.waitForSelector('#leaderboardModal', { state: 'visible', timeout: 10000 });
+    const tete = ((await page.textContent('#leaderboardBody .lb-tete')) || '').replace(/\s+/g, ' ').trim();
+    if (!/Coupe/.test(tete)) errors.push(`l'historique ne dit pas les Coupes : « ${tete} »`);
+    else console.log(`   l'historique en tête : ${tete}`);
+    await page.click('#closeLeaderboardBtn');
+    await page.waitForTimeout(250);
   }
 
   // Rejouer la saison : même alignement, mêmes clubs, d'autres dés.

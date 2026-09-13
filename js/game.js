@@ -181,6 +181,7 @@ const G = {
   echelle: {},
   dette: 0,
   journee: 0,          // la journée de saison déjà révélée (pour reprendre après un rafraîchissement)
+  lbId: null,          // l'entrée d'historique de la saison en cours, que les séries viendront compléter
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -759,7 +760,7 @@ async function boot() {
     $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur,
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
-    saveLeaderboard, statsSim, toast,
+    saveLeaderboard, majLeaderboard, lireSeriesHistorique, statsSim, toast,
   });
   // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
   let vierge = false;
@@ -2527,38 +2528,92 @@ function showTeamModal(t, mode = 'saison') {
    Historique
    ===================================================================== */
 
+const lireHistorique = () => {
+  try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]'); } catch { return []; }
+};
+const ecrireHistorique = list => {
+  try { localStorage.setItem('cap82_leaderboard', JSON.stringify(list.slice(0, 20))); } catch { /* ignore */ }
+};
+
+/**
+ * L'entrée est écrite au bilan de la SAISON, donc avant la première série :
+ * elle porte donc un identifiant, et `majLeaderboard` vient y coudre le
+ * verdict des séries quand elles sont jouées. Sans ça, le seul but du jeu —
+ * la Coupe — n'était enregistré nulle part.
+ */
 function saveLeaderboard(entry) {
-  try {
-    const list = JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]');
-    list.unshift(entry);
-    localStorage.setItem('cap82_leaderboard', JSON.stringify(list.slice(0, 20)));
-  } catch { /* ignore */ }
+  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const list = lireHistorique();
+  list.unshift({ id, ...entry });
+  ecrireHistorique(list);
+  return id;
+}
+
+/** Le verdict des séries d'une entrée, ou null : le texte de partage le lit. */
+function lireSeriesHistorique(id) {
+  const e = lireHistorique().find(x => x.id === id);
+  return (e && e.series) || null;
+}
+
+/** Coudre le verdict des séries à l'entrée déjà écrite. */
+function majLeaderboard(id, champs) {
+  if (!id) return;
+  const list = lireHistorique();
+  const e = list.find(x => x.id === id);
+  if (!e) return;
+  Object.assign(e, champs);
+  ecrireHistorique(list);
 }
 
 function showLeaderboard() {
   const body = $('leaderboardBody');
   if (!body) return;
-  let list = [];
-  try { list = JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]'); } catch { /* ignore */ }
+  const list = lireHistorique();
 
   if (!list.length) {
     body.innerHTML = `<div class="empty-msg">Aucune saison enregistrée.<br>Complète un alignement de 23 et simule pour apparaître ici.</div>`;
     return;
   }
-  const best = Math.max(...list.map(i => i.points || 0));
-  body.innerHTML = list.map((i, idx) => `
-    <div class="lb-item">
+  /*
+   * « MEILLEURE » SE COMPARE À FORMAT ÉGAL. Un Express à six cases sous 34 M$
+   * hors plafond ne se compare pas à un Complet : le meilleur total était
+   * calculé tous formats confondus, donc une seule partie express suffisait à
+   * couronner ou à écraser tout le reste.
+   */
+  const meilleur = {};
+  for (const i of list) {
+    const k = i.mode || 'CLASSIQUE';
+    meilleur[k] = Math.max(meilleur[k] || 0, i.points || 0);
+  }
+  const coupes = list.filter(i => i.series && i.series.coupe).length;
+  const tete = `<div class="lb-tete">${list.length} saison${list.length > 1 ? 's' : ''}`
+    + (coupes ? ` · <strong>${coupes} Coupe${coupes > 1 ? 's' : ''}</strong> 🏆` : ' · aucune Coupe')
+    + `</div>`;
+
+  body.innerHTML = tete + list.map((i, idx) => {
+    // LE VERDICT DES SÉRIES. Une entrée d'avant ce changement n'en a pas :
+    // elle ne dit rien plutôt que de prétendre que la Coupe a été perdue.
+    const po = i.series;
+    const verdict = !po ? ''
+      : po.coupe ? `<span class="lb-coupe">🏆 Coupe</span>`
+      : `<span class="lb-sortie">${esc(po.ronde || 'éliminé')}</span>`;
+    const fiche = po && Number.isFinite(po.V) ? ` · séries ${po.V}-${po.D}` : '';
+    const format = MODES[i.mode] ? MODES[i.mode].nom : null;
+    return `
+    <div class="lb-item${po && po.coupe ? ' champion' : ''}">
       <div>
         <div class="lb-score ${i.W === 82 ? 'perfect' : ''}">${i.W}-${i.L}-${i.OTL}</div>
-        <div class="dash-note">${i.points} pts · différentiel ${i.GF - i.GA > 0 ? '+' : ''}${i.GF - i.GA}${i.points === best ? ' · <span class="dash-warn">meilleure</span>' : ''}</div>
+        <div class="dash-note">${i.points} pts · différentiel ${i.GF - i.GA > 0 ? '+' : ''}${i.GF - i.GA}${i.points === meilleur[i.mode || 'CLASSIQUE'] ? ' · <span class="dash-warn">meilleure</span>' : ''}</div>
+        ${verdict ? `<div class="lb-verdict">${verdict}${fiche}</div>` : ''}
       </div>
       <div class="lb-details">
         <div>${i.rank ? `${i.rank}e de ${i.nTeams}` : ''}${i.epoque ? ` · saison ${esc(i.epoque)}` : ''}</div>
-        <div>Masse : ${money(i.capUsed)}</div>
+        <div>${format ? `${esc(format)} · ` : ''}Masse : ${money(i.capUsed)}</div>
         <div>${esc(i.date)}</div>
         ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Rejouer</button>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   body.querySelectorAll('.lb-replay').forEach(b => {
     b.onclick = () => reprendreAlignement(list[Number(b.dataset.idx)]);
   });

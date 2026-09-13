@@ -17,10 +17,10 @@ import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast;
+let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, statsSim, toast;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast } = c);
+  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, statsSim, toast } = c);
 }
 
 /* =====================================================================
@@ -277,7 +277,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${esc(i.player.n)}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
     : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
 
-  saveLeaderboard({
+  G.lbId = saveLeaderboard({
     W: r.W, L: r.L, OTL: r.OTL, points: r.points, GF: r.GF, GA: r.GA,
     capUsed: capUsed(), rank, nTeams, date: new Date().toLocaleDateString('fr-CA'),
     // De quoi rouvrir et rejouer cette équipe : la clé de chaque joueur-
@@ -398,12 +398,17 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
 
   $('shareBtn').onclick = () => {
     const top = picked().slice().sort((a, b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0))[0];
+    // Le texte se compose à l'INSTANT du clic, pas au rendu du bilan : les
+    // séries se jouent après, et il dirait sinon toujours « pas de séries ».
+    const po = G.lbId ? (lireSeriesHistorique(G.lbId)) : null;
     const txt = `🏒 Cap 82-0\n`
       + `Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n`
       + `Rang : ${rank}e de ${nTeams}\n`
+      + (po ? (po.coupe ? `🏆 Coupe Stanley — séries ${po.V}-${po.D}\n` : `Séries : ${po.ronde} (${po.V}-${po.D})\n`) : '')
+      + (G.ligue && G.ligue.epoque ? `Saison : ${G.ligue.epoque}\n` : '')
       + `Masse salariale : ${money(capUsed())} / ${money(capMax())}\n`
       + `Vedette : ${top ? `${top.n} (${top.t} ${top.s})` : '—'}\n`
-      + `Essaie de faire 82-0.`;
+      + (po && po.coupe ? `Bats ça.` : `Essaie de gagner la Coupe.`);
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(txt)
         .then(() => toast('Fiche copiée dans le presse-papier.'))
@@ -469,6 +474,37 @@ export function runPlayoffs(top16) {
   }
   separerSeries(G.ligue ? G.ligue.teams : top16, photo);
   const champion = ronde[0];
+
+  /*
+   * LA COUPE ENTRE DANS L'HISTORIQUE. `saveLeaderboard` est appelé au bilan de
+   * la SAISON, donc avant la première série : l'entrée ne portait aucun champ
+   * de séries et rien ne la réécrivait ensuite — le seul but du jeu n'était
+   * enregistré nulle part. On la coud ici, où les séries viennent d'être
+   * jouées, et pas à la révélation : ce qui est joué est joué, que le joueur
+   * le regarde match par match ou qu'il passe à la fin.
+   */
+  const toi = top16.find(t => t.isPlayer);
+  if (toi && G.lbId) {
+    const miennes = G.series.filter(s => s.A === toi || s.B === toi);
+    let V = 0, D = 0;
+    for (const s of miennes) {
+      const mien = s.A === toi ? s.wA : s.wB, autre = s.A === toi ? s.wB : s.wA;
+      V += mien; D += autre;
+    }
+    const derniere = miennes[miennes.length - 1];
+    const coupe = champion === toi;
+    majLeaderboard(G.lbId, {
+      series: {
+        coupe, V, D,
+        rondes: miennes.length,
+        // Le nom de la ronde où ça s'est arrêté, tel que le tableau l'appelle.
+        ronde: coupe ? 'Coupe'
+          : derniere ? `Éliminé — ${RONDES[derniere.ronde] || `ronde ${derniere.ronde + 1}`}`
+          : 'Éliminé',
+        contre: !coupe && derniere ? tagCourt(derniere.winner) : null,
+      },
+    });
+  }
   const btn = $('playoffsBtn');
   if (btn) btn.disabled = true;
 

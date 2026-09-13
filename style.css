@@ -1943,6 +1943,23 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .lb-score.perfect { color: var(--gold); }
 .lb-details { text-align: right; font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums; }
 .lb-details .lb-replay { margin-top: 5px; margin-left: auto; }
+
+/* Le verdict des séries : c'est le seul but du jeu, il se voit avant le reste.
+   Une saison couronnée porte un filet d'or à gauche — le même langage que la
+   note du bilan — plutôt qu'un cadre de plus. */
+.lb-tete {
+  font-family: var(--display);
+  font-size: 14.5px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--sub);
+  padding: 2px 2px 8px;
+}
+.lb-tete strong { color: var(--gold); }
+.lb-item.champion { border-left: 3px solid var(--gold); }
+.lb-verdict { margin-top: 3px; font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.lb-coupe { color: var(--gold); font-weight: 700; }
+.lb-sortie { color: var(--sub); }
 .empty-msg {
   text-align: center;
   color: var(--muted);
