@@ -171,11 +171,52 @@ console.log(`3. #mainBtn actif : ${enabled}`);
 /* L'écran de saison : on avance d'une journée, on lit les meneurs, on regarde
    un match en direct (pause, statistiques, reprise, fin), puis on passe à la
    fin et au bilan. */
-async function traverserSaison(etiquette) {
+async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
   await page.click('#hubModal .hub-jour');
   await page.waitForTimeout(150);
   const jour = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+
+  /*
+   * UNE SAISON EN COURS SURVIT À UN RAFRAÎCHISSEMENT. La sauvegarde s'arrêtait
+   * au repêchage (`if (G.done) clearSave()`), donc recharger la page à la
+   * journée 40 rendait un alignement complet et un bouton « Simuler ». Le
+   * moteur étant déterministe, la reprise ne relit rien : elle rejoue la même
+   * graine et réapplique les journées vues. Le test le vérifie de la seule
+   * façon qui vaille — la même en-tête des deux côtés d'un `reload`.
+   */
+  if (reprise) {
+    await page.click('#hubModal .hub-dix');
+    await page.waitForTimeout(400);
+    const avant = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+    const sauve = await page.evaluate(() => {
+      try {
+        const brut = localStorage.getItem('cap82_save') || '';
+        const d = JSON.parse(brut || '{}');
+        return { journee: d.partie?.journee ?? -1, clubs: (d.partie?.adversaires || []).length, ko: Math.round(brut.length / 1024) };
+      } catch { return { journee: -1, clubs: 0, ko: 0 }; }
+    });
+    await page.reload({ waitUntil: 'networkidle' });
+    // On DIT ce qui manque plutôt que de laisser expirer une attente de deux
+    // minutes : une régression de sauvegarde rendait un test qui meurt sur un
+    // `TimeoutError`, illisible dans un journal d'Action.
+    let repris = true;
+    try { await page.waitForSelector('#hubModal', { state: 'visible', timeout: 90000 }); }
+    catch { repris = false; }
+    if (!repris) {
+      // Rien de ce qui suit n'a de sens sans la saison : on s'arrête ici, en
+      // le disant, plutôt que d'expirer trente lignes plus loin sur
+      // `.result .score` — l'échec doit nommer ce qui est cassé.
+      console.log('\n✗ la saison en cours ne survit pas à un rafraîchissement : l\'écran de saison ne rouvre pas.');
+      await browser.close();
+      process.exit(1);
+    }
+    await page.waitForTimeout(900);
+    const apres = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+    if (avant !== apres) errors.push(`la saison ne reprend pas au même endroit : « ${avant} » puis « ${apres} »`);
+    else console.log(`   reprise après rafraîchissement : ${apres} — ${sauve.clubs} clubs et la graine en ${sauve.ko} ko`);
+    if (sauve.journee < 1) errors.push('la sauvegarde ne porte pas la journée révélée');
+  }
   await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
   const tableaux = await page.$$eval('#hubModal .hub-volet .live-tableau', l => l.length);
   const meneurs = await page.$$eval('#hubModal .hub-volet tbody tr', l => l.length);
@@ -206,7 +247,7 @@ async function traverserSaison(etiquette) {
 
 if (enabled) {
   await page.click('#mainBtn');
-  await traverserSaison('saison');
+  await traverserSaison('saison', true);
   const score = await page.textContent('.result .score');
   const rows = await page.$$eval('.rrow', r => r.length);
   console.log(`4. fiche ${score.trim()}, ${rows} rangées`);

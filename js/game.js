@@ -180,6 +180,7 @@ const G = {
    */
   echelle: {},
   dette: 0,
+  journee: 0,          // la journée de saison déjà révélée (pour reprendre après un rafraîchissement)
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -363,11 +364,33 @@ const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
 
 /* ---------- sauvegarde ---------- */
 
+/*
+ * LA SAUVEGARDE VA JUSQU'AU BOUT DE LA SAISON. Elle s'ARRÊTAIT au repêchage :
+ * `if (G.done) { clearSave(); return; }` — dès que la simulation partait, la
+ * partie était effacée du disque plutôt qu'enrichie. Un rafraîchissement à la
+ * journée 40 rendait un alignement complet et un bouton « Simuler », comme si
+ * les quarante journées n'avaient jamais eu lieu.
+ *
+ * Ce qu'on écrit tient en quatre nombres, parce que LE MOTEUR EST
+ * DÉTERMINISTE (`check_graine.mjs` le vérifie à chaque PR) : la graine, les
+ * adversaires par leur clé `saison_équipe`, la journée révélée, et le format
+ * de la partie. Reprendre coûte un `simulateLeague` de la même graine, pas
+ * 1312 feuilles de match à sérialiser.
+ *
+ * Les adversaires sont des CLÉS, pas des alignements : 31 clubs × 23 joueurs
+ * dans localStorage, ce sont des mégaoctets, et `rebatirAdversaires` rejoue
+ * exactement la boucle de `buildOpponents` — même ordre, même `exclude` qui
+ * s'accumule, donc les mêmes alignements.
+ */
 function saveGame() {
-  if (G.done) { clearSave(); return; }
   try {
     localStorage.setItem('cap82_save', JSON.stringify({
       roster: G.roster,
+      partie: G.done && G.ligue ? {
+        graine: G.ligue.graine,
+        adversaires: G.ligue.cles || [],
+        journee: G.journee || 0,
+      } : null,
       relances: G.relances,
       left: G.left,
       tirage: G.tirage.map(v => ({ season: v.season, team: v.team })),
@@ -477,6 +500,19 @@ async function restoreSave() {
     G.echelle = (data.echelle && typeof data.echelle === 'object') ? { ...data.echelle } : {};
     G.dette = Number.isFinite(data.dette) && data.dette > 0 ? data.dette : 0;
     applyTeamColors(MODE().loto ? null : tirage[0].team);
+    // LA SAISON EN COURS. Elle se REJOUE, elle ne se relit pas : la graine et
+    // les clés des adversaires suffisent, `runSeason` refait exactement la
+    // même ligue et l'écran reprend à la journée révélée. `reprise` est rendu
+    // au démarrage, qui l'exécute après le premier rendu — sans quoi on
+    // simulerait 1312 matchs devant un écran de chargement vide.
+    if (data.partie && data.partie.graine) {
+      const { graine, adversaires = [], journee = 0 } = data.partie;
+      return { reprise: async () => {
+        const clubs = await rebatirAdversaires(adversaires);
+        if (!clubs.length) return;
+        await runSeason({ adversaires: clubs, graine, depuis: journee });
+      } };
+    }
     return true;
   } catch {
     return false;
@@ -745,6 +781,10 @@ async function boot() {
     $('game').style.display = '';
     $('actionbar').style.display = '';
     render();
+    // Une saison était en cours : on la rejoue sous sa graine et l'écran
+    // rouvre à la journée où on l'avait laissée. Après `render()`, pour que la
+    // page soit là pendant la simulation.
+    if (restored && restored.reprise) await restored.reprise();
     /*
      * L'écran s'ouvre PAR-DESSUS une partie déjà bâtie, à la première visite
      * seulement. Le retarder aurait rendu l'écran bloquant, or Échap ferme
@@ -2588,6 +2628,31 @@ async function buildOpponents(count) {
  * saison ») et `graine` la même suite de dés. La ligue jouée garde les deux
  * dans `G.ligue`, et l'historique les emporte.
  */
+/**
+ * REBÂTIR LES ADVERSAIRES D'UNE PARTIE REPRISE. La sauvegarde ne porte que
+ * leurs clés `saison_équipe`, dans l'ORDRE où `buildOpponents` les avait
+ * tirées — et c'est l'ordre qui compte : `exclude` s'accumule d'un club au
+ * suivant (deux équipes ne peuvent pas habiller le même joueur-saison), donc
+ * rejouer la même liste dans le même ordre redonne exactement les mêmes
+ * alignements. Les shards manquants se rechargent.
+ */
+async function rebatirAdversaires(cles) {
+  const exclude = new Set(picked().map(getPersonKey));
+  const out = [];
+  for (const cle of cles) {
+    const [season, team] = String(cle).split('|');
+    if (!season || !team) continue;
+    let entry = G.shards.get(season);
+    if (!entry) { try { entry = await getShard(season); } catch { continue; } }
+    const pool = entry?.byTeam?.[team];
+    if (!pool) continue;
+    const roster = autoRoster(pool, exclude);
+    for (const p of Object.values(roster)) exclude.add(getPersonKey(p));
+    out.push({ name: `${team} ${season}`, tag: team, roster, season });
+  }
+  return out;
+}
+
 async function runSeason(opts = {}) {
   if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
   // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
@@ -2634,8 +2699,12 @@ async function runSeason(opts = {}) {
     Object.assign(you, { W: r.W, L: r.L, OTL: r.OTL, GF: r.GF, GA: r.GA, PTS: r.points });
     teams = [you];
   }
+  G.journee = 0;
   G.ligue = {
     you, teams, calendrier, graine, epoque: G.epoque,
+    // Les clés des adversaires, dans l'ordre du tirage : c'est tout ce que la
+    // sauvegarde emporte, et `rebatirAdversaires` les redéploie à l'identique.
+    cles: opponents.map(t => `${t.season}|${t.tag}`),
     // Les trois réglages sont FIGÉS ici, avec la graine : l'écran « Nouvelle
     // partie » peut muter G pendant qu'un bilan est encore à l'écran, et
     // l'historique doit enregistrer la partie qui a été jouée, pas celle
@@ -2649,13 +2718,19 @@ async function runSeason(opts = {}) {
   // rythme du joueur — une journée, dix, la fin, ou son match en direct —
   // et le bilan ne se dessine qu'après.
   const montrer = () => renderResult(r, you, teams, leaders, calendrier);
-  if (calendrier.length) {
+  // Une saison reprise APRÈS sa dernière journée va droit au bilan : rouvrir
+  // l'écran sur « journée 82 sur 82 » ferait relire un écran déjà fini.
+  if (calendrier.length && (opts.depuis || 0) < calendrier.length) {
     ouvrirSaison({
       calendrier, teams, you, enSeries: nombreEnSeries(teams.length), epoque: G.epoque,
       ctx: { esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
       onTermine: montrer,
+      depuis: opts.depuis || 0,
+      // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
+      // la reprise a besoin de connaître.
+      onJour: j => { G.journee = j; saveGame(); },
     });
-  } else montrer();
+  } else { G.journee = calendrier.length; saveGame(); montrer(); }
 }
 
 /* ======================================================================

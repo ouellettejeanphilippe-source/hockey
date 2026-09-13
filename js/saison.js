@@ -308,8 +308,14 @@ function blocEquipe(ctx, t, ligne, pos) {
  *   enSeries    combien d'équipes vont en séries (seize, ou moins dans une petite ligue)
  *   epoque      la saison jouée quand la ligue est fixée à une année, sinon null
  *   ctx         { esc, teamLabel, teamShort, tagCourt, logo, band, mug }
+ *   depuis      la journée déjà révélée quand on REPREND une partie : le
+ *               moteur est déterministe, donc la même graine rejoue la même
+ *               saison et l'écran n'a qu'à réappliquer les journées d'avant
+ *               avant de dessiner
+ *   onJour      appelé à chaque avance avec le numéro de journée révélée :
+ *               c'est ce que le contrôleur écrit dans la sauvegarde
  */
-export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine }) {
+export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -362,7 +368,14 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const k = indexMien(j);
     if (k >= 0) miens.push({ j, k, m: matchs[k] });
   }
-  const avancer = n => { while (n-- > 0 && jour < N) appliquerJour(jour++); };
+  const avancer = n => {
+    while (n-- > 0 && jour < N) appliquerJour(jour++);
+    // La journée révélée est la seule chose que la reprise a besoin de savoir :
+    // tout le reste se rejoue de la graine.
+    if (onJour) onJour(jour);
+  };
+  // REPRISE : on réapplique les journées déjà vues avant le premier dessin.
+  if (depuis > 0) avancer(Math.min(depuis, N));
 
   /* ---------- les volets ---------- */
 
