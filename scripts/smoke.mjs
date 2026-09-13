@@ -254,6 +254,28 @@ if (enabled) {
   // Le bilan porte les tableaux les plus larges du jeu (onze colonnes) : s'il
   // y a un débordement quelque part, il est ici.
   await sansDebordement('bilan de saison');
+
+  /*
+   * PERSONNE NE GAGNAIT RIEN. Le jeu jouait 82 matchs, couronnait un champion,
+   * et ne consacrait aucun joueur — les neuf palmarès étaient là, personne ne
+   * les remportait. Cinq trophées et une première équipe d'étoiles, tous
+   * décidés par les colonnes : ce que le moteur tranche, jamais ce qu'un vote
+   * trancherait.
+   */
+  await page.click('#resultTabs .result-tab[data-volet="stats"]');
+  await page.waitForTimeout(350);
+  const trophees = await page.$$eval('.tro-carte', els => els.map(e => ({
+    nom: (e.querySelector('.tro-nom') || {}).textContent || '',
+    val: (e.querySelector('.tro-val') || {}).textContent || '',
+  })));
+  const etoiles = await page.$$eval('.result-pane[data-volet="stats"] .tro-titre + .table-wrap tbody tr', l => l.length);
+  if (trophees.length < 5) errors.push(`seulement ${trophees.length} trophée(s) décerné(s) sur 5`);
+  else if (trophees.some(t => !t.val.trim() || t.val.trim() === '—')) errors.push(`un trophée sans gagnant : ${JSON.stringify(trophees)}`);
+  else if (etoiles !== 6) errors.push(`l'équipe d'étoiles compte ${etoiles} joueurs au lieu de six`);
+  else console.log(`   trophées : ${trophees.map(t => `${t.nom.trim()} ${t.val.trim()}`).join(' · ')} · équipe d'étoiles à ${etoiles}`);
+  await sansDebordement('trophées de la saison');
+  await page.click('#resultTabs .result-tab[data-volet="bilan"]');
+  await page.waitForTimeout(200);
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
   const po = await page.$('#playoffsBtn');
   if (po) {

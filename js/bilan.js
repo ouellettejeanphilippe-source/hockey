@@ -100,6 +100,105 @@ export function leagueStats(teams, mode = 'saison') {
 }
 
 /*
+ * LES TROPHÉES DE LA SAISON — et la règle qui décide lesquels existent.
+ *
+ * Le jeu jouait 82 matchs, couronnait un champion, et ne consacrait AUCUN
+ * joueur : les neuf palmarès étaient là, personne ne les gagnait.
+ *
+ * ON NE DÉCERNE QUE CE QUE LES COLONNES DÉCIDENT, JAMAIS CE QU'UN VOTE
+ * DÉCIDERAIT. C'est le miroir exact de la règle des traits (« un trait
+ * n'existe que là où le sommaire est aveugle ») : ici, un trophée n'existe
+ * que là où le sommaire tranche tout seul. L'Art Ross va au meilleur
+ * pointeur et le Maurice-Richard au meilleur buteur — ce sont des comptes,
+ * pas des scrutins, et ils portent donc leur vrai nom. Le Hart, le Norris,
+ * le Selke et le Vezina sont des VOTES : le moteur n'a pas d'électeurs, donc
+ * il ne les décerne pas. Les deux autres récompenses portent le nom de ce
+ * qu'elles mesurent, sans emprunter celui d'un trophée voté.
+ *
+ * Le seuil de départs des gardiens est celui de `leagueStats` — 25 sur 82,
+ * comme la vraie ligue, mis à l'échelle de la saison jouée.
+ */
+const TROPHEES = [
+  { cle: 'points', nom: 'Trophée Art-Ross', quoi: 'meilleur pointeur',
+    val: x => `${x.S.PTS} pts`, sous: x => `${x.S.G} B · ${x.S.A} A` },
+  { cle: 'buts', nom: 'Trophée Maurice-Richard', quoi: 'meilleur buteur',
+    val: x => `${x.S.G} buts`, sous: x => `${x.S.SH || 0} lancers` },
+  { cle: 'passes', nom: 'Meilleur passeur', quoi: 'le plus de passes',
+    val: x => `${x.S.A} passes`, sous: x => `${x.S.PTS} pts` },
+  { cle: 'arrets', nom: 'Meilleur gardien', quoi: 'pourcentage d\'arrêts',
+    val: x => (x.S.SA ? (x.S.SV / x.S.SA).toFixed(3).slice(1) : '—'), sous: x => `${x.S.W} V · ${x.S.SO} BL` },
+  { cle: 'plusmoins', nom: 'Meilleur différentiel', quoi: 'le plus grand +/-',
+    val: x => `${x.S.PM > 0 ? '+' : ''}${x.S.PM}`, sous: x => `${x.S.PTS} pts` },
+];
+
+/**
+ * LA PREMIÈRE ÉQUIPE D'ÉTOILES, par la case où chacun a joué. On ne devine
+ * pas une position « naturelle » : le rôle de la case dit à quel poste le
+ * joueur a passé sa saison, ce qui est justement ce qu'une équipe d'étoiles
+ * récompense. Les défenseurs se prennent les deux meilleurs des deux côtés,
+ * comme dans la vraie ligue, et le gardien passe par le seuil de départs.
+ */
+function equipeEtoiles(teams) {
+  const parRole = {}, defenseurs = [], gardiens = [];
+  let matchs = 1;
+  for (const t of teams) matchs = Math.max(matchs, t.games || 0);
+  const seuilG = Math.max(1, Math.round(matchs * 25 / 82));
+  for (const t of teams) {
+    for (const s of SLOTS) {
+      const p = t.roster[s.i];
+      if (!p || s.scratch) continue;
+      const S = statsSim(p, 'saison');
+      if (!S || !S.GP) continue;
+      const e = { p, t, S, role: s.role };
+      if (s.group === 'G') { if (S.GP >= seuilG) gardiens.push(e); continue; }
+      if (s.group === 'D') { defenseurs.push(e); continue; }
+      if (!parRole[s.role] || S.PTS > parRole[s.role].S.PTS) parRole[s.role] = e;
+    }
+  }
+  defenseurs.sort((a, b) => b.S.PTS - a.S.PTS);
+  gardiens.sort((a, b) => (b.S.SA ? b.S.SV / b.S.SA : 0) - (a.S.SA ? a.S.SV / a.S.SA : 0));
+  // Les deux meilleurs défenseurs quel que soit le CÔTÉ, comme la vraie ligue :
+  // afficher « DG » deux fois ferait croire à un doublon plutôt qu'à une paire.
+  const d1 = defenseurs[0] && { ...defenseurs[0], role: 'D' };
+  const d2 = defenseurs[1] && { ...defenseurs[1], role: 'D' };
+  const g = gardiens[0] && { ...gardiens[0], role: 'G' };
+  return [parRole.AG, parRole.C, parRole.AD, d1, d2, g].filter(Boolean);
+}
+
+function tropheesHtml(stats, teams) {
+  const gagnants = TROPHEES.map(d => {
+    const x = (stats[d.cle] || [])[0];
+    return x ? { d, x } : null;
+  }).filter(Boolean);
+  if (!gagnants.length) return '';
+  const carte = ({ d, x }) => `<div class="tro-carte${x.t.isPlayer ? ' tien' : ''}">
+    <div class="tro-nom">${esc(d.nom)}</div>
+    <div class="tro-joueur">${getTeamLogoHtml(x.t.tag, 16)}${lienJoueur(x.p, x.t, 'saison', `<span>${esc(x.p.n)}</span>`)}</div>
+    <div class="tro-val">${esc(d.val(x))}</div>
+    <div class="tro-sous">${esc(d.quoi)} · ${esc(d.sous(x))}</div>
+  </div>`;
+  const etoiles = equipeEtoiles(teams);
+  const ligne = x => `<tr class="${x.t.isPlayer ? 'you' : ''}">
+    <td class="left">${esc(x.role)}</td>
+    <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 14)}${lienJoueur(x.p, x.t, 'saison', `<span>${esc(x.p.n)}</span>`)}</div></td>
+    <td class="sub-cell">${lienEquipe(x.t, 'saison', esc(x.t.isPlayer ? 'NHL' : `${x.t.tag} ${(x.t.season || '').slice(2)}`))}</td>
+    <td class="stat heros">${x.p.p === 'G' ? (x.S.SA ? (x.S.SV / x.S.SA).toFixed(3).slice(1) : '—') : `${x.S.PTS} pts`}</td>
+  </tr>`;
+  const miens = gagnants.filter(g => g.x.t.isPlayer).length + etoiles.filter(x => x.t.isPlayer).length;
+  return `<div class="result-section">
+    <h3>${ico('i-cup')}Les trophées de la saison</h3>
+    <p class="series-legende">Ce que les colonnes décident, et rien d'autre : le Hart, le Norris, le Selke et le Vezina sont des votes, et le moteur n'a pas d'électeurs.
+      ${miens ? `<strong>${miens} de tes joueurs y sont.</strong>` : ''}</p>
+    <div class="trophees">${gagnants.map(carte).join('')}</div>
+    <h4 class="tro-titre">Première équipe d'étoiles</h4>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th class="left">Poste</th><th class="left">Joueur</th><th>Éq.</th><th class="stat heros">Fiche</th></tr></thead>
+      <tbody>${etoiles.map(ligne).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+/*
  * Les neuf palmarès, chacun avec ses colonnes. `heros` est l'indice de la
  * COLONNE QUI DONNE SON NOM AU PALMARÈS — les points chez les pointeurs, les
  * buts chez les buteurs. Elle est écrite ici plutôt que devinée à la dernière
@@ -336,7 +435,8 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         </div>
         <div id="calHost">${calendrierHtml(calendrier, calendrier.length - 1)}</div>
       </div>` : '',
-    stats: stats ? `<div class="result-section">
+    stats: stats ? `${tropheesHtml(stats, teams)}
+      <div class="result-section">
         <h3>Statistiques de la ligue · tous les joueurs</h3>
         ${palmaresHtml(stats, 'saison')}
       </div>` : '',

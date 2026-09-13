@@ -1947,6 +1947,44 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 /* Le verdict des séries : c'est le seul but du jeu, il se voit avant le reste.
    Une saison couronnée porte un filet d'or à gauche — le même langage que la
    note du bilan — plutôt qu'un cadre de plus. */
+/* Les trophées de la saison : des cellules séparées d'un filet, pas des
+   cartes flottantes — le langage du tableau indicateur. Une récompense
+   gagnée par un de tes joueurs porte le laiton, comme tout ce qui se gagne. */
+.trophees {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+.tro-carte { background: var(--panel-1); padding: 9px 10px; }
+.tro-carte.tien { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--gold); }
+.tro-nom {
+  font-family: var(--display);
+  font-size: 12.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+.tro-joueur { display: flex; align-items: center; gap: 5px; margin: 3px 0 1px; font-weight: 700; }
+.tro-val {
+  font-family: var(--display);
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.tro-sous { font-size: 11.5px; color: var(--sub); }
+.tro-titre {
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 14px 0 6px;
+}
+
 .lb-tete {
   font-family: var(--display);
   font-size: 14.5px;
