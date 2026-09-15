@@ -3956,6 +3956,12 @@ a.spin-club:hover {
 
 /* ---------- Sur table : le volet des règles, par-dessus le plateau ---------- */
 .table-regles { flex: none; font-family: var(--display); font-size: 19px; font-weight: 800; width: 30px; height: 30px; padding: 0; border-radius: 50%; }
+/* Un nombre majoré par un trait : le laiton, comme tout ce qui se gagne.
+   Le trait n'a pas d'étiquette à lui — il EST le nombre, et l'infobulle le
+   nomme. */
+.t-axe.majore b { color: var(--gold); }
+.t-axe.majore i { color: var(--gold); opacity: 0.75; }
+
 /* LA FEUILLE DU MATCH SUR TABLE. Mêmes manières que le volet des règles :
    une tête collante, puis des blocs séparés d'un filet — pas de cartes qui
    flottent. Les trois étoiles en tête, parce que c'est ce qu'on cherche. */

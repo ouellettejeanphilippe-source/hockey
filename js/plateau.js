@@ -33,6 +33,7 @@ import {
   relancer, finirPresence, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
+import { TRAITS } from './traits.js';
 
 const ordP = n => (n === 1 ? '1re' : `${n}e`);
 const nomCourt = p => {
@@ -473,7 +474,16 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
           <span class="t-fiche-role">${esc(sel.role)}</span>
           <span class="t-fiche-nom">${esc((sel.p && sel.p.n) || 'Rappel')}</span>
           <span class="t-axes">
-            ${['PA', 'MA', 'TI', 'FO'].map(k => `<span class="t-axe" title="${esc(AXE_MOT[k])}"><i>${k}</i><b>${st[k]}</b></span>`).join('')}
+            ${['PA', 'MA', 'TI', 'FO'].map(k => {
+              // LE TRAIT EST LE NOMBRE. On ne lui donne pas d'étiquette à lui :
+              // « les icônes ne doivent jamais se répéter sur la même carte »,
+              // et ⚡ comme 🛡️ sont déjà pris par les gestes Foncer et Se
+              // placer devant. Le nombre qu'il majore porte donc sa marque, et
+              // l'infobulle le nomme — le trait se lit là où il agit.
+              const tr = (st.traits || {})[k];
+              const T = tr && TRAITS[tr];
+              return `<span class="t-axe${T ? ' majore' : ''}" title="${esc(AXE_MOT[k])}${T ? ` — ${T.icon} ${T.label} : +1` : ''}"><i>${k}</i><b>${st[k]}</b></span>`;
+            }).join('')}
             <span class="t-axe t-axe-so ${so <= 0 ? 'vide' : ''}" title="Souffle : ${so} présence${so > 1 ? 's' : ''} avant d'être vidé. À zéro, un de moins à tous ses jets et un pas de patin en moins — il faut changer de trio."><i>SO</i><b>${so}</b></span>
           </span>
         </div>
