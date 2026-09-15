@@ -1098,18 +1098,14 @@ function unitesSpeciales(habilles) {
   };
 }
 
-/** Le trio de fermeture par défaut : le plus défensif des 2e et 3e trios, s'il bat le premier ; sinon personne. */
+/** Le trio de fermeture par défaut : le 3e trio, s'il existe (voir FERMETURE_DEFAUT). */
 function fermetureAuto(unitesF) {
-  if (unitesF.length < 3) return null;
-  const c = unitesF[1].coteDef >= unitesF[2].coteDef ? 1 : 2;
-  return unitesF[c].coteDef > unitesF[0].coteDef + FERMETURE_SEUIL ? c : null;
+  return unitesF.length > FERMETURE_DEFAUT ? FERMETURE_DEFAUT : null;
 }
 
-/** Pour l'écran : le trio que 'auto' désignerait sur cet alignement, ou null. */
-export function trioDeFermetureAuto(roster) {
-  const faux = { together: new Map() };
-  const unitesF = [0, 1, 2].map(u => ({ rang: u, coteDef: unitAvgLineup(faux, roster, 'F', u, 'd') }));
-  return fermetureAuto(unitesF);
+/** Pour l'écran : le trio que 'auto' désigne. */
+export function trioDeFermetureAuto() {
+  return FERMETURE_DEFAUT;
 }
 
 /** Le volume d'un joueur à forces égales : ses lancers, moins sa part d'avantage. */
@@ -1154,8 +1150,8 @@ export function profilMatch(team, lineup) {
     }
   }
 
-  // Le trio de fermeture de cet alignement : désigné, ou le plus défensif
-  // des 2e et 3e trios s'il bat le premier (voir FERMETURE_APPARIEMENT).
+  // Le trio de fermeture de cet alignement : désigné, ou le 3e trio
+  // (voir FERMETURE_DEFAUT).
   const ferm = team && team.fermeture !== 'auto' && team.fermeture !== undefined ? team.fermeture : fermetureAuto(unites.F);
   for (const u of unites.F) u.fermeture = ferm != null && u.rang === ferm;
 
@@ -1284,49 +1280,69 @@ export function profilMatch(team, lineup) {
 export const APPARIEMENT = 2.5;
 export const APPARIEMENT_PROPRE = 5.0;
 /*
- * LE TRIO DE FERMETURE. JP : *pouvoir faire des lockdown lines qui bloquent
- * mieux les adversaires, en prenant en compte dans la vraie vie l'impact que
- * ça a, pas juste intégrer une mécanique qui brise le réalisme pour le fun*.
+ * LE PLAN D'APPARIEMENT, ET LE TRIO DE FERMETURE. JP : *pouvoir faire des
+ * lockdown lines qui bloquent mieux les adversaires, en prenant en compte
+ * dans la vraie vie l'impact que ça a* ; puis, devant le premier jet : *le
+ * matching des lignes devrait être genre 1 v 3, 2 v 2 et 4 v 4
+ * généralement ; aussi, pas des changements égaux de chaque côté, pour
+ * avoir plus de confrontations que juste celles-là*.
  *
- * Dans la vraie ligue, un trio de fermeture est d'abord un DÉPLOIEMENT :
- * l'entraîneur l'envoie contre le premier trio adverse. Le moteur a déjà
- * tout ce qu'il faut pour que ça compte, sans cote neuve — la défense se
- * joue présence par présence, et la qualité d'une présence est la cote `d`
- * des cinq qui sont sur la glace (K_DEFENSE, mesuré). Désigner un trio de
- * fermeture ne fait donc qu'une chose : quand c'est le PREMIER trio adverse
- * qui attaque, ce trio-là se tire à l'appariement avec un poids multiplié
- * par FERMETURE_APPARIEMENT. Son blocage est celui de ses trois joueurs, ni
- * plus ni moins ; désigner un trio qui n'est pas défensif, c'est l'envoyer
- * se faire marquer dessus. Et le +/- suit qui était sur la glace, comme
- * partout.
+ * Le moteur appariait par PROXIMITÉ DE RANG — le premier trio défend contre
+ * le premier — et c'était faux : dans la vraie ligue, l'entraîneur envoie
+ * son trio de fermeture (généralement le 3e) contre le premier trio adverse,
+ * le 2e contre le 2e, le 4e contre le 4e, et son propre premier trio se
+ * retrouve donc contre le 3e adverse. La CIBLE d'appariement est donc une
+ * permutation des rangs : 0 ↔ fermeture, les autres sur eux-mêmes. Autour
+ * de cette cible, les changements se dispersent comme avant
+ * (exp(−k × |rang − cible|)) : les changements à la volée ne sont jamais
+ * synchronisés, et c'est ce qui donne toutes les autres confrontations.
  *
- * Chaque équipe en a un ('auto' : le plus défensif de ses 2e et 3e trios,
- * s'il bat le premier — sinon le premier trio, qui prend déjà l'appariement
- * par son rang, est aussi le meilleur pour ça et personne n'est désigné).
- * Sans ça le joueur aurait un entraîneur et les trente et une autres
- * équipes n'en auraient pas. À 4, un troisième trio désigné prend le premier
- * trio adverse à peu près aussi souvent que le premier trio : la part d'un
- * trio de fermeture apparié dans la vraie ligue.
+ * ET LES DEUX CÔTÉS NE SONT PAS ÉGAUX : c'est l'équipe à DOMICILE qui a le
+ * dernier changement, donc elle obtient son appariement ; le visiteur subit
+ * celui de l'autre et le sien est plus lâche (APPARIEMENT_VISITEUR plus
+ * petit). `A` est l'équipe à domicile — le brassage du calendrier fait
+ * alterner. C'est ce qui fait qu'un premier trio ne voit pas toujours le
+ * même trio de fermeture, et que la fermeture n'est pas un mur.
+ *
+ * Le trio de fermeture n'a AUCUNE cote neuve : son blocage pendant ces
+ * présences est la cote `d` de ses trois joueurs (K_DEFENSE, mesuré) et, pour
+ * un Selke ou un bidirectionnel, le canal des présences (9 %). Par défaut
+ * c'est le 3e trio pour tout le monde (`'auto'`) ; derrière le banc, le 🔒
+ * le déplace ou le retire. Désigner un trio ordinaire, c'est l'envoyer se
+ * faire marquer dessus — et sa fiche le dit.
+ *
+ * Les deux forces d'appariement se lisent dans l'environnement POUR LA
+ * MESURE (check_pm.mjs) ; le navigateur n'a pas de `process` et prend les
+ * valeurs écrites ici.
  */
-// Réglables par l'environnement POUR LA MESURE (check_pm.mjs), jamais par le jeu :
-// le navigateur n'a pas de `process`, il prend les valeurs écrites ici.
 const ENV_MESURE = (typeof process !== 'undefined' && process.env) || {};
-export const FERMETURE_APPARIEMENT = Number(ENV_MESURE.FERMETURE_APPARIEMENT ?? 4);
+export const FERMETURE_DEFAUT = 2;   // le 3e trio
+export const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.0);
 /*
- * LE SEUIL DE L'ENTRAÎNEUR AUTOMATIQUE. Le trio candidat doit battre le premier
- * d'au moins FERMETURE_SEUIL points de cote `d` pour être désigné d'office.
- * Mesuré sur les 1392 vraies équipes alignées : le meilleur des 2e et 3e
- * trios bat le premier dans 33 % des cas, de plus de 3 points dans 18 %, de
- * plus de 5 dans 11 %. Et `check_pm.mjs` (quatre ligues) dit ce qu'un seuil
- * trop bas fait au +/- par rang : à 0, un tiers des équipes apparient dur un
- * trio à peine meilleur, qui encaisse les présences du premier trio adverse
- * sans les étouffer — le 2e trio tombe à −7,4 (réel +0,6) ; sans fermeture il
- * est à −3,2, à seuil 3 à −5,4. Un entraîneur n'apparie dur que quand il a
- * un VRAI trio de fermeture : à 5, une équipe sur neuf en a un, et le +/- par
- * rang reste celui d'avant. Le joueur, lui, désigne qui il veut — et voit
- * ce que ça coûte sur la fiche de ce trio-là.
+ * LA FORCE DU PLAN. Un plan STRICT (la cible du premier trio adverse est la
+ * fermeture, toujours) fait exploser le +/- par rang : premier trio à +21,7
+ * (réel +6,1), troisième à −13,8 (réel −1,9), écart du 1er au 4e trio de 27
+ * contre 11,4 réel — parce qu'affronter le 3e trio adverse plutôt que le
+ * 1er est, dans le moteur, un écart de poids offensif énorme. Mais le plan
+ * met l'ORDRE dans le bon sens (F1 > F2 > F3 > F4, le 4e à −5,3 comme le
+ * réel), ce que l'appariement par rang n'avait jamais. Une présence sur
+ * PLAN_FERMETURE suit donc le plan, les autres le rang — un mélange de
+ * TIRAGES, pas une cible interpolée (voir choisirApparie). Mesuré sur
+ * check_pm.mjs, quatre ligues, visiteur à 1,0 (réel : F1 +6,1 / F3 −1,9 /
+ * F4 −5,3, écart 11,4) :
+ *
+ *   plan   F1     F3     F4    écart 1er→4e
+ *   0      +6,7   −2,9   −2,2   8,9   (le rang seul, l'ordre F3 > F4 faux)
+ *   0,25   +11,0  −5,8   −3,5   14,4
+ *   0,40   +11,9  −7,0   −2,7   14,6
+ *   0,60   +15,2  −7,8   −5,0   20,1
+ *   1      +21,7  −13,8  −5,3   27,0  (le plan strict)
+ *
+ * De 0,25 à 0,40 l'écart ne bouge pas ; au-delà il décolle. À 0,40 le trio
+ * de fermeture est, de loin, celui qui voit le plus le premier trio
+ * adverse — « généralement 1 v 3 » — pour le même écart qu'à 0,25.
  */
-export const FERMETURE_SEUIL = Number(ENV_MESURE.FERMETURE_SEUIL ?? 5);
+export const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
 export const P_MELANGE = 0.40;
 export const RYTHME_CREDIT = 0.5;   // 0 : le −1 à la présence seule ; 1 : au poids offensif entier
 
@@ -1336,15 +1352,29 @@ export const RYTHME_CREDIT = 0.5;   // 0 : le −1 à la présence seule ; 1 : a
  * trio (la première paire joue avec le premier trio — c'est ce qui lui
  * donne son +/- dans la vraie ligue, +9 contre −1 sans ça).
  */
-function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT, cle = 'presence', fermeture = false) {
+function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT, cle = 'presence', plan = false) {
   if (!unites.length) return unites[0];
   const nDef = unites.length;
-  const cible = nOff > 1 ? rangOff / (nOff - 1) : 0;
+  // Le plan de l'entraîneur (voir FERMETURE_DEFAUT) : le premier trio
+  // adverse est visé par la fermeture, la fermeture adverse par le premier,
+  // les autres par leur rang. Sans plan (les paires, l'appariement propre,
+  // les unités spéciales), la cible est le rang lui-même.
+  let rangCible = rangOff;
+  if (plan) {
+    const ferm = unites.find(x => x.fermeture);
+    if (ferm) {
+      // Un MÉLANGE DE TIRAGES, jamais une cible interpolée : à mi-chemin entre
+      // le 1er et le 3e trio, une cible interpolée tombait sur le 2e, qui
+      // mangeait tout le premier trio adverse (F2 à −12 mesuré). Ici, une
+      // présence sur PLAN_FERMETURE suit le plan, les autres le rang.
+      const duPlan = rangOff === 0 ? ferm.rang : rangOff === ferm.rang ? 0 : rangOff;
+      if (hasard() < PLAN_FERMETURE) rangCible = duPlan;
+    }
+  }
+  const cible = nOff > 1 ? rangCible / (nOff - 1) : 0;
   // `rythme` : la présence, inclinée vers le poids offensif (voir RYTHME_CREDIT).
   const de = x => (cle === 'rythme' ? x.presence * Math.pow((x.poids || x.presence) / (x.presence || 1), RYTHME_CREDIT) : (x[cle] || x.presence));
-  // Le trio de fermeture prend le premier trio adverse (voir FERMETURE_APPARIEMENT).
-  const ferm = x => (fermeture && rangOff === 0 && x.fermeture ? FERMETURE_APPARIEMENT : 1);
-  const poids = unites.map(x => ferm(x) * de(x) * Math.exp(-k * Math.abs((nDef > 1 ? (x.rang || 0) / (nDef - 1) : 0) - cible)));
+  const poids = unites.map(x => de(x) * Math.exp(-k * Math.abs((nDef > 1 ? (x.rang || 0) / (nDef - 1) : 0) - cible)));
   let r = hasard() * poids.reduce((a, b) => a + b, 0);
   for (let i = 0; i < unites.length; i++) { r -= poids[i]; if (r <= 0) return unites[i]; }
   return unites[unites.length - 1];
@@ -1505,8 +1535,11 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const rangOff = trioOff ? (trioOff.rang || 0) : 0, nOff = unitesOff ? unitesOff.F.length : 1;
     if (unitesDef) {
       // Appariée au trio qui attaque : le premier défend contre le premier.
-      dTrio = choisirApparie(unitesDef.F, rangOff, nOff, APPARIEMENT, 'presence', true);
-      dPaire = choisirApparie(unitesDef.D, rangOff, nOff);
+      // Le dernier changement est à l'équipe à domicile : son appariement
+      // tient, celui du visiteur est plus lâche (APPARIEMENT_VISITEUR).
+      const kApp = def.domicile ? APPARIEMENT : APPARIEMENT_VISITEUR;
+      dTrio = choisirApparie(unitesDef.F, rangOff, nOff, kApp, 'presence', true);
+      dPaire = choisirApparie(unitesDef.D, rangOff, nOff, kApp);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
       // Le bidirectionnel (et le Selke) étouffe PENDANT SES PRÉSENCES : c'est
@@ -1581,8 +1614,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
               // quand ça rentre se tirent au poids offensif de leur unité, pas à
               // la présence seule — le premier trio est sur la glace pour une
               // part des buts contre proche de sa part des buts pour.
-              const cTrio = choisirApparie(unitesDef.F, rangOff, nOff, APPARIEMENT, 'rythme', true);
-              const cPaire = choisirApparie(unitesDef.D, rangOff, nOff, APPARIEMENT, 'rythme');
+              const kCr = def.domicile ? APPARIEMENT : APPARIEMENT_VISITEUR;
+              const cTrio = choisirApparie(unitesDef.F, rangOff, nOff, kCr, 'rythme', true);
+              const cPaire = choisirApparie(unitesDef.D, rangOff, nOff, kCr, 'rythme');
               const glaceContre = surLaGlace(cTrio, cPaire, unitesDef);
               for (const x of glaceContre) { x.simPM--; x.simMoins = (x.simMoins || 0) + 1; }
               if (entree) entree.contre = glaceContre;
@@ -1678,7 +1712,7 @@ export function createTeam(name, tag, roster, opts = {}) {
     name, tag, roster,
     isPlayer: !!opts.isPlayer,
     season: opts.season || null,
-    fermeture: 'auto',       // le trio de fermeture : 'auto', null, ou le rang d'un trio (voir FERMETURE_APPARIEMENT)
+    fermeture: 'auto',       // le trio de fermeture : 'auto', null, ou le rang d'un trio (voir FERMETURE_DEFAUT)
     injured: new Map(),      // joueur -> matchs restants
     together: new Map(),     // unité -> matchs consécutifs intacts
     togetherSig: new Map(),
@@ -1889,6 +1923,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
 
   const pA = profilMatch(A, LA), pB = profilMatch(B, LB);
   pA.rob = sA.rob; pB.rob = sB.rob;
+  // A est à domicile : le dernier changement est à lui (voir FERMETURE_DEFAUT).
+  pA.domicile = true; pB.domicile = false;
 
   // La chance est du PDO : elle porte sur la finition, pas sur le volume.
   const chanceA = Math.exp(gauss() * LUCK_GAME + A.luck - B.luck);
