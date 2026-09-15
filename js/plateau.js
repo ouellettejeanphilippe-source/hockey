@@ -33,6 +33,7 @@ import {
   relancer, finirPresence, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
+import { TRAITS } from './traits.js';
 
 const ordP = n => (n === 1 ? '1re' : `${n}e`);
 const nomCourt = p => {
@@ -58,6 +59,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   const m = nouveauMatch(A, B, graine);
   let regles = false;      // le volet des règles, par-dessus tout
+  let feuille = false;     // la feuille du match, une fois le match fini
   let sel = null;          // la pièce choisie
   let cible = null;        // l'adversaire visé, quand deux gestes sont possibles
   let attente = null;      // un jet en attente : { jet, appliquer }
@@ -472,7 +474,16 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
           <span class="t-fiche-role">${esc(sel.role)}</span>
           <span class="t-fiche-nom">${esc((sel.p && sel.p.n) || 'Rappel')}</span>
           <span class="t-axes">
-            ${['PA', 'MA', 'TI', 'FO'].map(k => `<span class="t-axe" title="${esc(AXE_MOT[k])}"><i>${k}</i><b>${st[k]}</b></span>`).join('')}
+            ${['PA', 'MA', 'TI', 'FO'].map(k => {
+              // LE TRAIT EST LE NOMBRE. On ne lui donne pas d'étiquette à lui :
+              // « les icônes ne doivent jamais se répéter sur la même carte »,
+              // et ⚡ comme 🛡️ sont déjà pris par les gestes Foncer et Se
+              // placer devant. Le nombre qu'il majore porte donc sa marque, et
+              // l'infobulle le nomme — le trait se lit là où il agit.
+              const tr = (st.traits || {})[k];
+              const T = tr && TRAITS[tr];
+              return `<span class="t-axe${T ? ' majore' : ''}" title="${esc(AXE_MOT[k])}${T ? ` — ${T.icon} ${T.label} : +1` : ''}"><i>${k}</i><b>${st[k]}</b></span>`;
+            }).join('')}
             <span class="t-axe t-axe-so ${so <= 0 ? 'vide' : ''}" title="Souffle : ${so} présence${so > 1 ? 's' : ''} avant d'être vidé. À zéro, un de moins à tous ses jets et un pas de patin en moins — il faut changer de trio."><i>SO</i><b>${so}</b></span>
           </span>
         </div>
@@ -587,6 +598,82 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         </section>`).join('')}
     </div>`;
 
+  /* ---------- la feuille du match ----------
+   *
+   * LE MOTEUR COMPTAIT TOUT, ET L'ÉCRAN JETAIT TOUT. À la fin d'un match, le
+   * seul bouton allait droit à `fermer()` : jamais de marqueurs, de passeurs,
+   * d'arrêts, de mises en échec. `resultatDe` expose pourtant trois blocs par
+   * équipe — `marqueurs`, `physique` et `gardien` — et DEUX d'entre eux
+   * n'étaient lus par aucune ligne de l'interface, seulement par
+   * `check_table.mjs`.
+   *
+   * Les trois étoiles pèsent comme celles de l'entracte (3 par but, 2 par
+   * passe) pour que le jeu parle une seule langue ; le gardien compte ses
+   * arrêts moins ce qu'il a laissé passer, parce qu'un match de plateau se
+   * joue à huit lancers et qu'un pourcentage n'y veut rien dire.
+   */
+  // Les blocs de `resultatDe` portent le JOUEUR, pas son nom : `nomDe` attend
+  // une pièce et non un joueur, et `esc(nomJ(x.p))` rendait « [object Object] ».
+  const nomJ = j => (j && j.n) || 'Rappel';
+
+  function etoilesDuMatch(r) {
+    const gens = [];
+    for (const [f, eq] of [[r.A, A], [r.B, B]]) {
+      const phys = new Map((f.physique || []).map(x => [x.p, x]));
+      for (const x of f.marqueurs) {
+        const e = phys.get(x.p) || { echecs: 0, vols: 0 };
+        gens.push({ nom: nomJ(x.p), tag: eq.tag, note: x.buts * 3 + x.passes * 2,
+          quoi: [x.buts ? `${x.buts} but${x.buts > 1 ? 's' : ''}` : '', x.passes ? `${x.passes} passe${x.passes > 1 ? 's' : ''}` : '',
+            e.echecs ? `${e.echecs} en échec` : ''].filter(Boolean).join(', ') });
+      }
+      const g = f.gardien;
+      if (g && (g.arrets || g.alloues)) {
+        gens.push({ nom: nomJ(g.p), tag: eq.tag, note: g.arrets - g.alloues,
+          quoi: `${g.arrets} arrêt${g.arrets > 1 ? 's' : ''} sur ${g.arrets + g.alloues}` });
+      }
+    }
+    return gens.filter(x => x.note > 0).sort((x, y) => y.note - x.note).slice(0, 3);
+  }
+
+  function feuilleHtml() {
+    const r = resultatDe(m);
+    const gagne = r.gfA === r.gfB ? null : (r.gfA > r.gfB ? 'A' : 'B');
+    const cote = (f, eq, c) => {
+      const marque = f.marqueurs.slice().sort((x, y) => y.buts - x.buts || y.passes - x.passes);
+      const phys = (f.physique || []).slice().sort((x, y) => (y.echecs + y.vols) - (x.echecs + x.vols));
+      const g = f.gardien;
+      return `<section class="tf-cote ${gagne === c ? 'gagne' : ''}">
+        <h4>${logo(eq.tag, 18)} ${esc(eq.nom)} <b>${f.buts}</b></h4>
+        <div class="tf-chiffres">
+          <span><b>${f.tirs}</b> lancers</span>
+          <span><b>${f.echecs}</b> mises en échec</span>
+          <span><b>${f.revirements}</b> revirements</span>
+        </div>
+        <div class="tf-bloc"><h5>Au tableau</h5>${marque.length
+          ? `<table class="tf-table"><tbody>${marque.map(x => `<tr><td class="tf-nom">${esc(nomJ(x.p))}</td><td>${x.buts || '—'}</td><td>${x.passes || '—'}</td></tr>`).join('')}</tbody></table>`
+          : '<div class="tf-rien">Aucun but.</div>'}</div>
+        <div class="tf-bloc"><h5>Le travail sans la rondelle</h5>${phys.length
+          ? `<table class="tf-table"><tbody>${phys.map(x => `<tr><td class="tf-nom">${esc(nomJ(x.p))}</td><td>${x.echecs || '—'}</td><td>${x.vols || '—'}</td></tr>`).join('')}</tbody></table>`
+          : '<div class="tf-rien">Personne n\'a touché à personne.</div>'}</div>
+        <div class="tf-bloc"><h5>Devant le filet</h5>
+          <div class="tf-gardien">${esc(nomJ(g.p))} — <b>${g.arrets}</b> arrêt${g.arrets > 1 ? 's' : ''} sur ${g.arrets + g.alloues}</div>
+        </div>
+      </section>`;
+    };
+    const etoiles = etoilesDuMatch(r);
+    return `<div class="t-feuille">
+      <div class="t-feuille-tete">
+        <h3>Feuille de match</h3>
+        <button type="button" class="t-feuille-suite t-evident">Continuer</button>
+      </div>
+      ${etoiles.length ? `<div class="tf-etoiles">${etoiles.map((x, i) => `
+        <div class="tf-etoile"><span class="tf-rang">${'★'.repeat(i + 1)}</span>
+          <span class="tf-etoile-nom">${logo(x.tag, 14)} ${esc(x.nom)}</span>
+          <span class="tf-etoile-quoi">${esc(x.quoi)}</span></div>`).join('')}</div>` : ''}
+      <div class="tf-cotes">${cote(r.A, A, 'A')}${cote(r.B, B, 'B')}</div>
+    </div>`;
+  }
+
   /* ---------- le fil ---------- */
   const fil = () => `<div class="t-fil">${m.fil.slice(0, 7).map(e =>
     `<div class="t-evt t-evt-${e.genre}">${esc(e.texte)}</div>`).join('')}</div>`;
@@ -596,10 +683,13 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // Le volet des règles couvre le match ; le plateau se CACHE, il ne se
     // vide pas — la grille est bâtie une fois et les pièces glissent dessus.
     $('.t-tete').hidden = regles;
-    $('.t-plateau').hidden = regles;
+    // La feuille garde le TABLEAU INDICATEUR : c'est le pointage final qu'on
+    // vient de lire, et le reprendre dans la feuille le dirait deux fois.
+    $('.t-plateau').hidden = regles || feuille;
     if (regles) { $('.t-bas').innerHTML = reglesHtml(); return; }
     veillerButs();
     $('.t-tete').innerHTML = tete() + banniere();
+    if (feuille) { $('.t-bas').innerHTML = feuilleHtml(); return; }
     if (!grilleFaite) batirGlace();
     majGlace();
     $('.t-bas').innerHTML = unites() + de() + carte() + boutons() + fil();
@@ -771,7 +861,15 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (t.closest('.table-regles')) { regles = !regles; rendre(); return; }
     if (t.closest('.t-regles-fermer')) { regles = false; rendre(); return; }
     if (regles) return;                       // le volet des règles couvre tout
-    if (t.closest('.t-resultat') || t.closest('.table-close')) { fermer(); return; }
+    /*
+     * « Voir le résultat » ouvre la feuille ; c'est « Continuer » qui ferme.
+     * Le bouton de la feuille porte sa PROPRE classe : `.t-suite` est déjà
+     * celui qui accepte un jet de dé, et le lui emprunter faisait fermer le
+     * match à chaque confirmation — le test de fumée l'a attrapé en une
+     * exécution.
+     */
+    if (t.closest('.t-resultat')) { feuille = true; rendre(); return; }
+    if (t.closest('.t-feuille-suite') || t.closest('.table-close')) { fermer(); return; }
     if (iaEnCours) return;      // le récit de la présence adverse court encore
     const caseGlace = t.closest('.t-case');
     if (caseGlace && aMoi() && !attente) {

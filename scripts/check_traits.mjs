@@ -19,6 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getTraits, TRAITS, VEZINA_VOTE_DEPUIS } from '../js/traits.js';
 import { REPUTATIONS } from '../data/reputations.js';
+import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { autoRoster, registerHiddenRatings, simulate, createTeam, activeLineup, profilMatch } from '../js/sim.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -72,8 +73,19 @@ const morts = Object.entries(REPUTATIONS)
 console.log(morts.length
   ? `\n  ✗ ${morts.length} réputation(s) sur un nom introuvable : ${morts.join(', ')}`
   : `\n  ✓ les ${Object.values(REPUTATIONS).flat().length} noms de réputation existent tous dans les shards`);
+// Un nom mal orthographié est un trait MORT dont personne ne saurait rien :
+// c'est la seule contrepartie du seul fichier du dépôt qui repose sur du
+// jugement plutôt que sur une mesure. Il doit donc faire échouer, pas
+// seulement imprimer une croix.
+exiger('chaque nom de réputation existe dans les shards', !morts.length,
+  morts.length ? morts.slice(0, 5).join(', ') : `${Object.values(REPUTATIONS).flat().length} noms`);
 console.log(`\n  au total ${total} traits sur ${joueursSaisons} joueurs-saisons — `
   + `${(100 * total / joueursSaisons).toFixed(2)} %`);
+// La rareté est le contrepoids de l'effet : « ne pas en avoir veut dire rien
+// de particulier, ce qui est vrai ». Allonger `data/reputations.js` sans
+// remesurer gonfle les grandes équipes EN SILENCE — c'est écrit dans
+// CLAUDE.md comme le piège de ce fichier-là, et voici le garde-fou.
+borne('part des joueurs-saisons qui portent un trait', 100 * total / joueursSaisons, 6, 14, ' %');
 
 const vides = Object.entries(parSaison).filter(([, n]) => n === 0).map(([s]) => s);
 console.log(`\n  saisons sans aucun trait : ${vides.length ? vides.join(', ') : 'aucune'}`);
@@ -153,6 +165,9 @@ for (const [cle, n] of cibles) {
   console.log(`    facteur défensif, ordre inversé  ${inverse.toFixed(4)}`);
   console.log(`    ${ok ? '✓ identique — le trait ne dépend pas de la case'
     : '✗ DIFFÉRENT — le trait dépend de la place dans l\'alignement'}`);
+  // « Un trait appartient au joueur, pas à sa case » : un lauréat du Selke au
+  // quatrième trio défend aussi bien qu'au premier. Au dix-millième près.
+  exiger('le trait suit le joueur, pas la case', ok, `${normal.toFixed(4)} contre ${inverse.toFixed(4)}`);
 }
 
 console.log(`\n  écart moyen : ${(moy(ecarts) >= 0 ? '+' : '')}${moy(ecarts).toFixed(1)} victoires`
@@ -162,3 +177,16 @@ console.log('  Les victoires sont bruitées ; les BUTS des deux colonnes sont le
 console.log('  propre — les votés pèsent sur les buts alloués, les réputations de');
 console.log('  vitesse et de lancer sur les buts marqués.');
 console.log('  Un trait doit se voir sans décider la saison à lui seul.\n');
+
+/*
+ * L'ÉCART EST BRUITÉ, ET C'EST POUR ÇA QU'IL EST BORNÉ LARGE. Dix saisons
+ * rejouées avec puis sans, sous des graines tirées : le script n'est pas
+ * déterministe, contrairement à `check_table`. Les bornes disent seulement
+ * « un trait doit se VOIR sans décider la saison à lui seul » — le premier
+ * réglage du bidirectionnel donnait +12 victoires aux Red Wings de 2001-02,
+ * et rien n'avait rougi.
+ */
+borne('écart en victoires', moy(ecarts), 1, 9, ' V');
+borne('écart en buts marqués', moy(ecartsBP), 5, 32, ' BP');
+borne('écart en buts alloués', moy(ecartsBC), -32, -3, ' BC');
+verdict('Les traits restent-ils rares, et se voient-ils ?');

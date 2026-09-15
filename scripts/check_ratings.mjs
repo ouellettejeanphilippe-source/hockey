@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LINE_ZONES } from '../js/ratings.js';
+import { exiger, borne, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
@@ -143,3 +144,29 @@ console.log('\nForce d\'équipe (Spearman) ~ % victoires | buts pour | buts cont
 for (const c of corr) console.log(`  ${c.label}  ${String(c.n).padStart(2)} éq.  ${c.w.toFixed(2)} | ${c.gf.toFixed(2)} | ${c.ga.toFixed(2)}`);
 const avg = k => corr.reduce((s, c) => s + c[k], 0) / corr.length;
 console.log(`  moyenne          ${avg('w').toFixed(3)} | ${avg('gf').toFixed(3)} | ${avg('ga').toFixed(3)}   (min victoires ${Math.min(...corr.map(c => c.w)).toFixed(2)})`);
+
+/*
+ * CE SCRIPT EST LE SEUL PORTIER DE `build-data.yml`, qui commite sur main dès
+ * que `git diff` n'est pas vide — et il n'échouait jamais. Un shard reconstruit
+ * avec une formule cassée passait donc tout droit.
+ *
+ * Ce qui se juge ici, c'est la corrélation force/classement : CLAUDE.md dit
+ * « autour de 0,8 », elle est à 0,777 depuis que la production pèse plus chez
+ * les attaquants. Le plancher est à 0,70 parce que c'est la valeur sous
+ * laquelle le dépôt a déjà constaté que les rappels remontent au classement
+ * (0,77 quand la fiabilité d'échantillon manquait) — pas plus serré : la
+ * corrélation est un choix de conception, et un garde-fou n'a pas à trancher
+ * un choix, seulement à voir quand il se casse.
+ */
+borne('corrélation force ~ % victoires', avg('w'), 0.70, 0.90);
+borne('corrélation force ~ buts pour', avg('gf'), 0.45, 0.80);
+borne('corrélation force ~ buts contre', avg('ga'), 0.50, 0.85);
+
+/*
+ * Les zones sont calibrées sur la réalité : une vraie équipe aligne 6
+ * attaquants de top 6, 4 défenseurs de top 4 et 1 partant, et CLAUDE.md dit
+ * que la ligue doit y atterrir EN MOYENNE. Si `ZONE_THRESHOLDS` dérive, tout
+ * le malus de zone dérive avec — et c'est lui qui ferme l'empilement.
+ */
+exiger('les six zones d\'attaquant existent toutes', LINE_ZONES.F.length >= 4, `${LINE_ZONES.F.length} paliers`);
+verdict('Les cotes tiennent-elles ?');

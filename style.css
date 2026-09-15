@@ -1943,6 +1943,61 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .lb-score.perfect { color: var(--gold); }
 .lb-details { text-align: right; font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums; }
 .lb-details .lb-replay { margin-top: 5px; margin-left: auto; }
+
+/* Le verdict des séries : c'est le seul but du jeu, il se voit avant le reste.
+   Une saison couronnée porte un filet d'or à gauche — le même langage que la
+   note du bilan — plutôt qu'un cadre de plus. */
+/* Les trophées de la saison : des cellules séparées d'un filet, pas des
+   cartes flottantes — le langage du tableau indicateur. Une récompense
+   gagnée par un de tes joueurs porte le laiton, comme tout ce qui se gagne. */
+.trophees {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+.tro-carte { background: var(--panel-1); padding: 9px 10px; }
+.tro-carte.tien { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--gold); }
+.tro-nom {
+  font-family: var(--display);
+  font-size: 12.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+.tro-joueur { display: flex; align-items: center; gap: 5px; margin: 3px 0 1px; font-weight: 700; }
+.tro-val {
+  font-family: var(--display);
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.tro-sous { font-size: 11.5px; color: var(--sub); }
+.tro-titre {
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 14px 0 6px;
+}
+
+.lb-tete {
+  font-family: var(--display);
+  font-size: 14.5px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--sub);
+  padding: 2px 2px 8px;
+}
+.lb-tete strong { color: var(--gold); }
+.lb-item.champion { border-left: 3px solid var(--gold); }
+.lb-verdict { margin-top: 3px; font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.lb-coupe { color: var(--gold); font-weight: 700; }
+.lb-sortie { color: var(--sub); }
 .empty-msg {
   text-align: center;
   color: var(--muted);
@@ -3901,6 +3956,39 @@ a.spin-club:hover {
 
 /* ---------- Sur table : le volet des règles, par-dessus le plateau ---------- */
 .table-regles { flex: none; font-family: var(--display); font-size: 19px; font-weight: 800; width: 30px; height: 30px; padding: 0; border-radius: 50%; }
+/* Un nombre majoré par un trait : le laiton, comme tout ce qui se gagne.
+   Le trait n'a pas d'étiquette à lui — il EST le nombre, et l'infobulle le
+   nomme. */
+.t-axe.majore b { color: var(--gold); }
+.t-axe.majore i { color: var(--gold); opacity: 0.75; }
+
+/* LA FEUILLE DU MATCH SUR TABLE. Mêmes manières que le volet des règles :
+   une tête collante, puis des blocs séparés d'un filet — pas de cartes qui
+   flottent. Les trois étoiles en tête, parce que c'est ce qu'on cherche. */
+.t-feuille { padding: 4px 0 20px; }
+.t-feuille-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; border-bottom: 1px solid var(--line); z-index: 2; }
+.t-feuille h3 { margin: 0; font-family: var(--display); font-size: 19px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+.tf-etoiles { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 12px 0; }
+.tf-etoile { display: flex; align-items: center; gap: 8px; background: var(--panel-1); padding: 7px 9px; }
+.tf-rang { color: var(--gold); font-size: 12px; letter-spacing: -1px; min-width: 34px; }
+.tf-etoile-nom { display: flex; align-items: center; gap: 5px; font-weight: 700; }
+.tf-etoile-quoi { margin-left: auto; color: var(--sub); font-size: 12px; text-align: right; }
+.tf-cotes { display: grid; gap: 12px; }
+@media (min-width: 720px) { .tf-cotes { grid-template-columns: 1fr 1fr; } }
+.tf-cote { border: 1px solid var(--line); padding: 9px 10px; }
+.tf-cote.gagne { box-shadow: inset 3px 0 0 var(--gold); }
+.tf-cote h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-family: var(--display); font-size: 16.5px; letter-spacing: 0.4px; text-transform: uppercase; }
+.tf-cote h4 b { margin-left: auto; font-size: 22px; color: var(--gold); font-variant-numeric: tabular-nums; }
+.tf-chiffres { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--sub); font-size: 12px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+.tf-chiffres b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.tf-bloc { padding-top: 7px; }
+.tf-bloc h5 { margin: 0 0 3px; font-family: var(--display); font-size: 12.5px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--sub); font-weight: 700; }
+.tf-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tf-table td { padding: 2px 0; font-size: 13px; text-align: right; width: 42px; }
+.tf-table td.tf-nom { text-align: left; width: auto; }
+.tf-rien, .tf-gardien { font-size: 13px; color: var(--sub); }
+.tf-gardien b { color: var(--fg); font-variant-numeric: tabular-nums; }
+
 .t-regles { padding: 4px 0 20px; }
 .t-regles-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; border-bottom: 1px solid var(--line); }
 .t-regles h3 { margin: 0; font-family: var(--display); font-size: 19px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }

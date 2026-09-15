@@ -162,6 +162,26 @@ const G = {
    * qu'en signant, en relançant, ou en visant expressément une autre case.
    */
   mainCase: null,       // index de case, ou null (se recalcule alors)
+  /*
+   * L'ÉCHELLE DU LOTO, ET LA DETTE DE TOUR. Deux compteurs qui existent pour
+   * la même raison : retirer un joueur ne doit rien RENDRE.
+   *
+   * `echelle` : le rang le plus bas déjà atteint à chaque poste. Le rang de la
+   * main se calculait sur les joueurs SIGNÉS, donc vider une case le faisait
+   * remonter et trois nouveaux numéros un se retendaient — le même exploit que
+   * le déplacement de trio, rouvert par le ✕.
+   *
+   * `dette` : le nombre de cases vidées dont le tour n'a pas encore été
+   * repayé. Signer fait tourner la roulette ; retirer rendait la masse
+   * salariale ET gardait le vestiaire neuf, donc « signer le moins cher puis
+   * ✕ » était un « Passer » gratuit et illimité. La roulette ne tourne plus
+   * tant que la dette n'est pas payée : on peut toujours changer d'idée, ça ne
+   * donne simplement plus de tour de plus.
+   */
+  echelle: {},
+  dette: 0,
+  journee: 0,          // la journée de saison déjà révélée (pour reprendre après un rafraîchissement)
+  lbId: null,          // l'entrée d'historique de la saison en cours, que les séries viendront compléter
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -283,7 +303,20 @@ function caseDeLaMain() {
 function rangDeLaMain(c) {
   if (c.scratch) return 0;
   const deja = signes().filter(p => fits(p, c) && getPositionPenalty(p, c) === 0).length;
-  return Math.max(c.unit, deja);
+  // Le plancher : le rang le plus bas déjà atteint à ce poste. Sans lui, le ✕
+  // faisait remonter l'échelle — on signait, on retirait, et trois numéros un
+  // se retendaient. « L'échelle descend quoi qu'on fasse de ses joueurs
+  // ensuite » vaut aussi pour les retirer.
+  return Math.max(c.unit, deja, G.echelle[c.role] || 0);
+}
+
+/** Le plancher se pose APRÈS chaque signature : c'est elle qui fait descendre. */
+function poserEchelle() {
+  for (const c of casesActives()) {
+    if (c.scratch) continue;
+    const deja = signes().filter(p => fits(p, c) && getPositionPenalty(p, c) === 0).length;
+    if (deja > (G.echelle[c.role] || 0)) G.echelle[c.role] = deja;
+  }
 }
 
 /**
@@ -332,16 +365,40 @@ const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
 
 /* ---------- sauvegarde ---------- */
 
+/*
+ * LA SAUVEGARDE VA JUSQU'AU BOUT DE LA SAISON. Elle s'ARRÊTAIT au repêchage :
+ * `if (G.done) { clearSave(); return; }` — dès que la simulation partait, la
+ * partie était effacée du disque plutôt qu'enrichie. Un rafraîchissement à la
+ * journée 40 rendait un alignement complet et un bouton « Simuler », comme si
+ * les quarante journées n'avaient jamais eu lieu.
+ *
+ * Ce qu'on écrit tient en quatre nombres, parce que LE MOTEUR EST
+ * DÉTERMINISTE (`check_graine.mjs` le vérifie à chaque PR) : la graine, les
+ * adversaires par leur clé `saison_équipe`, la journée révélée, et le format
+ * de la partie. Reprendre coûte un `simulateLeague` de la même graine, pas
+ * 1312 feuilles de match à sérialiser.
+ *
+ * Les adversaires sont des CLÉS, pas des alignements : 31 clubs × 23 joueurs
+ * dans localStorage, ce sont des mégaoctets, et `rebatirAdversaires` rejoue
+ * exactement la boucle de `buildOpponents` — même ordre, même `exclude` qui
+ * s'accumule, donc les mêmes alignements.
+ */
 function saveGame() {
-  if (G.done) { clearSave(); return; }
   try {
     localStorage.setItem('cap82_save', JSON.stringify({
       roster: G.roster,
+      partie: G.done && G.ligue ? {
+        graine: G.ligue.graine,
+        adversaires: G.ligue.cles || [],
+        journee: G.journee || 0,
+      } : null,
       relances: G.relances,
       left: G.left,
       tirage: G.tirage.map(v => ({ season: v.season, team: v.team })),
       target: G.target,
       mainCase: G.mainCase,
+      echelle: G.echelle,
+      dette: G.dette,
       mode: G.mode,
       epoque: G.epoque,
       repechage: G.repechage,
@@ -438,7 +495,25 @@ async function restoreSave() {
     G.left = data.left || { ...REROLLS };
     G.target = data.target ?? null;
     G.mainCase = Number.isInteger(data.mainCase) && SLOTS[data.mainCase] ? data.mainCase : null;
+    // Les deux compteurs qui empêchent le ✕ d'être une relance : une partie
+    // reprise doit les retrouver, sinon recharger la page les remet à zéro et
+    // rouvre l'exploit.
+    G.echelle = (data.echelle && typeof data.echelle === 'object') ? { ...data.echelle } : {};
+    G.dette = Number.isFinite(data.dette) && data.dette > 0 ? data.dette : 0;
     applyTeamColors(MODE().loto ? null : tirage[0].team);
+    // LA SAISON EN COURS. Elle se REJOUE, elle ne se relit pas : la graine et
+    // les clés des adversaires suffisent, `runSeason` refait exactement la
+    // même ligue et l'écran reprend à la journée révélée. `reprise` est rendu
+    // au démarrage, qui l'exécute après le premier rendu — sans quoi on
+    // simulerait 1312 matchs devant un écran de chargement vide.
+    if (data.partie && data.partie.graine) {
+      const { graine, adversaires = [], journee = 0 } = data.partie;
+      return { reprise: async () => {
+        const clubs = await rebatirAdversaires(adversaires);
+        if (!clubs.length) return;
+        await runSeason({ adversaires: clubs, graine, depuis: journee });
+      } };
+    }
     return true;
   } catch {
     return false;
@@ -685,7 +760,7 @@ async function boot() {
     $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur,
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
-    saveLeaderboard, statsSim, toast,
+    saveLeaderboard, majLeaderboard, lireSeriesHistorique, statsSim, toast,
   });
   // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
   let vierge = false;
@@ -707,6 +782,10 @@ async function boot() {
     $('game').style.display = '';
     $('actionbar').style.display = '';
     render();
+    // Une saison était en cours : on la rejoue sous sa graine et l'écran
+    // rouvre à la journée où on l'avait laissée. Après `render()`, pour que la
+    // page soit là pendant la simulation.
+    if (restored && restored.reprise) await restored.reprise();
     /*
      * L'écran s'ouvre PAR-DESSUS une partie déjà bâtie, à la première visite
      * seulement. Le retarder aurait rendu l'écran bloquant, or Échap ferme
@@ -1685,9 +1764,13 @@ async function signPlayer(p) {
     setTimeout(() => toast(msg, 'warn'), 2700);
   }
 
-  // Une signature, un tour : la roulette tourne à chaque fois, dans les
-  // deux tirages. Ton premier trio sort de trois clubs, pas d'un seul.
-  await nextSpin();
+  poserEchelle();
+  // Une signature, un tour : la roulette tourne à chaque fois, dans les deux
+  // tirages. Ton premier trio sort de trois clubs, pas d'un seul. SAUF si une
+  // case a été vidée depuis : ce tour-là a déjà été joué, la signature le
+  // repaie et la roulette reste où elle est.
+  if (G.dette > 0) G.dette--;
+  else await nextSpin();
   saveGame();
   render();
   document.getElementById('topbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1732,9 +1815,11 @@ function blockedBannerEl(st) {
     btn.onclick = () => {
       delete G.roster[slot.i];
       G.selectedSlot = null;
+      G.dette++;   // une case vidée est une case vidée, même pour se sortir d'une impasse
       saveGame();
       render();
-      toast(`${st.priciest.n} retiré. ${money(capLeft())} de disponible.`, 'warn');
+      toast(`${st.priciest.n} retiré. ${money(capLeft())} de disponible, `
+        + `et la roulette ne tournera pas pour cette case.`, 'warn');
     };
   }
   return el;
@@ -1975,9 +2060,14 @@ function slotEl(s) {
       ev.stopPropagation();
       delete G.roster[s.i];
       G.selectedSlot = null;
+      // Le tour est déjà joué : la prochaine signature comble cette case sans
+      // faire tourner la roulette. Sans ça, « signer le moins cher puis ✕ »
+      // était un « Passer » gratuit et illimité.
+      if (!estRenfort(p)) G.dette++;
       saveGame();
       render();
-      toast(`${p.n} retiré. ${money(capLeft())} de disponible.`);
+      toast(`${p.n} retiré. ${money(capLeft())} de disponible, `
+        + `et la roulette ne tournera pas pour cette case.`, 'warn');
     });
   } else {
     el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${esc(s.label)}</div>`;
@@ -2438,38 +2528,92 @@ function showTeamModal(t, mode = 'saison') {
    Historique
    ===================================================================== */
 
+const lireHistorique = () => {
+  try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]'); } catch { return []; }
+};
+const ecrireHistorique = list => {
+  try { localStorage.setItem('cap82_leaderboard', JSON.stringify(list.slice(0, 20))); } catch { /* ignore */ }
+};
+
+/**
+ * L'entrée est écrite au bilan de la SAISON, donc avant la première série :
+ * elle porte donc un identifiant, et `majLeaderboard` vient y coudre le
+ * verdict des séries quand elles sont jouées. Sans ça, le seul but du jeu —
+ * la Coupe — n'était enregistré nulle part.
+ */
 function saveLeaderboard(entry) {
-  try {
-    const list = JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]');
-    list.unshift(entry);
-    localStorage.setItem('cap82_leaderboard', JSON.stringify(list.slice(0, 20)));
-  } catch { /* ignore */ }
+  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const list = lireHistorique();
+  list.unshift({ id, ...entry });
+  ecrireHistorique(list);
+  return id;
+}
+
+/** Le verdict des séries d'une entrée, ou null : le texte de partage le lit. */
+function lireSeriesHistorique(id) {
+  const e = lireHistorique().find(x => x.id === id);
+  return (e && e.series) || null;
+}
+
+/** Coudre le verdict des séries à l'entrée déjà écrite. */
+function majLeaderboard(id, champs) {
+  if (!id) return;
+  const list = lireHistorique();
+  const e = list.find(x => x.id === id);
+  if (!e) return;
+  Object.assign(e, champs);
+  ecrireHistorique(list);
 }
 
 function showLeaderboard() {
   const body = $('leaderboardBody');
   if (!body) return;
-  let list = [];
-  try { list = JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]'); } catch { /* ignore */ }
+  const list = lireHistorique();
 
   if (!list.length) {
     body.innerHTML = `<div class="empty-msg">Aucune saison enregistrée.<br>Complète un alignement de 23 et simule pour apparaître ici.</div>`;
     return;
   }
-  const best = Math.max(...list.map(i => i.points || 0));
-  body.innerHTML = list.map((i, idx) => `
-    <div class="lb-item">
+  /*
+   * « MEILLEURE » SE COMPARE À FORMAT ÉGAL. Un Express à six cases sous 34 M$
+   * hors plafond ne se compare pas à un Complet : le meilleur total était
+   * calculé tous formats confondus, donc une seule partie express suffisait à
+   * couronner ou à écraser tout le reste.
+   */
+  const meilleur = {};
+  for (const i of list) {
+    const k = i.mode || 'CLASSIQUE';
+    meilleur[k] = Math.max(meilleur[k] || 0, i.points || 0);
+  }
+  const coupes = list.filter(i => i.series && i.series.coupe).length;
+  const tete = `<div class="lb-tete">${list.length} saison${list.length > 1 ? 's' : ''}`
+    + (coupes ? ` · <strong>${coupes} Coupe${coupes > 1 ? 's' : ''}</strong> 🏆` : ' · aucune Coupe')
+    + `</div>`;
+
+  body.innerHTML = tete + list.map((i, idx) => {
+    // LE VERDICT DES SÉRIES. Une entrée d'avant ce changement n'en a pas :
+    // elle ne dit rien plutôt que de prétendre que la Coupe a été perdue.
+    const po = i.series;
+    const verdict = !po ? ''
+      : po.coupe ? `<span class="lb-coupe">🏆 Coupe</span>`
+      : `<span class="lb-sortie">${esc(po.ronde || 'éliminé')}</span>`;
+    const fiche = po && Number.isFinite(po.V) ? ` · séries ${po.V}-${po.D}` : '';
+    const format = MODES[i.mode] ? MODES[i.mode].nom : null;
+    return `
+    <div class="lb-item${po && po.coupe ? ' champion' : ''}">
       <div>
         <div class="lb-score ${i.W === 82 ? 'perfect' : ''}">${i.W}-${i.L}-${i.OTL}</div>
-        <div class="dash-note">${i.points} pts · différentiel ${i.GF - i.GA > 0 ? '+' : ''}${i.GF - i.GA}${i.points === best ? ' · <span class="dash-warn">meilleure</span>' : ''}</div>
+        <div class="dash-note">${i.points} pts · différentiel ${i.GF - i.GA > 0 ? '+' : ''}${i.GF - i.GA}${i.points === meilleur[i.mode || 'CLASSIQUE'] ? ' · <span class="dash-warn">meilleure</span>' : ''}</div>
+        ${verdict ? `<div class="lb-verdict">${verdict}${fiche}</div>` : ''}
       </div>
       <div class="lb-details">
         <div>${i.rank ? `${i.rank}e de ${i.nTeams}` : ''}${i.epoque ? ` · saison ${esc(i.epoque)}` : ''}</div>
-        <div>Masse : ${money(i.capUsed)}</div>
+        <div>${format ? `${esc(format)} · ` : ''}Masse : ${money(i.capUsed)}</div>
         <div>${esc(i.date)}</div>
         ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Rejouer</button>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   body.querySelectorAll('.lb-replay').forEach(b => {
     b.onclick = () => reprendreAlignement(list[Number(b.dataset.idx)]);
   });
@@ -2539,6 +2683,31 @@ async function buildOpponents(count) {
  * saison ») et `graine` la même suite de dés. La ligue jouée garde les deux
  * dans `G.ligue`, et l'historique les emporte.
  */
+/**
+ * REBÂTIR LES ADVERSAIRES D'UNE PARTIE REPRISE. La sauvegarde ne porte que
+ * leurs clés `saison_équipe`, dans l'ORDRE où `buildOpponents` les avait
+ * tirées — et c'est l'ordre qui compte : `exclude` s'accumule d'un club au
+ * suivant (deux équipes ne peuvent pas habiller le même joueur-saison), donc
+ * rejouer la même liste dans le même ordre redonne exactement les mêmes
+ * alignements. Les shards manquants se rechargent.
+ */
+async function rebatirAdversaires(cles) {
+  const exclude = new Set(picked().map(getPersonKey));
+  const out = [];
+  for (const cle of cles) {
+    const [season, team] = String(cle).split('|');
+    if (!season || !team) continue;
+    let entry = G.shards.get(season);
+    if (!entry) { try { entry = await getShard(season); } catch { continue; } }
+    const pool = entry?.byTeam?.[team];
+    if (!pool) continue;
+    const roster = autoRoster(pool, exclude);
+    for (const p of Object.values(roster)) exclude.add(getPersonKey(p));
+    out.push({ name: `${team} ${season}`, tag: team, roster, season });
+  }
+  return out;
+}
+
 async function runSeason(opts = {}) {
   if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
   // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
@@ -2585,8 +2754,12 @@ async function runSeason(opts = {}) {
     Object.assign(you, { W: r.W, L: r.L, OTL: r.OTL, GF: r.GF, GA: r.GA, PTS: r.points });
     teams = [you];
   }
+  G.journee = 0;
   G.ligue = {
     you, teams, calendrier, graine, epoque: G.epoque,
+    // Les clés des adversaires, dans l'ordre du tirage : c'est tout ce que la
+    // sauvegarde emporte, et `rebatirAdversaires` les redéploie à l'identique.
+    cles: opponents.map(t => `${t.season}|${t.tag}`),
     // Les trois réglages sont FIGÉS ici, avec la graine : l'écran « Nouvelle
     // partie » peut muter G pendant qu'un bilan est encore à l'écran, et
     // l'historique doit enregistrer la partie qui a été jouée, pas celle
@@ -2600,13 +2773,19 @@ async function runSeason(opts = {}) {
   // rythme du joueur — une journée, dix, la fin, ou son match en direct —
   // et le bilan ne se dessine qu'après.
   const montrer = () => renderResult(r, you, teams, leaders, calendrier);
-  if (calendrier.length) {
+  // Une saison reprise APRÈS sa dernière journée va droit au bilan : rouvrir
+  // l'écran sur « journée 82 sur 82 » ferait relire un écran déjà fini.
+  if (calendrier.length && (opts.depuis || 0) < calendrier.length) {
     ouvrirSaison({
       calendrier, teams, you, enSeries: nombreEnSeries(teams.length), epoque: G.epoque,
       ctx: { esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
       onTermine: montrer,
+      depuis: opts.depuis || 0,
+      // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
+      // la reprise a besoin de connaître.
+      onJour: j => { G.journee = j; saveGame(); },
     });
-  } else montrer();
+  } else { G.journee = calendrier.length; saveGame(); montrer(); }
 }
 
 /* ======================================================================
@@ -2790,6 +2969,8 @@ async function reprendreAlignement(entree) {
   clearSave();
   G.roster = roster;
   G.tirage = [];
+  G.echelle = {};
+  G.dette = 0;
   G.target = null;
   G.mainCase = null;
   G.selectedSlot = null;
@@ -2823,6 +3004,8 @@ async function demarrerPartie(r = {}) {
   clearSave();
   G.roster = {};
   G.tirage = [];
+  G.echelle = {};
+  G.dette = 0;
   // TROIS ÉTATS QUE `newGame` NE REMETTAIT PAS À ZÉRO. `chargerRenfort` était
   // le seul endroit qui nullifiait `G.renfort`, et il n'est appelé qu'en
   // express : la carte « Renfort » du tableau de bord survivait donc à un

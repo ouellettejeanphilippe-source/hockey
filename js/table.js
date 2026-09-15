@@ -230,7 +230,13 @@ export function statsDeTable(p) {
   if (!p) return { PA: 3, MA: 3, TI: 3, FO: 3, SO: 3, AR: 3, gb: GABARIT_MOYEN, ts: 'P' };
   if (p.p === 'G') {
     // facteurGardienDe : combien il laisse passer. Plus c'est bas, meilleur.
-    return { PA: 2, MA: 3, TI: 1, FO: 3, SO: 9, AR: surSix(8 - 4.2 * facteurGardienDe(p)), gb: gabaritDe(p), ts: 'P' };
+    const tg = new Set(getTraits(p).map(t => t.cle));
+    const vole = tg.has('VEZINA') ? 'VEZINA' : tg.has('VOLEUR') ? 'VOLEUR' : null;
+    return {
+      PA: 2, MA: 3, TI: 1, FO: 3, SO: 9,
+      AR: surSix(8 - 4.2 * facteurGardienDe(p) + (vole ? 1 : 0)),
+      gb: gabaritDe(p), ts: 'P', traits: vole ? { AR: vole } : {},
+    };
   }
   const vol = lancersRelDe(p);        // 0,25 à 2,60 — son volume de rondelles
   const fin = pctTirRelDe(p);         // 0,35 à 2,20 — sa finition
@@ -248,8 +254,53 @@ export function statsDeTable(p) {
   // trente-sept cases, et trente-sept cases allumées d'un coup, ça ne se lit
   // pas — on choisit au hasard faute de pouvoir comparer. À trois, on voit
   // ses options.
+  /*
+   * ON REPÊCHE SOUS UN JEU DE RÈGLES ET ON JOUE SOUS UN AUTRE. Le plateau
+   * importait `getTraits` et n'en interrogeait QU'UN sur onze : ⚡ Vitesse.
+   * La carte de sélection nommait le joueur par son archétype, son gabarit,
+   * son tir signature et son habileté — et le Selke, le Norris, le Colosse
+   * ou le Lancer redouté qu'on avait payés au repêchage ne changeaient
+   * strictement rien une fois sur la glace.
+   *
+   * Chaque trait passe donc par un nombre QUI EXISTE DÉJÀ — « aucune cote
+   * neuve » vaut ici aussi — et vaut +1, jamais plus :
+   *
+   *   ⚡ Vitesse                            PA, le patin
+   *   💣 Lancer redouté                     TI, faire entrer la rondelle
+   *   🪄 Créateur, 🛡️ Selke, 🧱 Norris,
+   *   🔁 Bidirectionnel                     MA, le maniement — passer, et
+   *                                         enlever la rondelle du bâton
+   *   🥊 Colosse                            FO, la force
+   *   🥅 Vezina, 🧤 Voleur                   AR, le gardien
+   *
+   * DEUX NE SONT PAS TRADUITS, ET C'EST DIT. 🧭 Meneur rend en prolongation
+   * et en séries : le plateau n'a ni l'un ni l'autre comme canal, et lui
+   * inventer un effet serait inventer une mécanique. 🏆 Conn Smythe ne rend
+   * qu'en avril, et `statsDeTable` ne sait pas si le match est une série.
+   *
+   * Deux traits sur le même nombre ne s'additionnent pas — c'est la règle
+   * des canaux d'équipe de `js/traits.js`, et elle vaut d'autant plus sur un
+   * d6 où un point vaut deux crans de talent.
+   *
+   * ET LE NOMBRE RESTE SUR SIX. Premier jet : le bonus s'ajoutait APRÈS
+   * `surSix`, donc Lidström sortait à MA 7 et Shanahan à TI 7 — hors de
+   * l'échelle d'un dé. Pire, `md` vaut `round((stat − 3,5) / 1,8)`, donc un 7
+   * rendait 2 au lieu de 1 : le trait aurait valu DEUX points de dé, quand
+   * toute la règle « deux crans de talent pour un point » existe justement
+   * pour que le talent ne décide pas seul.
+   */
+  const marques = {};
+  const majore = (axe, ...cles) => {
+    const t = cles.find(c => traits.has(c));
+    if (t) marques[axe] = t;
+    return t ? 1 : 0;
+  };
+  const bMA = majore('MA', 'CREATEUR', 'SELKE', 'NORRIS', 'BIDIR');
+  const bTI = majore('TI', 'TIR');
+  const bFO = majore('FO', 'COLOSSE');
+
   let PA = 4;
-  if (traits.has('VITESSE')) PA++;
+  if (majore('PA', 'VITESSE')) PA++;
   if (vol >= 1.35) PA++;
   if (estD && robu(p) >= 0.85) PA--;
   if (estD) PA--;
@@ -266,13 +317,14 @@ export function statsDeTable(p) {
 
   return {
     PA: borne(PA + (g === GABARIT_PETIT ? 1 : g === GABARIT_MATADOR ? -1 : 0), 2, 6),
-    MA: surSix(1.4 + 2.2 * pas),
-    TI: surSix(0.9 + 2.6 * vol * fin),
-    FO: surSix(1.5 + 4.0 * robu(p)) + (g === GABARIT_MATADOR ? 1 : g === GABARIT_PETIT ? -1 : 0),
+    MA: surSix(1.4 + 2.2 * pas + bMA),
+    TI: surSix(0.9 + 2.6 * vol * fin + bTI),
+    FO: borne(surSix(1.5 + 4.0 * robu(p)) + (g === GABARIT_MATADOR ? 1 : g === GABARIT_PETIT ? -1 : 0) + bFO, 1, 6),
     SO: borne(Math.round(1.4 + 3.1 * (usure - 30) / 45) + (g === GABARIT_MOYEN ? 1 : g === GABARIT_PETIT ? -1 : 0), 2, 6),
     AR: 3,
     gb: g,
     ts: TIRS[p.ts] ? p.ts : tirParDefaut(p),
+    traits: marques,
   };
 }
 
@@ -1784,6 +1836,7 @@ export function reglesDuPlateau() {
         `Le GABARIT : ${GABARITS[GABARIT_PETIT].icon} petit et rapide (+1 patin, +1 esquive, −1 force, −1 souffle, et il reste au sol une présence de plus), ${GABARITS[GABARIT_MOYEN].icon} moyen (+1 souffle, +1 passe, aucune faiblesse), ${GABARITS[GABARIT_MATADOR].icon} matador (+1 force, une mise en échec ratée ne lui coûte pas la présence, il protège la rondelle, −1 patin).`,
         `Le TIR SIGNATURE, et chacun a son contexte : ${Object.values(TIRS).map(t => `${t.icon} ${t.nom.toLowerCase()} (${t.desc.replace(/\.$/, '')})`).join(' · ')}.`,
         'L\'HABILETÉ, tirée de son archétype : +2 sur un type de geste, une fois par période.',
+        'LES TRAITS du repêchage valent +1 sur un nombre, jamais plus d\'un par nombre : ⚡ Vitesse au patin, 💣 Lancer au tir, 🪄 Créateur, 🛡️ Selke, 🧱 Norris et 🔁 Bidirectionnel au maniement, 🥊 Colosse à la force, 🥅 Vezina et 🧤 Voleur au gardien. 🧭 Meneur et 🏆 Conn Smythe ne rendent qu\'en prolongation et en séries : le plateau n\'a pas ces canaux-là.',
       ],
     },
     {

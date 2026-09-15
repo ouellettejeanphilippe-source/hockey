@@ -17,10 +17,10 @@ import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast;
+let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, statsSim, toast;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, statsSim, toast } = c);
+  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, statsSim, toast } = c);
 }
 
 /* =====================================================================
@@ -97,6 +97,105 @@ export function leagueStats(teams, mode = 'saison') {
     moyenne: top(gardiens.filter(x => x.S.GP >= seuilG), x => -(x.S.GA / Math.max(1, x.S.GP))),
     victoires: top(gardiens, x => x.S.W * 1000 + x.S.SO),
   };
+}
+
+/*
+ * LES TROPHÉES DE LA SAISON — et la règle qui décide lesquels existent.
+ *
+ * Le jeu jouait 82 matchs, couronnait un champion, et ne consacrait AUCUN
+ * joueur : les neuf palmarès étaient là, personne ne les gagnait.
+ *
+ * ON NE DÉCERNE QUE CE QUE LES COLONNES DÉCIDENT, JAMAIS CE QU'UN VOTE
+ * DÉCIDERAIT. C'est le miroir exact de la règle des traits (« un trait
+ * n'existe que là où le sommaire est aveugle ») : ici, un trophée n'existe
+ * que là où le sommaire tranche tout seul. L'Art Ross va au meilleur
+ * pointeur et le Maurice-Richard au meilleur buteur — ce sont des comptes,
+ * pas des scrutins, et ils portent donc leur vrai nom. Le Hart, le Norris,
+ * le Selke et le Vezina sont des VOTES : le moteur n'a pas d'électeurs, donc
+ * il ne les décerne pas. Les deux autres récompenses portent le nom de ce
+ * qu'elles mesurent, sans emprunter celui d'un trophée voté.
+ *
+ * Le seuil de départs des gardiens est celui de `leagueStats` — 25 sur 82,
+ * comme la vraie ligue, mis à l'échelle de la saison jouée.
+ */
+const TROPHEES = [
+  { cle: 'points', nom: 'Trophée Art-Ross', quoi: 'meilleur pointeur',
+    val: x => `${x.S.PTS} pts`, sous: x => `${x.S.G} B · ${x.S.A} A` },
+  { cle: 'buts', nom: 'Trophée Maurice-Richard', quoi: 'meilleur buteur',
+    val: x => `${x.S.G} buts`, sous: x => `${x.S.SH || 0} lancers` },
+  { cle: 'passes', nom: 'Meilleur passeur', quoi: 'le plus de passes',
+    val: x => `${x.S.A} passes`, sous: x => `${x.S.PTS} pts` },
+  { cle: 'arrets', nom: 'Meilleur gardien', quoi: 'pourcentage d\'arrêts',
+    val: x => (x.S.SA ? (x.S.SV / x.S.SA).toFixed(3).slice(1) : '—'), sous: x => `${x.S.W} V · ${x.S.SO} BL` },
+  { cle: 'plusmoins', nom: 'Meilleur différentiel', quoi: 'le plus grand +/-',
+    val: x => `${x.S.PM > 0 ? '+' : ''}${x.S.PM}`, sous: x => `${x.S.PTS} pts` },
+];
+
+/**
+ * LA PREMIÈRE ÉQUIPE D'ÉTOILES, par la case où chacun a joué. On ne devine
+ * pas une position « naturelle » : le rôle de la case dit à quel poste le
+ * joueur a passé sa saison, ce qui est justement ce qu'une équipe d'étoiles
+ * récompense. Les défenseurs se prennent les deux meilleurs des deux côtés,
+ * comme dans la vraie ligue, et le gardien passe par le seuil de départs.
+ */
+function equipeEtoiles(teams) {
+  const parRole = {}, defenseurs = [], gardiens = [];
+  let matchs = 1;
+  for (const t of teams) matchs = Math.max(matchs, t.games || 0);
+  const seuilG = Math.max(1, Math.round(matchs * 25 / 82));
+  for (const t of teams) {
+    for (const s of SLOTS) {
+      const p = t.roster[s.i];
+      if (!p || s.scratch) continue;
+      const S = statsSim(p, 'saison');
+      if (!S || !S.GP) continue;
+      const e = { p, t, S, role: s.role };
+      if (s.group === 'G') { if (S.GP >= seuilG) gardiens.push(e); continue; }
+      if (s.group === 'D') { defenseurs.push(e); continue; }
+      if (!parRole[s.role] || S.PTS > parRole[s.role].S.PTS) parRole[s.role] = e;
+    }
+  }
+  defenseurs.sort((a, b) => b.S.PTS - a.S.PTS);
+  gardiens.sort((a, b) => (b.S.SA ? b.S.SV / b.S.SA : 0) - (a.S.SA ? a.S.SV / a.S.SA : 0));
+  // Les deux meilleurs défenseurs quel que soit le CÔTÉ, comme la vraie ligue :
+  // afficher « DG » deux fois ferait croire à un doublon plutôt qu'à une paire.
+  const d1 = defenseurs[0] && { ...defenseurs[0], role: 'D' };
+  const d2 = defenseurs[1] && { ...defenseurs[1], role: 'D' };
+  const g = gardiens[0] && { ...gardiens[0], role: 'G' };
+  return [parRole.AG, parRole.C, parRole.AD, d1, d2, g].filter(Boolean);
+}
+
+function tropheesHtml(stats, teams) {
+  const gagnants = TROPHEES.map(d => {
+    const x = (stats[d.cle] || [])[0];
+    return x ? { d, x } : null;
+  }).filter(Boolean);
+  if (!gagnants.length) return '';
+  const carte = ({ d, x }) => `<div class="tro-carte${x.t.isPlayer ? ' tien' : ''}">
+    <div class="tro-nom">${esc(d.nom)}</div>
+    <div class="tro-joueur">${getTeamLogoHtml(x.t.tag, 16)}${lienJoueur(x.p, x.t, 'saison', `<span>${esc(x.p.n)}</span>`)}</div>
+    <div class="tro-val">${esc(d.val(x))}</div>
+    <div class="tro-sous">${esc(d.quoi)} · ${esc(d.sous(x))}</div>
+  </div>`;
+  const etoiles = equipeEtoiles(teams);
+  const ligne = x => `<tr class="${x.t.isPlayer ? 'you' : ''}">
+    <td class="left">${esc(x.role)}</td>
+    <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 14)}${lienJoueur(x.p, x.t, 'saison', `<span>${esc(x.p.n)}</span>`)}</div></td>
+    <td class="sub-cell">${lienEquipe(x.t, 'saison', esc(x.t.isPlayer ? 'NHL' : `${x.t.tag} ${(x.t.season || '').slice(2)}`))}</td>
+    <td class="stat heros">${x.p.p === 'G' ? (x.S.SA ? (x.S.SV / x.S.SA).toFixed(3).slice(1) : '—') : `${x.S.PTS} pts`}</td>
+  </tr>`;
+  const miens = gagnants.filter(g => g.x.t.isPlayer).length + etoiles.filter(x => x.t.isPlayer).length;
+  return `<div class="result-section">
+    <h3>${ico('i-cup')}Les trophées de la saison</h3>
+    <p class="series-legende">Ce que les colonnes décident, et rien d'autre : le Hart, le Norris, le Selke et le Vezina sont des votes, et le moteur n'a pas d'électeurs.
+      ${miens ? `<strong>${miens} de tes joueurs y sont.</strong>` : ''}</p>
+    <div class="trophees">${gagnants.map(carte).join('')}</div>
+    <h4 class="tro-titre">Première équipe d'étoiles</h4>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th class="left">Poste</th><th class="left">Joueur</th><th>Éq.</th><th class="stat heros">Fiche</th></tr></thead>
+      <tbody>${etoiles.map(ligne).join('')}</tbody>
+    </table></div>
+  </div>`;
 }
 
 /*
@@ -277,7 +376,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${esc(i.player.n)}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
     : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
 
-  saveLeaderboard({
+  G.lbId = saveLeaderboard({
     W: r.W, L: r.L, OTL: r.OTL, points: r.points, GF: r.GF, GA: r.GA,
     capUsed: capUsed(), rank, nTeams, date: new Date().toLocaleDateString('fr-CA'),
     // De quoi rouvrir et rejouer cette équipe : la clé de chaque joueur-
@@ -336,7 +435,8 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         </div>
         <div id="calHost">${calendrierHtml(calendrier, calendrier.length - 1)}</div>
       </div>` : '',
-    stats: stats ? `<div class="result-section">
+    stats: stats ? `${tropheesHtml(stats, teams)}
+      <div class="result-section">
         <h3>Statistiques de la ligue · tous les joueurs</h3>
         ${palmaresHtml(stats, 'saison')}
       </div>` : '',
@@ -398,12 +498,17 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
 
   $('shareBtn').onclick = () => {
     const top = picked().slice().sort((a, b) => (b.pt ?? b.w ?? 0) - (a.pt ?? a.w ?? 0))[0];
+    // Le texte se compose à l'INSTANT du clic, pas au rendu du bilan : les
+    // séries se jouent après, et il dirait sinon toujours « pas de séries ».
+    const po = G.lbId ? (lireSeriesHistorique(G.lbId)) : null;
     const txt = `🏒 Cap 82-0\n`
       + `Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n`
       + `Rang : ${rank}e de ${nTeams}\n`
+      + (po ? (po.coupe ? `🏆 Coupe Stanley — séries ${po.V}-${po.D}\n` : `Séries : ${po.ronde} (${po.V}-${po.D})\n`) : '')
+      + (G.ligue && G.ligue.epoque ? `Saison : ${G.ligue.epoque}\n` : '')
       + `Masse salariale : ${money(capUsed())} / ${money(capMax())}\n`
       + `Vedette : ${top ? `${top.n} (${top.t} ${top.s})` : '—'}\n`
-      + `Essaie de faire 82-0.`;
+      + (po && po.coupe ? `Bats ça.` : `Essaie de gagner la Coupe.`);
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(txt)
         .then(() => toast('Fiche copiée dans le presse-papier.'))
@@ -469,6 +574,37 @@ export function runPlayoffs(top16) {
   }
   separerSeries(G.ligue ? G.ligue.teams : top16, photo);
   const champion = ronde[0];
+
+  /*
+   * LA COUPE ENTRE DANS L'HISTORIQUE. `saveLeaderboard` est appelé au bilan de
+   * la SAISON, donc avant la première série : l'entrée ne portait aucun champ
+   * de séries et rien ne la réécrivait ensuite — le seul but du jeu n'était
+   * enregistré nulle part. On la coud ici, où les séries viennent d'être
+   * jouées, et pas à la révélation : ce qui est joué est joué, que le joueur
+   * le regarde match par match ou qu'il passe à la fin.
+   */
+  const toi = top16.find(t => t.isPlayer);
+  if (toi && G.lbId) {
+    const miennes = G.series.filter(s => s.A === toi || s.B === toi);
+    let V = 0, D = 0;
+    for (const s of miennes) {
+      const mien = s.A === toi ? s.wA : s.wB, autre = s.A === toi ? s.wB : s.wA;
+      V += mien; D += autre;
+    }
+    const derniere = miennes[miennes.length - 1];
+    const coupe = champion === toi;
+    majLeaderboard(G.lbId, {
+      series: {
+        coupe, V, D,
+        rondes: miennes.length,
+        // Le nom de la ronde où ça s'est arrêté, tel que le tableau l'appelle.
+        ronde: coupe ? 'Coupe'
+          : derniere ? `Éliminé — ${RONDES[derniere.ronde] || `ronde ${derniere.ronde + 1}`}`
+          : 'Éliminé',
+        contre: !coupe && derniere ? tagCourt(derniere.winner) : null,
+      },
+    });
+  }
   const btn = $('playoffsBtn');
   if (btn) btn.disabled = true;
 

@@ -36,6 +36,39 @@ page.on('console', m => {
 });
 await page.route(u => !u.href.startsWith(base), r => r.abort());
 
+/*
+ * UN TEST DE FUMÉE QUI DÉPEND DU TIRAGE N'EST PAS UN TEST, C'EST UNE LOTERIE.
+ * C'est la leçon que `check_table.mjs` porte déjà — sa première version tirait
+ * ses clubs avec `Math.random` et rougissait une fois sur quinze, sur main. Ce
+ * script avait le même défaut à deux étages : la roulette du repêchage tire
+ * avec `Math.random` DANS LA PAGE, et le joueur scripté choisit ses cases avec
+ * `Math.random` ICI. Deux couches de hasard, donc un parcours différent à
+ * chaque exécution — et l'assertion sur la variété des gestes offerts a fini
+ * par tomber à deux sur cinq dans l'Action, sans qu'une ligne du plateau ait
+ * bougé.
+ *
+ * Les deux étages prennent donc le MÊME générateur déterministe (un sfc32
+ * comme celui de js/sim.js), semé par `GRAINE` : le parcours est reproductible
+ * d'une exécution à l'autre, et `GRAINE=... node scripts/smoke_table.mjs`
+ * rejoue exactement le même match quand il faut comprendre un échec.
+ */
+const GRAINE = process.env.GRAINE || 'fumee';
+const semer = graine => {
+  let a = 0x9e3779b9, b = 0x243f6a88, c = 0xb7e15162, d = 0;
+  for (const ch of String(graine)) { d = (d * 31 + ch.charCodeAt(0)) >>> 0; }
+  a ^= d; b ^= d; c ^= d;
+  return function () {
+    a >>>= 0; b >>>= 0; c >>>= 0; d = (d + 1) >>> 0;
+    let t = (a + b) >>> 0;
+    a = b ^ (b >>> 9); b = (c + (c << 3)) >>> 0;
+    c = ((c << 21) | (c >>> 11)) >>> 0; c = (c + t) >>> 0;
+    t = (t + d) >>> 0;
+    return (t >>> 0) / 4294967296;
+  };
+};
+const dé = semer(GRAINE);
+await page.addInitScript(`(${semer.toString()})(${JSON.stringify(GRAINE + '-page')}) && (Math.random = (${semer.toString()})(${JSON.stringify(GRAINE + '-page')}));`);
+
 await page.goto(base + '/', { waitUntil: 'networkidle' });
 await page.evaluate(() => { try { localStorage.clear(); } catch {} });
 await page.reload({ waitUntil: 'networkidle' });
@@ -172,7 +205,7 @@ while (tours++ < 1200) {
    */
   const duelOuvert = etat.autres.includes('echec') || etat.autres.includes('vol');
   if (duelOuvert) {
-    const quoi = etat.autres.includes('vol') && Math.random() < 0.5 ? 'vol' : 'echec';
+    const quoi = etat.autres.includes('vol') && dé() < 0.5 ? 'vol' : 'echec';
     await page.click(`#tableModal [data-geste="${quoi}"]`);
     gestes++; await page.waitForTimeout(50); continue;
   }
@@ -181,24 +214,24 @@ while (tours++ < 1200) {
     await page.click(`#tableModal .t-case[data-r="${etat.duel.split(',')[0]}"][data-c="${etat.duel.split(',')[1]}"]`);
     gestes++; await page.waitForTimeout(50); continue;
   }
-  if (etat.contacts && Math.random() < 0.45) {
+  if (etat.contacts && dé() < 0.45) {
     const n = await page.$$('#tableModal .t-case.t-offre-echec');
-    if (n.length) { await n[Math.floor(Math.random() * n.length)].click(); gestes++; await page.waitForTimeout(50); continue; }
+    if (n.length) { await n[Math.floor(dé() * n.length)].click(); gestes++; await page.waitForTimeout(50); continue; }
   }
   if (etat.tir) { await page.click('#tableModal [data-geste="tir"]'); gestes++; await page.waitForTimeout(50); continue; }
-  if (etat.offres && Math.random() < 0.62) {
+  if (etat.offres && dé() < 0.62) {
     const n = await page.$$('#tableModal .t-case.t-offre');
-    await n[Math.floor(Math.random() * n.length)].click();
+    await n[Math.floor(dé() * n.length)].click();
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.autres.length) {
     const n = await page.$$('#tableModal [data-geste]');
-    await n[Math.floor(Math.random() * n.length)].click();
+    await n[Math.floor(dé() * n.length)].click();
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.offres) {
     const n = await page.$$('#tableModal .t-case.t-offre');
-    await n[Math.floor(Math.random() * n.length)].click();
+    await n[Math.floor(dé() * n.length)].click();
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.jouables) { await page.click('#tableModal .t-case.t-jouable:not(.t-sel)'); pieces++; await page.waitForTimeout(50); continue; }
@@ -223,6 +256,12 @@ console.log(`   gestes offerts par la carte : ${[...vus].sort().join(', ') || 'a
  * moins trois des cinq gestes offerts (moins, et la carte est cassée), et le
  * duel offert dès qu'il s'est présenté, puisque là c'est nous qui avons
  * cliqué le porteur exprès. Le reste est rapporté, pas exigé.
+ *
+ * ET LE PARCOURS EST MAINTENANT DÉTERMINISTE (voir `GRAINE` en tête), donc ce
+ * seuil ne se joue plus aux dés : sous la graine par défaut le joueur scripté
+ * voit `ecran, foncer, tir`, trois fois sur trois. Il est tombé à deux dans
+ * l'Action tant que les deux couches de hasard subsistaient — et rien du
+ * plateau n'avait bougé.
  */
 const TOUS = ['tir', 'echec', 'vol', 'ecran', 'foncer'];
 if (vus.size < 3) errors.push(`seulement ${vus.size} geste(s) offert(s) par la carte sur ${TOUS.length} : ${[...vus].join(', ') || 'aucun'}`);
@@ -243,12 +282,69 @@ const deborde = await page.evaluate(() => document.documentElement.scrollWidth -
 console.log(`   débordement horizontal : ${deborde} px`);
 if (deborde > 1) errors.push(`le plateau déborde de ${deborde} px à 390 px`);
 
+/* ---------- la feuille du match ----------
+ * Le moteur comptait marqueurs, passeurs, mises en échec, vols et arrêts, et
+ * l'écran allait droit à `fermer()` : deux des trois blocs de `resultatDe`
+ * n'étaient lus par aucune ligne d'interface. « Voir le résultat » ouvre
+ * maintenant la feuille, et c'est « Continuer » qui ferme.
+ */
 const fin = await page.$('#tableModal .t-resultat');
-if (fin) await fin.click(); else await page.click('#tableModal .table-close');
+if (fin) {
+  await fin.click();
+  // On DIT ce qui manque plutôt que de laisser expirer une attente : une
+  // régression qui referme le match au lieu d'ouvrir la feuille rendait un
+  // `TimeoutError` sur un sélecteur, illisible dans un journal d'Action.
+  let ouverte = true;
+  try { await page.waitForSelector('#tableModal .t-feuille', { timeout: 15000 }); }
+  catch { ouverte = false; }
+  if (!ouverte) {
+    console.log('\n✗ « Voir le résultat » n\'ouvre pas la feuille du match.');
+    await browser.close();
+    process.exit(1);
+  }
+  const lu = await page.evaluate(() => ({
+    etoiles: document.querySelectorAll('#tableModal .tf-etoile').length,
+    cotes: document.querySelectorAll('#tableModal .tf-cote').length,
+    rangees: document.querySelectorAll('#tableModal .tf-table tr').length,
+    gardiens: document.querySelectorAll('#tableModal .tf-gardien').length,
+    resume: (document.querySelector('#tableModal .tf-etoile') || {}).textContent || '',
+  }));
+  console.log(`   feuille du match : ${lu.etoiles} étoile(s), ${lu.cotes} côtés, ${lu.rangees} rangées, ${lu.gardiens} gardiens · ${lu.resume.replace(/\s+/g, ' ').trim()}`);
+  if (lu.cotes !== 2) errors.push(`la feuille du match montre ${lu.cotes} côté(s) au lieu de deux`);
+  if (!lu.etoiles) errors.push('la feuille du match ne nomme aucune étoile');
+  if (!lu.rangees) errors.push('la feuille du match ne montre aucun joueur');
+  if (lu.gardiens !== 2) errors.push(`la feuille du match montre ${lu.gardiens} gardien(s) au lieu de deux`);
+  const deborde2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (deborde2 > 1) errors.push(`la feuille du match déborde de ${deborde2} px à 390 px`);
+  await page.click('#tableModal .t-feuille-suite');
+} else await page.click('#tableModal .table-close');
 await page.waitForTimeout(400);
 
 /* ---------- le reste du tournoi ---------- */
 await page.waitForSelector('#hubModal', { state: 'visible', timeout: 20000 });
+
+/* LES MENEURS DU TOURNOI. Le tournoi ne tenait que six nombres par club :
+   rien ne s'accumulait d'un match à l'autre, donc l'ordre des matchs n'avait
+   aucune importance. Le cumul se fait à l'affichage, en parcourant les matchs
+   joués, et il inclut les séries. */
+{
+  const bouton = await page.$('#hubModal [data-onglet="meneurs"]');
+  if (!bouton) errors.push('le tournoi n\'a pas d\'onglet « Meneurs »');
+  else {
+    await bouton.click();
+    await page.waitForTimeout(300);
+    const lu = await page.evaluate(() => ({
+      tables: document.querySelectorAll('#hubModal .hub-volet table').length,
+      rangees: document.querySelectorAll('#hubModal .hub-volet tbody tr').length,
+      premier: (document.querySelector('#hubModal .hub-volet tbody tr') || {}).textContent || '',
+    }));
+    if (lu.tables < 2) errors.push(`les meneurs du tournoi ne montrent que ${lu.tables} tableau(x)`);
+    if (!lu.rangees) errors.push('les meneurs du tournoi ne montrent aucun joueur');
+    else console.log(`   meneurs du tournoi : ${lu.tables} tableaux, ${lu.rangees} rangées · ${lu.premier.replace(/\s+/g, ' ').trim()}`);
+    const deborde3 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (deborde3 > 1) errors.push(`les meneurs du tournoi débordent de ${deborde3} px à 390 px`);
+  }
+}
 let tour = 0;
 while (tour++ < 20) {
   const sauter = await page.$('#hubModal .hub-sauter');

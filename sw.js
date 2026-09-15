@@ -13,14 +13,15 @@
  *   portraits (assets.nhle.com) cache d'abord : un visage ne change pas, et
  *                             c'est ce qui coûte le plus en données mobiles
  *   shards (data/seasons)     réseau seulement : IndexedDB s'en occupe déjà,
- *                             avec la version des cotes dans sa clé
+ *                             avec la version des cotes dans sa clé ;
+ *                             data/seed.json, lui, est de la coquille
  *
  * Changer VERSION jette l'ancien cache à l'activation. Les chemins sont
  * relatifs à la portée du travailleur, donc le jeu fonctionne autant à la
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v1';
+const VERSION = 'cap82-v2';
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
@@ -28,9 +29,13 @@ const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
 const FICHIERS = [
   './', 'index.html', 'style.css', 'site.webmanifest', 'favicon.svg',
   'icon-180.png', 'icon-192.png', 'icon-512.png',
+  // Le graphe de modules AU COMPLET : ils sont importés statiquement, donc un
+  // seul qui manque casse le premier `import` et la page ne démarre pas.
+  // `scripts/check_coquille.mjs` le vérifie, il ne se relit pas.
   'js/game.js', 'js/sim.js', 'js/ratings.js', 'js/data.js', 'js/logos.js',
   'js/traits.js', 'js/recit.js', 'js/direct.js', 'js/bilan.js',
-  'data/trophees.js', 'data/reputations.js', 'data/index.json',
+  'js/entracte.js', 'js/saison.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js',
+  'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json',
   'fonts/BarlowCondensed-600-latin.woff2', 'fonts/BarlowCondensed-600-latin-ext.woff2',
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',
   'fonts/BarlowCondensed-800-latin.woff2', 'fonts/BarlowCondensed-800-latin-ext.woff2',
@@ -54,7 +59,11 @@ self.addEventListener('activate', ev => {
 });
 
 const estPortrait = url => url.hostname === 'assets.nhle.com';
-const estShard = url => url.pathname.includes('/data/seasons/') || url.pathname.endsWith('/data/seed.json');
+// Les shards d'une saison, eux seuls : IndexedDB les garde déjà avec la
+// version des cotes dans sa clé, et en préécrire 55 coûterait des mégaoctets
+// à la première visite. `data/seed.json` n'en est PAS un — c'est le filet
+// hors ligne de js/data.js, donc il passe par la coquille.
+const estShard = url => url.pathname.includes('/data/seasons/');
 
 async function reseauDabord(req) {
   const cache = await caches.open(COQUILLE);

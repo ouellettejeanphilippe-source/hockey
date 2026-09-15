@@ -2,6 +2,8 @@ name: Vérifier
 
 # Ce que protège cette Action, à chaque PR et à chaque poussée sur main :
 #
+#   check_coquille  sw.js liste-t-il tout ce que la page charge ? (le filet
+#                   `data/seed.json` était servi au réseau SEULEMENT)
 #   check_graine    la même graine rejoue la même saison (un `Math.random`
 #                   glissé dans js/sim.js la fait échouer)
 #   check_feuilles  les quatre égalités de la feuille de match, sur une ligue
@@ -10,6 +12,12 @@ name: Vérifier
 #                   des joueurs font ceux de l'équipe, les lancers font les
 #                   arrêts plus les buts) — l'équivalent de check_feuilles
 #                   pour le moteur du mode bonus
+#   check_ratings   la corrélation force d'équipe / vrai classement, qui doit
+#                   rester autour de 0,8 — c'est aussi le SEUL portier de
+#                   `build-data.yml`, qui commite des shards sur main
+#   check_traits    chaque nom de réputation existe dans les shards (un nom mal
+#                   orthographié est un trait mort), la rareté, et le fait
+#                   qu'un trait suive le joueur plutôt que sa case
 #   check_regles    les douze règles du plateau, vérifiées entre chaque geste :
 #                   une pièce par case, la rondelle toujours jouable, le
 #                   porteur jamais au sol, un match qui finit sur un gagnant —
@@ -19,8 +27,12 @@ name: Vérifier
 #   smoke_table     le même, en mode bonus : le tournoi, le plateau, un match
 #                   joué geste par geste, le bilan
 #
+# Tous passent par `scripts/verdict.mjs`, qui pose le code de sortie : un
+# chiffre qu'on imprime sans le juger est un chiffre que personne ne relit.
+#
 # Les scripts de calibration (monotonie, plafond, tireurs) sont trop longs
-# pour tourner ici ; ils restent à lancer à la main, voir CLAUDE.md.
+# pour tourner ici ; ils restent à lancer à la main, voir CLAUDE.md. Ils
+# rendent maintenant un vrai code de sortie eux aussi.
 
 on:
   pull_request:
@@ -41,6 +53,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: La coquille hors ligne est complète
+        run: node scripts/check_coquille.mjs
+
       - name: Le moteur se rejoue sur sa graine
         run: node scripts/check_graine.mjs
 
@@ -52,6 +67,12 @@ jobs:
 
       - name: Les règles du plateau tiennent
         run: MATCHS=80 node scripts/check_regles.mjs
+
+      - name: Les cotes tiennent leur corrélation
+        run: node scripts/check_ratings.mjs
+
+      - name: Les traits restent rares et se voient
+        run: node scripts/check_traits.mjs
 
       - name: Installer Playwright (Chromium)
         run: |
