@@ -355,11 +355,20 @@ export function statsDeTable(p) {
    l'intérêt : le plateau ne demande plus « tires-tu ? » mais « d'où ? ».
    ====================================================================== */
 
+/*
+ * LES ICÔNES NE SE RÉPÈTENT JAMAIS SUR LA MÊME CARTE. Le poignet portait 🎯,
+ * la même icône que l'habileté Décoché, et la réception portait ⚡, celle du
+ * trait Vitesse et de l'habileté Coup de patin — sur une carte qui nomme le
+ * joueur par son tir ET son habileté, deux 🎯 côte à côte se lisaient comme
+ * un doublon. Le poignet est le bâton (🏒), la réception est la flèche qui
+ * part sans s'arrêter (🏹) ; les deux sont libres dans tout l'inventaire du
+ * dépôt (archétypes, traits, gabarits, habiletés, mesures).
+ */
 export const TIRS = {
-  P: { nom: 'Tir du poignet', icon: '🎯', desc: 'Bon partout, mauvais nulle part.', mod: () => 0 },
+  P: { nom: 'Tir du poignet', icon: '🏒', desc: 'Bon partout, mauvais nulle part.', mod: () => 0 },
   F: { nom: 'Tir frappé', icon: '💣', desc: '+1 de loin (la pointe), −1 collé au filet.',
        mod: c => (c.loin >= 3 ? 1 : c.loin <= 1 ? -1 : 0) },
-  E: { nom: 'Tir sur réception', icon: '⚡', desc: '+2 s\'il vient de recevoir la passe : le une-deux.',
+  E: { nom: 'Tir sur réception', icon: '🏹', desc: '+2 s\'il vient de recevoir la passe : le une-deux.',
        mod: c => (c.recu ? 2 : 0) },
   R: { nom: 'Revers', icon: '🌀', desc: '+1 sous la pression d\'un bâton adverse.',
        mod: c => (c.batons > 0 ? 1 : 0) },
@@ -501,6 +510,21 @@ export const MOD_MAX = 2, MOD_MIN = -2;   // un geste n'est jamais sûr ni jamai
  * talent se voit encore — il ne décide simplement plus tout seul.
  */
 export const md = stat => Math.round((stat - 3.5) / 1.8);
+
+/*
+ * LES MOTS DES AXES, à un seul endroit. La carte du plateau (js/plateau.js)
+ * et le repêchage en mode Sur table (js/game.js) les lisent tous les deux :
+ * une infobulle recopiée est une infobulle qui ment à la première retouche,
+ * comme une règle recopiée.
+ */
+export const AXE_MOT = {
+  PA: 'Patin : de combien de cases il bouge',
+  MA: 'Maniement : passer, esquiver, protéger la rondelle',
+  TI: 'Tir : faire entrer la rondelle',
+  FO: 'Force : enlever la rondelle, et la garder',
+  SO: 'Souffle : combien de présences il tient avant d\'être vidé',
+  AR: 'Arrêt : ce que le gardien laisse passer, ramené sur un dé',
+};
 
 /*
  * LE 6 RÉUSSIT TOUJOURS, LE 1 ÉCHOUE TOUJOURS. C'est la règle de Blood Bowl,

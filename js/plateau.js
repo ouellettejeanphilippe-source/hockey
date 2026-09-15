@@ -29,7 +29,7 @@ import {
   modTir, modPasse, modEchec, modEsquive, modVol, peutTirer, distanceAuFilet, PORTEE_TIR,
   deplacer, appliquerEsquive, passer, appliquerPasse, tirer, appliquerTir,
   mettreEnEchec, appliquerEchec, voler, appliquerVol,
-  seMettreDevant, foncer, souffleDe, essouffle, pasDe, uniteDe, statsDeTable,
+  seMettreDevant, foncer, souffleDe, essouffle, pasDe, uniteDe, statsDeTable, AXE_MOT,
   relancer, finirPresence, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
@@ -502,13 +502,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   /* Un bouton de geste : son nom, son seuil et ses chances, comme partout. */
   const bouton = (geste, nom, mod, seuil, cls = '') =>
     `<button type="button" class="t-geste ${cls}" data-geste="${geste}">${esc(nom)} <b>${cote(mod, seuil)}</b><i>${pourcent(mod, seuil)}</i></button>`;
-
-  const AXE_MOT = {
-    PA: 'Patin : de combien de cases il bouge',
-    MA: 'Maniement : passer, esquiver, protéger la rondelle',
-    TI: 'Tir : faire entrer la rondelle',
-    FO: 'Force : enlever la rondelle, et la garder',
-  };
 
   /* ---------- le dé ---------- */
 
