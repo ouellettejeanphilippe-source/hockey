@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal } from './sim.js';
+import { SLOTS, compterFeuilles, tirsTotal, soirEreintant } from './sim.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { tempsRestant } from './recit.js';
 
@@ -315,7 +315,7 @@ function blocEquipe(ctx, t, ligne, pos) {
  *   onJour      appelé à chaque avance avec le numéro de journée révélée :
  *               c'est ce que le contrôleur écrit dans la sauvegarde
  */
-export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null }) {
+export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -507,16 +507,20 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         <div class="hub-match-titre">Prochain match · Journée ${p.j + 1}</div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}</div>
         <div class="hub-match-note">${dernierMot}</div>
+        ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
       </div>`;
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les NHL Stars ne jouent plus d'ici la fin de la saison.</div></div>`;
     }
     actions.innerHTML = `${p ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder le match</button>` : ''}
+      ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Derrière le banc</button>` : ''}
       <button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
       <button class="btn hub-dix" title="Dix journées d'un coup">+10 journées</button>
       <button class="btn hub-fin" title="Jouer le reste de la saison et lire le résultat">Passer à la fin</button>`;
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = regarderProchain;
+    const banc = actions.querySelector('.hub-banc');
+    if (banc) banc.onclick = () => { quitter(); onBanc(jour); };
     actions.querySelector('.hub-jour').onclick = () => { avancer(1); dessiner(); tabs.montrer('journee'); };
     actions.querySelector('.hub-dix').onclick = () => { avancer(10); dessiner(); tabs.montrer('fiche'); };
     actions.querySelector('.hub-fin').onclick = () => { avancer(N); dessiner(); tabs.montrer('classement'); };
@@ -541,13 +545,18 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     void apresA; void apresB;
   }
 
-  const fermer = () => {
+  /* Quitter l'écran SANS finir la saison : le banc. Rien n'est révélé de plus. */
+  const quitter = () => {
     if (termine) return;
     termine = true;
     debrancherMenu();
     window.removeEventListener('keydown', clavier);
     modal.style.display = 'none';
     document.body.style.overflow = '';
+  };
+  const fermer = () => {
+    if (termine) return;
+    quitter();
     onTermine();
   };
   /* ✕ : le reste de la saison se joue, et on passe au bilan. */

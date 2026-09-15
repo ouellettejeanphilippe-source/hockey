@@ -23,8 +23,8 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
-  getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague,
-  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine } from './sim.js';
+  getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
+  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
@@ -127,6 +127,7 @@ const G = {
    * être en désaccord avec la partie qu'on joue. Jamais persisté.
    */
   brouillon: null,      // { mode, epoque, epoqueChoisie, repechage, bonus } | null
+  banc: null,           // derrière le banc : { jour, compte, blesses, fermeture, prochain, fiche } — jamais sauvegardé
   mode: 'CLASSIQUE',    // CLASSIQUE | LOTO | EXPRESS | LOTO_EXPRESS (voir MODES dans sim.js)
   /*
    * UNE SAISON, LA COUPE CETTE ANNÉE-LÀ. JP : *ajouter un mode : choisir une
@@ -391,6 +392,7 @@ function saveGame() {
         graine: G.ligue.graine,
         adversaires: G.ligue.cles || [],
         journee: G.journee || 0,
+        decisions: G.ligue.decisions || [],
       } : null,
       relances: G.relances,
       left: G.left,
@@ -507,11 +509,11 @@ async function restoreSave() {
     // au démarrage, qui l'exécute après le premier rendu — sans quoi on
     // simulerait 1312 matchs devant un écran de chargement vide.
     if (data.partie && data.partie.graine) {
-      const { graine, adversaires = [], journee = 0 } = data.partie;
+      const { graine, adversaires = [], journee = 0, decisions = [] } = data.partie;
       return { reprise: async () => {
         const clubs = await rebatirAdversaires(adversaires);
         if (!clubs.length) return;
-        await runSeason({ adversaires: clubs, graine, depuis: journee });
+        await runSeason({ adversaires: clubs, graine, depuis: journee, decisions });
       } };
     }
     return true;
@@ -2096,6 +2098,14 @@ function syncSortOptions() {
   sort.value = G.sortBy;
 }
 
+/** La fiche d'un joueur à ce jour, telle que le banc la lit : « 12-18-30 · +7 », « 14-6 · ,918 ». */
+function ficheDuJour(p) {
+  const c = G.banc && G.banc.compte.get(p);
+  if (!c || !c.gp) return 'aucun match';
+  if (p.p === 'G') return `${c.w}-${c.l} · ${c.sa ? (c.sv / c.sa).toFixed(3).replace('0.', ',') : '—'}`;
+  return `${c.g}-${c.a}-${c.pts} · ${c.pm > 0 ? '+' : ''}${c.pm}`;
+}
+
 function slotTags(p, zoneEcartTag, penTag) {
   if (surTable()) {
     // Le plateau ne lit ni zone ni pénalité : la case porte le gabarit, le
@@ -2148,7 +2158,10 @@ function slotEl(s) {
        donc on abrège « PTS/M » en « /M ». La fiche donne le libellé complet. */
     const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr}/M`;
     // Sur table : les nombres du plateau, et rien de ce qu'il ne lit pas.
-    const ligneStats = surTable() ? slotAxesTexte(p) : `${main} · ${secondary}`;
+    // Derrière le banc : la fiche À CE JOUR, jamais celle de fin de saison.
+    const ligneStats = G.banc ? ficheDuJour(p) : surTable() ? slotAxesTexte(p) : `${main} · ${secondary}`;
+    const blesseTag = G.banc && G.banc.blesses.has(p)
+      ? `<span class="tag tag-pen" title="Blessé : il lui reste ${G.banc.blesses.get(p)} match${G.banc.blesses.get(p) > 1 ? 's' : ''}. Un réserviste prend sa place le soir du match.">🩹 ${G.banc.blesses.get(p)}</span>` : '';
     const penTag = !surTable() && pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position : −${pen}">−${pen}</span>` : '';
     const ecart = zoneEcart(p, s);
     /* Une flèche seule : « ▼ zone » et « ▲ zone » poussaient la pénalité de
@@ -2160,7 +2173,7 @@ function slotEl(s) {
     // Le visage dans la case aussi : on reconnaît son alignement d'un coup
     // d'oeil, comme sur un tableau de vestiaire.
     el.innerHTML = `
-      ${estRenfort(p) ? ''
+      ${estRenfort(p) || G.banc ? ''
         : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
       <div class="slot-band${estRenfort(p) ? ' off' : ''}">
         <span class="sb-role ${positionClass(p)}">${esc(roleCourt(s.role))}</span>
@@ -2175,7 +2188,7 @@ function slotEl(s) {
           <div class="slot-name">${formatName(p.n)}</div>
           <div class="slot-meta">${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</div>
           <div class="slot-meta">${ligneStats}</div>
-          <div class="slot-tags">${slotTags(p, zoneEcartTag, penTag)}</div>
+          <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>
         </div>
       </div>`;
     el.querySelector('.slot-remove')?.addEventListener('click', ev => {
@@ -2281,7 +2294,22 @@ function lineEl(title, slots, group, unit, cls = '') {
     chemHtml = `<span class="line-chem">${filled}/${slots.length} comblés</span>`;
   }
 
-  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${chemHtml}</div>`;
+  // Derrière le banc, chaque trio porte son 🔒 : le trio de fermeture prend le
+  // premier trio adverse (voir FERMETURE_APPARIEMENT dans js/sim.js).
+  let fermHtml = '';
+  if (G.banc && group === 'F') {
+    const ferm = fermetureCourante();
+    const on = ferm === unit;
+    fermHtml = `<button type="button" class="line-ferm${on ? ' on' : ''}" data-unit="${unit}" title="${on ? 'Ton trio de fermeture : il prend le premier trio adverse. Touche pour le libérer.' : 'En faire ton trio de fermeture : il prendra le premier trio adverse. Son blocage est celui de ses trois joueurs.'}">🔒${on ? ' Fermeture' : ''}</button>`;
+    if (on) wrap.classList.add('fermeture');
+  }
+  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${fermHtml}${chemHtml}</div>`;
+  const fermBtn = wrap.querySelector('.line-ferm');
+  if (fermBtn) fermBtn.onclick = ev => {
+    ev.stopPropagation();
+    G.banc.fermeture = fermetureCourante() === unit ? null : unit;
+    render();
+  };
   const row = document.createElement('div');
   row.className = 'line-slots' + (cls ? ' ' + cls : '');
   slots.forEach(s => row.appendChild(slotEl(s)));
@@ -2352,6 +2380,11 @@ function renderMain() {
   const b = $('mainBtn');
   const reste = slotsLeft();
   const over = capLeft() < 0;
+  if (G.banc) {
+    b.disabled = reste > 0;
+    b.textContent = `Retour au match · journée ${G.banc.jour}`;
+    return;
+  }
   b.disabled = reste > 0 || G.done || over;
   b.textContent = G.done ? (G.bonus === 'TABLE' ? 'Tournoi joué' : 'Saison simulée')
     : over ? `Plafond dépassé de ${money(-capLeft())}`
@@ -2368,6 +2401,7 @@ function render() {
   renderPool();
   renderPoolMeta();
   renderRoster();
+  renderBanc();
   renderTeamSummary();
   renderMain();
   const hint = $('rosterHint');
@@ -2870,7 +2904,106 @@ async function rebatirAdversaires(cles) {
   return out;
 }
 
+/* ======================================================================
+   DERRIÈRE LE BANC — les choix en saison
+   ======================================================================
+   JP : *faire que ya plus de choix à faire pendant la saison* ; *ça peut être
+   nice de pouvoir faire des lockdown lines qui bloquent mieux les
+   adversaires*. La saison se jouait d'un coup et l'écran révélait ; ce qu'on
+   avait signé au repêchage était l'alignement des 82 matchs, blessures
+   comprises. Le moteur étant déterministe, une décision au jour k rejoue les
+   k premières journées à l'identique et diverge ensuite (`simulateLeague`,
+   `decisions`) — c'est ce qui permet de fermer l'écran de saison, de
+   toucher à ses trios, et de reprendre exactement là.
+
+   Ce qu'on voit derrière le banc est CE QUI EST ARRIVÉ, jamais ce qui va
+   arriver : les fiches se cumulent des feuilles des journées révélées
+   (`compterFeuilles`), les blessés sont ceux du jour avec les matchs qu'il
+   leur reste. Les compteurs `sim*` des joueurs, eux, portent la fin de la
+   saison — on ne les lit pas ici.
+   ====================================================================== */
+
+/** L'écran de saison se retire ; l'alignement s'ouvre avec les fiches à ce jour. */
+function ouvrirBanc(jour) {
+  const L = G.ligue;
+  if (!L || !L.calendrier) return;
+  const vus = L.calendrier.slice(0, jour);
+  const compte = compterFeuilles(vus.flat().map(m => m.feuille));
+  const miens = vus.map(j => j.find(m => m.A === L.you || m.B === L.you)).filter(Boolean);
+  const fiche = { W: 0, L: 0, OTL: 0 };
+  for (const m of miens) {
+    const gagne = (m.A === L.you) === (m.gfA > m.gfB);
+    if (gagne) fiche.W++; else if (m.ot) fiche.OTL++; else fiche.L++;
+  }
+  // Les blessés à ce jour, comme l'écran de saison les compte (`at` est le
+  // numéro du match de l'équipe, pas de la journée).
+  const joues = miens.length;
+  const blesses = new Map();
+  for (const b of (L.you.injuriesLog || [])) {
+    const reste = b.at + b.games - (joues + 1);
+    if (b.at <= joues + 1 && reste > 0) blesses.set(b.player, reste);
+  }
+  let prochain = null;
+  for (let j = jour; j < L.calendrier.length && !prochain; j++) {
+    const m = L.calendrier[j].find(x => x.A === L.you || x.B === L.you);
+    if (m) prochain = { j, adv: m.A === L.you ? m.B : m.A };
+  }
+  const derniere = (L.decisions || [])[L.decisions.length - 1] || {};
+  G.banc = { jour, compte, blesses, fermeture: derniere.fermeture ?? 'auto', prochain, fiche, N: L.calendrier.length };
+  $('game').classList.add('banc');
+  G.selectedSlot = null; G.target = null;
+  setView('roster');
+  render();
+  // Le panneau du banc est la première chose à voir : on remonte après le
+  // rendu, pas avant (l'écran de saison vient de rendre le défilement au corps).
+  requestAnimationFrame(() => window.scrollTo(0, 0));
+}
+
+/** Le trio de fermeture tel que le banc le montre : le désigné, ou celui que 'auto' prendrait. */
+function fermetureCourante() {
+  if (!G.banc) return null;
+  return G.banc.fermeture === 'auto' ? trioDeFermetureAuto(G.roster) : G.banc.fermeture;
+}
+
+/** Retour au match : la décision entre dans la liste, la saison se rejoue de la graine et reprend là. */
+async function reprendreSaison() {
+  const b = G.banc;
+  if (!b || !G.ligue) return;
+  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture };
+  const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0);
+  decisions.push(d);
+  G.banc = null;
+  $('game').classList.remove('banc');
+  G.done = false;
+  renderMain();
+  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: b.jour, decisions });
+}
+
+/** Le panneau du banc : la journée, la fiche, le prochain match, les blessés, la consigne. */
+function renderBanc() {
+  const host = $('bancPanel');
+  if (!host) return;
+  const b = G.banc;
+  host.hidden = !b;
+  if (!b) return;
+  const L = G.ligue;
+  const adv = b.prochain ? L.teams.find(t => t === b.prochain.adv) || b.prochain.adv : null;
+  const blesses = [...b.blesses].map(([p, reste]) => `${esc(p.n)} <span class="banc-reste">${reste} match${reste > 1 ? 's' : ''}</span>`);
+  const ferm = fermetureCourante();
+  host.innerHTML = `
+    <div class="banc-tete">
+      <div class="banc-titre">Derrière le banc <span class="banc-jour">journée ${b.jour} sur ${b.N}</span></div>
+      <div class="banc-fiche" title="Ta fiche à ce jour : victoires, défaites, défaites en prolongation">${b.fiche.W}-${b.fiche.L}-${b.fiche.OTL}</div>
+    </div>
+    ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
+    <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
+    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. Touche 🔒 sur un trio pour en faire ton <b>trio de fermeture</b> : c'est lui qui prendra le premier trio adverse${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}${b.fermeture === 'auto' ? ' (choisi par l\'entraîneur)' : ''}` : ' — personne pour l\'instant'}.</div>
+    <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios. Ce qui est joué reste joué.">Retour au match</button>`;
+  $('bancRetour').onclick = reprendreSaison;
+}
+
 async function runSeason(opts = {}) {
+  if (G.banc && !opts.adversaires) { await reprendreSaison(); return; }
   if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
   // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
   // simulateLeague ici — le tournoi a son propre moteur, celui du plateau.
@@ -2898,9 +3031,15 @@ async function runSeason(opts = {}) {
   // voir `simulateLeague`), donc plus personne n'est retranché.
 
   const you = createTeam('NHL Stars', 'YOU', G.roster, { isPlayer: true });
+  // LES DÉCISIONS EN SAISON (voir `simulateLeague`) : la décision 0 est
+  // l'alignement du repêchage, les suivantes viennent du banc. Une reprise
+  // rejoue exactement les mêmes.
+  const decisions = opts.decisions && opts.decisions.length
+    ? opts.decisions
+    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' }];
   let r, teams, leaders = [], calendrier = [], graine = null;
   if (opponents.length) {
-    const league = simulateLeague([you, ...opponents], 82, { graine: opts.graine || null });
+    const league = simulateLeague([you, ...opponents], 82, { graine: opts.graine || null, decisions });
     teams = league.standings;
     leaders = league.leaders;
     calendrier = league.calendrier;
@@ -2922,6 +3061,7 @@ async function runSeason(opts = {}) {
     // Les clés des adversaires, dans l'ordre du tirage : c'est tout ce que la
     // sauvegarde emporte, et `rebatirAdversaires` les redéploie à l'identique.
     cles: opponents.map(t => `${t.season}|${t.tag}`),
+    decisions,
     // Les trois réglages sont FIGÉS ici, avec la graine : l'écran « Nouvelle
     // partie » peut muter G pendant qu'un bilan est encore à l'écran, et
     // l'historique doit enregistrer la partie qui a été jouée, pas celle
@@ -2946,6 +3086,10 @@ async function runSeason(opts = {}) {
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
       // la reprise a besoin de connaître.
       onJour: j => { G.journee = j; saveGame(); },
+      // DERRIÈRE LE BANC : l'écran se retire, l'alignement s'ouvre avec les
+      // fiches à ce jour, et « Retour au match » rejoue la saison depuis la
+      // graine avec la décision (voir `ouvrirBanc`).
+      onBanc: j => ouvrirBanc(j),
     });
   } else { G.journee = calendrier.length; saveGame(); montrer(); }
 }
