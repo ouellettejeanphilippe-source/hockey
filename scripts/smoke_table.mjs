@@ -282,12 +282,69 @@ const deborde = await page.evaluate(() => document.documentElement.scrollWidth -
 console.log(`   débordement horizontal : ${deborde} px`);
 if (deborde > 1) errors.push(`le plateau déborde de ${deborde} px à 390 px`);
 
+/* ---------- la feuille du match ----------
+ * Le moteur comptait marqueurs, passeurs, mises en échec, vols et arrêts, et
+ * l'écran allait droit à `fermer()` : deux des trois blocs de `resultatDe`
+ * n'étaient lus par aucune ligne d'interface. « Voir le résultat » ouvre
+ * maintenant la feuille, et c'est « Continuer » qui ferme.
+ */
 const fin = await page.$('#tableModal .t-resultat');
-if (fin) await fin.click(); else await page.click('#tableModal .table-close');
+if (fin) {
+  await fin.click();
+  // On DIT ce qui manque plutôt que de laisser expirer une attente : une
+  // régression qui referme le match au lieu d'ouvrir la feuille rendait un
+  // `TimeoutError` sur un sélecteur, illisible dans un journal d'Action.
+  let ouverte = true;
+  try { await page.waitForSelector('#tableModal .t-feuille', { timeout: 15000 }); }
+  catch { ouverte = false; }
+  if (!ouverte) {
+    console.log('\n✗ « Voir le résultat » n\'ouvre pas la feuille du match.');
+    await browser.close();
+    process.exit(1);
+  }
+  const lu = await page.evaluate(() => ({
+    etoiles: document.querySelectorAll('#tableModal .tf-etoile').length,
+    cotes: document.querySelectorAll('#tableModal .tf-cote').length,
+    rangees: document.querySelectorAll('#tableModal .tf-table tr').length,
+    gardiens: document.querySelectorAll('#tableModal .tf-gardien').length,
+    resume: (document.querySelector('#tableModal .tf-etoile') || {}).textContent || '',
+  }));
+  console.log(`   feuille du match : ${lu.etoiles} étoile(s), ${lu.cotes} côtés, ${lu.rangees} rangées, ${lu.gardiens} gardiens · ${lu.resume.replace(/\s+/g, ' ').trim()}`);
+  if (lu.cotes !== 2) errors.push(`la feuille du match montre ${lu.cotes} côté(s) au lieu de deux`);
+  if (!lu.etoiles) errors.push('la feuille du match ne nomme aucune étoile');
+  if (!lu.rangees) errors.push('la feuille du match ne montre aucun joueur');
+  if (lu.gardiens !== 2) errors.push(`la feuille du match montre ${lu.gardiens} gardien(s) au lieu de deux`);
+  const deborde2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (deborde2 > 1) errors.push(`la feuille du match déborde de ${deborde2} px à 390 px`);
+  await page.click('#tableModal .t-feuille-suite');
+} else await page.click('#tableModal .table-close');
 await page.waitForTimeout(400);
 
 /* ---------- le reste du tournoi ---------- */
 await page.waitForSelector('#hubModal', { state: 'visible', timeout: 20000 });
+
+/* LES MENEURS DU TOURNOI. Le tournoi ne tenait que six nombres par club :
+   rien ne s'accumulait d'un match à l'autre, donc l'ordre des matchs n'avait
+   aucune importance. Le cumul se fait à l'affichage, en parcourant les matchs
+   joués, et il inclut les séries. */
+{
+  const bouton = await page.$('#hubModal [data-onglet="meneurs"]');
+  if (!bouton) errors.push('le tournoi n\'a pas d\'onglet « Meneurs »');
+  else {
+    await bouton.click();
+    await page.waitForTimeout(300);
+    const lu = await page.evaluate(() => ({
+      tables: document.querySelectorAll('#hubModal .hub-volet table').length,
+      rangees: document.querySelectorAll('#hubModal .hub-volet tbody tr').length,
+      premier: (document.querySelector('#hubModal .hub-volet tbody tr') || {}).textContent || '',
+    }));
+    if (lu.tables < 2) errors.push(`les meneurs du tournoi ne montrent que ${lu.tables} tableau(x)`);
+    if (!lu.rangees) errors.push('les meneurs du tournoi ne montrent aucun joueur');
+    else console.log(`   meneurs du tournoi : ${lu.tables} tableaux, ${lu.rangees} rangées · ${lu.premier.replace(/\s+/g, ' ').trim()}`);
+    const deborde3 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (deborde3 > 1) errors.push(`les meneurs du tournoi débordent de ${deborde3} px à 390 px`);
+  }
+}
 let tour = 0;
 while (tour++ < 20) {
   const sauter = await page.$('#hubModal .hub-sauter');

@@ -97,6 +97,45 @@ export const classement = T => T.clubs.map((c, i) => ({ i, c, f: T.fiches[i] }))
   .sort((x, y) => y.f.PTS - x.f.PTS || y.f.V - x.f.V || (y.f.BP - y.f.BC) - (x.f.BP - x.f.BC) || y.f.BP - x.f.BP);
 
 /**
+ * LES MENEURS DU TOURNOI. Le plateau compte marqueurs, passeurs, mises en
+ * échec, vols et arrêts à chaque match, et le tournoi ne gardait que six
+ * nombres par club : rien ne s'accumulait d'un match à l'autre, donc aucune
+ * histoire ne se construisait sur cinq soirées.
+ *
+ * Le cumul se fait À L'AFFICHAGE, en parcourant les matchs joués, plutôt que
+ * dans un compteur tenu à jour : il n'y a alors rien à remettre à zéro, rien
+ * à compter deux fois si un match est rejoué, et les séries y entrent
+ * naturellement — ce sont les meneurs DU TOURNOI, pas ceux du classement (qui,
+ * lui, ignore les séries exprès).
+ */
+export function meneursDuTournoi(T) {
+  const par = new Map();
+  const trouver = (club, joueur) => {
+    const cle = `${club}|${(joueur && joueur.n) || '?'}`;
+    let x = par.get(cle);
+    if (!x) { x = { club, nom: (joueur && joueur.n) || 'Rappel', B: 0, A: 0, MÉ: 0, vols: 0, arrets: 0, alloues: 0, gardien: false }; par.set(cle, x); }
+    return x;
+  };
+  const matchs = [...T.journees.flat(), ...(T.series ? T.series.rondes.flat() : [])];
+  for (const mt of matchs) {
+    if (!mt.r || mt.a == null) continue;
+    for (const [f, club] of [[mt.r.A, mt.a], [mt.r.B, mt.b]]) {
+      for (const x of f.marqueurs || []) { const e = trouver(club, x.p); e.B += x.buts; e.A += x.passes; }
+      for (const x of f.physique || []) { const e = trouver(club, x.p); e['MÉ'] += x.echecs; e.vols += x.vols; }
+      const g = f.gardien;
+      if (g && (g.arrets || g.alloues)) { const e = trouver(club, g.p); e.gardien = true; e.arrets += g.arrets; e.alloues += g.alloues; }
+    }
+  }
+  const tous = [...par.values()];
+  return {
+    pointeurs: tous.filter(x => !x.gardien && (x.B + x.A) > 0).sort((a2, b2) => (b2.B + b2.A) - (a2.B + a2.A) || b2.B - a2.B).slice(0, 10),
+    physiques: tous.filter(x => !x.gardien && (x['MÉ'] + x.vols) > 0).sort((a2, b2) => (b2['MÉ'] + b2.vols) - (a2['MÉ'] + a2.vols)).slice(0, 10),
+    gardiens: tous.filter(x => x.gardien).sort((a2, b2) => (b2.arrets - b2.alloues) - (a2.arrets - a2.alloues)).slice(0, 10),
+    matchs: matchs.filter(mt => mt.r).length,
+  };
+}
+
+/**
  * Les séries : 1 contre 4, 2 contre 3, puis la finale. Match unique — c'est
  * ce qui rend les séries rapides, et c'est ce qui rend la première place
  * précieuse sans la rendre décisive.
@@ -209,8 +248,8 @@ export function ouvrirTournoi({ T, ctx, onTermine }) {
 
   /* ---------- les volets ---------- */
   const ONGLETS = () => (T.series
-    ? [{ cle: 'series', titre: 'Séries' }, { cle: 'classement', titre: 'Saison' }, { cle: 'clubs', titre: 'Les clubs' }]
-    : [{ cle: 'journee', titre: 'La journée' }, { cle: 'classement', titre: 'Classement' }, { cle: 'clubs', titre: 'Les clubs' }]);
+    ? [{ cle: 'series', titre: 'Séries' }, { cle: 'classement', titre: 'Saison' }, { cle: 'meneurs', titre: 'Meneurs' }, { cle: 'clubs', titre: 'Les clubs' }]
+    : [{ cle: 'journee', titre: 'La journée' }, { cle: 'classement', titre: 'Classement' }, { cle: 'meneurs', titre: 'Meneurs' }, { cle: 'clubs', titre: 'Les clubs' }]);
 
   function dessinerBarre() {
     const liste = ONGLETS();
@@ -251,6 +290,24 @@ export function ouvrirTournoi({ T, ctx, onTermine }) {
       volet.innerHTML = T.series.rondes.map((r, n) => `
         <h3 class="tr-jour">${n === 0 ? 'Demi-finales' : 'Finale'}</h3>
         ${r.map(mt => (mt.a == null ? '<div class="tr-match tr-attente">À venir</div>' : ligneMatch(mt))).join('')}`).join('');
+      return;
+    }
+    if (onglet === 'meneurs') {
+      const M = meneursDuTournoi(T);
+      const table = (titre, liste, cols, vals) => (liste.length ? `
+        <h3 class="tr-jour">${titre}</h3>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>#</th><th>Joueur</th><th>Club</th>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+          <tbody>${liste.map((x, n) => `<tr class="${x.club === MOI ? 'mien' : ''}">
+            <td>${n + 1}</td><td>${esc(x.nom)}</td><td>${logo(T.clubs[x.club].tag, 16)} ${esc(T.clubs[x.club].tag)}</td>
+            ${vals(x).map(v => `<td>${v}</td>`).join('')}
+          </tr>`).join('')}</tbody></table></div>` : '');
+      volet.innerHTML = M.matchs
+        ? table('Pointeurs', M.pointeurs, ['B', 'A', 'PTS'], x => [x.B, x.A, `<b>${x.B + x.A}</b>`])
+          + table('Sans la rondelle', M.physiques, ['MÉ', 'Vols'], x => [x['MÉ'], x.vols])
+          + table('Gardiens', M.gardiens, ['ARR', 'BA'], x => [`<b>${x.arrets}</b>`, x.alloues])
+          + `<p class="tr-note">Cumulé sur les ${M.matchs} match${M.matchs > 1 ? 's' : ''} joués, séries comprises.</p>`
+        : '<p class="tr-note">Aucun match joué pour l\'instant.</p>';
       return;
     }
     // Les clubs : ce que chacun aligne sur le plateau.

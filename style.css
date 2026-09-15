@@ -3956,6 +3956,33 @@ a.spin-club:hover {
 
 /* ---------- Sur table : le volet des règles, par-dessus le plateau ---------- */
 .table-regles { flex: none; font-family: var(--display); font-size: 19px; font-weight: 800; width: 30px; height: 30px; padding: 0; border-radius: 50%; }
+/* LA FEUILLE DU MATCH SUR TABLE. Mêmes manières que le volet des règles :
+   une tête collante, puis des blocs séparés d'un filet — pas de cartes qui
+   flottent. Les trois étoiles en tête, parce que c'est ce qu'on cherche. */
+.t-feuille { padding: 4px 0 20px; }
+.t-feuille-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; border-bottom: 1px solid var(--line); z-index: 2; }
+.t-feuille h3 { margin: 0; font-family: var(--display); font-size: 19px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+.tf-etoiles { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 12px 0; }
+.tf-etoile { display: flex; align-items: center; gap: 8px; background: var(--panel-1); padding: 7px 9px; }
+.tf-rang { color: var(--gold); font-size: 12px; letter-spacing: -1px; min-width: 34px; }
+.tf-etoile-nom { display: flex; align-items: center; gap: 5px; font-weight: 700; }
+.tf-etoile-quoi { margin-left: auto; color: var(--sub); font-size: 12px; text-align: right; }
+.tf-cotes { display: grid; gap: 12px; }
+@media (min-width: 720px) { .tf-cotes { grid-template-columns: 1fr 1fr; } }
+.tf-cote { border: 1px solid var(--line); padding: 9px 10px; }
+.tf-cote.gagne { box-shadow: inset 3px 0 0 var(--gold); }
+.tf-cote h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-family: var(--display); font-size: 16.5px; letter-spacing: 0.4px; text-transform: uppercase; }
+.tf-cote h4 b { margin-left: auto; font-size: 22px; color: var(--gold); font-variant-numeric: tabular-nums; }
+.tf-chiffres { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--sub); font-size: 12px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+.tf-chiffres b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.tf-bloc { padding-top: 7px; }
+.tf-bloc h5 { margin: 0 0 3px; font-family: var(--display); font-size: 12.5px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--sub); font-weight: 700; }
+.tf-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tf-table td { padding: 2px 0; font-size: 13px; text-align: right; width: 42px; }
+.tf-table td.tf-nom { text-align: left; width: auto; }
+.tf-rien, .tf-gardien { font-size: 13px; color: var(--sub); }
+.tf-gardien b { color: var(--fg); font-variant-numeric: tabular-nums; }
+
 .t-regles { padding: 4px 0 20px; }
 .t-regles-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; border-bottom: 1px solid var(--line); }
 .t-regles h3 { margin: 0; font-family: var(--display); font-size: 19px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
