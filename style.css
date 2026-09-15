@@ -4127,3 +4127,24 @@ a.spin-club:hover {
   .t-flash-mot { animation: t-flash-fixe 1200ms steps(1) forwards; }
 }
 @keyframes t-flash-fixe { 0%, 90% { opacity: 1; } 100% { opacity: 0; } }
+
+/* =====================================================================
+   SUR TABLE : le repêchage montre les nombres du plateau
+   ---------------------------------------------------------------------
+   JP : *le mode Blood Bowl, montrer les stats du jeu de table, pas les
+   vraies stats*. La carte du bassin porte les cinq axes à la place du
+   chiffre clé (les mêmes boîtes que la carte du plateau, `.t-axe`, en plus
+   serré : la carte est plus étroite qu'un match), la case de l'alignement
+   et la fiche suivent. Le laiton marque l'axe qu'un trait majore — « le
+   trait EST le nombre ».
+   ===================================================================== */
+.pcard-axes { display: flex; gap: 3px; flex: none; }
+.pcard-axes .t-axe { min-width: 22px; padding: 0 2px; }
+.pcard-axes .t-axe i { font-size: 8.5px; }
+.pcard-axes .t-axe b { font-size: 14px; line-height: 1.1; }
+.tag-table { background: var(--panel-2); border-color: var(--line); color: var(--text); }
+.slot-tags .tag-table { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.profil-cell.majore .v { color: var(--gold); }
+.profil-sur { font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 1px; }
+.fiche-table-tags { margin-top: 8px; }
+.fiche-table-tags .tag { font-size: 12px; padding: 3px 8px; }

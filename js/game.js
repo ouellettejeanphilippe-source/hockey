@@ -28,7 +28,7 @@ import {
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
-import { reglesDuPlateau } from './table.js';
+import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT } from './table.js';
 import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
@@ -863,7 +863,10 @@ function setupEvents() {
         // partie qu'on bascule l'alignement à moitié bâti, et il le reste.
         G.bonus = b.bonus;
         closeModal('partieModal');
-        saveOpts(); saveGame(); syncOptionsUI(); renderMain();
+        // Tout se redessine, pas seulement le bouton : depuis que le
+        // repêchage montre les nombres du plateau en Sur table, la carte, le
+        // tri, la case et les tuiles dépendent du mode bonus.
+        saveOpts(); saveGame(); syncOptionsUI(); render();
         toast(b.bonus === 'TABLE'
           ? 'Sur table : ton alignement ira jouer un tournoi de six clubs sur un plateau.'
           : 'La saison : 82 matchs et les séries.');
@@ -1558,8 +1561,13 @@ function poolFiltered() {
     list = list.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem);
   }
 
-  const key = p => (p.p === 'G' ? (p.w ?? 0) : (p.pt ?? 0));
+  const key = p => (surTable() ? p.$ : p.p === 'G' ? (p.w ?? 0) : (p.pt ?? 0));
+  // Sur table, un axe du plateau ; le gardien se range sur son AR quel que
+  // soit l'axe demandé, puisqu'il n'en a qu'un.
+  const axe = k => p => tableStats(p)[p.p === 'G' ? 'AR' : k];
+  const parAxe = k => (a, b) => axe(k)(b) - axe(k)(a) || key(b) - key(a);
   const cmp = {
+    TI: parAxe('TI'), MA: parAxe('MA'), FO: parAxe('FO'), PA: parAxe('PA'), SO: parAxe('SO'),
     PTS: (a, b) => key(b) - key(a) || b.$ - a.$,
     PPG: (a, b) => (displayStats(b).ppg ?? -1) - (displayStats(a).ppg ?? -1) || key(b) - key(a),
     SAL: (a, b) => b.$ - a.$ || key(b) - key(a),
@@ -1576,6 +1584,7 @@ function poolFiltered() {
 
 /** Masque le tri par âge quand aucune date de naissance n'est disponible. */
 function syncAgeControls() {
+  syncSortOptions();
   const sort = $('sortSelect');
   if (!sort) return;
   const opt = sort.querySelector('option[value="AGE"]');
@@ -1598,6 +1607,7 @@ const POOL_COLS = [
 ];
 
 function renderPoolMeta() {
+  syncSortOptions();
   const list = poolFiltered();
   const loto = MODE().loto;
   // Le volet change de nom avec le tirage : « Vestiaire » (tout le club) ou
@@ -1668,12 +1678,13 @@ function playerCardEl(p) {
   const bigVal = p.p === 'G' ? st.w : st.pt;
   const bigUnit = p.p === 'G' ? 'V' : 'PTS';
 
-  const tags = [
-    traitTags(p),
-    archTag(p),
-    mesureTags(p),
-    zoneTag(p),
-  ].filter(Boolean).join('');
+  // Sur table, la carte porte les nombres du plateau à la place du chiffre
+  // clé, et le gabarit, le tir et l'habileté à la place de l'archétype, des
+  // mesures et de la zone — ce que le plateau lit, rien de ce qu'il ignore.
+  const mid = surTable()
+    ? `<span class="pcard-axes">${axesTableHtml(p)}</span><div class="tags">${tagsTableHtml(p)}</div>`
+    : `<div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
+          <div class="tags">${[traitTags(p), archTag(p), mesureTags(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
 
   let dest;
   if (already) {
@@ -1692,9 +1703,13 @@ function playerCardEl(p) {
     const bits = [];
     if (isTargeted) bits.push(`<span class="dest-target">${ico('i-target')} ${esc(slotShort(slot))}</span>`);
     if (risky) bits.push(`<span class="dest-bad" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les ${totalCases()}.">⚠ bloque la fin</span>`);
-    if (pen > 0) bits.push(`<span class="dest-bad">−${pen} hors position</span>`);
-    if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ sous sa zone${isTargeted ? '' : ` : ${esc(slotShort(slot))}`}</span>`);
-    else if (ecart === 'dessus') bits.push(`<span class="dest-warn" title="${esc(ZONE_DESSUS_TITLE)}">▲ au-dessus de sa zone</span>`);
+    // Le plateau ne lit ni la pénalité de position ni la zone : on ne
+    // menace pas d'un malus que le mode bonus ne jouera pas.
+    if (!surTable()) {
+      if (pen > 0) bits.push(`<span class="dest-bad">−${pen} hors position</span>`);
+      if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ sous sa zone${isTargeted ? '' : ` : ${esc(slotShort(slot))}`}</span>`);
+      else if (ecart === 'dessus') bits.push(`<span class="dest-warn" title="${esc(ZONE_DESSUS_TITLE)}">▲ au-dessus de sa zone</span>`);
+    }
     dest = bits.join(' · ');
   }
 
@@ -1722,8 +1737,7 @@ function playerCardEl(p) {
           <div class="pcard-price">${st.salaryMain}</div>
         </div>
         <div class="pcard-mid">
-          <div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
-          <div class="tags">${tags}</div>
+          ${mid}
         </div>
       </div>
       <div class="pcard-dest">${dest}</div>
@@ -1985,7 +1999,113 @@ const SLOT_TAGS_MAX = 8;   // les icônes de traits devant le verdict, la rangé
  * les icônes dans l'alignement* — on lit d'un coup d'œil son trio
  * d'étouffement et ses colosses une fois l'alignement monté.
  */
+/* =====================================================================
+   SUR TABLE : le repêchage montre les nombres du PLATEAU
+   =====================================================================
+   JP : *le mode Blood Bowl, montrer les stats du jeu de table, pas les
+   vraies stats*. On repêchait sous un jeu de règles et on jouait sous un
+   autre : la carte disait 78 PTS, la case disait « ▼ sous sa zone », la
+   rangée disait « chimie +2/+2 », les tuiles comptaient les unités
+   « optimales » — et le plateau se joue sur PA MA TI FO SO, le gabarit, le
+   tir signature et l'habileté. Pire que les vraies stats : `js/table.js` ne
+   lit NI les zones, NI la pénalité de position, NI la chimie (vérifié : zéro
+   occurrence), donc ces verdicts-là parlaient d'un moteur qui n'allait pas
+   jouer.
+
+   Quand `G.bonus` vaut TABLE, le repêchage lit donc `statsDeTable` — la
+   même fonction que la carte du plateau, aucun nombre neuf — et tait ce que
+   le plateau ignore. Le repêchage lui-même ne change pas : mêmes 23 cases,
+   même plafond, même roulette.
+   ===================================================================== */
+const surTable = () => G.bonus === 'TABLE';
+
+/* Les cinq nombres d'un joueur, mémorisés : le tri les demande n log n fois. */
+const STATS_TABLE = new WeakMap();
+function tableStats(p) {
+  let st = STATS_TABLE.get(p);
+  if (!st) { st = statsDeTable(p); STATS_TABLE.set(p, st); }
+  return st;
+}
+
+const AXES_PATINEUR = ['PA', 'MA', 'TI', 'FO', 'SO'];
+const axesDe = p => (p.p === 'G' ? ['AR'] : AXES_PATINEUR);
+
+/* Un axe : son sigle, son nombre, et le trait qui le majore dans l'infobulle
+   — « le trait EST le nombre », comme sur la carte du plateau. */
+function axeHtml(p, k, cls = 't-axe') {
+  const st = tableStats(p);
+  const tr = (st.traits || {})[k];
+  const T = tr && TRAITS[tr];
+  return `<span class="${cls}${T ? ' majore' : ''}" title="${esc(AXE_MOT[k])}${T ? ` — ${T.icon} ${T.label} : +1` : ''}"><i>${k}</i><b>${st[k]}</b></span>`;
+}
+const axesTableHtml = p => axesDe(p).map(k => axeHtml(p, k)).join('');
+
+/* Le gabarit, le tir signature et l'habileté : ce qui nomme une pièce. Pas
+   d'étiquette de trait à côté — ⚡ Vitesse et ⚡ Coup de patin se liraient
+   comme un doublon, et le second vient du premier. */
+function tagsTableHtml(p, full = false) {
+  const st = tableStats(p);
+  const gab = GABARITS[st.gb], tir = TIRS[st.ts] || TIRS.P;
+  const hab = HABILETES[habileteDe(p)];
+  const tag = (o, t) => `<span class="tag tag-table" title="${esc(t)}">${o.icon}${full ? ` ${esc(o.nom)}` : ''}</span>`;
+  return [
+    tag(gab, `${gab.nom} — ${gab.desc}`),
+    p.p === 'G' ? '' : tag(tir, `${tir.nom} — ${tir.desc}`),
+    hab ? tag(hab, `${hab.nom}, une fois par période — ${hab.desc}`) : '',
+  ].join('');
+}
+
+/* Dans la case de l'alignement, étroite : les trois nombres qui décident
+   d'un geste, serrés ; le patin et le souffle passent en étiquette. */
+function slotAxesTexte(p) {
+  const st = tableStats(p);
+  // Neuf caractères tiennent sur la ligne d'une case de trio à 390 px, à
+  // côté du visage — « TI2 MA2 FO6 » se coupait. Deux nombres par rôle ici,
+  // les trois autres dans l'étiquette, qui se réduit à l'échelle.
+  return p.p === 'G' ? `AR${st.AR}` : isD(p) ? `FO${st.FO} MA${st.MA}` : `TI${st.TI} MA${st.MA}`;
+}
+function slotAxesReste(p) {
+  const st = tableStats(p);
+  return p.p === 'G' ? '' : isD(p) ? `TI${st.TI} PA${st.PA} SO${st.SO}` : `FO${st.FO} PA${st.PA} SO${st.SO}`;
+}
+
+/*
+ * LE TRI SUIT LE JEU. Trier sur les points, en mode Sur table, c'est trier
+ * sur un nombre que le plateau ne lit pas. Les options du `<select>` sont
+ * donc bâties d'ici, par mode, et un choix qui n'existe plus dans l'autre
+ * mode retombe sur le premier de la liste.
+ */
+const SORTS_SAISON = [
+  ['PTS', 'Points / V'], ['PPG', 'Pts par match'], ['SAL', 'Salaire'], ['VAL', 'Pts par M$'],
+  ['PM', 'Différentiel'], ['DEF', 'Défensive'], ['ROB', 'Robustesse'], ['AGE', 'Âge'], ['NAME', 'Nom'],
+];
+const SORTS_TABLE = [
+  ['TI', 'Tir'], ['MA', 'Maniement'], ['FO', 'Force'], ['PA', 'Patin'], ['SO', 'Souffle'],
+  ['SAL', 'Salaire'], ['NAME', 'Nom'],
+];
+function syncSortOptions() {
+  const sort = $('sortSelect');
+  if (!sort) return;
+  const jeu = surTable() ? 'table' : 'saison';
+  const liste = surTable() ? SORTS_TABLE : SORTS_SAISON;
+  if (sort.dataset.jeu !== jeu) {
+    sort.innerHTML = liste.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
+    sort.dataset.jeu = jeu;
+  }
+  if (!liste.some(([v]) => v === G.sortBy)) { G.sortBy = liste[0][0]; saveOpts(); }
+  sort.value = G.sortBy;
+}
+
 function slotTags(p, zoneEcartTag, penTag) {
+  if (surTable()) {
+    // Le plateau ne lit ni zone ni pénalité : la case porte le gabarit, le
+    // tir et l'habileté, et les deux nombres qui n'ont pas tenu sur la ligne.
+    const st = tableStats(p);
+    const gab = GABARITS[st.gb], tir = TIRS[st.ts] || TIRS.P, hab = HABILETES[habileteDe(p)];
+    const icones = [gab, p.p === 'G' ? null : tir, hab].filter(Boolean);
+    return `<span class="slot-icones" title="${esc(icones.map(i => i.nom).join(' · '))}">${icones.map(i => i.icon).join('')}</span>`
+      + (p.p === 'G' ? '' : `<span class="tag tag-table" title="${esc(isD(p) ? AXE_MOT.TI : AXE_MOT.FO)} · ${esc(AXE_MOT.PA)} · ${esc(AXE_MOT.SO)}">${slotAxesReste(p)}</span>`);
+  }
   // Les icônes, serrées, sans cadre : la case est étroite. Le survol donne le mot.
   const icones = [...getTraits(p).map(t => TRAITS[t.cle]), ...mesureIcones(p)];
   const compact = icones.length
@@ -2027,12 +2147,14 @@ function slotEl(s) {
     /* La case est étroite : la ligne de statistiques y tient en une seule,
        donc on abrège « PTS/M » en « /M ». La fiche donne le libellé complet. */
     const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr}/M`;
-    const penTag = pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position : −${pen}">−${pen}</span>` : '';
+    // Sur table : les nombres du plateau, et rien de ce qu'il ne lit pas.
+    const ligneStats = surTable() ? slotAxesTexte(p) : `${main} · ${secondary}`;
+    const penTag = !surTable() && pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position : −${pen}">−${pen}</span>` : '';
     const ecart = zoneEcart(p, s);
     /* Une flèche seule : « ▼ zone » et « ▲ zone » poussaient la pénalité de
        position hors de la case sur les écrans où un trio n'a que cent pixels
        par joueur. L'infobulle dit la phrase entière. */
-    const zoneEcartTag = ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
+    const zoneEcartTag = surTable() ? '' : ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
       : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>` : '';
     if (estRenfort(p)) el.classList.add('renfort');
     // Le visage dans la case aussi : on reconnaît son alignement d'un coup
@@ -2052,7 +2174,7 @@ function slotEl(s) {
         <div class="slot-texte">
           <div class="slot-name">${formatName(p.n)}</div>
           <div class="slot-meta">${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</div>
-          <div class="slot-meta">${main} · ${secondary}</div>
+          <div class="slot-meta">${ligneStats}</div>
           <div class="slot-tags">${slotTags(p, zoneEcartTag, penTag)}</div>
         </div>
       </div>`;
@@ -2070,7 +2192,8 @@ function slotEl(s) {
         + `et la roulette ne tournera pas pour cette case.`, 'warn');
     });
   } else {
-    el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${esc(s.label)}</div>`;
+    // Sur table, la case vide ne promet pas de zone : le plateau n'en lit pas.
+    el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${surTable() ? '' : esc(s.label)}</div>`;
   }
 
   el.onclick = () => {
@@ -2136,7 +2259,9 @@ function lineEl(title, slots, group, unit, cls = '') {
   wrap.className = 'line';
 
   let chemHtml = '<span class="line-chem">incomplet</span>';
-  if (group != null) {
+  // Sur table, pas de chimie : le plateau joue chaque pièce sur ses nombres,
+  // et annoncer « +2/+2 » serait promettre un bonus que rien n'applique.
+  if (group != null && !surTable()) {
     const syn = getUnitSynergy(G.roster, group, unit);
     const sum = (syn.bonusOff || 0) + (syn.bonusDef || 0);
     const filled = slots.filter(s => G.roster[s.i]).length;
@@ -2198,6 +2323,23 @@ function renderTeamSummary() {
   const tile = (k, v, cls, title) =>
     `<div class="sum-item" title="${esc(title)}"><div class="k">${k}</div><div class="v ${cls || ''}">${v}</div></div>`;
 
+  if (surTable()) {
+    // Sur table, ni zone ni chimie ni pénalité : les tuiles disent ce que
+    // le plateau va lire — le tir des attaquants, la force des patineurs,
+    // l'arrêt du partant. Des moyennes de nombres qui existent, rien de neuf.
+    const habilles = SLOTS.filter(s => !s.scratch && G.roster[s.i]).map(s => [s, G.roster[s.i]]);
+    const moy = (xs, k) => (xs.length ? (xs.reduce((a, p) => a + tableStats(p)[k], 0) / xs.length).toFixed(1) : '—');
+    const att = habilles.filter(([s, p]) => s.group === 'F' && p.p !== 'G').map(([, p]) => p);
+    const pat = habilles.filter(([, p]) => p.p !== 'G').map(([, p]) => p);
+    const partant = habilles.find(([s]) => s.group === 'G')?.[1];
+    host.innerHTML =
+      tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
+      + tile('Vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
+      + tile('Tir', moy(att, 'TI'), '', `TI moyen des ${att.length} attaquants habillés — ${AXE_MOT.TI.toLowerCase()}. Sur six.`)
+      + tile('Force', moy(pat, 'FO'), '', `FO moyen des ${pat.length} patineurs habillés — ${AXE_MOT.FO.toLowerCase()}. Sur six.`)
+      + tile('Arrêt', partant ? tableStats(partant).AR : '—', '', `AR de ton partant — ${AXE_MOT.AR.toLowerCase()}. Sur six.`);
+    return;
+  }
   host.innerHTML =
     tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
     + tile('Vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
@@ -2247,6 +2389,18 @@ function render() {
  * de la valeur, exprimés en écart au régulier moyen de la saison du joueur.
  * 1,00 = exactement le régulier moyen ; 2,00 = le double.
  */
+/* La fiche en mode Sur table : les nombres du plateau dans la grille du
+   profil, un axe par cellule, le laiton sur celui qu'un trait majore. */
+function ficheTable(p) {
+  const st = tableStats(p);
+  const cell = k => {
+    const tr = (st.traits || {})[k], T = tr && TRAITS[tr];
+    return `<div class="profil-cell${T ? ' majore' : ''}" title="${esc(AXE_MOT[k])}${T ? ` — ${T.icon} ${T.label} : +1` : ''}"><div class="k">${k}</div><div class="v">${st[k]}<span class="profil-sur">/6</span></div></div>`;
+  };
+  return `<div class="profil-grid">${axesDe(p).map(cell).join('')}</div>
+  <div class="tags fiche-table-tags">${tagsTableHtml(p, true)}</div>`;
+}
+
 function profilMesure(p) {
   const gp = Math.max(1, p.gp || 1);
   const [, pctTir, shF, shD, ptF, ptD, partButs, pimF] = seasonLancers(p.s);
@@ -2409,6 +2563,7 @@ function showPlayerModal(p, opts = {}) {
   const destNote = already ? ''
     : !slot ? `<div class="dash-note dash-bad">Toutes les cases compatibles sont prises. Déplace un joueur ou vise une autre position.</div>`
     : over ? `<div class="dash-note dash-bad">${money(p.$)} pour ${money(rem)} restants.</div>`
+    : surTable() ? `<div class="dash-note">Ira au <strong>${esc(slotShort(slot))}</strong>. Sur table, ni zone ni pénalité de position : il joue sur ses nombres, où qu'on le mette. Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`
     : `<div class="dash-note${zoneEcart(p, slot) === 'sous' ? ' dash-bad' : ''}">Ira au <strong>${esc(slotShort(slot))}</strong>${pen > 0 ? ` avec une pénalité de <strong>−${pen}</strong> hors position` : ' sans pénalité de position'}${zoneEcart(p, slot) === 'sous' ? `, <strong>sous sa zone</strong> : son talent y est gaspillé et l'unité porte un malus. Vise une autre case ou déplace quelqu'un.` : zoneEcart(p, slot) === 'dessus' ? ', au-dessus de sa zone (−3 par cran, léger).' : ', dans sa zone.'} Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`;
 
   const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
@@ -2423,6 +2578,13 @@ function showPlayerModal(p, opts = {}) {
        <div class="stat-grid">${stats}</div>
        <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
        ${ratings}`
+    : surTable()
+    ? `<div class="section-label">Sur la glace de table</div>
+       ${ficheTable(p)}
+       <div class="section-label">Impact sur ton alignement</div>
+       ${destNote}
+       <div class="section-label">D'où viennent ces nombres — sa saison ${esc(p.s)}</div>
+       <div class="stat-grid">${stats}</div>`
     : `<div class="section-label">Statistiques ${G.statsProrata ? '(prorata 82 matchs, ajusté à l\'époque)' : `de la saison ${esc(p.s)}`}</div>
        <div class="stat-grid">${stats}</div>
        <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
@@ -2440,7 +2602,7 @@ function showPlayerModal(p, opts = {}) {
             <div class="pcard-full-name">${formatName(p.n)}</div>
             <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
               <span class="pos-chip ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
-            <div class="tags pcard-full-tags">${traitTags(p, true)}${archTag(p, true)}${mesureTags(p, true)}${zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
+            <div class="tags pcard-full-tags">${traitTags(p, true)}${surTable() && !apres ? '' : archTag(p, true) + mesureTags(p, true) + zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
             <div class="pcard-full-salary">
               <span class="big">${st.salaryMain}</span>
               <span class="small">${st.salarySub}</span>
