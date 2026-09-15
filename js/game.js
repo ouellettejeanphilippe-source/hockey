@@ -2295,7 +2295,7 @@ function lineEl(title, slots, group, unit, cls = '') {
   }
 
   // Derrière le banc, chaque trio porte son 🔒 : le trio de fermeture prend le
-  // premier trio adverse (voir FERMETURE_APPARIEMENT dans js/sim.js).
+  // premier trio adverse (voir FERMETURE_DEFAUT dans js/sim.js).
   let fermHtml = '';
   if (G.banc && group === 'F') {
     const ferm = fermetureCourante();
@@ -2962,7 +2962,7 @@ function ouvrirBanc(jour) {
 /** Le trio de fermeture tel que le banc le montre : le désigné, ou celui que 'auto' prendrait. */
 function fermetureCourante() {
   if (!G.banc) return null;
-  return G.banc.fermeture === 'auto' ? trioDeFermetureAuto(G.roster) : G.banc.fermeture;
+  return G.banc.fermeture === 'auto' ? trioDeFermetureAuto() : G.banc.fermeture;
 }
 
 /** Retour au match : la décision entre dans la liste, la saison se rejoue de la graine et reprend là. */
@@ -2997,7 +2997,7 @@ function renderBanc() {
     </div>
     ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
     <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
-    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. Touche 🔒 sur un trio pour en faire ton <b>trio de fermeture</b> : c'est lui qui prendra le premier trio adverse${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}${b.fermeture === 'auto' ? ' (choisi par l\'entraîneur)' : ''}` : ' — personne pour l\'instant'}.</div>
+    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. Touche 🔒 sur un trio pour en faire ton <b>trio de fermeture</b> : c'est lui qui prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}${b.fermeture === 'auto' ? ' (le 3e, comme chaque club de la ligue)' : ''}` : ' — personne pour l\'instant'}.</div>
     <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios. Ce qui est joué reste joué.">Retour au match</button>`;
   $('bancRetour').onclick = reprendreSaison;
 }
