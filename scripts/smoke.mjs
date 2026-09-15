@@ -216,6 +216,40 @@ async function traverserSaison(etiquette, reprise = false) {
     if (avant !== apres) errors.push(`la saison ne reprend pas au même endroit : « ${avant} » puis « ${apres} »`);
     else console.log(`   reprise après rafraîchissement : ${apres} — ${sauve.clubs} clubs et la graine en ${sauve.ko} ko`);
     if (sauve.journee < 1) errors.push('la sauvegarde ne porte pas la journée révélée');
+
+    /*
+     * DERRIÈRE LE BANC : les choix en saison. L'écran se retire, l'alignement
+     * s'ouvre avec les fiches À CE JOUR (jamais celles de fin de saison), on
+     * désigne un trio de fermeture, on permute deux joueurs, et « Retour au
+     * match » rejoue la saison depuis la graine avec la décision : les
+     * journées d'avant sont identiques, donc la même en-tête des deux côtés.
+     */
+    const teteAvantBanc = apres;
+    await page.click('#hubModal .hub-banc');
+    await page.waitForSelector('#bancPanel:not([hidden])', { timeout: 5000 });
+    const banc = (await page.textContent('#bancPanel')).replace(/\s+/g, ' ').trim();
+    const ficheBanc = (banc.match(/(\d+-\d+-\d+)/) || [])[1];
+    if (!ficheBanc || !teteAvantBanc.includes(ficheBanc)) errors.push(`le banc ne dit pas la fiche de l'écran de saison : « ${banc.slice(0, 80)} »`);
+    const metas = await page.$$eval('.slot', els => els.filter(e => e.querySelector('.slot-name')).map(e => e.querySelectorAll('.slot-meta')[1]?.textContent.trim() || ''));
+    if (metas.length !== 23 || !metas.every(m => /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · [,—]|aucun match)/.test(m))) errors.push(`les cases du banc ne portent pas la fiche à ce jour : ${metas.slice(0, 3).join(' | ')}`);
+    if ((await page.$$('.slot-remove')).length) errors.push('le banc laisse retirer un joueur en pleine saison');
+    const verrous = await page.$$('.line-ferm');
+    if (verrous.length !== 4) errors.push(`${verrous.length} 🔒 au lieu de quatre`);
+    else await verrous[2].click();
+    await page.waitForTimeout(150);
+    const nomsAvant = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.trim()));
+    await page.locator('.slot').nth(0).click(); await page.waitForTimeout(120);
+    await page.locator('.slot').nth(9).click(); await page.waitForTimeout(200);
+    const nomsApres = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.trim()));
+    if (nomsAvant[0] !== nomsApres[9]) errors.push('la permutation derrière le banc n\'a pas eu lieu');
+    await page.click('#bancRetour');
+    await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
+    await page.waitForTimeout(300);
+    const teteApresBanc = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+    if (teteApresBanc !== teteAvantBanc) errors.push(`le retour au match ne reprend pas au même endroit : « ${teteAvantBanc} » puis « ${teteApresBanc} »`);
+    const decisions = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } });
+    if (decisions.length !== 2 || decisions[1].fermeture !== 2) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
+    else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, 3e trio en fermeture, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
   }
   await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
   const tableaux = await page.$$eval('#hubModal .hub-volet .live-tableau', l => l.length);

@@ -1098,6 +1098,20 @@ function unitesSpeciales(habilles) {
   };
 }
 
+/** Le trio de fermeture par défaut : le plus défensif des 2e et 3e trios, s'il bat le premier ; sinon personne. */
+function fermetureAuto(unitesF) {
+  if (unitesF.length < 3) return null;
+  const c = unitesF[1].coteDef >= unitesF[2].coteDef ? 1 : 2;
+  return unitesF[c].coteDef > unitesF[0].coteDef + FERMETURE_SEUIL ? c : null;
+}
+
+/** Pour l'écran : le trio que 'auto' désignerait sur cet alignement, ou null. */
+export function trioDeFermetureAuto(roster) {
+  const faux = { together: new Map() };
+  const unitesF = [0, 1, 2].map(u => ({ rang: u, coteDef: unitAvgLineup(faux, roster, 'F', u, 'd') }));
+  return fermetureAuto(unitesF);
+}
+
 /** Le volume d'un joueur à forces égales : ses lancers, moins sa part d'avantage. */
 const lancersFE = (p, partAN) => lancersRel(p) * (1 - ((partAN && partAN.get(p)) || 0));
 
@@ -1139,6 +1153,11 @@ export function profilMatch(team, lineup) {
       });
     }
   }
+
+  // Le trio de fermeture de cet alignement : désigné, ou le plus défensif
+  // des 2e et 3e trios s'il bat le premier (voir FERMETURE_APPARIEMENT).
+  const ferm = team && team.fermeture !== 'auto' && team.fermeture !== undefined ? team.fermeture : fermetureAuto(unites.F);
+  for (const u of unites.F) u.fermeture = ferm != null && u.rang === ferm;
 
   const somme = (g) => unites[g].reduce((a, x) => a + x.poids, 0);
   const pression = (1 - PART_LANCERS_D) * somme('F') + PART_LANCERS_D * somme('D');
@@ -1264,6 +1283,50 @@ export function profilMatch(team, lineup) {
  */
 export const APPARIEMENT = 2.5;
 export const APPARIEMENT_PROPRE = 5.0;
+/*
+ * LE TRIO DE FERMETURE. JP : *pouvoir faire des lockdown lines qui bloquent
+ * mieux les adversaires, en prenant en compte dans la vraie vie l'impact que
+ * ça a, pas juste intégrer une mécanique qui brise le réalisme pour le fun*.
+ *
+ * Dans la vraie ligue, un trio de fermeture est d'abord un DÉPLOIEMENT :
+ * l'entraîneur l'envoie contre le premier trio adverse. Le moteur a déjà
+ * tout ce qu'il faut pour que ça compte, sans cote neuve — la défense se
+ * joue présence par présence, et la qualité d'une présence est la cote `d`
+ * des cinq qui sont sur la glace (K_DEFENSE, mesuré). Désigner un trio de
+ * fermeture ne fait donc qu'une chose : quand c'est le PREMIER trio adverse
+ * qui attaque, ce trio-là se tire à l'appariement avec un poids multiplié
+ * par FERMETURE_APPARIEMENT. Son blocage est celui de ses trois joueurs, ni
+ * plus ni moins ; désigner un trio qui n'est pas défensif, c'est l'envoyer
+ * se faire marquer dessus. Et le +/- suit qui était sur la glace, comme
+ * partout.
+ *
+ * Chaque équipe en a un ('auto' : le plus défensif de ses 2e et 3e trios,
+ * s'il bat le premier — sinon le premier trio, qui prend déjà l'appariement
+ * par son rang, est aussi le meilleur pour ça et personne n'est désigné).
+ * Sans ça le joueur aurait un entraîneur et les trente et une autres
+ * équipes n'en auraient pas. À 4, un troisième trio désigné prend le premier
+ * trio adverse à peu près aussi souvent que le premier trio : la part d'un
+ * trio de fermeture apparié dans la vraie ligue.
+ */
+// Réglables par l'environnement POUR LA MESURE (check_pm.mjs), jamais par le jeu :
+// le navigateur n'a pas de `process`, il prend les valeurs écrites ici.
+const ENV_MESURE = (typeof process !== 'undefined' && process.env) || {};
+export const FERMETURE_APPARIEMENT = Number(ENV_MESURE.FERMETURE_APPARIEMENT ?? 4);
+/*
+ * LE SEUIL DE L'ENTRAÎNEUR AUTOMATIQUE. Le trio candidat doit battre le premier
+ * d'au moins FERMETURE_SEUIL points de cote `d` pour être désigné d'office.
+ * Mesuré sur les 1392 vraies équipes alignées : le meilleur des 2e et 3e
+ * trios bat le premier dans 33 % des cas, de plus de 3 points dans 18 %, de
+ * plus de 5 dans 11 %. Et `check_pm.mjs` (quatre ligues) dit ce qu'un seuil
+ * trop bas fait au +/- par rang : à 0, un tiers des équipes apparient dur un
+ * trio à peine meilleur, qui encaisse les présences du premier trio adverse
+ * sans les étouffer — le 2e trio tombe à −7,4 (réel +0,6) ; sans fermeture il
+ * est à −3,2, à seuil 3 à −5,4. Un entraîneur n'apparie dur que quand il a
+ * un VRAI trio de fermeture : à 5, une équipe sur neuf en a un, et le +/- par
+ * rang reste celui d'avant. Le joueur, lui, désigne qui il veut — et voit
+ * ce que ça coûte sur la fiche de ce trio-là.
+ */
+export const FERMETURE_SEUIL = Number(ENV_MESURE.FERMETURE_SEUIL ?? 5);
 export const P_MELANGE = 0.40;
 export const RYTHME_CREDIT = 0.5;   // 0 : le −1 à la présence seule ; 1 : au poids offensif entier
 
@@ -1273,13 +1336,15 @@ export const RYTHME_CREDIT = 0.5;   // 0 : le −1 à la présence seule ; 1 : a
  * trio (la première paire joue avec le premier trio — c'est ce qui lui
  * donne son +/- dans la vraie ligue, +9 contre −1 sans ça).
  */
-function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT, cle = 'presence') {
+function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT, cle = 'presence', fermeture = false) {
   if (!unites.length) return unites[0];
   const nDef = unites.length;
   const cible = nOff > 1 ? rangOff / (nOff - 1) : 0;
   // `rythme` : la présence, inclinée vers le poids offensif (voir RYTHME_CREDIT).
   const de = x => (cle === 'rythme' ? x.presence * Math.pow((x.poids || x.presence) / (x.presence || 1), RYTHME_CREDIT) : (x[cle] || x.presence));
-  const poids = unites.map(x => de(x) * Math.exp(-k * Math.abs((nDef > 1 ? (x.rang || 0) / (nDef - 1) : 0) - cible)));
+  // Le trio de fermeture prend le premier trio adverse (voir FERMETURE_APPARIEMENT).
+  const ferm = x => (fermeture && rangOff === 0 && x.fermeture ? FERMETURE_APPARIEMENT : 1);
+  const poids = unites.map(x => ferm(x) * de(x) * Math.exp(-k * Math.abs((nDef > 1 ? (x.rang || 0) / (nDef - 1) : 0) - cible)));
   let r = hasard() * poids.reduce((a, b) => a + b, 0);
   for (let i = 0; i < unites.length; i++) { r -= poids[i]; if (r <= 0) return unites[i]; }
   return unites[unites.length - 1];
@@ -1440,7 +1505,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const rangOff = trioOff ? (trioOff.rang || 0) : 0, nOff = unitesOff ? unitesOff.F.length : 1;
     if (unitesDef) {
       // Appariée au trio qui attaque : le premier défend contre le premier.
-      dTrio = choisirApparie(unitesDef.F, rangOff, nOff);
+      dTrio = choisirApparie(unitesDef.F, rangOff, nOff, APPARIEMENT, 'presence', true);
       dPaire = choisirApparie(unitesDef.D, rangOff, nOff);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
@@ -1516,7 +1581,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
               // quand ça rentre se tirent au poids offensif de leur unité, pas à
               // la présence seule — le premier trio est sur la glace pour une
               // part des buts contre proche de sa part des buts pour.
-              const cTrio = choisirApparie(unitesDef.F, rangOff, nOff, APPARIEMENT, 'rythme');
+              const cTrio = choisirApparie(unitesDef.F, rangOff, nOff, APPARIEMENT, 'rythme', true);
               const cPaire = choisirApparie(unitesDef.D, rangOff, nOff, APPARIEMENT, 'rythme');
               const glaceContre = surLaGlace(cTrio, cPaire, unitesDef);
               for (const x of glaceContre) { x.simPM--; x.simMoins = (x.simMoins || 0) + 1; }
@@ -1613,6 +1678,7 @@ export function createTeam(name, tag, roster, opts = {}) {
     name, tag, roster,
     isPlayer: !!opts.isPlayer,
     season: opts.season || null,
+    fermeture: 'auto',       // le trio de fermeture : 'auto', null, ou le rang d'un trio (voir FERMETURE_APPARIEMENT)
     injured: new Map(),      // joueur -> matchs restants
     together: new Map(),     // unité -> matchs consécutifs intacts
     togetherSig: new Map(),
@@ -1812,8 +1878,11 @@ function applyInjuries(team, lineup, heavy) {
  * exactement ce que l'ancien moteur sautait, et pourquoi une équipe de
  * niveau 80 gagnait la Coupe 99 % du temps (MOTEUR.md 5.5).
  */
+/** Un match sur quatre est éreintant : la robustesse y pèse (voir K_ROB). L'écran de saison le dit d'avance. */
+export const soirEreintant = gameIdx => gameIdx % 4 === 3;
+
 export function playGame(A, B, gameIdx, track = true, series = false, journal = null, ronde = 0) {
-  const heavy = gameIdx % 4 === 3;
+  const heavy = soirEreintant(gameIdx);
   const LA = activeLineup(A), LB = activeLineup(B);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   const gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
@@ -2058,7 +2127,46 @@ export function simulate(roster, { graine = null } = {}) {
  * chaque équipe finit ses 82 matchs, donc le classement se compare toujours
  * à nombre de matchs égal.
  */
-export function simulateLeague(teams, games = 82, { graine = null } = {}) {
+/*
+ * LES DÉCISIONS EN SAISON. JP : *faire que ya plus de choix à faire pendant
+ * la saison*. La saison se jouait d'un coup et l'écran révélait ; l'alignement
+ * signé au repêchage était l'alignement des 82 matchs. Le moteur étant
+ * déterministe, une décision est une chose simple : au début de la journée
+ * `jour`, l'alignement de l'équipe prend la forme `cases` (index de case →
+ * clé de joueur, `getPlayerKey`), puis la journée se joue. Les journées
+ * d'AVANT rejouent à l'identique — mêmes appels au hasard, dans le même ordre
+ * — et tout ce qui suit diverge, ce qui est exactement ce qu'une décision
+ * fait. Une permutation des MÊMES 23 objets, jamais un joueur neuf : les
+ * fiches (`simG`…) vivent sur l'objet joueur et le suivent de case en case,
+ * et `team.injured` aussi.
+ *
+ * La décision 0 est l'alignement de départ. Sans elle, une reprise partirait
+ * de l'alignement COURANT de `G.roster`, c'est-à-dire de la dernière
+ * décision, et les premières journées ne se rejoueraient plus. Appliquer
+ * l'alignement qu'on a déjà ne change rien (check_graine.mjs le vérifie).
+ */
+function appliquerDecision(team, d) {
+  if ('fermeture' in d) team.fermeture = d.fermeture;
+  const cases = d.cases;
+  if (!cases) return;
+  const parCle = new Map();
+  for (const p of Object.values(team.roster)) if (p) parCle.set(getPlayerKey(p), p);
+  // En place : `team.roster` est l'objet même que l'interface tient (G.roster).
+  for (const k of Object.keys(team.roster)) delete team.roster[k];
+  for (const [i, cle] of Object.entries(cases)) {
+    const p = parCle.get(cle);
+    if (p) team.roster[i] = p;
+  }
+}
+
+/** Photographie d'un alignement, telle que les décisions la portent. */
+export function photoAlignement(roster) {
+  const cases = {};
+  for (const [i, p] of Object.entries(roster)) if (p) cases[i] = getPlayerKey(p);
+  return cases;
+}
+
+export function simulateLeague(teams, games = 82, { graine = null, decisions = [] } = {}) {
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   // Le générateur reste en place après : les séries, jouées ensuite par
@@ -2083,6 +2191,14 @@ export function simulateLeague(teams, games = 82, { graine = null } = {}) {
   // fait retomber tout le monde sur `games` à la fin.
   const restant = new Map(teams.map(t => [t, games]));
   for (let r = 0; restant.size; r++) {
+    // Les décisions du jour s'appliquent AVANT le brassage : elles ne
+    // consomment aucun hasard, donc une décision au jour k ne touche pas
+    // aux appariements ni aux journées d'avant.
+    for (const d of decisions) {
+      if (d.jour !== r) continue;
+      const t = teams[d.equipe || 0];
+      if (t) appliquerDecision(t, d);
+    }
     const order = shuffle(teams.filter(t => restant.get(t) > 0));
     if (order.length < 2) break;
     // Tri stable : l'ordre du brassage départage les équipes à égalité.
