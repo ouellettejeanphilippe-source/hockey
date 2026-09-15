@@ -2,6 +2,8 @@ name: Vérifier
 
 # Ce que protège cette Action, à chaque PR et à chaque poussée sur main :
 #
+#   check_coquille  sw.js liste-t-il tout ce que la page charge ? (le filet
+#                   `data/seed.json` était servi au réseau SEULEMENT)
 #   check_graine    la même graine rejoue la même saison (un `Math.random`
 #                   glissé dans js/sim.js la fait échouer)
 #   check_feuilles  les quatre égalités de la feuille de match, sur une ligue
@@ -50,6 +52,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+
+      - name: La coquille hors ligne est complète
+        run: node scripts/check_coquille.mjs
 
       - name: Le moteur se rejoue sur sa graine
         run: node scripts/check_graine.mjs
