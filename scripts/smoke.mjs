@@ -233,9 +233,16 @@ async function traverserSaison(etiquette, reprise = false) {
     const metas = await page.$$eval('.slot', els => els.filter(e => e.querySelector('.slot-name')).map(e => e.querySelectorAll('.slot-meta')[1]?.textContent.trim() || ''));
     if (metas.length !== 23 || !metas.every(m => /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · [,—]|aucun match)/.test(m))) errors.push(`les cases du banc ne portent pas la fiche à ce jour : ${metas.slice(0, 3).join(' | ')}`);
     if ((await page.$$('.slot-remove')).length) errors.push('le banc laisse retirer un joueur en pleine saison');
+    // Le 3e trio est la fermeture par défaut (FERMETURE_DEFAUT) : le 🔒 doit
+    // déjà le dire, et on la DÉPLACE au 2e — c'est le déplacement qui prouve
+    // que la décision voyage jusqu'à la sauvegarde.
     const verrous = await page.$$('.line-ferm');
     if (verrous.length !== 4) errors.push(`${verrous.length} 🔒 au lieu de quatre`);
-    else await verrous[2].click();
+    else {
+      const parDefaut = await page.$$eval('.line-ferm', e => e.map(x => x.classList.contains('on')));
+      if (JSON.stringify(parDefaut) !== '[false,false,true,false]') errors.push(`le banc n'affiche pas le 3e trio en fermeture par défaut : ${JSON.stringify(parDefaut)}`);
+      await verrous[1].click();
+    }
     await page.waitForTimeout(150);
     const nomsAvant = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.trim()));
     await page.locator('.slot').nth(0).click(); await page.waitForTimeout(120);
@@ -248,8 +255,8 @@ async function traverserSaison(etiquette, reprise = false) {
     const teteApresBanc = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
     if (teteApresBanc !== teteAvantBanc) errors.push(`le retour au match ne reprend pas au même endroit : « ${teteAvantBanc} » puis « ${teteApresBanc} »`);
     const decisions = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } });
-    if (decisions.length !== 2 || decisions[1].fermeture !== 2) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
-    else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, 3e trio en fermeture, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
+    if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
+    else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture déplacée au 2e trio, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
   }
   await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
   const tableaux = await page.$$eval('#hubModal .hub-volet .live-tableau', l => l.length);
