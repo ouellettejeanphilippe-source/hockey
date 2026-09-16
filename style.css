@@ -2634,12 +2634,16 @@ table.data .pts { font-weight: 900; color: var(--green); }
   padding: 10px 14px; border-bottom: 1px solid var(--line-soft);
 }
 .hub-actions .btn { flex: 1 1 140px; min-height: 42px; }
-.hub-actions .hub-jour { flex: 1 1 100%; order: -1; }
-.hub-actions .hub-regarder { flex: 1 1 100%; }
+.hub-actions .hub-jour { flex: 1 1 100%; }
+/* La rangée compacte sous « Journée suivante » (S30) : quatre boutons sur une ligne. */
+.hub-actions-rang { display: flex; gap: 8px; flex: 1 1 100%; }
+.hub-actions-rang .btn { flex: 1 1 0; min-width: 0; min-height: 40px; padding: 6px 8px; font-size: 14px; }
 @media (min-width: 560px) {
-  .hub-actions .hub-jour, .hub-actions .hub-regarder { flex: 1 1 160px; }
-  .hub-actions .hub-jour { order: 0; }
+  .hub-actions .hub-jour { flex: 1 1 200px; }
+  .hub-actions-rang { flex: 1 1 320px; }
 }
+/* Le lieu du match sur l'affiche : à domicile, ou chez l'autre. */
+.hub-lieu { margin-left: 8px; font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sub); }
 .hub-onglets[hidden] { display: none; }
 .hub-volet { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
 .hub-volet > * { flex: none; }
