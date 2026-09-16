@@ -117,7 +117,7 @@ for (let i = 0; i < MATCHS; i++) {
   const B = equipeDeTable(b.nom, b.tag, b.roster, 'B');
   const m = nouveauMatch(A, B, `t${i}`);
   let presences = 0;
-  while (!m.fini && presences++ < 200) { if (m.periode === PERIODES + 1 && !m.prolongation) break; iaPresence(m); }
+  while (!m.fini && presences++ < 4000) { if (m.periode === PERIODES + 1 && !m.prolongation) break; iaPresence(m); }
   const r = resultatDe(m);
   if (m.prolongation) prolongations++;
   buts += r.gfA + r.gfB; tirs += r.A.tirs + r.B.tirs; n += 2;
@@ -200,13 +200,17 @@ console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(10
 
 /* ---------- les gestes par présence : la vitesse du jeu ---------- */
 {
+  // Une pièce à la fois (S32) : `iaPresence` joue UNE activation, et un tour
+  // en compte jusqu'à dix. La vitesse se lit toujours en gestes par PRÉSENCE
+  // D'ÉQUIPE — deux par tour (`m.tours`) — pour que la cible reste la même.
   let gestes = 0, presences = 0;
   for (let i = 0; i < 40; i++) {
     const a = clubs[(i * 71) % clubs.length];
     const b = clubs[(i * 197 + 11) % clubs.length];
     const m = nouveauMatch(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `g${i}`);
     let garde2 = 0;
-    while (!m.fini && garde2++ < 200) { gestes += iaPresence(m).length; presences++; }
+    while (!m.fini && garde2++ < 4000) gestes += iaPresence(m).length;
+    presences += 2 * (m.tours || 0);
   }
   console.log(`  gestes par présence         ${(gestes / presences).toFixed(2)}   (cible : 4 à 6)`);
   borne('gestes par présence', gestes / presences, 4, 6);

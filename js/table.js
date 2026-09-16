@@ -140,8 +140,18 @@ export const estFilet = (r, c) => (r === FILET_HAUT || r === FILET_BAS) && c ===
 /** La zone offensive garde la MÊME taille quelle que soit la longueur de la glace. */
 export const RANGS_ENCLAVE = 1;               // la seule rangée collée au filet
 export const DEMI_ENCLAVE = 2;                // sa largeur, de part et d'autre du filet
-export const BONUS_ENCLAVE = 4;               // ce que vaut un tir pris de là
-export const MALUS_COIN = -1;                 // et ce que coûte le mauvais angle
+/*
+ * LA PLACE PORTE LE SEUIL DU TIR, LE JOUEUR PORTE LE MODIFICATEUR.
+ *
+ * Mesuré sur 5 492 occasions de tir (S26) : la place — +4 d'enclave, −2 de
+ * distance, −1 de coin, les bâtons — remplissait à elle seule la borne ±2
+ * dans 64 % des cas. Sur deux tirs sur trois, ni le TI du tireur, ni l'AR du
+ * gardien, ni l'habileté, ni le tir signature ne changeaient quoi que ce
+ * soit : la place décidait tout, le joueur rien. La place fixe donc le SEUIL
+ * (3+ de l'enclave, 4+ de la deuxième rangée, 5+ de la pointe et des coins,
+ * 6+ pour le tour du filet), et la borne ±2 est tout entière au joueur.
+ */
+export const SEUIL_PLACE = { enclave: 2, rangee2: 3, pointe: 4, coin: 5, tour: 6 };
 
 /*
  * LA PORTÉE DU TIR : on ne tire que de la zone offensive.
@@ -761,8 +771,10 @@ export function nouveauMatch(A, B, graine) {
   const m = {
     A, B, de,
     periode: 1,
-    presence: 1,           // 1 à PRESENCES_PAR_PERIODE × 2, alternées
-    tour: 'A',
+    presence: 1,           // 1 à PRESENCES_PAR_PERIODE × 2 : un TOUR (les dix pièces) en vaut deux
+    tour: 'A',             // à qui la main
+    premier: 'A',          // qui a ouvert le tour courant ; on alterne à chaque tour
+    actif: null,           // la pièce ACTIVÉE par `tour` : elle joue seule jusqu'à finirActivation
     rondelle: null,        // { piece } ou { libre: {r, c} }
     fil: [],               // les événements, le plus récent en tête
     fini: false,
@@ -1009,26 +1021,31 @@ export function appliquerDegagement(m, piece, vers, jet) {
 }
 
 /** Le modificateur d'un tir : la finition contre le gardien, la distance, l'enclave, la couverture. */
+/** Le seuil d'un tir : la PLACE seule le fixe (voir SEUIL_PLACE). */
+export function seuilTir(m, piece) {
+  const but = eqDe(m, piece.eq).but;
+  const d = profondeur(piece.r, but);
+  const nature = natureCase(piece.r, piece.c, but);
+  if (d === 0) return SEUIL_PLACE.tour;                    // le tour du filet
+  if (nature === 'enclave') return SEUIL_PLACE.enclave;
+  if (nature === 'coin') return SEUIL_PLACE.coin;
+  return d <= 2 ? SEUIL_PLACE.rangee2 : SEUIL_PLACE.pointe;
+}
+
+/** Le modificateur d'un tir : LE JOUEUR — sa finition contre le gardien, sa signature, les bâtons devant lui. */
 export function modTir(m, piece) {
   const eq = eqDe(m, piece.eq);
   const g = eqDe(m, adverse(piece.eq)).piece_g;
   const d = profondeur(piece.r, eq.but);
-  // ARCADE : la distance pèse, mais elle ne ferme jamais le jeu. À −3 du fond
-  // de la patinoire, personne ne tentait rien d'autre que d'avancer.
-  const loin = d <= 2 ? 0 : d <= 4 ? -1 : -2;
   const nature = natureCase(piece.r, piece.c, eq.but);
-  // L'enclave ne fait plus qu'une rangée et ne s'atteint qu'une présence sur
-  // sept au lieu d'une sur quatre : y arriver doit payer beaucoup plus cher,
-  // sinon le jeu devient du hockey défensif crédible et plate.
-  const place = nature === 'enclave' ? BONUS_ENCLAVE : nature === 'coin' ? MALUS_COIN : 0;
-  // L'angle : tirer d'une bande, c'est tirer dans le côté court.
-  const angle = Math.abs(piece.c - BUT_COL) >= 3 ? -1 : 0;
-  const gene = batonsTir(m, piece.eq, piece.r, piece.c);
+  // Les bâtons devant le tireur comptent, bornés à deux : au-delà, c'est la
+  // place qui parle, et elle parle déjà par le seuil.
+  const gene = Math.min(2, batonsTir(m, piece.eq, piece.r, piece.c));
   // LE TIR SIGNATURE : chacun a un contexte où il vaut mieux que les autres.
   // `recu` dit qu'il vient de recevoir la passe — c'est le une-deux.
   const tir = TIRS[piece.st.ts] || TIRS.P;
   const signature = tir.mod({ loin: d, enclave: nature === 'enclave', batons: gene, recu: !!piece.derniere });
-  return md(piece.st.TI) - md(g.st.AR) + loin + place + angle + signature + malusSouffle(m, piece) - gene;
+  return md(piece.st.TI) - md(g.st.AR) + signature + malusSouffle(m, piece) - gene;
 }
 
 /** Le modificateur d'une mise en échec : la force contre la force. */
@@ -1070,8 +1087,7 @@ export function modVol(m, piece, cible) {
  * La relance d'équipe se demande APRÈS avoir vu le dé — c'est tout l'intérêt
  * du team re-roll de Blood Bowl : on le dépense en connaissance de cause.
  */
-export function jeter(m, mod, quoi) {
-  const seuil = quoi === 'tir' ? SEUIL_TIR : SEUIL;
+export function jeter(m, mod, quoi, seuil = quoi === 'tir' ? SEUIL_TIR : SEUIL) {
   const mo = borne(mod, MOD_MIN, MOD_MAX);
   const de = Math.floor(m.de() * 6) + 1;
   return { de, mod: mo, seuil, total: de + mo, reussi: passe(de, mo, seuil), quoi };
@@ -1127,9 +1143,19 @@ function rebondir(m, r, c, devant = null) {
 
 /** Le revirement : la présence finit ici, quoi qu'il reste à faire. */
 function revirement(m, texte) {
-  eqDe(m, m.tour).revirements++;
-  dire(m, `${texte} Revirement — la présence est finie.`, 'revirement');
-  finirPresence(m);
+  const eq = eqDe(m, m.tour);
+  eq.revirements++;
+  dire(m, `${texte} Revirement.`, 'revirement');
+  /*
+   * EN ALTERNANCE, LE REVIREMENT NE COÛTE QUE L'ACTIVATION. La règle de Blood
+   * Bowl — perdre le reste de son tour — a été essayée et mesurée : avec
+   * l'IA qui joue son porteur d'abord, 1,4 activation par présence d'équipe
+   * (quatre pièces sur cinq ne bougeaient jamais) ; avec le porteur en
+   * dernier, 3,0 buts par match, parce que chaque geste sûr donnait à
+   * l'adversaire une activation pour frapper le porteur. Ici, perdre la
+   * rondelle est déjà le prix : l'adversaire joue le prochain, avec elle.
+   */
+  finirActivation(m);
 }
 
 /* ======================================================================
@@ -1274,8 +1300,9 @@ export function appliquerPasse(m, piece, cible, jet) {
 
 export function tirer(m, piece) {
   const mod = modTir(m, piece) + (piece.hab === 'DECOCHE' && piece.habDispo ? 2 : 0);
-  eqDe(m, piece.eq).modsTir.push({ mod, d: profondeur(piece.r, eqDe(m, piece.eq).but) });
-  return jeter(m, mod, 'tir');
+  const seuil = seuilTir(m, piece);
+  eqDe(m, piece.eq).modsTir.push({ mod, d: profondeur(piece.r, eqDe(m, piece.eq).but), seuil });
+  return jeter(m, mod, 'tir', seuil);
 }
 
 export function appliquerTir(m, piece, jet) {
@@ -1481,12 +1508,55 @@ export function foncer(m, piece) {
  * un match qui n'en finissait plus. C'est la borne qui fait la vitesse.
  */
 export const peutJouer = x => !x.etourdi && (!x.deplace || !x.agi);
-export const actives = m => eqDe(m, m.tour).pieces.filter(peutJouer);
+/*
+ * UNE PIÈCE À LA FOIS, EN ALTERNANCE. JP (S32) : *un joueur à la fois*. Le
+ * tour d'équipe de Blood Bowl — tes cinq pièces, puis les siennes — devient
+ * un duel d'initiative : tu ACTIVES une pièce (elle patine et fait un geste,
+ * dans l'ordre que tu veux), puis l'adversaire active une des siennes, et
+ * ainsi de suite jusqu'à ce que les dix aient joué — c'est un TOUR. Tant
+ * qu'une pièce est activée, elle joue seule : `actives` ne rend qu'elle.
+ */
+export const actives = m => (m.actif && m.actif.eq === m.tour && peutJouer(m.actif) ? [m.actif]
+  : eqDe(m, m.tour).pieces.filter(peutJouer));
+const epuiser = x => { x.agi = true; x.deplace = true; };
 
+/** Activer une pièce : la précédente, si elle jouait encore, a fini. */
+export function activer(m, piece) {
+  if (m.actif && m.actif !== piece) epuiser(m.actif);
+  m.actif = piece;
+}
+
+/**
+ * LA PIÈCE ACTIVÉE A FINI : la main passe à l'adversaire s'il lui reste une
+ * pièce, sinon elle reste ici ; quand plus personne n'a de pièce, le tour est
+ * fini pour les deux. Le gardien qui a la rondelle la relance à chaque fois
+ * que la main revient à son équipe (la sortie de zone).
+ */
+export function finirActivation(m) {
+  if (m.actif) epuiser(m.actif);
+  m.actif = null;
+  if (m.fini) return;
+  const autre = adverse(m.tour);
+  if (eqDe(m, autre).pieces.some(peutJouer)) { m.tour = autre; sortieDeZone(m); return; }
+  if (eqDe(m, m.tour).pieces.some(peutJouer)) { sortieDeZone(m); return; }
+  finirPresence(m);
+}
+
+/** Renoncer au reste de sa présence : toutes ses pièces sont épuisées, l'adversaire enchaîne. */
+export function renoncer(m) {
+  for (const x of eqDe(m, m.tour).pieces) epuiser(x);
+  finirActivation(m);
+}
+
+/** Le tour est fini pour les DEUX équipes : souffle, compteurs, et l'autre ouvre le suivant. */
 export function finirPresence(m, butMarque = false) {
-  const eq = eqDe(m, m.tour);
-  respirer(eq);
-  for (const x of eq.pieces) { x.agi = false; x.deplace = false; }
+  m.actif = null;
+  m.tours = (m.tours || 0) + 1;   // les tours joués : ce que les scripts comptent
+  for (const cote of ['A', 'B']) {
+    const eq = eqDe(m, cote);
+    respirer(eq);
+    for (const x of eq.pieces) { x.agi = false; x.deplace = false; }
+  }
   for (const x of surLaGlace(m)) { if (x.etourdi) x.etourdi--; if (x.ecran) x.ecran--; if (x.tendu) x.tendu--; }
 
   // MORT SUBITE : en prolongation, le premier but finit tout.
@@ -1499,8 +1569,10 @@ export function finirPresence(m, butMarque = false) {
    * restantes négatif. On vérifie d'abord, on avance ensuite.
    */
   // Une prolongation est courte : deux présences chacune, puis on recommence.
+  // Un tour vaut deux présences (une par équipe) : le compte de la période
+  // ne change pas, il avance de deux à la fois.
   const parPeriode = (m.prolongation ? PRESENCES_PROLONGATION : PRESENCES_PAR_PERIODE) * 2;
-  if (m.presence >= parPeriode) {
+  if (m.presence + 1 >= parPeriode) {
     if (m.prolongation) { finirMatch(m); return; }
     dire(m, `Fin de la ${ordP(m.periode)} période. ${m.A.buts} – ${m.B.buts}`, 'periode');
     // LA PÉRIODE NE DÉPASSE JAMAIS LA TROISIÈME. Le compteur montait AVANT
@@ -1513,12 +1585,14 @@ export function finirPresence(m, butMarque = false) {
     m.presence = 1;
     m.A.relance = true; m.B.relance = true;
     for (const x of surLaGlace(m)) { x.etourdi = 0; x.habDispo = true; }
-    m.tour = m.periode % 2 === 1 ? 'A' : 'B';   // on change de bord de mise au jeu
+    m.premier = m.periode % 2 === 1 ? 'A' : 'B';   // on change de bord de mise au jeu
+    m.tour = m.premier;
     miseAuJeu(m, `${ordP(m.periode)} période`);
     return;
   }
-  m.presence++;
-  m.tour = adverse(m.tour);
+  m.presence += 2;
+  m.premier = adverse(m.premier);
+  m.tour = m.premier;
   if (butMarque) miseAuJeu(m, 'Mise au jeu au centre');
   else sortieDeZone(m);
 }
@@ -1570,7 +1644,9 @@ function finirMatch(m) {
     m.presence = 1;
     m.A.relance = true; m.B.relance = true;
     for (const x of surLaGlace(m)) { x.etourdi = 0; x.habDispo = true; }
-    m.tour = m.prolongation % 2 === 1 ? 'A' : 'B';
+    m.actif = null;
+    m.premier = m.prolongation % 2 === 1 ? 'A' : 'B';
+    m.tour = m.premier;
     dire(m, 'Prolongation — mort subite.', 'periode');
     miseAuJeu(m, 'Prolongation');
     return;
@@ -1616,14 +1692,14 @@ function meilleurGeste(m, piece) {
     if (!piece.agi) {
       // Tirer : ce que ça rapporte, c'est un but. Un tir raté rend la
       // rondelle au gardien, donc ça se pèse.
-      if (peutTirer(m, piece)) options.push({ type: 'tir', val: chances(modTir(m, piece) + bonus('DECOCHE'), SEUIL_TIR) * 11 - 1.5 });
+      if (peutTirer(m, piece)) options.push({ type: 'tir', val: chances(modTir(m, piece) + bonus('DECOCHE'), seuilTir(m, piece)) * 11 - 1.5 });
       for (const cible of receveursDe(m, piece)) {
         const gain = valeurCase(cible.r, cible.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
         // Ce que la passe ouvre : la chance de tir du receveur, zéro s'il est
         // hors de portée. Sans ça le glouton passait à quelqu'un de mieux
         // « placé » qui ne pouvait pas tirer non plus.
-        const tirIci = peutTirer(m, piece) ? chances(modTir(m, piece), SEUIL_TIR) : 0;
-        const tir = (peutTirer(m, cible) ? chances(modTir(m, cible), SEUIL_TIR) : 0) - tirIci;
+        const tirIci = peutTirer(m, piece) ? chances(modTir(m, piece), seuilTir(m, piece)) : 0;
+        const tir = (peutTirer(m, cible) ? chances(modTir(m, cible), seuilTir(m, cible)) : 0) - tirIci;
         if (gain <= 0 && tir <= 0.02) continue;
         // Le terrain gagné par une PASSE pesait 0,5 contre 0,9 pour le patin :
         // la passe était escomptée plus que le patin, ce qui est à l'envers dès
@@ -1726,12 +1802,25 @@ function meilleurGeste(m, piece) {
  * geste. On voyait la fin avant l'histoire.
  */
 function iaProchainGeste(m, cote) {
-  let joue = null;
+  let joue = null, sur = null;
+  const p = porteur(m);
   for (const piece of actives(m)) {
     const g = meilleurGeste(m, piece);
     if (!g) continue;
     if (!joue || g.val > joue.val) joue = { piece, ...g };
+    if (piece !== p && (!sur || g.val > sur.val)) sur = { piece, ...g };
   }
+  /*
+   * LE PORTEUR JOUE EN DERNIER. En alternance (S32), une pièce activée joue
+   * seule, et ce qu'elle n'a pas fait quand on en active une autre est perdu.
+   * L'IA prenait le meilleur geste tout court — presque toujours le porteur
+   * qui monte et tire — et sa présence finissait sur l'arrêt du gardien avec
+   * quatre pièces qui n'avaient pas bougé : 1,4 activation par présence
+   * d'équipe, mesuré. C'est la règle de Blood Bowl : les gestes sûrs
+   * d'abord, le geste risqué en dernier. Tant qu'une pièce SANS la rondelle a
+   * quelque chose d'utile à faire, elle passe avant.
+   */
+  if (!m.actif && sur && sur.val > 2.5 && joue && joue.piece === p) return sur;
   if (joue && joue.val > 0) return joue;
   /*
    * ON LANCE AU FILET. Mesuré : la moitié des présences finissaient
@@ -1740,8 +1829,7 @@ function iaProchainGeste(m, cote) {
    * coin. C'est du hockey défensif, et ce n'est pas ce mode-ci : quand
    * il ne reste rien de mieux, le porteur lance, s'il est à portée.
    */
-  const p = porteur(m);
-  if (p && p.eq === cote && !p.agi && peutTirer(m, p)) return { piece: p, type: 'tir' };
+  if (p && p.eq === cote && !p.agi && peutTirer(m, p) && actives(m).includes(p)) return { piece: p, type: 'tir' };
   return null;
 }
 
@@ -1750,20 +1838,34 @@ function iaProchainGeste(m, cote) {
  * reste rien — auquel cas elle a terminé sa présence. C'est ce que l'écran
  * appelle sur une minuterie pour que le plateau et le fil avancent ensemble.
  */
-export const GESTES_MAX = 12;   // le garde-fou d'une présence
+export const GESTES_MAX = 4;   // le garde-fou d'une activation : patiner, foncer, repatiner, agir
 
+/**
+ * L'IA joue UN geste de son activation courante. Sans pièce activée, elle
+ * choisit la meilleure et l'active ; quand la pièce activée n'a plus rien
+ * de bon à faire, l'activation finit et la main passe (rend null).
+ */
 export function iaGeste(m) {
   if (m.fini) return null;
   const cote = m.tour;
   const eq = eqDe(m, cote);
-  // Le changement de trio se décide au banc, avant le premier geste.
-  if (eq.pieces.every(x => !x.agi && !x.deplace)) iaChanger(m, cote);
+  // Le changement de trio se décide au banc, avant le premier geste du tour.
+  if (!m.actif && eq.pieces.every(x => !x.agi && !x.deplace)) iaChanger(m, cote);
   const joue = iaProchainGeste(m, cote);
   if (!joue) {
-    dire(m, `${eq.nom} a fini sa présence.`, 'fin-presence');
-    finirPresence(m);
+    if (m.actif) dire(m, `${nomDe(m.actif)} a fini son activation.`, 'fin-presence');
+    else {
+      // RIEN À JOUER SANS PIÈCE ACTIVÉE : l'équipe renonce au reste de sa
+      // présence. Sans ça, deux équipes qui ont encore des pièces mais plus
+      // rien à en faire se renvoyaient la main pour toujours — sept matchs
+      // sur 120 ne finissaient pas.
+      for (const x of eq.pieces) epuiser(x);
+      dire(m, `${eq.nom} n'a plus rien à jouer ce tour-ci.`, 'fin-presence');
+    }
+    finirActivation(m);
     return null;
   }
+  if (m.actif !== joue.piece) activer(m, joue.piece);
   const jet = jouerGeste(m, joue.piece, joue, cote, true);
   return { ...joue, jet };
 }
@@ -1778,20 +1880,28 @@ export function iaGeste(m) {
  * seulement entre deux présences — un chevauchement ou une rondelle perdue
  * peut naître et disparaître à l'intérieur d'une même présence.
  */
+/**
+ * L'IA joue UNE ACTIVATION complète (une pièce, jusqu'à GESTES_MAX gestes),
+ * puis rend la main. C'est ce que les matchs joués à vide et les scripts
+ * appellent en boucle ; l'écran, lui, passe par `iaGeste`.
+ */
 export function iaPresence(m, surGeste = null) {
   const cote = m.tour;
   const gestes = [];
   let garde = 0;
+  const avant = m.actif;
   while (m.tour === cote && !m.fini && garde++ < GESTES_MAX) {
     const joue = iaGeste(m);
     if (!joue) break;
     gestes.push({ piece: joue.piece, type: joue.type });
     if (surGeste) surGeste(joue.type, joue.piece);
+    if (!m.actif || m.actif !== joue.piece) break;   // l'activation s'est finie d'elle-même
   }
-  // LE GARDE-FOU DOIT QUAND MÊME FINIR LA PRÉSENCE. Sans ça, une présence
-  // qui atteint la limite laisse le tour à la même équipe pour toujours et
-  // la boucle appelante ne s'arrête jamais.
-  if (m.tour === cote && !m.fini) finirPresence(m);
+  // LE GARDE-FOU DOIT QUAND MÊME RENDRE LA MAIN : une activation qui atteint
+  // la limite finit, sinon la boucle appelante ne s'arrête jamais.
+  if (!m.fini && m.tour === cote && (m.actif || avant === null)) {
+    if (m.actif) finirActivation(m);
+  }
   return gestes;
 }
 
@@ -1896,7 +2006,8 @@ function relanceIA(m, cote, jet) {
 export function jouerMatchAuto(A, B, graine) {
   const m = nouveauMatch(A, B, graine);
   let garde = 0;
-  while (!m.fini && garde++ < 400) iaPresence(m);
+  // Dix activations par tour, trente-six tours et la prolongation : 4000 est large.
+  while (!m.fini && garde++ < 4000) iaPresence(m);
   return resultatDe(m);
 }
 
@@ -1984,9 +2095,9 @@ export function reglesDuPlateau() {
     {
       titre: 'Le match',
       points: [
-        `Trois périodes. Chaque équipe joue ${PRESENCES_PAR_PERIODE} présences par période, en alternance stricte — toi, l'adversaire, toi — soit ${parMatch} présences chacune dans un match.`,
+        `Trois périodes de ${PRESENCES_PAR_PERIODE} tours chacune, soit ${parMatch} tours dans un match ; dans un tour, chaque équipe active ses cinq pièces, une à la fois, en alternance.`,
         'Il n\'y a pas d\'horloge : le match finit quand les présences sont épuisées. Le plus de buts l\'emporte.',
-        `Égalité après trois périodes : prolongation de ${PRESENCES_PROLONGATION} présences chacune, mort subite — le premier but finit tout, et on recommence tant que personne ne marque.`,
+        `Égalité après trois périodes : prolongation de ${PRESENCES_PROLONGATION} tours, mort subite — le premier but finit tout, et on recommence tant que personne ne marque.`,
         'Tu attaques toujours vers le haut, à toutes les périodes. Le plateau ne se retourne jamais.',
       ],
     },
@@ -1994,27 +2105,28 @@ export function reglesDuPlateau() {
       titre: 'La glace',
       points: [
         `${COLS} colonnes, ${RANGS} rangées. Chaque filet est UNE case, posée sur sa ligne des buts : les cases à côté de lui et la rangée entière DERRIÈRE lui se jouent.`,
-        `DERRIÈRE LE FILET on ne tire pas, on passe : une passe partie de derrière (ou de la ligne des buts) vers l'enclave vaut +1, le gardien ne la voit pas venir. Des deux cases collées au filet sur la ligne des buts, on tente le TOUR DU FILET — un tir de coin, à ${MALUS_COIN}.`,
+        `DERRIÈRE LE FILET on ne tire pas, on passe : une passe partie de derrière (ou de la ligne des buts) vers l'enclave vaut +1, le gardien ne la voit pas venir. Des deux cases collées au filet sur la ligne des buts, on tente le TOUR DU FILET — à ${SEUIL_PLACE.tour}+.`,
         `ON NE TIRE QUE DE LA ZONE OFFENSIVE : à ${PORTEE_TIR} cases du filet ou moins. Au-delà de la ligne bleue ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert. Il faut entrer.`,
-        `LA ZONE OFFENSIVE, du filet vers l'arrière : l'ENCLAVE (${RANGS_ENCLAVE === 1 ? 'la rangée collée au filet' : `les ${RANGS_ENCLAVE} rangées collées au filet`}, ${DEMI_ENCLAVE * 2 + 1} colonnes au centre) vaut ${BONUS_ENCLAVE >= 0 ? '+' : ''}${BONUS_ENCLAVE} au tir ; la POINTE, le reste de la zone, ne vaut rien de plus ; et tout ce qui déborde en largeur est un COIN, à ${MALUS_COIN} — c'est le mauvais angle.`,
+        `LA PLACE FIXE LE SEUIL DU TIR : ${SEUIL_PLACE.enclave}+ de l'ENCLAVE (${RANGS_ENCLAVE === 1 ? 'la rangée collée au filet' : `les ${RANGS_ENCLAVE} rangées collées au filet`}, ${DEMI_ENCLAVE * 2 + 1} colonnes au centre), ${SEUIL_PLACE.rangee2}+ de la deuxième rangée, ${SEUIL_PLACE.pointe}+ de la POINTE, ${SEUIL_PLACE.coin}+ d'un COIN (tout ce qui déborde en largeur : le mauvais angle). Le joueur, lui, porte le modificateur : son TI contre l'AR du gardien, son tir signature, les bâtons devant lui, à ±2.`,
         `L'enclave est petite, et un tir raté pris de là laisse un retour devant le filet : y arriver est le jeu.`,
         `Le patin est plafonné à ${PAS_MAX} cases, quel que soit le PA de la pièce : la glace est large, on ne la traverse pas d'un élan.`,
-        'Une bande coûte −1 de plus : c\'est le côté court.',
         'Un adversaire collé au tireur ne gêne son tir que s\'il est ENTRE lui et le filet. Celui qui est dans son dos ne bloque rien.',
       ],
     },
     {
-      titre: 'Une présence',
+      titre: 'Un tour : une pièce à la fois',
       points: [
-        'Chacune de tes cinq pièces peut patiner une fois ET faire un geste une fois, dans l\'ordre que tu veux.',
-        'Ta présence finit quand plus aucune pièce n\'a de geste, quand tu touches « Finir ma présence » — ou sur un revirement.',
-        'LE REVIREMENT : un jet raté qui te coûte la rondelle termine ta présence sur-le-champ, même si tes autres pièces n\'ont rien fait. C\'est le coeur du jeu.',
+        'Les deux équipes jouent EN ALTERNANCE, une pièce à la fois : tu actives une de tes pièces, elle patine une fois ET fait un geste une fois, dans l\'ordre que tu veux ; puis l\'adversaire active une des siennes ; et ainsi de suite jusqu\'à ce que les dix aient joué — c\'est un tour.',
+        'Une pièce activée joue seule. Son activation finit quand elle a patiné et agi, quand tu touches « Fin de l\'activation », ou quand tu en actives une autre — ce qu\'elle n\'a pas fait est perdu.',
+        '« Finir ma présence » renonce à toutes tes pièces qui n\'ont pas encore joué ce tour-ci : l\'adversaire enchaîne les siennes.',
+        'LE REVIREMENT : un jet raté qui te coûte la rondelle finit l\'activation de ta pièce sur-le-champ, et c\'est l\'adversaire qui joue — avec la rondelle. Tes autres pièces gardent leur activation : en alternance, perdre la rondelle est déjà le prix.',
+        'Le tour suivant, c\'est l\'autre équipe qui ouvre.',
       ],
     },
     {
       titre: 'Le dé',
       points: [
-        `Un d6 par geste risqué. Il faut ${SEUIL} ou plus, modificateurs compris.`,
+        `Un d6 par geste risqué. Il faut ${SEUIL} ou plus, modificateurs compris — sauf au tir, où c'est la place qui fixe le seuil (${SEUIL_PLACE.enclave}+ à ${SEUIL_PLACE.tour}+) et le joueur qui le module.`,
         'Un 6 réussit toujours. Un 1 échoue toujours. Rien n\'est jamais sûr ni jamais perdu.',
         `Les modificateurs sont bornés à ${MOD_MAX} de chaque bord, et il faut deux crans de talent pour en valoir un.`,
         'Chaque option affiche son seuil et ses chances AVANT que tu t\'engages : la case où patiner, le coéquipier visé, l\'adversaire à frapper, le bouton de tir.',
