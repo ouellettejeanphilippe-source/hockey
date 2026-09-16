@@ -161,11 +161,12 @@ if (derriere < 2 * (COLS_ATTENDU - 1)) errors.push(`seulement ${derriere} cases 
  * c'est ce « suivante » qui empêche de retoucher éternellement la même pièce.
  */
 let gestes = 0, tours = 0, relances = 0, changements = 0, pieces = 0, occasionsDuel = 0;
-let sauts = 0, modesJoues = 0, degagements = 0;
+let sauts = 0, modesJoues = 0, degagements = 0, activationsFinies = 0;
+let activationsVues = 0;   // une pièce activée à l'écran (S32) : le bouton « Fin de l'activation » est là
 let captureModes = false;
 const vus = new Set();
 const modesVus = new Set();
-while (tours++ < 1200) {
+while (tours++ < 4000) {
   if (!(await page.$('#tableModal .t-glace'))) break;
   const etat = await page.evaluate(() => ({
     suite: !!document.querySelector('#tableModal .t-suite'),
@@ -186,6 +187,7 @@ while (tours++ < 1200) {
     autres: [...document.querySelectorAll('#tableModal [data-geste]')].map(b => b.dataset.geste),
     modes: [...document.querySelectorAll('#tableModal [data-mode]')].map(b => b.dataset.mode),
     modeOn: document.querySelector('#tableModal [data-mode].on')?.dataset.mode || null,
+    finPiece: !!document.querySelector('#tableModal .t-fin-piece'),
     degager: document.querySelectorAll('#tableModal .t-case.t-offre-degager').length,
     fin: !!document.querySelector('#tableModal .t-resultat'),
     unites: !!document.querySelector('#tableModal .t-seg button:not(.on)'),
@@ -212,6 +214,7 @@ while (tours++ < 1200) {
   if (!etat.mien) { await page.waitForTimeout(180); continue; }
   for (const g of etat.autres) vus.add(g);
   for (const g of etat.modes) modesVus.add(g);
+  if (etat.finPiece) activationsVues++;
   // Une capture en plein match, une pièce choisie et ses modes à l'écran :
   // c'est ce que JP regarde, pas le pointage final.
   if (etat.sel && etat.modes.length >= 2 && !captureModes) {
@@ -289,13 +292,19 @@ while (tours++ < 1200) {
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.jouables) { await page.click('#tableModal .t-case.t-jouable:not(.t-sel)'); pieces++; await page.waitForTimeout(50); continue; }
+  // Une pièce à la fois (S32) : quand la pièce activée n'a plus rien
+  // d'utile, on finit SON activation ; on ne renonce à la présence que s'il
+  // n'y a plus de pièce activée ni de pièce à activer.
+  const fa = await page.$('#tableModal .t-fin-piece');
+  if (fa) { await fa.click(); activationsFinies++; await page.waitForTimeout(60); continue; }
   const fp = await page.$('#tableModal .t-passer');
   if (fp) { await fp.click(); await page.waitForTimeout(60); continue; }
   break;
 }
 
 const pointage = await page.textContent('#tableModal .tb-score').catch(() => '');
-console.log(`   ${gestes} gestes joués, ${relances} relance(s) d'équipe, ${changements} changement(s) de trio, ${pieces} changements de pièce`);
+console.log(`   ${gestes} gestes joués, ${relances} relance(s) d'équipe, ${changements} changement(s) de trio, ${pieces} changements de pièce, ${activationsVues} tour(s) avec une pièce activée, ${activationsFinies} activation(s) finie(s) au bouton`);
+if (!activationsVues) errors.push('aucune pièce activée n\'a été vue à l\'écran : l\'alternance une pièce à la fois ne se joue pas');
 console.log(`   gestes offerts par la carte : ${[...vus].sort().join(', ') || 'aucun'}`);
 console.log(`   modes offerts : ${[...modesVus].sort().join(', ') || 'aucun'} · ${modesJoues} joués par mode, ${degagements} dégagement(s), ${sauts} verdict(s) sautés en touchant la glace`);
 if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes Patiner et Passer n'ont pas tous deux été offerts : ${[...modesVus].join(', ')}`);

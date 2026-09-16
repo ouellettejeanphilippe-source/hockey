@@ -192,10 +192,10 @@ for (let i = 0; i < MATCHS; i++) {
     }
   };
   verifier();
-  while (!m.fini && garde++ < 400) {
+  while (!m.fini && garde++ < 4000) {
     // Un joueur change ses trios : c'est le geste le plus susceptible de
     // casser le plateau, puisqu'il repose cinq pièces d'un coup.
-    if (garde % 5 === 0) {
+    if (garde % 50 === 0) {
       const eq = eqDe(m, m.tour);
       changerUnite(m, m.tour, (eq.tri + 1) % 4, (eq.pai + 1) % 3);
       verifier();
@@ -224,7 +224,7 @@ for (let i = 0; i < MATCHS; i++) {
   if (r.gfA === r.gfB) { nuls++; ajouter('un match finit toujours sur un gagnant', `match ${i} : ${r.gfA}-${r.gfB}`); }
 }
 
-console.log(`${clubs.length} vraies équipes · ${MATCHS} matchs · ${presencesTotal} présences et ${gestesTotal} gestes vérifiés\n`);
+console.log(`${clubs.length} vraies équipes · ${MATCHS} matchs · ${presencesTotal} activations et ${gestesTotal} gestes vérifiés\n`);
 console.log('LES RÈGLES DU PLATEAU');
 let echecs = 0;
 for (const [nomRegle] of REGLES.concat([['on ne tire que de la zone offensive'], ['un match finit toujours sur un gagnant']])) {
@@ -235,7 +235,7 @@ for (const [nomRegle] of REGLES.concat([['on ne tire que de la zone offensive'],
 console.log(`\nDÉROULEMENT`);
 console.log(`  matchs jamais terminés      ${jamaisFinis}`);
 console.log(`  matchs allés en prolongation ${matchsAvecOT} (${(100 * matchsAvecOT / MATCHS).toFixed(0)} %)`);
-console.log(`  présences par match          ${(presencesTotal / MATCHS).toFixed(1)} (${PERIODES} × ${PRESENCES_PAR_PERIODE} × 2 = ${PERIODES * PRESENCES_PAR_PERIODE * 2} sans prolongation)`);
+console.log(`  activations par match        ${(presencesTotal / MATCHS).toFixed(1)} (une pièce à la fois, en alternance ; ${PERIODES} × ${PRESENCES_PAR_PERIODE} = ${PERIODES * PRESENCES_PAR_PERIODE} tours sans prolongation)`);
 console.log(`  gestes joués                 ${Object.entries(parType).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / gestesTotal).toFixed(0)} %`).join(' · ')}`);
 /* CHAQUE GESTE DOIT ÊTRE JOUÉ AU MOINS UNE FOIS : un geste que personne
    n'utilise jamais est une règle morte, et une règle morte est un mensonge
