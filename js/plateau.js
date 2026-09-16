@@ -34,6 +34,7 @@ import {
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
 import { TRAITS } from './traits.js';
+import { jouerSon, sonsActifs } from './sons.js';
 
 const ordP = n => (n === 1 ? '1re' : `${n}e`);
 const nomCourt = p => {
@@ -224,10 +225,70 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   let grilleFaite = false;
 
+  /*
+   * UNE VRAIE PATINOIRE SOUS LA GRILLE. JP : *je veux que la glace ressemble
+   * à une vraie glace de hockey*. Les cases restent la grille du jeu — c'est
+   * elles qu'on touche — mais elles sont transparentes, posées sur un SVG
+   * qui dessine la patinoire en UNITÉS DE CASE (`viewBox` = COLS × RANGS) :
+   * la bande et ses coins arrondis, la glace blanche, les lignes des buts
+   * SOUS chaque filet, les bleues au bord de chaque zone offensive, la rouge
+   * au centre, les cercles de mise au jeu, les demi-lunes des gardiens, les
+   * filets avec leur maille, et le trapèze derrière chaque but. Rien n'est
+   * écrit en dur : tout se déduit de `COLS`, `RANGS`, `FILET_HAUT`,
+   * `FILET_BAS`, `BUT_COL` et `PORTEE_TIR`, comme les classes des cases —
+   * changer la géométrie du moteur redessine la patinoire. Les couleurs sont
+   * des jetons de la feuille de style (`--glace-*`), et la glace est blanche
+   * dans les trois palettes : une patinoire n'est pas un décor, c'est une
+   * patinoire.
+   */
+  function patinoireSvg() {
+    const W = COLS, H = RANGS, cx = BUT_COL + 0.5;
+    const yHaut = FILET_HAUT + 0.5, yBas = FILET_BAS + 0.5;      // les lignes des buts
+    const bleueHaut = FILET_HAUT + PORTEE_TIR + 1, bleueBas = FILET_BAS - PORTEE_TIR;
+    const centre = MI_GLACE + 0.5;
+    const rond = Math.min(1.35, W / 4);                          // le rayon des coins
+    const xG = 2, xD = W - 2;                                    // les cercles de bout
+    const f = n => (Math.round(n * 1000) / 1000).toString();
+    /* Un filet et sa demi-lune : `sens` vaut 1 quand la glace est SOUS la ligne des buts. */
+    const bout = (y, sens) => {
+      const rc = 0.95, prof = 0.42;
+      const yFond = y - sens * prof, yPointe = sens > 0 ? 0.09 : H - 0.09;   // le trapèze finit à la bande
+      return `
+      <path class="t-rk-lune" d="M${f(cx - rc)} ${f(y)} A${rc} ${rc} 0 0 ${sens > 0 ? 0 : 1} ${f(cx + rc)} ${f(y)} Z"/>
+      <path class="t-rk-trapeze" d="M${f(cx - 0.9)} ${f(y)} L${f(cx - 1.55)} ${f(yPointe)} M${f(cx + 0.9)} ${f(y)} L${f(cx + 1.55)} ${f(yPointe)}"/>
+      <rect class="t-rk-maille" x="${f(cx - 0.34)}" y="${f(Math.min(y, yFond))}" width="0.68" height="${f(prof)}"/>
+      <rect class="t-rk-filet" x="${f(cx - 0.34)}" y="${f(Math.min(y, yFond))}" width="0.68" height="${f(prof)}"/>`;
+    };
+    /* Les cercles de mise au jeu d'un bout, et les points de la zone neutre. */
+    const cercles = (yCercle, yPoint) => [xG, xD].map(x => `
+      <circle class="t-rk-cercle" cx="${x}" cy="${f(yCercle)}" r="1.05"/>
+      <circle class="t-rk-point" cx="${x}" cy="${f(yCercle)}" r="0.11"/>
+      <circle class="t-rk-point" cx="${x}" cy="${f(yPoint)}" r="0.1"/>`).join('');
+    return `<svg class="t-rink" viewBox="0 0 ${W} ${H}" aria-hidden="true" focusable="false">
+      <defs><pattern id="t-rk-mailles" width="0.12" height="0.12" patternUnits="userSpaceOnUse">
+        <path d="M0 0.06H0.12M0.06 0V0.12" class="t-rk-fil"/></pattern></defs>
+      <rect class="t-rk-bande" x="0" y="0" width="${W}" height="${H}" rx="${f(rond + 0.1)}"/>
+      <rect class="t-rk-glace" x="0.09" y="0.09" width="${f(W - 0.18)}" height="${f(H - 0.18)}" rx="${f(rond)}"/>
+      <line class="t-rk-but-ligne" x1="0.12" x2="${f(W - 0.12)}" y1="${f(yHaut)}" y2="${f(yHaut)}"/>
+      <line class="t-rk-but-ligne" x1="0.12" x2="${f(W - 0.12)}" y1="${f(yBas)}" y2="${f(yBas)}"/>
+      <rect class="t-rk-bleue" x="0.09" y="${f(bleueHaut - 0.09)}" width="${f(W - 0.18)}" height="0.18"/>
+      <rect class="t-rk-bleue" x="0.09" y="${f(bleueBas - 0.09)}" width="${f(W - 0.18)}" height="0.18"/>
+      <rect class="t-rk-rouge" x="0.09" y="${f(centre - 0.09)}" width="${f(W - 0.18)}" height="0.18"/>
+      <line class="t-rk-rouge-tiret" x1="0.09" x2="${f(W - 0.09)}" y1="${f(centre)}" y2="${f(centre)}"/>
+      <circle class="t-rk-cercle t-rk-cercle-centre" cx="${f(W / 2)}" cy="${f(centre)}" r="1.3"/>
+      <circle class="t-rk-point t-rk-point-centre" cx="${f(W / 2)}" cy="${f(centre)}" r="0.12"/>
+      ${cercles(yHaut + 2.5, bleueHaut + 0.55)}
+      ${cercles(yBas - 2.5, bleueBas - 0.55)}
+      ${bout(yHaut, 1)}
+      ${bout(yBas, -1)}
+    </svg>`;
+  }
+
   function batirGlace() {
     // La feuille de style ne devine JAMAIS la géométrie : le nombre de colonnes
     // lui est donné par le moteur, donc changer COLS suffit.
     let html = `<div class="t-glace" role="grid" aria-label="La patinoire" style="--tcols:${COLS}">`;
+    html += patinoireSvg();
     for (let r = 0; r < RANGS; r++) {
       for (let c = 0; c < COLS; c++) {
         // Chaque moitié se peint du point de vue de qui l'attaque : les zones
@@ -422,8 +483,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     degage:     ['DÉGAGÉ', 'froid', 'cible'],
   };
 
-  function verdict(avant, ou) {
+  function verdict(avant, ou, quoi = null, delai = 0) {
     const neufs = m.fil.slice(0, Math.max(0, m.fil.length - avant)).reverse();
+    sonner(neufs.map(e => e.genre), quoi, delai);
     flash = null;
     for (const e of neufs) {
       const v = VERDICTS[e.genre];
@@ -435,6 +497,37 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     }
     clearTimeout(minuteurFlash);
     if (flash) minuteurFlash = setTimeout(() => { flash = null; if (!regles) majGlace(); }, 1200);
+  }
+
+  /*
+   * LE SON SUIT LE VERDICT, IL NE LE DEVINE PAS. Même lecture du fil que le
+   * verdict — du plus ancien au plus neuf — et un son par genre qui en a un
+   * (`SON_DU_GENRE`). Le GESTE joue d'abord (la lame d'un tir, le patin,
+   * le bâton qui se pose), puis ce que le moteur en a dit, dans l'ordre :
+   * un tir suivi d'un arrêt, c'est le claquement puis le coup mat dans la
+   * jambière ; suivi d'un but, c'est le claquement puis la sirène. La mise
+   * au jeu qui suit un but se tait : la sirène couvre tout. Les deux camps
+   * passent par ici, comme pour le verdict — un but adverse sonne pareil.
+   */
+  const SON_DU_GENRE = {
+    but: 'but', retour: 'retour', arret: 'arret', echec: 'echec', vol: 'vol', rate: 'rate',
+    revirement: 'revirement', degage: 'degage', mj: 'mj', fin: 'fin', periode: 'periode',
+    fonce: 'patin', ecran: 'tap', tendu: 'tap', changement: 'tap',
+  };
+  const PAS_SON = { tir: 0.22, patin: 0.12, passe: 0.1, echec: 0.28, arret: 0.2, retour: 0.25, vol: 0.15, rate: 0.15, degage: 0.45, mj: 0.1, periode: 0.5, fin: 2, but: 1.6, revirement: 0.2, tap: 0.08 };
+  function sonner(genres, quoi, delai = 0) {
+    let d = delai;
+    if (quoi === 'tir') { jouerSon('tir', d); d += PAS_SON.tir; }
+    else if (quoi === 'patin' || quoi === 'foncer' || quoi === 'esquive') { jouerSon('patin', d); d += PAS_SON.patin; }
+    else if (quoi === 'ecran' || quoi === 'tendre') { jouerSon('tap', d); d += PAS_SON.tap; }
+    const but = genres.includes('but');
+    for (const g of genres) {
+      // « ok » est le genre des réussites ordinaires : seule la passe reçue a un son à elle.
+      const nom = g === 'ok' ? (quoi === 'passe' ? 'passe' : null) : SON_DU_GENRE[g];
+      if (!nom || (g === 'mj' && but) || (g === 'fonce' && quoi === 'foncer')) continue;
+      jouerSon(nom, d);
+      d += PAS_SON[nom] || 0.2;
+    }
   }
 
   /* Les trois endroits où un verdict peut tomber, pour un geste donné. */
@@ -792,6 +885,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     attente = { jet, cote, appliquer, ou };
     deGlace = { jet, cote, r: ou.defaut.r, c: ou.defaut.c, n: ++noJet };
     flash = null;
+    jouerSon('de');
     rendre();
   }
 
@@ -804,7 +898,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     deGlace = null;
     const avant = m.fil.length;
     appliquer(jet);
-    verdict(avant, ou);
+    verdict(avant, ou, jet.quoi);
     apres();
   }
 
@@ -844,7 +938,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const d = deplacer(m, piece, vers);
       // Patiner d'une case libre ne demande pas de dé : le geste est déjà
       // joué, il ne reste qu'à dire ce que le moteur en a fait.
-      if (!d.jet) { verdict(avant, ou); apres(); return; }
+      if (!d.jet) { verdict(avant, ou, 'patin'); apres(); return; }
       lancer(d.jet, 'A', j => appliquerEsquive(m, piece, vers, j), ou);
       return;
     }
@@ -870,10 +964,10 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   }
 
   /* Un geste SANS dé (se placer devant, foncer) a droit à son verdict aussi. */
-  function sansDe(piece, faire) {
+  function sansDe(piece, faire, quoi) {
     const ou = placesDe(piece, null), avant = m.fil.length;
     faire();
-    verdict(avant, ou);
+    verdict(avant, ou, quoi);
   }
 
   /* ---------- la présence de l'adversaire, geste par geste ---------- */
@@ -925,7 +1019,10 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       // Le dé de l'adversaire tombe sur SA case, comme le tien sur la tienne,
       // et son verdict éclate au même endroit que le tien l'aurait fait.
       deGlace = joue.jet ? { jet: joue.jet, cote, r: joue.piece.r, c: joue.piece.c, n: ++noJet } : null;
-      verdict(avant, placesDe(joue.piece, joue.cible || null));
+      // Son dé roule aussi, et ses sons suivent le jet — le geste est déjà
+      // joué, on le fait seulement entendre au rythme où on le lit.
+      if (joue.jet) jouerSon('de');
+      verdict(avant, placesDe(joue.piece, joue.cible || null), joue.jet ? joue.jet.quoi : (joue.type === 'deplacer' ? 'patin' : joue.type), joue.jet ? 0.3 : 0);
       rendre();
       minuteurIA = setTimeout(pas, joue.jet ? PAUSE_DE : PAUSE_SEC);
     };
@@ -956,8 +1053,21 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   }
 
   /* ---------- les clics ---------- */
+  /* Le bouton du son, dans la barre du haut : il coupe et rallume l'option. */
+  function majBoutonSon() {
+    const b = $('.table-son');
+    if (!b) return;
+    const on = sonsActifs();
+    b.innerHTML = `<svg class="ico" aria-hidden="true"><use href="#${on ? 'i-son' : 'i-muet'}"/></svg>`;
+    b.title = on ? 'Couper les sons' : 'Remettre les sons';
+    b.setAttribute('aria-label', b.title);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  majBoutonSon();
+
   modal.onclick = ev => {
     const t = ev.target;
+    if (t.closest('.table-son')) { if (ctx.basculerSons) ctx.basculerSons(); majBoutonSon(); if (sonsActifs()) jouerSon('tap'); return; }
     if (t.closest('.table-regles')) { regles = !regles; rendre(); return; }
     if (t.closest('.t-regles-fermer')) { regles = false; rendre(); return; }
     if (regles) return;                       // le volet des règles couvre tout
@@ -1013,9 +1123,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       if (quoi === 'tir') lancer(tirer(m, piece), 'A', j => appliquerTir(m, piece, j), placesDe(piece, null));
       else if (quoi === 'echec' && vise) { cible = null; lancer(mettreEnEchec(m, piece, vise), 'A', j => appliquerEchec(m, piece, vise, j), placesDe(piece, vise)); }
       else if (quoi === 'vol' && vise) { cible = null; lancer(voler(m, piece, vise), 'A', j => appliquerVol(m, piece, vise, j), placesDe(piece, vise)); }
-      else if (quoi === 'ecran') { sansDe(piece, () => seMettreDevant(m, piece)); cible = null; apres(); }
-      else if (quoi === 'tendre') { sansDe(piece, () => tendreLeBaton(m, piece)); cible = null; apres(); }
-      else if (quoi === 'foncer') { sansDe(piece, () => foncer(m, piece)); cible = null; rendre(); }
+      else if (quoi === 'ecran') { sansDe(piece, () => seMettreDevant(m, piece), 'ecran'); cible = null; apres(); }
+      else if (quoi === 'tendre') { sansDe(piece, () => tendreLeBaton(m, piece), 'tendre'); cible = null; apres(); }
+      else if (quoi === 'foncer') { sansDe(piece, () => foncer(m, piece), 'foncer'); cible = null; rendre(); }
       return;
     }
     if (t.closest('.t-deselect')) { sel = null; cible = null; mode = null; rendre(); return; }
@@ -1025,6 +1135,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (uni) {
       const quoi = uni.parentElement.dataset.u, v = +uni.dataset.v;
       changerUnite(m, 'A', quoi === 'tri' ? v : A.tri, quoi === 'pai' ? v : A.pai);
+      jouerSon('tap');
       sel = null; cible = null; choisirSeul(); rendre();
       return;
     }

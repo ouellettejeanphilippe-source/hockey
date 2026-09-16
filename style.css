@@ -128,6 +128,17 @@
   --zone-sourd: #6f7884;
   --sur-or: #191206;
   --sur-accent: #101216;     /* l'encre sur --ui-accent, dans les trois palettes */
+  /* LA PATINOIRE du mode bonus (js/plateau.js, `patinoireSvg`). Une glace est
+     blanche dans les trois palettes : ce n'est pas un décor qu'une palette
+     repeint, c'est une patinoire — la bande, les lignes rouges et bleues, la
+     demi-lune du gardien et l'encre qui se lit sur la glace. */
+  --glace-blanc: #edf3f8;
+  --glace-bande: #22262c;
+  --glace-bande-haut: #f2c94c; /* la lisse jaune au haut de la bande, comme dans les arénas */
+  --glace-rouge: #c9303c;
+  --glace-bleu: #2b5fae;
+  --glace-lune: #b9d3ee;
+  --glace-encre: #14171b;
 
   --r-s: 8px;
   --r-m: 12px;
@@ -3774,34 +3785,37 @@ a.spin-club:hover {
   --tcell: min(10.6vw, 5.4vh, 44px);
   display: grid; grid-template-columns: repeat(var(--tcols, 9), var(--tcell));
   grid-auto-rows: var(--tcell);
-  background: var(--fond-creux); border: 1px solid var(--line);
   position: relative;
 }
+/* LA PATINOIRE est un SVG sous la grille (`patinoireSvg`, js/plateau.js) :
+   les cases sont transparentes par-dessus, et c'est le SVG qui porte la
+   bande, la glace, les lignes, les cercles, les demi-lunes et les filets. */
+.t-rink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.t-rk-bande { fill: var(--glace-bande); stroke: var(--glace-bande-haut); stroke-width: 0.05; }
+.t-rk-glace { fill: var(--glace-blanc); }
+.t-rk-but-ligne { stroke: var(--glace-rouge); stroke-width: 0.07; }
+.t-rk-bleue { fill: var(--glace-bleu); }
+.t-rk-rouge { fill: var(--glace-rouge); }
+.t-rk-rouge-tiret { stroke: var(--glace-blanc); stroke-width: 0.04; stroke-dasharray: 0.18 0.18; }
+.t-rk-cercle { fill: none; stroke: var(--glace-rouge); stroke-width: 0.06; }
+.t-rk-cercle-centre { stroke: var(--glace-bleu); }
+.t-rk-point { fill: var(--glace-rouge); }
+.t-rk-point-centre { fill: var(--glace-bleu); }
+.t-rk-lune { fill: var(--glace-lune); stroke: var(--glace-rouge); stroke-width: 0.06; }
+.t-rk-trapeze { stroke: var(--glace-rouge); stroke-width: 0.05; fill: none; }
+.t-rk-maille { fill: url(#t-rk-mailles); }
+.t-rk-fil { stroke: var(--glace-encre); stroke-width: 0.012; opacity: 0.45; }
+.t-rk-filet { fill: none; stroke: var(--glace-rouge); stroke-width: 0.08; }
 .t-case {
   position: relative; padding: 0; border: 0; background: transparent; cursor: default;
-  border-right: 1px solid rgba(255, 255, 255, 0.04); border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; z-index: 1;
 }
-/* Les zones de la patinoire : des aplats, jamais des dégradés. */
-.t-enclave { background: rgba(138, 180, 240, 0.13); }
-.t-coin { background: rgba(138, 180, 240, 0.05); }
-/* Derrière le filet et la ligne des buts : le bureau, en hachures plates. */
-.t-derriere { background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(255, 255, 255, 0.035) 5px 7px); }
-/* Le filet : une seule case, cernée. */
-.t-but { background: rgba(215, 177, 113, 0.18); box-shadow: inset 0 0 0 2px rgba(229, 112, 122, 0.7); }
-/* Les lignes se dessinent au milieu de leur rangée (les buts, le centre) ou
-   sur un bord (les bleues) : la ligne des buts passe SOUS le filet, comme
-   sur une vraie glace. */
-.t-ligne-but::before, .t-centre::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px;
-  background: rgba(229, 112, 122, 0.55); pointer-events: none;
-}
-.t-but::before { display: none; }
-.t-bleue { box-shadow: inset 0 2px 0 var(--blue-deep); }
-.t-bleue-bas { box-shadow: inset 0 -2px 0 var(--blue-deep); }
-.t-bleue.t-bleue-bas { box-shadow: inset 0 2px 0 var(--blue-deep), inset 0 -2px 0 var(--blue-deep); }
+/* Les zones de la patinoire, sur la glace blanche : une pointe de bleu sur
+   l'enclave, rien sur le reste — les lignes du SVG disent déjà où on est. */
+.t-enclave { background: rgba(43, 95, 174, 0.08); }
+/* Le filet : le SVG le dessine ; la case reste transparente. */
 .t-jouable { cursor: pointer; }
-.t-jouable::after { content: ''; position: absolute; inset: 2px; border: 1px dashed var(--gold); border-radius: 4px; opacity: 0.55; }
+.t-jouable::after { content: ''; position: absolute; inset: 2px; border: 1px dashed var(--glace-encre); border-radius: 4px; opacity: 0.5; }
 .t-sel::after { opacity: 1; border-style: solid; border-width: 2px; }
 
 /* Ce qu'une case PROPOSE à la pièce choisie. Quatre couleurs, quatre gestes. */
@@ -3812,7 +3826,8 @@ a.spin-club:hover {
 /* Le dégagement vise une case VIDE au fond : un pointillé d'or, la rondelle y sera libre. */
 .t-offre-degager { box-shadow: inset 0 0 0 2px var(--gold); background: rgba(215, 177, 113, 0.12); }
 .t-offre-degager::after { content: ''; position: absolute; inset: 0; border: 1px dashed var(--gold); opacity: 0.7; pointer-events: none; }
-.t-pas { font-family: var(--display); font-size: 12px; font-weight: 800; color: var(--green); }
+/* Les étiquettes se lisent sur la glace BLANCHE : une pastille sombre, comme la cote. */
+.t-pas { font-family: var(--display); font-size: 12px; font-weight: 800; color: var(--green); background: var(--fond-creux); padding: 0 4px; border-radius: 3px; line-height: 1.25; }
 .t-cote {
   position: absolute; right: 1px; bottom: 0; font-family: var(--display);
   font-size: 11px; font-weight: 800; color: var(--text);
@@ -3852,7 +3867,7 @@ a.spin-club:hover {
 .t-rondelle-libre-jeton[hidden] { display: none; }
 .t-rondelle-libre-jeton::after {
   content: ''; width: 13px; height: 13px; border-radius: 50%;
-  background: var(--gold); box-shadow: 0 0 0 2px var(--fond-creux);
+  background: var(--glace-encre); box-shadow: 0 0 0 2px var(--gold);
 }
 /* Qui agit, et sur qui. Deux états, deux couleurs, aucun texte à lire. */
 .t-jeton.jouable { box-shadow: 0 0 0 1px var(--gold); }
