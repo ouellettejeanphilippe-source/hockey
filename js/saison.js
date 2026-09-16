@@ -330,6 +330,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   // Le gardien de rappel n'a pas de case, mais il a une équipe.
   for (const t of teams) if (t.rappelG) equipeDe.set(t.rappelG, t);
   const fiche = new Map(teams.map(t => [t, { W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0 }]));
+  // Les résultats de chaque club dans l'ordre ('V', 'D', 'DP') : la séquence
+  // et les dix derniers matchs, les deux colonnes qu'un journal donne toujours.
+  const resultats = new Map(teams.map(t => [t, []]));
   const miens = [];   // { j, k, m } : tes matchs joués, dans l'ordre
   const cumuler = m => {
     const a = fiche.get(m.A), b = fiche.get(m.B);
@@ -338,6 +341,22 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const gagneA = m.gfA > m.gfB;
     if (gagneA) { a.W++; if (m.ot) b.OTL++; else b.L++; } else { b.W++; if (m.ot) a.OTL++; else a.L++; }
     a.PTS = a.W * 2 + a.OTL; b.PTS = b.W * 2 + b.OTL;
+    resultats.get(m.A).push(gagneA ? 'V' : m.ot ? 'DP' : 'D');
+    resultats.get(m.B).push(gagneA ? (m.ot ? 'DP' : 'D') : 'V');
+  };
+  /* « V3 », « D2 » : la séquence en cours (une défaite en prolongation compte comme une défaite). */
+  const sequenceDe = t => {
+    const r = resultats.get(t) || [];
+    if (!r.length) return '—';
+    const gagne = x => x === 'V';
+    let n = 0;
+    for (let i = r.length - 1; i >= 0 && gagne(r[i]) === gagne(r[r.length - 1]); i--) n++;
+    return `${gagne(r[r.length - 1]) ? 'V' : 'D'}${n}`;
+  };
+  /* « 7-2-1 » : les dix derniers matchs. */
+  const dixDerniers = t => {
+    const r = (resultats.get(t) || []).slice(-10);
+    return r.length ? `${r.filter(x => x === 'V').length}-${r.filter(x => x === 'D').length}-${r.filter(x => x === 'DP').length}` : '—';
   };
   const classement = () => teams.slice().sort((x, y) => {
     const a = fiche.get(x), b = fiche.get(y);
@@ -426,9 +445,12 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   };
 
   const voletClassement = () => {
-    const rangee = (t, i) => { const g = fiche.get(t); return `<tr class="${t === you ? 'toi' : ''}${i === enSeries - 1 ? ' cut' : ''}"><td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 14)} ${ctx.esc(ctx.teamShort(t))}</td><td>${g.W + g.L + g.OTL}</td><td>${g.W}</td><td>${g.L}</td><td>${g.OTL}</td><td class="heros">${g.PTS}</td><td>${g.GF}</td><td>${g.GA}</td><td>${g.GF - g.GA > 0 ? '+' : ''}${g.GF - g.GA}</td></tr>`; };
+    // LE CLASSEMENT COMME DANS LE JOURNAL (S30) : la fiche, les points, les
+    // buts, et les deux colonnes qui disent la forme du moment — la séquence
+    // en cours et les dix derniers matchs.
+    const rangee = (t, i) => { const g = fiche.get(t); return `<tr class="${t === you ? 'toi' : ''}${i === enSeries - 1 ? ' cut' : ''}"><td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 14)} ${ctx.esc(ctx.teamShort(t))}</td><td>${g.W + g.L + g.OTL}</td><td>${g.W}</td><td>${g.L}</td><td>${g.OTL}</td><td class="heros">${g.PTS}</td><td>${g.GF}</td><td>${g.GA}</td><td>${g.GF - g.GA > 0 ? '+' : ''}${g.GF - g.GA}</td><td>${sequenceDe(t)}</td><td>${dixDerniers(t)}</td></tr>`; };
     return `<div class="live-tableau hub-classement"><div class="live-tableau-titre">Classement · journée ${jour} · les ${enSeries} premiers vont en séries</div>
-      <table><thead><tr><th>#</th><th>Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th class="heros">PTS</th><th>BP</th><th>BC</th><th>Diff</th></tr></thead>
+      <table><thead><tr><th>#</th><th>Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th class="heros">PTS</th><th>BP</th><th>BC</th><th>Diff</th><th title="La séquence en cours">Séq.</th><th title="Les dix derniers matchs : V-D-DP">10 derniers</th></tr></thead>
       <tbody>${classement().map(rangee).join('')}</tbody></table></div>`;
   };
 
@@ -503,8 +525,11 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       const dernierMot = deja.length
         ? `${deja.filter(x => gagne(x.m, you)).length} victoire${deja.filter(x => gagne(x.m, you)).length > 1 ? 's' : ''} en ${deja.length} match${deja.length > 1 ? 's' : ''} contre ce club cette saison.`
         : 'Premier affrontement de la saison contre ce club.';
+      // L'AFFICHE DU MATCH (S30) : qui reçoit qui. `A` est à domicile dans le
+      // moteur — c'est lui qui a le dernier changement — et une affiche le dit.
+      const domicile = p.m.A === you;
       carte.innerHTML = `<div class="hub-match">
-        <div class="hub-match-titre">Prochain match · Journée ${p.j + 1}</div>
+        <div class="hub-match-titre">Prochain match · Journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}</div>
         <div class="hub-match-note">${dernierMot}</div>
         ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
@@ -512,11 +537,16 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les NHL Stars ne jouent plus d'ici la fin de la saison.</div></div>`;
     }
-    actions.innerHTML = `${p ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder le match</button>` : ''}
-      ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Derrière le banc</button>` : ''}
-      <button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
-      <button class="btn hub-dix" title="Dix journées d'un coup">+10 journées</button>
-      <button class="btn hub-fin" title="Jouer le reste de la saison et lire le résultat">Passer à la fin</button>`;
+    // DEUX RANGÉES, PAS QUATRE (S30) : « Journée suivante » en grand, et les
+    // quatre autres en une rangée compacte — le direct, le banc, dix
+    // journées, la fin. Sur téléphone, les cinq boutons prenaient 280 px.
+    actions.innerHTML = `<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
+      <div class="hub-actions-rang">
+      ${p ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>` : ''}
+      ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Le banc</button>` : ''}
+      <button class="btn hub-dix" title="Dix journées d'un coup">+10</button>
+      <button class="btn hub-fin" title="Jouer le reste de la saison et lire le résultat">La fin</button>
+      </div>`;
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = regarderProchain;
     const banc = actions.querySelector('.hub-banc');

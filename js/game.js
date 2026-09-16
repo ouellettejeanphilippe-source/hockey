@@ -2394,9 +2394,9 @@ function renderMain() {
     return;
   }
   b.disabled = reste > 0 || G.done || over;
-  b.textContent = G.done ? (G.bonus === 'TABLE' ? 'Tournoi joué' : 'Saison simulée')
+  b.textContent = G.done ? (G.bonus === 'TABLE' ? 'Tournoi joué' : 'Saison jouée')
     : over ? `Plafond dépassé de ${money(-capLeft())}`
-    : reste === 0 ? (G.bonus === 'TABLE' ? `Au tournoi sur table · ${CLUBS_TOURNOI} clubs` : 'Simuler la saison · 82 matchs')
+    : reste === 0 ? (G.bonus === 'TABLE' ? `Au tournoi sur table · ${CLUBS_TOURNOI} clubs` : 'Lancer la saison · 82 matchs')
     : `Encore ${reste} joueur${reste > 1 ? 's' : ''}`;
 }
 
@@ -3022,7 +3022,7 @@ async function runSeason(opts = {}) {
   applyTeamColors('YOU');
   const mb = $('mainBtn');
   mb.disabled = true;
-  mb.textContent = 'Simulation de la ligue… 82 matchs par équipe';
+  mb.textContent = 'La ligue joue ses 82 matchs…';
   await new Promise(r => setTimeout(r, 20));
 
   let opponents = [];
