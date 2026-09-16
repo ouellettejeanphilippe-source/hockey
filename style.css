@@ -128,6 +128,17 @@
   --zone-sourd: #6f7884;
   --sur-or: #191206;
   --sur-accent: #101216;     /* l'encre sur --ui-accent, dans les trois palettes */
+  /* LA PATINOIRE du mode bonus (js/plateau.js, `patinoireSvg`). Une glace est
+     blanche dans les trois palettes : ce n'est pas un décor qu'une palette
+     repeint, c'est une patinoire — la bande, les lignes rouges et bleues, la
+     demi-lune du gardien et l'encre qui se lit sur la glace. */
+  --glace-blanc: #edf3f8;
+  --glace-bande: #22262c;
+  --glace-bande-haut: #f2c94c; /* la lisse jaune au haut de la bande, comme dans les arénas */
+  --glace-rouge: #c9303c;
+  --glace-bleu: #2b5fae;
+  --glace-lune: #b9d3ee;
+  --glace-encre: #14171b;
 
   --r-s: 8px;
   --r-m: 12px;
@@ -3738,7 +3749,7 @@ a.spin-club:hover {
    les deux, donc, et la glace tient toujours à l'écran.
    ===================================================================== */
 
-.table-sheet { max-width: 560px; }
+.table-sheet { max-width: 720px; }   /* une colonne : la glace de 72 px par case (648 px) doit y tenir */
 .t-titre { flex-direction: column; align-items: flex-start; gap: 0; }
 .t-titre-1 { font-family: var(--display); font-size: 17px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
 .t-titre-2 { font-size: 12.5px; color: var(--sub); }
@@ -3762,7 +3773,7 @@ a.spin-club:hover {
 .tb-relance.on { color: var(--green); }
 
 /* ---------- la glace ---------- */
-.t-plateau { display: flex; justify-content: center; padding: 8px 6px; overflow: auto; }
+.t-plateau { display: flex; justify-content: center; align-items: flex-start; padding: 4px 4px 0; overflow: auto; }
 .t-plateau[hidden], .t-tete[hidden] { display: none; }
 .t-glace {
   /* NEUF COLONNES : la case rétrécit de 48 à 44 px pour que la glace tienne
@@ -3771,37 +3782,47 @@ a.spin-club:hover {
   /* ONZE RANGÉES depuis la glace derrière les filets : la borne en hauteur
      descend de 6,2 à 5,4 vh pour que le plateau laisse encore la place du
      dé et de la carte sur un téléphone. */
-  --tcell: min(10.6vw, 5.4vh, 44px);
+  /* LA GLACE PREND L'ÉCRAN. JP : *beaucoup d'espace perdu*. La case était
+     plafonnée à 44 px partout : une bande de 400 px au milieu d'une tablette
+     ou d'un ordinateur. Elle se calcule maintenant sur la largeur (bord à
+     bord, 8 px de marge) ET sur la hauteur qui reste sous la barre du haut,
+     le tableau indicateur et la barre d'ancrage (236 px mesurés), plafonnée
+     à 72 px en une colonne ; la mise en page à deux colonnes, plus bas, la
+     recalcule sur la colonne de gauche. */
+  --tcell: min(calc((100vw - 8px) / var(--tcols, 9)), calc((100dvh - 236px) / 11), 72px);
   display: grid; grid-template-columns: repeat(var(--tcols, 9), var(--tcell));
   grid-auto-rows: var(--tcell);
-  background: var(--fond-creux); border: 1px solid var(--line);
   position: relative;
 }
+/* LA PATINOIRE est un SVG sous la grille (`patinoireSvg`, js/plateau.js) :
+   les cases sont transparentes par-dessus, et c'est le SVG qui porte la
+   bande, la glace, les lignes, les cercles, les demi-lunes et les filets. */
+.t-rink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.t-rk-bande { fill: var(--glace-bande); stroke: var(--glace-bande-haut); stroke-width: 0.05; }
+.t-rk-glace { fill: var(--glace-blanc); }
+.t-rk-but-ligne { stroke: var(--glace-rouge); stroke-width: 0.07; }
+.t-rk-bleue { fill: var(--glace-bleu); }
+.t-rk-rouge { fill: var(--glace-rouge); }
+.t-rk-rouge-tiret { stroke: var(--glace-blanc); stroke-width: 0.04; stroke-dasharray: 0.18 0.18; }
+.t-rk-cercle { fill: none; stroke: var(--glace-rouge); stroke-width: 0.06; }
+.t-rk-cercle-centre { stroke: var(--glace-bleu); }
+.t-rk-point { fill: var(--glace-rouge); }
+.t-rk-point-centre { fill: var(--glace-bleu); }
+.t-rk-lune { fill: var(--glace-lune); stroke: var(--glace-rouge); stroke-width: 0.06; }
+.t-rk-trapeze { stroke: var(--glace-rouge); stroke-width: 0.05; fill: none; }
+.t-rk-maille { fill: url(#t-rk-mailles); }
+.t-rk-fil { stroke: var(--glace-encre); stroke-width: 0.012; opacity: 0.45; }
+.t-rk-filet { fill: none; stroke: var(--glace-rouge); stroke-width: 0.08; }
 .t-case {
   position: relative; padding: 0; border: 0; background: transparent; cursor: default;
-  border-right: 1px solid rgba(255, 255, 255, 0.04); border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; z-index: 1;
 }
-/* Les zones de la patinoire : des aplats, jamais des dégradés. */
-.t-enclave { background: rgba(138, 180, 240, 0.13); }
-.t-coin { background: rgba(138, 180, 240, 0.05); }
-/* Derrière le filet et la ligne des buts : le bureau, en hachures plates. */
-.t-derriere { background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(255, 255, 255, 0.035) 5px 7px); }
-/* Le filet : une seule case, cernée. */
-.t-but { background: rgba(215, 177, 113, 0.18); box-shadow: inset 0 0 0 2px rgba(229, 112, 122, 0.7); }
-/* Les lignes se dessinent au milieu de leur rangée (les buts, le centre) ou
-   sur un bord (les bleues) : la ligne des buts passe SOUS le filet, comme
-   sur une vraie glace. */
-.t-ligne-but::before, .t-centre::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px;
-  background: rgba(229, 112, 122, 0.55); pointer-events: none;
-}
-.t-but::before { display: none; }
-.t-bleue { box-shadow: inset 0 2px 0 var(--blue-deep); }
-.t-bleue-bas { box-shadow: inset 0 -2px 0 var(--blue-deep); }
-.t-bleue.t-bleue-bas { box-shadow: inset 0 2px 0 var(--blue-deep), inset 0 -2px 0 var(--blue-deep); }
+/* Les zones de la patinoire, sur la glace blanche : une pointe de bleu sur
+   l'enclave, rien sur le reste — les lignes du SVG disent déjà où on est. */
+.t-enclave { background: rgba(43, 95, 174, 0.08); }
+/* Le filet : le SVG le dessine ; la case reste transparente. */
 .t-jouable { cursor: pointer; }
-.t-jouable::after { content: ''; position: absolute; inset: 2px; border: 1px dashed var(--gold); border-radius: 4px; opacity: 0.55; }
+.t-jouable::after { content: ''; position: absolute; inset: 2px; border: 1px dashed var(--glace-encre); border-radius: 4px; opacity: 0.5; }
 .t-sel::after { opacity: 1; border-style: solid; border-width: 2px; }
 
 /* Ce qu'une case PROPOSE à la pièce choisie. Quatre couleurs, quatre gestes. */
@@ -3812,10 +3833,11 @@ a.spin-club:hover {
 /* Le dégagement vise une case VIDE au fond : un pointillé d'or, la rondelle y sera libre. */
 .t-offre-degager { box-shadow: inset 0 0 0 2px var(--gold); background: rgba(215, 177, 113, 0.12); }
 .t-offre-degager::after { content: ''; position: absolute; inset: 0; border: 1px dashed var(--gold); opacity: 0.7; pointer-events: none; }
-.t-pas { font-family: var(--display); font-size: 12px; font-weight: 800; color: var(--green); }
+/* Les étiquettes se lisent sur la glace BLANCHE : une pastille sombre, comme la cote. */
+.t-pas { font-family: var(--display); font-size: clamp(12px, calc(var(--tcell) * 0.28), 16px); font-weight: 800; color: var(--green); background: var(--fond-creux); padding: 0 4px; border-radius: 3px; line-height: 1.25; }
 .t-cote {
   position: absolute; right: 1px; bottom: 0; font-family: var(--display);
-  font-size: 11px; font-weight: 800; color: var(--text);
+  font-size: clamp(11px, calc(var(--tcell) * 0.27), 15px); font-weight: 800; color: var(--text);
   background: var(--fond-creux); padding: 0 3px; border-radius: 3px;
 }
 
@@ -3852,7 +3874,7 @@ a.spin-club:hover {
 .t-rondelle-libre-jeton[hidden] { display: none; }
 .t-rondelle-libre-jeton::after {
   content: ''; width: 13px; height: 13px; border-radius: 50%;
-  background: var(--gold); box-shadow: 0 0 0 2px var(--fond-creux);
+  background: var(--glace-encre); box-shadow: 0 0 0 2px var(--gold);
 }
 /* Qui agit, et sur qui. Deux états, deux couleurs, aucun texte à lire. */
 .t-jeton.jouable { box-shadow: 0 0 0 1px var(--gold); }
@@ -3871,13 +3893,74 @@ a.spin-club:hover {
 .t-piece { border: 1.5px solid var(--pl, transparent); }
 .t-piece.gardien { border-radius: 3px; border-style: double; border-width: 3px; }
 .t-piece.etourdi { opacity: 0.38; }
-.t-role { font-size: 9px; font-weight: 800; letter-spacing: 0.04em; opacity: 0.8; }
-.t-nom { font-size: 10.5px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 1px; }
+/* Les lettres d'une pièce suivent la case : 9 et 10,5 px dans une case de 41 px, jusqu'à 14 et 17 px dans une grande. */
+.t-role { font-size: clamp(9px, calc(var(--tcell) * 0.22), 14px); font-weight: 800; letter-spacing: 0.04em; opacity: 0.8; }
+.t-nom { font-size: clamp(10.5px, calc(var(--tcell) * 0.26), 17px); font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 1px; }
 .t-rondelle { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 1.5px var(--fond-creux); }
 .t-rondelle.t-seule { position: static; width: 12px; height: 12px; background: var(--gold); }
 
 /* ---------- le bas : le dé, la pièce, les gestes, le fil ---------- */
-.t-bas { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 14px; }
+/* ======================================================================
+   LA BARRE D'ANCRAGE ET LE VOLET. JP : *flyout carte du joueur avec les
+   actions, stats, etc., pour avoir moins d'infos visible ; boutons dans le
+   bas, stats au deuxième clic*. Sous la glace, une barre de deux lignes :
+   qui est choisi, le bouton du volet, la fin — et la rangée des actions de
+   la pièce, qu'on balaie si elle déborde. Le volet (`.t-bas`) porte la
+   fiche, le banc des trios et le fil : sur téléphone il glisse par-dessus
+   le bas de la glace (`.ouvert`) et se referme dès qu'on touche la glace ;
+   sur grand écran (plus bas) il est la colonne de droite, toujours là.
+   ====================================================================== */
+.table-sheet { position: relative; overflow: hidden; }
+.t-dock { display: flex; flex-direction: column; gap: 6px; padding: 7px 10px 8px; border-top: 1px solid var(--line-soft); }
+.t-dock[hidden] { display: none; }
+.t-dock-ligne { display: flex; align-items: center; gap: 6px; min-height: 34px; }
+.t-dock-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-size: 16px; font-weight: 800; letter-spacing: 0.02em; }
+.t-dock-nom .t-fiche-role { margin-right: 4px; }
+.t-dock-nom i { font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+.t-dock-vide, .t-dock-attente { font-size: 13.5px; font-weight: 600; color: var(--sub); }
+.t-dock-aide { font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--gold); white-space: normal; line-height: 1.25; }
+.t-dock-ligne button { flex: 0 0 auto; font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; padding: 6px 11px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: var(--r-s); cursor: pointer; white-space: nowrap; }
+.t-volet-btn i { font-style: normal; color: var(--muted); }
+.t-dock-actions { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.t-dock-actions::-webkit-scrollbar { display: none; }
+.t-dock-actions .t-geste, .t-dock-actions .t-mode { flex: 0 0 auto; white-space: nowrap; }
+.t-dock .t-de { margin: 0; padding: 6px 8px; width: 100%; }
+.t-bas {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
+  max-height: 62dvh; overflow: auto; padding: 0 12px 14px;
+  background: var(--panel); border-top: 1px solid var(--line);
+  transform: translateY(100%); visibility: hidden;
+  transition: transform 220ms ease, visibility 0s linear 220ms;
+}
+.t-bas.ouvert { transform: none; visibility: visible; transition: transform 220ms ease; }
+/* Les règles et la feuille du match prennent tout le bas, comme avant. */
+.t-bas.plein { position: static; transform: none; visibility: visible; max-height: none; flex: 1; min-height: 0; border-top: 0; background: transparent; }
+.t-volet-tete { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 4px; }
+.t-volet-tete span { font-family: var(--display); font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.t-volet-fermer { border: 0; background: transparent; color: var(--sub); font-size: 18px; line-height: 1; padding: 4px 6px; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .t-bas { transition: none; } }
+
+/* GRAND ÉCRAN : deux colonnes. La glace à gauche, aussi grande que la
+   hauteur le permet ; à droite l'en-tête, le tableau indicateur, la barre
+   d'ancrage et le volet, toujours ouvert — rien ne défile sous le pli. */
+/* À 1200 px et non 1000 : en dessous, la colonne de gauche donnerait 44 px
+   par case quand une seule colonne en donne 72 — l'écran rétrécirait en
+   s'élargissant. */
+@media (min-width: 1200px) {
+  .table-sheet {
+    max-width: 1500px; overflow: visible;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 480px);
+    grid-template-rows: auto auto auto minmax(0, 1fr); column-gap: 12px; padding: 0 12px;
+  }
+  .table-sheet .live-top { grid-column: 2; grid-row: 1; }
+  .table-sheet .t-tete { grid-column: 2; grid-row: 2; }
+  .table-sheet .t-dock { grid-column: 2; grid-row: 3; border-top: 0; padding-left: 0; padding-right: 0; }
+  .table-sheet .t-bas { grid-column: 2; grid-row: 4; position: static; transform: none; visibility: visible; max-height: none; min-height: 0; border-top: 1px solid var(--line-soft); background: transparent; padding: 0 0 14px; }
+  .table-sheet .t-plateau { grid-column: 1; grid-row: 1 / 5; align-items: center; padding: 8px 0; }
+  .table-sheet .t-plateau[hidden] ~ .t-bas { grid-column: 1 / 3; }
+  .t-volet-btn, .t-volet-fermer { display: none; }
+  .t-glace { --tcell: min(calc((100vw - 560px) / var(--tcols, 9)), calc((100dvh - 24px) / 11), 80px); }
+}
 
 .t-unites { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
 .t-unites-t { font-family: var(--display); font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }

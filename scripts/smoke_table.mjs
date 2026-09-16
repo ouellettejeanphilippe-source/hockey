@@ -160,6 +160,16 @@ if (derriere < 2 * (COLS_ATTENDU - 1)) errors.push(`seulement ${derriere} cases 
  * porteur), et passe à la pièce jouable SUIVANTE quand il ne reste rien —
  * c'est ce « suivante » qui empêche de retoucher éternellement la même pièce.
  */
+/* Le volet de la pièce (fiche, banc, fil) : fermé par défaut sur téléphone,
+   colonne de droite sur grand écran. On ne l'ouvre que si ce qu'on veut
+   toucher n'est pas visible. */
+const ouvrirVolet = async () => {
+  // La CLASSE, pas la visibilité : en refermant les règles, le volet glisse
+  // encore pendant 220 ms et « paraît » visible — le premier jet s'y est pris.
+  if (await page.$('#tableModal .t-bas.ouvert')) return;
+  const b = await page.$('#tableModal .t-volet-btn');
+  if (b && await b.isVisible()) { await b.click(); await page.waitForTimeout(300); }   // sur grand écran il n'y a pas de bouton : le volet est là
+};
 let gestes = 0, tours = 0, relances = 0, changements = 0, pieces = 0, occasionsDuel = 0;
 let sauts = 0, modesJoues = 0, degagements = 0, activationsFinies = 0;
 let activationsVues = 0;   // une pièce activée à l'écran (S32) : le bouton « Fin de l'activation » est là
@@ -219,6 +229,11 @@ while (tours++ < 4000) {
   // c'est ce que JP regarde, pas le pointage final.
   if (etat.sel && etat.modes.length >= 2 && !captureModes) {
     await page.screenshot({ path: 'scripts/smoke-table-modes.png' });
+    // Et le volet ouvert : la fiche au deuxième clic (S34), puis refermé.
+    await ouvrirVolet();
+    await page.screenshot({ path: 'scripts/smoke-table-volet.png' });
+    const fermer = await page.$('#tableModal .t-volet-fermer');
+    if (fermer && await fermer.isVisible()) { await fermer.click(); await page.waitForTimeout(260); }
     captureModes = true;
   }
   /*
@@ -243,7 +258,8 @@ while (tours++ < 4000) {
     await page.waitForTimeout(50); continue;
   }
   // Changer de trio deux fois dans le match : c'est la mécanique de fatigue.
-  if (etat.unites && changements < 2) { await page.click('#tableModal .t-seg button:not(.on)'); changements++; await page.waitForTimeout(60); continue; }
+  // Les trios sont dans le VOLET (S34) : on l'ouvre d'abord quand il est fermé.
+  if (etat.unites && changements < 2) { await ouvrirVolet(); await page.click('#tableModal .t-seg button:not(.on)'); changements++; await page.waitForTimeout(60); continue; }
   /*
    * LE DUEL SE CHERCHE EXPRÈS, IL NE SE TIRE PAS AU SORT. Première version :
    * elle cliquait un contact au hasard une fois sur deux, donc elle tombait

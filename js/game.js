@@ -35,6 +35,7 @@ import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSomma
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
 import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives, mesuresDeSaison, SEUIL_MESURE } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
+import { activerSons } from './sons.js';
 
 const $ = id => document.getElementById(id);
 const rnd = a => a[Math.floor(Math.random() * a.length)];
@@ -105,6 +106,9 @@ const G = {
    * acier). Rien d'autre ne change dans l'interface.
    */
   palette: 'graphite',  // graphite | oled | glace
+  /* Les effets sonores du plateau (js/sons.js). Une préférence d'affichage,
+     pas un réglage de partie : couper le son ne change rien à ce qui est joué. */
+  sons: true,
   /*
    * LE MODE BONUS. JP : *mode bonus genre blood bowl, fft et autres jeux de
    * sport de table*. Ce réglage ne touche PAS au repêchage : les 23 cases, le
@@ -424,7 +428,7 @@ function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode, epoque: G.epoque,
-      repechage: G.repechage, palette: G.palette, bonus: G.bonus,
+      repechage: G.repechage, palette: G.palette, bonus: G.bonus, sons: G.sons,
       onlyFit: G.onlyFit, sortBy: G.sortBy, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
@@ -439,6 +443,7 @@ function loadOpts() {
     if (typeof o.sortBy === 'string') G.sortBy = o.sortBy;
     if (o.poolView === 'POS' || o.poolView === 'LIST') G.poolView = o.poolView;
     if (PALETTES.includes(o.palette)) G.palette = o.palette;
+    if (typeof o.sons === 'boolean') G.sons = o.sons;
     // Un mode disparu (l'ancien « Par unité ») retombe sur le classique.
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
     // Les saisons ne sont pas encore chargées ici : `boot` vérifie après.
@@ -770,6 +775,7 @@ async function boot() {
   try {
     loadOpts();
     appliquerPalette();
+    activerSons(G.sons);
     await loadIndex();
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
     if (G.epoque && !state.index.seasons.includes(G.epoque)) G.epoque = null;
@@ -977,6 +983,7 @@ function setOption(key, val) {
     syncOptionsUI();
     return;
   }
+  else if (key === 'sons') { G.sons = val === 'on'; activerSons(G.sons); }
   else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
@@ -1087,6 +1094,7 @@ function syncOptionsUI() {
     onlyFit: G.onlyFit ? 'on' : 'off',
     poolView: G.poolView,
     palette: G.palette,
+    sons: G.sons ? 'on' : 'off',
     format: M.format,
     tirage: M.tirage,
     ligue: src.epoque ? 'UNE' : 'TOUTES',
@@ -3080,7 +3088,11 @@ async function runSeason(opts = {}) {
   if (calendrier.length && (opts.depuis || 0) < calendrier.length) {
     ouvrirSaison({
       calendrier, teams, you, enSeries: nombreEnSeries(teams.length), epoque: G.epoque,
-      ctx: { esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
+      ctx: {
+        esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
+        // Le bouton du son du plateau bascule la même préférence que les options.
+        basculerSons: () => { setOption('sons', G.sons ? 'off' : 'on'); syncOptionsUI(); },
+      },
       onTermine: montrer,
       depuis: opts.depuis || 0,
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
