@@ -127,6 +127,7 @@
   --zone-clair: #a9c7e8;
   --zone-sourd: #6f7884;
   --sur-or: #191206;
+  --sur-accent: #101216;     /* l'encre sur --ui-accent, dans les trois palettes */
 
   --r-s: 8px;
   --r-m: 12px;
@@ -3767,7 +3768,10 @@ a.spin-club:hover {
   /* NEUF COLONNES : la case rétrécit de 48 à 44 px pour que la glace tienne
      encore dans 390 px — neuf fois 48 déborderait. La borne en vw suit, sinon
      c'est elle qui déborderait sur un écran plus étroit. */
-  --tcell: min(10.6vw, 6.2vh, 44px);
+  /* ONZE RANGÉES depuis la glace derrière les filets : la borne en hauteur
+     descend de 6,2 à 5,4 vh pour que le plateau laisse encore la place du
+     dé et de la carte sur un téléphone. */
+  --tcell: min(10.6vw, 5.4vh, 44px);
   display: grid; grid-template-columns: repeat(var(--tcols, 9), var(--tcell));
   grid-auto-rows: var(--tcell);
   background: var(--fond-creux); border: 1px solid var(--line);
@@ -3781,18 +3785,33 @@ a.spin-club:hover {
 /* Les zones de la patinoire : des aplats, jamais des dégradés. */
 .t-enclave { background: rgba(138, 180, 240, 0.13); }
 .t-coin { background: rgba(138, 180, 240, 0.05); }
-.t-but { background: rgba(215, 177, 113, 0.14); }
+/* Derrière le filet et la ligne des buts : le bureau, en hachures plates. */
+.t-derriere { background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(255, 255, 255, 0.035) 5px 7px); }
+/* Le filet : une seule case, cernée. */
+.t-but { background: rgba(215, 177, 113, 0.18); box-shadow: inset 0 0 0 2px rgba(229, 112, 122, 0.7); }
+/* Les lignes se dessinent au milieu de leur rangée (les buts, le centre) ou
+   sur un bord (les bleues) : la ligne des buts passe SOUS le filet, comme
+   sur une vraie glace. */
+.t-ligne-but::before, .t-centre::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px;
+  background: rgba(229, 112, 122, 0.55); pointer-events: none;
+}
+.t-but::before { display: none; }
 .t-bleue { box-shadow: inset 0 2px 0 var(--blue-deep); }
-.t-centre { box-shadow: inset 0 2px 0 rgba(229, 112, 122, 0.55); }
+.t-bleue-bas { box-shadow: inset 0 -2px 0 var(--blue-deep); }
+.t-bleue.t-bleue-bas { box-shadow: inset 0 2px 0 var(--blue-deep), inset 0 -2px 0 var(--blue-deep); }
 .t-jouable { cursor: pointer; }
 .t-jouable::after { content: ''; position: absolute; inset: 2px; border: 1px dashed var(--gold); border-radius: 4px; opacity: 0.55; }
 .t-sel::after { opacity: 1; border-style: solid; border-width: 2px; }
 
-/* Ce qu'une case PROPOSE à la pièce choisie. Trois couleurs, trois gestes. */
+/* Ce qu'une case PROPOSE à la pièce choisie. Quatre couleurs, quatre gestes. */
 .t-offre { cursor: pointer; }
 .t-offre-deplacer { background: var(--green-soft); box-shadow: inset 0 0 0 1px rgba(70, 201, 139, 0.45); }
 .t-offre-passe { box-shadow: inset 0 0 0 2px var(--blue); }
 .t-offre-echec { box-shadow: inset 0 0 0 2px var(--red); }
+/* Le dégagement vise une case VIDE au fond : un pointillé d'or, la rondelle y sera libre. */
+.t-offre-degager { box-shadow: inset 0 0 0 2px var(--gold); background: rgba(215, 177, 113, 0.12); }
+.t-offre-degager::after { content: ''; position: absolute; inset: 0; border: 1px dashed var(--gold); opacity: 0.7; pointer-events: none; }
 .t-pas { font-family: var(--display); font-size: 12px; font-weight: 800; color: var(--green); }
 .t-cote {
   position: absolute; right: 1px; bottom: 0; font-family: var(--display);
@@ -3865,7 +3884,7 @@ a.spin-club:hover {
 .t-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
 .t-seg button { border: 0; background: var(--panel); color: var(--sub); font-family: var(--display); font-size: 12.5px; font-weight: 700; padding: 4px 8px; cursor: pointer; }
 .t-seg button + button { border-left: 1px solid var(--line); }
-.t-seg button.on { background: var(--ui-accent); color: #101216; }
+.t-seg button.on { background: var(--ui-accent); color: var(--sur-accent); }
 
 .t-de {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
@@ -3894,6 +3913,14 @@ a.spin-club:hover {
 .t-axe b { font-family: var(--display); font-size: 15px; font-weight: 800; }
 .t-hab { display: inline-block; margin-top: 7px; font-size: 12px; padding: 3px 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: var(--r-s); }
 .t-hab.on { color: var(--gold); border-color: var(--gold); }
+/* LES MODES : un bouton par geste à cible, l'actif en creux. JP : *boutons
+   pour passer, dumper, frapper, esquiver, bloquer, pour un jeu tactique*. */
+.t-modes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.t-mode { display: inline-flex; align-items: baseline; gap: 5px; font-family: var(--display); font-size: 14px; font-weight: 700; padding: 6px 11px; border: 1px solid var(--line); background: var(--panel); color: var(--sub); border-radius: var(--r-s); cursor: pointer; }
+.t-mode b { font-size: 15px; color: var(--gold); }
+.t-mode i { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.t-mode.on { background: var(--ui-accent); color: var(--sur-accent); border-color: var(--ui-accent); }
+.t-mode.on b, .t-mode.on i { color: var(--sur-accent); }
 .t-gestes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .t-geste { display: inline-flex; align-items: baseline; gap: 5px; font-family: var(--display); font-size: 14px; font-weight: 700; padding: 6px 11px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: var(--r-s); cursor: pointer; }
 .t-geste b { font-size: 15px; color: var(--gold); }

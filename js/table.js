@@ -100,13 +100,29 @@ import { getTraits } from './traits.js';
    la troisième période on ne veut pas se demander de quel bord on joue.
    ====================================================================== */
 
+/*
+ * DERRIÈRE LE FILET. JP : *une glace avec plus de cases, derrière le but*.
+ *
+ * Le filet occupait toute une rangée à chaque bout, donc la ligne des buts
+ * était le bord du monde : pas de bureau de Gretzky, pas de tour du filet,
+ * pas de passe de derrière que le gardien ne voit pas venir. Le filet est
+ * maintenant UNE case (`estFilet`), posée sur sa ligne des buts ; les cases
+ * à côté de lui se jouent, et une rangée entière existe derrière chaque
+ * filet. La distance d'une ligne des buts à l'autre ne bouge pas
+ * (`LONGUEUR`, huit rangées) : on n'allonge pas le chemin vers le filet —
+ * c'est ce qui avait fait tomber les buts à 3,96 quand on l'avait essayé —
+ * on ajoute du terrain derrière lui.
+ */
 export const COLS = 9;
-export const RANGS = 9;
-export const FILET_HAUT = 0;
-export const FILET_BAS = RANGS - 1;
+export const RANGS = 11;
+export const FILET_HAUT = 1;                  // la ligne des buts du haut ; la rangée 0 est derrière
+export const FILET_BAS = RANGS - 2;           // celle du bas ; la dernière rangée est derrière
 export const BUT_COL = (COLS - 1) / 2;        // le centre du filet
-export const RANG_MIN = 1, RANG_MAX = RANGS - 2;   // là où les patineurs vont
+export const RANG_MIN = 0, RANG_MAX = RANGS - 1;   // les patineurs vont partout, sauf dans les deux filets
 export const MI_GLACE = (RANGS - 1) / 2;      // la ligne du centre, où on met au jeu
+export const LONGUEUR = FILET_BAS - FILET_HAUT;   // d'une ligne des buts à l'autre
+/** Le filet lui-même : une seule case, où personne ne va sauf le gardien. */
+export const estFilet = (r, c) => (r === FILET_HAUT || r === FILET_BAS) && c === BUT_COL;
 
 /*
  * LA GLACE EST DÉCRITE PAR SA TAILLE, JAMAIS PAR SES NOMBRES.
@@ -162,15 +178,32 @@ export const PORTEE_TIR = 3;
 
 /** Le filet qu'une équipe attaque : 'A' monte, 'B' descend. */
 export const filetDe = cote => (cote === 'A' ? FILET_HAUT : FILET_BAS);
+/** Le sens de l'attaque vers ce filet : +1 quand les rangées croissent en s'en éloignant. */
+export const sensDe = but => (but === FILET_HAUT ? 1 : -1);
+/**
+ * LA PROFONDEUR d'une case devant le filet qu'on attaque : 1 collé au filet,
+ * 3 à la ligne bleue, 0 SUR la ligne des buts (à côté du filet), négative
+ * DERRIÈRE. C'est le nombre que toute la géométrie lit — jamais une distance
+ * absolue, qui ferait d'une case derrière le filet une case collée devant.
+ */
+export const profondeur = (r, but) => (r - but) * sensDe(but);
 
 /** « 1re », « 2e » : l'ordinal féminin d'une période. */
 export const ordP = n => (n === 1 ? '1re' : `${n}e`);
 
-/** La distance d'une pièce au filet qu'elle attaque. */
-export const distanceAuFilet = (m, piece) => Math.abs(piece.r - eqDe(m, piece.eq).but);
+/** La profondeur d'une pièce devant le filet qu'elle attaque (négative : derrière). */
+export const distanceAuFilet = (m, piece) => profondeur(piece.r, eqDe(m, piece.eq).but);
 
-/** Peut-elle tirer d'où elle est ? Seulement depuis la zone offensive. */
-export const peutTirer = (m, piece) => !piece.gardien && distanceAuFilet(m, piece) <= PORTEE_TIR;
+/**
+ * Peut-elle tirer d'où elle est ? Depuis la zone offensive — et depuis les
+ * deux cases collées au filet sur la ligne des buts : c'est le TOUR DU FILET,
+ * un tir de coin. Jamais de derrière.
+ */
+export const peutTirer = (m, piece) => {
+  if (piece.gardien) return false;
+  const s = distanceAuFilet(m, piece);
+  return (s >= 1 && s <= PORTEE_TIR) || (s === 0 && Math.abs(piece.c - BUT_COL) === 1);
+};
 
 /** La nature d'une case, du point de vue de l'équipe qui attaque vers `but`. */
 /*
@@ -185,18 +218,25 @@ export const peutTirer = (m, piece) => !piece.gardien && distanceAuFilet(m, piec
  * tout ce qui déborde en largeur est un coin, quelle que soit la distance.
  */
 export function natureCase(r, c, but) {
-  const d = Math.abs(r - but);
-  if (d === 0) return 'filet';
+  const s = profondeur(r, but);
+  if (s === 0 && c === BUT_COL) return 'filet';
+  // DERRIÈRE LE FILET, et sur la ligne des buts à côté de lui : on n'y tire
+  // pas, on y passe. Les deux cases collées au filet sont un coin — le tour
+  // du filet se tente de là.
+  if (s < 0) return 'derriere';
+  if (s === 0) return Math.abs(c - BUT_COL) === 1 ? 'coin' : 'derriere';
   const large = Math.abs(c - BUT_COL) > DEMI_ENCLAVE;
-  if (d <= RANGS_ENCLAVE) return large ? 'coin' : 'enclave';
-  if (d <= PORTEE_TIR) return large ? 'coin' : 'pointe';
-  // Le repli est le dernier tiers : allonger la patinoire allonge la zone
-  // neutre, pas la zone offensive — c'est ce qui rend l'enclave loin.
-  if (d <= RANGS - 4) return 'neutre';
+  if (s <= RANGS_ENCLAVE) return large ? 'coin' : 'enclave';
+  if (s <= PORTEE_TIR) return large ? 'coin' : 'pointe';
+  // La zone neutre est ce qui reste entre les deux zones offensives ; au-delà,
+  // c'est chez soi — jusque derrière son propre filet.
+  if (s <= LONGUEUR - PORTEE_TIR) return 'neutre';
   return 'repli';
 }
 
-const dansLaGlace = (r, c) => r >= RANG_MIN && r <= RANG_MAX && c >= 0 && c < COLS;
+/** Une case où un patineur peut être : sur la glace, et pas dans un filet. */
+const dansLaGlace = (r, c) => r >= RANG_MIN && r <= RANG_MAX && c >= 0 && c < COLS && !estFilet(r, c);
+export const caseJouable = dansLaGlace;
 /** La distance du plateau : un roi d'échecs, donc les diagonales valent un. */
 export const dist = (a, b) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c));
 
@@ -659,7 +699,7 @@ function caseProche(prises, r0, c0) {
     for (let dr = -rayon; dr <= rayon; dr++) for (let dc = -rayon; dc <= rayon; dc++) {
       if (Math.max(Math.abs(dr), Math.abs(dc)) !== rayon) continue;
       const r = r0 + dr, c = c0 + dc;
-      if (r < RANG_MIN || r > RANG_MAX || c < 0 || c >= COLS) continue;
+      if (!dansLaGlace(r, c)) continue;
       if (prises.has(`${r},${c}`)) continue;
       return { r, c };
     }
@@ -699,6 +739,7 @@ function poser(eq, m = null) {
       agi: false,          // a déjà fait son geste cette présence-ci
       deplace: false,      // a déjà patiné cette présence-ci
       ecran: 0,            // présences où il se place devant les tirs
+      tendu: 0,            // présences où il coupe les lignes de passe
       buts: 0, passes: 0, tirs: 0,
     };
   });
@@ -825,14 +866,40 @@ export function ecranVaut(p) {
  */
 export function batonsTir(m, cote, r, c) {
   const but = eqDe(m, cote).but;
-  const moi = Math.abs(r - but);
+  const moi = profondeur(r, but);
   let n = 0;
   for (const x of surLaGlace(m)) {
     if (x.eq === cote || x.etourdi || dist(x, { r, c }) !== 1) continue;
-    if (Math.abs(x.r - but) > moi) continue;      // il est derrière le tireur
+    const sx = profondeur(x.r, but);
+    if (sx > moi || sx < 0) continue;      // derrière le tireur, ou derrière le filet : il ne bloque rien
     n += x.ecran ? ecranVaut(x.p) : 1;
   }
   return n;
+}
+
+/**
+ * LES BÂTONS QUI GÊNENT UNE PASSE. Autour du receveur, chaque adversaire
+ * compte un — et DEUX s'il a tendu le bâton (voir `tendreLeBaton`) ; et sur
+ * la ligne de la passe, chaque bâton tendu collé à une case que la rondelle
+ * traverse en coupe une (au plus deux). C'est la posture qui manquait au
+ * plateau : bloquer l'espace, pas seulement le tir.
+ */
+export function batonsPasse(m, cote, r, c) {
+  return surLaGlace(m).filter(x => x.eq !== cote && !x.etourdi && dist(x, { r, c }) === 1)
+    .reduce((n, x) => n + (x.tendu ? 2 : 1), 0);
+}
+
+export function batonsSurLaLigne(m, cote, de, a) {
+  const n = dist(de, a);
+  if (n < 2) return 0;
+  const tendus = eqDe(m, adverse(cote)).pieces.filter(x => x.tendu && !x.etourdi);
+  if (!tendus.length) return 0;
+  let k = 0;
+  for (let i = 1; i < n; i++) {
+    const r = Math.round(de.r + (a.r - de.r) * i / n), c = Math.round(de.c + (a.c - de.c) * i / n);
+    if (tendus.some(x => dist(x, { r, c }) <= 1)) k++;
+  }
+  return Math.min(2, k);
 }
 
 /** Un voleur de rondelle : `tk`, les vols par match (2005-06+), sinon `md`. */
@@ -882,14 +949,70 @@ export function modPasse(m, piece, cible) {
   // ARCADE : la passe est le geste qui fait le jeu, elle doit rester vivante.
   const loin = d <= 4 ? 0 : d <= 6 ? -1 : -2;
   const moyen = piece.st.gb === GABARIT_MOYEN ? 1 : 0;
-  return md(piece.st.MA) + loin + moyen + malusSouffle(m, piece) - batons(m, piece.eq, cible.r, cible.c);
+  const but = eqDe(m, piece.eq).but;
+  // LA PASSE DE DERRIÈRE LE FILET vers l'enclave : le gardien ne la voit pas
+  // venir. C'est ce que le bureau de Gretzky rapporte.
+  const bureau = profondeur(piece.r, but) <= 0 && natureCase(cible.r, cible.c, but) === 'enclave' ? 1 : 0;
+  return md(piece.st.MA) + loin + moyen + bureau + malusSouffle(m, piece)
+    - batonsPasse(m, piece.eq, cible.r, cible.c) - batonsSurLaLigne(m, piece.eq, piece, cible);
+}
+
+/* ---------- le dégagement : la rondelle au fond, libre ---------- */
+
+/**
+ * DÉGAGER. JP : *boutons pour passer, dumper, frapper, esquiver, bloquer*. Le
+ * dump-and-chase : de la ZONE NEUTRE, le porteur envoie la rondelle au fond
+ * de la zone adverse — dans un coin, ou derrière le filet — où elle est
+ * LIBRE, et la présence continue : ses coéquipiers peuvent aller la
+ * chercher. C'est la façon d'entrer dans la zone sans esquiver la couverture,
+ * et le prix est que personne ne la tient : l'adversaire aussi peut la
+ * prendre à sa présence. De sa propre zone, c'est un dégagement refusé, et
+ * le geste n'est pas offert ; de la zone offensive, on passe ou on tire.
+ */
+export function ciblesDegagementDe(m, piece) {
+  if (porteur(m) !== piece || piece.agi || piece.gardien) return [];
+  const but = eqDe(m, piece.eq).but;
+  const s = profondeur(piece.r, but);
+  if (s <= PORTEE_TIR || s > LONGUEUR - PORTEE_TIR) return [];
+  const out = [];
+  for (let r = 0; r < RANGS; r++) for (let c = 0; c < COLS; c++) {
+    if (!dansLaGlace(r, c) || occupee(m, r, c)) continue;
+    const n = natureCase(r, c, but);
+    if (n === 'coin' || n === 'derriere') out.push({ r, c });
+  }
+  return out;
+}
+
+/** Le modificateur d'un dégagement : le maniement, et un bâton adverse près de l'endroit visé. */
+export function modDegagement(m, piece, vers) {
+  return md(piece.st.MA) + malusSouffle(m, piece) - (batonsPasse(m, piece.eq, vers.r, vers.c) > 0 ? 1 : 0);
+}
+
+export function degager(m, piece, vers) {
+  return jeter(m, modDegagement(m, piece, vers), 'degagement');
+}
+
+export function appliquerDegagement(m, piece, vers, jet) {
+  piece.agi = true;
+  piece.derniere = null;
+  if (jet.reussi) {
+    m.rondelle = { libre: { r: vers.r, c: vers.c } };
+    dire(m, `${nomDe(piece)} dégage la rondelle au fond — elle est libre.`, 'degage');
+    return true;
+  }
+  // Ratée, elle n'est pas perdue : elle file le long de la bande et rebondit
+  // n'importe où autour de l'endroit visé. Pas de revirement — la rondelle
+  // est libre dans les deux cas, c'est la précision qui manque.
+  rebondir(m, vers.r, vers.c);
+  dire(m, `Le dégagement de ${nomDe(piece)} file le long de la bande et rebondit.`, 'degage');
+  return false;
 }
 
 /** Le modificateur d'un tir : la finition contre le gardien, la distance, l'enclave, la couverture. */
 export function modTir(m, piece) {
   const eq = eqDe(m, piece.eq);
   const g = eqDe(m, adverse(piece.eq)).piece_g;
-  const d = Math.abs(piece.r - eq.but);
+  const d = profondeur(piece.r, eq.but);
   // ARCADE : la distance pèse, mais elle ne ferme jamais le jeu. À −3 du fond
   // de la patinoire, personne ne tentait rien d'autre que d'avancer.
   const loin = d <= 2 ? 0 : d <= 4 ? -1 : -2;
@@ -986,7 +1109,8 @@ function rebondir(m, r, c) {
       return ou;
     }
   }
-  const ou = { r: borne(r, RANG_MIN, RANG_MAX), c: borne(c, 0, COLS - 1) };
+  const prises = new Set(surLaGlace(m).map(x => `${x.r},${x.c}`));
+  const ou = caseProche(prises, borne(r, RANG_MIN, RANG_MAX), borne(c, 0, COLS - 1));
   m.rondelle = { libre: ou };
   return ou;
 }
@@ -1140,7 +1264,7 @@ export function appliquerPasse(m, piece, cible, jet) {
 
 export function tirer(m, piece) {
   const mod = modTir(m, piece) + (piece.hab === 'DECOCHE' && piece.habDispo ? 2 : 0);
-  eqDe(m, piece.eq).modsTir.push({ mod, d: Math.abs(piece.r - eqDe(m, piece.eq).but) });
+  eqDe(m, piece.eq).modsTir.push({ mod, d: profondeur(piece.r, eqDe(m, piece.eq).but) });
   return jeter(m, mod, 'tir');
 }
 
@@ -1302,6 +1426,23 @@ export function seMettreDevant(m, piece) {
   return true;
 }
 
+/* ---------- tendre le bâton : bloquer l'espace ---------- */
+
+/**
+ * TENDRE LE BÂTON. JP : *bloquer l'espace avec le bâton*. La deuxième
+ * posture défensive, à côté de l'écran : jusqu'à ta prochaine présence, la
+ * pièce coupe les lignes de passe — elle compte double dans les bâtons
+ * autour d'un receveur collé à elle, et chaque case de la ligne d'une passe
+ * qui la frôle coûte un de plus (voir `batonsPasse`, `batonsSurLaLigne`).
+ * Sans dé, comme l'écran : tendre un bâton, ça ne rate pas, ça occupe.
+ */
+export function tendreLeBaton(m, piece) {
+  piece.agi = true;
+  piece.tendu = 2;
+  dire(m, `${nomDe(piece)} tend le bâton et coupe les lignes de passe.`, 'tendu');
+  return true;
+}
+
 /* ---------- foncer : le deuxième élan ---------- */
 
 /**
@@ -1336,7 +1477,7 @@ export function finirPresence(m, butMarque = false) {
   const eq = eqDe(m, m.tour);
   respirer(eq);
   for (const x of eq.pieces) { x.agi = false; x.deplace = false; }
-  for (const x of surLaGlace(m)) { if (x.etourdi) x.etourdi--; if (x.ecran) x.ecran--; }
+  for (const x of surLaGlace(m)) { if (x.etourdi) x.etourdi--; if (x.ecran) x.ecran--; if (x.tendu) x.tendu--; }
 
   // MORT SUBITE : en prolongation, le premier but finit tout.
   if (m.prolongation && butMarque) { m.fini = true; dire(m, `Fin du match. ${m.A.buts} \u2013 ${m.B.buts}`, 'fin'); return; }
@@ -1444,8 +1585,11 @@ function finirMatch(m) {
 
 /* Ce que vaut une case pour qui attaque `but` : proche du filet et au centre. */
 function valeurCase(r, c, but) {
-  const d = Math.abs(r - but);
-  return (RANGS + 1 - d) * 1.0 + (BUT_COL - Math.abs(c - BUT_COL)) * 0.6;
+  const s = profondeur(r, but);
+  // Derrière le filet vaut à peu près la deuxième rangée : on n'y tire pas,
+  // mais la passe qui en sort vaut plus.
+  const d = s >= 1 ? s : 1.5 - s;
+  return (LONGUEUR + 1 - d) * 1.0 + (BUT_COL - Math.abs(c - BUT_COL)) * 0.6;
 }
 
 /** Le meilleur geste d'une pièce, et ce qu'il vaut. */
@@ -1476,9 +1620,27 @@ function meilleurGeste(m, piece) {
         // façon de sortir de sa zone.
         options.push({ type: 'passe', cible, val: chances(modPasse(m, piece, cible) + bonus('VOILEE')) * (2.5 + gain * 2.0 + tir * 9) });
       }
+      // DÉGAGER : de la zone neutre, quand la couverture est là et qu'un
+      // coéquipier est près du fond. La rondelle est libre, donc ça vaut ce
+      // que vaut la course pour l'avoir.
+      {
+        let mieux = null;
+        const amis = eq.pieces.filter(x => x !== piece && !x.etourdi);
+        // Ça vaut d'autant plus que le porteur est TENU : la course au fond
+        // remplace l'esquive qu'il aurait fallu réussir.
+        const tenu = batons(m, piece.eq, piece.r, piece.c) > 0 ? 1.6 : 0;
+        for (const v of ciblesDegagementDe(m, piece)) {
+          const proche = Math.min(...amis.map(x => dist(x, v)), 9);
+          const rival = Math.min(...eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.etourdi).map(x => dist(x, v)), 9);
+          if (proche > rival) continue;
+          const val = chances(modDegagement(m, piece, v)) * (2.4 + Math.max(0, 3 - proche) + tenu) - 0.8;
+          if (!mieux || val > mieux.val) mieux = { type: 'degager', vers: v, val };
+        }
+        if (mieux) options.push(mieux);
+      }
       // FONCER : dépenser son geste pour un deuxième élan. Ça ne vaut que
       // quand on est encore loin et qu'on a du patin à dépenser.
-      if (piece.deplace && Math.abs(piece.r - eq.but) >= 4) {
+      if (piece.deplace && profondeur(piece.r, eq.but) >= 4) {
         options.push({ type: 'foncer', val: 1.6 + pasDe(m, piece) * 0.25 });
       }
     }
@@ -1515,8 +1677,16 @@ function meilleurGeste(m, piece) {
       // SE PLACER DEVANT : quand l'adversaire porte la rondelle près de notre
       // filet et qu'on ne peut pas la lui prendre, on bouche la voie.
       if (p && p.eq !== piece.eq && !piece.ecran) {
-        const menace = Math.abs(p.r - eqDe(m, p.eq).but) <= 3 && dist(piece, p) === 1;
+        const menace = profondeur(p.r, eqDe(m, p.eq).but) <= 3 && dist(piece, p) === 1;
         if (menace) options.push({ type: 'ecran', val: 3.4 });
+      }
+      // TENDRE LE BÂTON : à deux cases du porteur, une fois qu'on a patiné
+      // et qu'on ne peut ni le frapper ni le voler — on coupe ses lignes de
+      // passe. Mesuré à 2,4 sans la condition du patin : 16 % des gestes,
+      // l'IA tendait le bâton au lieu de se déplacer, et plus une passe ne
+      // passait. C'est un geste de fin de présence, pas un réflexe.
+      if (p && p.eq !== piece.eq && !piece.tendu && !piece.ecran && piece.deplace && dist(piece, p) === 2) {
+        options.push({ type: 'tendre', val: 1.2 });
       }
     }
     const vise = rondelleLibre || p;
@@ -1652,8 +1822,15 @@ export function jouerGeste(m, piece, action, cote, ia = false) {
     appliquerVol(m, piece, action.cible, jet);
     return jet;
   }
-  // Les deux gestes sans dé : se placer devant, et foncer.
+  if (action.type === 'degager') {
+    let jet = degager(m, piece, action.vers);
+    if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
+    appliquerDegagement(m, piece, action.vers, jet);
+    return jet;
+  }
+  // Les trois gestes sans dé : se placer devant, tendre le bâton, et foncer.
   if (action.type === 'ecran') { seMettreDevant(m, piece); return null; }
+  if (action.type === 'tendre') { tendreLeBaton(m, piece); return null; }
   if (action.type === 'foncer') { foncer(m, piece); return null; }
   return null;
 }
@@ -1695,6 +1872,7 @@ function relanceIA(m, cote, jet) {
   if (!eq.relance) return jet;
   if (chances(jet.mod) < 0.45) return jet;
   if (jet.quoi === 'esquive' && m.periode <= 2) return jet;
+  if (jet.quoi === 'degagement') return jet;   // la rondelle est libre de toute façon
   return relancer(m, jet, cote);
 }
 
@@ -1803,7 +1981,8 @@ export function reglesDuPlateau() {
     {
       titre: 'La glace',
       points: [
-        `${COLS} colonnes, ${RANGS} rangées. Les deux rangées du bout sont les filets : seuls les gardiens y sont.`,
+        `${COLS} colonnes, ${RANGS} rangées. Chaque filet est UNE case, posée sur sa ligne des buts : les cases à côté de lui et la rangée entière DERRIÈRE lui se jouent.`,
+        `DERRIÈRE LE FILET on ne tire pas, on passe : une passe partie de derrière (ou de la ligne des buts) vers l'enclave vaut +1, le gardien ne la voit pas venir. Des deux cases collées au filet sur la ligne des buts, on tente le TOUR DU FILET — un tir de coin, à ${MALUS_COIN}.`,
         `ON NE TIRE QUE DE LA ZONE OFFENSIVE : à ${PORTEE_TIR} cases du filet ou moins. Au-delà de la ligne bleue ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert. Il faut entrer.`,
         `LA ZONE OFFENSIVE, du filet vers l'arrière : l'ENCLAVE (${RANGS_ENCLAVE === 1 ? 'la rangée collée au filet' : `les ${RANGS_ENCLAVE} rangées collées au filet`}, ${DEMI_ENCLAVE * 2 + 1} colonnes au centre) vaut ${BONUS_ENCLAVE >= 0 ? '+' : ''}${BONUS_ENCLAVE} au tir ; la POINTE, le reste de la zone, ne vaut rien de plus ; et tout ce qui déborde en largeur est un COIN, à ${MALUS_COIN} — c'est le mauvais angle.`,
         `L'enclave est petite, et un tir raté pris de là laisse un retour devant le filet : y arriver est le jeu.`,
@@ -1831,16 +2010,18 @@ export function reglesDuPlateau() {
       ],
     },
     {
-      titre: 'Les huit gestes',
+      titre: 'Les dix gestes',
       colonnes: ['geste', 'dé', 'ce que ça fait', 'un échec coûte'],
       rangees: [
         ['Patiner', 'non', `jusqu'à PA cases, plafonné à ${PAS_MAX}, en contournant les pièces`, '—'],
         ['Esquiver', 'oui', 'quitter avec la rondelle une case tenue par un bâton adverse', 'revirement'],
-        ['Passer', 'oui', 'donner la rondelle à un coéquipier', 'revirement'],
+        ['Passer', 'oui', 'donner la rondelle à un coéquipier ; un bâton tendu sur la ligne ou collé au receveur la gêne', 'revirement'],
+        ['Dégager', 'oui', `de la ZONE NEUTRE seulement : la rondelle file au fond, LIBRE, dans un coin ou derrière le filet — à toi d'y arriver le premier`, 'elle rebondit n\'importe où autour, libre aussi — pas de revirement'],
         ['Tirer', 'oui', `un but — de la zone offensive seulement, à ${PORTEE_TIR} cases ou moins`, 'le gardien la garde — sauf de l\'enclave, ou raté d\'un seul point : retour'],
         ['Épaule', 'oui', 'n\'importe quel adversaire adjacent : il tombe et recule d\'une case', 'sur le porteur, revirement ; sur un autre, ta pièce est hors position'],
         ['Bâton', 'oui', 'sur le porteur seulement : tu prends la rondelle sans le toucher', 'revirement'],
         ['Se placer devant', 'non', 'jusqu\'à ta prochaine présence, tu gênes double les tirs pris à côté de toi — si tu es du côté du filet', '—'],
+        ['Tendre le bâton', 'non', 'jusqu\'à ta prochaine présence, tu coupes les lignes de passe : double contre un receveur collé à toi, −1 par case de la passe que tu frôles', '—'],
         ['Foncer', 'non', 'tu dépenses ton geste pour patiner une seconde fois', '—'],
       ],
     },
