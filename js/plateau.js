@@ -88,6 +88,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    */
   let dernier = null;      // { piece, cible } — le geste qu'on regarde
   let deGlace = null;      // { jet, cote, r, c } — le dé, POSÉ SUR LA CASE du geste
+  let volet = false;       // le volet de la pièce (fiche, trios, fil) est ouvert
+  let actions = { modes: [], gestes: [], aide: '' };   // les actions de la pièce choisie, rendues par `dock`
   let flash = null;        // { r, c, texte, ton } — le verdict, là où il tombe
   let eclat = null;        // la bannière d'un but : { eq, texte }
   let minuteurFlash = 0;
@@ -147,7 +149,11 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const piece = surLaGlace(m).find(x => x.r === r && x.c === c);
     const veut = t => !mode || mode === t;
     if (piece) {
-      if (veut('passe') && piece.eq === 'A' && piece !== sel && !piece.etourdi && porteur(m) === sel && !sel.agi) {
+      // LA PASSE NE SE JOUE QUE PAR SON BOUTON. JP : *les passes doivent
+      // passer par bouton ou confirmation, sinon ça passe random* — toucher
+      // un coéquipier pour le CHOISIR passait la rondelle. Sans le mode
+      // « Passer », toucher un coéquipier le choisit ; en mode, ça passe.
+      if (mode === 'passe' && piece.eq === 'A' && piece !== sel && !piece.etourdi && porteur(m) === sel && !sel.agi) {
         return { type: 'passe', cible: piece, mod: modPasse(m, sel, piece) + bonus('VOILEE'), seuil: SEUIL };
       }
       // LE CONTACT VISE N'IMPORTE QUEL ADVERSAIRE ADJACENT, pas seulement le
@@ -551,12 +557,14 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    */
   function carte() {
     if (m.fini) return '';
-    if (!aMoi()) return '<div class="t-carte t-attente">L\'adversaire joue sa présence…</div>';
+    const tete = `<div class="t-volet-tete"><span>La pièce</span><button type="button" class="t-volet-fermer" aria-label="Fermer le volet">✕</button></div>`;
+    actions = { modes: [], gestes: [], aide: '' };
+    if (!aMoi()) return `<div class="t-carte t-attente">${tete}L'adversaire joue sa présence…</div>`;
     if (!sel) {
       const dispo = eqDe(m, 'A').pieces.filter(aDesOptions).length;
       return dispo
-        ? `<div class="t-carte t-vide">Touche une de tes pièces. ${dispo} peu${dispo > 1 ? 'vent' : 't'} encore jouer.</div>`
-        : '<div class="t-carte t-vide">Plus rien à jouer cette présence-ci.</div>';
+        ? `<div class="t-carte t-vide">${tete}Touche une de tes pièces. ${dispo} peu${dispo > 1 ? 'vent' : 't'} encore jouer.</div>`
+        : `<div class="t-carte t-vide">${tete}Plus rien à jouer cette présence-ci.</div>`;
     }
     const st = sel.st, h = sel.hab ? HABILETES[sel.hab] : null;
     const arc = ARCHETYPES[archetypeKey(sel.p)] || ARCHETYPES.UNKNOWN;
@@ -593,10 +601,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       if (vol.length) modes.push(modeBouton('vol', 'Bâton', meilleure(vol, x => modVol(m, sel, x) + bonus('ACTIF')), 'voler'));
     }
 
-    if (aLaRondelle && !sel.agi && peutTirer(m, sel)) {
-      const mod = modTir(m, sel) + bonus('DECOCHE');
-      gestes.push(bouton('tir', 'Tirer', mod, seuilTir(m, sel), 't-tir'));
-    }
+    // Le TIR est dans la barre d'ancrage, sous la glace (`dock`) : c'est le
+    // geste qu'on cherche, il ne doit pas demander d'ouvrir le volet.
     // FONCER : dépenser son geste pour un deuxième élan. Sans dé.
     if (sel.deplace && !sel.agi) {
       gestes.push(`<button type="button" class="t-geste" data-geste="foncer" title="Il repatine : jusqu'à ${pasDe(m, sel)} cases de plus, mais il ne fera rien d'autre.">⚡ Foncer <i>+${pasDe(m, sel)} cases</i></button>`);
@@ -625,15 +631,19 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       echec: 'Touche l\'adversaire à mettre en échec.',
       vol: 'Touche le porteur pour lui soutirer la rondelle.',
     };
-    const aide = cible ? `Choisis l'épaule ou le bâton sur ${esc(nomCourt(cible.p))}.`
+    const aide = cible ? `Choisis l'épaule ou le bâton sur ${nomCourt(cible.p)}.`
       : mode ? AIDE_MODE[mode]
       : horsPortee && prof <= 0 ? 'Derrière le filet on ne tire pas : une passe vers l\'enclave vaut +1 d\'ici — le gardien ne la voit pas venir.'
       : horsPortee ? `Trop loin pour tirer : il faut entrer dans la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Il en est à ${prof}.`
-      : aLaRondelle ? 'Choisis un geste, ou touche directement une case allumée, un coéquipier, un adversaire.'
+      : aLaRondelle ? 'Choisis un geste, ou touche directement une case allumée ou un adversaire. Pour passer, choisis « Passer » puis le coéquipier.'
       : 'Choisis un geste, ou touche directement une case allumée ou un adversaire adjacent.';
+    // LES ACTIONS VONT DANS LA BARRE DU BAS (`dock`), pas dans le volet :
+    // au premier toucher d'une pièce, on peut agir sans rien ouvrir.
+    actions = { modes, gestes, aide };
 
     return `
       <div class="t-carte">
+        <div class="t-volet-tete"><span>La pièce</span><button type="button" class="t-volet-fermer" aria-label="Fermer le volet">✕</button></div>
         <div class="t-fiche">
           <span class="t-fiche-role">${esc(sel.role)}</span>
           <span class="t-fiche-nom">${esc((sel.p && sel.p.n) || 'Rappel')}</span>
@@ -658,9 +668,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
           ${h ? `<span class="t-tag ${sel.habDispo ? 'on' : 'usee'}" title="${esc(h.desc)}">${h.icon} ${esc(h.nom)}${sel.habDispo ? ' +2' : ' · utilisée'}</span>` : ''}
           ${so <= 0 ? '<span class="t-tag alerte" title="Il n\'a plus de souffle : change de trio au début de ta prochaine présence.">😮‍💨 Essoufflé</span>' : ''}
         </div>
-        ${modes.length ? `<div class="t-modes">${modes.join('')}</div>` : ''}
-        <div class="t-gestes">${gestes.join('')}</div>
-        <p class="t-aide">${esc(aide)}</p>
       </div>`;
   }
 
@@ -847,31 +854,65 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // La feuille garde le TABLEAU INDICATEUR : c'est le pointage final qu'on
     // vient de lire, et le reprendre dans la feuille le dirait deux fois.
     $('.t-plateau').hidden = regles || feuille;
+    // Les règles et la feuille prennent tout le bas : le volet ne glisse pas, il est là.
+    $('.t-dock').hidden = regles || feuille;
+    $('.t-bas').classList.toggle('plein', regles || feuille);
     if (regles) { $('.t-bas').innerHTML = reglesHtml(); return; }
     veillerButs();
     $('.t-tete').innerHTML = tete() + banniere();
     if (feuille) { $('.t-bas').innerHTML = feuilleHtml(); return; }
     if (!grilleFaite) batirGlace();
     majGlace();
-    $('.t-bas').innerHTML = unites() + de() + carte() + boutons() + fil();
+    // LE VOLET : la fiche de la pièce, le banc des trios et le fil, au
+    // deuxième clic. JP : *flyout carte du joueur avec les actions, stats,
+    // etc., pour avoir moins d'infos visible ; ça peut être boutons dans le
+    // bas, stats au deuxième clic, trouver ce qui est le mieux*. Les ACTIONS
+    // sont dans la barre du bas dès le premier toucher (on agit sans rien
+    // ouvrir), les STATS dans le volet. Sur téléphone il glisse par-dessus
+    // le bas de la glace et se ferme dès qu'on touche la glace ; sur grand
+    // écran il est la colonne de droite, toujours ouverte (feuille de style).
+    const fiche = carte();                    // calcule aussi `actions`, que `dock` lit
+    $('.t-dock').innerHTML = dock();
+    $('.t-bas').classList.toggle('ouvert', volet);
+    $('.t-bas').innerHTML = unites() + fiche + fil();
+  }
+
+  /*
+   * LA BARRE D'ANCRAGE, sous la glace : ce qu'il faut avoir sous le pouce
+   * sans ouvrir le volet. La décision d'un jet (relance ou accepter), la
+   * pièce choisie et son TIR (le geste qu'on cherche), le bouton du volet,
+   * et la fin de l'activation ou de la présence. Rien d'autre : le reste est
+   * dans le volet.
+   */
+  function dock() {
+    if (m.fini) return '<button type="button" class="t-resultat t-evident">Voir le résultat</button>';
+    if (attente) return de();
+    if (!aMoi()) return `<span class="t-dock-nom t-dock-attente">${esc(B.nom)} joue… <i>touche la glace pour accélérer</i></span>`;
+    const reste = eqDe(m, 'A').pieces.filter(peutJouer).length;
+    const dispo = eqDe(m, 'A').pieces.filter(aDesOptions).length;
+    // La ligne du haut : qui est choisi (ou, en mode, ce qu'il reste à
+    // toucher), le bouton du volet, la fin. Le mode ou le duel en cours
+    // remplace le nom par la consigne : c'est ce qu'il faut lire à ce moment.
+    const nom = !sel ? `<span class="t-dock-nom t-dock-vide">${dispo ? `Touche une de tes pièces <i>${dispo} peu${dispo > 1 ? 'vent' : 't'} jouer</i>` : 'Plus rien à jouer'}</span>`
+      : (mode || cible) ? `<span class="t-dock-nom t-dock-aide">${esc(actions.aide)}</span>`
+      : `<span class="t-dock-nom"><b class="t-fiche-role">${esc(sel.role)}</b> ${esc(nomCourt(sel.p))}</span>`;
+    let tir = '';
+    if (sel && porteur(m) === sel && !sel.agi && peutTirer(m, sel)) {
+      tir = bouton('tir', 'Tirer', modTir(m, sel) + bonus('DECOCHE'), seuilTir(m, sel), 't-tir');
+    }
+    const fin = m.actif
+      ? `<button type="button" class="t-fin-piece t-evident" title="Fin de l'activation de ${esc(nomCourt(m.actif.p))}">Fin</button>`
+      : `<button type="button" class="t-passer" title="Renoncer à toutes tes pièces qui n'ont pas encore joué ce tour-ci : l'adversaire enchaîne les siennes.">Finir${reste > 1 ? ` (${reste})` : ''}</button>`;
+    const ouvre = `<button type="button" class="t-volet-btn" aria-expanded="${volet ? 'true' : 'false'}" title="${sel ? 'La fiche de la pièce, le banc et le fil' : 'Le banc des trios et le fil'}">${sel ? 'Fiche' : 'Banc'} <i>${volet ? '▾' : '▴'}</i></button>`;
+    // La rangée des actions : le tir d'abord, puis les modes (un geste à
+    // cible), puis les gestes sans cible. Elle se balaie si elle déborde.
+    const rangee = sel ? `<div class="t-dock-actions">${tir}${actions.modes.join('')}${actions.gestes.join('')}</div>` : '';
+    return `<div class="t-dock-ligne">${nom}${ouvre}${fin}</div>${rangee}`;
   }
 
   /* La bannière d'un but : elle passe une seconde sur le tableau indicateur. */
   const banniere = () => (eclat
     ? `<div class="t-eclat t-eclat-${eclat.eq}">BUT ! <span>${esc(eclat.texte)}</span></div>` : '');
-
-  function boutons() {
-    if (m.fini) return '<div class="t-actions"><button type="button" class="t-resultat t-evident">Voir le résultat</button></div>';
-    if (!aMoi() || attente) return '<div class="t-actions"></div>';
-    const reste = eqDe(m, 'A').pieces.filter(peutJouer).length;
-    // La pièce activée finit son activation ici ; « Finir ma présence »
-    // renonce à toutes celles qui n'ont pas encore joué ce tour-ci.
-    return `<div class="t-actions">
-      ${m.actif ? `<button type="button" class="t-fin-piece t-evident">Fin de l'activation · ${esc(nomCourt(m.actif.p))}</button>` : ''}
-      ${sel && !m.actif && reste > 1 ? '<button type="button" class="t-deselect">Choisir une autre pièce</button>' : ''}
-      <button type="button" class="t-passer ${reste && !m.actif ? '' : ''}" title="Renoncer à toutes tes pièces qui n'ont pas encore joué ce tour-ci : l'adversaire enchaîne les siennes.">Finir ma présence${reste > 1 ? ` (${reste})` : ''}</button>
-    </div>`;
-  }
 
   /* ---------- jouer un geste ---------- */
 
@@ -987,7 +1028,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   function tourAdverse() {
     iaEnCours = true;
-    sel = null; cible = null;
+    sel = null; cible = null; volet = false;
     const cote = m.tour;
     let garde = 0;
 
@@ -1079,6 +1120,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
      * exécution.
      */
     if (t.closest('.t-resultat')) { feuille = true; rendre(); return; }
+    if (t.closest('.t-volet-btn')) { volet = !volet; rendre(); return; }
+    if (t.closest('.t-volet-fermer')) { volet = false; rendre(); return; }
     if (t.closest('.t-feuille-suite') || t.closest('.table-close')) { fermer(); return; }
     // Pendant la présence adverse, un clic saute l'attente du geste suivant.
     if (iaEnCours) { if (avancerIA) avancerIA(); return; }
@@ -1101,6 +1144,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     }
     const caseGlace = t.closest('.t-case');
     if (caseGlace && aMoi() && !attente) {
+      volet = false;                          // toucher la glace referme le volet
       const r = +caseGlace.dataset.r, c = +caseGlace.dataset.c;
       const o = offre(r, c);
       if (o) { agir(o); return; }
@@ -1112,6 +1156,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (bMode && sel && aMoi() && !attente) {
       mode = mode === bMode.dataset.mode ? null : bMode.dataset.mode;
       cible = null;
+      volet = false;                          // le mode choisi, on retourne à la glace
       rendre();
       return;
     }
@@ -1119,6 +1164,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (geste && sel && aMoi() && !attente) {
       const piece = sel, quoi = geste.dataset.geste, vise = cible;
       mode = null;
+      volet = false;
       activer(m, piece);
       if (quoi === 'tir') lancer(tirer(m, piece), 'A', j => appliquerTir(m, piece, j), placesDe(piece, null));
       else if (quoi === 'echec' && vise) { cible = null; lancer(mettreEnEchec(m, piece, vise), 'A', j => appliquerEchec(m, piece, vise, j), placesDe(piece, vise)); }
@@ -1128,7 +1174,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       else if (quoi === 'foncer') { sansDe(piece, () => foncer(m, piece), 'foncer'); cible = null; rendre(); }
       return;
     }
-    if (t.closest('.t-deselect')) { sel = null; cible = null; mode = null; rendre(); return; }
     if (t.closest('.t-fin-piece')) { sel = null; cible = null; mode = null; deGlace = null; finirActivation(m); apres(); return; }
     if (t.closest('.t-passer')) { sel = null; cible = null; mode = null; deGlace = null; flash = null; renoncer(m); apres(); return; }
     const uni = t.closest('.t-seg button');
@@ -1136,6 +1181,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const quoi = uni.parentElement.dataset.u, v = +uni.dataset.v;
       changerUnite(m, 'A', quoi === 'tri' ? v : A.tri, quoi === 'pai' ? v : A.pai);
       jouerSon('tap');
+      volet = false;
       sel = null; cible = null; choisirSeul(); rendre();
       return;
     }
