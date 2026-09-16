@@ -18,7 +18,7 @@ name: Vérifier
 #   check_traits    chaque nom de réputation existe dans les shards (un nom mal
 #                   orthographié est un trait mort), la rareté, et le fait
 #                   qu'un trait suive le joueur plutôt que sa case
-#   check_regles    les douze règles du plateau, vérifiées entre chaque geste :
+#   check_regles    les treize règles du plateau, vérifiées entre chaque geste :
 #                   une pièce par case, la rondelle toujours jouable, le
 #                   porteur jamais au sol, un match qui finit sur un gagnant —
 #                   et les règles écrites comparées aux gestes réellement joués
@@ -62,8 +62,11 @@ jobs:
       - name: Les égalités de la feuille de match
         run: LIGUES=1 node scripts/check_feuilles.mjs
 
+      # À 240 matchs, pas 60 : la cible de 5 à 6 buts a été mesurée sur 240,
+      # et un échantillon de 60 a un écart type de 0,2 but — il lisait 4,93
+      # pendant que les 240 lisaient 5,2. Les 240 matchs coûtent douze secondes.
       - name: Les égalités de la feuille sur table
-        run: MATCHS=60 node scripts/check_table.mjs
+        run: node scripts/check_table.mjs
 
       - name: Les règles du plateau tiennent
         run: MATCHS=80 node scripts/check_regles.mjs

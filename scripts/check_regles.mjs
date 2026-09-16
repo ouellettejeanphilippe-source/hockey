@@ -26,7 +26,7 @@ import {
   COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, PERIODES, PRESENCES_PAR_PERIODE, PRESENCES_PROLONGATION,
   equipeDeTable, nouveauMatch, iaPresence, resultatDe, surLaGlace, porteur, libre, eqDe,
   statsDeTable, uniteDe, changerUnite, souffleDe, peutJouer, deplacementsDe, ciblesEchecDe,
-  reglesDuPlateau, peutTirer, distanceAuFilet, PORTEE_TIR,
+  reglesDuPlateau, peutTirer, distanceAuFilet, PORTEE_TIR, caseJouable, estFilet,
 } from '../js/table.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -73,8 +73,11 @@ const REGLES = [
 
   ['tout le monde est sur la glace, jamais dans les filets', m => {
     for (const x of surLaGlace(m)) {
-      if (x.r < RANG_MIN || x.r > RANG_MAX) return `${nom(x)} est en ${x.r},${x.c} (hors des rangées ${RANG_MIN}-${RANG_MAX})`;
-      if (x.c < 0 || x.c >= COLS) return `${nom(x)} est en dehors de la glace (colonne ${x.c})`;
+      if (estFilet(x.r, x.c)) return `${nom(x)} est dans le filet (${x.r},${x.c})`;
+      if (!caseJouable(x.r, x.c)) return `${nom(x)} est en dehors de la glace (${x.r},${x.c}, rangées ${RANG_MIN}-${RANG_MAX})`;
+    }
+    for (const g of [m.A.piece_g, m.B.piece_g]) {
+      if (!estFilet(g.r, g.c)) return `le gardien ${nom(g)} n'est pas dans son filet (${g.r},${g.c})`;
     }
     return null;
   }],
@@ -102,7 +105,7 @@ const REGLES = [
     if (!p && !l) return 'la rondelle n\'est nulle part';
     if (p && l) return 'la rondelle est à deux endroits';
     if (l) {
-      if (l.r < RANG_MIN || l.r > RANG_MAX || l.c < 0 || l.c >= COLS) return `rondelle libre hors de la glace (${l.r},${l.c})`;
+      if (!caseJouable(l.r, l.c)) return `rondelle libre hors de la glace ou dans un filet (${l.r},${l.c})`;
     }
     if (p && !p.gardien && !surLaGlace(m).includes(p)) return `${nom(p)} porte la rondelle mais n'est pas sur la glace`;
     return null;
@@ -153,6 +156,7 @@ const REGLES = [
     for (const x of surLaGlace(m)) {
       if (x.etourdi > 3) return `${nom(x)} est au sol pour ${x.etourdi} présences`;
       if (x.ecran > 2) return `${nom(x)} est en écran pour ${x.ecran} présences`;
+      if (x.tendu > 2) return `${nom(x)} tend le bâton pour ${x.tendu} présences`;
     }
     return null;
   }],
@@ -236,7 +240,7 @@ console.log(`  gestes joués                 ${Object.entries(parType).sort((a, 
 /* CHAQUE GESTE DOIT ÊTRE JOUÉ AU MOINS UNE FOIS : un geste que personne
    n'utilise jamais est une règle morte, et une règle morte est un mensonge
    dans la page des règles. */
-for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'foncer']) {
+for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'foncer', 'degager', 'tendre']) {
   if (!parType[g]) { console.log(`  ✗ le geste « ${g} » n'a jamais été joué en ${MATCHS} matchs`); echecs++; }
 }
 
@@ -252,7 +256,7 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'foncer'])
   const sections = reglesDuPlateau();
   const tableau = sections.find(x => x.rangees);
   const ecrits = new Set(tableau.rangees.map(r => r[0].toLowerCase()));
-  const MOTS = { deplacer: 'patiner', esquive: 'esquiver', passe: 'passer', tir: 'tirer', echec: 'épaule', vol: 'bâton', ecran: 'se placer devant', foncer: 'foncer' };
+  const MOTS = { deplacer: 'patiner', esquive: 'esquiver', passe: 'passer', tir: 'tirer', echec: 'épaule', vol: 'bâton', ecran: 'se placer devant', foncer: 'foncer', degager: 'dégager', tendre: 'tendre le bâton' };
   console.log('\nLES RÈGLES ÉCRITES');
   console.log(`  ${sections.length} sections, ${tableau.rangees.length} gestes décrits`);
   let manque = 0;

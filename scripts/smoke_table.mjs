@@ -145,6 +145,12 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 5000 });
 const cases = await page.$$eval('#tableModal .t-case', l => l.length);
 console.log(`   la glace : ${cases} cases (attendu ${COLS_ATTENDU * RANGS_ATTENDU})`);
 if (cases !== COLS_ATTENDU * RANGS_ATTENDU) errors.push(`la glace compte ${cases} cases`);
+/* DERRIÈRE LE FILET : deux filets d'une case, et du terrain derrière chacun. */
+const filets = await page.$$eval('#tableModal .t-case.t-but', l => l.length);
+const derriere = await page.$$eval('#tableModal .t-case.t-derriere', l => l.length);
+console.log(`   ${filets} filets, ${derriere} cases derrière ou sur la ligne des buts`);
+if (filets !== 2) errors.push(`${filets} cases de filet au lieu de deux`);
+if (derriere < 2 * (COLS_ATTENDU - 1)) errors.push(`seulement ${derriere} cases derrière les filets`);
 
 /*
  * Le joueur automatique : il fait ce qu'un pouce ferait, et il doit toucher à
@@ -155,7 +161,10 @@ if (cases !== COLS_ATTENDU * RANGS_ATTENDU) errors.push(`la glace compte ${cases
  * c'est ce « suivante » qui empêche de retoucher éternellement la même pièce.
  */
 let gestes = 0, tours = 0, relances = 0, changements = 0, pieces = 0, occasionsDuel = 0;
+let sauts = 0, modesJoues = 0, degagements = 0;
+let captureModes = false;
 const vus = new Set();
+const modesVus = new Set();
 while (tours++ < 1200) {
   if (!(await page.$('#tableModal .t-glace'))) break;
   const etat = await page.evaluate(() => ({
@@ -175,16 +184,61 @@ while (tours++ < 1200) {
     })(),
     tir: !!document.querySelector('#tableModal [data-geste="tir"]'),
     autres: [...document.querySelectorAll('#tableModal [data-geste]')].map(b => b.dataset.geste),
+    modes: [...document.querySelectorAll('#tableModal [data-mode]')].map(b => b.dataset.mode),
+    modeOn: document.querySelector('#tableModal [data-mode].on')?.dataset.mode || null,
+    degager: document.querySelectorAll('#tableModal .t-case.t-offre-degager').length,
     fin: !!document.querySelector('#tableModal .t-resultat'),
     unites: !!document.querySelector('#tableModal .t-seg button:not(.on)'),
   }));
   if (etat.fin) break;
   if (etat.suite) {
     if (etat.relance && relances < 3) { await page.click('#tableModal .t-relancer'); relances++; await page.waitForTimeout(50); }
+    /*
+     * LE VERDICT SE SAUTE EN TOUCHANT LA GLACE. JP : *skip automatique de
+     * message quand on clique après action réussie ou non*. Une fois sur
+     * deux on touche une case au lieu de « Continuer » : le jet doit être
+     * accepté et la boîte de décision disparue.
+     */
+    if (sauts < 6 && dé() < 0.5) {
+      const cel = await page.$('#tableModal .t-case');
+      await cel.click(); await page.waitForTimeout(60);
+      const encore = await page.$('#tableModal .t-suite');
+      if (encore) errors.push('toucher la glace pendant un jet en attente ne l\'a pas accepté');
+      sauts++;
+      continue;
+    }
     await page.click('#tableModal .t-suite'); await page.waitForTimeout(50); continue;
   }
   if (!etat.mien) { await page.waitForTimeout(180); continue; }
   for (const g of etat.autres) vus.add(g);
+  for (const g of etat.modes) modesVus.add(g);
+  // Une capture en plein match, une pièce choisie et ses modes à l'écran :
+  // c'est ce que JP regarde, pas le pointage final.
+  if (etat.sel && etat.modes.length >= 2 && !captureModes) {
+    await page.screenshot({ path: 'scripts/smoke-table-modes.png' });
+    captureModes = true;
+  }
+  /*
+   * LES MODES : on choisit le geste, puis la case. Le dégagement n'existe
+   * QUE par son mode (ses cibles n'allument pas la glace autrement), donc
+   * c'est lui qu'on cherche exprès ; les autres modes se prennent au hasard.
+   */
+  if (etat.sel && !etat.modeOn && etat.modes.includes('degager') && degagements < 2) {
+    await page.click('#tableModal [data-mode="degager"]'); await page.waitForTimeout(50);
+    const n = await page.$$('#tableModal .t-case.t-offre-degager');
+    if (!n.length) errors.push('le mode « dégager » n\'allume aucune case');
+    else { await n[Math.floor(dé() * n.length)].click(); degagements++; gestes++; }
+    await page.waitForTimeout(50); continue;
+  }
+  if (etat.sel && !etat.modeOn && etat.modes.length && modesJoues < 4 && dé() < 0.3) {
+    const quoi = etat.modes[Math.floor(dé() * etat.modes.length)];
+    await page.click(`#tableModal [data-mode="${quoi}"]`); await page.waitForTimeout(50);
+    const n = await page.$$('#tableModal .t-case.t-offre');
+    if (n.length) { await n[Math.floor(dé() * n.length)].click(); gestes++; }
+    else await page.click(`#tableModal [data-mode="${quoi}"]`);   // rien à faire : on ressort du mode
+    modesJoues++;
+    await page.waitForTimeout(50); continue;
+  }
   // Changer de trio deux fois dans le match : c'est la mécanique de fatigue.
   if (etat.unites && changements < 2) { await page.click('#tableModal .t-seg button:not(.on)'); changements++; await page.waitForTimeout(60); continue; }
   /*
@@ -243,6 +297,8 @@ while (tours++ < 1200) {
 const pointage = await page.textContent('#tableModal .tb-score').catch(() => '');
 console.log(`   ${gestes} gestes joués, ${relances} relance(s) d'équipe, ${changements} changement(s) de trio, ${pieces} changements de pièce`);
 console.log(`   gestes offerts par la carte : ${[...vus].sort().join(', ') || 'aucun'}`);
+console.log(`   modes offerts : ${[...modesVus].sort().join(', ') || 'aucun'} · ${modesJoues} joués par mode, ${degagements} dégagement(s), ${sauts} verdict(s) sautés en touchant la glace`);
+if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes Patiner et Passer n'ont pas tous deux été offerts : ${[...modesVus].join(', ')}`);
 /*
  * CE QU'ON AFFIRME, ET CE QU'ON SE CONTENTE DE RAPPORTER.
  *
@@ -263,7 +319,7 @@ console.log(`   gestes offerts par la carte : ${[...vus].sort().join(', ') || 'a
  * l'Action tant que les deux couches de hasard subsistaient — et rien du
  * plateau n'avait bougé.
  */
-const TOUS = ['tir', 'echec', 'vol', 'ecran', 'foncer'];
+const TOUS = ['tir', 'echec', 'vol', 'ecran', 'tendre', 'foncer'];
 if (vus.size < 3) errors.push(`seulement ${vus.size} geste(s) offert(s) par la carte sur ${TOUS.length} : ${[...vus].join(', ') || 'aucun'}`);
 if (occasionsDuel) {
   for (const g of ['echec', 'vol']) {
