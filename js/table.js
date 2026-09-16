@@ -1095,12 +1095,22 @@ export function relancer(m, jet, cote) {
  * donc jusqu'à trouver, et une glace de 63 cases avec dix pièces en trouve
  * toujours une.
  */
-function rebondir(m, r, c) {
+/*
+ * UN RETOUR DE TIR RESTE DEVANT LE FILET. Depuis que la ligne des buts et la
+ * rangée derrière se jouent, un tir repoussé de l'enclave rebondissait un
+ * coup sur trois sur la ligne des buts, d'où l'on ne tire pas — et la
+ * deuxième chance qui fait le mode s'évaporait : 6,9 tirs par match au lieu
+ * de 7,4. `devant` (le filet attaqué) garde le rebond d'un tir en profondeur
+ * positive ; les autres rebonds (une passe interceptée, un dégagement) vont
+ * où ils veulent, derrière compris.
+ */
+function rebondir(m, r, c, devant = null) {
   for (let rayon = 1; rayon <= 8; rayon++) {
     const cases = [];
     for (let dr = -rayon; dr <= rayon; dr++) for (let dc = -rayon; dc <= rayon; dc++) {
       if (Math.max(Math.abs(dr), Math.abs(dc)) !== rayon) continue;
       const nr = r + dr, nc = c + dc;
+      if (devant !== null && profondeur(nr, devant) < 1) continue;
       if (dansLaGlace(nr, nc) && !occupee(m, nr, nc)) cases.push({ r: nr, c: nc });
     }
     if (cases.length) {
@@ -1306,7 +1316,7 @@ export function appliquerTir(m, piece, jet) {
   const enclave = natureCase(piece.r, piece.c, eq.but) === 'enclave';
   const deJustesse = jet.de === jet.seuil - 1;
   if (enclave || deJustesse) {
-    rebondir(m, piece.r, piece.c);
+    rebondir(m, piece.r, piece.c, eq.but);
     dire(m, `${nomDe(advG)} repousse le tir de ${nomDe(piece)} — retour devant le filet.`, 'retour');
     return false;
   }
@@ -1586,9 +1596,11 @@ function finirMatch(m) {
 /* Ce que vaut une case pour qui attaque `but` : proche du filet et au centre. */
 function valeurCase(r, c, but) {
   const s = profondeur(r, but);
-  // Derrière le filet vaut à peu près la deuxième rangée : on n'y tire pas,
-  // mais la passe qui en sort vaut plus.
-  const d = s >= 1 ? s : 1.5 - s;
+  // DERRIÈRE LE FILET ET LA LIGNE DES BUTS VALENT LA POINTE, pas l'enclave.
+  // À « la deuxième rangée » (1,5 − s), l'IA s'installait le long de la
+  // ligne des buts, d'où l'on ne tire pas : 6,9 tirs par match au lieu de
+  // 7,4, et 5,1 buts au lieu de 5,4. On n'y va que pour la passe qui en sort.
+  const d = s >= 1 ? s : 3 - s * 0.5;
   return (LONGUEUR + 1 - d) * 1.0 + (BUT_COL - Math.abs(c - BUT_COL)) * 0.6;
 }
 

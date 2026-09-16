@@ -245,8 +245,17 @@ const decile = i => {
 };
 
 const parite = {};
+/*
+ * DEUX ÉQUIPES DU MÊME DÉCILE SE MESURENT SUR DEUX DÉCILES. À dix clubs, un
+ * même décile ne donne que 180 matchs : l'écart type d'une proportion y est
+ * de 3,7 points, donc la borne 44-56 crie une fois sur dix pour du bruit —
+ * et elle a crié à 57 sur la nouvelle glace pendant qu'un second tirage à
+ * quatorze clubs lisait 49. Le 3e et le 7e déciles ensemble font 360 matchs,
+ * 2,6 points d'écart type, et la même borne vaut ±2,3 écarts types.
+ */
+const memes = { v: 0, n: 0 };
 console.log(`\nLe fort contre le faible (${PAR_DECILE} clubs par décile, tout le monde contre tout le monde, aller-retour) :`);
-for (const [ia, ib, mot] of [[0, 9, 'le 1er décile contre le 10e'], [0, 4, 'le 1er contre le 5e'], [4, 9, 'le 5e contre le 10e'], [2, 2, 'deux équipes du 3e décile']]) {
+for (const [ia, ib, mot] of [[0, 9, 'le 1er décile contre le 10e'], [0, 4, 'le 1er contre le 5e'], [4, 9, 'le 5e contre le 10e'], [2, 2, 'deux équipes du 3e décile'], [6, 6, 'deux équipes du 7e décile']]) {
   const A = decile(ia), B = decile(ib);
   let v = 0, bu = 0, n = 0;
   for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) {
@@ -264,7 +273,10 @@ for (const [ia, ib, mot] of [[0, 9, 'le 1er décile contre le 10e'], [0, 4, 'le 
   }
   console.log(`  ${mot.padEnd(32)} ${(100 * v / n).toFixed(0)} victoires sur 100 (${n} matchs), différentiel ${(bu / n).toFixed(2)} par match`);
   parite[`${ia}${ib}`] = 100 * v / n;
+  if (ia === ib) { memes.v += v; memes.n += n; }
 }
+parite.meme = 100 * memes.v / memes.n;
+console.log(`  ${'deux équipes du même décile'.padEnd(32)} ${parite.meme.toFixed(0)} victoires sur 100 (${memes.n} matchs, 3e et 7e déciles ensemble)`);
 
 /*
  * LA PARITÉ SE JUGE, ET EN DEUX TEMPS. Les bornes sont larges exprès : ce
@@ -278,12 +290,12 @@ for (const [ia, ib, mot] of [[0, 9, 'le 1er décile contre le 10e'], [0, 4, 'le 
 const jugeable = PAR_DECILE >= 6;
 if (jugeable) {
   borne('le 1er décile bat le 10e', parite['09'], 60, 80, ' sur 100');
-  borne('deux clubs du même décile', parite['22'], 44, 56, ' sur 100');
+  borne('deux clubs du même décile', parite.meme, 44, 56, ' sur 100');
 } else {
-  informer('la parité', `${parite['09'].toFixed(0)} / ${parite['22'].toFixed(0)} — ${PAR_DECILE} clubs par décile, trop peu pour juger`);
+  informer('la parité', `${parite['09'].toFixed(0)} / ${parite.meme.toFixed(0)} — ${PAR_DECILE} clubs par décile, trop peu pour juger`);
 }
 if (jugeable) exiger('la parité est ORDONNÉE',
-  parite['09'] >= parite['04'] && parite['04'] >= parite['22'] && parite['49'] >= parite['22'],
-  `1er/10e ${parite['09'].toFixed(0)} · 1er/5e ${parite['04'].toFixed(0)} · 5e/10e ${parite['49'].toFixed(0)} · même décile ${parite['22'].toFixed(0)}`);
+  parite['09'] >= parite['04'] && parite['04'] >= parite.meme && parite['49'] >= parite.meme,
+  `1er/10e ${parite['09'].toFixed(0)} · 1er/5e ${parite['04'].toFixed(0)} · 5e/10e ${parite['49'].toFixed(0)} · même décile ${parite.meme.toFixed(0)}`);
 
 verdict('Le plateau tient-il ses cibles ?');
