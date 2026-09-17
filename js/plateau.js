@@ -32,7 +32,8 @@ import {
   seMettreDevant, tendreLeBaton, souffleDe, essouffle, uniteDe, statsDeTable, AXE_MOT,
   ciblesDejouerDe, modDejouer, dejouer, appliquerDejouer, ciblesDeviationDe, modDeviation, devier, appliquerDeviation,
   receptionPossible, tirerSurReception, SEUIL_PLACE,
-  relancer, activer, finirActivation, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
+  relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
+  peutBouger, peutAgir, mainEpuisee,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
 import { TRAITS } from './traits.js';
@@ -138,7 +139,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         <div class="tb-eq tb-b"><b>${B.buts}</b><span class="tb-nom">${esc(B.nom)}</span><span class="tb-logo">${logo(B.tag, 22)}</span></div>
       </div>
       <div class="tb-etat">
-        <span class="tb-tour ${aMoi() ? 'mien' : ''}">${m.fini ? 'Match terminé' : aMoi() ? (m.actif ? `${esc(nomCourt(m.actif.p))} est activé` : 'À toi d\'activer une pièce') : `${esc(B.nom)} active une pièce`}</span>
+        <span class="tb-tour ${aMoi() ? 'mien' : ''}">${m.fini ? 'Match terminé' : aMoi() ? 'À toi : un déplacement, une action' : `${esc(B.nom)} joue sa main`}</span>
         <span class="tb-relance ${A.relance ? 'on' : ''}" title="Une relance d'équipe par période : on la dépense après avoir vu le dé.">🎲 Relance ${A.relance ? 'disponible' : 'dépensée'}</span>
       </div>`;
   }
@@ -163,7 +164,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       // passer par bouton ou confirmation, sinon ça passe random* — toucher
       // un coéquipier pour le CHOISIR passait la rondelle. Sans le mode
       // « Passer », toucher un coéquipier le choisit ; en mode, ça passe.
-      if (mode === 'passe' && piece.eq === 'A' && piece !== sel && !piece.etourdi && porteur(m) === sel && !sel.agi) {
+      if (mode === 'passe' && piece.eq === 'A' && piece !== sel && !piece.etourdi && porteur(m) === sel && peutAgir(m, sel)) {
         return { type: 'passe', cible: piece, mod: modPasse(m, sel, piece) + bonus('VOILEE'), seuil: SEUIL };
       }
       // LE CONTACT VISE N'IMPORTE QUEL ADVERSAIRE ADJACENT, pas seulement le
@@ -171,7 +172,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       // le porteur ouvre un DUEL (l'épaule ou le bâton, la carte fait
       // choisir) ; en mode « épaule » ou « bâton », le geste est déjà choisi
       // et la touche le joue.
-      if (piece.eq === 'B' && !piece.gardien && !piece.etourdi && dist(sel, piece) === 1 && !sel.agi && porteur(m) !== sel) {
+      if (piece.eq === 'B' && !piece.gardien && !piece.etourdi && dist(sel, piece) === 1 && peutAgir(m, sel) && porteur(m) !== sel) {
         const porte = porteur(m) === piece;
         if (mode === 'vol') return porte ? { type: 'vol', cible: piece, mod: modVol(m, sel, piece) + bonus('ACTIF'), seuil: SEUIL } : null;
         if (!veut('echec')) return null;
@@ -186,7 +187,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const v = ciblesDegagementDe(m, sel).find(x => x.r === r && x.c === c);
       return v ? { type: 'degager', vers: v, mod: modDegagement(m, sel, v), seuil: SEUIL } : null;
     }
-    if (!veut('deplacer') || sel.deplace) return null;
+    if (!veut('deplacer') || !peutBouger(m, sel)) return null;
     const v = deplacementsDe(m, sel).find(x => x.r === r && x.c === c);
     if (!v) return null;
     const tenue = porteur(m) === sel && batons(m, 'A', sel.r, sel.c) > 0;
@@ -211,16 +212,16 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // pièce qui a une option sans être activée ni « jouable ».
     if (receptionPossible(m) === piece) return true;
     if (!peutJouer(piece) || m.tour !== piece.eq) return false;
-    // UNE PIÈCE ACTIVÉE JOUE SEULE (S32) : les autres attendent qu'elle finisse.
-    if (m.actif && m.actif !== piece) return false;
+    // UN DÉPLACEMENT ET UNE ACTION PAR MAIN (S36) : ce que le budget du tour
+    // a déjà dépensé n'est plus une option pour personne.
     const p = porteur(m), l = libre(m);
-    if (!piece.agi) {
+    if (peutAgir(m, piece)) {
       if (p === piece) return true;                                     // tirer, passer
       if (ciblesEchecDe(m, piece).length) return true;                  // frapper, voler
       if (!piece.ecran && p !== piece) return true;                     // se placer devant
       if (!piece.tendu && p !== piece) return true;                     // tendre le bâton
     }
-    if (!piece.deplace && deplacementsDe(m, piece).length) return true;
+    if (peutBouger(m, piece) && deplacementsDe(m, piece).length) return true;
     return false;
   }
 
@@ -595,14 +596,14 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const modes = [];
     const meilleure = (cibles, modDe) => (cibles.length ? Math.max(...cibles.map(modDe)) : null);
     const tenue = aLaRondelle && batons(m, 'A', sel.r, sel.c) > 0;
-    if (!sel.deplace) {
+    if (peutBouger(m, sel)) {
       const pas = deplacementsDe(m, sel);
       if (pas.length) {
         const mod = tenue ? meilleure(pas, v => modEsquive(m, sel, v) + bonus('PATIN')) : null;
         modes.push(modeBouton('deplacer', tenue ? 'Esquiver' : 'Patiner', mod, `${pas.length} case${pas.length > 1 ? 's' : ''}`));
       }
     }
-    if (aLaRondelle && !sel.agi) {
+    if (aLaRondelle && peutAgir(m, sel)) {
       const rec = receveursDe(m, sel);
       if (rec.length) modes.push(modeBouton('passe', 'Passer', meilleure(rec, x => modPasse(m, sel, x) + bonus('VOILEE'))));
       const deg = ciblesDegagementDe(m, sel);
@@ -613,7 +614,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const dev = ciblesDeviationDe(m, sel);
       if (dev.length) modes.push(modeBouton('devier', 'Dévier', meilleure(dev, x => modDeviation(m, sel, x)), `${SEUIL_PLACE.rangee2}+ devant le filet`, SEUIL_PLACE.rangee2));
     }
-    if (!aLaRondelle && !sel.agi) {
+    if (!aLaRondelle && peutAgir(m, sel)) {
       const adv = ciblesEchecDe(m, sel);
       if (adv.length) modes.push(modeBouton('echec', 'Épaule', meilleure(adv, x => modEchec(m, sel, x) + bonus('ACTIF') + bonus('EPAULE'))));
       const vol = ciblesVolDe(m, sel);
@@ -623,14 +624,14 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // Le TIR est dans la barre d'ancrage, sous la glace (`dock`) : c'est le
     // geste qu'on cherche, il ne doit pas demander d'ouvrir le volet.
     // SE PLACER DEVANT et TENDRE LE BÂTON : les deux postures. Sans dé.
-    if (!sel.agi && !aLaRondelle && !sel.ecran) {
+    if (peutAgir(m, sel) && !aLaRondelle && !sel.ecran) {
       gestes.push('<button type="button" class="t-geste" data-geste="ecran" title="Jusqu\'à ta prochaine présence, il gêne double les tirs pris à côté de lui.">🛡️ Bloquer le tir</button>');
     }
-    if (!sel.agi && !aLaRondelle && !sel.tendu) {
+    if (peutAgir(m, sel) && !aLaRondelle && !sel.tendu) {
       gestes.push('<button type="button" class="t-geste" data-geste="tendre" title="Jusqu\'à ta prochaine présence, il coupe les lignes de passe : double contre un receveur collé à lui, −1 par case de la passe qu\'il frôle.">✂️ Tendre le bâton</button>');
     }
     // LE DUEL : sur le porteur adverse, l'épaule ou le bâton.
-    if (cible && !sel.agi && dist(sel, cible) === 1) {
+    if (cible && peutAgir(m, sel) && dist(sel, cible) === 1) {
       gestes.push(bouton('echec', `Épaule sur ${nomCourt(cible.p)}`, modEchec(m, sel, cible) + bonus('ACTIF') + bonus('EPAULE'), SEUIL, 't-echec'));
       if (porteur(m) === cible) {
         gestes.push(bouton('vol', 'Bâton (voler)', modVol(m, sel, cible) + bonus('ACTIF'), SEUIL, 't-vol'));
@@ -729,7 +730,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * prix est le même que dans la vraie vie — tes cinq rentrent de TON bout de
    * glace, donc tu donnes ta position pour des jambes fraîches.
    */
-  const peutChanger = () => aMoi() && !attente && !m.actif && eqDe(m, 'A').pieces.every(x => !x.agi && !x.deplace);
+  const peutChanger = () => aMoi() && !attente && !m.main.bouge && !m.main.agi && eqDe(m, 'A').pieces.every(x => !x.agi && !x.deplace);
 
   function unites() {
     if (!peutChanger()) return '';
@@ -918,17 +919,22 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // réussir, le receveur tire tout de suite, qu'il ait déjà joué ou non.
     if (sel && receptionPossible(m) === sel) {
       tir = bouton('reception', 'Tir sur réception', modTir(m, sel) + bonus('DECOCHE'), seuilTir(m, sel), 't-tir');
-    } else if (sel && porteur(m) === sel && !sel.agi && peutTirer(m, sel)) {
+    } else if (sel && porteur(m) === sel && peutAgir(m, sel) && peutTirer(m, sel)) {
       tir = bouton('tir', 'Tirer', modTir(m, sel) + bonus('DECOCHE'), seuilTir(m, sel), 't-tir');
     }
-    const fin = m.actif
-      ? `<button type="button" class="t-fin-piece t-evident" title="Fin de l'activation de ${esc(nomCourt(m.actif.p))}">Fin</button>`
+    // LE BUDGET DE LA MAIN (S36) : un déplacement, une action — ce qui est
+    // dépensé s'éteint. « Fin du tour » rend la main sans dépenser le reste ;
+    // « Finir » renonce à toute la présence.
+    const entamee = m.main.bouge || m.main.agi;
+    const budget = `<span class="t-budget" title="À ta main : un déplacement et une action, pas forcément de la même pièce."><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
+    const fin = entamee
+      ? `<button type="button" class="t-fin-tour t-evident" title="Rendre la main sans dépenser ce qui reste">Fin du tour</button>`
       : `<button type="button" class="t-passer" title="Renoncer à toutes tes pièces qui n'ont pas encore joué ce tour-ci : l'adversaire enchaîne les siennes.">Finir${reste > 1 ? ` (${reste})` : ''}</button>`;
     const ouvre = `<button type="button" class="t-volet-btn" aria-expanded="${volet ? 'true' : 'false'}" title="${sel ? 'La fiche de la pièce, le banc et le fil' : 'Le banc des trios et le fil'}">${sel ? 'Fiche' : 'Banc'} <i>${volet ? '▾' : '▴'}</i></button>`;
     // La rangée des actions : le tir d'abord, puis les modes (un geste à
     // cible), puis les gestes sans cible. Elle se balaie si elle déborde.
     const rangee = sel ? `<div class="t-dock-actions">${tir}${actions.modes.join('')}${actions.gestes.join('')}</div>` : '';
-    return `<div class="t-dock-ligne">${nom}${ouvre}${fin}</div>${rangee}`;
+    return `<div class="t-dock-ligne">${nom}${budget}${ouvre}${fin}</div>${rangee}`;
   }
 
   /* La bannière d'un but : elle passe une seconde sur le tableau indicateur. */
@@ -977,7 +983,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // La pièce activée reste choisie tant qu'elle joue.
     const rec = receptionPossible(m);
     if (rec && rec.eq === 'A') { sel = rec; return; }
-    if (m.actif && m.actif.eq === 'A' && aDesOptions(m.actif)) { sel = m.actif; return; }
     if (sel && !aDesOptions(sel)) { sel = null; mode = null; }
     if (!sel) {
       const p = porteur(m);
@@ -987,9 +992,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   /* Après chaque geste : si la présence a changé de camp, l'adversaire joue. */
   function apres() {
-    // La pièce activée qui a patiné ET agi a fini : la main passe.
-    // …sauf si une passe vient d'ouvrir le une-deux : le receveur décide.
-    if (!m.fini && m.tour === 'A' && m.actif && !peutJouer(m.actif) && !receptionPossible(m)) { deGlace = null; finirActivation(m); }
+    // Le budget de la main vide — ou plus rien à en faire — la main passe…
+    // sauf si une passe vient d'ouvrir le une-deux : le receveur décide.
+    if (!m.fini && m.tour === 'A' && !receptionPossible(m) && !eqDe(m, 'A').pieces.some(aDesOptions)) { deGlace = null; finirMain(m); }
     choisirSeul();
     rendre();
     if (!m.fini && m.tour === 'B' && !iaEnCours) tourAdverse();
@@ -1208,7 +1213,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       else if (quoi === 'reception') { const j = tirerSurReception(m); if (j) lancer(j, 'A', jj => appliquerTir(m, piece, jj), placesDe(piece, null)); else rendre(); }
       return;
     }
-    if (t.closest('.t-fin-piece')) { sel = null; cible = null; mode = null; deGlace = null; finirActivation(m); apres(); return; }
+    if (t.closest('.t-fin-tour')) { sel = null; cible = null; mode = null; deGlace = null; finirMain(m); apres(); return; }
     if (t.closest('.t-passer')) { sel = null; cible = null; mode = null; deGlace = null; flash = null; renoncer(m); apres(); return; }
     const uni = t.closest('.t-seg button');
     if (uni) {
