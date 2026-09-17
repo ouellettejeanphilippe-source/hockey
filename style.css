@@ -3834,6 +3834,14 @@ a.spin-club:hover {
 .t-offre-deplacer { background: var(--green-soft); box-shadow: inset 0 0 0 1px rgba(70, 201, 139, 0.45); }
 .t-offre-passe { box-shadow: inset 0 0 0 2px var(--blue); }
 .t-offre-echec { box-shadow: inset 0 0 0 2px var(--red); }
+/* Le rayon adverse (S38) : une case couverte par un bâton est ombrée, deux plus sombre. Sur la glace blanche, l'encre à 7 et 14 %. */
+.t-case.t-rayon { background: color-mix(in srgb, var(--glace-encre, #10131a) 7%, transparent); }
+.t-case.t-rayon-2 { background: color-mix(in srgb, var(--glace-encre, #10131a) 14%, transparent); }
+.t-fatigue-air { opacity: 0.7; }
+.t-axe-so.fatigue b { color: var(--gold); }
+.t-axe-so b small { font-size: 0.6em; font-weight: 600; opacity: 0.7; }
+.tb-cachot { font-family: var(--display); font-size: 12px; font-weight: 700; color: var(--red); letter-spacing: 0.04em; }
+.t-seg button[disabled] { opacity: 0.45; cursor: not-allowed; }
 /* Le dégagement vise une case VIDE au fond : un pointillé d'or, la rondelle y sera libre. */
 .t-offre-degager { box-shadow: inset 0 0 0 2px var(--gold); background: rgba(215, 177, 113, 0.12); }
 .t-offre-degager::after { content: ''; position: absolute; inset: 0; border: 1px dashed var(--gold); opacity: 0.7; pointer-events: none; }
@@ -3929,6 +3937,7 @@ a.spin-club:hover {
 .t-budget { display: inline-flex; gap: 4px; flex: 0 0 auto; }
 .t-budget i { font-style: normal; font-family: var(--display); font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--gold); color: var(--gold); }
 .t-budget i.fait { border-color: var(--line-soft); color: var(--muted); text-decoration: line-through; }
+.t-budget b { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--sub); align-self: center; margin-right: 2px; }
 .t-dock-actions { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .t-dock-actions::-webkit-scrollbar { display: none; }
 .t-dock-actions .t-geste, .t-dock-actions .t-mode { flex: 0 0 auto; white-space: nowrap; }

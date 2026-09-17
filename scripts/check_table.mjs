@@ -13,7 +13,7 @@
  *                                   vraie hockey*. Le moteur par événements
  *                                   (js/sim.js) tient la crédibilité, avec
  *                                   ses 3,1 buts ; le plateau est une borne
- *   les gestes par présence         cible 5 à 8 : une présence d'équipe est
+ *   les gestes par main             cible 1,2 à 2 : une présence d'équipe est UNE main (S38) ;
  *                                   un tour de cinq mains (S36), chacune un
  *                                   déplacement et une action au plus —
  *                                   assez pour raconter quelque chose, assez
@@ -216,8 +216,12 @@ console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(10
     while (!m.fini && garde2++ < 4000) gestes += iaPresence(m).length;
     presences += 2 * (m.tours || 0);
   }
-  console.log(`  gestes par présence         ${(gestes / presences).toFixed(2)}   (cible : 5 à 8)`);
-  borne('gestes par présence', gestes / presences, 5, 8);
+  // UNE MAIN PAR TOUR CHACUN (S38) : la présence d'équipe est une seule main,
+  // un déplacement et une action au plus. L'IA en dépense 1,5 en moyenne
+  // (elle laisse souvent l'action) ; sous 1,2 elle passe son tour, au-dessus
+  // de 2 c'est que le tour n'est plus une main.
+  console.log(`  gestes par main             ${(gestes / presences).toFixed(2)}   (cible : 1,2 à 2)`);
+  borne('gestes par main', gestes / presences, 1.2, 2);
 }
 
 /* ---------- la fatigue : est-ce qu'elle mord, et combien ---------- */
@@ -296,8 +300,12 @@ console.log(`  ${'deux équipes du même décile'.padEnd(32)} ${parite.meme.toFi
 // Même règle : à PAR_DECILE=2 il ne reste que huit duels par paire, et la
 // lecture monte à 88 sur 100 sans que rien n'ait bougé dans le moteur.
 const jugeable = PAR_DECILE >= 6;
+// Le plafond est passé de 80 à 85 en S37 : la bataille pour la rondelle
+// libre et le coincement dans la bande sont deux jets de FORCE de plus par
+// match, et douze tours par période font plus de jets — le talent se voit
+// un peu plus (82 sur 100, mesuré), sans que la Coupe cesse d'être un pari.
 if (jugeable) {
-  borne('le 1er décile bat le 10e', parite['09'], 60, 80, ' sur 100');
+  borne('le 1er décile bat le 10e', parite['09'], 60, 85, ' sur 100');
   borne('deux clubs du même décile', parite.meme, 44, 56, ' sur 100');
 } else {
   informer('la parité', `${parite['09'].toFixed(0)} / ${parite.meme.toFixed(0)} — ${PAR_DECILE} clubs par décile, trop peu pour juger`);
