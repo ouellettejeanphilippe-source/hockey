@@ -360,7 +360,12 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   };
   const classement = () => teams.slice().sort((x, y) => {
     const a = fiche.get(x), b = fiche.get(y);
-    return b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA);
+    // Le même bris d'égalité que le classement final de js/sim.js, puis le
+    // club : deux fiches identiques se rangeaient dans l'ordre du tableau
+    // `teams`, et une saison REPRISE (derrière le banc) le rebâtit — le rang
+    // en tête passait de 6e à 7e sans qu'un match ait changé.
+    return b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA) || b.GF - a.GF
+      || String(`${x.tag}${x.season || ''}`).localeCompare(String(`${y.tag}${y.season || ''}`));
   });
   const rangDe = t => classement().indexOf(t) + 1;
   const ficheTexte = t => { const f = fiche.get(t); return `${f.W}-${f.L}-${f.OTL}`; };

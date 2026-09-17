@@ -156,7 +156,7 @@ if (derriere < 2 * (COLS_ATTENDU - 1)) errors.push(`seulement ${derriere} cases 
  * Le joueur automatique : il fait ce qu'un pouce ferait, et il doit toucher à
  * TOUT — sinon il ne teste que la moitié du plateau. Il tire quand il peut,
  * joue une case allumée (patiner, passer, frapper), prend un geste de la
- * carte (ramasser, foncer, se placer devant, l'épaule ou le bâton sur le
+ * carte (se placer devant, tendre le bâton, l'épaule ou le bâton sur le
  * porteur), et passe à la pièce jouable SUIVANTE quand il ne reste rien —
  * c'est ce « suivante » qui empêche de retoucher éternellement la même pièce.
  */
@@ -172,7 +172,12 @@ const ouvrirVolet = async () => {
 };
 let gestes = 0, tours = 0, relances = 0, changements = 0, pieces = 0, occasionsDuel = 0;
 let sauts = 0, modesJoues = 0, degagements = 0, activationsFinies = 0;
-let activationsVues = 0;   // une pièce activée à l'écran (S32) : le bouton « Fin de l'activation » est là
+let activationsVues = 0;   // le une-deux ouvert à l'écran (S35) : le bouton « Tir sur réception » ou « Fin » est là
+// UNE ACTION PAR ACTIVATION (S35) : une pièce patine OU agit, puis la main
+// passe. Le bouton « Fin de l'activation » n'apparaît donc plus qu'au une-deux,
+// et ce qui prouve l'alternance, c'est que l'ADVERSAIRE a joué entre deux de
+// mes gestes — on compte les fois où la main n'est plus à moi juste après.
+let alternances = 0, gesteAvant = false;
 let captureModes = false;
 const vus = new Set();
 const modesVus = new Set();
@@ -221,10 +226,10 @@ while (tours++ < 4000) {
     }
     await page.click('#tableModal .t-suite'); await page.waitForTimeout(50); continue;
   }
-  if (!etat.mien) { await page.waitForTimeout(180); continue; }
+  if (!etat.mien) { if (gesteAvant) alternances++; gesteAvant = false; await page.waitForTimeout(180); continue; }
   for (const g of etat.autres) vus.add(g);
   for (const g of etat.modes) modesVus.add(g);
-  if (etat.finPiece) activationsVues++;
+  if (etat.finPiece || etat.autres.includes('reception')) activationsVues++;
   // Une capture en plein match, une pièce choisie et ses modes à l'écran :
   // c'est ce que JP regarde, pas le pointage final.
   if (etat.sel && etat.modes.length >= 2 && !captureModes) {
@@ -300,12 +305,12 @@ while (tours++ < 4000) {
   if (etat.autres.length) {
     const n = await page.$$('#tableModal [data-geste]');
     await n[Math.floor(dé() * n.length)].click();
-    gestes++; await page.waitForTimeout(50); continue;
+    gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
   if (etat.offres) {
     const n = await page.$$('#tableModal .t-case.t-offre');
     await n[Math.floor(dé() * n.length)].click();
-    gestes++; await page.waitForTimeout(50); continue;
+    gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
   if (etat.jouables) { await page.click('#tableModal .t-case.t-jouable:not(.t-sel)'); pieces++; await page.waitForTimeout(50); continue; }
   // Une pièce à la fois (S32) : quand la pièce activée n'a plus rien
@@ -319,8 +324,8 @@ while (tours++ < 4000) {
 }
 
 const pointage = await page.textContent('#tableModal .tb-score').catch(() => '');
-console.log(`   ${gestes} gestes joués, ${relances} relance(s) d'équipe, ${changements} changement(s) de trio, ${pieces} changements de pièce, ${activationsVues} tour(s) avec une pièce activée, ${activationsFinies} activation(s) finie(s) au bouton`);
-if (!activationsVues) errors.push('aucune pièce activée n\'a été vue à l\'écran : l\'alternance une pièce à la fois ne se joue pas');
+console.log(`   ${gestes} gestes joués, ${relances} relance(s) d'équipe, ${changements} changement(s) de trio, ${pieces} changements de pièce, ${alternances} fois l'adversaire a joué juste après mon geste, ${activationsVues} une-deux offert(s), ${activationsFinies} activation(s) finie(s) au bouton`);
+if (!alternances) errors.push('l\'adversaire n\'a jamais joué entre deux de mes gestes : l\'alternance une pièce à la fois ne se joue pas');
 console.log(`   gestes offerts par la carte : ${[...vus].sort().join(', ') || 'aucun'}`);
 console.log(`   modes offerts : ${[...modesVus].sort().join(', ') || 'aucun'} · ${modesJoues} joués par mode, ${degagements} dégagement(s), ${sauts} verdict(s) sautés en touchant la glace`);
 if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes Patiner et Passer n'ont pas tous deux été offerts : ${[...modesVus].join(', ')}`);
@@ -328,7 +333,7 @@ if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes 
  * CE QU'ON AFFIRME, ET CE QU'ON SE CONTENTE DE RAPPORTER.
  *
  * Chaque geste de la carte a une condition : « tirer » demande de porter la
- * rondelle, « foncer » d'avoir déjà patiné, le duel d'être collé au porteur
+ * rondelle, le tir sur réception qu'une passe vienne de réussir, le duel d'être collé au porteur
  * adverse. Ces conditions dépendent du match, pas du code — exiger les cinq
  * à tous les coups faisait rougir le test au hasard, exactement comme
  * l'assertion sur les passes de check_table.mjs a fait rougir main.
@@ -340,11 +345,11 @@ if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes 
  *
  * ET LE PARCOURS EST MAINTENANT DÉTERMINISTE (voir `GRAINE` en tête), donc ce
  * seuil ne se joue plus aux dés : sous la graine par défaut le joueur scripté
- * voit `ecran, foncer, tir`, trois fois sur trois. Il est tombé à deux dans
+ * voit les mêmes gestes, trois fois sur trois. Il est tombé à deux dans
  * l'Action tant que les deux couches de hasard subsistaient — et rien du
  * plateau n'avait bougé.
  */
-const TOUS = ['tir', 'echec', 'vol', 'ecran', 'tendre', 'foncer'];
+const TOUS = ['tir', 'echec', 'vol', 'ecran', 'tendre', 'reception'];
 if (vus.size < 3) errors.push(`seulement ${vus.size} geste(s) offert(s) par la carte sur ${TOUS.length} : ${[...vus].join(', ') || 'aucun'}`);
 if (occasionsDuel) {
   for (const g of ['echec', 'vol']) {

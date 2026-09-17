@@ -240,7 +240,7 @@ console.log(`  gestes joués                 ${Object.entries(parType).sort((a, 
 /* CHAQUE GESTE DOIT ÊTRE JOUÉ AU MOINS UNE FOIS : un geste que personne
    n'utilise jamais est une règle morte, et une règle morte est un mensonge
    dans la page des règles. */
-for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'foncer', 'degager', 'tendre']) {
+for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'degager', 'tendre', 'dejouer', 'devier', 'reception']) {
   if (!parType[g]) { console.log(`  ✗ le geste « ${g} » n'a jamais été joué en ${MATCHS} matchs`); echecs++; }
 }
 
@@ -256,7 +256,7 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'foncer', 
   const sections = reglesDuPlateau();
   const tableau = sections.find(x => x.rangees);
   const ecrits = new Set(tableau.rangees.map(r => r[0].toLowerCase()));
-  const MOTS = { deplacer: 'patiner', esquive: 'esquiver', passe: 'passer', tir: 'tirer', echec: 'épaule', vol: 'bâton', ecran: 'se placer devant', foncer: 'foncer', degager: 'dégager', tendre: 'tendre le bâton' };
+  const MOTS = { deplacer: 'patiner', esquive: 'esquiver', passe: 'passer', tir: 'tirer', echec: 'épaule', vol: 'bâton', ecran: 'se placer devant', degager: 'dégager', tendre: 'tendre le bâton', dejouer: 'déjouer', devier: 'dévier', reception: 'tir sur réception' };
   console.log('\nLES RÈGLES ÉCRITES');
   console.log(`  ${sections.length} sections, ${tableau.rangees.length} gestes décrits`);
   let manque = 0;
