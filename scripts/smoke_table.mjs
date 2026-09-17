@@ -172,11 +172,10 @@ const ouvrirVolet = async () => {
 };
 let gestes = 0, tours = 0, relances = 0, changements = 0, pieces = 0, occasionsDuel = 0;
 let sauts = 0, modesJoues = 0, degagements = 0, activationsFinies = 0;
-let activationsVues = 0;   // le une-deux ouvert à l'écran (S35) : le bouton « Tir sur réception » ou « Fin » est là
-// UNE ACTION PAR ACTIVATION (S35) : une pièce patine OU agit, puis la main
-// passe. Le bouton « Fin de l'activation » n'apparaît donc plus qu'au une-deux,
-// et ce qui prouve l'alternance, c'est que l'ADVERSAIRE a joué entre deux de
-// mes gestes — on compte les fois où la main n'est plus à moi juste après.
+let activationsVues = 0;   // le une-deux ouvert à l'écran (S35) : le bouton « Tir sur réception » est là
+// UN DÉPLACEMENT ET UNE ACTION PAR MAIN (S36), puis la main passe. Ce qui
+// prouve l'alternance, c'est que l'ADVERSAIRE a joué entre deux de mes
+// gestes — on compte les fois où la main n'est plus à moi juste après.
 let alternances = 0, gesteAvant = false;
 let captureModes = false;
 const vus = new Set();
@@ -202,7 +201,7 @@ while (tours++ < 4000) {
     autres: [...document.querySelectorAll('#tableModal [data-geste]')].map(b => b.dataset.geste),
     modes: [...document.querySelectorAll('#tableModal [data-mode]')].map(b => b.dataset.mode),
     modeOn: document.querySelector('#tableModal [data-mode].on')?.dataset.mode || null,
-    finPiece: !!document.querySelector('#tableModal .t-fin-piece'),
+    finTour: !!document.querySelector('#tableModal .t-fin-tour'),
     degager: document.querySelectorAll('#tableModal .t-case.t-offre-degager').length,
     fin: !!document.querySelector('#tableModal .t-resultat'),
     unites: !!document.querySelector('#tableModal .t-seg button:not(.on)'),
@@ -229,7 +228,7 @@ while (tours++ < 4000) {
   if (!etat.mien) { if (gesteAvant) alternances++; gesteAvant = false; await page.waitForTimeout(180); continue; }
   for (const g of etat.autres) vus.add(g);
   for (const g of etat.modes) modesVus.add(g);
-  if (etat.finPiece || etat.autres.includes('reception')) activationsVues++;
+  if (etat.autres.includes('reception')) activationsVues++;
   // Une capture en plein match, une pièce choisie et ses modes à l'écran :
   // c'est ce que JP regarde, pas le pointage final.
   if (etat.sel && etat.modes.length >= 2 && !captureModes) {
@@ -313,10 +312,10 @@ while (tours++ < 4000) {
     gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
   if (etat.jouables) { await page.click('#tableModal .t-case.t-jouable:not(.t-sel)'); pieces++; await page.waitForTimeout(50); continue; }
-  // Une pièce à la fois (S32) : quand la pièce activée n'a plus rien
-  // d'utile, on finit SON activation ; on ne renonce à la présence que s'il
-  // n'y a plus de pièce activée ni de pièce à activer.
-  const fa = await page.$('#tableModal .t-fin-piece');
+  // Un déplacement et une action par main (S36) : quand rien ne peut
+  // dépenser ce qui reste, on rend la main ; on ne renonce à la présence
+  // que si la main n'était pas entamée.
+  const fa = await page.$('#tableModal .t-fin-tour');
   if (fa) { await fa.click(); activationsFinies++; await page.waitForTimeout(60); continue; }
   const fp = await page.$('#tableModal .t-passer');
   if (fp) { await fp.click(); await page.waitForTimeout(60); continue; }

@@ -609,7 +609,7 @@ export const PERIODES = 3;
  * demandé « plus rapide » ; cinq est le réglage qui donne des pointages de
  * hockey (2-1, 3-2, 4-3, 1-0) dans le moins de tours possible.
  */
-export const PRESENCES_PAR_PERIODE = 11;
+export const PRESENCES_PAR_PERIODE = 10;
 export const PRESENCES_PROLONGATION = 2;   // la mort subite est courte, sinon on n'en sort plus
 export const PROLONGATIONS_MAX = 12;       // au-delà, le bris d'égalité écrit (gagnantDuMatch)
 
@@ -776,7 +776,7 @@ export function nouveauMatch(A, B, graine) {
     presence: 1,           // 1 à PRESENCES_PAR_PERIODE × 2 : un TOUR (les dix pièces) en vaut deux
     tour: 'A',             // à qui la main
     premier: 'A',          // qui a ouvert le tour courant ; on alterne à chaque tour
-    actif: null,           // la pièce ACTIVÉE par `tour` : elle joue seule jusqu'à finirActivation
+    main: { bouge: false, agi: false, mobile: null },   // le BUDGET du tour d'équipe (S36) : un déplacement, une action, et qui a patiné
     rondelle: null,        // { piece } ou { libre: {r, c} }
     fil: [],               // les événements, le plus récent en tête
     fini: false,
@@ -796,8 +796,15 @@ export const libre = m => (m.rondelle && m.rondelle.libre) || null;
 export const caseLibre = (m, r, c) => !occupee(m, r, c);
 const occupee = (m, r, c) => surLaGlace(m).find(x => x.r === r && x.c === c) || null;
 
-/** Un geste joué clôt l'activation : la pièce ne patinera plus ce tour-ci (S35, une action par activation). */
-const agir = piece => { piece.agi = true; piece.deplace = true; piece.libre = false; };
+/*
+ * UN GESTE DÉPENSE L'ACTION DU TOUR (S36). JP : *un tour, ça devrait être un
+ * déplacement et une action, pas nécessairement du même joueur*. La pièce
+ * a agi (elle n'agira plus ce tour-ci) et le budget d'action de l'équipe
+ * est dépensé ; le déplacement du tour, lui, reste à qui ne l'a pas encore
+ * pris. Une pièce peut donc patiner puis agir, ou agir puis patiner, dans
+ * le même tour d'équipe — ou laisser l'un des deux à un coéquipier.
+ */
+const agir = (m, piece) => { piece.agi = true; piece.libre = false; m.main.agi = true; };
 
 /** Le souffle restant d'une pièce. */
 export const souffleDe = (m, piece) => {
@@ -1025,7 +1032,7 @@ export function degager(m, piece, vers) {
 }
 
 export function appliquerDegagement(m, piece, vers, jet) {
-  agir(piece);
+  agir(m, piece);
   piece.derniere = null;
   if (jet.reussi) {
     m.rondelle = { libre: { r: vers.r, c: vers.c } };
@@ -1081,7 +1088,27 @@ export function modTir(m, piece) {
  * modificateur moyen). Ce n'était pas les tirs qui étaient mauvais, c'est
  * qu'on n'en arrivait plus là.
  */
-export const PROTECTION_PORTEUR = 1;
+/*
+ * LE PORTEUR PROTÈGE SA RONDELLE : +1 devenu +2 avec la main à deux gestes
+ * (S36). Quand n'importe quelle pièce peut patiner et n'importe quelle autre
+ * frapper dans la même main, l'épaule devient le geste de chaque main —
+ * 38 mises en échec par équipe par match, mesuré, et la rondelle qui change
+ * de camp 18 fois. À +2, 33 et 5,1 buts ; avec la règle de la course
+ * ci-dessous, 29 et 5,6.
+ */
+export const PROTECTION_PORTEUR = 2;
+/*
+ * ON NE FRAPPE PAS EN PLEINE COURSE (S36). La pièce qui a pris le
+ * déplacement de la main ne donne ni l'épaule ni le bâton dans cette même
+ * main : le contact vient d'une pièce déjà en place, ou attend la main
+ * suivante. C'est ce qui empêche « un défenseur rejoint le porteur et le
+ * frappe » d'être la réponse à tout — mesuré sans la règle : 38 mises en
+ * échec par équipe par match ; avec : 29. Le défenseur se PLACE, puis un
+ * coéquipier frappe, ou lui à la main d'après ; entre les deux, le porteur
+ * a une main pour passer. La défense devient un plan à deux mains, comme
+ * l'attaque avec son une-deux.
+ */
+export const enCourse = (m, piece) => m.main.mobile === piece;
 
 export function modEchec(m, piece, cible) {
   const porte = porteur(m) === cible ? PROTECTION_PORTEUR : 0;
@@ -1175,7 +1202,7 @@ function revirement(m, texte) {
    * l'adversaire une activation pour frapper le porteur. Ici, perdre la
    * rondelle est déjà le prix : l'adversaire joue le prochain, avec elle.
    */
-  finirActivation(m);
+  finirMain(m);
 }
 
 /* ======================================================================
@@ -1229,11 +1256,12 @@ export const ciblesEchecDe = (m, piece) =>
   // tenter une mise en échec, la manquer, et se retrouver au sol EN PORTANT
   // la rondelle : plus personne ne pouvait la jouer. C'est aussi ce que le
   // hockey dit — on lâche la rondelle avant de donner de l'épaule.
-  (porteur(m) === piece ? [] : eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.etourdi && dist(x, piece) === 1));
+  (porteur(m) === piece || enCourse(m, piece) ? [] : eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.etourdi && dist(x, piece) === 1));
 
 /** Les cibles d'un vol : le porteur adverse, et lui seul. */
 export const ciblesVolDe = (m, piece) => {
   const p = porteur(m);
+  if (enCourse(m, piece)) return [];   // pas de bâton en pleine course non plus
   return p && p.eq !== piece.eq && !p.gardien && !p.etourdi && dist(p, piece) === 1 ? [p] : [];
 };
 
@@ -1246,12 +1274,14 @@ export const ciblesVolDe = (m, piece) => {
 export function deplacer(m, piece, vers) {
   const avecRondelle = porteur(m) === piece;
   const tenue = batons(m, piece.eq, piece.r, piece.c);
-  // PATINER EST UNE ACTION (S35). JP : *ça doit être une action*. Une pièce
-  // patine OU agit à son activation, comme dans Hoops Tactics : le porteur
-  // qui entre dans l'enclave tire à son activation SUIVANTE, et l'adversaire
-  // a le temps de répondre entre les deux.
+  // PATINER DÉPENSE LE DÉPLACEMENT DU TOUR (S36). JP : *ça doit être une
+  // action* ; puis *un tour, ça devrait être un déplacement et une action,
+  // pas nécessairement du même joueur*. La pièce a patiné (elle ne repatinera
+  // plus ce tour-ci) et le déplacement de l'équipe est pris ; l'action du
+  // tour reste — à elle ou à une autre.
   piece.deplace = true;
-  piece.agi = true;
+  m.main.bouge = true;
+  m.main.mobile = piece;
   m.reception = null;
   // Le défenseur DÉJOUÉ ne tient plus le porteur : le patin qui suit est libre.
   if (!avecRondelle || tenue === 0 || piece.libre) {
@@ -1314,7 +1344,7 @@ export function passer(m, piece, cible) {
 
 export function appliquerPasse(m, piece, cible, jet) {
   if (piece.hab === 'VOILEE' && piece.habDispo) piece.habDispo = false;
-  agir(piece);
+  agir(m, piece);
   if (jet.reussi) {
     m.rondelle = { piece: cible };
     cible.derniere = piece;      // qui a donné la rondelle : le passeur du but
@@ -1338,7 +1368,7 @@ export function appliquerTir(m, piece, jet) {
   if (piece.hab === 'DECOCHE' && piece.habDispo) piece.habDispo = false;
   const eq = eqDe(m, piece.eq);
   const advG = eqDe(m, adverse(piece.eq)).piece_g;
-  eq.tirs++; piece.tirs++; agir(piece);
+  eq.tirs++; piece.tirs++; agir(m, piece);
   fiche(eq, piece.p).tirs++;
   if (jet.reussi) {
     eq.buts++; piece.buts++;
@@ -1394,7 +1424,7 @@ export function appliquerEchec(m, piece, cible, jet) {
   if ((piece.hab === 'ACTIF' || piece.hab === 'EPAULE') && piece.habDispo) piece.habDispo = false;
   const eq = eqDe(m, piece.eq);
   const avaitLaRondelle = porteur(m) === cible;
-  agir(piece);
+  agir(m, piece);
   eq.echecs++;
   if (jet.reussi) {
     fiche(eq, piece.p).echecs++;
@@ -1469,7 +1499,7 @@ export function voler(m, piece, cible) {
 export function appliquerVol(m, piece, cible, jet) {
   if (piece.hab === 'ACTIF' && piece.habDispo) piece.habDispo = false;
   const eq = eqDe(m, piece.eq);
-  agir(piece);
+  agir(m, piece);
   if (jet.reussi) {
     fiche(eq, piece.p).vols++;
     m.rondelle = { piece };
@@ -1494,7 +1524,7 @@ export function appliquerVol(m, piece, cible, jet) {
  * ne rate pas, ça fait juste mal.
  */
 export function seMettreDevant(m, piece) {
-  agir(piece);
+  agir(m, piece);
   piece.ecran = 2;
   dire(m, `${nomDe(piece)} se place devant le tir.`, 'ecran');
   return true;
@@ -1511,7 +1541,7 @@ export function seMettreDevant(m, piece) {
  * Sans dé, comme l'écran : tendre un bâton, ça ne rate pas, ça occupe.
  */
 export function tendreLeBaton(m, piece) {
-  agir(piece);
+  agir(m, piece);
   piece.tendu = 2;
   dire(m, `${nomDe(piece)} tend le bâton et coupe les lignes de passe.`, 'tendu');
   return true;
@@ -1541,7 +1571,7 @@ export function dejouer(m, piece, cible) {
 }
 export function appliquerDejouer(m, piece, cible, jet) {
   if (piece.hab === 'PATIN' && piece.habDispo) piece.habDispo = false;
-  agir(piece);
+  agir(m, piece);
   if (jet.reussi) {
     cible.agi = true; cible.deplace = true;       // battu : il ne joue plus ce tour-ci
     piece.deplace = false; piece.libre = true;    // et le porteur repart, sans esquive
@@ -1586,7 +1616,7 @@ export function devier(m, piece, cible) {
 export function appliquerDeviation(m, piece, cible, jet) {
   const eq = eqDe(m, piece.eq);
   const advG = eqDe(m, adverse(piece.eq)).piece_g;
-  eq.tirs++; cible.tirs++; agir(piece);
+  eq.tirs++; cible.tirs++; agir(m, piece);
   fiche(eq, cible.p).tirs++;
   if (jet.reussi) {
     eq.buts++; cible.buts++;
@@ -1641,40 +1671,41 @@ export function tirerSurReception(m) {
    ====================================================================== */
 
 /*
- * UNE PIÈCE BOUGE UNE FOIS ET AGIT UNE FOIS PAR PRÉSENCE, comme un joueur de
+ * UNE PIÈCE BOUGE UNE FOIS ET AGIT UNE FOIS PAR TOUR, comme un joueur de
  * Blood Bowl. Sans cette borne, l'IA repatinait la même pièce jusqu'à ce que
  * le garde-fou la coupe : seize gestes par présence (`check_table.mjs`), donc
  * un match qui n'en finissait plus. C'est la borne qui fait la vitesse.
  */
 export const peutJouer = x => !x.etourdi && (!x.deplace || !x.agi);
 /*
- * UNE PIÈCE À LA FOIS, EN ALTERNANCE. JP (S32) : *un joueur à la fois*. Le
- * tour d'équipe de Blood Bowl — tes cinq pièces, puis les siennes — devient
- * un duel d'initiative : tu ACTIVES une pièce (elle patine et fait un geste,
- * dans l'ordre que tu veux), puis l'adversaire active une des siennes, et
- * ainsi de suite jusqu'à ce que les dix aient joué — c'est un TOUR. Tant
- * qu'une pièce est activée, elle joue seule : `actives` ne rend qu'elle.
+ * UN DÉPLACEMENT ET UNE ACTION PAR TOUR D'ÉQUIPE, EN ALTERNANCE (S36). JP
+ * (S32) : *un joueur à la fois* ; puis (S36) : *je voulais dire qu'un tour, ça
+ * devrait être un déplacement et une action, pas nécessairement du même
+ * joueur*. À ta main, tu disposes d'UN déplacement et d'UNE action (`m.main`)
+ * : n'importe laquelle de tes pièces patine, n'importe laquelle agit — la
+ * même ou deux différentes, dans l'ordre que tu veux — puis la main passe.
+ * Chaque pièce ne patine qu'une fois et n'agit qu'une fois par tour ; le
+ * tour est fini quand plus personne n'a rien. C'est l'ailier qui va au filet
+ * ET la passe qui le trouve, dans la même main — le une-deux devient un plan.
  */
-export const actives = m => (m.actif && m.actif.eq === m.tour && peutJouer(m.actif) ? [m.actif]
-  : eqDe(m, m.tour).pieces.filter(peutJouer));
+export const peutBouger = (m, x) => !x.etourdi && !x.deplace && !m.main.bouge;
+export const peutAgir = (m, x) => !x.etourdi && !x.agi && !m.main.agi;
+export const actives = m => eqDe(m, m.tour).pieces.filter(x => peutBouger(m, x) || peutAgir(m, x));
 const epuiser = x => { x.agi = true; x.deplace = true; };
 
-/** Activer une pièce : la précédente, si elle jouait encore, a fini. */
+/** Choisir une pièce : le une-deux ne survit qu'au receveur. */
 export function activer(m, piece) {
-  if (m.actif && m.actif !== piece) epuiser(m.actif);
   if (!m.reception || m.reception.receveur !== piece) m.reception = null;
-  m.actif = piece;
 }
 
 /**
- * LA PIÈCE ACTIVÉE A FINI : la main passe à l'adversaire s'il lui reste une
- * pièce, sinon elle reste ici ; quand plus personne n'a de pièce, le tour est
- * fini pour les deux. Le gardien qui a la rondelle la relance à chaque fois
- * que la main revient à son équipe (la sortie de zone).
+ * LA MAIN PASSE : à l'adversaire s'il lui reste une pièce qui peut jouer,
+ * sinon elle reste ici ; quand plus personne n'a de pièce, le tour est fini
+ * pour les deux. Le gardien qui a la rondelle la relance à chaque fois que
+ * la main revient à son équipe (la sortie de zone).
  */
-export function finirActivation(m) {
-  if (m.actif) epuiser(m.actif);
-  m.actif = null;
+export function finirMain(m) {
+  m.main = { bouge: false, agi: false, mobile: null };
   m.reception = null;
   if (m.fini) return;
   const autre = adverse(m.tour);
@@ -1682,16 +1713,18 @@ export function finirActivation(m) {
   if (eqDe(m, m.tour).pieces.some(peutJouer)) { sortieDeZone(m); return; }
   finirPresence(m);
 }
+/** Le budget de la main est-il vide, ou plus personne ne peut-il s'en servir ? */
+export const mainEpuisee = m => !actives(m).length;
 
 /** Renoncer au reste de sa présence : toutes ses pièces sont épuisées, l'adversaire enchaîne. */
 export function renoncer(m) {
   for (const x of eqDe(m, m.tour).pieces) epuiser(x);
-  finirActivation(m);
+  finirMain(m);
 }
 
 /** Le tour est fini pour les DEUX équipes : souffle, compteurs, et l'autre ouvre le suivant. */
 export function finirPresence(m, butMarque = false) {
-  m.actif = null;
+  m.main = { bouge: false, agi: false, mobile: null };
   m.tours = (m.tours || 0) + 1;   // les tours joués : ce que les scripts comptent
   for (const cote of ['A', 'B']) {
     const eq = eqDe(m, cote);
@@ -1785,7 +1818,7 @@ function finirMatch(m) {
     m.presence = 1;
     m.A.relance = true; m.B.relance = true;
     for (const x of surLaGlace(m)) { x.etourdi = 0; x.habDispo = true; }
-    m.actif = null;
+    m.main = { bouge: false, agi: false, mobile: null };
     m.premier = m.prolongation % 2 === 1 ? 'A' : 'B';
     m.tour = m.premier;
     dire(m, 'Prolongation — mort subite.', 'periode');
@@ -1830,7 +1863,7 @@ function meilleurGeste(m, piece) {
   const bonus = (h) => (piece.hab === h && piece.habDispo ? 2 : 0);
 
   if (aLaRondelle) {
-    if (!piece.agi) {
+    if (peutAgir(m, piece)) {
       // Tirer : ce que ça rapporte, c'est un but. Un tir raté rend la
       // rondelle au gardien, donc ça se pèse.
       if (peutTirer(m, piece)) options.push({ type: 'tir', val: chances(modTir(m, piece) + bonus('DECOCHE'), seuilTir(m, piece)) * 11 - 1.5 });
@@ -1845,7 +1878,7 @@ function meilleurGeste(m, piece) {
         // l'adversaire aura un tour entier pour le frapper avant. Un receveur
         // qui n'a pas encore joué et qui peut tirer vaut la passe ; un
         // receveur déjà joué ne vaut que le terrain gagné.
-        const encore = peutJouer(cible) ? 1 : 0.35;
+        const encore = 1;   // le une-deux est ouvert à tout receveur debout (S35)
         const tir = ((peutTirer(m, cible) ? chances(modTir(m, cible), seuilTir(m, cible)) : 0) - tirIci) * encore;
         if (gain <= 0 && tir <= 0.02) continue;
         // Le terrain gagné par une PASSE pesait 0,5 contre 0,9 pour le patin :
@@ -1853,7 +1886,11 @@ function meilleurGeste(m, piece) {
         // que la glace est longue — une passe traverse la moitié du rink d'un
         // geste, un patin en fait quatre cases. À 2,0, la passe redevient la
         // façon de sortir de sa zone.
-        options.push({ type: 'passe', cible, val: chances(modPasse(m, piece, cible) + bonus('VOILEE')) * (2.5 + gain * 2.0 + tir * 9) });
+        // UNE PASSE RATÉE EST UN REVIREMENT (S36) : elle se paie dans la valeur,
+        // sinon la bombe à 40 % l'emporte sur le patin sûr — 43 % des
+        // possessions finissaient sur une interception, mesuré.
+        const c = chances(modPasse(m, piece, cible) + bonus('VOILEE'));
+        options.push({ type: 'passe', cible, val: c * (2.5 + gain * 2.0 + tir * 9) - (1 - c) * 3 });
       }
       // DÉGAGER : de la zone neutre, quand la couverture est là et qu'un
       // coéquipier est près du fond. La rondelle est libre, donc ça vaut ce
@@ -1887,7 +1924,7 @@ function meilleurGeste(m, piece) {
         }
       }
     }
-    if (!piece.deplace) {
+    if (peutBouger(m, piece)) {
       let mieux = null;
       for (const v of deplacementsDe(m, piece)) {
         const gain = valeurCase(v.r, v.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
@@ -1903,7 +1940,7 @@ function meilleurGeste(m, piece) {
     }
   } else {
     const p = porteur(m);
-    if (!piece.agi) {
+    if (peutAgir(m, piece)) {
       // LES DEUX ROUTES DÉFENSIVES. L'épaule met au sol et pousse ; le bâton
       // prend la rondelle sans toucher. Un costaud choisit la première, un
       // habile la seconde, et le glouton les compare honnêtement.
@@ -1943,20 +1980,24 @@ function meilleurGeste(m, piece) {
     // c'est elle que le porteur cherchera pour sa passe. Sans ça, une action
     // par activation faisait patiner le porteur dans l'enclave pour s'y
     // faire frapper avant son tir : 0,8 but par match.
-    if (p && p.eq === piece.eq && !piece.deplace) {
+    if (p && p.eq === piece.eq && peutBouger(m, piece)) {
       let mieux = null;
       for (const v of deplacementsDe(m, piece)) {
         const gain = valeurCase(v.r, v.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
         if (gain <= 0) continue;
         const ouvert = batons(m, piece.eq, v.r, v.c) === 0 ? 0.9 : 0;
         const tir = peutTirerDe(v.r, v.c, eq.but) ? 1.4 : 0;
-        const val = 1.2 + gain * 0.7 + ouvert + tir;
+        // LA PASSE QUI SUIVRA (S36) : la main garde son action, donc la case
+        // vaut aussi ce que vaut la passe du porteur vers elle — courte et
+        // dégagée plutôt que loin derrière trois bâtons.
+        const passe = !m.main.agi && peutAgir(m, p) ? chances(modPasse(m, p, v)) * 1.2 : 0;
+        const val = 1.2 + gain * 0.7 + ouvert + tir + passe;
         if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
       }
       if (mieux) options.push(mieux);
     }
     const vise = rondelleLibre || (p && p.eq !== piece.eq ? p : null);
-    if (vise && !piece.deplace) {
+    if (vise && peutBouger(m, piece)) {
       let mieux = null;
       const d0 = dist(piece, vise);
       for (const v of deplacementsDe(m, piece)) {
@@ -1989,16 +2030,14 @@ function iaProchainGeste(m, cote) {
     if (piece !== p && (!sur || g.val > sur.val)) sur = { piece, ...g };
   }
   /*
-   * LE PORTEUR JOUE EN DERNIER. En alternance (S32), une pièce activée joue
-   * seule, et ce qu'elle n'a pas fait quand on en active une autre est perdu.
-   * L'IA prenait le meilleur geste tout court — presque toujours le porteur
-   * qui monte et tire — et sa présence finissait sur l'arrêt du gardien avec
-   * quatre pièces qui n'avaient pas bougé : 1,4 activation par présence
-   * d'équipe, mesuré. C'est la règle de Blood Bowl : les gestes sûrs
-   * d'abord, le geste risqué en dernier. Tant qu'une pièce SANS la rondelle a
-   * quelque chose d'utile à faire, elle passe avant.
+   * LE DÉPLACEMENT D'UN COÉQUIPIER D'ABORD (S36). La main a un déplacement ET
+   * une action : quand les deux sont libres et qu'un coéquipier sans la
+   * rondelle a un patin utile (aller au filet, couvrir), on le joue avant le
+   * geste du porteur — le porteur garde l'action, et sa passe trouvera
+   * l'homme qui vient de se placer. C'est la règle de Blood Bowl (les gestes
+   * sûrs d'abord) devenue un plan à deux pièces.
    */
-  if (!m.actif && sur && sur.val > 2.5 && joue && joue.piece === p) return sur;
+  if (!m.main.bouge && !m.main.agi && sur && sur.type === 'deplacer' && sur.val > 2.5 && joue && joue.piece === p) return sur;
   if (joue && joue.val > 0) return joue;
   /*
    * ON LANCE AU FILET. Mesuré : la moitié des présences finissaient
@@ -2007,7 +2046,7 @@ function iaProchainGeste(m, cote) {
    * coin. C'est du hockey défensif, et ce n'est pas ce mode-ci : quand
    * il ne reste rien de mieux, le porteur lance, s'il est à portée.
    */
-  if (p && p.eq === cote && !p.agi && peutTirer(m, p) && actives(m).includes(p)) return { piece: p, type: 'tir' };
+  if (p && p.eq === cote && peutAgir(m, p) && peutTirer(m, p)) return { piece: p, type: 'tir' };
   return null;
 }
 
@@ -2016,15 +2055,16 @@ function iaProchainGeste(m, cote) {
  * reste rien — auquel cas elle a terminé sa présence. C'est ce que l'écran
  * appelle sur une minuterie pour que le plateau et le fil avancent ensemble.
  */
-export const GESTES_MAX = 4;   // le garde-fou d'une activation : une action, et ce qui la suit (réception, revirement)
+export const GESTES_MAX = 4;   // le garde-fou d'une main : un déplacement, une action, et ce qui les suit (réception)
 
 /**
- * L'IA joue UN geste de son activation courante. Sans pièce activée, elle
- * choisit la meilleure et l'active ; quand la pièce activée n'a plus rien
- * de bon à faire, l'activation finit et la main passe (rend null).
+ * L'IA joue UN geste de sa main courante. Quand le budget est vide — ou que
+ * plus rien de bon ne reste — la main passe (rend null).
  */
 export function iaGeste(m) {
   if (m.fini) return null;
+  const cote = m.tour;
+  const eq = eqDe(m, cote);
   // LE UNE-DEUX : une passe vient de réussir, le receveur peut tirer tout de
   // suite. L'IA le prend dès que ses chances valent le tir qu'elle aurait
   // pris elle-même de là.
@@ -2033,29 +2073,30 @@ export function iaGeste(m) {
     if (x && chances(modTir(m, x), seuilTir(m, x)) >= 0.45) {
       const joue = { piece: x, type: 'reception' };
       const jet = jouerGeste(m, x, joue, x.eq, true);
+      if (!m.fini && m.tour === cote && mainEpuisee(m)) finirMain(m);
       return { ...joue, jet };
     }
   }
-  const cote = m.tour;
-  const eq = eqDe(m, cote);
+  const fraiche = !m.main.bouge && !m.main.agi;
   // Le changement de trio se décide au banc, avant le premier geste du tour.
-  if (!m.actif && eq.pieces.every(x => !x.agi && !x.deplace)) iaChanger(m, cote);
+  if (fraiche && eq.pieces.every(x => !x.agi && !x.deplace)) iaChanger(m, cote);
   const joue = iaProchainGeste(m, cote);
   if (!joue) {
-    if (m.actif) dire(m, `${nomDe(m.actif)} a fini son activation.`, 'fin-presence');
-    else {
-      // RIEN À JOUER SANS PIÈCE ACTIVÉE : l'équipe renonce au reste de sa
-      // présence. Sans ça, deux équipes qui ont encore des pièces mais plus
-      // rien à en faire se renvoyaient la main pour toujours — sept matchs
-      // sur 120 ne finissaient pas.
-      for (const x of eq.pieces) epuiser(x);
-      dire(m, `${eq.nom} n'a plus rien à jouer ce tour-ci.`, 'fin-presence');
-    }
-    finirActivation(m);
+    // RIEN DE BON À JOUER. Une main entamée passe simplement (ses pièces
+    // gardent ce qu'il leur reste pour les mains suivantes) ; une main
+    // FRAÎCHE sans rien à jouer renonce à la présence — sans ça, deux
+    // équipes qui ont encore des pièces mais plus rien à en faire se
+    // renvoyaient la main pour toujours (sept matchs sur 120 ne finissaient
+    // pas, mesuré en S32).
+    if (fraiche) { for (const x of eq.pieces) epuiser(x); dire(m, `${eq.nom} n'a plus rien à jouer ce tour-ci.`, 'fin-presence'); }
+    finirMain(m);
     return null;
   }
-  if (m.actif !== joue.piece) activer(m, joue.piece);
+  activer(m, joue.piece);
   const jet = jouerGeste(m, joue.piece, joue, cote, true);
+  // Le budget vide, la main passe — sauf si une passe vient d'ouvrir le
+  // une-deux : le receveur décide au prochain appel.
+  if (!m.fini && m.tour === cote && mainEpuisee(m) && !receptionPossible(m)) finirMain(m);
   return { ...joue, jet };
 }
 
@@ -2070,27 +2111,23 @@ export function iaGeste(m) {
  * peut naître et disparaître à l'intérieur d'une même présence.
  */
 /**
- * L'IA joue UNE ACTIVATION complète (une pièce, jusqu'à GESTES_MAX gestes),
- * puis rend la main. C'est ce que les matchs joués à vide et les scripts
- * appellent en boucle ; l'écran, lui, passe par `iaGeste`.
+ * L'IA joue UNE MAIN complète (un déplacement et une action, jusqu'à
+ * GESTES_MAX gestes), puis rend la main. C'est ce que les matchs joués à vide
+ * et les scripts appellent en boucle ; l'écran, lui, passe par `iaGeste`.
  */
 export function iaPresence(m, surGeste = null) {
   const cote = m.tour;
   const gestes = [];
   let garde = 0;
-  const avant = m.actif;
   while (m.tour === cote && !m.fini && garde++ < GESTES_MAX) {
     const joue = iaGeste(m);
     if (!joue) break;
     gestes.push({ piece: joue.piece, type: joue.type });
     if (surGeste) surGeste(joue.type, joue.piece);
-    if (!m.actif || m.actif !== joue.piece) break;   // l'activation s'est finie d'elle-même
   }
-  // LE GARDE-FOU DOIT QUAND MÊME RENDRE LA MAIN : une activation qui atteint
-  // la limite finit, sinon la boucle appelante ne s'arrête jamais.
-  if (!m.fini && m.tour === cote && (m.actif || avant === null)) {
-    if (m.actif) finirActivation(m);
-  }
+  // LE GARDE-FOU DOIT QUAND MÊME RENDRE LA MAIN : une main qui atteint la
+  // limite finit, sinon la boucle appelante ne s'arrête jamais.
+  if (!m.fini && m.tour === cote) finirMain(m);
   return gestes;
 }
 
@@ -2321,12 +2358,11 @@ export function reglesDuPlateau() {
       ],
     },
     {
-      titre: 'Un tour : une pièce à la fois',
+      titre: 'Un tour : un déplacement et une action',
       points: [
-        'Les deux équipes jouent EN ALTERNANCE, une pièce à la fois : tu actives une de tes pièces, elle fait UNE action — patiner, OU passer, tirer, frapper, se placer — puis l\'adversaire active une des siennes ; et ainsi de suite jusqu\'à ce que les dix aient joué — c\'est un tour. Le porteur qui entre dans l\'enclave tire à son activation suivante : entre les deux, l\'adversaire a le temps de répondre — sauf sur une passe réussie, que le receveur peut conclure d\'un tir sur réception, tout de suite.',
-        'Une pièce activée joue seule. Son activation finit quand elle a agi, quand tu touches « Fin de l\'activation », ou quand tu en actives une autre — ce qu\'elle n\'a pas fait est perdu. Qui enlève la rondelle repart avec : c\'est la contre-attaque, le seul cas où une pièce patine après son geste.',
-        '« Finir ma présence » renonce à toutes tes pièces qui n\'ont pas encore joué ce tour-ci : l\'adversaire enchaîne les siennes.',
-        'LE REVIREMENT : un jet raté qui te coûte la rondelle finit l\'activation de ta pièce sur-le-champ, et c\'est l\'adversaire qui joue — avec la rondelle. Tes autres pièces gardent leur activation : en alternance, perdre la rondelle est déjà le prix.',
+        'Les deux équipes jouent EN ALTERNANCE. À ta main, tu as UN déplacement et UNE action — pas forcément de la même pièce : l\'ailier va au filet, le porteur lui passe ; ou le défenseur rejoint le porteur adverse et le frappe. Dans l\'ordre que tu veux. Puis la main passe à l\'adversaire, et ainsi de suite jusqu\'à ce que plus personne n\'ait rien à jouer — c\'est un tour.',
+        'Chaque pièce ne patine qu\'une fois et n\'agit qu\'une fois par tour. « Fin du tour » rend la main sans dépenser ce qui reste ; « Finir ma présence » renonce à toutes tes pièces qui n\'ont pas encore joué ce tour-ci. Qui enlève la rondelle repart avec : c\'est la contre-attaque.',
+        'LE REVIREMENT : un jet raté qui te coûte la rondelle rend la main sur-le-champ, et c\'est l\'adversaire qui joue — avec la rondelle. Tes autres pièces gardent ce qu\'il leur reste : en alternance, perdre la rondelle est déjà le prix.',
         'Le tour suivant, c\'est l\'autre équipe qui ouvre.',
       ],
     },
@@ -2344,7 +2380,7 @@ export function reglesDuPlateau() {
       titre: 'Les douze gestes',
       colonnes: ['geste', 'dé', 'ce que ça fait', 'un échec coûte'],
       rangees: [
-        ['Patiner', 'non', `deux cases (PA 2-3), trois (PA 4-5) ou quatre (PA 6), en contournant les pièces ; c'est l'action de la pièce`, '—'],
+        ['Patiner', 'non', `deux cases (PA 2-3), trois (PA 4-5) ou quatre (PA 6), en contournant les pièces ; c'est le déplacement de la main`, '—'],
         ['Esquiver', 'oui', 'quitter avec la rondelle une case tenue par un bâton adverse', 'revirement'],
         ['Passer', 'oui', 'donner la rondelle à un coéquipier ; un bâton tendu sur la ligne ou collé au receveur la gêne', 'revirement'],
         ['Dégager', 'oui', `de la ZONE NEUTRE seulement : la rondelle file au fond, LIBRE, dans un coin ou derrière le filet — à toi d'y arriver le premier`, 'elle rebondit n\'importe où autour, libre aussi — pas de revirement'],

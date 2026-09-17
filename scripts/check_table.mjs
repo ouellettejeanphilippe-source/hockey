@@ -13,9 +13,11 @@
  *                                   vraie hockey*. Le moteur par événements
  *                                   (js/sim.js) tient la crédibilité, avec
  *                                   ses 3,1 buts ; le plateau est une borne
- *   les gestes par présence         cible 4 à 6 : assez pour que la présence
- *                                   raconte quelque chose, assez peu pour
- *                                   qu'elle se joue en trente secondes
+ *   les gestes par présence         cible 5 à 8 : une présence d'équipe est
+ *                                   un tour de cinq mains (S36), chacune un
+ *                                   déplacement et une action au plus —
+ *                                   assez pour raconter quelque chose, assez
+ *                                   peu pour se jouer en trente secondes
  *   la part de nulles après 3 périodes  la prolongation doit rester l'exception
  *   l'écart fort/faible             une meilleure équipe doit gagner plus
  *                                   souvent : c'est la monotonie, en petit
@@ -200,9 +202,11 @@ console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(10
 
 /* ---------- les gestes par présence : la vitesse du jeu ---------- */
 {
-  // Une pièce à la fois (S32) : `iaPresence` joue UNE activation, et un tour
-  // en compte jusqu'à dix. La vitesse se lit toujours en gestes par PRÉSENCE
-  // D'ÉQUIPE — deux par tour (`m.tours`) — pour que la cible reste la même.
+  // Un déplacement et une action par main (S36) : `iaPresence` joue UNE main,
+  // et un tour en compte jusqu'à dix. La vitesse se lit en gestes par PRÉSENCE
+  // D'ÉQUIPE — deux par tour (`m.tours`) — soit cinq mains au plus : mesuré
+  // 6,1 (1,7 geste par main, l'IA laisse souvent l'action). La cible était
+  // 4 à 6 quand une activation était une pièce ; elle suit la règle.
   let gestes = 0, presences = 0;
   for (let i = 0; i < 40; i++) {
     const a = clubs[(i * 71) % clubs.length];
@@ -212,8 +216,8 @@ console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(10
     while (!m.fini && garde2++ < 4000) gestes += iaPresence(m).length;
     presences += 2 * (m.tours || 0);
   }
-  console.log(`  gestes par présence         ${(gestes / presences).toFixed(2)}   (cible : 4 à 6)`);
-  borne('gestes par présence', gestes / presences, 4, 6);
+  console.log(`  gestes par présence         ${(gestes / presences).toFixed(2)}   (cible : 5 à 8)`);
+  borne('gestes par présence', gestes / presences, 5, 8);
 }
 
 /* ---------- la fatigue : est-ce qu'elle mord, et combien ---------- */
