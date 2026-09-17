@@ -3231,7 +3231,12 @@ async function chargerRenfort() {
     if (!teams.length) continue;
     const team = rnd(teams);
     const roster = autoRoster(shard.byTeam[team]);
-    if (Object.keys(roster).length < 20) continue;
+    // Le club doit combler CHAQUE case qu'on lui demande : 62 des 1 395
+    // clubs alignés laissent un trou (une réserve D en 1970-71, un DD chez
+    // les Bruins de la même année), et le seuil « au moins 20 » les laissait
+    // passer — l'Express héritait d'un alignement à 22 et le bouton restait
+    // gris. On tire un autre club plutôt que d'accepter le trou.
+    if (!SLOTS.every(s => actives.has(s.i) || roster[s.i])) continue;
     for (const s of SLOTS) {
       if (actives.has(s.i) || !roster[s.i]) continue;
       G.roster[s.i] = { ...roster[s.i], _renfort: true };

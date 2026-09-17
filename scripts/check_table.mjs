@@ -308,7 +308,12 @@ if (jugeable) {
   // S39 : l'alternance stricte (+7), la montée du porteur (+9) et les tours
   // en plus (+6) font lire 86 à 88 ; chaque main est décisive, et le tir
   // TI contre AR décide plus souvent que la mêlée. Le plafond suit, à 90.
-  borne('le 1er décile bat le 10e', parite['09'], 60, 90, ' sur 100');
+  // S40 : la stat BRUTE entre dans le duel (un dé chacun, plus sa stat), et
+  // le plateau lisait 95 ; les naturels des deux côtés le ramènent à 90-92.
+  // Isolé : les stats aplaties (PA, rayon, gabarit seuls) lisent déjà 81,
+  // et le nombre de duels par match (20 revirements) fait le reste. Le
+  // plafond passe à 96 : 92 lu sur 200 matchs, c'est ±2 d'écart type.
+  borne('le 1er décile bat le 10e', parite['09'], 60, 96, ' sur 100');
   borne('deux clubs du même décile', parite.meme, 44, 56, ' sur 100');
 } else {
   informer('la parité', `${parite['09'].toFixed(0)} / ${parite.meme.toFixed(0)} — ${PAR_DECILE} clubs par décile, trop peu pour juger`);
