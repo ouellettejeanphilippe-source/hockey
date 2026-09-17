@@ -162,7 +162,15 @@ export const DEMI_ENCLAVE = 3;                // sa largeur, de part et d'autre 
  * (3+ de l'enclave, 4+ de la deuxième rangée, 5+ de la pointe et des coins,
  * 6+ pour le tour du filet), et la borne ±2 est tout entière au joueur.
  */
-export const SEUIL_PLACE = { enclave: 2, rangee2: 3, pointe: 4, coin: 5, tour: 6 };
+/*
+ * LA PLACE, C'EST CE QUE LE GARDIEN AJOUTE À SON DÉ (S40). Collé au filet il
+ * n'ajoute rien, à la deuxième rangée de l'enclave +1, de la pointe et des
+ * angles +2, sur un tour du filet +3. Le tireur, lui, ajoute son TI, sa
+ * signature, moins les bâtons devant lui. TI 4 contre AR 4 : 42 % collé au
+ * filet, 28 % à la deuxième rangée, 17 % de loin — les buts viennent du
+ * volume et des retours, comme au hockey.
+ */
+export const PLACE_GARDIEN = { enclave: 1, rangee2: 2, pointe: 3, coin: 3, tour: 4 };
 
 /*
  * LA PORTÉE DU TIR : on ne tire que de la zone offensive.
@@ -555,44 +563,29 @@ export function habileteDe(p) {
    Tout passe par le générateur graine de sim.js : même graine, même match.
    ====================================================================== */
 
-export const SEUIL = 4;          // un geste ordinaire : une fois sur deux
 /*
- * LE SEUIL DU TIR, ET C'EST UN CHOIX DE GENRE, PAS DE SIMULATION.
+ * LE DUEL : UN DÉ CHACUN, PLUS SA STAT (S40). JP : *ça devrait être un check
+ * de la stat du joueur de l'action, du joueur adverse si nécessaire, et un
+ * dé chaque, non ?* ; et *toutes les stats doivent amener des résultats
+ * réalistes, avec des % qui font que rien n'est systématique, mais probable
+ * réaliste*. C'était un seul d6 plus la DIFFÉRENCE des deux cotes ramenées
+ * sur trois crans, contre un seuil : juste en probabilité, illisible sur la
+ * glace. Maintenant : celui qui agit lance un d6 et ajoute SA stat ; celui
+ * qui subit lance le sien et ajoute la SIENNE (le gardien son AR, le
+ * défenseur son DE ou son FO) ; le plus haut l'emporte, l'égalité reste au
+ * défenseur. Quand personne ne s'oppose (une passe que rien ne couvre, un
+ * dégagement), le geste se compare à une DIFFICULTÉ fixe. Les stats entrent
+ * telles quelles, de 1 à 6 : l'écart de talent se lit dans le duel, et les
+ * situations (la place du tir, la distance de la passe, la protection du
+ * porteur, la couverture, le souffle) s'ajoutent d'un côté ou de l'autre.
  *
- * JP : *faut pas faire comme la vraie NHL, c'est un mode arcade, oui avec
- * stratégie et deepness, mais pas genre vraie hockey*.
- *
- * À 5+, un but se méritait et le plateau rendait 2 buts par équipe par
- * match : du hockey crédible, et un jeu de table plate. Le moteur par
- * événements (js/sim.js) est là pour la crédibilité — il tient les 55
- * saisons, les égalités de la feuille et la monotonie sur dix déciles. Le
- * plateau, lui, est un jeu d'arcade : on veut des pointages de borne, des
- * remontées, et qu'une présence finisse sur une rondelle au fond du filet
- * plutôt que sur un dégagement. Le tir se joue donc au même seuil que tout
- * le reste, et c'est la POSITION qui décide — l'enclave, l'angle, les
- * bâtons, le tir signature.
- */
-export const SEUIL_TIR = 4;
-export const MOD_MAX = 2, MOD_MIN = -2;   // un geste n'est jamais sûr ni jamais perdu
-
-/*
- * DE LA COTE AU MODIFICATEUR : deux crans, pas cinq.
- *
- * Un nombre de 1 à 6 valait `nombre − 3` au jet, donc l'écart du pire au
- * meilleur faisait cinq points sur un d6 — et mesuré (`check_table.mjs`), le
- * premier décile battait le dixième CENT fois sur cent, à +3,7 buts par
- * match. Ce n'est pas du hockey : dans la vraie ligue la pire équipe bat la
- * meilleure une fois sur trois. Chaque nombre ne vaut donc plus que
- * −2 à +2, et il faut deux crans de talent pour gagner un point de dé. Le
- * talent se voit encore — il ne décide simplement plus tout seul.
- */
-export const md = stat => Math.round((stat - 3.5) / 1.8);
-
-/*
- * LES MOTS DES AXES, à un seul endroit. La carte du plateau (js/plateau.js)
- * et le repêchage en mode Sur table (js/game.js) les lisent tous les deux :
- * une infobulle recopiée est une infobulle qui ment à la première retouche,
- * comme une règle recopiée.
+ * RIEN N'EST SYSTÉMATIQUE : le 6 de l'attaquant réussit toujours, son 1
+ * échoue toujours. Tout reste donc entre 17 et 83 %, quel que soit l'écart —
+ * et entre deux joueurs égaux, un geste passe 42 fois sur 100 (l'égalité au
+ * défenseur), +1 de stat en vaut 58, +2 en vaut 72, −1 en vaut 28. C'est
+ * l'échelle du hockey : un tir de l'enclave, TI 4 contre AR 4, entre 42 fois
+ * sur 100 ; de la pointe (le gardien +2), 17 ; une passe libre à courte
+ * distance, 83 ; la même sous un bon bâton, 28.
  */
 export const AXE_MOT = {
   PA: 'Patin : de combien de cases il bouge',
@@ -604,24 +597,38 @@ export const AXE_MOT = {
   AR: 'Arrêt : ce que le gardien laisse passer, ramené sur un dé',
 };
 
-/*
- * LE 6 RÉUSSIT TOUJOURS, LE 1 ÉCHOUE TOUJOURS. C'est la règle de Blood Bowl,
- * et elle n'est pas cosmétique : sans elle, un tireur ordinaire devant un bon
- * gardien avait un modificateur de −2 contre un seuil de 5, donc il lui
- * fallait un 7 sur un d6 — impossible. Mesuré (`check_table.mjs`), le dixième
- * décile marquait 0,04 but par match contre le premier, et perdait 99 fois
- * sur 100. Avec le 6 qui passe et le 1 qui casse, rien n'est jamais sûr ni
- * jamais perdu : c'est ce qui fait qu'on regarde le dé rouler.
- */
-export const chances = (mod, seuil = SEUIL) => {
-  const mo = borne(mod, MOD_MIN, MOD_MAX);
-  let n = 1;                                          // le 6
-  for (let de = 2; de <= 5; de++) if (de + mo >= seuil) n++;
-  return n / 6;                                       // le 1 ne compte jamais
-};
+/** Un duel : `a` ce que l'attaquant ajoute à son dé, `b` ce que l'autre ajoute au sien (ou la difficulté fixe si `opp` est faux), `mots` les deux stats qu'on lit. */
+export const duel = (a, b, opp, mots) => ({ a, b, opp, mots });
+/** Le même duel avec un bonus d'habileté sur l'attaquant. */
+export const avec = (d, n) => (n ? { ...d, a: d.a + n } : d);
 
-/** Le dé tranche : 6 passe, 1 casse, le reste se compare au seuil. */
-const passe = (de, mod, seuil) => de === 6 || (de !== 1 && de + mod >= seuil);
+/*
+ * UN 6 NATUREL GAGNE, UN 1 NATUREL PERD — DES DEUX CÔTÉS. La règle ne
+ * valait que pour l'attaquant : le pire tireur devant le meilleur gardien
+ * gardait son 6 (17 %), mais le meilleur devant le pire n'échouait que sur
+ * son 1 (83 %). Étendue aux deux dés, l'échelle va de 25 à 72 % au lieu de
+ * 17 à 83, et la pente au centre ne bouge pas (33 / 44 / 56 / 64) : le
+ * talent décide autant, les extrêmes ne sont plus une formalité. Quand les
+ * deux font 6 (ou 1), c'est le total qui tranche.
+ */
+const naturel = (dA, dB) => (dA === 6 && dB !== 6 ? true : dB === 6 && dA !== 6 ? false : dA === 1 && dB !== 1 ? false : dB === 1 && dA !== 1 ? true : null);
+/** Le gagnant d'un duel : les naturels d'abord, sinon le plus haut total, l'égalité au défenseur. */
+const gagneLeDuel = (de, total, de2, total2) => {
+  const n = de2 === null ? (de === 6 ? true : de === 1 ? false : null) : naturel(de, de2);
+  return n !== null ? n : total > total2;
+};
+const d6 = m => Math.floor(m.de() * 6) + 1;
+
+/** Les chances de l'attaquant : les naturels, sinon dé + a > dé + b (ou > b sans adversaire). */
+export function chances(a, b, opp = true) {
+  let n = 0, tot = 0;
+  for (let dA = 1; dA <= 6; dA++) {
+    if (opp) for (let dB = 1; dB <= 6; dB++) { tot++; if (gagneLeDuel(dA, dA + a, dB, dB + b)) n++; }
+    else { tot++; if (gagneLeDuel(dA, dA + a, null, b)) n++; }
+  }
+  return n / tot;
+}
+export const chancesDe = d => chances(d.a, d.b, d.opp);
 
 /* ======================================================================
    LE MATCH
@@ -649,7 +656,7 @@ export const PERIODES = 3;
  * à 35 tours, 3,2 buts avant la montée, 4,4 après ; 40 → 5,0, 44 → 5,4,
  * 48 → 6,0. `TOURS` dans l'environnement ne sert qu'à la mesure.
  */
-export const PRESENCES_PAR_PERIODE = Number(MESURE.TOURS) || 44;
+export const PRESENCES_PAR_PERIODE = Number(MESURE.TOURS) || 52;
 export const PRESENCES_PROLONGATION = 8;   // S38 : sur seize rangées, deux tours ne menaient pas au filet — douze prolongations sans but, mesuré
 export const PROLONGATIONS_MAX = 12;       // au-delà, le bris d'égalité écrit (gagnantDuMatch)
 
@@ -918,7 +925,8 @@ export const PAS_MAX = 6;   // S38 : sur seize rangées, un ailier à PA 6 en fa
  * comme un défenseur de quatrième paire : c'est ce qui fait changer de trio.
  */
 export const pasDe = (m, piece) => {
-  const base = Math.min(PAS_MAX, Math.max(3, piece.st.PA));
+  // S40 : trois pas à PA 2-3, quatre à PA 4-5, cinq à PA 6 — la vitesse se voit sans décider le match.
+  const base = Math.min(PAS_MAX, piece.st.PA <= 3 ? 3 : piece.st.PA <= 5 ? 4 : 5);
   const etat = etatSouffle(m, piece);
   return Math.max(1, base - (etat === 'fatigue' ? 1 : etat === 'vide' ? 2 : 0));
 };
@@ -958,7 +966,7 @@ function respirer(eq) {
  * Lidström, on ne le traverse pas. Le contact (l'épaule, le bâton, l'esquive)
  * garde l'adjacence : il faut être collé pour toucher.
  */
-export const rayonDe = piece => (piece.gardien ? 0 : (piece.st.DE >= 5 ? 2 : 1) + (piece.tendu ? 1 : 0));
+export const rayonDe = piece => (piece.gardien ? 0 : (piece.st.DE >= 6 ? 2 : 1) + (piece.tendu ? 1 : 0));   // S40 : le grand rayon aux seuls DE 6
 /** Les adversaires debout dont le rayon couvre cette case. */
 export const couvreurs = (m, cote, r, c) =>
   surLaGlace(m).filter(x => x.eq !== cote && !x.gardien && !x.etourdi && dist(x, { r, c }) <= rayonDe(x));
@@ -1051,8 +1059,8 @@ function miseAuJeu(m, mot) {
   const cA = m.A.pieces.find(x => x.role === 'C') || m.A.pieces[0];
   const cB = m.B.pieces.find(x => x.role === 'C') || m.B.pieces[0];
   // Le maniement ET la force : on gagne une mise au jeu des mains et du corps (S39).
-  const jA = Math.floor(m.de() * 6) + 1 + md(cA.st.MA) + md(cA.st.FO);
-  const jB = Math.floor(m.de() * 6) + 1 + md(cB.st.MA) + md(cB.st.FO);
+  const jA = Math.floor(m.de() * 6) + 1 + Math.round((cA.st.MA + cA.st.FO) / 2);
+  const jB = Math.floor(m.de() * 6) + 1 + Math.round((cB.st.MA + cB.st.FO) / 2);
   const gagnant = jA === jB ? (m.tour === 'A' ? cA : cB) : (jA > jB ? cA : cB);
   m.rondelle = { piece: gagnant };
   dire(m, `${mot} — ${nomDe(gagnant)} gagne la mise au jeu.`, 'mj');
@@ -1063,7 +1071,7 @@ export const nomDe = piece => (piece && piece.p && piece.p.n) || 'Rappel';
 /* ======================================================================
    LES GESTES
    ======================================================================
-   Cinq, pas un de plus. Chacun est un jet de d6 contre SEUIL avec un
+   Chacun est un DUEL — un dé chacun plus sa stat — avec un
    modificateur lisible, et chacun dit ce qu'un échec coûte. Un geste raté
    qui cause un revirement termine la présence : c'est tout le jeu.
    ====================================================================== */
@@ -1073,13 +1081,17 @@ export function modEsquive(m, piece, vers) {
   // Le matador protège la rondelle : un bâton adverse de moins sur lui.
   const tenue = Math.max(0, batons(m, piece.eq, piece.r, piece.c) - (piece.st.gb === GABARIT_MATADOR ? 1 : 0));
   const petit = piece.st.gb === GABARIT_PETIT ? 1 : 0;
-  // Le maniement du porteur contre la DÉFENSE du meilleur bâton qui le tient (S39) :
-  // s'échapper de Lidström n'est pas s'échapper d'un ailier de quatrième trio.
-  return md(piece.st.MA) - md(meilleurDE(m, piece.eq, piece.r, piece.c)) + petit + malusSouffle(m, piece)
-    - Math.max(0, tenue - 1) - (batons(m, piece.eq, vers.r, vers.c) > 0 ? 1 : 0);
+  // Ton maniement contre la DÉFENSE du meilleur bâton qui te tient (S39), un
+  // de plus par bâton de plus, un de plus si la case d'arrivée est tenue.
+  // L'ÉLAN EST AU PORTEUR (S40) : +2. Un porteur qui sort d'une zone de bâton
+  // y arrive sept fois sur dix à talent égal — c'est le taux du hockey, et
+  // sans lui la défense, dont l'approche ne coûte aucun dé, gagnait toujours.
+  return duel(piece.st.MA + 2 + petit + malusSouffle(m, piece),
+    Math.round(meilleurDE(m, piece.eq, piece.r, piece.c)) + Math.max(0, tenue - 1) + (batons(m, piece.eq, vers.r, vers.c) > 0 ? 1 : 0),
+    true, ['MA', 'DE']);
 }
 
-/** Le meilleur DE parmi les adversaires debout collés à une case (3,5 s'il n'y en a pas : md rend 0). */
+/** Le meilleur DE parmi les adversaires debout collés à une case (3,5 s'il n'y en a pas : la stat moyenne). */
 function meilleurDE(m, cote, r, c) {
   const x = surLaGlace(m).filter(y => y.eq !== cote && !y.gardien && !y.etourdi && dist(y, { r, c }) === 1);
   return x.length ? Math.max(...x.map(y => y.st.DE)) : 3.5;
@@ -1104,7 +1116,8 @@ export function modPoke(m, piece, vers) {
   const p = pokeurs(m, piece, vers);
   const fort = Math.max(...p.map(x => x.st.DE));
   const tendu = p.some(x => x.tendu && x.st.DE === fort) ? 1 : 0;
-  return md(piece.st.MA) - md(fort) + 1 + (piece.st.gb === GABARIT_MATADOR ? 1 : 0) - tendu + malusSouffle(m, piece);
+  // Un bâton passif n'est pas un vol : +1 au porteur, +1 au matador ; le bâton tendu rend +1 au défenseur.
+  return duel(piece.st.MA + 2 + (piece.st.gb === GABARIT_MATADOR ? 1 : 0) + malusSouffle(m, piece), fort + tendu, true, ['MA', 'DE']);
 }
 export function appliquerPoke(m, piece, vers, jet) {
   const qui = pokeurs(m, piece, vers).sort((a, b) => b.st.DE - a.st.DE)[0];
@@ -1123,19 +1136,35 @@ export function appliquerPoke(m, piece, vers, jet) {
 export function modPasse(m, piece, cible) {
   const d = dist(piece, cible);
   // LA PASSE SE GRADUE PAR LA DISTANCE (S35). JP : *plus c'est proche, plus
-  // c'est facile : une passe de deux cases sans personne entre, haute
-  // probabilité ; une bombe, moins*. +1 à deux cases ou moins, 0 jusqu'à
-  // quatre, −1 jusqu'à six, −2 au-delà — les bâtons sur la ligne se
-  // comptent à part (`batonsSurLaLigne`).
-  const loin = d <= 3 ? 1 : d <= 6 ? 0 : d <= 9 ? -1 : -2;   // S38 : la glace a grandi d'une fois et demie, les paliers aussi
+  // c'est facile*. +1 à trois cases ou moins, 0 jusqu'à six, −1 jusqu'à
+  // neuf, −2 au-delà (S38 : les paliers de la grande glace).
+  const loin = d <= 3 ? 1 : d <= 6 ? 0 : d <= 9 ? -1 : -2;
   const moyen = piece.st.gb === GABARIT_MOYEN ? 1 : 0;
   const but = eqDe(m, piece.eq).but;
-  // LA PASSE DE DERRIÈRE LE FILET vers l'enclave : le gardien ne la voit pas
-  // venir. C'est ce que le bureau de Gretzky rapporte.
+  // LA PASSE DE DERRIÈRE LE FILET vers l'enclave : le gardien ne la voit pas venir.
   const bureau = profondeur(piece.r, but) <= 0 && natureCase(cible.r, cible.c, but) === 'enclave' ? 1 : 0;
-  // Un receveur maladroit échappe la passe (S39) : son MA compte, en moins seulement.
-  return md(piece.st.MA) + (cible.st ? Math.min(0, md(cible.st.MA)) : 0) + loin + moyen + bureau + malusSouffle(m, piece)
-    - batonsPasse(m, piece.eq, cible.r, cible.c) - batonsSurLaLigne(m, piece.eq, piece, cible);
+  // Un receveur maladroit (MA 1-2) échappe la passe (S39).
+  const maladroit = cible.st && cible.st.MA <= 2 ? -1 : 0;
+  const a = piece.st.MA + loin + moyen + bureau + maladroit + malusSouffle(m, piece);
+  /*
+   * QUI S'OPPOSE À LA PASSE (S40) : les bâtons qui couvrent le receveur ou la
+   * ligne. S'il y en a, c'est un duel contre le meilleur DE d'entre eux —
+   * moins un, parce qu'un bâton sur une ligne n'est pas un bâton sur la
+   * rondelle — plus un par bâton de plus (deux au plus), plus un si un bâton
+   * TENDU est collé au receveur. S'il n'y en a pas, la passe se rend sauf
+   * accident : difficulté 3.
+   */
+  const couv = new Set(couvreurs(m, piece.eq, cible.r, cible.c));
+  const n = dist(piece, cible);
+  for (let i = 1; i < n; i++) {
+    const r = Math.round(piece.r + (cible.r - piece.r) * i / n), c = Math.round(piece.c + (cible.c - piece.c) * i / n);
+    for (const x of couvreurs(m, piece.eq, r, c)) couv.add(x);
+  }
+  if (!couv.size) return duel(a, 3, false, ['MA', null]);
+  const xs = [...couv];
+  const fort = Math.max(...xs.map(x => x.st.DE));
+  const tendu = xs.some(x => x.tendu && dist(x, cible) === 1) ? 1 : 0;
+  return duel(a, fort - 1 + Math.min(2, xs.length - 1) + tendu, true, ['MA', 'DE']);
 }
 
 /* ---------- le dégagement : la rondelle au fond, libre ---------- */
@@ -1166,11 +1195,12 @@ export function ciblesDegagementDe(m, piece) {
 
 /** Le modificateur d'un dégagement : le maniement, et un bâton adverse près de l'endroit visé. */
 export function modDegagement(m, piece, vers) {
-  return md(piece.st.MA) + malusSouffle(m, piece) - (batonsPasse(m, piece.eq, vers.r, vers.c) > 0 ? 1 : 0);
+  // Sans adversaire : la difficulté est fixe, un de plus si un bâton attend près de l'endroit visé.
+  return duel(piece.st.MA + malusSouffle(m, piece), 3 + (batonsPasse(m, piece.eq, vers.r, vers.c) > 0 ? 1 : 0), false, ['MA', null]);
 }
 
 export function degager(m, piece, vers) {
-  return jeter(m, modDegagement(m, piece, vers), 'degagement');
+  return jeter(m, 'degagement', modDegagement(m, piece, vers));
 }
 
 export function appliquerDegagement(m, piece, vers, jet) {
@@ -1190,17 +1220,17 @@ export function appliquerDegagement(m, piece, vers, jet) {
 }
 
 /** Le modificateur d'un tir : la finition contre le gardien, la distance, l'enclave, la couverture. */
-/** Le seuil d'un tir : la PLACE seule le fixe (voir SEUIL_PLACE). */
-export function seuilTir(m, piece, ou = piece) {
+/** Ce que le gardien ajoute à son dé selon d'où l'on tire (voir PLACE_GARDIEN). */
+export function placeGardien(m, piece, ou = piece) {
   const but = eqDe(m, piece.eq).but;
   const d = profondeur(ou.r, but);
   const nature = natureCase(ou.r, ou.c, but);
-  if (d === 0) return SEUIL_PLACE.tour;                    // le tour du filet
-  if (nature === 'coin') return SEUIL_PLACE.coin;
-  // L'enclave fait deux rangées (S38) : collé au filet c'est 2+, une rangée
-  // plus loin 3+ — et tout ce qui reste de la zone offensive est la pointe.
-  if (nature === 'enclave') return d <= 1 ? SEUIL_PLACE.enclave : SEUIL_PLACE.rangee2;
-  return SEUIL_PLACE.pointe;
+  if (d === 0) return PLACE_GARDIEN.tour;                    // le tour du filet
+  if (nature === 'coin') return PLACE_GARDIEN.coin;
+  // L'enclave fait deux rangées (S38) : collé au filet le gardien n'ajoute
+  // rien, une rangée plus loin +1 — et tout le reste de la zone est la pointe.
+  if (nature === 'enclave') return d <= 1 ? PLACE_GARDIEN.enclave : PLACE_GARDIEN.rangee2;
+  return PLACE_GARDIEN.pointe;
 }
 
 /** Le modificateur d'un tir : LE JOUEUR — sa finition contre le gardien, sa signature, les bâtons devant lui. */
@@ -1211,14 +1241,13 @@ export function modTir(m, piece, ou = piece) {
   const g = eqDe(m, adverse(piece.eq)).piece_g;
   const d = profondeur(ou.r, eq.but);
   const nature = natureCase(ou.r, ou.c, eq.but);
-  // Les bâtons devant le tireur comptent, bornés à deux : au-delà, c'est la
-  // place qui parle, et elle parle déjà par le seuil.
+  // Les bâtons devant le tireur comptent, bornés à deux.
   const gene = Math.min(2, batonsTir(m, piece.eq, ou.r, ou.c));
   // LE TIR SIGNATURE : chacun a un contexte où il vaut mieux que les autres.
-  // `recu` dit qu'il vient de recevoir la passe — c'est le une-deux.
   const tir = TIRS[piece.st.ts] || TIRS.P;
   const signature = tir.mod({ loin: d, enclave: nature === 'enclave', batons: gene, recu: !!piece.derniere });
-  return md(piece.st.TI) - md(g.st.AR) + signature + malusSouffle(m, piece) - gene;
+  // Ton dé + TI contre son dé + AR, et la place s'ajoute au gardien (S40).
+  return duel(piece.st.TI + signature + malusSouffle(m, piece) - gene, g.st.AR + placeGardien(m, piece, ou), true, ['TI', 'AR']);
 }
 
 /** Le modificateur d'une mise en échec : la force contre la force. */
@@ -1242,7 +1271,7 @@ export function modTir(m, piece, ou = piece) {
  * de camp 18 fois. À +2, 33 et 5,1 buts ; avec la règle de la course
  * ci-dessous, 29 et 5,6.
  */
-export const PROTECTION_PORTEUR = 2;
+export const PROTECTION_PORTEUR = 1;   // S40 : sur l'échelle brute du duel, +1 vaut déjà 28 % au lieu de 42
 /*
  * ON NE FRAPPE PAS EN PLEINE COURSE (S36). La pièce qui a pris le
  * déplacement de la main ne donne ni l'épaule ni le bâton dans cette même
@@ -1258,7 +1287,7 @@ export const enCourse = (m, piece) => m.main.mobile === piece;
 
 export function modEchec(m, piece, cible) {
   const porte = porteur(m) === cible ? PROTECTION_PORTEUR : 0;
-  return md(piece.st.FO) - md(cible.st.FO) - porte + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece);
+  return duel(piece.st.FO + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece), cible.st.FO + porte, true, ['FO', 'FO']);
 }
 
 /**
@@ -1269,10 +1298,8 @@ export function modEchec(m, piece, cible) {
  * chemin défensif à qui ne frappe pas.
  */
 export function modVol(m, piece, cible) {
-  // La DÉFENSE contre le maniement (S38) : lire le jeu et tendre le bâton au
-  // bon moment, c'est ce que `md` mesure — pas les mains du voleur.
-  return md(piece.st.DE) - md(cible.st.MA) - PROTECTION_PORTEUR
-    + (bonVoleur(piece.p) ? 1 : 0) + malusSouffle(m, piece);
+  // Ta DÉFENSE contre son maniement, et sa protection (S38, S40).
+  return duel(piece.st.DE + (bonVoleur(piece.p) ? 1 : 0) + malusSouffle(m, piece), cible.st.MA + PROTECTION_PORTEUR, true, ['DE', 'MA']);
 }
 
 /* ---------- le jet, la relance, le revirement ---------- */
@@ -1282,18 +1309,20 @@ export function modVol(m, piece, cible) {
  * La relance d'équipe se demande APRÈS avoir vu le dé — c'est tout l'intérêt
  * du team re-roll de Blood Bowl : on le dépense en connaissance de cause.
  */
-export function jeter(m, mod, quoi, seuil = quoi === 'tir' ? SEUIL_TIR : SEUIL) {
-  const mo = borne(mod, MOD_MIN, MOD_MAX);
-  const de = Math.floor(m.de() * 6) + 1;
-  return { de, mod: mo, seuil, total: de + mo, reussi: passe(de, mo, seuil), quoi };
+export function jeter(m, quoi, d) {
+  const de = d6(m);
+  const de2 = d.opp ? d6(m) : null;
+  const total = de + d.a, total2 = d.opp ? de2 + d.b : d.b;
+  return { de, mod: d.a, total, de2, mod2: d.b, total2, opp: d.opp, mots: d.mots, seuil: total2, reussi: gagneLeDuel(de, total, de2, total2), quoi };
 }
 
 export function relancer(m, jet, cote) {
   const eq = eqDe(m, cote);
   if (!eq.relance) return jet;
   eq.relance = false;
-  const de = Math.floor(m.de() * 6) + 1;
-  return { ...jet, de, total: de + jet.mod, reussi: passe(de, jet.mod, jet.seuil), relance: true };
+  // On relance SON dé ; celui de l'adversaire reste sur la table.
+  const de = d6(m);
+  return { ...jet, de, total: de + jet.mod, reussi: gagneLeDuel(de, de + jet.mod, jet.de2, jet.total2), relance: true };
 }
 
 /**
@@ -1501,20 +1530,20 @@ export function deplacer(m, piece, vers) {
   // la rondelle est à toi ; perdue, elle ricoche à côté, libre encore.
   if (!avecRondelle && bataillePossible(m, piece, vers)) {
     piece.libre = false;
-    return { ok: true, jet: jeter(m, modBataille(m, piece, vers), 'bataille'), bataille: true };
+    return { ok: true, jet: jeter(m, 'bataille', modBataille(m, piece, vers)), bataille: true };
   }
   // Le défenseur DÉJOUÉ ne tient plus le porteur : le patin qui suit est libre.
   if (!avecRondelle || tenue === 0 || piece.libre) {
     piece.libre = false;
     // LE POKE CHECK PASSIF (S39) : arriver sous un bâton neuf, avec la rondelle.
     if (avecRondelle && pokeurs(m, piece, vers).length) {
-      return { ok: true, jet: jeter(m, modPoke(m, piece, vers), 'poke'), poke: true, vers, piece };
+      return { ok: true, jet: jeter(m, 'poke', modPoke(m, piece, vers)), poke: true, vers, piece };
     }
     deposer(m, piece, vers.r, vers.c);
     return { ok: true, jet: null };
   }
-  const mod = modEsquive(m, piece, vers) + (piece.hab === 'PATIN' && piece.habDispo ? 2 : 0);
-  return { ok: true, jet: jeter(m, mod, 'esquive'), vers, piece };
+  const d = avec(modEsquive(m, piece, vers), piece.hab === 'PATIN' && piece.habDispo ? 2 : 0);
+  return { ok: true, jet: jeter(m, 'esquive', d), vers, piece };
 }
 
 /**
@@ -1557,8 +1586,7 @@ export const bataillePossible = (m, piece, vers) => {
 };
 export function modBataille(m, piece, vers) {
   const rivaux = eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.gardien && !x.etourdi && dist(x, vers) === 1);
-  const fort = Math.max(...rivaux.map(x => md(x.st.FO)));
-  return md(piece.st.FO) - fort + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece);
+  return duel(piece.st.FO + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece), Math.max(...rivaux.map(x => x.st.FO)), true, ['FO', 'FO']);
 }
 export function appliquerBataille(m, piece, vers, jet) {
   if (jet.reussi) {
@@ -1585,10 +1613,10 @@ export function appliquerEsquive(m, piece, vers, jet) {
 }
 
 export function passer(m, piece, cible) {
-  const mod = modPasse(m, piece, cible) + (piece.hab === 'VOILEE' && piece.habDispo ? 2 : 0);
-  // Comme `modsTir` : les morceaux de chaque passe tentée, pour la mesure.
-  eqDe(m, piece.eq).modsPasse.push({ mod, d: dist(piece, cible), rec: batonsPasse(m, piece.eq, cible.r, cible.c), ligne: batonsSurLaLigne(m, piece.eq, piece, cible), ma: md(piece.st.MA), recMA: Math.min(0, md(cible.st.MA)) });
-  return jeter(m, mod, 'passe');
+  const d = avec(modPasse(m, piece, cible), piece.hab === 'VOILEE' && piece.habDispo ? 2 : 0);
+  // Comme `modsTir` : chaque passe tentée, pour la mesure.
+  eqDe(m, piece.eq).modsPasse.push({ mod: d.a - d.b, d: dist(piece, cible), opp: d.opp });
+  return jeter(m, 'passe', d);
 }
 
 export function appliquerPasse(m, piece, cible, jet) {
@@ -1607,10 +1635,9 @@ export function appliquerPasse(m, piece, cible, jet) {
 }
 
 export function tirer(m, piece) {
-  const mod = modTir(m, piece) + (piece.hab === 'DECOCHE' && piece.habDispo ? 2 : 0);
-  const seuil = seuilTir(m, piece);
-  eqDe(m, piece.eq).modsTir.push({ mod, d: profondeur(piece.r, eqDe(m, piece.eq).but), seuil });
-  return jeter(m, mod, 'tir', seuil);
+  const d = avec(modTir(m, piece), piece.hab === 'DECOCHE' && piece.habDispo ? 2 : 0);
+  eqDe(m, piece.eq).modsTir.push({ mod: d.a - d.b, d: profondeur(piece.r, eqDe(m, piece.eq).but), place: placeGardien(m, piece) });
+  return jeter(m, 'tir', d);
 }
 
 export function appliquerTir(m, piece, jet) {
@@ -1656,7 +1683,7 @@ export function appliquerTir(m, piece, jet) {
   // le seuil ordinaire — et un arrêt mal contrôlé rebondit devant lui, où
   // tout le monde se jette dessus. Un grand gardien étouffe deux tirs sur
   // trois, un rappel en laisse deux sur trois.
-  const controle = Math.floor(m.de() * 6) + 1 + md(advG.st.AR) >= SEUIL + 1;
+  const controle = Math.floor(m.de() * 6) + 1 + advG.st.AR > 7;   // AR 4 : une fois sur deux ; AR 6 : cinq sur six
   if (enclave || deJustesse || !controle) {
     rebondir(m, piece.r, piece.c, eq.but);
     dire(m, `${nomDe(advG)} repousse le tir de ${nomDe(piece)} — retour devant le filet.`, 'retour');
@@ -1669,8 +1696,7 @@ export function appliquerTir(m, piece, jet) {
 }
 
 export function mettreEnEchec(m, piece, cible) {
-  const mod = modEchec(m, piece, cible) + ((piece.hab === 'ACTIF' || piece.hab === 'EPAULE') && piece.habDispo ? 2 : 0);
-  return jeter(m, mod, 'echec');
+  return jeter(m, 'echec', avec(modEchec(m, piece, cible), (piece.hab === 'ACTIF' || piece.hab === 'EPAULE') && piece.habDispo ? 2 : 0));
 }
 
 export function appliquerEchec(m, piece, cible, jet) {
@@ -1750,7 +1776,7 @@ function pousser(m, piece, cible) {
 /* ---------- le vol de rondelle ---------- */
 
 export function voler(m, piece, cible) {
-  return jeter(m, modVol(m, piece, cible) + (piece.hab === 'ACTIF' && piece.habDispo ? 2 : 0), 'vol');
+  return jeter(m, 'vol', avec(modVol(m, piece, cible), piece.hab === 'ACTIF' && piece.habDispo ? 2 : 0));
 }
 
 export function appliquerVol(m, piece, cible, jet) {
@@ -1824,10 +1850,10 @@ function liberer(m, eq) {
  * une bataille, et la main continue.
  */
 export function modCoincer(m, piece, cible) {
-  return md(piece.st.FO) - md(cible.st.FO) + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece);
+  return duel(piece.st.FO + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece), cible.st.FO, true, ['FO', 'FO']);
 }
 export function coincer(m, piece, cible) {
-  return jeter(m, modCoincer(m, piece, cible), 'coincer');
+  return jeter(m, 'coincer', modCoincer(m, piece, cible));
 }
 export function appliquerCoincer(m, piece, cible, jet) {
   const eq = eqDe(m, piece.eq);
@@ -1895,12 +1921,11 @@ export const ciblesDejouerDe = (m, piece) =>
     : eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.gardien && !x.etourdi && dist(piece, x) === 1);
 export function modDejouer(m, piece, cible) {
   const petit = piece.st.gb === GABARIT_PETIT ? 1 : 0;
-  // Le maniement du porteur contre la DÉFENSE de celui qu'il feinte (S38).
-  return md(piece.st.MA) - md(cible.st.DE) + petit + malusSouffle(m, piece);
+  // Ton maniement contre la DÉFENSE de celui que tu feintes (S38).
+  return duel(piece.st.MA + petit + malusSouffle(m, piece), cible.st.DE, true, ['MA', 'DE']);
 }
 export function dejouer(m, piece, cible) {
-  const mod = modDejouer(m, piece, cible) + (piece.hab === 'PATIN' && piece.habDispo ? 2 : 0);
-  return jeter(m, mod, 'dejouer');
+  return jeter(m, 'dejouer', avec(modDejouer(m, piece, cible), piece.hab === 'PATIN' && piece.habDispo ? 2 : 0));
 }
 export function appliquerDejouer(m, piece, cible, jet) {
   if (piece.hab === 'PATIN' && piece.habDispo) piece.habDispo = false;
@@ -1920,9 +1945,9 @@ export function appliquerDejouer(m, piece, cible, jet) {
  * LA DÉVIATION (S35). JP : *ajouter possibilité de déviation en lien avec
  * force et tir du joueur devant*. Le porteur, de la zone offensive, tire vers
  * un coéquipier planté dans l'ENCLAVE, plus près du filet que lui ; c'est le
- * coéquipier qui fait le but. Le seuil est celui de la deuxième rangée
- * (${SEUIL_PLACE.rangee2}+), quel que soit d'où part le tir, et le
- * modificateur est CELUI DE L'HOMME DEVANT : son tir contre le gardien, sa
+ * coéquipier qui fait le but. Le gardien prend le point de la deuxième
+ * rangée (`PLACE_GARDIEN.rangee2`), quel que soit d'où part le tir, et le
+ * duel est CELUI DE L'HOMME DEVANT : son tir contre le gardien, sa
  * force pour tenir sa place (chaque adversaire collé à lui compte contre,
  * borné à deux), sa signature 🔻. Un tir dévié qui rate reste devant le
  * filet : retour.
@@ -1939,12 +1964,14 @@ export function modDeviation(m, piece, cible) {
   const colles = Math.min(2, eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.gardien && !x.etourdi && dist(x, cible) === 1).length);
   const tir = TIRS[cible.st.ts] || TIRS.P;
   const signature = tir.mod({ loin: 1, enclave: true, batons: colles, recu: true });
-  return md(cible.st.TI) - md(g.st.AR) + md(cible.st.FO) - colles + signature + malusSouffle(m, cible);
+  // Le TI de l'homme devant, sa force pour tenir sa place (+1 s'il est fort, −1 s'il est faible), moins ceux collés à lui.
+  const tient = cible.st.FO >= 5 ? 1 : cible.st.FO <= 2 ? -1 : 0;
+  return duel(cible.st.TI + signature + tient - colles + malusSouffle(m, cible), g.st.AR + PLACE_GARDIEN.rangee2, true, ['TI', 'AR']);
 }
 export function devier(m, piece, cible) {
-  const mod = modDeviation(m, piece, cible);
-  eqDe(m, piece.eq).modsTir.push({ mod, d: profondeur(cible.r, eqDe(m, piece.eq).but), seuil: SEUIL_PLACE.rangee2 });
-  return jeter(m, mod, 'deviation', SEUIL_PLACE.rangee2);
+  const d = modDeviation(m, piece, cible);
+  eqDe(m, piece.eq).modsTir.push({ mod: d.a - d.b, d: profondeur(cible.r, eqDe(m, piece.eq).but), place: PLACE_GARDIEN.rangee2 });
+  return jeter(m, 'deviation', d);
 }
 export function appliquerDeviation(m, piece, cible, jet) {
   const eq = eqDe(m, piece.eq);
@@ -2225,20 +2252,21 @@ function meilleurGeste(m, piece) {
     if (peutAgir(m, piece)) {
       // Tirer : ce que ça rapporte, c'est un but. Un tir raté rend la
       // rondelle au gardien, donc ça se pèse.
-      if (peutTirer(m, piece)) options.push({ type: 'tir', val: chances(modTir(m, piece) + bonus('DECOCHE'), seuilTir(m, piece)) * 11 - 1.5 });
+      // Un tir vaut toujours quelque chose (S40) : au hockey on lance, et le retour est une chance de plus.
+      if (peutTirer(m, piece)) options.push({ type: 'tir', val: chancesDe(avec(modTir(m, piece), bonus('DECOCHE'))) * 11 + 0.3 });
       for (const cible of receveursDe(m, piece)) {
         const gain = valeurCase(cible.r, cible.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
         // Ce que la passe ouvre : la chance de tir du receveur, zéro s'il est
         // hors de portée. Sans ça le glouton passait à quelqu'un de mieux
         // « placé » qui ne pouvait pas tirer non plus.
-        const tirIci = peutTirer(m, piece) ? chances(modTir(m, piece), seuilTir(m, piece)) : 0;
+        const tirIci = peutTirer(m, piece) ? chancesDe(modTir(m, piece)) : 0;
         // UNE ACTION PAR ACTIVATION (S35) : ce que la passe ouvre, c'est le
         // tir du receveur À SON ACTIVATION — s'il a déjà joué ce tour-ci,
         // l'adversaire aura un tour entier pour le frapper avant. Un receveur
         // qui n'a pas encore joué et qui peut tirer vaut la passe ; un
         // receveur déjà joué ne vaut que le terrain gagné.
         const encore = 1;   // le une-deux est ouvert à tout receveur debout (S35)
-        const tir = ((peutTirer(m, cible) ? chances(modTir(m, cible), seuilTir(m, cible)) : 0) - tirIci) * encore;
+        const tir = ((peutTirer(m, cible) ? chancesDe(modTir(m, cible)) : 0) - tirIci) * encore;
         if (gain <= 0 && tir <= 0.02) continue;
         // Le terrain gagné par une PASSE pesait 0,5 contre 0,9 pour le patin :
         // la passe était escomptée plus que le patin, ce qui est à l'envers dès
@@ -2248,7 +2276,7 @@ function meilleurGeste(m, piece) {
         // UNE PASSE RATÉE EST UN REVIREMENT (S36) : elle se paie dans la valeur,
         // sinon la bombe à 40 % l'emporte sur le patin sûr — 43 % des
         // possessions finissaient sur une interception, mesuré.
-        const c = chances(modPasse(m, piece, cible) + bonus('VOILEE'));
+        const c = chancesDe(avec(modPasse(m, piece, cible), bonus('VOILEE')));
         options.push({ type: 'passe', cible, val: c * (2.5 + gain * 2.0 + tir * 9) - (1 - c) * 3 });
       }
       // DÉGAGER : de la zone neutre, quand la couverture est là et qu'un
@@ -2259,19 +2287,25 @@ function meilleurGeste(m, piece) {
         const amis = eq.pieces.filter(x => x !== piece && !x.etourdi);
         // Ça vaut d'autant plus que le porteur est TENU : la course au fond
         // remplace l'esquive qu'il aurait fallu réussir.
-        const tenu = batons(m, piece.eq, piece.r, piece.c) > 0 ? 1.6 : 0;
-        for (const v of ciblesDegagementDe(m, piece)) {
+        // ON NE DÉGAGE QUE TENU (S40) : la passe se rend presque toujours
+        // maintenant, et le dégagement passait à 83 % — l'IA dégageait 46 fois
+        // par match, la rondelle était libre à une main sur deux, et personne
+        // ne tirait. Le dump-and-chase est la sortie d'un porteur coincé,
+        // pas une façon d'entrer quand la voie est libre.
+        const tenu = batons(m, piece.eq, piece.r, piece.c) > 0 ? 1 : 0;
+        for (const v of tenu ? ciblesDegagementDe(m, piece) : []) {
           const proche = Math.min(...amis.map(x => dist(x, v)), 9);
           const rival = Math.min(...eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.etourdi).map(x => dist(x, v)), 9);
           if (proche > rival) continue;
-          const val = chances(modDegagement(m, piece, v)) * (2.4 + Math.max(0, 3 - proche) + tenu) - 0.8;
+          // Donner la rondelle vaut moins que la garder : sous une passe ou une feinte à chances égales.
+          const val = chancesDe(modDegagement(m, piece, v)) * (1.0 + Math.max(0, 3 - proche) * 0.6 + tenu) - 1.2;
           if (!mieux || val > mieux.val) mieux = { type: 'degager', vers: v, val };
         }
         if (mieux) options.push(mieux);
       }
       // DÉVIER : un coéquipier planté devant le filet, plus près que moi.
       for (const cible of ciblesDeviationDe(m, piece)) {
-        options.push({ type: 'devier', cible, val: chances(modDeviation(m, piece, cible), SEUIL_PLACE.rangee2) * 11 - 1.5 });
+        options.push({ type: 'devier', cible, val: chancesDe(modDeviation(m, piece, cible)) * 11 - 1.5 });
       }
       // DÉJOUER : tenu par un défenseur, le porteur peut le prendre en un
       // contre un plutôt que d'esquiver ou de passer. Ça vaut d'autant plus
@@ -2279,7 +2313,7 @@ function meilleurGeste(m, piece) {
       if (batons(m, piece.eq, piece.r, piece.c) > 0) {
         for (const cible of ciblesDejouerDe(m, piece)) {
           const devant = Math.max(0, LONGUEUR - profondeur(piece.r, eq.but));
-          options.push({ type: 'dejouer', cible, val: chances(modDejouer(m, piece, cible) + bonus('PATIN')) * (3.5 + devant * 0.3) - 2.6 });
+          options.push({ type: 'dejouer', cible, val: chancesDe(avec(modDejouer(m, piece, cible), bonus('PATIN'))) * (3.5 + devant * 0.3) - 2.6 });
         }
       }
     }
@@ -2288,8 +2322,8 @@ function meilleurGeste(m, piece) {
       for (const v of deplacementsDe(m, piece)) {
         const gain = valeurCase(v.r, v.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
         if (gain <= 0) continue;
-        const risque = batons(m, piece.eq, piece.r, piece.c) ? chances(modEsquive(m, piece, v) + bonus('PATIN'))
-          : pokeurs(m, piece, v).length ? chances(modPoke(m, piece, v)) : 1;
+        const risque = batons(m, piece.eq, piece.r, piece.c) ? chancesDe(avec(modEsquive(m, piece, v), bonus('PATIN')))
+          : pokeurs(m, piece, v).length ? chancesDe(modPoke(m, piece, v)) : 1;
         // ARRIVER DANS UNE CASE TENUE, c'est offrir la mise en échec (S35) :
         // une action par activation, donc l'adversaire joue AVANT le tir.
         const tenue = Math.min(2, batons(m, piece.eq, v.r, v.c));
@@ -2303,7 +2337,7 @@ function meilleurGeste(m, piece) {
          * gagnait du terrain, et se faisait frapper à la main suivante.
          */
         const tirOuvert = !m.main.agi && !piece.agi && peutTirerDe(v.r, v.c, eq.but)
-          ? chances(modTir(m, piece, v) + bonus('DECOCHE'), seuilTir(m, piece, v)) * 9 : 0;
+          ? chancesDe(avec(modTir(m, piece, v), bonus('DECOCHE'))) * 9 : 0;
         const val = risque * (2 + gain * 0.9 + tirOuvert) * (1 - 0.3 * tenue);
         if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
       }
@@ -2318,7 +2352,7 @@ function meilleurGeste(m, piece) {
       for (const cible of ciblesEchecDe(m, piece)) {
         const porte = p === cible;
         const solide = (piece.hab === 'EPAULE' && piece.habDispo) || piece.st.gb === GABARIT_MATADOR;
-        const c = chances(modEchec(m, piece, cible) + bonus('ACTIF') + bonus('EPAULE'));
+        const c = chancesDe(avec(modEchec(m, piece, cible), bonus('ACTIF') + bonus('EPAULE')));
         // Frapper un joueur SANS la rondelle ouvre une voie : ça vaut moins,
         // mais ça ne risque que la position de sa propre pièce.
         const gain = porte ? 9 : 2.0;
@@ -2327,10 +2361,10 @@ function meilleurGeste(m, piece) {
       }
       // COINCER : le porteur le long de la bande, sans rien risquer.
       for (const cible of ciblesCoincerDe(m, piece)) {
-        options.push({ type: 'coincer', cible, val: chances(modCoincer(m, piece, cible)) * 5 - 1.2 });
+        options.push({ type: 'coincer', cible, val: chancesDe(modCoincer(m, piece, cible)) * 5 - 1.2 });
       }
       for (const cible of ciblesVolDe(m, piece)) {
-        options.push({ type: 'vol', cible, val: chances(modVol(m, piece, cible) + bonus('ACTIF')) * 9 - 3.2 });
+        options.push({ type: 'vol', cible, val: chancesDe(avec(modVol(m, piece, cible), bonus('ACTIF'))) * 9 - 3.2 });
       }
       // SE PLACER DEVANT : quand l'adversaire porte la rondelle près de notre
       // filet et qu'on ne peut pas la lui prendre, on bouche la voie.
@@ -2365,7 +2399,7 @@ function meilleurGeste(m, piece) {
         // LA PASSE QUI SUIVRA (S36) : la main garde son action, donc la case
         // vaut aussi ce que vaut la passe du porteur vers elle — courte et
         // dégagée plutôt que loin derrière trois bâtons.
-        const passe = !m.main.agi && peutAgir(m, p) ? chances(modPasse(m, p, v)) * 1.2 : 0;
+        const passe = !m.main.agi && peutAgir(m, p) ? chancesDe(modPasse(m, p, v)) * 1.2 : 0;
         const val = 1.2 + gain * 0.7 + ouvert + tir + passe;
         if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
       }
@@ -2378,7 +2412,7 @@ function meilleurGeste(m, piece) {
       for (const v of deplacementsDe(m, piece)) {
         const d = dist(v, vise);
         if (d >= d0 && !(rondelleLibre && d === 0)) continue;
-        const prise = rondelleLibre && d === 0 ? (bataillePossible(m, piece, v) ? 4 * chances(modBataille(m, piece, v)) : 4) : 0;
+        const prise = rondelleLibre && d === 0 ? (bataillePossible(m, piece, v) ? 4 * chancesDe(modBataille(m, piece, v)) : 4) : 0;
         const val = 3 - d * 0.6 + prise;
         if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
       }
@@ -2447,7 +2481,7 @@ export function iaGeste(m) {
   // pris elle-même de là.
   {
     const x = receptionPossible(m);
-    if (x && chances(modTir(m, x), seuilTir(m, x)) >= 0.45) {
+    if (x && chancesDe(modTir(m, x)) >= 0.25) {
       const joue = { piece: x, type: 'reception' };
       const jet = jouerGeste(m, x, joue, x.eq, true);
       if (!m.fini && m.tour === cote && mainEpuisee(m)) finirMain(m);
@@ -2620,7 +2654,7 @@ function iaChanger(m, cote) {
 function relanceIA(m, cote, jet) {
   const eq = eqDe(m, cote);
   if (!eq.relance) return jet;
-  if (chances(jet.mod) < 0.45) return jet;
+  if (chances(jet.mod, jet.mod2, jet.opp) < 0.3) return jet;
   if (jet.quoi === 'esquive' && m.periode <= 2) return jet;
   if (jet.quoi === 'degagement') return jet;   // la rondelle est libre de toute façon
   return relancer(m, jet, cote);
@@ -2762,9 +2796,9 @@ export function reglesDuPlateau() {
       titre: 'La glace',
       points: [
         `${COLS} colonnes, ${RANGS} rangées — ${LONGUEUR} d'une ligne des buts à l'autre. Chaque filet est UNE case, posée sur sa ligne des buts : les cases à côté de lui et la rangée entière DERRIÈRE lui se jouent.`,
-        `DERRIÈRE LE FILET on ne tire pas, on passe : une passe partie de derrière (ou de la ligne des buts) vers l'enclave vaut +1, le gardien ne la voit pas venir. Des deux cases collées au filet sur la ligne des buts, on tente le TOUR DU FILET — à ${SEUIL_PLACE.tour}+.`,
+        `DERRIÈRE LE FILET on ne tire pas, on passe : une passe partie de derrière (ou de la ligne des buts) vers l'enclave vaut +1, le gardien ne la voit pas venir. Des deux cases collées au filet sur la ligne des buts, on tente le TOUR DU FILET — le gardien ajoute ${PLACE_GARDIEN.tour} à son dé.`,
         `ON NE TIRE QUE DE LA ZONE OFFENSIVE : à ${PORTEE_TIR} cases du filet ou moins. Au-delà de la ligne bleue ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert. Il faut entrer.`,
-        `LA PLACE FIXE LE SEUIL DU TIR : ${SEUIL_PLACE.enclave}+ collé au filet, ${SEUIL_PLACE.rangee2}+ de la deuxième rangée de l'ENCLAVE (${RANGS_ENCLAVE} rangées, ${DEMI_ENCLAVE * 2 + 1} colonnes au centre), ${SEUIL_PLACE.pointe}+ de la POINTE, ${SEUIL_PLACE.coin}+ d'un COIN (tout ce qui déborde en largeur : le mauvais angle). Le joueur, lui, porte le modificateur : son TI contre l'AR du gardien, son tir signature, les bâtons devant lui, à ±2.`,
+        `LE TIR EST UN DUEL AVEC LE GARDIEN : ton dé plus ton TI (plus ta signature, moins les bâtons devant toi) contre son dé plus son AR — et la PLACE, c'est ce qu'il ajoute encore : rien collé au filet, +${PLACE_GARDIEN.rangee2} à la deuxième rangée de l'ENCLAVE (${RANGS_ENCLAVE} rangées, ${DEMI_ENCLAVE * 2 + 1} colonnes au centre), +${PLACE_GARDIEN.pointe} de la POINTE et d'un COIN (tout ce qui déborde en largeur : le mauvais angle), +${PLACE_GARDIEN.tour} sur un tour du filet. TI 4 contre AR 4 : 42 % collé au filet, 17 % de loin.`,
         'Un tir raté pris de l\'enclave laisse un retour devant le filet : y arriver est le jeu.',
         `LE HORS-JEU : sans la rondelle, on n'entre pas en zone offensive avant elle — tant que la rondelle (portée par n'importe qui, ou libre) n'a pas passé la ligne bleue, la zone est fermée à tes pièces qui ne l'ont pas, celles qui y sont doivent en SORTIR, et on ne passe pas à un coéquipier qui y traîne. Dégager la rondelle au fond l'ouvre : c'est le dump-and-chase.`,
         'Un adversaire collé au tireur ne gêne son tir que s\'il est ENTRE lui et le filet. Celui qui est dans son dos ne bloque rien.',
@@ -2783,11 +2817,11 @@ export function reglesDuPlateau() {
     {
       titre: 'Le dé',
       points: [
-        `Un d6 par geste risqué. Il faut ${SEUIL} ou plus, modificateurs compris — sauf au tir, où c'est la place qui fixe le seuil (${SEUIL_PLACE.enclave}+ à ${SEUIL_PLACE.tour}+) et le joueur qui le module.`,
-        'Un 6 réussit toujours. Un 1 échoue toujours. Rien n\'est jamais sûr ni jamais perdu.',
-        `Les modificateurs sont bornés à ${MOD_MAX} de chaque bord, et il faut deux crans de talent pour en valoir un.`,
-        'Chaque option affiche son seuil et ses chances AVANT que tu t\'engages : la case où patiner, le coéquipier visé, l\'adversaire à frapper, le bouton de tir.',
-        'LA RELANCE D\'ÉQUIPE : une par période, dépensée après avoir vu le dé.',
+        'UN DÉ CHACUN, PLUS SA STAT. Celui qui agit lance un d6 et ajoute sa stat (TI au tir, MA à la passe et à la feinte, FO à l\'épaule, DE au bâton) ; celui qui subit lance le sien et ajoute la sienne (AR pour le gardien, DE contre une passe ou une feinte, FO contre l\'épaule, MA contre le bâton). Le plus haut l\'emporte ; l\'égalité reste au défenseur. Quand personne ne s\'oppose (une passe que rien ne couvre, un dégagement), on bat une difficulté fixe. Entre deux joueurs égaux, 42 % ; +1 de stat, 58 % ; +2, 67 % ; −1, 33 %.',
+        'Un 6 naturel gagne toujours, un 1 naturel perd toujours — pour les deux dés. Deux 6 (ou deux 1) se départagent au total. Rien n\'est jamais sûr ni jamais perdu : tout reste entre 25 et 75 %, quel que soit l\'écart de talent.',
+        'Les situations s\'ajoutent d\'un côté ou de l\'autre : la place du tir au gardien, la distance de la passe et la couverture au passeur, la protection du porteur (+' + PROTECTION_PORTEUR + ') à qui veut la lui prendre, le souffle vide (−1) à qui agit.',
+        'Chaque option affiche ses chances AVANT que tu t\'engages, et le duel qui les fait (« TI 4 contre AR 5 ») : la case où patiner, le coéquipier visé, l\'adversaire à frapper, le bouton de tir.',
+        'LA RELANCE D\'ÉQUIPE : une par période, dépensée après avoir vu les dés — on relance le SIEN, celui de l\'adversaire reste sur la table.',
       ],
     },
     {
@@ -2807,7 +2841,7 @@ export function reglesDuPlateau() {
         ['Se placer devant', 'non', 'PAR DÉFAUT tu gênes déjà tout tir pris à côté de toi, si tu es du côté du filet ; l\'action te fait compter double (triple pour un vrai bloqueur) jusqu\'à ton prochain tour', '—'],
         ['Tendre le bâton', 'non', 'PAR DÉFAUT ton rayon coupe les passes et ton bâton harponne qui arrive collé à toi ; l\'action, jusqu\'à ton prochain tour, grandit ton rayon d\'une case, couvre double un receveur collé et donne −1 au porteur qui passe sous ta lame', '—'],
         ['Déjouer', 'oui', 'le porteur prend en un contre un un défenseur collé à lui : son maniement contre la DÉFENSE de l\'autre ; s\'il passe, le défenseur ne joue plus cette main-ci et le porteur repart aussitôt, sans esquive', 'revirement : le défenseur lui prend la rondelle'],
-        [`Dévier`, 'oui', `le porteur tire vers un coéquipier planté dans l'enclave, plus près du filet que lui ; c'est le tir ET la force de l'homme devant qui comptent (chaque adversaire collé à lui, −1), au seuil de ${SEUIL_PLACE.rangee2}+ d'où que parte le tir`, 'retour devant le filet'],
+        [`Dévier`, 'oui', `le porteur tire vers un coéquipier planté dans l'enclave, plus près du filet que lui ; c'est le tir ET la force de l'homme devant qui comptent (chaque adversaire collé à lui, −1), contre le gardien qui ajoute +${PLACE_GARDIEN.rangee2} d'où que parte le tir`, 'retour devant le filet'],
         ['Tir sur réception', 'oui', 'après une passe RÉUSSIE, le receveur tire sur-le-champ, dans la même main, s\'il est debout et en zone de tir', 'comme un tir'],
       ],
     },
