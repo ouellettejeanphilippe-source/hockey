@@ -29,7 +29,9 @@ import {
   modTir, seuilTir, modPasse, modEchec, modEsquive, modVol, modDegagement, peutTirer, distanceAuFilet, PORTEE_TIR,
   deplacer, appliquerEsquive, passer, appliquerPasse, tirer, appliquerTir, degager, appliquerDegagement,
   mettreEnEchec, appliquerEchec, voler, appliquerVol,
-  seMettreDevant, tendreLeBaton, foncer, souffleDe, essouffle, pasDe, uniteDe, statsDeTable, AXE_MOT,
+  seMettreDevant, tendreLeBaton, souffleDe, essouffle, uniteDe, statsDeTable, AXE_MOT,
+  ciblesDejouerDe, modDejouer, dejouer, appliquerDejouer, ciblesDeviationDe, modDeviation, devier, appliquerDeviation,
+  receptionPossible, tirerSurReception, SEUIL_PLACE,
   relancer, activer, finirActivation, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
@@ -149,6 +151,14 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const piece = surLaGlace(m).find(x => x.r === r && x.c === c);
     const veut = t => !mode || mode === t;
     if (piece) {
+      // DÉJOUER et DÉVIER (S35) ne se jouent qu'en mode, comme la passe : un
+      // adversaire collé se confond avec l'épaule, un coéquipier avec le choix.
+      if (mode === 'dejouer' && piece.eq === 'B' && ciblesDejouerDe(m, sel).includes(piece)) {
+        return { type: 'dejouer', cible: piece, mod: modDejouer(m, sel, piece) + bonus('PATIN'), seuil: SEUIL };
+      }
+      if (mode === 'devier' && piece.eq === 'A' && ciblesDeviationDe(m, sel).includes(piece)) {
+        return { type: 'devier', cible: piece, mod: modDeviation(m, sel, piece), seuil: SEUIL_PLACE.rangee2 };
+      }
       // LA PASSE NE SE JOUE QUE PAR SON BOUTON. JP : *les passes doivent
       // passer par bouton ou confirmation, sinon ça passe random* — toucher
       // un coéquipier pour le CHOISIR passait la rondelle. Sans le mode
@@ -196,6 +206,10 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * n'est donc plus jouable : elle se désélectionne, et son cerclage s'éteint.
    */
   function aDesOptions(piece) {
+    // LE UNE-DEUX (S35) : le receveur d'une passe qui vient de réussir peut
+    // tirer sur-le-champ, même s'il a déjà joué ce tour-ci — c'est la seule
+    // pièce qui a une option sans être activée ni « jouable ».
+    if (receptionPossible(m) === piece) return true;
     if (!peutJouer(piece) || m.tour !== piece.eq) return false;
     // UNE PIÈCE ACTIVÉE JOUE SEULE (S32) : les autres attendent qu'elle finisse.
     if (m.actif && m.actif !== piece) return false;
@@ -203,7 +217,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (!piece.agi) {
       if (p === piece) return true;                                     // tirer, passer
       if (ciblesEchecDe(m, piece).length) return true;                  // frapper, voler
-      if (piece.deplace) return true;                                   // foncer
       if (!piece.ecran && p !== piece) return true;                     // se placer devant
       if (!piece.tendu && p !== piece) return true;                     // tendre le bâton
     }
@@ -293,7 +306,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   function batirGlace() {
     // La feuille de style ne devine JAMAIS la géométrie : le nombre de colonnes
     // lui est donné par le moteur, donc changer COLS suffit.
-    let html = `<div class="t-glace" role="grid" aria-label="La patinoire" style="--tcols:${COLS}">`;
+    let html = `<div class="t-glace" role="grid" aria-label="La patinoire" style="--tcols:${COLS};--trangs:${RANGS}">`;
     html += patinoireSvg();
     for (let r = 0; r < RANGS; r++) {
       for (let c = 0; c < COLS; c++) {
@@ -487,6 +500,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     rate:       ['MANQUÉ', 'rouge', 'cible'],
     revirement: ['REVIREMENT', 'rouge', 'defaut'],
     degage:     ['DÉGAGÉ', 'froid', 'cible'],
+    dejoue:     ['DÉJOUÉ !', 'chaud', 'cible'],
   };
 
   function verdict(avant, ou, quoi = null, delai = 0) {
@@ -518,19 +532,19 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const SON_DU_GENRE = {
     but: 'but', retour: 'retour', arret: 'arret', echec: 'echec', vol: 'vol', rate: 'rate',
     revirement: 'revirement', degage: 'degage', mj: 'mj', fin: 'fin', periode: 'periode',
-    fonce: 'patin', ecran: 'tap', tendu: 'tap', changement: 'tap',
+    dejoue: 'patin', ecran: 'tap', tendu: 'tap', changement: 'tap',
   };
   const PAS_SON = { tir: 0.22, patin: 0.12, passe: 0.1, echec: 0.28, arret: 0.2, retour: 0.25, vol: 0.15, rate: 0.15, degage: 0.45, mj: 0.1, periode: 0.5, fin: 2, but: 1.6, revirement: 0.2, tap: 0.08 };
   function sonner(genres, quoi, delai = 0) {
     let d = delai;
-    if (quoi === 'tir') { jouerSon('tir', d); d += PAS_SON.tir; }
-    else if (quoi === 'patin' || quoi === 'foncer' || quoi === 'esquive') { jouerSon('patin', d); d += PAS_SON.patin; }
+    if (quoi === 'tir' || quoi === 'deviation') { jouerSon('tir', d); d += PAS_SON.tir; }
+    else if (quoi === 'patin' || quoi === 'esquive' || quoi === 'dejouer') { jouerSon('patin', d); d += PAS_SON.patin; }
     else if (quoi === 'ecran' || quoi === 'tendre') { jouerSon('tap', d); d += PAS_SON.tap; }
     const but = genres.includes('but');
     for (const g of genres) {
       // « ok » est le genre des réussites ordinaires : seule la passe reçue a un son à elle.
       const nom = g === 'ok' ? (quoi === 'passe' ? 'passe' : null) : SON_DU_GENRE[g];
-      if (!nom || (g === 'mj' && but) || (g === 'fonce' && quoi === 'foncer')) continue;
+      if (!nom || (g === 'mj' && but)) continue;
       jouerSon(nom, d);
       d += PAS_SON[nom] || 0.2;
     }
@@ -593,6 +607,11 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       if (rec.length) modes.push(modeBouton('passe', 'Passer', meilleure(rec, x => modPasse(m, sel, x) + bonus('VOILEE'))));
       const deg = ciblesDegagementDe(m, sel);
       if (deg.length) modes.push(modeBouton('degager', 'Dégager', meilleure(deg, v => modDegagement(m, sel, v)), 'au fond, libre'));
+      // DÉJOUER : un défenseur collé, en un contre un. DÉVIER : l'homme devant le filet.
+      const dej = ciblesDejouerDe(m, sel);
+      if (dej.length) modes.push(modeBouton('dejouer', 'Déjouer', meilleure(dej, x => modDejouer(m, sel, x) + bonus('PATIN')), 'un contre un'));
+      const dev = ciblesDeviationDe(m, sel);
+      if (dev.length) modes.push(modeBouton('devier', 'Dévier', meilleure(dev, x => modDeviation(m, sel, x)), `${SEUIL_PLACE.rangee2}+ devant le filet`, SEUIL_PLACE.rangee2));
     }
     if (!aLaRondelle && !sel.agi) {
       const adv = ciblesEchecDe(m, sel);
@@ -603,10 +622,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
     // Le TIR est dans la barre d'ancrage, sous la glace (`dock`) : c'est le
     // geste qu'on cherche, il ne doit pas demander d'ouvrir le volet.
-    // FONCER : dépenser son geste pour un deuxième élan. Sans dé.
-    if (sel.deplace && !sel.agi) {
-      gestes.push(`<button type="button" class="t-geste" data-geste="foncer" title="Il repatine : jusqu'à ${pasDe(m, sel)} cases de plus, mais il ne fera rien d'autre.">⚡ Foncer <i>+${pasDe(m, sel)} cases</i></button>`);
-    }
     // SE PLACER DEVANT et TENDRE LE BÂTON : les deux postures. Sans dé.
     if (!sel.agi && !aLaRondelle && !sel.ecran) {
       gestes.push('<button type="button" class="t-geste" data-geste="ecran" title="Jusqu\'à ta prochaine présence, il gêne double les tirs pris à côté de lui.">🛡️ Bloquer le tir</button>');
@@ -630,6 +645,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       degager: 'Touche le coin, ou la case derrière le filet, où envoyer la rondelle. Elle y sera libre.',
       echec: 'Touche l\'adversaire à mettre en échec.',
       vol: 'Touche le porteur pour lui soutirer la rondelle.',
+      dejouer: 'Touche le défenseur à prendre en un contre un : battu, il ne joue plus ce tour-ci et le porteur repart.',
+      devier: 'Touche le coéquipier devant le filet : c\'est lui qui fait dévier, avec son tir et sa force.',
     };
     const aide = cible ? `Choisis l'épaule ou le bâton sur ${nomCourt(cible.p)}.`
       : mode ? AIDE_MODE[mode]
@@ -651,8 +668,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
             ${['PA', 'MA', 'TI', 'FO'].map(k => {
               // LE TRAIT EST LE NOMBRE. On ne lui donne pas d'étiquette à lui :
               // « les icônes ne doivent jamais se répéter sur la même carte »,
-              // et ⚡ comme 🛡️ sont déjà pris par les gestes Foncer et Se
-              // placer devant. Le nombre qu'il majore porte donc sa marque, et
+              // et ⚡ comme 🛡️ sont déjà pris par l'habileté Coup de patin et
+              // le geste Se placer devant. Le nombre qu'il majore porte donc sa marque, et
               // l'infobulle le nomme — le trait se lit là où il agit.
               const tr = (st.traits || {})[k];
               const T = tr && TRAITS[tr];
@@ -675,12 +692,12 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const bouton = (geste, nom, mod, seuil, cls = '') =>
     `<button type="button" class="t-geste ${cls}" data-geste="${geste}">${esc(nom)} <b>${cote(mod, seuil)}</b><i>${pourcent(mod, seuil)}</i></button>`;
   /* Un bouton de MODE : le geste qu'on choisit avant de toucher la glace ; `mod` est la meilleure cote parmi ses cibles. */
-  const modeBouton = (quoi, nom, mod, note = '') =>
-    `<button type="button" class="t-mode ${mode === quoi ? 'on' : ''}" data-mode="${quoi}">${esc(nom)}${mod === null ? '' : ` <b>${cote(mod, SEUIL)}</b>`}${note ? `<i>${esc(note)}</i>` : ''}</button>`;
+  const modeBouton = (quoi, nom, mod, note = '', seuil = SEUIL) =>
+    `<button type="button" class="t-mode ${mode === quoi ? 'on' : ''}" data-mode="${quoi}">${esc(nom)}${mod === null ? '' : ` <b>${cote(mod, seuil)}</b>`}${note ? `<i>${esc(note)}</i>` : ''}</button>`;
 
   /* ---------- le dé ---------- */
 
-  const MOT_JET = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle', degagement: 'Dégagement' };
+  const MOT_JET = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle', degagement: 'Dégagement', dejouer: 'Déjouer', deviation: 'Déviation' };
 
   /*
    * SOUS LE PLATEAU IL NE RESTE QUE LA DÉCISION. Les chiffres sont sur la
@@ -897,7 +914,11 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       : (mode || cible) ? `<span class="t-dock-nom t-dock-aide">${esc(actions.aide)}</span>`
       : `<span class="t-dock-nom"><b class="t-fiche-role">${esc(sel.role)}</b> ${esc(nomCourt(sel.p))}</span>`;
     let tir = '';
-    if (sel && porteur(m) === sel && !sel.agi && peutTirer(m, sel)) {
+    // LE TIR SUR RÉCEPTION (S35) prend la place du tir : la passe vient de
+    // réussir, le receveur tire tout de suite, qu'il ait déjà joué ou non.
+    if (sel && receptionPossible(m) === sel) {
+      tir = bouton('reception', 'Tir sur réception', modTir(m, sel) + bonus('DECOCHE'), seuilTir(m, sel), 't-tir');
+    } else if (sel && porteur(m) === sel && !sel.agi && peutTirer(m, sel)) {
       tir = bouton('tir', 'Tirer', modTir(m, sel) + bonus('DECOCHE'), seuilTir(m, sel), 't-tir');
     }
     const fin = m.actif
@@ -954,6 +975,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   function choisirSeul() {
     if (!aMoi()) { sel = null; mode = null; return; }
     // La pièce activée reste choisie tant qu'elle joue.
+    const rec = receptionPossible(m);
+    if (rec && rec.eq === 'A') { sel = rec; return; }
     if (m.actif && m.actif.eq === 'A' && aDesOptions(m.actif)) { sel = m.actif; return; }
     if (sel && !aDesOptions(sel)) { sel = null; mode = null; }
     if (!sel) {
@@ -965,7 +988,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   /* Après chaque geste : si la présence a changé de camp, l'adversaire joue. */
   function apres() {
     // La pièce activée qui a patiné ET agi a fini : la main passe.
-    if (!m.fini && m.tour === 'A' && m.actif && !peutJouer(m.actif)) { deGlace = null; finirActivation(m); }
+    // …sauf si une passe vient d'ouvrir le une-deux : le receveur décide.
+    if (!m.fini && m.tour === 'A' && m.actif && !peutJouer(m.actif) && !receptionPossible(m)) { deGlace = null; finirActivation(m); }
     choisirSeul();
     rendre();
     if (!m.fini && m.tour === 'B' && !iaEnCours) tourAdverse();
@@ -1001,10 +1025,20 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (o.type === 'degager') {
       const piece = sel, vers = o.vers;
       lancer(degager(m, piece, vers), 'A', j => appliquerDegagement(m, piece, vers, j), placesDe(piece, vers));
+      return;
+    }
+    if (o.type === 'dejouer') {
+      const piece = sel, cible = o.cible;
+      lancer(dejouer(m, piece, cible), 'A', j => appliquerDejouer(m, piece, cible, j), placesDe(piece, cible));
+      return;
+    }
+    if (o.type === 'devier') {
+      const piece = sel, cible = o.cible;
+      lancer(devier(m, piece, cible), 'A', j => appliquerDeviation(m, piece, cible, j), placesDe(piece, cible));
     }
   }
 
-  /* Un geste SANS dé (se placer devant, foncer) a droit à son verdict aussi. */
+  /* Un geste SANS dé (se placer devant, tendre le bâton) a droit à son verdict aussi. */
   function sansDe(piece, faire, quoi) {
     const ou = placesDe(piece, null), avant = m.fil.length;
     faire();
@@ -1024,7 +1058,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * ordre. Seul le moment où on le regarde change.
    */
   const PAUSE_DE = 780;     // un geste avec un dé : on lit le jet
-  const PAUSE_SEC = 520;    // un geste sans dé : écran, foncer
+  const PAUSE_SEC = 520;    // un geste sans dé : écran, bâton tendu
 
   function tourAdverse() {
     iaEnCours = true;
@@ -1171,7 +1205,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       else if (quoi === 'vol' && vise) { cible = null; lancer(voler(m, piece, vise), 'A', j => appliquerVol(m, piece, vise, j), placesDe(piece, vise)); }
       else if (quoi === 'ecran') { sansDe(piece, () => seMettreDevant(m, piece), 'ecran'); cible = null; apres(); }
       else if (quoi === 'tendre') { sansDe(piece, () => tendreLeBaton(m, piece), 'tendre'); cible = null; apres(); }
-      else if (quoi === 'foncer') { sansDe(piece, () => foncer(m, piece), 'foncer'); cible = null; rendre(); }
+      else if (quoi === 'reception') { const j = tirerSurReception(m); if (j) lancer(j, 'A', jj => appliquerTir(m, piece, jj), placesDe(piece, null)); else rendre(); }
       return;
     }
     if (t.closest('.t-fin-piece')) { sel = null; cible = null; mode = null; deGlace = null; finirActivation(m); apres(); return; }

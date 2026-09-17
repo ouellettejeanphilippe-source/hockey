@@ -15,8 +15,9 @@
  *   le mode RAPIDE — une présence dure trois gestes en moyenne, pas quinze.
  *
  *   LE TOUR BORNÉ. Blood Bowl n'a pas d'horloge : huit tours par demie, point.
- *   Ici c'est quatre présences par équipe par période, douze par match, et le
- *   match finit quand les tours sont épuisés. C'est ce qui garantit qu'un
+ *   Ici c'est PRESENCES_PAR_PERIODE tours par période (un tour : les dix
+ *   pièces, une à la fois, en alternance), et le match finit quand les tours
+ *   sont épuisés. C'est ce qui garantit qu'un
  *   match sur table se joue en quelques minutes et qu'un tournoi entier tient
  *   dans une soirée.
  *
@@ -114,7 +115,7 @@ import { getTraits } from './traits.js';
  * on ajoute du terrain derrière lui.
  */
 export const COLS = 9;
-export const RANGS = 11;
+export const RANGS = 13;   // S35 : treize rangées — dix d'une ligne des buts à l'autre, une derrière chaque filet
 export const FILET_HAUT = 1;                  // la ligne des buts du haut ; la rangée 0 est derrière
 export const FILET_BAS = RANGS - 2;           // celle du bas ; la dernière rangée est derrière
 export const BUT_COL = (COLS - 1) / 2;        // le centre du filet
@@ -209,11 +210,12 @@ export const distanceAuFilet = (m, piece) => profondeur(piece.r, eqDe(m, piece.e
  * deux cases collées au filet sur la ligne des buts : c'est le TOUR DU FILET,
  * un tir de coin. Jamais de derrière.
  */
-export const peutTirer = (m, piece) => {
-  if (piece.gardien) return false;
-  const s = distanceAuFilet(m, piece);
-  return (s >= 1 && s <= PORTEE_TIR) || (s === 0 && Math.abs(piece.c - BUT_COL) === 1);
+/** D'où l'on peut tirer, par les coordonnées : la zone offensive, ou les deux cases collées au filet sur la ligne des buts. */
+export const peutTirerDe = (r, c, but) => {
+  const s = profondeur(r, but);
+  return (s >= 1 && s <= PORTEE_TIR) || (s === 0 && Math.abs(c - BUT_COL) === 1);
 };
+export const peutTirer = (m, piece) => !piece.gardien && peutTirerDe(piece.r, piece.c, eqDe(m, piece.eq).but);
 
 /** La nature d'une case, du point de vue de l'équipe qui attaque vers `but`. */
 /*
@@ -607,7 +609,7 @@ export const PERIODES = 3;
  * demandé « plus rapide » ; cinq est le réglage qui donne des pointages de
  * hockey (2-1, 3-2, 4-3, 1-0) dans le moins de tours possible.
  */
-export const PRESENCES_PAR_PERIODE = 6;
+export const PRESENCES_PAR_PERIODE = 11;
 export const PRESENCES_PROLONGATION = 2;   // la mort subite est courte, sinon on n'en sort plus
 export const PROLONGATIONS_MAX = 12;       // au-delà, le bris d'égalité écrit (gagnantDuMatch)
 
@@ -794,6 +796,9 @@ export const libre = m => (m.rondelle && m.rondelle.libre) || null;
 export const caseLibre = (m, r, c) => !occupee(m, r, c);
 const occupee = (m, r, c) => surLaGlace(m).find(x => x.r === r && x.c === c) || null;
 
+/** Un geste joué clôt l'activation : la pièce ne patinera plus ce tour-ci (S35, une action par activation). */
+const agir = piece => { piece.agi = true; piece.deplace = true; piece.libre = false; };
+
 /** Le souffle restant d'une pièce. */
 export const souffleDe = (m, piece) => {
   if (!piece || !piece.p) return piece?.st?.SO ?? 3;
@@ -816,8 +821,19 @@ const malusSouffle = (m, piece) => (essouffle(m, piece) ? -1 : 0);
  * sept. Le talent se voit encore entre 2 et 4 ; il ne traverse plus le rink.
  */
 export const PAS_MAX = 4;
-export const pasDe = (m, piece) =>
-  Math.max(1, Math.min(PAS_MAX, piece.st.PA) - (essouffle(m, piece) ? 1 : 0));
+/*
+ * LE PATIN SUIT LA VITESSE, ET TRAVERSER PREND DES TOURS (S35). JP : *limite
+ * les déplacements selon la vitesse du joueur, ça devrait prendre 3-5 tours
+ * pour traverser la glace*. Un PA de 2 ou 3 vaut deux cases, 4 ou 5 en
+ * valent trois, 6 en vaut quatre : de son propre territoire à l'enclave
+ * adverse (sept rangées), un lent met quatre tours, un moyen trois, un
+ * rapide deux — plus le tour du tir.
+ */
+export const pasDe = (m, piece) => {
+  const base = piece.st.PA <= 3 ? 2 : piece.st.PA <= 5 ? 3 : PAS_MAX;
+  const pas = Math.max(1, base - (essouffle(m, piece) ? 1 : 0));
+  return pas;
+};
 
 /** Les vingt patineurs d'un alignement : les quatre trios et les trois paires. */
 function tousLesPatineurs(roster) {
@@ -958,8 +974,12 @@ export function modEsquive(m, piece, vers) {
 /** Le modificateur d'une passe : la distance, et les bâtons autour du receveur. */
 export function modPasse(m, piece, cible) {
   const d = dist(piece, cible);
-  // ARCADE : la passe est le geste qui fait le jeu, elle doit rester vivante.
-  const loin = d <= 4 ? 0 : d <= 6 ? -1 : -2;
+  // LA PASSE SE GRADUE PAR LA DISTANCE (S35). JP : *plus c'est proche, plus
+  // c'est facile : une passe de deux cases sans personne entre, haute
+  // probabilité ; une bombe, moins*. +1 à deux cases ou moins, 0 jusqu'à
+  // quatre, −1 jusqu'à six, −2 au-delà — les bâtons sur la ligne se
+  // comptent à part (`batonsSurLaLigne`).
+  const loin = d <= 2 ? 1 : d <= 4 ? 0 : d <= 6 ? -1 : -2;
   const moyen = piece.st.gb === GABARIT_MOYEN ? 1 : 0;
   const but = eqDe(m, piece.eq).but;
   // LA PASSE DE DERRIÈRE LE FILET vers l'enclave : le gardien ne la voit pas
@@ -1005,7 +1025,7 @@ export function degager(m, piece, vers) {
 }
 
 export function appliquerDegagement(m, piece, vers, jet) {
-  piece.agi = true;
+  agir(piece);
   piece.derniere = null;
   if (jet.reussi) {
     m.rondelle = { libre: { r: vers.r, c: vers.c } };
@@ -1226,8 +1246,16 @@ export const ciblesVolDe = (m, piece) => {
 export function deplacer(m, piece, vers) {
   const avecRondelle = porteur(m) === piece;
   const tenue = batons(m, piece.eq, piece.r, piece.c);
+  // PATINER EST UNE ACTION (S35). JP : *ça doit être une action*. Une pièce
+  // patine OU agit à son activation, comme dans Hoops Tactics : le porteur
+  // qui entre dans l'enclave tire à son activation SUIVANTE, et l'adversaire
+  // a le temps de répondre entre les deux.
   piece.deplace = true;
-  if (!avecRondelle || tenue === 0) {
+  piece.agi = true;
+  m.reception = null;
+  // Le défenseur DÉJOUÉ ne tient plus le porteur : le patin qui suit est libre.
+  if (!avecRondelle || tenue === 0 || piece.libre) {
+    piece.libre = false;
     deposer(m, piece, vers.r, vers.c);
     return { ok: true, jet: null };
   }
@@ -1286,10 +1314,11 @@ export function passer(m, piece, cible) {
 
 export function appliquerPasse(m, piece, cible, jet) {
   if (piece.hab === 'VOILEE' && piece.habDispo) piece.habDispo = false;
-  piece.agi = true;
+  agir(piece);
   if (jet.reussi) {
     m.rondelle = { piece: cible };
     cible.derniere = piece;      // qui a donné la rondelle : le passeur du but
+    m.reception = { receveur: cible, passeur: piece };   // le une-deux est ouvert
     dire(m, `${nomDe(piece)} rejoint ${nomDe(cible)}.`, 'ok');
     return true;
   }
@@ -1309,7 +1338,7 @@ export function appliquerTir(m, piece, jet) {
   if (piece.hab === 'DECOCHE' && piece.habDispo) piece.habDispo = false;
   const eq = eqDe(m, piece.eq);
   const advG = eqDe(m, adverse(piece.eq)).piece_g;
-  eq.tirs++; piece.tirs++; piece.agi = true;
+  eq.tirs++; piece.tirs++; agir(piece);
   fiche(eq, piece.p).tirs++;
   if (jet.reussi) {
     eq.buts++; piece.buts++;
@@ -1365,7 +1394,7 @@ export function appliquerEchec(m, piece, cible, jet) {
   if ((piece.hab === 'ACTIF' || piece.hab === 'EPAULE') && piece.habDispo) piece.habDispo = false;
   const eq = eqDe(m, piece.eq);
   const avaitLaRondelle = porteur(m) === cible;
-  piece.agi = true;
+  agir(piece);
   eq.echecs++;
   if (jet.reussi) {
     fiche(eq, piece.p).echecs++;
@@ -1401,7 +1430,15 @@ export function appliquerEchec(m, piece, cible, jet) {
     dire(m, `${nomDe(piece)} manque sa mise en échec, mais reste debout.`, 'rate');
     return false;
   }
-  revirement(m, `${nomDe(piece)} manque sa mise en échec et se fait déjouer.`);
+  // UNE ACTION PAR ACTIVATION (S35) : « se faire déjouer » ne coûtait plus
+  // rien — le revirement ne finit que l'activation, qui finissait de toute
+  // façon. La mise en échec était donc un jet GRATUIT, et la défensive en
+  // prenait un à chaque activation : neuf par match, 37 % des possessions
+  // finies là, et la parité tombait à 53 sur 100 parce qu'un jet gratuit ne
+  // dépend pas de la force, seulement du nombre de fois qu'on le tente.
+  // Rater le porteur met le frappeur AU SOL, comme rater n'importe qui.
+  piece.etourdi = 1;
+  dire(m, `${nomDe(piece)} manque sa mise en échec et se fait déjouer : il est au sol.`, 'rate');
   return false;
 }
 
@@ -1432,7 +1469,7 @@ export function voler(m, piece, cible) {
 export function appliquerVol(m, piece, cible, jet) {
   if (piece.hab === 'ACTIF' && piece.habDispo) piece.habDispo = false;
   const eq = eqDe(m, piece.eq);
-  piece.agi = true;
+  agir(piece);
   if (jet.reussi) {
     fiche(eq, piece.p).vols++;
     m.rondelle = { piece };
@@ -1457,7 +1494,7 @@ export function appliquerVol(m, piece, cible, jet) {
  * ne rate pas, ça fait juste mal.
  */
 export function seMettreDevant(m, piece) {
-  piece.agi = true;
+  agir(piece);
   piece.ecran = 2;
   dire(m, `${nomDe(piece)} se place devant le tir.`, 'ecran');
   return true;
@@ -1474,27 +1511,129 @@ export function seMettreDevant(m, piece) {
  * Sans dé, comme l'écran : tendre un bâton, ça ne rate pas, ça occupe.
  */
 export function tendreLeBaton(m, piece) {
-  piece.agi = true;
+  agir(piece);
   piece.tendu = 2;
   dire(m, `${nomDe(piece)} tend le bâton et coupe les lignes de passe.`, 'tendu');
   return true;
 }
 
-/* ---------- foncer : le deuxième élan ---------- */
+/* ---------- déjouer : le un contre un du porteur ---------- */
 
-/**
- * FONCER. JP : *vitesse plus élevées*. Monter le patin de tout le monde
- * allumait quarante cases d'un coup et rendait le plateau illisible ; un
- * DEUXIÈME élan, lui, est une décision de plus, pas trente options de plus.
- * La pièce dépense son geste pour repatiner — elle ne tirera donc pas ce
- * tour-ci. C'est la montée du défenseur, et c'est le petit gabarit qui en
- * profite le plus, avec ses cinq ou six pas.
+/*
+ * DÉJOUER (S35). JP : *Foncer devrait être déjouer*. Le porteur prend UN
+ * défenseur collé à lui en un contre un : son maniement contre celui de
+ * l'autre (le petit gabarit a +1, le Coup de patin +2). S'il passe, le
+ * défenseur est battu — il perd son activation du tour, et le porteur repart
+ * aussitôt, sans esquive, jusqu'à son patin ; s'il rate, le défenseur lui
+ * prend la rondelle : revirement. C'est le geste de la vedette, et il coûte
+ * ce qu'il rapporte.
  */
-export function foncer(m, piece) {
-  piece.agi = true;
-  piece.deplace = false;
-  dire(m, `${nomDe(piece)} pousse la rondelle et accélère.`, 'fonce');
-  return true;
+export const ciblesDejouerDe = (m, piece) =>
+  (porteur(m) !== piece || piece.agi || piece.gardien) ? []
+    : eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.gardien && !x.etourdi && dist(piece, x) === 1);
+export function modDejouer(m, piece, cible) {
+  const petit = piece.st.gb === GABARIT_PETIT ? 1 : 0;
+  return md(piece.st.MA) - md(cible.st.MA) + petit + malusSouffle(m, piece);
+}
+export function dejouer(m, piece, cible) {
+  const mod = modDejouer(m, piece, cible) + (piece.hab === 'PATIN' && piece.habDispo ? 2 : 0);
+  return jeter(m, mod, 'dejouer');
+}
+export function appliquerDejouer(m, piece, cible, jet) {
+  if (piece.hab === 'PATIN' && piece.habDispo) piece.habDispo = false;
+  agir(piece);
+  if (jet.reussi) {
+    cible.agi = true; cible.deplace = true;       // battu : il ne joue plus ce tour-ci
+    piece.deplace = false; piece.libre = true;    // et le porteur repart, sans esquive
+    dire(m, `${nomDe(piece)} déjoue ${nomDe(cible)} et s'en va.`, 'dejoue');
+    return true;
+  }
+  m.rondelle = { piece: cible }; piece.derniere = null; cible.derniere = null;
+  revirement(m, `${nomDe(cible)} lit la feinte de ${nomDe(piece)} et lui prend la rondelle.`);
+  return false;
+}
+
+/*
+ * LA DÉVIATION (S35). JP : *ajouter possibilité de déviation en lien avec
+ * force et tir du joueur devant*. Le porteur, de la zone offensive, tire vers
+ * un coéquipier planté dans l'ENCLAVE, plus près du filet que lui ; c'est le
+ * coéquipier qui fait le but. Le seuil est celui de la deuxième rangée
+ * (${SEUIL_PLACE.rangee2}+), quel que soit d'où part le tir, et le
+ * modificateur est CELUI DE L'HOMME DEVANT : son tir contre le gardien, sa
+ * force pour tenir sa place (chaque adversaire collé à lui compte contre,
+ * borné à deux), sa signature 🔻. Un tir dévié qui rate reste devant le
+ * filet : retour.
+ */
+export const ciblesDeviationDe = (m, piece) => {
+  if (porteur(m) !== piece || piece.agi || piece.gardien || !peutTirer(m, piece)) return [];
+  const but = eqDe(m, piece.eq).but;
+  const s = profondeur(piece.r, but);
+  return eqDe(m, piece.eq).pieces.filter(x => x !== piece && !x.gardien && !x.etourdi
+    && natureCase(x.r, x.c, but) === 'enclave' && profondeur(x.r, but) < s);
+};
+export function modDeviation(m, piece, cible) {
+  const g = eqDe(m, adverse(piece.eq)).piece_g;
+  const colles = Math.min(2, eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.gardien && !x.etourdi && dist(x, cible) === 1).length);
+  const tir = TIRS[cible.st.ts] || TIRS.P;
+  const signature = tir.mod({ loin: 1, enclave: true, batons: colles, recu: true });
+  return md(cible.st.TI) - md(g.st.AR) + md(cible.st.FO) - colles + signature + malusSouffle(m, cible);
+}
+export function devier(m, piece, cible) {
+  const mod = modDeviation(m, piece, cible);
+  eqDe(m, piece.eq).modsTir.push({ mod, d: profondeur(cible.r, eqDe(m, piece.eq).but), seuil: SEUIL_PLACE.rangee2 });
+  return jeter(m, mod, 'deviation', SEUIL_PLACE.rangee2);
+}
+export function appliquerDeviation(m, piece, cible, jet) {
+  const eq = eqDe(m, piece.eq);
+  const advG = eqDe(m, adverse(piece.eq)).piece_g;
+  eq.tirs++; cible.tirs++; agir(piece);
+  fiche(eq, cible.p).tirs++;
+  if (jet.reussi) {
+    eq.buts++; cible.buts++;
+    advG.alloues++; eqDe(m, adverse(piece.eq)).alloues++;
+    fiche(eq, cible.p).buts++;
+    piece.passes++; fiche(eq, piece.p).passes++;
+    dire(m, `BUT — ${nomDe(cible)} fait dévier le tir de ${nomDe(piece)}. ${m.A.buts} – ${m.B.buts}`, 'but');
+    m.dernierBut = { piece: cible, passeur: piece, periode: m.periode };
+    finirPresence(m, true);
+    return true;
+  }
+  advG.arrets++; eqDe(m, adverse(piece.eq)).arrets++;
+  rebondir(m, cible.r, cible.c, eq.but);
+  dire(m, `${nomDe(advG)} repousse la déviation de ${nomDe(cible)} — retour devant le filet.`, 'retour');
+  return false;
+}
+
+/*
+ * LE TIR SUR RÉCEPTION (S35). Une action par activation rendait l'attaque
+ * impossible : le porteur qui entrait dans l'enclave se faisait frapper
+ * avant son tir, et une passe vers un coéquipier déjà joué ne servait à
+ * rien — 0,8 but par match. Le une-deux règle ça : après une passe RÉUSSIE,
+ * le receveur peut tirer sur-le-champ, dans la même activation, s'il n'a pas
+ * encore joué ce tour-ci et qu'il est en position de tir. Ça DÉPENSE son
+ * activation. C'est le tir sur réception du vrai hockey, et sa signature 🏹
+ * vaut +2 exactement là.
+ */
+export const receptionPossible = m => {
+  const r = m.reception;
+  if (!r || m.fini) return null;
+  const x = r.receveur;
+  // LE RECEVEUR PEUT AVOIR DÉJÀ JOUÉ. La première version exigeait un receveur
+  // qui n'avait pas encore été activé ce tour-ci — mais patiner est une
+  // action, donc le coéquipier qui venait de se placer devant le filet ne
+  // pouvait plus tirer sur réception, et le une-deux ne servait presque
+  // jamais : 3,8 buts par match. Le tir sur réception est INSTANTANÉ, c'est
+  // le geste du passeur autant que du tireur ; il ne dépense l'activation du
+  // receveur que s'il lui en restait une. Mesuré : 6,0 buts, parité 78 / 70 / 60.
+  if (m.tour !== x.eq || porteur(m) !== x || x.etourdi || !peutTirer(m, x)) return null;
+  return x;
+};
+export function tirerSurReception(m) {
+  const x = receptionPossible(m);
+  if (!x) return null;
+  m.reception = null;
+  activer(m, x);
+  return tirer(m, x);
 }
 
 /* ======================================================================
@@ -1523,6 +1662,7 @@ const epuiser = x => { x.agi = true; x.deplace = true; };
 /** Activer une pièce : la précédente, si elle jouait encore, a fini. */
 export function activer(m, piece) {
   if (m.actif && m.actif !== piece) epuiser(m.actif);
+  if (!m.reception || m.reception.receveur !== piece) m.reception = null;
   m.actif = piece;
 }
 
@@ -1535,6 +1675,7 @@ export function activer(m, piece) {
 export function finirActivation(m) {
   if (m.actif) epuiser(m.actif);
   m.actif = null;
+  m.reception = null;
   if (m.fini) return;
   const autre = adverse(m.tour);
   if (eqDe(m, autre).pieces.some(peutJouer)) { m.tour = autre; sortieDeZone(m); return; }
@@ -1699,7 +1840,13 @@ function meilleurGeste(m, piece) {
         // hors de portée. Sans ça le glouton passait à quelqu'un de mieux
         // « placé » qui ne pouvait pas tirer non plus.
         const tirIci = peutTirer(m, piece) ? chances(modTir(m, piece), seuilTir(m, piece)) : 0;
-        const tir = (peutTirer(m, cible) ? chances(modTir(m, cible), seuilTir(m, cible)) : 0) - tirIci;
+        // UNE ACTION PAR ACTIVATION (S35) : ce que la passe ouvre, c'est le
+        // tir du receveur À SON ACTIVATION — s'il a déjà joué ce tour-ci,
+        // l'adversaire aura un tour entier pour le frapper avant. Un receveur
+        // qui n'a pas encore joué et qui peut tirer vaut la passe ; un
+        // receveur déjà joué ne vaut que le terrain gagné.
+        const encore = peutJouer(cible) ? 1 : 0.35;
+        const tir = ((peutTirer(m, cible) ? chances(modTir(m, cible), seuilTir(m, cible)) : 0) - tirIci) * encore;
         if (gain <= 0 && tir <= 0.02) continue;
         // Le terrain gagné par une PASSE pesait 0,5 contre 0,9 pour le patin :
         // la passe était escomptée plus que le patin, ce qui est à l'envers dès
@@ -1726,10 +1873,18 @@ function meilleurGeste(m, piece) {
         }
         if (mieux) options.push(mieux);
       }
-      // FONCER : dépenser son geste pour un deuxième élan. Ça ne vaut que
-      // quand on est encore loin et qu'on a du patin à dépenser.
-      if (piece.deplace && profondeur(piece.r, eq.but) >= 4) {
-        options.push({ type: 'foncer', val: 1.6 + pasDe(m, piece) * 0.25 });
+      // DÉVIER : un coéquipier planté devant le filet, plus près que moi.
+      for (const cible of ciblesDeviationDe(m, piece)) {
+        options.push({ type: 'devier', cible, val: chances(modDeviation(m, piece, cible), SEUIL_PLACE.rangee2) * 11 - 1.5 });
+      }
+      // DÉJOUER : tenu par un défenseur, le porteur peut le prendre en un
+      // contre un plutôt que d'esquiver ou de passer. Ça vaut d'autant plus
+      // que la glace devant est payante.
+      if (batons(m, piece.eq, piece.r, piece.c) > 0) {
+        for (const cible of ciblesDejouerDe(m, piece)) {
+          const devant = Math.max(0, LONGUEUR - profondeur(piece.r, eq.but));
+          options.push({ type: 'dejouer', cible, val: chances(modDejouer(m, piece, cible) + bonus('PATIN')) * (3.5 + devant * 0.3) - 2.6 });
+        }
       }
     }
     if (!piece.deplace) {
@@ -1738,7 +1893,10 @@ function meilleurGeste(m, piece) {
         const gain = valeurCase(v.r, v.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
         if (gain <= 0) continue;
         const risque = batons(m, piece.eq, piece.r, piece.c) ? chances(modEsquive(m, piece, v) + bonus('PATIN')) : 1;
-        const val = risque * (2 + gain * 0.9);
+        // ARRIVER DANS UNE CASE TENUE, c'est offrir la mise en échec (S35) :
+        // une action par activation, donc l'adversaire joue AVANT le tir.
+        const tenue = Math.min(2, batons(m, piece.eq, v.r, v.c));
+        const val = risque * (2 + gain * 0.9) * (1 - 0.3 * tenue);
         if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
       }
       if (mieux) options.push(mieux);
@@ -1773,11 +1931,31 @@ function meilleurGeste(m, piece) {
       // passe. Mesuré à 2,4 sans la condition du patin : 16 % des gestes,
       // l'IA tendait le bâton au lieu de se déplacer, et plus une passe ne
       // passait. C'est un geste de fin de présence, pas un réflexe.
-      if (p && p.eq !== piece.eq && !piece.tendu && !piece.ecran && piece.deplace && dist(piece, p) === 2) {
+      // Une action par activation (S35) : tendre le bâton coûte l'activation
+      // entière, c'est son prix — la condition « une fois qu'on a patiné » n'a
+      // plus de sens.
+      if (p && p.eq !== piece.eq && !piece.tendu && !piece.ecran && dist(piece, p) === 2) {
         options.push({ type: 'tendre', val: 1.2 });
       }
     }
-    const vise = rondelleLibre || p;
+    // ALLER AU FILET (S35). Quand mon équipe a la rondelle, une pièce sans
+    // elle se PLACE : une case plus avancée, ouverte, d'où l'on peut tirer —
+    // c'est elle que le porteur cherchera pour sa passe. Sans ça, une action
+    // par activation faisait patiner le porteur dans l'enclave pour s'y
+    // faire frapper avant son tir : 0,8 but par match.
+    if (p && p.eq === piece.eq && !piece.deplace) {
+      let mieux = null;
+      for (const v of deplacementsDe(m, piece)) {
+        const gain = valeurCase(v.r, v.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
+        if (gain <= 0) continue;
+        const ouvert = batons(m, piece.eq, v.r, v.c) === 0 ? 0.9 : 0;
+        const tir = peutTirerDe(v.r, v.c, eq.but) ? 1.4 : 0;
+        const val = 1.2 + gain * 0.7 + ouvert + tir;
+        if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
+      }
+      if (mieux) options.push(mieux);
+    }
+    const vise = rondelleLibre || (p && p.eq !== piece.eq ? p : null);
     if (vise && !piece.deplace) {
       let mieux = null;
       const d0 = dist(piece, vise);
@@ -1838,7 +2016,7 @@ function iaProchainGeste(m, cote) {
  * reste rien — auquel cas elle a terminé sa présence. C'est ce que l'écran
  * appelle sur une minuterie pour que le plateau et le fil avancent ensemble.
  */
-export const GESTES_MAX = 4;   // le garde-fou d'une activation : patiner, foncer, repatiner, agir
+export const GESTES_MAX = 4;   // le garde-fou d'une activation : une action, et ce qui la suit (réception, revirement)
 
 /**
  * L'IA joue UN geste de son activation courante. Sans pièce activée, elle
@@ -1847,6 +2025,17 @@ export const GESTES_MAX = 4;   // le garde-fou d'une activation : patiner, fonce
  */
 export function iaGeste(m) {
   if (m.fini) return null;
+  // LE UNE-DEUX : une passe vient de réussir, le receveur peut tirer tout de
+  // suite. L'IA le prend dès que ses chances valent le tir qu'elle aurait
+  // pris elle-même de là.
+  {
+    const x = receptionPossible(m);
+    if (x && chances(modTir(m, x), seuilTir(m, x)) >= 0.45) {
+      const joue = { piece: x, type: 'reception' };
+      const jet = jouerGeste(m, x, joue, x.eq, true);
+      return { ...joue, jet };
+    }
+  }
   const cote = m.tour;
   const eq = eqDe(m, cote);
   // Le changement de trio se décide au banc, avant le premier geste du tour.
@@ -1950,10 +2139,28 @@ export function jouerGeste(m, piece, action, cote, ia = false) {
     appliquerDegagement(m, piece, action.vers, jet);
     return jet;
   }
-  // Les trois gestes sans dé : se placer devant, tendre le bâton, et foncer.
+  if (action.type === 'dejouer') {
+    let jet = dejouer(m, piece, action.cible);
+    if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
+    appliquerDejouer(m, piece, action.cible, jet);
+    return jet;
+  }
+  if (action.type === 'devier') {
+    let jet = devier(m, piece, action.cible);
+    if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
+    appliquerDeviation(m, piece, action.cible, jet);
+    return jet;
+  }
+  if (action.type === 'reception') {
+    let jet = tirerSurReception(m);
+    if (!jet) return null;
+    if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
+    appliquerTir(m, piece, jet);
+    return jet;
+  }
+  // Les deux gestes sans dé : se placer devant, tendre le bâton.
   if (action.type === 'ecran') { seMettreDevant(m, piece); return null; }
   if (action.type === 'tendre') { tendreLeBaton(m, piece); return null; }
-  if (action.type === 'foncer') { foncer(m, piece); return null; }
   return null;
 }
 
@@ -2109,15 +2316,15 @@ export function reglesDuPlateau() {
         `ON NE TIRE QUE DE LA ZONE OFFENSIVE : à ${PORTEE_TIR} cases du filet ou moins. Au-delà de la ligne bleue ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert. Il faut entrer.`,
         `LA PLACE FIXE LE SEUIL DU TIR : ${SEUIL_PLACE.enclave}+ de l'ENCLAVE (${RANGS_ENCLAVE === 1 ? 'la rangée collée au filet' : `les ${RANGS_ENCLAVE} rangées collées au filet`}, ${DEMI_ENCLAVE * 2 + 1} colonnes au centre), ${SEUIL_PLACE.rangee2}+ de la deuxième rangée, ${SEUIL_PLACE.pointe}+ de la POINTE, ${SEUIL_PLACE.coin}+ d'un COIN (tout ce qui déborde en largeur : le mauvais angle). Le joueur, lui, porte le modificateur : son TI contre l'AR du gardien, son tir signature, les bâtons devant lui, à ±2.`,
         `L'enclave est petite, et un tir raté pris de là laisse un retour devant le filet : y arriver est le jeu.`,
-        `Le patin est plafonné à ${PAS_MAX} cases, quel que soit le PA de la pièce : la glace est large, on ne la traverse pas d'un élan.`,
+        `Le patin suit la vitesse : deux, trois ou quatre cases selon le PA, et traverser la glace prend des tours — de son territoire à l'enclave adverse, un lent met quatre tours, un rapide deux, plus celui du tir.`,
         'Un adversaire collé au tireur ne gêne son tir que s\'il est ENTRE lui et le filet. Celui qui est dans son dos ne bloque rien.',
       ],
     },
     {
       titre: 'Un tour : une pièce à la fois',
       points: [
-        'Les deux équipes jouent EN ALTERNANCE, une pièce à la fois : tu actives une de tes pièces, elle patine une fois ET fait un geste une fois, dans l\'ordre que tu veux ; puis l\'adversaire active une des siennes ; et ainsi de suite jusqu\'à ce que les dix aient joué — c\'est un tour.',
-        'Une pièce activée joue seule. Son activation finit quand elle a patiné et agi, quand tu touches « Fin de l\'activation », ou quand tu en actives une autre — ce qu\'elle n\'a pas fait est perdu.',
+        'Les deux équipes jouent EN ALTERNANCE, une pièce à la fois : tu actives une de tes pièces, elle fait UNE action — patiner, OU passer, tirer, frapper, se placer — puis l\'adversaire active une des siennes ; et ainsi de suite jusqu\'à ce que les dix aient joué — c\'est un tour. Le porteur qui entre dans l\'enclave tire à son activation suivante : entre les deux, l\'adversaire a le temps de répondre — sauf sur une passe réussie, que le receveur peut conclure d\'un tir sur réception, tout de suite.',
+        'Une pièce activée joue seule. Son activation finit quand elle a agi, quand tu touches « Fin de l\'activation », ou quand tu en actives une autre — ce qu\'elle n\'a pas fait est perdu. Qui enlève la rondelle repart avec : c\'est la contre-attaque, le seul cas où une pièce patine après son geste.',
         '« Finir ma présence » renonce à toutes tes pièces qui n\'ont pas encore joué ce tour-ci : l\'adversaire enchaîne les siennes.',
         'LE REVIREMENT : un jet raté qui te coûte la rondelle finit l\'activation de ta pièce sur-le-champ, et c\'est l\'adversaire qui joue — avec la rondelle. Tes autres pièces gardent leur activation : en alternance, perdre la rondelle est déjà le prix.',
         'Le tour suivant, c\'est l\'autre équipe qui ouvre.',
@@ -2134,10 +2341,10 @@ export function reglesDuPlateau() {
       ],
     },
     {
-      titre: 'Les dix gestes',
+      titre: 'Les douze gestes',
       colonnes: ['geste', 'dé', 'ce que ça fait', 'un échec coûte'],
       rangees: [
-        ['Patiner', 'non', `jusqu'à PA cases, plafonné à ${PAS_MAX}, en contournant les pièces`, '—'],
+        ['Patiner', 'non', `deux cases (PA 2-3), trois (PA 4-5) ou quatre (PA 6), en contournant les pièces ; c'est l'action de la pièce`, '—'],
         ['Esquiver', 'oui', 'quitter avec la rondelle une case tenue par un bâton adverse', 'revirement'],
         ['Passer', 'oui', 'donner la rondelle à un coéquipier ; un bâton tendu sur la ligne ou collé au receveur la gêne', 'revirement'],
         ['Dégager', 'oui', `de la ZONE NEUTRE seulement : la rondelle file au fond, LIBRE, dans un coin ou derrière le filet — à toi d'y arriver le premier`, 'elle rebondit n\'importe où autour, libre aussi — pas de revirement'],
@@ -2145,8 +2352,10 @@ export function reglesDuPlateau() {
         ['Épaule', 'oui', 'n\'importe quel adversaire adjacent : il tombe et recule d\'une case', 'sur le porteur, revirement ; sur un autre, ta pièce est hors position'],
         ['Bâton', 'oui', 'sur le porteur seulement : tu prends la rondelle sans le toucher', 'revirement'],
         ['Se placer devant', 'non', 'jusqu\'à ta prochaine présence, tu gênes double les tirs pris à côté de toi — si tu es du côté du filet', '—'],
-        ['Tendre le bâton', 'non', 'jusqu\'à ta prochaine présence, tu coupes les lignes de passe : double contre un receveur collé à toi, −1 par case de la passe que tu frôles', '—'],
-        ['Foncer', 'non', 'tu dépenses ton geste pour patiner une seconde fois', '—'],
+        ['Tendre le bâton', 'non', 'jusqu\'à ta prochaine présence, tu coupes les lignes de passe : double contre un receveur collé à toi, −1 par case de la passe que tu frôles ; c\'est ton action', '—'],
+        ['Déjouer', 'oui', 'le porteur prend en un contre un un défenseur collé à lui : maniement contre maniement ; s\'il passe, le défenseur perd son activation et le porteur repart aussitôt, sans esquive', 'revirement : le défenseur lui prend la rondelle'],
+        [`Dévier`, 'oui', `le porteur tire vers un coéquipier planté dans l'enclave, plus près du filet que lui ; c'est le tir ET la force de l'homme devant qui comptent (chaque adversaire collé à lui, −1), au seuil de ${SEUIL_PLACE.rangee2}+ d'où que parte le tir`, 'retour devant le filet'],
+        ['Tir sur réception', 'oui', 'après une passe RÉUSSIE, le receveur tire sur-le-champ, dans la même activation, s\'il est debout et en zone de tir — même s\'il a déjà joué ce tour-ci ; s\'il lui restait son activation, elle y passe', 'comme un tir'],
       ],
     },
     {

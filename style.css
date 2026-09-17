@@ -3793,7 +3793,7 @@ a.spin-club:hover {
      le tableau indicateur et la barre d'ancrage (236 px mesurés), plafonnée
      à 72 px en une colonne ; la mise en page à deux colonnes, plus bas, la
      recalcule sur la colonne de gauche. */
-  --tcell: min(calc((100vw - 8px) / var(--tcols, 9)), calc((100dvh - 236px) / 11), 72px);
+  --tcell: min(calc((100vw - 8px) / var(--tcols, 9)), calc((100dvh - 236px) / var(--trangs, 11)), 72px);
   display: grid; grid-template-columns: repeat(var(--tcols, 9), var(--tcell));
   grid-auto-rows: var(--tcell);
   position: relative;
@@ -3963,7 +3963,7 @@ a.spin-club:hover {
   .table-sheet .t-plateau { grid-column: 1; grid-row: 1 / 5; align-items: center; padding: 8px 0; }
   .table-sheet .t-plateau[hidden] ~ .t-bas { grid-column: 1 / 3; }
   .t-volet-btn, .t-volet-fermer { display: none; }
-  .t-glace { --tcell: min(calc((100vw - 560px) / var(--tcols, 9)), calc((100dvh - 24px) / 11), 80px); }
+  .t-glace { --tcell: min(calc((100vw - 560px) / var(--tcols, 9)), calc((100dvh - 24px) / var(--trangs, 11)), 80px); }
 }
 
 .t-unites { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
