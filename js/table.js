@@ -55,6 +55,9 @@ import { pctTirRelDe, lancersRelDe, passesRelDe, facteurGardienDe } from './sim.
 import { archetypeKey, ARCHETYPES, GABARIT_PETIT, GABARIT_MOYEN, GABARIT_MATADOR } from './ratings.js';
 import { getTraits } from './traits.js';
 
+/* Les interrupteurs de MESURE (`scripts/`), jamais du jeu : le navigateur n'a pas de `process` et prend les valeurs écrites. */
+const MESURE = typeof process !== 'undefined' && process.env ? process.env : {};
+
 /* ======================================================================
    LE PLATEAU
    ======================================================================
@@ -640,7 +643,13 @@ export const PERIODES = 3;
  * puis la sienne ; c'est un tour. La même pièce peut jouer à chaque tour —
  * et c'est son souffle qui la freine (voir `pasDe`).
  */
-export const PRESENCES_PAR_PERIODE = 35;
+/*
+ * QUARANTE-QUATRE TOURS (S39). L'alternance stricte donne à la défense une
+ * main entre chaque main d'attaque, et une attaque doit aboutir en une main :
+ * à 35 tours, 3,2 buts avant la montée, 4,4 après ; 40 → 5,0, 44 → 5,4,
+ * 48 → 6,0. `TOURS` dans l'environnement ne sert qu'à la mesure.
+ */
+export const PRESENCES_PAR_PERIODE = Number(MESURE.TOURS) || 44;
 export const PRESENCES_PROLONGATION = 8;   // S38 : sur seize rangées, deux tours ne menaient pas au filet — douze prolongations sans but, mesuré
 export const PROLONGATIONS_MAX = 12;       // au-delà, le bris d'égalité écrit (gagnantDuMatch)
 
@@ -722,6 +731,7 @@ export function equipeDeTable(nom, tag, roster, cote) {
     // c'est la seule façon de voir si le plateau offre des occasions ou si
     // tout le monde tire du fond de la patinoire (`check_table.mjs`).
     modsTir: [],
+    modsPasse: [],
     pieces: [],
     but: filetDe(cote),
   };
@@ -816,7 +826,8 @@ export function nouveauMatch(A, B, graine) {
     periode: 1,
     presence: 1,           // 1 à PRESENCES_PAR_PERIODE × 2 : un TOUR (les dix pièces) en vaut deux
     tour: 'A',             // à qui la main
-    premier: 'A',          // qui a ouvert le tour courant ; on alterne à chaque tour
+    premier: 'A',          // qui ouvre la période
+    dernier: null,         // le camp qui vient de jouer sa main : il ne rejoue jamais tout de suite (S39)
     main: { bouge: false, agi: false, mobile: null, change: false },   // le BUDGET de la main (S36) : un déplacement, une action, qui a patiné, et si on a changé de ligne
     mains: { A: 0, B: 0 },  // les mains jouées ce tour-ci : une chacune (S38)
     rondelle: null,        // { piece } ou { libre: {r, c} }
@@ -1012,14 +1023,16 @@ export function batonsPasse(m, cote, r, c) {
 export function batonsSurLaLigne(m, cote, de, a) {
   const n = dist(de, a);
   if (n < 2) return 0;
-  // Chaque case que la rondelle traverse dans le rayon d'un adversaire coûte
-  // un (S38 : c'était les seuls bâtons tendus, à l'adjacence) ; borné à deux.
-  let k = 0;
+  // UN BÂTON, UNE CHANCE (S39) : chaque adversaire dont le rayon touche la
+  // ligne de la passe coûte un, borné à deux. Compté par CASE traversée, un
+  // défenseur à DE 5 valait −2 à lui seul (son rayon couvre cinq cases
+  // d'affilée) et 44 % des passes étaient interceptées.
+  const vus = new Set();
   for (let i = 1; i < n; i++) {
     const r = Math.round(de.r + (a.r - de.r) * i / n), c = Math.round(de.c + (a.c - de.c) * i / n);
-    if (couvreurs(m, cote, r, c).length) k++;
+    for (const x of couvreurs(m, cote, r, c)) vus.add(x);
   }
-  return Math.min(2, k);
+  return Math.min(2, vus.size);
 }
 
 /** Un voleur de rondelle : `tk`, les vols par match (2005-06+), sinon `md`. */
@@ -1037,8 +1050,9 @@ function miseAuJeu(m, mot) {
   poser(m.A); poser(m.B);
   const cA = m.A.pieces.find(x => x.role === 'C') || m.A.pieces[0];
   const cB = m.B.pieces.find(x => x.role === 'C') || m.B.pieces[0];
-  const jA = Math.floor(m.de() * 6) + 1 + md(cA.st.MA);
-  const jB = Math.floor(m.de() * 6) + 1 + md(cB.st.MA);
+  // Le maniement ET la force : on gagne une mise au jeu des mains et du corps (S39).
+  const jA = Math.floor(m.de() * 6) + 1 + md(cA.st.MA) + md(cA.st.FO);
+  const jB = Math.floor(m.de() * 6) + 1 + md(cB.st.MA) + md(cB.st.FO);
   const gagnant = jA === jB ? (m.tour === 'A' ? cA : cB) : (jA > jB ? cA : cB);
   m.rondelle = { piece: gagnant };
   dire(m, `${mot} — ${nomDe(gagnant)} gagne la mise au jeu.`, 'mj');
@@ -1059,8 +1073,50 @@ export function modEsquive(m, piece, vers) {
   // Le matador protège la rondelle : un bâton adverse de moins sur lui.
   const tenue = Math.max(0, batons(m, piece.eq, piece.r, piece.c) - (piece.st.gb === GABARIT_MATADOR ? 1 : 0));
   const petit = piece.st.gb === GABARIT_PETIT ? 1 : 0;
-  return md(piece.st.MA) + petit + malusSouffle(m, piece)
+  // Le maniement du porteur contre la DÉFENSE du meilleur bâton qui le tient (S39) :
+  // s'échapper de Lidström n'est pas s'échapper d'un ailier de quatrième trio.
+  return md(piece.st.MA) - md(meilleurDE(m, piece.eq, piece.r, piece.c)) + petit + malusSouffle(m, piece)
     - Math.max(0, tenue - 1) - (batons(m, piece.eq, vers.r, vers.c) > 0 ? 1 : 0);
+}
+
+/** Le meilleur DE parmi les adversaires debout collés à une case (3,5 s'il n'y en a pas : md rend 0). */
+function meilleurDE(m, cote, r, c) {
+  const x = surLaGlace(m).filter(y => y.eq !== cote && !y.gardien && !y.etourdi && dist(y, { r, c }) === 1);
+  return x.length ? Math.max(...x.map(y => y.st.DE)) : 3.5;
+}
+
+/*
+ * LE POKE CHECK PASSIF (S39). JP : *tendre le bâton, ça devrait être poke
+ * check et bloquer le tir, par défaut, mais l'action peut augmenter les
+ * chances*. Le blocage l'était déjà (tout adversaire devant le tireur gêne,
+ * l'écran double) ; le bâton, non : arriver avec la rondelle collé à un
+ * défenseur ne coûtait rien. Maintenant, finir son patin sous un bâton
+ * adverse qui ne te tenait pas déjà, c'est passer sous sa lame — un jet du
+ * PORTEUR pour la garder, son maniement contre la défense du meilleur d'eux,
+ * +1 parce qu'un bâton passif n'est pas un vol (le vol, l'action, joue à −2
+ * de protection), +1 au matador qui protège la rondelle, et −1 si ce bâton
+ * est TENDU : c'est là que l'action augmente les chances. Échappée, la
+ * rondelle est libre à côté — pas de revirement, une mêlée.
+ */
+export const pokeurs = (m, piece, vers) =>
+  eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.gardien && !x.etourdi && dist(x, vers) === 1 && dist(x, piece) > 1);
+export function modPoke(m, piece, vers) {
+  const p = pokeurs(m, piece, vers);
+  const fort = Math.max(...p.map(x => x.st.DE));
+  const tendu = p.some(x => x.tendu && x.st.DE === fort) ? 1 : 0;
+  return md(piece.st.MA) - md(fort) + 1 + (piece.st.gb === GABARIT_MATADOR ? 1 : 0) - tendu + malusSouffle(m, piece);
+}
+export function appliquerPoke(m, piece, vers, jet) {
+  const qui = pokeurs(m, piece, vers).sort((a, b) => b.st.DE - a.st.DE)[0];
+  piece.r = vers.r; piece.c = vers.c;
+  if (jet.reussi) {
+    dire(m, `${nomDe(piece)} passe sous le bâton de ${nomDe(qui)}.`, 'ok');
+    return true;
+  }
+  rebondir(m, vers.r, vers.c);
+  piece.derniere = null;
+  dire(m, `${nomDe(qui)} harponne ${nomDe(piece)} — la rondelle est libre.`, 'poke');
+  return false;
 }
 
 /** Le modificateur d'une passe : la distance, et les bâtons autour du receveur. */
@@ -1077,7 +1133,8 @@ export function modPasse(m, piece, cible) {
   // LA PASSE DE DERRIÈRE LE FILET vers l'enclave : le gardien ne la voit pas
   // venir. C'est ce que le bureau de Gretzky rapporte.
   const bureau = profondeur(piece.r, but) <= 0 && natureCase(cible.r, cible.c, but) === 'enclave' ? 1 : 0;
-  return md(piece.st.MA) + loin + moyen + bureau + malusSouffle(m, piece)
+  // Un receveur maladroit échappe la passe (S39) : son MA compte, en moins seulement.
+  return md(piece.st.MA) + (cible.st ? Math.min(0, md(cible.st.MA)) : 0) + loin + moyen + bureau + malusSouffle(m, piece)
     - batonsPasse(m, piece.eq, cible.r, cible.c) - batonsSurLaLigne(m, piece.eq, piece, cible);
 }
 
@@ -1134,10 +1191,10 @@ export function appliquerDegagement(m, piece, vers, jet) {
 
 /** Le modificateur d'un tir : la finition contre le gardien, la distance, l'enclave, la couverture. */
 /** Le seuil d'un tir : la PLACE seule le fixe (voir SEUIL_PLACE). */
-export function seuilTir(m, piece) {
+export function seuilTir(m, piece, ou = piece) {
   const but = eqDe(m, piece.eq).but;
-  const d = profondeur(piece.r, but);
-  const nature = natureCase(piece.r, piece.c, but);
+  const d = profondeur(ou.r, but);
+  const nature = natureCase(ou.r, ou.c, but);
   if (d === 0) return SEUIL_PLACE.tour;                    // le tour du filet
   if (nature === 'coin') return SEUIL_PLACE.coin;
   // L'enclave fait deux rangées (S38) : collé au filet c'est 2+, une rangée
@@ -1147,14 +1204,16 @@ export function seuilTir(m, piece) {
 }
 
 /** Le modificateur d'un tir : LE JOUEUR — sa finition contre le gardien, sa signature, les bâtons devant lui. */
-export function modTir(m, piece) {
+export function modTir(m, piece, ou = piece) {
+  // `ou` : d'où l'on tire — la case de la pièce, ou celle où elle IRAIT (S39,
+  // l'IA pèse la montée « patiner puis tirer » d'une seule main).
   const eq = eqDe(m, piece.eq);
   const g = eqDe(m, adverse(piece.eq)).piece_g;
-  const d = profondeur(piece.r, eq.but);
-  const nature = natureCase(piece.r, piece.c, eq.but);
+  const d = profondeur(ou.r, eq.but);
+  const nature = natureCase(ou.r, ou.c, eq.but);
   // Les bâtons devant le tireur comptent, bornés à deux : au-delà, c'est la
   // place qui parle, et elle parle déjà par le seuil.
-  const gene = Math.min(2, batonsTir(m, piece.eq, piece.r, piece.c));
+  const gene = Math.min(2, batonsTir(m, piece.eq, ou.r, ou.c));
   // LE TIR SIGNATURE : chacun a un contexte où il vaut mieux que les autres.
   // `recu` dit qu'il vient de recevoir la passe — c'est le une-deux.
   const tir = TIRS[piece.st.ts] || TIRS.P;
@@ -1313,16 +1372,30 @@ function revirement(m, texte) {
  * déjà dans la zone quand la rondelle en sort n'est pas chassée (le hors-jeu
  * retardé) ; elle attend simplement que la rondelle revienne pour recevoir.
  */
+/*
+ * LE HORS-JEU EST STRICT (S39). JP : *le hors-jeu marche pas*. Deux défauts.
+ * La rondelle n'était « en zone » que si MON équipe la portait : mes avants
+ * ne pouvaient pas entrer chercher un porteur adverse dans sa propre zone —
+ * l'échec avant n'existait pas. Et une pièce déjà dans la zone quand la
+ * rondelle en sortait pouvait y camper (le « hors-jeu retardé »), et l'IA
+ * campait devant ton filet. La rondelle compte où qu'elle soit et qui que
+ * ce soit qui la porte ; sans elle dans la zone, aucune case de la zone
+ * n'est permise à qui ne l'a pas — on n'y entre pas, et on en sort.
+ */
 export const rondelleEnZone = (m, cote) => {
   const but = eqDe(m, cote).but;
-  const p = porteur(m), l = libre(m);
-  if (p && p.eq === cote && !p.gardien) return profondeur(p.r, but) <= PORTEE_TIR;
-  if (l) return profondeur(l.r, but) <= PORTEE_TIR;
-  return false;
+  const pos = porteur(m) || libre(m);
+  return !!pos && profondeur(pos.r, but) <= PORTEE_TIR;
 };
 const horsJeu = (m, piece, r, c) => {
+  if (rondelleEnZone(m, piece.eq)) return false;
   const but = eqDe(m, piece.eq).but;
-  return profondeur(r, but) <= PORTEE_TIR && profondeur(piece.r, but) > PORTEE_TIR && !rondelleEnZone(m, piece.eq);
+  const s = profondeur(r, but);
+  if (s > PORTEE_TIR) return false;                       // hors de la zone : toujours permis
+  // Déjà dans la zone sans la rondelle : on ne peut que RECULER vers la ligne
+  // bleue (une pièce lente au fond de la zone n'en sort pas d'un seul patin,
+  // et sans ça elle n'avait plus aucun geste — `check_regles.mjs` l'a vu).
+  return !(profondeur(piece.r, but) <= PORTEE_TIR && s > profondeur(piece.r, but));
 };
 
 export function deplacementsDe(m, piece) {
@@ -1433,6 +1506,10 @@ export function deplacer(m, piece, vers) {
   // Le défenseur DÉJOUÉ ne tient plus le porteur : le patin qui suit est libre.
   if (!avecRondelle || tenue === 0 || piece.libre) {
     piece.libre = false;
+    // LE POKE CHECK PASSIF (S39) : arriver sous un bâton neuf, avec la rondelle.
+    if (avecRondelle && pokeurs(m, piece, vers).length) {
+      return { ok: true, jet: jeter(m, modPoke(m, piece, vers), 'poke'), poke: true, vers, piece };
+    }
     deposer(m, piece, vers.r, vers.c);
     return { ok: true, jet: null };
   }
@@ -1509,6 +1586,8 @@ export function appliquerEsquive(m, piece, vers, jet) {
 
 export function passer(m, piece, cible) {
   const mod = modPasse(m, piece, cible) + (piece.hab === 'VOILEE' && piece.habDispo ? 2 : 0);
+  // Comme `modsTir` : les morceaux de chaque passe tentée, pour la mesure.
+  eqDe(m, piece.eq).modsPasse.push({ mod, d: dist(piece, cible), rec: batonsPasse(m, piece.eq, cible.r, cible.c), ligne: batonsSurLaLigne(m, piece.eq, piece, cible), ma: md(piece.st.MA), recMA: Math.min(0, md(cible.st.MA)) });
   return jeter(m, mod, 'passe');
 }
 
@@ -1978,6 +2057,7 @@ export function finirMain(m) {
   m.reception = null;
   if (m.fini) return;
   m.mains[m.tour]++;
+  m.dernier = m.tour;
   for (const x of eqDe(m, m.tour).pieces) { x.agi = false; x.deplace = false; x.libre = false; }
   const autre = adverse(m.tour);
   if (aLaMain(m, autre)) { m.tour = autre; sortieDeZone(m); return; }
@@ -2038,8 +2118,14 @@ export function finirPresence(m, butMarque = false) {
     return;
   }
   m.presence += 2;
-  m.premier = adverse(m.premier);
-  m.tour = m.premier;
+  /*
+   * LES MAINS ALTERNENT STRICTEMENT (S39). JP : *je vois encore le cpu jouer
+   * plusieurs joueurs à la suite*. L'ouvreur du tour changeait à chaque tour
+   * — ce qui, à une main chacun, donnait A, B, B, A, A, B : le cpu jouait deux
+   * mains de suite un tour sur deux. Le tour suivant s'ouvre par le camp qui
+   * n'a PAS joué la dernière main, après un but comme après un tour plein.
+   */
+  m.tour = adverse(m.dernier || adverse(m.premier));
   if (butMarque) miseAuJeu(m, 'Mise au jeu au centre');
   else sortieDeZone(m);
 }
@@ -2202,11 +2288,23 @@ function meilleurGeste(m, piece) {
       for (const v of deplacementsDe(m, piece)) {
         const gain = valeurCase(v.r, v.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
         if (gain <= 0) continue;
-        const risque = batons(m, piece.eq, piece.r, piece.c) ? chances(modEsquive(m, piece, v) + bonus('PATIN')) : 1;
+        const risque = batons(m, piece.eq, piece.r, piece.c) ? chances(modEsquive(m, piece, v) + bonus('PATIN'))
+          : pokeurs(m, piece, v).length ? chances(modPoke(m, piece, v)) : 1;
         // ARRIVER DANS UNE CASE TENUE, c'est offrir la mise en échec (S35) :
         // une action par activation, donc l'adversaire joue AVANT le tir.
         const tenue = Math.min(2, batons(m, piece.eq, v.r, v.c));
-        const val = risque * (2 + gain * 0.9) * (1 - 0.3 * tenue);
+        /*
+         * LA MONTÉE (S39). En alternance stricte, la défense joue entre
+         * chacune de tes mains : ce qui compte, c'est le tir que ce patin
+         * OUVRE DANS LA MÊME MAIN — patiner à l'enclave et tirer avant que
+         * personne n'ait bougé. Un patin du porteur vaut donc aussi le tir
+         * qu'il permet d'où il arrive, si l'action de la main est libre.
+         * Sans ça, 3,2 buts par équipe par match (mesuré) : le porteur
+         * gagnait du terrain, et se faisait frapper à la main suivante.
+         */
+        const tirOuvert = !m.main.agi && !piece.agi && peutTirerDe(v.r, v.c, eq.but)
+          ? chances(modTir(m, piece, v) + bonus('DECOCHE'), seuilTir(m, piece, v)) * 9 : 0;
+        const val = risque * (2 + gain * 0.9 + tirOuvert) * (1 - 0.3 * tenue);
         if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
       }
       if (mieux) options.push(mieux);
@@ -2315,7 +2413,8 @@ function iaProchainGeste(m, cote) {
    * l'homme qui vient de se placer. C'est la règle de Blood Bowl (les gestes
    * sûrs d'abord) devenue un plan à deux pièces.
    */
-  if (!m.main.bouge && !m.main.agi && sur && sur.type === 'deplacer' && sur.val > 2.5 && joue && joue.piece === p) return sur;
+  // … sauf quand le porteur tient une montée qui vaut mieux (S39).
+  if (!m.main.bouge && !m.main.agi && sur && sur.type === 'deplacer' && sur.val > 2.5 && joue && joue.piece === p && joue.val < 4) return sur;
   if (joue && joue.val > 0) return joue;
   /*
    * ON LANCE AU FILET. Mesuré : la moitié des présences finissaient
@@ -2422,6 +2521,7 @@ export function jouerGeste(m, piece, action, cote, ia = false) {
     let jet = d.jet;
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
     if (d.bataille) appliquerBataille(m, piece, action.vers, jet);
+    else if (d.poke) appliquerPoke(m, piece, action.vers, jet);
     else appliquerEsquive(m, piece, action.vers, jet);
     return jet;
   }
@@ -2666,7 +2766,7 @@ export function reglesDuPlateau() {
         `ON NE TIRE QUE DE LA ZONE OFFENSIVE : à ${PORTEE_TIR} cases du filet ou moins. Au-delà de la ligne bleue ce n'est pas un tir, c'est un dégagement, et le geste n'est pas offert. Il faut entrer.`,
         `LA PLACE FIXE LE SEUIL DU TIR : ${SEUIL_PLACE.enclave}+ collé au filet, ${SEUIL_PLACE.rangee2}+ de la deuxième rangée de l'ENCLAVE (${RANGS_ENCLAVE} rangées, ${DEMI_ENCLAVE * 2 + 1} colonnes au centre), ${SEUIL_PLACE.pointe}+ de la POINTE, ${SEUIL_PLACE.coin}+ d'un COIN (tout ce qui déborde en largeur : le mauvais angle). Le joueur, lui, porte le modificateur : son TI contre l'AR du gardien, son tir signature, les bâtons devant lui, à ±2.`,
         'Un tir raté pris de l\'enclave laisse un retour devant le filet : y arriver est le jeu.',
-        `LE HORS-JEU : sans la rondelle, on n'entre pas en zone offensive avant elle — tant que ni le porteur ni la rondelle libre n'ont passé la ligne bleue, la zone est fermée à tes autres pièces, et on ne passe pas à un coéquipier qui y traîne. Dégager la rondelle au fond l'ouvre : c'est le dump-and-chase.`,
+        `LE HORS-JEU : sans la rondelle, on n'entre pas en zone offensive avant elle — tant que la rondelle (portée par n'importe qui, ou libre) n'a pas passé la ligne bleue, la zone est fermée à tes pièces qui ne l'ont pas, celles qui y sont doivent en SORTIR, et on ne passe pas à un coéquipier qui y traîne. Dégager la rondelle au fond l'ouvre : c'est le dump-and-chase.`,
         'Un adversaire collé au tireur ne gêne son tir que s\'il est ENTRE lui et le filet. Celui qui est dans son dos ne bloque rien.',
       ],
     },
@@ -2677,7 +2777,7 @@ export function reglesDuPlateau() {
         'La même pièce peut jouer à CHAQUE tour. Ce qui la freine, c\'est son souffle : chaque geste lui en coûte un point, et à mesure qu\'il baisse elle patine moins loin, puis moins bien (voir plus bas).',
         '« Passer la main » rend la main sans dépenser ce qui reste. Qui enlève la rondelle repart avec : c\'est la contre-attaque.',
         'LE REVIREMENT : un jet raté qui te coûte la rondelle rend la main sur-le-champ, et c\'est l\'adversaire qui joue — avec la rondelle.',
-        'Le tour suivant, c\'est l\'autre équipe qui ouvre.',
+        'Les mains alternent strictement : le camp qui vient de jouer ne rejoue jamais tout de suite — ni au tour suivant, ni après un but.',
       ],
     },
     {
@@ -2691,20 +2791,21 @@ export function reglesDuPlateau() {
       ],
     },
     {
-      titre: 'Les quatorze gestes',
+      titre: 'Les quinze gestes',
       colonnes: ['geste', 'dé', 'ce que ça fait', 'un échec coûte'],
       rangees: [
         ['Patiner', 'non', `autant de cases que son PA (trois au moins, ${PAS_MAX} au plus), en contournant les pièces ; avec la rondelle, une case dans le RAYON d'un adversaire en coûte deux ; c'est le déplacement de la main`, '—'],
-        ['Esquiver', 'oui', 'quitter avec la rondelle une case collée à un adversaire : maniement contre la couverture', 'revirement'],
-        ['Passer', 'oui', 'donner la rondelle à un coéquipier : +1 à trois cases, −1 à sept, −2 à dix ; chaque case de la ligne dans le rayon d\'un adversaire coûte un, et un receveur couvert aussi', 'revirement'],
+        ['Esquiver', 'oui', 'quitter avec la rondelle une case collée à un adversaire : ton maniement contre la DÉFENSE du meilleur bâton qui te tient, −1 par bâton de plus, −1 si la case d\'arrivée est tenue aussi', 'revirement'],
+        ['Poke', 'oui', 'PAR DÉFAUT, sans action : finir ton patin avec la rondelle collé à un adversaire debout qui ne te tenait pas déjà, c\'est passer sous son bâton — ton maniement contre sa défense, +1 (un bâton passif n\'est pas un vol), +1 au matador, −1 s\'il a TENDU le bâton', 'la rondelle t\'échappe, libre à côté — pas de revirement'],
+        ['Passer', 'oui', 'donner la rondelle à un coéquipier : +1 à trois cases, −1 à sept, −2 à dix ; chaque case de la ligne dans le rayon d\'un adversaire coûte un, un receveur couvert aussi, et un receveur maladroit (MA 1-2) échappe', 'revirement'],
         ['Dégager', 'oui', 'de la ZONE NEUTRE seulement : la rondelle file au fond, LIBRE, dans un coin ou derrière le filet — à toi d\'y arriver le premier ; ça ouvre la zone à tes coéquipiers', 'elle rebondit n\'importe où autour, libre aussi — pas de revirement'],
         ['Tirer', 'oui', `un but — de la zone offensive seulement, à ${PORTEE_TIR} cases ou moins`, 'le gardien la garde — sauf de l\'enclave, ou raté d\'un seul point, ou mal contrôlé : retour'],
         ['Épaule', 'oui', 'force contre force sur n\'importe quel adversaire collé : il tombe et recule d\'une case. Pas en pleine course, pas avec la rondelle, pas vidé', 'sur le porteur, tu es au sol ; sur un autre, hors position ; sur un 1, l\'arbitre regarde'],
-        ['Bâton', 'oui', 'sur le porteur seulement : ta DÉFENSE contre son maniement, et tu prends la rondelle sans le toucher', 'revirement ; sur un 1, l\'arbitre regarde'],
+        ['Bâton', 'oui', 'L\'ACTION du poke : sur le porteur collé à toi, ta DÉFENSE contre son maniement et sa protection (−2), et tu prends la rondelle sans le toucher — plus dur que le poke passif, mais c\'est toi qui l\'as ensuite', 'revirement ; sur un 1, l\'arbitre regarde'],
         ['Coincer', 'oui', 'le porteur adverse collé à toi, s\'il est sur la bande : force contre force, sans sa protection. Coincé, il ne patine plus ce tour-ci et la rondelle est LIBRE le long de la bande', 'il se dégage et repart libre, sans esquive — pas de revirement'],
         ['Bataille', 'oui', 'patiner sur une rondelle libre qu\'un adversaire debout touche : force contre le plus fort d\'eux. Gagnée, elle est à toi', 'elle ricoche à côté, libre encore — pas de revirement'],
-        ['Se placer devant', 'non', 'jusqu\'à ton prochain tour, tu gênes double les tirs pris à côté de toi — si tu es du côté du filet', '—'],
-        ['Tendre le bâton', 'non', 'jusqu\'à ton prochain tour, ton rayon grandit d\'une case et un receveur collé à toi est couvert double ; c\'est ton action', '—'],
+        ['Se placer devant', 'non', 'PAR DÉFAUT tu gênes déjà tout tir pris à côté de toi, si tu es du côté du filet ; l\'action te fait compter double (triple pour un vrai bloqueur) jusqu\'à ton prochain tour', '—'],
+        ['Tendre le bâton', 'non', 'PAR DÉFAUT ton rayon coupe les passes et ton bâton harponne qui arrive collé à toi ; l\'action, jusqu\'à ton prochain tour, grandit ton rayon d\'une case, couvre double un receveur collé et donne −1 au porteur qui passe sous ta lame', '—'],
         ['Déjouer', 'oui', 'le porteur prend en un contre un un défenseur collé à lui : son maniement contre la DÉFENSE de l\'autre ; s\'il passe, le défenseur ne joue plus cette main-ci et le porteur repart aussitôt, sans esquive', 'revirement : le défenseur lui prend la rondelle'],
         [`Dévier`, 'oui', `le porteur tire vers un coéquipier planté dans l'enclave, plus près du filet que lui ; c'est le tir ET la force de l'homme devant qui comptent (chaque adversaire collé à lui, −1), au seuil de ${SEUIL_PLACE.rangee2}+ d'où que parte le tir`, 'retour devant le filet'],
         ['Tir sur réception', 'oui', 'après une passe RÉUSSIE, le receveur tire sur-le-champ, dans la même main, s\'il est debout et en zone de tir', 'comme un tir'],
@@ -2715,7 +2816,7 @@ export function reglesDuPlateau() {
       points: [
         'Qui met le pied sur une rondelle libre la prend : sans dé, sans dépenser son geste. Une pièce au sol, elle, ne ramasse rien.',
         'Quand le gardien a la rondelle, il la relance à sa pièce la PLUS AVANCÉE au début de la main : c\'est la sortie de zone.',
-        'Après un but : mise au jeu au centre, les deux équipes rentrent à leur place, et le centre le plus habile gagne la rondelle.',
+        'Après un but : mise au jeu au centre, les deux équipes rentrent à leur place, et le centre gagne la rondelle des mains et du corps — maniement et force.',
         'On ne frappe pas avec la rondelle dans les mains, et on ne pousse jamais personne sur la rondelle.',
       ],
     },

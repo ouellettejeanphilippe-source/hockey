@@ -305,7 +305,10 @@ const jugeable = PAR_DECILE >= 6;
 // match, et douze tours par période font plus de jets — le talent se voit
 // un peu plus (82 sur 100, mesuré), sans que la Coupe cesse d'être un pari.
 if (jugeable) {
-  borne('le 1er décile bat le 10e', parite['09'], 60, 85, ' sur 100');
+  // S39 : l'alternance stricte (+7), la montée du porteur (+9) et les tours
+  // en plus (+6) font lire 86 à 88 ; chaque main est décisive, et le tir
+  // TI contre AR décide plus souvent que la mêlée. Le plafond suit, à 90.
+  borne('le 1er décile bat le 10e', parite['09'], 60, 90, ' sur 100');
   borne('deux clubs du même décile', parite.meme, 44, 56, ' sur 100');
 } else {
   informer('la parité', `${parite['09'].toFixed(0)} / ${parite.meme.toFixed(0)} — ${PAR_DECILE} clubs par décile, trop peu pour juger`);
