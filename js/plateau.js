@@ -35,6 +35,7 @@ import {
   relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
   peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, PUNITION_TOURS,
   ciblesCoincerDe, modCoincer, coincer, appliquerCoincer, bataillePossible, modBataille, appliquerBataille,
+  pokeurs, modPoke, appliquerPoke,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
 import { TRAITS } from './traits.js';
@@ -206,6 +207,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const tenue = porteur(m) === sel && batons(m, 'A', sel.r, sel.c) > 0;
     // La bataille pour la rondelle libre (S37) : la cote sur la case, comme l'esquive.
     if (!tenue && bataillePossible(m, sel, v)) return { type: 'deplacer', vers: v, mod: modBataille(m, sel, v), seuil: SEUIL };
+    // Le poke check passif (S39) : la cote de GARDER la rondelle en arrivant sous un bâton neuf.
+    if (!tenue && porteur(m) === sel && pokeurs(m, sel, v).length) return { type: 'deplacer', vers: v, mod: modPoke(m, sel, v), seuil: SEUIL };
     return { type: 'deplacer', vers: v, mod: tenue ? modEsquive(m, sel, v) + bonus('PATIN') : null, seuil: SEUIL };
   }
 
@@ -528,6 +531,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     coince:     ['COINCÉ !', 'chaud', 'cible'],
     bataille:   ['GAGNÉE !', 'chaud', 'cible'],
     punition:   ['PUNITION', 'rouge', 'defaut'],
+    poke:       ['HARPONNÉ !', 'rouge', 'cible'],
   };
 
   function verdict(avant, ou, quoi = null, delai = 0) {
@@ -559,13 +563,13 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const SON_DU_GENRE = {
     but: 'but', retour: 'retour', arret: 'arret', echec: 'echec', vol: 'vol', rate: 'rate',
     revirement: 'revirement', degage: 'degage', mj: 'mj', fin: 'fin', periode: 'periode',
-    dejoue: 'patin', ecran: 'tap', tendu: 'tap', changement: 'tap', coince: 'echec', bataille: 'vol', punition: 'periode',
+    dejoue: 'patin', ecran: 'tap', tendu: 'tap', changement: 'tap', coince: 'echec', bataille: 'vol', punition: 'periode', poke: 'vol',
   };
   const PAS_SON = { tir: 0.22, patin: 0.12, passe: 0.1, echec: 0.28, arret: 0.2, retour: 0.25, vol: 0.15, rate: 0.15, degage: 0.45, mj: 0.1, periode: 0.5, fin: 2, but: 1.6, revirement: 0.2, tap: 0.08 };
   function sonner(genres, quoi, delai = 0) {
     let d = delai;
     if (quoi === 'tir' || quoi === 'deviation') { jouerSon('tir', d); d += PAS_SON.tir; }
-    else if (quoi === 'patin' || quoi === 'esquive' || quoi === 'dejouer' || quoi === 'bataille') { jouerSon('patin', d); d += PAS_SON.patin; }
+    else if (quoi === 'patin' || quoi === 'esquive' || quoi === 'dejouer' || quoi === 'bataille' || quoi === 'poke') { jouerSon('patin', d); d += PAS_SON.patin; }
     else if (quoi === 'ecran' || quoi === 'tendre') { jouerSon('tap', d); d += PAS_SON.tap; }
     const but = genres.includes('but');
     for (const g of genres) {
@@ -651,10 +655,10 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // geste qu'on cherche, il ne doit pas demander d'ouvrir le volet.
     // SE PLACER DEVANT et TENDRE LE BÂTON : les deux postures. Sans dé.
     if (peutAgir(m, sel) && !aLaRondelle && !sel.ecran) {
-      gestes.push('<button type="button" class="t-geste" data-geste="ecran" title="Jusqu\'à ta prochaine présence, il gêne double les tirs pris à côté de lui.">🛡️ Bloquer le tir</button>');
+      gestes.push('<button type="button" class="t-geste" data-geste="ecran" title="Il gêne déjà par défaut tout tir pris à côté de lui ; placé devant jusqu\'à ton prochain tour, il compte double.">🛡️ Bloquer le tir</button>');
     }
     if (peutAgir(m, sel) && !aLaRondelle && !sel.tendu) {
-      gestes.push('<button type="button" class="t-geste" data-geste="tendre" title="Jusqu\'à ta prochaine présence, il coupe les lignes de passe : double contre un receveur collé à lui, −1 par case de la passe qu\'il frôle.">✂️ Tendre le bâton</button>');
+      gestes.push('<button type="button" class="t-geste" data-geste="tendre" title="Son bâton harponne et coupe déjà par défaut ; tendu jusqu\'à ton prochain tour, son rayon grandit d\'une case, un receveur collé est couvert double et le porteur qui arrive sous sa lame joue à −1.">✂️ Tendre le bâton</button>');
     }
     // LE DUEL : sur le porteur adverse, l'épaule ou le bâton.
     if (cible && peutAgir(m, sel) && dist(sel, cible) === 1) {
@@ -727,7 +731,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   /* ---------- le dé ---------- */
 
-  const MOT_JET = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle', degagement: 'Dégagement', dejouer: 'Déjouer', deviation: 'Déviation', coincer: 'Coincer dans la bande', bataille: 'Bataille pour la rondelle' };
+  const MOT_JET = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle', degagement: 'Dégagement', dejouer: 'Déjouer', deviation: 'Déviation', coincer: 'Coincer dans la bande', bataille: 'Bataille pour la rondelle', poke: 'Sous le bâton' };
 
   /*
    * SOUS LE PLATEAU IL NE RESTE QUE LA DÉCISION. Les chiffres sont sur la
@@ -1049,6 +1053,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       // joué, il ne reste qu'à dire ce que le moteur en a fait.
       if (!d.jet) { verdict(avant, ou, 'patin'); apres(); return; }
       if (d.bataille) { lancer(d.jet, 'A', j => appliquerBataille(m, piece, vers, j), placesDe(piece, vers)); return; }
+      if (d.poke) { lancer(d.jet, 'A', j => appliquerPoke(m, piece, vers, j), placesDe(piece, vers)); return; }
       lancer(d.jet, 'A', j => appliquerEsquive(m, piece, vers, j), ou);
       return;
     }
