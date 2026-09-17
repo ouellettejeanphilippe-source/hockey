@@ -1577,7 +1577,7 @@ function poolFiltered() {
   const axe = k => p => tableStats(p)[p.p === 'G' ? 'AR' : k];
   const parAxe = k => (a, b) => axe(k)(b) - axe(k)(a) || key(b) - key(a);
   const cmp = {
-    TI: parAxe('TI'), MA: parAxe('MA'), FO: parAxe('FO'), PA: parAxe('PA'), SO: parAxe('SO'),
+    TI: parAxe('TI'), MA: parAxe('MA'), FO: parAxe('FO'), DE: parAxe('DE'), PA: parAxe('PA'), SO: parAxe('SO'),
     PTS: (a, b) => key(b) - key(a) || b.$ - a.$,
     PPG: (a, b) => (displayStats(b).ppg ?? -1) - (displayStats(a).ppg ?? -1) || key(b) - key(a),
     SAL: (a, b) => b.$ - a.$ || key(b) - key(a),
@@ -2037,7 +2037,7 @@ function tableStats(p) {
   return st;
 }
 
-const AXES_PATINEUR = ['PA', 'MA', 'TI', 'FO', 'SO'];
+const AXES_PATINEUR = ['PA', 'MA', 'TI', 'FO', 'DE', 'SO'];
 const axesDe = p => (p.p === 'G' ? ['AR'] : AXES_PATINEUR);
 
 /* Un axe : son sigle, son nombre, et le trait qui le majore dans l'infobulle
@@ -2090,7 +2090,7 @@ const SORTS_SAISON = [
   ['PM', 'Différentiel'], ['DEF', 'Défensive'], ['ROB', 'Robustesse'], ['AGE', 'Âge'], ['NAME', 'Nom'],
 ];
 const SORTS_TABLE = [
-  ['TI', 'Tir'], ['MA', 'Maniement'], ['FO', 'Force'], ['PA', 'Patin'], ['SO', 'Souffle'],
+  ['TI', 'Tir'], ['MA', 'Maniement'], ['FO', 'Force'], ['DE', 'Défense'], ['PA', 'Patin'], ['SO', 'Souffle'],
   ['SAL', 'Salaire'], ['NAME', 'Nom'],
 ];
 function syncSortOptions() {

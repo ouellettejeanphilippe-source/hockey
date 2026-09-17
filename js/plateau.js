@@ -33,7 +33,7 @@ import {
   ciblesDejouerDe, modDejouer, dejouer, appliquerDejouer, ciblesDeviationDe, modDeviation, devier, appliquerDeviation,
   receptionPossible, tirerSurReception, SEUIL_PLACE,
   relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
-  peutBouger, peutAgir, mainEpuisee, MAINS_PAR_TOUR,
+  peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, PUNITION_TOURS,
   ciblesCoincerDe, modCoincer, coincer, appliquerCoincer, bataillePossible, modBataille, appliquerBataille,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
@@ -124,6 +124,17 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    */
   const aMoi = () => m.tour === 'A' && !m.fini && !iaEnCours;
 
+  /* Le cachot (S38) : qui est puni, pour combien de tours — l'avantage numérique se lit ici. */
+  function cachot() {
+    const out = [];
+    for (const eq of [A, B]) {
+      if (!eq.penalite) continue;
+      const qui = eq.penalite.p ? nomCourt(eq.penalite.p) : eq.penalite.role;
+      out.push(`<span class="tb-cachot" title="${esc(eq.nom)} joue à quatre : ${esc(qui)} est au cachot pour ${eq.penalite.tours} tour${eq.penalite.tours > 1 ? 's' : ''}. Un but marqué contre l'équipe punie le libère.">⚠ ${esc(qui)} · ${eq.penalite.tours}</span>`);
+    }
+    return out.join('');
+  }
+
   /* ---------- le tableau indicateur ---------- */
   function tete() {
     // Un tour = les dix pièces, une à la fois ; le compte de présences avance de deux par tour.
@@ -141,6 +152,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       </div>
       <div class="tb-etat">
         <span class="tb-tour ${aMoi() ? 'mien' : ''}">${m.fini ? 'Match terminé' : aMoi() ? 'À toi : un déplacement, une action' : `${esc(B.nom)} joue sa main`}</span>
+        ${cachot()}
         <span class="tb-relance ${A.relance ? 'on' : ''}" title="Une relance d'équipe par période : on la dépense après avoir vu le dé.">🎲 Relance ${A.relance ? 'disponible' : 'dépensée'}</span>
       </div>`;
   }
@@ -364,6 +376,12 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       }
       cel.classList.toggle('t-jouable', !!jouable);
       cel.classList.toggle('t-sel', !!piece && piece === sel);
+      // LE RAYON ADVERSE (S38) se voit sur la glace : une case couverte est
+      // ombrée, deux bâtons dessus plus sombre. C'est là qu'une passe se coupe
+      // et que le porteur patine au double du prix.
+      const couv = piece ? 0 : couvreurs(m, 'A', r, c).length;
+      cel.classList.toggle('t-rayon', couv === 1);
+      cel.classList.toggle('t-rayon-2', couv >= 2);
       cel.tabIndex = (o || jouable) ? 0 : -1;
       // L'étiquette : la cote du geste que cette case propose.
       const marque = cel.querySelector('.t-marque');
@@ -406,7 +424,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const nom = esc(nomCourt(x.p));
       const role = x.gardien ? 'G' : esc(x.role);
       const rond = p === x ? '<span class="t-rondelle" aria-label="a la rondelle"></span>' : '';
-      const air = !x.gardien && essouffle(m, x) ? '<span class="t-vide-air" title="Essoufflé">😮‍💨</span>' : '';
+      const etat = x.gardien ? 'frais' : etatSouffle(m, x);
+      const air = etat === 'vide' ? '<span class="t-vide-air" title="Vidé : deux cases de moins, un de moins à tous ses jets, plus d\'épaule">😮‍💨</span>'
+        : etat === 'fatigue' ? '<span class="t-vide-air t-fatigue-air" title="Fatigué : une case de patin en moins">💨</span>' : '';
       const ecr = x.ecran ? '<span class="t-ecran" title="Il se place devant les tirs">🛡️</span>' : x.tendu ? '<span class="t-ecran" title="Il tend le bâton : les passes qui le frôlent sont gênées">✂️</span>' : '';
       const dedans = `<span class="t-role">${role}</span><span class="t-nom">${nom}</span>${rond}${air}${ecr}`;
       if (el.dataset.contenu !== dedans) { el.innerHTML = dedans; el.dataset.contenu = dedans; }
@@ -507,6 +527,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     dejoue:     ['DÉJOUÉ !', 'chaud', 'cible'],
     coince:     ['COINCÉ !', 'chaud', 'cible'],
     bataille:   ['GAGNÉE !', 'chaud', 'cible'],
+    punition:   ['PUNITION', 'rouge', 'defaut'],
   };
 
   function verdict(avant, ou, quoi = null, delai = 0) {
@@ -538,7 +559,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const SON_DU_GENRE = {
     but: 'but', retour: 'retour', arret: 'arret', echec: 'echec', vol: 'vol', rate: 'rate',
     revirement: 'revirement', degage: 'degage', mj: 'mj', fin: 'fin', periode: 'periode',
-    dejoue: 'patin', ecran: 'tap', tendu: 'tap', changement: 'tap', coince: 'echec', bataille: 'vol',
+    dejoue: 'patin', ecran: 'tap', tendu: 'tap', changement: 'tap', coince: 'echec', bataille: 'vol', punition: 'periode',
   };
   const PAS_SON = { tir: 0.22, patin: 0.12, passe: 0.1, echec: 0.28, arret: 0.2, retour: 0.25, vol: 0.15, rate: 0.15, degage: 0.45, mj: 0.1, periode: 0.5, fin: 2, but: 1.6, revirement: 0.2, tap: 0.08 };
   function sonner(genres, quoi, delai = 0) {
@@ -590,7 +611,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const arc = ARCHETYPES[archetypeKey(sel.p)] || ARCHETYPES.UNKNOWN;
     const gab = GABARITS[st.gb], tir = TIRS[st.ts] || TIRS.P;
     const aLaRondelle = porteur(m) === sel;
-    const so = souffleDe(m, sel), soMax = st.SO;
+    const so = souffleDe(m, sel), soMax = souffleMax(st), etat = etatSouffle(m, sel);
     const gestes = [];
 
     /*
@@ -674,7 +695,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
           <span class="t-fiche-role">${esc(sel.role)}</span>
           <span class="t-fiche-nom">${esc((sel.p && sel.p.n) || 'Rappel')}</span>
           <span class="t-axes">
-            ${['PA', 'MA', 'TI', 'FO'].map(k => {
+            ${['PA', 'MA', 'TI', 'FO', 'DE'].map(k => {
               // LE TRAIT EST LE NOMBRE. On ne lui donne pas d'étiquette à lui :
               // « les icônes ne doivent jamais se répéter sur la même carte »,
               // et ⚡ comme 🛡️ sont déjà pris par l'habileté Coup de patin et
@@ -684,7 +705,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
               const T = tr && TRAITS[tr];
               return `<span class="t-axe${T ? ' majore' : ''}" title="${esc(AXE_MOT[k])}${T ? ` — ${T.icon} ${T.label} : +1` : ''}"><i>${k}</i><b>${st[k]}</b></span>`;
             }).join('')}
-            <span class="t-axe t-axe-so ${so <= 0 ? 'vide' : ''}" title="Souffle : ${so} présence${so > 1 ? 's' : ''} avant d'être vidé. À zéro, un de moins à tous ses jets et un pas de patin en moins — il faut changer de trio."><i>SO</i><b>${so}</b></span>
+            <span class="t-axe t-axe-so ${etat === 'vide' ? 'vide' : etat === 'fatigue' ? 'fatigue' : ''}" title="Souffle : ${so} geste${so > 1 ? 's' : ''} sur ${soMax}. Chaque geste en coûte un. Sous la moitié, une case de patin en moins ; à zéro, deux, un de moins à tous ses jets et plus d'épaule — il faut changer de trio."><i>SO</i><b>${so}<small>/${soMax}</small></b></span>
           </span>
         </div>
         <div class="t-tags">
@@ -692,7 +713,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
           <span class="t-tag" title="${esc(gab.desc)}">${gab.icon} ${esc(gab.nom)}</span>
           <span class="t-tag" title="${esc(tir.desc)}">${tir.icon} ${esc(tir.nom)}</span>
           ${h ? `<span class="t-tag ${sel.habDispo ? 'on' : 'usee'}" title="${esc(h.desc)}">${h.icon} ${esc(h.nom)}${sel.habDispo ? ' +2' : ' · utilisée'}</span>` : ''}
-          ${so <= 0 ? '<span class="t-tag alerte" title="Il n\'a plus de souffle : change de trio au début de ta prochaine présence.">😮‍💨 Essoufflé</span>' : ''}
+          ${etat === 'vide' ? '<span class="t-tag alerte" title="Il n\'a plus de souffle : change de trio, c\'est instantané et gratuit.">😮‍💨 Vidé</span>' : etat === 'fatigue' ? '<span class="t-tag" title="Sous la moitié de son souffle : une case de patin en moins.">💨 Fatigué</span>' : ''}
         </div>
       </div>`;
   }
@@ -738,7 +759,13 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * prix est le même que dans la vraie vie — tes cinq rentrent de TON bout de
    * glace, donc tu donnes ta position pour des jambes fraîches.
    */
-  const peutChanger = () => aMoi() && !attente && !m.main.bouge && !m.main.agi && eqDe(m, 'A').pieces.every(x => !x.agi && !x.deplace);
+  /*
+   * LE CHANGEMENT EST INSTANTANÉ (S38). JP : *changement instantané de ligne
+   * sur le board*. À n'importe quel moment de ta main, une fois par main,
+   * gratuit ; chaque entrant prend la case du sortant. Seule l'unité qui
+   * porte la rondelle ne change pas — son bouton le dit.
+   */
+  const peutChanger = () => aMoi() && !attente && !m.main.change;
 
   function unites() {
     if (!peutChanger()) return '';
@@ -749,16 +776,20 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
      * serait qu'une punition. Le nombre est la moyenne de l'unité.
      */
     const souffleUnite = joueurs => {
-      const vals = joueurs.filter(Boolean).map(p => eq.souffle.get(p) ?? statsDeTable(p).SO);
-      return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 3;
+      // En part du réservoir, ramenée sur quatre points : deux gestes par SO.
+      const vals = joueurs.filter(Boolean).map(p => (eq.souffle.get(p) ?? souffleMax(statsDeTable(p))) / souffleMax(statsDeTable(p)));
+      return vals.length ? Math.round(4 * vals.reduce((a, b) => a + b, 0) / vals.length) : 4;
     };
+    const p = porteur(m);
+    const porteRole = p && p.eq === 'A' ? p.role : null;
     const trio = i => uniteDe(eq.roster, i, 0).slice(0, 3).map(x => x.p);
     const paire = i => uniteDe(eq.roster, 0, i).slice(3).map(x => x.p);
     const seg = (quoi, n, mot, courant, joueursDe) => `<span class="t-seg" data-u="${quoi}">${
       [...Array(n).keys()].map(i => {
         const so = souffleUnite(joueursDe(i));
-        return `<button type="button" data-v="${i}" class="${courant === i ? 'on' : ''} ${so <= 0 ? 'vide' : ''}"
-          title="Souffle moyen de l'unité : ${so}">${i + 1}<sup>${i ? 'e' : mot === 'trio' ? 'er' : 're'}</sup> ${mot}<em>${'●'.repeat(Math.min(4, Math.max(0, so)))}${'○'.repeat(Math.max(0, 4 - so))}</em></button>`;
+        const tient = porteRole && (quoi === 'tri' ? ['AG', 'C', 'AD'] : ['DG', 'DD']).includes(porteRole) && courant !== i;
+        return `<button type="button" data-v="${i}" class="${courant === i ? 'on' : ''} ${so <= 0 ? 'vide' : ''}" ${tient ? 'disabled' : ''}
+          title="${tient ? 'On ne change pas l\'unité qui porte la rondelle' : `Souffle de l'unité : ${so} sur 4`}">${i + 1}<sup>${i ? 'e' : mot === 'trio' ? 'er' : 're'}</sup> ${mot}<em>${'●'.repeat(Math.min(4, Math.max(0, so)))}${'○'.repeat(Math.max(0, 4 - so))}</em></button>`;
       }).join('')}</span>`;
     return `
       <div class="t-unites">
@@ -842,6 +873,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
           <span><b>${f.tirs}</b> lancers</span>
           <span><b>${f.echecs}</b> mises en échec</span>
           <span><b>${f.revirements}</b> revirements</span>
+          <span><b>${f.punitions || 0}</b> punition${f.punitions > 1 ? 's' : ''}</span>
         </div>
         <div class="tf-bloc"><h5>Au tableau</h5>${marque.length
           ? `<table class="tf-table"><tbody>${marque.map(x => `<tr><td class="tf-nom">${esc(nomJ(x.p))}</td><td>${x.buts || '—'}</td><td>${x.passes || '—'}</td></tr>`).join('')}</tbody></table>`
@@ -914,7 +946,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (m.fini) return '<button type="button" class="t-resultat t-evident">Voir le résultat</button>';
     if (attente) return de();
     if (!aMoi()) return `<span class="t-dock-nom t-dock-attente">${esc(B.nom)} joue… <i>touche la glace pour accélérer</i></span>`;
-    const reste = eqDe(m, 'A').pieces.filter(peutJouer).length;
     const dispo = eqDe(m, 'A').pieces.filter(aDesOptions).length;
     // La ligne du haut : qui est choisi (ou, en mode, ce qu'il reste à
     // toucher), le bouton du volet, la fin. Le mode ou le duel en cours
@@ -934,10 +965,10 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // dépensé s'éteint. « Fin du tour » rend la main sans dépenser le reste ;
     // « Finir » renonce à toute la présence.
     const entamee = m.main.bouge || m.main.agi;
-    const budget = `<span class="t-budget" title="À ta main : un déplacement et une action, pas forcément de la même pièce. ${MAINS_PAR_TOUR} mains par tour, chacun."><b>Main ${Math.min(MAINS_PAR_TOUR, m.mains.A + 1)}/${MAINS_PAR_TOUR}</b><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
+    const budget = `<span class="t-budget" title="À ta main : un déplacement et une action, pas forcément de la même pièce. Puis la sienne, et c'est un tour."><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
     const fin = entamee
-      ? `<button type="button" class="t-fin-tour t-evident" title="Rendre la main sans dépenser ce qui reste">Fin du tour</button>`
-      : `<button type="button" class="t-passer" title="Renoncer à toutes tes pièces qui n'ont pas encore joué ce tour-ci : l'adversaire enchaîne les siennes.">Finir${reste > 1 ? ` (${reste})` : ''}</button>`;
+      ? `<button type="button" class="t-fin-tour t-evident" title="Rendre la main sans dépenser ce qui reste">Passer la main</button>`
+      : `<button type="button" class="t-passer" title="Ne rien jouer cette main-ci : l'adversaire joue la sienne.">Passer</button>`;
     const ouvre = `<button type="button" class="t-volet-btn" aria-expanded="${volet ? 'true' : 'false'}" title="${sel ? 'La fiche de la pièce, le banc et le fil' : 'Le banc des trios et le fil'}">${sel ? 'Fiche' : 'Banc'} <i>${volet ? '▾' : '▴'}</i></button>`;
     // La rangée des actions : le tir d'abord, puis les modes (un geste à
     // cible), puis les gestes sans cible. Elle se balaie si elle déborde.

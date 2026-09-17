@@ -25,7 +25,7 @@ import { autoRoster, registerHiddenRatings } from '../js/sim.js';
 import {
   COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, PERIODES, PRESENCES_PAR_PERIODE, PRESENCES_PROLONGATION,
   equipeDeTable, nouveauMatch, iaPresence, resultatDe, surLaGlace, porteur, libre, eqDe,
-  statsDeTable, uniteDe, changerUnite, souffleDe, peutJouer, deplacementsDe, ciblesEchecDe,
+  statsDeTable, uniteDe, changerUnite, souffleDe, souffleMax, PUNITION_TOURS, peutJouer, deplacementsDe, ciblesEchecDe,
   reglesDuPlateau, peutTirer, distanceAuFilet, PORTEE_TIR, caseJouable, estFilet,
 } from '../js/table.js';
 
@@ -55,7 +55,10 @@ const REGLES = [
   ['cinq patineurs et un gardien par équipe', m => {
     for (const cote of ['A', 'B']) {
       const eq = eqDe(m, cote);
-      if (eq.pieces.length !== 5) return `${cote} a ${eq.pieces.length} patineurs`;
+      // Au cachot (S38), l'équipe joue à quatre — et jamais à moins.
+      const attendu = 5 - (eq.penalite ? 1 : 0);
+      if (eq.pieces.length !== attendu) return `${cote} a ${eq.pieces.length} patineurs (attendu ${attendu}${eq.penalite ? ', un puni' : ''})`;
+      if (eq.penalite && (eq.penalite.tours < 0 || eq.penalite.tours > PUNITION_TOURS)) return `${cote} : punition de ${eq.penalite.tours} tours`;
       if (!eq.piece_g) return `${cote} n'a pas de gardien`;
     }
     return null;
@@ -135,7 +138,7 @@ const REGLES = [
     for (const cote of ['A', 'B']) {
       const eq = eqDe(m, cote);
       for (const [joueur, v] of eq.souffle) {
-        const max = statsDeTable(joueur).SO;
+        const max = souffleMax(statsDeTable(joueur));
         if (v < 0) return `${joueur.n} a un souffle négatif (${v})`;
         if (v > max) return `${joueur.n} a ${v} de souffle pour un maximum de ${max}`;
       }
