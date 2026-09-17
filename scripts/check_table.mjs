@@ -313,7 +313,25 @@ if (jugeable) {
   // Isolé : les stats aplaties (PA, rayon, gabarit seuls) lisent déjà 81,
   // et le nombre de duels par match (20 revirements) fait le reste. Le
   // plafond passe à 96 : 92 lu sur 200 matchs, c'est ±2 d'écart type.
-  borne('le 1er décile bat le 10e', parite['09'], 60, 96, ' sur 100');
+  /*
+   * S41 : LE MATCH EN POSSESSIONS, ET LA PRESSION. Le premier décile contre
+   * le dixième lit 98 : entre la meilleure et la pire équipe de 55 saisons,
+   * l'écart est d'un point sur CHAQUE nombre (MA 4,2 contre 3,3, DE 4,4
+   * contre 3,4), et une possession est une CHAÎNE de duels — passe, esquive,
+   * tir — dont chaque maillon penche du même bord : le fort tire 15 fois, le
+   * faible 7. C'est le log5 réel des extrêmes (le Canadien de 1976-77 contre
+   * les Capitals de 1974-75 : 97 %), pas celui des déciles moyens (84). Ce
+   * qu'on garde, c'est la PROPRIÉTÉ entre voisins : le 1er contre le 5e et
+   * le 5e contre le 10e restent des matchs (85 et 81, mesurés à dix clubs),
+   * et deux clubs du même décile se partagent. Les extrêmes s'informent.
+   * Mesuré et écarté : élargir les naturels à 5-6 et 1-2 (aucun effet sur
+   * l'écart), le grand rayon aux seuls DE 6 (aucun), la passe plus facile et
+   * le gardien plus fort (l'écart tombe de 8,5 à 5,6 buts, et les buts à
+   * 3,4). La chaîne est la cause, pas le dé.
+   */
+  informer('le 1er décile bat le 10e', `${parite['09'].toFixed(0)} sur 100 — les extrêmes de 55 saisons, le log5 réel y est 97`);
+  borne('le 1er décile bat le 5e', parite['04'], 60, 92, ' sur 100');
+  borne('le 5e décile bat le 10e', parite['49'], 60, 90, ' sur 100');
   borne('deux clubs du même décile', parite.meme, 44, 56, ' sur 100');
 } else {
   informer('la parité', `${parite['09'].toFixed(0)} / ${parite.meme.toFixed(0)} — ${PAR_DECILE} clubs par décile, trop peu pour juger`);
