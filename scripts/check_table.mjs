@@ -296,8 +296,12 @@ console.log(`  ${'deux équipes du même décile'.padEnd(32)} ${parite.meme.toFi
 // Même règle : à PAR_DECILE=2 il ne reste que huit duels par paire, et la
 // lecture monte à 88 sur 100 sans que rien n'ait bougé dans le moteur.
 const jugeable = PAR_DECILE >= 6;
+// Le plafond est passé de 80 à 85 en S37 : la bataille pour la rondelle
+// libre et le coincement dans la bande sont deux jets de FORCE de plus par
+// match, et douze tours par période font plus de jets — le talent se voit
+// un peu plus (82 sur 100, mesuré), sans que la Coupe cesse d'être un pari.
 if (jugeable) {
-  borne('le 1er décile bat le 10e', parite['09'], 60, 80, ' sur 100');
+  borne('le 1er décile bat le 10e', parite['09'], 60, 85, ' sur 100');
   borne('deux clubs du même décile', parite.meme, 44, 56, ' sur 100');
 } else {
   informer('la parité', `${parite['09'].toFixed(0)} / ${parite.meme.toFixed(0)} — ${PAR_DECILE} clubs par décile, trop peu pour juger`);

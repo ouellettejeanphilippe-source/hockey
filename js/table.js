@@ -609,7 +609,7 @@ export const PERIODES = 3;
  * demandé « plus rapide » ; cinq est le réglage qui donne des pointages de
  * hockey (2-1, 3-2, 4-3, 1-0) dans le moins de tours possible.
  */
-export const PRESENCES_PAR_PERIODE = 10;
+export const PRESENCES_PAR_PERIODE = 12;
 export const PRESENCES_PROLONGATION = 2;   // la mort subite est courte, sinon on n'en sort plus
 export const PROLONGATIONS_MAX = 12;       // au-delà, le bris d'égalité écrit (gagnantDuMatch)
 
@@ -777,6 +777,7 @@ export function nouveauMatch(A, B, graine) {
     tour: 'A',             // à qui la main
     premier: 'A',          // qui a ouvert le tour courant ; on alterne à chaque tour
     main: { bouge: false, agi: false, mobile: null },   // le BUDGET du tour d'équipe (S36) : un déplacement, une action, et qui a patiné
+    mains: { A: 0, B: 0 },  // les mains jouées ce tour-ci : cinq chacune, pas une de plus (S37)
     rondelle: null,        // { piece } ou { libre: {r, c} }
     fil: [],               // les événements, le plus récent en tête
     fini: false,
@@ -1258,6 +1259,14 @@ export const ciblesEchecDe = (m, piece) =>
   // hockey dit — on lâche la rondelle avant de donner de l'épaule.
   (porteur(m) === piece || enCourse(m, piece) ? [] : eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.etourdi && dist(x, piece) === 1));
 
+/** Une case de bande : le bord de la glace, où l'on peut coincer le porteur. */
+export const surLaBande = (r, c) => c === 0 || c === COLS - 1 || r === RANG_MIN || r === RANG_MAX;
+/** Les cibles d'un coincement : le porteur adverse collé, s'il est sur la bande. */
+export const ciblesCoincerDe = (m, piece) => {
+  const p = porteur(m);
+  if (enCourse(m, piece) || porteur(m) === piece) return [];
+  return p && p.eq !== piece.eq && !p.gardien && !p.etourdi && dist(p, piece) === 1 && surLaBande(p.r, p.c) ? [p] : [];
+};
 /** Les cibles d'un vol : le porteur adverse, et lui seul. */
 export const ciblesVolDe = (m, piece) => {
   const p = porteur(m);
@@ -1283,6 +1292,15 @@ export function deplacer(m, piece, vers) {
   m.main.bouge = true;
   m.main.mobile = piece;
   m.reception = null;
+  // LA BATAILLE POUR LA RONDELLE LIBRE (S37). JP : *jeux contestés*. Mettre
+  // le pied sur une rondelle libre la prenait sans dé, même sous le nez
+  // d'un adversaire ; devant le filet, après un retour, c'est une mêlée. Un
+  // adversaire debout collé à la case, et c'est force contre force : gagnée,
+  // la rondelle est à toi ; perdue, elle ricoche à côté, libre encore.
+  if (!avecRondelle && bataillePossible(m, piece, vers)) {
+    piece.libre = false;
+    return { ok: true, jet: jeter(m, modBataille(m, piece, vers), 'bataille'), bataille: true };
+  }
   // Le défenseur DÉJOUÉ ne tient plus le porteur : le patin qui suit est libre.
   if (!avecRondelle || tenue === 0 || piece.libre) {
     piece.libre = false;
@@ -1323,6 +1341,29 @@ function deposer(m, piece, r, c) {
   piece.derniere = null;
   dire(m, `${nomDe(piece)} met le pied sur la rondelle libre et la récupère.`, 'ok');
   return true;
+}
+
+/** Un adversaire debout collé à la case de la rondelle libre : la bataille. */
+export const bataillePossible = (m, piece, vers) => {
+  const l = libre(m);
+  if (!l || l.r !== vers.r || l.c !== vers.c) return false;
+  return eqDe(m, adverse(piece.eq)).pieces.some(x => !x.gardien && !x.etourdi && dist(x, vers) === 1);
+};
+export function modBataille(m, piece, vers) {
+  const rivaux = eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.gardien && !x.etourdi && dist(x, vers) === 1);
+  const fort = Math.max(...rivaux.map(x => md(x.st.FO)));
+  return md(piece.st.FO) - fort + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece);
+}
+export function appliquerBataille(m, piece, vers, jet) {
+  if (jet.reussi) {
+    dire(m, `${nomDe(piece)} gagne la bataille dans le trafic.`, 'bataille');
+    deposer(m, piece, vers.r, vers.c);
+    return true;
+  }
+  piece.r = vers.r; piece.c = vers.c;
+  rebondir(m, vers.r, vers.c);
+  dire(m, `${nomDe(piece)} perd la bataille — la rondelle ricoche.`, 'rate');
+  return false;
 }
 
 export function appliquerEsquive(m, piece, vers, jet) {
@@ -1401,7 +1442,14 @@ export function appliquerTir(m, piece, jet) {
   const eqAdv = eqDe(m, adverse(piece.eq));
   const enclave = natureCase(piece.r, piece.c, eq.but) === 'enclave';
   const deJustesse = jet.de === jet.seuil - 1;
-  if (enclave || deJustesse) {
+  // LE GARDIEN CONTRÔLE OU LAISSE UN RETOUR (S37). JP : *plus d'arrêts,
+  // rebonds, jeux contestés*. Un arrêt de la pointe finissait toujours dans
+  // la mitaine ; le gardien jette maintenant son propre dé — son AR contre
+  // le seuil ordinaire — et un arrêt mal contrôlé rebondit devant lui, où
+  // tout le monde se jette dessus. Un grand gardien étouffe deux tirs sur
+  // trois, un rappel en laisse deux sur trois.
+  const controle = Math.floor(m.de() * 6) + 1 + md(advG.st.AR) >= SEUIL + 1;
+  if (enclave || deJustesse || !controle) {
     rebondir(m, piece.r, piece.c, eq.but);
     dire(m, `${nomDe(advG)} repousse le tir de ${nomDe(piece)} — retour devant le filet.`, 'retour');
     return false;
@@ -1509,6 +1557,38 @@ export function appliquerVol(m, piece, cible, jet) {
     return true;
   }
   revirement(m, `${nomDe(piece)} tend le bâton et ${nomDe(cible)} le contourne.`);
+  return false;
+}
+
+/* ---------- coincer dans la bande : le jeu contesté ---------- */
+
+/*
+ * COINCER (S37). JP : *plus d'arrêts, rebonds, pin, jeux contestés*. Le
+ * porteur qui longe la bande peut y être coincé par un adversaire collé :
+ * force contre force, sans la protection du porteur — on ne lui prend pas la
+ * rondelle, on la lui fait perdre. S'il est coincé, la rondelle est LIBRE
+ * le long de la bande et il ne patine plus ce tour-ci ; s'il se dégage, il
+ * repart libre, sans esquive. Ni l'un ni l'autre n'est un revirement : c'est
+ * une bataille, et la main continue.
+ */
+export function modCoincer(m, piece, cible) {
+  return md(piece.st.FO) - md(cible.st.FO) + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece);
+}
+export function coincer(m, piece, cible) {
+  return jeter(m, modCoincer(m, piece, cible), 'coincer');
+}
+export function appliquerCoincer(m, piece, cible, jet) {
+  const eq = eqDe(m, piece.eq);
+  agir(m, piece);
+  if (jet.reussi) {
+    fiche(eq, piece.p).echecs++;
+    cible.deplace = true;       // coincé dans la bande : il ne patine plus ce tour-ci
+    rebondir(m, cible.r, cible.c);
+    dire(m, `${nomDe(piece)} coince ${nomDe(cible)} dans la bande — la rondelle est libre.`, 'coince');
+    return true;
+  }
+  cible.libre = true;
+  dire(m, `${nomDe(cible)} se dégage de la bande.`, 'rate');
   return false;
 }
 
@@ -1704,13 +1784,25 @@ export function activer(m, piece) {
  * pour les deux. Le gardien qui a la rondelle la relance à chaque fois que
  * la main revient à son équipe (la sortie de zone).
  */
+/*
+ * CINQ MAINS PAR TOUR, CHACUNE (S37). JP : *le cpu bypass encore tours
+ * normaux*. L'IA dépense souvent un seul geste par main (1,7 mesuré), le
+ * joueur deux : ses pièces s'épuisaient en cinq mains, celles de l'IA en
+ * huit ou neuf, et l'IA finissait chaque tour SEULE, trois ou quatre mains
+ * de suite — vu de l'écran, elle sautait les tours. Une main est une main :
+ * cinq par tour, qu'on y dépense un geste ou deux. Ce qu'on n'a pas joué en
+ * cinq mains est perdu, pour les deux camps.
+ */
+export const MAINS_PAR_TOUR = 5;
+export const aLaMain = (m, cote) => m.mains[cote] < MAINS_PAR_TOUR && eqDe(m, cote).pieces.some(peutJouer);
 export function finirMain(m) {
   m.main = { bouge: false, agi: false, mobile: null };
   m.reception = null;
   if (m.fini) return;
+  m.mains[m.tour]++;
   const autre = adverse(m.tour);
-  if (eqDe(m, autre).pieces.some(peutJouer)) { m.tour = autre; sortieDeZone(m); return; }
-  if (eqDe(m, m.tour).pieces.some(peutJouer)) { sortieDeZone(m); return; }
+  if (aLaMain(m, autre)) { m.tour = autre; sortieDeZone(m); return; }
+  if (aLaMain(m, m.tour)) { sortieDeZone(m); return; }
   finirPresence(m);
 }
 /** Le budget de la main est-il vide, ou plus personne ne peut-il s'en servir ? */
@@ -1725,6 +1817,7 @@ export function renoncer(m) {
 /** Le tour est fini pour les DEUX équipes : souffle, compteurs, et l'autre ouvre le suivant. */
 export function finirPresence(m, butMarque = false) {
   m.main = { bouge: false, agi: false, mobile: null };
+  m.mains = { A: 0, B: 0 };
   m.tours = (m.tours || 0) + 1;   // les tours joués : ce que les scripts comptent
   for (const cote of ['A', 'B']) {
     const eq = eqDe(m, cote);
@@ -1954,6 +2047,10 @@ function meilleurGeste(m, piece) {
         const risque = porte ? (solide ? 0 : 3.2) : (solide ? 0.4 : 1.6);
         options.push({ type: 'echec', cible, val: c * gain - risque });
       }
+      // COINCER : le porteur le long de la bande, sans rien risquer.
+      for (const cible of ciblesCoincerDe(m, piece)) {
+        options.push({ type: 'coincer', cible, val: chances(modCoincer(m, piece, cible)) * 5 - 1.2 });
+      }
       for (const cible of ciblesVolDe(m, piece)) {
         options.push({ type: 'vol', cible, val: chances(modVol(m, piece, cible) + bonus('ACTIF')) * 9 - 3.2 });
       }
@@ -2003,7 +2100,8 @@ function meilleurGeste(m, piece) {
       for (const v of deplacementsDe(m, piece)) {
         const d = dist(v, vise);
         if (d >= d0 && !(rondelleLibre && d === 0)) continue;
-        const val = 3 - d * 0.6 + (rondelleLibre && d === 0 ? 4 : 0);
+        const prise = rondelleLibre && d === 0 ? (bataillePossible(m, piece, v) ? 4 * chances(modBataille(m, piece, v)) : 4) : 0;
+        const val = 3 - d * 0.6 + prise;
         if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
       }
       if (mieux) options.push(mieux);
@@ -2143,7 +2241,14 @@ export function jouerGeste(m, piece, action, cote, ia = false) {
     if (!d.jet) return null;
     let jet = d.jet;
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
-    appliquerEsquive(m, piece, action.vers, jet);
+    if (d.bataille) appliquerBataille(m, piece, action.vers, jet);
+    else appliquerEsquive(m, piece, action.vers, jet);
+    return jet;
+  }
+  if (action.type === 'coincer') {
+    let jet = coincer(m, piece, action.cible);
+    if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
+    appliquerCoincer(m, piece, action.cible, jet);
     return jet;
   }
   if (action.type === 'passe') {
@@ -2360,7 +2465,7 @@ export function reglesDuPlateau() {
     {
       titre: 'Un tour : un déplacement et une action',
       points: [
-        'Les deux équipes jouent EN ALTERNANCE. À ta main, tu as UN déplacement et UNE action — pas forcément de la même pièce : l\'ailier va au filet, le porteur lui passe ; ou le défenseur rejoint le porteur adverse et le frappe. Dans l\'ordre que tu veux. Puis la main passe à l\'adversaire, et ainsi de suite jusqu\'à ce que plus personne n\'ait rien à jouer — c\'est un tour.',
+        `Les deux équipes jouent EN ALTERNANCE, ${MAINS_PAR_TOUR} mains chacune par tour — une main jouée compte, qu'on y ait fait un geste ou deux. À ta main, tu as UN déplacement et UNE action — pas forcément de la même pièce : l\'ailier va au filet, le porteur lui passe ; ou le défenseur rejoint le porteur adverse et le frappe. Dans l\'ordre que tu veux. Puis la main passe à l\'adversaire, et ainsi de suite jusqu\'à ce que plus personne n\'ait rien à jouer — c\'est un tour.`,
         'Chaque pièce ne patine qu\'une fois et n\'agit qu\'une fois par tour. « Fin du tour » rend la main sans dépenser ce qui reste ; « Finir ma présence » renonce à toutes tes pièces qui n\'ont pas encore joué ce tour-ci. Qui enlève la rondelle repart avec : c\'est la contre-attaque.',
         'LE REVIREMENT : un jet raté qui te coûte la rondelle rend la main sur-le-champ, et c\'est l\'adversaire qui joue — avec la rondelle. Tes autres pièces gardent ce qu\'il leur reste : en alternance, perdre la rondelle est déjà le prix.',
         'Le tour suivant, c\'est l\'autre équipe qui ouvre.',
@@ -2377,7 +2482,7 @@ export function reglesDuPlateau() {
       ],
     },
     {
-      titre: 'Les douze gestes',
+      titre: 'Les quatorze gestes',
       colonnes: ['geste', 'dé', 'ce que ça fait', 'un échec coûte'],
       rangees: [
         ['Patiner', 'non', `deux cases (PA 2-3), trois (PA 4-5) ou quatre (PA 6), en contournant les pièces ; c'est le déplacement de la main`, '—'],
@@ -2387,6 +2492,8 @@ export function reglesDuPlateau() {
         ['Tirer', 'oui', `un but — de la zone offensive seulement, à ${PORTEE_TIR} cases ou moins`, 'le gardien la garde — sauf de l\'enclave, ou raté d\'un seul point : retour'],
         ['Épaule', 'oui', 'n\'importe quel adversaire adjacent : il tombe et recule d\'une case', 'sur le porteur, revirement ; sur un autre, ta pièce est hors position'],
         ['Bâton', 'oui', 'sur le porteur seulement : tu prends la rondelle sans le toucher', 'revirement'],
+        ['Coincer', 'oui', 'le porteur adverse collé à toi, s\'il est sur la bande : force contre force, sans sa protection. Coincé, il ne patine plus ce tour-ci et la rondelle est LIBRE le long de la bande', 'il se dégage et repart libre, sans esquive — pas de revirement'],
+        ['Bataille', 'oui', 'patiner sur une rondelle libre qu\'un adversaire debout touche : force contre le plus fort d\'eux. Gagnée, elle est à toi', 'elle ricoche à côté, libre encore — pas de revirement'],
         ['Se placer devant', 'non', 'jusqu\'à ta prochaine présence, tu gênes double les tirs pris à côté de toi — si tu es du côté du filet', '—'],
         ['Tendre le bâton', 'non', 'jusqu\'à ta prochaine présence, tu coupes les lignes de passe : double contre un receveur collé à toi, −1 par case de la passe que tu frôles ; c\'est ton action', '—'],
         ['Déjouer', 'oui', 'le porteur prend en un contre un un défenseur collé à lui : maniement contre maniement ; s\'il passe, le défenseur perd son activation et le porteur repart aussitôt, sans esquive', 'revirement : le défenseur lui prend la rondelle'],

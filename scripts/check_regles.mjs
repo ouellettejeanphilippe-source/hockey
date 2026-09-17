@@ -240,7 +240,7 @@ console.log(`  gestes joués                 ${Object.entries(parType).sort((a, 
 /* CHAQUE GESTE DOIT ÊTRE JOUÉ AU MOINS UNE FOIS : un geste que personne
    n'utilise jamais est une règle morte, et une règle morte est un mensonge
    dans la page des règles. */
-for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'degager', 'tendre', 'dejouer', 'devier', 'reception']) {
+for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'degager', 'tendre', 'dejouer', 'devier', 'reception', 'coincer']) {
   if (!parType[g]) { console.log(`  ✗ le geste « ${g} » n'a jamais été joué en ${MATCHS} matchs`); echecs++; }
 }
 
@@ -256,19 +256,19 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'degager',
   const sections = reglesDuPlateau();
   const tableau = sections.find(x => x.rangees);
   const ecrits = new Set(tableau.rangees.map(r => r[0].toLowerCase()));
-  const MOTS = { deplacer: 'patiner', esquive: 'esquiver', passe: 'passer', tir: 'tirer', echec: 'épaule', vol: 'bâton', ecran: 'se placer devant', degager: 'dégager', tendre: 'tendre le bâton', dejouer: 'déjouer', devier: 'dévier', reception: 'tir sur réception' };
+  const MOTS = { deplacer: 'patiner', esquive: 'esquiver', passe: 'passer', tir: 'tirer', echec: 'épaule', vol: 'bâton', ecran: 'se placer devant', degager: 'dégager', tendre: 'tendre le bâton', dejouer: 'déjouer', devier: 'dévier', reception: 'tir sur réception', coincer: 'coincer', bataille: 'bataille' };
   console.log('\nLES RÈGLES ÉCRITES');
   console.log(`  ${sections.length} sections, ${tableau.rangees.length} gestes décrits`);
   let manque = 0;
   for (const [cle, mot] of Object.entries(MOTS)) {
     if (!ecrits.has(mot)) { console.log(`  ✗ le geste « ${cle} » est joué par le moteur mais absent des règles`); manque++; }
   }
-  // L'esquive n'a pas de type de geste à elle : elle arrive pendant un
-  // déplacement. Les sept autres doivent avoir été joués au moins une fois.
+  // L'esquive et la bataille n'ont pas de type de geste à elles : elles
+  // arrivent pendant un déplacement. Les sept autres doivent avoir été joués au moins une fois.
   for (const mot of ecrits) {
     const cle = Object.keys(MOTS).find(k => MOTS[k] === mot);
     if (!cle) { console.log(`  ✗ les règles décrivent « ${mot} », que le moteur ne connaît pas`); manque++; }
-    else if (cle !== 'esquive' && !parType[cle]) { console.log(`  ✗ les règles décrivent « ${mot} », jamais joué en ${MATCHS} matchs`); manque++; }
+    else if (cle !== 'esquive' && cle !== 'bataille' && !parType[cle]) { console.log(`  ✗ les règles décrivent « ${mot} », jamais joué en ${MATCHS} matchs`); manque++; }
   }
   if (!manque) console.log('  ✓ chaque geste joué est écrit, chaque règle écrite est jouée');
   echecs += manque;

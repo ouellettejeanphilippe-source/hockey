@@ -33,7 +33,8 @@ import {
   ciblesDejouerDe, modDejouer, dejouer, appliquerDejouer, ciblesDeviationDe, modDeviation, devier, appliquerDeviation,
   receptionPossible, tirerSurReception, SEUIL_PLACE,
   relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
-  peutBouger, peutAgir, mainEpuisee,
+  peutBouger, peutAgir, mainEpuisee, MAINS_PAR_TOUR,
+  ciblesCoincerDe, modCoincer, coincer, appliquerCoincer, bataillePossible, modBataille, appliquerBataille,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
 import { TRAITS } from './traits.js';
@@ -191,6 +192,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const v = deplacementsDe(m, sel).find(x => x.r === r && x.c === c);
     if (!v) return null;
     const tenue = porteur(m) === sel && batons(m, 'A', sel.r, sel.c) > 0;
+    // La bataille pour la rondelle libre (S37) : la cote sur la case, comme l'esquive.
+    if (!tenue && bataillePossible(m, sel, v)) return { type: 'deplacer', vers: v, mod: modBataille(m, sel, v), seuil: SEUIL };
     return { type: 'deplacer', vers: v, mod: tenue ? modEsquive(m, sel, v) + bonus('PATIN') : null, seuil: SEUIL };
   }
 
@@ -502,6 +505,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     revirement: ['REVIREMENT', 'rouge', 'defaut'],
     degage:     ['DÉGAGÉ', 'froid', 'cible'],
     dejoue:     ['DÉJOUÉ !', 'chaud', 'cible'],
+    coince:     ['COINCÉ !', 'chaud', 'cible'],
+    bataille:   ['GAGNÉE !', 'chaud', 'cible'],
   };
 
   function verdict(avant, ou, quoi = null, delai = 0) {
@@ -533,13 +538,13 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const SON_DU_GENRE = {
     but: 'but', retour: 'retour', arret: 'arret', echec: 'echec', vol: 'vol', rate: 'rate',
     revirement: 'revirement', degage: 'degage', mj: 'mj', fin: 'fin', periode: 'periode',
-    dejoue: 'patin', ecran: 'tap', tendu: 'tap', changement: 'tap',
+    dejoue: 'patin', ecran: 'tap', tendu: 'tap', changement: 'tap', coince: 'echec', bataille: 'vol',
   };
   const PAS_SON = { tir: 0.22, patin: 0.12, passe: 0.1, echec: 0.28, arret: 0.2, retour: 0.25, vol: 0.15, rate: 0.15, degage: 0.45, mj: 0.1, periode: 0.5, fin: 2, but: 1.6, revirement: 0.2, tap: 0.08 };
   function sonner(genres, quoi, delai = 0) {
     let d = delai;
     if (quoi === 'tir' || quoi === 'deviation') { jouerSon('tir', d); d += PAS_SON.tir; }
-    else if (quoi === 'patin' || quoi === 'esquive' || quoi === 'dejouer') { jouerSon('patin', d); d += PAS_SON.patin; }
+    else if (quoi === 'patin' || quoi === 'esquive' || quoi === 'dejouer' || quoi === 'bataille') { jouerSon('patin', d); d += PAS_SON.patin; }
     else if (quoi === 'ecran' || quoi === 'tendre') { jouerSon('tap', d); d += PAS_SON.tap; }
     const but = genres.includes('but');
     for (const g of genres) {
@@ -636,6 +641,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       if (porteur(m) === cible) {
         gestes.push(bouton('vol', 'Bâton (voler)', modVol(m, sel, cible) + bonus('ACTIF'), SEUIL, 't-vol'));
       }
+      if (ciblesCoincerDe(m, sel).includes(cible)) {
+        gestes.push(bouton('coincer', 'Coincer dans la bande', modCoincer(m, sel, cible), SEUIL, 't-echec'));
+      }
     }
 
     const horsPortee = aLaRondelle && !peutTirer(m, sel);
@@ -649,7 +657,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       dejouer: 'Touche le défenseur à prendre en un contre un : battu, il ne joue plus ce tour-ci et le porteur repart.',
       devier: 'Touche le coéquipier devant le filet : c\'est lui qui fait dévier, avec son tir et sa force.',
     };
-    const aide = cible ? `Choisis l'épaule ou le bâton sur ${nomCourt(cible.p)}.`
+    const aide = cible ? `Choisis l'épaule${porteur(m) === cible ? ', le bâton' : ''}${ciblesCoincerDe(m, sel).includes(cible) ? ' ou la bande' : ''} sur ${nomCourt(cible.p)}.`
       : mode ? AIDE_MODE[mode]
       : horsPortee && prof <= 0 ? 'Derrière le filet on ne tire pas : une passe vers l\'enclave vaut +1 d\'ici — le gardien ne la voit pas venir.'
       : horsPortee ? `Trop loin pour tirer : il faut entrer dans la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Il en est à ${prof}.`
@@ -698,7 +706,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   /* ---------- le dé ---------- */
 
-  const MOT_JET = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle', degagement: 'Dégagement', dejouer: 'Déjouer', deviation: 'Déviation' };
+  const MOT_JET = { tir: 'Tir', passe: 'Passe', echec: 'Mise en échec', esquive: 'Esquive', vol: 'Vol de rondelle', degagement: 'Dégagement', dejouer: 'Déjouer', deviation: 'Déviation', coincer: 'Coincer dans la bande', bataille: 'Bataille pour la rondelle' };
 
   /*
    * SOUS LE PLATEAU IL NE RESTE QUE LA DÉCISION. Les chiffres sont sur la
@@ -926,7 +934,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // dépensé s'éteint. « Fin du tour » rend la main sans dépenser le reste ;
     // « Finir » renonce à toute la présence.
     const entamee = m.main.bouge || m.main.agi;
-    const budget = `<span class="t-budget" title="À ta main : un déplacement et une action, pas forcément de la même pièce."><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
+    const budget = `<span class="t-budget" title="À ta main : un déplacement et une action, pas forcément de la même pièce. ${MAINS_PAR_TOUR} mains par tour, chacun."><b>Main ${Math.min(MAINS_PAR_TOUR, m.mains.A + 1)}/${MAINS_PAR_TOUR}</b><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
     const fin = entamee
       ? `<button type="button" class="t-fin-tour t-evident" title="Rendre la main sans dépenser ce qui reste">Fin du tour</button>`
       : `<button type="button" class="t-passer" title="Renoncer à toutes tes pièces qui n'ont pas encore joué ce tour-ci : l'adversaire enchaîne les siennes.">Finir${reste > 1 ? ` (${reste})` : ''}</button>`;
@@ -1009,6 +1017,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       // Patiner d'une case libre ne demande pas de dé : le geste est déjà
       // joué, il ne reste qu'à dire ce que le moteur en a fait.
       if (!d.jet) { verdict(avant, ou, 'patin'); apres(); return; }
+      if (d.bataille) { lancer(d.jet, 'A', j => appliquerBataille(m, piece, vers, j), placesDe(piece, vers)); return; }
       lancer(d.jet, 'A', j => appliquerEsquive(m, piece, vers, j), ou);
       return;
     }
@@ -1208,6 +1217,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       if (quoi === 'tir') lancer(tirer(m, piece), 'A', j => appliquerTir(m, piece, j), placesDe(piece, null));
       else if (quoi === 'echec' && vise) { cible = null; lancer(mettreEnEchec(m, piece, vise), 'A', j => appliquerEchec(m, piece, vise, j), placesDe(piece, vise)); }
       else if (quoi === 'vol' && vise) { cible = null; lancer(voler(m, piece, vise), 'A', j => appliquerVol(m, piece, vise, j), placesDe(piece, vise)); }
+      else if (quoi === 'coincer' && vise) { cible = null; lancer(coincer(m, piece, vise), 'A', j => appliquerCoincer(m, piece, vise, j), placesDe(piece, vise)); }
       else if (quoi === 'ecran') { sansDe(piece, () => seMettreDevant(m, piece), 'ecran'); cible = null; apres(); }
       else if (quoi === 'tendre') { sansDe(piece, () => tendreLeBaton(m, piece), 'tendre'); cible = null; apres(); }
       else if (quoi === 'reception') { const j = tirerSurReception(m); if (j) lancer(j, 'A', jj => appliquerTir(m, piece, jj), placesDe(piece, null)); else rendre(); }
