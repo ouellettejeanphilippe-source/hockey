@@ -229,7 +229,15 @@ export const PLACE_GARDIEN = { enclave: 1, rangee2: 2, pointe: 3, coin: 3, tour:
  * cette règle avait retiré. C'est l'ENCLAVE qui a rétréci, pas le droit de
  * tirer : on tire toujours d'aussi loin, mais le point qui paie est plus petit.
  */
-export const PORTEE_TIR = Number(MESURE.TIR_PORTEE) || 7;   // S42 : sept rangées de zone offensive sur vingt — la proportion de S38 tenue sur la glace allongée
+/*
+ * HUIT RANGÉES DE ZONE OFFENSIVE (S42). Sept tenait la proportion de S38,
+ * mais la diagonale à deux pas rend le filet plus dur à atteindre en biais :
+ * à sept, les buts tombaient à 4,70 et la zone offensive ne voyait que 11 %
+ * des mains. À huit, on tire d'un peu plus loin et le jeu s'y installe —
+ * 18 % des mains s'y jouent au lieu de 11, 41 % des possessions finissent
+ * par un tir, et la conversion descend à 30 % : le gardien travaille.
+ */
+export const PORTEE_TIR = Number(MESURE.TIR_PORTEE) || 8;
 
 /** Le filet qu'une équipe attaque : 'A' monte, 'B' descend. */
 export const filetDe = cote => (cote === 'A' ? FILET_HAUT : FILET_BAS);
@@ -715,7 +723,7 @@ export const PERIODES = 3;
  * 256 mains ; à 22 il en fait 218 — un peu plus qu'avant (191), et c'est ce
  * que les possessions ont gagné en longueur, pas du remplissage.
  */
-export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 22;
+export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 23;
 export const POSSESSIONS_PROLONGATION = 8;
 export const PRESENCES_PAR_PERIODE = 60;   // le garde-fou : jamais plus de tours que ça dans une période
 export const PRESENCES_PROLONGATION = 30;
@@ -1414,10 +1422,27 @@ const horsJeu = (m, piece, r, c) => {
  *     tient des postes et dispose d'un placement, y arrive.
  * C'est une décision de JEU, pas un réglage : elle attend JP.
  */
+/*
+ * LE PAS SE COMPTE EN DEMIS. Un pas droit vaut 2, une diagonale `COUT_DIAG`,
+ * et le budget vaut `pasDe` × 2 : ça permet de doser la diagonale entre un
+ * pas (2) et deux pas (4) sans inventer de fractions. `DIAG` dans
+ * l'environnement pour la MESURE.
+ */
+const DEMI = 2;
+const COUT_DIAG = MESURE.DIAG !== undefined ? Number(MESURE.DIAG) : 3;
 export function deplacementsDe(m, piece) {
-  const pas = pasDe(m, piece);
+  const pas = pasDe(m, piece) * DEMI;
   const avecRondelle = porteur(m) === piece;
-  const cout = (r, c) => (avecRondelle && couvreurs(m, piece.eq, r, c).length ? 2 : 1);
+  /*
+   * UNE DIAGONALE COÛTE DEUX PAS. JP : *pour diagonale, tu dois faire genre
+   * deux cases droites, une vers le haut*. Un pas de biais valait un pas
+   * droit, donc l'éventail était un CARRÉ de (2k+1)² cases — 43 allumées en
+   * moyenne, jusqu'à 116 — et traverser la glace en biais ne coûtait pas
+   * plus cher que tout droit. Il vaut maintenant deux : l'éventail devient
+   * un LOSANGE, on contourne encore le trafic (ce qui manquait aux quatre
+   * lignes sèches, qui tuaient le jeu à 2,03 buts), mais le biais se paie.
+   */
+  const cout = (r, c, dr, dc) => (dr && dc ? COUT_DIAG : DEMI) * (avecRondelle && couvreurs(m, piece.eq, r, c).length ? 2 : 1);
   const meilleur = new Map([[`${piece.r},${piece.c}`, 0]]);
   const file = [{ r: piece.r, c: piece.c, n: 0 }];
   while (file.length) {
@@ -1429,7 +1454,7 @@ export function deplacementsDe(m, piece) {
       const r = cur.r + dr, c = cur.c + dc, cle = `${r},${c}`;
       if (!dansLaGlace(r, c) || occupee(m, r, c)) continue;
       if (!avecRondelle && horsJeu(m, piece, r, c)) continue;
-      const n = cur.n + cout(r, c);
+      const n = cur.n + cout(r, c, dr, dc);
       if (n > pas || n >= (meilleur.get(cle) ?? Infinity)) continue;
       meilleur.set(cle, n);
       file.push({ r, c, n });
@@ -1439,7 +1464,7 @@ export function deplacementsDe(m, piece) {
   for (const [cle, n] of meilleur) {
     if (!n) continue;
     const [r, c] = cle.split(',').map(Number);
-    out.push({ r, c, pas: n });
+    out.push({ r, c, pas: Math.ceil(n / DEMI) });
   }
   return out;
 }
@@ -2647,6 +2672,7 @@ export function reglesDuPlateau() {
         'LA PRESSION sur une case, c\'est le nombre de rayons adverses qui la couvrent, et le meilleur DE d\'entre eux. Elle est écrite sur la carte du porteur, toujours.',
         'Elle entre dans TOUS les duels du porteur, des deux bords : quand il esquive, passe ou feinte, c\'est ce DE-là qu\'il affronte, et chaque bâton de plus lui retire un (deux au plus) ; quand on le frappe ou le harponne, le même malus joue contre lui. Un bâton, une chance ; deux bâtons, une chance de moins.',
         'Avec la rondelle, entrer dans une case couverte coûte deux pas au lieu d\'un : on contourne un vrai défenseur, on ne le traverse pas.',
+        'UNE DIAGONALE COÛTE DEUX PAS, un pas droit en coûte un. On file donc plus loin tout droit qu\'en biais, et l\'éventail des cases où l\'on peut aller est un losange, pas un carré : on ne traverse plus la glace de travers pour le prix d\'une ligne droite.',
         'Devant le filet, seul compte ce qui est ENTRE le tireur et le but : un adversaire collé du côté du filet gêne le tir (−1, −2 pour un vrai bloqueur) ; celui qui est dans son dos ne bloque rien.',
       ],
     },
