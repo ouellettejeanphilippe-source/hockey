@@ -2026,6 +2026,15 @@ export function appliquerTir(m, piece, jet) {
    * ce qui fait que retirer son gardien est un PARI et pas une formalité.
    */
   if (advG.sorti) {
+    /*
+     * UN TIR RATÉ DANS UN BUT VIDE N'EST PAS UN LANCER. L'égalité de la
+     * feuille dit « lancers d'une équipe = arrêts + buts alloués du gardien
+     * d'en face » : sans gardien, un tir manqué n'est NI l'un NI l'autre, et
+     * la feuille cassait (6 fois sur 240 matchs). Une vraie feuille de match
+     * ne compte pas non plus : un tir qui rate le filet n'est pas un lancer.
+     * On le décompte donc, plutôt que d'inventer un arrêt que personne n'a fait.
+     */
+    eq.tirs--; piece.tirs--; fiche(eq, piece.p).tirs--;
     rebondir(m, advG.r, advG.c, eq.but);
     dire(m, `${nomDe(piece)} rate le filet désert.`, 'rate');
     return false;
@@ -2177,11 +2186,12 @@ export const PUNITION_TOURS = 4;
  * `DESERT_POSSESSIONS` : à combien de possessions de la fin on peut le
  * faire. `DESERT_ECART` : de combien de buts on doit tirer de l'arrière.
  */
-export const DESERT_POSSESSIONS = 3;
+export const DESERT_POSSESSIONS = MESURE.DESERT !== undefined ? Number(MESURE.DESERT) : 3;
 export const DESERT_ECART = 2;
 /** Peut-on retirer son gardien maintenant ? (dernière période, mené, pas trop loin) */
 export function peutRetirerGardien(m, cote) {
   const eq = eqDe(m, cote);
+  if (!DESERT_POSSESSIONS) return false;   // DESERT=0 : le filet désert éteint, pour la mesure
   if (eq.desert || m.fini || m.prolongation) return false;
   if (m.periode < PERIODES) return false;
   const ecart = eqDe(m, adverse(cote)).buts - eq.buts;
