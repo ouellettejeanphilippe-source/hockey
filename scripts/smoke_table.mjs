@@ -135,7 +135,7 @@ const sections = await page.$$eval('#tableModal .t-regles section h4', l => l.ma
 const gestesEcrits = await page.$$eval('#tableModal .t-regles .t-regle-nom', l => l.length);
 console.log(`   règles : ${sections.length} sections (${sections.join(', ')}), ${gestesEcrits} gestes décrits`);
 if (sections.length < 8) errors.push(`la page des règles n'a que ${sections.length} sections`);
-if (gestesEcrits < 8) errors.push(`la page des règles ne décrit que ${gestesEcrits} gestes`);
+if (gestesEcrits < 6) errors.push(`la page des règles ne décrit que ${gestesEcrits} gestes`);
 const debordeRegles = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 if (debordeRegles > 1) errors.push(`les règles débordent de ${debordeRegles} px à 390 px`);
 await page.screenshot({ path: 'scripts/smoke-table-regles.png' });
@@ -187,22 +187,29 @@ while (tours++ < 4000) {
     relance: !!document.querySelector('#tableModal .t-relancer'),
     mien: !!document.querySelector('#tableModal .tb-tour.mien'),
     sel: !!document.querySelector('#tableModal .t-case.t-sel'),
+    // La pièce choisie porte-t-elle la rondelle ? Le joueur scripté monte alors vers le filet.
+    porteur: !!document.querySelector('#tableModal .t-jeton.mienne.choisie .t-rondelle'),
     jouables: document.querySelectorAll('#tableModal .t-case.t-jouable:not(.t-sel)').length,
     offres: document.querySelectorAll('#tableModal .t-case.t-offre').length,
     contacts: document.querySelectorAll('#tableModal .t-case.t-offre-echec').length,
     // La case d'un adversaire qui PORTE la rondelle et qu'on peut atteindre :
     // c'est la seule qui ouvre le duel épaule / bâton sur la carte.
+    // LES PIÈCES VIVENT DANS UNE COUCHE PAR-DESSUS LA GRILLE, pas dans la
+    // case : le sélecteur « une pièce dans la case » ne matchait plus rien
+    // depuis que les pièces glissent, et « aucune occasion de duel » était
+    // vrai par construction. On lit la case du porteur dans la couche.
     duel: (() => {
-      const e = [...document.querySelectorAll('#tableModal .t-case.t-offre-echec')]
-        .find(c => c.querySelector('.t-piece.sienne .t-rondelle'));
-      return e ? `${e.dataset.r},${e.dataset.c}` : null;
+      const j = [...document.querySelectorAll('#tableModal .t-jeton.sienne')].find(e => e.querySelector('.t-rondelle'));
+      if (!j) return null;
+      const r = j.style.getPropertyValue('--tr'), c = j.style.getPropertyValue('--tc');
+      const e = document.querySelector(`#tableModal .t-case.t-offre-echec[data-r="${r}"][data-c="${c}"]`);
+      return e ? `${r},${c}` : null;
     })(),
     tir: !!document.querySelector('#tableModal [data-geste="tir"]'),
     autres: [...document.querySelectorAll('#tableModal [data-geste]')].map(b => b.dataset.geste),
     modes: [...document.querySelectorAll('#tableModal [data-mode]')].map(b => b.dataset.mode),
     modeOn: document.querySelector('#tableModal [data-mode].on')?.dataset.mode || null,
     finTour: !!document.querySelector('#tableModal .t-fin-tour'),
-    degager: document.querySelectorAll('#tableModal .t-case.t-offre-degager').length,
     fin: !!document.querySelector('#tableModal .t-resultat'),
     unites: !!document.querySelector('#tableModal .t-seg button:not(.on)'),
   }));
@@ -245,13 +252,6 @@ while (tours++ < 4000) {
    * QUE par son mode (ses cibles n'allument pas la glace autrement), donc
    * c'est lui qu'on cherche exprès ; les autres modes se prennent au hasard.
    */
-  if (etat.sel && !etat.modeOn && etat.modes.includes('degager') && degagements < 2) {
-    await page.click('#tableModal [data-mode="degager"]'); await page.waitForTimeout(50);
-    const n = await page.$$('#tableModal .t-case.t-offre-degager');
-    if (!n.length) errors.push('le mode « dégager » n\'allume aucune case');
-    else { await n[Math.floor(dé() * n.length)].click(); degagements++; gestes++; }
-    await page.waitForTimeout(50); continue;
-  }
   if (etat.sel && !etat.modeOn && etat.modes.length && modesJoues < 4 && dé() < 0.3) {
     const quoi = etat.modes[Math.floor(dé() * etat.modes.length)];
     await page.click(`#tableModal [data-mode="${quoi}"]`); await page.waitForTimeout(50);
@@ -282,7 +282,9 @@ while (tours++ < 4000) {
    */
   const duelOuvert = etat.autres.includes('echec') || etat.autres.includes('vol');
   if (duelOuvert) {
-    const quoi = etat.autres.includes('vol') && dé() < 0.5 ? 'vol' : 'echec';
+    // L'un ou l'autre : frapper n'est pas offert en pleine course ni vidé, harponner l'est.
+    const offerts = ['echec', 'vol'].filter(g => etat.autres.includes(g));
+    const quoi = offerts[Math.floor(dé() * offerts.length)];
     await page.click(`#tableModal [data-geste="${quoi}"]`);
     gestes++; await page.waitForTimeout(50); continue;
   }
@@ -298,7 +300,17 @@ while (tours++ < 4000) {
   if (etat.tir) { await page.click('#tableModal [data-geste="tir"]'); gestes++; await page.waitForTimeout(50); continue; }
   if (etat.offres && dé() < 0.62) {
     const n = await page.$$('#tableModal .t-case.t-offre');
-    await n[Math.floor(dé() * n.length)].click();
+    /*
+     * LE PORTEUR MONTE (S41). Un patin tiré au sort ne traverse jamais une
+     * glace de seize rangées : le joueur scripté ne tirait plus, et le
+     * chemin du tir humain restait sans test. Avec la rondelle, on prend la
+     * case allumée la plus proche du filet adverse (la rangée la plus basse).
+     */
+    if (etat.porteur) {
+      const rangs = await Promise.all(n.map(e => e.evaluate(x => +x.dataset.r)));
+      let k = 0; for (let i = 1; i < n.length; i++) if (rangs[i] < rangs[k]) k = i;
+      await n[k].click();
+    } else await n[Math.floor(dé() * n.length)].click();
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.autres.length) {
@@ -348,7 +360,7 @@ if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes 
  * l'Action tant que les deux couches de hasard subsistaient — et rien du
  * plateau n'avait bougé.
  */
-const TOUS = ['tir', 'echec', 'vol', 'ecran', 'tendre', 'reception'];
+const TOUS = ['tir', 'echec', 'vol', 'reception'];
 if (vus.size < 3) errors.push(`seulement ${vus.size} geste(s) offert(s) par la carte sur ${TOUS.length} : ${[...vus].join(', ') || 'aucun'}`);
 if (occasionsDuel) {
   for (const g of ['echec', 'vol']) {

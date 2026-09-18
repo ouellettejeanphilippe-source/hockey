@@ -23,7 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings } from '../js/sim.js';
 import {
-  COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, PERIODES, PRESENCES_PAR_PERIODE, PRESENCES_PROLONGATION,
+  COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, PERIODES, PRESENCES_PAR_PERIODE, PRESENCES_PROLONGATION, POSSESSIONS_PAR_PERIODE, POSSESSIONS_PROLONGATION,
   equipeDeTable, nouveauMatch, iaPresence, resultatDe, surLaGlace, porteur, libre, eqDe,
   statsDeTable, uniteDe, changerUnite, souffleDe, souffleMax, PUNITION_TOURS, peutJouer, deplacementsDe, ciblesEchecDe,
   reglesDuPlateau, peutTirer, distanceAuFilet, PORTEE_TIR, caseJouable, estFilet,
@@ -155,12 +155,18 @@ const REGLES = [
     return null;
   }],
 
-  ['une pièce au sol ou en écran ne le reste pas indéfiniment', m => {
+  ['une pièce au sol ne le reste pas indéfiniment', m => {
     for (const x of surLaGlace(m)) {
       if (x.etourdi > 3) return `${nom(x)} est au sol pour ${x.etourdi} présences`;
-      if (x.ecran > 2) return `${nom(x)} est en écran pour ${x.ecran} présences`;
-      if (x.tendu > 2) return `${nom(x)} tend le bâton pour ${x.tendu} présences`;
     }
+    return null;
+  }],
+
+  ['la possession se compte, et la période ne la dépasse pas', m => {
+    if (m.possessions < 0) return `possessions ${m.possessions}`;
+    const max = m.prolongation ? POSSESSIONS_PROLONGATION : POSSESSIONS_PAR_PERIODE;
+    // Elle finit au premier arrêt de jeu APRÈS la dernière : un tour de plus au plus, jamais deux.
+    if (m.possessions > max + 2) return `${m.possessions} possessions pour un maximum de ${max}`;
     return null;
   }],
 ];
@@ -238,12 +244,12 @@ for (const [nomRegle] of REGLES.concat([['on ne tire que de la zone offensive'],
 console.log(`\nDÉROULEMENT`);
 console.log(`  matchs jamais terminés      ${jamaisFinis}`);
 console.log(`  matchs allés en prolongation ${matchsAvecOT} (${(100 * matchsAvecOT / MATCHS).toFixed(0)} %)`);
-console.log(`  activations par match        ${(presencesTotal / MATCHS).toFixed(1)} (une pièce à la fois, en alternance ; ${PERIODES} × ${PRESENCES_PAR_PERIODE} = ${PERIODES * PRESENCES_PAR_PERIODE} tours sans prolongation)`);
+console.log(`  activations par match        ${(presencesTotal / MATCHS).toFixed(1)} (une main à la fois, en alternance ; ${PERIODES} × ${POSSESSIONS_PAR_PERIODE} possessions, ${PRESENCES_PAR_PERIODE} tours au plus par période)`);
 console.log(`  gestes joués                 ${Object.entries(parType).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / gestesTotal).toFixed(0)} %`).join(' · ')}`);
 /* CHAQUE GESTE DOIT ÊTRE JOUÉ AU MOINS UNE FOIS : un geste que personne
    n'utilise jamais est une règle morte, et une règle morte est un mensonge
    dans la page des règles. */
-for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'degager', 'tendre', 'dejouer', 'devier', 'reception', 'coincer']) {
+for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'reception']) {
   if (!parType[g]) { console.log(`  ✗ le geste « ${g} » n'a jamais été joué en ${MATCHS} matchs`); echecs++; }
 }
 
@@ -259,7 +265,8 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'degager',
   const sections = reglesDuPlateau();
   const tableau = sections.find(x => x.rangees);
   const ecrits = new Set(tableau.rangees.map(r => r[0].toLowerCase()));
-  const MOTS = { deplacer: 'patiner', esquive: 'esquiver', passe: 'passer', tir: 'tirer', echec: 'épaule', vol: 'bâton', ecran: 'se placer devant', degager: 'dégager', tendre: 'tendre le bâton', dejouer: 'déjouer', devier: 'dévier', reception: 'tir sur réception', coincer: 'coincer', bataille: 'bataille', poke: 'poke' };
+  // SIX GESTES (S41), et la bataille, qui n'a pas de type à elle : elle arrive pendant un patin, comme l'esquive.
+  const MOTS = { deplacer: 'patiner', passe: 'passer', tir: 'tirer', dejouer: 'feinter', echec: 'frapper', vol: 'harponner', bataille: 'bataille' };
   console.log('\nLES RÈGLES ÉCRITES');
   console.log(`  ${sections.length} sections, ${tableau.rangees.length} gestes décrits`);
   let manque = 0;
@@ -271,7 +278,7 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'ecran', 'degager',
   for (const mot of ecrits) {
     const cle = Object.keys(MOTS).find(k => MOTS[k] === mot);
     if (!cle) { console.log(`  ✗ les règles décrivent « ${mot} », que le moteur ne connaît pas`); manque++; }
-    else if (cle !== 'esquive' && cle !== 'bataille' && cle !== 'poke' && !parType[cle]) { console.log(`  ✗ les règles décrivent « ${mot} », jamais joué en ${MATCHS} matchs`); manque++; }
+    else if (cle !== 'bataille' && !parType[cle]) { console.log(`  ✗ les règles décrivent « ${mot} », jamais joué en ${MATCHS} matchs`); manque++; }
   }
   if (!manque) console.log('  ✓ chaque geste joué est écrit, chaque règle écrite est jouée');
   echecs += manque;
