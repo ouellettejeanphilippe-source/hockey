@@ -3943,6 +3943,7 @@ a.spin-club:hover {
 .t-budget i { font-style: normal; font-family: var(--display); font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--gold); color: var(--gold); }
 .t-budget i.fait { border-color: var(--line-soft); color: var(--muted); text-decoration: line-through; }
 .t-budget b { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--sub); align-self: center; margin-right: 2px; }
+.t-budget i b { color: inherit; font-size: inherit; margin-right: 3px; }   /* les pas qu'il reste, dans la pastille (S42) */
 .t-dock-actions { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .t-dock-actions::-webkit-scrollbar { display: none; }
 .t-dock-actions .t-geste, .t-dock-actions .t-mode { flex: 0 0 auto; white-space: nowrap; }

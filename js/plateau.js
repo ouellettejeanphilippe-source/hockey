@@ -33,7 +33,7 @@ import {
   ciblesDejouerDe, modDejouer, dejouer, appliquerDejouer,
   receptionPossible, tirerSurReception,
   relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
-  peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, pressionDe, PUNITION_TOURS,
+  peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, pressionDe, PUNITION_TOURS, PAS_PAR_MAIN, pasRestants,
   bataillePossible, modBataille, appliquerBataille,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
@@ -973,7 +973,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // dépensé s'éteint. « Fin du tour » rend la main sans dépenser le reste ;
     // « Finir » renonce à toute la présence.
     const entamee = m.main.bouge || m.main.agi;
-    const budget = `<span class="t-budget" title="À ta main : un patin, une action, et un placement — un deuxième déplacement réservé à un joueur SANS la rondelle. Puis la sienne, et c'est un tour."><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i><i class="${m.main.place ? 'fait' : ''}">Place</i></span>`;
+    // LE BUDGET PARTAGÉ (S42) : les pas qu'il reste à répartir, et l'action.
+    const reste = pasRestants(m);
+    const budget = `<span class="t-budget" title="À ta main : ${PAS_PAR_MAIN} pas à répartir sur qui tu veux — chaque pièce patine au plus une fois, jamais plus loin que son PA — et une action. Puis la sienne, et c'est un tour."><i class="${reste ? '' : 'fait'}"><b>${reste}/${PAS_PAR_MAIN}</b> Pas</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
     const fin = entamee
       ? `<button type="button" class="t-fin-tour t-evident" title="Rendre la main sans dépenser ce qui reste">Passer la main</button>`
       : `<button type="button" class="t-passer" title="Ne rien jouer cette main-ci : l'adversaire joue la sienne.">Passer</button>`;

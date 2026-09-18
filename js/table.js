@@ -902,7 +902,7 @@ export function nouveauMatch(A, B, graine) {
     tour: 'A',             // à qui la main
     premier: 'A',          // qui ouvre la période
     dernier: null,         // le camp qui vient de jouer sa main : il ne rejoue jamais tout de suite (S39)
-    main: { bouge: false, agi: false, place: false, mobiles: [], pas: 0, change: false },   // le BUDGET de la main (S42) : un patin, une action, un placement, qui a patiné, et si on a changé de ligne
+    main: mainNeuve(),   // le BUDGET de la main (S42) : un patin, une action, un placement, qui a patiné, et si on a changé de ligne
     mains: { A: 0, B: 0 },  // les mains jouées ce tour-ci : une chacune (S38)
     rondelle: null,        // { piece } ou { libre: {r, c} }
     possesseur: null,      // le camp qui a eu la rondelle en dernier (S41)
@@ -985,6 +985,29 @@ const PLACEMENT = MESURE.PLACEMENT !== '0';          // le deuxième déplacemen
 const POSTES = MESURE.POSTES !== '0';                // chaque pièce tient son poste
 const LIBRE_SUR_PERTE = MESURE.LIBRE_SUR_PERTE !== '0';   // la rondelle perdue tombe sur place
 const RELANCE_RAMASSAGE = MESURE.RAMASSE !== '0';         // qui ramasse repart avec
+/*
+ * LE BUDGET DE PAS PARTAGÉ (S42). JP : *et si un tour, c'est une action et
+ * un nombre de déplacement x, utilisable sur plusieurs joueurs ? Ça serait
+ * plus dynamique, mais peut-être ça casse le jeu*. La main achète UNE action
+ * et `POOL` pas à répartir sur n'importe quelles pièces — chacune bornée par
+ * son propre PA, une fois par main — au lieu d'un patin entier pour une
+ * pièce et d'un placement pour une autre.
+ *
+ * ÇA NE CASSE PAS LE JEU, ET C'EST MESURÉ à 0, 4, 6, 8 et 10 pas (40
+ * matchs chacun, puis check_table à 6 et 8). L'éventail ne bouge pas
+ * (chaque pièce garde son plafond : 25 cases allumées à tous les crans), la
+ * zone offensive monte de 19 % des mains à 26 (X=6) et 29 (X=10), les pièces
+ * qui bougent par main de 1,73 à 2,14 et 2,88, la rondelle immobile tombe
+ * de 41 % à 35, et le match RACCOURCIT (215 → 201 mains) parce qu'une main
+ * fait plus. X=4 est un recul : deux patins entiers font déjà six à dix pas.
+ * Le prix monte avec X, et c'est le jeu physique qui le paie — personne
+ * n'attrape plus personne : 15,7 mises en échec par équipe aujourd'hui,
+ * 14,8 à 6, 12,3 à 8, 9,9 à 10 ; et à 8 les buts passent à 6,56, hors cible
+ * sans ramener les possessions à 21. SIX garde le jeu physique, tient les
+ * buts (5,73) et la parité (89 / 67 / 68 / 52) sans rien retoucher d'autre.
+ * `POOL` dans l'environnement pour la MESURE ; 0 rend l'ancienne main.
+ */
+const POOL = MESURE.POOL !== undefined ? Number(MESURE.POOL) : 6;
 /*
  * Ce que la place du gardien vaut EN PLUS. À +2 le tir cessait d'être pile
  * ou face (33 % au lieu de 47), mais 43 % des tirs tombaient AU PLANCHER —
@@ -1431,7 +1454,8 @@ const horsJeu = (m, piece, r, c) => {
 const DEMI = 2;
 const COUT_DIAG = MESURE.DIAG !== undefined ? Number(MESURE.DIAG) : 3;
 export function deplacementsDe(m, piece) {
-  const pas = pasDe(m, piece) * DEMI;
+  // En budget partagé, le patin est borné par ce qu'il reste dans la réserve — sauf l'échappée, qui est un élan à part.
+  const pas = POOL && !piece.echappee ? Math.min(pasDe(m, piece) * DEMI, m.main.reserve) : pasDe(m, piece) * DEMI;
   const avecRondelle = porteur(m) === piece;
   /*
    * UNE DIAGONALE COÛTE DEUX PAS. JP : *pour diagonale, tu dois faire genre
@@ -1464,7 +1488,7 @@ export function deplacementsDe(m, piece) {
   for (const [cle, n] of meilleur) {
     if (!n) continue;
     const [r, c] = cle.split(',').map(Number);
-    out.push({ r, c, pas: Math.ceil(n / DEMI) });
+    out.push({ r, c, pas: Math.ceil(n / DEMI), demis: n });
   }
   return out;
 }
@@ -1488,6 +1512,11 @@ export const receveursDe = (m, piece) => {
  * (Essayé à « un pas de lui » : 18 mises en échec et 13 harponnages par
  * match finissaient les possessions, 3 tirs par équipe par match.)
  */
+/** Une main neuve : rien de dépensé, et la réserve de pas pleine en mode partagé. */
+export const mainNeuve = () => ({ bouge: false, agi: false, place: false, mobiles: [], pas: 0, change: false, reserve: POOL * DEMI });
+/** Le budget de pas de la main, et ce qu'il en reste, en pas entiers : ce que la barre d'ancrage affiche. */
+export const PAS_PAR_MAIN = POOL;
+export const pasRestants = m => Math.ceil(m.main.reserve / DEMI);
 export const enCourse = (m, piece) => m.main.mobiles.includes(piece);
 
 /** Les cibles d'une mise en échec : n'importe quel adversaire collé — pas avec la rondelle, pas vidé, pas en pleine course. */
@@ -1517,6 +1546,10 @@ export function deplacer(m, piece, vers) {
   // Le patin de la main d'abord ; sinon c'est le PLACEMENT, réservé à qui
   // n'a pas la rondelle (`peutBouger` l'a déjà vérifié).
   if (!m.main.bouge) m.main.bouge = true; else m.main.place = true;
+  if (POOL && !piece.echappee) {
+    const opt = deplacementsDe(m, piece).find(v => v.r === vers.r && v.c === vers.c);
+    m.main.reserve = Math.max(0, m.main.reserve - (opt ? opt.demis : DEMI));
+  }
   m.main.mobiles.push(piece);
   m.main.pas = dist(piece, vers);
   m.reception = null;
@@ -1882,7 +1915,8 @@ export const peutJouer = x => !x.etourdi;   // S38 : une pièce sert à chaque t
  * ce placement qui le paie.
  */
 export const peutBouger = (m, x) => !x.etourdi && !x.deplace &&
-  (!m.main.bouge || !!x.echappee || (PLACEMENT && !m.main.place && porteur(m) !== x));
+  (POOL ? (m.main.reserve >= DEMI || !!x.echappee)
+        : (!m.main.bouge || !!x.echappee || (PLACEMENT && !m.main.place && porteur(m) !== x)));
 export const peutAgir = (m, x) => !x.etourdi && !x.agi && !m.main.agi;
 export const actives = m => eqDe(m, m.tour).pieces.filter(x => peutBouger(m, x) || peutAgir(m, x));
 
@@ -1914,7 +1948,7 @@ export function activer(m, piece) {
  */
 export const aLaMain = (m, cote) => m.mains[cote] < 1 && eqDe(m, cote).pieces.some(peutJouer);
 export function finirMain(m) {
-  m.main = { bouge: false, agi: false, place: false, mobiles: [], pas: 0, change: false };
+  m.main = mainNeuve();
   m.reception = null;
   if (m.fini) return;
   m.mains[m.tour]++;
@@ -1934,7 +1968,7 @@ export function renoncer(m) {
 
 /** Le tour est fini pour les DEUX équipes : souffle, compteurs, et l'autre ouvre le suivant. */
 export function finirPresence(m, butMarque = false) {
-  m.main = { bouge: false, agi: false, place: false, mobiles: [], pas: 0, change: false };
+  m.main = mainNeuve();
   m.mains = { A: 0, B: 0 };
   m.tours = (m.tours || 0) + 1;   // les tours joués : ce que les scripts comptent
   for (const cote of ['A', 'B']) {
@@ -2041,7 +2075,7 @@ function finirMatch(m) {
     m.possessions = 0;
     m.A.relance = true; m.B.relance = true;
     for (const x of surLaGlace(m)) { x.etourdi = 0; x.habDispo = true; }
-    m.main = { bouge: false, agi: false, place: false, mobiles: [], pas: 0, change: false };
+    m.main = mainNeuve();
     m.premier = m.prolongation % 2 === 1 ? 'A' : 'B';
     m.tour = m.premier;
     dire(m, 'Prolongation — mort subite.', 'periode');
@@ -2387,7 +2421,7 @@ function iaProchainGeste(m, cote) {
  * reste rien — auquel cas elle a terminé sa présence. C'est ce que l'écran
  * appelle sur une minuterie pour que le plateau et le fil avancent ensemble.
  */
-export const GESTES_MAX = 4;   // le garde-fou d'une main : un déplacement, une action, et ce qui les suit (réception)
+export const GESTES_MAX = POOL ? 8 : 4;   // le garde-fou d'une main : une action, les patins du budget partagé, et ce qui les suit (réception)
 
 /**
  * L'IA joue UN geste de sa main courante. Quand le budget est vide — ou que
@@ -2693,8 +2727,8 @@ export function reglesDuPlateau() {
     {
       titre: 'Un tour : ta main, la sienne',
       points: [
-        'À ta main, tu as UN déplacement, UNE action et UN PLACEMENT — pas forcément de la même pièce : l\'ailier va au filet et le porteur lui passe ; ou le défenseur rejoint le porteur adverse et le frappe. Dans l\'ordre que tu veux. Puis la main passe à l\'adversaire ; quand il a joué la sienne, le tour est fini et tout le monde souffle.',
-        'LE PLACEMENT est un deuxième déplacement, réservé à une pièce qui n\'a PAS la rondelle. Il ne fait pas avancer le jeu plus vite — c\'est le seul geste de la main qui ne peut pas toucher la rondelle — il te laisse DÉPLOYER ton équipe : aller au filet, ouvrir une ligne de passe, rentrer couvrir. Sans lui, tes quatre autres patineurs restaient plantés là où la mise au jeu les avait posés.',
+        `À ta main, tu as UNE action et ${POOL} PAS à répartir sur qui tu veux — l'ailier fait trois pas vers le filet, le défenseur deux vers le porteur adverse, et le porteur passe. Chaque pièce patine au plus une fois par main, jamais plus loin que son propre PA. Dans l'ordre que tu veux. Puis la main passe à l'adversaire ; quand il a joué la sienne, le tour est fini et tout le monde souffle.`,
+        'Les pas ne font pas avancer la rondelle plus vite — le porteur est borné comme les autres — ils te laissent DÉPLOYER ton équipe : aller au filet, ouvrir une ligne de passe, rentrer couvrir. Un patin de la main entière pour une seule pièce a été essayé : tes quatre autres patineurs restaient plantés là où la mise au jeu les avait posés.',
         'La même pièce peut jouer à CHAQUE tour. Ce qui la freine, c\'est son souffle : chaque geste lui en coûte un point, et à mesure qu\'il baisse elle patine moins loin, puis moins bien (voir plus bas).',
         'LE REVIREMENT : un jet raté qui te coûte la rondelle rend la main sur-le-champ. Mais la rondelle ne CHANGE PAS de camp pour autant : une esquive ratée, une feinte lue, elle tombe LIBRE là où tu l\'as échappée, et c\'est celui qui a des corps autour qui la ramasse.',
         'QUI PREND LA RONDELLE REPART AVEC, toujours — qu\'il l\'ait volée, arrachée par une mise en échec, ou simplement ramassée par terre. Son déplacement lui est rendu. Un changement de possession DÉPLACE la rondelle, il ne la fige pas là où elle vient de changer de mains.',
