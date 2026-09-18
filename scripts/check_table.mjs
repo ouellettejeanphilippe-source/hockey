@@ -13,7 +13,14 @@
  *                                   vraie hockey*. Le moteur par événements
  *                                   (js/sim.js) tient la crédibilité, avec
  *                                   ses 3,1 buts ; le plateau est une borne
- *   les gestes par main             cible 1,2 à 2 : une présence d'équipe est UNE main (S38) ;
+ *   les gestes par main             cible 1,8 à 3 : une main achète un patin,
+ *                                   une action ET un placement (S42) — trois
+ *                                   gestes au plus. La borne était 1,2 à 2,
+ *                                   écrite quand la main n'en achetait que
+ *                                   deux ; la garder reviendrait à juger S42
+ *                                   avec la règle de S38, exactement l'erreur
+ *                                   que la borne « 5 à 8 par présence » avait
+ *                                   déjà faite.
  *                                   un tour de cinq mains (S36), chacune un
  *                                   déplacement et une action au plus —
  *                                   assez pour raconter quelque chose, assez
@@ -220,8 +227,8 @@ console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(10
   // un déplacement et une action au plus. L'IA en dépense 1,5 en moyenne
   // (elle laisse souvent l'action) ; sous 1,2 elle passe son tour, au-dessus
   // de 2 c'est que le tour n'est plus une main.
-  console.log(`  gestes par main             ${(gestes / presences).toFixed(2)}   (cible : 1,2 à 2)`);
-  borne('gestes par main', gestes / presences, 1.2, 2);
+  console.log(`  gestes par main             ${(gestes / presences).toFixed(2)}   (cible : 1,8 à 3)`);
+  borne('gestes par main', gestes / presences, 1.8, 3);
 }
 
 /* ---------- la fatigue : est-ce qu'elle mord, et combien ---------- */

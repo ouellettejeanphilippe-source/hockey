@@ -956,7 +956,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // dépensé s'éteint. « Fin du tour » rend la main sans dépenser le reste ;
     // « Finir » renonce à toute la présence.
     const entamee = m.main.bouge || m.main.agi;
-    const budget = `<span class="t-budget" title="À ta main : un déplacement et une action, pas forcément de la même pièce. Puis la sienne, et c'est un tour."><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
+    const budget = `<span class="t-budget" title="À ta main : un patin, une action, et un placement — un deuxième déplacement réservé à un joueur SANS la rondelle. Puis la sienne, et c'est un tour."><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i><i class="${m.main.place ? 'fait' : ''}">Place</i></span>`;
     const fin = entamee
       ? `<button type="button" class="t-fin-tour t-evident" title="Rendre la main sans dépenser ce qui reste">Passer la main</button>`
       : `<button type="button" class="t-passer" title="Ne rien jouer cette main-ci : l'adversaire joue la sienne.">Passer</button>`;

@@ -25,7 +25,10 @@ const { chromium } = pw;
 const base = process.argv[2] || 'http://localhost:8000';
 // La glace vient du moteur : le test lit la même source que le jeu.
 const { COLS: COLS_ATTENDU, RANGS: RANGS_ATTENDU } = await import('../js/table.js');
-const browser = await chromium.launch();
+/* CHROMIUM : le chemin d'un Chromium déjà installé (un poste où la version
+   de Playwright ne correspond pas à celle du navigateur). Vide dans
+   l'Action, qui installe le sien. */
+const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const errors = [];
 page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
