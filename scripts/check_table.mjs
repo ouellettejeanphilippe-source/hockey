@@ -193,12 +193,19 @@ for (let i = 0; i < MATCHS; i++) {
 }
 
 console.log(`\n${MATCHS} matchs :`);
-console.log(`  buts par équipe par match   ${(buts / n).toFixed(2)}   (cible arcade : 5 à 6)`);
-// La cible ARCADE, celle de CLAUDE.md — jamais celle du moteur par événements.
-// On ne juge qu'à partir de 40 matchs : sous ça, un garde-fou ne distingue
-// plus le réglage du bruit, et un garde-fou qui crie pour du bruit se fait
-// désactiver.
-if (MATCHS >= 40) borne('buts par équipe par match', buts / n, 5, 6);
+console.log(`  buts par équipe par match   ${(buts / n).toFixed(2)}   (cible arcade : 2,6 à 4,2 — les classiques 3-2, 4-3)`);
+/*
+ * LA CIBLE ARCADE EST UNE FOURCHETTE, PAS UNE MOYENNE (S45). JP : *les buts,
+ * ça devrait être 0-6 par équipe genre*. Elle était à 5-6 de moyenne, ce qui
+ * donne du 7-6 et du 8-6 tous les soirs et jamais un blanchissage. Trois
+ * mesures, donc : la moyenne, le haut de la fourchette (un pointage à plus
+ * de six doit rester rare) et le bas (un blanchissage doit être possible).
+ * C'est la cible du PLATEAU — jamais celle du moteur par événements.
+ * On ne juge qu'à partir de 40 matchs : sous ça, un garde-fou ne distingue
+ * plus le réglage du bruit, et un garde-fou qui crie pour du bruit se fait
+ * désactiver.
+ */
+if (MATCHS >= 40) borne('buts par équipe par match', buts / n, 2.6, 4.2);
 else informer('buts par équipe par match', `${(buts / n).toFixed(2)} — ${MATCHS} matchs, trop peu pour juger`);
 console.log(`  tirs par équipe par match   ${(tirs / n).toFixed(2)}`);
 console.log(`  mises en échec              ${(echecs / n).toFixed(2)} par équipe par match`);
@@ -214,6 +221,18 @@ console.log(`  prolongation                ${(100 * prolongations / MATCHS).toFi
 const top = [...pointages.entries()].sort((x, y) => y[1] - x[1]).slice(0, 6);
 console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(100 * v / MATCHS).toFixed(0)}%)`).join(', ')}`);
 console.log(`  la fourchette               blanchissages ${(100 * blanchissages / n).toFixed(1)} % des fiches · plus de 6 buts ${(100 * dessus / n).toFixed(1)} %`);
+/*
+ * UN POINTAGE PEUT DÉPASSER SIX, et c'est JP qui l'a précisé : *ça peut
+ * dépasser 6, je veux dire que on devrait rester dans les classiques 3-2 de
+ * hockey en général*. Ce n'est donc pas un plafond — c'est la queue de la
+ * distribution, et elle s'INFORME. Ce qui se JUGE, c'est que le blanchissage
+ * redevienne possible : à 5,5 de moyenne il n'en tombait jamais un seul, et
+ * un jeu de hockey sans jeu blanc n'est pas un jeu de hockey.
+ */
+if (MATCHS >= 40) {
+  informer('un pointage de plus de 6', `${(100 * dessus / n).toFixed(1)} % des fiches — permis, mais ce n'est pas l'ordinaire`);
+  borne('un blanchissage reste possible', 100 * blanchissages / n, 1, 20);
+} else informer('la fourchette', `${MATCHS} matchs, trop peu pour juger`);
 
 /* ---------- les gestes par présence : la vitesse du jeu ---------- */
 {

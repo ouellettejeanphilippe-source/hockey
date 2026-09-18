@@ -733,7 +733,33 @@ export const PERIODES = 3;
  * près des 18,1 d'avant la règle : le curseur rend le tempo, il ne change
  * pas ce qu'une possession vaut.
  */
-export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 21;
+/*
+ * QUATORZE (S45). JP : *les buts, ça devrait être 0-6 par équipe genre*. La
+ * cible arcade était la MOYENNE, 5 à 6 — ce qui donne du 7-6 et du 8-6 tous
+ * les soirs et jamais un blanchissage : une moyenne ne dit pas ce qu'un
+ * pointage a l'air. Ce qu'il demande est une FOURCHETTE, et c'est elle que
+ * `check_table` juge maintenant.
+ *
+ * Deux leviers mesurés à 240 matchs. LE GARDIEN (`GARDIEN_PLUS` à 2) garde
+ * les tirs (16,6) mais ne descend qu'à 4,82, et il est DISQUALIFIÉ par sa
+ * propre mesure : 62 % des tirs tombent au plancher du duel (−3 et moins),
+ * là où les naturels décident seuls et où le TI du tireur ne change plus
+ * rien — exactement le défaut que S26 avait corrigé. LES POSSESSIONS
+ * descendent, et le plancher du duel reste à 46 % comme à 21 : c'est le
+ * seul levier qui ne touche pas à ce qu'un duel VAUT.
+ *
+ *   possessions   buts   tirs   pointages les plus fréquents        blanchissages
+ *        21       5,47   15,8   7-6 (8 %), 8-6, 6-5                      0 %
+ *        14       3,71   10,8   4-3 (13 %), 3-2 (10 %), 5-4             2,9 %
+ *        12       3,02    9,3   3-2 (18 %), 4-3 (12 %), 2-1 (11 %)      4,4 %
+ *
+ * DOUZE, parce que JP a précisé : *ça peut dépasser 6, je veux dire que on
+ * devrait rester dans les classiques 3-2 de hockey en général*. À 12 le 3-2
+ * est le pointage le plus fréquent du plateau, le blanchissage redevient
+ * possible, et 4 % des fiches dépassent encore six — permis, pas ordinaire.
+ * Le prix est la longueur du match : 9,3 tirs par équipe au lieu de 15,8.
+ */
+export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 12;
 export const POSSESSIONS_PROLONGATION = 8;
 export const PRESENCES_PAR_PERIODE = 60;   // le garde-fou : jamais plus de tours que ça dans une période
 export const PRESENCES_PROLONGATION = 30;
@@ -1546,9 +1572,11 @@ const horsJeu = (m, piece, r, c) => {
  * Maintenant on PEUT y entrer, et la rondelle qui entre ensuite trouve un
  * coéquipier déjà là : c'est un hors-jeu, sifflet, mise au jeu au point
  * neutre de ce bord. Le porteur, lui, n'est jamais hors-jeu — il apporte la
- * rondelle. Le filtre est gardé pour L'IA seulement (`horsJeu` la borne
- * encore) : elle tient sa ligne comme un vrai trio, et c'est le joueur qui
- * décide de devancer la rondelle — et qui le paie.
+ * rondelle. L'IA, elle, tient sa ligne comme un vrai trio : `sesCases`
+ * écarte les cases qui la mettraient hors-jeu et `posteDe` clame son poste
+ * à la ligne bleue. C'est le JOUEUR qui décide de devancer la rondelle, et
+ * qui le paie. L'ancien filtre muet ne survit que comme interrupteur de
+ * MESURE (`HJ_FILTRE=1`), pour rejouer le plateau d'avant.
  */
 /** Ceux qui devancent la rondelle en ce moment : à saisir AVANT que le geste ne la déplace. */
 const devantLaRondelle = (m, cote) => {
@@ -2499,6 +2527,8 @@ const sesCases = (m, piece) => {
 export const FORECHECK_LIBRE = Number(MESURE.CHASSE) || 4;
 /* Ce que vaut la course à la rondelle libre, en plus : `CHASSEV` pour la MESURE. */
 const CHASSE_VAL = MESURE.CHASSEV !== undefined ? Number(MESURE.CHASSEV) : 5;
+/* Ce que coûte un dégagement refusé dans la balance de l'IA : la mise au jeu revient chez elle. */
+const COUT_ICING = MESURE.ICING !== undefined ? Number(MESURE.ICING) : 2.2;
 function vaALaRondelle(m, piece, vise) {
   const amis = eqDe(m, piece.eq).pieces.filter(x => !x.gardien && !x.etourdi);
   const combien = libre(m) ? FORECHECK_LIBRE : FORECHECK;
@@ -2564,14 +2594,25 @@ function meilleurGeste(m, piece) {
       if (sousPression) {
         let mieux = null;
         const amis = eq.pieces.filter(x => x !== piece && !x.etourdi);
-        // L'IA ne dégage que du NEUTRE : un dégagement refusé lui rendrait la
-        // mise au jeu chez elle, et elle n'a pas de raison de le choisir.
+        /*
+         * ELLE DÉGAGE DE SA ZONE AUSSI, MAIS ÇA LUI COÛTE. Premier jet : on
+         * le lui interdisait, et le dégagement refusé devenait une règle que
+         * SEUL un humain pouvait commettre — donc qu'aucune mesure ne
+         * touchait jamais (0,00 sur 30 matchs). Une règle qu'aucun script
+         * n'exerce est une règle qu'on casse sans le savoir. Elle le joue
+         * donc, au prix du sifflet : `COUT_ICING` le rend perdant tant
+         * qu'autre chose tient debout, et gagnant quand plus rien ne tient —
+         * ce qui est exactement quand un vrai joueur le fait.
+         */
         const deChezNous = profondeur(piece.r, eq.but) <= PORTEE_TIR;
-        for (const v of (deChezNous ? [] : ciblesFondDe(m, piece))) {
+        for (const v of ciblesFondDe(m, piece)) {
           const proche = Math.min(...amis.map(x => dist(x, v)), 9);
           const rival = Math.min(...eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.etourdi).map(x => dist(x, v)), 9);
-          if (proche > rival) continue;
-          const val = chancesDe(modPasse(m, piece, v)) * (2.0 + Math.max(0, 3 - proche) * 0.6) - 1.2;
+          // De sa PROPRE zone, on ne dégage pas pour récupérer — on dégage
+          // pour s'en débarrasser : la course au fond ne se juge pas.
+          if (!deChezNous && proche > rival) continue;
+          const val = chancesDe(modPasse(m, piece, v)) * (2.0 + Math.max(0, 3 - proche) * 0.6) - 1.2
+            - (deChezNous ? COUT_ICING : 0);
           if (!mieux || val > mieux.val) mieux = { type: 'passe', cible: v, val };
         }
         if (mieux) options.push(mieux);

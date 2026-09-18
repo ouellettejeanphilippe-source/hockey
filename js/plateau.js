@@ -25,7 +25,7 @@
 import {
   COLS, RANGS, BUT_COL, MI_GLACE, FILET_HAUT, FILET_BAS, estFilet, PERIODES, POSSESSIONS_PAR_PERIODE, POSSESSIONS_PROLONGATION, chancesDe, avec, ecartDuel,
   HABILETES, GABARITS, TIRS, nouveauMatch, surLaGlace, eqDe, adverse, porteur, libre, actives, peutJouer,
-  deplacementsDe, cheminVers, receveursDe, ciblesEchecDe, ciblesVolDe, ciblesFondDe, natureCase, dist, batons, chances,
+  deplacementsDe, cheminVers, receveursDe, enCourse, ciblesEchecDe, ciblesVolDe, ciblesFondDe, natureCase, dist, batons, chances,
   modTir, modPasse, modEchec, modEsquive, modVol, esquiveRequise, peutTirer, distanceAuFilet, PORTEE_TIR,
   deplacer, appliquerEsquive, passer, appliquerPasse, tirer, appliquerTir,
   mettreEnEchec, appliquerEchec, voler, appliquerVol,
@@ -407,6 +407,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     html += '<div class="t-pieces" aria-hidden="true"></div>';
     html += '<div class="t-rondelle-libre-jeton" hidden></div>';
     // Le dé et le verdict vivent SUR la glace, posés sur la case du geste.
+    html += '<div class="t-cmd" hidden></div>';
     html += '<div class="t-de-glace" role="status" hidden></div>';
     html += '<div class="t-flash" role="status" aria-live="polite" hidden></div>';
     html += '</div>';
@@ -572,6 +573,19 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     }
 
     // 4. Le dé, posé sur la case du geste, et le verdict qui suit.
+    /*
+     * LA CARTE DE COMMANDES, À LA FFT (S45). JP : *surtout, quand on clique
+     * sur le gars, popup à la fft ?* — et, juste avant : *je sais pas
+     * toujours ce que je peux faire pour vrai*. Les deux ont la même
+     * réponse. Les gestes vivaient dans une barre au bas de l'écran, loin de
+     * la pièce, et seuls les JOUABLES y paraissaient : un geste absent
+     * pouvait aussi bien ne pas exister qu'être refusé. Ils sont maintenant
+     * À CÔTÉ DU GARS, tous les six, dans le même ordre à chaque fois, chacun
+     * avec sa cote ou sa raison. On lit ce qu'on peut faire là où on
+     * regarde. `poserSurGlace` la pose comme le dé, avec les mêmes trois
+     * ancrages, donc elle ne sort jamais du plateau.
+     */
+    poserSurGlace(grille.querySelector('.t-cmd'), commandes(), () => actions.carte);
     poserSurGlace(grille.querySelector('.t-de-glace'), deGlace, deGlaceHtml);
     poserSurGlace(grille.querySelector('.t-flash'), flash, flashHtml);
   }
@@ -594,6 +608,16 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
      de suite réutilisaient le même élément et l'animation ne repartait pas,
      donc le deuxième dé apparaissait déjà arrêté.
      ====================================================================== */
+
+  /* Où poser la carte de commandes : sur la pièce choisie, et nulle part
+     sinon — pendant un jet, un mode ou la main adverse, elle se retire. */
+  /*
+   * ELLE SE FERME QUAND ON A CHOISI. Comme dans FFT : le menu s'ouvre sur la
+   * pièce, on prend une commande, il se retire et la glace est à nouveau
+   * entière — sinon la carte couvre justement les cases qu'il faut toucher,
+   * et la consigne de la barre du bas dit déjà quoi viser.
+   */
+  const commandes = () => (sel && aMoi() && !attente && !regles && !mode && !cible && actions.carte ? { r: sel.r, c: sel.c } : null);
 
   /* Poser une chose sur une case, ou la cacher. `html(x)` en fait le contenu. */
   function poserSurGlace(el, x, html) {
@@ -786,21 +810,38 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
          * (« 4½/6 Pas ») et que le prix écrit sur chaque case.
          */
         modes.push(modeBouton('deplacer', doitEsquiver ? 'Esquiver' : 'Patiner', d, `${demisEnPas(porteeDe(m, sel))} pas`));
-      }
+      } else modes.push(modeEteint('deplacer', 'Patiner', 'aucune case libre'));
+    } else {
+      modes.push(modeEteint('deplacer', 'Patiner', sel.deplace ? 'elle a déjà patiné' : 'patin dépensé'));
     }
-    if (aLaRondelle && peutAgir(m, sel)) {
-      const rec = receveursDe(m, sel);
-      const fond = ciblesFondDe(m, sel);
+    /*
+     * LA RAISON EST TOUJOURS LA PLUS PROCHE : on dit d'abord ce qui manque au
+     * JOUEUR (l'action déjà dépensée, la rondelle qu'il n'a pas), puis ce qui
+     * manque sur la GLACE (personne à qui passer, personne à frapper). Dans
+     * l'autre ordre, un ailier sans rondelle lisait « personne à frapper »
+     * alors que le vrai empêchement était qu'il porte la rondelle.
+     */
+    const sansAction = !peutAgir(m, sel) ? (m.main.agi ? 'action dépensée' : 'a déjà agi') : null;
+    if (aLaRondelle) {
+      const rec = peutAgir(m, sel) ? receveursDe(m, sel) : [];
+      const fond = peutAgir(m, sel) ? ciblesFondDe(m, sel) : [];
       if (rec.length || fond.length) modes.push(modeBouton('passe', 'Passer', meilleure([...rec, ...fond], x => avec(modPasse(m, sel, x), x.st ? bonus('VOILEE') : 0)), fond.length ? 'ou au fond' : ''));
+      else modes.push(modeEteint('passe', 'Passer', sansAction || 'personne à qui passer'));
       // FEINTER : un défenseur collé, en un contre un.
-      const dej = ciblesDejouerDe(m, sel);
+      const dej = peutAgir(m, sel) ? ciblesDejouerDe(m, sel) : [];
       if (dej.length) modes.push(modeBouton('dejouer', 'Feinter', meilleure(dej, x => avec(modDejouer(m, sel, x), bonus('PATIN'))), 'un contre un'));
-    }
-    if (!aLaRondelle && peutAgir(m, sel)) {
-      const adv = ciblesEchecDe(m, sel);
+      else modes.push(modeEteint('dejouer', 'Feinter', sansAction || 'aucun défenseur collé'));
+      modes.push(modeEteint('echec', 'Frapper', 'pas avec la rondelle'));
+      modes.push(modeEteint('vol', 'Harponner', 'pas avec la rondelle'));
+    } else {
+      modes.push(modeEteint('passe', 'Passer', 'il n\'a pas la rondelle'));
+      modes.push(modeEteint('dejouer', 'Feinter', 'il n\'a pas la rondelle'));
+      const adv = peutAgir(m, sel) ? ciblesEchecDe(m, sel) : [];
       if (adv.length) modes.push(modeBouton('echec', 'Frapper', meilleure(adv, x => avec(modEchec(m, sel, x), bonus('ACTIF') + bonus('EPAULE')))));
-      const vol = ciblesVolDe(m, sel);
+      else modes.push(modeEteint('echec', 'Frapper', sansAction || (enCourse(m, sel) ? 'il vient de patiner' : 'personne de collé')));
+      const vol = peutAgir(m, sel) ? ciblesVolDe(m, sel) : [];
       if (vol.length) modes.push(modeBouton('vol', 'Harponner', meilleure(vol, x => avec(modVol(m, sel, x), bonus('ACTIF'))), 'la rondelle'));
+      else modes.push(modeEteint('vol', 'Harponner', sansAction || (enCourse(m, sel) ? 'il vient de patiner' : 'le porteur n\'est pas collé')));
     }
 
     // Le TIR est dans la barre d'ancrage, sous la glace (`dock`) : c'est le
@@ -828,7 +869,21 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       : 'Choisis un geste, ou touche directement une case allumée ou un adversaire adjacent.';
     // LES ACTIONS VONT DANS LA BARRE DU BAS (`dock`), pas dans le volet :
     // au premier toucher d'une pièce, on peut agir sans rien ouvrir.
-    actions = { modes, gestes, aide };
+    /*
+     * LA CARTE PORTE LE TIR AUSSI. Il vivait dans la barre du bas parce que
+     * c'est « le geste qu'on cherche » ; maintenant que tous les gestes sont
+     * à côté de la pièce, l'en sortir serait le cacher. Il garde sa place :
+     * PREMIER de la liste, et en plein quand il est jouable.
+     */
+    const tirCarte = receptionPossible(m) === sel
+      ? bouton('reception', 'Tir sur réception', avec(modTir(m, sel), bonus('DECOCHE')), 't-tir')
+      : (aLaRondelle && peutAgir(m, sel) && peutTirer(m, sel))
+        ? bouton('tir', 'Tirer', avec(modTir(m, sel), bonus('DECOCHE')), 't-tir')
+        : modeEteint('tir', 'Tirer', !aLaRondelle ? 'il n\'a pas la rondelle'
+          : sansAction || (horsPortee ? (prof <= 0 ? 'derrière le filet' : `à ${prof} du filet, il en faut ${PORTEE_TIR}`) : 'impossible'));
+    const carte = `<div class="t-cmd-tete"><b>${esc(sel.role)}</b> ${esc(nomCourt(sel.p))}</div>`
+      + `<div class="t-cmd-liste">${tirCarte}${modes.join('')}${gestes.join('')}</div>`;
+    actions = { modes, gestes, aide, carte };
 
     return `
       <div class="t-carte">
@@ -867,6 +922,19 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   /* Un bouton de MODE : le geste qu'on choisit avant de toucher la glace ; `mod` est la meilleure cote parmi ses cibles. */
   const modeBouton = (quoi, nom, d, note = '') =>
     `<button type="button" class="t-mode ${mode === quoi ? 'on' : ''}" data-mode="${quoi}">${esc(nom)}${d === null ? '' : ` <b>${cote(d)}</b>`}${note ? `<i>${esc(note)}</i>` : ''}</button>`;
+  /*
+   * UN GESTE IMPOSSIBLE RESTE À L'ÉCRAN, ÉTEINT, AVEC SA RAISON (S45). JP :
+   * *je sais pas toujours ce que je peux faire pour vrai*. La barre ne
+   * montrait QUE les gestes jouables : un geste absent pouvait aussi bien ne
+   * pas exister qu'être refusé, et rien ne disait lequel des deux. On ne
+   * peut pas apprendre les règles d'un jeu qui cache ce qu'il refuse. Les
+   * six gestes sont donc toujours là, dans le même ordre ; celui qu'on ne
+   * peut pas jouer est éteint et dit pourquoi, en un mot sous son nom.
+   */
+  /* Il ne porte PAS `data-mode` : un sélecteur qui matche un bouton désactivé
+     est un test qui clique dans le vide (la leçon du changement de trio). */
+  const modeEteint = (quoi, nom, pourquoi) =>
+    `<button type="button" class="t-mode t-mode-non" data-non="${quoi}" disabled title="${esc(pourquoi)}">${esc(nom)}<i>${esc(pourquoi)}</i></button>`;
 
   /* ---------- le dé ---------- */
 
@@ -1133,14 +1201,10 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const nom = !sel ? ''
       : (mode || cible) ? `<span class="t-dock-nom t-dock-aide">${esc(actions.aide)}</span>`
       : `<span class="t-dock-nom"><b class="t-fiche-role">${esc(sel.role)}</b> ${esc(nomCourt(sel.p))}</span>`;
-    let tir = '';
-    // LE TIR SUR RÉCEPTION (S35) prend la place du tir : la passe vient de
-    // réussir, le receveur tire tout de suite, qu'il ait déjà joué ou non.
-    if (sel && receptionPossible(m) === sel) {
-      tir = bouton('reception', 'Tir sur réception', avec(modTir(m, sel), bonus('DECOCHE')), 't-tir');
-    } else if (sel && porteur(m) === sel && peutAgir(m, sel) && peutTirer(m, sel)) {
-      tir = bouton('tir', 'Tirer', avec(modTir(m, sel), bonus('DECOCHE')), 't-tir');
-    }
+    // LES GESTES ONT DÉMÉNAGÉ SUR LA GLACE (S45), dans la carte de commandes
+    // posée à côté de la pièce. La barre du bas garde ce qui n'appartient à
+    // aucune pièce : le budget de la main, le volet, et passer la main.
+
     const budget = partage
       ? `<span class="t-budget" title="À ta main : ${PAS_PAR_MAIN} pas à répartir sur qui tu veux — chaque pièce patine au plus une fois, jamais plus loin que son PA — et une action. Puis la sienne, et c'est un tour."><i class="${reste ? '' : 'fait'}"><b>${demisEnPas(m.main.reserve)}/${PAS_PAR_MAIN}</b> Pas</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`
       : `<span class="t-budget" title="À ta main : UNE pièce patine (aussi loin que son PA le permet), UNE agit — pas forcément la même — et une pièce sans la rondelle peut se PLACER. Puis la sienne, et c'est un tour."><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i>${!partage && (m.main.place || placeDispo) ? `<i class="${m.main.place ? 'fait' : ''}">Placement</i>` : ''}</span>`;
@@ -1154,8 +1218,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const ouvre = `<button type="button" class="t-volet-btn" aria-expanded="${volet ? 'true' : 'false'}" title="${sel ? 'La fiche de la pièce, le banc et le fil' : 'Le banc des trios et le fil'}">${sel ? 'Fiche' : 'Banc'} <i>${volet ? '▾' : '▴'}</i></button>`;
     // La rangée des actions : le tir d'abord, puis les modes (un geste à
     // cible), puis les gestes sans cible. Elle se balaie si elle déborde.
-    const rangee = sel ? `<div class="t-dock-actions">${tir}${actions.modes.join('')}${actions.gestes.join('')}</div>` : '';
-    return `${avis}<div class="t-dock-ligne ${sel ? '' : 't-dock-sans'}">${nom}${budget}${ouvre}${fin}</div>${rangee}`;
+    return `${avis}<div class="t-dock-ligne ${sel ? '' : 't-dock-sans'}">${nom}${budget}${ouvre}${fin}</div>`;
   }
 
   /* La bannière d'un but : elle passe une seconde sur le tableau indicateur. */
