@@ -263,11 +263,28 @@ export const distanceAuFilet = (m, piece) => profondeur(piece.r, eqDe(m, piece.e
  * un tir de coin. Jamais de derrière.
  */
 /** D'où l'on peut tirer, par les coordonnées : la zone offensive, ou les deux cases collées au filet sur la ligne des buts. */
-export const peutTirerDe = (r, c, but) => {
+export const peutTirerDe = (r, c, but, vide = false) => {
   const s = profondeur(r, but);
+  /*
+   * LE PRIX DU FILET DÉSERT (S46). JP : *fix le prix du filet désert*.
+   * Retirer son gardien donnait un patineur de plus et ne coûtait presque
+   * rien : mesuré, le 5e décile cessait de battre le 10e (54 sur 100 au
+   * lieu de 60 au plancher) — ce sont les équipes FAIBLES qui en profitaient,
+   * parce qu'elles tirent de l'arrière plus souvent.
+   *
+   * Le prix manquait, et c'est une règle de hockey, pas un chiffre : DANS UN
+   * BUT VIDE, ON TIRE DE PARTOUT. Un dégagement du fond de sa zone est un
+   * but s'il trouve le filet — c'est l'image même du « empty netter », et
+   * c'est ce que risque l'équipe qui retire son gardien. La portée de tir
+   * ne la protège plus.
+   */
+  if (vide) return s >= 1 || (s === 0 && Math.abs(c - BUT_COL) === 1);
   return (s >= 1 && s <= PORTEE_TIR) || (s === 0 && Math.abs(c - BUT_COL) === 1);
 };
-export const peutTirer = (m, piece) => !piece.gardien && peutTirerDe(piece.r, piece.c, eqDe(m, piece.eq).but);
+/** Le filet visé par cette pièce est-il vide ? */
+export const filetVide = (m, piece) => !!eqDe(m, adverse(piece.eq)).piece_g.sorti;
+export const peutTirer = (m, piece) => !piece.gardien
+  && peutTirerDe(piece.r, piece.c, eqDe(m, piece.eq).but, filetVide(m, piece));
 
 /** La nature d'une case, du point de vue de l'équipe qui attaque vers `but`. */
 /*
@@ -1500,8 +1517,14 @@ export function modTir(m, piece, ou = piece) {
    * rien ne couvre — pas une exception, la forme sans défenseur.
    */
   if (g.sorti) {
+    /*
+     * Pas d'adversaire, donc pas de dé en face : seulement la distance. De
+     * l'enclave c'est donné, du fond de sa propre zone c'est un coup de
+     * dé — mais c'est possible, et c'est là tout le risque de sortir son
+     * gardien. `PORTEE_TIR` ne borne plus rien ici (voir `peutTirerDe`).
+     */
     const att = piece.st.TI + signature + malusSouffle(m, piece) - gene;
-    return duel(att, 2 + placeGardien(m, piece, ou), false, ['TI', null], true, [piece.st.TI, null]);
+    return duel(att, 2 + placeGardien(m, piece, ou) + Math.max(0, d - PORTEE_TIR), false, ['TI', null], true, [piece.st.TI, null]);
   }
   return duel(piece.st.TI + signature + malusSouffle(m, piece) - gene, g.st.AR + placeGardien(m, piece, ou) + GARDIEN_PLUS, true, ['TI', 'AR'], TIR_AU_TIREUR, [piece.st.TI, g.st.AR]);
 }
@@ -2913,7 +2936,7 @@ function optionMontee(m, piece, eq) {
     const c = esquiveRequise(m, piece, v) ? chancesDe(avec(modEsquive(m, piece, v), bonusDe(piece, 'PATIN'))) : 1;
     const contact = batons(m, piece.eq, v.r, v.c) > 0 ? 0.65 * COUT_RONDELLE : 0;
     const sortie = tenu ? 0.65 * COUT_RONDELLE : 0;
-    const tirOuvert = !m.main.agi && !piece.agi && peutTirerDe(v.r, v.c, eq.but)
+    const tirOuvert = !m.main.agi && !piece.agi && peutTirerDe(v.r, v.c, eq.but, filetVide(m, piece))
       ? chancesDe(avec(modTir(m, piece, v), bonusDe(piece, 'DECOCHE'))) * 9 : 0;
     const val = c * (2 + gain * 0.9 + tirOuvert + sortie - contact) - (1 - c) * COUT_RONDELLE;
     if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
@@ -2970,7 +2993,7 @@ function optionPlacement(m, piece, eq) {
       base = 1.2 + gain * 0.7;
     }
     const ouvert = pression(m, piece.eq, v.r, v.c).n === 0 ? 0.9 : 0;
-    const tir = (poste ? notre : true) && peutTirerDe(v.r, v.c, eq.but) ? 1.4 : 0;
+    const tir = (poste ? notre : true) && peutTirerDe(v.r, v.c, eq.but, filetVide(m, piece)) ? 1.4 : 0;
     const passe = (poste ? notre : true) && !m.main.agi && peutAgir(m, p) ? chancesDe(modPasse(m, p, v)) * 1.2 : 0;
     const val = base + ouvert + tir + passe;
     if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
@@ -3561,7 +3584,8 @@ export function reglesDuPlateau() {
       points: [
         `À ÉGALITÉ, UNE PROLONGATION À TROIS CONTRE TROIS : un centre, un ailier, un défenseur de chaque côté, ${POSSESSIONS_PROLONGATION} possessions, mort subite. La glace se vide, et c'est ce qui la rend différente du reste du match plutôt qu'un rallongement.`,
         'TOUJOURS À ÉGALITÉ, LES TIRS DE BARRAGE : trois tireurs chacun, puis un pour un jusqu\'à ce que l\'un marque et l\'autre non. Seul endroit du jeu où un joueur affronte le gardien sans personne autour — son TI contre l\'AR, un dé chacun, ni place ni bâtons. Les tireurs sont les meilleurs TI de l\'alignement, dans l\'ordre.',
-        `LE FILET DÉSERT : mené d'un ou deux buts dans les ${DESERT_POSSESSIONS} dernières possessions de la troisième, on peut retirer son gardien pour un SIXIÈME patineur, pris dans un autre trio. Un tir dans un but vide n'affronte plus personne — il n'y a plus de dé en face, juste la distance. Et l'autre camp tire dans le même but ouvert : c'est ce qui en fait un pari.`,
+        `LE FILET DÉSERT : mené d'un ou deux buts dans les ${DESERT_POSSESSIONS} dernières possessions de la troisième, on peut retirer son gardien pour un SIXIÈME patineur, pris dans un autre trio. Un tir dans un but vide n'affronte plus personne — il n'y a plus de dé en face, juste la distance.`,
+        `ET DANS UN BUT VIDE, ON TIRE DE PARTOUT : la portée de ${PORTEE_TIR} cases ne s'applique plus, un dégagement du fond de sa propre zone peut trouver le filet. Plus c'est loin, plus c'est dur — mais c'est possible, et c'est exactement ce que risque l'équipe qui a retiré son gardien.`,
         'Le gardien revient à la mise au jeu suivante : on ne rejoue pas à six après un but ni après un sifflet, on redécide.',
       ],
     },

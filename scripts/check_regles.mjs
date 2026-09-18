@@ -238,9 +238,12 @@ for (let i = 0; i < MATCHS; i++) {
       // les « buts randoms du milieu » : 28 % des buts venaient de la zone
       // neutre ou de plus loin, et un tir du fond de son propre territoire
       // avait un meilleur modificateur qu'un tir de l'enclave.
+      // ...SAUF DANS UN BUT VIDE (S46), où l'on tire de partout : c'est le
+      // prix du filet désert, et `peutTirer` le sait déjà. Le nom de la
+      // règle le dit, sinon il mentirait à la première lecture.
       if (type === 'tir' && !peutTirer(m, piece)) {
         tirsHorsPortee++;
-        ajouter('on ne tire que de la zone offensive', `match ${i} : tir à ${distanceAuFilet(m, piece)} cases du filet (portée ${PORTEE_TIR})`);
+        ajouter('on ne tire que de la zone offensive (ou dans un but vide)', `match ${i} : tir à ${distanceAuFilet(m, piece)} cases du filet (portée ${PORTEE_TIR})`);
       }
       verifier();
     });
@@ -256,7 +259,7 @@ for (let i = 0; i < MATCHS; i++) {
 console.log(`${clubs.length} vraies équipes · ${MATCHS} matchs · ${presencesTotal} activations et ${gestesTotal} gestes vérifiés\n`);
 console.log('LES RÈGLES DU PLATEAU');
 let echecs = 0;
-for (const [nomRegle] of REGLES.concat([['on ne tire que de la zone offensive'], ['un match finit toujours sur un gagnant']])) {
+for (const [nomRegle] of REGLES.concat([['on ne tire que de la zone offensive (ou dans un but vide)'], ['un match finit toujours sur un gagnant']])) {
   const l = casses.get(nomRegle);
   if (l) { echecs++; console.log(`  ✗ ${nomRegle}\n      ${l.join('\n      ')}`); }
   else console.log(`  ✓ ${nomRegle}`);
