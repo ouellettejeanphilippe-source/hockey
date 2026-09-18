@@ -722,8 +722,18 @@ export const PERIODES = 3;
  * au lieu d'être donnée à celui qui te l'a enlevée. À 26 le match montait à
  * 256 mains ; à 22 il en fait 218 — un peu plus qu'avant (191), et c'est ce
  * que les possessions ont gagné en longueur, pas du remplissage.
+ *
+ * VINGT ET UNE (S43). L'esquive ne se demande plus qu'à un bâton COLLÉ, donc
+ * une possession meurt moins souvent en chemin : à 23, le plateau lisait
+ * 6,21 buts et 19,7 tirs, au-dessus de la cible arcade. Trois réglages
+ * mesurés à 240 matchs — 23 : 6,21 · 22 : 5,86 · 21 : 5,64 — et c'est 21
+ * qui est retenu, pas 22 : 5,86 est DANS la cible mais sur son bord, et le
+ * dépôt a déjà payé cette erreur-là (S38 lisait 5,95 au banc d'essai et
+ * l'Action pouvait le lire rouge). À 21, les tirs retombent à 17,5, tout
+ * près des 18,1 d'avant la règle : le curseur rend le tempo, il ne change
+ * pas ce qu'une possession vaut.
  */
-export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 23;
+export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 21;
 export const POSSESSIONS_PROLONGATION = 8;
 export const PRESENCES_PAR_PERIODE = 60;   // le garde-fou : jamais plus de tours que ça dans une période
 export const PRESENCES_PROLONGATION = 30;
@@ -1109,9 +1119,24 @@ export const malusPression = n => Math.min(2, Math.max(0, n - 1));
 /** Le bâton le plus fort d'une pression, celui à qui la rondelle va quand le porteur la perd. */
 const meilleurBaton = qui => qui.slice().sort((a, b) => b.st.DE - a.st.DE)[0] || null;
 
+/*
+ * UN BÂTON COLLÉ N'EST PAS UN RAYON (S43). JP : *éviter perte rondelle
+ * déplacement SANS joueur adverse proche*. Le rayon d'un vrai défenseur
+ * (DE 5 et plus) porte à DEUX cases, et l'esquive le lisait comme tous les
+ * autres duels : on patinait avec personne à côté de soi, un dé tombait, et
+ * la rondelle partait — de l'écran, ça ne se lit pas comme une couverture,
+ * ça se lit comme du hasard. Le rayon garde tous ses autres emplois : il
+ * coupe une ligne de passe, il pèse dans la feinte, la passe et le contact,
+ * et il fait patiner le porteur au double du prix. Mais il ne DÉPOUILLE
+ * personne à distance : le rayon coûte du TEMPS, le bâton collé coûte la
+ * RONDELLE. `collesSur` est le seul endroit qui dit ce qu'est un bâton sur
+ * la rondelle, et `batons` comme l'esquive le lisent là.
+ */
+export const collesSur = (m, cote, r, c) =>
+  surLaGlace(m).filter(x => x.eq !== cote && !x.gardien && !x.etourdi && dist(x, { r, c }) === 1);
 /** Un bâton adverse collé à cette case (le contact demande d'être collé). */
 export function batons(m, cote, r, c) {
-  return surLaGlace(m).filter(x => x.eq !== cote && !x.gardien && !x.etourdi && dist(x, { r, c }) === 1).length;
+  return collesSur(m, cote, r, c).length;
 }
 
 /**
@@ -1197,21 +1222,24 @@ export const nomDe = piece => (piece && piece.p && piece.p.n) || 'Rappel';
    ====================================================================== */
 
 /**
- * L'ESQUIVE : quitter ou rejoindre une case sous pression avec la rondelle.
- * Ton maniement, +1 d'élan (au hockey, garder la rondelle est le cas
- * courant), +1 au petit gabarit, moins la pression, contre le meilleur bâton
- * qui couvre ton départ ou ton arrivée.
+ * L'ESQUIVE : quitter ou rejoindre une case où un bâton adverse est COLLÉ,
+ * avec la rondelle. Ton maniement, +1 d'élan (au hockey, garder la rondelle
+ * est le cas courant), +1 au petit gabarit, moins les bâtons de trop, contre
+ * le meilleur de ceux qui te touchent au départ ou à l'arrivée. Un rayon qui
+ * porte à deux cases ne prend pas la rondelle : voir `collesSur`.
  */
+/** Les bâtons collés à un départ et à une arrivée, sans doublon. */
+const batonsDuPatin = (m, piece, vers) =>
+  [...new Set([...collesSur(m, piece.eq, piece.r, piece.c), ...collesSur(m, piece.eq, vers.r, vers.c)])];
 export function modEsquive(m, piece, vers) {
-  const depart = pressionDe(m, piece), arrivee = pression(m, piece.eq, vers.r, vers.c);
-  const qui = [...new Set([...depart.qui, ...arrivee.qui])];
+  const qui = batonsDuPatin(m, piece, vers);
   const fort = qui.length ? Math.max(...qui.map(x => x.st.DE)) : 0;
   const petit = piece.st.gb === GABARIT_PETIT ? 1 : 0;
   return duel(piece.st.MA + 1 + petit + malusSouffle(m, piece) - malusPression(Math.min(3, qui.length)), fort, true, ['MA', 'DE'], true, [piece.st.MA, fort]);
 }
-/** Faut-il esquiver pour aller là ? (avec la rondelle, et une pression au départ ou à l'arrivée) */
+/** Faut-il esquiver pour aller là ? (avec la rondelle, et un bâton COLLÉ au départ ou à l'arrivée) */
 export const esquiveRequise = (m, piece, vers) =>
-  porteur(m) === piece && !piece.libre && (pressionDe(m, piece).n > 0 || pression(m, piece.eq, vers.r, vers.c).n > 0);
+  porteur(m) === piece && !piece.libre && batonsDuPatin(m, piece, vers).length > 0;
 
 /**
  * LA PASSE : à un coéquipier, ou au fond de la zone adverse (la case d'un
@@ -1453,9 +1481,16 @@ const horsJeu = (m, piece, r, c) => {
  */
 const DEMI = 2;
 const COUT_DIAG = MESURE.DIAG !== undefined ? Number(MESURE.DIAG) : 3;
+/**
+ * JUSQU'OÙ CETTE PIÈCE-LÀ PEUT PATINER, en demis : son PA, borné par ce
+ * qu'il reste dans la réserve de la main — sauf l'échappée, qui est un élan
+ * à part. C'est le nombre que le bouton « Patiner » affiche, et il n'a
+ * qu'une définition : `deplacementsDe` la lit ici aussi.
+ */
+export const porteeDe = (m, piece) =>
+  (POOL && !piece.echappee ? Math.min(pasDe(m, piece) * DEMI, m.main.reserve) : pasDe(m, piece) * DEMI);
 export function deplacementsDe(m, piece) {
-  // En budget partagé, le patin est borné par ce qu'il reste dans la réserve — sauf l'échappée, qui est un élan à part.
-  const pas = POOL && !piece.echappee ? Math.min(pasDe(m, piece) * DEMI, m.main.reserve) : pasDe(m, piece) * DEMI;
+  const pas = porteeDe(m, piece);
   const avecRondelle = porteur(m) === piece;
   /*
    * UNE DIAGONALE COÛTE UN PAS ET DEMI. JP : *pour diagonale, tu dois faire
@@ -1622,7 +1657,7 @@ export function appliquerBataille(m, piece, vers, jet) {
 
 export function appliquerEsquive(m, piece, vers, jet) {
   if (piece.hab === 'PATIN' && piece.habDispo) piece.habDispo = false;
-  const qui = [...new Set([...pressionDe(m, piece).qui, ...pression(m, piece.eq, vers.r, vers.c).qui])];
+  const qui = batonsDuPatin(m, piece, vers);
   if (jet.reussi) {
     deposer(m, piece, vers.r, vers.c);
     dire(m, `${nomDe(piece)} se défait de la couverture.`, 'ok');
@@ -2743,8 +2778,9 @@ export function reglesDuPlateau() {
       points: [
         'Chaque patineur debout COUVRE les cases à une de lui — à DEUX quand sa défense vaut 5 ou plus. C\'est son rayon, et c\'est sa posture : il n\'a rien à déclarer, il est là.',
         'LA PRESSION sur une case, c\'est le nombre de rayons adverses qui la couvrent, et le meilleur DE d\'entre eux. Elle est écrite sur la carte du porteur, toujours.',
-        'Elle entre dans TOUS les duels du porteur, des deux bords : quand il esquive, passe ou feinte, c\'est ce DE-là qu\'il affronte, et chaque bâton de plus lui retire un (deux au plus) ; quand on le frappe ou le harponne, le même malus joue contre lui. Un bâton, une chance ; deux bâtons, une chance de moins.',
+        'Elle entre dans les duels du porteur, des deux bords : quand il passe ou feinte, c\'est ce DE-là qu\'il affronte, et chaque bâton de plus lui retire un (deux au plus) ; quand on le frappe ou le harponne, le même malus joue contre lui. Un bâton, une chance ; deux bâtons, une chance de moins.',
         'Avec la rondelle, entrer dans une case couverte coûte deux pas au lieu d\'un : on contourne un vrai défenseur, on ne le traverse pas.',
+        'MAIS UN RAYON NE PREND PAS LA RONDELLE À DISTANCE. Patiner ne demande d\'ESQUIVER que si un adversaire est COLLÉ à toi — à une case — au départ ou à l\'arrivée. Un défenseur à deux cases te coûte des pas, jamais la rondelle : le rayon coûte du temps, le bâton collé coûte la rondelle. Une case verte sans cote en bas à droite est une case où rien ne peut mal tourner.',
         `UNE DIAGONALE COÛTE ${COUT_DIAG === 3 && DEMI === 2 ? 'UN PAS ET DEMI' : `${COUT_DIAG / DEMI} PAS`}, un pas droit en coûte un. On file donc plus loin tout droit qu'en biais, et l\'éventail des cases où l\'on peut aller est un losange, pas un carré : on ne traverse plus la glace de travers pour le prix d'une ligne droite.`,
         'Devant le filet, seul compte ce qui est ENTRE le tireur et le but : un adversaire collé du côté du filet gêne le tir (−1, −2 pour un vrai bloqueur) ; celui qui est dans son dos ne bloque rien.',
       ],
@@ -2771,10 +2807,10 @@ export function reglesDuPlateau() {
       titre: 'Les six gestes',
       colonnes: ['geste', 'duel', 'ce que ça fait', 'un échec coûte'],
       rangees: [
-        ['Patiner', 'MA c. DE', `autant de cases que son PA (trois au moins, ${PAS_MAX} au plus), en contournant les pièces ; c'est le déplacement de la main. Sans la rondelle, c'est libre. Avec, quitter ou rejoindre une case sous pression demande d'ESQUIVER : ton maniement, +1 d'élan, +1 au petit gabarit, moins la pression, contre le meilleur bâton qui te couvre`, 'revirement : le bâton qui t\'a arrêté prend la rondelle'],
+        ['Patiner', 'MA c. DE', `autant de cases que son PA (trois au moins, ${PAS_MAX} au plus), en contournant les pièces ; ça se prend dans les ${POOL} pas de la main, et le prix de chaque case est écrit dessus. Sans la rondelle, c'est libre. Avec, quitter ou rejoindre une case où un adversaire est COLLÉ demande d'ESQUIVER : ton maniement, +1 d'élan, +1 au petit gabarit, moins les bâtons de trop, contre le meilleur de ceux qui te touchent`, 'revirement : tu échappes la rondelle, elle est libre sur place'],
         ['Passer', 'MA c. DE', 'à un coéquipier : +1 à trois cases, −1 à sept, −2 à dix, +1 au gabarit moyen, +1 de derrière le filet vers l\'enclave, −1 vers un receveur maladroit (MA 1-2), moins la pression sur toi — contre le meilleur bâton qui couvre la ligne ou le receveur (−1, un bâton sur une ligne n\'est pas sur la rondelle), +1 par bâton de plus ; rien sur la ligne, difficulté 3. Après une passe RÉUSSIE, le receveur peut TIRER SUR RÉCEPTION dans la même main. AU FOND, de la zone neutre : dans un coin ou derrière le filet, la rondelle y est LIBRE — c\'est le dump-and-chase, et ça ouvre la zone', 'revirement : le bâton sur la ligne l\'intercepte (au fond : elle rebondit, libre)'],
         ['Tirer', 'TI c. AR', `de la zone offensive seulement, à ${PORTEE_TIR} cases du filet ou moins : ton TI, ta signature, moins les bâtons devant toi, contre son AR plus la PLACE — rien collé au filet, +${PLACE_GARDIEN.rangee2} à la deuxième rangée de l'enclave, +${PLACE_GARDIEN.pointe} de la pointe et des coins, +${PLACE_GARDIEN.tour} sur un tour du filet`, 'le gardien la garde : revirement — sauf de l\'enclave, ou raté d\'un rien, ou mal contrôlé (son AR contre 5+) : retour libre devant le filet'],
-        ['Feinter', 'MA c. DE', 'le porteur prend UN défenseur collé en un contre un : son maniement (+1 au petit gabarit), moins la pression, contre la défense de l\'autre. Battu, le défenseur est hors position jusqu\'à la fin du tour et le porteur repart sans esquive', 'revirement : il lit la feinte et prend la rondelle'],
+        ['Feinter', 'MA c. DE', 'le porteur prend UN défenseur collé en un contre un : son maniement (+1 au petit gabarit), moins la pression, contre la défense de l\'autre. Battu, le défenseur est hors position jusqu\'à la fin du tour et le porteur repart sans esquive', 'revirement : il lit la feinte, la rondelle est libre sur place'],
         ['Frapper', 'FO c. FO', 'force contre force sur n\'importe quel adversaire collé : il tombe et recule d\'une case. Sur le porteur, la pression joue contre lui, et sur la bande il perd un de plus — c\'est là qu\'on le coince ; tu repars avec la rondelle. Pas avec la rondelle, pas vidé. Un frappeur reconnu a +1', 'hors position jusqu\'à la fin du tour (le matador reste debout) ; sur un 1, l\'arbitre regarde'],
         ['Harponner', 'DE c. MA', 'sur le porteur collé à toi : ta défense contre son maniement, la pression contre lui, et tu prends la rondelle sans le toucher. Un voleur reconnu a +1', 'hors position jusqu\'à la fin du tour ; sur un 1, l\'arbitre regarde'],
         ['Bataille', 'FO c. FO', 'patiner sur une rondelle libre qu\'un adversaire debout touche : force contre le plus fort d\'eux. Gagnée, elle est à toi', 'elle ricoche à côté, libre encore'],
