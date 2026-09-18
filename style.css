@@ -3843,6 +3843,11 @@ a.spin-club:hover {
 /* Le rayon adverse (S38) : une case couverte par un bâton est ombrée, deux plus sombre. Sur la glace blanche, l'encre à 7 et 14 %. */
 .t-case.t-rayon { background: color-mix(in srgb, var(--glace-encre, #10131a) 7%, transparent); }
 .t-case.t-rayon-2 { background: color-mix(in srgb, var(--glace-encre, #10131a) 14%, transparent); }
+/* EN POSITION DE HORS-JEU (S45) : la pièce devance la rondelle. Le fanion se
+   lit sur le jeton, et le liseré dit que quelque chose ne va pas — la règle
+   doit se voir AVANT le sifflet, sinon elle n'est qu'une punition. */
+.t-jeton.horsjeu { box-shadow: 0 0 0 2px var(--red); }
+.t-hj { position: absolute; top: -2px; left: -2px; font-size: clamp(8px, calc(var(--tcell) * 0.3), 13px); line-height: 1; color: var(--red); }
 .t-fatigue-air { opacity: 0.7; }
 .t-axe-so.fatigue b { color: var(--gold); }
 .t-axe-so b small { font-size: 0.6em; font-weight: 600; opacity: 0.7; }
@@ -3923,10 +3928,16 @@ a.spin-club:hover {
    feuille du navigateur, donc la rondelle libre restait sur la glace en
    permanence, à l'endroit où elle avait été ramassée. */
 .t-rondelle-libre-jeton[hidden] { display: none; }
+/* La rondelle est là en permanence : cerclée d'or quand elle est LIBRE, un
+   simple disque quand quelqu'un la porte — c'est l'état qui change, pas
+   l'objet, donc elle voyage au lieu de se téléporter. Un sifflet la repose
+   d'un coup (`.saute`) : là, c'est l'arbitre. */
 .t-rondelle-libre-jeton::after {
-  content: ''; width: 13px; height: 13px; border-radius: 50%;
-  background: var(--glace-encre); box-shadow: 0 0 0 2px var(--gold);
+  content: ''; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--glace-encre); transition: box-shadow 200ms, width 200ms, height 200ms;
 }
+.t-rondelle-libre-jeton.libre::after { width: 13px; height: 13px; box-shadow: 0 0 0 2px var(--gold); }
+.t-rondelle-libre-jeton.saute { transition: none; }
 /* Qui agit, et sur qui. Deux états, deux couleurs, aucun texte à lire. */
 .t-jeton.jouable { box-shadow: 0 0 0 1px var(--gold); }
 .t-jeton.choisie { z-index: 4; box-shadow: 0 0 0 2px var(--gold); }

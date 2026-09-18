@@ -34,6 +34,7 @@ import {
   receptionPossible, tirerSurReception,
   relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
   peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, pressionDe, PUNITION_TOURS, PAS_PAR_MAIN, pasRestants, porteeDe,
+  enPositionHorsJeu, POINTS_MJ, MJ_CENTRE, MJ_FOND,
   bataillePossible, modBataille, appliquerBataille,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
@@ -119,6 +120,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * Les deux comptent, parce que 40 % des routes font un coude (mesuré sur
    * 181 179) : le jeton glisse en ligne droite, la route, non.
    */
+  let sifflet = -1;        // le dernier arrêt de jeu vu : la rondelle a le droit d'y sauter
   let survol = null;       // { chemin, demis } — l'aperçu sous le curseur
   let trace = null;        // { chemin } — le patin qui vient d'être joué
   let minuteurTrace = 0;
@@ -332,7 +334,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const bleueHaut = FILET_HAUT + PORTEE_TIR + 1, bleueBas = FILET_BAS - PORTEE_TIR;
     const centre = MI_GLACE + 0.5;
     const rond = Math.min(1.35, W / 4);                          // le rayon des coins
-    const xG = 2, xD = W - 2;                                    // les cercles de bout
     const f = n => (Math.round(n * 1000) / 1000).toString();
     /* Un filet et sa demi-lune : `sens` vaut 1 quand la glace est SOUS la ligne des buts. */
     const bout = (y, sens) => {
@@ -344,11 +345,19 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       <rect class="t-rk-maille" x="${f(cx - 0.34)}" y="${f(Math.min(y, yFond))}" width="0.68" height="${f(prof)}"/>
       <rect class="t-rk-filet" x="${f(cx - 0.34)}" y="${f(Math.min(y, yFond))}" width="0.68" height="${f(prof)}"/>`;
     };
-    /* Les cercles de mise au jeu d'un bout, et les points de la zone neutre. */
-    const cercles = (yCercle, yPoint) => [xG, xD].map(x => `
-      <circle class="t-rk-cercle" cx="${x}" cy="${f(yCercle)}" r="1.05"/>
-      <circle class="t-rk-point" cx="${x}" cy="${f(yCercle)}" r="0.11"/>
-      <circle class="t-rk-point" cx="${x}" cy="${f(yPoint)}" r="0.1"/>`).join('');
+    /*
+     * LES POINTS VIENNENT DU MOTEUR (S45). Ils étaient dessinés ici, à leurs
+     * propres coordonnées, et le moteur les ignorait : de la décoration. Il
+     * les porte maintenant (`POINTS_MJ`), parce qu'une mise au jeu se joue
+     * SUR une case — et la patinoire les lit, au centre de leur case. Deux
+     * définitions d'un même point auraient divergé à la première retouche
+     * de géométrie.
+     */
+    const marque = (pt, cercle) => `
+      ${cercle ? `<circle class="t-rk-cercle" cx="${f(pt.c + 0.5)}" cy="${f(pt.r + 0.5)}" r="1.05"/>` : ''}
+      <circle class="t-rk-point" cx="${f(pt.c + 0.5)}" cy="${f(pt.r + 0.5)}" r="${cercle ? 0.11 : 0.1}"/>`;
+    const points = POINTS_MJ.filter(pt => pt !== MJ_CENTRE)
+      .map(pt => marque(pt, MJ_FOND.includes(pt.r))).join('');
     return `<svg class="t-rink" viewBox="0 0 ${W} ${H}" aria-hidden="true" focusable="false">
       <defs><pattern id="t-rk-mailles" width="0.12" height="0.12" patternUnits="userSpaceOnUse">
         <path d="M0 0.06H0.12M0.06 0V0.12" class="t-rk-fil"/></pattern></defs>
@@ -360,10 +369,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       <rect class="t-rk-bleue" x="0.09" y="${f(bleueBas - 0.09)}" width="${f(W - 0.18)}" height="0.18"/>
       <rect class="t-rk-rouge" x="0.09" y="${f(centre - 0.09)}" width="${f(W - 0.18)}" height="0.18"/>
       <line class="t-rk-rouge-tiret" x1="0.09" x2="${f(W - 0.09)}" y1="${f(centre)}" y2="${f(centre)}"/>
-      <circle class="t-rk-cercle t-rk-cercle-centre" cx="${f(W / 2)}" cy="${f(centre)}" r="1.3"/>
-      <circle class="t-rk-point t-rk-point-centre" cx="${f(W / 2)}" cy="${f(centre)}" r="0.12"/>
-      ${cercles(yHaut + 2.5, bleueHaut + 0.55)}
-      ${cercles(yBas - 2.5, bleueBas - 0.55)}
+      <circle class="t-rk-cercle t-rk-cercle-centre" cx="${f(MJ_CENTRE.c + 0.5)}" cy="${f(MJ_CENTRE.r + 0.5)}" r="1.3"/>
+      <circle class="t-rk-point t-rk-point-centre" cx="${f(MJ_CENTRE.c + 0.5)}" cy="${f(MJ_CENTRE.r + 0.5)}" r="0.12"/>
+      ${points}
       ${bout(yHaut, 1)}
       ${bout(yBas, -1)}
     </svg>`;
@@ -493,10 +501,28 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
     majTrace();
 
-    // 2. La rondelle libre, posée sur sa case.
+    /*
+     * 2. LA RONDELLE NE SE TÉLÉPORTE PAS (S45). JP : *genre pas de puck qui
+     * se téléporte lol*. Le jeton n'existait QUE libre : une passe, un tir,
+     * un dégagement la faisaient disparaître d'une case et reparaître à
+     * l'autre bout, sans rien traverser. Il est maintenant TOUJOURS là, posé
+     * sur la case de la rondelle — portée ou libre — donc la transition CSS
+     * la fait voyager d'elle-même, comme elle fait glisser les pièces. Le
+     * point d'or ne s'allume que quand elle est libre : c'est l'état qui
+     * change, pas l'objet. Seul un SIFFLET a le droit de la reposer ailleurs
+     * d'un coup (`.saute`), parce que là c'est l'arbitre qui la pose.
+     */
     const jeton = grille.querySelector('.t-rondelle-libre-jeton');
-    jeton.hidden = !l;
-    if (l) { jeton.style.setProperty('--tr', l.r); jeton.style.setProperty('--tc', l.c); }
+    const pos = l || (p ? { r: p.r, c: p.c } : null);
+    jeton.hidden = !pos;
+    jeton.classList.toggle('libre', !!l);
+    if (pos) {
+      const saut = m.pointMJ && sifflet !== m.arrets;
+      jeton.classList.toggle('saute', !!saut);
+      if (saut) sifflet = m.arrets;
+      jeton.style.setProperty('--tr', pos.r);
+      jeton.style.setProperty('--tc', pos.c);
+    }
 
     // 3. Les pièces : on DÉPLACE les éléments, on ne les recrée pas.
     const couche = grille.querySelector('.t-pieces');
@@ -516,20 +542,29 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       el.style.setProperty('--pf', b.bg);
       el.style.setProperty('--pi', b.ink);
       el.style.setProperty('--pl', x.eq === 'A' ? vA : vB);
+      /*
+       * LE HORS-JEU SE VOIT AVANT DE SE SIFFLER (S45). Une pièce qui devance
+       * la rondelle est en position de hors-jeu : elle porte sa marque, et
+       * la rondelle qui entre derrière elle est un sifflet. Sans ça, la
+       * règle ne se lit qu'au moment où elle coûte quelque chose.
+       */
+      const horsJeuIci = !x.gardien && enPositionHorsJeu(m, x);
       const jouableIci = x.eq === 'A' && !x.gardien && aMoi() && !attente && aDesOptions(x);
       el.className = `t-jeton t-piece ${x.eq === 'A' ? 'mienne' : 'sienne'}`
         + (x.gardien ? ' gardien' : '') + (x.etourdi ? ' etourdi' : '')
         + (jouableIci ? ' jouable' : '')
         + (x === sel ? ' choisie' : '')
         + (dernier && dernier.piece === x ? ' agit' : '')
-        + (dernier && dernier.cible === x ? ' visee' : '');
+        + (dernier && dernier.cible === x ? ' visee' : '')
+        + (horsJeuIci ? ' horsjeu' : '');
       const nom = esc(nomCourt(x.p));
       const role = x.gardien ? 'G' : esc(x.role);
       const rond = p === x ? '<span class="t-rondelle" aria-label="a la rondelle"></span>' : '';
       const etat = x.gardien ? 'frais' : etatSouffle(m, x);
       const air = etat === 'vide' ? '<span class="t-vide-air" title="Vidé : deux cases de moins, un de moins à tous ses jets, plus d\'épaule">😮‍💨</span>'
         : etat === 'fatigue' ? '<span class="t-vide-air t-fatigue-air" title="Fatigué : une case de patin en moins">💨</span>' : '';
-      const dedans = `<span class="t-role">${role}</span><span class="t-nom">${nom}</span>${rond}${air}`;
+      const hj = horsJeuIci ? '<span class="t-hj" title="En position de hors-jeu : elle devance la rondelle. Si la rondelle entre en zone maintenant, c\'est un sifflet.">⚑</span>' : '';
+      const dedans = `<span class="t-role">${role}</span><span class="t-nom">${nom}</span>${rond}${air}${hj}`;
       if (el.dataset.contenu !== dedans) { el.innerHTML = dedans; el.dataset.contenu = dedans; }
     }
     for (const el of couche.querySelectorAll('[data-jeton]')) {
@@ -631,6 +666,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     dejoue:     ['FEINTÉ !', 'chaud', 'cible'],
     bataille:   ['GAGNÉE !', 'chaud', 'cible'],
     punition:   ['PUNITION', 'rouge', 'defaut'],
+    horsjeu:    ['HORS-JEU', 'froid', 'defaut'],
+    icing:      ['DÉGAGEMENT REFUSÉ', 'froid', 'defaut'],
   };
 
   function verdict(avant, ou, quoi = null, delai = 0) {
@@ -662,7 +699,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const SON_DU_GENRE = {
     but: 'but', retour: 'retour', arret: 'arret', echec: 'echec', vol: 'vol', rate: 'rate',
     revirement: 'revirement', degage: 'degage', mj: 'mj', fin: 'fin', periode: 'periode',
-    dejoue: 'patin', changement: 'tap', bataille: 'vol', punition: 'periode',
+    dejoue: 'patin', changement: 'tap', bataille: 'vol', punition: 'periode', horsjeu: 'periode', icing: 'periode',
   };
   const PAS_SON = { tir: 0.22, patin: 0.12, passe: 0.1, echec: 0.28, arret: 0.2, retour: 0.25, vol: 0.15, rate: 0.15, degage: 0.45, mj: 0.1, periode: 0.5, fin: 2, but: 1.6, revirement: 0.2, tap: 0.08 };
   function sonner(genres, quoi, delai = 0) {

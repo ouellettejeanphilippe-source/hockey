@@ -115,6 +115,7 @@ let buts = 0, tirs = 0, nuls3 = 0, prolongations = 0, n = 0, garde = 0;
 let echecs = 0, vols = 0, revirements = 0;
 const mods = [];
 const pointages = new Map();
+let blanchissages = 0, dessus = 0;
 
 /* DÉTERMINISTE, comme les égalités : les clubs se tirent à pas fixe dans la
    liste triée. Avec Math.random, la même version du moteur rendait 5,13 puis
@@ -131,6 +132,11 @@ for (let i = 0; i < MATCHS; i++) {
   const r = resultatDe(m);
   if (m.prolongation) prolongations++;
   buts += r.gfA + r.gfB; tirs += r.A.tirs + r.B.tirs; n += 2;
+  // LA FOURCHETTE DES POINTAGES (S45). JP : *les buts, ça devrait être 0-6
+  // par équipe genre*. Une moyenne ne dit pas ça : 5,5 de moyenne, c'est du
+  // 7-6 et du 8-6 tous les soirs, jamais un blanchissage. On compte donc les
+  // deux bouts de la fourchette, et ce sont EUX que la cible juge.
+  for (const g of [r.gfA, r.gfB]) { if (g === 0) blanchissages++; if (g > 6) dessus++; }
   echecs += r.A.echecs + r.B.echecs;
   revirements += r.A.revirements + r.B.revirements;
   for (const f of [r.A, r.B]) for (const l of (f.physique || [])) vols += l.vols;
@@ -207,6 +213,7 @@ console.log(`  revirements                 ${(revirements / n).toFixed(2)} par �
 console.log(`  prolongation                ${(100 * prolongations / MATCHS).toFixed(1)} %   (la vraie ligue : ~23 %)`);
 const top = [...pointages.entries()].sort((x, y) => y[1] - x[1]).slice(0, 6);
 console.log(`  pointages les plus fréquents  ${top.map(([k, v]) => `${k} (${(100 * v / MATCHS).toFixed(0)}%)`).join(', ')}`);
+console.log(`  la fourchette               blanchissages ${(100 * blanchissages / n).toFixed(1)} % des fiches · plus de 6 buts ${(100 * dessus / n).toFixed(1)} %`);
 
 /* ---------- les gestes par présence : la vitesse du jeu ---------- */
 {
