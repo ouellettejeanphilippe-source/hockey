@@ -25,7 +25,7 @@
 import {
   COLS, RANGS, BUT_COL, MI_GLACE, FILET_HAUT, FILET_BAS, estFilet, PERIODES, POSSESSIONS_PAR_PERIODE, POSSESSIONS_PROLONGATION, chancesDe, avec, ecartDuel,
   HABILETES, GABARITS, TIRS, nouveauMatch, surLaGlace, eqDe, adverse, porteur, libre, actives, peutJouer,
-  deplacementsDe, receveursDe, ciblesEchecDe, ciblesVolDe, ciblesFondDe, natureCase, dist, batons, chances,
+  deplacementsDe, cheminVers, receveursDe, ciblesEchecDe, ciblesVolDe, ciblesFondDe, natureCase, dist, batons, chances,
   modTir, modPasse, modEchec, modEsquive, modVol, esquiveRequise, peutTirer, distanceAuFilet, PORTEE_TIR,
   deplacer, appliquerEsquive, passer, appliquerPasse, tirer, appliquerTir,
   mettreEnEchec, appliquerEchec, voler, appliquerVol,
@@ -110,6 +110,20 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   let minuteurFlash = 0;
   let minuteurEclat = 0;
   /*
+   * LA LIGNE DU DÉPLACEMENT (S44). JP : *ajouter « ligne » qui montre
+   * déplacement*. Deux moments, un seul trait. `survol` est l'APERÇU : la
+   * route vers la case qu'on pointe, avant de s'engager — elle n'existe que
+   * sur un écran qui a un curseur, puisqu'un doigt ne survole rien. `trace`
+   * est la route qu'on VIENT de patiner, qui reste une seconde : c'est ce
+   * qui la donne au téléphone, où toucher une case la joue sur-le-champ.
+   * Les deux comptent, parce que 40 % des routes font un coude (mesuré sur
+   * 181 179) : le jeton glisse en ligne droite, la route, non.
+   */
+  let survol = null;       // { chemin, demis } — l'aperçu sous le curseur
+  let trace = null;        // { chemin } — le patin qui vient d'être joué
+  let minuteurTrace = 0;
+  const auCurseur = typeof matchMedia === 'function' && matchMedia('(hover: hover) and (pointer: fine)').matches;
+  /*
    * POURQUOI TA MAIN VIENT DE FINIR. JP : *je comprends définitivement pas
    * comment se jouent les mains*. La main finit de trois façons — tu la
    * passes, il ne reste rien à dépenser, un jet raté avec la rondelle te la
@@ -174,7 +188,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         <div class="tb-eq tb-b"><b>${B.buts}</b><span class="tb-nom">${esc(B.nom)}</span><span class="tb-logo">${logo(B.tag, 22)}</span></div>
       </div>
       <div class="tb-etat">
-        <span class="tb-tour ${aMoi() ? 'mien' : ''}">${m.fini ? 'Match terminé' : aMoi() ? `À toi : ${PAS_PAR_MAIN} pas et une action` : `${esc(B.nom)} joue sa main`}</span>
+        <span class="tb-tour ${aMoi() ? 'mien' : ''}">${m.fini ? 'Match terminé' : aMoi() ? (PAS_PAR_MAIN > 0 ? `À toi : ${PAS_PAR_MAIN} pas et une action` : 'À toi : un patin et une action') : `${esc(B.nom)} joue sa main`}</span>
         ${cachot()}
         <span class="tb-relance ${A.relance ? 'on' : ''}" title="Une relance d'équipe par période : on la dépense après avoir vu le dé.">🎲 Relance ${A.relance ? 'disponible' : 'dépensée'}</span>
       </div>`;
@@ -379,6 +393,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         html += `<button type="button" class="${cls.join(' ')}" data-r="${r}" data-c="${c}"><span class="t-marque"></span><span class="t-risque"></span></button>`;
       }
     }
+    // LA LIGNE se dessine dans les mêmes unités que la patinoire (une case
+    // vaut 1), donc elle suit la géométrie du moteur sans rien coder en dur.
+    html += `<svg class="t-trace" viewBox="0 0 ${COLS} ${RANGS}" preserveAspectRatio="none" aria-hidden="true"></svg>`;
     html += '<div class="t-pieces" aria-hidden="true"></div>';
     html += '<div class="t-rondelle-libre-jeton" hidden></div>';
     // Le dé et le verdict vivent SUR la glace, posés sur la case du geste.
@@ -394,6 +411,40 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     ...surLaGlace(m).map(x => [`${x.eq}-${x.role}`, x]),
     ['A-G', A.piece_g], ['B-G', B.piece_g],
   ];
+
+  /*
+   * LE TRAIT : une polyligne qui passe par le CENTRE de chaque case de la
+   * route, plus un point de départ et une pointe à l'arrivée. L'aperçu est
+   * pointillé (rien n'est joué), la trace du patin joué est pleine et
+   * s'efface. On ne dessine jamais une route d'une seule case : d'un voisin
+   * à l'autre, la ligne droite ne dit rien que la case n'a pas déjà dit.
+   */
+  function majTrace() {
+    const svg = $('.t-trace');
+    if (!svg) return;
+    const quoi = trace ? { chemin: trace.chemin, cls: 'jouee' } : survol ? { chemin: survol.chemin, cls: 'apercu' } : null;
+    const dedans = !quoi || quoi.chemin.length < 3 ? '' : (() => {
+      const pts = quoi.chemin.map(x => `${x.c + 0.5},${x.r + 0.5}`).join(' ');
+      const d = quoi.chemin[0], f = quoi.chemin[quoi.chemin.length - 1];
+      // UN LISERÉ SOUS LE TRAIT : la route croise la glace BLANCHE et les
+      // pastilles SOMBRES des prix, et un seul trait se perd sur l'une ou
+      // sur l'autre. Le liseré est de la couleur de la glace, donc il ne
+      // dit rien — il fait seulement que le trait existe partout.
+      return `<polyline class="t-trace-liseré ${quoi.cls}" points="${pts}"/>`
+        + `<polyline class="t-trace-ligne ${quoi.cls}" points="${pts}"/>`
+        + `<circle class="t-trace-bout ${quoi.cls}" cx="${d.c + 0.5}" cy="${d.r + 0.5}" r="0.13"/>`
+        + `<circle class="t-trace-fin ${quoi.cls}" cx="${f.c + 0.5}" cy="${f.r + 0.5}" r="0.2"/>`;
+    })();
+    if (svg.dataset.contenu !== dedans) { svg.innerHTML = dedans; svg.dataset.contenu = dedans; }
+  }
+
+  /* La route qu'on vient de patiner reste le temps de la suivre des yeux. */
+  function montrerTrace(chemin) {
+    survol = null;
+    trace = chemin && chemin.length > 2 ? { chemin } : null;
+    clearTimeout(minuteurTrace);
+    if (trace) minuteurTrace = setTimeout(() => { trace = null; if (!regles) majTrace(); }, 1100);
+  }
 
   function majGlace() {
     if (!grilleFaite) batirGlace();
@@ -439,6 +490,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const risque = cel.querySelector('.t-risque');
       risque.textContent = !o || !o.duel ? '' : cote(o.duel);
     }
+
+    majTrace();
 
     // 2. La rondelle libre, posée sur sa case.
     const jeton = grille.querySelector('.t-rondelle-libre-jeton');
@@ -1000,12 +1053,19 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (attente) return de();
     if (!aMoi()) return `<span class="t-dock-nom t-dock-attente">${finDeMain ? `<b>${esc(finDeMain)}.</b> ` : ''}Sa main : ${esc(B.nom)} joue… <i>touche la glace pour accélérer</i></span>`;
     const dispo = eqDe(m, 'A').pieces.filter(aDesOptions).length;
-    // LE BUDGET DE LA MAIN (S36) : un déplacement, une action — ce qui est
-    // dépensé s'éteint. LE BUDGET PARTAGÉ (S42) : les pas qu'il reste à
-    // répartir, et l'action. `reste` compte en pas entiers (pour décider) ;
-    // la pastille montre les demis, parce qu'une diagonale coûte un pas et
-    // demi et que « 6, 5, 3 » sans le ½ ne se comprend pas.
+    /*
+     * CE QUE LA MAIN ACHÈTE, ET CE QU'IL EN RESTE (S44). Un patin, une
+     * action, et le placement — un deuxième déplacement réservé à une pièce
+     * qui n'a PAS la rondelle. La pastille et la consigne se dérivent des
+     * mêmes trois drapeaux du moteur, jamais d'un compte tenu à part : le
+     * budget partagé de S42 avait laissé « 4½/6 Pas » à l'écran, et quand
+     * JP l'a éteint (*un seul joueur finalement vu souffle et vitesse*) la
+     * pastille aurait annoncé « 0/0 » sans que rien ne casse — une pastille
+     * qui ment est pire que pas de pastille.
+     */
     const reste = pasRestants(m);
+    const partage = PAS_PAR_MAIN > 0;
+    const placeDispo = !partage && !m.main.place && eqDe(m, 'A').pieces.some(x => peutBouger(m, x) && porteur(m) !== x && !x.deplace);
     const entamee = m.main.agi || m.main.mobiles.length > 0;
     const premiere = !(m.tours || 0) && !m.mains.A && !entamee;   // la toute première main du match
     /*
@@ -1014,10 +1074,16 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
      * la phrase est la règle entière, ensuite elle dit ce qui reste à
      * dépenser. Le nombre de pièces qui peuvent encore jouer reste à côté.
      */
-    const resteMots = reste && !m.main.agi ? `${demisEnPas(m.main.reserve)} pas et l'action`
-      : reste ? `${demisEnPas(m.main.reserve)} pas` : !m.main.agi ? 'l\'action' : 'plus rien';
+    const bouts = partage
+      ? [reste ? `${demisEnPas(m.main.reserve)} pas` : '', m.main.agi ? '' : 'l\'action']
+      : [m.main.bouge ? '' : 'le patin', m.main.agi ? '' : 'l\'action', placeDispo ? 'le placement' : ''];
+    const restants = bouts.filter(Boolean);
+    const resteMots = restants.length ? restants.join(' et ') : 'plus rien';
+    const regleDeLaMain = partage
+      ? `Ta main : ${PAS_PAR_MAIN} pas à répartir entre tes pièces, et une action. Touche une pièce.`
+      : 'Ta main : UNE pièce patine, UNE agit — pas forcément la même — et une pièce sans la rondelle peut se placer. Touche une pièce.';
     const consigne = !dispo ? 'Plus rien à jouer : passe la main'
-      : premiere ? `Ta main : ${PAS_PAR_MAIN} pas à répartir entre tes pièces, et une action. Touche une pièce.`
+      : premiere ? regleDeLaMain
       : !entamee ? 'Ta main. Touche une pièce'
       : `Il reste ${resteMots}. Touche une pièce`;
     // La ligne du haut : qui est choisi (ou, en mode, ce qu'il reste à
@@ -1038,7 +1104,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     } else if (sel && porteur(m) === sel && peutAgir(m, sel) && peutTirer(m, sel)) {
       tir = bouton('tir', 'Tirer', avec(modTir(m, sel), bonus('DECOCHE')), 't-tir');
     }
-    const budget = `<span class="t-budget" title="À ta main : ${PAS_PAR_MAIN} pas à répartir sur qui tu veux — chaque pièce patine au plus une fois, jamais plus loin que son PA — et une action. Puis la sienne, et c'est un tour."><i class="${reste ? '' : 'fait'}"><b>${demisEnPas(m.main.reserve)}/${PAS_PAR_MAIN}</b> Pas</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
+    const budget = partage
+      ? `<span class="t-budget" title="À ta main : ${PAS_PAR_MAIN} pas à répartir sur qui tu veux — chaque pièce patine au plus une fois, jamais plus loin que son PA — et une action. Puis la sienne, et c'est un tour."><i class="${reste ? '' : 'fait'}"><b>${demisEnPas(m.main.reserve)}/${PAS_PAR_MAIN}</b> Pas</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`
+      : `<span class="t-budget" title="À ta main : UNE pièce patine (aussi loin que son PA le permet), UNE agit — pas forcément la même — et une pièce sans la rondelle peut se PLACER. Puis la sienne, et c'est un tour."><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i>${!partage && (m.main.place || placeDispo) ? `<i class="${m.main.place ? 'fait' : ''}">Placement</i>` : ''}</span>`;
     // « Passer la main », dans les deux cas. Le bouton disait « Passer » tant
     // que la main n'était pas entamée — à côté du mode « Passer », celui qui
     // passe la RONDELLE : on touchait « Passer » pour faire une passe, et
@@ -1130,6 +1198,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     activer(m, sel);
     if (o.type === 'deplacer') {
       const piece = sel, vers = o.vers, ou = placesDe(piece, null), avant = m.fil.length;
+      // LA ROUTE SE LIT AVANT DE PARTIR : après `deplacer`, la pièce est
+      // arrivée et le moteur ne saurait plus par où elle est passée.
+      montrerTrace(cheminVers(m, piece, vers));
       const d = deplacer(m, piece, vers);
       // Patiner d'une case libre ne demande pas de dé : le geste est déjà
       // joué, il ne reste qu'à dire ce que le moteur en a fait.
@@ -1256,6 +1327,26 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   }
   majBoutonSon();
 
+  /*
+   * L'APERÇU SOUS LE CURSEUR, sur un écran qui en a un. Un doigt ne survole
+   * rien et toucher une case la JOUE, donc sur téléphone c'est la trace du
+   * patin joué qui rend la route — d'où les deux. On ne redessine que la
+   * couche du trait : un `rendre()` complet à chaque pixel de souris
+   * repeindrait la glace entière.
+   */
+  if (auCurseur) {
+    modal.addEventListener('pointermove', ev => {
+      if (regles || attente || !sel || !aMoi() || trace) return;
+      const cel = ev.target.closest && ev.target.closest('.t-case');
+      const r = cel ? +cel.dataset.r : -1, c = cel ? +cel.dataset.c : -1;
+      if (survol && survol.r === r && survol.c === c) return;
+      const o = cel ? offre(r, c) : null;
+      survol = o && o.type === 'deplacer' && o.vers ? { r, c, chemin: cheminVers(m, sel, o.vers) } : null;
+      majTrace();
+    });
+    modal.addEventListener('pointerleave', () => { if (survol) { survol = null; majTrace(); } });
+  }
+
   modal.onclick = ev => {
     const t = ev.target;
     if (t.closest('.table-son')) { if (ctx.basculerSons) ctx.basculerSons(); majBoutonSon(); if (sonsActifs()) jouerSon('tap'); return; }
@@ -1349,7 +1440,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
      * modale est partagé, donc les fermetures de l'un sont le décor de
      * l'autre.
      */
-    clearTimeout(minuteurIA); clearTimeout(minuteurFlash); clearTimeout(minuteurEclat);
+    clearTimeout(minuteurIA); clearTimeout(minuteurFlash); clearTimeout(minuteurEclat); clearTimeout(minuteurTrace);
     iaEnCours = false; avancerIA = null;
     modal.style.display = 'none';
     document.body.style.overflow = '';

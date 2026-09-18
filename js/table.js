@@ -1015,9 +1015,21 @@ const RELANCE_RAMASSAGE = MESURE.RAMASSE !== '0';         // qui ramasse repart 
  * 14,8 à 6, 12,3 à 8, 9,9 à 10 ; et à 8 les buts passent à 6,56, hors cible
  * sans ramener les possessions à 21. SIX garde le jeu physique, tient les
  * buts (5,73) et la parité (89 / 67 / 68 / 52) sans rien retoucher d'autre.
- * `POOL` dans l'environnement pour la MESURE ; 0 rend l'ancienne main.
+ *
+ * ET IL EST ÉTEINT (S44). JP, après l'avoir joué : *un seul joueur
+ * finalement vu souffle et vitesse*. C'est la réponse exacte à son propre
+ * « utilisable sur plusieurs joueurs » d'en haut, et la raison qu'il donne
+ * est la bonne : depuis S38, ce qui règle ce qu'une pièce peut faire, c'est
+ * SON souffle (un point par geste, un réservoir de deux fois son SO) et SA
+ * vitesse (son PA en pas) — deux quantités qui appartiennent au joueur.
+ * Répartir un budget d'équipe par-dessus mettait une troisième limite, qui
+ * n'appartenait à personne, devant les deux qui portent déjà le talent.
+ * La main achète donc de nouveau UN patin, UNE action, et le PLACEMENT.
+ * Mesuré à 240 matchs : 5,39 buts, 16,7 tirs, 12,8 mises en échec, 2,60
+ * gestes par main (c'était 5,64 / 17,5 / 13,3 / 3,20 à six pas partagés).
+ * `POOL` reste dans l'environnement pour la MESURE : 6 rend la main partagée.
  */
-const POOL = MESURE.POOL !== undefined ? Number(MESURE.POOL) : 6;
+const POOL = MESURE.POOL !== undefined ? Number(MESURE.POOL) : 0;
 /*
  * Ce que la place du gardien vaut EN PLUS. À +2 le tir cessait d'être pile
  * ou face (33 % au lieu de 47), mais 43 % des tirs tombaient AU PLANCHER —
@@ -1489,7 +1501,21 @@ const COUT_DIAG = MESURE.DIAG !== undefined ? Number(MESURE.DIAG) : 3;
  */
 export const porteeDe = (m, piece) =>
   (POOL && !piece.echappee ? Math.min(pasDe(m, piece) * DEMI, m.main.reserve) : pasDe(m, piece) * DEMI);
-export function deplacementsDe(m, piece) {
+/*
+ * LE CHEMIN EST CALCULÉ UNE FOIS, ET IL SERT DEUX FOIS (S44). JP : *ajouter
+ * « ligne » qui montre déplacement*. Le losange dit OÙ l'on peut aller et
+ * ce que ça coûte, jamais PAR OÙ l'on passe — et le trajet n'est pas droit :
+ * il contourne les pièces, et le porteur paie double dans une case couverte,
+ * donc il contourne aussi les rayons. Un pas de biais coûtant un et demi, la
+ * route la moins chère fait des coudes qu'on ne devine pas.
+ *
+ * Le Dijkstra retient donc D'OÙ il est arrivé dans chaque case (`venant`),
+ * et `cheminVers` remonte la chaîne. Il est SORTI de `deplacementsDe` plutôt
+ * que rendu avec chaque destination : l'IA appelle `deplacementsDe` à chaque
+ * geste de chaque pièce, et bâtir cent tableaux de route à chaque appel
+ * coûterait des minutes de mesure pour un trait que seul l'écran dessine.
+ */
+function routes(m, piece) {
   const pas = porteeDe(m, piece);
   const avecRondelle = porteur(m) === piece;
   /*
@@ -1505,6 +1531,7 @@ export function deplacementsDe(m, piece) {
    */
   const cout = (r, c, dr, dc) => (dr && dc ? COUT_DIAG : DEMI) * (avecRondelle && couvreurs(m, piece.eq, r, c).length ? 2 : 1);
   const meilleur = new Map([[`${piece.r},${piece.c}`, 0]]);
+  const venant = new Map();
   const file = [{ r: piece.r, c: piece.c, n: 0 }];
   while (file.length) {
     file.sort((a, b) => a.n - b.n);
@@ -1518,9 +1545,14 @@ export function deplacementsDe(m, piece) {
       const n = cur.n + cout(r, c, dr, dc);
       if (n > pas || n >= (meilleur.get(cle) ?? Infinity)) continue;
       meilleur.set(cle, n);
+      venant.set(cle, `${cur.r},${cur.c}`);
       file.push({ r, c, n });
     }
   }
+  return { meilleur, venant };
+}
+export function deplacementsDe(m, piece) {
+  const { meilleur } = routes(m, piece);
   const out = [];
   for (const [cle, n] of meilleur) {
     if (!n) continue;
@@ -1528,6 +1560,22 @@ export function deplacementsDe(m, piece) {
     out.push({ r, c, pas: Math.ceil(n / DEMI), demis: n });
   }
   return out;
+}
+/**
+ * LA ROUTE jusqu'à cette case : la suite des cases traversées, du départ à
+ * l'arrivée, celle-là même que le moteur facture. Rien si la case n'est pas
+ * atteignable — l'écran ne dessine jamais un trajet que le moteur refuse.
+ */
+export function cheminVers(m, piece, vers) {
+  const { meilleur, venant } = routes(m, piece);
+  const fin = `${vers.r},${vers.c}`;
+  if (!meilleur.has(fin)) return [];
+  const chemin = [];
+  for (let cle = fin; cle; cle = venant.get(cle)) {
+    const [r, c] = cle.split(',').map(Number);
+    chemin.unshift({ r, c });
+  }
+  return chemin;
 }
 
 /** Les coéquipiers à qui cette pièce peut passer (pas en zone offensive avant la rondelle : hors-jeu). */
@@ -2764,9 +2812,12 @@ export function reglesDuPlateau() {
     {
       titre: 'Un tour : ta main, la sienne',
       points: [
-        `À ta main, tu as UNE action et ${POOL} PAS à répartir sur qui tu veux — l'ailier fait trois pas vers le filet, le défenseur deux vers le porteur adverse, et le porteur passe. Chaque pièce patine au plus une fois par main, jamais plus loin que son propre PA. Dans l'ordre que tu veux. Puis la main passe à l'adversaire ; quand il a joué la sienne, le tour est fini et tout le monde souffle.`,
+        POOL
+          ? `À ta main, tu as UNE action et ${POOL} PAS à répartir sur qui tu veux — l'ailier fait trois pas vers le filet, le défenseur deux vers le porteur adverse, et le porteur passe. Chaque pièce patine au plus une fois par main, jamais plus loin que son propre PA. Dans l'ordre que tu veux. Puis la main passe à l'adversaire ; quand il a joué la sienne, le tour est fini et tout le monde souffle.`
+          : 'À ta main, UNE pièce PATINE (aussi loin que son PA le permet, jamais plus), UNE pièce AGIT — pas forcément la même — et une pièce qui n\'a PAS la rondelle peut se PLACER : c\'est un deuxième déplacement, et le seul geste de la main qui ne peut pas toucher la rondelle. Dans l\'ordre que tu veux. Puis la main passe à l\'adversaire ; quand il a joué la sienne, le tour est fini et tout le monde souffle.',
         'TA MAIN FINIT DE TROIS FAÇONS : tu la passes (« Passer la main »), il ne te reste plus rien à dépenser, ou un jet raté avec la rondelle te la coûte — c\'est le revirement. Puis c\'est la sienne, avec le même budget, et tu la regardes geste par geste ; la barre du bas dit pourquoi ta main a fini.',
-        'Les pas ne font pas avancer la rondelle plus vite — le porteur est borné comme les autres — ils te laissent DÉPLOYER ton équipe : aller au filet, ouvrir une ligne de passe, rentrer couvrir. Un patin de la main entière pour une seule pièce a été essayé : tes quatre autres patineurs restaient plantés là où la mise au jeu les avait posés.',
+        'LE PLACEMENT ne fait pas avancer la rondelle — c\'est le seul geste de la main qui ne peut pas la toucher — il te laisse DÉPLOYER ton équipe : aller au filet, ouvrir une ligne de passe, rentrer couvrir. Sans lui, le patin et l\'action partaient tous les deux sur le porteur, qui montait seul pendant que ses quatre coéquipiers regardaient depuis la case où la mise au jeu les avait posés.',
+        'CE QUI BORNE UNE PIÈCE, C\'EST ELLE : sa VITESSE dit jusqu\'où elle patine (son PA en pas, écrit sur le bouton), son SOUFFLE dit combien de gestes elle a encore. Deux quantités qui lui appartiennent — il n\'y a pas de troisième budget par-dessus.',
         'La même pièce peut jouer à CHAQUE tour. Ce qui la freine, c\'est son souffle : chaque geste lui en coûte un point, et à mesure qu\'il baisse elle patine moins loin, puis moins bien (voir plus bas).',
         'LE REVIREMENT : un jet raté qui te coûte la rondelle rend la main sur-le-champ. Mais la rondelle ne CHANGE PAS de camp pour autant : une esquive ratée, une feinte lue, elle tombe LIBRE là où tu l\'as échappée, et c\'est celui qui a des corps autour qui la ramasse.',
         'QUI PREND LA RONDELLE REPART AVEC, toujours — qu\'il l\'ait volée, arrachée par une mise en échec, ou simplement ramassée par terre. Son déplacement lui est rendu. Un changement de possession DÉPLACE la rondelle, il ne la fige pas là où elle vient de changer de mains.',
@@ -2807,7 +2858,7 @@ export function reglesDuPlateau() {
       titre: 'Les six gestes',
       colonnes: ['geste', 'duel', 'ce que ça fait', 'un échec coûte'],
       rangees: [
-        ['Patiner', 'MA c. DE', `autant de cases que son PA (trois au moins, ${PAS_MAX} au plus), en contournant les pièces ; ça se prend dans les ${POOL} pas de la main, et le prix de chaque case est écrit dessus. Sans la rondelle, c'est libre. Avec, quitter ou rejoindre une case où un adversaire est COLLÉ demande d'ESQUIVER : ton maniement, +1 d'élan, +1 au petit gabarit, moins les bâtons de trop, contre le meilleur de ceux qui te touchent`, 'revirement : tu échappes la rondelle, elle est libre sur place'],
+        ['Patiner', 'MA c. DE', `autant de cases que son PA (trois au moins, ${PAS_MAX} au plus), en contournant les pièces ; ${POOL ? `ça se prend dans les ${POOL} pas de la main` : 'c\'est LE patin de la main'}, et le prix de chaque case est écrit dessus — la LIGNE montre par où elle passera. Sans la rondelle, c'est libre. Avec, quitter ou rejoindre une case où un adversaire est COLLÉ demande d'ESQUIVER : ton maniement, +1 d'élan, +1 au petit gabarit, moins les bâtons de trop, contre le meilleur de ceux qui te touchent`, 'revirement : tu échappes la rondelle, elle est libre sur place'],
         ['Passer', 'MA c. DE', 'à un coéquipier : +1 à trois cases, −1 à sept, −2 à dix, +1 au gabarit moyen, +1 de derrière le filet vers l\'enclave, −1 vers un receveur maladroit (MA 1-2), moins la pression sur toi — contre le meilleur bâton qui couvre la ligne ou le receveur (−1, un bâton sur une ligne n\'est pas sur la rondelle), +1 par bâton de plus ; rien sur la ligne, difficulté 3. Après une passe RÉUSSIE, le receveur peut TIRER SUR RÉCEPTION dans la même main. AU FOND, de la zone neutre : dans un coin ou derrière le filet, la rondelle y est LIBRE — c\'est le dump-and-chase, et ça ouvre la zone', 'revirement : le bâton sur la ligne l\'intercepte (au fond : elle rebondit, libre)'],
         ['Tirer', 'TI c. AR', `de la zone offensive seulement, à ${PORTEE_TIR} cases du filet ou moins : ton TI, ta signature, moins les bâtons devant toi, contre son AR plus la PLACE — rien collé au filet, +${PLACE_GARDIEN.rangee2} à la deuxième rangée de l'enclave, +${PLACE_GARDIEN.pointe} de la pointe et des coins, +${PLACE_GARDIEN.tour} sur un tour du filet`, 'le gardien la garde : revirement — sauf de l\'enclave, ou raté d\'un rien, ou mal contrôlé (son AR contre 5+) : retour libre devant le filet'],
         ['Feinter', 'MA c. DE', 'le porteur prend UN défenseur collé en un contre un : son maniement (+1 au petit gabarit), moins la pression, contre la défense de l\'autre. Battu, le défenseur est hors position jusqu\'à la fin du tour et le porteur repart sans esquive', 'revirement : il lit la feinte, la rondelle est libre sur place'],
