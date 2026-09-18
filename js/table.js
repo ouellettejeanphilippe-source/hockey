@@ -722,8 +722,18 @@ export const PERIODES = 3;
  * au lieu d'être donnée à celui qui te l'a enlevée. À 26 le match montait à
  * 256 mains ; à 22 il en fait 218 — un peu plus qu'avant (191), et c'est ce
  * que les possessions ont gagné en longueur, pas du remplissage.
+ *
+ * VINGT ET UNE (S43). L'esquive ne se demande plus qu'à un bâton COLLÉ, donc
+ * une possession meurt moins souvent en chemin : à 23, le plateau lisait
+ * 6,21 buts et 19,7 tirs, au-dessus de la cible arcade. Trois réglages
+ * mesurés à 240 matchs — 23 : 6,21 · 22 : 5,86 · 21 : 5,64 — et c'est 21
+ * qui est retenu, pas 22 : 5,86 est DANS la cible mais sur son bord, et le
+ * dépôt a déjà payé cette erreur-là (S38 lisait 5,95 au banc d'essai et
+ * l'Action pouvait le lire rouge). À 21, les tirs retombent à 17,5, tout
+ * près des 18,1 d'avant la règle : le curseur rend le tempo, il ne change
+ * pas ce qu'une possession vaut.
  */
-export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 23;
+export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 21;
 export const POSSESSIONS_PROLONGATION = 8;
 export const PRESENCES_PAR_PERIODE = 60;   // le garde-fou : jamais plus de tours que ça dans une période
 export const PRESENCES_PROLONGATION = 30;
