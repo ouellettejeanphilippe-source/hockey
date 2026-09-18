@@ -984,7 +984,7 @@ const malusSouffle = (m, piece) => (essouffle(m, piece) ? -1 : 0);
 const PLACEMENT = MESURE.PLACEMENT !== '0';          // le deuxième déplacement de la main
 const POSTES = MESURE.POSTES !== '0';                // chaque pièce tient son poste
 const LIBRE_SUR_PERTE = MESURE.LIBRE_SUR_PERTE !== '0';   // la rondelle perdue tombe sur place
-/** Ce que la place du gardien vaut EN PLUS : le tir cesse d'être pile ou face. */
+const RELANCE_RAMASSAGE = MESURE.RAMASSE !== '0';         // qui ramasse repart avec
 /*
  * Ce que la place du gardien vaut EN PLUS. À +2 le tir cessait d'être pile
  * ou face (33 % au lieu de 47), mais 43 % des tirs tombaient AU PLANCHER —
@@ -1546,6 +1546,18 @@ function deposer(m, piece, r, c) {
   if (!l || l.r !== r || l.c !== c) return false;
   if (piece.etourdi) return false;
   donner(m, piece);
+  /*
+   * QUI LA RAMASSE REPART AVEC. JP : *c'est correct que la rondelle change
+   * de possession plusieurs fois, tant qu'elle reste pas prise là*.
+   * Ramasser une rondelle libre coûtait le déplacement de la main, donc le
+   * nouveau porteur restait PLANTÉ sur la case où il venait de la prendre —
+   * et l'autre camp la lui reprenait au même endroit. Mesuré : la rondelle
+   * restait dans le même rayon de deux cases pendant 3,9 mains d'affilée,
+   * jusqu'à 25. Le vol et la mise en échec rendaient déjà l'élan
+   * (`echappee`) pour exactement cette raison ; le ramassage le rend aussi.
+   * Un changement de possession déplace la rondelle, il ne la fige pas.
+   */
+  if (RELANCE_RAMASSAGE) { piece.deplace = false; piece.echappee = true; }
   dire(m, `${nomDe(piece)} met le pied sur la rondelle libre et la récupère.`, 'ok');
   return true;
 }
@@ -2142,9 +2154,23 @@ export function posteDe(m, piece) {
 }
 
 /** Cette pièce est-elle une des `FORECHECK` plus proches de la rondelle ? */
+/*
+ * UNE RONDELLE LIBRE AMÈNE DU MONDE. JP : *c'est correct que la rondelle
+ * change de possession plusieurs fois, tant qu'elle reste pas prise là*.
+ * Deux pièces suffisent à harceler un PORTEUR — les trois autres tiennent
+ * leur poste, c'est ce qui donne la forme. Mais sur une rondelle LIBRE,
+ * deux, c'est ce qui la laisse traîner : mesuré, elle restait immobile
+ * 48 % des mains et dans le même rayon de deux cases pendant 4,3 mains
+ * d'affilée, jusqu'à 29. Au hockey, une rondelle libre est une mêlée :
+ * `FORECHECK_LIBRE` pièces y vont.
+ */
+export const FORECHECK_LIBRE = Number(MESURE.CHASSE) || 4;
+/* Ce que vaut la course à la rondelle libre, en plus : `CHASSEV` pour la MESURE. */
+const CHASSE_VAL = MESURE.CHASSEV !== undefined ? Number(MESURE.CHASSEV) : 5;
 function vaALaRondelle(m, piece, vise) {
   const amis = eqDe(m, piece.eq).pieces.filter(x => !x.gardien && !x.etourdi);
-  return amis.slice().sort((a, b) => dist(a, vise) - dist(b, vise)).indexOf(piece) < FORECHECK;
+  const combien = libre(m) ? FORECHECK_LIBRE : FORECHECK;
+  return amis.slice().sort((a, b) => dist(a, vise) - dist(b, vise)).indexOf(piece) < combien;
 }
 
 /* Ce que vaut une case pour qui attaque `but` : proche du filet et au centre. */
@@ -2315,7 +2341,16 @@ function meilleurGeste(m, piece) {
         const prise = rondelleLibre && d === 0 ? (bataillePossible(m, piece, v) ? 4 * chancesDe(modBataille(m, piece, v)) : 4) : 0;
         // Se coller au porteur vaut le contact qu'on pourra lui donner ensuite.
         const contact = !rondelleLibre && d === 1 && !m.main.agi && peutAgir(m, piece) ? 1.5 : 0;
-        const val = 3 - d * 0.6 + prise + contact;
+        /*
+         * COURIR APRÈS UNE RONDELLE LIBRE VAUT PLUS QUE TENIR SON POSTE.
+         * S'en approcher ne valait que `3 − distance × 0,6` : à trois cases,
+         * 1,2 — moins que rejoindre son poste (1,0 + le rapprochement × 0,8).
+         * Les pièces tenaient donc leur forme pendant que la rondelle
+         * traînait, et elle restait libre jusqu'à vingt-cinq mains. La
+         * course vaut maintenant `CHASSE_VAL` de plus tant qu'elle est à
+         * personne : une rondelle libre est le seul objet du jeu.
+         */
+        const val = 3 - d * 0.6 + prise + contact + (rondelleLibre ? CHASSE_VAL : 0);
         if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
       }
       if (mieux) options.push(mieux);
@@ -2661,7 +2696,8 @@ export function reglesDuPlateau() {
         'À ta main, tu as UN déplacement, UNE action et UN PLACEMENT — pas forcément de la même pièce : l\'ailier va au filet et le porteur lui passe ; ou le défenseur rejoint le porteur adverse et le frappe. Dans l\'ordre que tu veux. Puis la main passe à l\'adversaire ; quand il a joué la sienne, le tour est fini et tout le monde souffle.',
         'LE PLACEMENT est un deuxième déplacement, réservé à une pièce qui n\'a PAS la rondelle. Il ne fait pas avancer le jeu plus vite — c\'est le seul geste de la main qui ne peut pas toucher la rondelle — il te laisse DÉPLOYER ton équipe : aller au filet, ouvrir une ligne de passe, rentrer couvrir. Sans lui, tes quatre autres patineurs restaient plantés là où la mise au jeu les avait posés.',
         'La même pièce peut jouer à CHAQUE tour. Ce qui la freine, c\'est son souffle : chaque geste lui en coûte un point, et à mesure qu\'il baisse elle patine moins loin, puis moins bien (voir plus bas).',
-        'LE REVIREMENT : un jet raté qui te coûte la rondelle rend la main sur-le-champ. Mais la rondelle ne CHANGE PAS de camp pour autant : une esquive ratée, une feinte lue, elle tombe LIBRE là où tu l\'as échappée, et c\'est celui qui a des corps autour qui la ramasse. Seul un geste défensif joué exprès — frapper, harponner — la prend net, et celui-là repart avec : c\'est la contre-attaque.',
+        'LE REVIREMENT : un jet raté qui te coûte la rondelle rend la main sur-le-champ. Mais la rondelle ne CHANGE PAS de camp pour autant : une esquive ratée, une feinte lue, elle tombe LIBRE là où tu l\'as échappée, et c\'est celui qui a des corps autour qui la ramasse.',
+        'QUI PREND LA RONDELLE REPART AVEC, toujours — qu\'il l\'ait volée, arrachée par une mise en échec, ou simplement ramassée par terre. Son déplacement lui est rendu. Un changement de possession DÉPLACE la rondelle, il ne la fige pas là où elle vient de changer de mains.',
         'Les mains alternent strictement : le camp qui vient de jouer ne rejoue jamais tout de suite. « Passer la main » rend la main sans dépenser ce qui reste.',
       ],
     },
