@@ -33,7 +33,7 @@ import {
   ciblesDejouerDe, modDejouer, dejouer, appliquerDejouer,
   receptionPossible, tirerSurReception,
   relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
-  peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, pressionDe, PUNITION_TOURS, PAS_PAR_MAIN, pasRestants,
+  peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, pressionDe, PUNITION_TOURS, PAS_PAR_MAIN, pasRestants, porteeDe,
   bataillePossible, modBataille, appliquerBataille,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
@@ -376,7 +376,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         if (r === MI_GLACE) cls.push('t-centre');
         if (r === FILET_HAUT + PORTEE_TIR + 1) cls.push('t-bleue');
         if (r === FILET_BAS - PORTEE_TIR - 1) cls.push('t-bleue-bas');
-        html += `<button type="button" class="${cls.join(' ')}" data-r="${r}" data-c="${c}"><span class="t-marque"></span></button>`;
+        html += `<button type="button" class="${cls.join(' ')}" data-r="${r}" data-c="${c}"><span class="t-marque"></span><span class="t-risque"></span></button>`;
       }
     }
     html += '<div class="t-pieces" aria-hidden="true"></div>';
@@ -419,10 +419,25 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       cel.classList.toggle('t-rayon', couv === 1);
       cel.classList.toggle('t-rayon-2', couv >= 2);
       cel.tabIndex = (o || jouable) ? 0 : -1;
-      // L'étiquette : la cote du geste que cette case propose.
+      /*
+       * DEUX ÉTIQUETTES, ET CHACUNE DIT UNE SEULE CHOSE (S43). JP : *nombre
+       * de cases de déplacement clairement indiqué*. La case d'un patin
+       * n'écrivait RIEN tant qu'aucun dé n'y pendait : on voyait où on
+       * pouvait aller, jamais ce que ça coûtait — et le budget de la main se
+       * compte en pas (« 4½/6 »), pas en cases allumées. Le PRIX est donc
+       * écrit en haut à gauche de chaque case, en pas comme la pastille du
+       * budget (une diagonale en vaut un et demi), et le RISQUE — la cote
+       * d'un duel : esquive, bataille, passe, contact — en bas à droite, où
+       * il était. Deux coins, jamais l'un sur l'autre : une case de 26 px
+       * n'en porte pas deux au centre. Une case verte sans chiffre en bas
+       * est une case où rien ne peut mal tourner.
+       */
       const marque = cel.querySelector('.t-marque');
-      marque.textContent = !o || !o.duel ? '' : cote(o.duel);
-      marque.className = `t-marque${o && o.type !== 'deplacer' ? ' t-cote' : o ? ' t-pas' : ''}`;
+      const prix = o && o.type === 'deplacer' && o.vers ? demisEnPas(o.vers.demis) : '';
+      marque.textContent = prix;
+      marque.className = `t-marque${prix ? ' t-pas' : ''}`;
+      const risque = cel.querySelector('.t-risque');
+      risque.textContent = !o || !o.duel ? '' : cote(o.duel);
     }
 
     // 2. La rondelle libre, posée sur sa case.
@@ -657,13 +672,30 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // La meilleure cote parmi les cibles d'un geste : le duel aux plus grandes chances.
     const meilleure = (cibles, duelDe) => (cibles.length ? cibles.map(duelDe).sort((x, y) => chancesDe(y) - chancesDe(x))[0] : null);
     const pres = aLaRondelle ? pressionDe(m, sel) : null;
-    const tenue = !!pres && pres.n > 0;
+    /*
+     * « ESQUIVER » VEUT DIRE QU'UN DÉ PEND, PAS QU'UN RAYON TOUCHE (S43). Le
+     * bouton lisait la PRESSION, qui porte à deux cases : il annonçait donc
+     * une esquive là où patiner est devenu libre. Il lit maintenant ce que
+     * les cases offrent — s'il existe une destination qui demande un jet, il
+     * dit « Esquiver » et porte sa meilleure cote ; sinon « Patiner ».
+     */
+    let doitEsquiver = false;
     if (peutBouger(m, sel)) {
       const pas = deplacementsDe(m, sel);
       if (pas.length) {
-        const sous = tenue ? pas.filter(v => esquiveRequise(m, sel, v)) : [];
+        const sous = aLaRondelle ? pas.filter(v => esquiveRequise(m, sel, v)) : [];
+        doitEsquiver = sous.length > 0;
         const d = sous.length ? meilleure(sous, v => avec(modEsquive(m, sel, v), bonus('PATIN'))) : null;
-        modes.push(modeBouton('deplacer', tenue ? 'Esquiver' : 'Patiner', d, `${pas.length} case${pas.length > 1 ? 's' : ''}`));
+        /*
+         * LE BOUTON DIT JUSQU'OÙ, PAS COMBIEN DE CASES (S43). JP : *nombre
+         * de cases de déplacement clairement indiqué*. Il annonçait le
+         * nombre de DESTINATIONS allumées — « 36 cases » — un chiffre qui ne
+         * se décide avec rien : on ne choisit pas entre 36 et 24 cases, on
+         * choisit jusqu'où aller. Il annonce maintenant la PORTÉE de cette
+         * pièce-ci, en pas, dans la même unité que le budget de la main
+         * (« 4½/6 Pas ») et que le prix écrit sur chaque case.
+         */
+        modes.push(modeBouton('deplacer', doitEsquiver ? 'Esquiver' : 'Patiner', d, `${demisEnPas(porteeDe(m, sel))} pas`));
       }
     }
     if (aLaRondelle && peutAgir(m, sel)) {
@@ -692,7 +724,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const horsPortee = aLaRondelle && !peutTirer(m, sel);
     const prof = distanceAuFilet(m, sel);
     const AIDE_MODE = {
-      deplacer: tenue ? 'Touche une case allumée : il s\'y échappe s\'il réussit son esquive.' : 'Touche une case allumée : il y patine, sans dé.',
+      deplacer: doitEsquiver ? 'Touche une case allumée : le prix est écrit dessus, et la cote quand il faut esquiver un bâton collé.' : 'Touche une case allumée : il y patine, sans dé. Le prix en pas est écrit dessus.',
       passe: 'Touche le coéquipier à qui passer — ou, de la zone neutre, un coin du fond : la rondelle y sera libre.',
       echec: 'Touche l\'adversaire à frapper.',
       vol: 'Touche le porteur pour le harponner.',
