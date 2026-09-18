@@ -166,9 +166,12 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   function cachot() {
     const out = [];
     for (const eq of [A, B]) {
-      if (!eq.penalite) continue;
-      const qui = eq.penalite.p ? nomCourt(eq.penalite.p) : eq.penalite.role;
-      out.push(`<span class="tb-cachot" title="${esc(eq.nom)} joue à quatre : ${esc(qui)} est au cachot pour ${eq.penalite.tours} tour${eq.penalite.tours > 1 ? 's' : ''}. Un but marqué contre l'équipe punie le libère.">⚠ ${esc(qui)} · ${eq.penalite.tours}</span>`);
+      // DEUX PUNIS TIENNENT AU TABLEAU (S46) : le cinq contre trois se lit.
+      for (const pen of eq.penalites) {
+        const qui = pen.p ? nomCourt(pen.p) : pen.role;
+        const n = 5 - eq.penalites.length;
+        out.push(`<span class="tb-cachot" title="${esc(eq.nom)} joue à ${n} : ${esc(qui)} est au cachot pour ${pen.tours} tour${pen.tours > 1 ? 's' : ''}. Un but marqué contre l'équipe punie libère le premier.">⚠ ${esc(qui)} · ${pen.tours}</span>`);
+      }
     }
     return out.join('');
   }
@@ -416,9 +419,12 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   }
 
   /* Toutes les pièces à dessiner, gardiens compris, avec leur clé stable. */
+  /* UN GARDIEN RETIRÉ N'EST PLUS SUR LA GLACE (S46) : le filet est vide, et
+     ça doit se VOIR — c'est toute l'information du moment. */
   const jetons = () => [
     ...surLaGlace(m).map(x => [`${x.eq}-${x.role}`, x]),
-    ['A-G', A.piece_g], ['B-G', B.piece_g],
+    ...(A.piece_g.sorti ? [] : [['A-G', A.piece_g]]),
+    ...(B.piece_g.sorti ? [] : [['B-G', B.piece_g]]),
   ];
 
   /*
@@ -691,6 +697,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     bataille:   ['GAGNÉE !', 'chaud', 'cible'],
     punition:   ['PUNITION', 'rouge', 'defaut'],
     horsjeu:    ['HORS-JEU', 'froid', 'defaut'],
+    desert:     ['FILET DÉSERT', 'or', 'defaut'],
     icing:      ['DÉGAGEMENT REFUSÉ', 'froid', 'defaut'],
   };
 
@@ -723,7 +730,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const SON_DU_GENRE = {
     but: 'but', retour: 'retour', arret: 'arret', echec: 'echec', vol: 'vol', rate: 'rate',
     revirement: 'revirement', degage: 'degage', mj: 'mj', fin: 'fin', periode: 'periode',
-    dejoue: 'patin', changement: 'tap', bataille: 'vol', punition: 'periode', horsjeu: 'periode', icing: 'periode',
+    dejoue: 'patin', changement: 'tap', bataille: 'vol', punition: 'periode', horsjeu: 'periode', icing: 'periode', desert: 'periode',
   };
   const PAS_SON = { tir: 0.22, patin: 0.12, passe: 0.1, echec: 0.28, arret: 0.2, retour: 0.25, vol: 0.15, rate: 0.15, degage: 0.45, mj: 0.1, periode: 0.5, fin: 2, but: 1.6, revirement: 0.2, tap: 0.08 };
   function sonner(genres, quoi, delai = 0) {

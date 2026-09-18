@@ -26,7 +26,7 @@ import {
   COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, PERIODES, PRESENCES_PAR_PERIODE, PRESENCES_PROLONGATION, POSSESSIONS_PAR_PERIODE, POSSESSIONS_PROLONGATION,
   equipeDeTable, nouveauMatch, iaPresence, resultatDe, surLaGlace, porteur, libre, eqDe,
   statsDeTable, uniteDe, changerUnite, souffleDe, souffleMax, PUNITION_TOURS, peutJouer, deplacementsDe, ciblesEchecDe,
-  reglesDuPlateau, peutTirer, distanceAuFilet, PORTEE_TIR, caseJouable, estFilet,
+  reglesDuPlateau, peutTirer, distanceAuFilet, PORTEE_TIR, caseJouable, estFilet, ROLES_PROLONGATION,
 } from '../js/table.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -56,9 +56,17 @@ const REGLES = [
     for (const cote of ['A', 'B']) {
       const eq = eqDe(m, cote);
       // Au cachot (S38), l'équipe joue à quatre — et jamais à moins.
-      const attendu = 5 - (eq.penalite ? 1 : 0);
-      if (eq.pieces.length !== attendu) return `${cote} a ${eq.pieces.length} patineurs (attendu ${attendu}${eq.penalite ? ', un puni' : ''})`;
-      if (eq.penalite && (eq.penalite.tours < 0 || eq.penalite.tours > PUNITION_TOURS)) return `${cote} : punition de ${eq.penalite.tours} tours`;
+      /*
+       * CINQ, QUATRE, TROIS — ou TROIS en prolongation (S46). L'effectif se
+       * déduit de deux règles qui se composent : le trois contre trois de la
+       * prolongation, et le cachot qui peut tenir DEUX punis (le cinq contre
+       * trois). Une équipe ne descend jamais sous trois patineurs.
+       */
+      const base = (m.prolongation ? ROLES_PROLONGATION.length : 5) + (eq.desert ? 1 : 0);
+      const attendu = Math.max(base - eq.penalites.length, base === 3 ? 2 : 3);
+      if (eq.pieces.length !== attendu) return `${cote} a ${eq.pieces.length} patineurs (attendu ${attendu}${eq.penalites.length ? `, ${eq.penalites.length} puni(s)` : ''}${m.prolongation ? ', prolongation' : ''})`;
+      if (eq.penalites.length > 2) return `${cote} a ${eq.penalites.length} punis à la fois`;
+      for (const pen of eq.penalites) if (pen.tours < 0 || pen.tours > PUNITION_TOURS) return `${cote} : punition de ${pen.tours} tours`;
       if (!eq.piece_g) return `${cote} n'a pas de gardien`;
     }
     return null;
@@ -70,6 +78,18 @@ const REGLES = [
       const cle = `${x.r},${x.c}`;
       if (vues.has(cle)) return `${nom(x)} et ${nom(vues.get(cle))} occupent tous deux ${cle}`;
       vues.set(cle, x);
+    }
+    return null;
+  }],
+
+  ['le gardien est dans son filet, sauf s\'il est SORTI', m => {
+    for (const cote of ['A', 'B']) {
+      const eq = eqDe(m, cote);
+      if (!!eq.desert !== !!eq.piece_g.sorti) return `${cote} : desert=${!!eq.desert} mais sorti=${!!eq.piece_g.sorti}`;
+      // Pas d'exigence sur l'attaquant supplémentaire : il peut être au
+      // cachot ou rentré avec son trio. C'est le COMPTE de patineurs qui
+      // juge, et il est vérifié par la règle d'à côté.
+      if (eq.pieces.filter(x => x.role === 'X').length > 1) return `${cote} a ${eq.pieces.filter(x => x.role === 'X').length} attaquants supplémentaires`;
     }
     return null;
   }],
