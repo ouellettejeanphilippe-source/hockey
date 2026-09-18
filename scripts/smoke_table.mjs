@@ -232,6 +232,7 @@ const vus = new Set();
 const modesVus = new Set();
 const motsFin = new Set();
 let passerMal = null;
+let dernierDuel = null, duelsSecs = 0;
 while (tours++ < 4000) {
   if (!(await page.$('#tableModal .t-glace'))) break;
   const etat = await page.evaluate(() => ({
@@ -345,6 +346,20 @@ while (tours++ < 4000) {
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.duel) {
+    /*
+     * ET IL DOIT S'OUVRIR. Toucher le porteur ne consomme rien : si le choix
+     * n'apparaît jamais, le joueur scripté retouche la même case pour
+     * toujours — mesuré, 3 689 fois, le match encore à huit possessions en
+     * première période, et l'Action a mis sept minutes à mourir sur une
+     * assertion qui ne nommait pas la cause. Un test qui tourne en rond est
+     * aussi faux qu'un sélecteur qui ne matche rien : il doit DIRE que la
+     * case allumée ne fait rien, tout de suite.
+     */
+    if (etat.duel === dernierDuel && ++duelsSecs > 12) {
+      errors.push(`la case du porteur adverse (${etat.duel}) s'allume mais le duel ne s'ouvre jamais : ${duelsSecs} touchers, aucun geste offert`);
+      break;
+    }
+    if (etat.duel !== dernierDuel) { dernierDuel = etat.duel; duelsSecs = 0; }
     occasionsDuel++;
     await page.click(`#tableModal .t-case[data-r="${etat.duel.split(',')[0]}"][data-c="${etat.duel.split(',')[1]}"]`);
     gestes++; await page.waitForTimeout(50); continue;

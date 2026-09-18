@@ -4096,6 +4096,15 @@ a.spin-club:hover {
 .t-dock-actions .t-tir b, .t-dock-actions .t-tir i { color: inherit; opacity: 0.82; }
 
 .t-dock-actions .t-geste, .t-dock-actions .t-mode { flex: 0 0 auto; white-space: nowrap; }
+/* 4. LE DUEL EST UNE DÉCISION, DONC IL PREND LA BARRE, comme le dé (S46) :
+      la question, les deux gestes, et de quoi changer d'avis. Il se balaie
+      s'il déborde — sur un téléphone, « Frapper Vaive ? » et deux boutons
+      ne tiennent pas toujours sur 390 px. */
+.t-dock-duel { overflow-x: auto; scrollbar-width: none; }
+.t-dock-duel::-webkit-scrollbar { display: none; }
+.t-dock-duel .t-dock-aide { flex: 0 0 auto; }
+.t-dock-duel .t-geste { flex: 0 0 auto; white-space: nowrap; }
+.t-dock-duel .t-annuler { margin-left: auto; color: var(--sub); }
 .t-dock .t-de { margin: 0; padding: 6px 8px; width: 100%; }
 .t-bas {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
