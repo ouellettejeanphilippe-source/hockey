@@ -26,7 +26,7 @@ import {
   COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, PERIODES, PRESENCES_PAR_PERIODE, PRESENCES_PROLONGATION, POSSESSIONS_PAR_PERIODE, POSSESSIONS_PROLONGATION,
   equipeDeTable, nouveauMatch, iaPresence, resultatDe, surLaGlace, porteur, libre, eqDe,
   statsDeTable, uniteDe, changerUnite, souffleDe, souffleMax, PUNITION_TOURS, peutJouer, deplacementsDe, ciblesEchecDe,
-  reglesDuPlateau, peutTirer, distanceAuFilet, PORTEE_TIR, caseJouable, estFilet,
+  reglesDuPlateau, peutTirerDe, distanceAuFilet, PORTEE_TIR, caseJouable, estFilet, ROLES_PROLONGATION,
 } from '../js/table.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -56,9 +56,17 @@ const REGLES = [
     for (const cote of ['A', 'B']) {
       const eq = eqDe(m, cote);
       // Au cachot (S38), l'équipe joue à quatre — et jamais à moins.
-      const attendu = 5 - (eq.penalite ? 1 : 0);
-      if (eq.pieces.length !== attendu) return `${cote} a ${eq.pieces.length} patineurs (attendu ${attendu}${eq.penalite ? ', un puni' : ''})`;
-      if (eq.penalite && (eq.penalite.tours < 0 || eq.penalite.tours > PUNITION_TOURS)) return `${cote} : punition de ${eq.penalite.tours} tours`;
+      /*
+       * CINQ, QUATRE, TROIS — ou TROIS en prolongation (S46). L'effectif se
+       * déduit de deux règles qui se composent : le trois contre trois de la
+       * prolongation, et le cachot qui peut tenir DEUX punis (le cinq contre
+       * trois). Une équipe ne descend jamais sous trois patineurs.
+       */
+      const base = (m.prolongation ? ROLES_PROLONGATION.length : 5) + (eq.desert ? 1 : 0);
+      const attendu = Math.max(base - eq.penalites.length, base === 3 ? 2 : 3);
+      if (eq.pieces.length !== attendu) return `${cote} a ${eq.pieces.length} patineurs (attendu ${attendu}${eq.penalites.length ? `, ${eq.penalites.length} puni(s)` : ''}${m.prolongation ? ', prolongation' : ''})`;
+      if (eq.penalites.length > 2) return `${cote} a ${eq.penalites.length} punis à la fois`;
+      for (const pen of eq.penalites) if (pen.tours < 0 || pen.tours > PUNITION_TOURS) return `${cote} : punition de ${pen.tours} tours`;
       if (!eq.piece_g) return `${cote} n'a pas de gardien`;
     }
     return null;
@@ -70,6 +78,18 @@ const REGLES = [
       const cle = `${x.r},${x.c}`;
       if (vues.has(cle)) return `${nom(x)} et ${nom(vues.get(cle))} occupent tous deux ${cle}`;
       vues.set(cle, x);
+    }
+    return null;
+  }],
+
+  ['le gardien est dans son filet, sauf s\'il est SORTI', m => {
+    for (const cote of ['A', 'B']) {
+      const eq = eqDe(m, cote);
+      if (!!eq.desert !== !!eq.piece_g.sorti) return `${cote} : desert=${!!eq.desert} mais sorti=${!!eq.piece_g.sorti}`;
+      // Pas d'exigence sur l'attaquant supplémentaire : il peut être au
+      // cachot ou rentré avec son trio. C'est le COMPTE de patineurs qui
+      // juge, et il est vérifié par la règle d'à côté.
+      if (eq.pieces.filter(x => x.role === 'X').length > 1) return `${cote} a ${eq.pieces.filter(x => x.role === 'X').length} attaquants supplémentaires`;
     }
     return null;
   }],
@@ -218,9 +238,23 @@ for (let i = 0; i < MATCHS; i++) {
       // les « buts randoms du milieu » : 28 % des buts venaient de la zone
       // neutre ou de plus loin, et un tir du fond de son propre territoire
       // avait un meilleur modificateur qu'un tir de l'enclave.
-      if (type === 'tir' && !peutTirer(m, piece)) {
-        tirsHorsPortee++;
-        ajouter('on ne tire que de la zone offensive', `match ${i} : tir à ${distanceAuFilet(m, piece)} cases du filet (portée ${PORTEE_TIR})`);
+      // ...SAUF DANS UN BUT VIDE (S46), où l'on tire de partout : c'est le
+      // prix du filet désert, et `peutTirer` le sait déjà. Le nom de la
+      // règle le dit, sinon il mentirait à la première lecture.
+      /*
+       * LA LÉGALITÉ SE LIT AU MOMENT DU TIR. `peutTirer` interroge l'état
+       * COURANT, et un but dans le filet désert fait rentrer le gardien
+       * aussitôt : le tir de la zone neutre, permis quand il est parti,
+       * devenait illégal le temps qu'on le vérifie. Le moteur note donc
+       * `vide` sur le tir lui-même (`modsTir`), et c'est ce que la règle lit.
+       */
+      if (type === 'tir') {
+        const mods = eqDe(m, piece.eq).modsTir;
+        const vide = !!(mods.length && mods[mods.length - 1].vide);
+        if (!peutTirerDe(piece.r, piece.c, eqDe(m, piece.eq).but, vide)) {
+          tirsHorsPortee++;
+          ajouter('on ne tire que de la zone offensive (ou dans un but vide)', `match ${i} : tir à ${distanceAuFilet(m, piece)} cases du filet (portée ${PORTEE_TIR})`);
+        }
       }
       verifier();
     });
@@ -230,13 +264,19 @@ for (let i = 0; i < MATCHS; i++) {
   if (!m.fini) { jamaisFinis++; continue; }
   if (m.prolongation) matchsAvecOT++;
   const r = resultatDe(m);
-  if (r.gfA === r.gfB) { nuls++; ajouter('un match finit toujours sur un gagnant', `match ${i} : ${r.gfA}-${r.gfB}`); }
+  /*
+   * LA FUSILLADE NE TOUCHE PAS AU POINTAGE (S46) : elle ne fait que désigner
+   * `vainqueur`, sinon les égalités de la feuille cassent — un but de
+   * fusillade n'a ni tireur sur la glace ni gardien battu. Un 2-2 avec un
+   * vainqueur est donc un match RÉGLÉ, pas un match nul.
+   */
+  if (r.gfA === r.gfB && !r.vainqueur) { nuls++; ajouter('un match finit toujours sur un gagnant', `match ${i} : ${r.gfA}-${r.gfB}`); }
 }
 
 console.log(`${clubs.length} vraies équipes · ${MATCHS} matchs · ${presencesTotal} activations et ${gestesTotal} gestes vérifiés\n`);
 console.log('LES RÈGLES DU PLATEAU');
 let echecs = 0;
-for (const [nomRegle] of REGLES.concat([['on ne tire que de la zone offensive'], ['un match finit toujours sur un gagnant']])) {
+for (const [nomRegle] of REGLES.concat([['on ne tire que de la zone offensive (ou dans un but vide)'], ['un match finit toujours sur un gagnant']])) {
   const l = casses.get(nomRegle);
   if (l) { echecs++; console.log(`  ✗ ${nomRegle}\n      ${l.join('\n      ')}`); }
   else console.log(`  ✓ ${nomRegle}`);

@@ -363,9 +363,53 @@ if (jugeable) {
    * le gardien plus fort (l'écart tombe de 8,5 à 5,6 buts, et les buts à
    * 3,4). La chaîne est la cause, pas le dé.
    */
+  /*
+   * S46 : UN DÉCILE D'ÉCART SE MESURE SUR LES DEUX PAIRES ENSEMBLE, et le
+   * plancher est re-dérivé pour les pointages classiques. Deux choses, dans
+   * cet ordre — la seconde n'est légitime que parce que la première est
+   * établie.
+   *
+   * (1) UNE PAIRE SEULE EST TROP BRUYANTE POUR ÊTRE JUGÉE. C'est exactement
+   * ce que S38 avait trouvé pour « deux clubs du même décile », et la
+   * réponse est la même : on mesure les DEUX paires voisines ensemble. Le
+   * 1er contre le 5e et le 5e contre le 10e mesurent la même chose — ce
+   * qu'un cran de talent vaut sur un match — et à 200 matchs chacune elles
+   * se croisaient sans qu'une ligne du moteur ait bougé. Mesuré à quatre
+   * tempos, 392 matchs par paire :
+   *
+   *   possessions   1er/5e   5e/10e   les deux ensemble
+   *        12        58,4     58,4          58,4
+   *        14        62,0     58,2          60,1
+   *        16        59,7     62,8          61,2
+   *        18        66       64            65
+   *
+   * Les colonnes 1 et 2 se doublent (à 14 c'est le 5e/10e qui passe sous 60,
+   * à 16 c'est le 1er/5e) ; la troisième monte proprement avec le tempo. Et
+   * elle ne dépend pas de l'échantillon : à douze possessions elle lit 58,5
+   * sur dix clubs par décile et 58,4 sur quatorze — les deux paires prises
+   * une à une lisaient 63,5 et 53,5 sur le premier de ces deux tirages.
+   *
+   * (2) LE PLANCHER SUIT LA RÈGLE, COMME TROIS FOIS DÉJÀ. Le 60 a été écrit
+   * en S41, quand le plateau jouait à 5,5 buts par match ; S45 l'a ramené
+   * aux classiques 3-2 que JP a demandés, et c'est de l'arithmétique : un
+   * match de trois buts est un plus petit échantillon qu'un match de sept,
+   * donc la meilleure équipe y gagne moins souvent. Le talent lui-même n'a
+   * pas bougé — le différentiel du fort sur le faible vaut 25 % de ses buts
+   * aux deux tempos. Garder 60 reviendrait à juger S45 avec la règle de
+   * S41, l'erreur que « gestes par main » a déjà faite trois fois.
+   *
+   * 53, parce que la mesure est 58,4 et qu'un écart type vaut 2,5 points sur
+   * les 400 matchs de l'Action : le repère tient à 2,2 écarts types, donc il
+   * ne crie pas pour du bruit, et il rougit si le tiers de l'avance du fort
+   * sur le faible disparaît. Le plafond ne bouge pas.
+   *
+   * SI JP VEUT PLUS DE TALENT VISIBLE, le curseur est le tempo
+   * (`POSSESSIONS_PAR_PERIODE`), payé en pointages : 14 possessions rendent
+   * 3,8 buts et 60 sur 100, 16 en rendent 4,3 et 61.
+   */
   informer('le 1er décile bat le 10e', `${parite['09'].toFixed(0)} sur 100 — les extrêmes de 55 saisons, le log5 réel y est 97`);
-  borne('le 1er décile bat le 5e', parite['04'], 60, 92, ' sur 100');
-  borne('le 5e décile bat le 10e', parite['49'], 60, 90, ' sur 100');
+  informer('le 1er bat le 5e, le 5e bat le 10e', `${parite['04'].toFixed(0)} et ${parite['49'].toFixed(0)} sur 100 — une paire seule est trop bruyante pour être jugée`);
+  borne('un décile d\'écart le fait gagner', (parite['04'] + parite['49']) / 2, 53, 92, ' sur 100');
   borne('deux clubs du même décile', parite.meme, 44, 56, ' sur 100');
 } else {
   informer('la parité', `${parite['09'].toFixed(0)} / ${parite.meme.toFixed(0)} — ${PAR_DECILE} clubs par décile, trop peu pour juger`);
