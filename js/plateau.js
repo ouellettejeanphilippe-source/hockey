@@ -1244,8 +1244,16 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
      * le bâton. La carte de commandes s'est retirée (elle couvrirait la
      * glace), donc les deux boutons vivent ici, avec la question et de quoi
      * changer d'avis — un choix sans sortie est un cul-de-sac.
+     *
+     * ET LE MODE A LE MÊME BESOIN. La carte se ferme quand on prend un
+     * mode, et c'est elle qui portait les boutons de mode : une fois
+     * « Passer » choisi, plus RIEN à l'écran ne permettait d'en sortir. On
+     * pouvait encore toucher sa propre pièce pour tout annuler, mais rien
+     * ne le disait — un chemin qu'il faut deviner n'existe pas. La barre
+     * porte donc la sortie dans les deux cas, à côté de la consigne qui dit
+     * déjà quoi viser.
      */
-    if (cible) return `<div class="t-dock-ligne t-dock-duel">${nom}${actions.gestes.join('')}<button type="button" class="t-annuler" title="Revenir sans frapper">Annuler</button></div>`;
+    if (cible || mode) return `<div class="t-dock-ligne t-dock-duel">${nom}${cible ? actions.gestes.join('') : ''}<button type="button" class="t-annuler" title="${cible ? 'Revenir sans frapper' : 'Sortir du mode'}">Annuler</button>${fin}</div>`;
     return `${avis}<div class="t-dock-ligne ${sel ? '' : 't-dock-sans'}">${nom}${budget}${ouvre}${fin}</div>`;
   }
 
@@ -1541,7 +1549,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       else if (quoi === 'reception') { const j = tirerSurReception(m); if (j) lancer(j, 'A', jj => appliquerTir(m, piece, jj), placesDe(piece, null)); else rendre(); }
       return;
     }
-    if (t.closest('.t-annuler')) { cible = null; rendre(); return; }
+    if (t.closest('.t-annuler')) { cible = null; mode = null; rendre(); return; }
     if (t.closest('.t-fin-tour')) { sel = null; cible = null; mode = null; deGlace = null; finDeMain = 'Main passée'; finirMain(m); apres(); return; }
     if (t.closest('.t-passer')) { sel = null; cible = null; mode = null; deGlace = null; flash = null; finDeMain = 'Main passée sans jouer'; renoncer(m); apres(); return; }
     const uni = t.closest('.t-seg button');

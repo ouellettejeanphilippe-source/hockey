@@ -345,7 +345,10 @@ while (tours++ < 4000) {
     await page.click(`#tableModal [data-mode="${quoi}"]`); await page.waitForTimeout(50);
     const n = await casesTouchables('#tableModal .t-case.t-offre');
     if (n.length) { await page.click(caseDe(n[Math.floor(dé() * n.length)])); gestes++; }
-    else await page.click(`#tableModal [data-mode="${quoi}"]`);   // rien à faire : on ressort du mode
+    // Rien à faire dans ce mode : on en ressort par « Annuler ». Le bouton
+    // du mode a disparu avec la carte, qui se ferme dès qu'on a choisi —
+    // le reclic tombait dans le vide, trente secondes durant.
+    else await page.click('#tableModal .t-annuler');
     modesJoues++;
     await page.waitForTimeout(50); continue;
   }
