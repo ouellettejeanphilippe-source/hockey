@@ -232,10 +232,38 @@ const vus = new Set();
 const modesVus = new Set();
 const motsFin = new Set();
 let passerMal = null;
+const caseDe = (rc) => `#tableModal .t-case[data-r="${rc.split(',')[0]}"][data-c="${rc.split(',')[1]}"]`;
+/* Les cases allumées qu'un doigt atteint vraiment — même règle que dans
+   l'état, pour les endroits qui relisent la glace après un clic. */
+const casesTouchables = (sel) => page.evaluate((s) => [...document.querySelectorAll(s)].filter(e => {
+  const b = e.getBoundingClientRect();
+  if (!b.width || !b.height) return false;
+  const t = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+  return !!t && (t === e || e.contains(t));
+}).map(e => `${e.dataset.r},${e.dataset.c}`), sel);
 let dernierDuel = null, duelsSecs = 0;
 while (tours++ < 4000) {
   if (!(await page.$('#tableModal .t-glace'))) break;
-  const etat = await page.evaluate(() => ({
+  const etat = await page.evaluate(() => {
+  /*
+   * UNE CASE QU'ON NE PEUT PAS TOUCHER N'EST PAS UNE OPTION (S46). La carte
+   * de commandes est posée SUR la glace, à côté de la pièce (S45), et elle
+   * couvre une trentaine de cases : ni le doigt ni le curseur ne les
+   * atteignent tant qu'elle est ouverte — c'est exactement pour ça qu'elle
+   * se ferme dès qu'on a choisi. Le joueur scripté, lui, visait au hasard
+   * parmi TOUTES les cases allumées, donc il tombait dessous et Playwright
+   * attendait trente secondes sur un clic impossible. Il ne vise plus que
+   * ce qu'un joueur pourrait toucher : l'élément au centre de la case doit
+   * être la case elle-même.
+   */
+  const touchable = e => {
+    const b = e.getBoundingClientRect();
+    if (!b.width || !b.height) return false;
+    const t = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    return !!t && (t === e || e.contains(t));
+  };
+  const cases = s => [...document.querySelectorAll(s)].filter(touchable).map(e => `${e.dataset.r},${e.dataset.c}`);
+  return ({
     suite: !!document.querySelector('#tableModal .t-suite'),
     relance: !!document.querySelector('#tableModal .t-relancer'),
     mien: !!document.querySelector('#tableModal .tb-tour.mien'),
@@ -243,8 +271,8 @@ while (tours++ < 4000) {
     // La pièce choisie porte-t-elle la rondelle ? Le joueur scripté monte alors vers le filet.
     porteur: !!document.querySelector('#tableModal .t-jeton.mienne.choisie .t-rondelle'),
     jouables: document.querySelectorAll('#tableModal .t-case.t-jouable:not(.t-sel)').length,
-    offres: document.querySelectorAll('#tableModal .t-case.t-offre').length,
-    contacts: document.querySelectorAll('#tableModal .t-case.t-offre-echec').length,
+    offresCases: cases('#tableModal .t-case.t-offre'),
+    contactsCases: cases('#tableModal .t-case.t-offre-echec'),
     // La case d'un adversaire qui PORTE la rondelle et qu'on peut atteindre :
     // c'est la seule qui ouvre le duel épaule / bâton sur la carte.
     // LES PIÈCES VIVENT DANS UNE COUCHE PAR-DESSUS LA GRILLE, pas dans la
@@ -256,7 +284,7 @@ while (tours++ < 4000) {
       if (!j) return null;
       const r = j.style.getPropertyValue('--tr'), c = j.style.getPropertyValue('--tc');
       const e = document.querySelector(`#tableModal .t-case.t-offre-echec[data-r="${r}"][data-c="${c}"]`);
-      return e ? `${r},${c}` : null;
+      return e && touchable(e) ? `${r},${c}` : null;
     })(),
     tir: !!document.querySelector('#tableModal [data-geste="tir"]'),
     autres: [...document.querySelectorAll('#tableModal [data-geste]')].map(b => b.dataset.geste),
@@ -269,7 +297,10 @@ while (tours++ < 4000) {
     passer: (document.querySelector('#tableModal .t-passer') || {}).textContent || '',
     fin: !!document.querySelector('#tableModal .t-resultat'),
     unites: !!document.querySelector('#tableModal .t-seg button:not(.on):not([disabled])'),
-  }));
+  });
+  });
+  etat.offres = etat.offresCases.length;
+  etat.contacts = etat.contactsCases.length;
   if (etat.fin) break;
   if (etat.suite) {
     if (etat.relance && relances < 3) { await page.click('#tableModal .t-relancer'); relances++; await page.waitForTimeout(50); }
@@ -312,8 +343,8 @@ while (tours++ < 4000) {
   if (etat.sel && !etat.modeOn && etat.modes.length && modesJoues < 4 && dé() < 0.3) {
     const quoi = etat.modes[Math.floor(dé() * etat.modes.length)];
     await page.click(`#tableModal [data-mode="${quoi}"]`); await page.waitForTimeout(50);
-    const n = await page.$$('#tableModal .t-case.t-offre');
-    if (n.length) { await n[Math.floor(dé() * n.length)].click(); gestes++; }
+    const n = await casesTouchables('#tableModal .t-case.t-offre');
+    if (n.length) { await page.click(caseDe(n[Math.floor(dé() * n.length)])); gestes++; }
     else await page.click(`#tableModal [data-mode="${quoi}"]`);   // rien à faire : on ressort du mode
     modesJoues++;
     await page.waitForTimeout(50); continue;
@@ -361,27 +392,26 @@ while (tours++ < 4000) {
     }
     if (etat.duel !== dernierDuel) { dernierDuel = etat.duel; duelsSecs = 0; }
     occasionsDuel++;
-    await page.click(`#tableModal .t-case[data-r="${etat.duel.split(',')[0]}"][data-c="${etat.duel.split(',')[1]}"]`);
+    await page.click(caseDe(etat.duel));
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.contacts && dé() < 0.45) {
-    const n = await page.$$('#tableModal .t-case.t-offre-echec');
-    if (n.length) { await n[Math.floor(dé() * n.length)].click(); gestes++; await page.waitForTimeout(50); continue; }
+    await page.click(caseDe(etat.contactsCases[Math.floor(dé() * etat.contacts)]));
+    gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.tir) { await page.click('#tableModal [data-geste="tir"]'); gestes++; await page.waitForTimeout(50); continue; }
   if (etat.offres && dé() < 0.62) {
-    const n = await page.$$('#tableModal .t-case.t-offre');
     /*
      * LE PORTEUR MONTE (S41). Un patin tiré au sort ne traverse jamais une
      * glace de seize rangées : le joueur scripté ne tirait plus, et le
      * chemin du tir humain restait sans test. Avec la rondelle, on prend la
      * case allumée la plus proche du filet adverse (la rangée la plus basse).
      */
+    let quoi = etat.offresCases[Math.floor(dé() * etat.offres)];
     if (etat.porteur) {
-      const rangs = await Promise.all(n.map(e => e.evaluate(x => +x.dataset.r)));
-      let k = 0; for (let i = 1; i < n.length; i++) if (rangs[i] < rangs[k]) k = i;
-      await n[k].click();
-    } else await n[Math.floor(dé() * n.length)].click();
+      for (const rc of etat.offresCases) if (+rc.split(',')[0] < +quoi.split(',')[0]) quoi = rc;
+    }
+    await page.click(caseDe(quoi));
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.autres.length) {
@@ -390,8 +420,7 @@ while (tours++ < 4000) {
     gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
   if (etat.offres) {
-    const n = await page.$$('#tableModal .t-case.t-offre');
-    await n[Math.floor(dé() * n.length)].click();
+    await page.click(caseDe(etat.offresCases[Math.floor(dé() * etat.offres)]));
     gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
   if (etat.jouables) { await page.click('#tableModal .t-case.t-jouable:not(.t-sel)'); pieces++; await page.waitForTimeout(50); continue; }
