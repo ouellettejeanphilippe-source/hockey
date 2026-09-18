@@ -1458,13 +1458,15 @@ export function deplacementsDe(m, piece) {
   const pas = POOL && !piece.echappee ? Math.min(pasDe(m, piece) * DEMI, m.main.reserve) : pasDe(m, piece) * DEMI;
   const avecRondelle = porteur(m) === piece;
   /*
-   * UNE DIAGONALE COÛTE DEUX PAS. JP : *pour diagonale, tu dois faire genre
-   * deux cases droites, une vers le haut*. Un pas de biais valait un pas
-   * droit, donc l'éventail était un CARRÉ de (2k+1)² cases — 43 allumées en
-   * moyenne, jusqu'à 116 — et traverser la glace en biais ne coûtait pas
-   * plus cher que tout droit. Il vaut maintenant deux : l'éventail devient
-   * un LOSANGE, on contourne encore le trafic (ce qui manquait aux quatre
-   * lignes sèches, qui tuaient le jeu à 2,03 buts), mais le biais se paie.
+   * UNE DIAGONALE COÛTE UN PAS ET DEMI. JP : *pour diagonale, tu dois faire
+   * genre deux cases droites, une vers le haut*. Un pas de biais valait un
+   * pas droit, donc l'éventail était un CARRÉ de (2k+1)² cases — 43 allumées
+   * en moyenne, jusqu'à 116 — et traverser la glace en biais ne coûtait pas
+   * plus cher que tout droit. Il vaut maintenant COUT_DIAG demis (trois, soit
+   * un pas et demi ; à quatre, la diagonale pleine, le 5e décile ne battait
+   * plus le 10e que 57 fois sur 100) : l'éventail devient un LOSANGE, on
+   * contourne encore le trafic (ce qui manquait aux quatre lignes sèches, qui
+   * tuaient le jeu à 2,03 buts), mais le biais se paie.
    */
   const cout = (r, c, dr, dc) => (dr && dc ? COUT_DIAG : DEMI) * (avecRondelle && couvreurs(m, piece.eq, r, c).length ? 2 : 1);
   const meilleur = new Map([[`${piece.r},${piece.c}`, 0]]);
@@ -2728,6 +2730,7 @@ export function reglesDuPlateau() {
       titre: 'Un tour : ta main, la sienne',
       points: [
         `À ta main, tu as UNE action et ${POOL} PAS à répartir sur qui tu veux — l'ailier fait trois pas vers le filet, le défenseur deux vers le porteur adverse, et le porteur passe. Chaque pièce patine au plus une fois par main, jamais plus loin que son propre PA. Dans l'ordre que tu veux. Puis la main passe à l'adversaire ; quand il a joué la sienne, le tour est fini et tout le monde souffle.`,
+        'TA MAIN FINIT DE TROIS FAÇONS : tu la passes (« Passer la main »), il ne te reste plus rien à dépenser, ou un jet raté avec la rondelle te la coûte — c\'est le revirement. Puis c\'est la sienne, avec le même budget, et tu la regardes geste par geste ; la barre du bas dit pourquoi ta main a fini.',
         'Les pas ne font pas avancer la rondelle plus vite — le porteur est borné comme les autres — ils te laissent DÉPLOYER ton équipe : aller au filet, ouvrir une ligne de passe, rentrer couvrir. Un patin de la main entière pour une seule pièce a été essayé : tes quatre autres patineurs restaient plantés là où la mise au jeu les avait posés.',
         'La même pièce peut jouer à CHAQUE tour. Ce qui la freine, c\'est son souffle : chaque geste lui en coûte un point, et à mesure qu\'il baisse elle patine moins loin, puis moins bien (voir plus bas).',
         'LE REVIREMENT : un jet raté qui te coûte la rondelle rend la main sur-le-champ. Mais la rondelle ne CHANGE PAS de camp pour autant : une esquive ratée, une feinte lue, elle tombe LIBRE là où tu l\'as échappée, et c\'est celui qui a des corps autour qui la ramasse.',
@@ -2742,7 +2745,7 @@ export function reglesDuPlateau() {
         'LA PRESSION sur une case, c\'est le nombre de rayons adverses qui la couvrent, et le meilleur DE d\'entre eux. Elle est écrite sur la carte du porteur, toujours.',
         'Elle entre dans TOUS les duels du porteur, des deux bords : quand il esquive, passe ou feinte, c\'est ce DE-là qu\'il affronte, et chaque bâton de plus lui retire un (deux au plus) ; quand on le frappe ou le harponne, le même malus joue contre lui. Un bâton, une chance ; deux bâtons, une chance de moins.',
         'Avec la rondelle, entrer dans une case couverte coûte deux pas au lieu d\'un : on contourne un vrai défenseur, on ne le traverse pas.',
-        'UNE DIAGONALE COÛTE DEUX PAS, un pas droit en coûte un. On file donc plus loin tout droit qu\'en biais, et l\'éventail des cases où l\'on peut aller est un losange, pas un carré : on ne traverse plus la glace de travers pour le prix d\'une ligne droite.',
+        `UNE DIAGONALE COÛTE ${COUT_DIAG === 3 && DEMI === 2 ? 'UN PAS ET DEMI' : `${COUT_DIAG / DEMI} PAS`}, un pas droit en coûte un. On file donc plus loin tout droit qu'en biais, et l\'éventail des cases où l\'on peut aller est un losange, pas un carré : on ne traverse plus la glace de travers pour le prix d'une ligne droite.`,
         'Devant le filet, seul compte ce qui est ENTRE le tireur et le but : un adversaire collé du côté du filet gêne le tir (−1, −2 pour un vrai bloqueur) ; celui qui est dans son dos ne bloque rien.',
       ],
     },

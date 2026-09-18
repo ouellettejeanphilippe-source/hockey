@@ -41,6 +41,8 @@ import { TRAITS } from './traits.js';
 import { jouerSon, sonsActifs } from './sons.js';
 
 const ordP = n => (n === 1 ? '1re' : `${n}e`);
+/* Les demis d'un budget de pas, écrits en pas : 9 demis, c'est « 4½ ». */
+const demisEnPas = n => (n % 2 ? `${(n - 1) / 2}½` : `${n / 2}`);
 const nomCourt = p => {
   const n = (p && p.n) || 'Rappel';
   const bouts = n.split(' ');
@@ -106,6 +108,17 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   let flash = null;        // { r, c, texte, ton } — le verdict, là où il tombe
   let eclat = null;        // la bannière d'un but : { eq, texte }
   let minuteurFlash = 0;
+  let minuteurEclat = 0;
+  /*
+   * POURQUOI TA MAIN VIENT DE FINIR. JP : *je comprends définitivement pas
+   * comment se jouent les mains*. La main finit de trois façons — tu la
+   * passes, il ne reste rien à dépenser, un jet raté avec la rondelle te la
+   * coûte — et l'écran n'en disait aucune : la glace passait à l'adversaire
+   * sans un mot, et on ne savait pas si on avait fini ou été puni. Le mot se
+   * lit dans la barre d'ancrage pendant SA main, là où on regarde à ce
+   * moment-là, et il s'efface quand la main revient.
+   */
+  let finDeMain = null;
   let noJet = 0;          // un dé neuf est un ÉLÉMENT neuf : sinon l'animation ne repart pas
 
   /*
@@ -161,7 +174,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         <div class="tb-eq tb-b"><b>${B.buts}</b><span class="tb-nom">${esc(B.nom)}</span><span class="tb-logo">${logo(B.tag, 22)}</span></div>
       </div>
       <div class="tb-etat">
-        <span class="tb-tour ${aMoi() ? 'mien' : ''}">${m.fini ? 'Match terminé' : aMoi() ? 'À toi : un déplacement, une action' : `${esc(B.nom)} joue sa main`}</span>
+        <span class="tb-tour ${aMoi() ? 'mien' : ''}">${m.fini ? 'Match terminé' : aMoi() ? `À toi : ${PAS_PAR_MAIN} pas et une action` : `${esc(B.nom)} joue sa main`}</span>
         ${cachot()}
         <span class="tb-relance ${A.relance ? 'on' : ''}" title="Une relance d'équipe par période : on la dépense après avoir vu le dé.">🎲 Relance ${A.relance ? 'disponible' : 'dépensée'}</span>
       </div>`;
@@ -953,12 +966,36 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   function dock() {
     if (m.fini) return '<button type="button" class="t-resultat t-evident">Voir le résultat</button>';
     if (attente) return de();
-    if (!aMoi()) return `<span class="t-dock-nom t-dock-attente">${esc(B.nom)} joue… <i>touche la glace pour accélérer</i></span>`;
+    if (!aMoi()) return `<span class="t-dock-nom t-dock-attente">${finDeMain ? `<b>${esc(finDeMain)}.</b> ` : ''}Sa main : ${esc(B.nom)} joue… <i>touche la glace pour accélérer</i></span>`;
     const dispo = eqDe(m, 'A').pieces.filter(aDesOptions).length;
+    // LE BUDGET DE LA MAIN (S36) : un déplacement, une action — ce qui est
+    // dépensé s'éteint. LE BUDGET PARTAGÉ (S42) : les pas qu'il reste à
+    // répartir, et l'action. `reste` compte en pas entiers (pour décider) ;
+    // la pastille montre les demis, parce qu'une diagonale coûte un pas et
+    // demi et que « 6, 5, 3 » sans le ½ ne se comprend pas.
+    const reste = pasRestants(m);
+    const entamee = m.main.agi || m.main.mobiles.length > 0;
+    const premiere = !(m.tours || 0) && !m.mains.A && !entamee;   // la toute première main du match
+    /*
+     * LA CONSIGNE DIT LA MAIN. « Touche une de tes pièces » ne disait ni ce
+     * qu'une main achète, ni ce qu'il en reste : à la première main du match
+     * la phrase est la règle entière, ensuite elle dit ce qui reste à
+     * dépenser. Le nombre de pièces qui peuvent encore jouer reste à côté.
+     */
+    const resteMots = reste && !m.main.agi ? `${demisEnPas(m.main.reserve)} pas et l'action`
+      : reste ? `${demisEnPas(m.main.reserve)} pas` : !m.main.agi ? 'l\'action' : 'plus rien';
+    const consigne = !dispo ? 'Plus rien à jouer : passe la main'
+      : premiere ? `Ta main : ${PAS_PAR_MAIN} pas à répartir entre tes pièces, et une action. Touche une pièce.`
+      : !entamee ? 'Ta main. Touche une pièce'
+      : `Il reste ${resteMots}. Touche une pièce`;
     // La ligne du haut : qui est choisi (ou, en mode, ce qu'il reste à
     // toucher), le bouton du volet, la fin. Le mode ou le duel en cours
     // remplace le nom par la consigne : c'est ce qu'il faut lire à ce moment.
-    const nom = !sel ? `<span class="t-dock-nom t-dock-vide">${dispo ? `Touche une de tes pièces <i>${dispo} peu${dispo > 1 ? 'vent' : 't'} jouer</i>` : 'Plus rien à jouer'}</span>`
+    // Sans pièce choisie, la consigne prend SA ligne : à côté de la pastille
+    // et de deux boutons, il lui restait 85 px sur un téléphone et la règle de
+    // la première main faisait six lignes.
+    const avis = !sel ? `<div class="t-dock-consigne ${premiere ? 't-dock-regle' : ''}">${consigne}${dispo ? ` <i>${dispo} peu${dispo > 1 ? 'vent' : 't'} jouer</i>` : ''}</div>` : '';
+    const nom = !sel ? ''
       : (mode || cible) ? `<span class="t-dock-nom t-dock-aide">${esc(actions.aide)}</span>`
       : `<span class="t-dock-nom"><b class="t-fiche-role">${esc(sel.role)}</b> ${esc(nomCourt(sel.p))}</span>`;
     let tir = '';
@@ -969,21 +1006,19 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     } else if (sel && porteur(m) === sel && peutAgir(m, sel) && peutTirer(m, sel)) {
       tir = bouton('tir', 'Tirer', avec(modTir(m, sel), bonus('DECOCHE')), 't-tir');
     }
-    // LE BUDGET DE LA MAIN (S36) : un déplacement, une action — ce qui est
-    // dépensé s'éteint. « Fin du tour » rend la main sans dépenser le reste ;
-    // « Finir » renonce à toute la présence.
-    const entamee = m.main.bouge || m.main.agi;
-    // LE BUDGET PARTAGÉ (S42) : les pas qu'il reste à répartir, et l'action.
-    const reste = pasRestants(m);
-    const budget = `<span class="t-budget" title="À ta main : ${PAS_PAR_MAIN} pas à répartir sur qui tu veux — chaque pièce patine au plus une fois, jamais plus loin que son PA — et une action. Puis la sienne, et c'est un tour."><i class="${reste ? '' : 'fait'}"><b>${reste}/${PAS_PAR_MAIN}</b> Pas</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
+    const budget = `<span class="t-budget" title="À ta main : ${PAS_PAR_MAIN} pas à répartir sur qui tu veux — chaque pièce patine au plus une fois, jamais plus loin que son PA — et une action. Puis la sienne, et c'est un tour."><i class="${reste ? '' : 'fait'}"><b>${demisEnPas(m.main.reserve)}/${PAS_PAR_MAIN}</b> Pas</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
+    // « Passer la main », dans les deux cas. Le bouton disait « Passer » tant
+    // que la main n'était pas entamée — à côté du mode « Passer », celui qui
+    // passe la RONDELLE : on touchait « Passer » pour faire une passe, et
+    // c'est la main qui partait.
     const fin = entamee
       ? `<button type="button" class="t-fin-tour t-evident" title="Rendre la main sans dépenser ce qui reste">Passer la main</button>`
-      : `<button type="button" class="t-passer" title="Ne rien jouer cette main-ci : l'adversaire joue la sienne.">Passer</button>`;
+      : `<button type="button" class="t-passer" title="Ne rien jouer cette main-ci : l'adversaire joue la sienne.">Passer la main</button>`;
     const ouvre = `<button type="button" class="t-volet-btn" aria-expanded="${volet ? 'true' : 'false'}" title="${sel ? 'La fiche de la pièce, le banc et le fil' : 'Le banc des trios et le fil'}">${sel ? 'Fiche' : 'Banc'} <i>${volet ? '▾' : '▴'}</i></button>`;
     // La rangée des actions : le tir d'abord, puis les modes (un geste à
     // cible), puis les gestes sans cible. Elle se balaie si elle déborde.
     const rangee = sel ? `<div class="t-dock-actions">${tir}${actions.modes.join('')}${actions.gestes.join('')}</div>` : '';
-    return `<div class="t-dock-ligne">${nom}${budget}${ouvre}${fin}</div>${rangee}`;
+    return `${avis}<div class="t-dock-ligne ${sel ? '' : 't-dock-sans'}">${nom}${budget}${ouvre}${fin}</div>${rangee}`;
   }
 
   /* La bannière d'un but : elle passe une seconde sur le tableau indicateur. */
@@ -1015,6 +1050,10 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     deGlace = null;
     const avant = m.fil.length;
     appliquer(jet);
+    // Si ce jet vient de finir ma main, la barre le dira pendant la sienne.
+    const genres = m.fil.slice(0, Math.max(0, m.fil.length - avant)).map(e => e.genre);
+    if (genres.includes('but')) finDeMain = 'But';
+    else if (genres.includes('revirement')) finDeMain = 'Revirement : la main passe';
     verdict(avant, ou, jet.quoi);
     apres();
   }
@@ -1029,6 +1068,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    */
   function choisirSeul() {
     if (!aMoi()) { sel = null; mode = null; return; }
+    finDeMain = null;
     // La pièce activée reste choisie tant qu'elle joue.
     const rec = receptionPossible(m);
     if (rec && rec.eq === 'A') { sel = rec; return; }
@@ -1043,7 +1083,11 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   function apres() {
     // Le budget de la main vide — ou plus rien à en faire — la main passe…
     // sauf si une passe vient d'ouvrir le une-deux : le receveur décide.
-    if (!m.fini && m.tour === 'A' && !receptionPossible(m) && !eqDe(m, 'A').pieces.some(aDesOptions)) { deGlace = null; finirMain(m); }
+    if (!m.fini && m.tour === 'A' && !receptionPossible(m) && !eqDe(m, 'A').pieces.some(aDesOptions)) {
+      deGlace = null;
+      finDeMain = finDeMain || 'Ta main est jouée';
+      finirMain(m);
+    }
     choisirSeul();
     rendre();
     if (!m.fini && m.tour === 'B' && !iaEnCours) tourAdverse();
@@ -1161,7 +1205,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       if (eq.buts > butsVus[c]) {
         butsVus[c] = eq.buts;
         eclat = { eq: c, texte: eq.nom };
-        setTimeout(() => { eclat = null; if (!regles) $('.t-tete').innerHTML = tete() + banniere(); }, 1800);
+        clearTimeout(minuteurEclat);
+        minuteurEclat = setTimeout(() => { eclat = null; if (!regles) $('.t-tete').innerHTML = tete() + banniere(); }, 1800);
       }
     }
   }
@@ -1245,8 +1290,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       else if (quoi === 'reception') { const j = tirerSurReception(m); if (j) lancer(j, 'A', jj => appliquerTir(m, piece, jj), placesDe(piece, null)); else rendre(); }
       return;
     }
-    if (t.closest('.t-fin-tour')) { sel = null; cible = null; mode = null; deGlace = null; finirMain(m); apres(); return; }
-    if (t.closest('.t-passer')) { sel = null; cible = null; mode = null; deGlace = null; flash = null; renoncer(m); apres(); return; }
+    if (t.closest('.t-fin-tour')) { sel = null; cible = null; mode = null; deGlace = null; finDeMain = 'Main passée'; finirMain(m); apres(); return; }
+    if (t.closest('.t-passer')) { sel = null; cible = null; mode = null; deGlace = null; flash = null; finDeMain = 'Main passée sans jouer'; renoncer(m); apres(); return; }
     const uni = t.closest('.t-seg button');
     if (uni) {
       const quoi = uni.parentElement.dataset.u, v = +uni.dataset.v;
@@ -1263,6 +1308,17 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // classement, on ne peut pas s'en sauver.
     let garde = 0;
     while (!m.fini && garde++ < 4000) iaPresence(m);
+    /*
+     * LES MINUTERIES MEURENT AVEC LE MATCH. La présence adverse, le verdict et
+     * la bannière d'un but se lisent sur des minuteries, et fermer ne les
+     * coupait pas : un match rouvert dans la foulée (« Un autre match » en
+     * exhibition, ou le tournoi qui enchaîne) héritait d'un `rendre()` du
+     * match d'AVANT, qui repeignait la glace neuve avec un match fini. Le
+     * modale est partagé, donc les fermetures de l'un sont le décor de
+     * l'autre.
+     */
+    clearTimeout(minuteurIA); clearTimeout(minuteurFlash); clearTimeout(minuteurEclat);
+    iaEnCours = false; avancerIA = null;
     modal.style.display = 'none';
     document.body.style.overflow = '';
     modal.onclick = null;

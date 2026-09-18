@@ -4,6 +4,8 @@
  *   python3 -m http.server 8000 &
  *   node scripts/smoke_table.mjs http://localhost:8000
  *
+ * 0. l'exhibition : deux matchs sur table sans repêchage, depuis l'écran
+ *    « Nouvelle partie », et zéro joueur signé après
  * 1. la page démarre, l'option « Sur table » se choisit dans les options
  * 2. auto-draft jusqu'à 23/23 (le repêchage est le même : c'est le but)
  * 3. #mainBtn mène au tournoi (#hubModal), pas à la saison
@@ -78,9 +80,54 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');
 
+/* ---------- l'exhibition : le plateau sans repêchage ----------
+   JP : *créer exhibition pour jeu de table pour plus facile de tester ?*. Le
+   bouton est sur l'écran « Nouvelle partie » (déjà ouvert : le localStorage
+   vient d'être vidé), il tire deux vrais clubs et ouvre le plateau tout de
+   suite ; fermer le match le laisse se finir, et le mot du résultat offre un
+   autre match. La partie en cours n'est pas touchée : zéro signé après. */
+await page.waitForSelector('#partieModal #npExhibition', { state: 'visible', timeout: 30000 });
+await page.click('#npExhibition');
+await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
+{
+  const lireTitre = async () => (await page.textContent('#tableModal .t-titre')).replace(/\s+/g, ' ').trim();
+  const titre = await lireTitre();
+  const casesEx = await page.$$eval('#tableModal .t-case', l => l.length);
+  console.log(`0. exhibition ouverte : « ${titre} », ${casesEx} cases`);
+  if (!/exhibition/i.test(titre)) errors.push(`le plateau d'exhibition titre « ${titre} »`);
+  if (!/contre/.test(titre)) errors.push('l\'exhibition ne nomme pas ses deux clubs');
+  if (casesEx !== COLS_ATTENDU * RANGS_ATTENDU) errors.push(`l'exhibition montre ${casesEx} cases au lieu de ${COLS_ATTENDU * RANGS_ATTENDU}`);
+  const debordeEx = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (debordeEx > 1) errors.push(`l'exhibition déborde de ${debordeEx} px à 390 px`);
+  await page.click('#tableModal .table-close');
+  await page.waitForSelector('#gameModal', { state: 'visible', timeout: 30000 });
+  const mot = (await page.textContent('#gameModal .tr-verdict')).replace(/\s+/g, ' ').trim();
+  console.log(`   résultat : « ${mot} »`);
+  if (!/\d+ – \d+/.test(mot)) errors.push(`le mot de l'exhibition ne porte pas de pointage : « ${mot} »`);
+  /* « Un autre match » : deux clubs neufs, le plateau se rouvre sur la même
+     modale — c'est ici qu'une minuterie du match d'avant repeignait la glace
+     neuve avec un match fini. On vérifie que le titre a changé ET que la glace
+     est vierge de résultat. */
+  await page.click('#exhibitionEncore');
+  await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
+  await page.waitForTimeout(900);
+  const titre2 = await lireTitre();
+  const resultatFantome = await page.$('#tableModal .t-resultat');
+  if (titre2 === titre) errors.push('« Un autre match » a rejoué les mêmes clubs');
+  if (resultatFantome) errors.push('la glace du deuxième match d\'exhibition porte le résultat du premier');
+  console.log(`   un autre match : « ${titre2} »`);
+  await page.click('#tableModal .table-close');
+  await page.waitForSelector('#gameModal', { state: 'visible', timeout: 30000 });
+  await page.click('#exhibitionFin');
+  await page.waitForSelector('#gameModal', { state: 'hidden', timeout: 5000 });
+  const signesEx = parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
+  if (signesEx !== 0) errors.push(`l'exhibition a touché la partie : ${signesEx} signé(s)`);
+  // L'exhibition a fermé l'écran « Nouvelle partie » pour laisser la glace : on le rouvre.
+  await page.click('#openPartieBtn');
+}
+
 /* ---------- l'écran « Nouvelle partie » : choisir « Sur table » ----------
-   Le localStorage vient d'être vidé, donc l'écran est déjà ouvert : plus rien
-   à ouvrir. Rien ne s'applique avant le clic sur le pied. */
+   Rien ne s'applique avant le clic sur le pied. */
 await page.waitForSelector('#partieModal [data-opt="bonus"]', { state: 'visible', timeout: 30000 });
 await page.click('#partieModal [data-opt="bonus"] button[data-val="TABLE"]');
 const choisi = await page.$eval('#partieModal [data-opt="bonus"] button[data-val="TABLE"]', b => b.classList.contains('on'));
@@ -183,6 +230,8 @@ let alternances = 0, gesteAvant = false;
 let captureModes = false;
 const vus = new Set();
 const modesVus = new Set();
+const motsFin = new Set();
+let passerMal = null;
 while (tours++ < 4000) {
   if (!(await page.$('#tableModal .t-glace'))) break;
   const etat = await page.evaluate(() => ({
@@ -213,8 +262,12 @@ while (tours++ < 4000) {
     modes: [...document.querySelectorAll('#tableModal [data-mode]')].map(b => b.dataset.mode),
     modeOn: document.querySelector('#tableModal [data-mode].on')?.dataset.mode || null,
     finTour: !!document.querySelector('#tableModal .t-fin-tour'),
+    // Le mot de la fin de main, lu pendant la main adverse (S42) ; et le
+    // libellé du bouton qui saute la main, qui ne doit plus dire « Passer ».
+    motFin: (document.querySelector('#tableModal .t-dock-attente b') || {}).textContent || '',
+    passer: (document.querySelector('#tableModal .t-passer') || {}).textContent || '',
     fin: !!document.querySelector('#tableModal .t-resultat'),
-    unites: !!document.querySelector('#tableModal .t-seg button:not(.on)'),
+    unites: !!document.querySelector('#tableModal .t-seg button:not(.on):not([disabled])'),
   }));
   if (etat.fin) break;
   if (etat.suite) {
@@ -235,7 +288,7 @@ while (tours++ < 4000) {
     }
     await page.click('#tableModal .t-suite'); await page.waitForTimeout(50); continue;
   }
-  if (!etat.mien) { if (gesteAvant) alternances++; gesteAvant = false; await page.waitForTimeout(180); continue; }
+  if (!etat.mien) { if (gesteAvant) alternances++; gesteAvant = false; if (etat.motFin) motsFin.add(etat.motFin.trim()); await page.waitForTimeout(180); continue; }
   for (const g of etat.autres) vus.add(g);
   for (const g of etat.modes) modesVus.add(g);
   if (etat.autres.includes('reception')) activationsVues++;
@@ -266,7 +319,7 @@ while (tours++ < 4000) {
   }
   // Changer de trio deux fois dans le match : c'est la mécanique de fatigue.
   // Les trios sont dans le VOLET (S34) : on l'ouvre d'abord quand il est fermé.
-  if (etat.unites && changements < 2) { await ouvrirVolet(); await page.click('#tableModal .t-seg button:not(.on)'); changements++; await page.waitForTimeout(60); continue; }
+  if (etat.unites && changements < 2) { await ouvrirVolet(); await page.click('#tableModal .t-seg button:not(.on):not([disabled])'); changements++; await page.waitForTimeout(60); continue; }
   /*
    * LE DUEL SE CHERCHE EXPRÈS, IL NE SE TIRE PAS AU SORT. Première version :
    * elle cliquait un contact au hasard une fois sur deux, donc elle tombait
@@ -332,6 +385,7 @@ while (tours++ < 4000) {
   // que si la main n'était pas entamée.
   const fa = await page.$('#tableModal .t-fin-tour');
   if (fa) { await fa.click(); activationsFinies++; await page.waitForTimeout(60); continue; }
+  if (etat.passer && etat.passer.trim() !== 'Passer la main') passerMal = etat.passer.trim();
   const fp = await page.$('#tableModal .t-passer');
   if (fp) { await fp.click(); await page.waitForTimeout(60); continue; }
   break;
@@ -341,6 +395,13 @@ const pointage = await page.textContent('#tableModal .tb-score').catch(() => '')
 console.log(`   ${gestes} gestes joués, ${relances} relance(s) d'équipe, ${changements} changement(s) de trio, ${pieces} changements de pièce, ${alternances} fois l'adversaire a joué juste après mon geste, ${activationsVues} une-deux offert(s), ${activationsFinies} activation(s) finie(s) au bouton`);
 if (!alternances) errors.push('l\'adversaire n\'a jamais joué entre deux de mes gestes : l\'alternance une pièce à la fois ne se joue pas');
 console.log(`   gestes offerts par la carte : ${[...vus].sort().join(', ') || 'aucun'}`);
+/* LA MAIN SE LIT (S42). JP : *je comprends définitivement pas comment se
+   jouent les mains*. Pendant la main adverse, la barre dit pourquoi la mienne
+   a fini ; et le bouton qui saute la main dit « Passer la main », jamais
+   « Passer » tout court — c'était le mot du mode qui passe la rondelle. */
+console.log(`   fins de main lues pendant la main adverse : ${[...motsFin].join(' · ') || 'aucune'}`);
+if (!motsFin.size) errors.push('la barre ne dit jamais pourquoi ma main a fini pendant la main adverse');
+if (passerMal) errors.push(`le bouton qui saute la main dit « ${passerMal} » au lieu de « Passer la main »`);
 console.log(`   modes offerts : ${[...modesVus].sort().join(', ') || 'aucun'} · ${modesJoues} joués par mode, ${degagements} dégagement(s), ${sauts} verdict(s) sautés en touchant la glace`);
 if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes Patiner et Passer n'ont pas tous deux été offerts : ${[...modesVus].join(', ')}`);
 /*

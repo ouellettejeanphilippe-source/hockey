@@ -28,7 +28,8 @@ import {
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
-import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT } from './table.js';
+import { ouvrirTable } from './plateau.js';
+import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
 import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
@@ -859,6 +860,11 @@ function setupEvents() {
    * le reste de l'interface, et si un shard ne répond pas on a encore un
    * endroit où revenir.
    */
+  // L'exhibition ne passe PAS par le pied : elle n'applique rien, elle ouvre
+  // un match. C'est un deuxième bouton, avec sa propre porte.
+  const ex = $('npExhibition');
+  if (ex) ex.onclick = () => jouerExhibition();
+
   const go = $('npGo');
   if (go) {
     go.onclick = async () => {
@@ -2837,17 +2843,21 @@ const bar = (label, val) => {
 /**
  * Adversaires : de vraies équipes historiques prises dans les saisons déjà
  * chargées, alignées automatiquement. Les joueurs déjà signés sont exclus.
+ * `epoque` borne le tirage à une saison (celle de la ligue, par défaut) et
+ * `tous` dit qu'on prend TOUS ses clubs, dans l'ordre du shard — c'est la
+ * ligue d'une saison — plutôt que `count` clubs tirés au hasard : le tournoi
+ * dans les 55 saisons, ou l'exhibition dans une saison donnée.
  */
-async function buildOpponents(count) {
+async function buildOpponents(count, { epoque = G.epoque, tous = !!epoque } = {}) {
   // Par joueur-SAISON : sans ça, un adversaire pouvait aligner le même homme
   // que toi sous les couleurs de l'autre équipe où il a passé cette année-là.
   const exclude = new Set(picked().map(getPersonKey));
   const cands = [], seen = new Set();
   // UNE SAISON : la ligue, c'est tous les vrais clubs de cette année-là.
-  if (G.epoque) { try { await getShard(G.epoque); } catch { /* le shard est déjà là depuis la roulette */ } }
+  if (epoque) { try { await getShard(epoque); } catch { /* le shard est déjà là depuis la roulette */ } }
   const collect = () => {
     for (const [season, entry] of G.shards) {
-      if (G.epoque && season !== G.epoque) continue;
+      if (epoque && season !== epoque) continue;
       for (const [team, pool] of Object.entries(entry.byTeam)) {
         const key = `${season}_${team}`;
         if (seen.has(key)) continue;
@@ -2862,7 +2872,7 @@ async function buildOpponents(count) {
   };
   collect();
   let tries = 0;
-  while (!G.epoque && cands.length < count && tries++ < 12) {
+  while (!epoque && cands.length < count && tries++ < 12) {
     try { await getShard(rnd(state.index.seasons)); } catch { /* on réessaie */ }
     collect();
   }
@@ -2872,8 +2882,8 @@ async function buildOpponents(count) {
   // Une saison fixée prend TOUS ses clubs, dans l'ordre du shard, et personne
   // n'est retranché : ta formation est la 33e équipe (voir runSeason).
   const out = [];
-  for (const c of G.epoque ? cands : cands.sort(() => Math.random() - 0.5)) {
-    if (!G.epoque && out.length >= count) break;
+  for (const c of tous ? cands : cands.sort(() => Math.random() - 0.5)) {
+    if (!tous && out.length >= count) break;
     const roster = autoRoster(c.pool, exclude);
     for (const p of Object.values(roster)) exclude.add(getPersonKey(p));
     out.push(createTeam(`${c.team} ${c.season}`, c.team, roster, { season: c.season }));
@@ -3212,6 +3222,93 @@ function montrerBilanTournoi(T) {
   const b = $('tournoiNouveau');
   if (b) b.onclick = () => { closeModal('gameModal'); ouvrirNouvellePartie(); };
   renderMain();
+}
+
+/* ======================================================================
+   L'EXHIBITION : LE PLATEAU TOUT DE SUITE, SANS REPÊCHAGE
+   ======================================================================
+   JP : *créer exhibition pour jeu de table pour plus facile de tester ?*.
+
+   Pour toucher le plateau, il fallait bâtir vingt-trois cases, lancer le
+   tournoi, puis ouvrir son premier match : dix minutes avant le premier
+   geste, sur le mode qu'on retouche le plus. Un match d'exhibition tire deux
+   vrais clubs — dans la saison que l'écran « Nouvelle partie » affiche, sinon
+   dans les 55 — et ouvre le plateau directement ; ta formation prend la
+   place du premier club si elle est complète, parce qu'un alignement qu'on
+   vient de bâtir est ce qu'on a le plus envie d'essayer.
+
+   RIEN N'EST ÉCRIT : ni la partie en cours, ni la sauvegarde, ni
+   l'historique. C'est une partie de pratique. Le match fini, la feuille sort
+   comme au tournoi, puis un mot du résultat offre un autre match — deux
+   clubs neufs, ou les mêmes sur d'autres dés — parce que tester, c'est
+   rejouer.
+   ====================================================================== */
+
+let exhibition = null;        // { epoque, A, B } — le dernier match, pour le rejouer
+let exhibitionEnCours = false;
+
+async function jouerExhibition({ memes = false } = {}) {
+  if (exhibitionEnCours) return;
+  exhibitionEnCours = true;
+  const bouton = $('npExhibition');
+  const libelle = bouton ? bouton.textContent : '';
+  if (bouton) { bouton.disabled = true; bouton.textContent = 'Tirage des clubs…'; }
+  try {
+    // La saison est celle que l'ÉCRAN montre tant que le brouillon existe :
+    // l'exhibition suit ce qu'on lit, sans rien appliquer à la partie. Le
+    // brouillon est jeté à la fermeture, donc « Un autre match » relit la
+    // saison mémorisée au premier tirage.
+    const epoque = G.brouillon ? G.brouillon.epoque : exhibition ? exhibition.epoque : G.epoque;
+    let A, B;
+    if (memes && exhibition) ({ A, B } = exhibition);
+    else {
+      const mienne = slotsLeft() === 0 && capLeft() >= 0;
+      const n = mienne ? 1 : 2;
+      // Deux saisons de plus dans le sac avant de tirer : `buildOpponents` ne
+      // charge que s'il manque des clubs, et au premier match il n'y a que la
+      // saison de la roulette — l'exhibition ressortait 1978-79 contre 1978-79
+      // à chaque coup. Une saison, c'est une requête, et le cache la garde.
+      if (!epoque) for (let i = 0; i < 2; i++) { try { await getShard(rnd(state.index.seasons)); } catch { /* on tire avec ce qu'on a */ } }
+      let clubs = [];
+      try { clubs = await buildOpponents(n, { epoque, tous: false }); } catch { clubs = []; }
+      if (clubs.length < n) { toast('Impossible de réunir deux clubs pour l\'exhibition.', 'bad'); return; }
+      const club = t => ({ nom: t.name, tag: t.tag, roster: t.roster });
+      A = mienne ? { nom: 'NHL Stars', tag: 'YOU', roster: { ...G.roster } } : club(clubs[0]);
+      B = club(clubs[n - 1]);
+    }
+    exhibition = { epoque, A, B };
+    closeModal('partieModal');
+    ouvrirTable({
+      A: equipeDeTable(A.nom, A.tag, A.roster, 'A'),
+      B: equipeDeTable(B.nom, B.tag, B.roster, 'B'),
+      graine: nouvelleGraine(), ctx: ctxTable(),
+      titre: 'Exhibition', sousTitre: `${A.nom} contre ${B.nom}`,
+      onTermine: r => montrerFinExhibition(A, B, r),
+    });
+  } finally {
+    exhibitionEnCours = false;
+    if (bouton) { bouton.disabled = false; bouton.textContent = libelle; }
+  }
+}
+
+/** Le mot du résultat, et la suite : un autre match, les mêmes clubs, ou rien. */
+function montrerFinExhibition(A, B, r) {
+  if (!r) return;
+  const gagneA = gagnantDuMatch(r) === 'A';
+  const mienne = A.tag === 'YOU';
+  $('gameModalTitle').textContent = 'Match d\'exhibition';
+  $('gameModalBody').innerHTML = `
+    <p class="tr-verdict ${mienne && gagneA ? 'gagne' : ''}">${getTeamLogoHtml(A.tag, 22)} ${esc(A.nom)} ${r.gfA} – ${r.gfB} ${esc(B.nom)} ${getTeamLogoHtml(B.tag, 22)}${r.prolongation ? ' <i>PROL.</i>' : ''}</p>
+    <p class="tr-note">${esc(gagneA ? A.nom : B.nom)} l'emporte. Rien n'est écrit : la partie en cours et l'historique ne bougent pas.</p>
+    <div class="tr-actions">
+      <button type="button" id="exhibitionEncore" class="btn">Un autre match</button>
+      <button type="button" id="exhibitionMemes" class="btn">Les mêmes clubs</button>
+      <button type="button" id="exhibitionFin" class="btn">Fermer</button>
+    </div>`;
+  openModal('gameModal');
+  $('exhibitionEncore').onclick = () => { closeModal('gameModal'); jouerExhibition(); };
+  $('exhibitionMemes').onclick = () => { closeModal('gameModal'); jouerExhibition({ memes: true }); };
+  $('exhibitionFin').onclick = () => closeModal('gameModal');
 }
 
 /**
