@@ -193,13 +193,30 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       // choisir) ; en mode « épaule » ou « bâton », le geste est déjà choisi
       // et la touche le joue.
       if (piece.eq === 'B' && !piece.gardien && !piece.etourdi && dist(sel, piece) === 1 && peutAgir(m, sel) && porteur(m) !== sel) {
+        /*
+         * LA CASE DEMANDE AU MOTEUR, elle ne devine pas (S42). Elle
+         * s'allumait sur la seule adjacence : une pièce en pleine course ou
+         * essoufflée voyait donc la case du porteur s'allumer, et la
+         * toucher n'offrait RIEN — ni Frapper ni Harponner, les deux
+         * boutons lisant `ciblesEchecDe` et `ciblesVolDe`. Une case allumée
+         * qui ne fait rien est exactement ce que « jouable veut dire a
+         * encore quelque chose à faire » interdit.
+         */
         const porte = porteur(m) === piece;
-        if (mode === 'vol') return porte ? { type: 'vol', cible: piece, duel: avec(modVol(m, sel, piece), bonus('ACTIF')) } : null;
+        const peutFrapper = ciblesEchecDe(m, sel).includes(piece);
+        const peutVoler = ciblesVolDe(m, sel).includes(piece);
+        if (mode === 'vol') return porte && peutVoler ? { type: 'vol', cible: piece, duel: avec(modVol(m, sel, piece), bonus('ACTIF')) } : null;
         if (!veut('echec')) return null;
-        const d = avec(modEchec(m, sel, piece), bonus('ACTIF') + bonus('EPAULE'));
-        return porte && !mode
-          ? { type: 'duel', cible: piece, duel: d }
-          : { type: 'echec', cible: piece, duel: d };
+        // Sur le PORTEUR et sans mode, la case ouvre le DUEL — la carte fait
+        // choisir entre l'épaule et le bâton, et n'affiche que ce qui est
+        // jouable. Elle ne joue jamais un geste à la place du choix : c'est
+        // le choix qui est le geste. Ailleurs, c'est l'épaule ou rien.
+        if (porte && !mode) return peutFrapper || peutVoler
+          ? { type: 'duel', cible: piece, duel: avec(modEchec(m, sel, piece), bonus('ACTIF') + bonus('EPAULE')) }
+          : null;
+        return peutFrapper
+          ? { type: 'echec', cible: piece, duel: avec(modEchec(m, sel, piece), bonus('ACTIF') + bonus('EPAULE')) }
+          : null;
       }
       return null;
     }

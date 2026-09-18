@@ -352,24 +352,43 @@ if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes 
  * à tous les coups faisait rougir le test au hasard, exactement comme
  * l'assertion sur les passes de check_table.mjs a fait rougir main.
  *
- * On affirme donc ce que le PLATEAU doit garantir quoi qu'il arrive : au
- * moins trois des cinq gestes offerts (moins, et la carte est cassée), et le
- * duel offert dès qu'il s'est présenté, puisque là c'est nous qui avons
- * cliqué le porteur exprès. Le reste est rapporté, pas exigé.
+ * On affirme donc ce que le PLATEAU doit garantir quoi qu'il arrive : le
+ * TIR, et le HARPONNAGE dès qu'un duel s'est ouvert, puisque là c'est nous
+ * qui avons cliqué le porteur exprès. Les gestes sont NOMMÉS plutôt que
+ * comptés — un compte ne dit pas lesquels manquent, et il a caché une vraie
+ * cause pendant tout un chantier (voir l'assertion en bas de fichier). Le
+ * reste est rapporté, pas exigé.
  *
- * ET LE PARCOURS EST MAINTENANT DÉTERMINISTE (voir `GRAINE` en tête), donc ce
- * seuil ne se joue plus aux dés : sous la graine par défaut le joueur scripté
- * voit les mêmes gestes, trois fois sur trois. Il est tombé à deux dans
- * l'Action tant que les deux couches de hasard subsistaient — et rien du
- * plateau n'avait bougé.
+ * ET LE PARCOURS EST DÉTERMINISTE (voir `GRAINE` en tête) : sous la graine
+ * par défaut le joueur scripté voit les mêmes gestes à chaque exécution, sur
+ * ce poste comme dans l'Action — vérifié en S42, où le même parcours a rendu
+ * les mêmes 360 gestes et le même champion des deux côtés.
  */
-const TOUS = ['tir', 'echec', 'vol', 'reception'];
-if (vus.size < 3) errors.push(`seulement ${vus.size} geste(s) offert(s) par la carte sur ${TOUS.length} : ${[...vus].join(', ') || 'aucun'}`);
+/*
+ * ON EXIGE CE QUE LE PLATEAU GARANTIT, ET ON NOMME LES GESTES (S42). Le
+ * seuil était « au moins trois des quatre », un COMPTE qui ne disait pas
+ * lesquels ; il est devenu infaisable pour une raison de jeu, pas de carte.
+ *
+ * ON NE FRAPPE PAS EN PLEINE COURSE (S41) : la carte n'offre « Frapper »
+ * qu'à une pièce qui n'a pas patiné cette main-ci. Le joueur scripté ferme
+ * sur le porteur puis ouvre le duel dans la MÊME main, donc il le demande
+ * toujours au seul joueur qui ne peut pas y répondre — et depuis que la
+ * main achète aussi un placement (S42), la pièce qu'il a sous la main est
+ * encore plus souvent celle qui vient de patiner. Le geste reste parfaitement
+ * joignable pour un humain : mesuré dans le moteur, 30 % des mains
+ * défensives commencent avec une pièce qui PEUT frapper, et `check_table`
+ * compte 13,9 mises en échec par équipe par match. Exiger ici qu'un
+ * parcours scripté tombe dessus, ce serait une loterie — exactement ce que
+ * ce fichier s'interdit.
+ *
+ * On exige donc les deux gestes que la carte doit offrir quoi qu'il arrive :
+ * le TIR, et le HARPONNAGE dès qu'un duel s'est ouvert (le bâton, lui, ne
+ * demande pas d'être à l'arrêt). Le reste est rapporté, pas exigé.
+ */
+if (!vus.has('tir')) errors.push(`le geste « tir » n'a jamais été offert par la carte (vus : ${[...vus].join(', ') || 'aucun'})`);
 if (occasionsDuel) {
-  for (const g of ['echec', 'vol']) {
-    if (!vus.has(g)) errors.push(`le duel s'est présenté ${occasionsDuel} fois mais le geste « ${g} » n'a jamais été offert`);
-  }
-  console.log(`   le duel épaule / bâton s'est présenté ${occasionsDuel} fois`);
+  if (!vus.has('vol')) errors.push(`le duel s'est présenté ${occasionsDuel} fois mais le geste « vol » n'a jamais été offert`);
+  console.log(`   le duel épaule / bâton s'est présenté ${occasionsDuel} fois · frapper ${vus.has('echec') ? 'offert' : 'jamais offert (le porteur était fermé en pleine course)'}`);
 } else {
   console.log('   aucune occasion de duel ce match-ci (le porteur adverse n\'est jamais venu à portée)');
 }
