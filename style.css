@@ -2889,6 +2889,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .modal-sheet { border-radius: var(--r-l); max-height: 88vh; }
   .opt-row { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }
   .opt-modes .opt-text { flex: 1 1 220px; }
+  .np-exhibition { align-self: center; }
 
 /* ---- l'écran « Nouvelle partie » : on compose, puis on lance ----
    JP : *faire bouton new game aussi, qui permet de choisir les options du jeu
@@ -2930,6 +2931,11 @@ table.data .pts { font-weight: 900; color: var(--green); }
    vert-là dit « contrat signé », un état acquis, pas une destruction. */
 .np-go.efface { background: var(--red); border-color: var(--red); color: var(--bg); }
 .np-go:disabled { background: var(--panel-2); border-color: var(--line); color: var(--muted); }
+/* L'exhibition est un BOUTON dans une rangée de réglages, pas un segment : il
+   ne règle rien, il ouvre un match. Il garde sa largeur, le texte prend le
+   reste ; sur téléphone il se pose sous le texte, au bord gauche. */
+.np-exhibition { flex: none; align-self: flex-start; white-space: nowrap; }
+.np-exhibition:disabled { color: var(--muted); }
 /* Quatre pastilles dans la barre du haut : sur téléphone elles se serrent. */
 @media (max-width: 560px) { .topbar-actions { gap: 2px; } }
   .opt-text { flex: 1; }
@@ -3935,6 +3941,16 @@ a.spin-club:hover {
 .t-dock-nom .t-fiche-role { margin-right: 4px; }
 .t-dock-nom i { font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 6px; }
 .t-dock-vide, .t-dock-attente { font-size: 13.5px; font-weight: 600; color: var(--sub); }
+/* La consigne dit la main — ce qu'elle achète, ce qu'il en reste, pourquoi
+   elle a fini — donc elle peut faire deux lignes : elle ne se coupe pas aux
+   points de suspension. Le mot de la fin de main est en laiton. */
+.t-dock-vide, .t-dock-attente { white-space: normal; line-height: 1.2; }
+.t-dock-attente b { color: var(--gold); font-weight: 800; }
+.t-dock-consigne { font-size: 13.5px; font-weight: 600; color: var(--sub); line-height: 1.25; }
+.t-dock-consigne i { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 4px; }
+.t-dock-regle { color: var(--text); }
+/* Sans pièce choisie, la ligne des boutons pousse la pastille à gauche. */
+.t-dock-sans .t-budget { margin-right: auto; }
 .t-dock-aide { font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--gold); white-space: normal; line-height: 1.25; }
 .t-dock-ligne button { flex: 0 0 auto; font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; padding: 6px 11px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: var(--r-s); cursor: pointer; white-space: nowrap; }
 .t-volet-btn i { font-style: normal; color: var(--muted); }
