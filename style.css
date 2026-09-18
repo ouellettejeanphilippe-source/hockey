@@ -3883,6 +3883,25 @@ a.spin-club:hover {
    la glace pour reparaître à l'autre. C'est aussi ce qui rend la présence
    adverse lisible : on voit qui bouge.
    ====================================================================== */
+/* LA LIGNE DU DÉPLACEMENT (S44) : la route que la pièce va prendre, ou vient
+   de prendre. Elle vit entre les cases et les jetons — au-dessus de la glace,
+   sous les joueurs — et se dessine en unités de case comme la patinoire, donc
+   changer la géométrie du moteur la redessine. Elle ne porte AUCUNE
+   information que la case n'a pas déjà : le prix est écrit dessus, la ligne
+   ne montre que le chemin. */
+.t-trace { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }
+.t-trace-ligne, .t-trace-liseré { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.t-trace-ligne { stroke: var(--green); stroke-width: 0.12; }
+.t-trace-liseré { stroke: var(--glace-blanc, #fff); stroke-width: 0.28; opacity: 0.9; }
+.t-trace-ligne.apercu { stroke-dasharray: 0.26 0.2; opacity: 0.85; }
+.t-trace .jouee { animation: t-trace-part 1100ms ease-out forwards; }
+.t-trace-bout { fill: var(--green); }
+.t-trace-fin { fill: none; stroke: var(--green); stroke-width: 0.09; }
+@keyframes t-trace-part { 0%, 55% { opacity: 0.95; } 100% { opacity: 0; } }
+/* Rien de ce qui bouge ne PORTE d'information : la route est déjà entière
+   au premier rendu, l'animation ne fait que l'effacer, et la minuterie la
+   retire de toute façon. */
+@media (prefers-reduced-motion: reduce) { .t-trace .jouee { animation: none; } }
 .t-pieces { position: absolute; inset: 0; pointer-events: none; }
 .t-jeton {
   position: absolute; top: 2px; left: 2px;
