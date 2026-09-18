@@ -3837,12 +3837,25 @@ a.spin-club:hover {
 
 /* Ce qu'une case PROPOSE à la pièce choisie. Quatre couleurs, quatre gestes. */
 .t-offre { cursor: pointer; }
-.t-offre-deplacer { background: var(--green-soft); box-shadow: inset 0 0 0 1px rgba(70, 201, 139, 0.45); }
+.t-offre-deplacer { background: color-mix(in srgb, var(--green) 11%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 22%, transparent); }
 .t-offre-passe { box-shadow: inset 0 0 0 2px var(--blue); }
 .t-offre-echec { box-shadow: inset 0 0 0 2px var(--red); }
 /* Le rayon adverse (S38) : une case couverte par un bâton est ombrée, deux plus sombre. Sur la glace blanche, l'encre à 7 et 14 %. */
-.t-case.t-rayon { background: color-mix(in srgb, var(--glace-encre, #10131a) 7%, transparent); }
-.t-case.t-rayon-2 { background: color-mix(in srgb, var(--glace-encre, #10131a) 14%, transparent); }
+.t-case.t-rayon, .t-case.t-rayon-2 {
+  background-image: repeating-linear-gradient(135deg,
+    color-mix(in srgb, var(--glace-encre, #10131a) 13%, transparent) 0 1px,
+    transparent 1px 5px);
+}
+.t-case.t-rayon-2 {
+  background-image: repeating-linear-gradient(135deg,
+    color-mix(in srgb, var(--glace-encre, #10131a) 20%, transparent) 0 1.5px,
+    transparent 1.5px 4px);
+}
+/* EN POSITION DE HORS-JEU (S45) : la pièce devance la rondelle. Le fanion se
+   lit sur le jeton, et le liseré dit que quelque chose ne va pas — la règle
+   doit se voir AVANT le sifflet, sinon elle n'est qu'une punition. */
+.t-jeton.horsjeu { box-shadow: 0 0 0 2px var(--red); }
+.t-hj { position: absolute; top: -2px; left: -2px; font-size: clamp(8px, calc(var(--tcell) * 0.3), 13px); line-height: 1; color: var(--red); }
 .t-fatigue-air { opacity: 0.7; }
 .t-axe-so.fatigue b { color: var(--gold); }
 .t-axe-so b small { font-size: 0.6em; font-weight: 600; opacity: 0.7; }
@@ -3862,9 +3875,10 @@ a.spin-club:hover {
    centrées, et un chiffre qui saute de place selon qu'un dé pend ou non se
    cherche des yeux à chaque case. */
 .t-pas {
-  position: absolute; left: 1px; top: 0; font-family: var(--display);
-  font-size: clamp(11px, calc(var(--tcell) * 0.28), 16px); font-weight: 800; color: var(--green);
-  background: var(--fond-creux); padding: 0 3px; border-radius: 3px; line-height: 1.3;
+  position: absolute; left: 2px; top: 0; font-family: var(--display);
+  font-size: clamp(10px, calc(var(--tcell) * 0.27), 15px); font-weight: 700; line-height: 1.25;
+  color: color-mix(in srgb, var(--glace-encre, #10131a) 62%, transparent);
+  letter-spacing: -0.01em;
 }
 .t-risque:empty { display: none; }
 .t-risque {
@@ -3923,10 +3937,16 @@ a.spin-club:hover {
    feuille du navigateur, donc la rondelle libre restait sur la glace en
    permanence, à l'endroit où elle avait été ramassée. */
 .t-rondelle-libre-jeton[hidden] { display: none; }
+/* La rondelle est là en permanence : cerclée d'or quand elle est LIBRE, un
+   simple disque quand quelqu'un la porte — c'est l'état qui change, pas
+   l'objet, donc elle voyage au lieu de se téléporter. Un sifflet la repose
+   d'un coup (`.saute`) : là, c'est l'arbitre. */
 .t-rondelle-libre-jeton::after {
-  content: ''; width: 13px; height: 13px; border-radius: 50%;
-  background: var(--glace-encre); box-shadow: 0 0 0 2px var(--gold);
+  content: ''; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--glace-encre); transition: box-shadow 200ms, width 200ms, height 200ms;
 }
+.t-rondelle-libre-jeton.libre::after { width: 13px; height: 13px; box-shadow: 0 0 0 2px var(--gold); }
+.t-rondelle-libre-jeton.saute { transition: none; }
 /* Qui agit, et sur qui. Deux états, deux couleurs, aucun texte à lire. */
 .t-jeton.jouable { box-shadow: 0 0 0 1px var(--gold); }
 .t-jeton.choisie { z-index: 4; box-shadow: 0 0 0 2px var(--gold); }
@@ -3990,6 +4010,91 @@ a.spin-club:hover {
 .t-budget i b { color: inherit; font-size: inherit; margin-right: 3px; }   /* les pas qu'il reste, dans la pastille (S42) */
 .t-dock-actions { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .t-dock-actions::-webkit-scrollbar { display: none; }
+
+/* ======================================================================
+   LA CARTE DE COMMANDES, À LA FFT (S45). JP : *quand on clique sur le gars,
+   popup à la fft ?*. Elle se pose sur la case de la pièce choisie, comme le
+   dé, avec les mêmes trois ancrages — donc elle ne sort jamais du plateau.
+   Les six gestes dans le même ordre à chaque fois : celui qu'on peut jouer
+   porte sa cote, celui qu'on ne peut pas est éteint et dit pourquoi. C'est
+   la liste QUI NE CHANGE PAS qui apprend le jeu ; une liste qui se
+   réarrange à chaque pièce ne s'apprend jamais.
+   ====================================================================== */
+.t-cmd {
+  position: absolute; top: 0; left: 0; z-index: 12; width: max-content; min-width: 132px; max-width: 168px;
+  transform: translate(calc(var(--tc) * var(--tcell) + var(--tcell) * 1.1), calc(var(--tr) * var(--tcell) - var(--tcell) * 0.6));
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
+  padding: 5px; display: flex; flex-direction: column; gap: 3px;
+}
+/* Les mêmes trois débordements que le dé : on ne sort jamais de la glace. */
+.t-cmd.bord-d { transform: translate(calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%), calc(var(--tr) * var(--tcell) - var(--tcell) * 0.6)); }
+.t-cmd.dessous { transform: translate(calc(var(--tc) * var(--tcell) + var(--tcell) * 1.1), calc(var(--tr) * var(--tcell))); }
+.t-cmd.bord-d.dessous { transform: translate(calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%), calc(var(--tr) * var(--tcell))); }
+.t-cmd[hidden] { display: none; }
+.t-cmd-tete {
+  font-family: var(--display); font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sub); padding: 1px 4px 3px; border-bottom: 1px solid var(--line-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.t-cmd-tete b { color: var(--gold); margin-right: 4px; }
+.t-cmd-liste { display: flex; flex-direction: column; gap: 2px; }
+/* Une commande par ligne : le nom à gauche, la cote à droite — on compare
+   les chances d'un coup d'oeil vertical, ce qu'une rangée qui défile ne
+   permet pas. */
+.t-cmd-liste .t-geste, .t-cmd-liste .t-mode {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  width: 100%; min-height: 0; padding: 3px 6px; font-size: 13px; border-radius: 3px;
+  border-color: transparent; background: transparent; color: var(--text);
+}
+.t-cmd-liste .t-geste b, .t-cmd-liste .t-mode b { margin-left: auto; font-size: 13px; }
+.t-cmd-liste .t-geste i, .t-cmd-liste .t-mode i { font-size: 10.5px; }
+.t-cmd-liste .t-mode.on { background: var(--ui-accent); color: var(--bg); }
+.t-cmd-liste .t-mode.on b, .t-cmd-liste .t-mode.on i { color: inherit; }
+.t-cmd-liste .t-tir { background: var(--gold); color: var(--sur-or, #1b1710); }
+.t-cmd-liste .t-tir b, .t-cmd-liste .t-tir i { color: inherit; opacity: 0.85; }
+/* ÉTEINT, MAIS LÀ : c'est la raison qui compte, pas le bouton. */
+.t-mode-non { opacity: 0.55; cursor: not-allowed; }
+.t-cmd-liste .t-mode-non { color: var(--muted); }
+.t-cmd-liste .t-mode-non i { color: var(--muted); text-align: right; }
+@media (hover: hover) {
+  .t-cmd-liste .t-geste:hover:not([disabled]), .t-cmd-liste .t-mode:hover:not([disabled]) { background: var(--panel-2); }
+  .t-cmd-liste .t-tir:hover:not([disabled]) { background: var(--gold); filter: brightness(1.08); }
+}
+
+/* ======================================================================
+   LA BARRE DU BAS, AU PROPRE (S45). JP : *faire visuel pour que tout soit
+   plus « pro » comme ux*.
+
+   Ce qui faisait amateur n'était pas le goût des couleurs mais le MÉLANGE
+   DES LANGAGES : trois pastilles rondes cerclées d'or (le budget) contre
+   des boutons carrés (les gestes), quatre hauteurs différentes sur une
+   ligne, et un bouton d'action orphelin sur la rangée d'en dessous. Une
+   interface se lit pro quand tout ce qui se touche a la MÊME hauteur et que
+   ce qui ne se touche pas ne ressemble pas à un bouton.
+   ====================================================================== */
+/* 1. UNE SEULE HAUTEUR pour tout ce qui se touche. */
+.t-dock-ligne button, .t-dock-actions .t-geste, .t-dock-actions .t-mode {
+  min-height: 32px; display: inline-flex; align-items: center; padding-top: 0; padding-bottom: 0;
+}
+/* 2. LE BUDGET N'EST PAS UN BOUTON : il se lit, il ne se touche pas. Des
+      petites capitales sourdes, et un point qui s'éteint quand c'est
+      dépensé — au lieu de trois pastilles qui imitent des commandes. */
+.t-budget { align-items: center; gap: 9px; margin-right: auto; padding-left: 2px; }
+.t-budget i {
+  border: 0; border-radius: 0; padding: 0; color: var(--sub);
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px; letter-spacing: 0.08em;
+}
+.t-budget i::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold); flex: 0 0 auto;
+}
+.t-budget i.fait { color: var(--muted); text-decoration: none; }
+.t-budget i.fait::before { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+/* 3. UNE SEULE COMMANDE PRINCIPALE : le geste qu'on cherche est plein, le
+      reste est cerclé. Sans hiérarchie, huit boutons identiques se valent. */
+.t-dock-actions .t-tir { background: var(--gold); border-color: var(--gold); color: var(--sur-or, #1b1710); }
+.t-dock-actions .t-tir b, .t-dock-actions .t-tir i { color: inherit; opacity: 0.82; }
+
 .t-dock-actions .t-geste, .t-dock-actions .t-mode { flex: 0 0 auto; white-space: nowrap; }
 .t-dock .t-de { margin: 0; padding: 6px 8px; width: 100%; }
 .t-bas {

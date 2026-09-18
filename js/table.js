@@ -733,7 +733,33 @@ export const PERIODES = 3;
  * près des 18,1 d'avant la règle : le curseur rend le tempo, il ne change
  * pas ce qu'une possession vaut.
  */
-export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 21;
+/*
+ * QUATORZE (S45). JP : *les buts, ça devrait être 0-6 par équipe genre*. La
+ * cible arcade était la MOYENNE, 5 à 6 — ce qui donne du 7-6 et du 8-6 tous
+ * les soirs et jamais un blanchissage : une moyenne ne dit pas ce qu'un
+ * pointage a l'air. Ce qu'il demande est une FOURCHETTE, et c'est elle que
+ * `check_table` juge maintenant.
+ *
+ * Deux leviers mesurés à 240 matchs. LE GARDIEN (`GARDIEN_PLUS` à 2) garde
+ * les tirs (16,6) mais ne descend qu'à 4,82, et il est DISQUALIFIÉ par sa
+ * propre mesure : 62 % des tirs tombent au plancher du duel (−3 et moins),
+ * là où les naturels décident seuls et où le TI du tireur ne change plus
+ * rien — exactement le défaut que S26 avait corrigé. LES POSSESSIONS
+ * descendent, et le plancher du duel reste à 46 % comme à 21 : c'est le
+ * seul levier qui ne touche pas à ce qu'un duel VAUT.
+ *
+ *   possessions   buts   tirs   pointages les plus fréquents        blanchissages
+ *        21       5,47   15,8   7-6 (8 %), 8-6, 6-5                      0 %
+ *        14       3,71   10,8   4-3 (13 %), 3-2 (10 %), 5-4             2,9 %
+ *        12       3,02    9,3   3-2 (18 %), 4-3 (12 %), 2-1 (11 %)      4,4 %
+ *
+ * DOUZE, parce que JP a précisé : *ça peut dépasser 6, je veux dire que on
+ * devrait rester dans les classiques 3-2 de hockey en général*. À 12 le 3-2
+ * est le pointage le plus fréquent du plateau, le blanchissage redevient
+ * possible, et 4 % des fiches dépassent encore six — permis, pas ordinaire.
+ * Le prix est la longueur du match : 9,3 tirs par équipe au lieu de 15,8.
+ */
+export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 12;
 export const POSSESSIONS_PROLONGATION = 8;
 export const PRESENCES_PAR_PERIODE = 60;   // le garde-fou : jamais plus de tours que ça dans une période
 export const PRESENCES_PROLONGATION = 30;
@@ -766,17 +792,55 @@ export function gardienDe(roster) {
   return roster[g0.i] || roster[g1.i] || null;
 }
 
-/* Les places de départ d'une mise au jeu au centre. Symétriques, jamais en
- * conflit, et chaque pièce dans son couloir : l'ailier gauche à gauche. */
-const DEPART = {
-  A: {
-    AG: [MI_GLACE + 1, BUT_COL - 3], C: [MI_GLACE + 1, BUT_COL], AD: [MI_GLACE + 1, BUT_COL + 3],
-    DG: [MI_GLACE + 4, BUT_COL - 2], DD: [MI_GLACE + 4, BUT_COL + 2],
-  },
-  B: {
-    AG: [MI_GLACE - 1, BUT_COL + 3], C: [MI_GLACE - 1, BUT_COL], AD: [MI_GLACE - 1, BUT_COL - 3],
-    DG: [MI_GLACE - 4, BUT_COL + 2], DD: [MI_GLACE - 4, BUT_COL - 2],
-  },
+/*
+ * LES NEUF POINTS DE MISE AU JEU (S45). JP : *intégrer pénalités, hors jeux,
+ * mise aux jeux*. La patinoire DESSINE ses neuf points depuis S33 — le
+ * centre, quatre en fond de zone, quatre au neutre — et le moteur les
+ * IGNORAIT : toute mise au jeu se jouait au centre, en reposant les dix
+ * pièces à leur place de départ. Mesuré : 14 mises au jeu par match, toutes
+ * au centre, toutes après un but ou une période. Les points étaient de la
+ * décoration.
+ *
+ * Ils se déduisent de la taille de la glace, comme tout le reste ici : deux
+ * colonnes d'aile (`MJ_COL`), la rangée de fond à trois du filet, la rangée
+ * neutre juste à l'extérieur de chaque ligne bleue, et le centre. C'est le
+ * MOTEUR qui les porte et `patinoireSvg` qui les lit — l'inverse aurait
+ * laissé deux définitions libres de diverger.
+ */
+export const MJ_COL = [Math.round(COLS / 6), COLS - 1 - Math.round(COLS / 6)];
+export const MJ_FOND = [FILET_HAUT + 3, FILET_BAS - 3];
+export const MJ_NEUTRE = [FILET_HAUT + PORTEE_TIR + 2, FILET_BAS - PORTEE_TIR - 2];
+export const MJ_CENTRE = { r: MI_GLACE, c: BUT_COL, nom: 'au centre' };
+/*
+ * LES POINTS SE DÉDOUBLONNENT, parce que la géométrie peut les faire
+ * coïncider : à `PORTEE_TIR` 8 sur 23 rangées, la zone neutre ne fait
+ * qu'UNE rangée, donc les deux points neutres tombent tous deux sur la
+ * rangée du centre. Sept points distincts, pas neuf — et c'est la glace qui
+ * le dit, pas une liste écrite à la main.
+ */
+export const POINTS_MJ = [
+  MJ_CENTRE,
+  ...MJ_FOND.flatMap(r => MJ_COL.map(c => ({ r, c, nom: 'en fond de zone' }))),
+  ...MJ_NEUTRE.flatMap(r => MJ_COL.map(c => ({ r, c, nom: 'au neutre' }))),
+].filter((pt, i, all) => all.findIndex(x => x.r === pt.r && x.c === pt.c) === i);
+/** Le point de cette famille le plus proche d'un endroit. */
+function pointProche(r, c, liste) {
+  return liste.slice().sort((a, b) =>
+    (Math.abs(a.r - r) + Math.abs(a.c - c)) - (Math.abs(b.r - r) + Math.abs(b.c - c)))[0];
+}
+/** Le point de fond de la zone que ce camp DÉFEND (une punition, un gel du gardien). */
+const pointDeFond = (m, cote, c) =>
+  pointProche(eqDe(m, cote).but, c, POINTS_MJ.filter(x => MJ_FOND.includes(x.r) && Math.abs(x.r - eqDe(m, cote).but) < RANGS / 2));
+/** Le point neutre du bord de cette ligne bleue (un hors-jeu). */
+const pointNeutre = (m, but, c) =>
+  pointProche(but, c, POINTS_MJ.filter(x => MJ_NEUTRE.includes(x.r) && Math.abs(x.r - but) < RANGS / 2));
+
+/* Les places d'une mise au jeu, en écart au POINT. Symétriques, jamais en
+ * conflit, et chaque pièce dans son couloir : l'ailier gauche à gauche.
+ * Le signe de la rangée va vers SON PROPRE filet — A défend en bas. */
+const ECARTS = {
+  A: { AG: [1, -3], C: [1, 0], AD: [1, 3], DG: [4, -2], DD: [4, 2] },
+  B: { AG: [-1, 3], C: [-1, 0], AD: [-1, -3], DG: [-4, 2], DD: [-4, -2] },
 };
 
 /**
@@ -874,7 +938,7 @@ function pieceNeuve(eq, role, p, r, c) {
   };
 }
 
-function poser(eq, m = null) {
+function poser(eq, m = null, point = MJ_CENTRE) {
   const unite = uniteDe(eq.roster, eq.tri, eq.pai);
   const prises = new Set();
   if (m) {
@@ -885,7 +949,12 @@ function poser(eq, m = null) {
   for (const { role, p } of unite) {
     // AU CACHOT (S38) : le rôle puni ne saute pas, l'équipe joue à quatre.
     if (eq.penalite && eq.penalite.role === role) continue;
-    const [r0, c0] = DEPART[eq.cote][role];
+    // LES PLACES SUIVENT LE POINT (S45) : les mêmes écarts qu'au centre,
+    // ramenés dans la glace — en fond de zone, la ligne des buts est là et
+    // un défenseur à quatre rangées derrière le point sortirait du monde.
+    const [dr, dc] = ECARTS[eq.cote][role];
+    const r0 = borne(point.r + dr, RANG_MIN, RANG_MAX);
+    const c0 = borne(point.c + dc, 0, COLS - 1);
     const { r, c } = caseProche(prises, r0, c0);
     prises.add(`${r},${c}`);
     eq.pieces.push(pieceNeuve(eq, role, p, r, c));
@@ -995,6 +1064,7 @@ const PLACEMENT = MESURE.PLACEMENT !== '0';          // le deuxième déplacemen
 const POSTES = MESURE.POSTES !== '0';                // chaque pièce tient son poste
 const LIBRE_SUR_PERTE = MESURE.LIBRE_SUR_PERTE !== '0';   // la rondelle perdue tombe sur place
 const RELANCE_RAMASSAGE = MESURE.RAMASSE !== '0';         // qui ramasse repart avec
+const HORSJEU_FILTRE = MESURE.HJ_FILTRE === '1';          // S45 : 1 remet l'ancien filtre muet
 /*
  * LE BUDGET DE PAS PARTAGÉ (S42). JP : *et si un tour, c'est une action et
  * un nombre de déplacement x, utilisable sur plusieurs joueurs ? Ça serait
@@ -1198,26 +1268,49 @@ function dire(m, texte, genre = '') {
  * période compte (voir `finirPresence`). Une rondelle libre n'est à
  * personne : la possession ne change que quand l'autre équipe la ramasse.
  */
-function donner(m, piece) {
+/*
+ * `compte` est faux quand c'est l'ARBITRE qui pose la rondelle (S45). Une
+ * période, c'est N changements de camp — et une mise au jeu n'en est pas
+ * un : c'est une reprise. En la comptant, chaque sifflet brûlait une
+ * possession et raccourcissait la période ; mesuré, les tirs tombaient de
+ * 16,7 à 13,2 et les buts de 5,39 à 4,52 le jour où les sifflets sont
+ * arrivés. Le tempo n'avait pas changé, le compteur mentait.
+ */
+function donner(m, piece, compte = true) {
   const avant = m.possesseur;
   m.rondelle = { piece };
   piece.derniere = null;
   m.possesseur = piece.eq;
-  if (avant && avant !== piece.eq) m.possessions++;
+  if (compte && avant && avant !== piece.eq) m.possessions++;
 }
 
 /* ---------- la mise au jeu ---------- */
 
-function miseAuJeu(m, mot) {
-  poser(m.A); poser(m.B);
+function miseAuJeu(m, mot, point = MJ_CENTRE) {
+  m.pointMJ = point;
+  poser(m.A, null, point); poser(m.B, m, point);
   const cA = m.A.pieces.find(x => x.role === 'C') || m.A.pieces[0];
   const cB = m.B.pieces.find(x => x.role === 'C') || m.B.pieces[0];
   // Le maniement ET la force : on gagne une mise au jeu des mains et du corps (S39).
   const jA = Math.floor(m.de() * 6) + 1 + Math.round((cA.st.MA + cA.st.FO) / 2);
   const jB = Math.floor(m.de() * 6) + 1 + Math.round((cB.st.MA + cB.st.FO) / 2);
   const gagnant = jA === jB ? (m.tour === 'A' ? cA : cB) : (jA > jB ? cA : cB);
-  donner(m, gagnant);
-  dire(m, `${mot} — ${nomDe(gagnant)} gagne la mise au jeu.`, 'mj');
+  donner(m, gagnant, false);   // l'arbitre la pose : ce n'est pas un changement de camp
+  dire(m, `${mot} — mise au jeu ${point.nom}, ${nomDe(gagnant)} la gagne.`, 'mj');
+}
+
+/*
+ * L'ARRÊT DE JEU (S45). Le plateau n'en avait que deux — le but et la fin de
+ * période — et tout le reste se réglait sans sifflet : le gardien qui gèle
+ * la rondelle la gardait et la relançait, la punition retirait une pièce
+ * sans rien arrêter, le hors-jeu n'existait pas. Un sifflet, c'est une
+ * présence qui finit et une mise au jeu AU BON POINT : c'est ce qui donne
+ * aux neuf points une raison d'être, et à la mise au jeu un enjeu.
+ */
+function arretDeJeu(m, mot, point) {
+  m.arrets = (m.arrets || 0) + 1;
+  m.siffle = { mot, point };
+  finirPresence(m);
 }
 
 export const nomDe = piece => (piece && piece.p && piece.p.n) || 'Rappel';
@@ -1296,7 +1389,15 @@ export function ciblesFondDe(m, piece) {
   if (porteur(m) !== piece || piece.agi || piece.gardien) return [];
   const but = eqDe(m, piece.eq).but;
   const s = profondeur(piece.r, but);
-  if (s <= PORTEE_TIR || s > LONGUEUR - PORTEE_TIR) return [];
+  /*
+   * ON PEUT MAINTENANT DÉGAGER DE SA PROPRE ZONE (S45) — et c'est un
+   * DÉGAGEMENT REFUSÉ. Le geste était simplement interdit de là (`s <=
+   * PORTEE_TIR` rendait une liste vide), donc l'icing n'existait pas : la
+   * même faute que le hors-jeu, une règle de hockey remplacée par une case
+   * qui ne s'allume pas. Sous pression dans son coin, se débarrasser de la
+   * rondelle est une vraie décision — elle coûte une mise au jeu CHEZ TOI.
+   */
+  if (s > LONGUEUR - PORTEE_TIR) return [];
   const out = [];
   for (let r = 0; r < RANGS; r++) for (let c = 0; c < COLS; c++) {
     if (!dansLaGlace(r, c) || occupee(m, r, c)) continue;
@@ -1461,6 +1562,59 @@ const horsJeu = (m, piece, r, c) => {
   // Déjà dans la zone sans la rondelle : on ne peut que RECULER vers la ligne bleue.
   return !(profondeur(piece.r, but) <= PORTEE_TIR && s > profondeur(piece.r, but));
 };
+/*
+ * LE HORS-JEU SE SIFFLE (S45). JP : *intégrer pénalités, hors jeux, mise aux
+ * jeux*. Il existait — et il n'était PAS une règle : c'était un filtre de
+ * déplacement, les cases de la zone ne s'allumaient simplement pas avant la
+ * rondelle. Donc aucun hors-jeu ne pouvait être commis, aucun n'a jamais été
+ * sifflé, et la ligne bleue ne décidait de rien. Mesuré : zéro appel.
+ *
+ * Maintenant on PEUT y entrer, et la rondelle qui entre ensuite trouve un
+ * coéquipier déjà là : c'est un hors-jeu, sifflet, mise au jeu au point
+ * neutre de ce bord. Le porteur, lui, n'est jamais hors-jeu — il apporte la
+ * rondelle. L'IA, elle, tient sa ligne comme un vrai trio : `sesCases`
+ * écarte les cases qui la mettraient hors-jeu et `posteDe` clame son poste
+ * à la ligne bleue. C'est le JOUEUR qui décide de devancer la rondelle, et
+ * qui le paie. L'ancien filtre muet ne survit que comme interrupteur de
+ * MESURE (`HJ_FILTRE=1`), pour rejouer le plateau d'avant.
+ */
+/** Ceux qui devancent la rondelle en ce moment : à saisir AVANT que le geste ne la déplace. */
+const devantLaRondelle = (m, cote) => {
+  if (rondelleEnZone(m, cote)) return null;
+  const but = eqDe(m, cote).but;
+  return new Set(eqDe(m, cote).pieces.filter(x => profondeur(x.r, but) <= PORTEE_TIR));
+};
+export const enPositionHorsJeu = (m, piece) => {
+  if (piece.gardien || porteur(m) === piece) return false;
+  const but = eqDe(m, piece.eq).but;
+  return profondeur(piece.r, but) <= PORTEE_TIR && !rondelleEnZone(m, piece.eq);
+};
+/** La rondelle vient d'entrer en zone : un coéquipier déjà dedans, et c'est le sifflet. */
+function verifierHorsJeu(m, cote, avant) {
+  /*
+   * LE HORS-JEU SE JUGE À L'ENTRÉE, PAS DANS LA ZONE. `avant` est l'ensemble
+   * de ceux qui devançaient la rondelle JUSTE AVANT le geste ; il est nul
+   * quand elle était déjà en zone, et alors il n'y a rien à siffler. Sans
+   * cette ligne, toute passe à l'intérieur de la zone était un hors-jeu —
+   * `check_regles` l'a trouvé en une passe : le une-deux ne se jouait plus
+   * du tout, parce qu'une passe en zone offensive finissait au sifflet.
+   */
+  if (!avant || !avant.size) return false;
+  const but = eqDe(m, cote).but;
+  const pos = porteur(m) || libre(m);
+  if (!pos || profondeur(pos.r, but) > PORTEE_TIR) return false;   // elle n'est pas entrée
+  // Le porteur apporte la rondelle : il n'est jamais hors-jeu — SAUF s'il
+  // vient de la RECEVOIR en étant déjà dans la zone (`avant` le dit).
+  const dedans = x => profondeur(x.r, but) <= PORTEE_TIR;
+  const sur = eqDe(m, cote).pieces;
+  const fautif = [...avant].find(x => sur.includes(x) && dedans(x));
+  if (!fautif) return false;
+  dire(m, `HORS-JEU — ${nomDe(fautif)} avait devancé la rondelle.`, 'horsjeu');
+  m.horsJeux = (m.horsJeux || 0) + 1;
+  eqDe(m, cote).horsJeux = (eqDe(m, cote).horsJeux || 0) + 1;
+  arretDeJeu(m, 'Hors-jeu', pointNeutre(m, but, pos.c));
+  return true;
+}
 
 /** Les cases où cette pièce peut aller : ses pas, en contournant les pièces ; avec la rondelle, une case sous pression en coûte deux. */
 /*
@@ -1541,7 +1695,9 @@ function routes(m, piece) {
       if (!dr && !dc) continue;
       const r = cur.r + dr, c = cur.c + dc, cle = `${r},${c}`;
       if (!dansLaGlace(r, c) || occupee(m, r, c)) continue;
-      if (!avecRondelle && horsJeu(m, piece, r, c)) continue;
+      // LE HORS-JEU N'EST PLUS UN FILTRE (S45) : on peut devancer la rondelle,
+      // et c'est l'arbitre qui tranche quand elle entre. Voir `verifierHorsJeu`.
+      if (HORSJEU_FILTRE && !avecRondelle && horsJeu(m, piece, r, c)) continue;
       const n = cur.n + cout(r, c, dr, dc);
       if (n > pas || n >= (meilleur.get(cle) ?? Infinity)) continue;
       meilleur.set(cle, n);
@@ -1579,11 +1735,8 @@ export function cheminVers(m, piece, vers) {
 }
 
 /** Les coéquipiers à qui cette pièce peut passer (pas en zone offensive avant la rondelle : hors-jeu). */
-export const receveursDe = (m, piece) => {
-  const but = eqDe(m, piece.eq).but;
-  const enZone = rondelleEnZone(m, piece.eq);
-  return eqDe(m, piece.eq).pieces.filter(x => x !== piece && !x.etourdi && (enZone || profondeur(x.r, but) > PORTEE_TIR));
-};
+export const receveursDe = (m, piece) =>
+  eqDe(m, piece.eq).pieces.filter(x => x !== piece && !x.etourdi);
 
 /*
  * ON NE FRAPPE PAS EN PLEINE COURSE (S36, S41). Une main, c'est un
@@ -1645,7 +1798,9 @@ export function deplacer(m, piece, vers) {
   }
   if (!esquiveRequise(m, piece, vers)) {
     piece.libre = false;
+    const avant = avecRondelle ? devantLaRondelle(m, piece.eq) : null;
     deposer(m, piece, vers.r, vers.c);
+    if (avecRondelle) verifierHorsJeu(m, piece.eq, avant);
     return { ok: true, jet: null };
   }
   const d = avec(modEsquive(m, piece, vers), piece.hab === 'PATIN' && piece.habDispo ? 2 : 0);
@@ -1707,8 +1862,10 @@ export function appliquerEsquive(m, piece, vers, jet) {
   if (piece.hab === 'PATIN' && piece.habDispo) piece.habDispo = false;
   const qui = batonsDuPatin(m, piece, vers);
   if (jet.reussi) {
+    const avant = porteur(m) === piece ? devantLaRondelle(m, piece.eq) : null;
     deposer(m, piece, vers.r, vers.c);
     dire(m, `${nomDe(piece)} se défait de la couverture.`, 'ok');
+    if (avant) verifierHorsJeu(m, piece.eq, avant);
     return true;
   }
   /*
@@ -1736,10 +1893,28 @@ export function passer(m, piece, cible) {
 export function appliquerPasse(m, piece, cible, jet) {
   if (cible.st && piece.hab === 'VOILEE' && piece.habDispo) piece.habDispo = false;
   agir(m, piece);
+  // Qui devançait la rondelle AVANT la passe : c'est eux que l'arbitre regarde
+  // quand elle entre — le receveur compris, s'il attendait déjà dans la zone.
+  const avant = devantLaRondelle(m, piece.eq);
   if (!cible.st) {
     // AU FOND : réussie, la rondelle est libre là où on l'a envoyée ; ratée,
     // elle rebondit autour. Elle est libre dans les deux cas — on l'a donnée.
-    if (jet.reussi) { m.rondelle = { libre: { r: cible.r, c: cible.c } }; piece.derniere = null; dire(m, `${nomDe(piece)} envoie la rondelle au fond — elle est libre.`, 'degage'); return true; }
+    if (jet.reussi) {
+      const deChezNous = profondeur(piece.r, eqDe(m, piece.eq).but) <= PORTEE_TIR;
+      m.rondelle = { libre: { r: cible.r, c: cible.c } }; piece.derniere = null;
+      dire(m, `${nomDe(piece)} envoie la rondelle au fond — elle est libre.`, 'degage');
+      // LE DÉGAGEMENT REFUSÉ : parti de sa propre zone, il est sifflé, et la
+      // mise au jeu revient CHEZ LE FAUTIF. Un hors-jeu ne peut pas suivre :
+      // la rondelle n'est pas entrée en zone offensive, elle l'a traversée.
+      if (deChezNous) {
+        dire(m, `DÉGAGEMENT REFUSÉ — ${nomDe(piece)} l'a envoyée de sa propre zone.`, 'icing');
+        m.icings = (m.icings || 0) + 1;
+        arretDeJeu(m, 'Dégagement refusé', pointDeFond(m, piece.eq, piece.c));
+        return true;
+      }
+      verifierHorsJeu(m, piece.eq, avant);
+      return true;
+    }
     rebondir(m, cible.r, cible.c);
     dire(m, `La rondelle de ${nomDe(piece)} file le long de la bande et rebondit.`, 'degage');
     return false;
@@ -1749,6 +1924,7 @@ export function appliquerPasse(m, piece, cible, jet) {
     cible.derniere = piece;      // qui a donné la rondelle : le passeur du but
     m.reception = { receveur: cible, passeur: piece };   // le une-deux est ouvert
     dire(m, `${nomDe(piece)} rejoint ${nomDe(cible)}.`, 'ok');
+    if (verifierHorsJeu(m, piece.eq, avant)) return false;
     return true;
   }
   // LE TARIF DE L'ÉCHEC : le bâton qui couvrait la ligne l'intercepte.
@@ -1793,13 +1969,45 @@ export function appliquerTir(m, piece, jet) {
   const deJustesse = jet.total === jet.total2 - 1;
   const controle = Math.floor(m.de() * 6) + 1 + advG.st.AR > 7;
   if (enclave || deJustesse || !controle) {
-    rebondir(m, piece.r, piece.c, eq.but);
+    /*
+     * LE RETOUR PART DU GARDIEN, PAS DU TIREUR (S45). JP : *retours moins
+     * « loins » des gardiens*. Il rebondissait autour de la case du TIR :
+     * un tir de la pointe laissait donc le retour à la pointe. Mesuré sur
+     * 40 matchs : 5,92 rangées du filet en moyenne, 79 % au-delà de la
+     * troisième rangée — une rondelle qui n'a jamais touché le gardien.
+     * Elle sort maintenant de LUI, en profondeur positive : c'est la mêlée
+     * devant le filet, et c'est ce qu'un retour est.
+     */
+    rebondir(m, advG.r, advG.c, eq.but);
     dire(m, `${nomDe(advG)} repousse le tir de ${nomDe(piece)} — retour devant le filet.`, 'retour');
     return false;
   }
-  dire(m, `${nomDe(advG)} bloque le tir de ${nomDe(piece)}.`, 'arret');
+  /*
+   * LE GARDIEN QUI GÈLE LA RONDELLE, C'EST UN SIFFLET (S45). Il la gardait
+   * et la relançait à un défenseur : l'équipe qui subissait le tir repartait
+   * avec la rondelle et toute sa présence, sans que rien ne s'arrête. Dans
+   * un vrai match c'est un arrêt de jeu et une mise au jeu DANS CETTE
+   * ZONE-LÀ — donc une chance sur deux de la ravoir, et une raison de
+   * mettre un bon centre sur la glace.
+   */
+  /*
+   * IL NE GÈLE QUE SOUS PRESSION. Premier jet de S45 : tout arrêt contrôlé
+   * était un sifflet — et la SORTIE DE ZONE, la relance du gardien à son
+   * défenseur, n'a plus jamais été jouée (mesuré : 0,00 par match sur 30).
+   * Une mécanique que le moteur porte et ne joue jamais est une mécanique
+   * morte. Un vrai gardien ne gèle que quand quelqu'un est sur lui : sans
+   * personne devant son filet, il garde la rondelle et la relance, et le
+   * jeu continue. Les deux vivent, et c'est la présence adverse qui décide
+   * laquelle — donc aller au filet vaut aussi un arrêt de jeu.
+   */
   donner(m, advG);
-  revirement(m, `Le gardien garde la rondelle.`);
+  if (batons(m, advG.eq, advG.r, advG.c) > 0) {
+    dire(m, `${nomDe(advG)} bloque le tir de ${nomDe(piece)} et la gèle sous la pression.`, 'arret');
+    arretDeJeu(m, 'Gelée par le gardien', pointDeFond(m, advG.eq, piece.c));
+    return false;
+  }
+  dire(m, `${nomDe(advG)} bloque le tir de ${nomDe(piece)} et garde la rondelle.`, 'arret');
+  revirement(m, `Le gardien la relancera.`);
   return false;
 }
 
@@ -1892,7 +2100,10 @@ function punir(m, piece, jet) {
   if (porteur(m) === piece) rebondir(m, piece.r, piece.c);
   m.main.mobiles = m.main.mobiles.filter(x => x !== piece);
   dire(m, `PUNITION — ${nomDe(piece)} va au cachot pour ${PUNITION_TOURS} tours. ${eq.nom} joue à quatre.`, 'punition');
-  finirMain(m);
+  // UN COUP DE SIFFLET (S45) : l'arbitre arrête le jeu, et la mise au jeu se
+  // fait DANS LA ZONE de l'équipe punie — l'avantage numérique commence donc
+  // là où il vaut quelque chose, comme dans la vraie ligue.
+  arretDeJeu(m, 'Punition', pointDeFond(m, piece.eq, piece.c));
   return true;
 }
 /** Le puni revient : à la place de départ de son rôle, ou la case libre la plus proche. */
@@ -1901,8 +2112,9 @@ function liberer(m, eq) {
   eq.penalite = null;
   const { p } = uniteDe(eq.roster, eq.tri, eq.pai).find(x => x.role === pen.role) || {};
   const prises = new Set(surLaGlace(m).map(x => `${x.r},${x.c}`));
-  const [r0, c0] = DEPART[eq.cote][pen.role];
-  const { r, c } = caseProche(prises, r0, c0);
+  // Il sort du cachot par la bande, au centre — c'est là qu'est la porte.
+  const [dr, dc] = ECARTS[eq.cote][pen.role];
+  const { r, c } = caseProche(prises, borne(MJ_CENTRE.r + dr, RANG_MIN, RANG_MAX), borne(MJ_CENTRE.c + dc, 0, COLS - 1));
   const piece = pieceNeuve(eq, pen.role, p || null, r, c);
   eq.pieces.push(piece);
   deposer(m, piece, r, c);
@@ -2097,7 +2309,8 @@ export function finirPresence(m, butMarque = false) {
     for (const x of surLaGlace(m)) { x.etourdi = 0; x.habDispo = true; }
     m.premier = m.periode % 2 === 1 ? 'A' : 'B';   // on change de bord de mise au jeu
     m.tour = m.premier;
-    miseAuJeu(m, `${ordP(m.periode)} période`);
+    m.siffle = null;   // une période neuve repart du centre, quel que soit le sifflet
+    miseAuJeu(m, `${ordP(m.periode)} période`, MJ_CENTRE);
     return;
   }
   m.presence += 2;
@@ -2109,7 +2322,9 @@ export function finirPresence(m, butMarque = false) {
    * n'a PAS joué la dernière main, après un but comme après un tour plein.
    */
   m.tour = adverse(m.dernier || adverse(m.premier));
-  if (butMarque) miseAuJeu(m, 'Mise au jeu au centre');
+  // UN SIFFLET REPART D'UNE MISE AU JEU, à son point ; un but repart du centre.
+  if (m.siffle) { const { mot, point } = m.siffle; m.siffle = null; miseAuJeu(m, mot, point); return; }
+  if (butMarque) miseAuJeu(m, 'But', MJ_CENTRE);
   else sortieDeZone(m);
 }
 
@@ -2267,10 +2482,36 @@ export function posteDe(m, piece) {
     larg = LARGEUR_POSTE;
   }
   s = borne(s, 1, LONGUEUR - 1);
+  /*
+   * ON NE DEVANCE PAS LA RONDELLE (S45). Le poste d'un avant est DEVANT
+   * elle : tant que le hors-jeu n'était qu'un filtre de déplacement, ça ne
+   * coûtait rien — les cases ne s'allumaient pas, et l'IA s'arrêtait là.
+   * Depuis qu'il se siffle, ce même poste met tout le trio hors-jeu à la
+   * première entrée de zone : mesuré, 44 mises au jeu par match. Un poste
+   * sans la rondelle s'arrête donc à la ligne bleue, exactement comme un
+   * vrai ailier qui attend que la rondelle entre avant lui.
+   */
+  if (!rondelleEnZone(m, piece.eq) && porteur(m) !== piece) s = Math.min(s, LONGUEUR - PORTEE_TIR - 1);
   const r = borne(but + s * sensDe(but), RANG_MIN, RANG_MAX);
   const c = borne(BUT_COL + aile * larg, 0, COLS - 1);
   return { r, c };
 }
+
+/*
+ * L'IA TIENT SA LIGNE (S45). Le hors-jeu n'est plus un filtre pour tout le
+ * monde — le joueur peut devancer la rondelle, et l'arbitre tranche — mais
+ * une IA qui se met hors-jeu ne prend aucun risque calculé : elle se siffle
+ * dessus. Sans ce garde, mesuré : 29 hors-jeu et 42 mises au jeu par match,
+ * un match qui ne fait que repartir. Elle écarte donc les cases qui la
+ * mettraient hors-jeu ; c'est la même règle que celle du poste, appliquée
+ * au geste plutôt qu'à l'intention.
+ */
+const sesCases = (m, piece) => {
+  const cases = deplacementsDe(m, piece);
+  if (porteur(m) === piece || rondelleEnZone(m, piece.eq)) return cases;
+  const but = eqDe(m, piece.eq).but;
+  return cases.filter(v => profondeur(v.r, but) > PORTEE_TIR);
+};
 
 /** Cette pièce est-elle une des `FORECHECK` plus proches de la rondelle ? */
 /*
@@ -2286,6 +2527,8 @@ export function posteDe(m, piece) {
 export const FORECHECK_LIBRE = Number(MESURE.CHASSE) || 4;
 /* Ce que vaut la course à la rondelle libre, en plus : `CHASSEV` pour la MESURE. */
 const CHASSE_VAL = MESURE.CHASSEV !== undefined ? Number(MESURE.CHASSEV) : 5;
+/* Ce que coûte un dégagement refusé dans la balance de l'IA : la mise au jeu revient chez elle. */
+const COUT_ICING = MESURE.ICING !== undefined ? Number(MESURE.ICING) : 2.2;
 function vaALaRondelle(m, piece, vise) {
   const amis = eqDe(m, piece.eq).pieces.filter(x => !x.gardien && !x.etourdi);
   const combien = libre(m) ? FORECHECK_LIBRE : FORECHECK;
@@ -2351,11 +2594,25 @@ function meilleurGeste(m, piece) {
       if (sousPression) {
         let mieux = null;
         const amis = eq.pieces.filter(x => x !== piece && !x.etourdi);
+        /*
+         * ELLE DÉGAGE DE SA ZONE AUSSI, MAIS ÇA LUI COÛTE. Premier jet : on
+         * le lui interdisait, et le dégagement refusé devenait une règle que
+         * SEUL un humain pouvait commettre — donc qu'aucune mesure ne
+         * touchait jamais (0,00 sur 30 matchs). Une règle qu'aucun script
+         * n'exerce est une règle qu'on casse sans le savoir. Elle le joue
+         * donc, au prix du sifflet : `COUT_ICING` le rend perdant tant
+         * qu'autre chose tient debout, et gagnant quand plus rien ne tient —
+         * ce qui est exactement quand un vrai joueur le fait.
+         */
+        const deChezNous = profondeur(piece.r, eq.but) <= PORTEE_TIR;
         for (const v of ciblesFondDe(m, piece)) {
           const proche = Math.min(...amis.map(x => dist(x, v)), 9);
           const rival = Math.min(...eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.etourdi).map(x => dist(x, v)), 9);
-          if (proche > rival) continue;
-          const val = chancesDe(modPasse(m, piece, v)) * (2.0 + Math.max(0, 3 - proche) * 0.6) - 1.2;
+          // De sa PROPRE zone, on ne dégage pas pour récupérer — on dégage
+          // pour s'en débarrasser : la course au fond ne se juge pas.
+          if (!deChezNous && proche > rival) continue;
+          const val = chancesDe(modPasse(m, piece, v)) * (2.0 + Math.max(0, 3 - proche) * 0.6) - 1.2
+            - (deChezNous ? COUT_ICING : 0);
           if (!mieux || val > mieux.val) mieux = { type: 'passe', cible: v, val };
         }
         if (mieux) options.push(mieux);
@@ -2371,7 +2628,7 @@ function meilleurGeste(m, piece) {
     }
     if (peutBouger(m, piece)) {
       let mieux = null;
-      for (const v of deplacementsDe(m, piece)) {
+      for (const v of sesCases(m, piece)) {
         const gain = valeurCase(v.r, v.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
         // Reculer pour se sortir d'un bâton vaut la peine ; reculer pour rien, non.
         if (gain <= 0 && !batons(m, piece.eq, piece.r, piece.c)) continue;
@@ -2422,7 +2679,7 @@ function meilleurGeste(m, piece) {
       const poste = posteDe(m, piece);
       const d0 = dist(piece, poste);
       let mieux = null;
-      for (const v of deplacementsDe(m, piece)) {
+      for (const v of sesCases(m, piece)) {
         const rapproche = d0 - dist(v, poste);
         if (rapproche <= 0) continue;
         const notre = p && p.eq === piece.eq;
@@ -2435,7 +2692,7 @@ function meilleurGeste(m, piece) {
       if (mieux) options.push(mieux);
     } else if (p && p.eq === piece.eq && peutBouger(m, piece)) {
       let mieux = null;
-      for (const v of deplacementsDe(m, piece)) {
+      for (const v of sesCases(m, piece)) {
         const gain = valeurCase(v.r, v.c, eq.but) - valeurCase(piece.r, piece.c, eq.but);
         if (gain <= 0) continue;
         const ouvert = pression(m, piece.eq, v.r, v.c).n === 0 ? 0.9 : 0;
@@ -2454,7 +2711,7 @@ function meilleurGeste(m, piece) {
     if (vise && peutBouger(m, piece) && (!POSTES || vaALaRondelle(m, piece, vise))) {
       let mieux = null;
       const d0 = dist(piece, vise);
-      for (const v of deplacementsDe(m, piece)) {
+      for (const v of sesCases(m, piece)) {
         const d = dist(v, vise);
         if (d >= d0 && !(rondelleLibre && d === 0)) continue;
         const prise = rondelleLibre && d === 0 ? (bataillePossible(m, piece, v) ? 4 * chancesDe(modBataille(m, piece, v)) : 4) : 0;
@@ -2759,7 +3016,12 @@ export function changerUnite(m, cote, tri, pai) {
     const ancien = eq.pieces.find(x => x.role === role);
     if (!roles.includes(role) && ancien) { neuves.push(ancien); continue; }
     if (ancien) prises.delete(`${ancien.r},${ancien.c}`);
-    const [r0, c0] = ancien ? [ancien.r, ancien.c] : DEPART[cote][role];
+    // Un rôle qui n'était pas sur la glace entre par sa place de la dernière
+    // mise au jeu — il n'a pas de case d'où partir.
+    const pt = m.pointMJ || MJ_CENTRE;
+    const [dr, dc] = ECARTS[cote][role];
+    const [r0, c0] = ancien ? [ancien.r, ancien.c]
+      : [borne(pt.r + dr, RANG_MIN, RANG_MAX), borne(pt.c + dc, 0, COLS - 1)];
     const { r, c } = caseProche(prises, r0, c0);
     prises.add(`${r},${c}`);
     neuves.push(pieceNeuve(eq, role, joueur, r, c));
@@ -2771,13 +3033,6 @@ export function changerUnite(m, cote, tri, pai) {
   for (const x of eq.pieces) if (deposer(m, x, x.r, x.c)) break;
   return true;
 }
-
-/** Vient-on de faire une mise au jeu ? (les cinq pièces sont à leur place de départ) */
-export const auCentre = (m, cote) =>
-  eqDe(m, cote).pieces.every(x => {
-    const [r, c] = DEPART[cote][x.role];
-    return x.r === r && x.c === c;
-  });
 
 /* ======================================================================
    LES RÈGLES, ÉCRITES UNE SEULE FOIS
@@ -2860,7 +3115,7 @@ export function reglesDuPlateau() {
       rangees: [
         ['Patiner', 'MA c. DE', `autant de cases que son PA (trois au moins, ${PAS_MAX} au plus), en contournant les pièces ; ${POOL ? `ça se prend dans les ${POOL} pas de la main` : 'c\'est LE patin de la main'}, et le prix de chaque case est écrit dessus — la LIGNE montre par où elle passera. Sans la rondelle, c'est libre. Avec, quitter ou rejoindre une case où un adversaire est COLLÉ demande d'ESQUIVER : ton maniement, +1 d'élan, +1 au petit gabarit, moins les bâtons de trop, contre le meilleur de ceux qui te touchent`, 'revirement : tu échappes la rondelle, elle est libre sur place'],
         ['Passer', 'MA c. DE', 'à un coéquipier : +1 à trois cases, −1 à sept, −2 à dix, +1 au gabarit moyen, +1 de derrière le filet vers l\'enclave, −1 vers un receveur maladroit (MA 1-2), moins la pression sur toi — contre le meilleur bâton qui couvre la ligne ou le receveur (−1, un bâton sur une ligne n\'est pas sur la rondelle), +1 par bâton de plus ; rien sur la ligne, difficulté 3. Après une passe RÉUSSIE, le receveur peut TIRER SUR RÉCEPTION dans la même main. AU FOND, de la zone neutre : dans un coin ou derrière le filet, la rondelle y est LIBRE — c\'est le dump-and-chase, et ça ouvre la zone', 'revirement : le bâton sur la ligne l\'intercepte (au fond : elle rebondit, libre)'],
-        ['Tirer', 'TI c. AR', `de la zone offensive seulement, à ${PORTEE_TIR} cases du filet ou moins : ton TI, ta signature, moins les bâtons devant toi, contre son AR plus la PLACE — rien collé au filet, +${PLACE_GARDIEN.rangee2} à la deuxième rangée de l'enclave, +${PLACE_GARDIEN.pointe} de la pointe et des coins, +${PLACE_GARDIEN.tour} sur un tour du filet`, 'le gardien la garde : revirement — sauf de l\'enclave, ou raté d\'un rien, ou mal contrôlé (son AR contre 5+) : retour libre devant le filet'],
+        ['Tirer', 'TI c. AR', `de la zone offensive seulement, à ${PORTEE_TIR} cases du filet ou moins : ton TI, ta signature, moins les bâtons devant toi, contre son AR plus la PLACE — rien collé au filet, +${PLACE_GARDIEN.rangee2} à la deuxième rangée de l'enclave, +${PLACE_GARDIEN.pointe} de la pointe et des coins, +${PLACE_GARDIEN.tour} sur un tour du filet`, 'le gardien la GÈLE : sifflet et mise au jeu en fond de zone — sauf de l\'enclave, ou raté d\'un rien, ou mal contrôlé (son AR contre 5+) : la rondelle rebondit SUR LUI et reste libre devant son filet, et le jeu continue'],
         ['Feinter', 'MA c. DE', 'le porteur prend UN défenseur collé en un contre un : son maniement (+1 au petit gabarit), moins la pression, contre la défense de l\'autre. Battu, le défenseur est hors position jusqu\'à la fin du tour et le porteur repart sans esquive', 'revirement : il lit la feinte, la rondelle est libre sur place'],
         ['Frapper', 'FO c. FO', 'force contre force sur n\'importe quel adversaire collé : il tombe et recule d\'une case. Sur le porteur, la pression joue contre lui, et sur la bande il perd un de plus — c\'est là qu\'on le coince ; tu repars avec la rondelle. Pas avec la rondelle, pas vidé. Un frappeur reconnu a +1', 'hors position jusqu\'à la fin du tour (le matador reste debout) ; sur un 1, l\'arbitre regarde'],
         ['Harponner', 'DE c. MA', 'sur le porteur collé à toi : ta défense contre son maniement, la pression contre lui, et tu prends la rondelle sans le toucher. Un voleur reconnu a +1', 'hors position jusqu\'à la fin du tour ; sur un 1, l\'arbitre regarde'],
@@ -2871,9 +3126,9 @@ export function reglesDuPlateau() {
       titre: 'La rondelle et le hors-jeu',
       points: [
         'Qui met le pied sur une rondelle libre la prend : sans dé, sans dépenser son geste. Une pièce au sol, elle, ne ramasse rien. Une rondelle libre n\'est à personne : la possession ne change que quand l\'autre équipe la ramasse.',
-        `LE HORS-JEU : sans la rondelle, on n'entre pas en zone offensive (à ${PORTEE_TIR} cases du filet ou moins) avant elle — tant qu'elle n'a pas passé la ligne bleue, portée par n'importe qui ou libre, la zone est fermée à tes pièces qui ne l'ont pas, celles qui y sont doivent en SORTIR, et on ne passe pas à un coéquipier qui y traîne. La passe au fond l'ouvre.`,
+        `LE HORS-JEU SE SIFFLE. Tu PEUX devancer la rondelle : une pièce qui est en zone offensive (à ${PORTEE_TIR} cases du filet ou moins) pendant que la rondelle est dehors porte un fanion ⚑. Mais si la rondelle entre alors qu'elle y est encore — portée, passée ou envoyée au fond — c'est HORS-JEU : sifflet, et mise au jeu au point neutre de ce bord. Le porteur, lui, n'est jamais hors-jeu : il apporte la rondelle. Recevoir une passe en étant déjà dans la zone, si.`,
         'Derrière le filet on ne tire pas, on passe ; des deux cases collées au filet sur la ligne des buts, on tente le tour du filet.',
-        'Quand le gardien a la rondelle, il la relance à sa pièce la PLUS AVANCÉE au début de la main : c\'est la sortie de zone. Après un but : mise au jeu au centre, et le centre gagne la rondelle des mains et du corps — maniement et force.',
+        'Quand le gardien a la rondelle EN JEU, il la relance à sa pièce la PLUS AVANCÉE au début de la main : c\'est la sortie de zone.',
       ],
     },
     {
@@ -2892,6 +3147,15 @@ export function reglesDuPlateau() {
         'Le réservoir d\'une pièce vaut deux fois son SO. Chaque geste — patiner ou agir — en coûte un point ; au banc, on en reprend un par tour.',
         'Sous la moitié, la pièce est FATIGUÉE : une case de patin en moins. À zéro, elle est VIDÉE : deux cases en moins, un de moins à tous ses jets, et plus de mise en échec — il lui reste le bâton.',
         'LE CHANGEMENT EST INSTANTANÉ : à n\'importe quel moment de ta main, une fois par main, sans dépenser ni le déplacement ni l\'action. Chaque pièce qui entre prend la case de celle qui sort. Une seule limite : on ne change pas l\'unité qui porte la rondelle. C\'est pour ça que tu as quatre trios et trois paires.',
+      ],
+    },
+    {
+      titre: 'Les arrêts de jeu',
+      points: [
+        `LE PLATEAU A NEUF POINTS DE MISE AU JEU, et chaque sifflet a le sien : le centre, quatre en fond de zone, quatre au neutre. Les cinq pièces de chaque camp se reposent AUTOUR du point — le centre au point, les ailiers sur ses flancs, les défenseurs derrière — donc une mise au jeu en fond de zone se joue dans cette zone-là, pas au centre.`,
+        'LA MISE AU JEU se gagne des mains et du corps : le maniement et la force des deux centres, plus un dé chacun. Un bon centre ravoir la rondelle dans sa propre zone, c\'est ce qui sauve un désavantage numérique.',
+        'CINQ CHOSES ARRÊTENT LE JEU. Un BUT : mise au jeu au centre. La FIN DE PÉRIODE : au centre. Le GARDIEN QUI GÈLE la rondelle : en fond de la zone où c\'est arrivé. Une PUNITION : en fond de la zone de l\'équipe punie — l\'avantage numérique commence donc là où il vaut quelque chose. Un HORS-JEU : au point neutre de ce bord.',
+        'Tout le reste continue : une rondelle libre n\'arrête rien, un revirement n\'arrête rien, un retour de tir n\'arrête rien. On ne siffle que ce qu\'un arbitre sifflerait.',
       ],
     },
     {
