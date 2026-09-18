@@ -125,7 +125,33 @@ const MESURE = typeof process !== 'undefined' && process.env ? process.env : {};
  * six tours, et le rayon d'un défenseur (`rayonDe`) a la place d'exister.
  */
 export const COLS = 13;
-export const RANGS = 19;
+/*
+ * VINGT-TROIS RANGÉES (S42). JP, après avoir joué : *je pense juste que les
+ * joueurs peuvent trop rapidement traverser la glace*. Il avait raison sur
+ * la PROPORTION : à seize rangées entre les lignes des buts, un ailier à PA
+ * 6 en couvrait cinq d'un seul élan, soit 31 % de la glace en un clic, et un
+ * patineur moyen traversait en quatre mains.
+ *
+ * RALENTIR LE PAS A ÉTÉ ESSAYÉ TROIS FOIS ET ÉCARTÉ, mesuré : le porteur
+ * seul (il devient une proie, buts 4,66 → 3,35), tout le monde (2-3-4 pas :
+ * la zone offensive tombe de 13 à 11 % des mains et les buts à 4,50 ; 2-2-3 :
+ * 8 % et 3,05), et tout le monde avec une passe qui porte plus loin (aucun
+ * effet, 4,37). C'est la vieille trouvaille du dépôt : raccourcir le patin
+ * sans agrandir la glace la rend plate, parce que la rondelle meurt encore
+ * plus au neutre.
+ *
+ * C'est donc la GLACE qui s'allonge, pas le pas qui raccourcit — et la zone
+ * offensive suit (`PORTEE_TIR` 5 → 7) pour que le neutre ne soit pas le seul
+ * à grandir, ce qui était l'erreur des essais de S13. Vingt rangées à
+ * traverser au lieu de seize : cinq mains pour un patineur moyen au lieu de
+ * quatre, et un rapide couvre 25 % de la glace par élan au lieu de 31 %.
+ * Mesuré (30 matchs) : la zone offensive garde ses 13 % des mains, les
+ * possessions avec un tir passent de 40 à 42 %, les lancers de 14,0 à 15,1,
+ * les buts de 5,13 à 5,22, et le sens d'attaque change une main sur 5,2 au
+ * lieu de 4,8. La case du plateau descend de 29,4 à 26,4 px sur un téléphone
+ * de 390 px, et la glace s'approche des proportions d'une vraie patinoire.
+ */
+export const RANGS = Number(MESURE.RANGS) || 23;
 export const FILET_HAUT = 1;                  // la ligne des buts du haut ; la rangée 0 est derrière
 export const FILET_BAS = RANGS - 2;           // celle du bas ; la dernière rangée est derrière
 export const BUT_COL = (COLS - 1) / 2;        // le centre du filet
@@ -203,7 +229,7 @@ export const PLACE_GARDIEN = { enclave: 1, rangee2: 2, pointe: 3, coin: 3, tour:
  * cette règle avait retiré. C'est l'ENCLAVE qui a rétréci, pas le droit de
  * tirer : on tire toujours d'aussi loin, mais le point qui paie est plus petit.
  */
-export const PORTEE_TIR = 5;   // S38 : cinq rangées de zone offensive sur seize — la même proportion que trois sur dix
+export const PORTEE_TIR = Number(MESURE.TIR_PORTEE) || 7;   // S42 : sept rangées de zone offensive sur vingt — la proportion de S38 tenue sur la glace allongée
 
 /** Le filet qu'une équipe attaque : 'A' monte, 'B' descend. */
 export const filetDe = cote => (cote === 'A' ? FILET_HAUT : FILET_BAS);
@@ -1366,6 +1392,28 @@ const horsJeu = (m, piece, r, c) => {
 };
 
 /** Les cases où cette pièce peut aller : ses pas, en contournant les pièces ; avec la rondelle, une case sous pression en coûte deux. */
+/*
+ * L'ÉVENTAIL ALLUME BEAUCOUP, ET C'EST MESURÉ (S42) : 43 cases en moyenne
+ * quand on choisit une pièce, jusqu'à 116 — 14 % du plateau d'un seul coup.
+ * C'est ce qu'on lit comme « les joueurs traversent la glace trop vite » :
+ * un clic peut poser la pièce à peu près n'importe où.
+ *
+ * Trois façons de le resserrer ont été mesurées, et deux échouent :
+ *   quatre lignes SÈCHES (pas de diagonales)   9,8 cases — mais le jeu MEURT :
+ *     un seul adversaire ferme le couloir, les buts tombent de 5,22 à 2,03,
+ *     la rondelle traîne libre 72 % des mains, les mises en échec montent à
+ *     36 et le match gonfle à 351 mains. C'est le mur.
+ *   quatre lignes AVEC UN VIRAGE              41,7 cases — aucun gain : un
+ *     trajet en L rejoint presque tout le losange, donc autant garder
+ *     l'éventail.
+ *   huit rayons (lignes, diagonales comprises) 19,2 cases, et le jeu TIENT :
+ *     16,8 lancers, 31 % de conversion, 5,27 buts, le sens d'attaque change
+ *     une main sur 5,9. Il coûte 20 % de mains en plus (223 → 268) et fait
+ *     passer les mises en échec de 13 à 21. S13 l'avait écarté parce que son
+ *     IA ne savait plus contourner le trafic (1,9 but) ; celle de S42, qui
+ *     tient des postes et dispose d'un placement, y arrive.
+ * C'est une décision de JEU, pas un réglage : elle attend JP.
+ */
 export function deplacementsDe(m, piece) {
   const pas = pasDe(m, piece);
   const avecRondelle = porteur(m) === piece;
