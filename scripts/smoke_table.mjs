@@ -270,7 +270,7 @@ while (tours++ < 4000) {
     sel: !!document.querySelector('#tableModal .t-case.t-sel'),
     // La pièce choisie porte-t-elle la rondelle ? Le joueur scripté monte alors vers le filet.
     porteur: !!document.querySelector('#tableModal .t-jeton.mienne.choisie .t-rondelle'),
-    jouables: document.querySelectorAll('#tableModal .t-case.t-jouable:not(.t-sel)').length,
+    jouablesCases: cases('#tableModal .t-case.t-jouable:not(.t-sel)'),
     offresCases: cases('#tableModal .t-case.t-offre'),
     contactsCases: cases('#tableModal .t-case.t-offre-echec'),
     // La case d'un adversaire qui PORTE la rondelle et qu'on peut atteindre :
@@ -301,6 +301,7 @@ while (tours++ < 4000) {
   });
   etat.offres = etat.offresCases.length;
   etat.contacts = etat.contactsCases.length;
+  etat.jouables = etat.jouablesCases.length;
   if (etat.fin) break;
   if (etat.suite) {
     if (etat.relance && relances < 3) { await page.click('#tableModal .t-relancer'); relances++; await page.waitForTimeout(50); }
@@ -426,7 +427,7 @@ while (tours++ < 4000) {
     await page.click(caseDe(etat.offresCases[Math.floor(dé() * etat.offres)]));
     gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
-  if (etat.jouables) { await page.click('#tableModal .t-case.t-jouable:not(.t-sel)'); pieces++; await page.waitForTimeout(50); continue; }
+  if (etat.jouables) { await page.click(caseDe(etat.jouablesCases[0])); pieces++; await page.waitForTimeout(50); continue; }
   // Un déplacement et une action par main (S36) : quand rien ne peut
   // dépenser ce qui reste, on rend la main ; on ne renonce à la présence
   // que si la main n'était pas entamée.
