@@ -33,7 +33,7 @@ import {
   ciblesDejouerDe, modDejouer, dejouer, appliquerDejouer,
   receptionPossible, tirerSurReception,
   relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, changerUnite, nomDe, reglesDuPlateau,
-  peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, pressionDe, PUNITION_TOURS,
+  peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, pressionDe, PUNITION_TOURS, PAS_PAR_MAIN, pasRestants,
   bataillePossible, modBataille, appliquerBataille,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
@@ -193,13 +193,30 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       // choisir) ; en mode « épaule » ou « bâton », le geste est déjà choisi
       // et la touche le joue.
       if (piece.eq === 'B' && !piece.gardien && !piece.etourdi && dist(sel, piece) === 1 && peutAgir(m, sel) && porteur(m) !== sel) {
+        /*
+         * LA CASE DEMANDE AU MOTEUR, elle ne devine pas (S42). Elle
+         * s'allumait sur la seule adjacence : une pièce en pleine course ou
+         * essoufflée voyait donc la case du porteur s'allumer, et la
+         * toucher n'offrait RIEN — ni Frapper ni Harponner, les deux
+         * boutons lisant `ciblesEchecDe` et `ciblesVolDe`. Une case allumée
+         * qui ne fait rien est exactement ce que « jouable veut dire a
+         * encore quelque chose à faire » interdit.
+         */
         const porte = porteur(m) === piece;
-        if (mode === 'vol') return porte ? { type: 'vol', cible: piece, duel: avec(modVol(m, sel, piece), bonus('ACTIF')) } : null;
+        const peutFrapper = ciblesEchecDe(m, sel).includes(piece);
+        const peutVoler = ciblesVolDe(m, sel).includes(piece);
+        if (mode === 'vol') return porte && peutVoler ? { type: 'vol', cible: piece, duel: avec(modVol(m, sel, piece), bonus('ACTIF')) } : null;
         if (!veut('echec')) return null;
-        const d = avec(modEchec(m, sel, piece), bonus('ACTIF') + bonus('EPAULE'));
-        return porte && !mode
-          ? { type: 'duel', cible: piece, duel: d }
-          : { type: 'echec', cible: piece, duel: d };
+        // Sur le PORTEUR et sans mode, la case ouvre le DUEL — la carte fait
+        // choisir entre l'épaule et le bâton, et n'affiche que ce qui est
+        // jouable. Elle ne joue jamais un geste à la place du choix : c'est
+        // le choix qui est le geste. Ailleurs, c'est l'épaule ou rien.
+        if (porte && !mode) return peutFrapper || peutVoler
+          ? { type: 'duel', cible: piece, duel: avec(modEchec(m, sel, piece), bonus('ACTIF') + bonus('EPAULE')) }
+          : null;
+        return peutFrapper
+          ? { type: 'echec', cible: piece, duel: avec(modEchec(m, sel, piece), bonus('ACTIF') + bonus('EPAULE')) }
+          : null;
       }
       return null;
     }
@@ -956,7 +973,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // dépensé s'éteint. « Fin du tour » rend la main sans dépenser le reste ;
     // « Finir » renonce à toute la présence.
     const entamee = m.main.bouge || m.main.agi;
-    const budget = `<span class="t-budget" title="À ta main : un déplacement et une action, pas forcément de la même pièce. Puis la sienne, et c'est un tour."><i class="${m.main.bouge ? 'fait' : ''}">Patin</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
+    // LE BUDGET PARTAGÉ (S42) : les pas qu'il reste à répartir, et l'action.
+    const reste = pasRestants(m);
+    const budget = `<span class="t-budget" title="À ta main : ${PAS_PAR_MAIN} pas à répartir sur qui tu veux — chaque pièce patine au plus une fois, jamais plus loin que son PA — et une action. Puis la sienne, et c'est un tour."><i class="${reste ? '' : 'fait'}"><b>${reste}/${PAS_PAR_MAIN}</b> Pas</i><i class="${m.main.agi ? 'fait' : ''}">Action</i></span>`;
     const fin = entamee
       ? `<button type="button" class="t-fin-tour t-evident" title="Rendre la main sans dépenser ce qui reste">Passer la main</button>`
       : `<button type="button" class="t-passer" title="Ne rien jouer cette main-ci : l'adversaire joue la sienne.">Passer</button>`;

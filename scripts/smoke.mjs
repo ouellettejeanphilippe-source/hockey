@@ -27,7 +27,10 @@ catch { pw = require(execSync('npm root -g').toString().trim() + '/playwright');
 const { chromium } = pw;
 
 const base = process.argv[2] || 'http://localhost:8000';
-const browser = await chromium.launch();
+/* CHROMIUM : le chemin d'un Chromium déjà installé (un poste où la version
+   de Playwright ne correspond pas à celle du navigateur). Vide dans
+   l'Action, qui installe le sien. */
+const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const errors = [];
 let netErrors = 0;   // images externes (assets.nhle.com) : réseau, pas l'application
