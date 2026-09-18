@@ -2022,7 +2022,10 @@ export function appliquerPasse(m, piece, cible, jet) {
 
 export function tirer(m, piece) {
   const d = avec(modTir(m, piece), piece.hab === 'DECOCHE' && piece.habDispo ? 2 : 0);
-  eqDe(m, piece.eq).modsTir.push({ mod: d.a - d.b, d: profondeur(piece.r, eqDe(m, piece.eq).but), place: placeGardien(m, piece) });
+  // `vide` est noté ICI, au moment du tir : un but dans le filet désert fait
+  // rentrer le gardien, donc après coup on ne peut plus savoir si le tir de
+  // la zone neutre était permis. C'est ce que `check_regles` lit.
+  eqDe(m, piece.eq).modsTir.push({ mod: d.a - d.b, d: profondeur(piece.r, eqDe(m, piece.eq).but), place: placeGardien(m, piece), vide: filetVide(m, piece) });
   return jeter(m, 'tir', d);
 }
 
@@ -2247,14 +2250,30 @@ export function peutRetirerGardien(m, cote) {
  */
 function normaliserEffectif(m, eq) {
   const vus = new Set();
-  eq.pieces = eq.pieces.filter(x => {
-    if (x.role === 'X' && !eq.desert) return false;      // le gardien est rentré
-    if (x.role === 'X' && vus.has('X')) return false;    // un seul sixième
-    if (x.p && vus.has(x.p)) return false;               // jamais deux fois le même homme
+  const gardes = new Set();
+  /*
+   * LE SIXIÈME EST L'INTRUS, DONC C'EST LUI QUI CÈDE (S46). Les rôles se
+   * lisent AVANT `X`, et la raison est un vrai cas : le C sort du cachot
+   * pendant que son propre homme est déjà sur la glace en sixième attaquant
+   * (les trios ont changé entre-temps). Dédoublonner dans l'ordre du tableau
+   * gardait l'intrus et jetait le rôle — l'équipe restait à CINQ avec un but
+   * ouvert, et `check_regles` l'a dit au 248e match. Le rôle reste, le
+   * sixième saute, et la ligne d'après en renvoie un AUTRE : `envoyerLeSixieme`
+   * ne prend que des hommes qui ne sont pas déjà sur la glace.
+   */
+  for (const x of [...eq.pieces.filter(x => x.role !== 'X'), ...eq.pieces.filter(x => x.role === 'X')]) {
+    if (x.role === 'X' && !eq.desert) continue;          // le gardien est rentré
+    if (x.role === 'X' && vus.has('X')) continue;        // un seul sixième
+    if (x.p && vus.has(x.p)) continue;                   // jamais deux fois le même homme
     if (x.role === 'X') vus.add('X');
     if (x.p) vus.add(x.p);
-    return true;
-  });
+    gardes.add(x);
+  }
+  // On filtre dans l'ordre D'ORIGINE : la priorité ne sert qu'à choisir qui reste.
+  const sortis = eq.pieces.filter(x => !gardes.has(x));
+  eq.pieces = eq.pieces.filter(x => gardes.has(x));
+  // Une pièce qui quitte la glace n'emporte pas la rondelle avec elle.
+  for (const x of sortis) if (porteur(m) === x) rebondir(m, x.r, x.c);
   if (eq.desert && !eq.pieces.some(x => x.role === 'X') && !eq.penalites.some(x => x.role === 'X')) {
     envoyerLeSixieme(m, eq);
   }
@@ -3442,11 +3461,11 @@ export function changerUnite(m, cote, tri, pai) {
    * lui. `check_regles` a dit les deux en vingt matchs.
    */
   const extra = eq.pieces.find(x => x.role === 'X');
-  // ...sauf si le trio qui rentre le contient DÉJÀ : son joueur vient d'une
-  // autre unité, et changer pour cette unité-là le mettait sur la glace deux
-  // fois — en `C` et en `X`.
-  if (extra && eq.desert && !neuves.some(x => x.p === extra.p)) neuves.push(extra);
+  if (extra && eq.desert) neuves.push(extra);
   eq.pieces = neuves;
+  // Le trio qui rentre peut contenir l'homme qui jouait le sixième : c'est
+  // `normaliserEffectif` qui tranche, et lui seul — il garde le rôle, jette
+  // le sixième, et en renvoie un autre.
   normaliserEffectif(m, eq);
   if (m.tour === cote) m.main.change = true;
   // Un des entrants peut se poser sur la rondelle libre : la même règle vaut
