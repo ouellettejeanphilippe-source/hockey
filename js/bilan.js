@@ -15,12 +15,15 @@ import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
+// La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
+// et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
+import { ficheDeClub } from './equipes.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast;
+let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast } = c);
+  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard } = c);
 }
 
 /* =====================================================================
@@ -299,8 +302,163 @@ export const ONGLETS_BILAN = [
   { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier' },
   { cle: 'stats', ico: 'i-star', titre: 'Meneurs' },
   { cle: 'alignement', ico: 'i-list', titre: 'Alignement' },
+  { cle: 'ligue', ico: 'i-cols', titre: 'La ligue' },
   { cle: 'series', ico: 'i-cup', titre: 'Séries' },
 ];
+/* =====================================================================
+   LE NIVEAU DE LA LIGUE, ET CE QUE TA SAISON VALAIT DEDANS
+
+   JP : *je veux avoir un onglet à la fin de la saison qui montre la force
+   relative de la ligue et comment x performe versus l'attente du niveau de
+   la ligue*.
+
+   La question est réelle : les 31 adversaires sont tirés au hasard dans
+   55 saisons, donc une partie t'oppose au Canadien de 1976-77 et aux Oilers
+   de 1983-84, la suivante à des clubs d'expansion. Quarante-huit victoires
+   ne valent pas la même chose dans les deux cas, et rien ne le disait.
+
+   TROIS MESURES, ET AUCUNE N'INVENTE DE NOMBRE.
+
+   1. LE NIVEAU : le vrai palmarès des clubs que tu as affrontés. Un shard
+      porte des joueurs, pas un classement, donc leur fiche se reconstitue
+      des gardiens — la méthode de `check_ratings.mjs` et de l'écran des
+      équipes (`ficheDeClub`), et l'écran le dit.
+
+   2. LE CALENDRIER : la moyenne des points des adversaires que tu as
+      VRAIMENT rencontrés, match par match (le journal porte l'adversaire de
+      chacun). Dans une ligue de 32, personne ne joue le même calendrier.
+
+   3. L'ATTENTE : ce que ton différentiel de buts méritait. C'est Pythagore,
+      la mesure standard du hasard d'une saison — un club qui gagne ses
+      matchs serrés et perd ses raclées finit au-dessus de ce que ses buts
+      annoncent. On NORMALISE les attentes pour que leur somme fasse celle
+      des points réellement distribués : sans ça, le point de la défaite en
+      prolongation rendrait tout le monde chanceux, et l'écart ne voudrait
+      plus rien dire. Ainsi la somme des écarts est nulle, et « +7 » veut
+      dire sept points de plus que la ligue n'en devait à ces buts-là.
+   ===================================================================== */
+
+/*
+ * LES VRAIES FICHES, GARDÉES AU MODULE. Elles se reconstituent des shards,
+ * donc en asynchrone : le volet se dessine tout de suite avec des points de
+ * suspension et se refait quand elles arrivent. Le cache survit à un
+ * « Rejouer » — un club de 1976-77 a la même vraie saison d'une partie à
+ * l'autre.
+ */
+const FICHES_REELLES = new Map();
+
+/** Reconstitue la vraie fiche des adversaires, puis redessine le volet. */
+async function chargerNiveau(teams) {
+  if (!getShard) return;
+  let bouge = false;
+  for (const t of teams) {
+    if (t.isPlayer || !t.season) continue;
+    const cle = `${t.season}|${t.tag}`;
+    if (FICHES_REELLES.has(cle)) continue;
+    try {
+      const club = (await getShard(t.season)).byTeam[t.tag];
+      if (club && club.length) { FICHES_REELLES.set(cle, ficheDeClub(club)); bouge = true; }
+    } catch { /* hors ligne : le volet garde ses points de suspension */ }
+  }
+  const volet = document.querySelector('#resultHost .result-pane[data-volet="ligue"]');
+  if (bouge && volet) volet.innerHTML = voletNiveau(teams, FICHES_REELLES);
+}
+
+/** L'exposant de Pythagore au hockey : le différentiel de buts y pèse moins qu'au baseball. */
+const PYTHAGORE = 2;
+const pythagore = (gf, ga) => {
+  const a = Math.pow(Math.max(1, gf), PYTHAGORE), b = Math.pow(Math.max(1, ga), PYTHAGORE);
+  return a / (a + b);
+};
+
+/**
+ * Les trois mesures, pour toutes les équipes de la ligue. `reelles` est une
+ * Map `saison|tag` -> fiche reconstituée, remplie à la demande : le volet se
+ * dessine sans elle et se complète quand les shards sont là.
+ */
+function niveauDeLigue(teams, reelles) {
+  const total = teams.reduce((a, t) => a + t.PTS, 0);
+  const brut = teams.map(t => pythagore(t.GF, t.GA));
+  const sommeBrut = brut.reduce((a, x) => a + x, 0) || 1;
+  return teams.map((t, i) => {
+    // Le calendrier : la moyenne des points des adversaires rencontrés.
+    const j = t.journal || [];
+    const sos = j.length ? j.reduce((a, m) => a + ((m.adv && m.adv.PTS) || 0), 0) / j.length : 0;
+    const attendu = brut[i] * total / sommeBrut;
+    const reelle = t.season ? reelles.get(`${t.season}|${t.tag}`) : null;
+    // Le vrai pourcentage de victoires du club, les nuls comptant pour moitié.
+    const vrai = reelle && reelle.mj ? (reelle.V + reelle.N / 2) / reelle.mj : null;
+    return { t, sos, attendu, ecart: t.PTS - attendu, reelle, vrai };
+  });
+}
+
+/** Le volet « La ligue ». `reelles` peut être vide : le texte le dit. */
+function voletNiveau(teams, reelles) {
+  if (teams.length < 2) return '<div class="result-section"><h3>La ligue</h3><p class="series-legende">Une saison en solo n\'a pas de ligue à mesurer.</p></div>';
+  const lignes = niveauDeLigue(teams, reelles);
+  const moi = lignes.find(x => x.t.isPlayer) || lignes[0];
+  const adversaires = lignes.filter(x => !x.t.isPlayer && x.vrai != null);
+  const nivMoyen = adversaires.length ? adversaires.reduce((a, x) => a + x.vrai, 0) / adversaires.length : null;
+  const gros = adversaires.filter(x => x.vrai >= 0.60).length;
+  const petits = adversaires.filter(x => x.vrai < 0.45).length;
+
+  // Le rang du calendrier : 1 = le plus dur de la ligue.
+  const parSos = lignes.slice().sort((a, b) => b.sos - a.sos);
+  const rangSos = parSos.findIndex(x => x === moi) + 1;
+  const sosMoyen = lignes.reduce((a, x) => a + x.sos, 0) / lignes.length;
+
+  const mot = nivMoyen == null ? ''
+    : nivMoyen >= 0.56 ? 'Une ligue RELEVÉE : tu as passé l\'année contre des clubs qui gagnaient pour vrai.'
+    : nivMoyen >= 0.52 ? 'Une ligue un peu au-dessus de la moyenne.'
+    : nivMoyen >= 0.48 ? 'Une ligue ordinaire : tes adversaires valaient la moyenne de leur époque.'
+    : 'Une ligue TENDRE : tu as croisé beaucoup de clubs qui perdaient pour vrai.';
+
+  const signe = x => `${x >= 0 ? '+' : ''}${x.toFixed(1)}`;
+  const parEcart = lignes.slice().sort((a, b) => b.ecart - a.ecart);
+
+  return `
+    <div class="result-section">
+      <h3>Le niveau de ta ligue</h3>
+      <div class="niv-tuiles">
+        <div class="niv-tuile"><span class="k">Vrai % de victoires des 31</span><b>${nivMoyen == null ? '…' : (100 * nivMoyen).toFixed(1) + ' %'}</b></div>
+        <div class="niv-tuile"><span class="k">Clubs à 60 % et plus</span><b>${nivMoyen == null ? '…' : gros}</b></div>
+        <div class="niv-tuile"><span class="k">Clubs sous 45 %</span><b>${nivMoyen == null ? '…' : petits}</b></div>
+      </div>
+      <p class="series-legende">${nivMoyen == null ? 'On reconstitue les vraies saisons de tes adversaires…' : esc(mot)} Fiches <strong>reconstituées</strong> des colonnes de chaque saison : un shard porte des joueurs, pas un classement.</p>
+    </div>
+
+    <div class="result-section">
+      <h3>Ton calendrier</h3>
+      <div class="niv-tuiles">
+        <div class="niv-tuile"><span class="k">Points moyens de tes adversaires</span><b>${moi.sos.toFixed(1)}</b></div>
+        <div class="niv-tuile"><span class="k">La ligue</span><b>${sosMoyen.toFixed(1)}</b></div>
+        <div class="niv-tuile"><span class="k">Calendrier le plus dur</span><b>${rangSos}<small>/${lignes.length}</small></b></div>
+      </div>
+      <p class="series-legende">La moyenne des points des clubs que tu as <strong>vraiment rencontrés</strong>, match par match — dans une ligue de ${lignes.length}, personne ne joue le même calendrier. Un club que tu as battu en a moins : c'est la limite de la mesure, et elle vaut pour tout le monde.</p>
+    </div>
+
+    <div class="result-section">
+      <h3>Ce que tes buts méritaient</h3>
+      <div class="niv-tuiles">
+        <div class="niv-tuile"><span class="k">Points obtenus</span><b>${moi.t.PTS}</b></div>
+        <div class="niv-tuile"><span class="k">Points attendus</span><b>${moi.attendu.toFixed(1)}</b></div>
+        <div class="niv-tuile"><span class="k">Écart</span><b class="${moi.ecart >= 0 ? 'pm-pos' : 'pm-neg'}">${signe(moi.ecart)}</b></div>
+      </div>
+      <p class="series-legende">Pythagore : ce que ton différentiel de buts annonçait. Au-dessus, tu as gagné tes matchs serrés ; en dessous, tu as perdu des soirs que tes buts ne méritaient pas. Les attentes sont mises à l'échelle des points que la ligue a vraiment distribués, donc <strong>la somme des écarts est nulle</strong>.</p>
+      <div class="table-wrap"><table class="std niv-table">
+        <thead><tr><th class="left">Équipe</th><th>PTS</th><th>Attendus</th><th class="heros">Écart</th><th>Calendrier</th><th>Vraie saison</th></tr></thead>
+        <tbody>${parEcart.map(x => `<tr class="${x.t.isPlayer ? 'you' : ''}">
+          <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 15)}${lienEquipe(x.t, 'saison', `<span>${esc(teamLabel(x.t))}</span>`)}</div></td>
+          <td>${x.t.PTS}</td>
+          <td>${x.attendu.toFixed(1)}</td>
+          <td class="heros ${x.ecart >= 0 ? 'pm-pos' : 'pm-neg'}">${signe(x.ecart)}</td>
+          <td>${x.sos.toFixed(1)}</td>
+          <td>${x.vrai == null ? (x.t.isPlayer ? '—' : '…') : (100 * x.vrai).toFixed(0) + ' %'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+}
+
 export function renderResult(r, you, teams, leaders, calendrier = []) {
   const nTeams = teams.length;
   const rank = teams.findIndex(t => t.isPlayer) + 1;
@@ -423,6 +581,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         <p class="series-legende">Touche un nom pour sa fiche et ses statistiques simulées.</p>
         ${rows}
       </div>`,
+    ligue: voletNiveau(teams, FICHES_REELLES),
     series: `<div id="playoffsSection"></div>`,
   };
 
@@ -465,6 +624,9 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     </div>`;
 
   brancherEntractes($('resultHost'));
+  // Les vraies fiches des adversaires arrivent des shards : le volet « La
+  // ligue » se complète tout seul.
+  if (teams.length > 1) chargerNiveau(teams);
   if (stats) brancherPalmares($('palm-saison'), stats, 'saison');
 
   if (calendrier.length) {

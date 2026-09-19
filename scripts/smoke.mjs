@@ -477,6 +477,44 @@ if (enabled) {
      le repêchage resté au-dessus provoquait, et il se lit d'un chiffre. */
   if (await page.$('#resultTabs')) errors.push("le bilan a encore sa propre barre d'onglets : il n'y en a qu'une, et elle est en bas");
   /*
+   * LE NIVEAU DE LA LIGUE. JP : *je veux un onglet à la fin de la saison qui
+   * montre la force relative de la ligue et comment x performe versus
+   * l'attente du niveau de la ligue*. Trois choses s'éprouvent, et la
+   * deuxième est un INVARIANT : les attentes sont mises à l'échelle des
+   * points que la ligue a vraiment distribués, donc LA SOMME DES ÉCARTS EST
+   * NULLE. Si elle dérive, l'écart d'un club ne veut plus rien dire — on
+   * lirait « +7 » sur une ligue entière chanceuse.
+   */
+  {
+    const ong = await page.$('.navtab[data-page="ligue"]');
+    if (!ong) errors.push("l'onglet « La ligue » n'existe pas au bilan");
+    else {
+      await ong.click();
+      await page.waitForTimeout(3500);   // les shards des 31 adversaires
+      const n = await page.evaluate(() => {
+        const v = document.querySelector('#resultHost .result-pane[data-volet="ligue"]');
+        if (!v) return null;
+        const ec = [...v.querySelectorAll('.niv-table tbody tr td.heros')].map(x => parseFloat(x.textContent));
+        return {
+          rangs: v.querySelectorAll('.niv-table tbody tr').length,
+          somme: ec.reduce((a, x) => a + x, 0),
+          attente: [...v.querySelectorAll('.niv-tuile b')].filter(x => x.textContent.trim() === '…').length,
+          niveau: (v.querySelector('.niv-tuile b') || {}).textContent,
+        };
+      });
+      if (!n) errors.push("le volet « La ligue » ne rend rien");
+      else {
+        if (n.rangs < 30) errors.push(`la table du niveau n'a que ${n.rangs} rangées`);
+        if (Math.abs(n.somme) > 1.5) errors.push(`la somme des écarts vaut ${n.somme.toFixed(1)} au lieu de zéro : les attentes ne sont plus à l'échelle des points distribués`);
+        if (n.attente) errors.push(`${n.attente} tuile(s) du niveau restent en points de suspension : les vraies saisons ne se sont pas chargées`);
+        else console.log(`   le niveau de la ligue : ${n.rangs} clubs, vrai % de victoires des 31 ${(n.niveau || '').trim()}, somme des écarts ${n.somme.toFixed(1)}`);
+      }
+      await pasUneLonguePage('le bilan · la ligue');
+      await sansDebordement('le bilan · la ligue');
+    }
+  }
+
+  /*
    * MA LIGUE DANS L'ONGLET DES ÉQUIPES. JP : *les équipes dans l'onglet
    * équipe, je parle de ceux de la ligue en cours, je veux pouvoir comparer
    * les joueurs et équipes avec leurs vraies prestations*. L'écran ouvrait

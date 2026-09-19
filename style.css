@@ -4586,6 +4586,22 @@ a.spin-club:hover {
 /* Un joueur qui n'a pas joué une minute de ta saison : sa rangée s'efface,
    mais elle reste — c'est une information, pas un vide. */
 .eq-table.eq-double tr.eq-absent td { opacity: .45; }
+
+/* LE NIVEAU DE LA LIGUE : trois tuiles par mesure, comme les cinq de
+   l'alignement — une rangée, jamais un pavage, et ce sont les libellés qui
+   raccourcissent. */
+.niv-tuiles {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  margin: 10px 0 8px;
+}
+.niv-tuile {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
+}
+.niv-tuile .k { font-size: 10.5px; color: var(--muted); line-height: 1.15; }
+.niv-tuile b { font: 800 19px/1 var(--display); letter-spacing: .02em; }
+.niv-tuile b small { font-size: 12px; color: var(--muted); font-weight: 700; }
+.niv-table td.heros { font-weight: 800; }
 .eq-table td.heros, .eq-table th.heros { color: var(--gold); }
 .eq-table td.sub-cell { color: var(--muted); font: 700 11px/1 var(--display); }
 .eq-joueur { background: none; border: none; color: var(--ink); font: inherit; padding: 0; cursor: pointer; text-align: left; }

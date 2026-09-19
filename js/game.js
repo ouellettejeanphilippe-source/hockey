@@ -807,6 +807,9 @@ async function boot() {
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
     saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast,
+    // L'onglet « La ligue » reconstitue la VRAIE fiche des 31 adversaires :
+    // il lui faut le shard de leur saison, et le chargeur le met en cache.
+    getShard,
   });
   // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
   let vierge = false;
