@@ -49,13 +49,19 @@ function coquille(label) {
 }
 
 /*
- * LES ONGLETS DE L'ÉCRAN. Une barre plate, l'onglet ouvert souligné d'or
- * comme ceux du bilan ; `rendre(cle)` fabrique le volet au moment où on
- * l'ouvre, et `rafraichir` le refait après chaque journée ou chaque match.
+ * LES ONGLETS DE L'ÉCRAN — EN BAS, comme la barre du jeu, et dans la même
+ * langue (une icône, un mot). L'écran de saison est plein écran, donc la
+ * barre du jeu est derrière lui : il n'y a JAMAIS qu'une barre d'onglets à
+ * l'écran, et elle est toujours au même endroit. `rendre(cle)` fabrique le
+ * volet au moment où on l'ouvre, et `rafraichir` le refait après chaque
+ * journée ou chaque match.
  */
 function onglets(barre, volet, liste, rendre) {
   let courant = liste[0].cle;
-  barre.innerHTML = liste.map(o => `<button type="button" data-onglet="${o.cle}" class="${o.cle === courant ? 'on' : ''}">${o.titre}</button>`).join('');
+  barre.innerHTML = liste.map(o => `<button type="button" role="tab" data-onglet="${o.cle}" class="navtab${o.cle === courant ? ' on' : ''}" aria-selected="${o.cle === courant}">
+    <svg class="ico" aria-hidden="true"><use href="#${o.ico}"/></svg>
+    <span class="navtab-lbl">${o.titre}</span>
+  </button>`).join('');
   // La pastille choisie reste en vue : la rangée des équipes en compte
   // trente-trois, et la tienne est rarement la première.
   const apresRendu = () => {
@@ -69,7 +75,11 @@ function onglets(barre, volet, liste, rendre) {
   };
   const montrer = cle => {
     courant = cle;
-    barre.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.onglet === cle));
+    barre.querySelectorAll('button').forEach(b => {
+      const on = b.dataset.onglet === cle;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
     volet.innerHTML = rendre(cle);
     volet.scrollTop = 0;
     apresRendu();
@@ -490,8 +500,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   };
 
   const tabs = onglets(barre, volet, [
-    { cle: 'journee', titre: 'Journée' }, { cle: 'classement', titre: 'Classement' }, { cle: 'meneurs', titre: 'Meneurs' },
-    { cle: 'equipes', titre: 'Équipes' }, { cle: 'fiche', titre: 'Ma fiche' },
+    { cle: 'journee', ico: 'i-cal', titre: 'Journée' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
+    { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' }, { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes' },
+    { cle: 'fiche', ico: 'i-target', titre: 'Ma fiche' },
   ], cle => {
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
@@ -827,9 +838,10 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
   };
 
   const tabs = onglets(barre, volet, [
-    { cle: 'tableau', titre: 'Tableau' }, { cle: 'serie', titre: 'Ma série' }, { cle: 'ronde', titre: 'La ronde' },
-    { cle: 'meneurs', titre: 'Meneurs' }, { cle: 'equipes', titre: 'Équipes' },
-    ...(compteSaison ? [{ cle: 'saison', titre: 'Saison' }] : []),
+    { cle: 'tableau', ico: 'i-cup', titre: 'Tableau' }, { cle: 'serie', ico: 'i-target', titre: 'Ma série' },
+    { cle: 'ronde', ico: 'i-cal', titre: 'La ronde' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' },
+    { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes' },
+    ...(compteSaison ? [{ cle: 'saison', ico: 'i-chart', titre: 'Saison' }] : []),
   ], cle => {
     if (cle === 'saison') return voletSaison();
     if (cle === 'serie') return voletSerie();

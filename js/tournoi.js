@@ -384,13 +384,17 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
 
   /* ---------- les volets ---------- */
   const ONGLETS = () => (T.series
-    ? [{ cle: 'series', titre: 'Séries' }, { cle: 'classement', titre: 'Saison' }, { cle: 'meneurs', titre: 'Meneurs' }, { cle: 'clubs', titre: 'Les clubs' }]
-    : [{ cle: 'journee', titre: 'La journée' }, { cle: 'classement', titre: 'Classement' }, { cle: 'meneurs', titre: 'Meneurs' }, { cle: 'clubs', titre: 'Les clubs' }]);
+    ? [{ cle: 'series', ico: 'i-cup', titre: 'Séries' }, { cle: 'classement', ico: 'i-chart', titre: 'Saison' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs' }]
+    : [{ cle: 'journee', ico: 'i-cal', titre: 'La journée' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs' }]);
 
+  // La même barre que partout ailleurs : en bas, une icône, un mot.
   function dessinerBarre() {
     const liste = ONGLETS();
     if (!liste.some(o => o.cle === onglet)) onglet = liste[0].cle;
-    barre.innerHTML = liste.map(o => `<button type="button" data-onglet="${o.cle}" class="${o.cle === onglet ? 'on' : ''}">${o.titre}</button>`).join('');
+    barre.innerHTML = liste.map(o => `<button type="button" role="tab" data-onglet="${o.cle}" class="navtab${o.cle === onglet ? ' on' : ''}" aria-selected="${o.cle === onglet}">
+      <svg class="ico" aria-hidden="true"><use href="#${o.ico}"/></svg>
+      <span class="navtab-lbl">${o.titre}</span>
+    </button>`).join('');
   }
 
   const ligneMatch = mt => {

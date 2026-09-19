@@ -368,6 +368,26 @@ function inkFor(bg) {
  * saison : 1976-77 → 1977.
  */
 const HR_CODES = { AFM: 'ATF', HFD: 'HAR', VGK: 'VEG' };
+/**
+ * LA VRAIE FICHE D'UN JOUEUR, chez la LNH. JP : *possible de cliquer les
+ * joueurs et les équipes pour voir hockeydb ?*.
+ *
+ * Pas hockeydb, et pas Hockey-Reference non plus : chez eux l'adresse se
+ * dérive du NOM (`/players/g/gretzwa01.html`), donc il faudrait la deviner,
+ * et une adresse devinée est un lien mort une fois sur dix. Le shard porte
+ * l'identifiant EXACT du joueur — c'est la clé de l'API qui a servi à le
+ * bâtir — et `nhl.com/player/{id}` l'accepte tel quel, en redirigeant vers sa
+ * page. Vérifié des années 70 à aujourd'hui : Bucyk (8445240), Mikita
+ * (8449602), McDavid (8478402).
+ *
+ * Comme pour les équipes, ce n'est pas du scraping : on y envoie, on n'en lit
+ * rien.
+ */
+export function nhlPlayerUrl(id) {
+  const n = Number(id);
+  return Number.isFinite(n) && n > 0 ? `https://www.nhl.com/player/${n}` : null;
+}
+
 export function teamSeasonUrl(teamCode, season) {
   if (!teamCode || !season) return null;
   const debut = parseInt(String(season).slice(0, 4), 10);
