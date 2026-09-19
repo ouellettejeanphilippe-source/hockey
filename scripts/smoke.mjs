@@ -206,49 +206,94 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
  * faux.
  */
 {
-  await page.click('#openEquipesBtn');
-  await page.waitForSelector('#equipesModal .eq-carte', { timeout: 40000 });
-  const clubs = await page.$$eval('#equipesModal .eq-carte', l => l.length);
-  const annee = await page.$eval('#equipesModal .eq-select', e => e.value);
+  await page.click('.navtab[data-page="equipes"]');
+  await page.waitForSelector('#pageEquipes .eq-carte', { timeout: 40000 });
+  const clubs = await page.$$eval('#pageEquipes .eq-carte', l => l.length);
+  const annee = await page.$eval('#pageEquipes .eq-select', e => e.value);
   if (clubs < 8) errors.push(`l'écran des équipes ne montre que ${clubs} club(s) en ${annee}`);
-  await page.click('#equipesModal .eq-carte');
-  await page.waitForSelector('#equipesModal .eq-table tbody tr', { timeout: 15000 });
+  await page.click('#pageEquipes .eq-carte');
+  await page.waitForSelector('#pageEquipes .eq-table tbody tr', { timeout: 15000 });
   const ancre = await page.evaluate(() => {
-    const sc = document.querySelector('#equipesModal .eq-scroll');
+    const sc = document.querySelector('#pageEquipes .eq-scroll');
     const dedans = s => { const e = document.querySelector(s); return !!(e && sc && sc.contains(e)); };
-    return ['#equipesModal .eq-barre', '#equipesModal .eq-tete', '#equipesModal .eq-onglets'].filter(dedans);
+    return ['#pageEquipes .eq-barre', '#pageEquipes .eq-tete', '#pageEquipes .eq-onglets'].filter(dedans);
   });
   if (ancre.length) errors.push(`l'écran des équipes n'est pas ancré : ${ancre.join(', ')} défile(nt) avec le contenu`);
   // Les trois onglets, et les colonnes du gardien qui ne sont PAS celles d'un
   // patineur : un onglet qui rend la même table est un onglet décoratif.
   const cols = {};
   for (const poste of ['F', 'D', 'G']) {
-    await page.click(`#equipesModal [data-poste="${poste}"]`);
+    await page.click(`#pageEquipes [data-poste="${poste}"]`);
     await page.waitForTimeout(180);
-    cols[poste] = await page.$$eval('#equipesModal .eq-table thead th', l => l.map(e => e.textContent.replace(/[▾▴]/g, '').trim()).join(' '));
+    cols[poste] = await page.$$eval('#pageEquipes .eq-table thead th', l => l.map(e => e.textContent.replace(/[▾▴]/g, '').trim()).join(' '));
   }
   if (cols.G === cols.F) errors.push('les gardiens portent les colonnes des patineurs');
   if (!/\bV\b/.test(cols.G) || !/%ARR/.test(cols.G)) errors.push(`les colonnes des gardiens sont fausses : ${cols.G}`);
   // Le tri : la même colonne deux fois inverse le sens.
-  await page.click('#equipesModal [data-poste="F"]');
+  await page.click('#pageEquipes [data-poste="F"]');
   await page.waitForTimeout(180);
-  await page.click('#equipesModal [data-tri="g"]');
+  await page.click('#pageEquipes [data-tri="g"]');
   await page.waitForTimeout(180);
-  const buts = await page.$$eval('#equipesModal .eq-table tbody tr td:nth-child(4)', l => l.slice(0, 5).map(e => Number(e.textContent.trim())));
+  const buts = await page.$$eval('#pageEquipes .eq-table tbody tr td:nth-child(4)', l => l.slice(0, 5).map(e => Number(e.textContent.trim())));
   if (!buts.every((v, i) => !i || buts[i - 1] >= v)) errors.push(`le tri par buts ne descend pas : ${buts.join(' ')}`);
   // La fiche d'un joueur s'ouvre PAR-DESSUS, et Échap ne ferme que la fiche :
   // avec des modales empilées, tout fermer d'un coup fait sortir de l'écran.
-  await page.click('#equipesModal .eq-joueur');
+  await page.click('#pageEquipes .eq-joueur');
   await page.waitForTimeout(400);
   const ficheOuverte = await page.$eval('#hockeyCardModal', e => e.style.display !== 'none');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
-  const dessous = await page.$eval('#equipesModal', e => e.style.display !== 'none');
+  const dessous = await page.$eval('#pageEquipes', e => !e.hidden);
   if (!ficheOuverte) errors.push("la fiche d'un joueur ne s'ouvre pas depuis l'écran des équipes");
   if (!dessous) errors.push("Échap ferme l'écran des équipes SOUS la fiche d'un joueur : une modale du dessous ne doit pas partir avec celle du dessus");
   console.log(`   les équipes : ${clubs} clubs en ${annee}, écran ancré, ${await sansDebordement('écran des équipes')} px de débordement, ${await sansCote('écran des équipes')} cote(s)`);
-  await page.keyboard.press('Escape');
+  await page.click('.navtab[data-page="repechage"]');
   await page.waitForTimeout(250);
+}
+
+/*
+ * UN ONGLET, UNE RAISON D'ÊTRE. JP : *mettre onglets en bas, pages séparées
+ * de l'accueil* ; *je veux pas avoir tout restant dans la page, picks,
+ * alignement, match du jour/calendrier, standings, leaders, C'EST TOUS DES
+ * ONGLETS DIFFÉRENTS* ; *pense à l'interface d'un EHM*.
+ *
+ * Deux choses s'éprouvent, et elles sont structurelles. **Chaque onglet tient
+ * en UN écran** — les pages sont des boîtes bornées dont le corps défile, pas
+ * des pages qui grandissent (la page des règles faisait 24,6 écrans avant).
+ * Et **l'onglet de l'alignement ne porte que l'alignement** : ni la roulette,
+ * ni le tableau de bord, ni le vestiaire, ni le bilan — c'était ça, « tout
+ * restant dans la page ».
+ */
+{
+  const lire = () => page.evaluate(() => {
+    const vu = s => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const de = document.documentElement;
+    return {
+      page: document.body.dataset.page,
+      spin: vu('#spin'), dash: vu('#dash'), pool: vu('#panePool'), roster: vu('#paneRoster'),
+      ecrans: +(de.scrollHeight / de.clientHeight).toFixed(2),
+    };
+  });
+  const vus = [];
+  for (const cle of ['repechage', 'alignement', 'equipes', 'historique', 'regles']) {
+    const b = await page.$(`.navtab[data-page="${cle}"]`);
+    if (!b) { errors.push(`la barre d'onglets n'a pas d'onglet « ${cle} »`); continue; }
+    await b.click();
+    await page.waitForTimeout(cle === 'equipes' ? 2500 : 400);
+    const e = await lire();
+    vus.push(`${cle} ${e.ecrans}×`);
+    if (e.page !== cle) errors.push(`l'onglet « ${cle} » ne pose pas la page : body[data-page] vaut « ${e.page} »`);
+    if (e.ecrans > 1.05) errors.push(`l'onglet « ${cle} » fait ${e.ecrans} écrans : une page est une boîte bornée dont le CORPS défile`);
+    await sansDebordement(`l'onglet ${cle}`);
+    if (cle === 'alignement') {
+      const intrus = ['spin', 'dash', 'pool'].filter(k => e[k]);
+      if (intrus.length) errors.push(`l'onglet de l'alignement porte aussi ${intrus.join(', ')} : un onglet, une raison d'être`);
+      if (!e.roster) errors.push("l'onglet de l'alignement ne montre pas l'alignement");
+    }
+  }
+  console.log(`   un onglet, une raison d'être : ${vus.join(' · ')}`);
+  await page.click('.navtab[data-page="repechage"]');
+  await page.waitForTimeout(300);
 }
 
 const enabled = await page.$eval('#mainBtn', b => !b.disabled);
@@ -531,12 +576,12 @@ if (enabled) {
     else if (!Number.isFinite(po2.series.V) || !po2.series.rondes) errors.push(`le verdict des séries est incomplet : ${JSON.stringify(po2.series)}`);
     else console.log(`   historique : ${po2.series.coupe ? '🏆 Coupe' : po2.series.ronde} · séries ${po2.series.V}-${po2.series.D} · format ${po2.mode}`);
     // Et l'écran de l'historique le montre, avec le compte des Coupes en tête.
-    await page.click('#openLeaderboardBtn');
-    await page.waitForSelector('#leaderboardModal', { state: 'visible', timeout: 10000 });
+    await page.click('.navtab[data-page="historique"]');
+    await page.waitForSelector('#pageHistorique:not([hidden])', { timeout: 10000 });
     const tete = ((await page.textContent('#leaderboardBody .lb-tete')) || '').replace(/\s+/g, ' ').trim();
     if (!/Coupe/.test(tete)) errors.push(`l'historique ne dit pas les Coupes : « ${tete} »`);
     else console.log(`   l'historique en tête : ${tete}`);
-    await page.click('#closeLeaderboardBtn');
+    await page.click('.navtab[data-page="repechage"]');
     await page.waitForTimeout(250);
   }
 
@@ -547,7 +592,8 @@ if (enabled) {
 
   // L'historique garde l'alignement : « Rejouer » relit les 23 joueurs et
   // repart une saison.
-  await page.click('#openLeaderboardBtn');
+  await page.click('.navtab[data-page="historique"]');
+  await page.waitForSelector('#pageHistorique:not([hidden])', { timeout: 10000 });
   const entrees = await page.$$('.lb-replay');
   console.log(`   historique : ${entrees.length} alignements rejouables`);
   if (entrees.length) {
@@ -604,7 +650,7 @@ await page.waitForSelector('#rrL', { timeout: 30000 });
     await page.waitForTimeout(400);
     const clubsApresSignature = await clubs();
 
-    await page.click('#tabRoster');
+    await page.click('.navtab[data-page="alignement"]');
     await page.waitForTimeout(220);
     const retirer = await page.$('.slot .slot-remove');
     if (!retirer) errors.push('aucune case remplie à retirer pour éprouver le ✕');
@@ -616,7 +662,7 @@ await page.waitForSelector('#rrL', { timeout: 30000 });
       // On revise la MÊME case : signer avait déplacé la main à la suivante.
       const vide = await page.$('.slot');
       if (vide) { await vide.evaluate(el => el.click()); await page.waitForTimeout(350); }
-      await page.click('#tabPool');
+      await page.click('.navtab[data-page="repechage"]');
       await page.waitForTimeout(250);
 
       /*
@@ -631,11 +677,11 @@ await page.waitForSelector('#rrL', { timeout: 30000 });
        */
       const cases = await page.$$('.slot');
       const mainDe = async (n) => {
-        await page.click('#tabRoster');
+        await page.click('.navtab[data-page="alignement"]');
         await page.waitForTimeout(200);
         await (await page.$$('.slot'))[n].evaluate(el => el.click());
         await page.waitForTimeout(320);
-        await page.click('#tabPool');
+        await page.click('.navtab[data-page="repechage"]');
         await page.waitForTimeout(220);
         return mainNoms();
       };
@@ -653,11 +699,11 @@ await page.waitForSelector('#rrL', { timeout: 30000 });
         await page.waitForTimeout(400);
         if ((await clubs()) !== clubsApresSignature) errors.push('la signature qui repaie la dette a fait tourner la roulette');
         else console.log('   la signature suivante repaie le tour : la roulette ne tourne pas');
-        await page.click('#tabRoster');
+        await page.click('.navtab[data-page="alignement"]');
         await page.waitForTimeout(220);
         const r = await page.$('.slot .slot-remove');
         if (r) { await r.evaluate(el => el.click()); await page.waitForTimeout(320); }
-        await page.click('#tabPool');
+        await page.click('.navtab[data-page="repechage"]');
         await page.waitForTimeout(220);
       }
     }

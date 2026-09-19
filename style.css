@@ -4646,3 +4646,191 @@ a.spin-club:hover {
 @media (min-width: 2800px) {
   .game, .topbar-inner, .actionbar-inner { max-width: 2560px; }
 }
+
+/* ======================================================================
+   UN ONGLET, UNE RAISON D'ÊTRE — la barre du bas, et une page par onglet
+   ======================================================================
+   JP : *mettre onglets en bas, pages séparées de l'accueil* ; *un onglet,
+   une raison d'être genre* ; *je veux pas avoir tout restant dans la page,
+   picks, alignement, match du jour/calendrier, standings, leaders, C'EST
+   TOUS DES ONGLETS DIFFÉRENTS* ; *pense à l'interface d'un EHM*.
+
+   Le jeu avait trois systèmes d'onglets à trois endroits et trois
+   destinations enfermées dans des modales ouvertes par des icônes du haut.
+   Il n'y en a plus qu'un, et il est EN BAS — sous le pouce sur un téléphone,
+   et sur le rail de gauche dès qu'il y a la place, comme le menu d'un
+   Eastside Hockey Manager.
+
+   `body[data-page]` est le seul état ; tout le reste s'en déduit ici. C'est
+   ce qui garantit qu'on ne peut pas ajouter une section sans décider sur
+   quel onglet elle vit.
+   ====================================================================== */
+:root { --navbar-h: 58px; }
+
+.navbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 56;
+  display: flex; gap: 0;
+  background: var(--panel); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.navtab {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: var(--navbar-h); padding: 6px 2px;
+  border: 0; border-top: 2px solid transparent; background: none; cursor: pointer;
+  color: var(--muted);
+  font: 700 10.5px/1.1 var(--display); letter-spacing: .04em; text-transform: uppercase;
+}
+.navtab .ico { width: 19px; height: 19px; }
+.navtab-lbl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navtab-badge { font-size: 9.5px; font-weight: 800; color: var(--muted); opacity: .8; }
+.navtab.on { color: var(--gold); border-top-color: var(--gold); background: color-mix(in srgb, var(--gold) 9%, transparent); }
+.navtab.on .navtab-badge { color: var(--gold); }
+
+/* La barre d'action ne porte plus que le bouton principal, et elle se pose
+   AU-DESSUS des onglets. Elle disparaît sur les pages de référence : le
+   bouton « Lancer la saison » n'a rien à dire quand on lit les règles. */
+.actionbar { bottom: calc(var(--navbar-h) + env(safe-area-inset-bottom, 0px)); }
+.actionbar .btn.go { flex: 1 1 100%; }
+body[data-page="equipes"] .actionbar,
+body[data-page="historique"] .actionbar,
+body[data-page="regles"] .actionbar { display: none; }
+
+/* La place réservée en bas : les deux barres sur un onglet de partie, une
+   seule sur une page de référence. */
+body { padding-bottom: 0; }
+.game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + env(safe-area-inset-bottom, 0px) + 12px); }
+
+/* ---------- les pages ---------- */
+/* UNE PAGE EST UNE BOÎTE BORNÉE dont le CORPS défile — l'ancrage de S47.
+   Sans la borne, la page des règles faisait 24,6 écrans : elle est un livre,
+   et un livre dans une page qui grandit, c'est la longue page que JP refuse. */
+.page {
+  display: flex; flex-direction: column;
+  max-width: 1720px; margin: 0 auto;
+  padding: 10px 12px 0;
+  height: calc(100svh - var(--topbar-h) - var(--navbar-h) - env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+}
+.page[hidden] { display: none; }
+.page-tete { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 2px 2px 10px; border-bottom: 1px solid var(--line); }
+.page-tete h2 { margin: 0; display: flex; align-items: center; gap: 8px; font: 800 19px/1 var(--display); letter-spacing: .03em; }
+.page-tete .ico { width: 20px; height: 20px; color: var(--gold); }
+.page-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 0 18px; }
+/* L'écran des équipes tient sa propre hauteur : son corps ne défile pas, son
+   `.eq-scroll` le fait (l'ancrage de S47). */
+.page-corps.eq-corps { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
+
+/* ---------- ce que chaque onglet montre ---------- */
+/* Une page de référence cache le jeu, et réciproquement. */
+body[data-page="equipes"] #game,
+body[data-page="historique"] #game,
+body[data-page="regles"] #game { display: none !important; }
+
+/* L'ALIGNEMENT EST UN ONGLET, DONC IL NE PORTE QUE L'ALIGNEMENT. La roulette,
+   le tableau de bord et le bilan appartiennent aux leurs — c'était ça, « tout
+   restant dans la page ». */
+body[data-page="alignement"] #spin,
+body[data-page="alignement"] #dash,
+body[data-page="alignement"] .result-host,
+body[data-page="alignement"] .pane-pool { display: none !important; }
+
+/* ---------- EHM : le rail de gauche dès qu'il y a la place ---------- */
+@media (min-width: 1200px) {
+  .navbar {
+    top: var(--topbar-h); right: auto; bottom: 0; width: 186px;
+    flex-direction: column; justify-content: flex-start; gap: 2px;
+    border-top: 0; border-right: 1px solid var(--line); padding: 10px 8px;
+  }
+  .navtab {
+    flex: 0 0 auto; flex-direction: row; justify-content: flex-start; gap: 10px;
+    min-height: 42px; padding: 8px 10px; border-top: 0; border-radius: var(--r-s);
+    font-size: 13px; text-align: left;
+  }
+  .navtab .ico { width: 17px; height: 17px; flex: 0 0 auto; }
+  .navtab-lbl { flex: 1; }
+  .navtab.on { border-top: 0; }
+  .game, .page { margin-left: 186px; }
+  .actionbar { left: 186px; bottom: 0; }
+  .game { padding-bottom: calc(var(--actionbar-h) + 16px); }
+  /* Le rail est à gauche : la page reprend la hauteur que la barre du bas
+     lui prenait. */
+  .page { height: calc(100svh - var(--topbar-h)); }
+}
+@media (min-width: 1800px) {
+  .navbar { width: 220px; }
+  .game, .page { margin-left: 220px; }
+  .actionbar { left: 220px; }
+}
+
+/* LE REPÊCHAGE S'ANCRE AUSSI : la roulette et le tableau de bord restent en
+   place, le vestiaire défile sous eux. C'est le même contrat que les pages de
+   référence et que l'écran des équipes — ce qui sert à DÉCIDER ne défile pas.
+   Mesuré avant : 3,5 écrans, dont 2,7 de liste de joueurs qu'on remontait
+   pour relire ce que la roulette offrait. */
+@media (min-width: 1px) {
+  body[data-page="repechage"] .game,
+  body[data-page="alignement"] .game {
+    height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  body[data-page="repechage"] .workspace,
+  body[data-page="alignement"] .workspace { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  body[data-page="repechage"] #draft { flex: 0 0 auto; }
+  body[data-page="repechage"] .panes,
+  body[data-page="alignement"] .panes { flex: 1 1 auto; min-height: 0; }
+  body[data-page="repechage"] .pane,
+  body[data-page="alignement"] .pane { height: 100%; display: flex; flex-direction: column; }
+  body[data-page="repechage"] .pane-head,
+  body[data-page="alignement"] .pane-head,
+  body[data-page="repechage"] .filters { flex: 0 0 auto; }
+  /*
+   * Le seul conteneur qui défile de chaque volet — et ses rangées gardent la
+   * hauteur de leur CONTENU. Mesuré : dès que le vestiaire a eu une hauteur
+   * bornée, ses rangées implicites sont tombées à 111 px pour des cartes de
+   * 188, donc les cartes se CHEVAUCHAIENT de 77 px et le « Signer » de la
+   * première passait sous la carte suivante — le test de fumée l'a attrapé
+   * (`.pcard-head … intercepts pointer events`). `align-content: start` était
+   * pourtant déjà là : c'est `grid-auto-rows: max-content` qui le règle, et
+   * la mesure le prouve — 111 px d'écart avant, 196 après, pour 188 de carte.
+   * C'est la règle « on réserve la place, on ne la prend pas » qui ne se
+   * défendait pas toute seule sous une contrainte de hauteur.
+   */
+  body[data-page="repechage"] .pool,
+  body[data-page="alignement"] .roster { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  body[data-page="repechage"] .pool { grid-auto-rows: max-content; align-content: start; }
+  body[data-page="repechage"] .pool > *, body[data-page="repechage"] .pool-col-cards > * { flex-shrink: 0; }
+}
+
+/*
+ * PAR POSTE SUR TÉLÉPHONE, C'EST LA COLONNE QUI DÉFILE, PAS LA BANDE.
+ * `.pool-col-head` est en `sticky` : tant que le défilement vertical était
+ * celui de la PAGE, elle se collait sous le haut de l'écran. Depuis que le
+ * vestiaire défile dans sa propre boîte, une bande qui défile en Y colle sa
+ * tête de colonne PAR-DESSUS ses propres cartes — le test de fumée l'a
+ * attrapé sur un « Signer » devenu incliquable (`.pcard-head … intercepts
+ * pointer events`). Chaque colonne défile donc pour elle-même, ce qui est de
+ * toute façon ce qu'on veut d'une bande qu'on balaie : les six postes gardent
+ * chacun sa position de lecture.
+ */
+@container pool (max-width: 999.98px) {
+  body[data-page="repechage"] .pool.by-pos { overflow-y: hidden; }
+  body[data-page="repechage"] .pool.by-pos .pool-col { min-height: 0; overflow-y: auto; }
+}
+@media (min-width: 1200px) {
+  body[data-page="repechage"] .game,
+  body[data-page="alignement"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h)); }
+}
+
+/* LES DEUX LIENS DE LA FICHE : le joueur chez la LNH (par son identifiant
+   exact), son club chez Hockey-Reference. On y envoie, on n'en lit rien. */
+.pcard-full-liens { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 5px; }
+.pcard-full-liens a {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--sub); text-decoration: none;
+  font: 700 11.5px/1 var(--display); letter-spacing: .04em; text-transform: uppercase;
+}
+.pcard-full-liens a:hover { color: var(--gold); text-decoration: underline; }
+.pcard-full-liens .ico { width: 13px; height: 13px; }

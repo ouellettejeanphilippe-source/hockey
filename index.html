@@ -58,9 +58,6 @@
 
     <nav class="topbar-actions" aria-label="Menu">
       <button class="icon-btn" id="openPartieBtn" title="Nouvelle partie : format, tirage, ligue et mode"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg><span class="icon-lbl">Nouvelle</span></button>
-      <button class="icon-btn" id="openEquipesBtn" title="Les équipes : alignements et vraies statistiques"><svg class="ico" aria-hidden="true"><use href="#i-jersey"/></svg><span class="icon-lbl">Équipes</span></button>
-      <button class="icon-btn" id="openLeaderboardBtn" title="Tes saisons, tes Coupes"><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg><span class="icon-lbl">Historique</span></button>
-      <button class="icon-btn" id="openBibleBtn" title="Règles et mathématiques du jeu"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span class="icon-lbl">Règles</span></button>
       <button class="icon-btn" id="openOptionsBtn" title="Options d'affichage"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span class="icon-lbl">Options</span></button>
     </nav>
   </div>
@@ -150,13 +147,35 @@
 <!-- ===== Barre d'action (bas) ===== -->
 <div class="actionbar" id="actionbar" style="display:none">
   <div class="actionbar-inner">
-    <div class="tabs" role="tablist" aria-label="Vue">
-      <button class="tab on" data-view="pool" role="tab" id="tabPool"><span id="tabPoolLbl">Vestiaire</span> <span class="tab-badge" id="tabPoolBadge"></span></button>
-      <button class="tab" data-view="roster" role="tab" id="tabRoster">Alignement <span class="tab-badge" id="tabRosterBadge">0/23</span></button>
-    </div>
     <button class="btn go" id="mainBtn" disabled>On ouvre le vestiaire…</button>
   </div>
 </div>
+
+<!-- ===== La barre d'onglets : un onglet, une raison d'être ===== -->
+<nav class="navbar" id="navbar" role="tablist" aria-label="Sections">
+  <button class="navtab on" data-page="repechage" role="tab" aria-selected="true" id="navRepechage">
+    <svg class="ico" aria-hidden="true"><use href="#i-dice"/></svg>
+    <span class="navtab-lbl" id="tabPoolLbl">Vestiaire</span>
+    <span class="navtab-badge" id="tabPoolBadge"></span>
+  </button>
+  <button class="navtab" data-page="alignement" role="tab" aria-selected="false">
+    <svg class="ico" aria-hidden="true"><use href="#i-list"/></svg>
+    <span class="navtab-lbl">Alignement</span>
+    <span class="navtab-badge" id="tabRosterBadge">0/23</span>
+  </button>
+  <button class="navtab" data-page="equipes" role="tab" aria-selected="false">
+    <svg class="ico" aria-hidden="true"><use href="#i-jersey"/></svg>
+    <span class="navtab-lbl">Équipes</span>
+  </button>
+  <button class="navtab" data-page="historique" role="tab" aria-selected="false">
+    <svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg>
+    <span class="navtab-lbl">Saisons</span>
+  </button>
+  <button class="navtab" data-page="regles" role="tab" aria-selected="false">
+    <svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>
+    <span class="navtab-lbl">Règles</span>
+  </button>
+</nav>
 
 <!-- Radar (hexagone) quand le brouillard est levé -->
 
@@ -232,27 +251,17 @@
 </div>
 
 <!-- ===== Modale : historique ===== -->
-<div id="leaderboardModal" class="modal-backdrop" style="display:none;">
-  <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Historique">
-    <div class="modal-header">
-      <h2><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg>Tes saisons</h2>
-      <button id="closeLeaderboardBtn" class="close-btn" aria-label="Fermer">✕</button>
-    </div>
-    <div class="modal-body" id="leaderboardBody"></div>
-  </div>
-</div>
+<section id="pageHistorique" class="page" aria-label="Tes saisons" hidden>
+  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg>Tes saisons</h2></div>
+  <div class="page-corps" id="leaderboardBody"></div>
+</section>
 
 <!-- ===== Modale : les équipes ===== -->
-<div id="equipesModal" class="modal-backdrop" style="display:none;">
-  <div class="modal-sheet modal-large" role="dialog" aria-modal="true" aria-label="Les équipes">
-    <div class="modal-header">
-      <h2><svg class="ico" aria-hidden="true"><use href="#i-jersey"/></svg>Les équipes</h2>
-      <button class="close-btn eq-close" aria-label="Fermer">✕</button>
-    </div>
-    <div class="eq-barre"></div>
-    <div class="modal-body eq-corps"></div>
-  </div>
-</div>
+<section id="pageEquipes" class="page" aria-label="Les équipes" hidden>
+  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-jersey"/></svg>Les équipes</h2></div>
+  <div class="eq-barre"></div>
+  <div class="page-corps eq-corps"></div>
+</section>
 
 <!-- ===== Modale : options ===== -->
 <div id="optionsModal" class="modal-backdrop" style="display:none;">
@@ -376,13 +385,9 @@
 </div>
 
 <!-- ===== Modale : règles ===== -->
-<div id="bibleModal" class="modal-backdrop" style="display:none;">
-  <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Règles du jeu">
-    <div class="modal-header">
-      <h2><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles et mathématiques du jeu</h2>
-      <button id="closeBibleBtn" class="close-btn" aria-label="Fermer">✕</button>
-    </div>
-    <div class="modal-body bible" id="bibleBody">
+<section id="pageRegles" class="page" aria-label="Règles du jeu" hidden>
+  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles et mathématiques du jeu</h2></div>
+    <div class="page-corps bible" id="bibleBody">
       <h3>0. Comment on joue</h3>
       <p>La roulette sort une <strong>saison</strong> et une <strong>équipe</strong>. Tu signes <strong>un seul joueur</strong> de ce vestiaire, puis elle tourne à nouveau. Tu as 2 relances d'année, 2 relances d'équipe et 2 « passer » — elles sont rares, garde-les pour un vestiaire qui ne donne rien. Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques et les séries. Le 82-0 est le Graal ; la Coupe est le vrai but. Une partie prend cinq à dix minutes : c'est un sudoku de hockey.</p>
       <p><strong>Le jeu récompense la chasse aux aubaines.</strong> Les salaires sont ceux qui ont vraiment été payés, et un contrat ne suit pas toujours la saison : Fedorov 1993-94 coûte 1,15 M$. Trouver ces joueurs-là est le métier. Le garde-fou, c'est la <strong>zone d'efficacité</strong> (section 5) : un joueur ne rend pas partout dans l'alignement, alors on ne peut pas empiler douze vedettes sous-payées sans en gaspiller la moitié.</p>
@@ -513,8 +518,7 @@
       <p>Les 16 premiers font les séries : quatre rondes 4 de 7, avec blessures et usure. <strong>Une saison, la Coupe cette année-là</strong> (options, « Ligue ») : tu choisis une année, la roulette ne sort que ses clubs, et la ligue est faite de tous ses vrais clubs — quatorze en 1970-71, vingt et un en 1985-86, trente-deux en 2024-25 — plutôt que de 31 clubs tirés dans 55 ans. <strong>Personne ne cède sa place : tu es l'équipe de trop.</strong> Ta formation s'ajoute à la vraie ligue (trente-trois clubs en 2024-25), et quand l'effectif est impair une équipe est en congé chaque journée, comme dans la vraie ligue : tout le monde joue quand même ses 82 matchs, la saison compte simplement quelques journées de plus. <strong>Le repêchage se règle à part</strong> (options, « Repêchage ») : dans la saison choisie, ou dans les 55 — le fantasy draft toutes époques, avec la Coupe de l'année à gagner au bout. <strong>Les séries se pilotent depuis l'écran des séries</strong> : ta série en tableau indicateur, un match à la fois dans toute la ronde (« Match suivant »), la ronde d'un coup, ou tout jusqu'à la Coupe ; les onglets montrent le tableau qui se remplit au fur et à mesure, les matchs de ta série, la ronde entière et les meneurs des séries. <strong>Regarder le match</strong> ouvre le direct pour ton prochain match : l'horloge <strong>descend</strong> comme au tableau indicateur, les tirs et les buts tombent au moment où ils sont arrivés, et tu ne connais le résultat qu'à la fin. Le moteur a déjà joué le match ; l'écran ne fait que le rejouer dans le temps. Dans une ligue de moins de seize clubs, huit vont en séries (quarts de finale, demi-finales, finale). Chaque match se joue <strong>lancer par lancer comme les autres</strong> et garde son sommaire — les buts avec leur temps écoulé (la convention de la feuille officielle) et leurs passes, les punitions, les tirs par période, les arrêts de chaque gardien. Clique un match pour l'ouvrir. Le temps d'un but n'est pas simulé par le moteur : chaque lancer reçoit un instant tiré dans les 60 minutes, ce qui met la feuille en ordre sans toucher à aucune probabilité. <strong>Les punitions se suivent sur une seule ligne du temps</strong> : une situation à la fois, deux minutes, fermée par le premier but de l'avantage (pas par un but en désavantage), et le puni revient au jeu. Les phrases qui accompagnent les buts décrivent ce qui vient d'arriver — elles ne décident de rien. <strong>Les statistiques des séries sont tenues à part</strong> de celles de la saison : leurs propres palmarès, leurs propres fiches.</p>
       <p>Repères, mesurés sur le moteur : l'équipe moyenne fait 41 victoires. Une vraie équipe du dernier décile en fait 26, du premier 52. Le Canadien de 1976-77 en fait 61 à 63. Un alignement parfaitement monté en fait 68 à 70 et gagne la Coupe deux fois sur trois, pas plus. Le 82-0 n'est pas atteignable, et c'est voulu : dominer est possible, la Coupe reste un pari.</p>
     </div>
-  </div>
-</div>
+</section>
 
 <script type="module" src="js/game.js"></script>
 <script>

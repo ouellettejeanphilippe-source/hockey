@@ -25,7 +25,7 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles } from './sim.js';
-import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
+import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { ouvrirEquipes } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
@@ -192,6 +192,7 @@ const G = {
   seriesVues: null,    // les séries révélées : { ronde, revele[] }, null tant qu'elles n'ont pas commencé
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
+  page: 'repechage',    // l'onglet du bas : repechage, alignement, equipes, historique, regles
   done: false,
   loading: false,
   shards: new Map(),
@@ -795,12 +796,16 @@ function toast(msg, kind = '') {
    ===================================================================== */
 
 async function boot() {
+  // La page de départ, posée AVANT tout rendu : la feuille de style lit
+  // `body[data-page]` pour décider ce que chaque onglet montre, et sans elle
+  // le premier dessin se ferait sans page.
+  marquerPage('repechage');
   // Le bilan (js/bilan.js) reçoit ici tout ce qu'il lui faut du contrôleur.
   brancherBilan({
     $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur,
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
-    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, statsSim, toast,
+    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast,
   });
   // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
   let vierge = false;
@@ -857,35 +862,14 @@ function setupEvents() {
   }
   syncAgeControls();
 
-  // Onglets (petits écrans)
-  document.querySelectorAll('.tab').forEach(t => {
-    t.onclick = () => setView(t.dataset.view);
+  // LA BARRE D'ONGLETS DU BAS : la seule navigation du jeu.
+  document.querySelectorAll('.navtab').forEach(t => {
+    t.onclick = () => montrerPage(t.dataset.page);
   });
 
   // Modales
-  /*
-   * LES ÉQUIPES. Pas un `bindModal` : l'écran gère son ouverture et sa
-   * fermeture lui-même, parce qu'il tient un état (la saison, le club ouvert,
-   * l'onglet, le tri) et qu'il doit débrancher ses écouteurs en partant.
-   * La saison proposée est celle qu'on regarde : la ligue fixée s'il y en a
-   * une, sinon celle du vestiaire sorti, sinon la plus récente.
-   */
-  const btnEq = $('openEquipesBtn');
-  if (btnEq) btnEq.onclick = () => ouvrirEquipes({
-    ctx: {
-      esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
-      teamFull: t => TEAMFULL[t] || t,
-      fiche: p => showPlayerModal(p),
-      // Les trois sorties du jeu (✕, le fond, Échap) passent toutes par là :
-      // l'écran n'invente pas sa propre façon de s'ouvrir et de se fermer.
-      ouvrirModale, fermerModale,
-    },
-    saisons: (state.index.seasons || []).slice().reverse(),
-    saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
-    charger: getShard,
-  });
-  bindModal('leaderboardModal', 'openLeaderboardBtn', 'closeLeaderboardBtn', showLeaderboard);
-  bindModal('bibleModal', 'openBibleBtn', 'closeBibleBtn', remplirReglesDuPlateau);
+  // Les équipes, l'historique et les règles sont des PAGES, pas des modales :
+  // `montrerPage` les remplit. Il ne reste en haut que ce qui est une ACTION.
   bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
   bindModal('partieModal', 'openPartieBtn', 'closePartieBtn', semerBrouillon, oublierBrouillon);
   bindModal('hockeyCardModal', null, 'closeHockeyCardBtn');
@@ -1206,10 +1190,69 @@ function syncOptionsUI() {
   });
 }
 
+/* ======================================================================
+   UN ONGLET, UNE RAISON D'ÊTRE
+   ======================================================================
+   JP : *mettre onglets en bas, pages séparées de l'accueil* ; *un onglet, une
+   raison d'être genre* ; *je veux pas avoir tout restant dans la page, picks,
+   alignement, match du jour/calendrier, standings, leaders, C'EST TOUS DES
+   ONGLETS DIFFÉRENTS*.
+
+   Le jeu avait TROIS systèmes d'onglets à trois endroits — les deux volets
+   en bas, le bilan au milieu, l'écran de saison au milieu aussi — et trois
+   destinations enfermées dans des modales ouvertes par des icônes du haut.
+   Il n'y en a plus qu'un : la barre du bas. Ce qui reste en haut est ce qui
+   n'est pas une destination — la jauge de plafond, Nouvelle partie, Options.
+
+   `document.body.dataset.page` est le seul état, et la feuille de style en
+   déduit tout : c'est elle qui décide que la roulette ne s'affiche pas sur
+   l'onglet de l'alignement, plutôt qu'un `hidden` posé à la main quelque part.
+   ====================================================================== */
+const PAGES = ['repechage', 'alignement', 'equipes', 'historique', 'regles'];
+
+/** Pose la page courante. Ne remplit rien : c'est `montrerPage` qui le fait. */
+function marquerPage(cle) {
+  G.page = cle;
+  document.body.dataset.page = cle;
+  document.querySelectorAll('.navtab').forEach(b => {
+    const on = b.dataset.page === cle;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  for (const id of ['pageEquipes', 'pageHistorique', 'pageRegles']) {
+    const el = $(id);
+    if (el) el.hidden = id !== `page${cle[0].toUpperCase()}${cle.slice(1)}`;
+  }
+}
+
+function montrerPage(cle) {
+  if (!PAGES.includes(cle)) cle = 'repechage';
+  // Les deux premiers onglets SONT les deux volets : `setView` marque la page
+  // lui-même, donc les anciens appels (le banc, une nouvelle partie) suivent.
+  if (cle === 'repechage') setView('pool');
+  else if (cle === 'alignement') setView('roster');
+  else {
+    marquerPage(cle);
+    if (cle === 'historique') showLeaderboard();
+    else if (cle === 'regles') remplirReglesDuPlateau();
+    else if (cle === 'equipes') ouvrirEquipes({
+      ctx: {
+        esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
+        teamFull: t => TEAMFULL[t] || t,
+        fiche: p => showPlayerModal(p),
+      },
+      saisons: (state.index.seasons || []).slice().reverse(),
+      saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
+      charger: getShard,
+    });
+  }
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
 function setView(view) {
   G.view = view;
   $('panes').dataset.view = view;
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === view));
+  marquerPage(view === 'roster' ? 'alignement' : 'repechage');
 }
 
 /* =====================================================================
@@ -1699,8 +1742,15 @@ function renderPoolMeta() {
   $('panePool')?.classList.toggle('loto', loto);
   const titre = $('poolTitle');
   if (titre) titre.textContent = loto ? 'La main' : 'Vestiaire';
+  /*
+   * LE PREMIER ONGLET EST « OÙ EN EST TA PARTIE ». Il dit le vestiaire (ou la
+   * main, en loto) pendant le repêchage, et le BILAN une fois la saison jouée
+   * — c'est la même place, parce que c'est la même question.
+   */
   const tabLbl = $('tabPoolLbl');
-  if (tabLbl) tabLbl.textContent = loto ? 'La main' : 'Vestiaire';
+  if (tabLbl) tabLbl.textContent = G.done ? 'Bilan' : (loto ? 'La main' : 'Vestiaire');
+  const badgeVide = $('tabPoolBadge');
+  if (badgeVide && G.done) badgeVide.textContent = '';
   const meta = $('poolCount');
   if (meta) {
     const c = caseCourante();
@@ -1709,7 +1759,7 @@ function renderPoolMeta() {
       : `${list.length} joueur${list.length > 1 ? 's' : ''}`;
   }
   const badge = $('tabPoolBadge');
-  if (badge) badge.textContent = String(list.length);
+  if (badge) badge.textContent = G.done ? '' : String(list.length);
   const rMeta = $('rosterMeta');
   if (rMeta) rMeta.textContent = `${signes().length} / ${totalCases()} · ${money(capUsed())}`;
   const rBadge = $('tabRosterBadge');
@@ -2718,6 +2768,10 @@ function showPlayerModal(p, opts = {}) {
             <div class="pcard-full-name">${formatName(p.n)}</div>
             <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
               <span class="pos-chip ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
+            <div class="pcard-full-liens">
+              ${nhlPlayerUrl(p.id) ? `<a href="${nhlPlayerUrl(p.id)}" target="_blank" rel="noopener" title="La fiche officielle de ${esc(p.n)} sur nhl.com">${ico('i-ext')}Sa fiche à la LNH</a>` : ''}
+              ${teamSeasonUrl(p.t, p.s) ? `<a href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de ce club sur Hockey-Reference">${ico('i-ext')}La saison du club</a>` : ''}
+            </div>
             <div class="tags pcard-full-tags">${traitTags(p, true)}${surTable() && !apres ? '' : archTag(p, true) + mesureTags(p, true) + zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
             <div class="pcard-full-salary">
               <span class="big">${st.salaryMain}</span>
@@ -3512,7 +3566,7 @@ async function rejouerSaison() {
  */
 async function reprendreAlignement(entree) {
   if (!entree || !Array.isArray(entree.alignement)) return;
-  closeModal('leaderboardModal');
+  montrerPage('repechage');   // l'historique était une modale ; c'est une page
   toast('On relit l\'alignement…');
   const roster = {};
   for (const a of entree.alignement) {

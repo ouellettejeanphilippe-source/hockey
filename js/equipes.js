@@ -115,7 +115,7 @@ export function ficheDeClub(pool) {
  * premier appel pour toujours : c'est le genre de chose qui ne casse qu'au
  * quatrième chantier.
  */
-let modal = null, barre = null, corps = null;
+let hote = null, barre = null, corps = null;
 let C = null, chargerShard = null, SAISONS = [];
 let annee = null;
 let club = null;            // le code du club ouvert, ou null pour la ligue
@@ -225,7 +225,6 @@ async function charge() {
 /* ---------- les gestionnaires, branchés une seule fois ---------- */
 function clic(ev) {
   const t = ev.target;
-  if (t === modal || t.closest('.eq-close')) { fermer(); return; }
   if (t.closest('.eq-retour')) { club = null; filtre = ''; dessiner(); return; }
   const carte = t.closest('[data-club]');
   if (carte) { club = carte.dataset.club; onglet = 'F'; tri = { cle: 'pt', sens: -1 }; filtre = ''; dessiner(); return; }
@@ -262,22 +261,32 @@ function saisie(ev) {
   filtre = ev.target.value;
   redessinerCorps();
 }
-function fermer() { if (C && C.fermerModale) C.fermerModale(modal); else modal.style.display = 'none'; }
-
+/*
+ * C'EST UNE PAGE, PAS UNE MODALE (S48). JP : *mettre onglets en bas, pages
+ * séparées de l'accueil* ; *pense à l'interface d'un EHM*. L'écran ne s'ouvre
+ * donc plus et ne se ferme plus lui-même : la barre d'onglets du bas décide
+ * ce qu'on regarde, et cet écran ne fait que remplir son hôte. Il garde son
+ * état entre deux visites — on revient sur le club qu'on regardait.
+ */
 export function ouvrirEquipes({ ctx, saisons, saison, charger }) {
-  modal = document.getElementById('equipesModal');
-  if (!modal) return;
-  barre = modal.querySelector('.eq-barre');
-  corps = modal.querySelector('.eq-corps');
+  hote = document.getElementById('pageEquipes');
+  if (!hote) return;
+  barre = hote.querySelector('.eq-barre');
+  corps = hote.querySelector('.eq-corps');
+  const neuf = C === null;
   C = ctx; chargerShard = charger; SAISONS = saisons;
-  annee = saisons.includes(saison) ? saison : saisons[0];
-  club = null; onglet = 'F'; tri = { cle: 'pt', sens: -1 }; filtre = '';
-  if (!modal.dataset.pret) {
-    modal.dataset.pret = '1';
-    modal.addEventListener('click', clic);
-    modal.addEventListener('change', change);
-    modal.addEventListener('input', saisie);
+  if (!hote.dataset.pret) {
+    hote.dataset.pret = '1';
+    hote.addEventListener('click', clic);
+    hote.addEventListener('change', change);
+    hote.addEventListener('input', saisie);
   }
-  if (ctx.ouvrirModale) ctx.ouvrirModale(modal); else modal.style.display = 'flex';
-  charge();
+  // La saison proposée n'est imposée qu'à la PREMIÈRE visite : revenir sur
+  // l'onglet ne doit pas ramener de force l'année du vestiaire courant.
+  if (neuf || !annee) {
+    annee = saisons.includes(saison) ? saison : saisons[0];
+    club = null; onglet = 'F'; tri = { cle: 'pt', sens: -1 }; filtre = '';
+    charge();
+  } else if (pool) dessiner();
+  else charge();
 }
