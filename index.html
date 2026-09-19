@@ -23,6 +23,7 @@
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/><path d="M12 14v4M8 20h8"/></symbol>
+  <symbol id="i-jersey" viewBox="0 0 24 24"><path d="M9 3h6l5 3-2 4-2-1v12H8V9L6 10 4 6z"/><path d="M9 3a3 3 0 0 0 6 0"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/><path d="M9 8h7M9 11.5h5"/></symbol>
   <symbol id="i-gear" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h12M20 17h0"/><circle cx="16" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="17" r="2"/></symbol>
   <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></symbol>
@@ -57,6 +58,7 @@
 
     <nav class="topbar-actions" aria-label="Menu">
       <button class="icon-btn" id="openPartieBtn" title="Nouvelle partie : format, tirage, ligue et mode"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg><span class="icon-lbl">Nouvelle</span></button>
+      <button class="icon-btn" id="openEquipesBtn" title="Les équipes : alignements et vraies statistiques"><svg class="ico" aria-hidden="true"><use href="#i-jersey"/></svg><span class="icon-lbl">Équipes</span></button>
       <button class="icon-btn" id="openLeaderboardBtn" title="Tes saisons, tes Coupes"><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg><span class="icon-lbl">Historique</span></button>
       <button class="icon-btn" id="openBibleBtn" title="Règles et mathématiques du jeu"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span class="icon-lbl">Règles</span></button>
       <button class="icon-btn" id="openOptionsBtn" title="Options d'affichage"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span class="icon-lbl">Options</span></button>
@@ -194,7 +196,10 @@
 
 <!-- ===== Modale : sommaire d'un match de séries ===== -->
 <div id="gameModal" class="modal-backdrop" style="display:none;">
-  <div class="modal-sheet">
+  <!-- `modal-large` : cette modale-ci porte des TABLEAUX — la page d'une
+       équipe, le sommaire d'un match, le bilan du tournoi — et un tableau de
+       onze colonnes a besoin de la largeur qu'un texte de règles n'a pas. -->
+  <div class="modal-sheet modal-large">
     <div class="modal-header">
       <h2 id="gameModalTitle">Sommaire</h2>
       <button id="closeGameBtn" class="close-btn" aria-label="Fermer">✕</button>
@@ -234,6 +239,18 @@
       <button id="closeLeaderboardBtn" class="close-btn" aria-label="Fermer">✕</button>
     </div>
     <div class="modal-body" id="leaderboardBody"></div>
+  </div>
+</div>
+
+<!-- ===== Modale : les équipes ===== -->
+<div id="equipesModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-sheet modal-large" role="dialog" aria-modal="true" aria-label="Les équipes">
+    <div class="modal-header">
+      <h2><svg class="ico" aria-hidden="true"><use href="#i-jersey"/></svg>Les équipes</h2>
+      <button class="close-btn eq-close" aria-label="Fermer">✕</button>
+    </div>
+    <div class="eq-barre"></div>
+    <div class="modal-body eq-corps"></div>
   </div>
 </div>
 

@@ -2980,9 +2980,17 @@ table.data .pts { font-weight: 900; color: var(--green); }
 
 /* Écrans très larges : assez de place pour les six colonnes ET l'alignement
    côte à côte, qui reste alors sous les yeux pendant tout le repêchage. */
+/* LES DEUX VOLETS CÔTE À CÔTE À PARTIR DE 1400 px, pas de 1600. Mesuré à
+   1440 × 900 — la taille d'un portable ordinaire, donc « le pc » de la
+   demande de JP — le repêchage faisait 3,0 écrans parce que le vestiaire et
+   l'alignement s'empilaient pleine largeur. À 1400 la place y est : le
+   vestiaire garde plus de 1000 px, donc ses six colonnes par poste
+   (`@container pool`), et l'alignement ses 340. */
 @media (min-width: 1600px) {
   .game, .topbar-inner, .actionbar-inner { max-width: 2100px; }
-  .panes { grid-template-columns: minmax(0, 2.15fr) minmax(380px, 0.75fr); }
+}
+@media (min-width: 1400px) {
+  .panes { grid-template-columns: minmax(0, 2.15fr) minmax(340px, 0.75fr); }
   .roster { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
   .pane-roster {
     position: sticky;
@@ -4469,3 +4477,172 @@ a.spin-club:hover {
 .line-ferm.on { background: var(--gold); color: var(--sur-or); border-color: var(--gold); }
 .line.fermeture .line-name::after { content: ' · fermeture'; color: var(--gold); font-weight: 700; }
 .hub-ereintant { color: var(--red); font-weight: 700; margin-top: 4px; }
+
+/* ======================================================================
+   LES ÉQUIPES — un écran ANCRÉ, jamais une longue page
+   ======================================================================
+   JP : *faciliter de voir les équipes, leurs rosters, stats réelles* ; puis
+   *jamais longue pages, fait onglets si nécessaire* ; puis *ça me dérange pas
+   si ya l'option de swipe sur mobile pour voir d'autres colonnes, je veux
+   juste que yait un ui « ancré » avec onglets*.
+
+   Mesuré avant : le bilan fait 4,2 à 5,0 écrans par onglet à 390 px, et à 4K
+   une modale laisse 81 % de la largeur dormante. Ici, tout ce qui sert à
+   NAVIGUER est hors du conteneur qui défile — en-tête, saison, recherche,
+   bandeau du club, onglets — et `.eq-scroll` est le seul qui bouge. Le
+   tableau se balaie en X pour les colonnes de plus : c'est le seul balayage,
+   et il ne fait jamais perdre de vue où on est.
+   ====================================================================== */
+
+.eq-barre {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 12px; border-bottom: 1px solid var(--line);
+  background: var(--panel-1, var(--panel)); flex: 0 0 auto;
+}
+.eq-retour { display: inline-flex; align-items: center; gap: 5px; background: none; border: 1px solid var(--line); border-radius: var(--r-s); color: var(--ink); padding: 4px 9px; font: 700 12.5px/1 var(--display); cursor: pointer; }
+.eq-retour:hover { border-color: var(--gold); color: var(--gold); }
+.eq-retour .ico { width: 14px; height: 14px; }
+.eq-annee, .eq-cherche { display: inline-flex; align-items: center; gap: 6px; }
+.eq-lbl { font: 700 10.5px/1 var(--display); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.eq-cherche { flex: 1 1 130px; min-width: 110px; border: 1px solid var(--line); border-radius: var(--r-s); padding: 0 8px; }
+.eq-cherche .ico { width: 14px; height: 14px; color: var(--muted); flex: 0 0 auto; }
+.eq-input { flex: 1; min-width: 0; background: none; border: none; color: var(--ink); font: 500 13px/1 inherit; padding: 6px 0; }
+.eq-input:focus { outline: none; }
+
+/* LE CORPS NE DÉFILE PAS : il tient la colonne, et passe le défilement à
+   `.eq-scroll`. Sans ça les onglets d'un club partiraient vers le haut, et
+   « ancré » ne voudrait plus rien dire. */
+.eq-corps { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.eq-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px 14px; }
+.eq-vide { padding: 22px 14px; text-align: center; color: var(--muted); font-size: 13px; }
+.eq-note { margin: 10px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.eq-echange { font-style: normal; color: var(--gold); margin-left: 4px; cursor: help; }
+
+/* La ligue : une carte par club, aux couleurs du club. Une colonne sur un
+   téléphone, autant que la largeur en porte sur un 4K. */
+.eq-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.eq-carte {
+  display: grid; gap: 0; text-align: left; cursor: pointer;
+  background: var(--fond-creux); border: 1px solid var(--line); border-radius: var(--r-m);
+  overflow: hidden; color: var(--ink); padding: 0;
+}
+.eq-carte:hover { border-color: var(--gold); }
+.eq-carte-band {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  background: var(--eq-band); color: var(--eq-ink); border-bottom: 2px solid var(--eq-stripe);
+}
+.eq-carte-tag { font: 800 13px/1 var(--display); letter-spacing: .04em; }
+.eq-carte-nom { padding: 7px 8px 2px; font: 700 13px/1.25 var(--display); }
+.eq-carte-fiche { display: flex; align-items: baseline; gap: 7px; padding: 0 8px 4px; }
+.eq-carte-fiche b { font: 800 17px/1 var(--display); color: var(--gold); }
+.eq-carte-fiche span { font-size: 11px; color: var(--muted); }
+.eq-carte-pied { padding: 0 8px 7px; font-size: 10.5px; color: var(--muted); }
+
+/* Un club : le bandeau et les onglets sont ANCRÉS, la table défile sous eux. */
+.eq-tete {
+  display: flex; align-items: center; gap: 9px; flex: 0 0 auto;
+  padding: 7px 12px; background: var(--eq-band); color: var(--eq-ink);
+  border-bottom: 2px solid var(--eq-stripe);
+}
+.eq-tete-band { display: flex; align-items: center; gap: 6px; font: 800 14px/1 var(--display); }
+.eq-tete-nom { flex: 1; min-width: 0; font: 700 13.5px/1.2 var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eq-tete-nom em { font-style: normal; opacity: .75; }
+.eq-tete-fiche { font: 700 12px/1 var(--display); white-space: nowrap; }
+.eq-tete-ext { color: inherit; display: inline-flex; opacity: .85; }
+.eq-tete-ext .ico { width: 15px; height: 15px; }
+.eq-onglets { display: flex; gap: 0; flex: 0 0 auto; border-bottom: 1px solid var(--line); background: var(--panel); }
+.eq-onglets button {
+  flex: 1; background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--muted); padding: 8px 6px; cursor: pointer;
+  font: 700 12.5px/1 var(--display); letter-spacing: .03em;
+}
+.eq-onglets button span { opacity: .65; font-size: 11px; }
+.eq-onglets button.on { color: var(--gold); border-bottom-color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+
+.eq-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.eq-table th, .eq-table td { padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.eq-table thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); font: 700 11px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.eq-table th.left, .eq-table td.left { text-align: left; }
+.eq-table th.eq-th { cursor: pointer; text-align: right; }
+.eq-table th.eq-th:hover { color: var(--ink); }
+.eq-table th.trie { color: var(--gold); }
+.eq-table td.stat { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--display); font-weight: 700; }
+.eq-table td.heros, .eq-table th.heros { color: var(--gold); }
+.eq-table td.sub-cell { color: var(--muted); font: 700 11px/1 var(--display); }
+.eq-joueur { background: none; border: none; color: var(--ink); font: inherit; padding: 0; cursor: pointer; text-align: left; }
+.eq-joueur:hover { color: var(--gold); text-decoration: underline; }
+
+/* ======================================================================
+   LES GRANDS ÉCRANS — la largeur dormante, mesurée puis rendue
+   ======================================================================
+   Mesuré à 3840 px : une modale n'utilisait que 720 px, soit 3120 px de noir
+   (81 %) ; l'écran de saison 900 px (77 %) ; le repêchage 2100 px (45 %).
+   Une modale n'a pas à s'étirer pour s'étirer — un tableau de onze colonnes
+   sur 3800 px est illisible — mais une boîte bornée à 720 px sur un 4K,
+   c'est un timbre au milieu d'un mur. On monte donc par paliers, et la
+   largeur de plus sert à mettre des COLONNES, jamais à étaler une ligne.
+   ====================================================================== */
+.modal-large { max-width: 980px; }
+@media (min-width: 1200px) {
+  .modal-sheet { max-width: 880px; }
+  .modal-large { max-width: 1280px; }
+  .modal-narrow { max-width: 640px; }
+}
+@media (min-width: 1800px) {
+  .modal-sheet { max-width: 1040px; max-height: 88vh; }
+  .modal-large { max-width: 1680px; }
+  .modal-narrow { max-width: 720px; }
+  .eq-grille { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+}
+@media (min-width: 2600px) {
+  .modal-sheet { max-width: 1280px; }
+  .modal-large { max-width: 2200px; }
+}
+
+/* LE BILAN PREND L'ÉCRAN, comme le banc prend l'alignement. Le bilan est un
+   frère du repêchage dans `#game` et rien ne cachait le repêchage : mesuré à
+   390 px, le bilan faisait 4,2 écrans dont 2,8 de roulette et de vestiaire
+   qu'on remontait pour revenir à rien. */
+#game.bilan #workspace { display: none; }
+#game.bilan .result-host { margin-top: 0; }
+
+/* ======================================================================
+   L'ÉCRAN DE SAISON SUR UN GRAND ÉCRAN — deux colonnes, pas une bande
+   ======================================================================
+   Mesuré à 3840 px : la coquille plafonnait à 900 px, donc 2940 px de noir
+   (77 %) sur l'écran où l'on passe TOUTE une saison. C'est le défaut que JP
+   avait déjà nommé sur le plateau (*beaucoup d'espace perdu*), réglé là par
+   deux colonnes et jamais ailleurs.
+
+   La règle est celle du plateau : la largeur de plus sert à mettre des
+   COLONNES, jamais à étaler une ligne. À gauche ce qu'on DÉCIDE — le
+   prochain match et les boutons qui font avancer le temps ; à droite ce
+   qu'on LIT — les onglets et leur volet. Sous 1200 px, la colonne de gauche
+   donnerait moins qu'une seule colonne : on reste empilé, comme avant.
+   ====================================================================== */
+@media (min-width: 1200px) {
+  .hub-sheet {
+    max-width: 1400px;
+    display: grid;
+    grid-template-columns: minmax(320px, 32%) 1fr;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "top     top"
+      "carte   onglets"
+      "actions volet";
+    column-gap: 20px;
+  }
+  .hub-sheet .live-top { grid-area: top; }
+  .hub-sheet .hub-carte { grid-area: carte; padding-top: 14px; }
+  .hub-sheet .hub-actions { grid-area: actions; align-self: start; }
+  .hub-sheet .hub-onglets { grid-area: onglets; }
+  .hub-sheet .hub-volet { grid-area: volet; padding-top: 10px; }
+}
+@media (min-width: 1800px) { .hub-sheet { max-width: 1800px; } }
+@media (min-width: 2600px) { .hub-sheet { max-width: 2300px; } }
+
+/* Le repêchage suit : il porte six colonnes de vestiaire et un alignement,
+   donc la largeur lui sert vraiment. */
+@media (min-width: 2800px) {
+  .game, .topbar-inner, .actionbar-inner { max-width: 2560px; }
+}

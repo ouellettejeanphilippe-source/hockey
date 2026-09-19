@@ -21,6 +21,7 @@
  */
 
 import { equipeDeTable, jouerMatchAuto, resultatDe, gagnantDuMatch } from './table.js';
+import { getPlayerKey } from './sim.js';
 import { ouvrirTable } from './plateau.js';
 
 export const CLUBS = 6;              // toi et cinq vrais clubs
@@ -77,9 +78,18 @@ export function jouerAuto(T, match, compte = true) {
   const A = surTable(T.clubs[match.a], 'A');
   const B = surTable(T.clubs[match.b], 'B');
   match.r = jouerMatchAuto(A, B, match.graine);
+  // CE MATCH SE REJOUE : même graine, mêmes clubs, même résultat. C'est ce
+  // qui permet à la sauvegarde de ne porter QUE tes matchs (voir la reprise
+  // en bas de fichier). Le marquer ici plutôt que de le deviner à la case :
+  // « Le laisser se jouer » joue TON match à vide, et rien dans sa position
+  // ne le dirait.
+  match.auto = true;
   if (compte) inscrire(T, match);
   return match.r;
 }
+
+/** Tous les matchs du tournoi, saison et séries : une seule définition. */
+export const tousLesMatchs = T => [...T.journees.flat(), ...(T.series ? T.series.rondes.flat() : [])];
 
 export function inscrire(T, match) {
   const fa = T.fiches[match.a], fb = T.fiches[match.b];
@@ -116,7 +126,7 @@ export function meneursDuTournoi(T) {
     if (!x) { x = { club, nom: (joueur && joueur.n) || 'Rappel', B: 0, A: 0, MÉ: 0, vols: 0, arrets: 0, alloues: 0, gardien: false }; par.set(cle, x); }
     return x;
   };
-  const matchs = [...T.journees.flat(), ...(T.series ? T.series.rondes.flat() : [])];
+  const matchs = tousLesMatchs(T);
   for (const mt of matchs) {
     if (!mt.r || mt.a == null) continue;
     for (const [f, club] of [[mt.r.A, mt.a], [mt.r.B, mt.b]]) {
@@ -166,6 +176,131 @@ export function composerFinale(T) {
 }
 
 /* ======================================================================
+   LA REPRISE — ce qui se rejoue, et ce qui ne se rejoue pas
+   ======================================================================
+   Sept matchs sur table, c'est une soirée : la perdre au premier
+   rafraîchissement n'est pas tenable, et c'était le cas.
+
+   La règle du dépôt est « on rejoue plutôt qu'on relit », et elle ne vaut ici
+   QU'À MOITIÉ, pour une raison de fond. Les matchs joués À VIDE se rejouent
+   exactement — même graine, mêmes clubs, `jouerMatchAuto` est déterministe —
+   donc la sauvegarde n'en garde qu'un drapeau. TES matchs, eux, ne se
+   rejouent pas : c'est toi qui as pris les décisions, et aucune graine ne les
+   redonne. Leur feuille est donc la seule chose que la sauvegarde porte
+   vraiment, en forme compacte — les joueurs par CLÉ, puisqu'un objet joueur
+   ne traverse pas un JSON, et sans le fil des événements ni les
+   modificateurs de tir, que plus rien ne lit une fois le match fini.
+
+   Le BARÈME des séries ne se sauve pas non plus : `ouvrirLesSeries` le
+   dérive du classement, et le classement est reconstruit à l'identique.
+   Recopier le tableau dans la sauvegarde serait une deuxième définition de la
+   même règle, donc une qui dérive.
+
+   ET SI UNE SEULE CLÉ NE SE RETROUVE PAS, la reprise est refusée en entier :
+   un tournoi dont les meneurs ont des trous ment plus qu'il ne sauve. On
+   retombe alors sur l'ancien comportement — l'alignement complet, prêt à
+   repartir — qui est honnête.
+   ====================================================================== */
+
+/** La clé d'un match dans la sauvegarde : le suffixe de sa graine, déjà unique et stable. */
+const cleDeMatch = (T, mt) => String(mt.graine).slice(String(T.graine).length + 1);
+
+const compacterCote = f => ({
+  nom: f.nom, tag: f.tag, buts: f.buts, tirs: f.tirs,
+  revirements: f.revirements, echecs: f.echecs, punitions: f.punitions,
+  marqueurs: (f.marqueurs || []).map(x => ({ k: getPlayerKey(x.p), b: x.buts, a: x.passes })),
+  physique: (f.physique || []).map(x => ({ k: getPlayerKey(x.p), e: x.echecs, v: x.vols, p: x.punitions })),
+  gardien: f.gardien && f.gardien.p
+    ? { k: getPlayerKey(f.gardien.p), arrets: f.gardien.arrets, alloues: f.gardien.alloues }
+    : null,
+});
+
+/** Ce que la sauvegarde emporte d'un tournoi en cours. */
+export function etatDuTournoi(T) {
+  if (!T) return null;
+  const matchs = {};
+  for (const mt of tousLesMatchs(T)) {
+    if (!mt.r || mt.a == null) continue;
+    matchs[cleDeMatch(T, mt)] = mt.auto ? 1 : {
+      gfA: mt.r.gfA, gfB: mt.r.gfB,
+      prolongation: !!mt.r.prolongation, nul: !!mt.r.nul,
+      vainqueur: mt.r.vainqueur || null, fusillade: mt.r.fusillade || null,
+      A: compacterCote(mt.r.A), B: compacterCote(mt.r.B),
+    };
+  }
+  return {
+    graine: T.graine,
+    jour: T.jour,
+    champion: T.champion,
+    ronde: T.series ? T.series.ronde : 0,
+    matchs,
+  };
+}
+
+/**
+ * Rebâtit un tournoi depuis sa sauvegarde et ses clubs (l'ordre compte : le
+ * tien est l'indice 0). Rend `null` si quoi que ce soit ne se recolle pas.
+ */
+export function relireTournoi(etat, clubs) {
+  if (!etat || !etat.graine || !Array.isArray(clubs) || clubs.length !== CLUBS) return null;
+  const T = nouveauTournoi(clubs, etat.graine);
+  // La table clé -> joueur de chaque club : c'est elle qui rend leurs objets
+  // aux feuilles, et son échec qui refuse la reprise.
+  const parCle = clubs.map(c => {
+    const m = new Map();
+    for (const p of Object.values((c && c.roster) || {})) if (p) m.set(getPlayerKey(p), p);
+    return m;
+  });
+  let brise = false;
+  const joueur = (club, k) => {
+    const p = parCle[club] && parCle[club].get(k);
+    if (!p) brise = true;
+    return p || null;
+  };
+  const relireCote = (f, club) => ({
+    nom: f.nom, tag: f.tag, buts: f.buts, tirs: f.tirs,
+    revirements: f.revirements, echecs: f.echecs, punitions: f.punitions,
+    modsTir: [],
+    marqueurs: (f.marqueurs || []).map(x => ({ p: joueur(club, x.k), buts: x.b, passes: x.a })),
+    physique: (f.physique || []).map(x => ({ p: joueur(club, x.k), echecs: x.e, vols: x.v, punitions: x.p })),
+    gardien: f.gardien
+      ? { p: joueur(club, f.gardien.k), arrets: f.gardien.arrets, alloues: f.gardien.alloues }
+      : { p: null, arrets: 0, alloues: 0 },
+  });
+  /* Remet un match en place : rejoué s'il l'a été à vide, relu s'il est de toi. */
+  const poser = (mt, compte) => {
+    const v = etat.matchs && etat.matchs[cleDeMatch(T, mt)];
+    if (!v) return;
+    if (v === 1) { jouerAuto(T, mt, compte); return; }
+    mt.r = {
+      A: relireCote(v.A, mt.a), B: relireCote(v.B, mt.b),
+      gfA: v.gfA, gfB: v.gfB,
+      prolongation: !!v.prolongation, nul: !!v.nul,
+      vainqueur: v.vainqueur || null, fusillade: v.fusillade || null,
+      fil: [], graine: mt.graine,
+    };
+    mt.auto = false;
+    if (compte) inscrire(T, mt);
+  };
+
+  for (const mt of T.journees.flat()) poser(mt, true);
+  T.jour = Math.max(0, Math.min(etat.jour || 0, T.journees.length));
+  // LE BARÈME SE DÉRIVE DU CLASSEMENT, il ne se relit pas : même condition
+  // que `finirJournee`, donc la même façon d'ouvrir les séries.
+  if (T.jour >= T.journees.length) {
+    ouvrirLesSeries(T);
+    for (const mt of T.series.rondes[0]) poser(mt, false);
+    if (T.series.rondes[0].every(x => x.r)) {
+      composerFinale(T);
+      poser(T.series.rondes[1][0], false);
+    }
+    T.series.ronde = Math.max(0, Math.min(etat.ronde || 0, T.series.rondes.length - 1));
+  }
+  T.champion = Number.isInteger(etat.champion) ? etat.champion : null;
+  return brise ? null : T;
+}
+
+/* ======================================================================
    L'ÉCRAN
    ====================================================================== */
 
@@ -180,9 +315,10 @@ function coquille(label) {
 
 /**
  * L'écran du tournoi. `toi` est l'indice de ta formation (toujours 0) ;
- * `onTermine(T)` reçoit le tournoi fini, pour le bilan.
+ * `onTermine(T)` reçoit le tournoi fini, pour le bilan ; `onAvance(T)` est
+ * appelé chaque fois que le tournoi bouge, pour la sauvegarde.
  */
-export function ouvrirTournoi({ T, ctx, onTermine }) {
+export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
   const ui = coquille('Le tournoi sur table');
   if (!ui) { onTermine(T); return; }
   const { modal, head, carte, actions, barre, volet, close } = ui;
@@ -317,6 +453,11 @@ export function ouvrirTournoi({ T, ctx, onTermine }) {
   }
 
   function rendre() {
+    // LA SAUVEGARDE SUIT LE RENDU, et c'est le seul endroit qui l'appelle :
+    // rien ne bouge dans un tournoi sans redessiner, alors que semer l'appel
+    // dans `finirJournee`, `finirRonde` et la fin d'un match sur table ferait
+    // trois endroits à ne pas oublier au prochain bouton.
+    if (onAvance) onAvance(T);
     dessinerTete(); dessinerCarte(); dessinerActions(); dessinerBarre(); dessinerVolet();
   }
 
@@ -382,6 +523,8 @@ export function ouvrirTournoi({ T, ctx, onTermine }) {
     while (T.champion == null && garde++ < 40) {
       if (!T.series) finirJournee(); else finirRonde();
     }
+    // Fermer ne redessine pas : c'est le seul chemin que `rendre` ne couvre pas.
+    if (onAvance) onAvance(T);
     modal.removeEventListener('click', clic);
     modal.style.display = 'none';
     document.body.style.overflow = '';

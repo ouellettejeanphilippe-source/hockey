@@ -27,10 +27,11 @@ import {
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
+import { ouvrirEquipes } from './equipes.js';
+import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
-import { brancherBilan, renderResult, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
+import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -188,6 +189,7 @@ const G = {
   dette: 0,
   journee: 0,          // la journée de saison déjà révélée (pour reprendre après un rafraîchissement)
   lbId: null,          // l'entrée d'historique de la saison en cours, que les séries viendront compléter
+  seriesVues: null,    // les séries révélées : { ronde, revele[] }, null tant qu'elles n'ont pas commencé
   renfort: null,        // EXPRESS : l'équipe qui fournit le reste de l'alignement
   view: 'pool',         // volet affiché sur petit écran
   done: false,
@@ -398,6 +400,23 @@ function saveGame() {
         adversaires: G.ligue.cles || [],
         journee: G.journee || 0,
         decisions: G.ligue.decisions || [],
+        // LES SÉRIES SE REPRENNENT COMME LA SAISON : elles se rejouent depuis
+        // la même graine — le générateur reste en place après
+        // `simulateLeague` — donc on ne sauve que jusqu'où on les a
+        // regardées. `lbId` suit, sinon la reprise coudrait la Coupe sur une
+        // entrée d'historique neuve au lieu de celle qu'on joue.
+        series: G.seriesVues || null,
+        lbId: G.lbId || null,
+      } : null,
+      /*
+       * LE TOURNOI SUR TABLE. Mêmes clés de clubs que la ligue, mais la
+       * moitié seulement se rejoue : les matchs joués À VIDE repartent de
+       * leur graine, TES matchs sont relus depuis leur feuille compacte —
+       * aucune graine ne redonne tes décisions (voir `etatDuTournoi`).
+       */
+      tournoi: G.bonus === 'TABLE' && G.done && G.tournoi ? {
+        ...etatDuTournoi(G.tournoi),
+        clubs: (G.tournoi.clubs || []).slice(1).map(c => `${c.season}|${c.tag}`),
       } : null,
       relances: G.relances,
       left: G.left,
@@ -514,12 +533,25 @@ async function restoreSave() {
     // même ligue et l'écran reprend à la journée révélée. `reprise` est rendu
     // au démarrage, qui l'exécute après le premier rendu — sans quoi on
     // simulerait 1312 matchs devant un écran de chargement vide.
+    if (data.tournoi && data.tournoi.graine) {
+      const etat = data.tournoi;
+      return { reprise: async () => { await reprendreTournoi(etat); } };
+    }
     if (data.partie && data.partie.graine) {
-      const { graine, adversaires = [], journee = 0, decisions = [] } = data.partie;
+      const { graine, adversaires = [], journee = 0, decisions = [], series = null, lbId = null } = data.partie;
+      G.lbId = lbId;
+      G.seriesVues = series;
       return { reprise: async () => {
         const clubs = await rebatirAdversaires(adversaires);
         if (!clubs.length) return;
-        await runSeason({ adversaires: clubs, graine, depuis: journee, decisions });
+        // Les séries reprises rejouent d'abord la saison ENTIÈRE : c'est elle
+        // qui pose le générateur à l'endroit exact où `playSeries` l'a pris,
+        // et le bilan est l'hôte du tableau des séries.
+        // `Infinity` et non 82 : une ligue impaire compte 85 journées, et un
+        // nombre écrit à la main rouvrirait l'écran de saison sur ses trois
+        // dernières au lieu d'aller au bilan.
+        await runSeason({ adversaires: clubs, graine, depuis: series ? Infinity : journee, decisions, reprise: true });
+        if (series) reprendreSeries(series);
       } };
     }
     return true;
@@ -768,7 +800,7 @@ async function boot() {
     $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur,
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
-    saveLeaderboard, majLeaderboard, lireSeriesHistorique, statsSim, toast,
+    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, statsSim, toast,
   });
   // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
   let vierge = false;
@@ -831,6 +863,27 @@ function setupEvents() {
   });
 
   // Modales
+  /*
+   * LES ÉQUIPES. Pas un `bindModal` : l'écran gère son ouverture et sa
+   * fermeture lui-même, parce qu'il tient un état (la saison, le club ouvert,
+   * l'onglet, le tri) et qu'il doit débrancher ses écouteurs en partant.
+   * La saison proposée est celle qu'on regarde : la ligue fixée s'il y en a
+   * une, sinon celle du vestiaire sorti, sinon la plus récente.
+   */
+  const btnEq = $('openEquipesBtn');
+  if (btnEq) btnEq.onclick = () => ouvrirEquipes({
+    ctx: {
+      esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
+      teamFull: t => TEAMFULL[t] || t,
+      fiche: p => showPlayerModal(p),
+      // Les trois sorties du jeu (✕, le fond, Échap) passent toutes par là :
+      // l'écran n'invente pas sa propre façon de s'ouvrir et de se fermer.
+      ouvrirModale, fermerModale,
+    },
+    saisons: (state.index.seasons || []).slice().reverse(),
+    saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
+    charger: getShard,
+  });
   bindModal('leaderboardModal', 'openLeaderboardBtn', 'closeLeaderboardBtn', showLeaderboard);
   bindModal('bibleModal', 'openBibleBtn', 'closeBibleBtn', remplirReglesDuPlateau);
   bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
@@ -905,8 +958,14 @@ function setupEvents() {
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
       // L'écran de saison et le direct ont leur propre sortie : Échap ne
-      // les ferme pas, ça laisserait la saison à moitié révélée.
-      document.querySelectorAll('.modal-backdrop:not(.live)').forEach(fermerModale);
+      // les ferme pas, ça laisserait la saison à moitié révélée. Et parmi
+      // celles qui restent, on ne ferme que CELLE DU DESSUS.
+      const ouvertes = [...document.querySelectorAll('.modal-backdrop:not(.live)')]
+        .filter(m => m.style.display && m.style.display !== 'none');
+      if (ouvertes.length) {
+        ouvertes.sort((a, b) => Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
+        fermerModale(ouvertes[0]);
+      }
       if (G.selectedSlot !== null || G.target !== null) {
         G.selectedSlot = null; G.target = null; render();
       }
@@ -929,9 +988,18 @@ let focusAvantModale = null;
 
 const modaleOuverte = () => [...document.querySelectorAll('.modal-backdrop')].filter(m => m.style.display !== 'none' && m.offsetParent !== null).pop() || null;
 
+/*
+ * L'ORDRE D'OUVERTURE, pour qu'Échap ne ferme que la modale du DESSUS. Les
+ * modales s'empilent depuis que l'écran des équipes ouvre la fiche d'un
+ * joueur : tout fermer d'un coup voulait dire qu'on ne pouvait pas refermer
+ * une fiche sans sortir de l'écran qui l'avait ouverte. L'ordre du DOM ne dit
+ * rien de l'ordre d'ouverture, d'où ce compteur.
+ */
+let rangModale = 0;
 function ouvrirModale(m) {
   if (!m) return;
   if (!modaleOuverte()) focusAvantModale = document.activeElement;
+  m.dataset.rang = String(++rangModale);
   m.style.display = 'flex';
   const cible = m.querySelector('.close-btn') || m.querySelector(FOCALISABLE);
   if (cible) cible.focus({ preventScroll: true });
@@ -2751,12 +2819,27 @@ const ecrireHistorique = list => {
  * verdict des séries quand elles sont jouées. Sans ça, le seul but du jeu —
  * la Coupe — n'était enregistré nulle part.
  */
-function saveLeaderboard(entry) {
-  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+/*
+ * UNE SAISON, UNE ENTRÉE — et c'est la reprise qui l'a rendu nécessaire. Le
+ * bilan se redessine à CHAQUE reprise, puisqu'un rafraîchissement rejoue la
+ * saison depuis sa graine : chaque rafraîchissement empilait donc une entrée
+ * de plus, et trois allers-retours dans les séries laissaient trois fois la
+ * même saison dans l'historique. Pire, `G.lbId` pointait alors sur la
+ * dernière, et la Coupe allait se coudre sur une entrée sans séries pendant
+ * que celle qu'on regardait restait muette.
+ *
+ * L'identifiant est donc rendu à l'appelant : tant qu'il le repasse, c'est la
+ * même entrée qu'on réécrit, à sa place dans la liste, avec son verdict de
+ * séries intact (`entry` ne porte pas `series`).
+ */
+function saveLeaderboard(entry, id = null) {
   const list = lireHistorique();
-  list.unshift({ id, ...entry });
+  const deja = id ? list.find(x => x.id === id) : null;
+  if (deja) { Object.assign(deja, entry); ecrireHistorique(list); return id; }
+  const neuf = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  list.unshift({ id: neuf, ...entry });
   ecrireHistorique(list);
-  return id;
+  return neuf;
 }
 
 /** Le verdict des séries d'une entrée, ou null : le texte de partage le lit. */
@@ -2994,7 +3077,9 @@ async function reprendreSaison() {
   $('game').classList.remove('banc');
   G.done = false;
   renderMain();
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: b.jour, decisions });
+  // `reprise` : c'est la MÊME saison qu'on rejoue avec une décision de plus,
+  // pas une saison neuve — elle garde donc son entrée d'historique.
+  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: b.jour, decisions, reprise: true });
 }
 
 /** Le panneau du banc : la journée, la fiche, le prochain match, les blessés, la consigne. */
@@ -3020,12 +3105,34 @@ function renderBanc() {
   $('bancRetour').onclick = reprendreSaison;
 }
 
+/*
+ * REPRENDRE LES SÉRIES APRÈS UN RAFRAÎCHISSEMENT. La saison vient d'être
+ * rejouée en entier : le classement est donc le même, les appariements sont
+ * les mêmes, et surtout le générateur est à l'endroit exact où `playSeries`
+ * l'avait pris la première fois — `grainerHasard` n'est appelé que par
+ * `simulateLeague`, et il reste en place ensuite (js/sim.js). Rejouer les
+ * séries redonne donc les mêmes feuilles, au but près. Il ne reste qu'à dire
+ * à l'écran jusqu'où le joueur les avait regardées.
+ */
+function reprendreSeries(vues) {
+  const teams = G.ligue && G.ligue.teams;
+  if (!teams || teams.length < 2) return;
+  runPlayoffs(teams.slice(0, nombreEnSeries(teams.length)), { depuis: vues });
+}
+
 async function runSeason(opts = {}) {
   if (G.banc && !opts.adversaires) { await reprendreSaison(); return; }
   if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
   // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
   // simulateLeague ici — le tournoi a son propre moteur, celui du plateau.
   if (G.bonus === 'TABLE' && !opts.adversaires) { await lancerTournoi(); return; }
+  /*
+   * UNE SAISON QUI COMMENCE N'A NI SÉRIES NI ENTRÉE D'HISTORIQUE ; une
+   * REPRISE garde les deux, puisque c'est la même saison qu'on rouvre. Un
+   * seul endroit décide, sinon « Rejouer la saison » réécrirait l'entrée de
+   * la saison d'avant et hériterait de ses séries.
+   */
+  if (!opts.reprise) { G.seriesVues = null; G.lbId = null; }
   G.done = true;
   // LA SAISON SE JOUE DANS TES COULEURS : noir, blanc, orange. Le repêchage
   // portait celles du vestiaire sorti ; à partir d'ici, c'est ton club.
@@ -3164,14 +3271,48 @@ async function lancerTournoi() {
     mb.disabled = false; renderMain();
     return;
   }
-  G.done = true;
+  // `G.done` est posé par `afficherTournoi` : un seul endroit ouvre un
+  // tournoi, qu'il vienne d'un tirage neuf ou d'une reprise.
+  // LA SAISON DE CHAQUE CLUB EST GARDÉE : c'est la moitié de sa clé, et sans
+  // elle la reprise n'a aucun moyen de rebâtir les cinq rivaux.
   const clubs = [
     { nom: 'NHL Stars', tag: 'YOU', roster: G.roster },
-    ...rivaux.slice(0, CLUBS_TOURNOI - 1).map(t => ({ nom: t.name, tag: t.tag, roster: t.roster })),
+    ...rivaux.slice(0, CLUBS_TOURNOI - 1).map(t => ({ nom: t.name, tag: t.tag, roster: t.roster, season: t.season })),
   ];
-  const T = nouveauTournoi(clubs, nouvelleGraine());
+  afficherTournoi(nouveauTournoi(clubs, nouvelleGraine()));
+}
+
+/* L'écran du tournoi, d'où qu'il vienne — un tirage neuf ou une reprise. */
+function afficherTournoi(T) {
+  G.done = true;
   G.tournoi = T;
-  ouvrirTournoi({ T, ctx: ctxTable(), onTermine: montrerBilanTournoi });
+  applyTeamColors('YOU');
+  ouvrirTournoi({
+    T, ctx: ctxTable(), onTermine: montrerBilanTournoi,
+    // Le tournoi bouge, la sauvegarde suit — comme la journée en saison.
+    onAvance: () => saveGame(),
+  });
+}
+
+/*
+ * REPRENDRE UN TOURNOI SUR TABLE. Les cinq rivaux se rebâtissent par leurs
+ * clés, exactement comme les 31 clubs d'une ligue (`rebatirAdversaires` rejoue
+ * la boucle de `buildOpponents`, même ordre et même `exclude` qui s'accumule),
+ * puis `relireTournoi` rejoue les matchs joués à vide et relit les tiens.
+ * Rend faux si quoi que ce soit ne se recolle pas : on retombe alors sur
+ * l'alignement complet, prêt à repartir, plutôt que sur un tournoi troué.
+ */
+async function reprendreTournoi(etat) {
+  const rivaux = await rebatirAdversaires(etat.clubs || []);
+  if (rivaux.length !== CLUBS_TOURNOI - 1) return false;
+  const clubs = [
+    { nom: 'NHL Stars', tag: 'YOU', roster: G.roster },
+    ...rivaux.map(t => ({ nom: t.name, tag: t.tag, roster: t.roster, season: t.season })),
+  ];
+  const T = relireTournoi(etat, clubs);
+  if (!T) return false;
+  afficherTournoi(T);
+  return true;
 }
 
 /**
@@ -3357,6 +3498,9 @@ async function rejouerSaison() {
   G.done = false;
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
+  // Le repêchage revient avec le bilan qui s'en va : les deux sont frères
+  // dans `#game`, et c'est la classe qui décide lequel occupe l'écran.
+  $('game').classList.remove('bilan');
   renderMain();
   await runSeason(adversaires.length ? { adversaires } : {});
 }
@@ -3398,6 +3542,9 @@ async function reprendreAlignement(entree) {
   G.ligue = null;
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
+  // Le repêchage revient avec le bilan qui s'en va : les deux sont frères
+  // dans `#game`, et c'est la classe qui décide lequel occupe l'écran.
+  $('game').classList.remove('bilan');
   render();
   await runSeason();
 }
@@ -3445,6 +3592,9 @@ async function demarrerPartie(r = {}) {
   if (search) search.value = '';
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
+  // Le repêchage revient avec le bilan qui s'en va : les deux sont frères
+  // dans `#game`, et c'est la classe qui décide lequel occupe l'écran.
+  $('game').classList.remove('bilan');
   setView('pool');
   if (MODE().renfort) await chargerRenfort();
   await nextSpin();

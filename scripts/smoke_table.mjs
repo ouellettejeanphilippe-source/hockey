@@ -551,6 +551,63 @@ await page.waitForTimeout(400);
 /* ---------- le reste du tournoi ---------- */
 await page.waitForSelector('#hubModal', { state: 'visible', timeout: 20000 });
 
+/*
+ * UN TOURNOI EN COURS SURVIT À UN RAFRAÎCHISSEMENT. Sept matchs sur table,
+ * c'est une soirée, et elle se perdait au premier rechargement.
+ *
+ * La reprise n'est qu'à MOITIÉ un rejeu, et c'est ce qu'on éprouve ici : les
+ * matchs joués À VIDE repartent de leur graine, TON match — celui qu'on vient
+ * de jouer geste par geste — est relu depuis sa feuille, puisque aucune
+ * graine ne redonne tes décisions. Deux lectures le prouvent, chacune la
+ * sienne : le CLASSEMENT (les matchs à vide ont rejoué pareil) et les MENEURS
+ * (ta feuille est revenue entière, joueurs compris).
+ */
+const litTournoi = async () => {
+  await page.click('#hubModal [data-onglet="classement"]');
+  await page.waitForTimeout(250);
+  const classement = (await page.textContent('#hubModal .hub-volet')).replace(/\s+/g, ' ').trim();
+  await page.click('#hubModal [data-onglet="meneurs"]');
+  await page.waitForTimeout(250);
+  const meneurs = (await page.textContent('#hubModal .hub-volet')).replace(/\s+/g, ' ').trim();
+  const tete = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+  return { tete, classement, meneurs };
+};
+const avantT = await litTournoi();
+const sauveT = await page.evaluate(() => {
+  try {
+    const brut = localStorage.getItem('cap82_save') || '';
+    const d = JSON.parse(brut || '{}');
+    const m = (d.tournoi && d.tournoi.matchs) || {};
+    const cles = Object.keys(m);
+    return {
+      ko: Math.round(brut.length / 1024),
+      vide: cles.filter(k => m[k] === 1).length,
+      miens: cles.filter(k => m[k] !== 1).length,
+      clubs: ((d.tournoi && d.tournoi.clubs) || []).length,
+    };
+  } catch { return { ko: 0, vide: -1, miens: -1, clubs: -1 }; }
+});
+if (sauveT.miens < 1) errors.push(`la sauvegarde du tournoi ne porte aucune feuille de TES matchs : ${JSON.stringify(sauveT)}`);
+if (sauveT.vide < 1) errors.push(`la sauvegarde du tournoi ne marque aucun match joué à vide : ${JSON.stringify(sauveT)}`);
+if (sauveT.clubs !== 5) errors.push(`la sauvegarde du tournoi porte ${sauveT.clubs} clés de clubs au lieu de cinq`);
+await page.reload({ waitUntil: 'networkidle' });
+let reprisT = true;
+try { await page.waitForSelector('#hubModal .hub-head', { state: 'visible', timeout: 90000 }); }
+catch { reprisT = false; }
+if (!reprisT) {
+  // On DIT ce qui manque plutôt que d'expirer trente lignes plus loin : un
+  // test qui meurt sur un `TimeoutError` ne nomme pas ce qui est cassé.
+  console.log('\n✗ le tournoi en cours ne survit pas à un rafraîchissement : l\'écran du tournoi ne rouvre pas.');
+  await browser.close();
+  process.exit(1);
+}
+await page.waitForTimeout(700);
+const apresT = await litTournoi();
+if (avantT.tete !== apresT.tete) errors.push(`le tournoi ne reprend pas au même endroit : « ${avantT.tete} » puis « ${apresT.tete} »`);
+else if (avantT.classement !== apresT.classement) errors.push('le classement du tournoi change après un rafraîchissement : les matchs joués à vide ne rejouent pas à l\'identique');
+else if (avantT.meneurs !== apresT.meneurs) errors.push('les meneurs du tournoi changent après un rafraîchissement : la feuille de TON match n\'est pas relue');
+else console.log(`   reprise du tournoi : ${apresT.tete} — ${sauveT.vide} match(s) rejoué(s), ${sauveT.miens} feuille(s) relue(s), ${sauveT.ko} ko`);
+
 /* LES MENEURS DU TOURNOI. Le tournoi ne tenait que six nombres par club :
    rien ne s'accumulait d'un match à l'autre, donc l'ordre des matchs n'avait
    aucune importance. Le cumul se fait à l'affichage, en parcourant les matchs

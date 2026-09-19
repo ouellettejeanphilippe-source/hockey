@@ -86,6 +86,30 @@ async function sansDebordement(ou) {
   if (trop > 0) errors.push(`débordement horizontal de ${trop} px — ${ou}`);
   return trop;
 }
+/*
+ * JAMAIS UNE LONGUE PAGE. JP : *jamais longue pages, fait onglets si
+ * nécessaire* ; *vraiment assurer interface clean, facile à naviguer, peu
+ * importe petit écran ou 4k pc*.
+ *
+ * Mesuré à 390 px AVANT : le bilan faisait 4,2 écrans, ses statistiques 5,0,
+ * son alignement 4,9. La cause n'était pas le bilan mais le REPÊCHAGE resté
+ * au-dessus — le bilan est un frère de la roulette dans `#game`, et rien ne
+ * la cachait : on finissait sa saison et on remontait la roulette et le
+ * vestiaire pour revenir à rien. Après : 1,7 / 2,4 / 2,3.
+ *
+ * La borne est à TROIS écrans, et elle suit la mesure plutôt que le goût :
+ * le pire volet en fait 2,4, et le défaut qu'on veut attraper — le repêchage
+ * qui revient — en rajoute 2,8 d'un coup. À trois, elle ne crie pas pour du
+ * bruit et elle ne peut pas rater ça.
+ */
+async function pasUneLonguePage(ou, max = 3) {
+  const n = await page.evaluate(() => {
+    const el = document.documentElement;
+    return +(el.scrollHeight / el.clientHeight).toFixed(2);
+  });
+  if (n > max) errors.push(`longue page : ${ou} fait ${n} écrans (au plus ${max})`);
+  return n;
+}
 async function sansCote(ou) {
   const fautes = await page.evaluate(cotes => {
     const out = [];
@@ -168,6 +192,64 @@ console.log(`2. ${signed}/23 signés`);
 // la plus chargée.
 console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await sansCote('vestiaire plein')} cote(s) dans le DOM`);
 await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
+
+/*
+ * L'ÉCRAN DES ÉQUIPES. JP : *faciliter de voir les équipes, leurs rosters,
+ * stats réelles* ; *jamais longue pages, fait onglets si nécessaire* ; *ça me
+ * dérange pas si ya l'option de swipe sur mobile pour voir d'autres colonnes,
+ * je veux juste que yait un ui « ancré » avec onglets*.
+ *
+ * L'ANCRAGE S'ÉPROUVE PAR LA STRUCTURE, pas par un défilement : un club dont
+ * la table tient dans l'écran ne prouverait rien en défilant de 0 px. Ce qui
+ * sert à naviguer — la saison, la recherche, le bandeau du club, les trois
+ * onglets — doit être HORS du conteneur qui défile, et ça, c'est vrai ou
+ * faux.
+ */
+{
+  await page.click('#openEquipesBtn');
+  await page.waitForSelector('#equipesModal .eq-carte', { timeout: 40000 });
+  const clubs = await page.$$eval('#equipesModal .eq-carte', l => l.length);
+  const annee = await page.$eval('#equipesModal .eq-select', e => e.value);
+  if (clubs < 8) errors.push(`l'écran des équipes ne montre que ${clubs} club(s) en ${annee}`);
+  await page.click('#equipesModal .eq-carte');
+  await page.waitForSelector('#equipesModal .eq-table tbody tr', { timeout: 15000 });
+  const ancre = await page.evaluate(() => {
+    const sc = document.querySelector('#equipesModal .eq-scroll');
+    const dedans = s => { const e = document.querySelector(s); return !!(e && sc && sc.contains(e)); };
+    return ['#equipesModal .eq-barre', '#equipesModal .eq-tete', '#equipesModal .eq-onglets'].filter(dedans);
+  });
+  if (ancre.length) errors.push(`l'écran des équipes n'est pas ancré : ${ancre.join(', ')} défile(nt) avec le contenu`);
+  // Les trois onglets, et les colonnes du gardien qui ne sont PAS celles d'un
+  // patineur : un onglet qui rend la même table est un onglet décoratif.
+  const cols = {};
+  for (const poste of ['F', 'D', 'G']) {
+    await page.click(`#equipesModal [data-poste="${poste}"]`);
+    await page.waitForTimeout(180);
+    cols[poste] = await page.$$eval('#equipesModal .eq-table thead th', l => l.map(e => e.textContent.replace(/[▾▴]/g, '').trim()).join(' '));
+  }
+  if (cols.G === cols.F) errors.push('les gardiens portent les colonnes des patineurs');
+  if (!/\bV\b/.test(cols.G) || !/%ARR/.test(cols.G)) errors.push(`les colonnes des gardiens sont fausses : ${cols.G}`);
+  // Le tri : la même colonne deux fois inverse le sens.
+  await page.click('#equipesModal [data-poste="F"]');
+  await page.waitForTimeout(180);
+  await page.click('#equipesModal [data-tri="g"]');
+  await page.waitForTimeout(180);
+  const buts = await page.$$eval('#equipesModal .eq-table tbody tr td:nth-child(4)', l => l.slice(0, 5).map(e => Number(e.textContent.trim())));
+  if (!buts.every((v, i) => !i || buts[i - 1] >= v)) errors.push(`le tri par buts ne descend pas : ${buts.join(' ')}`);
+  // La fiche d'un joueur s'ouvre PAR-DESSUS, et Échap ne ferme que la fiche :
+  // avec des modales empilées, tout fermer d'un coup fait sortir de l'écran.
+  await page.click('#equipesModal .eq-joueur');
+  await page.waitForTimeout(400);
+  const ficheOuverte = await page.$eval('#hockeyCardModal', e => e.style.display !== 'none');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  const dessous = await page.$eval('#equipesModal', e => e.style.display !== 'none');
+  if (!ficheOuverte) errors.push("la fiche d'un joueur ne s'ouvre pas depuis l'écran des équipes");
+  if (!dessous) errors.push("Échap ferme l'écran des équipes SOUS la fiche d'un joueur : une modale du dessous ne doit pas partir avec celle du dessus");
+  console.log(`   les équipes : ${clubs} clubs en ${annee}, écran ancré, ${await sansDebordement('écran des équipes')} px de débordement, ${await sansCote('écran des équipes')} cote(s)`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(250);
+}
 
 const enabled = await page.$eval('#mainBtn', b => !b.disabled);
 console.log(`3. #mainBtn actif : ${enabled}`);
@@ -289,6 +371,16 @@ async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('.result .score', { timeout: 60000 });
 }
 
+/* La saison jusqu'au bilan, sans rien regarder : ce qui sert à REJOUER
+   jusqu'à se qualifier, où seul le classement final compte. */
+async function finirVite() {
+  await page.waitForSelector('#hubModal .hub-fin', { timeout: 90000 });
+  await page.click('#hubModal .hub-fin');
+  await page.waitForSelector('#hubModal .hub-suite', { timeout: 15000 });
+  await page.click('#hubModal .hub-suite');
+  await page.waitForSelector('.result .score', { timeout: 60000 });
+}
+
 if (enabled) {
   await page.click('#mainBtn');
   await traverserSaison('saison', true);
@@ -318,16 +410,92 @@ if (enabled) {
   else if (etoiles !== 6) errors.push(`l'équipe d'étoiles compte ${etoiles} joueurs au lieu de six`);
   else console.log(`   trophées : ${trophees.map(t => `${t.nom.trim()} ${t.val.trim()}`).join(' · ')} · équipe d'étoiles à ${etoiles}`);
   await sansDebordement('trophées de la saison');
+  /* Aucun volet du bilan ne doit être une longue page — c'est LE défaut que
+     le repêchage resté au-dessus provoquait, et il se lit d'un chiffre. */
+  const hauteurs = {};
+  for (const v of ['bilan', 'classement', 'calendrier', 'stats', 'alignement']) {
+    const b = await page.$(`#resultTabs .result-tab[data-volet="${v}"]:not([hidden])`);
+    if (!b) continue;
+    await b.click();
+    await page.waitForTimeout(220);
+    hauteurs[v] = await pasUneLonguePage(`le bilan · ${v}`);
+  }
+  console.log(`   jamais une longue page : ${Object.entries(hauteurs).map(([k, n]) => `${k} ${n}×`).join(' · ')}`);
   await page.click('#resultTabs .result-tab[data-volet="bilan"]');
   await page.waitForTimeout(200);
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
-  const po = await page.$('#playoffsBtn');
+  /*
+   * ON DOIT ATTEINDRE LES SÉRIES. `smoke.mjs` tire au hasard, et c'est un
+   * choix assumé — mais une équipe moyenne rate les séries une fois sur deux,
+   * et TOUT ce passage (le tableau, la reprise, la Coupe dans l'historique)
+   * ne s'exécutait alors pas, sans qu'une ligne le dise. Une exécution a lu
+   * 50-28-4 et joué les séries, la suivante 39-39-4 et ne les a pas jouées :
+   * un test qui saute en silence est aussi faux qu'un sélecteur qui ne matche
+   * rien.
+   *
+   * « Rejouer la saison » garde le même alignement et change les dés : on
+   * rejoue jusqu'à se qualifier, au plus ESSAIS fois, et on ÉCHOUE si on n'y
+   * arrive pas — à seize équipes sur trente-deux, douze échecs de suite
+   * tiennent du un sur quatre mille.
+   */
+  const ESSAIS = 12;
+  let po = await page.$('#playoffsBtn'), essais = 0;
+  while (!po && essais < ESSAIS) {
+    essais++;
+    await page.click('#replayBtn');
+    await finirVite();
+    po = await page.$('#playoffsBtn');
+  }
+  if (!po) errors.push(`l'équipe n'a pas atteint les séries en ${ESSAIS + 1} saisons : le passage des séries n'a PAS été éprouvé`);
+  if (essais) console.log(`   séries atteintes après ${essais} saison(s) rejouée(s)`);
   if (po) {
     await po.click();
     // L'écran des séries : un match de plus dans la ronde, le tableau, puis
     // le prochain match en direct, puis tout jusqu'à la Coupe.
     await page.waitForSelector('#hubModal .hub-jour', { timeout: 20000 });
     await page.click('#hubModal .hub-jour');
+
+    /*
+     * LES SÉRIES SURVIVENT À UN RAFRAÎCHISSEMENT, comme la saison. Elles se
+     * REJOUENT : la saison entière repart de sa graine, ce qui remet le
+     * générateur là où `playSeries` l'avait pris, et la sauvegarde ne porte
+     * que jusqu'où on les a REGARDÉES. Même épreuve que pour la saison — la
+     * même en-tête des deux côtés d'un `reload`.
+     */
+    await page.waitForTimeout(200);
+    const poAvant = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+    const poSauve = await page.evaluate(() => {
+      try {
+        const d = JSON.parse(localStorage.getItem('cap82_save') || '{}');
+        const v = d.partie?.series;
+        return { vus: v ? v.revele.reduce((a, b) => a + b, 0) : -1, lbId: d.partie?.lbId || null };
+      } catch { return { vus: -1, lbId: null }; }
+    });
+    const lbAvant = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]').length; } catch { return -1; } });
+    await page.reload({ waitUntil: 'networkidle' });
+    let poRepris = true;
+    try { await page.waitForSelector('#hubModal .hub-head', { state: 'visible', timeout: 90000 }); }
+    catch { poRepris = false; }
+    if (!poRepris) {
+      console.log('\n✗ les séries en cours ne survivent pas à un rafraîchissement : l\'écran des séries ne rouvre pas.');
+      await browser.close();
+      process.exit(1);
+    }
+    await page.waitForTimeout(900);
+    const poApres = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+    if (poAvant !== poApres) errors.push(`les séries ne reprennent pas au même endroit : « ${poAvant} » puis « ${poApres} »`);
+    if (poSauve.vus < 1) errors.push('la sauvegarde ne porte pas les matchs de séries révélés');
+    if (!poSauve.lbId) errors.push('la sauvegarde ne porte pas l\'entrée d\'historique de la saison');
+    /*
+     * UNE SAISON, UNE ENTRÉE. Le bilan se redessine à chaque reprise, et
+     * `saveLeaderboard` empilait une entrée neuve à chaque appel : trois
+     * allers-retours laissaient trois fois la même saison dans l'historique,
+     * et la Coupe se cousait sur la dernière au lieu de celle qu'on joue.
+     */
+    const lbApres = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]').length; } catch { return -1; } });
+    if (lbApres !== lbAvant) errors.push(`le rafraîchissement a ajouté une entrée d'historique : ${lbAvant} puis ${lbApres}`);
+    else console.log(`   reprise des séries : ${poApres} — ${poSauve.vus} match(s) révélé(s), ${lbApres} entrée(s) d'historique`);
+
     await page.click('#hubModal .hub-onglets button[data-onglet="tableau"]');
     const noeuds = await page.$$eval('#hubModal .bk-serie', l => l.length);
     const regarder = await page.$('#hubModal .hub-regarder');
