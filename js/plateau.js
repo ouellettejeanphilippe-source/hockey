@@ -623,6 +623,19 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * entière — sinon la carte couvre justement les cases qu'il faut toucher,
    * et la consigne de la barre du bas dit déjà quoi viser.
    */
+  /*
+   * ET LE DUEL N'EST PAS UNE COMMANDE, C'EST UNE DÉCISION (S46). S45 a
+   * déménagé les gestes de la barre du bas vers cette carte ET l'a fermée
+   * sur `cible` : le duel — qui n'existe QUE quand une cible est choisie —
+   * s'est retrouvé sans nulle part où s'afficher. La barre annonçait
+   * « Frapper ou harponner Vaive ? » au-dessus de ZÉRO bouton, et frapper
+   * comme harponner sont devenus impossibles pour tout le monde.
+   * `smoke_table` a tourné 3 689 fois sur la même case avant de le dire.
+   * L'ouvrir sur `cible` ne marche pas non plus — mesuré : elle couvre les
+   * cases qu'il reste à toucher, et c'est pour ça qu'elle se ferme. Le duel
+   * va donc où vont les décisions, dans la BARRE, à côté du dé : c'est le
+   * panneau de confirmation de FFT, pas son menu de commandes.
+   */
   const commandes = () => (sel && aMoi() && !attente && !regles && !mode && !cible && actions.carte ? { r: sel.r, c: sel.c } : null);
 
   /* Poser une chose sur une case, ou la cacher. `html(x)` en fait le contenu. */
@@ -1225,6 +1238,22 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const ouvre = `<button type="button" class="t-volet-btn" aria-expanded="${volet ? 'true' : 'false'}" title="${sel ? 'La fiche de la pièce, le banc et le fil' : 'Le banc des trios et le fil'}">${sel ? 'Fiche' : 'Banc'} <i>${volet ? '▾' : '▴'}</i></button>`;
     // La rangée des actions : le tir d'abord, puis les modes (un geste à
     // cible), puis les gestes sans cible. Elle se balaie si elle déborde.
+    /*
+     * LE DUEL PREND LA BARRE, comme le dé (S46). Choisir le porteur adverse
+     * n'est pas un geste, c'est l'ouverture d'un choix à deux : l'épaule ou
+     * le bâton. La carte de commandes s'est retirée (elle couvrirait la
+     * glace), donc les deux boutons vivent ici, avec la question et de quoi
+     * changer d'avis — un choix sans sortie est un cul-de-sac.
+     *
+     * ET LE MODE A LE MÊME BESOIN. La carte se ferme quand on prend un
+     * mode, et c'est elle qui portait les boutons de mode : une fois
+     * « Passer » choisi, plus RIEN à l'écran ne permettait d'en sortir. On
+     * pouvait encore toucher sa propre pièce pour tout annuler, mais rien
+     * ne le disait — un chemin qu'il faut deviner n'existe pas. La barre
+     * porte donc la sortie dans les deux cas, à côté de la consigne qui dit
+     * déjà quoi viser.
+     */
+    if (cible || mode) return `<div class="t-dock-ligne t-dock-duel">${nom}${cible ? actions.gestes.join('') : ''}<button type="button" class="t-annuler" title="${cible ? 'Revenir sans frapper' : 'Sortir du mode'}">Annuler</button>${fin}</div>`;
     return `${avis}<div class="t-dock-ligne ${sel ? '' : 't-dock-sans'}">${nom}${budget}${ouvre}${fin}</div>`;
   }
 
@@ -1520,6 +1549,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       else if (quoi === 'reception') { const j = tirerSurReception(m); if (j) lancer(j, 'A', jj => appliquerTir(m, piece, jj), placesDe(piece, null)); else rendre(); }
       return;
     }
+    if (t.closest('.t-annuler')) { cible = null; mode = null; rendre(); return; }
     if (t.closest('.t-fin-tour')) { sel = null; cible = null; mode = null; deGlace = null; finDeMain = 'Main passée'; finirMain(m); apres(); return; }
     if (t.closest('.t-passer')) { sel = null; cible = null; mode = null; deGlace = null; flash = null; finDeMain = 'Main passée sans jouer'; renoncer(m); apres(); return; }
     const uni = t.closest('.t-seg button');
