@@ -1334,11 +1334,20 @@ function montrerPage(cle) {
       ctx: {
         esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
         teamFull: t => TEAMFULL[t] || t,
-        fiche: p => showPlayerModal(p),
+        // La fiche d'un joueur de la ligue en cours ouvre ses statistiques
+        // SIMULÉES, la vraie saison dessous — c'est déjà ce que fait
+        // `showPlayerModal` avec `sim`. Hors ligue, la vraie saison seule.
+        fiche: (p, enLigue) => showPlayerModal(p, enLigue ? { sim: 'saison' } : {}),
+        statsSim,
       },
       saisons: (state.index.seasons || []).slice().reverse(),
       saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
       charger: getShard,
+      // LA LIGUE EN COURS, si elle existe : ses 32 clubs, avec leurs
+      // alignements. Les objets joueurs y portent DÉJÀ leurs compteurs
+      // simulés et leur vraie saison — l'écran n'a rien à recalculer, il
+      // met les deux nombres l'un sous l'autre.
+      ligue: () => (G.ligue && G.ligue.teams && G.ligue.teams.length > 1 ? G.ligue.teams : null),
     });
   }
   window.scrollTo({ top: 0, behavior: 'instant' });

@@ -119,10 +119,68 @@ let hote = null, barre = null, corps = null;
 let C = null, chargerShard = null, SAISONS = [];
 let annee = null;
 let club = null;            // le code du club ouvert, ou null pour la ligue
+/*
+ * LA SOURCE : « Ma ligue » ou « Les saisons ».
+ *
+ * JP : *les équipes dans l'onglet équipe, je parle de ceux de la ligue en
+ * cours, je veux pouvoir comparer les joueurs et équipes avec leurs vraies
+ * prestations*. L'écran ouvrait les 44 franchises par SAISON — de l'histoire,
+ * sans rapport avec la partie en cours. Il ouvre maintenant aussi les 32
+ * clubs de la ligue qu'on joue, et là chaque nombre porte le vrai sous lui.
+ *
+ * Rien n'est recalculé : les objets joueurs d'une ligue portent DÉJÀ leurs
+ * compteurs simulés (`simG`, `simA`…) et les colonnes de leur vraie saison
+ * (`g`, `a`…) — ce sont les mêmes objets. L'écran ne fait que les montrer
+ * ensemble.
+ */
+let source = 'saisons';     // 'ligue' | 'saisons'
+/*
+ * A-T-ON CHOISI, ou est-ce l'écran qui a choisi pour nous ? La question n'est
+ * pas rhétorique : à la PREMIÈRE visite il n'y a pas encore de ligue (on
+ * repêche), donc « la source suit ce qui existe » ne pouvait jouer qu'une
+ * fois, trop tôt, et l'onglet restait sur l'histoire des 44 franchises pour
+ * le reste de la partie. Tant que personne n'a touché la bascule, l'écran
+ * ouvre la ligue dès qu'elle existe ; dès qu'on l'a touchée, il obéit.
+ */
+let sourceChoisie = false;
+let ligueDe = null;         // () -> les équipes de la ligue en cours, ou null
+let fichesReelles = new Map();   // `saison|tag` -> la fiche reconstituée du club
 let onglet = 'F';           // dans un club : F, D ou G
 let tri = { cle: 'pt', sens: -1 };
 let filtre = '';
 let pool = null;            // le shard de l'année, par équipe
+
+/*
+ * LES DEUX LECTURES D'UNE COLONNE. `v` lit la vraie saison, `sim` lit ce que
+ * le moteur a joué. Les gardiens demandent une conversion : le shard porte
+ * une MOYENNE de buts alloués et un POURCENTAGE d'arrêts, le moteur compte
+ * des totaux — sans ça on afficherait « 148 » sous une moyenne de 2,51.
+ */
+const SIM_PAT = {
+  gp: S => S.GP, g: S => S.G, a: S => S.A, pt: S => S.PTS, pm: S => S.PM,
+  sh: S => S.SH, pct: S => (S.SH ? 100 * S.G / S.SH : 0), pim: S => S.PIM,
+  toi: () => 0,   // le moteur ne modélise pas l'horloge : il n'a pas de temps de glace
+};
+const SIM_GAR = {
+  gp: S => S.GP, w: S => S.W, l: S => S.L,
+  sv: S => (S.SA ? S.SV / S.SA : 0),
+  ga: S => (S.GP ? S.GA / S.GP : 0),
+  sa: S => S.SA, so: S => S.SO,
+};
+
+/** Les équipes de la ligue en cours, ou une liste vide. */
+const enLigue = () => (source === 'ligue' && ligueDe ? (ligueDe() || []) : []);
+/** L'équipe ouverte, en mode ligue : on la retrouve par son nom, qui est unique. */
+const equipeOuverte = () => enLigue().find(t => cleDeClub(t) === club) || null;
+/** La clé d'un club de ligue : son nom, parce que deux saisons d'un même tag coexistent. */
+const cleDeClub = t => t.name || t.tag;
+/*
+ * Les joueurs d'une équipe de ligue. L'alignement est indexé PAR CASE, pas
+ * en tableau — `roster[s.i]`, avec des trous — donc `Object.values` et pas
+ * `filter`. Les réservistes y sont : leur rangée s'efface, mais « il n'a pas
+ * joué » est une information, pas un vide.
+ */
+const rosterDe = t => (t && t.roster ? Object.values(t.roster).filter(Boolean) : []);
 
 const clubs = () => Object.keys(pool || {}).filter(t => (pool[t] || []).length >= 8);
 const cols = () => (onglet === 'G' ? COL_GAR : COL_PAT);
@@ -131,15 +189,43 @@ const dePoste = (t, c) => t.filter(p => (c === 'G' ? p.p === 'G' : c === 'D' ? p
 /* ---------- la barre : la saison et la recherche, ANCRÉES ---------- */
 function dessinerBarre() {
   const { esc, ico } = C;
+  const aLaLigue = !!(ligueDe && ligueDe());
+  const enL = source === 'ligue';
   barre.innerHTML = `
-    ${club ? `<button type="button" class="eq-retour" title="Revenir à la ligue">${ico('i-swap')}<span>La ligue</span></button>` : ''}
-    <label class="eq-annee"><span class="eq-lbl">Saison</span>
+    ${club ? `<button type="button" class="eq-retour" title="${enL ? 'Revenir aux clubs de ma ligue' : 'Revenir à la ligue'}">${ico('i-swap')}<span>${enL ? 'Les clubs' : 'La ligue'}</span></button>` : ''}
+    ${aLaLigue ? `<div class="eq-source seg" role="tablist" aria-label="Quelles équipes">
+      <button type="button" role="tab" data-source="ligue" class="${enL ? 'on' : ''}" aria-selected="${enL}">Ma ligue</button>
+      <button type="button" role="tab" data-source="saisons" class="${enL ? '' : 'on'}" aria-selected="${!enL}">Les saisons</button>
+    </div>` : ''}
+    ${enL ? '' : `<label class="eq-annee"><span class="eq-lbl">Saison</span>
       <select class="select eq-select" aria-label="La saison à consulter">
         ${SAISONS.map(s => `<option value="${esc(s)}"${s === annee ? ' selected' : ''}>${esc(s)}</option>`).join('')}
-      </select></label>
+      </select></label>`}
     <label class="eq-cherche">${ico('i-search')}
       <input type="search" class="eq-input" placeholder="${club ? 'Un joueur…' : 'Un club…'}" value="${esc(filtre)}" aria-label="Filtrer">
     </label>`;
+}
+
+/* ---------- ma ligue : un club par carte, la fiche jouée et la vraie ---------- */
+function voletMaLigue() {
+  const { esc, logo, band, teamFull } = C;
+  const q = filtre.trim().toLowerCase();
+  const liste = enLigue()
+    .filter(t => !q || (t.name || '').toLowerCase().includes(q) || (t.tag || '').toLowerCase().includes(q))
+    .slice()
+    .sort((a, b) => (b.PTS || 0) - (a.PTS || 0) || (b.GF - b.GA) - (a.GF - a.GA));
+  if (!liste.length) return `<div class="eq-vide">Aucun club ne répond à « ${esc(filtre)} ».</div>`;
+  return `<div class="eq-scroll"><div class="eq-grille">${liste.map(t => {
+    const tag = t.tag, b = band(tag);
+    const reelle = t.season ? fichesReelles.get(`${t.season}|${tag}`) : null;
+    return `<button type="button" class="eq-carte${t.isPlayer ? ' mienne' : ''}" data-club="${esc(cleDeClub(t))}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
+      <span class="eq-carte-band">${logo(tag, 26)}<span class="eq-carte-tag">${esc(tag)}</span>${t.season ? `<em class="eq-carte-an">${esc(t.season)}</em>` : ''}</span>
+      <span class="eq-carte-nom">${esc(t.isPlayer ? t.name : (teamFull(tag) || tag))}</span>
+      <span class="eq-carte-fiche"><b>${t.W}-${t.L}-${t.OTL}</b><span>${t.GF} BP · ${t.GA} BC</span></span>
+      <span class="eq-carte-pied">${reelle ? `vraie saison ${reelle.V}-${reelle.D}${reelle.N ? `-${reelle.N}` : ''} · ${reelle.BP} BP` : (t.isPlayer ? 'ta formation' : 'ouvre pour la vraie saison')}</span>
+    </button>`;
+  }).join('')}</div>
+  <p class="eq-note">Les 32 clubs de la ligue que tu joues, avec la fiche qu'ils ont <strong>dans ta saison</strong>. Ouvre-en un pour mettre chaque joueur en regard de sa vraie saison.</p></div>`;
 }
 
 /* ---------- la ligue : un club par carte ---------- */
@@ -201,9 +287,58 @@ function voletClub() {
     </div>`;
 }
 
+/* ---------- un club de MA LIGUE : le simulé, la vraie saison dessous ---------- */
+function voletMonClub() {
+  const { esc, ico, logo, band, teamFull, teamSeasonUrl, statsSim } = C;
+  const t = equipeOuverte();
+  if (!t) return '<div class="eq-vide">Ce club n\'est plus dans la ligue.</div>';
+  const tout = rosterDe(t);
+  const q = filtre.trim().toLowerCase();
+  const CO = cols(), SIM = onglet === 'G' ? SIM_GAR : SIM_PAT;
+  const dedans = dePoste(tout, onglet).filter(p => !q || p.n.toLowerCase().includes(q));
+  const col = CO.find(c => c.cle === tri.cle) || CO[0];
+  const valSim = (p, c) => { const S = statsSim(p); return S && SIM[c.cle] ? (SIM[c.cle](S) || 0) : 0; };
+  const rangs = dedans.slice().sort((a, b) => (valSim(a, col) - valSim(b, col)) * tri.sens || (b.simGP || 0) - (a.simGP || 0));
+  const b = band(t.tag);
+  const reelle = t.season ? fichesReelles.get(`${t.season}|${t.tag}`) : null;
+  const url = t.season ? teamSeasonUrl(t.tag, t.season) : null;
+  return `
+    <div class="eq-tete" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
+      <span class="eq-tete-band">${logo(t.tag, 30)}<span>${esc(t.tag)}</span></span>
+      <span class="eq-tete-nom">${esc(t.isPlayer ? t.name : (teamFull(t.tag) || t.tag))}${t.season ? ` <em>${esc(t.season)}</em>` : ''}</span>
+      <span class="eq-tete-fiche">${t.W}-${t.L}-${t.OTL} · ${t.GF} BP · ${t.GA} BC
+        ${reelle ? `<i class="eq-tete-reel">vraie saison : ${reelle.V}-${reelle.D}${reelle.N ? `-${reelle.N}` : ''} · ${reelle.BP} BP · ${reelle.BC} BC</i>` : ''}</span>
+      ${url ? `<a class="eq-tete-ext" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(t.season)} de ce club sur Hockey-Reference">${ico('i-ext')}</a>` : ''}
+    </div>
+    <div class="eq-onglets" role="tablist">
+      ${[['F', 'Attaquants'], ['D', 'Défenseurs'], ['G', 'Gardiens']].map(([c, nom]) =>
+        `<button type="button" role="tab" data-poste="${c}" class="${c === onglet ? 'on' : ''}" aria-selected="${c === onglet}">${nom} <span>${dePoste(tout, c).length}</span></button>`).join('')}
+    </div>
+    <div class="eq-scroll"><table class="eq-table eq-double">
+      <thead><tr><th class="left">Joueur</th><th>Pos</th>
+        ${CO.filter(c => SIM[c.cle]).map(c => `<th class="eq-th${c.heros ? ' heros' : ''}${c.cle === tri.cle ? ' trie' : ''}" data-tri="${esc(c.cle)}" title="${esc(c.titre)} — en haut ta saison, en dessous la vraie">${c.t}${c.cle === tri.cle ? (tri.sens < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('')}
+      </tr></thead>
+      <tbody>${rangs.map(p => {
+        const S = statsSim(p) || {};
+        return `<tr${(p.simGP || 0) ? '' : ' class="eq-absent"'}>
+        <td class="left"><button type="button" class="eq-joueur" data-joueur="${esc(String(p.id))}">${esc(p.n)}</button></td>
+        <td class="sub-cell">${esc(POSTE(p))}</td>
+        ${CO.filter(c => SIM[c.cle]).map(c => {
+          const sv = SIM[c.cle](S) || 0, rv = c.v(p) || 0;
+          const f = x => esc(String(c.fmt ? c.fmt(x) : Math.round(x)));
+          return `<td class="stat${c.heros ? ' heros' : ''}"><b>${f(sv)}</b><i>${rv ? f(rv) : '—'}</i></td>`;
+        }).join('')}
+      </tr>`; }).join('') || `<tr><td colspan="${CO.length + 2}" class="eq-vide">Personne.</td></tr>`}</tbody>
+    </table>
+    <p class="eq-note"><strong>En haut, ta saison. En dessous, la vraie.</strong> Les deux nombres sont sur 82 matchs quand le joueur les a joués — et une époque ne se compare pas à l\'autre sans précaution : un ailier de 1976 marquait dans une ligue à quatre buts par match et joue ici dans une ligue à trois. Ce qui se compare bien, c\'est son rang parmi les siens.</p>
+    </div>`;
+}
+
 function dessiner() {
   dessinerBarre();
-  corps.innerHTML = club ? voletClub() : voletLigue();
+  corps.innerHTML = source === 'ligue'
+    ? (club ? voletMonClub() : voletMaLigue())
+    : (club ? voletClub() : voletLigue());
   const sc = corps.querySelector('.eq-scroll');
   if (sc) sc.scrollTop = 0;
 }
@@ -211,7 +346,9 @@ function dessiner() {
 /* Seul le corps se redessine quand on tape : redessiner la barre reprendrait
    le focus au champ, et on ne pourrait pas taper deux lettres de suite. */
 function redessinerCorps() {
-  corps.innerHTML = club ? voletClub() : voletLigue();
+  corps.innerHTML = source === 'ligue'
+    ? (club ? voletMonClub() : voletMaLigue())
+    : (club ? voletClub() : voletLigue());
 }
 
 async function charge() {
@@ -226,8 +363,26 @@ async function charge() {
 function clic(ev) {
   const t = ev.target;
   if (t.closest('.eq-retour')) { club = null; filtre = ''; dessiner(); return; }
+  const src = t.closest('[data-source]');
+  if (src) {
+    source = src.dataset.source;
+    sourceChoisie = true;
+    club = null; filtre = '';
+    tri = { cle: 'pt', sens: -1 }; onglet = 'F';
+    if (source === 'ligue') { dessiner(); precharger(); }
+    else if (pool) dessiner();
+    else charge();
+    return;
+  }
   const carte = t.closest('[data-club]');
-  if (carte) { club = carte.dataset.club; onglet = 'F'; tri = { cle: 'pt', sens: -1 }; filtre = ''; dessiner(); return; }
+  if (carte) {
+    club = carte.dataset.club; onglet = 'F'; tri = { cle: 'pt', sens: -1 }; filtre = '';
+    dessiner();
+    // La fiche RÉELLE du club se reconstitue depuis son shard, et le shard
+    // n'est peut-être pas chargé : on dessine d'abord, on complète ensuite.
+    if (source === 'ligue') ficheReelle(equipeOuverte()).then(ok => { if (ok && club) dessiner(); });
+    return;
+  }
   const pos = t.closest('[data-poste]');
   if (pos) {
     onglet = pos.dataset.poste;
@@ -246,10 +401,42 @@ function clic(ev) {
     dessiner(); return;
   }
   const bj = t.closest('[data-joueur]');
-  if (bj && pool && club) {
-    const p = (pool[club] || []).find(x => String(x.id) === bj.dataset.joueur);
-    if (p) C.fiche(p);
+  if (bj && club) {
+    // En mode ligue le joueur vient de l'ALIGNEMENT — c'est le même objet que
+    // le moteur a fait jouer, donc sa fiche ouvre ses chiffres simulés.
+    const liste = source === 'ligue' ? rosterDe(equipeOuverte()) : (pool && pool[club]) || [];
+    const p = liste.find(x => String(x.id) === bj.dataset.joueur);
+    if (p) C.fiche(p, source === 'ligue');
   }
+}
+
+/*
+ * LA FICHE RÉELLE D'UN CLUB DE LA LIGUE. Elle se reconstitue de son shard,
+ * par la même méthode que la vue par saison (`ficheDeClub`) — un shard porte
+ * des joueurs, pas un classement. On la garde en mémoire : ouvrir deux fois
+ * le même club ne relit pas la saison. Ta formation n'en a pas : les NHL
+ * Stars n'ont pas de vraie saison.
+ */
+async function ficheReelle(t) {
+  if (!t || !t.season || t.isPlayer) return false;
+  const cle = `${t.season}|${t.tag}`;
+  if (fichesReelles.has(cle)) return false;
+  try {
+    const sh = await chargerShard(t.season);
+    const club = (sh.byTeam || {})[t.tag];
+    if (!club || !club.length) return false;
+    fichesReelles.set(cle, ficheDeClub(club));
+    return true;
+  } catch { return false; }
+}
+
+/* Les fiches réelles des clubs de la ligue, en tâche de fond : les cartes se
+   complètent d'elles-mêmes, et ouvrir un club n'attend plus rien. */
+async function precharger() {
+  const eqs = enLigue();
+  let bouge = false;
+  for (const t of eqs) if (await ficheReelle(t)) bouge = true;
+  if (bouge && source === 'ligue') dessiner();
 }
 function change(ev) {
   if (!ev.target.closest('.eq-select')) return;
@@ -268,13 +455,13 @@ function saisie(ev) {
  * ce qu'on regarde, et cet écran ne fait que remplir son hôte. Il garde son
  * état entre deux visites — on revient sur le club qu'on regardait.
  */
-export function ouvrirEquipes({ ctx, saisons, saison, charger }) {
+export function ouvrirEquipes({ ctx, saisons, saison, charger, ligue = null }) {
   hote = document.getElementById('pageEquipes');
   if (!hote) return;
   barre = hote.querySelector('.eq-barre');
   corps = hote.querySelector('.eq-corps');
   const neuf = C === null;
-  C = ctx; chargerShard = charger; SAISONS = saisons;
+  C = ctx; chargerShard = charger; SAISONS = saisons; ligueDe = ligue;
   if (!hote.dataset.pret) {
     hote.dataset.pret = '1';
     hote.addEventListener('click', clic);
@@ -283,6 +470,14 @@ export function ouvrirEquipes({ ctx, saisons, saison, charger }) {
   }
   // La saison proposée n'est imposée qu'à la PREMIÈRE visite : revenir sur
   // l'onglet ne doit pas ramener de force l'année du vestiaire courant.
+  // LA SOURCE SUIT CE QUI EXISTE. Une ligue en cours est ce qu'on veut voir
+  // en premier — c'est la partie qu'on joue ; sans ligue, l'écran reste
+  // l'histoire des 44 franchises. Et une ligue qui disparaît (nouvelle
+  // partie) ne doit pas laisser l'écran sur une source vide.
+  const aLaLigue = !!(ligueDe && ligueDe());
+  if (!aLaLigue && source === 'ligue') { source = 'saisons'; club = null; }
+  if (!sourceChoisie && aLaLigue && source !== 'ligue') { source = 'ligue'; club = null; filtre = ''; }
+  if (source === 'ligue') { dessiner(); precharger(); return; }
   if (neuf || !annee) {
     annee = saisons.includes(saison) ? saison : saisons[0];
     club = null; onglet = 'F'; tri = { cle: 'pt', sens: -1 }; filtre = '';

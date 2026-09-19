@@ -4562,6 +4562,30 @@ a.spin-club:hover {
 .eq-table th.eq-th:hover { color: var(--ink); }
 .eq-table th.trie { color: var(--gold); }
 .eq-table td.stat { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--display); font-weight: 700; }
+
+/* ======================================================================
+   MA LIGUE : LE SIMULÉ, LA VRAIE SAISON DESSOUS
+   JP : *je veux pouvoir comparer les joueurs et équipes avec leurs vraies
+   prestations*. Deux tableaux côte à côte se lisent mal et un bouton qui
+   bascule de l'un à l'autre n'est pas une comparaison : les deux nombres
+   vivent donc dans la MÊME cellule, celui du jeu en tête et le vrai sous
+   lui, plus petit et en sourdine. La colonne ne s'élargit pas, la rangée
+   grandit d'une ligne.
+   ====================================================================== */
+.eq-source { flex: 0 0 auto; }
+.eq-carte.mienne { outline: 2px solid var(--gold); outline-offset: -2px; }
+.eq-carte-an { font-style: normal; margin-left: auto; font-size: 10.5px; opacity: .85; }
+.eq-tete-reel { display: block; font-style: normal; font-weight: 700; font-size: 10.5px; color: var(--muted); letter-spacing: .02em; }
+.eq-table.eq-double td.stat { line-height: 1.05; }
+.eq-table.eq-double td.stat b { display: block; font-weight: 800; }
+.eq-table.eq-double td.stat i {
+  display: block; font-style: normal; font-weight: 700;
+  font-size: 10.5px; color: var(--muted); opacity: .9;
+}
+.eq-table.eq-double td.stat.heros b { color: var(--gold); }
+/* Un joueur qui n'a pas joué une minute de ta saison : sa rangée s'efface,
+   mais elle reste — c'est une information, pas un vide. */
+.eq-table.eq-double tr.eq-absent td { opacity: .45; }
 .eq-table td.heros, .eq-table th.heros { color: var(--gold); }
 .eq-table td.sub-cell { color: var(--muted); font: 700 11px/1 var(--display); }
 .eq-joueur { background: none; border: none; color: var(--ink); font: inherit; padding: 0; cursor: pointer; text-align: left; }

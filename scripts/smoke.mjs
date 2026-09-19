@@ -477,6 +477,51 @@ if (enabled) {
      le repêchage resté au-dessus provoquait, et il se lit d'un chiffre. */
   if (await page.$('#resultTabs')) errors.push("le bilan a encore sa propre barre d'onglets : il n'y en a qu'une, et elle est en bas");
   /*
+   * MA LIGUE DANS L'ONGLET DES ÉQUIPES. JP : *les équipes dans l'onglet
+   * équipe, je parle de ceux de la ligue en cours, je veux pouvoir comparer
+   * les joueurs et équipes avec leurs vraies prestations*. L'écran ouvrait
+   * les 44 franchises par saison — de l'histoire, sans rapport avec la
+   * partie. Trois choses s'éprouvent : la ligue en cours est la source
+   * OUVERTE dès qu'elle existe, elle porte ses 32 clubs, et un club met
+   * chaque nombre du jeu au-dessus du vrai.
+   */
+  {
+    await page.click('.navtab[data-page="equipes"]');
+    await page.waitForTimeout(2600);
+    const ouverte = await page.$$eval('#pageEquipes [data-source].on', e => e.map(x => x.dataset.source));
+    if (ouverte[0] !== 'ligue') errors.push(`l'onglet des équipes ouvre « ${ouverte[0] || 'rien'} » au lieu de ma ligue une fois la saison jouée`);
+    const clubsLigue = await page.$$eval('#pageEquipes .eq-carte', e => e.length);
+    if (clubsLigue < 30) errors.push(`ma ligue ne montre que ${clubsLigue} clubs`);
+    if (!(await page.$('#pageEquipes .eq-carte.mienne'))) errors.push('ma formation ne paraît pas parmi les clubs de ma ligue');
+    const adverse = await page.$('#pageEquipes .eq-carte:not(.mienne)');
+    if (!adverse) errors.push('aucun club adverse dans ma ligue');
+    else {
+      await adverse.click();
+      await page.waitForTimeout(2600);
+      const m = await page.evaluate(() => {
+        const t = document.querySelector('#pageEquipes .eq-table.eq-double');
+        if (!t) return null;
+        const c = t.querySelector('tbody td.stat');
+        return {
+          rangees: t.querySelectorAll('tbody tr').length,
+          double: !!(c && c.querySelector('b') && c.querySelector('i')),
+          reel: !!document.querySelector('#pageEquipes .eq-tete-reel'),
+        };
+      });
+      if (!m) errors.push("un club de ma ligue ne rend pas la table à deux nombres");
+      else {
+        if (!m.double) errors.push('une cellule ne porte pas le nombre du jeu ET le vrai');
+        if (!m.reel) errors.push("le bandeau d'un club de ma ligue ne porte pas sa vraie saison");
+        if (m.rangees < 10) errors.push(`un club de ma ligue n'a que ${m.rangees} rangées`);
+        console.log(`   ma ligue : ${clubsLigue} clubs, un club rend ${m.rangees} rangées à deux nombres, la vraie saison au bandeau`);
+      }
+      await sansDebordement('un club de ma ligue');
+      await sansCote('un club de ma ligue');
+    }
+    await page.click('.navtab[data-page="bilan"]');
+    await page.waitForTimeout(400);
+  }
+  /*
    * LA BARRE A CHANGÉ D'ENTRÉES, parce que la phase a changé : on ne bâtit
    * plus, on lit. Neuf onglets ne tiennent pas dans 390 px — la barre défile
    * en x plutôt que de rétrécir « Calendrier » à quarante pixels, et c'est LE
