@@ -285,46 +285,22 @@ function calendrierHtml(calendrier, jour) {
 }
 
 /*
- * LES ONGLETS DU BILAN. Le pointage, la bande de six chiffres et les trois
- * boutons restent en tête ; chaque onglet ouvre un seul volet. « Séries »
- * n'apparaît qu'une fois les séries jouées, et c'est là que le tableau et
- * leurs statistiques se dessinent.
+ * LES SECTIONS DU BILAN — ET CE SONT DES ONGLETS DE LA BARRE DU BAS, pas une
+ * deuxième barre à elles. JP : *picks, alignement, match du jour/calendrier,
+ * standings, leaders, C'EST TOUS DES ONGLETS DIFFÉRENTS*. Le pointage, la
+ * bande de six chiffres et les trois boutons restent en tête de chaque
+ * section ; le reste est un volet par onglet. « Séries » n'a pas d'onglet
+ * tant que son volet est vide, et c'est le DOM qui le dit (`ongletsCourants`,
+ * js/game.js) — un drapeau de plus serait une deuxième vérité.
  */
-const ONGLETS_BILAN = [
-  { cle: 'bilan', titre: 'Bilan' },
-  { cle: 'classement', titre: 'Classement' },
-  { cle: 'calendrier', titre: 'Calendrier' },
-  { cle: 'stats', titre: 'Statistiques' },
-  { cle: 'alignement', titre: 'Alignement' },
-  { cle: 'series', titre: 'Séries' },
+export const ONGLETS_BILAN = [
+  { cle: 'bilan', ico: 'i-target', titre: 'Bilan' },
+  { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
+  { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier' },
+  { cle: 'stats', ico: 'i-star', titre: 'Meneurs' },
+  { cle: 'alignement', ico: 'i-list', titre: 'Alignement' },
+  { cle: 'series', ico: 'i-cup', titre: 'Séries' },
 ];
-function montrerVolet(cle) {
-  const tabs = $('resultTabs');
-  if (!tabs) return;
-  tabs.querySelectorAll('.result-tab').forEach(b => {
-    const on = b.dataset.volet === cle;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-selected', on ? 'true' : 'false');
-    // Sur téléphone la barre défile en x : l'onglet ouvert reste visible.
-    // On déplace la barre elle-même, jamais la page.
-    if (on) {
-      const g = b.offsetLeft - 12, d = b.offsetLeft + b.offsetWidth + 12 - tabs.clientWidth;
-      if (tabs.scrollLeft > g) tabs.scrollTo({ left: g, behavior: 'smooth' });
-      else if (tabs.scrollLeft < d) tabs.scrollTo({ left: d, behavior: 'smooth' });
-    }
-  });
-  document.querySelectorAll('#resultHost .result-pane').forEach(p => { p.hidden = p.dataset.volet !== cle; });
-  // Un deck caché mesure zéro : il se remesure en s'ouvrant.
-  brancherEntractes($('resultHost'));
-  // L'onglet reste en vue : si la page a défilé sous la barre, on y remonte.
-  const haut = tabs.getBoundingClientRect().top;
-  const barre = parseFloat(getComputedStyle(tabs).top) || 0;
-  if (haut < barre - 1) tabs.scrollIntoView({ block: 'start' });
-}
-function brancherOnglets(tabs) {
-  tabs.querySelectorAll('.result-tab').forEach(b => { b.onclick = () => montrerVolet(b.dataset.volet); });
-}
-
 export function renderResult(r, you, teams, leaders, calendrier = []) {
   const nTeams = teams.length;
   const rank = teams.findIndex(t => t.isPlayer) + 1;
@@ -485,13 +461,9 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         <button class="btn go" id="againBtn">Nouvelle partie</button>
       </div>
 
-      <div class="result-tabs" role="tablist" id="resultTabs">
-        ${ONGLETS_BILAN.map(o => `<button class="result-tab${o.cle === 'bilan' ? ' on' : ''}" role="tab" data-volet="${o.cle}" aria-selected="${o.cle === 'bilan'}"${volets[o.cle] && o.cle !== 'series' ? '' : ' hidden'}>${esc(o.titre)}</button>`).join('')}
-      </div>
-      ${ONGLETS_BILAN.map(o => `<div class="result-pane" data-volet="${o.cle}"${o.cle === 'bilan' ? '' : ' hidden'}>${volets[o.cle]}</div>`).join('')}
+      ${ONGLETS_BILAN.map(o => `<div class="result-pane" data-volet="${o.cle}"${o.cle === 'bilan' ? '' : ' hidden'}>${volets[o.cle] || ''}</div>`).join('')}
     </div>`;
 
-  brancherOnglets($('resultTabs'));
   brancherEntractes($('resultHost'));
   if (stats) brancherPalmares($('palm-saison'), stats, 'saison');
 
@@ -537,8 +509,9 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
 
   renderMain();
   // LE BILAN EST UN ONGLET, PAS UN BAS DE PAGE : on y VA, on n'y descend pas.
-  // Le premier onglet de la barre du bas dit « Bilan » dès que `G.done`.
-  montrerPage('repechage');
+  // La barre du bas vient de changer d'entrées — la saison est jouée, donc on
+  // la LIT : Bilan · Classement · Calendrier · Meneurs · Alignement.
+  montrerPage('bilan');
 }
 
 /* =====================================================================
@@ -735,10 +708,9 @@ function dessinerTableauDesSeries(host, n, champion) {
     b.onclick = () => showGameModal(Number(b.dataset.serie), Number(b.dataset.match));
   });
   brancherPalmares($('palm-series'), statsSeries, 'series');
-  // L'onglet « Séries » n'existait pas encore : il apparaît et s'ouvre.
-  const onglet = document.querySelector('#resultTabs .result-tab[data-volet="series"]');
-  if (onglet) { onglet.hidden = false; montrerVolet('series'); }
-  else host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Le volet des séries vient de se remplir, donc son onglet existe : la
+  // barre le découvre en se rebâtissant, et on l'ouvre.
+  montrerPage('series');
 }
 
 /** Le tag et l'année courte : « MTL '76 », ce qui tient dans une carte. */

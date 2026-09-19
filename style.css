@@ -2397,27 +2397,11 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 .result-actions .btn { flex: 1 1 150px; }
 
-/* LE BILAN À ONGLETS. Une barre collée sous la barre du haut, comme la
-   navigation d'un jeu de gestion : un onglet, un volet, jamais une longue
-   page. L'onglet ouvert porte un filet d'or, pas un fond. */
-.result-tabs {
-  position: sticky; top: var(--topbar-h); z-index: 5;
-  display: flex; gap: 2px; margin: 16px -14px 0; padding: 0 10px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-}
-.result-tabs::-webkit-scrollbar { display: none; }
-.result-tab {
-  flex: 1 0 auto; min-height: 42px; padding: 8px 10px 6px;
-  border: 0; border-bottom: 3px solid transparent; background: none;
-  color: var(--sub); white-space: nowrap; cursor: pointer;
-  font-family: var(--display); font-size: 17px; font-weight: 800;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  transition: color .15s, border-color .15s;
-}
-.result-tab:hover { color: var(--text); }
-.result-tab.on { color: var(--gold); border-bottom-color: var(--gold); }
+/* LE BILAN EST UNE SUITE D'ONGLETS DE LA BARRE DU BAS. Il avait sa propre
+   barre, collée sous la barre du haut : deux barres sur le même écran, et
+   celle du bas ne parlait plus de ce qu'on regardait. Il ne reste que les
+   volets, et c'est `marquerPage` (js/game.js) qui en ouvre un. */
+.result-pane[hidden] { display: none; }
 .result-pane > .result-section:first-child { margin-top: 16px; }
 .result-pane > .note { margin-top: 16px; }
 
@@ -2644,6 +2628,17 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 /* Le lieu du match sur l'affiche : à domicile, ou chez l'autre. */
 .hub-lieu { margin-left: 8px; font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sub); }
+/* LA BARRE DE L'ÉCRAN DE SAISON EST EN BAS, comme celle du jeu, et dans la
+   même langue (ses boutons portent `.navtab`). L'écran est plein écran, donc
+   la barre du jeu est derrière lui : il n'y a jamais qu'UNE barre d'onglets à
+   l'écran, et elle est toujours au même endroit. */
+.hub-onglets {
+  flex: 0 0 auto; display: flex; gap: 0;
+  background: var(--panel); border-top: 1px solid var(--line);
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.hub-onglets::-webkit-scrollbar { display: none; }
 .hub-onglets[hidden] { display: none; }
 .hub-volet { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
 .hub-volet > * { flex: none; }
@@ -4625,17 +4620,24 @@ a.spin-club:hover {
     max-width: 1400px;
     display: grid;
     grid-template-columns: minmax(320px, 32%) 1fr;
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto auto auto 1fr;
     grid-template-areas:
       "top     top"
-      "carte   onglets"
-      "actions volet";
+      "carte   volet"
+      "actions volet"
+      "onglets volet";
     column-gap: 20px;
   }
   .hub-sheet .live-top { grid-area: top; }
   .hub-sheet .hub-carte { grid-area: carte; padding-top: 14px; }
   .hub-sheet .hub-actions { grid-area: actions; align-self: start; }
-  .hub-sheet .hub-onglets { grid-area: onglets; }
+  /* Le rail de gauche, comme celui du jeu : ce qui sert à NAVIGUER tient
+     avec ce qui sert à DÉCIDER, et le volet prend toute la hauteur. */
+  .hub-sheet .hub-onglets {
+    grid-area: onglets; align-self: start;
+    flex-direction: column; gap: 2px; overflow: visible;
+    background: none; border-top: 1px solid var(--line-soft); padding: 10px 14px 14px;
+  }
   .hub-sheet .hub-volet { grid-area: volet; padding-top: 10px; }
 }
 @media (min-width: 1800px) { .hub-sheet { max-width: 1800px; } }
@@ -4672,9 +4674,14 @@ a.spin-club:hover {
   display: flex; gap: 0;
   background: var(--panel); border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* UNE FOIS LA SAISON JOUÉE LA BARRE COMPTE NEUF ONGLETS : elle défile en x
+     plutôt que de rétrécir « Calendrier » à quarante pixels. C'est le même
+     conteneur qui défile que pour un tableau — jamais la page. */
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
+.navbar::-webkit-scrollbar { display: none; }
 .navtab {
-  flex: 1 1 0; min-width: 0;
+  flex: 1 0 auto; min-width: max(68px, calc(100% / 5.6));
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   min-height: var(--navbar-h); padding: 6px 2px;
   border: 0; border-top: 2px solid transparent; background: none; cursor: pointer;
@@ -4692,9 +4699,13 @@ a.spin-club:hover {
    bouton « Lancer la saison » n'a rien à dire quand on lit les règles. */
 .actionbar { bottom: calc(var(--navbar-h) + env(safe-area-inset-bottom, 0px)); }
 .actionbar .btn.go { flex: 1 1 100%; }
-body[data-page="equipes"] .actionbar,
-body[data-page="historique"] .actionbar,
-body[data-page="regles"] .actionbar { display: none; }
+body[data-zone="ref"] .actionbar { display: none; }
+/* Et elle s'efface sur le bilan : son bouton y dit « Saison jouée » et ne
+   fait rien, pendant que les vraies actions (copier, rejouer, nouvelle
+   partie) sont dans le bilan lui-même. Soixante-huit pixels rendus au
+   contenu, juste au-dessus de la barre d'onglets. */
+body:has(#game.bilan) .actionbar { display: none; }
+body:has(#game.bilan) { --actionbar-h: 0px; }
 
 /* La place réservée en bas : les deux barres sur un onglet de partie, une
    seule sur une page de référence. */
@@ -4722,17 +4733,19 @@ body { padding-bottom: 0; }
 .page-corps.eq-corps { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
 
 /* ---------- ce que chaque onglet montre ---------- */
-/* Une page de référence cache le jeu, et réciproquement. */
-body[data-page="equipes"] #game,
-body[data-page="historique"] #game,
-body[data-page="regles"] #game { display: none !important; }
+/* Une page de référence cache le jeu, et réciproquement. On lit la ZONE et
+   non le nom de l'onglet : les onglets de partie changent avec la phase
+   (Vestiaire et Alignement pendant le repêchage, les cinq sections du bilan
+   ensuite), et une règle qui les énumère est une règle qui oublie le
+   prochain. */
+body[data-zone="ref"] #game { display: none !important; }
 
 /* L'ALIGNEMENT EST UN ONGLET, DONC IL NE PORTE QUE L'ALIGNEMENT. La roulette,
    le tableau de bord et le bilan appartiennent aux leurs — c'était ça, « tout
    restant dans la page ». */
 body[data-page="alignement"] #spin,
 body[data-page="alignement"] #dash,
-body[data-page="alignement"] .result-host,
+body[data-page="alignement"] #game:not(.bilan) .result-host,
 body[data-page="alignement"] .pane-pool { display: none !important; }
 
 /* ---------- EHM : le rail de gauche dès qu'il y a la place ---------- */
@@ -4769,13 +4782,16 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
    Mesuré avant : 3,5 écrans, dont 2,7 de liste de joueurs qu'on remontait
    pour relire ce que la roulette offrait. */
 @media (min-width: 1px) {
-  body[data-page="repechage"] .game,
-  body[data-page="alignement"] .game {
+  body[data-zone="jeu"] .game {
     height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - env(safe-area-inset-bottom, 0px));
     padding-bottom: 0;
     overflow: hidden;
     display: flex; flex-direction: column;
   }
+  /* LES SECTIONS DU BILAN SONT DES ONGLETS COMME LES AUTRES : une boîte
+     bornée dont le corps défile. Sans ça, « Classement » redevenait la
+     longue page que JP refuse — c'est un tableau de trente-trois rangées. */
+  body[data-zone="jeu"] .result-host { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   body[data-page="repechage"] .workspace,
   body[data-page="alignement"] .workspace { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   body[data-page="repechage"] #draft { flex: 0 0 auto; }
@@ -4820,8 +4836,10 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
   body[data-page="repechage"] .pool.by-pos .pool-col { min-height: 0; overflow-y: auto; }
 }
 @media (min-width: 1200px) {
-  body[data-page="repechage"] .game,
-  body[data-page="alignement"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h)); }
+  /* Le rail est à GAUCHE : la hauteur ne lui doit plus rien. Sans cette
+     reprise, chaque onglet de partie laissait 58 px de noir sous lui sur un
+     écran large — la place d'une barre qui n'y est pas. */
+  body[data-zone="jeu"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h)); }
 }
 
 /* LES DEUX LIENS DE LA FICHE : le joueur chez la LNH (par son identifiant

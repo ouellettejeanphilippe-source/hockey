@@ -31,7 +31,8 @@ import { ouvrirEquipes } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
-import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries } from './bilan.js';
+import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN } from './bilan.js';
+import { brancherEntractes } from './entracte.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -862,10 +863,8 @@ function setupEvents() {
   }
   syncAgeControls();
 
-  // LA BARRE D'ONGLETS DU BAS : la seule navigation du jeu.
-  document.querySelectorAll('.navtab').forEach(t => {
-    t.onclick = () => montrerPage(t.dataset.page);
-  });
+  // LA BARRE D'ONGLETS DU BAS : la seule navigation du jeu. C'est
+  // `majNavbar` qui la bâtit et qui branche ses boutons.
 
   // Modales
   // Les équipes, l'historique et les règles sont des PAGES, pas des modales :
@@ -1208,17 +1207,111 @@ function syncOptionsUI() {
    déduit tout : c'est elle qui décide que la roulette ne s'affiche pas sur
    l'onglet de l'alignement, plutôt qu'un `hidden` posé à la main quelque part.
    ====================================================================== */
-const PAGES = ['repechage', 'alignement', 'equipes', 'historique', 'regles'];
+/*
+ * LES ENTRÉES DE LA BARRE SUIVENT LA PHASE DE LA PARTIE. JP : *picks,
+ * alignement, match du jour/calendrier, standings, leaders, C'EST TOUS DES
+ * ONGLETS DIFFÉRENTS*. Le classement, le calendrier et les meneurs étaient
+ * des onglets du bilan, dans une DEUXIÈME barre collée sous la barre du
+ * haut : deux barres sur le même écran, et celle du bas ne parlait plus de
+ * ce qu'on regardait. Ils sont maintenant des onglets de la SEULE barre,
+ * et c'est la phase qui décide desquels on a besoin — on bâtit, puis on lit.
+ *
+ * `alignement` est dans les deux listes exprès : c'est la même raison d'être
+ * (l'alignement), et c'est son CONTENU qui change — le tableau de profondeur
+ * qu'on remplit pendant le repêchage, la fiche des 23 après la saison.
+ */
+const ONGLETS_REF = [
+  { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes' },
+  { cle: 'historique', ico: 'i-trophy', titre: 'Saisons' },
+  { cle: 'regles', ico: 'i-book', titre: 'Règles' },
+];
 
-/** Pose la page courante. Ne remplit rien : c'est `montrerPage` qui le fait. */
-function marquerPage(cle) {
-  G.page = cle;
-  document.body.dataset.page = cle;
-  document.querySelectorAll('.navtab').forEach(b => {
+/*
+ * Les onglets du moment, dans l'ordre de la barre.
+ *
+ * LA QUESTION N'EST PAS « LA SAISON EST-ELLE JOUÉE » MAIS « LE BILAN
+ * EXISTE-T-IL ». `G.done` passe à vrai dès que `simulateLeague` a joué les
+ * 82 matchs — bien avant `renderResult`, puisque l'écran de saison les
+ * RÉVÈLE ensuite journée par journée. Le lire ici vidait la barre de ses
+ * onglets de partie pendant toute la saison : « Derrière le banc » tombait
+ * alors sur la page des équipes, et le panneau du banc restait caché. Les
+ * volets du bilan sont la seule vérité, et « Séries » n'a d'onglet qu'une
+ * fois le sien rempli — pas de drapeau de plus.
+ */
+function ongletsCourants() {
+  // UN VOLET VIDE EST UN VOLET SANS RIEN À LIRE, et c'est `textContent` qui
+  // le dit — pas `innerHTML`. Le volet des séries porte d'avance le conteneur
+  // que `dessinerTableauDesSeries` remplira (`<div id="playoffsSection">`),
+  // donc son balisage n'est jamais vide : l'onglet « Séries » s'affichait dès
+  // le bilan de la saison régulière, avant qu'une seule série soit jouée.
+  const prets = new Set(
+    [...document.querySelectorAll('#resultHost .result-pane')]
+      .filter(p => p.textContent.trim() !== '').map(p => p.dataset.volet));
+  if (prets.size) return [...ONGLETS_BILAN.filter(o => prets.has(o.cle)), ...ONGLETS_REF];
+  const loto = MODE().loto;
+  return [
+    { cle: 'repechage', ico: 'i-dice', titre: loto ? 'La main' : 'Vestiaire', badge: String(poolFiltered().length) },
+    { cle: 'alignement', ico: 'i-list', titre: 'Alignement', badge: `${signes().length}/${totalCases()}` },
+    ...ONGLETS_REF,
+  ];
+}
+
+const PAGES = () => ongletsCourants().map(o => o.cle);
+
+/*
+ * LA BARRE. Elle se rebâtit quand ses entrées changent, jamais à chaque
+ * rendu : sur un téléphone elle défile en x (neuf onglets après la saison),
+ * et un `innerHTML` par rendu remettrait ce défilement à zéro.
+ */
+function majNavbar(cle, liste = ongletsCourants()) {
+  const nav = $('navbar');
+  if (!nav) return;
+  // LA PAGE COURANTE EST TOUJOURS UNE PAGE QUI EXISTE. « Rejouer la saison »
+  // et « Rejouer » depuis l'historique remettent `G.done` à faux pendant que
+  // `G.page` dit encore « classement » : l'onglet a disparu avec la phase, et
+  // la barre marquait alors un onglet mort pendant que la feuille de style
+  // cherchait `body[data-page="classement"]`. On retombe sur le premier.
+  if (!liste.some(o => o.cle === cle)) { marquerPage(cle); return; }
+  const sig = liste.map(o => `${o.cle}:${o.titre}:${o.badge || ''}`).join('|');
+  if (nav.dataset.sig !== sig) {
+    nav.dataset.sig = sig;
+    nav.innerHTML = liste.map(o => `<button class="navtab" type="button" role="tab" data-page="${o.cle}" aria-selected="false">
+      <svg class="ico" aria-hidden="true"><use href="#${o.ico}"/></svg>
+      <span class="navtab-lbl">${esc(o.titre)}</span>
+      ${o.badge ? `<span class="navtab-badge">${esc(o.badge)}</span>` : ''}
+    </button>`).join('');
+    nav.querySelectorAll('.navtab').forEach(b => { b.onclick = () => montrerPage(b.dataset.page); });
+  }
+  let ouvert = null;
+  nav.querySelectorAll('.navtab').forEach(b => {
     const on = b.dataset.page === cle;
     b.classList.toggle('on', on);
     b.setAttribute('aria-selected', on ? 'true' : 'false');
+    if (on) ouvert = b;
   });
+  // L'onglet ouvert reste en vue : on déplace LA BARRE, jamais la page.
+  if (ouvert && nav.scrollWidth > nav.clientWidth + 1) {
+    const g = ouvert.offsetLeft - 8, d = ouvert.offsetLeft + ouvert.offsetWidth + 8 - nav.clientWidth;
+    if (nav.scrollLeft > g) nav.scrollTo({ left: g, behavior: 'smooth' });
+    else if (nav.scrollLeft < d) nav.scrollTo({ left: d, behavior: 'smooth' });
+  }
+}
+
+/** Pose la page courante. Ne remplit rien : c'est `montrerPage` qui le fait. */
+function marquerPage(cle) {
+  const liste = ongletsCourants();
+  if (!liste.some(o => o.cle === cle)) cle = liste[0].cle;
+  G.page = cle;
+  document.body.dataset.page = cle;
+  // La ZONE dit si on est dans la partie ou dans une page de référence. C'est
+  // elle que la feuille de style lit pour borner la hauteur, parce que les
+  // onglets de partie changent de nom avec la phase et qu'une règle qui les
+  // énumère est une règle qui oublie le prochain.
+  document.body.dataset.zone = ONGLETS_REF.some(o => o.cle === cle) ? 'ref' : 'jeu';
+  // Le bilan est un onglet par SECTION : c'est la page qui ouvre son volet.
+  document.querySelectorAll('#resultHost .result-pane').forEach(p => { p.hidden = p.dataset.volet !== cle; });
+  if (G.done) brancherEntractes($('resultHost'));   // un deck caché mesure zéro
+  majNavbar(cle, liste);
   for (const id of ['pageEquipes', 'pageHistorique', 'pageRegles']) {
     const el = $(id);
     if (el) el.hidden = id !== `page${cle[0].toUpperCase()}${cle.slice(1)}`;
@@ -1226,11 +1319,13 @@ function marquerPage(cle) {
 }
 
 function montrerPage(cle) {
-  if (!PAGES.includes(cle)) cle = 'repechage';
-  // Les deux premiers onglets SONT les deux volets : `setView` marque la page
-  // lui-même, donc les anciens appels (le banc, une nouvelle partie) suivent.
+  const pages = PAGES();
+  if (!pages.includes(cle)) cle = pages[0];
+  // Les deux onglets de repêchage SONT les deux volets : `setView` marque la
+  // page lui-même, donc les anciens appels (le banc, une nouvelle partie)
+  // suivent. Après la saison, l'alignement est un volet du bilan.
   if (cle === 'repechage') setView('pool');
-  else if (cle === 'alignement') setView('roster');
+  else if (cle === 'alignement' && !G.done) setView('roster');
   else {
     marquerPage(cle);
     if (cle === 'historique') showLeaderboard();
@@ -1743,14 +1838,11 @@ function renderPoolMeta() {
   const titre = $('poolTitle');
   if (titre) titre.textContent = loto ? 'La main' : 'Vestiaire';
   /*
-   * LE PREMIER ONGLET EST « OÙ EN EST TA PARTIE ». Il dit le vestiaire (ou la
-   * main, en loto) pendant le repêchage, et le BILAN une fois la saison jouée
-   * — c'est la même place, parce que c'est la même question.
+   * LA BARRE SE MET À JOUR ICI, et elle se rebâtit toute seule si ses entrées
+   * ont changé — le nom du premier onglet suit le tirage (« Vestiaire » ou
+   * « La main »), et la phase décide de la liste entière.
    */
-  const tabLbl = $('tabPoolLbl');
-  if (tabLbl) tabLbl.textContent = G.done ? 'Bilan' : (loto ? 'La main' : 'Vestiaire');
-  const badgeVide = $('tabPoolBadge');
-  if (badgeVide && G.done) badgeVide.textContent = '';
+  majNavbar(G.page);
   const meta = $('poolCount');
   if (meta) {
     const c = caseCourante();
@@ -1758,12 +1850,8 @@ function renderPoolMeta() {
       ? (c ? `${list.length} joueur${list.length > 1 ? 's' : ''} · ${slotShort(c)}` : 'Complet')
       : `${list.length} joueur${list.length > 1 ? 's' : ''}`;
   }
-  const badge = $('tabPoolBadge');
-  if (badge) badge.textContent = G.done ? '' : String(list.length);
   const rMeta = $('rosterMeta');
   if (rMeta) rMeta.textContent = `${signes().length} / ${totalCases()} · ${money(capUsed())}`;
-  const rBadge = $('tabRosterBadge');
-  if (rBadge) rBadge.textContent = `${signes().length}/${totalCases()}`;
 }
 
 /** Case où irait ce joueur : la cible si compatible, sinon la moins pénalisée. */

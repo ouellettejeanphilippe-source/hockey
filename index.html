@@ -34,6 +34,9 @@
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
   <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8"/><path d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></symbol>
   <symbol id="i-cols" viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="9.5" y="4" width="5" height="16" rx="1"/><rect x="16" y="4" width="5" height="16" rx="1"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.5 5.9.8-4.3 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.5 9.8l5.9-.8z"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
   <symbol id="i-cup" viewBox="0 0 24 24"><path d="M8 3h8l1 4H7l1-4z"/><path d="M9 7v3a3 3 0 0 0 6 0V7"/><path d="M12 13v5M7 21h10M9 18h6"/></symbol>
   <symbol id="i-son" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
@@ -151,31 +154,12 @@
   </div>
 </div>
 
-<!-- ===== La barre d'onglets : un onglet, une raison d'être ===== -->
-<nav class="navbar" id="navbar" role="tablist" aria-label="Sections">
-  <button class="navtab on" data-page="repechage" role="tab" aria-selected="true" id="navRepechage">
-    <svg class="ico" aria-hidden="true"><use href="#i-dice"/></svg>
-    <span class="navtab-lbl" id="tabPoolLbl">Vestiaire</span>
-    <span class="navtab-badge" id="tabPoolBadge"></span>
-  </button>
-  <button class="navtab" data-page="alignement" role="tab" aria-selected="false">
-    <svg class="ico" aria-hidden="true"><use href="#i-list"/></svg>
-    <span class="navtab-lbl">Alignement</span>
-    <span class="navtab-badge" id="tabRosterBadge">0/23</span>
-  </button>
-  <button class="navtab" data-page="equipes" role="tab" aria-selected="false">
-    <svg class="ico" aria-hidden="true"><use href="#i-jersey"/></svg>
-    <span class="navtab-lbl">Équipes</span>
-  </button>
-  <button class="navtab" data-page="historique" role="tab" aria-selected="false">
-    <svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg>
-    <span class="navtab-lbl">Saisons</span>
-  </button>
-  <button class="navtab" data-page="regles" role="tab" aria-selected="false">
-    <svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>
-    <span class="navtab-lbl">Règles</span>
-  </button>
-</nav>
+<!-- ===== LA BARRE D'ONGLETS : la seule du jeu, et elle est toujours en bas.
+     Elle est bâtie par `majNavbar` (js/game.js) parce que SES ENTRÉES SUIVENT
+     LA PHASE : pendant le repêchage on bâtit (Vestiaire, Alignement), une fois
+     la saison jouée on la lit (Bilan, Classement, Calendrier, Meneurs,
+     Alignement, Séries). Les trois destinations de référence ne bougent pas. -->
+<nav class="navbar" id="navbar" role="tablist" aria-label="Sections"></nav>
 
 <!-- Radar (hexagone) quand le brouillard est levé -->
 
@@ -192,8 +176,8 @@
     </div>
     <div class="hub-carte"></div>
     <div class="hub-actions"></div>
-    <div class="live-onglets hub-onglets" role="tablist"></div>
     <div class="hub-volet"></div>
+    <div class="hub-onglets" role="tablist"></div>
   </div>
 </div>
 

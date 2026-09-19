@@ -388,6 +388,24 @@ async function traverserSaison(etiquette, reprise = false) {
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
     else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture déplacée au 2e trio, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
   }
+  /*
+   * UNE SEULE BARRE D'ONGLETS, ET ELLE EST EN BAS. L'écran de saison portait
+   * la sienne AU MILIEU de la feuille, entre les boutons et le volet ; la
+   * barre du jeu, elle, est en bas — deux endroits pour le même geste. Ça se
+   * mesure : la barre doit commencer SOUS le volet qu'elle commande.
+   */
+  {
+    const ou = await page.evaluate(() => {
+      const b = document.querySelector('#hubModal .hub-onglets'), v = document.querySelector('#hubModal .hub-volet');
+      if (!b || !v) return null;
+      const rb = b.getBoundingClientRect(), rv = v.getBoundingClientRect();
+      return { barre: Math.round(rb.top), volet: Math.round(rv.top), fond: Math.round(window.innerHeight - rb.bottom) };
+    });
+    if (!ou) errors.push("l'écran de saison n'a plus de barre d'onglets");
+    else if (ou.barre < ou.volet) errors.push(`la barre de l'écran de saison est au-dessus du volet (${ou.barre} px contre ${ou.volet}) : une barre d'onglets est en bas`);
+    else if (ou.fond > 4) errors.push(`la barre de l'écran de saison flotte à ${ou.fond} px du bas`);
+    else console.log(`   une seule barre, et elle est en bas : volet à ${ou.volet} px, barre à ${ou.barre} px, collée au bas`);
+  }
   await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
   const tableaux = await page.$$eval('#hubModal .hub-volet .live-tableau', l => l.length);
   const meneurs = await page.$$eval('#hubModal .hub-volet tbody tr', l => l.length);
@@ -443,7 +461,7 @@ if (enabled) {
    * décidés par les colonnes : ce que le moteur tranche, jamais ce qu'un vote
    * trancherait.
    */
-  await page.click('#resultTabs .result-tab[data-volet="stats"]');
+  await page.click('.navtab[data-page="stats"]');
   await page.waitForTimeout(350);
   const trophees = await page.$$eval('.tro-carte', els => els.map(e => ({
     nom: (e.querySelector('.tro-nom') || {}).textContent || '',
@@ -457,16 +475,50 @@ if (enabled) {
   await sansDebordement('trophées de la saison');
   /* Aucun volet du bilan ne doit être une longue page — c'est LE défaut que
      le repêchage resté au-dessus provoquait, et il se lit d'un chiffre. */
+  if (await page.$('#resultTabs')) errors.push("le bilan a encore sa propre barre d'onglets : il n'y en a qu'une, et elle est en bas");
+  /*
+   * LA BARRE A CHANGÉ D'ENTRÉES, parce que la phase a changé : on ne bâtit
+   * plus, on lit. Neuf onglets ne tiennent pas dans 390 px — la barre défile
+   * en x plutôt que de rétrécir « Calendrier » à quarante pixels, et c'est LE
+   * conteneur qui défile, jamais la page (zéro débordement horizontal).
+   */
+  {
+    const b = await page.evaluate(() => {
+      const nav = document.querySelector('#navbar'), de = document.documentElement;
+      return {
+        noms: [...nav.querySelectorAll('.navtab-lbl')].map(e => e.textContent.trim()),
+        defile: nav.scrollWidth > nav.clientWidth + 1,
+        deborde: Math.max(0, de.scrollWidth - de.clientWidth),
+        bas: Math.round(window.innerHeight - nav.getBoundingClientRect().bottom),
+      };
+    });
+    const attendus = ['Bilan', 'Classement', 'Calendrier', 'Meneurs', 'Alignement'];
+    const manquants = attendus.filter(n => !b.noms.includes(n));
+    if (manquants.length) errors.push(`la barre du bas ne porte pas ${manquants.join(', ')} une fois la saison jouée : ${b.noms.join(' · ')}`);
+    if (b.noms.includes('Vestiaire')) errors.push("la barre du bas parle encore du vestiaire une fois la saison jouée");
+    // Et PAS « Séries » : aucune n'est jouée à ce point du parcours. Le volet
+    // des séries porte d'avance son conteneur, donc son balisage n'est jamais
+    // vide — c'est ce qu'il y a À LIRE qui décide qu'un onglet existe.
+    if (b.noms.includes('Séries')) errors.push("la barre porte « Séries » avant qu'une série soit jouée");
+    if (b.deborde) errors.push(`la barre du bas déborde la page de ${b.deborde} px : c'est LA BARRE qui défile, pas la page`);
+    if (b.bas > 4) errors.push(`la barre du bas flotte à ${b.bas} px du bas`);
+    console.log(`   la barre suit la phase : ${b.noms.join(' · ')} · ${b.defile ? 'elle défile' : 'elle tient'} · ${b.deborde} px de débordement`);
+  }
   const hauteurs = {};
   for (const v of ['bilan', 'classement', 'calendrier', 'stats', 'alignement']) {
-    const b = await page.$(`#resultTabs .result-tab[data-volet="${v}"]:not([hidden])`);
-    if (!b) continue;
+    const b = await page.$(`.navtab[data-page="${v}"]`);
+    // Un onglet manquant ne se saute PAS : c'était un test qui passait
+    // toujours. La saison est jouée, donc la barre porte ses sections.
+    if (!b) { errors.push(`la barre du bas n'a pas d'onglet « ${v} » une fois la saison jouée`); continue; }
     await b.click();
     await page.waitForTimeout(220);
+    const pose = await page.evaluate(() => document.body.dataset.page);
+    if (pose !== v) errors.push(`l'onglet « ${v} » ne pose pas la page : body[data-page] vaut « ${pose} »`);
     hauteurs[v] = await pasUneLonguePage(`le bilan · ${v}`);
+    await sansDebordement(`le bilan · ${v}`);
   }
   console.log(`   jamais une longue page : ${Object.entries(hauteurs).map(([k, n]) => `${k} ${n}×`).join(' · ')}`);
-  await page.click('#resultTabs .result-tab[data-volet="bilan"]');
+  await page.click('.navtab[data-page="bilan"]');
   await page.waitForTimeout(200);
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
   /*
@@ -557,7 +609,7 @@ if (enabled) {
     await page.click('#hubModal .hub-fin');
     await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
     await page.click('#hubModal .hub-suite');
-    await page.waitForSelector('#resultTabs .result-tab[data-volet="series"]:not([hidden])', { timeout: 10000 });
+    await page.waitForSelector('.navtab[data-page="series"]', { timeout: 10000 });
     const series = await page.$$eval('#playoffsSection .bk-serie', l => l.length);
     console.log(`   séries : ${noeuds} nœuds au tableau en cours, ${xe}, ${series} séries au tableau final`);
     if (!series) errors.push('séries : aucun tableau final');
@@ -581,7 +633,11 @@ if (enabled) {
     const tete = ((await page.textContent('#leaderboardBody .lb-tete')) || '').replace(/\s+/g, ' ').trim();
     if (!/Coupe/.test(tete)) errors.push(`l'historique ne dit pas les Coupes : « ${tete} »`);
     else console.log(`   l'historique en tête : ${tete}`);
-    await page.click('.navtab[data-page="repechage"]');
+    // On revient au jeu par l'onglet qui existe : la saison est jouée, donc
+    // c'est « Bilan », pas « Vestiaire ». Un onglet de repêchage sans
+    // repêchage n'aurait aucune raison d'être.
+    if (await page.$('.navtab[data-page="repechage"]')) errors.push("la barre garde un onglet de repêchage une fois la saison jouée");
+    await page.click('.navtab[data-page="bilan"]');
     await page.waitForTimeout(250);
   }
 
