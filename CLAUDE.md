@@ -113,6 +113,9 @@ scripts/check_suppression.mjs  la défensive de l'alignement : volume de lancers
                             concédés ou qualité ? (réponse : la qualité)
 scripts/check_neutre.mjs    de quoi est faite l'équipe MOYENNE, une fois alignée
                             (les cinq nombres de REF dans js/sim.js)
+scripts/check_parts.mjs     la production se répartit-elle entre les quatre trios
+                            comme la vraie équipe l'a répartie ? (le temps de
+                            glace compté deux fois, voir VOLUME_EXPOSANT)
 scripts/check_feuilles.mjs  les égalités de la feuille de match, les repères
                             d'époque, et les totaux des joueurs (échoue si une
                             égalité casse : c'est ce que l'Action vérifie)
@@ -579,6 +582,25 @@ Mesuré après : **zéro but de la zone neutre**, 67 % des buts de l'enclave col
 
 Le défensif rejoint la valeur en saison et alloue vingt buts de moins ; le robuste paie son penchant en saison et le regagne en séries, où il soulève la Coupe aussi souvent que l'empilement — c'est l'équipe bâtie pour les séries, et c'est un bâti de plus. Quatre ligues ne disent rien de précis sur les Coupes (il en faut 40) ; ce qu'elles disent, c'est l'ordre. Le pur `d` (95 M$ de vedettes défensives, valeur 85) fait 69-70 : la valeur sous-estime la défensive que le moteur récompense, et c'est assumé tant qu'il reste sous PARFAIT. **Les plafonds bougent d'environ deux matchs vers le haut** (`check_tireurs.mjs` : TIREURS 52,9, PARFAIT 74,3 contre 71-72 ; `check_plafond.mjs` : le Canadien de 1976-77 à 62,5 en solo contre 60,7, l'empilé à 63,7 en ligue et 0 Coupe sur 3), parce que les bonnes équipes ont une bonne brigade et que `K_DEFENSE` a monté — c'est le même mouvement que les déciles de la monotonie, vers le réel. Les traits ne changent pas de nature (`check_traits.mjs` : +3,3 victoires, +10,1 buts marqués, −4,9 alloués pour une équipe qui en porte onze à quatorze). Si le plafond doit redescendre, le curseur est `FINITION_MAX`, pas ces canaux.
 
+**Le temps de glace ne se compte qu'une fois (S50).** JP, devant la fiche d'Alexander Semin 2009-10 — 84 points dans sa vraie saison, **156** dans le jeu : *grosse déviation versus stats originales, ça devrait pas s'éloigner autant*. Il avait raison, et **le défaut ne venait pas du repêchage** : il se voit sur une vraie équipe rejouée telle quelle. Le Canadien de 1976-77 sortait **Jacques Lemaire à 141 points pour 77 réels** (97 passes pour 42) pendant que **Bob Gainey tombait à 8 pour 34**. La somme était juste — l'équipe marquait le bon nombre de buts — mais elle était empilée sur le premier trio.
+
+**La cause tient en une ligne.** Le poids offensif d'une unité valait `POIDS_TRIO[u] × volume`, où `volume` est la moyenne des lancers PAR MATCH de ses joueurs, relative au régulier moyen de leur saison. Or les lancers par match d'un joueur **contiennent déjà son temps de glace** : un ailier de premier trio tire quatre fois par match en partie parce qu'il joue vingt minutes. Multiplier sa part de présence par ce nombre-là comptait le temps de glace **deux fois**. Mesuré sur les quatre équipes témoins, la part des lancers du 1er trio sur celle du 4e :
+
+| | réel | moteur avant | moteur après |
+|---|---|---|---|
+| MTL 76-77 | 2,6× | **5,6×** | 3,3× |
+| BOS 70-71 | 2,6× | 3,7× | 2,7× |
+| NYI 92-93 | 2,1× | 3,1× | 2,5× |
+| DET 76-77 | 2,4× | 3,3× | 2,4× |
+
+**`VOLUME_EXPOSANT` (0,30) tempère le volume, et les poids sont RENORMALISÉS par groupe.** C'est la moitié qui rend le chantier sûr : la somme des poids EST la pression d'équipe (`somme('F')`, `somme('D')`), donc le nombre de lancers du club. Renormaliser garantit que le tempérament ne déplace que la RÉPARTITION entre les unités — vérifié en mesurant la pression à quatre exposants (1,00 · 0,50 · 0,30 · 0,15) : **identique au centième** à chaque fois. Sans ça, on aurait bougé les 28,5 lancers et les 3,1 buts par match que `check_feuilles.mjs` tient, et on n'aurait plus su ce qu'on mesurait.
+
+**L'exposant se choisit sur la mesure, et le bon chiffre à regarder est une PART.** Comparer le total d'un joueur à sa vraie saison ment : une équipe de 1976 marquait 387 buts dans une ligue à 4 buts par match et en marque 313 dans celle du jeu à 3,1, donc son total DOIT baisser d'un cinquième. Ce qui se juge est sa part de la production des dix-huit, où l'époque s'annule. Sur cette mesure, le rapport le plus élevé d'un vestiaire passe de **2,08 à 1,74** (MTL) et de 1,95 à 1,82 (BOS), le plus bas de 0,26 à 0,40, et le plus haut total d'une vraie équipe de **138 points à 121**.
+
+**Mesuré après, et rien d'autre n'a bougé** : monotone sur les dix déciles (26,3 / 41,8 / 52,8, écart 26,4), les cinq égalités de la feuille, **28,68 lancers et 3,24 buts** par équipe par match, l'erreur systématique par joueur à **18,6 %** (20,1 % au dossier), la part des buts en avantage 25,6 % contre 26,6 % réel, les traits +5,5 V / +14,7 BP / −17,6 BC, la graine qui rejoue. **`scripts/check_parts.mjs`** juge désormais ce rapport — un chiffre qu'on imprime sans le juger est un chiffre que personne ne relit — et il a été **prouvé en remettant l'ancien comportement** : à `VOLUME_EXPOSANT` 1, MTL lit 2,18 fois le rapport réel et le script rougit.
+
+**Ce qui RESTE, et c'est assumé.** Le premier trio garde un peu plus que sa part réelle : c'est un jeu, et placer un joueur doit se payer. Ce que le repère interdit, c'est le double. Et un joueur qu'`autoRoster` met à une case qui n'est pas la sienne produit moins que sa vraie saison — c'est le malus de zone, et c'est voulu.
+
 **L'événement de base est le lancer, pas le but.** C'est la refonte décrite dans `MOTEUR.md`, et ce qui la motive est mesuré : sur 55 saisons les lancers par équipe par match vont de 27 à 31 (17 % d'amplitude) pendant que les buts varient de 55 %. Le tempo n'a pas bougé, la finition oui. Un match se joue donc lancer par lancer — un tireur, un gardien, deux issues — et toute la feuille de match en découle.
 
 Les égalités se ferment **par construction**, jamais par un ajustement après coup, et `node scripts/check_feuilles.mjs` les vérifie sur les 1312 matchs d'une ligue :
@@ -764,6 +786,7 @@ Tous ces scripts **échouent** maintenant quand la mesure sort de son intervalle
 node scripts/check_coquille.mjs      # sw.js liste tout ce que la page charge
 node scripts/check_graine.mjs        # la même graine rejoue la même saison, et les décisions en saison aussi
 LIGUES=5 node scripts/check_feuilles.mjs   # les égalités et les repères d'époque
+node scripts/check_parts.mjs         # la production se répartit comme dans la vraie vie
 node scripts/calibrate_sim.mjs       # la table par palier de cote
 node scripts/check_monotonie.mjs     # monotone sur dix déciles
 node scripts/check_plafond.mjs       # victoires et Coupes au plafond

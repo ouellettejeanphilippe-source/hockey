@@ -664,6 +664,39 @@ export const PRESSION_MAX = 1.35;
 export const FINITION_MAX = 1.20;
 
 /*
+ * LE TEMPS DE GLACE NE SE COMPTE QU'UNE FOIS.
+ *
+ * Le poids offensif d'une unité valait `POIDS_TRIO[u] × volume`, où `volume`
+ * est la moyenne des lancers PAR MATCH de ses joueurs, relative au régulier
+ * moyen de leur saison. Or les lancers par match d'un joueur contiennent
+ * DÉJÀ son temps de glace : un ailier de premier trio tire quatre fois par
+ * match en partie parce qu'il joue vingt minutes. Multiplier sa part de
+ * présence par ce nombre-là comptait donc le temps de glace deux fois, et
+ * le premier trio ramassait tout.
+ *
+ * Mesuré sur les vraies équipes témoins (`_sonde_parts`) — part des lancers
+ * du premier trio sur ceux du quatrième :
+ *
+ *   MTL 76-77   réel 2,6×   moteur 5,6×
+ *   BOS 70-71   réel 2,6×   moteur 3,7×
+ *   NYI 92-93   réel 2,1×   moteur 3,1×
+ *   DET 76-77   réel 2,4×   moteur 3,3×
+ *
+ * Ce que ça donnait sur la feuille : Jacques Lemaire 1976-77 à 141 points
+ * simulés pour 77 réels (et 97 passes pour 42), pendant que Bob Gainey
+ * tombait à 8 points pour 34. JP, devant la fiche d'Alexander Semin
+ * 2009-10 — 84 points réels, 156 simulés : *grosse déviation versus stats
+ * originales, ça devrait pas s'éloigner autant*.
+ *
+ * Le volume est donc TEMPÉRÉ par cet exposant, puis les poids sont
+ * RENORMALISÉS par groupe pour que leur somme — la pression d'équipe, donc
+ * le nombre de lancers du club — ne bouge pas d'un centième. Le chantier ne
+ * redistribue que la production entre les unités : c'est exactement la
+ * chose que la mesure accuse, et rien d'autre.
+ */
+export const VOLUME_EXPOSANT = 0.30;
+
+/*
  * LES PASSES CAUSENT LES BUTS. Jusqu'ici la passe était DÉCORATIVE : un but
  * tiré, on l'attribuait après coup aux coéquipiers sur la glace, au prorata
  * de leur propension à la passe. Gretzky 1985-86 et ses 163 passes ne
@@ -1137,9 +1170,13 @@ export function profilMatch(team, lineup) {
       unites[group].push({
         joueurs,
         rang: u,   // le rang de l'unité : l'appariement des trios le lit
-        // Poids OFFENSIF : temps de glace, volume de tirs et chimie. C'est lui
-        // qui décide qui tire.
-        poids: poids[u] * volume * mod,
+        // Poids OFFENSIF : temps de glace, volume de tirs TEMPÉRÉ et chimie.
+        // C'est lui qui décide qui tire. Le volume est tempéré parce qu'il
+        // contient déjà le temps de glace (voir VOLUME_EXPOSANT), et les
+        // poids sont renormalisés juste après pour que leur somme — donc la
+        // pression d'équipe — reste celle d'avant.
+        poids: poids[u] * Math.pow(volume, VOLUME_EXPOSANT) * mod,
+        brut: poids[u] * volume * mod,
         qualite: mod,
         // Poids DÉFENSIF : le temps de glace seul. Une unité ne défend pas
         // plus souvent parce qu'elle tire plus — elle défend sa part de
@@ -1148,6 +1185,19 @@ export function profilMatch(team, lineup) {
         coteDef: unitAvgLineup(team, lineup, group, u, 'd'),
       });
     }
+  }
+
+  // LA SOMME NE BOUGE PAS. Tempérer le volume change le rapport entre les
+  // unités ; renormaliser par groupe garantit que la pression d'équipe —
+  // `somme('F')` et `somme('D')` ci-dessous, donc les lancers du club — est
+  // au centième celle d'avant le tempérament. Sans ça, ce chantier aurait
+  // déplacé les 28,5 lancers et les 3,1 buts par match que `check_feuilles`
+  // tient, et on n'aurait plus su ce qu'on mesurait.
+  for (const g of ['F', 'D']) {
+    const sb = unites[g].reduce((a, x) => a + x.brut, 0);
+    const st = unites[g].reduce((a, x) => a + x.poids, 0);
+    if (st > 0 && sb > 0) for (const x of unites[g]) x.poids *= sb / st;
+    for (const x of unites[g]) delete x.brut;
   }
 
   // Le trio de fermeture de cet alignement : désigné, ou le 3e trio
