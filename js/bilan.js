@@ -450,6 +450,16 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     series: `<div id="playoffsSection"></div>`,
   };
 
+  /*
+   * LE BILAN PREND L'ÉCRAN. JP : *jamais longue pages* ; *vraiment assurer
+   * interface clean, facile à naviguer*. Le bilan est un frère du repêchage
+   * DANS `#game`, et rien ne cachait le repêchage : on finissait sa saison et
+   * la roulette, le tableau de bord et le vestiaire restaient au-dessus. Le
+   * bilan mesurait 4,2 écrans à 390 px — dont 2,8 de repêchage qu'on
+   * remontait pour revenir à rien. La classe suit le patron de `.banc`, qui
+   * cache déjà la roulette quand on passe derrière le banc.
+   */
+  document.getElementById('game')?.classList.add('bilan');
   $('resultHost').style.display = '';
   $('resultHost').innerHTML = `
     <div class="result">

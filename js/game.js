@@ -27,6 +27,7 @@ import {
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
+import { ouvrirEquipes } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
@@ -862,6 +863,27 @@ function setupEvents() {
   });
 
   // Modales
+  /*
+   * LES ÉQUIPES. Pas un `bindModal` : l'écran gère son ouverture et sa
+   * fermeture lui-même, parce qu'il tient un état (la saison, le club ouvert,
+   * l'onglet, le tri) et qu'il doit débrancher ses écouteurs en partant.
+   * La saison proposée est celle qu'on regarde : la ligue fixée s'il y en a
+   * une, sinon celle du vestiaire sorti, sinon la plus récente.
+   */
+  const btnEq = $('openEquipesBtn');
+  if (btnEq) btnEq.onclick = () => ouvrirEquipes({
+    ctx: {
+      esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
+      teamFull: t => TEAMFULL[t] || t,
+      fiche: p => showPlayerModal(p),
+      // Les trois sorties du jeu (✕, le fond, Échap) passent toutes par là :
+      // l'écran n'invente pas sa propre façon de s'ouvrir et de se fermer.
+      ouvrirModale, fermerModale,
+    },
+    saisons: (state.index.seasons || []).slice().reverse(),
+    saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
+    charger: getShard,
+  });
   bindModal('leaderboardModal', 'openLeaderboardBtn', 'closeLeaderboardBtn', showLeaderboard);
   bindModal('bibleModal', 'openBibleBtn', 'closeBibleBtn', remplirReglesDuPlateau);
   bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
@@ -936,8 +958,14 @@ function setupEvents() {
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
       // L'écran de saison et le direct ont leur propre sortie : Échap ne
-      // les ferme pas, ça laisserait la saison à moitié révélée.
-      document.querySelectorAll('.modal-backdrop:not(.live)').forEach(fermerModale);
+      // les ferme pas, ça laisserait la saison à moitié révélée. Et parmi
+      // celles qui restent, on ne ferme que CELLE DU DESSUS.
+      const ouvertes = [...document.querySelectorAll('.modal-backdrop:not(.live)')]
+        .filter(m => m.style.display && m.style.display !== 'none');
+      if (ouvertes.length) {
+        ouvertes.sort((a, b) => Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
+        fermerModale(ouvertes[0]);
+      }
       if (G.selectedSlot !== null || G.target !== null) {
         G.selectedSlot = null; G.target = null; render();
       }
@@ -960,9 +988,18 @@ let focusAvantModale = null;
 
 const modaleOuverte = () => [...document.querySelectorAll('.modal-backdrop')].filter(m => m.style.display !== 'none' && m.offsetParent !== null).pop() || null;
 
+/*
+ * L'ORDRE D'OUVERTURE, pour qu'Échap ne ferme que la modale du DESSUS. Les
+ * modales s'empilent depuis que l'écran des équipes ouvre la fiche d'un
+ * joueur : tout fermer d'un coup voulait dire qu'on ne pouvait pas refermer
+ * une fiche sans sortir de l'écran qui l'avait ouverte. L'ordre du DOM ne dit
+ * rien de l'ordre d'ouverture, d'où ce compteur.
+ */
+let rangModale = 0;
 function ouvrirModale(m) {
   if (!m) return;
   if (!modaleOuverte()) focusAvantModale = document.activeElement;
+  m.dataset.rang = String(++rangModale);
   m.style.display = 'flex';
   const cible = m.querySelector('.close-btn') || m.querySelector(FOCALISABLE);
   if (cible) cible.focus({ preventScroll: true });
@@ -3461,6 +3498,9 @@ async function rejouerSaison() {
   G.done = false;
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
+  // Le repêchage revient avec le bilan qui s'en va : les deux sont frères
+  // dans `#game`, et c'est la classe qui décide lequel occupe l'écran.
+  $('game').classList.remove('bilan');
   renderMain();
   await runSeason(adversaires.length ? { adversaires } : {});
 }
@@ -3502,6 +3542,9 @@ async function reprendreAlignement(entree) {
   G.ligue = null;
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
+  // Le repêchage revient avec le bilan qui s'en va : les deux sont frères
+  // dans `#game`, et c'est la classe qui décide lequel occupe l'écran.
+  $('game').classList.remove('bilan');
   render();
   await runSeason();
 }
@@ -3549,6 +3592,9 @@ async function demarrerPartie(r = {}) {
   if (search) search.value = '';
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
+  // Le repêchage revient avec le bilan qui s'en va : les deux sont frères
+  // dans `#game`, et c'est la classe qui décide lequel occupe l'écran.
+  $('game').classList.remove('bilan');
   setView('pool');
   if (MODE().renfort) await chargerRenfort();
   await nextSpin();

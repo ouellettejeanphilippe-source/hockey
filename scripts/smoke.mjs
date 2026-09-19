@@ -86,6 +86,30 @@ async function sansDebordement(ou) {
   if (trop > 0) errors.push(`débordement horizontal de ${trop} px — ${ou}`);
   return trop;
 }
+/*
+ * JAMAIS UNE LONGUE PAGE. JP : *jamais longue pages, fait onglets si
+ * nécessaire* ; *vraiment assurer interface clean, facile à naviguer, peu
+ * importe petit écran ou 4k pc*.
+ *
+ * Mesuré à 390 px AVANT : le bilan faisait 4,2 écrans, ses statistiques 5,0,
+ * son alignement 4,9. La cause n'était pas le bilan mais le REPÊCHAGE resté
+ * au-dessus — le bilan est un frère de la roulette dans `#game`, et rien ne
+ * la cachait : on finissait sa saison et on remontait la roulette et le
+ * vestiaire pour revenir à rien. Après : 1,7 / 2,4 / 2,3.
+ *
+ * La borne est à TROIS écrans, et elle suit la mesure plutôt que le goût :
+ * le pire volet en fait 2,4, et le défaut qu'on veut attraper — le repêchage
+ * qui revient — en rajoute 2,8 d'un coup. À trois, elle ne crie pas pour du
+ * bruit et elle ne peut pas rater ça.
+ */
+async function pasUneLonguePage(ou, max = 3) {
+  const n = await page.evaluate(() => {
+    const el = document.documentElement;
+    return +(el.scrollHeight / el.clientHeight).toFixed(2);
+  });
+  if (n > max) errors.push(`longue page : ${ou} fait ${n} écrans (au plus ${max})`);
+  return n;
+}
 async function sansCote(ou) {
   const fautes = await page.evaluate(cotes => {
     const out = [];
@@ -168,6 +192,64 @@ console.log(`2. ${signed}/23 signés`);
 // la plus chargée.
 console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await sansCote('vestiaire plein')} cote(s) dans le DOM`);
 await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
+
+/*
+ * L'ÉCRAN DES ÉQUIPES. JP : *faciliter de voir les équipes, leurs rosters,
+ * stats réelles* ; *jamais longue pages, fait onglets si nécessaire* ; *ça me
+ * dérange pas si ya l'option de swipe sur mobile pour voir d'autres colonnes,
+ * je veux juste que yait un ui « ancré » avec onglets*.
+ *
+ * L'ANCRAGE S'ÉPROUVE PAR LA STRUCTURE, pas par un défilement : un club dont
+ * la table tient dans l'écran ne prouverait rien en défilant de 0 px. Ce qui
+ * sert à naviguer — la saison, la recherche, le bandeau du club, les trois
+ * onglets — doit être HORS du conteneur qui défile, et ça, c'est vrai ou
+ * faux.
+ */
+{
+  await page.click('#openEquipesBtn');
+  await page.waitForSelector('#equipesModal .eq-carte', { timeout: 40000 });
+  const clubs = await page.$$eval('#equipesModal .eq-carte', l => l.length);
+  const annee = await page.$eval('#equipesModal .eq-select', e => e.value);
+  if (clubs < 8) errors.push(`l'écran des équipes ne montre que ${clubs} club(s) en ${annee}`);
+  await page.click('#equipesModal .eq-carte');
+  await page.waitForSelector('#equipesModal .eq-table tbody tr', { timeout: 15000 });
+  const ancre = await page.evaluate(() => {
+    const sc = document.querySelector('#equipesModal .eq-scroll');
+    const dedans = s => { const e = document.querySelector(s); return !!(e && sc && sc.contains(e)); };
+    return ['#equipesModal .eq-barre', '#equipesModal .eq-tete', '#equipesModal .eq-onglets'].filter(dedans);
+  });
+  if (ancre.length) errors.push(`l'écran des équipes n'est pas ancré : ${ancre.join(', ')} défile(nt) avec le contenu`);
+  // Les trois onglets, et les colonnes du gardien qui ne sont PAS celles d'un
+  // patineur : un onglet qui rend la même table est un onglet décoratif.
+  const cols = {};
+  for (const poste of ['F', 'D', 'G']) {
+    await page.click(`#equipesModal [data-poste="${poste}"]`);
+    await page.waitForTimeout(180);
+    cols[poste] = await page.$$eval('#equipesModal .eq-table thead th', l => l.map(e => e.textContent.replace(/[▾▴]/g, '').trim()).join(' '));
+  }
+  if (cols.G === cols.F) errors.push('les gardiens portent les colonnes des patineurs');
+  if (!/\bV\b/.test(cols.G) || !/%ARR/.test(cols.G)) errors.push(`les colonnes des gardiens sont fausses : ${cols.G}`);
+  // Le tri : la même colonne deux fois inverse le sens.
+  await page.click('#equipesModal [data-poste="F"]');
+  await page.waitForTimeout(180);
+  await page.click('#equipesModal [data-tri="g"]');
+  await page.waitForTimeout(180);
+  const buts = await page.$$eval('#equipesModal .eq-table tbody tr td:nth-child(4)', l => l.slice(0, 5).map(e => Number(e.textContent.trim())));
+  if (!buts.every((v, i) => !i || buts[i - 1] >= v)) errors.push(`le tri par buts ne descend pas : ${buts.join(' ')}`);
+  // La fiche d'un joueur s'ouvre PAR-DESSUS, et Échap ne ferme que la fiche :
+  // avec des modales empilées, tout fermer d'un coup fait sortir de l'écran.
+  await page.click('#equipesModal .eq-joueur');
+  await page.waitForTimeout(400);
+  const ficheOuverte = await page.$eval('#hockeyCardModal', e => e.style.display !== 'none');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  const dessous = await page.$eval('#equipesModal', e => e.style.display !== 'none');
+  if (!ficheOuverte) errors.push("la fiche d'un joueur ne s'ouvre pas depuis l'écran des équipes");
+  if (!dessous) errors.push("Échap ferme l'écran des équipes SOUS la fiche d'un joueur : une modale du dessous ne doit pas partir avec celle du dessus");
+  console.log(`   les équipes : ${clubs} clubs en ${annee}, écran ancré, ${await sansDebordement('écran des équipes')} px de débordement, ${await sansCote('écran des équipes')} cote(s)`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(250);
+}
 
 const enabled = await page.$eval('#mainBtn', b => !b.disabled);
 console.log(`3. #mainBtn actif : ${enabled}`);
@@ -328,6 +410,17 @@ if (enabled) {
   else if (etoiles !== 6) errors.push(`l'équipe d'étoiles compte ${etoiles} joueurs au lieu de six`);
   else console.log(`   trophées : ${trophees.map(t => `${t.nom.trim()} ${t.val.trim()}`).join(' · ')} · équipe d'étoiles à ${etoiles}`);
   await sansDebordement('trophées de la saison');
+  /* Aucun volet du bilan ne doit être une longue page — c'est LE défaut que
+     le repêchage resté au-dessus provoquait, et il se lit d'un chiffre. */
+  const hauteurs = {};
+  for (const v of ['bilan', 'classement', 'calendrier', 'stats', 'alignement']) {
+    const b = await page.$(`#resultTabs .result-tab[data-volet="${v}"]:not([hidden])`);
+    if (!b) continue;
+    await b.click();
+    await page.waitForTimeout(220);
+    hauteurs[v] = await pasUneLonguePage(`le bilan · ${v}`);
+  }
+  console.log(`   jamais une longue page : ${Object.entries(hauteurs).map(([k, n]) => `${k} ${n}×`).join(' · ')}`);
   await page.click('#resultTabs .result-tab[data-volet="bilan"]');
   await page.waitForTimeout(200);
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
