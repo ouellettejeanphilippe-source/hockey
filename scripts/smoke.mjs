@@ -289,6 +289,16 @@ async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('.result .score', { timeout: 60000 });
 }
 
+/* La saison jusqu'au bilan, sans rien regarder : ce qui sert à REJOUER
+   jusqu'à se qualifier, où seul le classement final compte. */
+async function finirVite() {
+  await page.waitForSelector('#hubModal .hub-fin', { timeout: 90000 });
+  await page.click('#hubModal .hub-fin');
+  await page.waitForSelector('#hubModal .hub-suite', { timeout: 15000 });
+  await page.click('#hubModal .hub-suite');
+  await page.waitForSelector('.result .score', { timeout: 60000 });
+}
+
 if (enabled) {
   await page.click('#mainBtn');
   await traverserSaison('saison', true);
@@ -321,13 +331,78 @@ if (enabled) {
   await page.click('#resultTabs .result-tab[data-volet="bilan"]');
   await page.waitForTimeout(200);
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
-  const po = await page.$('#playoffsBtn');
+  /*
+   * ON DOIT ATTEINDRE LES SÉRIES. `smoke.mjs` tire au hasard, et c'est un
+   * choix assumé — mais une équipe moyenne rate les séries une fois sur deux,
+   * et TOUT ce passage (le tableau, la reprise, la Coupe dans l'historique)
+   * ne s'exécutait alors pas, sans qu'une ligne le dise. Une exécution a lu
+   * 50-28-4 et joué les séries, la suivante 39-39-4 et ne les a pas jouées :
+   * un test qui saute en silence est aussi faux qu'un sélecteur qui ne matche
+   * rien.
+   *
+   * « Rejouer la saison » garde le même alignement et change les dés : on
+   * rejoue jusqu'à se qualifier, au plus ESSAIS fois, et on ÉCHOUE si on n'y
+   * arrive pas — à seize équipes sur trente-deux, douze échecs de suite
+   * tiennent du un sur quatre mille.
+   */
+  const ESSAIS = 12;
+  let po = await page.$('#playoffsBtn'), essais = 0;
+  while (!po && essais < ESSAIS) {
+    essais++;
+    await page.click('#replayBtn');
+    await finirVite();
+    po = await page.$('#playoffsBtn');
+  }
+  if (!po) errors.push(`l'équipe n'a pas atteint les séries en ${ESSAIS + 1} saisons : le passage des séries n'a PAS été éprouvé`);
+  if (essais) console.log(`   séries atteintes après ${essais} saison(s) rejouée(s)`);
   if (po) {
     await po.click();
     // L'écran des séries : un match de plus dans la ronde, le tableau, puis
     // le prochain match en direct, puis tout jusqu'à la Coupe.
     await page.waitForSelector('#hubModal .hub-jour', { timeout: 20000 });
     await page.click('#hubModal .hub-jour');
+
+    /*
+     * LES SÉRIES SURVIVENT À UN RAFRAÎCHISSEMENT, comme la saison. Elles se
+     * REJOUENT : la saison entière repart de sa graine, ce qui remet le
+     * générateur là où `playSeries` l'avait pris, et la sauvegarde ne porte
+     * que jusqu'où on les a REGARDÉES. Même épreuve que pour la saison — la
+     * même en-tête des deux côtés d'un `reload`.
+     */
+    await page.waitForTimeout(200);
+    const poAvant = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+    const poSauve = await page.evaluate(() => {
+      try {
+        const d = JSON.parse(localStorage.getItem('cap82_save') || '{}');
+        const v = d.partie?.series;
+        return { vus: v ? v.revele.reduce((a, b) => a + b, 0) : -1, lbId: d.partie?.lbId || null };
+      } catch { return { vus: -1, lbId: null }; }
+    });
+    const lbAvant = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]').length; } catch { return -1; } });
+    await page.reload({ waitUntil: 'networkidle' });
+    let poRepris = true;
+    try { await page.waitForSelector('#hubModal .hub-head', { state: 'visible', timeout: 90000 }); }
+    catch { poRepris = false; }
+    if (!poRepris) {
+      console.log('\n✗ les séries en cours ne survivent pas à un rafraîchissement : l\'écran des séries ne rouvre pas.');
+      await browser.close();
+      process.exit(1);
+    }
+    await page.waitForTimeout(900);
+    const poApres = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+    if (poAvant !== poApres) errors.push(`les séries ne reprennent pas au même endroit : « ${poAvant} » puis « ${poApres} »`);
+    if (poSauve.vus < 1) errors.push('la sauvegarde ne porte pas les matchs de séries révélés');
+    if (!poSauve.lbId) errors.push('la sauvegarde ne porte pas l\'entrée d\'historique de la saison');
+    /*
+     * UNE SAISON, UNE ENTRÉE. Le bilan se redessine à chaque reprise, et
+     * `saveLeaderboard` empilait une entrée neuve à chaque appel : trois
+     * allers-retours laissaient trois fois la même saison dans l'historique,
+     * et la Coupe se cousait sur la dernière au lieu de celle qu'on joue.
+     */
+    const lbApres = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]').length; } catch { return -1; } });
+    if (lbApres !== lbAvant) errors.push(`le rafraîchissement a ajouté une entrée d'historique : ${lbAvant} puis ${lbApres}`);
+    else console.log(`   reprise des séries : ${poApres} — ${poSauve.vus} match(s) révélé(s), ${lbApres} entrée(s) d'historique`);
+
     await page.click('#hubModal .hub-onglets button[data-onglet="tableau"]');
     const noeuds = await page.$$eval('#hubModal .bk-serie', l => l.length);
     const regarder = await page.$('#hubModal .hub-regarder');

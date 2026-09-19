@@ -637,19 +637,32 @@ function etatDeSerie(ctx, s, wA, wB) {
  *   rondes   les noms des rondes
  *   you      ton équipe
  *   ctx      { esc, teamLabel, teamShort, tagCourt, logo, band, mug }
+ *   depuis   l'état de révélation d'où repartir : { ronde, revele[] }, le
+ *            nombre de matchs vus de chaque série, indexé par `s.i`
+ *   onRevele appelé à chaque changement de cet état, pour la sauvegarde
  */
-export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermine }) {
+/*
+ * LA RÉVÉLATION EST LE SEUL ÉTAT QUE LA REPRISE A BESOIN DE CONNAÎTRE, comme
+ * la journée l'est pour la saison. Tout est déjà joué et le moteur est
+ * déterministe : rejouer les séries depuis la même graine redonne les mêmes
+ * feuilles, donc on ne sauve pas ce qui s'est passé, seulement jusqu'où le
+ * joueur l'a regardé.
+ */
+export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null }) {
   const ui = coquille('Les séries');
   if (!ui || !series.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
   const nRondes = Math.max(...series.map(s => s.ronde)) + 1;
   const deRonde = r => series.filter(s => s.ronde === r).sort((a, b) => a.i - b.i);
   // Ce qui est révélé : le nombre de matchs qu'on a vus de chaque série.
-  const revele = new Map(series.map(s => [s, 0]));
+  // Une reprise repart d'où elle s'était arrêtée ; `Math.min` borne un état
+  // sauvegardé par une version qui jouait des séries plus longues.
+  const vus = (depuis && depuis.revele) || [];
+  const revele = new Map(series.map(s => [s, Math.min(Math.max(0, vus[s.i] || 0), s.feuilles.length)]));
   const complete = s => revele.get(s) >= s.feuilles.length;
   const gains = s => { let wA = 0, wB = 0; for (const f of s.feuilles.slice(0, revele.get(s))) { if (f.vainqueur === 'A') wA++; else wB++; } return { wA, wB }; };
   const rondeComplete = r => deRonde(r).every(complete);
-  let ronde = 0, termine = false;
+  let ronde = Math.min(Math.max(0, (depuis && depuis.ronde) || 0), nRondes - 1), termine = false;
   const maSerie = r => deRonde(r).find(s => s.A === you || s.B === you) || null;
   const equipeDe = new Map();
   for (const s of series) for (const t of [s.A, s.B]) {
@@ -664,6 +677,19 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
   const matchSuivant = () => { for (const s of deRonde(ronde)) if (!complete(s)) revele.set(s, revele.get(s) + 1); };
   const finirRonde = () => { for (const s of deRonde(ronde)) revele.set(s, s.feuilles.length); };
   const toutReveler = () => { for (const s of series) revele.set(s, s.feuilles.length); ronde = nRondes - 1; };
+  /*
+   * CE QUE LA SAUVEGARDE EMPORTE, et le seul endroit qui le compose. Appelé
+   * au début de `dessiner()` — donc après CHAQUE changement, puisque rien ne
+   * bouge à l'écran sans redessiner — et à la fermeture, qui elle ne
+   * redessine pas. Semer l'appel dans les quatre fonctions qui touchent à
+   * `revele` serait quatre endroits à ne pas oublier au prochain bouton.
+   */
+  const noter = () => {
+    if (!onRevele) return;
+    const tab = [];
+    for (const s of series) tab[s.i] = revele.get(s);
+    onRevele({ ronde, revele: tab });
+  };
   /* Le tour où ta formation est tombée, s'il y en a un. */
   const elimination = () => {
     for (let r = 0; r < nRondes; r++) { const s = maSerie(r); if (s && complete(s) && s.winner !== you) return r; }
@@ -821,6 +847,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
   function dessiner() {
+    noter();
     const s = maSerie(ronde);
     const finale = deRonde(nRondes - 1)[0];
     const toutFini = ronde === nRondes - 1 && rondeComplete(ronde);
@@ -895,6 +922,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
   const fermer = () => {
     if (termine) return;
     termine = true;
+    noter();
     debrancherMenu();
     window.removeEventListener('keydown', clavier);
     modal.style.display = 'none';

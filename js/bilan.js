@@ -17,10 +17,10 @@ import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, statsSim, toast;
+let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, statsSim, toast;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, statsSim, toast } = c);
+  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, statsSim, toast } = c);
 }
 
 /* =====================================================================
@@ -390,7 +390,9 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       const p = G.roster[s.i];
       return p ? { i: s.i, s: p.s, k: getPlayerKey(p), n: p.n, r: p._renfort ? 1 : 0 } : null;
     }),
-  });
+  // L'identifiant de la saison en cours, s'il y en a un : une reprise
+  // réécrit SON entrée, elle n'en empile pas une deuxième.
+  }, G.lbId);
 
   // LE BILAN EST UN TABLEAU DE BORD À ONGLETS, PAS UNE LONGUE PAGE. JP :
   // *better season tabs for information instead of long page, like a manager
@@ -551,7 +553,7 @@ export function nombreEnSeries(nTeams) {
  * clic. C'est la même simulation qu'avant : on ne jetait simplement pas ce
  * que le moteur produisait déjà.
  */
-export function runPlayoffs(top16) {
+export function runPlayoffs(top16, opts = {}) {
   const host = $('playoffsSection');
   if (!host) return;
   RONDES = RONDES_PAR_N[Math.round(Math.log2(top16.length))] || RONDES_PAR_N[4];
@@ -611,12 +613,31 @@ export function runPlayoffs(top16) {
   // L'ÉCRAN DES SÉRIES D'ABORD. Tout est déjà joué ; on ne dessine le
   // tableau complet qu'une fois que le joueur a révélé ses séries match par
   // match — ou qu'il a passé à la fin. Le mystère tient à ce seul ordre.
+  /*
+   * UNE REPRISE QUI A DÉJÀ TOUT VU VA DROIT AU TABLEAU, comme une saison
+   * reprise après sa dernière journée va droit au bilan : rouvrir l'écran
+   * sur « le champion soulève la Coupe » ferait relire un écran déjà fini.
+   */
+  const vus = opts.depuis && opts.depuis.revele;
+  if (vus && G.series.every(s => (vus[s.i] || 0) >= s.feuilles.length)) {
+    dessinerTableauDesSeries(host, n, champion);
+    return;
+  }
+
   ouvrirSeries({
     series: G.series, rondes: RONDES, you: top16.find(t => t.isPlayer) || null,
     // La saison est finie et `separerSeries` vient de rendre à chaque fiche
     // ses chiffres de saison : l'écran des séries peut donc la montrer.
     saison: { teams: (G.ligue ? G.ligue.teams : top16), enSeries: top16.length },
     ctx: { esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
+    /*
+     * LA REPRISE. `runPlayoffs` est le seul propriétaire de cet état : le
+     * bouton du bilan et la reprise au chargement appellent la même
+     * fonction, donc il n'y a qu'un endroit qui sait l'écrire et qu'un
+     * endroit qui sait le relire.
+     */
+    depuis: opts.depuis || null,
+    onRevele: etat => { G.seriesVues = etat; saveGame(); },
     onTermine: () => dessinerTableauDesSeries(host, n, champion),
   });
 }
