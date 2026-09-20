@@ -5767,3 +5767,8 @@ body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions #play
    ligne d'après. En `inline`, le nom se coupe comme le reste de la phrase. */
 .live-feed .lien-joueur, .live-but-ligne .lien-joueur,
 .som-qui .lien-joueur, .inj-list .lien-joueur { display: inline; }
+
+/* Le mot qui dit pourquoi une fiche reconstituée est partielle : il vit DANS
+   la grille des chiffres, donc il en prend toute la largeur plutôt que d'en
+   occuper une case (voir `motDeClub`, js/equipes.js). */
+.stat-grid .eq-vraie-mot { grid-column: 1 / -1; margin: 0; }

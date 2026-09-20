@@ -917,9 +917,12 @@ if (enabled) {
       await page.$$eval('#resultHost .result-pane[data-volet="classement"] .lien-equipe', (ls, i) => ls[i].click(), cible);
       await page.waitForSelector('#gameModal', { state: 'visible', timeout: 10000 });
       // La vraie fiche se charge d'un shard : on lui laisse le temps d'arriver.
+      // `.eq-vraie-attente` est le mot de CHARGEMENT, et lui seul : une fiche
+      // partielle porte aussi une note (« un gardien échangé hors du total »),
+      // et la compter ici ferait rougir le test sur 23 % des clubs.
       await page.waitForFunction(() => {
         const g = document.getElementById('eqVraie');
-        return g && !g.querySelector('.dash-note');
+        return g && !g.querySelector('.eq-vraie-attente');
       }, null, { timeout: 20000 }).catch(() => {});
       const club = await page.evaluate(() => {
         const m = document.getElementById('gameModal');
@@ -932,10 +935,15 @@ if (enabled) {
           rangees: m.querySelectorAll('table.data tbody tr').length,
           vraie: cellules(document.getElementById('eqVraie')).slice(0, 3).join(' · '),
           hr: !!m.querySelector('a[href*="hockey-reference"]'),
-          attente: !!(document.getElementById('eqVraie') || {}).querySelector?.('.dash-note'),
+          partielle: !cellules(document.getElementById('eqVraie')).some(c => c.startsWith('N ')),
+          mot: !!(document.getElementById('eqVraie') || {}).querySelector?.('.eq-vraie-mot'),
+          attente: !!(document.getElementById('eqVraie') || {}).querySelector?.('.eq-vraie-attente'),
         };
       });
       if (!club.vraie) errors.push(`la page d'un club ne porte pas sa vraie saison (${club.titre.trim()})`);
+      // Une fiche à qui il manque un gardien échangé tait ses nuls : elle doit
+      // alors DIRE pourquoi, jamais laisser un trou sans mot (`motDeClub`).
+      if (club.partielle && !club.mot) errors.push("la vraie saison d'un club est partielle sans dire pourquoi");
       else if (club.attente) errors.push("la vraie saison d'un club reste en attente");
       if (!club.hr) errors.push("la page d'un club n'a pas son lien vers Hockey-Reference");
       if (!club.rangees) errors.push("la page d'un club ne montre aucun joueur");
