@@ -611,10 +611,25 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     return `<div class="cal-match${m.A === you || m.B === you ? ' toi' : ''}${m.feuille ? ' ouvrable' : ''}"${somm}>${eq(m.A, m.gfA, gagneA)}${eq(m.B, m.gfB, !gagneA)}${m.ot ? '<span class="cal-ot">P</span>' : ''}</div>`;
   };
 
+  /*
+   * LA JOURNÉE 0 MONTRE L'AFFICHE DE LA LIGUE, pas un écran noir.
+   *
+   * Avant le premier match il n'y a rien à révéler — et le volet restait
+   * vide, donc l'écran où l'on passe une saison entière s'ouvrait sur 400 px
+   * de noir. Or le CALENDRIER, lui, est connu : qui joue contre qui à la
+   * journée 1 n'est pas un résultat, c'est une affiche. On la montre, sans
+   * un seul chiffre — les pointages arrivent quand la journée est jouée.
+   */
+  const afficheJour1 = () => {
+    const matchs = calendrier[0] || [];
+    if (!matchs.length) return '';
+    const eq = t => `<div class="cal-eq${t === you ? ' toi' : ''}">${ctx.logo(t.tag, 16)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>`;
+    const cartes = matchs.map(m => `<div class="cal-match cal-affiche${m.A === you || m.B === you ? ' toi' : ''}">${eq(m.A)}${eq(m.B)}</div>`).join('');
+    return `<div class="hub-titre">L'affiche de la journée 1</div><div class="cal-grille">${cartes}</div>`;
+  };
+
   const voletJournee = () => {
-    // Journée 0 : l'en-tête dit déjà « La saison commence », et il n'y a pas
-    // encore de journée à lire. Le volet reste vide plutôt que de le redire.
-    if (!jour) return '';
+    if (!jour) return afficheJour1();
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
     const mien = k >= 0 ? scoreboard({ j, k, m: matchs[k] }) : `<div class="live-board hub-board"><div class="live-horloge"><span class="live-per">CONGÉ</span><span class="live-tirs">Les NHL Stars ne jouent pas aujourd'hui</span></div></div>`;
     const autres = matchs.map((m, i) => (i === k ? '' : carteMatch(m, j, i))).join('');

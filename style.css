@@ -77,9 +77,9 @@
      couleur vient des équipes (bandeaux, cartes) et de l'accent. */
   --bg: #050507;
   --bg-2: #08090b;
-  --panel: #0e0f12;
-  --panel-2: #141519;
-  --panel-3: #1c1e24;
+  --panel: #121419;
+  --panel-2: #1a1d24;
+  --panel-3: #242833;
   --line: #262a32;
   --line-soft: rgba(38, 42, 50, 0.8);
 
@@ -140,9 +140,13 @@
   --glace-lune: #b9d3ee;
   --glace-encre: #14171b;
 
-  --r-s: 8px;
-  --r-m: 12px;
-  --r-l: 18px;
+  /* LE RAYON, REFONTE S59. 8/12/18 est le rayon d'un formulaire : assez
+     arrondi pour ne pas couper, assez droit pour ne rien dire. 12/18/26 est
+     celui d'une application — et c'est le jeton qui change le plus le FEEL
+     d'un coup, puisque les 5 000 lignes du fichier le lisent déjà. */
+  --r-s: 12px;
+  --r-m: 18px;
+  --r-l: 26px;
 
   /* À PLAT. JP : « y a trop de 3D dans l'interface ». Plus d'ombres portées,
      plus de reflets, plus de dégradés sur les boutons et les cartes : des
@@ -183,9 +187,9 @@
 :root[data-palette="oled"] {
   --bg: #000000;
   --bg-2: #000000;
-  --panel: #070708;
-  --panel-2: #0f0f11;
-  --panel-3: #18181b;
+  --panel: #0c0c0e;
+  --panel-2: #15151a;
+  --panel-3: #1f1f26;
   --panel-0: #000000;
   --line: #26262a;
   --line-soft: rgba(38, 38, 42, 0.8);
@@ -220,9 +224,9 @@
 :root[data-palette="glace"] {
   --bg: #04070a;
   --bg-2: #070c11;
-  --panel: #0b1117;
-  --panel-2: #111820;
-  --panel-3: #1a232d;
+  --panel: #0f161e;
+  --panel-2: #172029;
+  --panel-3: #222d39;
   --panel-0: #070c11;
   --line: #25323f;
   --line-soft: rgba(37, 50, 63, 0.75);
@@ -1349,7 +1353,9 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   font-size: 10.5px;
   font-weight: 800;
   border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.28);
+  /* S59 : la surface, pas le filet — et c'est ici qu'il faut la changer,
+     puisque .tag-trait, .tag-zone et leurs voisines viennent juste après. */
+  background: var(--panel-3);
   color: var(--sub);
   white-space: nowrap;
   line-height: 1.4;
@@ -1784,7 +1790,9 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   padding: 10px 16px;
   border-radius: var(--r-m);
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  /* S59 : sans filet, c'est la surface qui fait le bouton — un cran
+     au-dessus du panneau qui le porte. */
+  background: var(--panel-3);
   color: var(--text);
   font-family: var(--display);
   font-size: 18px;
@@ -5483,3 +5491,238 @@ body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions #play
    parce que ça, aucun bouton ne le dit.
    --------------------------------------------------------------- */
 .np-body .opt-text span { font-size: 12.5px; }
+
+/* =====================================================================
+   S59 — LA REFONTE : la surface remplace le filet, la carte devient une
+   carte, la barre se détache du bord
+
+   JP : *tu peux voire dois faire une vrai refonte, pas juste améliorations.
+   Aussi, change vraiment le feel de l'interface, une refonte, pas une
+   amélioration*.
+
+   CE QUI FAISAIT « TABLEUR » PLUTÔT QUE « JEU », et ce n'était pas une
+   couleur : **le filet d'un pixel sur à peu près tout**. Une carte de
+   joueur avait un contour, son bandeau un liseré, son portrait un cadre,
+   son étiquette un cadre, son bouton un cadre — cinq traits pour un nom et
+   un chiffre. Empilez-en trente à l'écran et l'oeil lit une grille de
+   cellules, pas des objets qu'on ramasse.
+
+   LA REFONTE TIENT EN UNE PHRASE : **ce qui sépare, c'est la surface.**
+   Les trois niveaux de panneau montent d'un cran (sans filet, c'est le
+   contraste qui doit porter la séparation), les contours structurels
+   disparaissent, et le trait ne revient que lorsqu'il DIT quelque chose —
+   un état choisi, un avertissement, la ligne d'un tableau.
+
+   Et trois gestes de forme : le rayon passe de 8/12/18 à 12/18/26, la carte
+   de joueur devient une vraie carte (bandeau haut, chiffre géant, bouton
+   pleine largeur en pied), et la barre d'onglets se DÉTACHE du bord de
+   l'écran pour flotter — c'est le geste qui, à lui seul, fait qu'une
+   interface a l'air d'un jeu et non d'un site.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------
+   1. LE FILET S'EFFACE DES SURFACES STRUCTURELLES.
+   Chaque règle ici retire un contour que la surface rend inutile. Ce qui
+   garde un trait : les tableaux (une rangée se suit du doigt), les états
+   (choisi, ciblé, en danger) et les séparateurs qui portent un sens.
+   --------------------------------------------------------------- */
+.pcard,
+.pcard-avatar,
+.slot,
+.pane,
+.result,
+.modal-sheet,
+.hub-eq,
+.hub-jeu,
+.cal-match,
+.bk-serie,
+.eq-carte,
+.icon-btn,
+.tag,
+.sum-item,
+.need-chip,
+.btn,
+.live-board,
+.hub-board,
+.trophee,
+.ent-carton,
+.lb-entry {
+  border-color: transparent;
+}
+/* Les boutons et les pastilles reposaient sur leur filet pour exister : ils
+   prennent la surface du dessus à la place. */
+.btn:hover:not(:disabled) { background: var(--panel-3); filter: brightness(1.25); }
+.pcard-avatar { background: var(--panel-3); }
+
+/* ---------------------------------------------------------------
+   2. L'ÉTAT SE DIT PAR UN ANNEAU, JAMAIS PAR LA BORDURE.
+   Un anneau (`outline`) ne prend pas de place dans la boîte : la carte ne
+   bouge pas d'un pixel quand elle passe d'un état à l'autre, ce que la
+   bordure ne garantissait pas.
+   --------------------------------------------------------------- */
+.pcard { outline: 0 solid transparent; outline-offset: -2px; transition: outline-color var(--t-vite), transform var(--t-vite), filter var(--t-vite); }
+.pcard:hover { outline: 2px solid color-mix(in srgb, var(--team-line, var(--ui-accent)) 70%, transparent); }
+.pcard.signed { outline: 2px solid var(--green); }
+.pcard.locked { outline: 0; }
+.slot.cible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.eq-carte.mienne { outline-offset: -2px; }
+
+/* ---------------------------------------------------------------
+   3. LA CARTE DE JOUEUR DEVIENT UNE CARTE.
+
+   Le bandeau porte l'identité sur toute la largeur, le chiffre qui décide
+   est GÉANT, et le bouton « Signer » est un pied pleine largeur — le geste
+   du jeu occupe le bas de l'objet, comme sur une carte qu'on pose.
+   La hauteur ne bouge pas : ce qui est gagné en pied est repris ailleurs.
+   --------------------------------------------------------------- */
+.pcard { background: var(--team-fond, var(--panel)); }
+.pcard-band, .slot-band {
+  padding: 6px 11px 7px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.pcard-inner { padding: 10px 11px 0; gap: 6px 10px; grid-template-columns: 46px minmax(0, 1fr); }
+/* `:not(.slot-face)` : la case de l'alignement réutilise `.pcard-avatar` pour
+   son visage, et elle n'a que 113 px de large. Un portrait de 46 px lui
+   prenait 12 px de nom — mesuré, onze noms coupés au lieu de huit. */
+.pcard-avatar:not(.slot-face) { width: 46px; height: 46px; border-radius: var(--r-s); }
+.pcard-big b { font-size: 37px; letter-spacing: -1px; }
+.pcard-name .lname { font-size: 21px; }
+/* Le pied : pleine largeur, coins du bas de la carte, rien autour. */
+.pcard-inner > .btn-sign {
+  margin: 0 -11px;
+  width: calc(100% + 22px);
+  min-height: 38px;
+  border: 0;
+  border-radius: 0 0 var(--r-m) var(--r-m);
+  font-size: 18px;
+}
+.btn-sign:disabled { background: color-mix(in srgb, var(--fond-creux) 45%, transparent); }
+.btn-sign.is-signed { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+
+/* ---------------------------------------------------------------
+   4. LA BARRE D'ONGLETS SE DÉTACHE DU BORD.
+
+   Une barre collée au bas, pleine largeur, avec un filet dessus, c'est la
+   barre d'un site. La même barre posée EN RETRAIT, arrondie, flottant
+   au-dessus du fond, c'est celle d'un jeu — et le geste ne coûte rien : la
+   hauteur réservée ne change pas, les cibles tactiles non plus.
+   --------------------------------------------------------------- */
+@media (max-width: 1199.98px) {
+  .navbar {
+    left: 10px; right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0;
+    border: 0;
+    border-radius: var(--r-l);
+    background: var(--panel-2);
+    overflow: hidden;
+  }
+  .navbar { overflow-x: auto; }
+  .navtab { border-top: 0; }
+  /* La place réservée en bas suit la barre qui flotte. */
+  .game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + 20px + env(safe-area-inset-bottom, 0px)); }
+  .actionbar { bottom: calc(var(--navbar-h) + 18px + env(safe-area-inset-bottom, 0px)); }
+  body[data-zone="jeu"] .game,
+  .page { height: calc(100svh - var(--topbar-h) - var(--navbar-h) - 20px - env(safe-area-inset-bottom, 0px)); }
+  body[data-zone="jeu"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - 20px - env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ---------------------------------------------------------------
+   5. LA BARRE D'ACTION EST UN BOUTON, PAS UNE BARRE.
+   Elle portait un fond, un filet et 68 px pleine largeur pour un seul
+   bouton : le bouton se suffit.
+   --------------------------------------------------------------- */
+.actionbar { background: none; border: 0; backdrop-filter: none; }
+.actionbar-inner { padding: 0 10px; }
+.actionbar .btn.go { border-radius: var(--r-m); }
+
+/* ---------------------------------------------------------------
+   6. LE MOUVEMENT : ce qui apparaît glisse, ce qui se choisit répond.
+   Rien ne PORTE d'information — `prefers-reduced-motion` coupe tout, et le
+   jeu se lit pareil.
+   --------------------------------------------------------------- */
+@keyframes monteDouce { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.page:not([hidden]) > .page-corps,
+#game.bilan .result,
+.modal-sheet { animation: monteDouce var(--t-lent) var(--e-sortie); }
+
+/* ---------------------------------------------------------------
+   7. L'AFFICHE DU MATCH. La carte du prochain match était deux boîtes
+   grises de 70 px avec un liseré de couleur : sur l'écran où l'on passe
+   une saison entière, c'est l'objet qu'on regarde le plus, et il ne
+   ressemblait à rien. Les deux clubs deviennent deux BLOCS à leur couleur,
+   nom en grand, fiche en dessous, le VS entre les deux — une affiche, pas
+   une ligne de tableau. Et ça remplit une partie du noir que la journée 0
+   laissait.
+   --------------------------------------------------------------- */
+.hub-match { border: 0; background: var(--panel); }
+.hub-match-titre { border-bottom: 0; padding: 9px 14px 2px; }
+.hub-face { gap: 10px; padding: 8px 12px 12px; }
+.hub-eq {
+  border: 0;
+  border-radius: var(--r-s);
+  /* Le club porte sa couleur, assombrie comme le corps d'une carte de
+     joueur : c'est le même objet, à une autre échelle. */
+  background: color-mix(in srgb, var(--eq-band) 30%, var(--panel-2));
+}
+.hub-eq-band { padding: 7px 10px; font-size: 18px; }
+.hub-eq-nom { padding: 9px 10px 0; font-size: 13px; }
+.hub-eq-fiche { padding: 3px 10px 11px; font-size: 19px; }
+.hub-vs { font-size: 15px; letter-spacing: 0.12em; }
+.hub-match-note { padding: 0 14px 12px; }
+
+/* ---------------------------------------------------------------
+   8. LA BARRE DE L'ÉCRAN DE SAISON FLOTTE AUSSI.
+   Elle est la barre d'onglets de cet écran-là ; deux barres qui ne se
+   ressemblent pas, c'est deux jeux (la règle de S49, appliquée à la
+   forme neuve).
+   --------------------------------------------------------------- */
+@media (max-width: 1199.98px) {
+  .hub-onglets {
+    margin: 0 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    border: 0;
+    border-radius: var(--r-l);
+    background: var(--panel-2);
+  }
+}
+
+/* ---------------------------------------------------------------
+   9. LES TABLEAUX GARDENT LEUR TRAIT, et c'est voulu : une rangée de
+   trente-trois équipes se suit du doigt, et c'est le seul endroit où le
+   filet porte la lecture au lieu de la décorer.
+   --------------------------------------------------------------- */
+.data th, .data td, .eq-table th, .eq-table td { border-color: var(--line-soft); }
+
+/* L'affiche de la journée 1 : les mêmes cartes que le calendrier, sans
+   pointage — on montre qui joue, pas ce qui est arrivé. */
+.cal-affiche .cal-eq { opacity: 0.92; }
+.cal-affiche .cal-eq + .cal-eq { border-top: 1px solid var(--line-soft); }
+
+/* ---------------------------------------------------------------
+   10. LES DEUX COMMANDES DE LA BARRE DU HAUT REDEVIENNENT DEUX OBJETS.
+   Sans leur filet, côte à côte sur la même surface, elles se lisaient
+   comme un seul bloc de 74 px. Deux pastilles rondes, un vrai écart.
+   --------------------------------------------------------------- */
+.topbar-actions { gap: var(--sp-2); }
+.icon-btn { border-radius: 999px; min-width: 38px; min-height: 38px; }
+.icon-btn:hover { background: var(--panel-3); }
+
+/* ---------------------------------------------------------------
+   11. LE SEGMENT, LE CHAMP ET LA LISTE : la même surface, aucun filet.
+   Ce sont les commandes qu'on touche le plus dans les deux écrans de
+   réglages ; elles portaient chacune leur cadre.
+   --------------------------------------------------------------- */
+.seg { border: 0; background: var(--panel-2); border-radius: var(--r-s); padding: 3px; gap: 3px; }
+.seg button { border-radius: var(--r-xs); }
+.opt-select, .select, .search { border-color: transparent; background: var(--panel-2); border-radius: var(--r-s); }
+.opt-row { border-bottom-color: var(--line-soft); }
+
+/* ---------------------------------------------------------------
+   12. LA MODALE FLOTTE ELLE AUSSI : un plateau posé, pas une feuille
+   collée au bord de l'écran.
+   --------------------------------------------------------------- */
+@media (max-width: 679.98px) {
+  .modal-backdrop { padding: 0 8px 8px; }
+  .modal-sheet { border-radius: var(--r-l) var(--r-l) var(--r-m) var(--r-m); }
+}
