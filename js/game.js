@@ -3363,6 +3363,10 @@ async function runSeason(opts = {}) {
         esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
         // Le bouton du son du plateau bascule la même préférence que les options.
         basculerSons: () => { setOption('sons', G.sons ? 'off' : 'on'); syncOptionsUI(); },
+        // UNE CASE SE NOMME PAR SON RANG, et `slotShort` en est le seul
+        // propriétaire : l'alerte de blessure le lit plutôt que d'écrire sa
+        // propre version (« 2e trio · AD », jamais « Top 6 »).
+        slotShort,
       },
       onTermine: montrer,
       depuis: opts.depuis || 0,

@@ -402,8 +402,73 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const k = indexMien(j);
     if (k >= 0) miens.push({ j, k, m: matchs[k] });
   }
-  const avancer = n => {
-    while (n-- > 0 && jour < N) appliquerJour(jour++);
+/*
+   * UNE BLESSURE ARRÊTE LA SAISON. JP : *plus de moment roguelike dans la
+   * saison, comme devoir faire les remplacements lors de blessures*.
+   *
+   * Le moteur blesse déjà — `applyInjuries` retire le joueur de l'alignement
+   * du jour et promeut un réserviste à sa place — mais la saison défilait
+   * par-dessus : on l'apprenait après coup, dans l'onglet des équipes, une
+   * fois les dix journées passées. Il n'y avait donc aucun MOMENT.
+   *
+   * Rien n'est inventé ici : la blessure a déjà eu lieu dans la simulation,
+   * et l'écran ne fait que s'arrêter dessus. Ce qui la rend jouable, c'est le
+   * rail qui existe — « Derrière le banc » remanie l'alignement, pousse une
+   * décision et REJOUE depuis ce jour-là (`reprendreSaison`, js/game.js). La
+   * blessure devient donc une vraie décision, et elle se rejoue comme tout
+   * le reste.
+   *
+   * Le seuil existe parce qu'un match raté n'est pas un événement : sous
+   * `BLESSURE_MOMENT` matchs, la saison continue sans rien dire.
+   */
+  const BLESSURE_MOMENT = 4;
+
+  /* La case qu'occupait le blessé, nommée comme partout ailleurs. */
+  const caseDe = p => {
+    const s = SLOTS.find(x => you.roster[x.i] === p);
+    return s ? (ctx.slotShort ? ctx.slotShort(s) : s.role) : 'Réserviste';
+  };
+  /*
+   * QUI PREND SA PLACE. `activeLineup` promeut le premier réserviste
+   * compatible, sinon la case reste vide et le moteur y met un rappel — et
+   * c'est précisément ce qu'il faut dire : une case vide coûte cher, et
+   * c'est la raison d'aller derrière le banc.
+   */
+  const remplacant = p => {
+    const s = SLOTS.find(x => you.roster[x.i] === p);
+    if (!s || s.scratch) return 'il était réserviste';
+    const libre = SLOTS.filter(x => x.scratch)
+      .map(x => you.roster[x.i])
+      .find(r => r && !you.injured.has(r) && (s.group === 'G' ? r.p === 'G' : s.group === 'D' ? r.p === 'D' : r.p === 'F'));
+    return libre ? `${libre.n} monte` : 'aucun réserviste ne peut le remplacer';
+  };
+  let alerte = null;                 // la blessure à annoncer, ou null
+  const vues = new Set();            // les entrées du journal déjà annoncées
+
+  /* Les blessures survenues jusqu'ici et jamais annoncées, la plus longue en tête. */
+  function blessuresNeuves() {
+    const joues = miens.length;
+    return (you.injuriesLog || [])
+      .filter(b => !vues.has(b) && b.at <= joues && b.games >= BLESSURE_MOMENT
+        // Elle doit encore courir : annoncer une blessure déjà finie n'a
+        // aucun sens quand on avance de dix journées d'un coup.
+        && b.at + b.games > joues)
+      .sort((x, y) => y.games - x.games);
+  }
+
+  /*
+   * `stop` : on s'arrête à la première blessure d'importance. « Journée
+   * suivante » et « +10 » s'arrêtent, « La fin » non — qui demande la fin
+   * demande la fin.
+   */
+  const avancer = (n, stop = false) => {
+    while (n-- > 0 && jour < N) {
+      appliquerJour(jour++);
+      if (stop && blessuresNeuves().length) break;
+    }
+    const neuves = blessuresNeuves();
+    alerte = neuves.length ? neuves[0] : null;
+    if (alerte) vues.add(alerte);
     // La journée révélée est la seule chose que la reprise a besoin de savoir :
     // tout le reste se rejoue de la graine.
     if (onJour) onJour(jour);
@@ -556,7 +621,15 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     // DEUX RANGÉES, PAS QUATRE (S30) : « Journée suivante » en grand, et les
     // quatre autres en une rangée compacte — le direct, le banc, dix
     // journées, la fin. Sur téléphone, les cinq boutons prenaient 280 px.
-    actions.innerHTML = `<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
+    // LE MOMENT DE LA BLESSURE : il prend la tête des actions, parce que
+    // c'est ce qu'il faut lire et décider maintenant. Il ne bloque rien —
+    // « Journée suivante » reste dessous, et ne rien faire est un choix.
+    const bless = alerte ? `<div class="hub-alerte" role="status">
+      <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
+      <div class="hub-alerte-note">${alerte.games} match${alerte.games > 1 ? 's' : ''} d'absence · ${ctx.esc(caseDe(alerte.player))} · ${ctx.esc(remplacant(alerte.player))}</div>
+      ${onBanc ? `<button class="btn gold hub-alerte-banc">Derrière le banc</button>` : ''}
+    </div>` : '';
+    actions.innerHTML = `${bless}<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
       <div class="hub-actions-rang">
       ${p ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>` : ''}
       ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Le banc</button>` : ''}
@@ -567,8 +640,11 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (regarder) regarder.onclick = regarderProchain;
     const banc = actions.querySelector('.hub-banc');
     if (banc) banc.onclick = () => { quitter(); onBanc(jour); };
-    actions.querySelector('.hub-jour').onclick = () => { avancer(1); dessiner(); tabs.montrer('journee'); };
-    actions.querySelector('.hub-dix').onclick = () => { avancer(10); dessiner(); tabs.montrer('fiche'); };
+    const alBanc = actions.querySelector('.hub-alerte-banc');
+    if (alBanc) alBanc.onclick = () => { quitter(); onBanc(jour); };
+    actions.querySelector('.hub-jour').onclick = () => { avancer(1, true); dessiner(); tabs.montrer('journee'); };
+    actions.querySelector('.hub-dix').onclick = () => { avancer(10, true); dessiner(); tabs.montrer('fiche'); };
+    // « La fin » ne s'arrête pas : qui demande la fin demande la fin.
     actions.querySelector('.hub-fin').onclick = () => { avancer(N); dessiner(); tabs.montrer('classement'); };
   }
 
