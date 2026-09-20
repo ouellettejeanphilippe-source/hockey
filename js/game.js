@@ -24,7 +24,8 @@ import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
-  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles } from './sim.js';
+  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
+  CARTES } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { ouvrirEquipes } from './equipes.js';
@@ -3236,6 +3237,27 @@ async function reprendreSaison() {
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: b.jour, decisions, reprise: true });
 }
 
+/*
+ * PRENDRE UNE CARTE DE SAISON. C'est une DÉCISION comme le banc : elle entre
+ * dans `G.ligue.decisions`, donc dans la sauvegarde, et la saison se rejoue
+ * de la graine avec elle. Un palier ne se prend qu'une fois — le filtre
+ * enlève une carte déjà prise au même PALIER, pour qu'un rechargement ou un
+ * double clic n'en empile pas deux.
+ *
+ * `palier` et `jour` sont deux choses : le palier est l'offre, le jour est
+ * l'instant où elle entre en vigueur. Rejouer depuis le PALIER rembobinerait
+ * la saison pour qui a laissé passer l'offre et l'a prise vingt journées
+ * plus tard ; on rejoue donc depuis le jour courant.
+ */
+async function choisirCarte(palier, jour, cle) {
+  if (!G.ligue || !CARTES[cle]) return;
+  const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
+  decisions.push({ jour, carte: cle, palier });
+  G.done = false;
+  renderMain();
+  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
+}
+
 /** Le panneau du banc : la journée, la fiche, le prochain match, les blessés, la consigne. */
 function renderBanc() {
   const host = $('bancPanel');
@@ -3373,6 +3395,12 @@ async function runSeason(opts = {}) {
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
       // la reprise a besoin de connaître.
       onJour: j => { G.journee = j; saveGame(); },
+      // LES CARTES DE SAISON : la graine décide de la main offerte à chaque
+      // palier (sans toucher au hasard du moteur), et les paliers déjà pris
+      // se lisent dans les décisions — il n'y a pas d'autre état.
+      graine,
+      cartesPrises: (decisions || []).filter(d => d.carte).map(d => ({ palier: d.palier ?? d.jour, carte: d.carte })),
+      onCarte: choisirCarte,
       // DERRIÈRE LE BANC : l'écran se retire, l'alignement s'ouvre avec les
       // fiches à ce jour, et « Retour au match » rejoue la saison depuis la
       // graine avec la décision (voir `ouvrirBanc`).

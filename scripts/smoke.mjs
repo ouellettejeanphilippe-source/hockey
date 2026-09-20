@@ -387,6 +387,75 @@ async function traverserSaison(etiquette, reprise = false) {
     const decisions = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } });
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
     else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture déplacée au 2e trio, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
+
+    /*
+     * LE PALIER DE CARTES. À trois journées de la saison (PALIERS_CARTES), on
+     * prend une carte parmi trois : un bonus payé par un malus. Quatre choses
+     * se vérifient, et aucune ne se lit dans le moteur.
+     *
+     * (1) L'avance S'ARRÊTE au palier et trois cartes sont offertes.
+     * (2) Elle ne s'arrête qu'UNE FOIS : tant que le palier rebloquait,
+     *     « +10 journées » avançait d'UNE journée par clic pour qui avait
+     *     décidé de ne pas choisir. L'autre raison légitime de s'arrêter
+     *     après une journée est une blessure, et on la lit à l'écran plutôt
+     *     que de la deviner — sinon le garde-fou crie pour du bruit.
+     * (3) La prise devient une DÉCISION dans la sauvegarde, avec son palier
+     *     ET son jour : ce sont deux choses, et les confondre rembobine la
+     *     saison pour qui prend une offre laissée de côté.
+     * (4) Une carte prise NE REPARAÎT PLUS au palier suivant. Sans ça le pire
+     *     cas est trois fois le même curseur, et c'est lui qu'il aurait fallu
+     *     équilibrer plutôt que le choix réel.
+     */
+    /*
+     * LA JOURNÉE SE LIT DANS L'EN-TÊTE, et il a fallu le bris pour s'en
+     * souvenir : `.hub-titre` est dans le VOLET (« Journée 25 » quand
+     * l'onglet de la journée est ouvert, tout autre chose sinon), donc le
+     * lire donnait « 25149285792 » — les chiffres du tableau d'à côté. Un
+     * sélecteur qui matche la mauvaise chose ment plus fort qu'un sélecteur
+     * qui ne matche rien.
+     */
+    const jourDit = async () => {
+      const t = ((await page.textContent('#hubModal .hub-head')) || '').replace(/\s+/g, ' ');
+      const m = t.match(/Journée\s+(\d+)/);
+      if (!m) { errors.push(`l'en-tête de l'écran de saison ne dit pas la journée : « ${t.slice(0, 60)} »`); return -1; }
+      return Number(m[1]);
+    };
+    const versPalier = async () => {
+      for (let i = 0; i < 8 && !(await page.$('#hubModal .hub-pige')); i++) {
+        await page.click('#hubModal .hub-dix');
+        await page.waitForTimeout(250);
+      }
+      return page.$$eval('#hubModal .hub-pige', e => e.map(x => x.dataset.carte));
+    };
+    const offertes = await versPalier();
+    if (offertes.length !== 3) errors.push(`le palier de cartes en offre ${offertes.length} au lieu de trois`);
+    else {
+      const jPalier = await jourDit();
+      await page.click('#hubModal .hub-dix');
+      await page.waitForTimeout(350);
+      const jApres = await jourDit();
+      const blesse = !!(await page.$('#hubModal .hub-alerte'));
+      if (jApres - jPalier < 2 && !blesse) errors.push(`le palier arrête « +10 journées » une seconde fois : journée ${jPalier} puis ${jApres}, et aucune blessure à annoncer`);
+      // Reprendre l'offre laissée de côté : elle tient, et la carte entre en
+      // vigueur AUJOURD'HUI, pas au palier.
+      const encore = await page.$$eval('#hubModal .hub-pige', e => e.map(x => x.dataset.carte));
+      if (JSON.stringify(encore) !== JSON.stringify(offertes)) errors.push(`l'offre du palier ne tient pas : ${offertes.join(' · ')} puis ${encore.join(' · ')}`);
+      const jPrise = await jourDit();
+      const pris = offertes[0];
+      await page.click(`#hubModal .hub-pige[data-carte="${pris}"]`);
+      await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
+      await page.waitForTimeout(400);
+      const jRevenu = await jourDit();
+      if (jRevenu !== jPrise) errors.push(`prendre une carte rembobine la saison : journée ${jPrise} puis ${jRevenu}`);
+      const dCarte = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.carte);
+      if (dCarte.length !== 1 || dCarte[0].carte !== pris) errors.push(`la sauvegarde ne porte pas la carte prise : ${JSON.stringify(dCarte)}`);
+      else if (dCarte[0].palier !== jPalier) errors.push(`la décision ne porte pas son palier : palier ${dCarte[0].palier} au lieu de ${jPalier}`);
+      if (await page.$('#hubModal .hub-pige')) errors.push('le palier reste ouvert après qu\'on y a pris une carte');
+      const suivantes = await versPalier();
+      if (suivantes.length !== 3) errors.push(`le palier suivant offre ${suivantes.length} cartes au lieu de trois`);
+      else if (suivantes.includes(pris)) errors.push(`la carte « ${pris} », déjà prise, reparaît au palier suivant : ${suivantes.join(' · ')}`);
+      else console.log(`   palier ${jPalier} : ${offertes.join(' · ')} → « ${pris} » prise au jour ${jPrise}, palier suivant ${suivantes.join(' · ')}`);
+    }
   }
   /*
    * UNE SEULE BARRE D'ONGLETS, ET ELLE EST EN BAS. L'écran de saison portait

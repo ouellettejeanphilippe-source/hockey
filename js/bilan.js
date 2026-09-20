@@ -10,7 +10,7 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles } from './sim.js';
+import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles, CARTES } from './sim.js';
 import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
@@ -506,6 +506,19 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
    */
   const cartons = teams.length > 1 ? deck(cartesDeSaison({ you, teams, rang: rank, ctx: { teamShort } }), { cle: 'saison' }) : '';
 
+  /*
+   * LES CARTES QUE TU AS PRISES. On les lit sur `you.cartes` — ce que le
+   * MOTEUR a vraiment appliqué — et jamais sur `G.ligue.decisions`, qui en
+   * serait une deuxième version : une décision refusée (une carte inconnue,
+   * un palier déjà servi) est dans les décisions et pas dans le moteur.
+   */
+  const mesCartes = (you.cartes || []).map(c => CARTES[c]).filter(Boolean);
+  const cartesPrises = mesCartes.length
+    ? `<div class="result-section"><h3>Tes cartes</h3>
+        <ul class="inj-list">${mesCartes.map(c => `<li>${c.ico} <strong>${esc(c.nom)}</strong> — ${esc(c.bon)}, ${esc(c.prix.toLowerCase())}</li>`).join('')}</ul>
+      </div>`
+    : '';
+
   const injuries = you.injuriesLog && you.injuriesLog.length
     ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${esc(i.player.n)}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
     : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
@@ -539,6 +552,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         <h3>Le rapport de saison</h3>
         ${cartons}
       </div>` : ''}
+      ${cartesPrises}
       <div class="result-section">
         <h3>Forces des NHL Stars</h3>
         <div class="bars">

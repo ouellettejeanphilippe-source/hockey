@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal, soirEreintant } from './sim.js';
+import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes } from './sim.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { tempsRestant } from './recit.js';
 
@@ -325,7 +325,7 @@ function blocEquipe(ctx, t, ligne, pos) {
  *   onJour      appelé à chaque avance avec le numéro de journée révélée :
  *               c'est ce que le contrôleur écrit dans la sauvegarde
  */
-export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null }) {
+export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -421,6 +421,33 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
    * Le seuil existe parce qu'un match raté n'est pas un événement : sous
    * `BLESSURE_MOMENT` matchs, la saison continue sans rien dire.
    */
+  /*
+   * LES CARTES DE SAISON. À trois paliers, on prend une carte parmi trois —
+   * un bonus payé par un malus (`CARTES`, js/sim.js). La main offerte se
+   * tire de la GRAINE et du jour, donc la même partie rejouée offre
+   * exactement les mêmes trois cartes ; et prendre une carte est une
+   * DÉCISION, donc la saison se rejoue de la graine avec elle.
+   *
+   * Un palier ARRÊTE l'avance UNE FOIS : c'est un moment, pas une
+   * notification qu'on dépasse. Il ne bloque rien — « Journée suivante »
+   * reste dessous et l'offre tient tant qu'on ne l'a pas prise — mais il ne
+   * s'arrête pas deux fois, sans quoi « +10 journées » avancerait d'UNE
+   * journée par clic pour qui a décidé de ne pas choisir. C'est la règle
+   * des blessures, appliquée aux paliers.
+   *
+   * DEUX CLÉS, PAS UNE. Le PALIER dit quelle offre est déjà servie ; le JOUR
+   * où la carte a été prise, lui, est celui où elle entre en vigueur, et les
+   * deux diffèrent dès qu'on laisse passer un palier sans choisir. Les
+   * confondre rembobinerait la saison au palier — on perdrait les journées
+   * déjà lues pour une carte prise après coup.
+   */
+  const prises = new Set(cartesPrises.map(x => x.palier));
+  // Les cartes DÉJÀ prises ne reparaissent pas dans une main : on compose
+  // une saison, on n'empile pas trois fois le même curseur.
+  const dejaPrises = cartesPrises.map(x => x.carte);
+  const palierOuvert = () => (onCarte ? PALIERS_CARTES.find(j => jour >= j && !prises.has(j)) : undefined);
+  const paliersVus = new Set();      // les paliers qui ont déjà arrêté l'avance
+
   const BLESSURE_MOMENT = 4;
 
   /* La case qu'occupait le blessé, nommée comme partout ailleurs. */
@@ -464,8 +491,11 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   const avancer = (n, stop = false) => {
     while (n-- > 0 && jour < N) {
       appliquerJour(jour++);
-      if (stop && blessuresNeuves().length) break;
+      const pal = palierOuvert();
+      if (stop && (blessuresNeuves().length || (pal !== undefined && !paliersVus.has(pal)))) break;
     }
+    const pal = palierOuvert();
+    if (pal !== undefined) paliersVus.add(pal);
     const neuves = blessuresNeuves();
     alerte = neuves.length ? neuves[0] : null;
     if (alerte) vues.add(alerte);
@@ -624,12 +654,29 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     // LE MOMENT DE LA BLESSURE : il prend la tête des actions, parce que
     // c'est ce qu'il faut lire et décider maintenant. Il ne bloque rien —
     // « Journée suivante » reste dessous, et ne rien faire est un choix.
+    // LE PALIER : trois cartes, une à prendre. Il passe AVANT la blessure —
+    // c'est le choix qui engage le reste de la saison.
+    const pal = palierOuvert();
+    const cartes = pal === undefined ? '' : `<div class="hub-cartes" role="group" aria-label="Choisis une carte">
+      <div class="hub-cartes-tete">Journée ${pal} · prends une carte</div>
+      <div class="hub-cartes-rang">${mainDeCartes(graine, pal, dejaPrises).map(cle => {
+        const c = CARTES[cle];
+        // `.hub-pige`, PAS `.hub-carte` : la carte du prochain match porte
+        // déjà ce nom-là dans index.html.
+        return `<button type="button" class="hub-pige" data-carte="${ctx.esc(cle)}">
+          <span class="hub-pige-nom">${c.ico} ${ctx.esc(c.nom)}</span>
+          <span class="hub-pige-bon">+ ${ctx.esc(c.bon)}</span>
+          <span class="hub-pige-prix">− ${ctx.esc(c.prix)}</span>
+        </button>`;
+      }).join('')}</div>
+      <div class="hub-cartes-note">Elle vaut pour le reste de la saison. Ne pas choisir est un choix : l'offre tient jusqu'à la fin.</div>
+    </div>`;
     const bless = alerte ? `<div class="hub-alerte" role="status">
       <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
       <div class="hub-alerte-note">${alerte.games} match${alerte.games > 1 ? 's' : ''} d'absence · ${ctx.esc(caseDe(alerte.player))} · ${ctx.esc(remplacant(alerte.player))}</div>
       ${onBanc ? `<button class="btn gold hub-alerte-banc">Derrière le banc</button>` : ''}
     </div>` : '';
-    actions.innerHTML = `${bless}<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
+    actions.innerHTML = `${cartes}${bless}<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
       <div class="hub-actions-rang">
       ${p ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>` : ''}
       ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Le banc</button>` : ''}
@@ -642,6 +689,10 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (banc) banc.onclick = () => { quitter(); onBanc(jour); };
     const alBanc = actions.querySelector('.hub-alerte-banc');
     if (alBanc) alBanc.onclick = () => { quitter(); onBanc(jour); };
+    actions.querySelectorAll('[data-carte]').forEach(b => {
+      // Le palier ET la journée courante : la carte vaut à partir de MAINTENANT.
+      b.onclick = () => { const p = pal, j = jour; quitter(); onCarte(p, j, b.dataset.carte); };
+    });
     actions.querySelector('.hub-jour').onclick = () => { avancer(1, true); dessiner(); tabs.montrer('journee'); };
     actions.querySelector('.hub-dix').onclick = () => { avancer(10, true); dessiner(); tabs.montrer('fiche'); };
     // « La fin » ne s'arrête pas : qui demande la fin demande la fin.

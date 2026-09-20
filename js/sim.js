@@ -696,6 +696,195 @@ export const FINITION_MAX = 1.20;
  */
 export const VOLUME_EXPOSANT = 0.30;
 
+/* =====================================================================
+   LES CARTES DE SAISON — un bonus payé par un malus
+
+   JP : *plus de moment roguelike dans la saison [...] bonus et malus à
+   choisir*. À trois paliers de la saison, on prend une carte parmi trois.
+   Chacune achète quelque chose et le PAIE : il n'y en a pas de gratuite, et
+   c'est ce qui en fait un choix plutôt qu'un cadeau.
+
+   ELLES NE CRÉENT AUCUNE MÉCANIQUE NEUVE. Chaque carte n'est qu'un facteur
+   sur une quantité que le profil de match porte DÉJÀ — le volume de lancers
+   (`pression`), la finition d'équipe (`finitionFacteur`), la défensive
+   (`traitDef`, le même canal que le Selke), la robustesse (`traitRob`, le
+   canal des soirs éreintants et des séries) et le risque de blessure. Rien
+   à recalibrer : ce sont les curseurs du moteur, bougés de quelques pour
+   cent.
+
+   ET ELLES SE REJOUENT. Une carte est une DÉCISION (`{ jour, carte }`),
+   donc elle vit dans la sauvegarde avec les autres et la saison se rejoue
+   de la graine avec elle — comme un changement de trio derrière le banc.
+   `check_graine.mjs` l'exige.
+
+   Les magnitudes sont petites EXPRÈS. Trois cartes par saison à ±6 % sur un
+   seul canal laissent le plafond du jeu où il est ; le plaisir est dans le
+   choix, pas dans l'empilement.
+   ===================================================================== */
+/*
+ * LES MAGNITUDES SONT RÉGLÉES SUR LA MESURE, jamais sur l'intuition — et la
+ * première lecture en a corrigé deux d'un coup.
+ *
+ * COMMENT ON MESURE. Une saison à 82 matchs a un écart type de 4,5 victoires
+ * autour de son espérance, et une équipe tirée au hasard dans 55 saisons en
+ * a bien plus : comparer deux ligues indépendantes demanderait des centaines
+ * d'essais pour lire UNE victoire. On joue donc la même ligue deux fois sous
+ * la MÊME graine, la carte aux équipes de rang pair au premier passage et
+ * aux impaires au second : chaque équipe est mesurée avec et sans, contre le
+ * même champ, et la force de l'équipe — la plus grosse source de variance —
+ * s'annule. Douze ligues font 384 paires, soit ±0,3 victoire.
+ *
+ * LE PRIX DE CHAQUE CANAL, mesuré un canal à la fois (les six cartes en
+ * bougent deux ou trois, on ne peut rien en déduire sans résoudre un système
+ * à l'aveugle sur du bruit) :
+ *
+ *   canal              +5 % (ou +1)   −5 % (ou −1)
+ *   finition            +0,9 V         −1,3 V
+ *   défensive           +1,2 V         −1,6 V
+ *   volume              +0,9 V         −1,3 V
+ *   robustesse          +0,5 V         −0,8 V
+ *   blessures  ×0,5 :   −0,2 V     ×2 : −0,9 V
+ *
+ * TROIS CHOSES QUE CE TABLEAU DIT, et qu'on ne devinait pas.
+ *
+ * (1) LE MAUVAIS CÔTÉ COÛTE PLUS QUE LE BON NE RAPPORTE, sur les quatre
+ * canaux. C'est le rendement décroissant des plafonds : `FINITION_MAX` et
+ * `PRESSION_MAX` mangent une partie du bonus, rien n'amortit le malus. Une
+ * carte qui a l'air symétrique ne l'est donc pas, et il faut la peser.
+ *
+ * (2) LA DÉFENSIVE PÈSE PLUS QUE LA FINITION (0,24 contre 0,18 la victoire
+ * par pour cent). Un « cadenas » à −7 % de buts alloués valait +8,3 victoires
+ * quand un « bloc » à +6 % de finition en valait ZÉRO.
+ *
+ * (3) LES BLESSURES SONT UN CANAL À SENS UNIQUE : deux fois moins de
+ * blessures ne rapporte RIEN de mesurable (−0,2 ± 0,3), deux fois plus coûte
+ * 0,9 victoire. Un alignement de 23 avec ses réservistes encaisse sa charge
+ * ordinaire sans broncher ; c'est en la doublant qu'on manque de monde.
+ * « L'infirmerie » n'est donc pas une carte qui fait gagner : c'est une
+ * ASSURANCE, elle coupe la saison où ton premier centre rate vingt matchs.
+ * Elle se paie en conséquence — presque rien.
+ *
+ * CE QU'UNE CARTE DOIT FAIRE : changer la FORME de ta saison, pas sa force.
+ * Chacune vise moins d'une victoire d'écart net ; ce qui bouge, ce sont les
+ * buts marqués et alloués, l'infirmerie, et ce qui reste en séries. Les six
+ * forment TROIS PAIRES OPPOSÉES — finition contre défensive, volume contre
+ * blessures, volume contre robustesse — pour qu'aucune n'en double une autre.
+ *
+ * MESURÉ AU RÉGLAGE RETENU (`node scripts/check_cartes.mjs`, 12 ligues) :
+ *
+ *   carte                ΔV     ΔBP    ΔBC   Δblessures
+ *   Bloc de départ      +0,2    +14    +14     −0,3      l'attaque qui saigne
+ *   Le cadenas          −0,6    −13     −9     −0,0      le contraire
+ *   Roulement court     +0,4     +3     −1     +3,9      du volume payé cher
+ *   L'infirmerie        −0,2     −2     +1     −2,2      l'assurance
+ *   Les vétérans        +0,4     −1     −4     +0,1      plus les séries
+ *   La jeunesse         −0,3     +1     +4     −0,0      moins les séries
+ *
+ * ET LA VRAIE INCERTITUDE EST PLUS GRANDE QUE L'ÉCART TYPE INTERNE. Celui-ci
+ * dit ±0,2 sur 384 paires, mais deux lectures indépendantes de la même carte
+ * — douze ligues sous une graine, dix-huit sous une autre — ont donné −0,6 et
+ * +0,5 pour « Le cadenas ». Les paires d'une même ligue ne sont pas
+ * indépendantes (les victoires d'une ligue sont à somme fixe), donc l'écart
+ * type interne ment vers le bas. Compte une DEMI-VICTOIRE d'incertitude par
+ * lecture, et c'est exactement pourquoi la borne de `check_cartes.mjs` est à
+ * ±1 : elle attrape une carte devenue un cadeau ou un piège, pas un écart de
+ * deux dixièmes. Ne retouche jamais une carte sur une seule lecture.
+ *
+ * UN DIFFÉRENTIEL ÉGAL NE VAUT PAS LE MÊME NOMBRE DE VICTOIRES, et c'est du
+ * vrai hockey : le « bloc » et le « cadenas » bougent leurs deux colonnes de
+ * la même quantité, en sens inverse, et ne rendent pas la même chose.
+ * Pythagore en est la raison — à différentiel égal, une équipe qui joue des
+ * 2-1 gagne un plus gros pourcentage qu'une qui joue des 6-5. C'est une
+ * propriété exacte du hockey à faible pointage, pas un défaut à corriger.
+ */
+export const CARTES = {
+  // finition contre défensive. 8 % de finition (+1,44) payés par 4,5 % de
+  // buts alloués (−1,44).
+  bloc: {
+    nom: 'Bloc de départ', ico: '🚀',
+    bon: 'Ton attaque finit mieux', prix: 'Tu encaisses davantage',
+    finition: 1.08, defense: 1.07,
+  },
+  // l'inverse : 6 % de buts alloués (+1,44) payés par 5,5 % de finition.
+  cadenas: {
+    nom: 'Le cadenas', ico: '🔒',
+    bon: 'Tu alloues moins de buts', prix: 'Ton attaque finit moins bien',
+    defense: 0.94, finition: 0.935,
+  },
+  // volume contre blessures : 5 % de lancers (+0,90) payés par des blessures
+  // DOUBLÉES (−0,90). Il fallait les doubler : à ×1,45 la carte était gratuite.
+  roulement: {
+    nom: 'Roulement court', ico: '🔁',
+    bon: 'Tes meilleurs jouent plus : plus de lancers', prix: 'Ils se blessent deux fois plus',
+    volume: 1.035, blessure: 2.00,
+  },
+  // l'assurance. Le bonus ne vaut rien en victoires et tout en tranquillité ;
+  // le prix est donc d'un pour cent de lancers, et pas davantage.
+  infirmerie: {
+    nom: "L'infirmerie", ico: '🏥',
+    bon: 'Deux fois moins de blessures : ta saison ne déraille pas', prix: 'Un peu moins de lancers',
+    blessure: 0.45, volume: 0.99,
+  },
+  // volume contre robustesse. Ce que les vétérans achètent se paie surtout en
+  // AVRIL, et la mesure de saison ne le voit pas : la carte est donc réglée
+  // un cheveu sous zéro en saison (+0,50 contre −0,65), et les séries sont le
+  // reste.
+  veterans: {
+    nom: 'Les vétérans', ico: '🧭',
+    bon: 'Plus robuste : les soirs éreintants et les séries', prix: 'Un peu moins de lancers',
+    robustesse: 1.0, volume: 0.965,
+  },
+  // l'inverse, et le même déséquilibre à l'envers : un départ canon payé en
+  // avril (+0,90 contre −0,80, plus ce que les séries prendront).
+  jeunesse: {
+    nom: 'La jeunesse', ico: '⚡',
+    bon: 'Des jambes fraîches : plus de lancers', prix: 'Moins robuste quand ça brasse',
+    volume: 1.04, robustesse: -1.0,
+  },
+};
+
+/** Ce que les cartes d'une équipe multiplient. Neutre quand elle n'en a pas. */
+export function effetsDesCartes(team) {
+  const e = { finition: 1, defense: 1, volume: 1, blessure: 1, robustesse: 0 };
+  for (const cle of (team && team.cartes) || []) {
+    const c = CARTES[cle];
+    if (!c) continue;
+    e.finition *= c.finition ?? 1;
+    e.defense *= c.defense ?? 1;
+    e.volume *= c.volume ?? 1;
+    e.blessure *= c.blessure ?? 1;
+    e.robustesse += c.robustesse ?? 0;
+  }
+  return e;
+}
+
+/*
+ * LES TROIS CARTES OFFERTES À UN PALIER. Tirées de la GRAINE et du jour, sans
+ * toucher à `hasard()` : le moteur ne doit pas consommer une seule valeur de
+ * plus à cause de l'écran, sinon la même graine ne rejouerait plus la même
+ * saison. Deux paliers d'une même partie n'offrent donc pas la même main, et
+ * la même partie rejouée offre exactement la même.
+ */
+export const PALIERS_CARTES = [20, 40, 60];
+export function mainDeCartes(graine, jour, prises = []) {
+  // UNE CARTE NE SE PREND QU'UNE FOIS. Sans ça le pire cas est trois fois la
+  // même, et c'est ce pire cas qu'il faut équilibrer plutôt que le choix
+  // réel — mesuré, trois « cadenas » valaient +8,3 victoires quand un seul
+  // en vaut le tiers. Trois cartes DIFFÉRENTES, c'est aussi un meilleur
+  // choix : on compose une saison au lieu d'empiler un curseur.
+  const cles = Object.keys(CARTES).filter(c => !prises.includes(c));
+  // sfc32 n'est pas nécessaire ici : un mélangeur entier suffit, et il doit
+  // surtout être PUR — même graine, même jour, même main.
+  let x = (Number(graine) >>> 0) ^ (jour * 0x9e3779b1);
+  const suivant = () => {
+    x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
+    return x / 0x100000000;
+  };
+  const reste = cles.slice(), main = [];
+  while (main.length < 3 && reste.length) main.push(reste.splice(Math.floor(suivant() * reste.length), 1)[0]);
+  return main;
+}
+
 /*
  * LES PASSES CAUSENT LES BUTS. Jusqu'ici la passe était DÉCORATIVE : un but
  * tiré, on l'attribuait après coup aux coéquipiers sur la glace, au prorata
@@ -1247,6 +1436,7 @@ export function profilMatch(team, lineup) {
   const finEquipe = sL ? sLC / sL : 1;
 
   const patineurs = habilles.filter(p => p.p !== 'G');
+  const cartes = effetsDesCartes(team);
 
   return {
     unites,
@@ -1261,12 +1451,16 @@ export function profilMatch(team, lineup) {
     // Les occasions d'avantage de cet alignement : mesurées par saison quand
     // les shards les portent, repère d'époque sinon (voir occasionsDe).
     occasions: patineurs.length ? patineurs.reduce((a, p) => a + occasionsDe(p), 0) / patineurs.length : null,
-    pression: borne(pression, 0.40, REF.pression * PRESSION_MAX),
+    // LES CARTES DE SAISON entrent ici, et NULLE PART AILLEURS : ce sont des
+    // facteurs sur des quantités que le profil porte déjà. `pression` reste
+    // sous sa borne, `finitionFacteur` sous la sienne (le plafond du jeu ne
+    // se contourne pas avec une carte).
+    pression: borne(pression * cartes.volume, 0.40, REF.pression * PRESSION_MAX),
     finEquipe, creaEquipe,
-    finitionFacteur: Math.min(1, FINITION_MAX / finEquipe),
+    finitionFacteur: Math.min(FINITION_MAX / finEquipe, cartes.finition),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
-    traitDef: facteurDefensifEquipe(habilles),
-    traitRob: bonusRobustesseEquipe(habilles),
+    traitDef: facteurDefensifEquipe(habilles) * cartes.defense,
+    traitRob: bonusRobustesseEquipe(habilles) + cartes.robustesse,
     traitAtt: facteurAttaqueEquipe(habilles),
     traitSeries: facteurSeriesEquipe(habilles),
     meneur: bonusMeneurEquipe(habilles),
@@ -1945,7 +2139,8 @@ function applyInjuries(team, lineup, heavy) {
   }
   for (const p of Object.values(lineup)) {
     if (!p || team.injured.has(p)) continue;
-    if (hasard() < injuryChance(p, heavy)) {
+    // Le risque suit la carte de saison : « Roulement court » use, « L'infirmerie » protège.
+    if (hasard() < injuryChance(p, heavy) * effetsDesCartes(team).blessure) {
       const n = injuryLength();
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
@@ -2232,6 +2427,9 @@ export function simulate(roster, { graine = null } = {}) {
  * l'alignement qu'on a déjà ne change rien (check_graine.mjs le vérifie).
  */
 function appliquerDecision(team, d) {
+  // UNE CARTE EST UNE DÉCISION comme une autre : elle s'applique au jour où
+  // elle a été prise et vaut pour le reste de la saison.
+  if (d.carte && CARTES[d.carte]) (team.cartes = team.cartes || []).push(d.carte);
   if ('fermeture' in d) team.fermeture = d.fermeture;
   const cases = d.cases;
   if (!cases) return;
@@ -2266,6 +2464,10 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     // `createTeam` : sinon deux saisons de même graine différaient déjà
     // avant le premier lancer (check_graine.mjs l'a attrapé).
     t.luck = gauss() * LUCK_SEASON;
+    // LES CARTES SE REMETTENT À ZÉRO ICI. Sans ça, rejouer la saison — ce que
+    // fait CHAQUE décision — empilerait les cartes des passages précédents,
+    // et une équipe finirait la partie avec quinze fois la même.
+    t.cartes = [];
   }
   // Le calendrier : une journée par ronde, ses seize matchs avec leur
   // pointage. C'est ce que l'écran rejoue jour après jour, et ce qu'on peut
