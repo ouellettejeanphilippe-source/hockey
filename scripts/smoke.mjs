@@ -387,6 +387,125 @@ async function traverserSaison(etiquette, reprise = false) {
     const decisions = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } });
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
     else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture déplacée au 2e trio, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
+
+    /*
+     * LE PALIER DE CARTES. À trois journées de la saison (PALIERS_CARTES), on
+     * prend une carte parmi trois : un bonus payé par un malus. Quatre choses
+     * se vérifient, et aucune ne se lit dans le moteur.
+     *
+     * (1) L'avance S'ARRÊTE au palier et trois cartes sont offertes.
+     * (2) Elle ne s'arrête qu'UNE FOIS : tant que le palier rebloquait,
+     *     « +10 journées » avançait d'UNE journée par clic pour qui avait
+     *     décidé de ne pas choisir. L'autre raison légitime de s'arrêter
+     *     après une journée est une blessure, et on la lit à l'écran plutôt
+     *     que de la deviner — sinon le garde-fou crie pour du bruit.
+     * (3) La prise devient une DÉCISION dans la sauvegarde, avec son palier
+     *     ET son jour : ce sont deux choses, et les confondre rembobine la
+     *     saison pour qui prend une offre laissée de côté.
+     * (4) Une carte prise NE REPARAÎT PLUS au palier suivant. Sans ça le pire
+     *     cas est trois fois le même curseur, et c'est lui qu'il aurait fallu
+     *     équilibrer plutôt que le choix réel.
+     */
+    /*
+     * LA JOURNÉE SE LIT DANS L'EN-TÊTE, et il a fallu le bris pour s'en
+     * souvenir : `.hub-titre` est dans le VOLET (« Journée 25 » quand
+     * l'onglet de la journée est ouvert, tout autre chose sinon), donc le
+     * lire donnait « 25149285792 » — les chiffres du tableau d'à côté. Un
+     * sélecteur qui matche la mauvaise chose ment plus fort qu'un sélecteur
+     * qui ne matche rien.
+     */
+    const jourDit = async () => {
+      const t = ((await page.textContent('#hubModal .hub-head')) || '').replace(/\s+/g, ' ');
+      const m = t.match(/Journée\s+(\d+)/);
+      if (!m) { errors.push(`l'en-tête de l'écran de saison ne dit pas la journée : « ${t.slice(0, 60)} »`); return -1; }
+      return Number(m[1]);
+    };
+    const versPalier = async () => {
+      for (let i = 0; i < 8 && !(await page.$('#hubModal .hub-pige')); i++) {
+        await page.click('#hubModal .hub-dix');
+        await page.waitForTimeout(250);
+      }
+      return page.$$eval('#hubModal .hub-pige', e => e.map(x => x.dataset.carte));
+    };
+    const offertes = await versPalier();
+    if (offertes.length !== 3) errors.push(`le palier de cartes en offre ${offertes.length} au lieu de trois`);
+    else {
+      const jPalier = await jourDit();
+      await page.click('#hubModal .hub-dix');
+      await page.waitForTimeout(350);
+      const jApres = await jourDit();
+      const blesse = !!(await page.$('#hubModal .hub-alerte'));
+      if (jApres - jPalier < 2 && !blesse) errors.push(`le palier arrête « +10 journées » une seconde fois : journée ${jPalier} puis ${jApres}, et aucune blessure à annoncer`);
+      // Reprendre l'offre laissée de côté : elle tient, et la carte entre en
+      // vigueur AUJOURD'HUI, pas au palier.
+      const encore = await page.$$eval('#hubModal .hub-pige', e => e.map(x => x.dataset.carte));
+      if (JSON.stringify(encore) !== JSON.stringify(offertes)) errors.push(`l'offre du palier ne tient pas : ${offertes.join(' · ')} puis ${encore.join(' · ')}`);
+      const jPrise = await jourDit();
+      const pris = offertes[0];
+      await page.click(`#hubModal .hub-pige[data-carte="${pris}"]`);
+      await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
+      await page.waitForTimeout(400);
+      const jRevenu = await jourDit();
+      if (jRevenu !== jPrise) errors.push(`prendre une carte rembobine la saison : journée ${jPrise} puis ${jRevenu}`);
+      const dCarte = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.carte);
+      if (dCarte.length !== 1 || dCarte[0].carte !== pris) errors.push(`la sauvegarde ne porte pas la carte prise : ${JSON.stringify(dCarte)}`);
+      else if (dCarte[0].palier !== jPalier) errors.push(`la décision ne porte pas son palier : palier ${dCarte[0].palier} au lieu de ${jPalier}`);
+      if (await page.$('#hubModal .hub-pige')) errors.push('le palier reste ouvert après qu\'on y a pris une carte');
+      const suivantes = await versPalier();
+      if (suivantes.length !== 3) errors.push(`le palier suivant offre ${suivantes.length} cartes au lieu de trois`);
+      else if (suivantes.includes(pris)) errors.push(`la carte « ${pris} », déjà prise, reparaît au palier suivant : ${suivantes.join(' · ')}`);
+      else console.log(`   palier ${jPalier} : ${offertes.join(' · ')} → « ${pris} » prise au jour ${jPrise}, palier suivant ${suivantes.join(' · ')}`);
+
+      /*
+       * LE PALIER NE POUSSE RIEN HORS DE L'ÉCRAN. La carte des trois choix
+       * s'ajoute EN TÊTE des actions, et l'alerte de blessure juste dessous :
+       * deux blocs hauts de plus dans une colonne dont seul le volet peut
+       * rétrécir. Quand les deux sont ouverts en même temps, la barre
+       * d'onglets sortait par le bas — et un bouton hors du cadre d'une
+       * feuille en `position: fixed` ne se clique plus : Playwright a
+       * réessayé soixante-deux fois avant d'abandonner sur « html intercepts
+       * pointer events », un échec qui ne nomme rien. On le MESURE ici, dans
+       * l'état exact qui l'a produit.
+       */
+      /*
+       * LE PIRE CAS SE FABRIQUE, IL NE S'ATTEND PAS. Le débordement demande
+       * la carte ET l'alerte de blessure en même temps, et une blessure au
+       * bon jour est un tirage : la mesure ne serait vraie qu'une fois sur
+       * plusieurs, donc le garde-fou sauterait en silence la plupart du
+       * temps — « un test qui dépend du tirage n'est pas un test, c'est une
+       * loterie ». Quand l'alerte n'est pas là, on en pose une du même
+       * gabarit, on mesure, et on la retire.
+       */
+      const place = await page.evaluate(() => {
+        const actions = document.querySelector('#hubModal .hub-actions');
+        const vraie = !!document.querySelector('#hubModal .hub-alerte');
+        let faux = null;
+        if (actions && !vraie) {
+          faux = document.createElement('div');
+          faux.className = 'hub-alerte';
+          faux.innerHTML = '<div class="hub-alerte-tete">🚑 Untel est blessé</div>'
+            + '<div class="hub-alerte-note">8 matchs d\'absence · 1re paire · DD · Untel monte</div>'
+            + '<button class="btn gold">Derrière le banc</button>';
+          actions.prepend(faux);
+        }
+        const b = document.querySelector('#hubModal .hub-onglets');
+        if (!b) { if (faux) faux.remove(); return null; }
+        const r = b.getBoundingClientRect();
+        const bas = Math.round(window.innerHeight - r.bottom);
+        const el = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+        const out = {
+          bas,
+          carte: !!document.querySelector('#hubModal .hub-cartes'),
+          alerte: vraie ? 'vraie' : 'posée pour la mesure',
+          atteignable: !!el && (el === b || b.contains(el)),
+        };
+        if (faux) faux.remove();
+        return out;
+      });
+      if (!place) errors.push('la barre d\'onglets a disparu de l\'écran de saison');
+      else if (place.bas > 4 || !place.atteignable) errors.push(`le palier pousse la barre d'onglets hors de l'écran : ${place.bas} px sous le bas, atteignable ${place.atteignable} (carte ${place.carte}, alerte ${place.alerte})`);
+      else console.log(`   le palier ne pousse rien : barre collée au bas (${place.bas} px), atteignable — carte ${place.carte}, alerte ${place.alerte}`);
+    }
   }
   /*
    * UNE SEULE BARRE D'ONGLETS, ET ELLE EST EN BAS. L'écran de saison portait
@@ -403,7 +522,10 @@ async function traverserSaison(etiquette, reprise = false) {
     });
     if (!ou) errors.push("l'écran de saison n'a plus de barre d'onglets");
     else if (ou.barre < ou.volet) errors.push(`la barre de l'écran de saison est au-dessus du volet (${ou.barre} px contre ${ou.volet}) : une barre d'onglets est en bas`);
-    else if (ou.fond > 4) errors.push(`la barre de l'écran de saison flotte à ${ou.fond} px du bas`);
+    // `Math.abs` : le contrôle ne voyait qu'une barre qui FLOTTE au-dessus du
+    // bas. Une barre POUSSÉE sous le bas donne un écart négatif, donc il la
+    // laissait passer — c'est exactement ce que le palier faisait (−38 px).
+    else if (Math.abs(ou.fond) > 4) errors.push(`la barre de l'écran de saison est à ${ou.fond} px du bas`);
     else console.log(`   une seule barre, et elle est en bas : volet à ${ou.volet} px, barre à ${ou.barre} px, collée au bas`);
   }
   await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
@@ -476,6 +598,89 @@ if (enabled) {
   /* Aucun volet du bilan ne doit être une longue page — c'est LE défaut que
      le repêchage resté au-dessus provoquait, et il se lit d'un chiffre. */
   if (await page.$('#resultTabs')) errors.push("le bilan a encore sa propre barre d'onglets : il n'y en a qu'une, et elle est en bas");
+  /*
+   * LE NIVEAU DE LA LIGUE. JP : *je veux un onglet à la fin de la saison qui
+   * montre la force relative de la ligue et comment x performe versus
+   * l'attente du niveau de la ligue*. Trois choses s'éprouvent, et la
+   * deuxième est un INVARIANT : les attentes sont mises à l'échelle des
+   * points que la ligue a vraiment distribués, donc LA SOMME DES ÉCARTS EST
+   * NULLE. Si elle dérive, l'écart d'un club ne veut plus rien dire — on
+   * lirait « +7 » sur une ligue entière chanceuse.
+   */
+  {
+    const ong = await page.$('.navtab[data-page="ligue"]');
+    if (!ong) errors.push("l'onglet « La ligue » n'existe pas au bilan");
+    else {
+      await ong.click();
+      await page.waitForTimeout(3500);   // les shards des 31 adversaires
+      const n = await page.evaluate(() => {
+        const v = document.querySelector('#resultHost .result-pane[data-volet="ligue"]');
+        if (!v) return null;
+        const ec = [...v.querySelectorAll('.niv-table tbody tr td.heros')].map(x => parseFloat(x.textContent));
+        return {
+          rangs: v.querySelectorAll('.niv-table tbody tr').length,
+          somme: ec.reduce((a, x) => a + x, 0),
+          attente: [...v.querySelectorAll('.niv-tuile b')].filter(x => x.textContent.trim() === '…').length,
+          niveau: (v.querySelector('.niv-tuile b') || {}).textContent,
+        };
+      });
+      if (!n) errors.push("le volet « La ligue » ne rend rien");
+      else {
+        if (n.rangs < 30) errors.push(`la table du niveau n'a que ${n.rangs} rangées`);
+        if (Math.abs(n.somme) > 1.5) errors.push(`la somme des écarts vaut ${n.somme.toFixed(1)} au lieu de zéro : les attentes ne sont plus à l'échelle des points distribués`);
+        if (n.attente) errors.push(`${n.attente} tuile(s) du niveau restent en points de suspension : les vraies saisons ne se sont pas chargées`);
+        else console.log(`   le niveau de la ligue : ${n.rangs} clubs, vrai % de victoires des 31 ${(n.niveau || '').trim()}, somme des écarts ${n.somme.toFixed(1)}`);
+      }
+      await pasUneLonguePage('le bilan · la ligue');
+      await sansDebordement('le bilan · la ligue');
+    }
+  }
+
+  /*
+   * MA LIGUE DANS L'ONGLET DES ÉQUIPES. JP : *les équipes dans l'onglet
+   * équipe, je parle de ceux de la ligue en cours, je veux pouvoir comparer
+   * les joueurs et équipes avec leurs vraies prestations*. L'écran ouvrait
+   * les 44 franchises par saison — de l'histoire, sans rapport avec la
+   * partie. Trois choses s'éprouvent : la ligue en cours est la source
+   * OUVERTE dès qu'elle existe, elle porte ses 32 clubs, et un club met
+   * chaque nombre du jeu au-dessus du vrai.
+   */
+  {
+    await page.click('.navtab[data-page="equipes"]');
+    await page.waitForTimeout(2600);
+    const ouverte = await page.$$eval('#pageEquipes [data-source].on', e => e.map(x => x.dataset.source));
+    if (ouverte[0] !== 'ligue') errors.push(`l'onglet des équipes ouvre « ${ouverte[0] || 'rien'} » au lieu de ma ligue une fois la saison jouée`);
+    const clubsLigue = await page.$$eval('#pageEquipes .eq-carte', e => e.length);
+    if (clubsLigue < 30) errors.push(`ma ligue ne montre que ${clubsLigue} clubs`);
+    if (!(await page.$('#pageEquipes .eq-carte.mienne'))) errors.push('ma formation ne paraît pas parmi les clubs de ma ligue');
+    const adverse = await page.$('#pageEquipes .eq-carte:not(.mienne)');
+    if (!adverse) errors.push('aucun club adverse dans ma ligue');
+    else {
+      await adverse.click();
+      await page.waitForTimeout(2600);
+      const m = await page.evaluate(() => {
+        const t = document.querySelector('#pageEquipes .eq-table.eq-double');
+        if (!t) return null;
+        const c = t.querySelector('tbody td.stat');
+        return {
+          rangees: t.querySelectorAll('tbody tr').length,
+          double: !!(c && c.querySelector('b') && c.querySelector('i')),
+          reel: !!document.querySelector('#pageEquipes .eq-tete-reel'),
+        };
+      });
+      if (!m) errors.push("un club de ma ligue ne rend pas la table à deux nombres");
+      else {
+        if (!m.double) errors.push('une cellule ne porte pas le nombre du jeu ET le vrai');
+        if (!m.reel) errors.push("le bandeau d'un club de ma ligue ne porte pas sa vraie saison");
+        if (m.rangees < 10) errors.push(`un club de ma ligue n'a que ${m.rangees} rangées`);
+        console.log(`   ma ligue : ${clubsLigue} clubs, un club rend ${m.rangees} rangées à deux nombres, la vraie saison au bandeau`);
+      }
+      await sansDebordement('un club de ma ligue');
+      await sansCote('un club de ma ligue');
+    }
+    await page.click('.navtab[data-page="bilan"]');
+    await page.waitForTimeout(400);
+  }
   /*
    * LA BARRE A CHANGÉ D'ENTRÉES, parce que la phase a changé : on ne bâtit
    * plus, on lit. Neuf onglets ne tiennent pas dans 390 px — la barre défile

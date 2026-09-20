@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries,
-         generateur, photoAlignement } from '../js/sim.js';
+         generateur, photoAlignement, CARTES } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -110,6 +110,26 @@ dire(f1.feuilles === f2.feuilles && f1.joueurs === f2.joueurs, 'les mêmes déci
 const ag0 = SLOTS.find(s => s.group === 'F' && s.unit === 0 && s.role === 'AG' && !s.scratch).i;
 dire(f1.equipes[0].roster[ag0] !== a.equipes[0].roster[ag0] || f1.equipes[0].roster[ag0].n !== a.equipes[0].roster[ag0].n,
   `l'alignement final porte la décision (${f1.equipes[0].roster[ag0].n} au 1er trio)`);
+
+/* ---------- les cartes de saison ---------- */
+/*
+ * UNE CARTE EST UNE DÉCISION, donc elle doit se comporter comme telle : les
+ * journées d'avant identiques, la suite changée, et la même carte rejouée à
+ * l'identique. Et elle doit VRAIMENT faire quelque chose — une carte qui ne
+ * déplace pas une feuille est une carte morte, et c'est exactement le genre
+ * de chose qu'on ne voit pas à l'oeil.
+ */
+const JOUR_CARTE = 20;
+const carte = cle => () => [{ jour: JOUR_CARTE, carte: cle }];
+const g1 = jouer('la-meme-graine', carte('bloc'));
+const g2 = jouer('la-meme-graine', carte('bloc'));
+dire(a.jours.slice(0, JOUR_CARTE).join('\n') === g1.jours.slice(0, JOUR_CARTE).join('\n'),
+  `une carte au jour ${JOUR_CARTE} laisse les ${JOUR_CARTE} journées d'avant identiques`);
+dire(a.jours.slice(JOUR_CARTE).join('\n') !== g1.jours.slice(JOUR_CARTE).join('\n'), 'et change ce qui suit');
+dire(g1.feuilles === g2.feuilles && g1.joueurs === g2.joueurs, 'la même carte se rejoue à l\'identique');
+// Chaque carte du jeu doit déplacer la saison : aucune n'est décorative.
+const mortes = Object.keys(CARTES).filter(cle => jouer('la-meme-graine', carte(cle)).feuilles === a.feuilles);
+dire(!mortes.length, mortes.length ? `cartes sans effet : ${mortes.join(', ')}` : `les ${Object.keys(CARTES).length} cartes déplacent la saison`);
 
 console.log(echecs ? `\n${echecs} échec(s)` : '\ntout se rejoue');
 process.exit(echecs ? 1 : 0);

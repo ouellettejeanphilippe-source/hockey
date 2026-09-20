@@ -2613,9 +2613,22 @@ table.data .pts { font-weight: 900; color: var(--green); }
    La carte et les actions ne bougent pas ; seul le volet change. */
 .hub-carte { padding: 10px 14px 0; }
 .hub-carte:empty { display: none; }
+/*
+   LE BLOC QUI GRANDIT EST CELUI QUI PLIE (S55). La carte des trois choix
+   (S54) et l'alerte de blessure (S53) s'ajoutent en TÊTE des actions. Les
+   deux ouvertes en même temps, la colonne dépassait la hauteur de la
+   feuille : le volet est tombé à 22 px, puis il n'avait plus rien à céder
+   (sa base est 0, il ne rétrécit plus), et les 38 px qui restaient sont
+   sortis PAR LE BAS — mesuré à 390 px. Une barre d'onglets hors du cadre
+   d'une feuille en `position: fixed` ne se clique plus : Playwright a
+   réessayé soixante-deux fois avant d'abandonner sur « html intercepts
+   pointer events ». `min-height: 0` rend donc les actions rétrécissables et
+   `overflow-y` leur fait absorber le débordement chez elles, au lieu de le
+   pousser sur leurs voisins. */
 .hub-actions {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 10px 14px; border-bottom: 1px solid var(--line-soft);
+  flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
 }
 .hub-actions .btn { flex: 1 1 140px; min-height: 42px; }
 .hub-actions .hub-jour { flex: 1 1 100%; }
@@ -4025,21 +4038,37 @@ a.spin-club:hover {
    ====================================================================== */
 .t-cmd {
   position: absolute; top: 0; left: 0; z-index: 12; width: max-content; min-width: 132px; max-width: 168px;
-  transform: translate(calc(var(--tc) * var(--tcell) + var(--tcell) * 1.1), calc(var(--tr) * var(--tcell) - var(--tcell) * 0.6));
+  --cx: calc(var(--tc) * var(--tcell) + var(--tcell) * 1.1);
+  --cy: calc(var(--tr) * var(--tcell) - var(--tcell) * 0.6);
+  transform: translate(var(--cx), var(--cy));
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
   padding: 5px; display: flex; flex-direction: column; gap: 3px;
 }
-/* Les mêmes trois débordements que le dé : on ne sort jamais de la glace. */
-.t-cmd.bord-d { transform: translate(calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%), calc(var(--tr) * var(--tcell) - var(--tcell) * 0.6)); }
-.t-cmd.dessous { transform: translate(calc(var(--tc) * var(--tcell) + var(--tcell) * 1.1), calc(var(--tr) * var(--tcell))); }
-.t-cmd.bord-d.dessous { transform: translate(calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%), calc(var(--tr) * var(--tcell))); }
+/*
+   QUATRE CÔTÉS, PAS DEUX. Elle n'avait que « à droite » et « à gauche » de la
+   pièce, et deux variantes verticales qui ne la décalaient que d'un demi-
+   carreau : sur un plateau de treize colonnes, une carte de cinq colonnes de
+   large couvrait donc forcément la moitié du monde à côté du joueur — et les
+   cinq patineurs partent groupés. Il lui faut un vrai HAUT et un vrai BAS,
+   collés à la rangée de la pièce, pour qu'un ancrage propre existe toujours.
+   `--cx` et `--cy` se composent : l'horizontale et la verticale se choisissent
+   séparément, et `ancrerCarte` (js/plateau.js) MESURE laquelle prendre. */
+.t-cmd.bord-d { --cx: calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%); }
+.t-cmd.dessous { --cy: calc(var(--tr) * var(--tcell) + var(--tcell) * 1.1); }
+.t-cmd.dessus { --cy: calc(var(--tr) * var(--tcell) - var(--tcell) * 0.1 - 100%); }
 .t-cmd[hidden] { display: none; }
 .t-cmd-tete {
+  display: flex; align-items: center; gap: 4px;
   font-family: var(--display); font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--sub); padding: 1px 4px 3px; border-bottom: 1px solid var(--line-soft);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .t-cmd-tete b { color: var(--gold); margin-right: 4px; }
+.t-cmd-fermer {
+  margin-left: auto; background: none; border: 0; color: var(--muted);
+  font-size: 13px; line-height: 1; padding: 0 2px; cursor: pointer;
+}
+.t-cmd-fermer:hover { color: var(--text); }
 .t-cmd-liste { display: flex; flex-direction: column; gap: 2px; }
 /* Une commande par ligne : le nom à gauche, la cote à droite — on compare
    les chances d'un coup d'oeil vertical, ce qu'une rangée qui défile ne
@@ -4562,6 +4591,95 @@ a.spin-club:hover {
 .eq-table th.eq-th:hover { color: var(--ink); }
 .eq-table th.trie { color: var(--gold); }
 .eq-table td.stat { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--display); font-weight: 700; }
+
+/* ======================================================================
+   MA LIGUE : LE SIMULÉ, LA VRAIE SAISON DESSOUS
+   JP : *je veux pouvoir comparer les joueurs et équipes avec leurs vraies
+   prestations*. Deux tableaux côte à côte se lisent mal et un bouton qui
+   bascule de l'un à l'autre n'est pas une comparaison : les deux nombres
+   vivent donc dans la MÊME cellule, celui du jeu en tête et le vrai sous
+   lui, plus petit et en sourdine. La colonne ne s'élargit pas, la rangée
+   grandit d'une ligne.
+   ====================================================================== */
+.eq-source { flex: 0 0 auto; }
+.eq-carte.mienne { outline: 2px solid var(--gold); outline-offset: -2px; }
+.eq-carte-an { font-style: normal; margin-left: auto; font-size: 10.5px; opacity: .85; }
+.eq-tete-reel { display: block; font-style: normal; font-weight: 700; font-size: 10.5px; color: var(--muted); letter-spacing: .02em; }
+.eq-table.eq-double td.stat { line-height: 1.05; }
+.eq-table.eq-double td.stat b { display: block; font-weight: 800; }
+.eq-table.eq-double td.stat i {
+  display: block; font-style: normal; font-weight: 700;
+  font-size: 10.5px; color: var(--muted); opacity: .9;
+}
+.eq-table.eq-double td.stat.heros b { color: var(--gold); }
+/* Un joueur qui n'a pas joué une minute de ta saison : sa rangée s'efface,
+   mais elle reste — c'est une information, pas un vide. */
+.eq-table.eq-double tr.eq-absent td { opacity: .45; }
+
+/* LE NIVEAU DE LA LIGUE : trois tuiles par mesure, comme les cinq de
+   l'alignement — une rangée, jamais un pavage, et ce sont les libellés qui
+   raccourcissent. */
+.niv-tuiles {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  margin: 10px 0 8px;
+}
+.niv-tuile {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
+}
+.niv-tuile .k { font-size: 10.5px; color: var(--muted); line-height: 1.15; }
+.niv-tuile b { font: 800 19px/1 var(--display); letter-spacing: .02em; }
+.niv-tuile b small { font-size: 12px; color: var(--muted); font-weight: 700; }
+.niv-table td.heros { font-weight: 800; }
+
+/* LE MOMENT DE LA BLESSURE. Il prend la tête des actions de l'écran de
+   saison — c'est ce qu'il faut lire et décider maintenant — sans rien
+   bloquer : « Journée suivante » reste dessous, et ne rien faire est un
+   choix. Le filet rouge est celui du direct (`--live`), pas un rouge neuf. */
+.hub-alerte {
+  flex: 1 1 100%;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 9px 11px; margin-bottom: 2px;
+  background: color-mix(in srgb, var(--live) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--live) 45%, transparent);
+  border-left: 3px solid var(--live);
+  border-radius: var(--r-s);
+}
+.hub-alerte-tete { font: 800 15.5px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.hub-alerte-note { font-size: 12px; color: var(--sub); line-height: 1.35; }
+.hub-alerte .btn { align-self: flex-start; min-height: 34px; padding: 5px 12px; }
+
+/* LE PALIER : trois cartes, une à prendre. Chacune dit ce qu'elle ACHÈTE et
+   ce qu'elle COÛTE — le vert et le rouge du plafond et du différentiel, pas
+   des couleurs neuves. La rangée se balaie si elle déborde : trois cartes
+   dans 390 px, c'est 118 px chacune. */
+.hub-cartes {
+  flex: 1 1 100%;
+  padding: 9px 11px; margin-bottom: 2px;
+  background: color-mix(in srgb, var(--gold) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--r-s);
+}
+.hub-cartes-tete { font: 800 15.5px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--gold); }
+.hub-cartes-rang { display: flex; gap: 7px; margin: 8px 0 6px; overflow-x: auto; scrollbar-width: none; }
+.hub-cartes-rang::-webkit-scrollbar { display: none; }
+/* `.hub-pige` et non `.hub-carte` : LA CARTE DU MATCH PORTE DÉJÀ CE NOM
+   (index.html, le panneau « Prochain match »), et ce bloc-ci le repeignait
+   en bouton — flex, 112 px de large, curseur, bordure. Un nom de classe
+   repris est un défaut muet : rien ne casse, tout se déplace. */
+.hub-pige {
+  flex: 1 0 0; min-width: 112px;
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  padding: 8px 9px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
+  color: var(--text);
+}
+.hub-pige:hover { border-color: var(--gold); }
+.hub-pige-nom { font: 800 13px/1.15 var(--display); letter-spacing: .02em; }
+.hub-pige-bon { font-size: 10.5px; line-height: 1.25; color: var(--green); }
+.hub-pige-prix { font-size: 10.5px; line-height: 1.25; color: var(--live); }
+.hub-cartes-note { font-size: 11px; color: var(--muted); line-height: 1.3; }
 .eq-table td.heros, .eq-table th.heros { color: var(--gold); }
 .eq-table td.sub-cell { color: var(--muted); font: 700 11px/1 var(--display); }
 .eq-joueur { background: none; border: none; color: var(--ink); font: inherit; padding: 0; cursor: pointer; text-align: left; }

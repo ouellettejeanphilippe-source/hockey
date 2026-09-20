@@ -24,7 +24,8 @@ import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
-  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles } from './sim.js';
+  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
+  CARTES } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { ouvrirEquipes } from './equipes.js';
@@ -807,6 +808,9 @@ async function boot() {
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
     saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast,
+    // L'onglet « La ligue » reconstitue la VRAIE fiche des 31 adversaires :
+    // il lui faut le shard de leur saison, et le chargeur le met en cache.
+    getShard,
   });
   // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
   let vierge = false;
@@ -1334,11 +1338,20 @@ function montrerPage(cle) {
       ctx: {
         esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
         teamFull: t => TEAMFULL[t] || t,
-        fiche: p => showPlayerModal(p),
+        // La fiche d'un joueur de la ligue en cours ouvre ses statistiques
+        // SIMULÉES, la vraie saison dessous — c'est déjà ce que fait
+        // `showPlayerModal` avec `sim`. Hors ligue, la vraie saison seule.
+        fiche: (p, enLigue) => showPlayerModal(p, enLigue ? { sim: 'saison' } : {}),
+        statsSim,
       },
       saisons: (state.index.seasons || []).slice().reverse(),
       saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
       charger: getShard,
+      // LA LIGUE EN COURS, si elle existe : ses 32 clubs, avec leurs
+      // alignements. Les objets joueurs y portent DÉJÀ leurs compteurs
+      // simulés et leur vraie saison — l'écran n'a rien à recalculer, il
+      // met les deux nombres l'un sous l'autre.
+      ligue: () => (G.ligue && G.ligue.teams && G.ligue.teams.length > 1 ? G.ligue.teams : null),
     });
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -3224,6 +3237,27 @@ async function reprendreSaison() {
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: b.jour, decisions, reprise: true });
 }
 
+/*
+ * PRENDRE UNE CARTE DE SAISON. C'est une DÉCISION comme le banc : elle entre
+ * dans `G.ligue.decisions`, donc dans la sauvegarde, et la saison se rejoue
+ * de la graine avec elle. Un palier ne se prend qu'une fois — le filtre
+ * enlève une carte déjà prise au même PALIER, pour qu'un rechargement ou un
+ * double clic n'en empile pas deux.
+ *
+ * `palier` et `jour` sont deux choses : le palier est l'offre, le jour est
+ * l'instant où elle entre en vigueur. Rejouer depuis le PALIER rembobinerait
+ * la saison pour qui a laissé passer l'offre et l'a prise vingt journées
+ * plus tard ; on rejoue donc depuis le jour courant.
+ */
+async function choisirCarte(palier, jour, cle) {
+  if (!G.ligue || !CARTES[cle]) return;
+  const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
+  decisions.push({ jour, carte: cle, palier });
+  G.done = false;
+  renderMain();
+  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
+}
+
 /** Le panneau du banc : la journée, la fiche, le prochain match, les blessés, la consigne. */
 function renderBanc() {
   const host = $('bancPanel');
@@ -3351,12 +3385,22 @@ async function runSeason(opts = {}) {
         esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
         // Le bouton du son du plateau bascule la même préférence que les options.
         basculerSons: () => { setOption('sons', G.sons ? 'off' : 'on'); syncOptionsUI(); },
+        // UNE CASE SE NOMME PAR SON RANG, et `slotShort` en est le seul
+        // propriétaire : l'alerte de blessure le lit plutôt que d'écrire sa
+        // propre version (« 2e trio · AD », jamais « Top 6 »).
+        slotShort,
       },
       onTermine: montrer,
       depuis: opts.depuis || 0,
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
       // la reprise a besoin de connaître.
       onJour: j => { G.journee = j; saveGame(); },
+      // LES CARTES DE SAISON : la graine décide de la main offerte à chaque
+      // palier (sans toucher au hasard du moteur), et les paliers déjà pris
+      // se lisent dans les décisions — il n'y a pas d'autre état.
+      graine,
+      cartesPrises: (decisions || []).filter(d => d.carte).map(d => ({ palier: d.palier ?? d.jour, carte: d.carte })),
+      onCarte: choisirCarte,
       // DERRIÈRE LE BANC : l'écran se retire, l'alignement s'ouvre avec les
       // fiches à ce jour, et « Retour au match » rejoue la saison depuis la
       // graine avec la décision (voir `ouvrirBanc`).

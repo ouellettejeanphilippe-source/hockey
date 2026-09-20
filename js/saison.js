@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal, soirEreintant } from './sim.js';
+import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes } from './sim.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { tempsRestant } from './recit.js';
 
@@ -325,7 +325,7 @@ function blocEquipe(ctx, t, ligne, pos) {
  *   onJour      appelé à chaque avance avec le numéro de journée révélée :
  *               c'est ce que le contrôleur écrit dans la sauvegarde
  */
-export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null }) {
+export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -402,8 +402,103 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const k = indexMien(j);
     if (k >= 0) miens.push({ j, k, m: matchs[k] });
   }
-  const avancer = n => {
-    while (n-- > 0 && jour < N) appliquerJour(jour++);
+/*
+   * UNE BLESSURE ARRÊTE LA SAISON. JP : *plus de moment roguelike dans la
+   * saison, comme devoir faire les remplacements lors de blessures*.
+   *
+   * Le moteur blesse déjà — `applyInjuries` retire le joueur de l'alignement
+   * du jour et promeut un réserviste à sa place — mais la saison défilait
+   * par-dessus : on l'apprenait après coup, dans l'onglet des équipes, une
+   * fois les dix journées passées. Il n'y avait donc aucun MOMENT.
+   *
+   * Rien n'est inventé ici : la blessure a déjà eu lieu dans la simulation,
+   * et l'écran ne fait que s'arrêter dessus. Ce qui la rend jouable, c'est le
+   * rail qui existe — « Derrière le banc » remanie l'alignement, pousse une
+   * décision et REJOUE depuis ce jour-là (`reprendreSaison`, js/game.js). La
+   * blessure devient donc une vraie décision, et elle se rejoue comme tout
+   * le reste.
+   *
+   * Le seuil existe parce qu'un match raté n'est pas un événement : sous
+   * `BLESSURE_MOMENT` matchs, la saison continue sans rien dire.
+   */
+  /*
+   * LES CARTES DE SAISON. À trois paliers, on prend une carte parmi trois —
+   * un bonus payé par un malus (`CARTES`, js/sim.js). La main offerte se
+   * tire de la GRAINE et du jour, donc la même partie rejouée offre
+   * exactement les mêmes trois cartes ; et prendre une carte est une
+   * DÉCISION, donc la saison se rejoue de la graine avec elle.
+   *
+   * Un palier ARRÊTE l'avance UNE FOIS : c'est un moment, pas une
+   * notification qu'on dépasse. Il ne bloque rien — « Journée suivante »
+   * reste dessous et l'offre tient tant qu'on ne l'a pas prise — mais il ne
+   * s'arrête pas deux fois, sans quoi « +10 journées » avancerait d'UNE
+   * journée par clic pour qui a décidé de ne pas choisir. C'est la règle
+   * des blessures, appliquée aux paliers.
+   *
+   * DEUX CLÉS, PAS UNE. Le PALIER dit quelle offre est déjà servie ; le JOUR
+   * où la carte a été prise, lui, est celui où elle entre en vigueur, et les
+   * deux diffèrent dès qu'on laisse passer un palier sans choisir. Les
+   * confondre rembobinerait la saison au palier — on perdrait les journées
+   * déjà lues pour une carte prise après coup.
+   */
+  const prises = new Set(cartesPrises.map(x => x.palier));
+  // Les cartes DÉJÀ prises ne reparaissent pas dans une main : on compose
+  // une saison, on n'empile pas trois fois le même curseur.
+  const dejaPrises = cartesPrises.map(x => x.carte);
+  const palierOuvert = () => (onCarte ? PALIERS_CARTES.find(j => jour >= j && !prises.has(j)) : undefined);
+  const paliersVus = new Set();      // les paliers qui ont déjà arrêté l'avance
+
+  const BLESSURE_MOMENT = 4;
+
+  /* La case qu'occupait le blessé, nommée comme partout ailleurs. */
+  const caseDe = p => {
+    const s = SLOTS.find(x => you.roster[x.i] === p);
+    return s ? (ctx.slotShort ? ctx.slotShort(s) : s.role) : 'Réserviste';
+  };
+  /*
+   * QUI PREND SA PLACE. `activeLineup` promeut le premier réserviste
+   * compatible, sinon la case reste vide et le moteur y met un rappel — et
+   * c'est précisément ce qu'il faut dire : une case vide coûte cher, et
+   * c'est la raison d'aller derrière le banc.
+   */
+  const remplacant = p => {
+    const s = SLOTS.find(x => you.roster[x.i] === p);
+    if (!s || s.scratch) return 'il était réserviste';
+    const libre = SLOTS.filter(x => x.scratch)
+      .map(x => you.roster[x.i])
+      .find(r => r && !you.injured.has(r) && (s.group === 'G' ? r.p === 'G' : s.group === 'D' ? r.p === 'D' : r.p === 'F'));
+    return libre ? `${libre.n} monte` : 'aucun réserviste ne peut le remplacer';
+  };
+  let alerte = null;                 // la blessure à annoncer, ou null
+  const vues = new Set();            // les entrées du journal déjà annoncées
+
+  /* Les blessures survenues jusqu'ici et jamais annoncées, la plus longue en tête. */
+  function blessuresNeuves() {
+    const joues = miens.length;
+    return (you.injuriesLog || [])
+      .filter(b => !vues.has(b) && b.at <= joues && b.games >= BLESSURE_MOMENT
+        // Elle doit encore courir : annoncer une blessure déjà finie n'a
+        // aucun sens quand on avance de dix journées d'un coup.
+        && b.at + b.games > joues)
+      .sort((x, y) => y.games - x.games);
+  }
+
+  /*
+   * `stop` : on s'arrête à la première blessure d'importance. « Journée
+   * suivante » et « +10 » s'arrêtent, « La fin » non — qui demande la fin
+   * demande la fin.
+   */
+  const avancer = (n, stop = false) => {
+    while (n-- > 0 && jour < N) {
+      appliquerJour(jour++);
+      const pal = palierOuvert();
+      if (stop && (blessuresNeuves().length || (pal !== undefined && !paliersVus.has(pal)))) break;
+    }
+    const pal = palierOuvert();
+    if (pal !== undefined) paliersVus.add(pal);
+    const neuves = blessuresNeuves();
+    alerte = neuves.length ? neuves[0] : null;
+    if (alerte) vues.add(alerte);
     // La journée révélée est la seule chose que la reprise a besoin de savoir :
     // tout le reste se rejoue de la graine.
     if (onJour) onJour(jour);
@@ -556,7 +651,32 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     // DEUX RANGÉES, PAS QUATRE (S30) : « Journée suivante » en grand, et les
     // quatre autres en une rangée compacte — le direct, le banc, dix
     // journées, la fin. Sur téléphone, les cinq boutons prenaient 280 px.
-    actions.innerHTML = `<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
+    // LE MOMENT DE LA BLESSURE : il prend la tête des actions, parce que
+    // c'est ce qu'il faut lire et décider maintenant. Il ne bloque rien —
+    // « Journée suivante » reste dessous, et ne rien faire est un choix.
+    // LE PALIER : trois cartes, une à prendre. Il passe AVANT la blessure —
+    // c'est le choix qui engage le reste de la saison.
+    const pal = palierOuvert();
+    const cartes = pal === undefined ? '' : `<div class="hub-cartes" role="group" aria-label="Choisis une carte">
+      <div class="hub-cartes-tete">Journée ${pal} · prends une carte</div>
+      <div class="hub-cartes-rang">${mainDeCartes(graine, pal, dejaPrises).map(cle => {
+        const c = CARTES[cle];
+        // `.hub-pige`, PAS `.hub-carte` : la carte du prochain match porte
+        // déjà ce nom-là dans index.html.
+        return `<button type="button" class="hub-pige" data-carte="${ctx.esc(cle)}">
+          <span class="hub-pige-nom">${c.ico} ${ctx.esc(c.nom)}</span>
+          <span class="hub-pige-bon">+ ${ctx.esc(c.bon)}</span>
+          <span class="hub-pige-prix">− ${ctx.esc(c.prix)}</span>
+        </button>`;
+      }).join('')}</div>
+      <div class="hub-cartes-note">Elle vaut pour le reste de la saison. Ne pas choisir est un choix : l'offre tient jusqu'à la fin.</div>
+    </div>`;
+    const bless = alerte ? `<div class="hub-alerte" role="status">
+      <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
+      <div class="hub-alerte-note">${alerte.games} match${alerte.games > 1 ? 's' : ''} d'absence · ${ctx.esc(caseDe(alerte.player))} · ${ctx.esc(remplacant(alerte.player))}</div>
+      ${onBanc ? `<button class="btn gold hub-alerte-banc">Derrière le banc</button>` : ''}
+    </div>` : '';
+    actions.innerHTML = `${cartes}${bless}<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
       <div class="hub-actions-rang">
       ${p ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>` : ''}
       ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Le banc</button>` : ''}
@@ -567,8 +687,15 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (regarder) regarder.onclick = regarderProchain;
     const banc = actions.querySelector('.hub-banc');
     if (banc) banc.onclick = () => { quitter(); onBanc(jour); };
-    actions.querySelector('.hub-jour').onclick = () => { avancer(1); dessiner(); tabs.montrer('journee'); };
-    actions.querySelector('.hub-dix').onclick = () => { avancer(10); dessiner(); tabs.montrer('fiche'); };
+    const alBanc = actions.querySelector('.hub-alerte-banc');
+    if (alBanc) alBanc.onclick = () => { quitter(); onBanc(jour); };
+    actions.querySelectorAll('[data-carte]').forEach(b => {
+      // Le palier ET la journée courante : la carte vaut à partir de MAINTENANT.
+      b.onclick = () => { const p = pal, j = jour; quitter(); onCarte(p, j, b.dataset.carte); };
+    });
+    actions.querySelector('.hub-jour').onclick = () => { avancer(1, true); dessiner(); tabs.montrer('journee'); };
+    actions.querySelector('.hub-dix').onclick = () => { avancer(10, true); dessiner(); tabs.montrer('fiche'); };
+    // « La fin » ne s'arrête pas : qui demande la fin demande la fin.
     actions.querySelector('.hub-fin').onclick = () => { avancer(N); dessiner(); tabs.montrer('classement'); };
   }
 
