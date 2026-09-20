@@ -28,7 +28,7 @@ import {
   CARTES } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { ouvrirEquipes } from './equipes.js';
+import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
@@ -3063,21 +3063,30 @@ function showTeamModal(t, mode = 'saison') {
       <tbody>${resultats || '<tr><td colspan="5">Aucun match.</td></tr>'}</tbody>
     </table></div>
     <div class="section-label" id="eqVraieTitre">Sa vraie saison ${esc(t.season || '')} · reconstituée</div>
-    <div class="stat-grid" id="eqVraie"><div class="dash-note">On reconstitue la vraie saison…</div></div>`;
+    <div class="stat-grid" id="eqVraie"><div class="dash-note eq-vraie-attente">On reconstitue la vraie saison…</div></div>`;
   /*
    * LA VRAIE SAISON ARRIVE EN ASYNCHRONE, comme dans l'onglet « La ligue » :
    * elle sort du shard du club, pas de la ligue en cours. Ce qui est
    * RECONSTITUÉ est dit comme tel — un shard porte des joueurs et pas un
    * classement, donc la fiche V-D vient des gardiens et le troisième nombre
    * est ce qui reste.
+   *
+   * UNE CASE ABSENTE SE TAIT (la règle de `grilleSim`, S60) : un club dont
+   * un gardien a été échangé n'a pas de nuls déductibles, et quatre clubs
+   * sur 1396 n'ont aucun gardien à eux. `motDeClub` dit alors pourquoi,
+   * plutôt que de laisser un zéro l'affirmer.
    */
   if (t.isPlayer || !t.season) { $('eqVraie')?.remove(); $('eqVraieTitre')?.remove(); }
   else ficheReelleDe(t).then(f => {
     const h = $('eqVraie');
     if (!h) return;
-    if (!f) { h.innerHTML = '<div class="dash-note">Sa vraie saison n\'a pas pu être lue.</div>'; return; }
-    h.innerHTML = cellStat('PJ', f.mj) + cellStat('V', f.V, true) + cellStat('D', f.D)
-      + cellStat('N', f.N) + cellStat('BP', f.BP) + cellStat('BC', f.BC);
+    if (!f) { h.innerHTML = '<div class="dash-note eq-vraie-attente">Sa vraie saison n\'a pas pu être lue.</div>'; return; }
+    const mot = motDeClub(f);
+    h.innerHTML = cellStat('PJ', f.mj)
+      + (f.V == null ? '' : cellStat('V', f.V, true) + cellStat('D', f.D))
+      + (f.N == null ? '' : cellStat('N', f.N))
+      + cellStat('BP', f.BP) + (f.BC == null ? '' : cellStat('BC', f.BC))
+      + (mot ? `<div class="dash-note eq-vraie-mot">${esc(mot)}</div>` : '');
   });
   openModal('gameModal');
 }

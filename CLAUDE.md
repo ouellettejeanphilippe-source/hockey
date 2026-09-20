@@ -152,6 +152,12 @@ scripts/check_table.mjs     le match sur table : les égalités de sa feuille, l
 scripts/check_regles.mjs    le plateau est-il COHÉRENT ? quinze règles vérifiées
                             entre chaque geste, et les règles écrites comparées
                             aux gestes que le moteur joue vraiment
+scripts/check_fiches.mjs    la fiche reconstituée d'un club, sur les 1396 clubs :
+                            V + D tient dans le calendrier, le calendrier d'un
+                            club ne dépasse pas celui de sa saison, les nuls ne
+                            se déduisent que d'un effectif complet, trois fiches
+                            d'anthologie au match près, et l'ÉCART entre les
+                            deux colonnes de buts
 scripts/check_coquille.mjs  la coquille hors ligne : le graphe de modules, les
                             styles, la police et le filet `data/seed.json`
                             sont-ils tous dans le `FICHIERS` de sw.js ?
@@ -701,7 +707,21 @@ Mesuré après : **zéro but de la zone neutre**, 67 % des buts de l'enclave col
 
 **Le garde-fou pose les deux questions, et les deux ont été prouvées en cassant le dépôt.** `smoke.mjs` compte les noms MUETS aux meneurs et dans la feuille d'une équipe, ouvre le premier, et compare ses **matchs joués à la journée courante** — une fiche honnête ne peut pas en porter davantage. Remis à `'saison'` : « la fiche dévoile la fin : 82 matchs joués à la journée 46 ». Retiré du `ctx` : « 60 nom(s) sur 60 ne s'ouvrent pas aux meneurs ». **Et il a fallu lui apprendre à parler** : la première version pushait l'erreur puis cliquait quand même, donc Playwright attendait trente secondes un bouton absent et mourait sur « Timeout » sans nommer la cause — la leçon de S46, dans un test neuf. Au bilan, la règle ne peut pas être « toute cellule de gauche s'ouvre » : un carton porte aussi l'arc de la saison, dont la première colonne est « 1-10 ». Ce qui ne peut pas arriver, c'est qu'**une rangée d'une colonne de noms reste muette pendant que ses voisines s'ouvrent** — et « Tes cartes » est exclu des listes, parce qu'une carte n'est pas un joueur.
 
-**Ce qui reste à faire, mesuré mais pas corrigé** : `ficheDeClub` (`js/equipes.js`) somme les matchs de TOUS les gardiens d'un club, et un gardien échangé porte sa saison entière sous chacun de ses clubs — Ottawa 2005-06 se lit donc « 107 PJ, 62 V » pour un club qui a joué 82 matchs. Mesuré sur les 1396 clubs : **24 %** tombent à ±2 matchs du calendrier de leur époque, et sauter les `x` (ce que la colonne des buts pour fait déjà) ne rend que 25 % — Colorado 2024-25 tombe alors à **zéro match**, ses quatre gardiens ayant tous changé de club. Le défaut précède ce chantier et se lit déjà dans l'écran des équipes et dans l'onglet « La ligue » ; le corriger demande de déduire le calendrier de chaque saison et de décider ce qu'on fait des minutes d'un gardien échangé. C'est un chantier à part, avec sa propre mesure.
+**La fiche reconstituée d'un club : l'échangé sort du total, et le calendrier n'est pas la somme des présences (S61).** JP, devant le défaut noté en S60 : *fiche de club, tu peux avoir les deux gardiens, et le total séparé des deux équipes, dont un qui est pas dans le total*. Il avait raison, et la mesure a montré que **deux** causes se superposaient — la sienne, et une autre qui n'a rien à voir avec les échanges.
+
+**(1) Un joueur échangé porte sa saison entière sous CHACUN de ses clubs.** La colonne des buts pour sautait déjà les `x` pour ça ; les gardiens, non. Ottawa 2005-06 se lisait donc « 62-25 » pour un club qui a fait 52-21-9 : les 25 matchs de Mike Morrison, dont la plupart à Edmonton, comptaient ici en entier. Les gardiens échangés sortent du total, exactement comme les patineurs.
+
+**(2) Le nombre de matchs n'est pas la somme des présences des gardiens.** Deux gardiens comptent chacun leur match quand l'un relève l'autre : **Saint Louis 2005-06 additionne 96 présences dans un calendrier de 82, sans un seul échange**, et Pittsburgh 2012-13 en additionne 53 dans les 48 de la saison écourtée. C'est la moitié du défaut, et elle n'a rien à voir avec les échanges — sans elle, la règle de JP seule n'aurait rien réglé sur les trois quarts des clubs. Le calendrier se déduit donc du club : le plus grand nombre de matchs joués par un de ses joueurs NON échangés (exact pour **89 %** des clubs, à un match près pour **96 %**, et il ne SURESTIME jamais), et jamais moins que V + D, qui en est l'autre plancher.
+
+**Mesuré, et c'est le différentiel qui payait.** Contre le vrai total de buts d'une saison — dérivable du shard lui-même en dédoublonnant les joueurs par identifiant — les buts pour sous-comptaient de **8,7 %** (les échangés sautés, assumé) et les buts contre SUR-comptaient de **8,5 %** : **17 points d'écart entre deux colonnes qu'on lit l'une contre l'autre**, donc un différentiel de club systématiquement pessimiste. Il tombe à **4,3 %**, les deux colonnes sous-comptant maintenant ensemble. Sur les fiches : Ottawa 2005-06 passe de `62-25-20, +30` à `51-21, +104` (vrai : 52-21-9, +103), Pittsburgh 2012-13 à `36-12` sur 48 matchs (exact), et le Canadien de 1976-77 retombe pile sur `60-8-12`.
+
+**Le troisième nombre ne se déduit que d'un effectif complet.** Sur un club à qui il manque un gardien, le reste du calendrier porte aussi les matchs de ce gardien-là — **29 de médiane au lieu de 12** — et écrire « 29 nuls » mentirait plus fort que de ne rien écrire. Il vaut donc `null` et la fiche porte **⇄**, le même signe que la rangée d'un joueur échangé : une ligne partagée avec un autre club (23 % des clubs). Et **quatre clubs sur 1396 n'ont aucun gardien à eux** — le Canadien de 1995-96 (l'année de l'échange de Roy), Edmonton 2013-14, Buffalo 2014-15, le Colorado 2024-25 : leur fiche V-D ne se reconstitue pas, elle affiche **—** et dit pourquoi. C'est la règle de `grilleSim` (S60) appliquée à un club : une case absente se tait, un zéro ment.
+
+**`ligneDeClub` et `motDeClub` sont les seuls propriétaires du format** : cinq écrans portaient chacun leur copie de `${f.V}-${f.D}${f.N ? …}`, donc aucun ne savait quoi faire d'un nombre absent. **Et `tauxDeClub` lit les matchs qu'on sait attribuer, jamais le calendrier entier** : l'onglet « La ligue » divisait par le calendrier, ce qui aurait fait passer Ottawa 2005-06 pour 0,62 au lieu de 0,69 dès qu'un gardien en sort.
+
+**`scripts/check_ratings.mjs` garde sa propre reconstitution et NE BOUGE PAS**, parce qu'elle lit un TAUX et non des totaux : retirer les échangés déplace `V / (V + D)` de **0,0000 en médiane** sur les 1392 clubs. Un taux absorbe l'échange ; c'est pour ça que la corrélation force/classement de 0,777 n'a jamais eu l'air fausse pendant que la fiche affichée, elle, l'était. Ne va pas « harmoniser » les deux sans remesurer la corrélation.
+
+**Un défaut introduit en le corrigeant, et le garde-fou de S60 l'aurait crié à tort.** Le mot qui explique une fiche partielle et le mot « On reconstitue la vraie saison… » portaient tous deux `.dash-note` — et `smoke.mjs` lit « il reste une note » pour dire « la vraie saison n'est pas arrivée ». Sur 23 % des clubs, le test aurait attendu vingt secondes puis rougi sur une page parfaitement saine. L'attente porte sa propre classe (`.eq-vraie-attente`). **Deux choses qui se ressemblent à l'écran et qui ne veulent pas dire la même chose ne partagent pas de classe.**
 
 **Le joueur va où il rend.** `slotFitScore` dans `js/game.js` classe les cases libres par position naturelle d'abord, puis par zone d'efficacité : un joueur de calibre quatrième trio se propose au quatrième trio, pas au premier parce qu'il était vide. Les réservistes viennent en dernier.
 
@@ -965,6 +985,7 @@ node scripts/check_traits.mjs        # les traits restent rares et se voient
 ESSAIS=4 LIGUES=4 node scripts/check_builds.mjs   # les bâtis défensif et robuste mènent quelque part
 LIGUES=8 node scripts/check_pm.mjs   # le +/- par rang d'unité, l'écart du haut au bas, les jumeaux
 node scripts/check_cartes.mjs        # chaque carte de saison vaut moins d'une victoire
+node scripts/check_fiches.mjs        # la fiche reconstituée d'un club, sur les 1396 clubs
 ```
 
 Et si tu touches à `js/table.js` (le mode bonus), c'est son propre script qui juge — il ne partage aucune constante avec le moteur par événements :
@@ -997,7 +1018,7 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 
 `node scripts/smoke_table.mjs http://localhost:8000` fait le même parcours en mode bonus : l'option « Sur table » dans les options, le même auto-draft, le tournoi (`#hubModal`), le plateau (`#tableModal`, 247 cases, deux filets d'une case) où il joue un match geste par geste — il touche une pièce, lit les cases allumées, choisit des modes, dégage, tire, saute des verdicts en touchant la glace, dépense des relances d'équipe, change de trio — puis le reste du tournoi et le bilan. Il échoue si moins de quinze gestes ont pu être joués : c'est ce qui attrape une interface qui se fige.
 
-L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `check_feuilles.mjs` sur une ligue, plus `check_table.mjs`, `check_regles.mjs` et `smoke_table.mjs`. Les scripts de calibration (monotonie, plafond, tireurs) restent à lancer à la main.
+L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `check_feuilles.mjs` sur une ligue, plus `check_fiches.mjs`, `check_table.mjs`, `check_regles.mjs` et `smoke_table.mjs`. Les scripts de calibration (monotonie, plafond, tireurs) restent à lancer à la main.
 
 ## Ce qu'il ne faut pas faire
 

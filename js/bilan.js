@@ -17,7 +17,7 @@ import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
-import { ficheDeClub } from './equipes.js';
+import { ficheDeClub, tauxDeClub } from './equipes.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
 let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard;
@@ -408,8 +408,10 @@ function niveauDeLigue(teams, reelles) {
     const sos = j.length ? j.reduce((a, m) => a + ((m.adv && m.adv.PTS) || 0), 0) / j.length : 0;
     const attendu = brut[i] * total / sommeBrut;
     const reelle = t.season ? reelles.get(`${t.season}|${t.tag}`) : null;
-    // Le vrai pourcentage de victoires du club, les nuls comptant pour moitié.
-    const vrai = reelle && reelle.mj ? (reelle.V + reelle.N / 2) / reelle.mj : null;
+    // Le vrai pourcentage de victoires du club, les nuls comptant pour moitié
+    // — sur les matchs qu'on sait attribuer, jamais sur le calendrier entier
+    // (voir `tauxDeClub`, js/equipes.js : un gardien échangé sort du total).
+    const vrai = reelle ? tauxDeClub(reelle) : null;
     return { t, sos, attendu, ecart: t.PTS - attendu, reelle, vrai };
   });
 }
