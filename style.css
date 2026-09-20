@@ -2613,9 +2613,22 @@ table.data .pts { font-weight: 900; color: var(--green); }
    La carte et les actions ne bougent pas ; seul le volet change. */
 .hub-carte { padding: 10px 14px 0; }
 .hub-carte:empty { display: none; }
+/*
+   LE BLOC QUI GRANDIT EST CELUI QUI PLIE (S55). La carte des trois choix
+   (S54) et l'alerte de blessure (S53) s'ajoutent en TÊTE des actions. Les
+   deux ouvertes en même temps, la colonne dépassait la hauteur de la
+   feuille : le volet est tombé à 22 px, puis il n'avait plus rien à céder
+   (sa base est 0, il ne rétrécit plus), et les 38 px qui restaient sont
+   sortis PAR LE BAS — mesuré à 390 px. Une barre d'onglets hors du cadre
+   d'une feuille en `position: fixed` ne se clique plus : Playwright a
+   réessayé soixante-deux fois avant d'abandonner sur « html intercepts
+   pointer events ». `min-height: 0` rend donc les actions rétrécissables et
+   `overflow-y` leur fait absorber le débordement chez elles, au lieu de le
+   pousser sur leurs voisins. */
 .hub-actions {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 10px 14px; border-bottom: 1px solid var(--line-soft);
+  flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
 }
 .hub-actions .btn { flex: 1 1 140px; min-height: 42px; }
 .hub-actions .hub-jour { flex: 1 1 100%; }

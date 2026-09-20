@@ -455,6 +455,56 @@ async function traverserSaison(etiquette, reprise = false) {
       if (suivantes.length !== 3) errors.push(`le palier suivant offre ${suivantes.length} cartes au lieu de trois`);
       else if (suivantes.includes(pris)) errors.push(`la carte « ${pris} », déjà prise, reparaît au palier suivant : ${suivantes.join(' · ')}`);
       else console.log(`   palier ${jPalier} : ${offertes.join(' · ')} → « ${pris} » prise au jour ${jPrise}, palier suivant ${suivantes.join(' · ')}`);
+
+      /*
+       * LE PALIER NE POUSSE RIEN HORS DE L'ÉCRAN. La carte des trois choix
+       * s'ajoute EN TÊTE des actions, et l'alerte de blessure juste dessous :
+       * deux blocs hauts de plus dans une colonne dont seul le volet peut
+       * rétrécir. Quand les deux sont ouverts en même temps, la barre
+       * d'onglets sortait par le bas — et un bouton hors du cadre d'une
+       * feuille en `position: fixed` ne se clique plus : Playwright a
+       * réessayé soixante-deux fois avant d'abandonner sur « html intercepts
+       * pointer events », un échec qui ne nomme rien. On le MESURE ici, dans
+       * l'état exact qui l'a produit.
+       */
+      /*
+       * LE PIRE CAS SE FABRIQUE, IL NE S'ATTEND PAS. Le débordement demande
+       * la carte ET l'alerte de blessure en même temps, et une blessure au
+       * bon jour est un tirage : la mesure ne serait vraie qu'une fois sur
+       * plusieurs, donc le garde-fou sauterait en silence la plupart du
+       * temps — « un test qui dépend du tirage n'est pas un test, c'est une
+       * loterie ». Quand l'alerte n'est pas là, on en pose une du même
+       * gabarit, on mesure, et on la retire.
+       */
+      const place = await page.evaluate(() => {
+        const actions = document.querySelector('#hubModal .hub-actions');
+        const vraie = !!document.querySelector('#hubModal .hub-alerte');
+        let faux = null;
+        if (actions && !vraie) {
+          faux = document.createElement('div');
+          faux.className = 'hub-alerte';
+          faux.innerHTML = '<div class="hub-alerte-tete">🚑 Untel est blessé</div>'
+            + '<div class="hub-alerte-note">8 matchs d\'absence · 1re paire · DD · Untel monte</div>'
+            + '<button class="btn gold">Derrière le banc</button>';
+          actions.prepend(faux);
+        }
+        const b = document.querySelector('#hubModal .hub-onglets');
+        if (!b) { if (faux) faux.remove(); return null; }
+        const r = b.getBoundingClientRect();
+        const bas = Math.round(window.innerHeight - r.bottom);
+        const el = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+        const out = {
+          bas,
+          carte: !!document.querySelector('#hubModal .hub-cartes'),
+          alerte: vraie ? 'vraie' : 'posée pour la mesure',
+          atteignable: !!el && (el === b || b.contains(el)),
+        };
+        if (faux) faux.remove();
+        return out;
+      });
+      if (!place) errors.push('la barre d\'onglets a disparu de l\'écran de saison');
+      else if (place.bas > 4 || !place.atteignable) errors.push(`le palier pousse la barre d'onglets hors de l'écran : ${place.bas} px sous le bas, atteignable ${place.atteignable} (carte ${place.carte}, alerte ${place.alerte})`);
+      else console.log(`   le palier ne pousse rien : barre collée au bas (${place.bas} px), atteignable — carte ${place.carte}, alerte ${place.alerte}`);
     }
   }
   /*
@@ -472,7 +522,10 @@ async function traverserSaison(etiquette, reprise = false) {
     });
     if (!ou) errors.push("l'écran de saison n'a plus de barre d'onglets");
     else if (ou.barre < ou.volet) errors.push(`la barre de l'écran de saison est au-dessus du volet (${ou.barre} px contre ${ou.volet}) : une barre d'onglets est en bas`);
-    else if (ou.fond > 4) errors.push(`la barre de l'écran de saison flotte à ${ou.fond} px du bas`);
+    // `Math.abs` : le contrôle ne voyait qu'une barre qui FLOTTE au-dessus du
+    // bas. Une barre POUSSÉE sous le bas donne un écart négatif, donc il la
+    // laissait passer — c'est exactement ce que le palier faisait (−38 px).
+    else if (Math.abs(ou.fond) > 4) errors.push(`la barre de l'écran de saison est à ${ou.fond} px du bas`);
     else console.log(`   une seule barre, et elle est en bas : volet à ${ou.volet} px, barre à ${ou.barre} px, collée au bas`);
   }
   await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
