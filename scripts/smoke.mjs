@@ -87,6 +87,67 @@ async function sansDebordement(ou) {
   return trop;
 }
 /*
+ * ON DOIT POUVOIR ATTEINDRE CE QU'ON TOUCHE — et c'était l'angle mort du
+ * test de fumée.
+ *
+ * JP : *l'interface glisse pas pour derrière le banc sur mon cell*. Trois
+ * défauts de défilement vivaient dans le dépôt, tous invisibles ici : le
+ * volet du banc repassé en `display: block` (donc `.roster` n'était plus un
+ * item flex, il grandissait à 1497 px et `.game` le coupait), la bande du
+ * bassin en `align-items: start` (donc les colonnes prenaient la hauteur de
+ * leur contenu au lieu d'être bornées, et leur `overflow-y` ne servait à
+ * rien), et les rangées de l'alignement qui s'écrasaient de 153 px à 48 en
+ * se chevauchant.
+ *
+ * POURQUOI RIEN NE LES A VUS. `sansDebordement` ne regarde que la largeur ;
+ * `pasUneLonguePage` ne regarde que le document, qui est borné par
+ * construction ; et l'auto-draft signe par `b.click()` en JavaScript, ce qui
+ * ne demande ni visibilité ni défilement. Trois garde-fous verts au-dessus
+ * d'une interface où l'on ne pouvait pas atteindre la moitié des joueurs.
+ *
+ * CE QUE CELUI-CI MESURE, en deux questions posées à chaque élément de
+ * texte :
+ *   — est-il SOUS LE PLI sans qu'aucun ancêtre puisse défiler jusqu'à lui ?
+ *   — est-il COUPÉ au-delà de ce que le défilement d'un ancêtre révélerait
+ *     (son bas dépasse le `scrollHeight` de la boîte qui le rogne) ?
+ * La seconde attrape ce que la première ne peut pas voir : du contenu
+ * ÉCRASÉ n'est pas sous le pli, il est à l'intérieur d'une boîte qui a plié
+ * pour tenir, et c'est exactement ce que faisaient les rangées de
+ * l'alignement.
+ */
+async function toutEstAtteignable(ou) {
+  const mauvais = await page.evaluate(() => {
+    const st = el => getComputedStyle(el);
+    const rogne = el => { const s = st(el); return ['hidden','auto','scroll'].includes(s.overflowY) || ['hidden','auto','scroll'].includes(s.overflowX); };
+    const defile = el => { const o = st(el).overflowY; return (o === 'auto' || o === 'scroll') && el.scrollHeight - el.clientHeight > 1; };
+    const vu = el => { const s = st(el); if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0) return false;
+      const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const nom = el => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '')
+      + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+    const out = [];
+    for (const el of document.querySelectorAll('body *')) {
+      if (!vu(el) || el.children.length || !(el.textContent || '').trim()) continue;
+      const r = el.getBoundingClientRect();
+      if (r.top >= innerHeight - 1 || r.bottom <= 1) {
+        let p = el.parentElement, ok = false;
+        while (p && !ok) { if (defile(p)) ok = true; p = p.parentElement; }
+        if (!ok && defile(document.scrollingElement)) ok = true;
+        if (!ok) { out.push(`« ${(el.textContent || '').trim().slice(0, 36)} » (${nom(el)}) est sous le pli et rien ne défile jusqu'à lui`); continue; }
+      }
+      let c = el.parentElement;
+      while (c && !rogne(c)) c = c.parentElement;
+      if (!c) continue;
+      const rc = c.getBoundingClientRect();
+      const bas = r.bottom - rc.top + c.scrollTop;
+      if (bas > c.scrollHeight + 2) out.push(`« ${(el.textContent || '').trim().slice(0, 36)} » (${nom(el)}) dépasse de ${Math.round(bas - c.scrollHeight)} px ce que ${nom(c)} peut révéler`);
+    }
+    return [...new Set(out)];
+  });
+  if (mauvais.length) errors.push(`hors de portée — ${ou} : ${mauvais.slice(0, 3).join(' | ')}${mauvais.length > 3 ? ` (+${mauvais.length - 3})` : ''}`);
+  return mauvais.length;
+}
+
+/*
  * JAMAIS UNE LONGUE PAGE. JP : *jamais longue pages, fait onglets si
  * nécessaire* ; *vraiment assurer interface clean, facile à naviguer, peu
  * importe petit écran ou 4k pc*.
@@ -190,7 +251,7 @@ console.log(`2. ${signed}/23 signés`);
 // Le vestiaire est plein : c'est le moment où le DOM porte le plus de cartes,
 // donc le moment où une cote qui fuit se verrait, et où la mise en page est
 // la plus chargée.
-console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await sansCote('vestiaire plein')} cote(s) dans le DOM`);
+console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await sansCote('vestiaire plein')} cote(s) dans le DOM, ${await toutEstAtteignable('vestiaire plein')} hors de portée`);
 await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
 
 /*
@@ -285,6 +346,7 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
     if (e.page !== cle) errors.push(`l'onglet « ${cle} » ne pose pas la page : body[data-page] vaut « ${e.page} »`);
     if (e.ecrans > 1.05) errors.push(`l'onglet « ${cle} » fait ${e.ecrans} écrans : une page est une boîte bornée dont le CORPS défile`);
     await sansDebordement(`l'onglet ${cle}`);
+    await toutEstAtteignable(`l'onglet ${cle}`);
     if (cle === 'alignement') {
       const intrus = ['spin', 'dash', 'pool'].filter(k => e[k]);
       if (intrus.length) errors.push(`l'onglet de l'alignement porte aussi ${intrus.join(', ')} : un onglet, une raison d'être`);
@@ -357,6 +419,14 @@ async function traverserSaison(etiquette, reprise = false) {
     const teteAvantBanc = apres;
     await page.click('#hubModal .hub-banc');
     await page.waitForSelector('#bancPanel:not([hidden])', { timeout: 5000 });
+    await page.waitForTimeout(300);
+    /*
+     * C'EST L'ÉCRAN QUE JP A SIGNALÉ, et le garde-fou est posé dessus.
+     * `#game.banc #paneRoster { display: block }` battait le contrat de
+     * hauteur en spécificité : `.roster` cessait d'être un item flex et
+     * grandissait à 1497 px sous une fenêtre de 844, coupé sans défilement.
+     */
+    await toutEstAtteignable('derrière le banc');
     const banc = (await page.textContent('#bancPanel')).replace(/\s+/g, ' ').trim();
     const ficheBanc = (banc.match(/(\d+-\d+-\d+)/) || [])[1];
     if (!ficheBanc || !teteAvantBanc.includes(ficheBanc)) errors.push(`le banc ne dit pas la fiche de l'écran de saison : « ${banc.slice(0, 80)} »`);
@@ -862,6 +932,7 @@ if (enabled) {
     if (pose !== v) errors.push(`l'onglet « ${v} » ne pose pas la page : body[data-page] vaut « ${pose} »`);
     hauteurs[v] = await pasUneLonguePage(`le bilan · ${v}`);
     await sansDebordement(`le bilan · ${v}`);
+    await toutEstAtteignable(`le bilan · ${v}`);
   }
   console.log(`   jamais une longue page : ${Object.entries(hauteurs).map(([k, n]) => `${k} ${n}×`).join(' · ')}`);
   await page.click('.navtab[data-page="bilan"]');

@@ -3302,7 +3302,10 @@ function renderBanc() {
     </div>
     ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
     <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
-    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. Touche 🔒 sur un trio pour en faire ton <b>trio de fermeture</b> : c'est lui qui prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}${b.fermeture === 'auto' ? ' (le 3e, comme chaque club de la ligue)' : ''}` : ' — personne pour l\'instant'}.</div>
+    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. 🔒 désigne ton <b>trio de fermeture</b>${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}` : ' — personne pour l\'instant'}.</div>
+    <details class="banc-plus"><summary>Le trio de fermeture, c'est quoi</summary>
+      <div class="banc-ligne">C'est lui qui prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
+    </details>
     <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios. Ce qui est joué reste joué.">Retour au match</button>`;
   $('bancRetour').onclick = reprendreSaison;
 }
