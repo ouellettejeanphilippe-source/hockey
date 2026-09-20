@@ -5726,3 +5726,22 @@ body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions #play
   .modal-backdrop { padding: 0 8px 8px; }
   .modal-sheet { border-radius: var(--r-l) var(--r-l) var(--r-m) var(--r-m); }
 }
+
+/* ---------------------------------------------------------------
+   13. LA CASE VIDE GARDE SON POINTILLÉ ENTIER.
+
+   Le filet qui s'efface est celui des surfaces ; celui d'une case vide est
+   un ÉTAT — « ici, il manque quelqu'un » — et c'est exactement le cas où le
+   trait dit quelque chose. `.slot.empty` ne portait qu'un
+   `border-left-color` dans la règle d'origine (les trois autres côtés
+   venaient de `.slot`), donc la mise en transparence de `.slot` lui a laissé
+   un pointillé SUR LE SEUL BORD GAUCHE : un rectangle ouvert sur trois
+   côtés, qui se lit comme une mise en page cassée. Les quatre côtés,
+   explicitement. `.target` et `.eligible` gardent la main, elles sont plus
+   spécifiques.
+   --------------------------------------------------------------- */
+.slot.empty { border-color: var(--line); }
+
+/* Et la carte signée ne porte pas DEUX verts : l'anneau dit l'état, la
+   bordure n'a plus à le redire. */
+.pcard.signed { border-color: transparent; }
