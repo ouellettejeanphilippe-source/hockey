@@ -1276,7 +1276,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const resteMots = restants.length ? restants.join(' et ') : 'plus rien';
     const regleDeLaMain = partage
       ? `Ta main : ${PAS_PAR_MAIN} pas à répartir entre tes pièces, et une action. Touche une pièce.`
-      : 'Ta main : UNE pièce patine, UNE agit — pas forcément la même — et une pièce sans la rondelle peut se placer. Touche une pièce.';
+      : 'Ta main : un patin, une action, un placement. Touche une pièce.';
     const consigne = !dispo ? 'Plus rien à jouer : passe la main'
       : premiere ? regleDeLaMain
       : !entamee ? 'Ta main. Touche une pièce'

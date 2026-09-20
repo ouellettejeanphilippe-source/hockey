@@ -193,6 +193,25 @@ async function sansCote(ou) {
   return fautes.length;
 }
 
+/*
+ * LA BARRE D'ONGLETS FLOTTE (S59), et le garde-fou suit la règle neuve.
+ *
+ * Elle était collée au bas, pleine largeur, avec un filet dessus ; elle est
+ * maintenant posée EN RETRAIT de `FLOTTE` pixels et arrondie — c'est le
+ * geste qui, à lui seul, fait qu'une interface a l'air d'un jeu. Le contrôle
+ * ne peut donc plus exiger « collée au bas », mais il ne doit RIEN perdre de
+ * ce qu'il protégeait : le défaut de S55 était une barre POUSSÉE SOUS
+ * l'écran par un volet trop haut (−38 px mesurés), donc incliquable.
+ *
+ * Ce qui est exigé : la barre est ENTIÈREMENT dans l'écran (jamais un écart
+ * négatif) et elle est à sa place (jamais plus loin du bas que le retrait
+ * voulu). Le `atteignable` de S55 reste, et c'est lui qui attrape le cas où
+ * quelque chose passe par-dessus.
+ */
+const FLOTTE = 10;       // le retrait du bas, en pixels (voir `.navbar`, style.css)
+const FLOTTE_MAX = FLOTTE + 4;
+const malPlacee = fond => fond < -1 || fond > FLOTTE_MAX;
+
 const MIN_SAL = 0.95;    // plancher réservé par case restante, en millions (marge sur les 0,775 M$ du barème)
 const parseM = t => parseFloat(String(t || '').replace(/[^0-9.]/g, '')) || 0;
 const lireSignes = async () => parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
@@ -651,8 +670,8 @@ async function traverserSaison(etiquette, reprise = false) {
         return out;
       });
       if (!place) errors.push('la barre d\'onglets a disparu de l\'écran de saison');
-      else if (place.bas > 4 || !place.atteignable) errors.push(`le palier pousse la barre d'onglets hors de l'écran : ${place.bas} px sous le bas, atteignable ${place.atteignable} (carte ${place.carte}, alerte ${place.alerte})`);
-      else console.log(`   le palier ne pousse rien : barre collée au bas (${place.bas} px), atteignable — carte ${place.carte}, alerte ${place.alerte}`);
+      else if (malPlacee(place.bas) || !place.atteignable) errors.push(`le palier pousse la barre d'onglets hors de l'écran : ${place.bas} px du bas (retrait voulu ${FLOTTE}), atteignable ${place.atteignable} (carte ${place.carte}, alerte ${place.alerte})`);
+      else console.log(`   le palier ne pousse rien : barre à ${place.bas} px du bas, atteignable — carte ${place.carte}, alerte ${place.alerte}`);
     }
 
   /*
@@ -733,11 +752,11 @@ async function traverserSaison(etiquette, reprise = false) {
     });
     if (!ou) errors.push("l'écran de saison n'a plus de barre d'onglets");
     else if (ou.barre < ou.volet) errors.push(`la barre de l'écran de saison est au-dessus du volet (${ou.barre} px contre ${ou.volet}) : une barre d'onglets est en bas`);
-    // `Math.abs` : le contrôle ne voyait qu'une barre qui FLOTTE au-dessus du
-    // bas. Une barre POUSSÉE sous le bas donne un écart négatif, donc il la
-    // laissait passer — c'est exactement ce que le palier faisait (−38 px).
-    else if (Math.abs(ou.fond) > 4) errors.push(`la barre de l'écran de saison est à ${ou.fond} px du bas`);
-    else console.log(`   une seule barre, et elle est en bas : volet à ${ou.volet} px, barre à ${ou.barre} px, collée au bas`);
+    // Les DEUX bords comptent : une barre poussée SOUS l'écran donne un écart
+    // négatif (le défaut de S55, −38 px), une barre qui décolle trop donne un
+    // écart plus grand que le retrait voulu.
+    else if (malPlacee(ou.fond)) errors.push(`la barre de l'écran de saison est à ${ou.fond} px du bas (retrait voulu ${FLOTTE})`);
+    else console.log(`   une seule barre, et elle est en bas : volet à ${ou.volet} px, barre à ${ou.barre} px, à ${ou.fond} px du bas`);
   }
   await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
   const tableaux = await page.$$eval('#hubModal .hub-volet .live-tableau', l => l.length);
@@ -917,7 +936,7 @@ if (enabled) {
     // vide — c'est ce qu'il y a À LIRE qui décide qu'un onglet existe.
     if (b.noms.includes('Séries')) errors.push("la barre porte « Séries » avant qu'une série soit jouée");
     if (b.deborde) errors.push(`la barre du bas déborde la page de ${b.deborde} px : c'est LA BARRE qui défile, pas la page`);
-    if (b.bas > 4) errors.push(`la barre du bas flotte à ${b.bas} px du bas`);
+    if (malPlacee(b.bas)) errors.push(`la barre du bas est à ${b.bas} px du bas (retrait voulu ${FLOTTE})`);
     console.log(`   la barre suit la phase : ${b.noms.join(' · ')} · ${b.defile ? 'elle défile' : 'elle tient'} · ${b.deborde} px de débordement`);
   }
   const hauteurs = {};
@@ -949,10 +968,31 @@ if (enabled) {
    *
    * « Rejouer la saison » garde le même alignement et change les dés : on
    * rejoue jusqu'à se qualifier, au plus ESSAIS fois, et on ÉCHOUE si on n'y
-   * arrive pas — à seize équipes sur trente-deux, douze échecs de suite
-   * tiennent du un sur quatre mille.
+   * arrive pas.
+   *
+   * DOUZE ESSAIS NE SUFFISAIENT PAS, et le calcul derrière était faux. Il
+   * supposait « seize équipes sur trente-deux, donc une chance sur deux » —
+   * mais les trente et un adversaires sont de VRAIS clubs historiques, en
+   * moyenne meilleurs qu'un alignement bâti au premier joueur abordable :
+   * une fiche de .500 ne se classe pas 16e, elle se classe autour du seuil.
+   * Mesuré sur six exécutions : 23-52-7 (jamais qualifiée en 13 saisons,
+   * l'Action a rougi), 40-37-5 (1 reprise), 39-41-2 (8), 38-43-1 (5),
+   * 35-42-5 (2), 36-42-4 (2). La chance par reprise est donc plus proche
+   * d'une sur trois que d'une sur deux, et douze échecs de suite tombent
+   * une fois sur cent — assez pour rougir en Action sans qu'une ligne du
+   * jeu ait bougé, et « un garde-fou qui crie pour du bruit se fait
+   * désactiver ».
+   *
+   * Deux politiques de repêchage ont été essayées pour bâtir une équipe
+   * plus forte, et TOUTES DEUX ÉCARTÉES par la mesure : le meilleur rapport
+   * points par million achète des joueurs à 20 points pour 0,78 M$
+   * (35-42-5, 36-42-4, 43-31-8), et le meilleur chiffre brut dépense le
+   * plafond sur deux vedettes puis comble au plancher (40-37-5, 39-41-2,
+   * 38-43-1). Un auto-draft à un joueur par tour donne une équipe de .500
+   * quoi qu'on fasse : ce n'est pas la politique qu'il faut changer, c'est
+   * le nombre d'essais. À trente, un échec tombe une fois sur dix mille.
    */
-  const ESSAIS = 12;
+  const ESSAIS = 30;
   let po = await page.$('#playoffsBtn'), essais = 0;
   while (!po && essais < ESSAIS) {
     essais++;

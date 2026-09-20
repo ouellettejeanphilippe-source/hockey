@@ -132,7 +132,7 @@
             <h2>Alignement</h2>
             <span class="pane-meta" id="rosterMeta">0 / 23</span>
           </div>
-          <div class="roster-hint" id="rosterHint">Touche un joueur signé pour le déplacer, une case vide pour la cibler.</div>
+          <div class="roster-hint" id="rosterHint">Touche un joueur, puis sa case.</div>
         </div>
         <!-- DERRIÈRE LE BANC : ouvert depuis l'écran de saison. Les fiches
              sont celles À CE JOUR, jamais celles de fin de saison. -->
@@ -256,7 +256,7 @@
     </div>
     <div class="modal-body options">
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Palette</strong><span>Graphite : un fond neutre et du laiton. OLED : le vrai noir, pour que l'écran s'éteigne entre les cartes. Glace : de l'ardoise froide et de l'acier, sans jaune.</span></div>
+        <div class="opt-text"><strong>Palette</strong></div>
         <div class="seg seg-wrap" data-opt="palette">
           <button data-val="graphite" class="on">Graphite<em>neutre et laiton</em></button>
           <button data-val="oled">OLED<em>vrai noir</em></button>
@@ -264,19 +264,19 @@
         </div>
       </div>
       <div class="opt-row">
-        <div class="opt-text"><strong>Statistiques</strong><span>Vraies stats de la saison, ou prorata sur 82 matchs ajusté à l'époque (buts par match de l'année ramenés à 3,15).</span></div>
+        <div class="opt-text"><strong>Statistiques</strong></div>
         <div class="seg" data-opt="stats"><button data-val="real" class="on">Réelles</button><button data-val="prorata">Prorata 82 · époque</button></div>
       </div>
       <div class="opt-row">
-        <div class="opt-text"><strong>Salaires</strong><span>Valeur 2026 (celle qui compte sous le plafond du jeu) ou valeur de l'époque (réelle ou estimée).</span></div>
+        <div class="opt-text"><strong>Salaires</strong><span>Le plafond compte toujours la valeur 2026.</span></div>
         <div class="seg" data-opt="salary"><button data-val="2026" class="on">Valeur 2026</button><button data-val="ERA">Valeur époque</button></div>
       </div>
       <div class="opt-row">
-        <div class="opt-text"><strong>Sons</strong><span>Les effets sonores du match sur table : le dé, le patin, le tir, la sirène. Fabriqués par le navigateur, rien à télécharger.</span></div>
+        <div class="opt-text"><strong>Sons</strong><span>Le match sur table.</span></div>
         <div class="seg" data-opt="sons"><button data-val="on" class="on">Avec sons</button><button data-val="off">Silence</button></div>
       </div>
       <div class="opt-row">
-        <div class="opt-text"><strong>Signables seulement</strong><span>Masquer les joueurs hors budget ou sans case libre (tirage Vestiaire).</span></div>
+        <div class="opt-text"><strong>Signables seulement</strong></div>
         <div class="seg" data-opt="onlyFit"><button data-val="off" class="on">Tout voir</button><button data-val="on">Signables</button></div>
       </div>
     </div>
@@ -305,21 +305,21 @@
     <div class="modal-body options np-body">
       <p class="np-reprise" id="npReprise" hidden></p>
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Alignement</strong><span>Les 23 cases sous 95,5 M$, ou six cases (un trio, une paire, un partant) sous 34 M$, le reste fourni par une vraie équipe.</span></div>
+        <div class="opt-text"><strong>Alignement</strong></div>
         <div class="seg seg-wrap" data-opt="format">
-          <button data-val="COMPLET" class="on">Complet<em>23 joueurs</em></button>
-          <button data-val="EXPRESS">Express<em>6 joueurs</em></button>
+          <button data-val="COMPLET" class="on">Complet<em>23 joueurs · 95,5 M$</em></button>
+          <button data-val="EXPRESS">Express<em>6 cases · 34 M$</em></button>
         </div>
       </div>
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Tirage</strong><span>Vestiaire : une équipe et tout son club, un joueur par tour pour n'importe quelle case libre, avec les relances d'année, d'équipe et de passe. Loto : trois équipes, et de chacune le joueur qui joue la position de la case courante.</span></div>
+        <div class="opt-text"><strong>Tirage</strong></div>
         <div class="seg seg-wrap" data-opt="tirage">
           <button data-val="VESTIAIRE" class="on">Vestiaire<em>une équipe, tout son club</em></button>
           <button data-val="LOTO">Loto<em>trois équipes, un choix</em></button>
         </div>
       </div>
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Ligue</strong><span>Toutes les époques : la roulette sort n'importe quelle année, et 31 clubs de 55 ans t'attendent. Une saison : tous les vrais clubs de cette année-là, ta formation en plus (la 33e équipe en 2024-25) — gagne la Coupe cette année-là.</span></div>
+        <div class="opt-text"><strong>Ligue</strong></div>
         <div class="seg seg-wrap" data-opt="ligue">
           <button data-val="TOUTES" class="on">Toutes les époques<em>55 saisons</em></button>
           <button data-val="UNE">Une saison<em>la Coupe cette année-là</em></button>
@@ -330,10 +330,10 @@
            une année. Toutes les époques, c'est le fantasy draft : une équipe de
            rêve bâtie sur 55 saisons pour aller chercher la Coupe de 1970-71. -->
       <div class="opt-row opt-modes" id="repechageRow" hidden>
-        <div class="opt-text"><strong>Repêchage</strong><span>Dans la saison : les clubs de l'année choisie seulement, comme la vraie ligue. Toutes les époques : la roulette sort n'importe quelle année et tu affrontes quand même la ligue de l'année à gagner.</span></div>
+        <div class="opt-text"><strong>Repêchage</strong></div>
         <div class="seg seg-wrap" data-opt="repechage">
           <button data-val="SAISON" class="on">Dans la saison<em>les clubs de l'année</em></button>
-          <button data-val="TOUTES">Toutes les époques<em>fantasy draft, 55 saisons</em></button>
+          <button data-val="TOUTES">Toutes les époques<em>fantasy draft</em></button>
         </div>
       </div>
       <!-- LE MODE BONUS. JP : *mode bonus genre blood bowl, fft et autres jeux
@@ -342,10 +342,10 @@
            de l'alignement une fois bâti qui change. La saison complète reste
            le jeu ; le tournoi sur table est l'autre façon de s'en servir. -->
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Une fois l'alignement bâti</strong><span>La saison : 82 matchs simulés et les séries, le jeu d'origine. Sur table : un tournoi de six clubs joué sur un plateau, à la Blood Bowl — cinq matchs, les quatre premiers en séries, et c'est toi qui joues chaque geste.</span></div>
+        <div class="opt-text"><strong>Mode</strong></div>
         <div class="seg seg-wrap" data-opt="bonus">
-          <button data-val="SAISON" class="on">La saison<em>82 matchs, simulés</em></button>
-          <button data-val="TABLE">Sur table<em>un tournoi sur plateau</em></button>
+          <button data-val="SAISON" class="on">La saison<em>82 matchs</em></button>
+          <button data-val="TABLE">Sur table<em>tournoi sur plateau</em></button>
         </div>
       </div>
       <!-- L'EXHIBITION. JP : *créer exhibition pour jeu de table pour plus
@@ -354,7 +354,7 @@
            est complète. Ce n'est pas un réglage — rien ne s'applique, rien ne
            s'écrit — c'est un bouton qui ouvre le plateau. -->
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Exhibition</strong><span>Un match sur table tout de suite, sans repêchage ni tournoi : deux vrais clubs tirés au hasard — ta formation à la place du premier si elle est complète. Rien n'est écrit : la partie en cours ne bouge pas.</span></div>
+        <div class="opt-text"><strong>Exhibition</strong><span>Rien n'est écrit.</span></div>
         <button type="button" class="btn np-exhibition" id="npExhibition">Jouer un match d'exhibition</button>
       </div>
     </div>

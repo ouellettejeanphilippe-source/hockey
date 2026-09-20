@@ -190,7 +190,7 @@ function tropheesHtml(stats, teams) {
   const miens = gagnants.filter(g => g.x.t.isPlayer).length + etoiles.filter(x => x.t.isPlayer).length;
   return `<div class="result-section">
     <h3>${ico('i-cup')}Les trophées de la saison</h3>
-    <p class="series-legende">Ce que les colonnes décident, et rien d'autre : le Hart, le Norris, le Selke et le Vezina sont des votes, et le moteur n'a pas d'électeurs.
+    <p class="series-legende">Le Hart, le Norris, le Selke et le Vezina sont des votes : le moteur n'a pas d'électeurs.
       ${miens ? `<strong>${miens} de tes joueurs y sont.</strong>` : ''}</p>
     <div class="trophees">${gagnants.map(carte).join('')}</div>
     <h4 class="tro-titre">Première équipe d'étoiles</h4>
@@ -424,7 +424,7 @@ function voletNiveau(teams, reelles) {
         <div class="niv-tuile"><span class="k">Clubs à 60 % et plus</span><b>${nivMoyen == null ? '…' : gros}</b></div>
         <div class="niv-tuile"><span class="k">Clubs sous 45 %</span><b>${nivMoyen == null ? '…' : petits}</b></div>
       </div>
-      <p class="series-legende">${nivMoyen == null ? 'On reconstitue les vraies saisons de tes adversaires…' : esc(mot)} Fiches <strong>reconstituées</strong> des colonnes de chaque saison : un shard porte des joueurs, pas un classement.</p>
+      <p class="series-legende">${nivMoyen == null ? 'On reconstitue les vraies saisons de tes adversaires…' : esc(mot)} Fiches <strong>reconstituées</strong> des colonnes de chaque saison.</p>
     </div>
 
     <div class="result-section">
@@ -434,7 +434,7 @@ function voletNiveau(teams, reelles) {
         <div class="niv-tuile"><span class="k">La ligue</span><b>${sosMoyen.toFixed(1)}</b></div>
         <div class="niv-tuile"><span class="k">Calendrier le plus dur</span><b>${rangSos}<small>/${lignes.length}</small></b></div>
       </div>
-      <p class="series-legende">La moyenne des points des clubs que tu as <strong>vraiment rencontrés</strong>, match par match — dans une ligue de ${lignes.length}, personne ne joue le même calendrier. Un club que tu as battu en a moins : c'est la limite de la mesure, et elle vaut pour tout le monde.</p>
+      <p class="series-legende">La moyenne des points des clubs que tu as <strong>vraiment rencontrés</strong> — dans une ligue de ${lignes.length}, personne ne joue le même calendrier.</p>
     </div>
 
     <div class="result-section">
@@ -444,7 +444,7 @@ function voletNiveau(teams, reelles) {
         <div class="niv-tuile"><span class="k">Points attendus</span><b>${moi.attendu.toFixed(1)}</b></div>
         <div class="niv-tuile"><span class="k">Écart</span><b class="${moi.ecart >= 0 ? 'pm-pos' : 'pm-neg'}">${signe(moi.ecart)}</b></div>
       </div>
-      <p class="series-legende">Pythagore : ce que ton différentiel de buts annonçait. Au-dessus, tu as gagné tes matchs serrés ; en dessous, tu as perdu des soirs que tes buts ne méritaient pas. Les attentes sont mises à l'échelle des points que la ligue a vraiment distribués, donc <strong>la somme des écarts est nulle</strong>.</p>
+      <p class="series-legende">Pythagore : ce que ton différentiel de buts annonçait. Au-dessus, tu as gagné tes matchs serrés ; en dessous, tu en as perdu que tes buts méritaient.</p>
       <div class="table-wrap"><table class="std niv-table">
         <thead><tr><th class="left">Équipe</th><th>PTS</th><th>Attendus</th><th class="heros">Écart</th><th>Calendrier</th><th>Vraie saison</th></tr></thead>
         <tbody>${parEcart.map(x => `<tr class="${x.t.isPlayer ? 'you' : ''}">
@@ -589,7 +589,6 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       </div>`,
     classement: `<div class="result-section">
         <h3>Classement général · ${nTeams} équipes, ${(nTeams * 82 / 2).toLocaleString('fr-CA')} matchs</h3>
-        <p class="series-legende">Touche une équipe pour son alignement et ses 82 matchs.</p>
         <div class="table-wrap"><table class="data">
           <thead><tr><th>Rang</th><th class="left">Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th>PTS</th><th>BP</th><th>BC</th><th>Diff</th></tr></thead>
           <tbody>${standings}</tbody>
@@ -612,7 +611,6 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       </div>` : '',
     alignement: `<div class="result-section">
         <h3>Feuille de match des NHL Stars</h3>
-        <p class="series-legende">Touche un nom pour sa fiche et ses statistiques simulées.</p>
         ${rows}
       </div>`,
     ligue: voletNiveau(teams, FICHES_REELLES),
@@ -871,8 +869,7 @@ function arbreHtml(n, champion) {
 
 function dessinerTableauDesSeries(host, n, champion) {
   let html = `<div class="result-section"><h3>${ico('i-cup')}Séries éliminatoires</h3>
-    <p class="series-legende">Touche une série de l'arbre pour son détail, un match pour son sommaire.
-      <span class="lg lg-or">or</span> le match qui a réglé la série ·
+    <p class="series-legende"><span class="lg lg-or">or</span> le match qui a réglé la série ·
       <span class="lg lg-ot">rose</span> réglé en prolongation</p>
     ${arbreHtml(n, champion)}
     <div class="champion">
@@ -894,7 +891,6 @@ function dessinerTableauDesSeries(host, n, champion) {
   const statsSeries = leagueStats(equipes, 'series');
   html += `<div class="result-section">
     <h3>Statistiques des séries · à part de la saison</h3>
-    <p class="series-legende">Touche une équipe pour son alignement en séries, un nom pour sa fiche.</p>
     <div class="cal-grille equipes-series">${equipes.map(t => `<div class="cal-match"><div class="cal-eq${t.isPlayer ? ' toi' : ''}">${getTeamLogoHtml(t.tag, 16)}${lienEquipe(t, 'series', `<span>${esc(teamLabel(t))}</span>`)}<b>${t.po ? `${t.po.W}-${t.po.L + t.po.OTL}` : ''}</b></div></div>`).join('')}</div>
     ${palmaresHtml(statsSeries, 'series')}
   </div>`;
