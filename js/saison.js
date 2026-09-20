@@ -612,10 +612,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   };
 
   const voletJournee = () => {
-    if (!jour) {
-      const p = prochain();
-      return `<div class="hub-note">La saison commence. ${p ? `Ton premier match : ${ctx.esc(ctx.teamLabel(p.m.A === you ? p.m.B : p.m.A))}.` : ''} Regarde-le en direct, ou passe la journée : tout se lit ici après.</div>`;
-    }
+    // Journée 0 : l'en-tête dit déjà « La saison commence », et il n'y a pas
+    // encore de journée à lire. Le volet reste vide plutôt que de le redire.
+    if (!jour) return '';
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
     const mien = k >= 0 ? scoreboard({ j, k, m: matchs[k] }) : `<div class="live-board hub-board"><div class="live-horloge"><span class="live-per">CONGÉ</span><span class="live-tirs">Les NHL Stars ne jouent pas aujourd'hui</span></div></div>`;
     const autres = matchs.map((m, i) => (i === k ? '' : carteMatch(m, j, i))).join('');
@@ -691,8 +690,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
 
     const p = prochain();
     if (jour >= N) {
-      carte.innerHTML = `<div class="live-bilan ${rang <= enSeries ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">Saison terminée · ${f.W}-${f.L}-${f.OTL} · ${rang}${rang === 1 ? 'er' : 'e'} de ${teams.length}${rang <= enSeries ? ' · en séries' : ' · éliminé'}</div>
-        <div class="hub-carte-note">${rang <= enSeries ? 'Le bilan de la saison t\'attend, puis les séries.' : 'Le bilan de la saison dit où le bât blesse.'}</div></div>`;
+      carte.innerHTML = `<div class="live-bilan ${rang <= enSeries ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">Saison terminée · ${f.W}-${f.L}-${f.OTL} · ${rang}${rang === 1 ? 'er' : 'e'} de ${teams.length}${rang <= enSeries ? ' · en séries' : ' · éliminé'}</div></div>`;
       actions.innerHTML = `<button class="btn gold hub-suite">Voir le bilan de la saison</button>`;
       actions.querySelector('.hub-suite').onclick = fermer;
       return;
@@ -990,7 +988,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     }
     const jeux = s.feuilles.slice(0, revele.get(s)).map((f, k) => ligneMatch(s, k)).reverse().join('');
     // La carte du haut porte déjà la série ; le volet liste ses matchs.
-    return `<div class="hub-titre">Les matchs de la série</div>${jeux ? `<div class="hub-jeux">${jeux}</div>` : '<div class="hub-note">Aucun match joué encore. Regarde le premier en direct, ou passe au match suivant.</div>'}`;
+    return `<div class="hub-titre">Les matchs de la série</div>${jeux ? `<div class="hub-jeux">${jeux}</div>` : '<div class="hub-note">Aucun match joué encore.</div>'}`;
   };
 
   const voletRonde = () => `<div class="hub-titre">${ctx.esc(nomRonde(ronde))}</div>
@@ -1120,7 +1118,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
       const champ = finale.winner;
       carte.innerHTML = `<div class="live-bilan ${champ === you ? 'gagne' : 'perdu'}">
         <div class="live-bilan-titre">${champ === you ? 'Ta formation soulève la Coupe Stanley' : `${ctx.esc(ctx.teamLabel(champ))} soulève la Coupe`}</div>
-        <div class="hub-carte-note">${ctx.esc(cap(etatDeSerie(ctx, finale, finale.wA, finale.wB)))}. Le tableau complet, les sommaires et les statistiques des séries t'attendent au bilan.</div></div>`;
+        <div class="hub-carte-note">${ctx.esc(cap(etatDeSerie(ctx, finale, finale.wA, finale.wB)))}.</div></div>`;
       actions.innerHTML = `<button class="btn gold hub-suite">Voir le tableau des séries</button>`;
       actions.querySelector('.hub-suite').onclick = fermer;
       return;

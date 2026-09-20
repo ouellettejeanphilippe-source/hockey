@@ -1543,7 +1543,7 @@ function renderCap() {
   const perSlot = $('perSlotLbl');
   if (perSlot) {
     perSlot.textContent = left > 0
-      ? `${money(rem / left)} / case restante`
+      ? `${money(rem / left)} / case`
       : (rem >= 0 ? 'Sous le plafond ✓' : 'Plafond dépassé');
     perSlot.className = left === 0 && rem < 0 ? 'dash-bad' : '';
   }
@@ -1595,7 +1595,7 @@ function renderSpin() {
         ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
         <div class="rerolls">
           <button id="rrL" class="reroll" ${G.relances > 0 && need ? '' : 'disabled'} title="Relancer les trois clubs d'un coup">
-            <span class="rr-lbl">${ico('i-dice')}Relancer les trois</span><span class="rr-count">${G.relances} restante${G.relances > 1 ? 's' : ''}</span></button>
+            <span class="rr-lbl">${ico('i-dice')}Relancer les trois</span><span class="rr-count">${G.relances}</span></button>
         </div>
       </div>`;
     ajusterCartes(host);
@@ -1632,11 +1632,11 @@ function renderSpin() {
       ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
       <div class="rerolls">
         <button id="rrS" class="reroll" ${G.left.season && need && !epoqueDuTirage() ? '' : 'disabled'} title="${epoqueDuTirage() ? `Le repêchage est fixé à ${esc(G.epoque)} : pas d'autre année` : 'Retirer une autre saison au hasard'}">
-          <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season} restantes</span></button>
+          <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season}</span></button>
         <button id="rrT" class="reroll" ${G.left.team && need ? '' : 'disabled'} title="Garder la saison, changer d'équipe">
-          <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team} restantes</span></button>
+          <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team}</span></button>
         <button id="rrP" class="reroll" ${G.left.pass && need ? '' : 'disabled'} title="Passer ce vestiaire au complet">
-          <span class="rr-lbl">${ico('i-skip')}Passer</span><span class="rr-count">${G.left.pass} restants</span></button>
+          <span class="rr-lbl">${ico('i-skip')}Passer</span><span class="rr-count">${G.left.pass}</span></button>
       </div>
     </div>`;
 
@@ -2640,10 +2640,10 @@ function render() {
   const hint = $('rosterHint');
   if (hint) {
     hint.textContent = G.selectedSlot !== null
-      ? 'Touche une autre case pour déplacer ou permuter le joueur choisi.'
+      ? 'Touche une case pour le déplacer.'
       : G.target !== null
-        ? 'Une case est ciblée : la prochaine signature ira là.'
-        : 'Touche un joueur signé pour le déplacer, une case vide pour la cibler.';
+        ? 'Case ciblée : la prochaine signature ira là.'
+        : 'Touche un joueur, puis sa case.';
   }
 }
 
