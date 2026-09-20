@@ -5745,3 +5745,51 @@ body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions #play
 /* Et la carte signée ne porte pas DEUX verts : l'anneau dit l'état, la
    bordure n'a plus à le redire. */
 .pcard.signed { border-color: transparent; }
+
+/* ---------------------------------------------------------------
+   14. LE PLAN DE MATCH ET LA GLACE, derrière le banc (S60).
+
+   Deux rangées de segments, dans la langue des segments d'options : un aplat
+   pour le choisi, un filet pour les autres. Le MOT sous la rangée dit ce que
+   le réglage choisi achète et ce qu'il paie — il vient de `PLANS` /
+   `ROULEMENTS`, jamais d'un texte recopié dans la feuille de style.
+
+   À 390 px les cinq plans ne tiennent pas sur une ligne : la rangée SE
+   BALAIE (c'est elle qui défile, jamais la page — la règle du dépôt), le nom
+   s'efface sous 420 px et il ne reste que l'icône, qui porte l'infobulle.
+   --------------------------------------------------------------- */
+.banc-seg { margin-top: var(--sp-2); }
+.banc-seg-tete {
+  font-family: var(--display); font-size: 11.5px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.banc-seg-btns {
+  display: flex; gap: 4px; margin-top: 3px;
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.banc-seg-btns::-webkit-scrollbar { display: none; }
+.banc-seg-btn {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 4px;
+  min-height: 32px; padding: 4px 9px; border-radius: var(--r-xs);
+  background: var(--panel-2); border: 1px solid var(--line);
+  color: var(--sub); font-family: var(--display); font-size: 13px;
+  letter-spacing: .02em; cursor: pointer;
+}
+.banc-seg-btn.on {
+  background: var(--ui-accent); border-color: var(--ui-accent);
+  color: var(--sur-accent); font-weight: 600;
+}
+.banc-seg-mot { font-size: 12px; color: var(--sub); margin-top: 3px; line-height: 1.35; }
+.banc-seg-mot b { color: var(--text); }
+/*
+ * LE NOM RESTE, MÊME À 390 PX, et la rangée se balaie. Icône seule, il fallait
+ * TOUCHER chaque segment pour savoir ce qu'il fait — sur un téléphone il n'y a
+ * pas de survol, donc pas d'infobulle. Cinq noms ne tiennent pas dans 366 px :
+ * le cinquième affleure, et c'est l'affordance. La rangée défile, jamais la
+ * page (la règle du dépôt).
+ */
+@media (max-width: 419px) {
+  .banc-seg-btn { padding: 4px 7px; font-size: 12.5px; }
+}
+.hub-plan { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.hub-plan-ou { color: var(--muted); font-size: 11.5px; }

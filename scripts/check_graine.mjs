@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries,
-         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS } from '../js/sim.js';
+         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS, PLANS, ROULEMENTS } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -133,6 +133,31 @@ dire(g1.feuilles === g2.feuilles && g1.joueurs === g2.joueurs, 'la même carte s
 // Chaque carte du jeu doit déplacer la saison : aucune n'est décorative.
 const mortes = Object.keys(CARTES).filter(cle => jouer('la-meme-graine', carte(cle)).feuilles === a.feuilles);
 dire(!mortes.length, mortes.length ? `cartes sans effet : ${mortes.join(', ')}` : `les ${Object.keys(CARTES).length} cartes déplacent la saison`);
+
+/* ---------- le plan de match et le roulement ---------- */
+/*
+ * DEUX DÉCISIONS QUI VALENT TOUTE LA SAISON (S60), donc deux décisions qui
+ * doivent se comporter comme les autres : l'avant intact, la suite changée,
+ * la reprise identique. Et chacune doit VRAIMENT déplacer la saison — un plan
+ * décoratif est pire qu'un plan déséquilibré, puisque le joueur le choisit et
+ * ne voit jamais la différence.
+ */
+const JOUR_PLAN = 20;
+const reglage = (champ, cle) => () => [{ jour: JOUR_PLAN, [champ]: cle }];
+const p1 = jouer('la-meme-graine', reglage('plan', 'echec'));
+const p2 = jouer('la-meme-graine', reglage('plan', 'echec'));
+dire(a.jours.slice(0, JOUR_PLAN).join('\n') === p1.jours.slice(0, JOUR_PLAN).join('\n'),
+  `un plan au jour ${JOUR_PLAN} laisse les ${JOUR_PLAN} journées d'avant identiques`);
+dire(a.jours.slice(JOUR_PLAN).join('\n') !== p1.jours.slice(JOUR_PLAN).join('\n'), 'et change ce qui suit');
+dire(p1.feuilles === p2.feuilles && p1.joueurs === p2.joueurs, 'le même plan se rejoue à l\'identique');
+const plansMorts = Object.keys(PLANS).filter(cle => cle !== 'equilibre'
+  && jouer('la-meme-graine', reglage('plan', cle)).feuilles === a.feuilles);
+dire(!plansMorts.length, plansMorts.length ? `plans sans effet : ${plansMorts.join(', ')}`
+  : `les ${Object.keys(PLANS).length - 1} plans déplacent la saison`);
+const roulMorts = Object.keys(ROULEMENTS).filter(cle => cle !== 'quatre'
+  && jouer('la-meme-graine', reglage('roulement', cle)).feuilles === a.feuilles);
+dire(!roulMorts.length, roulMorts.length ? `roulements sans effet : ${roulMorts.join(', ')}`
+  : `les ${Object.keys(ROULEMENTS).length - 1} roulements déplacent la saison`);
 
 /*
  * LES SITUATIONS SE REJOUENT, ET ELLES NE CONSOMMENT AUCUN HASARD.

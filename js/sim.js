@@ -114,6 +114,27 @@ export function joueurEquivalent(pool, slot, exclude = new Set(), rang = null) {
 }
 
 /*
+ * LES MOLETTES DE MESURE. Un script peut poser une constante dans
+ * l'environnement pour balayer un réglage ; le navigateur n'a pas de
+ * `process` et prend toujours la valeur écrite. Déclaré ICI, en tête, parce
+ * que le malus de zone, l'appariement et les situations en lisent.
+ */
+const ENV_MESURE = (typeof process !== 'undefined' && process.env) || {};
+
+/*
+ * Une molette de mesure qui porte une LISTE : « 0,45,1.3,1.9 » dans
+ * l'environnement, la valeur écrite sinon. Une seule implémentation pour les
+ * quatre listes réglables du fichier (les deux échelles de zone et les deux
+ * parts d'unité) — trois copies de la même lecture divergeraient.
+ */
+const lireListe = (cle, defaut) => {
+  const v = ENV_MESURE[cle];
+  if (!v) return defaut;
+  const t = v.split(',').map(Number);
+  return t.length === defaut.length && t.every(Number.isFinite) ? t : defaut;
+};
+
+/*
  * Pénalité de zone : ce qu'on perd à placer un joueur ailleurs que dans son
  * calibre. Elle est ASYMÉTRIQUE, et c'est elle qui ferme l'empilement.
  *
@@ -137,12 +158,12 @@ export function joueurEquivalent(pool, slot, exclude = new Set(), rang = null) {
  * vraies équipes :
  *
  *   réglage                  EMPILÉ  MTL 76-77  BOS 70-71  NYI 92-93  DET 76-77
- *   aucun malus                83,8       67,7       68,0       58,8       47,3
- *   ancien (forfait 3, max 12) 82,4       69,3       68,6       59,7       44,0
- *   EN VIGUEUR (0,40, max 70)  69,3       66,5       65,9       59,4       47,9
+ *   aucun malus                80,3       67,6       68,0       58,7       47,4
+ *   linéaire (avant S60)       65,8       65,4       65,7       58,5       48,1
+ *   EN VIGUEUR (échelles S60)  66,7       65,7       65,9       58,8       48,4
  *
- * L'empilement perd quinze points et se retrouve à 69,3, à peine au-dessus de
- * la meilleure équipe de l'histoire. Les vraies équipes témoins ne bougent
+ * L'empilement perd quatorze points et se retrouve à 66,7, à peine au-dessus
+ * de la meilleure équipe de l'histoire. Les vraies équipes témoins ne bougent
  * pas : la chasse aux aubaines reste payante, mais on ne peut plus empiler
  * douze vedettes.
  *
@@ -158,8 +179,61 @@ export function joueurEquivalent(pool, slot, exclude = new Set(), rang = null) {
  * n'est pas le juge de la monotonie.
  */
 export const ZONE_PEN_SOUS = 0.40;   // fraction de l'excédent de cote, par joueur mal placé
-export const ZONE_PEN_DESSUS = 3;    // forfait par cran, quand le joueur est surclassé
+export const ZONE_PEN_DESSUS = Number(ENV_MESURE.ZONE_PEN_DESSUS ?? 1.5);
 export const ZONE_PEN_MAX = 70;      // plafond par unité
+
+/*
+ * UN CRAN, ÇA PASSE ; DEUX, ÇA NE PASSE PLUS (S60).
+ *
+ * JP : *faire que malus d'un joueur sous une ou au dessus de une ligne, soit
+ * pas si grand, mais si deux et plus, énorme*. Le coefficient ci-dessus était
+ * PLAT : il ne regardait que le talent gaspillé et jamais de combien de lignes
+ * le joueur était déplacé. Deux échelles l'escaladent, et elles ne mesurent
+ * pas la même chose.
+ *
+ *   ZONE_ECHELLE   par ÉCART DE LIGNES, indexée par l'écart (0 est inutilisé).
+ *                  Un cran coûte 45 % de l'ancien malus, deux 130 %, trois
+ *                  190 % : un ailier descendu d'une ligne ne se sent presque
+ *                  pas, une vedette parquée au quatrième trio se sent
+ *                  énormément. Le malus reste PROPORTIONNEL au talent gaspillé
+ *                  — l'échelle ne fait que le multiplier — donc il ne peut
+ *                  toujours pas s'inverser (le piège du forfait, ci-dessus).
+ *   ZONE_NOMBRE    par NOMBRE DE MAL PLACÉS dans l'unité, indexée par le
+ *                  compte. Un mal placé coûte ce qu'il coûte, deux coûtent
+ *                  1,6 fois la somme, trois 2,2 fois : un joueur hors de sa
+ *                  place, les deux autres couvrent ; tout le trio hors de sa
+ *                  place, plus rien ne tient.
+ *
+ * POURQUOI LA SECONDE EXISTE, et c'est la mesure qui l'a exigée : rendre un
+ * cran trois fois moins cher rend l'empilement du DEUXIÈME trio trois fois
+ * moins cher aussi, et le meilleur alignement légal remontait de 65,8 à 71,2
+ * sur l'indice de `mock_zones` — au-dessus de la meilleure vraie équipe de
+ * l'histoire. Avec `ZONE_NOMBRE`, il redescend à 66,7 et les quatre équipes
+ * témoins ne bougent pas de plus de 0,3.
+ *
+ * ET POURQUOI L'ESCALADE PAR L'ÉCART NE TOUCHE PAS LE HOCKEY RÉEL : sur les
+ * 1392 vraies équipes alignées par `autoRoster`, un écart de DEUX crans se
+ * voit dans 2 % des quatrièmes trios et 0 % partout ailleurs. Une vraie équipe
+ * vit à zéro ou un cran ; l'alignement empilé, lui, a trois mal placés à deux
+ * crans au troisième trio et à trois crans au quatrième. C'est un
+ * discriminateur, pas un compromis.
+ *
+ * `ZONE_PUISSANCE` ne sert qu'au côté AU-DESSUS (`ZONE_PEN_DESSUS × écart²`,
+ * soit 1,5 · 6 · 13,5) : un cran y coûte deux fois moins qu'avant et trois
+ * crans une fois et demie plus, parce qu'une mauvaise équipe joue au-dessus de
+ * sa zone faute de mieux et que la punir deux fois serait la punir de son
+ * effectif.
+ */
+export const ZONE_ECHELLE = lireListe('ZONE_ECHELLE', [0, 0.45, 1.30, 1.90]);
+export const ZONE_PUISSANCE = Number(ENV_MESURE.ZONE_PUISSANCE ?? 2);
+export const ZONE_NOMBRE = lireListe('ZONE_NOMBRE', [1, 1, 1.6, 2.2]);
+/*
+ * Au-delà de ce malus, l'écran ne dit plus « mal assorti » mais « hors de ses
+ * lignes » (voir `zoneEtat` plus bas). Douze points de synergie, c'est ce que
+ * coûte un joueur à deux crans de sa zone : le seuil marque donc exactement la
+ * frontière que JP a demandée, et l'étiquette la rend visible.
+ */
+export const ZONE_DUR = 12;
 
 /**
  * Calibre attendu d'une case : la cote plancher de la meilleure zone dont
@@ -175,15 +249,51 @@ function calibreAttendu(group, unit) {
   return 40;
 }
 
-/* ---------- 23 joueurs : 4 trios, 3 paires, 2 gardiens, 3 réservistes ---------- */
-
-/*
- * LES MOLETTES DE MESURE. Un script peut poser une constante dans
- * l'environnement pour balayer un réglage ; le navigateur n'a pas de
- * `process` et prend toujours la valeur écrite. Déclaré ICI, en tête, parce
- * que les situations comme l'appariement en lisent.
+/**
+ * Le malus d'UN joueur mal placé, en points de cote.
+ *
+ * `ideal` sont les unités où il rend à 100 % (`getLineZone().idealUnits`).
+ * Sous sa zone, le malus est PROPORTIONNEL au talent gaspillé et croît en
+ * PUISSANCE de l'écart, mesuré en crans de ligne : un cran passe, deux ne
+ * passent plus. Au-dessus, le forfait par cran croît de la même façon.
+ *
+ * C'est la SEULE implémentation : `getUnitSynergy` et `scripts/mock_zones.mjs`
+ * l'appellent tous les deux, sinon la maquette et le moteur divergeraient en
+ * silence.
  */
-const ENV_MESURE = (typeof process !== 'undefined' && process.env) || {};
+export function malusZoneJoueur(group, unit, v, ideal, opts = {}) {
+  const ecart = Math.min(...ideal.map(u => Math.abs(u - unit)));
+  if (ecart === 0) return 0;
+  const puissance = opts.puissance ?? ZONE_PUISSANCE;
+  const echelle = opts.echelle ?? ZONE_ECHELLE;
+  const rang = Math.min(ecart, echelle.length - 1);
+  if (unit > Math.max(...ideal)) {
+    const gaspille = Math.max(0, v - calibreAttendu(group, unit));
+    return (opts.sous ?? ZONE_PEN_SOUS) * gaspille * (opts.lineaire ? 1 : echelle[rang]);
+  }
+  return (opts.dessus ?? ZONE_PEN_DESSUS) * (opts.lineaire ? ecart : Math.pow(ecart, puissance));
+}
+
+/**
+ * Le malus d'une UNITÉ, et c'est la seule implémentation : `getUnitSynergy`
+ * et `scripts/mock_zones.mjs` l'appellent tous les deux.
+ *
+ * `entrees` : un {v, ideal} par joueur de l'unité. Rend le malus en points de
+ * cote (jamais négatif), déjà plafonné, et le nombre de mal placés.
+ */
+export function malusZoneUnite(group, unit, entrees, opts = {}) {
+  let somme = 0, mal = 0;
+  for (const e of entrees) {
+    const pen = malusZoneJoueur(group, unit, e.v, e.ideal, opts);
+    if (pen > 0 || Math.min(...e.ideal.map(u => Math.abs(u - unit))) > 0) mal++;
+    somme += pen;
+  }
+  const nombre = opts.nombre ?? ZONE_NOMBRE;
+  const mult = opts.lineaire ? 1 : nombre[Math.min(mal, nombre.length - 1)];
+  return { pen: Math.min(opts.plafond ?? ZONE_PEN_MAX, somme * mult), mal };
+}
+
+/* ---------- 23 joueurs : 4 trios, 3 paires, 2 gardiens, 3 réservistes ---------- */
 
 export const SLOTS = [];
 ['Top 6', 'Top 6', 'Middle 6', 'Bottom 6'].forEach((label, unit) => {
@@ -335,28 +445,31 @@ export function getUnitSynergy(roster, group, unit) {
   // Zone d'efficacité : chaque joueur a un calibre (1er trio, 2e trio…) et
   // des trios où il rend à 100 %. Tout le monde à sa place -> bonus ;
   // joueur hors de sa zone -> pénalité selon l'écart, ASYMÉTRIQUE.
-  const zoneDists = ps.map((x, i) => {
-    const ideal = getLineZone(x.player, hidden[i].v).idealUnits;
-    const ecart = Math.min(...ideal.map(u => Math.abs(u - unit)));
-    if (ecart === 0) return { ecart, pen: 0 };
-    // Sous sa zone = un top 6 au 4e trio : le malus est PROPORTIONNEL au
-    // talent gaspillé, jamais forfaitaire, sinon franchir un seuil de zone
-    // vers le haut pourrait rendre l'équipe pire (voir le commentaire des
-    // constantes). Au-dessus = il n'a personne de mieux, malus léger.
-    const sous = unit > Math.max(...ideal);
-    const pen = sous
-      ? ZONE_PEN_SOUS * Math.max(0, hidden[i].v - calibreAttendu(group, unit))
-      : ZONE_PEN_DESSUS * ecart;
-    return { ecart, pen };
-  });
-  const totalPen = zoneDists.reduce((s, z) => s + z.pen, 0);
-  const miscast = zoneDists.filter(z => z.ecart > 0).length;
+  const entrees = ps.map((x, i) => ({
+    v: hidden[i].v, ideal: getLineZone(x.player, hidden[i].v).idealUnits,
+  }));
+  const { pen, mal } = malusZoneUnite(group, unit, entrees);
   let zone = null;
-  if (miscast === 0) {
-    zone = { off: 2, def: 2, tag: group === 'F' ? '✨ Trio optimal' : '✨ Paire optimale' };
+  if (mal === 0) {
+    zone = { off: 2, def: 2, etat: 'optimal', tag: group === 'F' ? '✨ Trio optimal' : '✨ Paire optimale' };
   } else {
-    const pen = Math.min(ZONE_PEN_MAX, totalPen);
-    zone = { off: -pen, def: -pen, tag: group === 'F' ? '⚠️ Trio mal assorti' : '⚠️ Paire mal assortie' };
+    /*
+     * UN CRAN PASSE, DEUX NE PASSENT PLUS, et le MOT doit dire lequel des
+     * deux : sans ça le joueur lit la même étiquette pour un ailier descendu
+     * d'une ligne (qui ne coûte presque rien) et pour une vedette parquée au
+     * quatrième trio (qui coûte le tiers de la production de l'unité).
+     *
+     * `etat` est là pour que l'écran n'ait pas à reconnaître un émoji : le
+     * tableau de bord comptait `zone.startsWith('⚠️')`, donc une étiquette
+     * de plus lui aurait fait rater EXACTEMENT les pires unités, en silence.
+     */
+    const dur = pen >= ZONE_DUR;
+    zone = {
+      off: -pen, def: -pen, etat: dur ? 'hors' : 'mal',
+      tag: dur
+        ? (group === 'F' ? '🚨 Trio hors de ses lignes' : '🚨 Paire hors de ses lignes')
+        : (group === 'F' ? '⚠️ Trio mal assorti' : '⚠️ Paire mal assortie'),
+    };
   }
 
   const withZone = (bonusOff, bonusDef, name, desc) => ({
@@ -365,6 +478,7 @@ export function getUnitSynergy(roster, group, unit) {
     name: zone ? `${name} · ${zone.tag}` : name,
     desc,
     zone: zone ? zone.tag : null,
+    zoneEtat: zone ? zone.etat : null,
     chem: name,
   });
 
@@ -702,7 +816,59 @@ export const FINITION_MAX = 1.20;
  * redistribue que la production entre les unités : c'est exactement la
  * chose que la mesure accuse, et rien d'autre.
  */
-export const VOLUME_EXPOSANT = 0.30;
+export const VOLUME_EXPOSANT = Number(ENV_MESURE.VOLUME_EXPOSANT ?? 0.30);
+
+/*
+ * LE VOLUME SE COMPARE À CELUI D'UNE UNITÉ DE SON RANG, jamais dans l'absolu
+ * (S60).
+ *
+ * L'exposant ci-dessus tempérait le volume tel quel, or le volume d'un premier
+ * trio est deux fois celui d'un quatrième PAR NATURE : à 0,30, le premier trio
+ * touchait donc 2^0,30 = 1,23 fois sa part, sur toutes les équipes et pour
+ * toujours. Ce n'était pas un signal, c'était un biais.
+ *
+ * `VOLUME_RANG` est le volume moyen d'une unité de ce rang, mesuré sur les
+ * 1392 vraies équipes alignées par `autoRoster`, comme `profilMatch` le
+ * calcule. Le volume s'y rapporte, si bien qu'une équipe ordinaire retombe
+ * exactement sur `PART_UNITE` et que seul l'ÉCART à la normale de son rang
+ * compte encore. Mesuré sur 300 vraies équipes : la pente et la corrélation
+ * entre la part du moteur et la part réelle, d'une équipe à l'autre, ne
+ * bougent pas d'un centième (0,24 et 0,66 avant comme après) — c'est le même
+ * signal sans le biais.
+ */
+export const VOLUME_RANG = {
+  F: [1.57, 1.22, 0.99, 0.80],
+  D: [1.43, 1.06, 0.86],
+};
+/* Molette de mesure : 0 éteint le centrage sur le rang, pour la comparaison. */
+export const VOLUME_CENTRE = Number(ENV_MESURE.VOLUME_CENTRE ?? 1);
+
+/*
+ * LA PART OFFENSIVE D'UNE UNITÉ, RÉGLÉE SUR LA SORTIE (S60).
+ *
+ * `POIDS_TRIO` est le temps de glace, et il le reste : c'est lui qui décide de
+ * la PRÉSENCE — qui défend, qui reçoit le +/-, le contexte de création des
+ * cotes. Mais la part des LANCERS DE FORCES ÉGALES ne peut pas être le temps
+ * de glace, parce que l'avantage numérique s'ajoute PAR-DESSUS et ne suit pas
+ * les trios : il fait six lancers par équipe par match (21 % du total) et
+ * 56 % vont au premier trio, qui prenait donc 37,9 % des lancers d'une saison
+ * simulée contre 33,7 % réels, pendant que le quatrième tombait à 13,4 %
+ * contre 17,5 %. C'est ce qui faisait 132 points à Blake Wheeler pour 74
+ * réels (JP : *yé pas rare qu'un joueur de 83 points en fasse genre 140*).
+ *
+ * Ces parts sont donc réglées sur la SORTIE, comme `LANCERS_BASE` et
+ * `CIBLE_PCT_TIR` : quatre itérations (multiplier chaque rang par le rapport
+ * réel/simulé, renormaliser) jusqu'à ce que la part TOTALE de lancers par rang
+ * — toutes situations, comptée sur les feuilles de match — retombe sur celle
+ * des mêmes joueurs dans leur vraie saison. Le premier trio y perd quatre
+ * points de forces égales et les retrouve en avantage. Le juge est
+ * `scripts/check_parts.mjs`, et leur somme vaut 1 pour que la pression
+ * d'équipe ne bouge pas.
+ */
+export const PART_UNITE = {
+  F: lireListe('PART_F', [0.300, 0.260, 0.235, 0.205]),
+  D: lireListe('PART_D', [0.390, 0.315, 0.295]),
+};
 
 /* =====================================================================
    LES CARTES DE SAISON — un bonus payé par un malus
@@ -849,21 +1015,161 @@ export const CARTES = {
     bon: 'Des jambes fraîches : plus de lancers', prix: 'Moins robuste quand ça brasse',
     volume: 1.04, robustesse: -1.0,
   },
+  /*
+   * QUATRE CARTES DE PLUS (S60), et la variété était la raison : JP voulait
+   * l'aspect roguelike *plus varié*. À six cartes, trois paliers et parfois
+   * une case vide, on revoyait toujours les mêmes ; à dix, une partie ne
+   * montre plus la moitié du paquet. Chacune reste un bonus payé par un
+   * malus, sur les canaux qui existent déjà — dont L'INDISCIPLINE, qui est
+   * arrivée avec le plan de match et qui ouvre une famille neuve : une carte
+   * qui joue sur l'arbitre plutôt que sur le tir.
+   */
+  sangfroid: {
+    nom: 'Le sang-froid', ico: '🧊',
+    bon: 'Tu prends moins de punitions', prix: 'Un peu moins de lancers',
+    discipline: 0.85, volume: 0.965,
+  },
+  vague: {
+    nom: 'La vague', ico: '🌊',
+    bon: "L'attaque s'emballe : ça rentre plus souvent", prix: 'Le rythme se paie à l\'infirmerie',
+    finition: 1.03, volume: 1.005, blessure: 2.20,
+  },
+  grandjeu: {
+    nom: 'Le grand jeu', ico: '🎲',
+    bon: 'Des matchs fous : tu marques beaucoup', prix: 'Et tu encaisses beaucoup',
+    finition: 1.10, defense: 1.10,
+  },
+  chasse: {
+    nom: 'La chasse', ico: '🏒',
+    bon: 'Tu lances de partout', prix: 'De moins bonnes occasions',
+    volume: 1.07, finition: 0.965,
+  },
 };
 
-/** Ce que les cartes d'une équipe multiplient. Neutre quand elle n'en a pas. */
-export function effetsDesCartes(team) {
-  const e = { finition: 1, defense: 1, volume: 1, blessure: 1, robustesse: 0 };
-  for (const cle of (team && team.cartes) || []) {
-    const c = CARTES[cle];
+/* =====================================================================
+   LE PLAN DE MATCH ET LE ROULEMENT — deux décisions qu'on porte toute
+   la saison, et qu'on change quand on veut derrière le banc
+
+   JP : *plus d'opportunités pour jouer avec les lignes, joueurs,
+   stratégie*. Les cartes de saison (S54) sont des curseurs qu'on PIGE à
+   trois paliers ; les situations (S56) ARRIVENT. Il manquait ce qu'un
+   entraîneur DÉCIDE et assume tous les soirs : un style de jeu, et
+   comment il distribue ses minutes.
+
+   AUCUNE MÉCANIQUE NEUVE, la règle des cartes : chaque plan n'est qu'un
+   facteur sur une quantité que `profilMatch` porte déjà — le volume de
+   lancers, la finition, la défensive, la robustesse, l'indiscipline et
+   le risque de blessure. Le ROULEMENT, lui, touche la seule quantité que
+   rien d'autre ne touchait : LA PART DE GLACE DE CHAQUE UNITÉ. C'est ce
+   qui fait du quatrième trio une décision au lieu d'un remplissage.
+
+   ET LES DEUX SE REJOUENT. Ce sont des décisions (`{ jour, plan }`,
+   `{ jour, roulement }`), elles vivent dans la sauvegarde avec le reste
+   et la saison se rejoue de la graine avec elles — `check_graine.mjs`
+   l'exige. La décision 0 les porte aussi, sinon un plan choisi au jour 40
+   vaudrait pour les 40 journées d'avant à la reprise.
+   ===================================================================== */
+/*
+ * LES CINQ PLANS, et le prix de chacun est mesuré EN PAIRES par
+ * `scripts/check_plans.mjs` (la même ligue deux fois sous la même graine, le
+ * plan aux équipes de rang pair puis aux impaires) : voir CLAUDE.md pour le
+ * tableau. Aucun ne doit valoir plus d'une victoire et demie — un plan est un
+ * STYLE, pas un cadeau, et le jeu se gagne avec l'alignement.
+ */
+export const PLANS = {
+  equilibre: {
+    nom: 'Équilibré', ico: '⚖️',
+    bon: 'Rien à payer', prix: 'Rien à gagner',
+  },
+  echec: {
+    nom: 'Échec avant', ico: '🔥',
+    bon: 'Tu récupères haut : plus de lancers', prix: 'Plus de punitions et plus de blessures',
+    volume: 1.06, discipline: 1.15, blessure: 1.20,
+  },
+  trappe: {
+    nom: 'La trappe', ico: '🧊',
+    bon: 'Tu alloues moins de buts', prix: 'Tu tires moins',
+    defense: 0.955, volume: 0.955,
+  },
+  surnombre: {
+    nom: 'Tout en attaque', ico: '🎯',
+    bon: 'Ton attaque finit mieux', prix: 'Tu laisses le champ libre',
+    finition: 1.05, defense: 1.055,
+  },
+  corps: {
+    nom: 'Jouer le corps', ico: '🧱',
+    bon: 'Plus robuste : les soirs éreintants et les séries', prix: 'Des punitions, et moins de finesse',
+    robustesse: 1.2, discipline: 1.10, finition: 0.985,
+  },
+};
+
+/*
+ * LE ROULEMENT : où passent les minutes.
+ *
+ * `parts` multiplie la part de glace de chaque unité, ensuite RENORMALISÉE
+ * pour que la somme — donc la pression de l'équipe — ne bouge pas d'un
+ * centième : raccourcir le banc ne fait pas tirer l'équipe davantage, ça
+ * déplace qui tire. Le prix est la robustesse et les blessures, parce que
+ * c'est ce qu'un banc court coûte vraiment : ça tient jusqu'en février.
+ */
+export const ROULEMENTS = {
+  quatre: {
+    nom: 'Quatre trios', ico: '🔄',
+    bon: 'Tout le monde joue : la saison tient', prix: 'Tes meilleurs jouent moins',
+    F: [1, 1, 1, 1], D: [1, 1, 1],
+  },
+  trois: {
+    nom: 'Trois trios', ico: '⏫',
+    bon: 'Tes meilleurs jouent plus', prix: 'Moins robuste, et plus de blessures',
+    F: [1.12, 1.08, 1.03, 0.62], D: [1.10, 1.04, 0.78],
+    robustesse: -0.9, blessure: 1.30,
+  },
+  profond: {
+    nom: 'Banc profond', ico: '🛡️',
+    bon: 'Des jambes fraîches, et moins de blessures', prix: 'Tes meilleurs jouent moins',
+    F: [0.92, 0.97, 1.05, 1.16], D: [0.94, 1.00, 1.11],
+    robustesse: 0.9, blessure: 0.82,
+  },
+};
+
+/** Le plan et le roulement d'une équipe, avec leur valeur par défaut. */
+export const planDe = t => PLANS[(t && t.plan) || 'equilibre'] ? ((t && t.plan) || 'equilibre') : 'equilibre';
+export const roulementDe = t => ROULEMENTS[(t && t.roulement) || 'quatre'] ? ((t && t.roulement) || 'quatre') : 'quatre';
+
+/**
+ * Ce que la SAISON d'une équipe multiplie : ses cartes, son plan de match et
+ * son roulement, sur les mêmes canaux. Un seul endroit les additionne, donc
+ * un canal ne peut pas être oublié d'un côté.
+ */
+export function effetsDeSaison(team) {
+  const e = { finition: 1, defense: 1, volume: 1, blessure: 1, robustesse: 0, discipline: 1 };
+  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]),
+    PLANS[planDe(team)], ROULEMENTS[roulementDe(team)]];
+  for (const c of sources) {
     if (!c) continue;
     e.finition *= c.finition ?? 1;
     e.defense *= c.defense ?? 1;
     e.volume *= c.volume ?? 1;
     e.blessure *= c.blessure ?? 1;
+    e.discipline *= c.discipline ?? 1;
     e.robustesse += c.robustesse ?? 0;
   }
   return e;
+}
+
+/**
+ * Les parts de glace d'une équipe, roulement appliqué et RENORMALISÉES.
+ * `base` est PART_UNITE (la part offensive) ou POIDS_TRIO/POIDS_PAIRE (la
+ * présence) : les deux suivent le même roulement, sinon le quatrième trio
+ * tirerait moins tout en défendant autant.
+ */
+export function partsDuRoulement(base, group, team) {
+  const r = ROULEMENTS[roulementDe(team)];
+  const mult = (r && r[group]) || base.map(() => 1);
+  const brut = base.map((x, i) => x * (mult[i] ?? 1));
+  const s = brut.reduce((a, b) => a + b, 0);
+  const s0 = base.reduce((a, b) => a + b, 0);
+  return s > 0 ? brut.map(x => x * s0 / s) : base.slice();
 }
 
 /*
@@ -1485,14 +1791,15 @@ export const periodeDe = t => (t < 20 ? 1 : t < 40 ? 2 : t < 60 ? 3 : 4);
 export const P_PASSE_1 = 0.95;   // réel : 1,66 passe par but sur 55 saisons (0,95 + 0,95 × 0,75 = 1,66)
 export const P_PASSE_2 = 0.75;
 /*
- * LE POIDS D'UN DÉFENSEUR DANS LE TIRAGE DES PASSEURS. La propension est la
- * part de passes dans les points, RELATIVE — un défenseur en a une haute par
- * nature — et deux des quatre coéquipiers sur la glace sont des défenseurs :
- * à 0,7 ils récoltaient 45 % des passes de la ligue contre 29,7 % réels sur
- * 55 saisons (27 % en 1975-76, 31 % en 2024-25), et Bowen Byram finissait à
- * 94 points. Réglé sur la mesure : 0,3 donne 29,7 %.
+ * LE POIDS D'UN DÉFENSEUR DANS LE TIRAGE DES PASSEURS. Deux des quatre
+ * coéquipiers sur la glace sont des défenseurs, et sans ce poids ils
+ * récoltaient 45 % des passes de la ligue contre 29,7 % réels sur 55 saisons
+ * (27 % en 1975-76, 31 % en 2024-25) — Bowen Byram finissait à 94 points.
+ * Réglé sur la mesure, et REMESURÉ en S60 quand la propension est devenue le
+ * taux de passes du joueur : 0,3 avec l'ancienne formule, 0,38 avec celle-ci,
+ * pour la même sortie de 29 à 30 % (`check_parts.mjs` en fait un repère).
  */
-export const PASSE_D = 0.3;
+export const PASSE_D = 0.38;
 
 /** Volume de tirs et finition d'un rappel de la ligue mineure. */
 const RAPPEL_LANCERS = 0.70;
@@ -1569,8 +1876,27 @@ export const lancersRelDe = lancersRel;
 export const passesRelDe = passesRel;
 
 /** Propension à la passe : la part de points qu'un joueur récolte en passes. */
-const propensionPasse = p =>
-  ((p.a || 0) / Math.max(1, p.pt || 1) + 0.05) * (p.p === 'D' ? PASSE_D : 1);
+/*
+ * LA PROPENSION EST LE TAUX DU JOUEUR, plus la part de ses points (S60).
+ *
+ * Elle valait `passes / points`, un rapport SANS ÉCHELLE : un ailier récoltait
+ * donc la même fraction des passes de son trio quel que soit son propre taux,
+ * et Elias Lindholm 2021-22 sortait à 81 passes pour 40 réelles à côté de
+ * Gaudreau. C'est maintenant `passesRel` — ses passes par match, relatives au
+ * régulier moyen de sa position et de sa saison — la MÊME quantité que le
+ * canal de création lit déjà : aucune cote neuve, et un joueur récolte les
+ * passes qu'il a vraiment récoltées. Mesuré : la corrélation entre le taux
+ * réel et le simulé passe de 0,80 à 0,85 (`check_parts.mjs`).
+ *
+ * Les deux molettes servent à la PREUVE du garde-fou : `PASSE_TAUX=0` remet
+ * l'ancienne formule et fait rougir `check_parts` sur la part des passes aux
+ * défenseurs (34,9 %) et sur la corrélation (0,74).
+ */
+const PASSE_TAUX = Number(ENV_MESURE.PASSE_TAUX ?? 1);
+const PASSE_D_MESURE = Number(ENV_MESURE.PASSE_D ?? PASSE_D);
+const propensionPasse = p => (PASSE_TAUX
+  ? passesRel(p) * (p.p === 'D' ? PASSE_D_MESURE : 1)
+  : ((p.a || 0) / Math.max(1, p.pt || 1) + 0.05) * (p.p === 'D' ? PASSE_D : 1));
 
 /** Minutes de punition par match d'un patineur, relatives au régulier moyen de sa saison. */
 function punitionsRel(p) {
@@ -1653,6 +1979,7 @@ export function trioDeFermetureAuto() {
 /** Le volume d'un joueur à forces égales : ses lancers, moins sa part d'avantage. */
 const lancersFE = (p, partAN) => lancersRel(p) * (1 - ((partAN && partAN.get(p)) || 0));
 
+
 /**
  * Le profil de match d'un alignement : combien il tire, comment il défend,
  * et qui est sur la glace à chaque présence.
@@ -1667,7 +1994,11 @@ export function profilMatch(team, lineup) {
   const speciales = unitesSpeciales(habilles);
   const membresAN = speciales.avantage.partAN;
   const unites = { F: [], D: [] };
-  for (const [group, poids] of [['F', POIDS_TRIO], ['D', POIDS_PAIRE]]) {
+  // LE ROULEMENT décide de la glace, et il touche les DEUX parts : l'offensive
+  // (qui tire) et la présence (qui défend, et qui reçoit le +/-).
+  const parts = { F: partsDuRoulement(PART_UNITE.F, 'F', team), D: partsDuRoulement(PART_UNITE.D, 'D', team) };
+  const presences = { F: partsDuRoulement(POIDS_TRIO, 'F', team), D: partsDuRoulement(POIDS_PAIRE, 'D', team) };
+  for (const [group, poids] of [['F', presences.F], ['D', presences.D]]) {
     for (let u = 0; u < poids.length; u++) {
       const slots = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch);
       const syn = getUnitSynergy(lineup, group, u);
@@ -1684,8 +2015,8 @@ export function profilMatch(team, lineup) {
         // contient déjà le temps de glace (voir VOLUME_EXPOSANT), et les
         // poids sont renormalisés juste après pour que leur somme — donc la
         // pression d'équipe — reste celle d'avant.
-        poids: poids[u] * Math.pow(volume, VOLUME_EXPOSANT) * mod,
-        brut: poids[u] * volume * mod,
+        poids: parts[group][u] * Math.pow(volume / (VOLUME_CENTRE ? VOLUME_RANG[group][u] : 1), VOLUME_EXPOSANT) * mod,
+        brut: parts[group][u] * volume * mod,
         qualite: mod,
         // Poids DÉFENSIF : le temps de glace seul. Une unité ne défend pas
         // plus souvent parce qu'elle tire plus — elle défend sa part de
@@ -1718,8 +2049,8 @@ export function profilMatch(team, lineup) {
   const pression = (1 - PART_LANCERS_D) * somme('F') + PART_LANCERS_D * somme('D');
 
   const coteDef = 0.5 * (
-    POIDS_TRIO.reduce((a, w, u) => a + w * unites.F[u].coteDef, 0) +
-    POIDS_PAIRE.reduce((a, w, u) => a + w * unites.D[u].coteDef, 0));
+    presences.F.reduce((a, w, u) => a + w * unites.F[u].coteDef, 0) +
+    presences.D.reduce((a, w, u) => a + w * unites.D[u].coteDef, 0));
 
   // Les traits appartiennent au JOUEUR, pas à sa case : ils rendent partout
   // dans l'alignement, du premier trio au troisième duo. C'est le malus de
@@ -1742,7 +2073,7 @@ export function profilMatch(team, lineup) {
     });
     return w ? s / w : RAPPEL_PASSES;
   };
-  const Fbar = moyU('F', POIDS_TRIO), Dbar = moyU('D', POIDS_PAIRE);
+  const Fbar = moyU('F', presences.F), Dbar = moyU('D', presences.D);
   const creaEquipe = 0.56 * Fbar + 0.44 * Dbar;
   let sLC = 0;
   for (const [g, taille] of [['F', 3], ['D', 2]]) {
@@ -1756,7 +2087,7 @@ export function profilMatch(team, lineup) {
   const finEquipe = sL ? sLC / sL : 1;
 
   const patineurs = habilles.filter(p => p.p !== 'G');
-  const cartes = effetsDesCartes(team);
+  const cartes = effetsDeSaison(team);
 
   return {
     unites,
@@ -1764,9 +2095,12 @@ export function profilMatch(team, lineup) {
     patineurs,
     // L'indiscipline : combien cet alignement prend de punitions, relativement
     // à un alignement de réguliers moyens de la même époque. 1 = la moyenne.
+    // L'indiscipline : combien cet alignement prend de punitions. Le plan de
+    // match entre ICI — un échec avant lourd se paie à l'arbitre.
     discipline: patineurs.length
-      ? borne(patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length, DISCIPLINE_MIN, DISCIPLINE_MAX)
-      : 1,
+      ? borne(cartes.discipline * patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length,
+        DISCIPLINE_MIN, DISCIPLINE_MAX)
+      : cartes.discipline,
     annee: anneeDe(habilles),
     // Les occasions d'avantage de cet alignement : mesurées par saison quand
     // les shards les portent, repère d'époque sinon (voir occasionsDe).
@@ -1907,7 +2241,28 @@ export const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.
  */
 export const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
 export const P_MELANGE = 0.40;
-export const RYTHME_CREDIT = 0.5;   // 0 : le −1 à la présence seule ; 1 : au poids offensif entier
+/*
+ * LE −1 SUIT LE RYTHME : 0 le met à la présence seule, 1 au poids offensif
+ * entier (voir CREDIT_AU_RYTHME plus haut).
+ *
+ * IL VALAIT 0,5, ET S60 L'A FAIT PASSER À 1 — parce que la constante mesure un
+ * RAPPORT (`poids / presence`) et que ce rapport a changé de sens. Tant que la
+ * part offensive d'une unité ÉTAIT son temps de glace, le rapport valait 1 en
+ * moyenne et l'exposant ne faisait que doser une inclinaison ; depuis que la
+ * part offensive est réglée sur la sortie (`PART_UNITE`), le quatrième trio
+ * porte 20,5 % des lancers de forces égales pour 16 % de la glace — il
+ * récupère à cinq contre cinq ce que l'avantage numérique donne aux deux
+ * premiers trios. À 0,5, le +1 suivait cette part et le −1 ne la suivait qu'à
+ * moitié : le quatrième trio finissait à +0,9 quand le réel est à −4,4, et
+ * l'écart du premier au quatrième tombait de 8,9 à 3,4.
+ *
+ * Mesuré (`LIGUES=4 node scripts/check_pm.mjs`), écart du 1er au 4e trio et
+ * meilleur +/- en part du différentiel d'une équipe à +60 : 0 → 0,1 et 0,52 ·
+ * 0,25 → 2,9 · 0,5 → 3,4 et 0,52 · 0,75 → 6,6 et 0,50 · **1 → 7,9 et 0,48**
+ * (réel : 11,4 et 0,36). C'est le seul réglage qui améliore les DEUX repères à
+ * la fois, et son F1 tombe pile sur le réel (+6,4 contre +6,1).
+ */
+export const RYTHME_CREDIT = Number(ENV_MESURE.RYTHME_CREDIT ?? 1.0);
 
 /**
  * Une unité tirée à la présence, appariée au rang d'une autre : l'unité qui
@@ -2276,6 +2631,8 @@ export function createTeam(name, tag, roster, opts = {}) {
     isPlayer: !!opts.isPlayer,
     season: opts.season || null,
     fermeture: 'auto',       // le trio de fermeture : 'auto', null, ou le rang d'un trio (voir FERMETURE_DEFAUT)
+    plan: opts.plan || 'equilibre',        // le plan de match (voir PLANS)
+    roulement: opts.roulement || 'quatre', // la distribution des minutes (voir ROULEMENTS)
     injured: new Map(),      // joueur -> matchs restants
     together: new Map(),     // unité -> matchs consécutifs intacts
     togetherSig: new Map(),
@@ -2458,9 +2815,10 @@ function applyInjuries(team, lineup, heavy) {
   }
   for (const p of Object.values(lineup)) {
     if (!p || team.injured.has(p)) continue;
-    // Le risque suit la carte de saison : « Roulement court » use, « L'infirmerie » protège.
+    // Le risque suit la carte, le plan et le roulement : « Roulement court » et
+    // « Trois trios » usent, « L'infirmerie » et « Banc profond » protègent.
     // Et la situation du joueur : « Il joue amoché » finit par payer.
-    if (hasard() < injuryChance(p, heavy) * effetsDesCartes(team).blessure * situDe(p, 'blessure')) {
+    if (hasard() < injuryChance(p, heavy) * effetsDeSaison(team).blessure * situDe(p, 'blessure')) {
       const n = injuryLength();
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
@@ -2773,6 +3131,8 @@ function appliquerDecision(team, d) {
   // elle a été prise et vaut pour le reste de la saison.
   if (d.carte && CARTES[d.carte]) (team.cartes = team.cartes || []).push(d.carte);
   if ('fermeture' in d) team.fermeture = d.fermeture;
+  if ('plan' in d && PLANS[d.plan]) team.plan = d.plan;
+  if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
   const cases = d.cases;
   if (!cases) return;
   const parCle = new Map();

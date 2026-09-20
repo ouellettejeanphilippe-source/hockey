@@ -16,7 +16,7 @@
  *   node scripts/mock_zones.mjs
  */
 
-import { CAP, ZONE_PEN_SOUS, ZONE_PEN_DESSUS, ZONE_PEN_MAX } from '../js/sim.js';
+import { CAP, ZONE_ECHELLE, ZONE_NOMBRE, ZONE_PEN_MAX, malusZoneUnite } from '../js/sim.js';
 import { ZONE_THRESHOLDS, LINE_ZONES } from '../js/ratings.js';
 import { meilleurAlignementLegal, equipesTemoins } from './lib/vestiaires.mjs';
 
@@ -43,7 +43,7 @@ const calibreAttendu = (pos, unit) => {
  * `dessus` : pénalité par cran quand il joue AU-DESSUS (il n'a pas mieux)
  * Par défaut : les constantes en vigueur, importées de js/sim.js.
  */
-function indice(F, D, G, { sous = ZONE_PEN_SOUS, dessus = ZONE_PEN_DESSUS, plafond = ZONE_PEN_MAX, malus = true } = {}) {
+function indice(F, D, G, { plafond = ZONE_PEN_MAX, malus = true, ...opts } = {}) {
   const unite = (js, poids, taille, pos) => {
     let off = 0, def = 0;
     for (let u = 0; u < poids.length; u++) {
@@ -51,19 +51,10 @@ function indice(F, D, G, { sous = ZONE_PEN_SOUS, dessus = ZONE_PEN_DESSUS, plafo
       if (!t.length) { off += poids[u] * 40; def += poids[u] * 40; continue; }
       let o = moy(t.map(p => p.o)), d = moy(t.map(p => p.d));
       if (malus && t.length === taille) {
-        let pen = 0, parfait = true;
-        for (const p of t) {
-          const ideal = idealDe(pos, zoneDe(pos, p.v));
-          if (ideal.includes(u)) continue;
-          parfait = false;
-          const ecart = Math.min(...ideal.map(x => Math.abs(x - u)));
-          // même formule que getUnitSynergy : proportionnel sous la zone,
-          // forfaitaire au-dessus
-          pen += u > Math.max(...ideal)
-            ? sous * Math.max(0, p.v - calibreAttendu(pos, u))
-            : dessus * ecart;
-        }
-        const b = parfait ? 2 : -Math.min(plafond, pen);
+        // UNE SEULE implémentation du malus : celle du moteur.
+        const { pen, mal } = malusZoneUnite(pos, u,
+          t.map(p => ({ v: p.v, ideal: idealDe(pos, zoneDe(pos, p.v)) })), { ...opts, plafond });
+        const b = mal === 0 ? 2 : -pen;
         o += b; d += b;
       }
       off += poids[u] * o; def += poids[u] * d;
@@ -92,10 +83,11 @@ const ligne = (lab, opts) => {
 };
 console.log(`  ${'réglage'.padEnd(24)} ${'EMPILÉ'.padStart(6)}  ${refs.map(([l]) => l.padStart(9)).join('  ')}`);
 ligne('aucun malus', { malus: false });
-ligne('proportionnel 0,3', { sous: 0.30, plafond: 40 });
-ligne('proportionnel 0,45', { sous: 0.45, plafond: 40 });
-ligne(`EN VIGUEUR (${ZONE_PEN_SOUS}/${ZONE_PEN_DESSUS}, cap ${ZONE_PEN_MAX})`, {});
-ligne('proportionnel 0,8', { sous: 0.80, plafond: 55 });
+ligne('linéaire (avant S60)', { lineaire: true, sous: 0.40, dessus: 3 });
+ligne(`EN VIGUEUR (${ZONE_ECHELLE.slice(1).join('/')} · nombre ${ZONE_NOMBRE.slice(2).join('/')})`, {});
+ligne('sans le nombre', { nombre: [1, 1, 1, 1] });
+ligne('échelle 0,3/1,6/2,4', { echelle: [0, 0.30, 1.60, 2.40] });
+ligne('nombre 1/2,0/3,0', { nombre: [1, 1, 2.0, 3.0] });
 console.log(`
   Empiler = jouer SOUS sa zone (un top 6 au 4e trio, du talent gaspillé).
   Une mauvaise équipe joue AU-DESSUS de la sienne, faute de mieux. Punir

@@ -10,7 +10,8 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS } from './sim.js';
+import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
+  PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
 import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
@@ -513,9 +514,18 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
    * un palier déjà servi) est dans les décisions et pas dans le moteur.
    */
   const mesCartes = (you.cartes || []).map(c => CARTES[c]).filter(Boolean);
-  const cartesPrises = mesCartes.length
+  /*
+   * ET LE PLAN AVEC LEQUEL TU AS FINI L'ANNÉE. Il se lit au même endroit et
+   * pour la même raison — l'équipe, pas les décisions — et il a sa place ici
+   * parce qu'un réglage qu'on porte 82 matchs fait partie du bilan autant
+   * qu'une carte. On ne montre que ce qui n'est pas le défaut : « Équilibré ·
+   * Quatre trios » n'apprend rien.
+   */
+  const reglages = [PLANS[planDe(you)], ROULEMENTS[roulementDe(you)]]
+    .filter(x => x && x.bon && x.prix && !/^Rien/.test(x.bon));
+  const cartesPrises = mesCartes.length || reglages.length
     ? `<div class="result-section"><h3>Tes cartes</h3>
-        <ul class="inj-list">${mesCartes.map(c => `<li>${c.ico} <strong>${esc(c.nom)}</strong> — ${esc(c.bon)}, ${esc(c.prix.toLowerCase())}</li>`).join('')}</ul>
+        <ul class="inj-list">${[...reglages, ...mesCartes].map(c => `<li>${c.ico} <strong>${esc(c.nom)}</strong> — ${esc(c.bon)}, ${esc(c.prix.toLowerCase())}</li>`).join('')}</ul>
       </div>`
     : '';
 
