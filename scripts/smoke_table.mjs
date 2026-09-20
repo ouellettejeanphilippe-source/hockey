@@ -242,6 +242,7 @@ const casesTouchables = (sel) => page.evaluate((s) => [...document.querySelector
   return !!t && (t === e || e.contains(t));
 }).map(e => `${e.dataset.r},${e.dataset.c}`), sel);
 let dernierDuel = null, duelsSecs = 0;
+let menuMenti = null;          // la carte de commandes a-t-elle nommé la mauvaise pièce ?
 while (tours++ < 4000) {
   if (!(await page.$('#tableModal .t-glace'))) break;
   const etat = await page.evaluate(() => {
@@ -263,11 +264,30 @@ while (tours++ < 4000) {
     return !!t && (t === e || e.contains(t));
   };
   const cases = s => [...document.querySelectorAll(s)].filter(touchable).map(e => `${e.dataset.r},${e.dataset.c}`);
+  /*
+   * LA CARTE DE COMMANDES DIT LA PIÈCE CHOISIE, ET PAS LA PRÉCÉDENTE.
+   * `carte()` calcule `actions` et `majGlace` en dessine la carte : tant que
+   * la glace se dessinait AVANT, elle portait les gestes du rendu d'avant —
+   * au premier toucher il n'y avait aucun menu, au suivant c'était celui de
+   * la pièce d'avant, avec ses cotes et ses cibles. JP : *je suis incapable
+   * de passer, les menus sont fucked*. On compare donc ce que la carte
+   * NOMME à ce qui est CHOISI ; la carte se ferme légitimement pendant un
+   * jet ou une fois un mode pris, d'où `bloque`.
+   */
+  const nu = x => (x || '').replace(/[^A-Za-zÀ-ÿ]/g, '').toLowerCase();
+  const cmd = document.querySelector('#tableModal .t-cmd');
+  const jetonSel = document.querySelector('#tableModal .t-jeton.mienne.choisie');
   return ({
     suite: !!document.querySelector('#tableModal .t-suite'),
     relance: !!document.querySelector('#tableModal .t-relancer'),
     mien: !!document.querySelector('#tableModal .tb-tour.mien'),
     sel: !!document.querySelector('#tableModal .t-case.t-sel'),
+    menu: jetonSel ? {
+      bloque: !!document.querySelector('#tableModal .t-annuler') || !!document.querySelector('#tableModal .t-suite') || !!document.querySelector('#tableModal .t-relancer'),
+      ouverte: !!(cmd && !cmd.hidden),
+      dit: nu(cmd && cmd.querySelector('.t-cmd-tete') ? cmd.querySelector('.t-cmd-tete').textContent : ''),
+      piece: nu(jetonSel.textContent),
+    } : null,
     // La pièce choisie porte-t-elle la rondelle ? Le joueur scripté monte alors vers le filet.
     porteur: !!document.querySelector('#tableModal .t-jeton.mienne.choisie .t-rondelle'),
     jouablesCases: cases('#tableModal .t-case.t-jouable:not(.t-sel)'),
@@ -302,6 +322,11 @@ while (tours++ < 4000) {
   etat.offres = etat.offresCases.length;
   etat.contacts = etat.contactsCases.length;
   etat.jouables = etat.jouablesCases.length;
+  // La carte de commandes doit nommer la pièce choisie, pas la précédente.
+  if (!menuMenti && etat.menu && !etat.menu.bloque) {
+    if (!etat.menu.ouverte) menuMenti = `aucun menu alors que « ${etat.menu.piece} » est choisie`;
+    else if (etat.menu.dit !== etat.menu.piece) menuMenti = `le menu nomme « ${etat.menu.dit} » pendant que « ${etat.menu.piece} » est choisie`;
+  }
   if (etat.fin) break;
   if (etat.suite) {
     if (etat.relance && relances < 3) { await page.click('#tableModal .t-relancer'); relances++; await page.waitForTimeout(50); }
@@ -645,6 +670,9 @@ const rangees = await page.$$eval('#gameModal .tbl tbody tr', l => l.length);
 console.log(`5. bilan : « ${verdict} » · ${rangees} rangées de tableau`);
 if (!verdict) errors.push('le bilan du tournoi ne nomme pas de champion');
 await page.screenshot({ path: 'scripts/smoke-table-bilan.png' });
+
+if (menuMenti) errors.push(`la carte de commandes est en retard d'un rendu : ${menuMenti}`);
+else console.log('   la carte de commandes nomme toujours la pièce choisie');
 
 console.log(errors.length ? `\n6. ÉCHEC — ${errors.length} erreur(s) :\n  ${errors.join('\n  ')}` : '\n6. zéro erreur console ✓');
 await browser.close();

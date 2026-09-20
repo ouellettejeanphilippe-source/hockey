@@ -4025,21 +4025,37 @@ a.spin-club:hover {
    ====================================================================== */
 .t-cmd {
   position: absolute; top: 0; left: 0; z-index: 12; width: max-content; min-width: 132px; max-width: 168px;
-  transform: translate(calc(var(--tc) * var(--tcell) + var(--tcell) * 1.1), calc(var(--tr) * var(--tcell) - var(--tcell) * 0.6));
+  --cx: calc(var(--tc) * var(--tcell) + var(--tcell) * 1.1);
+  --cy: calc(var(--tr) * var(--tcell) - var(--tcell) * 0.6);
+  transform: translate(var(--cx), var(--cy));
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
   padding: 5px; display: flex; flex-direction: column; gap: 3px;
 }
-/* Les mêmes trois débordements que le dé : on ne sort jamais de la glace. */
-.t-cmd.bord-d { transform: translate(calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%), calc(var(--tr) * var(--tcell) - var(--tcell) * 0.6)); }
-.t-cmd.dessous { transform: translate(calc(var(--tc) * var(--tcell) + var(--tcell) * 1.1), calc(var(--tr) * var(--tcell))); }
-.t-cmd.bord-d.dessous { transform: translate(calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%), calc(var(--tr) * var(--tcell))); }
+/*
+   QUATRE CÔTÉS, PAS DEUX. Elle n'avait que « à droite » et « à gauche » de la
+   pièce, et deux variantes verticales qui ne la décalaient que d'un demi-
+   carreau : sur un plateau de treize colonnes, une carte de cinq colonnes de
+   large couvrait donc forcément la moitié du monde à côté du joueur — et les
+   cinq patineurs partent groupés. Il lui faut un vrai HAUT et un vrai BAS,
+   collés à la rangée de la pièce, pour qu'un ancrage propre existe toujours.
+   `--cx` et `--cy` se composent : l'horizontale et la verticale se choisissent
+   séparément, et `ancrerCarte` (js/plateau.js) MESURE laquelle prendre. */
+.t-cmd.bord-d { --cx: calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%); }
+.t-cmd.dessous { --cy: calc(var(--tr) * var(--tcell) + var(--tcell) * 1.1); }
+.t-cmd.dessus { --cy: calc(var(--tr) * var(--tcell) - var(--tcell) * 0.1 - 100%); }
 .t-cmd[hidden] { display: none; }
 .t-cmd-tete {
+  display: flex; align-items: center; gap: 4px;
   font-family: var(--display); font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--sub); padding: 1px 4px 3px; border-bottom: 1px solid var(--line-soft);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .t-cmd-tete b { color: var(--gold); margin-right: 4px; }
+.t-cmd-fermer {
+  margin-left: auto; background: none; border: 0; color: var(--muted);
+  font-size: 13px; line-height: 1; padding: 0 2px; cursor: pointer;
+}
+.t-cmd-fermer:hover { color: var(--text); }
 .t-cmd-liste { display: flex; flex-direction: column; gap: 2px; }
 /* Une commande par ligne : le nom à gauche, la cote à droite — on compare
    les chances d'un coup d'oeil vertical, ce qu'une rangée qui défile ne

@@ -591,7 +591,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
      * regarde. `poserSurGlace` la pose comme le dé, avec les mêmes trois
      * ancrages, donc elle ne sort jamais du plateau.
      */
-    poserSurGlace(grille.querySelector('.t-cmd'), commandes(), () => actions.carte);
+    poserSurGlace(grille.querySelector('.t-cmd'), commandes(), () => actions.carte, ancrerCarte);
     poserSurGlace(grille.querySelector('.t-de-glace'), deGlace, deGlaceHtml);
     poserSurGlace(grille.querySelector('.t-flash'), flash, flashHtml);
   }
@@ -639,7 +639,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const commandes = () => (sel && aMoi() && !attente && !regles && !mode && !cible && actions.carte ? { r: sel.r, c: sel.c } : null);
 
   /* Poser une chose sur une case, ou la cacher. `html(x)` en fait le contenu. */
-  function poserSurGlace(el, x, html) {
+  function poserSurGlace(el, x, html, ancrer = null) {
     if (!el) return;
     el.hidden = !x;
     if (!x) { el.dataset.cle = ''; el.innerHTML = ''; return; }
@@ -656,6 +656,47 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     el.classList.toggle('bord-d', x.c >= COLS - 2);
     const cle = html(x, true);
     if (el.dataset.cle !== cle) { el.dataset.cle = cle; el.innerHTML = html(x); }
+    // L'ancrage MESURÉ vient après le contenu : la taille de la boîte en dépend.
+    if (ancrer) ancrer(el);
+  }
+
+  /*
+   * LA CARTE NE COUVRE JAMAIS UNE PIÈCE QU'ON PEUT ENCORE TOUCHER.
+   *
+   * Mesuré à 390 px : posée à côté de la pièce, elle fait 168 px sur 221 —
+   * cinq colonnes et sept rangées d'un plateau de treize sur vingt-trois — et
+   * comme les cinq patineurs partent groupés, elle en couvrait QUATRE. La
+   * couche des pièces est en `pointer-events: none` pour que le clic atteigne
+   * la case dessous, donc un jeton sous la carte n'est plus touchable du
+   * tout : on ne peut même plus choisir un autre joueur. JP : *les menus sont
+   * fucked*. Les adversaires, eux, ne comptent pas — la carte se ferme dès
+   * qu'on choisit un mode, et c'est par le mode qu'on les vise.
+   *
+   * L'ancrage est MESURÉ, pas déduit : on essaie les quatre côtés, on lit le
+   * rectangle que le navigateur a vraiment donné, et on garde celui qui sort
+   * le moins du plateau et couvre le moins de pièces jouables. Refaire le
+   * calcul en JavaScript doublerait la formule de la feuille de style, donc
+   * elle dériverait ; c'est ce qui est DESSINÉ qui décide.
+   */
+  const ANCRAGES = ['', 'dessus', 'dessous', 'bord-d', 'bord-d dessus', 'bord-d dessous'];
+  const chevauche = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+    * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+
+  function ancrerCarte(el) {
+    const plateau = el.parentElement.getBoundingClientRect();
+    const jouables = [...el.parentElement.querySelectorAll('.t-piece.jouable')].map(x => x.getBoundingClientRect());
+    let meilleur = null;
+    for (const a of ANCRAGES) {
+      el.className = a ? `t-cmd ${a}` : 't-cmd';
+      const r = el.getBoundingClientRect();
+      const dehors = Math.max(0, plateau.left - r.left) + Math.max(0, r.right - plateau.right)
+        + Math.max(0, plateau.top - r.top) + Math.max(0, r.bottom - plateau.bottom);
+      // Sortir du plateau est rédhibitoire ; couvrir une pièce est un coût.
+      const score = dehors * 10000 + jouables.reduce((s, p) => s + chevauche(r, p), 0);
+      if (!meilleur || score < meilleur.score) meilleur = { a, score };
+      if (!score) break;
+    }
+    el.className = meilleur.a ? `t-cmd ${meilleur.a}` : 't-cmd';
   }
 
   const signe = n => (n >= 0 ? `+${n}` : `−${-n}`);
@@ -901,7 +942,16 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         ? bouton('tir', 'Tirer', avec(modTir(m, sel), bonus('DECOCHE')), 't-tir')
         : modeEteint('tir', 'Tirer', !aLaRondelle ? 'il n\'a pas la rondelle'
           : sansAction || (horsPortee ? (prof <= 0 ? 'derrière le filet' : `à ${prof} du filet, il en faut ${PORTEE_TIR}`) : 'impossible'));
-    const carte = `<div class="t-cmd-tete"><b>${esc(sel.role)}</b> ${esc(nomCourt(sel.p))}</div>`
+    /*
+     * LA CARTE SE FERME PAR UN BOUTON, pas par une manoeuvre à deviner.
+     * `ancrerCarte` prend le côté qui couvre le moins de pièces jouables,
+     * mais quand les cinq patineurs sont groupés il n'existe parfois aucun
+     * côté propre : la pièce qui reste dessous ne se touche plus. On pouvait
+     * s'en sortir en retouchant la pièce choisie — elle n'est jamais couverte,
+     * la carte lui est tangente — mais « un chemin qu'il faut deviner n'existe
+     * pas » (S46). Le ✕ le dit, et c'est l'Annuler de FFT.
+     */
+    const carte = `<div class="t-cmd-tete"><b>${esc(sel.role)}</b> ${esc(nomCourt(sel.p))}<button type="button" class="t-cmd-fermer" aria-label="Fermer le menu">✕</button></div>`
       + `<div class="t-cmd-liste">${tirCarte}${modes.join('')}${gestes.join('')}</div>`;
     actions = { modes, gestes, aide, carte };
 
@@ -1151,6 +1201,27 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     $('.t-tete').innerHTML = tete() + banniere();
     if (feuille) { $('.t-bas').innerHTML = feuilleHtml(); return; }
     if (!grilleFaite) batirGlace();
+    /*
+     * `carte()` D'ABORD, LA GLACE ENSUITE — ET C'EST UN ORDRE, PAS UN GOÛT.
+     * `carte()` ne rend pas que le volet : elle CALCULE `actions`, et trois
+     * choses la lisent ensuite — la carte de commandes que `majGlace` pose
+     * à côté de la pièce (`.t-cmd`, la seule façon de choisir « Passer »),
+     * la barre du bas (`dock`) et le volet lui-même.
+     *
+     * L'ordre inverse datait de S34, quand rien sur la GLACE ne lisait
+     * `actions` ; la carte de commandes est née en S45 et l'a hérité. La
+     * glace dessinait donc les actions du rendu PRÉCÉDENT : au premier
+     * toucher d'une pièce il n'y avait aucun menu (`actions.carte` n'existait
+     * pas encore), et au toucher suivant c'était le menu de la pièce d'AVANT
+     * — avec ses cotes et ses cibles. JP : *je suis incapable de passer, les
+     * menus sont fucked*. Mesuré : on touchait Alfredsson et la carte disait
+     * « C Heatley ».
+     *
+     * Une valeur qui se calcule à un endroit et se dessine à un autre doit
+     * se calculer AVANT tout ce qui la dessine, et rien dans `carte()` ne
+     * dépend de la glace : elle ne lit que le moteur et la sélection.
+     */
+    const fiche = carte();                    // calcule `actions` : la glace, la barre et le volet le lisent
     majGlace();
     // LE VOLET : la fiche de la pièce, le banc des trios et le fil, au
     // deuxième clic. JP : *flyout carte du joueur avec les actions, stats,
@@ -1160,7 +1231,6 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // ouvrir), les STATS dans le volet. Sur téléphone il glisse par-dessus
     // le bas de la glace et se ferme dès qu'on touche la glace ; sur grand
     // écran il est la colonne de droite, toujours ouverte (feuille de style).
-    const fiche = carte();                    // calcule aussi `actions`, que `dock` lit
     $('.t-dock').innerHTML = dock();
     $('.t-bas').classList.toggle('ouvert', volet);
     $('.t-bas').innerHTML = unites() + fiche + fil();
@@ -1549,6 +1619,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       else if (quoi === 'reception') { const j = tirerSurReception(m); if (j) lancer(j, 'A', jj => appliquerTir(m, piece, jj), placesDe(piece, null)); else rendre(); }
       return;
     }
+    // Le ✕ de la carte de commandes : on repose la pièce, la glace se dégage.
+    if (t.closest('.t-cmd-fermer')) { sel = null; cible = null; mode = null; rendre(); return; }
     if (t.closest('.t-annuler')) { cible = null; mode = null; rendre(); return; }
     if (t.closest('.t-fin-tour')) { sel = null; cible = null; mode = null; deGlace = null; finDeMain = 'Main passée'; finirMain(m); apres(); return; }
     if (t.closest('.t-passer')) { sel = null; cible = null; mode = null; deGlace = null; flash = null; finDeMain = 'Main passée sans jouer'; renoncer(m); apres(); return; }
