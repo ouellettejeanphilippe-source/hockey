@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes } from './sim.js';
+import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS } from './sim.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { tempsRestant } from './recit.js';
 
@@ -325,7 +325,7 @@ function blocEquipe(ctx, t, ligne, pos) {
  *   onJour      appelé à chaque avance avec le numéro de journée révélée :
  *               c'est ce que le contrôleur écrit dans la sauvegarde
  */
-export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null }) {
+export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, onTrou = null, trousPris = [] }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -448,7 +448,65 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   const palierOuvert = () => (onCarte ? PALIERS_CARTES.find(j => jour >= j && !prises.has(j)) : undefined);
   const paliersVus = new Set();      // les paliers qui ont déjà arrêté l'avance
 
+  /*
+   * LES SITUATIONS. Elles ne sont pas une décision — elles ARRIVENT, tirées
+   * de la graine (voir `SITUATIONS`, js/sim.js) — donc l'écran n'a rien à
+   * sauvegarder : il s'arrête dessus, les nomme, et laisse « Derrière le
+   * banc » faire le reste. C'est la seule des trois interruptions qui ne
+   * demande AUCUN clic : ne rien faire est une réponse parfaitement valable,
+   * elle est simplement moins bonne que de monter le joueur en feu.
+   */
+  const situVues = new Set();
+  const situationsNeuves = () => (you.situations || []).filter(f => !situVues.has(f) && f.jour <= jour);
+  let situation = null;
+
+  /*
+   * LA CASE VIDE. JP : *pour les blessures, faire que si pas de joueur à la
+   * position, carte random pigée*. Quand `activeLineup` ne trouve plus aucun
+   * réserviste compatible, la case reste vide et le moteur y met un joueur de
+   * remplacement — c'est le pire moment d'une saison, et il arrive **1,02
+   * fois par équipe par saison** (mesuré sur 96 équipes-saisons : médiane 1,
+   * 90e centile 2, maximum 5). Une par saison : un vrai moment, pas une
+   * nuisance, et le budget de cartes passe de trois à quatre dans les
+   * mauvaises années.
+   *
+   * LA CARTE EST TIRÉE, PAS CHOISIE, et c'est tout l'intérêt : tu n'as pas
+   * décidé de perdre ton auxiliaire, tu ne décides pas de la compensation.
+   * Comme toutes les cartes portent un bonus ET un malus, ce n'est même pas
+   * un cadeau — c'est un ajustement qui peut ne pas te convenir, ce qui est
+   * exactement ce qu'est une crise d'effectif.
+   *
+   * Le tirage passe par `mainDeCartes`, donc il est PUR (même graine, même
+   * épisode, même carte) et il ne retend jamais une carte déjà prise.
+   */
+  /*
+   * LES ÉPISODES DÉJÀ ENCAISSÉS survivent à la reprise. Encaisser la carte
+   * rejoue la saison depuis ce jour-là, donc `ouvrirSaison` est reconstruit
+   * et `trousVus` repart vide : sans cette liste, le même trou retendrait sa
+   * carte à l'infini, et chaque clic en ajouterait une à la partie.
+   */
+  const trousFaits = new Set(trousPris);
+  const trousVus = new Set();
+  const trousNeufs = () => (you.trous || [])
+    .filter(t => !trousVus.has(t) && !trousFaits.has(t.at) && t.at <= miens.length);
+  let trou = null;
+  const carteDuTrou = t => mainDeCartes(graine, 1000 + t.at, dejaPrises)[0] || null;
+
   const BLESSURE_MOMENT = 4;
+
+  /*
+   * Les cases vides, nommées comme partout ailleurs (`slotShort` est le seul
+   * propriétaire de cette règle). Au-delà de deux on compte, parce qu'une
+   * énumération de cinq cases ne se lit pas dans un bandeau.
+   */
+  const nomsDesCases = cases => {
+    const noms = cases.map(i => SLOTS[i]).filter(Boolean)
+      .map(s => (ctx.slotShort ? ctx.slotShort(s) : s.role));
+    if (!noms.length) return 'Une case vide';
+    if (noms.length === 1) return `${noms[0]} : personne pour jouer là`;
+    if (noms.length === 2) return `${noms[0]} et ${noms[1]} : personne pour jouer là`;
+    return `${noms.length} cases sans personne pour les jouer`;
+  };
 
   /* La case qu'occupait le blessé, nommée comme partout ailleurs. */
   const caseDe = p => {
@@ -492,13 +550,24 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     while (n-- > 0 && jour < N) {
       appliquerJour(jour++);
       const pal = palierOuvert();
-      if (stop && (blessuresNeuves().length || (pal !== undefined && !paliersVus.has(pal)))) break;
+      // TROIS RAISONS DE S'ARRÊTER, et chacune n'arrête qu'UNE fois — c'est
+      // la règle du palier, étendue aux situations et aux cases vides : un
+      // moment qu'on dépasse ne doit pas bloquer « +10 journées » à chaque
+      // clic pour qui a décidé de ne rien faire.
+      if (stop && (blessuresNeuves().length || trousNeufs().length || situationsNeuves().length
+        || (pal !== undefined && !paliersVus.has(pal)))) break;
     }
     const pal = palierOuvert();
     if (pal !== undefined) paliersVus.add(pal);
     const neuves = blessuresNeuves();
     alerte = neuves.length ? neuves[0] : null;
     if (alerte) vues.add(alerte);
+    const tn = trousNeufs();
+    trou = tn.length ? tn[0] : null;
+    if (trou) trousVus.add(trou);
+    const sn = situationsNeuves();
+    situation = sn.length ? sn[sn.length - 1] : null;
+    for (const f of sn) situVues.add(f);
     // La journée révélée est la seule chose que la reprise a besoin de savoir :
     // tout le reste se rejoue de la graine.
     if (onJour) onJour(jour);
@@ -671,12 +740,58 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       }).join('')}</div>
       <div class="hub-cartes-note">Elle vaut pour le reste de la saison. Ne pas choisir est un choix : l'offre tient jusqu'à la fin.</div>
     </div>`;
+    /*
+     * LA CASE VIDE passe AVANT le palier : c'est la seule des quatre
+     * interruptions qui parle d'un match qu'on ne peut pas aligner. La carte
+     * est déjà tirée — on ne choisit pas — et le bouton ne fait que
+     * l'encaisser, parce qu'une décision doit être VUE avant d'être écrite.
+     */
+    const cTrou = trou ? carteDuTrou(trou) : null;
+    /*
+     * `.hub-tiree` ET NON `.hub-pige` : `.hub-pige` veut dire « une carte
+     * qu'on peut PRENDRE », et c'est ce que `smoke.mjs` compte pour vérifier
+     * qu'un palier en offre trois. La carte du trou l'a portée un temps, et
+     * la cascade a été exacte : la boucle qui avance jusqu'au palier s'est
+     * arrêtée sur elle, a lu « un palier qui offre une carte au lieu de
+     * trois », a sauté tout le bloc du palier — et les clics suivants ont
+     * dépassé la case vide, que le garde-fou d'après n'a donc plus trouvée.
+     * Un défaut, deux garde-fous muets. C'est la leçon de `.hub-carte`
+     * (S54), et elle vaut dans l'autre sens : un nom de classe dit ce que la
+     * chose EST, et une carte qu'on ne choisit pas n'est pas une pige.
+     */
+    const vide = trou && cTrou && onTrou ? `<div class="hub-trou" role="status">
+      <div class="hub-trou-tete">🕳️ ${ctx.esc(nomsDesCases(trou.cases))}</div>
+      <div class="hub-trou-note">Aucun réserviste ne pouvait prendre la place. Le vestiaire s'ajuste comme il peut — tu ne choisis pas celle-là.</div>
+      <div class="hub-tiree">
+        <span class="hub-tiree-nom">${CARTES[cTrou].ico} ${ctx.esc(CARTES[cTrou].nom)}</span>
+        <span class="hub-tiree-bon">+ ${ctx.esc(CARTES[cTrou].bon)}</span>
+        <span class="hub-tiree-prix">− ${ctx.esc(CARTES[cTrou].prix)}</span>
+      </div>
+      <button class="btn gold hub-trou-prendre" data-trou="${trou.at}">Encaisser</button>
+    </div>` : '';
+    /*
+     * LES SITUATIONS. Deux hommes nommés, rien à cliquer : la réponse est
+     * l'alignement. On met le PORTÉ en premier parce que c'est lui qui appelle
+     * une décision — monter un joueur qu'on n'aurait pas monté.
+     */
+    const situ = situation ? `<div class="hub-situ" role="status">
+      <div class="hub-situ-tete">Dans le vestiaire</div>
+      <div class="hub-situ-rang">${[['porte', situation.porte], ['pese', situation.pese]].map(([sens, b]) => {
+        const c = SITUATIONS[b.cle];
+        return `<div class="hub-situ-bout hub-situ-${sens}">
+          <span class="hub-situ-nom">${c.ico} ${ctx.esc(b.p.n)}</span>
+          <span class="hub-situ-quoi">${ctx.esc(c.nom)} — ${ctx.esc(c.quoi.toLowerCase())}</span>
+          <span class="hub-situ-mot">${ctx.esc(c.mot)}</span>
+        </div>`;
+      }).join('')}</div>
+      ${onBanc ? `<button class="btn hub-situ-banc">Revoir mon alignement</button>` : ''}
+    </div>` : '';
     const bless = alerte ? `<div class="hub-alerte" role="status">
       <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
       <div class="hub-alerte-note">${alerte.games} match${alerte.games > 1 ? 's' : ''} d'absence · ${ctx.esc(caseDe(alerte.player))} · ${ctx.esc(remplacant(alerte.player))}</div>
       ${onBanc ? `<button class="btn gold hub-alerte-banc">Derrière le banc</button>` : ''}
     </div>` : '';
-    actions.innerHTML = `${cartes}${bless}<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
+    actions.innerHTML = `${vide}${cartes}${situ}${bless}<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
       <div class="hub-actions-rang">
       ${p ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>` : ''}
       ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Le banc</button>` : ''}
@@ -689,6 +804,10 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (banc) banc.onclick = () => { quitter(); onBanc(jour); };
     const alBanc = actions.querySelector('.hub-alerte-banc');
     if (alBanc) alBanc.onclick = () => { quitter(); onBanc(jour); };
+    const sitBanc = actions.querySelector('.hub-situ-banc');
+    if (sitBanc) sitBanc.onclick = () => { quitter(); onBanc(jour); };
+    const prendre = actions.querySelector('.hub-trou-prendre');
+    if (prendre) prendre.onclick = () => { const t = trou, j = jour; quitter(); onTrou(t.at, j, carteDuTrou(t)); };
     actions.querySelectorAll('[data-carte]').forEach(b => {
       // Le palier ET la journée courante : la carte vaut à partir de MAINTENANT.
       b.onclick = () => { const p = pal, j = jour; quitter(); onCarte(p, j, b.dataset.carte); };

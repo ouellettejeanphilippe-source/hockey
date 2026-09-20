@@ -10,7 +10,7 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles, CARTES } from './sim.js';
+import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS } from './sim.js';
 import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
@@ -519,6 +519,25 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       </div>`
     : '';
 
+  /*
+   * L'ANNÉE DU VESTIAIRE. Les situations ne sont pas des décisions — on ne
+   * les choisit pas — donc elles se relisent au MOTEUR (`you.situations`),
+   * comme les cartes, et jamais à une liste tenue par l'écran. C'est la
+   * chronique de la saison : qui a porté le club et qui l'a traversée dans
+   * le dur, dans l'ordre où c'est arrivé.
+   */
+  const fenetres = you.situations || [];
+  const vestiaire = fenetres.length
+    ? `<div class="result-section"><h3>L'année du vestiaire</h3>
+        <ul class="inj-list">${fenetres.map(f => {
+          const cp = SITUATIONS[f.porte.cle], cs = SITUATIONS[f.pese.cle];
+          if (!cp || !cs) return '';
+          return `<li>${cp.ico} <strong>${esc(f.porte.p.n)}</strong> — ${esc(cp.nom.toLowerCase())} ·
+            ${cs.ico} <strong>${esc(f.pese.p.n)}</strong> — ${esc(cs.nom.toLowerCase())}</li>`;
+        }).join('')}</ul>
+      </div>`
+    : '';
+
   const injuries = you.injuriesLog && you.injuriesLog.length
     ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${esc(i.player.n)}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
     : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
@@ -553,6 +572,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         ${cartons}
       </div>` : ''}
       ${cartesPrises}
+      ${vestiaire}
       <div class="result-section">
         <h3>Forces des NHL Stars</h3>
         <div class="bars">

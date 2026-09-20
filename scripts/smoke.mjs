@@ -420,10 +420,76 @@ async function traverserSaison(etiquette, reprise = false) {
       if (!m) { errors.push(`l'en-tête de l'écran de saison ne dit pas la journée : « ${t.slice(0, 60)} »`); return -1; }
       return Number(m[1]);
     };
+    /*
+     * LA CASE VIDE SE GUETTE PENDANT L'AVANCE, PAS APRÈS — et c'est un test
+     * qui mentait, pas un jeu qui ne marchait pas.
+     *
+     * Chaque interruption n'arrête « +10 journées » qu'UNE fois (la règle du
+     * palier, étendue aux blessures, aux situations et aux cases vides). Les
+     * clics des blocs précédents CONSOMMENT donc les cases vides au passage :
+     * le panneau s'affiche bien, personne ne le regarde, et le clic suivant
+     * la marque vue. Un garde-fou posté après la boucle ne trouvait plus
+     * rien, et concluait « aucune case vide cette saison » — y compris avec
+     * le risque de blessure multiplié par NEUF, ce qui aurait dû mettre la
+     * puce à l'oreille bien plus tôt.
+     *
+     * On guette donc après CHAQUE avance, et on exerce le panneau à la
+     * première occasion, où qu'elle tombe.
+     */
+    const trouVu = { fait: false, mot: null, erreurs: [] };
+    const guetterTrou = async () => {
+      if (trouVu.fait) return;
+      if (!(await page.$('#hubModal .hub-trou'))) return;
+      trouVu.fait = true;
+      const avant = await jourDit();
+      const carte = await page.evaluate(() => {
+        const el = document.querySelector('#hubModal .hub-trou');
+        return {
+          tete: (el.querySelector('.hub-trou-tete') || {}).textContent || '',
+          nom: (el.querySelector('.hub-tiree-nom') || {}).textContent || '',
+          // `.hub-pige` dans un panneau de case vide voudrait dire qu'on
+          // CHOISIT — et c'est la classe que le garde-fou du palier compte.
+          pige: el.querySelectorAll('.hub-pige').length,
+          tirees: el.querySelectorAll('.hub-tiree').length,
+        };
+      });
+      if (carte.tirees !== 1) trouVu.erreurs.push(`la case vide montre ${carte.tirees} cartes tirées : il en faut exactement une`);
+      if (carte.pige) trouVu.erreurs.push(`la case vide porte ${carte.pige} carte(s) « à prendre » : on ne choisit pas celle-là`);
+      if (!carte.nom.trim()) trouVu.erreurs.push('la carte tirée n\'est pas nommée');
+      const quel = await page.$eval('#hubModal .hub-trou-prendre', e => e.dataset.trou);
+      await page.click('#hubModal .hub-trou-prendre');
+      await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
+      await page.waitForTimeout(400);
+      const apres = await jourDit();
+      if (apres !== avant) trouVu.erreurs.push(`encaisser la carte d'une case vide rembobine la saison : journée ${avant} puis ${apres}`);
+      const dTrou = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } }))
+        .filter(d => typeof d.palier === 'string' && d.palier.startsWith('trou:'));
+      if (!dTrou.length) trouVu.erreurs.push('la carte de la case vide n\'entre pas dans la sauvegarde');
+      /*
+       * ELLE NE RETEND PAS **LA SIENNE** — et la nuance est tout le test.
+       * Un panneau présent juste après l'encaissement peut parfaitement être
+       * un SECOND épisode, ce qui est le comportement voulu (une deuxième
+       * crise mérite sa carte). Ce qu'il ne doit jamais être, c'est le même :
+       * sans `trousFaits`, la reprise repart avec `trousVus` vide, l'épisode
+       * déjà encaissé se represente, et la partie accumule une carte par
+       * clic. On compare donc l'IDENTITÉ de l'épisode, pas la présence du
+       * panneau.
+       */
+      const encore = await page.$eval('#hubModal .hub-trou-prendre', e => e.dataset.trou).catch(() => null);
+      if (encore !== null && String(encore) === String(quel)) {
+        trouVu.erreurs.push(`la case vide retend SA carte après qu'on l'a encaissée : épisode ${quel} deux fois`);
+      }
+      trouVu.mot = `${carte.tete.trim()} → ${carte.nom.trim()} encaissée au jour ${avant}`;
+    };
+
     const versPalier = async () => {
-      for (let i = 0; i < 8 && !(await page.$('#hubModal .hub-pige')); i++) {
+      // HUIT CLICS NE SUFFISENT PLUS : l'avance s'arrête aussi aux fenêtres
+      // de situations (journées 10, 28, 46, 64) et aux cases vides, en plus
+      // des blessures. Le budget suit le nombre d'interruptions possibles.
+      for (let i = 0; i < 16 && !(await page.$('#hubModal .hub-pige')); i++) {
         await page.click('#hubModal .hub-dix');
         await page.waitForTimeout(250);
+        await guetterTrou();
       }
       return page.$$eval('#hubModal .hub-pige', e => e.map(x => x.dataset.carte));
     };
@@ -447,8 +513,20 @@ async function traverserSaison(etiquette, reprise = false) {
       await page.waitForTimeout(400);
       const jRevenu = await jourDit();
       if (jRevenu !== jPrise) errors.push(`prendre une carte rembobine la saison : journée ${jPrise} puis ${jRevenu}`);
-      const dCarte = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.carte);
-      if (dCarte.length !== 1 || dCarte[0].carte !== pris) errors.push(`la sauvegarde ne porte pas la carte prise : ${JSON.stringify(dCarte)}`);
+      /*
+       * LES CARTES D'UN PALIER SE COMPTENT À PART DE CELLES D'UNE CASE VIDE.
+       * Cette assertion exigeait UNE seule décision de carte dans la
+       * sauvegarde — vrai tant que les paliers étaient la seule façon d'en
+       * prendre une. Depuis qu'une case vide en TIRE une, une saison
+       * malchanceuse en porte deux, et le garde-fou du palier rougissait sur
+       * une partie parfaitement saine. Le palier est un NOMBRE (20 / 40 /
+       * 60), la case vide une chaîne (`trou:<match>`) : c'est ce qui les
+       * distingue, et c'est pour ça que les deux ne partagent pas la même
+       * clé.
+       */
+      const dCarte = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } }))
+        .filter(d => d.carte && typeof d.palier === 'number');
+      if (dCarte.length !== 1 || dCarte[0].carte !== pris) errors.push(`la sauvegarde ne porte pas la carte prise au palier : ${JSON.stringify(dCarte)}`);
       else if (dCarte[0].palier !== jPalier) errors.push(`la décision ne porte pas son palier : palier ${dCarte[0].palier} au lieu de ${jPalier}`);
       if (await page.$('#hubModal .hub-pige')) errors.push('le palier reste ouvert après qu\'on y a pris une carte');
       const suivantes = await versPalier();
@@ -506,7 +584,70 @@ async function traverserSaison(etiquette, reprise = false) {
       else if (place.bas > 4 || !place.atteignable) errors.push(`le palier pousse la barre d'onglets hors de l'écran : ${place.bas} px sous le bas, atteignable ${place.atteignable} (carte ${place.carte}, alerte ${place.alerte})`);
       else console.log(`   le palier ne pousse rien : barre collée au bas (${place.bas} px), atteignable — carte ${place.carte}, alerte ${place.alerte}`);
     }
+
+  /*
+   * LES SITUATIONS : deux hommes nommés, et rien à cliquer.
+   *
+   * Le panneau s'ouvre aux journées 10, 28, 46 et 64 — des fenêtres FIXES,
+   * donc ce garde-fou ne dépend d'aucun tirage : en avançant, on en croise
+   * forcément une. Ce qu'il vérifie est ce que la mécanique promet à
+   * l'écran : DEUX joueurs, un porté et un pesé, jamais le même homme, et
+   * chacun avec le mot qui dit ce qui lui arrive. Un panneau qui n'en
+   * nommerait qu'un ne serait plus une paire, et « ça s'équilibre » ne
+   * voudrait plus rien dire.
+   */
+  {
+    for (let i = 0; i < 12 && !(await page.$('#hubModal .hub-situ')); i++) {
+      await page.click('#hubModal .hub-dix');
+      await page.waitForTimeout(260);
+      await guetterTrou();
+    }
+    const situ = await page.evaluate(() => {
+      const el = document.querySelector('#hubModal .hub-situ');
+      if (!el) return null;
+      const bout = [...el.querySelectorAll('.hub-situ-bout')].map(b => ({
+        sens: b.classList.contains('hub-situ-porte') ? 'porte' : b.classList.contains('hub-situ-pese') ? 'pese' : '?',
+        nom: (b.querySelector('.hub-situ-nom') || {}).textContent || '',
+        quoi: (b.querySelector('.hub-situ-quoi') || {}).textContent || '',
+        mot: (b.querySelector('.hub-situ-mot') || {}).textContent || '',
+      }));
+      return { bout, large: el.scrollWidth > el.clientWidth + 1 };
+    });
+    if (!situ) errors.push('aucune fenêtre de situations en douze avances de dix journées');
+    else if (situ.bout.length !== 2) errors.push(`le vestiaire nomme ${situ.bout.length} joueur(s) au lieu de deux`);
+    else {
+      const [a, b] = situ.bout;
+      if (a.sens !== 'porte' || b.sens !== 'pese') errors.push(`la paire n'est pas un porté puis un pesé : ${a.sens} · ${b.sens}`);
+      if (!a.nom.trim() || !b.nom.trim()) errors.push('un bout de la paire n\'a pas de nom');
+      if (a.nom === b.nom) errors.push(`le porté et le pesé sont le même homme : ${a.nom}`);
+      if (!a.quoi.trim() || !b.quoi.trim() || !a.mot.trim() || !b.mot.trim()) errors.push('un bout de la paire ne dit ni ce que ça change ni pourquoi');
+      if (situ.large) errors.push('le panneau des situations déborde en largeur');
+      if (!errors.length || true) console.log(`   le vestiaire : ${a.nom.trim()} (porté) · ${b.nom.trim()} (pesé)`);
+    }
   }
+
+  /*
+   * LA CASE VIDE — et pourquoi son garde-fou est PARTAGÉ entre ce script et
+   * `check_situations.mjs`.
+   *
+   * Elle arrive quand aucun réserviste ne peut prendre la place d'un blessé,
+   * MESURÉ à 1,3 fois par équipe par saison : deux équipes sur trois en
+   * vivent au moins une, une sur trois n'en vit aucune. Une assertion dure
+   * ici rougirait donc une exécution sur trois sans qu'une ligne du jeu ait
+   * bougé — « un test qui dépend du tirage n'est pas un test, c'est une
+   * loterie ».
+   *
+   * Le partage est donc explicite, et rien ne saute en silence : la
+   * FRÉQUENCE et la PURETÉ du tirage sont exigées dans `check_situations.mjs`
+   * (côté Node, sur 192 équipes-saisons, sans aucun hasard d'exécution) ;
+   * ici, `guetterTrou` exerce le panneau à la PREMIÈRE occasion pendant
+   * l'avance, et on DIT laquelle des deux branches on a prise.
+   */
+  for (const e of trouVu.erreurs) errors.push(e);
+  if (trouVu.mot) console.log(`   case vide : ${trouVu.mot}`);
+  else console.log('   aucune case vide cette saison (deux saisons sur trois en ont une — la fréquence est exigée dans check_situations)');
+  }
+
   /*
    * UNE SEULE BARRE D'ONGLETS, ET ELLE EST EN BAS. L'écran de saison portait
    * la sienne AU MILIEU de la feuille, entre les boutons et le volet ; la
