@@ -763,6 +763,7 @@ async function traverserSaison(etiquette, reprise = false) {
   const meneurs = await page.$$eval('#hubModal .hub-volet tbody tr', l => l.length);
   console.log(`   ${etiquette} : ${jour} · meneurs : ${tableaux} tableaux, ${meneurs} rangées`);
   if (!meneurs) errors.push(`${etiquette} : aucun meneur dans l'onglet des meneurs`);
+  await nomsCliquables(etiquette);
   // Le match en direct, sur demande seulement.
   await page.click('#hubModal .hub-regarder');
   await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
@@ -784,6 +785,76 @@ async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
   await page.click('#hubModal .hub-suite');
   await page.waitForSelector('.result .score', { timeout: 60000 });
+}
+
+/*
+ * AUCUN NOM AFFICHÉ NE RESTE MUET — ET AUCUN NE DÉVOILE LA FIN.
+ *
+ * Deux règles, et la seconde est la seule qui demande une mesure. Un nom
+ * cliqué à la journée 20 ouvre la fiche du joueur : si elle lit les
+ * compteurs `sim*` du moteur, elle annonce ses 82 matchs, alors que l'écran
+ * n'en a révélé que vingt (la leçon de `G.done`, S49). On compare donc les
+ * MATCHS JOUÉS de la fiche à la journée courante : une fiche honnête ne
+ * peut pas en porter davantage.
+ *
+ * Et la fiche doit porter les DEUX saisons — celle du jeu et la vraie —
+ * puisque c'est ce qu'on est venu y lire.
+ */
+async function nomsCliquables(etiquette) {
+  const muets = await page.$$eval('#hubModal .hub-volet tbody tr', ls => ({
+    total: ls.length,
+    noms: ls.filter(tr => tr.querySelector('td.nom') && !tr.querySelector('td.nom .lien-joueur')).length,
+    eq: ls.filter(tr => tr.querySelector('td.eq') && !tr.querySelector('td.eq .lien-equipe')).length,
+  }));
+  if (muets.noms) errors.push(`${etiquette} : ${muets.noms} nom(s) sur ${muets.total} ne s'ouvrent pas aux meneurs`);
+  if (muets.eq) errors.push(`${etiquette} : ${muets.eq} code(s) d'équipe sur ${muets.total} ne s'ouvrent pas aux meneurs`);
+  // ON NE CLIQUE PAS CE QU'ON VIENT DE DÉCLARER ABSENT : sans ce retour,
+  // Playwright attend trente secondes un bouton qui n'existe pas et meurt
+  // sur « Timeout » au lieu de nommer la cause (la leçon de S46).
+  if (!muets.total || muets.noms) return;
+
+  const tete = (await page.textContent('#hubModal .hub-head')) || '';
+  const jourN = Number((tete.match(/Journée\s+(\d+)/) || [])[1] || 0);
+
+  await page.click('#hubModal .hub-volet tbody tr td.nom .lien-joueur');
+  await page.waitForSelector('#hockeyCardModal .stat-grid', { timeout: 10000 });
+  const fiche = await page.evaluate(() => {
+    const m = document.getElementById('hockeyCardModal');
+    const sections = [...m.querySelectorAll('.section-label')].map(x => x.textContent.replace(/\s+/g, ' ').trim());
+    const cell = [...m.querySelectorAll('.stat-grid .stat-cell')].find(c => c.querySelector('.k').textContent.trim() === 'PJ');
+    return {
+      nom: (m.querySelector('.pcard-full-name, h2, .pcard-full h2') || {}).textContent || '',
+      sections,
+      pj: cell ? Number(cell.querySelector('.v').textContent.trim()) : null,
+      lien: !!m.querySelector('a[href*="nhl.com"]'),
+    };
+  });
+  const titreJour = fiche.sections.some(t => /à ce jour/i.test(t));
+  const vraie = fiche.sections.some(t => /vraie saison/i.test(t));
+  if (!titreJour) errors.push(`${etiquette} : la fiche ouverte en pleine saison ne dit pas « à ce jour » (${fiche.sections[0] || 'aucune section'})`);
+  if (!vraie) errors.push(`${etiquette} : la fiche ouverte en pleine saison ne montre pas la vraie saison du joueur`);
+  if (!fiche.lien) errors.push(`${etiquette} : la fiche n'a pas son lien vers la LNH`);
+  if (jourN && fiche.pj !== null && fiche.pj > jourN)
+    errors.push(`la fiche dévoile la fin : ${fiche.pj} matchs joués à la journée ${jourN}`);
+  console.log(`   un nom s'ouvre à la journée ${jourN} : ${fiche.pj} matchs joués, « ${fiche.sections[0] || '?'} »`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
+
+  // UN CODE D'ÉQUIPE OUVRE SON CLUB, DANS L'ÉCRAN : l'onglet « Équipes »
+  // montre déjà n'importe quel club à ce jour ; une modale en montrerait une
+  // deuxième version, qui lirait la fin de l'année.
+  if (muets.eq) return;
+  await page.click('#hubModal .hub-volet tbody tr td.eq .lien-equipe');
+  await page.waitForTimeout(150);
+  const onglet = await page.$eval('#hubModal .hub-onglets button.on', b => b.dataset.onglet).catch(() => null);
+  if (onglet !== 'equipes') errors.push(`${etiquette} : un code d'équipe n'ouvre pas l'onglet des équipes (onglet « ${onglet} »)`);
+  else {
+    const dansLeClub = await page.$$eval('#hubModal .hub-volet tbody tr', ls =>
+      ls.filter(tr => tr.querySelector('td.nom') && !tr.querySelector('td.nom .lien-joueur')).length);
+    if (dansLeClub) errors.push(`${etiquette} : ${dansLeClub} nom(s) muet(s) dans la feuille d'une équipe`);
+  }
+  await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
+  await page.waitForTimeout(100);
 }
 
 /* La saison jusqu'au bilan, sans rien regarder : ce qui sert à REJOUER
@@ -825,6 +896,103 @@ if (enabled) {
   else if (etoiles !== 6) errors.push(`l'équipe d'étoiles compte ${etoiles} joueurs au lieu de six`);
   else console.log(`   trophées : ${trophees.map(t => `${t.nom.trim()} ${t.val.trim()}`).join(' · ')} · équipe d'étoiles à ${etoiles}`);
   await sansDebordement('trophées de la saison');
+
+  /*
+   * UN CLUB S'OUVRE SUR SES DEUX SAISONS. JP : *pouvoir cliquer sur nom de
+   * joueur et équipe pour voir carte avec stats simulés et réelles et liens
+   * vers sites externes*. La page d'une équipe montrait la saison JOUÉE et
+   * rien d'autre ; la vraie fiche du club se reconstitue de son shard
+   * (`ficheDeClub`, la méthode de check_ratings) et arrive en asynchrone,
+   * donc on l'ATTEND plutôt que de la lire tout de suite.
+   */
+  {
+    await page.click('.navtab[data-page="classement"]');
+    await page.waitForTimeout(150);
+    const cible = await page.$$eval('#resultHost .result-pane[data-volet="classement"] .lien-equipe', ls => {
+      const i = ls.findIndex(b => !/NHL/.test(b.textContent));
+      return i >= 0 ? i : -1;
+    }).catch(() => -1);
+    if (cible < 0) errors.push('aucun club adverse cliquable au classement');
+    else {
+      await page.$$eval('#resultHost .result-pane[data-volet="classement"] .lien-equipe', (ls, i) => ls[i].click(), cible);
+      await page.waitForSelector('#gameModal', { state: 'visible', timeout: 10000 });
+      // La vraie fiche se charge d'un shard : on lui laisse le temps d'arriver.
+      await page.waitForFunction(() => {
+        const g = document.getElementById('eqVraie');
+        return g && !g.querySelector('.dash-note');
+      }, null, { timeout: 20000 }).catch(() => {});
+      const club = await page.evaluate(() => {
+        const m = document.getElementById('gameModal');
+        const cellules = g => [...(g ? g.querySelectorAll('.stat-cell') : [])]
+          .map(c => `${c.querySelector('.k').textContent.trim()} ${c.querySelector('.v').textContent.trim()}`);
+        return {
+          // La saison JOUÉE est dans le titre (la fiche V-D-DP) et dans les
+          // deux tables ; la vraie est la grille qu'on vient de reconstituer.
+          titre: ((m.querySelector('#gameModalTitle') || {}).textContent || '').replace(/\s+/g, ' ').trim(),
+          rangees: m.querySelectorAll('table.data tbody tr').length,
+          vraie: cellules(document.getElementById('eqVraie')).slice(0, 3).join(' · '),
+          hr: !!m.querySelector('a[href*="hockey-reference"]'),
+          attente: !!(document.getElementById('eqVraie') || {}).querySelector?.('.dash-note'),
+        };
+      });
+      if (!club.vraie) errors.push(`la page d'un club ne porte pas sa vraie saison (${club.titre.trim()})`);
+      else if (club.attente) errors.push("la vraie saison d'un club reste en attente");
+      if (!club.hr) errors.push("la page d'un club n'a pas son lien vers Hockey-Reference");
+      if (!club.rangees) errors.push("la page d'un club ne montre aucun joueur");
+      else console.log(`   un club s'ouvre : « ${club.titre} », ${club.rangees} rangées · vraie saison ${club.vraie} · lien externe`);
+      await sansDebordement("la page d'une équipe");
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(120);
+    }
+    await page.click('.navtab[data-page="bilan"]');
+    await page.waitForTimeout(120);
+    /*
+     * ET LES CARTONS D'ENTRACTE, qui sont l'autre endroit où le bilan nomme
+     * des joueurs — meneurs, différentiel, gardiens, absences — plus la
+     * chronique du vestiaire et l'infirmerie. Un nom affiché qui ne s'ouvre
+     * pas est un cul-de-sac : on le compte plutôt que de l'espérer.
+     */
+    const bilanNoms = await page.evaluate(() => {
+      const volet = document.querySelector('#resultHost .result-pane[data-volet="bilan"]');
+      if (!volet) return null;
+      /*
+       * UNE COLONNE EST TOUTE EN NOMS OU PAS DU TOUT. Un carton d'entracte
+       * porte aussi des tableaux dont la première colonne n'est PAS un nom
+       * (« 1-10 », l'arc de la saison), donc « toute cellule de gauche doit
+       * s'ouvrir » crierait pour du bruit. Ce qui ne peut pas arriver, c'est
+       * qu'UNE rangée d'une colonne de noms reste muette pendant que ses
+       * voisines s'ouvrent.
+       */
+      let colonnes = 0, boiteuses = 0, liens = 0;
+      for (const t of volet.querySelectorAll('.ent-table')) {
+        const cells = [...t.querySelectorAll('tbody td.left')].filter(td => td.textContent.trim());
+        if (!cells.length) continue;
+        const ouvrables = cells.filter(td => td.querySelector('.lien-joueur')).length;
+        if (!ouvrables) continue;
+        colonnes++; liens += ouvrables;
+        if (ouvrables !== cells.length) boiteuses++;
+      }
+      // Le vestiaire et l'infirmerie nomment des joueurs ; « Tes cartes »
+      // nomme des cartes, et ce n'est pas la même chose.
+      const nommes = [...volet.querySelectorAll('.result-section')]
+        .filter(sec => /vestiaire|infirmerie/i.test((sec.querySelector('h3') || {}).textContent || ''))
+        .flatMap(sec => [...sec.querySelectorAll('.inj-list strong')]);
+      return {
+        colonnes, boiteuses, liens,
+        listes: nommes.length,
+        listesMuettes: nommes.filter(x => !x.querySelector('.lien-joueur')).length,
+      };
+    });
+    if (!bilanNoms) errors.push('le volet du bilan est introuvable');
+    else {
+      if (!bilanNoms.colonnes) errors.push("aucun nom ouvrable dans les cartons d'entracte du bilan");
+      if (bilanNoms.boiteuses) errors.push(`${bilanNoms.boiteuses} colonne(s) de noms où une rangée reste muette dans les cartons d'entracte`);
+      if (bilanNoms.listesMuettes) errors.push(`${bilanNoms.listesMuettes} nom(s) muet(s) sur ${bilanNoms.listes} dans le vestiaire et l'infirmerie`);
+      if (!bilanNoms.boiteuses && !bilanNoms.listesMuettes && bilanNoms.colonnes)
+        console.log(`   le bilan nomme : ${bilanNoms.liens} joueurs en ${bilanNoms.colonnes} colonnes de cartons, ${bilanNoms.listes} au vestiaire et à l'infirmerie — tous ouvrables`);
+    }
+  }
+
   /* Aucun volet du bilan ne doit être une longue page — c'est LE défaut que
      le repêchage resté au-dessus provoquait, et il se lit d'un chiffre. */
   if (await page.$('#resultTabs')) errors.push("le bilan a encore sa propre barre d'onglets : il n'y en a qu'une, et elle est en bas");

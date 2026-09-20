@@ -20,10 +20,10 @@ import { ouvrirSeries } from './saison.js';
 import { ficheDeClub } from './equipes.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard;
+let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard } = c);
+  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard } = c);
 }
 
 /* =====================================================================
@@ -348,6 +348,28 @@ export const ONGLETS_BILAN = [
 const FICHES_REELLES = new Map();
 
 /** Reconstitue la vraie fiche des adversaires, puis redessine le volet. */
+/*
+ * LA VRAIE SAISON D'UN CLUB, à un seul propriétaire.
+ *
+ * `FICHES_REELLES` est le cache de la reconstitution (la méthode de
+ * `check_ratings.mjs` : un shard porte des joueurs, pas un classement, donc
+ * la fiche V-D vient des GARDIENS). L'onglet « La ligue » le remplit déjà ;
+ * la page d'une équipe en a besoin aussi, et recopier la boucle en ferait
+ * une seconde définition qui dérive. Rendue ici, elle est chargée à la
+ * demande et gardée — un club de 1976-77 a la même vraie saison d'une
+ * partie à l'autre.
+ */
+export async function ficheReelleDe(t) {
+  if (!t || t.isPlayer || !t.season || !getShard) return null;
+  const cle = `${t.season}|${t.tag}`;
+  if (FICHES_REELLES.has(cle)) return FICHES_REELLES.get(cle);
+  try {
+    const club = (await getShard(t.season)).byTeam[t.tag];
+    if (club && club.length) FICHES_REELLES.set(cle, ficheDeClub(club));
+  } catch { /* hors ligne : la page d'équipe se passe de la vraie saison */ }
+  return FICHES_REELLES.get(cle) || null;
+}
+
 async function chargerNiveau(teams) {
   if (!getShard) return;
   let bouge = false;
@@ -504,7 +526,11 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
    * tableaux même, style ce qu'on voit pendant les entractes*. Les cartons
    * se balaient du doigt (js/entracte.js) et sortent des compteurs.
    */
-  const cartons = teams.length > 1 ? deck(cartesDeSaison({ you, teams, rang: rank, ctx: { teamShort } }), { cle: 'saison' }) : '';
+  const cartons = teams.length > 1 ? deck(cartesDeSaison({
+    you, teams, rang: rank,
+    // Au bilan, la saison est finie : un nom peut dire toute son année.
+    ctx: { teamShort, fiche: (p, t, html) => lienJoueur(p, t || you, 'saison', html) },
+  }), { cle: 'saison' }) : '';
 
   /*
    * LES CARTES QUE TU AS PRISES. On les lit sur `you.cartes` — ce que le
@@ -532,14 +558,14 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         <ul class="inj-list">${fenetres.map(f => {
           const cp = SITUATIONS[f.porte.cle], cs = SITUATIONS[f.pese.cle];
           if (!cp || !cs) return '';
-          return `<li>${cp.ico} <strong>${esc(f.porte.p.n)}</strong> — ${esc(cp.nom.toLowerCase())} ·
-            ${cs.ico} <strong>${esc(f.pese.p.n)}</strong> — ${esc(cs.nom.toLowerCase())}</li>`;
+          return `<li>${cp.ico} <strong>${lienJoueur(f.porte.p, you, 'saison', esc(f.porte.p.n))}</strong> — ${esc(cp.nom.toLowerCase())} ·
+            ${cs.ico} <strong>${lienJoueur(f.pese.p, you, 'saison', esc(f.pese.p.n))}</strong> — ${esc(cs.nom.toLowerCase())}</li>`;
         }).join('')}</ul>
       </div>`
     : '';
 
   const injuries = you.injuriesLog && you.injuriesLog.length
-    ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${esc(i.player.n)}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
+    ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${lienJoueur(i.player, you, 'saison', esc(i.player.n))}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
     : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
 
   G.lbId = saveLeaderboard({
@@ -808,7 +834,12 @@ export function runPlayoffs(top16, opts = {}) {
     // La saison est finie et `separerSeries` vient de rendre à chaque fiche
     // ses chiffres de saison : l'écran des séries peut donc la montrer.
     saison: { teams: (G.ligue ? G.ligue.teams : top16), enSeries: top16.length },
-    ctx: { esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
+    ctx: {
+      esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
+      // Les séries se révèlent match par match, comme la saison : un nom
+      // cliqué ne dit que les matchs déjà vus (mode 'jourSeries').
+      fiche: (p, t, html) => lienJoueur(p, t, porteeRevele('series'), html),
+    },
     /*
      * LA REPRISE. `runPlayoffs` est le seul propriétaire de cet état : le
      * bouton du bilan et la reprise au chargement appellent la même
@@ -958,7 +989,7 @@ function showGameModal(iSerie, iMatch) {
   const avant = compterFeuilles(G.series.filter(x => x.ronde < s.ronde).flatMap(x => x.feuilles));
   compterFeuilles(s.feuilles.slice(0, iMatch), avant);
   sommaireDeMatch({
-    f: s.feuilles[iMatch], A: s.A, B: s.B, mode: 'series', avant,
+    f: s.feuilles[iMatch], A: s.A, B: s.B, mode: porteeRevele('series'), avant,
     titre: `Match ${iMatch + 1}`, pied: `après ${iMatch + 1} match${iMatch ? 's' : ''} : ${s.feuilles[iMatch].serie}`,
   });
 }
@@ -969,7 +1000,7 @@ function sommaireDeSaison(jour, k) {
   const m = cal && cal[jour] && cal[jour][k];
   if (!m || !m.feuille) return;
   const avant = compterFeuilles(cal.slice(0, jour).flat().map(x => x.feuille));
-  sommaireDeMatch({ f: m.feuille, A: m.A, B: m.B, mode: 'saison', avant, titre: `Journée ${jour + 1}`, pied: 'saison régulière' });
+  sommaireDeMatch({ f: m.feuille, A: m.A, B: m.B, mode: porteeRevele('saison'), avant, titre: `Journée ${jour + 1}`, pied: 'saison régulière' });
 }
 
 // Tout ce qui porte `data-sommaire` ouvre un sommaire : « saison|jour|k »
@@ -1086,7 +1117,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   // écrit ; les trois étoiles et le tableau du match disent la même chose en
   // chiffres, et ne se répètent pas d'un match à l'autre.
   $('gameModalBody').innerHTML = `
-    ${deck(cartesDeMatch({ f, A, B, ctx: { teamShort } }), { cle: 'match' })}
+    ${deck(cartesDeMatch({ f, A, B, ctx: { teamShort, fiche: (p, t, html) => lienJoueur(p, t, mode, html) } }), { cle: 'match' })}
     <div class="som-lignes">
       <div class="som-ligne"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
       <div class="som-ligne"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>

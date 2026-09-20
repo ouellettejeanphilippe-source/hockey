@@ -169,6 +169,26 @@ function compteDeFiches(teams) {
   return compte;
 }
 
+/*
+ * UN NOM SE CLIQUE, ET SA FICHE NE DÉVOILE RIEN. `ctx.fiche` vient de
+ * js/game.js et ouvre la fiche du joueur avec ce qu'il a fait JUSQU'ICI —
+ * les feuilles révélées, jamais les compteurs `sim*` du moteur, qui portent
+ * déjà les 82 matchs. Sans `ctx.fiche` (un appel d'un écran qui n'en fournit
+ * pas), le nom reste du texte : l'écran ne casse pas.
+ */
+const nomLie = (ctx, l) => (ctx.fiche && l.p ? ctx.fiche(l.p, l.t, ctx.esc(l.nom)) : ctx.esc(l.nom));
+
+/*
+ * UN CODE D'ÉQUIPE OUVRE SON CLUB — DANS L'ÉCRAN, pas dans une modale.
+ * L'onglet « Équipes » montre déjà n'importe quel club à ce jour ; l'ouvrir
+ * en modale demanderait une deuxième version de la même chose, qui, elle,
+ * lirait les compteurs de fin d'année. `brancherMenu` sait déjà lire
+ * `data-equipe` ; `data-ouvrir` lui dit d'aller aussi à l'onglet.
+ */
+const versEquipe = (ctx, t, texte) => (t
+  ? `<button type="button" class="lien-equipe" data-equipe="${ctx.esc(cleEquipe(t))}" data-ouvrir="equipes" title="L'alignement de ${ctx.esc(ctx.teamLabel(t))} à ce jour">${ctx.esc(texte)}</button>`
+  : ctx.esc(texte));
+
 /**
  * Un tableau de joueurs triable. `id` préfixe les `data-tri` pour que deux
  * tableaux du même volet ne se marchent pas dessus ; `tete` est la colonne
@@ -193,8 +213,8 @@ function tableJoueurs(ctx, { titre, id, colonnes, lignes, tri, tete = 'eq', limi
   return `<div class="live-tableau hub-table"><div class="live-tableau-titre">${ctx.esc(titre)}</div>
     <div class="hub-scroll"><table><thead><tr><th>#</th><th>Joueur</th><th>${tete === 'eq' ? 'Éq.' : 'Case'}</th>${colonnes.map(th).join('')}</tr></thead>
     <tbody>${vues.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}${l.blesse ? ' blesse' : ''}">
-      <td>${i + 1}</td><td class="nom">${ctx.esc(l.nom)}${l.blesse ? ` <span class="hub-bl" title="Blessé">🩹 ${l.blesse}</span>` : ''}</td>
-      <td class="${tete === 'eq' ? 'eq' : 'role'}">${ctx.esc(tete === 'eq' ? l.eq : l.role)}</td>${cellules(l)}</tr>`).join('')}</tbody></table></div>
+      <td>${i + 1}</td><td class="nom">${nomLie(ctx, l)}${l.blesse ? ` <span class="hub-bl" title="Blessé">🩹 ${l.blesse}</span>` : ''}</td>
+      <td class="${tete === 'eq' ? 'eq' : 'role'}">${tete === 'eq' ? versEquipe(ctx, l.t, l.eq) : ctx.esc(l.role)}</td>${cellules(l)}</tr>`).join('')}</tbody></table></div>
     ${vues.length < rangs.length ? `<button type="button" class="hub-plus" data-plus="${id}">Voir les ${rangs.length - vues.length} autres</button>` : ''}
     ${note ? `<div class="hub-note hub-table-note">${note}</div>` : ''}</div>`;
 }
@@ -211,7 +231,10 @@ const chips = (liste, actif, attr) => `<div class="hub-chips">${liste.map(o =>
 function meneursHtml(ctx, compte, equipeDe, you, titre, menu, minGardien = 1) {
   const entrees = [...compte.entries()];
   if (!entrees.length) return '<div class="live-vide">Aucun match joué encore.</div>';
-  const ligne = ([p, c]) => ({ nom: nom(p), eq: ctx.tagCourt(equipeDe.get(p) || { tag: '—' }), toi: equipeDe.get(p) === you, c });
+  const ligne = ([p, c]) => {
+    const t = equipeDe.get(p) || null;
+    return { p, t, nom: nom(p), eq: ctx.tagCourt(t || { tag: '—' }), toi: t === you, c };
+  };
   const gardiens = menu.vue === 'GAR';
   const lignes = entrees.filter(([p, c]) => (gardiens ? p.p === 'G' && c.gp >= minGardien : p.p !== 'G' && c.gp > 0)).map(ligne);
   return chips([{ cle: 'PAT', nom: 'Patineurs' }, { cle: 'GAR', nom: 'Gardiens' }], menu.vue, 'vue')
@@ -244,12 +267,12 @@ function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blesses
     if (!p) return null;
     // Pas de rangée en or ici : c'est une feuille d'équipe, l'or ne dirait
     // rien de plus que l'en-tête. Il reste aux meneurs, où il te trouve.
-    return { nom: nom(p), role: caseCourte(s), blesse: blesses.get(p) || 0, c: compte.get(p) || VIDE };
+    return { p, t, nom: nom(p), role: caseCourte(s), blesse: blesses.get(p) || 0, c: compte.get(p) || VIDE };
   };
   const pat = SLOTS.filter(s => s.group !== 'G').map(rangee).filter(Boolean);
   const gar = SLOTS.filter(s => s.group === 'G').map(rangee).filter(Boolean);
   // Le gardien de rappel n'a pas de case, mais il a gardé des matchs.
-  if (t.rappelG && compte.get(t.rappelG)) gar.push({ nom: nom(t.rappelG), role: 'Rappel', c: compte.get(t.rappelG) });
+  if (t.rappelG && compte.get(t.rappelG)) gar.push({ p: t.rappelG, t, nom: nom(t.rappelG), role: 'Rappel', c: compte.get(t.rappelG) });
   const f = ficheDe(t);
   return `${choix}
     <div class="hub-eq-entete" style="--eq-band:${ctx.band(t.tag).bg};--eq-ink:${ctx.band(t.tag).ink};--eq-stripe:${ctx.band(t.tag).stripe}">
@@ -265,10 +288,11 @@ function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blesses
  * voir tout le monde. Un seul écouteur par écran, posé sur le volet — c'est
  * le contenu du volet qui est refait à chaque journée, pas le volet.
  */
-function brancherMenu(volet, menu, equipes, rafraichir) {
+function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, carte = null) {
+  const zones = [volet, carte].filter(Boolean);
   const agir = ev => {
     const el = ev.target.closest('[data-tri], [data-vue], [data-equipe], [data-plus]');
-    if (!el || !volet.contains(el)) return;
+    if (!el || !zones.some(z => z.contains(el))) return;
     const d = el.dataset;
     if (d.tri) {
       const [id, cle] = d.tri.split('|');
@@ -277,19 +301,22 @@ function brancherMenu(volet, menu, equipes, rafraichir) {
       const t = menu.tris[id];
       menu.tris[id] = t && t.cle === cle ? { cle, asc: !t.asc } : triDe(colonnes, cle);
     } else if (d.vue) menu.vue = d.vue === 'GAR' ? 'GAR' : 'PAT';
-    else if (d.equipe) menu.equipe = equipes().find(t => cleEquipe(t) === d.equipe) || menu.equipe;
-    else if (d.plus) menu.limite = 0;
+    else if (d.equipe) {
+      menu.equipe = equipes().find(t => cleEquipe(t) === d.equipe) || menu.equipe;
+      // Le code d'équipe d'un tableau de meneurs vient d'un AUTRE onglet :
+      // changer le club sans changer d'onglet ne montrerait rien.
+      if (d.ouvrir && ouvrirOnglet) { ev.preventDefault(); ouvrirOnglet(d.ouvrir); return; }
+    } else if (d.plus) menu.limite = 0;
     ev.preventDefault();
     rafraichir();
   };
   const touche = ev => { if (ev.key === 'Enter' || ev.key === ' ') agir(ev); };
-  volet.addEventListener('click', agir);
-  volet.addEventListener('keydown', touche);
+  for (const z of zones) { z.addEventListener('click', agir); z.addEventListener('keydown', touche); }
   // LE VOLET EST PARTAGÉ par l'écran de saison et l'écran des séries (la même
   // coquille `#hubModal`) : sans débrancher en fermant, le menu de la saison
   // répondait encore aux clics de celui des séries et réécrivait le volet
   // avec son propre classement.
-  return () => { volet.removeEventListener('click', agir); volet.removeEventListener('keydown', touche); };
+  return () => { for (const z of zones) { z.removeEventListener('click', agir); z.removeEventListener('keydown', touche); } };
 }
 
 /* Le bloc d'une équipe dans la carte du prochain match : écusson, nom, fiche. */
@@ -297,7 +324,7 @@ function blocEquipe(ctx, t, ligne, pos) {
   const b = ctx.band(t.tag);
   return `<div class="hub-eq ${pos}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
     <div class="hub-eq-band">${ctx.logo(t.tag, 26)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
-    <div class="hub-eq-nom">${ctx.esc(ctx.teamLabel(t))}</div>
+    <div class="hub-eq-nom">${versEquipe(ctx, t, ctx.teamLabel(t))}</div>
     <div class="hub-eq-fiche">${ctx.esc(ligne)}</div>
   </div>`;
 }
@@ -691,7 +718,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (cle === 'fiche') return voletFiche();
     return voletJournee();
   });
-  const debrancherMenu = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir());
+  const debrancherMenu = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -1113,7 +1140,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     });
     return voletTableau();
   });
-  const debrancherMenu = brancherMenu(volet, menu, clubs, () => tabs.rafraichir());
+  const debrancherMenu = brancherMenu(volet, menu, clubs, () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
