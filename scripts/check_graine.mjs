@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries,
-         generateur, photoAlignement, CARTES } from '../js/sim.js';
+         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -46,14 +46,14 @@ while (vestiaires.length < 32) {
  * `simulateLeague`) : l'alignement de la première équipe change au jour dit.
  * Sans décision, la saison est celle du repêchage, comme avant.
  */
-function jouer(graine, decider = null) {
+function jouer(graine, decider = null, opts = {}) {
   const equipes = vestiaires.map(v => {
     const pool = v.pool.map(p => ({ ...p }));
     pool.forEach(registerHiddenRatings);
     return createTeam(`${v.tag} ${v.season}`, v.tag, autoRoster(pool), { season: v.season });
   });
   const decisions = decider ? decider(equipes) : [];
-  const ligue = simulateLeague(equipes, 82, { graine, decisions });
+  const ligue = simulateLeague(equipes, 82, { graine, decisions, ...opts });
   // Les séries continuent la même suite : elles doivent se rejouer aussi.
   const [A, B] = ligue.standings;
   const serie = playSeries(A, B, true);
@@ -63,7 +63,10 @@ function jouer(graine, decider = null) {
     .map(p => `${p.n} ${p.simGP} ${p.simG} ${p.simA} ${p.simPM} ${p.simSV || 0}`)).join('\n');
   const serieTexte = `${serie.wA}-${serie.wB} ` + serie.feuilles.map(f => `${f.buts.filter(b => b.cote === 'A').length}-${f.buts.filter(b => b.cote === 'B').length}`).join(' ');
   const jours = ligue.calendrier.map(j => j.map(m => `${m.A.name}|${m.B.name}|${m.gfA}-${m.gfB}${m.ot ? 'p' : ''}`).join(';'));
-  return { graine: ligue.graine, feuilles, fiches, joueurs, serie: serieTexte, jours, equipes };
+  // Les paires vécues, pour vérifier qu'elles se tirent à l'identique.
+  const situations = ligue.standings.flatMap(t => (t.situations || [])
+    .map(f => `${t.name}@${f.jour}:${f.porte.cle}/${f.porte.p.n}+${f.pese.cle}/${f.pese.p.n}`)).sort().join('|');
+  return { graine: ligue.graine, feuilles, fiches, joueurs, serie: serieTexte, jours, equipes, situations };
 }
 
 /* Une décision au jour J : les deux ailiers gauches du 1er et du 4e trio de la
@@ -130,6 +133,51 @@ dire(g1.feuilles === g2.feuilles && g1.joueurs === g2.joueurs, 'la même carte s
 // Chaque carte du jeu doit déplacer la saison : aucune n'est décorative.
 const mortes = Object.keys(CARTES).filter(cle => jouer('la-meme-graine', carte(cle)).feuilles === a.feuilles);
 dire(!mortes.length, mortes.length ? `cartes sans effet : ${mortes.join(', ')}` : `les ${Object.keys(CARTES).length} cartes déplacent la saison`);
+
+/*
+ * LES SITUATIONS SE REJOUENT, ET ELLES NE CONSOMMENT AUCUN HASARD.
+ *
+ * Ce sont les deux moitiés du contrat, et la seconde est la plus fragile :
+ * une situation se tire de la graine et de la journée (`mainDeCartes` fait
+ * pareil pour les cartes), donc elle NE DOIT PAS appeler `hasard()`. Si elle
+ * le faisait, poser une paire au jour 10 décalerait toute la suite du
+ * générateur et une décision prise au jour 40 ne laisserait plus les 40
+ * journées d'avant intactes — le rail de « Derrière le banc » tomberait avec.
+ *
+ * On le vérifie par le bout qui ne ment pas : la MÊME saison jouée avec et
+ * sans situations doit différer (elles agissent), mais une saison jouée avec
+ * situations doit être rejouable à l'identique, et les paires elles-mêmes
+ * doivent être les mêmes des deux côtés.
+ */
+const sansSitu = jouer('la-meme-graine', null, { situations: false });
+dire(sansSitu.feuilles !== a.feuilles, 'les situations déplacent la saison');
+const s1 = jouer('les-situations');
+const s2 = jouer('les-situations');
+dire(s1.feuilles === s2.feuilles && s1.joueurs === s2.joueurs, 'une saison avec situations se rejoue à l\'identique');
+dire(s1.situations === s2.situations && !!s1.situations,
+  `les mêmes paires se tirent : ${(s1.situations || '').split('|')[0] || '—'}`);
+/*
+ * ET LA DÉCISION AU JOUR K LAISSE L'AVANT INTACT, situations comprises. C'est
+ * l'assertion qui attraperait un `hasard()` glissé dans le tirage d'une paire.
+ */
+const apresCarte = jouer('la-meme-graine', carte('bloc'));
+dire(apresCarte.jours.slice(0, JOUR_CARTE).join('\n') === a.jours.slice(0, JOUR_CARTE).join('\n'),
+  `avec les situations, une décision au jour ${JOUR_CARTE} laisse l'avant byte-identique`);
+dire(JOURS_SITUATIONS.some(j => j < JOUR_CARTE),
+  `au moins une fenêtre (${JOURS_SITUATIONS.join(', ')}) tombe avant le jour ${JOUR_CARTE} : l'assertion ci-dessus mord`);
+// Chaque situation doit déplacer la saison : aucune n'est décorative.
+const situMortes = Object.keys(SITUATIONS).filter(cle => {
+  const garde = { ...SITUATIONS };
+  for (const k of Object.keys(SITUATIONS)) delete SITUATIONS[k];
+  SITUATIONS[cle] = garde[cle];
+  SITUATIONS[garde[cle].sens > 0 ? '_p' : '_g'] = { nom: '—', ico: '·', sens: -garde[cle].sens };
+  const r = jouer('la-meme-graine').feuilles;
+  for (const k of Object.keys(SITUATIONS)) delete SITUATIONS[k];
+  Object.assign(SITUATIONS, garde);
+  return r === sansSitu.feuilles;
+});
+dire(!situMortes.length, situMortes.length ? `situations sans effet : ${situMortes.join(', ')}`
+  : `les ${Object.keys(SITUATIONS).length} situations déplacent la saison`);
 
 console.log(echecs ? `\n${echecs} échec(s)` : '\ntout se rejoue');
 process.exit(echecs ? 1 : 0);

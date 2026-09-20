@@ -3249,6 +3249,32 @@ async function reprendreSaison() {
  * la saison pour qui a laissé passer l'offre et l'a prise vingt journées
  * plus tard ; on rejoue donc depuis le jour courant.
  */
+/*
+ * LA CARTE QU'ON N'A PAS CHOISIE. JP : *pour les blessures, faire que si pas
+ * de joueur à la position, carte random pigée*. Quand un match se joue avec
+ * une case que personne ne peut remplir, le vestiaire s'ajuste — et la carte
+ * est TIRÉE, pas offerte. Elle passe par exactement la même machinerie qu'un
+ * palier (une décision `{ jour, carte, palier }`, donc rejouée de la graine),
+ * avec un palier nommé `trou:<match>` pour qu'elle n'entre jamais en
+ * collision avec les paliers 20 / 40 / 60 et qu'un même épisode ne puisse
+ * pas en donner deux.
+ *
+ * Ce n'est PAS une compensation : toutes les cartes portent un bonus ET un
+ * malus, donc celle-ci peut très bien ne pas t'arranger. C'est ce qu'est une
+ * crise d'effectif — un ajustement qu'on subit. Mesuré : 1,02 épisode par
+ * équipe par saison, donc le budget passe de trois cartes à quatre dans les
+ * mauvaises années, jamais plus de huit au pire cas observé.
+ */
+async function subirCarte(at, jour, cle) {
+  if (!G.ligue || !CARTES[cle]) return;
+  const palier = `trou:${at}`;
+  const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
+  decisions.push({ jour, carte: cle, palier });
+  G.done = false;
+  renderMain();
+  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
+}
+
 async function choisirCarte(palier, jour, cle) {
   if (!G.ligue || !CARTES[cle]) return;
   const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
@@ -3276,7 +3302,10 @@ function renderBanc() {
     </div>
     ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
     <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
-    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. Touche 🔒 sur un trio pour en faire ton <b>trio de fermeture</b> : c'est lui qui prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}${b.fermeture === 'auto' ? ' (le 3e, comme chaque club de la ligue)' : ''}` : ' — personne pour l\'instant'}.</div>
+    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. 🔒 désigne ton <b>trio de fermeture</b>${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}` : ' — personne pour l\'instant'}.</div>
+    <details class="banc-plus"><summary>Le trio de fermeture, c'est quoi</summary>
+      <div class="banc-ligne">C'est lui qui prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
+    </details>
     <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios. Ce qui est joué reste joué.">Retour au match</button>`;
   $('bancRetour').onclick = reprendreSaison;
 }
@@ -3401,6 +3430,11 @@ async function runSeason(opts = {}) {
       graine,
       cartesPrises: (decisions || []).filter(d => d.carte).map(d => ({ palier: d.palier ?? d.jour, carte: d.carte })),
       onCarte: choisirCarte,
+      onTrou: subirCarte,
+      // Les épisodes de case vide déjà encaissés, pour qu'un trou ne retende
+      // pas sa carte à chaque reprise (voir `trousFaits`, js/saison.js).
+      trousPris: (decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('trou:'))
+        .map(d => Number(d.palier.slice(5))),
       // DERRIÈRE LE BANC : l'écran se retire, l'alignement s'ouvre avec les
       // fiches à ce jour, et « Retour au match » rejoue la saison depuis la
       // graine avec la décision (voir `ouvrirBanc`).

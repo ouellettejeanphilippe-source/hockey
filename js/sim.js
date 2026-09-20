@@ -177,6 +177,14 @@ function calibreAttendu(group, unit) {
 
 /* ---------- 23 joueurs : 4 trios, 3 paires, 2 gardiens, 3 réservistes ---------- */
 
+/*
+ * LES MOLETTES DE MESURE. Un script peut poser une constante dans
+ * l'environnement pour balayer un réglage ; le navigateur n'a pas de
+ * `process` et prend toujours la valeur écrite. Déclaré ICI, en tête, parce
+ * que les situations comme l'appariement en lisent.
+ */
+const ENV_MESURE = (typeof process !== 'undefined' && process.env) || {};
+
 export const SLOTS = [];
 ['Top 6', 'Top 6', 'Middle 6', 'Bottom 6'].forEach((label, unit) => {
   ['AG', 'C', 'AD'].forEach(role => SLOTS.push({ group: 'F', unit, role, label }));
@@ -885,6 +893,314 @@ export function mainDeCartes(graine, jour, prises = []) {
   return main;
 }
 
+/* =====================================================================
+   LES SITUATIONS — le vestiaire vit, et la force du club ne bouge pas
+
+   JP : *x joueur vit telle situation personnelle, bonus ou malus, mais que
+   ça s'équilibre, genre, pas que ça boost ou chie l'équipe, juste que ça
+   change le vibe et force équipe différente*.
+
+   C'est un moment roguelike d'un TROISIÈME genre, et il ne ressemble ni aux
+   blessures ni aux cartes. Une blessure RETIRE un joueur. Une carte est un
+   CHOIX d'équipe. Une situation, elle, ARRIVE — à un joueur nommé, sans
+   qu'on ait rien à décider sur le coup. Ce qu'elle demande n'est pas un
+   clic, c'est de REGARDER SON ALIGNEMENT AUTREMENT.
+
+   ELLES VONT PAR DEUX, ET C'EST CE QUI LES ÉQUILIBRE. À chaque fenêtre, le
+   vestiaire tend exactement un joueur PORTÉ et un joueur PESÉ — jamais un
+   seul. Le porté se tire du BAS de l'effectif, le pesé du HAUT, parce que
+   c'est cet écart-là qui force une équipe différente : ton quatrième trio
+   est en feu pendant que ton premier patine dans la mélasse, et la question
+   cesse d'être « qui est le meilleur » pour devenir « qui est le meilleur
+   CE MOIS-CI ». Une paire qui tirerait deux joueurs du même rang ne
+   demanderait rien à personne.
+
+   AUCUNE COTE NEUVE, comme partout ailleurs dans ce dépôt. Une situation
+   n'est qu'un facteur sur une quantité que le moteur lit DÉJÀ chez ce
+   joueur : son volume de lancers (`lancersRel`, le canal de ⚡ Vitesse), sa
+   finition (`pctTirRel`, le canal de 💣 Lancer), sa création (`passesRel`)
+   et, pour un gardien, son facteur d'arrêt (le canal de 🥅 Vezina). Ce sont
+   les canaux des traits, bougés sur UN joueur au lieu de tous.
+
+   ELLES NE SONT PAS UNE DÉCISION, et c'est exprès. Elles se tirent de la
+   GRAINE, de la journée et du rang de l'équipe, PUREMENT — sans toucher à
+   `hasard()`, comme `mainDeCartes`. Donc la même partie rejouée vit les
+   mêmes situations, la sauvegarde n'a pas une ligne de plus à porter, et
+   une décision au jour 40 laisse les 40 journées d'avant intactes. Ce qui
+   EST une décision, c'est TA RÉPONSE : remanier derrière le banc, sur le
+   rail que les blessures utilisent déjà.
+
+   LE TIRAGE SE FAIT SUR LA VALEUR, JAMAIS SUR LA CASE, et c'est le piège
+   qu'il fallait voir venir. Tirer le porté « parmi les cases du bas »
+   paraît naturel et se retourne aussitôt : on promeut le joueur en feu,
+   la saison se rejoue depuis ce jour-là, la case du bas n'est plus la
+   sienne — et le tirage désigne quelqu'un d'autre. Réagir effacerait donc
+   la chose à laquelle on réagit. La valeur (`getHiddenRatings(p).v`) est
+   une propriété du joueur-saison, pas de l'endroit où on le pose : elle ne
+   bouge pas quand on remanie, et la situation reste sur son homme.
+
+   TOUTE LA LIGUE LES VIT. Une paire est neutre par construction, donc ça ne
+   coûte rien de plus à équilibrer, et les palmarès bougent : un club
+   adverse aussi a son joueur en feu. Tu ne vois que les tiennes.
+
+   LE CONTRAT SE MESURE SUR UNE ÉQUIPE QUI NE RÉAGIT PAS. C'est la seule
+   façon honnête de vérifier « ça ne boost ni ne chie l'équipe » : l'IA ne
+   remanie jamais son alignement, donc ce qu'une paire vaut chez elle est
+   exactement ce qu'elle vaut quand on la SUBIT. Ce chiffre-là doit être
+   zéro. Tout ce qu'un joueur humain en tire vient alors de sa réaction, et
+   de rien d'autre — c'est la définition d'une mécanique qui change le vibe
+   sans changer la force. `check_situations.mjs` le mesure en paires, comme
+   `check_cartes.mjs`, et le juge.
+   ===================================================================== */
+export const JOURS_SITUATIONS = [10, 28, 46, 64];
+
+/*
+ * LE PORTÉ EST PLUS FORT QUE LE PESÉ N'EST FAIBLE, et ce n'est pas une
+ * faveur : c'est de l'arithmétique. Le pesé se tire du haut de l'effectif,
+ * où un joueur porte ~11 % des lancers du club ; le porté se tire du bas,
+ * où il en porte ~6 %. À magnitude égale, la paire serait donc franchement
+ * négative. Les amplitudes sont réglées pour que la MOYENNE du système lise
+ * zéro sur une équipe qui ne réagit pas — le contrat ci-dessus — et c'est
+ * `check_situations.mjs` qui l'arbitre, jamais l'intuition.
+ */
+/*
+ * LES DEUX MOLETTES, pour la mesure seulement. Elles multiplient l'ÉCART à 1
+ * de chaque facteur, pas le facteur : à 2, un `finition: 1.30` devient 1.60 et
+ * un `0.80` devient 0.60. C'est ce qui permet de balayer l'amplitude du
+ * système sans réécrire douze nombres à la main, et de la régler sur la
+ * mesure plutôt que sur l'intuition.
+ */
+export const ECHELLE_PORTE = Number(ENV_MESURE.ECHELLE_PORTE ?? 1);
+export const ECHELLE_PESE = Number(ENV_MESURE.ECHELLE_PESE ?? 1);
+
+export const SITUATIONS = {
+  /* ---------- LES PORTÉS : tirés du bas de l'effectif ---------- */
+  feu: {
+    nom: 'En feu', ico: '🔥', sens: 1,
+    mot: 'Tout ce qu\'il touche entre.',
+    quoi: 'Sa finition monte en flèche',
+    finition: 2.02, lancers: 1.18,
+  },
+  declic: {
+    nom: 'Le déclic', ico: '🎯', sens: 1,
+    mot: 'Quelque chose s\'est débloqué : il ose enfin tirer.',
+    quoi: 'Beaucoup plus de lancers',
+    lancers: 1.90, finition: 1.18,
+  },
+  maison: {
+    nom: 'De retour chez lui', ico: '🏠', sens: 1,
+    mot: 'Il joue devant les siens, et ça paraît.',
+    quoi: 'Il finit mieux et voit mieux le jeu',
+    finition: 1.60, creation: 1.48,
+  },
+  papa: {
+    nom: 'Un premier enfant', ico: '👶', sens: 1,
+    mot: 'Les nuits sont courtes, mais la tête est claire.',
+    quoi: 'Sa création monte, son volume baisse un peu',
+    creation: 2.02, lancers: 0.85,
+  },
+  contrat: {
+    nom: 'Année de contrat', ico: '📝', sens: 1,
+    mot: 'Il sait exactement ce qui se joue pour lui.',
+    quoi: 'Il tire davantage et finit mieux',
+    lancers: 1.60, finition: 1.42,
+  },
+  mur: {
+    nom: 'Un mur', ico: '🧱', sens: 1, gardiens: true,
+    mot: 'Il voit la rondelle grosse comme un ballon.',
+    quoi: 'Ton AUXILIAIRE est soudain imbattable',
+    gardien: 0.905,
+  },
+
+  /* ---------- LES PESÉS : tirés du haut de l'effectif ---------- */
+  panne: {
+    nom: 'La panne sèche', ico: '🌧️', sens: -1,
+    mot: 'Il génère autant, et plus rien ne rentre.',
+    quoi: 'Sa finition s\'effondre',
+    finition: 0.70,
+  },
+  creux: {
+    nom: 'Le creux de février', ico: '💤', sens: -1,
+    mot: 'Les jambes ne suivent plus, et ça se voit sur chaque présence.',
+    quoi: 'Moins de lancers, moins de finition',
+    lancers: 0.82, finition: 0.88,
+  },
+  rumeur: {
+    nom: 'Son nom circule', ico: '🗞️', sens: -1,
+    mot: 'Il lit les mêmes rumeurs que tout le monde.',
+    quoi: 'Il joue pour lui : sa création tombe',
+    creation: 0.67, finition: 0.925,
+  },
+  voyages: {
+    nom: 'Les voyages s\'accumulent', ico: '🛫', sens: -1,
+    mot: 'Trois villes en cinq jours, et la fatigue paraît.',
+    quoi: 'Moins de lancers',
+    lancers: 0.76,
+  },
+  amoche: {
+    nom: 'Il joue amoché', ico: '🧊', sens: -1,
+    mot: 'Rien d\'assez grave pour sortir de l\'alignement. Rien d\'assez sain pour être lui-même.',
+    quoi: 'Il tire moins bien et se blesse plus facilement',
+    finition: 0.805, lancers: 0.895, blessure: 1.90,
+  },
+  /*
+   * LA PAIRE DE GARDIENS SE PÈSE EN MINUTES, PAS EN POUR CENT, et c'est la
+   * mesure qui l'a imposé. Le pesé frappe le PARTANT (environ 65 % des
+   * lancers du club), le porté l'AUXILIAIRE (35 %) : à amplitude égale, la
+   * passoire l'emporte donc de deux contre un, chaque équipe alloue plus
+   * qu'elle n'économise, et comme TOUTE la ligue vit des situations, le
+   * total des buts monte. `check_feuilles.mjs` l'a lu net — 3,34 buts par
+   * équipe par match au lieu de 3,08, et 11,8 % de tir au lieu de 10,6 —
+   * alors que l'écart de VICTOIRES, lui, était à zéro : une ligue est à
+   * somme nulle en victoires et ne l'est pas du tout en buts. Le réglage
+   * suit donc le partage des départs, pas la symétrie apparente.
+   */
+  passoire: {
+    nom: 'La passoire', ico: '🕳️', sens: -1, gardiens: true,
+    mot: 'Le premier lancer entre, et la soirée est longue.',
+    quoi: 'Ton PARTANT est plus facile à battre',
+    gardien: 1.040,
+  },
+};
+
+/*
+ * Les deux familles se relisent À CHAQUE APPEL plutôt qu'une fois au
+ * chargement. Ça ne coûte rien (douze clés, quatre fois par saison et par
+ * équipe) et ça permet à `check_situations.mjs` de réduire la table à UNE
+ * paire pour la peser isolément — on ne peut pas déduire ce que vaut une
+ * situation d'une moyenne où douze se mélangent.
+ */
+const famille = sens => Object.keys(SITUATIONS).filter(c => (SITUATIONS[c].sens > 0) === (sens > 0));
+
+/** Ce qu'une situation multiplie chez CE joueur. Neutre pour presque tout le monde. */
+function situDe(p, champ) {
+  const s = p && p._situ;
+  return (s && s[champ]) || 1;
+}
+
+/*
+ * Le mélangeur des situations : PUR, comme celui des cartes. Même graine,
+ * même journée, même équipe, mêmes deux joueurs — sinon la reprise d'une
+ * saison ne rejouerait pas la même, et `check_graine.mjs` le dirait.
+ */
+function melangeurSitu(graine, jour, equipe) {
+  let x = ((Number(graine) >>> 0) ^ (jour * 0x9e3779b1) ^ (equipe * 0x85ebca6b)) >>> 0;
+  return () => {
+    x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
+    return x / 0x100000000;
+  };
+}
+
+/**
+ * La paire du jour pour une équipe : un joueur PORTÉ tiré du bas de
+ * l'effectif, un joueur PESÉ tiré du haut. Rend `null` hors d'une fenêtre.
+ *
+ * Le rang se lit sur la VALEUR, jamais sur la case (voir le bloc ci-dessus) :
+ * un joueur qu'on promeut garde sa situation.
+ */
+export function situationsDuJour(team, graine, jour, equipe = 0) {
+  if (!JOURS_SITUATIONS.includes(jour)) return null;
+  const tous = SLOTS.map(s => team.roster[s.i]).filter(Boolean);
+  const patineurs = tous.filter(p => p.p !== 'G');
+  const gardiens = tous.filter(p => p.p === 'G');
+  if (patineurs.length < 8) return null;
+  const rnd = melangeurSitu(graine, jour, equipe);
+  const PORTES = famille(1), PESES = famille(-1);
+  if (!PORTES.length || !PESES.length) return null;
+  /*
+   * LES EX ÆQUO SE DÉPARTAGENT SUR L'IDENTITÉ, et c'est ce qui manquait au
+   * premier jet. Dix-huit patineurs n'ont que douze valeurs distinctes — six
+   * joueurs de quatrième trio partagent la même — et `sort` est STABLE, donc
+   * les ex æquo gardaient l'ordre des CASES. Remanier son alignement les
+   * réordonnait, le tirage désignait quelqu'un d'autre, et réagir effaçait ce
+   * à quoi on réagissait. `getPlayerKey` est une propriété du joueur-saison :
+   * avec elle, l'ordre ne dépend que de QUI est dans l'effectif.
+   */
+  const parValeur = patineurs.slice().sort((a, b) =>
+    getHiddenRatings(b).v - getHiddenRatings(a).v || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1));
+  /*
+   * LE HAUT est le tiers supérieur, LE BAS tout le reste. Les deux ensembles
+   * sont disjoints par construction, donc un même joueur ne peut pas être
+   * porté et pesé le même jour.
+   *
+   * Le bas déborde volontairement sur le milieu de l'alignement : un joueur
+   * de deuxième ou troisième trio qu'on monte est une décision aussi réelle
+   * qu'un quatrième trio, et il porte assez de lancers pour que la paire
+   * s'équilibre à des amplitudes CRÉDIBLES. Cantonné à la moitié basse, il
+   * aurait fallu doubler les facteurs du porté pour compenser son temps de
+   * glace, et « En feu » serait devenu une caricature.
+   */
+  const coupe = Math.max(1, Math.floor(parValeur.length / 3));
+  const haut = parValeur.slice(0, coupe);
+  const bas = parValeur.slice(coupe);
+  /*
+   * LES GARDIENS SUIVENT LA MÊME RÈGLE QUE LES PATINEURS, et il a fallu le
+   * corriger : le premier jet tirait la situation de gardien dans TOUT le
+   * duo, donc « Un mur » pouvait tomber sur le partant — un joueur du haut
+   * recevant l'amplitude réservée au bas, qui est trois fois plus grande.
+   * Le porté est donc l'AUXILIAIRE (le moins bien coté des deux) et le pesé
+   * le PARTANT. Et c'est un bien meilleur moment de hockey : ton auxiliaire
+   * est imbattable pendant que ton numéro un coule, et la décision est de
+   * changer de partant — ce que « Derrière le banc » permet déjà.
+   */
+  const parValeurG = gardiens.slice().sort((a, b) =>
+    getHiddenRatings(b).v - getHiddenRatings(a).v || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1));
+  /*
+   * `duHaut` plutôt que `haut` : le paramètre masquerait la liste du haut.
+   *
+   * ET UNE SITUATION DE GARDIEN A BESOIN DE DEUX GARDIENS. Sans ce repli,
+   * un club qui n'en a qu'un en santé voyait « Un mur » tomber sur un
+   * AILIER — où le facteur `gardien` n'est jamais lu, donc la situation ne
+   * faisait rien, pendant que l'écran annonçait que l'auxiliaire était
+   * imbattable. Une situation qui ne joue pas est pire qu'une situation
+   * absente : elle ment. On retire alors les situations de gardien du
+   * chapeau et on retire.
+   */
+  const pige = (liste, cles, duHaut) => {
+    let cle = cles[Math.floor(rnd() * cles.length)];
+    if (SITUATIONS[cle].gardiens && parValeurG.length < 2) {
+      const sansGardien = cles.filter(c => !SITUATIONS[c].gardiens);
+      if (!sansGardien.length) return { cle: null, p: null };
+      cle = sansGardien[Math.floor(rnd() * sansGardien.length)];
+    }
+    if (SITUATIONS[cle].gardiens) {
+      return { cle, p: duHaut ? parValeurG[0] : parValeurG[parValeurG.length - 1] };
+    }
+    return { cle, p: liste[Math.floor(rnd() * liste.length)] };
+  };
+  const porte = pige(bas, PORTES, false);
+  const pese = pige(haut, PESES, true);
+  if (!porte.cle || !pese.cle) return null;
+  if (!porte.p || !pese.p || porte.p === pese.p) return null;
+  return { porte, pese };
+}
+
+/*
+ * Poser la paire du jour. UNE SEULE PAIRE EST ACTIVE À LA FOIS : la fenêtre
+ * suivante efface la précédente, sinon une saison finirait avec quatre
+ * joueurs portés et quatre pesés, et « une paire est neutre » ne voudrait
+ * plus rien dire.
+ */
+function poserSituations(team, graine, jour, equipe) {
+  const paire = situationsDuJour(team, graine, jour, equipe);
+  if (!paire) return;
+  for (const s of SLOTS) { const p = team.roster[s.i]; if (p) delete p._situ; }
+  for (const bout of [paire.porte, paire.pese]) {
+    const c = SITUATIONS[bout.cle];
+    const k = c.sens > 0 ? ECHELLE_PORTE : ECHELLE_PESE;
+    const ech = f => 1 + ((f ?? 1) - 1) * k;
+    bout.p._situ = {
+      lancers: ech(c.lancers), finition: ech(c.finition),
+      creation: ech(c.creation), gardien: ech(c.gardien), blessure: ech(c.blessure),
+    };
+  }
+  // Ce que l'écran lit. Le journal garde TOUTES les fenêtres, pas seulement
+  // la courante : c'est l'histoire de la saison, et le bilan la relit.
+  (team.situations = team.situations || []).push({
+    jour, porte: { cle: paire.porte.cle, p: paire.porte.p }, pese: { cle: paire.pese.cle, p: paire.pese.p },
+  });
+}
+
 /*
  * LES PASSES CAUSENT LES BUTS. Jusqu'ici la passe était DÉCORATIVE : un but
  * tiré, on l'attribuait après coup aux coéquipiers sur la glace, au prorata
@@ -1197,7 +1513,9 @@ function lancersRel(p) {
   if (!perso || !base) return RAPPEL_LANCERS;
   // La réputation de vitesse agit ici, sur le joueur : elle lui donne plus de
   // rondelles, où qu'on le place dans l'alignement.
-  return borne(perso / base, 0.25, 2.60) * facteurLancersJoueur(p);
+  // Une SITUATION agit sur le même canal que la vitesse : c'est son volume
+  // de rondelles à lui, où qu'on le place dans l'alignement.
+  return borne(perso / base, 0.25, 2.60) * facteurLancersJoueur(p) * situDe(p, 'lancers');
 }
 
 /**
@@ -1211,10 +1529,12 @@ function pctTirRel(p) {
   const ligue = seasonLancers(p.s)[1];
   if (!ligue) return 1;
   // La réputation de lancer agit ici : ce sont SES rondelles qui entrent plus.
-  return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20) * facteurFinitionJoueur(p);
+  return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20) * facteurFinitionJoueur(p) * situDe(p, 'finition');
 }
 
-const passesRel = passesRelatives;
+// La création d'un joueur, sa situation comprise : un joueur qui voit mieux
+// le jeu fait marquer ses coéquipiers, et c'est le canal qui porte ça.
+const passesRel = p => passesRelatives(p) * situDe(p, 'creation');
 
 /**
  * Le facteur de création d'un lancer : la création des coéquipiers sur la
@@ -1559,7 +1879,6 @@ export const APPARIEMENT_PROPRE = 5.0;
  * MESURE (check_pm.mjs) ; le navigateur n'a pas de `process` et prend les
  * valeurs écrites ici.
  */
-const ENV_MESURE = (typeof process !== 'undefined' && process.env) || {};
 export const FERMETURE_DEFAUT = 2;   // le 3e trio
 export const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.0);
 /*
@@ -1725,7 +2044,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
   const intensite = series ? 1 + ROB_SERIES * ronde : heavy ? 1 : 0;
   const facteurRob = intensite ? Math.exp(K_ROB * intensite * (robZ(off) - robZ(def))) : 1;
   const fg = (gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20))
-    * facteurTraitGardien(gardien, series);
+    * facteurTraitGardien(gardien, series) * situDe(gardien, 'gardien');
   // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
   const traits = (def.traitDef ?? 1) * (off.traitAtt ?? 1)
     * (series ? (off.traitSeries ?? 1) : 1);
@@ -2140,7 +2459,8 @@ function applyInjuries(team, lineup, heavy) {
   for (const p of Object.values(lineup)) {
     if (!p || team.injured.has(p)) continue;
     // Le risque suit la carte de saison : « Roulement court » use, « L'infirmerie » protège.
-    if (hasard() < injuryChance(p, heavy) * effetsDesCartes(team).blessure) {
+    // Et la situation du joueur : « Il joue amoché » finit par payer.
+    if (hasard() < injuryChance(p, heavy) * effetsDesCartes(team).blessure * situDe(p, 'blessure')) {
       const n = injuryLength();
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
@@ -2160,9 +2480,31 @@ function applyInjuries(team, lineup, heavy) {
 /** Un match sur quatre est éreintant : la robustesse y pèse (voir K_ROB). L'écran de saison le dit d'avance. */
 export const soirEreintant = gameIdx => gameIdx % 4 === 3;
 
+/*
+ * Les cases qu'aucun réserviste n'a pu remplir, ce match-ci. On garde la
+ * PREMIÈRE de chaque épisode : un trou qui dure douze matchs est un
+ * événement, pas douze.
+ */
+function noterTrous(team, lineup) {
+  const vides = SLOTS.filter(s => !s.scratch && !lineup[s.i]).map(s => s.i);
+  const dernier = (team.trous || [])[(team.trous || []).length - 1];
+  const at = team.games + 1;
+  if (!vides.length) { team.trouEnCours = false; return; }
+  if (team.trouEnCours && dernier) { dernier.jusqua = at; return; }
+  team.trouEnCours = true;
+  (team.trous = team.trous || []).push({ at, jusqua: at, cases: vides });
+}
+
 export function playGame(A, B, gameIdx, track = true, series = false, journal = null, ronde = 0) {
   const heavy = soirEreintant(gameIdx);
   const LA = activeLineup(A), LB = activeLineup(B);
+  // LE JOURNAL DES CASES VIDES. `activeLineup` promeut le premier réserviste
+  // compatible ; quand il n'y en a plus, la case reste vide et le moteur y met
+  // un joueur de remplacement. C'est l'ÉVÉNEMENT que l'écran de saison
+  // attend — mesuré à 1,02 fois par équipe par saison, donc un vrai moment et
+  // pas une nuisance — et le gros pourvoyeur est le filet : deux cases
+  // seulement, et l'auxiliaire n'est pas toujours remplaçable.
+  noterTrous(A, LA); noterTrous(B, LB);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   const gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
 
@@ -2450,7 +2792,28 @@ export function photoAlignement(roster) {
   return cases;
 }
 
-export function simulateLeague(teams, games = 82, { graine = null, decisions = [] } = {}) {
+/*
+ * `situations` ÉTEINT ou CIBLE les situations — pour la mesure seulement.
+ * `false` les éteint partout ; une FONCTION `(i) => bool` ne les donne qu'aux
+ * équipes choisies.
+ *
+ * ET IL FAUT LA FONCTION, pas le booléen, pour mesurer quoi que ce soit. Une
+ * ligue est à SOMME NULLE : si les trente-deux équipes vivent des situations,
+ * la moyenne des victoires gagnées est zéro par identité, et celle des buts
+ * pour égale celle des buts contre pour la même raison — les buts d'une
+ * équipe sont ceux qu'une autre encaisse. Un « écart net » mesuré ainsi ne
+ * peut PAS être autre chose que zéro, quelles que soient les amplitudes : le
+ * garde-fou passerait toujours, et il ne garderait rien. C'est la leçon des
+ * sélecteurs qui ne matchent rien, appliquée à une mesure.
+ *
+ * `check_situations.mjs` traite donc la moitié des équipes puis l'autre, comme
+ * `check_cartes.mjs`, et compare chaque équipe À ELLE-MÊME contre le même
+ * champ. Les situations ne consommant aucun hasard, l'appariement est en
+ * prime PARFAIT : à traitement égal, les deux passages sont la même
+ * simulation au lancer près.
+ */
+export function simulateLeague(teams, games = 82, { graine = null, decisions = [], situations = true } = {}) {
+  const vitDesSituations = typeof situations === 'function' ? situations : () => !!situations;
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   // Le générateur reste en place après : les séries, jouées ensuite par
@@ -2468,6 +2831,13 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     // fait CHAQUE décision — empilerait les cartes des passages précédents,
     // et une équipe finirait la partie avec quinze fois la même.
     t.cartes = [];
+    // LES SITUATIONS AUSSI. Elles ne sont pas une décision, mais elles vivent
+    // sur les objets joueurs (`_situ`) et sur l'équipe : sans cette remise à
+    // zéro, rejouer la saison — ce que fait CHAQUE décision — laisserait la
+    // paire du passage précédent collée sur ses deux hommes.
+    t.situations = [];
+    t.trous = []; t.trouEnCours = false;
+    for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
   }
   // Le calendrier : une journée par ronde, ses seize matchs avec leur
   // pointage. C'est ce que l'écran rejoue jour après jour, et ce qu'on peut
@@ -2479,6 +2849,11 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
   // fait retomber tout le monde sur `games` à la fin.
   const restant = new Map(teams.map(t => [t, games]));
   for (let r = 0; restant.size; r++) {
+    // LES SITUATIONS DU JOUR, avant les décisions et avant le brassage. Comme
+    // elles, elles ne consomment AUCUN hasard : elles se tirent de la graine,
+    // de la journée et du rang de l'équipe. Une journée qui n'ouvre pas de
+    // fenêtre ne fait rien.
+    for (let i = 0; i < teams.length; i++) if (vitDesSituations(i)) poserSituations(teams[i], graine, r, i);
     // Les décisions du jour s'appliquent AVANT le brassage : elles ne
     // consomment aucun hasard, donc une décision au jour k ne touche pas
     // aux appariements ni aux journées d'avant.
