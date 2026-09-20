@@ -32,7 +32,7 @@ import { ouvrirEquipes } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
-import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN } from './bilan.js';
+import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN, ficheReelleDe } from './bilan.js';
 import { brancherEntractes } from './entracte.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
@@ -804,7 +804,7 @@ async function boot() {
   marquerPage('repechage');
   // Le bilan (js/bilan.js) reçoit ici tout ce qu'il lui faut du contrôleur.
   brancherBilan({
-    $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur,
+    $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele,
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
     saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast,
@@ -1339,9 +1339,10 @@ function montrerPage(cle) {
         esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
         teamFull: t => TEAMFULL[t] || t,
         // La fiche d'un joueur de la ligue en cours ouvre ses statistiques
-        // SIMULÉES, la vraie saison dessous — c'est déjà ce que fait
-        // `showPlayerModal` avec `sim`. Hors ligue, la vraie saison seule.
-        fiche: (p, enLigue) => showPlayerModal(p, enLigue ? { sim: 'saison' } : {}),
+        // SIMULÉES, la vraie saison dessous. On y arrive aussi de derrière le
+        // banc, en pleine saison, d'où `porteeRevele` : la fiche s'arrête
+        // alors à la dernière journée révélée. Hors ligue, la vraie seule.
+        fiche: (p, enLigue) => (enLigue ? ouvrirFiche(p, null, porteeRevele('saison')) : showPlayerModal(p, {})),
         statsSim,
       },
       saisons: (state.index.seasons || []).slice().reverse(),
@@ -2734,20 +2735,86 @@ function statsSim(p, mode = 'saison') {
 }
 
 /*
+ * CE QUE `compterFeuilles` COMPTE, DANS LA FORME DE LA GRILLE. Deux tables
+ * existent pour de bonnes raisons — le moteur écrit `simG` sur le joueur, les
+ * feuilles cumulent `g` dans une Map — et la fiche n'en sait lire qu'une.
+ * Ce qu'une feuille ne porte pas (la défaite en prolongation, le but en
+ * avantage) n'est PAS posé à zéro : une case absente se tait, un zéro ment.
+ */
+const compteEnGrille = c => c && {
+  GP: c.gp, G: c.g, A: c.a, PTS: c.pts, PM: c.pm, SH: c.sh, PIM: c.pim,
+  W: c.w, L: c.l, GA: c.ga, SO: c.bl, SA: c.sa, SV: c.sv,
+};
+
+/*
+ * LES COMPTEURS À CE JOUR, cumulés des feuilles RÉVÉLÉES — jamais des
+ * compteurs `sim*`, qui portent les 82 matchs dès que `simulateLeague` a
+ * joué (la leçon de `G.done`, S49). C'est la même lecture que « Derrière le
+ * banc » et que les meneurs de l'écran de saison : on ne montre rien que le
+ * joueur n'ait déjà vu.
+ *
+ * Mémorisé sur la journée (et sur l'état des séries) parce qu'un tableau de
+ * meneurs porte sept cents noms : recompter 1312 feuilles par nom serait
+ * une seconde par rendu. La clé change à chaque révélation, donc le cache
+ * ne peut pas servir un chiffre périmé.
+ */
+let COMPTE_JOUR = { cle: null, map: null };
+function compteRevele(portee = 'jour') {
+  const L = G.ligue;
+  const vues = G.seriesVues;
+  const cle = portee === 'jourSeries'
+    ? `s|${vues ? (vues.revele || []).join(',') : ''}`
+    : `j|${G.journee || 0}`;
+  if (COMPTE_JOUR.cle === cle) return COMPTE_JOUR.map;
+  let map = new Map();
+  if (portee === 'jourSeries') {
+    const rev = (vues && vues.revele) || [];
+    for (const s of (G.series || [])) compterFeuilles(s.feuilles.slice(0, rev[s.i] || 0), map);
+  } else if (L && L.calendrier) {
+    map = compterFeuilles(L.calendrier.slice(0, G.journee || 0).flat().map(m => m.feuille));
+  }
+  COMPTE_JOUR = { cle, map };
+  return map;
+}
+
+/*
+ * JUSQU'OÙ UN NOM A LE DROIT DE PARLER. La règle tient en une ligne — tant
+ * qu'il reste une journée ou un match à révéler, une fiche ne dit que ce qui
+ * est joué DEVANT le joueur — et elle n'a qu'UN propriétaire : l'écran de
+ * saison, le bilan, le sommaire d'un match et l'onglet des équipes la lisent
+ * tous ici plutôt que d'en garder chacun sa version.
+ */
+function porteeRevele(quoi = 'saison') {
+  if (quoi === 'series') {
+    const vues = (G.seriesVues && G.seriesVues.revele) || null;
+    if (!vues) return 'series';
+    return (G.series || []).some(s => (vues[s.i] || 0) < s.feuilles.length) ? 'jourSeries' : 'series';
+  }
+  const cal = G.ligue && G.ligue.calendrier;
+  return cal && (G.journee || 0) < cal.length ? 'jour' : 'saison';
+}
+
+/*
  * UN NOM CLIQUABLE OUVRE LA FICHE. Partout où un joueur est nommé après la
  * simulation — feuille de match, palmarès, sommaire, alignement d'une
  * équipe — son nom est un bouton qui ouvre sa fiche avec ses statistiques
  * SIMULÉES, saison ou séries. Le registre relie l'identifiant du DOM à
  * l'objet joueur ; un seul écouteur délégué sert tout le document.
  */
+const MOT_MODE = {
+  saison: 'de la saison simulée', series: 'des séries',
+  jour: 'à ce jour', jourSeries: 'des séries, à ce jour',
+};
 const FICHES = new Map();
 function lienJoueur(p, t, mode = 'saison', html = null) {
+  if (!p) return html ?? '';
   const cle = `${getPlayerKey(p)}|${mode}`;
   FICHES.set(cle, { p, t, mode });
-  return `<button type="button" class="lien-joueur" data-fiche="${esc(cle)}" title="Fiche et statistiques ${mode === 'series' ? 'des séries' : 'de la saison simulée'}">${html ?? formatName(p.n)}</button>`;
+  return `<button type="button" class="lien-joueur" data-fiche="${esc(cle)}" title="Fiche et statistiques ${MOT_MODE[mode] || MOT_MODE.saison}">${html ?? formatName(p.n)}</button>`;
 }
 const EQUIPES = new Map();
 function lienEquipe(t, mode = 'saison', html = null) {
+  if (!t) return html ?? '';
   const cle = `${t.tag}|${t.season || ''}|${mode}`;
   EQUIPES.set(cle, { t, mode });
   return `<button type="button" class="lien-equipe" data-equipe="${esc(cle)}" title="L'alignement et la saison complète de cette équipe">${html ?? esc(teamLabel(t))}</button>`;
@@ -2757,7 +2824,7 @@ document.addEventListener('click', ev => {
   if (bj && FICHES.has(bj.dataset.fiche)) {
     ev.preventDefault(); ev.stopPropagation();
     const { p, t, mode } = FICHES.get(bj.dataset.fiche);
-    showPlayerModal(p, { sim: mode, team: t });
+    ouvrirFiche(p, t, mode);
     return;
   }
   const be = ev.target.closest('[data-equipe]');
@@ -2768,6 +2835,24 @@ document.addEventListener('click', ev => {
   }
 });
 
+/*
+ * LA FICHE D'UN JOUEUR, BORNÉE À CE QU'IL A VU. Les modes 'saison' et
+ * 'series' lisent les compteurs du moteur — toute l'année ; les modes en
+ * cours lisent les feuilles révélées.
+ *
+ * LE COMPTE SE FAIT AU CLIC, pas au rendu. Un tableau de meneurs porte sept
+ * cents noms et se refait à chaque journée : cumuler les feuilles pour
+ * chacun coûterait une seconde par rendu, pour une fiche sur mille qu'on
+ * ouvre. Et au clic, le compte est forcément à jour.
+ */
+function ouvrirFiche(p, t, mode = 'saison') {
+  if (mode !== 'jour' && mode !== 'jourSeries') { showPlayerModal(p, { sim: mode, team: t }); return; }
+  showPlayerModal(p, {
+    sim: compteEnGrille(compteRevele(mode).get(p)) || {}, team: t,
+    titreSim: mode === 'jourSeries' ? 'Ses séries, à ce jour' : 'Sa saison, à ce jour',
+  });
+}
+
 const cellStat = (k, v, hl = false) => `<div class="stat-cell${hl ? ' hl' : ''}"><div class="k">${k}</div><div class="v">${v}</div></div>`;
 const signe = n => (n > 0 ? `+${n}` : `${n}`);
 
@@ -2776,14 +2861,15 @@ function grilleSim(p, S) {
   if (!S) return '<div class="dash-note">Aucun match joué.</div>';
   if (p.p === 'G') {
     const pct = S.SA ? (S.SV / S.SA).toFixed(3).slice(1) : '—';
-    return cellStat('PJ', S.GP || 0) + cellStat('V', S.W || 0, true) + cellStat('D', S.L || 0) + cellStat('DP', S.OTL || 0)
+    return cellStat('PJ', S.GP || 0) + cellStat('V', S.W || 0, true) + cellStat('D', S.L || 0)
+      + (S.OTL === undefined ? '' : cellStat('DP', S.OTL))
       + cellStat('BL', S.SO || 0) + cellStat('MBA', ((S.GA || 0) / Math.max(1, S.GP || 1)).toFixed(2)) + cellStat('%ARR', pct)
       + cellStat('ARR', S.SV || 0) + cellStat('TIRS', S.SA || 0);
   }
   return cellStat('PJ', S.GP || 0) + cellStat('B', S.G || 0) + cellStat('A', S.A || 0) + cellStat('PTS', S.PTS || 0, true)
     + cellStat('PTS/M', S.GP ? ((S.PTS || 0) / S.GP).toFixed(2) : '—') + cellStat('+/-', signe(S.PM || 0))
     + cellStat('PUN', S.PIM || 0) + cellStat('L', S.SH || 0) + cellStat('%', S.SH ? (100 * (S.G || 0) / S.SH).toFixed(1) : '—')
-    + cellStat('BAN', S.PPG || 0) + (S.Inj ? cellStat('RATÉS', S.Inj) : '');
+    + (S.PPG === undefined ? '' : cellStat('BAN', S.PPG)) + (S.Inj ? cellStat('RATÉS', S.Inj) : '');
 }
 
 /**
@@ -2797,7 +2883,21 @@ function showPlayerModal(p, opts = {}) {
   const body = $('hockeyCardBody');
   if (!modal || !body) return;
 
-  const sim = opts.sim ? statsSim(p, opts.sim) : null;
+  /*
+   * `opts.sim` dit CE QU'ON MONTRE, et il a trois formes.
+   *
+   * 'saison' et 'series' lisent les compteurs du moteur — la saison ENTIÈRE.
+   * C'est juste au bilan, et c'est un SPOILER en cours de saison : `simG` et
+   * ses voisins portent les 82 matchs dès que `simulateLeague` a joué, bien
+   * avant que l'écran ne les révèle (la leçon de `G.done`, S49). Un nom
+   * cliqué à la journée 20 annoncerait donc la fin de l'année.
+   *
+   * La troisième forme est un OBJET de compteurs déjà cumulés — ce que
+   * `compterFeuilles` rend pour les journées révélées, exactement ce que
+   * « Derrière le banc » affiche déjà. `titreSim` dit alors jusqu'où on
+   * compte, sinon la fiche ne se distingue pas de celle de fin d'année.
+   */
+  const sim = opts.sim ? (typeof opts.sim === 'object' ? opts.sim : statsSim(p, opts.sim)) : null;
   const apres = !!opts.sim;
   const already = isPicked(p);
   const slot = apres ? null : destinationFor(p);
@@ -2838,7 +2938,7 @@ function showPlayerModal(p, opts = {}) {
 
   const equipeSim = opts.team ? `<span class="pcard-full-club">${getTeamLogoHtml(opts.team.tag, 14)} ${esc(teamLabel(opts.team))}</span>` : '';
   const corps = apres
-    ? `<div class="section-label">${opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'} ${equipeSim}</div>
+    ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
        <div class="section-label">Sa vraie saison ${esc(p.s)}${G.statsProrata ? ' (prorata 82, ajusté)' : ''}</div>
@@ -2938,7 +3038,15 @@ function showTeamModal(t, mode = 'saison') {
     <td class="sub-cell">${m.gardien ? esc(m.gardien.n) : ''}</td></tr>`; }).join('');
 
   const bilan = mode === 'series' && t.po ? t.po : t;
-  $('gameModalTitle').innerHTML = `${getTeamLogoHtml(t.tag, 20)} ${esc(teamLabel(t))} <span class="som-ot">${mode === 'series' ? 'séries' : `${bilan.W}-${bilan.L}-${bilan.OTL} · ${bilan.PTS} pts`}</span>`;
+  /*
+   * LE LIEN EXTERNE, comme sur la fiche d'un joueur : la vraie saison du
+   * club chez Hockey-Reference (`teamSeasonUrl`, adresse vérifiée sur les 44
+   * codes). Ta propre formation n'en a pas — les NHL Stars n'ont pas de
+   * saison 1976-77 à consulter.
+   */
+  const urlClub = t.isPlayer ? null : teamSeasonUrl(t.tag, t.season);
+  $('gameModalTitle').innerHTML = `${getTeamLogoHtml(t.tag, 20)} ${esc(teamLabel(t))} <span class="som-ot">${mode === 'series' ? 'séries' : `${bilan.W}-${bilan.L}-${bilan.OTL} · ${bilan.PTS} pts`}</span>`
+    + (urlClub ? ` <a class="modal-lien" href="${esc(urlClub)}" target="_blank" rel="noopener" title="La saison du club sur Hockey-Reference">${ico('i-ext')}</a>` : '');
   $('gameModalBody').innerHTML = `
     <div class="section-label">${mode === 'series' ? 'Statistiques des séries' : 'Alignement et statistiques de la saison'}</div>
     <div class="table-wrap haute"><table class="data">
@@ -2953,7 +3061,24 @@ function showTeamModal(t, mode = 'saison') {
     <div class="table-wrap haute"><table class="data calendrier-equipe">
       <thead><tr><th>#</th><th class="left">Adversaire</th><th>R</th><th>Pointage</th><th class="left">Gardien</th></tr></thead>
       <tbody>${resultats || '<tr><td colspan="5">Aucun match.</td></tr>'}</tbody>
-    </table></div>`;
+    </table></div>
+    <div class="section-label" id="eqVraieTitre">Sa vraie saison ${esc(t.season || '')} · reconstituée</div>
+    <div class="stat-grid" id="eqVraie"><div class="dash-note">On reconstitue la vraie saison…</div></div>`;
+  /*
+   * LA VRAIE SAISON ARRIVE EN ASYNCHRONE, comme dans l'onglet « La ligue » :
+   * elle sort du shard du club, pas de la ligue en cours. Ce qui est
+   * RECONSTITUÉ est dit comme tel — un shard porte des joueurs et pas un
+   * classement, donc la fiche V-D vient des gardiens et le troisième nombre
+   * est ce qui reste.
+   */
+  if (t.isPlayer || !t.season) { $('eqVraie')?.remove(); $('eqVraieTitre')?.remove(); }
+  else ficheReelleDe(t).then(f => {
+    const h = $('eqVraie');
+    if (!h) return;
+    if (!f) { h.innerHTML = '<div class="dash-note">Sa vraie saison n\'a pas pu être lue.</div>'; return; }
+    h.innerHTML = cellStat('PJ', f.mj) + cellStat('V', f.V, true) + cellStat('D', f.D)
+      + cellStat('N', f.N) + cellStat('BP', f.BP) + cellStat('BC', f.BC);
+  });
   openModal('gameModal');
 }
 
@@ -3414,6 +3539,14 @@ async function runSeason(opts = {}) {
         esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
         // Le bouton du son du plateau bascule la même préférence que les options.
         basculerSons: () => { setOption('sons', G.sons ? 'off' : 'on'); syncOptionsUI(); },
+        /*
+         * UN NOM SE CLIQUE PENDANT LA SAISON, SANS DÉVOILER LA FIN. Le mode
+         * 'jour' fait lire les feuilles RÉVÉLÉES au moment du clic — les
+         * compteurs `sim*`, eux, portent les 82 matchs dès que le moteur a
+         * joué. Les meneurs, la feuille d'une équipe et le fil du match en
+         * direct passent tous par là (ils partagent ce `ctx`).
+         */
+        fiche: (p, t, html) => lienJoueur(p, t, porteeRevele('saison'), html),
         // UNE CASE SE NOMME PAR SON RANG, et `slotShort` en est le seul
         // propriétaire : l'alerte de blessure le lit plutôt que d'écrire sa
         // propre version (« 2e trio · AD », jamais « Top 6 »).

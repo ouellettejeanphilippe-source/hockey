@@ -43,6 +43,13 @@ export const grille = items => `<div class="ent-grille">${items.map(i => `
 export const liste = items => `<div class="ent-liste">${items.map(i => `
   <div><span>${e(i.k)}</span><b class="${i.ton || ''}">${e(i.v)}</b></div>`).join('')}</div>`;
 
+/*
+ * Une cellule est du TEXTE, qu'on échappe — sauf quand l'appelant a déjà
+ * bâti son HTML (`{ html }`), ce qui n'arrive que pour un nom cliquable.
+ * C'est la seule porte : tout le reste passe par `e()`.
+ */
+const cellule = v => (v && typeof v === 'object' && v.html !== undefined ? v.html : e(v));
+
 /**
  * Un tableau de carton : la première colonne est du texte (un nom), les
  * autres des chiffres, et la dernière porte l'or — c'est la colonne vedette,
@@ -50,8 +57,15 @@ export const liste = items => `<div class="ent-liste">${items.map(i => `
  */
 export const tableau = (cols, lignes) => `<div class="ent-table"><table>
   <thead><tr>${cols.map((c, i) => `<th class="${i === 0 ? 'left' : ''}${i === cols.length - 1 ? ' heros' : ''}">${e(c)}</th>`).join('')}</tr></thead>
-  <tbody>${lignes.map(l => `<tr>${l.map((v, i) => `<td class="${i === 0 ? 'left' : ''}${i === l.length - 1 ? ' heros' : ''}">${e(v)}</td>`).join('')}</tr>`).join('')}</tbody>
+  <tbody>${lignes.map(l => `<tr>${l.map((v, i) => `<td class="${i === 0 ? 'left' : ''}${i === l.length - 1 ? ' heros' : ''}">${cellule(v)}</td>`).join('')}</tr>`).join('')}</tbody>
 </table></div>`;
+
+/*
+ * UN NOM DE CARTON SE CLIQUE. `ctx.fiche` vient de js/game.js ; sans elle le
+ * carton rend du texte, exactement comme avant — le module reste aveugle aux
+ * données du jeu.
+ */
+const nomLie = (ctx, p, texte) => (ctx && ctx.fiche && p ? { html: ctx.fiche(p, null, e(texte)) } : texte);
 
 /** Une carte : un kicker, un titre, un corps. */
 export const carte = (kicker, titre, corps) => ({ kicker, titre, corps });
@@ -180,7 +194,7 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
       { k: '% de tir', v: `${un(100 * you.GF / Math.max(1, tirs))} %` },
       { k: 'Buts en AN', v: butsAN },
     ])
-    + tableau(['Meneurs', 'B', 'A', 'PTS'], pat.slice(0, 5).map(p => [nomCourt(p.n), p.simG, p.simA, p.simPTS])));
+    + tableau(['Meneurs', 'B', 'A', 'PTS'], pat.slice(0, 5).map(p => [nomLie(ctx, p, nomCourt(p.n)), p.simG, p.simA, p.simPTS])));
 
   /* 3. LA DÉFENSIVE — ce qu'on concède, et qui étouffe. */
   const pm = pat.slice().sort((a, b) => b.simPM - a.simPM).slice(0, 5);
@@ -191,12 +205,12 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
       { k: '% d\'arrêts', v: pct3(arrets / Math.max(1, tirsContre)) },
       { k: 'Punitions / match', v: un(pun / Math.max(1, pj)) },
     ])
-    + tableau(['Différentiel', 'PJ', 'PTS', '+/-'], pm.map(p => [nomCourt(p.n), p.simGP, p.simPTS, signe(p.simPM || 0)])));
+    + tableau(['Différentiel', 'PJ', 'PTS', '+/-'], pm.map(p => [nomLie(ctx, p, nomCourt(p.n)), p.simGP, p.simPTS, signe(p.simPM || 0)])));
 
   /* 4. LES GARDIENS — la ligne de chacun, comme au dos d'une carte. */
   const c4 = gar.length ? carte('Devant le filet', 'Les gardiens',
     tableau(['Gardien', 'PJ', 'V-D', '%ARR', 'MBA'], gar.map(g => [
-      nomCourt(g.n), g.simGP, `${g.simW || 0}-${(g.simGP || 0) - (g.simW || 0)}`,
+      nomLie(ctx, g, nomCourt(g.n)), g.simGP, `${g.simW || 0}-${(g.simGP || 0) - (g.simW || 0)}`,
       pct3((g.simSV || 0) / Math.max(1, g.simSA || 1)), un((g.simGA || 0) / Math.max(1, g.simGP), 2),
     ]))
     + liste([
@@ -253,7 +267,7 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
       { k: 'Alignement complet', v: `${J.length - new Set(bless.map(b => b.at)).size} soirs` },
     ])
     + (bless.length
-      ? tableau(['Absences', 'À partir du', 'Matchs'], bless.slice(0, 5).map(b => [nomCourt(b.player.n), `match ${b.at}`, b.games]))
+      ? tableau(['Absences', 'À partir du', 'Matchs'], bless.slice(0, 5).map(b => [nomLie(ctx, b.player, nomCourt(b.player.n)), `match ${b.at}`, b.games]))
       : '<div class="ent-vide">Pas une seule blessure de toute la saison. Ça n\'arrive à peu près jamais.</div>'));
 
   return [c1, c2, c3, c4, c5, c6, c7].filter(Boolean);
@@ -316,7 +330,7 @@ export function cartesDeMatch({ f, A, B, ctx }) {
     `<div class="ent-etoiles">${etoiles.map((x, i) => `
       <div class="ent-etoile">
         <span class="ent-rang">${'★'.repeat(i + 1)}</span>
-        <span class="ent-nom">${e(x.p.n)}</span>
+        <span class="ent-nom">${ctx && ctx.fiche ? ctx.fiche(x.p, x.t, e(x.p.n)) : e(x.p.n)}</span>
         <span class="ent-eq">${e(nom(x.t))}</span>
         <span class="ent-ligne">${e(x.ligne)}</span>
       </div>`).join('')}</div>`) : null;

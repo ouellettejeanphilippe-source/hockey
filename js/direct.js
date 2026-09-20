@@ -207,6 +207,15 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
 
   const equipe = cote => (cote === 'A' ? A : B);
   const gardien = cote => (cote === 'A' ? f.gardienB : f.gardienA);   // le gardien qui FAIT face au tir
+  /*
+   * UN NOM DU FIL SE CLIQUE. `ctx.fiche` vient de js/game.js et ouvre la
+   * fiche du joueur avec ce qu'il a fait JUSQU'ICI — l'écran qui a ouvert le
+   * direct décide de la portée (la saison révélée, les séries révélées, ou
+   * tout, au bilan). Sans elle, le nom reste du texte : le fil ne casse pas.
+   * Le gardien porte le chandail de l'AUTRE camp que le tireur, d'où `cote`.
+   */
+  const nomLie = (p, cote) => (ctx.fiche && p ? ctx.fiche(p, equipe(cote), ctx.esc(nom(p))) : ctx.esc(nom(p)));
+  const autre = cote => (cote === 'A' ? 'B' : 'A');
   /* Les couleurs de l'équipe qui tire, posées sur la ligne du fil. */
   const couleurs = cote => { const b = ctx.band(equipe(cote).tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
 
@@ -265,7 +274,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         ${rangee('Avantage numérique', `${st.anButs.A} / ${st.anOcc.A}`, `${st.anButs.B} / ${st.anOcc.B}`)}
         ${rangee('Arrêts', gA_ ? `${ctx.esc(famille(gA_))} ${st.arrets.A} / ${st.arrets.A + gB}` : '—', gB_ ? `${ctx.esc(famille(gB_))} ${st.arrets.B} / ${st.arrets.B + gA}` : '—')}
       </tbody></table></div>
-      ${st.buts.length ? `<div class="live-tableau"><div class="live-tableau-titre">Les buts</div>${st.buts.map(x => `<div class="live-but-ligne"><span class="live-tps">${tempsDeJeu(x.instant)}</span>${ctx.logo(equipe(x.cote).tag, 13)}<span><b>${ctx.esc(nom(x.marqueur))}</b> (${ord(x.nG)} but)${x.aides.length ? `, ${x.aides.map(a => `${ctx.esc(nom(a.p))} (${ordF(a.n)} passe)`).join(', ')}` : ''}${x.an ? ' · AN' : x.dn ? ' · DN' : ''} <span class="live-score">${x.score}</span></span></div>`).join('')}</div>` : ''}`;
+      ${st.buts.length ? `<div class="live-tableau"><div class="live-tableau-titre">Les buts</div>${st.buts.map(x => `<div class="live-but-ligne"><span class="live-tps">${tempsDeJeu(x.instant)}</span>${ctx.logo(equipe(x.cote).tag, 13)}<span><b>${nomLie(x.marqueur, x.cote)}</b> (${ord(x.nG)} but)${x.aides.length ? `, ${x.aides.map(a => `${nomLie(a.p, x.cote)} (${ordF(a.n)} passe)`).join(', ')}` : ''}${x.an ? ' · AN' : x.dn ? ' · DN' : ''} <span class="live-score">${x.score}</span></span></div>`).join('')}</div>` : ''}`;
   };
 
   const horloge = () => {
@@ -300,9 +309,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       st.tirs[e.cote][periodeDe(Math.min(e.instant, 64.999))]++;
       st.arrets[e.cote === 'A' ? 'B' : 'A']++;
       const g = e.gardien || gardien(e.cote);
-      const qui = e.tireur ? `Lancer de <b>${ctx.esc(nom(e.tireur))}</b>` : `Tir de ${ctx.esc(ctx.teamShort(equipe(e.cote)))}`;
+      const qui = e.tireur ? `Lancer de <b>${nomLie(e.tireur, e.cote)}</b>` : `Tir de ${ctx.esc(ctx.teamShort(equipe(e.cote)))}`;
       ligne(`arret ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(e.cote).tag, 13)}
-        <span>${qui}${g ? `, arrêt de <b>${ctx.esc(nom(g))}</b>` : ', arrêt'}.</span>`, couleurs(e.cote));
+        <span>${qui}${g ? `, arrêt de <b>${nomLie(g, autre(e.cote))}</b>` : ', arrêt'}.</span>`, couleurs(e.cote));
       return 0;
     }
     if (e.type === 'but') {
@@ -312,10 +321,10 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       if (b.an) st.anButs[e.cote]++;
       const nG = avancer(b.marqueur, 'g');
       const aidesN = b.passeurs.map(p => ({ p, n: avancer(p, 'a') }));
-      const aides = aidesN.length ? ` (${aidesN.map(a => `${nom(a.p)}, ${ordF(a.n)} passe`).join(' ; ')})` : ' (sans aide)';
+      const aides = aidesN.length ? ` (${aidesN.map(a => `${nomLie(a.p, e.cote)}, ${ordF(a.n)} passe`).join(' ; ')})` : ' (sans aide)';
       st.buts.push({ cote: e.cote, instant: b.instant, marqueur: b.marqueur, nG, aides: aidesN, an: b.an, dn: b.dn, score: `${gA}-${gB}` });
       ligne(`but ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
-        <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${ctx.esc(nom(b.marqueur))}</b> <span class="live-xe">(${ord(nG)} but)</span>${ctx.esc(aides)} — ${ctx.esc(recitDeBut(b))} <span class="live-score">${gA}-${gB}</span></span>`, couleurs(e.cote));
+        <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} — ${ctx.esc(recitDeBut(b))} <span class="live-score">${gA}-${gB}</span></span>`, couleurs(e.cote));
       majBoard();
       const cell = board.querySelector(`[data-cote="${e.cote}"]`);
       cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
@@ -334,13 +343,13 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       st.pun[e.cote]++;
       st.anOcc[e.cote === 'A' ? 'B' : 'A']++;
       ligne(`punition ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
-        <span><b class="live-pun-mot">PUNITION</b> ${e.joueur ? `<b>${ctx.esc(nom(e.joueur))}</b>, ` : ''}${e.minutes} min — avantage numérique pour ${ctx.esc(ctx.teamShort(profite))}.</span>`, couleurs(e.cote));
+        <span><b class="live-pun-mot">PUNITION</b> ${e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>, ` : ''}${e.minutes} min — avantage numérique pour ${ctx.esc(ctx.teamShort(profite))}.</span>`, couleurs(e.cote));
       return 500;
     }
     if (e.type === 'finPunition') {
       const puni = equipe(e.cote);
       ligne('periode', `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
-        <span>Fin de la punition${e.joueur ? ` de <b>${ctx.esc(nom(e.joueur))}</b>` : ''} : ${ctx.esc(ctx.teamShort(puni))} revient à cinq.</span>`);
+        <span>Fin de la punition${e.joueur ? ` de <b>${nomLie(e.joueur, e.cote)}</b>` : ''} : ${ctx.esc(ctx.teamShort(puni))} revient à cinq.</span>`);
       return 0;
     }
     if (e.type === 'periode') {
