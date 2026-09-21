@@ -2018,10 +2018,23 @@ export function profilMatch(team, lineup) {
         poids: parts[group][u] * Math.pow(volume / (VOLUME_CENTRE ? VOLUME_RANG[group][u] : 1), VOLUME_EXPOSANT) * mod,
         brut: parts[group][u] * volume * mod,
         qualite: mod,
-        // Poids DÉFENSIF : le temps de glace seul. Une unité ne défend pas
-        // plus souvent parce qu'elle tire plus — elle défend sa part de
-        // présences, point.
-        presence: poids[u],
+        /*
+         * Poids DÉFENSIF : le temps de glace seul. Une unité ne défend pas
+         * plus souvent parce qu'elle tire plus — elle défend sa part de
+         * présences, point.
+         *
+         * ET C'EST LA PART DE FORCES ÉGALES, pas celle de toutes les
+         * situations (S61). `jouerCote` joue le cinq contre cinq : une unité y
+         * défend sa part de MINUTES À CINQ CONTRE CINQ, qui n'est pas son
+         * temps de glace total — le premier trio passe une part de ses minutes
+         * en avantage (34 % de la glace, 30 % du cinq contre cinq) et le
+         * quatrième n'en passe aucune (16 % de la glace, 20,5 % du cinq contre
+         * cinq). Avec `POIDS_TRIO`, le quatrième trio était sur la glace pour
+         * 16 % des buts alloués alors qu'il joue 20,5 % des minutes où ils
+         * tombent : il encaissait un cinquième de moins que son dû, et son
+         * +/- valait 0,107 du différentiel de l'équipe contre 0,035 en vrai.
+         */
+        presence: parts[group][u],
         coteDef: unitAvgLineup(team, lineup, group, u, 'd'),
       });
     }
@@ -2240,7 +2253,7 @@ export const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.
  * adverse — « généralement 1 v 3 » — pour le même écart qu'à 0,25.
  */
 export const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
-export const P_MELANGE = 0.40;
+export const P_MELANGE = Number(ENV_MESURE.P_MELANGE ?? 0.40);
 /*
  * LE −1 SUIT LE RYTHME : 0 le met à la présence seule, 1 au poids offensif
  * entier (voir CREDIT_AU_RYTHME plus haut).
@@ -2262,7 +2275,7 @@ export const P_MELANGE = 0.40;
  * (réel : 11,4 et 0,36). C'est le seul réglage qui améliore les DEUX repères à
  * la fois, et son F1 tombe pile sur le réel (+6,4 contre +6,1).
  */
-export const RYTHME_CREDIT = Number(ENV_MESURE.RYTHME_CREDIT ?? 1.0);
+export const RYTHME_CREDIT = Number(ENV_MESURE.RYTHME_CREDIT ?? 0.5);
 
 /**
  * Une unité tirée à la présence, appariée au rang d'une autre : l'unité qui
