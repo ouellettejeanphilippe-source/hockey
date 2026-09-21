@@ -234,11 +234,40 @@ async function drafter(etiquette) {
     const infos = await page.$$eval('.pcard', els => els.map(el => ({
       price: parseFloat((el.querySelector('.pcard-price')?.textContent || '').replace(/[^0-9.]/g, '')) || 0,
       ok: !!el.querySelector('.btn-sign:not([disabled])'),
+      // La carte DIT en rouge ce que la signature va coûter : « ▼ sous sa
+      // zone », « −N hors position », « ⚠ bloque la fin ». Un joueur ne signe
+      // pas cette carte-là s'il en a une propre ; l'auto-draft non plus.
+      propre: !el.querySelector('.pcard-dest .dest-bad, .pcard-dest .dest-warn'),
+      // Le chiffre clé de la carte : des points pour un patineur, des victoires
+      // pour un gardien. Ce n'est PAS une cote — celles-là ne sont pas dans le
+      // DOM, et c'est une règle du dépôt — mais c'est ce que le joueur lit.
+      cle: parseFloat((el.querySelector('.pcard-big b')?.textContent || '0').replace(/[^0-9.]/g, '')) || 0,
     })));
 
-    // La main est dans l'ordre de l'unité : le premier qui tient dans le
-    // budget fait l'affaire, l'auto-draft ne juge pas.
-    let idx = infos.findIndex(c => c.ok && c.price <= maxPick);
+    /*
+     * L'AUTO-DRAFT LIT LA CARTE AU LIEU DE PRENDRE LA PREMIÈRE (S64). Il
+     * signait le premier joueur abordable dans l'ORDRE DU DOM — et en « par
+     * poste » cet ordre est celui des colonnes, donc le premier ailier gauche
+     * abordable, pas le meilleur joueur offert. Il rangeait des joueurs de
+     * premier trio au quatrième et payait le malus de zone à chaque tour.
+     * Mesuré sur 24 repêchages en Node (même moteur, mêmes adversaires,
+     * `sonde_smoke` de S64) : 39,7 victoires, 20e au classement, les séries 8
+     * fois sur 24.
+     *
+     * DEUX CLÉS, DANS CET ORDRE, et les deux sont dans le DOM — les cotes n'y
+     * sont pas, et c'est une règle du dépôt : (1) une destination qui ne porte
+     * AUCUN avertissement, (2) le plus grand chiffre clé. La première seule ne
+     * suffit pas : tôt dans le repêchage toutes les cases sont libres, donc
+     * presque aucune carte n'avertit — mesuré dans Chromium, 32-39-11 et trois
+     * reprises pour se qualifier. Les deux ensemble : 50-27-5, 51-29-2,
+     * 60-21-1 sur trois exécutions, qualifiée sans une seule reprise.
+     *
+     * Ce n'est pas un test qu'on truque : c'est la décision que l'écran
+     * demande de prendre, avec la seule information qu'il donne.
+     */
+    const rang = (a, b) => (infos[b].propre - infos[a].propre) || (infos[b].cle - infos[a].cle);
+    const tenables = infos.map((c, i) => i).filter(i => infos[i].ok && infos[i].price <= maxPick);
+    let idx = tenables.length ? tenables.sort(rang)[0] : -1;
     if (idx < 0) {
       // Rien de sûr : on relance (les trois clubs en loto ; passer, autre
       // équipe ou autre année en vestiaire), sinon on prend le moins cher
@@ -1179,40 +1208,43 @@ if (enabled) {
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
   /*
    * ON DOIT ATTEINDRE LES SÉRIES. `smoke.mjs` tire au hasard, et c'est un
-   * choix assumé — mais une équipe moyenne rate les séries une fois sur deux,
-   * et TOUT ce passage (le tableau, la reprise, la Coupe dans l'historique)
-   * ne s'exécutait alors pas, sans qu'une ligne le dise. Une exécution a lu
-   * 50-28-4 et joué les séries, la suivante 39-39-4 et ne les a pas jouées :
-   * un test qui saute en silence est aussi faux qu'un sélecteur qui ne matche
-   * rien.
+   * choix assumé — mais TOUT ce passage (le tableau, la reprise, la Coupe dans
+   * l'historique) ne s'exécute pas si l'équipe rate les séries, et un test qui
+   * saute en silence est aussi faux qu'un sélecteur qui ne matche rien.
    *
    * « Rejouer la saison » garde le même alignement et change les dés : on
    * rejoue jusqu'à se qualifier, au plus ESSAIS fois, et on ÉCHOUE si on n'y
    * arrive pas.
    *
-   * DOUZE ESSAIS NE SUFFISAIENT PAS, et le calcul derrière était faux. Il
-   * supposait « seize équipes sur trente-deux, donc une chance sur deux » —
-   * mais les trente et un adversaires sont de VRAIS clubs historiques, en
-   * moyenne meilleurs qu'un alignement bâti au premier joueur abordable :
-   * une fiche de .500 ne se classe pas 16e, elle se classe autour du seuil.
-   * Mesuré sur six exécutions : 23-52-7 (jamais qualifiée en 13 saisons,
-   * l'Action a rougi), 40-37-5 (1 reprise), 39-41-2 (8), 38-43-1 (5),
-   * 35-42-5 (2), 36-42-4 (2). La chance par reprise est donc plus proche
-   * d'une sur trois que d'une sur deux, et douze échecs de suite tombent
-   * une fois sur cent — assez pour rougir en Action sans qu'une ligne du
-   * jeu ait bougé, et « un garde-fou qui crie pour du bruit se fait
-   * désactiver ».
+   * ET CE GARDE-FOU A RELANCÉ LA MAUVAISE CHOSE PENDANT TROIS CHANTIERS (S64).
+   * Le nombre d'essais est passé de 12 à 30 quand l'Action a rougi, sur le
+   * calcul « une chance sur trois par reprise, donc trente échecs tombent une
+   * fois sur dix mille ». Le calcul suppose que les reprises sont
+   * indépendantes. Elles ne le sont pas : une reprise ne change que les DÉS,
+   * et l'écart type d'une saison de 82 matchs vaut 4,5 victoires. Une équipe
+   * repêchée à 25 victoires a besoin de seize de plus pour se classer — aucun
+   * nombre de reprises ne le donne. L'Action a donc joué trente saisons de 25
+   * victoires, soixante-dix secondes, et rougi à coup sûr : ce qui décide,
+   * c'est le REPÊCHAGE, pas les dés.
    *
-   * Deux politiques de repêchage ont été essayées pour bâtir une équipe
-   * plus forte, et TOUTES DEUX ÉCARTÉES par la mesure : le meilleur rapport
-   * points par million achète des joueurs à 20 points pour 0,78 M$
-   * (35-42-5, 36-42-4, 43-31-8), et le meilleur chiffre brut dépense le
-   * plafond sur deux vedettes puis comble au plancher (40-37-5, 39-41-2,
-   * 38-43-1). Un auto-draft à un joueur par tour donne une équipe de .500
-   * quoi qu'on fasse : ce n'est pas la politique qu'il faut changer, c'est
-   * le nombre d'essais. À trente, un échec tombe une fois sur dix mille.
+   * LA RÉPONSE EST DONC DANS `drafter`, ci-dessus : l'auto-draft lit la carte
+   * (destination sans avertissement, puis le plus grand chiffre clé) au lieu
+   * de signer la première abordable dans l'ordre du DOM. Mesuré sur 24
+   * repêchages en Node : 39,7 victoires et 8 qualifications sur 24 avant,
+   * 55,4 et 24 sur 24 après — et dans Chromium, 50-27-5, 51-29-2 et 60-21-1
+   * sur trois exécutions, sans une seule reprise. Les reprises redeviennent ce
+   * qu'elles doivent être — un filet pour une mauvaise soirée de dés, pas un
+   * espoir de rattraper un mauvais repêchage — donc ESSAIS redescend à huit.
+   *
+   * Deux politiques de repêchage avaient été essayées avant et ÉCARTÉES, et la
+   * sonde de S64 le confirme : le meilleur rapport points par million achète
+   * des joueurs à 20 points pour 0,78 M$ (30,7 victoires, 2 qualifications sur
+   * 24 — la PIRE des quatre), et le meilleur chiffre brut dépense le plafond
+   * sur deux vedettes puis comble au plancher. Ce qui marche n'est pas de
+   * chercher la valeur — le DOM ne la porte pas, et c'est voulu — c'est de ne
+   * pas signer une carte que le jeu peint en rouge.
    */
-  const ESSAIS = 30;
+  const ESSAIS = 8;
   let po = await page.$('#playoffsBtn'), essais = 0;
   while (!po && essais < ESSAIS) {
     essais++;
@@ -1221,7 +1253,7 @@ if (enabled) {
     po = await page.$('#playoffsBtn');
   }
   if (!po) errors.push(`l'équipe n'a pas atteint les séries en ${ESSAIS + 1} saisons : le passage des séries n'a PAS été éprouvé`);
-  if (essais) console.log(`   séries atteintes après ${essais} saison(s) rejouée(s)`);
+  else if (essais) console.log(`   séries atteintes après ${essais} saison(s) rejouée(s)`);
   if (po) {
     await po.click();
     // L'écran des séries : un match de plus dans la ronde, le tableau, puis
