@@ -8,7 +8,7 @@
  *
  * JP, deux fois. Devant la fiche d'Alexander Semin 2009-10 (84 points réels,
  * 156 simulés) : *grosse déviation versus stats originales, ça devrait pas
- * s'éloigner autant*. Puis, S60, devant Blake Wheeler et Elias Lindholm :
+ * s'éloigner autant*. Puis, S62, devant Blake Wheeler et Elias Lindholm :
  * *assurer que les joueurs soient pas trop au dessus de la mêlée, yé pas rare
  * actuellement qu'un joueur de 83 points en fasse genre 140, c'est trop*.
  *

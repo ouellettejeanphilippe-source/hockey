@@ -105,7 +105,7 @@ const sx = Math.sqrt(moy(corr.map(c => (c[0] - mx) ** 2))), sy = Math.sqrt(moy(c
 console.log(`  corrélation joueur par joueur, simulé / réel : ${(cov / (sx * sy)).toFixed(2)} ; écart-type simulé ${sx.toFixed(1)}, réel ${sy.toFixed(1)}\n`);
 
 /*
- * ET LE RÉEL SE LIT SANS LES JOUEURS ÉCHANGÉS (S61) : voir MAX_ECHANGES plus
+ * ET LE RÉEL SE LIT SANS LES JOUEURS ÉCHANGÉS (S63) : voir MAX_ECHANGES plus
  * bas. C'est la correction la plus importante de ce script — la version
  * d'origine annonçait « réel 0,36 » là où le vrai chiffre est 0,46, et le
  * moteur passait pour 40 % au-dessus du réel alors qu'il en est à 10 %.
@@ -119,7 +119,7 @@ console.log(`  corrélation joueur par joueur, simulé / réel : ${(cov / (sx * 
  * meilleur +/- et le pire +/- de leurs réguliers, simulés contre réels.
  */
 /*
- * LE JOUEUR ÉCHANGÉ FAUSSE LE RÉEL, ET IL A FAILLI FAUSSER UN CHANTIER (S61).
+ * LE JOUEUR ÉCHANGÉ FAUSSE LE RÉEL, ET IL A FAILLI FAUSSER UN CHANTIER (S63).
  *
  * Un joueur échangé est dans le vestiaire de CHAQUE club où il a passé, avec
  * sa saison ENTIÈRE sous chacun (le `x` des shards, voir CLAUDE.md). Sa fiche

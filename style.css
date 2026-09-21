@@ -3234,7 +3234,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .lien-joueur, .lien-equipe {
   background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
   text-align: left; cursor: pointer; min-width: 0; display: inline-flex; align-items: center; gap: 6px;
-  text-decoration: underline dotted transparent; text-underline-offset: 3px;
+  text-decoration: underline dotted color-mix(in srgb, currentColor 30%, transparent); text-underline-offset: 3px;
   transition: text-decoration-color .15s;
 }
 .lien-joueur:hover, .lien-equipe:hover { text-decoration-color: var(--gold); color: var(--text); }
@@ -5747,7 +5747,7 @@ body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions #play
 .pcard.signed { border-color: transparent; }
 
 /* ---------------------------------------------------------------
-   14. LE PLAN DE MATCH ET LA GLACE, derrière le banc (S60).
+   14. LE PLAN DE MATCH ET LA GLACE, derrière le banc (S62).
 
    Deux rangées de segments, dans la langue des segments d'options : un aplat
    pour le choisi, un filet pour les autres. Le MOT sous la rangée dit ce que
@@ -5793,3 +5793,29 @@ body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions #play
 }
 .hub-plan { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .hub-plan-ou { color: var(--muted); font-size: 11.5px; }
+/* Le lien externe dans le titre d'une modale : la vraie saison du club chez
+   Hockey-Reference, au même endroit et de la même taille que celui d'une
+   fiche de joueur. On y envoie, on n'en lit rien. */
+.modal-lien {
+  display: inline-flex; align-items: center;
+  margin-left: var(--sp-2); color: var(--sub);
+  /* La cible tactile : une icône de 14 px dans une zone de 34, sans bouger
+     la ligne du titre (le patron des deux liens de la fiche, S57). */
+  padding: 10px; margin-top: -10px; margin-bottom: -10px;
+}
+.modal-lien:hover { color: var(--gold); }
+.modal-lien .ico { width: 14px; height: 14px; }
+
+/* UN NOM DANS DE LA PROSE SE COMPORTE COMME DU TEXTE. `.lien-joueur` est en
+   `inline-flex` parce qu'il porte souvent un `<span>` qui se coupe aux points
+   de suspension dans un tableau étroit. Dans une phrase — le fil du match, le
+   sommaire, l'infirmerie — ça en fait une BOÎTE insécable : « Zdeno Chara »
+   partait à la ligne d'un bloc et la virgule qui suit restait orpheline sur la
+   ligne d'après. En `inline`, le nom se coupe comme le reste de la phrase. */
+.live-feed .lien-joueur, .live-but-ligne .lien-joueur,
+.som-qui .lien-joueur, .inj-list .lien-joueur { display: inline; }
+
+/* Le mot qui dit pourquoi une fiche reconstituée est partielle : il vit DANS
+   la grille des chiffres, donc il en prend toute la largeur plutôt que d'en
+   occuper une case (voir `motDeClub`, js/equipes.js). */
+.stat-grid .eq-vraie-mot { grid-column: 1 / -1; margin: 0; }

@@ -136,7 +136,7 @@ dire(!mortes.length, mortes.length ? `cartes sans effet : ${mortes.join(', ')}` 
 
 /* ---------- le plan de match et le roulement ---------- */
 /*
- * DEUX DÉCISIONS QUI VALENT TOUTE LA SAISON (S60), donc deux décisions qui
+ * DEUX DÉCISIONS QUI VALENT TOUTE LA SAISON (S62), donc deux décisions qui
  * doivent se comporter comme les autres : l'avant intact, la suite changée,
  * la reprise identique. Et chacune doit VRAIMENT déplacer la saison — un plan
  * décoratif est pire qu'un plan déséquilibré, puisque le joueur le choisit et

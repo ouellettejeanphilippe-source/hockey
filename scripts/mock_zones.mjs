@@ -83,7 +83,7 @@ const ligne = (lab, opts) => {
 };
 console.log(`  ${'réglage'.padEnd(24)} ${'EMPILÉ'.padStart(6)}  ${refs.map(([l]) => l.padStart(9)).join('  ')}`);
 ligne('aucun malus', { malus: false });
-ligne('linéaire (avant S60)', { lineaire: true, sous: 0.40, dessus: 3 });
+ligne('linéaire (avant S62)', { lineaire: true, sous: 0.40, dessus: 3 });
 ligne(`EN VIGUEUR (${ZONE_ECHELLE.slice(1).join('/')} · nombre ${ZONE_NOMBRE.slice(2).join('/')})`, {});
 ligne('sans le nombre', { nombre: [1, 1, 1, 1] });
 ligne('échelle 0,3/1,6/2,4', { echelle: [0, 0.30, 1.60, 2.40] });

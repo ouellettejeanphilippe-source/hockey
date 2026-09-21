@@ -24,6 +24,11 @@ name: Vérifier
 #   check_traits    chaque nom de réputation existe dans les shards (un nom mal
 #                   orthographié est un trait mort), la rareté, et le fait
 #                   qu'un trait suive le joueur plutôt que sa case
+#   check_fiches    la fiche reconstituée d'un club : un joueur échangé porte sa
+#                   saison entière sous CHACUN de ses clubs, donc il sort du
+#                   total — et deux gardiens comptent chacun leur match quand
+#                   l'un relève l'autre, donc le calendrier n'est pas la somme
+#                   de leurs présences
 #   check_regles    les treize règles du plateau, vérifiées entre chaque geste :
 #                   une pièce par case, la rondelle toujours jouable, le
 #                   porteur jamais au sol, un match qui finit sur un gagnant —
@@ -89,6 +94,9 @@ jobs:
 
       - name: Les traits restent rares et se voient
         run: node scripts/check_traits.mjs
+
+      - name: La fiche reconstituée d'un club tient
+        run: node scripts/check_fiches.mjs
 
       - name: Installer Playwright (Chromium)
         run: |

@@ -78,7 +78,7 @@ const signe = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 /* La même ligue deux fois : la carte aux pairs, puis aux impairs. */
 /*
  * LES MINUTES DE PUNITION SONT DANS LE TABLEAU, et ça vient d'une carte : « Le
- * sang-froid » (S60) est la première qui joue sur l'ARBITRE plutôt que sur le
+ * sang-froid » (S62) est la première qui joue sur l'ARBITRE plutôt que sur le
  * tir, et sans cette colonne rien ne dirait qu'elle fait ce qu'elle promet —
  * son écart de victoires, lui, est nul par construction.
  */

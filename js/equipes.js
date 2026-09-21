@@ -69,25 +69,98 @@ const POSTE = p => (p.p === 'G' ? 'G' : p.np === 'L' ? 'AG' : p.np === 'C' ? 'C'
 
 /*
  * LA FICHE RECONSTITUÉE D'UN CLUB. Victoires et défaites viennent de ses
- * gardiens, les buts pour de ses patineurs (les échangés sautés, sinon on
- * compte deux fois), les buts contre de la moyenne de ses gardiens pondérée
- * par leurs matchs. C'est la méthode de `check_ratings.mjs`, et elle n'est
- * pas une colonne officielle : l'écran le dit.
+ * gardiens, les buts pour de ses patineurs, les buts contre de la moyenne de
+ * ses gardiens pondérée par leurs matchs. Ce n'est pas une colonne
+ * officielle — un shard porte des joueurs, pas un classement — et l'écran
+ * le dit.
+ *
+ * DEUX CHOSES LA FAISAIENT MENTIR, et il a fallu les mesurer pour les
+ * séparer (S61).
+ *
+ * (1) UN JOUEUR ÉCHANGÉ PORTE SA SAISON ENTIÈRE SOUS CHACUN DE SES CLUBS.
+ * La colonne des buts pour sautait déjà les `x` pour ça ; les gardiens, non,
+ * donc Ottawa 2005-06 se lisait « 62-25 » pour un club qui a fait 52-21-9 —
+ * les 25 matchs de Mike Morrison, dont la plupart à Edmonton, comptaient
+ * ici en entier. Les gardiens échangés sortent donc du total, comme les
+ * patineurs (JP : *tu peux avoir les deux gardiens, et le total séparé des
+ * deux équipes, dont un qui est pas dans le total*). Mesuré sur les 1396
+ * clubs : V + D ne dépasse JAMAIS le calendrier après ça, et le Canadien de
+ * 1976-77 retombe pile sur 60-8-12.
+ *
+ * (2) LE NOMBRE DE MATCHS N'EST PAS LA SOMME DES PRÉSENCES DES GARDIENS.
+ * Deux gardiens comptent chacun leur match quand l'un relève l'autre : Saint
+ * Louis 2005-06 additionne 96 présences dans un calendrier de 82, sans un
+ * seul échange. Le calendrier se déduit donc du club — le plus grand nombre
+ * de matchs joués par un de ses joueurs NON échangés (exact pour 89 % des
+ * clubs, à un match près pour 96 %, et il ne SURESTIME jamais) — et jamais
+ * moins que V + D, qui en est l'autre plancher.
+ *
+ * LE TROISIÈME NOMBRE, ce sont LES NULS : le shard ne les porte pas (un
+ * gardien a `w` et `l`, rien d'autre), donc c'est ce qui reste du
+ * calendrier. Il ne vaut que si l'effectif est complet — sur un club dont
+ * un gardien est exclu, le reste porte aussi les matchs de ce gardien-là
+ * (29 de médiane au lieu de 12), et écrire « 29 nuls » mentirait plus fort
+ * que de ne rien écrire. Il vaut donc `null`, comme `grilleSim` tait « DP »
+ * plutôt que de le poser à zéro.
+ *
+ * `scripts/check_ratings.mjs` garde sa propre reconstitution et ne bouge
+ * PAS : elle lit un TAUX (`V / (V + D)`), que l'échange n'atteint pas —
+ * médiane 0,0000 d'écart sur les 1392 clubs. Ce sont les totaux qui mentent.
  */
 export function ficheDeClub(pool) {
   const G = pool.filter(p => p.p === 'G');
   const pat = pool.filter(p => p.p !== 'G');
-  const V = G.reduce((s, g) => s + (g.w || 0), 0);
-  const D = G.reduce((s, g) => s + (g.l || 0), 0);
-  const mj = G.reduce((s, g) => s + (g.gp || 0), 0);
-  // LES NULS EXISTENT, et le shard ne les porte pas : un gardien a `w` et
-  // `l`, rien d'autre. Avant 2005-06 une saison en compte, donc V + D est
-  // plus petit que le nombre de matchs — écrire « 50-22 » pour un club qui a
-  // fait 50-22-8 serait faux. Ce qui reste porte donc son propre nombre.
-  const N = Math.max(0, mj - V - D);
+  const gardiens = G.filter(g => !g.x);
+  const exclus = G.length - gardiens.length;
+  const V = gardiens.reduce((s, g) => s + (g.w || 0), 0);
+  const D = gardiens.reduce((s, g) => s + (g.l || 0), 0);
+  const mj = Math.max(V + D, 0, ...pool.filter(p => !p.x).map(p => p.gp || 0));
   const BP = pat.filter(p => !p.x).reduce((s, p) => s + (p.g || 0), 0);
-  const BC = mj ? Math.round(G.reduce((s, g) => s + (g.ga || 0) * (g.gp || 0), 0)) : 0;
-  return { V, D, N, BP, BC, mj, joueurs: pool.length };
+  // Quatre clubs sur 1396 n'ont AUCUN gardien qui leur appartienne en entier
+  // — le Canadien de 1995-96 (l'année de l'échange de Roy), Edmonton
+  // 2013-14, Buffalo 2014-15, le Colorado 2024-25. Leur fiche de gardien
+  // n'est pas reconstituable, et le dire vaut mieux que d'imprimer 0-0.
+  const vide = !gardiens.length;
+  return {
+    V: vide ? null : V,
+    D: vide ? null : D,
+    N: vide || exclus ? null : Math.max(0, mj - V - D),
+    BC: vide ? null : Math.round(gardiens.reduce((s, g) => s + (g.ga || 0) * (g.gp || 0), 0)),
+    BP, mj, exclus, joueurs: pool.length,
+  };
+}
+
+/*
+ * LA FICHE D'UN CLUB EN UNE LIGNE, et un seul propriétaire du format : les
+ * cinq écrans qui la montrent en portaient chacun leur copie
+ * (`${f.V}-${f.D}${f.N ? …}`), donc aucun ne savait quoi faire d'un nombre
+ * absent. Le ⇄ dit ici ce qu'il dit déjà sur la rangée d'un joueur : une
+ * ligne partagée avec un autre club.
+ */
+export const ligneDeClub = f => (f.V == null ? '—'
+  : `${f.V}-${f.D}${f.N == null ? '' : `-${f.N}`}${f.exclus ? ' ⇄' : ''}`);
+
+/*
+ * LE TAUX DE VICTOIRES D'UN CLUB, les nuls comptant pour moitié. Il se lit
+ * sur les matchs qu'on SAIT attribuer, pas sur le calendrier : un club à qui
+ * on a retiré un gardien a moins de V et de D, et diviser par le calendrier
+ * entier le ferait passer pour mauvais (Ottawa 2005-06 : 0,62 au lieu de
+ * 0,69). Un TAUX survit à l'exclusion — mesuré sur les 1392 clubs, retirer
+ * les échangés déplace V/(V+D) de 0,0000 en médiane — et c'est la même
+ * raison qui laisse `check_ratings.mjs` tranquille.
+ */
+export function tauxDeClub(f) {
+  if (f.V == null) return null;
+  const n = f.N || 0;
+  const joues = f.V + f.D + n;
+  return joues ? (f.V + n / 2) / joues : null;
+}
+
+/** Pourquoi la fiche est partielle, ou null quand elle ne l'est pas. */
+export function motDeClub(f) {
+  if (f.V == null) return 'Aucun gardien n\'a passé toute la saison ici : la fiche V-D ne se reconstitue pas.';
+  if (f.exclus) return `${f.exclus} gardien${f.exclus > 1 ? 's' : ''} échangé${f.exclus > 1 ? 's' : ''} hors du total : sa fiche compte aussi ses matchs ailleurs. Les nuls ne se déduisent donc pas.`;
+  return null;
 }
 
 /**
@@ -228,6 +301,9 @@ function voletMaLigue() {
   <p class="eq-note">Les 32 clubs de la ligue que tu joues, avec la fiche qu'ils ont <strong>dans ta saison</strong>. Ouvre-en un pour mettre chaque joueur en regard de sa vraie saison.</p></div>`;
 }
 
+/* Ce qui range les clubs : leur marge, et tout en bas ceux qu'on ne sait pas lire. */
+const marge = f => (f.V == null ? -Infinity : f.V - f.D);
+
 /* ---------- la ligue : un club par carte ---------- */
 function voletLigue() {
   const { esc, logo, band, teamFull, teamSeasonUrl } = C;
@@ -235,18 +311,20 @@ function voletLigue() {
   const liste = clubs()
     .map(t => ({ t, f: ficheDeClub(pool[t]) }))
     .filter(x => !q || x.t.toLowerCase().includes(q) || (teamFull(x.t) || '').toLowerCase().includes(q))
-    .sort((a, b) => (b.f.V - b.f.D) - (a.f.V - a.f.D) || b.f.BP - a.f.BP);
+    // Une fiche sans gardien reconstituable n'a pas de V − D à comparer : elle
+    // descend au bout plutôt que de rendre NaN, qui glisse entre les tris.
+    .sort((a, b) => (marge(b.f) - marge(a.f)) || b.f.BP - a.f.BP);
   if (!liste.length) return `<div class="eq-vide">Aucun club ne répond à « ${esc(filtre)} ».</div>`;
   return `<div class="eq-scroll"><div class="eq-grille">${liste.map(({ t, f }) => {
     const b = band(t);
     return `<button type="button" class="eq-carte" data-club="${esc(t)}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
       <span class="eq-carte-band">${logo(t, 26)}<span class="eq-carte-tag">${esc(t)}</span></span>
       <span class="eq-carte-nom">${esc(teamFull(t) || t)}</span>
-      <span class="eq-carte-fiche"><b>${f.V}-${f.D}${f.N ? `-${f.N}` : ''}</b><span>${f.BP} BP · ${f.BC} BC</span></span>
+      <span class="eq-carte-fiche"${motDeClub(f) ? ` title="${esc(motDeClub(f))}"` : ''}><b>${ligneDeClub(f)}</b><span>${f.BP} BP${f.BC == null ? '' : ` · ${f.BC} BC`}</span></span>
       <span class="eq-carte-pied">${f.joueurs} joueurs${teamSeasonUrl(t, annee) ? ' · fiche officielle ↗' : ''}</span>
     </button>`;
   }).join('')}</div>
-  <p class="eq-note">Fiches <strong>reconstituées</strong> des colonnes de la saison : les victoires et les défaites viennent des gardiens (le troisième nombre est ce qui reste : les nuls, que le shard ne porte pas), les buts pour des patineurs. Un shard porte des joueurs, pas un classement.</p></div>`;
+  <p class="eq-note">Fiches <strong>reconstituées</strong> des colonnes de la saison : les victoires et les défaites viennent des gardiens, les buts pour des patineurs. Le troisième nombre est ce qui reste du calendrier — les nuls, que le shard ne porte pas. Un joueur échangé porte sa saison entière sous chacun de ses clubs, donc il sort du total : <strong>⇄</strong> marque une fiche à qui il manque un gardien, et <strong>—</strong> un club dont aucun gardien n'est resté toute l'année. Un shard porte des joueurs, pas un classement.</p></div>`;
 }
 
 /* ---------- un club : le bandeau et les onglets ANCRÉS, la table défile ---------- */
@@ -266,7 +344,7 @@ function voletClub() {
     <div class="eq-tete" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
       <span class="eq-tete-band">${logo(club, 30)}<span>${esc(club)}</span></span>
       <span class="eq-tete-nom">${esc(teamFull(club) || club)} <em>${esc(annee)}</em></span>
-      <span class="eq-tete-fiche">${f.V}-${f.D}${f.N ? `-${f.N}` : ''} · ${f.BP} BP · ${f.BC} BC</span>
+      <span class="eq-tete-fiche"${motDeClub(f) ? ` title="${esc(motDeClub(f))}"` : ''}>${ligneDeClub(f)} · ${f.BP} BP${f.BC == null ? '' : ` · ${f.BC} BC`}</span>
       ${url ? `<a class="eq-tete-ext" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(annee)} de ce club sur Hockey-Reference">${ico('i-ext')}</a>` : ''}
     </div>
     <div class="eq-onglets" role="tablist">
@@ -307,7 +385,7 @@ function voletMonClub() {
       <span class="eq-tete-band">${logo(t.tag, 30)}<span>${esc(t.tag)}</span></span>
       <span class="eq-tete-nom">${esc(t.isPlayer ? t.name : (teamFull(t.tag) || t.tag))}${t.season ? ` <em>${esc(t.season)}</em>` : ''}</span>
       <span class="eq-tete-fiche">${t.W}-${t.L}-${t.OTL} · ${t.GF} BP · ${t.GA} BC
-        ${reelle ? `<i class="eq-tete-reel">vraie saison : ${reelle.V}-${reelle.D}${reelle.N ? `-${reelle.N}` : ''} · ${reelle.BP} BP · ${reelle.BC} BC</i>` : ''}</span>
+        ${reelle ? `<i class="eq-tete-reel"${motDeClub(reelle) ? ` title="${esc(motDeClub(reelle))}"` : ''}>vraie saison : ${ligneDeClub(reelle)} · ${reelle.BP} BP${reelle.BC == null ? '' : ` · ${reelle.BC} BC`}</i>` : ''}</span>
       ${url ? `<a class="eq-tete-ext" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(t.season)} de ce club sur Hockey-Reference">${ico('i-ext')}</a>` : ''}
     </div>
     <div class="eq-onglets" role="tablist">

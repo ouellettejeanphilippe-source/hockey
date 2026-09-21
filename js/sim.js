@@ -159,8 +159,8 @@ const lireListe = (cle, defaut) => {
  *
  *   réglage                  EMPILÉ  MTL 76-77  BOS 70-71  NYI 92-93  DET 76-77
  *   aucun malus                80,3       67,6       68,0       58,7       47,4
- *   linéaire (avant S60)       65,8       65,4       65,7       58,5       48,1
- *   EN VIGUEUR (échelles S60)  66,7       65,7       65,9       58,8       48,4
+ *   linéaire (avant S62)       65,8       65,4       65,7       58,5       48,1
+ *   EN VIGUEUR (échelles S62)  66,7       65,7       65,9       58,8       48,4
  *
  * L'empilement perd quatorze points et se retrouve à 66,7, à peine au-dessus
  * de la meilleure équipe de l'histoire. Les vraies équipes témoins ne bougent
@@ -183,7 +183,7 @@ export const ZONE_PEN_DESSUS = Number(ENV_MESURE.ZONE_PEN_DESSUS ?? 1.5);
 export const ZONE_PEN_MAX = 70;      // plafond par unité
 
 /*
- * UN CRAN, ÇA PASSE ; DEUX, ÇA NE PASSE PLUS (S60).
+ * UN CRAN, ÇA PASSE ; DEUX, ÇA NE PASSE PLUS (S62).
  *
  * JP : *faire que malus d'un joueur sous une ou au dessus de une ligne, soit
  * pas si grand, mais si deux et plus, énorme*. Le coefficient ci-dessus était
@@ -820,7 +820,7 @@ export const VOLUME_EXPOSANT = Number(ENV_MESURE.VOLUME_EXPOSANT ?? 0.30);
 
 /*
  * LE VOLUME SE COMPARE À CELUI D'UNE UNITÉ DE SON RANG, jamais dans l'absolu
- * (S60).
+ * (S62).
  *
  * L'exposant ci-dessus tempérait le volume tel quel, or le volume d'un premier
  * trio est deux fois celui d'un quatrième PAR NATURE : à 0,30, le premier trio
@@ -844,7 +844,7 @@ export const VOLUME_RANG = {
 export const VOLUME_CENTRE = Number(ENV_MESURE.VOLUME_CENTRE ?? 1);
 
 /*
- * LA PART OFFENSIVE D'UNE UNITÉ, RÉGLÉE SUR LA SORTIE (S60).
+ * LA PART OFFENSIVE D'UNE UNITÉ, RÉGLÉE SUR LA SORTIE (S62).
  *
  * `POIDS_TRIO` est le temps de glace, et il le reste : c'est lui qui décide de
  * la PRÉSENCE — qui défend, qui reçoit le +/-, le contexte de création des
@@ -1016,7 +1016,7 @@ export const CARTES = {
     volume: 1.04, robustesse: -1.0,
   },
   /*
-   * QUATRE CARTES DE PLUS (S60), et la variété était la raison : JP voulait
+   * QUATRE CARTES DE PLUS (S62), et la variété était la raison : JP voulait
    * l'aspect roguelike *plus varié*. À six cartes, trois paliers et parfois
    * une case vide, on revoyait toujours les mêmes ; à dix, une partie ne
    * montre plus la moitié du paquet. Chacune reste un bonus payé par un
@@ -1795,7 +1795,7 @@ export const P_PASSE_2 = 0.75;
  * coéquipiers sur la glace sont des défenseurs, et sans ce poids ils
  * récoltaient 45 % des passes de la ligue contre 29,7 % réels sur 55 saisons
  * (27 % en 1975-76, 31 % en 2024-25) — Bowen Byram finissait à 94 points.
- * Réglé sur la mesure, et REMESURÉ en S60 quand la propension est devenue le
+ * Réglé sur la mesure, et REMESURÉ en S62 quand la propension est devenue le
  * taux de passes du joueur : 0,3 avec l'ancienne formule, 0,38 avec celle-ci,
  * pour la même sortie de 29 à 30 % (`check_parts.mjs` en fait un repère).
  */
@@ -1877,7 +1877,7 @@ export const passesRelDe = passesRel;
 
 /** Propension à la passe : la part de points qu'un joueur récolte en passes. */
 /*
- * LA PROPENSION EST LE TAUX DU JOUEUR, plus la part de ses points (S60).
+ * LA PROPENSION EST LE TAUX DU JOUEUR, plus la part de ses points (S62).
  *
  * Elle valait `passes / points`, un rapport SANS ÉCHELLE : un ailier récoltait
  * donc la même fraction des passes de son trio quel que soit son propre taux,
@@ -2024,7 +2024,7 @@ export function profilMatch(team, lineup) {
          * présences, point.
          *
          * ET C'EST LA PART DE FORCES ÉGALES, pas celle de toutes les
-         * situations (S61). `jouerCote` joue le cinq contre cinq : une unité y
+         * situations (S63). `jouerCote` joue le cinq contre cinq : une unité y
          * défend sa part de MINUTES À CINQ CONTRE CINQ, qui n'est pas son
          * temps de glace total — le premier trio passe une part de ses minutes
          * en avantage (34 % de la glace, 30 % du cinq contre cinq) et le
@@ -2258,7 +2258,7 @@ export const P_MELANGE = Number(ENV_MESURE.P_MELANGE ?? 0.40);
  * LE −1 SUIT LE RYTHME : 0 le met à la présence seule, 1 au poids offensif
  * entier (voir CREDIT_AU_RYTHME plus haut).
  *
- * IL VALAIT 0,5, ET S60 L'A FAIT PASSER À 1 — parce que la constante mesure un
+ * IL VALAIT 0,5, ET S62 L'A FAIT PASSER À 1 — parce que la constante mesure un
  * RAPPORT (`poids / presence`) et que ce rapport a changé de sens. Tant que la
  * part offensive d'une unité ÉTAIT son temps de glace, le rapport valait 1 en
  * moyenne et l'exposant ne faisait que doser une inclinaison ; depuis que la
