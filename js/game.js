@@ -25,7 +25,7 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES } from './sim.js';
+  CARTES, PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
@@ -2499,7 +2499,9 @@ const CHEM_SHORT = {
   'Trio standard 👍': '👍 Standard',
 };
 const chemShort = name => CHEM_SHORT[name] || name;
-const zoneShort = tag => !tag ? '' : tag.replace('Trio ', '').replace('Paire ', '').replace('optimale', 'optimal');
+const ZONE_SHORT = { optimal: '✨ Optimal', mal: '⚠️ Mal assorti', hors: '🚨 Hors de ses lignes' };
+const zoneShort = (tag, etat) => ZONE_SHORT[etat]
+  || (!tag ? '' : tag.replace('Trio ', '').replace('Paire ', '').replace('optimale', 'optimal'));
 
 function lineEl(title, slots, group, unit, cls = '') {
   const wrap = document.createElement('div');
@@ -2517,7 +2519,7 @@ function lineEl(title, slots, group, unit, cls = '') {
       if (kind) wrap.classList.add(kind);
       const sign = x => { const v = Math.round(x * 10) / 10; return v > 0 ? `+${v}` : `${v}`; };
       const bits = [chemShort(syn.chem || syn.name)];
-      if (syn.zone) bits.push(zoneShort(syn.zone));
+      if (syn.zone) bits.push(zoneShort(syn.zone, syn.zoneEtat));
       const full = `${syn.name}${syn.desc ? ' — ' + syn.desc : ''} · attaque ${sign(syn.bonusOff || 0)}, défense ${sign(syn.bonusDef || 0)}`;
       chemHtml = `<span class="line-chem ${kind}" title="${esc(full)}">${esc(bits.join(' · '))} <b>${sign(syn.bonusOff || 0)}/${sign(syn.bonusDef || 0)}</b></span>`;
     } else {
@@ -2574,12 +2576,16 @@ function renderTeamSummary() {
   if (!host) return;
 
   const oop = SLOTS.filter(s => G.roster[s.i] && getPositionPenalty(G.roster[s.i], s) > 0).length;
-  let optimal = 0, miscast = 0;
+  let optimal = 0, miscast = 0, hors = 0;
   const units = [...Array(4).keys()].map(u => ['F', u]).concat([...Array(3).keys()].map(u => ['D', u]));
   for (const [g, u] of units) {
     const syn = getUnitSynergy(G.roster, g, u);
-    if (syn.zone && syn.zone.startsWith('✨')) optimal++;
-    if (syn.zone && syn.zone.startsWith('⚠️')) miscast++;
+    // `zoneEtat`, PAS l'émoji du libellé : ajouter une étiquette (S62 en a
+    // ajouté une, « hors de ses lignes ») ferait sinon rater les pires unités
+    // sans que rien ne casse.
+    if (syn.zoneEtat === 'optimal') optimal++;
+    if (syn.zoneEtat === 'mal' || syn.zoneEtat === 'hors') miscast++;
+    if (syn.zoneEtat === 'hors') hors++;
   }
 
   const tile = (k, v, cls, title) =>
@@ -2606,7 +2612,8 @@ function renderTeamSummary() {
     tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
     + tile('Vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
     + tile('Optimales', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense. Les quatre trios et les trois paires comptent.")
-    + tile('Mal assorties', miscast, miscast ? 'dash-bad' : '', 'Unités où au moins un joueur joue hors de sa zone.')
+    + tile('Mal assorties', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
+      `Unités où au moins un joueur joue hors de sa zone. Un cran d'écart ne coûte presque rien ; ${hors ? `${hors} unité${hors > 1 ? 's' : ''} est à deux crans ou plus, et là ça coûte cher.` : 'à deux crans ou plus, ça coûte cher.'}`)
     + tile('Hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
 }
 
@@ -3339,7 +3346,17 @@ function ouvrirBanc(jour) {
     if (m) prochain = { j, adv: m.A === L.you ? m.B : m.A };
   }
   const derniere = (L.decisions || [])[L.decisions.length - 1] || {};
-  G.banc = { jour, compte, blesses, fermeture: derniere.fermeture ?? 'auto', prochain, fiche, N: L.calendrier.length };
+  /*
+   * LES RÉGLAGES EN VIGUEUR SE LISENT SUR L'ÉQUIPE, jamais sur la dernière
+   * décision : celle-ci peut être une CARTE, qui ne porte ni fermeture, ni
+   * plan, ni roulement — et le banc remettrait alors tout à « auto » en
+   * écrivant sa décision, donc effacerait un choix en silence.
+   */
+  G.banc = {
+    jour, compte, blesses, prochain, fiche, N: L.calendrier.length,
+    fermeture: L.you.fermeture ?? derniere.fermeture ?? 'auto',
+    plan: planDe(L.you), roulement: roulementDe(L.you),
+  };
   $('game').classList.add('banc');
   G.selectedSlot = null; G.target = null;
   setView('roster');
@@ -3359,7 +3376,7 @@ function fermetureCourante() {
 async function reprendreSaison() {
   const b = G.banc;
   if (!b || !G.ligue) return;
-  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture };
+  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, plan: b.plan, roulement: b.roulement };
   const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0);
   decisions.push(d);
   G.banc = null;
@@ -3436,12 +3453,50 @@ function renderBanc() {
     </div>
     ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
     <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
+    ${segments('Plan', 'plan', PLANS, b.plan)}
+    ${segments('Glace', 'roulement', ROULEMENTS, b.roulement)}
     <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. 🔒 désigne ton <b>trio de fermeture</b>${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}` : ' — personne pour l\'instant'}.</div>
-    <details class="banc-plus"><summary>Le trio de fermeture, c'est quoi</summary>
-      <div class="banc-ligne">C'est lui qui prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
+    <details class="banc-plus"><summary>Le plan, la glace et le trio de fermeture</summary>
+      <div class="banc-ligne"><b>Le plan de match</b> est ton style : ${Object.values(PLANS).map(x => `${x.ico} ${esc(x.nom)}`).join(', ')}. Chacun achète quelque chose et le paie — il n'y en a pas de gratuit, et aucun ne vaut plus d'une victoire et demie sur une saison.</div>
+      <div class="banc-ligne"><b>La glace</b> dit où passent les minutes. Raccourcir le banc donne la rondelle à tes meilleurs et les use ; un banc profond ménage tout le monde et demande de la profondeur. La somme ne change pas : c'est QUI joue qui change.</div>
+      <div class="banc-ligne"><b>Le trio de fermeture</b> prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
     </details>
-    <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios. Ce qui est joué reste joué.">Retour au match</button>`;
+    <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios, ce plan et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
   $('bancRetour').onclick = reprendreSaison;
+  /*
+   * UN SEUL ÉCOUTEUR, DÉLÉGUÉ, et il est reposé à chaque rendu parce que
+   * `innerHTML` vient de jeter les anciens boutons : brancher chaque bouton
+   * un par un en laisserait un derrière au premier réglage qu'on ajoute.
+   */
+  host.querySelectorAll('.banc-seg-btn').forEach(btn => {
+    btn.onclick = () => {
+      const champ = btn.dataset.champ;
+      if (!G.banc || G.banc[champ] === btn.dataset.cle) return;
+      G.banc[champ] = btn.dataset.cle;
+      renderBanc();
+    };
+  });
+}
+
+/*
+ * UNE RANGÉE DE SEGMENTS : le plan de match, la glace. Le mot du réglage
+ * choisi porte ce qu'il achète et ce qu'il paie — c'est la seule chose à lire
+ * pour décider, et elle vient de `PLANS` / `ROULEMENTS`, jamais d'un texte
+ * recopié ici : un réglage retouché ferait sinon mentir l'écran.
+ */
+function segments(titre, champ, table, choisi) {
+  const cour = table[choisi] || Object.values(table)[0];
+  const btns = Object.entries(table).map(([cle, x]) => {
+    const on = cle === choisi;
+    return `<button type="button" class="banc-seg-btn${on ? ' on' : ''}" data-champ="${champ}" data-cle="${cle}"
+      title="${esc(x.nom)}${x.bon ? ` — ${esc(x.bon)}` : ''}${x.prix ? `, mais ${esc(x.prix.charAt(0).toLowerCase() + x.prix.slice(1))}` : ''}"
+      aria-pressed="${on}">${x.ico} <span class="banc-seg-nom">${esc(x.nom)}</span></button>`;
+  }).join('');
+  return `<div class="banc-seg">
+    <div class="banc-seg-tete">${titre}</div>
+    <div class="banc-seg-btns">${btns}</div>
+    <div class="banc-seg-mot">${cour.bon ? `<b>${esc(cour.bon)}</b>` : ''}${cour.prix ? ` · ${esc(cour.prix)}` : ''}</div>
+  </div>`;
 }
 
 /*
@@ -3500,7 +3555,7 @@ async function runSeason(opts = {}) {
   // rejoue exactement les mêmes.
   const decisions = opts.decisions && opts.decisions.length
     ? opts.decisions
-    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' }];
+    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', plan: 'equilibre', roulement: 'quatre' }];
   let r, teams, leaders = [], calendrier = [], graine = null;
   if (opponents.length) {
     const league = simulateLeague([you, ...opponents], 82, { graine: opts.graine || null, decisions });

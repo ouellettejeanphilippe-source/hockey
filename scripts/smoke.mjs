@@ -463,6 +463,41 @@ async function traverserSaison(etiquette, reprise = false) {
       await verrous[1].click();
     }
     await page.waitForTimeout(150);
+    /*
+     * LE PLAN DE MATCH ET LA GLACE (S62). Deux décisions qui valent toute la
+     * saison, et le seul endroit où on les change est ici. Ce qui se vérifie :
+     * les deux rangées existent avec TOUS leurs choix (une rangée à laquelle
+     * il manque un segment est un réglage qu'on ne peut pas prendre), un seul
+     * segment est choisi par rangée, le mot du réglage choisi dit ce qu'il
+     * paie, et le changement voyage jusqu'à la sauvegarde — c'est la décision
+     * qui compte, pas la pastille.
+     */
+    const segs = await page.$$eval('.banc-seg', els => els.map(e => ({
+      tete: e.querySelector('.banc-seg-tete')?.textContent.trim() || '',
+      n: e.querySelectorAll('.banc-seg-btn').length,
+      on: [...e.querySelectorAll('.banc-seg-btn.on')].map(b => b.dataset.cle),
+      mot: (e.querySelector('.banc-seg-mot')?.textContent || '').trim(),
+    })));
+    if (segs.length !== 2 || segs[0].n !== 5 || segs[1].n !== 3) {
+      errors.push(`les réglages du banc ne sont pas là : ${JSON.stringify(segs.map(x => [x.tete, x.n]))}`);
+    } else if (!segs.every(x => x.on.length === 1 && x.mot.length > 4)) {
+      errors.push(`un réglage du banc n'a pas un seul choix ou n'a pas son mot : ${JSON.stringify(segs.map(x => [x.on, x.mot.slice(0, 20)]))}`);
+    } else {
+      // On prend « Échec avant » et « Trois trios » : deux réglages qui ne
+      // sont pas le défaut, donc la sauvegarde doit les porter tous les deux.
+      await page.click('.banc-seg-btn[data-champ="plan"][data-cle="echec"]');
+      await page.waitForTimeout(120);
+      await page.click('.banc-seg-btn[data-champ="roulement"][data-cle="trois"]');
+      await page.waitForTimeout(120);
+      const pris = await page.$$eval('.banc-seg-btn.on', e => e.map(x => x.dataset.cle));
+      if (JSON.stringify(pris) !== '["echec","trois"]') errors.push(`le banc n'a pas retenu le plan choisi : ${JSON.stringify(pris)}`);
+      const mot = await page.textContent('.banc-seg .banc-seg-mot');
+      if (!/punition/i.test(mot)) errors.push(`le mot du plan ne dit pas ce qu'il paie : « ${mot.trim()} »`);
+    }
+    await toutEstAtteignable('derrière le banc, réglages ouverts');
+    // Le banc à 390 px, réglages compris : c'est l'écran des décisions de
+    // saison, et il doit tenir sans rien pousser hors du cadre.
+    await page.screenshot({ path: 'scripts/smoke-banc.png', fullPage: false });
     const nomsAvant = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.trim()));
     await page.locator('.slot').nth(0).click(); await page.waitForTimeout(120);
     await page.locator('.slot').nth(9).click(); await page.waitForTimeout(200);
@@ -475,7 +510,16 @@ async function traverserSaison(etiquette, reprise = false) {
     if (teteApresBanc !== teteAvantBanc) errors.push(`le retour au match ne reprend pas au même endroit : « ${teteAvantBanc} » puis « ${teteApresBanc} »`);
     const decisions = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } });
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
-    else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture déplacée au 2e trio, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
+    else if (decisions[1].plan !== 'echec' || decisions[1].roulement !== 'trois') errors.push(`la sauvegarde ne porte pas le plan et la glace : ${JSON.stringify([decisions[1].plan, decisions[1].roulement])}`);
+    else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture déplacée au 2e trio, plan ${decisions[1].plan} et glace ${decisions[1].roulement}, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
+    /*
+     * ET L'AFFICHE LE DIT. Un réglage qui vaut toute la saison et qu'on ne
+     * relit nulle part est un réglage qu'on oublie avoir choisi : la carte du
+     * prochain match porte les deux, avec leur icône.
+     */
+    const affiche = (await page.textContent('#hubModal .hub-plan').catch(() => '') || '').replace(/\s+/g, ' ').trim();
+    if (!/Échec avant/.test(affiche) || !/Trois trios/.test(affiche)) errors.push(`l'affiche du match ne dit pas le plan : « ${affiche} »`);
+    else console.log(`   l'affiche dit le plan : ${affiche}`);
 
     /*
      * LE PALIER DE CARTES. À trois journées de la saison (PALIERS_CARTES), on

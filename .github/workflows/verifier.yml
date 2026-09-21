@@ -12,9 +12,11 @@ name: Vérifier
 #                   des joueurs font ceux de l'équipe, les lancers font les
 #                   arrêts plus les buts) — l'équivalent de check_feuilles
 #                   pour le moteur du mode bonus
-#   check_parts     la production se répartit-elle entre les quatre trios comme
-#                   la vraie équipe l'a répartie ? (le temps de glace était
-#                   compté deux fois : voir VOLUME_EXPOSANT dans js/sim.js)
+#   check_parts     la production se répartit-elle entre les joueurs comme la
+#                   vraie saison l'a répartie ? (les lancers SIMULÉS par rang
+#                   d'unité, toutes situations — c'est l'avantage numérique qui
+#                   s'empilait sur le premier trio, et la version d'avant, qui
+#                   ne lisait que les forces égales, ne pouvait pas le voir)
 #
 #   check_ratings   la corrélation force d'équipe / vrai classement, qui doit
 #                   rester autour de 0,8 — c'est aussi le SEUL portier de
@@ -71,9 +73,10 @@ jobs:
       - name: Les égalités de la feuille de match
         run: LIGUES=1 node scripts/check_feuilles.mjs
 
-      # Instantané et DÉTERMINISTE : il ne joue aucun match, il lit le poids
-      # offensif que profilMatch donne à chaque trio de quatre vraies équipes
-      # et le compare à ce que ces joueurs ont vraiment tiré.
+      # DÉTERMINISTE : quatre ligues de vraies équipes, tirées et jouées sous
+      # une graine fixe. Sans la graine, les repères par rang bougeraient de
+      # ±3 points d'une exécution à l'autre et ce garde-fou crierait pour du
+      # bruit. Sept secondes.
       - name: La production se répartit comme dans la vraie vie
         run: node scripts/check_parts.mjs
 

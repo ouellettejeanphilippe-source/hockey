@@ -30,7 +30,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, CARTES, PALIERS_CARTES, mainDeCartes } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, CARTES, PALIERS_CARTES, mainDeCartes } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -76,8 +76,16 @@ const err = a => { const m = moy(a); return Math.sqrt(moy(a.map(x => (x - m) ** 
 const signe = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 
 /* La même ligue deux fois : la carte aux pairs, puis aux impairs. */
+/*
+ * LES MINUTES DE PUNITION SONT DANS LE TABLEAU, et ça vient d'une carte : « Le
+ * sang-froid » (S62) est la première qui joue sur l'ARBITRE plutôt que sur le
+ * tir, et sans cette colonne rien ne dirait qu'elle fait ce qu'elle promet —
+ * son écart de victoires, lui, est nul par construction.
+ */
+const punitions = t => SLOTS.reduce((a, s) => a + ((t.roster[s.i] && t.roster[s.i].simPIM) || 0), 0);
+
 function paires(cle) {
-  const dv = [], dbp = [], dbc = [], dbl = [];
+  const dv = [], dbp = [], dbc = [], dbl = [], dpun = [];
   for (let L = 0; L < LIGUES; L++) {
     const bras = [];
     for (const parite of [0, 1]) {
@@ -85,14 +93,15 @@ function paires(cle) {
       const decisions = cle === null ? []
         : teams.map((_, i) => i).filter(i => i % 2 === parite).map(equipe => ({ jour: JOUR, equipe, carte: cle }));
       simulateLeague(teams, 82, { graine: `carte-${L}`, decisions });
-      bras.push(teams.map(t => ({ W: t.W, GF: t.GF, GA: t.GA, bl: (t.injuriesLog || []).length })));
+      bras.push(teams.map(t => ({ W: t.W, GF: t.GF, GA: t.GA, bl: (t.injuriesLog || []).length, pun: punitions(t) })));
     }
     for (let i = 0; i < 32; i++) {
       const avec = bras[i % 2 === 0 ? 0 : 1][i], sans = bras[i % 2 === 0 ? 1 : 0][i];
-      dv.push(avec.W - sans.W); dbp.push(avec.GF - sans.GF); dbc.push(avec.GA - sans.GA); dbl.push(avec.bl - sans.bl);
+      dv.push(avec.W - sans.W); dbp.push(avec.GF - sans.GF); dbc.push(avec.GA - sans.GA);
+      dbl.push(avec.bl - sans.bl); dpun.push(avec.pun - sans.pun);
     }
   }
-  return { v: moy(dv), bp: moy(dbp), bc: moy(dbc), bl: moy(dbl), err: err(dv), n: dv.length };
+  return { v: moy(dv), bp: moy(dbp), bc: moy(dbc), bl: moy(dbl), pun: moy(dpun), err: err(dv), n: dv.length };
 }
 
 console.log(`\n  ${LIGUES} ligues × 32 équipes · la carte est prise au jour ${JOUR}\n`);
@@ -118,10 +127,10 @@ exiger('une carte prise ne reparaît pas dans une main', !repete, repete || `${4
 exiger('la même graine offre la même main', mainDeCartes(7, 40).join() === mainDeCartes(7, 40).join(),
   mainDeCartes(7, 40).join(' · '));
 
-console.log(`\n  carte              ΔV      ΔBP     ΔBC   Δbless.`);
+console.log(`\n  carte              ΔV      ΔBP     ΔBC   Δbless.   Δpun`);
 for (const cle of toutes) {
   const r = paires(cle);
-  console.log(`  ${CARTES[cle].nom.padEnd(16)} ${signe(r.v).padStart(5)}  ${signe(r.bp, 0).padStart(5)}  ${signe(r.bc, 0).padStart(5)}  ${signe(r.bl, 1).padStart(6)}`);
+  console.log(`  ${CARTES[cle].nom.padEnd(16)} ${signe(r.v).padStart(5)}  ${signe(r.bp, 0).padStart(5)}  ${signe(r.bc, 0).padStart(5)}  ${signe(r.bl, 1).padStart(6)}  ${signe(r.pun, 0).padStart(5)}`);
   /*
    * LA BORNE EST LE CONTRAT DE CONCEPTION, pas un intervalle inventé : moins
    * d'une victoire d'écart net. Elle est large exprès — à douze ligues la
@@ -131,7 +140,7 @@ for (const cle of toutes) {
    */
   if (juger) borne(`${CARTES[cle].nom} · écart net`, r.v, -1, 1, 'victoire');
   else informer(`${CARTES[cle].nom} · écart net`, `${signe(r.v)} victoire — non jugé, ${LIGUES} ligues sous le plancher de ${PLANCHER}`);
-  informer(`${CARTES[cle].nom} · ce qui bouge`, `${signe(r.bp, 0)} BP · ${signe(r.bc, 0)} BC · ${signe(r.bl, 1)} blessure`);
+  informer(`${CARTES[cle].nom} · ce qui bouge`, `${signe(r.bp, 0)} BP · ${signe(r.bc, 0)} BC · ${signe(r.bl, 1)} blessure · ${signe(r.pun, 0)} minute de punition`);
 }
 
 verdict('Les cartes de saison');

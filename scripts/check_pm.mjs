@@ -105,6 +105,11 @@ const sx = Math.sqrt(moy(corr.map(c => (c[0] - mx) ** 2))), sy = Math.sqrt(moy(c
 console.log(`  corrélation joueur par joueur, simulé / réel : ${(cov / (sx * sy)).toFixed(2)} ; écart-type simulé ${sx.toFixed(1)}, réel ${sy.toFixed(1)}\n`);
 
 /*
+ * ET LE RÉEL SE LIT SANS LES JOUEURS ÉCHANGÉS (S63) : voir MAX_ECHANGES plus
+ * bas. C'est la correction la plus importante de ce script — la version
+ * d'origine annonçait « réel 0,36 » là où le vrai chiffre est 0,46, et le
+ * moteur passait pour 40 % au-dessus du réel alors qu'il en est à 10 %.
+ *
  * LES GRANDES ÉQUIPES. JP : *les +/- des joueurs sont toujours démesurés* —
  * sur SON équipe, à +150, une vedette à +80. La vraie ligue a connu ça
  * (Robinson +120 sur le Canadien de 1976-77 à +216, Orr +124 en 1970-71),
@@ -113,21 +118,46 @@ console.log(`  corrélation joueur par joueur, simulé / réel : ${(cov / (sx * 
  * fait jouer en ligue, et on compare, équipe par équipe, le différentiel, le
  * meilleur +/- et le pire +/- de leurs réguliers, simulés contre réels.
  */
+/*
+ * LE JOUEUR ÉCHANGÉ FAUSSE LE RÉEL, ET IL A FAILLI FAUSSER UN CHANTIER (S63).
+ *
+ * Un joueur échangé est dans le vestiaire de CHAQUE club où il a passé, avec
+ * sa saison ENTIÈRE sous chacun (le `x` des shards, voir CLAUDE.md). Sa fiche
+ * et le différentiel de son club ne parlent donc pas du même club : sommer les
+ * buts des patineurs d'une équipe qui a fait cinq transactions gonfle son
+ * attaque, et son +/- porte des matchs joués ailleurs.
+ *
+ * Mesuré : la somme des +/- des dix-huit alignés valait 1,86 fois le
+ * différentiel en comptant les échangés, 3,69 en ne gardant que les clubs qui
+ * n'ont vu passer personne (le moteur en donne 4,03). Le premier chiffre
+ * disait « le moteur donne deux fois trop de +/- » et il était faux.
+ *
+ * On écarte donc les clubs à plus de `MAX_ECHANGES` joueurs échangés, et on
+ * ignore les échangés partout ailleurs.
+ */
+const MAX_ECHANGES = 2;
 const grandes = [];
 for (const s of saisons) {
   const shard = JSON.parse(fs.readFileSync(path.join(DIR, s + '.json'), 'utf8'));
   const eq = {};
   for (const p of shard.players) {
-    const e = eq[p.t] || (eq[p.t] = { gf: 0, ga: 0, max: -999, min: 999 });
+    const e = eq[p.t] || (eq[p.t] = { gf: 0, ga: 0, max: -999, min: 999, ech: 0 });
+    if (p.x) { e.ech++; continue; }
     // Le gardien du shard porte ses tirs reçus (`sa`) et son pourcentage d'arrêts (`sv`) : les buts alloués en découlent.
     if (p.p === 'G') e.ga += Math.round((p.sa || 0) * (1 - (p.sv || 0)));
     else { e.gf += p.g || 0; if ((p.gp || 0) >= 40) { e.max = Math.max(e.max, p.pm || 0); e.min = Math.min(e.min, p.pm || 0); } }
   }
-  for (const [tag, e] of Object.entries(eq)) grandes.push({ s, tag, diff: e.gf - e.ga, max: e.max, min: e.min });
-  for (const e of Object.values(eq)) { const r = partDe([e.max, e.min], e.gf - e.ga); if (r) parts.reel.push(r); }
+  for (const [tag, e] of Object.entries(eq)) grandes.push({ s, tag, diff: e.gf - e.ga, max: e.max, min: e.min, ech: e.ech });
+  for (const e of Object.values(eq)) {
+    if (e.ech > MAX_ECHANGES) continue;
+    const r = partDe([e.max, e.min], e.gf - e.ga);
+    if (r) parts.reel.push(r);
+  }
 }
 grandes.sort((a, b) => b.diff - a.diff);
-const douze = grandes.slice(0, 12);
+// Les douze plus gros différentiels, échangés écartés : sans le filtre, la
+// liste était pleine de clubs dont l'attaque est comptée deux fois.
+const douze = grandes.filter(g => g.ech <= MAX_ECHANGES).slice(0, 12);
 {
   const equipes = [], vus = new Set();
   const ajouter = (s, tag) => { const u = equipeReelle(s, tag); if (u[0].length < 12 || u[1].length < 6 || !u[2].length) return false; const pool = u.flat().map(p => ({ ...p })); pool.forEach(registerHiddenRatings); equipes.push(createTeam(`${tag} ${s}`, tag, autoRoster(pool), { season: s })); vus.add(s + tag); return true; };

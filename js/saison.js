@@ -23,7 +23,8 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS } from './sim.js';
+import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS,
+  PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { tempsRestant } from './recit.js';
 
@@ -317,6 +318,23 @@ function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, car
   // répondait encore aux clics de celui des séries et réécrivait le volet
   // avec son propre classement.
   return () => { for (const z of zones) { z.removeEventListener('click', agir); z.removeEventListener('keydown', touche); } };
+}
+
+/*
+ * LE PLAN ET LA GLACE SE LISENT SUR L'AFFICHE (S62). Deux décisions qui valent
+ * toute la saison et qui se changent derrière le banc : si l'écran ne les dit
+ * pas, on oublie ce qu'on a choisi en janvier. Les mots viennent de `PLANS` et
+ * `ROULEMENTS` — jamais recopiés ici, sinon un réglage retouché fait mentir
+ * l'affiche.
+ */
+function motDuPlan(ctx, you, onBanc) {
+  const pl = PLANS[planDe(you)], ro = ROULEMENTS[roulementDe(you)];
+  if (!pl || !ro) return '';
+  const dit = x => `${x.ico} ${ctx.esc(x.nom)}`;
+  const inf = x => `${x.nom}${x.bon ? ` — ${x.bon}` : ''}${x.prix ? `, mais ${x.prix.charAt(0).toLowerCase()}${x.prix.slice(1)}` : ''}`;
+  return `<div class="hub-match-note hub-plan">
+    <span title="${ctx.esc(inf(pl))}">${dit(pl)}</span> · <span title="${ctx.esc(inf(ro))}">${dit(ro)}</span>${onBanc ? ' <span class="hub-plan-ou">derrière le banc</span>' : ''}
+  </div>`;
 }
 
 /* Le bloc d'une équipe dans la carte du prochain match : écusson, nom, fiche. */
@@ -753,6 +771,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}</div>
         <div class="hub-match-note">${dernierMot}</div>
         ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
+        ${motDuPlan(ctx, you, !!onBanc)}
       </div>`;
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les NHL Stars ne jouent plus d'ici la fin de la saison.</div></div>`;
