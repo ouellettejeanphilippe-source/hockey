@@ -42,6 +42,7 @@ const alea = generateur('check_pm');
 const parts = { sim: [], reel: [] };   // [max/diff, min/diff] des équipes à +60 et plus
 const partDe = (pm, diff) => (diff >= 60 && pm.length ? [Math.max(...pm) / diff, Math.min(...pm) / diff] : null);
 const rangs = {};   // 'F1'.. 'D3' -> { sim: [], reel: [] }
+const recolte = [];   // une ligne par joueur retenu, pour la part du différentiel par rang
 const jumeaux = { sim: [], reel: [] };
 let corr = [];      // [sim, reel] par joueur
 let n = 0;
@@ -78,6 +79,10 @@ for (let l = 0; l < LIGUES; l++) {
       rangs[cle].sim.push(p.simPM);
       rangs[cle].reel.push(p.pm * 82 / p.gp);
       corr.push([p.simPM, p.pm * 82 / p.gp]);
+      // De quoi calculer la PART DU DIFFÉRENTIEL plus bas : le vrai
+      // différentiel du club et son nombre d'échanges ne sont connus qu'après
+      // la lecture des shards (`grandes`), donc on note et on divise ensuite.
+      if (!p.x) recolte.push({ cle, simPM: p.simPM, reelPM: p.pm * 82 / p.gp, simDiff: t.GF - t.GA, s: t.season, tag: t.tag });
     }
     // Les jumeaux : chaque paire de coéquipiers d'une même unité.
     for (const g of ['F', 'D']) for (let unit = 0; unit < (g === 'F' ? 4 : 3); unit++) {
@@ -195,4 +200,39 @@ const douze = grandes.filter(g => g.ech <= MAX_ECHANGES).slice(0, 12);
   // moteur ou le hockey (le réel dit environ 0,4 : Robinson +120 sur +216).
   console.log(`  toutes les équipes à +60 et plus — meilleur +/- en part du différentiel : simulé ${moy(parts.sim.map(x => x[0])).toFixed(2)} (${parts.sim.length} équipes), réel ${moy(parts.reel.map(x => x[0])).toFixed(2)} (${parts.reel.length} équipes)`);
   console.log(`                                         pire +/- en part du différentiel : simulé ${moy(parts.sim.map(x => x[1])).toFixed(2)}, réel ${moy(parts.reel.map(x => x[1])).toFixed(2)}\n`);
+}
+
+/*
+ * LA PART DU DIFFÉRENTIEL PAR RANG D'UNITÉ (S65).
+ *
+ * C'est le chiffre que JP nomme quand il dit *c'est débalancé les plus et
+ * moins* : un +/- ne se lit pas dans l'absolu, il se lit en part du
+ * différentiel de son club — +28 sur une équipe à +80 et +28 sur une équipe à
+ * +20 ne disent pas la même chose. S63 l'avait mesuré dans une sonde jetée
+ * après usage, et CLAUDE.md en porte le tableau : un chiffre qui fait autorité
+ * sans qu'aucun script ne le rende est un chiffre que personne ne relit.
+ *
+ * Les deux côtés se lisent sur des équipes FORTES (à +60 et plus, là où la
+ * part a un sens) et sans joueur échangé (voir MAX_ECHANGES) : le simulé sur
+ * le différentiel SIMULÉ du club, le réel sur le différentiel RÉEL du même
+ * club. C'est la même méthode des deux bords.
+ */
+{
+  const vraiDe = new Map();
+  for (const g of grandes) if (g.ech <= MAX_ECHANGES) vraiDe.set(`${g.tag} ${g.s}`, g.diff);
+  const parRang = {};
+  for (const r of recolte) {
+    const vrai = vraiDe.get(`${r.tag} ${r.s}`);
+    const d = (parRang[r.cle] = parRang[r.cle] || { sim: [], reel: [] });
+    if (r.simDiff >= 60) d.sim.push(r.simPM / r.simDiff);
+    if (vrai >= 60) d.reel.push(r.reelPM / vrai);
+  }
+  console.log('  LA PART DU DIFFÉRENTIEL, par rang d\'unité (équipes à +60 et plus, sans joueur échangé)\n');
+  console.log('  unité    simulé    réel    joueurs sim / réel');
+  for (const cle of ['F1', 'F2', 'F3', 'F4', 'D1', 'D2', 'D3']) {
+    const d = parRang[cle]; if (!d) continue;
+    console.log(`  ${cle.padEnd(6)}  ${moy(d.sim).toFixed(3).padStart(6)}  ${moy(d.reel).toFixed(3).padStart(6)}        ${d.sim.length} / ${d.reel.length}`);
+  }
+  const f1 = parRang.F1 ? moy(parRang.F1.sim) : 0, f1r = parRang.F1 ? moy(parRang.F1.reel) : 0;
+  console.log(`\n  le premier trio : ${f1.toFixed(3)} du différentiel contre ${f1r.toFixed(3)} en vrai (rapport ${(f1 / (f1r || 1)).toFixed(2)})\n`);
 }

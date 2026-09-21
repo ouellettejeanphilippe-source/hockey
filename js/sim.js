@@ -2050,7 +2050,18 @@ export function profilMatch(team, lineup) {
     const sb = unites[g].reduce((a, x) => a + x.brut, 0);
     const st = unites[g].reduce((a, x) => a + x.poids, 0);
     if (st > 0 && sb > 0) for (const x of unites[g]) x.poids *= sb / st;
-    for (const x of unites[g]) delete x.brut;
+    /*
+     * LE RYTHME GARDE LE VOLUME NON TEMPÉRÉ (S65). `brut` était SUPPRIMÉ ici,
+     * et c'est ce qui a failli faire mentir la mesure de ce chantier : le
+     * tirage du −1 lisait `x.brut`, ne trouvait rien, et retombait
+     * silencieusement sur `x.poids` — quatre réglages, quatre lectures
+     * identiques. Un champ qu'on lit ailleurs ne se supprime pas ; il se
+     * renomme pour ce qu'il sert. Renormalisé sur la présence pour que le
+     * rapport `rythme / presence` soit centré sur 1 et que `RYTHME_CREDIT` se
+     * lise comme une inclinaison plutôt que comme une échelle.
+     */
+    const sp = unites[g].reduce((a, x) => a + x.presence, 0);
+    for (const x of unites[g]) { x.rythme = sb > 0 && sp > 0 ? x.brut * sp / sb : x.presence; delete x.brut; }
   }
 
   // Le trio de fermeture de cet alignement : désigné, ou le 3e trio
@@ -2175,8 +2186,11 @@ export function profilMatch(team, lineup) {
  *                 (sa présence). Dans la vraie ligue les deux parts se
  *                 tiennent : le premier trio joue contre le premier trio, et
  *                 le rythme monte des deux côtés quand il est là. Le −1 se
- *                 tire donc au POIDS OFFENSIF de l'unité qui défendait (avec
- *                 l'appariement), pas à sa présence seule. Crédit seulement :
+ *                 tire donc au VOLUME de l'unité qui défendait (avec
+ *                 l'appariement), pas à sa présence seule — et jamais SOUS sa
+ *                 présence, voir RYTHME_BASE et RYTHME_PLANCHER, que S65 a dû
+ *                 écrire parce que la base `poids` était devenue inerte.
+ *                 Crédit seulement :
  *                 la probabilité du but reste calculée sur l'unité tirée à la
  *                 présence, ce qui est joué ne change pas. La marche disparaît
  *                 (Islanders 1977-78 : 45 42 39 39 33 29 26 26 contre 58 55 50
@@ -2255,27 +2269,107 @@ export const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.
 export const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
 export const P_MELANGE = Number(ENV_MESURE.P_MELANGE ?? 0.40);
 /*
- * LE −1 SUIT LE RYTHME : 0 le met à la présence seule, 1 au poids offensif
- * entier (voir CREDIT_AU_RYTHME plus haut).
+ * LE −1 SUIT LE RYTHME : 0 le met à la présence seule, plus haut il l'incline
+ * vers les unités qui génèrent le plus (voir CREDIT_AU_RYTHME plus haut et
+ * `RYTHME_BASE` juste dessous).
  *
- * IL VALAIT 0,5, ET S62 L'A FAIT PASSER À 1 — parce que la constante mesure un
- * RAPPORT (`poids / presence`) et que ce rapport a changé de sens. Tant que la
- * part offensive d'une unité ÉTAIT son temps de glace, le rapport valait 1 en
- * moyenne et l'exposant ne faisait que doser une inclinaison ; depuis que la
- * part offensive est réglée sur la sortie (`PART_UNITE`), le quatrième trio
- * porte 20,5 % des lancers de forces égales pour 16 % de la glace — il
- * récupère à cinq contre cinq ce que l'avantage numérique donne aux deux
- * premiers trios. À 0,5, le +1 suivait cette part et le −1 ne la suivait qu'à
- * moitié : le quatrième trio finissait à +0,9 quand le réel est à −4,4, et
- * l'écart du premier au quatrième tombait de 8,9 à 3,4.
+ * LE PREMIER TRIO EST PLUS FAIBLE DÉFENSIVEMENT (S65). JP, devant les fiches
+ * de S63 : *je veux que le premier trio soit plus faible défensivement i
+ * guess?* — c'est sa réponse à la question que S63 avait laissée ouverte, et
+ * c'était bien un choix de conception à prendre avec lui. Mesuré en PART DU
+ * DIFFÉRENTIEL du club (`check_pm.mjs` le rend maintenant par rang), le
+ * premier trio valait 0,397 quand les vraies équipes fortes sans joueur
+ * échangé en donnent 0,305 : il était sur la glace pour 34 % des buts POUR et
+ * seulement 30 % des buts CONTRE, là où les deux parts se tiennent dans la
+ * vraie ligue — un premier trio joue contre ce que l'adversaire a de mieux.
  *
- * Mesuré (`LIGUES=4 node scripts/check_pm.mjs`), écart du 1er au 4e trio et
- * meilleur +/- en part du différentiel d'une équipe à +60 : 0 → 0,1 et 0,52 ·
- * 0,25 → 2,9 · 0,5 → 3,4 et 0,52 · 0,75 → 6,6 et 0,50 · **1 → 7,9 et 0,48**
- * (réel : 11,4 et 0,36). C'est le seul réglage qui améliore les DEUX repères à
- * la fois, et son F1 tombe pile sur le réel (+6,4 contre +6,1).
+ * ET LE RÉGLAGE SE LIT SUR HUIT LIGUES, PAS SUR QUATRE. À quatre, 1,5 mettait
+ * le premier trio pile sur le réel (0,304 contre 0,305) ; à huit il tombe à
+ * 0,262 contre 0,322 — le premier trio devenait trop FAIBLE, et le réel
+ * lui-même bouge d'un échantillon à l'autre (18 joueurs contre 33). C'est la
+ * règle du dépôt, appliquée une fois de plus : un repère se lit sur
+ * l'échantillon qui l'a fixé, et `check_pm` fait autorité à `LIGUES=8`.
+ *
+ * Mesuré à HUIT ligues — part du différentiel du premier et du quatrième trio,
+ * écart du premier au quatrième, meilleur +/- d'une équipe à +60 :
+ *
+ *   avant (0,5 sur `poids`)     0,377 · 0,066 · 8,8 · 0,51
+ *   **0,75 sur `rythme`**       **0,304 · 0,078 · 6,6 · 0,49**
+ *   1 sur `rythme`              0,314 · 0,121 · 5,8 · 0,48
+ *   1,25 sur `rythme`           0,300 · 0,111 · 5,4 · 0,47
+ *   1,5 sur `rythme`            0,262 · 0,112 · 4,8 · 0,45
+ *   réel                        0,322 · 0,028 · 10,4 · 0,46
+ *
+ * 0,75 est retenu parce qu'il gagne TROIS colonnes sur quatre : le premier
+ * trio à 0,94 du réel (1,0 fait 0,98, à peine mieux), le quatrième trio le
+ * moins dégradé de tous les crans, et l'écart du premier au quatrième le mieux
+ * conservé. Les lectures ne sont pas monotones d'un cran à l'autre — ±0,02 de
+ * bruit — donc on choisit sur l'ensemble des colonnes, jamais sur une seule.
+ *
+ * Le premier trio passe donc de 17 % AU-DESSUS du réel à 6 % en dessous, et le
+ * meilleur +/- d'une grande équipe de 0,51 à 0,49 pour un réel de 0,46 — le
+ * chiffre que JP avait nommé deux chantiers plus tôt (*les +/- des joueurs sont
+ * toujours démesurés*).
+ *
+ * CE QUE ÇA COÛTE, ET C'EST ÉCRIT PLUTÔT QUE CACHÉ : la somme des −1 est fixe,
+ * donc ce qu'on donne au premier trio se prend ailleurs. Le quatrième trio
+ * monte de 0,066 à 0,078 (réel 0,028) et l'écart du premier au quatrième tombe
+ * de 8,8 à 6,6 (réel 10,4). Le plancher (voir `RYTHME_PLANCHER`) est ce qui
+ * garde ce prix petit : sans lui, à 1 de crédit, le quatrième trio allait à
+ * 0,161 et l'écart à 2,8.
+ *
+ * ET LA CAUSE PROFONDE, trouvée en mesurant et NON corrigée : le +/- réel
+ * compte les buts encaissés en DÉSAVANTAGE numérique (la règle de la ligue
+ * n'exclut que les buts en avantage), et le moteur n'en crédite aucun. Ce sont
+ * les unités de désavantage — les trios défensifs et les deux premières paires
+ * — qui encaissent ces buts-là dans la vraie ligue, ce qui explique que les
+ * vrais F3, F4, D1 et D2 aient un +/- bien plus bas que le moteur ne leur en
+ * donne. C'est une mécanique qui manque, pas un réglage, et elle irait dans
+ * le SENS INVERSE de ce que JP demande ici (elle baisse le bas de
+ * l'alignement, donc relève le haut à somme fixe) : les deux se prennent
+ * ensemble ou pas du tout.
  */
-export const RYTHME_CREDIT = Number(ENV_MESURE.RYTHME_CREDIT ?? 0.5);
+export const RYTHME_CREDIT = Number(ENV_MESURE.RYTHME_CREDIT ?? 0.75);
+/*
+ * SUR QUOI LE RYTHME S'INCLINE, et c'est ce que S62 avait rendu INERTE sans
+ * s'en apercevoir (molette de mesure, voir S65).
+ *
+ * La formule est `presence × (base / presence)^RYTHME_CREDIT`, donc tout se
+ * joue dans le RAPPORT. Avec `poids`, ce rapport vaut
+ * `(volume / VOLUME_RANG)^VOLUME_EXPOSANT × chimie` — et le volume est CENTRÉ
+ * par rang depuis S62, donc il vaut 1 pour TOUTES les unités : la constante ne
+ * distinguait plus un premier trio d'un quatrième, elle ne dosait plus que
+ * l'écart d'une équipe à l'autre. Mesuré : 0 · 0,5 · 1 donnaient 0,366 ·
+ * 0,358 · 0,358 du différentiel au premier trio — trois lectures identiques
+ * pour une constante censée tout décider.
+ *
+ * Avec `rythme` (le volume non tempéré, posé juste après la renormalisation
+ * des poids), le rapport est le volume NON centré (1,57 au premier trio,
+ * 0,80 au quatrième — `VOLUME_RANG`), donc le gradient par rang revient, et
+ * c'est exactement ce que la phrase « le rythme monte des deux côtés quand le
+ * premier trio est là » veut dire : un trio qui génère beaucoup de lancers
+ * joue dans un match plus ouvert, et il en concède plus.
+ */
+export const RYTHME_BASE = ENV_MESURE.RYTHME_BASE || 'rythme';
+/*
+ * LE RYTHME NE DESCEND PAS SOUS LA PRÉSENCE (S65), et c'est ce qui rend la
+ * demande de JP livrable. La somme des −1 est FIXE (5 × les buts alloués) :
+ * donner au premier trio, c'est retirer à quelqu'un, et le quatrième trio est
+ * le plus sensible de tous — son +/- est une petite différence entre deux gros
+ * nombres, donc réduire son −1 de 11 % DOUBLE son +/-. Mesuré sans plancher :
+ * le premier trio tombe pile sur le réel (0,310 contre 0,305 du différentiel)
+ * et le quatrième explose dans l'autre sens (0,161 contre 0,021), l'écart du
+ * premier au quatrième passant de 9,6 à 2,8 pour un réel de 11,4. On corrigeait
+ * le haut en cassant le bas.
+ *
+ * Avec le plancher, seules les unités qui génèrent PLUS que leur part de
+ * présence encaissent davantage ; le tirage normalise, donc les autres perdent
+ * chacune un peu au lieu que le quatrième trio perde beaucoup. C'est aussi ce
+ * que le hockey dit : un trio offensif est sur la glace pour plus de buts
+ * contre que ses minutes n'en contiennent, mais un trio défensif n'est pas
+ * sur la glace pour MOINS — il joue contre le meilleur de l'adversaire.
+ */
+export const RYTHME_PLANCHER = Number(ENV_MESURE.RYTHME_PLANCHER ?? 1);
 
 /**
  * Une unité tirée à la présence, appariée au rang d'une autre : l'unité qui
@@ -2304,7 +2398,9 @@ function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT, cle = 'presence'
   }
   const cible = nOff > 1 ? rangCible / (nOff - 1) : 0;
   // `rythme` : la présence, inclinée vers le poids offensif (voir RYTHME_CREDIT).
-  const de = x => (cle === 'rythme' ? x.presence * Math.pow((x.poids || x.presence) / (x.presence || 1), RYTHME_CREDIT) : (x[cle] || x.presence));
+  const de = x => (cle === 'rythme'
+    ? x.presence * Math.pow(Math.max(RYTHME_PLANCHER, (x[RYTHME_BASE] || x.poids || x.presence) / (x.presence || 1)), RYTHME_CREDIT)
+    : (x[cle] || x.presence));
   const poids = unites.map(x => de(x) * Math.exp(-k * Math.abs((nDef > 1 ? (x.rang || 0) / (nDef - 1) : 0) - cible)));
   let r = hasard() * poids.reduce((a, b) => a + b, 0);
   for (let i = 0; i < unites.length; i++) { r -= poids[i]; if (r <= 0) return unites[i]; }
