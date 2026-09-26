@@ -6,6 +6,8 @@ name: Vérifier
 #                   `data/seed.json` était servi au réseau SEULEMENT)
 #   check_graine    la même graine rejoue la même saison (un `Math.random`
 #                   glissé dans js/sim.js la fait échouer)
+#   check_ballottage la seule décision qui fait ENTRER un joueur neuf se
+#                   rejoue aussi, et les journées d'avant ne bougent pas (S66)
 #   check_feuilles  les quatre égalités de la feuille de match, sur une ligue
 #                   de 1312 matchs — la colonne vertébrale du moteur
 #   check_table     les égalités de la feuille d'un match SUR TABLE (les buts
@@ -69,6 +71,9 @@ jobs:
 
       - name: Le moteur se rejoue sur sa graine
         run: node scripts/check_graine.mjs
+
+      - name: Le ballottage se rejoue
+        run: node scripts/check_ballottage.mjs
 
       - name: Les égalités de la feuille de match
         run: LIGUES=1 node scripts/check_feuilles.mjs

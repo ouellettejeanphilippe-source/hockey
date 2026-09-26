@@ -23,6 +23,7 @@
 import { equipeDeTable, jouerMatchAuto, resultatDe, gagnantDuMatch } from './table.js';
 import { getPlayerKey } from './sim.js';
 import { ouvrirTable } from './plateau.js';
+import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 
 export const CLUBS = 6;              // toi et cinq vrais clubs
 export const EN_SERIES = 4;
@@ -384,8 +385,8 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
 
   /* ---------- les volets ---------- */
   const ONGLETS = () => (T.series
-    ? [{ cle: 'series', ico: 'i-cup', titre: 'Séries' }, { cle: 'classement', ico: 'i-chart', titre: 'Saison' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs' }]
-    : [{ cle: 'journee', ico: 'i-cal', titre: 'La journée' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs' }]);
+    ? [{ cle: 'series', ico: 'i-cup', titre: 'Séries', page: 'match' }, { cle: 'classement', ico: 'i-chart', titre: 'Saison', page: 'classement' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs', page: 'equipes' }]
+    : [{ cle: 'journee', ico: 'i-cal', titre: 'La journée', page: 'match' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement', page: 'classement' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs', page: 'equipes' }]);
 
   // La même barre que partout ailleurs : en bas, une icône, un mot.
   function dessinerBarre() {
@@ -463,7 +464,15 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
     // trois endroits à ne pas oublier au prochain bouton.
     if (onAvance) onAvance(T);
     dessinerTete(); dessinerCarte(); dessinerActions(); dessinerBarre(); dessinerVolet();
+    const vue = (ONGLETS().find(o => o.cle === onglet) || {}).page || '';
+    const sheet = modal.querySelector('.hub-sheet');
+    if (sheet) sheet.dataset.vue = vue;
+    signalerVue();
   }
+
+  // LA COQUILLE (S67) : la barre du jeu ouvre les volets du tournoi.
+  const hub = { onglets: () => ONGLETS(), montrer: cle => { onglet = cle; rendre(); }, courant: () => onglet };
+  inscrireHub(hub);
 
   /* ---------- avancer ---------- */
 
@@ -530,6 +539,7 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
     // Fermer ne redessine pas : c'est le seul chemin que `rendre` ne couvre pas.
     if (onAvance) onAvance(T);
     modal.removeEventListener('click', clic);
+    retirerHub(hub);
     modal.style.display = 'none';
     document.body.style.overflow = '';
     onTermine(T);

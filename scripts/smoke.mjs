@@ -33,6 +33,75 @@ const base = process.argv[2] || 'http://localhost:8000';
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const errors = [];
+let barreAuRepechage = null;   // la barre au repêchage, pour la comparer au bilan (S67)
+
+/*
+ * LES CHOIX FORCÉS (S66). Le proprio, les dilemmes et les séquences CACHENT
+ * « Journée suivante » tant qu'on n'a pas choisi — c'est la mécanique. Le
+ * parcours répond donc à chacun dès qu'il se présente (la première option),
+ * et il note lesquels il a croisés : un choix forcé que le test ne verrait
+ * jamais serait un choix qui ne s'affiche jamais.
+ */
+const choixVus = new Map();
+const _click = page.click.bind(page);
+const _wait = page.waitForSelector.bind(page);
+/*
+ * LE BALLOTTAGE (S66) n'est pas forcé : on y répond la première fois qu'une
+ * offre se présente, et on vérifie que la réclamation entre dans la
+ * sauvegarde sans rembobiner la saison. Il dépend d'une blessure longue, donc
+ * on DIT si on l'a vu plutôt que de l'exiger (le rejeu est exigé dans
+ * check_ballottage.mjs).
+ */
+const ballottage = { fait: false, mot: null };
+async function guetterBallottage() {
+  if (ballottage.fait) return;
+  const opt = await page.$('#hubModal .hub-ballottage .hub-option');
+  if (!opt || !(await opt.isVisible())) return;
+  ballottage.fait = true;
+  const qui = ((await opt.textContent()) || '').replace(/\s+/g, ' ').trim();
+  const tete = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
+  await opt.click();
+  await _wait('#hubModal .hub-jour, #hubModal .hub-choix .hub-option', { timeout: 120000 });
+  await page.waitForTimeout(350);
+  const apres = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
+  const d = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(x => x.ballottage);
+  if (!d.length) errors.push('la réclamation au ballottage n\'entre pas dans la sauvegarde');
+  if (tete && apres && tete[1] !== apres[1]) errors.push(`réclamer au ballottage rembobine la saison : journée ${tete[1]} puis ${apres[1]}`);
+  ballottage.mot = `${qui.slice(0, 70)} réclamé à la journée ${tete ? tete[1] : '?'}`;
+}
+async function repondreAuxChoix() {
+  await guetterBallottage();
+  for (let i = 0; i < 12; i++) {
+    const opt = await page.$('#hubModal .hub-choix .hub-option');
+    if (!opt || !(await opt.isVisible())) return;
+    const genre = await page.$eval('#hubModal .hub-choix', e => ['hub-proprio', 'hub-dilemme', 'hub-sequence'].find(c => e.classList.contains(c)) || '?');
+    const titre = ((await page.textContent('#hubModal .hub-choix-titre')) || '').trim();
+    choixVus.set(genre, [...(choixVus.get(genre) || []), titre]);
+    await opt.click();
+    await _wait('#hubModal .hub-jour, #hubModal .hub-choix .hub-option, #hubModal .hub-suite', { timeout: 120000 });
+    await page.waitForTimeout(350);
+  }
+}
+/*
+ * LES BOUTONS DE L'ÉCRAN DE SAISON VIVENT SUR L'ONGLET « MATCH » (S67) : sur
+ * téléphone, le classement ou les meneurs montrent le volet seul. Un joueur
+ * revient au match pour avancer le temps ; le parcours aussi.
+ */
+async function versLeMatch() {
+  const ou = await page.evaluate(() => ({ zone: document.body.dataset.zone, page: document.body.dataset.page }));
+  if (ou.zone === 'hub' && ou.page !== 'match') { await _click('.navtab[data-page="match"]'); await page.waitForTimeout(200); }
+}
+page.click = async (sel, opts) => {
+  if (typeof sel === 'string' && /hub-(jour|dix|regarder|banc|fin|suite|ronde)\b/.test(sel)) { await versLeMatch(); await repondreAuxChoix(); }
+  return _click(sel, opts);
+};
+page.waitForSelector = async (sel, opts) => {
+  if (typeof sel === 'string' && /hub-(jour|dix)\b/.test(sel)) {
+    await _wait('#hubModal .hub-jour, #hubModal .hub-choix .hub-option', opts);
+    await repondreAuxChoix();
+  }
+  return _wait(sel, opts);
+};
 let netErrors = 0;   // images externes (assets.nhle.com) : réseau, pas l'application
 page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
 page.on('console', m => {
@@ -163,6 +232,44 @@ async function toutEstAtteignable(ou) {
  * qui revient — en rajoute 2,8 d'un coup. À trois, elle ne crie pas pour du
  * bruit et elle ne peut pas rater ça.
  */
+/*
+ * ON REDIMENSIONNE SANS RIEN PERDRE (S67). JP : *faire que l'interface soit
+ * toujours, peu importe le moment, même organisation et adaptable et
+ * redimensionnable sans rien perdre*. À chaque taille — un petit téléphone,
+ * une tablette, un portable, un écran de bureau, du 4K — la barre porte les
+ * MÊMES entrées dans le même ordre, rien ne déborde en largeur, rien n'est
+ * hors de portée, et la barre se touche. On revient à 390 × 844 à la fin :
+ * c'est la taille du reste du parcours.
+ */
+const TAILLES = [[360, 640], [768, 1024], [1280, 800], [1920, 1080], [3840, 2160]];
+async function redimensionner(ou) {
+  const lireBarre = () => page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.page).join(' · '));
+  const ref = await lireBarre();
+  const vus = [];
+  for (const [w, h] of TAILLES) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(300);
+    const ici = await lireBarre();
+    if (ici !== ref) errors.push(`${ou} à ${w}×${h} : la barre change (« ${ref} » puis « ${ici} »)`);
+    const touche = await page.evaluate(() => {
+      const b = document.querySelector('#navbar .navtab.on') || document.querySelector('#navbar .navtab');
+      if (!b) return false;
+      const r = b.getBoundingClientRect();
+      const el = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+      return !!el && b.contains(el);
+    });
+    if (!touche) errors.push(`${ou} à ${w}×${h} : l'onglet ouvert de la barre ne se touche pas`);
+    await sansDebordement(`${ou} à ${w}×${h}`);
+    await toutEstAtteignable(`${ou} à ${w}×${h}`);
+    if (w === 1280) await page.screenshot({ path: `scripts/smoke-coquille-${ou.replace(/[^a-z]+/gi, '-').toLowerCase()}.png`, fullPage: false });
+    vus.push(`${w}×${h}`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `scripts/smoke-coquille-${ou.replace(/[^a-z]+/gi, '-').toLowerCase()}-390.png`, fullPage: false });
+  console.log(`   redimensionné sans rien perdre — ${ou} : ${vus.join(' · ')}, la barre reste « ${ref} »`);
+}
+
 async function pasUneLonguePage(ou, max = 3) {
   const n = await page.evaluate(() => {
     const el = document.documentElement;
@@ -384,7 +491,9 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
     };
   });
   const vus = [];
-  for (const cle of ['repechage', 'alignement', 'equipes', 'historique', 'regles']) {
+  // LA BARRE EST FIXE (S67) : ses neuf entrées existent dès le repêchage, et
+  // celles qui n'ont encore rien à montrer tiennent leur état vide sur un écran.
+  for (const cle of ['match', 'repechage', 'alignement', 'classement', 'calendrier', 'meneurs', 'equipes', 'historique', 'regles']) {
     const b = await page.$(`.navtab[data-page="${cle}"]`);
     if (!b) { errors.push(`la barre d'onglets n'a pas d'onglet « ${cle} »`); continue; }
     await b.click();
@@ -402,6 +511,8 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
     }
   }
   console.log(`   un onglet, une raison d'être : ${vus.join(' · ')}`);
+  barreAuRepechage = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.page).join(' · '));
+  await redimensionner('le repêchage');
   await page.click('.navtab[data-page="repechage"]');
   await page.waitForTimeout(300);
 }
@@ -537,7 +648,9 @@ async function traverserSaison(etiquette, reprise = false) {
     await page.waitForTimeout(300);
     const teteApresBanc = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
     if (teteApresBanc !== teteAvantBanc) errors.push(`le retour au match ne reprend pas au même endroit : « ${teteAvantBanc} » puis « ${teteApresBanc} »`);
-    const decisions = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } });
+    // Les décisions de BANC seulement (celles qui portent un alignement) : le
+    // proprio, le plan du soir et les dilemmes en ajoutent d'autres.
+    const decisions = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.cases);
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
     else if (decisions[1].plan !== 'echec' || decisions[1].roulement !== 'trois') errors.push(`la sauvegarde ne porte pas le plan et la glace : ${JSON.stringify([decisions[1].plan, decisions[1].roulement])}`);
     else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture déplacée au 2e trio, plan ${decisions[1].plan} et glace ${decisions[1].roulement}, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
@@ -598,6 +711,42 @@ async function traverserSaison(etiquette, reprise = false) {
      * On guette donc après CHAQUE avance, et on exerce le panneau à la
      * première occasion, où qu'elle tombe.
      */
+    /*
+     * LA ROUTE, LES FACTIONS ET LE PLAN DU SOIR (S66). La route porte ses
+     * marques, les quatre factions sont là, et un plan du soir choisi devient
+     * une décision datée du soir du match, sans rembobiner la saison.
+     */
+    {
+      const route = await page.$$eval('#hubModal .hub-route-m', e => e.length);
+      const jauges = await page.$$eval('#hubModal .hub-jauge', e => e.length);
+      if (route < 10) errors.push(`la route de la saison n'a que ${route} marques`);
+      if (jauges !== 4) errors.push(`${jauges} factions au lieu de quatre`);
+      const soirs = await page.$$eval('#hubModal .hub-soir-btn', e => e.map(x => x.dataset.soir));
+      if (soirs.length !== 5) errors.push(`le plan du soir offre ${soirs.length} plans au lieu de cinq`);
+      else {
+        const cle = (await page.$eval('#hubModal .hub-soir-btn.contre', e => e.dataset.soir).catch(() => null)) || 'trappe';
+        const jAvant = await jourDit();
+        await _click(`#hubModal .hub-soir-btn[data-soir="${cle}"]`);
+        await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
+        await page.waitForTimeout(400);
+        const jApres = await jourDit();
+        const on = await page.$eval('#hubModal .hub-soir-btn.on', e => e.dataset.soir).catch(() => null);
+        const dSoir = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.soir);
+        if (jApres !== jAvant) errors.push(`le plan du soir rembobine la saison : journée ${jAvant} puis ${jApres}`);
+        if (on !== cle) errors.push(`le plan du soir choisi n'est pas marqué : ${on} au lieu de ${cle}`);
+        if (dSoir.length !== 1 || dSoir[0].soir !== cle || dSoir[0].jour < jAvant) errors.push(`la sauvegarde ne porte pas le plan du soir : ${JSON.stringify(dSoir)}`);
+        else console.log(`   plan du soir : ${cle} pour la journée ${dSoir[0].jour + 1}, route ${route} marques, ${jauges} factions`);
+      }
+    }
+
+    await redimensionner('la saison, onglet Match');
+    await _click('.navtab[data-page="classement"]');
+    await page.waitForTimeout(250);
+    if ((await page.evaluate(() => document.body.dataset.zone)) !== 'hub') errors.push('en pleine saison, le classement ne s\'ouvre pas dans l\'écran de saison');
+    await redimensionner('la saison, onglet Classement');
+    await _click('.navtab[data-page="match"]');
+    await page.waitForTimeout(250);
+
     const trouVu = { fait: false, mot: null, erreurs: [] };
     const guetterTrou = async () => {
       if (trouVu.fait) return;
@@ -728,7 +877,8 @@ async function traverserSaison(etiquette, reprise = false) {
             + '<button class="btn gold">Derrière le banc</button>';
           actions.prepend(faux);
         }
-        const b = document.querySelector('#hubModal .hub-onglets');
+        // LA BARRE DU JEU (S67) : c'est elle qui ouvre les volets de la saison.
+        const b = document.querySelector('#navbar');
         if (!b) { if (faux) faux.remove(); return null; }
         const r = b.getBoundingClientRect();
         const bas = Math.round(window.innerHeight - r.bottom);
@@ -818,20 +968,26 @@ async function traverserSaison(etiquette, reprise = false) {
    */
   {
     const ou = await page.evaluate(() => {
-      const b = document.querySelector('#hubModal .hub-onglets'), v = document.querySelector('#hubModal .hub-volet');
+      // S67 : l'écran de saison n'a plus sa barre ; il est ANCRÉ au-dessus de
+      // celle du jeu, qui reste visible et cliquable.
+      const b = document.querySelector('#navbar'), v = document.querySelector('#hubModal .hub-sheet'), h = document.querySelector('#hubModal .hub-onglets');
       if (!b || !v) return null;
       const rb = b.getBoundingClientRect(), rv = v.getBoundingClientRect();
-      return { barre: Math.round(rb.top), volet: Math.round(rv.top), fond: Math.round(window.innerHeight - rb.bottom) };
+      const el = document.elementFromPoint(Math.round(rb.left + rb.width / 2), Math.round(rb.top + rb.height / 2));
+      return { barre: Math.round(rb.top), volet: Math.round(rv.bottom), fond: Math.round(window.innerHeight - rb.bottom),
+        seconde: !!h && h.getBoundingClientRect().height > 0, rail: window.innerWidth >= 1200, touchable: !!el && b.contains(el) };
     });
     if (!ou) errors.push("l'écran de saison n'a plus de barre d'onglets");
-    else if (ou.barre < ou.volet) errors.push(`la barre de l'écran de saison est au-dessus du volet (${ou.barre} px contre ${ou.volet}) : une barre d'onglets est en bas`);
+    else if (ou.seconde) errors.push("l'écran de saison porte encore sa propre barre d'onglets : il n'y en a qu'une, celle du jeu");
+    else if (!ou.touchable) errors.push("l'écran de saison couvre la barre du jeu : elle ne se touche plus");
+    else if (!ou.rail && ou.barre < ou.volet - 1) errors.push(`l'écran de saison passe sous la barre du jeu (${ou.volet} px contre ${ou.barre}) : il s'ancre au-dessus d'elle`);
     // Les DEUX bords comptent : une barre poussée SOUS l'écran donne un écart
     // négatif (le défaut de S55, −38 px), une barre qui décolle trop donne un
     // écart plus grand que le retrait voulu.
     else if (malPlacee(ou.fond)) errors.push(`la barre de l'écran de saison est à ${ou.fond} px du bas (retrait voulu ${FLOTTE})`);
-    else console.log(`   une seule barre, et elle est en bas : volet à ${ou.volet} px, barre à ${ou.barre} px, à ${ou.fond} px du bas`);
+    else console.log(`   une seule barre, celle du jeu : l'écran de saison finit à ${ou.volet} px, la barre commence à ${ou.barre} px, à ${ou.fond} px du bas`);
   }
-  await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
+  await page.click('.navtab[data-page="meneurs"]');
   const tableaux = await page.$$eval('#hubModal .hub-volet .live-tableau', l => l.length);
   const meneurs = await page.$$eval('#hubModal .hub-volet tbody tr', l => l.length);
   console.log(`   ${etiquette} : ${jour} · meneurs : ${tableaux} tableaux, ${meneurs} rangées`);
@@ -919,14 +1075,14 @@ async function nomsCliquables(etiquette) {
   if (muets.eq) return;
   await page.click('#hubModal .hub-volet tbody tr td.eq .lien-equipe');
   await page.waitForTimeout(150);
-  const onglet = await page.$eval('#hubModal .hub-onglets button.on', b => b.dataset.onglet).catch(() => null);
+  const onglet = await page.$eval('#hubModal .hub-sheet', e => e.dataset.vue).catch(() => null);
   if (onglet !== 'equipes') errors.push(`${etiquette} : un code d'équipe n'ouvre pas l'onglet des équipes (onglet « ${onglet} »)`);
   else {
     const dansLeClub = await page.$$eval('#hubModal .hub-volet tbody tr', ls =>
       ls.filter(tr => tr.querySelector('td.nom') && !tr.querySelector('td.nom .lien-joueur')).length);
     if (dansLeClub) errors.push(`${etiquette} : ${dansLeClub} nom(s) muet(s) dans la feuille d'une équipe`);
   }
-  await page.click('#hubModal .hub-onglets button[data-onglet="meneurs"]');
+  await page.click('.navtab[data-page="meneurs"]');
   await page.waitForTimeout(100);
 }
 
@@ -957,7 +1113,7 @@ if (enabled) {
    * décidés par les colonnes : ce que le moteur tranche, jamais ce qu'un vote
    * trancherait.
    */
-  await page.click('.navtab[data-page="stats"]');
+  await page.click('.navtab[data-page="meneurs"]');
   await page.waitForTimeout(350);
   const trophees = await page.$$eval('.tro-carte', els => els.map(e => ({
     nom: (e.querySelector('.tro-nom') || {}).textContent || '',
@@ -1025,7 +1181,7 @@ if (enabled) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(120);
     }
-    await page.click('.navtab[data-page="bilan"]');
+    await page.click('.navtab[data-page="match"]');
     await page.waitForTimeout(120);
     /*
      * ET LES CARTONS D'ENTRACTE, qui sont l'autre endroit où le bilan nomme
@@ -1087,8 +1243,9 @@ if (enabled) {
    * lirait « +7 » sur une ligue entière chanceuse.
    */
   {
-    const ong = await page.$('.navtab[data-page="ligue"]');
-    if (!ong) errors.push("l'onglet « La ligue » n'existe pas au bilan");
+    // S67 : « La ligue » se lit sous le classement, dans le même onglet.
+    const ong = await page.$('.navtab[data-page="classement"]');
+    if (!ong) errors.push("l'onglet du classement n'existe pas au bilan");
     else {
       await ong.click();
       await page.waitForTimeout(3500);   // les shards des 31 adversaires
@@ -1157,7 +1314,7 @@ if (enabled) {
       await sansDebordement('un club de ma ligue');
       await sansCote('un club de ma ligue');
     }
-    await page.click('.navtab[data-page="bilan"]');
+    await page.click('.navtab[data-page="match"]');
     await page.waitForTimeout(400);
   }
   /*
@@ -1176,20 +1333,16 @@ if (enabled) {
         bas: Math.round(window.innerHeight - nav.getBoundingClientRect().bottom),
       };
     });
-    const attendus = ['Bilan', 'Classement', 'Calendrier', 'Meneurs', 'Alignement'];
-    const manquants = attendus.filter(n => !b.noms.includes(n));
-    if (manquants.length) errors.push(`la barre du bas ne porte pas ${manquants.join(', ')} une fois la saison jouée : ${b.noms.join(' · ')}`);
-    if (b.noms.includes('Vestiaire')) errors.push("la barre du bas parle encore du vestiaire une fois la saison jouée");
-    // Et PAS « Séries » : aucune n'est jouée à ce point du parcours. Le volet
-    // des séries porte d'avance son conteneur, donc son balisage n'est jamais
-    // vide — c'est ce qu'il y a À LIRE qui décide qu'un onglet existe.
-    if (b.noms.includes('Séries')) errors.push("la barre porte « Séries » avant qu'une série soit jouée");
+    // LA MÊME BARRE QU'AU REPÊCHAGE (S67), entrée pour entrée, dans le même
+    // ordre : c'est ce que « même organisation, peu importe le moment » veut dire.
+    const ici = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.page).join(' · '));
+    if (barreAuRepechage && ici !== barreAuRepechage) errors.push(`la barre a changé depuis le repêchage : « ${barreAuRepechage} » puis « ${ici} »`);
     if (b.deborde) errors.push(`la barre du bas déborde la page de ${b.deborde} px : c'est LA BARRE qui défile, pas la page`);
     if (malPlacee(b.bas)) errors.push(`la barre du bas est à ${b.bas} px du bas (retrait voulu ${FLOTTE})`);
-    console.log(`   la barre suit la phase : ${b.noms.join(' · ')} · ${b.defile ? 'elle défile' : 'elle tient'} · ${b.deborde} px de débordement`);
+    console.log(`   la barre ne bouge pas : ${b.noms.join(' · ')} · ${b.defile ? 'elle défile' : 'elle tient'} · ${b.deborde} px de débordement`);
   }
   const hauteurs = {};
-  for (const v of ['bilan', 'classement', 'calendrier', 'stats', 'alignement']) {
+  for (const v of ['match', 'classement', 'calendrier', 'meneurs', 'alignement']) {
     const b = await page.$(`.navtab[data-page="${v}"]`);
     // Un onglet manquant ne se saute PAS : c'était un test qui passait
     // toujours. La saison est jouée, donc la barre porte ses sections.
@@ -1203,7 +1356,8 @@ if (enabled) {
     await toutEstAtteignable(`le bilan · ${v}`);
   }
   console.log(`   jamais une longue page : ${Object.entries(hauteurs).map(([k, n]) => `${k} ${n}×`).join(' · ')}`);
-  await page.click('.navtab[data-page="bilan"]');
+  await redimensionner('le bilan');
+  await page.click('.navtab[data-page="match"]');
   await page.waitForTimeout(200);
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
   /*
@@ -1302,8 +1456,10 @@ if (enabled) {
     if (lbApres !== lbAvant) errors.push(`le rafraîchissement a ajouté une entrée d'historique : ${lbAvant} puis ${lbApres}`);
     else console.log(`   reprise des séries : ${poApres} — ${poSauve.vus} match(s) révélé(s), ${lbApres} entrée(s) d'historique`);
 
-    await page.click('#hubModal .hub-onglets button[data-onglet="tableau"]');
+    await page.click('.navtab[data-page="classement"]');
     const noeuds = await page.$$eval('#hubModal .bk-serie', l => l.length);
+    await page.click('.navtab[data-page="match"]');
+    await page.waitForTimeout(200);
     const regarder = await page.$('#hubModal .hub-regarder');
     let xe = 'pas de match à regarder';
     if (regarder) {
@@ -1318,7 +1474,7 @@ if (enabled) {
     await page.click('#hubModal .hub-fin');
     await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
     await page.click('#hubModal .hub-suite');
-    await page.waitForSelector('.navtab[data-page="series"]', { timeout: 10000 });
+    await page.waitForSelector('#playoffsSection .bk-serie', { timeout: 10000 });
     const series = await page.$$eval('#playoffsSection .bk-serie', l => l.length);
     console.log(`   séries : ${noeuds} nœuds au tableau en cours, ${xe}, ${series} séries au tableau final`);
     if (!series) errors.push('séries : aucun tableau final');
@@ -1342,11 +1498,10 @@ if (enabled) {
     const tete = ((await page.textContent('#leaderboardBody .lb-tete')) || '').replace(/\s+/g, ' ').trim();
     if (!/Coupe/.test(tete)) errors.push(`l'historique ne dit pas les Coupes : « ${tete} »`);
     else console.log(`   l'historique en tête : ${tete}`);
-    // On revient au jeu par l'onglet qui existe : la saison est jouée, donc
-    // c'est « Bilan », pas « Vestiaire ». Un onglet de repêchage sans
-    // repêchage n'aurait aucune raison d'être.
-    if (await page.$('.navtab[data-page="repechage"]')) errors.push("la barre garde un onglet de repêchage une fois la saison jouée");
-    await page.click('.navtab[data-page="bilan"]');
+    // LA BARRE NE PERD RIEN (S67) : le vestiaire reste là, et il dit que le
+    // repêchage est fini plutôt que de disparaître.
+    if (!(await page.$('.navtab[data-page="repechage"]'))) errors.push("la barre a perdu l'onglet du vestiaire une fois la saison jouée");
+    await page.click('.navtab[data-page="match"]');
     await page.waitForTimeout(250);
   }
 
@@ -1509,6 +1664,16 @@ if (expRemplies < 23) errors.push(`le renfort de l'Express ne remplit que ${expR
 if (!expPret) errors.push('l\'Express ne débloque pas le bouton de simulation');
 await sansDebordement('express');
 await sansCote('express');
+
+/*
+ * LES CHOIX FORCÉS CROISÉS (S66). Le proprio s'ouvre au jour 0 et le premier
+ * dilemme à la journée 14 : une saison traversée les voit forcément. Les
+ * séquences dépendent des résultats, elles s'informent.
+ */
+console.log(`   ballottage : ${ballottage.mot || 'aucune offre croisée (il faut une blessure de quatre matchs et plus)'}`);
+console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
+if (!choixVus.has('hub-proprio')) errors.push('le proprio n\'a jamais fixé d\'objectif');
+if (!choixVus.has('hub-dilemme')) errors.push('aucun dilemme croisé en traversant une saison');
 
 console.log(`7. erreurs console : ${errors.length} (ressources externes non chargées : ${netErrors})`);
 for (const e of errors) console.log('   ', e);

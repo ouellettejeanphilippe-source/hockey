@@ -1141,10 +1141,26 @@ export const roulementDe = t => ROULEMENTS[(t && t.roulement) || 'quatre'] ? ((t
  * son roulement, sur les mêmes canaux. Un seul endroit les additionne, donc
  * un canal ne peut pas être oublié d'un côté.
  */
-export function effetsDeSaison(team) {
+export function effetsDeSaison(team, adv = null) {
   const e = { finition: 1, defense: 1, volume: 1, blessure: 1, robustesse: 0, discipline: 1 };
+  // LE PLAN DU SOIR remplace le plan de saison pour UN match (S66), et les
+  // MOMENTS ajoutent leurs effets le temps qu'ils durent. Les deux vivent dans
+  // `team.effets`, lus au jour courant (`team.jourCourant`).
+  const actifs = effetsActifs(team);
+  // `contre` ne sert qu'à la MESURE (check_moments.mjs) : le contre-plan de
+  // l'adversaire du soir, quel qu'il soit. L'écran ne l'offre pas — lire
+  // l'adversaire est la décision.
+  const soir = actifs.find(x => x.soir && (PLANS[x.soir] || x.soir === 'contre'));
+  const contreAuto = soir && soir.soir === 'contre' ? (adv && STYLES[adv.style] && STYLES[adv.style].contre) : null;
+  const plan = soir ? (soir.soir === 'contre' ? contreAuto || planDe(team) : soir.soir) : planDe(team);
   const sources = [...((team && team.cartes) || []).map(c => CARTES[c]),
-    PLANS[planDe(team)], ROULEMENTS[roulementDe(team)]];
+    PLANS[plan], ROULEMENTS[roulementDe(team)], ...actifs.filter(x => !x.soir),
+    // Les factions aux extrêmes pèsent tant qu'elles y restent (voir JAUGES).
+    ...(team && team.jourCourant !== Infinity ? effetsDeJauges(team.jauges) : [])];
+  // LE CONTRE-PLAN : le bon plan contre le style de l'adversaire vaut une
+  // lecture parfaite ce soir-là. Il ne joue que si on a CHOISI un plan du soir
+  // — le plan de saison ne lit personne.
+  if (soir && adv && STYLES[adv.style] && STYLES[adv.style].contre === plan) sources.push(CONTRE_PLAN);
   for (const c of sources) {
     if (!c) continue;
     e.finition *= c.finition ?? 1;
@@ -1165,11 +1181,424 @@ export function effetsDeSaison(team) {
  */
 export function partsDuRoulement(base, group, team) {
   const r = ROULEMENTS[roulementDe(team)];
-  const mult = (r && r[group]) || base.map(() => 1);
+  const mult = ((r && r[group]) || base.map(() => 1)).slice();
+  // Un moment peut aussi déplacer les minutes (doubler le trio en feu,
+  // brasser les trios) : ses multiplicateurs s'ajoutent à ceux du roulement,
+  // et la renormalisation tient toujours la somme.
+  for (const x of effetsActifs(team)) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
   const brut = base.map((x, i) => x * (mult[i] ?? 1));
   const s = brut.reduce((a, b) => a + b, 0);
   const s0 = base.reduce((a, b) => a + b, 0);
   return s > 0 ? brut.map(x => x * s0 / s) : base.slice();
+}
+
+/* =====================================================================
+   LES MOMENTS (S66) — des choix courts, forcés ou offerts, qui durent
+   quelques matchs
+
+   JP : *choix « forcés » à des moments X. Stratégies par match/adversaire,
+   jeux de trios selon séquences, etc. Plus de trucs possibles, mais
+   simples, et le fun* ; puis *utiliser trucs drôles ou marquants arrivés
+   IRL pour les choix, et quelques uns inventés*.
+
+   Quatre familles, une seule mécanique : UN EFFET TEMPORAIRE (`team.effets`,
+   `{ debut, fin, ...canaux }`), posé par une décision au jour où on la prend
+   et lu par `effetsDeSaison` tant que le jour courant est dans la fenêtre.
+   Les canaux sont ceux des cartes (finition, défensive, volume, blessures,
+   robustesse, discipline) plus les minutes des unités (`F`, `D`, comme un
+   roulement). Aucune mécanique neuve, aucune cote neuve.
+
+     LE PLAN DU SOIR   un plan de match pour UN match, contre un adversaire
+                       dont on lit le style ; le bon contre-plan paie
+     LES DILEMMES      à quatre journées fixes, une histoire et deux options,
+                       et on ne continue pas sans choisir
+     LES SÉQUENCES     trois défaites de suite, ou quatre victoires : on
+                       touche aux trios, et on ne continue pas sans choisir
+     LES OBJECTIFS     le proprio propose trois défis ; réussi, on pige une
+                       carte de plus (la mécanique des paliers)
+
+   ET TOUT SE REJOUE. Ce sont des décisions : elles vivent dans la
+   sauvegarde et la saison se rejoue de la graine avec elles. Les tirages
+   (quel dilemme, quels objectifs) sont PURS — graine et jour, jamais
+   `hasard()` — comme la main des cartes.
+   ===================================================================== */
+
+/** Les effets temporaires actifs au jour courant de l'équipe. */
+export function effetsActifs(team) {
+  const j = team && team.jourCourant;
+  if (j === undefined || j === null || !team.effets || !team.effets.length) return [];
+  return team.effets.filter(x => j >= x.debut && j < x.fin);
+}
+
+/*
+ * LE STYLE D'UNE ÉQUIPE : ce qu'elle a de plus fort par rapport au reste de la
+ * ligue — son attaque, sa brigade ou sa robustesse — mesuré en écarts à la
+ * moyenne des clubs de la ligue, à pleine santé. Il est posé une fois par
+ * saison (`poserStyles`), sans hasard, donc l'écran lit exactement ce que le
+ * moteur jouera. Ce n'est pas une cote : c'est un mot, comme l'archétype.
+ */
+export const STYLES = {
+  offensif: { nom: 'Offensif', ico: '🎯', mot: 'Ils marquent beaucoup', contre: 'trappe' },
+  defensif: { nom: 'Défensif', ico: '🧱', mot: 'Ils ferment le jeu', contre: 'echec' },
+  robuste: { nom: 'Robuste', ico: '🥊', mot: 'Ils frappent tout ce qui bouge', contre: 'surnombre' },
+  equilibre: { nom: 'Équilibré', ico: '⚖️', mot: 'Rien ne dépasse', contre: null },
+};
+/* La lecture parfaite : le bon contre-plan, ce soir-là. */
+export const CONTRE_PLAN = { finition: 1.04, defense: 0.96 };
+const STYLE_SEUIL = 0.35;
+
+export function poserStyles(teams) {
+  const forces = teams.map(t => t.strength || teamStrength(t));
+  const axes = [['offensif', 'att'], ['defensif', 'def'], ['robuste', 'rob']];
+  const stats = axes.map(([, k]) => {
+    const v = forces.map(f => f[k]);
+    const m = v.reduce((a, b) => a + b, 0) / v.length;
+    const s = Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length) || 1;
+    return { m, s };
+  });
+  teams.forEach((t, i) => {
+    let best = 'equilibre', z = STYLE_SEUIL;
+    axes.forEach(([nom, k], a) => {
+      const zz = (forces[i][k] - stats[a].m) / stats[a].s;
+      if (zz > z) { z = zz; best = nom; }
+    });
+    t.style = best;
+  });
+}
+
+/*
+ * LES DILEMMES. Des histoires vraies de la LNH — drôles, marquantes, parfois
+ * tragiques — et quelques-unes inventées. Chaque option achète quelque chose
+ * et le paie ; aucune n'est gratuite, et `check_moments.mjs` mesure qu'aucune
+ * ne vaut une victoire à elle seule. La durée est en journées.
+ */
+export const DUREE_MOMENT = 10;
+export const MOMENTS = {
+  pieuvre: {
+    ico: '🐙', titre: 'Une pieuvre sur la glace', irl: 'Detroit, 1952',
+    recit: 'Un partisan lance une pieuvre sur la glace après ton but. L\'aréna devient fou.',
+    options: [
+      { cle: 'tradition', nom: 'En faire une tradition', bon: 'La foule pousse : plus de lancers', prix: 'Les arbitres s\'impatientent', volume: 1.07, discipline: 1.25, jauges: {partisans:2,medias:1,proprio:-1} },
+      { cle: 'calme', nom: 'Demander le calme', bon: 'Moins de punitions', prix: 'L\'élan retombe', discipline: 0.88, volume: 0.96, jauges: {proprio:1,partisans:-2} },
+    ],
+  },
+  rats: {
+    ico: '🐀', titre: 'Le rat du vestiaire', irl: 'Floride, 1996',
+    recit: 'Ton ailier écrase un rat dans le vestiaire avant le match, puis marque deux buts. Les partisans lancent des rats en plastique.',
+    options: [
+      { cle: 'mascotte', nom: 'Adopter la mascotte', bon: 'Ça rentre de partout', prix: 'La glace est jonchée de rats : punitions pour retard', finition: 1.1, discipline: 1.3, jauges: {partisans:2,vestiaire:1,medias:-1} },
+      { cle: 'serieux', nom: 'Rester sérieux', bon: 'Défensive concentrée', prix: 'On s\'ennuie un peu', defense: 0.94, finition: 0.95, jauges: {proprio:1,partisans:-1} },
+    ],
+  },
+  dernier: {
+    ico: '🧳', titre: '« C\'est mon dernier match ici »', irl: 'Montréal, 1995',
+    recit: 'Laissé devant le filet pour neuf buts, ton gardien partant passe devant le banc et lance au président qu\'il a joué son dernier match ici.',
+    options: [
+      { cle: 'soutenir', nom: 'Le soutenir publiquement', bon: 'Il se calme : la défensive tient', prix: 'Le vestiaire trouve que tu plies', defense: 0.93, volume: 0.95, jauges: {vestiaire:-2,medias:1} },
+      { cle: 'mijoter', nom: 'Le laisser mijoter', bon: 'Les patineurs se serrent les coudes', prix: 'Derrière eux, ça coule', finition: 1.08, defense: 1.08, jauges: {vestiaire:2,medias:-2,proprio:-1} },
+    ],
+  },
+  tropdejoueurs: {
+    ico: '🧢', titre: 'Trop de joueurs sur la glace', irl: 'Boston, 1979',
+    recit: 'Ton banc s\'emmêle dans un changement et six patineurs sautent sur la glace dans les dernières minutes.',
+    options: [
+      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Plus de fautes bêtes', prix: 'Des présences plus longues, moins de jus', discipline: 0.85, volume: 0.95, jauges: {medias:1,vestiaire:-1} },
+      { cle: 'rythme', nom: 'Garder le rythme rapide', bon: 'Des jambes fraîches, plus de lancers', prix: 'Ça va se reproduire', volume: 1.06, discipline: 1.15, jauges: {vestiaire:1,medias:-1} },
+    ],
+  },
+  zamboni: {
+    ico: '🚜', titre: 'Le conducteur de surfaceuse', irl: 'Toronto, 2020',
+    recit: 'Tes deux gardiens se blessent le même soir. Le gardien d\'urgence est le conducteur de la surfaceuse, 42 ans.',
+    options: [
+      { cle: 'legende', nom: 'Le faire jouer, pour la légende', bon: 'L\'euphorie : tout le monde attaque', prix: 'Derrière, c\'est la loterie', finition: 1.08, defense: 1.1, duree: 5, jauges: {partisans:2,medias:2,proprio:-1} },
+      { cle: 'serrer', nom: 'Jouer serré devant lui', bon: 'Personne ne tire sur ton filet', prix: 'Ton attaque s\'éteint', defense: 0.94, volume: 0.92, duree: 5, jauges: {proprio:1,partisans:-1} },
+    ],
+  },
+  richard: {
+    ico: '🔥', titre: 'La ville gronde', irl: 'Montréal, 1955',
+    recit: 'Ta vedette écope d\'une suspension que la ville juge injuste. Des partisans promettent de descendre dans la rue.',
+    options: [
+      { cle: 'defendre', nom: 'Défendre ton joueur', bon: 'Le vestiaire joue pour lui : plus robuste', prix: 'Plus de punitions', robustesse: 1.5, discipline: 1.25, jauges: {vestiaire:2,partisans:2,medias:-2,proprio:-1} },
+      { cle: 'calme', nom: 'Appeler au calme', bon: 'Discipline de fer', prix: 'Le feu s\'éteint', discipline: 0.88, volume: 0.95, jauges: {proprio:2,partisans:-2} },
+    ],
+  },
+  malarchuk: {
+    ico: '🕯️', titre: 'Un accident terrible', irl: 'Buffalo, 1989',
+    recit: 'Un patin tranche la gorge d\'un gardien pendant le match. Il survit grâce au soigneur, mais les deux vestiaires sont sous le choc.',
+    options: [
+      { cle: 'temps', nom: 'Prendre le temps', bon: 'On se ménage : moins de blessures', prix: 'Les têtes sont ailleurs', blessure: 0.5, volume: 0.94, jauges: {vestiaire:2,proprio:-1} },
+      { cle: 'pourlui', nom: 'Retourner au jeu, pour lui', bon: 'Le vestiaire se soude', prix: 'On joue sur les nerfs', finition: 1.06, blessure: 1.5, discipline: 1.15, jauges: {partisans:2,vestiaire:1,medias:1} },
+    ],
+  },
+  lemieux: {
+    ico: '💪', titre: 'Le traitement du matin', irl: 'Pittsburgh, 1993',
+    recit: 'Ta vedette termine sa dernière séance de radiothérapie ce matin. Il veut jouer ce soir.',
+    options: [
+      { cle: 'jouer', nom: 'Le laisser jouer', bon: 'Une ovation, et ça rentre', prix: 'Il n\'est pas à 100 %', finition: 1.1, blessure: 1.8, jauges: {partisans:2,medias:1} },
+      { cle: 'menager', nom: 'Le ménager', bon: 'Tout le monde en santé', prix: 'On attend son retour', blessure: 0.6, finition: 0.94, jauges: {vestiaire:1,medias:-1} },
+    ],
+  },
+  echange: {
+    ico: '📞', titre: 'Les rumeurs d\'échange', irl: 'Edmonton, 1988',
+    recit: 'Un journaliste annonce que ta vedette va être échangée à Los Angeles. Il n\'en sait rien.',
+    options: [
+      { cle: 'dementir', nom: 'Démentir en conférence', bon: 'Le vestiaire respire', prix: 'Personne ne te croit vraiment', defense: 0.95, volume: 0.96, jauges: {vestiaire:1,medias:-2} },
+      { cle: 'planer', nom: 'Laisser planer', bon: 'Tout le monde joue pour son poste', prix: 'La chimie en prend un coup', volume: 1.08, finition: 0.94, jauges: {proprio:1,vestiaire:-2,medias:2} },
+    ],
+  },
+  hextall: {
+    ico: '🥅', titre: 'Le gardien veut marquer', irl: 'Philadelphie, 1987',
+    recit: 'Ton gardien est convaincu qu\'il peut marquer dans le filet désert. Il sort jouer la rondelle à chaque occasion.',
+    options: [
+      { cle: 'laisser', nom: 'Le laisser faire', bon: 'Des relances éclair', prix: 'Des rondelles perdues derrière le filet', finition: 1.06, defense: 1.07, jauges: {partisans:2,proprio:-1} },
+      { cle: 'filet', nom: 'Qu\'il reste dans son filet', bon: 'Il se concentre', prix: 'Les relances ralentissent', defense: 0.95, volume: 0.96, jauges: {proprio:1,vestiaire:-1} },
+    ],
+  },
+  avery: {
+    ico: '🎭', titre: 'L\'agitateur', irl: 'New York, 2008',
+    recit: 'Ton agitateur se plante devant le gardien adverse, dos au jeu, et agite son bâton devant son masque. La ligue écrit une règle le lendemain.',
+    options: [
+      { cle: 'laisser', nom: 'Le laisser faire', bon: 'Le gardien adverse perd la tête', prix: 'L\'arbitre aussi', finition: 1.08, discipline: 1.35, jauges: {partisans:1,medias:2,proprio:-2} },
+      { cle: 'rappeler', nom: 'Le rappeler à l\'ordre', bon: 'On reste propre', prix: 'On perd un peu de mordant', discipline: 0.88, finition: 0.96, jauges: {proprio:1,vestiaire:-1} },
+    ],
+  },
+  commotion: {
+    ico: '🤕', titre: 'Un coup à la tête', irl: 'Pittsburgh, 2011',
+    recit: 'Ta vedette a pris deux coups à la tête en quatre jours. Il dit qu\'il se sent bien.',
+    options: [
+      { cle: 'menager', nom: 'Protocole complet', bon: 'Personne ne joue blessé', prix: 'L\'attaque perd sa bougie', blessure: 0.55, finition: 0.94, jauges: {vestiaire:1,medias:1,partisans:-1} },
+      { cle: 'jouer', nom: 'Il veut jouer', bon: 'Il garde le rythme', prix: 'Le risque est réel', finition: 1.05, blessure: 1.9, jauges: {partisans:1,medias:-2} },
+    ],
+  },
+  tortorella: {
+    ico: '🎙️', titre: 'Le coach pète une coche', irl: 'Inspiré de plusieurs points de presse',
+    recit: 'Ton entraîneur insulte un journaliste en direct et promet que « ça va changer ». La vidéo fait le tour du continent.',
+    options: [
+      { cle: 'appuyer', nom: 'L\'appuyer', bon: 'Les gars sortent en feu', prix: 'Et en punition', volume: 1.07, discipline: 1.25, jauges: {vestiaire:1,medias:-2,partisans:1} },
+      { cle: 'recadrer', nom: 'Le recadrer', bon: 'On revient à la structure', prix: 'Le vestiaire est tiède', defense: 0.95, volume: 0.95, jauges: {proprio:1,medias:1,vestiaire:-1} },
+    ],
+  },
+  tempete: {
+    ico: '🌨️', titre: 'La tempête de neige', irl: 'Buffalo, 2014',
+    recit: 'Deux mètres de neige. L\'avion ne décolle pas, et le match est dans deux jours à l\'autre bout du continent.',
+    options: [
+      { cle: 'autobus', nom: 'Seize heures d\'autobus', bon: 'On se forge le caractère', prix: 'Les jambes sont lourdes', robustesse: 1.4, volume: 0.93, jauges: {vestiaire:2,proprio:1} },
+      { cle: 'attendre', nom: 'Attendre l\'avion', bon: 'On arrive reposés', prix: 'À la dernière minute, sans réchauffement', blessure: 1.4, defense: 0.96, jauges: {proprio:-1,medias:1} },
+    ],
+  },
+  barbe: {
+    ico: '🧔', titre: 'La barbe porte-bonheur', irl: null,
+    recit: 'Les vétérans refusent de se raser tant que la séquence dure. Le capitaine a l\'air d\'un trappeur.',
+    options: [
+      { cle: 'pousser', nom: 'Laisser pousser', bon: 'On se sent invincibles', prix: 'On se croit plus beaux qu\'on l\'est', robustesse: 1.3, finition: 0.96, jauges: {vestiaire:2,medias:1} },
+      { cle: 'raser', nom: 'Rasage obligatoire', bon: 'Frais et rapides', prix: 'Les vétérans boudent', finition: 1.04, robustesse: -1.0, jauges: {proprio:1,vestiaire:-2} },
+    ],
+  },
+  film: {
+    ico: '🎬', titre: 'Un film dans ton aréna', irl: null,
+    recit: 'Un studio veut tourner une comédie de hockey dans ton aréna. Les caméras suivraient l\'équipe pendant dix jours.',
+    options: [
+      { cle: 'accepter', nom: 'Accepter', bon: 'Les gars jouent pour la caméra : ça attaque', prix: 'Ça oublie de revenir', volume: 1.06, defense: 1.06, jauges: {proprio:2,medias:2,vestiaire:-1} },
+      { cle: 'refuser', nom: 'Refuser', bon: 'Un vestiaire tranquille', prix: 'Le proprio est déçu', defense: 0.96, finition: 0.97, jauges: {vestiaire:1,proprio:-2} },
+    ],
+  },
+  baton: {
+    ico: '🏒', titre: 'Le bâton maudit', irl: null,
+    recit: 'Ton franc-tireur jure que son nouveau modèle de bâton lui porte malheur. Il a trois buts en vingt matchs.',
+    options: [
+      { cle: 'ancien', nom: 'Ressortir les vieux bâtons', bon: 'La confiance revient', prix: 'Des bâtons qui cassent : blessures', finition: 1.07, blessure: 1.4, jauges: {vestiaire:1,proprio:-1} },
+      { cle: 'travail', nom: 'Le travail, pas la magie', bon: 'On lance plus', prix: 'Ça ne rentre pas plus', volume: 1.05, finition: 0.96, jauges: {proprio:1,medias:-1} },
+    ],
+  },
+  poutine: {
+    ico: '🍟', titre: 'La poutine d\'après-match', irl: null,
+    recit: 'Un restaurateur offre la poutine à vie à l\'équipe. Les gars y vont tous les soirs.',
+    options: [
+      { cle: 'fete', nom: 'Laisser faire', bon: 'Le moral est au plafond', prix: 'Les jambes, moins', finition: 1.05, volume: 0.94, jauges: {vestiaire:2,partisans:1,proprio:-1} },
+      { cle: 'diete', nom: 'Diète de séries', bon: 'Des jambes neuves', prix: 'Le moral en prend un coup', volume: 1.05, finition: 0.95, jauges: {proprio:1,vestiaire:-2} },
+    ],
+  },
+};
+export const JOURS_MOMENTS = [14, 33, 51, 70];
+/* Le dilemme d'une journée : PUR, graine et jour, jamais deux fois le même. */
+export function momentDuJour(graine, jour, deja = []) {
+  const cles = Object.keys(MOMENTS).filter(c => !deja.includes(c));
+  if (!cles.length) return null;
+  let x = ((Number(graine) >>> 0) ^ (jour * 0x85ebca6b) ^ 0x5bd1e995) >>> 0;
+  x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
+  // On tire parmi ce qui reste en retirant les déjà vus AVANT le tirage : deux
+  // dilemmes d'une même partie ne se ressemblent jamais.
+  return cles[x % cles.length];
+}
+
+/*
+ * LES SÉQUENCES, et elles touchent aux TRIOS. Trois défaites de suite, ou
+ * quatre victoires : le vestiaire attend quelque chose de toi. Les options
+ * déplacent les minutes (`F`, `D`) comme un roulement, pour quelques matchs.
+ */
+export const SEQUENCES = {
+  defaites: {
+    ico: '📉', titre: 'Trois défaites de suite', seuil: 3,
+    recit: 'Le vestiaire est à plat. Les journalistes demandent si ton poste est menacé.',
+    options: [
+      { cle: 'brasser', nom: 'Brasser les trios', bon: 'Le choc : tout le monde se réveille', prix: 'Les automatismes disparaissent', F: [0.9, 1.05, 1.08, 1.05], volume: 1.06, finition: 0.97, jauges: {medias:1,vestiaire:-1} },
+      { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', prix: 'Rien ne change en attaque', defense: 0.95, volume: 0.97, jauges: {vestiaire:1,medias:-1,partisans:-1} },
+      { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Les jambes, les jambes, les jambes', prix: 'Des corps fatigués', robustesse: 1.3, blessure: 1.35, jauges: {proprio:1,vestiaire:-1} },
+    ],
+  },
+  victoires: {
+    ico: '🔥', titre: 'Quatre victoires de suite', seuil: 4,
+    recit: 'Tout roule. Ton premier trio ne rate plus rien.',
+    options: [
+      { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.3, jauges: {partisans:1,vestiaire:-1} },
+      { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', prix: 'On lève un peu le pied devant', defense: 0.95, volume: 0.97, jauges: {medias:1,proprio:1} },
+      { cle: 'tous', nom: 'Tout le monde joue', bon: 'Le 4e trio goûte au succès', prix: 'Tes vedettes jouent moins', F: [0.9, 0.97, 1.05, 1.2], D: [0.95, 1, 1.08], blessure: 0.8, jauges: {vestiaire:2,partisans:-1} },
+    ],
+  },
+};
+export const DUREE_SEQUENCE = 8;
+/* Pas deux séquences l'une sur l'autre : le vestiaire a une mémoire. */
+export const RECUL_SEQUENCE = 10;
+
+/*
+ * LES OBJECTIFS DU PROPRIO. Aux journées 0 et 41, trois défis pour tes vingt
+ * prochains matchs ; on en prend un. Réussi, on pige une carte de plus — la
+ * mécanique des paliers, rien de neuf. Raté, rien : le proprio a la mémoire
+ * courte. Les seuils sont ceux d'une équipe de milieu de classement ; une
+ * grosse équipe les réussit plus souvent, et c'est juste.
+ */
+export const JOURS_OBJECTIFS = [0, 41];
+export const MATCHS_OBJECTIF = 20;
+export const OBJECTIFS = {
+  victoires: { ico: '🏆', nom: 'Gagne 11 de tes 20 prochains matchs', court: '11 victoires sur 20',
+    mesure: m => m.filter(x => x.v).length, cible: 11, sens: 1, unite: 'victoires' },
+  brigade: { ico: '🧱', nom: 'Accorde 58 buts ou moins en 20 matchs', court: '58 BC ou moins',
+    mesure: m => m.reduce((a, x) => a + x.contre, 0), cible: 58, sens: -1, unite: 'buts contre' },
+  attaque: { ico: '🎯', nom: 'Marque 64 buts ou plus en 20 matchs', court: '64 BP ou plus',
+    mesure: m => m.reduce((a, x) => a + x.pour, 0), cible: 64, sens: 1, unite: 'buts pour' },
+  sequence: { ico: '🔥', nom: 'Aligne 4 victoires de suite', court: '4 victoires de suite',
+    mesure: m => { let b = 0, c = 0; for (const x of m) { c = x.v ? c + 1 : 0; b = Math.max(b, c); } return b; }, cible: 4, sens: 1, unite: 'de suite' },
+  vedette: { ico: '⭐', nom: 'Un de tes joueurs fait 21 points en 20 matchs', court: 'Un joueur à 21 points',
+    mesure: m => { const pts = new Map(); for (const x of m) for (const b of x.buts || []) for (const p of [b.marqueur, ...(b.passeurs || [])]) if (p) pts.set(p, (pts.get(p) || 0) + 1); return Math.max(0, ...pts.values()); }, cible: 21, sens: 1, unite: 'points' },
+  blanchissages: { ico: '🥅', nom: 'Deux blanchissages en 20 matchs', court: '2 blanchissages',
+    mesure: m => m.filter(x => x.contre === 0).length, cible: 2, sens: 1, unite: 'blanchissages' },
+  regulier: { ico: '🧭', nom: 'Jamais trois défaites de suite en 20 matchs', court: 'Pas trois défaites de suite',
+    mesure: m => { let b = 0, c = 0; for (const x of m) { c = x.v ? 0 : c + 1; b = Math.max(b, c); } return b; }, cible: 2, sens: -1, unite: 'défaites de suite au pire' },
+};
+/* Les trois défis offerts : PURS, comme la main des cartes. */
+export function objectifsOfferts(graine, jour) {
+  const cles = Object.keys(OBJECTIFS);
+  let x = ((Number(graine) >>> 0) ^ ((jour + 7) * 0xc2b2ae35)) >>> 0;
+  const suivant = () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 0x100000000; };
+  const reste = cles.slice(), main = [];
+  while (main.length < 3 && reste.length) main.push(reste.splice(Math.floor(suivant() * reste.length), 1)[0]);
+  return main;
+}
+/*
+ * Où en est un objectif sur une liste de tes matchs `{ v, pour, contre, buts }`.
+ * `fini` quand les vingt matchs sont joués ; `reussi` peut tomber avant (une
+ * séquence de quatre est acquise dès qu'elle arrive) mais jamais un échec
+ * avant la fin, sauf s'il est déjà mathématiquement joué.
+ */
+export function etatObjectif(cle, matchs) {
+  const o = OBJECTIFS[cle];
+  if (!o) return null;
+  const m = matchs.slice(0, MATCHS_OBJECTIF);
+  const val = o.mesure(m);
+  const fini = m.length >= MATCHS_OBJECTIF;
+  const tient = o.sens > 0 ? val >= o.cible : val <= o.cible;
+  // Une mesure qui ne fait que monter (victoires, buts, séquence, points,
+  // blanchissages) est acquise dès qu'elle passe la cible ; une qui ne fait
+  // que monter vers le MAUVAIS bord (buts contre, défaites de suite) est
+  // perdue dès qu'elle la dépasse.
+  const reussi = o.sens > 0 ? tient : (fini && tient);
+  const rate = o.sens > 0 ? (fini && !tient) : !tient;
+  return { val, cible: o.cible, fini: reussi || rate, reussi, rate, joues: m.length };
+}
+
+/*
+ * LES JAUGES (S66). JP : *pense à des jeux comme New Star GP, New Star Soccer,
+ * Slay the Spire, les jeux de politique*. Quatre factions qu'on ne peut pas
+ * toutes contenter : le proprio, le vestiaire, les partisans, les médias.
+ * Chaque choix les bouge ; tout en haut ou tout en bas, une faction pèse sur
+ * le jeu tant qu'elle y reste. Elles ne bougent QUE par des décisions (les
+ * options des dilemmes et des séquences, le verdict d'un objectif), donc elles
+ * se rejouent de la graine comme le reste — l'écran et le moteur les
+ * calculent de la même liste.
+ */
+export const JAUGE_DEPART = 5, JAUGE_MAX = 10, JAUGE_HAUT = 8, JAUGE_BAS = 2;
+export const JAUGES = {
+  proprio: {
+    nom: 'Proprio', ico: '🏢',
+    haut: { nom: 'Le proprio sourit', mot: 'Les meilleurs soins : moins de blessures', blessure: 0.8 },
+    bas: { nom: 'Siège éjectable', mot: 'Tout le monde joue crispé', finition: 0.975, discipline: 1.06 },
+  },
+  vestiaire: {
+    nom: 'Vestiaire', ico: '🧑‍🤝‍🧑',
+    haut: { nom: 'Vestiaire soudé', mot: 'Les passes arrivent : ça rentre', finition: 1.04 },
+    bas: { nom: 'Vestiaire divisé', mot: 'Chacun pour soi derrière', defense: 1.05 },
+  },
+  partisans: {
+    nom: 'Partisans', ico: '📣',
+    haut: { nom: 'L\'aréna en feu', mot: 'La foule pousse : plus de lancers', volume: 1.04 },
+    bas: { nom: 'Les huées', mot: 'On joue petit', volume: 0.96 },
+  },
+  medias: {
+    nom: 'Médias', ico: '🎙️',
+    haut: { nom: 'Lune de miel', mot: 'La pression tombe : moins de punitions', discipline: 0.88 },
+    bas: { nom: 'Sous la loupe', mot: 'Chaque geste est jugé : plus robuste, plus puni', robustesse: 0.8, discipline: 1.12 },
+  },
+};
+export const jaugesNeuves = () => Object.fromEntries(Object.keys(JAUGES).map(k => [k, JAUGE_DEPART]));
+/* Les deltas qu'une décision porte : ceux de l'option choisie, et ceux qu'elle écrit. */
+export function jaugesDeDecision(d) {
+  const out = {};
+  const add = j => { for (const [k, v] of Object.entries(j || {})) if (JAUGES[k]) out[k] = (out[k] || 0) + v; };
+  if (d.moment) {
+    const fam = d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle];
+    const o = fam && fam.options.find(x => x.cle === d.moment.choix);
+    if (o) add(o.jauges);
+  }
+  add(d.jauges);
+  return out;
+}
+export function bougerJauges(j, deltas) {
+  for (const [k, v] of Object.entries(deltas)) j[k] = Math.max(0, Math.min(JAUGE_MAX, (j[k] ?? JAUGE_DEPART) + v));
+  return j;
+}
+/* Les jauges après une liste de décisions, jusqu'au jour `jour` compris. */
+export function jaugesApres(decisions, jour = Infinity) {
+  const j = jaugesNeuves();
+  for (const d of decisions || []) if ((d.equipe || 0) === 0 && d.jour <= jour) bougerJauges(j, jaugesDeDecision(d));
+  return j;
+}
+/* Ce que les jauges font au jeu, en ce moment : une entrée par faction aux extrêmes. */
+export function effetsDeJauges(j) {
+  if (!j) return [];
+  const out = [];
+  for (const [k, def] of Object.entries(JAUGES)) {
+    const v = j[k] ?? JAUGE_DEPART;
+    if (v >= JAUGE_HAUT) out.push({ faction: k, sens: 'haut', ...def.haut });
+    else if (v <= JAUGE_BAS) out.push({ faction: k, sens: 'bas', ...def.bas });
+  }
+  return out;
+}
+
+/*
+ * LA DÉCISION D'UN MOMENT → l'effet posé sur l'équipe. Un seul endroit
+ * traduit, pour que le moteur, l'écran et la mesure lisent la même chose.
+ */
+export function effetDeMoment(d) {
+  if (d.soir && (PLANS[d.soir] || d.soir === 'contre')) return { debut: d.jour, fin: d.jour + (d.duree || 1), soir: d.soir, source: 'soir' };
+  const m = d.moment;
+  if (!m) return null;
+  const fam = m.famille === 'sequence' ? SEQUENCES[m.cle] : MOMENTS[m.cle];
+  const o = fam && fam.options.find(x => x.cle === m.choix);
+  if (!o) return null;
+  const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
+  const { cle, nom, bon, prix, duree: _d, jauges: _j, ...canaux } = o;
+  void cle; void nom; void bon; void prix; void _d; void _j;
+  return { debut: d.jour, fin: d.jour + duree, source: m.famille || 'moment', ...canaux };
 }
 
 /*
@@ -1989,7 +2418,7 @@ const lancersFE = (p, partAN) => lancersRel(p) * (1 - ((partAN && partAN.get(p))
  * joueur décisif : une vedette au quatrième trio tire deux fois moins ET
  * traîne le malus de zone de l'unité.
  */
-export function profilMatch(team, lineup) {
+export function profilMatch(team, lineup, adv = null) {
   const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
   const speciales = unitesSpeciales(habilles);
   const membresAN = speciales.avantage.partAN;
@@ -2111,7 +2540,7 @@ export function profilMatch(team, lineup) {
   const finEquipe = sL ? sLC / sL : 1;
 
   const patineurs = habilles.filter(p => p.p !== 'G');
-  const cartes = effetsDeSaison(team);
+  const cartes = effetsDeSaison(team, adv);
 
   return {
     unites,
@@ -2975,7 +3404,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   const gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
 
-  const pA = profilMatch(A, LA), pB = profilMatch(B, LB);
+  const pA = profilMatch(A, LA, B), pB = profilMatch(B, LB, A);
   pA.rob = sA.rob; pB.rob = sB.rob;
   // A est à domicile : le dernier changement est à lui (voir FERMETURE_DEFAUT).
   pA.domicile = true; pB.domicile = false;
@@ -3242,6 +3671,25 @@ function appliquerDecision(team, d) {
   if ('fermeture' in d) team.fermeture = d.fermeture;
   if ('plan' in d && PLANS[d.plan]) team.plan = d.plan;
   if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
+  // UN MOMENT (S66) : un effet temporaire, du jour de la décision à sa fin.
+  const eff = effetDeMoment(d);
+  if (eff) (team.effets = team.effets || []).push(eff);
+  const dj = jaugesDeDecision(d);
+  if (Object.keys(dj).length) bougerJauges(team.jauges = team.jauges || jaugesNeuves(), dj);
+  /*
+   * LE BALLOTTAGE (S66) : un joueur réclamé prend une case de réserve, et
+   * celui qui l'occupait est libéré. C'est la SEULE décision qui fait entrer
+   * un joueur neuf ; il doit donc être connu du moteur (`connaitre`) avant la
+   * saison, et ses fiches partent de zéro le jour où il arrive.
+   */
+  if (d.ballottage) {
+    const b = d.ballottage;
+    const p = CONNUS.get(b.entre);
+    if (p && SLOTS[b.i] && SLOTS[b.i].scratch && fits(p, SLOTS[b.i])) {
+      initSimStats(p);
+      team.roster[b.i] = p;
+    }
+  }
   const cases = d.cases;
   if (!cases) return;
   const parCle = new Map();
@@ -3249,10 +3697,21 @@ function appliquerDecision(team, d) {
   // En place : `team.roster` est l'objet même que l'interface tient (G.roster).
   for (const k of Object.keys(team.roster)) delete team.roster[k];
   for (const [i, cle] of Object.entries(cases)) {
-    const p = parCle.get(cle);
+    // Un joueur libéré au ballottage n'est plus dans l'alignement courant,
+    // mais la décision 0 le nomme encore : on le retrouve parmi les connus.
+    const p = parCle.get(cle) || CONNUS.get(cle);
     if (p) team.roster[i] = p;
   }
 }
+
+/*
+ * LES JOUEURS QUE LE MOTEUR CONNAÎT, par clé. Une décision ne porte que des
+ * clés (elle traverse la sauvegarde) ; le moteur les résout ici. Tout joueur
+ * aligné au début d'une saison y entre, et le contrôleur y ajoute ceux du
+ * ballottage avant de rejouer.
+ */
+const CONNUS = new Map();
+export function connaitre(p) { if (p) CONNUS.set(getPlayerKey(p), p); }
 
 /** Photographie d'un alignement, telle que les décisions la portent. */
 export function photoAlignement(roster) {
@@ -3290,7 +3749,7 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
   if (graine === null || graine === undefined) graine = nouvelleGraine();
   grainerHasard(graine);
   for (const t of teams) {
-    for (const s of SLOTS) if (t.roster[s.i]) initSimStats(t.roster[s.i]);
+    for (const s of SLOTS) if (t.roster[s.i]) { initSimStats(t.roster[s.i]); connaitre(t.roster[s.i]); }
     t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
     // La chance de saison est tirée ICI, sous la graine, et non à
     // `createTeam` : sinon deux saisons de même graine différaient déjà
@@ -3306,6 +3765,8 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     // paire du passage précédent collée sur ses deux hommes.
     t.situations = [];
     t.trous = []; t.trouEnCours = false;
+    // LES MOMENTS aussi (S66) : ce sont des décisions, rejouées à chaque passage.
+    t.effets = []; t.jourCourant = 0; t.jauges = jaugesNeuves();
     for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
   }
   // Le calendrier : une journée par ronde, ses seize matchs avec leur
@@ -3316,12 +3777,15 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
   // quand l'effectif est pair ; sinon celle qui a le moins de matchs à jouer
   // est en congé, ce qui garde les restes à un match les uns des autres et
   // fait retomber tout le monde sur `games` à la fin.
+  // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
+  poserStyles(teams);
   const restant = new Map(teams.map(t => [t, games]));
   for (let r = 0; restant.size; r++) {
     // LES SITUATIONS DU JOUR, avant les décisions et avant le brassage. Comme
     // elles, elles ne consomment AUCUN hasard : elles se tirent de la graine,
     // de la journée et du rang de l'équipe. Une journée qui n'ouvre pas de
     // fenêtre ne fait rien.
+    for (const t of teams) t.jourCourant = r;
     for (let i = 0; i < teams.length; i++) if (vitDesSituations(i)) poserSituations(teams[i], graine, r, i);
     // Les décisions du jour s'appliquent AVANT le brassage : elles ne
     // consomment aucun hasard, donc une décision au jour k ne touche pas
@@ -3352,6 +3816,8 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     calendrier.push(jour);
     for (const [t, n] of restant) if (n <= 0) restant.delete(t);
   }
+  // Les séries ne lisent aucun effet temporaire : la fenêtre est close.
+  for (const t of teams) t.jourCourant = Infinity;
   const standings = teams.slice().sort((a, b) =>
     b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA) || b.GF - a.GF);
   const skaters = [];

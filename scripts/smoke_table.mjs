@@ -588,10 +588,10 @@ await page.waitForSelector('#hubModal', { state: 'visible', timeout: 20000 });
  * (ta feuille est revenue entière, joueurs compris).
  */
 const litTournoi = async () => {
-  await page.click('#hubModal [data-onglet="classement"]');
+  await page.click('.navtab[data-page="classement"]');
   await page.waitForTimeout(250);
   const classement = (await page.textContent('#hubModal .hub-volet')).replace(/\s+/g, ' ').trim();
-  await page.click('#hubModal [data-onglet="meneurs"]');
+  await page.click('.navtab[data-page="meneurs"]');
   await page.waitForTimeout(250);
   const meneurs = (await page.textContent('#hubModal .hub-volet')).replace(/\s+/g, ' ').trim();
   const tete = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
@@ -638,7 +638,7 @@ else console.log(`   reprise du tournoi : ${apresT.tete} — ${sauveT.vide} matc
    aucune importance. Le cumul se fait à l'affichage, en parcourant les matchs
    joués, et il inclut les séries. */
 {
-  const bouton = await page.$('#hubModal [data-onglet="meneurs"]');
+  const bouton = await page.$('.navtab[data-page="meneurs"]');
   if (!bouton) errors.push('le tournoi n\'a pas d\'onglet « Meneurs »');
   else {
     await bouton.click();
@@ -655,6 +655,9 @@ else console.log(`   reprise du tournoi : ${apresT.tete} — ${sauveT.vide} matc
     if (deborde3 > 1) errors.push(`les meneurs du tournoi débordent de ${deborde3} px à 390 px`);
   }
 }
+// Les boutons du tournoi vivent sur l'onglet « Match » (S67).
+await page.click('.navtab[data-page="match"]');
+await page.waitForTimeout(250);
 let tour = 0;
 while (tour++ < 20) {
   const sauter = await page.$('#hubModal .hub-sauter');

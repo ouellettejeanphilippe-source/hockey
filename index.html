@@ -234,6 +234,13 @@
   </div>
 </div>
 
+<!-- ===== L'ÉTAT VIDE (S67) : un onglet qui n'a encore rien à montrer dit
+     pourquoi et offre la suite. La barre ne perd jamais une entrée. ===== -->
+<section id="pageVide" class="page" aria-live="polite" hidden>
+  <div class="page-tete"><h2 id="pageVideTitre"></h2></div>
+  <div class="page-corps" id="pageVideCorps"></div>
+</section>
+
 <!-- ===== Modale : historique ===== -->
 <section id="pageHistorique" class="page" aria-label="Tes saisons" hidden>
   <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg>Tes saisons</h2></div>
@@ -378,6 +385,12 @@
       <p>Ce que tu vois avant de signer : le salaire, l'archétype, la zone et les traits sur la carte, puis toutes les statistiques et le <strong>profil mesuré</strong> dans la fiche au clic. Ce que tu ne vois pas : <strong>aucune cote</strong>. Le jeu n'en affiche nulle part. Un joueur se juge sur ce qu'il a fait.</p>
       <p>La carte propose la case où le joueur rend le mieux : sa position naturelle d'abord, puis sa zone. Quand la seule case libre est <strong>sous sa zone</strong>, la carte le dit en rouge avant que tu signes. Tu peux viser une autre case en la touchant dans l'alignement, ou déplacer quelqu'un après coup.</p>
       <p><strong>Budget du choix</strong> : le plafond restant moins le salaire plancher (0,775 M$) de chaque case qu'il te restera à combler. Dépasser ce budget, c'est te condamner à ne pas finir tes 23.</p>
+
+      <h3>0c. La saison se pilote</h3>
+      <p>Les 82 matchs ne défilent pas tout seuls. La <strong>route de la saison</strong>, en tête de l'onglet Match, montre ce qui s'en vient : 🏢 le proprio, ❓ un dilemme, 🃏 une carte, 💬 le vestiaire.</p>
+      <p><strong>Le proprio</strong> fixe un défi pour tes vingt prochains matchs, au premier match et à mi-saison. Réussi : tu piges une carte de plus. Raté : il s'en souviendra. <strong>Les dilemmes</strong> arrivent à quatre journées fixes — des histoires vraies de la LNH, et quelques-unes inventées — et <strong>les séquences</strong> (trois défaites, quatre victoires) te font toucher aux trios. Ces trois-là, on ne les dépasse pas sans choisir. Chaque option achète quelque chose et le paie, pour une dizaine de matchs.</p>
+      <p><strong>Quatre factions</strong> — 🏢 le proprio, 🧑‍🤝‍🧑 le vestiaire, 📣 les partisans, 🎙️ les médias — bougent avec tes choix. Tu ne peux pas toutes les contenter. Tout en haut ou tout en bas, une faction pèse sur le jeu tant qu'elle y reste. Un seul choix ne suffit jamais à la pousser au bout.</p>
+      <p><strong>Le plan du soir</strong> : chaque adversaire a un style (offensif, défensif, robuste). Choisis un plan pour ce match-là ; le bon contre vaut une lecture parfaite, mais le plan garde son prix. Et quand un joueur se blesse pour de bon, trois vrais joueurs pas chers sont <strong>au ballottage</strong> : en réclamer un libère ton réserviste de la même position.</p>
 
       <!-- Les règles du mode bonus sont ÉCRITES DANS LE CODE et injectées ici
            par `remplirReglesDuPlateau` (js/game.js) depuis `reglesDuPlateau()`

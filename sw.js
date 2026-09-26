@@ -21,7 +21,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v4';   // v4 : js/equipes.js entre dans la coquille
+const VERSION = 'cap82-v5';   // v5 : js/coquille.js, la barre fixe (S67)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
@@ -35,7 +35,7 @@ const FICHIERS = [
   'js/game.js', 'js/sim.js', 'js/ratings.js', 'js/data.js', 'js/logos.js',
   'js/traits.js', 'js/recit.js', 'js/direct.js', 'js/bilan.js',
   'js/entracte.js',
-  'js/equipes.js', 'js/saison.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
+  'js/equipes.js', 'js/saison.js', 'js/coquille.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
   'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json',
   'fonts/BarlowCondensed-600-latin.woff2', 'fonts/BarlowCondensed-600-latin-ext.woff2',
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',

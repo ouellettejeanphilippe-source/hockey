@@ -24,8 +24,12 @@
  */
 
 import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS,
-  PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
+  PLANS, ROULEMENTS, planDe, roulementDe, JOURS_SITUATIONS,
+  STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
+  OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
+  JAUGES, JAUGE_MAX, JAUGE_HAUT, JAUGE_BAS, jaugesApres, effetsDeJauges, getPlayerKey } from './sim.js';
 import { diffuserMatch, pastilles } from './direct.js';
+import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant } from './recit.js';
 
 /* « 1er », « 12e » : le rang d'un but ou d'une passe. */
@@ -74,6 +78,8 @@ function onglets(barre, volet, liste, rendre) {
       if (on) rangee.scrollLeft = on.offsetLeft - (rangee.clientWidth - on.offsetWidth) / 2;
     });
   };
+  const sheet = volet.closest('.hub-sheet');
+  const pageDe = cle => (liste.find(o => o.cle === cle) || {}).page || null;
   const montrer = cle => {
     courant = cle;
     barre.querySelectorAll('button').forEach(b => {
@@ -81,12 +87,25 @@ function onglets(barre, volet, liste, rendre) {
       b.classList.toggle('on', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+    // LA VUE DE LA COQUILLE (S67) : la feuille de style en déduit ce qui se
+    // montre — le match et ses boutons sur « Match », le volet seul ailleurs.
+    if (sheet) sheet.dataset.vue = pageDe(cle) || '';
     volet.innerHTML = rendre(cle);
     volet.scrollTop = 0;
     apresRendu();
+    signalerVue();
   };
   barre.querySelectorAll('button').forEach(b => { b.onclick = () => montrer(b.dataset.onglet); });
-  return { montrer, rafraichir: () => { volet.innerHTML = rendre(courant); apresRendu(); }, courant: () => courant };
+  const rafraichir = () => { volet.innerHTML = rendre(courant); apresRendu(); };
+  /*
+   * APRÈS UNE AVANCE, on reste sur la page qu'on lit : le classement se met à
+   * jour sous les yeux au lieu de sauter à la journée. On ne change de volet
+   * que si on était sur « Match ».
+   */
+  const suivre = cle => { if (pageDe(courant) === 'match') montrer(cle); else rafraichir(); };
+  const hub = { onglets: () => liste, montrer, courant: () => courant };
+  inscrireHub(hub);
+  return { montrer, rafraichir, suivre, courant: () => courant, hub };
 }
 
 /* =====================================================================
@@ -337,6 +356,64 @@ function motDuPlan(ctx, you, onBanc) {
   </div>`;
 }
 
+/*
+ * UN CHOIX, À LA FAÇON D'UN ÉVÉNEMENT DE SLAY THE SPIRE (S66) : une histoire,
+ * et des options qui disent chacune ce qu'elles achètent, ce qu'elles coûtent
+ * et quelles factions elles bougent. C'est le même gabarit pour les dilemmes,
+ * les séquences et les objectifs, pour qu'un seul langage s'apprenne.
+ */
+const motJauges = (ctx, j) => Object.entries(j || {}).filter(([, v]) => v)
+  .map(([k, v]) => `<span class="hub-jd ${v > 0 ? 'up' : 'down'}" title="${ctx.esc(JAUGES[k].nom)}">${JAUGES[k].ico}${v > 0 ? '+' : '−'}${Math.abs(v)}</span>`).join('');
+
+function panneauChoix(ctx, { classe, ico, titre, irl, recit, options, attr }) {
+  return `<div class="hub-choix ${classe}" role="group" aria-label="${ctx.esc(titre)}">
+    <div class="hub-choix-tete"><span class="hub-choix-ico">${ico}</span><span class="hub-choix-titre">${ctx.esc(titre)}</span>${irl ? `<span class="hub-choix-irl">${ctx.esc(irl)}</span>` : ''}</div>
+    ${recit ? `<div class="hub-choix-recit">${ctx.esc(recit)}</div>` : ''}
+    <div class="hub-choix-rang">${options.map(o => `<button type="button" class="hub-option" ${attr}="${ctx.esc(o.cle)}">
+      <span class="hub-option-nom">${o.ico ? `${o.ico} ` : ''}${ctx.esc(o.nom)}</span>
+      ${o.bon ? `<span class="hub-option-bon">+ ${ctx.esc(o.bon)}</span>` : ''}
+      ${o.prix ? `<span class="hub-option-prix">− ${ctx.esc(o.prix)}</span>` : ''}
+      ${o.jauges ? `<span class="hub-option-jauges">${motJauges(ctx, o.jauges)}</span>` : ''}
+    </button>`).join('')}</div>
+  </div>`;
+}
+
+/* Les quatre factions, et ce qu'elles font au jeu quand elles sont au bout. */
+function jaugesHtml(ctx, j) {
+  const effets = effetsDeJauges(j);
+  return `<div class="hub-jauges" role="group" aria-label="Les factions">${Object.entries(JAUGES).map(([k, def]) => {
+    const v = j[k];
+    const e = effets.find(x => x.faction === k);
+    const etat = v >= JAUGE_HAUT ? 'haut' : v <= JAUGE_BAS ? 'bas' : '';
+    return `<div class="hub-jauge ${etat}" title="${ctx.esc(def.nom)} : ${v}/${JAUGE_MAX}${e ? ` — ${e.nom} : ${e.mot}` : ` — à ${JAUGE_HAUT} : ${def.haut.nom} ; à ${JAUGE_BAS} : ${def.bas.nom}`}">
+      <span class="hub-jauge-ico">${def.ico}</span>
+      <span class="hub-jauge-barre"><span style="width:${(100 * v / JAUGE_MAX).toFixed(0)}%"></span></span>
+      <span class="hub-jauge-mot">${e ? ctx.esc(e.nom) : ctx.esc(def.nom)}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+/*
+ * LA ROUTE DE LA SAISON, à la carte de Slay the Spire : ce qui s'en vient se
+ * VOIT. Les moments sont à des journées fixes — dilemmes, cartes, proprio,
+ * vestiaire — et une route qu'on voit venir se planifie ; une surprise qu'on
+ * ne voit jamais venir ne se joue pas, elle se subit.
+ */
+function routeHtml(jour, N) {
+  const pos = j => `${(100 * Math.min(j, N) / N).toFixed(1)}%`;
+  // Deux rangées : ce qu'on GAGNE au-dessus de la ligne (le proprio, les
+  // cartes), ce qui ARRIVE dessous (les dilemmes, le vestiaire). Sur 82
+  // journées dans 350 px, une rangée seule les empilait.
+  const marque = (j, ico, titre, rang) => `<span class="hub-route-m ${rang}${j < jour ? ' passe' : ''}" style="left:${pos(j)}" title="Journée ${j} · ${titre}">${ico}</span>`;
+  const marques = [
+    ...JOURS_OBJECTIFS.map(j => marque(j, '🏢', 'le proprio fixe un objectif', 'haut')),
+    ...PALIERS_CARTES.map(j => marque(j, '🃏', 'une carte à prendre', 'haut')),
+    ...JOURS_MOMENTS.map(j => marque(j, '❓', 'un dilemme', 'bas')),
+    ...JOURS_SITUATIONS.map(j => marque(j, '💬', 'le vestiaire vit quelque chose', 'bas')),
+  ].join('');
+  return `<div class="hub-route" aria-hidden="true"><span class="hub-route-fait" style="width:${pos(jour)}"></span>${marques}<span class="hub-route-ici" style="left:${pos(jour)}"></span></div>`;
+}
+
 /* Le bloc d'une équipe dans la carte du prochain match : écusson, nom, fiche. */
 function blocEquipe(ctx, t, ligne, pos) {
   const b = ctx.band(t.tag);
@@ -370,7 +447,7 @@ function blocEquipe(ctx, t, ligne, pos) {
  *   onJour      appelé à chaque avance avec le numéro de journée révélée :
  *               c'est ce que le contrôleur écrit dans la sauvegarde
  */
-export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, onTrou = null, trousPris = [] }) {
+export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, onTrou = null, trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -540,6 +617,69 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   const BLESSURE_MOMENT = 4;
 
   /*
+   * LES MOMENTS (S66). Tout ce qui est déjà décidé se lit dans `decisions` —
+   * il n'y a pas d'autre état, et une reprise retrouve exactement les mêmes
+   * offres. Les trois familles FORCÉES (le dilemme, la séquence, le proprio)
+   * cachent « Journée suivante » tant qu'on n'a pas choisi : c'est ce que JP
+   * a demandé, un choix qu'on ne peut pas dépasser. « La fin » passe
+   * par-dessus — qui demande la fin demande la fin.
+   */
+  const decs = decisions || [];
+  const pris = new Set(decs.filter(d => typeof d.palier === 'string').map(d => d.palier));
+  const momentsAvant = J => decs.filter(d => d.moment && d.moment.famille === 'moment'
+    && typeof d.palier === 'string' && Number(d.palier.slice(2)) < J).map(d => d.moment.cle);
+  const dilemmeOuvert = () => {
+    if (!onDecision || jour >= N) return null;
+    const J = JOURS_MOMENTS.find(j => jour >= j && !pris.has(`m:${j}`));
+    if (J === undefined) return null;
+    const cle = momentDuJour(graine, J, momentsAvant(J));
+    return cle ? { J, cle } : null;
+  };
+  /* Tes matchs sous la forme que les objectifs lisent. */
+  const mesMatchs = depuisJ => miens.filter(x => x.j >= depuisJ).map(({ m }) => {
+    const cote = m.A === you ? 'A' : 'B';
+    const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA;
+    return { v: pour > contre, pour, contre, buts: (m.feuille?.buts || []).filter(b => b.cote === cote) };
+  });
+  const derniereSequence = () => decs.filter(d => d.moment && d.moment.famille === 'sequence')
+    .reduce((a, d) => Math.max(a, d.jour), -Infinity);
+  const sequenceOuverte = () => {
+    if (!onDecision || jour >= N || !miens.length) return null;
+    let v = 0, d = 0;
+    for (let i = miens.length - 1; i >= 0 && gagne(miens[i].m, you); i--) v++;
+    for (let i = miens.length - 1; i >= 0 && !gagne(miens[i].m, you); i--) d++;
+    const cle = d >= SEQUENCES.defaites.seuil ? 'defaites' : v >= SEQUENCES.victoires.seuil ? 'victoires' : null;
+    if (!cle) return null;
+    // L'identité d'une séquence est le match où elle a franchi son seuil :
+    // elle ne se représente pas quand elle s'allonge, et la reprise la
+    // reconnaît.
+    const palier = `s:${miens.length - (cle === 'defaites' ? d : v) + SEQUENCES[cle].seuil}`;
+    if (pris.has(palier) || jour - derniereSequence() < RECUL_SEQUENCE) return null;
+    return { cle, palier };
+  };
+  const objectifDe = j0 => decs.find(d => d.objectif && d.palier === `o:${j0}`);
+  const offreObjectif = () => {
+    if (!onDecision || jour >= N) return null;
+    const j0 = JOURS_OBJECTIFS.find(j => jour >= j && !pris.has(`o:${j}`));
+    return j0 === undefined ? null : { j0, offerts: objectifsOfferts(graine, j0) };
+  };
+  const objectifEnCours = () => {
+    for (const j0 of JOURS_OBJECTIFS) {
+      const d = objectifDe(j0);
+      if (!d) continue;
+      const e = etatObjectif(d.objectif.cle, mesMatchs(d.objectif.debut));
+      if (!pris.has(`v:${j0}`)) return { j0, d, e };
+    }
+    return null;
+  };
+  const verdictObjectif = () => {
+    if (!onDecision) return null;
+    const o = objectifEnCours();
+    return o && o.e.fini ? o : null;
+  };
+  const forceOuvert = () => !!(offreObjectif() || verdictObjectif() || dilemmeOuvert() || sequenceOuverte());
+
+  /*
    * Les cases vides, nommées comme partout ailleurs (`slotShort` est le seul
    * propriétaire de cette règle). Au-delà de deux on compte, parce qu'une
    * énumération de cinq cases ne se lit pas dans un bandeau.
@@ -600,7 +740,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       // moment qu'on dépasse ne doit pas bloquer « +10 journées » à chaque
       // clic pour qui a décidé de ne rien faire.
       if (stop && (blessuresNeuves().length || trousNeufs().length || situationsNeuves().length
-        || (pal !== undefined && !paliersVus.has(pal)))) break;
+        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert())) break;
     }
     const pal = palierOuvert();
     if (pal !== undefined) paliersVus.add(pal);
@@ -723,9 +863,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   };
 
   const tabs = onglets(barre, volet, [
-    { cle: 'journee', ico: 'i-cal', titre: 'Journée' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
-    { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' }, { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes' },
-    { cle: 'fiche', ico: 'i-target', titre: 'Ma fiche' },
+    { cle: 'journee', ico: 'i-cal', titre: 'Journée', page: 'match' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement', page: 'classement' },
+    { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' },
+    { cle: 'fiche', ico: 'i-target', titre: 'Ma fiche', page: 'calendrier' },
   ], cle => {
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
@@ -766,13 +906,34 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       // L'AFFICHE DU MATCH (S30) : qui reçoit qui. `A` est à domicile dans le
       // moteur — c'est lui qui a le dernier changement — et une affiche le dit.
       const domicile = p.m.A === you;
-      carte.innerHTML = `<div class="hub-match">
+      /*
+       * LE PLAN DU SOIR (S66) : le style de l'adversaire se lit, et un plan
+       * pour ce match-là seulement se choisit. Le bon contre-plan vaut une
+       * lecture parfaite ; le plan garde son prix quand même, donc ce n'est
+       * pas un réflexe gratuit. Choisir rejoue la saison depuis aujourd'hui.
+       */
+      const st = STYLES[adv.style];
+      const soirPris = decs.find(d => d.soir && d.jour === p.j);
+      const soir = soirPris ? soirPris.soir : null;
+      const planSoir = onDecision && st ? `<div class="hub-soir">
+        <div class="hub-soir-tete"><span title="${ctx.esc(st.mot)}">${st.ico} ${ctx.esc(ctx.teamShort(adv))} : ${ctx.esc(st.nom.toLowerCase())}</span>${st.contre ? ` <span class="hub-soir-indice">· le bon contre : ${PLANS[st.contre].ico} ${ctx.esc(PLANS[st.contre].nom)}</span>` : ' <span class="hub-soir-indice">· aucun contre évident</span>'}</div>
+        <div class="hub-soir-btns" role="group" aria-label="Plan du soir">${Object.entries(PLANS).map(([cle, x]) =>
+          `<button type="button" class="hub-soir-btn${soir === cle ? ' on' : ''}${st.contre === cle ? ' contre' : ''}" data-soir="${cle}" aria-pressed="${soir === cle}" title="${ctx.esc(x.nom)} ce soir — ${ctx.esc(x.bon)} · ${ctx.esc(x.prix)}${st.contre === cle ? ' · LECTURE PARFAITE : ça rentre plus, et tu alloues moins' : ''}">${x.ico}<span>${ctx.esc(x.nom)}</span></button>`).join('')}</div>
+      </div>` : '';
+      carte.innerHTML = `${routeHtml(jour, N)}${onDecision ? jaugesHtml(ctx, jaugesApres(decs, jour)) : ''}<div class="hub-match">
         <div class="hub-match-titre">Prochain match · Journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}</div>
         <div class="hub-match-note">${dernierMot}</div>
         ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
         ${motDuPlan(ctx, you, !!onBanc)}
+        ${planSoir}
       </div>`;
+      carte.querySelectorAll('[data-soir]').forEach(b => {
+        b.onclick = () => {
+          if (b.dataset.soir === soir) return;
+          const j = jour; quitter(); onDecision({ jour: p.j, soir: b.dataset.soir }, j);
+        };
+      });
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les NHL Stars ne jouent plus d'ici la fin de la saison.</div></div>`;
     }
@@ -845,18 +1006,75 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       }).join('')}</div>
       ${onBanc ? `<button class="btn hub-situ-banc">Revoir mon alignement</button>` : ''}
     </div>` : '';
+    /*
+     * LE BALLOTTAGE (S66) : sous l'alerte, trois vrais joueurs pas chers de la
+     * même position. En réclamer un est une décision ; ne rien faire aussi.
+     */
+    const palierB = alerte ? `b:${alerte.at}:${getPlayerKey(alerte.player)}` : null;
+    const bal = alerte && onDecision && ctx.ballottage && !pris.has(palierB) ? ctx.ballottage(alerte.player, alerte.at) : null;
+    const ballottage = bal && bal.candidats.length ? `<div class="hub-ballottage">
+      <div class="hub-ballottage-tete">Au ballottage${bal.sortNom ? ` · ${ctx.esc(bal.sortNom)} serait libéré` : ''}</div>
+      <div class="hub-choix-rang">${bal.candidats.map(c => `<button type="button" class="hub-option" data-ballottage="${ctx.esc(c.cle)}">
+        <span class="hub-option-nom">${ctx.esc(c.pos)} · ${ctx.esc(c.nom)}</span>
+        <span class="hub-option-bon">${ctx.esc(c.ligne)}</span>
+        <span class="hub-option-prix">${ctx.esc(c.club)} · ${ctx.esc(c.salaire)}</span>
+      </button>`).join('')}</div>
+    </div>` : '';
     const bless = alerte ? `<div class="hub-alerte" role="status">
       <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
       <div class="hub-alerte-note">${alerte.games} match${alerte.games > 1 ? 's' : ''} d'absence · ${ctx.esc(caseDe(alerte.player))} · ${ctx.esc(remplacant(alerte.player))}</div>
+      ${ballottage}
       ${onBanc ? `<button class="btn gold hub-alerte-banc">Derrière le banc</button>` : ''}
     </div>` : '';
-    actions.innerHTML = `${vide}${cartes}${situ}${bless}<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>
+    /*
+     * LES CHOIX FORCÉS (S66), un à la fois et dans cet ordre : le verdict du
+     * proprio (il clôt ce qui était promis), le nouvel objectif, la séquence
+     * (elle parle des derniers matchs) puis le dilemme.
+     */
+    const vo = verdictObjectif(), oo = vo ? null : offreObjectif();
+    const sq = vo || oo ? null : sequenceOuverte();
+    const dl = vo || oo || sq ? null : dilemmeOuvert();
+    let force = '';
+    if (vo) {
+      const o = OBJECTIFS[vo.d.objectif.cle];
+      force = vo.e.reussi
+        ? panneauChoix(ctx, { classe: 'hub-proprio reussi', ico: '🏢', titre: `Objectif atteint : ${o.court}`, irl: null,
+          recit: `Le proprio est ravi (${o.ico} ${vo.e.val} ${o.unite}). Il t'offre de quoi renforcer le club : pige une carte.`,
+          options: mainDeCartes(graine, 2000 + vo.j0, dejaPrises).map(cle => ({ cle, ico: CARTES[cle].ico, nom: CARTES[cle].nom, bon: CARTES[cle].bon, prix: CARTES[cle].prix, jauges: { proprio: 2 } })),
+          attr: 'data-recompense' })
+        : panneauChoix(ctx, { classe: 'hub-proprio rate', ico: '🏢', titre: `Objectif raté : ${o.court}`, irl: null,
+          recit: `${o.ico} ${vo.e.val} ${o.unite}, pour ${o.cible} promis. Le proprio te fait venir dans son bureau.`,
+          options: [{ cle: 'encaisser', nom: 'Encaisser le savon', jauges: { proprio: -2 } }], attr: 'data-savon' });
+    } else if (oo) {
+      force = panneauChoix(ctx, { classe: 'hub-proprio', ico: '🏢', titre: oo.j0 ? 'Le proprio veut une deuxième moitié' : 'Le proprio fixe ses attentes', irl: null,
+        recit: `Choisis un défi pour tes ${MATCHS_OBJECTIF} prochains matchs. Réussi, tu piges une carte de plus et le proprio t'aime davantage ; raté, il s'en souviendra.`,
+        options: oo.offerts.map(cle => ({ cle, ico: OBJECTIFS[cle].ico, nom: OBJECTIFS[cle].nom })), attr: 'data-objectif' });
+    } else if (sq) {
+      const s = SEQUENCES[sq.cle];
+      force = panneauChoix(ctx, { classe: `hub-sequence ${sq.cle}`, ico: s.ico, titre: s.titre, irl: null, recit: s.recit, options: s.options, attr: 'data-sequence' });
+    } else if (dl) {
+      const m = MOMENTS[dl.cle];
+      force = panneauChoix(ctx, { classe: 'hub-dilemme', ico: m.ico, titre: m.titre, irl: m.irl, recit: m.recit, options: m.options, attr: 'data-dilemme' });
+    }
+    // L'objectif en cours se lit sous le match : où on en est, ce qui manque.
+    const enCours = objectifEnCours();
+    const suivi = enCours && !enCours.e.fini ? `<div class="hub-objectif" title="${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].nom)}">🏢 ${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].court)} · <b>${enCours.e.val}</b> ${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].unite)} après ${enCours.e.joues}/${MATCHS_OBJECTIF}</div>` : '';
+    actions.innerHTML = `${force}${vide}${cartes}${situ}${bless}${suivi}${force ? '' : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>'}
       <div class="hub-actions-rang">
-      ${p ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>` : ''}
+      ${p && !force ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>` : ''}
       ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Le banc</button>` : ''}
-      <button class="btn hub-dix" title="Dix journées d'un coup">+10</button>
+      ${force ? '' : '<button class="btn hub-dix" title="Dix journées d\'un coup">+10</button>'}
       <button class="btn hub-fin" title="Jouer le reste de la saison et lire le résultat">La fin</button>
       </div>`;
+    // Chaque choix forcé est une décision : elle entre dans la liste, et la
+    // saison se rejoue de la graine depuis aujourd'hui.
+    const decider = d => { quitter(); onDecision({ jour, ...d }, jour); };
+    actions.querySelectorAll('[data-dilemme]').forEach(b => { b.onclick = () => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: b.dataset.dilemme } }); });
+    actions.querySelectorAll('[data-sequence]').forEach(b => { b.onclick = () => decider({ palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: b.dataset.sequence } }); });
+    actions.querySelectorAll('[data-objectif]').forEach(b => { b.onclick = () => decider({ palier: `o:${oo.j0}`, objectif: { cle: b.dataset.objectif, debut: jour } }); });
+    actions.querySelectorAll('[data-recompense]').forEach(b => { b.onclick = () => decider({ palier: `v:${vo.j0}`, carte: b.dataset.recompense, jauges: { proprio: 2 } }); });
+    actions.querySelectorAll('[data-savon]').forEach(b => { b.onclick = () => decider({ palier: `v:${vo.j0}`, jauges: { proprio: -2 } }); });
+    actions.querySelectorAll('[data-ballottage]').forEach(b => { b.onclick = () => decider({ palier: palierB, ballottage: { i: bal.i, entre: b.dataset.ballottage, sort: bal.sort } }); });
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = regarderProchain;
     const banc = actions.querySelector('.hub-banc');
@@ -871,10 +1089,11 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       // Le palier ET la journée courante : la carte vaut à partir de MAINTENANT.
       b.onclick = () => { const p = pal, j = jour; quitter(); onCarte(p, j, b.dataset.carte); };
     });
-    actions.querySelector('.hub-jour').onclick = () => { avancer(1, true); dessiner(); tabs.montrer('journee'); };
-    actions.querySelector('.hub-dix').onclick = () => { avancer(10, true); dessiner(); tabs.montrer('fiche'); };
+    const bj = actions.querySelector('.hub-jour'), bd = actions.querySelector('.hub-dix');
+    if (bj) bj.onclick = () => { avancer(1, true); dessiner(); tabs.suivre('journee'); };
+    if (bd) bd.onclick = () => { avancer(10, true); dessiner(); tabs.suivre('journee'); };
     // « La fin » ne s'arrête pas : qui demande la fin demande la fin.
-    actions.querySelector('.hub-fin').onclick = () => { avancer(N); dessiner(); tabs.montrer('classement'); };
+    actions.querySelector('.hub-fin').onclick = () => { avancer(N); dessiner(); tabs.suivre('journee'); };
   }
 
   /* REGARDER LE MATCH : le direct rejoue ta prochaine feuille, puis la journée
@@ -891,7 +1110,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       titre: 'Saison régulière', sousTitre: `Journée ${p.j + 1}`,
       etat: jour ? `${f.W}-${f.L}-${f.OTL} · ${rangDe(you)}${rangDe(you) === 1 ? 'er' : 'e'}` : 'Premier match de la saison',
       graine: (p.j + 1) * 100 + p.k, avant: compte, ctx,
-      onTermine: () => { if (termine) return; avancer(1); dessiner(); tabs.montrer('journee'); },
+      onTermine: () => { if (termine) return; avancer(1); dessiner(); tabs.suivre('journee'); },
     });
     void apresA; void apresB;
   }
@@ -901,6 +1120,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (termine) return;
     termine = true;
     debrancherMenu();
+    retirerHub(tabs.hub);
     window.removeEventListener('keydown', clavier);
     modal.style.display = 'none';
     document.body.style.overflow = '';
@@ -910,6 +1130,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     quitter();
     onTermine();
   };
+  // L'onglet « Alignement » de la barre ouvre le banc en pleine saison (S67).
+  if (onBanc) tabs.hub.banc = () => { quitter(); onBanc(jour); };
   /* ✕ : le reste de la saison se joue, et on passe au bilan. */
   ui.close.onclick = () => { avancer(N); fermer(); };
   ui.close.setAttribute('aria-label', 'Passer au bilan de la saison');
@@ -918,6 +1140,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   const clavier = ev => {
     if ((ev.key !== ' ' && ev.key !== 'Enter') || ev.target.closest('input, textarea, select, button, [role="button"], a')) return;
     if (document.getElementById('liveModal')?.style.display === 'flex') return;
+    // L'écran ancré mais caché (on lit une autre page) n'avance pas le temps.
+    if (document.body.classList.contains('hub-cache')) return;
     ev.preventDefault();
     const b = actions.querySelector('.hub-jour') || actions.querySelector('.hub-suite');
     if (b) b.click();
@@ -1143,12 +1367,13 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
   };
 
   const tabs = onglets(barre, volet, [
-    { cle: 'tableau', ico: 'i-cup', titre: 'Tableau' }, { cle: 'serie', ico: 'i-target', titre: 'Ma série' },
-    { cle: 'ronde', ico: 'i-cal', titre: 'La ronde' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' },
-    { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes' },
-    ...(compteSaison ? [{ cle: 'saison', ico: 'i-chart', titre: 'Saison' }] : []),
+    { cle: 'serie', ico: 'i-target', titre: 'Ma série', page: 'match' }, { cle: 'tableau', ico: 'i-cup', titre: 'Tableau', page: 'classement' },
+    { cle: 'ronde', ico: 'i-cal', titre: 'La ronde', page: 'calendrier' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' },
+    { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' },
   ], cle => {
-    if (cle === 'saison') return voletSaison();
+    // La saison régulière se relit SOUS le tableau (S67) : un menu laisse
+    // revenir en arrière, et le classement est l'onglet où on la cherche.
+    if (cle === 'tableau') return `${voletTableau()}${compteSaison ? voletSaison() : ''}`;
     if (cle === 'serie') return voletSerie();
     if (cle === 'ronde') return voletRonde();
     if (cle === 'meneurs') return meneursHtml(ctx, compterFeuilles(feuillesRevelees()), equipeDe, you, 'séries', menu, 1);
@@ -1209,12 +1434,12 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     if (regarder) regarder.onclick = regarderProchain;
     const jour = actions.querySelector('.hub-jour');
     if (jour) jour.onclick = () => {
-      if (rondeComplete(ronde)) { ronde++; dessiner(); tabs.montrer(maSerie(ronde) ? 'serie' : 'ronde'); return; }
-      matchSuivant(); dessiner(); tabs.montrer(maSerie(ronde) && revele.get(maSerie(ronde)) ? 'serie' : 'ronde');
+      if (rondeComplete(ronde)) { ronde++; dessiner(); tabs.suivre('serie'); return; }
+      matchSuivant(); dessiner(); tabs.suivre('serie');
     };
     const fr = actions.querySelector('.hub-ronde');
-    if (fr) fr.onclick = () => { finirRonde(); dessiner(); tabs.montrer('ronde'); };
-    actions.querySelector('.hub-fin').onclick = () => { toutReveler(); dessiner(); tabs.montrer('tableau'); };
+    if (fr) fr.onclick = () => { finirRonde(); dessiner(); tabs.suivre('serie'); };
+    actions.querySelector('.hub-fin').onclick = () => { toutReveler(); dessiner(); tabs.suivre('serie'); };
   }
 
   /* REGARDER LE MATCH : le direct rejoue le prochain match de ta série, puis
@@ -1232,7 +1457,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
       etat: k ? etatDeSerie(ctx, s, wA, wB) : `${ctx.teamShort(s.A)} contre ${ctx.teamShort(s.B)}`,
       tally: { wA, wB }, graine: (s.i + 1) * 1000 + k,
       avant: compterFeuilles(feuillesRevelees()), apres: `${cap(apres)}.`, ctx,
-      onTermine: () => { if (termine) return; matchSuivant(); dessiner(); tabs.montrer('serie'); },
+      onTermine: () => { if (termine) return; matchSuivant(); dessiner(); tabs.suivre('serie'); },
     });
   }
 
@@ -1241,6 +1466,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     termine = true;
     noter();
     debrancherMenu();
+    retirerHub(tabs.hub);
     window.removeEventListener('keydown', clavier);
     modal.style.display = 'none';
     document.body.style.overflow = '';
@@ -1253,6 +1479,8 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
   const clavier = ev => {
     if ((ev.key !== ' ' && ev.key !== 'Enter') || ev.target.closest('input, textarea, select, button, [role="button"], a')) return;
     if (document.getElementById('liveModal')?.style.display === 'flex') return;
+    // L'écran ancré mais caché (on lit une autre page) n'avance pas le temps.
+    if (document.body.classList.contains('hub-cache')) return;
     ev.preventDefault();
     const b = actions.querySelector('.hub-jour') || actions.querySelector('.hub-suite');
     if (b) b.click();

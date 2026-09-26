@@ -5408,7 +5408,7 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
    parce que c'est la suite de la partie et qu'il n'existe nulle part
    ailleurs.
    --------------------------------------------------------------- */
-body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-hero {
+body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-hero {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -5417,23 +5417,23 @@ body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-hero {
   text-align: left;
   padding-bottom: var(--sp-3);
 }
-body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-hero .score {
+body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-hero .score {
   font-size: 30px;
   margin: 0;
   letter-spacing: -0.5px;
 }
-body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .hero-band { margin: 0; }
-body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-strip {
+body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .hero-band { margin: 0; }
+body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-strip {
   flex: 1 1 100%;
   padding: var(--sp-2) 0 0;
   border-bottom: 0;
 }
-body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .rs-cell b { font-size: 17px; }
-body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions {
+body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .rs-cell b { font-size: 17px; }
+body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions {
   margin: var(--sp-3) 0 0;
 }
-body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions .btn { display: none; }
-body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions #playoffsBtn {
+body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions .btn { display: none; }
+body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #playoffsBtn {
   display: inline-flex;
   flex: 0 1 auto;
   min-height: 38px;
@@ -5819,3 +5819,203 @@ body[data-zone="jeu"]:not([data-page="bilan"]) #game.bilan .result-actions #play
    la grille des chiffres, donc il en prend toute la largeur plutôt que d'en
    occuper une case (voir `motDeClub`, js/equipes.js). */
 .stat-grid .eq-vraie-mot { grid-column: 1 / -1; margin: 0; }
+
+/* =====================================================================
+   LES MOMENTS (S66) — la route, les factions, le plan du soir et les
+   choix forcés. Même langue que les cartes de palier : un bonus en vert,
+   un prix en rouge, et l'état se voit par la forme avant la couleur.
+   ===================================================================== */
+
+/* La route de la saison : une ligne, des marques, et où on est. */
+.hub-route {
+  position: relative; height: 22px; margin: 2px 4px 8px;
+}
+.hub-route::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 10px; height: 2px;
+  background: var(--line); border-radius: 1px;
+}
+.hub-route-fait {
+  position: absolute; left: 0; top: 10px; height: 2px; background: var(--gold); border-radius: 1px;
+}
+.hub-route-m {
+  position: absolute; top: 0; transform: translateX(-50%);
+  font-size: 13px; line-height: 22px; filter: saturate(1.1);
+}
+.hub-route-m.passe { opacity: .35; filter: grayscale(1); }
+.hub-route-ici {
+  position: absolute; top: 5px; width: 12px; height: 12px; transform: translateX(-50%);
+  border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--bg);
+}
+
+/* Les quatre factions : une barre chacune, le mot de l'effet quand il joue. */
+.hub-jauges {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0 0 8px;
+}
+.hub-jauge {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 5px; row-gap: 2px;
+  align-items: center; min-width: 0;
+  padding: 5px 6px; border-radius: var(--r-xs, 6px); background: var(--panel-2, var(--panel));
+}
+.hub-jauge-ico { grid-row: 1 / span 2; font-size: 15px; }
+.hub-jauge-barre { height: 5px; border-radius: 3px; background: var(--fond-creux, rgba(255,255,255,.08)); overflow: hidden; }
+.hub-jauge-barre > span { display: block; height: 100%; background: var(--sub); border-radius: 3px; }
+.hub-jauge-mot { font: 700 10.5px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub-jauge.haut .hub-jauge-barre > span { background: var(--green); }
+.hub-jauge.haut .hub-jauge-mot { color: var(--green); }
+.hub-jauge.bas .hub-jauge-barre > span { background: var(--live); }
+.hub-jauge.bas .hub-jauge-mot { color: var(--live); }
+
+/* Le plan du soir : le style de l'adversaire, puis cinq boutons. */
+.hub-soir { margin-top: 8px; }
+.hub-soir-tete { font-size: 12px; color: var(--sub); line-height: 1.3; }
+.hub-soir-indice { color: var(--muted); }
+.hub-soir-btns { display: flex; gap: 5px; margin-top: 6px; overflow-x: auto; scrollbar-width: none; }
+.hub-soir-btns::-webkit-scrollbar { display: none; }
+.hub-soir-btn {
+  flex: 1 0 auto; display: inline-flex; align-items: center; gap: 4px; justify-content: center;
+  min-height: 34px; padding: 4px 9px; cursor: pointer;
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 999px;
+  font: 700 12px/1 var(--display); letter-spacing: .02em; white-space: nowrap;
+}
+.hub-soir-btn.contre { border-style: dashed; border-color: color-mix(in srgb, var(--gold) 60%, transparent); }
+.hub-soir-btn.on { background: var(--gold); color: var(--sur-or, #111); border-color: var(--gold); }
+.hub-soir-btn:hover { border-color: var(--gold); }
+
+/* Le choix forcé : une histoire, et des options qu'on ne peut pas dépasser. */
+.hub-choix {
+  flex: 1 1 100%;
+  padding: 10px 11px; margin-bottom: 4px;
+  background: color-mix(in srgb, var(--ui-accent, #fff) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-accent, #fff) 22%, transparent);
+  border-left: 3px solid var(--ui-accent, #fff);
+  border-radius: var(--r-s);
+}
+.hub-choix.hub-proprio { border-left-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.hub-choix.hub-proprio.rate { border-left-color: var(--live); }
+.hub-choix.hub-sequence.defaites { border-left-color: var(--live); }
+.hub-choix.hub-sequence.victoires { border-left-color: var(--green); }
+.hub-choix-tete { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.hub-choix-ico { font-size: 18px; line-height: 1; }
+.hub-choix-titre { font: 800 15.5px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.hub-choix-irl { font: 700 11px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.hub-choix-recit { font-size: 12.5px; line-height: 1.4; color: var(--sub); margin-top: 6px; }
+.hub-choix-rang { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+.hub-option {
+  flex: 1 1 150px; min-width: 0;
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  padding: 9px 10px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
+  color: var(--text);
+}
+.hub-option:hover, .hub-option:focus-visible { border-color: var(--gold); }
+.hub-option-nom { font: 800 13.5px/1.15 var(--display); letter-spacing: .02em; }
+.hub-option-bon { font-size: 11px; line-height: 1.25; color: var(--green); }
+.hub-option-prix { font-size: 11px; line-height: 1.25; color: var(--live); }
+.hub-option-jauges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.hub-jd { font: 700 11px/1 var(--display); letter-spacing: .02em; }
+.hub-jd.up { color: var(--green); }
+.hub-jd.down { color: var(--live); }
+
+/* L'objectif en cours, sous les actions. */
+.hub-objectif {
+  flex: 1 1 100%; font-size: 12px; color: var(--sub); padding: 4px 2px;
+}
+.hub-objectif b { color: var(--gold); font-family: var(--display); font-size: 14px; }
+
+/* =====================================================================
+   LA COQUILLE FIXE (S67) — une barre, toujours la même, et l'écran de
+   saison ANCRÉ dans la page au lieu d'être posé par-dessus.
+
+   JP : *faire que l'interface soit toujours, peu importe le moment, même
+   organisation et adaptable et redimensionnable sans rien perdre*. L'écran
+   de saison, les séries et le tournoi couvraient tout, barre comprise, et
+   portaient chacun la leur. Ils vivent maintenant entre la barre du haut et
+   celle du bas (ou à droite du rail sur grand écran) : la barre du jeu reste
+   là, et ce sont SES onglets qui ouvrent leurs volets. Les dimensions se
+   déduisent des jetons de la coquille, donc un redimensionnement recompose
+   tout sans rien couper.
+   ===================================================================== */
+:root {
+  --rail-w: 0px;
+  --bas-coquille: calc(var(--navbar-h) + 20px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 1200px) { :root { --rail-w: 186px; --bas-coquille: 0px; } }
+@media (min-width: 1800px) { :root { --rail-w: 220px; } }
+
+body.hub-docke #hubModal {
+  inset: auto;
+  top: var(--topbar-h); left: var(--rail-w); right: 0; bottom: var(--bas-coquille);
+  z-index: 50;
+}
+body.hub-docke #hubModal .hub-sheet { height: 100%; max-height: 100%; }
+body.hub-docke #hubModal .hub-onglets { display: none !important; }
+body.hub-cache #hubModal { display: none !important; }
+/* L'écran ancré ou l'état vide remplacent le jeu : un seul contenu à la fois. */
+body[data-zone="hub"] #game, body[data-zone="hub"] .actionbar,
+body[data-zone="vide"] #game, body[data-zone="vide"] .actionbar { display: none !important; }
+
+/* HORS DE « MATCH », LE VOLET SEUL. Sur téléphone la carte du prochain match
+   et les boutons ne servent qu'à l'onglet qui les porte ; sur grand écran ils
+   restent la colonne de gauche, ce qu'on décide à côté de ce qu'on lit. */
+@media (max-width: 1199.98px) {
+  body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-carte,
+  body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-actions { display: none; }
+  body.hub-docke .hub-sheet { max-width: none; }
+}
+@media (min-width: 1200px) {
+  body.hub-docke .hub-sheet {
+    max-width: none;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "top     top"
+      "carte   volet"
+      "actions volet";
+  }
+  body.hub-docke .hub-sheet .hub-actions { align-self: stretch; min-height: 0; overflow-y: auto; }
+}
+
+/* L'état vide : un mot, et ce qu'on peut faire. */
+.vide { max-width: 560px; margin: 9vh auto 0; padding: 0 16px; text-align: center; }
+.vide-mot { font-size: 15.5px; line-height: 1.5; color: var(--sub); margin: 0 0 18px; }
+.vide-mot b { color: var(--gold); font-family: var(--display); font-size: 18px; }
+.vide-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.vide-btns .btn { min-width: 160px; }
+
+/* Le ballottage, sous l'alerte de blessure : les mêmes options que les choix. */
+.hub-ballottage { margin-top: 8px; }
+.hub-ballottage-tete { font: 800 12.5px/1.1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: var(--sub); }
+.hub-ballottage .hub-choix-rang { margin-top: 6px; }
+.hub-ballottage .hub-option-bon { color: var(--text); }
+.hub-ballottage .hub-option-prix { color: var(--muted); }
+
+/* LA BARRE TIENT ENTIÈRE DÈS 600 PX (S67) : neuf onglets se partagent la
+   largeur au lieu de défiler. Sous 600 px elle défile, et l'onglet ouvert
+   reste en vue (`majNavbar`, rappelée à chaque redimensionnement). */
+@media (min-width: 600px) and (max-width: 1199.98px) {
+  .navtab { flex: 1 1 0; min-width: 0; }
+}
+
+/* SUR UN PETIT ÉCRAN, L'ÉCRAN DE SAISON DÉFILE EN ENTIER (S67) au lieu
+   d'écraser sa carte. La route, les factions, le match, le plan du soir et un
+   choix forcé ne tiennent pas dans 640 px de haut : `toutEstAtteignable` a
+   trouvé l'écusson du match coupé de 87 px à 360 × 640. On réserve la place,
+   on ne la prend pas — la feuille défile, son en-tête reste en haut. */
+@media (max-width: 1199.98px) {
+  body.hub-docke .hub-sheet { overflow-y: auto; overscroll-behavior: contain; }
+  body.hub-docke .hub-sheet > * { flex-shrink: 0; }
+  body.hub-docke .hub-sheet .live-top { position: sticky; top: 0; z-index: 3; background: var(--bg); }
+  body.hub-docke .hub-sheet .hub-actions { overflow: visible; min-height: auto; }
+  body.hub-docke .hub-sheet .hub-volet { flex: 1 0 auto; overflow: visible; min-height: 0; }
+}
+
+/* La route sur deux rangées, et ce qui ne doit jamais s'étirer. */
+.hub-route { height: 34px; }
+.hub-route::before, .hub-route-fait { top: 16px; }
+.hub-route-m { font-size: 12px; line-height: 14px; }
+.hub-route-m.haut { top: 0; }
+.hub-route-m.bas { top: 20px; }
+.hub-route-ici { top: 11px; }
+.hub-alerte > *, .hub-choix > *, .hub-cartes > *, .hub-situ > *, .hub-trou > * { flex: none; }
+.hub-carte { container: carte / inline-size; }
+@container carte (max-width: 340px) { .hub-jauges { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

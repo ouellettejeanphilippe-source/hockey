@@ -25,9 +25,10 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES, PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
+  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
+import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
@@ -545,7 +546,10 @@ async function restoreSave() {
       G.lbId = lbId;
       G.seriesVues = series;
       return { reprise: async () => {
-        const clubs = await rebatirAdversaires(adversaires);
+        // Les joueurs du ballottage d'abord : l'exclusion des adversaires et
+        // la décision 0 les nomment.
+        await connaitreBallottages(decisions);
+        const clubs = await rebatirAdversaires(adversaires, decisions);
         if (!clubs.length) return;
         // Les séries reprises rejouent d'abord la saison ENTIÈRE : c'est elle
         // qui pose le générateur à l'endroit exact où `playSeries` l'a pris,
@@ -1231,31 +1235,56 @@ const ONGLETS_REF = [
 ];
 
 /*
- * Les onglets du moment, dans l'ordre de la barre.
+ * LA BARRE NE CHANGE PLUS JAMAIS (S67). JP : *faire que l'interface soit
+ * toujours, peu importe le moment, même organisation*. Elle suivait la phase
+ * — deux onglets au repêchage, neuf au bilan — et l'écran de saison, les
+ * séries et le tournoi avaient chacun la leur, plein écran par-dessus. Il n'y
+ * en a plus qu'une, et ses entrées sont FIXES : ce qui change avec la phase,
+ * c'est ce que chaque onglet MONTRE.
  *
- * LA QUESTION N'EST PAS « LA SAISON EST-ELLE JOUÉE » MAIS « LE BILAN
- * EXISTE-T-IL ». `G.done` passe à vrai dès que `simulateLeague` a joué les
- * 82 matchs — bien avant `renderResult`, puisque l'écran de saison les
- * RÉVÈLE ensuite journée par journée. Le lire ici vidait la barre de ses
- * onglets de partie pendant toute la saison : « Derrière le banc » tombait
- * alors sur la page des équipes, et le panneau du banc restait caché. Les
- * volets du bilan sont la seule vérité, et « Séries » n'a d'onglet qu'une
- * fois le sien rempli — pas de drapeau de plus.
+ *   Match       ce qui se joue : lancer la saison, le prochain match et ses
+ *               boutons, la série en cours, le bilan
+ *   Vestiaire   le repêchage (la main en loto)
+ *   Alignement  le tableau de profondeur ; en pleine saison, le banc
+ *   Classement  le classement du jour, le tableau des séries, le final
+ *   Calendrier  tes matchs, la ronde, le calendrier de la saison
+ *   Meneurs     les meneurs à ce jour, ou de la saison
+ *   Équipes · Saisons · Règles
+ *
+ * Un onglet qui n'a encore rien à montrer ne disparaît pas : il dit pourquoi
+ * et offre la suite (`remplirVide`). Une barre dont les entrées bougent se
+ * réapprend à chaque phase ; une barre fixe s'apprend une fois.
  */
+const ALIAS_PAGE = { bilan: 'match', series: 'match', stats: 'meneurs', ligue: 'classement' };
+/* Les sections du bilan que montre chaque onglet. */
+const VOLETS_DU_BILAN = {
+  match: ['series', 'bilan'], classement: ['classement', 'ligue'], calendrier: ['calendrier'],
+  meneurs: ['stats'], alignement: ['alignement'],
+};
+const PAGES_DE_SAISON = ['match', 'classement', 'calendrier', 'meneurs', 'equipes'];
+
+/*
+ * UN VOLET VIDE EST UN VOLET SANS RIEN À LIRE, et c'est `textContent` qui le
+ * dit — pas `innerHTML` : le volet des séries porte d'avance le conteneur que
+ * `dessinerTableauDesSeries` remplira.
+ */
+function voletsPrets() {
+  return new Set([...document.querySelectorAll('#resultHost .result-pane')]
+    .filter(p => p.textContent.trim() !== '').map(p => p.dataset.volet));
+}
+const bilanPret = () => voletsPrets().size > 0;
+const enRepechage = () => !G.done && !bilanPret() && !hubActif();
+
 function ongletsCourants() {
-  // UN VOLET VIDE EST UN VOLET SANS RIEN À LIRE, et c'est `textContent` qui
-  // le dit — pas `innerHTML`. Le volet des séries porte d'avance le conteneur
-  // que `dessinerTableauDesSeries` remplira (`<div id="playoffsSection">`),
-  // donc son balisage n'est jamais vide : l'onglet « Séries » s'affichait dès
-  // le bilan de la saison régulière, avant qu'une seule série soit jouée.
-  const prets = new Set(
-    [...document.querySelectorAll('#resultHost .result-pane')]
-      .filter(p => p.textContent.trim() !== '').map(p => p.dataset.volet));
-  if (prets.size) return [...ONGLETS_BILAN.filter(o => prets.has(o.cle)), ...ONGLETS_REF];
   const loto = MODE().loto;
+  const draft = enRepechage();
   return [
-    { cle: 'repechage', ico: 'i-dice', titre: loto ? 'La main' : 'Vestiaire', badge: String(poolFiltered().length) },
-    { cle: 'alignement', ico: 'i-list', titre: 'Alignement', badge: `${signes().length}/${totalCases()}` },
+    { cle: 'match', ico: 'i-cup', titre: 'Match' },
+    { cle: 'repechage', ico: 'i-dice', titre: loto ? 'La main' : 'Vestiaire', badge: draft ? String(poolFiltered().length) : '' },
+    { cle: 'alignement', ico: 'i-list', titre: 'Alignement', badge: draft ? `${signes().length}/${totalCases()}` : '' },
+    { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
+    { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier' },
+    { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' },
     ...ONGLETS_REF,
   ];
 }
@@ -1263,19 +1292,13 @@ function ongletsCourants() {
 const PAGES = () => ongletsCourants().map(o => o.cle);
 
 /*
- * LA BARRE. Elle se rebâtit quand ses entrées changent, jamais à chaque
- * rendu : sur un téléphone elle défile en x (neuf onglets après la saison),
- * et un `innerHTML` par rendu remettrait ce défilement à zéro.
+ * LA BARRE. Elle se rebâtit quand ses entrées changent (un badge), jamais à
+ * chaque rendu : sur un téléphone elle défile en x, et un `innerHTML` par
+ * rendu remettrait ce défilement à zéro.
  */
 function majNavbar(cle, liste = ongletsCourants()) {
   const nav = $('navbar');
   if (!nav) return;
-  // LA PAGE COURANTE EST TOUJOURS UNE PAGE QUI EXISTE. « Rejouer la saison »
-  // et « Rejouer » depuis l'historique remettent `G.done` à faux pendant que
-  // `G.page` dit encore « classement » : l'onglet a disparu avec la phase, et
-  // la barre marquait alors un onglet mort pendant que la feuille de style
-  // cherchait `body[data-page="classement"]`. On retombe sur le premier.
-  if (!liste.some(o => o.cle === cle)) { marquerPage(cle); return; }
   const sig = liste.map(o => `${o.cle}:${o.titre}:${o.badge || ''}`).join('|');
   if (nav.dataset.sig !== sig) {
     nav.dataset.sig = sig;
@@ -1301,62 +1324,181 @@ function majNavbar(cle, liste = ongletsCourants()) {
   }
 }
 
-/** Pose la page courante. Ne remplit rien : c'est `montrerPage` qui le fait. */
+/*
+ * OÙ VIT UN ONGLET, À CE MOMENT-CI. Quatre endroits, et un seul à la fois :
+ *   'hub'   un volet de l'écran de saison, des séries ou du tournoi
+ *   'jeu'   le repêchage, l'alignement, ou une section du bilan (#game)
+ *   'ref'   une page de référence (équipes, saisons, règles)
+ *   'vide'  rien encore : la page dit pourquoi et offre la suite
+ */
+function zoneDe(cle) {
+  const hub = hubActif();
+  if (hub && voletPour(cle)) return 'hub';
+  if (ONGLETS_REF.some(o => o.cle === cle)) return 'ref';
+  if (bilanPret() && !hub) return VOLETS_DU_BILAN[cle] ? 'jeu' : 'vide';
+  if (cle === 'repechage') return enRepechage() ? 'jeu' : 'vide';
+  // Pendant les séries et le tournoi, l'alignement est figé : rien à y faire.
+  if (cle === 'alignement') return hub ? 'vide' : 'jeu';
+  return 'vide';
+}
+
+/** Pose la page courante. Ne remplit rien d'autre que l'état vide. */
 function marquerPage(cle) {
+  cle = ALIAS_PAGE[cle] || cle;
   const liste = ongletsCourants();
-  if (!liste.some(o => o.cle === cle)) cle = liste[0].cle;
+  if (!liste.some(o => o.cle === cle)) cle = 'match';
   G.page = cle;
+  const zone = zoneDe(cle);
   document.body.dataset.page = cle;
-  // La ZONE dit si on est dans la partie ou dans une page de référence. C'est
-  // elle que la feuille de style lit pour borner la hauteur, parce que les
-  // onglets de partie changent de nom avec la phase et qu'une règle qui les
-  // énumère est une règle qui oublie le prochain.
-  document.body.dataset.zone = ONGLETS_REF.some(o => o.cle === cle) ? 'ref' : 'jeu';
-  // Le bilan est un onglet par SECTION : c'est la page qui ouvre son volet.
-  document.querySelectorAll('#resultHost .result-pane').forEach(p => { p.hidden = p.dataset.volet !== cle; });
+  document.body.dataset.zone = zone;
+  // L'ÉCRAN DE SAISON S'ANCRE DANS LA PAGE (S67) : entre la barre du haut et
+  // celle du bas, jamais par-dessus. Quand l'onglet ouvert n'est pas l'un des
+  // siens (le vestiaire, les règles), il se retire sans se fermer.
+  const hub = hubActif();
+  document.body.classList.toggle('hub-docke', !!hub);
+  document.body.classList.toggle('hub-cache', !!hub && zone !== 'hub');
+  if (zone === 'hub') {
+    const v = voletPour(cle);
+    if (v && hub.courant() !== v) hub.montrer(v);
+  }
+  // Les sections du bilan que cet onglet porte, et elles seules.
+  const vis = VOLETS_DU_BILAN[cle] || [];
+  document.querySelectorAll('#resultHost .result-pane').forEach(p => {
+    p.hidden = !vis.includes(p.dataset.volet) || !p.textContent.trim();
+  });
   if (G.done) brancherEntractes($('resultHost'));   // un deck caché mesure zéro
   majNavbar(cle, liste);
   for (const id of ['pageEquipes', 'pageHistorique', 'pageRegles']) {
     const el = $(id);
-    if (el) el.hidden = id !== `page${cle[0].toUpperCase()}${cle.slice(1)}`;
+    if (el) el.hidden = !(zone === 'ref' && id === `page${cle[0].toUpperCase()}${cle.slice(1)}`);
+  }
+  const vide = $('pageVide');
+  if (vide) {
+    vide.hidden = zone !== 'vide';
+    if (zone === 'vide') remplirVide(cle);
   }
 }
 
+/*
+ * L'ÉTAT VIDE : un onglet qui n'a encore rien à montrer dit pourquoi, et
+ * offre ce qu'on peut faire maintenant. On ne cache pas un onglet parce qu'il
+ * est vide — c'est ce qui faisait bouger la barre.
+ */
+function remplirVide(cle) {
+  const titre = $('pageVideTitre'), corps = $('pageVideCorps');
+  if (!titre || !corps) return;
+  const o = ongletsCourants().find(x => x.cle === cle) || { titre: '', ico: 'i-cup' };
+  titre.innerHTML = `<svg class="ico" aria-hidden="true"><use href="#${o.ico}"/></svg>${esc(o.titre)}`;
+  const bouton = (id, mot, go = false) => `<button type="button" class="btn ${go ? 'go' : 'gold'}" data-vide="${id}">${esc(mot)}</button>`;
+  let msg = '', btns = '';
+  const manque = totalCases() - signes().length;
+  const QUOI = { classement: 'Le classement du jour', calendrier: 'Tes matchs, journée par journée,', meneurs: 'Les meneurs de la ligue' };
+  if (enRepechage()) {
+    if (cle === 'match') {
+      msg = manque > 0
+        ? `Ta formation n'est pas complète : il reste <b>${manque}</b> case${manque > 1 ? 's' : ''} à combler sous le plafond. La saison se lance d'ici dès que les ${totalCases()} sont signés.`
+        : 'Ta formation est complète. La saison t\'attend.';
+      btns = manque > 0
+        ? bouton('repechage', MODE().loto ? 'À la main' : 'Au vestiaire', true)
+        : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : 'Lancer la saison', true);
+    } else {
+      msg = `La saison n'a pas commencé. ${QUOI[cle] || 'Tout ça'} s'affichera ici dès le premier match.`;
+      btns = bouton('match', 'Au match');
+    }
+  } else if (G.banc) {
+    msg = 'Tu es derrière le banc. La saison reprend là où tu l\'as laissée.';
+    btns = bouton('reprendre', 'Retour au match', true);
+  } else if (cle === 'repechage') {
+    msg = 'Le repêchage est terminé : ta formation joue.';
+    btns = bouton('match', 'Au match', true) + bouton('nouvelle', 'Nouvelle partie');
+  } else if (cle === 'alignement' && hubActif()) {
+    msg = 'Ton alignement est figé : on ne touche plus aux trios quand ça compte.';
+    btns = bouton('match', 'Au match', true);
+  } else if (cle === 'calendrier' && hubActif()) {
+    msg = 'Le tournoi n\'a pas de calendrier à lui : ses journées se lisent sous le match.';
+    btns = bouton('match', 'Au match', true);
+  } else {
+    msg = 'Rien à lire ici pour l\'instant.';
+    btns = bouton('match', 'Au match', true);
+  }
+  corps.innerHTML = `<div class="vide"><p class="vide-mot">${msg}</p><div class="vide-btns">${btns}</div></div>`;
+  corps.querySelectorAll('[data-vide]').forEach(b => {
+    b.onclick = () => {
+      const quoi = b.dataset.vide;
+      if (quoi === 'lancer') $('mainBtn').click();
+      else if (quoi === 'reprendre') reprendreSaison();
+      else if (quoi === 'nouvelle') ouvrirNouvellePartie();
+      else montrerPage(quoi);
+    };
+  });
+}
+
 function montrerPage(cle) {
-  const pages = PAGES();
-  if (!pages.includes(cle)) cle = pages[0];
-  // Les deux onglets de repêchage SONT les deux volets : `setView` marque la
-  // page lui-même, donc les anciens appels (le banc, une nouvelle partie)
-  // suivent. Après la saison, l'alignement est un volet du bilan.
-  if (cle === 'repechage') setView('pool');
-  else if (cle === 'alignement' && !G.done) setView('roster');
+  cle = ALIAS_PAGE[cle] || cle;
+  if (!PAGES().includes(cle)) cle = 'match';
+  const hub = hubActif();
+  // DERRIÈRE LE BANC, les onglets de la saison y RAMÈNENT : la saison reprend
+  // (même graine, même jour), puis l'onglet demandé s'ouvre.
+  if (G.banc && PAGES_DE_SAISON.includes(cle)) { G.pageVoulue = cle; reprendreSaison(); return; }
+  // EN PLEINE SAISON, L'ALIGNEMENT EST LE BANC : c'est là qu'on y touche.
+  if (hub && cle === 'alignement' && hub.banc) { hub.banc(); return; }
+  if (cle === 'repechage' && enRepechage()) setView('pool');
+  else if (cle === 'alignement' && !bilanPret() && !hub) setView('roster');
   else {
     marquerPage(cle);
-    if (cle === 'historique') showLeaderboard();
-    else if (cle === 'regles') remplirReglesDuPlateau();
-    else if (cle === 'equipes') ouvrirEquipes({
-      ctx: {
-        esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
-        teamFull: t => TEAMFULL[t] || t,
-        // La fiche d'un joueur de la ligue en cours ouvre ses statistiques
-        // SIMULÉES, la vraie saison dessous. On y arrive aussi de derrière le
-        // banc, en pleine saison, d'où `porteeRevele` : la fiche s'arrête
-        // alors à la dernière journée révélée. Hors ligue, la vraie seule.
-        fiche: (p, enLigue) => (enLigue ? ouvrirFiche(p, null, porteeRevele('saison')) : showPlayerModal(p, {})),
-        statsSim,
-      },
-      saisons: (state.index.seasons || []).slice().reverse(),
-      saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
-      charger: getShard,
-      // LA LIGUE EN COURS, si elle existe : ses 32 clubs, avec leurs
-      // alignements. Les objets joueurs y portent DÉJÀ leurs compteurs
-      // simulés et leur vraie saison — l'écran n'a rien à recalculer, il
-      // met les deux nombres l'un sous l'autre.
-      ligue: () => (G.ligue && G.ligue.teams && G.ligue.teams.length > 1 ? G.ligue.teams : null),
-    });
+    if (document.body.dataset.zone === 'ref') {
+      if (cle === 'historique') showLeaderboard();
+      else if (cle === 'regles') remplirReglesDuPlateau();
+      else if (cle === 'equipes') ouvrirEquipes({
+        ctx: {
+          esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
+          teamFull: t => TEAMFULL[t] || t,
+          // La fiche d'un joueur de la ligue en cours ouvre ses statistiques
+          // SIMULÉES, la vraie saison dessous. On y arrive aussi de derrière
+          // le banc, en pleine saison, d'où `porteeRevele` : la fiche s'arrête
+          // alors à la dernière journée révélée. Hors ligue, la vraie seule.
+          fiche: (p, enLigue) => (enLigue ? ouvrirFiche(p, null, porteeRevele('saison')) : showPlayerModal(p, {})),
+          statsSim,
+        },
+        saisons: (state.index.seasons || []).slice().reverse(),
+        saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
+        charger: getShard,
+        // LA LIGUE EN COURS, si elle existe : ses clubs, avec leurs
+        // alignements. Les objets joueurs y portent DÉJÀ leurs compteurs
+        // simulés et leur vraie saison.
+        ligue: () => (G.ligue && G.ligue.teams && G.ligue.teams.length > 1 ? G.ligue.teams : null),
+      });
+    }
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
+
+/*
+ * L'ÉCRAN DE SAISON PRÉVIENT LA COQUILLE (js/coquille.js). Quand il change
+ * de volet de lui-même, la barre suit ; quand il s'ouvre, il prend l'onglet
+ * qu'on avait demandé de derrière le banc ; quand il se ferme, la page
+ * courante se recalcule (le bilan, ou l'état vide).
+ */
+surCoquille(ev => {
+  if (ev.type === 'vue') {
+    if (G.pageVoulue) {
+      const cible = G.pageVoulue;
+      G.pageVoulue = null;
+      if (voletPour(cible)) { marquerPage(cible); return; }
+    }
+    // Un volet que l'écran ouvre de lui-même ne déplace la barre que si on
+    // regardait l'écran ; sinon on reste sur la page qu'on lisait.
+    if (!ev.page) return;
+    const ici = document.body.dataset.zone === 'hub' || !G.page || voletPour(G.page) === null
+      ? ev.page : G.page;
+    marquerPage(document.body.dataset.zone === 'hub' ? ev.page : ici);
+    return;
+  }
+  if (ev.type === 'ferme') {
+    document.body.classList.remove('hub-docke', 'hub-cache');
+    marquerPage(G.page || 'match');
+  }
+});
 
 function setView(view) {
   G.view = view;
@@ -2183,7 +2325,11 @@ function ajusterCartes(root) {
 let ajusteTimer = null;
 window.addEventListener('resize', () => {
   clearTimeout(ajusteTimer);
-  ajusteTimer = setTimeout(() => ajusterCartes(document), 120);
+  ajusteTimer = setTimeout(() => {
+    ajusterCartes(document);
+    // L'onglet ouvert reste en vue quand la barre change de forme (S67).
+    if (G.page) majNavbar(G.page);
+  }, 120);
 });
 // La police d'affichage arrive après le premier rendu : on remesure avec elle.
 if (document.fonts?.ready) document.fonts.ready.then(() => ajusterCartes(document));
@@ -3284,8 +3430,14 @@ async function buildOpponents(count, { epoque = G.epoque, tous = !!epoque } = {}
  * rejouer la même liste dans le même ordre redonne exactement les mêmes
  * alignements. Les shards manquants se rechargent.
  */
-async function rebatirAdversaires(cles) {
+async function rebatirAdversaires(cles, decisions = []) {
   const exclude = new Set(picked().map(getPersonKey));
+  // Un joueur libéré au ballottage était repêché quand la ligue s'est bâtie :
+  // il reste exclu, sinon un adversaire rebâti pourrait l'habiller.
+  for (const d of decisions) if (d.ballottage) for (const cle of [d.ballottage.entre, d.ballottage.sort]) {
+    const p = cle && ballottageVu.get(cle);
+    if (p) exclude.add(getPersonKey(p));
+  }
   const out = [];
   for (const cle of cles) {
     const [season, team] = String(cle).split('|');
@@ -3377,7 +3529,9 @@ async function reprendreSaison() {
   const b = G.banc;
   if (!b || !G.ligue) return;
   const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, plan: b.plan, roulement: b.roulement };
-  const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0);
+  // On ne remplace que la décision de BANC du même jour : une carte, un plan
+  // du soir ou un dilemme pris ce jour-là restent.
+  const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0 || !x.cases);
   decisions.push(d);
   G.banc = null;
   $('game').classList.remove('banc');
@@ -3424,6 +3578,99 @@ async function subirCarte(at, jour, cle) {
   G.done = false;
   renderMain();
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
+}
+
+/*
+ * UN MOMENT (S66) : plan du soir, dilemme, séquence, objectif, verdict du
+ * proprio. Une seule porte d'entrée : la décision entre dans la liste (en
+ * remplaçant celle du même palier, ou le plan du même soir), et la saison se
+ * rejoue de la graine depuis la journée où on est.
+ */
+async function deciderSaison(d, depuis) {
+  if (!G.ligue) return;
+  // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
+  if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
+  const decisions = (G.ligue.decisions || []).filter(x =>
+    !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour));
+  decisions.push(d);
+  G.done = false;
+  renderMain();
+  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis, decisions, reprise: true });
+}
+
+/*
+ * LE BALLOTTAGE (S66). JP : *ballottage sur blessure*. Quand un joueur se
+ * blesse pour de bon, trois vrais joueurs pas chers sont au ballottage : de la
+ * même position, des MÊMES saisons que la ligue, mais de clubs qui n'y sont
+ * pas, et personne qui y joue déjà. En réclamer un le met dans la case de
+ * réserve de sa position ; celui qui l'occupait est libéré, et le plafond
+ * compte toujours. Le tirage est PUR (la graine et le match), donc la même
+ * blessure offre les mêmes trois noms à la reprise.
+ */
+const RESERVE_DE = { F: 'Réserve F', D: 'Réserve D', G: 'Réserve' };
+const PLAFOND_BALLOTTAGE = 0.03;          // la part du plafond qu'un joueur réclamé peut coûter
+const groupeDe = p => (p.p === 'G' ? 'G' : isD(p) ? 'D' : 'F');
+const ballottageVu = new Map();
+function candidatsBallottage(blesse, at) {
+  const L = G.ligue;
+  if (!L || !blesse || !L.cles) return null;
+  const g = groupeDe(blesse);
+  const slot = SLOTS.find(s => s.scratch && s.role === RESERVE_DE[g]);
+  if (!slot) return null;
+  const sort = G.roster[slot.i] || null;
+  const budget = Math.min(capLeft() + (sort ? sort.$ : 0), MODE().cap * PLAFOND_BALLOTTAGE);
+  const dansLaLigue = new Set();
+  for (const t of L.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
+  const clubs = new Set(L.cles);
+  const pool = [];
+  for (const s of new Set(L.cles.map(c => String(c).split('|')[0]))) {
+    const e = G.shards.get(s);
+    if (!e) continue;
+    for (const [tag, joueurs] of Object.entries(e.byTeam)) {
+      if (clubs.has(`${s}|${tag}`)) continue;
+      for (const p of joueurs) {
+        if ((p.gp || 0) < 20 || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p))) continue;
+        pool.push(p);
+      }
+    }
+  }
+  const h = str => { let x = ((Number(L.graine) >>> 0) ^ Math.imul(at + 1, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
+  // Des offres qui valent la peine : les quinze meilleurs producteurs pas
+  // chers (points par match, ou % d'arrêts), puis trois d'entre eux tirés
+  // de la graine. Un tirage parmi TOUS les pas chers offrait des joueurs à
+  // deux points en trente-sept matchs.
+  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? (p.g + p.a)) || 0) / Math.max(1, p.gp));
+  pool.sort((a, b) => prod(b) - prod(a));
+  pool.length = Math.min(pool.length, 15);
+  pool.sort((a, b) => h(getPlayerKey(a)) - h(getPlayerKey(b)));
+  const out = [], vus = new Set();
+  for (const p of pool) {
+    if (vus.has(getPersonKey(p))) continue;
+    vus.add(getPersonKey(p)); out.push(p);
+    if (out.length === 3) break;
+  }
+  for (const p of out) ballottageVu.set(getPlayerKey(p), p);
+  const ligne = p => (p.p === 'G'
+    ? `${p.gp} PJ · ${p.w ?? 0}-${p.l ?? 0} · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
+    : `${p.gp} PJ · ${p.g} B · ${p.a} A · ${p.pt ?? (p.g + p.a)} PTS`);
+  return {
+    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null,
+    candidats: out.map(p => ({ cle: getPlayerKey(p), nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, salaire: money(p.$), ligne: ligne(p) })),
+  };
+}
+/* À la reprise : les joueurs d'un ballottage (réclamés et libérés) se retrouvent dans leurs shards. */
+async function connaitreBallottages(decisions) {
+  for (const d of decisions || []) {
+    if (!d.ballottage) continue;
+    for (const cle of [d.ballottage.entre, d.ballottage.sort]) {
+      if (!cle) continue;
+      const [s, t] = String(cle).split('_');
+      let e = G.shards.get(s);
+      if (!e) { try { e = await getShard(s); } catch { continue; } }
+      const p = (e.byTeam[t] || []).find(x => getPlayerKey(x) === cle);
+      if (p) { connaitre(p); ballottageVu.set(cle, p); }
+    }
+  }
 }
 
 async function choisirCarte(palier, jour, cle) {
@@ -3615,6 +3862,8 @@ async function runSeason(opts = {}) {
         // propriétaire : l'alerte de blessure le lit plutôt que d'écrire sa
         // propre version (« 2e trio · AD », jamais « Top 6 »).
         slotShort,
+        // LE BALLOTTAGE (S66) : trois joueurs offerts sur une vraie blessure.
+        ballottage: candidatsBallottage,
       },
       onTermine: montrer,
       depuis: opts.depuis || 0,
@@ -3636,6 +3885,8 @@ async function runSeason(opts = {}) {
       // fiches à ce jour, et « Retour au match » rejoue la saison depuis la
       // graine avec la décision (voir `ouvrirBanc`).
       onBanc: j => ouvrirBanc(j),
+      decisions,
+      onDecision: deciderSaison,
     });
   } else { G.journee = calendrier.length; saveGame(); montrer(); }
 }
