@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries,
-         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS, PLANS, ROULEMENTS } from '../js/sim.js';
+         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS, ROULEMENTS, TACTIQUES, AGRESSIVITES } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -144,16 +144,27 @@ dire(!mortes.length, mortes.length ? `cartes sans effet : ${mortes.join(', ')}` 
  */
 const JOUR_PLAN = 20;
 const reglage = (champ, cle) => () => [{ jour: JOUR_PLAN, [champ]: cle }];
-const p1 = jouer('la-meme-graine', reglage('plan', 'echec'));
-const p2 = jouer('la-meme-graine', reglage('plan', 'echec'));
+/*
+ * LE PLAN SE JOUE LIGNE PAR LIGNE depuis S68 : une décision porte les quatre
+ * lignes (tactique, agressivité, secondes de présence). Chaque tactique, chaque
+ * agressivité et la glace doivent déplacer la saison — rien n'est décoratif.
+ */
+const lignes = (tac, agr = 1, sec = 60) => [0, 1, 2, 3].map(() => ({ tac, agr, sec }));
+const p1 = jouer('la-meme-graine', reglage('lignes', lignes('echec', 2)));
+const p2 = jouer('la-meme-graine', reglage('lignes', lignes('echec', 2)));
 dire(a.jours.slice(0, JOUR_PLAN).join('\n') === p1.jours.slice(0, JOUR_PLAN).join('\n'),
-  `un plan au jour ${JOUR_PLAN} laisse les ${JOUR_PLAN} journées d'avant identiques`);
-dire(a.jours.slice(JOUR_PLAN).join('\n') !== p1.jours.slice(JOUR_PLAN).join('\n'), 'et change ce qui suit');
-dire(p1.feuilles === p2.feuilles && p1.joueurs === p2.joueurs, 'le même plan se rejoue à l\'identique');
-const plansMorts = Object.keys(PLANS).filter(cle => cle !== 'equilibre'
-  && jouer('la-meme-graine', reglage('plan', cle)).feuilles === a.feuilles);
-dire(!plansMorts.length, plansMorts.length ? `plans sans effet : ${plansMorts.join(', ')}`
-  : `les ${Object.keys(PLANS).length - 1} plans déplacent la saison`);
+  `des lignes au jour ${JOUR_PLAN} laissent les ${JOUR_PLAN} journées d'avant identiques`);
+dire(a.jours.slice(JOUR_PLAN).join('\n') !== p1.jours.slice(JOUR_PLAN).join('\n'), 'et changent ce qui suit');
+dire(p1.feuilles === p2.feuilles && p1.joueurs === p2.joueurs, 'les mêmes lignes se rejouent à l\'identique');
+const tacMortes = Object.keys(TACTIQUES)
+  .filter(cle => jouer('la-meme-graine', reglage('lignes', lignes(cle))).feuilles === a.feuilles);
+dire(!tacMortes.length, tacMortes.length ? `tactiques sans effet : ${tacMortes.join(', ')}`
+  : `les ${Object.keys(TACTIQUES).length} tactiques déplacent la saison`);
+const hourraMoyen = jouer('la-meme-graine', reglage('lignes', lignes('hourra', 1))).feuilles;
+const agrMortes = [0, 2, 3].filter(i => jouer('la-meme-graine', reglage('lignes', lignes('hourra', i))).feuilles === hourraMoyen);
+dire(!agrMortes.length, agrMortes.length ? `agressivités sans effet : ${agrMortes.map(i => AGRESSIVITES[i].nom).join(', ')}` : 'les agressivités déplacent la saison');
+const secMorte = jouer('la-meme-graine', reglage('lignes', [70, 60, 50, 40].map(sec => ({ tac: 'hourra', agr: 1, sec })))).feuilles === hourraMoyen;
+dire(!secMorte, secMorte ? 'les secondes de présence sont sans effet' : 'les secondes de présence déplacent la saison');
 const roulMorts = Object.keys(ROULEMENTS).filter(cle => cle !== 'quatre'
   && jouer('la-meme-graine', reglage('roulement', cle)).feuilles === a.feuilles);
 dire(!roulMorts.length, roulMorts.length ? `roulements sans effet : ${roulMorts.join(', ')}`

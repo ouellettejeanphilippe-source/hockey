@@ -11,7 +11,9 @@
  *   une jauge à l'extrême         TOUTE la saison : moins de deux victoires et
  *                                 demie — c'est le pire cas, une faction qu'on
  *                                 aurait poussée au bout dès le premier soir
- *   le contre-plan, tous les soirs moins de trois victoires, et plus que rien
+ *   la consigne du match       tous les soirs : moins de trois victoires
+ *   un changement de carte     un joueur, le reste de la saison : moins
+ *                              d'une victoire et demie
  *                                 (sinon lire l'adversaire ne sert à rien)
  *   un objectif                   ni gratuit ni impossible : réussi entre 15 %
  *                                 et 75 % des fois par une vraie équipe
@@ -26,6 +28,7 @@ import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague,
   MOMENTS, SEQUENCES, JAUGES, STYLES, OBJECTIFS, JOURS_OBJECTIFS, MATCHS_OBJECTIF,
   objectifsOfferts, etatObjectif, momentDuJour, JOURS_MOMENTS, jaugesApres,
+  MUTATIONS, cibleMutation, getPlayerKey,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -69,7 +72,7 @@ function paires(fabrique, etiquette) {
     for (const parite of [0, 1]) {
       const teams = ligue(2000 + L);
       const decisions = fabrique === null ? []
-        : teams.map((_, i) => i).filter(i => i % 2 === parite).flatMap(equipe => fabrique(equipe));
+        : teams.map((_, i) => i).filter(i => i % 2 === parite).flatMap(equipe => fabrique(equipe, teams));
       simulateLeague(teams, 82, { graine: `moment-${L}`, decisions });
       bras.push(teams.map(t => ({ W: t.W, GF: t.GF, GA: t.GA })));
     }
@@ -150,17 +153,32 @@ for (const k of Object.keys(JAUGES)) for (const [sens, d] of [['haut', 5], ['bas
 exiger('les jauges se rejouent d\'une liste de décisions',
   jaugesApres([{ jour: 0, jauges: { vestiaire: 9 } }]).vestiaire === 10, 'bornées à 10');
 
-/* ---------- le contre-plan, tous les soirs ---------- */
-console.log('\n  LE CONTRE-PLAN (tous les soirs)');
-{
-  const r = paires(equipe => [{ jour: 0, equipe, soir: 'contre', duree: 200 }]);
-  lire('lire chaque adversaire', r, 0.2, 3);
-  const t = ligue(2000);
-  simulateLeague(t, 82, { graine: 'styles' });
-  const n = {};
-  for (const x of t) n[x.style] = (n[x.style] || 0) + 1;
-  informer('styles d\'une ligue de 32', Object.entries(n).map(([k, v]) => `${STYLES[k].ico} ${k} ${v}`).join(' · '));
-  exiger('au moins deux styles à lire dans une ligue', Object.keys(n).filter(k => k !== 'equilibre').length >= 2, JSON.stringify(n));
+/* ---------- la consigne du match, tous les soirs (S68) ---------- */
+/*
+ * L'importance du match remplace le plan du soir : haute joue plus fort et
+ * se paie à l'infirmerie et à la fatigue, basse repose. Tous les soirs, c'est
+ * le pire cas — aucune ne doit décider la saison.
+ */
+console.log('\n  LA CONSIGNE DU MATCH (tous les soirs)');
+for (const importance of ['haute', 'basse']) {
+  const r = paires(equipe => Array.from({ length: 90 }, (_, j) => ({ jour: j, equipe, match: { importance, ad: 0 } })));
+  lire(`importance ${importance} tous les soirs`, r, -3, 3);
+}
+
+/* ---------- les changements de carte par choix (S68) ---------- */
+/*
+ * Chaque mutation posée à la journée 25 sur le joueur qu'elle vise : elle
+ * change UN joueur pour le reste de la saison, et ne doit pas valoir plus
+ * d'une victoire et demie.
+ */
+console.log('\n  CHANGEMENTS DE CARTE (un joueur, le reste de la saison)');
+for (const cle of Object.keys(MUTATIONS).filter(k => MUTATIONS[k].source === 'choix')) {
+  if (SEULEMENT && !SEULEMENT.has(cle)) continue;
+  const r = paires((equipe, teams) => {
+    const p = cibleMutation(teams[equipe], cle);
+    return p ? [{ jour: 25, equipe, mutation: { cle, joueur: getPlayerKey(p) } }] : [];
+  });
+  lire(`${MUTATIONS[cle].ico} ${cle}`, r, -1.5, 1.5);
 }
 
 /* ---------- les objectifs : ni gratuits ni impossibles ---------- */

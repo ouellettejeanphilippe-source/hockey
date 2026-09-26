@@ -27,7 +27,9 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   PLANS, ROULEMENTS, planDe, roulementDe, JOURS_SITUATIONS,
   STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
-  JAUGES, JAUGE_MAX, JAUGE_HAUT, JAUGE_BAS, jaugesApres, effetsDeJauges, getPlayerKey } from './sim.js';
+  JAUGES, JAUGE_MAX, JAUGE_HAUT, JAUGE_BAS, jaugesApres, effetsDeJauges, getPlayerKey,
+  lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation } from './sim.js';
+import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces } from './gerant.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant } from './recit.js';
@@ -579,6 +581,15 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
    * elle est simplement moins bonne que de monter le joueur en feu.
    */
   const situVues = new Set();
+  /*
+   * LES ACCIDENTS DE CARTE (S68) : ils arrivent tout seuls, tirés de la
+   * graine — l'écran s'arrête dessus et dit, en chiffres, ce qui change sur
+   * la carte du joueur. Comme une situation : rien à cliquer, la réponse est
+   * l'alignement (et « Mes lignes », puisque son fit a bougé).
+   */
+  const accVus = new Set();
+  const accidentsNeufs = () => (you.mutations || []).filter(m => m.source === 'accident' && m.jour <= jour && !accVus.has(m));
+  let accident = null;
   const situationsNeuves = () => (you.situations || []).filter(f => !situVues.has(f) && f.jour <= jour);
   let situation = null;
 
@@ -739,7 +750,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       // la règle du palier, étendue aux situations et aux cases vides : un
       // moment qu'on dépasse ne doit pas bloquer « +10 journées » à chaque
       // clic pour qui a décidé de ne rien faire.
-      if (stop && (blessuresNeuves().length || trousNeufs().length || situationsNeuves().length
+      if (stop && (blessuresNeuves().length || trousNeufs().length || situationsNeuves().length || accidentsNeufs().length
         || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert())) break;
     }
     const pal = palierOuvert();
@@ -753,6 +764,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const sn = situationsNeuves();
     situation = sn.length ? sn[sn.length - 1] : null;
     for (const f of sn) situVues.add(f);
+    const an = accidentsNeufs();
+    accident = an.length ? an[an.length - 1] : null;
+    for (const a of an) accVus.add(a);
     // La journée révélée est la seule chose que la reprise a besoin de savoir :
     // tout le reste se rejoue de la graine.
     if (onJour) onJour(jour);
@@ -813,10 +827,34 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     return `<div class="hub-titre">L'affiche de la journée 1</div><div class="cal-grille">${cartes}</div>`;
   };
 
+  /*
+   * LE RAPPORT DU MATCH PAR LIGNE (S68), comme HockeyArena : ce que chaque
+   * ligne a fait à forces égales — ses lancers, ses buts, ceux qu'on a
+   * marqués contre elle, ses actions spéciales réussies et étouffées. C'est
+   * là qu'on apprend ce qui marche.
+   */
+  const rapportLignes = m => {
+    if (!m.feuille || !m.feuille.lancers) return '';
+    const cote = m.A === you ? 'A' : 'B', autre = cote === 'A' ? 'B' : 'A';
+    const L = [0, 1, 2, 3].map(() => ({ t: 0, b: 0, s: 0, e: 0, bc: 0 }));
+    for (const l of m.feuille.lancers) {
+      if (l.ligne == null || l.mode !== 'FE') continue;
+      if (l.cote === cote) { const x = L[l.ligne]; x.t++; if (l.but) x.b++; if (l.special === 'reussie') x.s++; if (l.special === 'etouffee') x.e++; }
+    }
+    // Les buts contre, par la ligne d'en face qui a marqué : on n'a pas celle
+    // qui défendait, alors on dit ce que la ligne adverse du même rang a fait.
+    for (const b of m.feuille.buts) if (b.cote === autre && b.ligne != null && !b.an && !b.dn) L[b.ligne].bc++;
+    const lignes = lignesDe(you, you.roster);
+    const noms = ['1re', '2e', '3e', '4e'];
+    return `<div class="live-tableau"><div class="live-tableau-titre">Tes lignes, à forces égales</div>
+      <table class="rl-table"><thead><tr><th>Ligne</th><th>Tactique</th><th>Tirs</th><th>Buts</th><th title="Buts de la ligne adverse du même rang">Contre</th><th title="Actions spéciales réussies">Spéc.</th><th title="Actions spéciales étouffées par la tactique adverse">Étouf.</th></tr></thead>
+      <tbody>${L.map((x, u) => `<tr><td>${noms[u]}</td><td>${TACTIQUES[lignes[u].tac].ico} ${ctx.esc(TACTIQUES[lignes[u].tac].nom)}</td><td>${x.t}</td><td>${x.b}</td><td>${x.bc}</td><td>${x.s}</td><td>${x.e}</td></tr>`).join('')}</tbody></table></div>`;
+  };
+
   const voletJournee = () => {
     if (!jour) return afficheJour1();
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
-    const mien = k >= 0 ? scoreboard({ j, k, m: matchs[k] }) : `<div class="live-board hub-board"><div class="live-horloge"><span class="live-per">CONGÉ</span><span class="live-tirs">Les NHL Stars ne jouent pas aujourd'hui</span></div></div>`;
+    const mien = k >= 0 ? scoreboard({ j, k, m: matchs[k] }) + rapportLignes(matchs[k]) : `<div class="live-board hub-board"><div class="live-horloge"><span class="live-per">CONGÉ</span><span class="live-tirs">Les NHL Stars ne jouent pas aujourd'hui</span></div></div>`;
     const autres = matchs.map((m, i) => (i === k ? '' : carteMatch(m, j, i))).join('');
     return `<div class="hub-titre">Journée ${jour}</div>${mien}
       <div class="hub-titre">Les autres matchs</div><div class="cal-grille">${autres}</div>`;
@@ -907,32 +945,37 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       // moteur — c'est lui qui a le dernier changement — et une affiche le dit.
       const domicile = p.m.A === you;
       /*
-       * LE PLAN DU SOIR (S66) : le style de l'adversaire se lit, et un plan
-       * pour ce match-là seulement se choisit. Le bon contre-plan vaut une
-       * lecture parfaite ; le plan garde son prix quand même, donc ce n'est
-       * pas un réflexe gratuit. Choisir rejoue la saison depuis aujourd'hui.
+       * TES LIGNES ET LA CONSIGNE DU MATCH (S68), à la HockeyArena : la
+       * tactique et la chimie de chaque ligne se lisent sur l'affiche, et
+       * « Préparer le match » ouvre le poste de gérant en plein écran — les
+       * lignes, leurs profils, la tactique d'en face, l'importance du match.
+       * Appliquer rejoue la saison depuis aujourd'hui, avec des dés neufs.
        */
-      const st = STYLES[adv.style];
-      const soirPris = decs.find(d => d.soir && d.jour === p.j);
-      const soir = soirPris ? soirPris.soir : null;
-      const planSoir = onDecision && st ? `<div class="hub-soir">
-        <div class="hub-soir-tete"><span title="${ctx.esc(st.mot)}">${st.ico} ${ctx.esc(ctx.teamShort(adv))} : ${ctx.esc(st.nom.toLowerCase())}</span>${st.contre ? ` <span class="hub-soir-indice">· le bon contre : ${PLANS[st.contre].ico} ${ctx.esc(PLANS[st.contre].nom)}</span>` : ' <span class="hub-soir-indice">· aucun contre évident</span>'}</div>
-        <div class="hub-soir-btns" role="group" aria-label="Plan du soir">${Object.entries(PLANS).map(([cle, x]) =>
-          `<button type="button" class="hub-soir-btn${soir === cle ? ' on' : ''}${st.contre === cle ? ' contre' : ''}" data-soir="${cle}" aria-pressed="${soir === cle}" title="${ctx.esc(x.nom)} ce soir — ${ctx.esc(x.bon)} · ${ctx.esc(x.prix)}${st.contre === cle ? ' · LECTURE PARFAITE : ça rentre plus, et tu alloues moins' : ''}">${x.ico}<span>${ctx.esc(x.nom)}</span></button>`).join('')}</div>
-      </div>` : '';
+      const etat = (you.jourLignes && you.jourLignes[jour]) || { chimie: you.chimie || [0, 0, 0, 0], energie: {} };
+      const lignesToi = lignesDe(you, you.roster);
+      const matchPris = decs.find(d => d.match && d.jour === p.j);
+      const imp = IMPORTANCES[(matchPris && matchPris.match.importance) || 'normale'] || IMPORTANCES.normale;
+      const planSoir = `<div class="hub-lignes">
+        <span class="gl-k">Tes lignes</span> ${resumeLignes(lignesToi, etat.chimie)}
+        <span class="hub-lignes-imp" title="L'importance de ce match">${imp.ico} ${ctx.esc(imp.nom)}</span>
+        ${onDecision ? '<button type="button" class="btn gold hub-preparer">Préparer le match</button>' : ''}
+      </div>`;
       carte.innerHTML = `${routeHtml(jour, N)}${onDecision ? jaugesHtml(ctx, jaugesApres(decs, jour)) : ''}<div class="hub-match">
         <div class="hub-match-titre">Prochain match · Journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}</div>
         <div class="hub-match-note">${dernierMot}</div>
         ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
-        ${motDuPlan(ctx, you, !!onBanc)}
         ${planSoir}
       </div>`;
-      carte.querySelectorAll('[data-soir]').forEach(b => {
-        b.onclick = () => {
-          if (b.dataset.soir === soir) return;
-          const j = jour; quitter(); onDecision({ jour: p.j, soir: b.dataset.soir }, j);
-        };
+      const prep = carte.querySelector('.hub-preparer');
+      if (prep) prep.onclick = () => ouvrirLignes({
+        titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
+        lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie,
+        adv: { nom: ctx.teamShort(adv), lignes: lignesDe(adv, adv.roster) },
+        match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
+        motAppliquer: 'Appliquer — la saison reprend ici',
+        onBanc: onBanc ? () => { quitter(); onBanc(jour); } : null,
+        onAppliquer: (lignes, match) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match }, j); },
       });
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les NHL Stars ne jouent plus d'ici la fin de la saison.</div></div>`;
@@ -1013,12 +1056,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const palierB = alerte ? `b:${alerte.at}:${getPlayerKey(alerte.player)}` : null;
     const bal = alerte && onDecision && ctx.ballottage && !pris.has(palierB) ? ctx.ballottage(alerte.player, alerte.at) : null;
     const ballottage = bal && bal.candidats.length ? `<div class="hub-ballottage">
-      <div class="hub-ballottage-tete">Au ballottage${bal.sortNom ? ` · ${ctx.esc(bal.sortNom)} serait libéré` : ''}</div>
-      <div class="hub-choix-rang">${bal.candidats.map(c => `<button type="button" class="hub-option" data-ballottage="${ctx.esc(c.cle)}">
-        <span class="hub-option-nom">${ctx.esc(c.pos)} · ${ctx.esc(c.nom)}</span>
-        <span class="hub-option-bon">${ctx.esc(c.ligne)}</span>
-        <span class="hub-option-prix">${ctx.esc(c.club)} · ${ctx.esc(c.salaire)}</span>
-      </button>`).join('')}</div>
+      <button type="button" class="btn hub-ballottage-ouvrir">📋 Au ballottage : ${bal.candidats.length} joueurs${bal.sortNom ? ` · ${ctx.esc(bal.sortNom)} serait libéré` : ''}</button>
     </div>` : '';
     const bless = alerte ? `<div class="hub-alerte" role="status">
       <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
@@ -1029,52 +1067,79 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     /*
      * LES CHOIX FORCÉS (S66), un à la fois et dans cet ordre : le verdict du
      * proprio (il clôt ce qui était promis), le nouvel objectif, la séquence
-     * (elle parle des derniers matchs) puis le dilemme.
+     * (elle parle des derniers matchs) puis le dilemme. EN PLEIN ÉCRAN depuis
+     * S68 (JP : *décisions dans modals plein écran, tout devrait être clair*) :
+     * chaque option dit en chiffres ce qu'elle achète, ce qu'elle coûte,
+     * pendant combien de matchs, et quelles factions elle bouge.
      */
     const vo = verdictObjectif(), oo = vo ? null : offreObjectif();
     const sq = vo || oo ? null : sequenceOuverte();
     const dl = vo || oo || sq ? null : dilemmeOuvert();
-    let force = '';
+    // Chaque choix est une décision : elle entre dans la liste, et la saison
+    // se rejoue depuis aujourd'hui, avec des dés neufs.
+    const decider = d => { quitter(); onDecision({ jour, ...d }, jour); };
+    let spec = null;
     if (vo) {
       const o = OBJECTIFS[vo.d.objectif.cle];
-      force = vo.e.reussi
-        ? panneauChoix(ctx, { classe: 'hub-proprio reussi', ico: '🏢', titre: `Objectif atteint : ${o.court}`, irl: null,
-          recit: `Le proprio est ravi (${o.ico} ${vo.e.val} ${o.unite}). Il t'offre de quoi renforcer le club : pige une carte.`,
-          options: mainDeCartes(graine, 2000 + vo.j0, dejaPrises).map(cle => ({ cle, ico: CARTES[cle].ico, nom: CARTES[cle].nom, bon: CARTES[cle].bon, prix: CARTES[cle].prix, jauges: { proprio: 2 } })),
-          attr: 'data-recompense' })
-        : panneauChoix(ctx, { classe: 'hub-proprio rate', ico: '🏢', titre: `Objectif raté : ${o.court}`, irl: null,
+      spec = vo.e.reussi
+        ? { ico: '🏢', titre: `Objectif atteint : ${o.court}`,
+          recit: `Le proprio est ravi (${o.ico} ${vo.e.val} ${o.unite}). Il t'offre de quoi renforcer le club : pige une carte. Elle vaut pour le reste de la saison.`,
+          options: mainDeCartes(graine, 2000 + vo.j0, dejaPrises).map(cle => ({ cle, ico: CARTES[cle].ico, nom: CARTES[cle].nom, bon: CARTES[cle].bon, prix: CARTES[cle].prix, effet: CARTES[cle], jauges: { proprio: 2 } })),
+          onChoix: cle => decider({ palier: `v:${vo.j0}`, carte: cle, jauges: { proprio: 2 } }) }
+        : { ico: '🏢', titre: `Objectif raté : ${o.court}`,
           recit: `${o.ico} ${vo.e.val} ${o.unite}, pour ${o.cible} promis. Le proprio te fait venir dans son bureau.`,
-          options: [{ cle: 'encaisser', nom: 'Encaisser le savon', jauges: { proprio: -2 } }], attr: 'data-savon' });
+          options: [{ cle: 'encaisser', nom: 'Encaisser le savon', jauges: { proprio: -2 } }],
+          onChoix: () => decider({ palier: `v:${vo.j0}`, jauges: { proprio: -2 } }) };
     } else if (oo) {
-      force = panneauChoix(ctx, { classe: 'hub-proprio', ico: '🏢', titre: oo.j0 ? 'Le proprio veut une deuxième moitié' : 'Le proprio fixe ses attentes', irl: null,
-        recit: `Choisis un défi pour tes ${MATCHS_OBJECTIF} prochains matchs. Réussi, tu piges une carte de plus et le proprio t'aime davantage ; raté, il s'en souviendra.`,
-        options: oo.offerts.map(cle => ({ cle, ico: OBJECTIFS[cle].ico, nom: OBJECTIFS[cle].nom })), attr: 'data-objectif' });
+      spec = { ico: '🏢', titre: oo.j0 ? 'Le proprio veut une deuxième moitié' : 'Le proprio fixe ses attentes',
+        recit: `Choisis un défi pour tes ${MATCHS_OBJECTIF} prochains matchs.`,
+        options: oo.offerts.map(cle => ({ cle, ico: OBJECTIFS[cle].ico, nom: OBJECTIFS[cle].nom,
+          bon: 'Réussi : tu piges une carte de plus', prix: 'Raté : le proprio s\'en souviendra', jauges: null })),
+        contexte: `<div class="choix-puces"><span class="puce bon">Réussi : 🃏 une carte · 🏢 Proprio +2</span><span class="puce prix">Raté : 🏢 Proprio −2</span></div>`,
+        onChoix: cle => decider({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour } }) };
     } else if (sq) {
       const s = SEQUENCES[sq.cle];
-      force = panneauChoix(ctx, { classe: `hub-sequence ${sq.cle}`, ico: s.ico, titre: s.titre, irl: null, recit: s.recit, options: s.options, attr: 'data-sequence' });
+      spec = { ico: s.ico, titre: s.titre, recit: s.recit,
+        options: s.options.map(o => ({ ...o, duree: dureeOption(o, 'sequence') })),
+        onChoix: cle => decider({ palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: cle } }) };
     } else if (dl) {
       const m = MOMENTS[dl.cle];
-      force = panneauChoix(ctx, { classe: 'hub-dilemme', ico: m.ico, titre: m.titre, irl: m.irl, recit: m.recit, options: m.options, attr: 'data-dilemme' });
+      // LE JOUEUR VISÉ est nommé avant le choix : c'est lui dont la carte change.
+      const optMut = m.options.find(o => o.mutation);
+      const cible = optMut ? cibleMutation(you, optMut.mutation) : null;
+      spec = { ico: m.ico, titre: m.titre, irl: m.irl, recit: m.recit, joueur: cible,
+        options: m.options.map(o => ({ ...o, duree: o.mutation ? null : dureeOption(o, 'moment'),
+          desactive: o.mutation && !cible ? 'Personne dans ton alignement pour ça' : null })),
+        onChoix: cle => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null } }) };
     }
+    if (spec && !choixOuvert()) ouvrirChoix(spec);
+    const force = spec ? `<button type="button" class="btn gold hub-choix-rouvrir">⏳ Un choix t'attend : ${ctx.esc(String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : ''))}</button>` : '';
     // L'objectif en cours se lit sous le match : où on en est, ce qui manque.
     const enCours = objectifEnCours();
     const suivi = enCours && !enCours.e.fini ? `<div class="hub-objectif" title="${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].nom)}">🏢 ${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].court)} · <b>${enCours.e.val}</b> ${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].unite)} après ${enCours.e.joues}/${MATCHS_OBJECTIF}</div>` : '';
-    actions.innerHTML = `${force}${vide}${cartes}${situ}${bless}${suivi}${force ? '' : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>'}
+    const acc = accident && MUTATIONS[accident.cle] ? `<div class="hub-situ hub-accident" role="status">
+      <div class="hub-situ-tete">${MUTATIONS[accident.cle].ico} Sa carte change : ${ctx.esc(accident.p.n)}</div>
+      <div class="hub-situ-quoi">${ctx.esc(MUTATIONS[accident.cle].nom)} — ${ctx.esc(MUTATIONS[accident.cle].quoi)}</div>
+      <div class="choix-puces">${puces(motsDeMutation(accident.cle))}</div>
+    </div>` : '';
+    actions.innerHTML = `${force}${vide}${cartes}${acc}${situ}${bless}${suivi}${force ? '' : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>'}
       <div class="hub-actions-rang">
       ${p && !force ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>` : ''}
       ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Le banc</button>` : ''}
       ${force ? '' : '<button class="btn hub-dix" title="Dix journées d\'un coup">+10</button>'}
       <button class="btn hub-fin" title="Jouer le reste de la saison et lire le résultat">La fin</button>
       </div>`;
-    // Chaque choix forcé est une décision : elle entre dans la liste, et la
-    // saison se rejoue de la graine depuis aujourd'hui.
-    const decider = d => { quitter(); onDecision({ jour, ...d }, jour); };
-    actions.querySelectorAll('[data-dilemme]').forEach(b => { b.onclick = () => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: b.dataset.dilemme } }); });
-    actions.querySelectorAll('[data-sequence]').forEach(b => { b.onclick = () => decider({ palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: b.dataset.sequence } }); });
-    actions.querySelectorAll('[data-objectif]').forEach(b => { b.onclick = () => decider({ palier: `o:${oo.j0}`, objectif: { cle: b.dataset.objectif, debut: jour } }); });
-    actions.querySelectorAll('[data-recompense]').forEach(b => { b.onclick = () => decider({ palier: `v:${vo.j0}`, carte: b.dataset.recompense, jauges: { proprio: 2 } }); });
-    actions.querySelectorAll('[data-savon]').forEach(b => { b.onclick = () => decider({ palier: `v:${vo.j0}`, jauges: { proprio: -2 } }); });
-    actions.querySelectorAll('[data-ballottage]').forEach(b => { b.onclick = () => decider({ palier: palierB, ballottage: { i: bal.i, entre: b.dataset.ballottage, sort: bal.sort } }); });
+    const rouvrir = actions.querySelector('.hub-choix-rouvrir');
+    if (rouvrir) rouvrir.onclick = () => ouvrirChoix(spec);
+    // LE BALLOTTAGE, en plein écran lui aussi : trois joueurs, ou garder son réserviste.
+    const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
+    if (voirBal) voirBal.onclick = () => ouvrirChoix({
+      ico: '📋', titre: 'Au ballottage', fermable: true, motFermer: 'Garder mon réserviste',
+      recit: `${alerte.player.n} est absent ${alerte.games} matchs. Trois joueurs pas chers de sa position sont disponibles${bal.sortNom ? ` ; en réclamer un libère ${bal.sortNom}` : ''}. Le plafond compte toujours.`,
+      options: [...bal.candidats.map(c => ({ cle: c.cle, nom: `${c.pos} · ${c.nom}`, bon: c.ligne, prix: `${c.club} · ${c.salaire}` })),
+        { cle: 'rien', nom: 'Garder mon réserviste', bon: 'Rien ne change', prix: 'Personne de neuf' }],
+      onChoix: cle => { if (cle !== 'rien') decider({ palier: palierB, ballottage: { i: bal.i, entre: cle, sort: bal.sort } }); },
+    });
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = regarderProchain;
     const banc = actions.querySelector('.hub-banc');

@@ -6019,3 +6019,168 @@ body[data-zone="vide"] #game, body[data-zone="vide"] .actionbar { display: none 
 .hub-alerte > *, .hub-choix > *, .hub-cartes > *, .hub-situ > *, .hub-trou > * { flex: none; }
 .hub-carte { container: carte / inline-size; }
 @container carte (max-width: 340px) { .hub-jauges { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* =====================================================================
+   LES DÉCISIONS EN PLEIN ÉCRAN ET « MES LIGNES » (S68)
+   Par-dessus tout, barre comprise : une décision se prend en entier. Un
+   seul langage pour toutes : l'histoire, le joueur visé, et des options
+   qui disent en PUCES ce qu'elles achètent (vert), ce qu'elles coûtent
+   (rouge) et ce qu'elles déplacent (gris).
+   ===================================================================== */
+.choix-modal {
+  position: fixed; inset: 0; z-index: 96;
+  display: flex; align-items: stretch; justify-content: center;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(4px);
+}
+.choix-modal[hidden] { display: none; }
+body.choix-ouvert { overflow: hidden; }
+.choix-sheet {
+  display: flex; flex-direction: column;
+  width: 100%; max-width: 980px; height: 100%; max-height: 100dvh;
+  background: var(--bg);
+}
+@media (min-width: 1000px) {
+  .choix-modal { align-items: center; padding: 24px; }
+  .choix-sheet { height: auto; max-height: calc(100dvh - 48px); border-radius: var(--r-l, 18px); background: var(--panel); }
+}
+.choix-tete {
+  flex: none; display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px 12px; border-bottom: 1px solid var(--line-soft, var(--line));
+}
+.choix-ico { font-size: 30px; line-height: 1; }
+.choix-titres { flex: 1; min-width: 0; }
+.choix-titre { font: 800 21px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.choix-irl { font: 700 12px/1.2 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+.choix-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+.choix-recit { font-size: 15px; line-height: 1.5; color: var(--sub); margin: 0; }
+.choix-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.choix-option {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; cursor: pointer;
+  padding: 14px; min-height: 120px;
+  background: var(--panel-2, var(--panel)); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--r-m, 14px);
+}
+.choix-option:hover:not([disabled]), .choix-option:focus-visible { border-color: var(--gold); outline: none; }
+.choix-option[disabled] { opacity: .45; cursor: not-allowed; }
+.choix-option-nom { font: 800 17px/1.15 var(--display); letter-spacing: .02em; }
+.choix-option-bon { font-size: 13px; color: var(--green); line-height: 1.3; }
+.choix-option-prix { font-size: 13px; color: var(--live); line-height: 1.3; }
+.choix-option-mut { font-size: 12.5px; color: var(--sub); line-height: 1.35; font-style: italic; }
+.choix-option-non { font-size: 12px; color: var(--muted); }
+.choix-puces { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+.puce {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 8px; border-radius: 999px;
+  font: 700 11.5px/1.2 var(--display); letter-spacing: .02em; white-space: nowrap;
+  background: var(--fond-creux, rgba(255,255,255,.06)); color: var(--sub);
+}
+.puce.bon { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+.puce.prix { background: color-mix(in srgb, var(--live) 16%, transparent); color: var(--live); }
+.puce.duree { background: none; border: 1px dashed var(--line); color: var(--muted); }
+
+/* Le joueur visé : ses profils en barres, ses marques de carte. */
+.gj-joueur { padding: 12px; border-radius: var(--r-m, 14px); background: var(--panel-2, var(--panel)); }
+.gj-joueur-nom { font: 800 17px/1.1 var(--display); }
+.gj-joueur-nom span { font: 600 12px/1 var(--display); color: var(--muted); margin-left: 6px; }
+.gj-marques { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.gj-profs { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 4px 14px; margin-top: 8px; }
+.gj-prof { display: grid; grid-template-columns: 1fr 90px 30px; align-items: center; gap: 8px; font-size: 12.5px; color: var(--sub); }
+.gj-prof.top { color: var(--text); font-weight: 700; }
+.gj-prof b { text-align: right; font-family: var(--display); }
+.gj-barre { display: inline-block; height: 6px; border-radius: 3px; background: var(--fond-creux, rgba(255,255,255,.08)); overflow: hidden; }
+.gj-barre > span { display: block; height: 100%; background: var(--gold); border-radius: 3px; }
+
+/* Mes lignes. */
+.gl-sheet { max-width: 1180px; }
+.gl-sec-titre { font: 800 13px/1.1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 4px 0 6px; }
+.gl-consigne { padding: 12px; border-radius: var(--r-m, 14px); background: var(--panel-2, var(--panel)); }
+.gl-seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+.gl-seg-btn {
+  display: flex; flex-direction: column; gap: 3px; text-align: left; cursor: pointer;
+  padding: 9px 10px; background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--r-s, 10px);
+}
+.gl-seg-btn small { color: var(--muted); font-size: 11.5px; }
+.gl-seg-btn.on { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.gl-ad { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 10px; font: 700 12.5px/1 var(--display); color: var(--sub); }
+.gl-ad-puces { margin-top: 6px; }
+.gl-onglets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.gl-onglet {
+  display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer; min-width: 0;
+  padding: 8px 9px; background: var(--panel-2, var(--panel)); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--r-s, 10px);
+}
+.gl-onglet b { font: 800 13px/1.1 var(--display); text-transform: uppercase; letter-spacing: .04em; }
+.gl-onglet span { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-onglet small { font-size: 11px; color: var(--muted); }
+.gl-onglet.on { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.gl-ligne { display: flex; flex-direction: column; gap: 8px; }
+.gl-joueurs { display: flex; flex-direction: column; gap: 4px; }
+.gl-j {
+  display: grid; grid-template-columns: 30px minmax(0, 1fr) 54px 64px 70px auto; align-items: center; gap: 8px;
+  padding: 7px 9px; border-radius: var(--r-s, 10px); background: var(--panel-2, var(--panel)); font-size: 13px;
+}
+.gl-j.fit-bon .gl-j-voulu { color: var(--green); }
+.gl-j.fit-mauvais .gl-j-voulu { color: var(--live); }
+.gl-j-role { font: 800 12px/1 var(--display); color: var(--muted); }
+.gl-j-nom { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-j-prof, .gl-j-voulu { font: 700 12px/1 var(--display); white-space: nowrap; }
+.gl-j-energie { height: 6px; border-radius: 3px; background: var(--fond-creux, rgba(255,255,255,.08)); overflow: hidden; }
+.gl-j-energie > span { display: block; height: 100%; background: var(--green); }
+.gl-j-energie > span.moyen { background: var(--gold); }
+.gl-j-energie > span.bas { background: var(--live); }
+.gl-etat { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--sub); }
+.gl-etat b { color: var(--text); font-family: var(--display); }
+.gl-k { font: 800 11px/1 var(--display); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.gl-chimie { width: 120px; vertical-align: middle; }
+.gl-adv { padding: 7px 9px; border-radius: var(--r-s, 10px); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.gl-adv .prix { color: var(--live); }
+.gl-tacs { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px; }
+.gl-tac {
+  display: flex; flex-direction: column; gap: 3px; text-align: left; cursor: pointer;
+  padding: 9px 10px; background: var(--panel-2, var(--panel)); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--r-s, 10px);
+}
+.gl-tac small { color: var(--muted); font-size: 11px; }
+.gl-tac.on { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.gl-tac.contre { border-style: dashed; border-color: color-mix(in srgb, var(--green) 70%, transparent); }
+.gl-tac-fit { font: 700 12px/1 var(--display); color: var(--sub); }
+.gl-tac-fit.bon { color: var(--green); }
+.gl-tac-fit.prix { color: var(--live); }
+.gl-mot { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.gl-sec { width: 100%; }
+.gl-pied { flex: none; display: flex; gap: 10px; justify-content: flex-end; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line-soft, var(--line)); }
+.gl-pied .btn { min-width: 150px; }
+@media (max-width: 560px) {
+  .gl-onglets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gl-j { grid-template-columns: 26px minmax(0, 1fr) 46px 56px 44px; }
+  .gl-j .gl-j-mut { display: none; }
+}
+/* Le résumé des lignes sur l'affiche du match. */
+.gl-resume { display: inline-flex; align-items: baseline; gap: 1px; margin-right: 6px; font-size: 15px; }
+.gl-resume small { font: 700 10.5px/1 var(--display); color: var(--muted); }
+/* Le rapport de match par ligne. */
+.rl-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.rl-table th, .rl-table td { padding: 5px 6px; text-align: right; border-bottom: 1px solid var(--line-soft, var(--line)); }
+.rl-table th:first-child, .rl-table td:first-child { text-align: left; }
+.rl-table th { font: 700 11px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+
+/* Le bouton « Mes lignes » de l'alignement (S68) : pas derrière le banc, qui a le sien. */
+.lignes-btn { margin-left: auto; padding: 6px 12px; min-height: 34px; }
+#game.banc .lignes-btn { display: none; }
+.banc-lignes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.banc-lignes .btn { margin-left: auto; min-height: 34px; padding: 5px 12px; }
+.hub-lignes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 14px 12px; }
+.hub-lignes .btn { margin-left: auto; min-height: 34px; padding: 5px 12px; }
+.hub-lignes-imp { font: 700 12px/1 var(--display); color: var(--sub); }
+.hub-choix-rouvrir { flex: 1 1 100%; }
+.hub-ballottage-ouvrir { width: 100%; }
+
+/* Le profil de ligne sur la carte, et la fiche. */
+.tag-profil { font-family: var(--display); font-weight: 700; }
+.tag-mut { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.fiche-profils { margin-top: 10px; }
+
+.hub-accident { border-left: 3px solid var(--gold); }
+.hub-accident .choix-puces { margin-top: 6px; }

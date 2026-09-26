@@ -55,13 +55,15 @@ const _wait = page.waitForSelector.bind(page);
 const ballottage = { fait: false, mot: null };
 async function guetterBallottage() {
   if (ballottage.fait) return;
-  const opt = await page.$('#hubModal .hub-ballottage .hub-option');
-  if (!opt || !(await opt.isVisible())) return;
+  const ouvrir = await page.$('#hubModal .hub-ballottage-ouvrir');
+  if (!ouvrir || !(await ouvrir.isVisible())) return;
   ballottage.fait = true;
-  const qui = ((await opt.textContent()) || '').replace(/\s+/g, ' ').trim();
   const tete = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
-  await opt.click();
-  await _wait('#hubModal .hub-jour, #hubModal .hub-choix .hub-option', { timeout: 120000 });
+  await ouvrir.click();
+  await _wait('#choixModal:not([hidden]) .choix-option', { timeout: 5000 });
+  const qui = ((await page.textContent('#choixModal .choix-option')) || '').replace(/\s+/g, ' ').trim();
+  await _click('#choixModal .choix-option');
+  await _wait('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
   await page.waitForTimeout(350);
   const apres = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
   const d = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(x => x.ballottage);
@@ -69,16 +71,23 @@ async function guetterBallottage() {
   if (tete && apres && tete[1] !== apres[1]) errors.push(`réclamer au ballottage rembobine la saison : journée ${tete[1]} puis ${apres[1]}`);
   ballottage.mot = `${qui.slice(0, 70)} réclamé à la journée ${tete ? tete[1] : '?'}`;
 }
+/*
+ * LES CHOIX FORCÉS S'OUVRENT EN PLEIN ÉCRAN depuis S68 (`#choixModal`). On
+ * range ce qu'on a croisé par son titre, et on exige que chaque option dise
+ * son effet en puces — c'est ce que JP a demandé : *tout devrait être clair*.
+ */
 async function repondreAuxChoix() {
   await guetterBallottage();
   for (let i = 0; i < 12; i++) {
-    const opt = await page.$('#hubModal .hub-choix .hub-option');
+    const opt = await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])');
     if (!opt || !(await opt.isVisible())) return;
-    const genre = await page.$eval('#hubModal .hub-choix', e => ['hub-proprio', 'hub-dilemme', 'hub-sequence'].find(c => e.classList.contains(c)) || '?');
-    const titre = ((await page.textContent('#hubModal .hub-choix-titre')) || '').trim();
+    const titre = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
+    const genre = /proprio|objectif/i.test(titre) ? 'hub-proprio' : /de suite/i.test(titre) ? 'hub-sequence' : 'hub-dilemme';
+    const sansPuce = await page.$$eval('#choixModal .choix-option', els => els.filter(e => !e.querySelector('.puce')).length);
+    if (sansPuce && genre !== 'hub-proprio') errors.push(`le choix « ${titre} » a ${sansPuce} option(s) sans effet chiffré`);
     choixVus.set(genre, [...(choixVus.get(genre) || []), titre]);
     await opt.click();
-    await _wait('#hubModal .hub-jour, #hubModal .hub-choix .hub-option, #hubModal .hub-suite', { timeout: 120000 });
+    await _wait('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option, #hubModal .hub-suite', { timeout: 120000 });
     await page.waitForTimeout(350);
   }
 }
@@ -93,11 +102,13 @@ async function versLeMatch() {
 }
 page.click = async (sel, opts) => {
   if (typeof sel === 'string' && /hub-(jour|dix|regarder|banc|fin|suite|ronde)\b/.test(sel)) { await versLeMatch(); await repondreAuxChoix(); }
+  // Un choix forcé ouvert par-dessus se règle avant tout autre clic dans l'écran.
+  else if (typeof sel === 'string' && /^#hubModal\b/.test(sel)) await repondreAuxChoix();
   return _click(sel, opts);
 };
 page.waitForSelector = async (sel, opts) => {
   if (typeof sel === 'string' && /hub-(jour|dix)\b/.test(sel)) {
-    await _wait('#hubModal .hub-jour, #hubModal .hub-choix .hub-option', opts);
+    await _wait('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option', opts);
     await repondreAuxChoix();
   }
   return _wait(sel, opts);
@@ -604,36 +615,35 @@ async function traverserSaison(etiquette, reprise = false) {
     }
     await page.waitForTimeout(150);
     /*
-     * LE PLAN DE MATCH ET LA GLACE (S62). Deux décisions qui valent toute la
-     * saison, et le seul endroit où on les change est ici. Ce qui se vérifie :
-     * les deux rangées existent avec TOUS leurs choix (une rangée à laquelle
-     * il manque un segment est un réglage qu'on ne peut pas prendre), un seul
-     * segment est choisi par rangée, le mot du réglage choisi dit ce qu'il
-     * paie, et le changement voyage jusqu'à la sauvegarde — c'est la décision
-     * qui compte, pas la pastille.
+     * MES LIGNES, DERRIÈRE LE BANC (S68). Le plan et la glace d'équipe sont
+     * devenus les lignes à la HockeyArena : une tactique, une agressivité et
+     * des secondes de présence par ligne. Ce qui se vérifie : l'écran plein
+     * écran s'ouvre avec ses quatre lignes et ses sept tactiques, chaque
+     * tactique annonce le fit de CETTE ligne, et un changement voyage jusqu'à
+     * la sauvegarde avec la décision du banc — c'est elle qui compte.
      */
-    const segs = await page.$$eval('.banc-seg', els => els.map(e => ({
-      tete: e.querySelector('.banc-seg-tete')?.textContent.trim() || '',
-      n: e.querySelectorAll('.banc-seg-btn').length,
-      on: [...e.querySelectorAll('.banc-seg-btn.on')].map(b => b.dataset.cle),
-      mot: (e.querySelector('.banc-seg-mot')?.textContent || '').trim(),
-    })));
-    if (segs.length !== 2 || segs[0].n !== 5 || segs[1].n !== 3) {
-      errors.push(`les réglages du banc ne sont pas là : ${JSON.stringify(segs.map(x => [x.tete, x.n]))}`);
-    } else if (!segs.every(x => x.on.length === 1 && x.mot.length > 4)) {
-      errors.push(`un réglage du banc n'a pas un seul choix ou n'a pas son mot : ${JSON.stringify(segs.map(x => [x.on, x.mot.slice(0, 20)]))}`);
-    } else {
-      // On prend « Échec avant » et « Trois trios » : deux réglages qui ne
-      // sont pas le défaut, donc la sauvegarde doit les porter tous les deux.
-      await page.click('.banc-seg-btn[data-champ="plan"][data-cle="echec"]');
-      await page.waitForTimeout(120);
-      await page.click('.banc-seg-btn[data-champ="roulement"][data-cle="trois"]');
-      await page.waitForTimeout(120);
-      const pris = await page.$$eval('.banc-seg-btn.on', e => e.map(x => x.dataset.cle));
-      if (JSON.stringify(pris) !== '["echec","trois"]') errors.push(`le banc n'a pas retenu le plan choisi : ${JSON.stringify(pris)}`);
-      const mot = await page.textContent('.banc-seg .banc-seg-mot');
-      if (!/punition/i.test(mot)) errors.push(`le mot du plan ne dit pas ce qu'il paie : « ${mot.trim()} »`);
+    let tacChoisie = null;
+    await _click('#bancLignes');
+    await page.waitForSelector('#lignesModal:not([hidden]) .gl-tac', { timeout: 5000 });
+    {
+      const lu = await page.evaluate(() => ({
+        onglets: document.querySelectorAll('#lignesModal .gl-onglet').length,
+        tacs: document.querySelectorAll('#lignesModal .gl-tac').length,
+        fits: [...document.querySelectorAll('#lignesModal .gl-tac-fit')].map(e => e.textContent.trim()),
+        joueurs: document.querySelectorAll('#lignesModal .gl-j').length,
+      }));
+      if (lu.onglets !== 4 || lu.tacs !== 7) errors.push(`« Mes lignes » n'a pas ses quatre lignes et ses sept tactiques : ${lu.onglets} et ${lu.tacs}`);
+      if (lu.fits.filter(f => /fit \d+ %/.test(f)).length !== 6) errors.push(`les tactiques n'annoncent pas leur fit : ${lu.fits.join(' | ')}`);
+      if (lu.joueurs !== 5) errors.push(`la 1re ligne montre ${lu.joueurs} joueurs au lieu de cinq`);
+      tacChoisie = await page.$eval('#lignesModal .gl-tac:not(.on):not([data-tac="hourra"])', b => b.dataset.tac);
+      await _click(`#lignesModal .gl-tac[data-tac="${tacChoisie}"]`);
+      await _click('#lignesModal [data-agr="2"]');
+      await page.waitForTimeout(150);
+      await page.screenshot({ path: 'scripts/smoke-lignes.png', fullPage: false });
+      await _click('#lignesModal .gl-appliquer');
+      await page.waitForTimeout(200);
     }
+    await toutEstAtteignable('derrière le banc, lignes réglées');
     await toutEstAtteignable('derrière le banc, réglages ouverts');
     // Le banc à 390 px, réglages compris : c'est l'écran des décisions de
     // saison, et il doit tenir sans rien pousser hors du cadre.
@@ -652,16 +662,15 @@ async function traverserSaison(etiquette, reprise = false) {
     // proprio, le plan du soir et les dilemmes en ajoutent d'autres.
     const decisions = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.cases);
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
-    else if (decisions[1].plan !== 'echec' || decisions[1].roulement !== 'trois') errors.push(`la sauvegarde ne porte pas le plan et la glace : ${JSON.stringify([decisions[1].plan, decisions[1].roulement])}`);
-    else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture déplacée au 2e trio, plan ${decisions[1].plan} et glace ${decisions[1].roulement}, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
+    else if (!Array.isArray(decisions[1].lignes) || decisions[1].lignes[0].tac !== tacChoisie || decisions[1].lignes[0].agr !== 2) errors.push(`la sauvegarde ne porte pas les lignes du banc : ${JSON.stringify(decisions[1].lignes && decisions[1].lignes[0])}`);
+    else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture au 2e trio, 1re ligne en ${tacChoisie} et agressivité haute, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
     /*
-     * ET L'AFFICHE LE DIT. Un réglage qui vaut toute la saison et qu'on ne
-     * relit nulle part est un réglage qu'on oublie avoir choisi : la carte du
-     * prochain match porte les deux, avec leur icône.
+     * ET L'AFFICHE LE DIT : la tactique et la chimie de chaque ligne se lisent
+     * sur la carte du prochain match.
      */
-    const affiche = (await page.textContent('#hubModal .hub-plan').catch(() => '') || '').replace(/\s+/g, ' ').trim();
-    if (!/Échec avant/.test(affiche) || !/Trois trios/.test(affiche)) errors.push(`l'affiche du match ne dit pas le plan : « ${affiche} »`);
-    else console.log(`   l'affiche dit le plan : ${affiche}`);
+    const affiche = await page.$$eval('#hubModal .hub-lignes .gl-resume', e => e.length).catch(() => 0);
+    if (affiche !== 4) errors.push(`l'affiche du match ne dit pas les quatre lignes : ${affiche}`);
+    else console.log('   l\'affiche dit les quatre lignes et leur chimie');
 
     /*
      * LE PALIER DE CARTES. À trois journées de la saison (PALIERS_CARTES), on
@@ -712,30 +721,35 @@ async function traverserSaison(etiquette, reprise = false) {
      * première occasion, où qu'elle tombe.
      */
     /*
-     * LA ROUTE, LES FACTIONS ET LE PLAN DU SOIR (S66). La route porte ses
-     * marques, les quatre factions sont là, et un plan du soir choisi devient
-     * une décision datée du soir du match, sans rembobiner la saison.
+     * LA ROUTE, LES FACTIONS ET « PRÉPARER LE MATCH » (S66, S68). La route
+     * porte ses marques, les quatre factions sont là, et la consigne d'un
+     * match (son importance) devient une décision datée du soir du match,
+     * sans rembobiner la saison.
      */
     {
       const route = await page.$$eval('#hubModal .hub-route-m', e => e.length);
       const jauges = await page.$$eval('#hubModal .hub-jauge', e => e.length);
       if (route < 10) errors.push(`la route de la saison n'a que ${route} marques`);
       if (jauges !== 4) errors.push(`${jauges} factions au lieu de quatre`);
-      const soirs = await page.$$eval('#hubModal .hub-soir-btn', e => e.map(x => x.dataset.soir));
-      if (soirs.length !== 5) errors.push(`le plan du soir offre ${soirs.length} plans au lieu de cinq`);
+      if (!(await page.$('#hubModal .hub-preparer'))) errors.push('l\'affiche n\'offre pas « Préparer le match »');
       else {
-        const cle = (await page.$eval('#hubModal .hub-soir-btn.contre', e => e.dataset.soir).catch(() => null)) || 'trappe';
         const jAvant = await jourDit();
-        await _click(`#hubModal .hub-soir-btn[data-soir="${cle}"]`);
-        await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
+        await _click('#hubModal .hub-preparer');
+        await page.waitForSelector('#lignesModal:not([hidden]) [data-importance="haute"]', { timeout: 5000 });
+        const puces = await page.$$eval('#lignesModal [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
+        if (!puces.some(t => /Finition/.test(t))) errors.push(`l'importance haute ne dit pas son effet : ${puces.join(' · ')}`);
+        await _click('#lignesModal [data-importance="haute"]');
+        await _click('#lignesModal .gl-appliquer');
+        await page.waitForSelector('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
+        await repondreAuxChoix();
         await page.waitForTimeout(400);
         const jApres = await jourDit();
-        const on = await page.$eval('#hubModal .hub-soir-btn.on', e => e.dataset.soir).catch(() => null);
-        const dSoir = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.soir);
-        if (jApres !== jAvant) errors.push(`le plan du soir rembobine la saison : journée ${jAvant} puis ${jApres}`);
-        if (on !== cle) errors.push(`le plan du soir choisi n'est pas marqué : ${on} au lieu de ${cle}`);
-        if (dSoir.length !== 1 || dSoir[0].soir !== cle || dSoir[0].jour < jAvant) errors.push(`la sauvegarde ne porte pas le plan du soir : ${JSON.stringify(dSoir)}`);
-        else console.log(`   plan du soir : ${cle} pour la journée ${dSoir[0].jour + 1}, route ${route} marques, ${jauges} factions`);
+        const dMatch = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.match);
+        const imp = ((await page.textContent('#hubModal .hub-lignes-imp').catch(() => '')) || '').trim();
+        if (jApres !== jAvant) errors.push(`la consigne du match rembobine la saison : journée ${jAvant} puis ${jApres}`);
+        if (!dMatch.length || dMatch[dMatch.length - 1].match.importance !== 'haute' || !Array.isArray(dMatch[dMatch.length - 1].lignes)) errors.push(`la sauvegarde ne porte pas la consigne du match : ${JSON.stringify(dMatch)}`);
+        else if (!/Haute/.test(imp)) errors.push(`l'affiche ne dit pas l'importance choisie : « ${imp} »`);
+        else console.log(`   préparer le match : importance haute pour la journée ${dMatch[dMatch.length - 1].jour + 1}, route ${route} marques, ${jauges} factions`);
       }
     }
 

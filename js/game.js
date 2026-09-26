@@ -25,10 +25,11 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre } from './sim.js';
+  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
+import { ouvrirLignes, resumeLignes, barresProfils } from './gerant.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
@@ -428,6 +429,7 @@ function saveGame() {
       target: G.target,
       mainCase: G.mainCase,
       echelle: G.echelle,
+      lignes: G.lignes || null,
       dette: G.dette,
       mode: G.mode,
       epoque: G.epoque,
@@ -531,6 +533,7 @@ async function restoreSave() {
     // rouvre l'exploit.
     G.echelle = (data.echelle && typeof data.echelle === 'object') ? { ...data.echelle } : {};
     G.dette = Number.isFinite(data.dette) && data.dette > 0 ? data.dette : 0;
+    G.lignes = Array.isArray(data.lignes) ? data.lignes : null;
     applyTeamColors(MODE().loto ? null : tirage[0].team);
     // LA SAISON EN COURS. Elle se REJOUE, elle ne se relit pas : la graine et
     // les clés des adversaires suffisent, `runSeason` refait exactement la
@@ -727,6 +730,18 @@ function zoneTag(p, mini = false) {
   return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">${esc(mini ? (z.mini || z.short) : z.short)}</span>`;
 }
 
+/*
+ * LE PROFIL DE LIGNE (S68), à la HockeyArena : le rôle où il rend le mieux,
+ * en %, tiré de ses vraies stats et de ses traits. Plus ses marques de carte,
+ * s'il a changé en cours de saison.
+ */
+function profilTag(p, full = false) {
+  const pp = profilPrincipal(p);
+  if (!pp) return '';
+  const marques = (p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="tag tag-mut" title="${esc(MUTATIONS[k].nom)} — ${esc(MUTATIONS[k].quoi)}">${MUTATIONS[k].ico}${full ? ` ${esc(MUTATIONS[k].nom)}` : ''}</span>` : '').join('');
+  return `<span class="tag tag-profil" title="Profil de ligne : ${esc(pp.nom)} à ${pp.fit} % (${esc(pp.mot)})">${pp.ico} ${full ? `${esc(pp.nom)} ` : ''}${pp.fit}</span>${marques}`;
+}
+
 /** Archétype : icône seulement dans le pick et le depth chart, libellé complet sur la fiche. */
 function archTag(p, full = false) {
   const a = getArchetype(p, getHiddenRatings(p));
@@ -879,6 +894,15 @@ function setupEvents() {
   // `montrerPage` les remplit. Il ne reste en haut que ce qui est une ACTION.
   bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
   bindModal('partieModal', 'openPartieBtn', 'closePartieBtn', semerBrouillon, oublierBrouillon);
+  // MES LIGNES AU REPÊCHAGE (S68) : réglées avant la saison, elles entrent
+  // dans la décision 0. Derrière le banc, le panneau du banc a son propre bouton.
+  const lb = $('lignesBtn');
+  if (lb) lb.onclick = () => ouvrirLignes({
+    titre: 'Mes lignes', sousTitre: 'Avant la saison · la chimie se bâtira en jouant',
+    lineup: G.roster, lignes: lignesDe({ lignes: G.lignes }, G.roster), chimie: [0, 0, 0, 0], energie: {},
+    adv: null, match: null, motAppliquer: 'Garder ces lignes',
+    onAppliquer: lignes => { G.lignes = lignes; saveGame(); toast('Tes lignes sont prêtes pour la saison'); },
+  });
   bindModal('hockeyCardModal', null, 'closeHockeyCardBtn');
   bindModal('gameModal', null, 'closeGameBtn');
 
@@ -2062,7 +2086,7 @@ function playerCardEl(p) {
   const mid = surTable()
     ? `<span class="pcard-axes">${axesTableHtml(p)}</span><div class="tags">${tagsTableHtml(p)}</div>`
     : `<div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
-          <div class="tags">${[traitTags(p), archTag(p), mesureTags(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
+          <div class="tags">${[traitTags(p), profilTag(p), archTag(p), mesureTags(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
 
   let dest;
   if (already) {
@@ -3126,7 +3150,8 @@ function showPlayerModal(p, opts = {}) {
               ${nhlPlayerUrl(p.id) ? `<a href="${nhlPlayerUrl(p.id)}" target="_blank" rel="noopener" title="La fiche officielle de ${esc(p.n)} sur nhl.com">${ico('i-ext')}Sa fiche à la LNH</a>` : ''}
               ${teamSeasonUrl(p.t, p.s) ? `<a href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de ce club sur Hockey-Reference">${ico('i-ext')}La saison du club</a>` : ''}
             </div>
-            <div class="tags pcard-full-tags">${traitTags(p, true)}${surTable() && !apres ? '' : archTag(p, true) + mesureTags(p, true) + zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
+            <div class="tags pcard-full-tags">${traitTags(p, true)}${profilTag(p, true)}${surTable() && !apres ? '' : archTag(p, true) + mesureTags(p, true) + zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
+            ${p.p === 'G' ? '' : `<div class="fiche-profils"><div class="gl-sec-titre">Ses profils de ligne</div>${barresProfils(p)}</div>`}
             <div class="pcard-full-salary">
               <span class="big">${st.salaryMain}</span>
               <span class="small">${st.salarySub}</span>
@@ -3508,6 +3533,10 @@ function ouvrirBanc(jour) {
     jour, compte, blesses, prochain, fiche, N: L.calendrier.length,
     fermeture: L.you.fermeture ?? derniere.fermeture ?? 'auto',
     plan: planDe(L.you), roulement: roulementDe(L.you),
+    // Les lignes EN VIGUEUR et leur état au jour du banc (S68).
+    lignes: lignesDe(L.you, G.roster),
+    chimie: ((L.you.jourLignes || [])[jour] || {}).chimie || [0, 0, 0, 0],
+    energie: ((L.you.jourLignes || [])[jour] || {}).energie || {},
   };
   $('game').classList.add('banc');
   G.selectedSlot = null; G.target = null;
@@ -3528,7 +3557,8 @@ function fermetureCourante() {
 async function reprendreSaison() {
   const b = G.banc;
   if (!b || !G.ligue) return;
-  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, plan: b.plan, roulement: b.roulement };
+  // Le SEL (S68) : des dés neufs pour la suite, voir `simulateLeague`.
+  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, sel: nouvelleGraine() };
   // On ne remplace que la décision de BANC du même jour : une carte, un plan
   // du soir ou un dilemme pris ce jour-là restent.
   const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0 || !x.cases);
@@ -3574,7 +3604,7 @@ async function subirCarte(at, jour, cle) {
   if (!G.ligue || !CARTES[cle]) return;
   const palier = `trou:${at}`;
   const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
-  decisions.push({ jour, carte: cle, palier });
+  decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
@@ -3591,8 +3621,9 @@ async function deciderSaison(d, depuis) {
   // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
   if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
   const decisions = (G.ligue.decisions || []).filter(x =>
-    !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour));
-  decisions.push(d);
+    !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
+    && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour));
+  decisions.push({ ...d, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis, decisions, reprise: true });
@@ -3676,7 +3707,7 @@ async function connaitreBallottages(decisions) {
 async function choisirCarte(palier, jour, cle) {
   if (!G.ligue || !CARTES[cle]) return;
   const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
-  decisions.push({ jour, carte: cle, palier });
+  decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
@@ -3700,16 +3731,23 @@ function renderBanc() {
     </div>
     ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
     <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
-    ${segments('Plan', 'plan', PLANS, b.plan)}
-    ${segments('Glace', 'roulement', ROULEMENTS, b.roulement)}
-    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. 🔒 désigne ton <b>trio de fermeture</b>${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}` : ' — personne pour l\'instant'}.</div>
-    <details class="banc-plus"><summary>Le plan, la glace et le trio de fermeture</summary>
-      <div class="banc-ligne"><b>Le plan de match</b> est ton style : ${Object.values(PLANS).map(x => `${x.ico} ${esc(x.nom)}`).join(', ')}. Chacun achète quelque chose et le paie — il n'y en a pas de gratuit, et aucun ne vaut plus d'une victoire et demie sur une saison.</div>
-      <div class="banc-ligne"><b>La glace</b> dit où passent les minutes. Raccourcir le banc donne la rondelle à tes meilleurs et les use ; un banc profond ménage tout le monde et demande de la profondeur. La somme ne change pas : c'est QUI joue qui change.</div>
+    <div class="banc-ligne banc-lignes"><span class="gl-k">Tes lignes</span> ${resumeLignes(b.lignes, b.chimie)} <button type="button" class="btn gold" id="bancLignes" title="Les tactiques, l'agressivité et la glace de chaque ligne, avec le fit de chacune">Mes lignes</button></div>
+    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste : le fit de chaque ligne suit ses joueurs. 🔒 désigne ton <b>trio de fermeture</b>${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}` : ' — personne pour l\'instant'}.</div>
+    <details class="banc-plus"><summary>Les lignes et le trio de fermeture</summary>
+      <div class="banc-ligne"><b>Chaque ligne a sa tactique</b>, comme dans HockeyArena : chacune demande un profil par poste, et le fit plafonne la chimie. Changer un joueur coûte de la chimie ; une ligne soudée joue son système plus souvent.</div>
       <div class="banc-ligne"><b>Le trio de fermeture</b> prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
     </details>
     <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios, ce plan et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
   $('bancRetour').onclick = reprendreSaison;
+  // MES LIGNES, derrière le banc (S68) : réglées ici, elles partent avec la
+  // décision du banc au « Retour au match ».
+  $('bancLignes').onclick = () => ouvrirLignes({
+    titre: 'Mes lignes', sousTitre: `Derrière le banc · journée ${b.jour}`,
+    lineup: G.roster, lignes: b.lignes, chimie: b.chimie, energie: b.energie,
+    adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
+    match: null, motAppliquer: 'Garder ces lignes',
+    onAppliquer: lignes => { G.banc.lignes = lignes; renderBanc(); },
+  });
   /*
    * UN SEUL ÉCOUTEUR, DÉLÉGUÉ, et il est reposé à chaque rendu parce que
    * `innerHTML` vient de jeter les anciens boutons : brancher chaque bouton
@@ -3802,7 +3840,7 @@ async function runSeason(opts = {}) {
   // rejoue exactement les mêmes.
   const decisions = opts.decisions && opts.decisions.length
     ? opts.decisions
-    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', plan: 'equilibre', roulement: 'quatre' }];
+    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined }];
   let r, teams, leaders = [], calendrier = [], graine = null;
   if (opponents.length) {
     const league = simulateLeague([you, ...opponents], 82, { graine: opts.graine || null, decisions });

@@ -61,4 +61,20 @@ exiger('la réclamation change la suite', avec.tout !== sans.tout, 'la saison di
 exiger('le joueur réclamé est dans l\'alignement', avec.toi.roster[iR] === autre, autre.n);
 exiger('le joueur réclamé a joué', (autre.simGP || 0) > 0, `${autre.simGP || 0} matchs`);
 exiger('le libéré n\'est plus dans l\'alignement', !Object.values(avec.toi.roster).includes(avec.sort), avec.sort ? avec.sort.n : 'case vide');
-verdict('Le ballottage');
+/*
+ * DES DÉS NEUFS APRÈS CHAQUE DÉCISION (S68). La même décision prise deux fois
+ * (deux sels) donne deux suites différentes ; le même sel redonne la même ;
+ * et les journées d'avant ne bougent jamais.
+ */
+const avecSel = sel => {
+  const teams = ligue();
+  const decisions = [{ jour: 0, equipe: 0, cases: photoAlignement(teams[0].roster) }, { jour: 30, equipe: 0, plan: 'equilibre', sel }];
+  const L = simulateLeague(teams, 82, { graine: 'sel', decisions });
+  const e = j => L.calendrier.slice(0, j).map(jr => jr.map(m => `${m.gfA}-${m.gfB}`).join(',')).join('|');
+  return { avant: e(30), tout: e(Infinity) };
+};
+const s1 = avecSel('a'), s2 = avecSel('b'), s1b = avecSel('a');
+exiger('la même décision avec un autre sel rejoue AUTREMENT la suite', s1.tout !== s2.tout, 'deux saisons différentes');
+exiger('le même sel redonne la même saison (la sauvegarde)', s1.tout === s1b.tout, 'au but près');
+exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiques');
+verdict('Le ballottage et les dés neufs');
