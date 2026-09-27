@@ -3999,6 +3999,11 @@ a.spin-club:hover {
 .t-rondelle-libre-jeton.libre::after { width: 13px; height: 13px; box-shadow: 0 0 0 2px var(--gold); }
 .t-rondelle-libre-jeton.saute { transition: none; }
 /* Qui agit, et sur qui. Deux états, deux couleurs, aucun texte à lire. */
+/* Une pièce qui entre sur la glace s'y pose (S74) — par `scale` et
+   `opacity`, jamais `transform`, qui porte sa case. */
+.t-jeton[data-neuf] { animation: t-jeton-entre 420ms ease-out; }
+@keyframes t-jeton-entre { from { opacity: 0; scale: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .t-jeton[data-neuf] { animation: none; } }
 .t-jeton.jouable { box-shadow: 0 0 0 1px var(--gold); }
 .t-jeton.choisie { z-index: 4; box-shadow: 0 0 0 2px var(--gold); }
 .t-jeton.agit { z-index: 5; box-shadow: 0 0 0 2px var(--ui-accent); }
@@ -4485,6 +4490,52 @@ a.spin-club:hover {
   .t-flash-mot { animation: t-flash-fixe 1200ms steps(1) forwards; }
 }
 @keyframes t-flash-fixe { 0%, 90% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ======================================================================
+   LE SIFFLET SE VOIT (S74).
+
+   JP : *la puck se teleporte*. Une mise au jeu repose les dix pièces et la
+   rondelle d'un coup, et c'est le seul moment du match où elle change de
+   place sans voyager — il faut donc que ça se VOIE comme un sifflet, pas
+   comme un bogue. Le mot de l'arbitre se pose sur le point de mise au jeu
+   (« 🔔 Hors-jeu · mise au jeu au neutre »), un cercle bat sur le point,
+   et la glace reste figée le temps de le lire avant que tout le monde se
+   replace. Placé comme le dé et le verdict, par `--tr` et `--tc`.
+   ====================================================================== */
+.t-sifflet {
+  position: absolute; top: 0; left: 0;
+  width: var(--tcell); height: var(--tcell);
+  transform: translate(calc(var(--tc) * var(--tcell)), calc(var(--tr) * var(--tcell)));
+  pointer-events: none; z-index: 9;
+}
+.t-sifflet[hidden] { display: none; }
+/* Le point bat : c'est là que la rondelle va tomber. */
+.t-sifflet::before {
+  content: ''; position: absolute; inset: -35%; border-radius: 50%;
+  border: 2px solid var(--gold);
+  animation: t-sifflet-point 900ms ease-out infinite;
+}
+@keyframes t-sifflet-point { from { opacity: 0.95; scale: 0.55; } to { opacity: 0; scale: 1.35; } }
+.t-sifflet-mot {
+  position: absolute; left: 50%; bottom: calc(100% + 5px); transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  white-space: nowrap; padding: 3px 9px; border-radius: var(--r-s);
+  background: var(--panel); border: 1px solid var(--gold);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  animation: t-dg-tombe 200ms cubic-bezier(0.2, 1.4, 0.5, 1);
+}
+.t-sifflet-mot b {
+  font-family: var(--display); font-size: 15px; font-weight: 800;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--text);
+}
+.t-sifflet-mot i { font-style: normal; font-size: 11.5px; color: var(--sub); }
+/* Même règle que le dé : on ne sort jamais du plateau. */
+.t-sifflet.dessous .t-sifflet-mot { bottom: auto; top: calc(100% + 5px); }
+.t-sifflet.bord-g .t-sifflet-mot { left: 0; transform: none; }
+.t-sifflet.bord-d .t-sifflet-mot { left: auto; right: 0; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .t-sifflet::before, .t-sifflet-mot { animation: none; }
+}
 
 /* =====================================================================
    SUR TABLE : le repêchage montre les nombres du plateau

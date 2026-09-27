@@ -120,7 +120,32 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * Les deux comptent, parce que 40 % des routes font un coude (mesuré sur
    * 181 179) : le jeton glisse en ligne droite, la route, non.
    */
-  let sifflet = -1;        // le dernier arrêt de jeu vu : la rondelle a le droit d'y sauter
+  /*
+   * LA RONDELLE VOYAGE ÉTAPE PAR ÉTAPE (S74). JP : *la puck se teleporte*.
+   * L'écran posait le jeton sur la case FINALE d'un geste et laissait la
+   * transition le faire glisser en ligne droite : un arrêt suivi de la
+   * relance du gardien devenait un seul glissement du tireur jusqu'à un
+   * ailier, sans passer par le filet ; un but glissait du tireur au point de
+   * mise au jeu. Le moteur tient maintenant le trajet (`m.trajet`, une étape
+   * par règle) et l'écran le JOUE : la passe traverse, le tir va au filet,
+   * le retour sort du gardien, le patin suit sa route, et le sifflet fige la
+   * glace le temps de dire pourquoi avant que tout le monde se replace.
+   *
+   * `pilotes` est ce que la lecture impose en ce moment (clé de jeton ou
+   * « rondelle » → case, durée du pas) ; `photo` est la glace au sifflet,
+   * que les pièces gardent jusqu'à la remise en place. Tout le reste suit le
+   * moteur, comme avant.
+   */
+  let trajetLu = m.trajet.length;   // les étapes que l'écran a déjà jouées (la mise au jeu d'ouverture est déjà là)
+  let patinVu = m.patin || null;     // le dernier patin déjà joué à l'écran
+  const pilotes = new Map();
+  let photo = null;
+  let coupDeSifflet = null;          // { r, c, mot, ou, n } — le sifflet, posé sur le point de mise au jeu
+  let fileLecture = [];              // les pas qui restent à jouer : { duree, faire }
+  let minuteurLecture = 0;
+  let minuteurSifflet = 0;
+  let finLecture = 0;                // l'heure où la lecture en cours sera jouée
+  let flashAuBut = null;             // le verdict, retenu jusqu'à ce que la rondelle arrive
   let survol = null;       // { chemin, demis } — l'aperçu sous le curseur
   let trace = null;        // { chemin } — le patin qui vient d'être joué
   let minuteurTrace = 0;
@@ -178,7 +203,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   /* ---------- le tableau indicateur ---------- */
   function tete() {
-    // LE TEMPO EN POSSESSIONS (S41) : la période finit au premier arrêt de jeu après la dernière.
+    // LE TEMPO EN POSSESSIONS (S41) : la sirène sonne à la fin du tour de la dernière (S74 : le
+    // texte disait « au premier arrêt de jeu », ce que le moteur n'a jamais fait).
     const total = m.prolongation ? POSSESSIONS_PROLONGATION : POSSESSIONS_PAR_PERIODE;
     const restant = Math.max(0, total - m.possessions);
     const periode = m.prolongation ? `Prolongation ${m.prolongation > 1 ? m.prolongation : ''}`.trim()
@@ -188,7 +214,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         <div class="tb-eq tb-a"><span class="tb-logo">${logo(A.tag, 22)}</span><span class="tb-nom">${esc(A.nom)}</span><b>${A.buts}</b></div>
         <div class="tb-milieu">
           <span class="tb-periode">${esc(periode)}</span>
-          <span class="tb-presence" title="Une période, c'est ${total} possessions : elle finit au premier arrêt de jeu après que la rondelle a changé de camp ${total} fois.">${m.fini ? 'Terminé' : `${restant} possession${restant > 1 ? 's' : ''}`}</span>
+          <span class="tb-presence" title="Une période, c'est ${total} possessions : la sirène sonne à la fin du tour où la rondelle change de camp pour la ${total}e fois.">${m.fini ? 'Terminé' : `${restant} possession${restant > 1 ? 's' : ''}`}</span>
         </div>
         <div class="tb-eq tb-b"><b>${B.buts}</b><span class="tb-nom">${esc(B.nom)}</span><span class="tb-logo">${logo(B.tag, 22)}</span></div>
       </div>
@@ -203,7 +229,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
   /* Ce qu'une case propose à la pièce choisie : rien, patiner, passer, échec. */
   function offre(r, c) {
-    if (!sel || !aMoi() || attente) return null;
+    // Rien ne s'offre pendant la lecture (S74) : la glace qu'on voit n'est pas encore celle du moteur.
+    if (!sel || !aMoi() || attente || enLecture()) return null;
     const piece = surLaGlace(m).find(x => x.r === r && x.c === c);
     const veut = t => !mode || mode === t;
     if (piece) {
@@ -413,6 +440,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     html += '<div class="t-cmd" hidden></div>';
     html += '<div class="t-de-glace" role="status" hidden></div>';
     html += '<div class="t-flash" role="status" aria-live="polite" hidden></div>';
+    // Le sifflet : sur le point de mise au jeu, le mot de l'arbitre (S74).
+    html += '<div class="t-sifflet" role="status" aria-live="polite" hidden></div>';
     html += '</div>';
     $('.t-plateau').innerHTML = html;
     grilleFaite = true;
@@ -471,13 +500,14 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const r = +cel.dataset.r, c = +cel.dataset.c;
       const o = estFilet(r, c) ? null : offre(r, c);
       const piece = surLaGlace(m).find(x => x.r === r && x.c === c);
-      const jouable = piece && piece.eq === 'A' && aMoi() && !attente && aDesOptions(piece);
+      const jouable = piece && piece.eq === 'A' && aMoi() && !attente && !enLecture() && aDesOptions(piece);
       cel.classList.toggle('t-offre', !!o);
       for (const t of ['deplacer', 'passe', 'echec', 'dejouer']) {
         cel.classList.toggle(`t-offre-${t}`, !!o && (o.type === t || (t === 'echec' && (o.type === 'duel' || o.type === 'vol'))));
       }
       cel.classList.toggle('t-jouable', !!jouable);
-      cel.classList.toggle('t-sel', !!piece && piece === sel);
+      // Pendant la lecture, rien n'est choisi (S74) : rien ne peut se jouer, la carte est fermée.
+      cel.classList.toggle('t-sel', !!piece && piece === sel && !enLecture());
       // LE RAYON ADVERSE (S38) se voit sur la glace : une case couverte est
       // ombrée, deux bâtons dessus plus sombre. C'est là qu'une passe se coupe
       // et que le porteur patine au double du prix.
@@ -519,14 +549,24 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
      * change, pas l'objet. Seul un SIFFLET a le droit de la reposer ailleurs
      * d'un coup (`.saute`), parce que là c'est l'arbitre qui la pose.
      */
+    /*
+     * ET LE SIFFLET N'EST PLUS UN SAUT MUET (S74). `.saute` reposait la
+     * rondelle d'un coup à chaque arrêt de jeu, mais le compteur qu'il lisait
+     * (`m.arrets`) ignorait le but et la fin de période — la rondelle y
+     * GLISSAIT du tireur jusqu'au point du centre. C'est la lecture du
+     * trajet qui décide maintenant où est le jeton, à chaque instant ; hors
+     * lecture, il est là où le trajet l'a laissé (`m.ici` : au fond du filet
+     * après le but qui finit le match).
+     */
     const jeton = grille.querySelector('.t-rondelle-libre-jeton');
-    const pos = l || (p ? { r: p.r, c: p.c } : null);
+    const pilote = pilotes.get('rondelle');
+    const pos = pilote || m.ici || (l || (p ? { r: p.r, c: p.c } : null));
     jeton.hidden = !pos;
-    jeton.classList.toggle('libre', !!l);
+    jeton.classList.toggle('libre', pilote ? !!pilote.libre : !!l);
+    rondelleLibreVue = jeton.classList.contains('libre');
+    jeton.classList.toggle('saute', !!(pilote && pilote.saute));
+    jeton.style.transition = pilote && pilote.ms ? `transform ${pilote.ms}ms linear` : '';
     if (pos) {
-      const saut = m.pointMJ && sifflet !== m.arrets;
-      jeton.classList.toggle('saute', !!saut);
-      if (saut) sifflet = m.arrets;
       jeton.style.setProperty('--tr', pos.r);
       jeton.style.setProperty('--tc', pos.c);
     }
@@ -540,12 +580,24 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       if (!el) {
         el = document.createElement('div');
         el.dataset.jeton = cle;
+        // UNE PIÈCE QUI ENTRE, ENTRE (S74) : le puni qui sort du cachot, le
+        // sixième patineur, le trio de la prolongation. Elle apparaissait
+        // d'un coup au centre de la glace ; elle s'y pose maintenant, et
+        // l'attribut survit aux classes que chaque rendu réécrit.
+        el.dataset.neuf = '1';
+        // Retiré après, sinon l'entrée rejouerait chaque fois qu'une autre animation (`.visee`) la quitte.
+        setTimeout(() => { delete el.dataset.neuf; }, 450);
         el.className = 't-jeton';
         couche.appendChild(el);
       }
       const b = x.eq === 'A' ? bA : bB;
-      el.style.setProperty('--tr', x.r);
-      el.style.setProperty('--tc', x.c);
+      // La lecture d'abord (le patin le long de sa route), puis la photo du
+      // sifflet, puis le moteur : la pièce n'est jamais montrée là où elle
+      // n'est pas encore arrivée.
+      const ici = pilotes.get(cle) || (photo && photo[cle]) || x;
+      el.style.transition = pilotes.get(cle) && pilotes.get(cle).ms ? `transform ${pilotes.get(cle).ms}ms linear` : '';
+      el.style.setProperty('--tr', ici.r);
+      el.style.setProperty('--tc', ici.c);
       el.style.setProperty('--pf', b.bg);
       el.style.setProperty('--pi', b.ink);
       el.style.setProperty('--pl', x.eq === 'A' ? vA : vB);
@@ -556,11 +608,11 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
        * règle ne se lit qu'au moment où elle coûte quelque chose.
        */
       const horsJeuIci = !x.gardien && enPositionHorsJeu(m, x);
-      const jouableIci = x.eq === 'A' && !x.gardien && aMoi() && !attente && aDesOptions(x);
+      const jouableIci = x.eq === 'A' && !x.gardien && aMoi() && !attente && !enLecture() && aDesOptions(x);
       el.className = `t-jeton t-piece ${x.eq === 'A' ? 'mienne' : 'sienne'}`
         + (x.gardien ? ' gardien' : '') + (x.etourdi ? ' etourdi' : '')
         + (jouableIci ? ' jouable' : '')
-        + (x === sel ? ' choisie' : '')
+        + (x === sel && !enLecture() ? ' choisie' : '')
         + (dernier && dernier.piece === x ? ' agit' : '')
         + (dernier && dernier.cible === x ? ' visee' : '')
         + (horsJeuIci ? ' horsjeu' : '');
@@ -594,6 +646,11 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     poserSurGlace(grille.querySelector('.t-cmd'), commandes(), () => actions.carte, ancrerCarte);
     poserSurGlace(grille.querySelector('.t-de-glace'), deGlace, deGlaceHtml);
     poserSurGlace(grille.querySelector('.t-flash'), flash, flashHtml);
+    // Le mot du sifflet est plus large qu'un dé : il s'ancre au bord dès la quatrième colonne.
+    poserSurGlace(grille.querySelector('.t-sifflet'), coupDeSifflet, siffletHtml, el => {
+      el.classList.toggle('bord-g', coupDeSifflet.c <= 3);
+      el.classList.toggle('bord-d', coupDeSifflet.c >= COLS - 4);
+    });
   }
 
   /* ======================================================================
@@ -636,7 +693,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * va donc où vont les décisions, dans la BARRE, à côté du dé : c'est le
    * panneau de confirmation de FFT, pas son menu de commandes.
    */
-  const commandes = () => (sel && aMoi() && !attente && !regles && !mode && !cible && actions.carte ? { r: sel.r, c: sel.c } : null);
+  const commandes = () => (sel && aMoi() && !attente && !regles && !mode && !cible && !enLecture() && actions.carte ? { r: sel.r, c: sel.c } : null);
 
   /* Poser une chose sur une case, ou la cacher. `html(x)` en fait le contenu. */
   function poserSurGlace(el, x, html, ancrer = null) {
@@ -756,19 +813,190 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   };
 
   function verdict(avant, ou, quoi = null, delai = 0) {
+    // La lecture d'abord (S74) : elle dit QUAND la rondelle arrive, et le mot
+    // attend ce moment-là — un ARRÊT qui éclate pendant que la rondelle vole
+    // encore vers le filet, c'est lire la fin avant l'histoire.
+    const impact = preparerLecture(delai ? ROULE : 0);
     const neufs = m.fil.slice(0, Math.max(0, m.fil.length - avant)).reverse();
     sonner(neufs.map(e => e.genre), quoi, delai);
     flash = null;
+    flashAuBut = null;
+    let f = null;
     for (const e of neufs) {
       const v = VERDICTS[e.genre];
       if (!v) continue;
       const place = ou[v[2]] || ou.defaut;
       if (!place) break;
-      flash = { r: place.r, c: place.c, texte: v[0], ton: v[1], n: ++noJet };
+      f = { r: place.r, c: place.c, texte: v[0], ton: v[1], n: ++noJet };
       break;
     }
     clearTimeout(minuteurFlash);
-    if (flash) minuteurFlash = setTimeout(() => { flash = null; if (!regles) majGlace(); }, 1200);
+    if (f && impact > 0 && enLecture()) flashAuBut = f;
+    else if (f) montrerFlash(f);
+  }
+
+  /** Le verdict éclate, et s'efface tout seul. */
+  function montrerFlash(f) {
+    flash = f;
+    flashAuBut = null;
+    clearTimeout(minuteurFlash);
+    minuteurFlash = setTimeout(() => { flash = null; if (!regles) majGlace(); }, 1200);
+    if (!regles && grilleFaite) majGlace();
+  }
+
+  /* ======================================================================
+     LA LECTURE DU TRAJET (S74)
+     ======================================================================
+     Après chaque geste — le tien ou le sien — on lit ce que le moteur a
+     ajouté au trajet de la rondelle (`m.trajet`) et au dernier patin
+     (`m.patin`), et on le JOUE, une étape après l'autre :
+
+       le patin       la pièce suit sa route case par case (elle contourne
+                      qui elle a contourné, jamais à travers le filet), et
+                      la rondelle avec elle si c'est le porteur
+       la passe, le tir, la relance, l'interception
+                      la rondelle traverse, à une vitesse qui suit la distance
+       le rebond      elle va d'abord là où elle a été perdue (le gardien,
+                      le receveur manqué), puis roule à côté
+       le sifflet     la glace reste figée comme l'arbitre l'a vue, le
+                      sifflet se pose sur le point avec son mot ; puis tout
+                      le monde se replace et la rondelle est posée au point
+
+     Toucher la glace pendant la lecture la finit d'un coup : le mot du
+     sifflet reste le temps d'être lu. Et rien ne se joue pendant qu'elle
+     roule — la glace qu'on voit n'est pas encore celle du moteur.
+     ====================================================================== */
+  const PAS_PATIN = 85;          // une case de patin
+  const PAS_RONDELLE = 45;       // une case de rondelle qui voyage
+  const ROULE = 540;             // le dé de l'adversaire roule avant que la rondelle parte
+  const SIFFLET_TIENT = 900;     // la glace figée, le mot de l'arbitre posé
+  const SIFFLET_RESTE = 1200;    // le mot reste encore, le temps que tout le monde se replace
+  const REBOND = 150;
+  const voyage = n => Math.min(560, Math.max(170, n * PAS_RONDELLE));
+  const ecart = (a, b) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c));
+  const cleDe = x => (x.gardien ? `${x.eq}-G` : `${x.eq}-${x.role}`);
+  // Après ces étapes-là, la rondelle est LIBRE : le point d'or s'allume.
+  const LIBRE_APRES = new Set(['fond', 'retour', 'ricochet', 'echappe', 'large', 'banc']);
+  let rondelleLibreVue = false;
+
+  const enLecture = () => fileLecture.length > 0 || !!minuteurLecture;
+  const resteLecture = () => (enLecture() ? Math.max(0, finLecture - Date.now()) : 0);
+
+  /** Le sifflet sur la glace : le mot de l'arbitre, et où la rondelle sera remise en jeu. */
+  const siffletHtml = (s, cleSeule) => (cleSeule ? `${s.n}`
+    : `<span class="t-sifflet-mot"><b>🔔 ${esc(s.mot)}</b><i>mise au jeu ${esc(s.ou)}</i></span>`);
+
+  /*
+   * Prépare et lance la lecture de ce que le moteur vient de jouer. Rend le
+   * temps (ms) qu'il faudra à la rondelle pour ARRIVER — c'est là que le
+   * verdict éclate. `attente` : le dé de l'adversaire roule d'abord.
+   */
+  function preparerLecture(attente = 0) {
+    const etapes = m.trajet.slice(trajetLu);
+    // Un patin n'est lu qu'une fois la pièce ARRIVÉE : pendant qu'un dé
+    // d'esquive attend ta décision, elle n'a pas encore bougé.
+    const arrive = m.patin && m.patin !== patinVu && m.patin.piece.r === m.patin.vers.r && m.patin.piece.c === m.patin.vers.c;
+    const patin = arrive ? m.patin : null;
+    if (!etapes.length && !patin) return 0;
+    trajetLu = m.trajet.length;
+    if (patin) patinVu = patin;
+    if (enLecture()) vider();            // jamais deux lectures l'une sur l'autre
+    const pas = [];
+    const pousser = (duree, faire) => pas.push({ duree, faire });
+    // Le point de départ est ce que l'écran montre DÉJÀ : sans ça, le premier
+    // rendu poserait tout à l'arrivée, et la lecture repartirait de là.
+    if (etapes.length) pilotes.set('rondelle', { r: etapes[0].de.r, c: etapes[0].de.c, libre: rondelleLibreVue });
+    if (attente) pousser(attente, () => {});
+    const surRoute = (cle, route, avecRondelle) => {
+      if (cle) pilotes.set(cle, { r: route[0].r, c: route[0].c });
+      for (const x of route.slice(1)) pousser(PAS_PATIN, () => {
+        if (cle) pilotes.set(cle, { r: x.r, c: x.c, ms: PAS_PATIN });
+        if (avecRondelle) pilotes.set('rondelle', { r: x.r, c: x.c, ms: PAS_PATIN, libre: false });
+      });
+    };
+    // Le patin d'une pièce SANS la rondelle, avant tout le reste : c'est lui
+    // qui arrive sur une rondelle libre, ou qui se place.
+    const duPorteur = patin && etapes.some(e => e.genre === 'patin' && e.a.r === patin.vers.r && e.a.c === patin.vers.c);
+    if (patin && !duPorteur) surRoute(cleDe(patin.piece), patin.chemin.length ? patin.chemin : [patin.de, patin.vers], false);
+    // La glace QUAND l'arbitre a sifflé : les pièces y restent jusqu'à la remise en place.
+    const mj = etapes.find(e => e.genre === 'mj');
+    if (mj && mj.photo) photo = mj.photo;
+    let impact = -1;
+    for (const e of etapes) {
+      if (e.genre === 'mj') {
+        if (impact < 0) impact = pas.length;
+        pousser(SIFFLET_TIENT, () => {
+          clearTimeout(minuteurSifflet);
+          coupDeSifflet = { r: e.point.r, c: e.point.c, mot: e.mot, ou: e.point.nom, n: ++noJet };
+        });
+        // L'arbitre pose la rondelle au point, tout le monde se replace, le centre la gagne.
+        pousser(260, () => {
+          photo = null;
+          // Le jeu est arrêté : le dé du geste qui l'a arrêté n'a plus rien à dire sur la glace.
+          deGlace = null;
+          for (const k of [...pilotes.keys()]) if (k !== 'rondelle') pilotes.delete(k);
+          pilotes.set('rondelle', { r: e.point.r, c: e.point.c, saute: true, libre: true });
+          minuteurSifflet = setTimeout(() => { coupDeSifflet = null; if (!regles && grilleFaite) majGlace(); }, SIFFLET_RESTE);
+        });
+        pousser(REBOND, () => pilotes.set('rondelle', { r: e.a.r, c: e.a.c, ms: REBOND, libre: false }));
+        continue;
+      }
+      if (e.genre === 'patin') {
+        surRoute(duPorteur ? cleDe(patin.piece) : null, e.chemin || [e.de, e.a], true);
+        continue;
+      }
+      const libreApres = LIBRE_APRES.has(e.genre);
+      const via = e.pivot && ecart(e.pivot, e.de) > 0 ? e.pivot : null;
+      if (via) { const d = voyage(ecart(e.de, via)); pousser(d, () => pilotes.set('rondelle', { r: via.r, c: via.c, ms: d, libre: false })); }
+      const n = ecart(via || e.de, e.a);
+      const d = !n ? 0 : via || libreApres ? REBOND : voyage(n);
+      pousser(d, () => pilotes.set('rondelle', { r: e.a.r, c: e.a.c, ms: d, libre: libreApres }));
+    }
+    // Le verdict éclate quand la rondelle ARRIVE — avant le sifflet, s'il y en a un.
+    if (impact < 0) impact = pas.length;
+    pas.splice(impact, 0, { duree: 0, faire: () => { if (flashAuBut) montrerFlash(flashAuBut); } });
+    const tImpact = pas.slice(0, impact).reduce((s, x) => s + x.duree, 0);
+    fileLecture = pas;
+    finLecture = Date.now() + pas.reduce((s, x) => s + x.duree, 0);
+    enchainer();
+    return tImpact;
+  }
+
+  function enchainer() {
+    minuteurLecture = 0;
+    const pas = fileLecture.shift();
+    if (!pas) { lectureFinie(); return; }
+    pas.faire();
+    if (!regles && grilleFaite) majGlace();
+    minuteurLecture = setTimeout(enchainer, pas.duree);
+  }
+
+  /** Joue d'un coup ce qui reste de la lecture, sans redessiner : une autre la suit. */
+  function vider() {
+    clearTimeout(minuteurLecture);
+    minuteurLecture = 0;
+    while (fileLecture.length) fileLecture.shift().faire();
+    pilotes.clear();
+    photo = null;
+  }
+
+  /** Finir la lecture maintenant : un toucher de la glace, ou le geste suivant de l'adversaire. */
+  function sauterLecture() {
+    if (!enLecture()) return;
+    vider();
+    lectureFinie();
+  }
+
+  function lectureFinie() {
+    minuteurLecture = 0;
+    fileLecture = [];
+    pilotes.clear();
+    photo = null;
+    if (flashAuBut) montrerFlash(flashAuBut);
+    if (regles) return;
+    // La glace est de nouveau celle du moteur : ce qui s'allume, qui peut jouer.
+    if (!iaEnCours) choisirSeul();
+    rendre();
   }
 
   /*
@@ -785,6 +1013,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     but: 'but', retour: 'retour', arret: 'arret', echec: 'echec', vol: 'vol', rate: 'rate',
     revirement: 'revirement', degage: 'degage', mj: 'mj', fin: 'fin', periode: 'periode',
     dejoue: 'patin', changement: 'tap', bataille: 'vol', punition: 'periode', horsjeu: 'periode', icing: 'periode', desert: 'periode',
+    relance: 'passe',   // S74 : la sortie de zone du gardien est une passe, elle s'entend comme une passe
   };
   const PAS_SON = { tir: 0.22, patin: 0.12, passe: 0.1, echec: 0.28, arret: 0.2, retour: 0.25, vol: 0.15, rate: 0.15, degage: 0.45, mj: 0.1, periode: 0.5, fin: 2, but: 1.6, revirement: 0.2, tap: 0.08 };
   function sonner(genres, quoi, delai = 0) {
@@ -1046,7 +1275,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * gratuit ; chaque entrant prend la case du sortant. Seule l'unité qui
    * porte la rondelle ne change pas — son bouton le dit.
    */
-  const peutChanger = () => aMoi() && !attente && !m.main.change;
+  const peutChanger = () => aMoi() && !attente && !enLecture() && !m.main.change;
 
   function unites() {
     if (!peutChanger()) return '';
@@ -1186,6 +1415,15 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     `<div class="t-evt t-evt-${e.genre}">${esc(e.texte)}</div>`).join('')}</div>`;
 
   /* ---------- le rendu ---------- */
+  /*
+   * ON NE RÉÉCRIT QUE CE QUI A CHANGÉ (S74). La lecture du trajet finit sur
+   * une minuterie, donc un rendu peut maintenant tomber pendant TA main, entre
+   * le moment où le doigt vise un bouton et celui où il le touche : réécrire
+   * la barre pour rien remplaçait le bouton sous le doigt. Le test de fumée
+   * l'a attrapé du premier coup (« element is not attached to the DOM »).
+   */
+  const ecrire = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
+
   function rendre() {
     // Le volet des règles couvre le match ; le plateau se CACHE, il ne se
     // vide pas — la grille est bâtie une fois et les pièces glissent dessus.
@@ -1196,10 +1434,13 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // Les règles et la feuille prennent tout le bas : le volet ne glisse pas, il est là.
     $('.t-dock').hidden = regles || feuille;
     $('.t-bas').classList.toggle('plein', regles || feuille);
-    if (regles) { $('.t-bas').innerHTML = reglesHtml(); return; }
+    if (regles) { ecrire($('.t-bas'), reglesHtml()); return; }
+    // Ce que le moteur vient de jouer se lit avant de se dessiner (S74) ; sans
+    // rien de neuf au trajet, c'est sans effet.
+    preparerLecture();
     veillerButs();
-    $('.t-tete').innerHTML = tete() + banniere();
-    if (feuille) { $('.t-bas').innerHTML = feuilleHtml(); return; }
+    ecrire($('.t-tete'), tete() + banniere());
+    if (feuille) { ecrire($('.t-bas'), feuilleHtml()); return; }
     if (!grilleFaite) batirGlace();
     /*
      * `carte()` D'ABORD, LA GLACE ENSUITE — ET C'EST UN ORDRE, PAS UN GOÛT.
@@ -1231,9 +1472,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     // ouvrir), les STATS dans le volet. Sur téléphone il glisse par-dessus
     // le bas de la glace et se ferme dès qu'on touche la glace ; sur grand
     // écran il est la colonne de droite, toujours ouverte (feuille de style).
-    $('.t-dock').innerHTML = dock();
+    ecrire($('.t-dock'), dock());
     $('.t-bas').classList.toggle('ouvert', volet);
-    $('.t-bas').innerHTML = unites() + fiche + fil();
+    ecrire($('.t-bas'), unites() + fiche + fil());
   }
 
   /*
@@ -1347,6 +1588,22 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     rendre();
   }
 
+  /*
+   * POURQUOI MA MAIN A FINI, lu dans ce que le moteur vient d'écrire. Le but
+   * et le revirement se disaient ; le SIFFLET non (S74) : un hors-jeu, un
+   * dégagement refusé ou une punition finissaient ta main et la barre disait
+   * « Ta main est jouée », comme si tu l'avais passée.
+   */
+  const SIFFLETS_DE_MAIN = { horsjeu: 'Hors-jeu : coup de sifflet', icing: 'Dégagement refusé : coup de sifflet', punition: 'Punition : coup de sifflet', periode: 'Fin de la période' };
+  function noterFinDeMain(avant) {
+    const genres = m.fil.slice(0, Math.max(0, m.fil.length - avant)).map(e => e.genre);
+    const sifflet = genres.find(g => SIFFLETS_DE_MAIN[g]);
+    if (genres.includes('but')) finDeMain = 'But';
+    else if (sifflet) finDeMain = SIFFLETS_DE_MAIN[sifflet];
+    else if (genres.includes('mj')) finDeMain = 'Le gardien la gèle : coup de sifflet';
+    else if (genres.includes('revirement')) finDeMain = 'Revirement : la main passe';
+  }
+
   function resoudre() {
     if (!attente) return;
     const { jet, appliquer, ou } = attente;
@@ -1357,9 +1614,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     const avant = m.fil.length;
     appliquer(jet);
     // Si ce jet vient de finir ma main, la barre le dira pendant la sienne.
-    const genres = m.fil.slice(0, Math.max(0, m.fil.length - avant)).map(e => e.genre);
-    if (genres.includes('but')) finDeMain = 'But';
-    else if (genres.includes('revirement')) finDeMain = 'Revirement : la main passe';
+    noterFinDeMain(avant);
     verdict(avant, ou, jet.quoi);
     apres();
   }
@@ -1410,7 +1665,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const d = deplacer(m, piece, vers);
       // Patiner d'une case libre ne demande pas de dé : le geste est déjà
       // joué, il ne reste qu'à dire ce que le moteur en a fait.
-      if (!d.jet) { verdict(avant, ou, 'patin'); apres(); return; }
+      if (!d.jet) { noterFinDeMain(avant); verdict(avant, ou, 'patin'); apres(); return; }
       if (d.bataille) { lancer(d.jet, 'A', j => appliquerBataille(m, piece, vers, j), placesDe(piece, vers)); return; }
       lancer(d.jet, 'A', j => appliquerEsquive(m, piece, vers, j), ou);
       return;
@@ -1472,6 +1727,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
 
     const pas = () => {
       clearTimeout(minuteurIA);
+      // Un toucher pendant qu'une étape roule la finit, et on passe au geste suivant.
+      if (enLecture()) sauterLecture();
       // En alternance, l'adversaire enchaîne plusieurs activations quand il
       // ne me reste plus de pièce : la boucle continue tant que la main est
       // à lui, avec un garde-fou sur le tour entier (cinq pièces).
@@ -1485,20 +1742,24 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       dernier = { piece: joue.piece, cible: joue.cible || null };
       // Le dé de l'adversaire tombe sur SA case, comme le tien sur la tienne,
       // et son verdict éclate au même endroit que le tien l'aurait fait.
-      deGlace = joue.jet ? { jet: joue.jet, cote, r: joue.piece.r, c: joue.piece.c, n: ++noJet } : null;
+      // Un patin avec esquive : le dé tombe là d'où il PART (S74) — la pièce y
+      // est encore à l'écran, la lecture la fera patiner après le jet.
+      const depart = joue.type === 'deplacer' && m.patin && m.patin.piece === joue.piece ? m.patin.de : joue.piece;
+      deGlace = joue.jet ? { jet: joue.jet, cote, r: depart.r, c: depart.c, n: ++noJet } : null;
       // Son dé roule aussi, et ses sons suivent le jet — le geste est déjà
       // joué, on le fait seulement entendre au rythme où on le lit.
       if (joue.jet) jouerSon('de');
       verdict(avant, placesDe(joue.piece, joue.cible || null), joue.jet ? joue.jet.quoi : (joue.type === 'deplacer' ? 'patin' : joue.type), joue.jet ? 0.3 : 0);
       rendre();
-      minuteurIA = setTimeout(pas, joue.jet ? PAUSE_DE : PAUSE_SEC);
+      // Le geste suivant attend que la rondelle ait fini son trajet (S74).
+      minuteurIA = setTimeout(pas, Math.max(joue.jet ? PAUSE_DE : PAUSE_SEC, resteLecture() + 220));
     };
     // ON PEUT SAUTER L'ATTENTE. JP : *skip automatique de message quand on
     // clique*. Un clic sur le plateau pendant la présence adverse joue le
     // geste suivant tout de suite ; rien n'est joué autrement, on regarde
     // juste plus vite.
     avancerIA = pas;
-    minuteurIA = setTimeout(pas, 320);
+    minuteurIA = setTimeout(pas, Math.max(320, resteLecture() + 180));
   }
 
   /*
@@ -1515,7 +1776,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         butsVus[c] = eq.buts;
         eclat = { eq: c, texte: eq.nom };
         clearTimeout(minuteurEclat);
-        minuteurEclat = setTimeout(() => { eclat = null; if (!regles) $('.t-tete').innerHTML = tete() + banniere(); }, 1800);
+        minuteurEclat = setTimeout(() => { eclat = null; if (!regles) ecrire($('.t-tete'), tete() + banniere()); }, 1800);
       }
     }
   }
@@ -1572,6 +1833,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (t.closest('.t-feuille-suite') || t.closest('.table-close')) { fermer(); return; }
     // Pendant la présence adverse, un clic saute l'attente du geste suivant.
     if (iaEnCours) { if (avancerIA) avancerIA(); return; }
+    // Pendant qu'un trajet se lit (S74), toucher la glace ou la barre le finit
+    // d'un coup — la main n'est pas jouable tant qu'on regarde l'ancienne glace.
+    if (enLecture() && (t.closest('.t-plateau') || t.closest('.t-dock'))) { sauterLecture(); return; }
     if (t.closest('.t-relancer')) { attente.jet = relancer(m, attente.jet, 'A'); deGlace = { ...deGlace, jet: attente.jet, n: ++noJet }; rendre(); return; }
     if (t.closest('.t-suite')) { resoudre(); return; }
     /*
@@ -1650,6 +1914,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
      * l'autre.
      */
     clearTimeout(minuteurIA); clearTimeout(minuteurFlash); clearTimeout(minuteurEclat); clearTimeout(minuteurTrace);
+    clearTimeout(minuteurLecture); clearTimeout(minuteurSifflet); fileLecture = []; minuteurLecture = 0;
     iaEnCours = false; avancerIA = null;
     modal.style.display = 'none';
     document.body.style.overflow = '';
