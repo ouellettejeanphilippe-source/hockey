@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS,
+import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua,
   PLANS, ROULEMENTS, planDe, roulementDe, JOURS_SITUATIONS,
   STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
@@ -517,13 +517,16 @@ export function cacherBoutonFlottant() {
    ===================================================================== */
 
 /**
- * Ouvre l'écran de saison. Les 82 journées sont déjà jouées (`simulateLeague`
- * a rendu le calendrier) ; l'écran les révèle au rythme du joueur et appelle
- * `onTermine` quand on passe au bilan.
+ * Ouvre l'écran de saison. RIEN N'EST JOUÉ D'AVANCE (S79) : `ligue` est la
+ * ligue du moteur (`creerLigue`), et chaque journée se joue au moment où
+ * l'écran la révèle (`appliquerJour`). L'écran appelle `onTermine` quand on
+ * passe au bilan.
  *
- *   calendrier  [jour][match] = { A, B, gfA, gfB, ot, feuille }
- *   teams       les 32 équipes (leurs compteurs sont ceux de FIN de saison :
- *               le classement du jour se recalcule à partir du calendrier)
+ *   calendrier  [jour][match] = { A, B } — la cédule, posée d'avance ; une
+ *               journée jouée y ajoute { gfA, gfB, ot, feuille, joue }
+ *   ligue       la ligue du moteur, ou null (une saison déjà jouée en entier)
+ *   teams       les 32 équipes (leurs compteurs sont ceux du jour joué : le
+ *               classement de l'écran se recalcule quand même du calendrier)
  *   you         ton équipe
  *   enSeries    combien d'équipes vont en séries (seize, ou moins dans une petite ligue)
  *   epoque      la saison jouée quand la ligue est fixée à une année, sinon null
@@ -535,7 +538,7 @@ export function cacherBoutonFlottant() {
  *   onJour      appelé à chaque avance avec le numéro de journée révélée :
  *               c'est ce que le contrôleur écrit dans la sauvegarde
  */
-export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, onTrou = null, trousPris = [], decisions = [], onDecision = null }) {
+export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, onTrou = null, trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -618,6 +621,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   };
 
   function appliquerJour(j) {
+    // La journée se JOUE ici, au moment d'être révélée — jamais avant (S79).
+    if (ligue) jouerJusqua(ligue, j + 1);
     const matchs = calendrier[j];
     for (const m of matchs) cumuler(m);
     compterFeuilles(matchs.map(m => m.feuille), compte);
@@ -809,7 +814,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
    * comme un dilemme ; le deuxième entracte arrête « Journée suivante » et le
    * direct. « La fin » ne s'arrête pas : qui demande la fin demande la fin.
    */
-  const grosDuJour = j => (you.minisBoss || []).find(x => x.jour === j) || null;
+  // Joué, il est dans `minisBoss` ; à venir, le moteur l'a repéré au matin (`grosAVenir`), sans rien jouer (S79).
+  const grosDuJour = j => (you.minisBoss || []).find(x => x.jour === j)
+    || (ligue && ligue.grosAVenir && ligue.grosAVenir.jour === j ? ligue.grosAVenir : null);
   const entracteAttendu = j => !!(onDecision && grosDuJour(j) && !decs.some(d => d.jour === j && d.entracte));
   function avantOuvert() {
     if (!onDecision || jour >= N) return null;
@@ -912,21 +919,26 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
    * suivante » et « +10 » s'arrêtent, « La fin » non — qui demande la fin
    * demande la fin.
    */
-  const avancer = (n, stop = false) => {
-    let premier = true;
+  /*
+   * `infos` : les messages À LIRE (la situation du vestiaire, la carte qui
+   * change) arrêtent aussi l'avance ; « Jusqu'à la prochaine décision » ne
+   * s'arrête que sur ce qui demande le joueur. Rend `true` si l'avance s'est
+   * arrêtée sur quelque chose.
+   */
+  const avancer = (n, stop = false, infos = true) => {
+    let premier = true, arrete = false;
     entracteDemande = false;
     while (n-- > 0 && jour < N) {
       // LE DEUXIÈME ENTRACTE D'UN GROS MATCH (S70) : on n'y passe pas sans choisir.
-      if (stop && entracteAttendu(jour)) { if (premier) entracteDemande = true; break; }
+      if (stop && entracteAttendu(jour)) { if (premier) entracteDemande = true; arrete = true; break; }
       premier = false;
       appliquerJour(jour++);
       const pal = palierOuvert();
-      // TROIS RAISONS DE S'ARRÊTER, et chacune n'arrête qu'UNE fois — c'est
-      // la règle du palier, étendue aux situations et aux cases vides : un
-      // moment qu'on dépasse ne doit pas bloquer « +10 journées » à chaque
-      // clic pour qui a décidé de ne rien faire.
-      if (stop && (blessuresNeuves().length || trousNeufs().length || situationsNeuves().length || accidentsNeufs().length
-        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert())) break;
+      // LES RAISONS DE S'ARRÊTER, et chacune n'arrête qu'UNE fois — c'est la
+      // règle du palier, étendue aux blessures, aux situations et aux cases
+      // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
+      if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length))
+        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte())) { arrete = true; break; }
     }
     const pal = palierOuvert();
     if (pal !== undefined) paliersVus.add(pal);
@@ -945,6 +957,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     // La journée révélée est la seule chose que la reprise a besoin de savoir :
     // tout le reste se rejoue de la graine.
     if (onJour) onJour(jour);
+    return arrete;
   };
   // REPRISE : on réapplique les journées déjà vues avant le premier dessin.
   if (depuis > 0) {
@@ -1283,6 +1296,44 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
    * avant retour à écran principal si match*. Le sommaire passe devant les
    * choix forcés du jour ; ils s'ouvrent quand on le ferme.
    */
+  /*
+   * JUSQU'À LA PROCHAINE DÉCISION (S79). JP : *pas possible de sauter la
+   * saison, mais possible de simuler jusqu'à la prochaine action forcée*. Une
+   * journée à la fois, jouée et révélée, jusqu'à la première qui demande le
+   * joueur — une blessure et son ballottage, une case vide, un palier, un
+   * choix forcé, un gros match (son avant-match, sa main, son entracte), une
+   * récompense — ou la fin de la saison. On s'arrête LE JOUR de l'événement,
+   * jamais après. Le bouton dit où on en est (« J24 … J31 ») : le fil rend la
+   * main au navigateur entre deux paquets de journées.
+   */
+  let enRoute = false;
+  async function avancerJusquaDecision() {
+    if (enRoute || jour >= N) return;
+    enRoute = true;
+    const avant = { jour, joues: miens.length, rang: rangDe(you) };
+    retenir = true;
+    const depart = jour;
+    const bouton = actions.querySelector('.hub-prochaine');
+    for (const b of actions.querySelectorAll('button')) b.disabled = true;
+    let t0 = performance.now();
+    try {
+      while (jour < N) {
+        if (avancer(1, true, false)) break;
+        if (performance.now() - t0 > 50) {
+          if (bouton) bouton.textContent = `J${depart + 1} … J${jour}`;
+          await new Promise(r => setTimeout(r, 0));
+          t0 = performance.now();
+        }
+      }
+    } finally { enRoute = false; }
+    dernierAvance = { joues0: avant.joues };
+    boite.ouvert = null;
+    dessiner();
+    tabs.suivre('journee');
+    if (entracteDemande) { retenir = false; ouvrirEntracte(); return; }
+    if (!ouvrirSommaire(avant)) { retenir = false; dessiner(); }
+  }
+
   function avancerPuisResumer(n) {
     const avant = { jour, joues: miens.length, rang: rangDe(you) };
     retenir = true;
@@ -1774,6 +1825,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   }
 
   function dessiner() {
+    // Le ✕ ne passe au bilan qu'une fois la saison jouée (S79).
+    ui.close.hidden = jour < N;
     // Le flottant se rebranche plus bas s'il y a une journée à jouer ; la fin
     // de saison n'en a pas, et il restait par-dessus « Voir le bilan » (QA S74b).
     cacherBoutonFlottant();
@@ -2165,8 +2218,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     actions.innerHTML = `${primaire}
       <div class="hub-actions-rang">
       ${p && !premier ? '<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>' : ''}
-      ${premier ? '' : '<button class="btn hub-dix" title="Dix journées d\'un coup">+10 jours</button>'}
-      <button class="btn hub-fin"${premier ? ' disabled title="Règle d\'abord ta boîte de réception"' : ' title="Jouer le reste de la saison et lire le résultat"'}>Fin de saison</button>
+      ${premier ? '' : '<button class="btn hub-prochaine" title="Jouer les journées une à une, jusqu\'à la première qui demande une décision">Jusqu\'à la prochaine décision</button>'}
       ${onDecision && ctx.rogue ? `<button class="btn gold hub-boutique" title="La boutique du mode Rogue : des packs de joueurs et de cartes">🛒 ${ctx.rogue.jetons(jour)} 🪙</button>` : ''}
       </div>
       ${boiteHtml}`;
@@ -2223,16 +2275,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const voirMain = actions.querySelector('.hub-main-ouvrir');
     if (voirMain && pal !== undefined) voirMain.onclick = () => ouvrirMain(pal);
     boutonFlottant(actions, termine);
-    const bj = actions.querySelector('.hub-jour'), bd = actions.querySelector('.hub-dix');
+    const bj = actions.querySelector('.hub-jour'), bp = actions.querySelector('.hub-prochaine');
     if (bj) bj.onclick = () => avancerPuisResumer(1);
-    if (bd) bd.onclick = () => avancerPuisResumer(10);
-    // « La fin » ne s'arrête pas : qui demande la fin demande la fin. Mais pas
-    // par-dessus une boîte pleine : le bouton attend qu'on l'ait réglée.
-    const fin = actions.querySelector('.hub-fin');
-    if (fin && !premier) fin.onclick = () => {
-      const suite = () => { avancer(N); dessiner(); tabs.suivre('journee'); };
-      if (onDecision) demanderFin(suite); else suite();
-    };
+    if (bp) bp.onclick = () => { avancerJusquaDecision(); };
   }
 
   /*
@@ -2244,6 +2289,10 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   function ouvrirEntracte(direct = false) {
     const p = prochain();
     if (!p || termine || !entracteAttendu(p.j)) return;
+    // Le gros match se joue jusqu'au bout pour montrer ses deux premières périodes ;
+    // le choix de l'entracte le rejouera depuis 40:00 (`continuerSaison`, js/game.js).
+    while (jour < p.j) appliquerJour(jour++);
+    if (ligue) jouerJusqua(ligue, p.j + 1);
     const mb = grosDuJour(p.j), f = p.m.feuille, e = f && f.entracte;
     if (!e) return;
     const moiA = p.m.A === you, cMoi = moiA ? 'A' : 'B', cLui = moiA ? 'B' : 'A';
@@ -2287,6 +2336,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     // Les journées de congé d'ici là passent d'elles-mêmes.
     dernierAvance = { joues0: miens.length };
     while (jour < p.j) appliquerJour(jour++);
+    // Le soir du direct se JOUE maintenant, pour être montré (S79) — pas avant.
+    if (ligue) jouerJusqua(ligue, p.j + 1);
     const f = fiche.get(you);
     const apresA = { ...fiche.get(p.m.A) }, apresB = { ...fiche.get(p.m.B) };
     diffuserMatch({
@@ -2319,27 +2370,13 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   // L'onglet « Alignement » de la barre ouvre le banc en pleine saison (S67).
   if (onBanc) tabs.hub.banc = () => { quitter(); onBanc(jour); };
   /*
-   * ✕ : le reste de la saison se joue, et on passe au bilan — APRÈS une
-   * question (S74). Un kid qui touche ✕ pour « fermer » sautait du jour 40 au
-   * bilan et perdait ses paliers et ses gros matchs.
+   * ✕ NE SAUTE PLUS LA SAISON (S79). JP : *pas possible de sauter la saison*.
+   * Il sautait au bilan après une question ; il n'apparaît plus qu'une fois la
+   * saison jouée, pour passer au bilan (`dessiner` le montre ou le cache).
    */
-  ui.close.onclick = () => {
-    if (jour >= N) { fermer(); return; }
-    demanderFin(() => { avancer(N); fermer(); });
-  };
-  function demanderFin(suite) {
-    ouvrirChoix({
-      ico: '⏩', titre: 'Jouer le reste de la saison ?', genre: 'confirmer', fermable: true, motFermer: 'Rester',
-      recit: `Il reste ${N - jour} journées. Tout se joue d'un coup, et tu passes au bilan.`,
-      options: [
-        { cle: 'fin', ico: '⏩', nom: 'Oui, jusqu\'au bilan', bon: 'Tout se joue d\'un coup', prix: 'Les paliers et les gros matchs d\'ici là passent sans toi' },
-        { cle: 'rester', ico: '🏒', nom: 'Non, je reste', bon: 'On continue journée par journée' },
-      ],
-      onChoix: k => { if (k === 'fin') suite(); },
-    });
-  }
+  ui.close.onclick = () => { if (jour >= N) fermer(); };
   ui.close.setAttribute('aria-label', 'Passer au bilan de la saison');
-  ui.close.title = 'Jouer le reste de la saison et passer au bilan';
+  ui.close.title = 'Passer au bilan de la saison';
   // Entrée ou la barre d'espace : la journée suivante, sans viser le bouton.
   const clavier = ev => {
     if ((ev.key !== ' ' && ev.key !== 'Enter') || ev.target.closest('input, textarea, select, button, [role="button"], a')) return;

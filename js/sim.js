@@ -4468,102 +4468,197 @@ export function photoAlignement(roster) {
  * prime PARFAIT : à traitement égal, les deux passages sont la même
  * simulation au lancer près.
  */
-export function simulateLeague(teams, games = 82, { graine = null, decisions = [], situations = true } = {}) {
-  const vitDesSituations = typeof situations === 'function' ? situations : () => !!situations;
-  // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
-  // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
-  // Le générateur reste en place après : les séries, jouées ensuite par
-  // l'interface, continuent la même suite.
-  if (graine === null || graine === undefined) graine = nouvelleGraine();
-  grainerHasard(graine);
-  for (const t of teams) {
-    for (const s of SLOTS) if (t.roster[s.i]) { initSimStats(t.roster[s.i]); connaitre(t.roster[s.i]); }
-    t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
-    // La chance de saison est tirée ICI, sous la graine, et non à
-    // `createTeam` : sinon deux saisons de même graine différaient déjà
-    // avant le premier lancer (check_graine.mjs l'a attrapé).
-    t.luck = gauss() * LUCK_SEASON;
-    // LES CARTES SE REMETTENT À ZÉRO ICI. Sans ça, rejouer la saison — ce que
-    // fait CHAQUE décision — empilerait les cartes des passages précédents,
-    // et une équipe finirait la partie avec quinze fois la même.
-    t.cartes = [];
-    // LES SITUATIONS AUSSI. Elles ne sont pas une décision, mais elles vivent
-    // sur les objets joueurs (`_situ`) et sur l'équipe : sans cette remise à
-    // zéro, rejouer la saison — ce que fait CHAQUE décision — laisserait la
-    // paire du passage précédent collée sur ses deux hommes.
-    t.situations = [];
-    t.trous = []; t.trouEnCours = false;
-    // LES MOMENTS aussi (S66) : ce sont des décisions, rejouées à chaque passage.
-    t.effets = []; t.jourCourant = 0;
-    // LES GESTES RÉELS (S72) : les absents, le gardien auxiliaire imposé, les paris joués.
-    t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
-    // LA CHIMIE ET L'ÉNERGIE (S68) repartent de zéro et de cent à chaque passage.
-    t.chimie = [0, 0, 0, 0]; t.entente = new Map();
-    for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-    for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
-    t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
-    t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
-    for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
-  }
-  /*
-   * LES JOUEURS QUI ARRIVENT EN COURS DE SAISON (S74). La remise à zéro
-   * ci-dessus ne voit que les alignements du jour 0 : un joueur réclamé au
-   * ballottage, une recrue du deck, entre plus tard — et gardait l'énergie, la
-   * maîtrise, l'adaptation et les changements de carte de la saison PRÉCÉDENTE
-   * jouée dans la même session. Un rechargement, lui, repart de joueurs neufs
-   * relus dans les shards : la saison rejouée en session divergeait de la même
-   * saison rechargée (le smoke l'a vu deux fois, en séries, après un
-   * ballottage). Tous les joueurs connus repartent de la même page.
-   */
-  for (const p of CONNUS.values()) {
-    if (!p) continue;
-    p.energie = 100;
-    delete p._maitrise; delete p._adapt; delete p._situ;
-    delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
-  }
-  // Le calendrier : une journée par ronde, ses seize matchs avec leur
-  // pointage. C'est ce que l'écran rejoue jour après jour, et ce qu'on peut
-  // consulter après pour vérifier la saison de n'importe quelle équipe.
-  const calendrier = [];
+/*
+ * LA LIGUE SE JOUE AU JOUR LE JOUR (S79). JP : *tu devrais jamais simuler
+ * d'avance*. La saison se jouait d'un bloc — les 82 journées, dès qu'on
+ * lançait — et l'écran les dévoilait ensuite : tout ce qui lisait l'état du
+ * moteur (les compteurs `sim*`, les changements de carte, l'énergie) lisait
+ * la FIN de l'année, et chaque décision rejouait la saison entière.
+ *
+ * Maintenant le moteur ne joue QUE ce qui est arrivé :
+ *
+ *   creerLigue(teams, games, { graine, decisions })  la ligue, prête à jouer
+ *                    sa journée 0 : les équipes remises à neuf, la chance de
+ *                    saison tirée, les styles posés, la cédule tirée, le matin
+ *                    du jour 0 préparé (`preludeDuJour`) ;
+ *   jouerJournee(L)  UNE journée : ses décisions (lues dans `L.decisions`, la
+ *                    même liste que la sauvegarde), ses matchs, puis le matin
+ *                    du lendemain ;
+ *   jouerJusqua(L, n) les journées jusqu'à ce que `n` soient jouées ;
+ *   bilanLigue(L)    le classement et les meneurs, À CE JOUR.
+ *
+ * `simulateLeague` reste : créer, jouer tout, rendre le bilan — c'est ce que
+ * lisent les scripts de mesure, et c'est EXACTEMENT la même suite que les
+ * mêmes journées jouées une à une (`check_graine.mjs` l'exige).
+ *
+ * LA CÉDULE N'EST PAS UNE SIMULATION. Qui joue contre qui, et quel soir, se
+ * tire d'un générateur À PART (`graine:cedule`) avant la première journée :
+ * l'affiche du prochain match se connaît sans qu'un seul match soit joué, et
+ * les matchs ne consomment plus le hasard de l'affiche. Chaque match est un
+ * objet `{ A, B }` posé d'avance, que sa journée complète (`gfA`, `gfB`,
+ * `ot`, `feuille`, `joue`) : l'écran garde les mêmes objets du début à la fin.
+ *
+ * LE HASARD DE LA LIGUE EST À ELLE (`L.rng`). Le temps d'une journée, le
+ * moteur tire de son générateur, puis rend le sien à qui l'avait : le
+ * pronostic, le plateau ou l'exhibition peuvent tirer entre deux journées
+ * sans décaler d'un seul dé la suite de la saison (`avecLigue`).
+ */
+function avecLigue(L, fn) {
+  const avant = hasard;
+  hasard = L.rng;
+  try { return fn(); } finally { L.rng = hasard; hasard = avant; }
+}
+
+/* La cédule : les affiches de toutes les journées, tirées d'un générateur à part. */
+function ceduleDe(teams, games, graine) {
+  const rng = generateur(`${graine}:cedule`);
+  const melanger = a => {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
   // Ce qu'il reste à jouer à chaque équipe. Une journée apparie tout le monde
   // quand l'effectif est pair ; sinon celle qui a le moins de matchs à jouer
   // est en congé, ce qui garde les restes à un match les uns des autres et
   // fait retomber tout le monde sur `games` à la fin.
-  // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
-  poserStyles(teams);
   const restant = new Map(teams.map(t => [t, games]));
-  for (let r = 0; restant.size; r++) {
-    // LES SITUATIONS DU JOUR, avant les décisions et avant le brassage. Comme
-    // elles, elles ne consomment AUCUN hasard : elles se tirent de la graine,
-    // de la journée et du rang de l'équipe. Une journée qui n'ouvre pas de
-    // fenêtre ne fait rien.
-    for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t); }
-    /*
-     * L'INSTANTANÉ DU JOUR (S68) : la chimie de chaque ligne et l'énergie de
-     * chaque joueur AU DÉBUT de la journée. Le moteur joue toute la saison
-     * d'avance ; sans ça, l'écran ne pourrait montrer que l'état de la FIN.
-     */
-    for (const t of teams) {
-      (t.jourLignes = t.jourLignes || [])[r] = {
-        chimie: (t.chimie || [0, 0, 0, 0]).slice(),
-        // L'APPRENTISSAGE DU JOUR (S73), pour ta formation seulement : l'écran
-        // calcule la chimie qu'aurait une ligne, pour n'importe quelle tactique.
-        ...(t.isPlayer ? { apprentissage: {
-          entente: Object.fromEntries(t.entente || []),
-          maitrise: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), { ...(p._maitrise || {}) }])),
-        } } : {}),
-        energie: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), Math.round(energieDe(p))])),
-      };
+  const cedule = [];
+  while (restant.size) {
+    const order = melanger(teams.filter(t => restant.get(t) > 0));
+    if (order.length < 2) break;
+    // Tri stable : l'ordre du brassage départage les équipes à égalité.
+    order.sort((a, b) => restant.get(b) - restant.get(a));
+    if (order.length % 2) order.pop();
+    const jour = [];
+    for (let i = 0; i < order.length; i += 2) {
+      jour.push({ A: order[i], B: order[i + 1] });
+      restant.set(order[i], restant.get(order[i]) - 1);
+      restant.set(order[i + 1], restant.get(order[i + 1]) - 1);
     }
-    for (let i = 0; i < teams.length; i++) if (vitDesSituations(i)) poserSituations(teams[i], graine, r, i);
-    // LES ACCIDENTS DE CARTE (S68), comme les situations : de la graine.
-    for (let i = 0; i < teams.length; i++) if (vitDesSituations(i)) poserAccident(teams[i], graine, r, i);
-    // Les décisions du jour s'appliquent AVANT le brassage : elles ne
-    // consomment aucun hasard, donc une décision au jour k ne touche pas
-    // aux appariements ni aux journées d'avant.
+    cedule.push(jour);
+    for (const [t, n] of restant) if (n <= 0) restant.delete(t);
+  }
+  return cedule;
+}
+
+export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true } = {}) {
+  // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
+  // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
+  if (graine === null || graine === undefined) graine = nouvelleGraine();
+  const L = {
+    teams, games, graine, decisions,
+    vit: typeof situations === 'function' ? situations : () => !!situations,
+    rng: generateur(graine),
+    // `jour` : les journées JOUÉES. La prochaine à jouer est `L.jour`.
+    jour: 0, fini: false,
+    calendrier: ceduleDe(teams, games, graine),
+    // Le gros match du prochain soir, repéré d'avance sans rien jouer (voir `preludeDuJour`).
+    grosAVenir: null,
+  };
+  avecLigue(L, () => {
+    for (const t of teams) {
+      for (const s of SLOTS) if (t.roster[s.i]) { initSimStats(t.roster[s.i]); connaitre(t.roster[s.i]); }
+      t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
+      // La chance de saison est tirée ICI, sous la graine, et non à
+      // `createTeam` : sinon deux saisons de même graine différaient déjà
+      // avant le premier lancer (check_graine.mjs l'a attrapé).
+      t.luck = gauss() * LUCK_SEASON;
+      // Une ligue neuve part de zéro : les cartes, les situations, les cases
+      // vides, les effets, les gestes réels, la chimie et l'énergie, les
+      // changements de carte, les gros matchs.
+      t.cartes = [];
+      t.situations = [];
+      t.trous = []; t.trouEnCours = false;
+      t.effets = []; t.jourCourant = 0;
+      t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
+      t.chimie = [0, 0, 0, 0]; t.entente = new Map();
+      for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
+      t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
+      t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
+      for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
+    }
+    /*
+     * LES JOUEURS QUI ARRIVENT EN COURS DE SAISON (S74). La remise à zéro
+     * ci-dessus ne voit que les alignements du jour 0 : un joueur réclamé au
+     * ballottage, une recrue du deck, entre plus tard — et gardait l'énergie,
+     * la maîtrise, l'adaptation et les changements de carte de la saison
+     * PRÉCÉDENTE jouée dans la même session. Tous les joueurs connus repartent
+     * de la même page.
+     */
+    for (const p of CONNUS.values()) {
+      if (!p) continue;
+      p.energie = 100;
+      delete p._maitrise; delete p._adapt; delete p._situ;
+      delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
+    }
+    // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
+    poserStyles(teams);
+    if (!L.calendrier.length) L.fini = true;
+    else preludeDuJour(L);
+  });
+  return L;
+}
+
+/*
+ * LE MATIN D'UNE JOURNÉE : la récupération, l'instantané que l'écran lit
+ * (`jourLignes`), les situations et les accidents du jour — rien de tout ça
+ * ne tire un dé — et le gros match du soir, repéré sur le classement de la
+ * veille. Il se prépare dès la fin de la veille : c'est l'état « à ce jour »
+ * que le banc et le hub lisent, sans jouer un seul match du lendemain.
+ */
+function preludeDuJour(L) {
+  const r = L.jour, teams = L.teams;
+  for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t); }
+  /*
+   * L'INSTANTANÉ DU JOUR (S68) : la chimie de chaque ligne et l'énergie de
+   * chaque joueur AU DÉBUT de la journée.
+   */
+  for (const t of teams) {
+    (t.jourLignes = t.jourLignes || [])[r] = {
+      chimie: (t.chimie || [0, 0, 0, 0]).slice(),
+      // L'APPRENTISSAGE DU JOUR (S73), pour ta formation seulement : l'écran
+      // calcule la chimie qu'aurait une ligne, pour n'importe quelle tactique.
+      ...(t.isPlayer ? { apprentissage: {
+        entente: Object.fromEntries(t.entente || []),
+        maitrise: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), { ...(p._maitrise || {}) }])),
+      } } : {}),
+      energie: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), Math.round(energieDe(p))])),
+    };
+  }
+  // LES SITUATIONS DU JOUR, avant les décisions : elles ne consomment AUCUN
+  // hasard — de la graine, de la journée et du rang de l'équipe.
+  for (let i = 0; i < teams.length; i++) if (L.vit(i)) poserSituations(teams[i], L.graine, r, i);
+  // LES ACCIDENTS DE CARTE (S68), comme les situations : de la graine.
+  for (let i = 0; i < teams.length; i++) if (L.vit(i)) poserAccident(teams[i], L.graine, r, i);
+  // LE GROS MATCH DU SOIR, repéré sans rien jouer : le même calcul que
+  // `jouerJournee` refera au moment du match (les décisions du jour ne
+  // touchent ni au classement ni aux rivalités).
+  L.grosAVenir = null;
+  const toi = teams[0] && teams[0].isPlayer ? teams[0] : null;
+  const m = toi && (L.calendrier[r] || []).find(x => x.A === toi || x.B === toi);
+  if (m && r >= 10) {
+    const adv = m.A === toi ? m.B : m.A;
+    const raison = grosMatchAvant(toi, adv, r, rangsDe(teams));
+    if (raison) {
+      const depistage = depistageDe(L.graine, `j${r}`, adv);
+      L.grosAVenir = { jour: r, adv, raison, depistage, plan: planDuDepistage(L.graine, `j${r}`, depistage) };
+    }
+  }
+}
+/* Le classement à ce jour, par rang (1 = premier) : ce que la veille dit des gros matchs. */
+const rangsDe = teams => new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1]));
+
+/* UNE JOURNÉE : ses décisions, ses matchs, puis le matin du lendemain. */
+export function jouerJournee(L) {
+  if (L.fini) return;
+  const r = L.jour, teams = L.teams, graine = L.graine;
+  avecLigue(L, () => {
+    // Les décisions du jour s'appliquent AVANT les matchs : elles ne
+    // consomment aucun hasard, donc une décision au jour k ne touche pas aux
+    // journées d'avant.
     let sel = null, entracteDuJour = null, mainDuJour = null;
     const avantsDuJour = [];
-    for (const d of decisions) {
+    for (const d of L.decisions) {
       if (d.jour !== r) continue;
       // LE CHOIX DU DEUXIÈME ENTRACTE (S70) se joue à 40:00, pas au matin :
       // ni appliqué ici, ni son sel mêlé aux dés de la journée.
@@ -4579,42 +4674,20 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
      * DES DÉS NEUFS APRÈS CHAQUE DÉCISION (S68). JP : *ça devrait jamais être
      * identique si on simule deux fois un match*. Une décision porte son SEL,
      * tiré au vrai hasard quand on la prend : à partir de sa journée, la
-     * saison se joue sur une suite neuve. Ce qui est déjà révélé ne bouge pas
-     * (les journées d'avant se rejouent sur l'ancienne suite), reprendre la
-     * même décision redonne d'AUTRES matchs, et un rechargement redonne les
-     * mêmes — le sel est dans la sauvegarde avec la décision.
+     * saison se joue sur une suite neuve. Un rechargement redonne les mêmes
+     * matchs — le sel est dans la sauvegarde avec la décision.
      */
-    /*
-     * L'AFFICHE AVANT LES DÉS NEUFS (S74). Le brassage des appariements du
-     * jour se tirait APRÈS le sel des décisions : choisir l'avant-match d'un
-     * gros match, ou jouer sa main de cartes, changeait l'ADVERSAIRE de ce
-     * soir-là — et le gros match qu'on préparait disparaissait (mesuré :
-     * une décision au jour 11 déplaçait les onze gros matchs de la saison).
-     * L'affiche se tire maintenant sur la suite d'avant, celle que l'écran
-     * montrait ; les dés neufs ne jouent que les matchs. Sans décision ce
-     * jour-là, rien ne change : le brassage prend le même rang dans la suite.
-     */
-    const order = shuffle(teams.filter(t => restant.get(t) > 0));
-    if (order.length < 2) break;
-    // Tri stable : l'ordre du brassage départage les équipes à égalité.
-    order.sort((a, b) => restant.get(b) - restant.get(a));
-    if (order.length % 2) order.pop();
     if (sel) grainerHasard(`${graine}:${r}:${sel}`);
-    // LES MINI-BOSS DU JOUR (S69), repérés AVANT les matchs, sur le classement
-    // de la veille : seule ta formation (l'équipe 0 quand elle est le joueur)
-    // en a, donc les mesures du moteur n'en voient jamais.
+    // LES MINI-BOSS DU JOUR (S69), repérés sur le classement de la veille :
+    // seule ta formation (l'équipe 0 quand elle est le joueur) en a.
     const toi = teams[0] && teams[0].isPlayer ? teams[0] : null;
-    const rangsVeille = toi && r >= 10 ? new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1])) : null;
-    const jour = [];
-    for (let i = 0; i < order.length; i += 2) {
+    const rangsVeille = toi && r >= 10 ? rangsDe(teams) : null;
+    for (const m of L.calendrier[r]) {
       // CHAQUE MATCH DE SAISON GARDE SA FEUILLE, comme un match de séries :
       // ses buts avec leurs passeurs, ses gardiens, ses tirs par période.
-      // C'est ce qui permet de lire les statistiques de la ligue à n'importe
-      // quelle journée, d'ouvrir le sommaire d'un match du calendrier, et
-      // de dire « son 12e but » quand il compte.
       const feuille = feuilleVierge();
-      const avecToi = toi && (order[i] === toi || order[i + 1] === toi);
-      const advToi = avecToi ? (order[i] === toi ? order[i + 1] : order[i]) : null;
+      const avecToi = toi && (m.A === toi || m.B === toi);
+      const advToi = avecToi ? (m.A === toi ? m.B : m.A) : null;
       const raison = avecToi ? grosMatchAvant(toi, advToi, r, rangsVeille) : null;
       let gros = null;
       if (raison) {
@@ -4628,29 +4701,50 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
         poserGros(toi, advToi, gros);
         if (entracteDuJour) toi._entracte = { ...entracteDuJour.entracte, graine: `${graine}:${r}:entracte:${entracteDuJour.sel || ''}` };
       }
-      const res = playGame(order[i], order[i + 1], r, true, false, feuille);
+      const res = playGame(m.A, m.B, r, true, false, feuille);
       if (gros && gros.cartesJouees) feuille.cartes = gros.cartesJouees;
-      const m = { A: order[i], B: order[i + 1], gfA: res.gfA, gfB: res.gfB, ot: res.ot, feuille };
-      jour.push(m);
+      Object.assign(m, { gfA: res.gfA, gfB: res.gfB, ot: res.ot, feuille, joue: true });
       if (avecToi) grosMatchApres(toi, m, r, gros);
       if (gros) leverGros(toi);
-      restant.set(order[i], restant.get(order[i]) - 1);
-      restant.set(order[i + 1], restant.get(order[i + 1]) - 1);
     }
-    calendrier.push(jour);
-    for (const [t, n] of restant) if (n <= 0) restant.delete(t);
-  }
-  // Les séries ne lisent aucun effet temporaire : la fenêtre est close.
-  for (const t of teams) t.jourCourant = Infinity;
-  const standings = teams.slice().sort((a, b) =>
+    L.jour = r + 1;
+    if (L.jour >= L.calendrier.length) {
+      L.fini = true;
+      L.grosAVenir = null;
+      // Les séries ne lisent aucun effet temporaire : la fenêtre est close.
+      for (const t of teams) t.jourCourant = Infinity;
+    } else preludeDuJour(L);
+  });
+}
+
+/* Jouer jusqu'à ce que `n` journées soient jouées (ou la saison finie). */
+export function jouerJusqua(L, n) {
+  while (!L.fini && L.jour < n) jouerJournee(L);
+  return L;
+}
+
+/* Le classement et les meneurs, à ce jour. */
+export function bilanLigue(L) {
+  const standings = L.teams.slice().sort((a, b) =>
     b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA) || b.GF - a.GF);
   const skaters = [];
-  for (const t of teams) for (const s of SLOTS) {
+  for (const t of L.teams) for (const s of SLOTS) {
     const p = t.roster[s.i];
     if (p && p.p !== 'G') skaters.push({ player: p, team: t });
   }
   const leaders = skaters.sort((a, b) => b.player.simPTS - a.player.simPTS || b.player.simG - a.player.simG).slice(0, 10);
-  return { standings, leaders, calendrier, graine };
+  return { standings, leaders, calendrier: L.calendrier, graine: L.graine };
+}
+
+/*
+ * LA SAISON D'UN BLOC, pour les mesures : créer, jouer tout, rendre le bilan.
+ * Le générateur de la ligue reste ensuite en place — les séries jouées par un
+ * script de mesure continuent la même suite, comme avant.
+ */
+export function simulateLeague(teams, games = 82, opts = {}) {
+  const L = jouerJusqua(creerLigue(teams, games, opts), Infinity);
+  hasard = L.rng;
+  return { ...bilanLigue(L), ligue: L };
 }
 
 /* Les champs de fiche que la simulation écrit, patineurs et gardiens. */
