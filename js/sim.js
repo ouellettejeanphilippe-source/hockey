@@ -952,6 +952,53 @@ export const CARTES = {
     bon: 'Tu lances de partout', prix: 'De moins bonnes occasions',
     volume: 1.07, finition: 0.965,
   },
+  /*
+   * HUIT DE PLUS (S74b). À dix, la main du palier (un effet parmi trois
+   * sortes) et les objectifs revoyaient vite les mêmes. Même contrat — un
+   * bonus payé par un malus, sur des canaux qui existent, réglés près de zéro
+   * avec les poids mesurés ici (1 % de finition ou de lancers ≈ 0,18 victoire,
+   * 1 % de buts alloués ≈ 0,32) — et même juge : `check_cartes.mjs`.
+   */
+  newjersey: {
+    nom: 'Le système du New Jersey', ico: '🧱',
+    bon: 'Presque rien ne passe', prix: 'Tu lances beaucoup moins',
+    defense: 0.955, volume: 0.92,
+  },
+  ouvert: {
+    nom: 'Le jeu ouvert', ico: '🏃',
+    bon: 'Tu lances de partout, tout le temps', prix: 'Tu laisses des trous derrière',
+    volume: 1.06, defense: 1.034,
+  },
+  ecole: {
+    nom: 'L\'école de tir', ico: '🎯',
+    bon: 'Chaque lancer est meilleur', prix: 'Tu en prends moins',
+    finition: 1.05, volume: 0.95,
+  },
+  durs: {
+    nom: 'Les durs à cuire', ico: '🦍',
+    bon: 'Plus robuste : les soirs éreintants et les séries', prix: 'Des mains moins fines',
+    robustesse: 1.0, finition: 0.97,
+  },
+  physio: {
+    nom: 'Le préparateur physique', ico: '🏋️',
+    bon: 'Moins de blessures', prix: 'Des pratiques moins intenses : un peu moins de lancers',
+    blessure: 0.6, volume: 0.985,
+  },
+  gardiens: {
+    nom: 'Le coach des gardiens', ico: '🥅',
+    bon: 'Tu alloues moins de buts', prix: 'Tout le monde recule : moins de lancers',
+    defense: 0.97, volume: 0.95,
+  },
+  montent: {
+    nom: 'Les défenseurs montent', ico: '🚀',
+    bon: 'Ton attaque a cinq joueurs', prix: 'Et ta défense en a trois',
+    finition: 1.04, volume: 1.02, defense: 1.035,
+  },
+  fougue: {
+    nom: 'La fougue', ico: '🔥',
+    bon: 'Ça pousse fort : plus de lancers, et ça rentre', prix: 'Des punitions bêtes',
+    finition: 1.03, volume: 1.03, discipline: 1.25,
+  },
 };
 
 /* =====================================================================
