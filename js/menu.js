@@ -82,6 +82,7 @@ function dessiner(m) {
         ${reprise ? `<button type="button" class="btn go" data-menu="reprendre" data-id="${reprise.id}">Reprendre<small>${esc(ligneResume(reprise) || quand(reprise.maj))}</small></button>` : ''}
         <button type="button" class="btn${reprise ? '' : ' go'}" data-menu="nouvelle" data-genre="${g}">Nouvelle partie</button>
         ${g === 'rogue' && ctx.rogue ? '<button type="button" class="btn" data-menu="vestiaire">🏅 Le vestiaire des déblocages</button>' : ''}
+        ${g === 'rogue' && ctx.rogue && ctx.rogue.inventaire ? '<button type="button" class="btn" data-menu="inventaire">🎒 L\'inventaire et le classeur</button>' : ''}
       </div>
     </article>`;
   };
@@ -138,6 +139,7 @@ function dessiner(m) {
         else ctx.nouvelle(b.dataset.genre);
       }
       else if (quoi === 'vestiaire' && ctx.rogue) ctx.rogue.vestiaire();
+      else if (quoi === 'inventaire' && ctx.rogue && ctx.rogue.inventaire) ctx.rogue.inventaire();
       else if (quoi === 'exhibition' && ctx.exhibition) ctx.exhibition();
       else if (quoi === 'options') ctx.options();
       else if (quoi === 'copier') { copier(id); dessiner(m); ouvrirParties(m); }

@@ -31,11 +31,11 @@ import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
-import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, optionDeCarteMatch } from './gerant.js';
+import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, optionDeCarteMatch, puces } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
 import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte, dessinDe } from './cartes.js';
-import { CARTES_MATCH, recompensesOffertes } from './combat.js';
+import { CARTES_MATCH, recompensesOffertes, deckDe } from './combat.js';
 import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
@@ -47,8 +47,13 @@ import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js
 import { migrer, lireIndex, lirePartieActive, ecrirePartieActive, nouvellePartie, activer } from './sauvegardes.js';
 import { afficherMenu, fermerMenu } from './menu.js';
 import { ouvrirExhibition } from './exhibition.js';
+import { BANQUE, PATRONS, CONSOMMABLES, CONTRATS, ROLES, MAX_PATRONS, CATEGORIES, VIES, payloadDe, patronsActifs, modificateurs, reglesDe, plafondDe } from './banque.js';
+import { PACKS_TOUS, PITIE, SKILLS, cotesDuPack, tirerVariante, tirerCartesPack, packDuJour, packsSansHolo } from './packs.js';
+import { ouvrirInventaire, pocheDeLaPartie, valeurDe, VENTE } from './inventaire.js';
+import { ouvrirMagasin } from './magasin.js';
+import { rendreCartable, ajouterAuCartable, migrerHistorique, lireCartable } from './cartable.js';
 import { JETONS, jetonsDe, PACKS, DEBLOCAGES, lireMeta, aDebloque, nombreGardes, jetonsDeDepart, packsOuverts, peutAcheter, acheterDeblocage,
-  ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, rareteTiree } from './rogue.js';
+  ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, rareteTiree, recevoirPermanents, retirerDuMeta, plafondDuVestiaire } from './rogue.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -240,8 +245,15 @@ const G = {
   shards: new Map(),
 };
 
-/* LE MODE ROGUE (S77) n'a pas de plafond : c'est la boutique qui fait la rareté (js/rogue.js). */
-const MODE_ROGUE = { ...MODES.CLASSIQUE, nom: 'Rogue', cap: 1e12 };
+/*
+ * LE MODE ROGUE (S77, js/rogue.js). S79 : il a son plafond, 82 M$ (le nom du
+ * jeu) — mesuré, des plombiers coûtent de 29 à 51 M$ (médiane 39) ; une
+ * vingtaine de signatures à 4 M$ le remplissent, des étoiles à 6-11 M$ le
+ * crèvent : les cartes de masse salariale font le reste. Le plafond d'une run
+ * est fixé à son départ (`G.rogue.plafond`) ; une vieille run n'en a pas.
+ */
+const PLAFOND_ROGUE = 82_000_000;
+const MODE_ROGUE = { ...MODES.CLASSIQUE, nom: 'Rogue', cap: PLAFOND_ROGUE };
 const MODE = () => (G.bonus === 'ROGUE' ? MODE_ROGUE : (MODES[G.mode] || MODES.CLASSIQUE));
 /**
  * La saison à laquelle la ROULETTE est tenue : celle de la ligue quand elle
@@ -310,8 +322,35 @@ const isPicked = p => {
   const k = getPersonKey(p);
   return picked().some(x => getPersonKey(x) === k);
 };
-const capUsed = () => signes().reduce((s, p) => s + p.$, 0);
-const capLeft = () => MODE().cap - capUsed();
+/*
+ * LA MASSE SALARIALE MANIPULÉE (S79, js/banque.js `CONTRATS`). Avant la
+ * saison, le plafond du mode et la somme des salaires, comme toujours. En
+ * saison, le plafond EFFECTIF de la journée (l'espace gagné, la taxe, le DG
+ * du plafond flexible) et le « cap hit » de chacun : sa retenue, son rachat,
+ * son contrat d'entrée, ses bonis — zéro s'il est blessé à long terme ET à
+ * l'infirmerie ce jour-là. Tout se déduit des décisions. `G.roster` est
+ * l'alignement même du moteur : il suit les signatures de la saison.
+ */
+function plafondEffectif(j = G.journee || 0) {
+  const r = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.plafond) || null) : null;
+  const base = G.bonus === 'ROGUE' ? (r ? r.cap : 1e12) : MODE().cap;
+  const depart = r ? r.lignes || [] : [];
+  if (!G.ligue) return { cap: base, base, lignes: depart, facteurs: new Map(), ltir: new Set(), blesses: new Set() };
+  const pl = plafondDe(decisionsDeLaPartie(), j + 1, { base });
+  const blesses = new Set(pl.ltir.size ? blessesAuJour(j).map(x => getPlayerKey(x.p)) : []);
+  return { ...pl, base, lignes: [...depart, ...pl.lignes], blesses };
+}
+/* Ce qu'un joueur de ton alignement compte au plafond aujourd'hui. */
+const capHitDuJour = q => (G.ligue ? capHit(q, plafondEffectif()) : (q.$ || 0));
+/* Ce que ce joueur compte au plafond (`pl` : `plafondEffectif`). */
+function capHit(p, pl) {
+  if (!p) return 0;
+  const k = getPlayerKey(p);
+  if (pl && pl.ltir.has(k) && pl.blesses.has(k)) return 0;
+  return Math.round((p.$ || 0) * ((pl && pl.facteurs.get(k)) || 1));
+}
+const capUsed = (pl = G.ligue ? plafondEffectif() : null) => signes().reduce((s, p) => s + (pl ? capHit(p, pl) : p.$), 0);
+const capLeft = () => { const pl = plafondEffectif(); return pl.cap - capUsed(G.ligue ? pl : null); };
 const slotsLeft = () => casesActives().filter(s => !G.roster[s.i]).length;
 const totalCases = () => casesActives().length;
 
@@ -658,7 +697,7 @@ async function restoreSave() {
     G.rogue = data.rogue || null;
     // Une partie d'avant S78 n'a pas de graine de variantes : elle en reçoit une au premier rendu.
     G.variantes = data.variantes && typeof data.variantes === 'object'
-      ? { graine: data.variantes.graine || null, cartes: { ...(data.variantes.cartes || {}) } }
+      ? { graine: data.variantes.graine || null, cartes: { ...(data.variantes.cartes || {}) }, numeros: { ...(data.variantes.numeros || {}) } }
       : { graine: null, cartes: {} };
     G.renfort = data.renfort || null;
     G.tirage = tirage;
@@ -1121,6 +1160,8 @@ function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
       resume: () => { const m = lireMeta(); return `🏅 ${m.ecussons || 0} écussons · 🗂️ ${(m.collection || []).length} joueurs · ${m.runs || 0} run${(m.runs || 0) > 1 ? 's' : ''}`; },
       nouvelle: () => { nouvellePartie('rogue'); ailleurs('nouvelle-rogue'); },
       vestiaire: () => ouvrirVestiaire(() => { if (document.getElementById('menuDepart')) afficherMenu(contexteDuMenu({ vierge, enJeu })); }),
+      // L'INVENTAIRE PERMANENT ET LE CLASSEUR (S79) : hors saison, on regarde ; on joue du hub.
+      inventaire: () => ouvrirInventaireJeu(null, null),
     },
   };
 }
@@ -1136,21 +1177,35 @@ const ctxExhibition = onFerme => ({
 /* =====================================================================
    LE MODE ROGUE (S77) — voir js/rogue.js pour la règle et le méta.
    ===================================================================== */
-/* Les jetons dans la barre du haut, à la place du plafond : c'est la monnaie de la run. */
+/*
+ * LA BARRE DU HAUT EN ROGUE (S79) : le plafond restant — le plafond EFFECTIF
+ * de la run, et ce qui le tord (le titre les nomme) — et les jetons 🪙, la
+ * monnaie de la boutique, à côté.
+ */
 function renderJetons() {
   const g = $('capGauge');
   if (!g) return;
+  const pl = plafondEffectif();
+  const used = capUsed(G.ligue ? pl : null), rem = pl.cap - used;
   const lbl = g.querySelector('.capgauge-label');
-  if (lbl) lbl.textContent = 'Jetons';
+  if (lbl) lbl.textContent = 'Plafond restant';
   const meta = lireMeta();
-  $('capAmt').textContent = `🪙 ${jetonsRogue()}`;
-  $('capAmt').classList.remove('over', 'tight');
-  $('capMaxLbl').textContent = `· ${meta.ecussons || 0} 🏅`;
-  g.title = 'Tes jetons de la run : une victoire en rapporte 6, un gros match gagné 15. La boutique du hub vend des packs.';
-  $('capFill').style.width = '0%';
+  const amt = $('capAmt');
+  amt.textContent = pl.cap >= 1e11 ? '—' : money(rem);
+  amt.classList.toggle('over', rem < 0);
+  amt.classList.toggle('tight', rem >= 0 && rem < 3_000_000);
+  const tordu = pl.lignes.length + pl.facteurs.size + pl.ltir.size;
+  $('capMaxLbl').textContent = pl.cap >= 1e11 ? '' : `/ ${money(pl.cap)}${tordu ? ' ✦' : ''}`;
+  const lignes = [...pl.lignes.map(l => `${l.nom} ${l.montant > 0 ? '+' : '−'}${money(Math.abs(l.montant))}`),
+    ...[...pl.facteurs].map(([k, f]) => `${(signes().find(p => getPlayerKey(p) === k) || {}).n || 'Un ancien'} : ${Math.round(f * 100)} % de son salaire`),
+    ...[...pl.ltir].map(k => `${(signes().find(p => getPlayerKey(p) === k) || {}).n || 'Un ancien'} : blessé à long terme${pl.blesses.has(k) ? ' (hors plafond)' : ''}`)];
+  g.title = `Plafond de la run : ${money(pl.cap)}${lignes.length ? ` — ${lignes.join(' · ')}` : ''}. Masse : ${money(used)}. Jetons : ${jetonsRogue()} 🪙 (la boutique du hub vend des packs).`;
+  $('capFill').style.width = Math.min(100, Math.max(0, (used / pl.cap) * 100)) + '%';
+  $('capFill').classList.toggle('over', rem < 0);
+  $('capFill').classList.toggle('tight', rem >= 0 && rem < 3_000_000);
   $('cnt').textContent = `${signes().length} / ${totalCases()}`;
   const perSlot = $('perSlotLbl');
-  if (perSlot) perSlot.textContent = 'Mode Rogue';
+  if (perSlot) { perSlot.textContent = `🪙 ${jetonsRogue()} · ${meta.ecussons || 0} 🏅`; perSlot.className = ''; }
 }
 /* Ce que la saison a rapporté jusqu'à la journée `j` (révélée), pour les jetons. */
 function resultatsRogue(j) {
@@ -1168,124 +1223,438 @@ function resultatsRogue(j) {
   const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && d.carte).length;
   return { W, L: D, OTL: P, gros, objectifs };
 }
+/*
+ * LES JETONS DE LA PARTIE (S79), dans les DEUX modes : les résultats
+ * (`JETONS`), plus les ventes (les doublons revendus à l'ouverture, les cartes
+ * vendues de l'inventaire), les coffres et les billets gagnants, plus ce que
+ * la direction verse par victoire (un patron), moins ce que la boutique a
+ * coûté. Tout se DÉDUIT des décisions : rien n'est stocké. Le mode Rogue part
+ * de sa caisse (`G.rogue.depart`) ; une saison part de zéro.
+ */
+function decisionsDeLaPartie() {
+  const L = G.ligue;
+  return [...((L && L.decisions) || []), ...((L && L.decisionsSeries) || [])];
+}
+function victoiresEntre(de, a) {
+  const L = G.ligue;
+  if (!L || !Array.isArray(L.calendrier)) return 0;
+  let n = 0;
+  for (const jour of L.calendrier.slice(de, a)) for (const m of jour) {
+    if (m.A !== L.you && m.B !== L.you) continue;
+    if ((m.A === L.you ? m.gfA : m.gfB) > (m.A === L.you ? m.gfB : m.gfA)) n++;
+  }
+  return n;
+}
 function jetonsRogue(j = G.journee || 0) {
   const L = G.ligue;
-  const depenses = [...((L && L.decisions) || []), ...((L && L.decisionsSeries) || [])].filter(d => d.rogue).reduce((a, d) => a + (d.rogue.prix || 0), 0);
-  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, (G.rogue && G.rogue.depart) || JETONS.depart);
+  const decs = decisionsDeLaPartie();
+  const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0), 0);
+  const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0), 0);
+  const direction = modificateurs(decs).jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, j), 0);
+  const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
+  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart) + ventes + direction;
 }
+
 /*
- * LA BOUTIQUE, ouverte du hub. `decider` est celui du hub : il ferme l'écran
- * de saison et rejoue la saison avec la décision, comme tout autre choix.
+ * LA BOUTIQUE (S79, js/magasin.js) : des rayons de packs à la HUT, dans les
+ * deux modes. En Rogue, quelques packs se débloquent au vestiaire (le méta).
  */
+/* L'espace sous le plafond, pour la boutique : ce qu'un pack de joueurs peut tirer. */
+function plafondPourBoutique() {
+  const pl = plafondEffectif();
+  if (pl.cap >= 1e11) return null;
+  const rem = capLeft();
+  return { cap: pl.cap, espace: rem, salaireMax: salaireMaxDePack(), tordu: pl.lignes.length + pl.facteurs.size + pl.ltir.size };
+}
+/* Le plus gros salaire qu'un pack peut tirer : l'espace, plus le plus gros « cap hit » qu'une sortie libérerait. */
+function salaireMaxDePack() {
+  const pl = G.ligue ? plafondEffectif() : null;
+  return capLeft() + Math.max(0, ...signes().map(q => (pl ? capHit(q, pl) : q.$ || 0)));
+}
+const VERROUS_ROGUE = { 'j:defensif': 'packDefenseurs', 'j:gardien': 'packGardiens', 'j:ere80': 'packAnnees80', 'j:etoiles': 'packVedettes', 'j:legendes': 'packVedettes' };
+function packsOuvertsBoutique() {
+  const meta = G.bonus === 'ROGUE' ? lireMeta() : null;
+  return Object.fromEntries(Object.keys(PACKS_TOUS).map(k => {
+    const d = meta && VERROUS_ROGUE[k];
+    return [k, !d || aDebloque(meta, d) ? true : `Débloque « ${DEBLOCAGES[d].nom} » au vestiaire des déblocages`];
+  }));
+}
 function ouvrirBoutique(j, decider) {
-  const meta = lireMeta();
-  const decs = (G.ligue && G.ligue.decisions) || [];
-  const n = decs.filter(d => d.rogue).length;
-  const jetons = jetonsRogue(j);
-  ouvrirChoix({
-    ico: '🛒', titre: `La boutique · 🪙 ${jetons}`, fermable: true, motFermer: 'Fermer',
-    recit: `Tes résultats rapportent des jetons : une victoire ${JETONS.victoire}, une défaite en prolongation ${JETONS.prolongation}, une défaite ${JETONS.defaite}, un gros match gagné ${JETONS.grosMatch}, un objectif du proprio ${JETONS.objectif}. Un joueur tiré d'un pack prend la place de réserve de sa position : monte-le dans un trio derrière le banc.`,
-    options: packsOuverts(meta).map(k => {
-      const P = PACKS[k];
-      return { cle: k, ico: P.ico, nom: `${P.nom} · ${P.prix} 🪙`, bon: P.texte, desactive: jetons < P.prix ? `Il te manque ${P.prix - jetons} 🪙` : null };
-    }),
-    onChoix: k => { ouvrirPack(k, j, n, decider).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad')); },
+  const decs = decisionsDeLaPartie();
+  const n = decs.filter(d => d.achat || d.rogue).length;
+  ouvrirMagasin({
+    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(),
+    mods: modificateurs(decs, j + 1), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
+    duJour: packDuJour(new Date()),
+    franchises: Object.entries(FRANCHISES).map(([cle, F]) => ({ cle, nom: F.nom })).sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
+    saisons: state.index.seasons.slice().reverse(),
+    acheter: (cle, { prix, params }) => {
+      const P = PACKS_TOUS[cle];
+      const suite = P.sorte === 'cartes' ? ouvrirPackCartes(cle, prix, j, n, decider) : ouvrirPackJoueurs(cle, prix, params, j, n, decider);
+      Promise.resolve(suite).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'));
+    },
   });
+}
+
+/*
+ * LES JOUEURS D'UN PACK (S79) : purs, de la graine de la ligue, du pack et du
+ * numéro de l'achat. La FAMILLE du pack dit où l'on pige :
+ *   hasard     la moitié productive de n'importe quelle saison ;
+ *   equipe     une franchise, toutes époques (choisie à l'achat, ou au hasard) ;
+ *   annee      une saison (choisie, ou au hasard) ; ere  une décennie ;
+ *   skill      un talent lu dans les VRAIES fiches (js/packs.js `SKILLS`) ;
+ *   trio       une vraie ligne d'un même club-saison ;
+ *   etoiles    les étoiles de leur saison (`estEtoile`) ; legendes : d'avant 1995.
+ * Puis, par-dessus chaque joueur, sa VARIANTE tirée au barème du tier (et le
+ * numéro d'une or). Jamais un joueur qui joue déjà dans la ligue, ni un
+ * salaire qu'aucune sortie ne ferait entrer sous le plafond (les deux modes).
+ */
+async function tirerPackJoueurs(cle, n, params = {}, mods = {}, garantie = false) {
+  const P = PACKS_TOUS[cle], Lg = G.ligue, graine = Lg.graine;
+  const dansLaLigue = new Set();
+  for (const t of Lg.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
+  const an = s => Number(String(s).slice(0, 4));
+  let saisons = state.index.seasons.slice();
+  const reglage = { ...params };
+  if (P.famille === 'ere') saisons = saisons.filter(s => an(s) >= P.decennie && an(s) < P.decennie + 10);
+  if (P.famille === 'legendes') saisons = saisons.filter(s => an(s) < 1995);
+  if (P.famille === 'annee') {
+    if (!reglage.saison || !saisons.includes(reglage.saison)) reglage.saison = saisons[Math.floor(hache(graine, 'pack-annee', n) * saisons.length)];
+    saisons = [reglage.saison];
+  }
+  if (P.famille === 'equipe') {
+    if (!reglage.franchise || !FRANCHISES[reglage.franchise]) { const fs = Object.keys(FRANCHISES); reglage.franchise = fs[Math.floor(hache(graine, 'pack-equipe', n) * fs.length)]; }
+    saisons = saisonsDeFranchise(reglage.franchise, saisons);
+  }
+  const cotes = cotesDuPack(cle, mods);
+  const nb = P.n + (P.famille === 'trio' ? 0 : (mods.carteExtra || 0));
+  // Jamais un salaire qu'aucune sortie ne ferait entrer sous le plafond (effectif : les cartes 💵 comptent).
+  const salaireMax = salaireMaxDePack();
+  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
+  const libre = (p, out) => p && p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p) && !out.some(x => getPersonKey(x.p) === getPersonKey(p));
+  const productifs = (joueurs, part = 2) => ['F', 'D', 'G'].flatMap(g => {
+    const r = joueurs.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a));
+    return r.slice(0, Math.ceil(r.length / part));
+  });
+  const out = [];
+  if (P.famille === 'trio') {
+    // UNE VRAIE LIGNE : un club-saison tiré ; son meilleur centre et ses meilleurs ailiers — ou, une fois sur trois, sa première paire et son gardien.
+    for (let t = 0; t < 12 && !out.length; t++) {
+      const sa = saisons[Math.floor(hache(graine, 'pack-trio-saison', n, t) * saisons.length)];
+      const e = await getShard(sa);
+      const clubs = Object.keys(e.byTeam);
+      const tag = clubs[Math.floor(hache(graine, 'pack-trio-club', n, t) * clubs.length)];
+      const eff = (e.byTeam[tag] || []).filter(p => (p.gp || 0) >= 30 && libre(p, out)).sort((a, b) => prod(b) - prod(a));
+      const paire = hache(graine, 'pack-trio-genre', n, t) < 1 / 3;
+      const aile = c => eff.find(p => !isD(p) && p.p !== 'G' && (p.np === c || (p.p === c)));
+      const ligne = paire
+        ? [eff.filter(p => isD(p))[0], eff.filter(p => isD(p))[1], (e.byTeam[tag] || []).filter(p => p.p === 'G' && (p.gp || 0) >= 20 && libre(p, out)).sort((a, b) => (b.gp || 0) - (a.gp || 0))[0]]
+        : [eff.find(p => !isD(p) && p.p !== 'G' && (p.np === 'C' || p.p === 'C')), aile('L') || aile('LW'), aile('R') || aile('RW')];
+      if (!ligne.every(Boolean) || new Set(ligne.map(getPersonKey)).size !== 3) continue;
+      ligne.forEach((p, i) => out.push({ p, ...tirerVariante(cotes, graine, cle, n, i) }));
+      reglage.club = `${tag} ${sa}`;
+    }
+  } else {
+    for (let t = 0; out.length < nb && t < nb * 5; t++) {
+      const sa = saisons[Math.floor(hache(graine, 'pack-saison', cle, n, t) * saisons.length)];
+      if (!sa) break;
+      const e = await getShard(sa);
+      let pool;
+      if (P.famille === 'equipe') pool = (e.byTeam[codeDeFranchise(reglage.franchise, sa)] || []).filter(p => (p.gp || 0) >= 20);
+      else if (P.famille === 'skill') {
+        const S = SKILLS[P.skill];
+        const c = e.players.filter(p => (p.gp || 0) >= S.min && (!S.groupe || groupeDe(p) === S.groupe) && (!S.skaters || p.p !== 'G')
+          && (!S.filtre || S.filtre(p, ageAtSeason(p.bd, p.s)))).sort((a, b) => S.score(b) - S.score(a));
+        pool = S.filtre ? c : c.slice(0, Math.ceil(c.length / 4));
+      } else if (P.famille === 'etoiles' || P.famille === 'legendes') pool = e.players.filter(p => estEtoile(p));
+      else pool = productifs(e.players, P.famille === 'annee' ? 1 : 2);
+      pool = pool.filter(p => libre(p, out));
+      if (!pool.length) continue;
+      pool.sort((a, b) => hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(a)) - hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(b)));
+      out.push({ p: pool[0], ...tirerVariante(cotes, graine, cle, n, t) });
+    }
+  }
+  // LA GARANTIE : le pack garanti, ou la pitié de la run (js/packs.js `PITIE`) — la dernière carte monte à holo.
+  if ((P.garanti || garantie) && out.length && !out.some(x => x.rar === 'rare' || x.rar === 'legendaire')) out[out.length - 1].rar = 'rare';
+  return { cartes: out, reglage };
+}
+/* La valeur de vente d'un joueur doublon : sa variante, et son numéro s'il en a un. */
+const NUM_VENTE = { '/99': 1, '/25': 2, '/10': 4, '1 de 1': 10 };
+const venteJoueur = x => (VENTE[x.rar] || 2) * (NUM_VENTE[x.num] || 1);
+/* La carte mini d'un joueur tiré, AVEC la variante du tirage (la carte ne lit que la sienne). */
+function miniAvecVariante(p, rar) {
+  const k = getPlayerKey(p), avant = G.variantes.cartes[k];
+  G.variantes.cartes[k] = rar;
+  try { return carteMiniHtml(p); } finally { if (avant === undefined) delete G.variantes.cartes[k]; else G.variantes.cartes[k] = avant; }
 }
 /*
- * LES TROIS CARTES D'UN PACK : pures, de la graine de la ligue, du pack et du
- * numéro de l'achat. Pour chacune : une saison, un vrai joueur régulier et
- * productif qui ne joue pas déjà dans la ligue, et PAR-DESSUS une variante
- * tirée aux cotes du pack (S78, js/rarete.js) — un plombier peut sortir en or.
+ * L'OUVERTURE D'UN PACK DE JOUEURS. Le paquet se déchire (js/gerant.js) ; on
+ * en signe UN (« Signer », puis QUI SORT — `choisirQuiSort`), les autres vont
+ * au classeur ; un joueur déjà au classeur est un doublon, revendu tout seul.
+ * L'achat est une décision, qu'on signe ou non.
  */
-async function tirerJoueurs(k, n) {
-  const P = PACKS[k], L = G.ligue, graine = L.graine;
-  const dansLaLigue = new Set();
-  for (const t of L.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
-  let saisons = state.index.seasons.slice();
-  if (P.decennie) saisons = saisons.filter(s => { const a = Number(String(s).slice(0, 4)); return a >= P.decennie && a < P.decennie + 10; });
-  const out = [];
-  for (let t = 0; out.length < 3 && t < 12; t++) {
-    const rar = rareteTiree(P.cotes, graine, 'pack', k, n, t);
-    const s = saisons[Math.floor(hache(graine, 'pack-saison', k, n, t) * saisons.length)];
-    const e = await getShard(s);
-    // DES RÉGULIERS PRODUCTIFS seulement (la moitié haute de leur position dans leur saison) :
-    // une « commune » est alors une aubaine, pas un douzième avant (mesuré, scripts/mesure_rogue.mjs).
-    const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
-    // Le pack Vedettes ne pige que dans le quart du haut.
-    const part = P.elite ? 4 : 2;
-    const bons = new Set(['F', 'D', 'G'].flatMap(g => { const r = e.players.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a)); return r.slice(0, Math.ceil(r.length / part)); }));
-    const pool = [...bons].filter(p => p.$ > 0 && (!P.groupe || groupeDe(p) === P.groupe)
-      && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p) && !out.some(x => getPersonKey(x.p) === getPersonKey(p)));
-    if (!pool.length) continue;
-    pool.sort((a, b) => hache(graine, 'pack-joueur', n, t, getPlayerKey(a)) - hache(graine, 'pack-joueur', n, t, getPlayerKey(b)));
-    out.push({ p: pool[0], rar });
-  }
-  return out;
-}
-async function ouvrirPack(k, j, n, decider) {
-  const P = PACKS[k];
-  const achat = { pack: k, n, prix: P.prix };
+async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
+  const P = PACKS_TOUS[cle];
+  const decs = decisionsDeLaPartie();
+  const mods = modificateurs(decs, j + 1);
+  const pitie = G.bonus === 'ROGUE' && packsSansHolo(decs) >= PITIE - 1;
+  const { cartes, reglage } = await tirerPackJoueurs(cle, n, params, mods, pitie);
+  const avant = new Set(lireMeta().collection || []);
+  const vendus = [];
+  let vente = 0;
+  cartes.forEach((x, t) => { x.doublon = avant.has(getPlayerKey(x.p)); if (x.doublon) { vendus.push(t); vente += venteJoueur(x); } });
+  ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
+  ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
+  const meilleure = ['legendaire', 'rare', 'peu', 'commune'].find(r => cartes.some(x => x.rar === r)) || 'commune';
+  const achat = { pack: cle, n, prix, sorte: 'joueurs', params: reglage, meilleure, vente, ...(vendus.length ? { vendus } : {}), ...(pitie ? { pitie: true } : {}) };
   const palier = `k:${n}`;
-  if (P.genre === 'cartes') {
-    const offre = recompensesOffertes(G.ligue.graine, `boutique${n}`);
-    ajouterCollection({ cartes: offre });
-    ouvrirChoix({
-      ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-      recit: 'Trois cartes de match : touche celle que tu gardes pour ton deck.',
-      options: offre.map(optionDeCarteMatch),
-      onChoix: c => decider({ jour: j, palier, rogue: achat, recompense: c }),
-      onFerme: () => decider({ jour: j, palier, rogue: achat, recompense: null }),
-    });
-    return;
-  }
-  if (P.genre === 'atelier') {
-    const eds = editionsDuJour(G.ligue.graine, `boutique${n}`);
-    const offrir = () => ouvrirChoix({
-      ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-      recit: 'Trois éditions : touche celle que tu gardes, puis le joueur qui la reçoit.',
-      options: eds.map(e => ({ cle: e, rarete: 'rare', ico: MUTATIONS[e].ico, nom: MUTATIONS[e].nom, type: 'L\'atelier', texte: MUTATIONS[e].quoi, mots: motsDeMutation(e) })),
-      onChoix: e => ouvrirAtelier(e, { jour: j, you: G.ligue.you, suite: { genre: 'recompense' },
-        onChoix: mut => decider({ jour: j, palier, rogue: achat, deck: 'atelier', mutation: mut }), onFerme: offrir }),
-      onFerme: () => decider({ jour: j, palier, rogue: achat, recompense: null }),
-    });
-    offrir();
-    return;
-  }
-  const tires = await tirerJoueurs(k, n);
-  const joueurs = tires.map(x => x.p);
-  ajouterCollection({ joueurs: joueurs.map(getPlayerKey) });
-  const ligne = ligneDuChoix;
-  const offres = tires.map(({ p, rar }) => {
-    const g = groupeDe(p);
-    const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
-    const sort = slot ? G.roster[slot.i] || null : null;
-    ballottageVu.set(getPlayerKey(p), p);
-    const bonus = traitsDeCarte(carteDe(rar, g === 'G', graineVariantes(), getPlayerKey(p)));
-    return { p, rar, bonus, cle: getPlayerKey(p), i: slot ? slot.i : null, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, poste: POSTE_GROUPE[g] };
-  });
-  const rouvrir = () => ouvrirChoix(offre);
-  const offre = {
-    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-    recit: 'Trois vrais joueurs : touche une carte pour sa fiche, « Signer » pour le prendre — puis tu choisis qui lui laisse sa place.',
-    options: offres.map(x => ({ cle: x.cle, rarete: x.rar, nom: x.p.n, type: `${x.poste} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
-      art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(x.poste), saison: esc(x.p.s), club: esc(x.p.t) }),
-      carteJoueur: carteMiniHtml(x.p),
-      // Le bonus de la carte, UNE fois : c'est lui qui départage deux joueurs semblables.
-      texte: [ligne(x.p), ...x.bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`)].join('\n'),
-      apercu: () => apercuJoueur(x.p) })),
-    onChoix: c => {
-      const x = offres.find(y => y.cle === c);
-      if (!x) return;
-      choisirQuiSort(x.p, { roster: G.ligue.you.roster, genre: 'recompense', onFerme: rouvrir,
-        onChoix: ({ i, sort }) => {
-          G.variantes.cartes[x.cle] = x.rar;
-          decider({ jour: j, palier, rogue: achat, ballottage: { i, entre: x.cle, sort, rar: x.rar } });
-        } });
+  for (const x of cartes) ballottageVu.set(getPlayerKey(x.p), x.p);
+  const titre = `${P.nom}${reglage.franchise ? ` · ${FRANCHISES[reglage.franchise].nom}` : reglage.saison ? ` · ${reglage.saison}` : reglage.club ? ` · ${reglage.club}` : ''}`;
+  const offrir = () => ouvrirChoix({
+    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Ne signer personne',
+    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}. Tu en signes un, et tu choisis qui lui laisse sa place ; les autres vont à ton classeur.${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
+    options: cartes.map(x => {
+      const g = groupeDe(x.p);
+      const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', graineVariantes(), getPlayerKey(x.p)));
+      return {
+        cle: getPlayerKey(x.p), rarete: x.rar, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
+        art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t) }),
+        carteJoueur: miniAvecVariante(x.p, x.rar),
+        texte: [ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`)].filter(Boolean).join('\n'),
+        desactive: x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙` : '',
+        apercu: () => apercuJoueur(x.p),
+      };
+    }),
+    onChoix: k => {
+      const x = cartes.find(y => getPlayerKey(y.p) === k);
+      if (!x || x.doublon) return;
+      const signer = sortie => {
+        if (!sortie) return;
+        G.variantes.cartes[k] = x.rar;
+        if (x.num) (G.variantes.numeros = G.variantes.numeros || {})[k] = x.num;
+        decider({ jour: j, palier, achat, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) } });
+      };
+      // QUI SORT : la sortie doit faire entrer son salaire sous le plafond (effectif), ou au moins ne pas l'empirer.
+      choisirQuiSort(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), note: q => `libère ${money(capHitDuJour(q))}`, onChoix: signer, onFerme: offrir });
     },
-    onFerme: () => decider({ jour: j, palier, rogue: achat, recompense: null }),
+    onFerme: () => decider({ jour: j, palier, achat }),
+  });
+  offrir();
+}
+/*
+ * UNE SORTIE QUE LE PLAFOND REFUSE : l'arrivée de `p` à la place de `q`
+ * laisserait la masse au-dessus du plafond, et plus haut qu'avant. Rend la
+ * raison, ou ''. Un échange qui fait baisser la masse passe toujours.
+ */
+function bloqueParLePlafond(p, q) {
+  const pl = G.ligue ? plafondEffectif() : null;
+  const libere = pl ? capHit(q, pl) : (q.$ || 0);
+  if ((p.$ || 0) <= libere) return '';
+  const reste = capLeft() + libere - (p.$ || 0);
+  return reste < 0 ? `Plafond : il manque ${money(-reste)}` : '';
+}
+/* Une carte de la banque en option d'`ouvrirChoix` (l'ouverture d'un pack de cartes). */
+function optionDeBanque(id) {
+  const c = BANQUE[id];
+  if (c.cat === 'match') return optionDeCarteMatch(c.cle);
+  return { cle: id, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
+    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[c.vie] || VIES.saison).nom}`, texte: c.texte, mots: reglesDe(id) };
+}
+/*
+ * L'OUVERTURE D'UN PACK DE CARTES : tout va dans l'inventaire. En Rogue, le
+ * personnel et les consommables permanents partent au MÉTA (gardés d'une run
+ * à l'autre) — une fois, par achat (`recevoirPermanents`) ; un patron qu'on
+ * possède déjà est un doublon, revendu. Le reste va dans la poche de la saison.
+ * UNE MALÉDICTION (la taxe de luxe, que certains packs cachent) ne se range
+ * pas : elle frappe à l'ouverture (`achat.maudites`, lu par `plafondDe`).
+ */
+function ouvrirPackCartes(cle, prix, j, n, decider) {
+  const P = PACKS_TOUS[cle], Lg = G.ligue;
+  const tirees = tirerCartesPack(P.cle, Lg.graine, n);
+  const ids = tirees.filter(id => BANQUE[id].rarete !== 'maudite');
+  const maudites = tirees.filter(id => BANQUE[id].rarete === 'maudite');
+  const rogue = G.bonus === 'ROGUE';
+  const meta = lireMeta();
+  const perso = new Set(meta.personnel || []);
+  const vendus = [];
+  let vente = 0;
+  ids.forEach((id, t) => {
+    const c = BANQUE[id];
+    const dejaVu = c.cat === 'patron' && (perso.has(c.cle) || ids.slice(0, t).includes(id));
+    if (rogue && dejaVu) { vendus.push(t); vente += valeurDe(id); }
+  });
+  if (rogue) recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${Lg.graine}:k:${n}`);
+  ajouterCollection({ cartes: ids });
+  const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(vendus.length ? { vendus, vente } : {}), ...(maudites.length ? { maudites } : {}) };
+  const dec = { jour: j, palier: `k:${n}`, achat };
+  ouvrirChoix({
+    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Tout ranger',
+    recit: (rogue
+      ? `Tout va dans ton inventaire : le personnel et les consommables permanents y restent d'une run à l'autre, le reste vaut pour cette saison.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
+      : 'Tout va dans ton inventaire : joue chaque carte quand tu veux, du hub (🎒).')
+      + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
+    options: [...ids.map((id, t) => ({ ...optionDeBanque(id), cle: String(t), prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : '' })),
+      ...maudites.map((id, t) => ({ ...optionDeBanque(id), cle: `m${t}`, prix: 'Malédiction : elle frappe tout de suite' }))],
+    onChoix: () => decider(dec),
+    onFerme: () => decider(dec),
+  });
+}
+
+/*
+ * QUI EST À L'INFIRMERIE À LA JOURNÉE `j` : lu dans le journal des blessures
+ * (le match où il s'est blessé, combien il en rate) et le nombre de tes
+ * matchs joués avant ce jour — jamais dans l'infirmerie de fin de saison.
+ */
+function blessesAuJour(j) {
+  const Lg = G.ligue, you = Lg && Lg.you;
+  if (!you) return [];
+  let joues = 0;
+  for (const jour of (Lg.calendrier || []).slice(0, j)) for (const m of jour) if (m.A === you || m.B === you) joues++;
+  return (you.injuriesLog || []).filter(b => b.at <= joues && joues < b.at - 1 + b.games)
+    .map(b => ({ p: b.player, reste: b.at - 1 + b.games - joues }));
+}
+
+/*
+ * L'INVENTAIRE (S79, js/inventaire.js), du hub ou du menu. `decider` absent
+ * (le menu, hors saison) : on regarde, on ne joue pas.
+ */
+function ouvrirInventaireJeu(j = null, decider = null) {
+  const Lg = G.ligue, decs = decisionsDeLaPartie();
+  const rogue = G.bonus === 'ROGUE';
+  const meta = lireMeta();
+  const enSaison = !!(Lg && decider && j !== null);
+  const possedees = new Set((meta.cartes || []).map(k => (BANQUE[k] ? k : BANQUE[`match:${k}`] ? `match:${k}` : null)).filter(Boolean));
+  ouvrirInventaire({
+    titre: 'Ton inventaire', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
+    partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, jour: j, rogue }) : [],
+    meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0) : [],
+    personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
+    patronsActifs: enSaison ? patronsActifs(decs, j + 1) : [], maxPatrons: MAX_PATRONS,
+    deck: enSaison ? deckDe(Lg.decisions || []) : [],
+    possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
+    plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
+    jouer: item => jouerCarte(item, j, decider),
+    vendre: item => decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }),
+  });
+}
+/* Le plafond, pour l'inventaire : la masse, le plafond effectif, et ce qui le tord (nommé). */
+function plafondPourInventaire(j) {
+  const pl = plafondEffectif(j);
+  if (pl.cap >= 1e11 || !signes().length) return null;
+  const nom = k => (signes().find(p => getPlayerKey(p) === k) || {}).n || 'Un ancien';
+  return {
+    cap: pl.cap, base: pl.base, masse: capUsed(G.ligue ? pl : null),
+    lignes: [...pl.lignes.map(l => ({ nom: l.nom, montant: l.montant })),
+      ...[...pl.facteurs].map(([k, f]) => ({ nom: `${nom(k)} : ${Math.round(f * 100)} % de son salaire`, joueur: true })),
+      ...[...pl.ltir].map(k => ({ nom: `${nom(k)} : blessé à long terme${pl.blesses.has(k) ? ', hors du plafond' : ', revenu au jeu'}`, joueur: true }))],
   };
-  rouvrir();
+}
+/* Le nombre de cartes à jouer, pour le bouton du hub. */
+function cartesAJouer(j) {
+  const Lg = G.ligue;
+  if (!Lg) return 0;
+  const rogue = G.bonus === 'ROGUE';
+  const meta = rogue ? lireMeta() : null;
+  return pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: Lg.graine, jour: j, rogue }).length
+    + (meta ? Object.values(meta.inventaire || {}).reduce((a, n) => a + n, 0) : 0);
+}
+/*
+ * JOUER UNE CARTE DE L'INVENTAIRE : sa cible (un joueur, un blessé, une
+ * malédiction du deck, une carte à améliorer, un système), puis UNE décision
+ * datée d'aujourd'hui (`joue` dit d'où elle sort, pour la poche). Un
+ * consommable permanent quitte le méta à ce moment-là.
+ */
+function jouerCarte(item, j, decider) {
+  const c = BANQUE[item.id];
+  if (!c || !decider) return;
+  const Lg = G.ligue, decs = decisionsDeLaPartie(), you = Lg.you;
+  const joue = { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) };
+  const retour = () => ouvrirInventaireJeu(j, decider);
+  const ecrire = payload => {
+    if (!payload) return;
+    if (item.src === 'meta') retirerDuMeta(item.id);
+    decider({ jour: j, joue, ...payload });
+  };
+  const listeJoueurs = (titre, recit, liste, choisir, mots = null) => ouvrirChoix({
+    ico: c.ico, titre, compact: true, fermable: true, motFermer: 'Retour', recit,
+    contexte: mots ? `<div class="choix-puces">${puces(mots)}</div>` : '',
+    options: liste.map(({ p, sous }) => ({ cle: getPlayerKey(p), visage: headshotHtml(p), nom: p.n, sous })),
+    onChoix: choisir, onFerme: retour,
+  });
+  if (c.cat === 'patron') {
+    const actifs = patronsActifs(decs, j + 1);
+    if (!actifs.some(x => x.role === c.role) && actifs.length >= MAX_PATRONS) {
+      ouvrirChoix({ ico: '👔', titre: `${c.nom} : qui part ?`, compact: true, fermable: true, motFermer: 'Retour',
+        recit: `${MAX_PATRONS} postes au plus. ${c.nom} prend la place de qui ?`,
+        options: actifs.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: ROLES[x.role] ? ROLES[x.role].nom : '' })),
+        onChoix: k => { const p = payloadDe(item.id, { patrons: actifs }); p.patron.remplace = [...(p.patron.remplace || []), k]; ecrire(p); },
+        onFerme: retour });
+      return;
+    }
+    ecrire(payloadDe(item.id, { patrons: actifs }));
+    return;
+  }
+  if (c.cat === 'joueur') {
+    if (['partout', 'cran', 'physio', 'lustre'].includes(c.cle)) { ouvrirAtelier(c.cle, { jour: j, you, onChoix: mut => ecrire({ mutation: mut }), onFerme: retour }); return; }
+    const M = MUTATIONS[c.cle];
+    const liste = SLOTS.filter(sl => !sl.scratch && (M.gardien ? sl.group === 'G' : sl.group !== 'G')).map(sl => ({ p: G.roster[sl.i], sous: slotShort(sl) }))
+      .filter(x => x.p && (M.gardien ? x.p.p === 'G' : x.p.p !== 'G'));
+    listeJoueurs(`${M.nom} : à qui ?`, `${M.quoi} Pour le reste de la saison.`, liste, k => ecrire(payloadDe(item.id, { joueur: k })), motsDeMutation(c.cle));
+    return;
+  }
+  if (c.cat === 'consommable') {
+    const C = CONSOMMABLES[c.cle];
+    if (C.cible === 'blesse') {
+      const bl = blessesAuJour(j);
+      if (!bl.length) { toast('Personne à l\'infirmerie : garde-la pour plus tard.'); retour(); return; }
+      listeJoueurs(`${c.nom} : qui soigner ?`, c.texte, bl.map(x => ({ p: x.p, sous: `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie` })), k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
+      return;
+    }
+    if (C.cible === 'joueur') {
+      const liste = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => ({ p: G.roster[sl.i], sous: slotShort(sl) })).filter(x => x.p);
+      listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
+      return;
+    }
+    if (C.cible === 'malediction' || C.cible === 'carteMatch') {
+      const deck = deckDe(Lg.decisions || []);
+      const uniques = [...new Set(deck)].filter(k => (C.cible === 'malediction' ? CARTES_MATCH[k] && CARTES_MATCH[k].maudite : CARTES_MATCH[`${k}+`]));
+      if (!uniques.length) { toast(C.cible === 'malediction' ? 'Aucune malédiction dans ton deck.' : 'Tout ton deck est déjà amélioré.'); retour(); return; }
+      ouvrirChoix({ ico: c.ico, titre: c.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour', recit: c.texte,
+        options: uniques.map(k => ({ ...optionDeCarteMatch(C.cible === 'carteMatch' ? `${k}+` : k), cle: k })),
+        onChoix: k => ecrire(payloadDe(item.id, { carte: k })), onFerme: retour });
+      return;
+    }
+    if (C.cible === 'tactique') {
+      ouvrirChoix({ ico: c.ico, titre: c.nom, compact: true, fermable: true, motFermer: 'Retour', recit: c.texte,
+        options: Object.entries(TACTIQUES).filter(([k]) => k !== 'hourra').map(([k, T]) => ({ cle: k, ico: T.ico, nom: T.nom, sous: T.mot })),
+        onChoix: k => ecrire(payloadDe(item.id, { tactique: k })), onFerme: retour });
+      return;
+    }
+    ecrire(payloadDe(item.id, { alea: hache(Lg.graine, 'billet', item.ref || item.id, j) }));
+    return;
+  }
+  if (c.cat === 'plafond') {
+    // LA MASSE SALARIALE : un joueur (sa retenue, son rachat, ses bonis), une recrue (son contrat d'entrée), un blessé (le LTIR).
+    const C = CONTRATS[c.cle];
+    if (C.cout && jetonsRogue(j) < C.cout) { toast(`Il faut ${C.cout} 🪙 pour ce rachat.`, 'bad'); retour(); return; }
+    if (C.cible === 'aucune') { ecrire(payloadDe(item.id)); return; }
+    const pl = plafondEffectif(j);
+    const deja = k => pl.facteurs.has(k) || pl.ltir.has(k);
+    const apres = p => `${money(capHit(p, pl))} → ${money(Math.round(capHit(p, pl) * (C.facteur || 0)))}`;
+    let liste;
+    if (C.cible === 'blesse') {
+      liste = blessesAuJour(j).filter(x => signes().some(q => getPlayerKey(q) === getPlayerKey(x.p)) && !deja(getPlayerKey(x.p)))
+        .map(x => ({ p: x.p, sous: `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie · ${money(x.p.$)} hors du plafond` }));
+      if (!liste.length) { toast('Personne à l\'infirmerie sous contrat : garde-la pour plus tard.'); retour(); return; }
+    } else {
+      liste = signes().filter(p => !deja(getPlayerKey(p)) && (C.cible !== 'recrue' || ageAtSeason(p.bd, p.s) <= 23))
+        .sort((a, b) => (b.$ || 0) - (a.$ || 0)).map(p => ({ p, sous: `${apres(p)}${C.cible === 'recrue' ? ` · ${ageAtSeason(p.bd, p.s)} ans` : ''}` }));
+      if (!liste.length) { toast(C.cible === 'recrue' ? 'Aucune recrue de 23 ans ou moins dans ton alignement.' : 'Tous tes contrats sont déjà retouchés.'); retour(); return; }
+    }
+    listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
+    return;
+  }
+  ecrire(payloadDe(item.id));
 }
 /* Un joueur retrouvé par sa clé (« saison_club_id ») : ceux qu'on garde d'une run à l'autre. */
 async function joueurDeCle(cle) {
@@ -1342,9 +1711,9 @@ async function ouvrirRogue() {
   const k = nombreGardes(meta);
   const go = await new Promise(resolve => ouvrirChoix({
     ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant',
-    recit: `Tu pars avec vingt-trois plombiers : de vrais joueurs, les moins productifs de leurs saisons. Chaque résultat rapporte des jetons (🪙 ${jetonsDeDepart(meta)} au départ), et la boutique du hub vend des packs : trois vrais joueurs, tu en signes un. Pas de plafond : c'est la boutique qui fait la rareté. À la fin de la saison, tes écussons 🏅 débloquent la suite au vestiaire du menu.`,
+    recit: `Tu pars avec vingt-trois plombiers : de vrais joueurs, les moins productifs de leurs saisons. Chaque résultat rapporte des jetons (🪙 ${jetonsDeDepart(meta)} au départ), et la boutique du hub vend des packs de joueurs et de cartes. Le plafond salarial tient : ${money(PLAFOND_ROGUE + plafondDuVestiaire(meta))}, que des cartes 💵 peuvent tordre. À la fin de la saison, tes écussons 🏅 débloquent la suite au vestiaire du menu.`,
     options: [{ cle: 'go', ico: '▶', nom: 'Commencer la run',
-      bon: [`${packsOuverts(meta).length} packs à la boutique`, k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : ''].filter(Boolean).join(' · '),
+      bon: [`${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`, k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : ''].filter(Boolean).join(' · '),
       prix: `🏅 ${meta.ecussons || 0} écussons · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} jouée${(meta.runs || 0) > 1 ? 's' : ''} · 🗂️ ${(meta.collection || []).length} joueurs dans ta collection` }],
     onChoix: () => resolve(true),
     onFerme: () => resolve(false),
@@ -1374,10 +1743,26 @@ async function demarrerRogue(gardes = []) {
   $('resultHost').style.display = 'none';
   $('game').classList.remove('bilan');
   G.roster = await plombiers(meta, gardes);
-  G.rogue = { depart: jetonsDeDepart(meta), deckPlus: aDebloque(meta, 'deckPlus'), gardes: gardes.map(getPlayerKey) };
+  G.rogue = { depart: jetonsDeDepart(meta), deckPlus: aDebloque(meta, 'deckPlus'), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta) };
   saveGame(); syncOptionsUI(); render();
   setView('roster');
   toast(`Tes plombiers sont là${gardes.length ? `, avec ${gardes.map(p => p.n).join(' et ')}` : ''}. Lance la saison quand tu veux : la boutique t'attend au hub.`);
+}
+/*
+ * LE PLAFOND D'UNE RUN, fixé à son départ : 82 M$, plus ce que le vestiaire a
+ * débloqué, et au moins 12 M$ d'espace au-dessus de la masse de départ (trois
+ * vedettes gardées de la dernière run ne doivent pas bloquer la saison).
+ */
+const ESPACE_DE_DEPART = 12_000_000;
+function plafondDeDepart(meta) {
+  const lignes = [];
+  let cap = PLAFOND_ROGUE;
+  const v = plafondDuVestiaire(meta);
+  if (v) { cap += v; lignes.push({ nom: 'Le vestiaire', montant: v }); }
+  const masse = signes().reduce((a, p) => a + (p.$ || 0), 0);
+  const min = Math.ceil((masse + ESPACE_DE_DEPART) / 100_000) * 100_000;
+  if (cap < min) { lignes.push({ nom: 'Ta masse de départ', montant: min - cap }); cap = min; }
+  return { cap, lignes };
 }
 /* Les écussons d'une saison Rogue, payés une fois (`payerEcussons` s'en souvient). */
 function finDeSaisonRogue() {
@@ -1999,6 +2384,8 @@ function zoneDe(cle) {
   const hub = hubActif();
   if (hub && voletPour(cle)) return 'hub';
   if (ONGLETS_REF.some(o => o.cle === cle)) return 'ref';
+  // LE CARTABLE (S79) : le Vestiaire, une fois le repêchage fini (le Rogue ne repêche jamais).
+  if (cle === 'repechage' && (!enRepechage() || G.bonus === 'ROGUE')) return 'cartable';
   if (bilanPret() && !hub) return VOLETS_DU_BILAN[cle] ? 'jeu' : 'vide';
   if (cle === 'repechage') return enRepechage() ? 'jeu' : 'vide';
   // Pendant les séries et le tournoi, l'alignement est figé : rien à y faire.
@@ -2041,7 +2428,62 @@ function marquerPage(cle) {
     vide.hidden = zone !== 'vide';
     if (zone === 'vide') remplirVide(cle);
   }
+  const cartable = $('pageCartable');
+  if (cartable) {
+    cartable.hidden = zone !== 'cartable';
+    if (zone === 'cartable') remplirCartable();
+  }
 }
+
+/*
+ * LE CARTABLE (S79, js/cartable.js). JP : *page vestiaire devrait contenir
+ * toutes les cartes, comme un cartable de carte, clickables, etc, avec stats
+ * de la saison en cours et saisons réelles comme vraie carte. Je veux
+ * collectionner.* Ton équipe — sa saison RÉVÉLÉE (`compteRevele`, jamais la
+ * fin de l'année) et sa vraie saison — puis la collection, par saison et par
+ * club. « Mes cartes » ouvre les cartes de jeu (l'inventaire) : du hub avec
+ * sa décision quand une saison se joue, en lecture sinon.
+ */
+function ligneDeSaison(p, S) {
+  if (!S || !S.GP) return 'pas encore joué';
+  return p.p === 'G'
+    ? `${S.GP} PJ · ${S.W || 0} V · ${S.SA ? (S.SV / S.SA).toFixed(3).replace(/^0/, '') : '—'}`
+    : `${S.GP} PJ · ${S.G || 0} B · ${S.A || 0} A · ${S.PTS || 0} PTS`;
+}
+function ligneVraieSaison(p) {
+  const st = displayStats(p);
+  return p.p === 'G' ? `${st.gp} PJ · ${st.w} V · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}` : `${st.gp} PJ · ${st.g} B · ${st.a} A · ${st.pt} PTS`;
+}
+function remplirCartable() {
+  const host = $('pageCartableCorps');
+  if (!host) return;
+  const L = G.ligue;
+  const portee = L ? porteeRevele('saison') : null;
+  const statsDe = p => (!L ? null : portee === 'jour' ? compteEnGrille(compteRevele('jour').get(p)) : statsSim(p, 'saison'));
+  const hub = hubActif();
+  // Les joueurs des anciennes parties (l'historique) y entrent une fois.
+  migrerHistorique(lireHistorique().flatMap(e => (e.alignement || []).filter(a => a && !a.r && a.k).map(a => a.k)));
+  rendreCartable(host, {
+    esc,
+    equipe: signes().map(p => ({ p, cle: getPlayerKey(p), mini: carteMiniHtml(p), saison: ligneDeSaison(p, statsDe(p)), vraie: ligneVraieSaison(p) })),
+    titreSaison: !L ? 'La saison n\'a pas commencé.' : portee === 'jour' ? `Cette saison : jusqu'à la journée ${G.journee || 0}.` : 'Cette saison : les 82 matchs.',
+    nCartes: L ? cartesAJouer(G.journee || 0) : 0,
+    ouvrirCartes: () => {
+      // En pleine saison : l'inventaire du hub, qui joue une carte comme décision du jour.
+      if (hub && hub.cartes) { montrerPage('match'); hub.cartes(); return; }
+      ouvrirInventaireJeu(null, null);
+    },
+    ficheEquipe: p => (L ? ouvrirFiche(p, L.you, portee === 'jour' ? 'jour' : 'saison') : showPlayerModal(p, { apercu: true })),
+    fiche: (cle, p) => showPlayerModal(p, { apercu: true }),
+    charger: s => getShard(s),
+    mini: (p, rar) => miniAvecVariante(p, rar),
+    cleDe: getPlayerKey,
+    club: t => TEAMFULL[t] || t,
+    vraie: ligneVraieSaison,
+  });
+}
+/* L'alignement entre au cartable au départ d'une saison (une variante neuve compte, pas un doublon). */
+const alignementAuCartable = () => ajouterAuCartable(signes().map(p => ({ cle: getPlayerKey(p), rar: varianteJoueur(p), num: (G.variantes.numeros || {})[getPlayerKey(p)] || null })), { doublons: false });
 
 /*
  * L'ÉTAT VIDE : un onglet qui n'a encore rien à montrer dit pourquoi, et
@@ -2327,7 +2769,7 @@ function sectionMods(p) {
  * les autres, avec leur visage, et ce que la case lui coûterait (hors
  * position). Rend `{ i, sort }` pour la décision de ballottage.
  */
-function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '' }) {
+function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '', bloque = null, note = null }) {
   const cases = SLOTS.filter(sl => roster && roster[sl.i] && fits(p, sl))
     .sort((a, b) => (b.scratch ? 1 : 0) - (a.scratch ? 1 : 0) || a.i - b.i);
   const nomDe = n => String(n).split(' ').slice(-1)[0];
@@ -2338,9 +2780,11 @@ function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '' }) {
       const q = roster[sl.i];
       const pen = getPositionPenalty(p, sl);
       return { cle: String(sl.i), visage: headshotHtml(q), nom: q.n,
-        sous: [slotShort(sl), positionLabel(q), pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : ''].filter(Boolean).join(' · ') };
+        sous: [slotShort(sl), positionLabel(q), pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : '', note ? note(q) : ''].filter(Boolean).join(' · '),
+        // S79 : la sortie que le plafond refuse reste visible, avec sa raison.
+        desactive: bloque ? bloque(q) : '' };
     }),
-    onChoix: k => { const sl = SLOTS[Number(k)]; if (sl && roster[sl.i]) onChoix({ i: sl.i, sort: getPlayerKey(roster[sl.i]) }); },
+    onChoix: k => { const sl = SLOTS[Number(k)]; if (sl && roster[sl.i] && !(bloque && bloque(roster[sl.i]))) onChoix({ i: sl.i, sort: getPlayerKey(roster[sl.i]) }); },
     onFerme,
   });
 }
@@ -4843,6 +5287,7 @@ async function deciderSaison(d, depuis) {
   if (!G.ligue) return;
   // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
   if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
+  if (d.ballottage && d.ballottage.entre) ajouterAuCartable([{ cle: d.ballottage.entre, rar: d.ballottage.rar || 'commune', num: d.ballottage.num || null }], { doublons: false });
   const decisions = (G.ligue.decisions || []).filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
     && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour)
@@ -4853,11 +5298,12 @@ async function deciderSaison(d, depuis) {
   // UNE DÉCISION QUI NE TOUCHE QUE LE DECK DE MATCH (une récompense, un
   // ménage) ne tire pas de dés neufs : le moteur ne la lit pas, les matchs ne
   // doivent pas bouger (S74).
-  const deckSeul = d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp';
+  // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
+  const deckSeul = d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage);
   decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
   await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
-  if (d.ballottage) renderCap();
+  if (d.ballottage || d.plafond || d.patron || d.achat) renderCap();
   confirmerDecision(d);
 }
 
@@ -5221,7 +5667,8 @@ function reprendreSeries(vues) {
 
 async function runSeason(opts = {}) {
   if (G.banc && !opts.adversaires) { await reprendreSaison(); return; }
-  if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
+  if (slotsLeft() > 0 || G.done || (capLeft() < 0 && !opts.adversaires)) return;
+  if (!opts.reprise) alignementAuCartable();
   // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
   // simulateLeague ici — le tournoi a son propre moteur, celui du plateau.
   if (G.bonus === 'TABLE' && !opts.adversaires) { await lancerTournoi(); return; }
@@ -5377,9 +5824,13 @@ function ouvrirEcranSaison(depuis = 0) {
         carteMini: carteMiniHtml,
         // Sa fiche en aperçu, et « qui sort ? » quand il arrive (S78).
         apercu: apercuJoueur,
-        quiSort: choisirQuiSort,
+        // S79 : toute signature de la saison (ballottage, recrue) respecte le plafond effectif, et dit ce que libère chaque sortie.
+        quiSort: (p, o) => choisirQuiSort(p, { bloque: q => bloqueParLePlafond(p, q), note: q => `libère ${money(capHitDuJour(q))}`, ...o }),
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
         rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider) } : null,
+        // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
+        boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider) },
+        inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider) => ouvrirInventaireJeu(j, decider) },
       },
       onTermine: () => terminerSaison(),
       depuis,

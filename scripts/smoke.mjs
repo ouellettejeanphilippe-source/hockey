@@ -149,9 +149,8 @@ async function guetterBallottage() {
   if (ballottage.fait) return;
   const ouvrir = await page.$('#hubModal .hub-ballottage-ouvrir');
   if (!ouvrir || !(await ouvrir.isVisible())) return;
-  // Un choix forcé déjà ouvert passe devant : on y répond d'abord. Un plein
-  // écran sans option (le sommaire de la journée) couvre aussi le hub (S79).
-  const force = await page.$('#choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .choix-sheet');
+  // Un choix forcé — ou n'importe quel plein écran, le sommaire de la journée compris (S78) — passe devant.
+  const force = await page.$('#choixModal:not([hidden]) .choix-sheet');
   if (force && (await force.isVisible())) return;
   ballottage.fait = true;
   const tete = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
@@ -547,6 +546,30 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
   if (tel.boutons == null || tel.boutons < BARRE) errors.push(`sous une barre d'état de ${BARRE} px, un bouton de la barre du haut commence à ${tel.boutons} px`);
   if (apres.partie !== avant.partie || apres.boutons !== avant.boutons) errors.push(`sans barre d'état, le haut a bougé : ${JSON.stringify(avant)} puis ${JSON.stringify(apres)}`);
   else console.log(`   la barre d'état du téléphone : sous ${BARRE} px, « Nouvelle partie » à ${tel.partie} px et les boutons du haut à ${tel.boutons} px ; sans elle, rien ne bouge`);
+}
+/*
+ * LA BARRE DE GESTES (S78). JP : *ajouter espace protégé dans le bas sur
+ * mobile aussi*. Même épreuve qu'en haut : Capacitor pose
+ * `--safe-area-inset-bottom` ; la barre d'onglets et le bas de l'écran
+ * « Nouvelle partie » doivent s'arrêter au-dessus. Sans elle, rien ne bouge.
+ */
+{
+  const GESTES = 28;
+  const mesurer = () => page.evaluate(() => {
+    const bas = el => (el ? Math.round(innerHeight - el.getBoundingClientRect().bottom) : null);
+    return { navbar: bas(document.querySelector('#navbar')), partie: bas(document.querySelector('#partieModal')) };
+  });
+  const avant = await mesurer();
+  await page.evaluate(n => document.documentElement.style.setProperty('--safe-area-inset-bottom', `${n}px`), GESTES);
+  await page.waitForTimeout(150);
+  const tel = await mesurer();
+  await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-inset-bottom'));
+  await page.waitForTimeout(150);
+  const apres = await mesurer();
+  if (tel.navbar != null && tel.navbar < GESTES) errors.push(`au-dessus d'une barre de gestes de ${GESTES} px, la barre d'onglets finit à ${tel.navbar} px du bas`);
+  if (tel.partie == null || tel.partie < GESTES) errors.push(`au-dessus d'une barre de gestes de ${GESTES} px, l'écran « Nouvelle partie » finit à ${tel.partie} px du bas`);
+  if (JSON.stringify(apres) !== JSON.stringify(avant)) errors.push(`sans barre de gestes, le bas a bougé : ${JSON.stringify(avant)} puis ${JSON.stringify(apres)}`);
+  else console.log(`   la barre de gestes : au-dessus de ${GESTES} px, la barre d'onglets à ${tel.navbar} px du bas et « Nouvelle partie » à ${tel.partie} px ; sans elle, rien ne bouge`);
 }
 /*
  * « COMMENT ON JOUE, EN CINQ CARTES » (S74) : cinq cartes à lire, par-dessus
