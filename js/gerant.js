@@ -29,6 +29,10 @@ import {
   chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee,
 } from './sim.js';
 import { POIDS_TRIO, getLineZone } from './ratings.js';
+import { carteHtml, RARETES } from './cartes.js';
+import { CARTES_MATCH, ENERGIE_MAIN } from './combat.js';
+import { effetsDesCartes } from './sim.js';
+import { jouerSon } from './sons.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -143,7 +147,7 @@ export function ouvrirChoix(spec) {
   // {noms} : les joueurs visés par un geste réel, nommés (S72).
   const noms = spec.joueurs && spec.joueurs.length ? listeNoms(spec.joueurs.map(p => p.n)) : '';
   const sub = s => esc(String(s || '').replace(/\{nom\}/g, nom || 'ton joueur').replace(/\{noms\}/g, noms || 'tes joueurs'));
-  m.innerHTML = `<div class="choix-sheet" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+  m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '❓'}</span>
       <div class="choix-titres"><div class="choix-titre">${sub(spec.titre)}</div>${spec.irl ? `<div class="choix-irl">${esc(spec.irl)}</div>` : ''}</div>
@@ -153,11 +157,20 @@ export function ouvrirChoix(spec) {
       ${spec.recit ? `<p class="choix-recit">${sub(spec.recit)}</p>` : ''}
       ${spec.joueur ? carteJoueur(spec.joueur) : ''}
       ${spec.contexte || ''}
-      <div class="choix-options">${spec.options.map(o => {
+      <div class="choix-options${spec.cartes ? ' choix-main donne' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
-        const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms)];
+        const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+        // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner.
+        if (spec.cartes) return carteHtml({
+          cle: esc(o.cle), rarete: o.rarete, i, ico: o.ico, nomHtml: sub(o.nom), typeHtml: esc(o.type || ''),
+          artHtml: o.art || '', texteHtml: o.texte ? sub(o.texte) : (o.mutation ? esc(MUTATIONS[o.mutation].quoi) : ''),
+          bonHtml: o.bon ? sub(o.bon) : '', prixHtml: o.prix ? sub(o.prix) : '', coinHtml: o.coin ? esc(o.coin) : '',
+          pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
+          desactive: o.desactive ? esc(o.desactive) : '',
+        });
         return `<button type="button" class="choix-option" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
           <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
+          ${o.sous ? `<span class="choix-option-sous">${sub(o.sous)}</span>` : ''}
           ${o.bon ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
           ${o.prix ? `<span class="choix-option-prix">− ${sub(o.prix)}</span>` : ''}
           ${o.mutation ? `<span class="choix-option-mut">${MUTATIONS[o.mutation].ico} ${esc(MUTATIONS[o.mutation].quoi)}</span>` : ''}
@@ -165,10 +178,12 @@ export function ouvrirChoix(spec) {
           ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
         </button>`;
       }).join('')}</div>
+      ${(spec.cartes || spec.genre) && spec.fermable ? `<button type="button" class="btn choix-plus-tard">${esc(spec.motFermer || 'Plus tard')}</button>` : ''}
     </div>
   </div>`;
   m.hidden = false;
   document.body.classList.add('choix-ouvert');
+  if (spec.cartes && !spec.lecture) jouerSon(spec.genre === 'recompense' ? 'recompense' : 'donne');
   const fermer = (silencieux = false) => {
     m.hidden = true; m.innerHTML = '';
     document.body.classList.remove('choix-ouvert');
@@ -176,14 +191,39 @@ export function ouvrirChoix(spec) {
     if (!silencieux && spec.onFerme) spec.onFerme();
   };
   fermerChoixCourant = fermer;
-  m.querySelectorAll('[data-choix]').forEach(b => { b.onclick = () => { fermer(true); spec.onChoix(b.dataset.choix); }; });
-  const x = m.querySelector('.choix-fermer');
-  if (x) x.onclick = () => fermer();
+  // UNE VUE À LIRE (S74, « Mon deck ») : les cartes ne se prennent pas.
+  m.querySelectorAll('[data-choix]').forEach(b => { if (spec.lecture) { b.classList.add('lecture'); return; } b.onclick = () => { fermer(true); spec.onChoix(b.dataset.choix); }; });
+  for (const x of m.querySelectorAll('.choix-fermer, .choix-plus-tard')) x.onclick = () => fermer();
+  pointsDeBande(m);
   const premier = m.querySelector('.choix-option:not([disabled])');
   if (premier) premier.focus({ preventScroll: true });
   return () => fermer(true);
 }
 export const choixOuvert = () => !!fermerChoixCourant;
+
+/*
+ * LES POINTS D'UNE BANDE DE CARTES (S74). Sur téléphone, une main se balaie :
+ * sans repère, la deuxième carte qui dépasse à droite ne dit pas qu'il y en a
+ * trois. Un point par carte, allumé sur celle qu'on regarde. Rien sur grand
+ * écran, où toutes les cartes sont côte à côte (la bande ne défile pas).
+ */
+function pointsDeBande(m) {
+  const bande = m.querySelector('.choix-main');
+  if (!bande) return;
+  const n = bande.children.length;
+  let pts = m.querySelector('.choix-points');
+  if (!pts) { pts = document.createElement('div'); pts.className = 'choix-points'; pts.setAttribute('aria-hidden', 'true'); bande.after(pts); }
+  const maj = () => {
+    const defile = bande.scrollWidth - bande.clientWidth > 4;
+    pts.hidden = !defile || n < 2;
+    if (pts.hidden) return;
+    const pas = bande.children[1] ? bande.children[1].offsetLeft - bande.children[0].offsetLeft : bande.clientWidth;
+    const i = Math.max(0, Math.min(n - 1, Math.round(bande.scrollLeft / (pas || 1))));
+    pts.innerHTML = Array.from({ length: n }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('');
+  };
+  bande.addEventListener('scroll', maj, { passive: true });
+  maj();
+}
 
 /* ======================================================================
    MES LIGNES, EN PLEIN ÉCRAN
@@ -404,3 +444,191 @@ export function resumeLignes(lignes, chimie) {
   }).join('');
 }
 void SLOTS;
+
+/* ======================================================================
+   LE DECK DE MATCH (S74) : la main, le deck, les cartes en options
+   ====================================================================== */
+const GENRES_CARTE = { attaque: 'Attaque', defense: 'Défense', tactique: 'Tactique', synergie: 'Synergie', malediction: 'Malédiction' };
+/* Ce qu'une carte de match fait, en puces : pour toi, pour eux (vert si ça t'aide), et ses gestes. */
+export function motsDeCarteMatch(C) {
+  if (!C) return [];
+  const out = [...motsDEffet(C.effet || null)];
+  for (const m of motsDEffet(C.adv || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  if (C.lire) out.push({ txt: 'Leur plan tombe', bon: true });
+  if (C.annule) out.push({ txt: 'Leur main ne fait rien', bon: true });
+  if (C.contre) out.push({ txt: 'Tes 2 premières lignes sur leur contre', bon: null });
+  if (C.pioche) out.push({ txt: `Pige ${C.pioche}`, bon: true });
+  if (C.energiePlus) out.push({ txt: `+${C.energiePlus} énergie`, bon: true });
+  if (C.energieTous) out.push({ txt: `Patineurs +${C.energieTous} d'énergie`, bon: true });
+  if (C.pari) out.push({ txt: '🎲 Pari', bon: null });
+  if (C.synergie) out.push({ txt: 'Lit ta formation', bon: null });
+  if (C.enMain) for (const m of motsDEffet(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
+  if (C.injouable) out.push({ txt: 'Injouable', bon: false });
+  return out;
+}
+/* Une carte de LEUR main, en puces de ton point de vue : ce qui les aide est rouge pour toi. */
+export function motsDeCarteAdverse(C) {
+  if (!C) return [];
+  const out = [];
+  for (const m of motsDEffet(C.effet || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  for (const m of motsDEffet(C.adv || null)) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
+  if (C.pari) out.push({ txt: '🎲 Leur pari', bon: null });
+  if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
+  if (C.energieTous) out.push({ txt: `Leurs patineurs +${C.energieTous} d'énergie`, bon: false });
+  return out;
+}
+/*
+ * LEUR MAIN (S74) : les « intentions » de Slay the Spire. On la connaît avant
+ * de jouer la sienne — c'est tout le jeu : répondre.
+ */
+export function mainAdverseHtml(cartes, { nomAdv = 'Eux' } = {}) {
+  if (!cartes || !cartes.length) return '';
+  return `<div class="main-adverse"><div class="gl-k">🂠 La main de ${esc(nomAdv)} ce soir</div><div class="main-adverse-cartes">${cartes.map(c => {
+    const C = CARTES_MATCH[c];
+    return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C))}</span></span>` : '';
+  }).join('')}</div></div>`;
+}
+/* Une carte de match en option d'`ouvrirChoix` (une récompense, un retrait). */
+export function optionDeCarteMatch(cle) {
+  const C = CARTES_MATCH[cle];
+  return {
+    cle, rarete: C.maudite ? 'commune' : C.rarete, ico: C.ico, nom: C.nom,
+    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} énergie`}`,
+    texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C),
+  };
+}
+const carteDeMatch = (cle, i, etat) => {
+  const o = optionDeCarteMatch(cle);
+  return carteHtml({
+    cle: String(i), rarete: o.rarete, i, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(o.type),
+    texteHtml: esc(o.texte), coinHtml: esc(o.coin), pucesHtml: puces(o.mots),
+  }).replace('class="choix-option tc', `class="choix-option tc main-carte${etat ? ` ${etat}` : ''}`);
+};
+
+/* Combine des effets de match : les facteurs se multiplient, les minutes aussi. */
+function combiner(effets) {
+  const out = {};
+  for (const e of effets) for (const [k, v] of Object.entries(e)) {
+    if (['source', 'nom', 'ico'].includes(k)) continue;
+    if (Array.isArray(v)) out[k] = (out[k] || v.map(() => 1)).map((x, i) => x * (v[i] ?? 1));
+    else if (typeof v === 'number') out[k] = (out[k] ?? 1) * v;
+  }
+  return out;
+}
+
+/*
+ * LA MAIN D'UN MATCH (S74), en plein écran. Cinq cartes, trois d'énergie :
+ * on touche une carte pour la jouer, et ce qu'elle fait s'ajoute à l'aperçu —
+ * calculé par le moteur lui-même (`effetsDesCartes`), synergies comprises,
+ * sauf l'issue d'un pari, qui ne se sait qu'au match. Une carte qui pige
+ * ajoute la suite de la pioche à la main. « Recommencer » rend la main du
+ * début ; « Jouer ces cartes » décide (zéro carte, c'est aussi un choix).
+ *
+ * spec : { titre, sousTitre, recit, contexte, equipe, main, pioche, deck,
+ *          onJouer(jouees, enMain), motJouer }
+ */
+export function ouvrirMainDeMatch(spec) {
+  const m = $('choixModal');
+  if (!m) return () => {};
+  if (fermerChoixCourant) fermerChoixCourant(true);
+  let main, pioche, jouees, energie, voirDeck = false;
+  const depart = () => { main = spec.main.slice(); pioche = (spec.pioche || []).slice(); jouees = []; energie = ENERGIE_MAIN; };
+  depart();
+  const joue = new Set();          // les rangs de la main déjà joués
+  let premier = true, pigees = new Set();
+  const dessiner = () => {
+    const defile = m.querySelector('.choix-main');
+    const x = defile ? defile.scrollLeft : 0;
+    const cartes = main.map((c, i) => {
+      const C = CARTES_MATCH[c];
+      const etat = joue.has(i) ? 'jouee' : C.injouable ? 'injouable' : C.cout > energie ? 'trop-cher' : '';
+      return carteDeMatch(c, i, [etat, pigees.has(i) ? 'pige' : ''].filter(Boolean).join(' '));
+    }).join('');
+    const sansPari = jouees.filter(c => !CARTES_MATCH[c].pari);
+    const fx = effetsDesCartes(spec.equipe, { jouees: sansPari, enMain: main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain) }, 'apercu');
+    const mots = [...motsDEffet(combiner(fx.effets))];
+    for (const x2 of motsDEffet(combiner(fx.adv))) mots.push({ txt: `Eux : ${x2.txt}`, bon: x2.bon == null ? null : !x2.bon });
+    if (fx.lire) mots.push({ txt: 'Leur plan tombe', bon: true });
+    if (fx.annule) mots.push({ txt: 'Leur main ne fait rien', bon: true });
+    if (fx.contre) mots.push({ txt: 'Tes 2 premières lignes sur leur contre', bon: null });
+    if (fx.energieTous) mots.push({ txt: `Patineurs +${fx.energieTous} d'énergie`, bon: true });
+    for (const c of jouees) if (CARTES_MATCH[c].pari) mots.push({ txt: `🎲 ${CARTES_MATCH[c].nom} : au match`, bon: null });
+    const orbes = Array.from({ length: Math.max(ENERGIE_MAIN, energie) }, (_, i) => `<i class="main-orbe${i < energie ? ' plein' : ''}"></i>`).join('');
+    const deck = (spec.deck || []).slice().sort((a, b) => CARTES_MATCH[a].cout - CARTES_MATCH[b].cout || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
+    m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+      <div class="choix-tete">
+        <span class="choix-ico">🃏</span>
+        <div class="choix-titres"><div class="choix-titre">${esc(spec.titre)}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>
+      </div>
+      <div class="choix-corps">
+        ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
+        ${spec.contexte || ''}
+        <div class="main-energie" aria-label="Énergie : ${energie}"><span class="gl-k">Énergie</span><span class="main-orbes">${orbes}</span><b>${energie}</b>
+          <span class="main-pioche" title="Les cartes qui restent à piger ce match">🂠 ${pioche.length}</span></div>
+        <div class="choix-options choix-main${premier ? ' donne' : ''}">${cartes}</div>
+        <div class="main-apercu">
+          <div class="gl-k">Ce soir, sur la glace</div>
+          ${jouees.length ? `<div class="main-jouees">${jouees.map(c => `<span class="main-jouee">${CARTES_MATCH[c].ico} ${esc(CARTES_MATCH[c].nom)}</span>`).join('')}</div>` : '<div class="main-vide">Aucune carte jouée. Touche une carte pour la jouer.</div>'}
+          ${mots.length ? `<div class="choix-puces">${puces(mots)}</div>` : ''}
+        </div>
+        <div class="main-boutons">
+          <button type="button" class="btn go main-jouer">${esc(jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer')}</button>
+          <button type="button" class="btn main-reprendre"${jouees.length ? '' : ' disabled'}>Recommencer la main</button>
+          <button type="button" class="btn main-deck">${voirDeck ? 'Cacher mon deck' : `Mon deck · ${deck.length}`}</button>
+        </div>
+        ${voirDeck ? `<div class="deck-grille">${deck.map(c => `<span class="deck-mini tc-${CARTES_MATCH[c].maudite ? 'commune' : CARTES_MATCH[c].rarete}${CARTES_MATCH[c].maudite ? ' maudite' : ''}" title="${esc(CARTES_MATCH[c].texte)}"><b>${CARTES_MATCH[c].injouable ? '✕' : CARTES_MATCH[c].cout}</b>${CARTES_MATCH[c].ico} ${esc(CARTES_MATCH[c].nom)}</span>`).join('')}</div>` : ''}
+      </div>
+    </div>`;
+    const nd = m.querySelector('.choix-main');
+    if (nd) nd.scrollLeft = x;
+    pointsDeBande(m);
+    premier = false; pigees = new Set();
+    m.querySelectorAll('.main-carte').forEach(b => {
+      b.onclick = () => {
+        const i = Number(b.dataset.choix), c = main[i], C = CARTES_MATCH[c];
+        if (joue.has(i) || C.injouable || C.cout > energie) { jouerSon('refus'); return; }
+        jouerSon('joue');
+        joue.add(i); jouees.push(c);
+        energie += (C.energiePlus || 0) - C.cout;
+        if (C.pioche) { const n0 = main.length; main.push(...pioche.splice(0, C.pioche)); for (let k = n0; k < main.length; k++) pigees.add(k); }
+        dessiner();
+      };
+    });
+    m.querySelector('.main-jouer').onclick = () => {
+      const enMain = main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain);
+      fermer(true);
+      spec.onJouer(jouees.slice(), enMain);
+    };
+    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; dessiner(); };
+    m.querySelector('.main-deck').onclick = () => { voirDeck = !voirDeck; dessiner(); };
+    // Le focus reste DANS la main : le clavier ne tombe jamais sur la page dessous.
+    m.querySelector('.main-jouer').focus({ preventScroll: true });
+  };
+  const fermer = (silencieux = false) => {
+    m.hidden = true; m.innerHTML = '';
+    document.body.classList.remove('choix-ouvert');
+    fermerChoixCourant = null;
+    void silencieux;
+  };
+  fermerChoixCourant = fermer;
+  m.hidden = false;
+  document.body.classList.add('choix-ouvert');
+  jouerSon('donne');
+  dessiner();
+  return () => fermer(true);
+}
+
+/* Mon deck, à lire : toutes les cartes, rangées par coût. */
+export function ouvrirDeck({ deck, titre = 'Mon deck', recit = '' }) {
+  const tri = deck.slice().sort((a, b) => CARTES_MATCH[a].cout - CARTES_MATCH[b].cout || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
+  const compte = new Map();
+  for (const c of tri) compte.set(c, (compte.get(c) || 0) + 1);
+  return ouvrirChoix({
+    ico: '🃏', titre: `${titre} · ${deck.length} cartes`, cartes: true, genre: 'deck', fermable: true, motFermer: 'Fermer',
+    recit: recit || 'Tes cartes de match : avant chaque gros match et chaque match de séries, tu en piges cinq et tu as trois d\'énergie pour les jouer.',
+    lecture: true,
+    options: [...compte.entries()].map(([c, n]) => ({ ...optionDeCarteMatch(c), cle: `vue:${c}`, nom: n > 1 ? `${CARTES_MATCH[c].nom} ×${n}` : CARTES_MATCH[c].nom })),
+    onChoix: () => {},
+  });
+}
+void RARETES;

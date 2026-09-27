@@ -16,6 +16,7 @@ import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
+import { deckDe } from './combat.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
@@ -592,8 +593,13 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     graine: G.ligue && G.ligue.graine || null,
     alignement: SLOTS.map(s => {
       const p = G.roster[s.i];
-      return p ? { i: s.i, s: p.s, k: getPlayerKey(p), n: p.n, r: p._renfort ? 1 : 0 } : null;
+      return p ? { i: s.i, s: p.s, k: getPlayerKey(p), n: p.n, t: p.t, p: p.p, r: p._renfort ? 1 : 0 } : null;
     }),
+    // L'ALBUM (S74, js/album.js) se déduit de l'historique : le deck de match
+    // de fin de saison, l'identité de départ, la franchise.
+    deck: deckDe((G.ligue && G.ligue.decisions) || []),
+    identite: G.identite || null,
+    franchise: G.repechage === 'FRANCHISE' ? G.franchise : null,
   // L'identifiant de la saison en cours, s'il y en a un : une reprise
   // réécrit SON entrée, elle n'en empile pas une deuxième.
   }, G.lbId);
@@ -824,6 +830,8 @@ export function runPlayoffs(top16, opts = {}) {
     const derniere = miennes[miennes.length - 1];
     const coupe = champion === toi;
     majLeaderboard(G.lbId, {
+      // Le deck après les séries : les cartes gagnées en séries comptent à l'album.
+      deck: deckDe((G.ligue && G.ligue.decisions) || [], { serie: (G.ligue && G.ligue.decisionsSeries) || [] }),
       series: {
         coupe, V, D,
         rondes: miennes.length,
@@ -872,6 +880,8 @@ export function runPlayoffs(top16, opts = {}) {
     depuis: opts.depuis || null,
     // LES COMBATS DE BOSS (S69) : entre deux rounds, on règle tout.
     graine: graineSeries, decisions: decsSeries,
+    // LE DECK DE MATCH (S74) se déduit aussi des décisions de la saison.
+    decisionsSaison: (G.ligue && G.ligue.decisions) || [],
     onDecision: deciderSerie || null,
     onBanc: bancSerie || null,
     onRevele: etat => { G.seriesVues = etat; saveGame(); },

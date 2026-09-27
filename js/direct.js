@@ -26,6 +26,7 @@
 import { periodeDe } from './sim.js';
 import { recitDeBut, tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
+import { CARTES_MATCH } from './combat.js';
 
 /*
  * L'HORLOGE DESCEND. Un tableau indicateur de hockey compte à rebours,
@@ -336,6 +337,16 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   feed.innerHTML = '';
   etat.innerHTML = '';
   ligne('debut', `${ctx.esc(com.debut())} <b>${ctx.esc(cap(ctx.teamShort(A)))}</b> contre <b>${ctx.esc(ctx.teamShort(B))}</b>${titre ? `, ${ctx.esc(titre.toLowerCase())}` : ''}${sousTitre ? `, ${ctx.esc(sousTitre.toLowerCase())}` : ''}.`);
+  // LES CARTES DU SOIR (S74) : ce que tu as joué se dit avant la mise au jeu, et ce qu'elles ont fait de leur plan.
+  const cartesDuSoir = f.cartes && f.cartes.jouees ? f.cartes.jouees.filter(c => CARTES_MATCH[c]) : [];
+  if (cartesDuSoir.length) {
+    const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} ${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
+    const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', f.cartes.contre ? '🧠 tes deux premières lignes jouent leur contre' : '', ...paris].filter(Boolean);
+    ligne('debut cartes', `🃏 <b>Tu joues</b> ${cartesDuSoir.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${suite.length ? ` — ${suite.join(', ')}` : ''}.`);
+  }
+  // LEUR MAIN (S74) : ce qu'ils ont joué, ou ce que ta main a annulé.
+  const leurs = f.cartes && f.cartes.adverses ? f.cartes.adverses.filter(c => CARTES_MATCH[c]) : [];
+  if (leurs.length) ligne('debut cartes eux', `🂠 <b>${f.cartes.annulee ? 'Leur main ne sert à rien' : 'Eux'}</b> ${leurs.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${f.cartes.annulee ? ' — tu connaissais leur cahier par cœur' : ''}.`);
 
   const statsDuMatch = () => {
     const per = [1, 2, 3, 4].filter(k => k < 4 || st.tirs.A[4] + st.tirs.B[4] > 0);

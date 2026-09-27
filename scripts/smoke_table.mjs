@@ -133,6 +133,9 @@ await page.click('#partieModal [data-opt="bonus"] button[data-val="TABLE"]');
 const choisi = await page.$eval('#partieModal [data-opt="bonus"] button[data-val="TABLE"]', b => b.classList.contains('on'));
 if (!choisi) errors.push('l\'option « Sur table » ne se marque pas');
 await page.click('#npGo');
+// L'identité de départ (S73) : trois cartes avant la première roulette ; on prend la première.
+await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"] .tc', { timeout: 10000 });
+await page.click('#choixModal .tc');
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 console.log(`   option « Sur table » choisie : ${choisi}`);
 

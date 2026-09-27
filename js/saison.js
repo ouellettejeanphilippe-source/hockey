@@ -30,8 +30,11 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE,
   lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
-  PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts } from './sim.js';
-import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml } from './gerant.js';
+  PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
+  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, fitLigne, profilPrincipal, apprentissagePhoto } from './sim.js';
+import { artJoueur } from './cartes.js';
+import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml } from './gerant.js';
+import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant } from './recit.js';
@@ -586,9 +589,10 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   const prises = new Set(cartesPrises.map(x => x.palier));
   // Les cartes DÉJÀ prises ne reparaissent pas dans une main : on compose
   // une saison, on n'empile pas trois fois le même curseur.
-  const dejaPrises = cartesPrises.map(x => x.carte);
+  const dejaPrises = cartesPrises.map(x => x.carte).filter(Boolean);
   const palierOuvert = () => (onCarte ? PALIERS_CARTES.find(j => jour >= j && !prises.has(j)) : undefined);
   const paliersVus = new Set();      // les paliers qui ont déjà arrêté l'avance
+  let mainAOuvrir = null;            // le palier dont la main s'ouvre au prochain dessin (S73)
 
   /*
    * LES SITUATIONS. Elles ne sont pas une décision — elles ARRIVENT, tirées
@@ -726,6 +730,44 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   let entracteDemande = false;
 
   /*
+   * LE DECK DE MATCH (S74, js/combat.js). Avant un gros match — une fois
+   * l'avant-match choisi — ta MAIN s'ouvre en plein écran : cinq cartes,
+   * trois d'énergie. Après une victoire dans un gros match, une RÉCOMPENSE :
+   * une carte parmi trois, ou passer. Les deux sont des décisions ; le deck se
+   * déduit d'elles, donc une reprise retrouve les mêmes mains.
+   */
+  const cicatrices = () => ({
+    pertes: (you.minisBoss || []).filter(m => !m.gagne && m.raison === 'nemesis').map(m => m.jour + 1),
+    blessures: (you.injuriesLog || []).filter(i => i.games >= 15 && i.jour != null).map(i => i.jour + 1),
+  });
+  const deckAvant = j => deckDe(decs, { avant: j + 1, ...cicatrices() });
+  function mainOuverte() {
+    if (!onDecision || jour >= N) return null;
+    const p = prochain();
+    const mb = p ? grosDuJour(p.j) : null;
+    if (!mb || decs.some(d => d.jour === p.j && d.main)) return null;
+    if (!decs.some(d => d.jour === p.j && d.avant)) return null;
+    return { p, mb };
+  }
+  function recompenseOuverte() {
+    // « La fin » passe par-dessus tout : pas une chaîne de récompenses après coup.
+    if (!onDecision || jour >= N) return null;
+    return (you.minisBoss || []).find(mb => mb.gagne && mb.jour < jour && !decs.some(d => d.palier === `r:${mb.jour}`)) || null;
+  }
+  function ouvrirMainGros(mo) {
+    const deck = deckAvant(mo.p.j);
+    const { main, pioche } = mainDuMatch(graine, `j${mo.p.j}`, deck);
+    const adv = mo.mb.adv;
+    ouvrirMainDeMatch({
+      titre: 'Ta main', sousTitre: `Match important · journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
+      recit: 'Cinq cartes, trois d\'énergie. Ce que tu joues vaut pour ce match seulement ; le reste retourne dans le deck.',
+      contexte: planAdverseHtml(mo.mb.plan, mo.mb.contre, { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`), { nomAdv: ctx.teamShort(adv) }),
+      equipe: you, main, pioche, deck,
+      onJouer: (jouees, enMain) => { const j = jour; quitter(); onDecision({ jour: mo.p.j, main: { jouees, enMain } }, j); },
+    });
+  }
+
+  /*
    * Les cases vides, nommées comme partout ailleurs (`slotShort` est le seul
    * propriétaire de cette règle). Au-delà de deux on compte, parce qu'une
    * énumération de cinq cases ne se lit pas dans un bandeau.
@@ -794,7 +836,11 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert())) break;
     }
     const pal = palierOuvert();
-    if (pal !== undefined) paliersVus.add(pal);
+    if (pal !== undefined) {
+      // LA MAIN S'OUVRE D'ELLE-MÊME (S73), une fois, quand un clic s'y arrête.
+      if (stop && !paliersVus.has(pal)) mainAOuvrir = pal;
+      paliersVus.add(pal);
+    }
     const neuves = blessuresNeuves();
     alerte = neuves.length ? neuves[0] : null;
     if (alerte) vues.add(alerte);
@@ -930,6 +976,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     for (const d of decs) {
       if (d.jour == null || d.jour > jour) continue;
       if (d.objectif && OBJECTIFS[d.objectif.cle]) ev.push({ j: d.jour, t: `🏢 Le proprio exige : <b>${ctx.esc(OBJECTIFS[d.objectif.cle].nom)}</b>` });
+      else if (d.recompense && CARTES_MATCH[d.recompense] && typeof d.palier === 'string') ev.push({ j: d.jour, t: `🎁 Nouvelle carte dans ton deck : ${CARTES_MATCH[d.recompense].ico} <b>${ctx.esc(CARTES_MATCH[d.recompense].nom)}</b>` });
       else if (typeof d.palier === 'string' && d.palier.startsWith('v:')) ev.push({ j: d.jour, t: d.carte && CARTES[d.carte] ? `🏆 Objectif atteint — le proprio paie : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` : '😬 Objectif raté : le savon dans le bureau du proprio' });
       else if (d.moment) {
         const cat = d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle];
@@ -937,7 +984,16 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         const o = (cat.options || []).find(x => x.cle === d.moment.choix);
         const titre = String(cat.titre).replace(/\{nom\}/g, nomJoueur(d.moment.joueur) || 'un joueur');
         ev.push({ j: d.jour, t: `${cat.ico} ${ctx.esc(titre)}${o ? ` — tu as choisi : <b>${ctx.esc(o.nom)}</b>` : ''}` });
-      } else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Un joueur réclamé au ballottage pour boucher un trou' });
+      } else if (d.deck && SORTES_DECK[d.deck]) {
+        const S = SORTES_DECK[d.deck], M = d.mutation && MUTATIONS[d.mutation.cle], T = d.maitrise && TACTIQUES[d.maitrise.tac];
+        const qui = d.deck === 'recrue' ? nomJoueur(d.ballottage && d.ballottage.entre) : d.mutation ? nomJoueur(d.mutation.joueur) : '';
+        const t = d.deck === 'menage' && CARTES_MATCH[d.retrait] ? `Le ménage : ${CARTES_MATCH[d.retrait].ico} <b>${ctx.esc(CARTES_MATCH[d.retrait].nom)}</b> quitte ton deck`
+          : d.deck === 'recrue' ? `Recrue : <b>${ctx.esc(qui || 'un joueur')}</b> signé`
+          : M ? `${M.ico} ${ctx.esc(M.nom)} pour <b>${ctx.esc(qui || 'un joueur')}</b>`
+            : T ? `Stage de système : ${T.ico} <b>${ctx.esc(T.nom)}</b>` : ctx.esc(S.nom);
+        ev.push({ j: d.jour, t: `${S.ico} ${t}` });
+      } else if (d.carte && typeof d.palier === 'number' && CARTES[d.carte]) ev.push({ j: d.jour, t: `🃏 Ta main : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` });
+      else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Un joueur réclamé au ballottage pour boucher un trou' });
     }
     for (const m of you.mutations || []) if (m.jour < jour && m.source !== 'choix' && MUTATIONS[m.cle]) ev.push({ j: m.jour, t: `${MUTATIONS[m.cle].ico} Le hasard s'en mêle : ${ctx.esc(m.p ? m.p.n : '')} — ${ctx.esc(MUTATIONS[m.cle].nom)}` });
     for (const x of you.paris || []) if (x.jour != null && x.jour < jour) ev.push({ j: x.jour, t: `🎲 ${ctx.esc(x.titre)} — ${ctx.esc(x.choix || '')} : ${x.gagne ? '<b>le pari a payé</b>' : '<b>le pari a mal tourné</b>'}` });
@@ -946,7 +1002,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       const m = (calendrier[mb.jour] || []).find(x => x.A === you || x.B === you);
       const Av = mb.avant && AVANT_GROS[mb.avant.cle];
       const Ao = Av && Av.options.find(o => o.cle === mb.avant.choix);
-      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Gros match contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · avant : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
+      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Gros match contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · avant : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}${mb.cartes && mb.cartes.jouees.length ? ` · 🃏 ${mb.cartes.jouees.map(c => CARTES_MATCH[c] ? CARTES_MATCH[c].ico : '').join('')}` : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
     }
     // Les séquences marquantes : cinq victoires de suite ou plus, cinq défaites.
     let run = 0, sens = null, debut = 0;
@@ -1011,6 +1067,122 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
+  /*
+   * LA MAIN DU PALIER, EN PLEIN ÉCRAN (S73). JP : *quand y'a un choix, c'est
+   * un fullscreen modal pis ça se passe là, sauf si carte à utiliser plus
+   * tard* ; *pense vraiment à un kid qui joue avec ses cartes Upper Deck
+   * comme si c'était Slay the Spire*. Trois cartes de sortes différentes
+   * (`mainDuDeck`) ; une carte qui demande un deuxième choix — quel joueur,
+   * quel rôle, quel système — l'ouvre dans le même plein écran, et « Retour à
+   * la main » y ramène. Toutes finissent en UNE décision datée d'aujourd'hui,
+   * portant son palier : c'est ce qui ferme la main.
+   */
+  const RARETE_SORTE = { effet: 'rare', recrue: 'legendaire', amelioration: 'peu', profil: 'peu', strategie: 'commune', menage: 'peu' };
+  /*
+   * UNE CARTE DU DECK SE DATE DU SOIR DU PROCHAIN MATCH (S74), pas d'aujourd'hui.
+   * Son sel tire des dés neufs à partir de sa journée : datée d'aujourd'hui,
+   * elle rebrassait les journées d'ici au prochain match de ta formation — et
+   * le classement, donc le gros match qu'on avait préparé. Entre les deux, ta
+   * formation ne joue pas : rien d'autre ne change.
+   */
+  const soirDuProchain = () => { const p = prochain(); return p ? p.j : jour; };
+  const deciderDeck = (p0, d) => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: p0, ...d }, j); };
+  const POSTE_CARTE = { G: 'Gardien', D: 'Défenseur', LD: 'Défenseur', RD: 'Défenseur', C: 'Centre', LW: 'Ailier', RW: 'Ailier' };
+  const joueurArt = p => artJoueur({ logoHtml: ctx.logo(p.t, 60), pos: ctx.esc(POSTE_CARTE[p.p] || 'Avant'), saison: ctx.esc(p.s), club: ctx.esc(p.t) });
+  const connait = x => (x >= 0.6 ? 'bien' : x >= 0.3 ? 'un peu' : x > 0.02 ? 'à peine' : 'pas du tout');
+  function ouvrirMain(p0) {
+    const main = mainDuDeck(graine, p0, dejaPrises);
+    const recrues = ctx.recrues ? (ctx.recrues(p0) || []) : [];
+    const roles = rolesOfferts(you, graine, p0);
+    const options = main.map(c => {
+      const S = SORTES_DECK[c.sorte], rarete = RARETE_SORTE[c.sorte];
+      if (c.sorte === 'effet') {
+        const C = CARTES[c.cle];
+        return { cle: `effet:${c.cle}`, rarete, ico: C.ico, nom: C.nom, type: `${S.nom} · toute la saison`, bon: C.bon, prix: C.prix, effet: C };
+      }
+      if (c.sorte === 'recrue') return { cle: 'recrue', rarete, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un vrai joueur',
+        texte: 'Trois vrais joueurs de clubs absents de ta ligue : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.',
+        desactive: recrues.length ? '' : 'Personne ne rentre sous ton plafond' };
+      if (c.sorte === 'amelioration') {
+        const M = MUTATIONS[c.cle];
+        return { cle: `amelioration:${c.cle}`, rarete, ico: M.ico, nom: M.nom, type: `${S.nom} · au joueur de ton choix`, mutation: c.cle };
+      }
+      if (c.sorte === 'profil') return { cle: 'profil', rarete, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
+        texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
+        desactive: roles.length ? '' : 'Personne à convertir' };
+      if (c.sorte === 'menage') return { cle: 'menage', rarete, ico: S.ico, nom: 'Le ménage du vestiaire', type: `${S.nom} · ton deck de match`,
+        texte: `Une carte de moins dans ton deck de match (${deckAvant(jour).length} cartes) : les autres sortent plus souvent. Tu choisis laquelle.` };
+      return { cle: 'strategie', rarete, ico: S.ico, nom: 'Stage de système', type: `${S.nom} · toute la formation`,
+        texte: `Une semaine de pratiques sur un seul système : ta formation fait ${Math.round(GAIN_STAGE * 100)} % du chemin vers sa maîtrise d'un coup. Trois systèmes offerts.` };
+    });
+    ouvrirChoix({
+      ico: '🎁', titre: `Journée ${p0} · ta main`, cartes: true, genre: 'palier', fermable: true, motFermer: 'Plus tard',
+      recit: 'Trois cartes, trois sortes. Tu en gardes une pour le reste de la saison ; les deux autres retournent dans le paquet.',
+      options,
+      onChoix: cle => suiteDeLaMain(p0, cle, recrues, roles),
+    });
+  }
+  function suiteDeLaMain(p0, cle, recrues, roles) {
+    const retour = () => ouvrirMain(p0);
+    const [sorte, arg] = cle.split(':');
+    if (sorte === 'effet') { const j = jour, s = soirDuProchain(); quitter(); onCarte(p0, s, arg, j); return; }
+    const suite = { cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour à la main', onFerme: retour };
+    if (sorte === 'recrue') {
+      ouvrirChoix({ ...suite, ico: '🎟️', titre: 'Joueur au choix',
+        recit: 'Trois vrais joueurs, style loto. Celui que tu signes prend la place de réserve de sa position ; le réserviste qui l\'occupait est libéré.',
+        options: recrues.map(x => ({ cle: x.cle, rarete: 'legendaire', nom: x.nom, type: `${x.poste} · ${x.club}`, coin: x.salaire,
+          art: joueurArt(x.p), texte: x.ligne, prix: x.sortNom ? `${x.sortNom} est libéré` : '' })),
+        onChoix: k => { const x = recrues.find(y => y.cle === k); if (x) deciderDeck(p0, { deck: 'recrue', ballottage: { i: x.i, entre: x.cle, sort: x.sort } }); } });
+      return;
+    }
+    if (sorte === 'amelioration') {
+      const M = MUTATIONS[arg];
+      const js = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => ({ sl, p: you.roster[sl.i] })).filter(x => x.p && x.p.p !== 'G');
+      ouvrirChoix({ ...suite, cartes: false, ico: M.ico, titre: `${M.nom} : à qui ?`,
+        recit: `${M.quoi} C'est pour de bon : choisis bien.`,
+        contexte: `<div class="choix-puces">${puces(motsDeMutation(arg))}</div>`,
+        options: js.map(({ sl, p }) => { const pr = profilPrincipal(p); return { cle: getPlayerKey(p), ico: pr ? pr.ico : '', nom: p.n, sous: `${ctx.slotShort(sl)}${pr ? ` · ${pr.nom}` : ''}` }; }),
+        onChoix: k => deciderDeck(p0, { deck: 'amelioration', mutation: { cle: arg, joueur: k } }) });
+      return;
+    }
+    if (sorte === 'profil') {
+      ouvrirChoix({ ...suite, ico: '🔄', titre: 'Nouveau rôle',
+        recit: 'Trois conversions possibles dans ton alignement. Le joueur change de profil pour de bon : son fit dans chaque tactique suit.',
+        options: roles.map(x => ({ cle: `${x.cle}|${getPlayerKey(x.p)}`, rarete: 'peu', ico: MUTATIONS[x.cle].ico, nom: MUTATIONS[x.cle].nom, type: x.p.n,
+          art: joueurArt(x.p), mutation: x.cle })),
+        onChoix: k => { const [m, joueur] = k.split('|'); deciderDeck(p0, { deck: 'profil', mutation: { cle: m, joueur } }); } });
+      return;
+    }
+    if (sorte === 'menage') {
+      const uniques = [...new Set(deckAvant(jour))];
+      ouvrirChoix({ ...suite, ico: '🗑️', titre: 'Le ménage du vestiaire',
+        recit: 'Une carte quitte ton deck de match pour de bon. Une malédiction, une carte faible, un doublon : un deck mince pige plus souvent ses meilleures.',
+        options: uniques.map(k => ({ ...optionDeCarteMatch(k), rarete: CARTES_MATCH[k].maudite ? 'commune' : CARTES_MATCH[k].rarete })),
+        onChoix: k => deciderDeck(p0, { deck: 'menage', retrait: k }) });
+      return;
+    }
+    if (sorte === 'strategie') {
+      const dresses = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => you.roster[sl.i]).filter(p => p && p.p !== 'G');
+      // La maîtrise À CE JOUR (la photo de la journée), pas celle de fin de saison :
+      // le moteur a déjà joué les 82 matchs quand l'écran s'ouvre.
+      const jl = you.jourLignes && you.jourLignes[Math.max(0, Math.min(jour, you.jourLignes.length - 1))];
+      const app = jl && jl.apprentissage ? apprentissagePhoto(jl.apprentissage) : null;
+      const maitrise = tac => (app ? dresses.reduce((a, p) => a + ((app.maitrise(p) || {})[tac] || 0), 0) / (dresses.length || 1) : 0);
+      const NOMS = ['1re', '2e', '3e', '4e'];
+      ouvrirChoix({ ...suite, ico: '📘', titre: 'Stage de système',
+        recit: `Toute ta formation apprend le système choisi : ${Math.round(GAIN_STAGE * 100)} % du chemin vers la maîtrise, d'un coup. La chimie de chaque ligne qui le joue monte avec.`,
+        options: tactiquesDuStage(graine, p0).map(tac => {
+          const T = TACTIQUES[tac];
+          const fits = [0, 1, 2, 3].map(u => fitLigne(you.roster, u, tac));
+          const meilleure = fits.indexOf(Math.max(...fits));
+          return { cle: tac, rarete: 'commune', ico: T.ico, nom: T.nom, type: 'Stage de système',
+            texte: `${T.mot} Ta formation le connaît ${connait(maitrise(tac))}.`,
+            mots: [{ txt: `Taillé pour ta ${NOMS[meilleure]} ligne`, bon: fits[meilleure] >= 55 }] };
+        }),
+        onChoix: tac => deciderDeck(p0, { deck: 'strategie', maitrise: { tac, gain: GAIN_STAGE } }) });
+    }
+  }
+
   function dessiner() {
     const f = fiche.get(you);
     const rang = rangDe(you);
@@ -1064,7 +1236,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       const Ao = Av && Av.options.find(o => o.cle === avantPris.avant.choix);
       const miniBoss = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros">
         <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Match important · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
-        ${onDecision ? planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv) }) : ''}
+        ${onDecision ? planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`), { nomAdv: ctx.teamShort(adv) }) : ''}
         ${Ao ? `<div class="hub-gros-avant">${Av.ico} ${ctx.esc(Av.titre)} : <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
         <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, finition ↑ · 3 matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, finition ↓ · 3 matchs`, bon: false }])}</div>
         ${onDecision ? '<div class="hub-gros-note">🎬 Au deuxième entracte, un choix t\'attend.</div>' : ''}
@@ -1101,22 +1273,16 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     // LE MOMENT DE LA BLESSURE : il prend la tête des actions, parce que
     // c'est ce qu'il faut lire et décider maintenant. Il ne bloque rien —
     // « Journée suivante » reste dessous, et ne rien faire est un choix.
-    // LE PALIER : trois cartes, une à prendre. Il passe AVANT la blessure —
-    // c'est le choix qui engage le reste de la saison.
+    // LE PALIER : une main de trois cartes, une à garder. Il passe AVANT la
+    // blessure — c'est le choix qui engage le reste de la saison. La main se
+    // joue en plein écran (S73) ; ici, le dos des trois cartes et de quoi la
+    // rouvrir, tant qu'on n'en a pas pris une.
     const pal = palierOuvert();
-    const cartes = pal === undefined ? '' : `<div class="hub-cartes" role="group" aria-label="Choisis une carte">
-      <div class="hub-cartes-tete">Journée ${pal} · prends une carte</div>
-      <div class="hub-cartes-rang">${mainDeCartes(graine, pal, dejaPrises).map(cle => {
-        const c = CARTES[cle];
-        // `.hub-pige`, PAS `.hub-carte` : la carte du prochain match porte
-        // déjà ce nom-là dans index.html.
-        return `<button type="button" class="hub-pige" data-carte="${ctx.esc(cle)}">
-          <span class="hub-pige-nom">${c.ico} ${ctx.esc(c.nom)}</span>
-          <span class="hub-pige-bon">+ ${ctx.esc(c.bon)}</span>
-          <span class="hub-pige-prix">− ${ctx.esc(c.prix)}</span>
-        </button>`;
-      }).join('')}</div>
-      <div class="hub-cartes-note">Elle vaut pour le reste de la saison. Ne pas choisir est un choix : l'offre tient jusqu'à la fin.</div>
+    const cartes = pal === undefined ? '' : `<div class="hub-cartes hub-main" role="group" aria-label="Une main de trois cartes">
+      <div class="hub-cartes-tete">🎁 Journée ${pal} · une main de trois cartes</div>
+      <div class="hub-dos-rang">${mainDuDeck(graine, pal, dejaPrises).map(c => `<span class="hub-dos tc-${RARETE_SORTE[c.sorte]}" data-sorte="${c.sorte}" title="${ctx.esc(SORTES_DECK[c.sorte].nom)}">${SORTES_DECK[c.sorte].ico}</span>`).join('')}</div>
+      <button type="button" class="btn gold hub-main-ouvrir">Voir la main</button>
+      <div class="hub-cartes-note">Tu en gardes une pour le reste de la saison. Rien ne presse : l'offre tient jusqu'à la fin.</div>
     </div>`;
     /*
      * LA CASE VIDE passe AVANT le palier : c'est la seule des quatre
@@ -1190,7 +1356,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const vo = verdictObjectif(), oo = vo ? null : offreObjectif();
     const sq = vo || oo ? null : sequenceOuverte();
     const dl = vo || oo || sq ? null : dilemmeOuvert();
-    const av = vo || oo || sq || dl ? null : avantOuvert();
+    const rc = vo || oo || sq || dl ? null : recompenseOuverte();
+    const av = vo || oo || sq || dl || rc ? null : avantOuvert();
+    const mo = vo || oo || sq || dl || av || rc ? null : mainOuverte();
     // Chaque choix est une décision : elle entre dans la liste, et la saison
     // se rejoue depuis aujourd'hui, avec des dés neufs.
     const decider = d => { quitter(); onDecision({ jour, ...d }, jour); };
@@ -1238,8 +1406,18 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         contexte: planAdverseHtml(av.mb.plan, av.mb.contre, { nomAdv: ctx.teamShort(advG) }),
         options: A.options.map(o => ({ ...o, duree: 1 })),
         onChoix: cle => { const j = jour; quitter(); onDecision({ jour: av.p.j, avant: { cle: av.cle, choix: cle, joueurs: ciblesA.map(getPlayerKey) } }, j); } };
+    } else if (rc) {
+      // LA RÉCOMPENSE D'UNE VICTOIRE (S74) : une carte parmi trois, ou passer.
+      spec = { ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
+        recit: `Victoire dans le gros match contre ${ctx.teamLabel(rc.adv)} ! Ajoute une carte à ton deck — ou passe : un deck mince pige plus souvent ses meilleures cartes.`,
+        options: recompensesOffertes(graine, `r${rc.jour}`).map(optionDeCarteMatch),
+        onChoix: k => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: k }, j); },
+        onFerme: () => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null }, j); } };
+    } else if (mo) {
+      spec = { ico: '🃏', titre: 'Ta main pour le gros match', ouvrir: () => ouvrirMainGros(mo) };
     }
-    if (spec && !choixOuvert()) ouvrirChoix(spec);
+    if (spec && !choixOuvert()) { if (spec.ouvrir) spec.ouvrir(); else ouvrirChoix(spec); }
+    else if (!spec && pal !== undefined && mainAOuvrir === pal && !choixOuvert()) { mainAOuvrir = null; ouvrirMain(pal); }
     const force = spec ? `<button type="button" class="btn gold hub-choix-rouvrir">⏳ Un choix t'attend : ${ctx.esc(String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : '')))}</button>` : '';
     // L'objectif en cours se lit sous le match : où on en est, ce qui manque.
     const enCours = objectifEnCours();
@@ -1255,9 +1433,12 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Le banc</button>` : ''}
       ${force ? '' : '<button class="btn hub-dix" title="Dix journées d\'un coup">+10</button>'}
       <button class="btn hub-fin" title="Jouer le reste de la saison et lire le résultat">La fin</button>
+      ${onDecision ? `<button class="btn hub-deck" title="Tes cartes de match : tu en piges cinq avant chaque gros match">🃏 ${deckAvant(jour).length}</button>` : ''}
       </div>`;
+    const voirDeck = actions.querySelector('.hub-deck');
+    if (voirDeck) voirDeck.onclick = () => ouvrirDeck({ deck: deckAvant(jour) });
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
-    if (rouvrir) rouvrir.onclick = () => ouvrirChoix(spec);
+    if (rouvrir) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     // LE BALLOTTAGE, en plein écran lui aussi : trois joueurs, ou garder son réserviste.
     const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
     if (voirBal) voirBal.onclick = () => ouvrirChoix({
@@ -1277,10 +1458,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (sitBanc) sitBanc.onclick = () => { quitter(); onBanc(jour); };
     const prendre = actions.querySelector('.hub-trou-prendre');
     if (prendre) prendre.onclick = () => { const t = trou, j = jour; quitter(); onTrou(t.at, j, carteDuTrou(t)); };
-    actions.querySelectorAll('[data-carte]').forEach(b => {
-      // Le palier ET la journée courante : la carte vaut à partir de MAINTENANT.
-      b.onclick = () => { const p = pal, j = jour; quitter(); onCarte(p, j, b.dataset.carte); };
-    });
+    // Le palier ET la journée courante : la carte vaut à partir de MAINTENANT.
+    const voirMain = actions.querySelector('.hub-main-ouvrir');
+    if (voirMain) voirMain.onclick = () => ouvrirMain(pal);
     const bj = actions.querySelector('.hub-jour'), bd = actions.querySelector('.hub-dix');
     if (bj) bj.onclick = () => { avancer(1, true); dessiner(); tabs.suivre('journee'); if (entracteDemande) ouvrirEntracte(); };
     if (bd) bd.onclick = () => { avancer(10, true); dessiner(); tabs.suivre('journee'); if (entracteDemande) ouvrirEntracte(); };
@@ -1377,6 +1557,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   const clavier = ev => {
     if ((ev.key !== ' ' && ev.key !== 'Enter') || ev.target.closest('input, textarea, select, button, [role="button"], a')) return;
     if (document.getElementById('liveModal')?.style.display === 'flex') return;
+    // UN CHOIX OUVERT (S74) passe devant : Espace ne révèle pas un match derrière la main.
+    if (choixOuvert()) return;
     // L'écran ancré mais caché (on lit une autre page) n'avance pas le temps.
     if (document.body.classList.contains('hub-cache')) return;
     ev.preventDefault();
@@ -1434,7 +1616,7 @@ function etatDeSerie(ctx, s, wA, wB) {
  * feuilles, donc on ne sauve pas ce qui s'est passé, seulement jusqu'où le
  * joueur l'a regardé.
  */
-export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null, graine = 0, decisions = [], onDecision = null, onBanc = null }) {
+export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null, graine = 0, decisions = [], onDecision = null, onBanc = null, decisionsSaison = [] }) {
   const ui = coquille('Les séries');
   if (!ui || !series.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -1528,6 +1710,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
         ${gar ? `<div>🥅 Son gardien : <b>${ctx.esc(gar.n)}</b>${gar.simSA ? ` · ${((gar.simSV || 0) / gar.simSA).toFixed(3).replace(/^0/, '')} en saison` : ''}</div>` : ''}
       </div>
       ${planDuMatch(s) ? planAdverseHtml(planDuMatch(s).plan, planDuMatch(s).contre, { nomAdv: ctx.teamShort(boss), suite: suiteDuPlan(s) }) : ''}
+      ${onDecision ? mainAdverseHtml(mainAdverse(graine, `po${ronde}:${revele.get(s)}`), { nomAdv: ctx.teamShort(boss) }) : ''}
       <div class="hub-lignes"><span class="gl-k">Tes lignes</span> ${resumeLignes(lt, chim)}</div>
     </div>`;
   }
@@ -1584,6 +1767,29 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
       },
     });
   }
+  /* Le deck en séries : la saison, et les cartes gagnées aux séries d'avant. */
+  const deckDeSerie = () => deckDe(decisionsSaison, { serie: decsSerie, ronde,
+    pertes: (you.minisBoss || []).filter(m => !m.gagne && m.raison === 'nemesis').map(m => m.jour + 1),
+    blessures: (you.injuriesLog || []).filter(i => i.games >= 15 && i.jour != null).map(i => i.jour + 1) });
+  /* La récompense d'une série gagnée (S74) : une carte plus rare, ou passer. */
+  function recompenseSerie() {
+    if (!onDecision || choixOuvert()) return false;
+    for (let r = 0; r < nRondes; r++) {
+      const s = maSerie(r);
+      if (r >= nRondes - 1 || !s || !complete(s) || s.winner !== you || decsSerie.some(d => d.ronde === r && d.recompense !== undefined)) continue;
+      const boss = s.A === you ? s.B : s.A;
+      const quitterR = f => { quitter(); f(); };
+      ouvrirChoix({
+        ico: '🏆', titre: `Série gagnée · ${nomRondeCourt(r)}`, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
+        recit: `Tu as sorti ${ctx.teamLabel(boss)}. Une carte rare pour la suite des séries — ou passe.`,
+        options: recompensesOffertes(graine, `po${r}`, { serie: true }).map(optionDeCarteMatch),
+        onChoix: k => quitterR(() => onDecision({ ronde: r, match_no: -1, recompense: k })),
+        onFerme: () => quitterR(() => onDecision({ ronde: r, match_no: -1, recompense: null })),
+      });
+      return true;
+    }
+    return false;
+  }
   function brancherBoss(s) {
     if (!s || complete(s) || !onDecision) return;
     const k = revele.get(s);
@@ -1604,6 +1810,20 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     });
     const bb = actions.querySelector('.hub-banc-serie');
     if (bb) bb.onclick = () => quitterPour(r => onBanc(r, k));
+    // LA MAIN DU MATCH (S74) : après l'ajustement, avant chaque match de ta série.
+    const ajuste = k === 0 || decsSerie.some(d => d.ronde === ronde && d.match_no === k && d.ajustement);
+    if (ajuste && !decsSerie.some(d => d.ronde === ronde && d.match_no === k && d.main) && !choixOuvert()) {
+      const deck = deckDeSerie();
+      const { main, pioche } = mainDuMatch(graine, `po${ronde}:${k}`, deck);
+      const pl = planDuMatch(s);
+      ouvrirMainDeMatch({
+        titre: 'Ta main', sousTitre: `${nomRondeCourt(ronde)} · match ${k + 1} · contre ${ctx.teamShort(boss)}`,
+        recit: 'Cinq cartes, trois d\'énergie. Ce que tu joues vaut pour ce match de la série.',
+        contexte: (pl ? planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss) }) : '') + mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`), { nomAdv: ctx.teamShort(boss) }),
+        equipe: you, main, pioche, deck,
+        onJouer: (jouees, enMain) => quitterPour(r => onDecision({ ronde: r, match_no: k, main: { jouees, enMain } })),
+      });
+    }
     // ENTRE DEUX ROUNDS : un ajustement à prendre, forcé, en plein écran.
     if (k >= 1 && !decsSerie.some(d => d.ronde === ronde && d.match_no === k && d.ajustement) && !choixOuvert()) {
       const { moi, lui, etat } = etatSerie(s);
@@ -1804,7 +2024,10 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     // PRÉPARER LE ROUND ET LE BANC (S69) : tant que ta série se joue.
     if (s && !complete(s) && onDecision) boutons.unshift(`<div class="hub-actions-rang"><button class="btn gold hub-preparer">Préparer le match ${revele.get(s) + 1}</button>${onBanc ? '<button class="btn hub-banc-serie">Le banc</button>' : ''}</div>`);
     boutons.push(`<button class="btn hub-fin" title="Jouer toutes les séries et voir le tableau">Passer à la fin</button>`);
+    if (onDecision) boutons.push(`<button class="btn hub-deck" title="Tes cartes de match : tu en piges cinq avant chaque match de ta série">🃏 Mon deck · ${deckDeSerie().length}</button>`);
     actions.innerHTML = boutons.join('');
+    const vd = actions.querySelector('.hub-deck');
+    if (vd) vd.onclick = () => ouvrirDeck({ deck: deckDeSerie() });
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = () => regarderProchain();
     const jour = actions.querySelector('.hub-jour');
@@ -1816,7 +2039,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     const fr = actions.querySelector('.hub-ronde');
     if (fr) fr.onclick = () => { finirRonde(); dessiner(); tabs.suivre('serie'); };
     actions.querySelector('.hub-fin').onclick = () => { toutReveler(); dessiner(); tabs.suivre('serie'); };
-    brancherBoss(s);
+    if (!recompenseSerie()) brancherBoss(s);
   }
 
   /* REGARDER LE MATCH : le direct rejoue le prochain match de ta série, puis
@@ -1863,6 +2086,8 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
   const clavier = ev => {
     if ((ev.key !== ' ' && ev.key !== 'Enter') || ev.target.closest('input, textarea, select, button, [role="button"], a')) return;
     if (document.getElementById('liveModal')?.style.display === 'flex') return;
+    // UN CHOIX OUVERT (S74) passe devant : Espace ne révèle pas un match derrière la main.
+    if (choixOuvert()) return;
     // L'écran ancré mais caché (on lit une autre page) n'avance pas le temps.
     if (document.body.classList.contains('hub-cache')) return;
     ev.preventDefault();

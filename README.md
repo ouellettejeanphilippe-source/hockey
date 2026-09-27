@@ -4,6 +4,15 @@ Bâtis un alignement de 23 joueurs de la LNH — n'importe quelle saison depuis 
 
 Chaque tour, la roulette sort une saison et une équipe. Tu piges dans ce vestiaire-là. Tu vois les vraies stats et le salaire. Aucune cote ne s'affiche, ni avant ni après : un joueur se juge sur ce qu'il a fait, et la simulation joue lancer par lancer sur ses vraies colonnes.
 
+## La boucle, façon deckbuilder
+
+- **Ton identité** : avant le premier tour, une carte parmi trois oriente la roulette (francs-tireurs, costauds, aubaines, jeunesse…).
+- **Le repêchage** : vestiaire (une équipe entière) ou loto (le même joueur de trois clubs), dans toutes les époques, dans la saison de la ligue, ou dans **l'histoire d'une franchise** (relocalisations comprises).
+- **La saison** : tes lignes, leur tactique et leur chimie qui s'apprend ; des dilemmes tirés d'histoires vraies ; aux journées 20, 40 et 60, une **main de trois cartes** en plein écran — un effet, un vrai joueur au choix, une amélioration, un nouveau rôle, un stage de système, le ménage du deck.
+- **Les gros matchs et les séries** : un **deck de match** (50 cartes, de commune à légendaire, et des malédictions). Cinq cartes, trois d'énergie ; l'adversaire joue aussi sa main, connue d'avance. Les victoires font grandir le deck.
+- **L'album** : d'une partie à l'autre, les cartes eues, les identités essayées, et le cartable des joueurs — les champions de la Coupe en holographique.
+- **Sur table** : le même alignement, joué comme un jeu de plateau à la Blood Bowl.
+
 ## Jouer
 
 Le jeu est un site statique. Aucun serveur, aucun compte.

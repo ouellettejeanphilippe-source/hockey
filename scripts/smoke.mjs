@@ -46,6 +46,21 @@ const choixVus = new Map();
 const _click = page.click.bind(page);
 const _wait = page.waitForSelector.bind(page);
 /*
+ * L'IDENTITÉ DE DÉPART (S73) : « Commencer » ouvre trois cartes en plein
+ * écran avant la première roulette. Le parcours prend la première et exige
+ * qu'il y en ait trois ; ce qu'il a vu se dit à la fin.
+ */
+const identitesVues = [];
+const mainsVues = [];   // les cartes jouées aux gros matchs et en séries (S74)
+async function passerIdentite() {
+  const carte = await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"] .tc', { timeout: 10000 }).catch(() => null);
+  if (!carte) { errors.push('« Commencer » n\'offre pas l\'identité de départ'); return; }
+  const offre = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
+  if (offre.length !== 3 || new Set(offre).size !== 3) errors.push(`l'identité de départ offre ${offre.join(' · ')} au lieu de trois cartes différentes`);
+  identitesVues.push(offre[0]);
+  await _click('#choixModal .tc');
+}
+/*
  * LE BALLOTTAGE (S66) n'est pas forcé : on y répond la première fois qu'une
  * offre se présente, et on vérifie que la réclamation entre dans la
  * sauvegarde sans rembobiner la saison. Il dépend d'une blessure longue, donc
@@ -84,6 +99,38 @@ async function repondreAuxChoix() {
   for (let i = 0; i < 12; i++) {
     const opt = await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])');
     if (!opt || !(await opt.isVisible())) return;
+    /*
+     * LA MAIN D'UN GROS MATCH (S74) : cinq cartes, trois d'énergie. Le
+     * parcours joue la première carte jouable (elle doit passer dans « ce
+     * soir, sur la glace ») et confirme ; la décision doit porter la carte.
+     */
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) {
+      const n = await page.$$eval('#choixModal .main-carte', e => e.length);
+      const orbes = await page.$$eval('#choixModal .main-orbe.plein', e => e.length);
+      if (n < 5 || orbes !== 3) errors.push(`la main du match offre ${n} cartes et ${orbes} d'énergie au lieu de cinq et trois`);
+      const jouable = await page.$('#choixModal .main-carte:not(.trop-cher):not(.injouable):not(.jouee)');
+      let nom = null;
+      if (jouable) {
+        nom = ((await jouable.$eval('.tc-nom', e => e.textContent)) || '').trim();
+        await jouable.click();
+        const jouees = await page.$$eval('#choixModal .main-jouee', e => e.length);
+        if (jouees !== 1) errors.push(`toucher « ${nom} » ne la joue pas (${jouees} carte(s) sur la glace)`);
+      }
+      await _click('#choixModal .main-jouer');
+      await _wait('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option, #hubModal .hub-suite, #hubModal .hub-fin', { timeout: 120000 });
+      await page.waitForTimeout(350);
+      const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_save')).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
+      if (!d.length) errors.push('la main jouée n\'entre pas dans la sauvegarde');
+      mainsVues.push(nom || 'rien');
+      continue;
+    }
+    // LA MAIN DU PALIER (S73) s'ouvre d'elle-même et se referme : « Plus tard ».
+    // C'est le bloc du palier, plus bas, qui la joue pour vrai.
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]')) {
+      await _click('#choixModal .choix-fermer');
+      await page.waitForTimeout(200);
+      continue;
+    }
     const titre = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
     const genre = /proprio|objectif/i.test(titre) ? 'hub-proprio' : /de suite/i.test(titre) ? 'hub-sequence' : 'hub-dilemme';
     const sansPuce = await page.$$eval('#choixModal .choix-option', els => els.filter(e => !e.querySelector('.puce')).length);
@@ -118,6 +165,20 @@ async function finirDirect(etiquette) {
   if (quand !== opts) errors.push(`${etiquette} : l'entracte a ${opts - quand} option(s) qui ne disent pas « 3e période »`);
   await _click('#choixModal .choix-option');
   await _wait('#liveModal .live-pause, #liveModal .live-suite', { timeout: 120000 });
+  /*
+   * LE DIRECT REPRIS SE REDESSINE (S74) : la saison se rejoue, puis le fil
+   * des deux premières périodes revient avant la troisième. Lire au premier
+   * bouton de pause lisait parfois le fil en plein redessin — l'ancien
+   * direct a lui aussi un bouton de pause. On attend la troisième période à
+   * l'écran et un fil qui ne bouge plus.
+   */
+  await page.waitForFunction(() => /Troisième période/.test((document.querySelector('#liveModal .live-feed') || {}).textContent || ''), null, { timeout: 120000 }).catch(() => {});
+  for (let n = -1, i = 0; i < 20; i++) {
+    const m = await page.$$eval('#liveModal .live-ligne', e => e.length);
+    if (m === n) break;
+    n = m;
+    await page.waitForTimeout(250);
+  }
   const repris = await page.$eval('#liveModal .live-feed', e => e.textContent);
   if (!/Troisième période/.test(repris)) errors.push(`${etiquette} : le direct ne reprend pas à la troisième période après l'entracte`);
   else if (avant !== await sousLeMarqueur()) errors.push(`${etiquette} : les deux premières périodes ont changé après le choix de l'entracte`);
@@ -198,7 +259,23 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
   if (apres.partie !== avant.partie || apres.boutons !== avant.boutons) errors.push(`sans barre d'état, le haut a bougé : ${JSON.stringify(avant)} puis ${JSON.stringify(apres)}`);
   else console.log(`   la barre d'état du téléphone : sous ${BARRE} px, « Nouvelle partie » à ${tel.partie} px et les boutons du haut à ${tel.boutons} px ; sans elle, rien ne bouge`);
 }
+/*
+ * « COMMENT ON JOUE, EN CINQ CARTES » (S74) : cinq cartes à lire, par-dessus
+ * « Nouvelle partie », et « Compris ! » y ramène sans rien changer.
+ */
+{
+  await _click('#npAide');
+  await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="aide"] .tc', { timeout: 5000 });
+  const n = await page.$$eval('#choixModal .tc', e => e.length);
+  const lisibles = await page.$$eval('#choixModal .tc.lecture', e => e.length);
+  await _click('#choixModal .choix-plus-tard');
+  await page.waitForTimeout(200);
+  const encore = await page.isVisible('#partieModal');
+  if (n !== 5 || lisibles !== 5 || !encore) errors.push(`« Comment on joue » : ${n} cartes, ${lisibles} à lire, « Nouvelle partie » ${encore ? 'encore ouverte' : 'refermée'}`);
+  else console.log('   « Comment on joue » : cinq cartes à lire, et « Nouvelle partie » reste ouverte dessous');
+}
 await page.click('#npGo');
+await passerIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
 console.log('   écran « Nouvelle partie » : ouvert à la première visite, refermé');
 
@@ -269,6 +346,10 @@ async function toutEstAtteignable(ou) {
     const out = [];
     for (const el of document.querySelectorAll('body *')) {
       if (!vu(el) || el.children.length || !(el.textContent || '').trim()) continue;
+      // LE TEXTE D'UN SVG (un écusson) est dessiné dans sa boîte de vue : il
+      // ne défile jamais, et sa boîte englobante peut mentir pendant une
+      // transition — « NHL STARS » a été signalé 87 px sous son propre logo.
+      if (el.closest('svg')) continue;
       const r = el.getBoundingClientRect();
       if (r.top >= innerHeight - 1 || r.bottom <= 1) {
         let p = el.parentElement, ok = false;
@@ -873,19 +954,39 @@ async function traverserSaison(etiquette, reprise = false) {
       trouVu.mot = `${carte.tete.trim()} → ${carte.nom.trim()} encaissée au jour ${avant}`;
     };
 
+    /*
+     * LA MAIN DU PALIER (S73) : trois cartes de SORTES différentes, en plein
+     * écran — un effet, et deux parmi une recrue, une amélioration, un
+     * nouveau rôle, un stage de système. L'écran de saison n'en garde que le
+     * dos et « Voir la main ». `lireMain` l'ouvre, lit les cartes et la
+     * referme : c'est « Plus tard », et l'offre doit tenir.
+     */
+    const lireMain = async () => {
+      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+      await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
+      const main = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
+      await _click('#choixModal .choix-plus-tard');
+      await page.waitForTimeout(200);
+      return main;
+    };
     const versPalier = async () => {
       // HUIT CLICS NE SUFFISENT PLUS : l'avance s'arrête aussi aux fenêtres
       // de situations (journées 10, 28, 46, 64) et aux cases vides, en plus
       // des blessures. Le budget suit le nombre d'interruptions possibles.
-      for (let i = 0; i < 16 && !(await page.$('#hubModal .hub-pige')); i++) {
+      for (let i = 0; i < 16 && !(await page.$('#hubModal .hub-main-ouvrir')); i++) {
         await page.click('#hubModal .hub-dix');
         await page.waitForTimeout(250);
         await guetterTrou();
       }
-      return page.$$eval('#hubModal .hub-pige', e => e.map(x => x.dataset.carte));
+      if (!(await page.$('#hubModal .hub-main-ouvrir'))) return [];
+      return lireMain();
     };
-    const offertes = await versPalier();
-    if (offertes.length !== 3) errors.push(`le palier de cartes en offre ${offertes.length} au lieu de trois`);
+    const offertesMain = await versPalier();
+    const sorte = c => c.split(':')[0];
+    const offertes = offertesMain.filter(c => sorte(c) === 'effet').map(c => c.split(':')[1]);
+    if (offertesMain.length !== 3) errors.push(`le palier offre une main de ${offertesMain.length} cartes au lieu de trois`);
+    else if (new Set(offertesMain.map(sorte)).size !== 3) errors.push(`la main du palier répète une sorte : ${offertesMain.join(' · ')}`);
+    else if (offertes.length !== 1) errors.push(`la main du palier n'a pas exactement une carte d'effet : ${offertesMain.join(' · ')}`);
     else {
       const jPalier = await jourDit();
       await page.click('#hubModal .hub-dix');
@@ -905,11 +1006,14 @@ async function traverserSaison(etiquette, reprise = false) {
       if (jApres - jPalier < 2 && !blesse && !gros && !autreRaison) errors.push(`le palier arrête « +10 journées » une seconde fois : journée ${jPalier} puis ${jApres}, sans aucune raison à annoncer`);
       // Reprendre l'offre laissée de côté : elle tient, et la carte entre en
       // vigueur AUJOURD'HUI, pas au palier.
-      const encore = await page.$$eval('#hubModal .hub-pige', e => e.map(x => x.dataset.carte));
-      if (JSON.stringify(encore) !== JSON.stringify(offertes)) errors.push(`l'offre du palier ne tient pas : ${offertes.join(' · ')} puis ${encore.join(' · ')}`);
+      await repondreAuxChoix();
+      const encore = await lireMain();
+      if (JSON.stringify(encore) !== JSON.stringify(offertesMain)) errors.push(`la main du palier ne tient pas : ${offertesMain.join(' · ')} puis ${encore.join(' · ')}`);
       const jPrise = await jourDit();
       const pris = offertes[0];
-      await page.click(`#hubModal .hub-pige[data-carte="${pris}"]`);
+      await _click('#hubModal .hub-main-ouvrir');
+      await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
+      await _click(`#choixModal .tc[data-choix="effet:${pris}"]`);
       await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
       await page.waitForTimeout(400);
       const jRevenu = await jourDit();
@@ -928,12 +1032,46 @@ async function traverserSaison(etiquette, reprise = false) {
       const dCarte = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } }))
         .filter(d => d.carte && typeof d.palier === 'number');
       if (dCarte.length !== 1 || dCarte[0].carte !== pris) errors.push(`la sauvegarde ne porte pas la carte prise au palier : ${JSON.stringify(dCarte)}`);
-      else if (dCarte[0].palier !== jPalier) errors.push(`la décision ne porte pas son palier : palier ${dCarte[0].palier} au lieu de ${jPalier}`);
-      if (await page.$('#hubModal .hub-pige')) errors.push('le palier reste ouvert après qu\'on y a pris une carte');
+      // Le palier est la CLÉ de l'offre (20, 40, 60) ; l'en-tête peut l'avoir dépassé
+      // quand un autre arrêt s'est glissé avant la main (S74) — la clé, elle, ne bouge pas.
+      else if (![20, 40, 60].includes(dCarte[0].palier) || dCarte[0].palier > jPalier) errors.push(`la décision ne porte pas son palier : palier ${dCarte[0].palier}, main ouverte à la journée ${jPalier}`);
+      if (await page.$('#hubModal .hub-main-ouvrir')) errors.push('le palier reste ouvert après qu\'on y a pris une carte');
       const suivantes = await versPalier();
       if (suivantes.length !== 3) errors.push(`le palier suivant offre ${suivantes.length} cartes au lieu de trois`);
-      else if (suivantes.includes(pris)) errors.push(`la carte « ${pris} », déjà prise, reparaît au palier suivant : ${suivantes.join(' · ')}`);
-      else console.log(`   palier ${jPalier} : ${offertes.join(' · ')} → « ${pris} » prise au jour ${jPrise}, palier suivant ${suivantes.join(' · ')}`);
+      else if (suivantes.includes(`effet:${pris}`)) errors.push(`la carte « ${pris} », déjà prise, reparaît au palier suivant : ${suivantes.join(' · ')}`);
+      else console.log(`   palier ${jPalier} : ${offertesMain.join(' · ')} → « ${pris} » prise au jour ${jPrise}, palier suivant ${suivantes.join(' · ')}`);
+      /*
+       * UNE CARTE DU DECK SE JOUE POUR VRAI (S73) : au palier suivant, on
+       * prend la première carte qui n'est pas un effet, on fait son deuxième
+       * choix (le joueur, le rôle, le système), et la décision entre dans la
+       * sauvegarde avec son palier et sa sorte — sans rembobiner la saison.
+       */
+      const deck = suivantes.find(c => sorte(c) !== 'effet');
+      if (deck) {
+        await repondreAuxChoix();
+        const jDeck = await jourDit();
+        await _click('#hubModal .hub-main-ouvrir');
+        await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
+        const off = await page.$eval(`#choixModal .tc[data-choix="${deck}"]`, b => b.disabled);
+        if (off) console.log(`   la carte « ${deck} » est grisée ce palier-ci (personne à qui la donner)`);
+        else {
+          await _click(`#choixModal .tc[data-choix="${deck}"]`);
+          await _wait('#choixModal:not([hidden]) .choix-option', { timeout: 5000 });
+          const suite = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
+          const nb = await page.$$eval('#choixModal .choix-option:not([disabled])', e => e.length);
+          await _click('#choixModal .choix-option:not([disabled])');
+          await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
+          await page.waitForTimeout(400);
+          const dDeck = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } }))
+            .filter(d => d.deck === sorte(deck));
+          const jApresDeck = await jourDit();
+          if (!dDeck.length) errors.push(`la carte « ${deck} » n'entre pas dans la sauvegarde`);
+          else if (typeof dDeck[0].palier !== 'number') errors.push(`la carte « ${deck} » ne porte pas son palier : ${JSON.stringify(dDeck[0])}`);
+          else if (jApresDeck !== jDeck) errors.push(`jouer la carte « ${deck} » rembobine la saison : journée ${jDeck} puis ${jApresDeck}`);
+          else if (await page.$('#hubModal .hub-main-ouvrir')) errors.push(`la main reste ouverte après la carte « ${deck} »`);
+          else console.log(`   carte du deck « ${deck} » : ${suite}, ${nb} choix, décision ${JSON.stringify({ deck: dDeck[0].deck, palier: dDeck[0].palier, mutation: dDeck[0].mutation, maitrise: dDeck[0].maitrise, ballottage: dDeck[0].ballottage && dDeck[0].ballottage.entre })}`);
+        }
+      }
 
       /*
        * TON HISTOIRE (S69) : à mi-saison, « Ma fiche » raconte la run en
@@ -1235,6 +1373,27 @@ if (enabled) {
   const score = await page.textContent('.result .score');
   const rows = await page.$$eval('.rrow', r => r.length);
   console.log(`4. fiche ${score.trim()}, ${rows} rangées`);
+  /*
+   * L'ALBUM (S74) : la saison jouée y entre — ses 23 joueurs au cartable,
+   * ses cartes de match (au moins celles du départ), sans déborder.
+   */
+  {
+    await page.click('.navtab[data-page="historique"]');
+    await page.waitForTimeout(300);
+    await page.click('.lb-vues [data-vue="album"]');
+    await page.waitForTimeout(400);
+    const a = await page.evaluate(() => ({
+      joueurs: document.querySelectorAll('.album-joueur').length,
+      cartes: document.querySelectorAll('.album-carte').length,
+      trous: document.querySelectorAll('.album-trou').length,
+    }));
+    if (a.joueurs < 20 || a.cartes < 1 || !a.trous) errors.push(`l'album ne dit pas la saison jouée : ${JSON.stringify(a)}`);
+    else console.log(`   l'album : ${a.joueurs} joueurs au cartable, ${a.cartes} cartes eues, ${a.trous} à trouver`);
+    await sansDebordement('l\'album');
+    await page.click('.lb-vues [data-vue="saisons"]');
+    await page.click('.navtab[data-page="match"]');
+    await page.waitForTimeout(300);
+  }
   // Le bilan porte les tableaux les plus larges du jeu (onze colonnes) : s'il
   // y a un débordement quelque part, il est ici.
   await sansDebordement('bilan de saison');
@@ -1704,8 +1863,11 @@ await page.click('#partieModal .seg[data-opt="tirage"] button[data-val="LOTO"]')
 const armeLoto = await page.$eval('#partieModal .seg[data-opt="tirage"] button[data-val="LOTO"]', b => b.classList.contains('on'));
 if (!armeLoto) errors.push('le tirage « Loto » ne se marque pas dans l\'écran Nouvelle partie');
 await page.click('#npGo');
+await passerIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 await page.waitForSelector('#rrL', { timeout: 30000 });
+// L'identité choisie se lit dans la roulette, en une puce.
+if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se lit pas dans la roulette du loto');
 
 /*
  * LE ✕ N'EST PAS UNE RELANCE. Deux exploits d'une même formule, éprouvés ici
@@ -1861,6 +2023,7 @@ await page.waitForSelector('#partieModal .seg[data-opt="format"]', { state: 'vis
 await page.click('#partieModal .seg[data-opt="format"] button[data-val="EXPRESS"]');
 await page.click('#partieModal .seg[data-opt="tirage"] button[data-val="VESTIAIRE"]');
 await page.click('#npGo');
+await passerIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 await page.waitForTimeout(400);
 const expTotal = await lireTotal();
@@ -1887,6 +2050,8 @@ await sansCote('express');
  */
 console.log(`   ballottage : ${ballottage.mot || 'aucune offre croisée (il faut une blessure de quatre matchs et plus)'}`);
 console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
+console.log(`   identités de départ prises : ${identitesVues.join(' · ') || 'aucune'}`);
+console.log(`   mains de match jouées : ${mainsVues.length} (${mainsVues.slice(0, 6).join(' · ') || 'aucune'})`);
 console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
 if (!choixVus.has('hub-proprio')) errors.push('le proprio n\'a jamais fixé d\'objectif');
 if (!choixVus.has('hub-dilemme')) errors.push('aucun dilemme croisé en traversant une saison');

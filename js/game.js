@@ -29,13 +29,16 @@ import {
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
-import { ouvrirLignes, resumeLignes, barresProfils, motFit } from './gerant.js';
+import { ouvrirLignes, resumeLignes, barresProfils, motFit, ouvrirChoix } from './gerant.js';
+import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
+import { albumHtml } from './album.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
 import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN, ficheReelleDe } from './bilan.js';
 import { brancherEntractes } from './entracte.js';
+import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -112,6 +115,7 @@ const G = {
    * acier). Rien d'autre ne change dans l'interface.
    */
   palette: 'graphite',  // graphite | oled | glace
+  franchise: 'MTL',     // la franchise du repêchage « Une franchise » (S73, js/franchises.js)
   /* Les effets sonores du plateau (js/sons.js). Une préférence d'affichage,
      pas un réglage de partie : couper le son ne change rien à ce qui est joué. */
   sons: true,
@@ -220,6 +224,43 @@ const MODE = () => MODES[G.mode] || MODES.CLASSIQUE;
  * dire « n'importe laquelle des 55 ». La ligue, elle, lit toujours `G.epoque`.
  */
 const epoqueDuTirage = () => (G.epoque && G.repechage === 'SAISON') ? G.epoque : null;
+/*
+ * L'HISTOIRE D'UNE FRANCHISE (S73). JP : *ajouter possible de juste piger
+ * dans l'histoire d'une équipe, comme l'équivalent dans une même saison pour
+ * l'alignement*. Le repêchage « Une franchise » ne sort que les vestiaires de
+ * ce club, n'importe quelle saison de son histoire, relocalisations comprises
+ * (js/franchises.js). La ligue, elle, ne change pas.
+ */
+const franchiseDuTirage = () => (G.repechage === 'FRANCHISE' && FRANCHISES[G.franchise]) ? G.franchise : null;
+/* Le repêchage d'une sauvegarde ou d'un brouillon : les trois valeurs connues, et la saison par défaut. */
+const normRepechage = v => (v === 'TOUTES' || v === 'FRANCHISE' ? v : 'SAISON');
+/*
+ * L'IDENTITÉ DE DÉPART (S73, js/identites.js) : la roulette tire deux clubs et
+ * garde celui dont le joueur offert colle le mieux. `undefined` : pas encore
+ * choisie pour cette partie (le choix s'offre au démarrage) ; `null` : pas de
+ * préférence.
+ */
+const identite = () => (IDENTITES[G.identite] ? G.identite : null);
+/* Le seuil d'une carte qui « colle » à l'identité : le même que scripts/check_identite.mjs. */
+const SEUIL_IDENTITE = 0.62;
+/* En loto : le joueur que ce club tend pour la case de la main. */
+function scoreDeLaMain(v) {
+  const c = caseDeLaMain();
+  if (!c || !v) return -1;
+  const p = joueurEquivalent(v.pool, c, new Set(picked().map(getPersonKey)), G.mainRang ?? rangDeLaMain(c));
+  return p ? scoreIdentite(identite(), p) : -1;
+}
+/* Au vestiaire : la moyenne des cinq joueurs signables qui collent le mieux. */
+function scoreDuVestiaire(pool) {
+  const xs = pool.filter(p => !isPicked(p) && openSlots(p).length).map(p => scoreIdentite(identite(), p)).sort((a, b) => b - a).slice(0, 5);
+  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : -1;
+}
+/* Une saison de la franchise, autre que `sauf` quand il y en a une autre. */
+function saisonDeFranchise(fr, sauf = null) {
+  const ss = saisonsDeFranchise(fr, state.index.seasons).map(([x]) => x);
+  const autres = ss.filter(x => x !== sauf);
+  return rnd(autres.length ? autres : ss);
+}
 /** Les cases que TU combles : les 23 d'habitude, six en express. */
 const casesActives = () => casesDuMode(G.mode);
 
@@ -412,9 +453,18 @@ const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
  * exactement la boucle de `buildOpponents` — même ordre, même `exclude` qui
  * s'accumule, donc les mêmes alignements.
  */
+/*
+ * LA VERSION DU MOTEUR DANS LA SAUVEGARDE (S74). Une saison se REJOUE de sa
+ * graine et de ses décisions : quand le moteur change (S74 : la main de
+ * l'adversaire aux gros matchs, l'affiche tirée avant les dés neufs), une
+ * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
+ * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
+ */
+const VERSION_MOTEUR = 'S74';
 function saveGame() {
   try {
     localStorage.setItem('cap82_save', JSON.stringify({
+      moteur: VERSION_MOTEUR,
       roster: G.roster,
       partie: G.done && G.ligue ? {
         graine: G.ligue.graine,
@@ -452,6 +502,8 @@ function saveGame() {
       mode: G.mode,
       epoque: G.epoque,
       repechage: G.repechage,
+      franchise: G.franchise,
+      identite: G.identite ?? null,
       bonus: G.bonus,
       renfort: G.renfort,
     }));
@@ -472,7 +524,7 @@ function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode, epoque: G.epoque,
-      repechage: G.repechage, palette: G.palette, bonus: G.bonus, sons: G.sons,
+      repechage: G.repechage, franchise: G.franchise, palette: G.palette, bonus: G.bonus, sons: G.sons,
       onlyFit: G.onlyFit, sortBy: G.sortBy, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
@@ -493,7 +545,8 @@ function loadOpts() {
     // Les saisons ne sont pas encore chargées ici : `boot` vérifie après.
     if (o.bonus === 'TABLE' || o.bonus === 'SAISON') G.bonus = o.bonus;
     if (typeof o.epoque === 'string') G.epoque = o.epoque;
-    if (o.repechage === 'SAISON' || o.repechage === 'TOUTES') G.repechage = o.repechage;
+    if (o.repechage === 'SAISON' || o.repechage === 'TOUTES' || o.repechage === 'FRANCHISE') G.repechage = o.repechage;
+    if (FRANCHISES[o.franchise]) G.franchise = o.franchise;
   } catch { /* ignore */ }
 }
 
@@ -537,7 +590,10 @@ async function restoreSave() {
     // express reprise en classique n'aurait plus le bon plafond.
     G.mode = data.mode;
     G.epoque = typeof data.epoque === 'string' && state.index.seasons.includes(data.epoque) ? data.epoque : null;
-    G.repechage = data.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
+    G.repechage = normRepechage(data.repechage);
+    if (FRANCHISES[data.franchise]) G.franchise = data.franchise;
+    // Une partie d'avant S73 n'a jamais vu le choix : il s'offrira au prochain démarrage.
+    G.identite = 'identite' in data ? (IDENTITES[data.identite] ? data.identite : null) : undefined;
     G.bonus = data.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
     G.renfort = data.renfort || null;
     G.tirage = tirage;
@@ -565,6 +621,7 @@ async function restoreSave() {
     }
     if (data.partie && data.partie.graine) {
       const { graine, adversaires = [], journee = 0, decisions = [], series = null, lbId = null, decisionsSeries = [] } = data.partie;
+      if (data.moteur !== VERSION_MOTEUR) setTimeout(() => toast('Le jeu a changé depuis ta dernière visite : ta saison en cours se rejoue avec les nouvelles règles, et des matchs déjà vus peuvent finir autrement.'), 1500);
       G.lbId = lbId;
       G.dsReprise = decisionsSeries;
       G.seriesVues = series;
@@ -950,6 +1007,24 @@ function setupEvents() {
   // un match. C'est un deuxième bouton, avec sa propre porte.
   const ex = $('npExhibition');
   if (ex) ex.onclick = () => jouerExhibition();
+  /*
+   * COMMENT ON JOUE, EN CINQ CARTES (S74). Pour un kid qui ouvre le jeu : la
+   * boucle entière, une carte par étape, en plein écran — à lire, pas à
+   * prendre. Par-dessus « Nouvelle partie », qui reste là dessous.
+   */
+  const aide = $('npAide');
+  if (aide) aide.onclick = () => ouvrirChoix({
+    ico: '❓', titre: 'Comment on joue', cartes: true, lecture: true, genre: 'aide', fermable: true, motFermer: 'Compris !',
+    recit: 'Cap 82-0, c\'est bâtir une équipe de vrais joueurs et aller chercher la Coupe. Balaie les cartes.',
+    options: [
+      { cle: 'a1', rarete: 'commune', ico: '🎰', nom: '1. Repêche', type: 'Le repêchage', texte: 'La roulette sort de vrais clubs de 55 saisons. Signe 23 joueurs sous le plafond : trouver les aubaines, c\'est le métier.' },
+      { cle: 'a2', rarete: 'peu', ico: '🧬', nom: '2. Ton identité', type: 'Avant le premier tour', texte: 'Une carte parmi trois colore ton repêchage : la roulette sort plus souvent tes francs-tireurs, tes costauds, tes aubaines…' },
+      { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'Derrière le banc', texte: 'Chaque ligne joue une tactique. Plus elle la joue, plus sa chimie monte — mais contre un gros adversaire, il faut parfois changer.' },
+      { cle: 'a4', rarete: 'rare', ico: '🃏', nom: '4. Tes cartes', type: 'Gros matchs et séries', texte: 'Cinq cartes, trois d\'énergie. Tu vois la main de l\'adversaire : réponds-lui. Gagne, et ton deck grandit.' },
+      { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: '82 matchs, puis les séries, match par match, contre des boss. La Coupe est le vrai but ; le 82-0, le Graal. Tout ce que tu gagnes va dans ton album.' },
+    ],
+    onChoix: () => {},
+  });
 
   const go = $('npGo');
   if (go) {
@@ -975,9 +1050,11 @@ function setupEvents() {
       demarrageEnCours = true;
       go.disabled = true;
       try {
-        await demarrerPartie(b);
+        // L'identité se choisit AVANT la roulette, par-dessus cet écran.
+        const choix = await choisirIdentite();
+        await demarrerPartie({ ...b, identite: choix });
         closeModal('partieModal');
-        toast(`${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''} : la roulette repart à zéro.`);
+        toast(`${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''}${b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? ` · ${FRANCHISES[b.franchise].nom}` : ''} : la roulette repart à zéro.`);
       } catch {
         toast('Impossible de charger cette saison. Réessaie ou change de ligue.');
       } finally {
@@ -1117,7 +1194,7 @@ function setOption(key, val) {
 function semerBrouillon() {
   const dernier = state.index.seasons[state.index.seasons.length - 1];
   G.brouillon = {
-    mode: G.mode, epoque: G.epoque, repechage: G.repechage, bonus: G.bonus,
+    mode: G.mode, epoque: G.epoque, repechage: G.repechage, franchise: G.franchise, bonus: G.bonus,
     // La saison RETENUE, même quand la ligue est « toutes les époques » : un
     // aller-retour ne doit pas ramener la dernière saison de la liste.
     epoqueChoisie: G.epoque || dernier,
@@ -1136,7 +1213,10 @@ function poserBrouillon(key, val) {
     const M = MODES[b.mode] || MODES.CLASSIQUE;
     b.mode = modeDe(key === 'format' ? val : M.format, key === 'tirage' ? val : M.tirage);
   } else if (key === 'ligue') b.epoque = val === 'UNE' ? b.epoqueChoisie : null;
-  else if (key === 'repechage') b.repechage = val === 'TOUTES' ? 'TOUTES' : 'SAISON';
+  else if (key === 'repechage') {
+    b.repechage = normRepechage(val);
+    if (b.repechage === 'FRANCHISE' && !FRANCHISES[b.franchise]) b.franchise = ($('franchiseSelect') && $('franchiseSelect').value) || 'MTL';
+  }
   else if (key === 'bonus') b.bonus = val === 'TABLE' ? 'TABLE' : 'SAISON';
   syncOptionsUI();
   majPiedPartie();
@@ -1149,8 +1229,12 @@ function poserBrouillon(key, val) {
  */
 function actionDuBouton(b) {
   const enPartie = !G.done && G.tirage.length > 0;
-  const memeRepechage = b.mode === G.mode && b.epoque === G.epoque && b.repechage === G.repechage;
+  const memeRepechage = b.mode === G.mode && b.epoque === G.epoque && b.repechage === G.repechage
+    && (b.repechage !== 'FRANCHISE' || b.franchise === G.franchise);
   if (!enPartie || !memeRepechage) return 'DEMARRER';
+  // Une partie encore vide qui n'a pas choisi son identité (S73) repart avec le
+  // choix — même quand on ne bascule que le mode bonus : rien n'est perdu.
+  if (!signes().length && G.identite === undefined) return 'DEMARRER';
   if (b.bonus !== G.bonus) return 'BONUS';
   return signes().length ? 'DEMARRER' : 'RIEN';
 }
@@ -1168,7 +1252,8 @@ function majPiedPartie() {
     M.loto ? `trois clubs par case · ${M.relances} relances`
       : `un vestiaire au complet · ${REROLLS.season}/${REROLLS.team}/${REROLLS.pass} relances`,
     b.epoque ? `ligue ${b.epoque}` : 'toutes les époques',
-    b.epoque && b.repechage === 'TOUTES' ? 'repêchage toutes époques' : null,
+    b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? `repêchage : ${FRANCHISES[b.franchise].nom}`
+      : b.epoque && b.repechage === 'TOUTES' ? 'repêchage toutes époques' : null,
     b.bonus === 'TABLE' ? 'sur table' : null,
   ].filter(Boolean).join(' · ');
 
@@ -1189,6 +1274,24 @@ function majPiedPartie() {
 
 function ouvrirNouvellePartie() { semerBrouillon(); openModal('partieModal'); }
 
+/*
+ * LE CHOIX DE L'IDENTITÉ (S73), en plein écran et en cartes : trois
+ * identités tirées au hasard, ou « Pas de préférence ». Il se prend AVANT la
+ * première roulette, pour que le tout premier tour la porte déjà.
+ */
+function choisirIdentite() {
+  return new Promise(resolve => {
+    ouvrirChoix({
+      ico: '🧬', titre: 'Ton identité', cartes: true, genre: 'identite', fermable: true, motFermer: 'Pas de préférence',
+      recit: 'Avant le premier tour, une carte qui colore tout ton repêchage : la roulette sortira plus souvent ce genre de joueurs. Plus souvent, pas toujours.',
+      options: identitesOffertes().map(k => ({ cle: k, rarete: IDENTITES[k].rarete, ico: IDENTITES[k].ico, nom: IDENTITES[k].nom,
+        type: 'Identité · tout le repêchage', texte: IDENTITES[k].texte })),
+      onChoix: k => resolve(k),
+      onFerme: () => resolve(null),
+    });
+  });
+}
+
 function syncOptionsUI() {
   // Le BROUILLON gagne tant qu'il existe : l'écran montre ce qu'on est en
   // train de composer, pas la partie en cours. `G` porte les mêmes noms de
@@ -1205,7 +1308,8 @@ function syncOptionsUI() {
     format: M.format,
     tirage: M.tirage,
     ligue: src.epoque ? 'UNE' : 'TOUTES',
-    repechage: src.repechage,
+    // Sans ligue fixée, « dans la saison » ne veut rien dire : le bouton allumé est « toutes les époques ».
+    repechage: src.repechage === 'FRANCHISE' ? 'FRANCHISE' : src.epoque ? src.repechage : 'TOUTES',
     bonus: src.bonus,
   };
   const sel = $('epoqueSelect');
@@ -1229,8 +1333,29 @@ function syncOptionsUI() {
   const rep = $('repechageRow');
   if (rep) {
     rep.hidden = false;
-    rep.classList.toggle('desactive', !src.epoque);
-    rep.querySelectorAll('.seg button').forEach(x => { x.disabled = !src.epoque; });
+    rep.classList.remove('desactive');
+    // « Dans la saison » demande une ligue fixée ; les deux autres valent toujours.
+    rep.querySelectorAll('.seg button').forEach(x => { x.disabled = x.dataset.val === 'SAISON' && !src.epoque; });
+  }
+  const fsel = $('franchiseSelect');
+  if (fsel) {
+    if (!fsel.options.length) {
+      fsel.innerHTML = Object.entries(FRANCHISES).sort((a, b) => a[1].nom.localeCompare(b[1].nom, 'fr'))
+        .map(([k, F]) => `<option value="${k}">${esc(F.nom)}</option>`).join('');
+      // Choisir une franchise, c'est choisir ce repêchage-là.
+      fsel.onchange = () => {
+        if (!G.brouillon) return;
+        G.brouillon.franchise = fsel.value;
+        G.brouillon.repechage = 'FRANCHISE';
+        syncOptionsUI();
+        majPiedPartie();
+      };
+    }
+    fsel.value = (G.brouillon ? G.brouillon.franchise : G.franchise) || 'MTL';
+    fsel.disabled = src.repechage !== 'FRANCHISE';
+    const F = FRANCHISES[fsel.value];
+    const lig = $('franchiseLignee');
+    if (lig) lig.textContent = F && F.lignee && src.repechage === 'FRANCHISE' ? F.lignee : '';
   }
   document.querySelectorAll('.seg').forEach(seg => {
     seg.querySelectorAll('button').forEach(b => {
@@ -1582,14 +1707,23 @@ function mesure(p) {
  * sont sur la carte pour qu'un bâti défensif ou robuste se trouve sans ouvrir
  * chaque fiche ; la fiche donne les colonnes derrière.
  */
+/* L'IDENTITÉ DE DÉPART (S73) : pendant le repêchage, un joueur qui y colle porte son icône. */
+function identiteTag(p, full = false) {
+  const I = identite() && enRepechage() && scoreIdentite(identite(), p) >= SEUIL_IDENTITE ? IDENTITES[identite()] : null;
+  return I ? `<span class="tag tag-identite" title="Colle à ton identité : ${esc(I.nom)}">${I.ico}${full ? ` ${esc(I.nom)}` : ''}</span>` : '';
+}
 function mesureTags(p, full = false) {
+  const tagI = identiteTag(p, full);
   const m = mesure(p);
-  if (!m) return '';
-  const tags = [];
+  if (!m) return tagI;
+  const tags = tagI ? [tagI] : [];
   if (m.def != null && m.def >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Défensif — ${Math.round(m.def * 100)}e centile des réguliers de ${esc(p.s)} à sa position : différentiel corrigé de son club, points en désavantage, temps de glace.">🧊${full ? ' Défensif' : ''}</span>`);
   if (m.rob != null && m.rob >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Robuste — ${Math.round(m.rob * 100)}e centile des réguliers de ${esc(p.s)} à sa position : minutes de punition et mises en échec. Il pèse les soirs éreintants et en séries.">🪨${full ? ' Robuste' : ''}</span>`);
   return tags.join('');
 }
+
+/* L'identité choisie, en une puce dans la roulette : ce qu'elle oriente se lit au survol. */
+const identitePuce = () => (identite() ? `<span class="spin-identite" title="${esc(IDENTITES[identite()].texte)}">${IDENTITES[identite()].ico} ${esc(IDENTITES[identite()].nom)}</span>` : '');
 
 /**
  * Un vestiaire au hasard : une saison, une équipe qui a de quoi s'aligner,
@@ -1598,12 +1732,13 @@ function mesureTags(p, full = false) {
  */
 async function vestiaireAuHasard(deja) {
   const seasons = state.index.seasons;
+  const fr = franchiseDuTirage();
   for (let essai = 0; essai < 12; essai++) {
-    const season = epoqueDuTirage() || rnd(seasons);
+    const season = fr ? saisonDeFranchise(fr) : (epoqueDuTirage() || rnd(seasons));
     let shard;
     try { shard = await getShard(season); } catch { continue; }
     const teams = Object.keys(shard.byTeam)
-      .filter(t => shard.byTeam[t].length >= 8 && !deja.has(`${season}_${t}`));
+      .filter(t => shard.byTeam[t].length >= 8 && !deja.has(`${season}_${t}`) && (!fr || t === codeDeFranchise(fr, season)));
     if (!teams.length) continue;
     const team = rnd(teams);
     return { season, team, pool: shard.byTeam[team] };
@@ -1634,20 +1769,29 @@ async function nextSpin(newSeason = true, newTeam = true) {
 
   if (!MODE().loto) {
     const cur = vestiaire();
+    const fr = franchiseDuTirage();
     for (let attempt = 0; attempt < 25 && besoin; attempt++) {
-      const season = epoqueDuTirage() || ((!newSeason && cur) ? cur.season : rnd(seasons));
+      // UNE FRANCHISE : chaque tour sort une AUTRE saison de son histoire.
+      const season = fr ? saisonDeFranchise(fr, cur && cur.season) : (epoqueDuTirage() || ((!newSeason && cur) ? cur.season : rnd(seasons)));
       let shard;
       try { shard = await getShard(season); } catch { continue; }
 
       let teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 8);
-      if (!newTeam && cur && shard.byTeam[cur.team]?.length >= 8) {
+      if (fr) {
+        teams = teams.filter(t => t === codeDeFranchise(fr, season));
+      } else if (!newTeam && cur && shard.byTeam[cur.team]?.length >= 8) {
         teams = [cur.team];
       } else if (cur) {
         teams = teams.filter(t => !(season === cur.season && t === cur.team));
       }
       if (!teams.length) continue;
 
-      const team = rnd(teams);
+      let team = rnd(teams);
+      // L'IDENTITÉ : un deuxième club de la même saison, et on garde celui qui colle le mieux.
+      if (identite() && teams.length > 1) {
+        const autre = rnd(teams.filter(t => t !== team));
+        if (scoreDuVestiaire(shard.byTeam[autre]) > scoreDuVestiaire(shard.byTeam[team])) team = autre;
+      }
       const pool = shard.byTeam[team];
       if (!pool.some(p => !isPicked(p) && openSlots(p).length)) continue;
 
@@ -1665,12 +1809,20 @@ async function nextSpin(newSeason = true, newTeam = true) {
   const avant = new Set(G.tirage.map(v => `${v.season}_${v.team}`));
   let dernier = null;
 
+  // Une petite franchise (le Kraken, cinq saisons) ne peut pas toujours
+  // sortir trois clubs neufs : elle peut reprendre ceux du tour d'avant.
+  const petite = franchiseDuTirage() && saisonsDeFranchise(franchiseDuTirage(), state.index.seasons).length < 8;
   for (let attempt = 0; attempt < 30 && besoin; attempt++) {
-    const deja = new Set(avant);
+    const deja = new Set(petite ? [] : avant);
     const tirage = [];
     for (let k = 0; k < n; k++) {
-      const v = await vestiaireAuHasard(deja);
+      let v = await vestiaireAuHasard(deja);
       if (!v) break;
+      // L'IDENTITÉ : un deuxième club, et on garde celui dont le joueur offert colle le mieux.
+      if (identite()) {
+        const autre = await vestiaireAuHasard(new Set([...deja, `${v.season}_${v.team}`]));
+        if (autre && scoreDeLaMain(autre) > scoreDeLaMain(v)) v = autre;
+      }
       deja.add(`${v.season}_${v.team}`);
       tirage.push(v);
     }
@@ -1772,7 +1924,7 @@ function renderSpin() {
         <div class="spin-top">
           <div class="spin-logo">${ico('i-dice')}</div>
           <div class="spin-id">
-            <div class="spin-kicker"><span class="spin-code">Loto</span><span class="spin-season">${G.tirage.length} clubs</span></div>
+            <div class="spin-kicker"><span class="spin-code">Loto</span><span class="spin-season">${G.tirage.length} clubs</span>${identitePuce()}</div>
             <div class="spin-name">${c ? esc(slotShort(c)) : 'Alignement complet'}</div>
           </div>
         </div>
@@ -1809,7 +1961,7 @@ function renderSpin() {
         <div class="spin-watermark" aria-hidden="true">${getTeamLogoHtml(v.team, 150)}</div>
         <div class="spin-logo">${getTeamLogoHtml(v.team, 40)}</div>
         <div class="spin-id">
-          <div class="spin-kicker"><span class="spin-code">${esc(v.team)}</span><span class="spin-season">${esc(v.season)}</span>${dead}</div>
+          <div class="spin-kicker"><span class="spin-code">${esc(v.team)}</span><span class="spin-season">${esc(v.season)}</span>${dead}${identitePuce()}</div>
           <div class="spin-name">${esc(full)}</div>
         </div>
         ${url ? `<a class="spin-ext" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(v.season)} de cette équipe sur Hockey-Reference">${ico('i-ext')}</a>` : ''}
@@ -1818,7 +1970,7 @@ function renderSpin() {
       <div class="rerolls">
         <button id="rrS" class="reroll" ${G.left.season && need && !epoqueDuTirage() ? '' : 'disabled'} title="${epoqueDuTirage() ? `Le repêchage est fixé à ${esc(G.epoque)} : pas d'autre année` : 'Retirer une autre saison au hasard'}">
           <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season}</span></button>
-        <button id="rrT" class="reroll" ${G.left.team && need ? '' : 'disabled'} title="Garder la saison, changer d'équipe">
+        <button id="rrT" class="reroll" ${G.left.team && need && !franchiseDuTirage() ? '' : 'disabled'} title="${franchiseDuTirage() ? `Le repêchage est fixé à la franchise : ${esc(FRANCHISES[G.franchise].nom)}` : 'Garder la saison, changer d\'équipe'}">
           <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team}</span></button>
         <button id="rrP" class="reroll" ${G.left.pass && need ? '' : 'disabled'} title="Passer ce vestiaire au complet">
           <span class="rr-lbl">${ico('i-skip')}Passer</span><span class="rr-count">${G.left.pass}</span></button>
@@ -2104,7 +2256,7 @@ function playerCardEl(p) {
   const mid = surTable()
     ? `<span class="pcard-axes">${axesTableHtml(p)}</span><div class="tags">${tagsTableHtml(p)}</div>`
     : `<div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
-          <div class="tags">${[roleTag(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
+          <div class="tags">${[identiteTag(p), roleTag(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
 
   let dest;
   if (already) {
@@ -3363,9 +3515,23 @@ function showLeaderboard() {
   const body = $('leaderboardBody');
   if (!body) return;
   const list = lireHistorique();
+  /*
+   * DEUX VUES, UNE PAGE (S74) : tes saisons, et TON ALBUM — les cartes de
+   * match gagnées d'une partie à l'autre, tes identités, et le cartable des
+   * joueurs (js/album.js). L'album se déduit de cette même liste.
+   */
+  const vue = G.vueHistorique === 'album' ? 'album' : 'saisons';
+  const bascule = `<div class="seg lb-vues" role="tablist"><button type="button" data-vue="saisons" class="${vue === 'saisons' ? 'on' : ''}">Tes saisons</button><button type="button" data-vue="album" class="${vue === 'album' ? 'on' : ''}">Ton album</button></div>`;
+  const brancher = () => body.querySelectorAll('.lb-vues [data-vue]').forEach(b => { b.onclick = () => { G.vueHistorique = b.dataset.vue; showLeaderboard(); }; });
+  if (vue === 'album') {
+    body.innerHTML = bascule + albumHtml(list, { logo: getTeamLogoHtml });
+    brancher();
+    return;
+  }
 
   if (!list.length) {
-    body.innerHTML = `<div class="empty-msg">Aucune saison enregistrée.<br>Complète un alignement de 23 et simule pour apparaître ici.</div>`;
+    body.innerHTML = bascule + `<div class="empty-msg">Aucune saison enregistrée.<br>Complète un alignement de 23 et simule pour apparaître ici.</div>`;
+    brancher();
     return;
   }
   /*
@@ -3384,7 +3550,7 @@ function showLeaderboard() {
     + (coupes ? ` · <strong>${coupes} Coupe${coupes > 1 ? 's' : ''}</strong> 🏆` : ' · aucune Coupe')
     + `</div>`;
 
-  body.innerHTML = tete + list.map((i, idx) => {
+  body.innerHTML = bascule + tete + list.map((i, idx) => {
     // LE VERDICT DES SÉRIES. Une entrée d'avant ce changement n'en a pas :
     // elle ne dit rien plutôt que de prétendre que la Coupe a été perdue.
     const po = i.series;
@@ -3411,6 +3577,7 @@ function showLeaderboard() {
   body.querySelectorAll('.lb-replay').forEach(b => {
     b.onclick = () => reprendreAlignement(list[Number(b.dataset.idx)]);
   });
+  brancher();
 }
 
 /* =====================================================================
@@ -3669,7 +3836,11 @@ async function deciderSaison(d, depuis) {
     // autre décision rejoue le match depuis le début : l'entracte déjà choisi
     // ne vaut plus, il sera redemandé sur le nouveau pointage.
     && !(d.avant && x.avant && x.jour === d.jour) && !(x.entracte && (d.entracte ? x.jour === d.jour : x.jour >= d.jour)));
-  decisions.push({ ...d, sel: nouvelleGraine() });
+  // UNE DÉCISION QUI NE TOUCHE QUE LE DECK DE MATCH (une récompense, un
+  // ménage) ne tire pas de dés neufs : le moteur ne la lit pas, les matchs ne
+  // doivent pas bouger (S74).
+  const deckSeul = d.recompense !== undefined || d.deck === 'menage';
+  decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis, decisions, reprise: true });
@@ -3735,6 +3906,65 @@ function candidatsBallottage(blesse, at) {
     candidats: out.map(p => ({ cle: getPlayerKey(p), nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, salaire: money(p.$), ligne: ligne(p) })),
   };
 }
+/*
+ * LA RECRUE DU DECK (S73). JP : *des cartes style événement qui permettent
+ * d'aller chercher un joueur au choix, loto*. La carte « Joueur au choix »
+ * d'une main de palier offre trois vrais joueurs — UN PAR POSITION (avant,
+ * défenseur, gardien), parce que le choix intéressant est « où est-ce que je
+ * renforce », pas « lequel des trois centres ». Mieux que le ballottage, qui
+ * bouche un trou : le budget est TOUT l'espace sous le plafond plus le salaire
+ * du réserviste libéré (pas 3 % du plafond), et on tire parmi les huit
+ * meilleurs producteurs qui y rentrent, pas les quinze. Mêmes règles pour le
+ * reste : des saisons de la ligue, des clubs qui n'y sont pas, personne qui y
+ * joue déjà. La recrue prend la case de réserve de sa position ; c'est une
+ * décision de ballottage, donc la reprise la retrouve comme les autres.
+ */
+const RECRUE_MEILLEURS = 8;
+function candidatsRecrue(palier) {
+  const L = G.ligue;
+  if (!L || !L.cles) return [];
+  const dansLaLigue = new Set();
+  for (const t of L.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
+  const clubs = new Set(L.cles);
+  const saisons = [...new Set(L.cles.map(c => String(c).split('|')[0]))];
+  const h = str => { let x = ((Number(L.graine) >>> 0) ^ Math.imul(palier + 7919, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
+  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? (p.g + p.a)) || 0) / Math.max(1, p.gp));
+  const ligne = p => (p.p === 'G'
+    ? `${p.gp} PJ · ${p.w ?? 0}-${p.l ?? 0} · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
+    : `${p.gp} PJ · ${p.g} B · ${p.a} A · ${p.pt ?? (p.g + p.a)} PTS`);
+  const POSTE = { F: 'Avant', D: 'Défenseur', G: 'Gardien' };
+  const out = [];
+  for (const g of ['F', 'D', 'G']) {
+    const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
+    if (!slot) continue;
+    const sort = G.roster[slot.i] || null;
+    const budget = capLeft() + (sort && !estRenfort(sort) ? sort.$ : 0);
+    const pool = [];
+    for (const sa of saisons) {
+      const e = G.shards.get(sa);
+      if (!e) continue;
+      for (const [tag, joueurs] of Object.entries(e.byTeam)) {
+        if (clubs.has(`${sa}|${tag}`)) continue;
+        for (const p of joueurs) {
+          if ((p.gp || 0) < (g === 'G' ? 20 : 40) || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p)) || isPicked(p)) continue;
+          pool.push(p);
+        }
+      }
+    }
+    if (!pool.length) continue;
+    pool.sort((a, b) => prod(b) - prod(a));
+    pool.length = Math.min(pool.length, RECRUE_MEILLEURS);
+    pool.sort((a, b) => h(getPlayerKey(a)) - h(getPlayerKey(b)));
+    const p = pool[0];
+    ballottageVu.set(getPlayerKey(p), p);
+    out.push({
+      cle: getPlayerKey(p), p, nom: p.n, poste: POSTE[g], club: `${p.t} ${p.s}`, salaire: money(p.$), ligne: ligne(p),
+      i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null,
+    });
+  }
+  return out;
+}
+
 /* À la reprise : les joueurs d'un ballottage (réclamés et libérés) se retrouvent dans leurs shards. */
 async function connaitreBallottages(decisions) {
   for (const d of decisions || []) {
@@ -3760,9 +3990,12 @@ async function deciderSerie(d) {
   if (!G.ligue) return;
   const meme = x => x.ronde === d.ronde && x.match_no === d.match_no && (
     (d.cases && x.cases) || (d.lignes && !d.cases && x.lignes && !x.cases) || (d.match && x.match) || (d.ajustement && x.ajustement)
+    // S74 : une main par match, une récompense par série.
+    || (d.main && x.main) || (d.recompense !== undefined && x.recompense !== undefined)
     // S70 : un entracte par match, et toute autre décision pour ce match l'annule.
     || !!x.entracte);
-  G.ligue.decisionsSeries = [...(G.ligue.decisionsSeries || []).filter(x => !meme(x)), { ...d, sel: nouvelleGraine() }];
+  // Une récompense de série ne touche que le deck : pas de dés neufs (S74).
+  G.ligue.decisionsSeries = [...(G.ligue.decisionsSeries || []).filter(x => !meme(x)), d.recompense !== undefined ? { ...d } : { ...d, sel: nouvelleGraine() }];
   const vues = G.seriesVues;
   saveGame();
   G.done = false;
@@ -3777,13 +4010,13 @@ function bancSerie(ronde, k) {
   if (G.banc) { G.banc.serie = { ronde, k }; renderBanc(); }
 }
 
-async function choisirCarte(palier, jour, cle) {
+async function choisirCarte(palier, jour, cle, depuis = jour) {
   if (!G.ligue || !CARTES[cle]) return;
   const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
   decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
+  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Math.min(depuis, jour), decisions, reprise: true });
 }
 
 /** Le panneau du banc : la journée, la fiche, le prochain match, les blessés, la consigne. */
@@ -3948,7 +4181,7 @@ async function runSeason(opts = {}) {
     // partie » peut muter G pendant qu'un bilan est encore à l'écran, et
     // l'historique doit enregistrer la partie qui a été jouée, pas celle
     // qu'on est en train de composer.
-    mode: G.mode, repechage: G.repechage, bonus: G.bonus,
+    mode: G.mode, repechage: G.repechage, franchise: G.franchise, bonus: G.bonus,
     // De quoi rejouer : les mêmes 31 clubs, à partir des mêmes alignements.
     adversaires: opponents.map(t => ({ name: t.name, tag: t.tag, roster: t.roster, season: t.season })),
   };
@@ -3980,6 +4213,8 @@ async function runSeason(opts = {}) {
         slotShort,
         // LE BALLOTTAGE (S66) : trois joueurs offerts sur une vraie blessure.
         ballottage: candidatsBallottage,
+        // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.
+        recrues: candidatsRecrue,
       },
       onTermine: montrer,
       depuis: opts.depuis || 0,
@@ -3990,7 +4225,10 @@ async function runSeason(opts = {}) {
       // palier (sans toucher au hasard du moteur), et les paliers déjà pris
       // se lisent dans les décisions — il n'y a pas d'autre état.
       graine,
-      cartesPrises: (decisions || []).filter(d => d.carte).map(d => ({ palier: d.palier ?? d.jour, carte: d.carte })),
+      // Une main de palier se ferme par n'importe laquelle de ses cartes (S73) :
+      // un effet (`carte`), ou une recrue, une amélioration, un rôle, un stage (`deck`).
+      cartesPrises: (decisions || []).filter(d => d.carte || (d.deck && typeof d.palier === 'number'))
+        .map(d => ({ palier: d.palier ?? d.jour, carte: d.carte || null })),
       onCarte: choisirCarte,
       onTrou: subirCarte,
       // Les épisodes de case vide déjà encaissés, pour qu'un trou ne retende
@@ -4245,11 +4483,12 @@ function montrerFinExhibition(A, B, r) {
 async function chargerRenfort() {
   G.renfort = null;
   const actives = new Set(casesActives().map(s => s.i));
+  const fr = franchiseDuTirage();
   for (let essai = 0; essai < 14; essai++) {
-    const season = epoqueDuTirage() || rnd(state.index.seasons);
+    const season = fr ? saisonDeFranchise(fr) : (epoqueDuTirage() || rnd(state.index.seasons));
     let shard;
     try { shard = await getShard(season); } catch { continue; }
-    const teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 20);
+    const teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 20 && (!fr || t === codeDeFranchise(fr, season)));
     if (!teams.length) continue;
     const team = rnd(teams);
     const roster = autoRoster(shard.byTeam[team]);
@@ -4311,7 +4550,8 @@ async function reprendreAlignement(entree) {
   G.epoque = typeof entree.epoque === 'string' && state.index.seasons.includes(entree.epoque) ? entree.epoque : null;
   // Sans ces deux-là, reprendre un vieil alignement pendant que « Sur table »
   // traîne l'envoyait au plateau au lieu des 82 matchs.
-  G.repechage = entree.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
+  G.repechage = normRepechage(entree.repechage);
+  if (FRANCHISES[entree.franchise]) G.franchise = entree.franchise;
   G.bonus = entree.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
   saveOpts(); syncOptionsUI();
   clearSave();
@@ -4349,7 +4589,9 @@ async function demarrerPartie(r = {}) {
   // saison absente de l'index donne ZÉRO adversaire à `buildOpponents` — la
   // saison bascule alors en solo, sans classement ni séries, sans un mot.
   if ('epoque' in r) G.epoque = (typeof r.epoque === 'string' && state.index.seasons.includes(r.epoque)) ? r.epoque : null;
-  if (r.repechage) G.repechage = r.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
+  if (r.repechage) G.repechage = normRepechage(r.repechage);
+  if (FRANCHISES[r.franchise]) G.franchise = r.franchise;
+  if ('identite' in r) G.identite = IDENTITES[r.identite] ? r.identite : null;
   if (r.bonus) G.bonus = r.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
 
   clearSave();

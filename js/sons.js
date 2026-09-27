@@ -188,6 +188,24 @@ const SONS = {
   fin(c, t) { SONS.sifflet(c, t, true); SONS.but(c, t + 0.5); },
   /* La fin d'une période : un sifflet, court. */
   periode(c, t) { SONS.sifflet(c, t); },
+
+  /* ---- LES CARTES (S74) : on les entend comme on les tient ---- */
+  /* La donne : trois cartes qui glissent sur la table. */
+  donne(c, t) {
+    [0, 0.12, 0.24].forEach((d, i) => bruit(c, t + d, { gain: 0.1 - i * 0.015, att: 0.01, dec: 0.08, type: 'highpass', freq: 3000, vers: 1800 }));
+  },
+  /* Jouer une carte : un claquement sur la table, et une petite note qui monte. */
+  joue(c, t) {
+    bruit(c, t, { gain: 0.18, dec: 0.04, type: 'bandpass', freq: 2200, q: 1.2 });
+    note(c, t + 0.02, { forme: 'triangle', freq: 523, vers: 784, gain: 0.07, dec: 0.16 });
+  },
+  /* Une carte refusée (trop chère) : un bruit sourd, sans note. */
+  refus(c, t) { note(c, t, { forme: 'sine', freq: 200, vers: 140, gain: 0.08, dec: 0.12 }); },
+  /* La récompense : un arpège qui brille. */
+  recompense(c, t) {
+    [523, 659, 784, 1047].forEach((f, i) => note(c, t + i * 0.07, { forme: 'triangle', freq: f, gain: 0.07, dec: 0.35 }));
+    bruit(c, t + 0.2, { gain: 0.05, att: 0.05, dec: 0.5, type: 'highpass', freq: 5000 });
+  },
 };
 
 export const NOMS_SONS = Object.keys(SONS);

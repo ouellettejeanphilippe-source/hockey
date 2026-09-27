@@ -287,7 +287,7 @@
         <div class="seg" data-opt="salary"><button data-val="2026" class="on">Valeur 2026</button><button data-val="ERA">Valeur époque</button></div>
       </div>
       <div class="opt-row">
-        <div class="opt-text"><strong>Sons</strong><span>Le match sur table.</span></div>
+        <div class="opt-text"><strong>Sons</strong><span>Le match sur table et tes cartes.</span></div>
         <div class="seg" data-opt="sons"><button data-val="on" class="on">Avec sons</button><button data-val="off">Silence</button></div>
       </div>
       <div class="opt-row">
@@ -319,6 +319,7 @@
 
     <div class="modal-body options np-body">
       <p class="np-reprise" id="npReprise" hidden></p>
+      <button type="button" class="btn np-aide" id="npAide">❓ Comment on joue, en cinq cartes</button>
       <div class="opt-row opt-modes">
         <div class="opt-text"><strong>Alignement</strong></div>
         <div class="seg seg-wrap" data-opt="format">
@@ -341,15 +342,20 @@
         </div>
         <select id="epoqueSelect" class="opt-select" aria-label="La saison à jouer"></select>
       </div>
-      <!-- Le repêchage : d'où viennent TES joueurs, quand la ligue est fixée à
-           une année. Toutes les époques, c'est le fantasy draft : une équipe de
-           rêve bâtie sur 55 saisons pour aller chercher la Coupe de 1970-71. -->
+      <!-- Le repêchage : d'où viennent TES joueurs. Toutes les époques, c'est le
+           fantasy draft : une équipe de rêve bâtie sur 55 saisons pour aller
+           chercher la Coupe de 1970-71. Dans la saison, les clubs de l'année de
+           la ligue. Une franchise (S73), toute l'histoire d'un club,
+           relocalisations comprises : Sakic nordique et Sakic avalanche. -->
       <div class="opt-row opt-modes" id="repechageRow" hidden>
         <div class="opt-text"><strong>Repêchage</strong></div>
         <div class="seg seg-wrap" data-opt="repechage">
           <button data-val="SAISON" class="on">Dans la saison<em>les clubs de l'année</em></button>
           <button data-val="TOUTES">Toutes les époques<em>fantasy draft</em></button>
+          <button data-val="FRANCHISE">Une franchise<em>toute son histoire</em></button>
         </div>
+        <select id="franchiseSelect" class="opt-select" aria-label="La franchise"></select>
+        <small class="np-lignee" id="franchiseLignee"></small>
       </div>
       <!-- LE MODE BONUS. JP : *mode bonus genre blood bowl, fft et autres jeux
            de sport de table*, puis *viser un modèle à la blood bowl, mais plus
@@ -407,8 +413,16 @@
       <h3>0e. Les gros matchs et les séries</h3>
       <p>Une dizaine de fois par saison, un match compte plus que les autres : contre un <strong>rival au classement</strong> (à deux rangs ou moins de toi), ou contre un club qui t'a battu deux fois — une <strong>rivalité</strong>, qui s'éteint le jour où tu prends ta revanche. En séries, chaque match en est un. Les matchs ordinaires, eux, ne changent pas.</p>
       <p><strong>L'adversaire a un plan</strong>, et c'est un vrai réglage de ses lignes, dans les mêmes menus que les tiens : la trappe (ses deux premières lignes en Défensive), le jeu rapide, l'échec avant, le matraquage (tout le monde rentre-dedans)… Le rapport d'éclaireur te dit ce qui le <strong>contre</strong> : la tactique qui étouffe la sienne, sur deux lignes, ou le bon réglage. En séries, il garde le plan qui a gagné et en change après une défaite. <strong>Toutes les équipes jouent avec les mêmes règles</strong> : chaque club de l'IA choisit, ligne par ligne, la tactique et l'agressivité qui vont à ses joueurs.</p>
-      <p><strong>Avant le match</strong>, un événement — des histoires vraies (la garantie de Messier, la pieuvre de Détroit, le rat de la Floride) et quelques inventées — et un choix, parfois un pari sur les factions. <strong>Au deuxième entracte</strong>, le match s'arrête, pointage en main : tout pour l'attaque, fermer la porte, changer de gardien, ce que la soirée t'offre… Ton choix joue la troisième période ; les deux premières, déjà vues, ne bougent pas. Gagné : l'élan pour trois matchs. Perdu : sonnés.</p>
+      <p><strong>Avant le match</strong>, un événement — des histoires vraies (la garantie de Messier, la pieuvre de Détroit, le rat de la Floride) et quelques inventées — et un choix, parfois un pari. <strong>Au deuxième entracte</strong>, le match s'arrête, pointage en main : tout pour l'attaque, fermer la porte, changer de gardien, ce que la soirée t'offre… Ton choix joue la troisième période ; les deux premières, déjà vues, ne bougent pas. Gagné : l'élan pour trois matchs. Perdu : sonnés.</p>
       <p><strong>Le fil du direct</strong> raconte les jeux marquants — les buts, les arrêts dangereux, les beaux jeux défensifs. « Voir tous les tirs » montre le reste.</p>
+
+      <h3>0f. Tes cartes : le deck</h3>
+      <p><strong>Ton identité.</strong> Avant le premier tour du repêchage, tu piges une carte parmi trois — les francs-tireurs, les passeurs, la grosse équipe, la jeunesse, les aubaines… La roulette sortira <strong>plus souvent</strong> ce genre de joueurs (pas toujours) ; ceux qui y collent portent son icône sur leur carte.</p>
+      <p><strong>Le deck de match.</strong> Tu commences la saison avec dix cartes : lancer de la pointe, bloquer des tirs, changements courts, le discours du capitaine, la vidéo de l'adversaire. Avant chaque <strong>gros match</strong> et chaque <strong>match de tes séries</strong>, tu en piges cinq et tu as <strong>trois d'énergie</strong> pour les jouer. Une carte coûte de 0 à 3 ; ce qu'elle fait vaut pour ce match : plus de lancers, moins de buts contre, leur plan qui tombe, tes deux premières lignes sur leur contre, leurs joueurs au banc des punitions, un pari… Certaines lisent ta formation (tes francs-tireurs, tes défenseurs purs, tes lignes qui jouent le même système). « Mon deck » les montre toutes.</p>
+      <p><strong>L'adversaire joue aussi.</strong> Dans un gros match et en séries, il a lui aussi trois d'énergie de cartes — et tu vois sa main avant de jouer la tienne. Il provoque ? « Pas de punition bête ». Il bloque tout ? « Tirer de partout ». Et « Leur cahier de jeux » annule toute sa main.</p>
+      <p><strong>Le deck grandit.</strong> Une victoire dans un gros match : une récompense, une carte parmi trois (ou passer — un deck mince pige plus souvent ses meilleures). Une série gagnée : une carte rare. Un objectif du proprio raté, un gros match perdu contre ta rivalité, une longue blessure : chacun glisse une malédiction dans ton deck — « Le ménage » d'un palier l'en retire.</p>
+      <p><strong>Les paliers</strong> (journées 20, 40, 60) t'offrent une main de trois cartes de sortes différentes, en plein écran : une carte d'effet pour la saison, un vrai joueur au choix (un avant, un défenseur, un gardien, sous ton plafond), une amélioration pour le joueur de ton choix, un nouveau rôle pour un de tes joueurs, ou un stage de système (toute ta formation apprend une tactique d'un coup). Rien ne presse : « Plus tard », et la main t'attend.</p>
+      <p><strong>Le repêchage « Une franchise ».</strong> Dans « Nouvelle partie », tu peux ne piger que dans l'histoire d'un club, toutes saisons confondues, relocalisations comprises : les Nordiques et l'Avalanche, les Whalers et les Hurricanes, les Scouts, les Rockies et les Devils.</p>
 
       <!-- Les règles du mode bonus sont ÉCRITES DANS LE CODE et injectées ici
            par `remplirReglesDuPlateau` (js/game.js) depuis `reglesDuPlateau()`
