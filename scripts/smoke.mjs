@@ -970,6 +970,8 @@ async function traverserSaison(etiquette, reprise = false) {
      * referme : c'est « Plus tard », et l'offre doit tenir.
      */
     const lireMain = async () => {
+      // Un choix forcé passe devant le palier (S74b) : on y répond d'abord.
+      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await repondreAuxChoix();
       if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
       await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
       const main = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
@@ -1019,7 +1021,8 @@ async function traverserSaison(etiquette, reprise = false) {
       if (JSON.stringify(encore) !== JSON.stringify(offertesMain)) errors.push(`la main du palier ne tient pas : ${offertesMain.join(' · ')} puis ${encore.join(' · ')}`);
       const jPrise = await jourDit();
       const pris = offertes[0];
-      await _click('#hubModal .hub-main-ouvrir');
+      // La main du palier a pu s'ouvrir d'elle-même après un choix forcé (S74b).
+      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
       await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
       await _click(`#choixModal .tc[data-choix="effet:${pris}"]`);
       await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
@@ -1058,7 +1061,8 @@ async function traverserSaison(etiquette, reprise = false) {
       if (deck) {
         await repondreAuxChoix();
         const jDeck = await jourDit();
-        await _click('#hubModal .hub-main-ouvrir');
+        // La main du palier a pu s'ouvrir d'elle-même après un choix forcé (S74b).
+        if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
         await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
         const off = await page.$eval(`#choixModal .tc[data-choix="${deck}"]`, b => b.disabled);
         if (off) console.log(`   la carte « ${deck} » est grisée ce palier-ci (personne à qui la donner)`);
