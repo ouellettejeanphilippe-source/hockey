@@ -2067,6 +2067,8 @@ async function getShard(label) {
   // rangées parmi les réguliers de la saison : voir `mesuresDeSaison`.
   const entry = { players: shard.players, byTeam, mesures: mesuresDeSaison(shard.players) };
   G.shards.set(label, entry);
+  // LA RARETÉ JOUE (S78, js/rarete.js) : posée une fois par joueur, du rang de son salaire dans sa saison.
+  for (const p of shard.players) p._rar = rareteDeSalaire(p, entry);
   return entry;
 }
 
