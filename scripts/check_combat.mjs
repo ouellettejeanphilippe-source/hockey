@@ -24,7 +24,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie } from '../js/sim.js';
 import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse } from '../js/combat.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -163,6 +163,31 @@ console.log('\n  Le deck de match (S74)\n');
       const m1 = b1[0].minisBoss.find(x => x.jour === m0.jour);
       exiger('« Leur cahier de jeux » annule leur main', !!(m1 && m1.cartes && m1.cartes.annulee), m1 && m1.cartes ? `annulée : ${m1.cartes.annulee}` : 'rien');
     }
+  }
+  /*
+   * UN SEUL PLEIN ÉCRAN PAR MATCH DE SÉRIES (S74b) : l'ajustement et la main
+   * partent en UNE décision. Le moteur doit appliquer les deux (l'effet de
+   * l'ajustement ET les cartes de la main au match), et la ronde se rejouer
+   * à l'identique avec la même décision.
+   */
+  {
+    const serie = decs => {
+      const L = ligue(7450);
+      simulateLeague(L, 82, { graine: 'serie', decisions: [] });
+      const top = L.slice().sort((a, b) => b.PTS - a.PTS).slice(0, 16);
+      if (!top.includes(L[0])) top[15] = L[0];
+      const paires = [];
+      for (let i = 0; i < 8; i++) paires.push([top[i], top[15 - i]]);
+      const toi = L[0];
+      const r = playRonde(paires, 0, k2 => { toi.effetsSerie = []; for (const d of decs) if (d.ronde === 0 && d.match_no === k2) appliquerDecisionSerie(toi, d, 'serie'); }, 'serie');
+      return r.find(x => x.A === toi || x.B === toi);
+    };
+    const d = [{ ronde: 0, match_no: 1, ajustement: 'rythme', main: { jouees: ['bloquer', 'lancer'], enMain: [] }, sel: 'combo' }];
+    const a = serie(d), b = serie(d.map(x => ({ ...x })));
+    const p1 = a.plans[1];
+    exiger('l\'ajustement et la main partent ensemble, et la ronde se rejoue', !!(p1 && p1.cartes && p1.cartes.jouees.join() === 'bloquer,lancer')
+      && JSON.stringify(a.feuilles.map(f => f.buts.length)) === JSON.stringify(b.feuilles.map(f => f.buts.length)),
+      p1 && p1.cartes ? `match 2 : ${p1.cartes.jouees.join(' · ')} joués, série ${a.wA}-${a.wB} deux fois` : 'rien');
   }
   // L'ÉNERGIE ADVERSE MONTE AVEC LA COURSE (S74b) : quatre en fin de saison et en fin de séries.
   {
