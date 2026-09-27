@@ -23,10 +23,10 @@ import { RARETES, rareteDeSalaire, sensRarete } from './cartes.js';
 import { ficheDeClub, tauxDeClub } from './equipes.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie;
+let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie } = c);
+  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue } = c);
 }
 
 /* =====================================================================
@@ -918,7 +918,11 @@ export function runPlayoffs(top16, opts = {}) {
     onBanc: bancSerie || null,
     onRevele: etat => { G.seriesVues = etat; saveGame(); },
     // Le tableau dessiné, on y va : il était en bas d'un bilan de 8 800 px (S74, l'agent de test).
-    onTermine: () => { dessinerTableauDesSeries(host, n, champion); requestAnimationFrame(() => host.scrollIntoView({ behavior: 'smooth', block: 'start' })); },
+    onTermine: () => {
+      dessinerTableauDesSeries(host, n, champion); requestAnimationFrame(() => host.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      // Le mode Rogue (S77) paie ses écussons de séries : les rondes gagnées, la Coupe.
+      if (finDesSeriesRogue) finDesSeriesRogue((G.series || []).filter(x => x.winner && x.winner.isPlayer).length, !!(champion && champion.isPlayer));
+    },
   });
 }
 

@@ -29,11 +29,11 @@ import {
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
-import { ouvrirLignes, resumeLignes, barresProfils, motFit, ouvrirChoix } from './gerant.js';
+import { ouvrirLignes, resumeLignes, barresProfils, motFit, ouvrirChoix, optionDeCarteMatch } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
-import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete } from './cartes.js';
-import { CARTES_MATCH } from './combat.js';
+import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur } from './cartes.js';
+import { CARTES_MATCH, recompensesOffertes } from './combat.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
@@ -41,6 +41,10 @@ import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, A
 import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN, ficheReelleDe } from './bilan.js';
 import { brancherEntractes } from './entracte.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
+import { migrer, lireIndex, lirePartieActive, ecrirePartieActive, nouvellePartie, activer } from './sauvegardes.js';
+import { afficherMenu, fermerMenu } from './menu.js';
+import { JETONS, jetonsDe, PACKS, DEBLOCAGES, lireMeta, aDebloque, nombreGardes, jetonsDeDepart, packsOuverts, peutAcheter, acheterDeblocage,
+  ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, rareteTiree } from './rogue.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -226,7 +230,9 @@ const G = {
   shards: new Map(),
 };
 
-const MODE = () => MODES[G.mode] || MODES.CLASSIQUE;
+/* LE MODE ROGUE (S77) n'a pas de plafond : c'est la boutique qui fait la rareté (js/rogue.js). */
+const MODE_ROGUE = { ...MODES.CLASSIQUE, nom: 'Rogue', cap: 1e12 };
+const MODE = () => (G.bonus === 'ROGUE' ? MODE_ROGUE : (MODES[G.mode] || MODES.CLASSIQUE));
 /**
  * La saison à laquelle la ROULETTE est tenue : celle de la ligue quand elle
  * est fixée et que le repêchage reste dans l'année, sinon null — et null veut
@@ -472,7 +478,8 @@ const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
 const VERSION_MOTEUR = 'S74';
 function saveGame() {
   try {
-    localStorage.setItem('cap82_save', JSON.stringify({
+    // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
+    ecrirePartieActive(({
       moteur: VERSION_MOTEUR,
       roster: G.roster,
       partie: G.done && G.ligue ? {
@@ -515,12 +522,44 @@ function saveGame() {
       identite: G.identite ?? null,
       bonus: G.bonus,
       renfort: G.renfort,
-    }));
+      rogue: G.rogue || null,
+    }), resumePartie());
   } catch { /* stockage indisponible */ }
 }
 
-function clearSave() {
-  try { localStorage.removeItem('cap82_save'); } catch { /* ignore */ }
+/*
+ * « EFFACER » EST DEVENU « COMMENCER UNE AUTRE » (S77). Une partie neuve ne
+ * jette plus la précédente : elle prend une nouvelle place dans l'index, du
+ * genre de son mode, et l'ancienne reste au menu.
+ */
+const genreCourant = () => (G.bonus === 'TABLE' ? 'table' : G.bonus === 'ROGUE' ? 'rogue' : 'saison');
+function clearSave() { nouvellePartie(genreCourant()); }
+
+/*
+ * LE RÉSUMÉ D'UNE PARTIE, tel que le menu le lit : où on en est, en une
+ * ligne (« Journée 34 · 20-12-2 », « Repêchage · 12/23 signés »). `vierge`
+ * dit qu'il n'y a encore rien à perdre : la partie neuve suivante la
+ * réutilise au lieu d'en ajouter une vide.
+ */
+function resumePartie() {
+  const signes = Object.values(G.roster || {}).filter(Boolean).length;
+  const total = casesDuMode(G.mode).length;
+  const L = G.ligue;
+  let etape = `Repêchage · ${signes}/${total} signés`;
+  if (G.bonus === 'TABLE' && G.done && G.tournoi) etape = 'Le tournoi sur table';
+  else if (L && G.done && Array.isArray(L.calendrier)) {
+    const toi = (L.teams || []).find(t => t.isPlayer);
+    const j = Math.min(G.journee || 0, L.calendrier.length);
+    let W = 0, D = 0, P = 0;
+    for (const jour of L.calendrier.slice(0, j)) for (const m of jour) {
+      if (m.A !== toi && m.B !== toi) continue;
+      const pour = m.A === toi ? m.gfA : m.gfB, contre = m.A === toi ? m.gfB : m.gfA;
+      if (pour > contre) W++; else if (m.ot) P++; else D++;
+    }
+    etape = G.seriesVues ? `Les séries · saison ${W}-${D}-${P}` : j >= L.calendrier.length ? `Bilan · ${W}-${D}-${P}` : `Journée ${j} / ${L.calendrier.length} · ${W}-${D}-${P}`;
+  }
+  const qui = [MODES[G.mode] ? MODES[G.mode].nom : '', G.repechage === 'FRANCHISE' && FRANCHISES[G.franchise] ? FRANCHISES[G.franchise].nom : '', G.epoque || ''].filter(Boolean).join(' · ');
+  return { etape, qui, vierge: !signes && !L };
 }
 
 const PALETTES = ['graphite', 'oled', 'glace'];
@@ -562,12 +601,12 @@ function loadOpts() {
 
 async function restoreSave() {
   try {
-    const raw = localStorage.getItem('cap82_save');
-    if (!raw) return false;
-    const data = JSON.parse(raw);
+    const data = lirePartieActive();
+    if (!data) return false;
     // Une sauvegarde d'avant les mains (`cur` au lieu de `tirage`) ne se
     // reprend pas : le vestiaire qu'elle décrit n'existe plus sous ces règles.
-    if (!data || !Array.isArray(data.tirage) || !data.tirage.length || !MODES[data.mode]) return false;
+    // Une run Rogue n'a pas de tirage : elle part d'une équipe de plombiers (S77).
+    if (!data || !Array.isArray(data.tirage) || (!data.tirage.length && data.bonus !== 'ROGUE') || !MODES[data.mode]) return false;
 
     const tirage = [];
     for (const v of data.tirage) {
@@ -604,7 +643,8 @@ async function restoreSave() {
     if (FRANCHISES[data.franchise]) G.franchise = data.franchise;
     // Une partie d'avant S73 n'a jamais vu le choix : il s'offrira au prochain démarrage.
     G.identite = 'identite' in data ? (IDENTITES[data.identite] ? data.identite : null) : undefined;
-    G.bonus = data.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
+    G.bonus = data.bonus === 'TABLE' || data.bonus === 'ROGUE' ? data.bonus : 'SAISON';
+    G.rogue = data.rogue || null;
     G.renfort = data.renfort || null;
     G.tirage = tirage;
     G.roster = data.roster || {};
@@ -619,7 +659,7 @@ async function restoreSave() {
     G.echelle = (data.echelle && typeof data.echelle === 'object') ? { ...data.echelle } : {};
     G.dette = Number.isFinite(data.dette) && data.dette > 0 ? data.dette : 0;
     G.lignes = Array.isArray(data.lignes) ? data.lignes : null;
-    applyTeamColors(MODE().loto ? null : tirage[0].team);
+    applyTeamColors(MODE().loto || !tirage.length ? null : tirage[0].team);
     // LA SAISON EN COURS. Elle se REJOUE, elle ne se relit pas : la graine et
     // les clés des adversaires suffisent, `runSeason` refait exactement la
     // même ligue et l'écran reprend à la journée révélée. `reprise` est rendu
@@ -913,14 +953,16 @@ async function boot() {
     $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele,
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
-    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, deciderSerie, bancSerie,
+    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, deciderSerie, bancSerie, finDesSeriesRogue,
     // L'onglet « La ligue » reconstitue la VRAIE fiche des 31 adversaires :
     // il lui faut le shard de leur saison, et le chargeur le met en cache.
     getShard,
   });
+  // S77 : l'ancienne sauvegarde unique devient la première partie de l'index.
+  migrer();
   // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
   let vierge = false;
-  try { vierge = !localStorage.getItem('cap82_opts') && !localStorage.getItem('cap82_save'); } catch { /* stockage indisponible */ }
+  try { vierge = !localStorage.getItem('cap82_opts') && !lireIndex().parties.length; } catch { /* stockage indisponible */ }
   try {
     loadOpts();
     appliquerPalette();
@@ -933,30 +975,340 @@ async function boot() {
     // ligne, un réglage relu du stockage s'appliquait au rendu mais pas au
     // bouton, qui montrait alors autre chose que ce qu'on regardait.
     syncOptionsUI();
-    const restored = await restoreSave();
-    if (!restored) await demarrerPartie();     // une seule séquence, plus de copie ici
-    $('boot').style.display = 'none';
-    $('game').style.display = '';
-    $('actionbar').style.display = '';
-    render();
-    // Une saison était en cours : on la rejoue sous sa graine et l'écran
-    // rouvre à la journée où on l'avait laissée. Après `render()`, pour que la
-    // page soit là pendant la simulation.
-    if (restored && restored.reprise) await restored.reprise();
     /*
-     * L'écran s'ouvre PAR-DESSUS une partie déjà bâtie, à la première visite
-     * seulement. Le retarder aurait rendu l'écran bloquant, or Échap ferme
-     * toute modale non-`live` : on aurait laissé le joueur devant un espace de
-     * travail vide. Le prix est une requête de shard à la toute première
-     * visite, et « Commencer » sans rien changer se contente alors de refermer.
+     * LE MENU AU DÉPART (S77). JP : *un menu au départ pour choisir*. Au
+     * premier lancement d'une SESSION (l'appli qu'on ouvre), le menu d'abord :
+     * continuer, un mode, une partie. Recharger la page pendant qu'on joue
+     * reste un rechargement — on retombe dans la partie, pas au menu.
      */
-    if (vierge) ouvrirNouvellePartie();
+    let dejaVu = true;
+    try { dejaVu = sessionStorage.getItem('cap82_session') === '1'; } catch { /* stockage indisponible */ }
+    if (!dejaVu) {
+      $('boot').style.display = 'none';
+      afficherMenu(contexteDuMenu({ vierge, enJeu: false }));
+      return;
+    }
+    await continuerBoot();
   } catch (e) {
     $('boot').innerHTML = `<div class="err">Impossible de charger les données.<br>
       <span class="mono">${esc(e.message)}</span><br><br>
       Vérifie que <span class="mono">data/index.json</span> existe, ou lance
       <span class="mono">python3 scripts/build_shards.py</span>.</div>`;
   }
+}
+
+/*
+ * LA SUITE DU DÉMARRAGE, une fois la partie choisie : reprendre la partie
+ * active (elle se rejoue de sa graine), ou en bâtir une si elle est neuve.
+ * `apres` dit ce qu'on ouvre ensuite — l'écran « Nouvelle partie » d'un mode.
+ */
+let demarre = false;
+async function continuerBoot(apres = null) {
+  try { sessionStorage.setItem('cap82_session', '1'); } catch { /* ignore */ }
+  let suite = apres;
+  try { suite = suite || sessionStorage.getItem('cap82_apres'); sessionStorage.removeItem('cap82_apres'); } catch { /* ignore */ }
+  const restored = await restoreSave();
+  if (!restored) await demarrerPartie();     // une seule séquence, plus de copie ici
+  demarre = true;
+  $('boot').style.display = 'none';
+  $('game').style.display = '';
+  $('actionbar').style.display = '';
+  render();
+  // Une saison était en cours : on la rejoue sous sa graine et l'écran
+  // rouvre à la journée où on l'avait laissée. Après `render()`, pour que la
+  // page soit là pendant la simulation.
+  if (restored && restored.reprise) await restored.reprise();
+  if (suite === 'nouvelle-saison') ouvrirNouvellePartie('SAISON');
+  else if (suite === 'nouvelle-table') ouvrirNouvellePartie('TABLE');
+  else if (suite === 'nouvelle-rogue' && typeof ouvrirRogue === 'function') ouvrirRogue();
+}
+/*
+ * CE QUE LE MENU PEUT FAIRE. Changer de partie RECHARGE la page : une partie
+ * se rejoue de sa graine au démarrage, et c'est la seule façon sûre de ne
+ * rien garder de la précédente en mémoire (la ligue, les séries, le tournoi,
+ * les cotes déjà connues).
+ */
+function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
+  const ailleurs = (apres = null) => {
+    if (!demarre) { fermerMenu(); continuerBoot(apres).catch(() => toast('Impossible de reprendre cette partie.', 'bad')); return; }
+    try { sessionStorage.setItem('cap82_session', '1'); if (apres) sessionStorage.setItem('cap82_apres', apres); } catch { /* ignore */ }
+    location.reload();
+  };
+  return {
+    vierge, enJeu,
+    continuer: () => { if (demarre) fermerMenu(); else ailleurs(); },
+    reprendre: id => { activer(id); ailleurs(); },
+    nouvelle: genre => { nouvellePartie(genre); ailleurs(`nouvelle-${genre}`); },
+    options: () => openModal('optionsModal'),
+    rogue: {
+      resume: () => { const m = lireMeta(); return `🏅 ${m.ecussons || 0} écussons · 🗂️ ${(m.collection || []).length} joueurs · ${m.runs || 0} run${(m.runs || 0) > 1 ? 's' : ''}`; },
+      nouvelle: () => { nouvellePartie('rogue'); ailleurs('nouvelle-rogue'); },
+      vestiaire: () => ouvrirVestiaire(() => { if (document.getElementById('menuDepart')) afficherMenu(contexteDuMenu({ vierge, enJeu })); }),
+    },
+  };
+}
+
+/* =====================================================================
+   LE MODE ROGUE (S77) — voir js/rogue.js pour la règle et le méta.
+   ===================================================================== */
+/* Les jetons dans la barre du haut, à la place du plafond : c'est la monnaie de la run. */
+function renderJetons() {
+  const g = $('capGauge');
+  if (!g) return;
+  const lbl = g.querySelector('.capgauge-label');
+  if (lbl) lbl.textContent = 'Jetons';
+  const meta = lireMeta();
+  $('capAmt').textContent = `🪙 ${jetonsRogue()}`;
+  $('capAmt').classList.remove('over', 'tight');
+  $('capMaxLbl').textContent = `· ${meta.ecussons || 0} 🏅`;
+  g.title = 'Tes jetons de la run : une victoire en rapporte 6, un gros match gagné 15. La boutique du hub vend des packs.';
+  $('capFill').style.width = '0%';
+  $('cnt').textContent = `${signes().length} / ${totalCases()}`;
+  const perSlot = $('perSlotLbl');
+  if (perSlot) perSlot.textContent = 'Mode Rogue';
+}
+/* Ce que la saison a rapporté jusqu'à la journée `j` (révélée), pour les jetons. */
+function resultatsRogue(j) {
+  const L = G.ligue;
+  if (!L || !Array.isArray(L.calendrier)) return {};
+  const toi = L.you;
+  let W = 0, D = 0, P = 0;
+  for (const jour of L.calendrier.slice(0, j)) for (const m of jour) {
+    if (m.A !== toi && m.B !== toi) continue;
+    const pour = m.A === toi ? m.gfA : m.gfB, contre = m.A === toi ? m.gfB : m.gfA;
+    if (pour > contre) W++; else if (m.ot) P++; else D++;
+  }
+  const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).length;
+  // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`).
+  const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && d.carte).length;
+  return { W, L: D, OTL: P, gros, objectifs };
+}
+function jetonsRogue(j = G.journee || 0) {
+  const L = G.ligue;
+  const depenses = [...((L && L.decisions) || []), ...((L && L.decisionsSeries) || [])].filter(d => d.rogue).reduce((a, d) => a + (d.rogue.prix || 0), 0);
+  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, (G.rogue && G.rogue.depart) || JETONS.depart);
+}
+/*
+ * LA BOUTIQUE, ouverte du hub. `decider` est celui du hub : il ferme l'écran
+ * de saison et rejoue la saison avec la décision, comme tout autre choix.
+ */
+function ouvrirBoutique(j, decider) {
+  const meta = lireMeta();
+  const decs = (G.ligue && G.ligue.decisions) || [];
+  const n = decs.filter(d => d.rogue).length;
+  const jetons = jetonsRogue(j);
+  ouvrirChoix({
+    ico: '🛒', titre: `La boutique · 🪙 ${jetons}`, fermable: true, motFermer: 'Fermer',
+    recit: `Tes résultats rapportent des jetons : une victoire ${JETONS.victoire}, une défaite en prolongation ${JETONS.prolongation}, une défaite ${JETONS.defaite}, un gros match gagné ${JETONS.grosMatch}, un objectif du proprio ${JETONS.objectif}. Un joueur tiré d'un pack prend la place de réserve de sa position : monte-le dans un trio derrière le banc.`,
+    options: packsOuverts(meta).map(k => {
+      const P = PACKS[k];
+      return { cle: k, ico: P.ico, nom: `${P.nom} · ${P.prix} 🪙`, bon: P.texte, desactive: jetons < P.prix ? `Il te manque ${P.prix - jetons} 🪙` : null };
+    }),
+    onChoix: k => { ouvrirPack(k, j, n, decider).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad')); },
+  });
+}
+const RARETES_EN_ORDRE = ['legendaire', 'rare', 'peu', 'commune'];
+/*
+ * LES TROIS JOUEURS D'UN PACK : purs, de la graine de la ligue, du pack et du
+ * numéro de l'achat. Pour chacun : une rareté tirée selon les cotes du pack,
+ * une saison, puis un vrai joueur régulier de cette rareté (son salaire dans
+ * sa saison), qui ne joue pas déjà dans la ligue. Personne à cette rareté ?
+ * On descend d'un cran.
+ */
+async function tirerJoueurs(k, n) {
+  const P = PACKS[k], L = G.ligue, graine = L.graine;
+  const dansLaLigue = new Set();
+  for (const t of L.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
+  let saisons = state.index.seasons.slice();
+  if (P.decennie) saisons = saisons.filter(s => { const a = Number(String(s).slice(0, 4)); return a >= P.decennie && a < P.decennie + 10; });
+  const out = [];
+  for (let t = 0; out.length < 3 && t < 12; t++) {
+    const voulue = rareteTiree(P.cotes, graine, 'pack', k, n, t);
+    const s = saisons[Math.floor(hache(graine, 'pack-saison', k, n, t) * saisons.length)];
+    const e = await getShard(s);
+    // DES RÉGULIERS PRODUCTIFS seulement (la moitié haute de leur position dans leur saison) :
+    // une « commune » est alors une aubaine, pas un douzième avant (mesuré, scripts/mesure_rogue.mjs).
+    const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
+    const bons = new Set(['F', 'D', 'G'].flatMap(g => { const r = e.players.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a)); return r.slice(0, Math.ceil(r.length / 2)); }));
+    const pool = [...bons].filter(p => p.$ > 0 && (!P.groupe || groupeDe(p) === P.groupe)
+      && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p) && !out.some(x => getPersonKey(x) === getPersonKey(p)));
+    const rangs = RARETES_EN_ORDRE.slice(RARETES_EN_ORDRE.indexOf(voulue));
+    for (const r of rangs) {
+      const c = pool.filter(p => rareteJoueur(p) === r);
+      if (!c.length) continue;
+      c.sort((a, b) => hache(graine, 'pack-joueur', n, t, getPlayerKey(a)) - hache(graine, 'pack-joueur', n, t, getPlayerKey(b)));
+      out.push(c[0]);
+      break;
+    }
+  }
+  return out;
+}
+async function ouvrirPack(k, j, n, decider) {
+  const P = PACKS[k];
+  const achat = { pack: k, n, prix: P.prix };
+  const palier = `k:${n}`;
+  if (P.genre === 'cartes') {
+    const offre = recompensesOffertes(G.ligue.graine, `boutique${n}`);
+    ajouterCollection({ cartes: offre });
+    ouvrirChoix({
+      ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
+      recit: 'Trois cartes de match : touche celle que tu gardes pour ton deck.',
+      options: offre.map(optionDeCarteMatch),
+      onChoix: c => decider({ jour: j, palier, rogue: achat, recompense: c }),
+      onFerme: () => decider({ jour: j, palier, rogue: achat, recompense: null }),
+    });
+    return;
+  }
+  const joueurs = await tirerJoueurs(k, n);
+  ajouterCollection({ joueurs: joueurs.map(getPlayerKey) });
+  const ligne = p => (p.p === 'G'
+    ? `${p.gp} PJ · ${p.w ?? 0}-${p.l ?? 0} · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
+    : `${p.gp} PJ · ${p.g} B · ${p.a} A · ${p.pt ?? (p.g + p.a)} PTS`);
+  const offres = joueurs.map(p => {
+    const g = groupeDe(p);
+    const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
+    const sort = slot ? G.roster[slot.i] || null : null;
+    ballottageVu.set(getPlayerKey(p), p);
+    return { p, cle: getPlayerKey(p), i: slot ? slot.i : null, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, poste: POSTE_GROUPE[g] };
+  });
+  ouvrirChoix({
+    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
+    recit: 'Trois vrais joueurs : touche celui que tu signes. Il prend la place de réserve de sa position — le réserviste qui l\'occupait est libéré.',
+    options: offres.map(x => ({ cle: x.cle, rarete: rareteJoueur(x.p), nom: x.p.n, type: `${x.poste} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
+      art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(x.poste), saison: esc(x.p.s), club: esc(x.p.t) }),
+      texte: ligne(x.p), prix: x.sortNom ? `${x.sortNom} est libéré` : '' })),
+    onChoix: c => {
+      const x = offres.find(y => y.cle === c);
+      if (x && x.i != null) decider({ jour: j, palier, rogue: achat, ballottage: { i: x.i, entre: x.cle, sort: x.sort } });
+    },
+    onFerme: () => decider({ jour: j, palier, rogue: achat, recompense: null }),
+  });
+}
+/* Un joueur retrouvé par sa clé (« saison_club_id ») : ceux qu'on garde d'une run à l'autre. */
+async function joueurDeCle(cle) {
+  const [s] = String(cle).split('_');
+  try { const e = await getShard(s); return e.players.find(p => getPlayerKey(p) === cle) || null; } catch { return null; }
+}
+/*
+ * LES PLOMBIERS : vingt-trois vrais joueurs, les moins productifs de huit
+ * saisons tirées au hasard — des réguliers, pas des rappelés d'un match (du
+ * 10e au 30e centile de production). Le déblocage « Des plombiers moins pires »
+ * les prend un cran plus haut (30e au 50e). `autoRoster` les range, et
+ * les joueurs gardés de la dernière run passent devant.
+ */
+async function plombiers(meta, gardes = []) {
+  const saisons = state.index.seasons.slice(), choisies = [];
+  while (choisies.length < 8 && saisons.length) choisies.push(saisons.splice(Math.floor(Math.random() * saisons.length), 1)[0]);
+  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
+  // Mesuré : le fond absolu (0-20 %) faisait 6 à 12 points, une run perdue d'avance ; 10-30 % en fait 12 à 33.
+  const [bas, haut] = aDebloque(meta, 'plombiersPlus') ? [0.3, 0.5] : [0.1, 0.3];
+  const gardesPersonnes = new Set(gardes.map(getPersonKey));
+  const pool = [];
+  for (const s of choisies) {
+    const e = await getShard(s);
+    for (const g of ['F', 'D', 'G']) {
+      const reg = e.players.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 30) && !gardesPersonnes.has(getPersonKey(p)))
+        .sort((a, b) => prod(a) - prod(b));
+      const tranche = reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut)));
+      const n = g === 'F' ? 3 : g === 'D' ? 2 : 1;
+      for (let i = 0; i < n && tranche.length; i++) pool.push(tranche.splice(Math.floor(Math.random() * tranche.length), 1)[0]);
+    }
+  }
+  return autoRoster([...gardes, ...pool]);
+}
+/* Le choix d'un joueur à garder de la dernière run, en cartes. */
+function choisirGarde(joueurs, i, total) {
+  return new Promise(resolve => {
+    ouvrirChoix({
+      ico: '🤝', titre: `Garder un joueur · ${i + 1} sur ${total}`, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Personne',
+      recit: 'Ta dernière équipe : celui que tu touches te suit dans cette run, avec ta nouvelle bande de plombiers.',
+      options: joueurs.map(p => ({ cle: getPlayerKey(p), rarete: rareteJoueur(p), nom: p.n, type: `${POSTE_GROUPE[groupeDe(p)]} · ${p.t} ${p.s}`, coin: money(p.$),
+        art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[groupeDe(p)]), saison: esc(p.s), club: esc(p.t) }) })),
+      onChoix: k => resolve(joueurs.find(p => getPlayerKey(p) === k) || null),
+      onFerme: () => resolve(null),
+    });
+  });
+}
+/*
+ * UNE RUN QUI COMMENCE : l'écran de la run (ce qu'on a débloqué), les
+ * joueurs à garder s'il y en a, puis vingt-trois plombiers et l'alignement.
+ */
+async function ouvrirRogue() {
+  const meta = lireMeta();
+  const k = nombreGardes(meta);
+  const go = await new Promise(resolve => ouvrirChoix({
+    ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant',
+    recit: `Tu pars avec vingt-trois plombiers : de vrais joueurs, les moins productifs de leurs saisons. Chaque résultat rapporte des jetons (🪙 ${jetonsDeDepart(meta)} au départ), et la boutique du hub vend des packs : trois vrais joueurs, tu en signes un. Pas de plafond : c'est la boutique qui fait la rareté. À la fin de la saison, tes écussons 🏅 débloquent la suite au vestiaire du menu.`,
+    options: [{ cle: 'go', ico: '▶', nom: 'Commencer la run',
+      bon: [`${packsOuverts(meta).length} packs à la boutique`, k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : ''].filter(Boolean).join(' · '),
+      prix: `🏅 ${meta.ecussons || 0} écussons · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} jouée${(meta.runs || 0) > 1 ? 's' : ''} · 🗂️ ${(meta.collection || []).length} joueurs dans ta collection` }],
+    onChoix: () => resolve(true),
+    onFerme: () => resolve(false),
+  }));
+  if (!go) return;
+  const gardes = [];
+  if (k && (meta.derniereEquipe || []).length) {
+    const joueurs = (await Promise.all(meta.derniereEquipe.map(joueurDeCle))).filter(Boolean);
+    for (let i = 0; i < k; i++) {
+      const p = await choisirGarde(joueurs.filter(x => !gardes.includes(x)), i, k);
+      if (!p) break;
+      gardes.push(p);
+    }
+  }
+  await sousVoile('On rassemble tes plombiers…', () => demarrerRogue(gardes));
+}
+async function demarrerRogue(gardes = []) {
+  const meta = lireMeta();
+  G.bonus = 'ROGUE';
+  G.mode = 'CLASSIQUE'; G.epoque = null; G.repechage = 'TOUTES'; G.identite = null;
+  clearSave();
+  G.roster = {}; G.tirage = []; G.echelle = {}; G.dette = 0; G.renfort = null;
+  G.ligue = null; G.tournoi = null; G.relances = 0; G.left = { ...REROLLS };
+  G.target = null; G.mainCase = null; G.mainRang = null; G.selectedSlot = null; G.done = false; G.lignes = null;
+  $('resultHost').innerHTML = '';
+  $('resultHost').style.display = 'none';
+  $('game').classList.remove('bilan');
+  G.roster = await plombiers(meta, gardes);
+  G.rogue = { depart: jetonsDeDepart(meta), deckPlus: aDebloque(meta, 'deckPlus'), gardes: gardes.map(getPlayerKey) };
+  saveGame(); syncOptionsUI(); render();
+  setView('roster');
+  toast(`Tes plombiers sont là${gardes.length ? `, avec ${gardes.map(p => p.n).join(' et ')}` : ''}. Lance la saison quand tu veux : la boutique t'attend au hub.`);
+}
+/* Les écussons d'une saison Rogue, payés une fois (`payerEcussons` s'en souvient). */
+function finDeSaisonRogue() {
+  if (G.bonus !== 'ROGUE' || !G.ligue || !G.ligue.you) return;
+  const t = G.ligue.you;
+  const pts = t.PTS || 0;
+  const n = payerEcussons(G.ligue.graine, 'saison', ecussonsDeLaSaison(pts), {
+    equipe: Object.values(G.roster || {}).filter(Boolean).map(getPlayerKey),
+    bilan: { pts, W: t.W, L: t.L, OTL: t.OTL },
+  });
+  if (n) setTimeout(() => toast(`🏅 +${n} écussons pour ta saison (${pts} points) — dépense-les au vestiaire, dans le menu.`), 900);
+}
+/* Et ceux des séries : dix par ronde gagnée, vingt de plus pour la Coupe. */
+function finDesSeriesRogue(rondes, coupe) {
+  if (G.bonus !== 'ROGUE' || !G.ligue) return;
+  const n = payerEcussons(G.ligue.graine, 'series', ecussonsDesSeries(rondes, coupe), { bilan: { ronde: rondes, coupe: !!coupe } });
+  if (n) setTimeout(() => toast(`🏅 +${n} écussons pour tes séries${coupe ? ' — et la Coupe !' : ''}`), 900);
+}
+/* LE VESTIAIRE DES DÉBLOCAGES : ce que les écussons achètent, d'une run à l'autre. */
+function ouvrirVestiaire(apres = null) {
+  const meta = lireMeta();
+  ouvrirChoix({
+    ico: '🏅', titre: `Le vestiaire · ${meta.ecussons || 0} écussons`, fermable: true, motFermer: 'Fermer',
+    recit: `Tes écussons se gagnent à la fin de chaque run (un par tranche de quatre points, dix par ronde de séries gagnée, vingt de plus pour la Coupe). Ce que tu débloques reste pour toutes les runs. Ta collection : ${(meta.collection || []).length} joueurs, ${(meta.cartes || []).length} cartes.`,
+    options: Object.entries(DEBLOCAGES).map(([k, D]) => {
+      const pris = aDebloque(meta, k);
+      const manque = D.requis && !aDebloque(meta, D.requis) ? `Demande d'abord : ${DEBLOCAGES[D.requis].nom}` : null;
+      return { cle: k, ico: D.ico, nom: `${D.nom}${pris ? ' ✓' : ` · ${D.prix} 🏅`}`, bon: D.texte,
+        desactive: pris ? 'Débloqué' : manque || ((meta.ecussons || 0) < D.prix ? `Il te manque ${D.prix - (meta.ecussons || 0)} 🏅` : null) };
+    }),
+    onChoix: k => {
+      if (peutAcheter(lireMeta(), k) && acheterDeblocage(k)) toast(`${DEBLOCAGES[k].ico} ${DEBLOCAGES[k].nom} : débloqué.`);
+      ouvrirVestiaire(apres);
+      if (apres) apres();
+    },
+  });
 }
 
 function setupEvents() {
@@ -981,6 +1333,8 @@ function setupEvents() {
   // `montrerPage` les remplit. Il ne reste en haut que ce qui est une ACTION.
   bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
   bindModal('partieModal', 'openPartieBtn', 'closePartieBtn', semerBrouillon, oublierBrouillon);
+  const menuBtn = $('menuBtn');
+  if (menuBtn) menuBtn.onclick = () => { saveGame(); afficherMenu(contexteDuMenu({ enJeu: true })); };
   // MES LIGNES AU REPÊCHAGE (S68) : réglées avant la saison, elles entrent
   // dans la décision 0. Derrière le banc, le panneau du banc a son propre bouton.
   const lb = $('lignesBtn');
@@ -1285,7 +1639,12 @@ function majPiedPartie() {
   $('npGo').classList.toggle('efface', efface);
 }
 
-function ouvrirNouvellePartie() { semerBrouillon(); openModal('partieModal'); }
+function ouvrirNouvellePartie(bonus = null) {
+  semerBrouillon();
+  // Du menu (S77) : la carte « Sur table » ouvre l'écran déjà réglé sur table.
+  if (bonus && G.brouillon) { G.brouillon.bonus = bonus; syncOptionsUI(); majPiedPartie(); }
+  openModal('partieModal');
+}
 
 /*
  * LE CHOIX DE L'IDENTITÉ (S73), en plein écran et en cartes : trois
@@ -1871,6 +2230,9 @@ async function nextSpin(newSeason = true, newTeam = true) {
    ===================================================================== */
 
 function renderCap() {
+  if (G.bonus === 'ROGUE') { renderJetons(); return; }
+  const lbl = $('capGauge') && $('capGauge').querySelector('.capgauge-label');
+  if (lbl) lbl.textContent = 'Plafond restant';
   const used = capUsed(), rem = capLeft(), left = slotsLeft();
   const isEra = G.salaryMode === 'ERA';
   const season = vestiaire()?.season || '2025-26';
@@ -4250,7 +4612,9 @@ async function runSeason(opts = {}) {
   // rejoue exactement les mêmes.
   const decisions = opts.decisions && opts.decisions.length
     ? opts.decisions
-    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined }];
+    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined },
+      // UN DECK AIGUISÉ (Rogue, S77) : deux cartes de départ commencent en « + ».
+      ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus ? [{ jour: 0, deck: 'camp', aiguise: 'lancer', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'bloquer', rogue: { depart: true } }] : [])];
   let r, teams, leaders = [], calendrier = [], graine = null;
   if (opponents.length) {
     const league = simulateLeague([you, ...opponents], 82, { graine: opts.graine || null, decisions });
@@ -4315,12 +4679,14 @@ async function runSeason(opts = {}) {
         ballottage: candidatsBallottage,
         // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.
         recrues: candidatsRecrue,
+        // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
+        rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider) } : null,
       },
-      onTermine: montrer,
+      onTermine: () => { finDeSaisonRogue(); montrer(); },
       depuis: opts.depuis || 0,
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
       // la reprise a besoin de connaître.
-      onJour: j => { G.journee = j; saveGame(); },
+      onJour: j => { G.journee = j; saveGame(); if (G.bonus === 'ROGUE') renderCap(); },
       // LES CARTES DE SAISON : la graine décide de la main offerte à chaque
       // palier (sans toucher au hasard du moteur), et les paliers déjà pris
       // se lisent dans les décisions — il n'y a pas d'autre état.
@@ -4342,7 +4708,7 @@ async function runSeason(opts = {}) {
       decisions,
       onDecision: deciderSaison,
     });
-  } else { G.journee = calendrier.length; saveGame(); montrer(); }
+  } else { G.journee = calendrier.length; saveGame(); finDeSaisonRogue(); montrer(); }
 }
 
 /* ======================================================================
@@ -4697,7 +5063,8 @@ async function demarrerPartie(r = {}) {
   if (r.repechage) G.repechage = normRepechage(r.repechage);
   if (FRANCHISES[r.franchise]) G.franchise = r.franchise;
   if ('identite' in r) G.identite = IDENTITES[r.identite] ? r.identite : null;
-  if (r.bonus) G.bonus = r.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
+  if (r.bonus) G.bonus = r.bonus === 'TABLE' || r.bonus === 'ROGUE' ? r.bonus : 'SAISON';
+  if (G.bonus !== 'ROGUE') G.rogue = null;
 
   clearSave();
   G.roster = {};

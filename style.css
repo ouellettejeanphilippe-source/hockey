@@ -7339,3 +7339,65 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .album-logo { width: 32px; height: 42px; }
 .album-visage { border-radius: 5px; border: 2px solid #8d97a3; background: rgba(255, 255, 255, 0.06); }
 .album-joueur.champion .album-visage { border-color: #e6c07a; }
+
+/* =====================================================================
+   LE MENU (S77) — au lancement, et par « Menu » dans la barre du haut.
+   Plein écran, par-dessus tout ; une glace qui luit doucement derrière.
+   ===================================================================== */
+body.menu-ouvert { overflow: hidden; }
+.menu-depart { position: fixed; inset: 0; z-index: 400; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); }
+.menu-fond {
+  position: fixed; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(255, 140, 40, 0.18), transparent 60%),
+    radial-gradient(90% 50% at 100% 100%, rgba(60, 140, 255, 0.14), transparent 60%),
+    repeating-linear-gradient(90deg, transparent 0 calc(50% - 2px), rgba(220, 40, 40, 0.10) calc(50% - 2px) calc(50% + 2px), transparent calc(50% + 2px) 100%);
+}
+.menu-feuille { position: relative; max-width: 980px; margin: 0 auto; padding: max(18px, env(safe-area-inset-top, 0px)) 16px 28px; }
+.menu-tete { position: relative; text-align: center; padding: 22px 8px 10px; }
+.menu-logo { font: 900 44px/1 var(--display); letter-spacing: 0.06em; color: var(--text); text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5); }
+.menu-logo b { color: var(--gold); }
+.menu-sous { margin-top: 8px; color: var(--sub); font-size: 15px; }
+.menu-fermer { position: absolute; top: 12px; right: 4px; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 18px; cursor: pointer; }
+.menu-continuer {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; margin: 14px 0 18px; padding: 16px 18px;
+  border: 0; border-radius: 16px; cursor: pointer; text-align: left; color: var(--sur-or, #1b1305);
+  background: linear-gradient(135deg, #ffb347, #ff8a1f 55%, #f06a00);
+  box-shadow: 0 10px 30px rgba(255, 120, 20, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.menu-continuer:hover { transform: translateY(-2px); }
+.menu-continuer:active { transform: scale(0.98); }
+.mc-mot { font: 900 24px/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.mc-mot::after { content: ' ▶'; }
+.mc-quoi { font-size: 14px; font-weight: 700; opacity: 0.85; }
+.menu-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.menu-mode {
+  display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 16px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--line); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.menu-mode[data-genre="rogue"] { border-color: rgba(200, 90, 255, 0.35); background: linear-gradient(180deg, rgba(120, 50, 170, 0.22), var(--panel)); }
+.menu-mode-ico { font-size: 34px; line-height: 1; }
+.menu-mode-nom { margin: 0; font: 900 22px/1.1 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
+.menu-mode-mot { margin: 4px 0 0; color: var(--sub); font-size: 14px; line-height: 1.4; }
+.menu-mode-extra { margin: 6px 0 0; font-size: 13px; color: var(--gold); font-weight: 700; }
+.menu-mode-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+.menu-mode-actions .btn { min-height: 46px; display: flex; flex-direction: column; justify-content: center; }
+.menu-mode-actions .btn small { font-size: 12px; font-weight: 600; opacity: 0.8; text-transform: none; letter-spacing: 0; }
+.menu-parties { margin-top: 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); padding: 4px 12px 12px; }
+.menu-parties > summary { cursor: pointer; padding: 10px 2px; font: 800 15px/1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
+.menu-groupe { margin-top: 10px; }
+.menu-groupe-t { font: 700 12px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 6px 0; }
+.menu-partie { padding: 10px 12px; border-radius: 12px; background: var(--panel-2); margin-top: 6px; border: 1px solid transparent; }
+.menu-partie.active { border-color: rgba(255, 170, 60, 0.5); }
+.mp-tete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mp-titre { font-size: 15px; }
+.mp-badge { font: 700 11px/1 var(--display); text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 7px; border-radius: 999px; background: var(--gold); color: var(--sur-or, #1b1305); }
+.mp-badge.copie { background: var(--panel-3); color: var(--sub); }
+.mp-etape { color: var(--sub); font-size: 13px; margin-top: 4px; }
+.mp-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.menu-pied { display: flex; justify-content: center; margin-top: 18px; }
+@media (prefers-reduced-motion: reduce) { .menu-continuer { transition: none; } }
+/* Un choix plein écran ouvert DU menu (le vestiaire, l'écran de la run) passe par-dessus lui. */
+body.menu-ouvert .choix-modal { z-index: 450; }

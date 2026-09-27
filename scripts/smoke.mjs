@@ -85,7 +85,7 @@ async function guetterBallottage() {
   await _wait('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
   await page.waitForTimeout(350);
   const apres = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
-  const d = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(x => x.ballottage);
+  const d = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(x => x.ballottage);
   if (!d.length) errors.push('la réclamation au ballottage n\'entre pas dans la sauvegarde');
   if (tete && apres && tete[1] !== apres[1]) errors.push(`réclamer au ballottage rembobine la saison : journée ${tete[1]} puis ${apres[1]}`);
   ballottage.mot = `${qui.slice(0, 70)} réclamé à la journée ${tete ? tete[1] : '?'}`;
@@ -141,7 +141,7 @@ async function repondreAuxChoix() {
       await _click('#choixModal .main-jouer');
       await _wait('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option, #hubModal .hub-suite, #hubModal .hub-fin', { timeout: 120000 });
       await page.waitForTimeout(350);
-      const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_save')).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
+      const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
       if (!d.length) errors.push('la main jouée n\'entre pas dans la sauvegarde');
       if (pistes && !d.some(x => Array.isArray(x.prep) && x.prep.length)) errors.push('la préparation choisie n\'entre pas dans la décision de la main');
       mainsVues.push(nom || 'rien');
@@ -260,6 +260,13 @@ await page.route(u => !u.href.startsWith(base), r => r.abort());
 await page.goto(base + '/', { waitUntil: 'networkidle' });
 await page.evaluate(() => { try { localStorage.clear(); } catch {} });
 await page.reload({ waitUntil: 'networkidle' });
+/* LE MENU AU DÉPART (S77) : le premier lancement d'une session ouvre le menu.
+   « La saison · Nouvelle partie » bâtit la partie et ouvre l'écran « Nouvelle
+   partie » par-dessus, exactement comme la première visite d'avant. */
+await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
+const modesAuMenu = await page.$$eval('#menuDepart .menu-mode', l => l.map(x => x.dataset.genre).join(','));
+if (modesAuMenu !== 'saison,table,rogue') errors.push(`le menu au départ n'offre pas les trois modes : ${modesAuMenu}`);
+await page.click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');
 
@@ -733,7 +740,7 @@ async function traverserSaison(etiquette, reprise = false) {
     const avant = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
     const sauve = await page.evaluate(() => {
       try {
-        const brut = localStorage.getItem('cap82_save') || '';
+        const brut = localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif)) || '';
         const d = JSON.parse(brut || '{}');
         return { journee: d.partie?.journee ?? -1, clubs: (d.partie?.adversaires || []).length, ko: Math.round(brut.length / 1024) };
       } catch { return { journee: -1, clubs: 0, ko: 0 }; }
@@ -846,7 +853,7 @@ async function traverserSaison(etiquette, reprise = false) {
     if (teteApresBanc !== teteAvantBanc) errors.push(`le retour au match ne reprend pas au même endroit : « ${teteAvantBanc} » puis « ${teteApresBanc} »`);
     // Les décisions de BANC seulement (celles qui portent un alignement) : le
     // proprio, le plan du soir et les dilemmes en ajoutent d'autres.
-    const decisions = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.cases);
+    const decisions = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(d => d.cases);
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
     else if (!Array.isArray(decisions[1].lignes) || decisions[1].lignes[0].tac !== tacChoisie || decisions[1].lignes[0].agr !== 2) errors.push(`la sauvegarde ne porte pas les lignes du banc : ${JSON.stringify(decisions[1].lignes && decisions[1].lignes[0])}`);
     else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture au 2e trio, 1re ligne en ${tacChoisie} et agressivité haute, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
@@ -933,7 +940,7 @@ async function traverserSaison(etiquette, reprise = false) {
         await repondreAuxChoix();
         await page.waitForTimeout(400);
         const jApres = await jourDit();
-        const dMatch = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } })).filter(d => d.match);
+        const dMatch = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(d => d.match);
         const imp = ((await page.textContent('#hubModal .hub-lignes-imp').catch(() => '')) || '').trim();
         if (jApres !== jAvant) errors.push(`la consigne du match rembobine la saison : journée ${jAvant} puis ${jApres}`);
         if (!dMatch.length || dMatch[dMatch.length - 1].match.importance !== 'haute' || !Array.isArray(dMatch[dMatch.length - 1].lignes)) errors.push(`la sauvegarde ne porte pas la consigne du match : ${JSON.stringify(dMatch)}`);
@@ -976,7 +983,7 @@ async function traverserSaison(etiquette, reprise = false) {
       await page.waitForTimeout(400);
       const apres = await jourDit();
       if (apres !== avant) trouVu.erreurs.push(`encaisser la carte d'une case vide rembobine la saison : journée ${avant} puis ${apres}`);
-      const dTrou = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } }))
+      const dTrou = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } }))
         .filter(d => typeof d.palier === 'string' && d.palier.startsWith('trou:'));
       if (!dTrou.length) trouVu.erreurs.push('la carte de la case vide n\'entre pas dans la sauvegarde');
       /*
@@ -1074,7 +1081,7 @@ async function traverserSaison(etiquette, reprise = false) {
        * distingue, et c'est pour ça que les deux ne partagent pas la même
        * clé.
        */
-      const dCarte = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } }))
+      const dCarte = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } }))
         .filter(d => d.carte && typeof d.palier === 'number');
       if (dCarte.length !== 1 || dCarte[0].carte !== pris) errors.push(`la sauvegarde ne porte pas la carte prise au palier : ${JSON.stringify(dCarte)}`);
       // Le palier est la CLÉ de l'offre (20, 40, 60) ; l'en-tête peut l'avoir dépassé
@@ -1108,7 +1115,7 @@ async function traverserSaison(etiquette, reprise = false) {
           await _click('#choixModal .choix-option:not([disabled])');
           await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
           await page.waitForTimeout(400);
-          const dDeck = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisions || []; } catch { return []; } }))
+          const dDeck = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } }))
             .filter(d => d.deck === sorte(deck));
           const jApresDeck = await jourDit();
           if (!dDeck.length) errors.push(`la carte « ${deck} » n'entre pas dans la sauvegarde`);
@@ -1788,7 +1795,7 @@ if (enabled) {
       // compte les titres croisés depuis ici.
       const vusAvant = (choixVus.get('hub-dilemme') || []).length;
       if (!(await page.$('#hubModal .boss-eclaireur'))) errors.push('les séries ne montrent pas le rapport d\'éclaireur du boss');
-      const dsDe = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisionsSeries || []; } catch { return []; } });
+      const dsDe = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisionsSeries || []; } catch { return []; } });
       const prep = await page.$('#hubModal .hub-preparer');
       if (!prep) errors.push('les séries n\'offrent pas « Préparer le match »');
       else {
@@ -1830,7 +1837,7 @@ if (enabled) {
     const poAvant = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
     const poSauve = await page.evaluate(() => {
       try {
-        const d = JSON.parse(localStorage.getItem('cap82_save') || '{}');
+        const d = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif)) || '{}');
         const v = d.partie?.series;
         return { vus: v ? v.revele.reduce((a, b) => a + b, 0) : -1, lbId: d.partie?.lbId || null };
       } catch { return { vus: -1, lbId: null }; }

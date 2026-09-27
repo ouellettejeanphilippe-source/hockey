@@ -1524,9 +1524,13 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       ${force ? '' : '<button class="btn hub-dix" title="Dix journées d\'un coup">+10 jours</button>'}
       <button class="btn hub-fin" title="Jouer le reste de la saison et lire le résultat">Fin de saison</button>
       ${onDecision ? `<button class="btn hub-deck" title="Tes cartes de match : tu en piges cinq avant chaque gros match">🃏 Deck · ${deckAvant(jour).length}</button>` : ''}
+      ${onDecision && ctx.rogue ? `<button class="btn gold hub-boutique" title="La boutique du mode Rogue : des packs de joueurs et de cartes">🛒 ${ctx.rogue.jetons(jour)} 🪙</button>` : ''}
       </div>`;
     const voirDeck = actions.querySelector('.hub-deck');
     if (voirDeck) voirDeck.onclick = () => ouvrirDeck({ deck: deckAvant(jour) });
+    // LA BOUTIQUE (Rogue, S77) : ses décisions passent par le même chemin que les autres choix.
+    const boutique = actions.querySelector('.hub-boutique');
+    if (boutique) boutique.onclick = () => ctx.rogue.boutique(jour, d => { const j = jour; quitter(); onDecision(d, j); });
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
     if (rouvrir) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     // LE BALLOTTAGE, en plein écran lui aussi : trois joueurs, ou garder son réserviste.

@@ -84,6 +84,13 @@ const quitterTable = async () => {
 await page.goto(base + '/', { waitUntil: 'networkidle' });
 await page.evaluate(() => { try { localStorage.clear(); } catch {} });
 await page.reload({ waitUntil: 'networkidle' });
+/* LE MENU AU DÉPART (S77) : le premier lancement d'une session ouvre le menu.
+   « La saison · Nouvelle partie » bâtit la partie et ouvre l'écran « Nouvelle
+   partie » par-dessus, exactement comme la première visite d'avant. */
+await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
+const modesAuMenu = await page.$$eval('#menuDepart .menu-mode', l => l.map(x => x.dataset.genre).join(','));
+if (modesAuMenu !== 'saison,table,rogue') errors.push(`le menu au départ n'offre pas les trois modes : ${modesAuMenu}`);
+await page.click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');
 
@@ -811,7 +818,7 @@ const litTournoi = async () => {
 const avantT = await litTournoi();
 const sauveT = await page.evaluate(() => {
   try {
-    const brut = localStorage.getItem('cap82_save') || '';
+    const brut = localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif)) || '';
     const d = JSON.parse(brut || '{}');
     const m = (d.tournoi && d.tournoi.matchs) || {};
     const cles = Object.keys(m);
