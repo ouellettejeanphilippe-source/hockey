@@ -3962,6 +3962,8 @@ a.spin-club:hover {
   box-shadow: 0 0 0 1px var(--glace-blanc, #fff);
 }
 .t-cote-piece.dessous { transform: translate(calc((var(--tc) + 0.5) * var(--tcell) - 50%), calc((var(--tr) + 1) * var(--tcell) - 42%)); }
+/* Au-dessus comme au-dessous occupés (S75b) : sur le bas du jeton, dans sa case. */
+.t-cote-piece.dedans { transform: translate(calc((var(--tc) + 0.5) * var(--tcell) - 50%), calc((var(--tr) + 1) * var(--tcell) - 100% - 2px)); }
 /* TROIS LETTRES DANS UNE CASE ÉTROITE (S75) : c'est la glace mesurée qui pose `t-etroite`. */
 .t-glace.t-etroite .t-nom-long, .t-glace:not(.t-etroite) .t-nom-court { display: none; }
 .t-nom-court { letter-spacing: 0.02em; }
@@ -4030,7 +4032,11 @@ a.spin-club:hover {
 /* Une pièce qui entre sur la glace s'y pose (S74) — par `scale` et
    `opacity`, jamais `transform`, qui porte sa case. */
 .t-jeton[data-neuf] { animation: t-jeton-entre 420ms ease-out; }
-@keyframes t-jeton-entre { from { opacity: 0; scale: 0.35; } }
+/* S75b : SANS `scale`. Le jeton est PLACÉ par `transform`, et `scale` s'applique
+   par-dessus : il multipliait la translation, si bien qu'une pièce qui entrait
+   rangée 12 partait de la rangée 4 et glissait depuis le coin de la glace —
+   toute l'équipe à chaque nouveau match. Elle apparaît sur place. */
+@keyframes t-jeton-entre { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .t-jeton[data-neuf] { animation: none; } }
 .t-jeton.jouable { box-shadow: 0 0 0 1px var(--gold); }
 .t-jeton.choisie { z-index: 4; box-shadow: 0 0 0 2px var(--gold); }
@@ -4047,6 +4053,17 @@ a.spin-club:hover {
 }
 .t-piece { border: 1.5px solid var(--pl, transparent); }
 .t-piece.gardien { border-radius: 3px; border-style: double; border-width: 3px; }
+/* LES NOMS SE LISENT (S75b). Le gardien, à bordure double de 3 px, ne gardait
+   de ses trois lettres que « H… » ; l'emoji du souffle se posait sur le nom
+   (« 😮AT »). Trois lettres ne se coupent jamais aux points de suspension :
+   elles se rognent, au pire ; le gardien porte une bordure de 2 px et son
+   double trait DEHORS (`outline`) ; et les marques du coin sortent du jeton,
+   le souffle en haut à gauche, le hors-jeu en bas à gauche. */
+.t-glace.t-etroite .t-nom { text-overflow: clip; padding: 0; }
+.t-piece { overflow: visible; }
+.t-piece.gardien { border-style: solid; border-width: 2px; outline: 1px solid var(--pl, transparent); outline-offset: 1px; }
+.t-piece .t-vide-air { top: -5px; left: -5px; bottom: auto; font-size: 10px; filter: drop-shadow(0 0 1px var(--glace-blanc, #fff)); }
+.t-piece .t-hj { top: auto; bottom: -5px; left: -4px; }
 .t-piece.etourdi { opacity: 0.38; }
 /* Les lettres d'une pièce suivent la case : 9 et 10,5 px dans une case de 41 px, jusqu'à 14 et 17 px dans une grande. */
 .t-role { font-size: clamp(9px, calc(var(--tcell) * 0.22), 14px); font-weight: 800; letter-spacing: 0.04em; opacity: 0.8; }
@@ -4124,6 +4141,8 @@ a.spin-club:hover {
 .t-cmd.bord-d { --cx: calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%); }
 .t-cmd.dessous { --cy: calc(var(--tr) * var(--tcell) + var(--tcell) * 1.1); }
 .t-cmd.dessus { --cy: calc(var(--tr) * var(--tcell) - var(--tcell) * 0.1 - 100%); }
+/* Centrée sur la colonne de la pièce (S75b) : le dernier recours, au-dessus ou au-dessous. */
+.t-cmd.centre { --cx: calc((var(--tc) + 0.5) * var(--tcell) - 50%); }
 .t-cmd[hidden] { display: none; }
 .t-cmd-tete {
   display: flex; align-items: center; gap: 4px;
@@ -4207,6 +4226,13 @@ a.spin-club:hover {
 .t-dock-duel .t-dock-aide { flex: 1 1 auto; min-width: 0; }
 .t-dock-duel .t-annuler { flex: none; margin-left: auto; color: var(--sub); }
 .t-dock-gestes { flex-wrap: wrap; row-gap: 6px; }
+/* DEUX LIGNES TIENNENT SOUS LA GLACE (S75b). La glace réserve 236 px à ce qui
+   l'entoure (`--tcell`) : la barre du haut et le tableau en prennent 152, il
+   reste 84 px pour la barre du bas. Deux lignes de 34 px, l'écart et le
+   rembourrage en faisaient 89 : le duel et la consigne de la première main
+   mordaient la dernière rangée. Deux lignes de 32 px tiennent en 80. */
+.t-dock { padding: 5px 10px 6px; gap: 5px; }
+.t-dock-ligne { min-height: 32px; }
 .t-dock-gestes:empty { display: none; }
 .t-dock-gestes .t-geste { flex: 0 0 auto; white-space: nowrap; }
 .t-dock-gestes .t-fin-tour, .t-dock-gestes .t-passer { margin-left: auto; }
@@ -4611,6 +4637,61 @@ a.spin-club:hover {
 @media (prefers-reduced-motion: reduce) {
   .t-sifflet::before, .t-sifflet-mot { animation: none; }
 }
+
+/* ======================================================================
+   LES TIRS DE BARRAGE SE VOIENT (S75b).
+
+   Un 0-0 se réglait en fusillade sans qu'un seul tir paraisse à l'écran, et
+   le tournoi inscrivait la défaite. Le panneau se pose au milieu de la glace
+   quand la fin du match est montrée, et chaque tir paraît `BARRAGE_PAS`
+   (0,8 s) après le précédent — `--k` est son rang, la feuille de style fait
+   le reste, aucune minuterie. Le vainqueur paraît en dernier, et la barre
+   du bas le redit au même moment (`--fin`). Toucher montre tout (`.tout`).
+   Vert et rouge de TON point de vue.
+   ====================================================================== */
+.t-barrage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 11; width: min(320px, calc(100% - 16px)); cursor: pointer; }
+.t-barrage[hidden] { display: none; }
+.t-barrage-boite { background: var(--panel); border: 1px solid var(--gold); border-radius: var(--r-s); padding: 8px 10px 10px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45); }
+.t-barrage-titre { font-family: var(--display); font-size: 16px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); text-align: center; }
+.t-barrage-camps, .t-barrage-tours li { display: grid; grid-template-columns: 18px 1fr 1fr; gap: 6px; align-items: center; }
+.t-barrage-camps { margin: 4px 0 2px; font-family: var(--display); font-size: 12px; font-weight: 700; color: var(--sub); }
+.t-barrage-camps span { display: inline-flex; align-items: center; gap: 4px; }
+.t-barrage-tours { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.tbg-num { font-family: var(--display); font-size: 12px; color: var(--muted); text-align: right; }
+.tbg-tir {
+  display: flex; align-items: baseline; gap: 5px; white-space: nowrap; min-width: 0;
+  padding: 2px 6px; border-radius: 3px; background: var(--panel-2); border-left: 3px solid var(--line);
+  font-family: var(--display); font-size: 13px;
+  animation: tbg-montre 260ms ease-out calc(var(--k) * 0.8s) backwards;
+}
+.tbg-tir i { font-style: normal; font-size: 11px; color: var(--muted); }
+.tbg-tir em { margin-left: auto; font-style: normal; font-weight: 800; letter-spacing: 0.04em; }
+.tbg-tir.bon { border-left-color: var(--green); }
+.tbg-tir.bon em { color: var(--green); }
+.tbg-tir.mauvais { border-left-color: var(--red); }
+.tbg-tir.mauvais em { color: var(--red); }
+.t-barrage-fin {
+  margin-top: 7px; text-align: center; font-family: var(--display); font-size: 15px; font-weight: 800;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  animation: tbg-montre 260ms ease-out calc(var(--k) * 0.8s) backwards;
+}
+.t-barrage-fin.bon { color: var(--green); }
+.t-barrage-fin.mauvais { color: var(--red); }
+@keyframes tbg-montre { from { opacity: 0; visibility: hidden; translate: 0 -4px; } }
+.t-barrage-mot { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: 0.03em; animation: t-de-attend 0s linear var(--fin, 0s) backwards; }
+.t-barrage-mot.bon b { color: var(--green); }
+.t-barrage-mot.mauvais b { color: var(--red); }
+.t-barrage.tout .tbg-tir, .t-barrage.tout .t-barrage-fin, .t-barrage-mot.tout { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .tbg-tir, .t-barrage-fin, .t-barrage-mot { animation: none; }
+}
+.tf-barrage { border: 1px solid var(--line); padding: 9px 10px; margin-bottom: 12px; }
+.tf-barrage h4 { display: flex; align-items: center; margin: 0 0 6px; font-family: var(--display); font-size: 15px; letter-spacing: 0.4px; text-transform: uppercase; }
+.tf-barrage h4 b { margin-left: auto; color: var(--gold); font-size: 18px; }
+.tf-barrage .tf-table td { text-align: left; width: auto; }
+.tf-barrage .tf-table td.tf-rond { width: 22px; color: var(--muted); }
+.tf-oui { color: var(--green); font-weight: 700; }
+.tf-non { color: var(--muted); }
 
 /* =====================================================================
    SUR TABLE : le repêchage montre les nombres du plateau

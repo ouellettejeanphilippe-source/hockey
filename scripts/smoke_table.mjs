@@ -140,6 +140,56 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
   await page.waitForSelector('#gameModal', { state: 'hidden', timeout: 5000 });
   const signesEx = parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
   if (signesEx !== 0) errors.push(`l'exhibition a touché la partie : ${signesEx} signé(s)`);
+
+  /*
+   * LES TIRS DE BARRAGE SE VOIENT (S75b). Le passage de vérification a vu un
+   * 0-0 finir « Prolongation · Terminé », une feuille à 0-0, puis une défaite
+   * au tournoi : la fusillade était jouée par le moteur et montrée nulle part.
+   * On ouvre le plateau sur un match qui y va — Floride contre Toronto
+   * 2013-14, graine `tb-50`, Pro contre Pro : 3-3, Toronto gagne 2-1 en
+   * quatre tours (cherchée par le moteur, qui la rejoue à l'identique) —
+   * par la couture `preparer`, et on exige le panneau, la barre et la feuille.
+   */
+  await page.evaluate(async () => {
+    const [sim, table, logos, plateau] = await Promise.all([import('/js/sim.js'), import('/js/table.js'), import('/js/logos.js'), import('/js/plateau.js')]);
+    const shard = await (await fetch('/data/seasons/2013-14.json')).json();
+    const club = t => { const pool = shard.players.filter(p => p.t === t).map(p => ({ ...p })); pool.forEach(sim.registerHiddenRatings); return sim.autoRoster(pool); };
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    window.__tb = null;
+    plateau.ouvrirTable({
+      A: table.equipeDeTable('FLA 2013-14', 'FLA', club('FLA'), 'A'), B: table.equipeDeTable('TOR 2013-14', 'TOR', club('TOR'), 'B'),
+      graine: 'tb-50', titre: 'Essai', sousTitre: 'Les tirs de barrage',
+      ctx: {
+        esc, band: logos.getTeamBand, vive: logos.couleurVive, logo: logos.getTeamLogoHtml, niveau: () => 'PRO',
+        preparer: m => { let g = 0; while (!m.fini && g++ < 4000) table.iaPresence(m); },
+      },
+      onTermine: r => { window.__tb = r; },
+    });
+  });
+  const panneau = await page.waitForSelector('#tableModal .t-barrage:not([hidden])', { timeout: 5000 }).catch(() => null);
+  if (!panneau) errors.push('un match réglé aux tirs de barrage ne montre pas la fusillade sur la glace');
+  else {
+    const tb = await page.evaluate(() => ({
+      tours: document.querySelectorAll('#tableModal .t-barrage-tours li').length,
+      fin: document.querySelector('#tableModal .t-barrage-fin')?.textContent || '',
+      mot: document.querySelector('#tableModal .t-dock .t-barrage-mot')?.textContent || '',
+      periode: document.querySelector('#tableModal .tb-periode')?.textContent || '',
+    }));
+    await page.click('#tableModal .t-barrage');   // toucher montre tout
+    await page.screenshot({ path: 'scripts/smoke-table-barrage.png' });
+    await page.click('#tableModal .t-resultat');
+    const feuilleTB = await page.waitForSelector('#tableModal .tf-barrage', { timeout: 5000 }).catch(() => null);
+    const rangsTB = feuilleTB ? await page.$$eval('#tableModal .tf-barrage tr', l => l.length) : 0;
+    await page.click('#tableModal .t-feuille-suite');
+    const r = await page.evaluate(() => window.__tb);
+    console.log(`   tirs de barrage : ${tb.tours} tours, « ${tb.fin.trim()} », la barre dit « ${tb.mot.replace(/\s+/g, ' ').trim()} », la feuille en montre ${rangsTB}`);
+    if (tb.tours !== 4 || !/TOR/.test(tb.fin) || !/2-1/.test(tb.fin)) errors.push(`le panneau de la fusillade dit ${tb.tours} tours et « ${tb.fin} » au lieu de 4 et TOR 2-1`);
+    if (!/Tirs de barrage/i.test(tb.periode)) errors.push(`le tableau indicateur dit « ${tb.periode} » après une fusillade`);
+    if (!/TOR/.test(tb.mot)) errors.push('la barre du bas ne dit pas qui a gagné la fusillade');
+    if (rangsTB !== 4) errors.push(`la feuille du match montre ${rangsTB} tour(s) de fusillade au lieu de 4`);
+    if (!r || r.vainqueur !== 'B' || !r.fusillade) errors.push('le match de la fusillade ne rend pas son vainqueur');
+  }
+
   // L'exhibition a fermé l'écran « Nouvelle partie » pour laisser la glace : on le rouvre.
   await page.click('#openPartieBtn');
 }
@@ -253,6 +303,31 @@ await page.evaluate(({ haut, bas, col }) => {
     if (!auFilet && !siffle) S.enAvance.push(`${avant} → ${s}, rondelle en ${r},${c}`);
     avant = s;
   }).observe(tete, { subtree: true, childList: true, characterData: true });
+  /*
+   * LE POINT DU PORTEUR N'ARRIVE PAS AVANT LA RONDELLE (S75b). Le receveur
+   * d'une passe portait son point dès le départ, pendant que la rondelle
+   * volait encore : deux rondelles à l'écran, jusqu'à onze cases l'une de
+   * l'autre. À chaque image, là où elles sont DESSINÉES (la transition en
+   * cours comprise), le jeton qui porte le point et la rondelle ne sont
+   * jamais à plus d'une case et demie l'un de l'autre.
+   */
+  const P = window.__point = { images: 0, ecarts: 0, pire: 0 };
+  const cellule = document.querySelector('#tableModal .t-case');
+  const regarder = () => {
+    const modal = document.getElementById('tableModal');
+    if (modal && modal.style.display !== 'none' && glace.offsetParent) {
+      const rond = modal.querySelector('.t-rondelle-libre-jeton');
+      const point = modal.querySelector('.t-jeton .t-rondelle');
+      if (rond && point && !rond.hidden) {
+        const a = rond.getBoundingClientRect(), b = point.closest('.t-jeton').getBoundingClientRect(), cote = cellule.getBoundingClientRect().width || 1;
+        const d = Math.hypot(a.left + a.width / 2 - b.left - b.width / 2, a.top + a.height / 2 - b.top - b.height / 2) / cote;
+        P.images++;
+        if (d > 1.5) { P.ecarts++; P.pire = Math.max(P.pire, d); }
+      }
+    }
+    requestAnimationFrame(regarder);
+  };
+  requestAnimationFrame(regarder);
 }, { haut: FILET_HAUT, bas: FILET_BAS, col: BUT_COL });
 
 /*
@@ -295,6 +370,10 @@ const casesTouchables = (sel) => page.evaluate((s) => [...document.querySelector
   return !!t && (t === e || e.contains(t));
 }).map(e => `${e.dataset.r},${e.dataset.c}`), sel);
 let dernierDuel = null, duelsSecs = 0;
+/* LA BARRE DU BAS NE MORD PAS SUR LA GLACE (S75b). La consigne de la passe
+   faisait trois lignes et cachait la dernière rangée, là où sont les
+   coéquipiers derrière ton filet. Mesuré à chaque tour du joueur scripté. */
+const barreSurGlace = { n: 0, pire: 0, ou: '' };
 let menuMenti = null;          // la carte de commandes a-t-elle nommé la mauvaise pièce ?
 while (tours++ < 4000) {
   if (!(await page.$('#tableModal .t-glace'))) break;
@@ -372,9 +451,17 @@ while (tours++ < 4000) {
     passer: (document.querySelector('#tableModal .t-passer') || {}).textContent || '',
     fin: !!document.querySelector('#tableModal .t-resultat'),
     unites: !!document.querySelector('#tableModal .t-seg button:not(.on):not([disabled])'),
+    // S75b : de combien la barre du bas mord sur la glace (0 attendu), et dans quel état.
+    recouvre: (() => {
+      const g = document.querySelector('#tableModal .t-glace'), d = document.querySelector('#tableModal .t-dock');
+      if (!g || !d || d.hidden) return 0;
+      return Math.round(g.getBoundingClientRect().bottom - d.getBoundingClientRect().top);
+    })(),
+    etatBarre: document.querySelector('#tableModal .t-dock-gestes .t-geste') ? 'duel' : document.querySelector('#tableModal .t-annuler') ? 'mode' : document.querySelector('#tableModal .t-suite') ? 'dé' : document.querySelector('#tableModal .t-dock-consigne') ? 'consigne' : 'main',
   });
   });
   etat.offres = etat.offresCases.length;
+  if (etat.recouvre > 1) { barreSurGlace.n++; if (etat.recouvre > barreSurGlace.pire) { barreSurGlace.pire = etat.recouvre; barreSurGlace.ou = etat.etatBarre; } }
   etat.contacts = etat.contactsCases.length;
   etat.jouables = etat.jouablesCases.length;
   // La carte de commandes doit nommer la pièce choisie, pas la précédente.
@@ -588,6 +675,12 @@ if (gestes < 15) errors.push(`seulement ${gestes} gestes joués sur le plateau :
   console.log(`   le pointage suit la rondelle : ${P.changements} but(s) au tableau, ${P.enAvance.length} en avance · le haut de la glace : ${P.hauts.join(', ')} px`);
   if (P.enAvance.length) errors.push(`le pointage a changé avant que la rondelle arrive : ${P.enAvance.slice(0, 3).join(' ; ')}`);
   if (P.hauts.length > 1) errors.push(`la glace a sauté pendant le match : son haut a pris ${P.hauts.join(', ')} px`);
+  console.log(`   la barre du bas sur la glace : ${barreSurGlace.n} fois${barreSurGlace.n ? `, jusqu'à ${barreSurGlace.pire} px (${barreSurGlace.ou})` : ''}`);
+  if (barreSurGlace.n) errors.push(`la barre du bas a couvert la glace ${barreSurGlace.n} fois, jusqu'à ${barreSurGlace.pire} px (${barreSurGlace.ou})`);
+  const Q = await page.evaluate(() => window.__point);
+  console.log(`   le point du porteur suit la rondelle : ${Q.images} images regardées, ${Q.ecarts} avec un écart de plus d'une case et demie${Q.ecarts ? ` (jusqu'à ${Q.pire.toFixed(1)})` : ''}`);
+  if (!Q.images) errors.push('le point du porteur n\'a jamais été regardé : le contrôle ne contrôle rien');
+  if (Q.ecarts) errors.push(`le point du porteur a devancé la rondelle sur ${Q.ecarts} image(s), jusqu'à ${Q.pire.toFixed(1)} cases`);
 }
 await page.screenshot({ path: 'scripts/smoke-table.png' });
 
@@ -622,12 +715,16 @@ if (fin) {
     rangees: document.querySelectorAll('#tableModal .tf-table tr').length,
     gardiens: document.querySelectorAll('#tableModal .tf-gardien').length,
     resume: (document.querySelector('#tableModal .tf-etoile') || {}).textContent || '',
+    // Les lancers de l'adversaire (S75b) : la Recrue, par défaut, doit encore attaquer.
+    tirsB: parseInt((document.querySelectorAll('#tableModal .tf-cote')[1]?.querySelector('.tf-chiffres b') || {}).textContent, 10) || 0,
   }));
   console.log(`   feuille du match : ${lu.etoiles} étoile(s), ${lu.cotes} côtés, ${lu.rangees} rangées, ${lu.gardiens} gardiens · ${lu.resume.replace(/\s+/g, ' ').trim()}`);
   if (lu.cotes !== 2) errors.push(`la feuille du match montre ${lu.cotes} côté(s) au lieu de deux`);
   if (!lu.etoiles) errors.push('la feuille du match ne nomme aucune étoile');
   if (!lu.rangees) errors.push('la feuille du match ne montre aucun joueur');
   if (lu.gardiens !== 2) errors.push(`la feuille du match montre ${lu.gardiens} gardien(s) au lieu de deux`);
+  console.log(`   l'adversaire (Recrue) a lancé ${lu.tirsB} fois`);
+  if (lu.tirsB < 3) errors.push(`l'adversaire Recrue n'a lancé que ${lu.tirsB} fois : il n'attaque plus`);
   const deborde2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (deborde2 > 1) errors.push(`la feuille du match déborde de ${deborde2} px à 390 px`);
   await page.click('#tableModal .t-feuille-suite');
@@ -720,12 +817,30 @@ else console.log(`   reprise du tournoi : ${apresT.tete} — ${sauveT.vide} matc
 await page.click('.navtab[data-page="match"]');
 await page.waitForTimeout(250);
 let tour = 0;
+/*
+ * UNE ÉGALITÉ AU TABLEAU EST UNE FUSILLADE, ET ELLE A UN GAGNANT (S75b). La
+ * rangée d'un match nul disait « PROL. » et mettait en gras le club de
+ * droite, gagnant ou non : le gagnant se lisait aux buts. Chaque rangée à
+ * égalité dit « TB » et met UN club en gras.
+ */
+const egalites = { vues: 0, fausses: [] };
+const lireEgalites = async () => {
+  for (const r of await page.$$eval('#hubModal .tr-match', l => l.map(e => ({ p: e.querySelector('.tr-p')?.textContent || '', g: e.querySelectorAll('.tr-c.gagne').length })))) {
+    const s = r.p.match(/(\d+) – (\d+)/);
+    if (!s || s[1] !== s[2]) continue;
+    egalites.vues++;
+    if (!/TB/.test(r.p) || r.g !== 1) egalites.fausses.push(`${r.p.trim()} (${r.g} en gras)`);
+  }
+};
 while (tour++ < 20) {
+  await lireEgalites();
   const sauter = await page.$('#hubModal .hub-sauter');
   if (!sauter) break;
   await sauter.click();
   await page.waitForTimeout(220);
 }
+console.log(`   égalités au tableau du tournoi : ${egalites.vues} vue(s), ${egalites.fausses.length} sans « TB » ou sans gagnant`);
+if (egalites.fausses.length) errors.push(`une égalité au tableau ne dit pas sa fusillade : ${egalites.fausses.slice(0, 3).join(' ; ')}`);
 const suite = await page.$('#hubModal .hub-suite');
 if (suite) await suite.click(); else await page.click('#hubModal .hub-close');
 await page.waitForSelector('#gameModal', { state: 'visible', timeout: 20000 });
