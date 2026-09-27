@@ -27,6 +27,8 @@ import {
   equipeDeTable, nouveauMatch, iaPresence, resultatDe, surLaGlace, porteur, libre, eqDe,
   statsDeTable, uniteDe, changerUnite, souffleDe, souffleMax, PUNITION_TOURS, peutJouer, deplacementsDe, ciblesEchecDe,
   reglesDuPlateau, peutTirerDe, distanceAuFilet, PORTEE_TIR, caseJouable, estFilet, ROLES_PROLONGATION,
+  TRAJETS, caseDeLaRondelle, PORTEE_RELANCE, FILET_HAUT, MJ_FOND, MJ_NEUTRE,
+  deplacer, appliquerPasse, appliquerTir, appliquerEchec, ciblesFondDe,
 } from '../js/table.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -189,7 +191,55 @@ const REGLES = [
     if (m.possessions > max + 2) return `${m.possessions} possessions pour un maximum de ${max}`;
     return null;
   }],
+
+  /*
+   * LA RONDELLE NE SE TÉLÉPORTE PAS (S74). JP : *la puck se teleporte*. Le
+   * moteur tient le trajet de la rondelle, étape par étape (`m.trajet`), et
+   * l'écran le joue dans l'ordre. Deux règles, et elles se complètent :
+   * celle-ci dit qu'AUCUNE case ne change sans étape — là où l'état du
+   * moteur met la rondelle, son trajet doit l'avoir amenée ; la suivante
+   * dit que chaque étape est permise. Un match fini est exempté : après le
+   * but de la mort subite, la rondelle reste au fond du filet.
+   */
+  ['la rondelle ne change jamais de case sans une étape de son trajet', m => {
+    const ici = caseDeLaRondelle(m);
+    if (m.fini || !ici) return null;
+    if (!m.ici || m.ici.r !== ici.r || m.ici.c !== ici.c) {
+      return `la rondelle est en ${ici.r},${ici.c} mais son trajet la laisse en ${m.ici ? `${m.ici.r},${m.ici.c}` : 'nulle part'}`;
+    }
+    return null;
+  }],
+
+  /*
+   * CHAQUE ÉTAPE EST UNE RÈGLE DU JEU, À SA DISTANCE (S74). La liste blanche
+   * est `TRAJETS`, dans le moteur : un patin ne va pas plus loin que le
+   * patin, un rebond reste à deux cases de ce qui l'a fait, la relance du
+   * gardien ne passe pas sa ligne bleue, un tir finit dans un filet, et
+   * une mise au jeu vient toujours d'un sifflet qui se dit. C'est cette
+   * règle-ci qui a trouvé la relance à dix-neuf cases.
+   */
+  ['chaque étape du trajet est un geste permis, à sa distance', m => {
+    const lu = trajetsLus.get(m) || 0;
+    trajetsLus.set(m, m.trajet.length);
+    for (const e of m.trajet.slice(lu)) {
+      const regle = TRAJETS[e.genre];
+      if (!regle) return `étape « ${e.genre} » inconnue`;
+      const depuis = e.pivot || e.de;
+      const n = Math.max(Math.abs(depuis.r - e.a.r), Math.abs(depuis.c - e.a.c));
+      if (n > regle.max) return `${regle.mot} de ${n} cases (${e.de.r},${e.de.c} → ${e.a.r},${e.a.c}), permis ${regle.max}`;
+      if (e.genre === 'tir' && !estFilet(e.a.r, e.a.c)) return `un tir qui finit en ${e.a.r},${e.a.c}, pas dans un filet`;
+      if (e.genre === 'mj' && !e.mot) return 'une mise au jeu sans sifflet';
+      if (e.chemin && e.chemin.some(x => estFilet(x.r, x.c))) return 'un patin qui passe à travers un filet';
+      if (e.chemin) for (let k = 1; k < e.chemin.length; k++) {
+        const a = e.chemin[k - 1], b = e.chemin[k];
+        if (Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c)) !== 1) return `une route qui saute de ${a.r},${a.c} à ${b.r},${b.c}`;
+      }
+    }
+    return null;
+  }],
 ];
+/* Où chaque match en est de la lecture de son trajet : la règle ne juge que les étapes neuves. */
+const trajetsLus = new WeakMap();
 
 const nom = x => `${(x.p && x.p.n) || 'Rappel'} (${x.eq}${x.role})`;
 
@@ -322,6 +372,130 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'recepti
   }
   if (!manque) console.log('  ✓ chaque geste joué est écrit, chaque règle écrite est jouée');
   echecs += manque;
+}
+
+/* ======================================================================
+   LES SIFFLETS, MIS EN SCÈNE (S74)
+   ======================================================================
+   L'IA ne se met plus hors-jeu et ne dégage jamais de sa zone : ce sont des
+   fautes que seul le joueur commet. « Une règle qu'aucun script n'exerce est
+   une règle qu'on casse sans le savoir » — et c'est exactement ce qui était
+   arrivé au dégagement refusé, sifflé depuis S45 du MAUVAIS côté de la glace
+   sans qu'aucune mesure ne le voie (zéro sur 200 matchs). On les joue donc
+   à la main, sur une glace posée case par case : chaque scène dit ce qui
+   doit arriver, et le trajet de la rondelle doit le montrer.
+   ====================================================================== */
+{
+  const A0 = clubs[0], B0 = clubs[1];
+  /*
+   * Une glace mise en scène. `ou` place des pièces par clé « A-C », « B-DG »… ;
+   * toutes les autres vont se garer loin du jeu, chacune dans son coin de
+   * sa propre zone, et la rondelle va à `porteur`.
+   */
+  const scene = (ou, porte, tour = 'A') => {
+    const m = nouveauMatch(equipeDeTable(A0.nom, A0.tag, A0.roster, 'A'), equipeDeTable(B0.nom, B0.tag, B0.roster, 'B'), 'scene');
+    const garage = { A: [[20, 0], [20, 1], [20, 11], [20, 12], [19, 0]], B: [[2, 0], [2, 1], [2, 11], [2, 12], [3, 0]] };
+    for (const cote of ['A', 'B']) {
+      let g = 0;
+      for (const x of eqDe(m, cote).pieces) {
+        const cle = `${cote}-${x.role}`;
+        [x.r, x.c] = ou[cle] || garage[cote][g++];
+      }
+    }
+    const p = surLaGlace(m).find(x => `${x.eq}-${x.role}` === porte) || eqDe(m, porte[0]).piece_g;
+    m.rondelle = { piece: p };
+    m.ici = { r: p.r, c: p.c };
+    m.possesseur = p.eq;
+    m.tour = tour;
+    m.dernier = null;
+    return { m, p, piece: cle => surLaGlace(m).find(x => `${x.eq}-${x.role}` === cle) };
+  };
+  const dernieres = (m, n) => m.trajet.slice(-n).map(e => e.genre).join(' → ');
+  const siffle = (m, mot) => { const e = m.trajet[m.trajet.length - 1]; return e.genre === 'mj' && e.mot === mot ? e : null; };
+  const scenes = [];
+  const juger = (nomScene, ok, detail) => { scenes.push([nomScene, ok, detail]); };
+
+  // 1. Le porteur entre en zone pendant qu'un coéquipier l'attend dedans : hors-jeu.
+  {
+    const { m, p } = scene({ 'A-C': [11, 6], 'A-AG': [8, 2] }, 'A-C');
+    deplacer(m, p, { r: 9, c: 6 });
+    const mj = siffle(m, 'Hors-jeu');
+    juger('le porteur qui entre devant un coéquipier déjà dans la zone : HORS-JEU, mise au jeu au neutre',
+      !!mj && MJ_NEUTRE.includes(mj.point.r), `${dernieres(m, 2)}${mj ? ` · point ${mj.point.r},${mj.point.c}` : ''}`);
+  }
+  // 2. Le même, le coéquipier ressorti : pas de sifflet.
+  {
+    const { m, p } = scene({ 'A-C': [11, 6], 'A-AG': [10, 2] }, 'A-C');
+    deplacer(m, p, { r: 9, c: 6 });
+    juger('le même, le coéquipier ressorti de la zone : le jeu continue', m.trajet[m.trajet.length - 1].genre === 'patin' && !m.fil.some(e => e.genre === 'horsjeu'), dernieres(m, 1));
+  }
+  // 3. Une passe à un coéquipier qui attend dans la zone : hors-jeu.
+  {
+    const { m, p, piece } = scene({ 'A-C': [11, 6], 'A-AD': [7, 9] }, 'A-C');
+    appliquerPasse(m, p, piece('A-AD'), { reussi: true });
+    juger('la passe à un coéquipier qui attendait dans la zone : HORS-JEU', !!siffle(m, 'Hors-jeu'), dernieres(m, 2));
+  }
+  // 4. Au fond, de la zone neutre : la rondelle est libre dans le coin, pas de sifflet.
+  {
+    const { m, p } = scene({ 'A-C': [11, 6] }, 'A-C');
+    const cibles = ciblesFondDe(m, p);
+    const coin = cibles.find(x => x.r === FILET_HAUT && x.c === 0) || cibles[0];
+    appliquerPasse(m, p, coin, { reussi: true });
+    juger('au fond, de la zone neutre : la rondelle est libre dans le coin', !!libre(m) && m.trajet[m.trajet.length - 1].genre === 'fond' && !m.fil.some(e => e.genre === 'icing'), dernieres(m, 1));
+  }
+  // 5. De la zone offensive, on n'envoie pas au fond : on y est déjà.
+  {
+    const { m, p } = scene({ 'A-C': [6, 6] }, 'A-C');
+    juger('de la zone offensive, pas de passe au fond (on y est déjà)', ciblesFondDe(m, p).length === 0, `${ciblesFondDe(m, p).length} cases`);
+  }
+  // 6. De sa propre zone : c'est un dégagement refusé, mise au jeu CHEZ LE FAUTIF.
+  {
+    const { m, p } = scene({ 'A-C': [18, 6] }, 'A-C');
+    const cibles = ciblesFondDe(m, p);
+    let mj = null;
+    if (cibles.length) { appliquerPasse(m, p, cibles[0], { reussi: true }); mj = siffle(m, 'Dégagement refusé'); }
+    juger('de sa propre zone : DÉGAGEMENT REFUSÉ, mise au jeu dans SA zone',
+      !!mj && mj.point.r === MJ_FOND[1], cibles.length ? `${dernieres(m, 2)}${mj ? ` · point ${mj.point.r},${mj.point.c}` : ''}` : 'aucune case offerte');
+  }
+  // 7. Un arrêt contrôlé, un défenseur libre à portée : la relance, à lui, jamais plus loin que la ligne bleue.
+  {
+    const { m, p, piece } = scene({ 'B-C': [15, 6], 'A-DG': [18, 4], 'A-DD': [17, 8] }, 'B-C', 'B');
+    m.de = () => 0.99;   // le gardien contrôle l'arrêt
+    appliquerTir(m, p, { reussi: false, total: 0, total2: 9 });
+    const e = m.trajet[m.trajet.length - 1];
+    juger('un arrêt, un coéquipier libre : la relance va à lui, à portée',
+      e.genre === 'relance' && [piece('A-DG'), piece('A-DD')].includes(porteur(m)) && Math.max(Math.abs(e.de.r - e.a.r), Math.abs(e.de.c - e.a.c)) <= PORTEE_RELANCE,
+      dernieres(m, 3));
+  }
+  // 8. Le même arrêt, personne de libre à portée : le gardien la gèle.
+  {
+    const { m, p } = scene({ 'B-C': [15, 6], 'A-DG': [9, 2], 'A-DD': [9, 10], 'A-C': [10, 6], 'A-AG': [10, 1], 'A-AD': [10, 11] }, 'B-C', 'B');
+    m.de = () => 0.99;
+    appliquerTir(m, p, { reussi: false, total: 0, total2: 9 });
+    const mj = siffle(m, 'Gelée par le gardien');
+    juger('le même arrêt, personne de libre à portée : le gardien la GÈLE', !!mj && mj.point.r === MJ_FOND[1], dernieres(m, 3));
+  }
+  // 10. Une mise en échec ratée sur un 1, et l'arbitre la voit : la punition se remet en jeu dans la zone du PUNI.
+  {
+    const { m, piece } = scene({ 'A-DG': [12, 5], 'B-C': [11, 5], 'B-AG': [11, 7] }, 'B-C', 'A');
+    m.de = () => 0;   // l'arbitre regarde : deux fois sur trois, c'est une mineure
+    appliquerEchec(m, piece('A-DG'), piece('B-AG'), { reussi: false, de: 1 });
+    const mj = siffle(m, 'Punition');
+    juger('une punition : la mise au jeu est dans la zone de l\'équipe PUNIE', !!mj && mj.point.r === MJ_FOND[1], `${dernieres(m, 1)}${mj ? ` · point ${mj.point.r},${mj.point.c}` : ''}`);
+  }
+  // 9. Un but : la rondelle va AU FILET, puis l'arbitre la pose au centre.
+  {
+    const { m, p } = scene({ 'A-C': [4, 6] }, 'A-C');
+    appliquerTir(m, p, { reussi: true, total: 9, total2: 0 });
+    const [t, mj] = m.trajet.slice(-2);
+    juger('un but : la rondelle va au filet, PUIS au point du centre', t.genre === 'tir' && estFilet(t.a.r, t.a.c) && mj.genre === 'mj' && mj.mot === 'But', dernieres(m, 2));
+  }
+
+  console.log('\nLES SIFFLETS, MIS EN SCÈNE');
+  for (const [nomScene, ok, detail] of scenes) {
+    console.log(`  ${ok ? '✓' : '✗'} ${nomScene}${ok ? '' : `\n      ${detail}`}`);
+    if (!ok) echecs++;
+  }
 }
 if (jamaisFinis) echecs++;
 

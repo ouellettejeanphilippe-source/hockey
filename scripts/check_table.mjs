@@ -53,7 +53,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, getHiddenRatings, SLOTS } from '../js/sim.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { equipeDeTable, jouerMatchAuto, nouveauMatch, iaPresence, resultatDe,
+import { equipeDeTable, jouerMatchAuto, nouveauMatch, iaPresence, resultatDe, gagnantDuMatch,
          statsDeTable, PERIODES, PRESENCES_PAR_PERIODE, GABARITS, TIRS,
          surLaGlace, essouffle } from '../js/table.js';
 
@@ -312,7 +312,17 @@ for (const [ia, ib, mot] of [[0, 9, 'le 1er décile contre le 10e'], [0, 4, 'le 
       const eqB = equipeDeTable(b.nom, b.tag, b.roster, inverse ? 'A' : 'B');
       const r = jouerMatchAuto(inverse ? eqB : eqA, inverse ? eqA : eqB, `p${ia}${ib}${i}${j}${inverse}`);
       const butsA = inverse ? r.gfB : r.gfA, butsB = inverse ? r.gfA : r.gfB;
-      if (butsA > butsB) v++;
+      /*
+       * UNE VICTOIRE EN TIRS DE BARRAGE EST UNE VICTOIRE (S74). On comptait
+       * `butsA > butsB` — mais la fusillade ne touche PAS au pointage (S46,
+       * exprès : sinon les égalités de la feuille cassent), donc un match
+       * gagné aux tirs de barrage comptait comme une DÉFAITE des deux côtés,
+       * et « deux clubs du même décile » lisait 50 moins la moitié du taux de
+       * fusillade. Tant qu'il y en avait 4 %, ça ne se voyait pas ; à 2,8
+       * buts par équipe il y a plus de nulles, et le repère est tombé à 43
+       * sans qu'une équipe ait un avantage. Le gagnant est celui du moteur.
+       */
+      if (gagnantDuMatch(r) === (inverse ? 'B' : 'A')) v++;
       bu += butsA - butsB;
       n++;
     }
