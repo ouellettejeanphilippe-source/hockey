@@ -638,8 +638,10 @@ async function restoreSave() {
         // `Infinity` et non 82 : une ligue impaire compte 85 journées, et un
         // nombre écrit à la main rouvrirait l'écran de saison sur ses trois
         // dernières au lieu d'aller au bilan.
-        await runSeason({ adversaires: clubs, graine, depuis: series ? Infinity : journee, decisions, reprise: true });
-        if (series) reprendreSeries(series);
+        await sousVoile(series ? 'On retrouve tes séries…' : 'On retrouve ta saison…', async () => {
+          await runSeason({ adversaires: clubs, graine, depuis: series ? Infinity : journee, decisions, reprise: true });
+          if (series) reprendreSeries(series);
+        });
       } };
     }
     return true;
@@ -3779,7 +3781,7 @@ async function reprendreSaison() {
   renderMain();
   // `reprise` : c'est la MÊME saison qu'on rejoue avec une décision de plus,
   // pas une saison neuve — elle garde donc son entrée d'historique.
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: b.jour, decisions, reprise: true });
+  await sousVoile('La saison reprend avec ton alignement…', () => runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: b.jour, decisions, reprise: true }));
 }
 
 /*
@@ -3817,7 +3819,7 @@ async function subirCarte(at, jour, cle) {
   decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
+  await sousVoile('La saison reprend…', () => runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true }));
 }
 
 /*
@@ -3844,10 +3846,36 @@ async function deciderSaison(d, depuis) {
   decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis, decisions, reprise: true });
+  await sousVoile('On rejoue la saison avec ton choix…', () => runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis, decisions, reprise: true }));
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
   if (d.ballottage) renderCap();
   confirmerDecision(d);
+}
+
+/*
+ * LE VOILE DE L'ATTENTE (S74b). Une décision rejoue la saison — deux à quatre
+ * secondes de calcul sur un téléphone — et l'écran disparaissait sans un mot
+ * entre le choix et la saison rouverte. Un voile le dit, peint AVANT le calcul
+ * (deux images d'animation : le calcul bloque le fil, et un voile posé juste
+ * avant ne serait jamais dessiné).
+ */
+function voile(on, mot = 'On rejoue la saison avec ton choix…') {
+  let v = $('voile');
+  if (!v) {
+    v = document.createElement('div');
+    v.id = 'voile'; v.className = 'voile'; v.hidden = true;
+    v.setAttribute('role', 'status');
+    v.innerHTML = '<div class="voile-boite"><span class="voile-glace"><i class="voile-rondelle"></i></span><span class="voile-mot"></span></div>';
+    document.body.appendChild(v);
+  }
+  v.querySelector('.voile-mot').textContent = mot;
+  v.hidden = !on;
+}
+const peindre = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+async function sousVoile(mot, f) {
+  voile(true, mot);
+  await peindre();
+  try { return await f(); } finally { voile(false); }
 }
 
 /*
@@ -4023,8 +4051,10 @@ async function deciderSerie(d) {
   saveGame();
   G.done = false;
   renderMain();
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Infinity, decisions: G.ligue.decisions, reprise: true });
-  reprendreSeries(vues);
+  await sousVoile('On rejoue les séries avec ton choix…', async () => {
+    await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Infinity, decisions: G.ligue.decisions, reprise: true });
+    reprendreSeries(vues);
+  });
   if (d.recompense) confirmerDecision(d);
 }
 /* Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. */
@@ -4040,7 +4070,7 @@ async function choisirCarte(palier, jour, cle, depuis = jour) {
   decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Math.min(depuis, jour), decisions, reprise: true });
+  await sousVoile('On rejoue la saison avec ta carte…', () => runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Math.min(depuis, jour), decisions, reprise: true }));
   toast(`${CARTES[cle].ico} ${CARTES[cle].nom} : pour le reste de la saison.`);
 }
 

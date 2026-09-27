@@ -6740,3 +6740,16 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
 .album-visage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .album-visage .headshot-fallback { font-size: 20px; opacity: .4; }
 .album-ecusson { position: absolute; right: -5px; bottom: -4px; }
+
+/* Le voile de l'attente (S74b) : une rondelle qui glisse pendant que la saison se rejoue. */
+.voile { position: fixed; inset: 0; z-index: 99; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(3px); }
+.voile[hidden] { display: none; }
+.voile-boite { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 22px; border-radius: 16px;
+  background: var(--panel); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
+.voile-glace { position: relative; width: 120px; height: 18px; border-radius: 999px; background: linear-gradient(90deg, #cfe6f5, #eef7fc, #cfe6f5); overflow: hidden; }
+.voile-rondelle { position: absolute; top: 3px; left: 4px; width: 22px; height: 12px; border-radius: 50%; background: #111; box-shadow: 0 1px 0 #444;
+  animation: voile-glisse .8s ease-in-out infinite alternate; }
+.voile-mot { font: 700 14px/1.3 var(--display); letter-spacing: .04em; color: var(--sub); }
+@keyframes voile-glisse { to { left: calc(100% - 26px); } }
+@media (prefers-reduced-motion: reduce) { .voile-rondelle { animation: none; left: 49px; } }
