@@ -21,7 +21,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v12';  // v12 : le deck de match — mains, énergie, récompenses ; l'identité de départ, les franchises (S73-S74)
+const VERSION = 'cap82-v13';  // v13 : le passage de l'agent de test, le camp d'entraînement, un écran par match de séries, le plateau corrigé (S74b)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
