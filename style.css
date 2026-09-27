@@ -6755,3 +6755,8 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
 @media (prefers-reduced-motion: reduce) { .voile-rondelle { animation: none; left: 49px; } }
 
 .main-adverse-fort { color: var(--live, #d1345b); text-transform: none; letter-spacing: .02em; }
+/* Colonnes étroites (S74b) : les étiquettes de rôle se coupaient en « if », « ur pur », « pide » — elles passent à la ligne. */
+@container col (max-width: 235px) {
+  .pcard-mid { flex-wrap: wrap; row-gap: 4px; }
+  .pcard-mid .tags { flex-wrap: wrap; min-width: 0; }
+}
