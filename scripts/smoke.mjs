@@ -97,9 +97,29 @@ async function guetterBallottage() {
  */
 async function repondreAuxChoix() {
   await guetterBallottage();
+  let rouvert = false;
   for (let i = 0; i < 12; i++) {
     const opt = await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])');
-    if (!opt || !(await opt.isVisible())) return;
+    if (!opt || !(await opt.isVisible())) {
+      /*
+       * UN CHOIX EN ATTENTE SE ROUVRE COMME UN JOUEUR LE ROUVRE (S77). Une
+       * récompense peut rester en attente derrière un autre plein écran (le
+       * palier refermé « Plus tard », un entracte) : l'écran le dit par
+       * « ⏳ Un choix t'attend » et cache « +10 jours » tant qu'on n'a pas
+       * choisi — c'est la règle. Le parcours attendait trente secondes un
+       * « +10 jours » qui ne pouvait pas venir (vu une fois en trois
+       * parcours pendant S77 — le smoke tire au hasard, la graine change) ;
+       * il touche le bouton, une fois, comme le ferait un kid.
+       */
+      const attente = !rouvert && await page.$('#hubModal .hub-choix-rouvrir');
+      if (attente && await attente.isVisible()) {
+        rouvert = true;
+        await attente.click();
+        await page.waitForTimeout(300);
+        continue;
+      }
+      return;
+    }
     /*
      * LA MAIN D'UN GROS MATCH (S74) : cinq cartes, trois d'énergie. Le
      * parcours joue la première carte jouable (elle doit passer dans « ce
