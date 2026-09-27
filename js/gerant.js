@@ -201,9 +201,10 @@ export function ouvrirChoix(spec) {
           pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && (RANG_RARETE[o.rarete] || 0) >= 2,
-          joueurHtml: o.carteJoueur || '',
+          joueurHtml: o.carteJoueur || '', motChoixHtml: o.motChoix ? esc(o.motChoix) : '',
         });
-        return `<button type="button" class="choix-option" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
+        return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
+          ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
           <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
           ${o.sous ? `<span class="choix-option-sous">${sub(o.sous)}</span>` : ''}
           ${o.bon ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
@@ -229,6 +230,14 @@ export function ouvrirChoix(spec) {
   fermerChoixCourant = fermer;
   // UNE VUE À LIRE (S74, « Mon deck ») : les cartes ne se prennent pas.
   m.querySelectorAll('[data-choix]').forEach(b => { if (spec.lecture) { b.classList.add('lecture'); return; } b.onclick = () => { fermer(true); spec.onChoix(b.dataset.choix); }; });
+  // LA CARTE D'UN JOUEUR OFFERT se touche pour voir sa fiche (`apercu` de l'option), sans le choisir (S78).
+  const apercus = new Map(spec.options.filter(o => typeof o.apercu === 'function').map(o => [String(o.cle), o.apercu]));
+  m.querySelectorAll('[data-apercu] .tcj-carte').forEach(el => {
+    const voir = apercus.get(el.closest('[data-apercu]').dataset.apercu);
+    if (!voir) return;
+    el.onclick = () => voir();
+    el.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); voir(); } };
+  });
   for (const x of m.querySelectorAll('.choix-fermer, .choix-plus-tard')) x.onclick = () => fermer();
   pointsDeBande(m);
   if (paquet) brancherPaquet(m, spec.options.length, () => PAQUETS_OUVERTS.add(clePaquet));

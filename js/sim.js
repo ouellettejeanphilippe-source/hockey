@@ -4443,7 +4443,8 @@ function appliquerDecision(team, d, graine = 0) {
   if (d.ballottage) {
     const b = d.ballottage;
     const p = CONNUS.get(b.entre);
-    if (p && SLOTS[b.i] && SLOTS[b.i].scratch && fits(p, SLOTS[b.i])) {
+    // S78 : la case que le joueur CHOISIT de libérer (`choisirQuiSort`), réserve ou pas — pourvu qu'il puisse la jouer.
+    if (p && SLOTS[b.i] && fits(p, SLOTS[b.i])) {
       initSimStats(p);
       team.roster[b.i] = p;
     }

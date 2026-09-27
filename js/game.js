@@ -1583,7 +1583,7 @@ function choisirGarde(joueurs, i, total) {
       recit: 'Ta dernière équipe : celui que tu touches te suit dans cette run, avec ta nouvelle bande de plombiers.',
       options: joueurs.map(p => ({ cle: getPlayerKey(p), rarete: rareteJoueur(p), nom: p.n, type: `${POSTE_GROUPE[groupeDe(p)]} · ${p.t} ${p.s}`, coin: money(p.$),
         art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[groupeDe(p)]), saison: esc(p.s), club: esc(p.t) }),
-        carteJoueur: carteMiniHtml(p) })),
+        carteJoueur: carteMiniHtml(p), motChoix: 'Garder', apercu: () => apercuJoueur(p) })),
       onChoix: k => resolve(joueurs.find(p => getPlayerKey(p) === k) || null),
       onFerme: () => resolve(null),
     });
@@ -2575,6 +2575,33 @@ function sectionMods(p) {
   return `<div class="fc-sec">Ses cartes${mods.length ? ` · ${mods.length}` : ''}</div>
     <div class="fc-mods">${items || '<p class="fc-mods-vide">Aucune carte jouée sur lui cette saison.</p>'}</div>`;
 }
+/*
+ * QUI SORT ? (S78). JP : *choisir qui swap si nouveau joueur, pas swap
+ * automatique*. Un joueur qui arrive (pack, ballottage, recrue) ne remplace
+ * plus d'office le réserviste de sa position : on choisit, parmi les cases
+ * qu'il peut jouer, qui lui laisse sa place — les réservistes d'abord, puis
+ * les autres, avec leur visage, et ce que la case lui coûterait (hors
+ * position). Rend `{ i, sort }` pour la décision de ballottage.
+ */
+function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '' }) {
+  const cases = SLOTS.filter(sl => roster && roster[sl.i] && fits(p, sl))
+    .sort((a, b) => (b.scratch ? 1 : 0) - (a.scratch ? 1 : 0) || a.i - b.i);
+  const nomDe = n => String(n).split(' ').slice(-1)[0];
+  ouvrirChoix({
+    ico: '🔁', titre: `${p.n} arrive : qui sort ?`, compact: true, fermable: true, motFermer: 'Retour', genre,
+    recit: `${p.n} prend la case de celui qui sort ; celui-là quitte l'équipe. Tu choisis.`,
+    options: cases.map(sl => {
+      const q = roster[sl.i];
+      const pen = getPositionPenalty(p, sl);
+      return { cle: String(sl.i), visage: headshotHtml(q), nom: q.n,
+        sous: [slotShort(sl), positionLabel(q), pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : ''].filter(Boolean).join(' · ') };
+    }),
+    onChoix: k => { const sl = SLOTS[Number(k)]; if (sl && roster[sl.i]) onChoix({ i: sl.i, sort: getPlayerKey(roster[sl.i]) }); },
+    onFerme,
+  });
+}
+/* La fiche d'un joueur offert, en aperçu. */
+const apercuJoueur = p => showPlayerModal(p, { apercu: true });
 /* La ligne d'un joueur offert : ce que la carte mini ne dit pas (elle dit déjà les points, ou les victoires). */
 const ligneDuChoix = p => (p.p === 'G'
   ? `${p.gp} PJ · ${p.l ?? 0} D · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
@@ -3809,7 +3836,7 @@ function slotEl(s) {
       ${estRenfort(p) || G.banc ? ''
         : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
       <div class="slot-band${estRenfort(p) ? ' off' : ''}">
-        <span class="sb-role ${positionClass(p)}">${esc(roleCourt(s.role))}</span>
+        <span class="sb-role ${positionClass(p)}" title="Ses positions : ce qu'il peut jouer (la case, elle, se lit à sa place dans le trio)">${esc(positionLabel(p))}</span>
         <span class="sb-logo">${getTeamLogoHtml(p.t, 12)}</span>
         ${estRenfort(p)
           ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
@@ -3817,6 +3844,7 @@ function slotEl(s) {
       </div>
       <div class="slot-inner">
         <div class="slot-name">${formatName(p.n)}</div>
+        <div class="slot-visage" aria-hidden="true">${headshotHtml(p)}</div>
         <div class="slot-meta slot-faits">${ligneStats}</div>
         <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>
       </div>`;
@@ -4375,6 +4403,9 @@ function showPlayerModal(p, opts = {}) {
    */
   const sim = opts.sim ? (typeof opts.sim === 'object' ? opts.sim : statsSim(p, opts.sim)) : null;
   const apres = !!opts.sim;
+  // L'APERÇU (S78) : la fiche d'un joueur OFFERT (un pack, le ballottage, une recrue), par-dessus le choix,
+  // sans « Signer » ni « où il irait » — c'est le bouton de sa carte qui le prend.
+  const apercu = !!opts.apercu;
   const already = isPicked(p);
   const slot = apres ? null : destinationFor(p);
   const rem = capLeft();
@@ -4414,7 +4445,7 @@ function showPlayerModal(p, opts = {}) {
   const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
 
   const equipeSim = opts.team ? `<span class="pcard-full-club">${getTeamLogoHtml(opts.team.tag, 14)} ${esc(teamLabel(opts.team))}</span>` : '';
-  const corps = apres
+  const corps = apercu ? plusDeDetails : apres
     ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
@@ -4503,7 +4534,7 @@ function showPlayerModal(p, opts = {}) {
           <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ${ico('i-ext')}</a>
           ${teamSeasonUrl(p.t, p.s) ? `<a class="ext-link" href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de son équipe sur Hockey-Reference">La saison du club ${ico('i-ext')}</a>` : ''}
         </div>
-        ${apres ? '' : `<button class="btn go" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>`}
+        ${apres || apercu ? '' : `<button class="btn go" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>`}
       </div>
     </div>`;
 
@@ -4515,6 +4546,7 @@ function showPlayerModal(p, opts = {}) {
     };
   }
   brancherRetournement(body.querySelector('.fiche-carte'));
+  modal.classList.toggle('au-dessus', apercu);
   ouvrirModale(modal);
 }
 
@@ -5525,6 +5557,9 @@ async function runSeason(opts = {}) {
         atelier: ouvrirAtelier,
         // LA CARTE MINI (S78) : un joueur offert se voit en carte de joueur.
         carteMini: carteMiniHtml,
+        // Sa fiche en aperçu, et « qui sort ? » quand il arrive (S78).
+        apercu: apercuJoueur,
+        quiSort: choisirQuiSort,
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
         rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
@@ -5954,5 +5989,6 @@ async function demarrerPartie(r = {}) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-window.cap82 = { G, cacheClear, simulate, portraitAbsent };
+// `dev` : de quoi dresser une planche de cartes dans un script de capture (scripts/planche_cartes.mjs), rien de plus.
+window.cap82 = { G, cacheClear, simulate, portraitAbsent, dev: { playerCardEl, carteMiniHtml, getShard } };
 boot();

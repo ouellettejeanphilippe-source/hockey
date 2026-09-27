@@ -1604,10 +1604,16 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const suite = { cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour au palier', onFerme: retour };
     if (sorte === 'recrue') {
       ouvrirChoix({ ...suite, ico: '🎟️', titre: 'Joueur au choix',
-        recit: 'Trois vrais joueurs, style loto. Celui que tu signes prend la place de réserve de sa position ; le réserviste qui l\'occupait est libéré.',
+        recit: 'Trois vrais joueurs, style loto. Touche une carte pour sa fiche, « Signer » pour le prendre — puis tu choisis qui lui laisse sa place.',
         options: recrues.map(x => ({ cle: x.cle, rarete: x.rarete || 'legendaire', nom: x.nom, type: `${x.poste} · ${x.club}`, coin: x.salaire,
-          art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', texte: x.ligne, prix: x.sortNom ? `${x.sortNom} est libéré` : '' })),
-        onChoix: k => { const x = recrues.find(y => y.cle === k); if (x) deciderDeck(p0, { deck: 'recrue', ballottage: { i: x.i, entre: x.cle, sort: x.sort } }); } });
+          art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', texte: x.ligne, apercu: ctx.apercu ? () => ctx.apercu(x.p) : null })),
+        onChoix: k => {
+          const x = recrues.find(y => y.cle === k);
+          if (!x) return;
+          const decide = ({ i, sort }) => deciderDeck(p0, { deck: 'recrue', ballottage: { i, entre: x.cle, sort } });
+          if (ctx.quiSort) ctx.quiSort(x.p, { roster: you.roster, genre: 'palier', onChoix: decide, onFerme: () => suiteDeLaMain(p0, 'recrue', recrues, roles) });
+          else decide({ i: x.i, sort: x.sort });
+        } });
       return;
     }
     if (sorte === 'atelier') {
@@ -1634,7 +1640,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       ouvrirChoix({ ...suite, ico: '🔄', titre: 'Nouveau rôle',
         recit: 'Trois conversions possibles dans ton alignement. Le joueur change de profil pour de bon : son fit dans chaque tactique suit.',
         options: roles.map(x => ({ cle: `${x.cle}|${getPlayerKey(x.p)}`, rarete: 'peu', ico: MUTATIONS[x.cle].ico, nom: MUTATIONS[x.cle].nom, type: x.p.n,
-          art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', mutation: x.cle })),
+          art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', mutation: x.cle, motChoix: 'Choisir', apercu: ctx.apercu ? () => ctx.apercu(x.p) : null })),
         onChoix: k => { const [m, joueur] = k.split('|'); deciderDeck(p0, { deck: 'profil', mutation: { cle: m, joueur } }); } });
       return;
     }
@@ -2078,7 +2084,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
           <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
           <div class="hub-alerte-note">${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''} · ${ctx.esc(caseDe(alerte.player))} · ${ctx.esc(remplacant(alerte.player))}</div>
           <div class="hub-alerte-choix">
-            ${bal && bal.candidats.length ? `<button type="button" class="btn hub-ballottage-ouvrir">📋 Au ballottage : ${bal.candidats.length} joueurs${bal.sortNom ? ` · ${ctx.esc(bal.sortNom)} serait libéré` : ''}</button>` : ''}
+            ${bal && bal.candidats.length ? `<button type="button" class="btn hub-ballottage-ouvrir">📋 Au ballottage : ${bal.candidats.length} joueurs</button>` : ''}
             ${onBanc ? '<button class="btn gold hub-alerte-banc">Derrière le banc</button>' : ''}
             ${onDecision && !boite.traites.has(idB) ? '<button type="button" class="btn hub-alerte-garder" data-defaut>Garder mon alignement</button>' : ''}
           </div>
@@ -2203,13 +2209,19 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     // LE BALLOTTAGE, en plein écran : trois joueurs en CARTES (S76), ou garder son réserviste.
     const mB = msgs.find(m => m.genre === 'blessure');
     const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
-    if (voirBal && mB && mB.bal) voirBal.onclick = () => ouvrirChoix({
-      ico: '📋', titre: 'Au ballottage', cartes: true, genre: 'ballottage', fermable: true, motFermer: 'Garder mon réserviste',
-      recit: `${alerte.player.n} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois joueurs pas chers de sa position sont disponibles${mB.bal.sortNom ? ` ; en réclamer un libère ${mB.bal.sortNom}` : ''}. Le plafond compte toujours.`,
+    const ouvrirBallottage = () => ouvrirChoix({
+      ico: '📋', titre: 'Au ballottage', cartes: true, genre: 'ballottage', fermable: true, motFermer: 'Garder mon alignement',
+      recit: `${alerte.player.n} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois joueurs pas chers de sa position sont disponibles : touche une carte pour sa fiche, « Signer » pour le réclamer — puis tu choisis qui lui laisse sa place. Le plafond compte toujours.`,
       options: mB.bal.candidats.map(c => ({ cle: c.cle, rarete: c.rarete || 'commune', nom: c.nom, type: `${c.poste || c.pos} · ${c.club}`, coin: c.salaire,
-        art: c.p ? joueurArt(c.p) : '', carteJoueur: c.p && ctx.carteMini ? ctx.carteMini(c.p) : '', texte: c.ligne, prix: mB.bal.sortNom ? `${mB.bal.sortNom} est libéré` : '' })),
-      onChoix: cle => { boite.traites.add(mB.id); quitter(); onDecision({ jour, palier: mB.palierB, ballottage: { i: mB.bal.i, entre: cle, sort: mB.bal.sort } }, jour); },
+        art: c.p ? joueurArt(c.p) : '', carteJoueur: c.p && ctx.carteMini ? ctx.carteMini(c.p) : '', texte: c.ligne, apercu: c.p && ctx.apercu ? () => ctx.apercu(c.p) : null })),
+      onChoix: cle => {
+        const c = mB.bal.candidats.find(x => x.cle === cle);
+        const decide = ({ i, sort }) => { boite.traites.add(mB.id); quitter(); onDecision({ jour, palier: mB.palierB, ballottage: { i, entre: cle, sort } }, jour); };
+        if (c && c.p && ctx.quiSort) ctx.quiSort(c.p, { roster: you.roster, genre: 'ballottage', onChoix: decide, onFerme: ouvrirBallottage });
+        else decide({ i: mB.bal.i, sort: mB.bal.sort });
+      },
     });
+    if (voirBal && mB && mB.bal) voirBal.onclick = ouvrirBallottage;
     const garder = actions.querySelector('.hub-alerte-garder');
     if (garder && mB) garder.onclick = () => { boite.traites.add(mB.id); boite.ouvert = null; dessiner(); };
     const alBanc = actions.querySelector('.hub-alerte-banc');
