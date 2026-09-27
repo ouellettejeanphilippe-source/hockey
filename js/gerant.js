@@ -14,7 +14,11 @@
  *                 énergie, les sept tactiques avec le fit de CETTE ligne, la
  *                 chimie, l'agressivité, les secondes de présence ; la
  *                 tactique d'en face et celle qui la contre ; la consigne du
- *                 match. Rien ne s'applique avant « Appliquer ».
+ *                 match. Rien ne s'applique avant « Appliquer ». Depuis S78,
+ *                 il ne sert plus qu'à la préparation d'avant-match.
+ *   strategieDeLigne  la même stratégie, ligne par ligne, dans un tiroir
+ *                 SOUS son trio de l'alignement (S78) : l'alignement, la
+ *                 stratégie et les trios sont un seul écran.
  *
  * Le module est aveugle au jeu : `ctx` porte l'échappement et les écussons,
  * les données arrivent en arguments, et les décisions repartent par rappel.
@@ -26,9 +30,9 @@ import {
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, planEstContre, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
-  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee,
+  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales,
 } from './sim.js';
-import { POIDS_TRIO, getLineZone } from './ratings.js';
+import { POIDS_TRIO } from './ratings.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { effetsDesCartes, PREP_JUSTE, PREP_RATEE } from './sim.js';
@@ -337,8 +341,9 @@ function placementDe(p, role, u) {
   const unite = g === 'D' ? u : u;
   const slot = SLOTS.find(s => !s.scratch && s.role === role && s.unit === unite && s.group === g);
   const bits = [];
-  const z = getLineZone(p, getHiddenRatings(p).v);
-  const ideal = (z && z.idealUnits) || [];
+  // La zone GRANDIT avec « ⏫ Monte d'un cran » (l'atelier, S78) : `unitesIdeales`,
+  // jamais la zone brute de `getLineZone`, qui ignorerait l'édition.
+  const ideal = unitesIdeales(p, getHiddenRatings(p).v) || [];
   if (ideal.length && unite > Math.max(...ideal)) bits.push(['▼', 'Trop bas : son talent est gaspillé ici, l\'unité porte un malus']);
   else if (ideal.length && unite < Math.min(...ideal)) bits.push(['▲', 'Un cran trop haut : léger malus']);
   const pen = slot ? getPositionPenalty(p, slot) : 0;
@@ -520,6 +525,97 @@ export function resumeLignes(lignes, chimie) {
   }).join('');
 }
 void SLOTS;
+
+/* ======================================================================
+   LA STRATÉGIE D'UNE LIGNE, DANS L'ALIGNEMENT (S78)
+   ======================================================================
+   JP : *Alignement et stratégie et trio, ça devrait être ensemble*, et *sur
+   mobile, trucs comme stratégie … dropdown, modals … pour gagner espace,
+   page trop longue, ça fait qu'on perd parfois l'info*.
+
+   « Mes lignes » était une modale À CÔTÉ de l'alignement : on y relisait les
+   cinq joueurs qu'on venait de quitter, la tactique que l'en-tête du trio
+   répétait déjà, et le banc la répétait une troisième fois en icônes. Les
+   réglages vivent maintenant SOUS leur trio, dans un tiroir : fermé, il dit
+   en une ligne la tactique, le fit et la glace ; ouvert, il montre les
+   commandes et le résumé se tait (il dirait ce que les boutons disent).
+   Les noms ne s'y répètent pas — ils sont dans les cases, juste au-dessus :
+   ce qui dépend du joueur, la marque du profil demandé, s'écrit par POSTE.
+
+   `ouvrirLignes` reste : la préparation d'avant-match (js/saison.js) a sa
+   consigne et son dépistage, et c'est un moment à part.
+
+   spec : { lineup, lignes, chimie, apprentissage, adv: { nom, lignes } | null }
+   Rend { sommaire, corps } ; l'appelant pose le tiroir et branche ses
+   boutons ([data-tac], [data-agr], .gl-sec). Le corps ne se calcule que
+   pour un tiroir OUVERT (`ouvert`) : l'alignement se redessine à chaque
+   signature, et sept fits × quatre lignes pour des tiroirs fermés, c'est
+   du travail que personne ne lit.
+*/
+const AVEC_PAIRE = ['avec la 1re paire', 'avec la 2e paire', 'avec la 3e paire'];
+export function strategieDeLigne(spec, u, ouvert = true) {
+  // La photo de l'apprentissage, une fois par rendu pour les quatre tiroirs.
+  if (spec._app === undefined) spec._app = spec.apprentissage ? apprentissagePhoto(spec.apprentissage) : null;
+  const app = spec._app;
+  const chimieDe = tac => (app ? chimieLigne(app, spec.lineup, u, tac) : (spec.chimie || [])[u] || 0);
+  const l = spec.lignes[u], T = TACTIQUES[l.tac];
+  const mins = minutes(spec.lignes);
+  const sansFit = l.tac === 'hourra';
+  const fit = sansFit ? 0 : fitLigne(spec.lineup, u, l.tac);
+  const classeFit = f => (f >= 55 ? ' bon' : f < 40 ? ' prix' : '');
+  const adv = spec.adv && spec.adv.lignes && spec.adv.lignes[u];
+  const Tadv = adv && TACTIQUES[adv.tac];
+
+  // FERMÉ : une ligne. La chimie ne s'y écrit que derrière le banc — avant
+  // la saison, elle est « naissante » pour les quatre, et le dire quatre fois
+  // n'apprend rien.
+  const sommaire = `<span class="ln-som-k">Stratégie</span><span class="ln-som-detail"><b>${T.ico} ${esc(T.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${app && !sansFit ? `<span>chimie ${motChimie(chimieDe(l.tac))}</span>` : ''}<span>${mmss(mins[u])} de glace</span></span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
+  if (!ouvert) return { sommaire, corps: '' };
+
+  const js = joueursDeLigne(spec.lineup, u);
+  const demande = T.slots ? Object.entries(T.slots).filter(([r]) => r in js).map(([r, prof]) => {
+    const P = PROFILS[r === 'DG' || r === 'DD' ? 'D' : 'F'][prof];
+    const p = js[r];
+    const f = p ? profilsDe(p)[prof] : null;
+    const marque = f == null ? '' : f >= 60 ? '✓' : f < 40 ? '✗' : '≈';
+    return `<span class="ln-dem${f == null ? '' : f >= 60 ? ' fit-bon' : f < 40 ? ' fit-mauvais' : ''}" title="${esc(r)} : ${esc(P.nom)}${p ? ` — ${esc(p.n)} y est ${niveauDe(f ?? 0)}` : ' — case vide'}"><b>${r}</b> ${P.ico}${marque ? ` <i>${marque}</i>` : ''}</span>`;
+  }).join('') : '';
+
+  const ph = physiqueLigne(spec.lineup, u);
+  const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : '⚖️ ligne moyenne';
+  const agr = AGRESSIVITES.map((A, i) => {
+    const b = bilanAgressivite(i, ph);
+    const verdict = i === 1 ? 'par défaut' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre';
+    return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}" aria-pressed="${l.agr === i}"><b>${A.ico} ${esc(A.nom)}</b><small>${verdict}</small></button>`;
+  }).join('');
+  const bAgr = bilanAgressivite(l.agr, ph);
+  const effetsAgr = l.agr === 1 ? [] : [
+    { txt: `Défense ${flechesDe(1 + bAgr.defense)}`, bon: bAgr.defense > 0 },
+    { txt: `Punitions ${flechesDe(1 + bAgr.punitions, [0.1, 0.3])}`, bon: bAgr.punitions < 0 },
+    ...motsDEffet({ energie: AGRESSIVITES[l.agr].energie })];
+
+  // « Étouffe X · étouffée par Y », derrière le mot de la tactique choisie.
+  const parQui = contreDe(l.tac);
+  const bat = T.bat ? ` Étouffe ${TACTIQUES[T.bat].ico} ${esc(TACTIQUES[T.bat].nom)}${parQui ? ` · étouffée par ${TACTIQUES[parQui].ico} ${esc(TACTIQUES[parQui].nom)}` : ''}.` : '';
+  const contreAdv = Tadv ? contreDe(adv.tac) : null;
+  const corps = `
+    ${Tadv ? `<div class="gl-adv">En face, ${esc(spec.adv.nom)} : <b>${Tadv.ico} ${esc(Tadv.nom)}</b>${contreAdv ? ` · pour l'étouffer : <b>${TACTIQUES[contreAdv].ico} ${esc(TACTIQUES[contreAdv].nom)}</b>` : ''}${parQui && adv.tac === parQui ? ' · <span class="prix">⚠️ sa tactique étouffe la tienne</span>' : ''}</div>` : ''}
+    <div class="gl-sec-titre">Tactique</div>
+    <div class="gl-tacs ln-tacs">${Object.entries(TACTIQUES).map(([k, X]) => {
+      const f = k === 'hourra' ? null : fitLigne(spec.lineup, u, k);
+      return `<button type="button" class="gl-tac${l.tac === k ? ' on' : ''}${Tadv && X.bat === adv.tac ? ' contre' : ''}" data-tac="${k}" aria-pressed="${l.tac === k}" title="${esc(X.mot)}"><b>${X.ico} ${esc(X.nom)}</b><span class="gl-tac-fit${f == null ? '' : classeFit(f)}">${f == null ? 'aucun fit à chercher' : motFit(f)}</span>${f != null && app ? `<small class="gl-tac-soir">chimie ${motChimie(chimieDe(k))}</small>` : ''}</button>`;
+    }).join('')}</div>
+    <div class="ln-choisie"><span class="gl-mot">${esc(T.mot)}${bat}</span><span class="choix-puces">${puces(motsDEffet(T))}</span></div>
+    ${demande ? `<div class="ln-demande"><span class="gl-k">Elle demande${u < 3 ? `, ${AVEC_PAIRE[u]}` : ''}</span>${demande}</div>` : ''}
+    ${sansFit ? '' : `<div class="ln-etat"><span>Plafond de chimie : <b>${plafondChimie(chimieMax(fit))}</b></span>${app ? `<span>Ce soir : <b>${motChimie(chimieDe(l.tac))}</b></span><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l.tac))}</b></span>` : ''}</div>`}
+    <div class="gl-sec-titre">Agressivité · ${carrure}</div>
+    <div class="gl-seg gl-seg-court ln-agr">${agr}</div>
+    ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
+    <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
+    <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
+    <div class="gl-mot">Plus de glace, plus de lancers — et plus de fatigue : sous 60 % d'énergie, un joueur rend moins et se blesse plus.</div>`;
+  return { sommaire, corps };
+}
 
 /* ======================================================================
    LE DÉPISTAGE ET TA PRÉPARATION (S76)

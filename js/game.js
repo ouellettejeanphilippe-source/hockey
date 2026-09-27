@@ -25,16 +25,16 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS, effetsEnCours, fitLigne, TACTIQUES,
+  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS, effetsEnCours, TACTIQUES,
   unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation } from './sim.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
-import { ouvrirLignes, resumeLignes, barresProfils, motFit, ouvrirChoix, optionDeCarteMatch } from './gerant.js';
+import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, optionDeCarteMatch } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
-import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison } from './cartes.js';
+import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte } from './cartes.js';
 import { CARTES_MATCH, recompensesOffertes } from './combat.js';
 import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
@@ -868,10 +868,23 @@ function agesAvailable() {
 }
 
 function zoneTag(p, mini = false) {
-  const z = getLineZone(p, getHiddenRatings(p).v);
-  const where = z.idealUnits.map(u => u + 1).join(', ');
+  const v = getHiddenRatings(p).v;
+  const z = getLineZone(p, v);
+  // LA ZONE QUI A GRANDI (l'atelier, S78) : « ⏫ Monte d'un cran » lui ouvre
+  // une unité de plus vers le haut. L'étiquette dit la zone qu'il a
+  // MAINTENANT (`unitesIdeales`) — « T2-3 » mentirait sur un joueur qui rend
+  // désormais au 1er trio.
+  const ideal = p.p === 'G' ? z.idealUnits : unitesIdeales(p, v);
+  const grandie = ideal.length !== z.idealUnits.length;
+  const where = ideal.map(u => u + 1).join(', ');
   const unit = isD(p) ? 'paires' : p.p === 'G' ? 'rôles' : 'trios';
-  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">${esc(mini ? (z.mini || z.short) : z.short)}</span>`;
+  let court = mini ? (z.mini || z.short) : z.short;
+  if (grandie) {
+    const lo = Math.min(...ideal) + 1, hi = Math.max(...ideal) + 1;
+    const ord = n => (n === 1 ? (isD(p) ? '1re' : '1er') : `${n}e`);
+    court = mini ? `${isD(p) ? 'P' : 'T'}${lo}-${hi}` : `${ord(lo)}-${ord(hi)} ${isD(p) ? 'paire' : 'trio'}`;
+  }
+  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}${grandie ? ', monté d\'un cran' : ''}. Rend à 100 % sur les ${unit} ${where}.">${esc(court)}</span>`;
 }
 
 
@@ -1423,14 +1436,8 @@ function setupEvents() {
   const menuBtn = $('menuBtn');
   if (menuBtn) menuBtn.onclick = () => { saveGame(); afficherMenu(contexteDuMenu({ enJeu: true })); };
   // MES LIGNES AU REPÊCHAGE (S68) : réglées avant la saison, elles entrent
-  // dans la décision 0. Derrière le banc, le panneau du banc a son propre bouton.
-  const lb = $('lignesBtn');
-  if (lb) lb.onclick = () => ouvrirLignes({
-    titre: 'Mes lignes', sousTitre: 'Avant la saison · la chimie se bâtira en jouant',
-    lineup: G.roster, lignes: lignesDe({ lignes: G.lignes }, G.roster), chimie: [0, 0, 0, 0], energie: {},
-    adv: null, match: null, motAppliquer: 'Garder ces lignes',
-    onAppliquer: lignes => { G.lignes = lignes; saveGame(); toast('Tes lignes sont prêtes pour la saison'); },
-  });
+  // dans la décision 0. Depuis S78, elles se règlent SOUS chaque trio de
+  // l'alignement (`tiroirStrategie`) : le bouton « Mes lignes » est parti.
   bindModal('hockeyCardModal', null, 'closeHockeyCardBtn');
   bindModal('gameModal', null, 'closeGameBtn');
 
@@ -2276,19 +2283,13 @@ function poserCartes(decisions = []) {
   }
   for (const p of miens) { p._carte = carteJoueur(p); CARTES_POSEES.add(p); }
 }
-/* La famille d'une carte (S77) : le carton des années 80 ou le lustre des années 90. */
-const familleDe = r => (brille(r) ? 'cj-lustre' : 'cj-carton');
 /*
- * LES TAMPONS D'UNE CARTE (S77), posés sur la photo : « Recrue » pour un
- * joueur à son contrat d'entrée (la fiche le dit déjà : 🐣), et le TIRAGE
- * LIMITÉ d'une légendaire (« 07/99 », déduit de sa clé — `tirageLimite`).
- * Deux choses que le joueur voit déjà ailleurs ou qui ne veulent rien dire
- * du talent : aucune cote n'y entre.
+ * LES BRILLANTES DÉJÀ VUES (S78) : l'éclat d'une variante brillante (« ✦ »)
+ * ne part qu'à sa PREMIÈRE apparition au vestiaire — le bassin se redessine à
+ * chaque geste, et un éclat qui repart à chaque toucher n'est plus un
+ * événement. Rien à sauvegarder : au pire, un rechargement le rejoue une fois.
  */
-function tamponsDeCarte(p, rarete) {
-  return (p.elc ? '<span class="cj-tampon">Recrue</span>' : '')
-    + (rarete === 'legendaire' ? `<span class="cj-serie">${tirageLimite(getPlayerKey(p))}</span>` : '');
-}
+const VARIANTES_VUES = new Set();
 
 /** La défensive et la robustesse mesurées d'un joueur, ou null (gardien, moins de 20 matchs). */
 function mesure(p) {
@@ -2307,12 +2308,14 @@ function identiteTag(p, full = false) {
   const I = identite() && enRepechage() && scoreIdentite(identite(), p) >= SEUIL_IDENTITE ? IDENTITES[identite()] : null;
   return I ? `<span class="tag tag-identite" title="Colle à ton identité : ${esc(I.nom)}">${I.ico}${full ? ` ${esc(I.nom)}` : ''}</span>` : '';
 }
-function mesureTags(p, full = false) {
+/* `deja` : le texte des rôles que la fiche affiche à côté (S78) — une étiquette
+   « Défensif » ne se répète pas sous un rôle « Défensif · bon ». */
+function mesureTags(p, full = false, deja = '') {
   const tagI = identiteTag(p, full);
   const m = mesure(p);
   if (!m) return tagI;
   const tags = tagI ? [tagI] : [];
-  if (m.def != null && m.def >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Défensif — ${Math.round(m.def * 100)}e centile des réguliers de ${esc(p.s)} à sa position : différentiel corrigé de son club, points en désavantage, temps de glace.">🧊${full ? ' Défensif' : ''}</span>`);
+  if (m.def != null && m.def >= SEUIL_MESURE && !/Défensif/.test(deja)) tags.push(`<span class="tag tag-mesure" title="Défensif — ${Math.round(m.def * 100)}e centile des réguliers de ${esc(p.s)} à sa position : différentiel corrigé de son club, points en désavantage, temps de glace.">🧊${full ? ' Défensif' : ''}</span>`);
   if (m.rob != null && m.rob >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Robuste — ${Math.round(m.rob * 100)}e centile des réguliers de ${esc(p.s)} à sa position : minutes de punition et mises en échec. Il pèse les soirs éreintants et en séries.">🪨${full ? ' Robuste' : ''}</span>`);
   return tags.join('');
 }
@@ -2825,11 +2828,22 @@ function playerCardEl(p) {
   // de match. La rareté vient du salaire (`rareteJoueur`), jamais d'une cote.
   const rarete = rareteJoueur(p);
   const el = document.createElement('div');
-  // DEUX FAMILLES (S77) : les communes et les peu communes sont en CARTON (le
-  // bord crème, le fanion, la rondelle — une carte des années 80), les rares
-  // et les légendaires en LUSTRE (le cadre de métal, la plaque estampée,
-  // l'holographique — une carte haut de gamme des années 90).
-  el.className = `pcard cj ${familleDe(rarete)} tc-${rarete}`
+  /*
+   * LA CARTE EST DEBOUT, DESSINÉE PAR SON ÉPOQUE (S78). JP : *Devant de carte
+   * vertical, pour stats et face complète car portraits* ; *couleur et style
+   * de carte différentes selon années, pis couleurs de l'équipe du joueur*.
+   * `pv` la met debout (la photo en haut, le visage entier), `e70`…`e10` lui
+   * donne le dessin de sa saison (`ereDe`), les couleurs du club font la
+   * palette, et `tc-<variante>` n'est que la FINITION par-dessus : la
+   * parallèle, l'holographique, la dorée. Au VESTIAIRE (`cj-meme-club`), toutes
+   * les cartes sont du club et de la saison que l'en-tête affiche déjà : ni
+   * l'écusson ni l'année ne s'y répètent. Au loto, trois clubs de trois
+   * saisons : chaque carte dit les siens.
+   */
+  const cleVue = `${getPlayerKey(p)}|${rarete}`;
+  const neuve = brillante(rarete) && !VARIANTES_VUES.has(cleVue);
+  if (neuve) VARIANTES_VUES.add(cleVue);
+  el.className = `pcard cj pv ${ereDe(p.s)} tc-${rarete}${MODE().loto ? '' : ' cj-meme-club'}${neuve ? ' cj-apparait' : ''}`
     + (already ? ' signed' : '')
     + ((already || !slot || over) ? ' locked' : '');
   el.title = 'Toucher la carte pour la fiche complète';
@@ -2901,14 +2915,19 @@ function playerCardEl(p) {
   // ce qui identifie la carte tient sur une ligne au lieu d'être éparpillé.
   // Le corps range le reste sur deux lignes à côté du portrait, plutôt que de
   // l'empiler : même information, deux fois moins de hauteur.
-  el.innerHTML = `${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
+  // Sur la photo : le poste en rondelle, l'écusson et l'ANNÉE (JP : *au lieu de
+  // côte sur la face, année ?* — le tirage « 71/99 » s'y lisait comme une note
+  // sur 99 ; il vit au verso), la gemme de la variante et ce qu'elle joue, le
+  // tampon « Recrue ». Un éclat quand une brillante sort pour la première fois.
+  const recrue = traitsJoueur(p).find(t => t.nom === 'La recrue progresse');
+  el.innerHTML = `
     <div class="pcard-band">
       <span class="pb-pos ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</span>
-      <span class="pb-team">${getTeamLogoHtml(p.t, 14)}<span>${esc(p.t)}</span></span>
-      ${gemmeJoueur(rarete)}<span class="pb-season">${esc(p.s)}</span>
+      <span class="pb-team">${getTeamLogoHtml(p.t, 16)}<span>${esc(p.t)}</span></span>
+      ${gemmeJoueur(rarete, traitsJoueur(p))}
     </div>
     <div class="pcard-inner">
-      <div class="pcard-avatar">${headshotHtml(p)}${tamponsDeCarte(p, rarete)}</div>
+      <div class="pcard-avatar">${headshotHtml(p)}${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}<span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>${p.elc ? `<span class="cj-tampon"${recrue ? ` title="${esc(`${recrue.ico} ${recrue.nom} — ${recrue.mot}`)}"` : ''}>Recrue</span>` : ''}${neuve ? '<span class="cj-eclat" aria-hidden="true"></span>' : ''}</div>
       <div class="pcard-body">
         <div class="pcard-head">
           <div class="pcard-name">${formatName(p.n)}</div>
@@ -3335,7 +3354,10 @@ function slotTags(p, zoneEcartTag, penTag) {
   const icones = [...getTraits(p).map(t => TRAITS[t.cle]), ...mesureIcones(p)];
   const compact = icones.length
     ? `<span class="slot-icones" title="${esc(icones.map(i => i.short).join(' · '))}">${icones.map(i => i.icon).join('')}</span>` : '';
-  return [compact, zoneTag(p, true), zoneEcartTag, penTag]
+  // LES VERDICTS D'ABORD (S78) : sa zone, puis ce qui cloche — c'est ce qu'on
+  // lit pour ranger un alignement ; les icônes suivent, et c'est elles qui
+  // rétrécissent quand la rangée déborde.
+  return [zoneTag(p, true), zoneEcartTag, penTag, compact]
     .filter(Boolean).slice(0, SLOT_TAGS_MAX).join('');
 }
 
@@ -3385,18 +3407,34 @@ function slotEl(s) {
     const zoneEcartTag = surTable() ? '' : ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
       : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>` : '';
     if (estRenfort(p)) el.classList.add('renfort');
-    // La case porte la CARTE du joueur (S76) : le même cadre et le même métal
-    // qu'au vestiaire — on aligne des cartes, pas des cellules. La hauteur ne
-    // bouge pas : le cadre se peint par-dessus, il ne prend aucune place.
+    /*
+     * LA CASE D'ABORD LISIBLE (S78). JP : *améliorer l'alignement pour que
+     * l'information soit plus claire, quitte à être moins beau et complexe*.
+     * La case était une carte en miniature : un visage de 34 px, le poste
+     * DEUX fois (la pastille de la case et « AG / AD » dans la ligne), le club
+     * deux fois (l'écusson et « EDM '94 »), et un nom de famille qui n'avait
+     * que 60 px — six noms coupés à 390 px, dix à 1 280. Elle garde ce qui
+     * DÉCIDE d'un alignement, chacun une fois, dans cet ordre de lecture :
+     *   1. la bande : la case qu'il occupe (sa pastille), son club (l'écusson),
+     *      son salaire ;
+     *   2. son NOM, sur toute la largeur de la case ;
+     *   3. sa production (au repêchage) ou sa fiche à ce jour (derrière le banc) ;
+     *   4. les verdicts : 🩹 blessé, sa zone (T1-3), ▼ ▲ hors de sa zone, −N
+     *      hors position, puis ses icônes.
+     * Le visage, la saison et ses positions naturelles sont dans la fiche, à un
+     * toucher. Une case n'est PAS debout comme la carte du vestiaire : trois
+     * cartes debout par trio feraient un alignement trois fois plus haut, qu'on
+     * ne lirait plus d'un coup d'oeil. Elle reste une carte par sa bande aux
+     * couleurs du club et son cadre ; une variante brillante y garde un liseré.
+     */
     const rarete = rareteJoueur(p);
-    el.classList.add('cj', familleDe(rarete), `tc-${rarete}`);
+    el.classList.add('cj-case', `tc-${rarete}`);
+    if (ecart === 'sous') el.classList.add('sous-zone');
     // LA CARTE QU'ON VIENT DE SIGNER ENTRE DANS LE CARTABLE (S77) : sa case
     // luit une fois, là où elle vient d'arriver. Rien ne se rejoue au rendu
     // suivant : l'horodatage vieillit.
     if (G.dernierSigne && G.dernierSigne.p === p && Date.now() - G.dernierSigne.t < 1500) el.classList.add('cj-arrive');
-    // Le visage dans la case aussi : on reconnaît son alignement d'un coup
-    // d'oeil, comme sur un tableau de vestiaire.
-    el.innerHTML = `${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
+    el.innerHTML = `
       ${estRenfort(p) || G.banc ? ''
         : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
       <div class="slot-band${estRenfort(p) ? ' off' : ''}">
@@ -3407,13 +3445,9 @@ function slotEl(s) {
           : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
-        <div class="slot-face pcard-avatar">${headshotHtml(p)}${gemmeJoueur(rarete)}</div>
-        <div class="slot-texte">
-          <div class="slot-name">${formatName(p.n)}</div>
-          <div class="slot-meta">${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</div>
-          <div class="slot-meta">${ligneStats}</div>
-          <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>
-        </div>
+        <div class="slot-name">${formatName(p.n)}</div>
+        <div class="slot-meta slot-faits">${ligneStats}</div>
+        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>
       </div>`;
     el.querySelector('.slot-remove')?.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -3507,8 +3541,10 @@ function lineEl(title, slots, group, unit, cls = '') {
     /*
      * LA LIGNE, DANS LA LANGUE DES LIGNES (S72). L'en-tête d'un trio disait
      * « Trio complet · optimal +2/+2 » — une autre chimie que celle de « Mes
-     * lignes ». Il dit maintenant sa tactique, son fit et si ses joueurs sont
-     * à leur place ; la paire dit sa place. Un seul vocabulaire.
+     * lignes ». Il dit si ses joueurs sont à leur place ; la paire aussi.
+     * La tactique et le fit ne s'y écrivent plus depuis S78 : ils ont leur
+     * tiroir sous le trio (`strategieDeLigne`), et l'en-tête les répétait —
+     * coupés, en plus, à 1 280 px (« ⚠️ un joueur ma… »).
      */
     const syn = getUnitSynergy(G.roster, group, unit);
     const filled = slots.filter(s => G.roster[s.i]).length;
@@ -3516,13 +3552,7 @@ function lineEl(title, slots, group, unit, cls = '') {
     if (filled === slots.length) {
       const kind = syn.zoneEtat === 'optimal' ? 'good' : syn.zoneEtat ? 'bad' : '';
       if (kind) wrap.classList.add(kind);
-      let bits = [place].filter(Boolean);
-      if (group === 'F') {
-        const l = lignesDe({ lignes: G.banc ? G.banc.lignes : G.lignes }, G.roster)[unit];
-        const T = TACTIQUES[l.tac];
-        bits = [`${T.ico} ${T.nom}`, ...(l.tac === 'hourra' ? [] : [motFit(fitLigne(G.roster, unit, l.tac))]), ...bits];
-      }
-      chemHtml = `<span class="line-chem ${kind}" title="Tactique, fit et placement de la ligne : tout se règle dans « Mes lignes »">${esc(bits.join(' · '))}</span>`;
+      chemHtml = place ? `<span class="line-chem ${kind}" title="${kind === 'good' ? 'Chacun joue dans sa zone : l\'unité rend à plein.' : 'Au moins un joueur joue hors de sa zone : voir ▼ ▲ sur sa case.'}">${esc(place)}</span>` : '';
     } else {
       chemHtml = `<span class="line-chem">${filled}/${slots.length} comblés</span>`;
     }
@@ -3551,7 +3581,67 @@ function lineEl(title, slots, group, unit, cls = '') {
   row.className = 'line-slots' + (cls ? ' ' + cls : '');
   slots.forEach(s => row.appendChild(slotEl(s)));
   wrap.appendChild(row);
+  // LA STRATÉGIE SOUS SON TRIO (S78). Sur table, rien : le plateau ne lit ni
+  // tactique ni glace, et un tiroir de réglages y promettrait ce que rien
+  // n'applique.
+  if (group === 'F' && !surTable()) wrap.appendChild(tiroirStrategie(unit));
   return wrap;
+}
+
+/*
+ * LE TIROIR DE STRATÉGIE D'UN TRIO (S78). JP : *Alignement et stratégie et
+ * trio, ça devrait être ensemble* ; *sur mobile … dropdown, modals … pour
+ * gagner espace, page trop longue*. Un <details> par trio, et un seul ouvert
+ * à la fois (`name`, l'accordéon natif) : l'alignement reste court, et le
+ * tiroir fermé dit déjà la tactique, le fit et la glace.
+ *
+ * Un réglage s'applique TOUT DE SUITE — il n'y a plus de modale à valider :
+ * avant la saison il va dans `G.lignes` (sauvegardé), derrière le banc dans
+ * `G.banc.lignes`, qui part avec la décision au « Retour au match ». Seul le
+ * tiroir se redessine : l'alignement ne bouge pas sous le doigt.
+ */
+function specStrategie() {
+  const b = G.banc;
+  if (!b) return { lineup: G.roster, lignes: lignesDe({ lignes: G.lignes }, G.roster), chimie: [0, 0, 0, 0], adv: null };
+  return {
+    lineup: G.roster, lignes: b.lignes, chimie: b.chimie, apprentissage: b.apprentissage,
+    adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
+  };
+}
+function tiroirStrategie(unit) {
+  const d = document.createElement('details');
+  d.className = 'ln-strat';
+  d.setAttribute('name', 'strategie');
+  d.dataset.u = unit;
+  if (G.stratOuverte === unit) d.open = true;
+  // Le corps n'existe que tiroir ouvert : fermé, il n'y a rien à calculer ni
+  // à peindre, et rien de caché qui dépasserait de sa rangée.
+  d.addEventListener('toggle', () => {
+    if (d.open) G.stratOuverte = unit;
+    else if (G.stratOuverte === unit) G.stratOuverte = null;
+    dessiner();
+  });
+  const dessiner = () => {
+    const spec = specStrategie();
+    const { sommaire, corps } = strategieDeLigne(spec, unit, d.open);
+    d.innerHTML = `<summary class="ln-som">${sommaire}</summary>${d.open ? `<div class="ln-corps">${corps}</div>` : ''}`;
+    const regler = patch => {
+      const lignes = spec.lignes.map(l => ({ ...l }));
+      Object.assign(lignes[unit], patch);
+      if (G.banc) G.banc.lignes = lignes;
+      else { G.lignes = lignes; saveGame(); }
+      // Les secondes d'une ligne déplacent la glace des TROIS autres (les
+      // minutes se partagent soixante) : chaque tiroir se redessine.
+      document.querySelectorAll('#rosterBoard .ln-strat').forEach(x => x._dessiner && x._dessiner());
+    };
+    d.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => regler({ tac: b.dataset.tac }); });
+    d.querySelectorAll('[data-agr]').forEach(b => { b.onclick = () => regler({ agr: Number(b.dataset.agr) }); });
+    const s = d.querySelector('.gl-sec');
+    if (s) s.onchange = () => regler({ sec: Number(s.value) });
+  };
+  d._dessiner = dessiner;
+  dessiner();
+  return d;
 }
 
 function renderRoster() {
@@ -3612,10 +3702,14 @@ function renderTeamSummary() {
   host.innerHTML =
     tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
     + tile('Vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
-    + tile('À leur place', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone : le trio rend à plein. Les quatre trios et les trois paires comptent.")
-    + tile('Mal placées', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
+    // TROIS TUILES, DEUX UNITÉS DE COMPTE (S78) : les deux premières comptent des
+    // TRIOS ET PAIRES (sur 7), la dernière des JOUEURS. Le libellé le dit ; il
+    // disait « Mal placées » à côté de « Hors position » et on lisait deux fois
+    // la même chose.
+    + tile('Unités en place', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone : le trio rend à plein. Les quatre trios et les trois paires comptent.")
+    + tile('Unités mal placées', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
       `Unités où au moins un joueur joue hors de sa zone. Un cran d'écart ne coûte presque rien ; ${hors ? `${hors} unité${hors > 1 ? 's' : ''} est à deux crans ou plus, et là ça coûte cher.` : 'à deux crans ou plus, ça coûte cher.'}`)
-    + tile('Hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
+    + tile('Joueurs hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
 }
 
 function renderMain() {
@@ -3652,7 +3746,10 @@ function render() {
       ? 'Touche une case pour le déplacer.'
       : G.target !== null
         ? 'Case ciblée : la prochaine signature ira là.'
-        : 'Touche un joueur, puis sa case.';
+        // LA LÉGENDE DES VERDICTS (S78) : ce que disent les marques d'une case,
+        // une fois, au-dessus de l'alignement. Sur table, ni zone ni position.
+        : surTable() ? 'Touche un joueur, puis sa case.'
+          : 'Touche un joueur, puis sa case. ▼ ▲ hors de sa zone · −N hors position.';
   }
 }
 
@@ -3956,7 +4053,7 @@ function showPlayerModal(p, opts = {}) {
     ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
-       <div class="section-label">Sa vraie saison ${esc(p.s)}${G.statsProrata ? ' (prorata 82, ajusté)' : ''}</div>
+       <div class="section-label">Sa vraie saison${G.statsProrata ? ' (prorata 82, ajusté)' : ''}</div>
        <div class="stat-grid">${stats}</div>
        ${plusDeDetails}`
     : surTable()
@@ -3966,60 +4063,56 @@ function showPlayerModal(p, opts = {}) {
        ${destNote}
        <div class="section-label">D'où viennent ces nombres — sa saison ${esc(p.s)}</div>
        <div class="stat-grid">${stats}</div>`
-    : `<div class="section-label">Statistiques ${G.statsProrata ? '(prorata 82 matchs, ajusté à l\'époque)' : `de la saison ${esc(p.s)}`}</div>
+    : `<div class="section-label">Statistiques ${G.statsProrata ? '(prorata 82 matchs, ajusté à l\'époque)' : 'de sa saison'}</div>
        <div class="stat-grid">${stats}</div>
        <div class="section-label">Impact sur ton alignement</div>
        ${destNote}
        ${plusDeDetails}`;
 
   /*
-   * LE RECTO DE LA CARTE (S76). La tête de la fiche est la carte elle-même,
-   * dans son cadre de rareté, le portrait dans sa fenêtre aux couleurs du
-   * club ; le pied du recto porte la série et la rareté EN MOTS, comme le
-   * pied d'une carte de match. Ce qui suit — les statistiques — en est le
-   * verso. La rareté dit le rang du salaire, et l'infobulle le dit aussi.
+   * LE RECTO DE LA CARTE (S76-S78). La tête de la fiche est la carte elle-même,
+   * DEBOUT (S78, JP : *Devant de carte vertical, pour stats et face complète
+   * car portraits*) : la photo en hauteur, le visage entier, dans le dessin de
+   * son ÉPOQUE et aux couleurs de son club (`ereDe`, style.css « LES ÈRES »),
+   * l'année sur la photo, la rondelle du poste et le nom sur sa bande ; la
+   * variante (commune, parallèle, holographique, dorée) n'est que la finition.
+   * À côté, les renseignements qui DÉCIDENT, chacun une seule fois : le club
+   * en toutes lettres (la photo porte déjà l'écusson et l'année), les traits,
+   * les mesures et la zone, ce que sa carte JOUE (`traitsDeCarte`, la phrase
+   * entière — la pastille du vestiaire n'en montre que l'icône), ce qu'il sait
+   * faire, le salaire. Les liens externes vivent au pied de la fiche, une fois.
    */
   const rarete = rareteJoueur(p);
   const R = RARETES[rarete];
   const band = getTeamBand(p.t);
   const numero = numeroDeCarte(getPlayerKey(p));
-  /*
-   * LA CARTE SE RETOURNE (S77). JP : *un vrai look de cartes*. Le recto est la
-   * carte — la photo dans sa fenêtre, le nom sur son bandeau au bas de la
-   * photo, la rondelle du poste, les tampons ; le VERSO est celui des cartes
-   * canadiennes des années 80 : à l'horizontale, à l'encre rouge et bleue sur
-   * un carton saumon, le numéro de la carte et le nom en tête, les mensurations,
-   * le tableau de la saison (la vraie, et la simulée quand il y en a une — la
-   * MÊME que la fiche montre dessous, donc jamais plus que ce qui est révélé),
-   * et une notice en deux langues, comme au dos des vraies. La notice ne dit
-   * que ce que le dépôt sait : un trophée, une réputation, un échange, un
-   * contrat d'entrée, un salaire publié — rien qui se déduise d'une cote.
-   */
-  const verso = versoDeCarte(p, st, sim, opts, numero);
+  const ere = ereDe(p.s);
+  const joue = traitsJoueur(p);
+  const roles = p.p === 'G' ? '' : barresProfils(p);
+  const saCarte = `<div class="cj-sa-carte"><span class="cj-sa-rarete tc-${rarete}" title="${esc(sensRarete(rarete))}">${R.gemme}${brillante(rarete) ? '✦' : ''} ${esc(NOM_VARIANTE[rarete] || R.nom)}</span>${joue.length
+    ? joue.map(t => `<span class="cj-sa-trait"><b>${t.ico} ${esc(t.nom)}</b> — ${esc(t.mot)}</span>`).join('')
+    : '<span class="cj-sa-trait">La carte de base : elle ne joue rien de plus.</span>'}</div>`;
+  const verso = versoDeCarte(p, numero, rarete);
   body.innerHTML = `
-    <div class="pcard-full" style="--card-primary:${colors.primary};--card-accent:${colors.accent};--team-band:${band.bg};--team-stripe:${band.stripe};--team-ink:${band.ink}">
+    <div class="pcard-full" style="--card-primary:${colors.primary};--card-accent:${colors.accent};--team-band:${band.bg};--team-stripe:${band.stripe};--team-ink:${band.ink};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
       <div class="fiche-carte">
-      <div class="pcard-full-head cj ${familleDe(rarete)} tc-${rarete}">
+      <div class="pcard-full-head cj tc-${rarete}">
         <div class="pcard-full-top">
-          <div class="pcard-full-photo" title="Touche la carte pour la retourner">
+          <div class="pcard-full-photo cj-recto ${ere} tc-${rarete}" title="Touche la carte pour la retourner">
+            ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
             <div class="cj-fenetre">
-              <div class="pcard-full-watermark">${getTeamLogoHtml(p.t, 128)}</div>
               ${headshotHtml(p)}
-              ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
+              <span class="cj-rondelle ${positionClass(p)}">${esc(positionLabel(p))}</span>
               <span class="cj-coin-logo">${getTeamLogoHtml(p.t, 26)}</span>
-              ${p.elc ? '<span class="cj-tampon">Recrue</span>' : rarete === 'legendaire' ? '<span class="cj-tampon cj-vedette">Vedette</span>' : ''}
-              ${rarete === 'legendaire' ? `<span class="cj-serie">${tirageLimite(getPlayerKey(p))}</span>` : ''}
+              <span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>
             </div>
-            <div class="cj-bandeau"><span class="cj-rondelle ${positionClass(p)}">${esc(positionLabel(p))}</span><div class="pcard-full-name">${formatName(p.n)}</div></div>
+            <div class="cj-bandeau"><div class="pcard-full-name">${formatName(p.n)}</div></div>
           </div>
           <div class="pcard-full-id">
-            <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}</div>
-            <div class="pcard-full-liens">
-              ${nhlPlayerUrl(p.id) ? `<a href="${nhlPlayerUrl(p.id)}" target="_blank" rel="noopener" title="La fiche officielle de ${esc(p.n)} sur nhl.com">${ico('i-ext')}Sa fiche à la LNH</a>` : ''}
-              ${teamSeasonUrl(p.t, p.s) ? `<a href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de ce club sur Hockey-Reference">${ico('i-ext')}La saison du club</a>` : ''}
-            </div>
-            <div class="tags pcard-full-tags">${traitTags(p, true)}${surTable() && !apres ? '' : mesureTags(p, true) + zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
-            ${p.p === 'G' ? '' : `<div class="fiche-profils"><div class="gl-sec-titre">Ce qu'il sait faire</div>${barresProfils(p)}</div>`}
+            <div class="pcard-full-team">${esc(TEAMFULL[p.t] || p.t)}</div>
+            <div class="tags pcard-full-tags">${traitTags(p, true)}${surTable() && !apres ? '' : mesureTags(p, true, roles) + zoneTag(p)}${realTag(p)}</div>
+            ${saCarte}
+            ${roles ? `<div class="fiche-profils"><div class="gl-sec-titre">Ce qu'il sait faire</div>${roles}</div>` : ''}
             <div class="pcard-full-salary">
               <span class="big">${st.salaryMain}</span>
               <span class="small">${st.salarySub}</span>
@@ -4027,7 +4120,7 @@ function showPlayerModal(p, opts = {}) {
             </div>
           </div>
         </div>
-        <div class="cj-plaque"><span>Cap 82-0 · Série ${esc(p.s)} · Nº ${numero}</span><span class="cj-plaque-rarete" title="${esc(sensRarete(rarete))}">${R.gemme} ${esc(R.nom)}</span><button type="button" class="cj-retourner" aria-label="Retourner la carte">↻ Verso</button></div>
+        <div class="cj-plaque"><span>Cap 82-0</span><button type="button" class="cj-retourner" aria-label="Retourner la carte">↻ Voir le verso</button></div>
       </div>
       ${verso}
       </div>
@@ -4036,7 +4129,7 @@ function showPlayerModal(p, opts = {}) {
         <div class="ext-links">
           <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ${ico('i-ext')}</a>
           <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ${ico('i-ext')}</a>
-          ${teamSeasonUrl(p.t, p.s) ? `<a class="ext-link" href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de son équipe sur Hockey-Reference">${esc(p.t)} ${esc(p.s)} ${ico('i-ext')}</a>` : ''}
+          ${teamSeasonUrl(p.t, p.s) ? `<a class="ext-link" href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de son équipe sur Hockey-Reference">La saison du club ${ico('i-ext')}</a>` : ''}
         </div>
         ${apres ? '' : `<button class="btn go" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>`}
       </div>
@@ -4060,7 +4153,18 @@ function showPlayerModal(p, opts = {}) {
  * sans `preserve-3d`) : la carte porte `isolation` et `overflow`, qui aplatissent
  * les enfants, et deux faces superposées en vrai 3D demanderaient de les
  * enlever. Sous `prefers-reduced-motion`, la face change sans tourner.
+ *
+ * « ↻ RECTO NE MARCHAIT PAS » (S78, JP : *Sur une carte, bouton recto marche
+ * pas*). Le tour se chaînait sur `animationend`, et la seconde moitié
+ * (`tourne-2`) prenait sa courbe dans `var(--ressort)` — une propriété posée
+ * sur les cartes, PAS sur `.fiche-carte` : la déclaration `animation` devenait
+ * invalide, aucune animation ne partait, aucun `animationend` n'arrivait, et
+ * la carte restait « en cours » pour toujours — le premier tour passait, plus
+ * rien ensuite. Le tour se règle maintenant à la MINUTERIE (les deux durées
+ * sont connues) : une animation absente, coupée ou refusée par la feuille ne
+ * peut plus bloquer la carte ; et la courbe est écrite en toutes lettres.
  */
+const TOUR_1 = 200, TOUR_2 = 340;   // les deux moitiés du tour, en ms (style.css, `cj-tourne-1/2`)
 function brancherRetournement(carte) {
   if (!carte) return;
   const recto = carte.querySelector('.pcard-full-head');
@@ -4078,17 +4182,12 @@ function brancherRetournement(carte) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { changer(); return; }
     enCours = true;
     carte.classList.add('tourne-1');
-    carte.addEventListener('animationend', function fin1() {
-      carte.removeEventListener('animationend', fin1);
+    setTimeout(() => {
       carte.classList.remove('tourne-1');
       changer();
       carte.classList.add('tourne-2');
-      carte.addEventListener('animationend', function fin2() {
-        carte.removeEventListener('animationend', fin2);
-        carte.classList.remove('tourne-2');
-        enCours = false;
-      });
-    });
+      setTimeout(() => { carte.classList.remove('tourne-2'); enCours = false; }, TOUR_2);
+    }, TOUR_1);
   };
   // La PHOTO (la carte elle-même), le dos, ou « ↻ » : les renseignements à
   // côté de la photo se lisent sans que la carte tourne sous le doigt.
@@ -4101,51 +4200,37 @@ function brancherRetournement(carte) {
 
 /* Le poste en mots, pour le dos d'une carte. */
 const POSTE_MOT = { AG: 'Ailier gauche', AD: 'Ailier droit', C: 'Centre', DG: 'Défenseur gauche', DD: 'Défenseur droit', G: 'Gardien', F: 'Attaquant' };
-const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-/* L'anecdote du dos : ce que le dépôt SAIT de cette saison-là, par ordre d'intérêt. */
-function anecdoteDe(p) {
-  const traits = getTraits(p);
-  const trophee = traits.find(t => TRAITS[t.cle] && !TRAITS[t.cle].reputation);
-  if (trophee) return `${trophee.niveau === 0 ? 'Lauréat du' : 'Finaliste au'} trophée ${TRAITS[trophee.cle].short} en ${p.s}.`;
-  const rep = traits.find(t => TRAITS[t.cle] && TRAITS[t.cle].reputation);
-  if (rep) return `Sa marque : ${TRAITS[rep.cle].label.charAt(0).toLowerCase()}${TRAITS[rep.cle].label.slice(1)}.`;
-  if (p.x) return 'Échangé en cours de saison : deux chandails la même année.';
-  if (p.elc) return 'Une recrue, à son contrat d\'entrée.';
-  const age = ageAtSeason(p.bd, p.s);
-  if (p.isReal && p.realSal) return `Payé ${money(p.realSal)} cette saison-là${age ? `, à ${age} ans` : ''}.`;
-  return age ? `${age} ans au début de la saison.` : '';
-}
-function versoDeCarte(p, st, sim, opts, numero) {
-  const gardien = p.p === 'G';
+/*
+ * LE VERSO NE DIT QUE CE QUE LE RECTO NE DIT PAS (S78). JP : *jamais dédoubler
+ * information dans l'interface*. Le verso de S77 portait le tableau de la
+ * saison — que les tuiles « Statistiques » de la fiche répétaient juste
+ * dessous — et une notice faite de ce que les étiquettes du recto disaient
+ * déjà (le trophée, la réputation, l'échange, le salaire publié), plus sa
+ * traduction anglaise. Chaque fait a maintenant UNE place :
+ *   — au recto et dans la fiche, ce qui DÉCIDE : la production (les tuiles),
+ *     les traits, les mesures, la zone, le salaire, ce que la carte joue ;
+ *   — au verso, ce qui dit QUI il est : le numéro de la carte, son nom et son
+ *     poste en toutes lettres, la taille, le poids, la naissance et l'âge (qui
+ *     ont quitté les étiquettes du recto), l'échange de la saison, et le
+ *     tirage d'une légendaire (qui a quitté sa photo : « 71/99 » s'y lisait
+ *     comme une cote).
+ */
+function versoDeCarte(p, numero, rarete) {
   const prim = positionLabel(p).split(' / ')[0];
   const vit = [];
-  if (p.hgt) vit.push(`Taille ${Math.floor(p.hgt / 12)}′${p.hgt % 12}″`);
-  if (p.wgt) vit.push(`Poids ${p.wgt} lb`);
-  if (p.bd) { const [a, m, j] = String(p.bd).split('-').map(Number); if (a && m && j) vit.push(`Né le ${j === 1 ? '1er' : j} ${MOIS[m - 1]} ${a}`); }
-  const cols = gardien ? ['PJ', 'V', 'D', 'BL', '%ARR', 'MBA'] : ['PJ', 'B', 'A', 'PTS', '+/-', 'PUN'];
-  const vraie = gardien
-    ? [st.gp, st.w, st.l, st.so, p.sv != null ? String(p.sv).replace(/^0\./, '.') : '—', p.ga ?? '—']
-    : [st.gp, st.g, st.a, st.pt, signe(st.pm), p.pim ?? '—'];
-  const deS = S => (gardien
-    ? [S.GP || 0, S.W || 0, S.L || 0, S.SO || 0, S.SA ? (S.SV / S.SA).toFixed(3).slice(1) : '—', ((S.GA || 0) / Math.max(1, S.GP || 1)).toFixed(2)]
-    : [S.GP || 0, S.G || 0, S.A || 0, S.PTS || 0, signe(S.PM || 0), S.PIM || 0]);
-  const rang = (a, b, v, cls = '') => `<tr${cls ? ` class="${cls}"` : ''}><th scope="row">${esc(a)}</th><td>${esc(b)}</td>${v.map(x => `<td>${esc(x)}</td>`).join('')}</tr>`;
-  const club = opts.team ? tagCourt(opts.team) || 'Cap' : 'Cap';
-  const rangs = [rang(p.s, p.t, vraie)];
-  if (sim) rangs.push(rang(opts.titreSim ? 'À ce jour' : opts.sim === 'series' ? 'Séries' : 'Simulée', club, deS(sim), 'cjv-sim'));
-  if (opts.sim === 'series' && statsSim(p, 'saison')) rangs.push(rang('Saison', club, deS(statsSim(p, 'saison')), 'cjv-sim'));
-  const fr = `${POSTE_MOT[prim] || 'Joueur'} · ${TEAMFULL[p.t] || p.t}, ${p.s}. ${gardien
-    ? `${st.gp} matchs, ${st.w} victoires${p.sv != null ? `, ${String(p.sv).replace(/^0\./, ',')} d'efficacité` : ''}.`
-    : `${st.gp} matchs, ${st.g} buts, ${st.a} passes.`}`;
-  const en = gardien ? `${st.gp} games, ${st.w} wins in ${p.s}.` : `${st.gp} games, ${st.g} goals, ${st.a} assists in ${p.s}.`;
-  const anecdote = anecdoteDe(p);
+  if (p.hgt) vit.push(['Taille', `${Math.floor(p.hgt / 12)}′${p.hgt % 12}″`]);
+  if (p.wgt) vit.push(['Poids', `${p.wgt} lb`]);
+  if (p.bd) { const [a, m, j] = String(p.bd).split('-').map(Number); if (a && m && j) vit.push(['Naissance', `${String(j).padStart(2, '0')}-${String(m).padStart(2, '0')}-${a}`]); }
+  const age = ageAtSeason(p.bd, p.s);
+  if (age) vit.push(['Âge', `${age} ans`]);
+  const faits = [];
+  if (p.x) faits.push('Échangé en cours de saison : il a porté deux chandails cette année-là.');
+  if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p))}`);
   return `<div class="cj-verso" hidden>
-    <div class="cjv-tete"><span class="cjv-no">${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(positionLabel(p))}</span></div>
-    ${vit.length ? `<div class="cjv-vitales">${vit.map(esc).join(' · ')}</div>` : ''}
-    <div class="cjv-table-wrap"><table class="cjv-table"><thead><tr><th scope="col">Saison</th><th scope="col">Club</th>${cols.map(c => `<th scope="col">${c}</th>`).join('')}</tr></thead><tbody>${rangs.join('')}</tbody></table></div>
-    <p class="cjv-bio">${esc(fr)}${anecdote ? ` ${esc(anecdote)}` : ''}</p>
-    <p class="cjv-bio cjv-en" lang="en">${esc(en)}</p>
-    <div class="cjv-pied"><span>© Cap 82-0 · Série ${esc(p.s)} · ${numero}/${TAILLE_SERIE}</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
+    <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série">${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span></div>
+    ${vit.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${vit.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${vit.map(([, v]) => `<td>${esc(v)}</td>`).join('')}</tr></tbody></table></div>` : ''}
+    ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
+    <div class="cjv-pied"><span>© Cap 82-0 · ${TAILLE_SERIE} cartes</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
   </div>`;
 }
 
@@ -4870,7 +4955,19 @@ function renderBanc() {
   const L = G.ligue;
   const adv = b.prochain ? L.teams.find(t => t === b.prochain.adv) || b.prochain.adv : null;
   const blesses = [...b.blesses].map(([p, reste]) => `${esc(p.n)} <span class="banc-reste">${reste} match${reste > 1 ? 's' : ''}</span>`);
-  const ferm = fermetureCourante();
+  /*
+   * UN ÉCRAN, PAS DEUX (S78). « Tes lignes » et son bouton « Mes lignes »
+   * répétaient en icônes ce que chaque trio dit maintenant sous ses cases, et
+   * « pour l'instant, le 3e trio » répétait le 🔒 Fermeture du trio. Ce qui
+   * reste ici est ce que l'alignement ne dit pas : la journée, la fiche, le
+   * prochain match, l'infirmerie — et ce qui joue sur ta formation, replié,
+   * qui vivait dans la modale « Mes lignes » (JP, S72 : *les bonus et malus
+   * devraient être avec les stratégies*).
+   */
+  const toi = L && (L.teams || []).find(t => t.isPlayer);
+  const fx = toi ? { ...effetsEnCours(toi, b.jour), cartes: (L.decisions || []).filter(d => d.carte && d.jour <= b.jour).map(d => d.carte) } : null;
+  const nbFx = fx ? (fx.effets || []).length + fx.cartes.length + (fx.absents || []).length + (fx.gardienAux ? 1 : 0) : 0;
+  const effets = nbFx ? `<details class="banc-plus banc-effets"><summary>Ce qui joue sur ta formation · ${nbFx}</summary>${effetsHtml(fx)}</details>` : '';
   host.innerHTML = `
     <div class="banc-tete">
       <div class="banc-titre">Derrière le banc <span class="banc-jour">journée ${b.jour} sur ${b.N}</span></div>
@@ -4878,24 +4975,17 @@ function renderBanc() {
     </div>
     ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
     <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
-    <div class="banc-ligne banc-lignes"><span class="gl-k">Tes lignes</span> ${resumeLignes(b.lignes, b.chimie)} <button type="button" class="btn gold" id="bancLignes" title="Les tactiques, l'agressivité et la glace de chaque ligne, avec le fit de chacune">Mes lignes</button></div>
-    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste : le fit de chaque ligne suit ses joueurs. 🔒 désigne ton <b>trio de fermeture</b>${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}` : ' — personne pour l\'instant'}.</div>
+    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste : le fit de chaque ligne suit ses joueurs. Sous chaque trio, sa <b>stratégie</b> ; 🔒 désigne ton <b>trio de fermeture</b>.</div>
+    ${effets}
     <details class="banc-plus"><summary>Les lignes et le trio de fermeture</summary>
       <div class="banc-ligne"><b>Chaque ligne a sa tactique</b>, comme dans HockeyArena : chacune demande un profil par poste, et le fit plafonne la chimie. Changer un joueur coûte de la chimie ; une ligne soudée joue son système plus souvent.</div>
       <div class="banc-ligne"><b>Le trio de fermeture</b> prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
     </details>
     <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios, ce plan et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
   $('bancRetour').onclick = reprendreSaison;
-  // MES LIGNES, derrière le banc (S68) : réglées ici, elles partent avec la
-  // décision du banc au « Retour au match ».
-  $('bancLignes').onclick = () => ouvrirLignes({
-    titre: 'Mes lignes', sousTitre: `Derrière le banc · journée ${b.jour}`,
-    lineup: G.roster, lignes: b.lignes, chimie: b.chimie, energie: b.energie, apprentissage: b.apprentissage,
-    effets: (() => { const toi = G.ligue && (G.ligue.teams || []).find(t => t.isPlayer); return toi ? { ...effetsEnCours(toi, b.jour), cartes: (G.ligue.decisions || []).filter(d => d.carte && d.jour <= b.jour).map(d => d.carte) } : null; })(),
-    adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
-    match: null, motAppliquer: 'Garder ces lignes',
-    onAppliquer: lignes => { G.banc.lignes = lignes; renderBanc(); },
-  });
+  // MES LIGNES, derrière le banc (S68) : elles se règlent sous chaque trio
+  // depuis S78 (`tiroirStrategie`), et partent avec la décision du banc au
+  // « Retour au match ».
   /*
    * UN SEUL ÉCOUTEUR, DÉLÉGUÉ, et il est reposé à chaque rendu parce que
    * `innerHTML` vient de jeter les anciens boutons : brancher chaque bouton

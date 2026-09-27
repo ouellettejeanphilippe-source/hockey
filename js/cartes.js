@@ -23,6 +23,7 @@
  */
 
 import { getTeamBand } from './logos.js';
+import { NOM_VARIANTE } from './rarete.js';
 
 /*
  * Les quatre raretés, de la plus commune à la plus rare. La gemme se lit sans
@@ -86,6 +87,10 @@ export function carteHtml(c) {
  * portrait, la plaque de la saison — pour qu'un joueur et une carte de match
  * se lisent comme deux cartes du même paquet.
  *
+ * (S78 : la rareté n'est plus le salaire, c'est une variante tirée par chance
+ * — voir « CE QUE LA GEMME VEUT DIRE » plus bas. `rareteDeSalaire` reste pour
+ * qui veut encore lire le rang d'un salaire ; les cartes ne la lisent plus.)
+ *
  * LA RARETÉ D'UN JOUEUR VIENT DE SON SALAIRE, ET DE RIEN D'AUTRE. La règle
  * ferme du dépôt : aucune cote dans le DOM, jamais — ni `o d r c v sp`, ni
  * rien qui s'en déduise en douce. Le salaire, lui, est écrit en gros sur la
@@ -132,8 +137,14 @@ export function rareteDeSalaire(p, saison) {
   RARETE_DE.set(p, r);
   return r;
 }
-/* Ce que la gemme veut dire, en mots : l'infobulle ne parle que du salaire. */
-/* S78 : une rareté de joueur est une VARIANTE de sa carte (js/rarete.js), plus le rang de son salaire. */
+/*
+ * CE QUE LA GEMME VEUT DIRE (S78). JP : *Pour les rareté pas par joueur, mais
+ * par dessus joueur, comme un shiny dans pokemon genre*. La rareté d'une carte
+ * de joueur n'est plus son rang de salaire : c'est une VARIANTE tirée par
+ * chance — un quatrième trio peut sortir en légendaire, Gretzky en commune
+ * (`varianteJoueur`, js/game.js ; les chances et les effets, js/rarete.js).
+ * Les mots ne parlent donc plus du salaire : une brillante est de la chance.
+ */
 const SENS_RARETE = {
   commune: 'la carte de base : le joueur, rien de plus',
   peu: 'une parallèle : un bonus tiré au hasard, +3 %',
@@ -141,15 +152,53 @@ const SENS_RARETE = {
   legendaire: 'une or : deux bonus tirés au hasard, +5 % chacun',
 };
 export const sensRarete = r => SENS_RARETE[r] || SENS_RARETE.commune;
+/* Une variante BRILLANTE (peu commune et au-dessus) : le « shiny ». */
+export const brillante = r => r === 'peu' || r === 'rare' || r === 'legendaire';
 /*
- * La gemme d'une carte de joueur, la même que celle des cartes de match. Elle
- * se compte depuis S77 (un à trois diamants), donc la commune porte la sienne
- * aussi : un diamant seul dit « le bas de l'échelle », pas « rien ».
+ * LA GEMME D'UNE CARTE DE JOUEUR, avec ce que sa variante FAIT. Les diamants
+ * disent la rareté (un à trois, l'or pour la légendaire), l'étoile ✦ qu'elle
+ * est brillante, et l'icône du trait (`traitsDeCarte`, js/rarete.js) ce
+ * qu'elle joue — une seule pastille, et l'infobulle dit la phrase entière.
+ * Une commune ne joue rien de plus : ses diamants seuls. Le trait de la
+ * RECRUE n'y entre pas : le tampon « Recrue » de la photo le porte déjà.
  */
-export function gemmeJoueur(r) {
+export function gemmeJoueur(r, traits = []) {
   const R = RARETES[r];
   if (!R) return '';
-  return `<span class="cj-gemme" title="${R.nom} : ${sensRarete(r)}">${R.gemme}</span>`;
+  const joue = traits.filter(t => t && t.nom !== 'La recrue progresse');
+  const titre = [`${NOM_VARIANTE[r] || R.nom} : ${sensRarete(r)}`, ...joue.map(t => `${t.ico} ${t.nom} — ${t.mot}`)].join(' · ');
+  return `<span class="cj-gemme" title="${echapper(titre)}">${R.gemme}${brillante(r) ? '<i class="cj-shiny" aria-hidden="true">✦</i>' : ''}${joue.map(t => `<b class="cj-trait">${t.ico}</b>`).join('')}</span>`;
+}
+const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/*
+ * L'ÈRE D'UNE CARTE (S78). JP : *couleur et style de carte différentes selon
+ * années, pis couleurs de l'équipe du joueur*. Comme les vraies séries qui
+ * changeaient de look chaque année, le DESSIN d'une carte vient de sa saison
+ * et sa PALETTE de son club ; la rareté n'est que la finition par-dessus.
+ * Cinq époques, cinq dessins (style.css, « LES ÈRES ») :
+ *   e70 — les années 70 : le bord de couleur (la série de 1979-80 était bleue),
+ *         une photo dans une boîte simple, le nom sur une banderole ;
+ *   e80 — les années 80 : le bord blanc d'un carton, la photo au haut ondulé
+ *         (1985-86), l'écusson dans un coin, le nom sur une bande au bas ;
+ *   e90 — le début des années 90 : le glacé, la photo jusqu'au bord, un filet
+ *         de couleur, le nom en diagonale ;
+ *   e00 — de 1996 aux années 2000 : le cadre sombre et l'argent estampé ;
+ *   e10 — depuis 2010 : le moderne, la photo sur un dégradé aux couleurs du
+ *         club, le nom dans une bande nette, rien de trop.
+ */
+export function ereDe(saison) {
+  const a = parseInt(String(saison || '').slice(0, 4), 10) || 2000;
+  return a < 1980 ? 'e70' : a < 1990 ? 'e80' : a < 1996 ? 'e90' : a < 2010 ? 'e00' : 'e10';
+}
+export const ERES = {
+  e70: 'Les années 70', e80: 'Les années 80', e90: 'Le début des années 90', e00: 'De 1996 aux années 2000', e10: 'Depuis 2010',
+};
+/* L'année sur la photo, dans le style de l'époque : « '85-86 » pour les
+   cartes d'avant 1990 (le millésime imprimé), « 1993-94 » ensuite. */
+export function anneeDeCarte(saison) {
+  const s = String(saison || '');
+  return ereDe(s) === 'e70' || ereDe(s) === 'e80' ? `'${s.slice(2)}` : s;
 }
 
 /*
@@ -220,9 +269,10 @@ export function paquetHtml({ n = 3, meilleure = 'commune', serie = 'Récompense'
  * tourne sous la lampe. Une image par rafraîchissement au plus, rien quand
  * l'onglet est caché, rien sous `prefers-reduced-motion`.
  */
-/* Ce qui se penche : une carte de joueur (pas sa vignette, pas la tête de la
-   fiche — c'est sa PHOTO qui est la carte), une carte de match, le dos. */
-const INCLINABLES = '.cj:not(.cj-mini):not(.pcard-full-head), .choix-option.tc:not(.jouee), .pcard-full-photo, .cj-verso';
+/* Ce qui se penche : une carte du vestiaire, la PHOTO de la fiche (c'est elle
+   la carte, pas les renseignements autour), son dos, une carte de match. Une
+   case de l'alignement ne se penche pas (S78) : elle doit se lire, pas briller. */
+const INCLINABLES = '.pcard.cj, .choix-option.tc:not(.jouee), .pcard-full-photo, .cj-verso';
 const INCLINE_MAX = 12;
 const GYRO_MAX = 6;
 const PROPS = ['--mx', '--my', '--rx', '--ry', '--lueur'];
@@ -300,7 +350,7 @@ export function brancherInclinaison(doc = document) {
   const tactile = win.matchMedia && win.matchMedia('(pointer: coarse)').matches;
   if (!Ori || typeof Ori.requestPermission === 'function' || !tactile) return;
   let base = null, lu = null, rafG = 0, avant = '';
-  const RARES = '.cj-lustre:not(.pcard-full-head), .cj-lustre .pcard-full-photo, .choix-option.tc.tc-rare, .choix-option.tc.tc-legendaire';
+  const RARES = '.pcard.cj:is(.tc-rare, .tc-legendaire), .cj-recto:is(.tc-rare, .tc-legendaire), .choix-option.tc.tc-rare, .choix-option.tc.tc-legendaire';
   const pencher = () => {
     rafG = 0;
     if (!lu || calme.matches || doc.hidden) return;

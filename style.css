@@ -6424,11 +6424,8 @@ body.choix-ouvert { overflow: hidden; }
 .rl-table th:first-child, .rl-table td:first-child { text-align: left; }
 .rl-table th { font: 700 11px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 
-/* Le bouton « Mes lignes » de l'alignement (S68) : pas derrière le banc, qui a le sien. */
-.lignes-btn { margin-left: auto; padding: 6px 12px; min-height: 34px; }
-#game.banc .lignes-btn { display: none; }
-.banc-lignes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.banc-lignes .btn { margin-left: auto; min-height: 34px; padding: 5px 12px; }
+/* Le bouton « Mes lignes » de l'alignement et celui du banc sont partis en S78 :
+   la stratégie est un tiroir sous chaque trio (voir « LA STRATÉGIE SOUS SON TRIO »). */
 .hub-lignes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 14px 12px; }
 .hub-lignes .btn { margin-left: auto; min-height: 34px; padding: 5px 12px; }
 .hub-lignes-imp { font: 700 12px/1 var(--display); color: var(--sub); }
@@ -7064,6 +7061,14 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 
 /* =====================================================================
    LES JOUEURS SONT DES CARTES (S76) — ET ELLES EN ONT LE LOOK (S77)
+
+   S78 CHANGE DEUX CHOSES DE CE QUI SUIT. La rareté ne vient plus du salaire :
+   c'est une VARIANTE (js/rarete.js) posée PAR-DESSUS le joueur, une finition
+   (voir « LA VARIANTE »). Et les deux familles (carton, lustre) sont devenues
+   cinq ÉPOQUES, par la saison du joueur (voir « LES ÈRES »). La carte du
+   vestiaire est DEBOUT (« LA GRILLE DU VESTIAIRE ») : la règle (1) tient —
+   toutes les cartes d'une vue ont la même hauteur — mais ce n'est plus
+   189,5 px. La case de l'alignement reste couchée, et simple.
    js/cartes.js (`rareteDeSalaire`, `PALIERS_RARETE`, `gemmeJoueur`,
    `artJoueur`, `paquetHtml`, `brancherInclinaison`), js/game.js
    (`playerCardEl`, `slotEl`, `showPlayerModal`, `versoDeCarte`,
@@ -7136,7 +7141,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 }
 /* Le grain du carton : deux trames de points à peine visibles sur un crème
    qui fonce vers le bas, comme un carton imprimé sous la lampe. */
-.cj-carton, .cj-verso, .paquet-face {
+.cj, .cj-verso, .paquet-face {
   --grain:
     radial-gradient(circle at 30% 40%, rgba(120, 90, 40, 0.08) 0 0.8px, transparent 1.2px) 0 0 / 5px 6px,
     radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.45) 0 0.8px, transparent 1.2px) 2px 3px / 7px 5px;
@@ -7182,7 +7187,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 /* LE REFLET : une tache de lumière qui suit le doigt, créée seulement sur la
    carte qu'on penche (ou qui brille). En `soft-light`, il éclaire le fond
    sans jamais blanchir le texte, qui est au-dessus. */
-.cj:is(.incline, .relache, .gyro, .cj-lustre):not(.cj-mini)::after {
+.cj:is(.incline, .relache, .gyro):not(.cj-mini)::after {
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.14) 22%, transparent 55%);
   mix-blend-mode: soft-light; opacity: var(--lueur);
@@ -7202,7 +7207,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 }
 @keyframes cj-miroite { from { background-position: 0% 20%; } to { background-position: 100% 80%; } }
 /* La légendaire a ses paillettes, qui scintillent. */
-.tc-legendaire > .cj-holo::after, .tc-legendaire .cj-fenetre > .cj-holo::after, .tc-legendaire > .tc-holo::after {
+.tc-legendaire :is(.pcard-avatar, .cj-fenetre) > .cj-holo::after, .tc-legendaire > .tc-holo::after {
   content: ''; position: absolute; inset: 0;
   background:
     radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 0.9px, transparent 1.4px) 0 0 / 13px 11px,
@@ -7223,249 +7228,329 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 
 /* ---------------------------------------------------------------
    LA GEMME : un à trois diamants (js/cartes.js, `RARETES`), la légendaire
-   en or. Même glyphe sur une carte de joueur et une carte de match.
+   en or ; ✦ dit qu'une carte de joueur est une variante BRILLANTE, l'icône
+   qui suit ce qu'elle joue (S78, `traitsDeCarte`). Une seule pastille.
    --------------------------------------------------------------- */
 .cj-gemme, .tc-gemme { font-size: 8.5px; letter-spacing: -0.5px; line-height: 1; white-space: nowrap; }
 .tc-commune :is(.cj-gemme, .tc-gemme) { color: #8b8474; }
 .tc-peu :is(.cj-gemme, .tc-gemme) { color: #3fb0d6; }
 .tc-rare :is(.cj-gemme, .tc-gemme) { color: #e8edf2; text-shadow: 0 0 4px rgba(255, 255, 255, 0.6); }
 .tc-legendaire :is(.cj-gemme, .tc-gemme) { color: #ffd76a; text-shadow: 0 0 5px rgba(255, 200, 80, 0.8); }
+.cj-gemme .cj-shiny { font-style: normal; margin-left: 2px; font-size: 1.25em; }
+.cj-gemme .cj-trait { font-weight: 400; margin-left: 3px; font-size: 12px; letter-spacing: 0; text-shadow: none; }
 
 /* =================================================================
-   LA CARTE DU VESTIAIRE (`.pcard`) — LE CARTON
+   LES ÈRES (S78) — le dessin d'une carte vient de sa SAISON (`ereDe`),
+   sa palette de son CLUB, et la variante n'est que la finition.
+   JP : *couleur et style de carte différentes selon années, pis couleurs de
+   l'équipe du joueur*. Chaque époque pose quatre choses — le fond de la
+   carte (son bord), l'encre qui s'y lit, le cadre de la photo et la bande du
+   nom — sur les couleurs MESURÉES du club (`getTeamBand` : l'aplat, son
+   encre, la secondaire), jamais des couleurs écrites à la main :
+     e70 · le bord DE COULEUR (1979-80 était bleue) : l'aplat du club, la
+           photo dans une boîte à filet blanc, le nom sur une banderole crème ;
+     e80 · le bord BLANC d'un carton : la photo au haut ondulé (1985-86),
+           l'écusson dans un coin, le nom sur une bande au bas ;
+     e90 · le GLACÉ : la photo jusqu'au bord, un filet de la secondaire, le
+           nom en DIAGONALE qui mord la photo ;
+     e00 · le cadre SOMBRE et l'argent estampé : le nom en lettres d'argent ;
+     e10 · le MODERNE : la photo sur un dégradé du club (les portraits récents
+           sont détourés), le nom net dans une bande qui mord la photo.
+   Toutes les époques ont la MÊME boîte (même bord, mêmes rangées) : au loto,
+   trois époques côte à côte font trois cartes de la même hauteur.
    ================================================================= */
-.pcard.cj-carton {
-  gap: 3px;
-  background: var(--grain), linear-gradient(176deg, #f7f0e0 0%, var(--carton) 45%, var(--carton-2) 100%);
-  outline: 0;
+:is(.pcard.pv, .cj-recto) {
+  --cj-fond: var(--team-fond, #1b2230);
+  --cj-encre: #f3f5f8;
+  --cj-encre-2: rgba(243, 245, 248, 0.72);
+  --cj-prix: #ffd76a;
 }
-/* Le bord découpé : un filet plus sombre au pourtour, comme la tranche d'un carton. */
-.pcard.cj-carton::before {
-  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
-  box-shadow: inset 0 0 0 1px rgba(60, 45, 20, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.7);
+:is(.pcard.pv, .cj-recto).e70 {
+  --cj-fond: var(--team-band, #1f4aa8); --cj-encre: var(--team-ink, #fff);
+  --cj-encre-2: color-mix(in srgb, var(--team-ink, #fff) 75%, transparent); --cj-prix: var(--team-ink, #fff);
 }
-/* Le bandeau passe sur le carton : l'encre est celle de l'imprimeur. */
-.pcard.cj-carton .pcard-band {
-  position: relative; z-index: 2; background: transparent; color: var(--encre); box-shadow: none;
-  height: 31px; padding: 0 9px 0 8px; gap: 6px;
+:is(.pcard.pv, .cj-recto).e80 {
+  --cj-fond: var(--grain), linear-gradient(176deg, #f7f0e0, var(--carton) 45%, var(--carton-2));
+  --cj-encre: var(--encre); --cj-encre-2: #6a5d44; --cj-prix: var(--encre-rouge);
 }
-/* LE PANNEAU : la couleur du club, en retrait de quatre pixels du bord crème,
-   cerné de sa couleur secondaire — le cadre intérieur d'une carte de 1985. */
-.pcard.cj-carton .pcard-inner {
-  position: relative; z-index: 2; margin: 0 4px 4px;
-  padding-left: 8px; padding-right: 8px;
-  border-radius: 9px 9px calc(var(--r-m) - 4px) calc(var(--r-m) - 4px);
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.08), transparent 38%), var(--team-fond, var(--panel));
-  box-shadow: 0 0 0 2px var(--team-stripe, var(--blue)), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+:is(.pcard.pv, .cj-recto).e90 {
+  --cj-fond: linear-gradient(170deg, rgba(255, 255, 255, 0.10), transparent 38%), var(--team-fond, #1b2230);
 }
-.pcard.cj-carton .pcard-inner > .btn-sign {
-  margin: 0 -8px; width: calc(100% + 16px);
-  border-radius: 0 0 calc(var(--r-m) - 4px) calc(var(--r-m) - 4px);
+:is(.pcard.pv, .cj-recto).e00 {
+  --cj-fond: linear-gradient(170deg, #22262e, #111318 70%); --cj-prix: #e8edf2;
 }
-/* LE FANION DU CLUB, à queue d'aronde, dans la couleur du club. */
-.pcard.cj-carton .pb-team {
-  flex: 0 1 auto; min-width: 0; overflow: hidden;
-  padding: 3px 15px 3px 7px; margin-left: 1px;
-  background: var(--team-band, #243044); color: var(--team-ink, #fff);
-  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0 100%);
-  box-shadow: inset 0 -2px 0 var(--team-stripe, transparent);
-  font-size: 10.5px; letter-spacing: 0.09em;
+:is(.pcard.pv, .cj-recto).e10 {
+  --cj-fond: linear-gradient(160deg, var(--team-band, #243044), var(--team-fond, #151a22) 72%);
 }
+
+/* =================================================================
+   LA CARTE DU VESTIAIRE, DEBOUT (`.pcard.pv`, S78)
+   JP : *Devant de carte vertical, pour stats et face complète car
+   portraits*. La photo en haut (carrée : les portraits de la LNH le sont, le
+   visage y tient entier), le nom, le salaire et le chiffre clé, le rôle et
+   la zone, la ligne d'avertissement, « Signer ». Les boîtes intérieures
+   (`.pcard-inner`, `-body`, `-head`, `-mid`, `-band`) passent en `display:
+   contents` : leurs enfants deviennent les pièces d'UNE grille à rangées
+   FIXES — on réserve la place, on ne la prend pas : dans un même vestiaire,
+   toutes les cartes ont la même hauteur (`smoke.mjs` le vérifie). Les règles
+   de la carte couchée (grille à deux colonnes, loto en rangée, colonnes
+   étroites) ne s'appliquent plus : `#pool` leur passe devant.
+   ================================================================= */
+#pool .pcard.pv {
+  container: carte / inline-size;
+  display: grid; min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto 32px 24px 20px 14px 32px;
+  grid-template-areas: "photo photo" "nom nom" "prix pts" "tags tags" "dest dest" "btn btn";
+  gap: 3px 6px; padding: 6px;
+  border: 0; border-radius: 12px; overflow: hidden; outline: 0;
+  background: var(--cj-fond); color: var(--cj-encre);
+}
+/* `overflow: visible` n'y change rien à l'écran (une boîte `contents` ne
+   rogne rien), mais la valeur calculée, elle, reste : le test de fumée —
+   et tout outil qui cherche l'ancêtre qui rogne — lirait sinon le
+   `overflow: hidden` du bandeau d'autrefois et crierait au texte coupé. */
+#pool .pcard.pv :is(.pcard-inner, .pcard-body, .pcard-head, .pcard-mid, .pcard-band) { display: contents; overflow: visible; }
+/* La photo : un carré, le visage entier (le haut du portrait, pas son milieu). */
+#pool .pcard.pv .pcard-avatar {
+  grid-area: photo; display: block; position: relative; z-index: 1; width: auto; height: auto; min-height: 0; aspect-ratio: 1;
+  margin: 0; border-radius: 6px; overflow: hidden; align-self: stretch;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 5px, transparent 5px 10px),
+    radial-gradient(130% 85% at 50% 18%, color-mix(in srgb, var(--team-band, #2a3140) 85%, #ffffff), color-mix(in srgb, var(--team-band, #2a3140) 40%, #05070a) 80%);
+  box-shadow: none;
+}
+#pool .pcard.pv .pcard-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 10%; transform: none; clip-path: none; }
+#pool .pcard.pv .pcard-avatar .headshot-fallback { display: grid; place-items: center; height: 100%; font-size: 40px; }
+/* Sur la photo : la rondelle du poste (haut gauche), la gemme (haut droit),
+   l'écusson (bas gauche), l'année (bas droit), le tampon « Recrue ». */
+#pool .pcard.pv .pb-pos { grid-area: photo; z-index: 3; align-self: start; justify-self: start; margin: 5px 0 0 5px; }
 /* LE POSTE DANS UNE RONDELLE : noire, lustrée sur le dessus, cerclée de la
    couleur du poste (bleu attaquant, violet défenseur, ambre gardien). */
-.pcard.cj-carton .pb-pos, .cj-rondelle {
+#pool .pcard.pv .pb-pos, .cj-rondelle {
   display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px;
   background: radial-gradient(120% 90% at 50% 18%, #44444a, #0c0c0f 64%); color: #fff;
-  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.22), inset 0 -2px 0 rgba(0, 0, 0, 0.6), 0 0 0 1.5px var(--rondelle, #6f93e6), 0 1px 2px rgba(0, 0, 0, 0.35);
-  font-size: 10px; letter-spacing: 0.04em;
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.22), inset 0 -2px 0 rgba(0, 0, 0, 0.6), 0 0 0 1.5px var(--rondelle, #6f93e6), 0 1px 3px rgba(0, 0, 0, 0.45);
+  font: 800 10px/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
 }
 :is(.pb-pos, .cj-rondelle).pos-f { --rondelle: #6f93e6; }
 :is(.pb-pos, .cj-rondelle).pos-d { --rondelle: #a78bfa; }
 :is(.pb-pos, .cj-rondelle).pos-g { --rondelle: #e0a93a; }
-.pcard.cj-carton .pb-pos.off { opacity: 0.7; }
-/* LE MILLÉSIME : l'année à l'encre rouge, dans un cartouche, comme la série d'une vraie carte. */
-.pcard.cj-carton .pcard-band .pb-season {
-  flex: none; background: none; box-shadow: none; opacity: 1;
-  color: var(--encre-rouge); border: 1.5px solid currentColor; border-radius: 3px; padding: 0 4px;
-  font-style: italic; font-weight: 800; letter-spacing: 0.02em;
+.cj-rondelle { height: 26px; min-width: 26px; font-size: 11.5px; }
+/* UNE CARTE ÉTROITE (le loto au téléphone : 112 px) garde l'essentiel sur la
+   photo — la rondelle et la gemme se resserrent, l'icône du bonus part (la
+   fiche la dit en entier), les étiquettes gardent leur place. */
+@container carte (max-width: 140px) {
+  #pool .pcard.pv .pb-pos { min-width: 18px; height: 18px; padding: 0 4px; font-size: 8.5px; margin: 3px 0 0 3px; }
+  #pool .pcard.pv .cj-gemme { padding: 2px 4px; margin: 3px 3px 0 0; }
+  #pool .pcard.pv .cj-gemme .cj-trait { display: none; }
+  #pool .pcard.pv .pb-team { font-size: 9px; padding: 1px 4px 1px 2px; margin: 0 0 3px 3px; }
+  #pool .pcard.pv .pb-team :is(img, svg) { width: 12px; height: 12px; }
+  #pool .pcard.pv .cj-annee { font-size: 9px; padding: 1px 3px; right: 3px; bottom: 3px; }
+  #pool .pcard.pv .pcard-big span { font-size: 7.5px; }
+  #pool .pcard.pv .tags > .tag { font-size: 8.5px; padding: 1px 3px; }
 }
-.pcard.cj-carton .pcard-band .cj-gemme { margin-left: auto; flex: none; }
-.pcard.cj-carton .pcard-band .cj-gemme + .pb-season { margin-left: 0; }
-/* Signée : le fanion et le cadre intérieur passent au vert. */
-.pcard.cj-carton.signed .pcard-inner { box-shadow: 0 0 0 2px var(--green), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
-/* LA FENÊTRE DE LA PHOTO, cerclée de la couleur secondaire. */
-.pcard.cj .pcard-avatar:not(.slot-face) {
-  align-self: stretch; height: auto; min-height: 46px; border-radius: 7px; overflow: hidden;
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 5px, transparent 5px 10px),
-    radial-gradient(130% 85% at 50% 18%, color-mix(in srgb, var(--team-band, #2a3140) 88%, #ffffff), color-mix(in srgb, var(--team-band, #2a3140) 45%, #05070a) 78%);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--team-stripe, #8d97a3) 80%, transparent), 0 2px 6px rgba(0, 0, 0, 0.45);
+#pool .pcard.pv .cj-gemme {
+  grid-area: photo; z-index: 3; align-self: start; justify-self: end; margin: 5px 5px 0 0;
+  display: inline-flex; align-items: center; padding: 3px 5px; border-radius: 999px; background: rgba(0, 0, 0, 0.62);
 }
-.pcard.cj .pcard-avatar:not(.slot-face) img { transform: scale(1.08); transform-origin: 50% 0; object-position: 50% 0; }
-/* LA PEU COMMUNE CASSE LE CADRE : la tête dépasse la fenêtre par le haut,
-   dessinée devant le filet — le geste des cartes qui veulent sortir de la
-   carte. Les côtés et le bas restent coupés à la fenêtre. */
-.pcard.cj-carton.tc-peu .pcard-avatar:not(.slot-face) { overflow: visible; }
-.pcard.cj-carton.tc-peu .pcard-avatar:not(.slot-face) img {
-  transform: translateY(-7px) scale(1.12); transform-origin: 50% 100%;
-  clip-path: inset(-40% 5% 7px 5% round 0 0 7px 7px);
+#pool .pcard.pv .pb-team {
+  grid-area: photo; z-index: 3; align-self: end; justify-self: start; margin: 0 0 5px 5px;
+  display: inline-flex; align-items: center; gap: 3px; max-width: calc(100% - 10px); overflow: hidden;
+  padding: 2px 6px 2px 3px; border-radius: 999px; background: rgba(0, 0, 0, 0.62); color: #fff;
+  font: 800 10px/1 var(--display); letter-spacing: 0.06em; clip-path: none; box-shadow: none;
 }
-#panePool.loto .pcard.cj .pcard-avatar { align-self: center; }
+#pool .pcard.pv .pb-team :is(img, svg) { width: 16px; height: 16px; flex: none; }
+.cj-annee {
+  position: absolute; z-index: 2; right: 5px; bottom: 5px; padding: 2px 5px; border-radius: 3px;
+  font: 800 10.5px/1 var(--display); letter-spacing: 0.03em; font-variant-numeric: tabular-nums;
+  color: #fff; background: rgba(0, 0, 0, 0.62);
+}
+/* AU VESTIAIRE, l'en-tête dit déjà le club et la saison : la carte ne les répète pas. */
+#pool .pcard.pv.cj-meme-club :is(.pb-team, .cj-annee) { display: none; }
+.cj-tampon {
+  position: absolute; z-index: 2; top: 30px; right: -4px; padding: 2px 8px 2px 6px;
+  font: 800 8px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+  color: #15181c; background: var(--argent, #dfe4e9); transform: rotate(8deg); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+/* Le nom, en deux lignes : le prénom petit dessus, le nom de famille qui rétrécit pour tenir (`ajusterCartes`). */
+#pool .pcard.pv .pcard-name {
+  grid-area: nom; z-index: 2; min-width: 0; min-height: 0; display: flex; flex-direction: column; justify-content: center;
+  padding: 0 6px; border-radius: 4px; color: var(--cj-encre);
+}
+#pool .pcard.pv .pcard-name .fname { font-size: 10px; line-height: 1.1; color: var(--cj-encre-2); }
+#pool .pcard.pv .pcard-name .lname { font-size: clamp(12px, 11cqw, 18px); line-height: 1; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#pool .pcard.pv .pcard-price {
+  grid-area: prix; align-self: center; justify-self: start; min-width: 0; padding-left: 2px;
+  font-size: clamp(12px, 9.5cqw, 16px); color: var(--cj-prix); letter-spacing: -0.2px;
+}
+#pool .pcard.pv .pcard-big { grid-area: pts; align-self: center; justify-self: end; gap: 2px; padding-right: 2px; }
+#pool .pcard.pv .pcard-big b { font-size: clamp(15px, 13cqw, 23px); letter-spacing: -0.5px; color: var(--cj-encre); }
+#pool .pcard.pv .pcard-big span { font-size: 9px; color: var(--cj-encre-2); }
+#pool .pcard.pv .tags {
+  grid-area: tags; min-width: 0; align-self: center; flex-wrap: nowrap; overflow: hidden; gap: 3px;
+  justify-content: flex-start; transform-origin: left center;
+}
+#pool .pcard.pv .tags > .tag { flex: none; white-space: nowrap; font-size: 9.5px; padding: 1px 5px; line-height: 1.4; text-align: left; }
+#pool .pcard.pv .pcard-dest { grid-area: dest; display: block; min-width: 0; align-self: center; padding: 0 2px; font-size: 10px; line-height: 14px; color: var(--cj-encre-2); }
+#pool .pcard.pv .pcard-inner > .btn-sign {
+  grid-area: btn; margin: 0; width: auto; min-width: 0; min-height: 0; padding: 0 6px; border-radius: 7px; align-self: stretch;
+  font-size: clamp(12px, 9cqw, 16px);
+}
+/* Le texte est AU-DESSUS du reflet (qui est en `z-index: 1`) : on lit d'abord. */
+#pool .pcard.pv :is(.pcard-price, .pcard-big, .tags, .pcard-dest, .btn-sign, .pcard-axes) { position: relative; z-index: 2; }
+/* Sur table : les nombres du plateau prennent la rangée des étiquettes, ses icônes la place du chiffre clé. */
+#pool .pcard.pv .pcard-axes { grid-area: tags; align-self: center; justify-self: start; }
+#pool .pcard.pv .pcard-axes + .tags { grid-area: pts; justify-content: flex-end; }
+/* États : signée, un anneau vert ; hors d'atteinte, grisée (la règle de base). */
+#pool .pcard.pv.signed { outline: 0; box-shadow: inset 0 0 0 2px var(--green); }
+
+/* LES ÈRES, pièce par pièce. */
+/* e70 : la photo dans une boîte à filet blanc, le nom sur une banderole crème. */
+#pool .pcard.pv.e70 .pcard-avatar, .cj-recto.e70 .cj-fenetre { border-radius: 2px; box-shadow: inset 0 0 0 2px #fff; }
+#pool .pcard.pv.e70 .pcard-name, .cj-recto.e70 .cj-bandeau {
+  background: #f4ecd8; color: #1d1a14;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 50%, 100% 100%, 0 100%, 7px 50%);
+  padding-left: 12px; padding-right: 12px; border-radius: 0;
+}
+#pool .pcard.pv.e70 .pcard-name .fname, .cj-recto.e70 .cj-bandeau .fname { color: #6b5f48; }
+/* e80 : le haut ondulé de la photo, l'écusson dans un coin (et la rondelle descend), la bande du nom aux couleurs du club. */
+#pool .pcard.pv.e80 .pcard-avatar::before, .cj-recto.e80 .cj-fenetre::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 7px; z-index: 2;
+  background: radial-gradient(circle at 50% 0, #f5eedf 4.5px, transparent 5px) 0 0 / 12px 7px repeat-x;
+}
+#pool .pcard.pv.e80 .pcard-avatar { box-shadow: inset 0 0 0 1.5px var(--team-stripe, #8d97a3); }
+#pool .pcard.pv.e80 .pb-team { align-self: start; margin-top: 9px; background: #f5eedf; color: var(--encre); }
+#pool .pcard.pv.e80 .pb-pos { align-self: end; margin: 0 0 5px 5px; }
+#pool .pcard.pv.e80:not(.cj-meme-club) .pb-pos { margin-bottom: 26px; }
+#pool .pcard.pv.e80 .pcard-name, .cj-recto.e80 .cj-bandeau {
+  background: var(--team-band, #243044); color: var(--team-ink, #fff); border-radius: 3px;
+  box-shadow: inset 0 -2px 0 var(--team-stripe, transparent);
+}
+#pool .pcard.pv.e80 .pcard-name .fname, .cj-recto.e80 .cj-bandeau .fname { color: color-mix(in srgb, var(--team-ink, #fff) 78%, transparent); }
+#pool .pcard.pv.e80 .cj-annee, .cj-recto.e80 .cj-annee { background: #f5eedf; color: var(--encre-rouge); font-style: italic; }
+/* e90 : la photo jusqu'au bord, le nom en diagonale qui mord la photo, un filet de la secondaire. */
+#pool .pcard.pv.e90 { box-shadow: inset 0 0 0 2px var(--team-stripe, #8d97a3); }
+#pool .pcard.pv.e90 .pcard-avatar { margin: -6px -6px 0; border-radius: 12px 12px 0 0; }
+#pool .pcard.pv.e90 .pcard-name, .cj-recto.e90 .cj-bandeau {
+  margin-top: -12px; height: calc(100% + 12px); z-index: 2; border-radius: 0;
+  background: linear-gradient(90deg, var(--team-band, #243044), color-mix(in srgb, var(--team-band, #243044) 70%, var(--team-stripe, #8d97a3)));
+  color: var(--team-ink, #fff); font-style: italic;
+  clip-path: polygon(0 16%, 100% 0, 100% 84%, 0 100%);
+  padding-top: 7px;
+}
+#pool .pcard.pv.e90 .pcard-name .fname, .cj-recto.e90 .cj-bandeau .fname { color: color-mix(in srgb, var(--team-ink, #fff) 78%, transparent); }
+/* e00 : le cadre sombre, un filet d'argent, le nom en lettres d'argent. */
+#pool .pcard.pv.e00 { box-shadow: inset 0 0 0 1px #9aa4ae, inset 0 0 0 3px #111318; }
+#pool .pcard.pv.e00 .pcard-avatar, .cj-recto.e00 .cj-fenetre { box-shadow: inset 0 0 0 1px #cfd6de; border-left: 3px solid var(--team-band, #243044); }
+#pool .pcard.pv.e00 .pcard-name .lname, .cj-recto.e00 .cj-bandeau .lname {
+  background: linear-gradient(180deg, #ffffff, #b9c2cb 55%, #eef1f4); -webkit-background-clip: text; background-clip: text; color: transparent;
+  letter-spacing: 0.05em;
+}
+#pool .pcard.pv.e00 .pcard-name, .cj-recto.e00 .cj-bandeau { border-bottom: 2px solid var(--team-band, #243044); border-radius: 0; }
+/* e10 : le moderne — la photo sur le dégradé du club, le nom net dans une bande qui mord la photo. */
+#pool .pcard.pv.e10 .pcard-avatar { background: transparent; }
+#pool .pcard.pv.e10 .pcard-name, .cj-recto.e10 .cj-bandeau {
+  margin-top: -12px; height: calc(100% + 12px); z-index: 2; border-radius: 0 0 6px 6px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55) 30%, rgba(0, 0, 0, 0.72));
+  box-shadow: inset 0 -2px 0 var(--team-stripe, transparent); padding-top: 8px;
+}
 
 /* =================================================================
-   LA CARTE DU VESTIAIRE — LE LUSTRE (rares, légendaires)
+   LA VARIANTE : LA FINITION PAR-DESSUS (S78)
+   JP : *Pour les rareté pas par joueur, mais par dessus joueur, comme un
+   shiny dans pokemon genre*. N'importe qui peut sortir brillant.
+     commune     · la carte de base, sans finition ;
+     peu commune · la PARALLÈLE : un cadre de couleur et un voile qui luit ;
+     rare        · l'HOLOGRAPHIQUE qui suit l'inclinaison, cadre d'argent ;
+     légendaire  · l'holographique DORÉE, les paillettes, cadre d'or — et
+                   son tirage limité, au verso seulement.
+   Le cadre se PEINT (`::before`) : aucune place prise.
    ================================================================= */
-.pcard.cj-lustre {
-  outline: 0;
-  background:
-    linear-gradient(170deg, rgba(255, 255, 255, 0.12), transparent 30%),
-    radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--team-band, #2a3140) 55%, transparent), transparent 65%),
-    var(--team-fond, var(--panel));
+#pool .pcard.pv::before, .cj-recto::before {
+  content: ''; position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
-/* LE CADRE DE MÉTAL, peint par-dessus : argent pour une rare, or brossé
-   pour une légendaire, et un anneau masqué (quatre pixels) pour ne couvrir
-   que le bord. */
-.cj-lustre:not(.pcard-full-head)::before {
-  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
-  padding: 4px; background: var(--argent);
+#pool .pcard.pv.tc-peu::before, .cj-recto.tc-peu::before {
+  box-shadow: inset 0 0 0 2.5px #3fb0d6, inset 0 0 0 3.5px rgba(255, 255, 255, 0.55), 0 0 12px rgba(63, 176, 214, 0.35);
+}
+#pool .pcard.pv:is(.tc-rare, .tc-legendaire)::before, .cj-recto:is(.tc-rare, .tc-legendaire)::before {
+  padding: 3px; box-shadow: none; background: var(--argent);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  box-shadow: none;
 }
-.cj-lustre.tc-legendaire:not(.pcard-full-head)::before {
-  background: conic-gradient(from 210deg, #fff1b8, #d4a017, #ff9ec2, #fff6d6, #8fe3ff, #b8860b, #ffe08a, #fff1b8);
+#pool .pcard.pv.tc-legendaire::before, .cj-recto.tc-legendaire::before {
+  background: conic-gradient(from 210deg, #fff1b8, #d4a017, #ffe08a, #fff6d6, #b8860b, #ffd76a, #fff1b8);
 }
-.pcard.cj-lustre.signed::before { background: linear-gradient(115deg, #2f9e6a, #b6f5d4 40%, #2f9e6a 70%, #8fe0b8); }
-.pcard.cj-lustre .pcard-band {
-  position: relative; z-index: 2;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 70%), var(--team-band, var(--neutre-eq));
-  padding-left: 12px; padding-right: 12px;
+/* La parallèle : un voile de sa couleur, fixe, sur la photo. */
+#pool .pcard.pv.tc-peu .pcard-avatar::after, .cj-recto.tc-peu .cj-fenetre::after {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(125deg, transparent 30%, rgba(120, 210, 255, 0.28) 48%, transparent 62%);
+  mix-blend-mode: screen;
 }
-.pcard.cj-lustre .pcard-inner { position: relative; z-index: 2; }
-/* LA PHOTO TOUCHE LE CADRE : la fenêtre sort de sa marge vers le bord gauche
-   et monte jusqu'au bandeau. La grille ne bouge pas. */
-.pcard.cj-lustre .pcard-avatar:not(.slot-face) {
-  margin: -16px 0 0 -7px; width: calc(100% + 7px); border-radius: 0 8px 8px 0;
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.35), 0 2px 8px rgba(0, 0, 0, 0.5);
+/* L'holographique vit sur la photo (et suit l'inclinaison : `.cj-holo`, plus haut). */
+.pcard-avatar > .cj-holo, .cj-fenetre > .cj-holo { z-index: 1; opacity: 0.24; border-radius: 0; }
+:is(.incline, .gyro, .relache) :is(.pcard-avatar, .cj-fenetre) > .cj-holo { animation: none; opacity: calc(0.22 + 0.3 * var(--lueur)); }
+.tc-legendaire :is(.pcard-avatar, .cj-fenetre) > .cj-holo { background: linear-gradient(115deg, #ffe7a3, #fff6d6 20%, #d4a017 40%, #ffd76a 60%, #fff1b8 80%, #b8860b); background-size: 300% 300%; background-position: var(--mx) var(--my); }
+/* ✦ UNE BRILLANTE QUI SORT : un éclat, la première fois seulement (`VARIANTES_VUES`). */
+.cj-eclat { position: absolute; inset: -30%; z-index: 5; pointer-events: none; opacity: 0; }
+.cj-apparait .cj-eclat {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.9), transparent 22%),
+    radial-gradient(circle at 22% 30%, #fff 0 2px, transparent 3px),
+    radial-gradient(circle at 78% 26%, #fff 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 30% 76%, #fff 0 2px, transparent 3px),
+    radial-gradient(circle at 72% 70%, #fff 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 50% 18%, #fff 0 1.5px, transparent 2.5px);
+  animation: cj-eclat 1.1s ease-out 0.15s both;
 }
-.pcard.cj-lustre .pcard-avatar:not(.slot-face)::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: var(--arc); background-size: 400% 400%; background-position: var(--mx) var(--my);
-  mix-blend-mode: color-dodge; opacity: calc(0.16 + 0.35 * var(--lueur));
-}
-/* LA PLAQUE ESTAMPÉE : le nom et le salaire sur une feuille d'argent (d'or
-   pour une légendaire), à l'encre noire, et un reflet qui passe. Les marges
-   négatives rendent exactement le rembourrage : la carte ne grandit pas. */
-.pcard.cj-lustre .pcard-head {
-  position: relative; overflow: hidden; isolation: isolate;
-  margin: -3px -3px 0 -2px; padding: 2px 5px 1px 4px; border-radius: 5px;
-  background: var(--argent); color: #111418;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 0 rgba(0, 0, 0, 0.3), 0 2px 5px rgba(0, 0, 0, 0.4);
-}
-.pcard.cj-lustre.tc-legendaire .pcard-head { background: var(--or); }
-/* Le reflet qui passe sur la plaque : la LÉGENDAIRE seulement, au vestiaire
-   (la rare brille déjà par son holographique). Mesuré : cent vingt plaques
-   animées à la fois coûtaient autant que tout l'holographique. */
-.pcard.cj-lustre.tc-legendaire .pcard-head::after, .pcard.cj-lustre.incline .pcard-head::after {
-  content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; z-index: -1; pointer-events: none;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.85), transparent);
-  transform: skewX(-18deg);
-  animation: cj-estampe 5s ease-in-out infinite;
-}
-@keyframes cj-estampe { 0%, 62% { transform: translateX(0) skewX(-18deg); } 100% { transform: translateX(560%) skewX(-18deg); } }
-.pcard.cj-lustre .pcard-head .fname { color: #3b4047; }
-.pcard.cj-lustre .pcard-head .lname, .pcard.cj-lustre .pcard-head .pcard-price { color: #0c0e11; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); }
-.pcard.cj-lustre.tc-legendaire .pcard-head .fname { color: #5a4210; }
-.pcard.cj-lustre .pcard-band .cj-gemme { margin-left: auto; flex: none; padding: 2px 4px; border-radius: 3px; background: rgba(0, 0, 0, 0.5); }
-.pcard.cj-lustre .pcard-band .cj-gemme + .pb-season { margin-left: 0; }
-@media (prefers-reduced-motion: reduce) { .pcard.cj-lustre .pcard-head::after { animation: none; opacity: 0; } }
-
-/* Les tampons de la photo : « Recrue » (argent, en biais) et le tirage limité. */
-.cj-tampon {
-  position: absolute; z-index: 2; top: 4px; left: -3px; padding: 2px 5px 2px 4px;
-  font: 800 7.5px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
-  color: #15181c; background: var(--argent); transform: rotate(-9deg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-}
-.cj-serie {
-  position: absolute; z-index: 2; right: 2px; bottom: 2px; padding: 2px 3px; border-radius: 3px;
-  font: 800 8.5px/1 var(--display); letter-spacing: 0.04em; color: #3a2a05; background: var(--or);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-}
-
-/* Colonnes étroites (six colonnes au bureau) : la photo s'efface déjà
-   (plus haut, « COLONNE ÉTROITE »). Le bandeau se resserre, et c'est
-   l'écusson du fanion qui cède — jamais le poste, la gemme ni l'année. */
-.pcard.cj .pcard-band .pb-pos, .pcard.cj .pcard-band .pb-season { flex: none; }
-.pcard.cj .pcard-band .pb-team { flex: 0 1 auto; min-width: 0; overflow: hidden; }
-/* Le bord crème prend quatre pixels de chaque côté : le panneau les rend à
-   son rembourrage, sinon les étiquettes passaient à la ligne de plus et la
-   carte grandissait d'une rangée (mesuré : 231 px au lieu de 219). */
-@container col (max-width: 235px) {
-  .pcard.cj-carton .pcard-inner { padding-left: 4px; padding-right: 4px; }
-  .pcard.cj-carton .pcard-inner > .btn-sign { margin: 0 -4px; width: calc(100% + 8px); }
-}
-/* Dans 160 px, « AG / AD », trois diamants et « 1992-93 » demandaient 167 px :
-   la rondelle et la gemme se resserrent, l'écusson du fanion reste seul. */
-@container col (max-width: 200px) {
-  .pcard.cj .pcard-band { gap: 4px; padding-left: 7px; padding-right: 7px; }
-  .pcard.cj .pcard-band .pb-team > span { display: none; }
-  .pcard.cj-carton .pb-team { padding-right: 12px; }
-  .pcard.cj-carton .pb-pos { padding: 0 5px; }
-  .pcard.cj .pcard-band .cj-gemme { font-size: 7px; letter-spacing: -1px; padding: 1px 2px; }
-}
+.cj-apparait.tc-legendaire .cj-eclat { filter: sepia(1) saturate(4) hue-rotate(-12deg); }
+@keyframes cj-eclat { 0% { opacity: 0; transform: scale(0.3) rotate(-20deg); } 35% { opacity: 1; } 100% { opacity: 0; transform: scale(1.15) rotate(10deg); } }
+@media (prefers-reduced-motion: reduce) { .cj-apparait .cj-eclat { animation: none; } }
 
 /* =================================================================
-   LA CASE DE L'ALIGNEMENT, DU BANC ET DES RÉSERVISTES (`.slot`)
-   Une case de 106 px : le bord et le cadre se peignent, rien ne bouge. La
-   ligne des étiquettes reste où `smoke.mjs` la lit.
+   LA GRILLE DU VESTIAIRE (S78) : des cartes DEBOUT, côte à côte.
+   Par poste au téléphone : deux cartes par colonne qu'on balaie ; au bureau,
+   une carte par colonne. « Tous » : autant de cartes de front que la largeur
+   en tient (deux à 390 px, six à 1 280). Le loto : ses trois cartes de front.
    ================================================================= */
-.slot.cj { background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), transparent 45%), var(--slot-fond, var(--panel-0)); }
-/* Le carton : un bord crème de trois pixels et le filet du club dedans. */
-.slot.cj-carton::before {
-  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
-  box-shadow: inset 0 0 0 3px var(--carton), inset 0 0 0 4.5px var(--slot-stripe, #8d97a3), inset 0 0 0 5px rgba(0, 0, 0, 0.35);
-}
-.slot.cj-carton .slot-band { padding-top: 5px; padding-left: 9px; padding-bottom: 4px; }
-.slot.cj-lustre .slot-band { padding-left: 9px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 70%), var(--slot-band, var(--neutre-eq)); }
-.slot.cj-lustre::before { padding: 3px; }
-.slot.cj-lustre.tc-rare { background: linear-gradient(135deg, rgba(230, 236, 242, 0.14), transparent 50%), var(--slot-fond, var(--panel-0)); }
-.slot.cj-lustre.tc-legendaire { background: linear-gradient(125deg, rgba(255, 122, 168, 0.12), rgba(255, 214, 110, 0.10) 30%, rgba(124, 255, 196, 0.09) 55%, rgba(192, 139, 255, 0.13)), var(--slot-fond, var(--panel-0)); }
-.slot.cj > :not(.cj-holo) { position: relative; z-index: 2; }
-.slot.cj .slot-remove { position: absolute; z-index: 4; }
-.slot.cj .slot-face {
-  position: relative; height: 48px; border-radius: 6px;
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 4px, transparent 4px 8px),
-    radial-gradient(130% 85% at 50% 18%, color-mix(in srgb, var(--slot-band, #2a3140) 88%, #ffffff), color-mix(in srgb, var(--slot-band, #2a3140) 45%, #05070a) 78%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--slot-stripe, #8d97a3) 80%, transparent);
-}
-.slot.cj .slot-face img { transform: scale(1.1); transform-origin: 50% 0; object-position: 50% 0; }
-.slot.cj-lustre .slot-face::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: var(--arc); background-size: 400% 400%; background-position: var(--mx) var(--my);
-  mix-blend-mode: color-dodge; opacity: calc(0.18 + 0.35 * var(--lueur));
-}
-.slot-face .cj-gemme {
-  position: absolute; right: 1px; bottom: 1px; z-index: 1; padding: 1px 2px; border-radius: 3px;
-  font-size: 7px; background: rgba(0, 0, 0, 0.72);
-}
-/* LA CASE CHOISIE SE SOULÈVE, cadre blanc (`--ui-accent`, fixe) : on voit
-   quelle carte on tient dans la main. */
-.slot.cj.selected::before {
-  padding: 0; background: none; -webkit-mask: none; mask: none;
-  box-shadow: inset 0 0 0 1px #ffffff, inset 0 0 0 3px var(--ui-accent), inset 0 0 0 4px rgba(0, 0, 0, 0.5);
-}
-.slot.cj.selected { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), 0 0 14px color-mix(in srgb, var(--ui-accent) 45%, transparent); }
-/* LA CARTE QU'ON VIENT DE SIGNER ARRIVE : elle se pose et luit une fois. */
-.slot.cj.cj-arrive { animation: cj-arrive 0.9s var(--ressort); }
+#pool .pool-col-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: start; }
+@container col (min-width: 260px) { #pool .pool-col-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+#pool.pool:not(.by-pos) { grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); gap: 8px; }
+#panePool.loto #pool.pool { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+@container pool (min-width: 700px) { #panePool.loto #pool.pool { grid-template-columns: repeat(3, minmax(0, 220px)); justify-content: center; gap: 12px; } }
+/* Au loto, la carte a 112 px au téléphone : la ligne d'avertissement, en 9 px, garde sa place. */
+#panePool.loto #pool .pcard.pv .pcard-dest { font-size: 9px; }
+
+/* =================================================================
+   LA CASE DE L'ALIGNEMENT, DU BANC ET DES RÉSERVISTES (`.slot.cj-case`, S78)
+   La case se LIT d'abord (js/game.js, `slotEl`) : la bande (sa case, son
+   club, son salaire), son NOM sur toute la largeur, sa production ou sa
+   fiche à ce jour, puis les verdicts. Pas de photo, pas d'inclinaison, pas
+   d'holographique : une variante brillante n'y garde qu'un liseré de sa
+   couleur au-dessus de la bande. La case fait toujours 106 px.
+   ================================================================= */
+.slot.cj-case .slot-inner { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 3px; padding: 5px 8px 6px; }
+.slot.cj-case .slot-name { font-size: 17px; line-height: 1.05; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot.cj-case .slot-name .fname { display: none; }
+.slot.cj-case .slot-faits { font-size: 11px; color: var(--text); opacity: 0.86; }
+.slot.cj-case .slot-tags { margin-top: auto; }
+.slot.cj-case.sous-zone { border-color: color-mix(in srgb, var(--orange, #fb923c) 70%, transparent); }
+.slot.cj-case:is(.tc-peu, .tc-rare, .tc-legendaire) .slot-band { box-shadow: inset 0 -2px 0 var(--slot-stripe, var(--blue)), inset 0 2px 0 var(--cj-liseré); }
+.slot.cj-case.tc-peu { --cj-liseré: #3fb0d6; }
+.slot.cj-case.tc-rare { --cj-liseré: #e8edf2; }
+.slot.cj-case.tc-legendaire { --cj-liseré: #ffd76a; }
+/* La case qu'on tient : un anneau clair, et elle se soulève. */
+.slot.cj-case.selected { outline: 2px solid var(--ui-accent); outline-offset: -2px; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55); }
+/* La carte qu'on vient de signer se pose et luit une fois. */
+.slot.cj-case.cj-arrive { animation: cj-arrive 0.9s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes cj-arrive {
   0% { transform: translateY(-10px) scale(0.9) rotate(-2deg); box-shadow: 0 0 0 0 rgba(255, 214, 110, 0.8); }
   45% { transform: translateY(0) scale(1.04) rotate(0.5deg); box-shadow: 0 0 0 6px rgba(255, 214, 110, 0.35); }
   100% { transform: none; box-shadow: 0 0 0 12px rgba(255, 214, 110, 0); }
 }
-@media (prefers-reduced-motion: reduce) { .slot.cj.cj-arrive { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .slot.cj-case.cj-arrive { animation: none; } }
 
 /* LA VIGNETTE QUI FILE AU CARTABLE (`voleAuCartable`). */
 .cj-vole {
@@ -7473,6 +7558,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   border: 3px solid var(--carton); background: #1a1f28; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
   animation: cj-vole 0.75s cubic-bezier(0.45, -0.25, 0.6, 1) forwards;
 }
+.cj-vole.tc-peu { border-color: #3fb0d6; }
 .cj-vole.tc-rare { border-color: #e6ebf0; }
 .cj-vole.tc-legendaire { border-color: #ffd76a; }
 .cj-vole img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
@@ -7484,10 +7570,10 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 }
 
 /* =================================================================
-   LA FICHE : LE RECTO, PUIS LE VERSO
-   La PHOTO est la carte (`.pcard-full-photo`) : c'est elle qui se penche.
-   Au téléphone elle prend la largeur, au bureau elle se tient debout à
-   gauche des renseignements, au format d'une carte.
+   LA FICHE : LE RECTO DEBOUT, PUIS LE VERSO (S77-S78)
+   La PHOTO est la carte (`.pcard-full-photo.cj-recto`) : c'est elle qui se
+   penche, et elle a le dessin de son époque. Au téléphone elle se tient au
+   milieu, debout ; au bureau, à gauche des renseignements.
    ================================================================= */
 .fiche-carte { position: relative; margin: 10px 10px 0; }
 .fiche-carte .pcard-full-head.cj {
@@ -7497,113 +7583,73 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
     color-mix(in srgb, var(--card-primary, var(--neutre-eq)) 34%, #0a0b0e);
 }
 .fiche-carte .pcard-full-head.cj::before, .fiche-carte .pcard-full-head.cj::after { content: none; }
-.fiche-carte .pcard-full-head .pcard-full-top { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
-/* LA CARTE (la photo) : son cadre, sa fenêtre, son bandeau. */
-.fiche-carte .pcard-full-photo {
-  position: relative; isolation: isolate; align-self: stretch; width: auto; height: auto; display: flex; flex-direction: column;
-  align-items: stretch; justify-content: flex-start;   /* la base pose `place-items: end center` : la fenêtre tombait à 0 px */
-  padding: 8px 8px 0; border-radius: 12px; touch-action: pan-y; cursor: pointer;
+.fiche-carte .pcard-full-head .pcard-full-top { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.fiche-carte .pcard-full-photo.cj-recto {
+  position: relative; isolation: isolate; width: min(236px, 100%); height: auto; flex: none;
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+  padding: 8px; gap: 6px; border-radius: 12px; touch-action: pan-y; cursor: pointer;
+  background: var(--cj-fond); color: var(--cj-encre);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
-.cj-carton .pcard-full-photo { background: var(--grain), linear-gradient(176deg, #f7f0e0, var(--carton) 45%, var(--carton-2)); }
-.cj-lustre .pcard-full-photo { padding: 6px 6px 0; background: var(--argent); }
-.cj-lustre.tc-legendaire .pcard-full-photo { background: conic-gradient(from 210deg, #fff1b8, #d4a017, #ff9ec2, #fff6d6, #8fe3ff, #b8860b, #ffe08a, #fff1b8); }
-/* Le reflet de la carte : sous le bandeau du nom (z-index 3), jamais sur lui. */
+.fiche-carte .pcard-full-id { align-self: stretch; }
+/* Le reflet de la carte : sous le bandeau du nom, jamais sur lui. */
 .pcard-full-photo::after {
   content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.1) 25%, transparent 55%);
   mix-blend-mode: soft-light; opacity: var(--lueur);
 }
-/* LA FENÊTRE : le fond du club, la trame, l'écusson en filigrane derrière le joueur. */
 .cj-fenetre {
-  position: relative; overflow: hidden; height: 176px; border-radius: 6px;
+  position: relative; overflow: hidden; aspect-ratio: 6 / 7; border-radius: 6px;
   background:
     repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 7px, transparent 7px 14px),
-    radial-gradient(90% 110% at 50% 100%, color-mix(in srgb, var(--team-band, var(--card-primary)) 90%, #ffffff), color-mix(in srgb, var(--team-band, var(--card-primary)) 40%, #05070a) 80%);
-  box-shadow: inset 0 0 0 2px var(--team-stripe, rgba(255, 255, 255, 0.4));
+    radial-gradient(110% 90% at 50% 20%, color-mix(in srgb, var(--team-band, var(--card-primary)) 85%, #ffffff), color-mix(in srgb, var(--team-band, var(--card-primary)) 40%, #05070a) 80%);
 }
-.cj-lustre .cj-fenetre { border-radius: 7px 7px 0 0; box-shadow: none; }
-/* Le buste à une fois et demie la hauteur, les bords fondus dans le fond du club. */
-.cj-fenetre > img {
-  position: absolute; inset: 0 auto auto 50%; width: auto; height: 150%; aspect-ratio: 1; transform: translateX(-50%); object-fit: cover;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
-}
+.cj-recto.e10 .cj-fenetre { background: transparent; }
+.cj-recto.e90 .cj-fenetre { margin: -8px -8px 0; border-radius: 12px 12px 0 0; }
+.cj-fenetre > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 8%; transform: none; -webkit-mask-image: none; mask-image: none; }
 .cj-fenetre > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 72px; opacity: 0.35; }
-.cj-fenetre .pcard-full-watermark { position: absolute; top: 50%; left: 50%; right: auto; transform: translate(-50%, -56%); opacity: 0.2; pointer-events: none; }
-.cj-fenetre .pcard-full-watermark :is(img, svg) { position: static; width: 128px; height: 128px; transform: none; object-fit: contain; -webkit-mask-image: none; mask-image: none; }
-/* 1985 : le haut de la fenêtre ONDULE — des festons crèmes qui mordent la photo. */
-.cj-carton .cj-fenetre::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 9px; z-index: 3;
-  background: radial-gradient(circle at 50% 0, var(--carton) 5.5px, transparent 6px) 0 0 / 15px 9px repeat-x;
-}
-/* L'écusson dans un coin, sur une pastille crème (le carton) ou de métal (le lustre). */
+.cj-rondelle { position: absolute; z-index: 3; top: 8px; left: 8px; }
+.cj-recto.e80 .cj-rondelle { top: auto; bottom: 8px; }
 .cj-coin-logo {
-  position: absolute; z-index: 3; top: 12px; left: 8px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
-  background: var(--carton); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 0 0 2px var(--team-stripe, #8d97a3);
+  position: absolute; z-index: 3; bottom: 8px; left: 8px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
 }
-.cj-coin-logo :is(img, svg) { position: static; width: 24px; height: 24px; transform: none; -webkit-mask-image: none; mask-image: none; object-fit: contain; }
-.cj-lustre .cj-coin-logo { top: 8px; background: rgba(0, 0, 0, 0.55); box-shadow: 0 0 0 1.5px #e6ebf0; }
-.cj-lustre .cj-fenetre .pcard-full-watermark { display: none; }
-/* Sur la fiche, le visage est grand : l'holographique y reste un voile, même
-   penché (au plus 0,42) — un visage arc-en-ciel ne se reconnaît plus. */
-.cj-fenetre > .cj-holo { z-index: 2; opacity: 0.2; }
-:is(.incline, .gyro, .relache) .cj-fenetre > .cj-holo { opacity: calc(0.2 + 0.22 * var(--lueur)); }
-/* Le tampon descend sous le coin droit : le ✕ de la fiche s'y pose. */
-.cj-fenetre .cj-tampon { top: 40px; left: auto; right: -6px; padding: 4px 16px 4px 12px; font-size: 11px; transform: rotate(10deg); }
-.cj-fenetre .cj-vedette { background: var(--or); color: #3a2a05; }
-.cj-fenetre .cj-serie { right: 8px; bottom: 8px; padding: 3px 6px; font-size: 12px; }
-/* LE BANDEAU DU NOM, au bas de la carte : la rondelle du poste et le nom en
-   condensée grasse. Sur le carton, une barre aux couleurs du club posée sur
-   le bord crème ; sur le lustre, une plaque estampée qui mord la photo. */
-.cj-bandeau {
-  position: relative; z-index: 3; display: flex; align-items: center; gap: 9px;
-  margin: 8px 0 10px; padding: 6px 10px 6px 6px; border-radius: 6px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 60%), var(--team-band, #243044); color: var(--team-ink, #fff);
-  box-shadow: inset 0 -3px 0 var(--team-stripe, transparent), 0 2px 5px rgba(0, 0, 0, 0.3);
-}
-.cj-lustre .cj-bandeau {
-  margin: -22px 8px 10px; background: var(--argent); color: #0c0e11; overflow: hidden; isolation: isolate;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.5);
-}
-.cj-lustre.tc-legendaire .cj-bandeau { background: var(--or); }
-.cj-lustre .cj-bandeau::after {
-  content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; z-index: -1; pointer-events: none;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.9), transparent);
-  transform: skewX(-18deg); animation: cj-estampe 5s ease-in-out infinite;
-}
-.cj-bandeau .cj-rondelle { flex: none; min-width: 30px; height: 30px; font-size: 11.5px; }
-.cj-bandeau .pcard-full-name { min-width: 0; font-size: 27px; line-height: 0.95; overflow-wrap: anywhere; color: inherit; }
-.cj-bandeau .pcard-full-name .fname { color: inherit; opacity: 0.8; font-size: 13.5px; margin-bottom: 1px; }
-.cj-lustre .cj-bandeau .pcard-full-name .fname { opacity: 1; color: #3b4047; }
-@media (prefers-reduced-motion: reduce) { .cj-lustre .cj-bandeau::after { animation: none; opacity: 0; } }
-/* Les renseignements, sous la carte (au téléphone) ou à côté (au bureau). */
-.fiche-carte .pcard-full-id { padding-bottom: 2px; }
-/* Le pied du recto : la série, le numéro, la rareté en mots, et « Verso ». */
+.cj-recto.e80 .cj-coin-logo { bottom: auto; top: 12px; background: #f5eedf; box-shadow: inset 0 0 0 2px var(--team-stripe, #8d97a3), 0 2px 5px rgba(0, 0, 0, 0.4); }
+.cj-recto.e80 .cj-rondelle + .cj-coin-logo { left: 8px; }
+.cj-coin-logo :is(img, svg) { position: static; width: 22px; height: 22px; transform: none; object-fit: contain; }
+.cj-recto .cj-annee { right: 8px; bottom: 8px; font-size: 13px; padding: 3px 7px; }
+.cj-recto .cj-tampon { top: 12px; right: -6px; padding: 4px 16px 4px 12px; font-size: 11px; transform: rotate(10deg); }
+/* Le bandeau du nom : sous la photo, dans le style de l'époque (plus haut, « LES ÈRES »). */
+.cj-bandeau { position: relative; z-index: 3; min-height: 50px; display: flex; align-items: center; padding: 6px 10px; border-radius: 5px; }
+.cj-bandeau .pcard-full-name { min-width: 0; font-size: 24px; line-height: 0.98; overflow-wrap: anywhere; color: inherit; }
+.cj-bandeau .pcard-full-name .fname { color: inherit; opacity: 0.8; font-size: 13px; margin-bottom: 2px; }
+.cj-recto:is(.e90, .e10) .cj-bandeau { margin-top: -14px; }
+/* Les renseignements : le club en toutes lettres, puis ce que la carte JOUE. */
+.fiche-carte .pcard-full-team { color: var(--text); font-size: 15px; margin: 0; }
+.cj-sa-carte { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.28); font-size: 13px; line-height: 1.35; }
+.cj-sa-rarete { font: 800 12px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tc-bord, #9aa4ae); }
+.cj-sa-rarete.tc-commune { color: #b9b2a2; }
+.cj-sa-trait b { font-weight: 800; }
 .fiche-carte .cj-plaque {
-  position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 10px;
+  position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 10px;
   margin: 10px 0 0; padding: 8px 2px 10px; border-top: 1px solid rgba(255, 255, 255, 0.1);
   font: 700 10.5px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
 }
-.cj-plaque-rarete { color: var(--tc-bord); white-space: nowrap; }
-.cj-lustre .cj-plaque-rarete { color: #e8edf2; }
-.cj-lustre.tc-legendaire .cj-plaque-rarete { color: #ffd76a; }
 .cj-retourner {
-  min-height: 32px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.22);
+  min-height: 34px; padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(0, 0, 0, 0.35); color: var(--text); cursor: pointer;
   font: 800 12px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
 }
 .cj-retourner:hover { border-color: var(--gold); color: var(--gold); }
 @media (min-width: 560px) {
   .fiche-carte .pcard-full-head .pcard-full-top { flex-direction: row; align-items: flex-start; gap: 16px; }
-  .fiche-carte .pcard-full-photo { flex: none; width: 200px; align-self: flex-start; }
-  .cj-fenetre { height: 196px; }
-  .cj-fenetre > img { inset: 0; left: 0; width: 100%; height: 100%; transform: none; object-position: 50% 0; -webkit-mask-image: none; mask-image: none; }
-  .cj-bandeau .pcard-full-name { font-size: 22px; }
+  .fiche-carte .pcard-full-photo.cj-recto { width: 216px; }
 }
 
 /* LE VERSO : une carte canadienne des années 80, à l'horizontale, à l'encre
-   rouge et bleue sur un carton saumon. */
+   rouge et bleue sur un carton saumon — le numéro, le nom, le poste, les
+   mensurations, l'échange et le tirage d'une légendaire (js/game.js,
+   `versoDeCarte`) ; rien de ce que le recto ou la fiche disent déjà. */
 .cj-verso {
   position: relative; isolation: isolate; margin: 0; padding: 10px 12px 8px; border-radius: 14px; overflow: hidden; touch-action: pan-y;
   background: var(--grain), linear-gradient(176deg, #f3d3bf, #ebc2aa 60%, #e3b59b);
@@ -7613,7 +7659,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .cj-verso[hidden] { display: none; }
 /* La bande du haut s'arrête avant le coin droit : le ✕ de la fiche s'y pose. */
 .cjv-tete {
-  display: flex; align-items: center; gap: 8px; margin: 2px 40px 6px 2px; padding: 5px 8px; border-radius: 4px;
+  display: flex; align-items: center; gap: 8px; margin: 2px 40px 8px 2px; padding: 5px 8px; border-radius: 4px;
   background: var(--encre-bleue); color: #f7f1e3;
   font: 800 16px/1.05 var(--display); letter-spacing: 0.04em; text-transform: uppercase;
 }
@@ -7622,20 +7668,15 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   background: var(--encre-rouge); color: #fff; font-size: 14px; letter-spacing: 0;
 }
 .cjv-nom { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.cjv-pos { flex: none; font-size: 13px; opacity: 0.85; }
-.cjv-vitales { margin: 0 4px 6px; font: 700 12.5px/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-bleue); }
+.cjv-pos { flex: none; font-size: 12px; opacity: 0.85; }
 .cjv-table-wrap { margin: 0 2px; overflow-x: auto; }
-.cjv-table { width: 100%; border-collapse: collapse; font: 700 13px/1.2 var(--display); font-variant-numeric: tabular-nums; }
-.cjv-table th, .cjv-table td { padding: 3px 4px; text-align: right; white-space: nowrap; }
-.cjv-table thead th { color: #f7f1e3; background: var(--encre-rouge); font-size: 11.5px; letter-spacing: 0.06em; }
-.cjv-table thead th:first-child, .cjv-table tbody th { text-align: left; }
-.cjv-table tbody th, .cjv-table td:nth-child(2) { color: var(--encre-bleue); }
-.cjv-table tbody tr { border-bottom: 1px dotted rgba(163, 37, 43, 0.45); }
-.cjv-table tbody tr.cjv-sim { color: var(--encre-bleue); }
-.cjv-bio { margin: 7px 4px 0; font-size: 13px; line-height: 1.4; color: #5c1418; }
-.cjv-en { margin-top: 2px; font-size: 11.5px; font-style: italic; color: var(--encre-bleue); }
+.cjv-table { width: 100%; border-collapse: collapse; font: 700 14px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+.cjv-table th, .cjv-table td { padding: 4px 6px; text-align: center; white-space: nowrap; }
+.cjv-table thead th { color: #f7f1e3; background: var(--encre-rouge); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.cjv-table td { color: var(--encre-bleue); border-bottom: 1px dotted rgba(163, 37, 43, 0.45); }
+.cjv-bio { margin: 8px 4px 0; font-size: 13px; line-height: 1.4; color: #5c1418; }
 .cjv-pied {
-  display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 2px 0; padding-top: 5px;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 2px 0; padding-top: 6px;
   border-top: 1px solid rgba(30, 58, 134, 0.3); font: 700 10px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-bleue);
 }
 .cj-verso .cj-retourner { background: var(--encre-bleue); color: #f7f1e3; border-color: transparent; }
@@ -7644,9 +7685,13 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.4), transparent 55%);
   opacity: var(--lueur);
 }
-/* LE RETOURNEMENT : un quart de tour, la face change sur la tranche, l'autre quart. */
+/* LE RETOURNEMENT : un quart de tour, la face change sur la tranche, l'autre
+   quart. La courbe est écrite en toutes lettres : `var(--ressort)` n'existe
+   pas sur `.fiche-carte`, et une déclaration `animation` qui la lisait était
+   INVALIDE — le second quart ne partait pas, et « ↻ Recto » restait bloqué
+   (S78 ; la minuterie de `brancherRetournement` ne dépend plus de la feuille). */
 .fiche-carte.tourne-1 { animation: cj-tourne-1 0.2s ease-in forwards; }
-.fiche-carte.tourne-2 { animation: cj-tourne-2 0.34s var(--ressort); }
+.fiche-carte.tourne-2 { animation: cj-tourne-2 0.34s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes cj-tourne-1 { to { transform: perspective(1100px) rotateY(90deg) scale(0.96); } }
 @keyframes cj-tourne-2 { from { transform: perspective(1100px) rotateY(-90deg) scale(0.96); } to { transform: perspective(1100px) rotateY(0deg) scale(1); } }
 
@@ -7912,6 +7957,69 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .album-logo { width: 32px; height: 42px; }
 .album-visage { border-radius: 5px; border: 2px solid #efe6d2; background: rgba(255, 255, 255, 0.06); }
 .album-joueur.champion .album-visage { border-color: #e6c07a; }
+
+/* ---------------------------------------------------------------
+   LA STRATÉGIE SOUS SON TRIO (S78) — `tiroirStrategie` (js/game.js),
+   `strategieDeLigne` (js/gerant.js). JP : *Alignement et stratégie et trio,
+   ça devrait être ensemble* ; *sur mobile … dropdown … pour gagner espace,
+   page trop longue, ça fait qu'on perd parfois l'info*.
+   Un tiroir par trio, un seul ouvert (l'accordéon natif de <details name>).
+   Fermé, il tient en une rangée de 40 px ; ouvert, son résumé se tait
+   (`.ln-som-detail`) : les boutons disent la même chose, en mieux.
+   --------------------------------------------------------------- */
+.ln-strat { border-top: 1px solid var(--line-soft); }
+.ln-som {
+  display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 10px;
+  list-style: none; cursor: pointer; font-size: 12.5px; color: var(--sub);
+}
+.ln-som::-webkit-details-marker { display: none; }
+.ln-som:hover { background: rgba(255, 255, 255, 0.03); }
+.ln-som-k { flex: none; font: 800 11px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.ln-som-detail { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 0; flex: 1; min-width: 0; }
+.ln-som-detail b { color: var(--text); font: 800 13.5px/1.2 var(--display); }
+/* Le point APRÈS chaque morceau, pas avant : quand la colonne est étroite
+   (1 280 px, trois trios de front), la rangée se replie et une ligne qui
+   commence par « · » se lit comme une puce orpheline. */
+.ln-som-detail > :not(:last-child)::after { content: '·'; margin: 0 6px; color: var(--muted); font-weight: 400; }
+.ln-som-fit.bon { color: var(--green); }
+.ln-som-fit.prix { color: var(--live); }
+.ln-som-ouvre { margin-left: auto; flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); }
+.ln-som-ouvre::after { content: '▾'; font-size: 12px; color: var(--sub); transition: transform 0.15s; }
+.ln-strat[open] > .ln-som .ln-som-detail { display: none; }
+.ln-strat[open] > .ln-som .ln-som-ouvre::after { transform: rotate(180deg); }
+.ln-strat[open] > .ln-som .ln-som-k { color: var(--gold); }
+.ln-corps { display: flex; flex-direction: column; gap: 7px; padding: 2px 10px 12px; }
+.ln-corps .gl-sec-titre { margin: 6px 0 0; font-size: 12px; }
+/* Sept tactiques en deux colonnes au téléphone, trois ou quatre ailleurs :
+   le nom et le fit, rien d'autre — la tactique choisie dit le reste dessous. */
+.ln-tacs { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); }
+.ln-strat .gl-tac { padding: 7px 9px; gap: 2px; }
+.ln-strat .gl-tac b { font-size: 13px; }
+.ln-strat .gl-tac-soir { font-size: 11px; }
+.ln-choisie { display: flex; flex-direction: column; gap: 4px; }
+.ln-demande { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.ln-demande .gl-k { flex-basis: 100%; }
+.ln-dem {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px;
+  font: 700 12px/1 var(--display); background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line-soft); cursor: help;
+}
+.ln-dem b { color: var(--muted); font-weight: 800; }
+.ln-dem i { font-style: normal; font-size: 13px; }
+.ln-dem.fit-bon i { color: var(--green); }
+.ln-dem.fit-mauvais i { color: var(--live); }
+.ln-etat { display: flex; flex-wrap: wrap; gap: 3px 14px; font-size: 12.5px; color: var(--sub); }
+.ln-etat b { color: var(--text); font-family: var(--display); }
+.ln-agr .gl-seg-btn { gap: 2px; }
+.ln-agr .gl-seg-btn b { font-size: 12.5px; }
+.ln-agr .gl-seg-btn small { font-size: 11px; }
+.ln-agr-effets { margin-top: 0; }
+/* Derrière le banc, « Ce qui joue sur ta formation » est replié et son
+   résumé porte déjà le titre : celui de `effetsHtml` se tait. */
+.banc-effets .gl-sec-titre { display: none; }
+.banc-effets .gl-effets { margin: 4px 0 0; }
+/* Le 🔒 du trio dit déjà « Fermeture » quand il est posé : l'en-tête ne
+   l'écrit pas une seconde fois (JP : *jamais dédoubler information*). */
+.line.fermeture .line-name::after { content: none; }
 
 /* =====================================================================
    LE MENU (S77) — au lancement, et par « Menu » dans la barre du haut.
