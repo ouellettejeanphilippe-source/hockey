@@ -25,7 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch } from '../js/sim.js';
-import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT } from '../js/combat.js';
+import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse } from '../js/combat.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -163,6 +163,15 @@ console.log('\n  Le deck de match (S74)\n');
       const m1 = b1[0].minisBoss.find(x => x.jour === m0.jour);
       exiger('« Leur cahier de jeux » annule leur main', !!(m1 && m1.cartes && m1.cartes.annulee), m1 && m1.cartes ? `annulée : ${m1.cartes.annulee}` : 'rien');
     }
+  }
+  // L'ÉNERGIE ADVERSE MONTE AVEC LA COURSE (S74b) : quatre en fin de saison et en fin de séries.
+  {
+    const cout = m => m.reduce((a, c) => a + CARTES_MATCH[c].cout, 0);
+    let c3 = 0, c4 = 0;
+    for (let g = 0; g < 200; g++) { c3 += cout(mainAdverse(`e${g}`, 'j1', 3)); c4 += cout(mainAdverse(`e${g}`, 'j1', 4)); }
+    exiger('l\'adversaire joue plus fort en fin de course', energieAdverse({ jour: 10 }) === 3 && energieAdverse({ jour: 60 }) === 4
+      && energieAdverse({ serie: true, ronde: 0 }) === 3 && energieAdverse({ serie: true, ronde: 2 }) === 4 && c4 > c3 * 1.25,
+      `énergie dépensée : ${(c3 / 200).toFixed(2)} à trois, ${(c4 / 200).toFixed(2)} à quatre`);
   }
   /*
    * 7. LE CALIBRAGE, SUR DES GROS MATCHS ISOLÉS (simulerGrosMatch). Sur des

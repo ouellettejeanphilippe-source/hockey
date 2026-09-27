@@ -6,7 +6,7 @@
  * Toute modification des constantes doit être revalidée (voir PLAN.md, S3).
  */
 
-import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT } from './combat.js';
+import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse } from './combat.js';
 import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour } from './ratings.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
@@ -4960,7 +4960,7 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
         const adv = toi === s.A ? s.B : s.A, prec = s.plans[s.plans.length - 1] || null;
         gros = { serie: true, raison: 'serie', adv, plan: planDeSerie(graine, ronde, k, prec && prec.plan, prec ? prec.gagne : false), effetsAvant: [],
           cartes: toi._mainSerie ? toi._mainSerie.main : null, cleCartes: toi._mainSerie ? toi._mainSerie.cle : '',
-          graineMain: graine, cleMain: `po${ronde}:${k}` };
+          graineMain: graine, cleMain: `po${ronde}:${k}`, ronde };
         toi._mainSerie = null;
         const entracte = toi._entracte;
         poserGros(toi, adv, gros);
@@ -5335,7 +5335,7 @@ function poserGros(toi, adv, gros) {
   if (gros.cartes && Array.isArray(gros.cartes.jouees)) poserCartes(toi, adv, gros, base);
   // LEUR MAIN (S74, js/combat.js) : connue d'avance, jouée ici — sauf si ta main l'annule.
   if (OPTIONS_COMBAT.adverses && gros.cleMain != null) {
-    gros.cartesAdv = mainAdverse(gros.graineMain, gros.cleMain);
+    gros.cartesAdv = mainAdverse(gros.graineMain, gros.cleMain, energieAdverse({ jour: gros.jour || 0, serie: !!gros.serie, ronde: gros.ronde || 0 }));
     const annulee = !!(gros.cartes && (gros.cartes.jouees || []).some(c => CARTES_MATCH[c] && CARTES_MATCH[c].annule));
     if (!annulee) {
       const fx = effetsDesCartes(adv, { jouees: gros.cartesAdv }, `${gros.graineMain}:${gros.cleMain}:adverse`);
@@ -5442,6 +5442,8 @@ export function effetsDesCartes(team, cartes, cle = '') {
  */
 export function simulerGrosMatch(toi, adv, { plan = 'trappe', cartes = null, graine = 'mesure', cle = 'j0' } = {}) {
   grainerHasard(`${graine}:${cle}`);
+  // Des jambes fraîches des deux côtés : une carte qui rend de l'énergie écrit sur les joueurs, et la mesure d'un match ne doit pas hériter du précédent.
+  for (const t of [toi, adv]) for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) p.energie = 100; }
   const gros = { jour: 0, adv, raison: 'rival', plan, avant: null, effetsAvant: [], cartes, cleCartes: `${graine}:${cle}`, graineMain: graine, cleMain: cle };
   poserGros(toi, adv, gros);
   const feuille = feuilleVierge();

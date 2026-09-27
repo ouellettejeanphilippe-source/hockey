@@ -34,7 +34,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, fitLigne, profilPrincipal, apprentissagePhoto } from './sim.js';
 import { artJoueur } from './cartes.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, planReplie } from './gerant.js';
-import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse } from './combat.js';
+import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant } from './recit.js';
@@ -798,7 +798,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     ouvrirMainDeMatch({
       titre: 'Ta main', sousTitre: `Match important · journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
       recit: 'Cinq cartes, trois d\'énergie. Ce que tu joues vaut pour ce match seulement ; le reste retourne dans le deck.',
-      contexte: planReplie(planAdverseHtml(mo.mb.plan, mo.mb.contre, { nomAdv: ctx.teamShort(adv) }), `${PLANS_ADV[mo.mb.plan] ? PLANS_ADV[mo.mb.plan].ico : '📋'} Leur plan : <b>${ctx.esc(PLANS_ADV[mo.mb.plan] ? PLANS_ADV[mo.mb.plan].nom : '')}</b> · ${mo.mb.contre ? '✓ contré' : '✗ pas contré'}`) + mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`), { nomAdv: ctx.teamShort(adv) }),
+      contexte: planReplie(planAdverseHtml(mo.mb.plan, mo.mb.contre, { nomAdv: ctx.teamShort(adv) }), `${PLANS_ADV[mo.mb.plan] ? PLANS_ADV[mo.mb.plan].ico : '📋'} Leur plan : <b>${ctx.esc(PLANS_ADV[mo.mb.plan] ? PLANS_ADV[mo.mb.plan].nom : '')}</b> · ${mo.mb.contre ? '✓ contré' : '✗ pas contré'}`) + mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }) }),
       equipe: you, main, pioche, deck,
       onJouer: (jouees, enMain) => { const j = jour; quitter(); onDecision({ jour: mo.p.j, main: { jouees, enMain } }, j); },
     });
@@ -1289,7 +1289,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       const Ao = Av && Av.options.find(o => o.cle === avantPris.avant.choix);
       const miniBoss = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros">
         <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Match important · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
-        ${onDecision ? planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`), { nomAdv: ctx.teamShort(adv) }) : ''}
+        ${onDecision ? planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`, energieAdverse({ jour: p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: p.j }) }) : ''}
         ${Ao ? `<div class="hub-gros-avant">${Av.ico} ${ctx.esc(Av.titre)} : <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
         <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, finition ↑ · 3 matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, finition ↓ · 3 matchs`, bon: false }])}</div>
         ${onDecision ? '<div class="hub-gros-note">🎬 Au deuxième entracte, un choix t\'attend.</div>' : ''}
@@ -1780,7 +1780,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
         ${gar ? `<div>🥅 Son gardien : <b>${ctx.esc(gar.n)}</b>${gar.simSA ? ` · ${((gar.simSV || 0) / gar.simSA).toFixed(3).replace(/^0/, '')} en saison` : ''}</div>` : ''}
       </div>
       ${planDuMatch(s) ? planAdverseHtml(planDuMatch(s).plan, planDuMatch(s).contre, { nomAdv: ctx.teamShort(boss), suite: suiteDuPlan(s) }) : ''}
-      ${onDecision ? mainAdverseHtml(mainAdverse(graine, `po${ronde}:${revele.get(s)}`), { nomAdv: ctx.teamShort(boss) }) : ''}
+      ${onDecision ? mainAdverseHtml(mainAdverse(graine, `po${ronde}:${revele.get(s)}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }) }) : ''}
       <div class="hub-lignes"><span class="gl-k">Tes lignes</span> ${resumeLignes(lt, chim)}</div>
     </div>`;
   }
@@ -1906,7 +1906,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
         sousTitre: `${nomRondeCourt(ronde)} · match ${k + 1} · contre ${ctx.teamShort(boss)} · série ${moi}-${lui}`,
         recit: dejaAjuste ? 'Cinq cartes, trois d\'énergie. Ce que tu joues vaut pour ce match de la série.'
           : `${resultatPrecedent(s, k)}${etat === 'derriere' ? 'Ta formation tire de l\'arrière.' : etat === 'devant' ? 'Ta formation mène la série.' : 'La série est à égalité.'} Choisis ton ajustement, puis joue tes cartes.`,
-        contexte: (pl ? planReplie(planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss) }), `${PLANS_ADV[pl.plan] ? PLANS_ADV[pl.plan].ico : '📋'} Leur plan : <b>${ctx.esc(PLANS_ADV[pl.plan] ? PLANS_ADV[pl.plan].nom : '')}</b> · ${pl.contre ? '✓ contré' : '✗ pas contré'}`) : '') + mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`), { nomAdv: ctx.teamShort(boss) }),
+        contexte: (pl ? planReplie(planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss) }), `${PLANS_ADV[pl.plan] ? PLANS_ADV[pl.plan].ico : '📋'} Leur plan : <b>${ctx.esc(PLANS_ADV[pl.plan] ? PLANS_ADV[pl.plan].nom : '')}</b> · ${pl.contre ? '✓ contré' : '✗ pas contré'}`) : '') + mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }) }),
         ajustements: dejaAjuste ? null : ajustementsOfferts(graine, ronde, k, etat).map(c => ({ cle: c, ...AJUSTEMENTS[c] })),
         equipe: you, main, pioche, deck,
         onJouer: (jouees, enMain, ajustement) => quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees, enMain } })),

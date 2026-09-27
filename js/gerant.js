@@ -483,9 +483,9 @@ export function motsDeCarteAdverse(C) {
  * LEUR MAIN (S74) : les « intentions » de Slay the Spire. On la connaît avant
  * de jouer la sienne — c'est tout le jeu : répondre.
  */
-export function mainAdverseHtml(cartes, { nomAdv = 'Eux' } = {}) {
+export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN } = {}) {
   if (!cartes || !cartes.length) return '';
-  return `<div class="main-adverse"><div class="gl-k">🂠 La main de ${esc(nomAdv)} ce soir</div><div class="main-adverse-cartes">${cartes.map(c => {
+  return `<div class="main-adverse"><div class="gl-k">🂠 La main de ${esc(nomAdv)} ce soir${energie > ENERGIE_MAIN ? ` · <span class="main-adverse-fort" title="En fin de saison et dans les dernières rondes des séries, l'adversaire joue avec une énergie de plus">⚡ ${energie} d'énergie</span>` : ''}</div><div class="main-adverse-cartes">${cartes.map(c => {
     const C = CARTES_MATCH[c];
     return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C))}</span></span>` : '';
   }).join('')}</div></div>`;
