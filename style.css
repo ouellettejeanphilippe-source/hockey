@@ -1620,6 +1620,17 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   white-space: nowrap;
 }
 .line-chem b { color: inherit; font-weight: 900; }
+/* « Trio de snipers », « Paire classique » (S79) : ce que ses joueurs sont, en mots. */
+.line-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 700 12px/1.1 var(--display);
+  letter-spacing: 0.03em;
+  color: var(--gold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .line-chem.good { color: var(--green); }
 .line-chem.bad { color: var(--red); }
 
@@ -1742,6 +1753,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .slot-tags > * { flex: none; }
 .slot-tags .tag { font-size: 9.5px; padding: 1px 5px; }
 .slot-icones { font-size: 11px; line-height: 16px; letter-spacing: -1px; white-space: nowrap; }
+.slot-roles { flex: none; font-size: 13px; line-height: 16px; letter-spacing: -1px; white-space: nowrap; }
 /* Rien ne rétrécit : la case a une hauteur fixe, ses rangées aussi. */
 .slot-inner > * { flex: none; }
 
@@ -7947,6 +7959,12 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .ln-strat .gl-tac b { font-size: 13px; }
 .ln-strat .gl-tac-soir { font-size: 11px; }
 .ln-choisie { display: flex; flex-direction: column; gap: 4px; }
+.ln-strat-d .ln-som-k { color: var(--sub); }
+.ln-conseil { font-size: 12.5px; line-height: 1.35; color: var(--sub); }
+.ln-conseil small { color: var(--muted); }
+.ln-conseil-btn { font: inherit; font-weight: 800; color: var(--gold); background: none; border: 0; border-bottom: 1px dashed currentColor; padding: 0 1px; cursor: pointer; }
+.gl-adv .ok { color: var(--green); }
+.gl-sec-titre .ln-id { color: var(--gold); text-transform: none; letter-spacing: 0; }
 .ln-demande { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .ln-demande .gl-k { flex-basis: 100%; }
 .ln-dem {
@@ -8908,29 +8926,33 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .dep2-chances-mots b { font: 800 19px/1 var(--display); }
 .dep2-prol { font-size: 11.5px; color: var(--muted); text-align: center; }
 .dep2-note { font-size: 11.5px; line-height: 1.35; color: var(--muted); }
-.dep2-axes { display: flex; flex-direction: column; gap: 6px; }
-.dep2-axes-tete { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; font: 700 11.5px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.dep2-axes-tete span { display: inline-flex; align-items: center; gap: 4px; }
-.dep2-axes-tete span:last-child { justify-content: flex-end; }
-.dep2-axe { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px 8px; }
-.dep2-axe-nom { grid-column: 1 / -1; text-align: center; font: 700 12.5px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--sub); }
-.dep2-axe-moi, .dep2-axe-lui { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 12.5px; }
-.dep2-axe-lui { align-items: flex-end; text-align: right; }
-.dep2-axe-moi small, .dep2-axe-lui small { color: var(--muted); font-size: 11.5px; }
-.dep2-jauge { display: flex; height: 6px; width: 100%; border-radius: 999px; background: var(--panel-3); overflow: hidden; }
-.dep2-jauge.moi { justify-content: flex-end; }
-.dep2-jauge i { display: block; height: 100%; width: calc(var(--f, 0) * 100%); border-radius: 999px; }
-.dep2-jauge.moi i { background: var(--gold); }
-.dep2-jauge.lui i { background: var(--sub); }
-.dep2-cles { display: grid; grid-template-columns: 1fr; gap: 8px; }
-@media (min-width: 560px) { .dep2-cles { grid-template-columns: 1fr 1fr; } }
-.dep2-cle { display: flex; flex-direction: column; gap: 4px; padding: 8px 9px; border-radius: var(--r-s); background: var(--panel); border: 1px solid var(--line-soft); }
-.dep2-cle-t { display: flex; align-items: center; gap: 6px; font: 800 13px/1.1 var(--display); letter-spacing: .04em; text-transform: uppercase; }
-.dep2-cle-l { font-size: 12.5px; line-height: 1.35; padding-left: 14px; position: relative; color: var(--sub); }
-.dep2-cle-l::before { position: absolute; left: 0; top: 0; }
-.dep2-cle-l.bon::before { content: "✓"; color: var(--green); }
-.dep2-cle-l.prix::before { content: "✗"; color: var(--live); }
-.dep2-cle-l.neutre::before { content: "•"; color: var(--muted); }
+/* LES FORCES EN TABLEAU (S79) : un rang par club, l'avantage marqué. */
+.dep3-table { width: 100%; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
+.dep3-table caption { caption-side: top; text-align: left; padding: 0 0 4px; font: 700 11px/1.2 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.dep3-table thead th { font: 800 12px/1.1 var(--display); letter-spacing: .04em; color: var(--sub); padding: 0 4px 5px; }
+.dep3-table thead th:first-child { width: 34%; }
+.dep3-table thead th:nth-child(3) { width: 22px; }
+.dep3-table th[scope="row"] { text-align: left; font: 700 12px/1.15 var(--display); color: var(--sub); padding: 5px 4px 5px 0; }
+.dep3-table td, .dep3-table th[scope="row"] { border-top: 1px solid var(--line-soft); vertical-align: middle; }
+.dep3-moi, .dep3-lui { padding: 5px 5px; text-align: center; border-radius: 6px; }
+.dep3-table td.dep3-moi, .dep3-table td.dep3-lui { line-height: 1.1; }
+.dep3-table td b { display: block; font: 800 16px/1 var(--display); }
+.dep3-table td b sup { font-size: 10px; }
+.dep3-table td small { display: block; margin-top: 2px; font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dep3-table td.av { background: color-mix(in srgb, var(--green) 14%, transparent); }
+.dep3-table td.av b { color: var(--green); }
+.dep3-av { text-align: center; font-size: 12px; color: var(--muted); }
+.dep3-table tr:has(td.av) .dep3-av { color: var(--green); font-weight: 900; }
+.dep3-surveiller { font-size: 12.5px; line-height: 1.35; color: var(--sub); }
+/* CE QUE TU PEUX FAIRE CE SOIR (S79) : un conseil, pourquoi, ses chiffres, « Appliquer ». */
+.dep3-conseils { display: flex; flex-direction: column; gap: 6px; }
+.dep3-conseil { display: flex; flex-direction: column; gap: 4px; padding: 8px 9px; border-radius: var(--r-s, 10px); background: var(--panel); border: 1px solid var(--line-soft); border-left: 3px solid var(--gold); }
+.dep3-conseil.deja { border-left-color: var(--green); }
+.dep3-conseil-t { font: 800 13.5px/1.25 var(--display); }
+.dep3-conseil-p { font-size: 12.5px; line-height: 1.4; color: var(--sub); }
+.dep3-conseil-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dep3-conseil-pied .choix-puces { flex: 1 1 auto; min-width: 0; }
+.dep3-appliquer { margin-left: auto; flex: none; min-height: 34px; padding: 6px 14px; }
 
 /* Ce qui se déplie : le rapport des lignes, les autres matchs. */
 .hub-plie { border-top: 1px solid var(--line-soft); }

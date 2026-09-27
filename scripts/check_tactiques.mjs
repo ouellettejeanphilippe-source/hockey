@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitLigne, TACTIQUES, SLOTS, physiqueLigne } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitLigne, fitUnite, TACTIQUES, SYSTEMES_D, SLOTS, physiqueLigne } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 
@@ -60,10 +60,10 @@ const pire = (team, u) => { const L = activeLineup(team); return CLES.slice().so
  * tactique et l'agressivité payantes. Pour éprouver un principe (le physique
  * décide de l'agressivité), on compare à un témoin fixe : « moyenne partout ».
  */
-function paires(fabrique, temoin = null) {
+function paires(fabrique, temoin = null, nLigues = LIGUES) {
   const dv = [], dbp = [], dbc = [], en = [];
   let spec = 0, etouf = 0, buts = 0;
-  for (let L = 0; L < LIGUES; L++) {
+  for (let L = 0; L < nLigues; L++) {
     const bras = [];
     for (const parite of [0, 1]) {
       const teams = ligue(4000 + L);
@@ -83,7 +83,7 @@ function paires(fabrique, temoin = null) {
       dv.push(avec.W - sans.W); dbp.push(avec.GF - sans.GF); dbc.push(avec.GA - sans.GA); en.push(avec.e);
     }
   }
-  return { v: moy(dv), bp: moy(dbp), bc: moy(dbc), e: moy(en), spec: buts ? spec / buts : 0, etouf: etouf / LIGUES };
+  return { v: moy(dv), bp: moy(dbp), bc: moy(dbc), e: moy(en), spec: buts ? spec / buts : 0, etouf: etouf / nLigues };
 }
 const dire = (t, r) => console.log(`  ${t.padEnd(26)} ${signe(r.v).padStart(5)} V  ${signe(r.bp, 0).padStart(4)} BP  ${signe(r.bc, 0).padStart(4)} BC   énergie finale ${r.e.toFixed(0)}`);
 const tous = (tac, agr = 1, sec = 60) => [0, 1, 2, 3].map(() => ({ tac, agr, sec }));
@@ -114,6 +114,28 @@ const calmeLeger = paires(t => sur(parPhysique(t).slice(2), 0), moyenne); dire('
  * moins aussi bien que « moyenne partout ».
  */
 const parite = paires(moyenne); dire('moyenne partout (vs défaut)', parite);
+/*
+ * UN SYSTÈME POUR LE TRIO, UN AUTRE POUR LA PAIRE (S79). Trois contrats de
+ * plus : une PAIRE mal assortie coûte aussi ; aucun système n'est bon
+ * partout — forcer TOUS les trios (ou toutes les paires) dans le même ne
+ * rapporte pas, puisque le défaut prend déjà le meilleur fit de chacun ; et
+ * le FIT compte — un système joué par les bons joueurs vaut plus que le
+ * même joué par les mauvais.
+ */
+const CLES_D = Object.keys(SYSTEMES_D).filter(k => k !== 'hourra');
+const pireD = (team, u) => { const L = activeLineup(team); return CLES_D.slice().sort((a, b) => fitUnite(L, 'D', u, a) - fitUnite(L, 'D', u, b))[0]; };
+const malD = paires(t => [0, 1, 2, 3].map(u => ({ tac: undefined, tacD: u < 3 ? pireD(t, u) : undefined, agr: 1, sec: 60 }))); dire('paires mal assorties', malD);
+const LIG_DOM = Math.max(2, Math.round(LIGUES / 2));
+const forces = [];
+for (const k of CLES) { const r = paires(() => [0, 1, 2, 3].map(() => ({ tac: k, agr: 1, sec: 60 })), null, LIG_DOM); forces.push([TACTIQUES[k].nom, r]); dire(`tous les trios · ${k}`, r); }
+for (const k of CLES_D) { const r = paires(() => [0, 1, 2, 3].map(() => ({ tac: undefined, tacD: k, agr: 1, sec: 60 })), null, LIG_DOM); forces.push([SYSTEMES_D[k].nom, r]); dire(`toutes les paires · ${k}`, r); }
+/*
+ * Le fit compte PAR DEGRÉS : chaque trio dans son DEUXIÈME système (un peu
+ * moins bien assorti) coûte, mais nettement moins que dans son pire. Le gain
+ * d'un système suit le fit (`echelleFit`) et la chimie aussi (`chimieMax`).
+ */
+const rangF = (team, u, i) => { const L = activeLineup(team); return CLES.slice().sort((a, b) => fitLigne(L, u, b) - fitLigne(L, u, a))[i]; };
+const second = paires(t => [0, 1, 2, 3].map(u => ({ tac: rangF(t, u, 1), agr: 1, sec: 60 }))); dire('chaque trio dans son 2e système', second);
 informer('buts sur action spéciale', `${(100 * mal.spec).toFixed(1)} % des buts de la ligue`);
 informer('actions étouffées par un contre', `${mal.etouf.toFixed(0)} par ligue`);
 
@@ -124,5 +146,9 @@ if (juger) {
   exiger('rentre-dedans rapporte plus aux lignes costaudes qu\'aux légères', dur.v > leger.v + 0.3, `${signe(dur.v)} V contre ${signe(leger.v)} V`);
   exiger('les réglages de l\'IA font au moins aussi bien que « moyenne partout »', parite.v <= 0.3, `moyenne partout : ${signe(parite.v)} V`);
   exiger('l\'agressivité basse rapporte plus aux lignes légères qu\'aux costaudes', calmeLeger.v > calmeDur.v, `${signe(calmeLeger.v)} V contre ${signe(calmeDur.v)} V`);
+  borne('mal assortir les paires coûte', -malD.v, 0.2, 5, 'victoire');
+  const dominant = forces.filter(([, r]) => r.v > 1.0);
+  exiger('aucun système n\'est bon partout (forcé partout : +1 V au plus)', !dominant.length, dominant.length ? dominant.map(([n, r]) => `${n} ${signe(r.v)} V`).join(' · ') : `le meilleur : ${forces.slice().sort((a, b) => b[1].v - a[1].v)[0].map((x, i) => (i ? signe(x.v) + ' V' : x)).join(' ')}`);
+  exiger('le fit compte par degrés : le 2e système coûte moins que le pire', second.v > mal.v + 0.8 && second.v < 0.3, `2e : ${signe(second.v)} V · pire : ${signe(mal.v)} V`);
 } else informer('non jugé', `${LIGUES} ligues sous le plancher de 6`);
 verdict('Les lignes à la HockeyArena');

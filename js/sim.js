@@ -8,6 +8,7 @@
 
 import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
 import { effetCarte, poserSoirGrand } from './rarete.js';
+import { ROLES_REF } from './roles_ref.js';
 import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour } from './ratings.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
@@ -1208,27 +1209,49 @@ export function partsDuRoulement(base, group, team) {
    assortir rapporte, mal assortir coûte, et rien ne décide la saison.
    ===================================================================== */
 
-/* ---------- les profils ---------- */
+/* ---------- les rôles (S79) ---------- */
+/*
+ * LES RÔLES D'UN JOUEUR, COMME UN AMATEUR LES NOMME. JP : *ce qu'on voit sur
+ * la page d'alignement et stratégie, genre les positions du joueur, ses
+ * icônes, ça doit aider à savoir d'un coup d'oeil ce que les joueurs peuvent
+ * faire pour matcher comme des vraies lignes, avec two way, sniper, checker,
+ * passeur, power forward, def def, def offensif, manieur de rondelles,
+ * énergie, violence*. Les profils de S68 (franc-tireur, fabricant, puissant,
+ * rapide, créatif, défensif…) parlaient la langue du moteur ; les rôles
+ * parlent celle du hockey, et le moteur les lit à leur place : ce sont eux
+ * que les systèmes de jeu demandent (`TACTIQUES`, `SYSTEMES_D`).
+ *
+ * TOUT VIENT DES VRAIES STATISTIQUES, jamais d'une cote : chaque statistique
+ * se lit en ÉCART à la moyenne des réguliers de SA saison et de son groupe
+ * (`ROLES_REF`, js/roles_ref.js, écrit par scripts/roles_ref.mjs) — 40 buts
+ * en 1981 et 40 buts en 2003 ne pèsent pas pareil. Une statistique qu'une
+ * époque ne tenait pas (les mises en échec, les tirs bloqués avant 2005)
+ * cède sa part aux autres. Les mesures défensive et de robustesse (`md`,
+ * `mr`, des centiles de la saison) et les traits (🎯 Tir, 🪄 Créateur…)
+ * complètent. Chaque rôle vaut 0 à 100 ; le premier est le RÔLE du joueur,
+ * le second s'affiche s'il vaut 60 et plus.
+ */
+/* Une icône par chose : un rôle ne porte ni l'icône d'un trait (🪄 Créateur, 🔁 Bidirectionnel, 🛡️ Selke, ⚡ Vitesse, 🥊 Colosse, 🧱 Norris) ni celle d'un système. */
 export const PROFILS = {
   F: {
-    fabricant: { nom: 'Fabricant de jeu', ico: '🪄', mot: 'ses passes par match' },
-    franc: { nom: 'Franc-tireur', ico: '🎯', mot: 'son % de tir et ses lancers' },
-    puissant: { nom: 'Puissant', ico: '🦍', mot: 'sa robustesse mesurée et son gabarit' },
-    rapide: { nom: 'Rapide', ico: '⚡', mot: 'son volume de lancers, son petit gabarit, ⚡ Vitesse' },
-    createur: { nom: 'Créatif', ico: '🎨', mot: 'ses passes ET sa finition' },
-    defensif: { nom: 'Défensif', ico: '🧊', mot: 'sa défensive mesurée, 🛡️ Selke, 🔁' },
+    sniper: { nom: 'Sniper', ico: '🎯', mot: 'ses buts par match, son % de tir, ses lancers' },
+    passeur: { nom: 'Passeur', ico: '🅰️', mot: 'ses passes par match, ses points en avantage' },
+    deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, son infériorité' },
+    power: { nom: 'Power forward', ico: '🦍', mot: 'ses buts, sa robustesse mesurée, son gabarit' },
+    checker: { nom: 'Checker', ico: '🔧', mot: 'ses mises en échec (sa robustesse avant 2005), sa défensive, peu de points' },
+    energie: { nom: 'Énergie', ico: '🌪️', mot: 'ses lancers et ses mises en échec en peu de minutes' },
+    bagarreur: { nom: 'Bagarreur', ico: '👊', mot: 'ses minutes de punition, son gabarit, peu de points' },
   },
   D: {
-    pur: { nom: 'Défenseur pur', ico: '🧱', mot: 'sa défensive et sa robustesse mesurées, 🧱 Norris' },
-    offensif: { nom: 'Offensif', ico: '🚀', mot: 'ses passes et ses lancers' },
-    createur: { nom: 'Créatif', ico: '🎨', mot: 'ses passes par match' },
-    bleue: { nom: 'Ligne bleue', ico: '💣', mot: 'son volume de lancers et sa finition, 💣 Lancer' },
-    rapide: { nom: 'Rapide', ico: '⚡', mot: 'son petit gabarit, ses lancers, ⚡ Vitesse' },
+    defensif: { nom: 'Défensif', ico: '🛑', mot: 'sa défensive mesurée, ses tirs bloqués, peu de points' },
+    offensif: { nom: 'Offensif', ico: '🚀', mot: 'ses points, ses buts, ses lancers' },
+    manieur: { nom: 'Manieur de rondelle', ico: '🏒', mot: 'ses passes, ses minutes, ses points en avantage' },
+    physique: { nom: 'Physique', ico: '💪', mot: 'sa robustesse mesurée, ses mises en échec, son gabarit' },
+    deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, ses minutes' },
   },
 };
 const estD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
-/* Les trois colonnes brutes, SANS situation ni trait ni énergie : un profil
-   est une propriété du joueur-saison, il ne bouge pas en cours de saison. */
+/* Les trois colonnes brutes, SANS situation ni trait ni énergie (sonde_aptitudes.mjs). */
 function lancersBrut(p) {
   const base = seasonLancers(p.s)[estD(p) ? 3 : 2];
   const perso = (p.sh || 0) / Math.max(1, p.gp || 1);
@@ -1238,21 +1261,13 @@ function tirBrut(p) {
   const ligue = seasonLancers(p.s)[1];
   return (p.sh || 0) >= 20 && ligue ? borne(100 * (p.g || 0) / p.sh / ligue, 0.35, 2.2) : 1;
 }
-/*
- * CENTRÉ PAR GROUPE, MESURÉ (`scripts/sonde_aptitudes.mjs`, sur les joueurs
- * de vraies équipes alignées) : [moyenne, écart type] de chaque colonne.
- */
-export const PROFIL_REF = {
-  F: { L: [1.14, 0.43], T: [1.17, 0.35], P: [1.19, 0.58] },
-  D: { L: [1.10, 0.49], T: [0.58, 0.24], P: [1.16, 0.60] },
-};
+/* Une mesure (`md`, `mr` : un centile de la saison, 0 à 1) en écart réduit. */
 const cz = x => (x == null ? 0 : (x - 0.5) / 0.29);
 const PROFILS_CACHE = new WeakMap();
-/** Le % d'aptitude d'un patineur à chaque profil de son groupe (0-100). */
 /*
- * Les profils d'un joueur, MUTATIONS comprises (S68) : un changement de carte
+ * Les rôles d'un joueur, MUTATIONS comprises (S68) : un changement de carte
  * (le plombier qui apprend à tirer, la vedette forcée à défendre) déplace ses
- * profils pour le reste de la saison — donc le fit de sa ligne, donc sa chimie.
+ * rôles pour le reste de la saison — donc le fit de sa ligne, donc sa chimie.
  */
 export function profilsDe(p) {
   const base = profilsBase(p);
@@ -1261,35 +1276,108 @@ export function profilsDe(p) {
   for (const [k, d] of Object.entries(p._mutProfils)) if (k in out) out[k] = Math.max(1, Math.min(99, out[k] + d));
   return out;
 }
-function profilsBase(p) {
+export const rolesDe = profilsDe;
+/* L'écart réduit d'une statistique du joueur dans SA saison (null si l'époque ne la tenait pas). */
+function zSaison(p, g, cle, valeur) {
+  const R = ROLES_REF[p.s] && ROLES_REF[p.s][g] && ROLES_REF[p.s][g][cle];
+  if (!R || valeur == null || !Number.isFinite(valeur)) return null;
+  return borne((valeur - R[0]) / R[1], -3.5, 3.5);
+}
+/* Une somme pondérée d'écarts : une statistique absente cède son poids aux autres. */
+function melange(termes) {
+  let s = 0, w = 0, wTot = 0;
+  for (const [poids, z] of termes) { wTot += Math.abs(poids); if (z == null) continue; s += poids * z; w += Math.abs(poids); }
+  return w ? s * (wTot / w) : 0;
+}
+/* Les écarts bruts de chaque rôle, avant leur décalage (`DECALAGE_ROLES`) : scripts/roles_calibre.mjs les lit. */
+export function rolesBruts(p) {
   if (!p || p.p === 'G') return null;
-  if (PROFILS_CACHE.has(p)) return PROFILS_CACHE.get(p);
   const g = estD(p) ? 'D' : 'F';
-  const R = PROFIL_REF[g];
-  const zL = (lancersBrut(p) - R.L[0]) / R.L[1];
-  const zT = (tirBrut(p) - R.T[0]) / R.T[1];
-  const zP = (passesRelatives(p) - R.P[0]) / R.P[1];
-  const gb = p.gb == null ? 1 : Number(p.gb);
+  const gp = Math.max(1, p.gp || 1);
+  const z = (cle, v) => zSaison(p, g, cle, v);
+  const zG = z('gpg', (p.g || 0) / gp), zA = z('apg', (p.a || 0) / gp);
+  const zPT = z('ptpg', (p.pt ?? ((p.g || 0) + (p.a || 0))) / gp);
+  const zSH = z('shpg', (p.sh || 0) / gp);
+  const zPCT = (p.sh || 0) >= 20 ? z('shpct', (p.g || 0) / p.sh) : null;
+  const zPIM = z('pimpg', (p.pim || 0) / gp);
+  const zPPP = p.ppp == null ? null : z('ppppg', p.ppp / gp);
+  const zSHP = p.shp == null ? null : z('shppg', p.shp / gp);
+  const zTOI = p.toi > 0 ? z('toi', p.toi) : null;
+  const zHT = p.ht == null ? null : z('ht', p.ht);
+  const zBL = p.bl == null ? null : z('bl', p.bl);
+  const zGB = p.gb == null ? null : z('gb', Number(p.gb));
+  const md = cz(p.md), mr = cz(p.mr);
   const tr = new Set(getTraits(p).map(t => t.cle));
   const t = (...k) => (k.some(x => tr.has(x)) ? 1 : 0);
   const brut = g === 'F' ? {
-    fabricant: zP + t('CREATEUR'),
-    franc: 0.6 * zT + 0.4 * zL + t('TIR'),
-    puissant: 0.7 * cz(p.mr) + 0.5 * (gb - 1) + t('COLOSSE'),
-    rapide: 0.5 * zL + 0.5 * (1 - gb) + 1.2 * t('VITESSE'),
-    createur: 0.5 * zP + 0.5 * zT,
-    defensif: cz(p.md) + t('SELKE', 'BIDIR'),
+    sniper: melange([[0.5, zG], [0.3, zPCT], [0.2, zSH]]) + t('TIR'),
+    passeur: melange([[0.6, zA], [0.25, zPPP], [0.15, zA == null || zG == null ? null : zA - zG]]) + t('CREATEUR', 'MENEUR'),
+    deuxsens: melange([[0.5, md], [0.3, zPT], [0.2, zSHP]]) + t('SELKE', 'BIDIR'),
+    power: melange([[0.35, zG], [0.3, mr], [0.2, zGB], [0.15, zHT ?? zPIM]]) + t('COLOSSE'),
+    checker: melange([[0.4, zHT ?? mr], [0.35, md], [-0.25, zPT]]) + 0.5 * t('SELKE'),
+    energie: melange([[0.35, zSH], [0.25, zHT ?? mr], [-0.4, zTOI ?? zPT]]) + t('VITESSE'),
+    bagarreur: melange([[0.8, zPIM], [0.2, zGB]]),
   } : {
-    pur: cz(p.md) + 0.3 * cz(p.mr) + t('NORRIS', 'BIDIR'),
-    offensif: 0.5 * zP + 0.5 * zL,
-    createur: zP,
-    bleue: 0.6 * zL + 0.4 * zT + t('TIR'),
-    rapide: 0.5 * (1 - gb) + 0.4 * zL + 1.2 * t('VITESSE'),
+    defensif: melange([[0.55, md], [0.2, zBL ?? mr], [-0.25, zPT]]) + t('NORRIS') * 0.5,
+    offensif: melange([[0.45, zPT], [0.3, zG], [0.25, zSH]]) + t('TIR'),
+    manieur: melange([[0.55, zA], [0.25, zTOI], [0.2, zPPP]]) + t('CREATEUR', 'VITESSE') * 0.6,
+    physique: melange([[0.4, mr], [0.3, zHT ?? zPIM], [0.3, zGB]]) + t('COLOSSE'),
+    deuxsens: melange([[0.45, md], [0.35, zPT], [0.2, zTOI]]) + t('NORRIS', 'BIDIR'),
   };
+  return brut;
+}
+/*
+ * LE DÉCALAGE DE CHAQUE RÔLE (scripts/roles_calibre.mjs) : sans lui, les
+ * rôles aux formules les plus larges prenaient tout (19 % de bagarreurs, 4 %
+ * de power forwards). Calé pour que les rôles premiers des réguliers
+ * ressemblent à une vraie ligue : autant de snipers que de passeurs, des
+ * bagarreurs rares.
+ */
+export const DECALAGE_ROLES = {
+  F: { sniper: -0.08, passeur: -0.1, deuxsens: 0, power: 0.2, checker: 0.07, energie: 0.06, bagarreur: -0.16 },
+  D: { defensif: 0, offensif: 0.09, manieur: 0.11, physique: -0.38, deuxsens: 0.17 },
+};
+function profilsBase(p) {
+  if (!p || p.p === 'G') return null;
+  if (PROFILS_CACHE.has(p)) return PROFILS_CACHE.get(p);
+  const brut = rolesBruts(p);
+  const dec = DECALAGE_ROLES[estD(p) ? 'D' : 'F'];
   const out = {};
-  for (const [k, s] of Object.entries(brut)) out[k] = Math.round(100 / (1 + Math.exp(-1.4 * borne(s, -3, 3))));
+  for (const [k, sc] of Object.entries(brut)) out[k] = Math.round(100 / (1 + Math.exp(-1.4 * borne(sc + (dec[k] || 0), -3, 3))));
   PROFILS_CACHE.set(p, out);
   return out;
+}
+/* Le rôle second d'un joueur : le suivant, s'il vaut 60 et plus (l'écran le montre à côté du premier). */
+export function roleSecond(p) {
+  const pr = profilsDe(p);
+  if (!pr) return null;
+  const [, second] = Object.entries(pr).sort((a, b) => b[1] - a[1]);
+  return second && second[1] >= 60 ? { cle: second[0], fit: second[1], ...(PROFILS[estD(p) ? 'D' : 'F'][second[0]]) } : null;
+}
+/*
+ * QUI EST UNE UNITÉ (S79). JP : *ce qu'on voit sur la page d'alignement …
+ * ça doit aider à savoir d'un coup d'oeil ce que les joueurs peuvent faire
+ * pour matcher comme des vraies lignes*. Le rôle premier de chacun nomme le
+ * trio ou la paire : deux snipers font un « Trio de snipers », un défensif
+ * et un offensif la « Paire classique ».
+ */
+const UNITE_PAR_ROLE = {
+  F: { sniper: 'Trio de snipers', passeur: 'Trio de passeurs', deuxsens: 'Trio two-way', power: 'Trio de power forwards', checker: 'Trio de checkers', energie: 'Trio d\'énergie', bagarreur: 'Trio de durs' },
+  D: { defensif: 'Paire défensive', offensif: 'Paire offensive', manieur: 'Paire de relance', physique: 'Paire physique', deuxsens: 'Paire two-way' },
+};
+export function identiteUnite(lineup, groupe, u) {
+  const js = SLOTS.filter(s => s.group === groupe && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
+  const roles = js.map(profilPrincipal).filter(Boolean);
+  if (!roles.length) return null;
+  const n = {};
+  for (const r of roles) n[r.cle] = (n[r.cle] || 0) + 1;
+  const [top, fois] = Object.entries(n).sort((a, b) => b[1] - a[1])[0];
+  const parmi = ks => roles.filter(r => ks.includes(r.cle)).length;
+  const nom = fois >= 2 ? UNITE_PAR_ROLE[groupe][top]
+    : groupe === 'D' ? (parmi(['defensif', 'physique']) && parmi(['offensif', 'manieur']) ? 'Paire classique' : parmi(['offensif', 'manieur']) ? 'Paire offensive' : 'Paire défensive')
+      : parmi(['sniper', 'passeur', 'power']) >= 2 ? 'Trio offensif' : parmi(['checker', 'deuxsens']) >= 2 ? 'Trio défensif'
+        : parmi(['energie', 'bagarreur', 'checker', 'power']) >= 2 ? 'Trio robuste' : 'Trio polyvalent';
+  return { nom, ico: roles.map(r => r.ico).join(''), roles: roles.map(r => r.nom) };
 }
 /* Le meilleur profil d'un joueur : ce que la carte affiche. */
 export function profilPrincipal(p) {
@@ -1299,53 +1387,145 @@ export function profilPrincipal(p) {
   return { cle, fit, ...(PROFILS[estD(p) ? 'D' : 'F'][cle]) };
 }
 
-/* ---------- les tactiques de ligne ---------- */
+/* ---------- les systèmes de jeu (S79) ---------- */
 /*
- * SEPT TACTIQUES, et chacune en CONTRE une autre (`bat`) : jouée en défense,
- * elle étouffe les actions spéciales de celle-là. Le cycle est fermé, donc
- * aucune n'est la meilleure en soi — c'est le fit et la lecture de
- * l'adversaire qui décident. Les petites couleurs (`volume`, `finition`,
- * `defense`, `discipline`, `energie`) disent comment la ligne joue quand elle
- * ne réussit PAS son système ; elles sont petites exprès.
+ * UN SYSTÈME POUR LE TRIO, UN AUTRE POUR LA PAIRE. JP : *stratégie des def et
+ * attaquants différents?* ; *revoir les stratégies pour que ça fitte plus
+ * avec le reste du moteur et ce qu'on a comme infos sur les joueurs*.
+ *
+ * Chaque trio joue un système d'AVANTS (`TACTIQUES` : les clés d'avant S79
+ * restent, pour que les sauvegardes et les plans adverses se relisent),
+ * chaque paire un système de DÉFENSEURS (`SYSTEMES_D`, `lignes[u].tacD`).
+ * Un système DEMANDE un rôle par poste (`slots`) — le fit de l'unité est la
+ * moyenne de ses joueurs dans ces rôles (js/sim.js, « les rôles ») — et fait
+ * deux choses, en chiffres :
+ *   `gain`  ce qu'il rapporte, À PROPORTION DU FIT (`echelleFit` : rien sous
+ *           30 %, tout à 75 %, un quart de plus au-delà) — un système joué
+ *           par les mauvais joueurs coûte sans rapporter ;
+ *   `prix`  ce qu'il coûte, toujours.
+ * Les canaux sont ceux du moteur : `volume` (les lancers de l'unité),
+ * `finition` (leur %), `defense` (les buts alloués pendant ses présences),
+ * `discipline` (ses punitions), `energie` (son usure), `physique` (ce que
+ * le jeu robuste rapporte les soirs éreintants et en séries).
+ * Et chacun ÉTOUFFE un système du trio adverse (`bat`) : l'action spéciale
+ * de ce trio-là ne passe pas pendant ses présences. Le cycle des trios est
+ * fermé (échec avant → cycle → volume → trappe → contre-attaque → échec
+ * avant) ; chaque système de paire étouffe aussi un système de trio.
  */
 export const TACTIQUES = {
   hourra: {
     nom: 'Hourra', ico: '🎲', bat: null, slots: null,
-    mot: 'Pas de système : chacun joue d\'instinct. Rien à assortir, mais jamais de chimie ni d\'action spéciale.',
-  },
-  contre: {
-    nom: 'Contre-attaques', ico: '⚡', bat: 'echec',
-    slots: { AG: 'rapide', C: 'rapide', AD: 'franc', DG: 'pur', DD: 'pur' },
-    mot: 'On laisse venir, on repart vite.', volume: 0.95, finition: 1.03,
+    mot: 'Pas de système : chacun joue d\'instinct. Rien à assortir, mais ni chimie ni action spéciale.',
   },
   echec: {
-    nom: 'Échec avant', ico: '🔥', bat: 'bleue',
-    slots: { AG: 'puissant', C: 'puissant', AD: 'rapide', DG: 'pur', DD: 'rapide' },
-    mot: 'On va chercher la rondelle dans leur zone.', volume: 1.05, discipline: 1.1, energie: 1.05,
+    nom: 'Échec avant 2-1-2', ico: '🔥', bat: 'courtes',
+    slots: { AG: 'power', C: 'energie', AD: 'checker' },
+    mot: 'Deux avants vont chercher la rondelle dans leur zone : on la récupère haut.',
+    gain: { volume: 1.07 }, prix: { discipline: 1.10, energie: 1.06 },
   },
   courtes: {
-    nom: 'Passes courtes', ico: '🔁', bat: 'derriere',
-    slots: { AG: 'createur', C: 'fabricant', AD: 'createur', DG: 'createur', DD: 'pur' },
-    mot: 'On garde la rondelle et on fait tourner.', finition: 1.03, volume: 0.97,
-  },
-  defensive: {
-    nom: 'Défensive', ico: '🧱', bat: 'courtes',
-    slots: { AG: 'defensif', C: 'defensif', AD: 'puissant', DG: 'pur', DD: 'pur' },
-    mot: 'D\'abord ne rien donner.', defense: 0.95, volume: 0.95,
+    nom: 'Cycle et possession', ico: '🌀', bat: 'bleue',
+    slots: { AG: 'power', C: 'passeur', AD: 'passeur' },
+    mot: 'On garde la rondelle le long des bandes et on attend la bonne passe.',
+    gain: { finition: 1.05 }, prix: { volume: 0.97 },
   },
   bleue: {
-    nom: 'Ligne bleue', ico: '💣', bat: 'defensive',
-    slots: { AG: 'puissant', C: 'fabricant', AD: 'puissant', DG: 'bleue', DD: 'offensif' },
-    mot: 'Les défenseurs tirent, les avants font écran et vont au rebond.', volume: 1.03, finition: 0.98,
+    nom: 'Volume de tirs', ico: '🌧️', bat: 'defensive',
+    slots: { AG: 'sniper', C: 'power', AD: 'sniper' },
+    mot: 'Tout ce qui passe va au filet : des tirs de partout, des rebonds.',
+    gain: { volume: 1.08 }, prix: { finition: 0.97 },
+  },
+  defensive: {
+    nom: 'Trappe 1-3-1', ico: '🪤', bat: 'contre',
+    slots: { AG: 'deuxsens', C: 'deuxsens', AD: 'checker' },
+    mot: 'On bouche la zone neutre : rien ne passe au centre.',
+    gain: { defense: 0.93 }, prix: { volume: 0.95 },
+  },
+  contre: {
+    nom: 'Contre-attaque', ico: '🏹', bat: 'echec',
+    slots: { AG: 'sniper', C: 'passeur', AD: 'energie' },
+    mot: 'On laisse venir et on repart vite : la longue passe d\'une zone à l\'autre.',
+    gain: { finition: 1.06 }, prix: { defense: 1.03 },
   },
   derriere: {
-    nom: 'Derrière le filet', ico: '🔄', bat: 'contre',
-    slots: { AG: 'franc', C: 'fabricant', AD: 'franc', DG: 'offensif', DD: 'pur' },
-    mot: 'On s\'installe derrière le but et on remet dans l\'enclave.', finition: 1.02,
+    nom: 'Jeu d\'enclave', ico: '🥅', bat: null,
+    slots: { AG: 'power', C: 'passeur', AD: 'power' },
+    mot: 'Deux gros devant le filet, un passeur derrière : écrans, rebonds, déviations.',
+    gain: { finition: 1.03, volume: 1.03 }, prix: { discipline: 1.06 },
+  },
+  energie: {
+    nom: 'Trio d\'énergie', ico: '🔋', bat: null,
+    slots: { AG: 'checker', C: 'energie', AD: 'bagarreur' },
+    mot: 'On frappe tout ce qui bouge et on use l\'adversaire : ça paie les soirs durs.',
+    gain: { defense: 0.97, physique: 1.5 }, prix: { discipline: 1.12, energie: 1.08 },
   },
 };
-/* Qui contre qui : la tactique qui étouffe CELLE-CI. */
+export const SYSTEMES_D = {
+  hourra: {
+    nom: 'Sans consigne', ico: '🎲', bat: null, slots: null,
+    mot: 'La paire joue d\'instinct : rien à assortir, ni chimie.',
+  },
+  maison: {
+    nom: 'Rester à la maison', ico: '🏠', bat: 'contre',
+    slots: { DG: 'defensif', DD: 'defensif' },
+    mot: 'Les deux défenseurs restent derrière la rondelle : aucune échappée.',
+    gain: { defense: 0.94 }, prix: { volume: 0.88 },
+  },
+  activer: {
+    nom: 'Activer les défenseurs', ico: '🛫', bat: 'courtes',
+    slots: { DG: 'offensif', DD: 'offensif' },
+    mot: 'Les défenseurs montent et se joignent à l\'attaque, de la bleue au cercle.',
+    gain: { volume: 1.14, finition: 1.03 }, prix: { defense: 1.05 },
+  },
+  relance: {
+    nom: 'Relance rapide', ico: '💨', bat: 'echec',
+    slots: { DG: 'manieur', DD: 'manieur' },
+    mot: 'La première passe sort vite de la zone : l\'échec avant ne mord pas.',
+    gain: { volume: 1.05, defense: 0.98 }, prix: { energie: 1.04 },
+  },
+  rude: {
+    nom: 'Nettoyer l\'enclave', ico: '🧹', bat: 'derriere',
+    slots: { DG: 'physique', DD: 'physique' },
+    mot: 'Personne ne reste devant le filet : on sort les gros de l\'enclave.',
+    gain: { defense: 0.95, physique: 1.5 }, prix: { discipline: 1.10 },
+  },
+  equilibre: {
+    nom: 'Jeu à deux sens', ico: '🌗', bat: null,
+    slots: { DG: 'deuxsens', DD: 'deuxsens' },
+    mot: 'Un pied en attaque, un pied en défense : rien d\'extrême.',
+    gain: { defense: 0.97, volume: 1.03 }, prix: {},
+  },
+};
+/* Un système, d'où qu'il vienne (un trio ou une paire), et son groupe. */
+export const systemeDe = k => (k && k !== 'hourra' && TACTIQUES[k] ? { ...TACTIQUES[k], cle: k, groupe: 'F' }
+  : k && k !== 'hourra' && SYSTEMES_D[k] ? { ...SYSTEMES_D[k], cle: k, groupe: 'D' } : null);
+/* Le système de trio qui étouffe CELUI-CI (un trio adverse), et le système de paire qui l'étouffe aussi. */
 export const contreDe = cle => Object.keys(TACTIQUES).find(k => TACTIQUES[k].bat === cle) || null;
+export const contreDeD = cle => Object.keys(SYSTEMES_D).find(k => SYSTEMES_D[k].bat === cle) || null;
+/* Le gain d'un système suit le fit : rien sous 30 %, tout à 75 %, un quart de plus au-delà. */
+export const echelleFit = fit => borne((fit - 30) / 45, 0, 1.25);
+/* Ce qu'un système fait à un canal, pour une unité de ce fit : son gain au prorata, son prix entier. */
+export function canalSysteme(S, fit, canal) {
+  if (!S) return 1;
+  const g = S.gain && S.gain[canal] != null ? 1 + (S.gain[canal] - 1) * echelleFit(fit) : 1;
+  const p = S.prix && S.prix[canal] != null ? S.prix[canal] : 1;
+  return g * p;
+}
+/*
+ * CE QU'UN SYSTÈME FAIT À UNE UNITÉ, EN CHIFFRES (S79) : son gain au prorata
+ * du fit de ses joueurs, son prix entier — `canalSysteme`, le calcul même du
+ * moteur. Le jeu robuste est le canal « physique » : ce que la mise en échec
+ * rapporte les soirs éreintants et en séries.
+ */
+const CANAUX_SYSTEME = [['volume', 'Tirs', 1], ['finition', 'Précision', 1], ['defense', 'Buts contre', -1], ['discipline', 'Punitions', -1], ['energie', 'Fatigue', -1], ['physique', 'Jeu robuste', 1]];
+export function effetsDeSysteme(S, fit) {
+  if (!S || !S.slots) return [];
+  return CANAUX_SYSTEME.map(([c, nom, sens]) => {
+    const v = canalSysteme(S, fit, c);
+    const x = Math.round(Math.abs(v - 1) * 100);
+    return x < 1 ? null : { canal: c, v, txt: `${nom} ${v >= 1 ? '+' : '−'}${x} %`, bon: sens > 0 ? v > 1 : v < 1 };
+  }).filter(Boolean);
+}
 
 /*
  * `def` : la part de buts alloués que le jeu physique retire (à une ligne
@@ -1447,13 +1627,17 @@ export function joueursDeLigne(lineup, u) {
   }
   return out;
 }
-/* Le fit d'une ligne à une tactique : la moyenne des % de profil demandés, poste par poste. */
-export function fitLigne(lineup, u, tac) {
-  const T = TACTIQUES[tac];
-  if (!T || !T.slots) return 0;
+/*
+ * LE FIT D'UNE UNITÉ À UN SYSTÈME (S79) : la moyenne, poste par poste, de ses
+ * joueurs dans le rôle que le système demande. Le trio u lit un système
+ * d'avants, la paire u un système de défenseurs.
+ */
+export function fitUnite(lineup, groupe, u, cle) {
+  const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
+  if (!S || !S.slots || !lineup) return 0;
   const js = joueursDeLigne(lineup, u);
   const fits = [];
-  for (const [role, prof] of Object.entries(T.slots)) {
+  for (const [role, prof] of Object.entries(S.slots)) {
     const p = js[role];
     if (p === undefined) continue;          // la 4e ligne n'a pas de paire
     const pr = p && profilsDe(p);
@@ -1461,12 +1645,26 @@ export function fitLigne(lineup, u, tac) {
   }
   return fits.length ? Math.round(fits.reduce((a, x) => a + x, 0) / fits.length) : 0;
 }
-/* La tactique où une ligne a le meilleur fit : ce que joue un club de l'IA. */
+/* Le fit d'une ligne à UN système (trio ou paire, selon sa clé) — ce que lisent l'écran et le stage. */
+export function fitLigne(lineup, u, cle) {
+  return SYSTEMES_D[cle] && !TACTIQUES[cle] ? fitUnite(lineup, 'D', u, cle) : fitUnite(lineup, 'F', u, cle);
+}
+/* Le système où une unité a le meilleur fit : ce que joue un club de l'IA. */
 export function meilleureTactique(lineup, u) {
   let best = 'hourra', f = -1;
   for (const k of Object.keys(TACTIQUES)) {
     if (k === 'hourra') continue;
-    const v = fitLigne(lineup, u, k);
+    const v = fitUnite(lineup, 'F', u, k);
+    if (v > f) { f = v; best = k; }
+  }
+  return best;
+}
+export function meilleurSystemeD(lineup, u) {
+  if (pairDeLigne(u) == null) return 'hourra';
+  let best = 'hourra', f = -1;
+  for (const k of Object.keys(SYSTEMES_D)) {
+    if (k === 'hourra') continue;
+    const v = fitUnite(lineup, 'D', u, k);
     if (v > f) { f = v; best = k; }
   }
   return best;
@@ -1519,6 +1717,7 @@ function lignesCalculees(team, lineup) {
     const l = L[u] || {};
     return {
       tac: TACTIQUES[l.tac] ? l.tac : (lineup ? meilleureTactique(lineup, u) : 'hourra'),
+      tacD: pairDeLigne(u) == null ? 'hourra' : SYSTEMES_D[l.tacD] ? l.tacD : (lineup ? meilleurSystemeD(lineup, u) : 'hourra'),
       agr: Number.isInteger(l.agr) && AGRESSIVITES[l.agr] ? l.agr : (lineup ? meilleureAgressivite(lineup, u) : 1),
       sec: Number.isFinite(l.sec) ? borne(l.sec, SEC_MIN, SEC_MAX) : SEC_DEFAUT,
     };
@@ -1580,15 +1779,34 @@ export function ententeLigne(app, lineup, u) {
   for (let i = 0; i < js.length; i++) for (let j = i + 1; j < js.length; j++) { som += 1 - Math.exp(-app.entente(cleDePaire(js[i], js[j])) / ENTENTE_MATCHS); n++; }
   return som / n;
 }
-export function maitriseLigne(app, lineup, u, tac) {
-  const js = joueursLigne(lineup, u);
-  return js.length ? js.reduce((a, p) => a + (app.maitrise(p)[tac] || 0), 0) / js.length : 0;
+/* Une ligne en systèmes : `{ tac, tacD }`, ou la clé seule d'un système de trio (l'écran d'avant S79). */
+const systemesLigne = l => (typeof l === 'string' ? { tac: l, tacD: 'hourra' } : { tac: (l && l.tac) || 'hourra', tacD: (l && l.tacD) || 'hourra' });
+/* La maîtrise d'une ligne : chaque avant dans le système du trio, chaque défenseur dans celui de la paire. */
+export function maitriseLigne(app, lineup, u, l) {
+  const { tac, tacD } = systemesLigne(l);
+  const js = joueursDeLigne(lineup, u);
+  let s = 0, n = 0;
+  for (const [role, p] of Object.entries(js)) {
+    if (!p) continue;
+    const k = role === 'DG' || role === 'DD' ? tacD : tac;
+    s += k && k !== 'hourra' ? (app.maitrise(p)[k] || 0) : 0; n++;
+  }
+  return n ? s / n : 0;
 }
-/* La chimie d'une ligne, pour une tactique : le plafond du fit × (entente + maîtrise) / 2. */
-export function chimieLigne(app, lineup, u, tac) {
-  if (!tac || tac === 'hourra') return 0;
-  const m = maitriseLigne(app, lineup, u, tac);
-  return chimieMax(fitLigne(lineup, u, tac) + MAITRISE_FIT * m) * (ententeLigne(app, lineup, u) + m) / 2;
+/* Le fit d'une ligne entière : son trio (trois postes) et sa paire (deux), chacun dans son système. */
+export function fitDeLigne(lineup, u, l) {
+  const { tac, tacD } = systemesLigne(l);
+  const fF = tac !== 'hourra' ? fitUnite(lineup, 'F', u, tac) : 0;
+  if (pairDeLigne(u) == null) return fF;
+  const fD = tacD !== 'hourra' ? fitUnite(lineup, 'D', u, tacD) : 0;
+  return Math.round((3 * fF + 2 * fD) / 5);
+}
+/* La chimie d'une ligne : le plafond de son fit × (entente + maîtrise) / 2. Sans aucun système, rien. */
+export function chimieLigne(app, lineup, u, l) {
+  const { tac, tacD } = systemesLigne(l);
+  if (tac === 'hourra' && tacD === 'hourra') return 0;
+  const m = maitriseLigne(app, lineup, u, l);
+  return chimieMax(fitDeLigne(lineup, u, l) + MAITRISE_FIT * m) * (ententeLigne(app, lineup, u) + m) / 2;
 }
 /* Après un match : chaque paire de coéquipiers et chaque joueur apprennent ce qu'ils ont joué ce soir-là. */
 export function majChimie(team, lineup) {
@@ -1600,10 +1818,13 @@ export function majChimie(team, lineup) {
       const k = cleDePaire(js[i], js[j]);
       team.entente.set(k, (team.entente.get(k) || 0) + 1);
     }
-    const tac = soir[u].tac;
-    if (tac && tac !== 'hourra') for (const p of js) {
+    // Chaque avant apprend le système de son trio, chaque défenseur celui de sa paire.
+    for (const [role, p] of Object.entries(joueursDeLigne(lineup, u))) {
+      if (!p) continue;
+      const k = role === 'DG' || role === 'DD' ? soir[u].tacD : soir[u].tac;
+      if (!k || k === 'hourra') continue;
       p._maitrise = p._maitrise || {};
-      p._maitrise[tac] = (p._maitrise[tac] || 0) + (1 - (p._maitrise[tac] || 0)) * MAITRISE_PAS;
+      p._maitrise[k] = (p._maitrise[k] || 0) + (1 - (p._maitrise[k] || 0)) * MAITRISE_PAS;
     }
   }
   // CHAQUE JOUEUR S'ADAPTE À SA CASE (S73).
@@ -1616,7 +1837,7 @@ export function majChimie(team, lineup) {
   // La chimie de la SAISON (les lignes réglées), pour l'écran et la suite.
   const saison = lignesDe(team, lineup, { duSoir: false });
   const app = apprentissageDe(team);
-  team.chimie = [0, 1, 2, 3].map(u => chimieLigne(app, lineup, u, saison[u].tac));
+  team.chimie = [0, 1, 2, 3].map(u => chimieLigne(app, lineup, u, saison[u]));
 }
 
 /* ---------- l'action spéciale ---------- */
@@ -1645,9 +1866,10 @@ export const ENERGIE_R = 18, ENERGIE_EFFET = 0.5, ENERGIE_BLESSURE = 60;
 export const energieDe = p => (p && Number.isFinite(p.energie) ? p.energie : 100);
 export const facteurEnergie = p => 1 - ENERGIE_EFFET * (1 - energieDe(p) / 100);
 /* L'usure d'une ligne par match : 1 à la glace et à l'agressivité par défaut. */
-export function usureLigne(l, sParts) {
-  const T = TACTIQUES[l.tac] || {};
-  return (l.sec / sParts) * AGRESSIVITES[l.agr].energie * (T.energie || 1);
+export function usureLigne(l, sParts, groupe = 'F') {
+  const S = groupe === 'D' ? SYSTEMES_D[l.tacD] : TACTIQUES[l.tac];
+  const prix = S && S.prix && S.prix.energie ? S.prix.energie : 1;
+  return (l.sec / sParts) * AGRESSIVITES[l.agr].energie * prix;
 }
 export function depenserEnergie(team, lineup) {
   const lignes = lignesDe(team, lineup);
@@ -1655,8 +1877,8 @@ export function depenserEnergie(team, lineup) {
   // L'importance du match (et tout effet qui porte `energie`) module l'usure.
   const k = effetsActifs(team).reduce((a, x) => a * (x.energie || 1), 1);
   for (let u = 0; u < 4; u++) {
-    const us = usureLigne(lignes[u], moy) * k;
-    for (const p of Object.values(joueursDeLigne(lineup, u))) if (p) p.energie = Math.max(0, energieDe(p) - ENERGIE_R * us);
+    const usF = usureLigne(lignes[u], moy, 'F') * k, usD = usureLigne(lignes[u], moy, 'D') * k;
+    for (const [role, p] of Object.entries(joueursDeLigne(lineup, u))) if (p) p.energie = Math.max(0, energieDe(p) - ENERGIE_R * (role === 'DG' || role === 'DD' ? usD : usF));
   }
 }
 export function recupererEnergie(team) {
@@ -2177,8 +2399,10 @@ export function rolesOfferts(team, graine, jour) {
 }
 /* Le stage de système : trois tactiques offertes, tirées de la graine. « Hourra » n'en est pas une. */
 export function tactiquesDuStage(graine, jour) {
-  return Object.keys(TACTIQUES).filter(k => k !== 'hourra')
-    .map(k => [k, hacherMise(graine, 'stage', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([k]) => k);
+  // Deux systèmes de trio et un de paire (S79) : la formation entière s'entraîne, chacun à sa position.
+  const tire = (liste, n, sel) => liste.filter(k => k !== 'hourra')
+    .map(k => [k, hacherMise(graine, sel, jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, n).map(([k]) => k);
+  return [...tire(Object.keys(TACTIQUES), 2, 'stage'), ...tire(Object.keys(SYSTEMES_D), 1, 'stageD')];
 }
 export function mainDeCartes(graine, jour, prises = []) {
   // UNE CARTE NE SE PREND QU'UNE FOIS. Sans ça le pire cas est trois fois la
@@ -2998,7 +3222,7 @@ export function profilMatch(team, lineup, adv = null) {
   // LA CHIMIE DE CE SOIR (S73), ligne par ligne, avec les tactiques jouées ce soir.
   const lignesSoir = lignesDe(team, lineup);
   const appSoir = apprentissageDe(team);
-  const chimieSoir = [0, 1, 2, 3].map(u => chimieLigne(appSoir, lineup, u, lignesSoir[u].tac));
+  const chimieSoir = [0, 1, 2, 3].map(u => chimieLigne(appSoir, lineup, u, lignesSoir[u]));
   // LE ROULEMENT décide de la glace, et il touche les DEUX parts : l'offensive
   // (qui tire) et la présence (qui défend, et qui reçoit le +/-).
   const parts = { F: partsDuRoulement(PART_UNITE.F, 'F', team), D: partsDuRoulement(PART_UNITE.D, 'D', team) };
@@ -3078,19 +3302,25 @@ export function profilMatch(team, lineup, adv = null) {
   const lignes = lignesDe(team, lineup);
   let discTac = 0, discAgr = 0, robTac = 0, sP = 0;
   for (const g of ['F', 'D']) unites[g].forEach((x, u) => {
-    const l = lignes[u], T = TACTIQUES[l.tac] || {}, A = AGRESSIVITES[l.agr];
+    // S79 : le trio joue le système d'avants de sa ligne, la paire celui de défenseurs,
+    // et chacun en tire ce que son FIT lui permet (`canalSysteme`).
+    const l = lignes[u], A = AGRESSIVITES[l.agr];
+    const cle = g === 'D' ? l.tacD : l.tac;
+    const S = g === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
+    const fit = S && S.slots ? fitUnite(lineup, g, u, cle) : 0;
+    const c = canal => canalSysteme(S, fit, canal);
     const ph = physiqueUnite(lineup, g, u);
     const eff = rendementPhysique(ph);
-    x.ligne = u; x.tactique = l.tac;
+    x.ligne = u; x.tactique = cle; x.fit = fit;
     x.chimie = chimieSoir[u];
-    x.poids *= T.volume || 1;
-    x.qualite *= T.finition || 1;
+    x.poids *= c('volume');
+    x.qualite *= c('finition');
     // Plus physique, on donne moins — CENTRÉ sur l'agressivité moyenne, pour
     // que le réglage par défaut ne déplace pas la ligue.
-    x.defTac = (T.defense || 1) * (1 - A.def * eff);
-    discTac += x.presence * (T.discipline || 1);
+    x.defTac = c('defense') * (1 - A.def * eff);
+    discTac += x.presence * c('discipline');
     discAgr += x.presence * A.pun * coutPhysique(ph);
-    robTac += x.presence * 1.5 * (A.physique - 0.4) * eff;
+    robTac += x.presence * (1.5 * (A.physique - 0.4) + 0.3 * (c('physique') - 1)) * eff;
     sP += x.presence;
   });
   discTac = sP ? discTac / sP : 1; discAgr = sP ? discAgr / sP : 0; robTac = sP ? robTac / sP : 0;
@@ -3628,8 +3858,10 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     let special = null;
     if (mode === 'FE' && trioOff && trioOff.tactique && trioOff.tactique !== 'hourra'
       && hasard() < SPEC_BASE * (trioOff.chimie || 0) / 100) {
+      // S79 : le trio qui défend OU sa paire peut jouer le système qui l'étouffe.
       const T = dTrio && dTrio.tactique && TACTIQUES[dTrio.tactique];
-      special = T && T.bat === trioOff.tactique ? 'etouffee' : 'reussie';
+      const D = dPaire && dPaire.tactique && SYSTEMES_D[dPaire.tactique];
+      special = (T && T.bat === trioOff.tactique) || (D && D.bat === trioOff.tactique) ? 'etouffee' : 'reussie';
     }
     const p = borne(
       CIBLE_PCT_TIR
@@ -3744,7 +3976,7 @@ const REPLACEMENT = 40;     // cote d'un rappel de la ligue mineure
 export const CHIMIE_BONUS = 3.4;
 function bonusDeChimie(team, u, lineup = null) {
   let c;
-  if (lineup && team) c = chimieLigne(apprentissageDe(team), lineup, u, lignesDe(team, lineup)[u].tac);
+  if (lineup && team) c = chimieLigne(apprentissageDe(team), lineup, u, lignesDe(team, lineup)[u]);
   else c = team && team.chimie ? team.chimie[u] || 0 : 0;
   return CHIMIE_BONUS * c / 100;
 }
@@ -4393,9 +4625,11 @@ function appliquerDecision(team, d, graine = 0) {
     if (o) appliquerGestes(team, o, d.jour, d.avant.joueurs, graine, `avant:${d.avant.cle}:${d.avant.choix}`, AVANT_GROS[d.avant.cle].titre);
   }
   // LE STAGE DE SYSTÈME (S73) : toute la formation apprend une tactique d'un coup.
-  if (d.maitrise && TACTIQUES[d.maitrise.tac]) for (const s of SLOTS) {
+  if (d.maitrise && systemeDe(d.maitrise.tac)) for (const s of SLOTS) {
     const p = team.roster[s.i];
     if (!p || p.p === 'G') continue;
+    // Un système de trio s'apprend aux avants, un système de paire aux défenseurs (S79).
+    if ((systemeDe(d.maitrise.tac).groupe === 'D') !== (s.group === 'D')) continue;
     p._maitrise = p._maitrise || {};
     const m = p._maitrise[d.maitrise.tac] || 0;
     p._maitrise[d.maitrise.tac] = m + (1 - m) * (d.maitrise.gain || GAIN_STAGE);
@@ -4915,13 +5149,13 @@ export const colonnesProfil = p => ({ L: lancersBrut(p), T: tirBrut(p), P: passe
 export const MUTATIONS = {
   // ---- les améliorations du deck (S73) : un cadeau, au joueur de ton choix ----
   affute: { nom: 'Le tir affûté', ico: '🎯', cible: 'libre', source: 'amelioration',
-    quoi: 'Des heures au filet après les pratiques : il marque plus.', profils: { franc: 12, bleue: 10 }, finition: 1.08 },
+    quoi: 'Des heures au filet après les pratiques : il marque plus.', profils: { sniper: 12, offensif: 10 }, finition: 1.08 },
   moteur: { nom: 'Le moteur', ico: '⚡', cible: 'libre', source: 'amelioration',
-    quoi: 'Un été de cardio : il lance plus, et plus longtemps.', profils: { rapide: 10 }, lancers: 1.07 },
+    quoi: 'Un été de cardio : il lance plus, et plus longtemps.', profils: { energie: 10 }, lancers: 1.07 },
   mur: { nom: 'Le mur', ico: '🧱', cible: 'libre', source: 'amelioration',
-    quoi: 'Il lit le jeu adverse une seconde plus tôt.', profils: { defensif: 12, pur: 12 }, defense: 0.94 },
+    quoi: 'Il lit le jeu adverse une seconde plus tôt.', profils: { deuxsens: 12, defensif: 12 }, defense: 0.94 },
   vision: { nom: 'La vision', ico: '🪄', cible: 'libre', source: 'amelioration',
-    quoi: 'Il trouve des passes que personne ne voit.', profils: { fabricant: 12, createur: 10 }, creation: 1.08 },
+    quoi: 'Il trouve des passes que personne ne voit.', profils: { passeur: 12, manieur: 10 }, creation: 1.08 },
   coach: { nom: 'Le coach des gardiens', ico: '🧤', cible: 'libre', source: 'amelioration', gardien: true,
     quoi: 'Un été avec le coach des gardiens : il place mieux ses jambières.', arrets: 0.95 },
   /*
@@ -4942,47 +5176,47 @@ export const MUTATIONS = {
   // ---- par choix ----
   tir_gun: { nom: 'Précision au gun', ico: '🎯', cible: 'plombier', source: 'choix',
     quoi: 'Il a passé ses soirées à tirer du gun : il vise, maintenant.',
-    profils: { franc: 25, puissant: -5 }, finition: 1.10, lancers: 1.04 },
+    profils: { sniper: 25, power: -5 }, finition: 1.10, lancers: 1.04 },
   lame: { nom: 'Converti en défensif', ico: '🧊', cible: 'franc', source: 'choix',
     quoi: 'Sa lame ne se fabrique plus : il ne sent plus sa rondelle, et on en fait un joueur défensif.',
-    profils: { defensif: 30, franc: -20 }, finition: 0.88, defense: 0.95 },
+    profils: { deuxsens: 15, checker: 15, sniper: -20 }, finition: 0.88, defense: 0.95 },
   gym: { nom: 'Dix livres de muscle', ico: '🦍', cible: 'rapide', source: 'choix',
     quoi: 'Un été au gym : plus lourd, plus solide, un peu moins vif.',
-    profils: { puissant: 25, rapide: -15 }, blessure: 0.85, lancers: 0.97 },
+    profils: { power: 25, energie: -15 }, blessure: 0.85, lancers: 0.97 },
   patin: { nom: 'École de patinage', ico: '⚡', cible: 'lent', source: 'choix',
     quoi: 'Un entraîneur de patinage l\'a pris en main : il arrive avant la rondelle.',
-    profils: { rapide: 25 }, lancers: 1.06 },
+    profils: { energie: 25 }, lancers: 1.06 },
   video: { nom: 'Les cassettes de Gretzky', ico: '🪄', cible: 'passeur', source: 'choix',
     quoi: 'Il étudie les vieilles cassettes : il voit le jeu une passe d\'avance.',
-    profils: { fabricant: 25, createur: 10 }, creation: 1.10, finition: 0.97 },
+    profils: { passeur: 25 }, creation: 1.10, finition: 0.97 },
   pointe: { nom: 'La pointe de l\'avantage', ico: '💣', cible: 'pointe', source: 'choix',
     quoi: 'On lui donne la ligne bleue : il décoche à la moindre ouverture.',
-    profils: { bleue: 25 }, lancers: 1.08 },
+    profils: { offensif: 25 }, lancers: 1.08 },
   dur: { nom: 'L\'école du vétéran', ico: '🧱', cible: 'mou', source: 'choix',
     quoi: 'Un vétéran lui apprend à défendre : il ne monte plus, il bloque.',
-    profils: { pur: 25, offensif: -10 }, defense: 0.94, creation: 0.95 },
+    profils: { defensif: 25, offensif: -10 }, defense: 0.94, creation: 0.95 },
   // ---- par accident ----
   prudent: { nom: 'Joue prudent', ico: '🤕', cible: 'hasard', source: 'accident',
     quoi: 'Depuis sa commotion, il évite les contacts.',
-    profils: { puissant: -20, pur: -15 }, blessure: 1.2, defense: 1.03 },
+    profils: { power: -20, physique: -15 }, blessure: 1.2, defense: 1.03 },
   declic: { nom: 'Le déclic', ico: '🔥', cible: 'hasard', source: 'accident',
     quoi: 'Un but en bourrée, et depuis, tout rentre.',
-    profils: { franc: 15, bleue: 10 }, finition: 1.08 },
+    profils: { sniper: 15, offensif: 10 }, finition: 1.08 },
   mentor: { nom: 'Pris sous l\'aile', ico: '🧓', cible: 'hasard', source: 'accident',
     quoi: 'Le capitaine l\'a pris sous son aile : il fait les petites choses.',
-    profils: { createur: 12, defensif: 10, pur: 10 }, creation: 1.05, defense: 0.97 },
+    profils: { passeur: 10, deuxsens: 10, defensif: 10 }, creation: 1.05, defense: 0.97 },
   genou: { nom: 'Un genou qui grince', ico: '🦵', cible: 'hasard', source: 'accident',
     quoi: 'Il joue avec un genou qui grince : il n\'a plus sa première enjambée.',
-    profils: { rapide: -20 }, lancers: 0.93, blessure: 1.25 },
+    profils: { energie: -20 }, lancers: 0.93, blessure: 1.25 },
   baton: { nom: 'Nouveau bâton, nouveau lancer', ico: '🏒', cible: 'hasard', source: 'accident',
     quoi: 'Un nouveau modèle de bâton, et son lancer a pris dix kilomètres-heure.',
-    profils: { franc: 10, bleue: 15 }, finition: 1.05 },
+    profils: { sniper: 10, offensif: 15 }, finition: 1.05 },
   doute: { nom: 'Confiance ébranlée', ico: '🌧️', cible: 'hasard', source: 'accident',
     quoi: 'Hué dans son propre aréna : il ne tente plus rien.',
-    profils: { franc: -15, createur: -10 }, finition: 0.93 },
+    profils: { sniper: -15, passeur: -10 }, finition: 0.93 },
   pere: { nom: 'Il joue pour son père', ico: '🕊️', cible: 'hasard', source: 'accident',
     quoi: 'Son père est au plus mal : il joue chaque présence comme la dernière.',
-    profils: { puissant: 10, createur: 10 }, lancers: 1.05, finition: 1.03 },
+    profils: { power: 10, passeur: 10 }, lancers: 1.05, finition: 1.03 },
 };
 const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
 /* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */
@@ -5006,13 +5240,13 @@ export const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'lustre'];
  * æquo se départagent sur l'identité, comme les situations.
  */
 const CIBLES = {
-  plombier: { g: 'F', s: pr => pr.puissant - pr.franc },
-  franc: { g: 'F', s: pr => pr.franc },
-  rapide: { g: 'F', s: pr => pr.rapide },
-  lent: { g: 'F', s: pr => -pr.rapide },
-  passeur: { g: 'F', s: pr => pr.franc - pr.fabricant },
-  pointe: { g: 'D', s: pr => pr.offensif - pr.bleue },
-  mou: { g: 'D', s: pr => -pr.pur },
+  plombier: { g: 'F', s: pr => pr.power - pr.sniper },
+  franc: { g: 'F', s: pr => pr.sniper },
+  rapide: { g: 'F', s: pr => pr.energie },
+  lent: { g: 'F', s: pr => -pr.energie },
+  passeur: { g: 'F', s: pr => pr.sniper - pr.passeur },
+  pointe: { g: 'D', s: pr => pr.manieur - pr.offensif },
+  mou: { g: 'D', s: pr => -pr.defensif },
 };
 export function cibleMutation(team, cle) {
   const M = MUTATIONS[cle];
@@ -5690,7 +5924,7 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [] } = {}) {
       return tacs.some(t => tacs.filter(x => x === t).length >= 2) ? { finition: 1.06 } : null;
     }
     if (k === 'gachettes') {
-      const n = dresses.filter(x => x.sl.group === 'F' && x.sl.unit <= 1 && principal(x.p) === 'franc').length;
+      const n = dresses.filter(x => x.sl.group === 'F' && x.sl.unit <= 1 && principal(x.p) === 'sniper').length;
       return n ? { finition: 1 + Math.min(0.06, 0.02 * n) } : null;
     }
     if (k === 'mur') {

@@ -26,7 +26,10 @@
  * Le module est pur et sans DOM : js/saison.js l'affiche.
  */
 
-import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIFS, MATCHS_OBJECTIF } from './sim.js';
+import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIFS, MATCHS_OBJECTIF,
+  TACTIQUES, SYSTEMES_D, AGRESSIVITES, contreDe, contreDeD, fitUnite, meilleureTactique, meilleurSystemeD, meilleureAgressivite,
+  bilanAgressivite, physiqueLigne, effetsDeSysteme, effetDeMoment, identiteUnite, joueursDeLigne, profilsDe,
+  SEC_MIN, SPEC_BASE, SPEC_MULT } from './sim.js';
 
 /* Les joueurs qu'un match peut toucher : les deux alignements, et le gardien de rappel. */
 const joueursDe = t => [...SLOTS.map(s => t.roster[s.i]).filter(Boolean), ...(t.rappelG ? [t.rappelG] : [])];
@@ -135,6 +138,175 @@ export function pronostic({ A, B, calendrier, jourMatch, jourRevele, n = 300, gr
   } finally { rendre(photos); }
   const liste = [...scores].map(([k, fois]) => { const [a, b, o] = k.split('-').map(Number); return { a, b, ot: !!o, fois }; });
   return { n, vA, vB: n - vA, prol, butsA: butsA / n, butsB: butsB / n, scores: liste, gardiens };
+}
+
+/*
+ * LES CONSEILS D'AVANT-MATCH (S79). JP, sur le dépistage : *le bas aide fuck
+ * all aucun processus décisionnel*. « S'il marque quatre buts, il gagne »
+ * disait une évidence ; un conseil dit QUOI FAIRE, avec un levier du jeu :
+ *   contre       une unité passe au système qui ÉTOUFFE le système principal
+ *                de leurs trois premiers trios (un trio : `contreDe` ; une
+ *                paire : `contreDeD`) — celle qui y a le meilleur fit ;
+ *   menace       leur trio ou leur paire du même rang étouffe le système d'un
+ *                de tes trios : il passe au meilleur système qu'ils n'étouffent pas ;
+ *   fit          l'unité la plus loin de son meilleur système y passe ;
+ *   fermeture    ton trio le plus défensif (ses rôles) prend leur 1er trio ;
+ *   agressivite  chaque ligne à l'agressivité qui paie pour sa carrure ;
+ *   glace        un des deux premiers trios est usé : moins de glace ;
+ *   consigne     attaque ou défense, selon les forces comparées.
+ * Chaque conseil porte la décision que l'écran applique d'un toucher
+ * (`lignes`, `fermeture` ou `match`) — une décision comme une autre, qui
+ * se rejoue — et ses chiffres sont ceux du moteur : ce que le système fait à
+ * CE fit (`effetsDeSysteme`), ce que l'agressivité rend à CETTE carrure
+ * (`bilanAgressivite`), la chance d'action spéciale (`SPEC_BASE` × chimie)
+ * et ce qu'elle vaut (`SPEC_MULT`), l'énergie du matin.
+ *
+ * POURQUOI PAS « +3 POINTS DE VICTOIRE » ? Mesuré en S79 : un réglage d'une
+ * ligne vaut un point ou deux sur un match, et 200 matchs rejoués en donnent
+ * ±5 — le même levier sortait à +9 avec une graine et à 0 avec une autre. Le
+ * chiffre aurait été du bruit présenté comme une mesure.
+ *
+ * Entrées : `lineup` (tes cases), `lignes` (tes lignes de la saison),
+ * `fermeture` ('auto', null ou un rang), `energie` (clé → %), `adv`
+ * ({ lignes, chimie, lineup }), `forces` ({ moi: { attaque, defense },
+ * lui: { attaque, gardien } }, chacun { rang, sur } ou null) et `consigne`
+ * (celle déjà prise pour ce match, ou null).
+ */
+const RANG_TRIO = ['1er trio', '2e trio', '3e trio', '4e trio'];
+const RANG_PAIRE = ['1re paire', '2e paire', '3e paire'];
+const RANG_LIGNE = ['1re ligne', '2e ligne', '3e ligne', '4e ligne'];
+const nomSysteme = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.ico} ${S.nom}` : ''; };
+const motFit = f => (f >= 70 ? 'sur mesure' : f >= 55 ? 'bon fit' : f >= 40 ? 'fit moyen' : 'mauvais fit');
+const virgule = x => String(x).replace('.', ',');
+const pctE = v => `${v >= 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)} %`;
+export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = {}, adv = null, forces = null, consigne = null }) {
+  const out = [];
+  const avec = (u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : { ...l }));
+  const fitDe = (g, u, k) => (k && k !== 'hourra' && (g === 'D' ? SYSTEMES_D : TACTIQUES)[k] ? fitUnite(lineup, g, u, k) : 0);
+  const nomUnite = (g, u) => (g === 'D' ? RANG_PAIRE[u] : RANG_TRIO[u]);
+  const idDe = (L, g, u) => { const id = L && identiteUnite(L, g, u); return id ? id.nom : ''; };
+  const touche = new Set();   // une unité, un conseil
+  const chiffresSys = (g, u, k) => effetsDeSysteme((g === 'D' ? SYSTEMES_D : TACTIQUES)[k], fitDe(g, u, k)).map(({ txt, bon }) => ({ txt, bon }));
+
+  if (adv && adv.lignes) {
+    // LEUR SYSTÈME PRINCIPAL : leurs trois premiers trios, pondérés 3-2-1.
+    const poids = {};
+    adv.lignes.slice(0, 3).forEach((l, u) => { if (TACTIQUES[l.tac] && TACTIQUES[l.tac].slots) poids[l.tac] = (poids[l.tac] || 0) + 3 - u; });
+    const X = (Object.entries(poids).sort((a, b) => b[1] - a[1])[0] || [])[0];
+    if (X) {
+      const leurs = [0, 1, 2].filter(u => adv.lignes[u] && adv.lignes[u].tac === X);
+      const chim = Math.max(0, ...leurs.map(u => (adv.chimie || [])[u] || 0));
+      const surN = chim >= 5 ? Math.round(100 / (SPEC_BASE * chim)) : null;
+      const leursMots = `leur ${nomSysteme(X)} (${leurs.map(u => RANG_TRIO[u]).join(', ')})`;
+      const deja = [...[0, 1, 2, 3].filter(u => TACTIQUES[lignes[u].tac] && TACTIQUES[lignes[u].tac].bat === X).map(u => `ton ${RANG_TRIO[u]}`),
+        ...[0, 1, 2].filter(u => SYSTEMES_D[lignes[u].tacD] && SYSTEMES_D[lignes[u].tacD].bat === X).map(u => `ta ${RANG_PAIRE[u]}`)];
+      const action = surN ? `son action spéciale — environ 1 tir sur ${surN} de ces trios, qui entre ${virgule(SPEC_MULT)} fois plus souvent —` : 'son action spéciale';
+      if (deja.length) out.push({ genre: 'deja', titre: `${leursMots[0].toUpperCase()}${leursMots.slice(1)} est déjà étouffé`, pourquoi: `Par ${deja.join(' et ')} : ${action} ne passe pas quand ${deja.length > 1 ? 'ils sont' : deja[0].startsWith('ta') ? 'elle est' : 'il est'} sur la glace.`, chiffres: [] });
+      else {
+        const essais = [];
+        for (const [g, cle, champ, unites] of [['F', contreDe(X), 'tac', [0, 1, 2]], ['D', contreDeD(X), 'tacD', [0, 1, 2]]]) {
+          if (!cle) continue;
+          for (const u of unites) essais.push({ g, cle, champ, u, fit: fitDe(g, u, cle), perte: fitDe(g, u, lignes[u][champ]) - fitDe(g, u, cle) });
+        }
+        // Le meilleur fit d'abord ; à fit égal, celui qui perd le moins à quitter son système.
+        const c = essais.filter(e => e.fit >= 45).sort((a, b) => b.fit - a.fit || a.perte - b.perte)[0];
+        if (c) {
+          touche.add(`${c.g}${c.u}`);
+          const avant = lignes[c.u][c.champ];
+          out.push({ genre: 'contre', lignes: avec(c.u, { [c.champ]: c.cle }),
+            titre: `${c.g === 'D' ? 'Ta' : 'Ton'} ${nomUnite(c.g, c.u)} en ${nomSysteme(c.cle)}`,
+            pourquoi: `${c.g === 'D' ? 'Elle' : 'Il'} étouffe ${leursMots} : ${action} ne passe plus quand ${c.g === 'D' ? 'ta paire' : 'ton trio'} est sur la glace. ${idDe(lineup, c.g, c.u) ? `${idDe(lineup, c.g, c.u)} : ` : ''}${motFit(c.fit)}${avant && avant !== 'hourra' ? ` (il jouait ${nomSysteme(avant)}, ${motFit(fitDe(c.g, c.u, avant))})` : ''}.`,
+            chiffres: chiffresSys(c.g, c.u, c.cle) });
+        }
+      }
+    }
+    // LEUR SYSTÈME ÉTOUFFE LE TIEN : le trio adverse du même rang, ou sa paire.
+    for (const u of [0, 1, 2]) {
+      const mien = lignes[u].tac, a = adv.lignes[u] || {};
+      if (touche.has(`F${u}`) || !TACTIQUES[mien] || !TACTIQUES[mien].slots) continue;
+      const parTrio = TACTIQUES[a.tac] && TACTIQUES[a.tac].bat === mien, parPaire = SYSTEMES_D[a.tacD] && SYSTEMES_D[a.tacD].bat === mien;
+      if (!parTrio && !parPaire) continue;
+      const libres = Object.keys(TACTIQUES).filter(k => k !== 'hourra' && k !== mien && TACTIQUES[a.tac]?.bat !== k && SYSTEMES_D[a.tacD]?.bat !== k)
+        .sort((x, y) => fitDe('F', u, y) - fitDe('F', u, x));
+      const k = libres[0];
+      // Pas pour un système où il serait mal assorti : on perdrait plus qu'une action spéciale.
+      if (!k || fitDe('F', u, k) < 40 || fitDe('F', u, k) < fitDe('F', u, mien) - 10) continue;
+      touche.add(`F${u}`);
+      out.push({ genre: 'menace', lignes: avec(u, { tac: k }), titre: `Ton ${RANG_TRIO[u]} en ${nomSysteme(k)}`,
+        pourquoi: `${parTrio ? `Leur ${RANG_TRIO[u]} en ${nomSysteme(a.tac)}` : `Leur ${RANG_PAIRE[u]} en ${nomSysteme(a.tacD)}`} étouffe ton ${nomSysteme(mien)} : ton action spéciale ne passerait pas. ${nomSysteme(k)} : ${motFit(fitDe('F', u, k))}.`,
+        chiffres: chiffresSys('F', u, k) });
+      break;
+    }
+  }
+  // LE FIT : l'unité la plus loin de son meilleur système (10 points ou plus), une par groupe.
+  for (const [g, champ, unites, meilleur] of [['F', 'tac', [0, 1, 2, 3], meilleureTactique], ['D', 'tacD', [0, 1, 2], meilleurSystemeD]]) {
+    let pire = null;
+    for (const u of unites) {
+      if (touche.has(`${g}${u}`)) continue;
+      const m = meilleur(lineup, u), cur = lignes[u][champ];
+      const ecart = fitDe(g, u, m) - fitDe(g, u, cur);
+      if (m !== cur && ecart >= 10 && (!pire || ecart > pire.ecart)) pire = { u, m, cur, ecart };
+    }
+    if (!pire) continue;
+    touche.add(`${g}${pire.u}`);
+    const id = idDe(lineup, g, pire.u);
+    out.push({ genre: 'fit', lignes: avec(pire.u, { [champ]: pire.m }), titre: `${g === 'D' ? 'Ta' : 'Ton'} ${nomUnite(g, pire.u)} en ${nomSysteme(pire.m)}`,
+      pourquoi: `${id ? `${id} : ` : ''}${motFit(fitDe(g, pire.u, pire.m))} en ${nomSysteme(pire.m)}, ${pire.cur && pire.cur !== 'hourra' ? `${motFit(fitDe(g, pire.u, pire.cur))} en ${nomSysteme(pire.cur)}` : 'sans système'}. Le gain d'un système suit le fit de ses joueurs.`,
+      chiffres: chiffresSys(g, pire.u, pire.m) });
+  }
+  // LA FERMETURE : ton trio le plus défensif — ses checkers et ses two-way, lus dans leurs vraies stats — prend leur 1er trio.
+  const ferm = fermeture === 'auto' ? 2 : fermeture;
+  const defenseDe = u => { const js = Object.entries(joueursDeLigne(lineup, u)).filter(([r, p]) => p && r !== 'DG' && r !== 'DD').map(([, p]) => profilsDe(p) || {});
+    return js.length === 3 ? js.reduce((a, pr) => a + Math.max(pr.checker || 0, pr.deuxsens || 0), 0) / 3 : 0; };
+  const defensif = [0, 1, 2, 3].sort((a, b) => defenseDe(b) - defenseDe(a))[0];
+  if (defensif !== 0 && defensif !== ferm && defenseDe(defensif) >= (ferm == null ? 0 : defenseDe(ferm)) + 10) {
+    const leur = adv && adv.lineup ? idDe(adv.lineup, 'F', 0) : '';
+    const id = idDe(lineup, 'F', defensif);
+    out.push({ genre: 'fermeture', fermeture: defensif, titre: `Ton ${RANG_TRIO[defensif]} en fermeture`,
+      pourquoi: `Le trio de fermeture prend leur 1er trio${leur ? ` (${leur})` : ''}. ${id ? `Ton ${RANG_TRIO[defensif]} est un ${id.replace(/^Trio/, 'trio')}` : `Ton ${RANG_TRIO[defensif]}`} : ses joueurs sont les plus défensifs de ta formation${ferm == null ? '' : `, plus que ton ${RANG_TRIO[ferm]}`}.`, chiffres: [] });
+  }
+  // L'AGRESSIVITÉ qui paie pour la carrure de chaque ligne.
+  const mieux = lignes.map((l, u) => meilleureAgressivite(lineup, u));
+  const changees = [0, 1, 2, 3].filter(u => mieux[u] !== lignes[u].agr);
+  if (changees.length) {
+    out.push({ genre: 'agressivite', lignes: lignes.map((l, u) => ({ ...l, agr: mieux[u] })),
+      titre: changees.map(u => `${RANG_LIGNE[u]} ${AGRESSIVITES[mieux[u]].ico} ${AGRESSIVITES[mieux[u]].nom.toLowerCase()}`).join(' · '),
+      pourquoi: 'L\'agressivité qui paie pour la carrure de chaque ligne : le jeu physique rapporte aux lignes costaudes et coûte des punitions aux légères.',
+      // Ce que ça change, ligne par ligne, par rapport à son agressivité d'aujourd'hui.
+      chiffres: changees.slice(0, 2).map(u => {
+        const ph = physiqueLigne(lineup, u);
+        const b = bilanAgressivite(mieux[u], ph), a = bilanAgressivite(lignes[u].agr ?? 1, ph);
+        const dB = Math.round((a.defense - b.defense) * 100), dP = Math.round((b.punitions - a.punitions) * 100);
+        const sg = x => `${x > 0 ? '+' : '−'}${Math.abs(x)} %`;
+        return { txt: `${RANG_LIGNE[u]} : ${[dB ? `buts contre ${sg(dB)}` : '', dP ? `punitions ${sg(dP)}` : ''].filter(Boolean).join(', ') || 'presque rien'}`, bon: b.net > a.net };
+      }) });
+  }
+  // LA GLACE : un des deux premiers trios usé (70 % et moins d'énergie ce matin).
+  for (const u of [0, 1]) {
+    const js = Object.entries(joueursDeLigne(lineup, u)).filter(([r, p]) => p && r !== 'DG' && r !== 'DD').map(([, p]) => energie[getPlayerKey(p)]).filter(Number.isFinite);
+    const moy = js.length ? js.reduce((a, x) => a + x, 0) / js.length : 100;
+    if (moy > 70 || lignes[u].sec <= SEC_MIN) continue;
+    const sec = Math.max(SEC_MIN, lignes[u].sec - 15);
+    out.push({ genre: 'glace', lignes: avec(u, { sec }), titre: `Ton ${RANG_TRIO[u]} : ${sec} s par présence`,
+      pourquoi: `Il est usé : ${Math.round(moy)} % d'énergie ce matin. Sous 60 %, un joueur rend moins et se blesse plus ; moins de glace ce soir, c'est plus de jambes au prochain.`,
+      chiffres: [{ txt: `Énergie ${Math.round(moy)} %`, bon: false }] });
+    break;
+  }
+  // LA CONSIGNE, selon les forces comparées (rangs de la ligue).
+  const tiers = r => (r && r.sur > 1 ? (r.rang - 1) / (r.sur - 1) : null);
+  if (consigne == null && forces) {
+    const gL = tiers(forces.lui && forces.lui.gardien), aM = tiers(forces.moi && forces.moi.attaque);
+    const aL = tiers(forces.lui && forces.lui.attaque), dM = tiers(forces.moi && forces.moi.defense);
+    const ad = gL != null && aM != null && gL >= 2 / 3 && aM <= 0.5 ? 2 : aL != null && dM != null && aL <= 1 / 3 && dM >= 0.5 ? -2 : 0;
+    if (ad) {
+      const match = { importance: 'normale', ad };
+      out.push({ genre: 'consigne', match, titre: ad > 0 ? '🎯 Consigne : attaque' : '🛡️ Consigne : défense',
+        pourquoi: ad > 0 ? `Leur gardien de ce soir est ${forces.lui.gardien.rang}e de la ligue, ton attaque ${forces.moi.attaque.rang}${forces.moi.attaque.rang === 1 ? 're' : 'e'} : force-le.`
+          : `Leur attaque est ${forces.lui.attaque.rang}${forces.lui.attaque.rang === 1 ? 're' : 'e'} de la ligue, ta défense ${forces.moi.defense.rang}e : ferme le jeu.`,
+        chiffres: (e => [{ txt: `Précision ${pctE(e.finition)}`, bon: e.finition > 1 }, { txt: `Buts contre ${pctE(e.defense)}`, bon: e.defense < 1 }])(effetDeMoment({ jour: 0, match })) });
+    }
+  }
+  return out;
 }
 
 /*

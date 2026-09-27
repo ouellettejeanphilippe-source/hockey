@@ -286,9 +286,19 @@
 | 2026-09-27 | S78 : les cartes selon leur époque (cinq dessins aux couleurs du club, l'année sur la photo, le numéro au verso), la rareté en finition par-dessus le joueur (base, parallèle, holo, or, et l'éclat quand elle paraît), des cartes debout au vestiaire, le bouton Recto réparé, l'information jamais dédoublée, une case d'alignement simple — et l'alignement, la stratégie et les trios en un seul écran : un tiroir de stratégie sous chaque trio, un seul ouvert. |
 | 2026-09-27 | S78 : la rareté devient une VARIANTE par-dessus le joueur (base, parallèle, holo, or), avec un bonus tiré au hasard qui ne colle pas toujours (+3 %, +5 %, deux à +5 %) ; seules tes cartes jouent. L'atelier : des cartes qui éditent un joueur (joue partout, monte d'un cran, le physio, le lustre) et le coach des gardiens, au deck et à la boutique Rogue. Les 3 912 visages recadrés une fois et les 45 écussons officiels voyagent avec le jeu (img/), les Nordiques avec le N. La boîte de réception qui bloque la journée, le sommaire de journée, le dépistage d'avant-match du vrai moteur et la difficulté des objectifs du proprio (fusion de s78-hub) ; les smokes la règlent comme un joueur. |
 | 2026-09-27 | S78 : la fiche est une carte debout, pleine largeur, recto et verso du même dessin (époque, club, variante) et de la même taille ; la vraie saison au recto, le reste au verso, l'écusson en filigrane ; au bureau, la carte à gauche. Le sommaire range les buts par période. |
+| 2026-09-27 | S79 : les rôles de hockey lus dans les vraies stats (sniper, passeur, two-way, power forward, checker, énergie, bagarreur ; défensif, offensif, manieur de rondelle, physique, two-way) remplacent les profils ; un système pour le trio et un autre pour la paire, en chiffres au prorata du fit, qui s'étouffent en cercle ; l'alignement montre le rôle de chaque joueur et ce qu'est chaque trio et chaque paire, avec sept tiroirs ; le dépistage devient un tableau des forces avec l'avantage et des conseils qu'on applique d'un toucher ; un joueur se nomme par ce qu'il est, jamais par sa case. |
 | 2026-09-27 | S78 : dix séries de cartes (une par tranche de saisons) par-dessus les cinq époques, les sous-séries Recrue et Étoile (les meilleurs de leur vraie saison) avec leur ruban, l'écusson en filigrane, l'holographique derrière le visage ; la carte mini aux choix d'un joueur (trois côte à côte) et au loto du téléphone. |
 
 ## S78 — modes (fait sur s78-modes)
 - [x] Mode Exhibition : n'importe quels clubs de toutes les époques, match / série 4 de 7 / 100 fois, direct, trois étoiles.
 - [x] « Au hasard » pour la saison de la ligue et pour la franchise du repêchage.
 - [x] À la fusion : js/exhibition.js dans la liste de sw.js (v19).
+
+## S79 — les rôles, les systèmes, le dépistage (fait sur s79-jeu)
+- [x] Rôles de hockey depuis les vraies stats, en percentiles de saison (`js/roles_ref.js`, `scripts/roles_ref.mjs`, `scripts/roles_calibre.mjs`) ; premier et second rôle, en mots et en icônes.
+- [x] Systèmes de trio (7 + Hourra) et de paire (5 + Sans consigne), gain au prorata du fit, prix, contres ; vieilles sauvegardes relues (`tacD` par défaut).
+- [x] Mesuré : aucun système dominant, le fit compte par degrés, mal assortir une paire coûte (`check_tactiques` 11/11).
+- [x] Alignement : rôles dans les cases, identité des unités, tiroir de trio et tiroir de paire, conseil « irait mieux en … ».
+- [x] Dépistage : tableau des forces avec l'avantage, conseils avec « Appliquer » (décision rejouable), plus de « s'il marque ».
+- [x] Un joueur se nomme par ce qu'il est (`quiEst`), pas par sa case.
+- [x] `js/roles_ref.js` dans la liste de sw.js, cache v20 (à la fusion : garder le plus haut numéro de version si une autre branche l'a aussi monté).

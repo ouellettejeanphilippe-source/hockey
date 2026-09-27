@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v19';  // v19 : les variantes de cartes, l'atelier, les visages et écussons sur l'appareil (S78)
+const VERSION = 'cap82-v20';  // v20 : les rôles et les systèmes (js/roles_ref.js, S79)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
@@ -42,7 +42,7 @@ const FICHIERS = [
   'js/entracte.js',
   'js/equipes.js', 'js/saison.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/identites.js', 'js/combat.js', 'js/album.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
-  'js/sauvegardes.js', 'js/menu.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/logos_locaux.js', 'js/exhibition.js',
+  'js/sauvegardes.js', 'js/menu.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js',
   'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json', 'data/portraits.json',
   'fonts/BarlowCondensed-600-latin.woff2', 'fonts/BarlowCondensed-600-latin-ext.woff2',
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',

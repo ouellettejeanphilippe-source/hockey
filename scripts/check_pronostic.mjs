@@ -10,7 +10,10 @@
  *   2. que chaque joueur et chaque club retrouvent leurs champs à l'identique ;
  *   3. que le pronostic soit reproductible (même match, mêmes chiffres) ;
  *   4. que ses chiffres tiennent debout (un club fort gagne plus souvent) ;
- *   5. qu'il se calcule assez vite pour un écran (le temps est affiché).
+ *   5. qu'il se calcule assez vite pour un écran (le temps est affiché) ;
+ *   6. que les conseils d'avant-match (S79, `conseilsDuMatch`) portent des
+ *      décisions valides, ne touchent à rien et changent vraiment la saison
+ *      quand on les applique.
  *
  *   node scripts/check_pronostic.mjs
  */
@@ -18,8 +21,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, generateur } from '../js/sim.js';
-import { pronostic, conditions, chancesDesObjectifs } from '../js/pronostic.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, generateur, lignesDe, TACTIQUES, SYSTEMES_D, AGRESSIVITES } from '../js/sim.js';
+import { pronostic, conditions, chancesDesObjectifs, conseilsDuMatch } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -101,6 +104,41 @@ console.log(`  · conditions de A : gagne ${JSON.stringify(cA.gagne)} · perd ${
 console.log(`  · chances des objectifs : ${Object.entries(ch).map(([k, x]) => `${k} ${(100 * x).toFixed(0)} %`).join(' · ')}`);
 ok(tPr < 2500, 'le pronostic d\'un match se calcule vite', `${tPr.toFixed(0)} ms (${pr.n} matchs)`);
 ok(tOb < 6000, 'les chances des objectifs se calculent vite', `${tOb.toFixed(0)} ms`);
+
+// 6. LES CONSEILS D'AVANT-MATCH (S79) : sur quelques matchs de ta formation.
+{
+  const vus = [], genres = new Set();
+  let invalides = 0, sansDecision = 0, cotes = 0;
+  const avantC = empreinte(L2.equipes);
+  for (const j of [12, 30, 55]) {
+    const x = L2.calendrier.slice(j).flat().find(y => y.A === toi || y.B === toi);
+    const adv = x.A === toi ? x.B : x.A;
+    const snap = t => (t.jourLignes || [])[j] || {};
+    // Une ligne mal réglée exprès (le 2e trio en énergie, rentre-dedans) : il doit y avoir quoi dire.
+    const lignes = lignesDe(toi, toi.roster, { duSoir: false }).map((l, u) => (u === 1 ? { ...l, tac: 'energie', agr: 3 } : l));
+    const cs = conseilsDuMatch({ lineup: toi.roster, lignes, fermeture: toi.fermeture, energie: snap(toi).energie || {},
+      adv: { lignes: lignesDe(adv, adv.roster, { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster },
+      forces: { moi: { attaque: { rang: 3, sur: 32 }, defense: { rang: 20, sur: 32 } }, lui: { attaque: { rang: 15, sur: 32 }, gardien: { rang: 30, sur: 32 } } }, consigne: null });
+    for (const c of cs) {
+      genres.add(c.genre);
+      if (/\b(?:[odrcv]|sp)\s*[:=]\s*\d/.test(`${c.titre} ${c.pourquoi} ${c.chiffres.map(y => y.txt).join(' ')}`)) cotes++;
+      if (c.genre === 'deja') continue;
+      if (!c.lignes && c.fermeture == null && !c.match) { sansDecision++; continue; }
+      if (c.lignes && !(c.lignes.length === 4 && c.lignes.every((l, u) => TACTIQUES[l.tac] && (u === 3 || SYSTEMES_D[l.tacD]) && AGRESSIVITES[l.agr] && Number.isFinite(l.sec)))) invalides++;
+      vus.push({ j, c });
+    }
+  }
+  const apresC = empreinte(L2.equipes);
+  ok(avantC === apresC, 'les conseils ne touchent à rien', avantC === apresC ? 'identiques' : 'DIFFÉRENTS');
+  ok(vus.length > 0 && !invalides && !sansDecision, 'chaque conseil porte une décision valide', `${vus.length} conseils (${[...genres].join(', ')}) · ${invalides} lignes invalides · ${sansDecision} sans décision`);
+  ok(!cotes, 'aucun conseil ne montre une cote cachée', `${cotes}`);
+  // Appliqué, un conseil change la saison : la même ligue, avec la décision au jour de son match.
+  const { j, c } = vus.find(v => v.c.lignes) || vus[0];
+  const d = c.lignes ? { jour: j, equipe: 0, lignes: c.lignes } : c.match ? { jour: j, equipe: 0, match: c.match } : { jour: j, equipe: 0, fermeture: c.fermeture };
+  const L3 = ligue(), L4 = (() => { const eq = vestiaires.map((v, i) => { const pool = v.pool.map(p => ({ ...p })); pool.forEach(registerHiddenRatings); return createTeam(`${v.tag} ${v.season}`, v.tag, autoRoster(pool), { season: v.season, isPlayer: i === 0 }); }); return { equipes: eq, ...simulateLeague(eq, 82, { graine: 'pronostic-graine', decisions: [d] }) }; })();
+  const f3 = [L3.equipes[0].W, L3.equipes[0].GF, L3.equipes[0].GA].join('-'), f4 = [L4.equipes[0].W, L4.equipes[0].GF, L4.equipes[0].GA].join('-');
+  ok(f3 !== f4, 'appliqué, un conseil change la saison', `« ${c.titre} » : ${f3} puis ${f4}`);
+}
 
 console.log(echecs ? `\n  ${echecs} échec(s).` : '\n  Le pronostic ne touche à rien.');
 process.exit(echecs ? 1 : 0);

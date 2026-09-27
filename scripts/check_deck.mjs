@@ -107,18 +107,19 @@ console.log('\n  Le deck (S73)\n');
   // 3. la maîtrise et la chimie.
   const photo = apprentissagePhoto(toi.jourLignes[J0 + 1].apprentissage);
   const photoBase = apprentissagePhoto(base[0].jourLignes[J0 + 1].apprentissage);
-  const dresses = SLOTS.filter(s => !s.scratch && s.group !== 'G').map(s => toi.roster[s.i]).filter(p => p && p.p !== 'G');
+  // Un système de trio s'apprend par les avants (S79) : la paire a le sien.
+  const dresses = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => toi.roster[s.i]).filter(Boolean);
   const m = moy(dresses.map(p => (photo.maitrise(p)[tac] || 0)));
   const mBase = moy(dresses.map(p => (photoBase.maitrise(p)[tac] || 0)));
-  exiger('le stage apprend la tactique à toute la formation', m >= GAIN_STAGE * 0.95 && m > mBase + 0.3, `maîtrise de ${tac} ${(mBase * 100).toFixed(0)} % sans le stage, ${(m * 100).toFixed(0)} % avec`);
+  exiger('le stage apprend le système à tous tes avants', m >= GAIN_STAGE * 0.95 && m > mBase + 0.3, `maîtrise de ${tac} ${(mBase * 100).toFixed(0)} % sans le stage, ${(m * 100).toFixed(0)} % avec`);
   const ch = chimieLigne(photo, L, 3, tac), chBase = chimieLigne(photoBase, L, 3, tac);
   exiger('et la ligne qui la joue a plus de chimie ce soir-là', ch > chBase + 5, `4e ligne en ${tac} : ${chBase.toFixed(0)} % sans le stage, ${ch.toFixed(0)} % avec`);
   // 4. l'amélioration.
   const p = Object.values(toi.roster).find(x => x && getPlayerKey(x) === cleCible);
   const autres = Object.values(toi.roster).filter(x => x && x !== p && x._mut && x._mut.finition);
   const apres = profilsDe(p);
-  exiger('une amélioration change la carte du joueur choisi', p && p._mut && Math.abs(p._mut.finition - MUTATIONS.affute.finition) < 1e-9 && apres.franc > profilsAvant.franc,
-    `${p.n} : finition ×${p._mut && p._mut.finition}, franc-tireur ${profilsAvant.franc} → ${apres.franc}`);
+  exiger('une amélioration change la carte du joueur choisi', p && p._mut && Math.abs(p._mut.finition - MUTATIONS.affute.finition) < 1e-9 && apres.sniper > profilsAvant.sniper,
+    `${p.n} : finition ×${p._mut && p._mut.finition}, sniper ${profilsAvant.sniper} → ${apres.sniper}`);
   exiger('et seulement la sienne', !autres.some(x => (x._mutCles || []).includes('affute')), `${autres.length} autre(s) touché(s)`);
   // 5. les rôles.
   const cles = new Set(roles.map(r => getPlayerKey(r.p)));

@@ -28,13 +28,13 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
-  lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation,
+  lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS, motsDeMutation,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
-  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, fitLigne, profilPrincipal, apprentissagePhoto, flechesDe,
+  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
   activeLineup, facteurGardienDe, lancersRelDe } from './sim.js';
 import { seasonLancers } from './ratings.js';
-import { pronostic, conditions, chancesDesObjectifs, motDeChance } from './pronostic.js';
+import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur } from './cartes.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, planReplie, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN } from './combat.js';
@@ -307,7 +307,7 @@ function tableJoueurs(ctx, { titre, id, colonnes, lignes, tri, tete = 'eq', limi
   // Onze colonnes ne tiennent pas dans 390 px : le tableau défile en x dans
   // son propre conteneur, comme tous les tableaux du jeu.
   return `<div class="live-tableau hub-table"><div class="live-tableau-titre">${ctx.esc(titre)}</div>
-    <div class="hub-scroll"><table><thead><tr><th>#</th><th>Joueur</th><th>${tete === 'eq' ? 'Éq.' : 'Case'}</th>${colonnes.map(th).join('')}</tr></thead>
+    <div class="hub-scroll"><table><thead><tr><th>#</th><th>Joueur</th><th>${tete === 'eq' ? 'Éq.' : 'Profil'}</th>${colonnes.map(th).join('')}</tr></thead>
     <tbody>${vues.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}${l.blesse ? ' blesse' : ''}">
       <td>${i + 1}</td><td class="nom">${nomLie(ctx, l)}${l.blesse ? ` <span class="hub-bl" title="Blessé">🩹 ${l.blesse}</span>` : ''}</td>
       <td class="${tete === 'eq' ? 'eq' : 'role'}">${tete === 'eq' ? versEquipe(ctx, l.t, l.eq) : ctx.esc(l.role)}</td>${cellules(l)}</tr>`).join('')}</tbody></table></div>
@@ -363,7 +363,7 @@ function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blesses
     if (!p) return null;
     // Pas de rangée en or ici : c'est une feuille d'équipe, l'or ne dirait
     // rien de plus que l'en-tête. Il reste aux meneurs, où il te trouve.
-    return { p, t, nom: nom(p), role: caseCourte(s), blesse: blesses.get(p) || 0, c: compte.get(p) || VIDE };
+    return { p, t, nom: nom(p), role: ctx.quiEst ? ctx.quiEst(p, { stats: false }) : caseCourte(s), blesse: blesses.get(p) || 0, c: compte.get(p) || VIDE };
   };
   const pat = SLOTS.filter(s => s.group !== 'G').map(rangee).filter(Boolean);
   const gar = SLOTS.filter(s => s.group === 'G').map(rangee).filter(Boolean);
@@ -874,11 +874,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     return `${noms.length} cases sans personne pour les jouer`;
   };
 
-  /* La case qu'occupait le blessé, nommée comme partout ailleurs. */
-  const caseDe = p => {
-    const s = SLOTS.find(x => you.roster[x.i] === p);
-    return s ? (ctx.slotShort ? ctx.slotShort(s) : s.role) : 'Réserviste';
-  };
+  /* Ce qu'est le blessé (S79) : ses positions et son rôle — JP, *jamais identifier les joueurs avec leurs places dans l'alignement*. */
+  const caseDe = p => (ctx.quiEst ? ctx.quiEst(p, { stats: false }) : '');
   /*
    * QUI PREND SA PLACE. `activeLineup` promeut le premier réserviste
    * compatible, sinon la case reste vide et le moteur y met un rappel — et
@@ -1102,6 +1099,21 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     }
     return best;
   };
+  /*
+   * LE DÉPISTAGE, OUTIL DE DÉCISION (S79). JP, sur sa capture : *spas si
+   * lisible le haut, pis le bas aide fuck all aucun processus décisionnel*.
+   *   1. Les chances : une barre, deux pourcentages, les buts attendus (le
+   *      moteur, 300 matchs rejoués — js/pronostic.js).
+   *   2. Les forces en TABLEAU : un rang par club et par ligne, et l'avantage
+   *      marqué (◀ ▶) quand l'écart compte (un huitième de la ligue, trois
+   *      rangs au moins). Les unités spéciales s'y ajoutent dès trois matchs.
+   *   3. Ce que tu peux faire ce soir (`conseilsDuMatch`) : des réglages de
+   *      TES lignes, de ta fermeture ou de ta consigne, avec les chiffres du
+   *      moteur, et « Appliquer » — une décision comme une autre, qui se rejoue.
+   * Les « conditions » (« s'il marque quatre buts, il gagne 79 % du temps »)
+   * sont parties : elles ne décidaient de rien.
+   */
+  const conseilsVus = new Map();   // journée → les conseils affichés, pour « Appliquer »
   function depistageMatchHtml(p) {
     const moiA = p.m.A === you, adv = moiA ? p.m.B : p.m.A;
     const pr = pronosticDe(p);
@@ -1109,43 +1121,61 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const bMoi = moiA ? pr.butsA : pr.butsB, bLui = moiA ? pr.butsB : pr.butsA;
     const bandeA = ctx.band(you.tag), bandeB = ctx.band(adv.tag);
     const chances = `<div class="dep2-chances" style="--moi:${bandeA.bg};--lui:${bandeB.bg}">
-      <div class="dep2-barre" role="img" aria-label="${pctMot(v)} de victoires contre ${pctMot(1 - v)}"><span class="moi" style="width:${(100 * v).toFixed(1)}%"></span><span class="lui"></span></div>
       <div class="dep2-chances-mots"><span><b>${pctMot(v)}</b> ${ctx.esc(ctx.tagCourt(you))}</span><span class="dep2-prol">${pctMot(pr.prol / pr.n)} en prolongation</span><span>${ctx.esc(ctx.tagCourt(adv))} <b>${pctMot(1 - v)}</b></span></div>
-      <div class="dep2-note">Buts attendus ${virgule(bMoi, 1)} – ${virgule(bLui, 1)}. ${pr.n} matchs rejoués par le moteur, les deux clubs tels qu'ils sont ce matin (blessés compris), à forces égales : sans la chance de saison ni les cartes.</div>
+      <div class="dep2-barre" role="img" aria-label="${pctMot(v)} de victoires contre ${pctMot(1 - v)}"><span class="moi" style="width:${(100 * v).toFixed(1)}%"></span><span class="lui"></span></div>
+      <div class="dep2-note">Buts attendus ${virgule(bMoi, 1)} – ${virgule(bLui, 1)} · ${pr.n} matchs rejoués par le moteur, les deux clubs tels qu'ils sont ce matin.</div>
     </div>`;
     const gMoi = moiA ? pr.gardiens.A : pr.gardiens.B, gLui = moiA ? pr.gardiens.B : pr.gardiens.A;
     const axes = axesDuMatch(you, adv, { A: gMoi, B: gLui });
-    const barre = c => (c ? `<i style="--f:${((c.sur - c.rang + 1) / c.sur).toFixed(3)}"></i>` : '<i style="--f:0"></i>');
-    const mot = c => (c ? `<b>${rangMot(c.rang)}</b> <small>${ctx.esc(c.mot)}</small>` : '<small>—</small>');
-    const axesHtml = `<div class="dep2-axes" role="table" aria-label="Les forces comparées">
-      <div class="dep2-axes-tete" role="row"><span>${ctx.logo(you.tag, 16)} ${ctx.esc(ctx.tagCourt(you))}</span><span>rang dans la ligue</span><span>${ctx.esc(ctx.tagCourt(adv))} ${ctx.logo(adv.tag, 16)}</span></div>
-      ${axes.map(x => `<div class="dep2-axe" role="row">
-        <span class="dep2-axe-nom">${x.ico} ${ctx.esc(x.nom)}</span>
-        <span class="dep2-axe-moi">${mot(x.a)}<span class="dep2-jauge moi">${barre(x.a)}</span></span>
-        <span class="dep2-axe-lui"><span class="dep2-jauge lui">${barre(x.b)}</span>${mot(x.b)}</span>
-      </div>`).join('')}
-    </div>`;
-    // LES CLÉS DU MATCH, pour chaque club : des fréquences des mêmes matchs rejoués, et des mesures de la saison.
-    const cles = (t, cote, nomT) => {
-      const c = conditions(pr, cote);
-      const out = [];
-      // La condition d'abord, sa fréquence ensuite, puis ce qu'elle vaut : une phrase qui se lit d'un trait.
-      const buts = k => `${k} but${k > 1 ? 's' : ''} ou plus`;
-      if (c.gagne) out.push({ bon: true, txt: `S'il marque ${buts(c.gagne.k)} (${pctMot(c.gagne.arrive)} des matchs rejoués), il gagne ${pctMot(c.gagne.alors)} du temps.` });
-      if (c.perd) out.push({ bon: false, txt: `S'il en accorde ${buts(c.perd.k)} (${pctMot(c.perd.arrive)} des matchs rejoués), il perd ${pctMot(c.perd.alors)} du temps.` });
-      for (const k of ['an', 'inf']) {
-        const m = mesureDe(t, k);
-        if (!m || !m.sur) continue;
-        const moy = moyenneLigue(k);
-        if (m.rang <= Math.ceil(m.sur / 4)) out.push({ bon: true, txt: `${MESURES[k].nom} : ${MESURES[k].mot(m.v)}, ${rangMot(m.rang)} de la ligue (moyenne ${pctMot(moy)}).` });
-        else if (m.rang > m.sur - Math.ceil(m.sur / 4)) out.push({ bon: false, txt: `${MESURES[k].nom} : ${MESURES[k].mot(m.v)}, ${rangMot(m.rang)} de la ligue (moyenne ${pctMot(moy)}).` });
-      }
-      const b = buteurDe(t);
-      if (b) out.push({ neutre: true, txt: `À surveiller : ${b.p.n}, ${b.c.g} but${b.c.g > 1 ? 's' : ''} en ${gpDe(t)} matchs.` });
-      return `<div class="dep2-cle"><div class="dep2-cle-t">${ctx.logo(t.tag, 16)} ${ctx.esc(nomT)}</div>${out.map(o => `<div class="dep2-cle-l ${o.neutre ? 'neutre' : o.bon ? 'bon' : 'prix'}">${ctx.esc(o.txt)}</div>`).join('')}</div>`;
+    const mes = (t, k) => { const m = mesureDe(t, k); return m && m.rang ? { ...m, mot: MESURES[k].mot(m.v) } : null; };
+    const speciales = gpDe(you) >= 3 && gpDe(adv) >= 3 ? ['an', 'inf'].map(k => ({ ico: MESURES[k].ico, nom: MESURES[k].nom, a: mes(you, k), b: mes(adv, k) })) : [];
+    const rangTxt = c => (c ? `${c.rang}<sup>${c.rang === 1 ? 'er' : 'e'}</sup>` : '—');
+    const nomMoi = ctx.tagCourt(you), nomLui = ctx.tagCourt(adv);
+    const rangee = x => {
+      const d = x.a && x.b ? x.b.rang - x.a.rang : 0;
+      const s = x.a ? Math.max(3, Math.round(x.a.sur / 8)) : Infinity;
+      const av = d >= s ? 'moi' : -d >= s ? 'lui' : '';
+      const cell = (c, cote) => `<td class="dep3-${cote}${av === cote ? ' av' : ''}"><b>${rangTxt(c)}</b>${c && c.mot ? `<small>${ctx.esc(c.mot)}</small>` : ''}</td>`;
+      return `<tr><th scope="row">${x.ico} ${ctx.esc(x.nom)}</th>${cell(x.a, 'moi')}<td class="dep3-av" title="${av === 'moi' ? `Avantage ${ctx.esc(nomMoi)}` : av === 'lui' ? `Avantage ${ctx.esc(nomLui)}` : 'Pas d\'écart qui compte'}">${av === 'moi' ? '◀' : av === 'lui' ? '▶' : '='}</td>${cell(x.b, 'lui')}</tr>`;
     };
-    return `${chances}${axesHtml}<div class="dep2-cles">${cles(you, moiA ? 'A' : 'B', ctx.teamShort(you))}${cles(adv, moiA ? 'B' : 'A', ctx.teamShort(adv))}</div>`;
+    const table = `<table class="dep3-table">
+      <caption>Rang dans la ligue · ◀ ▶ l'avantage</caption>
+      <thead><tr><th></th><th class="dep3-moi">${ctx.logo(you.tag, 16)} ${ctx.esc(nomMoi)}</th><th></th><th class="dep3-lui">${ctx.esc(nomLui)} ${ctx.logo(adv.tag, 16)}</th></tr></thead>
+      <tbody>${[...axes, ...speciales].map(rangee).join('')}</tbody>
+    </table>`;
+    // Leur meilleur buteur : ce qu'il est (ses positions, son rôle) et ce qu'il a fait.
+    const b = buteurDe(adv);
+    const surveiller = b ? `<div class="dep3-surveiller">👀 Chez eux : <b>${ctx.esc(b.p.n)}</b>${ctx.quiEst ? ` · ${ctx.esc(ctx.quiEst(b.p, { stats: false }))}` : ''} — ${b.c.g} but${b.c.g > 1 ? 's' : ''} en ${gpDe(adv)} matchs.</div>` : '';
+    // CE QUE TU PEUX FAIRE CE SOIR.
+    const snap = t => (t.jourLignes && t.jourLignes[Math.max(0, Math.min(jour, t.jourLignes.length - 1))]) || {};
+    const matchPris = decs.find(d => d.match && d.jour === p.j);
+    const conseils = conseilsDuMatch({
+      lineup: you.roster, lignes: lignesDe(you, you.roster, { duSoir: false }), fermeture: you.fermeture, energie: snap(you).energie || {},
+      adv: { lignes: lignesDe(adv, adv.roster, { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster },
+      forces: { moi: { attaque: axes[0].a, defense: axes[1].a }, lui: { attaque: axes[0].b, gardien: axes[2].b } },
+      consigne: matchPris ? matchPris.match.ad : null,
+    });
+    conseilsVus.set(p.j, conseils);
+    const conseilsHtml = `<div class="dep3-conseils"><div class="gl-k">🧭 Ce que tu peux faire ce soir</div>${conseils.length ? conseils.map((c, i) => `<div class="dep3-conseil${c.genre === 'deja' ? ' deja' : ''}">
+        <div class="dep3-conseil-t">${c.genre === 'deja' ? '✓ ' : ''}<b>${ctx.esc(c.titre)}</b></div>
+        <div class="dep3-conseil-p">${ctx.esc(c.pourquoi)}</div>
+        ${c.chiffres.length || (onDecision && c.genre !== 'deja') ? `<div class="dep3-conseil-pied">${c.chiffres.length ? `<span class="choix-puces">${puces(c.chiffres)}</span>` : ''}${onDecision && c.genre !== 'deja' ? `<button type="button" class="btn dep3-appliquer" data-conseil="${i}" data-j="${p.j}">Appliquer</button>` : ''}</div>` : ''}
+      </div>`).join('') : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture, ton agressivité et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
+    return `${chances}${table}${surveiller}${conseilsHtml}`;
   }
+  /* « Appliquer » : le conseil devient une décision de la journée du match, et la saison se rejoue d'ici. */
+  const brancherConseils = el => {
+    if (!el || !onDecision) return;
+    el.querySelectorAll('.dep3-appliquer').forEach(b => {
+      b.onclick = () => {
+        const j = Number(b.dataset.j), c = (conseilsVus.get(j) || [])[Number(b.dataset.conseil)];
+        if (!c) return;
+        const d = c.lignes ? { jour: j, lignes: c.lignes } : c.fermeture != null ? { jour: j, fermeture: c.fermeture } : c.match ? { jour: j, match: c.match } : null;
+        if (!d) return;
+        const ici = jour; quitter(); onDecision(d, ici);
+      };
+    });
+  };
 
   /*
    * LE RAPPORT DU DÉPISTEUR (S78), tous les dix matchs. JP : *avoir scouting de
@@ -1378,8 +1408,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const lignes = lignesDe(you, you.roster);
     const noms = ['1re', '2e', '3e', '4e'];
     return `<div class="live-tableau"><div class="live-tableau-titre">Tes lignes, à forces égales</div>
-      <table class="rl-table"><thead><tr><th>Ligne</th><th>Tactique</th><th>Tirs</th><th>Buts</th><th title="Buts de la ligne adverse du même rang">Contre</th><th title="Actions spéciales réussies">Spéc.</th><th title="Actions spéciales étouffées par la tactique adverse">Étouf.</th></tr></thead>
-      <tbody>${L.map((x, u) => `<tr><td>${noms[u]}</td><td>${TACTIQUES[lignes[u].tac].ico} ${ctx.esc(TACTIQUES[lignes[u].tac].nom)}</td><td>${x.t}</td><td>${x.b}</td><td>${x.bc}</td><td>${x.s}</td><td>${x.e}</td></tr>`).join('')}</tbody></table></div>`;
+      <table class="rl-table"><thead><tr><th>Ligne</th><th>Systèmes</th><th>Tirs</th><th>Buts</th><th title="Buts de la ligne adverse du même rang">Contre</th><th title="Actions spéciales réussies">Spéc.</th><th title="Actions spéciales étouffées par la tactique adverse">Étouf.</th></tr></thead>
+      <tbody>${L.map((x, u) => `<tr><td>${noms[u]}</td><td>${TACTIQUES[lignes[u].tac].ico} ${ctx.esc(TACTIQUES[lignes[u].tac].nom)}${u < 3 && SYSTEMES_D[lignes[u].tacD] && lignes[u].tacD !== 'hourra' ? ` · ${SYSTEMES_D[lignes[u].tacD].ico}` : ''}</td><td>${x.t}</td><td>${x.b}</td><td>${x.bc}</td><td>${x.s}</td><td>${x.e}</td></tr>`).join('')}</tbody></table></div>`;
   };
 
   // LE PORTAIL EN TÊTE DU VOLET « MATCH » (S77, `tuilesHtml`) : au téléphone
@@ -1438,7 +1468,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         const titre = String(cat.titre).replace(/\{nom\}/g, nomJoueur(d.moment.joueur) || 'un joueur');
         ev.push({ j: d.jour, t: `${cat.ico} ${ctx.esc(titre)}${o ? ` — tu as choisi : <b>${ctx.esc(o.nom)}</b>` : ''}` });
       } else if (d.deck && SORTES_DECK[d.deck]) {
-        const S = SORTES_DECK[d.deck], M = d.mutation && MUTATIONS[d.mutation.cle], T = d.maitrise && TACTIQUES[d.maitrise.tac];
+        const S = SORTES_DECK[d.deck], M = d.mutation && MUTATIONS[d.mutation.cle], T = d.maitrise && systemeDe(d.maitrise.tac);
         const qui = d.deck === 'recrue' ? nomJoueur(d.ballottage && d.ballottage.entre) : d.mutation ? nomJoueur(d.mutation.joueur) : '';
         const t = d.deck === 'camp' && CARTES_MATCH[`${d.aiguise}+`] ? `Le camp d'entraînement : ${CARTES_MATCH[d.aiguise].ico} <b>${ctx.esc(CARTES_MATCH[`${d.aiguise}+`].nom)}</b>`
           : d.deck === 'menage' && CARTES_MATCH[d.retrait] ? `Le ménage : ${CARTES_MATCH[d.retrait].ico} <b>${ctx.esc(CARTES_MATCH[d.retrait].nom)}</b> quitte ton deck`
@@ -1632,7 +1662,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       ouvrirChoix({ ...suite, cartes: false, compact: true, ico: M.ico, titre: `${M.nom} : à qui ?`,
         recit: `${M.quoi} C'est pour de bon : choisis bien.`,
         contexte: `<div class="choix-puces">${puces(motsDeMutation(arg))}</div>`,
-        options: js.map(({ sl, p }) => { const pr = profilPrincipal(p); return { cle: getPlayerKey(p), ico: pr ? pr.ico : '', nom: p.n, sous: `${ctx.slotShort(sl)}${pr ? ` · ${pr.nom}` : ''}` }; }),
+        options: js.map(({ p }) => ({ cle: getPlayerKey(p), ico: '', nom: p.n, sous: ctx.quiEst(p) })),
         onChoix: k => deciderDeck(p0, { deck: 'amelioration', mutation: { cle: arg, joueur: k } }) });
       return;
     }
@@ -1667,17 +1697,19 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       // le moteur a déjà joué les 82 matchs quand l'écran s'ouvre.
       const jl = you.jourLignes && you.jourLignes[Math.max(0, Math.min(jour, you.jourLignes.length - 1))];
       const app = jl && jl.apprentissage ? apprentissagePhoto(jl.apprentissage) : null;
-      const maitrise = tac => (app ? dresses.reduce((a, p) => a + ((app.maitrise(p) || {})[tac] || 0), 0) / (dresses.length || 1) : 0);
-      const NOMS = ['1re', '2e', '3e', '4e'];
+      // Un système de trio s'apprend par les avants, un système de paire par les défenseurs (S79).
+      const estD = p => p.p === 'D' || p.p === 'LD' || p.p === 'RD';
+      const maitrise = tac => { const D = systemeDe(tac).groupe === 'D'; const qui = dresses.filter(p => estD(p) === D); return app ? qui.reduce((a, p) => a + ((app.maitrise(p) || {})[tac] || 0), 0) / (qui.length || 1) : 0; };
+      const NOMS = { F: ['1er trio', '2e trio', '3e trio', '4e trio'], D: ['1re paire', '2e paire', '3e paire'] };
       ouvrirChoix({ ...suite, ico: '📘', titre: 'Stage de système',
         recit: `Toute ta formation apprend le système choisi : ${Math.round(GAIN_STAGE * 100)} % du chemin vers la maîtrise, d'un coup. La chimie de chaque ligne qui le joue monte avec.`,
         options: tactiquesDuStage(graine, p0).map(tac => {
-          const T = TACTIQUES[tac];
-          const fits = [0, 1, 2, 3].map(u => fitLigne(you.roster, u, tac));
+          const T = systemeDe(tac);
+          const fits = NOMS[T.groupe].map((_, u) => fitUnite(you.roster, T.groupe, u, tac));
           const meilleure = fits.indexOf(Math.max(...fits));
-          return { cle: tac, rarete: 'commune', ico: T.ico, nom: T.nom, type: 'Stage de système',
-            texte: `${T.mot} Ta formation ${connait(maitrise(tac))}.`,
-            mots: [{ txt: `Taillé pour ta ${NOMS[meilleure]} ligne`, bon: fits[meilleure] >= 55 }] };
+          return { cle: tac, rarete: 'commune', ico: T.ico, nom: T.nom, type: T.groupe === 'D' ? 'Stage · système de paire' : 'Stage · système de trio',
+            texte: `${T.mot} ${T.groupe === 'D' ? 'Tes défenseurs' : 'Tes avants'} : ${connait(maitrise(tac))}.`,
+            mots: [{ txt: `Taillé pour ta ${NOMS[T.groupe][meilleure]}`, bon: fits[meilleure] >= 55 }] };
         }),
         onChoix: tac => deciderDeck(p0, { deck: 'strategie', maitrise: { tac, gain: GAIN_STAGE } }) });
     }
@@ -1867,7 +1899,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
        * pas à chaque journée qui passe.
        */
       const depistage = `<details class="hub-depistage"${boite.depOuvert === p.j ? ' open' : ''}>
-        <summary><span>🔎 Le dépistage</span><small>chances, forces comparées, clés du match</small></summary>
+        <summary><span>🔎 Le dépistage</span><small>chances, forces comparées, quoi faire ce soir</small></summary>
         <div class="hub-dep-corps">${grosDepistage}<div class="hub-dep-calc" data-dep="${p.j}">${boite.depOuvert === p.j ? depistageMatchHtml(p) : ''}</div></div>
       </details>`;
       // CE QUI JOUE SUR TA FORMATION (S72), en une ligne ; le détail est dans « Préparer le match ».
@@ -1884,12 +1916,13 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       </div>`;
       // Le dépistage se calcule quand on l'ouvre, et reste ouvert d'un rendu à l'autre le même soir.
       const det = carte.querySelector('.hub-depistage');
+      brancherConseils(det);
       if (det) det.addEventListener('toggle', () => {
         boite.depOuvert = det.open ? p.j : null;
         const cible = det.querySelector('.hub-dep-calc');
         if (det.open && cible && !cible.innerHTML.trim()) {
           cible.innerHTML = '<div class="hub-dep-attente">Le moteur rejoue le match…</div>';
-          setTimeout(() => { if (cible.isConnected) cible.innerHTML = depistageMatchHtml(p); }, 30);
+          setTimeout(() => { if (cible.isConnected) { cible.innerHTML = depistageMatchHtml(p); brancherConseils(cible); } }, 30);
         }
       });
       const prep = carte.querySelector('.hub-preparer');
@@ -2082,7 +2115,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       out.push({ id: idB, genre: 'blessure', bloque: !!onDecision && !boite.traites.has(idB), de: DE.medecin, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, palierB,
         corps: `<div class="hub-alerte" role="status">
           <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
-          <div class="hub-alerte-note">${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''} · ${ctx.esc(caseDe(alerte.player))} · ${ctx.esc(remplacant(alerte.player))}</div>
+          <div class="hub-alerte-note">${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''}${caseDe(alerte.player) ? ` · ${ctx.esc(caseDe(alerte.player))}` : ''} · ${ctx.esc(remplacant(alerte.player))}</div>
           <div class="hub-alerte-choix">
             ${bal && bal.candidats.length ? `<button type="button" class="btn hub-ballottage-ouvrir">📋 Au ballottage : ${bal.candidats.length} joueurs</button>` : ''}
             ${onBanc ? '<button class="btn gold hub-alerte-banc">Derrière le banc</button>' : ''}
@@ -2504,7 +2537,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
       <div class="boss-vies"><span title="Victoires qu'il te reste à gagner">Toi ${vies(4 - moi, 'toi')}</span><span title="Victoires qu'il lui reste à gagner">${vies(4 - lui, 'lui')} ${ctx.esc(ctx.teamShort(boss))}</span></div>
       <div class="boss-eclaireur">
         <div class="gl-k">Rapport d'éclaireur</div>
-        <div class="boss-lignes">${lb.map((l, u) => { const T = TACTIQUES[l.tac], c = contreDe(l.tac); return `<span title="Sa ${u + 1}${u ? 'e' : 're'} ligne : ${ctx.esc(T.nom)}${c ? ` — étouffée par ${ctx.esc(TACTIQUES[c].nom)}` : ''}">${u + 1}. ${T.ico} ${ctx.esc(T.nom)}${c ? ` <small>↪ ${TACTIQUES[c].ico}</small>` : ''}</span>`; }).join('')}</div>
+        <div class="boss-lignes">${lb.map((l, u) => { const T = TACTIQUES[l.tac], c = contreDe(l.tac), D = u < 3 && SYSTEMES_D[l.tacD] && l.tacD !== 'hourra' ? SYSTEMES_D[l.tacD] : null; return `<span title="Sa ${u + 1}${u ? 'e' : 're'} ligne : trio en ${ctx.esc(T.nom)}${D ? `, paire en ${ctx.esc(D.nom)}` : ''}${c ? ` — étouffé par ${ctx.esc(TACTIQUES[c].nom)}` : ''}">${u + 1}. ${T.ico} ${ctx.esc(T.nom)}${D ? ` · ${D.ico}` : ''}${c ? ` <small>↪ ${TACTIQUES[c].ico}</small>` : ''}</span>`; }).join('')}</div>
         ${ved ? `<div>⭐ Sa vedette : <b>${ctx.esc(ved.n)}</b> · ${ved.simPTS || 0} pts en saison</div>` : ''}
         ${gar ? `<div>🥅 Son gardien : <b>${ctx.esc(gar.n)}</b>${gar.simSA ? ` · ${((gar.simSV || 0) / gar.simSA).toFixed(3).replace(/^0/, '')} en saison` : ''}</div>` : ''}
       </div>

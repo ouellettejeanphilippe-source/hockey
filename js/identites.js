@@ -24,12 +24,15 @@ import { ageAtSeason } from './ratings.js';
 const estD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
 const borne01 = x => Math.max(0, Math.min(1, x));
 /* Un profil, 0 à 1 ; un gardien est neutre (0,5) : l'identité parle des patineurs. */
+/* S79 : les rôles (profilsDe) ; une clé peut en nommer plusieurs, ils se moyennent. */
 const profil = (cleF, cleD) => p => {
   if (!p || p.p === 'G') return 0.5;
   const pr = profilsDe(p);
   if (!pr) return 0.5;
   const k = estD(p) ? cleD : cleF;
-  return k ? (pr[k] || 0) / 100 : 0.5;
+  if (!k) return 0.5;
+  const ks = Array.isArray(k) ? k : [k];
+  return ks.reduce((a, x) => a + (pr[x] || 0), 0) / ks.length / 100;
 };
 const age = p => ageAtSeason(p && p.bd, p && p.s);
 /* La production par match : points pour un patineur, % d'arrêts ramené à la même échelle pour un gardien. */
@@ -38,22 +41,22 @@ const prod = p => (p.p === 'G' ? borne01(((p.sv || 0.88) - 0.88) / 0.04) : ((p.p
 export const IDENTITES = {
   francs: { ico: '🎯', nom: 'Les francs-tireurs', rarete: 'commune',
     texte: 'La roulette sort plus souvent des gâchettes : des avants qui marquent, des défenseurs qui décochent de la bleue.',
-    score: profil('franc', 'bleue') },
+    score: profil('sniper', 'offensif') },
   passeurs: { ico: '🪄', nom: 'Les passeurs', rarete: 'commune',
     texte: 'Plus de fabricants de jeu : des centres qui voient tout, des défenseurs qui relancent.',
-    score: profil('fabricant', 'offensif') },
+    score: profil('passeur', 'manieur') },
   costauds: { ico: '🦍', nom: 'La grosse équipe', rarete: 'commune',
     texte: 'Plus de joueurs lourds et robustes : ça cogne, ça tient les soirs éreintants et les séries.',
-    score: profil('puissant', 'pur') },
+    score: profil('power', 'physique') },
   rapides: { ico: '⚡', nom: 'Les patineurs', rarete: 'commune',
     texte: 'Plus de jambes : des petits rapides qui lancent de partout.',
-    score: profil('rapide', 'rapide') },
+    score: profil('energie', 'manieur') },
   defensive: { ico: '🧱', nom: 'La brigade défensive', rarete: 'peu',
     texte: 'Plus de joueurs de devoir : des avants défensifs, des défenseurs purs. On gagne 2-1.',
-    score: profil('defensif', 'pur') },
+    score: profil(['deuxsens', 'checker'], 'defensif') },
   artistes: { ico: '🎨', nom: 'Les artistes', rarete: 'peu',
     texte: 'Plus de créatifs, ceux qui passent ET qui marquent.',
-    score: profil('createur', 'createur') },
+    score: profil(['sniper', 'passeur'], ['offensif', 'manieur']) },
   jeunesse: { ico: '🐣', nom: 'La jeunesse', rarete: 'peu',
     texte: 'Plus de jeunes de 23 ans et moins, ceux qui éclosaient cette saison-là.',
     score: p => { const a = age(p); return a == null ? 0.3 : borne01((27 - a) / 6); } },

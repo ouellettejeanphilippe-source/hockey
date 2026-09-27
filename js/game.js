@@ -25,7 +25,7 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS, effetsEnCours, TACTIQUES,
+  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, systemeDe, MUTATIONS, effetsEnCours,
   unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation } from './sim.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
@@ -485,7 +485,7 @@ const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S74';
+const VERSION_MOTEUR = 'S79';
 function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
@@ -793,6 +793,21 @@ function positionLabel(p) {
   return `${primary} / ${secLabel}`;
 }
 
+/*
+ * UN JOUEUR SE NOMME PAR CE QU'IL EST (S79). JP : *jamais identifier les
+ * joueurs avec leurs places dans l'alignement, mais leurs vrais traits,
+ * stats et positions*. « C / AG · 🎯 Sniper · 45 B · 82 PTS » : ses
+ * positions, son rôle (lu dans ses vraies stats), sa vraie saison, ses
+ * traits. La case ne se nomme que là où c'est ELLE qu'on choisit.
+ */
+function quiEst(p, { role = true, stats = true } = {}) {
+  if (!p) return '';
+  const pp = role ? profilPrincipal(p) : null;
+  const st = stats ? displayStats(p) : null;
+  const saison = !st ? '' : p.p === 'G' ? `${st.w} V${p.sv != null ? ` · ${p.sv} %ARR` : ''}` : `${st.g} B · ${st.pt} PTS`;
+  const traits = getTraits(p).map(t => TRAITS[t.cle] && TRAITS[t.cle].icon).filter(Boolean).join('');
+  return [positionLabel(p), pp ? `${pp.ico} ${pp.nom}` : '', saison, traits].filter(Boolean).join(' · ');
+}
 /* Le poste écrit au long, pour le bandeau de carte. */
 const POSTE_LONG = {
   AG: 'Ailier gauche', C: 'Centre', AD: 'Ailier droit',
@@ -898,7 +913,8 @@ function zoneTag(p, mini = false) {
 function roleTag(p) {
   const marques = clesDesMods(p).map(k => MUTATIONS[k] ? `<span class="tag tag-mut" title="${esc(MUTATIONS[k].nom)} — ${esc(MUTATIONS[k].quoi)}">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
   const pp = profilPrincipal(p);
-  if (pp) return `<span class="tag tag-role" title="${esc(pp.mot)}">${pp.ico} ${esc(pp.nom)}</span>${marques}`;
+  const r2 = pp && roleSecond(p);
+  if (pp) return `<span class="tag tag-role" title="${esc(pp.nom)} — lu dans ${esc(pp.mot)}${r2 ? ` · second rôle : ${esc(r2.nom)}` : ''}">${pp.ico} ${esc(pp.nom)}${r2 ? ` <small>· ${r2.ico}</small>` : ''}</span>${marques}`;
   const a = getArchetype(p, getHiddenRatings(p));
   return `<span class="tag tag-role" title="${esc(a.desc)}">${a.icon} ${esc(a.label)}</span>${marques}`;
 }
@@ -2338,7 +2354,7 @@ function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '' }) {
       const q = roster[sl.i];
       const pen = getPositionPenalty(p, sl);
       return { cle: String(sl.i), visage: headshotHtml(q), nom: q.n,
-        sous: [slotShort(sl), positionLabel(q), pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : ''].filter(Boolean).join(' · ') };
+        sous: [quiEst(q), pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : ''].filter(Boolean).join(' · ') };
     }),
     onChoix: k => { const sl = SLOTS[Number(k)]; if (sl && roster[sl.i]) onChoix({ i: sl.i, sort: getPlayerKey(roster[sl.i]) }); },
     onFerme,
@@ -2401,7 +2417,7 @@ function ouvrirAtelier(cle, { jour, you, onChoix, onFerme, suite = {} }) {
   ouvrirChoix({
     fermable: true, motFermer: 'Retour', ...suite, cartes: false, compact: true, ico: M.ico, titre: `${M.nom} : à qui ?`,
     recit: `${M.quoi} C'est pour le reste de la saison.`,
-    options: rangs.map(x => ({ cle: getPlayerKey(x.p), ico: '', nom: x.p.n, sous: [slotShort(x.sl), x.sous].filter(Boolean).join(' · '), desactive: x.desactive })),
+    options: rangs.map(x => ({ cle: getPlayerKey(x.p), ico: '', nom: x.p.n, sous: [quiEst(x.p, { stats: false }), x.sous].filter(Boolean).join(' · '), desactive: x.desactive })),
     onChoix: k => { const x = rangs.find(y => getPlayerKey(y.p) === k); if (x && !x.desactive) onChoix({ cle, joueur: k, ...x.extra }); },
     onFerme,
   });
@@ -3492,6 +3508,14 @@ function slotTags(p, zoneEcartTag, penTag) {
     return `<span class="slot-icones" title="${esc(icones.map(i => i.nom).join(' · '))}">${icones.map(i => i.icon).join('')}</span>`
       + (p.p === 'G' ? '' : `<span class="tag tag-table" title="${esc(isD(p) ? AXE_MOT.TI : AXE_MOT.FO)} · ${esc(AXE_MOT.PA)} · ${esc(AXE_MOT.SO)}">${slotAxesReste(p)}</span>`);
   }
+  /*
+   * SES RÔLES D'ABORD (S79). JP : *ce qu'on voit sur la page d'alignement …
+   * ses icônes, ça doit aider à savoir d'un coup d'oeil ce que les joueurs
+   * peuvent faire pour matcher comme des vraies lignes*. Le rôle premier et,
+   * s'il en a un, le second : lus dans ses vraies stats, jamais une cote.
+   */
+  const pp = profilPrincipal(p), r2 = pp && roleSecond(p);
+  const roles = pp ? `<span class="slot-roles" title="${esc(pp.nom)}${r2 ? ` · second rôle : ${esc(r2.nom)}` : ''}">${pp.ico}${r2 ? r2.ico : ''}</span>` : '';
   // Les icônes, serrées, sans cadre : la case est étroite. Le survol donne le mot.
   const icones = [...getTraits(p).map(t => TRAITS[t.cle]), ...mesureIcones(p)];
   const compact = icones.length
@@ -3499,7 +3523,7 @@ function slotTags(p, zoneEcartTag, penTag) {
   // LES VERDICTS D'ABORD (S78) : sa zone, puis ce qui cloche — c'est ce qu'on
   // lit pour ranger un alignement ; les icônes suivent, et c'est elles qui
   // rétrécissent quand la rangée déborde.
-  return [zoneTag(p, true), zoneEcartTag, penTag, compact]
+  return [roles, zoneTag(p, true), zoneEcartTag, penTag, compact]
     .filter(Boolean).slice(0, SLOT_TAGS_MAX).join('');
 }
 
@@ -3713,7 +3737,10 @@ function lineEl(title, slots, group, unit, cls = '') {
     fermHtml = `<button type="button" class="line-ferm${on ? ' on' : ''}" data-unit="${unit}" title="${on ? 'Ton trio de fermeture : il prend le premier trio adverse. Touche pour le libérer.' : 'En faire ton trio de fermeture : il prendra le premier trio adverse. Son blocage est celui de ses trois joueurs.'}">🔒${on ? ' Fermeture' : ''}</button>`;
     if (on) wrap.classList.add('fermeture');
   }
-  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${fermHtml}${chemHtml}</div>`;
+  // QUI EST CETTE UNITÉ (S79) : « Trio de snipers », « Paire classique » — les icônes sont dans les cases.
+  const id = (group === 'F' || group === 'D') && !surTable() ? identiteUnite(G.roster, group, unit) : null;
+  const idHtml = id ? `<span class="line-id" title="${esc(id.roles.join(' · '))}">${esc(id.nom)}</span>` : '';
+  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${fermHtml}${chemHtml}</div>`;
   const fermBtn = wrap.querySelector('.line-ferm');
   if (fermBtn) fermBtn.onclick = ev => {
     ev.stopPropagation();
@@ -3727,7 +3754,7 @@ function lineEl(title, slots, group, unit, cls = '') {
   // LA STRATÉGIE SOUS SON TRIO (S78). Sur table, rien : le plateau ne lit ni
   // tactique ni glace, et un tiroir de réglages y promettrait ce que rien
   // n'applique.
-  if (group === 'F' && !surTable()) wrap.appendChild(tiroirStrategie(unit));
+  if ((group === 'F' || group === 'D') && !surTable()) wrap.appendChild(tiroirStrategie(unit, group));
   return wrap;
 }
 
@@ -3751,22 +3778,24 @@ function specStrategie() {
     adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
   };
 }
-function tiroirStrategie(unit) {
+function tiroirStrategie(unit, groupe = 'F') {
   const d = document.createElement('details');
-  d.className = 'ln-strat';
+  const ici = `${groupe}${unit}`;
+  d.className = `ln-strat${groupe === 'D' ? ' ln-strat-d' : ''}`;
   d.setAttribute('name', 'strategie');
   d.dataset.u = unit;
-  if (G.stratOuverte === unit) d.open = true;
+  d.dataset.g = groupe;
+  if (G.stratOuverte === ici) d.open = true;
   // Le corps n'existe que tiroir ouvert : fermé, il n'y a rien à calculer ni
   // à peindre, et rien de caché qui dépasserait de sa rangée.
   d.addEventListener('toggle', () => {
-    if (d.open) G.stratOuverte = unit;
-    else if (G.stratOuverte === unit) G.stratOuverte = null;
+    if (d.open) G.stratOuverte = ici;
+    else if (G.stratOuverte === ici) G.stratOuverte = null;
     dessiner();
   });
   const dessiner = () => {
     const spec = specStrategie();
-    const { sommaire, corps } = strategieDeLigne(spec, unit, d.open);
+    const { sommaire, corps } = strategieDeLigne(spec, unit, d.open, groupe);
     d.innerHTML = `<summary class="ln-som">${sommaire}</summary>${d.open ? `<div class="ln-corps">${corps}</div>` : ''}`;
     const regler = patch => {
       const lignes = spec.lignes.map(l => ({ ...l }));
@@ -3778,6 +3807,7 @@ function tiroirStrategie(unit) {
       document.querySelectorAll('#rosterBoard .ln-strat').forEach(x => x._dessiner && x._dessiner());
     };
     d.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => regler({ tac: b.dataset.tac }); });
+    d.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => regler({ tacD: b.dataset.tacd }); });
     d.querySelectorAll('[data-agr]').forEach(b => { b.onclick = () => regler({ agr: Number(b.dataset.agr) }); });
     const s = d.querySelector('.gl-sec');
     if (s) s.onchange = () => regler({ sec: Number(s.value) });
@@ -4908,7 +4938,7 @@ function confirmerDecision(d) {
   else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋️ ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
   else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
-  else if (d.deck === 'strategie' && d.maitrise && TACTIQUES[d.maitrise.tac]) mot = `📘 Ta formation apprend ${TACTIQUES[d.maitrise.tac].nom.toLowerCase()}.`;
+  else if (d.deck === 'strategie' && d.maitrise && systemeDe(d.maitrise.tac)) mot = `📘 ${systemeDe(d.maitrise.tac).groupe === 'D' ? 'Tes défenseurs apprennent' : 'Tes avants apprennent'} : ${systemeDe(d.maitrise.tac).nom.toLowerCase()}.`;
   // La carte du proprio (objectif atteint) : la seule carte prise sans un mot (QA S74b).
   else if (d.carte && CARTES[d.carte]) mot = `${CARTES[d.carte].ico} ${CARTES[d.carte].nom} : pour le reste de la saison.`;
   if (mot) toast(mot);
@@ -5293,6 +5323,8 @@ async function runSeason(opts = {}) {
         // propriétaire : l'alerte de blessure le lit plutôt que d'écrire sa
         // propre version (« 2e trio · AD », jamais « Top 6 »).
         slotShort,
+        // UN JOUEUR SE NOMME PAR CE QU'IL EST (S79) : ses positions, son rôle, sa saison.
+        quiEst,
         // LE BALLOTTAGE (S66) : trois joueurs offerts sur une vraie blessure.
         ballottage: candidatsBallottage,
         // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.

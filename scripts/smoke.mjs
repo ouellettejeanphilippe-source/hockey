@@ -999,13 +999,31 @@ async function traverserSaison(etiquette, reprise = false) {
      * le profil demandé se lit pour les cinq postes de la ligne (le trio et sa
      * paire), l'accordéon referme l'autre tiroir, et le changement voyage
      * jusqu'à la sauvegarde avec la décision du banc — c'est elle qui compte.
+     *
+     * UN SYSTÈME POUR LE TRIO, UN AUTRE POUR LA PAIRE (S79) : sept tiroirs
+     * (quatre trios, trois paires). Le tiroir du 1er trio a ses huit systèmes
+     * d'avants (Hourra compris), chacun avec son fit en mots, et demande un
+     * rôle à ses trois postes ; celui de la 1re paire a ses six systèmes de
+     * défenseurs et demande un rôle à ses deux postes. Le système de la paire
+     * voyage lui aussi jusqu'à la sauvegarde (`tacD`). Chaque case porte
+     * l'icône du rôle de son joueur, et chaque trio le nom de ce qu'il est.
      */
-    let tacChoisie = null;
+    let tacChoisie = null, tacDChoisi = null;
     if (await page.$('#bancLignes')) errors.push('le banc a encore son bouton « Mes lignes » : la stratégie vit sous les trios');
-    const tiroirs = await page.$$eval('#rosterBoard .ln-strat', e => e.length);
-    if (tiroirs !== 4) errors.push(`${tiroirs} tiroirs de stratégie au lieu de quatre, un par trio`);
-    await _click('#rosterBoard .ln-strat[data-u="0"] > summary');
-    await page.waitForSelector('#rosterBoard .ln-strat[data-u="0"][open] .gl-tac', { timeout: 5000 });
+    const tiroirs = await page.$$eval('#rosterBoard .ln-strat', e => e.map(x => x.dataset.g + x.dataset.u).join(' '));
+    if (tiroirs !== 'F0 F1 F2 F3 D0 D1 D2') errors.push(`les tiroirs de stratégie ne sont pas un par trio et un par paire : ${tiroirs}`);
+    {
+      const lu = await page.evaluate(() => ({
+        roles: document.querySelectorAll('#rosterBoard .slot .slot-roles').length,
+        cases: [...document.querySelectorAll('#rosterBoard .slot:not(.empty)')].filter(x => !/^G/.test(x.querySelector('.sb-role')?.textContent || '')).length,
+        ids: [...document.querySelectorAll('#rosterBoard .line-id')].map(x => x.textContent.trim()),
+      }));
+      if (lu.roles < lu.cases - 2) errors.push(`les cases ne portent pas le rôle de leur joueur : ${lu.roles} icônes pour ${lu.cases} patineurs`);
+      if (lu.ids.length !== 7 || lu.ids.some(t => !/^(Trio|Paire) /.test(t))) errors.push(`les trios et les paires ne disent pas ce qu'ils sont : ${lu.ids.join(' | ')}`);
+      else console.log(`   l'alignement : ${lu.roles} rôles en icônes · ${lu.ids.join(' · ')}`);
+    }
+    await _click('#rosterBoard .ln-strat[data-g="F"][data-u="0"] > summary');
+    await page.waitForSelector('#rosterBoard .ln-strat[data-g="F"][data-u="0"][open] .gl-tac', { timeout: 5000 });
     {
       const lu = await page.evaluate(() => ({
         tacs: document.querySelectorAll('.ln-strat[open] .gl-tac').length,
@@ -1013,27 +1031,45 @@ async function traverserSaison(etiquette, reprise = false) {
         demandes: document.querySelectorAll('.ln-strat[open] .ln-dem').length,
         ouverts: document.querySelectorAll('.ln-strat[open]').length,
       }));
-      if (lu.tacs !== 7) errors.push(`le tiroir du 1er trio n'a pas ses sept tactiques : ${lu.tacs}`);
-      // LE FIT EN MOTS (S71) : « Taillée pour elle », « Bon fit », « Fit moyen », « Mauvais fit ».
-      if (lu.fits.filter(f => /^(Taillée pour elle|Bon fit|Fit moyen|Mauvais fit)$/.test(f)).length !== 6) errors.push(`les tactiques n'annoncent pas leur fit : ${lu.fits.join(' | ')}`);
+      if (lu.tacs !== 8) errors.push(`le tiroir du 1er trio n'a pas ses huit systèmes : ${lu.tacs}`);
+      // LE FIT EN MOTS (S71, S79) : « Sur mesure », « Bon fit », « Fit moyen », « Mauvais fit ».
+      if (lu.fits.filter(f => /^(Sur mesure|Bon fit|Fit moyen|Mauvais fit)$/.test(f)).length !== 7) errors.push(`les systèmes n'annoncent pas leur fit : ${lu.fits.join(' | ')}`);
       if (lu.fits.some(f => /\d+ %/.test(f))) errors.push(`le fit s'affiche encore en pourcentage : ${lu.fits.join(' | ')}`);
-      // Le profil demandé, poste par poste : les trois du trio et les deux de sa paire.
+      // Le rôle demandé, poste par poste : les trois du trio (la paire a son tiroir).
       const tacOuverte = await page.$eval('.ln-strat[open] .gl-tac.on', b => b.dataset.tac);
-      if (tacOuverte !== 'hourra' && lu.demandes !== 5) errors.push(`la 1re ligne dit le profil demandé à ${lu.demandes} postes au lieu de cinq`);
+      if (tacOuverte !== 'hourra' && lu.demandes !== 3) errors.push(`le 1er trio dit le rôle demandé à ${lu.demandes} postes au lieu de trois`);
       if (lu.ouverts !== 1) errors.push(`${lu.ouverts} tiroirs ouverts : l'accordéon n'en garde qu'un`);
       tacChoisie = await page.$eval('.ln-strat[open] .gl-tac:not(.on):not([data-tac="hourra"])', b => b.dataset.tac);
       await _click(`.ln-strat[open] .gl-tac[data-tac="${tacChoisie}"]`);
       await _click('.ln-strat[open] [data-agr="2"]');
       await page.waitForTimeout(150);
-      const reglee = await page.evaluate(() => ({ tac: document.querySelector('.ln-strat[data-u="0"] .gl-tac.on')?.dataset.tac, ouvert: document.querySelector('.ln-strat[data-u="0"]').open }));
+      const reglee = await page.evaluate(() => ({ tac: document.querySelector('.ln-strat[data-g="F"][data-u="0"] .gl-tac.on')?.dataset.tac, ouvert: document.querySelector('.ln-strat[data-g="F"][data-u="0"]').open }));
       if (reglee.tac !== tacChoisie || !reglee.ouvert) errors.push(`le tiroir ne garde pas le réglage ou se referme sous le doigt : ${JSON.stringify(reglee)}`);
       await page.screenshot({ path: 'scripts/smoke-lignes.png', fullPage: false });
-      // L'accordéon : ouvrir le 2e trio referme le 1er ; on le referme ensuite.
-      await _click('#rosterBoard .ln-strat[data-u="1"] > summary');
+      // LA PAIRE (S79) : son tiroir, ses six systèmes, ses deux postes ; ouvrir referme le trio.
+      await _click('#rosterBoard .ln-strat[data-g="D"][data-u="0"] > summary');
+      await page.waitForSelector('#rosterBoard .ln-strat[data-g="D"][data-u="0"][open] .gl-tac', { timeout: 5000 });
+      const paire = await page.evaluate(() => ({
+        tacs: [...document.querySelectorAll('.ln-strat[open] .gl-tac')].map(b => b.dataset.tacd),
+        demandes: document.querySelectorAll('.ln-strat[open] .ln-dem').length,
+        ouverts: [...document.querySelectorAll('.ln-strat[open]')].map(x => x.dataset.g + x.dataset.u),
+      }));
+      if (paire.tacs.length !== 6 || paire.tacs.some(k => !k)) errors.push(`le tiroir de la 1re paire n'a pas ses six systèmes de défenseurs : ${JSON.stringify(paire.tacs)}`);
+      if (JSON.stringify(paire.ouverts) !== '["D0"]') errors.push(`ouvrir la paire ne referme pas le trio : ${JSON.stringify(paire.ouverts)}`);
+      tacDChoisi = await page.$eval('.ln-strat[open] .gl-tac:not(.on):not([data-tacd="hourra"])', b => b.dataset.tacd);
+      await _click(`.ln-strat[open] .gl-tac[data-tacd="${tacDChoisi}"]`);
       await page.waitForTimeout(150);
-      const ouverts = await page.$$eval('.ln-strat[open]', e => e.map(x => x.dataset.u));
-      if (JSON.stringify(ouverts) !== '["1"]') errors.push(`ouvrir le 2e tiroir ne referme pas le 1er : ${JSON.stringify(ouverts)}`);
-      await _click('#rosterBoard .ln-strat[data-u="1"] > summary');
+      const paireReglee = await page.$eval('.ln-strat[data-g="D"][data-u="0"] .gl-tac.on', b => b.dataset.tacd).catch(() => null);
+      if (paireReglee !== tacDChoisi) errors.push(`le tiroir de la paire ne garde pas son système : ${paireReglee} au lieu de ${tacDChoisi}`);
+      const demPaire = await page.$$eval('.ln-strat[open] .ln-dem', e => e.length);
+      if (demPaire !== 2) errors.push(`la 1re paire dit le rôle demandé à ${demPaire} postes au lieu de deux`);
+      await page.screenshot({ path: 'scripts/smoke-paire.png', fullPage: false });
+      // L'accordéon : ouvrir le 2e trio referme la paire ; on le referme ensuite.
+      await _click('#rosterBoard .ln-strat[data-g="F"][data-u="1"] > summary');
+      await page.waitForTimeout(150);
+      const ouverts = await page.$$eval('.ln-strat[open]', e => e.map(x => x.dataset.g + x.dataset.u));
+      if (JSON.stringify(ouverts) !== '["F1"]') errors.push(`ouvrir le 2e tiroir ne referme pas l'autre : ${JSON.stringify(ouverts)}`);
+      await _click('#rosterBoard .ln-strat[data-g="F"][data-u="1"] > summary');
       await page.waitForTimeout(150);
     }
     await toutEstAtteignable('derrière le banc, lignes réglées');
@@ -1057,8 +1093,8 @@ async function traverserSaison(etiquette, reprise = false) {
     // proprio, le plan du soir et les dilemmes en ajoutent d'autres.
     const decisions = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(d => d.cases);
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
-    else if (!Array.isArray(decisions[1].lignes) || decisions[1].lignes[0].tac !== tacChoisie || decisions[1].lignes[0].agr !== 2) errors.push(`la sauvegarde ne porte pas les lignes du banc : ${JSON.stringify(decisions[1].lignes && decisions[1].lignes[0])}`);
-    else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture au 2e trio, 1re ligne en ${tacChoisie} et agressivité haute, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
+    else if (!Array.isArray(decisions[1].lignes) || decisions[1].lignes[0].tac !== tacChoisie || decisions[1].lignes[0].tacD !== tacDChoisi || decisions[1].lignes[0].agr !== 2) errors.push(`la sauvegarde ne porte pas les lignes du banc : ${JSON.stringify(decisions[1].lignes && decisions[1].lignes[0])}`);
+    else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture au 2e trio, 1re ligne en ${tacChoisie} (trio) et ${tacDChoisi} (paire), agressivité haute, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
     /*
      * ET L'AFFICHE LE DIT : la tactique et la chimie de chaque ligne se lisent
      * sur la carte du prochain match.
@@ -1066,6 +1102,48 @@ async function traverserSaison(etiquette, reprise = false) {
     const affiche = await page.$$eval('#hubModal .hub-lignes .gl-resume', e => e.length).catch(() => 0);
     if (affiche !== 4) errors.push(`l'affiche du match ne dit pas les quatre lignes : ${affiche}`);
     else console.log('   l\'affiche dit les quatre lignes et leur chimie');
+    /*
+     * LE DÉPISTAGE, OUTIL DE DÉCISION (S79). JP : *spas si lisible le haut, pis
+     * le bas aide fuck all aucun processus décisionnel*. Il s'ouvre au toucher
+     * (300 matchs du moteur) et montre : les chances, un tableau des forces
+     * avec l'avantage marqué, et des conseils qui s'appliquent d'un toucher —
+     * jamais plus les « s'il marque quatre buts ». Un conseil appliqué est une
+     * décision comme une autre : elle entre dans la sauvegarde.
+     */
+    {
+      await _click('#hubModal .hub-depistage > summary');
+      await page.waitForSelector('#hubModal .hub-depistage[open] .dep3-table', { timeout: 60000 });
+      await page.waitForTimeout(300);
+      const dep = await page.evaluate(() => {
+        const d = document.querySelector('#hubModal .hub-depistage');
+        return {
+          rangees: d.querySelectorAll('.dep3-table tbody tr').length,
+          marques: [...d.querySelectorAll('.dep3-av')].map(x => x.textContent.trim()),
+          conseils: d.querySelectorAll('.dep3-conseil').length,
+          boutons: d.querySelectorAll('.dep3-appliquer').length,
+          titres: [...d.querySelectorAll('.dep3-conseil-t')].map(x => x.textContent.trim()),
+          texte: d.textContent,
+        };
+      });
+      if (dep.rangees < 5) errors.push(`le tableau des forces n'a que ${dep.rangees} rangées`);
+      if (dep.marques.some(m => !/^[◀▶=]$/.test(m))) errors.push(`l'avantage du tableau n'est pas marqué : ${dep.marques.join(' ')}`);
+      if (!(await page.$('#hubModal .dep3-conseils'))) errors.push('le dépistage ne dit pas quoi faire ce soir');
+      if (/S'il marque|S'il en accorde/.test(dep.texte)) errors.push('le dépistage dit encore « s\'il marque… » : ça ne décide de rien');
+      if (/\b(?:[odrcv]|sp)\s*[:=]\s*\d/.test(dep.texte)) errors.push('le dépistage montre une cote cachée');
+      console.log(`   le dépistage : ${dep.rangees} forces (${dep.marques.join('')}), ${dep.conseils} conseil(s)${dep.titres.length ? ` — ${dep.titres.slice(0, 3).join(' · ')}` : ''}`);
+      await page.screenshot({ path: 'scripts/smoke-depistage.png', fullPage: false });
+      if (dep.boutons) {
+        const lire = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } });
+        const avant = (await lire()).length;
+        await _click('#hubModal .dep3-appliquer');
+        await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter', { timeout: 120000 });
+        await page.waitForTimeout(400);
+        const apres = await lire();
+        const d = apres[apres.length - 1];
+        if (apres.length !== avant + 1 || !d || !(Array.isArray(d.lignes) || d.match || 'fermeture' in d)) errors.push(`« Appliquer » n'a pas laissé de décision : ${JSON.stringify(d)}`);
+        else console.log(`   « Appliquer » : une décision au jour ${d.jour} (${Array.isArray(d.lignes) ? 'lignes' : d.match ? 'consigne' : 'fermeture'})`);
+      }
+    }
 
     /*
      * LE PALIER DE CARTES. À trois journées de la saison (PALIERS_CARTES), on
