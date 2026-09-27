@@ -750,7 +750,9 @@ async function traverserSaison(etiquette, reprise = false) {
     const ficheBanc = (banc.match(/(\d+-\d+-\d+)/) || [])[1];
     if (!ficheBanc || !teteAvantBanc.includes(ficheBanc)) errors.push(`le banc ne dit pas la fiche de l'écran de saison : « ${banc.slice(0, 80)} »`);
     const metas = await page.$$eval('.slot', els => els.filter(e => e.querySelector('.slot-name')).map(e => e.querySelectorAll('.slot-meta')[1]?.textContent.trim() || ''));
-    if (metas.length !== 23 || !metas.every(m => /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · [,—]|aucun match)/.test(m))) errors.push(`les cases du banc ne portent pas la fiche à ce jour (${metas.length} cases) : ${metas.filter(m => !/^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · [,—]|aucun match)/.test(m)).slice(0, 4).join(' | ')}`);
+    // « 1,000 » : un gardien qui n'a rien accordé encore (un blanchissage en début de saison).
+    const ficheCase = /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · ([,—]|1,000)|aucun match)/;
+    if (metas.length !== 23 || !metas.every(m => ficheCase.test(m))) errors.push(`les cases du banc ne portent pas la fiche à ce jour (${metas.length} cases) : ${metas.filter(m => !ficheCase.test(m)).slice(0, 4).join(' | ')}`);
     if ((await page.$$('.slot-remove')).length) errors.push('le banc laisse retirer un joueur en pleine saison');
     // Le 3e trio est la fermeture par défaut (FERMETURE_DEFAUT) : le 🔒 doit
     // déjà le dire, et on la DÉPLACE au 2e — c'est le déplacement qui prouve

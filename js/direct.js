@@ -27,6 +27,7 @@ import { periodeDe } from './sim.js';
 import { recitDeBut, tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { CARTES_MATCH } from './combat.js';
+import { jouerSon } from './sons.js';
 
 /*
  * L'HORLOGE DESCEND. Un tableau indicateur de hockey compte à rebours,
@@ -309,6 +310,15 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   }
 
   const ev = evenementsDuMatch(f, graine);
+  /*
+   * LES SONS DU DIRECT (S74b) : la sirène d'un but, le sifflet d'une punition
+   * et d'une fin de période, un coup mat sur un arrêt dangereux — ceux du
+   * plateau (js/sons.js), coupés par l'option « Sons ». Pas pendant l'avance
+   * rapide (« Fin du match », la reprise à 40:00) : la sirène douze fois de
+   * suite n'annonce rien.
+   */
+  let muet = false;
+  const son = n => { if (!muet) jouerSon(n); };
   // LE COMMENTATEUR (S70) : des banques de fragments montés au hasard de la
   // graine, sans remise — le même match se redit pareil, deux matchs jamais.
   const com = commentateur(graine);
@@ -411,6 +421,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         butsSaison: e.tireur ? ((compte.get(e.tireur) || {}).g || 0) : 0,
         pousse: (e.cote === 'A' ? gA < gB : gB < gA) && e.instant >= 40,
         blanchissage: e.instant >= 40 && (cGard === 'A' ? gB : gA) === 0 };
+      if (genre === 'danger') son('arret');
       if (genre === 'defense') {
         const mots = e.special === 'etouffee' ? com.defense(contexte) : com.bloque(contexte);
         ligne(`arret defense ${autre(e.cote) === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(autre(e.cote)).tag, 13)}
@@ -444,6 +455,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       ligne(`but ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
         <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} <span class="live-score">${gA}-${gB}</span> <span class="live-micro">${micro}</span></span>`, couleurs(e.cote));
       majBoard();
+      son('but');
       const cell = board.querySelector(`[data-cote="${e.cote}"]`);
       cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
       // La bannière de but, aux couleurs du marqueur, le temps de la pause.
@@ -457,6 +469,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       return PAUSE_BUT;
     }
     if (e.type === 'punition') {
+      son('sifflet');
       const puni = equipe(e.cote), profite = equipe(e.cote === 'A' ? 'B' : 'A');
       st.pun[e.cote]++;
       st.anOcc[e.cote === 'A' ? 'B' : 'A']++;
@@ -479,11 +492,13 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         autreTirs: ctx.esc(ctx.teamShort(tA_ > tB_ ? B : A)),
       });
       ligne('periode', `${P.tete} <b>${gA}-${gB}</b> · tirs ${tA_} – ${tB_}. ${P.couleur}`);
+      son('periode');
       if (arret != null && e.per === 2 && onArret) { arreter(); return 0; }
       return PAUSE_PERIODE;
     }
     if (e.type === 'fin') {
       fini = true;
+      son('fin');
       const vainqueur = f.vainqueur === 'A' ? A : B;
       const perdant = vainqueur === A ? B : A;
       const gVainqueur = f.vainqueur === 'A' ? f.gardienA : f.gardienB;
@@ -516,7 +531,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     enPause = false;
     modal.classList.remove('en-pause');
     onglets.fermer();
+    muet = true;
     while (iEv < ev.length && !fini && !enArret) appliquer(ev[iEv++]);
+    muet = false;
     t = enArret ? 40 : f.ot ? 65 : 60;
     majBoard();
   };
@@ -571,7 +588,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
 
   // LA REPRISE APRÈS L'ENTRACTE : les deux premières périodes d'un coup, puis l'horloge.
   if (depuis > 0) {
+    muet = true;
     while (iEv < ev.length && ev[iEv].instant <= depuis && !fini) appliquer(ev[iEv++]);
+    muet = false;
     t = depuis;
     ligne('periode ent2-marque', '<b>🎬 Troisième période.</b> Ton choix est sur la glace.');
     majBoard();

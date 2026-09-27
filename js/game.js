@@ -2679,7 +2679,8 @@ function syncSortOptions() {
 function ficheDuJour(p) {
   const c = G.banc && G.banc.compte.get(p);
   if (!c || !c.gp) return 'aucun match';
-  if (p.p === 'G') return `${c.w}-${c.l} · ${c.sa ? (c.sv / c.sa).toFixed(3).replace('0.', ',') : '—'}`;
+  // 1,000 : un blanchissage en début de saison s'écrivait « 1.000 » (le remplacement ne visait que « 0. »).
+  if (p.p === 'G') return `${c.w}-${c.l} · ${c.sa ? (c.sv / c.sa).toFixed(3).replace(/^0\./, ',').replace('.', ',') : '—'}`;
   return `${c.g}-${c.a}-${c.pts} · ${c.pm > 0 ? '+' : ''}${c.pm}`;
 }
 
