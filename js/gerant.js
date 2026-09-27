@@ -24,6 +24,7 @@ import {
   PROFILS, TACTIQUES, AGRESSIVITES, IMPORTANCES, SEC_MIN, SEC_MAX, SEC_DEFAUT,
   profilsDe, profilPrincipal, fitLigne, joueursDeLigne, contreDe, motsDEffet, motsDeMutation, chimieMax,
   MUTATIONS, JAUGES, SLOTS, getPlayerKey,
+  PLANS_ADV, commentContrer, planEstContre,
 } from './sim.js';
 import { POIDS_TRIO } from './ratings.js';
 
@@ -37,6 +38,30 @@ export function puces(mots) {
 export function pucesJauges(j) {
   return Object.entries(j || {}).filter(([, v]) => v)
     .map(([k, v]) => `<span class="puce ${v > 0 ? 'bon' : 'prix'}">${JAUGES[k].ico} ${esc(JAUGES[k].nom)} ${v > 0 ? '+' : '−'}${Math.abs(v)}</span>`).join('');
+}
+
+/*
+ * LE PLAN DE L'ADVERSAIRE (S70), tel que le rapport d'éclaireur le lit : sa
+ * force (rouge : elle te coûte), sa faiblesse (verte : elle t'aide), ce qui
+ * le contre, et si tes lignes le contrent. Contré, la force est barrée.
+ */
+export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '' } = {}) {
+  const P = PLANS_ADV[cle];
+  if (!P) return '';
+  const { toi: forceToi, ...forceLui } = P.force;
+  const eux = (mots, bon, barre) => mots.map(m => ({ txt: `${nomAdv} : ${m.txt}${barre ? ' (annulé)' : ''}`, bon: barre ? null : bon }));
+  const mots = [
+    ...eux(motsDEffet(forceLui), false, contre),
+    ...(forceToi ? motsDEffet(forceToi).map(m => ({ txt: `Toi : ${m.txt}${contre ? ' (annulé)' : ''}`, bon: contre ? null : false })) : []),
+    ...eux(motsDEffet(P.faiblesse), true, false),
+    ...(contre && P.bonusContre ? eux(motsDEffet(P.bonusContre), true, false) : []),
+  ];
+  return `<div class="plan-adv${contre ? ' contre' : ''}">
+    <div class="plan-adv-t">${P.ico} Leur plan : <b>${esc(P.nom)}</b>${suite ? ` <small>${esc(suite)}</small>` : ''}</div>
+    <div class="plan-adv-mot">${esc(P.mot)}</div>
+    <div class="choix-puces">${puces(mots)}</div>
+    <div class="plan-adv-contre"><b>${contre ? '✓ Tu le contres' : '✗ Pas contré'}</b> · pour le contrer : ${esc(commentContrer(cle))}.</div>
+  </div>`;
 }
 
 /* Le petit portrait d'un joueur visé : son profil principal et ses marques de carte. */
@@ -86,7 +111,7 @@ export function ouvrirChoix(spec) {
           ${o.bon ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
           ${o.prix ? `<span class="choix-option-prix">− ${sub(o.prix)}</span>` : ''}
           ${o.mutation ? `<span class="choix-option-mut">${MUTATIONS[o.mutation].ico} ${esc(MUTATIONS[o.mutation].quoi)}</span>` : ''}
-          <span class="choix-puces">${puces(mots)}${pucesJauges(o.jauges)}</span>
+          <span class="choix-puces">${puces(mots)}${pucesJauges(o.jauges)}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}</span>
           ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
         </button>`;
       }).join('')}</div>
@@ -213,7 +238,7 @@ export function ouvrirLignes(spec) {
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
-      <div class="choix-corps">${consigne}${onglets}${detail}</div>
+      <div class="choix-corps">${spec.plan ? planAdverseHtml(spec.plan, planEstContre(spec.plan, brouillon, match ? match.ad : 0), { nomAdv: spec.adv ? spec.adv.nom : 'Eux', suite: spec.planSuite || '' }) : ''}${consigne}${onglets}${detail}</div>
       <div class="gl-pied">
         ${spec.onBanc ? '<button type="button" class="btn gl-banc">Changer les trios</button>' : ''}
         <button type="button" class="btn go gl-appliquer">${esc(spec.motAppliquer || 'Appliquer')}</button>

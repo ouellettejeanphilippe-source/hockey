@@ -70,7 +70,7 @@ const INLINE_LOGOS = {
   KCS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#c8102e"/><text x="50" y="58" font-size="28" font-weight="900" fill="#ffc72c" text-anchor="middle">KC</text></svg>`,
   CLR: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="50,10 90,85 10,85" fill="#00205b"/><polygon points="50,30 75,75 25,75" fill="#c8102e"/><circle cx="50" cy="58" r="8" fill="#ffc72c"/></svg>`,
   CLE: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="20" width="80" height="60" rx="10" fill="#c8102e"/><text x="50" y="60" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle">B</text></svg>`,
-  CGS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="58" font-size="24" font-weight="900" fill="#ffc72c" text-anchor="middle">SEALS</text></svg>`,
+  CGS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="57" font-size="20" font-weight="900" fill="#ffc72c" text-anchor="middle" textLength="74" lengthAdjust="spacingAndGlyphs">SEALS</text></svg>`,
   OAK: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="58" font-size="24" font-weight="900" fill="#ffffff" text-anchor="middle">OAK</text></svg>`,
   MDA: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M20 20 L80 80 M80 20 L20 80" stroke="#00685e" stroke-width="12"/><ellipse cx="50" cy="50" rx="30" ry="22" fill="#00685e"/><polygon points="35,45 65,45 50,65" fill="#f0592b"/></svg>`,
 

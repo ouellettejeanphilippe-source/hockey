@@ -3631,7 +3631,11 @@ async function deciderSaison(d, depuis) {
   if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
   const decisions = (G.ligue.decisions || []).filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
-    && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour));
+    && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour)
+    // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
+    // autre décision rejoue le match depuis le début : l'entracte déjà choisi
+    // ne vaut plus, il sera redemandé sur le nouveau pointage.
+    && !(d.avant && x.avant && x.jour === d.jour) && !(x.entracte && (d.entracte ? x.jour === d.jour : x.jour >= d.jour)));
   decisions.push({ ...d, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
@@ -3722,7 +3726,9 @@ async function connaitreBallottages(decisions) {
 async function deciderSerie(d) {
   if (!G.ligue) return;
   const meme = x => x.ronde === d.ronde && x.match_no === d.match_no && (
-    (d.cases && x.cases) || (d.lignes && !d.cases && x.lignes && !x.cases) || (d.match && x.match) || (d.ajustement && x.ajustement));
+    (d.cases && x.cases) || (d.lignes && !d.cases && x.lignes && !x.cases) || (d.match && x.match) || (d.ajustement && x.ajustement)
+    // S70 : un entracte par match, et toute autre décision pour ce match l'annule.
+    || !!x.entracte);
   G.ligue.decisionsSeries = [...(G.ligue.decisionsSeries || []).filter(x => !meme(x)), { ...d, sel: nouvelleGraine() }];
   const vues = G.seriesVues;
   saveGame();

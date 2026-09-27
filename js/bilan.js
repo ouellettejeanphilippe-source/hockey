@@ -798,7 +798,7 @@ export function runPlayoffs(top16, opts = {}) {
       if (!toiPO) return;
       toiPO.effetsSerie = [];
       for (const d of decsSeries) if (d.ronde === r && d.match_no === k) appliquerDecisionSerie(toiPO, d, graineSeries);
-    });
+    }, graineSeries);
     ronde = jouees.map(s => s.winner);
     for (const s of jouees) G.series.push({ ...s, ronde: n, i: G.series.length });
     n++;

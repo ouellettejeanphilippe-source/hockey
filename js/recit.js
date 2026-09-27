@@ -64,7 +64,7 @@ export const NOM_PERIODE = { 1: '1re période', 2: '2e période', 3: '3e périod
 const est_D = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
 
 /** Le penchant du marqueur : finit-il, ou sert-il ? */
-function profil(p) {
+export function profil(p) {
   if (!p) return 'neutre';
   if (est_D(p)) return 'defenseur';
   const cles = getTraits(p).map(t => t.cle);
@@ -84,7 +84,7 @@ function profil(p) {
  * donnait « file en échappée et ne rate pas et déjoue Dryden », qui n'est
  * pas du français.
  */
-const GESTES = {
+export const GESTES = {
   defenseur: ['décoche de la ligne bleue et bat {G}', 'sert une bombe de la pointe que {G} ne voit jamais',
     'fait dévier un tir de la pointe derrière {G}', 'surgit en deuxième vague et surprend {G}',
     'se joint à l\'attaque et loge la rondelle derrière {G}', 'lance à travers un écran, et {G} ne voit rien',
@@ -117,14 +117,14 @@ const GESTES = {
     'tire de l\'angle et la rondelle rentre derrière {G}', 'récupère un retour et trompe {G} du revers'],
 };
 
-const SOLO = ['en solo', 'sans aide', 'sur un jeu individuel', 'à la suite d\'un revirement',
+export const SOLO = ['en solo', 'sans aide', 'sur un jeu individuel', 'à la suite d\'un revirement',
   'après avoir volé la rondelle', 'sans que personne le touche'];
-const SEQUENCE = ['au bout d\'une belle séquence', 'sur un jeu de passes bien mené',
+export const SEQUENCE = ['au bout d\'une belle séquence', 'sur un jeu de passes bien mené',
   'après une montée à trois', 'sur une attaque massue', 'au terme d\'un jeu de passes rapide',
   'sur une passe transversale parfaite', 'après un long cycle en zone offensive'];
 
 /* La prolongation a ses propres mots : c'est le but qui met fin au match. */
-const FIN = ['met fin au débat', 'donne la victoire aux siens', 'tranche en prolongation',
+export const FIN = ['met fin au débat', 'donne la victoire aux siens', 'tranche en prolongation',
   'règle la question', 'libère les siens', 'envoie tout le monde aux douches', 'termine le match d\'un coup'];
 
 /**

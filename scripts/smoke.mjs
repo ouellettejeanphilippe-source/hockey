@@ -95,6 +95,37 @@ async function repondreAuxChoix() {
   }
 }
 /*
+ * FINIR UN DIRECT (S70). Un gros match — et chaque match de ta série —
+ * s'arrête au deuxième entracte : on choisit, la saison se rejoue, et le
+ * direct reprend à 40:00. On exige qu'il reprenne à la troisième période et
+ * que les deux premières, déjà vues, n'aient pas bougé d'une ligne.
+ */
+const entractesVus = [];
+async function finirDirect(etiquette) {
+  await _click('#liveModal .live-fin');
+  await _wait('#liveModal .live-suite, #liveModal .live-entracte', { timeout: 10000 });
+  if (!(await page.$('#liveModal .live-entracte'))) return;
+  const sousLeMarqueur = () => page.$$eval('#liveModal .live-ligne', els => {
+    const i = els.findIndex(e => e.classList.contains('ent2-marque'));
+    return els.slice(i + 1).map(e => e.textContent.trim()).join(' | ');
+  });
+  const avant = await sousLeMarqueur();
+  await _click('#liveModal .live-entracte');
+  await _wait('#choixModal:not([hidden]) .choix-option', { timeout: 5000 });
+  const titre = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
+  const opts = await page.$$eval('#choixModal .choix-option', e => e.length);
+  const quand = await page.$$eval('#choixModal .choix-option', e => e.filter(x => /3e période/.test(x.textContent)).length);
+  if (quand !== opts) errors.push(`${etiquette} : l'entracte a ${opts - quand} option(s) qui ne disent pas « 3e période »`);
+  await _click('#choixModal .choix-option');
+  await _wait('#liveModal .live-pause, #liveModal .live-suite', { timeout: 120000 });
+  const repris = await page.$eval('#liveModal .live-feed', e => e.textContent);
+  if (!/Troisième période/.test(repris)) errors.push(`${etiquette} : le direct ne reprend pas à la troisième période après l'entracte`);
+  else if (avant !== await sousLeMarqueur()) errors.push(`${etiquette} : les deux premières périodes ont changé après le choix de l'entracte`);
+  entractesVus.push(`${etiquette} « ${titre} » (${opts} options)`);
+  if (await page.$('#liveModal .live-fin')) await _click('#liveModal .live-fin');
+  await _wait('#liveModal .live-suite', { timeout: 10000 });
+}
+/*
  * LES BOUTONS DE L'ÉCRAN DE SAISON VIVENT SUR L'ONGLET « MATCH » (S67) : sur
  * téléphone, le classement ou les meneurs montrent le volet seul. Un joueur
  * revient au match pour avancer le temps ; le parcours aussi.
@@ -139,6 +170,34 @@ console.log('1. #game visible');
    l'attend durement — le test prouve du même coup que l'écran s'ouvre. Rien
    n'est signé et rien n'a changé, alors « Commencer » se contente de fermer. */
 await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 });
+/*
+ * LA BARRE D'ÉTAT DU TÉLÉPHONE (S70). JP : *assure de laisser espace dans le
+ * haut sinon barre de notif sur Android cache le new game et les settings*.
+ * Capacitor 8 injecte `--safe-area-inset-top` sur la racine quand la
+ * WebView passe sous la barre d'état : on le pose à la main, et rien de
+ * cliquable ne doit commencer au-dessus — ni l'écran « Nouvelle partie », ni
+ * les boutons de la barre du haut. Puis on l'enlève : sur ordinateur, rien ne
+ * bouge.
+ */
+{
+  const BARRE = 32;
+  const mesurer = () => page.evaluate(() => {
+    const haut = el => (el ? Math.round(el.getBoundingClientRect().top) : null);
+    const boutons = [...document.querySelectorAll('.topbar button, .topbar a')].filter(b => b.offsetParent);
+    return { partie: haut(document.querySelector('#partieModal')), boutons: boutons.length ? Math.min(...boutons.map(haut)) : null };
+  });
+  const avant = await mesurer();
+  await page.evaluate(n => document.documentElement.style.setProperty('--safe-area-inset-top', `${n}px`), BARRE);
+  await page.waitForTimeout(150);
+  const tel = await mesurer();
+  await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-inset-top'));
+  await page.waitForTimeout(150);
+  const apres = await mesurer();
+  if (tel.partie == null || tel.partie < BARRE) errors.push(`sous une barre d'état de ${BARRE} px, l'écran « Nouvelle partie » commence à ${tel.partie} px`);
+  if (tel.boutons == null || tel.boutons < BARRE) errors.push(`sous une barre d'état de ${BARRE} px, un bouton de la barre du haut commence à ${tel.boutons} px`);
+  if (apres.partie !== avant.partie || apres.boutons !== avant.boutons) errors.push(`sans barre d'état, le haut a bougé : ${JSON.stringify(avant)} puis ${JSON.stringify(apres)}`);
+  else console.log(`   la barre d'état du téléphone : sous ${BARRE} px, « Nouvelle partie » à ${tel.partie} px et les boutons du haut à ${tel.boutons} px ; sans elle, rien ne bouge`);
+}
 await page.click('#npGo');
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
 console.log('   écran « Nouvelle partie » : ouvert à la première visite, refermé');
@@ -829,7 +888,9 @@ async function traverserSaison(etiquette, reprise = false) {
       await page.waitForTimeout(350);
       const jApres = await jourDit();
       const blesse = !!(await page.$('#hubModal .hub-alerte'));
-      if (jApres - jPalier < 2 && !blesse) errors.push(`le palier arrête « +10 journées » une seconde fois : journée ${jPalier} puis ${jApres}, et aucune blessure à annoncer`);
+      // Un gros match arrête aussi « +10 » (S70) : son avant-match et son entracte se jouent.
+      const gros = !!(await page.$('#hubModal .hub-gros'));
+      if (jApres - jPalier < 2 && !blesse && !gros) errors.push(`le palier arrête « +10 journées » une seconde fois : journée ${jPalier} puis ${jApres}, et aucune blessure ni gros match à annoncer`);
       // Reprendre l'offre laissée de côté : elle tient, et la carte entre en
       // vigueur AUJOURD'HUI, pas au palier.
       const encore = await page.$$eval('#hubModal .hub-pige', e => e.map(x => x.dataset.carte));
@@ -942,13 +1003,13 @@ async function traverserSaison(etiquette, reprise = false) {
    * voudrait plus rien dire.
    */
   {
-    for (let i = 0; i < 12 && !(await page.$('#hubModal .hub-situ')); i++) {
+    for (let i = 0; i < 12 && !(await page.$('#hubModal .hub-situ:not(.hub-accident)')); i++) {
       await page.click('#hubModal .hub-dix');
       await page.waitForTimeout(260);
       await guetterTrou();
     }
     const situ = await page.evaluate(() => {
-      const el = document.querySelector('#hubModal .hub-situ');
+      const el = document.querySelector('#hubModal .hub-situ:not(.hub-accident)');
       if (!el) return null;
       const bout = [...el.querySelectorAll('.hub-situ-bout')].map(b => ({
         sens: b.classList.contains('hub-situ-porte') ? 'porte' : b.classList.contains('hub-situ-pese') ? 'pese' : '?',
@@ -1034,8 +1095,35 @@ async function traverserSaison(etiquette, reprise = false) {
   await page.click('#liveModal .live-onglets button[data-onglet="stats"]');
   const face = await page.$$eval('#liveModal .live-face tbody tr', l => l.length);
   await page.click('#liveModal .live-pause');
-  await page.click('#liveModal .live-fin');
-  await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
+  await finirDirect(etiquette);
+  /*
+   * LE FIL RACONTE LES JEUX (S70) : les tirs sans danger sont cachés par
+   * défaut, les arrêts dangereux et les beaux jeux défensifs se lisent, et
+   * « Voir tous les tirs » montre le reste.
+   */
+  {
+    const lire = () => page.evaluate(() => {
+      const L = [...document.querySelectorAll('#liveModal .live-ligne')];
+      const vu = e => getComputedStyle(e).display !== 'none';
+      return {
+        mineurs: L.filter(e => e.classList.contains('mineur')).length,
+        mineursVus: L.filter(e => e.classList.contains('mineur') && vu(e)).length,
+        jeux: L.filter(e => (e.classList.contains('danger') || e.classList.contains('defense')) && vu(e)).length,
+      };
+    });
+    const avant = await lire();
+    if (avant.mineursVus) errors.push(`${etiquette} : ${avant.mineursVus} tirs sans danger se voient dans le fil par défaut`);
+    if (!avant.jeux) errors.push(`${etiquette} : le fil ne raconte aucun arrêt dangereux ni jeu défensif`);
+    const bouton = await page.$('#liveModal .live-tous');
+    if (!bouton) errors.push(`${etiquette} : le fil n'offre pas « Voir tous les tirs »`);
+    else {
+      await _click('#liveModal .live-tous');
+      const tous = await lire();
+      if (tous.mineursVus !== avant.mineurs) errors.push(`${etiquette} : « Voir tous les tirs » en montre ${tous.mineursVus} sur ${avant.mineurs}`);
+      await _click('#liveModal .live-tous');
+      console.log(`   le fil : ${avant.jeux} jeux racontés, ${avant.mineurs} tirs sans danger cachés — « Voir tous les tirs » les montre`);
+    }
+  }
   const fil = await page.$eval('#liveModal .live-feed', e => e.textContent);
   const xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
   await page.click('#liveModal .live-suite');
@@ -1537,8 +1625,7 @@ if (enabled) {
     if (regarder) {
       await regarder.click();
       await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
-      await page.click('#liveModal .live-fin');
-      await page.waitForSelector('#liveModal .live-suite', { timeout: 10000 });
+      await finirDirect('séries');
       const fil = await page.$eval('#liveModal .live-feed', e => e.textContent);
       xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
       await page.click('#liveModal .live-suite');
@@ -1744,6 +1831,7 @@ await sansCote('express');
  * séquences dépendent des résultats, elles s'informent.
  */
 console.log(`   ballottage : ${ballottage.mot || 'aucune offre croisée (il faut une blessure de quatre matchs et plus)'}`);
+console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
 console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
 if (!choixVus.has('hub-proprio')) errors.push('le proprio n\'a jamais fixé d\'objectif');
 if (!choixVus.has('hub-dilemme')) errors.push('aucun dilemme croisé en traversant une saison');

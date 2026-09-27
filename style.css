@@ -6206,3 +6206,83 @@ body.choix-ouvert { overflow: hidden; }
 .hub-miniboss.gagne { background: color-mix(in srgb, var(--green) 10%, transparent); border-left-color: var(--green); }
 .hub-miniboss .choix-puces { margin-top: 5px; }
 .hub-volet .hub-miniboss { margin: 0 0 8px; }
+
+/* ===== Les gros matchs mis en scène (S70) ===== */
+/* L'affiche : un bandeau plus spectaculaire qu'un match ordinaire. */
+.hub-gros { margin: 0 14px 10px; padding: 10px 12px; border-radius: var(--r-s, 10px);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--violet) 16%, var(--panel)), color-mix(in srgb, var(--live) 10%, var(--panel)));
+  border: 1px solid color-mix(in srgb, var(--violet) 45%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--violet) 12%, transparent), 0 6px 18px color-mix(in srgb, var(--violet) 14%, transparent); }
+.hub-gros-tete { font-size: 13.5px; line-height: 1.4; margin-bottom: 8px; }
+.hub-gros-avant { font-size: 12.5px; margin: 6px 0; opacity: .9; }
+.hub-gros-note { font-size: 12px; margin-top: 6px; color: var(--sub); }
+.hub-gros .choix-puces { margin-top: 6px; }
+.hub-gros-detail { font-size: 12px; margin-top: 4px; color: var(--sub); }
+.recit-detail { display: block; font-size: 11.5px; color: var(--sub); margin-top: 2px; }
+/* Le plan de l'adversaire : le rapport d'éclaireur. */
+.plan-adv { padding: 8px 10px; border-radius: var(--r-s, 10px); margin: 6px 0; background: color-mix(in srgb, var(--live) 7%, var(--panel-2));
+  border-left: 3px solid var(--live); font-size: 12.5px; line-height: 1.4; }
+.plan-adv.contre { background: color-mix(in srgb, var(--green) 8%, var(--panel-2)); border-left-color: var(--green); }
+.plan-adv-t { font-size: 13px; }
+.plan-adv-t small { color: var(--sub); margin-left: 4px; }
+.plan-adv-mot { color: var(--sub); margin: 2px 0 5px; }
+.plan-adv-contre { margin-top: 6px; }
+.plan-adv-contre b { color: var(--live); }
+.plan-adv.contre .plan-adv-contre b { color: var(--green); }
+.plan-adv .choix-puces { display: flex; flex-wrap: wrap; gap: 4px; }
+.gl-sheet .plan-adv { margin: 0 0 12px; }
+/* Le deuxième entracte : le tableau indicateur, les buts, l'incident. */
+.ent2 { margin: 4px 0 12px; }
+.ent2-score { display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 15px; padding: 10px;
+  border-radius: var(--r-s, 10px); background: var(--panel-2); border: 1px solid var(--line); flex-wrap: wrap; }
+.ent2-score b { font-size: 26px; font-variant-numeric: tabular-nums; margin: 0 4px; }
+.ent2-score span { display: inline-flex; align-items: center; gap: 6px; }
+.ent2-sep { opacity: .5; font-size: 22px; }
+.ent2-note { text-align: center; font-size: 12px; color: var(--sub); margin: 6px 0; }
+.ent2-buts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin: 4px 0 8px; }
+.ent2-but { font-size: 11.5px; padding: 2px 7px; border-radius: 999px; background: var(--panel-3); }
+.ent2-but.moi { background: color-mix(in srgb, var(--green) 16%, transparent); }
+.ent2-but.lui { background: color-mix(in srgb, var(--live) 14%, transparent); }
+.ent2-incident { font-size: 13px; padding: 7px 10px; border-radius: var(--r-s, 10px); margin: 6px 0;
+  background: color-mix(in srgb, var(--gold) 12%, transparent); border-left: 3px solid var(--gold); }
+.live-ligne.ent2-marque { background: color-mix(in srgb, var(--violet) 14%, transparent); border-radius: 8px; padding: 6px 8px; }
+
+/* ===== Le fil du direct : les jeux, pas les lancers (S70) ===== */
+/* Par défaut, les tirs sans danger sont cachés ; « Voir tous les tirs » les montre, discrets. */
+.live-feed:not(.tous) .live-ligne.mineur { display: none; }
+.live-ligne.mineur { font-size: 12px; padding: 3px 10px; opacity: .7; }
+.live-ligne.danger, .live-ligne.defense { color: var(--text); background: color-mix(in srgb, var(--eq-band, transparent) 12%, var(--panel-2)); }
+.live-ligne.danger { border-left: 3px solid var(--orange); }
+.live-ligne.defense { border-left: 3px solid var(--blue); }
+.live-jeu-mot { font-size: 11px; letter-spacing: .08em; margin-right: 4px; opacity: .85; }
+/* Un but se voit de loin : plus grand, plus haut, la sirène devant. */
+.live-ligne.but { font-size: 15.5px; padding: 12px 12px 14px; margin: 3px 0; }
+.live-ligne.but .live-but-mot { font-size: 20px; }
+.live-ligne.but .live-but-mot::before { content: '🚨 '; }
+.live-filtre { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 14px 0; font-size: 12px; color: var(--sub); flex-wrap: wrap; }
+.live-filtre .btn { padding: 4px 10px; font-size: 12px; min-height: 0; }
+.en-pause .live-filtre { display: none; }
+
+/* =====================================================================
+   LA BARRE D'ÉTAT DU TÉLÉPHONE (S70). JP : *assure de laisser espace dans
+   le haut sinon barre de notif sur Android cache le new game et les
+   settings*. Capacitor 8 dessine la WebView SOUS la barre d'état dès que la
+   page déclare `viewport-fit=cover` (son module SystemBars, réglage « css ») :
+   l'ancien `adjustMarginsForEdgeToEdge` de capacitor.config.json n'existe
+   plus depuis Capacitor 8 et ne faisait rien. Le haut se réserve donc ici.
+   Capacitor injecte `--safe-area-inset-top` (même quand la WebView est trop
+   vieille pour `env()`), un navigateur rend `env()` : on prend le plus grand,
+   jamais la somme. Sur ordinateur et dans un navigateur, tout vaut zéro.
+   ===================================================================== */
+:root { --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px)); }
+/* La barre du haut descend d'autant : une bordure plutôt qu'un padding, pour
+   ne toucher à aucune des marges qu'elle prend selon la largeur. Sa hauteur
+   mesurée (`--topbar-h`, js/game.js) l'inclut, donc tout ce qui se cale
+   dessous suit. */
+.topbar { border-top: var(--safe-top) solid rgb(6, 12, 20); }
+/* Les écrans plein écran commencent sous la barre d'état. */
+.modal-backdrop, .choix-modal { top: var(--safe-top); }
+/* Et rien ne défile derrière l'heure et la batterie. */
+body::before {
+  content: ""; position: fixed; top: 0; left: 0; right: 0; height: var(--safe-top);
+  background: rgb(6, 12, 20); z-index: 1000; pointer-events: none;
+}
