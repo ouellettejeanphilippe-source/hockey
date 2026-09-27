@@ -72,8 +72,16 @@ const REGLES = [
        * rentre fait du quatre contre quatre jusqu'au sifflet (`revenus`, remis
        * à zéro par la mise au jeu). Donc au moins trois, et au plus trois plus
        * les punis d'en face, plus les rentrés des deux côtés.
+       *
+       * UN MATCH FINI NE SE COMPTE PLUS (S75c). La punition siffle ; quand ce
+       * sifflet est aussi celui de la dernière possession de la prolongation,
+       * la fusillade suit et aucune mise au jeu ne replace personne : le puni
+       * est au cachot, l'autre n'a pas encore son quatrième. Personne ne
+       * jouera plus sur cette glace — mesuré au match 63 dès que la zone
+       * neutre a grandi et que le déroulement a changé.
        */
       if (m.prolongation) {
+        if (m.fini) continue;
         const adv = eqDe(m, cote === 'A' ? 'B' : 'A');
         const rentres = (adv.revenus || 0) + (eq.revenus || 0);
         if (!rentres) {
@@ -440,29 +448,38 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'recepti
   const scenes = [];
   const juger = (nomScene, ok, detail) => { scenes.push([nomScene, ok, detail]); };
 
+  /*
+   * LES SCÈNES DE LIGNE BLEUE SE PLACENT PAR RAPPORT À ELLE (S75c). Elles
+   * étaient écrites en rangées pour une zone de huit (porteur à 11, entrée à
+   * 9) : quand la zone neutre a grandi, la ligne bleue a bougé et la scène
+   * du hors-jeu patinait dans le neutre. `Z` est la première rangée de la
+   * zone offensive de A (qui attaque vers le haut) ; le porteur part de deux
+   * rangées dehors, dans le neutre.
+   */
+  const Z = FILET_HAUT + PORTEE_TIR;
   // 1. Le porteur entre en zone pendant qu'un coéquipier l'attend dedans : hors-jeu.
   {
-    const { m, p } = scene({ 'A-C': [11, 6], 'A-AG': [8, 2] }, 'A-C');
-    deplacer(m, p, { r: 9, c: 6 });
+    const { m, p } = scene({ 'A-C': [Z + 2, 6], 'A-AG': [Z - 1, 2] }, 'A-C');
+    deplacer(m, p, { r: Z, c: 6 });
     const mj = siffle(m, 'Hors-jeu');
     juger('le porteur qui entre devant un coéquipier déjà dans la zone : HORS-JEU, mise au jeu au neutre',
       !!mj && MJ_NEUTRE.includes(mj.point.r), `${dernieres(m, 2)}${mj ? ` · point ${mj.point.r},${mj.point.c}` : ''}`);
   }
   // 2. Le même, le coéquipier ressorti : pas de sifflet.
   {
-    const { m, p } = scene({ 'A-C': [11, 6], 'A-AG': [10, 2] }, 'A-C');
-    deplacer(m, p, { r: 9, c: 6 });
+    const { m, p } = scene({ 'A-C': [Z + 2, 6], 'A-AG': [Z + 1, 2] }, 'A-C');
+    deplacer(m, p, { r: Z, c: 6 });
     juger('le même, le coéquipier ressorti de la zone : le jeu continue', m.trajet[m.trajet.length - 1].genre === 'patin' && !m.fil.some(e => e.genre === 'horsjeu'), dernieres(m, 1));
   }
   // 3. Une passe à un coéquipier qui attend dans la zone : hors-jeu.
   {
-    const { m, p, piece } = scene({ 'A-C': [11, 6], 'A-AD': [7, 9] }, 'A-C');
+    const { m, p, piece } = scene({ 'A-C': [Z + 2, 6], 'A-AD': [Z - 2, 9] }, 'A-C');
     appliquerPasse(m, p, piece('A-AD'), { reussi: true });
     juger('la passe à un coéquipier qui attendait dans la zone : HORS-JEU', !!siffle(m, 'Hors-jeu'), dernieres(m, 2));
   }
   // 4. Au fond, de la zone neutre : la rondelle est libre dans le coin, pas de sifflet.
   {
-    const { m, p } = scene({ 'A-C': [11, 6] }, 'A-C');
+    const { m, p } = scene({ 'A-C': [Z + 2, 6] }, 'A-C');
     const cibles = ciblesFondDe(m, p);
     const coin = cibles.find(x => x.r === FILET_HAUT && x.c === 0) || cibles[0];
     appliquerPasse(m, p, coin, { reussi: true });

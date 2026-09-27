@@ -237,7 +237,36 @@ export const PLACE_GARDIEN = { enclave: 1, rangee2: 2, pointe: 3, coin: 3, tour:
  * 18 % des mains s'y jouent au lieu de 11, 41 % des possessions finissent
  * par un tir, et la conversion descend à 30 % : le gardien travaille.
  */
-export const PORTEE_TIR = Number(MESURE.TIR_PORTEE) || 8;
+/*
+ * SEPT, POUR UNE VRAIE ZONE NEUTRE (S75c). JP : *zone neutre plus grande dans
+ * le mode table*. À huit sur vingt-trois rangées, la zone neutre ne faisait
+ * que TROIS rangées (10 à 12) : les lignes bleues collaient à la rouge, et
+ * les centres se mettaient au jeu sur la ligne bleue. Deux façons de
+ * l'agrandir, mesurées par `check_table` (240 matchs, 13 possessions) :
+ *
+ *   rangées × zone   neutre   buts   tirs   pointage le plus fréquent
+ *      23 × 8          3      2,98   9,25   3-2 (12 %)          (avant)
+ *      23 × 7          5      2,77   8,13   3-2 (12 %)
+ *      23 × 6          7      2,61   7,61   3-2 (13 %)
+ *      25 × 8          5      2,83   7,96   5-2 (10 %)
+ *      25 × 7          7      2,53   7,59   3-1 (10 %)
+ *      27 × 8          7      2,45   7,29   3-2 (13 %)
+ *
+ * ALLONGER LA GLACE COÛTE PLUS QUE DÉPLACER LES LIGNES, et c'est la vieille
+ * leçon de S42 : chaque rangée ajoutée est un chemin de plus vers le filet,
+ * et la case rétrécit sur un téléphone (26,4 px à vingt-trois rangées, 24,3
+ * à vingt-cinq, 22,5 à vingt-sept). Les lignes bleues RENTRENT donc d'une
+ * rangée chacune : cinq rangées de neutre contre sept de zone, presque la
+ * proportion d'une vraie patinoire (50 pieds contre 64), la même glace à
+ * l'écran — et neuf points de mise au jeu au lieu de sept, puisque les
+ * points neutres ne se confondent plus avec le centre. Le prix : on tire
+ * d'une rangée moins loin, donc un peu moins (8,1 lancers au lieu de 9,3) ;
+ * une possession de plus par période le rend (`POSSESSIONS_PAR_PERIODE`).
+ * Six rangées de zone donneraient sept rangées de neutre, et il faudrait
+ * quinze possessions pour retrouver les buts : mesuré, 2,99 buts et le 3-2
+ * à 13 %, pour un match 15 % plus long.
+ */
+export const PORTEE_TIR = Number(MESURE.TIR_PORTEE) || 7;
 
 /** Le filet qu'une équipe attaque : 'A' monte, 'B' descend. */
 export const filetDe = cote => (cote === 'A' ? FILET_HAUT : FILET_BAS);
@@ -792,8 +821,20 @@ export const PERIODES = 3;
  *
  * Le 3-2 reste le pointage du plateau, et un cran de talent se voit un peu
  * plus (un match plus long est un plus gros échantillon).
+ *
+ * QUATORZE (S75c), parce que la zone neutre a grandi (`PORTEE_TIR` 8 → 7 :
+ * on tire d'une rangée moins loin) et que les buts sont tombés à 2,77.
+ * Mesuré dans les mêmes conditions :
+ *
+ *   zone   possessions   buts   tirs   pointages les plus fréquents
+ *    8         13        2,98   9,25   3-2 (12 %), 2-1 (9 %), 3-1 (9 %)
+ *    7         13        2,77   8,13   3-2 (12 %), 2-1 (10 %), 3-1 (9 %)
+ *    7         14        2,83   8,59   3-2 (10 %), 4-2 (9 %), 2-1 (9 %)   (480 matchs)
+ *
+ * Le prix est un match 8 % plus long, pour une zone neutre de cinq rangées
+ * au lieu de trois.
  */
-export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 13;
+export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 14;
 /*
  * LA PROLONGATION EST COURTE, pour que la FUSILLADE existe. À huit
  * possessions et trois contre trois, la glace est si ouverte que quelqu'un
@@ -904,10 +945,12 @@ export const MJ_NEUTRE = [FILET_HAUT + PORTEE_TIR + 2, FILET_BAS - PORTEE_TIR - 
 export const MJ_CENTRE = { r: MI_GLACE, c: BUT_COL, nom: 'au centre' };
 /*
  * LES POINTS SE DÉDOUBLONNENT, parce que la géométrie peut les faire
- * coïncider : à `PORTEE_TIR` 8 sur 23 rangées, la zone neutre ne fait
- * qu'UNE rangée, donc les deux points neutres tombent tous deux sur la
- * rangée du centre. Sept points distincts, pas neuf — et c'est la glace qui
- * le dit, pas une liste écrite à la main.
+ * coïncider : à `PORTEE_TIR` 8 sur 23 rangées, la zone neutre ne faisait que
+ * trois rangées, et les deux points neutres tombaient tous deux sur la
+ * rangée du centre — sept points distincts, pas neuf. Depuis S75c (zone de
+ * sept, neutre de cinq), ils sont aux rangées 10 et 12 : les neuf points
+ * d'une vraie glace. C'est la glace qui le dit, pas une liste écrite à la
+ * main.
  */
 export const POINTS_MJ = [
   MJ_CENTRE,

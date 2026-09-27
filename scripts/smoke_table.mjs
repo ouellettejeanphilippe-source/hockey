@@ -456,6 +456,13 @@ while (tours++ < 4000) {
       const r = j.style.getPropertyValue('--tr'), c = j.style.getPropertyValue('--tc');
       return document.querySelector(`#tableModal .t-case.t-jouable[data-r="${r}"][data-c="${c}"]`) ? `${r},${c}` : null;
     })(),
+    // La carte de commandes, ouverte sur une AUTRE pièce, peut couvrir le porteur (S75c) : un pouce la ferme d'abord.
+    porteurCouvert: (() => {
+      const j = [...document.querySelectorAll('#tableModal .t-jeton.mienne')].find(e => e.querySelector('.t-rondelle'));
+      if (!j) return false;
+      const e = document.querySelector(`#tableModal .t-case[data-r="${j.style.getPropertyValue('--tr')}"][data-c="${j.style.getPropertyValue('--tc')}"]`);
+      return !!e && !touchable(e) && !!document.querySelector('#tableModal .t-cmd:not([hidden]) .t-cmd-fermer');
+    })(),
     jouablesCases: cases('#tableModal .t-case.t-jouable:not(.t-sel)'),
     offresCases: cases('#tableModal .t-case.t-offre'),
     contactsCases: cases('#tableModal .t-case.t-offre-echec'),
@@ -614,6 +621,7 @@ while (tours++ < 4000) {
    */
   if (etat.porteurJouable && !etat.modeOn) {
     if (etat.porteurJouable !== dernierPorteur) { dernierPorteur = etat.porteurJouable; essaisPorteur = 0; }
+    if (etat.porteurCouvert) { await page.click('#tableModal .t-cmd-fermer'); await page.waitForTimeout(50); continue; }
     if (++essaisPorteur <= 3) { await page.click(caseDe(etat.porteurJouable)); pieces++; await page.waitForTimeout(50); continue; }
   }
   if (etat.offres && dé() < 0.62) {
