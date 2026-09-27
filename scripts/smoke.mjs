@@ -835,7 +835,9 @@ async function traverserSaison(etiquette, reprise = false) {
     const banc = (await page.textContent('#bancPanel')).replace(/\s+/g, ' ').trim();
     const ficheBanc = (banc.match(/(\d+-\d+-\d+)/) || [])[1];
     if (!ficheBanc || !teteAvantBanc.includes(ficheBanc)) errors.push(`le banc ne dit pas la fiche de l'écran de saison : « ${banc.slice(0, 80)} »`);
-    const metas = await page.$$eval('.slot', els => els.filter(e => e.querySelector('.slot-name')).map(e => e.querySelectorAll('.slot-meta')[1]?.textContent.trim() || ''));
+    // LA CASE LISIBLE (S78) : la ligne de faits a sa classe, `.slot-faits` —
+    // la case n'a plus qu'une ligne de méta, on ne la cherche plus par rang.
+    const metas = await page.$$eval('.slot', els => els.filter(e => e.querySelector('.slot-name')).map(e => e.querySelector('.slot-faits')?.textContent.trim() || ''));
     // « 1,000 » : un gardien qui n'a rien accordé encore (un blanchissage en début de saison).
     const ficheCase = /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · ([,—]|1,000)|aucun match)/;
     if (metas.length !== 23 || !metas.every(m => ficheCase.test(m))) errors.push(`les cases du banc ne portent pas la fiche à ce jour (${metas.length} cases) : ${metas.filter(m => !ficheCase.test(m)).slice(0, 4).join(' | ')}`);
@@ -852,35 +854,53 @@ async function traverserSaison(etiquette, reprise = false) {
     }
     await page.waitForTimeout(150);
     /*
-     * MES LIGNES, DERRIÈRE LE BANC (S68). Le plan et la glace d'équipe sont
-     * devenus les lignes à la HockeyArena : une tactique, une agressivité et
-     * des secondes de présence par ligne. Ce qui se vérifie : l'écran plein
-     * écran s'ouvre avec ses quatre lignes et ses sept tactiques, chaque
-     * tactique annonce le fit de CETTE ligne, et un changement voyage jusqu'à
-     * la sauvegarde avec la décision du banc — c'est elle qui compte.
+     * MES LIGNES, DERRIÈRE LE BANC (S68) — SOUS LEURS TRIOS DEPUIS S78. Le
+     * plan et la glace d'équipe sont devenus les lignes à la HockeyArena : une
+     * tactique, une agressivité et des secondes de présence par ligne. JP
+     * (S78) : *Alignement et stratégie et trio, ça devrait être ensemble* —
+     * la modale « Mes lignes » est devenue un tiroir sous chaque trio, un seul
+     * ouvert à la fois, et un réglage s'applique tout de suite (plus de
+     * « Garder ces lignes »). Ce qui se vérifie : quatre tiroirs, le premier
+     * s'ouvre avec ses sept tactiques, chacune annonce le fit de CETTE ligne,
+     * le profil demandé se lit pour les cinq postes de la ligne (le trio et sa
+     * paire), l'accordéon referme l'autre tiroir, et le changement voyage
+     * jusqu'à la sauvegarde avec la décision du banc — c'est elle qui compte.
      */
     let tacChoisie = null;
-    await _click('#bancLignes');
-    await page.waitForSelector('#lignesModal:not([hidden]) .gl-tac', { timeout: 5000 });
+    if (await page.$('#bancLignes')) errors.push('le banc a encore son bouton « Mes lignes » : la stratégie vit sous les trios');
+    const tiroirs = await page.$$eval('#rosterBoard .ln-strat', e => e.length);
+    if (tiroirs !== 4) errors.push(`${tiroirs} tiroirs de stratégie au lieu de quatre, un par trio`);
+    await _click('#rosterBoard .ln-strat[data-u="0"] > summary');
+    await page.waitForSelector('#rosterBoard .ln-strat[data-u="0"][open] .gl-tac', { timeout: 5000 });
     {
       const lu = await page.evaluate(() => ({
-        onglets: document.querySelectorAll('#lignesModal .gl-onglet').length,
-        tacs: document.querySelectorAll('#lignesModal .gl-tac').length,
-        fits: [...document.querySelectorAll('#lignesModal .gl-tac-fit')].map(e => e.textContent.trim()),
-        joueurs: document.querySelectorAll('#lignesModal .gl-j').length,
+        tacs: document.querySelectorAll('.ln-strat[open] .gl-tac').length,
+        fits: [...document.querySelectorAll('.ln-strat[open] .gl-tac-fit')].map(e => e.textContent.trim()),
+        demandes: document.querySelectorAll('.ln-strat[open] .ln-dem').length,
+        ouverts: document.querySelectorAll('.ln-strat[open]').length,
       }));
-      if (lu.onglets !== 4 || lu.tacs !== 7) errors.push(`« Mes lignes » n'a pas ses quatre lignes et ses sept tactiques : ${lu.onglets} et ${lu.tacs}`);
+      if (lu.tacs !== 7) errors.push(`le tiroir du 1er trio n'a pas ses sept tactiques : ${lu.tacs}`);
       // LE FIT EN MOTS (S71) : « Taillée pour elle », « Bon fit », « Fit moyen », « Mauvais fit ».
       if (lu.fits.filter(f => /^(Taillée pour elle|Bon fit|Fit moyen|Mauvais fit)$/.test(f)).length !== 6) errors.push(`les tactiques n'annoncent pas leur fit : ${lu.fits.join(' | ')}`);
       if (lu.fits.some(f => /\d+ %/.test(f))) errors.push(`le fit s'affiche encore en pourcentage : ${lu.fits.join(' | ')}`);
-      if (lu.joueurs !== 5) errors.push(`la 1re ligne montre ${lu.joueurs} joueurs au lieu de cinq`);
-      tacChoisie = await page.$eval('#lignesModal .gl-tac:not(.on):not([data-tac="hourra"])', b => b.dataset.tac);
-      await _click(`#lignesModal .gl-tac[data-tac="${tacChoisie}"]`);
-      await _click('#lignesModal [data-agr="2"]');
+      // Le profil demandé, poste par poste : les trois du trio et les deux de sa paire.
+      const tacOuverte = await page.$eval('.ln-strat[open] .gl-tac.on', b => b.dataset.tac);
+      if (tacOuverte !== 'hourra' && lu.demandes !== 5) errors.push(`la 1re ligne dit le profil demandé à ${lu.demandes} postes au lieu de cinq`);
+      if (lu.ouverts !== 1) errors.push(`${lu.ouverts} tiroirs ouverts : l'accordéon n'en garde qu'un`);
+      tacChoisie = await page.$eval('.ln-strat[open] .gl-tac:not(.on):not([data-tac="hourra"])', b => b.dataset.tac);
+      await _click(`.ln-strat[open] .gl-tac[data-tac="${tacChoisie}"]`);
+      await _click('.ln-strat[open] [data-agr="2"]');
       await page.waitForTimeout(150);
+      const reglee = await page.evaluate(() => ({ tac: document.querySelector('.ln-strat[data-u="0"] .gl-tac.on')?.dataset.tac, ouvert: document.querySelector('.ln-strat[data-u="0"]').open }));
+      if (reglee.tac !== tacChoisie || !reglee.ouvert) errors.push(`le tiroir ne garde pas le réglage ou se referme sous le doigt : ${JSON.stringify(reglee)}`);
       await page.screenshot({ path: 'scripts/smoke-lignes.png', fullPage: false });
-      await _click('#lignesModal .gl-appliquer');
-      await page.waitForTimeout(200);
+      // L'accordéon : ouvrir le 2e trio referme le 1er ; on le referme ensuite.
+      await _click('#rosterBoard .ln-strat[data-u="1"] > summary');
+      await page.waitForTimeout(150);
+      const ouverts = await page.$$eval('.ln-strat[open]', e => e.map(x => x.dataset.u));
+      if (JSON.stringify(ouverts) !== '["1"]') errors.push(`ouvrir le 2e tiroir ne referme pas le 1er : ${JSON.stringify(ouverts)}`);
+      await _click('#rosterBoard .ln-strat[data-u="1"] > summary');
+      await page.waitForTimeout(150);
     }
     await toutEstAtteignable('derrière le banc, lignes réglées');
     await toutEstAtteignable('derrière le banc, réglages ouverts');
