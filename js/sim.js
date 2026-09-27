@@ -4767,6 +4767,67 @@ export function playSeries(A, B, track = false, ronde = 0) {
   return { winner: wA === 4 ? A : B, wA, wB, feuilles };
 }
 
+/*
+ * L'EXHIBITION (S78, js/exhibition.js). JP : *choisir n'importe quelles
+ * équipes de toutes ères et les faire jouer contre pour le fun*. Deux clubs
+ * neufs (des COPIES de leurs joueurs, voir `copieDeJoueur`), sous leur PROPRE
+ * graine : le générateur du moteur est mis de côté puis rendu, donc la saison
+ * en cours — ses séries continuent le même fil après `simulateLeague` — ne
+ * voit rien passer. Rien de ce que la partie connaît n'est touché : ni
+ * `CONNUS`, ni les objets des shards, ni la chance de saison.
+ *
+ * `clubs` : `[locaux, visiteurs]`, chacun `{ nom, tag, saison, roster }` —
+ * les équipes naissent ICI, sous la graine, parce que `createTeam` tire déjà
+ * au hasard. Les locaux sont A : ils reçoivent, comme dans `playGame`.
+ *
+ *   quoi = 'match'  un match de saison (la prolongation tranche)
+ *        = 'serie'  un 4 de 7, comme en séries
+ *        = 'fois'   `n` matchs, chacun sur des équipes remises à neuf
+ */
+export function copieDeJoueur(p) {
+  const c = { ...p };
+  // Ce que la saison pose sur un joueur (carte, adaptation, situations, énergie…) reste à la saison.
+  for (const k of Object.keys(c)) if (k.startsWith('_') && k !== '_rk') delete c[k];
+  return c;
+}
+function remettreANeuf(t) {
+  for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { initSimStats(p); p.energie = 100; } }
+  t.injured = new Map(); t.together = new Map(); t.togetherSig = new Map(); t.injuriesLog = []; t.journal = [];
+  t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
+  t.strength = teamStrength(t);
+  t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
+  t.cartes = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
+  t.chimie = [0, 0, 0, 0]; t.entente = new Map();
+  t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
+  t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
+}
+export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
+  const avant = hasard;
+  hasard = generateur(graine);
+  try {
+    const [A, B] = clubs.map(c => createTeam(c.nom, c.tag, c.roster, { season: c.saison }));
+    if (quoi === 'serie') { remettreANeuf(A); remettreANeuf(B); return { A, B, ...playSeries(A, B, true, 1) }; }
+    if (quoi === 'fois') {
+      const out = { A, B, wA: 0, wB: 0, prolongations: 0, gfA: 0, gfB: 0, n };
+      for (let k = 0; k < n; k++) {
+        remettreANeuf(A); remettreANeuf(B);
+        const r = playGame(A, B, 0, false, false, null);
+        if (r.winner === A) out.wA++; else out.wB++;
+        if (r.ot) out.prolongations++;
+        out.gfA += r.gfA; out.gfB += r.gfB;
+      }
+      return out;
+    }
+    remettreANeuf(A); remettreANeuf(B);
+    const feuille = feuilleVierge();
+    const r = playGame(A, B, 0, true, false, feuille);
+    return { ...r, A, B, feuille };
+  } finally {
+    hasard = avant;
+  }
+}
+
 /**
  * Alignement automatique d'un vestiaire : chaque case prend le meilleur
  * joueur restant qui y convient (cote cachée moins pénalité de position),

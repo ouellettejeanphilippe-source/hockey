@@ -1489,3 +1489,9 @@ L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `
 - N'ajoute pas de dépendance npm sans une bonne raison écrite dans `PLAN.md`.
 - Ne commite pas `data/seasons/*.json` à la main — c'est le job du script et de l'Action.
 - Ne mets pas les cotes cachées dans le DOM avant la simulation. Un joueur curieux qui ouvre l'inspecteur ne devrait pas pouvoir les lire. (Actuellement elles sont dans l'objet JS en mémoire — voir PLAN.md tâche J4.)
+
+## S78 — L'exhibition et « au hasard » (branche s78-modes)
+
+- **Exhibition** (`js/exhibition.js`, carton du menu `data-genre="exhibition"`, pas un genre de sauvegarde) : deux clubs-saisons de n'importe quelle époque, alignés par `autoRoster` sur des COPIES (`copieDeJoueur`, js/sim.js), joués par `jouerExhibition(clubs, graine, 'match'|'serie'|'fois')`. Ce dernier met le générateur du moteur de côté et le rend : le fil de la saison en cours (et de ses séries) n'est pas touché ; les équipes naissent sous la graine (`createTeam` tire au hasard). Un match se regarde en direct (`diffuserMatch`). Seule l'affiche se retient (`cap82_exhibition`).
+- **Au hasard** : `HASARD` dans `#epoqueSelect` et `#franchiseSelect` ; `resoudreHasard(b)` tire au clic de `#npGo`, force un DÉMARRER, et le toast le dit. La sauvegarde ne connaît que la vraie saison / franchise.
+- Essai : `node scripts/essai_exhibition.mjs <url> [captures]` ; les smokes attendent 4 cartons au menu.

@@ -89,7 +89,8 @@ await page.reload({ waitUntil: 'networkidle' });
    partie » par-dessus, exactement comme la première visite d'avant. */
 await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
 const modesAuMenu = await page.$$eval('#menuDepart .menu-mode', l => l.map(x => x.dataset.genre).join(','));
-if (modesAuMenu !== 'saison,table,rogue') errors.push(`le menu au départ n'offre pas les trois modes : ${modesAuMenu}`);
+// S78 : l'exhibition a son carton, sans être un genre de sauvegarde.
+if (modesAuMenu !== 'saison,table,rogue,exhibition') errors.push(`le menu au départ n'offre pas les quatre modes : ${modesAuMenu}`);
 await page.click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');

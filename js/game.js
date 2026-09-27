@@ -46,6 +46,7 @@ import { brancherEntractes } from './entracte.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { migrer, lireIndex, lirePartieActive, ecrirePartieActive, nouvellePartie, activer } from './sauvegardes.js';
 import { afficherMenu, fermerMenu } from './menu.js';
+import { ouvrirExhibition } from './exhibition.js';
 import { JETONS, jetonsDe, PACKS, DEBLOCAGES, lireMeta, aDebloque, nombreGardes, jetonsDeDepart, packsOuverts, peutAcheter, acheterDeblocage,
   ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, rareteTiree } from './rogue.js';
 
@@ -1101,6 +1102,8 @@ function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
     reprendre: id => { activer(id); ailleurs(); },
     nouvelle: genre => { nouvellePartie(genre); ailleurs(`nouvelle-${genre}`); },
     options: () => openModal('optionsModal'),
+    // L'EXHIBITION (S78, js/exhibition.js) : aucune partie, on revient au menu en la fermant.
+    exhibition: () => { fermerMenu(); ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu })))); },
     rogue: {
       resume: () => { const m = lireMeta(); return `🏅 ${m.ecussons || 0} écussons · 🗂️ ${(m.collection || []).length} joueurs · ${m.runs || 0} run${(m.runs || 0) > 1 ? 's' : ''}`; },
       nouvelle: () => { nouvellePartie('rogue'); ailleurs('nouvelle-rogue'); },
@@ -1108,6 +1111,14 @@ function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
     },
   };
 }
+
+/* Ce que l'exhibition lit du jeu : les saisons, le chargeur de shards, l'affichage — et le direct. */
+const ctxExhibition = onFerme => ({
+  saisons: state.index.seasons, shard: getShard, esc, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
+  nom: code => TEAMFULL[code] || code,
+  direct: { esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
+  onFerme,
+});
 
 /* =====================================================================
    LE MODE ROGUE (S77) — voir js/rogue.js pour la règle et le méta.
@@ -1473,7 +1484,9 @@ function setupEvents() {
     go.onclick = async () => {
       if (demarrageEnCours || !G.brouillon) return;
       const b = { ...G.brouillon };
-      const act = actionDuBouton(b);
+      // Le dé se jette ici, une fois : une partie « au hasard » repart toujours.
+      const auHasard = resoudreHasard(b);
+      const act = auHasard.length ? 'DEMARRER' : actionDuBouton(b);
       if (act === 'RIEN') { closeModal('partieModal'); return; }
       if (act === 'BONUS') {
         // Le mode bonus ne touche pas au repêchage : c'est le seul réglage de
@@ -1496,7 +1509,7 @@ function setupEvents() {
         const choix = await choisirIdentite();
         await demarrerPartie({ ...b, identite: choix });
         closeModal('partieModal');
-        toast(`${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''}${b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? ` · ${FRANCHISES[b.franchise].nom}` : ''} : la roulette repart à zéro.`);
+        toast(`${auHasard.length ? `🎲 Le hasard a choisi ${auHasard.join(' et ')}. ` : ''}${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''}${b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? ` · ${FRANCHISES[b.franchise].nom}` : ''} : la roulette repart à zéro.`);
       } catch {
         toast('Impossible de charger cette saison. Réessaie ou change de ligue.');
       } finally {
@@ -1633,6 +1646,28 @@ function setOption(key, val) {
    perdre.
    ===================================================================== */
 
+/*
+ * « AU HASARD » (S78). JP : *ajouter random au mode saison années ou au mode
+ * piger dans une équipe seulement*. La saison de la ligue et la franchise du
+ * repêchage peuvent se laisser au dé : le tirage se fait AU DÉPART, une fois,
+ * et le toast le dit. La partie porte ensuite la vraie saison, la vraie
+ * franchise — la sauvegarde ne connaît jamais « au hasard ».
+ */
+const HASARD = 'HASARD';
+function resoudreHasard(b) {
+  const mots = [];
+  if (b.epoqueChoisie === HASARD || b.epoque === HASARD) {
+    const x = rnd(state.index.seasons);
+    if (b.epoque === HASARD) { b.epoque = x; mots.push(`la saison ${x}`); }
+    b.epoqueChoisie = x;
+  }
+  if (b.repechage === 'FRANCHISE' && b.franchise === HASARD) {
+    b.franchise = rnd(Object.keys(FRANCHISES).filter(k => saisonsDeFranchise(k, state.index.seasons).length));
+    mots.push(FRANCHISES[b.franchise].nom);
+  }
+  return mots;
+}
+
 /** Les valeurs de départ viennent de l'état VIVANT, jamais des préférences. */
 function semerBrouillon() {
   const dernier = state.index.seasons[state.index.seasons.length - 1];
@@ -1694,8 +1729,9 @@ function majPiedPartie() {
     money(M.cap),
     M.loto ? `trois clubs par case · ${M.relances} relances`
       : `un vestiaire au complet · ${REROLLS.season}/${REROLLS.team}/${REROLLS.pass} relances`,
-    b.epoque ? `ligue ${b.epoque}` : 'toutes les époques',
-    b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? `repêchage : ${FRANCHISES[b.franchise].nom}`
+    b.epoque === HASARD ? 'ligue 🎲 au hasard' : b.epoque ? `ligue ${b.epoque}` : 'toutes les époques',
+    b.repechage === 'FRANCHISE' && b.franchise === HASARD ? 'repêchage : 🎲 une franchise au hasard'
+      : b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? `repêchage : ${FRANCHISES[b.franchise].nom}`
       : b.epoque && b.repechage === 'TOUTES' ? 'repêchage toutes époques' : null,
     b.bonus === 'TABLE' ? 'sur table' : null,
   ].filter(Boolean).join(' · ');
@@ -1764,7 +1800,7 @@ function syncOptionsUI() {
   const sel = $('epoqueSelect');
   if (sel) {
     if (!sel.options.length) {
-      sel.innerHTML = state.index.seasons.slice().reverse().map(x => `<option value="${x}">${x}</option>`).join('');
+      sel.innerHTML = `<option value="${HASARD}">🎲 Au hasard</option>` + state.index.seasons.slice().reverse().map(x => `<option value="${x}">${x}</option>`).join('');
       // Choisir dans la liste ne relance plus rien : ça garnit le brouillon.
       sel.onchange = () => {
         if (!G.brouillon) return;
@@ -1789,7 +1825,7 @@ function syncOptionsUI() {
   const fsel = $('franchiseSelect');
   if (fsel) {
     if (!fsel.options.length) {
-      fsel.innerHTML = Object.entries(FRANCHISES).sort((a, b) => a[1].nom.localeCompare(b[1].nom, 'fr'))
+      fsel.innerHTML = `<option value="${HASARD}">🎲 Au hasard</option>` + Object.entries(FRANCHISES).sort((a, b) => a[1].nom.localeCompare(b[1].nom, 'fr'))
         .map(([k, F]) => `<option value="${k}">${esc(F.nom)}</option>`).join('');
       // Choisir une franchise, c'est choisir ce repêchage-là.
       fsel.onchange = () => {
@@ -1804,7 +1840,7 @@ function syncOptionsUI() {
     fsel.disabled = src.repechage !== 'FRANCHISE';
     const F = FRANCHISES[fsel.value];
     const lig = $('franchiseLignee');
-    if (lig) lig.textContent = F && F.lignee && src.repechage === 'FRANCHISE' ? F.lignee : '';
+    if (lig) lig.textContent = src.repechage !== 'FRANCHISE' ? '' : fsel.value === HASARD ? 'Le dé choisit la franchise au départ.' : F && F.lignee ? F.lignee : '';
   }
   document.querySelectorAll('.seg').forEach(seg => {
     seg.querySelectorAll('button').forEach(b => {

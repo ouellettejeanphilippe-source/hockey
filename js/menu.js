@@ -12,6 +12,9 @@
  * Le menu ne sait rien du jeu : il lit l'index (js/sauvegardes.js) et rend
  * la main au contrôleur par ses rappels (`continuer`, `reprendre`,
  * `nouvelle`, `options`, et `rogue` quand le mode existe).
+ *
+ * L'EXHIBITION (S78, js/exhibition.js) a son carton sans être un genre de
+ * sauvegarde : elle ne garde aucune partie, donc rien dans « Mes parties ».
  */
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer } from './sauvegardes.js';
 
@@ -95,6 +98,17 @@ function dessiner(m) {
       </div>
     </div>`;
   };
+  // L'exhibition : deux clubs de n'importe quelle époque, pour le fun (S78).
+  const exhibition = ctx.exhibition ? `<article class="menu-mode" data-genre="exhibition">
+      <div class="menu-mode-ico" aria-hidden="true">🏟️</div>
+      <div class="menu-mode-corps">
+        <h3 class="menu-mode-nom">Exhibition</h3>
+        <p class="menu-mode-mot">N'importe quels clubs de toutes les époques, un match ou une série, sur le vrai moteur</p>
+      </div>
+      <div class="menu-mode-actions">
+        <button type="button" class="btn go" data-menu="exhibition">Choisir l'affiche</button>
+      </div>
+    </article>` : '';
   const groupes = Object.keys(GENRES).map(g => {
     const ps = partiesDuGenre(g);
     return ps.length ? `<div class="menu-groupe"><div class="menu-groupe-t">${GENRES[g].ico} ${esc(GENRES[g].nom)} · ${ps.length}</div>${ps.map(ligne).join('')}</div>` : '';
@@ -110,7 +124,7 @@ function dessiner(m) {
         <span class="mc-mot">${ctx.enJeu ? 'Retour à la partie' : 'Continuer'}</span>
         <span class="mc-quoi">${GENRES[active.genre] ? GENRES[active.genre].ico : ''} ${esc(active.titre)} · ${esc(ligneResume(active) || quand(active.maj))}</span>
       </button>` : ''}
-      <section class="menu-modes" aria-label="Les modes de jeu">${Object.keys(GENRES).map(carte).join('')}</section>
+      <section class="menu-modes" aria-label="Les modes de jeu">${Object.keys(GENRES).map(carte).join('')}${exhibition}</section>
       ${ix.parties.length ? `<details class="menu-parties"${ix.parties.length <= 3 ? ' open' : ''}><summary>📂 Mes parties · ${ix.parties.length}</summary>${groupes}</details>` : ''}
       <footer class="menu-pied"><button type="button" class="btn small" data-menu="options">⚙ Options</button></footer>
     </div>`;
@@ -124,6 +138,7 @@ function dessiner(m) {
         else ctx.nouvelle(b.dataset.genre);
       }
       else if (quoi === 'vestiaire' && ctx.rogue) ctx.rogue.vestiaire();
+      else if (quoi === 'exhibition' && ctx.exhibition) ctx.exhibition();
       else if (quoi === 'options') ctx.options();
       else if (quoi === 'copier') { copier(id); dessiner(m); ouvrirParties(m); }
       else if (quoi === 'supprimer') {
