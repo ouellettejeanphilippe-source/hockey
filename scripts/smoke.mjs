@@ -91,14 +91,42 @@ async function guetterBallottage() {
   ballottage.mot = `${qui.slice(0, 70)} réclamé à la journée ${tete ? tete[1] : '?'}`;
 }
 /*
+ * LE PAQUET (S77) : une récompense arrive scellée, par-dessus ses cartes
+ * encore invisibles — les toucher, c'est toucher le paquet. On l'ouvre (un
+ * toucher), on montre tout (un deuxième), et on exige ce que l'écran
+ * promet : autant de cartes face visible qu'il en annonçait, prêtes à
+ * choisir. Le paquet FLOTTE (une animation continue) : Playwright attendrait
+ * sans fin qu'il soit immobile, d'où `force` ; le deuxième toucher va à la
+ * tête de la feuille, qui ne bouge pas.
+ */
+const paquetsVus = [];
+async function ouvrirPaquet() {
+  const p = await page.$('#choixModal:not([hidden]) .paquet');
+  if (!p || !(await p.isVisible())) return false;
+  const annonce = Number(((await page.textContent('#choixModal .paquet-n')) || '').replace(/\D/g, '')) || 0;
+  await _click('#choixModal .paquet', { force: true });
+  await page.waitForTimeout(120);
+  await _click('#choixModal .choix-tete');
+  const pret = await _wait('#choixModal .choix-sheet.paquet-fini', { timeout: 5000 }).catch(() => null);
+  const lu = await page.evaluate(() => ({
+    cartes: document.querySelectorAll('#choixModal .choix-main > .choix-option.tc').length,
+    dos: [...document.querySelectorAll('#choixModal .tc-dos')].filter(d => +getComputedStyle(d).opacity > 0.05).length,
+  }));
+  if (!pret || lu.cartes !== annonce || lu.dos) errors.push(`le paquet annonce ${annonce} cartes et en montre ${lu.cartes} (${lu.dos} encore face cachée${pret ? '' : ', jamais fini'})`);
+  paquetsVus.push(`${lu.cartes} cartes`);
+  return true;
+}
+/*
  * LES CHOIX FORCÉS S'OUVRENT EN PLEIN ÉCRAN depuis S68 (`#choixModal`). On
  * range ce qu'on a croisé par son titre, et on exige que chaque option dise
  * son effet en puces — c'est ce que JP a demandé : *tout devrait être clair*.
  */
 async function repondreAuxChoix() {
+  await ouvrirPaquet();
   await guetterBallottage();
   let rouvert = false;
   for (let i = 0; i < 12; i++) {
+    if (await ouvrirPaquet()) continue;
     const opt = await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])');
     if (!opt || !(await opt.isVisible())) {
       /*
@@ -2150,6 +2178,8 @@ await sansCote('express');
  * séquences dépendent des résultats, elles s'informent.
  */
 console.log(`   ballottage : ${ballottage.mot || 'aucune offre croisée (il faut une blessure de quatre matchs et plus)'}`);
+// Un paquet dépend d'une victoire en gros match ou d'une série gagnée : on dit ce qu'on a ouvert.
+console.log(`   paquets ouverts : ${paquetsVus.length ? paquetsVus.join(' · ') : 'aucun (pas de gros match gagné ni de série gagnée)'}`);
 console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
 console.log(`   identités de départ prises : ${identitesVues.join(' · ') || 'aucune'}`);
 console.log(`   mains de match jouées : ${mainsVues.length} (${mainsVues.slice(0, 6).join(" · ") || "aucune"}) · ${prepsVues} préparation(s) au dépistage`);

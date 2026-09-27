@@ -7063,272 +7063,790 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .plan-adv-contre.ratee b, .prep.ratee b { color: var(--red); }
 
 /* =====================================================================
-   LES JOUEURS SONT DES CARTES (S76) — js/cartes.js (`rareteDeSalaire`,
-   `PALIERS_RARETE`, `gemmeJoueur`, `artJoueur`), js/game.js
-   (`playerCardEl`, `slotEl`, `showPlayerModal`), js/bilan.js (la feuille
-   de match), js/saison.js (la recrue et le ballottage en cartes)
+   LES JOUEURS SONT DES CARTES (S76) — ET ELLES EN ONT LE LOOK (S77)
+   js/cartes.js (`rareteDeSalaire`, `PALIERS_RARETE`, `gemmeJoueur`,
+   `artJoueur`, `paquetHtml`, `brancherInclinaison`), js/game.js
+   (`playerCardEl`, `slotEl`, `showPlayerModal`, `versoDeCarte`,
+   `voleAuCartable`), js/gerant.js (`ouvrirChoix` : le paquet), js/bilan.js
+   (la feuille de match), js/saison.js (la recrue et le ballottage).
 
-   JP : *Même dans le ui et le ux, renforcer que les joueurs aussi, c'est
-   des cartes de hockey*. Les cartes de match ont un cadre dont le métal dit
-   la rareté, un reflet holographique, une illustration dans sa fenêtre et
-   un pied de série (plus haut, « LES CARTES À COLLECTIONNER ») ; le joueur
-   n'était qu'une tuile aux couleurs de son club. Il prend le même langage,
-   partout où il paraît — le vestiaire, la main du loto, les cases de
-   l'alignement et du banc, les réservistes, la fiche, la recrue et le
-   ballottage, la feuille de match, le cartable — pour qu'un joueur et une
-   carte de match se lisent comme le même paquet.
+   S76. JP : *Même dans le ui et le ux, renforcer que les joueurs aussi,
+   c'est des cartes de hockey*. Le joueur prend le langage des cartes de
+   match partout où il paraît, et sa rareté vient du SALAIRE (le rang de
+   `p.$` dans sa saison), jamais d'une cote.
 
-   Quatre règles tiennent ce bloc.
-   (1) LE CADRE SE PEINT, IL NE PREND AUCUNE PLACE. Un pseudo-élément posé
-       par-dessus (`::before`, `pointer-events: none`) : la carte du
-       vestiaire et la case de l'alignement gardent leur hauteur au pixel près
-       — on réserve la place, on ne la prend pas, et une bordure plus épaisse
-       aurait mangé trois pixels au nom d'une case de 106.
-   (2) LE MÉTAL VIENT DE `.tc-<rareté>`, les variables des cartes de match
-       (`--tc-bord`, `--tc-bord2`) : argent, bleu, or, violet holographique.
-       La rareté vient du SALAIRE (`rareteDeSalaire`), jamais d'une cote.
-   (3) LE REFLET NE COÛTE RIEN À REPEINDRE : il glisse par `transform`, que
-       le compositeur anime seul, et seulement sur les rares et les
-       légendaires (une carte sur huit). Le vestiaire en rend des centaines :
-       aucun JavaScript par carte, aucune image.
-   (4) CHAQUE CARTE ISOLE SES COUCHES (`isolation`) : le cadre est à
-       `z-index: 3` DANS la carte, jamais par-dessus l'en-tête collant d'une
-       colonne ou la barre du bas.
+   S77. JP : *Carte qui font upper deck ou ô pee Chee un peu, va chercher un
+   vrai look de cartes avec effets, etc. Rends ça plus dynamique et beau*.
+   Deux familles, qu'on reconnaît de loin :
+   — le CARTON (communes, peu communes), une carte canadienne des années 80 :
+     le bord crème d'un carton imprimé, le panneau aux couleurs du club
+     cerné de sa couleur secondaire, le FANION du club à queue d'aronde, le
+     poste dans une RONDELLE, l'année imprimée comme le millésime d'une
+     série ; la peu commune « casse le cadre » (la tête dépasse la fenêtre) ;
+   — le LUSTRE (rares, légendaires), une carte haut de gamme des années 90 :
+     un cadre de métal (argent, or), la photo qui touche le bord, la plaque
+     du nom ESTAMPÉE avec son reflet qui passe, l'holographique arc-en-ciel,
+     et, sur une légendaire, le cadre or-holographique, les paillettes et le
+     tirage limité (« 07/99 »).
+   Les cartes de match sont des cartes d'« insert » de la même collection :
+   le métal de la rareté au cadre, le coût dans une rondelle, la patinoire
+   en acétate derrière l'illustration d'une légendaire.
+
+   Cinq règles tiennent ce bloc.
+   (1) ON RÉSERVE LA PLACE, ON NE LA PREND PAS. La carte du vestiaire fait
+       189,5 px et la case 106, comme avant : le bord crème du carton se
+       prend sur l'espace entre le bandeau et le panneau, le cadre de métal
+       se PEINT par-dessus (`::before`).
+   (2) ON LIT D'ABORD, ON BRILLE ENSUITE. L'holographique et le reflet sont
+       SOUS le texte (z-index : fond → holo, reflet → contenu → cadre) ; sur
+       une carte de match, ils ne touchent que le cadre et l'illustration —
+       la règle chiffrée garde son fond uni.
+   (3) RIEN DE LOURD SUR UNE COMMUNE. `.cj-holo` n'existe que sur les rares
+       et les légendaires (une carte sur huit) ; le reflet n'est créé que sur
+       la carte qu'on penche (`.incline`, `.relache`, `.gyro`). Le reste est
+       du fond statique : peint une fois, défilé par le compositeur.
+   (4) ON N'ANIME QUE `transform` ET `opacity` — et `background-position`
+       pour le miroitement d'une rare, comme le demande la technique des
+       cartes holographiques. Les propriétés de l'inclinaison sont
+       enregistrées (`@property`) pour revenir à zéro par un ressort.
+   (5) `prefers-reduced-motion` coupe tout : ni inclinaison (le JS ne
+       l'écoute même pas), ni miroitement, ni paquet, ni retournement.
    ===================================================================== */
+@property --rx { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+@property --ry { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+@property --mx { syntax: '<percentage>'; inherits: true; initial-value: 50%; }
+@property --my { syntax: '<percentage>'; inherits: true; initial-value: 50%; }
+@property --lueur { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --leve { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --gros { syntax: '<number>'; inherits: false; initial-value: 1; }
+
+/* Le carton et ses encres, et les métaux : une seule définition, lue par les
+   deux familles, la fiche, le dos et le paquet. Ce ne sont PAS des jetons de
+   palette : une carte imprimée ne change pas de couleur avec le thème. */
+.cj, .choix-option.tc, .cj-verso, .paquet, .cj-vole {
+  --carton: #f1e8d3;
+  --carton-2: #e3d6b7;
+  --encre: #2a2116;
+  --encre-rouge: #a3252b;
+  --encre-bleue: #1e3a86;
+  --argent: linear-gradient(115deg, #b9c2cb 0%, #f4f6f8 22%, #98a2ac 42%, #e9edf1 60%, #8a949e 80%, #dfe4e9 100%);
+  --or: linear-gradient(115deg, #b98a24 0%, #fff0b3 22%, #c9961f 42%, #ffe48a 60%, #a8781a 80%, #f7d777 100%);
+  --arc: repeating-linear-gradient(118deg, #ff6f91 0%, #ffd66e 7%, #7cffc4 14%, #74c8ff 21%, #b58bff 28%, #ff6f91 35%);
+  --ressort: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* Le grain du carton : deux trames de points à peine visibles sur un crème
+   qui fonce vers le bas, comme un carton imprimé sous la lampe. */
+.cj-carton, .cj-verso, .paquet-face {
+  --grain:
+    radial-gradient(circle at 30% 40%, rgba(120, 90, 40, 0.08) 0 0.8px, transparent 1.2px) 0 0 / 5px 6px,
+    radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.45) 0 0.8px, transparent 1.2px) 2px 3px / 7px 5px;
+}
+
 .cj { position: relative; isolation: isolate; }
-
-/* (1) Le cadre : une arête claire, le métal, un creux sombre. Trois ombres
-   intérieures, peintes une fois — pas de masque sur des centaines de cartes. */
-.cj::before {
-  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--tc-bord) 55%, #ffffff),
-    inset 0 0 0 3px var(--tc-bord),
-    inset 0 0 0 4px rgba(0, 0, 0, 0.5);
-}
-/* La commune est la carte de tous les jours : un argent sourd, pas un chrome. */
-.cj.tc-commune { --tc-bord: #8d97a3; }
-/* La légendaire : le cadre arc-en-ciel des cartes de match, par un anneau
-   masqué — deux ou trois cartes par saison, le masque ne se paie que là. */
-.cj.tc-legendaire::before {
-  padding: 3px; box-shadow: none;
-  background: conic-gradient(from 210deg, #ff7aa8, #ffd66e, #7cffc4, #74c8ff, #c08bff, #ff7aa8);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-}
-
-/* (3) Le reflet : une bande de lumière qui traverse la carte en diagonale,
-   une fois toutes les sept secondes. Chaque carte part à son heure
-   (`--cj-decal`, posé par la position dans la colonne) : trente cartes qui
-   brillent ensemble se lisent comme un clignotement, pas comme du foil. */
-.cj.tc-rare::after, .cj.tc-legendaire::after {
-  content: ''; position: absolute; top: 0; bottom: 0; left: -70%; width: 50%; z-index: 2; pointer-events: none;
-  background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.04) 30%, rgba(255, 255, 255, 0.24) 50%, rgba(255, 255, 255, 0.05) 62%, transparent 80%);
-  transform: translateX(0) skewX(-16deg);
-  animation: cj-reflet 7s ease-in-out infinite;
-  animation-delay: var(--cj-decal, 0s);
-}
-@keyframes cj-reflet {
-  0%, 55% { transform: translateX(0) skewX(-16deg); }
-  100% { transform: translateX(460%) skewX(-16deg); }
-}
-.pool-col-cards > .cj:nth-child(3n + 2), .pool > .cj:nth-child(3n + 2), .line-slots > .cj:nth-child(3n + 2) { --cj-decal: -2.3s; }
-.pool-col-cards > .cj:nth-child(3n + 3), .pool > .cj:nth-child(3n + 3), .line-slots > .cj:nth-child(3n + 3) { --cj-decal: -4.6s; }
-/* Une carte qu'on ne peut pas prendre ne brille pas : elle est déjà grise. */
-.pcard.cj.locked::after { display: none; }
-@media (prefers-reduced-motion: reduce) {
-  .cj.tc-rare::after, .cj.tc-legendaire::after { animation: none; transform: translateX(170%) skewX(-16deg); opacity: 0.6; }
-}
+/* UNE SEULE ÉCHELLE DE MÉTAUX pour toute la collection (S77) : la rare est
+   d'argent, la légendaire d'or — comme les parallèles des séries de luxe.
+   Avant, la rare de match était dorée et la légendaire violette, et un
+   joueur rare aurait porté l'or d'une carte de match rare. Les pastilles du
+   deck, le dos des cartes au palier et les trous de l'album suivent. */
+.tc-rare { --tc-bord: #e3e9ef; --tc-bord2: #7f8a95; }
+.tc-legendaire { --tc-bord: #ffd76a; --tc-bord2: #9a6f14; }
 
 /* ---------------------------------------------------------------
-   LA CARTE DU VESTIAIRE (`.pcard`)
+   L'INCLINAISON, LE REFLET ET L'HOLOGRAPHIQUE (communs à toutes les cartes)
+   `brancherInclinaison` pose `--mx --my --rx --ry --lueur` sur UNE carte ;
+   `.incline` suit le doigt, `.relache` revient par un ressort, `.gyro`
+   suit le téléphone (rares seulement).
    --------------------------------------------------------------- */
-/* Le carton : un lustre à peine plus clair en haut, comme le vernis d'une
-   carte sous la lampe ; la couleur du club dessous ne change pas. La rare
-   prend un film doré, la légendaire un film arc-en-ciel — sous le texte,
-   jamais assez pour gêner la lecture. */
-.pcard.cj { background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), transparent 42%), var(--team-fond, var(--panel)); }
-.pcard.cj.tc-rare { background: linear-gradient(135deg, rgba(230, 192, 122, 0.16), transparent 45%, rgba(230, 192, 122, 0.08)), var(--team-fond, var(--panel)); }
-.pcard.cj.tc-legendaire { background: linear-gradient(125deg, rgba(255, 122, 168, 0.13), rgba(255, 214, 110, 0.10) 25%, rgba(124, 255, 196, 0.10) 50%, rgba(116, 200, 255, 0.12) 75%, rgba(192, 139, 255, 0.14)), var(--team-fond, var(--panel)); }
-/* L'état ne passe plus par l'anneau (`outline`) : le cadre, peint par-dessus,
-   le couvrirait. C'est le cadre lui-même qui change de métal. */
-.pcard.cj, .pcard.cj:hover, .pcard.cj.signed { outline: 0; }
-.pcard.cj.signed::before {
-  padding: 0; background: none; -webkit-mask: none; mask: none;
-  box-shadow: inset 0 0 0 1px #c9f6de, inset 0 0 0 3px var(--green), inset 0 0 0 4px rgba(0, 0, 0, 0.5);
+.cj:not(.cj-mini), .choix-option.tc, .pcard-full-photo, .cj-verso {
+  transition: --rx 0.65s var(--ressort), --ry 0.65s var(--ressort), --mx 0.5s ease, --my 0.5s ease, --lueur 0.45s ease,
+    --leve 0.25s var(--ressort), --gros 0.25s var(--ressort), box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease, transform 0.18s ease;
 }
-/* Au survol, la carte se soulève et son métal luit — le geste des cartes de match. */
+/* Sous le doigt, la carte SUIT (80 ms) ; au relâcher, seules les propriétés
+   reviennent par le ressort — la transformation se recalcule sur elles, elle
+   ne se lisse pas une deuxième fois. */
+:is(.cj, .choix-option.tc, .pcard-full-photo, .cj-verso).incline { transition-duration: 0.08s, 0.08s, 0.08s, 0.08s, 0.2s, 0.15s, 0.15s, 0.2s, 0.2s, 0.2s, 0s; }
+:is(.cj, .choix-option.tc, .pcard-full-photo, .cj-verso).relache { transition-property: --rx, --ry, --mx, --my, --lueur, --leve, --gros, box-shadow, opacity, filter; }
+:is(.cj, .pcard-full-photo, .cj-verso):is(.incline, .relache, .gyro),
+.choix-option.tc:is(.incline, .relache, .gyro):not([disabled]) {
+  transform: perspective(900px) translateY(var(--leve)) scale(var(--gros)) rotateX(var(--rx)) rotateY(var(--ry));
+}
+/* La carte qu'on tient se soulève (la « petite secousse » des jeux de cartes). */
+.cj.incline { --leve: -3px; box-shadow: 0 14px 26px rgba(0, 0, 0, 0.5); z-index: 2; }
+.pcard-full-photo.incline, .cj-verso.incline { --gros: 1.02; }
 @media (hover: hover) {
-  .pcard.cj:not(.locked):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5), 0 0 18px color-mix(in srgb, var(--tc-bord) 38%, transparent);
-  }
+  .choix-option.tc.incline:not([disabled]) { --leve: -12px; --gros: 1.05; box-shadow: 0 22px 40px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--tc-bord), 0 0 28px color-mix(in srgb, var(--tc-bord) 45%, transparent); }
 }
-/* LA FENÊTRE DU PORTRAIT. Le petit carré gris devient la photo de la carte :
-   le fond aux couleurs du club, la trame des illustrations de carte de match,
-   un filet du métal de la rareté — et elle prend TOUTE la hauteur du corps
-   (`stretch`), donc un portrait en hauteur au lieu d'un timbre, sans grandir
-   la carte d'un pixel. */
+@media (hover: none) {
+  .choix-option.tc.incline:not([disabled]) { --leve: -5px; --gros: 1.02; }
+}
+/* LE REFLET : une tache de lumière qui suit le doigt, créée seulement sur la
+   carte qu'on penche (ou qui brille). En `soft-light`, il éclaire le fond
+   sans jamais blanchir le texte, qui est au-dessus. */
+.cj:is(.incline, .relache, .gyro, .cj-lustre):not(.cj-mini)::after {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.14) 22%, transparent 55%);
+  mix-blend-mode: soft-light; opacity: var(--lueur);
+}
+/* L'HOLOGRAPHIQUE : l'arc-en-ciel en `color-dodge`, qui brûle les hautes
+   lumières comme une vraie feuille holographique. Il bouge avec le doigt ;
+   au repos, il miroite tout seul, lentement. */
+.cj-holo, .tc-holo {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; overflow: hidden;
+  background: var(--arc); background-size: 400% 400%;
+  background-position: var(--mx) var(--my);
+  mix-blend-mode: color-dodge; opacity: 0.2;
+  animation: cj-miroite 7s ease-in-out infinite alternate;
+}
+:is(.incline, .gyro) > .cj-holo, :is(.incline, .gyro) .cj-fenetre > .cj-holo, .tc:is(.incline, .gyro) > .tc-holo {
+  animation: none; opacity: calc(0.22 + 0.4 * var(--lueur));
+}
+@keyframes cj-miroite { from { background-position: 0% 20%; } to { background-position: 100% 80%; } }
+/* La légendaire a ses paillettes, qui scintillent. */
+.tc-legendaire > .cj-holo::after, .tc-legendaire .cj-fenetre > .cj-holo::after, .tc-legendaire > .tc-holo::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 0.9px, transparent 1.4px) 0 0 / 13px 11px,
+    radial-gradient(circle, rgba(255, 250, 220, 0.9) 0 0.8px, transparent 1.3px) 6px 5px / 17px 19px;
+  animation: cj-scintille 1.8s steps(2, jump-none) infinite;
+}
+@keyframes cj-scintille { from { opacity: 0.25; } to { opacity: 0.9; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cj-holo, .tc-holo, .tc-holo::after, .cj-holo::after { animation: none !important; }
+  :is(.cj, .choix-option.tc, .pcard-full-photo, .cj-verso) { transition: none; }
+}
+/* PENDANT QU'UNE LISTE DÉFILE, LES MIROITEMENTS SE FIGENT (`html.cj-defile`,
+   posé par `brancherInclinaison`) : mesuré au processeur ralenti ×4 sur
+   trois cents cartes, 43 ms par image avec, 18 sans — l'œil suit la liste. */
+.cj-defile .cj-holo, .cj-defile .cj-holo::after, .cj-defile .tc-holo, .cj-defile .tc-holo::after,
+.cj-defile .pcard-head::after, .cj-defile .cj-bandeau::after, .cj-defile .tc-art::after { animation-play-state: paused !important; }
+
+/* ---------------------------------------------------------------
+   LA GEMME : un à trois diamants (js/cartes.js, `RARETES`), la légendaire
+   en or. Même glyphe sur une carte de joueur et une carte de match.
+   --------------------------------------------------------------- */
+.cj-gemme, .tc-gemme { font-size: 8.5px; letter-spacing: -0.5px; line-height: 1; white-space: nowrap; }
+.tc-commune :is(.cj-gemme, .tc-gemme) { color: #8b8474; }
+.tc-peu :is(.cj-gemme, .tc-gemme) { color: #3fb0d6; }
+.tc-rare :is(.cj-gemme, .tc-gemme) { color: #e8edf2; text-shadow: 0 0 4px rgba(255, 255, 255, 0.6); }
+.tc-legendaire :is(.cj-gemme, .tc-gemme) { color: #ffd76a; text-shadow: 0 0 5px rgba(255, 200, 80, 0.8); }
+
+/* =================================================================
+   LA CARTE DU VESTIAIRE (`.pcard`) — LE CARTON
+   ================================================================= */
+.pcard.cj-carton {
+  gap: 3px;
+  background: var(--grain), linear-gradient(176deg, #f7f0e0 0%, var(--carton) 45%, var(--carton-2) 100%);
+  outline: 0;
+}
+/* Le bord découpé : un filet plus sombre au pourtour, comme la tranche d'un carton. */
+.pcard.cj-carton::before {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(60, 45, 20, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.7);
+}
+/* Le bandeau passe sur le carton : l'encre est celle de l'imprimeur. */
+.pcard.cj-carton .pcard-band {
+  position: relative; z-index: 2; background: transparent; color: var(--encre); box-shadow: none;
+  height: 31px; padding: 0 9px 0 8px; gap: 6px;
+}
+/* LE PANNEAU : la couleur du club, en retrait de quatre pixels du bord crème,
+   cerné de sa couleur secondaire — le cadre intérieur d'une carte de 1985. */
+.pcard.cj-carton .pcard-inner {
+  position: relative; z-index: 2; margin: 0 4px 4px;
+  padding-left: 8px; padding-right: 8px;
+  border-radius: 9px 9px calc(var(--r-m) - 4px) calc(var(--r-m) - 4px);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.08), transparent 38%), var(--team-fond, var(--panel));
+  box-shadow: 0 0 0 2px var(--team-stripe, var(--blue)), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.pcard.cj-carton .pcard-inner > .btn-sign {
+  margin: 0 -8px; width: calc(100% + 16px);
+  border-radius: 0 0 calc(var(--r-m) - 4px) calc(var(--r-m) - 4px);
+}
+/* LE FANION DU CLUB, à queue d'aronde, dans la couleur du club. */
+.pcard.cj-carton .pb-team {
+  flex: 0 1 auto; min-width: 0; overflow: hidden;
+  padding: 3px 15px 3px 7px; margin-left: 1px;
+  background: var(--team-band, #243044); color: var(--team-ink, #fff);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0 100%);
+  box-shadow: inset 0 -2px 0 var(--team-stripe, transparent);
+  font-size: 10.5px; letter-spacing: 0.09em;
+}
+/* LE POSTE DANS UNE RONDELLE : noire, lustrée sur le dessus, cerclée de la
+   couleur du poste (bleu attaquant, violet défenseur, ambre gardien). */
+.pcard.cj-carton .pb-pos, .cj-rondelle {
+  display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px;
+  background: radial-gradient(120% 90% at 50% 18%, #44444a, #0c0c0f 64%); color: #fff;
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.22), inset 0 -2px 0 rgba(0, 0, 0, 0.6), 0 0 0 1.5px var(--rondelle, #6f93e6), 0 1px 2px rgba(0, 0, 0, 0.35);
+  font-size: 10px; letter-spacing: 0.04em;
+}
+:is(.pb-pos, .cj-rondelle).pos-f { --rondelle: #6f93e6; }
+:is(.pb-pos, .cj-rondelle).pos-d { --rondelle: #a78bfa; }
+:is(.pb-pos, .cj-rondelle).pos-g { --rondelle: #e0a93a; }
+.pcard.cj-carton .pb-pos.off { opacity: 0.7; }
+/* LE MILLÉSIME : l'année à l'encre rouge, dans un cartouche, comme la série d'une vraie carte. */
+.pcard.cj-carton .pcard-band .pb-season {
+  flex: none; background: none; box-shadow: none; opacity: 1;
+  color: var(--encre-rouge); border: 1.5px solid currentColor; border-radius: 3px; padding: 0 4px;
+  font-style: italic; font-weight: 800; letter-spacing: 0.02em;
+}
+.pcard.cj-carton .pcard-band .cj-gemme { margin-left: auto; flex: none; }
+.pcard.cj-carton .pcard-band .cj-gemme + .pb-season { margin-left: 0; }
+/* Signée : le fanion et le cadre intérieur passent au vert. */
+.pcard.cj-carton.signed .pcard-inner { box-shadow: 0 0 0 2px var(--green), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+/* LA FENÊTRE DE LA PHOTO, cerclée de la couleur secondaire. */
 .pcard.cj .pcard-avatar:not(.slot-face) {
-  align-self: stretch; height: auto; min-height: 46px; border-radius: 9px;
+  align-self: stretch; height: auto; min-height: 46px; border-radius: 7px; overflow: hidden;
   background:
     repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 5px, transparent 5px 10px),
     radial-gradient(130% 85% at 50% 18%, color-mix(in srgb, var(--team-band, #2a3140) 88%, #ffffff), color-mix(in srgb, var(--team-band, #2a3140) 45%, #05070a) 78%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc-bord) 70%, transparent), 0 2px 7px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--team-stripe, #8d97a3) 80%, transparent), 0 2px 6px rgba(0, 0, 0, 0.45);
 }
-/* Le buste plutôt que le visage seul : la fenêtre est plus haute que large. */
 .pcard.cj .pcard-avatar:not(.slot-face) img { transform: scale(1.08); transform-origin: 50% 0; object-position: 50% 0; }
-/* La main du loto garde son carré : sa carte tient sur une ligne. */
-#panePool.loto .pcard.cj .pcard-avatar { align-self: center; }
-/* LA GEMME, en bout de bandeau devant la plaque de la saison. Posée dans une
-   pastille sombre : une étoile d'or sur le bandeau d'or de Boston
-   disparaîtrait. */
-.pcard-band .cj-gemme {
-  flex: none; margin-left: auto; display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%;
-  font-size: 10.5px; line-height: 1; letter-spacing: 0; color: var(--tc-bord);
-  background: rgba(0, 0, 0, 0.55); box-shadow: 0 0 0 1px color-mix(in srgb, var(--tc-bord) 70%, transparent);
+/* LA PEU COMMUNE CASSE LE CADRE : la tête dépasse la fenêtre par le haut,
+   dessinée devant le filet — le geste des cartes qui veulent sortir de la
+   carte. Les côtés et le bas restent coupés à la fenêtre. */
+.pcard.cj-carton.tc-peu .pcard-avatar:not(.slot-face) { overflow: visible; }
+.pcard.cj-carton.tc-peu .pcard-avatar:not(.slot-face) img {
+  transform: translateY(-7px) scale(1.12); transform-origin: 50% 100%;
+  clip-path: inset(-40% 5% 7px 5% round 0 0 7px 7px);
 }
-.pcard-band .cj-gemme + .pb-season { margin-left: 0; }
-/* La gemme prend une place au bandeau : c'est L'ÉCUSSON qui cède, jamais le
-   poste ni la saison — la couleur du bandeau dit déjà le club. Mesuré dans
-   les six colonnes de 160 px du bureau : sans ça, « 1992-93 » se coupait. */
+#panePool.loto .pcard.cj .pcard-avatar { align-self: center; }
+
+/* =================================================================
+   LA CARTE DU VESTIAIRE — LE LUSTRE (rares, légendaires)
+   ================================================================= */
+.pcard.cj-lustre {
+  outline: 0;
+  background:
+    linear-gradient(170deg, rgba(255, 255, 255, 0.12), transparent 30%),
+    radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--team-band, #2a3140) 55%, transparent), transparent 65%),
+    var(--team-fond, var(--panel));
+}
+/* LE CADRE DE MÉTAL, peint par-dessus : argent pour une rare, or brossé
+   pour une légendaire, et un anneau masqué (quatre pixels) pour ne couvrir
+   que le bord. */
+.cj-lustre:not(.pcard-full-head)::before {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
+  padding: 4px; background: var(--argent);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  box-shadow: none;
+}
+.cj-lustre.tc-legendaire:not(.pcard-full-head)::before {
+  background: conic-gradient(from 210deg, #fff1b8, #d4a017, #ff9ec2, #fff6d6, #8fe3ff, #b8860b, #ffe08a, #fff1b8);
+}
+.pcard.cj-lustre.signed::before { background: linear-gradient(115deg, #2f9e6a, #b6f5d4 40%, #2f9e6a 70%, #8fe0b8); }
+.pcard.cj-lustre .pcard-band {
+  position: relative; z-index: 2;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 70%), var(--team-band, var(--neutre-eq));
+  padding-left: 12px; padding-right: 12px;
+}
+.pcard.cj-lustre .pcard-inner { position: relative; z-index: 2; }
+/* LA PHOTO TOUCHE LE CADRE : la fenêtre sort de sa marge vers le bord gauche
+   et monte jusqu'au bandeau. La grille ne bouge pas. */
+.pcard.cj-lustre .pcard-avatar:not(.slot-face) {
+  margin: -16px 0 0 -7px; width: calc(100% + 7px); border-radius: 0 8px 8px 0;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.35), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+.pcard.cj-lustre .pcard-avatar:not(.slot-face)::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: var(--arc); background-size: 400% 400%; background-position: var(--mx) var(--my);
+  mix-blend-mode: color-dodge; opacity: calc(0.16 + 0.35 * var(--lueur));
+}
+/* LA PLAQUE ESTAMPÉE : le nom et le salaire sur une feuille d'argent (d'or
+   pour une légendaire), à l'encre noire, et un reflet qui passe. Les marges
+   négatives rendent exactement le rembourrage : la carte ne grandit pas. */
+.pcard.cj-lustre .pcard-head {
+  position: relative; overflow: hidden; isolation: isolate;
+  margin: -3px -3px 0 -2px; padding: 2px 5px 1px 4px; border-radius: 5px;
+  background: var(--argent); color: #111418;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 0 rgba(0, 0, 0, 0.3), 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+.pcard.cj-lustre.tc-legendaire .pcard-head { background: var(--or); }
+/* Le reflet qui passe sur la plaque : la LÉGENDAIRE seulement, au vestiaire
+   (la rare brille déjà par son holographique). Mesuré : cent vingt plaques
+   animées à la fois coûtaient autant que tout l'holographique. */
+.pcard.cj-lustre.tc-legendaire .pcard-head::after, .pcard.cj-lustre.incline .pcard-head::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; z-index: -1; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+  transform: skewX(-18deg);
+  animation: cj-estampe 5s ease-in-out infinite;
+}
+@keyframes cj-estampe { 0%, 62% { transform: translateX(0) skewX(-18deg); } 100% { transform: translateX(560%) skewX(-18deg); } }
+.pcard.cj-lustre .pcard-head .fname { color: #3b4047; }
+.pcard.cj-lustre .pcard-head .lname, .pcard.cj-lustre .pcard-head .pcard-price { color: #0c0e11; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); }
+.pcard.cj-lustre.tc-legendaire .pcard-head .fname { color: #5a4210; }
+.pcard.cj-lustre .pcard-band .cj-gemme { margin-left: auto; flex: none; padding: 2px 4px; border-radius: 3px; background: rgba(0, 0, 0, 0.5); }
+.pcard.cj-lustre .pcard-band .cj-gemme + .pb-season { margin-left: 0; }
+@media (prefers-reduced-motion: reduce) { .pcard.cj-lustre .pcard-head::after { animation: none; opacity: 0; } }
+
+/* Les tampons de la photo : « Recrue » (argent, en biais) et le tirage limité. */
+.cj-tampon {
+  position: absolute; z-index: 2; top: 4px; left: -3px; padding: 2px 5px 2px 4px;
+  font: 800 7.5px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+  color: #15181c; background: var(--argent); transform: rotate(-9deg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.cj-serie {
+  position: absolute; z-index: 2; right: 2px; bottom: 2px; padding: 2px 3px; border-radius: 3px;
+  font: 800 8.5px/1 var(--display); letter-spacing: 0.04em; color: #3a2a05; background: var(--or);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Colonnes étroites (six colonnes au bureau) : la photo s'efface déjà
+   (plus haut, « COLONNE ÉTROITE »). Le bandeau se resserre, et c'est
+   l'écusson du fanion qui cède — jamais le poste, la gemme ni l'année. */
 .pcard.cj .pcard-band .pb-pos, .pcard.cj .pcard-band .pb-season { flex: none; }
 .pcard.cj .pcard-band .pb-team { flex: 0 1 auto; min-width: 0; overflow: hidden; }
-/* Et dans une colonne de 160 px, « AG / AD », la gemme et « 1992-93 »
-   demandaient 173 px avec les marges : l'écusson s'efface pour de bon quand
-   il y a une gemme, et le bandeau se resserre. */
+/* Le bord crème prend quatre pixels de chaque côté : le panneau les rend à
+   son rembourrage, sinon les étiquettes passaient à la ligne de plus et la
+   carte grandissait d'une rangée (mesuré : 231 px au lieu de 219). */
+@container col (max-width: 235px) {
+  .pcard.cj-carton .pcard-inner { padding-left: 4px; padding-right: 4px; }
+  .pcard.cj-carton .pcard-inner > .btn-sign { margin: 0 -4px; width: calc(100% + 8px); }
+}
+/* Dans 160 px, « AG / AD », trois diamants et « 1992-93 » demandaient 167 px :
+   la rondelle et la gemme se resserrent, l'écusson du fanion reste seul. */
 @container col (max-width: 200px) {
-  .pcard.cj .pcard-band { gap: 4px; padding-left: 9px; padding-right: 9px; }
-  .pcard.cj .pcard-band:has(.cj-gemme) .pb-team { display: none; }
+  .pcard.cj .pcard-band { gap: 4px; padding-left: 7px; padding-right: 7px; }
+  .pcard.cj .pcard-band .pb-team > span { display: none; }
+  .pcard.cj-carton .pb-team { padding-right: 12px; }
+  .pcard.cj-carton .pb-pos { padding: 0 5px; }
+  .pcard.cj .pcard-band .cj-gemme { font-size: 7px; letter-spacing: -1px; padding: 1px 2px; }
 }
-/* La plaque de la saison : un tampon en relief, comme l'année d'une série. */
-.pcard.cj .pcard-band .pb-season { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.3); }
-/* Le bandeau passe SOUS le cadre : son texte recule d'un pixel pour ne pas
-   frôler le métal. */
-.pcard.cj .pcard-band { padding-left: 12px; padding-right: 12px; }
 
-/* ---------------------------------------------------------------
+/* =================================================================
    LA CASE DE L'ALIGNEMENT, DU BANC ET DES RÉSERVISTES (`.slot`)
-   Une case de 106 px : le cadre y est plus mince (trois pixels), et le
-   visage devient une fenêtre de portrait en hauteur. Aucune rangée ne
-   bouge : la ligne des étiquettes reste où `smoke.mjs` la lit.
-   --------------------------------------------------------------- */
-.slot.cj::before {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--tc-bord) 55%, #ffffff),
-    inset 0 0 0 2px var(--tc-bord),
-    inset 0 0 0 3px rgba(0, 0, 0, 0.5);
-}
-.slot.cj.tc-legendaire::before { padding: 2px; box-shadow: none; }
+   Une case de 106 px : le bord et le cadre se peignent, rien ne bouge. La
+   ligne des étiquettes reste où `smoke.mjs` la lit.
+   ================================================================= */
 .slot.cj { background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), transparent 45%), var(--slot-fond, var(--panel-0)); }
-.slot.cj.tc-rare { background: linear-gradient(135deg, rgba(230, 192, 122, 0.15), transparent 50%), var(--slot-fond, var(--panel-0)); }
-.slot.cj.tc-legendaire { background: linear-gradient(125deg, rgba(255, 122, 168, 0.12), rgba(255, 214, 110, 0.09) 30%, rgba(124, 255, 196, 0.09) 55%, rgba(192, 139, 255, 0.13)), var(--slot-fond, var(--panel-0)); }
-/* LA CASE CHOISIE SE SOULÈVE. Son trait blanc d'avant se collait au cadre
-   d'argent d'une commune et se lisait comme un cadre un peu plus épais :
-   mesuré à l'écran, on ne voyait plus quelle carte on tenait. Le cadre prend
-   la couleur du choix (`--ui-accent`, fixe), la carte monte de deux pixels
-   et luit — une carte qu'on a prise dans la main. */
+/* Le carton : un bord crème de trois pixels et le filet du club dedans. */
+.slot.cj-carton::before {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
+  box-shadow: inset 0 0 0 3px var(--carton), inset 0 0 0 4.5px var(--slot-stripe, #8d97a3), inset 0 0 0 5px rgba(0, 0, 0, 0.35);
+}
+.slot.cj-carton .slot-band { padding-top: 5px; padding-left: 9px; padding-bottom: 4px; }
+.slot.cj-lustre .slot-band { padding-left: 9px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 70%), var(--slot-band, var(--neutre-eq)); }
+.slot.cj-lustre::before { padding: 3px; }
+.slot.cj-lustre.tc-rare { background: linear-gradient(135deg, rgba(230, 236, 242, 0.14), transparent 50%), var(--slot-fond, var(--panel-0)); }
+.slot.cj-lustre.tc-legendaire { background: linear-gradient(125deg, rgba(255, 122, 168, 0.12), rgba(255, 214, 110, 0.10) 30%, rgba(124, 255, 196, 0.09) 55%, rgba(192, 139, 255, 0.13)), var(--slot-fond, var(--panel-0)); }
+.slot.cj > :not(.cj-holo) { position: relative; z-index: 2; }
+.slot.cj .slot-remove { position: absolute; z-index: 4; }
+.slot.cj .slot-face {
+  position: relative; height: 48px; border-radius: 6px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 4px, transparent 4px 8px),
+    radial-gradient(130% 85% at 50% 18%, color-mix(in srgb, var(--slot-band, #2a3140) 88%, #ffffff), color-mix(in srgb, var(--slot-band, #2a3140) 45%, #05070a) 78%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--slot-stripe, #8d97a3) 80%, transparent);
+}
+.slot.cj .slot-face img { transform: scale(1.1); transform-origin: 50% 0; object-position: 50% 0; }
+.slot.cj-lustre .slot-face::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: var(--arc); background-size: 400% 400%; background-position: var(--mx) var(--my);
+  mix-blend-mode: color-dodge; opacity: calc(0.18 + 0.35 * var(--lueur));
+}
+.slot-face .cj-gemme {
+  position: absolute; right: 1px; bottom: 1px; z-index: 1; padding: 1px 2px; border-radius: 3px;
+  font-size: 7px; background: rgba(0, 0, 0, 0.72);
+}
+/* LA CASE CHOISIE SE SOULÈVE, cadre blanc (`--ui-accent`, fixe) : on voit
+   quelle carte on tient dans la main. */
 .slot.cj.selected::before {
   padding: 0; background: none; -webkit-mask: none; mask: none;
   box-shadow: inset 0 0 0 1px #ffffff, inset 0 0 0 3px var(--ui-accent), inset 0 0 0 4px rgba(0, 0, 0, 0.5);
 }
-.slot.cj.selected {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), 0 0 14px color-mix(in srgb, var(--ui-accent) 45%, transparent);
+.slot.cj.selected { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), 0 0 14px color-mix(in srgb, var(--ui-accent) 45%, transparent); }
+/* LA CARTE QU'ON VIENT DE SIGNER ARRIVE : elle se pose et luit une fois. */
+.slot.cj.cj-arrive { animation: cj-arrive 0.9s var(--ressort); }
+@keyframes cj-arrive {
+  0% { transform: translateY(-10px) scale(0.9) rotate(-2deg); box-shadow: 0 0 0 0 rgba(255, 214, 110, 0.8); }
+  45% { transform: translateY(0) scale(1.04) rotate(0.5deg); box-shadow: 0 0 0 6px rgba(255, 214, 110, 0.35); }
+  100% { transform: none; box-shadow: 0 0 0 12px rgba(255, 214, 110, 0); }
 }
-/* Le ✕ passe par-dessus le cadre : c'est une commande, pas un décor. */
-.slot.cj .slot-remove { z-index: 4; }
-.slot.cj .slot-band { padding-left: 9px; }
-.slot.cj .slot-face {
-  position: relative; height: 48px; border-radius: 7px;
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 4px, transparent 4px 8px),
-    radial-gradient(130% 85% at 50% 18%, color-mix(in srgb, var(--slot-band, #2a3140) 88%, #ffffff), color-mix(in srgb, var(--slot-band, #2a3140) 45%, #05070a) 78%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc-bord) 70%, transparent);
+@media (prefers-reduced-motion: reduce) { .slot.cj.cj-arrive { animation: none; } }
+
+/* LA VIGNETTE QUI FILE AU CARTABLE (`voleAuCartable`). */
+.cj-vole {
+  position: fixed; z-index: 90; width: 46px; height: 62px; border-radius: 6px; overflow: hidden; pointer-events: none;
+  border: 3px solid var(--carton); background: #1a1f28; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+  animation: cj-vole 0.75s cubic-bezier(0.45, -0.25, 0.6, 1) forwards;
 }
-.slot.cj .slot-face img { transform: scale(1.1); transform-origin: 50% 0; object-position: 50% 0; }
-/* La gemme de la case : au coin du portrait, comme le sceau d'une série. */
-.slot-face .cj-gemme {
-  position: absolute; right: 1px; bottom: 1px; z-index: 1; display: grid; place-items: center; width: 13px; height: 13px; border-radius: 50%;
-  font-size: 8.5px; line-height: 1; color: var(--tc-bord); background: rgba(0, 0, 0, 0.72);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tc-bord) 70%, transparent);
+.cj-vole.tc-rare { border-color: #e6ebf0; }
+.cj-vole.tc-legendaire { border-color: #ffd76a; }
+.cj-vole img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.cj-vole .headshot-fallback { display: grid; place-items: center; height: 100%; font-size: 22px; opacity: 0.5; }
+@keyframes cj-vole {
+  0% { transform: none; opacity: 1; }
+  24% { transform: translateY(-16px) scale(1.3) rotate(-7deg); opacity: 1; }
+  100% { transform: translate(var(--vx), var(--vy)) scale(0.4) rotate(12deg); opacity: 0.15; }
 }
 
-/* ---------------------------------------------------------------
-   LA FICHE : LE RECTO DE LA CARTE (`.pcard-full-head`)
-   La tête de la fiche devient la carte elle-même, posée dans la feuille :
-   un cadre arrondi à la rareté, le portrait dans une fenêtre aux couleurs du
-   club, l'écusson en filigrane derrière lui, et un pied de série qui dit la
-   rareté en mots. Les statistiques dessous en sont le verso.
-   --------------------------------------------------------------- */
-.pcard-full-head.cj {
-  margin: 10px 10px 0; padding: 14px 14px 0; border-radius: 18px; border-bottom: 0;
+/* =================================================================
+   LA FICHE : LE RECTO, PUIS LE VERSO
+   La PHOTO est la carte (`.pcard-full-photo`) : c'est elle qui se penche.
+   Au téléphone elle prend la largeur, au bureau elle se tient debout à
+   gauche des renseignements, au format d'une carte.
+   ================================================================= */
+.fiche-carte { position: relative; margin: 10px 10px 0; }
+.fiche-carte .pcard-full-head.cj {
+  margin: 0; padding: 12px 12px 0; border-radius: 18px; border-bottom: 0; overflow: visible;
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.07), transparent 40%),
-    color-mix(in srgb, var(--card-primary, var(--neutre-eq)) 40%, #0a0b0e);
+    linear-gradient(160deg, rgba(255, 255, 255, 0.06), transparent 40%),
+    color-mix(in srgb, var(--card-primary, var(--neutre-eq)) 34%, #0a0b0e);
 }
-.pcard-full-head.cj.tc-rare { background: linear-gradient(135deg, rgba(230, 192, 122, 0.16), transparent 45%, rgba(230, 192, 122, 0.08)), color-mix(in srgb, var(--card-primary, var(--neutre-eq)) 40%, #0a0b0e); }
-.pcard-full-head.cj.tc-legendaire { background: linear-gradient(125deg, rgba(255, 122, 168, 0.13), rgba(255, 214, 110, 0.10) 25%, rgba(124, 255, 196, 0.10) 50%, rgba(116, 200, 255, 0.12) 75%, rgba(192, 139, 255, 0.14)), color-mix(in srgb, var(--card-primary, var(--neutre-eq)) 40%, #0a0b0e); }
-.pcard-full-head.cj::before {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--tc-bord) 55%, #ffffff),
-    inset 0 0 0 4px var(--tc-bord),
-    inset 0 0 0 5px rgba(0, 0, 0, 0.5);
+.fiche-carte .pcard-full-head.cj::before, .fiche-carte .pcard-full-head.cj::after { content: none; }
+.fiche-carte .pcard-full-head .pcard-full-top { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+/* LA CARTE (la photo) : son cadre, sa fenêtre, son bandeau. */
+.fiche-carte .pcard-full-photo {
+  position: relative; isolation: isolate; align-self: stretch; width: auto; height: auto; display: flex; flex-direction: column;
+  align-items: stretch; justify-content: flex-start;   /* la base pose `place-items: end center` : la fenêtre tombait à 0 px */
+  padding: 8px 8px 0; border-radius: 12px; touch-action: pan-y; cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
-.pcard-full-head.cj.tc-legendaire::before { padding: 4px; box-shadow: none; }
-/* Le reflet d'une fiche est plus lent : on la lit, on ne la balaie pas. */
-.pcard-full-head.cj.tc-rare::after, .pcard-full-head.cj.tc-legendaire::after { animation-duration: 9s; }
-/* LA FENÊTRE DU PORTRAIT, en haut de la carte : au téléphone elle prend la
-   largeur, le nom vient dessous — l'ordre d'une vraie carte. L'écusson du
-   club est le filigrane de la fenêtre. */
-.pcard-full-head.cj .pcard-full-top { flex-direction: column; align-items: stretch; gap: 10px; }
-.pcard-full-head.cj .pcard-full-photo {
-  position: relative; align-self: stretch; width: auto; height: 158px; border-radius: 12px; overflow: hidden;
+.cj-carton .pcard-full-photo { background: var(--grain), linear-gradient(176deg, #f7f0e0, var(--carton) 45%, var(--carton-2)); }
+.cj-lustre .pcard-full-photo { padding: 6px 6px 0; background: var(--argent); }
+.cj-lustre.tc-legendaire .pcard-full-photo { background: conic-gradient(from 210deg, #fff1b8, #d4a017, #ff9ec2, #fff6d6, #8fe3ff, #b8860b, #ffe08a, #fff1b8); }
+/* Le reflet de la carte : sous le bandeau du nom (z-index 3), jamais sur lui. */
+.pcard-full-photo::after {
+  content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.1) 25%, transparent 55%);
+  mix-blend-mode: soft-light; opacity: var(--lueur);
+}
+/* LA FENÊTRE : le fond du club, la trame, l'écusson en filigrane derrière le joueur. */
+.cj-fenetre {
+  position: relative; overflow: hidden; height: 176px; border-radius: 6px;
   background:
     repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 7px, transparent 7px 14px),
     radial-gradient(90% 110% at 50% 100%, color-mix(in srgb, var(--team-band, var(--card-primary)) 90%, #ffffff), color-mix(in srgb, var(--team-band, var(--card-primary)) 40%, #05070a) 80%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc-bord) 70%, transparent), 0 4px 14px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 2px var(--team-stripe, rgba(255, 255, 255, 0.4));
 }
-/* LE BUSTE, PAS LE VISAGE EN GROS PLAN. La fenêtre du téléphone est en
-   largeur (336 × 158) : un portrait carré qui la couvre ne montre plus que
-   les yeux et le nez. On le pose à une fois et demie la hauteur de la
-   fenêtre, en haut, et ses deux bords se fondent dans le fond du club — les
-   vieux portraits de la LNH ont leur propre fond de studio, et un carré net
-   posé au milieu se lisait comme une photo collée. */
-.pcard-full-head.cj .pcard-full-photo > img {
-  inset: 0 auto auto 50%; width: auto; height: 150%; aspect-ratio: 1; transform: translateX(-50%); object-fit: cover;
+.cj-lustre .cj-fenetre { border-radius: 7px 7px 0 0; box-shadow: none; }
+/* Le buste à une fois et demie la hauteur, les bords fondus dans le fond du club. */
+.cj-fenetre > img {
+  position: absolute; inset: 0 auto auto 50%; width: auto; height: 150%; aspect-ratio: 1; transform: translateX(-50%); object-fit: cover;
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
   mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
 }
-.pcard-full-head.cj .pcard-full-photo .headshot-fallback { margin: 0 auto 10px; }
-/* L'écusson du club est le fond de la photo, DERRIÈRE le joueur (il vit dans
-   la fenêtre, avant le portrait) : sur la tête entière, il passait sous le
-   nom et le salaire. */
-.pcard-full-photo .pcard-full-watermark { top: 50%; right: auto; left: 50%; transform: translate(-50%, -58%); opacity: 0.2; }
-/* Le portrait de la fiche est une image absolue (plus haut) : l'écusson, image lui aussi, n'en hérite pas. */
-.pcard-full-photo .pcard-full-watermark img { position: static; inset: auto; width: 128px; height: 128px; transform: none; object-fit: contain; }
-.pcard-full-head.cj .pcard-full-id { padding-bottom: 4px; }
-/* Au bureau, la fenêtre revient à gauche du nom : la feuille est assez large. */
-@media (min-width: 560px) {
-  .pcard-full-head.cj .pcard-full-top { flex-direction: row; align-items: flex-start; gap: 14px; }
-  .pcard-full-head.cj .pcard-full-photo { flex: none; align-self: flex-start; width: 150px; height: 188px; }
-  /* La fenêtre est en hauteur : le portrait la couvre, cadré en haut, sans fondu. */
-  .pcard-full-head.cj .pcard-full-photo > img { inset: 0; width: 100%; height: 100%; transform: none; object-position: 50% 0; -webkit-mask-image: none; mask-image: none; }
-  .pcard-full-photo .pcard-full-watermark svg, .pcard-full-photo .pcard-full-watermark img { width: 110px; height: 110px; }
+.cj-fenetre > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 72px; opacity: 0.35; }
+.cj-fenetre .pcard-full-watermark { position: absolute; top: 50%; left: 50%; right: auto; transform: translate(-50%, -56%); opacity: 0.2; pointer-events: none; }
+.cj-fenetre .pcard-full-watermark :is(img, svg) { position: static; width: 128px; height: 128px; transform: none; object-fit: contain; -webkit-mask-image: none; mask-image: none; }
+/* 1985 : le haut de la fenêtre ONDULE — des festons crèmes qui mordent la photo. */
+.cj-carton .cj-fenetre::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 9px; z-index: 3;
+  background: radial-gradient(circle at 50% 0, var(--carton) 5.5px, transparent 6px) 0 0 / 15px 9px repeat-x;
 }
-/* Le pied du recto : la série et la rareté, comme le pied d'une carte de match. */
-.cj-plaque {
-  position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  margin: 10px 0 0; padding: 8px 2px 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font: 700 10.5px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+/* L'écusson dans un coin, sur une pastille crème (le carton) ou de métal (le lustre). */
+.cj-coin-logo {
+  position: absolute; z-index: 3; top: 12px; left: 8px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--carton); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 0 0 2px var(--team-stripe, #8d97a3);
+}
+.cj-coin-logo :is(img, svg) { position: static; width: 24px; height: 24px; transform: none; -webkit-mask-image: none; mask-image: none; object-fit: contain; }
+.cj-lustre .cj-coin-logo { top: 8px; background: rgba(0, 0, 0, 0.55); box-shadow: 0 0 0 1.5px #e6ebf0; }
+.cj-lustre .cj-fenetre .pcard-full-watermark { display: none; }
+/* Sur la fiche, le visage est grand : l'holographique y reste un voile, même
+   penché (au plus 0,42) — un visage arc-en-ciel ne se reconnaît plus. */
+.cj-fenetre > .cj-holo { z-index: 2; opacity: 0.2; }
+:is(.incline, .gyro, .relache) .cj-fenetre > .cj-holo { opacity: calc(0.2 + 0.22 * var(--lueur)); }
+/* Le tampon descend sous le coin droit : le ✕ de la fiche s'y pose. */
+.cj-fenetre .cj-tampon { top: 40px; left: auto; right: -6px; padding: 4px 16px 4px 12px; font-size: 11px; transform: rotate(10deg); }
+.cj-fenetre .cj-vedette { background: var(--or); color: #3a2a05; }
+.cj-fenetre .cj-serie { right: 8px; bottom: 8px; padding: 3px 6px; font-size: 12px; }
+/* LE BANDEAU DU NOM, au bas de la carte : la rondelle du poste et le nom en
+   condensée grasse. Sur le carton, une barre aux couleurs du club posée sur
+   le bord crème ; sur le lustre, une plaque estampée qui mord la photo. */
+.cj-bandeau {
+  position: relative; z-index: 3; display: flex; align-items: center; gap: 9px;
+  margin: 8px 0 10px; padding: 6px 10px 6px 6px; border-radius: 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 60%), var(--team-band, #243044); color: var(--team-ink, #fff);
+  box-shadow: inset 0 -3px 0 var(--team-stripe, transparent), 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+.cj-lustre .cj-bandeau {
+  margin: -22px 8px 10px; background: var(--argent); color: #0c0e11; overflow: hidden; isolation: isolate;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+.cj-lustre.tc-legendaire .cj-bandeau { background: var(--or); }
+.cj-lustre .cj-bandeau::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; z-index: -1; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  transform: skewX(-18deg); animation: cj-estampe 5s ease-in-out infinite;
+}
+.cj-bandeau .cj-rondelle { flex: none; min-width: 30px; height: 30px; font-size: 11.5px; }
+.cj-bandeau .pcard-full-name { min-width: 0; font-size: 27px; line-height: 0.95; overflow-wrap: anywhere; color: inherit; }
+.cj-bandeau .pcard-full-name .fname { color: inherit; opacity: 0.8; font-size: 13.5px; margin-bottom: 1px; }
+.cj-lustre .cj-bandeau .pcard-full-name .fname { opacity: 1; color: #3b4047; }
+@media (prefers-reduced-motion: reduce) { .cj-lustre .cj-bandeau::after { animation: none; opacity: 0; } }
+/* Les renseignements, sous la carte (au téléphone) ou à côté (au bureau). */
+.fiche-carte .pcard-full-id { padding-bottom: 2px; }
+/* Le pied du recto : la série, le numéro, la rareté en mots, et « Verso ». */
+.fiche-carte .cj-plaque {
+  position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 10px;
+  margin: 10px 0 0; padding: 8px 2px 10px; border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font: 700 10.5px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
 }
 .cj-plaque-rarete { color: var(--tc-bord); white-space: nowrap; }
+.cj-lustre .cj-plaque-rarete { color: #e8edf2; }
+.cj-lustre.tc-legendaire .cj-plaque-rarete { color: #ffd76a; }
+.cj-retourner {
+  min-height: 32px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.35); color: var(--text); cursor: pointer;
+  font: 800 12px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+}
+.cj-retourner:hover { border-color: var(--gold); color: var(--gold); }
+@media (min-width: 560px) {
+  .fiche-carte .pcard-full-head .pcard-full-top { flex-direction: row; align-items: flex-start; gap: 16px; }
+  .fiche-carte .pcard-full-photo { flex: none; width: 200px; align-self: flex-start; }
+  .cj-fenetre { height: 196px; }
+  .cj-fenetre > img { inset: 0; left: 0; width: 100%; height: 100%; transform: none; object-position: 50% 0; -webkit-mask-image: none; mask-image: none; }
+  .cj-bandeau .pcard-full-name { font-size: 22px; }
+}
+
+/* LE VERSO : une carte canadienne des années 80, à l'horizontale, à l'encre
+   rouge et bleue sur un carton saumon. */
+.cj-verso {
+  position: relative; isolation: isolate; margin: 0; padding: 10px 12px 8px; border-radius: 14px; overflow: hidden; touch-action: pan-y;
+  background: var(--grain), linear-gradient(176deg, #f3d3bf, #ebc2aa 60%, #e3b59b);
+  color: var(--encre-rouge);
+  box-shadow: inset 0 0 0 6px var(--carton), inset 0 0 0 7.5px var(--encre-bleue), 0 8px 22px rgba(0, 0, 0, 0.5);
+}
+.cj-verso[hidden] { display: none; }
+/* La bande du haut s'arrête avant le coin droit : le ✕ de la fiche s'y pose. */
+.cjv-tete {
+  display: flex; align-items: center; gap: 8px; margin: 2px 40px 6px 2px; padding: 5px 8px; border-radius: 4px;
+  background: var(--encre-bleue); color: #f7f1e3;
+  font: 800 16px/1.05 var(--display); letter-spacing: 0.04em; text-transform: uppercase;
+}
+.cjv-no {
+  flex: none; display: grid; place-items: center; min-width: 34px; height: 26px; padding: 0 5px; border-radius: 50%;
+  background: var(--encre-rouge); color: #fff; font-size: 14px; letter-spacing: 0;
+}
+.cjv-nom { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cjv-pos { flex: none; font-size: 13px; opacity: 0.85; }
+.cjv-vitales { margin: 0 4px 6px; font: 700 12.5px/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-bleue); }
+.cjv-table-wrap { margin: 0 2px; overflow-x: auto; }
+.cjv-table { width: 100%; border-collapse: collapse; font: 700 13px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+.cjv-table th, .cjv-table td { padding: 3px 4px; text-align: right; white-space: nowrap; }
+.cjv-table thead th { color: #f7f1e3; background: var(--encre-rouge); font-size: 11.5px; letter-spacing: 0.06em; }
+.cjv-table thead th:first-child, .cjv-table tbody th { text-align: left; }
+.cjv-table tbody th, .cjv-table td:nth-child(2) { color: var(--encre-bleue); }
+.cjv-table tbody tr { border-bottom: 1px dotted rgba(163, 37, 43, 0.45); }
+.cjv-table tbody tr.cjv-sim { color: var(--encre-bleue); }
+.cjv-bio { margin: 7px 4px 0; font-size: 13px; line-height: 1.4; color: #5c1418; }
+.cjv-en { margin-top: 2px; font-size: 11.5px; font-style: italic; color: var(--encre-bleue); }
+.cjv-pied {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 2px 0; padding-top: 5px;
+  border-top: 1px solid rgba(30, 58, 134, 0.3); font: 700 10px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-bleue);
+}
+.cj-verso .cj-retourner { background: var(--encre-bleue); color: #f7f1e3; border-color: transparent; }
+.cj-verso::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.4), transparent 55%);
+  opacity: var(--lueur);
+}
+/* LE RETOURNEMENT : un quart de tour, la face change sur la tranche, l'autre quart. */
+.fiche-carte.tourne-1 { animation: cj-tourne-1 0.2s ease-in forwards; }
+.fiche-carte.tourne-2 { animation: cj-tourne-2 0.34s var(--ressort); }
+@keyframes cj-tourne-1 { to { transform: perspective(1100px) rotateY(90deg) scale(0.96); } }
+@keyframes cj-tourne-2 { from { transform: perspective(1100px) rotateY(-90deg) scale(0.96); } to { transform: perspective(1100px) rotateY(0deg) scale(1); } }
+
+/* =================================================================
+   LES CARTES DE MATCH : UNE SÉRIE « INSERT » DE LA MÊME COLLECTION
+   ================================================================= */
+/* Le cadre : le métal de la rareté, strié en diagonale comme un carton
+   d'insert, et un filet blanc qui sépare le cadre de la carte. */
+.choix-option.tc {
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 7px),
+    linear-gradient(150deg, var(--tc-bord), var(--tc-bord2) 55%, var(--tc-bord));
+}
+.choix-option.tc.tc-rare { background: var(--argent); }
+.choix-option.tc.tc-legendaire { background: conic-gradient(from 210deg, #fff1b8, #d4a017, #ff9ec2, #fff6d6, #8fe3ff, #b8860b, #ffe08a, #fff1b8); }
+.choix-option.tc .tc-cadre { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.35); }
+/* L'ancien reflet passait sur la règle : il ne vit plus. L'holographique du
+   cadre (`.tc-holo`, sous la carte) et celui de l'illustration le remplacent. */
+.choix-option.tc.tc-rare::after, .choix-option.tc.tc-legendaire::after { content: none; }
+.choix-option.tc > .tc-holo { z-index: 0; opacity: 0.35; }
+/* LE REFLET DERRIÈRE LE TEXTE : sur le fond de la carte, sous chaque mot. */
+.choix-option.tc:is(.incline, .relache, .gyro) .tc-cadre::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.16), transparent 50%);
+  opacity: var(--lueur);
+}
+/* LE COÛT DANS UNE RONDELLE, cerclée du métal de la rareté. */
+.choix-option.tc .tc-coin {
+  display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 6px; border: 0; border-radius: 999px;
+  font: 800 16px/1 var(--display); color: #fff; font-variant-numeric: tabular-nums;
+  background: radial-gradient(110% 80% at 50% 22%, #4a4a50, #0d0d10 62%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2), inset 0 -3px 0 rgba(0, 0, 0, 0.55), 0 0 0 2px var(--tc-bord), 0 3px 6px rgba(0, 0, 0, 0.5);
+}
+.choix-option.tc .tc-coin s { font-size: 10px; opacity: 0.55; margin-right: 1px; }
+/* L'illustration d'une rare ou d'une légendaire est holographique. */
+.choix-option.tc:is(.tc-rare, .tc-legendaire) .tc-art::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: var(--arc); background-size: 400% 400%; background-position: var(--mx) var(--my);
+  mix-blend-mode: color-dodge; opacity: calc(0.2 + 0.4 * var(--lueur));
+  animation: cj-miroite 7s ease-in-out infinite alternate;
+}
+.choix-option.tc:is(.incline, .gyro) .tc-art::after { animation: none; }
+/* LA LÉGENDAIRE EST SUR ACÉTATE : une patinoire translucide — la ligne rouge,
+   les deux bleues, le cercle et les points de mise au jeu — derrière son
+   illustration, comme les cartes « sur glace » des années 2000. */
+.choix-option.tc.tc-legendaire .tc-art {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 21px, rgba(60, 110, 220, 0.55) 21.5px 23px, transparent 23.5px),
+    radial-gradient(circle at 50% 50%, rgba(60, 110, 220, 0.75) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 16% 28%, rgba(215, 50, 60, 0.6) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 16% 72%, rgba(215, 50, 60, 0.6) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 84% 28%, rgba(215, 50, 60, 0.6) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 84% 72%, rgba(215, 50, 60, 0.6) 0 3px, transparent 3.5px),
+    linear-gradient(90deg, transparent calc(50% - 1.5px), rgba(215, 50, 60, 0.7) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)),
+    linear-gradient(90deg, transparent 29%, rgba(60, 110, 220, 0.65) 29% calc(29% + 4px), transparent calc(29% + 4px) calc(71% - 4px), rgba(60, 110, 220, 0.65) calc(71% - 4px) 71%, transparent 71%),
+    linear-gradient(180deg, rgba(236, 246, 255, 0.3), rgba(190, 220, 245, 0.14)),
+    #0b1522;
+}
+@media (prefers-reduced-motion: reduce) { .choix-option.tc .tc-art::after { animation: none; } }
+
+/* LE DOS D'UNE CARTE (le paquet) : le bleu de nuit de la série et sa marque. */
+.tc-dos {
+  position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; border-radius: inherit; pointer-events: none; opacity: 0;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 38px, rgba(255, 255, 255, 0.12) 38.5px 40px, transparent 40.5px),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 6px, transparent 6px 12px),
+    radial-gradient(circle at 50% 45%, #214277, #0b1426 72%);
+  box-shadow: inset 0 0 0 7px var(--carton), inset 0 0 0 9px #0b1426;
+}
+.tc-dos-marque { display: flex; flex-direction: column; align-items: center; font: 800 13px/1 var(--display); letter-spacing: 0.3em; text-transform: uppercase; color: #f3ecd9; }
+.tc-dos-marque b { font-size: 34px; letter-spacing: 0.02em; color: #ffd76a; text-shadow: 0 2px 0 #6b4a0a; }
+
+/* =================================================================
+   LE PAQUET (`paquetHtml`, `brancherPaquet`)
+   ================================================================= */
+/* Le paquet se pose PAR-DESSUS la bande de cartes, qui garde sa place (mais
+   invisible et intouchable) : les cartes sortent de là où il était, et la
+   feuille ne change pas de hauteur à l'ouverture. Une bande en `display:
+   none` ne ferait pas courir les animations de la révélation, et ferait
+   croire à qui attend « une option visible » qu'il n'y a rien à choisir. */
+.paquet-scene { display: none; }
+.paquet-ferme .choix-corps, .paquet-dechire .choix-corps { position: relative; }
+.paquet-ferme .paquet-scene, .paquet-dechire .paquet-scene {
+  position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 40px 0 54px; pointer-events: none;
+}
+.paquet-ferme .paquet, .paquet-dechire .paquet { pointer-events: auto; }
+.paquet-ferme :is(.choix-main, .choix-points, .choix-plus-tard),
+.paquet-dechire :is(.choix-main, .choix-points, .choix-plus-tard) { opacity: 0; pointer-events: none; }
+.paquet-ferme .tc-dos, .paquet-dechire .tc-dos { opacity: 1; }
+.paquet {
+  position: relative; width: min(56vw, 200px); aspect-ratio: 5 / 7; padding: 0; border: 0; background: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; color: inherit;
+  animation: paquet-flotte 2.8s ease-in-out infinite;
+}
+.paquet:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 6px; border-radius: 12px; }
+/* La lueur de la meilleure carte : argent pour une rare, or pour une légendaire. */
+.paquet { --lueur-c: rgba(200, 212, 225, 0.35); }
+.paquet-peu { --lueur-c: rgba(67, 179, 214, 0.5); }
+.paquet-rare { --lueur-c: rgba(235, 242, 248, 0.75); }
+.paquet-legendaire { --lueur-c: rgba(255, 200, 80, 0.9); }
+.paquet-lueur {
+  position: absolute; inset: -22% -30%; z-index: 0; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, var(--lueur-c), transparent 72%);
+  animation: paquet-pouls 1.9s ease-in-out infinite;
+}
+.paquet-corps { position: relative; z-index: 1; display: flex; flex-direction: column; width: 100%; height: 100%; filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.6)); }
+/* Les deux rabats sertis, du papier d'argent pincé en dents de scie. */
+.paquet-rabat {
+  flex: none; height: 16px;
+  background: repeating-linear-gradient(90deg, #dfe5eb 0 3px, #9aa4af 3px 6px), #c4ccd4;
+}
+.paquet-haut { clip-path: polygon(0 0, 100% 0, 100% 70%, 95% 100%, 90% 70%, 85% 100%, 80% 70%, 75% 100%, 70% 70%, 65% 100%, 60% 70%, 55% 100%, 50% 70%, 45% 100%, 40% 70%, 35% 100%, 30% 70%, 25% 100%, 20% 70%, 15% 100%, 10% 70%, 5% 100%, 0 70%); border-radius: 4px 4px 0 0; transform-origin: 90% 100%; }
+.paquet-bas { clip-path: polygon(0 30%, 5% 0, 10% 30%, 15% 0, 20% 30%, 25% 0, 30% 30%, 35% 0, 40% 30%, 45% 0, 50% 30%, 55% 0, 60% 30%, 65% 0, 70% 30%, 75% 0, 80% 30%, 85% 0, 90% 30%, 95% 0, 100% 30%, 100% 100%, 0 100%); border-radius: 0 0 4px 4px; }
+/* La face : du papier métallisé bleu nuit, la patinoire en acétate, la marque. */
+.paquet-face {
+  position: relative; flex: 1; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  background:
+    linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.28) 45%, transparent 58%),
+    radial-gradient(120% 80% at 50% 0%, #3b6cc0, #16305e 55%, #0a1731);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+.paquet-legendaire .paquet-face { background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.35) 45%, transparent 58%), radial-gradient(120% 80% at 50% 0%, #6a4bd0, #2a1760 55%, #120a2c); }
+.paquet-face::after {
+  content: ''; position: absolute; top: -10%; bottom: -10%; left: -60%; width: 40%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-16deg); animation: paquet-reflet 3.2s ease-in-out infinite;
+}
+.paquet-glace {
+  position: absolute; inset: 10% 8%; border-radius: 40px; pointer-events: none; opacity: 0.35;
+  border: 2px solid rgba(220, 235, 255, 0.7);
+  background:
+    radial-gradient(circle at 50% 50%, transparent 26px, rgba(120, 170, 255, 0.9) 26.5px 28px, transparent 28.5px),
+    linear-gradient(0deg, transparent calc(50% - 1.5px), rgba(255, 90, 100, 0.9) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)),
+    linear-gradient(0deg, transparent 30%, rgba(120, 170, 255, 0.9) 30% calc(30% + 3px), transparent calc(30% + 3px) calc(70% - 3px), rgba(120, 170, 255, 0.9) calc(70% - 3px) 70%, transparent 70%);
+}
+.paquet-marque { position: relative; display: flex; flex-direction: column; align-items: center; font: 800 14px/1 var(--display); letter-spacing: 0.34em; text-transform: uppercase; color: #eaf2ff; }
+.paquet-marque b { font-size: clamp(34px, 11vw, 44px); letter-spacing: 0.02em; color: #ffd76a; text-shadow: 0 2px 0 #6b4a0a, 0 0 18px rgba(255, 215, 106, 0.45); }
+.paquet-serie { position: relative; padding: 3px 10px; border-radius: 3px; background: #c8202d; color: #fff; font: 800 12px/1.1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; max-width: 90%; text-align: center; }
+.paquet-n { position: relative; font: 700 11px/1 var(--display); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(234, 242, 255, 0.85); }
+.paquet-mot { position: absolute; left: 50%; bottom: -30px; transform: translateX(-50%); white-space: nowrap; font: 800 13px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); animation: paquet-pouls 1.9s ease-in-out infinite; }
+.paquet-ferme .paquet-scene { padding-bottom: 42px; }
+@keyframes paquet-flotte { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-8px) rotate(1.5deg); } }
+@keyframes paquet-pouls { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes paquet-reflet { 0%, 55% { transform: translateX(0) skewX(-16deg); } 100% { transform: translateX(420%) skewX(-16deg); } }
+/* On déchire : le paquet tremble, le rabat part, la lueur éclate, le paquet tombe. */
+.paquet-dechire .paquet { animation: paquet-secoue 0.46s ease-in forwards; }
+.paquet-dechire .paquet-haut { animation: paquet-rabat 0.34s cubic-bezier(0.3, 0.7, 0.4, 1) forwards; }
+.paquet-dechire .paquet-lueur { animation: paquet-eclat 0.46s ease-out forwards; }
+.paquet-dechire .paquet-mot { opacity: 0; animation: none; }
+@keyframes paquet-secoue {
+  0% { transform: none; opacity: 1; } 12% { transform: rotate(-4deg); } 24% { transform: rotate(4deg); } 36% { transform: rotate(-2deg); }
+  55% { transform: translateY(0) scale(1.03); opacity: 1; } 100% { transform: translateY(70px) scale(0.86); opacity: 0; }
+}
+@keyframes paquet-rabat { to { transform: translate(46px, -70px) rotate(28deg); opacity: 0; } }
+@keyframes paquet-eclat { 0% { transform: scale(1); opacity: 1; } 60% { transform: scale(1.7); opacity: 1; } 100% { transform: scale(2.1); opacity: 0; } }
+/* On révèle : chaque carte sort du paquet face cachée, se retourne sur la
+   tranche et se pose avec un petit roulis ; la meilleure en dernier. */
+.paquet-revele .choix-main > .choix-option.tc {
+  animation: tc-sort 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  animation-delay: calc(var(--tc-r, 0) * 320ms);
+}
+.paquet-revele .choix-main > .choix-option.tc > .tc-dos {
+  animation: tc-dos-part 0.9s linear both;
+  animation-delay: calc(var(--tc-r, 0) * 320ms);
+}
+@keyframes tc-sort {
+  0% { transform: perspective(800px) translateY(120px) scale(0.78) rotateY(0deg) rotate(-5deg); opacity: 0; }
+  30% { transform: perspective(800px) translateY(0) scale(1) rotateY(0deg) rotate(0deg); opacity: 1; }
+  44% { transform: perspective(800px) translateY(-6px) scale(1.02) rotateY(0deg) rotate(0deg); }
+  64% { transform: perspective(800px) translateY(-6px) scale(1.02) rotateY(90deg) rotate(0deg); }
+  84% { transform: perspective(800px) translateY(0) scale(1) rotateY(-10deg) rotate(2.5deg); }
+  100% { transform: perspective(800px) translateY(0) scale(1) rotateY(0deg) rotate(0deg); }
+}
+@keyframes tc-dos-part { 0%, 63.9% { opacity: 1; } 64%, 100% { opacity: 0; } }
+/* Une rare luit en se posant ; la meilleure, la dernière, éclate. */
+.paquet-revele .choix-main > .choix-option.tc:is(.tc-rare, .tc-legendaire) {
+  animation: tc-sort 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) backwards, tc-luit 1.2s ease-out;
+  animation-delay: calc(var(--tc-r, 0) * 320ms), calc(var(--tc-r, 0) * 320ms + 700ms);
+}
+.paquet-revele .choix-main > .choix-option.tc.tc-meilleure {
+  animation: tc-sort 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) backwards, tc-eclate 1.4s ease-out;
+  animation-delay: calc(var(--tc-r, 0) * 320ms), calc(var(--tc-r, 0) * 320ms + 700ms);
+}
+@keyframes tc-luit { 0% { box-shadow: 0 0 0 0 var(--tc-bord), 0 8px 22px rgba(0, 0, 0, 0.5); } 35% { box-shadow: 0 0 0 4px var(--tc-bord), 0 0 40px var(--tc-bord); } 100% { box-shadow: 0 0 0 0 transparent, 0 8px 22px rgba(0, 0, 0, 0.5); } }
+@keyframes tc-eclate {
+  0% { box-shadow: 0 0 0 0 #fff, 0 8px 22px rgba(0, 0, 0, 0.5); }
+  25% { box-shadow: 0 0 0 6px #fff, 0 0 70px 18px var(--tc-bord); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 8px 22px rgba(0, 0, 0, 0.5); }
+}
+/* Toucher encore : tout, tout de suite. */
+.paquet-tout .choix-main > .choix-option.tc, .paquet-tout .choix-main > .choix-option.tc > .tc-dos { animation: none !important; }
+.paquet-tout .tc-dos { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .paquet, .paquet-lueur, .paquet-face::after, .paquet-mot { animation: none; }
+}
 
 /* ---------------------------------------------------------------
    LA PHOTO D'UN VRAI JOUEUR SUR UNE CARTE DE CHOIX (`artJoueur`) :
    la recrue du palier, le ballottage, le nouveau rôle. Le visage remplit
-   l'illustration sur le fond de son club ; la position en pastille, la
+   l'illustration sur le fond de son club ; la position en rondelle, la
    saison en plaque du métal de la carte, l'écusson en médaillon — la carte
    du vestiaire, en grand.
    --------------------------------------------------------------- */
@@ -7339,8 +7857,8 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
     radial-gradient(120% 90% at 50% 15%, color-mix(in srgb, var(--cj-fond, #2a3140) 88%, #ffffff), color-mix(in srgb, var(--cj-fond, #2a3140) 45%, #05070a) 80%);
 }
 .cj-art .tc-portrait { inset: 0; border: 0; border-radius: 0; background: none; }
-/* L'illustration est en largeur (116 px de haut) : même buste que la fiche,
-   une fois et demie la hauteur, les bords fondus dans le fond du club. */
+/* L'illustration est en largeur (116 px de haut) : le buste à une fois et
+   demie la hauteur, les bords fondus dans le fond du club. */
 .cj-art .tc-portrait img {
   inset: 0 auto auto 50%; width: auto; height: 150%; aspect-ratio: 1; transform: translateX(-50%); object-fit: cover;
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
@@ -7352,13 +7870,17 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   background: rgba(0, 0, 0, 0.55); box-shadow: 0 0 0 1px color-mix(in srgb, var(--tc-bord) 70%, transparent);
 }
 .cj-art .tc-pos {
-  position: absolute; left: 6px; bottom: 6px; padding: 3px 7px; border-radius: 5px;
-  font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(0, 0, 0, 0.65);
+  position: absolute; left: 6px; bottom: 6px; padding: 4px 9px; border-radius: 999px;
+  font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #fff;
+  background: radial-gradient(120% 90% at 50% 18%, #44444a, #0c0c0f 64%);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.22), 0 0 0 1.5px var(--tc-bord);
 }
 .cj-art .tc-saison {
   position: absolute; right: 6px; bottom: 6px; padding: 3px 6px; border-radius: 4px;
   color: #101216; background: var(--tc-bord); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
+.choix-option.tc.tc-rare .cj-art .tc-saison { background: var(--argent); }
+.choix-option.tc.tc-legendaire .cj-art .tc-saison { background: var(--or); }
 
 /* ---------------------------------------------------------------
    LA VIGNETTE (`.cj-mini`) : une carte de la taille d'un pouce, là où une
@@ -7372,7 +7894,9 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   background: radial-gradient(130% 85% at 50% 18%, color-mix(in srgb, var(--team-band, #2a3140) 88%, #ffffff), color-mix(in srgb, var(--team-band, #2a3140) 45%, #05070a) 78%);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
-.cj-mini.tc-commune { --tc-bord: #8d97a3; }
+.cj-mini.tc-commune, .cj-mini.tc-peu { border-color: #efe6d2; }
+.cj-mini.tc-rare { border-color: #e6ebf0; }
+.cj-mini.tc-legendaire { border-color: #ffd76a; }
 .cj-mini img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; transform: scale(1.1); transform-origin: 50% 0; }
 .cj-mini .headshot-fallback { font-size: 15px; opacity: 0.45; }
 /* La feuille de match : la vignette, puis le nom et la ligne de statistiques. */
@@ -7382,11 +7906,11 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   .rrow.rr-cj .rr-carte { grid-row: 1 / span 2; }
 }
 /* Le cartable de l'album : le médaillon rond devient une vignette de carte,
-   argent pour tous, or pour qui a soulevé la Coupe avec toi — l'album ne
+   crème pour tous, or pour qui a soulevé la Coupe avec toi — l'album ne
    garde pas les salaires, il ne dit donc pas d'autre rareté. */
 .album-joueur { grid-template-columns: 32px 1fr; }
 .album-logo { width: 32px; height: 42px; }
-.album-visage { border-radius: 5px; border: 2px solid #8d97a3; background: rgba(255, 255, 255, 0.06); }
+.album-visage { border-radius: 5px; border: 2px solid #efe6d2; background: rgba(255, 255, 255, 0.06); }
 .album-joueur.champion .album-visage { border-color: #e6c07a; }
 
 /* =====================================================================

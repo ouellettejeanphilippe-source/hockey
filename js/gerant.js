@@ -29,7 +29,7 @@ import {
   chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee,
 } from './sim.js';
 import { POIDS_TRIO, getLineZone } from './ratings.js';
-import { carteHtml, RARETES } from './cartes.js';
+import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { effetsDesCartes, PREP_JUSTE, PREP_RATEE } from './sim.js';
 import { jouerSon } from './sons.js';
@@ -139,6 +139,23 @@ export function carteJoueur(p) {
    UNE DÉCISION, EN PLEIN ÉCRAN
    ====================================================================== */
 let fermerChoixCourant = null;
+/*
+ * L'OUVERTURE D'UN PAQUET (S77). JP : *rends ça plus dynamique et beau*. Une
+ * récompense (un gros match gagné, une série gagnée) arrive dans un PAQUET
+ * scellé qui luit de la couleur de sa meilleure carte ; on le touche, le rabat
+ * se déchire, les cartes sortent face cachée et se retournent une à une — la
+ * meilleure en DERNIER, avec un éclat plus grand. Toucher encore montre tout
+ * d'un coup. Puis le choix se fait comme avant : le contenu était déjà décidé
+ * (`recompensesOffertes`), le paquet n'est qu'une façon de le montrer. Un
+ * paquet ne s'ouvre qu'une fois : rouvrir le choix (« Voir la récompense »)
+ * montre les cartes. Sous `prefers-reduced-motion`, pas de paquet.
+ */
+const RANG_RARETE = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
+const PAQUETS_OUVERTS = new Set();
+const REVELE_PAS = 320;          // ms entre deux cartes qui se retournent
+const REVELE_CARTE = 900;        // ms pour qu'une carte sorte et se retourne
+const DECHIRE = 460;             // ms du rabat qui se déchire
+const mouvementCalme = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 /**
  * spec : { ico, titre, irl, recit, joueur, options: [{ cle, nom, bon, prix, effet, duree, jauges,
  *          mutation, desactive }], fermable, motFermer, onChoix(cle), onFerme() }
@@ -151,7 +168,14 @@ export function ouvrirChoix(spec) {
   // {noms} : les joueurs visés par un geste réel, nommés (S72).
   const noms = spec.joueurs && spec.joueurs.length ? listeNoms(spec.joueurs.map(p => p.n)) : '';
   const sub = s => esc(String(s || '').replace(/\{nom\}/g, nom || 'ton joueur').replace(/\{noms\}/g, noms || 'tes joueurs'));
-  m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+  const clePaquet = `${spec.titre}|${spec.options.map(o => o.cle).join(',')}`;
+  const paquet = spec.genre === 'recompense' && spec.cartes && !spec.lecture && spec.options.length > 0
+    && !PAQUETS_OUVERTS.has(clePaquet) && !mouvementCalme();
+  // L'ordre du retournement : la meilleure carte en dernier (l'ordre à l'écran ne bouge pas).
+  const ordre = spec.options.map((o, i) => i).sort((a, b) => (RANG_RARETE[spec.options[a].rarete] || 0) - (RANG_RARETE[spec.options[b].rarete] || 0) || a - b);
+  const rangDe = i => ordre.indexOf(i);
+  const meilleure = spec.options.reduce((b, o) => ((RANG_RARETE[o.rarete] || 0) > (RANG_RARETE[b] || 0) ? o.rarete : b), 'commune');
+  m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '❓'}</span>
       <div class="choix-titres"><div class="choix-titre">${sub(spec.titre)}</div>${spec.irl ? `<div class="choix-irl">${esc(spec.irl)}</div>` : ''}</div>
@@ -161,7 +185,8 @@ export function ouvrirChoix(spec) {
       ${spec.recit ? `<p class="choix-recit">${sub(spec.recit)}</p>` : ''}
       ${spec.joueur ? carteJoueur(spec.joueur) : ''}
       ${spec.contexte || ''}
-      <div class="choix-options${spec.cartes ? ' choix-main donne' : ''}${spec.compact ? ' compact' : ''}">${spec.options.map((o, i) => {
+      ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
+      <div class="choix-options${spec.cartes ? ` choix-main${paquet ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
         const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner.
@@ -171,6 +196,7 @@ export function ouvrirChoix(spec) {
           bonHtml: o.bon ? sub(o.bon) : '', prixHtml: o.prix ? sub(o.prix) : '', coinHtml: o.coin ? esc(o.coin) : '',
           pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
+          dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && (RANG_RARETE[o.rarete] || 0) >= 2,
         });
         return `<button type="button" class="choix-option" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
           <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
@@ -187,7 +213,8 @@ export function ouvrirChoix(spec) {
   </div>`;
   m.hidden = false;
   document.body.classList.add('choix-ouvert');
-  if (spec.cartes && !spec.lecture) jouerSon(spec.genre === 'recompense' ? 'recompense' : 'donne');
+  // Un paquet se tait tant qu'il est scellé : ses sons sont ceux de l'ouverture.
+  if (spec.cartes && !spec.lecture && !paquet) jouerSon(spec.genre === 'recompense' ? 'recompense' : 'donne');
   const fermer = (silencieux = false) => {
     m.hidden = true; m.innerHTML = '';
     document.body.classList.remove('choix-ouvert');
@@ -199,9 +226,54 @@ export function ouvrirChoix(spec) {
   m.querySelectorAll('[data-choix]').forEach(b => { if (spec.lecture) { b.classList.add('lecture'); return; } b.onclick = () => { fermer(true); spec.onChoix(b.dataset.choix); }; });
   for (const x of m.querySelectorAll('.choix-fermer, .choix-plus-tard')) x.onclick = () => fermer();
   pointsDeBande(m);
-  const premier = m.querySelector('.choix-option:not([disabled])');
+  if (paquet) brancherPaquet(m, spec.options.length, () => PAQUETS_OUVERTS.add(clePaquet));
+  const premier = m.querySelector(paquet ? '.paquet' : '.choix-option:not([disabled])');
   if (premier) premier.focus({ preventScroll: true });
   return () => fermer(true);
+}
+
+/*
+ * Le paquet en trois temps, portés par des classes sur la feuille :
+ * `paquet-ferme` (il luit, il attend), `paquet-dechire` (le rabat part, le
+ * paquet tremble), `paquet-revele` (les cartes sortent et se retournent, dans
+ * l'ordre `--tc-r`), puis `paquet-fini` : on choisit. Tant que ce n'est pas
+ * fini, un toucher n'importe où dans la feuille est intercepté (en capture)
+ * — il ouvre, puis il montre tout — pour qu'un doigt pressé ne prenne pas une
+ * carte encore face cachée. Le ✕ reste le ✕ : on peut passer sans ouvrir.
+ */
+function brancherPaquet(m, n, ouvert) {
+  const feuille = m.querySelector('.choix-sheet');
+  if (!feuille) return;
+  let etat = 'ferme', minuteur = 0, dechire = 0;
+  const finir = () => {
+    if (etat === 'fini') return;
+    etat = 'fini';
+    clearTimeout(minuteur); clearTimeout(dechire);
+    feuille.classList.remove('paquet-ferme', 'paquet-dechire');
+    feuille.classList.add('paquet-revele', 'paquet-fini');
+    ouvert();
+    pointsDeBande(m);
+    const premiere = feuille.querySelector('.choix-option:not([disabled])');
+    if (premiere) premiere.focus({ preventScroll: true });
+  };
+  const ouvrir = () => {
+    etat = 'ouvre';
+    jouerSon('donne');
+    feuille.classList.remove('paquet-ferme');
+    feuille.classList.add('paquet-dechire');
+    // Le paquet a fini de tomber : on l'enlève et les cartes sortent. `paquet-dechire`
+    // doit PARTIR ici : tant qu'il est posé, la bande reste invisible, et les cartes se
+    // retournaient derrière elle — face cachée à l'écran quand le minuteur finissait.
+    dechire = setTimeout(() => { if (etat === 'ouvre') { feuille.classList.replace('paquet-dechire', 'paquet-revele'); jouerSon('recompense'); } }, DECHIRE);
+    minuteur = setTimeout(finir, DECHIRE + (n - 1) * REVELE_PAS + REVELE_CARTE + 200);
+  };
+  feuille.addEventListener('click', ev => {
+    if (etat === 'fini' || ev.target.closest('.choix-fermer')) return;
+    ev.stopPropagation();
+    ev.preventDefault();
+    if (etat === 'ferme') ouvrir();
+    else { feuille.classList.add('paquet-tout'); finir(); }
+  }, true);
 }
 export const choixOuvert = () => !!fermerChoixCourant;
 

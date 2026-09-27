@@ -21,7 +21,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v17';  // v17 : plusieurs parties, le menu au départ, le mode Rogue (S77)
+const VERSION = 'cap82-v18';  // v18 : le menu, les parties, le mode Rogue, l'interface premium, les cartes Upper Deck et O-Pee-Chee (S77)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

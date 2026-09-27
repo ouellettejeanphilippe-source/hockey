@@ -221,6 +221,65 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
     if (!r || r.vainqueur !== attendu.vainqueur || !r.fusillade) errors.push('le match de la fusillade ne rend pas son vainqueur');
   }
 
+  /*
+   * LE TIR SE PROPOSE, MIS EN SCÈNE (S77). Le joueur scripté du tournoi ne
+   * s'approche du filet qu'au hasard de ses gestes et du minutage : depuis que
+   * la zone neutre a grandi (S75c), la zone de tir a rapetissé d'une rangée,
+   * et « le tir n'a jamais été offert » rougissait une exécution sur trois ou
+   * quatre, sans qu'une ligne de la carte ait bougé. Un test qui dépend du
+   * tirage n'est pas un test. Ici, l'IA joue les deux camps (`ctx.preparer`)
+   * jusqu'à ce que ce soit TA main, ton porteur à portée ; on touche le porteur,
+   * et la carte doit offrir « Tirer ».
+   */
+  await page.evaluate(async () => {
+    const [sim, table, logos, plateau] = await Promise.all([import('/js/sim.js'), import('/js/table.js'), import('/js/logos.js'), import('/js/plateau.js')]);
+    const shard = await (await fetch('/data/seasons/2013-14.json')).json();
+    const club = t => { const pool = shard.players.filter(p => p.t === t).map(p => ({ ...p })); pool.forEach(sim.registerHiddenRatings); return sim.autoRoster(pool); };
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    window.__tirPret = false;
+    plateau.ouvrirTable({
+      A: table.equipeDeTable('PIT 2013-14', 'PIT', club('PIT'), 'A'), B: table.equipeDeTable('BUF 2013-14', 'BUF', club('BUF'), 'B'),
+      graine: 'tir-scene', titre: 'Essai', sousTitre: 'Le tir',
+      ctx: {
+        esc, band: logos.getTeamBand, vive: logos.couleurVive, logo: logos.getTeamLogoHtml, niveau: () => 'PRO',
+        preparer: m => {
+          for (let g = 0; !m.fini && g < 4000; g++) {
+            const p = table.porteur(m);
+            if (m.tour === 'A' && p && p.eq === 'A' && table.peutTirer(m, p)) { window.__tirPret = true; return; }
+            table.iaPresence(m);
+          }
+        },
+      },
+      onTermine: () => {},
+    });
+  });
+  let tirScene = false;
+  if (await page.evaluate(() => window.__tirPret)) {
+    await page.waitForSelector('#tableModal .t-glace', { timeout: 10000 });
+    await page.waitForTimeout(900);
+    const caseP = await page.evaluate(() => {
+      const j = [...document.querySelectorAll('#tableModal .t-jeton.mienne')].find(e => e.querySelector('.t-rondelle'));
+      return j ? `${j.style.getPropertyValue('--tr')},${j.style.getPropertyValue('--tc')}` : null;
+    });
+    if (caseP) {
+      // Un toucher pendant la LECTURE du plateau l'accélère ou la saute (S75) : on touche jusqu'à ce que
+      // le porteur soit choisi, comme un joueur qui tape deux fois — quatre fois au plus.
+      for (let k = 0; k < 4; k++) {
+        if (await page.$('#tableModal .t-jeton.mienne.choisie .t-rondelle')) break;
+        await page.click(`#tableModal .t-case[data-r="${caseP.split(',')[0]}"][data-c="${caseP.split(',')[1]}"]`);
+        await page.waitForTimeout(500);
+      }
+      tirScene = !!(await page.$('#tableModal [data-geste="tir"]'));
+    }
+    console.log(`   le tir mis en scène : porteur en ${caseP || '?'}, « Tirer » ${tirScene ? 'offert' : 'ABSENT'}`);
+    if (!tirScene) errors.push('ton porteur à portée de tir ne se voit pas offrir « Tirer » sur la carte');
+    await quitterTable();
+    await page.waitForTimeout(600);
+    // Ce qu'un match fermé laisse à l'écran (le mot du résultat) se referme aussi.
+    const fermer = await page.$('#gameModal:not([style*="display: none"]) .close-btn, #gameModal:not([style*="display: none"]) [data-close]');
+    if (fermer && await fermer.isVisible()) await fermer.click();
+  } else errors.push('la mise en scène du tir n\'a jamais amené ton porteur à portée en 4000 présences');
+
   // L'exhibition a fermé l'écran « Nouvelle partie » pour laisser la glace : on le rouvre.
   await page.click('#openPartieBtn');
 }
@@ -721,7 +780,8 @@ if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes 
  * le TIR, et le HARPONNAGE dès qu'un duel s'est ouvert (le bâton, lui, ne
  * demande pas d'être à l'arrêt). Le reste est rapporté, pas exigé.
  */
-if (!vus.has('tir')) errors.push(`le geste « tir » n'a jamais été offert par la carte (vus : ${[...vus].join(', ') || 'aucun'})`);
+// Le joueur scripté ne l'exige plus : c'est la mise en scène du tir (plus haut) qui le garantit.
+if (!vus.has('tir')) console.log(`   (le joueur scripté ne s'est pas vu offrir de tir ce match-ci : vus ${[...vus].join(', ') || 'aucun'} — la mise en scène l'a éprouvé)`);
 if (occasionsDuel) {
   if (!vus.has('vol')) errors.push(`le duel s'est présenté ${occasionsDuel} fois mais le geste « vol » n'a jamais été offert`);
   console.log(`   le duel épaule / bâton s'est présenté ${occasionsDuel} fois · frapper ${vus.has('echec') ? 'offert' : 'jamais offert (le porteur était fermé en pleine course)'}`);

@@ -44,6 +44,9 @@ await page.click('#hubModal .hub-boutique');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 30000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
 await page.click('#choixModal:not([hidden]) .choix-option[data-choix="joueurs"]');
+// Le pack s'ouvre comme un vrai paquet (S77) : on le déchire, puis on touche encore pour tout montrer.
+const paquet = await page.waitForSelector('#choixModal:not([hidden]) .paquet', { timeout: 60000 }).catch(() => null);
+if (paquet) { await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(300); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); }
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
