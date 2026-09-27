@@ -153,6 +153,8 @@ export function conditions(pr, cote) {
       const ici = pr.scores.filter(s => garde(s, k));
       const fois = ici.reduce((a, s) => a + s.fois, 0);
       if (fois < pr.n * 0.08) break;
+      // Une condition qui arrive presque toujours ne dit rien (un match à sens unique) : on cherche plus loin.
+      if (fois > pr.n * 0.85) continue;
       const reussis = ici.filter(bon).reduce((a, s) => a + s.fois, 0);
       if (reussis / fois >= 2 / 3) return { k, arrive: fois / pr.n, alors: reussis / fois };
     }

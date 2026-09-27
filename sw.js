@@ -35,7 +35,7 @@ const FICHIERS = [
   'js/game.js', 'js/sim.js', 'js/ratings.js', 'js/data.js', 'js/logos.js',
   'js/traits.js', 'js/recit.js', 'js/direct.js', 'js/bilan.js',
   'js/entracte.js',
-  'js/equipes.js', 'js/saison.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
+  'js/equipes.js', 'js/saison.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/identites.js', 'js/combat.js', 'js/album.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
   'js/sauvegardes.js', 'js/menu.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js',
   'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json',
