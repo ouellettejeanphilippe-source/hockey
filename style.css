@@ -8640,3 +8640,15 @@ table.data thead th { font-family: var(--display); font-weight: 700; letter-spac
 }
 /* L'affiche d'un match joué s'ouvre sur son sommaire : l'anneau dit qu'elle se touche. */
 .hub-board[data-sommaire]:hover, .hub-board[data-sommaire]:focus-visible { box-shadow: 0 0 0 1px var(--ui-accent), inset 0 1px 0 var(--filet-lumiere); }
+
+/* =====================================================================
+   LES PORTRAITS NORMALISÉS (S78, scripts/portraits.mjs)
+
+   Chaque visage est recadré à la fabrication : la tête fait la même part
+   d'un carré, à la même hauteur. Un cadre n'a donc plus rien à corriger —
+   ni zoom, ni décalage propres à un écran, qui avaient été réglés pour les
+   photos brutes de la LNH et coupaient Lysiak ou rapetissaient Zuccarello.
+   Le carré couvre son cadre, ancré en haut : un cadre en hauteur rogne les
+   côtés, un cadre en largeur rogne les épaules, jamais la tête.
+   ===================================================================== */
+img.visage { object-fit: cover !important; object-position: 50% 0 !important; transform: none !important; }

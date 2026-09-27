@@ -12,6 +12,9 @@
  *                             a la dernière vue
  *   portraits (assets.nhle.com) cache d'abord : un visage ne change pas, et
  *                             c'est ce qui coûte le plus en données mobiles
+ *   visages et écussons (img/) cache d'abord, dans un tiroir qui survit aux
+ *                             versions (S78) : la page le remplit une fois,
+ *                             en arrière-plan (message `precharger`)
  *   shards (data/seasons)     réseau seulement : IndexedDB s'en occupe déjà,
  *                             avec la version des cotes dans sa clé ;
  *                             data/seed.json, lui, est de la coquille
@@ -21,10 +24,12 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v18';  // v18 : le menu, les parties, le mode Rogue, l'interface premium, les cartes Upper Deck et O-Pee-Chee (S77)
+const VERSION = 'cap82-v19';  // v19 : les variantes de cartes, l'atelier, les visages et écussons sur l'appareil (S78)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
+// Les visages recadrés et les écussons (img/, S78) : hors du préfixe « cap82- », donc gardés d'une version à l'autre.
+const VISAGES = 'cap82img-visages';
 
 const FICHIERS = [
   './', 'index.html', 'style.css', 'site.webmanifest', 'favicon.svg',
@@ -37,8 +42,8 @@ const FICHIERS = [
   'js/entracte.js',
   'js/equipes.js', 'js/saison.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/identites.js', 'js/combat.js', 'js/album.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
-  'js/sauvegardes.js', 'js/menu.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js',
-  'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json',
+  'js/sauvegardes.js', 'js/menu.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/logos_locaux.js',
+  'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json', 'data/portraits.json',
   'fonts/BarlowCondensed-600-latin.woff2', 'fonts/BarlowCondensed-600-latin-ext.woff2',
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',
   'fonts/BarlowCondensed-800-latin.woff2', 'fonts/BarlowCondensed-800-latin-ext.woff2',
@@ -62,6 +67,7 @@ self.addEventListener('activate', ev => {
 });
 
 const estPortrait = url => url.hostname === 'assets.nhle.com';
+const estVisage = url => url.origin === self.location.origin && url.pathname.includes('/img/');
 // Les shards d'une saison, eux seuls : IndexedDB les garde déjà avec la
 // version des cotes dans sa clé, et en préécrire 55 coûterait des mégaoctets
 // à la première visite. `data/seed.json` n'en est PAS un — c'est le filet
@@ -101,11 +107,41 @@ async function cacheDabord(req) {
   return rep;
 }
 
+/* Un visage ou un écusson du jeu : le tiroir d'abord, puis le réseau (et on le garde). */
+async function visage(req) {
+  const cache = await caches.open(VISAGES);
+  const enCache = await cache.match(req, { ignoreSearch: true });
+  if (enCache) return enCache;
+  const rep = await fetch(req);
+  if (rep && rep.ok) cache.put(req, rep.clone());
+  return rep;
+}
+
+/*
+ * TOUS LES VISAGES ET LES ÉCUSSONS, UNE FOIS (S78). JP : *premier opening du
+ * jeu, télécharger toutes les faces et logos sur le device*. La page envoie la
+ * liste ; on ne demande que ce qui manque, par paquets, et on répond quand
+ * c'est fait. Coupé en route (onglet fermé), le prochain lancement reprend
+ * là où on était.
+ */
+async function precharger(urls, cle, client) {
+  const cache = await caches.open(VISAGES);
+  const deja = new Set((await cache.keys()).map(r => new URL(r.url).pathname));
+  const reste = urls.filter(u => !deja.has(new URL(u, self.registration.scope).pathname));
+  for (let i = 0; i < reste.length; i += 24) await Promise.allSettled(reste.slice(i, i + 24).map(u => cache.add(u)));
+  if (client) client.postMessage({ visagesPrets: cle, nouveaux: reste.length });
+}
+self.addEventListener('message', ev => {
+  const d = ev.data;
+  if (d && Array.isArray(d.precharger)) ev.waitUntil(precharger(d.precharger, d.cle, ev.source));
+});
+
 self.addEventListener('fetch', ev => {
   const req = ev.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (estPortrait(url)) { ev.respondWith(cacheDabord(req)); return; }
+  if (estVisage(url)) { ev.respondWith(visage(req)); return; }
   if (url.origin !== self.location.origin) return;
   if (estShard(url)) return;
   ev.respondWith(reseauDabord(req));

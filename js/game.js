@@ -27,6 +27,7 @@ import {
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
   CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS, effetsEnCours, fitLigne, TACTIQUES,
   unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation } from './sim.js';
+import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
@@ -932,12 +933,55 @@ function realTag(p) {
  */
 const PORTRAITS_ABSENTS = new Set();
 const portraitAbsent = id => { PORTRAITS_ABSENTS.add(Number(id)); };
+/*
+ * LES PORTRAITS DU JEU (S78, scripts/portraits.mjs). JP : *télécharger toutes
+ * les faces sur le device* ; *assurer que les portraits soient toujours bien
+ * cadrés, partout*. Chaque visage de la LNH est recadré une fois, à la
+ * fabrication — la tête fait la même part du cadre, à la même hauteur, pour
+ * une vieille photo de 1972 comme pour une photo détourée de 2024 — et voyage
+ * avec le jeu (img/mugs/{id}.webp). `data/portraits.json` dit qui en a un :
+ * un joueur absent n'est jamais demandé. Sans la liste (une copie qui n'a pas
+ * passé le script), on retombe sur le réseau de la LNH.
+ */
+let PORTRAITS_LOCAUX = null;
+async function chargerPortraits() {
+  try {
+    const r = await fetch('data/portraits.json');
+    if (r.ok) PORTRAITS_LOCAUX = new Set((await r.json()).ids);
+  } catch { /* hors ligne sans la liste : le réseau prendra le relais */ }
+}
+
+/*
+ * TOUT SUR L'APPAREIL, UNE FOIS (S78). L'APK et l'exe emportent déjà
+ * img/ ; la version Web demande au travailleur de service de tout garder,
+ * en arrière-plan, après le premier rendu. `cap82_visages` retient le lot
+ * déjà gardé : un nouveau lot (plus de joueurs) se complète tout seul.
+ */
+async function prechargerVisages() {
+  try {
+    if (window.Capacitor || !PORTRAITS_LOCAUX || !navigator.serviceWorker || !location.protocol.startsWith('http')) return;
+    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}`;
+    if (localStorage.getItem('cap82_visages') === cle) return;
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg.active) return;
+    navigator.serviceWorker.addEventListener('message', ev => {
+      if (!ev.data || ev.data.visagesPrets !== cle) return;
+      try { localStorage.setItem('cap82_visages', cle); } catch { /* stockage plein */ }
+      if (ev.data.nouveaux) toast(`📥 Les ${PORTRAITS_LOCAUX.size.toLocaleString('fr-CA')} visages et ${LOGOS_LOCAUX.size} écussons sont sur ton appareil : le jeu marche hors ligne.`);
+    });
+    reg.active.postMessage({ cle, precharger: [...[...LOGOS_LOCAUX].map(c => `img/logos/${c}.svg`), ...[...PORTRAITS_LOCAUX].map(id => `img/mugs/${id}.webp`)] });
+  } catch { /* pas de travailleur : les visages viendront à l'usage */ }
+}
 
 function headshotHtml(p) {
   const fallback = `<span class="headshot-fallback">👤</span>`;
-  if (PORTRAITS_ABSENTS.has(Number(p.id))) return fallback;
-  if (!p.id) return fallback;
-  return `${fallback}<img src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" alt="" loading="lazy" onerror="this.remove();cap82.portraitAbsent(${Number(p.id)})">`;
+  if (!p || !p.id) return fallback;
+  const id = Number(p.id);
+  // La classe `visage` porte le cadrage commun (style.css) : aucun écran ne zoome à sa façon.
+  // Sans photo à la LNH : sa silhouette générique, recadrée comme les autres.
+  if (PORTRAITS_LOCAUX) return `${fallback}<img class="visage${PORTRAITS_LOCAUX.has(id) ? '' : ' silhouette'}" src="img/mugs/${PORTRAITS_LOCAUX.has(id) ? id : 'silhouette'}.webp" alt="" loading="lazy" onerror="this.remove()">`;
+  if (PORTRAITS_ABSENTS.has(id)) return fallback;
+  return `${fallback}<img src="https://assets.nhle.com/mugs/nhl/latest/${id}.png" alt="" loading="lazy" onerror="this.remove();cap82.portraitAbsent(${id})">`;
 }
 
 /* ---------- toast ---------- */
@@ -980,7 +1024,7 @@ async function boot() {
     loadOpts();
     appliquerPalette();
     activerSons(G.sons);
-    await loadIndex();
+    await Promise.all([loadIndex(), chargerPortraits()]);
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
     if (G.epoque && !state.index.seasons.includes(G.epoque)) G.epoque = null;
     setupEvents();
@@ -1029,6 +1073,8 @@ async function continuerBoot(apres = null) {
   $('game').style.display = '';
   $('actionbar').style.display = '';
   render();
+  // Les visages et les écussons sur l'appareil, en arrière-plan (S78).
+  setTimeout(prechargerVisages, 4000);
   // Une saison était en cours : on la rejoue sous sa graine et l'écran
   // rouvre à la journée où on l'avait laissée. Après `render()`, pour que la
   // page soit là pendant la simulation.

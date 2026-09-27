@@ -1,12 +1,13 @@
 /**
  * Données de logos et couleurs des équipes (actuelles et disparues).
  */
+import { LOGOS_LOCAUX } from './logos_locaux.js';
 
 /*
  * L'ÈRE DE L'ÉCUSSON OFFICIEL d'un club disparu, telle que la LNH la nomme
  * (vérifiée, S78). Les Mighty Ducks n'y sont pas : leur dessin reste.
  */
-const LOGOS_OFFICIELS = {
+export const LOGOS_OFFICIELS = {
   QUE: '19791980-19941995', HFD: '19791980-19911992', MNS: '19851986-19901991', WIN: '19791980-19891990',
   PHX: '19961997-19981999', ATL: '19992000-20102011', AFM: '19721973-19791980', KCS: '19741975-19751976',
   CLR: '19761977-19811982', CLE: '19761977-19771978', CGS: '19701971-19731974', OAK: '19671968-19691970',
@@ -462,6 +463,14 @@ export function getTeamAccent(teamCode) {
  */
 export function getTeamLogoHtml(teamCode, size = 32) {
   if (!teamCode) return '';
+  /*
+   * L'ÉCUSSON COPIÉ AVEC LE JEU (S78, scripts/logos.mjs) : servi d'ici, hors
+   * ligne dès le premier lancement. Le dessin maison reste le secours.
+   */
+  if (LOGOS_LOCAUX.has(teamCode)) {
+    const secours = INLINE_LOGOS[teamCode] ? encodeURIComponent(INLINE_LOGOS[teamCode]).replace(/'/g, '%27') : '';
+    return `<img src="img/logos/${teamCode}.svg" class="team-logo-img" style="width:${size}px;height:${size}px;object-fit:contain" alt="${teamCode}" onerror="${secours ? `this.onerror=null;this.src='data:image/svg+xml,${secours}'` : 'this.style.display=\'none\''}">`;
+  }
   /*
    * LES VRAIS ÉCUSSONS DES CLUBS DISPARUS (S78). JP : *les Nordiques, t'as
    * pas le choix, logo officiel avec le N*. La LNH les garde sous le nom de
