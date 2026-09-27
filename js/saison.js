@@ -1517,6 +1517,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (cle === 'fiche') return voletFiche();
     return voletJournee();
   });
+  // MES CARTES, DE PARTOUT (S79) : le cartable du jeu (l'onglet Vestiaire) les ouvre avec la décision du hub.
+  if (onDecision && ctx.inventaire) tabs.hub.cartes = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
   /*
    * UNE TUILE S'OUVRE SUR SA CARTE (S77) : la forme sur « Ma fiche », le
    * classement sur le classement, le deck sur le deck. Un seul écouteur,
@@ -2173,7 +2175,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       ${p && !premier ? '<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>' : ''}
       ${premier ? '' : '<button class="btn hub-dix" title="Dix journées d\'un coup">+10 jours</button>'}
       <button class="btn hub-fin"${premier ? ' disabled title="Règle d\'abord ta boîte de réception"' : ' title="Jouer le reste de la saison et lire le résultat"'}>Fin de saison</button>
-      ${onDecision && ctx.rogue ? `<button class="btn gold hub-boutique" title="La boutique du mode Rogue : des packs de joueurs et de cartes">🛒 ${ctx.rogue.jetons(jour)} 🪙</button>` : ''}
+      ${onDecision && ctx.boutique ? `<button class="btn gold hub-boutique" title="La boutique : des packs de joueurs et de cartes">🛒 ${ctx.boutique.jetons(jour)} 🪙</button>` : ''}
+      ${onDecision && ctx.inventaire ? (n => `<button class="btn hub-inventaire" title="Tes cartes : celles qui se gardent jusqu'au moment voulu, le personnel, le deck, le classeur">🎒 Mes cartes${n ? ` <b class="hub-inv-n">${n}</b>` : ''}</button>`)(ctx.inventaire.compte(jour)) : ''}
       </div>
       ${boiteHtml}`;
 
@@ -2200,7 +2203,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     };
     // LA BOUTIQUE (Rogue, S77) : ses décisions passent par le même chemin que les autres choix.
     const boutique = actions.querySelector('.hub-boutique');
-    if (boutique) boutique.onclick = () => ctx.rogue.boutique(jour, d => { const j = jour; quitter(); onDecision(d, j); });
+    if (boutique) boutique.onclick = () => ctx.boutique.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
+    const sac = actions.querySelector('.hub-inventaire');
+    if (sac) sac.onclick = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     // LE BALLOTTAGE, en plein écran : trois joueurs en CARTES (S76), ou garder son réserviste.

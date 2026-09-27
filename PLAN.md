@@ -288,7 +288,17 @@
 | 2026-09-27 | S78 : la fiche est une carte debout, pleine largeur, recto et verso du même dessin (époque, club, variante) et de la même taille ; la vraie saison au recto, le reste au verso, l'écusson en filigrane ; au bureau, la carte à gauche. Le sommaire range les buts par période. |
 | 2026-09-27 | S78 : dix séries de cartes (une par tranche de saisons) par-dessus les cinq époques, les sous-séries Recrue et Étoile (les meilleurs de leur vraie saison) avec leur ruban, l'écusson en filigrane, l'holographique derrière le visage ; la carte mini aux choix d'un joueur (trois côte à côte) et au loto du téléphone. |
 
+| 2026-09-27 | S79 : la banque de cartes (192 en sept familles : patrons, événements, modifs de joueur, consommables, contrats, match, saison), chacune une décision qui se rejoue ; 31 packs à la HUT dans les deux modes (tiers aux vraies cotes, équipe, année, décennies, talents, trio, étoiles, légendes, garanti, cartes), les chances affichées par pack, les or numérotées jusqu'au 1 de 1, la garantie après huit packs ; l'inventaire (ce qui se garde jusqu'au moment voulu, le permanent, le deck, le classeur) ; la masse salariale en Rogue (82 M$) et huit cartes pour la tordre ; le Vestiaire devient le cartable une fois la saison commencée (ton équipe avec sa saison révélée et sa vraie saison, la collection par saison et par club, variantes et doublons). |
+
 ## S78 — modes (fait sur s78-modes)
 - [x] Mode Exhibition : n'importe quels clubs de toutes les époques, match / série 4 de 7 / 100 fois, direct, trois étoiles.
 - [x] « Au hasard » pour la saison de la ligue et pour la franchise du repêchage.
 - [x] À la fusion : js/exhibition.js dans la liste de sw.js (v19).
+
+## S79 — la banque (fait sur s79-banque)
+- [x] La banque de cartes : 192 cartes, sept familles, une règle chiffrée et une décision chacune (js/banque.js, check_banque).
+- [x] Les packs à la HUT : 31 packs, vraies cotes affichées, or numérotées, garantie, pack du jour, doublons revendus (js/packs.js, js/magasin.js).
+- [x] L'inventaire : poche de la saison (se garde jusqu'au moment voulu), permanent Rogue, deck, classeur (js/inventaire.js).
+- [x] La masse salariale en Rogue (82 M$) et les cartes de contrat ; qui sort respecte le plafond effectif.
+- [x] Le cartable : l'onglet Vestiaire après le repêchage, `cap82_cartable` (js/cartable.js).
+- [ ] À la fusion : js/banque.js, js/packs.js, js/inventaire.js, js/magasin.js, js/cartable.js dans sw.js (fait) ; monter la version du cache.
