@@ -1554,6 +1554,8 @@ export function recupererEnergie(team) {
 /** Les effets temporaires actifs au jour courant de l'équipe. */
 export function effetsActifs(team) {
   const j = team && team.jourCourant;
+  // En séries, seule la consigne du match qui vient joue (S69).
+  if (j === Infinity) return (team && team.effetsSerie) || [];
   if (j === undefined || j === null || !team.effets || !team.effets.length) return [];
   return team.effets.filter(x => j >= x.debut && j < x.fin);
 }
@@ -4223,7 +4225,7 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     // LA CHIMIE ET L'ÉNERGIE (S68) repartent de zéro et de cent à chaque passage.
     t.chimie = [0, 0, 0, 0]; t.chimieSig = [null, null, null, null]; t.chimieTac = [null, null, null, null];
     for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; }
-    t.mutations = []; t.jourLignes = [];
+    t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
     for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
   }
   // Le calendrier : une journée par ronde, ses seize matchs avec leur
@@ -4277,6 +4279,13 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
      * mêmes — le sel est dans la sauvegarde avec la décision.
      */
     if (sel) grainerHasard(`${graine}:${r}:${sel}`);
+    // Les factions APRÈS les décisions du jour : ce que l'écran affiche.
+    for (const t of teams) if (t.jourLignes && t.jourLignes[r]) t.jourLignes[r].jauges = { ...(t.jauges || {}) };
+    // LES MINI-BOSS DU JOUR (S69), repérés AVANT les matchs, sur le classement
+    // de la veille : seule ta formation (l'équipe 0 quand elle est le joueur)
+    // en a, donc les mesures du moteur n'en voient jamais.
+    const toi = teams[0] && teams[0].isPlayer ? teams[0] : null;
+    const rangsVeille = toi && r >= 10 ? new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1])) : null;
     const order = shuffle(teams.filter(t => restant.get(t) > 0));
     if (order.length < 2) break;
     // Tri stable : l'ordre du brassage départage les équipes à égalité.
@@ -4296,6 +4305,7 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
       restant.set(order[i + 1], restant.get(order[i + 1]) - 1);
     }
     calendrier.push(jour);
+    if (toi) miniBossDuJour(toi, jour, r, rangsVeille);
     for (const [t, n] of restant) if (n <= 0) restant.delete(t);
   }
   // Les séries ne lisent aucun effet temporaire : la fenêtre est close.
@@ -4652,3 +4662,122 @@ export function motsDEffet(e, duree = null) {
 }
 /* La durée d'une option de dilemme ou de séquence, en journées. */
 export const dureeOption = (o, famille) => (o && o.duree) || (famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
+
+/* =====================================================================
+   LES SÉRIES, LES COMBATS DE BOSS (S69)
+
+   JP : *oui pour changer pendant les séries, c'est encore plus important* ;
+   *la saison, c'est le build check de base, les séries les boss run*.
+
+   UNE RONDE SE JOUE MATCH PAR MATCH, TOUTES SÉRIES ENSEMBLE — le match 1 de
+   chaque série, puis le match 2, etc. — exactement dans l'ordre où l'écran
+   les révèle. C'est ce qui rend une décision possible ENTRE deux matchs :
+   jouées série par série, une décision avant ton match 3 aurait relancé les
+   dés des séries jouées après la tienne, matchs déjà révélés compris.
+
+   `avant(k)` est appelé avant le k-ième match de la ronde (0-based) : c'est
+   là que le contrôleur applique les décisions de séries (trios, lignes,
+   consigne du match) et tire des dés neufs pour la suite.
+   ===================================================================== */
+export function playRonde(paires, ronde = 0, avant = null) {
+  const series = paires.map(([A, B]) => ({ A, B, wA: 0, wB: 0, feuilles: [] }));
+  for (let k = 0; k < 7; k++) {
+    if (avant) avant(k);
+    for (const s of series) {
+      if (s.wA === 4 || s.wB === 4) continue;
+      const feuille = feuilleVierge();
+      const r = playGame(s.A, s.B, k, true, true, feuille, ronde);
+      if (r.winner === s.A) s.wA++; else s.wB++;
+      feuille.numero = k + 1;
+      feuille.serie = `${s.wA}-${s.wB}`;
+      s.feuilles.push(feuille);
+    }
+    if (series.every(s => s.wA === 4 || s.wB === 4)) break;
+  }
+  for (const s of series) s.winner = s.wA === 4 ? s.A : s.B;
+  for (const s of series) for (const t of [s.A, s.B]) t.effetsSerie = [];
+  return series;
+}
+
+/*
+ * UNE DÉCISION DE SÉRIES : les trios, les lignes, la fermeture, une mutation
+ * — comme en saison — plus la CONSIGNE du match qui vient (son importance),
+ * qui ne vaut que pour ce match-là. Et son sel : la suite se joue sur des dés
+ * neufs, les matchs d'avant ne bougent pas.
+ */
+export function appliquerDecisionSerie(team, d, graine) {
+  appliquerDecision(team, d);
+  // Les effets du match qui vient s'AJOUTENT : une consigne, un ajustement
+  // et des lignes peuvent être pris avant le même round.
+  team.effetsSerie = team.effetsSerie || [];
+  if (d.match) team.effetsSerie.push(effetDeMoment({ match: d.match, jour: 0 }));
+  if (d.ajustement && AJUSTEMENTS[d.ajustement]) {
+    const { ico, nom, bon, prix, si, ...canaux } = AJUSTEMENTS[d.ajustement];
+    void ico; void nom; void bon; void prix; void si;
+    team.effetsSerie.push({ source: 'ajustement', ...canaux });
+  }
+  if (d.sel) grainerHasard(`${graine}:po:${d.ronde}:${d.match_no}:${d.sel}`);
+}
+
+/*
+ * ENTRE DEUX ROUNDS (S69). Après chaque match d'une série qui n'est pas finie,
+ * trois ajustements s'offrent — tirés de la graine, de la ronde et du match —
+ * et on en prend un pour le round qui vient. Certains ne s'offrent que dans
+ * une situation : « Rien à perdre » quand on tire de l'arrière, « Le
+ * capitaine parle » quand on mène.
+ */
+export const AJUSTEMENTS = {
+  vedette: { ico: '🎯', nom: 'Serrer leur vedette', bon: 'Une ombre sur leur meilleur joueur', prix: 'On attaque moins', defense: 0.93, volume: 0.97 },
+  rythme: { ico: '🏃', nom: 'Imposer le rythme', bon: 'On tire de partout', prix: 'Les jambes vont brûler', volume: 1.07, energie: 1.2 },
+  rien: { ico: '🎲', nom: 'Rien à perdre', bon: 'On lance tout vers le filet', prix: 'On se découvre', finition: 1.08, defense: 1.07, si: 'derriere' },
+  gardien: { ico: '🧤', nom: 'Le gardien en mission', bon: 'Il a revu tous leurs buts', prix: 'On joue petit devant', defense: 0.95, finition: 0.98 },
+  repos: { ico: '📼', nom: 'Vidéo et repos', bon: 'Des jambes neuves', prix: 'Moins de mordant', energie: 0.6, volume: 0.98 },
+  corps: { ico: '🥊', nom: 'Leur rentrer dedans', bon: 'On les use à la mise en échec', prix: 'L\'arbitre regarde', robustesse: 1.5, discipline: 1.25 },
+  discipline: { ico: '🧘', nom: 'Rester discipliné', bon: 'Aucune punition bête', prix: 'Un peu moins d\'engagement', discipline: 0.75, volume: 0.98 },
+  capitaine: { ico: '🧭', nom: 'Le capitaine parle', bon: 'On ferme la porte', prix: 'On se repose sur l\'avance', defense: 0.95, finition: 0.98, si: 'devant' },
+  avantage: { ico: '⚡', nom: 'Travailler l\'avantage numérique', bon: 'Les unités spéciales affûtées', prix: 'Moins de temps à cinq contre cinq', finition: 1.04, volume: 0.98 },
+};
+/* Les trois ajustements offerts avant le k-ième match (0-based) : PURS. `etat` : 'devant', 'derriere' ou 'egal'. */
+export function ajustementsOfferts(graine, ronde, k, etat) {
+  const cles = Object.keys(AJUSTEMENTS).filter(c => !AJUSTEMENTS[c].si || AJUSTEMENTS[c].si === etat);
+  let x = ((Number(graine) >>> 0) ^ Math.imul(ronde + 11, 0x9e3779b1) ^ Math.imul(k + 3, 0x85ebca6b)) >>> 0;
+  const suivant = () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 0x100000000; };
+  const reste = cles.slice(), main = [];
+  while (main.length < 3 && reste.length) main.push(reste.splice(Math.floor(suivant() * reste.length), 1)[0]);
+  return main;
+}
+
+/* =====================================================================
+   LES MINI-BOSS DE LA SAISON (S69). JP : *la saison, c'est les mobs, avec
+   mini boss quand rivalité ou équipe avec qui on se bat au classement*.
+
+   Un match est un MINI-BOSS quand l'adversaire est un RIVAL au classement
+   (à deux rangs ou moins de toi, à partir de la 10e journée) ou ta NÉMÉSIS
+   (un club qui t'a déjà battu deux fois cette saison). Le battre donne
+   l'ÉLAN — trois matchs de finition, et les partisans montent — ; perdre
+   laisse SONNÉ — trois matchs de finition en moins, et les médias
+   s'acharnent. Le moteur le décide lui-même, de ce qui s'est joué : c'est
+   déterministe, et l'écran n'a qu'à relire `team.minisBoss`.
+   ===================================================================== */
+export const MINI_BOSS = {
+  rival: { ico: '📊', nom: 'Rival au classement', mot: 'à deux rangs ou moins de toi' },
+  nemesis: { ico: '😤', nom: 'Rivalité', mot: 'il t\'a déjà battu deux fois' },
+};
+export const ELAN = { nom: 'L\'élan', ico: '🔥', finition: 1.03, jauges: { partisans: 1 }, duree: 3 };
+export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, jauges: { medias: -1 }, duree: 3 };
+function miniBossDuJour(toi, jour, r, rangs) {
+  const m = jour.find(x => x.A === toi || x.B === toi);
+  if (!m) return;
+  const adv = m.A === toi ? m.B : m.A;
+  toi.defaitesContre = toi.defaitesContre || new Map();
+  let raison = null;
+  if ((toi.defaitesContre.get(adv) || 0) >= 2) raison = 'nemesis';
+  else if (rangs && Math.abs(rangs.get(toi) - rangs.get(adv)) <= 2) raison = 'rival';
+  const gagne = (m.A === toi) === (m.gfA > m.gfB);
+  if (!gagne) toi.defaitesContre.set(adv, (toi.defaitesContre.get(adv) || 0) + 1);
+  if (!raison) return;
+  const E = gagne ? ELAN : SONNE;
+  (toi.effets = toi.effets || []).push({ debut: r + 1, fin: r + 1 + E.duree, source: 'miniboss', finition: E.finition });
+  bougerJauges(toi.jauges = toi.jauges || jaugesNeuves(), E.jauges);
+  (toi.minisBoss = toi.minisBoss || []).push({ jour: r, adv, raison, gagne });
+}

@@ -28,7 +28,8 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   JAUGES, JAUGE_MAX, JAUGE_HAUT, JAUGE_BAS, jaugesApres, effetsDeJauges, getPlayerKey,
-  lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation } from './sim.js';
+  lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation,
+  contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE } from './sim.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces } from './gerant.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
@@ -37,6 +38,18 @@ import { tempsRestant } from './recit.js';
 /* « 1er », « 12e » : le rang d'un but ou d'une passe. */
 const ord = n => (n === 1 ? '1er' : `${n}e`);
 const ordF = n => (n === 1 ? '1re' : `${n}e`);
+/* La rivalité d'une saison (S69) : le club croisé le plus souvent dans les
+   gros matchs, au moins deux fois, avant la journée `jusque`. */
+function rivaliteDe(you, jusque = Infinity) {
+  const par = new Map();
+  for (const mb of you.minisBoss || []) {
+    if (mb.jour >= jusque) continue;
+    const x = par.get(mb.adv) || { adv: mb.adv, v: 0, d: 0 };
+    if (mb.gagne) x.v++; else x.d++;
+    par.set(mb.adv, x);
+  }
+  return [...par.values()].filter(x => x.v + x.d >= 2).sort((a, b) => (b.v + b.d) - (a.v + a.d) || b.d - a.d)[0] || null;
+}
 const nom = p => (p && p.n) || '';
 const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 /* « 1er trio · AG », « 2e paire · DD », « Partant », « Réserve D ». */
@@ -856,7 +869,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
     const mien = k >= 0 ? scoreboard({ j, k, m: matchs[k] }) + rapportLignes(matchs[k]) : `<div class="live-board hub-board"><div class="live-horloge"><span class="live-per">CONGÉ</span><span class="live-tirs">Les NHL Stars ne jouent pas aujourd'hui</span></div></div>`;
     const autres = matchs.map((m, i) => (i === k ? '' : carteMatch(m, j, i))).join('');
-    return `<div class="hub-titre">Journée ${jour}</div>${mien}
+    const mbHier = (you.minisBoss || []).find(x => x.jour === j);
+    const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour trois matchs, et les partisans montent` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour trois matchs, et les médias s'acharnent`}.</div>` : '';
+    return `<div class="hub-titre">Journée ${jour}</div>${mbMot}${mien}
       <div class="hub-titre">Les autres matchs</div><div class="cal-grille">${autres}</div>`;
   };
 
@@ -870,6 +885,54 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       <tbody>${classement().map(rangee).join('')}</tbody></table></div>`;
   };
 
+  /*
+   * TON HISTOIRE (S69). JP : *j'aime l'idée d'avoir quelque chose qui fait
+   * storyline, style Slay the Spire ou un RPG tactique léger, dans comment
+   * chaque run va avoir son histoire*. Rien d'inventé : le récit relit ce que
+   * la saison a VRAIMENT été jusqu'ici — les attentes du proprio, les
+   * dilemmes et ce que tu as choisi, les cartes qui ont changé, les gros
+   * matchs et leur issue, les séquences — rangé en trois actes. La rivalité
+   * qui s'en dégage suit ta formation jusqu'aux séries.
+   */
+  const rivalite = () => rivaliteDe(you, jour);
+  const ACTES = [[0, 'Acte I', "L'automne"], [28, 'Acte II', "L'hiver"], [56, 'Acte III', 'Le sprint']];
+  const nomJoueur = cle => { const p = cle && Object.values(you.roster || {}).find(x => x && getPlayerKey(x) === cle); return p ? p.n : ''; };
+  const scoreDe = (j, m) => { const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA; return `${pour}–${contre}${m.ot ? ' (P)' : ''}`; };
+  const recitHtml = () => {
+    const ev = [];
+    for (const d of decs) {
+      if (d.jour == null || d.jour > jour) continue;
+      if (d.objectif && OBJECTIFS[d.objectif.cle]) ev.push({ j: d.jour, t: `🏢 Le proprio exige : <b>${ctx.esc(OBJECTIFS[d.objectif.cle].nom)}</b>` });
+      else if (typeof d.palier === 'string' && d.palier.startsWith('v:')) ev.push({ j: d.jour, t: d.carte && CARTES[d.carte] ? `🏆 Objectif atteint — le proprio paie : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` : '😬 Objectif raté : le savon dans le bureau du proprio' });
+      else if (d.moment) {
+        const cat = d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle];
+        if (!cat) continue;
+        const o = (cat.options || []).find(x => x.cle === d.moment.choix);
+        const titre = String(cat.titre).replace(/\{nom\}/g, nomJoueur(d.moment.joueur) || 'un joueur');
+        ev.push({ j: d.jour, t: `${cat.ico} ${ctx.esc(titre)}${o ? ` — tu as choisi : <b>${ctx.esc(o.nom)}</b>` : ''}` });
+      } else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Un joueur réclamé au ballottage pour boucher un trou' });
+    }
+    for (const m of you.mutations || []) if (m.jour < jour && m.source !== 'choix' && MUTATIONS[m.cle]) ev.push({ j: m.jour, t: `${MUTATIONS[m.cle].ico} Le hasard s'en mêle : ${ctx.esc(m.p ? m.p.n : '')} — ${ctx.esc(MUTATIONS[m.cle].nom)}` });
+    for (const mb of you.minisBoss || []) {
+      if (mb.jour >= jour || !MINI_BOSS[mb.raison]) continue;
+      const m = (calendrier[mb.jour] || []).find(x => x.A === you || x.B === you);
+      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Gros match contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}` });
+    }
+    // Les séquences marquantes : cinq victoires de suite ou plus, cinq défaites.
+    let run = 0, sens = null, debut = 0;
+    const fermerRun = () => { if (run >= 5) ev.push({ j: debut, t: sens ? `🔥 ${run} victoires de suite` : `🥶 ${run} défaites de suite` }); };
+    for (const { j, m } of miens) { const v = gagne(m, you); if (v === sens) run++; else { fermerRun(); sens = v; run = 1; debut = j; } }
+    fermerRun();
+    if (!ev.length) return '';
+    ev.sort((a, b) => a.j - b.j);
+    const riv = rivalite();
+    const actes = ACTES.map(([d0, nom, sous], i) => {
+      const fin = ACTES[i + 1] ? ACTES[i + 1][0] : Infinity;
+      const ici = ev.filter(e => e.j >= d0 && e.j < fin);
+      return ici.length ? `<div class="recit-acte"><div class="recit-acte-t">${nom} · ${sous}</div>${ici.map(e => `<div class="recit-ev"><span class="recit-j">J${e.j + 1}</span><span>${e.t}</span></div>`).join('')}</div>` : '';
+    }).join('');
+    return `<div class="recit"><div class="hub-titre">📖 Ton histoire</div>${riv ? `<div class="recit-rival">⚔️ Ta rivalité : <b>${ctx.esc(ctx.teamLabel(riv.adv))}</b> · ${riv.v}-${riv.d} dans les gros matchs</div>` : ''}${actes}</div>`;
+  };
   const voletFiche = () => {
     if (!miens.length) return '<div class="hub-note">Aucun match joué encore.</div>';
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
@@ -880,7 +943,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       return `<div class="hub-jeu${v ? ' v' : ' d'}"${somm}><span class="hub-jeu-n">J${j + 1}</span><span class="hub-jeu-res">${v ? 'V' : m.ot ? 'DP' : 'D'}</span><span class="hub-jeu-score">${pour}–${contre}</span>${ctx.logo(adv.tag, 15)}<span class="hub-jeu-adv">${ctx.esc(ctx.teamLabel(adv))}</span>${m.ot ? '<em>P</em>' : ''}</div>`;
     }).join('');
     const f = fiche.get(you);
-    return `<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
+    return `${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
   };
 
   /*
@@ -960,7 +1023,10 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         <span class="hub-lignes-imp" title="L'importance de ce match">${imp.ico} ${ctx.esc(imp.nom)}</span>
         ${onDecision ? '<button type="button" class="btn gold hub-preparer">Préparer le match</button>' : ''}
       </div>`;
-      carte.innerHTML = `${routeHtml(jour, N)}${onDecision ? jaugesHtml(ctx, jaugesApres(decs, jour)) : ''}<div class="hub-match">
+      // LE MINI-BOSS (S69) : annoncé avant, jamais son issue.
+      const mb = (you.minisBoss || []).find(x => x.jour === p.j);
+      const miniBoss = mb && MINI_BOSS[mb.raison] ? `<div class="hub-miniboss">${MINI_BOSS[mb.raison].ico} <b>Match important : ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}. <span class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, finition +3 % · 3 matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, finition −3 % · 3 matchs`, bon: false }])}</span></div>` : '';
+      carte.innerHTML = `${routeHtml(jour, N)}${onDecision ? jaugesHtml(ctx, (you.jourLignes && you.jourLignes[jour] && you.jourLignes[jour].jauges) || jaugesApres(decs, jour)) : ''}${miniBoss}<div class="hub-match">
         <div class="hub-match-titre">Prochain match · Journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}</div>
         <div class="hub-match-note">${dernierMot}</div>
@@ -972,7 +1038,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
         lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie,
         adv: { nom: ctx.teamShort(adv), lignes: lignesDe(adv, adv.roster) },
-        match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
+        match: (matchPris && matchPris.match) || { importance: mb ? 'haute' : 'normale', ad: 0 },
         motAppliquer: 'Appliquer — la saison reprend ici',
         onBanc: onBanc ? () => { quitter(); onBanc(jour); } : null,
         onAppliquer: (lignes, match) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match }, j); },
@@ -1253,7 +1319,7 @@ function etatDeSerie(ctx, s, wA, wB) {
  * feuilles, donc on ne sauve pas ce qui s'est passé, seulement jusqu'où le
  * joueur l'a regardé.
  */
-export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null }) {
+export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null, graine = 0, decisions = [], onDecision = null, onBanc = null }) {
   const ui = coquille('Les séries');
   if (!ui || !series.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -1314,6 +1380,71 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
       <span class="hub-jeu-n">M${k + 1}</span>${ctx.logo(vainqueur.tag, 15)}<span class="hub-jeu-adv">${ctx.esc(ctx.teamShort(vainqueur))}</span>
       <span class="hub-jeu-score">${Math.max(gA, gB)}–${Math.min(gA, gB)}</span>${f.ot ? '<em>P</em>' : ''}<span class="hub-jeu-serie">${wA}-${wB}</span></div>`;
   };
+
+  /* =====================================================================
+     LE COMBAT DE BOSS (S69). JP : *séries, c'est des boss, chaque match étant
+     un round contre le dit boss*. La série se lit comme un combat : deux
+     barres de vie (les victoires qu'il reste à chacun), le rapport
+     d'éclaireur du boss (ses lignes, leurs tactiques et ce qui les contre, sa
+     vedette, son gardien), tes lignes et leur chimie. Entre deux rounds, un
+     ajustement à prendre ; avant chaque round, tout se règle.
+     ===================================================================== */
+  const decsSerie = decisions || [];
+  const etatSerie = s => { const { wA, wB } = gains(s); const moi = s.A === you ? wA : wB, lui = s.A === you ? wB : wA; return { moi, lui, etat: moi > lui ? 'devant' : moi < lui ? 'derriere' : 'egal' }; };
+  const vedetteDe = t => Object.values(t.roster || {}).filter(p => p && p.p !== 'G')
+    .sort((a, b) => (b.simPTS || 0) - (a.simPTS || 0))[0] || null;
+  const gardienDe = t => { const g = SLOTS.find(x => x.group === 'G' && !x.scratch); return g ? t.roster[g.i] : null; };
+  const vies = (n, cls) => `<span class="boss-vie ${cls}">${[0, 1, 2, 3].map(i => `<i class="${i < n ? 'plein' : ''}"></i>`).join('')}</span>`;
+  function bossHtml(s) {
+    const boss = s.A === you ? s.B : s.A;
+    const { moi, lui } = etatSerie(s);
+    const lb = lignesDe(boss, boss.roster);
+    const lt = lignesDe(you, you.roster);
+    const ved = vedetteDe(boss), gar = gardienDe(boss);
+    const chim = (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] && you.jourLignes[you.jourLignes.length - 1].chimie) || you.chimie || [0, 0, 0, 0];
+    return `<div class="boss">
+      <div class="boss-tete">⚔️ <b>Contre ${ctx.esc(ctx.teamLabel(boss))}</b> · match ${revele.get(s) + 1}</div>
+      ${(() => { const r = rivaliteDe(you); if (r && r.adv === boss) return `<div class="recit-rival">📖 La suite de l'histoire : ta rivalité de la saison, ${r.v}-${r.d} dans les gros matchs. ${r.d > r.v ? "L'heure de la revanche." : 'Ils veulent la leur.'}</div>`; const mb = (you.minisBoss || []).filter(x => x.adv === boss); return mb.length ? `<div class="recit-rival">📖 Déjà croisés dans un gros match cette saison : ${mb.filter(x => x.gagne).length}-${mb.filter(x => !x.gagne).length}.</div>` : ''; })()}
+      <div class="boss-vies"><span title="Victoires qu'il te reste à gagner">Toi ${vies(4 - moi, 'toi')}</span><span title="Victoires qu'il lui reste à gagner">${vies(4 - lui, 'lui')} ${ctx.esc(ctx.teamShort(boss))}</span></div>
+      <div class="boss-eclaireur">
+        <div class="gl-k">Rapport d'éclaireur</div>
+        <div class="boss-lignes">${lb.map((l, u) => { const T = TACTIQUES[l.tac], c = contreDe(l.tac); return `<span title="Sa ${u + 1}${u ? 'e' : 're'} ligne : ${ctx.esc(T.nom)}${c ? ` — étouffée par ${ctx.esc(TACTIQUES[c].nom)}` : ''}">${u + 1}. ${T.ico} ${ctx.esc(T.nom)}${c ? ` <small>↪ ${TACTIQUES[c].ico}</small>` : ''}</span>`; }).join('')}</div>
+        ${ved ? `<div>⭐ Sa vedette : <b>${ctx.esc(ved.n)}</b> · ${ved.simPTS || 0} pts en saison</div>` : ''}
+        ${gar ? `<div>🥅 Son gardien : <b>${ctx.esc(gar.n)}</b>${gar.simSA ? ` · ${((gar.simSV || 0) / gar.simSA).toFixed(3).replace(/^0/, '')} en saison` : ''}</div>` : ''}
+      </div>
+      <div class="hub-lignes"><span class="gl-k">Tes lignes</span> ${resumeLignes(lt, chim)}</div>
+    </div>`;
+  }
+  function brancherBoss(s) {
+    if (!s || complete(s) || !onDecision) return;
+    const k = revele.get(s);
+    const boss = s.A === you ? s.B : s.A;
+    const quitterPour = f => { const r = ronde; quitter(); f(r); };
+    const prep = actions.querySelector('.hub-preparer');
+    if (prep) prep.onclick = () => ouvrirLignes({
+      titre: `Préparer le match ${k + 1}`, sousTitre: `${nomRondeCourt(ronde)} · contre ${ctx.teamShort(boss)}`,
+      lineup: you.roster, lignes: lignesDe(you, you.roster),
+      chimie: (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).chimie || [0, 0, 0, 0],
+      energie: (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).energie || {},
+      adv: { nom: ctx.teamShort(boss), lignes: lignesDe(boss, boss.roster) },
+      match: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.match) || {}).match || { importance: 'haute', ad: 0 },
+      motAppliquer: `Appliquer — le match ${k + 1} se joue comme ça`,
+      onBanc: onBanc ? () => quitterPour(r => onBanc(r, k)) : null,
+      onAppliquer: (lignes, match) => quitterPour(r => onDecision({ ronde: r, match_no: k, lignes, match })),
+    });
+    const bb = actions.querySelector('.hub-banc-serie');
+    if (bb) bb.onclick = () => quitterPour(r => onBanc(r, k));
+    // ENTRE DEUX ROUNDS : un ajustement à prendre, forcé, en plein écran.
+    if (k >= 1 && !decsSerie.some(d => d.ronde === ronde && d.match_no === k && d.ajustement) && !choixOuvert()) {
+      const { moi, lui, etat } = etatSerie(s);
+      ouvrirChoix({
+        ico: '⚔️', titre: `Entre deux matchs · ${moi}-${lui}`,
+        recit: `Le match ${k + 1} contre ${ctx.teamLabel(boss)} approche. ${etat === 'derriere' ? 'Ta formation tire de l\'arrière.' : etat === 'devant' ? 'Ta formation mène la série.' : 'La série est à égalité.'} Choisis un ajustement pour ce match.`,
+        options: ajustementsOfferts(graine, ronde, k, etat).map(c => ({ cle: c, ...AJUSTEMENTS[c], duree: 1 })),
+        onChoix: c => quitterPour(r => onDecision({ ronde: r, match_no: k, ajustement: c })),
+      });
+    }
+  }
 
   const carteSerie = (s, grande) => {
     const { wA, wB } = gains(s);
@@ -1450,6 +1581,13 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     return voletTableau();
   });
   const debrancherMenu = brancherMenu(volet, menu, clubs, () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
+  // L'onglet « Alignement » ouvre le banc pendant ta série (S69).
+  if (onBanc) tabs.hub.banc = () => {
+    const s = maSerie(ronde);
+    if (!s || complete(s)) return;
+    const r = ronde, k = revele.get(s);
+    quitter(); onBanc(r, k);
+  };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -1479,7 +1617,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
         const gagne = s.winner === you;
         carte.innerHTML = `<div class="live-bilan ${gagne ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">${gagne ? 'Série remportée' : 'Éliminé'} ${Math.max(s.wA, s.wB)}-${Math.min(s.wA, s.wB)} · ${ctx.esc(nomRondeCourt(ronde))}</div>
           <div class="hub-carte-note">${rondeComplete(ronde) ? (gagne ? `La ronde est finie. ${ronde + 1 < nRondes ? 'La suivante t\'attend.' : ''}` : 'La ronde est finie ; les séries continuent sans ta formation.') : 'Les autres séries de la ronde se poursuivent.'}</div></div>`;
-      } else carte.innerHTML = carteSerie(s, true);
+      } else carte.innerHTML = carteSerie(s, true) + bossHtml(s);
     } else {
       const r = elimination();
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">${ctx.esc(nomRonde(ronde))}</div><div class="hub-match-note">${r >= 0 ? `Ta formation est tombée au ${ctx.esc(nomRonde(r).toLowerCase())}. ` : ''}${deRonde(ronde).length} série${deRonde(ronde).length > 1 ? 's' : ''} : ${rondeComplete(ronde) ? 'la ronde est finie.' : 'la ronde se joue.'}</div></div>`;
@@ -1493,6 +1631,8 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     } else if (ronde + 1 < nRondes) {
       boutons.push(`<button class="btn go hub-jour" title="${ctx.esc(nomRonde(ronde + 1))}">${ctx.esc(nomRondeCourt(ronde + 1))}</button>`);
     }
+    // PRÉPARER LE ROUND ET LE BANC (S69) : tant que ta série se joue.
+    if (s && !complete(s) && onDecision) boutons.unshift(`<div class="hub-actions-rang"><button class="btn gold hub-preparer">Préparer le match ${revele.get(s) + 1}</button>${onBanc ? '<button class="btn hub-banc-serie">Le banc</button>' : ''}</div>`);
     boutons.push(`<button class="btn hub-fin" title="Jouer toutes les séries et voir le tableau">Passer à la fin</button>`);
     actions.innerHTML = boutons.join('');
     const regarder = actions.querySelector('.hub-regarder');
@@ -1505,6 +1645,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     const fr = actions.querySelector('.hub-ronde');
     if (fr) fr.onclick = () => { finirRonde(); dessiner(); tabs.suivre('serie'); };
     actions.querySelector('.hub-fin').onclick = () => { toutReveler(); dessiner(); tabs.suivre('serie'); };
+    brancherBoss(s);
   }
 
   /* REGARDER LE MATCH : le direct rejoue le prochain match de ta série, puis
@@ -1526,7 +1667,8 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     });
   }
 
-  const fermer = () => {
+  /* Quitter SANS finir les séries (S69) : une décision ou le banc, puis on revient. */
+  const quitter = () => {
     if (termine) return;
     termine = true;
     noter();
@@ -1535,6 +1677,10 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     window.removeEventListener('keydown', clavier);
     modal.style.display = 'none';
     document.body.style.overflow = '';
+  };
+  const fermer = () => {
+    if (termine) return;
+    quitter();
     onTermine();
   };
   /* ✕ : le reste des séries se joue, et on passe au tableau. */

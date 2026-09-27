@@ -57,6 +57,9 @@ async function guetterBallottage() {
   if (ballottage.fait) return;
   const ouvrir = await page.$('#hubModal .hub-ballottage-ouvrir');
   if (!ouvrir || !(await ouvrir.isVisible())) return;
+  // Un choix forcé déjà ouvert passe devant : on y répond d'abord.
+  const force = await page.$('#choixModal:not([hidden]) .choix-option');
+  if (force && (await force.isVisible())) return;
   ballottage.fait = true;
   const tete = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
   await ouvrir.click();
@@ -601,7 +604,7 @@ async function traverserSaison(etiquette, reprise = false) {
     const ficheBanc = (banc.match(/(\d+-\d+-\d+)/) || [])[1];
     if (!ficheBanc || !teteAvantBanc.includes(ficheBanc)) errors.push(`le banc ne dit pas la fiche de l'écran de saison : « ${banc.slice(0, 80)} »`);
     const metas = await page.$$eval('.slot', els => els.filter(e => e.querySelector('.slot-name')).map(e => e.querySelectorAll('.slot-meta')[1]?.textContent.trim() || ''));
-    if (metas.length !== 23 || !metas.every(m => /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · [,—]|aucun match)/.test(m))) errors.push(`les cases du banc ne portent pas la fiche à ce jour : ${metas.slice(0, 3).join(' | ')}`);
+    if (metas.length !== 23 || !metas.every(m => /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · [,—]|aucun match)/.test(m))) errors.push(`les cases du banc ne portent pas la fiche à ce jour (${metas.length} cases) : ${metas.filter(m => !/^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · [,—]|aucun match)/.test(m)).slice(0, 4).join(' | ')}`);
     if ((await page.$$('.slot-remove')).length) errors.push('le banc laisse retirer un joueur en pleine saison');
     // Le 3e trio est la fermeture par défaut (FERMETURE_DEFAUT) : le 🔒 doit
     // déjà le dire, et on la DÉPLACE au 2e — c'est le déplacement qui prouve
@@ -858,6 +861,22 @@ async function traverserSaison(etiquette, reprise = false) {
       if (suivantes.length !== 3) errors.push(`le palier suivant offre ${suivantes.length} cartes au lieu de trois`);
       else if (suivantes.includes(pris)) errors.push(`la carte « ${pris} », déjà prise, reparaît au palier suivant : ${suivantes.join(' · ')}`);
       else console.log(`   palier ${jPalier} : ${offertes.join(' · ')} → « ${pris} » prise au jour ${jPrise}, palier suivant ${suivantes.join(' · ')}`);
+
+      /*
+       * TON HISTOIRE (S69) : à mi-saison, « Ma fiche » raconte la run en
+       * actes — au moins les attentes du proprio, posées au premier jour.
+       */
+      if (etiquette === 'saison') {
+        await repondreAuxChoix();
+        await page.click('.navtab[data-page="calendrier"]');
+        await page.waitForTimeout(250);
+        const recit = await page.$$eval('#hubModal .recit .recit-ev', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+        const actes = await page.$$eval('#hubModal .recit .recit-acte-t', e => e.map(x => x.textContent.trim()));
+        if (!recit.length || !recit.some(t => /proprio/i.test(t))) errors.push(`« Ma fiche » ne raconte pas la saison : ${recit.slice(0, 3).join(' | ') || 'rien'}`);
+        else console.log(`   ton histoire : ${recit.length} moments en ${actes.length} acte(s) — ${recit.slice(0, 3).join(' | ')}`);
+        await page.click('.navtab[data-page="match"]');
+        await page.waitForTimeout(200);
+      }
 
       /*
        * LE PALIER NE POUSSE RIEN HORS DE L'ÉCRAN. La carte des trois choix
@@ -1427,7 +1446,45 @@ if (enabled) {
     // L'écran des séries : un match de plus dans la ronde, le tableau, puis
     // le prochain match en direct, puis tout jusqu'à la Coupe.
     await page.waitForSelector('#hubModal .hub-jour', { timeout: 20000 });
+    /*
+     * LE COMBAT DE BOSS (S69) : le rapport d'éclaireur est là, « Préparer le
+     * round » change les lignes du prochain match seulement, et entre deux
+     * rounds un ajustement forcé s'ouvre en plein écran.
+     */
+    {
+      // Les enveloppes de clic et d'attente répondent aux choix forcés : on
+      // compte les titres croisés depuis ici.
+      const vusAvant = (choixVus.get('hub-dilemme') || []).length;
+      if (!(await page.$('#hubModal .boss-eclaireur'))) errors.push('les séries ne montrent pas le rapport d\'éclaireur du boss');
+      const dsDe = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_save')).partie.decisionsSeries || []; } catch { return []; } });
+      const prep = await page.$('#hubModal .hub-preparer');
+      if (!prep) errors.push('les séries n\'offrent pas « Préparer le match »');
+      else {
+        await prep.click();
+        await page.waitForSelector('#lignesModal:not([hidden]) .gl-appliquer', { timeout: 5000 });
+        await _click('#lignesModal [data-importance="haute"]').catch(() => {});
+        await _click('#lignesModal .gl-appliquer');
+        await page.waitForSelector('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
+        await page.waitForTimeout(400);
+        const ds = await dsDe();
+        if (!ds.some(d => Array.isArray(d.lignes) && d.match_no === 0)) errors.push(`la sauvegarde ne porte pas les lignes du round 1 : ${JSON.stringify(ds)}`);
+      }
+      await page.click('#hubModal .hub-jour');
+      await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-fin, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
+      await page.waitForTimeout(400);
+      await repondreAuxChoix();
+      await page.waitForTimeout(400);
+      const ds = await dsDe();
+      const aj = ds.find(d => d.ajustement);
+      const entre = (choixVus.get('hub-dilemme') || []).slice(vusAvant).some(t => /Entre deux matchs/.test(t));
+      if (!entre) errors.push('aucun ajustement forcé « Entre deux matchs » après le match 1');
+      if (entre && !aj) errors.push(`l'ajustement choisi n'est pas sauvegardé : ${JSON.stringify(ds)}`);
+      else if (aj) console.log(`   séries : lignes du match 1 et ajustement « ${aj.ajustement} » au match ${aj.match_no + 1}, ${ds.length} décision(s) de séries`);
+    }
+    await page.waitForSelector('#hubModal .hub-jour', { timeout: 20000 });
     await page.click('#hubModal .hub-jour');
+    await page.waitForTimeout(300);
+    await repondreAuxChoix();
 
     /*
      * LES SÉRIES SURVIVENT À UN RAFRAÎCHISSEMENT, comme la saison. Elles se
@@ -1470,6 +1527,7 @@ if (enabled) {
     if (lbApres !== lbAvant) errors.push(`le rafraîchissement a ajouté une entrée d'historique : ${lbAvant} puis ${lbApres}`);
     else console.log(`   reprise des séries : ${poApres} — ${poSauve.vus} match(s) révélé(s), ${lbApres} entrée(s) d'historique`);
 
+    await repondreAuxChoix();
     await page.click('.navtab[data-page="classement"]');
     const noeuds = await page.$$eval('#hubModal .bk-serie', l => l.length);
     await page.click('.navtab[data-page="match"]');
@@ -1485,6 +1543,7 @@ if (enabled) {
       xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
       await page.click('#liveModal .live-suite');
     }
+    await repondreAuxChoix();
     await page.click('#hubModal .hub-fin');
     await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
     await page.click('#hubModal .hub-suite');

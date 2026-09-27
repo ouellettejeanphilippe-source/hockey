@@ -21,7 +21,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v6';   // v6 : js/gerant.js, les lignes à la HockeyArena (S68)
+const VERSION = 'cap82-v7';   // v7 : gros matchs, séries match par match, ton histoire (S69)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

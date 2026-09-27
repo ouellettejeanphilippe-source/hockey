@@ -411,6 +411,7 @@ function saveGame() {
         // regardées. `lbId` suit, sinon la reprise coudrait la Coupe sur une
         // entrée d'historique neuve au lieu de celle qu'on joue.
         series: G.seriesVues || null,
+        decisionsSeries: G.ligue.decisionsSeries || [],
         lbId: G.lbId || null,
       } : null,
       /*
@@ -545,8 +546,9 @@ async function restoreSave() {
       return { reprise: async () => { await reprendreTournoi(etat); } };
     }
     if (data.partie && data.partie.graine) {
-      const { graine, adversaires = [], journee = 0, decisions = [], series = null, lbId = null } = data.partie;
+      const { graine, adversaires = [], journee = 0, decisions = [], series = null, lbId = null, decisionsSeries = [] } = data.partie;
       G.lbId = lbId;
+      G.dsReprise = decisionsSeries;
       G.seriesVues = series;
       return { reprise: async () => {
         // Les joueurs du ballottage d'abord : l'exclusion des adversaires et
@@ -826,7 +828,7 @@ async function boot() {
     $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele,
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
-    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast,
+    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, deciderSerie, bancSerie,
     // L'onglet « La ligue » reconstitue la VRAIE fiche des 31 adversaires :
     // il lui faut le shard de leur saison, et le chargeur le met en cache.
     getShard,
@@ -3557,6 +3559,13 @@ function fermetureCourante() {
 async function reprendreSaison() {
   const b = G.banc;
   if (!b || !G.ligue) return;
+  // EN SÉRIES (S69), le banc renvoie aux séries : c'est une décision de série.
+  if (b.serie) {
+    G.banc = null;
+    $('game').classList.remove('banc');
+    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes });
+    return;
+  }
   // Le SEL (S68) : des dés neufs pour la suite, voir `simulateLeague`.
   const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, sel: nouvelleGraine() };
   // On ne remplace que la décision de BANC du même jour : une carte, un plan
@@ -3704,6 +3713,31 @@ async function connaitreBallottages(decisions) {
   }
 }
 
+/*
+ * UNE DÉCISION DE SÉRIES (S69) : trios, lignes, consigne, ajustement entre
+ * deux rounds. Elle remplace celle du même genre au même match, porte son
+ * sel, et les séries se rejouent — la saison d'abord, qui pose le
+ * générateur, puis les rondes jusqu'où on les avait regardées.
+ */
+async function deciderSerie(d) {
+  if (!G.ligue) return;
+  const meme = x => x.ronde === d.ronde && x.match_no === d.match_no && (
+    (d.cases && x.cases) || (d.lignes && !d.cases && x.lignes && !x.cases) || (d.match && x.match) || (d.ajustement && x.ajustement));
+  G.ligue.decisionsSeries = [...(G.ligue.decisionsSeries || []).filter(x => !meme(x)), { ...d, sel: nouvelleGraine() }];
+  const vues = G.seriesVues;
+  saveGame();
+  G.done = false;
+  renderMain();
+  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Infinity, decisions: G.ligue.decisions, reprise: true });
+  reprendreSeries(vues);
+}
+/* Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. */
+function bancSerie(ronde, k) {
+  if (!G.ligue || !G.ligue.calendrier) return;
+  ouvrirBanc(G.ligue.calendrier.length);
+  if (G.banc) { G.banc.serie = { ronde, k }; renderBanc(); }
+}
+
 async function choisirCarte(palier, jour, cle) {
   if (!G.ligue || !CARTES[cle]) return;
   const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
@@ -3812,6 +3846,9 @@ async function runSeason(opts = {}) {
    * la saison d'avant et hériterait de ses séries.
    */
   if (!opts.reprise) { G.seriesVues = null; G.lbId = null; }
+  // Les décisions de SÉRIES suivent une reprise (S69), jamais une saison neuve.
+  const dsPrec = opts.reprise ? ((G.ligue && G.ligue.decisionsSeries) || G.dsReprise || []) : [];
+  G.dsReprise = null;
   G.done = true;
   // LA SAISON SE JOUE DANS TES COULEURS : noir, blanc, orange. Le repêchage
   // portait celles du vestiaire sorti ; à partir d'ici, c'est ton club.
@@ -3866,6 +3903,7 @@ async function runSeason(opts = {}) {
     // sauvegarde emporte, et `rebatirAdversaires` les redéploie à l'identique.
     cles: opponents.map(t => `${t.season}|${t.tag}`),
     decisions,
+    decisionsSeries: dsPrec,
     // Les trois réglages sont FIGÉS ici, avec la graine : l'écran « Nouvelle
     // partie » peut muter G pendant qu'un bilan est encore à l'écran, et
     // l'historique doit enregistrer la partie qui a été jouée, pas celle

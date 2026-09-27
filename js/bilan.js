@@ -10,7 +10,7 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
+import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, playRonde, appliquerDecisionSerie, separerSeries, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
   PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
 import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
@@ -21,10 +21,10 @@ import { ouvrirSeries } from './saison.js';
 import { ficheDeClub, tauxDeClub } from './equipes.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard;
+let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard } = c);
+  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie } = c);
 }
 
 /* =====================================================================
@@ -779,21 +779,32 @@ export function runPlayoffs(top16, opts = {}) {
   // les séries s'inscrivent par-dessus, puis on sépare (js/sim.js).
   const photo = photoStats(G.ligue ? G.ligue.teams : top16);
   G.series = [];
+  /*
+   * LES SÉRIES SE JOUENT RONDE PAR RONDE, MATCH PAR MATCH (S69) — toutes les
+   * séries d'une ronde avancent ensemble, dans l'ordre où l'écran les
+   * révèle. Avant chaque match, les décisions de séries de ta formation
+   * (trios, lignes, consigne, ajustement entre deux rounds) s'appliquent et
+   * tirent des dés neufs ; les matchs déjà vus ne bougent pas.
+   */
+  const decsSeries = (G.ligue && G.ligue.decisionsSeries) || [];
+  const graineSeries = (G.ligue && G.ligue.graine) || 0;
+  const toiPO = top16.find(t => t.isPlayer) || null;
   let ronde = top16.slice(), n = 0;
   while (ronde.length > 1) {
-    const suivant = [];
-    for (let i = 0; i < ronde.length / 2; i++) {
-      const A = ronde[i], B = ronde[ronde.length - 1 - i];
-      const s = playSeries(A, B, true, n);   // la ronde : l'usure s'accumule
-      suivant.push(s.winner);
-      G.series.push({ ...s, A, B, ronde: n, i: G.series.length });
-    }
-    ronde = suivant;
+    const paires = [];
+    for (let i = 0; i < ronde.length / 2; i++) paires.push([ronde[i], ronde[ronde.length - 1 - i]]);
+    const r = n;
+    const jouees = playRonde(paires, n, k => {
+      if (!toiPO) return;
+      toiPO.effetsSerie = [];
+      for (const d of decsSeries) if (d.ronde === r && d.match_no === k) appliquerDecisionSerie(toiPO, d, graineSeries);
+    });
+    ronde = jouees.map(s => s.winner);
+    for (const s of jouees) G.series.push({ ...s, ronde: n, i: G.series.length });
     n++;
   }
   separerSeries(G.ligue ? G.ligue.teams : top16, photo);
   const champion = ronde[0];
-
   /*
    * LA COUPE ENTRE DANS L'HISTORIQUE. `saveLeaderboard` est appelé au bilan de
    * la SAISON, donc avant la première série : l'entrée ne portait aucun champ
@@ -859,6 +870,10 @@ export function runPlayoffs(top16, opts = {}) {
      * endroit qui sait le relire.
      */
     depuis: opts.depuis || null,
+    // LES COMBATS DE BOSS (S69) : entre deux rounds, on règle tout.
+    graine: graineSeries, decisions: decsSeries,
+    onDecision: deciderSerie || null,
+    onBanc: bancSerie || null,
     onRevele: etat => { G.seriesVues = etat; saveGame(); },
     onTermine: () => dessinerTableauDesSeries(host, n, champion),
   });
