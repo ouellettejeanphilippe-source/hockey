@@ -73,9 +73,9 @@ console.log('\n  Le deck (S73)\n');
   exiger('une main : trois sortes différentes, dont un effet', mauvaises === 0, `${mauvaises} mains fautives sur 1 200`);
   exiger('la main est pure (même graine, même palier, même main)', impures === 0, `${impures} impures`);
   exiger('un effet déjà pris ne revient pas', effetsPris === 0, `${effetsPris} fois`);
-  const autres = ['recrue', 'amelioration', 'profil', 'strategie', 'menage', 'camp'].map(k => compte[k] / 1200);
+  const autres = ['recrue', 'amelioration', 'profil', 'strategie', 'menage', 'camp', 'atelier'].map(k => compte[k] / 1200);
   informer('fréquence des sortes', Object.entries(compte).map(([k, n]) => `${SORTES_DECK[k].ico} ${k} ${(n / 12).toFixed(0)} %`).join(' · '));
-  exiger('chaque sorte sort, aucune n\'écrase les autres', Math.min(...autres) > 0.26 && Math.max(...autres) < 0.45,
+  exiger('chaque sorte sort, aucune n\'écrase les autres', Math.min(...autres) > 0.22 && Math.max(...autres) < 0.45,
     autres.map(x => `${(x * 100).toFixed(0)} %`).join(' / '));
   const stages = new Set();
   for (let g = 0; g < 60; g++) for (const t of tactiquesDuStage(`deck${g}`, 20)) stages.add(t);

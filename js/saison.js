@@ -31,7 +31,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
-  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, fitLigne, profilPrincipal, apprentissagePhoto, flechesDe } from './sim.js';
+  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, fitLigne, profilPrincipal, apprentissagePhoto, flechesDe } from './sim.js';
 import { artJoueur } from './cartes.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, planReplie, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN } from './combat.js';
@@ -1174,7 +1174,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
    * la main » y ramène. Toutes finissent en UNE décision datée d'aujourd'hui,
    * portant son palier : c'est ce qui ferme la main.
    */
-  const RARETE_SORTE = { effet: 'rare', recrue: 'legendaire', amelioration: 'peu', profil: 'peu', strategie: 'commune', menage: 'peu', camp: 'peu' };
+  const RARETE_SORTE = { effet: 'rare', recrue: 'legendaire', amelioration: 'peu', profil: 'peu', strategie: 'commune', menage: 'peu', camp: 'peu', atelier: 'rare' };
   /*
    * UNE CARTE DU DECK SE DATE DU SOIR DU PROCHAIN MATCH (S74), pas d'aujourd'hui.
    * Son sel tire des dés neufs à partir de sa journée : datée d'aujourd'hui,
@@ -1208,6 +1208,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       if (c.sorte === 'profil') return { cle: 'profil', rarete, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
         texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
         desactive: roles.length ? '' : 'Personne à convertir' };
+      if (c.sorte === 'atelier') return { cle: 'atelier', rarete, ico: S.ico, nom: S.nom, type: `${S.nom} · au joueur de ton choix`,
+        texte: `Trois éditions : ${editionsDuJour(graine, p0).map(k => `${MUTATIONS[k].ico} ${MUTATIONS[k].nom}`).join(' · ')}. Tu choisis l'édition, puis le joueur.`,
+        desactive: ctx.atelier ? '' : 'L\'atelier est fermé' };
       if (c.sorte === 'camp') return { cle: 'camp', rarete, ico: S.ico, nom: 'Le camp d\'entraînement', type: `${S.nom} · ton deck de match`,
         texte: 'Une carte de ton deck de match devient sa version « + » : moitié plus forte, ou une énergie de moins.',
         desactive: deckAvant(jour).some(k => CARTES_MATCH[`${k}+`]) ? '' : 'Tout ton deck est déjà amélioré' };
@@ -1236,9 +1239,19 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         onChoix: k => { const x = recrues.find(y => y.cle === k); if (x) deciderDeck(p0, { deck: 'recrue', ballottage: { i: x.i, entre: x.cle, sort: x.sort } }); } });
       return;
     }
+    if (sorte === 'atelier') {
+      ouvrirChoix({ ...suite, ico: '🛠️', titre: 'L\'atelier',
+        recit: 'Trois éditions : touche celle que tu gardes, puis le joueur qui la reçoit. C\'est pour le reste de la saison.',
+        options: editionsDuJour(graine, p0).map(k => ({ cle: k, rarete: 'rare', ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutation(k) })),
+        onChoix: k => ctx.atelier(k, { jour, you, suite: { genre: 'palier' },
+          onChoix: mut => deciderDeck(p0, { deck: 'atelier', mutation: mut }), onFerme: () => suiteDeLaMain(p0, 'atelier', recrues, roles) }) });
+      return;
+    }
     if (sorte === 'amelioration') {
       const M = MUTATIONS[arg];
-      const js = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => ({ sl, p: you.roster[sl.i] })).filter(x => x.p && x.p.p !== 'G');
+      // Le coach des gardiens (S78) ne s'offre qu'aux gardiens ; le reste, aux patineurs.
+      const js = SLOTS.filter(sl => !sl.scratch && (M.gardien ? sl.group === 'G' : sl.group !== 'G')).map(sl => ({ sl, p: you.roster[sl.i] }))
+        .filter(x => x.p && (M.gardien ? x.p.p === 'G' : x.p.p !== 'G'));
       ouvrirChoix({ ...suite, cartes: false, compact: true, ico: M.ico, titre: `${M.nom} : à qui ?`,
         recit: `${M.quoi} C'est pour de bon : choisis bien.`,
         contexte: `<div class="choix-puces">${puces(motsDeMutation(arg))}</div>`,

@@ -63,6 +63,9 @@ export const PACKS = {
     texte: 'Trois vrais joueurs de toutes les époques : tu en signes un.' },
   cartes: { ico: '🃏', nom: 'Pack de cartes', prix: 12, genre: 'cartes',
     texte: 'Trois cartes de match : tu en gardes une pour ton deck.' },
+  // L'ATELIER (S78) : éditer un de tes joueurs — son poste, ses trios, ses malus, sa carte.
+  atelier: { ico: '🛠️', nom: 'L\'atelier', prix: 15, genre: 'atelier',
+    texte: 'Trois éditions de joueur (poste, trios, malus, carte) : tu en gardes une, pour le joueur de ton choix.' },
   defenseurs: { ico: '🧱', nom: 'Pack Défenseurs', prix: 20, genre: 'joueurs', groupe: 'D', cotes: COTES_BASE, deblocage: 'packDefenseurs',
     texte: 'Trois défenseurs : tu en signes un.' },
   gardiens: { ico: '🥅', nom: 'Pack Gardiens', prix: 25, genre: 'joueurs', groupe: 'G', cotes: COTES_BASE, deblocage: 'packGardiens',
