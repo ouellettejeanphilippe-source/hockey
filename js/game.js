@@ -121,6 +121,13 @@ const G = {
      pas un réglage de partie : couper le son ne change rien à ce qui est joué. */
   sons: true,
   /*
+   * LE NIVEAU DE L'ADVERSAIRE SUR TABLE (S75). Une préférence, comme les sons :
+   * elle ne touche ni au repêchage ni au tournoi déjà joué, seulement à la
+   * tête de l'IA d'en face dans TES prochains matchs (`nouveauMatch`, `recrue`).
+   * Recrue par défaut : le passage du testeur a perdu neuf matchs de 0-6 à 1-16.
+   */
+  niveauTable: 'RECRUE',  // RECRUE | PRO
+  /*
    * LE MODE BONUS. JP : *mode bonus genre blood bowl, fft et autres jeux de
    * sport de table*. Ce réglage ne touche PAS au repêchage : les 23 cases, le
    * plafond et la roulette sont exactement les mêmes. Il dit ce qu'on fait de
@@ -525,7 +532,7 @@ function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode, epoque: G.epoque,
-      repechage: G.repechage, franchise: G.franchise, palette: G.palette, bonus: G.bonus, sons: G.sons,
+      repechage: G.repechage, franchise: G.franchise, palette: G.palette, bonus: G.bonus, sons: G.sons, niveauTable: G.niveauTable,
       onlyFit: G.onlyFit, sortBy: G.sortBy, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
@@ -541,6 +548,7 @@ function loadOpts() {
     if (o.poolView === 'POS' || o.poolView === 'LIST') G.poolView = o.poolView;
     if (PALETTES.includes(o.palette)) G.palette = o.palette;
     if (typeof o.sons === 'boolean') G.sons = o.sons;
+    if (o.niveauTable === 'RECRUE' || o.niveauTable === 'PRO') G.niveauTable = o.niveauTable;
     // Un mode disparu (l'ancien « Par unité ») retombe sur le classique.
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
     // Les saisons ne sont pas encore chargées ici : `boot` vérifie après.
@@ -1171,6 +1179,7 @@ function setOption(key, val) {
     return;
   }
   else if (key === 'sons') { G.sons = val === 'on'; activerSons(G.sons); }
+  else if (key === 'niveauTable') G.niveauTable = val === 'PRO' ? 'PRO' : 'RECRUE';
   else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
@@ -1308,6 +1317,7 @@ function syncOptionsUI() {
     poolView: G.poolView,
     palette: G.palette,
     sons: G.sons ? 'on' : 'off',
+    niveauTable: G.niveauTable,
     format: M.format,
     tirage: M.tirage,
     ligue: src.epoque ? 'UNE' : 'TOUTES',
@@ -4317,7 +4327,12 @@ async function runSeason(opts = {}) {
    geste toi-même.
    ====================================================================== */
 
-const ctxTable = () => ({ esc, band: getTeamBand, vive: couleurVive, logo: getTeamLogoHtml, mug: headshotHtml });
+/* Le niveau de l'adversaire se lit et se change d'ici (S75) : le plateau le lit, l'écran du tournoi le bascule. */
+const ctxTable = () => ({
+  esc, band: getTeamBand, vive: couleurVive, logo: getTeamLogoHtml, mug: headshotHtml,
+  niveau: () => G.niveauTable,
+  choisirNiveau: v => { setOption('niveauTable', v); syncOptionsUI(); },
+});
 
 /*
  * LES RÈGLES DU PLATEAU DANS LA PAGE DES RÈGLES, depuis la même source que

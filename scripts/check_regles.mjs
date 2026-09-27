@@ -24,11 +24,12 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings } from '../js/sim.js';
 import {
   COLS, RANGS, RANG_MIN, RANG_MAX, BUT_COL, PERIODES, PRESENCES_PAR_PERIODE, PRESENCES_PROLONGATION, POSSESSIONS_PAR_PERIODE, POSSESSIONS_PROLONGATION,
-  equipeDeTable, nouveauMatch, iaPresence, resultatDe, surLaGlace, porteur, libre, eqDe,
+  equipeDeTable, nouveauMatch, iaPresence, iaGeste, finirMain, resultatDe, surLaGlace, porteur, libre, eqDe,
   statsDeTable, uniteDe, changerUnite, souffleDe, souffleMax, PUNITION_TOURS, peutJouer, deplacementsDe, ciblesEchecDe,
   reglesDuPlateau, peutTirerDe, distanceAuFilet, PORTEE_TIR, caseJouable, estFilet, ROLES_PROLONGATION,
   TRAJETS, caseDeLaRondelle, PORTEE_RELANCE, FILET_HAUT, MJ_FOND, MJ_NEUTRE,
   deplacer, appliquerPasse, appliquerTir, appliquerEchec, ciblesFondDe,
+  enJeu, passer, tirer, mettreEnEchec, voler,
 } from '../js/table.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -490,10 +491,100 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'recepti
     const [t, mj] = m.trajet.slice(-2);
     juger('un but : la rondelle va au filet, PUIS au point du centre', t.genre === 'tir' && estFilet(t.a.r, t.a.c) && mj.genre === 'mj' && mj.mot === 'But', dernieres(m, 2));
   }
+  /*
+   * 11. LA PIÈCE D'AVANT LE SIFFLET NE JOUE PLUS (S75). `poser()` refait les
+   * pièces à chaque mise au jeu ; l'écran gardait l'ancienne choisie quand la
+   * main lui restait, et un toucher dépensait le patin de la main pendant que
+   * rien ne bougeait. Le moteur refuse le geste d'une pièce qui n'est pas en
+   * jeu, sans rien dépenser : ni la main, ni le trajet, ni le dé. Prouvé en
+   * retirant la garde de `deplacer` : le patin passe, `bouge` devient vrai et
+   * l'ailier fantôme change de case.
+   */
+  {
+    const { m, p, piece } = scene({ 'A-C': [4, 6], 'A-AG': [6, 3] }, 'A-C');
+    const ailier = piece('A-AG');
+    appliquerTir(m, p, { reussi: true, total: 9, total2: 0 });   // le but : mise au jeu, pièces neuves
+    m.tour = 'A';                                                  // la main reste à toi
+    const avant = { bouge: m.main.bouge, agi: m.main.agi, mobiles: m.main.mobiles.length };
+    const trajet = m.trajet.length, ou = [ailier.r, ailier.c];
+    const vrai = m.de;
+    let tirages = 0;
+    m.de = () => { tirages++; return vrai(); };
+    const rival = eqDe(m, 'B').pieces[0];
+    const d = deplacer(m, ailier, { r: ailier.r - 1, c: ailier.c });
+    const refus = [!d.ok && !d.jet, passer(m, p, ailier) === null, tirer(m, p) === null,
+      mettreEnEchec(m, ailier, rival) === null, voler(m, ailier, rival) === null];
+    const intact = m.main.bouge === avant.bouge && m.main.agi === avant.agi && m.main.mobiles.length === avant.mobiles
+      && m.trajet.length === trajet && !tirages && ailier.r === ou[0] && ailier.c === ou[1];
+    const neuf = eqDe(m, 'A').pieces.find(x => x.role === 'AG');
+    juger('après un but, la pièce d\'avant le sifflet ne joue plus : le moteur refuse, rien n\'est dépensé',
+      !enJeu(m, ailier) && !enJeu(m, p) && enJeu(m, neuf) && refus.every(Boolean) && intact && deplacementsDe(m, neuf).length > 0,
+      `refus ${refus.map(Number).join('')} · main ${JSON.stringify(m.main.bouge)} · ${tirages} dé(s) · ailier en ${ailier.r},${ailier.c}`);
+  }
 
   console.log('\nLES SIFFLETS, MIS EN SCÈNE');
   for (const [nomScene, ok, detail] of scenes) {
     console.log(`  ${ok ? '✓' : '✗'} ${nomScene}${ok ? '' : `\n      ${detail}`}`);
+    if (!ok) echecs++;
+  }
+}
+
+/* ======================================================================
+   LE NIVEAU RECRUE (S75)
+   ======================================================================
+   La recrue ne change pas les règles, elle change la tête de l'IA d'en
+   face : elle passe sa main après UN geste (sauf le tir sur réception
+   qu'une passe vient d'ouvrir) et ne dépense jamais sa relance. Trois
+   choses se vérifient, geste par geste : la main de la recrue ne compte
+   jamais deux gestes, sa relance n'est jamais dépensée, et la même graine
+   rejoue le même match — une recrue qui tirerait au hasard hors du
+   générateur du match casserait la reprise du tournoi. Et un match Pro
+   reste un match Pro : le camp d'en face, lui, joue ses mains entières.
+   ====================================================================== */
+{
+  const N = Math.min(30, MATCHS);
+  let mainsRecrue = 0, deuxGestes = 0, relancesDepensees = 0, gestesPro = 0, mainsPro = 0, differents = 0;
+  const jouer = (i, compter) => {
+    const a = clubs[(i * 11 + 3) % clubs.length], b = clubs[(i * 17 + 7) % clubs.length];
+    const m = nouveauMatch(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `recrue-${i}`, { recrue: 'B' });
+    /*
+     * UNE MAIN, C'EST UN OBJET `m.main` : `finirMain` et `finirPresence` en
+     * posent un neuf. On compte donc par objet, pas par appel d'`iaPresence`
+     * — sa boucle continue tant que la main est au même camp, et quand la
+     * période finit sur le geste de la recrue, la période suivante s'ouvre
+     * sur SA main : deux mains, pas une main de deux gestes.
+     */
+    const parMain = new Map();
+    let garde = 0;
+    while (!m.fini && garde++ < 20000) {
+      const main = m.main, cote = m.tour;
+      const g = iaGeste(m);
+      if (m.tour === cote && m.main === main && !g && !m.fini) finirMain(m);   // comme `iaPresence` : la main rend toujours
+      if (!compter || !g) continue;
+      const x = parMain.get(main) || { cote, gestes: 0 };
+      if (g.type !== 'reception') x.gestes++;
+      if (cote === 'B' && g.jet && g.jet.relance) relancesDepensees++;
+      parMain.set(main, x);
+    }
+    for (const x of parMain.values()) {
+      if (x.cote === 'B') { mainsRecrue++; if (x.gestes > 1) deuxGestes++; }
+      else { mainsPro++; gestesPro += x.gestes; }
+    }
+    return resultatDe(m);
+  };
+  for (let i = 0; i < N; i++) {
+    const r1 = jouer(i, true), r2 = jouer(i, false);
+    if (r1.gfA !== r2.gfA || r1.gfB !== r2.gfB || r1.fil.length !== r2.fil.length) differents++;
+  }
+  const regles = [
+    ['la recrue joue un seul geste par main (le tir sur réception en plus)', !deuxGestes, `${deuxGestes} main(s) sur ${mainsRecrue} avec deux gestes`],
+    ['la recrue ne dépense jamais sa relance d\'équipe', !relancesDepensees, `${relancesDepensees} relance(s)`],
+    ['la même graine rejoue le même match Recrue', !differents, `${differents} match(s) sur ${N} différents`],
+    ['le camp Pro joue encore des mains entières', mainsPro > 0 && gestesPro / mainsPro > 1.3, `${(gestesPro / Math.max(1, mainsPro)).toFixed(2)} geste(s) par main`],
+  ];
+  console.log(`\nLE NIVEAU RECRUE (${N} matchs, ${mainsRecrue} mains de la recrue, ${(gestesPro / Math.max(1, mainsPro)).toFixed(2)} gestes par main en face)`);
+  for (const [nomRegle, ok, detail] of regles) {
+    console.log(`  ${ok ? '✓' : '✗'} ${nomRegle}${ok ? '' : `\n      ${detail}`}`);
     if (!ok) echecs++;
   }
 }

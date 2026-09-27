@@ -26,7 +26,7 @@ const { chromium } = pw;
 
 const base = process.argv[2] || 'http://localhost:8000';
 // La glace vient du moteur : le test lit la même source que le jeu.
-const { COLS: COLS_ATTENDU, RANGS: RANGS_ATTENDU } = await import('../js/table.js');
+const { COLS: COLS_ATTENDU, RANGS: RANGS_ATTENDU, FILET_HAUT, FILET_BAS, BUT_COL } = await import('../js/table.js');
 /* CHROMIUM : le chemin d'un Chromium déjà installé (un poste où la version
    de Playwright ne correspond pas à celle du navigateur). Vide dans
    l'Action, qui installe le sien. */
@@ -74,6 +74,13 @@ const semer = graine => {
 const dé = semer(GRAINE);
 await page.addInitScript(`(${semer.toString()})(${JSON.stringify(GRAINE + '-page')}) && (Math.random = (${semer.toString()})(${JSON.stringify(GRAINE + '-page')}));`);
 
+/* Quitter le plateau : le ✕, puis « Oui » à la question quand le match n'est pas fini (S75). */
+const quitterTable = async () => {
+  await page.click('#tableModal .table-close');
+  const oui = await page.waitForSelector('#choixModal:not([hidden]) [data-choix="quitter"]', { timeout: 1500 }).catch(() => null);
+  if (oui) await oui.click();
+};
+
 await page.goto(base + '/', { waitUntil: 'networkidle' });
 await page.evaluate(() => { try { localStorage.clear(); } catch {} });
 await page.reload({ waitUntil: 'networkidle' });
@@ -99,7 +106,18 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
   if (casesEx !== COLS_ATTENDU * RANGS_ATTENDU) errors.push(`l'exhibition montre ${casesEx} cases au lieu de ${COLS_ATTENDU * RANGS_ATTENDU}`);
   const debordeEx = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (debordeEx > 1) errors.push(`l'exhibition déborde de ${debordeEx} px à 390 px`);
+  /* LE ✕ DEMANDE AVANT DE LAISSER FILER LE MATCH (S75). Un match pas fini ne
+     se ferme plus d'un toucher : la question vient, « Non, je reste » garde
+     le plateau ouvert, « Oui » le laisse se jouer. */
   await page.click('#tableModal .table-close');
+  const question = await page.waitForSelector('#choixModal:not([hidden]) [data-choix="rester"]', { timeout: 5000 }).catch(() => null);
+  if (!question) errors.push('le ✕ du plateau ferme le match sans demander');
+  else {
+    await question.click();
+    await page.waitForTimeout(200);
+    if (!(await page.isVisible('#tableModal .t-glace'))) errors.push('« Non, je reste » a quand même fermé le plateau');
+    await quitterTable();
+  }
   await page.waitForSelector('#gameModal', { state: 'visible', timeout: 30000 });
   const mot = (await page.textContent('#gameModal .tr-verdict')).replace(/\s+/g, ' ').trim();
   console.log(`   résultat : « ${mot} »`);
@@ -116,7 +134,7 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
   if (titre2 === titre) errors.push('« Un autre match » a rejoué les mêmes clubs');
   if (resultatFantome) errors.push('la glace du deuxième match d\'exhibition porte le résultat du premier');
   console.log(`   un autre match : « ${titre2} »`);
-  await page.click('#tableModal .table-close');
+  await quitterTable();
   await page.waitForSelector('#gameModal', { state: 'visible', timeout: 30000 });
   await page.click('#exhibitionFin');
   await page.waitForSelector('#gameModal', { state: 'hidden', timeout: 5000 });
@@ -206,6 +224,38 @@ if (filets !== 2) errors.push(`${filets} cases de filet au lieu de deux`);
 if (derriere < 2 * (COLS_ATTENDU - 1)) errors.push(`seulement ${derriere} cases derrière les filets`);
 
 /*
+ * LE POINTAGE NE COURT PAS DEVANT LA RONDELLE, ET LA GLACE NE SAUTE PAS (S75).
+ * Le tableau lisait le moteur : le but y était pendant que le dé adverse
+ * roulait encore et que la rondelle n'avait pas quitté la palette. Chaque
+ * fois que le pointage change à l'écran, la rondelle MONTRÉE doit être au
+ * fond d'un filet — ou déjà au point de mise au jeu, sifflet posé, quand un
+ * toucher a fini la lecture d'un coup. Et le haut de la glace ne bouge
+ * jamais : la bannière du but et la pastille d'une punition s'y inséraient
+ * et la poussaient de 39 et 20 px. Les deux se lisent dans le DOM, à chaque
+ * réécriture du tableau, par un observateur posé avant le premier geste.
+ * Prouvé en remettant le pointage sur le moteur : le premier but rougit.
+ */
+await page.evaluate(({ haut, bas, col }) => {
+  const S = window.__plateau = { enAvance: [], changements: 0, hauts: [] };
+  const tete = document.querySelector('#tableModal .t-tete');
+  const glace = document.querySelector('#tableModal .t-glace');
+  const score = () => [...tete.querySelectorAll('.tb-score b')].map(b => b.textContent).join('-');
+  let avant = score();
+  new MutationObserver(() => {
+    if (glace.offsetParent) { const h = Math.round(glace.getBoundingClientRect().top); if (!S.hauts.includes(h)) S.hauts.push(h); }
+    const s = score();
+    if (!s || s === avant) return;
+    S.changements++;
+    const j = document.querySelector('#tableModal .t-rondelle-libre-jeton');
+    const r = +j.style.getPropertyValue('--tr'), c = +j.style.getPropertyValue('--tc');
+    const auFilet = (r === haut || r === bas) && c === col;
+    const siffle = !document.querySelector('#tableModal .t-sifflet').hidden;
+    if (!auFilet && !siffle) S.enAvance.push(`${avant} → ${s}, rondelle en ${r},${c}`);
+    avant = s;
+  }).observe(tete, { subtree: true, childList: true, characterData: true });
+}, { haut: FILET_HAUT, bas: FILET_BAS, col: BUT_COL });
+
+/*
  * Le joueur automatique : il fait ce qu'un pouce ferait, et il doit toucher à
  * TOUT — sinon il ne teste que la moitié du plateau. Il tire quand il peut,
  * joue une case allumée (patiner, passer, frapper), prend un geste de la
@@ -289,7 +339,9 @@ while (tours++ < 4000) {
       bloque: !!document.querySelector('#tableModal .t-annuler') || !!document.querySelector('#tableModal .t-suite') || !!document.querySelector('#tableModal .t-relancer'),
       ouverte: !!(cmd && !cmd.hidden),
       dit: nu(cmd && cmd.querySelector('.t-cmd-tete') ? cmd.querySelector('.t-cmd-tete').textContent : ''),
-      piece: nu(jetonSel.textContent),
+      // Le rôle et le NOM ENTIER du jeton (S75) : dans une case étroite il n'en affiche que trois
+      // lettres, mais c'est toujours la même pièce que la carte doit nommer.
+      piece: nu(`${(jetonSel.querySelector('.t-role') || {}).textContent || ''}${(jetonSel.querySelector('.t-nom-long') || jetonSel).textContent}`),
     } : null,
     // La pièce choisie porte-t-elle la rondelle ? Le joueur scripté monte alors vers le filet.
     porteur: !!document.querySelector('#tableModal .t-jeton.mienne.choisie .t-rondelle'),
@@ -531,6 +583,12 @@ if (occasionsDuel) {
 }
 console.log(`   ${pointage.replace(/\s+/g, ' ').trim()}`);
 if (gestes < 15) errors.push(`seulement ${gestes} gestes joués sur le plateau : le match n'avance pas`);
+{
+  const P = await page.evaluate(() => window.__plateau);
+  console.log(`   le pointage suit la rondelle : ${P.changements} but(s) au tableau, ${P.enAvance.length} en avance · le haut de la glace : ${P.hauts.join(', ')} px`);
+  if (P.enAvance.length) errors.push(`le pointage a changé avant que la rondelle arrive : ${P.enAvance.slice(0, 3).join(' ; ')}`);
+  if (P.hauts.length > 1) errors.push(`la glace a sauté pendant le match : son haut a pris ${P.hauts.join(', ')} px`);
+}
 await page.screenshot({ path: 'scripts/smoke-table.png' });
 
 /* ---------- rien ne déborde à 390 px ---------- */
@@ -573,7 +631,7 @@ if (fin) {
   const deborde2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (deborde2 > 1) errors.push(`la feuille du match déborde de ${deborde2} px à 390 px`);
   await page.click('#tableModal .t-feuille-suite');
-} else await page.click('#tableModal .table-close');
+} else await quitterTable();
 await page.waitForTimeout(400);
 
 /* ---------- le reste du tournoi ---------- */
