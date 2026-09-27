@@ -908,6 +908,15 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const joues = miens.length;
     for (const b of you.injuriesLog || []) if (b.at < joues) vues.add(b);
     if (alerte && alerte.at < joues) { const n = blessuresNeuves(); alerte = n.length ? n[0] : null; if (alerte) vues.add(alerte); }
+    // Même règle pour « Sa carte change » et « Dans le vestiaire » : l'accident
+    // du jour 22 revenait après chaque choix jusqu'au jour 76 (QA S74b). Ce qui
+    // est arrivé avant la dernière journée révélée a été vu ; la dernière, et
+    // ce qui s'annonce pour ce soir, restent dits.
+    const dernier = jour - 1;
+    for (const m of you.mutations || []) if (m.source === 'accident' && m.jour < dernier) accVus.add(m);
+    for (const f of you.situations || []) if (f.jour < dernier) situVues.add(f);
+    if (accident && accident.jour < dernier) accident = null;
+    if (situation && situation.jour < dernier) situation = null;
   }
   /* Ce qu'il lui reste à manquer, d'après les matchs joués à ce jour. */
   const restantDe = b => Math.max(1, Math.min(b.games, b.at + b.games - miens.length));
@@ -1968,7 +1977,9 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     const s = maSerie(ronde);
     if (!s) {
       const r = elimination();
-      return `<div class="hub-note">${r >= 0 ? `Ta formation est tombée au ${nomRonde(r).toLowerCase()}. La ronde se joue sans elle.` : 'Ta formation ne joue pas cette ronde.'}</div>`;
+      // Une fois la Coupe remise, plus rien « ne se joue » (QA S74b).
+      const tout = ronde === nRondes - 1 && rondeComplete(ronde);
+      return `<div class="hub-note">${r >= 0 ? `Ta formation est tombée au ${nomRonde(r).toLowerCase()}. ${tout ? 'Les séries sont finies.' : 'La ronde se joue sans elle.'}` : 'Ta formation ne joue pas cette ronde.'}</div>`;
     }
     const jeux = s.feuilles.slice(0, revele.get(s)).map((f, k) => ligneMatch(s, k)).reverse().join('');
     // La carte du haut porte déjà la série ; le volet liste ses matchs.

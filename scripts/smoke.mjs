@@ -203,8 +203,9 @@ async function versLeMatch() {
 }
 page.click = async (sel, opts) => {
   if (typeof sel === 'string' && /hub-(jour|dix|regarder|banc|fin|suite|ronde)\b/.test(sel)) { await versLeMatch(); await repondreAuxChoix(); }
-  // Un choix forcé ouvert par-dessus se règle avant tout autre clic dans l'écran.
-  else if (typeof sel === 'string' && /^#hubModal\b/.test(sel)) await repondreAuxChoix();
+  // Un choix forcé ouvert par-dessus se règle avant tout autre clic dans l'écran
+  // — et avant un onglet de la barre, que le plein écran couvre aussi (S74b).
+  else if (typeof sel === 'string' && /^(#hubModal|\.navtab)\b/.test(sel)) await repondreAuxChoix();
   return _click(sel, opts);
 };
 page.waitForSelector = async (sel, opts) => {
@@ -1217,6 +1218,11 @@ async function traverserSaison(etiquette, reprise = false) {
   if (trouVu.mot) console.log(`   case vide : ${trouVu.mot}`);
   else console.log('   aucune case vide cette saison (deux saisons sur trois en ont une — la fréquence est exigée dans check_situations)');
   }
+  // La fenêtre de situations peut tomber le soir d'un choix forcé : son plein
+  // écran couvre la barre qu'on mesure juste après. On le règle d'abord, comme
+  // un joueur (S74b — depuis que le bandeau ne revient plus après chaque
+  // choix, la boucle s'arrête sur le soir même où il paraît).
+  await repondreAuxChoix();
 
   /*
    * UNE SEULE BARRE D'ONGLETS, ET ELLE EST EN BAS. L'écran de saison portait

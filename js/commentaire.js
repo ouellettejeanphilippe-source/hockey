@@ -320,8 +320,15 @@ const ARTICLE = {
 };
 /** « de » + une équipe : « des Islanders », « de l'Avalanche », « du Wild ». */
 export const avecArticle = (prep, nom) => (ARTICLE[prep] ? ARTICLE[prep](nom) : `${prep} ${nom}`);
+/*
+ * Et devant un JOUEUR, l'élision seule : « d'Owen Power », « d'Arturs Irbe »
+ * (QA S74b). Le nom arrive lié (<b>, <a>) : on lit sa première lettre sous les
+ * balises. Ni h ni y : « de Hamel », « de Yashin » se disent comme ça.
+ */
+const eliderJoueur = nom => /^[aeiouàâéèêîïôû]/i.test(String(nom).replace(/<[^>]*>/g, '').trim());
 const remplir = (gabarit, v) => gabarit
   .replace(/(^|\s)(de|à|pour|sur) \{(eq|autre|att|def)\}/g, (m, av, prep, k) => (v[k] != null ? `${av}${avecArticle(prep, v[k])}` : m))
+  .replace(/(^|\s)([Dd])e \{(t|g|m|j)\}/g, (m, av, d, k) => (v[k] != null && eliderJoueur(v[k]) ? `${av}${d}'{${k}}` : m))
   .replace(/\{(\w+)\}/g, (_, k) => (v[k] != null ? String(v[k]) : ''));
 const majuscule = s => s.replace(/^(<[^>]+>)*([a-zà-ÿ])/, (m, tag, c) => `${tag || ''}${c.toUpperCase()}`);
 const joindre = (...p) => p.filter(Boolean).join(' ');

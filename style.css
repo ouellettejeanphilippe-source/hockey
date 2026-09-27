@@ -6772,7 +6772,9 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
    panneau se cache : la barre du bas porte le même, avec sa journée.
    --------------------------------------------------------------- */
 @media (max-width: 760px) {
-  #game.banc #paneRoster { overflow-y: auto; }
+  /* Un volet qui défile rogne ce qui touche ses coins : à 26 px de rayon, le
+     « T » de « Touche un joueur » disparaissait (QA S74b). */
+  #game.banc #paneRoster { overflow-y: auto; border-radius: 10px; }
   #game.banc #paneRoster .roster { flex: 0 0 auto; min-height: auto; overflow: visible; }
   #game.banc #bancRetour { display: none; }
 }
