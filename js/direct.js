@@ -23,7 +23,7 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe } from './sim.js';
+import { periodeDe, PLANS_ADV } from './sim.js';
 import { recitDeBut, tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { CARTES_MATCH } from './combat.js';
@@ -355,6 +355,17 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} ${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
     const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', f.cartes.contre ? '🧠 tes deux premières lignes jouent leur contre' : '', ...paris].filter(Boolean);
     ligne('debut cartes', `🃏 <b>Tu joues</b> ${cartesDuSoir.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${suite.length ? ` — ${suite.join(', ')}` : ''}.`);
+  }
+  /*
+   * LEUR PLAN SE DÉVOILE À LA MISE AU JEU (S76). Avant le match on n'avait
+   * qu'un rapport de dépistage ; c'est ici qu'on apprend ce qu'ils jouent, et
+   * si ta préparation visait juste — ou si t'as chié ta préparation.
+   */
+  const Pl = f.cartes && f.cartes.plan ? PLANS_ADV[f.cartes.plan] : null;
+  if (Pl) {
+    const pj = f.cartes.prepJuste;
+    const mot = pj === true ? '🎯 <b>ta préparation vise juste</b> : leur plan tombe' : pj === false ? '💥 <b>t\'as chié ta préparation</b>' : 'tu n\'avais rien préparé';
+    ligne(`debut cartes prep${pj === true ? ' juste' : pj === false ? ' ratee' : ''}`, `${Pl.ico} <b>Ils jouent ${ctx.esc(Pl.nom.toLowerCase())}</b> — ${mot}.`);
   }
   // LEUR MAIN (S74) : ce qu'ils ont joué, ou ce que ta main a annulé.
   const leurs = f.cartes && f.cartes.adverses ? f.cartes.adverses.filter(c => CARTES_MATCH[c]) : [];

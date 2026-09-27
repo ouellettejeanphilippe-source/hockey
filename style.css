@@ -6970,3 +6970,45 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
   .pcard-mid .tags { justify-content: safe flex-end; }
   .pcard-mid .tags > .tag { flex: 0 1 auto; min-width: 0; white-space: normal; line-height: 1.15; text-align: center; }
 }
+
+/* =====================================================================
+   LE DÉPISTAGE ET TA PRÉPARATION (S76)
+   Trois pistes et leurs chances ; on touche celle pour laquelle on se
+   prépare. Une barre dorée dit la chance, une piste écartée est barrée.
+   ===================================================================== */
+.depistage { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
+.dep-pistes { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.dep-piste {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) 62px auto; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 10px; border-radius: 10px; background: var(--panel-3); border: 2px solid transparent;
+  text-align: left; color: var(--text); font: inherit;
+}
+button.dep-piste { cursor: pointer; }
+button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); }
+.dep-piste.on { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255, 190, 60, 0.22); }
+.dep-piste.ecarte { opacity: 0.45; }
+.dep-piste.ecarte .dep-nom b { text-decoration: line-through; }
+.dep-ico { font-size: 22px; line-height: 1; text-align: center; }
+.dep-nom { min-width: 0; }
+.dep-nom b { display: block; font-size: 14.5px; line-height: 1.2; }
+.dep-nom small { display: block; color: var(--muted); font-size: 12px; line-height: 1.3; }
+.dep-p { text-align: right; }
+.dep-p b { font: 800 18px/1 var(--display); font-variant-numeric: tabular-nums; }
+.dep-p i { display: block; height: 5px; border-radius: 3px; margin-top: 5px;
+  background: linear-gradient(90deg, var(--gold) var(--p), rgba(255, 255, 255, 0.08) var(--p)); }
+.dep-prep { font: 700 11.5px/1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; padding: 7px 9px;
+  border-radius: 999px; background: var(--panel-2); color: var(--sub); white-space: nowrap; }
+.dep-piste.on .dep-prep { background: var(--gold); color: var(--sur-or); }
+.dep-regle { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dep-suite { font-size: 13px; color: var(--sub); margin: 2px 0 8px; }
+/* Au téléphone, le bouton « Me préparer » passe sous le nom : le nom garde sa largeur. */
+@media (max-width: 440px) {
+  .dep-piste { grid-template-columns: 26px minmax(0, 1fr) 56px; }
+  .dep-prep { grid-column: 2 / -1; justify-self: start; }
+}
+/* L'ambiance d'une carte, sous sa règle chiffrée. */
+.tc-ambiance { font-style: italic; color: var(--muted); }
+.tc-coin s { opacity: 0.55; margin-right: 2px; font-size: 0.8em; }
+/* Le plan dévoilé à l'entracte et à la mise au jeu : ce que la préparation a donné. */
+.plan-adv-contre.juste b, .prep.juste b { color: var(--green); }
+.plan-adv-contre.ratee b, .prep.ratee b { color: var(--red); }

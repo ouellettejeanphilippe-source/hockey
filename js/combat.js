@@ -46,6 +46,24 @@ export const TAILLE_MAIN = 5;
  * qui se calcule sur ta formation ; `maudite` : une malédiction ;
  * `injouable` : elle encombre la main ; `enMain` : ce qu'elle coûte si elle
  * est dans ta main au match.
+ *
+ * LES MATHS SE LISENT (S76). JP : *les cartes manquent de variété, aussi,
+ * faudrait des maths plus claires sur les effets, comme dans un vrai
+ * deckbuilder*. `texte` n'est plus que l'ambiance ; la RÈGLE, chiffrée, se
+ * déduit des champs (`regleDeCarte`) — « Tirs +6 % », « Pige 2 cartes »,
+ * « Eux : punitions +25 % » — et `regle` ne s'écrit à la main que pour une
+ * carte conditionnelle. Et de nouvelles MÉCANIQUES, pas seulement de
+ * nouveaux pourcentages :
+ *   `ecarte`        le dépistage écarte N plans qu'ils ne joueront pas ;
+ *   `revele`        tu SAIS leur plan : ta préparation vise juste ;
+ *   `planB`         ta préparation couvre deux plans ;
+ *   `improvise`     si ta préparation rate : pas de malus, et cet effet ;
+ *   `piege`         si elle vise juste : cet effet de plus ;
+ *   `parGenre`      un effet par carte de ce genre jouée ce match ;
+ *   `selonLeurMain` un effet par carte de ce genre dans LEUR main ;
+ *   `siVide`        un effet si tu dépenses toute ton énergie ;
+ *   `rabais`        les cartes de ce genre coûtent 1 de moins ce match ;
+ *   `epuise`        jouée, elle quitte ton deck pour le reste de la course.
  */
 export const CARTES_MATCH = {
   // ---- le deck de départ ----
@@ -56,9 +74,11 @@ export const CARTES_MATCH = {
   changements: { nom: 'Changements courts', ico: '⏱️', cout: 0, rarete: 'commune', genre: 'tactique',
     texte: 'Des présences de trente secondes : des jambes fraîches toute la soirée.', effet: { energie: 0.9 } },
   discours: { nom: 'Le discours du capitaine', ico: '🧭', cout: 1, rarete: 'commune', genre: 'tactique',
-    texte: 'Pige deux cartes.', pioche: 2 },
+    texte: 'Il se lève, et le vestiaire se tait.', pioche: 2 },
+  // LE DÉPISTAGE (S76) : la vidéo n'abat plus leur plan, elle ÉCARTE une piste
+  // du rapport — c'est à toi de viser juste avec ce qui reste.
   video: { nom: 'La vidéo de l\'adversaire', ico: '📼', cout: 1, rarete: 'commune', genre: 'tactique',
-    texte: 'Leur plan de match ne tient plus : leurs lignes reprennent leur réglage de la saison.', lire: true },
+    texte: 'Trois soirs de leurs matchs, image par image.', ecarte: 1 },
 
   // ---- communes ----
   echecAvant: { nom: 'Échec avant', ico: '🥊', cout: 1, rarete: 'commune', genre: 'attaque',
@@ -74,7 +94,7 @@ export const CARTES_MATCH = {
   retour: { nom: 'Au filet pour le retour', ico: '🥅', cout: 1, rarete: 'commune', genre: 'attaque',
     texte: 'Deux joueurs dans l\'enclave, à chaque lancer.', effet: { finition: 1.05, energie: 1.05 } },
   conge: { nom: 'Matinée de congé', ico: '😴', cout: 1, rarete: 'commune', genre: 'tactique',
-    texte: 'Pas de patin ce matin : tes patineurs reprennent 15 d\'énergie avant le match.', energieTous: 15 },
+    texte: 'Pas de patin ce matin, les jambes reposent.', energieTous: 15 },
   prudence: { nom: 'Jouer de prudence', ico: '🔒', cout: 0, rarete: 'commune', genre: 'defense',
     texte: 'On ne force rien.', effet: { defense: 0.97, finition: 0.97 } },
   provoquer: { nom: 'Les provoquer', ico: '😈', cout: 1, rarete: 'commune', genre: 'tactique',
@@ -93,29 +113,30 @@ export const CARTES_MATCH = {
   // ---- peu communes ----
   doublePresence: { nom: 'Double présence', ico: '🔥', cout: 1, rarete: 'peu', genre: 'attaque',
     texte: 'Ta première ligne saute sur la glace un tour sur deux.', effet: { F: [1.3, 1, 0.9, 0.8], energie: 1.05 } },
-  contrePlan: { nom: 'Le contre parfait', ico: '🧠', cout: 2, rarete: 'peu', genre: 'tactique',
-    texte: 'Tes deux premières lignes jouent le système qui étouffe leur plan, ce soir. Moins rodé, mais taillé pour eux.', contre: true, effet: { finition: 1.02 } },
+  // Le contre parfait (S74) devient le PLAN B (S76) : deux pistes préparées au lieu d'une.
+  contrePlan: { nom: 'Le plan B', ico: '🧠', cout: 1, rarete: 'peu', genre: 'tactique',
+    texte: 'Deux cahiers de jeux sur le tableau du vestiaire.', planB: true },
   gardienFeu: { nom: 'Le gardien en feu', ico: '🧤', cout: 2, rarete: 'peu', genre: 'defense',
     texte: 'Il a vu la rondelle grosse comme un ballon toute la journée.', effet: { defense: 0.92 } },
   avantage: { nom: 'L\'avantage numérique en or', ico: '💥', cout: 2, rarete: 'peu', genre: 'attaque',
     texte: 'Le jeu de puissance répété toute la semaine.', effet: { finition: 1.07 } },
   systeme: { nom: 'Le système maison', ico: '📘', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Si au moins deux de tes lignes jouent le même système : finition +6 % ce soir.', synergie: 'systeme' },
+    texte: 'Tout le monde connaît sa case les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme' },
   gachettes: { nom: 'Les gâchettes', ico: '🎯', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Finition +2 % par franc-tireur dans tes deux premiers trios (jusqu\'à +6 %).', synergie: 'gachettes' },
+    texte: 'Ils ne passent pas : ils lancent.', regle: 'Précision +2 % par franc-tireur dans tes deux premiers trios (jusqu\'à +6 %).', synergie: 'gachettes' },
   murBleu: { nom: 'Le mur bleu', ico: '🧱', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Buts contre −2 % par défenseur pur habillé (jusqu\'à −6 %).', synergie: 'mur' },
+    texte: 'Trois défenseurs qui ne montent jamais.', regle: 'Buts contre −2 % par défenseur pur habillé (jusqu\'à −6 %).', synergie: 'mur' },
   jambes: { nom: 'Les jambes', ico: '⚡', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Lancers +2 % par patineur rapide dans ton top 6 (jusqu\'à +8 %).', synergie: 'jambes' },
+    texte: 'Ça part en contre-attaque avant la ligne rouge.', regle: 'Tirs +2 % par patineur rapide dans ton top 6 (jusqu\'à +8 %).', synergie: 'jambes' },
   des: { nom: 'Coup de dés', ico: '🎲', cout: 0, rarete: 'peu', genre: 'tactique',
-    texte: 'Une chance sur deux : une soirée où tout rentre (finition +10 %). Sinon, une soirée où rien ne tient (buts contre +8 %).',
+    texte: 'Une soirée où tout rentre, ou une soirée où rien ne tient.',
     pari: { chance: 0.5, gagne: { finition: 1.1 }, perd: { defense: 1.08 } } },
   user: { nom: 'Les user', ico: '😮‍💨', cout: 1, rarete: 'peu', genre: 'tactique',
     texte: 'On les fait patiner : leurs jambes brûlent plus vite ce soir.', adv: { energie: 1.15 } },
   ombre: { nom: 'Une ombre sur leur vedette', ico: '👤', cout: 2, rarete: 'peu', genre: 'defense',
     texte: 'Ton meilleur défensif la suit jusqu\'au banc.', adv: { finition: 0.94 } },
   adrenaline: { nom: 'Adrénaline', ico: '💉', cout: 0, rarete: 'peu', genre: 'tactique',
-    texte: '+1 énergie ce match. Les jambes vont brûler un peu plus.', energiePlus: 1, effet: { energie: 1.08 } },
+    texte: 'Le cœur bat dans les oreilles dès l\'hymne national.', energiePlus: 1, effet: { energie: 1.08 } },
   fermeture: { nom: 'La paire de fermeture', ico: '🔐', cout: 1, rarete: 'peu', genre: 'defense',
     texte: 'Ta première paire joue la moitié du match.', effet: { D: [1.25, 1, 0.8], defense: 0.97 } },
   barrage: { nom: 'Le barrage', ico: '🚧', cout: 2, rarete: 'peu', genre: 'defense',
@@ -137,9 +158,9 @@ export const CARTES_MATCH = {
   coach: { nom: 'Le coach dans leur tête', ico: '🎙️', cout: 2, rarete: 'rare', genre: 'tactique',
     texte: 'Leur plan tombe, et ils perdent leur calme.', lire: true, adv: { discipline: 1.15 } },
   preparation: { nom: 'Préparation totale', ico: '📋', cout: 1, rarete: 'rare', genre: 'tactique',
-    texte: 'Pige trois cartes.', pioche: 3 },
+    texte: 'Chaque scénario a sa page dans le cahier.', pioche: 3 },
   espion: { nom: 'Leur cahier de jeux', ico: '🕵️', cout: 2, rarete: 'rare', genre: 'tactique',
-    texte: 'Tu connais leur cahier par cœur : leur main de ce soir ne fait rien.', annule: true },
+    texte: 'Tu connais leur cahier par cœur.', annule: true },
   capitaine: { nom: 'Le capitaine prend le match', ico: '©️', cout: 2, rarete: 'rare', genre: 'attaque',
     texte: 'Il saute sur la glace un tour sur deux, et tout le monde le suit.', effet: { F: [1.35, 1, 0.9, 0.75], finition: 1.04, energie: 1.08 } },
   mur: { nom: 'Le mur de briques', ico: '🧱', cout: 3, rarete: 'rare', genre: 'defense',
@@ -149,17 +170,52 @@ export const CARTES_MATCH = {
   butEnOr: { nom: 'Le but en or', ico: '🥇', cout: 3, rarete: 'legendaire', genre: 'attaque',
     texte: 'Le genre de soirée qui finit sur une affiche dans une chambre d\'enfant.', effet: { finition: 1.12, defense: 0.92 } },
   dynastie: { nom: 'La dynastie', ico: '👑', cout: 2, rarete: 'legendaire', genre: 'synergie',
-    texte: 'Tes lignes jouent leur système les yeux fermés : si deux lignes jouent le même, finition +6 %, et leur main ne fait rien.', synergie: 'systeme', annule: true },
+    texte: 'Tes lignes jouent leur système les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme', annule: true },
   ferveur: { nom: 'La ferveur', ico: '📣', cout: 1, rarete: 'rare', genre: 'attaque',
     texte: 'L\'aréna tremble dès la mise au jeu.', effet: { finition: 1.05, volume: 1.05, energie: 1.1 } },
 
+  /*
+   * ---- LES NOUVELLES MÉCANIQUES (S76) ----
+   * Le dépistage : ta préparation contre LEUR plan, qu'on ne connaît qu'en
+   * probabilités (voir `depistageDe`, js/sim.js).
+   */
+  filature: { nom: 'La filature', ico: '🔎', cout: 1, rarete: 'peu', genre: 'tactique',
+    texte: 'Ton dépisteur a dormi dans leur hôtel.', revele: true },
+  improvisation: { nom: 'L\'improvisation', ico: '🎷', cout: 0, rarete: 'commune', genre: 'tactique',
+    texte: 'Pas de plan ? On en fait un sur le banc.', improvise: { volume: 1.05 } },
+  piege: { nom: 'Le piège tendu', ico: '🕸️', cout: 1, rarete: 'rare', genre: 'tactique',
+    texte: 'On leur laisse croire que ça marche.', piege: { finition: 1.05, defense: 0.95 } },
+  // Les combos : ce que les autres cartes de la main font monter.
+  elan: { nom: 'L\'élan', ico: '🌊', cout: 1, rarete: 'peu', genre: 'attaque',
+    texte: 'Une vague, puis une autre, puis une autre.', parGenre: { genre: 'attaque', effet: { volume: 1.03 } } },
+  forteresse: { nom: 'La forteresse', ico: '🏰', cout: 1, rarete: 'peu', genre: 'defense',
+    texte: 'Chaque planche de la bande est un mur.', parGenre: { genre: 'defense', effet: { defense: 0.97 } } },
+  toutOuRien: { nom: 'Tout ou rien', ico: '🎰', cout: 0, rarete: 'rare', genre: 'attaque',
+    texte: 'On vide le réservoir dès la première période.', siVide: { finition: 1.07 } },
+  // Répondre à LEUR main, qu'on connaît d'avance.
+  riposte: { nom: 'La riposte', ico: '🤺', cout: 1, rarete: 'peu', genre: 'defense',
+    texte: 'Ils vont attaquer ? On les attend.', selonLeurMain: { genre: 'attaque', effet: { defense: 0.96 } } },
+  contreAttaque: { nom: 'La contre-attaque', ico: '🏹', cout: 1, rarete: 'peu', genre: 'attaque',
+    texte: 'Ils se replient ? On passe par-dessus.', selonLeurMain: { genre: 'defense', effet: { volume: 1.04 } } },
+  systemeDef: { nom: 'Le système défensif', ico: '📐', cout: 1, rarete: 'peu', genre: 'tactique',
+    texte: 'Tout le monde sait où se placer.', rabais: 'defense', effet: { defense: 0.98 } },
+  lecture: { nom: 'La lecture du jeu', ico: '👀', cout: 0, rarete: 'commune', genre: 'tactique',
+    texte: 'Un coup d\'œil au banc d\'en face.', pioche: 1 },
+  // ÉPUISÉES : fortes, une seule fois dans la course.
+  grandSoir: { nom: 'Le grand soir', ico: '🌟', cout: 1, rarete: 'rare', genre: 'attaque', epuise: true,
+    texte: 'Tu gardais celle-là pour le bon moment.', effet: { finition: 1.1, volume: 1.06 } },
+  sacrifice: { nom: 'Le sacrifice', ico: '🩸', cout: 0, rarete: 'peu', genre: 'defense', epuise: true,
+    texte: 'Un joueur bloque un tir avec le visage.', effet: { defense: 0.9 } },
+  cartouche: { nom: 'La dernière cartouche', ico: '🧨', cout: 0, rarete: 'peu', genre: 'tactique', epuise: true,
+    texte: 'Tout ce qui restait dans le coffre.', energiePlus: 2 },
+
   // ---- malédictions ----
   distraction: { nom: 'La distraction', ico: '📰', cout: 1, rarete: 'maudite', genre: 'malediction', maudite: true,
-    texte: 'Le proprio fait les manchettes. Elle encombre ta main : la jouer coûte une énergie et ne fait rien.' },
+    texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 énergie et ne fait rien.' },
   doute: { nom: 'Le doute', ico: '🌧️', cout: 0, rarete: 'maudite', genre: 'malediction', maudite: true, injouable: true,
-    texte: 'Injouable. Si elle est dans ta main au match : finition −3 %.', enMain: { finition: 0.97 } },
+    texte: 'La défaite contre ta rivale te trotte dans la tête.', enMain: { finition: 0.97 } },
   trainee: { nom: 'Une blessure qui traîne', ico: '🩹', cout: 0, rarete: 'maudite', genre: 'malediction', maudite: true, injouable: true,
-    texte: 'Injouable. Si elle est dans ta main au match : fatigue +5 %.', enMain: { energie: 1.05 } },
+    texte: 'Il joue quand même, mais il boite.', enMain: { energie: 1.05 } },
 };
 
 /*
@@ -178,7 +234,7 @@ const plusDe = v => (typeof v === 'number' ? 1 + (v - 1) * 1.5 : Array.isArray(v
 const canauxPlus = e => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, plusDe(v)])) : e);
 for (const [cle, C] of Object.entries(CARTES_MATCH)) {
   if (C.maudite) continue;
-  const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.contre;
+  const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.contre || C.revele || C.planB || C.rabais;
   const P = { ...C, nom: `${C.nom}+`, plus: true };
   if (moinsCher && C.cout > 0) P.cout = C.cout - 1;
   else {
@@ -188,9 +244,16 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
     if (C.energieTous) P.energieTous = C.energieTous + 10;
     if (C.pari) P.pari = { ...C.pari, chance: Math.min(0.8, C.pari.chance + 0.15) };
     if (C.energiePlus && !C.effet) P.energiePlus = C.energiePlus + 1;
+    // S76 : les mécaniques neuves s'améliorent comme les autres — moitié plus.
+    if (C.ecarte) P.ecarte = C.ecarte + 1;
+    if (C.improvise) P.improvise = canauxPlus(C.improvise);
+    if (C.piege) P.piege = canauxPlus(C.piege);
+    if (C.siVide) P.siVide = canauxPlus(C.siVide);
+    if (C.parGenre) P.parGenre = { ...C.parGenre, effet: canauxPlus(C.parGenre.effet) };
+    if (C.selonLeurMain) P.selonLeurMain = { ...C.selonLeurMain, effet: canauxPlus(C.selonLeurMain.effet) };
   }
   const quoi = P.cout < C.cout ? 'une énergie de moins' : C.pioche ? 'une carte de plus'
-    : C.energieTous ? 'dix d\'énergie de plus' : C.pari ? 'le pari rentre plus souvent' : 'moitié plus forte';
+    : C.energieTous ? 'dix d\'énergie de plus' : C.pari ? 'le pari rentre plus souvent' : C.ecarte ? 'écarte un plan de plus' : 'moitié plus forte';
   P.texte = `${C.texte} — Améliorée : ${quoi}.`;
   CARTES_MATCH[`${cle}+`] = P;
 }
@@ -211,7 +274,7 @@ function hache(...parts) {
  * (celles prises avant ce jour-là) ; `serie` ajoute les récompenses de séries
  * gagnées avant la ronde `ronde`.
  */
-export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = Infinity, pertes = [], blessures = [] } = {}) {
+export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = Infinity, k = Infinity, pertes = [], blessures = [] } = {}) {
   const deck = DECK_DEPART.slice();
   const retirer = cle => { const i = deck.lastIndexOf(cle); if (i >= 0) deck.splice(i, 1); };
   const saison = decisions.filter(d => d && d.jour != null && d.jour < avant).slice().sort((a, b) => a.jour - b.jour);
@@ -237,6 +300,16 @@ export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = I
   for (const j of pertes) if (j < avant) deck.push('doute');
   for (const j of blessures) if (j < avant) deck.push('trainee');
   for (const cle of retraits) retirer(cle);
+  /*
+   * LES CARTES ÉPUISÉES (S76) : jouées à un match, elles quittent le deck
+   * pour le reste de la course — celles des gros matchs de saison, puis
+   * celles des matchs de séries joués AVANT celui-ci (ronde, puis match).
+   */
+  const joueesAvant = [
+    ...saison.filter(d => d.main && Array.isArray(d.main.jouees)).flatMap(d => d.main.jouees),
+    ...serie.filter(d => d && d.main && Array.isArray(d.main.jouees) && (d.ronde < ronde || (d.ronde === ronde && d.match_no < k))).flatMap(d => d.main.jouees),
+  ];
+  for (const c of joueesAvant) if (CARTES_MATCH[c] && CARTES_MATCH[c].epuise) retirer(c);
   return deck;
 }
 
@@ -280,8 +353,10 @@ const POIDS_ADVERSE = { commune: 3, peu: 2, rare: 1, legendaire: 0 };
 const POOL_ADVERSE = Object.keys(CARTES_MATCH).filter(k => {
   const C = CARTES_MATCH[k];
   if (estPlus(k)) return false;
+  // Ni dépistage, ni rabais, ni épuisée (S76) : ce sont des gestes de TA préparation et de TON deck.
+  if (C.revele || C.ecarte || C.planB || C.improvise || C.piege || C.rabais || C.epuise || C.siVide) return false;
   return !C.maudite && !C.lire && !C.contre && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
-    && (C.effet || C.adv || C.pari || C.synergie || C.energieTous);
+    && (C.effet || C.adv || C.pari || C.synergie || C.energieTous || C.parGenre || C.selonLeurMain);
 });
 export function mainAdverse(graine, cle, energie = ENERGIE_MAIN) {
   const out = [];
@@ -311,9 +386,21 @@ export function energieAdverse({ jour = 0, serie = false, ronde = 0 } = {}) {
 /* Un interrupteur de MESURE : `check_combat.mjs` compare avec et sans la main adverse. */
 export const OPTIONS_COMBAT = { adverses: true };
 
+/*
+ * CE QU'UNE CARTE COÛTE DANS CETTE MAIN (S76) : son coût, moins un si une
+ * carte jouée fait le RABAIS de son genre (« Le système défensif » : tes
+ * cartes de défense coûtent 1 de moins). Sans ordre : la carte au rabais
+ * peut être jouée avant ou après, comme sur une table.
+ */
+export function coutDe(cle, jouees = []) {
+  const C = CARTES_MATCH[cle];
+  if (!C) return 0;
+  const rabais = jouees.some(x => CARTES_MATCH[x] && CARTES_MATCH[x].rabais === C.genre);
+  return Math.max(0, C.cout - (rabais ? 1 : 0));
+}
 /* Une main est-elle jouable telle quelle ? Le coût, l'énergie gagnée et les cartes injouables. */
 export function energieDepensee(jouees) {
   let e = ENERGIE_MAIN;
-  for (const c of jouees) { const C = CARTES_MATCH[c]; if (!C) continue; e -= C.cout; e += C.energiePlus || 0; }
+  for (const c of jouees) { const C = CARTES_MATCH[c]; if (!C) continue; e -= coutDe(c, jouees); e += C.energiePlus || 0; }
   return e;
 }

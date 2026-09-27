@@ -24,8 +24,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie } from '../js/sim.js';
-import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse } from '../js/combat.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie, depistageDe, planDuDepistage } from '../js/sim.js';
+import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, coutDe } from '../js/combat.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -94,8 +94,12 @@ console.log('\n  Le deck de match (S74)\n');
   const muettes = [];
   for (const [k, Cm] of Object.entries(CARTES_MATCH)) {
     if (Cm.maudite) continue;
-    const fx = effetsDesCartes(t, { jouees: [k] }, 'x');
-    const fait = fx.effets.length || fx.adv.length || fx.lire || fx.contre || fx.annule || fx.energieTous || Cm.pioche || Cm.energiePlus;
+    // S76 : « Tout ou rien » se joue avec toute l'énergie dépensée, « La riposte » contre une main qui a de quoi.
+    const jouees = Cm.siVide ? [k, 'miracle'] : [k];
+    const fx = effetsDesCartes(t, { jouees }, 'x', { mainAdv: Cm.selonLeurMain ? ['lancer', 'bloquer', 'trappe', 'echecAvant'] : [] });
+    const siens = fx.effets.filter(e => e.nom === Cm.nom).length;
+    const fait = siens || fx.adv.length || fx.lire || fx.contre || fx.annule || fx.energieTous || Cm.pioche || Cm.energiePlus
+      || fx.revele || fx.ecarte || fx.planB || fx.improvise || fx.piege || Cm.rabais;
     if (!fait) muettes.push(k);
   }
   const synergies = Object.keys(CARTES_MATCH).filter(k => CARTES_MATCH[k].synergie);
@@ -118,7 +122,7 @@ console.log('\n  Le deck de match (S74)\n');
   if (J == null) informer('feuilles', 'aucun gros match cette saison : épreuve sautée');
   else {
     const avec = ligue(7400);
-    const decs = [{ jour: J, equipe: 0, main: { jouees: ['video', 'bloquer', 'lancer'] }, sel: 'm1' }];
+    const decs = [{ jour: J, equipe: 0, main: { jouees: ['coach', 'bloquer', 'changements'] }, sel: 'm1' }];
     simulateLeague(avec, 82, { graine, decisions: decs });
     const m = avec[0].minisBoss.find(x => x.jour === J);
     const feuille = avec[0].journal.find(x => x.n === J + 1 || (x.feuille && x.feuille.cartes)) || null;
@@ -129,7 +133,7 @@ console.log('\n  Le deck de match (S74)\n');
     const f = x => `${x[0].W}-${x[0].L}-${x[0].OTL} ${x[0].GF}-${x[0].GA}`;
     exiger('le rejeu avec la même main redonne la même saison', f(avec) === f(rejeu), `${f(avec)} puis ${f(rejeu)}`);
     void feuille;
-    // 5. La vidéo : le MÊME match, avec et sans elle. Sans son plan, l'adversaire
+    // 5. Le coach dans leur tête (la vidéo n'abat plus leur plan depuis S76) : le MÊME match, avec et sans lui. Sans son plan, l'adversaire
     // reprend ses lignes de la saison — qui peuvent jouer la même tactique que
     // le plan : on compte donc l'écart, pas un seuil.
     const P = PLANS_ADV[m.plan];
@@ -142,11 +146,11 @@ console.log('\n  Le deck de match (S74)\n');
       const deLui = fe ? fe.lancers.filter(l => l.tireur && Object.values(adv.roster).includes(l.tireur) && l.tac) : [];
       return { n: deLui.length, plan: deLui.filter(l => l.tac === tacPlan).length };
     };
-    if (!tacPlan) informer('la vidéo', `plan ${m.plan} sans tactique de ligne à faire tomber`);
+    if (!tacPlan) informer('le coach dans leur tête', `plan ${m.plan} sans tactique de ligne à faire tomber`);
     else {
       const a = compte(sans), b = compte(avec);
-      exiger('« La vidéo » fait tomber leur plan : moins de leurs lancers portent sa tactique', m.cartes.lu && b.plan / Math.max(1, b.n) <= a.plan / Math.max(1, a.n),
-        `en ${tacPlan} : ${a.plan} sur ${a.n} sans la vidéo, ${b.plan} sur ${b.n} avec`);
+      exiger('« Le coach dans leur tête » fait tomber leur plan : moins de leurs lancers portent sa tactique', m.cartes.lu && b.plan / Math.max(1, b.n) <= a.plan / Math.max(1, a.n),
+        `en ${tacPlan} : ${a.plan} sur ${a.n} sans le coach, ${b.plan} sur ${b.n} avec`);
     }
   }
   // 6. Leur main : connue d'avance, jouée, et annulée par « Leur cahier de jeux ».
@@ -223,6 +227,75 @@ console.log('\n  Le deck de match (S74)\n');
     exiger('leur main coûte des victoires, la tienne les rend', eux < sans && deux > eux, `${pct(sans)} → ${pct(eux)} → ${pct(deux)}`);
     borne('écart à la difficulté d\'avant avec une main de départ', (deux - sans) / N, -0.06, 0.06, '');
   }
+}
+
+/*
+ * 8. LE DÉPISTAGE ET LES NOUVELLES MÉCANIQUES (S76). JP : *contrer, ça
+ * devrait être un scouting de leur stratégie potentielles avec taux de
+ * succès, qui fait que parfois, t'as chié ta préparation* ; *des maths plus
+ * claires sur les effets* ; *les cartes manquent de variété*.
+ */
+{
+  const L = ligue(9200);
+  // Le rapport : trois pistes, 100 %, et leur plan en sort toujours — pur.
+  let ok = true, favori = 0;
+  const N = 400;
+  for (let k = 0; k < N; k++) {
+    const adv = L[(k * 5 + 1) % 32];
+    const d = depistageDe('dep', `j${k}`, adv), d2 = depistageDe('dep', `j${k}`, adv);
+    const plan = planDuDepistage('dep', `j${k}`, d);
+    if (d.length !== 3 || d.reduce((a, x) => a + x.p, 0) !== 100 || JSON.stringify(d) !== JSON.stringify(d2) || !d.some(x => x.plan === plan) || d.some(x => x.p > 90)) ok = false;
+    if (plan === d[0].plan) favori++;
+  }
+  exiger('le rapport de dépistage : trois pistes, 100 %, leur plan en sort, rien au-dessus de 90 %', ok, `${N} rapports`);
+  borne('le favori du rapport est leur plan', favori / N * 100, 45, 75, ' %');
+
+  // La préparation, sur le MÊME match : juste, fausse, rien — et ce que la feuille en garde.
+  const toi = L[0], adv = L[9];
+  const dep = depistageDe('prep', 'j1', adv), plan = planDuDepistage('prep', 'j1', dep);
+  const faux = dep.find(x => x.plan !== plan).plan;
+  const g = o => simulerGrosMatch(toi, adv, { plan, graine: 'prep', cle: 'j1', cartes: { jouees: [] }, ...o }).gros;
+  const juste = g({ prep: plan }), rate = g({ prep: faux }), rien = g({}), revele = g({ prep: faux, cartes: { jouees: ['filature'] } }), deux = g({ prep: [faux, plan], cartes: { jouees: ['contrePlan'] } }), un = g({ prep: [faux, plan] });
+  exiger('préparation juste : leur plan tombe ; fausse : il reste, et ça coûte ; rien : rien', juste.prepJuste === true && juste.contre && rate.prepJuste === false && rien.prepJuste === null
+    && juste.cartesJouees && juste.cartesJouees.prepJuste === true && juste.cartesJouees.plan === plan,
+    `juste ${juste.prepJuste} · fausse ${rate.prepJuste} · rien ${rien.prepJuste}`);
+  exiger('« La filature » vise juste à coup sûr ; « Le plan B » couvre deux pistes, sans lui une seule', revele.prepJuste === true && deux.prepJuste === true && un.preparation.length === 1,
+    `filature ${revele.prepJuste} · plan B ${deux.preparation.join('+')} ${deux.prepJuste} · sans plan B ${un.preparation.join('+')}`);
+
+  // Le coût au rabais, les combos, leur main, le réservoir vide.
+  const t = L[0];
+  const elan = effetsDesCartes(t, { jouees: ['elan', 'lancer', 'partout'] }, 'x').effets.find(e => e.nom === CARTES_MATCH.elan.nom);
+  const riposte = effetsDesCartes(t, { jouees: ['riposte'] }, 'x', { mainAdv: ['lancer', 'partout', 'bloquer'] }).effets.find(e => e.nom === CARTES_MATCH.riposte.nom);
+  const vide = effetsDesCartes(t, { jouees: ['toutOuRien', 'miracle'] }, 'x').effets.some(e => e.nom === CARTES_MATCH.toutOuRien.nom);
+  const pasVide = effetsDesCartes(t, { jouees: ['toutOuRien', 'lancer'] }, 'x').effets.some(e => e.nom === CARTES_MATCH.toutOuRien.nom);
+  exiger('les combos se comptent : l\'élan par carte d\'attaque, la riposte par carte d\'attaque de leur main, tout ou rien sur un réservoir vide',
+    !!elan && Math.abs(elan.volume - 1.09) < 1e-9 && !!riposte && Math.abs(riposte.defense - 0.92) < 1e-9 && vide && !pasVide,
+    `élan ${elan && elan.volume.toFixed(2)} · riposte ${riposte && riposte.defense.toFixed(2)} · vide ${vide} · pas vide ${pasVide}`);
+  exiger('le rabais : les cartes de défense coûtent 1 de moins avec « Le système défensif »', coutDe('bloquer', ['systemeDef']) === 0 && coutDe('bloquer', []) === 1
+    && energieDepensee(['systemeDef', 'bloquer', 'gardienFeu']) === 3 - 1 - 0 - 1, `${energieDepensee(['systemeDef', 'bloquer', 'gardienFeu'])} d'énergie restante`);
+
+  // Épuisée : jouée à un gros match, elle quitte le deck pour la suite — en séries, pour le match d'après.
+  const avant = deckDe([{ jour: 3, recompense: 'grandSoir' }], { avant: 10 });
+  const apres = deckDe([{ jour: 3, recompense: 'grandSoir' }, { jour: 6, main: { jouees: ['grandSoir'] } }], { avant: 10 });
+  const serie = [{ ronde: 0, match_no: 1, main: { jouees: ['grandSoir'] } }];
+  const s1 = deckDe([{ jour: 3, recompense: 'grandSoir' }], { serie, ronde: 0, k: 1 }), s2 = deckDe([{ jour: 3, recompense: 'grandSoir' }], { serie, ronde: 0, k: 2 });
+  exiger('une carte épuisée quitte le deck après le match où on la joue', avant.includes('grandSoir') && !apres.includes('grandSoir') && s1.includes('grandSoir') && !s2.includes('grandSoir'),
+    `avant ${avant.includes('grandSoir')} · après ${apres.includes('grandSoir')} · séries match 2 ${s1.includes('grandSoir')} · match 3 ${s2.includes('grandSoir')}`);
+
+  // Ce que la préparation vaut, sur des gros matchs isolés : juste > rien > fausse.
+  const NN = 900;
+  let vJ = 0, vR = 0, vF = 0;
+  for (let k = 0; k < NN; k++) {
+    const a = L[k % 32], b = L[(k * 7 + 3) % 32];
+    const d = depistageDe('cal', `j${k}`, b), p = planDuDepistage('cal', `j${k}`, d);
+    const o = { plan: p, graine: 'cal', cle: `j${k}`, cartes: { jouees: [] } };
+    vR += simulerGrosMatch(a, b, o).gagne;
+    vJ += simulerGrosMatch(a, b, { ...o, prep: p }).gagne;
+    vF += simulerGrosMatch(a, b, { ...o, prep: d.find(x => x.plan !== p).plan }).gagne;
+  }
+  const pc = x => `${(x / NN * 100).toFixed(1)} %`;
+  informer('la préparation (victoires)', `${NN} matchs : juste ${pc(vJ)} · rien ${pc(vR)} · fausse ${pc(vF)}`);
+  exiger('viser juste vaut plus que ne rien préparer, qui vaut plus que se tromper', vJ > vR && vR > vF, `${pc(vJ)} > ${pc(vR)} > ${pc(vF)}`);
 }
 
 verdict('Le deck de match');

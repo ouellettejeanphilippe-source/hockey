@@ -31,9 +31,9 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
-  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, fitLigne, profilPrincipal, apprentissagePhoto } from './sim.js';
+  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, fitLigne, profilPrincipal, apprentissagePhoto, flechesDe } from './sim.js';
 import { artJoueur } from './cartes.js';
-import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, planReplie } from './gerant.js';
+import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, planReplie, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
@@ -804,11 +804,12 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const { main, pioche } = mainDuMatch(graine, `j${mo.p.j}`, deck);
     const adv = mo.mb.adv;
     ouvrirMainDeMatch({
-      titre: 'Ta main', sousTitre: `Match important · journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
-      recit: 'Cinq cartes, trois d\'énergie. Ce que tu joues vaut pour ce match seulement ; le reste retourne dans le deck.',
-      contexte: planReplie(planAdverseHtml(mo.mb.plan, mo.mb.contre, { nomAdv: ctx.teamShort(adv) }), `${PLANS_ADV[mo.mb.plan] ? PLANS_ADV[mo.mb.plan].ico : '📋'} Leur plan : <b>${ctx.esc(PLANS_ADV[mo.mb.plan] ? PLANS_ADV[mo.mb.plan].nom : '')}</b> · ${mo.mb.contre ? '✓ contré' : '✗ pas contré'}`) + mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }) }),
+      titre: 'Avant le match', sousTitre: `Match important · journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
+      recit: 'Le dépistage dit ce qu\'ils vont probablement jouer : prépare-toi pour une piste, puis joue tes cartes — cinq cartes, trois d\'énergie, pour ce match seulement.',
+      depistage: mo.mb.depistage, planReel: mo.mb.plan, nomAdv: ctx.teamShort(adv),
+      contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }) }),
       equipe: you, main, pioche, deck,
-      onJouer: (jouees, enMain) => { const j = jour; quitter(); onDecision({ jour: mo.p.j, main: { jouees, enMain } }, j); },
+      onJouer: (jouees, enMain, _aj, prep) => { const j = jour; quitter(); onDecision({ jour: mo.p.j, main: { jouees, enMain }, prep }, j); },
     });
   }
 
@@ -1064,7 +1065,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       const m = (calendrier[mb.jour] || []).find(x => x.A === you || x.B === you);
       const Av = mb.avant && AVANT_GROS[mb.avant.cle];
       const Ao = Av && Av.options.find(o => o.cle === mb.avant.choix);
-      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Gros match contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · avant : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}${mb.cartes && mb.cartes.jouees.length ? ` · 🃏 ${mb.cartes.jouees.map(c => CARTES_MATCH[c] ? CARTES_MATCH[c].ico : '').join('')}` : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
+      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Gros match contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · avant : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}${mb.cartes && mb.cartes.jouees.length ? ` · 🃏 ${mb.cartes.jouees.map(c => CARTES_MATCH[c] ? CARTES_MATCH[c].ico : '').join('')}` : ''}${mb.prepJuste === true ? ' · 🎯 préparation juste' : mb.prepJuste === false ? ' · 💥 préparation ratée' : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
     }
     // Les séquences marquantes : cinq victoires de suite ou plus, cinq défaites.
     let run = 0, sens = null, debut = 0;
@@ -1320,9 +1321,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       const Ao = Av && Av.options.find(o => o.cle === avantPris.avant.choix);
       const miniBoss = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros">
         <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Match important · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
-        ${onDecision ? planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`, energieAdverse({ jour: p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: p.j }) }) : ''}
+        ${onDecision ? depistageHtml(pistesDuRapport(mb.depistage), { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`, energieAdverse({ jour: p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: p.j }) }) : ''}
         ${Ao ? `<div class="hub-gros-avant">${Av.ico} ${ctx.esc(Av.titre)} : <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
-        <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, finition ↑ · 3 matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, finition ↓ · 3 matchs`, bon: false }])}</div>
+        <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, précision ${flechesDe(ELAN.finition)} · ${ELAN.duree} matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, précision ${flechesDe(SONNE.finition)} · ${SONNE.duree} matchs`, bon: false }])}</div>
         ${onDecision ? '<div class="hub-gros-note">🎬 Au deuxième entracte, un choix t\'attend.</div>' : ''}
       </div>` : '';
       // CE QUI JOUE SUR TA FORMATION (S72), en une ligne ; le détail est dans « Préparer le match ».
@@ -1341,7 +1342,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
         lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie, apprentissage: etat.apprentissage,
         adv: { nom: ctx.teamShort(adv), lignes: lignesDe(adv, adv.roster) },
-        plan: mb ? mb.plan : null,
+        depistage: mb ? mb.depistage : null,
         effets: { ...effetsEnCours(you, p.j), cartes: decs.filter(d => d.carte && d.jour <= p.j).map(d => d.carte) },
         match: (matchPris && matchPris.match) || { importance: mb ? 'haute' : 'normale', ad: 0 },
         motAppliquer: 'Appliquer — la saison reprend ici',
@@ -1492,7 +1493,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       const ciblesA = A.cible ? ciblesDe(you, A.cible, graine, av.p.j) : [];
       spec = { ico: A.ico, titre: A.titre, irl: A.irl, joueurs: ciblesA,
         recit: `Avant le gros match contre ${ctx.teamLabel(advG)}. ${A.recit}`,
-        contexte: planAdverseHtml(av.mb.plan, av.mb.contre, { nomAdv: ctx.teamShort(advG) }),
+        contexte: depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) }),
         options: A.options.map(o => ({ ...o, duree: 1 })),
         onChoix: cle => { const j = jour; quitter(); onDecision({ jour: av.p.j, avant: { cle: av.cle, choix: cle, joueurs: ciblesA.map(getPlayerKey) } }, j); } };
     } else if (rc) {
@@ -1588,7 +1589,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       <div class="ent2-note">Après deux périodes · tirs ${tirs(cMoi)}–${tirs(cLui)}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
       <div class="ent2-incident">${INC.ico} ${ctx.esc(INC.titre)}.</div>
-      ${planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv) })}
+      ${planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv), prepJuste: mb.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
       ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`,
@@ -1823,7 +1824,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
         ${ved ? `<div>⭐ Sa vedette : <b>${ctx.esc(ved.n)}</b> · ${ved.simPTS || 0} pts en saison</div>` : ''}
         ${gar ? `<div>🥅 Son gardien : <b>${ctx.esc(gar.n)}</b>${gar.simSA ? ` · ${((gar.simSV || 0) / gar.simSA).toFixed(3).replace(/^0/, '')} en saison` : ''}</div>` : ''}
       </div>
-      ${planDuMatch(s) ? planAdverseHtml(planDuMatch(s).plan, planDuMatch(s).contre, { nomAdv: ctx.teamShort(boss), suite: suiteDuPlan(s) }) : ''}
+      ${planDuMatch(s) ? depistageHtml(pistesDuRapport(planDuMatch(s).depistage), { nomAdv: ctx.teamShort(boss) }) + `<div class="dep-suite">${ctx.esc(suiteDuPlan(s))}</div>` : ''}
       ${onDecision ? mainAdverseHtml(mainAdverse(graine, `po${ronde}:${revele.get(s)}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }) }) : ''}
       <div class="hub-lignes"><span class="gl-k">Tes lignes</span> ${resumeLignes(lt, chim)}</div>
     </div>`;
@@ -1834,11 +1835,17 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
    * le rapport d'éclaireur raconte, pour qu'on cherche le contre.
    */
   const planDuMatch = s => (s && s.plans && !complete(s) ? s.plans[revele.get(s)] || null : null);
+  /*
+   * CE QUE LE DERNIER MATCH DIT DU PROCHAIN (S76) — sans le dévoiler : le plan
+   * d'hier, et s'il a marché. Le rapport en tient déjà compte (un plan gagnant
+   * se garde souvent, un plan perdant presque jamais).
+   */
   const suiteDuPlan = s => {
     const k = revele.get(s), pl = s.plans || [];
-    if (!k || !pl[k] || !pl[k - 1]) return 'au premier match';
+    if (!k || !pl[k - 1]) return 'Premier match de la série : le dépisteur n\'a que leur saison.';
     const P = PLANS_ADV[pl[k - 1].plan];
-    return pl[k].plan === pl[k - 1].plan ? 'ils le gardent : il a marché au dernier match' : `ils changent : ${P ? P.nom.toLowerCase() : 'leur plan'} n'a pas marché`;
+    const nom = P ? P.nom.toLowerCase() : 'leur plan';
+    return pl[k - 1].gagne ? `Au dernier match, ${nom} n'a pas marché : ils vont sûrement changer.` : `Au dernier match, ${nom} a marché : ils risquent de le garder.`;
   };
   const entracteSerieAttendu = s => {
     if (!onDecision || !s || complete(s)) return false;
@@ -1866,7 +1873,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
       <div class="ent2-note">Match ${k + 1} · après deux périodes · tirs ${tirs(cMoi)}–${tirs(cLui)} · série ${s.A === you ? wA : wB}-${s.A === you ? wB : wA}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
       <div class="ent2-incident">${INC.ico} ${ctx.esc(INC.titre)}.</div>
-      ${planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss) })}
+      ${planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss), prepJuste: pl.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
       ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`,
@@ -1890,7 +1897,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     return `Match ${k} : ${pour > contre ? 'victoire' : 'défaite'} ${pour}-${contre}${f.ot ? ' en prolongation' : ''}. `;
   };
   /* Le deck en séries : la saison, et les cartes gagnées aux séries d'avant. */
-  const deckDeSerie = () => deckDe(decisionsSaison, { serie: decsSerie, ronde,
+  const deckDeSerie = (k = maSerie(ronde) ? revele.get(maSerie(ronde)) : Infinity) => deckDe(decisionsSaison, { serie: decsSerie, ronde, k,
     pertes: (you.minisBoss || []).filter(m => !m.gagne && m.raison === 'nemesis').map(m => m.jour + 1),
     blessures: (you.injuriesLog || []).filter(i => i.games >= 15 && i.jour != null).map(i => i.jour + 1) });
   /* La récompense d'une série gagnée (S74) : une carte plus rare, ou passer. */
@@ -1924,7 +1931,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
       chimie: (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).chimie || [0, 0, 0, 0],
       energie: (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).energie || {},
       adv: { nom: ctx.teamShort(boss), lignes: lignesDe(boss, boss.roster) },
-      plan: planDuMatch(s) ? planDuMatch(s).plan : null, planSuite: suiteDuPlan(s),
+      depistage: planDuMatch(s) ? planDuMatch(s).depistage : null,
       match: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.match) || {}).match || { importance: 'haute', ad: 0 },
       motAppliquer: `Appliquer — le match ${k + 1} se joue comme ça`,
       onBanc: onBanc ? () => quitterPour(r => onBanc(r, k)) : null,
@@ -1946,14 +1953,14 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
       const pl = planDuMatch(s);
       const { moi, lui, etat } = etatSerie(s);
       ouvrirMainDeMatch({
-        titre: dejaAjuste ? 'Ta main' : `Entre deux matchs · ${moi}-${lui}`,
+        titre: `Avant le match ${k + 1}`,
         sousTitre: `${nomRondeCourt(ronde)} · match ${k + 1} · contre ${ctx.teamShort(boss)} · série ${moi}-${lui}`,
-        recit: dejaAjuste ? 'Cinq cartes, trois d\'énergie. Ce que tu joues vaut pour ce match de la série.'
-          : `${resultatPrecedent(s, k)}${etat === 'derriere' ? 'Ta formation tire de l\'arrière.' : etat === 'devant' ? 'Ta formation mène la série.' : 'La série est à égalité.'} Choisis ton ajustement, puis joue tes cartes.`,
-        contexte: (pl ? planReplie(planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss) }), `${PLANS_ADV[pl.plan] ? PLANS_ADV[pl.plan].ico : '📋'} Leur plan : <b>${ctx.esc(PLANS_ADV[pl.plan] ? PLANS_ADV[pl.plan].nom : '')}</b> · ${pl.contre ? '✓ contré' : '✗ pas contré'}`) : '') + mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }) }),
+        recit: `${resultatPrecedent(s, k)}${k === 0 ? '' : etat === 'derriere' ? 'Ta formation tire de l\'arrière. ' : etat === 'devant' ? 'Ta formation mène la série. ' : 'La série est à égalité. '}${suiteDuPlan(s)} Prépare-toi pour une piste${dejaAjuste ? '' : ', choisis ton ajustement'}, puis joue tes cartes.`,
+        depistage: pl ? pl.depistage : null, planReel: pl ? pl.plan : null, nomAdv: ctx.teamShort(boss),
+        contexte: mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }) }),
         ajustements: dejaAjuste ? null : ajustementsOfferts(graine, ronde, k, etat).map(c => ({ cle: c, ...AJUSTEMENTS[c] })),
         equipe: you, main, pioche, deck,
-        onJouer: (jouees, enMain, ajustement) => quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees, enMain } })),
+        onJouer: (jouees, enMain, ajustement, prep) => quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees, enMain }, prep })),
       });
     }
   }

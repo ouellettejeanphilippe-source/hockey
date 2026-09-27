@@ -52,6 +52,7 @@ const _wait = page.waitForSelector.bind(page);
  */
 const identitesVues = [];
 const mainsVues = [];   // les cartes jouées aux gros matchs et en séries (S74)
+let prepsVues = 0;      // les préparations choisies au dépistage (S76)
 async function passerIdentite() {
   const carte = await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"] .tc', { timeout: 10000 }).catch(() => null);
   if (!carte) { errors.push('« Commencer » n\'offre pas l\'identité de départ'); return; }
@@ -114,6 +115,21 @@ async function repondreAuxChoix() {
         choixVus.set('hub-dilemme', [...(choixVus.get('hub-dilemme') || []), titreMain]);
         await _click('#choixModal .main-aj');
       }
+      /*
+       * LE DÉPISTAGE (S76) : trois pistes et leurs chances, et on se prépare
+       * pour la première — elle doit s'allumer et partir avec la décision.
+       */
+      const pistes = await page.$$eval('#choixModal .dep-piste[data-plan]', e => e.length);
+      if (!pistes) errors.push('la main d\'un match n\'offre pas le dépistage (aucune piste à préparer)');
+      else {
+        await _click('#choixModal .dep-piste[data-plan]:not([disabled])');
+        if (!(await page.$('#choixModal .dep-piste.on'))) errors.push('toucher une piste du dépistage ne la prépare pas');
+        const somme = await page.$$eval('#choixModal .dep-piste .dep-p b', e => e.map(x => parseInt(x.textContent, 10) || 0).reduce((a, b) => a + b, 0));
+        if (Math.abs(somme - 100) > 2) errors.push(`les chances du dépistage ne font pas 100 % (${somme} %)`);
+        prepsVues++;
+        // La première : une capture, pour que JP voie le dépistage tel qu'un kid le voit.
+        if (prepsVues === 1) await page.screenshot({ path: 'scripts/smoke-main.png' });
+      }
       const jouable = await page.$('#choixModal .main-carte:not(.trop-cher):not(.injouable):not(.jouee)');
       let nom = null;
       if (jouable) {
@@ -127,6 +143,7 @@ async function repondreAuxChoix() {
       await page.waitForTimeout(350);
       const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_save')).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
       if (!d.length) errors.push('la main jouée n\'entre pas dans la sauvegarde');
+      if (pistes && !d.some(x => Array.isArray(x.prep) && x.prep.length)) errors.push('la préparation choisie n\'entre pas dans la décision de la main');
       mainsVues.push(nom || 'rien');
       continue;
     }
@@ -908,7 +925,8 @@ async function traverserSaison(etiquette, reprise = false) {
         const puces = await page.$$eval('#lignesModal [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
         // TOUT ENSEMBLE (S72) : « Ce qui joue sur ta formation » est dans le même écran que les lignes.
         if (!(await page.$('#lignesModal .gl-effets'))) errors.push('« Préparer le match » ne montre pas ce qui joue sur ta formation');
-        if (!puces.some(t => /Finition/.test(t))) errors.push(`l'importance haute ne dit pas son effet : ${puces.join(' · ')}`);
+        // En chiffres depuis S76 : « Précision +3 % », plus des flèches.
+        if (!puces.some(t => /Précision [+−]\d+ %/.test(t))) errors.push(`l'importance haute ne dit pas son effet : ${puces.join(' · ')}`);
         await _click('#lignesModal [data-importance="haute"]');
         await _click('#lignesModal .gl-appliquer');
         await page.waitForSelector('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
@@ -1790,8 +1808,9 @@ if (enabled) {
       await page.waitForTimeout(400);
       const ds = await dsDe();
       const aj = ds.find(d => d.ajustement);
-      const entre = (choixVus.get('hub-dilemme') || []).slice(vusAvant).some(t => /Entre deux matchs/.test(t));
-      if (!entre) errors.push('aucun ajustement forcé « Entre deux matchs » après le match 1');
+      // « Entre deux matchs » s'appelle « Avant le match N » depuis S76 : l'écran regarde le match qui vient.
+      const entre = (choixVus.get('hub-dilemme') || []).slice(vusAvant).some(t => /Avant le match \d/.test(t));
+      if (!entre) errors.push('aucun ajustement forcé « Avant le match » après le match 1');
       if (entre && !aj) errors.push(`l'ajustement choisi n'est pas sauvegardé : ${JSON.stringify(ds)}`);
       else if (aj) console.log(`   séries : lignes du match 1 et ajustement « ${aj.ajustement} » au match ${aj.match_no + 1}, ${ds.length} décision(s) de séries`);
     }
@@ -2106,7 +2125,7 @@ await sansCote('express');
 console.log(`   ballottage : ${ballottage.mot || 'aucune offre croisée (il faut une blessure de quatre matchs et plus)'}`);
 console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
 console.log(`   identités de départ prises : ${identitesVues.join(' · ') || 'aucune'}`);
-console.log(`   mains de match jouées : ${mainsVues.length} (${mainsVues.slice(0, 6).join(' · ') || 'aucune'})`);
+console.log(`   mains de match jouées : ${mainsVues.length} (${mainsVues.slice(0, 6).join(" · ") || "aucune"}) · ${prepsVues} préparation(s) au dépistage`);
 console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
 if (!choixVus.has('hub-proprio')) errors.push('le proprio n\'a jamais fixé d\'objectif');
 if (!choixVus.has('hub-dilemme')) errors.push('aucun dilemme croisé en traversant une saison');

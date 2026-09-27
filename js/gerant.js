@@ -30,8 +30,8 @@ import {
 } from './sim.js';
 import { POIDS_TRIO, getLineZone } from './ratings.js';
 import { carteHtml, RARETES } from './cartes.js';
-import { CARTES_MATCH, ENERGIE_MAIN } from './combat.js';
-import { effetsDesCartes } from './sim.js';
+import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
+import { effetsDesCartes, PREP_JUSTE, PREP_RATEE } from './sim.js';
 import { jouerSon } from './sons.js';
 import { avecArticle } from './commentaire.js';
 
@@ -56,8 +56,8 @@ export function motsDAction(a, noms = '') {
   const qui = noms || 'le joueur visé';
   const out = [];
   if (a.absents) out.push({ txt: `👥 ${qui} au vestiaire ${plur(a.absents, 'match')} — un réserviste ou un rappelé joue`, bon: null });
-  if (a.energie) out.push({ txt: `👥 ${qui} : énergie ${flechesDe(1 + a.energie / 100, [0.15, 0.3])}`, bon: a.energie > 0 });
-  if (a.energieTous) out.push({ txt: `👥 Toute l'équipe : énergie ${flechesDe(1 + a.energieTous / 100, [0.1, 0.2])}`, bon: a.energieTous > 0 });
+  if (a.energie) out.push({ txt: `👥 ${qui} : énergie ${a.energie > 0 ? '+' : '−'}${Math.abs(a.energie)}`, bon: a.energie > 0 });
+  if (a.energieTous) out.push({ txt: `👥 Toute l'équipe : énergie ${a.energieTous > 0 ? '+' : '−'}${Math.abs(a.energieTous)}`, bon: a.energieTous > 0 });
   if (a.gardienAux) out.push({ txt: `🧤 L'auxiliaire garde le filet ${plur(a.gardienAux, 'match')}`, bon: null });
   return out;
 }
@@ -86,7 +86,7 @@ export function motsDeCarte(o, noms = '') {
  * ce qu'il règle sur ses lignes, ce que ce système fait, ce qui le contre, et
  * si tes lignes le contrent.
  */
-export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '' } = {}) {
+export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJuste } = {}) {
   const P = PLANS_ADV[cle];
   if (!P) return '';
   // Le plan est un réglage de lignes (S72) : ce qu'il règle, et ce que ce système fait.
@@ -96,7 +96,8 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '' } = {}
     <div class="plan-adv-t">${P.ico} Leur plan : <b>${esc(P.nom)}</b>${suite ? ` <small>${esc(suite)}</small>` : ''}</div>
     <div class="plan-adv-mot">${esc(P.mot)} <b>${esc(majuscule(reglageDuPlan(cle)))}</b>.</div>
     ${mots.length ? `<div class="choix-puces">${puces(mots)}</div>` : ''}
-    <div class="plan-adv-contre"><b>${contre ? '✓ Tu le contres' : '✗ Pas contré'}</b> · pour le contrer : ${esc(commentContrer(cle))}.</div>
+    ${prepJuste === undefined ? `<div class="plan-adv-contre"><b>${contre ? '✓ Tu le contres' : '✗ Pas contré'}</b> · pour le contrer : ${esc(commentContrer(cle))}.</div>`
+      : `<div class="plan-adv-contre ${prepJuste ? 'juste' : prepJuste === false ? 'ratee' : ''}"><b>${prepJuste ? '🎯 Ta préparation visait juste : leur plan est tombé' : prepJuste === false ? '💥 T\'as chié ta préparation' : 'Pas de préparation'}</b></div>`}
   </div>`;
 }
 
@@ -410,7 +411,7 @@ export function ouvrirLignes(spec) {
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
-      <div class="choix-corps">${effetsHtml(spec.effets)}${spec.plan ? planAdverseHtml(spec.plan, planEstContre(spec.plan, brouillon, match ? match.ad : 0), { nomAdv: spec.adv ? spec.adv.nom : 'Eux', suite: spec.planSuite || '' }) : ''}${consigne}${onglets}${detail}</div>
+      <div class="choix-corps">${effetsHtml(spec.effets)}${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv ? spec.adv.nom : 'Eux' }) : ''}${consigne}${onglets}${detail}</div>
       <div class="gl-pied">
         ${spec.onBanc ? '<button type="button" class="btn gl-banc">Changer les trios</button>' : ''}
         <button type="button" class="btn go gl-appliquer">${esc(spec.motAppliquer || 'Appliquer')}</button>
@@ -449,26 +450,88 @@ export function resumeLignes(lignes, chimie) {
 void SLOTS;
 
 /* ======================================================================
+   LE DÉPISTAGE ET TA PRÉPARATION (S76)
+   ======================================================================
+   JP : *contrer, ça devrait être un scouting de leur stratégie potentielles
+   avec taux de succès, qui fait que parfois, t'as chié ta préparation*. Le
+   rapport montre trois pistes et leurs chances (`depistageDe`, js/sim.js) ;
+   on se prépare pour une. Les cartes de dépistage le resserrent : la vidéo
+   RAYE une piste fausse (jamais la bonne — la moins probable d'abord), la
+   filature dit la vraie. */
+export function pistesDuRapport(dep, { planReel = null, ecarte = 0, revele = false } = {}) {
+  if (!dep || !dep.length) return [];
+  if (revele && planReel) return dep.map(x => ({ ...x, p: x.plan === planReel ? 100 : 0, ecarte: x.plan !== planReel }));
+  const fausses = dep.filter(x => x.plan !== planReel).sort((a, b) => a.p - b.p);
+  const rayees = new Set(planReel ? fausses.slice(0, ecarte).map(x => x.plan) : []);
+  const tot = dep.filter(x => !rayees.has(x.plan)).reduce((a, x) => a + x.p, 0) || 1;
+  return dep.map(x => (rayees.has(x.plan) ? { ...x, p: 0, ecarte: true } : { ...x, p: Math.round(100 * x.p / tot) }));
+}
+export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = false, fx = null } = {}) {
+  if (!pistes || !pistes.length) return '';
+  const qui = nomAdv === 'Eux' ? '' : ' ' + esc(avecArticle('de', nomAdv));
+  const ligne = x => {
+    const P = PLANS_ADV[x.plan];
+    if (!P) return '';
+    const on = prep.includes(x.plan);
+    const corps = `<span class="dep-ico">${P.ico}</span><span class="dep-nom"><b>${esc(P.nom)}</b><small>${esc(reglageDuPlan(x.plan))}</small></span>
+      <span class="dep-p">${x.ecarte ? '<b>✗</b>' : `<b>${x.p} %</b>`}<i style="--p:${x.p}%"></i></span>`;
+    return choisir
+      ? `<button type="button" class="dep-piste${on ? ' on' : ''}${x.ecarte ? ' ecarte' : ''}" data-plan="${x.plan}"${x.ecarte ? ' disabled' : ''}>${corps}<span class="dep-prep">${x.ecarte ? 'Écarté' : on ? '🎯 Préparé' : 'Me préparer'}</span></button>`
+      : `<div class="dep-piste${x.ecarte ? ' ecarte' : ''}">${corps}</div>`;
+  };
+  const txt = e => motsDEffet(e).map(m => m.txt).join(' · ');
+  const juste = `Leur plan tombe · ${txt(PREP_JUSTE)}${fx && fx.piege ? ` · et ${txt(fx.piege)} (le piège)` : ''}`;
+  const rate = fx && fx.improvise ? `pas de malus, et ${txt(fx.improvise)} (l'improvisation)` : txt(PREP_RATEE);
+  return `<div class="depistage${choisir ? ' choisir' : ''}">
+    <div class="gl-k">🔎 Le dépistage${qui} : leur plan probable</div>
+    <div class="dep-pistes">${pistes.map(ligne).join('')}</div>
+    ${choisir ? `<div class="dep-regle"><span class="puce bon">🎯 Vise juste : ${esc(juste)}</span><span class="puce prix">💥 Rate : ${esc(rate)}</span><span class="puce neutre">Sans préparation : rien ne change</span></div>` : ''}
+  </div>`;
+}
+
+/* ======================================================================
    LE DECK DE MATCH (S74) : la main, le deck, les cartes en options
    ====================================================================== */
 const GENRES_CARTE = { attaque: 'Attaque', defense: 'Défense', tactique: 'Tactique', synergie: 'Synergie', malediction: 'Malédiction' };
-/* Ce qu'une carte de match fait, en puces : pour toi, pour eux (vert si ça t'aide), et ses gestes. */
-export function motsDeCarteMatch(C) {
+const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tactique', synergie: 'de synergie' };
+/*
+ * LA RÈGLE D'UNE CARTE, EN CHIFFRES (S76). JP : *des maths plus claires sur
+ * les effets, comme dans un vrai deckbuilder*. Tout ce qu'une carte fait se
+ * lit ici, déduit de ses champs — jamais écrit deux fois : « Tirs +6 % »,
+ * « Eux : punitions +25 % », « Pige 2 cartes », « Écarte 1 plan ». En vert ce
+ * qui t'aide, en rouge ce qui coûte. `regle` n'est écrite à la main que pour
+ * une carte qui lit ta formation.
+ */
+export function regleDeCarte(C) {
   if (!C) return [];
-  const out = [...motsDEffet(C.effet || null)];
+  const out = [];
+  const txt = e => motsDEffet(e).map(m => m.txt).join(', ');
+  if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
+  out.push(...motsDEffet(C.effet || null));
   for (const m of motsDEffet(C.adv || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  if (C.pioche) out.push({ txt: `Pige ${C.pioche} carte${C.pioche > 1 ? 's' : ''}`, bon: true });
+  if (C.energiePlus) out.push({ txt: `+${C.energiePlus} énergie`, bon: true });
+  if (C.energieTous) out.push({ txt: `Tes patineurs : énergie +${C.energieTous}`, bon: true });
   if (C.lire) out.push({ txt: 'Leur plan tombe', bon: true });
   if (C.annule) out.push({ txt: 'Leur main ne fait rien', bon: true });
   if (C.contre) out.push({ txt: 'Tes 2 premières lignes sur leur contre', bon: null });
-  if (C.pioche) out.push({ txt: `Pige ${C.pioche}`, bon: true });
-  if (C.energiePlus) out.push({ txt: `+${C.energiePlus} énergie`, bon: true });
-  if (C.energieTous) out.push({ txt: `Patineurs +${C.energieTous} d'énergie`, bon: true });
-  if (C.pari) out.push({ txt: '🎲 Pari', bon: null });
-  if (C.synergie) out.push({ txt: 'Lit ta formation', bon: null });
+  if (C.ecarte) out.push({ txt: `🔎 Écarte ${C.ecarte} plan${C.ecarte > 1 ? 's' : ''} qu'ils ne joueront pas`, bon: true });
+  if (C.revele) out.push({ txt: '🔎 Tu sais leur plan : ta préparation vise juste', bon: true });
+  if (C.planB) out.push({ txt: '🎯 Tu te prépares pour 2 plans', bon: true });
+  if (C.improvise) out.push({ txt: `Si ta préparation rate : pas de malus, et ${txt(C.improvise)}`, bon: true });
+  if (C.piege) out.push({ txt: `Si ta préparation vise juste : ${txt(C.piege)} de plus`, bon: true });
+  if (C.parGenre) out.push({ txt: `${txt(C.parGenre.effet)} par carte ${DE_GENRE[C.parGenre.genre] || ''} jouée ce match`, bon: true });
+  if (C.selonLeurMain) out.push({ txt: `${txt(C.selonLeurMain.effet)} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} dans leur main`, bon: true });
+  if (C.siVide) out.push({ txt: `Si tu dépenses toute ton énergie : ${txt(C.siVide)}`, bon: true });
+  if (C.rabais) out.push({ txt: `Tes cartes ${DE_GENRE[C.rabais] || ''} coûtent 1 de moins ce match`, bon: true });
+  if (C.pari) out.push({ txt: `🎲 ${Math.round(C.pari.chance * 100)} % : ${txt(C.pari.gagne)} — sinon : ${txt(C.pari.perd)}`, bon: null });
   if (C.enMain) for (const m of motsDEffet(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
   if (C.injouable) out.push({ txt: 'Injouable', bon: false });
+  if (C.epuise) out.push({ txt: '⌛ Épuisée : elle quitte ton deck après ce match', bon: null });
   return out;
 }
+/* L'ancien nom : les écrans de récompense et de deck l'appellent encore. */
+export const motsDeCarteMatch = regleDeCarte;
 /* Une carte de LEUR main, en puces de ton point de vue : ce qui les aide est rouge pour toi. */
 export function motsDeCarteAdverse(C) {
   if (!C) return [];
@@ -477,6 +540,8 @@ export function motsDeCarteAdverse(C) {
   for (const m of motsDEffet(C.adv || null)) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
   if (C.pari) out.push({ txt: '🎲 Leur pari', bon: null });
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
+  if (C.parGenre) for (const m of motsDEffet(C.parGenre.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent`, bon: m.bon == null ? null : !m.bon });
+  if (C.selonLeurMain) for (const m of motsDEffet(C.selonLeurMain.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} que TU joues`, bon: m.bon == null ? null : !m.bon });
   if (C.energieTous) out.push({ txt: `Leurs patineurs +${C.energieTous} d'énergie`, bon: false });
   return out;
 }
@@ -504,11 +569,12 @@ export function optionDeCarteMatch(cle) {
     texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C),
   };
 }
-const carteDeMatch = (cle, i, etat) => {
+const carteDeMatch = (cle, i, etat, cout = null) => {
   const o = optionDeCarteMatch(cle);
+  const coin = cout != null && CARTES_MATCH[cle] && cout < CARTES_MATCH[cle].cout ? `<s>${CARTES_MATCH[cle].cout}</s>${cout}` : esc(o.coin);
   return carteHtml({
     cle: String(i), rarete: o.rarete, i, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(o.type),
-    texteHtml: esc(o.texte), coinHtml: esc(o.coin), pucesHtml: puces(o.mots),
+    texteHtml: `<i class="tc-ambiance">${esc(o.texte)}</i>`, coinHtml: coin, pucesHtml: puces(o.mots),
   }).replace('class="choix-option tc', `class="choix-option tc main-carte${String(cle).endsWith('+') ? ' plus' : ''}${etat ? ` ${etat}` : ''}`);
 };
 
@@ -539,7 +605,7 @@ export function ouvrirMainDeMatch(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
   if (fermerChoixCourant) fermerChoixCourant(true);
-  let main, pioche, jouees, energie, voirDeck = false, aj = null;
+  let main, pioche, jouees, energie, voirDeck = false, aj = null, prep = [];
   const depart = () => { main = spec.main.slice(); pioche = (spec.pioche || []).slice(); jouees = []; energie = ENERGIE_MAIN; };
   depart();
   const joue = new Set();          // les rangs de la main déjà joués
@@ -552,8 +618,8 @@ export function ouvrirMainDeMatch(spec) {
     const planOuvert = !!m.querySelector('.main-plan[open]');
     const cartes = main.map((c, i) => {
       const C = CARTES_MATCH[c];
-      const etat = joue.has(i) ? 'jouee' : C.injouable ? 'injouable' : C.cout > energie ? 'trop-cher' : '';
-      return carteDeMatch(c, i, [etat, pigees.has(i) ? 'pige' : ''].filter(Boolean).join(' '));
+      const etat = joue.has(i) ? 'jouee' : C.injouable ? 'injouable' : energieDepensee([...jouees, c]) < 0 ? 'trop-cher' : '';
+      return carteDeMatch(c, i, [etat, pigees.has(i) ? 'pige' : ''].filter(Boolean).join(' '), joue.has(i) ? null : coutDe(c, [...jouees, c]));
     }).join('');
     const sansPari = jouees.filter(c => !CARTES_MATCH[c].pari);
     const fx = effetsDesCartes(spec.equipe, { jouees: sansPari, enMain: main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain) }, 'apercu');
@@ -562,7 +628,13 @@ export function ouvrirMainDeMatch(spec) {
     if (fx.lire) mots.push({ txt: 'Leur plan tombe', bon: true });
     if (fx.annule) mots.push({ txt: 'Leur main ne fait rien', bon: true });
     if (fx.contre) mots.push({ txt: 'Tes 2 premières lignes sur leur contre', bon: null });
-    if (fx.energieTous) mots.push({ txt: `Patineurs +${fx.energieTous} d'énergie`, bon: true });
+    if (fx.energieTous) mots.push({ txt: `Tes patineurs : énergie +${fx.energieTous}`, bon: true });
+    // LE DÉPISTAGE DU SOIR (S76) : les cartes jouées le resserrent, et ta préparation suit.
+    const pistes = pistesDuRapport(spec.depistage, { planReel: spec.planReel, ecarte: fx.ecarte, revele: fx.revele });
+    if (fx.revele && spec.planReel) prep = [spec.planReel];
+    prep = prep.filter(k => pistes.some(x => x.plan === k && !x.ecarte)).slice(-(fx.planB ? 2 : 1));
+    const chance = pistes.filter(x => prep.includes(x.plan)).reduce((a, x) => a + x.p, 0);
+    if (prep.length) mots.push({ txt: `🎯 Préparé : ${prep.map(k => PLANS_ADV[k] ? PLANS_ADV[k].nom : k).join(' et ')} · ${chance} % de viser juste`, bon: chance >= 50 ? true : null });
     for (const c of jouees) if (CARTES_MATCH[c].pari) mots.push({ txt: `🎲 ${CARTES_MATCH[c].nom} : au match`, bon: null });
     const orbes = Array.from({ length: Math.max(ENERGIE_MAIN, energie) }, (_, i) => `<i class="main-orbe${i < energie ? ' plein' : ''}"></i>`).join('');
     const deck = (spec.deck || []).slice().sort((a, b) => CARTES_MATCH[a].cout - CARTES_MATCH[b].cout || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
@@ -573,6 +645,7 @@ export function ouvrirMainDeMatch(spec) {
       </div>
       <div class="choix-corps">
         ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
+        ${spec.depistage ? depistageHtml(pistes, { nomAdv: spec.nomAdv || 'Eux', prep, choisir: true, fx }) : ''}
         ${spec.contexte || ''}
         ${spec.ajustements ? `<div class="main-ajuste"><div class="gl-k">Ton ajustement pour ce match</div><div class="main-ajuste-rang">${spec.ajustements.map(o => {
           const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
@@ -605,10 +678,11 @@ export function ouvrirMainDeMatch(spec) {
     m.querySelectorAll('.main-carte').forEach(b => {
       b.onclick = () => {
         const i = Number(b.dataset.choix), c = main[i], C = CARTES_MATCH[c];
-        if (joue.has(i) || C.injouable || C.cout > energie) { jouerSon('refus'); return; }
+        if (joue.has(i) || C.injouable || energieDepensee([...jouees, c]) < 0) { jouerSon('refus'); return; }
         jouerSon('joue');
         joue.add(i); jouees.push(c);
-        energie += (C.energiePlus || 0) - C.cout;
+        // Le coût se relit sur TOUTE la main : un rabais joué après rend l'énergie des cartes d'avant (S76).
+        energie = energieDepensee(jouees);
         if (C.pioche) { const n0 = main.length; main.push(...pioche.splice(0, C.pioche)); for (let k = n0; k < main.length; k++) pigees.add(k); }
         dessiner();
       };
@@ -617,10 +691,19 @@ export function ouvrirMainDeMatch(spec) {
       if (spec.ajustements && !aj) return;
       const enMain = main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain);
       fermer(true);
-      spec.onJouer(jouees.slice(), enMain, aj);
+      spec.onJouer(jouees.slice(), enMain, aj, prep.slice());
     };
+    // Me préparer : toucher une piste. Une seule (deux avec « Le plan B ») ; la dernière touchée reste.
+    m.querySelectorAll('.dep-piste[data-plan]').forEach(b => {
+      b.onclick = () => {
+        const k = b.dataset.plan;
+        prep = prep.includes(k) ? prep.filter(x => x !== k) : [...prep, k];
+        jouerSon('joue');
+        dessiner();
+      };
+    });
     m.querySelectorAll('.main-aj').forEach(b => { b.onclick = () => { aj = b.dataset.aj; jouerSon('joue'); dessiner(); }; });
-    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; dessiner(); };
+    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; dessiner(); };
     m.querySelector('.main-deck').onclick = () => { voirDeck = !voirDeck; dessiner(); };
     // Le focus reste DANS la main : le clavier ne tombe jamais sur la page dessous.
     m.querySelector('.main-jouer').focus({ preventScroll: true });
