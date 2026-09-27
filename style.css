@@ -9006,3 +9006,11 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 @media (prefers-reduced-motion: reduce) {
   .hub-msg-tete::after, .hub-depistage > summary::after, .hub-plie > summary::after { transition: none; }
 }
+
+/* Les buts d'un match rangés par période (S78) : l'intertitre, discret ; au sommaire, la liste entière (rien à défiler). */
+.live-but-per { padding: 6px 10px 2px; font: 700 11px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.live-but-per + .live-but-ligne { border-top: 0; }
+#choixModal .live-buteurs { max-height: none; overflow: visible; }
+
+/* L'ÉCUSSON SUR SA BANDE (S78) : un logo de la couleur du club disparaissait sur la bande du club (le Lightning bleu sur bleu). Une pastille claire, comme sur un chandail. */
+.live-eq-band .team-logo-img, .hub-eq-band .team-logo-img { box-sizing: content-box; padding: 2px; border-radius: 50%; background: rgba(255, 255, 255, 0.92); }

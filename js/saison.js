@@ -27,7 +27,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   PLANS, ROULEMENTS, planDe, roulementDe, JOURS_SITUATIONS,
   STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
-  getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE,
+  getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
@@ -40,7 +40,7 @@ import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdvers
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
-import { tempsRestant } from './recit.js';
+import { tempsRestant, NOM_PERIODE } from './recit.js';
 import { animerComptes } from './mouvement.js';
 
 /*
@@ -1312,10 +1312,20 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const avant = compterFeuilles(calendrier.slice(0, j).flat().map(x => x.feuille));
     const local = new Map();
     const rang = (p, cle) => { const c = avant.get(p); const base = c ? c[cle] : 0; local.set(p, local.get(p) || { g: 0, a: 0 }); local.get(p)[cle]++; return base + local.get(p)[cle]; };
+    /*
+     * LES BUTS SE RANGENT PAR PÉRIODE (JP : *corriger le sommaire*). L'heure
+     * est celle du tableau indicateur (le temps qu'il reste, comme le direct) :
+     * sans la période, « 02:09 » puis « 10:21 » puis « 00:41 » se lisait comme
+     * un désordre. Un intertitre par période qui a vu un but, pas plus.
+     */
+    let per = 0;
     const buts = m.feuille ? m.feuille.buts.slice().sort((x, y) => x.instant - y.instant).map(b => {
       const t = b.cote === 'A' ? m.A : m.B;
+      const p = periodeDe(b.instant);
+      const tete = p !== per ? `<div class="live-but-per">${NOM_PERIODE[p]}</div>` : '';
+      per = p;
       const aides = b.passeurs.map(p => `${ctx.esc(nom(p))} (${ordF(rang(p, 'a'))} passe)`).join(', ');
-      return `<div class="live-but-ligne${t === you ? ' toi' : ''}"><span class="live-tps">${tempsRestant(b.instant)}</span>${ctx.logo(t.tag, 13)}<span><b>${ctx.esc(nom(b.marqueur))}</b> <span class="live-xe">(${ord(rang(b.marqueur, 'g'))} but)</span>${aides ? `, ${aides}` : ''}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}${b.gagnant && m.ot ? ' · en prolongation' : ''}</span></div>`;
+      return `${tete}<div class="live-but-ligne${t === you ? ' toi' : ''}"><span class="live-tps">${tempsRestant(b.instant)}</span>${ctx.logo(t.tag, 13)}<span><b>${ctx.esc(nom(b.marqueur))}</b> <span class="live-xe">(${ord(rang(b.marqueur, 'g'))} but)</span>${aides ? `, ${aides}` : ''}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}${b.gagnant && m.ot ? ' · en prolongation' : ''}</span></div>`;
     }).join('') : '';
     const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
     return `<div class="live-board hub-board"${somm}>${cote(m.A, m.gfA, 'a', gagneA)}
