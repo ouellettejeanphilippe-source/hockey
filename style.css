@@ -7128,7 +7128,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 /* Le carton et ses encres, et les métaux : une seule définition, lue par les
    deux familles, la fiche, le dos et le paquet. Ce ne sont PAS des jetons de
    palette : une carte imprimée ne change pas de couleur avec le thème. */
-.cj, .choix-option.tc, .cj-verso, .paquet, .cj-vole {
+.cj, .choix-option.tc, .cj-verso, .paquet, .cj-vole, .fiche-carte {
   --carton: #f1e8d3;
   --carton-2: #e3d6b7;
   --encre: #2a2116;
@@ -7141,7 +7141,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 }
 /* Le grain du carton : deux trames de points à peine visibles sur un crème
    qui fonce vers le bas, comme un carton imprimé sous la lampe. */
-.cj, .cj-verso, .paquet-face {
+.cj, .cj-verso, .paquet-face, .fiche-carte {
   --grain:
     radial-gradient(circle at 30% 40%, rgba(120, 90, 40, 0.08) 0 0.8px, transparent 1.2px) 0 0 / 5px 6px,
     radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.45) 0 0.8px, transparent 1.2px) 2px 3px / 7px 5px;
@@ -7259,27 +7259,27 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
    Toutes les époques ont la MÊME boîte (même bord, mêmes rangées) : au loto,
    trois époques côte à côte font trois cartes de la même hauteur.
    ================================================================= */
-:is(.pcard.pv, .cj-recto) {
+:is(.pcard.pv, .cj-recto, .fc-verso) {
   --cj-fond: var(--team-fond, #1b2230);
   --cj-encre: #f3f5f8;
   --cj-encre-2: rgba(243, 245, 248, 0.72);
   --cj-prix: #ffd76a;
 }
-:is(.pcard.pv, .cj-recto).e70 {
+:is(.pcard.pv, .cj-recto, .fc-verso).e70 {
   --cj-fond: var(--team-band, #1f4aa8); --cj-encre: var(--team-ink, #fff);
   --cj-encre-2: color-mix(in srgb, var(--team-ink, #fff) 75%, transparent); --cj-prix: var(--team-ink, #fff);
 }
-:is(.pcard.pv, .cj-recto).e80 {
+:is(.pcard.pv, .cj-recto, .fc-verso).e80 {
   --cj-fond: var(--grain), linear-gradient(176deg, #f7f0e0, var(--carton) 45%, var(--carton-2));
   --cj-encre: var(--encre); --cj-encre-2: #6a5d44; --cj-prix: var(--encre-rouge);
 }
-:is(.pcard.pv, .cj-recto).e90 {
+:is(.pcard.pv, .cj-recto, .fc-verso).e90 {
   --cj-fond: linear-gradient(170deg, rgba(255, 255, 255, 0.10), transparent 38%), var(--team-fond, #1b2230);
 }
-:is(.pcard.pv, .cj-recto).e00 {
+:is(.pcard.pv, .cj-recto, .fc-verso).e00 {
   --cj-fond: linear-gradient(170deg, #22262e, #111318 70%); --cj-prix: #e8edf2;
 }
-:is(.pcard.pv, .cj-recto).e10 {
+:is(.pcard.pv, .cj-recto, .fc-verso).e10 {
   --cj-fond: linear-gradient(160deg, var(--team-band, #243044), var(--team-fond, #151a22) 72%);
 }
 
@@ -7570,28 +7570,55 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 }
 
 /* =================================================================
-   LA FICHE : LE RECTO DEBOUT, PUIS LE VERSO (S77-S78)
-   La PHOTO est la carte (`.pcard-full-photo.cj-recto`) : c'est elle qui se
-   penche, et elle a le dessin de son époque. Au téléphone elle se tient au
-   milieu, debout ; au bureau, à gauche des renseignements.
+   LA FICHE EST UNE CARTE, RECTO ET VERSO (S78)
+   JP : *devant de carte vertical, pour stats et face complète* ; puis *les
+   cartes devraient être verticales, pis recto verso même style, avec
+   largeur pleine*. Une carte debout sur toute la largeur de la fiche (420 px
+   au plus, au bureau). Ses deux faces s'EMPILENT dans la même case
+   (`.fc-faces`) : la carte a la hauteur de la plus haute et ne change pas
+   de taille quand elle tourne ; la face cachée l'est par `visibility`,
+   jamais retirée du flux. Les deux faces portent le MÊME cadre : le fond et
+   l'encre de l'époque (« LES ÈRES »), les couleurs du club, le liseré de la
+   variante.
    ================================================================= */
-.fiche-carte { position: relative; margin: 10px 10px 0; }
-.fiche-carte .pcard-full-head.cj {
-  margin: 0; padding: 12px 12px 0; border-radius: 18px; border-bottom: 0; overflow: visible;
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.06), transparent 40%),
-    color-mix(in srgb, var(--card-primary, var(--neutre-eq)) 34%, #0a0b0e);
-}
-.fiche-carte .pcard-full-head.cj::before, .fiche-carte .pcard-full-head.cj::after { content: none; }
-.fiche-carte .pcard-full-head .pcard-full-top { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.fiche-carte .pcard-full-photo.cj-recto {
-  position: relative; isolation: isolate; width: min(236px, 100%); height: auto; flex: none;
+.fiche-carte { position: relative; width: calc(100% - 24px); max-width: 420px; margin: 12px auto 0; }
+.fc-faces { display: grid; }
+.fc-faces > .fc-face { grid-area: 1 / 1; }
+.fiche-carte .fc-face {
+  position: relative; isolation: isolate; width: auto; height: auto; min-width: 0; align-self: stretch;
   display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
-  padding: 8px; gap: 6px; border-radius: 12px; touch-action: pan-y; cursor: pointer;
+  gap: 8px; padding: 10px; border-radius: 16px; overflow: hidden; touch-action: pan-y; cursor: pointer;
   background: var(--cj-fond); color: var(--cj-encre);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 0 0 1.5px var(--fc-lisere, rgba(255, 255, 255, 0.14)), 0 10px 28px rgba(0, 0, 0, 0.55);
 }
-.fiche-carte .pcard-full-id { align-self: stretch; }
+.fiche-carte .fc-face.fc-cachee { visibility: hidden; pointer-events: none; }
+.fc-face.tc-peu { --fc-lisere: #3fb0d6; }
+.fc-face.tc-rare { --fc-lisere: #e8edf2; }
+.fc-face.tc-legendaire { --fc-lisere: #ffd76a; }
+/* LE RECTO : le visage entier, en carré, sur toute la largeur ; puis le nom, le club, la vraie saison, le salaire. */
+/* La photo ne cède jamais sa place ; le bandeau garde sa hauteur (la règle e10 du vestiaire, `height: calc(100% + 12px)`, lirait ici la hauteur de la face). */
+.fc-recto .cj-fenetre { aspect-ratio: 1 / 1; flex: none; }
+.fc-face > * { flex-shrink: 0; }
+.fiche-carte .cj-recto .cj-bandeau { height: auto; }
+.fiche-carte .cj-recto.e90 .cj-fenetre { margin: -10px -10px 0; border-radius: 16px 16px 0 0; }
+.fc-recto .cj-bandeau .pcard-full-name { font-size: 28px; }
+.fc-club { margin: -2px 2px 0; font: 700 14px/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--cj-encre-2); }
+.fc-legende, .fc-sec { margin: 2px 2px -3px; font: 700 10.5px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-encre-2); }
+.fc-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.fc-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 7px 2px; border-radius: 8px;
+  background: color-mix(in srgb, currentColor 9%, transparent);
+}
+.fc-stat .k { font: 700 10px/1 var(--display); letter-spacing: 0.08em; color: var(--cj-encre-2); white-space: nowrap; }
+.fc-stat b { font: 800 20px/1 var(--display); font-variant-numeric: tabular-nums; }
+.fc-stat.hl b { color: var(--cj-prix); }
+.fc-pied {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+}
+.fc-salaire { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fc-salaire b { font: 800 25px/1 var(--display); color: var(--cj-prix); }
+.fc-salaire small { font-size: 11.5px; line-height: 1.25; color: var(--cj-encre-2); font-variant-numeric: tabular-nums; }
 /* Le reflet de la carte : sous le bandeau du nom, jamais sur lui. */
 .pcard-full-photo::after {
   content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
@@ -7624,62 +7651,48 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .cj-bandeau .pcard-full-name { min-width: 0; font-size: 24px; line-height: 0.98; overflow-wrap: anywhere; color: inherit; }
 .cj-bandeau .pcard-full-name .fname { color: inherit; opacity: 0.8; font-size: 13px; margin-bottom: 2px; }
 .cj-recto:is(.e90, .e10) .cj-bandeau { margin-top: -14px; }
-/* Les renseignements : le club en toutes lettres, puis ce que la carte JOUE. */
-.fiche-carte .pcard-full-team { color: var(--text); font-size: 15px; margin: 0; }
+/* Ce que la carte JOUE (au verso). */
 .cj-sa-carte { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.28); font-size: 13px; line-height: 1.35; }
 .cj-sa-rarete { font: 800 12px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tc-bord, #9aa4ae); }
 .cj-sa-rarete.tc-commune { color: #b9b2a2; }
 .cj-sa-trait b { font-weight: 800; }
-.fiche-carte .cj-plaque {
-  position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  margin: 10px 0 0; padding: 8px 2px 10px; border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font: 700 10.5px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
-}
 .cj-retourner {
   min-height: 34px; padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(0, 0, 0, 0.35); color: var(--text); cursor: pointer;
   font: 800 12px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
 }
 .cj-retourner:hover { border-color: var(--gold); color: var(--gold); }
-@media (min-width: 560px) {
-  .fiche-carte .pcard-full-head .pcard-full-top { flex-direction: row; align-items: flex-start; gap: 16px; }
-  .fiche-carte .pcard-full-photo.cj-recto { width: 216px; }
+/* LE VERSO : le même cadre que le recto, et ce que le recto ne dit pas — le
+   numéro de la carte, le nom et le poste sur la bande du club, les
+   mensurations, ce qu'il sait faire, ses étiquettes, ce que sa carte joue,
+   l'échange et le tirage d'une or (js/game.js, `versoDeCarte`). La bande du
+   haut s'arrête avant le coin droit : le ✕ de la fiche s'y pose. */
+.fc-verso .cjv-tete {
+  display: flex; align-items: center; gap: 8px; margin: 0 38px 0 0; padding: 7px 9px; border-radius: 8px;
+  background: var(--team-band, #243044); color: var(--team-ink, #fff);
+  font: 800 17px/1.05 var(--display); letter-spacing: 0.04em; text-transform: uppercase;
 }
-
-/* LE VERSO : une carte canadienne des années 80, à l'horizontale, à l'encre
-   rouge et bleue sur un carton saumon — le numéro, le nom, le poste, les
-   mensurations, l'échange et le tirage d'une légendaire (js/game.js,
-   `versoDeCarte`) ; rien de ce que le recto ou la fiche disent déjà. */
-.cj-verso {
-  position: relative; isolation: isolate; margin: 0; padding: 10px 12px 8px; border-radius: 14px; overflow: hidden; touch-action: pan-y;
-  background: var(--grain), linear-gradient(176deg, #f3d3bf, #ebc2aa 60%, #e3b59b);
-  color: var(--encre-rouge);
-  box-shadow: inset 0 0 0 6px var(--carton), inset 0 0 0 7.5px var(--encre-bleue), 0 8px 22px rgba(0, 0, 0, 0.5);
+.fc-verso .cjv-no {
+  flex: none; display: grid; place-items: center; min-width: 34px; height: 28px; padding: 0 6px; border-radius: 999px;
+  background: var(--team-ink, #fff); color: var(--team-band, #243044); font-size: 14px; letter-spacing: 0;
 }
-.cj-verso[hidden] { display: none; }
-/* La bande du haut s'arrête avant le coin droit : le ✕ de la fiche s'y pose. */
-.cjv-tete {
-  display: flex; align-items: center; gap: 8px; margin: 2px 40px 8px 2px; padding: 5px 8px; border-radius: 4px;
-  background: var(--encre-bleue); color: #f7f1e3;
-  font: 800 16px/1.05 var(--display); letter-spacing: 0.04em; text-transform: uppercase;
+.fc-verso .cjv-nom { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.fc-verso .cjv-pos { flex: none; font-size: 12px; opacity: 0.85; }
+.fc-verso .cjv-table-wrap { overflow-x: auto; border-radius: 8px; background: color-mix(in srgb, currentColor 7%, transparent); }
+.fc-verso .cjv-table { width: 100%; border-collapse: collapse; font: 700 15px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+.fc-verso .cjv-table th, .fc-verso .cjv-table td { padding: 6px 4px; text-align: center; white-space: nowrap; }
+.fc-verso .cjv-table thead th { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cj-encre-2); border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent); }
+.fc-verso .fiche-profils { margin: 0; }
+.fc-verso .fc-tags { margin: 0; }
+.fc-verso .cj-sa-carte { margin: 0; background: color-mix(in srgb, currentColor 8%, transparent); }
+.fc-verso .cjv-bio { margin: 0 2px; font-size: 13px; line-height: 1.4; color: var(--cj-encre-2); }
+.fc-verso .cjv-pied {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  font: 700 10px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--cj-encre-2);
 }
-.cjv-no {
-  flex: none; display: grid; place-items: center; min-width: 34px; height: 26px; padding: 0 5px; border-radius: 50%;
-  background: var(--encre-rouge); color: #fff; font-size: 14px; letter-spacing: 0;
-}
-.cjv-nom { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.cjv-pos { flex: none; font-size: 12px; opacity: 0.85; }
-.cjv-table-wrap { margin: 0 2px; overflow-x: auto; }
-.cjv-table { width: 100%; border-collapse: collapse; font: 700 14px/1.2 var(--display); font-variant-numeric: tabular-nums; }
-.cjv-table th, .cjv-table td { padding: 4px 6px; text-align: center; white-space: nowrap; }
-.cjv-table thead th { color: #f7f1e3; background: var(--encre-rouge); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
-.cjv-table td { color: var(--encre-bleue); border-bottom: 1px dotted rgba(163, 37, 43, 0.45); }
-.cjv-bio { margin: 8px 4px 0; font-size: 13px; line-height: 1.4; color: #5c1418; }
-.cjv-pied {
-  display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 2px 0; padding-top: 6px;
-  border-top: 1px solid rgba(30, 58, 134, 0.3); font: 700 10px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-bleue);
-}
-.cj-verso .cj-retourner { background: var(--encre-bleue); color: #f7f1e3; border-color: transparent; }
+/* « ↻ » prend l'encre de sa face : lisible sur le carton des années 80 comme sur le noir des années 2000. */
+.fc-face .cj-retourner { background: color-mix(in srgb, currentColor 12%, transparent); color: inherit; border-color: color-mix(in srgb, currentColor 30%, transparent); }
 .cj-verso::after {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.4), transparent 55%);
@@ -9014,3 +9027,18 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 
 /* L'ÉCUSSON SUR SA BANDE (S78) : un logo de la couleur du club disparaissait sur la bande du club (le Lightning bleu sur bleu). Une pastille claire, comme sur un chandail. */
 .live-eq-band .team-logo-img, .hub-eq-band .team-logo-img { box-sizing: content-box; padding: 2px; border-radius: 50%; background: rgba(255, 255, 255, 0.92); }
+
+/* Le dos d'une vraie carte n'a pas de trou : ce qui reste de place au verso reçoit l'écusson du club, en filigrane (il s'efface quand le verso est plein). */
+.fc-verso .fc-filigrane { flex: 1 1 0; min-height: 0; display: grid; place-items: center; overflow: hidden; opacity: 0.16; pointer-events: none; }
+.fc-verso .fc-filigrane :is(img, svg, .team-logo-inline) { width: min(120px, 60%) !important; height: auto !important; max-height: 100%; }
+/* AU BUREAU, la carte à gauche et ce qui décide à droite : la largeur pleine est celle du téléphone. */
+@media (min-width: 900px) {
+  .pcard-full { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); column-gap: 8px; align-items: start; }
+  .pcard-full > .fiche-carte { grid-row: 1 / span 2; width: auto; margin: 16px 0 16px 16px; }
+  .pcard-full > .modal-body, .pcard-full > .pcard-full-foot { grid-column: 2; }
+  .pcard-full > .modal-body { padding-top: 56px; }
+  .pcard-full > .pcard-full-foot { align-self: end; margin-bottom: 16px; }
+}
+
+/* La variante de base, lisible sur toutes les encres (le carton crème des années 80 compris). */
+.fc-verso .cj-sa-rarete.tc-commune { color: var(--cj-encre-2); }

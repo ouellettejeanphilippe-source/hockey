@@ -4014,14 +4014,8 @@ function showPlayerModal(p, opts = {}) {
 
   const cell = cellStat;
   const pmStr = signe(st.pm);
-
-  const stats = p.p === 'G'
-    ? cell('PJ', st.gp) + cell('V', st.w, true) + cell('D', st.l) + cell('BL', st.so)
-      + cell('%ARR', p.sv ?? '—') + cell('MBA', p.ga ?? '—')
-    // SIX COLONNES (S71) : ce qu'un amateur lit d'un coup d'oeil. Le temps de
-    // glace, les mises en échec et les mises au jeu vivent dans le détail.
-    : cell('PJ', st.gp) + cell('B', st.g) + cell('A', st.a) + cell('PTS', st.pt, true)
-      + cell('+/-', pmStr) + cell('PUN', p.pim ?? '—');
+  // La vraie saison (six colonnes, S71) se lit au RECTO de la carte (`statsCarte`, plus bas) ;
+  // le temps de glace, les mises en échec et les mises au jeu vivent dans le détail.
 
   /*
    * Plus de cotes sur la fiche. Un joueur se juge sur ce qu'il a fait, et
@@ -4053,34 +4047,35 @@ function showPlayerModal(p, opts = {}) {
     ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
-       <div class="section-label">Sa vraie saison${G.statsProrata ? ' (prorata 82, ajusté)' : ''}</div>
-       <div class="stat-grid">${stats}</div>
        ${plusDeDetails}`
     : surTable()
     ? `<div class="section-label">Sur la glace de table</div>
        ${ficheTable(p)}
        <div class="section-label">Impact sur ton alignement</div>
-       ${destNote}
-       <div class="section-label">D'où viennent ces nombres — sa saison ${esc(p.s)}</div>
-       <div class="stat-grid">${stats}</div>`
-    : `<div class="section-label">Statistiques ${G.statsProrata ? '(prorata 82 matchs, ajusté à l\'époque)' : 'de sa saison'}</div>
-       <div class="stat-grid">${stats}</div>
-       <div class="section-label">Impact sur ton alignement</div>
+       ${destNote}`
+    : `<div class="section-label">Impact sur ton alignement</div>
        ${destNote}
        ${plusDeDetails}`;
 
   /*
-   * LE RECTO DE LA CARTE (S76-S78). La tête de la fiche est la carte elle-même,
-   * DEBOUT (S78, JP : *Devant de carte vertical, pour stats et face complète
-   * car portraits*) : la photo en hauteur, le visage entier, dans le dessin de
-   * son ÉPOQUE et aux couleurs de son club (`ereDe`, style.css « LES ÈRES »),
-   * l'année sur la photo, la rondelle du poste et le nom sur sa bande ; la
-   * variante (commune, parallèle, holographique, dorée) n'est que la finition.
-   * À côté, les renseignements qui DÉCIDENT, chacun une seule fois : le club
-   * en toutes lettres (la photo porte déjà l'écusson et l'année), les traits,
-   * les mesures et la zone, ce que sa carte JOUE (`traitsDeCarte`, la phrase
-   * entière — la pastille du vestiaire n'en montre que l'icône), ce qu'il sait
-   * faire, le salaire. Les liens externes vivent au pied de la fiche, une fois.
+   * LA FICHE EST UNE CARTE, RECTO ET VERSO (S78). JP : *devant de carte
+   * vertical, pour stats et face complète car portraits* ; puis *les cartes
+   * devraient être verticales, pis recto verso même style, avec largeur
+   * pleine*. Une seule carte debout, sur toute la largeur de la fiche (420 px
+   * au plus, au bureau), dans le dessin de son ÉPOQUE et aux couleurs de son
+   * CLUB (`ereDe`, style.css « LES ÈRES ») ; la variante n'est que la
+   * finition, la même sur les deux faces. Les deux faces s'empilent dans la
+   * même case : la carte a la taille de la plus haute, et elle ne change pas
+   * de taille quand on la retourne.
+   *   RECTO — le visage entier, la rondelle du poste, l'écusson et l'année ;
+   *     le nom et le club ; la vraie saison (six nombres) ; le salaire.
+   *   VERSO — le numéro de la carte, le nom et le poste ; les mensurations ;
+   *     ce qu'il sait faire ; les traits, les mesures et la zone ; ce que sa
+   *     carte JOUE (la variante et son bonus, en toutes lettres) ; l'échange
+   *     et le tirage d'une or.
+   * Chaque fait a UNE place (JP : *jamais dédoubler information*) : la fiche
+   * sous la carte ne dit plus la vraie saison, seulement ce qui DÉCIDE (où il
+   * ira, ou sa saison simulée).
    */
   const rarete = rareteJoueur(p);
   const R = RARETES[rarete];
@@ -4092,13 +4087,21 @@ function showPlayerModal(p, opts = {}) {
   const saCarte = `<div class="cj-sa-carte"><span class="cj-sa-rarete tc-${rarete}" title="${esc(sensRarete(rarete))}">${R.gemme}${brillante(rarete) ? '✦' : ''} ${esc(NOM_VARIANTE[rarete] || R.nom)}</span>${joue.length
     ? joue.map(t => `<span class="cj-sa-trait"><b>${t.ico} ${esc(t.nom)}</b> — ${esc(t.mot)}</span>`).join('')
     : '<span class="cj-sa-trait">La carte de base : elle ne joue rien de plus.</span>'}</div>`;
-  const verso = versoDeCarte(p, numero, rarete);
+  // La vraie saison, sur la carte : six nombres, comme au dos d'une vraie carte… mais au recto, où on les cherche.
+  const nb = (k, v, hl = false) => `<div class="fc-stat${hl ? ' hl' : ''}"><span class="k">${k}</span><b>${v}</b></div>`;
+  const statsCarte = p.p === 'G'
+    ? nb('PJ', st.gp) + nb('V', st.w, true) + nb('D', st.l) + nb('BL', st.so) + nb('%ARR', p.sv ?? '—') + nb('MBA', p.ga ?? '—')
+    : nb('PJ', st.gp) + nb('B', st.g) + nb('A', st.a) + nb('PTS', st.pt, true) + nb('+/-', pmStr) + nb('PUN', p.pim ?? '—');
+  const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : mesureTags(p, true, roles) + zoneTag(p)}${realTag(p)}`;
+  const milieuVerso = `${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
+    ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
+    ${saCarte}`;
+  const verso = versoDeCarte(p, numero, rarete, milieuVerso, ere);
   body.innerHTML = `
     <div class="pcard-full" style="--card-primary:${colors.primary};--card-accent:${colors.accent};--team-band:${band.bg};--team-stripe:${band.stripe};--team-ink:${band.ink};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
       <div class="fiche-carte">
-      <div class="pcard-full-head cj tc-${rarete}">
-        <div class="pcard-full-top">
-          <div class="pcard-full-photo cj-recto ${ere} tc-${rarete}" title="Touche la carte pour la retourner">
+        <div class="fc-faces">
+          <div class="fc-face fc-recto pcard-full-photo cj-recto ${ere} tc-${rarete}" title="Touche la carte pour la retourner">
             ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
             <div class="cj-fenetre">
               ${headshotHtml(p)}
@@ -4107,22 +4110,16 @@ function showPlayerModal(p, opts = {}) {
               <span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>
             </div>
             <div class="cj-bandeau"><div class="pcard-full-name">${formatName(p.n)}</div></div>
-          </div>
-          <div class="pcard-full-id">
-            <div class="pcard-full-team">${esc(TEAMFULL[p.t] || p.t)}</div>
-            <div class="tags pcard-full-tags">${traitTags(p, true)}${surTable() && !apres ? '' : mesureTags(p, true, roles) + zoneTag(p)}${realTag(p)}</div>
-            ${saCarte}
-            ${roles ? `<div class="fiche-profils"><div class="gl-sec-titre">Ce qu'il sait faire</div>${roles}</div>` : ''}
-            <div class="pcard-full-salary">
-              <span class="big">${st.salaryMain}</span>
-              <span class="small">${st.salarySub}</span>
-              <span class="small">${G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`}</span>
+            <div class="fc-club">${esc(TEAMFULL[p.t] || p.t)}</div>
+            <div class="fc-legende">Sa vraie saison${G.statsProrata ? ' · prorata 82 matchs, ajusté à l\'époque' : ''}</div>
+            <div class="fc-stats">${statsCarte}</div>
+            <div class="fc-pied">
+              <span class="fc-salaire"><b>${st.salaryMain}</b><small>${[st.salarySub, G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`].filter(Boolean).join(' · ')}</small></span>
+              <button type="button" class="cj-retourner" aria-label="Retourner la carte">↻ Verso</button>
             </div>
           </div>
+          ${verso}
         </div>
-        <div class="cj-plaque"><span>Cap 82-0</span><button type="button" class="cj-retourner" aria-label="Retourner la carte">↻ Voir le verso</button></div>
-      </div>
-      ${verso}
       </div>
       <div class="modal-body">${corps}</div>
       <div class="pcard-full-foot">
@@ -4167,15 +4164,17 @@ function showPlayerModal(p, opts = {}) {
 const TOUR_1 = 200, TOUR_2 = 340;   // les deux moitiés du tour, en ms (style.css, `cj-tourne-1/2`)
 function brancherRetournement(carte) {
   if (!carte) return;
-  const recto = carte.querySelector('.pcard-full-head');
-  const dos = carte.querySelector('.cj-verso');
+  const recto = carte.querySelector('.fc-recto');
+  const dos = carte.querySelector('.fc-verso');
   if (!recto || !dos) return;
   let enCours = false;
+  // Les deux faces restent dans la case (`visibility`, pas `hidden`) : la carte garde sa taille.
   const changer = () => {
-    const auVerso = !dos.hidden;
-    dos.hidden = auVerso;
-    recto.hidden = !auVerso;
-    carte.classList.toggle('au-verso', !auVerso);
+    const auVerso = carte.classList.toggle('au-verso');
+    recto.classList.toggle('fc-cachee', auVerso);
+    dos.classList.toggle('fc-cachee', !auVerso);
+    recto.setAttribute('aria-hidden', String(auVerso));
+    dos.setAttribute('aria-hidden', String(!auVerso));
   };
   const retourner = () => {
     if (enCours) return;
@@ -4189,11 +4188,10 @@ function brancherRetournement(carte) {
       setTimeout(() => { carte.classList.remove('tourne-2'); enCours = false; }, TOUR_2);
     }, TOUR_1);
   };
-  // La PHOTO (la carte elle-même), le dos, ou « ↻ » : les renseignements à
-  // côté de la photo se lisent sans que la carte tourne sous le doigt.
+  // Toucher la carte, l'une ou l'autre face, ou « ↻ » : elle tourne.
   carte.addEventListener('click', ev => {
     if (ev.target.closest('a, details, summary') || (ev.target.closest('button') && !ev.target.closest('.cj-retourner'))) return;
-    if (!ev.target.closest('.pcard-full-photo, .cj-verso, .cj-retourner')) return;
+    if (!ev.target.closest('.fc-face, .cj-retourner')) return;
     retourner();
   });
 }
@@ -4215,7 +4213,7 @@ const POSTE_MOT = { AG: 'Ailier gauche', AD: 'Ailier droit', C: 'Centre', DG: 'D
  *     tirage d'une légendaire (qui a quitté sa photo : « 71/99 » s'y lisait
  *     comme une cote).
  */
-function versoDeCarte(p, numero, rarete) {
+function versoDeCarte(p, numero, rarete, milieu = '', ere = '') {
   const prim = positionLabel(p).split(' / ')[0];
   const vit = [];
   if (p.hgt) vit.push(['Taille', `${Math.floor(p.hgt / 12)}′${p.hgt % 12}″`]);
@@ -4226,10 +4224,12 @@ function versoDeCarte(p, numero, rarete) {
   const faits = [];
   if (p.x) faits.push('Échangé en cours de saison : il a porté deux chandails cette année-là.');
   if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p))}`);
-  return `<div class="cj-verso" hidden>
+  return `<div class="fc-face fc-verso cj-verso ${ere} tc-${rarete} fc-cachee" aria-hidden="true">
     <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série">${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span></div>
     ${vit.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${vit.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${vit.map(([, v]) => `<td>${esc(v)}</td>`).join('')}</tr></tbody></table></div>` : ''}
+    ${milieu}
     ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
+    <div class="fc-filigrane" aria-hidden="true">${getTeamLogoHtml(p.t, 120)}</div>
     <div class="cjv-pied"><span>© Cap 82-0 · ${TAILLE_SERIE} cartes</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
   </div>`;
 }

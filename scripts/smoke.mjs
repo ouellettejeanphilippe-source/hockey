@@ -358,7 +358,19 @@ async function versLeMatch() {
   if (ou.zone === 'hub' && ou.page !== 'match') { await _click('.navtab[data-page="match"]'); await page.waitForTimeout(200); }
 }
 page.click = async (sel, opts) => {
-  if (typeof sel === 'string' && /hub-(jour|dix|regarder|banc|fin|suite|ronde)\b/.test(sel)) { await versLeMatch(); await repondreAuxChoix(); }
+  if (typeof sel === 'string' && /hub-(jour|dix|regarder|banc|fin|suite|ronde)\b/.test(sel)) {
+    await versLeMatch(); await repondreAuxChoix();
+    /*
+     * LA JOURNÉE PEUT S'ÊTRE BLOQUÉE ENTRE-TEMPS (S78) : un palier qui s'ouvre
+     * au clic précédent, refermé « Plus tard » par \`repondreAuxChoix\`, reste à
+     * traiter — « +10 » disparaît et « Fin de saison » se grise. Le parcours
+     * ne clique pas dans le vide : la boucle qui l'appelle voit le message.
+     */
+    if (/hub-(jour|dix|fin)\b/.test(sel) && await page.$('#hubModal .hub-traiter')) {
+      const b = await page.$(sel);
+      if (!b || !(await b.isVisible()) || await b.isDisabled()) return;
+    }
+  }
   // Un choix forcé ouvert par-dessus se règle avant tout autre clic dans l'écran
   // — et avant un onglet de la barre, que le plein écran couvre aussi (S74b).
   else if (typeof sel === 'string' && /^(#hubModal|\.navtab)\b/.test(sel)) await repondreAuxChoix();
@@ -1586,10 +1598,12 @@ async function nomsCliquables(etiquette) {
       sections,
       pj: cell ? Number(cell.querySelector('.v').textContent.trim()) : null,
       lien: !!m.querySelector('a[href*="nhl.com"]'),
+      // La vraie saison se lit au RECTO de la carte (S78), sous sa légende, en six nombres.
+      vraie: /vraie saison/i.test((m.querySelector('.fc-recto .fc-legende') || {}).textContent || '') && m.querySelectorAll('.fc-recto .fc-stat').length === 6,
     };
   });
   const titreJour = fiche.sections.some(t => /à ce jour/i.test(t));
-  const vraie = fiche.sections.some(t => /vraie saison/i.test(t));
+  const vraie = fiche.vraie;
   if (!titreJour) errors.push(`${etiquette} : la fiche ouverte en pleine saison ne dit pas « à ce jour » (${fiche.sections[0] || 'aucune section'})`);
   if (!vraie) errors.push(`${etiquette} : la fiche ouverte en pleine saison ne montre pas la vraie saison du joueur`);
   if (!fiche.lien) errors.push(`${etiquette} : la fiche n'a pas son lien vers la LNH`);
