@@ -148,7 +148,7 @@ export function ouvrirInventaire(ctx) {
     } else {
       const ids = Object.keys(BANQUE).filter(garde).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));
       const par = ORDRE_CATEGORIES.map(c => [c, idsDe(c).filter(id => ctx.possedees.has(id)).length, idsDe(c).length]);
-      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).length} cartes. Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Et ${ctx.joueursCollection} vrais joueurs tirés de tes packs.` : ''}</p>
+      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).length} cartes. Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (l'onglet Vestiaire).` : ''}</p>
         <div class="inv-progres">${par.map(([c, a, n]) => `<span class="inv-prog"><b>${CATEGORIES[c].ico} ${a}/${n}</b> ${esc(CATEGORIES[c].nom)}</span>`).join('')}</div>
         ${filtres(ORDRE_CATEGORIES)}${rars}
         <div class="inv-grille">${ids.map(id => carteBanqueHtml(id, { possede: ctx.possedees.has(id) })).join('')}</div>`;

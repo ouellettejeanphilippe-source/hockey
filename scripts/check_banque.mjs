@@ -79,7 +79,7 @@ const sansDecision = Object.keys(BANQUE).filter(id => {
   const p = payloadDe(id, { joueur: 'x', tactique: 'trappe', carte: 'lancer', patrons: [], alea: 0.2 });
   return !p || !Object.keys(p).some(k => CHAMPS.includes(k));
 });
-exiger('chaque carte devient une décision que le moteur connaît', !sansDecision.length, sansDecision.slice(0, 5).join(', ') || 'toutes');
+exiger('chaque carte devient une décision que le moteur (ou le plafond) lit', !sansDecision.length, sansDecision.slice(0, 5).join(', ') || 'toutes');
 
 /* 2. Les packs. */
 const sansChances = Object.keys(PACKS_TOUS).filter(k => !chancesDe(k).length);

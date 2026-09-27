@@ -51,7 +51,7 @@ import { BANQUE, PATRONS, CONSOMMABLES, CONTRATS, ROLES, MAX_PATRONS, CATEGORIES
 import { PACKS_TOUS, PITIE, SKILLS, cotesDuPack, tirerVariante, tirerCartesPack, packDuJour, packsSansHolo } from './packs.js';
 import { ouvrirInventaire, pocheDeLaPartie, valeurDe, VENTE } from './inventaire.js';
 import { ouvrirMagasin } from './magasin.js';
-import { rendreCartable, ajouterAuCartable, migrerHistorique } from './cartable.js';
+import { rendreCartable, ajouterAuCartable, migrerHistorique, lireCartable } from './cartable.js';
 import { JETONS, jetonsDe, PACKS, DEBLOCAGES, lireMeta, aDebloque, nombreGardes, jetonsDeDepart, packsOuverts, peutAcheter, acheterDeblocage,
   ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, rareteTiree, recevoirPermanents, retirerDuMeta, plafondDuVestiaire } from './rogue.js';
 
@@ -340,6 +340,8 @@ function plafondEffectif(j = G.journee || 0) {
   const blesses = new Set(pl.ltir.size ? blessesAuJour(j).map(x => getPlayerKey(x.p)) : []);
   return { ...pl, base, lignes: [...depart, ...pl.lignes], blesses };
 }
+/* Ce qu'un joueur de ton alignement compte au plafond aujourd'hui. */
+const capHitDuJour = q => (G.ligue ? capHit(q, plafondEffectif()) : (q.$ || 0));
 /* Ce que ce joueur compte au plafond (`pl` : `plafondEffectif`). */
 function capHit(p, pl) {
   if (!p) return 0;
@@ -1433,7 +1435,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
         decider({ jour: j, palier, achat, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) } });
       };
       // QUI SORT : la sortie doit faire entrer son salaire sous le plafond (effectif), ou au moins ne pas l'empirer.
-      choisirQuiSort(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), onChoix: signer, onFerme: offrir });
+      choisirQuiSort(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), note: q => `libère ${money(capHitDuJour(q))}`, onChoix: signer, onFerme: offrir });
     },
     onFerme: () => decider({ jour: j, palier, achat }),
   });
@@ -1529,7 +1531,7 @@ function ouvrirInventaireJeu(j = null, decider = null) {
     personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
     patronsActifs: enSaison ? patronsActifs(decs, j + 1) : [], maxPatrons: MAX_PATRONS,
     deck: enSaison ? deckDe(Lg.decisions || []) : [],
-    possedees, joueursCollection: (meta.collection || []).length,
+    possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
     jouer: item => jouerCarte(item, j, decider),
     vendre: item => decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }),
@@ -2767,7 +2769,7 @@ function sectionMods(p) {
  * les autres, avec leur visage, et ce que la case lui coûterait (hors
  * position). Rend `{ i, sort }` pour la décision de ballottage.
  */
-function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '', bloque = null }) {
+function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '', bloque = null, note = null }) {
   const cases = SLOTS.filter(sl => roster && roster[sl.i] && fits(p, sl))
     .sort((a, b) => (b.scratch ? 1 : 0) - (a.scratch ? 1 : 0) || a.i - b.i);
   const nomDe = n => String(n).split(' ').slice(-1)[0];
@@ -2778,7 +2780,7 @@ function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '', bloque = null
       const q = roster[sl.i];
       const pen = getPositionPenalty(p, sl);
       return { cle: String(sl.i), visage: headshotHtml(q), nom: q.n,
-        sous: [slotShort(sl), positionLabel(q), pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : ''].filter(Boolean).join(' · '),
+        sous: [slotShort(sl), positionLabel(q), pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : '', note ? note(q) : ''].filter(Boolean).join(' · '),
         // S79 : la sortie que le plafond refuse reste visible, avec sa raison.
         desactive: bloque ? bloque(q) : '' };
     }),
@@ -5748,7 +5750,8 @@ async function runSeason(opts = {}) {
         carteMini: carteMiniHtml,
         // Sa fiche en aperçu, et « qui sort ? » quand il arrive (S78).
         apercu: apercuJoueur,
-        quiSort: choisirQuiSort,
+        // S79 : toute signature de la saison (ballottage, recrue) respecte le plafond effectif, et dit ce que libère chaque sortie.
+        quiSort: (p, o) => choisirQuiSort(p, { bloque: q => bloqueParLePlafond(p, q), note: q => `libère ${money(capHitDuJour(q))}`, ...o }),
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
         rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.

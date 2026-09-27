@@ -131,7 +131,7 @@ export function rendreCartable(host, ctx) {
   if (etat.vue === 'equipe') {
     corps = ctx.equipe.length
       ? `<p class="ct-mot">Les cartes de ton alignement. ${esc(ctx.titreSaison || '')} Touche une carte pour sa fiche.</p>
-        <div class="ct-grille">${ctx.equipe.map(x => `<button type="button" class="ct-carte" data-equipe="${esc(x.cle)}">
+        <div class="ct-grille">${ctx.equipe.map(x => `<button type="button" class="ct-carte" data-ct-equipe="${esc(x.cle)}">
           ${x.mini}
           <span class="ct-stats"><span class="ct-ligne ct-sim"><i>Cette saison</i>${esc(x.saison)}</span><span class="ct-ligne ct-vraie"><i>Vraie saison</i>${esc(x.vraie)}</span></span>
         </button>`).join('')}</div>`
@@ -152,8 +152,8 @@ export function rendreCartable(host, ctx) {
   host.querySelectorAll('[data-vue]').forEach(b => { b.onclick = () => { etat.vue = b.dataset.vue; rendreCartable(host, ctx); }; });
   const mes = host.querySelector('.ct-mes-cartes');
   if (mes) mes.onclick = () => ctx.ouvrirCartes();
-  host.querySelectorAll('[data-equipe]').forEach(b => {
-    b.onclick = () => { const x = ctx.equipe.find(y => y.cle === b.dataset.equipe); if (x) ctx.ficheEquipe(x.p); };
+  host.querySelectorAll('[data-ct-equipe]').forEach(b => {
+    b.onclick = () => { const x = ctx.equipe.find(y => y.cle === b.dataset.ctEquipe); if (x) ctx.ficheEquipe(x.p); };
   });
   // UN ENSEMBLE S'OUVRE : ses saisons se chargent, ses cartes se posent, sa complétion se compte.
   const remplir = async det => {

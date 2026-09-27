@@ -9486,3 +9486,5 @@ body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { displa
 
 .ct-mes-cartes { min-height: 38px; padding: 7px 14px; font-size: 14px; }
 .ct-total { font-size: 15px; }
+/* Le corps défile ; ses rangées ne se tassent jamais (une rangée qui défile en x se tassait à zéro). */
+.inv-corps > *, .pk-corps > * { flex-shrink: 0; }
