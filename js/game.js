@@ -5690,5 +5690,6 @@ async function demarrerPartie(r = {}) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-window.cap82 = { G, cacheClear, simulate, portraitAbsent };
+// `dev` : de quoi dresser une planche de cartes dans un script de capture (scripts/planche_cartes.mjs), rien de plus.
+window.cap82 = { G, cacheClear, simulate, portraitAbsent, dev: { playerCardEl, carteMiniHtml, getShard } };
 boot();
