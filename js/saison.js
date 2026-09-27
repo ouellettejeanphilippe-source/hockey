@@ -1196,7 +1196,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (sorte === 'recrue') {
       ouvrirChoix({ ...suite, ico: '🎟️', titre: 'Joueur au choix',
         recit: 'Trois vrais joueurs, style loto. Celui que tu signes prend la place de réserve de sa position ; le réserviste qui l\'occupait est libéré.',
-        options: recrues.map(x => ({ cle: x.cle, rarete: 'legendaire', nom: x.nom, type: `${x.poste} · ${x.club}`, coin: x.salaire,
+        options: recrues.map(x => ({ cle: x.cle, rarete: x.rarete || 'legendaire', nom: x.nom, type: `${x.poste} · ${x.club}`, coin: x.salaire,
           art: joueurArt(x.p), texte: x.ligne, prix: x.sortNom ? `${x.sortNom} est libéré` : '' })),
         onChoix: k => { const x = recrues.find(y => y.cle === k); if (x) deciderDeck(p0, { deck: 'recrue', ballottage: { i: x.i, entre: x.cle, sort: x.sort } }); } });
       return;
@@ -1529,13 +1529,16 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
     if (rouvrir) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     // LE BALLOTTAGE, en plein écran lui aussi : trois joueurs, ou garder son réserviste.
+    // En CARTES de joueur (S76), comme la recrue : on réclame une carte. « Garder
+    // mon réserviste » devient le bouton du bas — la quatrième option ne
+    // décidait rien de plus que fermer.
     const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
     if (voirBal) voirBal.onclick = () => ouvrirChoix({
-      ico: '📋', titre: 'Au ballottage', fermable: true, motFermer: 'Garder mon réserviste',
+      ico: '📋', titre: 'Au ballottage', cartes: true, genre: 'ballottage', fermable: true, motFermer: 'Garder mon réserviste',
       recit: `${alerte.player.n} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois joueurs pas chers de sa position sont disponibles${bal.sortNom ? ` ; en réclamer un libère ${bal.sortNom}` : ''}. Le plafond compte toujours.`,
-      options: [...bal.candidats.map(c => ({ cle: c.cle, nom: `${c.pos} · ${c.nom}`, bon: c.ligne, prix: `${c.club} · ${c.salaire}` })),
-        { cle: 'rien', nom: 'Garder mon réserviste', bon: 'Rien ne change', prix: 'Personne de neuf' }],
-      onChoix: cle => { if (cle !== 'rien') decider({ palier: palierB, ballottage: { i: bal.i, entre: cle, sort: bal.sort } }); },
+      options: bal.candidats.map(c => ({ cle: c.cle, rarete: c.rarete || 'commune', nom: c.nom, type: `${c.poste || c.pos} · ${c.club}`, coin: c.salaire,
+        art: c.p ? joueurArt(c.p) : '', texte: c.ligne, prix: bal.sortNom ? `${bal.sortNom} est libéré` : '' })),
+      onChoix: cle => decider({ palier: palierB, ballottage: { i: bal.i, entre: cle, sort: bal.sort } }),
     });
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = () => regarderProchain();

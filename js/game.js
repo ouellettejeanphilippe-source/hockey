@@ -32,6 +32,7 @@ import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { ouvrirLignes, resumeLignes, barresProfils, motFit, ouvrirChoix } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
+import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete } from './cartes.js';
 import { CARTES_MATCH } from './combat.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
@@ -1708,6 +1709,14 @@ async function getShard(label) {
   return entry;
 }
 
+/*
+ * LA RARETÉ D'UNE CARTE DE JOUEUR (S76) : le rang de son SALAIRE parmi ceux
+ * de sa saison, et rien d'autre — le salaire est écrit sur la carte, aucune
+ * cote n'entre dans le calcul (`rareteDeSalaire`, `PALIERS_RARETE`,
+ * js/cartes.js).
+ */
+const rareteJoueur = p => rareteDeSalaire(p, p && G.shards.get(p.s));
+
 /** La défensive et la robustesse mesurées d'un joueur, ou null (gardien, moins de 20 matchs). */
 function mesure(p) {
   const entry = p && G.shards.get(p.s);
@@ -2235,8 +2244,12 @@ function playerCardEl(p) {
   const st = displayStats(p);
   const isTargeted = G.target !== null && slot === SLOTS[G.target];
 
+  // UNE CARTE DE HOCKEY (S76) : `cj` pose le cadre, le reflet et la fenêtre
+  // du portrait ; `tc-<rareté>` le métal du cadre, le même que les cartes
+  // de match. La rareté vient du salaire (`rareteJoueur`), jamais d'une cote.
+  const rarete = rareteJoueur(p);
   const el = document.createElement('div');
-  el.className = 'pcard'
+  el.className = `pcard cj tc-${rarete}`
     + (already ? ' signed' : '')
     + ((already || !slot || over) ? ' locked' : '');
   el.title = 'Toucher la carte pour la fiche complète';
@@ -2312,7 +2325,7 @@ function playerCardEl(p) {
     <div class="pcard-band">
       <span class="pb-pos ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</span>
       <span class="pb-team">${getTeamLogoHtml(p.t, 14)}<span>${esc(p.t)}</span></span>
-      <span class="pb-season">${esc(p.s)}</span>
+      ${gemmeJoueur(rarete)}<span class="pb-season">${esc(p.s)}</span>
     </div>
     <div class="pcard-inner">
       <div class="pcard-avatar">${headshotHtml(p)}</div>
@@ -2758,6 +2771,11 @@ function slotEl(s) {
     const zoneEcartTag = surTable() ? '' : ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
       : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>` : '';
     if (estRenfort(p)) el.classList.add('renfort');
+    // La case porte la CARTE du joueur (S76) : le même cadre et le même métal
+    // qu'au vestiaire — on aligne des cartes, pas des cellules. La hauteur ne
+    // bouge pas : le cadre se peint par-dessus, il ne prend aucune place.
+    const rarete = rareteJoueur(p);
+    el.classList.add('cj', `tc-${rarete}`);
     // Le visage dans la case aussi : on reconnaît son alignement d'un coup
     // d'oeil, comme sur un tableau de vestiaire.
     el.innerHTML = `
@@ -2771,7 +2789,7 @@ function slotEl(s) {
           : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
-        <div class="slot-face pcard-avatar">${headshotHtml(p)}</div>
+        <div class="slot-face pcard-avatar">${headshotHtml(p)}${gemmeJoueur(rarete)}</div>
         <div class="slot-texte">
           <div class="slot-name">${formatName(p.n)}</div>
           <div class="slot-meta">${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</div>
@@ -3336,12 +3354,20 @@ function showPlayerModal(p, opts = {}) {
        ${destNote}
        ${plusDeDetails}`;
 
+  /*
+   * LE RECTO DE LA CARTE (S76). La tête de la fiche est la carte elle-même,
+   * dans son cadre de rareté, le portrait dans sa fenêtre aux couleurs du
+   * club ; le pied du recto porte la série et la rareté EN MOTS, comme le
+   * pied d'une carte de match. Ce qui suit — les statistiques — en est le
+   * verso. La rareté dit le rang du salaire, et l'infobulle le dit aussi.
+   */
+  const rarete = rareteJoueur(p);
+  const R = RARETES[rarete];
   body.innerHTML = `
-    <div class="pcard-full" style="--card-primary:${colors.primary};--card-accent:${colors.accent}">
-      <div class="pcard-full-head">
-        <div class="pcard-full-watermark">${getTeamLogoHtml(p.t, 128)}</div>
+    <div class="pcard-full" style="--card-primary:${colors.primary};--card-accent:${colors.accent};--team-band:${getTeamBand(p.t).bg}">
+      <div class="pcard-full-head cj tc-${rarete}">
         <div class="pcard-full-top">
-          <div class="pcard-full-photo">${headshotHtml(p)}</div>
+          <div class="pcard-full-photo"><div class="pcard-full-watermark">${getTeamLogoHtml(p.t, 128)}</div>${headshotHtml(p)}</div>
           <div class="pcard-full-id">
             <div class="pcard-full-name">${formatName(p.n)}</div>
             <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
@@ -3359,6 +3385,7 @@ function showPlayerModal(p, opts = {}) {
             </div>
           </div>
         </div>
+        <div class="cj-plaque"><span>Cap 82-0 · Série ${esc(p.s)}</span><span class="cj-plaque-rarete" title="${esc(sensRarete(rarete))}">${R.gemme} ${esc(R.nom)}</span></div>
       </div>
       <div class="modal-body">${corps}</div>
       <div class="pcard-full-foot">
@@ -3920,6 +3947,7 @@ function confirmerDecision(d) {
  * blessure offre les mêmes trois noms à la reprise.
  */
 const RESERVE_DE = { F: 'Réserve F', D: 'Réserve D', G: 'Réserve' };
+const POSTE_GROUPE = { F: 'Avant', D: 'Défenseur', G: 'Gardien' };
 const PLAFOND_BALLOTTAGE = 0.03;          // la part du plafond qu'un joueur réclamé peut coûter
 const groupeDe = p => (p.p === 'G' ? 'G' : isD(p) ? 'D' : 'F');
 const ballottageVu = new Map();
@@ -3965,9 +3993,11 @@ function candidatsBallottage(blesse, at) {
   const ligne = p => (p.p === 'G'
     ? `${p.gp} PJ · ${p.w ?? 0}-${p.l ?? 0} · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
     : `${p.gp} PJ · ${p.g} B · ${p.a} A · ${p.pt ?? (p.g + p.a)} PTS`);
+  // Le joueur et sa rareté voyagent avec l'offre (S76) : le ballottage se
+  // présente en CARTES de joueur, portrait et métal compris, comme la recrue.
   return {
     i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null,
-    candidats: out.map(p => ({ cle: getPlayerKey(p), nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, salaire: money(p.$), ligne: ligne(p) })),
+    candidats: out.map(p => ({ cle: getPlayerKey(p), p, nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, poste: POSTE_GROUPE[g], salaire: money(p.$), ligne: ligne(p), rarete: rareteJoueur(p) })),
   };
 }
 /*
@@ -3996,7 +4026,6 @@ function candidatsRecrue(palier) {
   const ligne = p => (p.p === 'G'
     ? `${p.gp} PJ · ${p.w ?? 0}-${p.l ?? 0} · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
     : `${p.gp} PJ · ${p.g} B · ${p.a} A · ${p.pt ?? (p.g + p.a)} PTS`);
-  const POSTE = { F: 'Avant', D: 'Défenseur', G: 'Gardien' };
   const out = [];
   for (const g of ['F', 'D', 'G']) {
     const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
@@ -4022,8 +4051,11 @@ function candidatsRecrue(palier) {
     const p = pool[0];
     ballottageVu.set(getPlayerKey(p), p);
     out.push({
-      cle: getPlayerKey(p), p, nom: p.n, poste: POSTE[g], club: `${p.t} ${p.s}`, salaire: money(p.$), ligne: ligne(p),
+      cle: getPlayerKey(p), p, nom: p.n, poste: POSTE_GROUPE[g], club: `${p.t} ${p.s}`, salaire: money(p.$), ligne: ligne(p),
       i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null,
+      // Sa carte a la rareté de son salaire, comme partout (S76) — plus une
+      // légendaire d'office parce que la carte du deck qui l'offre l'est.
+      rarete: rareteJoueur(p),
     });
   }
   return out;
