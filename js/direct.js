@@ -115,12 +115,21 @@ function evenementsDuMatch(f, graine) {
   // Une feuille plus ancienne (partie sauvegardée) n'a que les comptes par
   // période, et on date les arrêts nous-mêmes.
   if (f.lancers && f.lancers.length) {
-    // LE SEUIL DE DANGER EST CELUI DU MATCH (S71) : les 15 % de tirs les plus
-    // dangereux de CE match, quelle que soit l'époque ou le gardien.
-    const ps = f.lancers.filter(l => !l.but && l.p != null).map(l => l.p).sort((a, b) => a - b);
-    const seuil = ps.length ? ps[Math.floor(ps.length * (1 - PART_DANGER))] : null;
-    for (const l of f.lancers) if (!l.but) ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien, p: l.p, special: l.special, mode: l.mode, tac: l.tac,
-      danger: seuil != null && l.p != null ? l.p >= seuil : null });
+    // LE SEUIL DE DANGER EST CELUI DE LA PÉRIODE (S71, S73) : les 15 % de
+    // tirs les plus dangereux de CETTE période, quelle que soit l'époque ou
+    // le gardien. Pas du match entier : un choix à l'entracte rejoue la
+    // troisième, et un seuil de match aurait changé ce que le fil montrait
+    // des deux premières — déjà vues (le smoke l'a attrapé).
+    const seuils = new Map();
+    for (let per = 1; per <= 4; per++) {
+      const ps = f.lancers.filter(l => !l.but && l.p != null && periodeDe(l.instant) === per).map(l => l.p).sort((x, y) => x - y);
+      if (ps.length) seuils.set(per, ps[Math.floor(ps.length * (1 - PART_DANGER))]);
+    }
+    for (const l of f.lancers) if (!l.but) {
+      const seuil = seuils.get(periodeDe(l.instant));
+      ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien, p: l.p, special: l.special, mode: l.mode, tac: l.tac,
+        danger: seuil != null && l.p != null ? l.p >= seuil : null });
+    }
   } else for (const cote of ['A', 'B']) {
     for (let per = 1; per <= 4; per++) {
       const buts = f.buts.filter(b => b.cote === cote && periodeDe(b.instant) === per).length;
@@ -155,8 +164,8 @@ function evenementsDuMatch(f, graine) {
  *
  * Le moteur note sur chaque lancer sa chance d'entrer (`p`) et l'action
  * spéciale qu'il porte. Mesuré sur une saison : une cinquantaine d'arrêts par
- * match, le médian à 9 %. Dans les PART_DANGER tirs les plus dangereux DU
- * MATCH (un seuil absolu vidait le fil des époques à faible pointage), ou au
+ * match, le médian à 9 %. Dans les PART_DANGER tirs les plus dangereux DE LA
+ * PÉRIODE (un seuil absolu vidait le fil des époques à faible pointage), ou au
  * bout d'une action spéciale, l'arrêt est un JEU DANGEREUX, raconté ; une
  * action étouffée ou un tir de loin en avantage numérique est un BEAU JEU
  * DÉFENSIF ; le reste est un tir, caché tant qu'on ne demande pas tous les

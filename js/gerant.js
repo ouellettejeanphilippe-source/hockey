@@ -26,6 +26,7 @@ import {
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, planEstContre, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
+  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee,
 } from './sim.js';
 import { POIDS_TRIO, getLineZone } from './ratings.js';
 
@@ -199,6 +200,8 @@ const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(
 /* Le fit d'une ligne à une tactique, et sa chimie, en mots (S71). */
 export const motFit = f => (f >= 70 ? 'Taillée pour elle' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
 const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= 20 ? 'correcte' : 'naissante');
+/* L'entente et la maîtrise, de 0 à 1, en mots (S73). */
+const motAppris = x => (x >= 0.75 ? 'solide' : x >= 0.45 ? 'bonne' : x >= 0.2 ? 'en route' : 'à bâtir');
 const plafondChimie = c => (c >= 70 ? 'haut' : c >= 45 ? 'bon' : c >= 20 ? 'bas' : 'très bas');
 
 /**
@@ -223,7 +226,10 @@ function placementDe(p, role, u) {
   if (ideal.length && unite > Math.max(...ideal)) bits.push(['▼', 'Trop bas : son talent est gaspillé ici, l\'unité porte un malus']);
   else if (ideal.length && unite < Math.min(...ideal)) bits.push(['▲', 'Un cran trop haut : léger malus']);
   const pen = slot ? getPositionPenalty(p, slot) : 0;
-  if (pen > 0) bits.push(['↔', 'Hors de sa position naturelle']);
+  if (pen > 0) {
+    const reste = penaliteAdaptee(p, slot);
+    bits.push(['↔', reste < pen * 0.6 ? 'Hors de sa position naturelle, mais il s\'y adapte' : 'Hors de sa position naturelle : il s\'y fera en jouant là']);
+  }
   return bits.length ? { html: bits.map(([m, t]) => ` <span class="gl-j-place" title="${esc(t)}">${m}</span>`).join(''), bits } : null;
 }
 /*
@@ -248,6 +254,13 @@ export function effetsHtml(e) {
 export function ouvrirLignes(spec) {
   const m = $('lignesModal');
   if (!m) return;
+  /*
+   * LA CHIMIE DE CE SOIR (S73) : entente × maîtrise × fit, pour la tactique
+   * que tu choisis. Sans photo de l'apprentissage (avant la saison), la chimie
+   * que l'appelant a donnée.
+   */
+  const app = spec.apprentissage ? apprentissagePhoto(spec.apprentissage) : null;
+  const chimieDe = (u, tac) => (app ? chimieLigne(app, spec.lineup, u, tac) : (spec.chimie || [])[u] || 0);
   const brouillon = spec.lignes.map(l => ({ ...l }));
   const match = spec.match ? { importance: spec.match.importance || 'normale', ad: spec.match.ad || 0 } : null;
   let ouverte = 0;
@@ -303,7 +316,7 @@ export function ouvrirLignes(spec) {
     const onglets = `<div class="gl-onglets" role="tablist">${NOMS_LIGNE.map((n, u) => {
       const T = TACTIQUES[brouillon[u].tac];
       return `<button type="button" role="tab" class="gl-onglet${u === ouverte ? ' on' : ''}" data-ligne="${u}" aria-selected="${u === ouverte}">
-        <b>${n}</b><span>${T.ico} ${esc(T.nom)}</span><small>chimie ${motChimie(spec.chimie[u] || 0)} · ${mmss(mins[u])}</small></button>`;
+        <b>${n}</b><span>${T.ico} ${esc(T.nom)}</span><small>chimie ${motChimie(chimieDe(u, brouillon[u].tac))} · ${mmss(mins[u])}</small></button>`;
     }).join('')}</div>`;
     const u = ouverte, l = brouillon[u], T = TACTIQUES[l.tac];
     const adv = spec.adv && spec.adv.lignes && spec.adv.lignes[u];
@@ -318,7 +331,9 @@ export function ouvrirLignes(spec) {
       <div class="gl-joueurs">${ROLES.map(r => joueurLigne(u, r)).join('')}</div>
       <div class="gl-etat">
         <div><span class="gl-k">Fit</span> <b>${l.tac === 'hourra' ? '—' : motFit(fitCourant)}</b> <small>${l.tac === 'hourra' ? 'aucune chimie' : `plafond de chimie : ${plafondChimie(chimieMax(fitCourant))}`}</small></div>
-        <div><span class="gl-k">Chimie</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(spec.chimie[u] || 0)}%"></span></span> <b>${motChimie(spec.chimie[u] || 0)}</b> <small>elle monte en jouant ensemble, elle baisse à chaque joueur changé</small></div>
+        <div><span class="gl-k">Chimie ce soir</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(chimieDe(u, l.tac))}%"></span></span> <b>${motChimie(chimieDe(u, l.tac))}</b></div>
+        ${app && l.tac !== 'hourra' ? `<div class="gl-appris"><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise de ${esc(T.nom)} : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l.tac))}</b></span></div>
+        <div class="gl-mot">La chimie s'apprend et ne se perd pas : changer de tactique ou de joueur un soir ne défait rien. Plus une ligne joue un système, mieux elle le joue.</div>` : ''}
         ${Tadv ? `<div class="gl-adv">En face, ${esc(spec.adv.nom)} : <b>${Tadv.ico} ${esc(Tadv.nom)}</b>${leContre ? ` · pour étouffer ses actions spéciales : <b>${TACTIQUES[leContre].ico} ${esc(TACTIQUES[leContre].nom)}</b>` : ''}${quiMeContre && adv.tac === quiMeContre ? ` · <span class="prix">⚠️ sa tactique étouffe la tienne</span>` : ''}</div>` : ''}
       </div>
       <div class="gl-sec-titre">Tactique</div>
@@ -328,6 +343,7 @@ export function ouvrirLignes(spec) {
         return `<button type="button" class="gl-tac${l.tac === k ? ' on' : ''}${Tadv && X.bat === adv.tac ? ' contre' : ''}" data-tac="${k}" title="${esc(X.mot)}">
           <b>${X.ico} ${esc(X.nom)}</b>
           <span class="gl-tac-fit${f == null ? '' : f >= 55 ? ' bon' : f < 40 ? ' prix' : ''}">${f == null ? 'aucun fit à chercher' : motFit(f)}</span>
+          ${f != null && app ? `<small class="gl-tac-soir">chimie ce soir : ${motChimie(chimieDe(u, k))}</small>` : ''}
           ${X.bat ? `<small>étouffe ${TACTIQUES[X.bat].ico} · étouffée par ${ct ? TACTIQUES[ct].ico : '—'}</small>` : '<small>ni chimie ni action spéciale</small>'}
           <span class="choix-puces">${puces(motsDEffet(X))}</span>
         </button>`;

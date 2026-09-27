@@ -1083,7 +1083,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       const prep = carte.querySelector('.hub-preparer');
       if (prep) prep.onclick = () => ouvrirLignes({
         titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
-        lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie,
+        lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie, apprentissage: etat.apprentissage,
         adv: { nom: ctx.teamShort(adv), lignes: lignesDe(adv, adv.roster) },
         plan: mb ? mb.plan : null,
         effets: { ...effetsEnCours(you, p.j), cartes: decs.filter(d => d.carte && d.jour <= p.j).map(d => d.carte) },

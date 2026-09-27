@@ -500,9 +500,22 @@ export function getUnitSynergy(roster, group, unit) {
 
 /* La chimie de rôles (S1–S71) est partie en S72 : l'assortiment d'un trio passe par le fit de sa tactique. */
 
+/*
+ * S'ADAPTER À SA POSITION (S73). JP : *les joueurs s'adaptent à leur position
+ * dans l'alignement*. La pénalité d'un ailier sur sa mauvaise aile ou d'un
+ * centre à l'aile fond avec les matchs joués à cette case (`p._adapt`) : les
+ * deux tiers en ADAPT_MATCHS matchs. Elle ne revient pas s'il change de case.
+ */
+export const ADAPT_MATCHS = 15;
+export function penaliteAdaptee(player, slot) {
+  const base = getPositionPenalty(player, slot);
+  if (!base) return 0;
+  const g = (player && player._adapt && player._adapt[slot.role]) || 0;
+  return base * Math.exp(-g / ADAPT_MATCHS);
+}
 const effStat = (player, slot, key) => {
   const r = getHiddenRatings(player);
-  return Math.max(25, r[key] - getPositionPenalty(player, slot));
+  return Math.max(25, r[key] - penaliteAdaptee(player, slot));
 };
 
 /* ======================================================================
@@ -1405,8 +1418,24 @@ export function meilleureAgressivite(lineup, u) {
   }
   return best;
 }
+/*
+ * LA MÉMOIRE D'UN MATCH (S73) : les lignes par défaut (meilleure tactique,
+ * meilleure agressivité) se calculaient des dizaines de fois par match — la
+ * saison avait pris 50 % de temps. Elles se gardent le temps d'UN match
+ * (`MEMO_MATCH` change à chaque `playGame`), donc rien de périmé ne survit à
+ * un changement d'alignement.
+ */
+let MEMO_MATCH = 0;
+const MEMO_LIGNES = new WeakMap();
 export function lignesDe(team, lineup, { duSoir = true } = {}) {
   if (duSoir && team && team._lignesMatch) return team._lignesMatch.map(l => ({ ...l }));
+  const memo = lineup && team ? MEMO_LIGNES.get(lineup) : null;
+  if (memo && memo.match === MEMO_MATCH && memo.team === team && memo.lignes === team.lignes) return memo.out.map(l => ({ ...l }));
+  const out = lignesCalculees(team, lineup);
+  if (lineup && team && typeof lineup === 'object') MEMO_LIGNES.set(lineup, { match: MEMO_MATCH, team, lignes: team.lignes, out });
+  return out.map(l => ({ ...l }));
+}
+function lignesCalculees(team, lineup) {
   const L = (team && team.lignes) || [];
   return [0, 1, 2, 3].map(u => {
     const l = L[u] || {};
@@ -1425,37 +1454,91 @@ export function lignesDe(team, lineup, { duSoir = true } = {}) {
  * du maximum (le fit a baissé) elle redescend de 3 % par match. « Hourra » ne
  * bâtit rien.
  */
-export const CHIMIE_PAS = 0.10, CHIMIE_CHANGE = 0.15, CHIMIE_DECLIN = 0.03;
+/*
+ * LA CHIMIE S'APPREND, ELLE NE SE PERD PAS (S73). JP : *l'important est que je
+ * puisse m'adapter aux adversaires, mais pas complètement, d'où l'apprentissage
+ * de la chimie entre les joueurs et avec les stratégies, mais sans punir les
+ * ajustements* ; *comme un deck de deckbuilder, considérant que c'est des
+ * cartes de joueurs et d'effets*.
+ *
+ * Avant, changer de tactique coupait la chimie d'une ligne de MOITIÉ, et
+ * chaque joueur changé en retirait 15 % : s'adapter à un adversaire pour un
+ * soir coûtait des semaines. La chimie a maintenant deux sources, qui
+ * s'apprennent en jouant et ne se perdent pas :
+ *   - L'ENTENTE entre les joueurs (`team.entente`) : chaque paire de
+ *     coéquipiers d'une même ligne compte ses matchs ensemble ; séparés puis
+ *     réunis, ils retrouvent leur entente intacte.
+ *   - LA MAÎTRISE d'une tactique (`p._maitrise`) : chaque joueur apprend
+ *     chaque système à force de le jouer, et garde ce qu'il a appris.
+ * La chimie d'une ligne vaut le plafond de son fit × la moyenne des deux.
+ * Jouer un soir un système que la ligne connaît peu, c'est s'adapter — mais
+ * pas complètement ; le lendemain, sa tactique habituelle a gardé toute sa
+ * maîtrise, et la ligne a appris un peu de l'autre.
+ */
+/* MAITRISE_FIT : ce qu'une maîtrise complète ajoute au fit — plus une ligne joue un système, mieux elle le joue (S73). */
+export const ENTENTE_MATCHS = 8, MAITRISE_PAS = 0.08, MAITRISE_FIT = 15;
 /*
  * LE PLAFOND DE CHIMIE SUIT LE FIT, et il est RAIDE exprès : sous 35 % de fit
  * une ligne ne bâtit presque rien, à 60 % elle monte à 40, à 80 % à 72.
- * Plafonner au fit tel quel (38 % contre 65 %) ne valait que 0,6 victoire
- * d'écart entre mal et bien assortir : les profils ne se sentaient pas.
  */
 export const chimieMax = fit => borne(1.6 * (fit - 35), 0, 100);
-function sigLigne(lineup, u) {
-  return Object.values(joueursDeLigne(lineup, u)).map(p => (p ? getPlayerKey(p) : '-'));
+const cleDePaire = (a, b) => { const x = getPlayerKey(a), y = getPlayerKey(b); return x < y ? `${x}|${y}` : `${y}|${x}`; };
+const joueursLigne = (lineup, u) => Object.values(joueursDeLigne(lineup, u)).filter(Boolean);
+/*
+ * L'APPRENTISSAGE d'une équipe, vivant (le moteur) ou photographié au début
+ * d'une journée (l'écran) : l'entente des paires et la maîtrise de chacun.
+ */
+export function apprentissageDe(team) {
+  return { entente: k => (team && team.entente && team.entente.get(k)) || 0, maitrise: p => (p && p._maitrise) || {} };
 }
+export function apprentissagePhoto(photo) {
+  const e = (photo && photo.entente) || {}, m = (photo && photo.maitrise) || {};
+  return { entente: k => e[k] || 0, maitrise: p => (p && m[getPlayerKey(p)]) || {} };
+}
+export function ententeLigne(app, lineup, u) {
+  const js = joueursLigne(lineup, u);
+  if (js.length < 2) return 0;
+  let som = 0, n = 0;
+  for (let i = 0; i < js.length; i++) for (let j = i + 1; j < js.length; j++) { som += 1 - Math.exp(-app.entente(cleDePaire(js[i], js[j])) / ENTENTE_MATCHS); n++; }
+  return som / n;
+}
+export function maitriseLigne(app, lineup, u, tac) {
+  const js = joueursLigne(lineup, u);
+  return js.length ? js.reduce((a, p) => a + (app.maitrise(p)[tac] || 0), 0) / js.length : 0;
+}
+/* La chimie d'une ligne, pour une tactique : le plafond du fit × (entente + maîtrise) / 2. */
+export function chimieLigne(app, lineup, u, tac) {
+  if (!tac || tac === 'hourra') return 0;
+  const m = maitriseLigne(app, lineup, u, tac);
+  return chimieMax(fitLigne(lineup, u, tac) + MAITRISE_FIT * m) * (ententeLigne(app, lineup, u) + m) / 2;
+}
+/* Après un match : chaque paire de coéquipiers et chaque joueur apprennent ce qu'ils ont joué ce soir-là. */
 export function majChimie(team, lineup) {
-  const lignes = lignesDe(team, lineup, { duSoir: false });
-  team.chimie = team.chimie || [0, 0, 0, 0];
-  team.chimieSig = team.chimieSig || [null, null, null, null];
-  team.chimieTac = team.chimieTac || [null, null, null, null];
+  team.entente = team.entente || new Map();
+  const soir = lignesDe(team, lineup);
   for (let u = 0; u < 4; u++) {
-    const sig = sigLigne(lineup, u);
-    const avant = team.chimieSig[u];
-    if (avant) {
-      const changes = sig.filter((k, i) => k !== avant[i]).length;
-      team.chimie[u] *= Math.max(0, 1 - CHIMIE_CHANGE * changes);
+    const js = joueursLigne(lineup, u);
+    for (let i = 0; i < js.length; i++) for (let j = i + 1; j < js.length; j++) {
+      const k = cleDePaire(js[i], js[j]);
+      team.entente.set(k, (team.entente.get(k) || 0) + 1);
     }
-    // Changer de système, c'est tout réapprendre à moitié.
-    if (team.chimieTac[u] && team.chimieTac[u] !== lignes[u].tac) team.chimie[u] *= 0.5;
-    const max = lignes[u].tac === 'hourra' ? 0 : chimieMax(fitLigne(lineup, u, lignes[u].tac));
-    const c = team.chimie[u];
-    team.chimie[u] = c > max ? Math.max(max, c * (1 - CHIMIE_DECLIN)) : c + (max - c) * CHIMIE_PAS;
-    team.chimieSig[u] = sig;
-    team.chimieTac[u] = lignes[u].tac;
+    const tac = soir[u].tac;
+    if (tac && tac !== 'hourra') for (const p of js) {
+      p._maitrise = p._maitrise || {};
+      p._maitrise[tac] = (p._maitrise[tac] || 0) + (1 - (p._maitrise[tac] || 0)) * MAITRISE_PAS;
+    }
   }
+  // CHAQUE JOUEUR S'ADAPTE À SA CASE (S73).
+  for (const s of SLOTS) {
+    const p = s.scratch ? null : lineup[s.i];
+    if (!p) continue;
+    p._adapt = p._adapt || {};
+    p._adapt[s.role] = (p._adapt[s.role] || 0) + 1;
+  }
+  // La chimie de la SAISON (les lignes réglées), pour l'écran et la suite.
+  const saison = lignesDe(team, lineup, { duSoir: false });
+  const app = apprentissageDe(team);
+  team.chimie = [0, 1, 2, 3].map(u => chimieLigne(app, lineup, u, saison[u].tac));
 }
 
 /* ---------- l'action spéciale ---------- */
@@ -1467,7 +1550,9 @@ export function majChimie(team, lineup) {
  * mesurés : les actions spéciales DÉPLACENT les buts vers les lignes bien
  * bâties, elles n'en créent pas.
  */
-export const SPEC_BASE = 0.45, SPEC_MULT = 1.8, SPEC_NORME = 0.88;
+// SPEC_BASE recalé en S73 (0,45 → 0,22) : la chimie apprise se concentre sur les
+// meilleures lignes, qui lancent le plus ; la part des actions spéciales revient à ~12 %.
+export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.9;
 
 /* ---------- l'énergie ---------- */
 /*
@@ -2774,6 +2859,10 @@ export function profilMatch(team, lineup, adv = null) {
   const speciales = unitesSpeciales(habilles);
   const membresAN = speciales.avantage.partAN;
   const unites = { F: [], D: [] };
+  // LA CHIMIE DE CE SOIR (S73), ligne par ligne, avec les tactiques jouées ce soir.
+  const lignesSoir = lignesDe(team, lineup);
+  const appSoir = apprentissageDe(team);
+  const chimieSoir = [0, 1, 2, 3].map(u => chimieLigne(appSoir, lineup, u, lignesSoir[u].tac));
   // LE ROULEMENT décide de la glace, et il touche les DEUX parts : l'offensive
   // (qui tire) et la présence (qui défend, et qui reçoit le +/-).
   const parts = { F: partsDuRoulement(PART_UNITE.F, 'F', team), D: partsDuRoulement(PART_UNITE.D, 'D', team) };
@@ -2782,7 +2871,7 @@ export function profilMatch(team, lineup, adv = null) {
     for (let u = 0; u < poids.length; u++) {
       const slots = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch);
       const syn = getUnitSynergy(lineup, group, u);
-      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + bonusDeChimie(team, u)) / SYN_ECHELLE));
+      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + CHIMIE_BONUS * chimieSoir[u] / 100) / SYN_ECHELLE));
       const volume = Math.min(VOLUME_UNITE_MAX,
         slots.reduce((a, s) => a + lancersFE(lineup[s.i], membresAN), 0) / slots.length);
       const joueurs = slots.map(s => lineup[s.i]).filter(Boolean);
@@ -2857,7 +2946,7 @@ export function profilMatch(team, lineup, adv = null) {
     const ph = physiqueUnite(lineup, g, u);
     const eff = rendementPhysique(ph);
     x.ligne = u; x.tactique = l.tac;
-    x.chimie = (team && team.chimie && team.chimie[u]) || 0;
+    x.chimie = chimieSoir[u];
     x.poids *= T.volume || 1;
     x.qualite *= T.finition || 1;
     // Plus physique, on donne moins — CENTRÉ sur l'agressivité moyenne, pour
@@ -3515,9 +3604,12 @@ const REPLACEMENT = 40;     // cote d'un rappel de la ligue mineure
  * chimie de rôles donnait, et la ligue marque autant qu'avant. La paire u
  * porte la chimie de la ligne u.
  */
-export const CHIMIE_BONUS = 5.2;
-function bonusDeChimie(team, u) {
-  const c = team && team.chimie ? team.chimie[u] || 0 : 0;
+// Recalé en S73 : la chimie apprise tourne à 53 % chez l'IA (la maîtrise relève le plafond), donc 3,4 pour garder +1,8 en moyenne.
+export const CHIMIE_BONUS = 3.4;
+function bonusDeChimie(team, u, lineup = null) {
+  let c;
+  if (lineup && team) c = chimieLigne(apprentissageDe(team), lineup, u, lignesDe(team, lineup)[u].tac);
+  else c = team && team.chimie ? team.chimie[u] || 0 : 0;
   return CHIMIE_BONUS * c / 100;
 }
 
@@ -3620,7 +3712,7 @@ function unitAvgLineup(team, lineup, group, unit, key) {
   let bonus = 0;
   if (key === 'o' || key === 'd') {
     const syn = getUnitSynergy(lineup, group, unit);
-    bonus += key === 'o' ? (syn.bonusOff || 0) + bonusDeChimie(team, unit) : (syn.bonusDef || 0);
+    bonus += key === 'o' ? (syn.bonusOff || 0) + bonusDeChimie(team, unit, lineup) : (syn.bonusDef || 0);
   }
   return Math.max(20, Math.min(99, sum / slots.length + bonus));
 }
@@ -3803,6 +3895,7 @@ function noterTrous(team, lineup) {
 }
 
 export function playGame(A, B, gameIdx, track = true, series = false, journal = null, ronde = 0) {
+  MEMO_MATCH++;
   const heavy = soirEreintant(gameIdx);
   // Entre deux matchs de séries, les jambes reviennent (S68) ; en saison, la
   // récupération se fait au début de chaque journée (`simulateLeague`).
@@ -4259,7 +4352,8 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     // LES GESTES RÉELS (S72) : les absents, le gardien auxiliaire imposé, les paris joués.
     t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
     // LA CHIMIE ET L'ÉNERGIE (S68) repartent de zéro et de cent à chaque passage.
-    t.chimie = [0, 0, 0, 0]; t.chimieSig = [null, null, null, null]; t.chimieTac = [null, null, null, null];
+    t.chimie = [0, 0, 0, 0]; t.entente = new Map();
+    for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
     for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; }
     t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
     t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
@@ -4290,6 +4384,12 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     for (const t of teams) {
       (t.jourLignes = t.jourLignes || [])[r] = {
         chimie: (t.chimie || [0, 0, 0, 0]).slice(),
+        // L'APPRENTISSAGE DU JOUR (S73), pour ta formation seulement : l'écran
+        // calcule la chimie qu'aurait une ligne, pour n'importe quelle tactique.
+        ...(t.isPlayer ? { apprentissage: {
+          entente: Object.fromEntries(t.entente || []),
+          maitrise: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), { ...(p._maitrise || {}) }])),
+        } } : {}),
         energie: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), Math.round(energieDe(p))])),
       };
     }

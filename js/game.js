@@ -3571,6 +3571,7 @@ function ouvrirBanc(jour) {
     lignes: lignesDe(L.you, G.roster),
     chimie: ((L.you.jourLignes || [])[jour] || {}).chimie || [0, 0, 0, 0],
     energie: ((L.you.jourLignes || [])[jour] || {}).energie || {},
+    apprentissage: ((L.you.jourLignes || [])[jour] || {}).apprentissage || null,
   };
   $('game').classList.add('banc');
   G.selectedSlot = null; G.target = null;
@@ -3815,7 +3816,7 @@ function renderBanc() {
   // décision du banc au « Retour au match ».
   $('bancLignes').onclick = () => ouvrirLignes({
     titre: 'Mes lignes', sousTitre: `Derrière le banc · journée ${b.jour}`,
-    lineup: G.roster, lignes: b.lignes, chimie: b.chimie, energie: b.energie,
+    lineup: G.roster, lignes: b.lignes, chimie: b.chimie, energie: b.energie, apprentissage: b.apprentissage,
     effets: (() => { const toi = G.ligue && (G.ligue.teams || []).find(t => t.isPlayer); return toi ? { ...effetsEnCours(toi, b.jour), cartes: (G.ligue.decisions || []).filter(d => d.carte && d.jour <= b.jour).map(d => d.carte) } : null; })(),
     adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
     match: null, motAppliquer: 'Garder ces lignes',
