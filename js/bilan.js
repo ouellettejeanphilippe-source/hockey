@@ -18,6 +18,7 @@ import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
 import { RARETES, rareteDeSalaire, sensRarete } from './cartes.js';
+import { animerComptes } from './mouvement.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
@@ -707,12 +708,12 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         <div class="hero-band ${rank === 1 ? 'or' : rank <= enSeries ? '' : 'out'}">
           ${rank === 1 ? '1er de la ligue' : rank <= enSeries ? `${rank}e de ${nTeams} · en séries` : `${rank}e de ${nTeams} · éliminé`}
         </div>
-        <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
+        <div class="score ${perfect ? 'perfect' : ''}"><span data-compte="bilan-v" data-compte-depart="0">${r.W}</span>-<span data-compte="bilan-d" data-compte-depart="0">${r.L}</span>-<span data-compte="bilan-dp" data-compte-depart="0">${r.OTL}</span></div>
         <div class="result-strip">
-          <div class="rs-cell"><span class="k">PTS</span><b>${r.points}</b></div>
-          <div class="rs-cell"><span class="k">Rang</span><b>${rank}<small>/${nTeams}</small></b></div>
-          <div class="rs-cell"><span class="k">BP</span><b>${r.GF}</b></div>
-          <div class="rs-cell"><span class="k">BC</span><b>${r.GA}</b></div>
+          <div class="rs-cell"><span class="k">PTS</span><b data-compte="bilan-pts" data-compte-depart="0">${r.points}</b></div>
+          <div class="rs-cell"><span class="k">Rang</span><b><span data-compte="bilan-rang" data-compte-depart="${nTeams}">${rank}</span><small>/${nTeams}</small></b></div>
+          <div class="rs-cell"><span class="k">BP</span><b data-compte="bilan-bp" data-compte-depart="0">${r.GF}</b></div>
+          <div class="rs-cell"><span class="k">BC</span><b data-compte="bilan-bc" data-compte-depart="0">${r.GA}</b></div>
           <div class="rs-cell"><span class="k">Diff</span><b class="${r.GF - r.GA >= 0 ? 'pm-pos' : 'pm-neg'}">${r.GF - r.GA > 0 ? '+' : ''}${r.GF - r.GA}</b></div>
           <div class="rs-cell"><span class="k">Masse</span><b>${money(capUsed())}</b></div>
         </div>
@@ -729,6 +730,10 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     </div>`;
 
   brancherEntractes($('resultHost'));
+  // LA FICHE SE COMPTE (S77) : la saison se révèle en 400 ms, du zéro à la
+  // fiche finale, le rang du dernier au sien. Le texte du DOM est déjà le
+  // vrai (js/mouvement.js) — seul ce qu'on voit roule.
+  animerComptes($('resultHost'));
   // Les vraies fiches des adversaires arrivent des shards : le volet « La
   // ligue » se complète tout seul.
   if (teams.length > 1) chargerNiveau(teams);

@@ -294,14 +294,22 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   /* Les couleurs de l'équipe qui tire, posées sur la ligne du fil. */
   const couleurs = cote => { const b = ctx.band(equipe(cote).tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
 
-  /* Le tableau indicateur : deux équipes, le pointage, l'horloge. */
+  /*
+   * Le tableau indicateur : deux équipes, le pointage, l'horloge. Depuis S77
+   * c'est un BANDEAU DE DIFFUSION (le « score bug » d'une télé) : une seule
+   * barre, l'aplat du club, son nom, son pointage dans une case sombre,
+   * l'horloge au centre. Le pointage vit dans un `<b>` à l'intérieur de sa
+   * case : au but, la CASE s'allume aux couleurs du club pendant que le
+   * CHIFFRE roule de bas en haut (style.css, `.live-eq-buts.flash`) — deux
+   * gestes qui ne peuvent pas partager la même boîte.
+   */
   function dessinerBoard(gA, gB, h) {
     const cote = (t, buts, pos) => {
       const b = ctx.band(t.tag);
       return `<div class="live-eq ${pos}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
         <div class="live-eq-band">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
         <div class="live-eq-nom">${ctx.esc(ctx.teamLabel(t))}</div>
-        <div class="live-eq-buts" data-cote="${pos === 'a' ? 'A' : 'B'}">${buts}</div>
+        <div class="live-eq-buts" data-cote="${pos === 'a' ? 'A' : 'B'}"><b>${buts}</b></div>
       </div>`;
     };
     board.innerHTML = `${cote(A, gA, 'a')}
@@ -412,8 +420,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     const sit = board.querySelector('.live-situation');
     sit.textContent = h.situation || '';
     sit.classList.toggle('on', !!h.situation);
-    board.querySelector('[data-cote="A"]').textContent = gA;
-    board.querySelector('[data-cote="B"]').textContent = gB;
+    // Le chiffre, pas la case : la case garde son `<b>` pour le roulement du but.
+    board.querySelector('[data-cote="A"] > b').textContent = gA;
+    board.querySelector('[data-cote="B"] > b').textContent = gB;
   };
 
   const appliquer = e => {

@@ -38,6 +38,7 @@ import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, en
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant } from './recit.js';
+import { animerComptes } from './mouvement.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -118,10 +119,19 @@ function onglets(barre, volet, liste, rendre) {
       const on = rangee.querySelector('button.on');
       if (on) rangee.scrollLeft = on.offsetLeft - (rangee.clientWidth - on.offsetWidth) / 2;
     });
+    // LES CHIFFRES D'UN VOLET SE COMPTENT (S77, js/mouvement.js) : ce qui
+    // porte `data-compte` roule depuis sa valeur d'hier — les tuiles du
+    // portail, d'une journée à l'autre.
+    animerComptes(volet);
   };
   const sheet = volet.closest('.hub-sheet');
   const pageDe = cle => (liste.find(o => o.cle === cle) || {}).page || null;
   const montrer = cle => {
+    // UN AUTRE ONGLET S'OUVRE EN HAUT (S77). Au téléphone c'est la feuille
+    // entière qui défile (S67) : le classement s'ouvrait à la hauteur où l'on
+    // avait laissé l'affiche du match, au 3e rang. Le même onglet refait
+    // après une journée garde sa place — on lit sous ses yeux.
+    if (cle !== courant && sheet) sheet.scrollTop = 0;
     courant = cle;
     barre.querySelectorAll('button').forEach(b => {
       const on = b.dataset.onglet === cle;
@@ -133,6 +143,12 @@ function onglets(barre, volet, liste, rendre) {
     if (sheet) sheet.dataset.vue = pageDe(cle) || '';
     volet.innerHTML = rendre(cle);
     volet.scrollTop = 0;
+    // LE CHANGEMENT D'ONGLET SE VOIT (S77) : le volet entre en glissant, une
+    // fois par changement — pas à chaque journée, où le classement se met à
+    // jour sous les yeux (`rafraichir`) et un glissement serait du bruit.
+    volet.classList.remove('volet-entre');
+    void volet.offsetWidth;
+    volet.classList.add('volet-entre');
     apresRendu();
     signalerVue();
   };
@@ -999,7 +1015,11 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       <tbody>${L.map((x, u) => `<tr><td>${noms[u]}</td><td>${TACTIQUES[lignes[u].tac].ico} ${ctx.esc(TACTIQUES[lignes[u].tac].nom)}</td><td>${x.t}</td><td>${x.b}</td><td>${x.bc}</td><td>${x.s}</td><td>${x.e}</td></tr>`).join('')}</tbody></table></div>`;
   };
 
-  const voletJournee = () => {
+  // LE PORTAIL EN TÊTE DU VOLET « MATCH » (S77, `tuilesHtml`) : au téléphone
+  // il tombe juste sous les boutons, au bureau il coiffe la colonne de droite
+  // — la colonne de gauche est déjà pleine de l'affiche et des boutons.
+  const voletJournee = () => tuilesHtml() + voletJourneeSeul();
+  const voletJourneeSeul = () => {
     if (!jour) return afficheJour1();
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
     const mien = k >= 0 ? scoreboard({ j, k, m: matchs[k] }) + rapportLignes(matchs[k]) : `<div class="live-board hub-board"><div class="live-horloge"><span class="live-per">CONGÉ</span><span class="live-tirs">Les NHL Stars ne jouent pas aujourd'hui</span></div></div>`;
@@ -1126,7 +1146,21 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (cle === 'fiche') return voletFiche();
     return voletJournee();
   });
-  const debrancherMenu = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
+  /*
+   * UNE TUILE S'OUVRE SUR SA CARTE (S77) : la forme sur « Ma fiche », le
+   * classement sur le classement, le deck sur le deck. Un seul écouteur,
+   * délégué au volet qui est refait chaque jour, et débranché avec le menu —
+   * le volet est partagé avec l'écran des séries (voir `brancherMenu`).
+   */
+  const ouvrirTuile = ev => {
+    const t = ev.target.closest('.hub-tuile');
+    if (!t || !volet.contains(t) || ev.target.closest('.lien-joueur')) return;
+    if (t.dataset.ouvre) tabs.montrer(t.dataset.ouvre);
+    else if (t.classList.contains('hub-deck')) ouvrirDeck({ deck: deckAvant(jour) });
+  };
+  volet.addEventListener('click', ouvrirTuile);
+  const debrancherMenuSeul = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
+  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -1259,6 +1293,102 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     }
   }
 
+  /*
+   * LE PORTAIL, À LA FOOTBALL MANAGER 26 (S77). JP : *Interface plus premium,
+   * cherche les fm, ehm*. FM26 range son écran d'accueil en TUILES : chacune
+   * est un coup d'oeil — la forme, le classement autour de toi, ce que le
+   * proprio attend, l'infirmerie, le deck — et s'ouvre sur sa CARTE, le
+   * détail. Ici la carte existe déjà : c'est l'onglet de la barre qui porte
+   * la chose (« Ma fiche » pour la forme, le classement pour le classement),
+   * donc une tuile touchée OUVRE cet onglet au lieu d'en inventer un autre.
+   *
+   * Rien de neuf n'est calculé : la forme est `resultats`, le classement
+   * `classement()`, l'objectif `objectifEnCours()`, l'infirmerie `blessesDe`,
+   * le deck `deckAvant`. Chaque tuile a une hauteur FIXE, remplie ou non — on
+   * réserve la place, on ne la prend pas : cinq pastilles de forme même au
+   * premier match, trois rangées de classement même en tête de la ligue.
+   */
+  function tuilesHtml() {
+    const f = fiche.get(you);
+    const cl = classement();
+    const rang = cl.indexOf(you) + 1;
+    const r = resultats.get(you) || [];
+    const cinq = r.slice(-5);
+    // La plus récente à DROITE, comme un guide de forme : les cases vides
+    // d'avant le premier match sont à gauche, en pointillé.
+    const forme = Array.from({ length: 5 }, (_, i) => {
+      const x = cinq[i - (5 - cinq.length)];
+      if (!x) return '<span class="forme-p vide" aria-hidden="true"></span>';
+      const mot = x === 'V' ? 'Victoire' : x === 'DP' ? 'Défaite en prolongation' : 'Défaite';
+      return `<span class="forme-p ${x === 'V' ? 'v' : x === 'DP' ? 'dp' : 'd'}" title="${mot}">${x}</span>`;
+    }).join('');
+    // Le classement AUTOUR de toi : celui d'au-dessus, toi, celui d'en dessous
+    // — trois rangées toujours, même au premier ou au dernier rang.
+    const debut = Math.max(0, Math.min(rang - 2, cl.length - 3));
+    const autour = cl.slice(debut, debut + 3).map((t, k) => `<span class="t-cl-rangee${t === you ? ' toi' : ''}">
+        <i>${debut + k + 1}</i>${ctx.logo(t.tag, 14)}<em>${ctx.esc(ctx.tagCourt(t))}</em><b>${fiche.get(t).PTS}</b></span>`).join('');
+    // La ligne des séries, en points : ce qu'on a d'avance sur le premier
+    // exclu, ou ce qui manque pour rattraper le dernier qualifié.
+    const dernierQualifie = cl[enSeries - 1], premierExclu = cl[enSeries];
+    let motSeries = 'La saison commence';
+    if (jour && rang <= enSeries) {
+      const avance = premierExclu ? f.PTS - fiche.get(premierExclu).PTS : null;
+      motSeries = avance == null ? 'En séries' : `En séries · ${avance >= 0 ? '+' : ''}${avance} sur le ${enSeries + 1}e`;
+    } else if (jour && dernierQualifie) {
+      const manque = fiche.get(dernierQualifie).PTS - f.PTS;
+      motSeries = manque > 0 ? `À ${manque} pt${manque > 1 ? 's' : ''} des séries` : 'À égalité avec les séries';
+    }
+    const tForme = `<button type="button" class="tuile ouvrable hub-tuile hub-t-forme" data-ouvre="fiche" title="Tes matchs, un à un">
+      <span class="tuile-tete"><span class="etiquette">Forme</span><span class="tuile-coin">${ctx.esc(sequence() || '—')}</span></span>
+      <span class="forme" aria-label="Tes cinq derniers matchs">${forme}</span>
+      <span class="tuile-pied"><span class="chiffre"><b data-compte="t-v">${f.W}</b>-<b data-compte="t-d">${f.L}</b>-<b data-compte="t-dp">${f.OTL}</b></span> · <b class="chiffre" data-compte="t-pts">${f.PTS}</b> pts</span>
+    </button>`;
+    const tClassement = `<button type="button" class="tuile ouvrable hub-tuile hub-t-classement" data-ouvre="classement" title="Le classement complet">
+      <span class="tuile-tete"><span class="etiquette">Classement</span><span class="tuile-coin"><b class="chiffre" data-compte="t-rang">${rang}</b><small>/${cl.length}</small></span></span>
+      <span class="t-cl">${autour}</span>
+      <span class="tuile-pied">${ctx.esc(motSeries)}</span>
+    </button>`;
+    // L'OBJECTIF DU PROPRIO : où on en est, sur une jauge. Un objectif « ou
+    // moins » (les buts contre) se remplit vers un MUR : la jauge dit alors ce
+    // qu'il reste à ne pas dépasser, et elle rougit en approchant.
+    let tProprio = '';
+    if (onDecision) {
+      const oc = objectifEnCours();
+      let corps = '<span class="tuile-vide">Pas d\'objectif en cours</span>';
+      let coin = '';
+      if (oc && OBJECTIFS[oc.d.objectif.cle]) {
+        const O = OBJECTIFS[oc.d.objectif.cle];
+        const part = Math.max(0, Math.min(1, oc.e.val / Math.max(1, oc.e.cible)));
+        const etat = oc.e.reussi ? ' fait' : oc.e.rate ? ' rate' : O.sens < 0 && part >= 0.8 ? ' serre' : '';
+        coin = `${oc.e.joues}/${MATCHS_OBJECTIF}`;
+        corps = `<span class="t-obj-nom">${O.ico} ${ctx.esc(O.court)}</span>
+          <span class="tuile-jauge${O.sens < 0 ? ' mur' : ''}${etat}" aria-hidden="true"><span style="width:${(100 * part).toFixed(1)}%"></span></span>
+          <span class="tuile-pied"><b class="chiffre" data-compte="t-obj">${oc.e.val}</b> / ${oc.e.cible} ${ctx.esc(O.unite)}</span>`;
+      }
+      tProprio = `<div class="tuile hub-tuile hub-t-proprio" title="${oc ? ctx.esc(OBJECTIFS[oc.d.objectif.cle]?.nom || '') : ''}">
+        <span class="tuile-tete"><span class="etiquette">Le proprio</span><span class="tuile-coin">${coin ? `${coin} <small>matchs</small>` : ''}</span></span>
+        ${corps}
+      </div>`;
+    }
+    // L'INFIRMERIE : qui manque, et pour combien de matchs — à ce jour
+    // seulement (`blessesDe` ne révèle que ce qui est arrivé).
+    const bl = [...blessesDe(you, matchsDe(you))].sort((a, b) => b[1] - a[1]);
+    const lien = p => (ctx.fiche ? ctx.fiche(p, you, ctx.esc(p.n)) : ctx.esc(p.n));
+    const tInfirmerie = `<div class="tuile hub-tuile hub-t-infirmerie${bl.length ? ' a-blesses' : ''}">
+      <span class="tuile-tete"><span class="etiquette">Infirmerie</span><span class="tuile-coin chiffre">${bl.length || ''}</span></span>
+      ${bl.length ? `<span class="t-inf">${bl.slice(0, 2).map(([p, n]) => `<span class="t-inf-j"><span class="t-inf-nom">${lien(p)}</span><b>${n} m.</b></span>`).join('')}</span>
+        <span class="tuile-pied">${bl.length > 2 ? `et ${bl.length - 2} autre${bl.length - 2 > 1 ? 's' : ''}` : ''}</span>`
+        : '<span class="tuile-vide">Personne. Tout le monde joue.</span>'}
+    </div>`;
+    const tDeck = onDecision ? `<button type="button" class="tuile ouvrable hub-tuile hub-t-deck hub-deck" title="Tes cartes de match : tu en piges cinq avant chaque gros match">
+      <span class="tuile-tete"><span class="etiquette">Mon deck</span><span class="tuile-coin"><b class="chiffre" data-compte="t-deck">${deckAvant(jour).length}</b> <small>cartes</small></span></span>
+      <span class="tuile-pied">🃏 Cinq piges avant chaque gros match</span>
+    </button>` : '';
+    // Le conteneur de requête : la grille passe de deux colonnes (téléphone)
+    // à une rangée de cinq dès que le volet a la largeur d'un portail.
+    return `<div class="hub-tuiles" role="group" aria-label="Le portail"><div class="tuiles hub-tuiles-grille">${tForme}${tClassement}${tProprio}${tInfirmerie}${tDeck}</div></div>`;
+  }
+
   function dessiner() {
     // Le flottant se rebranche plus bas s'il y a une journée à jouer ; la fin
     // de saison n'en a pas, et il restait par-dessus « Voir le bilan » (QA S74b).
@@ -1266,7 +1396,12 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const f = fiche.get(you);
     const rang = rangDe(you);
     const seq = sequence();
-    head.innerHTML = `<span class="live-ronde">${epoque ? `Saison ${ctx.esc(epoque)}` : 'Saison régulière'}</span>
+    // L'EN-TÊTE DU CLUB, à la FM24 (S77) : le bandeau prend les couleurs du
+    // club qu'on dirige et porte son écusson — on sait chez qui on est avant
+    // d'avoir lu un mot. L'écusson des NHL Stars est un SVG qui ÉCRIT (« NHL
+    // STARS » sur sa bande) : ce mot entre dans le texte de l'en-tête, pareil
+    // à chaque rendu, et le test de fumée n'y cherche que « Journée N ».
+    head.innerHTML = `<span class="hub-ecusson" aria-hidden="true">${ctx.logo(you.tag, 24)}</span><span class="live-ronde">${epoque ? `Saison ${ctx.esc(epoque)}` : 'Saison régulière'}</span>
       <span class="live-match">Journée ${jour} / ${N}</span>
       <span class="live-serie">${jour ? `${f.W}-${f.L}-${f.OTL} · ${f.PTS} pts · ${rang}${rang === 1 ? 'er' : 'e'}${seq ? ` · ${seq}` : ''}` : 'La saison commence'}</span>`;
 
@@ -1509,25 +1644,24 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (spec && !choixOuvert()) { if (spec.ouvrir) spec.ouvrir(); else ouvrirChoix(spec); }
     else if (!spec && pal !== undefined && !palProposes.has(pal) && !choixOuvert()) { palProposes.add(pal); ouvrirMain(pal); }
     const force = spec ? `<button type="button" class="btn gold hub-choix-rouvrir">⏳ Un choix t'attend : ${ctx.esc(String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : '')))}</button>` : '';
-    // L'objectif en cours se lit sous le match : où on en est, ce qui manque.
-    const enCours = objectifEnCours();
-    const suivi = enCours && !enCours.e.fini ? `<div class="hub-objectif" title="${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].nom)}">🏢 Le proprio veut <b>${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].court)}</b> · tu en es à <b>${enCours.e.val}</b> ${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].unite)}, ${enCours.e.joues} match${enCours.e.joues > 1 ? 's' : ''} sur ${MATCHS_OBJECTIF}</div>` : '';
+    // L'objectif en cours et le deck ont déménagé dans les TUILES (S77,
+    // `tuilesHtml`) : la ligne du proprio y devient une jauge, et le bouton
+    // « Deck » de la rangée compacte y devient la tuile « Mon deck » (même
+    // classe `.hub-deck`, même geste). La rangée garde les quatre boutons qui
+    // font avancer le temps ou changent l'alignement — c'est ce que S30 voulait.
     const acc = accident && MUTATIONS[accident.cle] ? `<div class="hub-situ hub-accident" role="status">
       <div class="hub-situ-tete">${MUTATIONS[accident.cle].ico} Sa carte change : ${ctx.esc(accident.p.n)}</div>
       <div class="hub-situ-quoi">${ctx.esc(MUTATIONS[accident.cle].nom)} — ${ctx.esc(MUTATIONS[accident.cle].quoi)}</div>
       <div class="choix-puces">${puces(motsDeMutation(accident.cle))}</div>
     </div>` : '';
-    actions.innerHTML = `${force}${vide}${cartes}${acc}${situ}${bless}${suivi}${force ? '' : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>'}
+    actions.innerHTML = `${force}${vide}${cartes}${acc}${situ}${bless}${force ? '' : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>'}
       <div class="hub-actions-rang">
       ${p && !force ? `<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>` : ''}
       ${onBanc && p ? `<button class="btn hub-banc" title="Changer tes trios, tes paires, ton gardien, désigner ton trio de fermeture — avec les fiches à ce jour. La saison reprend de là.">Le banc</button>` : ''}
       ${force ? '' : '<button class="btn hub-dix" title="Dix journées d\'un coup">+10 jours</button>'}
       <button class="btn hub-fin" title="Jouer le reste de la saison et lire le résultat">Fin de saison</button>
-      ${onDecision ? `<button class="btn hub-deck" title="Tes cartes de match : tu en piges cinq avant chaque gros match">🃏 Deck · ${deckAvant(jour).length}</button>` : ''}
       ${onDecision && ctx.rogue ? `<button class="btn gold hub-boutique" title="La boutique du mode Rogue : des packs de joueurs et de cartes">🛒 ${ctx.rogue.jetons(jour)} 🪙</button>` : ''}
       </div>`;
-    const voirDeck = actions.querySelector('.hub-deck');
-    if (voirDeck) voirDeck.onclick = () => ouvrirDeck({ deck: deckAvant(jour) });
     // LA BOUTIQUE (Rogue, S77) : ses décisions passent par le même chemin que les autres choix.
     const boutique = actions.querySelector('.hub-boutique');
     if (boutique) boutique.onclick = () => ctx.rogue.boutique(jour, d => { const j = jour; quitter(); onDecision(d, j); });

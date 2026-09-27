@@ -165,6 +165,53 @@
      pointage plutôt que d'un paragraphe en gras. Le corps reste en système. */
   --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
 
+  /* L'INTERFACE PREMIUM (S77). JP : *Interface plus premium, cherche sur le
+     Web pour images d'inspiration* ; *cherche les fm, ehm*. Les jetons de la
+     passe sont AJOUTÉS : aucun jeton existant ne change de nom ni de valeur,
+     parce que les cartes et les cases sont mesurées au pixel sur `--sp-*` et
+     `--r-*` (S76 : la carte du vestiaire garde ses 189,5 px).
+
+     UNE ÉCHELLE DE 8. FM26 et le skin BKmodern d'EHM tiennent sur une grille
+     de 8 px : c'est ce qui garde un écran dense calme. `--sp-*` (4, 6, 8, 12,
+     16, 22) porte des hauteurs réservées et ne bouge pas ; la passe premium
+     écrit sur `--esp-*`, et 4 n'y est qu'un demi-pas. */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 24px;
+  --esp-6: 32px;
+
+  /* LES SURFACES EN COUCHES : la page, la tuile, ce qu'on pose sur la tuile.
+     L'élévation se lit au TON, jamais à l'ombre portée (« À plat », JP) — plus
+     un filet de lumière d'un pixel au bord du haut, le seul relief que se
+     permet un bandeau de diffusion. Les surfaces suivent la palette. */
+  --surface-0: var(--panel-0);
+  --surface-1: var(--panel);
+  --surface-2: var(--panel-2);
+  --surface-3: var(--panel-3);
+  --filet-lumiere: rgba(255, 255, 255, 0.055);
+  --filet-tuile: rgba(255, 255, 255, 0.07);
+  /* Ce qui FLOTTE au-dessus du jeu — une modale, la barre du téléphone, un
+     toast — et seulement ça garde une ombre douce : c'est une couche qui
+     passe par-dessus, pas un relief sur une carte. */
+  --ombre-flottante: 0 18px 48px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+
+  /* LE LAITON DES RÉCOMPENSES. `--gold` suit le club (applyTeamColors en fait
+     l'accent de toute l'interface) ; ce qui se GAGNE — premier de la ligue,
+     un objectif atteint — garde le laiton d'un trophée, quel que soit le club. */
+  --or-trophee: #d7b171;
+
+  /* L'ÉTIQUETTE : petites capitales espacées, la voix d'un tableau indicateur. */
+  --etiquette-taille: 10.5px;
+  --etiquette-espace: 0.12em;
+
+  /* LE MOUVEMENT QUI A DU POIDS : le ressort de Balatro — la courbe dépasse sa
+     cible et revient —, 400 ms pour un chiffre qui se compte (js/mouvement.js
+     porte la même courbe en JavaScript). */
+  --e-ressort: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-compte: 400ms;
+
   color-scheme: dark;
 }
 
@@ -201,6 +248,7 @@
 
   --gold: #cdb489;
   --gold-soft: rgba(205, 180, 137, 0.14);
+  --or-trophee: #cdb489;
   --blue: #9fb4cc;
   --blue-deep: #3a444f;
   --green: #4cc98d;
@@ -239,6 +287,7 @@
   /* Pas une trace de jaune : ce qui se gagne est en acier clair. */
   --gold: #bcd2e4;
   --gold-soft: rgba(188, 210, 228, 0.13);
+  --or-trophee: #bcd2e4;
   --blue: #79a8cc;
   --blue-deep: #35566e;
   --green: #4bc59a;
@@ -7359,12 +7408,12 @@ body.menu-ouvert { overflow: hidden; }
 .menu-logo b { color: var(--gold); }
 .menu-sous { margin-top: 8px; color: var(--sub); font-size: 15px; }
 .menu-fermer { position: absolute; top: 12px; right: 4px; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 18px; cursor: pointer; }
+/* À PLAT, comme l'interface premium (S77, JP : « y a trop de 3D ») : le ton et un filet, pas de dégradé. */
 .menu-continuer {
   display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; margin: 14px 0 18px; padding: 16px 18px;
   border: 0; border-radius: 16px; cursor: pointer; text-align: left; color: var(--sur-or, #1b1305);
-  background: linear-gradient(135deg, #ffb347, #ff8a1f 55%, #f06a00);
-  box-shadow: 0 10px 30px rgba(255, 120, 20, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: var(--gold); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.15s var(--e-ressort, cubic-bezier(0.34, 1.56, 0.64, 1));
 }
 .menu-continuer:hover { transform: translateY(-2px); }
 .menu-continuer:active { transform: scale(0.98); }
@@ -7374,10 +7423,10 @@ body.menu-ouvert { overflow: hidden; }
 .menu-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 .menu-mode {
   display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 16px;
-  background: linear-gradient(180deg, var(--panel-2), var(--panel));
-  border: 1px solid var(--line); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 24px rgba(0, 0, 0, 0.25);
+  background: var(--surface-2, var(--panel-2)); border: 1px solid var(--line-soft, var(--line));
+  box-shadow: inset 0 1px 0 var(--filet-tuile, rgba(255, 255, 255, 0.06));
 }
-.menu-mode[data-genre="rogue"] { border-color: rgba(200, 90, 255, 0.35); background: linear-gradient(180deg, rgba(120, 50, 170, 0.22), var(--panel)); }
+.menu-mode[data-genre="rogue"] { border-color: rgba(200, 90, 255, 0.4); }
 .menu-mode-ico { font-size: 34px; line-height: 1; }
 .menu-mode-nom { margin: 0; font: 900 22px/1.1 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
 .menu-mode-mot { margin: 4px 0 0; color: var(--sub); font-size: 14px; line-height: 1.4; }
@@ -7385,11 +7434,11 @@ body.menu-ouvert { overflow: hidden; }
 .menu-mode-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
 .menu-mode-actions .btn { min-height: 46px; display: flex; flex-direction: column; justify-content: center; }
 .menu-mode-actions .btn small { font-size: 12px; font-weight: 600; opacity: 0.8; text-transform: none; letter-spacing: 0; }
-.menu-parties { margin-top: 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); padding: 4px 12px 12px; }
+.menu-parties { margin-top: 18px; border-radius: 14px; background: var(--surface-1, var(--panel)); border: 1px solid var(--line-soft, var(--line)); padding: 4px 12px 12px; }
 .menu-parties > summary { cursor: pointer; padding: 10px 2px; font: 800 15px/1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
 .menu-groupe { margin-top: 10px; }
 .menu-groupe-t { font: 700 12px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 6px 0; }
-.menu-partie { padding: 10px 12px; border-radius: 12px; background: var(--panel-2); margin-top: 6px; border: 1px solid transparent; }
+.menu-partie { padding: 10px 12px; border-radius: 12px; background: var(--surface-2, var(--panel-2)); margin-top: 6px; border: 1px solid transparent; box-shadow: inset 0 1px 0 var(--filet-tuile, transparent); }
 .menu-partie.active { border-color: rgba(255, 170, 60, 0.5); }
 .mp-tete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mp-titre { font-size: 15px; }
@@ -7401,3 +7450,669 @@ body.menu-ouvert { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .menu-continuer { transition: none; } }
 /* Un choix plein écran ouvert DU menu (le vestiaire, l'écran de la run) passe par-dessus lui. */
 body.menu-ouvert .choix-modal { z-index: 450; }
+
+/* =====================================================================
+   L'INTERFACE PREMIUM (S77) — à la Football Manager 26, à la BKmodern
+   d'Eastside Hockey Manager, et au bandeau de diffusion.
+
+   JP : *Interface plus premium, cherche sur le Web pour images
+   d'inspiration* ; *Même chose pour ui, cherche les fm, ehm, etc*.
+
+   Ce qu'on a lu, et ce qu'on en a gardé :
+   - FM26 (« a reimagined user interface ») : le Portail est fait de TUILES
+     — un coup d'oeil chacune — qui s'ouvrent sur une CARTE de détail ;
+     trois principes, efficacité, familiarité, prévisibilité ; des tailles
+     de police corrigées et des contrastes DÉFINIS. D'où les tuiles de
+     l'écran de saison, qui ouvrent l'onglet du détail au lieu d'une page
+     de plus, et une étiquette jamais sous 10,5 px.
+   - FM24 et les skins d'EHM : le bandeau du haut prend les couleurs du club
+     qu'on dirige, écusson compris ; des tableaux denses, rangées zébrées,
+     en-têtes qui collent. BKmodern (EHM) : minimaliste, serré, sans image de
+     fond, sans bouton en 3D, sans titre en dégradé, une palette resserrée.
+   - Le « score bug » d'une télé : une seule barre, les couleurs des deux
+     clubs, le pointage et l'horloge d'abord ; le mouvement sert la lecture
+     (un but s'allume, puis la barre revient à son état de base).
+
+   Premium, ici, veut dire RETENU. Un fond noir, trois surfaces qui montent
+   d'un ton (`--surface-*`), un filet de lumière d'un pixel au bord du haut,
+   et c'est tout le relief : « À plat » (JP, *y a trop de 3D*) tient
+   toujours — l'ombre douce n'est permise qu'à ce qui FLOTTE (une modale, la
+   barre du téléphone, un toast). Une couleur d'accent, celle du club
+   (`--gold`), et le laiton (`--or-trophee`) pour ce qui se gagne.
+
+   HORS DE CE BLOC, exprès : tout ce qui est une carte (`.tc*`, `.pcard*`,
+   `.slot*`, `.cj*`, l'album, la main d'un match) — un autre chantier les
+   redessine — et le plateau du mode bonus. Le bloc est à la FIN du fichier
+   pour la même raison que les passes d'avant : il se lit d'un coup et se
+   retire d'une ligne.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------
+   1. LES BRIQUES RÉUTILISABLES. Nommées pour servir ailleurs que dans la
+   saison — l'écran de départ, un menu, un bilan : une tuile, une étiquette,
+   un chiffre, un titre de section, deux boutons.
+   --------------------------------------------------------------- */
+.etiquette {
+  font: 700 var(--etiquette-taille)/1.1 var(--display);
+  letter-spacing: var(--etiquette-espace); text-transform: uppercase;
+  color: var(--muted);
+}
+.chiffre { font-family: var(--display); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* Le titre de section : la condensée en petites capitales, l'accent du club,
+   et un filet qui finit la ligne — la même langue que `.hub-titre` et les
+   titres du bilan, en brique. */
+.entete-section {
+  display: flex; align-items: center; gap: var(--esp-2);
+  margin: 0 0 var(--esp-2);
+  font: 800 13px/1.1 var(--display); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--gold);
+}
+.entete-section::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+
+/* La tuile : un aplat un ton au-dessus de la page, le filet de lumière,
+   un rayon de 12. Une tuile qui s'ouvre (`.ouvrable`, ou un `<button>`)
+   monte d'un ton au survol et se cerne de l'accent ; elle s'enfonce au doigt. */
+.tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: var(--esp-2); }
+.tuile {
+  position: relative; display: flex; flex-direction: column; gap: var(--esp-1);
+  min-width: 0; padding: var(--esp-3);
+  background: var(--surface-2); color: var(--text);
+  border: 0; border-radius: var(--r-s);
+  box-shadow: inset 0 1px 0 var(--filet-tuile);
+  font: inherit; text-align: left; overflow: hidden;
+}
+.tuile.ouvrable, button.tuile {
+  cursor: pointer;
+  transition: background var(--t-vite), box-shadow var(--t-vite), transform var(--t-lent) var(--e-ressort);
+}
+.tuile.ouvrable:hover, button.tuile:hover {
+  background: var(--surface-3);
+  box-shadow: inset 0 1px 0 var(--filet-tuile), inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent);
+}
+.tuile.ouvrable:active, button.tuile:active { transform: scale(0.975); }
+.tuile-grande { grid-column: 1 / -1; padding: var(--esp-4); }
+.tuile-tete { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); min-width: 0; }
+.tuile-coin { flex: none; font: 800 16px/1 var(--display); font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+.tuile-coin small { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
+.tuile-pied { margin-top: auto; min-width: 0; font-size: 12.5px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tuile-pied b { color: var(--text); }
+.tuile-vide { margin: auto 0; font-size: 12.5px; color: var(--muted); }
+.tuile-jauge { display: block; height: 6px; border-radius: 3px; background: var(--fond-creux); overflow: hidden; }
+.tuile-jauge > span { display: block; height: 100%; border-radius: inherit; background: var(--gold); transition: width var(--t-compte) var(--e-ressort); }
+
+/* Les deux boutons de la maison. Le PREMIER porte l'accent du club et une
+   encre mesurée (`--sur-or`) ; le SECOND est une surface. Même taille, même
+   lettre, même enfoncement : un menu qui les aligne se lit d'un coup. */
+.btn-prime, .btn-second {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-2);
+  min-height: 52px; padding: var(--esp-3) var(--esp-5);
+  border: 1px solid transparent; border-radius: var(--r-s);
+  font: 800 19px/1.1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer;
+  transition: transform var(--t-lent) var(--e-ressort), filter var(--t-vite), background var(--t-vite);
+}
+.btn-prime { background: var(--gold); border-color: var(--gold); color: var(--sur-or); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+.btn-second { background: var(--surface-3); color: var(--text); box-shadow: inset 0 1px 0 var(--filet-tuile); }
+.btn-prime:hover:not(:disabled), .btn-second:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-prime:active:not(:disabled), .btn-second:active:not(:disabled) { transform: scale(0.96); }
+.btn-prime:disabled, .btn-second:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------------------------------------------------------------
+   2. LE CHIFFRE QUI SE COMPTE (js/mouvement.js). Pendant les 400 ms du
+   ressort, le vrai texte devient transparent — `-webkit-text-fill-color`,
+   qui ne bouge pas la boîte — et la valeur de passage se peint par-dessus,
+   collée à droite comme un compteur. Le DOM dit toujours le vrai chiffre.
+   --------------------------------------------------------------- */
+[data-compte-vu] { position: relative; -webkit-text-fill-color: transparent; }
+[data-compte-vu]::after {
+  content: attr(data-compte-vu);
+  position: absolute; top: 0; right: 0;
+  -webkit-text-fill-color: currentColor;
+  white-space: nowrap; pointer-events: none;
+}
+
+/* ---------------------------------------------------------------
+   3. LA BARRE DU HAUT, UN INSTRUMENT DE BORD. Le filet du club en tête (il y
+   est déjà), une surface à peine plus claire que la page, un filet dessous ;
+   l'étiquette en petites capitales de la condensée, le montant et les
+   compteurs en chiffres de tableau. La jauge glisse avec le ressort : une
+   signature se SENT dans la barre avant de se lire dans le montant.
+   --------------------------------------------------------------- */
+.topbar {
+  background: color-mix(in srgb, var(--surface-0) 92%, transparent);
+  backdrop-filter: blur(14px) saturate(1.15);
+  border-bottom: 1px solid var(--line);
+}
+.capgauge-label { font-family: var(--display); font-weight: 700; letter-spacing: 0.16em; }
+.capgauge-row.small { font-family: var(--display); font-size: 13px; letter-spacing: 0.03em; }
+.capgauge-row.small strong { font-weight: 800; }
+.capgauge .fill { transition: width var(--t-compte) var(--e-ressort), background var(--t-vite); }
+.icon-btn { transition: color var(--t-vite), transform var(--t-lent) var(--e-ressort); }
+.icon-btn:active { transform: scale(0.94); }
+.icon-lbl { font-family: var(--display); font-size: 14px; letter-spacing: 0.08em; }
+
+/* ---------------------------------------------------------------
+   4. LA BARRE D'ONGLETS. Elle ne bouge pas (S67 : mêmes entrées, même
+   place) ; elle se POLIT. Au téléphone elle flotte déjà : elle devient une
+   vraie couche — verre dépoli, filet de lumière, ombre douce. Au bureau, le
+   rail d'EHM reçoit un survol et une surface à lui.
+   --------------------------------------------------------------- */
+@media (max-width: 1199.98px) {
+  .navbar {
+    background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+    backdrop-filter: blur(16px) saturate(1.2);
+    box-shadow: var(--ombre-flottante), inset 0 1px 0 var(--filet-lumiere);
+  }
+}
+.navtab .navtab-lbl { letter-spacing: 0.06em; }
+.navtab.on::before { background: color-mix(in srgb, var(--gold) 22%, transparent); }
+.navtab:active .ico { transform: scale(0.9); }
+@media (min-width: 1200px) {
+  .navbar { background: var(--surface-0); border-right-color: var(--line); }
+  .navtab { transition: color var(--t-vite), background var(--t-vite); }
+  .navtab:not(.on):hover { color: var(--text); background: color-mix(in srgb, var(--text) 5%, transparent); }
+  .navtab.on { color: var(--text); }
+  .navtab.on .ico { color: var(--gold); }
+}
+
+/* ---------------------------------------------------------------
+   5. L'ÉCRAN DE SAISON, UN PORTAIL.
+
+   (a) L'EN-TÊTE DU CLUB, à la FM24 : le bandeau prend l'aplat du club qu'on
+   dirige (`--team-band`, son encre mesurée), son liseré dessous et son
+   écusson en tête (js/saison.js). Il reste collé en haut au téléphone.
+   --------------------------------------------------------------- */
+body.hub-docke #hubModal .hub-sheet .live-top,
+#hubModal .hub-sheet .live-top {
+  background: var(--team-band); color: var(--team-ink);
+  border-bottom: 0;
+  box-shadow: inset 0 -3px 0 var(--team-stripe), inset 0 1px 0 var(--filet-lumiere);
+  padding: var(--esp-2) 14px calc(var(--esp-2) + 3px);
+}
+#hubModal .live-head { align-items: center; gap: var(--esp-1) var(--esp-3); }
+#hubModal .hub-ecusson { display: inline-flex; flex: none; }
+#hubModal .hub-ecusson > * { display: block; }
+#hubModal .live-top .live-match { color: var(--team-ink); }
+#hubModal .live-top .live-serie { color: color-mix(in srgb, var(--team-ink) 72%, transparent); font-family: var(--display); font-size: 14px; letter-spacing: 0.04em; }
+#hubModal .live-top .close-btn { background: color-mix(in srgb, var(--team-ink) 10%, transparent); border-color: transparent; color: var(--team-ink); }
+
+/* (b) L'AFFICHE DU PROCHAIN MATCH est la GRANDE tuile du portail : la même
+   surface, le même filet, le titre en étiquette d'accent. */
+#hubModal .hub-match {
+  background: var(--surface-1); border-radius: var(--r-m);
+  box-shadow: inset 0 1px 0 var(--filet-lumiere);
+}
+#hubModal .hub-match-titre { font-size: 12.5px; letter-spacing: 0.14em; padding: var(--esp-3) 14px var(--esp-1); }
+#hubModal .hub-lieu { font-size: 11.5px; letter-spacing: 0.1em; }
+#hubModal .hub-eq { box-shadow: inset 0 1px 0 var(--filet-tuile); }
+#hubModal .hub-eq-fiche { font-variant-numeric: tabular-nums; }
+#hubModal .hub-vs { font-size: 13px; letter-spacing: 0.16em; color: var(--muted); }
+#hubModal .hub-encours { background: var(--surface-1); box-shadow: inset 0 1px 0 var(--filet-lumiere); }
+
+/* (c) LES BOUTONS QUI FONT AVANCER LE TEMPS. « Journée suivante » est l'appel
+   principal : plus haut, plus lettré, un filet de lumière. La rangée compacte
+   devient quatre surfaces égales ; « Regarder » garde l'accent. */
+#hubModal .hub-actions .hub-jour {
+  min-height: 52px; font-size: 20px; letter-spacing: 0.1em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+#hubModal .hub-actions-rang .btn { min-height: 44px; font-size: 14.5px; letter-spacing: 0.06em; }
+#hubModal .hub-actions-rang .btn:not(.gold):not(.go) { background: var(--surface-2); border-color: transparent; box-shadow: inset 0 1px 0 var(--filet-tuile); }
+#hubModal .hub-actions .btn:active:not(:disabled) { transform: scale(0.96); }
+#hubModal .hub-actions .btn { transition: transform var(--t-lent) var(--e-ressort), filter var(--t-vite), background var(--t-vite); }
+
+/* (d) LES TUILES DU PORTAIL (`tuilesHtml`), en tête du volet « Match » :
+   au téléphone juste sous les boutons, au bureau en tête de la colonne de
+   droite. Pourquoi pas dans la colonne de gauche : mesuré à 1 280 × 800,
+   l'affiche du match et les boutons la remplissent déjà (692 px pour 692,
+   sans même une blessure),
+   et un soir de blessure les tuiles tombaient à 0 px — la leçon de S74b dit
+   que ce sont les BOUTONS qui gardent leur place. FM26 fait pareil : le
+   portail est la zone principale, le menu est à côté.
+
+   Des hauteurs FIXES — on réserve la place, on ne la prend pas : la forme
+   garde ses cinq cases au premier match, le classement ses trois rangées en
+   tête de la ligue. Trois arrangements, choisis par la largeur du VOLET
+   (un conteneur de requête, pas l'écran) :
+   - étroit (téléphone) : deux colonnes, le deck en bande ;
+   - moyen (620 px, le portable) : la forme, le classement et le proprio en
+     tête, l'infirmerie et le deck en bandes dessous — mesuré à 1 280 px, cinq
+     tuiles de 130 px coupaient la cinquième case de forme ;
+   - large (980 px, le bureau) : une rangée de cinq. */
+.hub-tuiles { container: portail / inline-size; }
+.hub-tuile { padding: 10px 12px; }
+.hub-tuiles-grille {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, 114px);
+  grid-auto-rows: 54px;
+}
+.hub-t-deck { grid-column: 1 / -1; justify-content: center; gap: 2px; padding-block: 8px; }
+@container portail (min-width: 620px) {
+  .hub-tuiles-grille { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: 114px; grid-auto-rows: 54px; }
+  .hub-t-forme, .hub-t-classement, .hub-t-proprio { grid-column: span 2; }
+  .hub-t-infirmerie { grid-column: span 3; }
+  .hub-t-deck { grid-column: span 3; }
+  /* L'infirmerie en bande : la tête et les noms sur une ligne. */
+  .hub-t-infirmerie { flex-direction: row; align-items: center; gap: var(--esp-3); padding-block: 8px; }
+  .hub-t-infirmerie .tuile-tete { flex: none; gap: var(--esp-2); }
+  .hub-t-infirmerie .t-inf { flex-direction: row; gap: var(--esp-3); flex: 1; }
+  .hub-t-infirmerie .t-inf-j { justify-content: flex-start; }
+  .hub-t-infirmerie .tuile-pied, .hub-t-infirmerie .tuile-vide { margin: 0; }
+  /* Sans le proprio (pas de moments), le deck prend sa place en tête. */
+  .hub-tuiles-grille:not(:has(.hub-t-proprio)) .hub-t-infirmerie { grid-column: 1 / -1; }
+}
+@container portail (min-width: 980px) {
+  .hub-tuiles-grille { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: 114px; }
+  .hub-t-forme, .hub-t-classement, .hub-t-proprio, .hub-t-infirmerie, .hub-t-deck { grid-column: auto; }
+  .hub-t-infirmerie { flex-direction: column; align-items: stretch; gap: var(--esp-1); padding-block: 10px; }
+  .hub-t-infirmerie .t-inf { flex-direction: column; gap: 2px; flex: none; }
+  .hub-t-infirmerie .t-inf-j { justify-content: space-between; }
+  .hub-t-infirmerie .tuile-pied { margin-top: auto; }
+  .hub-t-deck { justify-content: flex-start; gap: var(--esp-1); padding-block: 10px; }
+  .hub-t-deck .tuile-pied { white-space: normal; line-height: 1.3; }
+  .hub-tuiles-grille:not(:has(.hub-t-proprio)) .hub-t-infirmerie { grid-column: auto; }
+}
+.hub-tuile .tuile-coin .chiffre { font-size: 18px; }
+
+/* La forme : cinq cases, la plus récente à droite. La couleur dit le
+   résultat, la LETTRE aussi — V, D, DP se lisent sans la couleur. */
+.forme { display: flex; gap: var(--esp-1); }
+.forme-p {
+  flex: none; display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: var(--r-xs);
+  font: 800 13px/1 var(--display); letter-spacing: 0.02em;
+}
+.forme-p.v { background: var(--green); color: color-mix(in srgb, var(--green) 18%, #000); }
+.forme-p.d { background: var(--live); color: #fff; }
+.forme-p.dp { background: var(--orange); color: color-mix(in srgb, var(--orange) 15%, #000); }
+.forme-p.vide { border: 1px dashed var(--line); }
+.forme-p:last-child:not(.vide) { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 3px color-mix(in srgb, var(--text) 45%, transparent); }
+
+/* Le classement autour de toi : trois rangées, la tienne à l'accent. */
+.t-cl { display: flex; flex-direction: column; gap: 1px; }
+.t-cl-rangee {
+  display: grid; grid-template-columns: 18px 14px minmax(0, 1fr) auto; align-items: center; gap: 6px;
+  height: 16px; padding: 0 4px; margin: 0 -4px; border-radius: 4px;
+  font-size: 12.5px; color: var(--sub);
+}
+.t-cl-rangee i { font: 700 12px/1 var(--display); font-style: normal; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.t-cl-rangee em { font: 700 13px/1 var(--display); font-style: normal; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-cl-rangee b { font: 800 13px/1 var(--display); font-variant-numeric: tabular-nums; }
+.t-cl-rangee .team-logo-img, .t-cl-rangee .team-logo-inline { width: 14px !important; height: 14px !important; }
+.t-cl-rangee.toi { color: var(--text); background: color-mix(in srgb, var(--gold) 16%, transparent); box-shadow: inset 2px 0 0 var(--gold); }
+.t-cl-rangee.toi i, .t-cl-rangee.toi b { color: var(--gold); }
+
+/* L'objectif du proprio : une jauge. Atteint, elle verdit ; un objectif « ou
+   moins » qui approche du mur rougit. */
+.t-obj-nom { font: 700 14px/1.15 var(--display); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tuile-jauge.fait > span { background: var(--green); }
+.tuile-jauge.mur > span { background: color-mix(in srgb, var(--orange) 80%, var(--surface-3)); }
+.tuile-jauge.serre > span, .tuile-jauge.rate > span { background: var(--live); }
+
+/* L'infirmerie : deux noms, leurs matchs d'absence en rouge. Un filet rouge
+   au flanc quand elle n'est pas vide — l'état se voit par sa forme. */
+.t-inf { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.t-inf-j { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; font-size: 13px; }
+.t-inf-nom { min-width: 0; overflow: hidden; white-space: nowrap; }
+.t-inf-nom .lien-joueur { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.t-inf-j b { flex: none; font: 800 12.5px/1 var(--display); color: var(--live); }
+.hub-t-infirmerie.a-blesses { box-shadow: inset 0 1px 0 var(--filet-tuile), inset 3px 0 0 var(--live); }
+
+/* (e) LE CHANGEMENT D'ONGLET SE VOIT : le volet entre en glissant, une fois
+   par changement (js/saison.js pose `.volet-entre`) ; une page de la barre
+   aussi, quand elle s'affiche. */
+@keyframes voletEntre { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.hub-volet.volet-entre { animation: voletEntre 0.26s var(--e-sortie) both; }
+.page:not([hidden]) { animation: voletEntre 0.26s var(--e-sortie) both; }
+
+/* Les titres de volet parlent la langue de `.entete-section`. */
+.hub-titre { font-size: 13px; letter-spacing: 0.14em; }
+
+/* Les pastilles d'un menu (patineurs / gardiens, les équipes) : un
+   sélecteur segmenté, la choisie en plein. */
+.hub-chips button { background: var(--surface-2); border-color: transparent; box-shadow: inset 0 1px 0 var(--filet-tuile); font-size: 13.5px; letter-spacing: 0.08em; }
+.hub-chips button.on { background: var(--ui-accent); color: var(--ui-on-accent); box-shadow: none; }
+
+/* ---------------------------------------------------------------
+   6. LE BANDEAU DE DIFFUSION (« score bug »). Le direct et l'affiche d'un
+   match joué portent le même tableau indicateur (js/direct.js,
+   `scoreboard` dans js/saison.js) : une seule barre, l'aplat de chaque club
+   et son nom dehors, les pointages dans deux cases sombres qui encadrent
+   l'horloge. Mesuré à 390 px : 123 px de haut avant, 68 après — le fil du
+   match reprend ce que le chrome lui prenait.
+   --------------------------------------------------------------- */
+.live-board {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0; padding: 0; margin: var(--esp-3) 14px var(--esp-2);
+  border: 0; border-radius: var(--r-s);
+  background: var(--surface-1);
+  box-shadow: 0 0 0 1px var(--line), inset 0 1px 0 var(--filet-lumiere);
+}
+.live-board .live-eq {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "band buts" "nom buts";
+  border: 0; border-radius: var(--r-s) 0 0 var(--r-s);
+  background: transparent; overflow: hidden; min-width: 0;
+}
+.live-board .live-eq.b {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "buts band" "buts nom";
+  border-radius: 0 var(--r-s) var(--r-s) 0;
+}
+.live-board .live-eq-band {
+  grid-area: band; position: relative; overflow: hidden;
+  gap: 6px; padding: 7px 10px 8px; min-width: 0;
+  font: 800 15px/1 var(--display); letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.live-board .live-eq-band > span { overflow: hidden; text-overflow: ellipsis; }
+.live-board .live-eq-band .team-logo-img, .live-board .live-eq-band .team-logo-inline { width: 18px !important; height: 18px !important; flex: none; }
+.live-board .live-eq-nom { grid-area: nom; padding: 5px 10px 6px; font-size: 11.5px; font-weight: 600; color: var(--sub); }
+.live-board .live-eq-buts {
+  grid-area: buts; display: grid; place-items: center;
+  min-width: 52px; padding: 0 10px; overflow: hidden;
+  background: var(--surface-0);
+  font: 800 38px/1 var(--display); font-variant-numeric: tabular-nums;
+}
+.live-board .live-eq.a .live-eq-buts { box-shadow: inset -1px 0 0 var(--line); }
+.live-board .live-eq.b .live-eq-buts { box-shadow: inset 1px 0 0 var(--line); }
+.live-board .live-eq-buts > b { display: block; font: inherit; }
+.live-board .live-horloge {
+  min-width: 82px; padding: 5px 8px; gap: 1px;
+  background: var(--surface-0);
+}
+.live-board .live-per { font-size: 12px; letter-spacing: 0.14em; }
+.live-board .live-temps { font-size: 25px; }
+.live-board .live-tirs { font-size: 10.5px; }
+/* L'affiche d'un match joué dit « Défaite en prolongation · tirs 34 – 19 »
+   sous l'horloge : sur une ligne, la colonne du centre mangeait les codes
+   des clubs (« TB… » à 390 px). Elle passe à la ligne, dans sa colonne. */
+.hub-board .live-horloge { max-width: 34%; }
+.hub-board .live-tirs { white-space: normal; text-align: center; line-height: 1.25; }
+/* L'affiche d'un match joué, dans le volet « Journée » : la même barre, et
+   les buteurs dessous, dans la même carte. */
+.hub-board.live-board { margin: 0; row-gap: var(--esp-2); padding: 0 0 var(--esp-2); border-radius: var(--r-m); }
+.hub-board .live-eq.a { border-radius: var(--r-m) 0 0 0; }
+.hub-board .live-eq.b { border-radius: 0 var(--r-m) 0 0; }
+.hub-board .live-buteurs { margin: 0 var(--esp-2); border: 0; background: transparent; }
+.hub-board .live-horloge:only-child { border-radius: var(--r-m); }
+/* 390 px : 362 de barre, 76 pour l'horloge, 143 par club — le code du club
+   (« DET '90 ») et son écusson doivent tenir entiers à côté du pointage. */
+@media (max-width: 479.98px) {
+  .live-board .live-eq-band { font-size: 14px; letter-spacing: 0.04em; padding: 7px 8px 8px; gap: 5px; }
+  .live-board .live-eq-nom { padding: 4px 8px 5px; }
+  .live-board .live-eq-buts { min-width: 44px; padding: 0 6px; font-size: 34px; }
+  .live-board .live-horloge { min-width: 76px; padding: 5px 4px; }
+  .live-board .live-temps { font-size: 23px; }
+  /* L'affiche d'un match joué : l'horloge a une largeur FIXE et son verdict
+     passe à la ligne dedans — sinon « TBL '24 » devenait « TB… ». */
+  .hub-board .live-horloge { width: 84px; max-width: none; }
+  .hub-board .live-eq-buts { min-width: 40px; }
+}
+@media (min-width: 700px) {
+  .live-board .live-eq-band { font-size: 17px; padding: 8px 12px 9px; }
+  .live-board .live-eq-nom { font-size: 12.5px; padding: 6px 12px 7px; }
+  .live-board .live-eq-buts { min-width: 72px; font-size: 46px; }
+  .live-board .live-horloge { min-width: 104px; }
+  .live-board .live-temps { font-size: 30px; }
+}
+
+/* UN BUT, COURT ET PUNCHY. La case du pointage s'allume à l'aplat du club
+   qui marque, le chiffre ROULE de bas en haut avec le ressort, et un reflet
+   balaie la bande du club — le tout dans les 1,4 s où l'horloge s'arrête
+   (`PAUSE_BUT`, js/direct.js), puis la barre revient à son état de base. */
+@keyframes butCase {
+  0%, 18% { background: var(--eq-band); color: var(--eq-ink); }
+  100% { background: var(--surface-0); color: var(--text); }
+}
+@keyframes butRoule { from { transform: translateY(105%); } to { transform: none; } }
+@keyframes butReflet { from { transform: translateX(-120%) skewX(-18deg); } to { transform: translateX(260%) skewX(-18deg); } }
+.live-board .live-eq-buts.flash { animation: butCase 1.3s ease-out both; }
+.live-board .live-eq-buts.flash > b { animation: butRoule 0.5s var(--e-ressort) both; }
+.live-board .live-eq:has(.live-eq-buts.flash) .live-eq-band::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: butReflet 0.7s ease-out both; pointer-events: none;
+}
+/* La bannière du but entre comme un tiers inférieur de télé : elle se
+   découvre de gauche à droite, tient, puis se referme vers la droite. */
+@keyframes banniereVolet {
+  0% { opacity: 1; clip-path: inset(0 100% 0 0 round var(--r-s)); }
+  14% { clip-path: inset(0 0 0 0 round var(--r-s)); }
+  84% { opacity: 1; clip-path: inset(0 0 0 0 round var(--r-s)); }
+  100% { opacity: 1; clip-path: inset(0 0 0 100% round var(--r-s)); }
+}
+#liveModal .live-banniere {
+  left: 0; right: 0; border-radius: var(--r-s);
+  box-shadow: inset 6px 0 0 var(--eq-stripe), inset 0 -3px 0 var(--eq-stripe), var(--ombre-flottante);
+  animation: banniereVolet 1.6s var(--e-sortie) forwards;
+}
+
+/* Le haut du direct : la même tête que l'écran de saison, sans l'aplat du
+   club (on regarde deux clubs, pas le sien). */
+#liveModal .live-top { background: var(--surface-0); border-bottom: 1px solid var(--line); box-shadow: inset 0 1px 0 var(--filet-lumiere); }
+#liveModal .live-onglets button { font-size: 14px; letter-spacing: 0.12em; }
+
+/* LE FIL. Des rangées régulières, l'heure en chiffres de montre, un aplat
+   d'un ton pour les jeux marquants ; les fins de période sont des
+   séparateurs, pas des jeux. */
+#liveModal .live-feed { gap: 3px; }
+#liveModal .live-ligne { padding: 7px 12px; border-radius: var(--r-xs); }
+#liveModal .live-ligne.arret { background: color-mix(in srgb, var(--eq-band, transparent) 10%, var(--surface-1)); }
+#liveModal .live-ligne.debut, #liveModal .live-ligne.periode, #liveModal .live-ligne.fin { background: var(--surface-0); box-shadow: inset 0 1px 0 var(--filet-lumiere); }
+#liveModal .live-ligne.but { border-radius: var(--r-s); box-shadow: inset 4px 0 0 var(--eq-stripe, transparent), inset 0 -2px 0 var(--eq-stripe, transparent); }
+#liveModal .live-tps { font-variant-numeric: tabular-nums; }
+
+/* Les commandes du direct : une barre d'outils sur la surface la plus basse. */
+#liveModal .live-controls { background: var(--surface-0); border-top: 1px solid var(--line); }
+#liveModal .live-controls .btn { transition: transform var(--t-lent) var(--e-ressort), filter var(--t-vite); }
+#liveModal .live-controls .btn:active:not(:disabled) { transform: scale(0.96); }
+
+/* ---------------------------------------------------------------
+   7. LES TABLEAUX, DENSES À LA FM. Rangées zébrées (opaques : une colonne
+   collée passe par-dessus), en-têtes en petites capitales sur la surface la
+   plus basse, chiffres alignés, TA rangée à l'accent avec un repère au
+   flanc, la ligne des séries en filet d'accent.
+
+   Les en-têtes COLLENT au bureau, où le volet est ce qui défile et où les
+   tableaux tiennent en largeur. Au téléphone, un classement de douze
+   colonnes dans 360 px doit défiler en x DANS SA BOÎTE — et une boîte qui
+   défile en x devient aussi le repère d'un `sticky` vertical, donc l'en-tête
+   n'y collerait à rien : ce sont le rang et l'équipe qui collent, à gauche,
+   pour qu'une rangée se suive du doigt jusqu'aux dix derniers matchs. (Avant
+   S77, `overflow: hidden` coupait « Séq. » et « 10 derniers » au téléphone,
+   sans moyen de les atteindre.)
+   --------------------------------------------------------------- */
+.hub-volet .live-tableau table { font-size: 13px; }
+.hub-volet .live-tableau thead th {
+  background: var(--surface-0);
+  font-size: var(--etiquette-taille); letter-spacing: 0.12em;
+  padding: 8px 8px 7px; border-bottom: 1px solid var(--line);
+}
+.hub-volet .live-tableau tbody td { background: var(--bg); border-bottom: 0; padding: 6px 8px; height: 30px; }
+/* Le nom redevient une CELLULE. En `display: flex` (pour aligner l'écusson),
+   la case sortait du modèle de tableau : son fond ne suivait plus le zèbre,
+   la ligne des séries s'y interrompait, et une colonne collée n'y collait
+   pas. L'écusson s'aligne aussi bien en ligne. */
+.hub-volet .live-tableau td.nom { display: table-cell; vertical-align: middle; }
+.hub-volet .live-tableau td.nom > .team-logo-img, .hub-volet .live-tableau td.nom > .team-logo-inline { vertical-align: -3px; margin-right: 5px; }
+.hub-volet .live-tableau tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--text) 3.5%, var(--bg)); }
+.hub-volet .live-tableau tbody tr:hover td { background: color-mix(in srgb, var(--text) 7%, var(--bg)); }
+.hub-volet .live-tableau tbody tr.toi td { background: color-mix(in srgb, var(--gold) 14%, var(--bg)); color: var(--text); font-weight: 700; }
+.hub-volet .live-tableau tbody tr.toi td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+.hub-volet .live-tableau tbody tr.toi .heros { color: var(--gold); }
+.hub-volet .live-tableau .heros { font-family: var(--display); font-size: 15px; }
+.hub-volet .live-tableau tr.cut td { border-bottom: 2px solid color-mix(in srgb, var(--gold) 70%, transparent); }
+.hub-volet .live-tableau-titre { font-size: 12.5px; letter-spacing: 0.14em; }
+
+@media (max-width: 1199.98px) {
+  .hub-volet .hub-classement { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+  .hub-classement th:nth-child(-n+2), .hub-classement td:nth-child(-n+2),
+  .hub-volet .hub-scroll th:nth-child(-n+2), .hub-volet .hub-scroll td:nth-child(-n+2) { position: sticky; z-index: 1; }
+  .hub-classement th:nth-child(1), .hub-classement td:nth-child(1),
+  .hub-volet .hub-scroll th:nth-child(1), .hub-volet .hub-scroll td:nth-child(1) { left: 0; min-width: 30px; }
+  .hub-classement th:nth-child(2), .hub-classement td:nth-child(2),
+  .hub-volet .hub-scroll th:nth-child(2), .hub-volet .hub-scroll td:nth-child(2) { left: 30px; box-shadow: 1px 0 0 var(--line); }
+  .hub-volet .live-tableau tbody tr.toi td:nth-child(2) { box-shadow: 1px 0 0 var(--line); }
+}
+@media (min-width: 1200px) {
+  .hub-volet .live-tableau, .hub-volet .hub-scroll { overflow: visible; }
+  .hub-volet .live-tableau thead th { position: sticky; top: 0; z-index: 2; }
+}
+
+/* Les tableaux du bilan (`table.data`) : la même lecture, zébrée. */
+table.data tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--text) 3%, transparent); }
+table.data tbody tr:hover td { background: color-mix(in srgb, var(--text) 6%, transparent); }
+table.data tr.you td { background: color-mix(in srgb, var(--gold) 12%, transparent); }
+table.data tr.you td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+table.data thead th { font-family: var(--display); font-weight: 700; letter-spacing: 0.12em; }
+
+/* TES MATCHS (« Ma fiche ») : une liste dense, zébrée, le résultat en
+   pastille — V, D, DP — comme la forme des tuiles. */
+.hub-jeux { gap: 0; border-radius: var(--r-s); overflow: hidden; box-shadow: 0 0 0 1px var(--line-soft); }
+.hub-jeu { border: 0; border-radius: 0; min-height: 40px; padding: 7px 12px; background: var(--bg); transition: background var(--t-vite); }
+.hub-jeu:nth-child(even) { background: color-mix(in srgb, var(--text) 3.5%, var(--bg)); }
+.hub-jeu:hover, .hub-jeu:focus-visible { background: color-mix(in srgb, var(--text) 8%, var(--bg)); }
+.hub-jeu.v, .hub-jeu.d { border-left: 0; }
+.hub-jeu-res { display: inline-grid; place-items: center; min-width: 28px; height: 22px; border-radius: var(--r-xs); font-size: 13px; }
+.hub-jeu.v .hub-jeu-res { background: var(--green); color: color-mix(in srgb, var(--green) 18%, #000); }
+.hub-jeu.d .hub-jeu-res { background: var(--live); color: #fff; }
+.hub-jeu.d:has(> em) .hub-jeu-res { background: var(--orange); color: color-mix(in srgb, var(--orange) 15%, #000); }
+.hub-jeu.or { box-shadow: inset 3px 0 0 var(--or-trophee); }
+
+/* LES AUTRES MATCHS DE LA JOURNÉE : des mini-bandeaux, le gagnant en clair. */
+.cal-match { background: var(--surface-1); border-radius: var(--r-s); box-shadow: inset 0 1px 0 var(--filet-lumiere); padding: 7px 10px; }
+.cal-match.toi { border-color: transparent; box-shadow: inset 0 1px 0 var(--filet-lumiere), inset 0 0 0 1px var(--gold); }
+.cal-eq b { font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------
+   8. LE BILAN, UN GÉNÉRIQUE DE FIN. La fiche se compte (js/mouvement.js),
+   le bandeau dit le verdict, la bande des six chiffres parle en étiquettes.
+   Premier de la ligue : le laiton du trophée, pas l'accent du club.
+   --------------------------------------------------------------- */
+#game .result {
+  background: var(--surface-1); border: 0;
+  box-shadow: inset 0 3px 0 var(--team-line), inset 0 4px 0 var(--filet-lumiere);
+}
+.hero-band {
+  font-family: var(--display); font-size: 13px; letter-spacing: 0.14em;
+  padding: 5px 14px; border-radius: var(--r-xs);
+}
+.hero-band.or { background: var(--or-trophee); color: #191206; }
+.result .score { font-size: 76px; line-height: 1; letter-spacing: 0; }
+.result .score.perfect { color: var(--or-trophee); }
+.rs-cell .k { font-family: var(--display); font-weight: 700; font-size: var(--etiquette-taille); letter-spacing: 0.14em; }
+.result-actions .btn { min-height: 48px; transition: transform var(--t-lent) var(--e-ressort), filter var(--t-vite); }
+.result-actions .btn:active:not(:disabled) { transform: scale(0.96); }
+.result-section > h3 { font-size: 14px; letter-spacing: 0.14em; }
+@media (max-width: 479.98px) { .result .score { font-size: 64px; } }
+
+/* ---------------------------------------------------------------
+   9. LES MODALES ET LES CHOIX EN PLEIN ÉCRAN : le cadre, pas les cartes.
+   Une modale FLOTTE — c'est la seule couche qui a droit à l'ombre douce —
+   sur un voile qui floute le jeu. La tête d'un choix porte un filet
+   d'accent et son icône dans une case ; une option est une tuile.
+   --------------------------------------------------------------- */
+.modal-backdrop:not(.live) {
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(8px) saturate(1.1);
+}
+.modal-sheet {
+  background: var(--surface-1); border: 0;
+  box-shadow: var(--ombre-flottante), inset 0 1px 0 var(--filet-lumiere);
+}
+.modal-header {
+  background: transparent; border-bottom: 1px solid var(--line-soft);
+  padding: var(--esp-3) var(--esp-4);
+  box-shadow: inset 0 3px 0 var(--gold);
+}
+.modal-header h2 { font-size: 20px; letter-spacing: 0.1em; }
+.close-btn { background: var(--surface-2); border-color: transparent; transition: color var(--t-vite), background var(--t-vite), transform var(--t-lent) var(--e-ressort); }
+.close-btn:hover { background: var(--surface-3); border-color: transparent; }
+.close-btn:active { transform: scale(0.9); }
+
+.choix-modal { background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px) saturate(1.1); }
+.choix-tete { box-shadow: inset 0 3px 0 var(--gold); padding: var(--esp-4) var(--esp-4) var(--esp-3); }
+.choix-ico {
+  flex: none; display: grid; place-items: center;
+  width: 46px; height: 46px; border-radius: var(--r-s);
+  background: var(--surface-2); box-shadow: inset 0 1px 0 var(--filet-tuile);
+  font-size: 26px;
+}
+.choix-titre { font-size: 22px; letter-spacing: 0.05em; }
+.choix-irl { letter-spacing: 0.1em; }
+.choix-corps { padding: var(--esp-4); }
+@media (min-width: 1000px) {
+  .choix-sheet { background: var(--surface-1); box-shadow: var(--ombre-flottante), inset 0 1px 0 var(--filet-lumiere); overflow: hidden; }
+}
+/* Une option de choix (pas une carte) : une tuile qui s'ouvre. */
+.choix-option {
+  border: 0; background: var(--surface-2);
+  box-shadow: inset 0 1px 0 var(--filet-tuile);
+  transition: background var(--t-vite), box-shadow var(--t-vite), transform var(--t-lent) var(--e-ressort);
+}
+.choix-option:hover:not([disabled]), .choix-option:focus-visible {
+  background: var(--surface-3);
+  box-shadow: inset 0 1px 0 var(--filet-tuile), inset 0 0 0 1px var(--gold);
+}
+.choix-option:active:not([disabled]) { transform: scale(0.98); }
+.choix-plus-tard { align-self: center; min-width: 200px; }
+
+/* ---------------------------------------------------------------
+   10. L'ÉCRAN « NOUVELLE PARTIE ». Le balisage ne change pas (il deviendra
+   une étape derrière le menu de départ) : une feuille premium, des réglages
+   qui se lisent comme des groupes, le verbe en grand dans le pied.
+   --------------------------------------------------------------- */
+#partieModal .modal-sheet { max-width: 620px; }
+#partieModal .modal-header h2 { font-size: 22px; }
+.np-body { gap: var(--esp-3); }
+.np-body .opt-row { padding-bottom: var(--esp-3); }
+.np-body .opt-text strong {
+  font: 800 14px/1.1 var(--display); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--sub);
+}
+.np-body .seg { background: var(--surface-0); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35); }
+.np-body .seg button { transition: background var(--t-vite), color var(--t-vite), transform var(--t-lent) var(--e-ressort); }
+.np-body .seg button:active:not(:disabled) { transform: scale(0.96); }
+.np-body .seg button.on { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 2px 8px rgba(0, 0, 0, 0.35); }
+.np-body .opt-select { background: var(--surface-2); }
+.np-aide { background: var(--surface-2); border-color: transparent; box-shadow: inset 0 1px 0 var(--filet-tuile); }
+.np-pied { background: var(--surface-0); border-top: 1px solid var(--line); padding: var(--esp-3) var(--esp-4); }
+.np-go {
+  min-height: 54px; min-width: 164px; border-radius: var(--r-s);
+  font-size: 20px; letter-spacing: 0.1em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform var(--t-lent) var(--e-ressort), filter var(--t-vite);
+}
+.np-go:active:not(:disabled) { transform: scale(0.96); }
+
+/* ---------------------------------------------------------------
+   11. LE TOAST GLISSE : il monte avec le ressort, sur une surface de verre.
+   --------------------------------------------------------------- */
+.toast {
+  background: color-mix(in srgb, var(--surface-2) 94%, transparent);
+  backdrop-filter: blur(12px);
+  border-color: color-mix(in srgb, var(--team-accent) 60%, transparent);
+  box-shadow: var(--ombre-flottante);
+  transform: translate(-50%, 18px) scale(0.96);
+  transition: opacity 0.2s, transform 0.34s var(--e-ressort);
+}
+.toast.on { transform: translate(-50%, 0) scale(1); }
+
+/* ---------------------------------------------------------------
+   12. LE MOUVEMENT RÉDUIT COUPE TOUT CE QUE CE BLOC ANIME : les chiffres
+   s'affichent tels quels (js/mouvement.js le lit aussi), les volets
+   apparaissent, le but s'allume sans rouler ni balayer.
+   --------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .hub-volet.volet-entre, .page:not([hidden]),
+  .live-board .live-eq-buts.flash, .live-board .live-eq-buts.flash > b,
+  .live-board .live-eq:has(.live-eq-buts.flash) .live-eq-band::after,
+  #liveModal .live-banniere { animation: none !important; }
+  .tuile, .tuile-jauge > span, .capgauge .fill, .toast, .btn-prime, .btn-second,
+  .choix-option, .np-go, .close-btn, .icon-btn, #hubModal .hub-actions .btn,
+  .result-actions .btn, #liveModal .live-controls .btn { transition: none !important; }
+}
+/* L'affiche d'un match joué s'ouvre sur son sommaire : l'anneau dit qu'elle se touche. */
+.hub-board[data-sommaire]:hover, .hub-board[data-sommaire]:focus-visible { box-shadow: 0 0 0 1px var(--ui-accent), inset 0 1px 0 var(--filet-lumiere); }
