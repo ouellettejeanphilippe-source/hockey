@@ -64,13 +64,19 @@ export const brille = r => r === 'rare' || r === 'legendaire';
 export function carteHtml(c) {
   const r = RARETES[c.rarete] ? c.rarete : 'commune';
   const R = RARETES[r];
-  if (c.joueurHtml) return `<button type="button" class="choix-option tc tc-${r} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
+  /*
+   * UN JOUEUR OFFERT NE SE PREND PAS D'UN TOUCHER (S78). JP : *si je clique sur
+   * carte, pas automatiquement la choisir si pas cliqué sur signer*. La carte
+   * se TOUCHE pour voir la fiche (`data-apercu`) ; le bouton « Signer » (ou
+   * « Garder », « Choisir ») est le seul qui choisit (`data-choix`).
+   */
+  if (c.joueurHtml) return `<div class="choix-option tc tc-${r} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-apercu="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' aria-disabled="true"' : ''}>
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
-    ${c.joueurHtml}
+    <span class="tcj-carte" role="button" tabindex="0" title="Voir sa fiche">${c.joueurHtml}</span>
     ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tcj-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
     ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
-    ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : ''}
-  </button>`;
+    ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : `<button type="button" class="btn tcj-signer" data-choix="${c.cle}">${c.motChoixHtml || 'Signer'}</button>`}
+  </div>`;
   return `<button type="button" class="choix-option tc tc-${r}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
     ${brille(r) ? '<span class="tc-holo" aria-hidden="true"></span>' : ''}
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}

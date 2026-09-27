@@ -37,7 +37,9 @@ async function regler() {
     // Une main de palier (des cartes .tc) : la première carte jouable.
     const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])');
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
-    if (await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])')) { await choix(); continue; }
+    // Un joueur offert (S78) : « Signer », puis « qui sort ? » se règle comme un choix.
+    if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
+    if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     const t = await page.$('#hubModal .hub-traiter');
     if (t) { const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]'); await (d || t).click(); await page.waitForTimeout(400); continue; }
     return;
@@ -68,7 +70,11 @@ await page.waitForTimeout(600);
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
 const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.map(x => (x.querySelector('.tc-nom, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
 console.log(`3. le pack : ${offres.join(' · ')}`);
-await page.click('#choixModal:not([hidden]) .choix-option.tc');
+// Toucher la carte montre sa fiche ; « Signer » la prend, puis on choisit qui sort (S78).
+await page.click('#choixModal:not([hidden]) .tcj-signer');
+await page.waitForSelector('#choixModal:not([hidden]) .choix-option.avec-visage', { timeout: 10000 });
+await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
+await page.click('#choixModal:not([hidden]) .choix-option.avec-visage');
 await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
 await page.waitForTimeout(800);
 const apres = (await page.textContent('#hubModal .hub-boutique')).trim();

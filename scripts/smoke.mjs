@@ -68,6 +68,17 @@ async function passerIdentite() {
  * on DIT si on l'a vu plutôt que de l'exiger (le rejeu est exigé dans
  * check_ballottage.mjs).
  */
+/*
+ * UN JOUEUR OFFERT SE SIGNE, PUIS ON CHOISIT QUI SORT (S78). Toucher sa carte
+ * ouvre sa fiche (un aperçu) : c'est « Signer » qui le prend, puis « qui sort ? »
+ * — le parcours prend le premier proposé (un réserviste de sa position).
+ */
+async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
+  await _click(`${portee} .tcj-signer`);
+  await _wait('#choixModal:not([hidden]) .choix-option.avec-visage', { timeout: 5000 });
+  await page.waitForTimeout(200);
+  await _click('#choixModal:not([hidden]) .choix-option.avec-visage');
+}
 const ballottage = { fait: false, mot: null };
 /*
  * LA BOÎTE DE RÉCEPTION (S78). JP : *faire une boîte de réception et forcer
@@ -93,7 +104,7 @@ async function prendrePalier() {
   // Le deuxième choix d'une carte du deck (le joueur, le rôle, l'édition…).
   for (let k = 0; k < 3; k++) {
     await page.waitForTimeout(350);
-    if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .choix-option:not([disabled])'))) break;
+    if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, button.choix-option:not([disabled]))'))) break;
   }
   // Après la carte : le hub, ou un autre plein écran (un sommaire, un choix, la main suivante).
   await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-suite, #choixModal:not([hidden]) .choix-sheet, .result .score', { timeout: 120000 });
@@ -146,7 +157,7 @@ async function guetterBallottage() {
   await ouvrir.click();
   await _wait('#choixModal:not([hidden]) .choix-option', { timeout: 5000 });
   const qui = ((await page.textContent('#choixModal .choix-option')) || '').replace(/\s+/g, ' ').trim();
-  await _click('#choixModal .choix-option');
+  await signerPuisSortir();
   await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
   await page.waitForTimeout(350);
   const apres = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
@@ -281,6 +292,8 @@ async function repondreAuxChoix() {
       await page.waitForTimeout(200);
       return;
     }
+    if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await signerPuisSortir(); await page.waitForTimeout(350); continue; }
+    if (await page.$('#choixModal:not([hidden]) .choix-option.avec-visage')) { await _click('#choixModal:not([hidden]) .choix-option.avec-visage'); await page.waitForTimeout(350); continue; }
     const titre = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
     const genre = /proprio|objectif/i.test(titre) ? 'hub-proprio' : /de suite/i.test(titre) ? 'hub-sequence' : 'hub-dilemme';
     const sansPuce = await page.$$eval('#choixModal .choix-option', els => els.filter(e => !e.querySelector('.puce')).length);
@@ -1306,7 +1319,7 @@ async function traverserSaison(etiquette, reprise = false) {
           const nb = await page.$$eval('#choixModal .choix-option:not([disabled])', e => e.length);
           // L'atelier (S78) demande l'édition, PUIS le joueur : on fait chaque choix qui s'ouvre.
           for (let k = 0; k < 3; k++) {
-            const o = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .choix-option:not([disabled])');
+            const o = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, button.choix-option:not([disabled]))');
             if (!o || !(await o.isVisible())) break;
             await o.click();
             await page.waitForTimeout(400);

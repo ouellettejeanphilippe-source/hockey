@@ -9229,3 +9229,39 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .cj-recto.n-fondu .cj-bandeau { position: relative; z-index: 3; margin-top: -14px; }
 .cj-recto.cj-mini-carte.n-fondu .cj-bandeau { margin-top: -9px; }
 .cj-recto.cj-mini-carte.n-diagonale .cj-bandeau { min-height: 46px; padding-top: 9px; }
+
+/* UN JOUEUR OFFERT (S78) : la carte se touche pour sa fiche, « Signer » le prend. */
+.tcj-carte { display: block; cursor: zoom-in; border-radius: 10px; }
+.tcj-carte:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+.tcj-signer { width: 100%; min-height: 38px; margin-top: auto; font: 800 14px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; background: var(--gold); color: var(--sur-or, #1b1305); border: 0; border-radius: 8px; }
+.choix-option.tc.tc-joueur { cursor: default; }
+.choix-option.tc.tc-joueur[aria-disabled="true"] { filter: grayscale(0.8); opacity: 0.55; }
+/* La fiche d'un joueur offert s'ouvre PAR-DESSUS le choix. */
+#hockeyCardModal.au-dessus { z-index: 120; }
+/* Qui sort ? : le visage de chacun, devant son nom. */
+.choix-option.avec-visage { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 10px; align-items: center; }
+.choix-option.avec-visage > :not(.choix-option-visage) { grid-column: 2; }
+.choix-option-visage { grid-row: 1 / span 4; position: relative; width: 44px; height: 44px; border-radius: 8px; overflow: hidden; background: var(--panel-2); }
+.choix-option-visage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.choix-option-visage > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; opacity: 0.4; }
+
+/* =================================================================
+   LA CASE DE L'ALIGNEMENT : SON VISAGE, SES POSITIONS (S78)
+   JP : *visage dans alignement* ; *voir position du joueur possible, pas
+   position de l'alignement, c'est mélangeant*. La pastille de la bande dit
+   ce que le JOUEUR peut jouer (« C / AG ») — la case se lit à sa place dans
+   le trio. Le nom garde toute la largeur ; dessous, le visage à gauche, la
+   fiche et les verdicts à droite. La case garde sa hauteur.
+   ================================================================= */
+.slot.cj-case .slot-inner { display: grid; grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "nom nom" "visage faits" "visage tags"; column-gap: 6px; row-gap: 2px; align-content: start; }
+.slot.cj-case .slot-name { grid-area: nom; }
+.slot.cj-case .slot-visage { grid-area: visage; position: relative; width: 34px; height: 34px; border-radius: 6px; overflow: hidden; align-self: start; background: color-mix(in srgb, var(--slot-band, #243044) 55%, #0a0c10); }
+.slot.cj-case .slot-visage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.slot.cj-case .slot-visage > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 18px; opacity: 0.4; }
+.slot.cj-case .slot-faits { grid-area: faits; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot.cj-case .slot-tags { grid-area: tags; margin-top: 0; min-width: 0; }
+
+/* La pastille dit ses positions (« AG / AD ») : elle se serre, et le salaire ne se coupe jamais. */
+.slot.cj-case .slot-band .sb-role { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 4px; padding-right: 4px; letter-spacing: 0; }
+.slot.cj-case .slot-band .sb-logo { flex: none; }
+.slot.cj-case .slot-band .slot-salary { flex: none; white-space: nowrap; }
