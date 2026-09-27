@@ -270,7 +270,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       // DEUX PUNIS TIENNENT AU TABLEAU (S46) : le cinq contre trois se lit.
       for (const pen of eq.penalites) {
         const qui = pen.p ? nomCourt(pen.p) : pen.role;
-        const n = 5 - eq.penalites.length;
+        // En prolongation la punie reste à trois ; c'est l'autre qui ajoute un patineur (S75b).
+        const n = m.prolongation ? 3 : 5 - eq.penalites.length;
         out.push(`<span class="tb-cachot" title="${esc(eq.nom)} joue à ${n} : ${esc(qui)} est au cachot pour ${pen.tours} tour${pen.tours > 1 ? 's' : ''}. Un but marqué contre l'équipe punie libère le premier.">⚠ ${esc(qui)} · ${pen.tours}</span>`);
       }
     }

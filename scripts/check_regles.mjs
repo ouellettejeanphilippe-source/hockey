@@ -54,6 +54,7 @@ for (const f of fs.readdirSync(path.join(ROOT, 'data', 'seasons')).filter(x => x
 /* ======================================================================
    LES RÈGLES, une par fonction, chacune énonçable en une phrase.
    ====================================================================== */
+const avantagesEnProlongation = new Set();   // les matchs où la prolongation a vu un avantage numérique (S75b)
 const REGLES = [
   ['cinq patineurs et un gardien par équipe', m => {
     for (const cote of ['A', 'B']) {
@@ -65,9 +66,31 @@ const REGLES = [
        * prolongation, et le cachot qui peut tenir DEUX punis (le cinq contre
        * trois). Une équipe ne descend jamais sous trois patineurs.
        */
-      const base = (m.prolongation ? ROLES_PROLONGATION.length : 5) + (eq.desert ? 1 : 0);
-      const attendu = Math.max(base - eq.penalites.length, base === 3 ? 2 : 3);
-      if (eq.pieces.length !== attendu) return `${cote} a ${eq.pieces.length} patineurs (attendu ${attendu}${eq.penalites.length ? `, ${eq.penalites.length} puni(s)` : ''}${m.prolongation ? ', prolongation' : ''})`;
+      /*
+       * EN PROLONGATION, LA RÈGLE DE LA VRAIE LIGUE (S75b) : la punie reste à
+       * trois, l'autre ajoute un patineur par puni d'en face ; un puni qui
+       * rentre fait du quatre contre quatre jusqu'au sifflet (`revenus`, remis
+       * à zéro par la mise au jeu). Donc au moins trois, et au plus trois plus
+       * les punis d'en face, plus les rentrés des deux côtés.
+       */
+      if (m.prolongation) {
+        const adv = eqDe(m, cote === 'A' ? 'B' : 'A');
+        const rentres = (adv.revenus || 0) + (eq.revenus || 0);
+        if (!rentres) {
+          // Personne n'est rentré depuis la mise au jeu : le compte est EXACT.
+          const attendu = Math.min(ROLES_PROLONGATION.length + adv.penalites.length, 5) + (eq.desert ? 1 : 0);
+          if (eq.pieces.length !== attendu) return `${cote} a ${eq.pieces.length} patineurs en prolongation (attendu ${attendu} : ${adv.penalites.length} puni(s) d'en face, ${eq.penalites.length} des siens)`;
+          if (adv.penalites.length) avantagesEnProlongation.add(m);
+        } else {
+          const plancher = ROLES_PROLONGATION.length + (eq.desert ? 1 : 0);
+          const plafond = Math.min(ROLES_PROLONGATION.length + adv.penalites.length + rentres, 5) + (eq.desert ? 1 : 0);
+          if (eq.pieces.length < plancher || eq.pieces.length > plafond) return `${cote} a ${eq.pieces.length} patineurs en prolongation (attendu ${plancher} à ${plafond}, ${rentres} rentré(s) du cachot)`;
+        }
+      } else {
+        const base = 5 + (eq.desert ? 1 : 0);
+        const attendu = Math.max(base - eq.penalites.length, 3);
+        if (eq.pieces.length !== attendu) return `${cote} a ${eq.pieces.length} patineurs (attendu ${attendu}${eq.penalites.length ? `, ${eq.penalites.length} puni(s)` : ''})`;
+      }
       if (eq.penalites.length > 2) return `${cote} a ${eq.penalites.length} punis à la fois`;
       for (const pen of eq.penalites) if (pen.tours < 0 || pen.tours > PUNITION_TOURS) return `${cote} : punition de ${pen.tours} tours`;
       if (!eq.piece_g) return `${cote} n'a pas de gardien`;
@@ -335,6 +358,7 @@ for (const [nomRegle] of REGLES.concat([['on ne tire que de la zone offensive (o
 console.log(`\nDÉROULEMENT`);
 console.log(`  matchs jamais terminés      ${jamaisFinis}`);
 console.log(`  matchs allés en prolongation ${matchsAvecOT} (${(100 * matchsAvecOT / MATCHS).toFixed(0)} %)`);
+console.log(`  avantage en prolongation    ${avantagesEnProlongation.size} match(s) — la punie reste à trois, l'autre ajoute un patineur (la règle de la LNH)`);
 console.log(`  activations par match        ${(presencesTotal / MATCHS).toFixed(1)} (une main à la fois, en alternance ; ${PERIODES} × ${POSSESSIONS_PAR_PERIODE} possessions, ${PRESENCES_PAR_PERIODE} tours au plus par période)`);
 console.log(`  gestes joués                 ${Object.entries(parType).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / gestesTotal).toFixed(0)} %`).join(' · ')}`);
 /* CHAQUE GESTE DOIT ÊTRE JOUÉ AU MOINS UNE FOIS : un geste que personne

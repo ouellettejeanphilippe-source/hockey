@@ -781,8 +781,19 @@ export const PERIODES = 3;
  * est le pointage le plus fréquent du plateau, le blanchissage redevient
  * possible, et 4 % des fiches dépassent encore six — permis, pas ordinaire.
  * Le prix est la longueur du match : 9,3 tirs par équipe au lieu de 15,8.
+ *
+ * TREIZE (S75b). Les passages de S54 à S75 ont fait descendre douze à 2,81
+ * buts par équipe (le moteur défend mieux qu'en S45). Proposé à JP — *go* —
+ * et mesuré par `check_table` dans les mêmes conditions :
+ *
+ *   possessions   buts   pointages les plus fréquents           blanchissages   1er/10e
+ *        12       2,81   3-2 (11 %), 4-2 (9 %), 4-1 (8 %)            6,5 %          77
+ *        13       2,98   3-2 (12 %), 2-1 (10 %), 3-1 (9 %)           3,3 %          81
+ *
+ * Le 3-2 reste le pointage du plateau, et un cran de talent se voit un peu
+ * plus (un match plus long est un plus gros échantillon).
  */
-export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 12;
+export const POSSESSIONS_PAR_PERIODE = Number(MESURE.POSS) || 13;
 /*
  * LA PROLONGATION EST COURTE, pour que la FUSILLADE existe. À huit
  * possessions et trois contre trois, la glace est si ouverte que quelqu'un
@@ -822,6 +833,28 @@ export const PROLONGATIONS_MAX = 1;
 export const ROLES_PROLONGATION = ['C', 'AG', 'DG'];
 /** Les rôles qu'une équipe habille en ce moment : cinq, ou trois en prolongation. */
 export const rolesEnJeu = m => (m && m.prolongation ? ROLES_PROLONGATION : null);
+/*
+ * PUNI EN PROLONGATION, C'EST L'AUTRE QUI AJOUTE UN JOUEUR (S75b). JP : *nhl
+ * adds a player when a penalty in overtime*. La règle de la vraie ligue : à
+ * trois contre trois, l'équipe punie reste à TROIS (un autre prend la place
+ * du puni) et l'autre passe à QUATRE — à cinq si deux punis. Le plateau
+ * retirait le puni : trois contre deux, ou — quand le puni était un rôle
+ * qui ne joue pas la prolongation — trois contre trois, sans avantage du
+ * tout (`check_regles`, match 65, quand le tempo est passé à treize).
+ *
+ * Quand la punition finit, le puni rentre et on joue à quatre contre quatre
+ * jusqu'au prochain sifflet (`eq.revenus`), puis la mise au jeu ramène le
+ * trois contre trois — comme dans la vraie ligue.
+ *
+ * Les rôles s'ajoutent dans cet ordre : le deuxième défenseur, puis l'autre ailier.
+ */
+export const ORDRE_PROLONGATION = ['C', 'AG', 'DG', 'DD', 'AD'];
+export function rolesEnJeuDe(m, eq) {
+  if (!m || !m.prolongation) return null;
+  const autre = eqDe(m, adverse(eq.cote));
+  const n = Math.min(ROLES_PROLONGATION.length + autre.penalites.length, ORDRE_PROLONGATION.length);
+  return ORDRE_PROLONGATION.filter(r => !eq.penalites.some(x => x.role === r)).slice(0, n);
+}
 
 /* Les cinq cases d'une unité, et l'unité de chaque groupe. */
 const CASES_F = ['AG', 'C', 'AD'];
@@ -1038,10 +1071,13 @@ function poser(eq, evite = null, point = MJ_CENTRE, permis = null) {
     for (const x of autre.pieces || []) prises.add(`${x.r},${x.c}`);
   }
   eq.pieces = [];
+  eq.revenus = 0;   // les punis rentrés depuis la dernière mise au jeu (prolongation : le quatre contre quatre)
   for (const { role, p } of unite) {
     // AU CACHOT (S38) : le rôle puni ne saute pas, l'équipe joue à quatre.
     if (eq.penalites.some(x => x.role === role)) continue;
-    if (permis && !permis.includes(role)) continue;   // trois contre trois (S46)
+    // En prolongation, les rôles de CETTE équipe (`rolesEnJeuDe`) : trois, et
+    // un de plus par puni d'en face.
+    if (permis && !permis.includes(role)) continue;
     // LES PLACES SUIVENT LE POINT (S45) : les mêmes écarts qu'au centre,
     // ramenés dans la glace — en fond de zone, la ligne des buts est là et
     // un défenseur à quatre rangées derrière le point sortirait du monde.
@@ -1506,8 +1542,7 @@ function miseAuJeu(m, mot, point = MJ_CENTRE) {
   // La glace QUAND l'arbitre a sifflé, avant que tout le monde se replace (S74).
   const photo = photoDe(m);
   m.pointMJ = point;
-  const permis = rolesEnJeu(m);
-  poser(m.A, null, point, permis); poser(m.B, m, point, permis);
+  poser(m.A, null, point, rolesEnJeuDe(m, m.A)); poser(m.B, m, point, rolesEnJeuDe(m, m.B));
   const cA = m.A.pieces.find(x => x.role === 'C') || m.A.pieces[0];
   const cB = m.B.pieces.find(x => x.role === 'C') || m.B.pieces[0];
   // Le maniement ET la force : on gagne une mise au jeu des mains et du corps (S39).
@@ -2615,7 +2650,9 @@ function punir(m, piece, jet) {
   eq.pieces = eq.pieces.filter(x => x !== piece);
   if (porteur(m) === piece) rebondir(m, piece.r, piece.c, { genre: 'banc' });
   m.main.mobiles = m.main.mobiles.filter(x => x !== piece);
-  dire(m, `PUNITION — ${nomDe(piece)} va au cachot pour ${PUNITION_TOURS} tours. ${eq.nom} joue à quatre.`, 'punition');
+  dire(m, m.prolongation
+    ? `PUNITION — ${nomDe(piece)} va au cachot pour ${PUNITION_TOURS} tours. En prolongation, ${eqDe(m, adverse(eq.cote)).nom} ajoute un patineur : ${3 + eq.penalites.length} contre trois.`
+    : `PUNITION — ${nomDe(piece)} va au cachot pour ${PUNITION_TOURS} tours. ${eq.nom} joue à ${5 - eq.penalites.length}.`, 'punition');
   // UN COUP DE SIFFLET (S45) : l'arbitre arrête le jeu, et la mise au jeu se
   // fait DANS LA ZONE de l'équipe punie — l'avantage numérique commence donc
   // là où il vaut quelque chose, comme dans la vraie ligue.
@@ -2627,25 +2664,28 @@ function liberer(m, eq) {
   const pen = eq.penalites.shift();
   if (!pen) return;
   /*
-   * EN PROLONGATION IL NE RENTRE PAS À SON RÔLE. À trois contre trois, le
-   * puni peut être un rôle qui ne saute plus : le remettre faisait jouer son
-   * équipe à QUATRE (mesuré : 8 états sur 865). Il rentre donc au premier
-   * rôle permis qui n'est pas déjà sur la glace, et si tous y sont, il ne
-   * rentre pas — la punition l'a simplement fait manquer la prolongation.
+   * EN PROLONGATION IL RENTRE, ET ON JOUE À QUATRE CONTRE QUATRE jusqu'au
+   * prochain sifflet (S75b, la règle de la vraie ligue — voir
+   * `rolesEnJeuDe`). Son rôle peut déjà être pris par celui qui l'a
+   * remplacé : il rentre alors au premier rôle libre, et `eq.revenus` le
+   * compte jusqu'à la mise au jeu, qui ramène le trois contre trois.
    */
   // L'ATTAQUANT SUPPLÉMENTAIRE NE REVIENT PAS SI LE GARDIEN EST RENTRÉ : sa
   // place n'existe plus. Sans ça il ressortait du cachot en « Rappel » et
   // l'équipe jouait à six avec son gardien.
   if (pen.role === 'X' && !eq.desert) return;
-  const permis = rolesEnJeu(m);
   let role = pen.role;
-  if (permis && !permis.includes(role)) {
-    const dehors = permis.find(x => !eq.pieces.some(y => y.role === x));
-    if (!dehors) return;
-    role = dehors;
+  if (m.prolongation) {
+    const libre = ORDRE_PROLONGATION.find(x => x === role && !eq.pieces.some(y => y.role === x))
+      || ORDRE_PROLONGATION.find(x => !eq.pieces.some(y => y.role === x));
+    if (!libre) return;
+    role = libre;
+    eq.revenus = (eq.revenus || 0) + 1;
   }
   const pen2 = { ...pen, role };
-  const { p } = uniteDe(eq.roster, eq.tri, eq.pai).find(x => x.role === role) || {};
+  let { p } = uniteDe(eq.roster, eq.tri, eq.pai).find(x => x.role === role) || {};
+  // En prolongation c'est LUI qui rentre, dans le rôle libre (S75b) — pas l'homme de ce rôle.
+  if (m.prolongation && pen.p && !eq.pieces.some(y => y.p === pen.p)) p = pen.p;
   const prises = new Set(surLaGlace(m).map(x => `${x.r},${x.c}`));
   // Il sort du cachot par la bande, au centre — c'est là qu'est la porte.
   const [dr, dc] = ECARTS[eq.cote][pen2.role];
@@ -3877,10 +3917,10 @@ export function changerUnite(m, cote, tri, pai) {
   const unite = uniteDe(eq.roster, tri, pai);
   const prises = new Set(surLaGlace(m).map(x => `${x.r},${x.c}`));
   const neuves = [];
-  const permis = rolesEnJeu(m);
+  const permis = rolesEnJeuDe(m, eq);
   for (const { role, p: joueur } of unite) {
     if (eq.penalites.some(x => x.role === role)) continue;
-    if (permis && !permis.includes(role)) continue;   // trois contre trois (S46)
+    if (permis && !permis.includes(role)) continue;   // trois contre trois (S46), plus un par puni d'en face (S75b)
     const ancien = eq.pieces.find(x => x.role === role);
     if (!roles.includes(role) && ancien) { neuves.push(ancien); continue; }
     if (ancien) prises.delete(`${ancien.r},${ancien.c}`);
@@ -3955,7 +3995,7 @@ export function reglesDuPlateau() {
       titre: 'Le match',
       points: [
         `Trois périodes. Une période finit quand la rondelle a changé de camp ${POSSESSIONS_PAR_PERIODE} fois (le compte est sous le pointage).`,
-        `Égalité après trois périodes : prolongation à trois contre trois, ${POSSESSIONS_PROLONGATION} possessions, le premier but gagne. Puis les tirs de barrage.`,
+        `Égalité après trois périodes : prolongation à trois contre trois, ${POSSESSIONS_PROLONGATION} possessions, le premier but gagne. Une punition y fait jouer l'autre équipe à quatre contre trois, comme dans la LNH. Puis les tirs de barrage.`,
         'Tu attaques toujours vers le HAUT.',
         `Deux niveaux. Recrue : l'adversaire ${NIVEAU_RECRUE_MOTS}. Pro : il joue au mieux, comme les matchs que tu ne joues pas.`,
       ],

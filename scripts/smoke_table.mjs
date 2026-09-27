@@ -146,9 +146,16 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
    * 0-0 finir « Prolongation · Terminé », une feuille à 0-0, puis une défaite
    * au tournoi : la fusillade était jouée par le moteur et montrée nulle part.
    * On ouvre le plateau sur un match qui y va — Floride contre Toronto
-   * 2013-14, graine `tb-50`, Pro contre Pro : 3-3, Toronto gagne 2-1 en
-   * quatre tours (cherchée par le moteur, qui la rejoue à l'identique) —
-   * par la couture `preparer`, et on exige le panneau, la barre et la feuille.
+   * 2013-14, Pro contre Pro — par la couture `preparer`, et on exige le
+   * panneau, la barre et la feuille.
+   *
+   * LA GRAINE SE CHERCHE, ELLE NE S'ÉCRIT PAS (S75b). `tb-50` allait en
+   * fusillade à douze possessions ; à treize (JP : *go*), plus du tout. Une
+   * graine écrite en dur casse au prochain réglage du tempo sans qu'une ligne
+   * de l'écran ait bougé. Le test joue donc les graines `tb-0`, `tb-1`…
+   * dans le moteur jusqu'à la première qui va en fusillade, et c'est le
+   * MOTEUR qui dit ce que l'écran doit montrer : le nombre de tours, le
+   * vainqueur et son compte.
    */
   await page.evaluate(async () => {
     const [sim, table, logos, plateau] = await Promise.all([import('/js/sim.js'), import('/js/table.js'), import('/js/logos.js'), import('/js/plateau.js')]);
@@ -156,9 +163,24 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
     const club = t => { const pool = shard.players.filter(p => p.t === t).map(p => ({ ...p })); pool.forEach(sim.registerHiddenRatings); return sim.autoRoster(pool); };
     const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     window.__tb = null;
+    const equipes = () => ({ A: table.equipeDeTable('FLA 2013-14', 'FLA', club('FLA'), 'A'), B: table.equipeDeTable('TOR 2013-14', 'TOR', club('TOR'), 'B') });
+    let graine = null, attendu = null;
+    for (let k = 0; k < 600 && !graine; k++) {
+      const { A, B } = equipes();
+      const m = table.nouveauMatch(A, B, `tb-${k}`);
+      let g = 0; while (!m.fini && g++ < 4000) table.iaPresence(m);
+      if (m.fusillade) {
+        graine = `tb-${k}`;
+        const v = m.fusillade.A > m.fusillade.B ? 'A' : 'B';
+        attendu = { graine, tours: m.fusillade.tours.length, vainqueur: v, tag: v === 'A' ? 'FLA' : 'TOR',
+          compte: `${Math.max(m.fusillade.A, m.fusillade.B)}-${Math.min(m.fusillade.A, m.fusillade.B)}` };
+      }
+    }
+    window.__tbAttendu = attendu;
+    if (!graine) return;
     plateau.ouvrirTable({
-      A: table.equipeDeTable('FLA 2013-14', 'FLA', club('FLA'), 'A'), B: table.equipeDeTable('TOR 2013-14', 'TOR', club('TOR'), 'B'),
-      graine: 'tb-50', titre: 'Essai', sousTitre: 'Les tirs de barrage',
+      ...equipes(),
+      graine, titre: 'Essai', sousTitre: 'Les tirs de barrage',
       ctx: {
         esc, band: logos.getTeamBand, vive: logos.couleurVive, logo: logos.getTeamLogoHtml, niveau: () => 'PRO',
         preparer: m => { let g = 0; while (!m.fini && g++ < 4000) table.iaPresence(m); },
@@ -166,8 +188,10 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
       onTermine: r => { window.__tb = r; },
     });
   });
-  const panneau = await page.waitForSelector('#tableModal .t-barrage:not([hidden])', { timeout: 5000 }).catch(() => null);
-  if (!panneau) errors.push('un match réglé aux tirs de barrage ne montre pas la fusillade sur la glace');
+  const attendu = await page.evaluate(() => window.__tbAttendu);
+  const panneau = attendu ? await page.waitForSelector('#tableModal .t-barrage:not([hidden])', { timeout: 5000 }).catch(() => null) : null;
+  if (!attendu) errors.push('aucune des 600 graines ne va en fusillade entre la Floride et Toronto : la prolongation règle tout ?');
+  else if (!panneau) errors.push('un match réglé aux tirs de barrage ne montre pas la fusillade sur la glace');
   else {
     const tb = await page.evaluate(() => ({
       tours: document.querySelectorAll('#tableModal .t-barrage-tours li').length,
@@ -182,12 +206,12 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
     const rangsTB = feuilleTB ? await page.$$eval('#tableModal .tf-barrage tr', l => l.length) : 0;
     await page.click('#tableModal .t-feuille-suite');
     const r = await page.evaluate(() => window.__tb);
-    console.log(`   tirs de barrage : ${tb.tours} tours, « ${tb.fin.trim()} », la barre dit « ${tb.mot.replace(/\s+/g, ' ').trim()} », la feuille en montre ${rangsTB}`);
-    if (tb.tours !== 4 || !/TOR/.test(tb.fin) || !/2-1/.test(tb.fin)) errors.push(`le panneau de la fusillade dit ${tb.tours} tours et « ${tb.fin} » au lieu de 4 et TOR 2-1`);
+    console.log(`   tirs de barrage (graine ${attendu.graine}) : ${tb.tours} tours, « ${tb.fin.trim()} », la barre dit « ${tb.mot.replace(/\s+/g, ' ').trim()} », la feuille en montre ${rangsTB}`);
+    if (tb.tours !== attendu.tours || !tb.fin.includes(attendu.tag) || !tb.fin.includes(attendu.compte)) errors.push(`le panneau de la fusillade dit ${tb.tours} tours et « ${tb.fin} » au lieu de ${attendu.tours} et ${attendu.tag} ${attendu.compte}`);
     if (!/Tirs de barrage/i.test(tb.periode)) errors.push(`le tableau indicateur dit « ${tb.periode} » après une fusillade`);
-    if (!/TOR/.test(tb.mot)) errors.push('la barre du bas ne dit pas qui a gagné la fusillade');
-    if (rangsTB !== 4) errors.push(`la feuille du match montre ${rangsTB} tour(s) de fusillade au lieu de 4`);
-    if (!r || r.vainqueur !== 'B' || !r.fusillade) errors.push('le match de la fusillade ne rend pas son vainqueur');
+    if (!tb.mot.includes(attendu.tag)) errors.push('la barre du bas ne dit pas qui a gagné la fusillade');
+    if (rangsTB !== attendu.tours) errors.push(`la feuille du match montre ${rangsTB} tour(s) de fusillade au lieu de ${attendu.tours}`);
+    if (!r || r.vainqueur !== attendu.vainqueur || !r.fusillade) errors.push('le match de la fusillade ne rend pas son vainqueur');
   }
 
   // L'exhibition a fermé l'écran « Nouvelle partie » pour laisser la glace : on le rouvre.
@@ -357,6 +381,7 @@ let activationsVues = 0;   // le une-deux ouvert à l'écran (S35) : le bouton �
 let alternances = 0, gesteAvant = false;
 let captureModes = false;
 const vus = new Set();
+let dernierPorteur = null, essaisPorteur = 0;   // le porteur qu'on a choisi exprès (S75b)
 const modesVus = new Set();
 const motsFin = new Set();
 let passerMal = null;
@@ -424,6 +449,13 @@ while (tours++ < 4000) {
     } : null,
     // La pièce choisie porte-t-elle la rondelle ? Le joueur scripté monte alors vers le filet.
     porteur: !!document.querySelector('#tableModal .t-jeton.mienne.choisie .t-rondelle'),
+    // Mon porteur, s'il peut encore jouer et qu'il n'est pas la pièce choisie (S75b).
+    porteurJouable: (() => {
+      const j = [...document.querySelectorAll('#tableModal .t-jeton.mienne')].find(e => e.querySelector('.t-rondelle'));
+      if (!j || j.classList.contains('choisie')) return null;
+      const r = j.style.getPropertyValue('--tr'), c = j.style.getPropertyValue('--tc');
+      return document.querySelector(`#tableModal .t-case.t-jouable[data-r="${r}"][data-c="${c}"]`) ? `${r},${c}` : null;
+    })(),
     jouablesCases: cases('#tableModal .t-case.t-jouable:not(.t-sel)'),
     offresCases: cases('#tableModal .t-case.t-offre'),
     contactsCases: cases('#tableModal .t-case.t-offre-echec'),
@@ -571,6 +603,19 @@ while (tours++ < 4000) {
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.tir) { await page.click('#tableModal [data-geste="tir"]'); gestes++; await page.waitForTimeout(50); continue; }
+  /*
+   * AVEC LA RONDELLE, ON PREND LE PORTEUR (S75b). Le joueur scripté prenait
+   * la première pièce jouable, rarement celle qui porte : sous certaines
+   * graines il ne tirait jamais, et l'assertion « le tir a été offert »
+   * tombait avec le tempo (treize possessions : trois graines sur sept sans
+   * un seul tir offert, pour une carte qui l'offre très bien). Un joueur
+   * qui a la rondelle la joue ; le test aussi. Trois essais au plus sur la
+   * même case, pour ne jamais tourner en rond.
+   */
+  if (etat.porteurJouable && !etat.modeOn) {
+    if (etat.porteurJouable !== dernierPorteur) { dernierPorteur = etat.porteurJouable; essaisPorteur = 0; }
+    if (++essaisPorteur <= 3) { await page.click(caseDe(etat.porteurJouable)); pieces++; await page.waitForTimeout(50); continue; }
+  }
   if (etat.offres && dé() < 0.62) {
     /*
      * LE PORTEUR MONTE (S41). Un patin tiré au sort ne traverse jamais une
