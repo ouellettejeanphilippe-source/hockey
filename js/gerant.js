@@ -35,6 +35,8 @@ import { effetsDesCartes } from './sim.js';
 import { jouerSon } from './sons.js';
 
 const $ = id => document.getElementById(id);
+/* Une phrase qui suit un point commence par une majuscule. */
+const majuscule = s => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /* Les puces d'un effet : vert s'il aide, rouge s'il coûte, gris s'il ne fait que déplacer. */
@@ -91,7 +93,7 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '' } = {}
   const mots = T ? motsDEffet(T).map(m => ({ txt: `${nomAdv} : ${m.txt}`, bon: !m.bon })) : [];
   return `<div class="plan-adv${contre ? ' contre' : ''}">
     <div class="plan-adv-t">${P.ico} Leur plan : <b>${esc(P.nom)}</b>${suite ? ` <small>${esc(suite)}</small>` : ''}</div>
-    <div class="plan-adv-mot">${esc(P.mot)} <b>${esc(reglageDuPlan(cle))}</b>.</div>
+    <div class="plan-adv-mot">${esc(P.mot)} <b>${esc(majuscule(reglageDuPlan(cle)))}</b>.</div>
     ${mots.length ? `<div class="choix-puces">${puces(mots)}</div>` : ''}
     <div class="plan-adv-contre"><b>${contre ? '✓ Tu le contres' : '✗ Pas contré'}</b> · pour le contrer : ${esc(commentContrer(cle))}.</div>
   </div>`;
@@ -157,7 +159,7 @@ export function ouvrirChoix(spec) {
       ${spec.recit ? `<p class="choix-recit">${sub(spec.recit)}</p>` : ''}
       ${spec.joueur ? carteJoueur(spec.joueur) : ''}
       ${spec.contexte || ''}
-      <div class="choix-options${spec.cartes ? ' choix-main donne' : ''}">${spec.options.map((o, i) => {
+      <div class="choix-options${spec.cartes ? ' choix-main donne' : ''}${spec.compact ? ' compact' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
         const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner.
@@ -488,6 +490,10 @@ export function mainAdverseHtml(cartes, { nomAdv = 'Eux' } = {}) {
     return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C))}</span></span>` : '';
   }).join('')}</div></div>`;
 }
+/* Le plan de l'adversaire, replié dans l'écran de la main (S74) : une ligne, et le détail au toucher. */
+export function planReplie(html, resume) {
+  return html ? `<details class="main-plan"><summary>${resume}</summary>${html}</details>` : '';
+}
 /* Une carte de match en option d'`ouvrirChoix` (une récompense, un retrait). */
 export function optionDeCarteMatch(cle) {
   const C = CARTES_MATCH[cle];
@@ -502,7 +508,7 @@ const carteDeMatch = (cle, i, etat) => {
   return carteHtml({
     cle: String(i), rarete: o.rarete, i, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(o.type),
     texteHtml: esc(o.texte), coinHtml: esc(o.coin), pucesHtml: puces(o.mots),
-  }).replace('class="choix-option tc', `class="choix-option tc main-carte${etat ? ` ${etat}` : ''}`);
+  }).replace('class="choix-option tc', `class="choix-option tc main-carte${String(cle).endsWith('+') ? ' plus' : ''}${etat ? ` ${etat}` : ''}`);
 };
 
 /* Combine des effets de match : les facteurs se multiplient, les minutes aussi. */
@@ -525,13 +531,14 @@ function combiner(effets) {
  * début ; « Jouer ces cartes » décide (zéro carte, c'est aussi un choix).
  *
  * spec : { titre, sousTitre, recit, contexte, equipe, main, pioche, deck,
- *          onJouer(jouees, enMain), motJouer }
+ *          ajustements (séries : [{ cle, ico, nom, bon, prix, … }] ou null),
+ *          onJouer(jouees, enMain, ajustement), motJouer }
  */
 export function ouvrirMainDeMatch(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
   if (fermerChoixCourant) fermerChoixCourant(true);
-  let main, pioche, jouees, energie, voirDeck = false;
+  let main, pioche, jouees, energie, voirDeck = false, aj = null;
   const depart = () => { main = spec.main.slice(); pioche = (spec.pioche || []).slice(); jouees = []; energie = ENERGIE_MAIN; };
   depart();
   const joue = new Set();          // les rangs de la main déjà joués
@@ -563,6 +570,11 @@ export function ouvrirMainDeMatch(spec) {
       <div class="choix-corps">
         ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
         ${spec.contexte || ''}
+        ${spec.ajustements ? `<div class="main-ajuste"><div class="gl-k">Ton ajustement pour ce match</div><div class="main-ajuste-rang">${spec.ajustements.map(o => {
+          const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
+          const mots = [...motsDEffet(canaux), ...(o.pari ? [{ txt: '🎲 Pari', bon: null }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
+          return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
+        }).join('')}</div></div>` : ''}
         <div class="main-energie" aria-label="Énergie : ${energie}"><span class="gl-k">Énergie</span><span class="main-orbes">${orbes}</span><b>${energie}</b>
           <span class="main-pioche" title="Les cartes qui restent à piger ce match">🂠 ${pioche.length}</span></div>
         <div class="choix-options choix-main${premier ? ' donne' : ''}">${cartes}</div>
@@ -572,7 +584,9 @@ export function ouvrirMainDeMatch(spec) {
           ${mots.length ? `<div class="choix-puces">${puces(mots)}</div>` : ''}
         </div>
         <div class="main-boutons">
-          <button type="button" class="btn go main-jouer">${esc(jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer')}</button>
+          <button type="button" class="btn go main-jouer"${spec.ajustements && !aj ? ' disabled' : ''}>${esc(spec.ajustements && !aj ? 'Choisis ton ajustement' : jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer')}</button>
+        </div>
+        <div class="main-outils">
           <button type="button" class="btn main-reprendre"${jouees.length ? '' : ' disabled'}>Recommencer la main</button>
           <button type="button" class="btn main-deck">${voirDeck ? 'Cacher mon deck' : `Mon deck · ${deck.length}`}</button>
         </div>
@@ -595,11 +609,13 @@ export function ouvrirMainDeMatch(spec) {
       };
     });
     m.querySelector('.main-jouer').onclick = () => {
+      if (spec.ajustements && !aj) return;
       const enMain = main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain);
       fermer(true);
-      spec.onJouer(jouees.slice(), enMain);
+      spec.onJouer(jouees.slice(), enMain, aj);
     };
-    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; dessiner(); };
+    m.querySelectorAll('.main-aj').forEach(b => { b.onclick = () => { aj = b.dataset.aj; jouerSon('joue'); dessiner(); }; });
+    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; dessiner(); };
     m.querySelector('.main-deck').onclick = () => { voirDeck = !voirDeck; dessiner(); };
     // Le focus reste DANS la main : le clavier ne tombe jamais sur la page dessous.
     m.querySelector('.main-jouer').focus({ preventScroll: true });

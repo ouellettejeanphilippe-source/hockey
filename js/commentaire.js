@@ -289,7 +289,8 @@ export const COULEUR_FIN = {
   blanchissage: ['Blanchissage pour {g} !', 'Un jeu blanc pour {g} !', '{g} n\'a rien donné de la soirée.'],
   raclee: ['Une soirée à oublier pour {autre}.', 'Une démonstration de {eq}.', '{eq} n\'a laissé aucune chance.'],
   serre: ['Un match serré jusqu\'à la fin.', 'Ça s\'est joué à un but.', 'Du hockey haletant.'],
-  prolongation: ['Il aura fallu la prolongation.', 'La mort subite a tranché.'],
+  // Pas « la prolongation » : la phrase d'avant vient de la nommer (S74, l'agent de test).
+  prolongation: ['La mort subite a tranché.', 'Il a fallu du temps supplémentaire.', 'Un seul but de plus, et tout était dit.'],
 };
 
 /* ---------- la mécanique ---------- */

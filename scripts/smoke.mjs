@@ -108,6 +108,12 @@ async function repondreAuxChoix() {
       const n = await page.$$eval('#choixModal .main-carte', e => e.length);
       const orbes = await page.$$eval('#choixModal .main-orbe.plein', e => e.length);
       if (n < 5 || orbes !== 3) errors.push(`la main du match offre ${n} cartes et ${orbes} d'énergie au lieu de cinq et trois`);
+      // ENTRE DEUX MATCHS (S74b) : l'ajustement est une rangée de la main — on prend le premier.
+      const titreMain = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
+      if (await page.$('#choixModal .main-aj')) {
+        choixVus.set('hub-dilemme', [...(choixVus.get('hub-dilemme') || []), titreMain]);
+        await _click('#choixModal .main-aj');
+      }
       const jouable = await page.$('#choixModal .main-carte:not(.trop-cher):not(.injouable):not(.jouee)');
       let nom = null;
       if (jouable) {

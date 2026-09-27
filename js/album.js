@@ -13,7 +13,7 @@
  * de ses séries. Une entrée d'avant S74 compte pour les joueurs ; elle n'a
  * simplement pas de deck.
  */
-import { CARTES_MATCH } from './combat.js';
+import { CARTES_MATCH, estPlus, carteDeBase } from './combat.js';
 import { IDENTITES } from './identites.js';
 import { carteHtml, RARETES } from './cartes.js';
 
@@ -26,7 +26,7 @@ export function lireAlbum(historique = []) {
   for (const e of historique) {
     const coupe = !!(e.series && e.series.coupe);
     if (coupe) coupes++;
-    for (const c of new Set(e.deck || [])) if (CARTES_MATCH[c]) cartes.set(c, (cartes.get(c) || 0) + 1);
+    for (const c of new Set((e.deck || []).map(carteDeBase))) if (CARTES_MATCH[c]) cartes.set(c, (cartes.get(c) || 0) + 1);
     if (e.identite && IDENTITES[e.identite]) identites.set(e.identite, (identites.get(e.identite) || 0) + 1);
     for (const a of e.alignement || []) {
       if (!a || a.r || !a.k) continue;
@@ -46,7 +46,7 @@ export function lireAlbum(historique = []) {
  */
 export function albumHtml(historique, ctx) {
   const A = lireAlbum(historique);
-  const toutes = Object.keys(CARTES_MATCH).filter(k => !CARTES_MATCH[k].maudite);
+  const toutes = Object.keys(CARTES_MATCH).filter(k => !estPlus(k) && !CARTES_MATCH[k].maudite);
   const eues = toutes.filter(k => A.cartes.has(k)).length;
   const ordre = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
   const tri = toutes.slice().sort((a, b) => ordre[CARTES_MATCH[a].rarete] - ordre[CARTES_MATCH[b].rarete] || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
@@ -63,7 +63,7 @@ export function albumHtml(historique, ctx) {
   const js = [...A.joueurs.values()].sort((a, b) => b.coupes - a.coupes || b.fois - a.fois || a.n.localeCompare(b.n, 'fr'));
   const champions = js.filter(j => j.coupes);
   const joueur = j => `<span class="album-joueur${j.coupes ? ' champion' : ''}" title="${esc(`${j.n} · ${j.s} · ${j.fois} partie${j.fois > 1 ? 's' : ''}${j.coupes ? ` · ${j.coupes} Coupe${j.coupes > 1 ? 's' : ''}` : ''}`)}">
-    <span class="album-logo">${ctx.logo(j.t, 28)}</span>
+    <span class="album-logo">${ctx.mug ? `<span class="album-visage">${ctx.mug({ id: Number(String(j.k).split('_').pop()) || null })}</span><span class="album-ecusson">${ctx.logo(j.t, 18)}</span>` : ctx.logo(j.t, 28)}</span>
     <span class="album-nom">${esc(j.n)}</span>
     <span class="album-saison">${esc(j.s)}${j.p ? ` · ${esc(j.p)}` : ''}</span>
     <span class="album-fois">${j.coupes ? `🏆${j.coupes > 1 ? `×${j.coupes}` : ''} ` : ''}${j.fois > 1 ? `×${j.fois}` : ''}</span>

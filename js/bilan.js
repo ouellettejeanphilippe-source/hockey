@@ -16,7 +16,7 @@ import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
-import { deckDe } from './combat.js';
+import { deckDe, CARTES_MATCH } from './combat.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
@@ -559,6 +559,28 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     : '';
 
   /*
+   * TON DECK (S74) : les cartes de match avec lesquelles tu finis l'année, et
+   * celles que tu as le plus jouées dans tes gros matchs — ce que le moteur a
+   * gardé dans `minisBoss`. La fin d'une course de Slay the Spire, en hockey.
+   */
+  const deckFinal = deckDe((G.ligue && G.ligue.decisions) || [], {
+    pertes: (you.minisBoss || []).filter(m => !m.gagne && m.raison === 'nemesis').map(m => m.jour + 1),
+    blessures: (you.injuriesLog || []).filter(i => i.games >= 15 && i.jour != null).map(i => i.jour + 1),
+  });
+  const jouees = new Map();
+  for (const mb of you.minisBoss || []) for (const c of (mb.cartes && mb.cartes.jouees) || []) jouees.set(c, (jouees.get(c) || 0) + 1);
+  const grosV = (you.minisBoss || []).filter(m => m.gagne).length, grosN = (you.minisBoss || []).length;
+  const compteDeck = new Map();
+  for (const c of deckFinal) compteDeck.set(c, (compteDeck.get(c) || 0) + 1);
+  const tonDeck = deckFinal.length ? `<div class="result-section"><h3>Ton deck · ${deckFinal.length} cartes</h3>
+      <div class="dash-note">Gros matchs : ${grosV} gagné${grosV > 1 ? 's' : ''} sur ${grosN}.${jouees.size ? ` Les plus jouées : ${[...jouees.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${CARTES_MATCH[c] ? CARTES_MATCH[c].ico : ''} ${esc(CARTES_MATCH[c] ? CARTES_MATCH[c].nom : c)} ×${n}`).join(' · ')}.` : ''}</div>
+      <div class="deck-grille">${[...compteDeck.entries()].filter(([c]) => CARTES_MATCH[c]).map(([c, n]) => {
+        const C = CARTES_MATCH[c];
+        return `<span class="deck-mini tc-${C.maudite ? 'commune' : C.rarete}${C.maudite ? ' maudite' : ''}" title="${esc(C.texte)}"><b>${C.injouable ? '✕' : C.cout}</b>${C.ico} ${esc(C.nom)}${n > 1 ? ` ×${n}` : ''}</span>`;
+      }).join('')}</div>
+    </div>` : '';
+
+  /*
    * L'ANNÉE DU VESTIAIRE. Les situations ne sont pas des décisions — on ne
    * les choisit pas — donc elles se relisent au MOTEUR (`you.situations`),
    * comme les cartes, et jamais à une liste tenue par l'écran. C'est la
@@ -616,6 +638,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         ${cartons}
       </div>` : ''}
       ${cartesPrises}
+      ${tonDeck}
       ${vestiaire}
       <div class="result-section">
         <h3>Forces des NHL Stars</h3>
@@ -693,7 +716,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         ${rank <= enSeries ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
         <button class="btn blue" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
         <button class="btn" id="replayBtn" title="Le même alignement, les mêmes 31 clubs, d'autres dés">${ico('i-dice')}Rejouer la saison</button>
-        <button class="btn go" id="againBtn">Nouvelle partie</button>
+        <button class="btn${rank <= enSeries ? '' : ' go'}" id="againBtn">Nouvelle partie</button>
       </div>
 
       ${ONGLETS_BILAN.map(o => `<div class="result-pane" data-volet="${o.cle}"${o.cle === 'bilan' ? '' : ' hidden'}>${volets[o.cle] || ''}</div>`).join('')}
@@ -725,7 +748,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     const po = G.lbId ? (lireSeriesHistorique(G.lbId)) : null;
     const txt = `🏒 Cap 82-0\n`
       + `Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n`
-      + `Rang : ${rank}e de ${nTeams}\n`
+      + `Rang : ${rank === 1 ? '1er' : `${rank}e`} de ${nTeams}\n`
       + (po ? (po.coupe ? `🏆 Coupe Stanley — séries ${po.V}-${po.D}\n` : `Séries : ${po.ronde} (${po.V}-${po.D})\n`) : '')
       + (G.ligue && G.ligue.epoque ? `Saison : ${G.ligue.epoque}\n` : '')
       + `Masse salariale : ${money(capUsed())} / ${money(capMax())}\n`
@@ -844,7 +867,10 @@ export function runPlayoffs(top16, opts = {}) {
     });
   }
   const btn = $('playoffsBtn');
-  if (btn) btn.disabled = true;
+  // Les séries jouées, leur bouton s'efface et « Nouvelle partie » redevient le bouton principal (S74).
+  if (btn) { btn.disabled = true; btn.hidden = true; }
+  const encore = $('againBtn');
+  if (encore) encore.classList.add('go');
 
   // L'ÉCRAN DES SÉRIES D'ABORD. Tout est déjà joué ; on ne dessine le
   // tableau complet qu'une fois que le joueur a révélé ses séries match par
@@ -885,7 +911,8 @@ export function runPlayoffs(top16, opts = {}) {
     onDecision: deciderSerie || null,
     onBanc: bancSerie || null,
     onRevele: etat => { G.seriesVues = etat; saveGame(); },
-    onTermine: () => dessinerTableauDesSeries(host, n, champion),
+    // Le tableau dessiné, on y va : il était en bas d'un bilan de 8 800 px (S74, l'agent de test).
+    onTermine: () => { dessinerTableauDesSeries(host, n, champion); requestAnimationFrame(() => host.scrollIntoView({ behavior: 'smooth', block: 'start' })); },
   });
 }
 

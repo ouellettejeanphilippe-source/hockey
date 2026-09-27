@@ -50,10 +50,10 @@ export function carteHtml(c) {
   </button>`;
 }
 
-/* L'illustration d'un vrai joueur : l'écusson de son club, sa position, sa saison. */
-export function artJoueur({ logoHtml = '', pos = '', saison = '', club = '' }) {
+/* L'illustration d'un vrai joueur : son visage (l'écusson en médaillon), sa position, sa saison. */
+export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison = '', club = '' }) {
   return `<span class="tc-joueur">
-    <span class="tc-logo">${logoHtml}</span>
+    ${portraitHtml ? `<span class="tc-visage"><span class="tc-portrait">${portraitHtml}</span><span class="tc-medaille">${logoHtml}</span></span>` : `<span class="tc-logo">${logoHtml}</span>`}
     <span class="tc-pos">${pos}</span>
     <span class="tc-saison">${club ? `${club} · ` : ''}${saison}</span>
   </span>`;

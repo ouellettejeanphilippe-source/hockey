@@ -61,7 +61,7 @@ export const IDENTITES = {
     texte: 'Plus de vétérans de 31 ans et plus : ils ont tout vu, et ils coûtent souvent moins cher.',
     score: p => { const a = age(p); return a == null ? 0.3 : borne01((a - 27) / 8); } },
   aubaines: { ico: '💰', nom: 'Les aubaines', rarete: 'rare',
-    texte: 'Plus de joueurs qui produisent beaucoup pour leur salaire : le métier de DG, en accéléré.',
+    texte: 'Plus de joueurs qui produisent beaucoup pour leur salaire : le métier de directeur général, en accéléré.',
     score: p => borne01(prod(p) / Math.max(0.35, (p.$ || 1e6) / 1e6) / (p.p === 'G' ? 1 : 0.9)) },
 };
 

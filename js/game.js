@@ -32,6 +32,7 @@ import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { ouvrirLignes, resumeLignes, barresProfils, motFit, ouvrirChoix } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
+import { CARTES_MATCH } from './combat.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
@@ -1283,7 +1284,7 @@ function choisirIdentite() {
   return new Promise(resolve => {
     ouvrirChoix({
       ico: '🧬', titre: 'Ton identité', cartes: true, genre: 'identite', fermable: true, motFermer: 'Pas de préférence',
-      recit: 'Avant le premier tour, une carte qui colore tout ton repêchage : la roulette sortira plus souvent ce genre de joueurs. Plus souvent, pas toujours.',
+      recit: 'Avant le premier tour, une carte qui colore tout ton repêchage : la roulette sortira plus souvent ce genre de joueurs — plus souvent, pas toujours. Touche celle que tu veux.',
       options: identitesOffertes().map(k => ({ cle: k, rarete: IDENTITES[k].rarete, ico: IDENTITES[k].ico, nom: IDENTITES[k].nom,
         type: 'Identité · tout le repêchage', texte: IDENTITES[k].texte })),
       onChoix: k => resolve(k),
@@ -1447,7 +1448,7 @@ function ongletsCourants() {
   const draft = enRepechage();
   return [
     { cle: 'match', ico: 'i-cup', titre: 'Match' },
-    { cle: 'repechage', ico: 'i-dice', titre: loto ? 'La main' : 'Vestiaire', badge: draft ? String(poolFiltered().length) : '' },
+    { cle: 'repechage', ico: 'i-dice', titre: loto ? 'Le loto' : 'Vestiaire', badge: draft ? String(poolFiltered().length) : '' },
     { cle: 'alignement', ico: 'i-list', titre: 'Alignement', badge: draft ? `${signes().length}/${totalCases()}` : '' },
     { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
     { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier' },
@@ -1566,7 +1567,7 @@ function remplirVide(cle) {
         ? `Ta formation n'est pas complète : il reste <b>${manque}</b> case${manque > 1 ? 's' : ''} à combler sous le plafond. La saison se lance d'ici dès que les ${totalCases()} sont signés.`
         : 'Ta formation est complète. La saison t\'attend.';
       btns = manque > 0
-        ? bouton('repechage', MODE().loto ? 'À la main' : 'Au vestiaire', true)
+        ? bouton('repechage', MODE().loto ? 'Au loto' : 'Au vestiaire', true)
         : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : 'Lancer la saison', true);
     } else {
       msg = `La saison n'a pas commencé. ${QUOI[cle] || 'Tout ça'} s'affichera ici dès le premier match.`;
@@ -2019,7 +2020,7 @@ function renderDash() {
   // de bord ne montre que le chiffre qui sert à trancher.
   const needTitle = need
     ? (MODE().loto
-      ? `Case qu'on comble : ${slotShort(need)}. La main est le joueur que trois clubs mettent à cette case exacte. Touche une autre case vide dans l'alignement pour la viser à la place : la main se recompose des mêmes clubs.`
+      ? `Case qu'on comble : ${slotShort(need)}. Le loto, c'est le joueur que trois clubs mettent à cette case exacte. Touche une autre case vide dans l'alignement pour la viser à la place : les mêmes clubs te tendent leur joueur de cette case.`
       : `Prochaine case libre de l'alignement : ${slotShort(need)}. Touche une autre case dans l'alignement pour la viser à la place.`)
     : `Les ${totalCases()} cases sont comblées.`;
   const budgetTitle = left === 0
@@ -2186,7 +2187,7 @@ function renderPoolMeta() {
   // « La main » (trois cartes) — et cache ses outils en loto.
   $('panePool')?.classList.toggle('loto', loto);
   const titre = $('poolTitle');
-  if (titre) titre.textContent = loto ? 'La main' : 'Vestiaire';
+  if (titre) titre.textContent = loto ? 'Le loto' : 'Vestiaire';
   /*
    * LA BARRE SE MET À JOUR ICI, et elle se rebâtit toute seule si ses entrées
    * ont changé — le nom du premier onglet suit le tirage (« Vestiaire » ou
@@ -2810,7 +2811,7 @@ function slotEl(s) {
       if (G.target === null) { G.mainCase = null; G.mainRang = null; }
       if (G.target !== null) {
         setView('pool');
-        toast(`Case ciblée : ${slotShort(s)}. ${MODE().loto ? 'La main se recompose pour cette case.' : 'Les signatures iront là.'}`);
+        toast(`Case ciblée : ${slotShort(s)}. ${MODE().loto ? 'Les trois clubs te tendent leur joueur de cette case.' : 'Les signatures iront là.'}`);
       }
     }
     render();
@@ -3524,7 +3525,7 @@ function showLeaderboard() {
   const bascule = `<div class="seg lb-vues" role="tablist"><button type="button" data-vue="saisons" class="${vue === 'saisons' ? 'on' : ''}">Tes saisons</button><button type="button" data-vue="album" class="${vue === 'album' ? 'on' : ''}">Ton album</button></div>`;
   const brancher = () => body.querySelectorAll('.lb-vues [data-vue]').forEach(b => { b.onclick = () => { G.vueHistorique = b.dataset.vue; showLeaderboard(); }; });
   if (vue === 'album') {
-    body.innerHTML = bascule + albumHtml(list, { logo: getTeamLogoHtml });
+    body.innerHTML = bascule + albumHtml(list, { logo: getTeamLogoHtml, mug: headshotHtml });
     brancher();
     return;
   }
@@ -3567,7 +3568,7 @@ function showLeaderboard() {
         ${verdict ? `<div class="lb-verdict">${verdict}${fiche}</div>` : ''}
       </div>
       <div class="lb-details">
-        <div>${i.rank ? `${i.rank}e de ${i.nTeams}` : ''}${i.epoque ? ` · saison ${esc(i.epoque)}` : ''}</div>
+        <div>${i.rank ? `${i.rank === 1 ? '1er' : `${i.rank}e`} de ${i.nTeams}` : ''}${i.epoque ? ` · saison ${esc(i.epoque)}` : ''}</div>
         <div>${format ? `${esc(format)} · ` : ''}Masse : ${money(i.capUsed)}</div>
         <div>${esc(i.date)}</div>
         ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Rejouer</button>` : ''}
@@ -3839,11 +3840,33 @@ async function deciderSaison(d, depuis) {
   // UNE DÉCISION QUI NE TOUCHE QUE LE DECK DE MATCH (une récompense, un
   // ménage) ne tire pas de dés neufs : le moteur ne la lit pas, les matchs ne
   // doivent pas bouger (S74).
-  const deckSeul = d.recompense !== undefined || d.deck === 'menage';
+  const deckSeul = d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp';
   decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
   G.done = false;
   renderMain();
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis, decisions, reprise: true });
+  // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
+  if (d.ballottage) renderCap();
+  confirmerDecision(d);
+}
+
+/*
+ * CE QUE TU VIENS DE FAIRE, DIT (S74). L'agent de test : « rien ne confirme
+ * qu'on a pris une récompense, fait le ménage ou amélioré un joueur », et une
+ * recrue restait en réserve sans qu'on sache qu'il fallait la monter.
+ */
+function confirmerDecision(d) {
+  const M = d.mutation && MUTATIONS[d.mutation.cle];
+  const qui = cle => { const p = Object.values(G.roster).find(x => x && getPlayerKey(x) === cle) || ballottageVu.get(cle); return p ? p.n : 'ton joueur'; };
+  const C = k => CARTES_MATCH[k];
+  let mot = null;
+  if (d.recompense && C(d.recompense)) mot = `🎁 ${C(d.recompense).nom} rejoint ton deck.`;
+  else if (d.deck === 'menage' && C(d.retrait)) mot = `🗑️ ${C(d.retrait).nom} quitte ton deck.`;
+  else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋️ ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
+  else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.`;
+  else if ((d.deck === 'amelioration' || d.deck === 'profil') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
+  else if (d.deck === 'strategie' && d.maitrise && TACTIQUES[d.maitrise.tac]) mot = `📘 Ta formation apprend ${TACTIQUES[d.maitrise.tac].nom.toLowerCase()}.`;
+  if (mot) toast(mot);
 }
 
 /*
@@ -4002,6 +4025,7 @@ async function deciderSerie(d) {
   renderMain();
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Infinity, decisions: G.ligue.decisions, reprise: true });
   reprendreSeries(vues);
+  if (d.recompense) confirmerDecision(d);
 }
 /* Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. */
 function bancSerie(ronde, k) {
@@ -4017,6 +4041,7 @@ async function choisirCarte(palier, jour, cle, depuis = jour) {
   G.done = false;
   renderMain();
   await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Math.min(depuis, jour), decisions, reprise: true });
+  toast(`${CARTES[cle].ico} ${CARTES[cle].nom} : pour le reste de la saison.`);
 }
 
 /** Le panneau du banc : la journée, la fiche, le prochain match, les blessés, la consigne. */

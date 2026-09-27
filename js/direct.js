@@ -273,7 +273,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     const el = document.createElement('div');
     el.className = `live-ligne ${cls}`;
     if (style) el.setAttribute('style', style);
-    el.innerHTML = html;
+    // Une ligne sans horodatage (le début, une période, les cartes) est UN texte :
+    // en flex, ses nœuds nus devenaient cinq colonnes (S74, l'agent de test).
+    el.innerHTML = /^\s*<span class="live-tps">/.test(html) ? html : `<span class="live-txt">${html}</span>`;
     feed.prepend(el);
   };
 
@@ -440,7 +442,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         r: tempsRestant(b.instant), tard: b.instant >= 56 && b.instant < 60, ot: b.instant >= 60,
       });
       ligne(`but ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
-        <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} <span class="live-score">${gA}-${gB}</span><span class="live-micro">${micro}</span></span>`, couleurs(e.cote));
+        <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} <span class="live-score">${gA}-${gB}</span> <span class="live-micro">${micro}</span></span>`, couleurs(e.cote));
       majBoard();
       const cell = board.querySelector(`[data-cote="${e.cote}"]`);
       cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');

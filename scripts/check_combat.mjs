@@ -75,6 +75,16 @@ console.log('\n  Le deck de match (S74)\n');
   }
   exiger('une récompense : trois cartes différentes, jamais maudite ni du départ', fautes === 0, `${fautes} fautives sur 600`);
   exiger('plus rares après une série', rares.serie > 3 * rares.saison, `rares : ${rares.saison} en saison, ${rares.serie} en séries (sur 900 cartes chacun)`);
+  // LES CARTES « + » (S74) : moitié plus fortes, ou une énergie de moins, et le camp les pose dans le deck.
+  {
+    const P = CARTES_MATCH['lancer+'], M = CARTES_MATCH['miracle+'];
+    const plus = deckDe([{ jour: 1, aiguise: 'lancer' }]);
+    const toutes = Object.keys(CARTES_MATCH).filter(k => !CARTES_MATCH[k].maudite && !k.endsWith('+'));
+    exiger('chaque carte a sa version « + », plus forte ou moins chère', toutes.every(k => CARTES_MATCH[`${k}+`])
+      && P.effet.volume > CARTES_MATCH.lancer.effet.volume && M.cout < CARTES_MATCH.miracle.cout
+      && plus.includes('lancer+') && plus.filter(c => c === 'lancer').length === 2,
+      `${toutes.length} versions · lancers ${CARTES_MATCH.lancer.effet.volume} → ${P.effet.volume.toFixed(2)} · miracle ${CARTES_MATCH.miracle.cout} → ${M.cout} énergie`);
+  }
   exiger('l\'énergie se compte : trois, moins les coûts, plus l\'adrénaline', energieDepensee(['miracle']) === 0 && energieDepensee(['adrenaline', 'miracle', 'discours']) === 0 && ENERGIE_MAIN === 3, '');
 }
 

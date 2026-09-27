@@ -162,6 +162,39 @@ export const CARTES_MATCH = {
     texte: 'Injouable. Si elle est dans ta main au match : fatigue +5 %.', enMain: { energie: 1.05 } },
 };
 
+/*
+ * LES CARTES AMÉLIORÉES (S74) — les « + » de Slay the Spire. Chaque carte a sa
+ * version améliorée, DÉRIVÉE, jamais écrite à la main : une carte chère
+ * (deux et plus), une carte qui lit la formation ou qui défait leur plan
+ * coûte une énergie de moins ; les autres font moitié plus (chaque canal
+ * s'éloigne de moitié plus de 1 : lancers +6 % devient +9 %), piochent une
+ * carte de plus, rendent dix d'énergie de plus, ou gagnent leur pari plus
+ * souvent. Une malédiction ne s'améliore pas. La clé est celle de la carte
+ * suivie de « + » : partout où une carte se lit, sa version se lit pareil.
+ */
+export const estPlus = cle => String(cle).endsWith('+');
+export const carteDeBase = cle => String(cle).replace(/\+$/, '');
+const plusDe = v => (typeof v === 'number' ? 1 + (v - 1) * 1.5 : Array.isArray(v) ? v.map(plusDe) : v);
+const canauxPlus = e => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, plusDe(v)])) : e);
+for (const [cle, C] of Object.entries(CARTES_MATCH)) {
+  if (C.maudite) continue;
+  const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.contre;
+  const P = { ...C, nom: `${C.nom}+`, plus: true };
+  if (moinsCher && C.cout > 0) P.cout = C.cout - 1;
+  else {
+    if (C.effet) P.effet = canauxPlus(C.effet);
+    if (C.adv) P.adv = canauxPlus(C.adv);
+    if (C.pioche) P.pioche = C.pioche + 1;
+    if (C.energieTous) P.energieTous = C.energieTous + 10;
+    if (C.pari) P.pari = { ...C.pari, chance: Math.min(0.8, C.pari.chance + 0.15) };
+    if (C.energiePlus && !C.effet) P.energiePlus = C.energiePlus + 1;
+  }
+  const quoi = P.cout < C.cout ? 'une énergie de moins' : C.pioche ? 'une carte de plus'
+    : C.energieTous ? 'dix d\'énergie de plus' : C.pari ? 'le pari rentre plus souvent' : 'moitié plus forte';
+  P.texte = `${C.texte} — Améliorée : ${quoi}.`;
+  CARTES_MATCH[`${cle}+`] = P;
+}
+
 export const DECK_DEPART = ['lancer', 'lancer', 'lancer', 'bloquer', 'bloquer', 'bloquer', 'changements', 'changements', 'discours', 'video'];
 
 /* Un nombre de 0 à 1 tiré de la graine et de mots : la même entrée, le même nombre. */
@@ -189,6 +222,8 @@ export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = I
   for (const d of saison) {
     if (d.recompense && CARTES_MATCH[d.recompense]) deck.push(d.recompense);
     if (d.retrait && CARTES_MATCH[d.retrait]) retraits.push(d.retrait);
+    // LE CAMP D'ENTRAÎNEMENT (S74) : une carte du deck devient sa version « + ».
+    if (d.aiguise && CARTES_MATCH[`${d.aiguise}+`]) { const i = deck.indexOf(d.aiguise); if (i >= 0) deck[i] = `${d.aiguise}+`; }
     // Un objectif raté : le proprio fait les manchettes, et ça te suit.
     if (typeof d.palier === 'string' && d.palier.startsWith('v:') && d.effet) deck.push('distraction');
   }
@@ -218,7 +253,7 @@ export function mainDuMatch(graine, cle, deck, n = TAILLE_MAIN) {
  */
 export function recompensesOffertes(graine, cle, { serie = false } = {}) {
   const poids = serie ? { commune: 0, peu: 50, rare: 42, legendaire: 8 } : { commune: 60, peu: 30, rare: 10, legendaire: 0 };
-  const pool = Object.keys(CARTES_MATCH).filter(k => !CARTES_MATCH[k].maudite && !DECK_DEPART.includes(k) && poids[CARTES_MATCH[k].rarete] > 0);
+  const pool = Object.keys(CARTES_MATCH).filter(k => !estPlus(k) && !CARTES_MATCH[k].maudite && !DECK_DEPART.includes(k) && poids[CARTES_MATCH[k].rarete] > 0);
   const out = [];
   for (let t = 0; out.length < 3 && t < 40; t++) {
     const r = hache(graine, 'recompense', cle, t) * 100;
@@ -244,6 +279,7 @@ export function recompensesOffertes(graine, cle, { serie = false } = {}) {
 const POIDS_ADVERSE = { commune: 3, peu: 2, rare: 1, legendaire: 0 };
 const POOL_ADVERSE = Object.keys(CARTES_MATCH).filter(k => {
   const C = CARTES_MATCH[k];
+  if (estPlus(k)) return false;
   return !C.maudite && !C.lire && !C.contre && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
     && (C.effet || C.adv || C.pari || C.synergie || C.energieTous);
 });

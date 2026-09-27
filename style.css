@@ -6648,3 +6648,95 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
 .choix-points[hidden] { display: none; }
 .choix-points i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: background .15s, transform .15s; }
 .choix-points i.on { background: var(--gold); transform: scale(1.25); }
+
+/* Une carte améliorée (S74) : le « + » se voit d'un coup d'œil. */
+.choix-option.tc.plus .tc-nom { color: #ffe39a; text-shadow: 0 0 10px rgba(255, 210, 110, .45); }
+.choix-option.tc.plus .tc-cadre { box-shadow: inset 0 0 0 1px rgba(255, 215, 120, .45); }
+
+/* =====================================================================
+   LE PASSAGE DE L'AGENT DE TEST (S74)
+   ===================================================================== */
+/* Grand écran : la carte du match défile seule, les boutons restent à portée.
+   Un soir de gros match, la carte écrasait la rangée des boutons à 20 px. */
+@media (min-width: 1200px) {
+  body.hub-docke .hub-sheet .hub-carte { max-height: 56vh; overflow-y: auto; min-height: 0; }
+  body.hub-docke .hub-sheet .hub-actions { min-height: 180px; }
+}
+/* Les colonnes étroites du vestiaire : ces requêtes existaient (plus haut),
+   mais la refonte redéclare .pcard-inner plus bas, à spécificité égale, et
+   gagnait — à 1 280 px en « Par poste », le nom tombait dans une colonne de 0 px. */
+@container col (max-width: 235px) {
+  .pcard-inner { grid-template-columns: 36px minmax(0, 1fr); gap: 5px 7px; padding: 7px 8px 8px; }
+}
+@container col (max-width: 200px) {
+  .pcard-inner { grid-template-columns: minmax(0, 1fr); }
+}
+/* Un bouton dans un panneau (case vide, blessure, vestiaire) garde sa taille :
+   « .hub-actions .btn » lui donnait 140 px de base, donc 140 px de HAUT en colonne. */
+.hub-actions .hub-trou .btn, .hub-actions .hub-alerte .btn, .hub-actions .hub-situ .btn, .hub-actions .hub-main .btn { flex: none; }
+/* Le fil : une ligne sans horodatage est un seul texte. */
+.live-txt { display: inline; }
+/* Le bouton flottant du téléphone, au-dessus de la barre. */
+.hub-flottant {
+  position: fixed; z-index: 60; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--bas-coquille, 70px) + 10px); min-width: 230px; min-height: 48px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .55);
+}
+.hub-flottant[hidden], body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouvert .hub-flottant { display: none; }
+@media (min-width: 1200px) { .hub-flottant { display: none; } }
+
+/* Une liste de joueurs à choisir (S74) : compacte, pas dix-huit grandes boîtes vides. */
+.choix-options.compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.choix-options.compact .choix-option { min-height: 0; padding: 9px 12px; gap: 2px; }
+.choix-options.compact .choix-option-nom { font-size: 15.5px; }
+
+/* L'écran de la main au téléphone (S74, l'agent de test) : le plan se replie, les
+   cartes sont plus étroites (une et demie à l'écran), « Jouer » reste en bas. */
+.main-plan { border-radius: var(--r-m, 14px); background: var(--panel-2); border: 1px solid var(--line); }
+.main-plan > summary { cursor: pointer; padding: 9px 12px; font-size: 14px; list-style: none; }
+.main-plan > summary::before { content: '▸ '; color: var(--sub); }
+.main-plan[open] > summary::before { content: '▾ '; }
+.main-plan .plan-adv { margin: 0; border: 0; }
+.main-sheet .main-boutons { position: sticky; bottom: 0; z-index: 3; padding: 10px 0 4px; background: linear-gradient(transparent, var(--bg) 30%); }
+@media (max-width: 640px) {
+  .main-sheet .choix-main > .tc { flex-basis: min(64vw, 240px); }
+  .main-sheet .tc-art { height: 78px; }
+  .main-sheet .tc-art-ico { font-size: 46px; }
+  .main-sheet .tc-texte { font-size: 12.5px; }
+}
+/* Le bandeau du bilan à 390 px (S74, l'agent de test) : « +195$95.3M » se chevauchaient. */
+@media (max-width: 440px) {
+  .rs-cell b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+}
+
+/* Le visage d'un vrai joueur sur sa carte (S74), l'écusson de son club en médaillon. */
+.tc-visage { position: relative; width: 66px; height: 66px; }
+.tc-portrait { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, .12), rgba(255, 255, 255, .03)); border: 2px solid color-mix(in srgb, var(--tc-bord) 60%, transparent); }
+.tc-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tc-portrait .headshot-fallback { font-size: 30px; opacity: .45; }
+.tc-medaille { position: absolute; right: -6px; bottom: -4px; display: grid; place-items: center; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .6)); }
+.spin-instruction { padding-inline: 2px; }
+
+/* L'ajustement d'un match de séries, en tête de la main (S74b). */
+.main-ajuste { display: flex; flex-direction: column; gap: 6px; }
+.main-ajuste-rang { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.main-aj {
+  display: flex; flex-direction: column; gap: 3px; text-align: left; cursor: pointer; padding: 9px 11px; border-radius: 12px;
+  background: var(--panel-2); color: var(--text); border: 2px solid var(--line); font: inherit;
+}
+.main-aj b { font: 800 15px/1.15 var(--display); letter-spacing: .02em; }
+.main-aj small { color: var(--sub); font-size: 12.5px; }
+.main-aj.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 16px color-mix(in srgb, var(--gold) 35%, transparent); }
+
+/* Seul « Jouer » reste collé en bas de la main ; les outils suivent le contenu. */
+.main-outils { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.main-outils .btn { font-size: 13.5px; min-height: 36px; padding: 6px 12px; }
+
+/* Le cartable de l'album (S74b) : le visage du joueur, l'écusson de son club en médaillon. */
+.album-joueur { grid-template-columns: 40px 1fr; }
+.album-logo { position: relative; width: 40px; height: 40px; }
+.album-visage { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 50%; overflow: hidden; background: rgba(255, 255, 255, .06); }
+.album-visage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.album-visage .headshot-fallback { font-size: 20px; opacity: .4; }
+.album-ecusson { position: absolute; right: -5px; bottom: -4px; }

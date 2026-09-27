@@ -2064,11 +2064,13 @@ export const SORTES_DECK = {
   strategie: { ico: '📘', nom: 'Stage de système', mot: 'Ta formation apprend une tactique d\'un coup' },
   // LE MÉNAGE (S74) : une carte de moins dans le deck de match (js/combat.js) — l'autre moitié d'un deckbuilder.
   menage: { ico: '🗑️', nom: 'Le ménage', mot: 'Retire une carte de ton deck de match' },
+  // LE CAMP D'ENTRAÎNEMENT (S74) : une carte du deck de match devient sa version « + ».
+  camp: { ico: '🏋️', nom: 'Le camp d\'entraînement', mot: 'Améliore une carte de ton deck de match' },
 };
 export const GAIN_STAGE = 0.4;
 export function mainDuDeck(graine, jour, prises = []) {
   const effet = mainDeCartes(graine, jour, prises)[0];
-  const autres = ['recrue', 'amelioration', 'profil', 'strategie', 'menage']
+  const autres = ['recrue', 'amelioration', 'profil', 'strategie', 'menage', 'camp']
     .map(k => [k, hacherMise(graine, 'deck', jour, k)]).sort((a, b) => a[1] - b[1]).map(([k]) => k);
   const ameliorations = Object.keys(MUTATIONS).filter(k => MUTATIONS[k].source === 'amelioration');
   const main = [{ sorte: 'effet', cle: effet }];
@@ -4870,16 +4872,17 @@ function poserAccident(team, graine, jour, equipe) {
 export function motsDeMutation(cle) {
   const M = MUTATIONS[cle];
   if (!M) return [];
-  const pct = (x, mot, bon) => ({ txt: `${mot} ${x > 1 ? '+' : '−'}${Math.round(Math.abs(x - 1) * 100)} %`, bon: bon ? x > 1 : x < 1 });
+  // En flèches, comme les effets (S71) : pas de pourcentages à lire pour un kid.
+  const pct = (x, mot, bon) => ({ txt: `${mot} ${flechesDe(x)}`, bon: bon ? x > 1 : x < 1 });
   const out = [];
   if (M.finition) out.push(pct(M.finition, 'Finition', true));
   if (M.lancers) out.push(pct(M.lancers, 'Lancers', true));
   if (M.creation) out.push(pct(M.creation, 'Création', true));
-  if (M.defense) out.push({ txt: `Buts contre quand il est là ${M.defense < 1 ? '−' : '+'}${Math.round(Math.abs(M.defense - 1) * 100)} %`, bon: M.defense < 1 });
-  if (M.blessure) out.push({ txt: `Blessures ${M.blessure < 1 ? '−' : '+'}${Math.round(Math.abs(M.blessure - 1) * 100)} %`, bon: M.blessure < 1 });
+  if (M.defense) out.push({ txt: `Buts contre quand il est là ${flechesDe(M.defense)}`, bon: M.defense < 1 });
+  if (M.blessure) out.push({ txt: `Blessures ${flechesDe(M.blessure)}`, bon: M.blessure < 1 });
   for (const [k, d] of Object.entries(M.profils || {})) {
     const P = PROFILS.F[k] || PROFILS.D[k];
-    if (P) out.push({ txt: `${P.ico} ${P.nom} ${d > 0 ? '+' : '−'}${Math.abs(d)}`, bon: d > 0 });
+    if (P) out.push({ txt: `${P.ico} ${P.nom} ${d > 0 ? (d >= 20 ? '↑↑' : '↑') : (d <= -20 ? '↓↓' : '↓')}`, bon: d > 0 });
   }
   return out;
 }
