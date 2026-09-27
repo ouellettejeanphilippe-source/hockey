@@ -63,6 +63,16 @@ export const IDENTITES = {
   aubaines: { ico: '💰', nom: 'Les aubaines', rarete: 'rare',
     texte: 'Plus de joueurs qui produisent beaucoup pour leur salaire : le métier de directeur général, en accéléré.',
     score: p => borne01(prod(p) / Math.max(0.35, (p.$ || 1e6) / 1e6) / (p.p === 'G' ? 1 : 0.9)) },
+  // S74b : trois de plus, de ce que les données disent de chacun (la taille, en pouces ; la production).
+  geants: { ico: '🗼', nom: 'Les géants', rarete: 'peu',
+    texte: 'Plus de grands gabarits, six pieds trois et plus : ils ferment l\'enclave et prennent les coins.',
+    score: p => (p && p.hgt ? borne01((p.hgt - 72) / 4) : 0.3) },
+  follets: { ico: '🐇', nom: 'Les feux follets', rarete: 'peu',
+    texte: 'Plus de petits joueurs vifs, cinq pieds dix et moins : impossibles à attraper.',
+    score: p => (p && p.hgt ? borne01((74 - p.hgt) / 4) : 0.3) },
+  vedettes: { ico: '🌟', nom: 'Les vedettes', rarete: 'rare',
+    texte: 'Plus de joueurs qui ont fait lever la foule cette saison-là — et qui coûtent en conséquence.',
+    score: p => (p.p === 'G' ? prod(p) : borne01(prod(p) / (estD(p) ? 0.75 : 1.1))) },
 };
 
 /* Le score d'identité d'un joueur ; sans identité, tout le monde vaut pareil. */
