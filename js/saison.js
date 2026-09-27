@@ -27,7 +27,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   PLANS, ROULEMENTS, planDe, roulementDe, JOURS_SITUATIONS,
   STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
-  JAUGES, JAUGE_MAX, JAUGE_HAUT, JAUGE_BAS, jaugesApres, effetsDeJauges, getPlayerKey,
+  getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE,
   lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts } from './sim.js';
@@ -399,8 +399,6 @@ function motDuPlan(ctx, you, onBanc) {
  * et quelles factions elles bougent. C'est le même gabarit pour les dilemmes,
  * les séquences et les objectifs, pour qu'un seul langage s'apprenne.
  */
-const motJauges = (ctx, j) => Object.entries(j || {}).filter(([, v]) => v)
-  .map(([k, v]) => `<span class="hub-jd ${v > 0 ? 'up' : 'down'}" title="${ctx.esc(JAUGES[k].nom)}">${JAUGES[k].ico}${v > 0 ? '+' : '−'}${Math.abs(v)}</span>`).join('');
 
 function panneauChoix(ctx, { classe, ico, titre, irl, recit, options, attr }) {
   return `<div class="hub-choix ${classe}" role="group" aria-label="${ctx.esc(titre)}">
@@ -410,25 +408,10 @@ function panneauChoix(ctx, { classe, ico, titre, irl, recit, options, attr }) {
       <span class="hub-option-nom">${o.ico ? `${o.ico} ` : ''}${ctx.esc(o.nom)}</span>
       ${o.bon ? `<span class="hub-option-bon">+ ${ctx.esc(o.bon)}</span>` : ''}
       ${o.prix ? `<span class="hub-option-prix">− ${ctx.esc(o.prix)}</span>` : ''}
-      ${o.jauges ? `<span class="hub-option-jauges">${motJauges(ctx, o.jauges)}</span>` : ''}
     </button>`).join('')}</div>
   </div>`;
 }
 
-/* Les quatre factions, et ce qu'elles font au jeu quand elles sont au bout. */
-function jaugesHtml(ctx, j) {
-  const effets = effetsDeJauges(j);
-  return `<div class="hub-jauges" role="group" aria-label="Les factions">${Object.entries(JAUGES).map(([k, def]) => {
-    const v = j[k];
-    const e = effets.find(x => x.faction === k);
-    const etat = v >= JAUGE_HAUT ? 'haut' : v <= JAUGE_BAS ? 'bas' : '';
-    return `<div class="hub-jauge ${etat}" title="${ctx.esc(def.nom)} : ${v}/${JAUGE_MAX}${e ? ` — ${e.nom} : ${e.mot}` : ` — à ${JAUGE_HAUT} : ${def.haut.nom} ; à ${JAUGE_BAS} : ${def.bas.nom}`}">
-      <span class="hub-jauge-ico">${def.ico}</span>
-      <span class="hub-jauge-barre"><span style="width:${(100 * v / JAUGE_MAX).toFixed(0)}%"></span></span>
-      <span class="hub-jauge-mot">${e ? ctx.esc(e.nom) : ctx.esc(def.nom)}</span>
-    </div>`;
-  }).join('')}</div>`;
-}
 
 /*
  * LA ROUTE DE LA SAISON, à la carte de Slay the Spire : ce qui s'en vient se
@@ -957,6 +940,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       } else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Un joueur réclamé au ballottage pour boucher un trou' });
     }
     for (const m of you.mutations || []) if (m.jour < jour && m.source !== 'choix' && MUTATIONS[m.cle]) ev.push({ j: m.jour, t: `${MUTATIONS[m.cle].ico} Le hasard s'en mêle : ${ctx.esc(m.p ? m.p.n : '')} — ${ctx.esc(MUTATIONS[m.cle].nom)}` });
+    for (const x of you.paris || []) if (x.jour != null && x.jour < jour) ev.push({ j: x.jour, t: `🎲 ${ctx.esc(x.titre)} — ${ctx.esc(x.choix || '')} : ${x.gagne ? '<b>le pari a payé</b>' : '<b>le pari a mal tourné</b>'}` });
     for (const mb of you.minisBoss || []) {
       if (mb.jour >= jour || !MINI_BOSS[mb.raison]) continue;
       const m = (calendrier[mb.jour] || []).find(x => x.A === you || x.B === you);
@@ -1071,8 +1055,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       </div>`;
       /*
        * LE GROS MATCH (S69, S70) : annoncé avant, jamais son issue. Le plan
-       * de l'adversaire se lit comme un rapport d'éclaireur — sa force, sa
-       * faiblesse, ce qui le contre et si tes lignes le contrent déjà.
+       * de l'adversaire se lit comme un rapport d'éclaireur — ce qu'il règle
+       * sur ses lignes, ce qui le contre et si tes lignes le contrent déjà.
        */
       const mb = grosDuJour(p.j);
       const avantPris = mb && decs.find(d => d.jour === p.j && d.avant);
@@ -1085,7 +1069,11 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, finition ↑ · 3 matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, finition ↓ · 3 matchs`, bon: false }])}</div>
         ${onDecision ? '<div class="hub-gros-note">🎬 Au deuxième entracte, un choix t\'attend.</div>' : ''}
       </div>` : '';
-      carte.innerHTML = `${routeHtml(jour, N)}${onDecision ? jaugesHtml(ctx, (you.jourLignes && you.jourLignes[jour] && you.jourLignes[jour].jauges) || jaugesApres(decs, jour)) : ''}${miniBoss}<div class="hub-match">
+      // CE QUI JOUE SUR TA FORMATION (S72), en une ligne ; le détail est dans « Préparer le match ».
+      const ecJ = effetsEnCours(you, p.j);
+      const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => `${e.ico || '✨'} ${e.nom}`), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
+      const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans « Préparer le match »">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
+      carte.innerHTML = `${routeHtml(jour, N)}${enJeuHtml}${miniBoss}<div class="hub-match">
         <div class="hub-match-titre">Prochain match · Journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}</div>
         <div class="hub-match-note">${dernierMot}</div>
@@ -1098,6 +1086,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie,
         adv: { nom: ctx.teamShort(adv), lignes: lignesDe(adv, adv.roster) },
         plan: mb ? mb.plan : null,
+        effets: { ...effetsEnCours(you, p.j), cartes: decs.filter(d => d.carte && d.jour <= p.j).map(d => d.carte) },
         match: (matchPris && matchPris.match) || { importance: mb ? 'haute' : 'normale', ad: 0 },
         motAppliquer: 'Appliquer — la saison reprend ici',
         onBanc: onBanc ? () => { quitter(); onBanc(jour); } : null,
@@ -1211,18 +1200,18 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       spec = vo.e.reussi
         ? { ico: '🏢', titre: `Objectif atteint : ${o.court}`,
           recit: `Le proprio est ravi (${o.ico} ${vo.e.val} ${o.unite}). Il t'offre de quoi renforcer le club : pige une carte. Elle vaut pour le reste de la saison.`,
-          options: mainDeCartes(graine, 2000 + vo.j0, dejaPrises).map(cle => ({ cle, ico: CARTES[cle].ico, nom: CARTES[cle].nom, bon: CARTES[cle].bon, prix: CARTES[cle].prix, effet: CARTES[cle], jauges: { proprio: 2 } })),
-          onChoix: cle => decider({ palier: `v:${vo.j0}`, carte: cle, jauges: { proprio: 2 } }) }
+          options: mainDeCartes(graine, 2000 + vo.j0, dejaPrises).map(cle => ({ cle, ico: CARTES[cle].ico, nom: CARTES[cle].nom, bon: CARTES[cle].bon, prix: CARTES[cle].prix, effet: CARTES[cle] })),
+          onChoix: cle => decider({ palier: `v:${vo.j0}`, carte: cle }) }
         : { ico: '🏢', titre: `Objectif raté : ${o.court}`,
           recit: `${o.ico} ${vo.e.val} ${o.unite}, pour ${o.cible} promis. Le proprio te fait venir dans son bureau.`,
-          options: [{ cle: 'encaisser', nom: 'Encaisser le savon', jauges: { proprio: -2 } }],
-          onChoix: () => decider({ palier: `v:${vo.j0}`, jauges: { proprio: -2 } }) };
+          options: [{ cle: 'encaisser', nom: 'Encaisser', prix: 'Le proprio coupe les vols nolisés : les voyages fatiguent', energie: OBJECTIF_RATE.energie, duree: OBJECTIF_RATE.duree }],
+          onChoix: () => decider({ palier: `v:${vo.j0}`, effet: { ...OBJECTIF_RATE } }) };
     } else if (oo) {
       spec = { ico: '🏢', titre: oo.j0 ? 'Le proprio veut une deuxième moitié' : 'Le proprio fixe ses attentes',
         recit: `Choisis un défi pour tes ${MATCHS_OBJECTIF} prochains matchs.`,
         options: oo.offerts.map(cle => ({ cle, ico: OBJECTIFS[cle].ico, nom: OBJECTIFS[cle].nom,
-          bon: 'Réussi : tu piges une carte de plus', prix: 'Raté : le proprio s\'en souviendra', jauges: null })),
-        contexte: `<div class="choix-puces"><span class="puce bon">Réussi : 🃏 une carte · 🏢 Proprio +2</span><span class="puce prix">Raté : 🏢 Proprio −2</span></div>`,
+          bon: 'Réussi : tu piges une carte de plus', prix: 'Raté : le proprio serre la vis' })),
+        contexte: `<div class="choix-puces"><span class="puce bon">Réussi : 🃏 une carte</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs</span></div>`,
         onChoix: cle => decider({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour } }) };
     } else if (sq) {
       const s = SEQUENCES[sq.cle];
@@ -1234,21 +1223,24 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       // LE JOUEUR VISÉ est nommé avant le choix : c'est lui dont la carte change.
       const optMut = m.options.find(o => o.mutation);
       const cible = optMut ? cibleMutation(you, optMut.mutation) : null;
-      spec = { ico: m.ico, titre: m.titre, irl: m.irl, recit: m.recit, joueur: cible,
-        options: m.options.map(o => ({ ...o, duree: o.mutation ? null : dureeOption(o, 'moment'),
-          desactive: o.mutation && !cible ? 'Personne dans ton alignement pour ça' : null })),
-        onChoix: cle => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null } }) };
+      // LES JOUEURS QU'UN GESTE TOUCHE (S72) : nommés avant le choix.
+      const cibles = m.cible ? ciblesDe(you, m.cible, graine, dl.J) : [];
+      spec = { ico: m.ico, titre: m.titre, irl: m.irl, recit: m.recit, joueur: cible, joueurs: cibles,
+        options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
+          desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
+        onChoix: cle => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } }) };
     } else if (av) {
       // L'AVANT-MATCH (S70) : daté du soir du match, pas d'aujourd'hui.
       const A = AVANT_GROS[av.cle], advG = av.mb.adv;
-      spec = { ico: A.ico, titre: A.titre, irl: A.irl,
+      const ciblesA = A.cible ? ciblesDe(you, A.cible, graine, av.p.j) : [];
+      spec = { ico: A.ico, titre: A.titre, irl: A.irl, joueurs: ciblesA,
         recit: `Avant le gros match contre ${ctx.teamLabel(advG)}. ${A.recit}`,
         contexte: planAdverseHtml(av.mb.plan, av.mb.contre, { nomAdv: ctx.teamShort(advG) }),
         options: A.options.map(o => ({ ...o, duree: 1 })),
-        onChoix: cle => { const j = jour; quitter(); onDecision({ jour: av.p.j, avant: { cle: av.cle, choix: cle } }, j); } };
+        onChoix: cle => { const j = jour; quitter(); onDecision({ jour: av.p.j, avant: { cle: av.cle, choix: cle, joueurs: ciblesA.map(getPlayerKey) } }, j); } };
     }
     if (spec && !choixOuvert()) ouvrirChoix(spec);
-    const force = spec ? `<button type="button" class="btn gold hub-choix-rouvrir">⏳ Un choix t'attend : ${ctx.esc(String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : ''))}</button>` : '';
+    const force = spec ? `<button type="button" class="btn gold hub-choix-rouvrir">⏳ Un choix t'attend : ${ctx.esc(String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : '')))}</button>` : '';
     // L'objectif en cours se lit sous le match : où on en est, ce qui manque.
     const enCours = objectifEnCours();
     const suivi = enCours && !enCours.e.fini ? `<div class="hub-objectif" title="${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].nom)}">🏢 Le proprio veut <b>${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].court)}</b> · tu en es à <b>${enCours.e.val}</b> ${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].unite)}, ${enCours.e.joues} match${enCours.e.joues > 1 ? 's' : ''} sur ${MATCHS_OBJECTIF}</div>` : '';

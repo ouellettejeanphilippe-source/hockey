@@ -18,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde,
-  PLANS_ADV, effetsDuPlan, planEstContre, planDeSerie, entractesOfferts, effetEntracte,
+  PLANS_ADV, planEstContre, planDeSerie, entractesOfferts, effetEntracte, contreDe, TACTIQUES,
   AVANT_GROS, avantDuGros, ENTRACTES,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -59,31 +59,40 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   exiger('une ligue sans joueur ne voit aucun gros match', teams.every(t => !(t.minisBoss || []).length));
 }
 
-/* ---------- 2. les plans : neutres sans contre, payants contrés ---------- */
+/* ---------- 2. les plans : de vrais réglages de lignes (S72) ---------- */
 /*
- * Le poids d'un plan, en logarithme de l'écart de buts : ses canaux sur SES
- * buts (finition × lancers), sur ceux qu'il ALLOUE (défense), et sur les
- * tiens. Positif : bon pour l'adversaire.
+ * JP : *tout devrait être ensemble, pas plusieurs systèmes différents* ; *que
+ * toutes les équipes ont les mêmes stratégies*. Un plan n'est plus un paquet
+ * de bonus : il règle les lignes de l'adversaire dans les mêmes menus que
+ * les tiens, et son contre est celui du cercle des tactiques.
  */
-const poids = (lui, toi) => {
-  const p = (arr, k) => arr.reduce((a, e) => a * (e[k] ?? 1), 1);
-  // Les punitions de l'un sont les avantages numériques de l'autre (le quart des buts).
-  const pourLui = Math.log(p(lui, 'finition') * p(lui, 'volume')) - Math.log(p(lui, 'defense')) + Math.log(1 + 0.25 * (p(toi, 'discipline') - 1));
-  const pourToi = Math.log(p(toi, 'finition') * p(toi, 'volume')) - Math.log(p(toi, 'defense')) + Math.log(1 + 0.25 * (p(lui, 'discipline') - 1));
-  return pourLui - pourToi;
-};
-for (const cle of Object.keys(PLANS_ADV)) {
-  const sans = effetsDuPlan(cle, false), avec = effetsDuPlan(cle, true);
-  const ps = poids(sans.lui, sans.toi), pa = poids(avec.lui, avec.toi);
-  borne(`${PLANS_ADV[cle].ico} ${PLANS_ADV[cle].nom} · pas contré, à peu près neutre`, ps * 100, -4, 4, '%');
-  exiger(`${PLANS_ADV[cle].ico} ${PLANS_ADV[cle].nom} · contré, il paie`, pa < ps - 0.03,
-    `${(ps * 100).toFixed(1)} % puis ${(pa * 100).toFixed(1)} %`);
+for (const [cle, P] of Object.entries(PLANS_ADV)) {
+  exiger(`${P.ico} ${P.nom} · règle de vraies lignes`, P.lignes && Object.keys(P.lignes).length > 0 && !P.force && !P.faiblesse);
+  if (P.tac) {
+    const c = contreDe(P.tac);
+    const deux = [{ tac: c }, { tac: c }, { tac: 'hourra' }, { tac: 'hourra' }];
+    exiger(`${P.ico} ${P.nom} · contré par ${TACTIQUES[c].nom}, la tactique qui étouffe ${TACTIQUES[P.tac].nom}`,
+      planEstContre(cle, deux) && !planEstContre(cle, [0, 1, 2, 3].map(() => ({ tac: 'hourra' }))));
+  }
 }
 {
-  const lignes = t => [0, 1, 2, 3].map(() => ({ tac: t, agr: 1, sec: 60 }));
-  exiger('la trappe tombe devant deux lignes en Ligne bleue', planEstContre('trappe', [{ tac: 'bleue' }, { tac: 'bleue' }, { tac: 'hourra' }, { tac: 'hourra' }]) && !planEstContre('trappe', lignes('defensive')));
-  exiger('le matraquage tombe devant deux lignes en agressivité basse', planEstContre('matraquage', [{ agr: 0 }, { agr: 0 }, { agr: 1 }, { agr: 1 }]) && !planEstContre('matraquage', lignes('hourra')));
-  exiger('la vedette tombe devant une consigne penchée défense', planEstContre('vedette', [], -1) && !planEstContre('vedette', [], 0));
+  // Dans un vrai gros match, les lignes de l'adversaire jouent le plan : ses lancers portent sa tactique.
+  let vus = 0, ok = 0;
+  for (let L = 0; L < LIGUES && vus < 6; L++) {
+    const teams = ligue(9150 + L);
+    const { calendrier } = simulateLeague(teams, 82, { graine: `plan-${L}`, decisions: [] });
+    for (const mb of teams[0].minisBoss || []) {
+      const P = PLANS_ADV[mb.plan];
+      if (!P || !P.tac) continue;
+      const m = calendrier[mb.jour].find(x => x.A === teams[0] || x.B === teams[0]);
+      const coteAdv = m.A === teams[0] ? 'B' : 'A';
+      const tirs = m.feuille.lancers.filter(l => l.cote === coteAdv && (l.ligne === 0 || l.ligne === 1) && l.mode === 'FE');
+      if (!tirs.length) continue;
+      vus++;
+      if (tirs.every(l => l.tac === P.tac)) ok++;
+    }
+  }
+  exiger('dans un gros match, les deux premières lignes adverses jouent la tactique du plan', vus > 0 && ok === vus, `${ok}/${vus} gros matchs`);
 }
 
 /* ---------- 3. l'entracte : les deux premières périodes ne bougent pas ---------- */

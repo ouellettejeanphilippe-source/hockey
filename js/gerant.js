@@ -23,11 +23,11 @@
 import {
   PROFILS, TACTIQUES, AGRESSIVITES, IMPORTANCES, SEC_MIN, SEC_MAX, SEC_DEFAUT,
   profilsDe, profilPrincipal, fitLigne, joueursDeLigne, contreDe, motsDEffet, motsDeMutation, chimieMax,
-  MUTATIONS, JAUGES, SLOTS, getPlayerKey,
-  PLANS_ADV, commentContrer, planEstContre,
+  MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
+  PLANS_ADV, commentContrer, planEstContre, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
 } from './sim.js';
-import { POIDS_TRIO } from './ratings.js';
+import { POIDS_TRIO, getLineZone } from './ratings.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -36,31 +36,58 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 export function puces(mots) {
   return (mots || []).map(m => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}">${esc(m.txt)}</span>`).join('');
 }
-export function pucesJauges(j) {
-  return Object.entries(j || {}).filter(([, v]) => v)
-    .map(([k, v]) => `<span class="puce ${v > 0 ? 'bon' : 'prix'}">${JAUGES[k].ico} ${esc(JAUGES[k].nom)} ${v > 0 ? '+' : '−'}${Math.abs(v)}</span>`).join('');
+/*
+ * CE QU'UNE CARTE FAIT, EN PUCES (S72). JP : *varie les cartes* ; *faut le
+ * faire pour vrai*. Un cadeau n'a que du vert, un moindre mal que du rouge ;
+ * un pari dit sa chance et ses deux issues, un investissement ce qui vient
+ * plus tard, un geste réel qui il touche et ce qui lui arrive.
+ */
+const plur = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+export function motsDAction(a, noms = '') {
+  if (!a) return [];
+  const qui = noms || 'le joueur visé';
+  const out = [];
+  if (a.absents) out.push({ txt: `👥 ${qui} au vestiaire ${plur(a.absents, 'match')} — un réserviste ou un rappelé joue`, bon: null });
+  if (a.energie) out.push({ txt: `👥 ${qui} : énergie ${flechesDe(1 + a.energie / 100, [0.15, 0.3])}`, bon: a.energie > 0 });
+  if (a.energieTous) out.push({ txt: `👥 Toute l'équipe : énergie ${flechesDe(1 + a.energieTous / 100, [0.1, 0.2])}`, bon: a.energieTous > 0 });
+  if (a.gardienAux) out.push({ txt: `🧤 L'auxiliaire garde le filet ${plur(a.gardienAux, 'match')}`, bon: null });
+  return out;
+}
+export function motsDeCarte(o, noms = '') {
+  const out = [];
+  if (o.action) out.push(...motsDAction(o.action, noms));
+  if (o.changeGardien) out.push({ txt: '🧤 L\'auxiliaire prend le filet', bon: null });
+  if (o.gardienAux === true) out.push({ txt: '🧤 L\'auxiliaire au filet ce match-là', bon: null });
+  if (o.enjeu) out.push({ txt: '⚖️ Après le match, l\'élan ou le contrecoup dure deux fois plus', bon: null });
+  if (o.pari) {
+    const p = Math.round(o.pari.chance * 100);
+    const issue = e => { const { duree, action, ...c } = e || {}; const m = [...motsDEffet(c, duree), ...motsDAction(action, noms)]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
+    out.push({ txt: `🎲 ${p} % : ${issue(o.pari.gagne)}`, bon: true });
+    out.push({ txt: `🎲 sinon : ${issue(o.pari.perd)}`, bon: false });
+  }
+  if (o.ensuite) {
+    const { apres, duree, ...c } = o.ensuite;
+    out.push({ txt: `⏳ Dans ${plur(apres || 0, 'match')} : ${motsDEffet(c, duree).map(x => x.txt).join(', ')}`, bon: true });
+  }
+  if (o.rien) out.push({ txt: 'Rien ne change', bon: null });
+  return out;
 }
 
 /*
- * LE PLAN DE L'ADVERSAIRE (S70), tel que le rapport d'éclaireur le lit : sa
- * force (rouge : elle te coûte), sa faiblesse (verte : elle t'aide), ce qui
- * le contre, et si tes lignes le contrent. Contré, la force est barrée.
+ * LE PLAN DE L'ADVERSAIRE (S70, S72), tel que le rapport d'éclaireur le lit :
+ * ce qu'il règle sur ses lignes, ce que ce système fait, ce qui le contre, et
+ * si tes lignes le contrent.
  */
 export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '' } = {}) {
   const P = PLANS_ADV[cle];
   if (!P) return '';
-  const { toi: forceToi, ...forceLui } = P.force;
-  const eux = (mots, bon, barre) => mots.map(m => ({ txt: `${nomAdv} : ${m.txt}${barre ? ' (annulé)' : ''}`, bon: barre ? null : bon }));
-  const mots = [
-    ...eux(motsDEffet(forceLui), false, contre),
-    ...(forceToi ? motsDEffet(forceToi).map(m => ({ txt: `Toi : ${m.txt}${contre ? ' (annulé)' : ''}`, bon: contre ? null : false })) : []),
-    ...eux(motsDEffet(P.faiblesse), true, false),
-    ...(contre && P.bonusContre ? eux(motsDEffet(P.bonusContre), true, false) : []),
-  ];
+  // Le plan est un réglage de lignes (S72) : ce qu'il règle, et ce que ce système fait.
+  const T = P.tac ? TACTIQUES[P.tac] : null;
+  const mots = T ? motsDEffet(T).map(m => ({ txt: `${nomAdv} : ${m.txt}`, bon: !m.bon })) : [];
   return `<div class="plan-adv${contre ? ' contre' : ''}">
     <div class="plan-adv-t">${P.ico} Leur plan : <b>${esc(P.nom)}</b>${suite ? ` <small>${esc(suite)}</small>` : ''}</div>
-    <div class="plan-adv-mot">${esc(P.mot)}</div>
-    <div class="choix-puces">${puces(mots)}</div>
+    <div class="plan-adv-mot">${esc(P.mot)} <b>${esc(reglageDuPlan(cle))}</b>.</div>
+    ${mots.length ? `<div class="choix-puces">${puces(mots)}</div>` : ''}
     <div class="plan-adv-contre"><b>${contre ? '✓ Tu le contres' : '✗ Pas contré'}</b> · pour le contrer : ${esc(commentContrer(cle))}.</div>
   </div>`;
 }
@@ -86,6 +113,12 @@ export function rolesDe(p) {
 }
 /* L'ancien nom : la fiche l'appelle encore. */
 export const barresProfils = rolesDe;
+/* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
+export const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(', ')} et ${ns[ns.length - 1]}`);
+/* Les canaux d'effet d'un objet : ce que motsDEffet sait dire. */
+const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
+const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
+
 export function carteJoueur(p) {
   if (!p) return '';
   const barres = barresProfils(p);
@@ -105,8 +138,10 @@ export function ouvrirChoix(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
   if (fermerChoixCourant) fermerChoixCourant(true);
-  const nom = spec.joueur ? spec.joueur.n : '';
-  const sub = s => esc(String(s || '').replace(/\{nom\}/g, nom || 'ton joueur'));
+  const nom = spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : '');
+  // {noms} : les joueurs visés par un geste réel, nommés (S72).
+  const noms = spec.joueurs && spec.joueurs.length ? listeNoms(spec.joueurs.map(p => p.n)) : '';
+  const sub = s => esc(String(s || '').replace(/\{nom\}/g, nom || 'ton joueur').replace(/\{noms\}/g, noms || 'tes joueurs'));
   m.innerHTML = `<div class="choix-sheet" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '❓'}</span>
@@ -118,13 +153,14 @@ export function ouvrirChoix(spec) {
       ${spec.joueur ? carteJoueur(spec.joueur) : ''}
       ${spec.contexte || ''}
       <div class="choix-options">${spec.options.map(o => {
-        const mots = [...motsDEffet(o.effet || o, o.duree), ...(o.mutation ? motsDeMutation(o.mutation) : [])];
+        const { duree: _d, ...canaux } = o.effet || o;
+        const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms)];
         return `<button type="button" class="choix-option" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
           <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
           ${o.bon ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
           ${o.prix ? `<span class="choix-option-prix">− ${sub(o.prix)}</span>` : ''}
           ${o.mutation ? `<span class="choix-option-mut">${MUTATIONS[o.mutation].ico} ${esc(MUTATIONS[o.mutation].quoi)}</span>` : ''}
-          <span class="choix-puces">${puces(mots)}${pucesJauges(o.jauges)}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}</span>
+          <span class="choix-puces">${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}</span>
           ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
         </button>`;
       }).join('')}</div>
@@ -161,7 +197,7 @@ function minutes(lignes) {
 }
 const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
 /* Le fit d'une ligne à une tactique, et sa chimie, en mots (S71). */
-const motFit = f => (f >= 70 ? 'Taillée pour elle' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
+export const motFit = f => (f >= 70 ? 'Taillée pour elle' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
 const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= 20 ? 'correcte' : 'naissante');
 const plafondChimie = c => (c >= 70 ? 'haut' : c >= 45 ? 'bon' : c >= 20 ? 'bas' : 'très bas');
 
@@ -172,6 +208,43 @@ const plafondChimie = c => (c >= 70 ? 'haut' : c >= 45 ? 'bon' : c >= 20 ? 'bas'
  *   onAppliquer(lignes, match), onBanc() | null, sousTitre
  * }
  */
+/*
+ * LE PLACEMENT D'UN JOUEUR DANS SA LIGNE (S72) : ▼ trop bas (son talent est
+ * gaspillé, l'unité porte un malus), ▲ trop haut (un cran, léger), ↔ hors de
+ * sa position naturelle. Rien s'il est à sa place.
+ */
+function placementDe(p, role, u) {
+  const g = role === 'DG' || role === 'DD' ? 'D' : 'F';
+  const unite = g === 'D' ? u : u;
+  const slot = SLOTS.find(s => !s.scratch && s.role === role && s.unit === unite && s.group === g);
+  const bits = [];
+  const z = getLineZone(p, getHiddenRatings(p).v);
+  const ideal = (z && z.idealUnits) || [];
+  if (ideal.length && unite > Math.max(...ideal)) bits.push(['▼', 'Trop bas : son talent est gaspillé ici, l\'unité porte un malus']);
+  else if (ideal.length && unite < Math.min(...ideal)) bits.push(['▲', 'Un cran trop haut : léger malus']);
+  const pen = slot ? getPositionPenalty(p, slot) : 0;
+  if (pen > 0) bits.push(['↔', 'Hors de sa position naturelle']);
+  return bits.length ? { html: bits.map(([m, t]) => ` <span class="gl-j-place" title="${esc(t)}">${m}</span>`).join(''), bits } : null;
+}
+/*
+ * CE QUI JOUE SUR TA FORMATION (S72). JP : *les bonus et malus devraient être
+ * avec les stratégies, tout devrait être ensemble*. Les effets en cours —
+ * dilemmes, séquences, élan, paris, investissements, cartes — et les absents
+ * se lisent ici, à côté des lignes, avec le nombre de matchs qui restent.
+ */
+export function effetsHtml(e) {
+  if (!e) return '';
+  const lignes = [];
+  for (const x of e.effets || []) {
+    const mots = motsDEffet(canauxDe(x));
+    if (!mots.length) continue;
+    lignes.push(`<div class="gl-effet"><span class="gl-effet-nom">${x.ico ? `${x.ico} ` : ''}${esc(x.nom || 'Effet')}${x.choix ? ` <small>· ${esc(x.choix)}</small>` : ''}</span><span class="choix-puces">${puces(mots)}<span class="puce neutre duree">${plur(x.reste, 'match')}</span></span></div>`);
+  }
+  for (const c of e.cartes || []) if (CARTES[c]) lignes.push(`<div class="gl-effet"><span class="gl-effet-nom">${CARTES[c].ico} ${esc(CARTES[c].nom)} <small>· carte</small></span><span class="choix-puces">${puces(motsDEffet(canauxDe(CARTES[c])))}<span class="puce neutre duree">la saison</span></span></div>`);
+  for (const a of e.absents || []) lignes.push(`<div class="gl-effet"><span class="gl-effet-nom">👥 ${esc(a.p.n)} <small>· au vestiaire</small></span><span class="choix-puces"><span class="puce neutre duree">${plur(a.reste, 'match')}</span></span></div>`);
+  if (e.gardienAux) lignes.push(`<div class="gl-effet"><span class="gl-effet-nom">🧤 L'auxiliaire au filet</span><span class="choix-puces"><span class="puce neutre duree">${plur(e.gardienAux, 'match')}</span></span></div>`);
+  return `<section class="gl-effets"><div class="gl-sec-titre">Ce qui joue sur ta formation</div>${lignes.length ? lignes.join('') : '<div class="gl-mot">Rien pour l\'instant : tes lignes jouent sur leur propre valeur.</div>'}</section>`;
+}
 export function ouvrirLignes(spec) {
   const m = $('lignesModal');
   if (!m) return;
@@ -192,9 +265,12 @@ export function ouvrirLignes(spec) {
     const fitRole = voulu && pr ? pr[voulu] : null;
     const c = p ? carrureDe(p) : null;
     const marque = fitRole == null ? '' : fitRole >= 60 ? '✓' : fitRole < 40 ? '✗' : '≈';
+    // TOUT CE QUI JOUE SUR LE TRIO, ICI (S72) : sa zone (le rang de ligne où
+    // il rend) et sa position (mauvaise aile, centre à l'aile).
+    const place = p ? placementDe(p, role, u) : null;
     return `<div class="gl-j${fitRole != null ? (fitRole >= 60 ? ' fit-bon' : fitRole < 40 ? ' fit-mauvais' : '') : ''}">
       <span class="gl-j-role">${role}</span>
-      <span class="gl-j-nom">${p ? esc(p.n) : '<i>vide</i>'}</span>
+      <span class="gl-j-nom">${p ? esc(p.n) : '<i>vide</i>'}${place ? place.html : ''}</span>
       <span class="gl-j-prof" title="${pp ? `Son meilleur rôle : ${esc(pp.nom)} (${niveauDe(pp.fit)})${c ? ` · ${c.mot}` : ''}` : ''}">${c ? c.ico : ''}</span>
       ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y est ${niveauDe(fitRole ?? 0)}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
       <span class="gl-j-energie" title="Énergie ${e} %"><span style="width:${e}%" class="${e < 60 ? 'bas' : e < 85 ? 'moyen' : ''}"></span></span>
@@ -219,8 +295,8 @@ export function ouvrirLignes(spec) {
     const consigne = match ? `<section class="gl-consigne">
       <div class="gl-sec-titre">Consigne du match</div>
       <div class="gl-seg gl-seg-court">${Object.entries(IMPORTANCES).map(([k, I]) => `<button type="button" class="gl-seg-btn${match.importance === k ? ' on' : ''}" data-importance="${k}">
-        <b>${I.ico} ${esc(I.nom)}</b><span class="choix-puces">${puces(motsDEffet(I))}${pucesJauges(I.jauges)}</span></button>`).join('')}</div>
-      <div class="gl-consigne-effet"><small>${esc(Icour.mot)}</small> <span class="choix-puces">${puces(motsDEffet(Icour))}${pucesJauges(Icour.jauges)}</span></div>
+        <b>${I.ico} ${esc(I.nom)}</b><span class="choix-puces">${puces(motsDEffet(I))}</span></button>`).join('')}</div>
+      <div class="gl-consigne-effet"><small>${esc(Icour.mot)}</small> <span class="choix-puces">${puces(motsDEffet(Icour))}</span></div>
       <div class="gl-ad"><span>🛡️ Défense</span><input type="range" min="-2" max="2" step="1" value="${match.ad}" class="gl-ad-range" aria-label="Attaque ou défense"><span>Attaque 🎯</span></div>
       <div class="choix-puces gl-ad-puces">${puces(motsDEffet({ finition: 1 + 0.025 * match.ad, defense: 1 + 0.02 * match.ad }))}${match.ad ? '' : '<span class="puce neutre">Équilibré</span>'}</div>
     </section>` : '';
@@ -275,7 +351,7 @@ export function ouvrirLignes(spec) {
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
-      <div class="choix-corps">${spec.plan ? planAdverseHtml(spec.plan, planEstContre(spec.plan, brouillon, match ? match.ad : 0), { nomAdv: spec.adv ? spec.adv.nom : 'Eux', suite: spec.planSuite || '' }) : ''}${consigne}${onglets}${detail}</div>
+      <div class="choix-corps">${effetsHtml(spec.effets)}${spec.plan ? planAdverseHtml(spec.plan, planEstContre(spec.plan, brouillon, match ? match.ad : 0), { nomAdv: spec.adv ? spec.adv.nom : 'Eux', suite: spec.planSuite || '' }) : ''}${consigne}${onglets}${detail}</div>
       <div class="gl-pied">
         ${spec.onBanc ? '<button type="button" class="btn gl-banc">Changer les trios</button>' : ''}
         <button type="button" class="btn go gl-appliquer">${esc(spec.motAppliquer || 'Appliquer')}</button>

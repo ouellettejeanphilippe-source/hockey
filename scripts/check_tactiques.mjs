@@ -54,15 +54,22 @@ const signe = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 const CLES = Object.keys(TACTIQUES).filter(k => k !== 'hourra');
 const pire = (team, u) => { const L = activeLineup(team); return CLES.slice().sort((a, b) => fitLigne(L, u, a) - fitLigne(L, u, b))[0]; };
 
-function paires(fabrique) {
+/*
+ * `temoin` (S72) : ce que jouent les équipes SANS la décision. Par défaut,
+ * les réglages de la ligue — qui choisissent maintenant eux-mêmes la
+ * tactique et l'agressivité payantes. Pour éprouver un principe (le physique
+ * décide de l'agressivité), on compare à un témoin fixe : « moyenne partout ».
+ */
+function paires(fabrique, temoin = null) {
   const dv = [], dbp = [], dbc = [], en = [];
   let spec = 0, etouf = 0, buts = 0;
   for (let L = 0; L < LIGUES; L++) {
     const bras = [];
     for (const parite of [0, 1]) {
       const teams = ligue(4000 + L);
-      const decisions = teams.map((t, i) => [t, i]).filter(([, i]) => i % 2 === parite)
-        .map(([t, i]) => ({ jour: 0, equipe: i, lignes: fabrique(t) }));
+      const decisions = teams.map((t, i) => [t, i])
+        .filter(([, i]) => i % 2 === parite || temoin)
+        .map(([t, i]) => ({ jour: 0, equipe: i, lignes: i % 2 === parite ? fabrique(t) : temoin(t) }));
       const { calendrier } = simulateLeague(teams, 82, { graine: `tac-${L}`, decisions });
       bras.push(teams.map(t => ({ W: t.W, GF: t.GF, GA: t.GA,
         e: moy(SLOTS.filter(s => !s.scratch && t.roster[s.i] && t.roster[s.i].p !== 'G').map(s => t.roster[s.i].energie ?? 100)) })));
@@ -95,10 +102,18 @@ const use = paires(t => [80, 60, 55, 45].map(sec => ({ tac: undefined, agr: 1, s
  */
 const parPhysique = t => { const L = activeLineup(t); return [0, 1, 2, 3].sort((a, b) => physiqueLigne(L, b) - physiqueLigne(L, a)); };
 const sur = (lignesVisees, agr) => [0, 1, 2, 3].map(u => ({ tac: undefined, agr: lignesVisees.includes(u) ? agr : 1, sec: 60 }));
-const dur = paires(t => sur(parPhysique(t).slice(0, 2), 3)); dire('rentre-dedans · costaudes', dur);
-const leger = paires(t => sur(parPhysique(t).slice(2), 3)); dire('rentre-dedans · légères', leger);
-const calmeDur = paires(t => sur(parPhysique(t).slice(0, 2), 0)); dire('basse · costaudes', calmeDur);
-const calmeLeger = paires(t => sur(parPhysique(t).slice(2), 0)); dire('basse · légères', calmeLeger);
+const moyenne = () => [0, 1, 2, 3].map(() => ({ tac: undefined, agr: 1, sec: 60 }));
+const dur = paires(t => sur(parPhysique(t).slice(0, 2), 3), moyenne); dire('rentre-dedans · costaudes', dur);
+const leger = paires(t => sur(parPhysique(t).slice(2), 3), moyenne); dire('rentre-dedans · légères', leger);
+const calmeDur = paires(t => sur(parPhysique(t).slice(0, 2), 0), moyenne); dire('basse · costaudes', calmeDur);
+const calmeLeger = paires(t => sur(parPhysique(t).slice(2), 0), moyenne); dire('basse · légères', calmeLeger);
+/*
+ * LA PARITÉ (S72). JP : *faire que toutes les équipes ont les mêmes
+ * stratégies*. Les réglages par défaut — ceux de chaque club de l'IA —
+ * choisissent l'agressivité payante de chaque ligne : ils doivent faire au
+ * moins aussi bien que « moyenne partout ».
+ */
+const parite = paires(moyenne); dire('moyenne partout (vs défaut)', parite);
 informer('buts sur action spéciale', `${(100 * mal.spec).toFixed(1)} % des buts de la ligue`);
 informer('actions étouffées par un contre', `${mal.etouf.toFixed(0)} par ligue`);
 
@@ -107,6 +122,7 @@ if (juger) {
   borne('jouer sans système coûte', -hourra.v, 0.5, 6, 'victoire');
   for (const [n, r] of [['rentre-dedans', brute], ['basse', doux], ['80 s au 1er trio', use]]) borne(`${n} · écart net`, r.v, -4, 4, 'victoire');
   exiger('rentre-dedans rapporte plus aux lignes costaudes qu\'aux légères', dur.v > leger.v + 0.3, `${signe(dur.v)} V contre ${signe(leger.v)} V`);
+  exiger('les réglages de l\'IA font au moins aussi bien que « moyenne partout »', parite.v <= 0.3, `moyenne partout : ${signe(parite.v)} V`);
   exiger('l\'agressivité basse rapporte plus aux lignes légères qu\'aux costaudes', calmeLeger.v > calmeDur.v, `${signe(calmeLeger.v)} V contre ${signe(calmeDur.v)} V`);
 } else informer('non jugé', `${LIGUES} ligues sous le plancher de 6`);
 verdict('Les lignes à la HockeyArena');

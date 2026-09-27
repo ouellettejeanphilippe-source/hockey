@@ -785,22 +785,24 @@ async function traverserSaison(etiquette, reprise = false) {
      * première occasion, où qu'elle tombe.
      */
     /*
-     * LA ROUTE, LES FACTIONS ET « PRÉPARER LE MATCH » (S66, S68). La route
-     * porte ses marques, les quatre factions sont là, et la consigne d'un
-     * match (son importance) devient une décision datée du soir du match,
-     * sans rembobiner la saison.
+     * LA ROUTE ET « PRÉPARER LE MATCH » (S66, S68). La route porte ses
+     * marques, la consigne d'un match (son importance) devient une décision
+     * datée du soir du match, sans rembobiner la saison. Les factions sont
+     * parties en S72 : aucune jauge ne doit rester à l'écran.
      */
     {
       const route = await page.$$eval('#hubModal .hub-route-m', e => e.length);
-      const jauges = await page.$$eval('#hubModal .hub-jauge', e => e.length);
+      const jauges = await page.$$eval('#hubModal .hub-jauge, #choixModal .hub-jd', e => e.length);
       if (route < 10) errors.push(`la route de la saison n'a que ${route} marques`);
-      if (jauges !== 4) errors.push(`${jauges} factions au lieu de quatre`);
+      if (jauges) errors.push(`${jauges} jauges de faction encore à l'écran`);
       if (!(await page.$('#hubModal .hub-preparer'))) errors.push('l\'affiche n\'offre pas « Préparer le match »');
       else {
         const jAvant = await jourDit();
         await _click('#hubModal .hub-preparer');
         await page.waitForSelector('#lignesModal:not([hidden]) [data-importance="haute"]', { timeout: 5000 });
         const puces = await page.$$eval('#lignesModal [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
+        // TOUT ENSEMBLE (S72) : « Ce qui joue sur ta formation » est dans le même écran que les lignes.
+        if (!(await page.$('#lignesModal .gl-effets'))) errors.push('« Préparer le match » ne montre pas ce qui joue sur ta formation');
         if (!puces.some(t => /Finition/.test(t))) errors.push(`l'importance haute ne dit pas son effet : ${puces.join(' · ')}`);
         await _click('#lignesModal [data-importance="haute"]');
         await _click('#lignesModal .gl-appliquer');
@@ -813,7 +815,7 @@ async function traverserSaison(etiquette, reprise = false) {
         if (jApres !== jAvant) errors.push(`la consigne du match rembobine la saison : journée ${jAvant} puis ${jApres}`);
         if (!dMatch.length || dMatch[dMatch.length - 1].match.importance !== 'haute' || !Array.isArray(dMatch[dMatch.length - 1].lignes)) errors.push(`la sauvegarde ne porte pas la consigne du match : ${JSON.stringify(dMatch)}`);
         else if (!/Haute/.test(imp)) errors.push(`l'affiche ne dit pas l'importance choisie : « ${imp} »`);
-        else console.log(`   préparer le match : importance haute pour la journée ${dMatch[dMatch.length - 1].jour + 1}, route ${route} marques, ${jauges} factions`);
+        else console.log(`   préparer le match : importance haute pour la journée ${dMatch[dMatch.length - 1].jour + 1}, route ${route} marques, aucune faction, ce qui joue sur ta formation à côté des lignes`);
       }
     }
 

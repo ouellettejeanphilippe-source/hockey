@@ -26,8 +26,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague,
-  MOMENTS, SEQUENCES, JAUGES, STYLES, OBJECTIFS, JOURS_OBJECTIFS, MATCHS_OBJECTIF,
-  objectifsOfferts, etatObjectif, momentDuJour, JOURS_MOMENTS, jaugesApres,
+  MOMENTS, SEQUENCES, STYLES, OBJECTIFS, JOURS_OBJECTIFS, MATCHS_OBJECTIF,
+  objectifsOfferts, etatObjectif, momentDuJour, JOURS_MOMENTS, ciblesDe, SLOTS as CASES,
   MUTATIONS, cibleMutation, getPlayerKey,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -113,16 +113,62 @@ exiger('sans décision, les deux passages sont identiques', temoin.v === 0 && te
 }
 
 /*
- * UN SEUL CHOIX NE POUSSE JAMAIS UNE FACTION AU BOUT. Elle part de 5 et
- * pèse à 8 ou à 2 : un delta de 3 d'un coup y arrivait, et l'effet d'une
- * faction dure TOUTE la saison — le conducteur de surfaceuse valait +1,4
- * victoire pour cette seule raison. Il faut deux choix cohérents.
+ * PLUS DE FACTIONS, ET DES CARTES QUI VARIENT (S72). JP : *les trucs genre
+ * partisans et cie, ça apporte rien* ; *pas obligé d'être toujours avec un
+ * malus et un bonus, varie les cartes*. Aucune option ne porte de faction, et
+ * le catalogue mêle des cadeaux, des moindres maux, des paris, des
+ * investissements, des gestes réels et des refus.
  */
 {
-  const trop = [];
-  for (const fam of [MOMENTS, SEQUENCES]) for (const [cle, m] of Object.entries(fam)) for (const o of m.options)
-    for (const [k, v] of Object.entries(o.jauges || {})) if (Math.abs(v) > 2) trop.push(`${cle}.${o.cle} ${k} ${v}`);
-  exiger('aucune option ne bouge une faction de plus de 2', !trop.length, trop.join(' · ') || 'toutes à ±2 au plus');
+  const options = [];
+  for (const fam of [MOMENTS, SEQUENCES]) for (const [cle, m] of Object.entries(fam)) for (const o of m.options) options.push([cle, o]);
+  const avecFaction = options.filter(([, o]) => o.jauges).map(([c, o]) => `${c}.${o.cle}`);
+  exiger('aucune option ne porte de faction', !avecFaction.length, avecFaction.join(' · ') || `${options.length} options`);
+  const canaux = o => ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse'].filter(k => o[k] != null);
+  const bon = (k, v) => (['defense', 'discipline', 'blessure', 'energie'].includes(k) ? v < 1 : k === 'robustesse' ? v > 0 : v > 1);
+  const types = {
+    cadeau: options.filter(([, o]) => !o.pari && !o.action && canaux(o).length && canaux(o).every(k => bon(k, o[k]))).length,
+    moindreMal: options.filter(([, o]) => !o.pari && (o.action && (o.action.energieTous || o.action.energie) || (canaux(o).length && canaux(o).every(k => !bon(k, o[k]))))).length,
+    pari: options.filter(([, o]) => o.pari).length,
+    investissement: options.filter(([, o]) => o.ensuite).length,
+    geste: options.filter(([, o]) => o.action).length,
+    rien: options.filter(([, o]) => o.rien).length,
+  };
+  informer('les types de cartes', Object.entries(types).map(([k, v]) => `${k} ${v}`).join(' · '));
+  for (const [k, v] of Object.entries(types)) exiger(`le catalogue a des cartes de type « ${k} »`, v >= 2, `${v}`);
+}
+
+/*
+ * LES GESTES SONT RÉELS (S72). JP : *mettons que tu rappelles des joueurs du
+ * club-école, ou whatever ce genre de cartes, faut le faire pour vrai*. Une
+ * vedette ménagée deux matchs n'est PAS habillée ces deux soirs-là, et revient
+ * au troisième ; un gardien en congé laisse le filet à l'auxiliaire.
+ */
+{
+  const J = 20;
+  const teams = ligue(7700);
+  const vedette = ciblesDe(teams[0], 'vedette')[0];
+  const partant = ciblesDe(teams[0], 'gardien')[0];
+  const cle = p => `${p.n}|${p.s}|${p.t}`;
+  const { getPlayerKey } = await import('../js/sim.js');
+  const decisions = [
+    { jour: J, equipe: 0, moment: { famille: 'moment', cle: 'lemieux', choix: 'menager', joueurs: [getPlayerKey(vedette)] } },
+    { jour: J, equipe: 0, moment: { famille: 'moment', cle: 'zamboni', choix: 'conge', joueurs: [getPlayerKey(partant)] } },
+  ];
+  void cle;
+  const { calendrier } = simulateLeague(teams, 82, { graine: 'gestes', decisions });
+  const soirs = [];
+  for (let j = J; j < calendrier.length && soirs.length < 3; j++) {
+    const m = calendrier[j].find(x => x.A === teams[0] || x.B === teams[0]);
+    if (!m) continue;
+    const cote = m.A === teams[0] ? 'A' : 'B';
+    soirs.push({ habille: (m.feuille.alignes[cote] || []).includes(vedette), gardien: m.feuille[`gardien${cote}`] });
+  }
+  exiger('une vedette ménagée deux matchs ne joue pas ces deux soirs-là', soirs.length === 3 && !soirs[0].habille && !soirs[1].habille, `${soirs.map(x => (x.habille ? 'habillé' : 'au vestiaire')).join(' · ')}`);
+  exiger('et revient au troisième', soirs.length === 3 && soirs[2].habille, soirs[2] ? (soirs[2].habille ? 'habillé' : 'au vestiaire') : '—');
+  exiger('le gardien en congé laisse le filet à l\'auxiliaire deux soirs', soirs.length >= 2 && soirs[0].gardien !== partant && soirs[1].gardien !== partant,
+    soirs.map(x => (x.gardien === partant ? 'le partant' : 'l\'auxiliaire')).join(' · '));
+  void CASES;
 }
 
 /* ---------- les dilemmes, pris au premier jour de moment ---------- */
@@ -143,15 +189,6 @@ for (const [cle, m] of Object.entries(SEQUENCES)) for (const o of m.options) {
   lire(`${m.ico} ${cle} · ${o.cle}`, r, -1, 1);
 }
 
-/* ---------- les jauges au bout, TOUTE la saison : le pire cas ---------- */
-console.log('\n  JAUGES À L\'EXTRÊME (toute la saison)');
-for (const k of Object.keys(JAUGES)) for (const [sens, d] of [['haut', 5], ['bas', -5]]) {
-  if (SEULEMENT) continue;
-  const r = paires(equipe => [{ jour: 0, equipe, jauges: { [k]: d } }]);
-  lire(`${JAUGES[k].ico} ${k} ${sens}`, r, -2.5, 2.5);
-}
-exiger('les jauges se rejouent d\'une liste de décisions',
-  jaugesApres([{ jour: 0, jauges: { vestiaire: 9 } }]).vestiaire === 10, 'bornées à 10');
 
 /* ---------- la consigne du match, tous les soirs (S68) ---------- */
 /*

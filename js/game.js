@@ -25,11 +25,11 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS } from './sim.js';
+  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS, effetsEnCours, fitLigne, TACTIQUES } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
-import { ouvrirLignes, resumeLignes, barresProfils } from './gerant.js';
+import { ouvrirLignes, resumeLignes, barresProfils, motFit } from './gerant.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
@@ -2702,19 +2702,27 @@ function lineEl(title, slots, group, unit, cls = '') {
   // Sur table, pas de chimie : le plateau joue chaque pièce sur ses nombres,
   // et annoncer « +2/+2 » serait promettre un bonus que rien n'applique.
   if (group != null && !surTable()) {
+    /*
+     * LA LIGNE, DANS LA LANGUE DES LIGNES (S72). L'en-tête d'un trio disait
+     * « Trio complet · optimal +2/+2 » — une autre chimie que celle de « Mes
+     * lignes ». Il dit maintenant sa tactique, son fit et si ses joueurs sont
+     * à leur place ; la paire dit sa place. Un seul vocabulaire.
+     */
     const syn = getUnitSynergy(G.roster, group, unit);
-    const sum = (syn.bonusOff || 0) + (syn.bonusDef || 0);
     const filled = slots.filter(s => G.roster[s.i]).length;
+    const place = syn.zoneEtat === 'optimal' ? '✨ à leur place' : syn.zoneEtat === 'hors' ? '🚨 hors de leurs lignes' : syn.zoneEtat === 'mal' ? '⚠️ un joueur mal placé' : '';
     if (filled === slots.length) {
-      const kind = sum > 0 ? 'good' : sum < 0 ? 'bad' : '';
+      const kind = syn.zoneEtat === 'optimal' ? 'good' : syn.zoneEtat ? 'bad' : '';
       if (kind) wrap.classList.add(kind);
-      const sign = x => { const v = Math.round(x * 10) / 10; return v > 0 ? `+${v}` : `${v}`; };
-      const bits = [chemShort(syn.chem || syn.name)];
-      if (syn.zone) bits.push(zoneShort(syn.zone, syn.zoneEtat));
-      const full = `${syn.name}${syn.desc ? ' — ' + syn.desc : ''} · attaque ${sign(syn.bonusOff || 0)}, défense ${sign(syn.bonusDef || 0)}`;
-      chemHtml = `<span class="line-chem ${kind}" title="${esc(full)}">${esc(bits.join(' · '))} <b>${sign(syn.bonusOff || 0)}/${sign(syn.bonusDef || 0)}</b></span>`;
+      let bits = [place].filter(Boolean);
+      if (group === 'F') {
+        const l = lignesDe({ lignes: G.banc ? G.banc.lignes : G.lignes }, G.roster)[unit];
+        const T = TACTIQUES[l.tac];
+        bits = [`${T.ico} ${T.nom}`, ...(l.tac === 'hourra' ? [] : [motFit(fitLigne(G.roster, unit, l.tac))]), ...bits];
+      }
+      chemHtml = `<span class="line-chem ${kind}" title="Tactique, fit et placement de la ligne : tout se règle dans « Mes lignes »">${esc(bits.join(' · '))}</span>`;
     } else {
-      chemHtml = `<span class="line-chem">${filled}/${slots.length} · chimie à venir</span>`;
+      chemHtml = `<span class="line-chem">${filled}/${slots.length} comblés</span>`;
     }
   } else {
     const filled = slots.filter(s => G.roster[s.i]).length;
@@ -2802,8 +2810,8 @@ function renderTeamSummary() {
   host.innerHTML =
     tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
     + tile('Vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
-    + tile('Optimales', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense. Les quatre trios et les trois paires comptent.")
-    + tile('Mal assorties', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
+    + tile('À leur place', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone : le trio rend à plein. Les quatre trios et les trois paires comptent.")
+    + tile('Mal placées', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
       `Unités où au moins un joueur joue hors de sa zone. Un cran d'écart ne coûte presque rien ; ${hors ? `${hors} unité${hors > 1 ? 's' : ''} est à deux crans ou plus, et là ça coûte cher.` : 'à deux crans ou plus, ça coûte cher.'}`)
     + tile('Hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
 }
@@ -3808,6 +3816,7 @@ function renderBanc() {
   $('bancLignes').onclick = () => ouvrirLignes({
     titre: 'Mes lignes', sousTitre: `Derrière le banc · journée ${b.jour}`,
     lineup: G.roster, lignes: b.lignes, chimie: b.chimie, energie: b.energie,
+    effets: (() => { const toi = G.ligue && (G.ligue.teams || []).find(t => t.isPlayer); return toi ? { ...effetsEnCours(toi, b.jour), cartes: (G.ligue.decisions || []).filter(d => d.carte && d.jour <= b.jour).map(d => d.carte) } : null; })(),
     adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
     match: null, motAppliquer: 'Garder ces lignes',
     onAppliquer: lignes => { G.banc.lignes = lignes; renderBanc(); },
