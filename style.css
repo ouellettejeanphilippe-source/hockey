@@ -6322,7 +6322,18 @@ body::before {
   #panePool.loto .pcard-big b { font-size: 24px; }
   #panePool.loto .pcard-name .lname { font-size: 18px; }
   #panePool.loto .pcard-name .fname { font-size: 11.5px; }
-  #panePool.loto .pcard-price { font-size: 15px; }
+  #panePool.loto .pcard-price { font-size: 15px; flex: none; }
+  /* Le nom cède la place au prix, jamais l'inverse : le prix se lisait sous le bouton. */
+  #panePool.loto .pcard-body { min-width: 0; }
+  #panePool.loto .pcard-name { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  #panePool.loto .pcard-name .lname { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #panePool.loto .pcard-inner > .btn-sign { font-size: 15px; padding: 0 6px; width: 100%; min-width: 0; margin: 0; border-radius: 10px; }
+  /* Le corps en grille : le nom cède, le prix reste entier, les pastilles passent à la ligne. */
+  #panePool.loto .pcard .pcard-inner { grid-template-columns: 46px minmax(0, 1fr) 76px; }
+  #panePool.loto .pcard-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 3px; align-items: end; }
+  #panePool.loto .pcard-head { display: contents; }
+  #panePool.loto .pcard-mid { grid-column: 1 / -1; flex-wrap: wrap; row-gap: 4px; }
+  #panePool.loto .pcard-mid .tags { flex-wrap: wrap; }
 }
 
 /* ===== Des cartes qui se lisent d'un coup d'oeil (S71) ===== */

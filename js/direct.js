@@ -115,7 +115,12 @@ function evenementsDuMatch(f, graine) {
   // Une feuille plus ancienne (partie sauvegardée) n'a que les comptes par
   // période, et on date les arrêts nous-mêmes.
   if (f.lancers && f.lancers.length) {
-    for (const l of f.lancers) if (!l.but) ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien, p: l.p, special: l.special, mode: l.mode, tac: l.tac });
+    // LE SEUIL DE DANGER EST CELUI DU MATCH (S71) : les 15 % de tirs les plus
+    // dangereux de CE match, quelle que soit l'époque ou le gardien.
+    const ps = f.lancers.filter(l => !l.but && l.p != null).map(l => l.p).sort((a, b) => a - b);
+    const seuil = ps.length ? ps[Math.floor(ps.length * (1 - PART_DANGER))] : null;
+    for (const l of f.lancers) if (!l.but) ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien, p: l.p, special: l.special, mode: l.mode, tac: l.tac,
+      danger: seuil != null && l.p != null ? l.p >= seuil : null });
   } else for (const cote of ['A', 'B']) {
     for (let per = 1; per <= 4; per++) {
       const buts = f.buts.filter(b => b.cote === cote && periodeDe(b.instant) === per).length;
@@ -150,7 +155,8 @@ function evenementsDuMatch(f, graine) {
  *
  * Le moteur note sur chaque lancer sa chance d'entrer (`p`) et l'action
  * spéciale qu'il porte. Mesuré sur une saison : une cinquantaine d'arrêts par
- * match, le médian à 9 %. Au-dessus de SEUIL_DANGER (le 85e centile), ou au
+ * match, le médian à 9 %. Dans les PART_DANGER tirs les plus dangereux DU
+ * MATCH (un seuil absolu vidait le fil des époques à faible pointage), ou au
  * bout d'une action spéciale, l'arrêt est un JEU DANGEREUX, raconté ; une
  * action étouffée ou un tir de loin en avantage numérique est un BEAU JEU
  * DÉFENSIF ; le reste est un tir, caché tant qu'on ne demande pas tous les
@@ -158,12 +164,14 @@ function evenementsDuMatch(f, graine) {
  */
 /* Le style d'un tireur, dans les mots des banques du commentateur. */
 const STYLE_MICRO = { canonnier: 'canon', fabricant: 'fab', rapide: 'rapide', tireur: 'tireur' };
-const SEUIL_DANGER = 0.16;
+const PART_DANGER = 0.15;
+const SEUIL_DANGER = 0.16;   // le repli, pour une feuille qui n'a pas de seuil
 const SEUIL_BLOQUE = 0.07;
 export function genreDuTir(e) {
   if (e.special === 'etouffee') return 'defense';
   if (e.mode === 'AN' && e.p != null && e.p < SEUIL_BLOQUE) return 'defense';
   if (e.special === 'reussie') return 'danger';
+  if (e.danger != null) return e.danger ? 'danger' : 'tir';
   if (e.p != null) return e.p >= SEUIL_DANGER ? 'danger' : 'tir';
   return Math.floor(e.instant * 1000) % 4 === 0 ? 'danger' : 'tir';
 }
