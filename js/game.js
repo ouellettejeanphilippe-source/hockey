@@ -41,7 +41,7 @@ import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
-import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN, ficheReelleDe } from './bilan.js';
+import { brancherBilan, renderResult, runPlayoffs, ouvrirEcranSeries, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN, ficheReelleDe } from './bilan.js';
 import { brancherEntractes } from './entracte.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { migrer, lireIndex, lirePartieActive, ecrirePartieActive, nouvellePartie, activer } from './sauvegardes.js';
@@ -5084,9 +5084,26 @@ async function deciderSerie(d) {
     // S70 : un entracte par match, et toute autre décision pour ce match l'annule.
     || !!x.entracte);
   // Une récompense de série ne touche que le deck : pas de dés neufs (S74).
-  G.ligue.decisionsSeries = [...(G.ligue.decisionsSeries || []).filter(x => !meme(x)), d.recompense !== undefined ? { ...d } : { ...d, sel: nouvelleGraine() }];
+  const avant = G.ligue.decisionsSeries || [];
+  G.ligue.decisionsSeries = [...avant.filter(x => !meme(x)), d.recompense !== undefined ? { ...d } : { ...d, sel: nouvelleGraine() }];
   const vues = G.seriesVues;
   saveGame();
+  /*
+   * EN AVANT (S79) : une décision pour un match PAS ENCORE JOUÉ (ou une
+   * récompense, que le moteur ne lit pas) entre dans le moteur des séries en
+   * mémoire, et l'écran se rouvre — rien n'est rejoué. Seul l'entracte d'un
+   * match qu'on regarde (joué pour être montré) reconstruit, jusque-là.
+   */
+  const S = G.seriesMoteur;
+  const pasJoue = S && (d.match_no < 0 || d.ronde > S.ronde || (d.ronde === S.ronde && d.match_no >= S.k));
+  const retire = avant.filter(meme);
+  const retireJoue = S && retire.some(x => x.match_no >= 0 && (x.ronde < S.ronde || (x.ronde === S.ronde && x.match_no < S.k)));
+  if (pasJoue && !retireJoue) {
+    S.decisions = G.ligue.decisionsSeries;
+    ouvrirEcranSeries(vues);
+    if (d.recompense) confirmerDecision(d);
+    return;
+  }
   G.done = false;
   renderMain();
   await sousVoile('On rejoue les séries avec ton choix…', async () => {

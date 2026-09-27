@@ -4541,13 +4541,15 @@ function ceduleDe(teams, games, graine) {
   return cedule;
 }
 
-export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true } = {}) {
+export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations } = {}) {
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   if (graine === null || graine === undefined) graine = nouvelleGraine();
   const L = {
     teams, games, graine, decisions,
     vit: typeof situations === 'function' ? situations : () => !!situations,
+    // Les accidents de carte suivent les situations, sauf demande contraire (une mesure des seules situations).
+    vitAcc: typeof accidents === 'function' ? accidents : () => !!accidents,
     rng: generateur(graine),
     // `jour` : les journées JOUÉES. La prochaine à jouer est `L.jour`.
     jour: 0, fini: false,
@@ -4630,7 +4632,7 @@ function preludeDuJour(L) {
   // hasard — de la graine, de la journée et du rang de l'équipe.
   for (let i = 0; i < teams.length; i++) if (L.vit(i)) poserSituations(teams[i], L.graine, r, i);
   // LES ACCIDENTS DE CARTE (S68), comme les situations : de la graine.
-  for (let i = 0; i < teams.length; i++) if (L.vit(i)) poserAccident(teams[i], L.graine, r, i);
+  for (let i = 0; i < teams.length; i++) if (L.vitAcc(i)) poserAccident(teams[i], L.graine, r, i);
   // LE GROS MATCH DU SOIR, repéré sans rien jouer : le même calcul que
   // `jouerJournee` refera au moment du match (les décisions du jour ne
   // touchent ni au classement ni aux rivalités).
@@ -5289,6 +5291,177 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
   for (const s of series) s.winner = s.wA === 4 ? s.A : s.B;
   for (const s of series) for (const t of [s.A, s.B]) t.effetsSerie = [];
   return series;
+}
+
+/*
+ * LES SÉRIES SE JOUENT MATCH PAR MATCH (S79). Comme la saison : rien d'avance.
+ * Le moteur des séries (`creerSeries`) ne joue un match qu'au moment où
+ * l'écran veut le montrer (`jouerMatchSeries` : le match k de chaque série
+ * encore ouverte de la ronde, ensemble, comme avant) ; la ronde suivante
+ * naît quand la dernière série de la ronde est décidée.
+ *
+ *   S.toutes      les séries nées jusqu'ici, dans l'ordre (leur `i` est leur
+ *                 rang, comme dans l'ancien `G.series`) ; chacune
+ *                 { A, B, wA, wB, feuilles, plans, ronde, i, winner? }
+ *   S.courante    les séries de la ronde en cours
+ *   S.ronde, S.k  la ronde en cours et le prochain match à y jouer
+ *   S.fini        le champion est connu (`S.champion`)
+ *
+ * TA SÉRIE A SON PROCHAIN PLAN D'AVANCE, sans que rien soit joué : le plan
+ * de l'adversaire et le rapport du dépisteur ne dépendent que de la graine,
+ * de la ronde, du match et du plan d'hier (`planDuMatchDeSerie`) ; le moteur le pose
+ * en `s.plans[k]` dès que le match d'avant est joué, et le complète en le
+ * jouant.
+ *
+ * LES STATISTIQUES DES SÉRIES À PART, match après match (`cumulerSeries`) :
+ * les compteurs de saison ne bougent jamais pendant les séries, et `p.po`,
+ * `t.po` cumulent les séries. C'était `separerSeries`, une fois à la fin —
+ * mais il n'y a plus de « fin » connue d'avance.
+ *
+ * Le hasard est celui de la ligue (`S.ligue`) : les séries continuent la
+ * même suite que la saison, comme avant. Sans ligue (un script), un
+ * générateur à part.
+ */
+export function creerSeries(qualifies, { ligue = null, graine = 0, decisions = [], equipes = qualifies } = {}) {
+  const S = {
+    graine, decisions, ligue, equipes,
+    rng: ligue ? null : generateur(`${graine}:series`),
+    nRondes: Math.max(1, Math.round(Math.log2(qualifies.length))),
+    ronde: 0, k: 0, courante: [], toutes: [], fini: false, champion: null,
+    toi: qualifies.find(t => t.isPlayer) || null,
+  };
+  for (const t of equipes) {
+    t.po = Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, 0]));
+    t.poJournal = []; t.poBlessures = [];
+    for (const s of SLOTS) { const p = t.roster[s.i]; if (p) p.po = {}; }
+  }
+  ouvrirRondeSeries(S, qualifies);
+  return S;
+}
+function ouvrirRondeSeries(S, equipes) {
+  S.courante = [];
+  for (let i = 0; i < equipes.length / 2; i++) {
+    const s = { A: equipes[i], B: equipes[equipes.length - 1 - i], wA: 0, wB: 0, feuilles: [], plans: [], ronde: S.ronde, i: S.toutes.length };
+    S.courante.push(s);
+    S.toutes.push(s);
+  }
+  S.k = 0;
+  poserPlansDeSeries(S);
+}
+/* Le plan de l'adversaire pour le match k de ta série : pur, de la graine et du plan d'hier. */
+function planDuMatchDeSerie(S, s, k) {
+  const toi = s.A.isPlayer ? s.A : s.B.isPlayer ? s.B : null;
+  if (!toi) return null;
+  const adv = toi === s.A ? s.B : s.A, prec = s.plans[k - 1] || null;
+  const cle = `po${s.ronde}:${k}`;
+  const depistage = depistageDe(S.graine, cle, adv, { precedent: prec && prec.plan, ilsOntGagne: prec ? !prec.gagne : false });
+  return { toi, adv, cle, depistage, plan: planDuDepistage(S.graine, cle, depistage) };
+}
+/* Le prochain plan de ta série, posé d'avance (`aVenir`) : l'écran prépare le match avec. */
+function poserPlansDeSeries(S) {
+  for (const s of S.courante) {
+    if (s.wA === 4 || s.wB === 4) continue;
+    const pl = planDuMatchDeSerie(S, s, s.feuilles.length);
+    if (pl) s.plans[s.feuilles.length] = { plan: pl.plan, depistage: pl.depistage, aVenir: true };
+  }
+}
+/* Les compteurs d'un match de séries passent aux statistiques des séries ; la saison ne bouge pas. */
+export function cumulerSeries(teams, photo) {
+  for (const t of teams) {
+    const e = photo.get(t);
+    if (!e) continue;
+    t.po = t.po || Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, 0]));
+    for (const k of CHAMPS_EQUIPE) t.po[k] = (t.po[k] || 0) + ((t[k] || 0) - (e[k] || 0));
+    t.poJournal = [...(t.poJournal || []), ...(t.journal ? t.journal.slice(e.journal) : [])];
+    t.poBlessures = [...(t.poBlessures || []), ...(t.injuriesLog ? t.injuriesLog.slice(e.blessures) : [])];
+    if (t.journal) t.journal.length = e.journal;
+    if (t.injuriesLog) t.injuriesLog.length = e.blessures;
+    for (const k of CHAMPS_EQUIPE) t[k] = e[k];
+    for (const s of SLOTS) {
+      const p = t.roster[s.i];
+      const q = p && photo.get(p);
+      if (!q) continue;
+      p.po = p.po || {};
+      for (const k of CHAMPS_SIM) {
+        if (p[k] === undefined && q[k] === undefined) continue;
+        const cle = k.slice(3);
+        p.po[cle] = (p.po[cle] || 0) + ((p[k] || 0) - (q[k] || 0));
+        p[k] = q[k];
+      }
+    }
+  }
+}
+/* UN MATCH DE SÉRIES : le match k de chaque série encore ouverte de la ronde. */
+export function jouerMatchSeries(S) {
+  if (S.fini) return;
+  const jouer = () => {
+    const r = S.ronde, k = S.k;
+    const photo = photoStats(S.equipes);
+    // Les décisions de séries de ta formation pour ce match (trios, lignes,
+    // consigne, ajustement entre deux rounds) : avant le match, dés neufs.
+    if (S.toi) {
+      S.toi.effetsSerie = [];
+      for (const d of S.decisions) if (d.ronde === r && d.match_no === k) appliquerDecisionSerie(S.toi, d, S.graine);
+    }
+    for (const s of S.courante) {
+      if (s.wA === 4 || s.wB === 4) continue;
+      const feuille = feuilleVierge();
+      // TA SÉRIE (S70) : chaque match est mis en scène, et l'adversaire garde
+      // le plan qui a gagné ou en change après une défaite.
+      const pl = planDuMatchDeSerie(S, s, k);
+      let gros = null;
+      if (pl) {
+        const toi = pl.toi;
+        gros = { serie: true, raison: 'serie', adv: pl.adv, depistage: pl.depistage, plan: pl.plan,
+          prep: toi._mainSerie ? toi._mainSerie.prep || null : null, effetsAvant: [],
+          cartes: toi._mainSerie ? toi._mainSerie.main : null, cleCartes: toi._mainSerie ? toi._mainSerie.cle : '',
+          graineMain: S.graine, cleMain: pl.cle, ronde: r };
+        toi._mainSerie = null;
+        const entracte = toi._entracte;
+        poserGros(toi, pl.adv, gros);
+        toi._entracte = entracte;
+      }
+      const res = playGame(s.A, s.B, k, true, true, feuille, r);
+      if (gros) {
+        const toi = pl.toi;
+        s.plans[k] = { plan: gros.plan, contre: gros.contre, depistage: gros.depistage, preparation: gros.preparation || [], prepJuste: gros.prepJuste ?? null, gagne: res.winner === toi, entracte: gros.entracte || null, apres40: gros.apres40 || null, cartes: gros.cartesJouees || null };
+        if (gros.cartesJouees) feuille.cartes = gros.cartesJouees;
+        leverGros(toi);
+        toi._gardienAuxMatch = false;
+      }
+      if (res.winner === s.A) s.wA++; else s.wB++;
+      // Décidée au quatrième gain, pas à la fin de la ronde : ta série gagnée
+      // en quatre ne demande pas de cinquième match pendant que les autres jouent.
+      if (s.wA === 4 || s.wB === 4) s.winner = s.wA === 4 ? s.A : s.B;
+      feuille.numero = k + 1;
+      feuille.serie = `${s.wA}-${s.wB}`;
+      s.feuilles.push(feuille);
+    }
+    cumulerSeries(S.equipes, photo);
+    S.k = k + 1;
+    if (S.courante.every(s => s.wA === 4 || s.wB === 4)) {
+      for (const s of S.courante) s.winner = s.wA === 4 ? s.A : s.B;
+      for (const s of S.courante) for (const t of [s.A, s.B]) t.effetsSerie = [];
+      const gagnants = S.courante.map(s => s.winner);
+      if (gagnants.length === 1) { S.fini = true; S.champion = gagnants[0]; S.courante = []; }
+      else { S.ronde = r + 1; ouvrirRondeSeries(S, gagnants); }
+    } else poserPlansDeSeries(S);
+  };
+  if (S.ligue) avecLigue(S.ligue, jouer);
+  else { const avant = hasard; hasard = S.rng; try { jouer(); } finally { S.rng = hasard; hasard = avant; } }
+}
+/* Jouer jusqu'à ce que le match k de la ronde r soit joué (ou les séries finies). */
+export function jouerSeriesJusqua(S, r, k = Infinity) {
+  while (!S.fini && (S.ronde < r || (S.ronde === r && S.k <= k))) jouerMatchSeries(S);
+  return S;
+}
+/* Rejouer une reprise : jusqu'à ce que chaque série ait les matchs qu'on en avait vus. */
+export function jouerSeriesVues(S, revele = []) {
+  for (let garde = 0; !S.fini && garde < 64; garde++) {
+    if (!S.toutes.some(s => (revele[s.i] || 0) > s.feuilles.length)) break;
+    jouerMatchSeries(S);
+  }
+  return S;
 }
 
 /*

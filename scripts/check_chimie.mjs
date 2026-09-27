@@ -53,16 +53,24 @@ const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 
 console.log('\n  La chimie apprise (S73)\n');
 
+/*
+ * PLUSIEURS SAISONS, PAS UNE (S79). Une ligue seule est un tirage : la même
+ * épreuve échouait sur main sur la 2 (56 % contre 62 % au jour 33) et, la
+ * cédule tirée à part, sur la 1 (60 % au jour 20, 59 % au jour 40) — les
+ * blessures cassent des lignes au hasard d'une saison. On mesure la moyenne
+ * de six saisons, les mêmes clubs sous six graines.
+ */
+const GRAINES = ['chimie', 'chimie-2', 'chimie-3', 'chimie-4', 'chimie-5', 'chimie-6'];
+const bases = GRAINES.map(g => { const b = ligue(8100); simulateLeague(b, 82, { graine: g, decisions: [] }); return b; });
+const base = bases[0];
+
 /* ---------- 1. plus une ligne joue, mieux c'est ---------- */
-const base = ligue(8100);
-simulateLeague(base, 82, { graine: 'chimie', decisions: [] });
 {
-  const J = base[0].jourLignes;
-  const c = j => moy(J[j].chimie);
-  // Une ligue seule : les blessures de fin de saison cassent des lignes, et la
-  // chimie peut redescendre un peu entre la journée 40 et la 80 — c'est la vie
-  // d'une saison, pas une chimie qui se défait. On exige la montée, pas un plateau.
-  informer('chimie moyenne de tes lignes', `journée 5 : ${c(5).toFixed(0)} % · 20 : ${c(20).toFixed(0)} % · 40 : ${c(40).toFixed(0)} % · 80 : ${c(80).toFixed(0)} %`);
+  const c = j => moy(bases.map(b => moy(b[0].jourLignes[j].chimie)));
+  // Les blessures de fin de saison cassent des lignes, et la chimie peut
+  // redescendre un peu entre la journée 40 et la 80 — c'est la vie d'une
+  // saison, pas une chimie qui se défait. On exige la montée, pas un plateau.
+  informer('chimie moyenne de tes lignes', `journée 5 : ${c(5).toFixed(0)} % · 20 : ${c(20).toFixed(0)} % · 40 : ${c(40).toFixed(0)} % · 80 : ${c(80).toFixed(0)} % (${GRAINES.length} saisons)`);
   exiger('plus une ligne joue son système, plus sa chimie monte', c(5) < c(20) && c(20) < c(40) && c(40) <= c(80) + 10, `${c(5).toFixed(0)} → ${c(80).toFixed(0)} %`);
 }
 
@@ -74,13 +82,18 @@ simulateLeague(base, 82, { graine: 'chimie', decisions: [] });
   const saison = lignesDe(t[0], L);
   // Contrer quelqu'un un soir : les deux premières lignes dans la tactique qui étouffe la leur.
   const soir = saison.map((l, u) => (u < 2 ? { ...l, tac: contreDe(l.tac) || 'defensive' } : { ...l }));
-  simulateLeague(t, 82, { graine: 'chimie', decisions: [
-    { jour: J0, equipe: 0, lignes: soir },
-    { jour: J0 + 1, equipe: 0, lignes: saison.map(l => ({ ...l })) },
-  ] });
-  const apres = moy(t[0].jourLignes[J0 + 3].chimie), temoin = moy(base[0].jourLignes[J0 + 3].chimie);
+  const avecAjustement = GRAINES.map(g => {
+    const u = ligue(8100);
+    simulateLeague(u, 82, { graine: g, decisions: [
+      { jour: J0, equipe: 0, lignes: soir.map(l => ({ ...l })) },
+      { jour: J0 + 1, equipe: 0, lignes: saison.map(l => ({ ...l })) },
+    ] });
+    return u;
+  });
+  const apres = moy(avecAjustement.map(u => moy(u[0].jourLignes[J0 + 3].chimie)));
+  const temoin = moy(bases.map(b => moy(b[0].jourLignes[J0 + 3].chimie)));
   exiger('s\'adapter un soir ne défait pas la chimie de la saison', Math.abs(apres - temoin) < 3,
-    `${temoin.toFixed(1)} % sans l'ajustement, ${apres.toFixed(1)} % avec (l'ancienne règle l'aurait coupée de moitié)`);
+    `${temoin.toFixed(1)} % sans l'ajustement, ${apres.toFixed(1)} % avec, moyenne de ${GRAINES.length} saisons (l'ancienne règle l'aurait coupée de moitié)`);
   // Pas complet : ce soir-là, le système peu joué a moins de chimie que le système maîtrisé.
   const photo = apprentissagePhoto(base[0].jourLignes[J0].apprentissage);
   const maitrise = chimieLigne(photo, L, 0, saison[0].tac), nouveau = chimieLigne(photo, L, 0, soir[0].tac);

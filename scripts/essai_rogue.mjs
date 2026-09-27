@@ -33,6 +33,14 @@ await page.screenshot({ path: `${DOSSIER}/rogue-plombiers.png` });
 async function regler() {
   for (let i = 0; i < 30; i++) {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]')) { await page.click('#choixModal:not([hidden]) .choix-plus-tard'); await page.waitForTimeout(250); continue; }
+    // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on montre tout.
+    const pq = await page.$('#choixModal:not([hidden]) .paquet');
+    if (pq && await pq.isVisible()) {
+      await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(300);
+      await page.click('#choixModal .choix-tete').catch(() => {});
+      await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {});
+      continue;
+    }
     if (await page.$('#choixModal:not([hidden]) .main-jouer')) { await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); continue; }
     // Une main de palier (des cartes .tc) : la première carte jouable.
     const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])');
@@ -49,11 +57,23 @@ async function regler() {
 await page.click('#mainBtn');
 await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
 await regler();
+/*
+ * « JUSQU'À LA PROCHAINE DÉCISION » (S79) remplace « +10 jours » : elle joue
+ * les journées une à une et s'arrête sur ce qui demande le joueur. On attend
+ * qu'elle ait fini (le bouton se réactive).
+ */
+async function prochaineDecision() {
+  const p = await page.$('#hubModal .hub-prochaine');
+  if (!p || !(await p.isVisible()) || await p.isDisabled()) return false;
+  await p.click();
+  await page.waitForFunction(() => !document.querySelector('#hubModal .hub-prochaine[disabled]'), null, { timeout: 120000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  return true;
+}
 // Avancer un peu pour gagner des jetons
 for (let i = 0; i < 3; i++) {
   await regler();
-  const dix = await page.$('#hubModal .hub-dix');
-  if (dix) { await dix.click(); await page.waitForTimeout(600); }
+  await prochaineDecision();
 }
 await regler();
 const avant = (await page.textContent('#hubModal .hub-boutique')).trim();
@@ -102,12 +122,17 @@ await page.waitForTimeout(800);
 const dA = await page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); const p = JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); return (p.partie.decisions || []).filter(x => x.deck === 'atelier'); });
 console.log(`4b. l'atelier : ${editions.join(' · ')} → « ${premier} » · décision : ${JSON.stringify(dA.map(x => x.mutation && { cle: x.mutation.cle, rar: x.mutation.carte && x.mutation.carte.rar }))}`);
 if (!dA.length) erreurs.push('l\'atelier n\'a laissé aucune décision');
-// Fin de saison
-await regler();
-await page.click('#hubModal .hub-fin');
-const oui = await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="fin"]', { timeout: 5000 }).catch(() => null);
-if (oui) await oui.click();
-await page.waitForSelector('#hubModal .hub-suite', { timeout: 120000 });
+// La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
+for (let i = 0; i < 200; i++) {
+  await regler();
+  const s2 = await page.$('#hubModal .hub-suite');
+  if (s2 && await s2.isVisible()) break;
+  if (await page.$('.result .score') && await page.isVisible('.result .score')) break;
+  if (await prochaineDecision()) continue;
+  const j = await page.$('#hubModal .hub-jour');
+  if (j && await j.isVisible()) { await j.click(); await page.waitForTimeout(400); }
+}
+await page.waitForSelector('#hubModal .hub-suite, .result .score', { timeout: 120000 });
 // Ce qui reste à régler avant le bilan (un palier, un sommaire).
 await regler();
 // Prendre le dernier palier peut mener tout droit au bilan : on ne touche « Voir le bilan » que s'il est là.

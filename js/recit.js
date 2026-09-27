@@ -40,17 +40,12 @@ const mmss = x => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-/** `12:34` — le temps écoulé dans la période, celui de la feuille officielle. */
-export function tempsDeJeu(instant) {
-  const dansPeriode = instant >= 60 ? instant - 60 : instant % 20;
-  return mmss(dansPeriode);
-}
-
 /**
  * `07:26` — le temps qu'il RESTE à la période, celui du tableau indicateur.
  * C'est ce que le direct affiche : une horloge de hockey descend, et JP a
- * dit qu'une horloge qui monte ne ressemble pas à un match. La feuille
- * officielle, elle, garde le temps écoulé.
+ * dit qu'une horloge qui monte ne ressemble pas à un match. C'est la SEULE
+ * horloge du jeu (S79) : le sommaire du match et l'entracte donnaient le temps
+ * écoulé, et JP lisait deux heures différentes pour le même but.
  */
 export function tempsRestant(instant) {
   const enProlongation = instant >= 60;

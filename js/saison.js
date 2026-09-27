@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua,
+import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries,
   PLANS, ROULEMENTS, planDe, roulementDe, JOURS_SITUATIONS,
   STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
@@ -67,7 +67,8 @@ function boiteDe(graine) {
 /* Les pronostics déjà calculés (js/pronostic.js) : une même journée ne se rejoue pas deux fois. */
 const PRONOS = new Map();
 /* « 2e 14:05 » : l'instant d'un but, pour le tableau de l'entracte. */
-const instantMot = t => { const per = Math.min(3, Math.floor(t / 20) + 1), r = t - (per - 1) * 20; return `${per === 1 ? '1re' : `${per}e`} ${Math.floor(r)}:${String(Math.floor((r % 1) * 60)).padStart(2, '0')}`; };
+// Un but à l'entracte : sa période et l'horloge du direct (le temps qu'il reste, `tempsRestant`).
+const instantMot = t => { const per = Math.min(3, Math.floor(t / 20) + 1); return `${per === 1 ? '1re' : `${per}e`} ${tempsRestant(t)}`; };
 /* Ce qui s'est passé au deuxième entracte d'un gros match, en une ligne. */
 function motEntracte(ctx, mb) {
   const bits = [];
@@ -1316,9 +1317,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const bouton = actions.querySelector('.hub-prochaine');
     for (const b of actions.querySelectorAll('button')) b.disabled = true;
     let t0 = performance.now();
+    // Les messages À LIRE croisés en route (la situation du jour 46, la carte
+    // qui change) : chaque `avancer(1)` les remet à zéro, on garde le dernier.
+    let situ = null, acc = null;
     try {
       while (jour < N) {
-        if (avancer(1, true, false)) break;
+        const arrete = avancer(1, true, false);
+        situ = situation || situ; acc = accident || acc;
+        if (arrete) break;
         if (performance.now() - t0 > 50) {
           if (bouton) bouton.textContent = `J${depart + 1} … J${jour}`;
           await new Promise(r => setTimeout(r, 0));
@@ -1326,6 +1332,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         }
       }
     } finally { enRoute = false; }
+    situation = situ; accident = acc;
     dernierAvance = { joues0: avant.joues };
     boite.ouvert = null;
     dessiner();
@@ -2452,18 +2459,34 @@ function etatDeSerie(ctx, s, wA, wB) {
  * feuilles, donc on ne sauve pas ce qui s'est passé, seulement jusqu'où le
  * joueur l'a regardé.
  */
-export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null, graine = 0, decisions = [], onDecision = null, onBanc = null, decisionsSaison = [] }) {
+/*
+ * LES SÉRIES À L'ÉCRAN, JOUÉES AU MOMENT D'ÊTRE MONTRÉES (S79). `moteur` est
+ * le moteur des séries (`creerSeries`, js/sim.js) : `series` est sa liste
+ * VIVANTE (`S.toutes`) — une ronde y entre quand la précédente est décidée,
+ * une feuille quand son match est joué. `jouerSerie(r, k)` joue ce qu'il faut
+ * pour montrer le match k de la ronde r ; rien ne se joue avant.
+ */
+export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null, graine = 0, decisions = [], onDecision = null, onBanc = null, decisionsSaison = [] }) {
   const ui = coquille('Les séries');
   if (!ui || !series.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
-  const nRondes = Math.max(...series.map(s => s.ronde)) + 1;
+  const nRondes = nR || Math.max(...series.map(s => s.ronde)) + 1;
   const deRonde = r => series.filter(s => s.ronde === r).sort((a, b) => a.i - b.i);
   // Ce qui est révélé : le nombre de matchs qu'on a vus de chaque série.
   // Une reprise repart d'où elle s'était arrêtée ; `Math.min` borne un état
   // sauvegardé par une version qui jouait des séries plus longues.
   const vus = (depuis && depuis.revele) || [];
   const revele = new Map(series.map(s => [s, Math.min(Math.max(0, vus[s.i] || 0), s.feuilles.length)]));
-  const complete = s => revele.get(s) >= s.feuilles.length;
+  // Les séries qui naissent en cours de route (la ronde suivante) entrent à zéro match vu.
+  const suivre = () => { for (const s of series) if (!revele.has(s)) revele.set(s, 0); };
+  // Jouer ce qu'il faut pour MONTRER le match k de la ronde r — jamais plus.
+  const jouerSerie = (r, k) => {
+    if (!moteur) return;
+    while (!moteur.fini && (moteur.ronde < r || (moteur.ronde === r && moteur.k <= k))) jouerMatchSeries(moteur);
+    suivre();
+  };
+  // Une série est COMPLÈTE quand elle est décidée ET que tous ses matchs sont vus.
+  const complete = s => !!s.winner && revele.get(s) >= s.feuilles.length;
   const gains = s => { let wA = 0, wB = 0; for (const f of s.feuilles.slice(0, revele.get(s))) { if (f.vainqueur === 'A') wA++; else wB++; } return { wA, wB }; };
   const rondeComplete = r => deRonde(r).every(complete);
   let ronde = Math.min(Math.max(0, (depuis && depuis.ronde) || 0), nRondes - 1), termine = false;
@@ -2478,9 +2501,21 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
   const nomRondeCourt = r => nomRonde(r).replace('Finale de la Coupe Stanley', 'Finale');
 
   /* Un match de plus dans chaque série encore ouverte de la ronde. */
-  const matchSuivant = () => { for (const s of deRonde(ronde)) if (!complete(s)) revele.set(s, revele.get(s) + 1); };
-  const finirRonde = () => { for (const s of deRonde(ronde)) revele.set(s, s.feuilles.length); };
-  const toutReveler = () => { for (const s of series) revele.set(s, s.feuilles.length); ronde = nRondes - 1; };
+  const matchSuivant = () => {
+    for (const s of deRonde(ronde)) {
+      if (complete(s)) continue;
+      jouerSerie(ronde, revele.get(s));
+      if (s.feuilles.length > revele.get(s)) revele.set(s, revele.get(s) + 1);
+    }
+  };
+  const finirRonde = () => {
+    if (moteur) { while (!moteur.fini && moteur.ronde <= ronde) jouerMatchSeries(moteur); suivre(); }
+    for (const s of deRonde(ronde)) revele.set(s, s.feuilles.length);
+  };
+  const toutReveler = () => {
+    if (moteur) { while (!moteur.fini) jouerMatchSeries(moteur); suivre(); }
+    for (const s of series) revele.set(s, s.feuilles.length); ronde = nRondes - 1;
+  };
   /*
    * CE QUE LA SAUVEGARDE EMPORTE, et le seul endroit qui le compose. Appelé
    * au début de `dessiner()` — donc après CHAQUE changement, puisque rien ne
@@ -2568,17 +2603,23 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     const nom = P ? P.nom.toLowerCase() : 'leur plan';
     return pl[k - 1].gagne ? `Au dernier match, ${nom} n'a pas marché : ils vont sûrement changer.` : `Au dernier match, ${nom} a marché : ils risquent de le garder.`;
   };
+  // Le prochain match de ta série a son plan d'avance (le moteur le pose sans jouer) :
+  // son deuxième entracte s'attend. Une fois joué, sa feuille le confirme.
   const entracteSerieAttendu = s => {
     if (!onDecision || !s || complete(s)) return false;
     const k = revele.get(s);
-    return !!(s.plans && s.plans[k] && s.feuilles[k] && s.feuilles[k].entracte)
+    return !!(s.plans && s.plans[k] && (!s.feuilles[k] || s.feuilles[k].entracte))
       && !decsSerie.some(d => d.ronde === ronde && d.match_no === k && d.entracte);
   };
   /* LE DEUXIÈME ENTRACTE D'UN MATCH DE SÉRIES (S70), comme en saison. */
   function ouvrirEntracteSerie(direct = false) {
     const s = maSerie(ronde);
     if (!entracteSerieAttendu(s) || termine) return;
-    const k = revele.get(s), f = s.feuilles[k], e = f.entracte, pl = s.plans[k];
+    // Le match se joue pour montrer ses deux premières périodes ; le choix le
+    // rejouera depuis 40:00 (`deciderSerie`, js/game.js).
+    jouerSerie(ronde, revele.get(s));
+    const k = revele.get(s), f = s.feuilles[k], e = f && f.entracte, pl = s.plans[k];
+    if (!e) { matchSuivant(); dessiner(); tabs.suivre('serie'); return; }
     const boss = s.A === you ? s.B : s.A;
     const moiA = e.toi === 'A', cMoi = moiA ? 'A' : 'B', cLui = moiA ? 'B' : 'A';
     const moi = moiA ? e.gfA : e.gfB, lui = moiA ? e.gfB : e.gfA;
@@ -2725,9 +2766,18 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
    * venir », avec le club déjà qualifié s'il y en a un.
    */
   const voletTableau = () => {
+    // Une ronde ne naît que la précédente décidée (S79) : d'ici là, ses séries
+    // sont des places « à venir », dans l'ordre où elles naîtront.
+    const places = new Map();
+    const rondeDe = r => {
+      const vraies = deRonde(r);
+      if (vraies.length) return vraies;
+      if (!places.has(r)) places.set(r, Array.from({ length: Math.max(1, deRonde(0).length >> r) }, () => ({ ronde: r, A: null, B: null, feuilles: [] })));
+      return places.get(r);
+    };
     const enfants = s => {
       if (s.ronde === 0) return [];
-      const prev = deRonde(s.ronde - 1), j = deRonde(s.ronde).indexOf(s);
+      const prev = rondeDe(s.ronde - 1), j = rondeDe(s.ronde).indexOf(s);
       return [prev[j], prev[prev.length - 1 - j]];
     };
     const qualifie = s => (complete(s) ? s.winner : null);
@@ -2742,7 +2792,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
       const [c1, c2] = enfants(s);
       return `<div class="bk-serie ${pos} a-venir">${rangee(qualifie(c1), 0, false)}${rangee(qualifie(c2), 0, false)}</div>`;
     };
-    const finale = deRonde(nRondes - 1)[0];
+    const finale = rondeDe(nRondes - 1)[0];
     const cote = t0 => {
       const colonnes = Array.from({ length: nRondes - 1 }, () => []);
       const descendre = x => { if (!x) return; colonnes[x.ronde].push(x); for (const e of enfants(x)) descendre(e); };
@@ -2868,15 +2918,21 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
 
     const boutons = [];
     if (s && !complete(s)) boutons.push(`<button class="btn gold hub-regarder" title="Le prochain match de ta série, lancer par lancer">Regarder le match ${revele.get(s) + 1}</button>`);
+    /*
+     * PAS DE SAUT PAR-DESSUS TA SÉRIE (S79). JP : *pas possible de sauter la
+     * saison*. « Finir la ronde » n'existe que ta série décidée (ou sans toi) ;
+     * « Passer à la fin », que tu n'aies plus rien à décider (éliminé).
+     */
+    const plusRienADecider = !you || elimination() >= 0;
     if (!rondeComplete(ronde)) {
       boutons.push(`<button class="btn go hub-jour" title="Un match de plus dans chaque série de la ronde">Match suivant</button>`);
-      boutons.push(`<button class="btn hub-ronde" title="Jouer la ronde jusqu'au bout">Finir la ronde</button>`);
+      if (!s || complete(s)) boutons.push(`<button class="btn hub-ronde" title="Jouer la ronde jusqu'au bout">Finir la ronde</button>`);
     } else if (ronde + 1 < nRondes) {
       boutons.push(`<button class="btn go hub-jour" title="${ctx.esc(nomRonde(ronde + 1))}">${ctx.esc(nomRondeCourt(ronde + 1))}</button>`);
     }
     // PRÉPARER LE ROUND ET LE BANC (S69) : tant que ta série se joue.
     if (s && !complete(s) && onDecision) boutons.unshift(`<div class="hub-actions-rang"><button class="btn gold hub-preparer">Préparer le match ${revele.get(s) + 1}</button>${onBanc ? '<button class="btn hub-banc-serie">Le banc</button>' : ''}</div>`);
-    boutons.push(`<button class="btn hub-fin" title="Jouer toutes les séries et voir le tableau">Passer à la fin</button>`);
+    if (plusRienADecider) boutons.push(`<button class="btn hub-fin" title="Jouer toutes les séries et voir le tableau">Passer à la fin</button>`);
     if (onDecision) boutons.push(`<button class="btn hub-deck" title="Tes cartes de match : tu en piges cinq avant chaque match de ta série">🃏 Mon deck · ${deckDeSerie().length}</button>`);
     actions.innerHTML = boutons.join('');
     const vd = actions.querySelector('.hub-deck');
@@ -2892,11 +2948,8 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     };
     const fr = actions.querySelector('.hub-ronde');
     if (fr) fr.onclick = () => { finirRonde(); dessiner(); tabs.suivre('serie'); };
-    actions.querySelector('.hub-fin').onclick = () => {
-      const suite = () => { toutReveler(); dessiner(); tabs.suivre('serie'); };
-      // Tant que ta série se joue, passer à la fin saute tes mains : on demande (QA S74b).
-      if (onDecision && s && !complete(s)) demanderFinSeries(suite); else suite();
-    };
+    const hf = actions.querySelector('.hub-fin');
+    if (hf) hf.onclick = () => { toutReveler(); dessiner(); tabs.suivre('serie'); };
     if (!recompenseSerie()) brancherBoss(s);
   }
 
@@ -2908,6 +2961,8 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     const k = revele.get(s);
     const attente = !depuis && entracteSerieAttendu(s);
     const { wA, wB } = gains(s);
+    // Le match se JOUE maintenant, pour être montré (S79).
+    jouerSerie(ronde, k);
     const f = s.feuilles[k];
     const apres = etatDeSerie(ctx, s, wA + (f.vainqueur === 'A' ? 1 : 0), wB + (f.vainqueur === 'B' ? 1 : 0));
     diffuserMatch({
@@ -2938,20 +2993,11 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     quitter();
     onTermine();
   };
-  /* ✕ : le reste des séries se joue, et on passe au tableau. */
-  // ✕ : le reste des séries se joue — après une question (S74), comme en saison.
-  function demanderFinSeries(suite) {
-    ouvrirChoix({
-      ico: '⏩', titre: 'Jouer le reste des séries ?', genre: 'confirmer', fermable: true, motFermer: 'Rester',
-      recit: 'Toutes les séries se jouent d\'un coup, et tu passes au tableau final.',
-      options: [
-        { cle: 'fin', ico: '⏩', nom: 'Oui, jusqu\'au tableau', bon: 'Tout se joue d\'un coup', prix: 'Tes mains et tes ajustements passent sans toi' },
-        { cle: 'rester', ico: '🏒', nom: 'Non, je reste', bon: 'On continue match par match' },
-      ],
-      onChoix: k => { if (k === 'fin') suite(); },
-    });
-  }
-  ui.close.onclick = () => demanderFinSeries(() => { toutReveler(); fermer(); });
+  // Le ✕ ne saute pas tes matchs : il ferme quand tout est vu, ou quand tu n'as plus rien à décider (S79).
+  ui.close.onclick = () => {
+    if (ronde === nRondes - 1 && rondeComplete(ronde)) { fermer(); return; }
+    if (!you || elimination() >= 0) { toutReveler(); fermer(); }
+  };
   ui.close.setAttribute('aria-label', 'Passer au tableau des séries');
   ui.close.title = 'Jouer le reste des séries et voir le tableau';
   const clavier = ev => {

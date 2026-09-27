@@ -262,6 +262,11 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
     `après 20 journées, les ${futurs.length} matchs à venir n'ont ni pointage ni feuille`);
   dire(L2.teams.every(t => t.W + t.L + t.OTL <= 20) && L2.teams.some(t => t.W + t.L + t.OTL > 0),
     'les fiches ne comptent que les matchs joués');
+  // Le tiroir des trios lit `p._mutCles` : il ne porte plus la fin de l'année, seulement ce qui est arrivé.
+  const cles = L2.teams.reduce((k, t) => k + SLOTS.reduce((m, s) => m + ((t.roster[s.i] && t.roster[s.i]._mutCles) || []).length, 0), 0);
+  const posees = L2.teams.flatMap(t => t.mutations || []);
+  dire(posees.every(m => m.jour <= L2.jour) && cles === posees.length,
+    `après 20 journées, les marques des joueurs (${cles}) ne sont que les mutations déjà posées (aucune après le jour 20)`);
   // (3) la décision prise en route.
   const decider = equipes => {
     const t = equipes[0];
