@@ -57,11 +57,20 @@ export const brille = r => r === 'rare' || r === 'legendaire';
  *       typeHtml, artHtml, texteHtml, bonHtml, prixHtml, pucesHtml,
  *       coinHtml, desactive, dos (le DOS de la carte : elle sort d'un paquet
  *       face cachée et se retourne, js/gerant.js `ouvrirChoix`), r (son rang
- *       dans le retournement), meilleure (la dernière retournée, qui éclate) }
+ *       dans le retournement), meilleure (la dernière retournée, qui éclate),
+ *       joueurHtml (S78 : une CARTE MINI de joueur, qui remplace le cadre
+ *       d'« insert » — le choix d'un joueur se voit en carte de joueur) }
  */
 export function carteHtml(c) {
   const r = RARETES[c.rarete] ? c.rarete : 'commune';
   const R = RARETES[r];
+  if (c.joueurHtml) return `<button type="button" class="choix-option tc tc-${r} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
+    ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
+    ${c.joueurHtml}
+    ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tcj-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
+    ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
+    ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : ''}
+  </button>`;
   return `<button type="button" class="choix-option tc tc-${r}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
     ${brille(r) ? '<span class="tc-holo" aria-hidden="true"></span>' : ''}
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
@@ -191,6 +200,33 @@ export function ereDe(saison) {
   const a = parseInt(String(saison || '').slice(0, 4), 10) || 2000;
   return a < 1980 ? 'e70' : a < 1990 ? 'e80' : a < 1996 ? 'e90' : a < 2010 ? 'e00' : 'e10';
 }
+/*
+ * LES SÉRIES (S78). JP : *cartes plus belles et variées, moins basiques, sans
+ * perdre lisible*. Une époque avait UN dessin : quarante saisons de cartes se
+ * ressemblaient à cinq près. Une vraie collection change de dessin presque
+ * chaque année ; on en garde DIX, un par tranche de saisons, chacun inspiré
+ * d'une série qu'un kid reconnaîtrait, et chacun RAFFINE son époque (qui
+ * reste la palette et le cadre de base) : la carte porte les deux classes.
+ *   s70 · 1970-74, le bord de couleur à double filet, la photo arrondie ;
+ *   s75 · 1975-79, le carton blanc, la photo cadrée du club, le fanion ;
+ *   s80 · 1980-84, le bord du club à filet d'or, l'écusson rond ;
+ *   s85 · 1985-89, le haut de photo ondulé (l'O-Pee-Chee 85-86) ;
+ *   s90 · 1990-92, la photo pleine et la bande du club sur le côté ;
+ *   s93 · 1993-95, la photo pleine, le nom doré, l'écusson en filigrane ;
+ *   s96 · 1996-2002, le noir, l'argent et les coins coupés ;
+ *   s03 · 2003-09, les éclats géométriques aux couleurs du club ;
+ *   s10 · 2010-17, la plaque blanche et le grand écusson en filigrane ;
+ *   s18 · depuis 2018, les lignes de la patinoire et les projecteurs.
+ * Le NOM garde toujours une bande pleine et contrastée : la beauté ne se paie
+ * jamais en lisibilité.
+ */
+export const SERIES = [[1975, 's70'], [1980, 's75'], [1985, 's80'], [1990, 's85'], [1993, 's90'], [1996, 's93'], [2003, 's96'], [2010, 's03'], [2018, 's10'], [Infinity, 's18']];
+export function serieDe(saison) {
+  const a = parseInt(String(saison || '').slice(0, 4), 10) || 2000;
+  return SERIES.find(([fin]) => a < fin)[1];
+}
+/* Le dessin complet d'une carte : son époque (la base) et sa série (le raffinement). */
+export const dessinDe = saison => `${ereDe(saison)} ${serieDe(saison)}`;
 export const ERES = {
   e70: 'Les années 70', e80: 'Les années 80', e90: 'Le début des années 90', e00: 'De 1996 aux années 2000', e10: 'Depuis 2010',
 };

@@ -66,7 +66,7 @@ if (paquet) { await page.click('#choixModal .paquet', { force: true }); await pa
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
-const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.map(x => (x.querySelector('.tc-nom') || x).textContent.trim()));
+const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.map(x => (x.querySelector('.tc-nom, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
 console.log(`3. le pack : ${offres.join(' · ')}`);
 await page.click('#choixModal:not([hidden]) .choix-option.tc');
 await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });

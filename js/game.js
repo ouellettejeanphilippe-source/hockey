@@ -34,7 +34,7 @@ import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, optionDeCarteMatch } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
-import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte } from './cartes.js';
+import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte, dessinDe } from './cartes.js';
 import { CARTES_MATCH, recompensesOffertes } from './combat.js';
 import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
@@ -1255,9 +1255,7 @@ async function ouvrirPack(k, j, n, decider) {
   const tires = await tirerJoueurs(k, n);
   const joueurs = tires.map(x => x.p);
   ajouterCollection({ joueurs: joueurs.map(getPlayerKey) });
-  const ligne = p => (p.p === 'G'
-    ? `${p.gp} PJ · ${p.w ?? 0}-${p.l ?? 0} · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
-    : `${p.gp} PJ · ${p.g} B · ${p.a} A · ${p.pt ?? (p.g + p.a)} PTS`);
+  const ligne = ligneDuChoix;
   const offres = tires.map(({ p, rar }) => {
     const g = groupeDe(p);
     const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
@@ -1271,6 +1269,7 @@ async function ouvrirPack(k, j, n, decider) {
     recit: 'Trois vrais joueurs : touche celui que tu signes. Il prend la place de réserve de sa position — le réserviste qui l\'occupait est libéré.',
     options: offres.map(x => ({ cle: x.cle, rarete: x.rar, nom: x.p.n, type: `${x.poste} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
       art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(x.poste), saison: esc(x.p.s), club: esc(x.p.t) }),
+      carteJoueur: carteMiniHtml(x.p),
       // Le bonus de la carte, UNE fois : c'est lui qui départage deux joueurs semblables.
       texte: [ligne(x.p), ...x.bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`)].join('\n'),
       prix: x.sortNom ? `${x.sortNom} est libéré` : '' })),
@@ -1322,7 +1321,8 @@ function choisirGarde(joueurs, i, total) {
       ico: '🤝', titre: `Garder un joueur · ${i + 1} sur ${total}`, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Personne',
       recit: 'Ta dernière équipe : celui que tu touches te suit dans cette run, avec ta nouvelle bande de plombiers.',
       options: joueurs.map(p => ({ cle: getPlayerKey(p), rarete: rareteJoueur(p), nom: p.n, type: `${POSTE_GROUPE[groupeDe(p)]} · ${p.t} ${p.s}`, coin: money(p.$),
-        art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[groupeDe(p)]), saison: esc(p.s), club: esc(p.t) }) })),
+        art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[groupeDe(p)]), saison: esc(p.s), club: esc(p.t) }),
+        carteJoueur: carteMiniHtml(p) })),
       onChoix: k => resolve(joueurs.find(p => getPlayerKey(p) === k) || null),
       onFerme: () => resolve(null),
     });
@@ -2222,6 +2222,78 @@ const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p)) : []);
  * utiles d'abord. Le deck (js/saison.js) et la boutique Rogue passent par ici.
  */
 const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
+/*
+ * LES SOUS-SÉRIES (S78), comme dans une vraie collection : la RECRUE (son
+ * contrat d'entrée) et l'ÉTOILE — les meilleurs de leur saison, lus dans
+ * leurs VRAIES fiches, jamais dans une cote : le 4 % du haut des pointeurs
+ * réguliers, le 8 % du haut des gardiens partants au pourcentage d'arrêts.
+ * Une saison en cours (moins de matchs) abaisse le seuil de « régulier ».
+ */
+const SEUILS_ETOILE = new Map();
+function estEtoile(p) {
+  const e = p && p.s && G.shards.get(p.s);
+  if (!e) return false;
+  let s = SEUILS_ETOILE.get(p.s);
+  if (!s) {
+    const gpMax = Math.max(1, ...e.players.map(x => x.gp || 0));
+    const minP = Math.min(40, Math.floor(gpMax * 0.5)), minG = Math.min(30, Math.floor(gpMax * 0.35));
+    const pts = x => x.pt ?? ((x.g || 0) + (x.a || 0));
+    const pat = e.players.filter(x => x.p !== 'G' && (x.gp || 0) >= minP).map(pts).sort((a, b) => b - a);
+    const gar = e.players.filter(x => x.p === 'G' && (x.gp || 0) >= minG).map(x => x.sv || 0).sort((a, b) => b - a);
+    s = { minP, minG, pts: pat.length ? pat[Math.max(0, Math.ceil(pat.length * 0.04) - 1)] : Infinity, sv: gar.length ? gar[Math.max(0, Math.ceil(gar.length * 0.08) - 1)] : Infinity };
+    SEUILS_ETOILE.set(p.s, s);
+  }
+  return p.p === 'G' ? (p.gp || 0) >= s.minG && (p.sv || 0) >= s.sv
+    : (p.gp || 0) >= s.minP && (p.pt ?? ((p.g || 0) + (p.a || 0))) >= s.pts;
+}
+/* Les classes de la carte : l'époque, la série, la sous-série. */
+const classesDeCarte = p => `${dessinDe(p.s)}${p.elc ? ' ss-recrue' : ''}${estEtoile(p) ? ' ss-etoile' : ''}`;
+/*
+ * LA CARTE MINI (S78). JP : *versions normales et version mini, pour genre
+ * les picks*. Le même dessin que la carte normale — l'époque, la série, la
+ * sous-série, la variante, les couleurs du club — en petit : la photo, le
+ * nom, et UNE ligne (le chiffre clé et le salaire). Elle sert aux choix d'un
+ * joueur (pack, ballottage, recrue, garder, nouveau rôle), où trois cartes
+ * se comparent côte à côte ; la fiche reste la version complète.
+ */
+function carteMiniHtml(p) {
+  const rarete = rareteJoueur(p);
+  const band = getTeamBand(p.t);
+  const st = displayStats(p);
+  const cle = p.p === 'G' ? `${st.w}<small>V</small>` : `${st.pt}<small>PTS</small>`;
+  return `<span class="cj-recto cj-mini-carte ${classesDeCarte(p)} tc-${rarete}" style="--team-logo:${logoFiligrane(p.t)};--team-band:${band.bg};--team-ink:${band.ink};--team-stripe:${band.stripe};--team-fond:${fondEquipe(p.t) || ''}">
+    <span class="cj-fenetre">
+      <span class="cj-filigrane" aria-hidden="true"></span>
+      ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
+      ${headshotHtml(p)}
+      <span class="cj-dessus" aria-hidden="true"></span>
+      <span class="cj-rondelle ${positionClass(p)}">${esc(positionLabel(p))}</span>
+      <span class="cj-coin-logo">${getTeamLogoHtml(p.t, 18)}</span>
+      <span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>
+      ${rubanDe(p)}
+    </span>
+    <span class="cj-bandeau"><span class="pcard-full-name">${formatName(p.n)}</span></span>
+    <span class="cjm-ligne"><b>${cle}</b><span>${st.salaryMain}</span></span>
+  </span>`;
+}
+/* La ligne d'un joueur offert : ce que la carte mini ne dit pas (elle dit déjà les points, ou les victoires). */
+const ligneDuChoix = p => (p.p === 'G'
+  ? `${p.gp} PJ · ${p.l ?? 0} D · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
+  : `${p.gp} PJ · ${p.g} B · ${p.a} A`);
+/* L'écusson du club en filigrane derrière un portrait détouré (img/logos, S78). */
+const logoFiligrane = t => (LOGOS_LOCAUX.has(t) ? `url("img/logos/${t}.svg")` : 'none');
+/*
+ * LE RUBAN DE LA SOUS-SÉRIE, au bas de la photo : « ★ Étoile », « Recrue »,
+ * ou les deux. Il remplace le tampon « Recrue » d'avant — et garde son
+ * infobulle (ce que la recrue gagne en faisant ses classes).
+ */
+function rubanDe(p) {
+  const etoile = estEtoile(p);
+  if (!p.elc && !etoile) return '';
+  const recrue = p.elc ? traitsJoueur(p).find(t => t.nom === 'La recrue progresse') : null;
+  const titre = [etoile ? 'Étoile : parmi les meilleurs de sa vraie saison' : '', recrue ? `${recrue.ico} ${recrue.nom} — ${recrue.mot}` : ''].filter(Boolean).join(' · ');
+  return `<span class="cj-ruban${etoile ? ' etoile' : ''}${p.elc ? ' recrue' : ''}" title="${esc(titre)}">${etoile ? '★ ' : ''}${p.elc ? 'Recrue' : 'Étoile'}${etoile && p.elc ? ' ★' : ''}</span>`;
+}
 function ouvrirAtelier(cle, { jour, you, onChoix, onFerme, suite = {} }) {
   const M = MUTATIONS[cle];
   if (!M || !you) return;
@@ -2843,12 +2915,13 @@ function playerCardEl(p) {
   const cleVue = `${getPlayerKey(p)}|${rarete}`;
   const neuve = brillante(rarete) && !VARIANTES_VUES.has(cleVue);
   if (neuve) VARIANTES_VUES.add(cleVue);
-  el.className = `pcard cj pv ${ereDe(p.s)} tc-${rarete}${MODE().loto ? '' : ' cj-meme-club'}${neuve ? ' cj-apparait' : ''}`
+  el.className = `pcard cj pv ${classesDeCarte(p)} tc-${rarete}${MODE().loto ? '' : ' cj-meme-club'}${neuve ? ' cj-apparait' : ''}`
     + (already ? ' signed' : '')
     + ((already || !slot || over) ? ' locked' : '');
   el.title = 'Toucher la carte pour la fiche complète';
   const band = getTeamBand(p.t);
   el.style.setProperty('--team-line', couleurVive(p.t));
+  el.style.setProperty('--team-logo', logoFiligrane(p.t));
   // LE CORPS DE LA CARTE PORTE LA VRAIE COULEUR DU CLUB, assombrie juste
   // assez pour qu'un nom blanc se lise dessus (`fondEquipe`, js/logos.js).
   el.style.setProperty('--team-fond', fondEquipe(p.t) || '');
@@ -2919,7 +2992,6 @@ function playerCardEl(p) {
   // côte sur la face, année ?* — le tirage « 71/99 » s'y lisait comme une note
   // sur 99 ; il vit au verso), la gemme de la variante et ce qu'elle joue, le
   // tampon « Recrue ». Un éclat quand une brillante sort pour la première fois.
-  const recrue = traitsJoueur(p).find(t => t.nom === 'La recrue progresse');
   el.innerHTML = `
     <div class="pcard-band">
       <span class="pb-pos ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</span>
@@ -2927,7 +2999,7 @@ function playerCardEl(p) {
       ${gemmeJoueur(rarete, traitsJoueur(p))}
     </div>
     <div class="pcard-inner">
-      <div class="pcard-avatar">${headshotHtml(p)}${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}<span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>${p.elc ? `<span class="cj-tampon"${recrue ? ` title="${esc(`${recrue.ico} ${recrue.nom} — ${recrue.mot}`)}"` : ''}>Recrue</span>` : ''}${neuve ? '<span class="cj-eclat" aria-hidden="true"></span>' : ''}</div>
+      <div class="pcard-avatar"><span class="cj-filigrane" aria-hidden="true"></span>${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}${headshotHtml(p)}<span class="cj-dessus" aria-hidden="true"></span><span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>${rubanDe(p)}${neuve ? '<span class="cj-eclat" aria-hidden="true"></span>' : ''}</div>
       <div class="pcard-body">
         <div class="pcard-head">
           <div class="pcard-name">${formatName(p.n)}</div>
@@ -4081,7 +4153,7 @@ function showPlayerModal(p, opts = {}) {
   const R = RARETES[rarete];
   const band = getTeamBand(p.t);
   const numero = numeroDeCarte(getPlayerKey(p));
-  const ere = ereDe(p.s);
+  const ere = classesDeCarte(p);
   const joue = traitsJoueur(p);
   const roles = p.p === 'G' ? '' : barresProfils(p);
   const saCarte = `<div class="cj-sa-carte"><span class="cj-sa-rarete tc-${rarete}" title="${esc(sensRarete(rarete))}">${R.gemme}${brillante(rarete) ? '✦' : ''} ${esc(NOM_VARIANTE[rarete] || R.nom)}</span>${joue.length
@@ -4098,13 +4170,16 @@ function showPlayerModal(p, opts = {}) {
     ${saCarte}`;
   const verso = versoDeCarte(p, numero, rarete, milieuVerso, ere);
   body.innerHTML = `
-    <div class="pcard-full" style="--card-primary:${colors.primary};--card-accent:${colors.accent};--team-band:${band.bg};--team-stripe:${band.stripe};--team-ink:${band.ink};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
+    <div class="pcard-full" style="--team-logo:${logoFiligrane(p.t)};--card-primary:${colors.primary};--card-accent:${colors.accent};--team-band:${band.bg};--team-stripe:${band.stripe};--team-ink:${band.ink};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
       <div class="fiche-carte">
         <div class="fc-faces">
           <div class="fc-face fc-recto pcard-full-photo cj-recto ${ere} tc-${rarete}" title="Touche la carte pour la retourner">
-            ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
             <div class="cj-fenetre">
+              <span class="cj-filigrane" aria-hidden="true"></span>
+              ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
               ${headshotHtml(p)}
+              <span class="cj-dessus" aria-hidden="true"></span>
+              ${rubanDe(p)}
               <span class="cj-rondelle ${positionClass(p)}">${esc(positionLabel(p))}</span>
               <span class="cj-coin-logo">${getTeamLogoHtml(p.t, 26)}</span>
               <span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>
@@ -4816,9 +4891,7 @@ function candidatsBallottage(blesse, at) {
     if (out.length === 3) break;
   }
   for (const p of out) ballottageVu.set(getPlayerKey(p), p);
-  const ligne = p => (p.p === 'G'
-    ? `${p.gp} PJ · ${p.w ?? 0}-${p.l ?? 0} · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
-    : `${p.gp} PJ · ${p.g} B · ${p.a} A · ${p.pt ?? (p.g + p.a)} PTS`);
+  const ligne = ligneDuChoix;
   // Le joueur et sa rareté voyagent avec l'offre (S76) : le ballottage se
   // présente en CARTES de joueur, portrait et métal compris, comme la recrue.
   return {
@@ -4849,9 +4922,7 @@ function candidatsRecrue(palier) {
   const saisons = [...new Set(L.cles.map(c => String(c).split('|')[0]))];
   const h = str => { let x = ((Number(L.graine) >>> 0) ^ Math.imul(palier + 7919, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
   const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? (p.g + p.a)) || 0) / Math.max(1, p.gp));
-  const ligne = p => (p.p === 'G'
-    ? `${p.gp} PJ · ${p.w ?? 0}-${p.l ?? 0} · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
-    : `${p.gp} PJ · ${p.g} B · ${p.a} A · ${p.pt ?? (p.g + p.a)} PTS`);
+  const ligne = ligneDuChoix;
   const out = [];
   for (const g of ['F', 'D', 'G']) {
     const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
@@ -5152,6 +5223,8 @@ async function runSeason(opts = {}) {
         recrues: candidatsRecrue,
         // L'ATELIER (S78) : le joueur qui reçoit l'édition.
         atelier: ouvrirAtelier,
+        // LA CARTE MINI (S78) : un joueur offert se voit en carte de joueur.
+        carteMini: carteMiniHtml,
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
         rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider) } : null,
       },

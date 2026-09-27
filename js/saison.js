@@ -1606,7 +1606,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       ouvrirChoix({ ...suite, ico: '🎟️', titre: 'Joueur au choix',
         recit: 'Trois vrais joueurs, style loto. Celui que tu signes prend la place de réserve de sa position ; le réserviste qui l\'occupait est libéré.',
         options: recrues.map(x => ({ cle: x.cle, rarete: x.rarete || 'legendaire', nom: x.nom, type: `${x.poste} · ${x.club}`, coin: x.salaire,
-          art: joueurArt(x.p), texte: x.ligne, prix: x.sortNom ? `${x.sortNom} est libéré` : '' })),
+          art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', texte: x.ligne, prix: x.sortNom ? `${x.sortNom} est libéré` : '' })),
         onChoix: k => { const x = recrues.find(y => y.cle === k); if (x) deciderDeck(p0, { deck: 'recrue', ballottage: { i: x.i, entre: x.cle, sort: x.sort } }); } });
       return;
     }
@@ -1634,7 +1634,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       ouvrirChoix({ ...suite, ico: '🔄', titre: 'Nouveau rôle',
         recit: 'Trois conversions possibles dans ton alignement. Le joueur change de profil pour de bon : son fit dans chaque tactique suit.',
         options: roles.map(x => ({ cle: `${x.cle}|${getPlayerKey(x.p)}`, rarete: 'peu', ico: MUTATIONS[x.cle].ico, nom: MUTATIONS[x.cle].nom, type: x.p.n,
-          art: joueurArt(x.p), mutation: x.cle })),
+          art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', mutation: x.cle })),
         onChoix: k => { const [m, joueur] = k.split('|'); deciderDeck(p0, { deck: 'profil', mutation: { cle: m, joueur } }); } });
       return;
     }
@@ -2204,7 +2204,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       ico: '📋', titre: 'Au ballottage', cartes: true, genre: 'ballottage', fermable: true, motFermer: 'Garder mon réserviste',
       recit: `${alerte.player.n} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois joueurs pas chers de sa position sont disponibles${mB.bal.sortNom ? ` ; en réclamer un libère ${mB.bal.sortNom}` : ''}. Le plafond compte toujours.`,
       options: mB.bal.candidats.map(c => ({ cle: c.cle, rarete: c.rarete || 'commune', nom: c.nom, type: `${c.poste || c.pos} · ${c.club}`, coin: c.salaire,
-        art: c.p ? joueurArt(c.p) : '', texte: c.ligne, prix: mB.bal.sortNom ? `${mB.bal.sortNom} est libéré` : '' })),
+        art: c.p ? joueurArt(c.p) : '', carteJoueur: c.p && ctx.carteMini ? ctx.carteMini(c.p) : '', texte: c.ligne, prix: mB.bal.sortNom ? `${mB.bal.sortNom} est libéré` : '' })),
       onChoix: cle => { boite.traites.add(mB.id); quitter(); onDecision({ jour, palier: mB.palierB, ballottage: { i: mB.bal.i, entre: cle, sort: mB.bal.sort } }, jour); },
     });
     const garder = actions.querySelector('.hub-alerte-garder');
