@@ -239,6 +239,7 @@ for (const [cle, noms] of Object.entries(REPUTATIONS)) {
 }
 
 const CACHE = new Map();
+const CACHE_OBJ = new WeakMap();
 
 /**
  * Les traits d'un joueur-saison : `[{ cle, niveau }]`, niveau 0 = gagnant,
@@ -246,8 +247,13 @@ const CACHE = new Map();
  */
 export function getTraits(p) {
   if (!p || !p.s || !p.n) return [];
+  // PAR OBJET D'ABORD (S74b) : la clé en chaîne se recomposait à chaque appel —
+  // des millions par saison, 23 % du temps de calcul mesuré au profileur. Le
+  // résultat est le même : un joueur-saison ne change pas de traits.
+  const deja = CACHE_OBJ.get(p);
+  if (deja) return deja;
   const cle = `${p.s}|${p.n}`;
-  if (CACHE.has(cle)) return CACHE.get(cle);
+  if (CACHE.has(cle)) { const r = CACHE.get(cle); CACHE_OBJ.set(p, r); return r; }
   const out = [];
   for (const [k, idx] of Object.entries(INDEX)) {
     const niveau = idx.get(cle);
@@ -270,6 +276,7 @@ export function getTraits(p) {
     out.push({ cle: k, niveau: 0, reputation: true });
   }
   CACHE.set(cle, out);
+  CACHE_OBJ.set(p, out);
   return out;
 }
 
