@@ -251,6 +251,19 @@ function calibreAttendu(group, unit) {
   return 40;
 }
 
+/*
+ * LES UNITÉS OÙ UN JOUEUR REND À 100 % : sa zone (`getLineZone`), plus un
+ * cran vers le haut par carte « Monte d'un cran » (S78, l'atelier : `_cran`).
+ */
+export function unitesIdeales(p, v) {
+  const ideal = getLineZone(p, v).idealUnits;
+  const cran = (p && p._cran) || 0;
+  if (!cran) return ideal;
+  const haut = Math.min(...ideal), plus = [];
+  for (let k = 1; k <= cran && haut - k >= 0; k++) plus.push(haut - k);
+  return [...plus, ...ideal];
+}
+
 /**
  * Le malus d'UN joueur mal placé, en points de cote.
  *
@@ -380,7 +393,8 @@ export function getPositionPenalty(player, slot) {
     const np = (player.np === 'RD' || player.np === 'R' || player.p === 'RD') ? 'RD' : 'LD';
     const role = slot.role; // 'DG' (LD) or 'DD' (RD)
     const targetSide = role === 'DG' ? 'LD' : 'RD';
-    if (np === targetSide || sec === targetSide) return 0;
+    // « Joue partout » (S78, l'atelier) : les deux côtés.
+    if (np === targetSide || sec === targetSide || player._partout) return 0;
     return 2; // Off-side D (-2)
   }
   if (slot.group !== 'F') return 999;
@@ -398,7 +412,8 @@ export function getPositionPenalty(player, slot) {
     (role === 'AD' && (sec === 'R' || sec === 'AD'))
   );
 
-  if (isPrimaryMatch || isSecMatch) return 0;
+  // « Joue partout » (S78, l'atelier) : centre et ailes.
+  if (isPrimaryMatch || isSecMatch || player._partout) return 0;
 
   if (np === 'C' || sec === 'C') {
     return 3; // Center playing wing (-3)
@@ -448,7 +463,7 @@ export function getUnitSynergy(roster, group, unit) {
   // des trios où il rend à 100 %. Tout le monde à sa place -> bonus ;
   // joueur hors de sa zone -> pénalité selon l'écart, ASYMÉTRIQUE.
   const entrees = ps.map((x, i) => ({
-    v: hidden[i].v, ideal: getLineZone(x.player, hidden[i].v).idealUnits,
+    v: hidden[i].v, ideal: unitesIdeales(x.player, hidden[i].v),
   }));
   const { pen, mal } = malusZoneUnite(group, unit, entrees);
   let zone = null;
@@ -2128,11 +2143,13 @@ export const SORTES_DECK = {
   menage: { ico: '🗑️', nom: 'Le ménage', mot: 'Retire une carte de ton deck de match' },
   // LE CAMP D'ENTRAÎNEMENT (S74) : une carte du deck de match devient sa version « + ».
   camp: { ico: '🏋️', nom: 'Le camp d\'entraînement', mot: 'Améliore une carte de ton deck de match' },
+  // L'ATELIER (S78) : éditer un joueur — son poste, ses trios possibles, ses malus, sa carte.
+  atelier: { ico: '🛠️', nom: 'L\'atelier', mot: 'Édite un de tes joueurs : poste, trios, malus, carte' },
 };
 export const GAIN_STAGE = 0.4;
 export function mainDuDeck(graine, jour, prises = []) {
   const effet = mainDeCartes(graine, jour, prises)[0];
-  const autres = ['recrue', 'amelioration', 'profil', 'strategie', 'menage', 'camp']
+  const autres = ['recrue', 'amelioration', 'profil', 'strategie', 'menage', 'camp', 'atelier']
     .map(k => [k, hacherMise(graine, 'deck', jour, k)]).sort((a, b) => a[1] - b[1]).map(([k]) => k);
   const ameliorations = Object.keys(MUTATIONS).filter(k => MUTATIONS[k].source === 'amelioration');
   const main = [{ sorte: 'effet', cle: effet }];
@@ -2140,6 +2157,10 @@ export function mainDuDeck(graine, jour, prises = []) {
     ? { sorte: k, cle: ameliorations[Math.floor(hacherMise(graine, 'amelioration', jour) * ameliorations.length)] }
     : { sorte: k });
   return main;
+}
+/* L'atelier : trois éditions sur quatre, tirées de la graine ; le joueur, tu le choisis. */
+export function editionsDuJour(graine, jour) {
+  return MUTATIONS_ATELIER.map(k => [k, hacherMise(graine, 'atelier', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([k]) => k);
 }
 /* Le nouveau rôle : trois (changement, joueur) possibles dans ton alignement, tirés de la graine. */
 export function rolesOfferts(team, graine, jour) {
@@ -2844,8 +2865,8 @@ function facteurGardien(g) {
   if (!g) return 1.20;
   const svLigue = 1 - seasonLancers(g.s)[1] / 100;
   const sv = g.sv || svLigue;
-  // Une carte « Réflexes » (S78, js/rarete.js) : quelques buts accordés de moins.
-  return borne((1 - sv) / Math.max(0.02, 1 - svLigue), 0.55, 1.60) * effetCarte(g, 'arrets');
+  // Une carte « Réflexes » (S78, js/rarete.js) ou le coach des gardiens (l'atelier) : quelques buts accordés de moins.
+  return borne((1 - sv) / Math.max(0.02, 1 - svLigue), 0.55, 1.60) * mutDe(g, 'arrets');
 }
 
 /* Exposés pour `scripts/check_neutre.mjs`, qui mesure le profil de l'équipe
@@ -4350,7 +4371,7 @@ function appliquerDecision(team, d, graine = 0) {
   })());
   if (mut && MUTATIONS[mut.cle]) {
     const p = Object.values(team.roster).find(x => x && getPlayerKey(x) === mut.joueur) || CONNUS.get(mut.joueur);
-    if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix');
+    if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix', mut);
   }
   // LES LIGNES À LA HOCKEYARENA (S68) : [{ tac, agr, sec }] × 4.
   if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
@@ -4479,7 +4500,7 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     // LA CHIMIE ET L'ÉNERGIE (S68) repartent de zéro et de cent à chaque passage.
     t.chimie = [0, 0, 0, 0]; t.entente = new Map();
     for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-    for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; }
+    for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
     t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
     t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
     for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
@@ -4498,7 +4519,7 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     if (!p) continue;
     p.energie = 100;
     delete p._maitrise; delete p._adapt; delete p._situ;
-    delete p._mut; delete p._mutProfils; delete p._mutCles;
+    delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
   }
   // Le calendrier : une journée par ronde, ses seize matchs avec leur
   // pointage. C'est ce que l'écran rejoue jour après jour, et ce qu'on peut
@@ -4839,6 +4860,23 @@ export const MUTATIONS = {
     quoi: 'Il lit le jeu adverse une seconde plus tôt.', profils: { defensif: 12, pur: 12 }, defense: 0.94 },
   vision: { nom: 'La vision', ico: '🪄', cible: 'libre', source: 'amelioration',
     quoi: 'Il trouve des passes que personne ne voit.', profils: { fabricant: 12, createur: 10 }, creation: 1.08 },
+  coach: { nom: 'Le coach des gardiens', ico: '🧤', cible: 'libre', source: 'amelioration', gardien: true,
+    quoi: 'Un été avec le coach des gardiens : il place mieux ses jambières.', arrets: 0.95 },
+  /*
+   * ---- L'ATELIER (S78) : éditer un joueur ----
+   * JP : *ajouter cartes pour éditer joueur, genre ajouter position, changer
+   * trios possibles, stats, enlever malus, ajouter bonus*. Les stats, c'est
+   * l'amélioration (plus haut) ; l'atelier fait le reste, au joueur de ton
+   * choix, pour le reste de la saison.
+   */
+  partout: { nom: 'Joue partout', ico: '🔀', cible: 'libre', source: 'atelier', partout: true,
+    quoi: 'Il apprend les autres postes de son groupe : plus aucune pénalité hors position (centre ou ailes ; les deux côtés en défense).' },
+  cran: { nom: 'Monte d\'un cran', ico: '⏫', cible: 'libre', source: 'atelier', cran: 1,
+    quoi: 'Il rend à 100 % une ligne plus haut : un trio (ou une paire) de plus où il est à sa place.' },
+  physio: { nom: 'Le physio', ico: '🩺', cible: 'libre', source: 'atelier', physio: true,
+    quoi: 'Le physio et le psy s\'en occupent : tous ses malus de carte disparaissent (un genou qui grince, une confiance ébranlée, un tir perdu).' },
+  lustre: { nom: 'Le lustre', ico: '✨', cible: 'libre', source: 'atelier', lustre: true,
+    quoi: 'Sa carte monte d\'une variante — base, parallèle, holo, or — et gagne le bonus tiré au hasard qui vient avec.' },
   // ---- par choix ----
   tir_gun: { nom: 'Précision au gun', ico: '🎯', cible: 'plombier', source: 'choix',
     quoi: 'Il a passé ses soirées à tirer du gun : il vise, maintenant.',
@@ -4884,7 +4922,20 @@ export const MUTATIONS = {
     quoi: 'Son père est au plus mal : il joue chaque présence comme la dernière.',
     profils: { puissant: 10, createur: 10 }, lancers: 1.05, finition: 1.03 },
 };
-const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure'];
+const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
+/* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */
+const estMalus = (canal, x) => (canal === 'defense' || canal === 'blessure' || canal === 'arrets' ? x > 1 : x < 1);
+/* Une mutation qui ne fait que nuire (un accident) : le physio l'efface de la carte. */
+const malusSeul = k => {
+  const M = MUTATIONS[k];
+  return !!M && CANAUX_MUT.some(c => M[c]) && CANAUX_MUT.every(c => !M[c] || estMalus(c, M[c])) && Object.values(M.profils || {}).every(d => d <= 0);
+};
+/* Une mutation porte-t-elle un malus (même mêlé à un bonus) ? C'est ce que le physio effacerait. */
+export const mutationNuit = k => {
+  const M = MUTATIONS[k];
+  return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
+};
+export const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'lustre'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.
@@ -4912,10 +4963,23 @@ export function cibleMutation(team, cle) {
   return js[0] || null;
 }
 
-/* Poser une mutation sur un joueur : ses facteurs se multiplient, ses profils s'additionnent. */
-export function appliquerMutation(team, p, cle, jour, source) {
+/*
+ * Poser une mutation sur un joueur : ses facteurs se multiplient, ses profils
+ * s'additionnent. L'atelier (S78) pose en plus son geste : jouer partout,
+ * monter d'un cran, effacer les malus, lustrer la carte (`extra.carte`, la
+ * variante suivante, calculée par le contrôleur — js/rarete.js).
+ */
+export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   const M = MUTATIONS[cle];
   if (!M || !p) return;
+  if (M.partout) p._partout = true;
+  if (M.cran) p._cran = (p._cran || 0) + M.cran;
+  if (M.lustre && extra && extra.carte && extra.carte.rar) p._carte = { ...extra.carte, recrue: !!(p._carte && p._carte.recrue) };
+  if (M.physio) {
+    for (const c of CANAUX_MUT) if (p._mut && p._mut[c] && estMalus(c, p._mut[c])) p._mut[c] = 1;
+    for (const k of Object.keys(p._mutProfils || {})) if (p._mutProfils[k] < 0) p._mutProfils[k] = 0;
+    if (p._mutCles) p._mutCles = p._mutCles.filter(k => !malusSeul(k));
+  }
   p._mut = p._mut || {};
   for (const c of CANAUX_MUT) if (M[c]) p._mut[c] = (p._mut[c] || 1) * M[c];
   p._mutProfils = p._mutProfils || {};
@@ -4951,6 +5015,11 @@ export function motsDeMutation(cle) {
   if (M.creation) out.push(pct(M.creation, 'Création', true));
   if (M.defense) out.push({ txt: `Buts contre quand il est là ${flechesDe(M.defense)}`, bon: M.defense < 1 });
   if (M.blessure) out.push({ txt: `Blessures ${flechesDe(M.blessure)}`, bon: M.blessure < 1 });
+  if (M.arrets) out.push({ txt: `Buts accordés ${flechesDe(M.arrets)}`, bon: M.arrets < 1 });
+  if (M.partout) out.push({ txt: 'Pénalité hors position : aucune', bon: true });
+  if (M.cran) out.push({ txt: `Trios possibles : +${M.cran} vers le haut`, bon: true });
+  if (M.physio) out.push({ txt: 'Ses malus de carte : effacés', bon: true });
+  if (M.lustre) out.push({ txt: 'Sa carte : une variante de plus', bon: true });
   for (const [k, d] of Object.entries(M.profils || {})) {
     const P = PROFILS.F[k] || PROFILS.D[k];
     if (P) out.push({ txt: `${P.ico} ${P.nom} ${d > 0 ? '+' : '−'}${Math.abs(Math.round(d))}`, bon: d > 0 });

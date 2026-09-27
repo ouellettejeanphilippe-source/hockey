@@ -25,7 +25,8 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS, effetsEnCours, fitLigne, TACTIQUES } from './sim.js';
+  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS, effetsEnCours, fitLigne, TACTIQUES,
+  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation } from './sim.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
@@ -34,7 +35,7 @@ import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
 import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison } from './cartes.js';
 import { CARTES_MATCH, recompensesOffertes } from './combat.js';
-import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte } from './rarete.js';
+import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
@@ -321,7 +322,7 @@ const totalCases = () => casesActives().length;
 function slotFitScore(p, s) {
   const pen = getPositionPenalty(p, s);
   if (s.scratch) return 1000 + pen * 40 + s.i;      // les réservistes en dernier
-  const ideal = getLineZone(p, getHiddenRatings(p).v).idealUnits;
+  const ideal = unitesIdeales(p, getHiddenRatings(p).v);
   const dist = Math.min(...ideal.map(u => Math.abs(u - s.unit)));
   return pen * 40 + (dist === 0 ? 0 : 12 + dist * 6) + s.unit;
 }
@@ -334,7 +335,7 @@ function slotFitScore(p, s) {
  */
 function zoneEcart(p, s) {
   if (!p || !s || s.scratch || s.group === 'G' || p.p === 'G') return null;
-  const ideal = getLineZone(p, getHiddenRatings(p).v).idealUnits;
+  const ideal = unitesIdeales(p, getHiddenRatings(p).v);
   if (s.unit > Math.max(...ideal)) return 'sous';
   if (s.unit < Math.min(...ideal)) return 'dessus';
   return null;
@@ -1168,6 +1169,19 @@ async function ouvrirPack(k, j, n, decider) {
     });
     return;
   }
+  if (P.genre === 'atelier') {
+    const eds = editionsDuJour(G.ligue.graine, `boutique${n}`);
+    const offrir = () => ouvrirChoix({
+      ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
+      recit: 'Trois éditions : touche celle que tu gardes, puis le joueur qui la reçoit.',
+      options: eds.map(e => ({ cle: e, rarete: 'rare', ico: MUTATIONS[e].ico, nom: MUTATIONS[e].nom, type: 'L\'atelier', texte: MUTATIONS[e].quoi, mots: motsDeMutation(e) })),
+      onChoix: e => ouvrirAtelier(e, { jour: j, you: G.ligue.you, suite: { genre: 'recompense' },
+        onChoix: mut => decider({ jour: j, palier, rogue: achat, deck: 'atelier', mutation: mut }), onFerme: offrir }),
+      onFerme: () => decider({ jour: j, palier, rogue: achat, recompense: null }),
+    });
+    offrir();
+    return;
+  }
   const tires = await tirerJoueurs(k, n);
   const joueurs = tires.map(x => x.p);
   ajouterCollection({ joueurs: joueurs.map(getPlayerKey) });
@@ -1278,7 +1292,7 @@ async function demarrerRogue(gardes = []) {
   G.mode = 'CLASSIQUE'; G.epoque = null; G.repechage = 'TOUTES'; G.identite = null;
   clearSave();
   G.variantes = { graine: nouvelleGraine(), cartes: {} };
-  G.roster = {}; G.tirage = []; G.echelle = {}; G.dette = 0; G.renfort = null;
+  G.roster = {}; poserCartes(); G.tirage = []; G.echelle = {}; G.dette = 0; G.renfort = null;
   G.ligue = null; G.tournoi = null; G.relances = 0; G.left = { ...REROLLS };
   G.target = null; G.mainCase = null; G.mainRang = null; G.selectedSlot = null; G.done = false; G.lignes = null;
   $('resultHost').innerHTML = '';
@@ -2097,6 +2111,8 @@ function graineVariantes() {
 }
 function varianteJoueur(p) {
   if (!p) return 'commune';
+  // La carte posée pour la saison dit la vérité, lustre compris (l'atelier).
+  if (p._carte && p._carte.rar) return p._carte.rar;
   const cle = getPlayerKey(p);
   return G.variantes.cartes[cle] || varianteTiree(COTES_VARIANTES, graineVariantes(), cle);
 }
@@ -2108,7 +2124,57 @@ function carteJoueur(p) {
   return c;
 }
 /* Ce que la carte d'un joueur fait sur la glace, en mots (`traitsDeCarte`) : pour l'écran. */
-const traitsJoueur = p => (p ? traitsDeCarte(carteJoueur(p)) : []);
+const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p)) : []);
+/*
+ * L'ATELIER (S78) : le joueur qui reçoit une édition, choisi dans ton
+ * alignement. Chaque rangée dit ce que l'édition lui ferait À CE JOUR — il
+ * joue hors position, au-dessus de sa zone, il traîne un malus, sa carte
+ * passe de holo à or — et celles qui ne lui feraient rien sont grisées. Les
+ * utiles d'abord. Le deck (js/saison.js) et la boutique Rogue passent par ici.
+ */
+const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
+function ouvrirAtelier(cle, { jour, you, onChoix, onFerme, suite = {} }) {
+  const M = MUTATIONS[cle];
+  if (!M || !you) return;
+  // Les malus DÉJÀ arrivés (le moteur a joué la saison d'avance), depuis le dernier passage du physio.
+  const malus = p => {
+    const k = getPlayerKey(p), siens = (you.mutations || []).filter(m => m.joueur === k && m.jour < jour);
+    const physio = Math.max(-1, ...siens.filter(m => m.cle === 'physio').map(m => m.jour));
+    return siens.filter(m => m.jour >= physio && m.cle !== 'physio' && mutationNuit(m.cle)).map(m => MUTATIONS[m.cle]);
+  };
+  const rangs = SLOTS.filter(sl => !sl.scratch).map(sl => ({ sl, p: you.roster[sl.i] })).filter(x => x.p).map(({ sl, p }) => {
+    const g = p.p === 'G';
+    let sous = '', desactive = '', utile = false, extra = {};
+    if (cle === 'partout') {
+      if (g) desactive = 'Un gardien garde les buts';
+      else if (p._partout) desactive = 'Il joue déjà partout';
+      else { utile = getPositionPenalty(p, sl) > 0; sous = utile ? 'joue hors position en ce moment' : 'à sa position en ce moment'; }
+    } else if (cle === 'cran') {
+      if (g) desactive = 'Un gardien n\'a pas de trio';
+      else { utile = zoneEcart(p, sl) === 'dessus'; sous = `${getLineZone(p, getHiddenRatings(p).v).short}${utile ? ' · au-dessus de sa zone ici' : ''}`; }
+    } else if (cle === 'physio') {
+      const ms = malus(p);
+      if (!ms.length) desactive = 'Aucun malus';
+      else { utile = true; sous = ms.map(x => `${x.ico} ${x.nom}`).join(' · '); }
+    } else if (cle === 'lustre') {
+      const r = varianteJoueur(p), n = VARIANTE_SUIVANTE[r];
+      if (!n) desactive = 'Sa carte est déjà en or';
+      else {
+        const carte = carteDe(n, g, graineVariantes(), getPlayerKey(p));
+        extra = { carte: { rar: carte.rar, bonus: carte.bonus } }; utile = true;
+        sous = `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte).map(b => `${b.ico} ${b.nom}`).join(' + ')}`;
+      }
+    }
+    return { sl, p, sous, desactive, utile, extra };
+  }).sort((a, b) => (a.desactive ? 1 : 0) - (b.desactive ? 1 : 0) || (b.utile ? 1 : 0) - (a.utile ? 1 : 0));
+  ouvrirChoix({
+    fermable: true, motFermer: 'Retour', ...suite, cartes: false, compact: true, ico: M.ico, titre: `${M.nom} : à qui ?`,
+    recit: `${M.quoi} C'est pour le reste de la saison.`,
+    options: rangs.map(x => ({ cle: getPlayerKey(x.p), ico: '', nom: x.p.n, sous: [slotShort(x.sl), x.sous].filter(Boolean).join(' · '), desactive: x.desactive })),
+    onChoix: k => { const x = rangs.find(y => getPlayerKey(y.p) === k); if (x && !x.desactive) onChoix({ cle, joueur: k, ...x.extra }); },
+    onFerme,
+  });
+}
 /*
  * LES CARTES QUI JOUENT (S78) : celles de TON alignement, et de ceux qui y
  * entreront en cours de saison (ballottage, recrue, pack). Les clubs
@@ -4523,7 +4589,7 @@ function confirmerDecision(d) {
   else if (d.deck === 'menage' && C(d.retrait)) mot = `🗑️ ${C(d.retrait).nom} quitte ton deck.`;
   else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋️ ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
   else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.`;
-  else if ((d.deck === 'amelioration' || d.deck === 'profil') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
+  else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
   else if (d.deck === 'strategie' && d.maitrise && TACTIQUES[d.maitrise.tac]) mot = `📘 Ta formation apprend ${TACTIQUES[d.maitrise.tac].nom.toLowerCase()}.`;
   // La carte du proprio (objectif atteint) : la seule carte prise sans un mot (QA S74b).
   else if (d.carte && CARTES[d.carte]) mot = `${CARTES[d.carte].ico} ${CARTES[d.carte].nom} : pour le reste de la saison.`;
@@ -4912,6 +4978,8 @@ async function runSeason(opts = {}) {
         ballottage: candidatsBallottage,
         // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.
         recrues: candidatsRecrue,
+        // L'ATELIER (S78) : le joueur qui reçoit l'édition.
+        atelier: ouvrirAtelier,
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
         rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider) } : null,
       },
@@ -5302,6 +5370,7 @@ async function demarrerPartie(r = {}) {
   clearSave();
   G.variantes = { graine: nouvelleGraine(), cartes: {} };
   G.roster = {};
+  poserCartes();
   G.tirage = [];
   G.echelle = {};
   G.dette = 0;

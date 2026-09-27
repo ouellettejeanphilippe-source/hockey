@@ -58,6 +58,27 @@ await page.waitForTimeout(800);
 const apres = (await page.textContent('#hubModal .hub-boutique')).trim();
 const d = await page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); const p = JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); return (p.partie.decisions || []).filter(x => x.rogue); });
 console.log(`4. signé : la boutique dit « ${apres} » · décisions Rogue : ${JSON.stringify(d.map(x => ({ pack: x.rogue.pack, prix: x.rogue.prix, entre: x.ballottage && x.ballottage.entre })))}`);
+// L'ATELIER (S78) : une édition de joueur, au joueur de ton choix.
+await page.click('#hubModal .hub-boutique');
+await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="atelier"]', { timeout: 30000 });
+await page.click('#choixModal:not([hidden]) .choix-option[data-choix="atelier"]');
+const paquet2 = await page.waitForSelector('#choixModal:not([hidden]) .paquet', { timeout: 5000 }).catch(() => null);
+if (paquet2) { await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(300); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); }
+await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 30000 });
+await page.waitForTimeout(500);
+const editions = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.dataset.choix));
+await page.screenshot({ path: `${DOSSIER}/rogue-atelier.png` });
+await page.click('#choixModal:not([hidden]) .choix-option');
+await page.waitForSelector('#choixModal:not([hidden]) .choix-option:not([disabled])', { timeout: 30000 });
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${DOSSIER}/rogue-atelier-joueur.png` });
+const premier = await page.$eval('#choixModal .choix-option:not([disabled])', x => x.textContent.replace(/\s+/g, ' ').trim());
+await page.click('#choixModal:not([hidden]) .choix-option:not([disabled])');
+await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
+await page.waitForTimeout(800);
+const dA = await page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); const p = JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); return (p.partie.decisions || []).filter(x => x.deck === 'atelier'); });
+console.log(`4b. l'atelier : ${editions.join(' · ')} → « ${premier} » · décision : ${JSON.stringify(dA.map(x => x.mutation && { cle: x.mutation.cle, rar: x.mutation.carte && x.mutation.carte.rar }))}`);
+if (!dA.length) erreurs.push('l\'atelier n\'a laissé aucune décision');
 // Fin de saison
 await page.click('#hubModal .hub-fin');
 const oui = await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="fin"]', { timeout: 5000 }).catch(() => null);
