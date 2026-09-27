@@ -21,7 +21,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v13';  // v13 : le passage de l'agent de test, le camp d'entraînement, un écran par match de séries, le plateau corrigé (S74b)
+const VERSION = 'cap82-v14';  // v14 : les passages de l'agent de test (bandeaux, flottant, séquences), le plateau lisible et le niveau Recrue (S74b, S75)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

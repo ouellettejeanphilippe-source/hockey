@@ -206,7 +206,20 @@ page.click = async (sel, opts) => {
   // Un choix forcé ouvert par-dessus se règle avant tout autre clic dans l'écran
   // — et avant un onglet de la barre, que le plein écran couvre aussi (S74b).
   else if (typeof sel === 'string' && /^(#hubModal|\.navtab)\b/.test(sel)) await repondreAuxChoix();
-  return _click(sel, opts);
+  try { return await _click(sel, opts); }
+  catch (e) {
+    // UN CLIC QUI ÉCHOUE LAISSE UNE TRACE (S74b) : l'écran, ce que dit
+    // l'écran de saison, et les erreurs déjà relevées — sans quoi un
+    // `TimeoutError` de trente secondes ne dit rien de ce qu'on voyait.
+    await page.screenshot({ path: 'scripts/smoke-echec.png' }).catch(() => {});
+    const vu = await page.evaluate(() => ({
+      tete: document.querySelector('#hubModal .hub-head')?.innerText.replace(/\s+/g, ' ').trim(),
+      actions: document.querySelector('#hubModal .hub-actions')?.innerText.replace(/\s+/g, ' ').trim().slice(0, 400),
+      choix: document.querySelector('#choixModal:not([hidden]) .choix-titre')?.innerText,
+    })).catch(() => ({}));
+    console.log(`\n   ÉCHEC du clic « ${sel} » : ${JSON.stringify(vu)}\n   erreurs relevées : ${errors.join(' | ') || 'aucune'}`);
+    throw e;
+  }
 };
 page.waitForSelector = async (sel, opts) => {
   if (typeof sel === 'string' && /hub-(jour|dix)\b/.test(sel)) {
@@ -1168,9 +1181,24 @@ async function traverserSaison(etiquette, reprise = false) {
    * voudrait plus rien dire.
    */
   {
-    for (let i = 0; i < 12 && !(await page.$('#hubModal .hub-situ:not(.hub-accident)')); i++) {
+    /*
+     * La boucle part APRÈS le palier 40 : la prochaine fenêtre est au jour 46,
+     * puis 64. Elle avance jusqu'à en voir une — pas douze clics fixes : un
+     * « +10 » s'arrête à chaque choix (gros match, dilemme, récompense), et
+     * douze arrêts ne passaient pas toujours le jour 46. Elle ne tenait avant
+     * S74b que parce que le bandeau du jour 28 REVENAIT après chaque choix —
+     * le défaut qu'on vient de corriger.
+     */
+    const trajet = [];   // les arrêts de la boucle, dits si la fenêtre ne vient pas
+    const jourVu = async () => Number(((await page.textContent('#hubModal .live-match')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+    for (let i = 0; i < 40 && (await jourVu()) <= 66 && !(await page.$('#hubModal .hub-situ:not(.hub-accident)')); i++) {
       await page.click('#hubModal .hub-dix');
       await page.waitForTimeout(260);
+      trajet.push(await page.evaluate(() => {
+        const j = (document.querySelector('#hubModal .live-match')?.textContent || '').replace(/\D+/g, ' ').trim().split(' ')[0];
+        const c = document.querySelector('#choixModal:not([hidden]) .choix-titre')?.textContent;
+        return `j${j}${document.querySelector('#hubModal .hub-situ:not(.hub-accident)') ? '·situ' : ''}${c ? `·« ${c} »` : ''}`;
+      }));
       await guetterTrou();
     }
     const situ = await page.evaluate(() => {
@@ -1184,7 +1212,7 @@ async function traverserSaison(etiquette, reprise = false) {
       }));
       return { bout, large: el.scrollWidth > el.clientWidth + 1 };
     });
-    if (!situ) errors.push('aucune fenêtre de situations en douze avances de dix journées');
+    if (!situ) errors.push(`aucune fenêtre de situations jusqu'au jour 66 : ${trajet.join(' → ')}`);
     else if (situ.bout.length !== 2) errors.push(`le vestiaire nomme ${situ.bout.length} joueur(s) au lieu de deux`);
     else {
       const [a, b] = situ.bout;
