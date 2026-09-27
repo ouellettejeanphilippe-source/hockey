@@ -991,6 +991,16 @@ function dessinerTableauDesSeries(host, n, champion) {
   </div>`;
 
   host.innerHTML = html;
+  // Au téléphone l'arbre se balaie en largeur : il s'ouvrait sur la moitié de
+  // gauche, même quand ta formation jouait à droite (QA S74b). Il s'ouvre sur
+  // TA moitié — en x seulement, la page reste où elle est.
+  const balai = host.querySelector('.bracket-scroll');
+  const tienne = balai && balai.querySelector('.bk-serie.you');
+  if (tienne) requestAnimationFrame(() => {
+    if (balai.scrollWidth <= balai.clientWidth) return;
+    const a = balai.getBoundingClientRect(), b = tienne.getBoundingClientRect();
+    balai.scrollLeft += (b.left + b.width / 2) - (a.left + a.width / 2);
+  });
   host.querySelectorAll('.mcard').forEach(b => {
     b.onclick = () => showGameModal(Number(b.dataset.serie), Number(b.dataset.match));
   });

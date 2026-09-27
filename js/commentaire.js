@@ -303,7 +303,26 @@ function suite(seed) {
   let a = hacher(String(seed)) || 1;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-const remplir = (gabarit, v) => gabarit.replace(/\{(\w+)\}/g, (_, k) => (v[k] != null ? String(v[k]) : ''));
+/*
+ * L'ARTICLE DEVANT UN NOM D'ÉQUIPE (QA S74b). Les gabarits disaient « le
+ * gardien de {autre} », et ça donnait « le gardien de Islanders ». Le nom
+ * court est le surnom (« Bruins 1970-71 ») : pluriel s'il finit par un s — les
+ * Bruins, des Islanders, aux Oilers — sinon singulier, élidé devant une
+ * voyelle : l'Avalanche, du Lightning, au Wild, du Kraken.
+ */
+const pluriel = nom => /[sx]$/i.test(String(nom).replace(/\s+\d{4}-\d{2}$/, '').trim());
+const voyelle = nom => /^[aeiouyhàâéèêîïôû]/i.test(String(nom).trim());
+const ARTICLE = {
+  de: n => (pluriel(n) ? `des ${n}` : voyelle(n) ? `de l'${n}` : `du ${n}`),
+  à: n => (pluriel(n) ? `aux ${n}` : voyelle(n) ? `à l'${n}` : `au ${n}`),
+  pour: n => `pour ${pluriel(n) ? 'les ' : voyelle(n) ? 'l\'' : 'le '}${n}`,
+  sur: n => `sur ${pluriel(n) ? 'les ' : voyelle(n) ? 'l\'' : 'le '}${n}`,
+};
+/** « de » + une équipe : « des Islanders », « de l'Avalanche », « du Wild ». */
+export const avecArticle = (prep, nom) => (ARTICLE[prep] ? ARTICLE[prep](nom) : `${prep} ${nom}`);
+const remplir = (gabarit, v) => gabarit
+  .replace(/(^|\s)(de|à|pour|sur) \{(eq|autre|att|def)\}/g, (m, av, prep, k) => (v[k] != null ? `${av}${avecArticle(prep, v[k])}` : m))
+  .replace(/\{(\w+)\}/g, (_, k) => (v[k] != null ? String(v[k]) : ''));
 const majuscule = s => s.replace(/^(<[^>]+>)*([a-zà-ÿ])/, (m, tag, c) => `${tag || ''}${c.toUpperCase()}`);
 const joindre = (...p) => p.filter(Boolean).join(' ');
 

@@ -466,7 +466,9 @@ function boutonFlottant(actions, termine) {
   const cible = actions && actions.querySelector('.hub-jour');
   if (!cible || termine) { f.hidden = true; return; }
   f.textContent = `${cible.textContent.trim()} ▶`;
-  f.onclick = () => { f.hidden = true; cible.click(); };
+  // Un bouton sorti du DOM (l'écran s'est redessiné sans lui) garde son onclick :
+  // le cliquer rejouerait un vieux geste — « Ronde 5 · 0 série » (QA S74b).
+  f.onclick = () => { f.hidden = true; if (cible.isConnected) cible.click(); };
   f._io = new IntersectionObserver(([e]) => { f.hidden = e.isIntersecting || window.innerWidth >= 1200; }, { threshold: 0.6 });
   f._io.observe(cible);
 }
@@ -725,7 +727,13 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     // reconnaît.
     const palier = `s:${miens.length - (cle === 'defaites' ? d : v) + SEQUENCES[cle].seuil}`;
     if (pris.has(palier) || jour - derniereSequence() < RECUL_SEQUENCE) return null;
-    return { cle, palier };
+    // UNE FOIS PAR SAISON CHACUNE (QA S74b) : une bonne équipe enfilait quatre
+    // victoires aux jours 4, 14, 32 et 53, et la même carte revenait quatre
+    // fois. Un moment qui revient n'est plus un moment.
+    if (decs.some(x => x.moment && x.moment.famille === 'sequence' && x.moment.cle === cle)) return null;
+    // La longueur VRAIE : le recul a pu la faire attendre, et à six victoires
+    // le titre ne dit plus « quatre ».
+    return { cle, palier, n: cle === 'defaites' ? d : v };
   };
   const objectifDe = j0 => decs.find(d => d.objectif && d.palier === `o:${j0}`);
   const offreObjectif = () => {
@@ -891,7 +899,18 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (onJour) onJour(jour);
   };
   // REPRISE : on réapplique les journées déjà vues avant le premier dessin.
-  if (depuis > 0) avancer(Math.min(depuis, N));
+  if (depuis > 0) {
+    avancer(Math.min(depuis, N));
+    // Une reprise suit une décision : tout ce qui précède le dernier match
+    // révélé a déjà été annoncé. Sans ça, `vues` repart vide et la plus longue
+    // blessure encore en cours revenait en alerte après CHAQUE choix — « 20
+    // matchs d'absence » pour un blessé du match 25, au jour 40 (QA S74b).
+    const joues = miens.length;
+    for (const b of you.injuriesLog || []) if (b.at < joues) vues.add(b);
+    if (alerte && alerte.at < joues) { const n = blessuresNeuves(); alerte = n.length ? n[0] : null; if (alerte) vues.add(alerte); }
+  }
+  /* Ce qu'il lui reste à manquer, d'après les matchs joués à ce jour. */
+  const restantDe = b => Math.max(1, Math.min(b.games, b.at + b.games - miens.length));
 
   /* ---------- les volets ---------- */
 
@@ -1231,6 +1250,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   }
 
   function dessiner() {
+    // Le flottant se rebranche plus bas s'il y a une journée à jouer ; la fin
+    // de saison n'en a pas, et il restait par-dessus « Voir le bilan » (QA S74b).
+    cacherBoutonFlottant();
     const f = fiche.get(you);
     const rang = rangDe(you);
     const seq = sequence();
@@ -1394,7 +1416,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     </div>` : '';
     const bless = alerte ? `<div class="hub-alerte" role="status">
       <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
-      <div class="hub-alerte-note">${alerte.games} match${alerte.games > 1 ? 's' : ''} d'absence · ${ctx.esc(caseDe(alerte.player))} · ${ctx.esc(remplacant(alerte.player))}</div>
+      <div class="hub-alerte-note">${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''} d'absence${restantDe(alerte) < alerte.games ? ` (${alerte.games} en tout)` : ''} · ${ctx.esc(caseDe(alerte.player))} · ${ctx.esc(remplacant(alerte.player))}</div>
       ${ballottage}
       ${onBanc ? `<button class="btn gold hub-alerte-banc">Derrière le banc</button>` : ''}
     </div>` : '';
@@ -1406,10 +1428,13 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
      * chaque option dit en chiffres ce qu'elle achète, ce qu'elle coûte,
      * pendant combien de matchs, et quelles factions elle bouge.
      */
-    const vo = verdictObjectif(), oo = vo ? null : offreObjectif();
-    const sq = vo || oo ? null : sequenceOuverte();
-    const dl = vo || oo || sq ? null : dilemmeOuvert();
-    const rc = vo || oo || sq || dl ? null : recompenseOuverte();
+    // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de
+    // voir ; passée derrière la séquence et le dilemme, elle arrivait deux
+    // pleins écrans plus tard, détachée du match qui la donnait.
+    const rc = recompenseOuverte();
+    const vo = rc ? null : verdictObjectif(), oo = rc || vo ? null : offreObjectif();
+    const sq = rc || vo || oo ? null : sequenceOuverte();
+    const dl = rc || vo || oo || sq ? null : dilemmeOuvert();
     const av = vo || oo || sq || dl || rc ? null : avantOuvert();
     const mo = vo || oo || sq || dl || av || rc ? null : mainOuverte();
     // Chaque choix est une décision : elle entre dans la liste, et la saison
@@ -1436,7 +1461,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         onChoix: cle => decider({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour } }) };
     } else if (sq) {
       const s = SEQUENCES[sq.cle];
-      spec = { ico: s.ico, titre: s.titre, recit: s.recit,
+      const EN_LETTRES = ['', '', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept', 'Huit', 'Neuf', 'Dix'];
+      const titre = sq.n > s.seuil ? `${EN_LETTRES[sq.n] || sq.n} ${sq.cle === 'defaites' ? 'défaites' : 'victoires'} de suite` : s.titre;
+      spec = { ico: s.ico, titre, recit: s.recit,
         options: s.options.map(o => ({ ...o, duree: dureeOption(o, 'sequence') })),
         onChoix: cle => decider({ palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: cle } }) };
     } else if (dl) {
@@ -1496,7 +1523,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
     if (voirBal) voirBal.onclick = () => ouvrirChoix({
       ico: '📋', titre: 'Au ballottage', fermable: true, motFermer: 'Garder mon réserviste',
-      recit: `${alerte.player.n} est absent ${alerte.games} matchs. Trois joueurs pas chers de sa position sont disponibles${bal.sortNom ? ` ; en réclamer un libère ${bal.sortNom}` : ''}. Le plafond compte toujours.`,
+      recit: `${alerte.player.n} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois joueurs pas chers de sa position sont disponibles${bal.sortNom ? ` ; en réclamer un libère ${bal.sortNom}` : ''}. Le plafond compte toujours.`,
       options: [...bal.candidats.map(c => ({ cle: c.cle, nom: `${c.pos} · ${c.nom}`, bon: c.ligne, prix: `${c.club} · ${c.salaire}` })),
         { cle: 'rien', nom: 'Garder mon réserviste', bon: 'Rien ne change', prix: 'Personne de neuf' }],
       onChoix: cle => { if (cle !== 'rien') decider({ palier: palierB, ballottage: { i: bal.i, entre: cle, sort: bal.sort } }); },
@@ -1519,7 +1546,12 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (bj) bj.onclick = () => { avancer(1, true); dessiner(); tabs.suivre('journee'); if (entracteDemande) ouvrirEntracte(); };
     if (bd) bd.onclick = () => { avancer(10, true); dessiner(); tabs.suivre('journee'); if (entracteDemande) ouvrirEntracte(); };
     // « La fin » ne s'arrête pas : qui demande la fin demande la fin.
-    actions.querySelector('.hub-fin').onclick = () => { avancer(N); dessiner(); tabs.suivre('journee'); };
+    // « Fin de saison » saute les mêmes paliers et gros matchs que ✕ : la même
+    // question, quand il reste des choix à faire (QA S74b).
+    actions.querySelector('.hub-fin').onclick = () => {
+      const suite = () => { avancer(N); dessiner(); tabs.suivre('journee'); };
+      if (onDecision) demanderFin(suite); else suite();
+    };
   }
 
   /*
@@ -1611,6 +1643,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
    */
   ui.close.onclick = () => {
     if (jour >= N) { fermer(); return; }
+    demanderFin(() => { avancer(N); fermer(); });
+  };
+  function demanderFin(suite) {
     ouvrirChoix({
       ico: '⏩', titre: 'Jouer le reste de la saison ?', genre: 'confirmer', fermable: true, motFermer: 'Rester',
       recit: `Il reste ${N - jour} journées. Tout se joue d'un coup, et tu passes au bilan.`,
@@ -1618,9 +1653,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         { cle: 'fin', ico: '⏩', nom: 'Oui, jusqu\'au bilan', bon: 'Tout se joue d\'un coup', prix: 'Les paliers et les gros matchs d\'ici là passent sans toi' },
         { cle: 'rester', ico: '🏒', nom: 'Non, je reste', bon: 'On continue journée par journée' },
       ],
-      onChoix: k => { if (k === 'fin') { avancer(N); fermer(); } },
+      onChoix: k => { if (k === 'fin') suite(); },
     });
-  };
+  }
   ui.close.setAttribute('aria-label', 'Passer au bilan de la saison');
   ui.close.title = 'Jouer le reste de la saison et passer au bilan';
   // Entrée ou la barre d'espace : la journée suivante, sans viser le bouton.
@@ -2061,6 +2096,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
 
   function dessiner() {
     noter();
+    cacherBoutonFlottant();   // idem aux séries : le champion couronné n'a plus de « Match suivant »
     const s = maSerie(ronde);
     const finale = deRonde(nRondes - 1)[0];
     const toutFini = ronde === nRondes - 1 && rondeComplete(ronde);
@@ -2117,7 +2153,11 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
     };
     const fr = actions.querySelector('.hub-ronde');
     if (fr) fr.onclick = () => { finirRonde(); dessiner(); tabs.suivre('serie'); };
-    actions.querySelector('.hub-fin').onclick = () => { toutReveler(); dessiner(); tabs.suivre('serie'); };
+    actions.querySelector('.hub-fin').onclick = () => {
+      const suite = () => { toutReveler(); dessiner(); tabs.suivre('serie'); };
+      // Tant que ta série se joue, passer à la fin saute tes mains : on demande (QA S74b).
+      if (onDecision && s && !complete(s)) demanderFinSeries(suite); else suite();
+    };
     if (!recompenseSerie()) brancherBoss(s);
   }
 
@@ -2161,7 +2201,7 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
   };
   /* ✕ : le reste des séries se joue, et on passe au tableau. */
   // ✕ : le reste des séries se joue — après une question (S74), comme en saison.
-  ui.close.onclick = () => {
+  function demanderFinSeries(suite) {
     ouvrirChoix({
       ico: '⏩', titre: 'Jouer le reste des séries ?', genre: 'confirmer', fermable: true, motFermer: 'Rester',
       recit: 'Toutes les séries se jouent d\'un coup, et tu passes au tableau final.',
@@ -2169,9 +2209,10 @@ export function ouvrirSeries({ series, rondes, you, saison = null, ctx, onTermin
         { cle: 'fin', ico: '⏩', nom: 'Oui, jusqu\'au tableau', bon: 'Tout se joue d\'un coup', prix: 'Tes mains et tes ajustements passent sans toi' },
         { cle: 'rester', ico: '🏒', nom: 'Non, je reste', bon: 'On continue match par match' },
       ],
-      onChoix: k => { if (k === 'fin') { toutReveler(); fermer(); } },
+      onChoix: k => { if (k === 'fin') suite(); },
     });
-  };
+  }
+  ui.close.onclick = () => demanderFinSeries(() => { toutReveler(); fermer(); });
   ui.close.setAttribute('aria-label', 'Passer au tableau des séries');
   ui.close.title = 'Jouer le reste des séries et voir le tableau';
   const clavier = ev => {

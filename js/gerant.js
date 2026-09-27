@@ -33,6 +33,7 @@ import { carteHtml, RARETES } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN } from './combat.js';
 import { effetsDesCartes } from './sim.js';
 import { jouerSon } from './sons.js';
+import { avecArticle } from './commentaire.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -485,7 +486,7 @@ export function motsDeCarteAdverse(C) {
  */
 export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN } = {}) {
   if (!cartes || !cartes.length) return '';
-  return `<div class="main-adverse"><div class="gl-k">🂠 La main de ${esc(nomAdv)} ce soir${energie > ENERGIE_MAIN ? ` · <span class="main-adverse-fort" title="En fin de saison et dans les dernières rondes des séries, l'adversaire joue avec une énergie de plus">⚡ ${energie} d'énergie</span>` : ''}</div><div class="main-adverse-cartes">${cartes.map(c => {
+  return `<div class="main-adverse"><div class="gl-k">🂠 La main ${nomAdv === 'Eux' ? 'adverse' : esc(avecArticle('de', nomAdv))} ce soir${energie > ENERGIE_MAIN ? ` · <span class="main-adverse-fort" title="En fin de saison et dans les dernières rondes des séries, l'adversaire joue avec une énergie de plus">⚡ ${energie} d'énergie</span>` : ''}</div><div class="main-adverse-cartes">${cartes.map(c => {
     const C = CARTES_MATCH[c];
     return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C))}</span></span>` : '';
   }).join('')}</div></div>`;
@@ -546,6 +547,9 @@ export function ouvrirMainDeMatch(spec) {
   const dessiner = () => {
     const defile = m.querySelector('.choix-main');
     const x = defile ? defile.scrollLeft : 0;
+    // Leur plan, déplié, le reste d'une carte à l'autre : il se refermait à
+    // chaque carte touchée, et on le lit justement en choisissant (QA S74b).
+    const planOuvert = !!m.querySelector('.main-plan[open]');
     const cartes = main.map((c, i) => {
       const C = CARTES_MATCH[c];
       const etat = joue.has(i) ? 'jouee' : C.injouable ? 'injouable' : C.cout > energie ? 'trop-cher' : '';
@@ -595,6 +599,7 @@ export function ouvrirMainDeMatch(spec) {
     </div>`;
     const nd = m.querySelector('.choix-main');
     if (nd) nd.scrollLeft = x;
+    if (planOuvert) { const pl = m.querySelector('.main-plan'); if (pl) pl.open = true; }
     pointsDeBande(m);
     premier = false; pigees = new Set();
     m.querySelectorAll('.main-carte').forEach(b => {

@@ -5602,7 +5602,9 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 }
 /* Les boutons et les pastilles reposaient sur leur filet pour exister : ils
    prennent la surface du dessus à la place. */
-.btn:hover:not(:disabled) { background: var(--panel-3); filter: brightness(1.25); }
+/* Un bouton de couleur garde SA couleur au survol : le gris de surface sous un
+   texte foncé (or, vert) ne se lisait plus — « Regarder » disparaissait (QA S74b). */
+.btn:hover:not(:disabled):not(.go):not(.gold):not(.blue):not(.danger) { background: var(--panel-3); filter: brightness(1.25); }
 .pcard-avatar { background: var(--panel-3); }
 
 /* ---------------------------------------------------------------
@@ -6580,7 +6582,7 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
 .deck-mini.maudite { --tc-bord: #8a3a55; }
 .choix-option.tc.lecture { cursor: default; }
 .choix-option.tc.lecture:hover { transform: none; }
-.hub-deck { white-space: nowrap; }
+.hub-deck { white-space: normal; }
 
 /* La main ne se tasse pas dans la colonne du plein écran (S74). */
 .choix-main { flex: none; }
@@ -6759,4 +6761,54 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
 @container col (max-width: 235px) {
   .pcard-mid { flex-wrap: wrap; row-gap: 4px; }
   .pcard-mid .tags { flex-wrap: wrap; min-width: 0; }
+}
+
+/* ---------------------------------------------------------------
+   DERRIÈRE LE BANC, AU TÉLÉPHONE, LE VOLET ENTIER DÉFILE (QA S74b).
+   Le panneau du banc, le résumé et l'en-tête restaient figés au-dessus de
+   l'alignement : 186 px mesurés pour le remanier, les réservistes à moitié
+   sous la barre. Au téléphone, c'est le volet qui défile — le panneau monte
+   avec le reste et l'alignement prend l'écran. Le « Retour au match » du
+   panneau se cache : la barre du bas porte le même, avec sa journée.
+   --------------------------------------------------------------- */
+@media (max-width: 760px) {
+  #game.banc #paneRoster { overflow-y: auto; }
+  #game.banc #paneRoster .roster { flex: 0 0 auto; min-height: auto; overflow: visible; }
+  #game.banc #bancRetour { display: none; }
+}
+
+/* LA RANGÉE DES BOUTONS PLIE (QA S74b). Cinq boutons à base nulle et sans
+   retour à la ligne : le dernier, « 🃏 Deck », était coupé en « DE » dans la
+   colonne de 300 px du grand écran et sortait du cadre à 390. Une base de
+   64 px : ils tiennent sur une ligne au téléphone, et plient en deux dans la
+   colonne étroite au lieu de s'écraser. */
+.hub-actions-rang { flex-wrap: wrap; }
+.hub-actions-rang .btn { flex: 1 1 64px; }
+/* GRAND ÉCRAN : les boutons de la journée passent AVANT les bandeaux. Un soir
+   de gros match, « Sa carte change » et le vestiaire poussaient « Journée
+   suivante » à 950 px dans une colonne de 243 — et le flottant ne vit pas
+   au-delà de 1 200 px. L'ordre flex, pas le HTML : au téléphone, le flottant
+   s'en charge et les bandeaux restent lus d'abord. La rangée des séries (qui
+   ne suit pas « Journée suivante ») garde son ordre. */
+@media (min-width: 1200px) {
+  body.hub-docke .hub-sheet .hub-actions > .hub-choix-rouvrir { order: -3; }
+  body.hub-docke .hub-sheet .hub-actions > .hub-jour:has(+ .hub-actions-rang) { order: -2; }
+  body.hub-docke .hub-sheet .hub-actions > .hub-jour + .hub-actions-rang { order: -1; }
+}
+
+/* LE TOAST AU-DESSUS DE TOUTE LA COQUILLE (QA S74b). Il comptait la barre
+   d'action mais pas la barre d'onglets sous elle : au téléphone, il se posait
+   sur « Lancer la saison » et sur le bouton flottant. Au grand écran, les
+   onglets sont un rail à gauche : seule la barre d'action compte. */
+.toast { bottom: calc(var(--actionbar-h) + var(--navbar-h, 0px) + 16px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 1200px) { .toast { bottom: calc(var(--actionbar-h) + 16px + env(safe-area-inset-bottom, 0px)); } }
+
+/* L'ÉTIQUETTE PLUS LARGE QUE SA PLACE (QA S74b). « Fabricant de jeu » sous un
+   long nom (Langenbrunner) débordait par la GAUCHE — `flex-end` pousse le
+   trop-plein au début — et mangeait les points. En colonne étroite, elle
+   rétrécit et passe à la ligne dans sa pastille ; `safe` renvoie ce qui
+   déborde encore du côté qui ne cache rien. */
+@container col (max-width: 235px) {
+  .pcard-mid .tags { justify-content: safe flex-end; }
+  .pcard-mid .tags > .tag { flex: 0 1 auto; min-width: 0; white-space: normal; line-height: 1.15; text-align: center; }
 }

@@ -3895,6 +3895,8 @@ function confirmerDecision(d) {
   else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
   else if (d.deck === 'strategie' && d.maitrise && TACTIQUES[d.maitrise.tac]) mot = `📘 Ta formation apprend ${TACTIQUES[d.maitrise.tac].nom.toLowerCase()}.`;
+  // La carte du proprio (objectif atteint) : la seule carte prise sans un mot (QA S74b).
+  else if (d.carte && CARTES[d.carte]) mot = `${CARTES[d.carte].ico} ${CARTES[d.carte].nom} : pour le reste de la saison.`;
   if (mot) toast(mot);
 }
 

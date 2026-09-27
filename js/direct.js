@@ -380,8 +380,11 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     // Sans prolongation, 60:00 est la fin de la 3e période (0:00 au
     // tableau), pas le début de la 4e.
     const enOT = f.ot && t >= 60;
-    const per = enOT ? 4 : t >= 60 ? 3 : periodeDe(t);
-    const temps = !enOT && t >= 60 ? '00:00' : tempsDeJeu(Math.min(t, 64.999));
+    // Arrêté au deuxième entracte (t = 40), c'est la FIN de la 2e — pas la
+    // 3e à 20:00, qui annonçait une période pas encore jouée (QA S74b).
+    const entracte = enArret && t >= 40 && t < 60;
+    const per = enOT ? 4 : t >= 60 ? 3 : entracte ? 2 : periodeDe(t);
+    const temps = (!enOT && t >= 60) || entracte ? '00:00' : tempsDeJeu(Math.min(t, 64.999));
     // L'avantage en cours : la fenêtre de deux minutes d'une punition, ou
     // moins si un but l'a fermée — c'est le tableau indicateur qui le dit.
     const an = fenetres.find(([a, b]) => t >= a && t < b);

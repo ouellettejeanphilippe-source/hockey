@@ -806,7 +806,9 @@ async function traverserSaison(etiquette, reprise = false) {
     await page.locator('.slot').nth(9).click(); await page.waitForTimeout(200);
     const nomsApres = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.trim()));
     if (nomsAvant[0] !== nomsApres[9]) errors.push('la permutation derrière le banc n\'a pas eu lieu');
-    await page.click('#bancRetour');
+    // Au téléphone, le « Retour au match » du panneau se cache : la barre du bas porte le même (QA S74b).
+    if (await page.isVisible('#bancRetour')) errors.push('à 390 px, le panneau du banc répète le « Retour au match » de la barre du bas');
+    await page.click('#mainBtn');
     await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
     await page.waitForTimeout(300);
     const teteApresBanc = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
@@ -1293,7 +1295,7 @@ async function traverserSaison(etiquette, reprise = false) {
   const apres = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
   console.log(`   match en direct : ${face} lignes de statistiques, ${xe} · puis ${apres}`);
   if (!face) errors.push(`${etiquette} : aucune statistique du match en direct`);
-  await page.click('#hubModal .hub-fin');
+  await cliquerFin();
   await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
   await page.click('#hubModal .hub-suite');
   await page.waitForSelector('.result .score', { timeout: 60000 });
@@ -1369,11 +1371,18 @@ async function nomsCliquables(etiquette) {
   await page.waitForTimeout(100);
 }
 
+/* « Fin de saison » (et « Passer à la fin » aux séries) demande confirmation
+   tant qu'il reste des choix à faire (QA S74b) : on dit oui. */
+async function cliquerFin() {
+  await page.click('#hubModal .hub-fin');
+  const oui = await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="fin"]', { timeout: 1500 }).catch(() => null);
+  if (oui) { await oui.click(); await page.waitForTimeout(150); }
+}
 /* La saison jusqu'au bilan, sans rien regarder : ce qui sert à REJOUER
    jusqu'à se qualifier, où seul le classement final compte. */
 async function finirVite() {
   await page.waitForSelector('#hubModal .hub-fin', { timeout: 90000 });
-  await page.click('#hubModal .hub-fin');
+  await cliquerFin();
   await page.waitForSelector('#hubModal .hub-suite', { timeout: 15000 });
   await page.click('#hubModal .hub-suite');
   await page.waitForSelector('.result .score', { timeout: 60000 });
@@ -1814,7 +1823,7 @@ if (enabled) {
       await page.click('#liveModal .live-suite');
     }
     await repondreAuxChoix();
-    await page.click('#hubModal .hub-fin');
+    await cliquerFin();
     await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
     await page.click('#hubModal .hub-suite');
     await page.waitForSelector('#playoffsSection .bk-serie', { timeout: 10000 });
