@@ -321,7 +321,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 15.5px;
   line-height: 1.45;
-  padding-bottom: calc(var(--actionbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
+  padding-bottom: calc(var(--actionbar-h) + var(--safe-bas) + 12px);
   overflow-x: hidden;
 }
 
@@ -1781,7 +1781,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   background: rgba(6, 12, 20, 0.96);
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 12px calc(8px + var(--safe-bas));
 }
 .actionbar-inner {
   max-width: 1720px;
@@ -2251,7 +2251,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   gap: 8px;
   flex-wrap: wrap;
   justify-content: space-between;
-  padding: 11px 14px calc(11px + env(safe-area-inset-bottom, 0px));
+  padding: 11px 14px calc(11px + var(--safe-bas));
   border-top: 1px solid var(--line);
   background: var(--panel-2);
 }
@@ -2276,7 +2276,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--actionbar-h) + 16px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--actionbar-h) + 16px + var(--safe-bas));
   transform: translate(-50%, 12px);
   z-index: 80;
   max-width: min(88vw, 420px);
@@ -2680,7 +2680,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 
 .live-controls {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 14px calc(10px + var(--safe-bas));
   border-top: 1px solid var(--line-soft);
 }
 .live-controls .btn { flex: 1 1 160px; min-height: 42px; }
@@ -2732,7 +2732,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   flex: 0 0 auto; display: flex; gap: 0;
   background: var(--panel); border-top: 1px solid var(--line);
   overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bas);
 }
 .hub-onglets::-webkit-scrollbar { display: none; }
 .hub-onglets[hidden] { display: none; }
@@ -5196,7 +5196,7 @@ a.spin-club:hover {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 56;
   display: flex; gap: 0;
   background: var(--panel); border-top: 1px solid var(--line);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bas);
   /* UNE FOIS LA SAISON JOUÉE LA BARRE COMPTE NEUF ONGLETS : elle défile en x
      plutôt que de rétrécir « Calendrier » à quarante pixels. C'est le même
      conteneur qui défile que pour un tableau — jamais la page. */
@@ -5220,7 +5220,7 @@ a.spin-club:hover {
 /* La barre d'action ne porte plus que le bouton principal, et elle se pose
    AU-DESSUS des onglets. Elle disparaît sur les pages de référence : le
    bouton « Lancer la saison » n'a rien à dire quand on lit les règles. */
-.actionbar { bottom: calc(var(--navbar-h) + env(safe-area-inset-bottom, 0px)); }
+.actionbar { bottom: calc(var(--navbar-h) + var(--safe-bas)); }
 .actionbar .btn.go { flex: 1 1 100%; }
 body[data-zone="ref"] .actionbar { display: none; }
 /* Et elle s'efface sur le bilan : son bouton y dit « Saison jouée » et ne
@@ -5233,7 +5233,7 @@ body:has(#game.bilan) { --actionbar-h: 0px; }
 /* La place réservée en bas : les deux barres sur un onglet de partie, une
    seule sur une page de référence. */
 body { padding-bottom: 0; }
-.game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + env(safe-area-inset-bottom, 0px) + 12px); }
+.game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + var(--safe-bas) + 12px); }
 
 /* ---------- les pages ---------- */
 /* UNE PAGE EST UNE BOÎTE BORNÉE dont le CORPS défile — l'ancrage de S47.
@@ -5243,7 +5243,7 @@ body { padding-bottom: 0; }
   display: flex; flex-direction: column;
   max-width: 1720px; margin: 0 auto;
   padding: 10px 12px 0;
-  height: calc(100svh - var(--topbar-h) - var(--navbar-h) - env(safe-area-inset-bottom, 0px));
+  height: calc(100svh - var(--topbar-h) - var(--navbar-h) - var(--safe-bas));
   overflow: hidden;
 }
 .page[hidden] { display: none; }
@@ -5306,7 +5306,7 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
    pour relire ce que la roulette offrait. */
 @media (min-width: 1px) {
   body[data-zone="jeu"] .game {
-    height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - env(safe-area-inset-bottom, 0px));
+    height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - var(--safe-bas));
     padding-bottom: 0;
     overflow: hidden;
     display: flex; flex-direction: column;
@@ -5869,7 +5869,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 @media (max-width: 1199.98px) {
   .navbar {
     left: 10px; right: 10px;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(10px + var(--safe-bas));
     padding-bottom: 0;
     border: 0;
     border-radius: var(--r-l);
@@ -5879,11 +5879,11 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
   .navbar { overflow-x: auto; }
   .navtab { border-top: 0; }
   /* La place réservée en bas suit la barre qui flotte. */
-  .game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + 20px + env(safe-area-inset-bottom, 0px)); }
-  .actionbar { bottom: calc(var(--navbar-h) + 18px + env(safe-area-inset-bottom, 0px)); }
+  .game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + 20px + var(--safe-bas)); }
+  .actionbar { bottom: calc(var(--navbar-h) + 18px + var(--safe-bas)); }
   body[data-zone="jeu"] .game,
-  .page { height: calc(100svh - var(--topbar-h) - var(--navbar-h) - 20px - env(safe-area-inset-bottom, 0px)); }
-  body[data-zone="jeu"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - 20px - env(safe-area-inset-bottom, 0px)); }
+  .page { height: calc(100svh - var(--topbar-h) - var(--navbar-h) - 20px - var(--safe-bas)); }
+  body[data-zone="jeu"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - 20px - var(--safe-bas)); }
 }
 
 /* ---------------------------------------------------------------
@@ -5938,7 +5938,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    --------------------------------------------------------------- */
 @media (max-width: 1199.98px) {
   .hub-onglets {
-    margin: 0 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    margin: 0 10px calc(10px + var(--safe-bas));
     border: 0;
     border-radius: var(--r-l);
     background: var(--panel-2);
@@ -6196,7 +6196,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    ===================================================================== */
 :root {
   --rail-w: 0px;
-  --bas-coquille: calc(var(--navbar-h) + 20px + env(safe-area-inset-bottom, 0px));
+  --bas-coquille: calc(var(--navbar-h) + 20px + var(--safe-bas));
 }
 @media (min-width: 1200px) { :root { --rail-w: 186px; --bas-coquille: 0px; } }
 @media (min-width: 1800px) { :root { --rail-w: 220px; } }
@@ -6408,7 +6408,7 @@ body.choix-ouvert { overflow: hidden; }
 .gl-tac-fit.prix { color: var(--live); }
 .gl-mot { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 .gl-sec { width: 100%; }
-.gl-pied { flex: none; display: flex; gap: 10px; justify-content: flex-end; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line-soft, var(--line)); }
+.gl-pied { flex: none; display: flex; gap: 10px; justify-content: flex-end; padding: 12px 16px calc(12px + var(--safe-bas)); border-top: 1px solid var(--line-soft, var(--line)); }
 .gl-pied .btn { min-width: 150px; }
 @media (max-width: 560px) {
   .gl-onglets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -6529,16 +6529,24 @@ body.choix-ouvert { overflow: hidden; }
    jamais la somme. Sur ordinateur et dans un navigateur, tout vaut zéro.
    ===================================================================== */
 :root { --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px)); }
+/* LE BAS AUSSI (S78, JP : *ajouter espace protégé dans le bas sur mobile aussi*) : la barre de gestes d'Android. Même règle que le haut — Capacitor injecte `--safe-area-inset-bottom` quand `env()` rend zéro dans la WebView. Partout où le bas se réserve, c'est `--safe-bas`. */
+:root { --safe-bas: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px)); }
 /* La barre du haut descend d'autant : une bordure plutôt qu'un padding, pour
    ne toucher à aucune des marges qu'elle prend selon la largeur. Sa hauteur
    mesurée (`--topbar-h`, js/game.js) l'inclut, donc tout ce qui se cale
    dessous suit. */
 .topbar { border-top: var(--safe-top) solid rgb(6, 12, 20); }
 /* Les écrans plein écran commencent sous la barre d'état. */
-.modal-backdrop, .choix-modal { top: var(--safe-top); }
+/* Les écrans plein écran commencent sous la barre d'état et finissent au-dessus de la barre de gestes. */
+.modal-backdrop, .choix-modal { top: var(--safe-top); bottom: var(--safe-bas); }
 /* Et rien ne défile derrière l'heure et la batterie. */
 body::before {
   content: ""; position: fixed; top: 0; left: 0; right: 0; height: var(--safe-top);
+  background: rgb(6, 12, 20); z-index: 1000; pointer-events: none;
+}
+/* Et rien ne défile derrière la barre de gestes. */
+body::after {
+  content: ""; position: fixed; bottom: 0; left: 0; right: 0; height: var(--safe-bas);
   background: rgb(6, 12, 20); z-index: 1000; pointer-events: none;
 }
 
@@ -7004,8 +7012,8 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
    d'action mais pas la barre d'onglets sous elle : au téléphone, il se posait
    sur « Lancer la saison » et sur le bouton flottant. Au grand écran, les
    onglets sont un rail à gauche : seule la barre d'action compte. */
-.toast { bottom: calc(var(--actionbar-h) + var(--navbar-h, 0px) + 16px + env(safe-area-inset-bottom, 0px)); }
-@media (min-width: 1200px) { .toast { bottom: calc(var(--actionbar-h) + 16px + env(safe-area-inset-bottom, 0px)); } }
+.toast { bottom: calc(var(--actionbar-h) + var(--navbar-h, 0px) + 16px + var(--safe-bas)); }
+@media (min-width: 1200px) { .toast { bottom: calc(var(--actionbar-h) + 16px + var(--safe-bas)); } }
 
 /* L'ÉTIQUETTE PLUS LARGE QUE SA PLACE (QA S74b). « Fabricant de jeu » sous un
    long nom (Langenbrunner) débordait par la GAUCHE — `flex-end` pousse le
@@ -9265,3 +9273,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .slot.cj-case .slot-band .sb-role { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 4px; padding-right: 4px; letter-spacing: 0; }
 .slot.cj-case .slot-band .sb-logo { flex: none; }
 .slot.cj-case .slot-band .slot-salary { flex: none; white-space: nowrap; }
+
+/* Le polaroïd rétrécit la photo (son bord blanc) : le secours (sous le portrait) se rétrécit avec elle. */
+#pool .pcard.pv.f-polaroid .pcard-avatar > .headshot-fallback, .cj-recto.f-polaroid .cj-fenetre > .headshot-fallback { font-size: 26px; line-height: 1; }
