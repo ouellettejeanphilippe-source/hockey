@@ -43,7 +43,7 @@ const INLINE_LOGOS = {
   // Jets de Winnipeg (1979-96)
   WIN: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <circle cx="50" cy="50" r="46" fill="#00205b" stroke="#c8102e" stroke-width="4"/>
-    <text x="50" y="48" font-family="sans-serif" font-weight="900" font-size="22" fill="#ffffff" text-anchor="middle">JETS</text>
+    <text x="50" y="48" font-family="sans-serif" font-weight="900" font-size="22" fill="#ffffff" text-anchor="middle" textLength="58" lengthAdjust="spacingAndGlyphs">JETS</text>
     <path d="M25 62 L75 62 L65 72 L35 72 Z" fill="#c8102e"/>
   </svg>`,
 
@@ -67,11 +67,11 @@ const INLINE_LOGOS = {
   </svg>`,
 
   // Scouts de Kansas City / Rockies du Colorado / Barons de Cleveland / Seals
-  KCS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#c8102e"/><text x="50" y="58" font-size="28" font-weight="900" fill="#ffc72c" text-anchor="middle">KC</text></svg>`,
+  KCS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#c8102e"/><text x="50" y="58" font-size="28" font-weight="900" fill="#ffc72c" text-anchor="middle" textLength="40" lengthAdjust="spacingAndGlyphs">KC</text></svg>`,
   CLR: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="50,10 90,85 10,85" fill="#00205b"/><polygon points="50,30 75,75 25,75" fill="#c8102e"/><circle cx="50" cy="58" r="8" fill="#ffc72c"/></svg>`,
   CLE: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="20" width="80" height="60" rx="10" fill="#c8102e"/><text x="50" y="60" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle">B</text></svg>`,
   CGS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="57" font-size="20" font-weight="900" fill="#ffc72c" text-anchor="middle" textLength="74" lengthAdjust="spacingAndGlyphs">SEALS</text></svg>`,
-  OAK: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="58" font-size="24" font-weight="900" fill="#ffffff" text-anchor="middle">OAK</text></svg>`,
+  OAK: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="58" font-size="24" font-weight="900" fill="#ffffff" text-anchor="middle" textLength="52" lengthAdjust="spacingAndGlyphs">OAK</text></svg>`,
   MDA: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M20 20 L80 80 M80 20 L20 80" stroke="#00685e" stroke-width="12"/><ellipse cx="50" cy="50" rx="30" ry="22" fill="#00685e"/><polygon points="35,45 65,45 50,65" fill="#f0592b"/></svg>`,
 
   // TON équipe : les NHL Stars. Un écusson d'étoiles à l'ancienne, noir,
@@ -83,7 +83,7 @@ const INLINE_LOGOS = {
     <polygon points="50,14 58.5,36 82,36 63,50 70,73 50,59 30,73 37,50 18,36 41.5,36" fill="#ffffff"/>
     <polygon points="50,24 55,37 69,37 58,45.5 62.5,59 50,50.5 37.5,59 42,45.5 31,37 45,37" fill="#f47a20"/>
     <rect x="14" y="70" width="72" height="16" rx="3" fill="#f47a20"/>
-    <text x="50" y="82.5" font-family="Arial Narrow, Arial, sans-serif" font-weight="900" font-size="13.5" letter-spacing="1.5" fill="#0b0b0b" text-anchor="middle">NHL STARS</text>
+    <text x="50" y="82.5" font-family="Arial Narrow, Arial, sans-serif" font-weight="900" font-size="13.5" letter-spacing="1.5" fill="#0b0b0b" text-anchor="middle" textLength="62" lengthAdjust="spacingAndGlyphs">NHL STARS</text>
   </svg>`,
 };
 

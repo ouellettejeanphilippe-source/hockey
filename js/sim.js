@@ -1364,13 +1364,76 @@ export const TACTIQUES = {
 /* Qui contre qui : la tactique qui étouffe CELLE-CI. */
 export const contreDe = cle => Object.keys(TACTIQUES).find(k => TACTIQUES[k].bat === cle) || null;
 
+/*
+ * `def` : la part de buts alloués que le jeu physique retire (à une ligne
+ * moyenne) ; `pun` : les punitions de trop, en punitions de ligue. RECALÉS
+ * EN PAIRES (S71) : avec l'ancien réglage, rentre-dedans coûtait même aux
+ * lignes costaudes (−1,4 victoire sur les deux plus costaudes de chaque club)
+ * et l'agressivité basse rapportait à tout le monde (+0,7) — un repas
+ * gratuit. Le modèle mesuré (victoires ≈ 30 × défense − 8 × punitions) a
+ * donné ces valeurs : à la ligne moyenne, rentre-dedans coûte un peu et la
+ * basse ne rapporte rien ; costaude, rentre-dedans paie et la basse coûte ;
+ * légère, c'est l'inverse.
+ */
 export const AGRESSIVITES = [
-  { nom: 'Basse', ico: '🕊️', energie: 0.98, physique: 0.0, punitions: 0.75 },
-  { nom: 'Moyenne', ico: '⚖️', energie: 1.00, physique: 0.4, punitions: 1.0 },
-  { nom: 'Haute', ico: '💥', energie: 1.04, physique: 0.7, punitions: 1.3 },
-  { nom: 'Rentre-dedans', ico: '🪓', energie: 1.09, physique: 0.9, punitions: 1.65 },
+  { nom: 'Basse', ico: '🕊️', energie: 0.98, physique: 0.0, def: -0.04, pun: -0.15 },
+  { nom: 'Moyenne', ico: '⚖️', energie: 1.00, physique: 0.4, def: 0, pun: 0 },
+  { nom: 'Haute', ico: '💥', energie: 1.04, physique: 0.7, def: 0.035, pun: 0.15 },
+  { nom: 'Rentre-dedans', ico: '🪓', energie: 1.09, physique: 0.9, def: 0.07, pun: 0.30 },
 ];
 export const SEC_DEFAUT = 60, SEC_MIN = 30, SEC_MAX = 90;
+
+/*
+ * LE PHYSIQUE D'UN JOUEUR ET CE QUE L'AGRESSIVITÉ EN TIRE (S71). JP :
+ * *s'assurer que c'est plus clair quels joueurs sont avantagés. Un exemple
+ * actuel, c'est que tu gagnes probablement plus avec un joueur peu robuste
+ * d'avoir une stratégie robuste, car c'est moins grave d'augmenter son % de
+ * pénalité pour prendre le bonus.* Il avait raison : le bonus physique était
+ * le même pour toutes les lignes, et les punitions de trop MULTIPLIAIENT le
+ * taux de chaque joueur — une ligne de joueurs propres jouée rentre-dedans
+ * restait sous la moyenne de la ligue et empochait tout le bonus.
+ *
+ * Maintenant, c'est le joueur qui décide :
+ *   - `physiqueDe` : sa robustesse mesurée (🪨), son gabarit, le trait
+ *     Colosse, de 0 à 1 (0,5 = la moyenne de son groupe) ;
+ *   - le BONUS du jeu physique suit le physique de l'unité sur la glace
+ *     (`rendementPhysique`) : une ligne costaude en tire presque le double,
+ *     une ligne légère presque rien ;
+ *   - les PUNITIONS DE TROP s'ajoutent en punitions de ligue (plus en % du
+ *     taux de base du joueur), et une ligne légère en prend plus
+ *     (`coutPhysique`) : elle accroche et retient au lieu de frapper.
+ * À l'agressivité moyenne, rien ne bouge : la ligue non plus.
+ */
+export function physiqueDe(p) {
+  if (!p || p.p === 'G') return 0.5;
+  const gb = p.gb == null ? 1 : Number(p.gb);
+  const colosse = getTraits(p).some(t => t.cle === 'COLOSSE') ? 1 : 0;
+  const x = 0.8 * cz(p.mr) + 0.6 * (gb - 1) + colosse;
+  return 1 / (1 + Math.exp(-1.4 * borne(x, -3, 3)));
+}
+export const rendementPhysique = ph => borne(1 + 4 * (ph - 0.5), 0.2, 2);
+export const coutPhysique = ph => borne(1 - 4 * (ph - 0.5), 0.2, 2);
+/* Le physique moyen d'une unité (un trio, une paire) ou d'une ligne entière. */
+export function physiqueUnite(lineup, group, u) {
+  const js = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
+  return js.length ? js.reduce((a, p) => a + physiqueDe(p), 0) / js.length : 0.5;
+}
+export function physiqueLigne(lineup, u) {
+  const js = Object.values(joueursDeLigne(lineup, u)).filter(Boolean);
+  return js.length ? js.reduce((a, p) => a + physiqueDe(p), 0) / js.length : 0.5;
+}
+/*
+ * CE QUE RAPPORTE UNE AGRESSIVITÉ À UNE LIGNE, en mots pour l'écran : le
+ * bonus défensif, le surplus de punitions, et le net (une punition de trop
+ * vaut à peu près 12 % de buts alloués de plus sur l'ensemble du match).
+ */
+export function bilanAgressivite(agr, ph) {
+  const A = AGRESSIVITES[agr] || AGRESSIVITES[1];
+  const defense = A.def * rendementPhysique(ph);
+  const punitions = A.pun * coutPhysique(ph);
+  // Le même rapport que la mesure en paires : 8 victoires pour 30.
+  return { defense, punitions, net: defense - 0.27 * punitions };
+}
 
 /*
  * L'IMPORTANCE DU MATCH (S68), comme HockeyArena : un gros match fait jouer
@@ -2899,21 +2962,24 @@ export function profilMatch(team, lineup, adv = null) {
   // LES LIGNES À LA HOCKEYARENA (S68) : chaque unité joue la tactique et
   // l'agressivité de SA ligne (le trio u et la paire u forment la ligne u).
   const lignes = lignesDe(team, lineup);
-  let discTac = 0, robTac = 0, sP = 0;
+  let discTac = 0, discAgr = 0, robTac = 0, sP = 0;
   for (const g of ['F', 'D']) unites[g].forEach((x, u) => {
     const l = lignes[u], T = TACTIQUES[l.tac] || {}, A = AGRESSIVITES[l.agr];
+    const ph = physiqueUnite(lineup, g, u);
+    const eff = rendementPhysique(ph);
     x.ligne = u; x.tactique = l.tac;
     x.chimie = (team && team.chimie && team.chimie[u]) || 0;
     x.poids *= T.volume || 1;
     x.qualite *= T.finition || 1;
     // Plus physique, on donne moins — CENTRÉ sur l'agressivité moyenne, pour
     // que le réglage par défaut ne déplace pas la ligue.
-    x.defTac = (T.defense || 1) * (1 - 0.10 * (A.physique - 0.4));
-    discTac += x.presence * (T.discipline || 1) * A.punitions;
-    robTac += x.presence * 1.5 * (A.physique - 0.4);
+    x.defTac = (T.defense || 1) * (1 - A.def * eff);
+    discTac += x.presence * (T.discipline || 1);
+    discAgr += x.presence * A.pun * coutPhysique(ph);
+    robTac += x.presence * 1.5 * (A.physique - 0.4) * eff;
     sP += x.presence;
   });
-  discTac = sP ? discTac / sP : 1; robTac = sP ? robTac / sP : 0;
+  discTac = sP ? discTac / sP : 1; discAgr = sP ? discAgr / sP : 0; robTac = sP ? robTac / sP : 0;
 
   // Le trio de fermeture de cet alignement : désigné, ou le 3e trio
   // (voir FERMETURE_DEFAUT).
@@ -2973,7 +3039,7 @@ export function profilMatch(team, lineup, adv = null) {
     // L'indiscipline : combien cet alignement prend de punitions. Le plan de
     // match entre ICI — un échec avant lourd se paie à l'arbitre.
     discipline: patineurs.length
-      ? borne(cartes.discipline * discTac * patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length,
+      ? borne(cartes.discipline * (discTac * patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length + discAgr),
         DISCIPLINE_MIN, DISCIPLINE_MAX)
       : cartes.discipline,
     annee: anneeDe(habilles),
@@ -3465,14 +3531,14 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // ce que le direct des séries rejoue, tir par tir. Le sommaire, lui, ne
     // lit que les buts.
     // `p` (S70) : la chance que CE lancer entre. Le direct en tire ses jeux dangereux ; lu, jamais tiré.
-    const lancer = journal ? { cote, instant, tireur, gardien, but: false, mode, special, ligne: trioOff ? trioOff.rang : null, p: Math.round(p * 1000) / 1000 } : null;
+    const lancer = journal ? { cote, instant, tireur, gardien, but: false, mode, special, ligne: trioOff ? trioOff.rang : null, tac: trioOff ? trioOff.tactique || null : null, p: Math.round(p * 1000) / 1000 } : null;
     if (lancer) journal.lancers.push(lancer);
 
     if (hasard() < p) {
       buts++;
       if (lancer) lancer.but = true;
       if (journal && tireur) {
-        journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien, an: mode === 'AN', dn: mode === 'DN', special, ligne: trioOff ? trioOff.rang : null });
+        journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien, an: mode === 'AN', dn: mode === 'DN', special, ligne: trioOff ? trioOff.rang : null, tac: trioOff ? trioOff.tactique || null : null });
       }
       if (feuille && tireur && mode === 'AN') tireur.simPPG = (tireur.simPPG || 0) + 1;
       // Les passeurs sont tirés dès qu'il y a un but : la feuille de saison
@@ -4704,20 +4770,32 @@ export function motsDeMutation(cle) {
  * pour que l'écran ne recopie jamais un chiffre qui finirait par mentir.
  * Chaque mot dit s'il AIDE (`bon`) ; l'écran le colore.
  */
+/*
+ * DES FLÈCHES, PAS DES POURCENTAGES (S71). JP : *pas besoin de stats
+ * chiffrées aussi complexes, garde ça simple et fonctionnel*. Un effet se lit
+ * en une, deux ou trois flèches — un peu, net, beaucoup — et sa couleur dit
+ * s'il aide ou s'il coûte. Le chiffre exact reste dans le moteur ; l'écran
+ * n'en a pas besoin pour décider.
+ */
+export function flechesDe(x, seuils = [0.035, 0.09]) {
+  const d = Math.abs(x - 1);
+  const n = d < seuils[0] ? 1 : d < seuils[1] ? 2 : 3;
+  return (x > 1 ? '↑' : '↓').repeat(n);
+}
 export function motsDEffet(e, duree = null) {
   if (!e) return [];
   const out = [];
-  const pct = x => `${x > 1 ? '+' : '−'}${Math.round(Math.abs(x - 1) * 100)} %`;
+  const pct = x => flechesDe(x);
   if (e.finition && e.finition !== 1) out.push({ txt: `Finition ${pct(e.finition)}`, bon: e.finition > 1 });
   if (e.volume && e.volume !== 1) out.push({ txt: `Lancers ${pct(e.volume)}`, bon: e.volume > 1 });
   if (e.defense && e.defense !== 1) out.push({ txt: `Buts alloués ${pct(e.defense)}`, bon: e.defense < 1 });
   if (e.discipline && e.discipline !== 1) out.push({ txt: `Punitions ${pct(e.discipline)}`, bon: e.discipline < 1 });
   if (e.blessure && e.blessure !== 1) out.push({ txt: `Blessures ${pct(e.blessure)}`, bon: e.blessure < 1 });
   if (e.energie && e.energie !== 1) out.push({ txt: `Fatigue ${pct(e.energie)}`, bon: e.energie < 1 });
-  if (e.robustesse) out.push({ txt: `Robustesse ${e.robustesse > 0 ? '+' : '−'}${Math.abs(e.robustesse).toFixed(1).replace('.', ',')}`, bon: e.robustesse > 0 });
+  if (e.robustesse) out.push({ txt: `Robustesse ${flechesDe(1 + e.robustesse / 10, [0.07, 0.13])}`, bon: e.robustesse > 0 });
   const rangF = ['1er trio', '2e trio', '3e trio', '4e trio'], rangD = ['1re paire', '2e paire', '3e paire'];
   for (const [g, noms] of [['F', rangF], ['D', rangD]]) if (Array.isArray(e[g])) e[g].forEach((m, i) => {
-    if (m !== 1) out.push({ txt: `${noms[i]} ${pct(m)} de glace`, bon: null });
+    if (m !== 1) out.push({ txt: `${noms[i]} : glace ${flechesDe(m, [0.1, 0.25])}`, bon: null });
   });
   if (e.mutation && MUTATIONS[e.mutation]) out.push({ txt: `Change sa carte : ${MUTATIONS[e.mutation].ico} ${MUTATIONS[e.mutation].nom}`, bon: null });
   if (duree) out.push({ txt: `${duree} match${duree > 1 ? 's' : ''}`, bon: null, duree: true });
@@ -4912,7 +4990,7 @@ export function commentContrer(cle) {
     : c.agrMin != null ? `${c.n} lignes en agressivité ${AGRESSIVITES[c.agrMin].nom.toLowerCase()} ou plus`
     : c.agrMax != null ? `${c.n} lignes en agressivité ${AGRESSIVITES[c.agrMax].nom.toLowerCase()}`
     : 'une consigne de match penchée défense (Préparer le match)';
-  return `${quoi} : ${P.pourquoi}`;
+  return `${quoi} — ${P.pourquoi}`;
 }
 
 /* Le plan est-il contré ? Des lignes `{ tac, agr }` × 4 et la consigne du match (`ad`, −2 à 2). */
@@ -4970,61 +5048,61 @@ export const AVANT_GROS = {
     irl: 'Mark Messier, 1994 : il garantit une victoire au 6e match contre les Devils, puis marque trois buts en troisième.',
     recit: 'Les journalistes entourent ton capitaine. Ils attendent une phrase pour la une.',
     options: [
-      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Finition +5 % ce soir', prix: 'Perdu : les médias s\'acharnent', finition: 1.05, pari: { gagne: { vestiaire: 1, partisans: 1 }, perd: { medias: -2 } } },
+      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit', prix: 'Perdu : les médias s\'acharnent', finition: 1.05, pari: { gagne: { vestiaire: 1, partisans: 1 }, perd: { medias: -2 } } },
       { cle: 'humble', nom: 'Un match à la fois', bon: 'Personne ne s\'emballe', prix: 'Rien de plus', defense: 0.98 },
     ] },
   mots: { ico: '🗣️', titre: 'La guerre des mots',
     irl: 'Patrick Roy à Jeremy Roenick, 1996 : « Je ne l\'entends pas, j\'ai mes deux bagues de la Coupe dans les oreilles. »',
     recit: 'Leur entraîneur a dit en point de presse que ta formation « ne ferait pas les séries dans la Ligue américaine ».',
     options: [
-      { cle: 'repliquer', nom: 'Répliquer au micro', bon: 'Finition +3 % · partisans +1', prix: 'Punitions +15 %', finition: 1.03, discipline: 1.15, jauges: { partisans: 1 } },
-      { cle: 'glace', nom: 'Laisser parler la glace', bon: 'Punitions −15 %', prix: 'Les médias trouvent ça plate', discipline: 0.85, jauges: { medias: -1 } },
+      { cle: 'repliquer', nom: 'Répliquer au micro', bon: 'Les gars sont piqués au vif', prix: 'Ils vont jouer sur les nerfs', finition: 1.03, discipline: 1.15, jauges: { partisans: 1 } },
+      { cle: 'glace', nom: 'Laisser parler la glace', bon: 'Tête froide', prix: 'Les médias trouvent ça plate', discipline: 0.85, jauges: { medias: -1 } },
     ] },
   virus: { ico: '🦠', titre: 'Le virus dans le vestiaire',
     recit: 'Trois joueurs ont passé la nuit malades. Le soigneur dit qu\'ils peuvent jouer, « à peu près ».',
     options: [
-      { cle: 'jouer', nom: 'Ils jouent quand même', bon: 'Personne ne manque', prix: 'Fatigue +30 %', energie: 1.3 },
-      { cle: 'rappel', nom: 'Rappeler deux gars du club-école', bon: 'Des jambes fraîches', prix: 'Finition −3 %', finition: 0.97, energie: 0.9 },
+      { cle: 'jouer', nom: 'Ils jouent quand même', bon: 'Personne ne manque', prix: 'Des jambes lourdes', energie: 1.3 },
+      { cle: 'rappel', nom: 'Rappeler deux gars du club-école', bon: 'Des jambes fraîches', prix: 'Moins de talent sur la glace', finition: 0.97, energie: 0.9 },
     ] },
   samedi: { ico: '📺', titre: 'Le match du samedi soir',
     recit: 'Le pays au complet regarde. Le réseau veut du spectacle, et il paie la moitié de ta masse salariale.',
     options: [
-      { cle: 'show', nom: 'Donner le show', bon: 'Lancers +5 % · médias +1', prix: 'Buts alloués +4 %', volume: 1.05, defense: 1.04, jauges: { medias: 1 } },
+      { cle: 'show', nom: 'Donner le show', bon: 'Du spectacle pour la télé', prix: 'On se découvre', volume: 1.05, defense: 1.04, jauges: { medias: 1 } },
       { cle: 'propre', nom: 'Jouer ton hockey', bon: 'Le proprio aime le sérieux', prix: 'Le réseau boude', jauges: { proprio: 1, medias: -1 } },
     ] },
   gloria: { ico: '🎶', titre: 'La chanson du vestiaire',
     irl: 'Les Blues de 2019 adoptent « Gloria » dans un bar de Philadelphie, alors derniers de la ligue ; ils gagnent la Coupe.',
     recit: 'Quelques joueurs ont trouvé une vieille chanson dans un bar la veille. Ils veulent la faire jouer après chaque victoire.',
     options: [
-      { cle: 'chanson', nom: 'Adopter la chanson', bon: 'Vestiaire +1 · finition +2 %', prix: 'Perdu : ridicule dans les journaux', finition: 1.02, jauges: { vestiaire: 1 }, pari: { perd: { medias: -1 } } },
-      { cle: 'couvre', nom: 'Couvre-feu à 22 h', bon: 'Fatigue −15 %', prix: 'Vestiaire −1', energie: 0.85, jauges: { vestiaire: -1 } },
+      { cle: 'chanson', nom: 'Adopter la chanson', bon: 'Le vestiaire s\'amuse', prix: 'Perdu : ridicule dans les journaux', finition: 1.02, jauges: { vestiaire: 1 }, pari: { perd: { medias: -1 } } },
+      { cle: 'couvre', nom: 'Couvre-feu à 22 h', bon: 'Tout le monde est reposé', prix: 'Le vestiaire grogne', energie: 0.85, jauges: { vestiaire: -1 } },
     ] },
   pieuvre: { ico: '🐙', titre: 'La pieuvre sur la glace',
     irl: 'Détroit, 1952 : les frères Cusimano lancent une pieuvre sur la glace — huit tentacules, huit victoires pour la Coupe.',
     recit: 'Les partisans ont prévu quelque chose. Le préposé à la glace est nerveux.',
     options: [
-      { cle: 'foule', nom: 'Laisser la foule s\'exprimer', bon: 'Partisans +1 · finition +3 %', prix: 'Punitions +10 %', finition: 1.03, discipline: 1.1, jauges: { partisans: 1 } },
+      { cle: 'foule', nom: 'Laisser la foule s\'exprimer', bon: 'L\'amphithéâtre pousse', prix: 'L\'arbitre est sur les dents', finition: 1.03, discipline: 1.1, jauges: { partisans: 1 } },
       { cle: 'calme', nom: 'Demander le calme', bon: 'Le proprio évite l\'amende', prix: 'Partisans −1', jauges: { proprio: 1, partisans: -1 } },
     ] },
   rat: { ico: '🐀', titre: 'Le rat du vestiaire',
     irl: 'Floride, 1995 : Scott Mellanby tue un rat d\'un coup de bâton dans le vestiaire, marque deux buts — le « rat trick » — et les partisans en lancent des centaines en plastique.',
     recit: 'Un rat a traversé le vestiaire pendant la réunion d\'avant-match. Ton ailier l\'a expédié d\'un tir du poignet.',
     options: [
-      { cle: 'folie', nom: 'En faire un porte-bonheur', bon: 'Vestiaire +1 · lancers +4 %', prix: 'Perdu : ça tourne au ridicule', volume: 1.04, jauges: { vestiaire: 1 }, pari: { perd: { medias: -1 } } },
+      { cle: 'folie', nom: 'En faire un porte-bonheur', bon: 'Le vestiaire s\'enflamme', prix: 'Perdu : ça tourne au ridicule', volume: 1.04, jauges: { vestiaire: 1 }, pari: { perd: { medias: -1 } } },
       { cle: 'sobre', nom: 'On passe à autre chose', bon: 'Tête froide', prix: 'Rien de plus', discipline: 0.92 },
     ] },
   poteaux: { ico: '🥅', titre: 'Le gardien parle à ses poteaux',
     irl: 'Patrick Roy parlait à ses poteaux pendant les matchs ; il disait qu\'ils étaient ses amis.',
     recit: 'Ton gardien a ses rituels. Ce soir, le soigneur veut les couper pour son aine.',
     options: [
-      { cle: 'rituels', nom: 'Laisser ses rituels', bon: 'Buts alloués −4 %', prix: 'Fatigue +10 %', defense: 0.96, energie: 1.1 },
-      { cle: 'soigneur', nom: 'Écouter le soigneur', bon: 'Blessures −25 %', prix: 'Il est nerveux : buts alloués +2 %', blessure: 0.75, defense: 1.02 },
+      { cle: 'rituels', nom: 'Laisser ses rituels', bon: 'Il est dans sa bulle', prix: 'Son aine va souffrir', defense: 0.96, energie: 1.1 },
+      { cle: 'soigneur', nom: 'Écouter le soigneur', bon: 'On ménage les corps', prix: 'Il est nerveux', blessure: 0.75, defense: 1.02 },
     ] },
-  ancien: { ico: '🔙', titre: 'Le retour de l\'ancien',
+  ancien: { ico: '🧳', titre: 'Le retour de l\'ancien',
     recit: 'Un joueur que tu as laissé partir joue chez eux. Il a dit qu\'il « avait quelque chose à prouver ».',
     options: [
-      { cle: 'cibler', nom: 'Le cibler', bon: 'Robustesse +1', prix: 'Punitions +10 %', robustesse: 1, discipline: 1.1 },
-      { cle: 'ignorer', nom: 'L\'ignorer', bon: 'Buts alloués −3 %', prix: 'Les partisans voulaient du sang', defense: 0.97, jauges: { partisans: -1 } },
+      { cle: 'cibler', nom: 'Le cibler', bon: 'On lui fait payer son départ', prix: 'L\'arbitre le voit venir', robustesse: 1, discipline: 1.1 },
+      { cle: 'ignorer', nom: 'L\'ignorer', bon: 'On joue notre match', prix: 'Les partisans voulaient du sang', defense: 0.97, jauges: { partisans: -1 } },
     ] },
 };
 

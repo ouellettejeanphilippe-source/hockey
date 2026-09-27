@@ -695,7 +695,9 @@ async function traverserSaison(etiquette, reprise = false) {
         joueurs: document.querySelectorAll('#lignesModal .gl-j').length,
       }));
       if (lu.onglets !== 4 || lu.tacs !== 7) errors.push(`« Mes lignes » n'a pas ses quatre lignes et ses sept tactiques : ${lu.onglets} et ${lu.tacs}`);
-      if (lu.fits.filter(f => /fit \d+ %/.test(f)).length !== 6) errors.push(`les tactiques n'annoncent pas leur fit : ${lu.fits.join(' | ')}`);
+      // LE FIT EN MOTS (S71) : « Taillée pour elle », « Bon fit », « Fit moyen », « Mauvais fit ».
+      if (lu.fits.filter(f => /^(Taillée pour elle|Bon fit|Fit moyen|Mauvais fit)$/.test(f)).length !== 6) errors.push(`les tactiques n'annoncent pas leur fit : ${lu.fits.join(' | ')}`);
+      if (lu.fits.some(f => /\d+ %/.test(f))) errors.push(`le fit s'affiche encore en pourcentage : ${lu.fits.join(' | ')}`);
       if (lu.joueurs !== 5) errors.push(`la 1re ligne montre ${lu.joueurs} joueurs au lieu de cinq`);
       tacChoisie = await page.$eval('#lignesModal .gl-tac:not(.on):not([data-tac="hourra"])', b => b.dataset.tac);
       await _click(`#lignesModal .gl-tac[data-tac="${tacChoisie}"]`);
@@ -890,7 +892,15 @@ async function traverserSaison(etiquette, reprise = false) {
       const blesse = !!(await page.$('#hubModal .hub-alerte'));
       // Un gros match arrête aussi « +10 » (S70) : son avant-match et son entracte se jouent.
       const gros = !!(await page.$('#hubModal .hub-gros'));
-      if (jApres - jPalier < 2 && !blesse && !gros) errors.push(`le palier arrête « +10 journées » une seconde fois : journée ${jPalier} puis ${jApres}, et aucune blessure ni gros match à annoncer`);
+      /*
+       * « +10 » S'ARRÊTE AUSSI, EXPRÈS, pour un choix forcé (séquence,
+       * dilemme, objectif, avant-match), un accident de carte, une situation
+       * du vestiaire ou une case vide (S66-S70). Ce sont des tirages : ne
+       * compter que la blessure et le gros match faisait tomber le test au
+       * hasard. Ce qu'il éprouve reste le palier lui-même.
+       */
+      const autreRaison = !!(await page.$('#choixModal:not([hidden]) .choix-option, #hubModal .hub-choix-rouvrir, #hubModal .hub-accident, #hubModal .hub-situ, #hubModal .hub-trou'));
+      if (jApres - jPalier < 2 && !blesse && !gros && !autreRaison) errors.push(`le palier arrête « +10 journées » une seconde fois : journée ${jPalier} puis ${jApres}, sans aucune raison à annoncer`);
       // Reprendre l'offre laissée de côté : elle tient, et la carte entre en
       // vigueur AUJOURD'HUI, pas au palier.
       const encore = await page.$$eval('#hubModal .hub-pige', e => e.map(x => x.dataset.carte));
@@ -1786,6 +1796,49 @@ await page.waitForSelector('#rrL', { timeout: 30000 });
         await page.click('.navtab[data-page="repechage"]');
         await page.waitForTimeout(220);
       }
+    }
+  }
+}
+
+/*
+ * RANGER NE RECOMPOSE PAS LA MAIN (S71). JP : *pas reseed si joueur déplacé
+ * dans la sélection des joueurs*. On signe un ailier au 3e trio (en visant sa
+ * case), on lit la main de la première case vide — l'ailier gauche du 1er
+ * trio —, puis on DÉPLACE l'ailier signé dans cette case-là : la main ne
+ * doit pas changer d'un nom.
+ */
+{
+  const nomsMain = async () => (await page.$$eval('.pcard .pcard-name', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim()))).join(' | ');
+  const cases = async () => { await page.click('.navtab[data-page="alignement"]'); await page.waitForTimeout(220); return page.$$('.slot'); };
+  let s = await cases();
+  if (s.length > 6) {
+    await s[6].evaluate(el => el.click());
+    await page.waitForTimeout(300);
+    await page.click('.navtab[data-page="repechage"]');
+    await page.waitForTimeout(250);
+    const b = await page.$('.pcard .btn-sign:not([disabled])');
+    if (!b) errors.push('aucun joueur signable pour éprouver le rangement');
+    else {
+      await b.click();
+      await page.waitForTimeout(400);
+      const avant = await nomsMain();
+      s = await cases();
+      await s[6].evaluate(el => el.click());
+      await page.waitForTimeout(150);
+      s = await page.$$('.slot');
+      await s[0].evaluate(el => el.click());
+      await page.waitForTimeout(300);
+      await page.click('.navtab[data-page="repechage"]');
+      await page.waitForTimeout(250);
+      const apres = await nomsMain();
+      if (!avant) errors.push('la main était vide avant le rangement');
+      else if (avant !== apres) errors.push(`ranger un joueur recompose la main : « ${avant.slice(0, 60)} » puis « ${apres.slice(0, 60)} »`);
+      else console.log(`   ranger ne recompose pas la main : un ailier déplacé au 1er trio, la même main de ${avant.split(' | ').length} joueurs`);
+      await cases();
+      const r = await page.$('.slot .slot-remove');
+      if (r) { await r.evaluate(el => el.click()); await page.waitForTimeout(320); }
+      await page.click('.navtab[data-page="repechage"]');
+      await page.waitForTimeout(220);
     }
   }
 }

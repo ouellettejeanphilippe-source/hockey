@@ -21,9 +21,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitLigne, TACTIQUES, SLOTS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitLigne, TACTIQUES, SLOTS, physiqueLigne } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { borne, informer, verdict } from './verdict.mjs';
+import { borne, exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -87,6 +87,18 @@ const hourra = paires(() => tous('hourra')); dire('hourra partout', hourra);
 const brute = paires(t => [0, 1, 2, 3].map(u => ({ tac: undefined, agr: 3, sec: 60 }))); dire('rentre-dedans partout', brute);
 const doux = paires(t => [0, 1, 2, 3].map(u => ({ tac: undefined, agr: 0, sec: 60 }))); dire('agressivité basse partout', doux);
 const use = paires(t => [80, 60, 55, 45].map(sec => ({ tac: undefined, agr: 1, sec }))); dire('80 s au 1er trio', use);
+/*
+ * LE PHYSIQUE DÉCIDE (S71). JP : *s'assurer que c'est plus clair quels
+ * joueurs sont avantagés* — l'agressivité doit profiter aux lignes
+ * costaudes et coûter aux légères. On la pose sur les DEUX lignes les plus
+ * costaudes de chaque club, puis sur les deux plus légères.
+ */
+const parPhysique = t => { const L = activeLineup(t); return [0, 1, 2, 3].sort((a, b) => physiqueLigne(L, b) - physiqueLigne(L, a)); };
+const sur = (lignesVisees, agr) => [0, 1, 2, 3].map(u => ({ tac: undefined, agr: lignesVisees.includes(u) ? agr : 1, sec: 60 }));
+const dur = paires(t => sur(parPhysique(t).slice(0, 2), 3)); dire('rentre-dedans · costaudes', dur);
+const leger = paires(t => sur(parPhysique(t).slice(2), 3)); dire('rentre-dedans · légères', leger);
+const calmeDur = paires(t => sur(parPhysique(t).slice(0, 2), 0)); dire('basse · costaudes', calmeDur);
+const calmeLeger = paires(t => sur(parPhysique(t).slice(2), 0)); dire('basse · légères', calmeLeger);
 informer('buts sur action spéciale', `${(100 * mal.spec).toFixed(1)} % des buts de la ligue`);
 informer('actions étouffées par un contre', `${mal.etouf.toFixed(0)} par ligue`);
 
@@ -94,5 +106,7 @@ if (juger) {
   borne('mal assortir coûte', -mal.v, 1, 6, 'victoire');
   borne('jouer sans système coûte', -hourra.v, 0.5, 6, 'victoire');
   for (const [n, r] of [['rentre-dedans', brute], ['basse', doux], ['80 s au 1er trio', use]]) borne(`${n} · écart net`, r.v, -4, 4, 'victoire');
+  exiger('rentre-dedans rapporte plus aux lignes costaudes qu\'aux légères', dur.v > leger.v + 0.3, `${signe(dur.v)} V contre ${signe(leger.v)} V`);
+  exiger('l\'agressivité basse rapporte plus aux lignes légères qu\'aux costaudes', calmeLeger.v > calmeDur.v, `${signe(calmeLeger.v)} V contre ${signe(calmeDur.v)} V`);
 } else informer('non jugé', `${LIGUES} ligues sous le plancher de 6`);
 verdict('Les lignes à la HockeyArena');

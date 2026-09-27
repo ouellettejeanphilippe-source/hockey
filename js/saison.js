@@ -1082,7 +1082,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
         <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Match important · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
         ${onDecision ? planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv) }) : ''}
         ${Ao ? `<div class="hub-gros-avant">${Av.ico} ${ctx.esc(Av.titre)} : <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
-        <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, finition +3 % · 3 matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, finition −3 % · 3 matchs`, bon: false }])}</div>
+        <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, finition ↑ · 3 matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, finition ↓ · 3 matchs`, bon: false }])}</div>
         ${onDecision ? '<div class="hub-gros-note">🎬 Au deuxième entracte, un choix t\'attend.</div>' : ''}
       </div>` : '';
       carte.innerHTML = `${routeHtml(jour, N)}${onDecision ? jaugesHtml(ctx, (you.jourLignes && you.jourLignes[jour] && you.jourLignes[jour].jauges) || jaugesApres(decs, jour)) : ''}${miniBoss}<div class="hub-match">
@@ -1251,7 +1251,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const force = spec ? `<button type="button" class="btn gold hub-choix-rouvrir">⏳ Un choix t'attend : ${ctx.esc(String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : ''))}</button>` : '';
     // L'objectif en cours se lit sous le match : où on en est, ce qui manque.
     const enCours = objectifEnCours();
-    const suivi = enCours && !enCours.e.fini ? `<div class="hub-objectif" title="${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].nom)}">🏢 ${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].court)} · <b>${enCours.e.val}</b> ${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].unite)} après ${enCours.e.joues}/${MATCHS_OBJECTIF}</div>` : '';
+    const suivi = enCours && !enCours.e.fini ? `<div class="hub-objectif" title="${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].nom)}">🏢 Le proprio veut <b>${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].court)}</b> · tu en es à <b>${enCours.e.val}</b> ${ctx.esc(OBJECTIFS[enCours.d.objectif.cle].unite)}, ${enCours.e.joues} match${enCours.e.joues > 1 ? 's' : ''} sur ${MATCHS_OBJECTIF}</div>` : '';
     const acc = accident && MUTATIONS[accident.cle] ? `<div class="hub-situ hub-accident" role="status">
       <div class="hub-situ-tete">${MUTATIONS[accident.cle].ico} Sa carte change : ${ctx.esc(accident.p.n)}</div>
       <div class="hub-situ-quoi">${ctx.esc(MUTATIONS[accident.cle].nom)} — ${ctx.esc(MUTATIONS[accident.cle].quoi)}</div>

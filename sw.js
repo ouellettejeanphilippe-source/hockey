@@ -21,7 +21,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v8';   // v8 : gros matchs mis en scène, le fil des jeux marquants (S70)
+const VERSION = 'cap82-v9';   // v9 : le poli — physique, lignes lisibles, cartes en mots, loto sur téléphone (S71)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

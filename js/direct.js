@@ -24,7 +24,7 @@
  */
 
 import { periodeDe } from './sim.js';
-import { recitDeBut, tempsRestant, NOM_PERIODE, nomCourt } from './recit.js';
+import { recitDeBut, tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 
 /*
@@ -115,7 +115,7 @@ function evenementsDuMatch(f, graine) {
   // Une feuille plus ancienne (partie sauvegardée) n'a que les comptes par
   // période, et on date les arrêts nous-mêmes.
   if (f.lancers && f.lancers.length) {
-    for (const l of f.lancers) if (!l.but) ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien, p: l.p, special: l.special, mode: l.mode });
+    for (const l of f.lancers) if (!l.but) ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien, p: l.p, special: l.special, mode: l.mode, tac: l.tac });
   } else for (const cote of ['A', 'B']) {
     for (let per = 1; per <= 4; per++) {
       const buts = f.buts.filter(b => b.cote === cote && periodeDe(b.instant) === per).length;
@@ -156,6 +156,8 @@ function evenementsDuMatch(f, graine) {
  * DÉFENSIF ; le reste est un tir, caché tant qu'on ne demande pas tous les
  * tirs. Une feuille d'avant (sans `p`) garde un arrêt sur quatre.
  */
+/* Le style d'un tireur, dans les mots des banques du commentateur. */
+const STYLE_MICRO = { canonnier: 'canon', fabricant: 'fab', rapide: 'rapide', tireur: 'tireur' };
 const SEUIL_DANGER = 0.16;
 const SEUIL_BLOQUE = 0.07;
 export function genreDuTir(e) {
@@ -371,7 +373,12 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       const gg = g ? `<b>${nomLie(g, autre(e.cote))}</b>` : 'le gardien';
       const att = ctx.esc(ctx.teamShort(equipe(e.cote))), def = ctx.esc(ctx.teamShort(equipe(autre(e.cote))));
       const cGard = autre(e.cote);
+      // CE QUE LE COMMENTATEUR SAIT DU JEU (S71) : le poste et le style du tireur,
+      // la tactique de sa ligne, la situation, ses buts de la saison.
+      const style = e.tireur ? STYLE_MICRO[profil(e.tireur)] || null : null;
       const contexte = { t, g: gg, att, def, nArrets: st.arrets[cGard], r: tempsRestant(e.instant), serre: serre(e.instant),
+        poste: e.tireur && /^(D|LD|RD)$/.test(e.tireur.p) ? 'D' : 'F', style, tac: e.tac || null, mode: e.mode === 'AN' || e.mode === 'DN' ? e.mode : null,
+        butsSaison: e.tireur ? ((compte.get(e.tireur) || {}).g || 0) : 0,
         pousse: (e.cote === 'A' ? gA < gB : gB < gA) && e.instant >= 40,
         blanchissage: e.instant >= 40 && (cGard === 'A' ? gB : gA) === 0 };
       if (genre === 'defense') {

@@ -25,6 +25,7 @@ import {
   profilsDe, profilPrincipal, fitLigne, joueursDeLigne, contreDe, motsDEffet, motsDeMutation, chimieMax,
   MUTATIONS, JAUGES, SLOTS, getPlayerKey,
   PLANS_ADV, commentContrer, planEstContre,
+  physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
 } from './sim.js';
 import { POIDS_TRIO } from './ratings.js';
 
@@ -64,15 +65,27 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '' } = {}
   </div>`;
 }
 
-/* Le petit portrait d'un joueur visé : son profil principal et ses marques de carte. */
-/* Les profils d'un joueur en barres : la fiche et le joueur visé d'un choix. */
-export function barresProfils(p) {
-  const pp = profilPrincipal(p);
-  const pr = profilsDe(p) || {};
+/*
+ * CE QU'UN JOUEUR SAIT FAIRE, EN MOTS (S71). JP : *la carte des joueurs est
+ * rendue trop complexe à lire* ; *pas besoin de stats chiffrées aussi
+ * complexes*. Six barres chiffrées disaient tout et ne disaient rien : on
+ * garde ses deux ou trois vrais rôles, avec un mot pour le niveau, et sa
+ * carrure quand elle compte (le jeu physique en dépend).
+ */
+export const niveauDe = x => (x >= 85 ? 'élite' : x >= 70 ? 'très bon' : x >= 55 ? 'bon' : x >= 40 ? 'correct' : 'faible');
+export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
+export function rolesDe(p) {
+  const pr = profilsDe(p);
+  if (!pr) return '';
   const g = p.p === 'D' || p.p === 'LD' || p.p === 'RD' ? 'D' : 'F';
-  return `<div class="gj-profs">${Object.entries(PROFILS[g]).map(([k, P]) => `<div class="gj-prof${pp && pp.cle === k ? ' top' : ''}" title="${esc(P.mot)}">
-    <span>${P.ico} ${esc(P.nom)}</span><span class="gj-barre"><span style="width:${pr[k] || 0}%"></span></span><b>${pr[k] ?? '—'}</b></div>`).join('')}</div>`;
+  const tri = Object.entries(pr).sort((a, b) => b[1] - a[1]);
+  const forts = tri.filter(([, v]) => v >= 55).slice(0, 3);
+  const liste = forts.length ? forts : tri.slice(0, 1);
+  const c = carrureDe(p);
+  return `<div class="gj-roles">${liste.map(([k, v]) => `<span class="puce ${v >= 70 ? 'bon' : 'neutre'}" title="${esc(PROFILS[g][k].mot)}">${PROFILS[g][k].ico} ${esc(PROFILS[g][k].nom)} · ${niveauDe(v)}</span>`).join('')}${c ? `<span class="puce neutre" title="Son physique : le jeu robuste lui ${c.ico === '🪨' ? 'réussit' : 'coûte des punitions'}">${c.ico} ${c.mot}</span>` : ''}</div>`;
 }
+/* L'ancien nom : la fiche l'appelle encore. */
+export const barresProfils = rolesDe;
 export function carteJoueur(p) {
   if (!p) return '';
   const barres = barresProfils(p);
@@ -147,6 +160,10 @@ function minutes(lignes) {
   return w.map(x => x / s * 60);
 }
 const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
+/* Le fit d'une ligne à une tactique, et sa chimie, en mots (S71). */
+const motFit = f => (f >= 70 ? 'Taillée pour elle' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
+const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= 20 ? 'correcte' : 'naissante');
+const plafondChimie = c => (c >= 70 ? 'haut' : c >= 45 ? 'bon' : c >= 20 ? 'bas' : 'très bas');
 
 /**
  * spec : {
@@ -173,11 +190,13 @@ export function ouvrirLignes(spec) {
     const g = role === 'DG' || role === 'DD' ? 'D' : 'F';
     const e = p ? (spec.energie[getPlayerKey(p)] ?? 100) : 0;
     const fitRole = voulu && pr ? pr[voulu] : null;
+    const c = p ? carrureDe(p) : null;
+    const marque = fitRole == null ? '' : fitRole >= 60 ? '✓' : fitRole < 40 ? '✗' : '≈';
     return `<div class="gl-j${fitRole != null ? (fitRole >= 60 ? ' fit-bon' : fitRole < 40 ? ' fit-mauvais' : '') : ''}">
       <span class="gl-j-role">${role}</span>
       <span class="gl-j-nom">${p ? esc(p.n) : '<i>vide</i>'}</span>
-      <span class="gl-j-prof" title="${pp ? `Son meilleur profil : ${esc(pp.nom)} ${pp.fit} %` : ''}">${pp ? `${pp.ico} ${pp.fit}` : ''}</span>
-      ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)}">${PROFILS[g][voulu].ico} ${fitRole ?? '—'} %</span>` : '<span class="gl-j-voulu"></span>'}
+      <span class="gl-j-prof" title="${pp ? `Son meilleur rôle : ${esc(pp.nom)} (${niveauDe(pp.fit)})${c ? ` · ${c.mot}` : ''}` : ''}">${c ? c.ico : ''}</span>
+      ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y est ${niveauDe(fitRole ?? 0)}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
       <span class="gl-j-energie" title="Énergie ${e} %"><span style="width:${e}%" class="${e < 60 ? 'bas' : e < 85 ? 'moyen' : ''}"></span></span>
       ${(p && p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="gl-j-mut" title="${esc(MUTATIONS[k].nom)}">${MUTATIONS[k].ico}</span>` : '').join('')}
     </div>`;
@@ -190,17 +209,25 @@ export function ouvrirLignes(spec) {
       <div class="choix-titres"><div class="choix-titre">${esc(spec.titre || 'Mes lignes')}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>
       <button type="button" class="close-btn gl-annuler" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
     </div>`;
+    /*
+     * LA CONSIGNE TIENT EN UNE RANGÉE (S71). JP : *avoir les bonnes infos au
+     * bon endroit, lisible*. Trois grandes cases poussaient les lignes — ce
+     * qu'on vient régler — sous le premier écran du téléphone. Trois boutons
+     * courts, et l'effet du choix courant en une ligne dessous.
+     */
+    const Icour = match ? IMPORTANCES[match.importance] || IMPORTANCES.normale : null;
     const consigne = match ? `<section class="gl-consigne">
       <div class="gl-sec-titre">Consigne du match</div>
-      <div class="gl-seg">${Object.entries(IMPORTANCES).map(([k, I]) => `<button type="button" class="gl-seg-btn${match.importance === k ? ' on' : ''}" data-importance="${k}">
-        <b>${I.ico} ${esc(I.nom)}</b><small>${esc(I.mot)}</small><span class="choix-puces">${puces(motsDEffet(I))}${pucesJauges(I.jauges)}</span></button>`).join('')}</div>
+      <div class="gl-seg gl-seg-court">${Object.entries(IMPORTANCES).map(([k, I]) => `<button type="button" class="gl-seg-btn${match.importance === k ? ' on' : ''}" data-importance="${k}">
+        <b>${I.ico} ${esc(I.nom)}</b><span class="choix-puces">${puces(motsDEffet(I))}${pucesJauges(I.jauges)}</span></button>`).join('')}</div>
+      <div class="gl-consigne-effet"><small>${esc(Icour.mot)}</small> <span class="choix-puces">${puces(motsDEffet(Icour))}${pucesJauges(Icour.jauges)}</span></div>
       <div class="gl-ad"><span>🛡️ Défense</span><input type="range" min="-2" max="2" step="1" value="${match.ad}" class="gl-ad-range" aria-label="Attaque ou défense"><span>Attaque 🎯</span></div>
       <div class="choix-puces gl-ad-puces">${puces(motsDEffet({ finition: 1 + 0.025 * match.ad, defense: 1 + 0.02 * match.ad }))}${match.ad ? '' : '<span class="puce neutre">Équilibré</span>'}</div>
     </section>` : '';
     const onglets = `<div class="gl-onglets" role="tablist">${NOMS_LIGNE.map((n, u) => {
       const T = TACTIQUES[brouillon[u].tac];
       return `<button type="button" role="tab" class="gl-onglet${u === ouverte ? ' on' : ''}" data-ligne="${u}" aria-selected="${u === ouverte}">
-        <b>${n}</b><span>${T.ico} ${esc(T.nom)}</span><small>chimie ${Math.round(spec.chimie[u] || 0)} % · ${mmss(mins[u])}</small></button>`;
+        <b>${n}</b><span>${T.ico} ${esc(T.nom)}</span><small>chimie ${motChimie(spec.chimie[u] || 0)} · ${mmss(mins[u])}</small></button>`;
     }).join('')}</div>`;
     const u = ouverte, l = brouillon[u], T = TACTIQUES[l.tac];
     const adv = spec.adv && spec.adv.lignes && spec.adv.lignes[u];
@@ -208,11 +235,14 @@ export function ouvrirLignes(spec) {
     const leContre = Tadv ? contreDe(adv.tac) : null;
     const quiMeContre = contreDe(l.tac);
     const fitCourant = l.tac === 'hourra' ? 0 : fitLigne(spec.lineup, u, l.tac);
+    // LA CARRURE DE LA LIGNE (S71) : c'est elle qui dit si le jeu physique paie.
+    const ph = physiqueLigne(spec.lineup, u);
+    const carrureLigne = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : '⚖️ ligne moyenne';
     const detail = `<section class="gl-ligne">
       <div class="gl-joueurs">${ROLES.map(r => joueurLigne(u, r)).join('')}</div>
       <div class="gl-etat">
-        <div><span class="gl-k">Fit</span> <b>${l.tac === 'hourra' ? '—' : `${fitCourant} %`}</b> <small>${l.tac === 'hourra' ? 'aucune chimie' : `la chimie peut monter jusqu'à ${Math.round(chimieMax(fitCourant))} %`}</small></div>
-        <div><span class="gl-k">Chimie</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(spec.chimie[u] || 0)}%"></span></span> <b>${Math.round(spec.chimie[u] || 0)} %</b> <small>elle monte en jouant ensemble, elle baisse à chaque joueur changé</small></div>
+        <div><span class="gl-k">Fit</span> <b>${l.tac === 'hourra' ? '—' : motFit(fitCourant)}</b> <small>${l.tac === 'hourra' ? 'aucune chimie' : `plafond de chimie : ${plafondChimie(chimieMax(fitCourant))}`}</small></div>
+        <div><span class="gl-k">Chimie</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(spec.chimie[u] || 0)}%"></span></span> <b>${motChimie(spec.chimie[u] || 0)}</b> <small>elle monte en jouant ensemble, elle baisse à chaque joueur changé</small></div>
         ${Tadv ? `<div class="gl-adv">En face, ${esc(spec.adv.nom)} : <b>${Tadv.ico} ${esc(Tadv.nom)}</b>${leContre ? ` · pour étouffer ses actions spéciales : <b>${TACTIQUES[leContre].ico} ${esc(TACTIQUES[leContre].nom)}</b>` : ''}${quiMeContre && adv.tac === quiMeContre ? ` · <span class="prix">⚠️ sa tactique étouffe la tienne</span>` : ''}</div>` : ''}
       </div>
       <div class="gl-sec-titre">Tactique</div>
@@ -221,17 +251,24 @@ export function ouvrirLignes(spec) {
         const ct = contreDe(k);
         return `<button type="button" class="gl-tac${l.tac === k ? ' on' : ''}${Tadv && X.bat === adv.tac ? ' contre' : ''}" data-tac="${k}" title="${esc(X.mot)}">
           <b>${X.ico} ${esc(X.nom)}</b>
-          <span class="gl-tac-fit${f == null ? '' : f >= 60 ? ' bon' : f < 40 ? ' prix' : ''}">${f == null ? 'aucun fit à chercher' : `fit ${f} %`}</span>
+          <span class="gl-tac-fit${f == null ? '' : f >= 55 ? ' bon' : f < 40 ? ' prix' : ''}">${f == null ? 'aucun fit à chercher' : motFit(f)}</span>
           ${X.bat ? `<small>étouffe ${TACTIQUES[X.bat].ico} · étouffée par ${ct ? TACTIQUES[ct].ico : '—'}</small>` : '<small>ni chimie ni action spéciale</small>'}
           <span class="choix-puces">${puces(motsDEffet(X))}</span>
         </button>`;
       }).join('')}</div>
       <div class="gl-mot">${esc(T.mot)}${T.slots ? ` Elle demande : ${Object.entries(T.slots).filter(([r]) => r in joueursDeLigne(spec.lineup, u)).map(([r, pr]) => `${r} ${(PROFILS.F[pr] || PROFILS.D[pr]).ico} ${esc((PROFILS.F[pr] || PROFILS.D[pr]).nom)}`).join(' · ')}.` : ''}</div>
-      <div class="gl-sec-titre">Agressivité</div>
-      <div class="gl-seg">${AGRESSIVITES.map((A, i) => `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}">
-        <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([
-          { txt: `Physique ${A.physique >= 0.4 ? '+' : '−'}${Math.round(Math.abs(A.physique - 0.4) * 10)}`, bon: A.physique > 0.4 ? true : A.physique < 0.4 ? false : null },
-          ...motsDEffet({ discipline: A.punitions, energie: A.energie })])}</span></button>`).join('')}</div>
+      <div class="gl-sec-titre">Agressivité · ${carrureLigne}</div>
+      <div class="gl-mot">Le jeu physique rapporte aux lignes costaudes 🪨. Une ligne légère 🪶 accroche au lieu de frapper : elle prend des punitions.</div>
+      <div class="gl-seg">${AGRESSIVITES.map((A, i) => {
+        const b = bilanAgressivite(i, ph);
+        const verdict = i === 1 ? { txt: 'Par défaut', bon: null } : b.net > 0.006 ? { txt: '✓ Payant pour cette ligne', bon: true } : b.net < -0.006 ? { txt: '✗ Coûteux pour cette ligne', bon: false } : { txt: '≈ Neutre pour cette ligne', bon: null };
+        const effets = i === 1 ? [] : [
+          { txt: `Défense ${flechesDe(1 + b.defense)}`, bon: b.defense > 0 },
+          { txt: `Punitions ${flechesDe(1 + b.punitions, [0.1, 0.3])}`, bon: b.punitions < 0 },
+          ...motsDEffet({ energie: A.energie })];
+        return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}">
+        <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([verdict, ...effets])}</span></button>`;
+      }).join('')}</div>
       <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
       <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
       <div class="gl-mot">Plus de glace, plus de lancers pour cette ligne — et plus de fatigue : un joueur usé rend moins et, sous 60 % d'énergie, se blesse plus.</div>
@@ -270,7 +307,8 @@ export function ouvrirLignes(spec) {
 export function resumeLignes(lignes, chimie) {
   return lignes.map((l, u) => {
     const T = TACTIQUES[l.tac];
-    return `<span class="gl-resume" title="${esc(NOMS_LIGNE[u])} : ${esc(T.nom)}, chimie ${Math.round(chimie[u] || 0)} %">${T.ico}<small>${Math.round(chimie[u] || 0)}</small></span>`;
+    const c = chimie[u] || 0;
+    return `<span class="gl-resume" title="${esc(NOMS_LIGNE[u])} : ${esc(T.nom)}, chimie ${motChimie(c)}">${T.ico}<small>${'•'.repeat(c >= 70 ? 3 : c >= 35 ? 2 : 1)}</small></span>`;
   }).join('');
 }
 void SLOTS;

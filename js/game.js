@@ -174,6 +174,17 @@ const G = {
    */
   mainCase: null,       // index de case, ou null (se recalcule alors)
   /*
+   * LE RANG DE LA MAIN, FIGÉ AVEC ELLE (S71). JP : *pas reseed si joueur
+   * déplacé dans la sélection des joueurs*. Épingler la CASE ne suffisait
+   * pas : déplacer un signé DANS la case de la main la remplissait, la main
+   * se recalculait sur la première case vide — un autre trio, donc un autre
+   * rang — et les trois joueurs offerts changeaient. Le rang se fige quand la
+   * main se compose ; un déplacement qui remplit la case de la main passe
+   * l'épingle à la case qu'il libère (même poste), rang compris. Seuls signer,
+   * relancer ou viser une autre case recomposent la main.
+   */
+  mainRang: null,
+  /*
    * L'ÉCHELLE DU LOTO, ET LA DETTE DE TOUR. Deux compteurs qui existent pour
    * la même raison : retirer un joueur ne doit rien RENDRE.
    *
@@ -290,10 +301,14 @@ const caseCourante = () => (G.target !== null && !G.roster[G.target] && casesAct
  */
 function caseDeLaMain() {
   // Viser une case recompose la main des mêmes trois clubs : c'est voulu.
-  if (G.target !== null && !G.roster[G.target] && casesActives().includes(SLOTS[G.target])) G.mainCase = G.target;
+  if (G.target !== null && !G.roster[G.target] && casesActives().includes(SLOTS[G.target])) {
+    if (G.mainCase !== G.target) G.mainRang = null;
+    G.mainCase = G.target;
+  }
   const epinglee = G.mainCase !== null ? SLOTS[G.mainCase] : null;
   if (epinglee && !G.roster[G.mainCase] && casesActives().includes(epinglee)) return epinglee;
   const s = nextNeed();
+  if ((s ? s.i : null) !== G.mainCase) G.mainRang = null;
   G.mainCase = s ? s.i : null;
   return s;
 }
@@ -346,7 +361,8 @@ function candidats() {
   const c = caseDeLaMain();
   if (!c) return [];
   const exclude = new Set(picked().map(getPersonKey));
-  const rang = rangDeLaMain(c);
+  if (G.mainRang == null) G.mainRang = rangDeLaMain(c);
+  const rang = G.mainRang;
   const vus = new Set();
   const out = [];
   for (const v of G.tirage) {
@@ -429,6 +445,7 @@ function saveGame() {
       tirage: G.tirage.map(v => ({ season: v.season, team: v.team })),
       target: G.target,
       mainCase: G.mainCase,
+      mainRang: G.mainRang,
       echelle: G.echelle,
       lignes: G.lignes || null,
       dette: G.dette,
@@ -529,6 +546,7 @@ async function restoreSave() {
     G.left = data.left || { ...REROLLS };
     G.target = data.target ?? null;
     G.mainCase = Number.isInteger(data.mainCase) && SLOTS[data.mainCase] ? data.mainCase : null;
+    G.mainRang = Number.isInteger(data.mainRang) ? data.mainRang : null;
     // Les deux compteurs qui empêchent le ✕ d'être une relance : une partie
     // reprise doit les retrouver, sinon recharger la page les remet à zéro et
     // rouvre l'exploit.
@@ -732,24 +750,22 @@ function zoneTag(p, mini = false) {
   return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">${esc(mini ? (z.mini || z.short) : z.short)}</span>`;
 }
 
+
 /*
- * LE PROFIL DE LIGNE (S68), à la HockeyArena : le rôle où il rend le mieux,
- * en %, tiré de ses vraies stats et de ses traits. Plus ses marques de carte,
- * s'il a changé en cours de saison.
+ * SON RÔLE, EN UN MOT (S71). JP : *la carte des joueurs est rendue trop
+ * complexe à lire*. La carte portait cinq sortes de pastilles, la plupart en
+ * icône seule (« 🎯 98 », 🧊, 🪨, l'archétype, les traits) : elle dit
+ * maintenant ce qu'il est — son meilleur rôle, en mots — et où il rend. Le
+ * reste vit dans la fiche, à un toucher.
  */
-function profilTag(p, full = false) {
+function roleTag(p) {
+  const marques = (p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="tag tag-mut" title="${esc(MUTATIONS[k].nom)} — ${esc(MUTATIONS[k].quoi)}">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
   const pp = profilPrincipal(p);
-  if (!pp) return '';
-  const marques = (p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="tag tag-mut" title="${esc(MUTATIONS[k].nom)} — ${esc(MUTATIONS[k].quoi)}">${MUTATIONS[k].ico}${full ? ` ${esc(MUTATIONS[k].nom)}` : ''}</span>` : '').join('');
-  return `<span class="tag tag-profil" title="Profil de ligne : ${esc(pp.nom)} à ${pp.fit} % (${esc(pp.mot)})">${pp.ico} ${full ? `${esc(pp.nom)} ` : ''}${pp.fit}</span>${marques}`;
+  if (pp) return `<span class="tag tag-role" title="${esc(pp.mot)}">${pp.ico} ${esc(pp.nom)}</span>${marques}`;
+  const a = getArchetype(p, getHiddenRatings(p));
+  return `<span class="tag tag-role" title="${esc(a.desc)}">${a.icon} ${esc(a.label)}</span>${marques}`;
 }
 
-/** Archétype : icône seulement dans le pick et le depth chart, libellé complet sur la fiche. */
-function archTag(p, full = false) {
-  const a = getArchetype(p, getHiddenRatings(p));
-  const txt = full ? ` ${esc(a.label)}` : '';
-  return `<span class="tag tag-arch" title="${esc(a.label)} — ${esc(a.desc)}">${a.icon}${txt}</span>`;
-}
 
 /**
  * Les traits : rares, donc ils ont leur place sur la carte. Un joueur sur cent
@@ -1752,7 +1768,7 @@ function renderSpin() {
         : `<span class="spin-club${dead}">${inner}</span>`;
     }).join('');
     host.innerHTML = `
-      <div class="spin-card">
+      <div class="spin-card spin-loto">
         <div class="spin-top">
           <div class="spin-logo">${ico('i-dice')}</div>
           <div class="spin-id">
@@ -2088,7 +2104,7 @@ function playerCardEl(p) {
   const mid = surTable()
     ? `<span class="pcard-axes">${axesTableHtml(p)}</span><div class="tags">${tagsTableHtml(p)}</div>`
     : `<div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
-          <div class="tags">${[traitTags(p), profilTag(p), archTag(p), mesureTags(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
+          <div class="tags">${[roleTag(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
 
   let dest;
   if (already) {
@@ -2625,6 +2641,9 @@ function slotEl(s) {
         const a = G.roster[src], b = G.roster[s.i];
         if (a) G.roster[s.i] = a; else delete G.roster[s.i];
         if (b) G.roster[src] = b; else delete G.roster[src];
+        // RANGER NE RECOMPOSE PAS LA MAIN (S71) : si le déplacement remplit la
+        // case de la main, l'épingle passe à la case libérée, du même poste.
+        if (MODE().loto && G.mainCase === s.i && !G.roster[src] && SLOTS[src] && SLOTS[src].role === SLOTS[s.i].role) G.mainCase = src;
         G.selectedSlot = null;
         G.target = null;
         saveGame();
@@ -2636,7 +2655,7 @@ function slotEl(s) {
     } else {
       G.target = (G.target === s.i ? null : s.i);
       // Retirer sa visée rend la main à la première case vide.
-      if (G.target === null) G.mainCase = null;
+      if (G.target === null) { G.mainCase = null; G.mainRang = null; }
       if (G.target !== null) {
         setView('pool');
         toast(`Case ciblée : ${slotShort(s)}. ${MODE().loto ? 'La main se recompose pour cette case.' : 'Les signatures iront là.'}`);
@@ -3092,11 +3111,10 @@ function showPlayerModal(p, opts = {}) {
   const stats = p.p === 'G'
     ? cell('PJ', st.gp) + cell('V', st.w, true) + cell('D', st.l) + cell('BL', st.so)
       + cell('%ARR', p.sv ?? '—') + cell('MBA', p.ga ?? '—')
+    // SIX COLONNES (S71) : ce qu'un amateur lit d'un coup d'oeil. Le temps de
+    // glace, les mises en échec et les mises au jeu vivent dans le détail.
     : cell('PJ', st.gp) + cell('B', st.g) + cell('A', st.a) + cell('PTS', st.pt, true)
-      + cell('PTS/M', st.ppgStr) + cell('+/-', pmStr) + cell('PUN', p.pim ?? '—')
-      + cell('TG/M', p.toi ? Number(p.toi).toFixed(1) : '—')
-      + (p.ht != null ? cell('MÉ/M', p.ht) : '')
-      + (p.fo != null ? cell('MJ %', Math.round(p.fo * 100)) : '');
+      + cell('+/-', pmStr) + cell('PUN', p.pim ?? '—');
 
   /*
    * Plus de cotes sur la fiche. Un joueur se juge sur ce qu'il a fait, et
@@ -3104,6 +3122,14 @@ function showPlayerModal(p, opts = {}) {
    * sinon 60 points en 1981 et 60 points en 2003 auraient l'air pareils.
    */
   const ratings = profilMesure(p);
+  // LE DÉTAIL SE REPLIE (S71) : le profil mesuré, le temps de glace, les
+  // mises en échec, les mises au jeu — là pour qui les cherche.
+  const detailStats = p.p === 'G' ? '' : cell('PTS/M', st.ppgStr) + cell('TG/M', p.toi ? Number(p.toi).toFixed(1) : '—')
+    + (p.ht != null ? cell('MÉ/M', p.ht) : '') + (p.fo != null ? cell('MJ %', Math.round(p.fo * 100)) : '');
+  const plusDeDetails = `<details class="fiche-plus"><summary>Plus de détails</summary>
+       ${detailStats ? `<div class="stat-grid">${detailStats}</div>` : ''}
+       <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
+       ${ratings}</details>`;
 
   const label = already ? '✓ Déjà signé' : !slot ? 'Aucune case libre' : over ? 'Hors budget' : `Signer · ${slot.role}`;
   const destNote = already ? ''
@@ -3122,8 +3148,7 @@ function showPlayerModal(p, opts = {}) {
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
        <div class="section-label">Sa vraie saison ${esc(p.s)}${G.statsProrata ? ' (prorata 82, ajusté)' : ''}</div>
        <div class="stat-grid">${stats}</div>
-       <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
-       ${ratings}`
+       ${plusDeDetails}`
     : surTable()
     ? `<div class="section-label">Sur la glace de table</div>
        ${ficheTable(p)}
@@ -3133,10 +3158,9 @@ function showPlayerModal(p, opts = {}) {
        <div class="stat-grid">${stats}</div>`
     : `<div class="section-label">Statistiques ${G.statsProrata ? '(prorata 82 matchs, ajusté à l\'époque)' : `de la saison ${esc(p.s)}`}</div>
        <div class="stat-grid">${stats}</div>
-       <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
-       ${ratings}
        <div class="section-label">Impact sur ton alignement</div>
-       ${destNote}`;
+       ${destNote}
+       ${plusDeDetails}`;
 
   body.innerHTML = `
     <div class="pcard-full" style="--card-primary:${colors.primary};--card-accent:${colors.accent}">
@@ -3152,8 +3176,8 @@ function showPlayerModal(p, opts = {}) {
               ${nhlPlayerUrl(p.id) ? `<a href="${nhlPlayerUrl(p.id)}" target="_blank" rel="noopener" title="La fiche officielle de ${esc(p.n)} sur nhl.com">${ico('i-ext')}Sa fiche à la LNH</a>` : ''}
               ${teamSeasonUrl(p.t, p.s) ? `<a href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de ce club sur Hockey-Reference">${ico('i-ext')}La saison du club</a>` : ''}
             </div>
-            <div class="tags pcard-full-tags">${traitTags(p, true)}${profilTag(p, true)}${surTable() && !apres ? '' : archTag(p, true) + mesureTags(p, true) + zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
-            ${p.p === 'G' ? '' : `<div class="fiche-profils"><div class="gl-sec-titre">Ses profils de ligne</div>${barresProfils(p)}</div>`}
+            <div class="tags pcard-full-tags">${traitTags(p, true)}${surTable() && !apres ? '' : mesureTags(p, true) + zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
+            ${p.p === 'G' ? '' : `<div class="fiche-profils"><div class="gl-sec-titre">Ce qu'il sait faire</div>${barresProfils(p)}</div>`}
             <div class="pcard-full-salary">
               <span class="big">${st.salaryMain}</span>
               <span class="small">${st.salarySub}</span>
@@ -4286,7 +4310,7 @@ async function reprendreAlignement(entree) {
   G.echelle = {};
   G.dette = 0;
   G.target = null;
-  G.mainCase = null;
+  G.mainCase = null; G.mainRang = null;
   G.selectedSlot = null;
   G.done = false;
   G.ligue = null;
@@ -4333,7 +4357,7 @@ async function demarrerPartie(r = {}) {
   G.relances = MODE().relances;
   G.left = { ...REROLLS };
   G.target = null;
-  G.mainCase = null;
+  G.mainCase = null; G.mainRang = null;
   G.selectedSlot = null;
   G.done = false;
   G.search = '';

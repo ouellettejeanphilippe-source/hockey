@@ -97,4 +97,20 @@ for (const [nom, obj] of Object.entries(C).filter(([, v]) => v && typeof v === '
   borne('arrêts différents sur une saison de 1 100 arrêts racontés', 100 * vus.size / total, 97, 100, ' %');
 }
 
+/* ---------- 6. les phrases collent au joueur et au système (S71) ---------- */
+{
+  const texteDe = (liste, tag) => new Set(liste.filter(([, t]) => t.split(' ').includes(tag)).map(([x]) => x));
+  // Un défenseur ne reçoit jamais une action réservée aux avants.
+  const com = commentateur('poste');
+  const avants = [...texteDe(C.ACTIONS_TIREUR, 'F')].map(g => g.replace('{t} ', '').slice(0, 22));
+  const dD = Array.from({ length: 80 }, () => com.arret({ ...baseArret, t: joueur('Bourque'), poste: 'D' }));
+  const fautifs = dD.filter(d => avants.some(a => d.includes(a)));
+  exiger('un défenseur ne file jamais en échappée : aucune action d\'avant pour lui', fautifs.length === 0, fautifs[0] ? fautifs[0].replace(/<[^>]+>/g, '') : `${dD.length} arrêts`);
+  // Un avant rapide en contre-attaque : la plupart de ses actions collent.
+  const rapides = [...new Set([...texteDe(C.ACTIONS_TIREUR, 'rapide'), ...texteDe(C.ACTIONS_TIREUR, 'contre')])].map(g => g.replace('{t} ', '').slice(0, 22));
+  const dR = Array.from({ length: 60 }, () => com.arret({ ...baseArret, t: joueur('Bure'), poste: 'F', style: 'rapide', tac: 'contre' }));
+  const part = dR.filter(d => rapides.some(a => d.includes(a))).length / dR.length;
+  borne('un avant rapide en contre-attaque : actions qui collent', 100 * part, 50, 100, ' %');
+}
+
 verdict('Le commentateur');
