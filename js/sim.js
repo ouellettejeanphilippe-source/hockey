@@ -7,6 +7,7 @@
  */
 
 import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
+import { effetCarte, poserSoirGrand } from './rarete.js';
 import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour } from './ratings.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
@@ -512,7 +513,8 @@ export function penaliteAdaptee(player, slot) {
   const base = getPositionPenalty(player, slot);
   if (!base) return 0;
   const g = (player && player._adapt && player._adapt[slot.role]) || 0;
-  return base * Math.exp(-g / ADAPT_MATCHS);
+  // Une carte « Polyvalent » (S78, js/rarete.js) fond une part de la pénalité d'entrée de jeu.
+  return base * Math.exp(-g / ADAPT_MATCHS) * effetCarte(player, 'horsPosition');
 }
 const effStat = (player, slot, key) => {
   const r = getHiddenRatings(player);
@@ -2829,7 +2831,8 @@ function facteurGardien(g) {
   if (!g) return 1.20;
   const svLigue = 1 - seasonLancers(g.s)[1] / 100;
   const sv = g.sv || svLigue;
-  return borne((1 - sv) / Math.max(0.02, 1 - svLigue), 0.55, 1.60);
+  // Une carte « Réflexes » (S78, js/rarete.js) : quelques buts accordés de moins.
+  return borne((1 - sv) / Math.max(0.02, 1 - svLigue), 0.55, 1.60) * effetCarte(g, 'arrets');
 }
 
 /* Exposés pour `scripts/check_neutre.mjs`, qui mesure le profil de l'équipe
@@ -3995,6 +3998,8 @@ function noterTrous(team, lineup) {
 
 export function playGame(A, B, gameIdx, track = true, series = false, journal = null, ronde = 0) {
   MEMO_MATCH++;
+  // Le soir d'une carte « Clutch » (S78) : les séries et tes gros matchs.
+  poserSoirGrand(series || !!(A._gros || B._gros));
   const heavy = soirEreintant(gameIdx);
   // Entre deux matchs de séries, les jambes reviennent (S68) ; en saison, la
   // récupération se fait au début de chaque journée (`simulateLeague`).
@@ -4774,10 +4779,14 @@ export function autoRoster(pool, exclude = new Set()) {
   return roster;
 }
 
-/* Ce qu'une MUTATION de carte multiplie chez ce joueur (S68, voir MUTATIONS). */
+/*
+ * Ce qu'une MUTATION de carte multiplie chez ce joueur (S68, voir MUTATIONS),
+ * et le bonus de sa VARIANTE (S78, js/rarete.js : une parallèle, une holo ou
+ * une or de TON alignement ; 1 pour tout autre joueur).
+ */
 function mutDe(p, champ) {
   const m = p && p._mut;
-  return (m && m[champ]) || 1;
+  return ((m && m[champ]) || 1) * effetCarte(p, champ);
 }
 
 /* Les trois colonnes brutes d'un profil, pour la mesure (`sonde_aptitudes.mjs`). */

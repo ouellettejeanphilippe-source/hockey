@@ -133,11 +133,12 @@ export function rareteDeSalaire(p, saison) {
   return r;
 }
 /* Ce que la gemme veut dire, en mots : l'infobulle ne parle que du salaire. */
+/* S78 : une rareté de joueur est une VARIANTE de sa carte (js/rarete.js), plus le rang de son salaire. */
 const SENS_RARETE = {
-  commune: 'un salaire comme les deux tiers de sa saison',
-  peu: 'un salaire dans le tiers du haut de sa saison',
-  rare: 'un salaire dans le 12 % du haut de sa saison',
-  legendaire: 'un salaire dans le 3 % du haut de sa saison',
+  commune: 'la carte de base : le joueur, rien de plus',
+  peu: 'une parallèle : un bonus tiré au hasard, +3 %',
+  rare: 'une holo : un bonus tiré au hasard, +5 %',
+  legendaire: 'une or : deux bonus tirés au hasard, +5 % chacun',
 };
 export const sensRarete = r => SENS_RARETE[r] || SENS_RARETE.commune;
 /*

@@ -51,10 +51,11 @@ export function jetonsDe(res, depenses, depart = JETONS.depart) {
 
 /* ---------- les packs ---------- */
 /*
- * Les chances d'un pack de joueurs, par rareté de CARTE (la rareté d'un
- * joueur ne lit que son salaire dans sa saison — js/cartes.js). Un pack de
- * base : surtout des communes, une rare de temps en temps, une légendaire
- * rarement. Le pack Vedettes, déblocable, renverse ça.
+ * Les chances d'un pack de joueurs, par VARIANTE de carte (S78, js/rarete.js :
+ * la variante se pose par-dessus un vrai joueur productif, avec son bonus tiré
+ * au hasard). Un pack de base : surtout des cartes de base, une holo de temps
+ * en temps, une or rarement. Le pack Vedettes, déblocable, renverse ça et ne
+ * pige que dans le quart du haut de chaque saison (`elite`).
  */
 const COTES_BASE = { commune: 62, peu: 27, rare: 9, legendaire: 2 };
 export const PACKS = {
@@ -68,8 +69,8 @@ export const PACKS = {
     texte: 'Trois gardiens : le poste qui gagne les séries.' },
   annees80: { ico: '📼', nom: 'Pack Années 80', prix: 20, genre: 'joueurs', decennie: 1980, cotes: { commune: 55, peu: 30, rare: 12, legendaire: 3 }, deblocage: 'packAnnees80',
     texte: 'Trois joueurs des années 80, l\'époque des 400 buts par saison.' },
-  vedettes: { ico: '🌟', nom: 'Pack Vedettes', prix: 50, genre: 'joueurs', cotes: { commune: 0, peu: 40, rare: 45, legendaire: 15 }, deblocage: 'packVedettes',
-    texte: 'Trois vedettes : jamais une commune.' },
+  vedettes: { ico: '🌟', nom: 'Pack Vedettes', prix: 50, genre: 'joueurs', elite: true, cotes: { commune: 0, peu: 40, rare: 45, legendaire: 15 }, deblocage: 'packVedettes',
+    texte: 'Trois vedettes du quart du haut de leur saison, jamais une carte de base.' },
 };
 
 /* ---------- les déblocages (le vestiaire) ---------- */

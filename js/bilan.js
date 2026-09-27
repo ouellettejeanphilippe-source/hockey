@@ -17,7 +17,7 @@ import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entrac
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
-import { RARETES, rareteDeSalaire, sensRarete } from './cartes.js';
+import { RARETES, sensRarete } from './cartes.js';
 import { animerComptes } from './mouvement.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
@@ -509,9 +509,9 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       ? `${p.simGP || 0} PJ · ${p.simW || 0}-${p.simL || 0}-${p.simOTL || 0} · ${((p.simGA || 0) / Math.max(1, p.simGP || 1)).toFixed(2)} MBA · ${p.simSO || 0} BL${inj}`
       : `${p.simGP || 0} PJ · <b>${p.simG || 0} B</b> ${p.simA || 0} A · <b>${p.simPTS || 0} PTS</b> · <span class="${pmCls}">${pmStr}</span>${inj}`;
     // LA FEUILLE DE MATCH EST UN CARTABLE (S76) : chaque rangée commence par la
-    // carte du joueur en vignette — son visage, le métal de sa rareté (le rang
-    // de son salaire dans sa saison, js/cartes.js).
-    const rar = rareteDeSalaire(p, G.shards && G.shards.get(p.s));
+    // carte du joueur en vignette — son visage, le métal de sa variante (S78,
+    // js/rarete.js : la carte que la saison a posée sur lui).
+    const rar = (p._carte && p._carte.rar) || 'commune';
     return `<div class="rrow rr-cj">
       <span class="rr-carte cj-mini tc-${rar}" style="--team-band:${getTeamBand(p.t).bg}" title="${esc(`${RARETES[rar].nom} : ${sensRarete(rar)}`)}">${headshotHtml(p)}</span>
       <div class="rn">${getTeamLogoHtml(p.t, 15)} ${lienJoueur(p, you, 'saison', `<span>${formatName(p.n)} <span class="sub">${esc(s.role)}</span></span>`)}</div>

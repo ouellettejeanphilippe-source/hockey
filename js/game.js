@@ -34,6 +34,7 @@ import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
 import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison } from './cartes.js';
 import { CARTES_MATCH, recompensesOffertes } from './combat.js';
+import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte } from './rarete.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
@@ -140,6 +141,12 @@ const G = {
    * le tournoi sur table (js/tournoi.js, js/plateau.js, js/table.js).
    */
   bonus: 'SAISON',      // SAISON | TABLE
+  /*
+   * LES VARIANTES DE CARTES (S78, js/rarete.js) : la graine de la partie, d'où
+   * chaque joueur tire sa variante (base, parallèle, holo, or) et son bonus,
+   * et celles qu'un pack du mode Rogue a sorties (`cartes`, clé → variante).
+   */
+  variantes: { graine: null, cartes: {} },
   poolView: 'POS',      // POS | LIST
   sortBy: 'PTS',
   search: '',
@@ -523,6 +530,7 @@ function saveGame() {
       bonus: G.bonus,
       renfort: G.renfort,
       rogue: G.rogue || null,
+      variantes: G.variantes,
     }), resumePartie());
   } catch { /* stockage indisponible */ }
 }
@@ -645,6 +653,10 @@ async function restoreSave() {
     G.identite = 'identite' in data ? (IDENTITES[data.identite] ? data.identite : null) : undefined;
     G.bonus = data.bonus === 'TABLE' || data.bonus === 'ROGUE' ? data.bonus : 'SAISON';
     G.rogue = data.rogue || null;
+    // Une partie d'avant S78 n'a pas de graine de variantes : elle en reçoit une au premier rendu.
+    G.variantes = data.variantes && typeof data.variantes === 'object'
+      ? { graine: data.variantes.graine || null, cartes: { ...(data.variantes.cartes || {}) } }
+      : { graine: null, cartes: {} };
     G.renfort = data.renfort || null;
     G.tirage = tirage;
     G.roster = data.roster || {};
@@ -1109,13 +1121,11 @@ function ouvrirBoutique(j, decider) {
     onChoix: k => { ouvrirPack(k, j, n, decider).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad')); },
   });
 }
-const RARETES_EN_ORDRE = ['legendaire', 'rare', 'peu', 'commune'];
 /*
- * LES TROIS JOUEURS D'UN PACK : purs, de la graine de la ligue, du pack et du
- * numéro de l'achat. Pour chacun : une rareté tirée selon les cotes du pack,
- * une saison, puis un vrai joueur régulier de cette rareté (son salaire dans
- * sa saison), qui ne joue pas déjà dans la ligue. Personne à cette rareté ?
- * On descend d'un cran.
+ * LES TROIS CARTES D'UN PACK : pures, de la graine de la ligue, du pack et du
+ * numéro de l'achat. Pour chacune : une saison, un vrai joueur régulier et
+ * productif qui ne joue pas déjà dans la ligue, et PAR-DESSUS une variante
+ * tirée aux cotes du pack (S78, js/rarete.js) — un plombier peut sortir en or.
  */
 async function tirerJoueurs(k, n) {
   const P = PACKS[k], L = G.ligue, graine = L.graine;
@@ -1125,23 +1135,20 @@ async function tirerJoueurs(k, n) {
   if (P.decennie) saisons = saisons.filter(s => { const a = Number(String(s).slice(0, 4)); return a >= P.decennie && a < P.decennie + 10; });
   const out = [];
   for (let t = 0; out.length < 3 && t < 12; t++) {
-    const voulue = rareteTiree(P.cotes, graine, 'pack', k, n, t);
+    const rar = rareteTiree(P.cotes, graine, 'pack', k, n, t);
     const s = saisons[Math.floor(hache(graine, 'pack-saison', k, n, t) * saisons.length)];
     const e = await getShard(s);
     // DES RÉGULIERS PRODUCTIFS seulement (la moitié haute de leur position dans leur saison) :
     // une « commune » est alors une aubaine, pas un douzième avant (mesuré, scripts/mesure_rogue.mjs).
     const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
-    const bons = new Set(['F', 'D', 'G'].flatMap(g => { const r = e.players.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a)); return r.slice(0, Math.ceil(r.length / 2)); }));
+    // Le pack Vedettes ne pige que dans le quart du haut.
+    const part = P.elite ? 4 : 2;
+    const bons = new Set(['F', 'D', 'G'].flatMap(g => { const r = e.players.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a)); return r.slice(0, Math.ceil(r.length / part)); }));
     const pool = [...bons].filter(p => p.$ > 0 && (!P.groupe || groupeDe(p) === P.groupe)
-      && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p) && !out.some(x => getPersonKey(x) === getPersonKey(p)));
-    const rangs = RARETES_EN_ORDRE.slice(RARETES_EN_ORDRE.indexOf(voulue));
-    for (const r of rangs) {
-      const c = pool.filter(p => rareteJoueur(p) === r);
-      if (!c.length) continue;
-      c.sort((a, b) => hache(graine, 'pack-joueur', n, t, getPlayerKey(a)) - hache(graine, 'pack-joueur', n, t, getPlayerKey(b)));
-      out.push(c[0]);
-      break;
-    }
+      && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p) && !out.some(x => getPersonKey(x.p) === getPersonKey(p)));
+    if (!pool.length) continue;
+    pool.sort((a, b) => hache(graine, 'pack-joueur', n, t, getPlayerKey(a)) - hache(graine, 'pack-joueur', n, t, getPlayerKey(b)));
+    out.push({ p: pool[0], rar });
   }
   return out;
 }
@@ -1161,27 +1168,33 @@ async function ouvrirPack(k, j, n, decider) {
     });
     return;
   }
-  const joueurs = await tirerJoueurs(k, n);
+  const tires = await tirerJoueurs(k, n);
+  const joueurs = tires.map(x => x.p);
   ajouterCollection({ joueurs: joueurs.map(getPlayerKey) });
   const ligne = p => (p.p === 'G'
     ? `${p.gp} PJ · ${p.w ?? 0}-${p.l ?? 0} · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
     : `${p.gp} PJ · ${p.g} B · ${p.a} A · ${p.pt ?? (p.g + p.a)} PTS`);
-  const offres = joueurs.map(p => {
+  const offres = tires.map(({ p, rar }) => {
     const g = groupeDe(p);
     const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
     const sort = slot ? G.roster[slot.i] || null : null;
     ballottageVu.set(getPlayerKey(p), p);
-    return { p, cle: getPlayerKey(p), i: slot ? slot.i : null, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, poste: POSTE_GROUPE[g] };
+    const bonus = traitsDeCarte(carteDe(rar, g === 'G', graineVariantes(), getPlayerKey(p)));
+    return { p, rar, bonus, cle: getPlayerKey(p), i: slot ? slot.i : null, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, poste: POSTE_GROUPE[g] };
   });
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
     recit: 'Trois vrais joueurs : touche celui que tu signes. Il prend la place de réserve de sa position — le réserviste qui l\'occupait est libéré.',
-    options: offres.map(x => ({ cle: x.cle, rarete: rareteJoueur(x.p), nom: x.p.n, type: `${x.poste} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
+    options: offres.map(x => ({ cle: x.cle, rarete: x.rar, nom: x.p.n, type: `${x.poste} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
       art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(x.poste), saison: esc(x.p.s), club: esc(x.p.t) }),
-      texte: ligne(x.p), prix: x.sortNom ? `${x.sortNom} est libéré` : '' })),
+      // Le bonus de la carte, UNE fois : c'est lui qui départage deux joueurs semblables.
+      texte: [ligne(x.p), ...x.bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`)].join('\n'),
+      prix: x.sortNom ? `${x.sortNom} est libéré` : '' })),
     onChoix: c => {
       const x = offres.find(y => y.cle === c);
-      if (x && x.i != null) decider({ jour: j, palier, rogue: achat, ballottage: { i: x.i, entre: x.cle, sort: x.sort } });
+      if (!x || x.i == null) return;
+      G.variantes.cartes[x.cle] = x.rar;
+      decider({ jour: j, palier, rogue: achat, ballottage: { i: x.i, entre: x.cle, sort: x.sort, rar: x.rar } });
     },
     onFerme: () => decider({ jour: j, palier, rogue: achat, recompense: null }),
   });
@@ -1264,6 +1277,7 @@ async function demarrerRogue(gardes = []) {
   G.bonus = 'ROGUE';
   G.mode = 'CLASSIQUE'; G.epoque = null; G.repechage = 'TOUTES'; G.identite = null;
   clearSave();
+  G.variantes = { graine: nouvelleGraine(), cartes: {} };
   G.roster = {}; G.tirage = []; G.echelle = {}; G.dette = 0; G.renfort = null;
   G.ligue = null; G.tournoi = null; G.relances = 0; G.left = { ...REROLLS };
   G.target = null; G.mainCase = null; G.mainRang = null; G.selectedSlot = null; G.done = false; G.lignes = null;
@@ -2067,18 +2081,53 @@ async function getShard(label) {
   // rangées parmi les réguliers de la saison : voir `mesuresDeSaison`.
   const entry = { players: shard.players, byTeam, mesures: mesuresDeSaison(shard.players) };
   G.shards.set(label, entry);
-  // LA RARETÉ JOUE (S78, js/rarete.js) : posée une fois par joueur, du rang de son salaire dans sa saison.
-  for (const p of shard.players) p._rar = rareteDeSalaire(p, entry);
   return entry;
 }
 
 /*
- * LA RARETÉ D'UNE CARTE DE JOUEUR (S76) : le rang de son SALAIRE parmi ceux
- * de sa saison, et rien d'autre — le salaire est écrit sur la carte, aucune
- * cote n'entre dans le calcul (`rareteDeSalaire`, `PALIERS_RARETE`,
- * js/cartes.js).
+ * LA VARIANTE D'UNE CARTE DE JOUEUR (S78, js/rarete.js). JP : *pas par
+ * joueur, mais par-dessus joueur, comme un shiny dans pokemon*. Elle ne lit ni
+ * le salaire ni une cote : elle se tire de la graine de la partie et de la clé
+ * du joueur — la même carte d'un rendu à l'autre et d'une reprise à l'autre —
+ * sauf celle qu'un pack du mode Rogue a sortie (`G.variantes.cartes`).
  */
-const rareteJoueur = p => rareteDeSalaire(p, p && G.shards.get(p.s));
+function graineVariantes() {
+  if (!G.variantes.graine) G.variantes.graine = nouvelleGraine();
+  return G.variantes.graine;
+}
+function varianteJoueur(p) {
+  if (!p) return 'commune';
+  const cle = getPlayerKey(p);
+  return G.variantes.cartes[cle] || varianteTiree(COTES_VARIANTES, graineVariantes(), cle);
+}
+const rareteJoueur = varianteJoueur;
+/* La carte d'un joueur : sa variante, son bonus tiré au hasard, et la recrue qui progresse. */
+function carteJoueur(p) {
+  const c = carteDe(varianteJoueur(p), groupeDe(p) === 'G', graineVariantes(), getPlayerKey(p));
+  if (p.elc) c.recrue = true;
+  return c;
+}
+/* Ce que la carte d'un joueur fait sur la glace, en mots (`traitsDeCarte`) : pour l'écran. */
+const traitsJoueur = p => (p ? traitsDeCarte(carteJoueur(p)) : []);
+/*
+ * LES CARTES QUI JOUENT (S78) : celles de TON alignement, et de ceux qui y
+ * entreront en cours de saison (ballottage, recrue, pack). Les clubs
+ * adverses jouent leurs joueurs, pas des cartes : on retire celles d'avant.
+ */
+const CARTES_POSEES = new Set();
+function poserCartes(decisions = []) {
+  for (const p of CARTES_POSEES) delete p._carte;
+  CARTES_POSEES.clear();
+  const miens = Object.values(G.roster || {}).filter(Boolean);
+  for (const d of decisions) {
+    const b = d && d.ballottage;
+    if (!b || !b.entre) continue;
+    if (b.rar) G.variantes.cartes[b.entre] = b.rar;
+    const p = ballottageVu.get(b.entre);
+    if (p) miens.push(p);
+  }
+  for (const p of miens) { p._carte = carteJoueur(p); CARTES_POSEES.add(p); }
+}
 /* La famille d'une carte (S77) : le carton des années 80 ou le lustre des années 90. */
 const familleDe = r => (brille(r) ? 'cj-lustre' : 'cj-carton');
 /*
@@ -4797,6 +4846,8 @@ async function runSeason(opts = {}) {
     : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined },
       // UN DECK AIGUISÉ (Rogue, S77) : deux cartes de départ commencent en « + ».
       ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus ? [{ jour: 0, deck: 'camp', aiguise: 'lancer', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'bloquer', rogue: { depart: true } }] : [])];
+  // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
+  poserCartes(decisions);
   let r, teams, leaders = [], calendrier = [], graine = null;
   if (opponents.length) {
     const league = simulateLeague([you, ...opponents], 82, { graine: opts.graine || null, decisions });
@@ -5249,6 +5300,7 @@ async function demarrerPartie(r = {}) {
   if (G.bonus !== 'ROGUE') G.rogue = null;
 
   clearSave();
+  G.variantes = { graine: nouvelleGraine(), cartes: {} };
   G.roster = {};
   G.tirage = [];
   G.echelle = {};
