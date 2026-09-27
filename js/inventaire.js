@@ -20,7 +20,7 @@
  * Jouer une carte est une DÉCISION (js/banque.js \`payloadDe\`) : le contrôleur
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
-import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, reglesDe, carteBanque, idsDe } from './banque.js';
+import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe } from './banque.js';
 import { tirerCartesPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch } from './gerant.js';
@@ -60,6 +60,10 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, jour = 0, rogue = 
   return items.filter(x => !parties.has(x.ref));
 }
 
+/* Sur qui une carte se joue : ce que dit le coin de la carte (sa famille est déjà en haut). */
+const CIBLES = { blesse: 'Un blessé', joueur: 'Un joueur', recrue: 'Une recrue', aucune: 'L\'équipe', malediction: 'Le deck', carteMatch: 'Le deck', tactique: 'Un système' };
+/* Un montant en millions, à la québécoise. */
+const M = v => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
 /* La valeur de vente rapide d'une carte, en jetons (selon sa rareté). */
 export const VENTE = { commune: 2, peu: 5, rare: 12, legendaire: 30, maudite: 1 };
 export const valeurDe = id => VENTE[(BANQUE[id] || {}).rarete] || 1;
@@ -70,13 +74,14 @@ export function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, 
   if (!c) return '';
   const mots = c.cat === 'match' ? optionDeCarteMatch(c.cle).mots : reglesDe(id);
   const R = RARETES[c.rarete] || { gemme: '◆', nom: c.rarete };
-  const sous = c.cat === 'patron' ? ROLES[c.role].nom : c.cat === 'match' ? `${c.cout} énergie` : c.cat === 'evenement' ? `${c.duree} journées` : CATEGORIES[c.cat].un;
+  const sous = c.cat === 'patron' ? ROLES[c.role].nom : c.cat === 'match' ? `${c.cout} énergie` : c.cat === 'evenement' ? `${c.duree} journées`
+    : c.cat === 'saison' ? 'Toute la saison' : c.cat === 'joueur' ? 'Un joueur' : (CIBLES[c.cible] || CATEGORIES[c.cat].un);
   const v = vie || c.vie;
   return `<div class="bq-carte bq-${c.cat} tc-${c.rarete}${possede ? '' : ' pas-a-moi'}" data-id="${esc(id)}">
     <div class="bq-tete"><span class="bq-ico" aria-hidden="true">${c.ico}</span><span class="bq-nom">${esc(c.nom)}</span>${compte > 1 ? `<span class="bq-compte">×${compte}</span>` : ''}</div>
     <div class="bq-sous"><span>${esc(CATEGORIES[c.cat].un)}</span><span>${esc(sous)}</span></div>
     ${possede ? `<div class="bq-regle">${puces(mots)}</div><div class="bq-texte">${esc(c.texte || '')}</div>` : '<div class="bq-regle bq-cache">Pas encore dans ta collection</div>'}
-    <div class="bq-pied"><span class="bq-vie vie-${v}" title="${esc(VIES[v] ? VIES[v].mot : '')}">${esc(VIES[v] ? VIES[v].nom : '')}</span><span class="bq-gemme" title="${esc(R.nom)}">${R.gemme}</span></div>
+    <div class="bq-pied"><span class="bq-moment moment-${momentDe(id)}" title="${esc(MOMENTS[momentDe(id)].mot)}">${MOMENTS[momentDe(id)].ico} ${esc(MOMENTS[momentDe(id)].nom)}</span><span class="bq-vie vie-${v}" title="${esc(VIES[v] ? VIES[v].mot : '')}">${esc(VIES[v] ? VIES[v].nom : '')}</span><span class="bq-gemme" title="${esc(R.nom)}">${R.gemme}</span></div>
     ${actions ? `<div class="bq-actions">${actions}</div>` : ''}
   </div>`;
 }
@@ -115,21 +120,24 @@ export function ouvrirInventaire(ctx) {
       for (const x of ctx.partie) { if (!piles.has(x.id)) piles.set(x.id, []); piles.get(x.id).push(x); }
       const cats = ORDRE_CATEGORIES.filter(c => c !== 'saison' && [...piles.keys()].some(id => BANQUE[id].cat === c));
       const cartes = [...piles.entries()].filter(([id]) => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a[0]].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b[0]].cat));
-      corps = `<p class="inv-mot">Ce que tes packs de la partie ont donné. ${VIES.saison.mot} Jouer une carte, c'est une décision : elle vaut à partir d'aujourd'hui.</p>
+      corps = `<p class="inv-mot">Ce que tes packs de la partie ont donné. <b>${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}</b> Jouer une carte, c'est une décision : elle vaut à partir d'aujourd'hui.</p>
+        <div class="inv-legende">${[['moment-garde', `${MOMENTS.garde.ico} ${MOMENTS.garde.nom}`, 'joue-la quand tu veux'], ['moment-immediat', `${MOMENTS.immediat.ico} ${MOMENTS.immediat.nom}`, 'dès que tu la reçois'],
+          ['vie-saison', VIES.saison.nom, 'expire à la fin de la saison'], ['vie-usage', VIES.usage.nom, 's\'use en la jouant'], ['vie-permanent', VIES.permanent.nom, 'reste d\'une run à l\'autre']]
+          .map(([k, n, m]) => `<span class="inv-leg"><span class="${k.startsWith('vie') ? 'bq-vie' : 'bq-moment'} ${k}">${esc(n)}</span> ${esc(m)}</span>`).join('')}</div>
         ${filtres(cats)}
-        <div class="inv-grille">${cartes.map(([id, pile]) => carteBanqueHtml(id, { compte: pile.length, vie: BANQUE[id].cat === 'consommable' ? 'usage' : 'saison',
+        <div class="inv-grille">${cartes.map(([id, pile]) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
           actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button><button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` })).join('') || vide('Rien dans ta poche : ouvre des packs à la boutique, ou attends le prochain palier.')}</div>`;
     } else if (etat.onglet === 'permanent') {
       const engages = new Set((ctx.patronsActifs || []).map(p => p.cle));
       const perso = ctx.personnel.filter(k => garde(`patron:${k}`));
       const conso = ctx.meta.filter(x => garde(x.id));
       corps = `<p class="inv-mot">${VIES.permanent.mot} Le personnel ne s'use pas : tu l'engages à chaque saison, ${ctx.maxPatrons} postes au plus, un par rôle.</p>
-        ${filtres(['patron', 'consommable'])}
+        ${filtres(['patron', 'consommable', 'plafond'])}
         <h3 class="inv-sec">👔 Ton personnel · ${ctx.personnel.length}</h3>
         <div class="inv-grille">${perso.map(k => carteBanqueHtml(`patron:${k}`, {
           actions: engages.has(k) ? '<span class="inv-engage">✓ Engagé</span>' : `<button type="button" class="btn gold inv-engager" data-id="patron:${esc(k)}"${ctx.peutJouer ? '' : ' disabled'}>Engager</button>`,
         })).join('') || vide('Aucun patron : les packs Personnel en donnent.')}</div>
-        <h3 class="inv-sec">🧴 Tes consommables permanents · ${ctx.meta.reduce((a, x) => a + x.n, 0)}</h3>
+        <h3 class="inv-sec">🧴 Tes cartes permanentes · ${ctx.meta.reduce((a, x) => a + x.n, 0)}</h3>
         <div class="inv-grille">${conso.map(x => carteBanqueHtml(x.id, { compte: x.n,
           actions: `<button type="button" class="btn gold inv-jouer-meta" data-id="${esc(x.id)}"${ctx.peutJouer ? '' : ' disabled'}>Jouer</button>` })).join('') || vide('Aucun consommable permanent.')}</div>`;
     } else if (etat.onglet === 'deck') {
@@ -145,12 +153,20 @@ export function ouvrirInventaire(ctx) {
         ${filtres(ORDRE_CATEGORIES)}${rars}
         <div class="inv-grille">${ids.map(id => carteBanqueHtml(id, { possede: ctx.possedees.has(id) })).join('')}</div>`;
     }
+    // LA MASSE SALARIALE (S79) : le plafond effectif, et ce qui le tord — les cartes 💵 jouées, le vestiaire, le DG.
+    const P = ctx.plafond;
+    const plafond = P ? `<div class="inv-plafond${P.masse > P.cap ? ' over' : ''}">
+      <div class="inv-pl-tete"><span>💵 Masse salariale</span><b>${M(P.masse)} / ${M(P.cap)}</b></div>
+      <div class="inv-pl-barre" aria-hidden="true"><i style="width:${Math.min(100, Math.round((P.masse / P.cap) * 100))}%"></i></div>
+      <div class="inv-pl-lignes">${P.lignes.length ? puces(P.lignes.map(l => ({ txt: l.joueur ? l.nom : `${l.nom} ${l.montant > 0 ? '+' : '−'}${M(Math.abs(l.montant))}`, bon: l.joueur ? true : l.montant > 0 }))) : `<span class="inv-pl-rien">Plafond de base : ${M(P.base)}. Les cartes 💵 le tordent.</span>`}</div>
+    </div>` : '';
     m.innerHTML = `<div class="choix-sheet inv-sheet" role="dialog" aria-modal="true" aria-label="${esc(ctx.titre)}">
       <div class="choix-tete">
         <span class="choix-ico">🎒</span>
         <div class="choix-titres"><div class="choix-titre">${esc(ctx.titre)}</div>${ctx.jetons != null ? `<div class="choix-irl">🪙 ${ctx.jetons} jetons</div>` : ''}</div>
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
+      ${plafond}
       <div class="inv-onglets" role="tablist">${onglets.map(([k, nom, n]) => `<button type="button" role="tab" class="inv-onglet${etat.onglet === k ? ' on' : ''}" data-onglet="${k}" aria-selected="${etat.onglet === k}">${esc(nom)} <span>${n}</span></button>`).join('')}</div>
       <div class="choix-corps inv-corps">${corps}</div>
     </div>`;

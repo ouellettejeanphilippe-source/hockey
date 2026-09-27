@@ -38,9 +38,10 @@ export const CATEGORIES = {
   joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, un contrat, une amélioration ou une édition : au joueur de ton choix, pour la saison.' },
   consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Un soin, de l\'énergie, des jetons, un coup de pouce au deck : une utilisation.' },
   match: { ico: '🃏', nom: 'Cartes de match', un: 'Carte de match', mot: 'Ton deck des gros matchs et des séries : jouée, elle entre dans le deck.' },
+  plafond: { ico: '💵', nom: 'Masse salariale', un: 'Contrat', mot: 'Le plafond salarial se manipule, comme dans la vraie LNH : de l\'espace, une retenue, un blessé à long terme, un rachat.' },
   saison: { ico: '📘', nom: 'Cartes de saison', un: 'Carte de saison', mot: 'Un réglage pour toute la saison : un bonus payé par un malus.' },
 };
-export const ORDRE_CATEGORIES = ['patron', 'evenement', 'joueur', 'consommable', 'match', 'saison'];
+export const ORDRE_CATEGORIES = ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match', 'saison'];
 export const RARETES_BANQUE = ['commune', 'peu', 'rare', 'legendaire', 'maudite'];
 
 /* ---------- LES PATRONS : le personnel, des reliques ---------- */
@@ -111,7 +112,59 @@ export const PATRONS = {
     econ: { jetonsVictoire: 2 } },
   dir_magnat: { role: 'direction', nom: 'Le magnat', ico: '🎩', rarete: 'legendaire', texte: 'Il a acheté l\'équipe pour la gagner.',
     effet: { finition: 1.01 }, econ: { jetonsVictoire: 3, rabais: 0.9 } },
+  dir_flexible: { role: 'direction', nom: 'Le DG du plafond flexible', ico: '🧮', rarete: 'rare', texte: 'Il connaît chaque clause de la convention collective.',
+    econ: { plafond: 0.05 } },
 };
+
+/* ---------- LA MASSE SALARIALE : le plafond se manipule (S79) ---------- */
+/*
+ * JP : *garder aspect masse salariale même en roguelike, mais avec cartes qui
+ * peuvent le manipuler*. Les vrais mécanismes de la convention collective,
+ * chacun une décision (`plafond`) : de l'espace de plus cette saison, une
+ * RETENUE salariale (son ancien club en paie une part), un joueur blessé à
+ * long terme (LTIR : son salaire sort du plafond tant qu'il est à
+ * l'infirmerie), un RACHAT de contrat (un tiers de moins, contre des
+ * jetons), le contrat d'entrée d'une recrue, une clause de bonis. Et une
+ * malédiction : la taxe de luxe. `cible` : un joueur, un blessé, une recrue.
+ */
+export const CONTRATS = {
+  espace: { nom: 'Espace sous le plafond', ico: '💵', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 2_000_000, texte: 'Une clause d\'indexation négociée en ta faveur.' },
+  grosEspace: { nom: 'La marge de manœuvre', ico: '💰', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 5_000_000, texte: 'Le proprio signe un chèque pour l\'espace sous le plafond.' },
+  retenue: { nom: 'Retenue salariale', ico: '✂️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.5, texte: 'Son ancien club paie la moitié de son salaire.' },
+  ltir: { nom: 'Blessé à long terme', ico: '🏥', rarete: 'peu', vie: 'usage', cible: 'blesse', ltir: true, texte: 'Son salaire sort du plafond tant qu\'il est à l\'infirmerie.' },
+  rachat: { nom: 'Rachat de contrat', ico: '🧾', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 2 / 3, cout: 10, texte: 'Le reste de son contrat étalé : un tiers de moins cette saison, 10 jetons de frais.' },
+  entree: { nom: 'Le contrat d\'entrée', ico: '🐣', rarete: 'commune', vie: 'usage', cible: 'recrue', facteur: 0.6, texte: 'Une recrue sous contrat d\'entrée compte pour 40 % de moins.' },
+  bonis: { nom: 'La clause de bonis', ico: '🎯', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.85, texte: 'Une part de son salaire devient des bonis de performance, hors du plafond.' },
+  taxe: { nom: 'La taxe de luxe', ico: '💸', rarete: 'maudite', vie: 'saison', cible: 'aucune', espace: -3_000_000, texte: 'La ligue sévit : ton plafond fond de 3 M$ cette saison.' },
+};
+/*
+ * LE PLAFOND EFFECTIF À UNE JOURNÉE, pur : la base, l'espace gagné, la taxe,
+ * le pourcentage du DG, et le « cap hit » de chaque joueur (sa retenue, son
+ * rachat, son contrat d'entrée, ses bonis ; zéro s'il est au LTIR et blessé
+ * ce jour-là). `blesses` : l'ensemble des clés à l'infirmerie à cette journée.
+ * Rend { cap, lignes [{ nom, montant }], facteurs Map(clé → facteur), ltir Set }.
+ */
+export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) {
+  const lignes = [];
+  let cap = base;
+  const facteurs = new Map(), ltir = new Set();
+  for (const d of [...decisions].filter(Boolean).sort((a, b) => (a.jour || 0) - (b.jour || 0))) {
+    if ((d.jour || 0) >= jusqua) continue;
+    const p = d.plafond;
+    if (p) {
+      if (p.espace) { cap += p.espace; lignes.push({ nom: p.nom || 'Espace', montant: p.espace }); }
+      if (p.joueur && p.facteur) facteurs.set(p.joueur, (facteurs.get(p.joueur) || 1) * p.facteur);
+      if (p.joueur && p.ltir) ltir.add(p.joueur);
+    }
+    for (const id of (d.achat && d.achat.maudites) || []) {
+      const C = CONTRATS[String(id).split(':')[1]];
+      if (C && C.espace) { cap += C.espace; lignes.push({ nom: C.nom, montant: C.espace }); }
+    }
+  }
+  const pct = patronsActifs(decisions, jusqua).reduce((a, x) => a + ((x.econ && x.econ.plafond) || 0), 0);
+  if (pct) { const m = Math.round(base * pct); cap += m; lignes.push({ nom: 'Le DG du plafond flexible', montant: m }); }
+  return { cap, lignes, facteurs, ltir };
+}
 
 /* ---------- LES ÉVÉNEMENTS D'ÉQUIPE : quelques journées ---------- */
 /* \`duree\` en journées ; les canaux comme les moments (\`effet\` d'une décision). */
@@ -194,6 +247,7 @@ function construire() {
     mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, rarete: RARETE_MOD[cle] || 'peu', texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source }));
   }
   for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible }));
+  for (const [cle, C] of Object.entries(CONTRATS)) mettre(fait('plafond', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible }));
   for (const [cle, C] of Object.entries(CARTES_MATCH)) {
     if (estPlus(cle)) continue;
     mettre(fait('match', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: 'saison', cout: C.cout, genre: C.genre }));
@@ -208,10 +262,22 @@ export const compteParCategorie = () => Object.fromEntries(ORDRE_CATEGORIES.map(
 
 /* Les étiquettes de durée de vie, telles que l'inventaire les affiche. */
 export const VIES = {
-  permanent: { nom: 'Permanent', mot: 'Reste dans ton inventaire tant que tu ne t\'en sers pas, d\'une run à l\'autre.' },
+  permanent: { nom: 'Permanente', mot: 'Reste dans ton inventaire tant que tu ne t\'en sers pas, d\'une run à l\'autre.' },
   saison: { nom: 'Cette saison', mot: 'Vaut pour la saison en cours ; elle expire à la fin de la run.' },
   usage: { nom: '1 utilisation', mot: 'S\'use en la jouant, cette saison.' },
 };
+/*
+ * QUAND UNE CARTE JOUE (S79). JP : *tu dois pouvoir toujours voir tes cartes
+ * et certaines se gardent jusqu'au moment voulu dans la saison*. Une carte
+ * de pack SE GARDE : elle attend dans l'inventaire que tu la joues (une
+ * décision datée du jour, qui se rejoue). Une malédiction et une carte de
+ * saison (prise à un palier) sont JOUÉES IMMÉDIATEMENT.
+ */
+export const MOMENTS = {
+  garde: { nom: 'Se garde', ico: '⏳', mot: 'Se garde — joue-la quand tu veux : elle attend dans ton inventaire.' },
+  immediat: { nom: 'Jouée immédiatement', ico: '⚡', mot: 'Jouée immédiatement : elle s\'applique dès que tu la reçois.' },
+};
+export const momentDe = id => { const c = BANQUE[id]; return c && (c.rarete === 'maudite' || c.cat === 'saison') ? 'immediat' : 'garde'; };
 
 /*
  * LA RÈGLE EN CHIFFRES d'une carte : des mots \`{ txt, bon }\`, les mêmes que
@@ -230,6 +296,7 @@ export function reglesDe(id) {
     if (e.holo) out.push({ txt: `Packs de joueurs : holo ou mieux +${Math.round((e.holo - 1) * 100)} %`, bon: true });
     if (e.carteExtra) out.push({ txt: `Packs de joueurs : +${e.carteExtra} carte`, bon: true });
     if (e.sansBase) out.push({ txt: 'Packs de joueurs : jamais une carte de base', bon: true });
+    if (e.plafond) out.push({ txt: `Plafond salarial +${Math.round(e.plafond * 100)} %`, bon: true });
     if (P.synergie) out.push({ txt: `Avec ${ROLES[P.synergie.avec].nom.toLowerCase()} : ${motsDEffet(P.synergie.effet).map(x => x.txt).join(', ')}`, bon: true });
     out.push({ txt: 'Toute la saison, séries comprises', bon: null, duree: true });
     return out;
@@ -250,6 +317,16 @@ export function reglesDe(id) {
     if (C.maitrise) out.push({ txt: `Maîtrise d'un système +${Math.round(C.maitrise * 100)} %`, bon: true });
     if (C.cible === 'malediction') out.push({ txt: 'Retire 1 malédiction du deck', bon: true });
     if (C.cible === 'carteMatch') out.push({ txt: '1 carte du deck devient « + »', bon: true });
+    return out;
+  }
+  if (c.cat === 'plafond') {
+    const C = CONTRATS[c.cle];
+    const M = x => `${(Math.abs(x) / 1e6).toFixed(1).replace('.', ',')} M$`;
+    const out = [];
+    if (C.espace) out.push({ txt: `Plafond ${C.espace > 0 ? '+' : '−'}${M(C.espace)} cette saison`, bon: C.espace > 0 });
+    if (C.facteur) out.push({ txt: `${C.cible === 'recrue' ? 'Une recrue (23 ans ou moins)' : 'Un joueur'} : son salaire compte ${Math.round((C.facteur - 1) * 100)} %`, bon: true });
+    if (C.ltir) out.push({ txt: 'Un blessé : 100 % de son salaire hors du plafond, tant qu\'il est blessé', bon: true });
+    if (C.cout) out.push({ txt: `−${C.cout} 🪙`, bon: false });
     return out;
   }
   if (c.cat === 'saison') return motsDEffet(CARTES[c.cle]);
@@ -328,6 +405,12 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
     if (C.gain) out.gain = C.gain;
     if (C.pari) out.gain = alea !== null && alea < C.pari.chance ? C.pari.gain : 0;
     return out;
+  }
+  if (c.cat === 'plafond') {
+    const C = CONTRATS[c.cle];
+    if (C.cible !== 'aucune' && !joueur) return null;
+    return { plafond: { cle: c.cle, nom: C.nom, ...(C.espace ? { espace: C.espace } : {}), ...(C.facteur ? { facteur: C.facteur } : {}),
+      ...(C.ltir ? { ltir: true } : {}), ...(C.cout ? { cout: C.cout } : {}), ...(joueur ? { joueur } : {}) } };
   }
   if (c.cat === 'match') return { recompense: c.cle };
   if (c.cat === 'saison') return { carte: c.cle };

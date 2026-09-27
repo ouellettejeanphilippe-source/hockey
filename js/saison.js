@@ -1517,6 +1517,8 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     if (cle === 'fiche') return voletFiche();
     return voletJournee();
   });
+  // MES CARTES, DE PARTOUT (S79) : le cartable du jeu (l'onglet Vestiaire) les ouvre avec la décision du hub.
+  if (onDecision && ctx.inventaire) tabs.hub.cartes = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
   /*
    * UNE TUILE S'OUVRE SUR SA CARTE (S77) : la forme sur « Ma fiche », le
    * classement sur le classement, le deck sur le deck. Un seul écouteur,
@@ -2174,7 +2176,7 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
       ${premier ? '' : '<button class="btn hub-dix" title="Dix journées d\'un coup">+10 jours</button>'}
       <button class="btn hub-fin"${premier ? ' disabled title="Règle d\'abord ta boîte de réception"' : ' title="Jouer le reste de la saison et lire le résultat"'}>Fin de saison</button>
       ${onDecision && ctx.boutique ? `<button class="btn gold hub-boutique" title="La boutique : des packs de joueurs et de cartes">🛒 ${ctx.boutique.jetons(jour)} 🪙</button>` : ''}
-      ${onDecision && ctx.inventaire ? (n => `<button class="btn hub-inventaire" title="Ton inventaire : les cartes à jouer, le personnel, le deck, le classeur">🎒${n ? ` ${n}` : ''}</button>`)(ctx.inventaire.compte(jour)) : ''}
+      ${onDecision && ctx.inventaire ? (n => `<button class="btn hub-inventaire" title="Tes cartes : celles qui se gardent jusqu'au moment voulu, le personnel, le deck, le classeur">🎒 Mes cartes${n ? ` <b class="hub-inv-n">${n}</b>` : ''}</button>`)(ctx.inventaire.compte(jour)) : ''}
       </div>
       ${boiteHtml}`;
 

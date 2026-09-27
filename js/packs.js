@@ -86,9 +86,10 @@ export const PACKS_CARTES = {
   evenements: { nom: 'Pack Événements', ico: '📰', n: 4, prix: 15, cats: ['evenement'], cotes: COTES_CARTES, texte: 'Quatre événements d\'équipe.' },
   modifs: { nom: 'Pack Modifs', ico: '🧬', n: 4, prix: 20, cats: ['joueur'], cotes: COTES_CARTES, texte: 'Quatre styles, contrats, améliorations et éditions de joueur.' },
   consommables: { nom: 'Pack Consommables', ico: '🧴', n: 5, prix: 15, cats: ['consommable'], cotes: COTES_CARTES, texte: 'Cinq soins, boissons, coffres et coups de pouce.' },
+  contrats: { nom: 'Pack Contrats', ico: '💵', n: 4, prix: 20, cats: ['plafond'], cotes: COTES_CARTES, maudite: 0.08, texte: 'Quatre cartes de masse salariale : de l\'espace, une retenue, un rachat… et parfois la taxe de luxe.' },
   match: { nom: 'Pack Cartes de match', ico: '🃏', n: 4, prix: 15, cats: ['match'], cotes: COTES_CARTES, texte: 'Quatre cartes pour ton deck de match.' },
-  mixte: { nom: 'Pack Mixte', ico: '🎴', n: 5, prix: 25, cats: ['patron', 'evenement', 'joueur', 'consommable', 'match'], cotes: COTES_CARTES, texte: 'Cinq cartes de toutes les familles.' },
-  lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'evenement', 'joueur', 'consommable', 'match'], cotes: COTES_CARTES, texte: 'Douze cartes de toutes les familles — le prix de deux packs mixtes et demi.' },
+  mixte: { nom: 'Pack Mixte', ico: '🎴', n: 5, prix: 25, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, texte: 'Cinq cartes de toutes les familles.' },
+  lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, maudite: 0.1, texte: 'Douze cartes de toutes les familles — le prix de deux packs mixtes et demi. Une chance sur dix d\'y trouver la taxe de luxe.' },
 };
 
 /* Tous les packs, par clé : \`j:\` les joueurs, \`c:\` les cartes. */
@@ -102,7 +103,7 @@ export const RAYONS = [
   { cle: 'cibles', nom: 'Équipe, année, trio', ico: '🏟️', packs: ['j:equipe', 'j:annee', 'j:trio', 'j:etoiles', 'j:legendes'] },
   { cle: 'epoques', nom: 'Les époques', ico: '📼', packs: ['j:ere70', 'j:ere80', 'j:ere90', 'j:ere00', 'j:ere10', 'j:ere20'] },
   { cle: 'skills', nom: 'Par talent', ico: '🎯', packs: ['j:sniper', 'j:passeur', 'j:defensif', 'j:dur', 'j:gardien', 'j:recrue', 'j:veteran'] },
-  { cle: 'cartes', nom: 'Les cartes', ico: '🃏', packs: ['c:patrons', 'c:evenements', 'c:modifs', 'c:consommables', 'c:match', 'c:mixte', 'c:lot'] },
+  { cle: 'cartes', nom: 'Les cartes', ico: '🃏', packs: ['c:patrons', 'c:evenements', 'c:modifs', 'c:consommables', 'c:contrats', 'c:match', 'c:mixte', 'c:lot'] },
 ];
 
 /* LE PACK DU JOUR : un pack de la boutique, à 25 % de rabais, qui change chaque jour (la date). */
@@ -132,6 +133,8 @@ export function chancesDe(cle, mods = {}) {
     return [
       { nom: 'Rare ou mieux', txt: formatUnSur(1 - (1 - r) ** n), p: 1 - (1 - r) ** n },
       { nom: 'Légendaire', txt: formatUnSur(1 - (1 - l) ** n), p: 1 - (1 - l) ** n },
+      // Le jeu de hasard dit aussi sa malchance.
+      ...(P.maudite ? [{ nom: 'Une malédiction', txt: formatUnSur(P.maudite), p: P.maudite, maudite: true }] : []),
     ];
   }
   const c = cotesDuPack(cle, mods);
@@ -204,6 +207,11 @@ export function tirerCartesPack(cleCourte, graine, n) {
       out.push(c[Math.floor(hache(graine, 'pack-carte', cleCourte, n, t, ORDRE_VAR[i]) * c.length)]);
       break;
     }
+  }
+  // LA MALCHANCE (le jeu de hasard) : certains packs cachent une malédiction, qui prend la dernière place.
+  if (P.maudite && out.length && hache(graine, 'pack-maudite', cleCourte, n) < P.maudite) {
+    const m = P.cats.flatMap(idsDe).filter(id => BANQUE[id].rarete === 'maudite');
+    if (m.length) out[out.length - 1] = m[Math.floor(hache(graine, 'pack-maudite-carte', cleCourte, n) * m.length)];
   }
   return out;
 }

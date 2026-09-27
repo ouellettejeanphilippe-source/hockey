@@ -20,6 +20,8 @@ const $ = id => document.getElementById(id);
  *         duJour { pack, rabais }, franchises [{ cle, nom }], saisons [labels],
  *         acheter(cle, { prix, params }), onFerme() }
  */
+/* Un montant en millions, à la québécoise. */
+const M = v => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
 export function ouvrirMagasin(ctx) {
   const m = $('magasinModal');
   if (!m) return;
@@ -48,6 +50,9 @@ export function ouvrirMagasin(ctx) {
     }).join('');
     const garantie = ctx.mode === 'rogue'
       ? `<p class="pk-garantie">🛟 La garantie : ${PITIE} packs de joueurs d'affilée sans holo ni or, et le suivant en a une. ${ctx.sansHolo ? `Tu en es à ${ctx.sansHolo} sans.` : ''}</p>` : '';
+    // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
+    const plafond = ctx.plafond
+      ? `<p class="pk-plafond${ctx.plafond.espace < 0 ? ' over' : ''}">💵 ${ctx.plafond.espace >= 0 ? `${M(ctx.plafond.espace)} sous le plafond de ${M(ctx.plafond.cap)}` : `${M(-ctx.plafond.espace)} au-dessus du plafond de ${M(ctx.plafond.cap)}`}${ctx.plafond.tordu ? ' ✦' : ''} : un pack de joueurs tire des salaires jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))}. Les cartes 💵 font de la place.</p>` : '';
     m.innerHTML = `<div class="choix-sheet pk-sheet" role="dialog" aria-modal="true" aria-label="La boutique">
       <div class="choix-tete">
         <span class="choix-ico">🛒</span>
@@ -57,6 +62,7 @@ export function ouvrirMagasin(ctx) {
       <div class="choix-corps pk-corps">
         <p class="pk-mot">Tes résultats rapportent des jetons. Un pack de joueurs : tu en signes un, les autres vont à ton classeur (un doublon se revend tout seul). Un pack de cartes : toutes vont dans ton inventaire.</p>
         ${garantie}
+        ${plafond}
         ${rayons}
       </div>
     </div>`;
@@ -82,7 +88,8 @@ export function ouvrirMagasin(ctx) {
       <div class="pk-fiche-tete"><span class="pk-ico">${P.ico}</span><div><div class="pk-fiche-nom">${esc(P.nom)}</div><div class="pk-fiche-sous">${P.n + (P.sorte === 'joueurs' ? (ctx.mods.carteExtra || 0) : 0)} cartes · ${prix} 🪙</div></div></div>
       <p class="pk-fiche-texte">${esc(P.texte)}</p>
       <h4>Les chances, par pack</h4>
-      <table class="pk-chances">${ch.map(x => `<tr><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
+      <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
+      ${P.sorte === 'joueurs' && ctx.plafond ? `<p class="pk-num">💵 Salaires tirés : jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} (ton espace, plus le plus gros contrat qu'une sortie libérerait).</p>` : ''}
       <h4>Le barème d'une carte</h4>
       <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${RARETES[k] ? RARETES[k].gemme : ''} ${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' ? `<p class="pk-num">Une or est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}. Le numéro est un honneur, pas un bonus.</p>` : ''}

@@ -10,8 +10,9 @@
  * joueurs, les moins productifs de leurs saisons — et on bâtit en jouant :
  * chaque résultat rapporte des JETONS 🪙, et la BOUTIQUE du hub vend des
  * packs (trois vrais joueurs, tu en signes un ; trois cartes de match, tu en
- * gardes une). Le plafond salarial n'existe pas ici : c'est la boutique qui
- * fait la rareté.
+ * gardes une). S79 : la MASSE SALARIALE reste (JP : *garder aspect masse
+ * salariale même en roguelike, mais avec cartes qui peuvent le manipuler*) —
+ * un plafond de 82 M$, et des cartes pour le tordre (js/banque.js `CONTRATS`).
  *
  * CE QUI RESTE D'UNE RUN À L'AUTRE (le « méta », `cap82_rogue`) :
  *   - les ÉCUSSONS 🏅 gagnés à la fin de chaque run (les points de la saison,
@@ -89,7 +90,13 @@ export const DEBLOCAGES = {
   packVedettes: { ico: '🌟', nom: 'Les packs Étoiles et Légendes', prix: 150, texte: 'La boutique vend les packs Étoiles et Légendes : les meilleurs de leur saison.' },
   deckPlus: { ico: '🃏', nom: 'Un deck aiguisé', prix: 50, texte: 'Ton deck de départ commence avec « Lancer de la pointe+ » et « Bloquer des tirs+ ».' },
   plombiersPlus: { ico: '🛠️', nom: 'Des plombiers moins pires', prix: 80, texte: 'Tes plombiers de départ sortent du bas de la ligue, pas du fond du baril.' },
+  // S79 : la masse salariale se débloque aussi.
+  plafond1: { ico: '💵', nom: 'Une masse salariale indexée', prix: 45, texte: '+3 M$ de plafond au début de chaque run.' },
+  plafond2: { ico: '💰', nom: 'Le proprio dépense', prix: 110, requis: 'plafond1', texte: '+4 M$ de plus au début de chaque run (+7 M$ en tout).' },
+  dgFlexible: { ico: '🧮', nom: 'Le DG du plafond flexible', prix: 70, personnel: 'dir_flexible', texte: 'Il rejoint ton personnel pour de bon : engagé, il donne 5 % de plafond de plus.' },
 };
+/* Le plafond que le vestiaire ajoute au départ d'une run. */
+export const plafondDuVestiaire = m => (aDebloque(m, 'plafond1') ? 3_000_000 : 0) + (aDebloque(m, 'plafond2') ? 4_000_000 : 0);
 
 /* ---------- le méta ---------- */
 /*
@@ -119,6 +126,8 @@ export function acheterDeblocage(cle) {
   if (!peutAcheter(m, cle)) return false;
   m.ecussons -= DEBLOCAGES[cle].prix;
   m.deblocages = [...(m.deblocages || []), cle];
+  // Un déblocage de personnel : le patron rejoint le personnel permanent.
+  if (DEBLOCAGES[cle].personnel) m.personnel = [...new Set([...(m.personnel || []), DEBLOCAGES[cle].personnel])];
   ecrireMeta(m);
   return true;
 }
