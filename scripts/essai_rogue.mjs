@@ -24,20 +24,36 @@ const equipe = await page.$$eval('.slot .slot-name', e => e.map(x => x.textConte
 const barre = (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`1. plombiers : ${equipe.length} joueurs (${equipe.slice(0, 4).join(', ')}…) · barre : ${barre}`);
 await page.screenshot({ path: `${DOSSIER}/rogue-plombiers.png` });
+/*
+ * LA BOÎTE DE RÉCEPTION (S78) : un sommaire après chaque journée jouée, et
+ * des messages qui bloquent la journée tant qu'on ne les a pas réglés. On
+ * règle tout comme un joueur pressé : le sommaire se ferme, un choix prend
+ * sa première option, un message bloquant sa réponse par défaut.
+ */
+async function regler() {
+  for (let i = 0; i < 30; i++) {
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]')) { await page.click('#choixModal:not([hidden]) .choix-plus-tard'); await page.waitForTimeout(250); continue; }
+    if (await page.$('#choixModal:not([hidden]) .main-jouer')) { await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); continue; }
+    // Une main de palier (des cartes .tc) : la première carte jouable.
+    const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])');
+    if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
+    if (await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])')) { await choix(); continue; }
+    const t = await page.$('#hubModal .hub-traiter');
+    if (t) { const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]'); await (d || t).click(); await page.waitForTimeout(400); continue; }
+    return;
+  }
+}
 // Lancer la saison
 await page.click('#mainBtn');
-await page.waitForSelector('#hubModal .hub-jour, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
-for (let i = 0; i < 4 && await page.$('#choixModal:not([hidden]) .choix-option'); i++) await choix();
+await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
+await regler();
 // Avancer un peu pour gagner des jetons
 for (let i = 0; i < 3; i++) {
-  if (await page.$('#choixModal:not([hidden]) .choix-option')) { await choix(); continue; }
-  if (await page.$('#choixModal:not([hidden]) .main-jouer')) { await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); continue; }
+  await regler();
   const dix = await page.$('#hubModal .hub-dix');
   if (dix) { await dix.click(); await page.waitForTimeout(600); }
 }
-while (await page.$('#choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .main-jouer')) {
-  if (await page.$('#choixModal:not([hidden]) .main-jouer')) { await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); } else await choix();
-}
+await regler();
 const avant = (await page.textContent('#hubModal .hub-boutique')).trim();
 console.log(`2. au hub : la boutique dit « ${avant} » · barre : ${(await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim()}`);
 await page.click('#hubModal .hub-boutique');
@@ -59,6 +75,7 @@ const apres = (await page.textContent('#hubModal .hub-boutique')).trim();
 const d = await page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); const p = JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); return (p.partie.decisions || []).filter(x => x.rogue); });
 console.log(`4. signé : la boutique dit « ${apres} » · décisions Rogue : ${JSON.stringify(d.map(x => ({ pack: x.rogue.pack, prix: x.rogue.prix, entre: x.ballottage && x.ballottage.entre })))}`);
 // L'ATELIER (S78) : une édition de joueur, au joueur de ton choix.
+await regler();
 await page.click('#hubModal .hub-boutique');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="atelier"]', { timeout: 30000 });
 await page.click('#choixModal:not([hidden]) .choix-option[data-choix="atelier"]');
@@ -80,13 +97,17 @@ const dA = await page.evaluate(() => { const ix = JSON.parse(localStorage.getIte
 console.log(`4b. l'atelier : ${editions.join(' · ')} → « ${premier} » · décision : ${JSON.stringify(dA.map(x => x.mutation && { cle: x.mutation.cle, rar: x.mutation.carte && x.mutation.carte.rar }))}`);
 if (!dA.length) erreurs.push('l\'atelier n\'a laissé aucune décision');
 // Fin de saison
+await regler();
 await page.click('#hubModal .hub-fin');
 const oui = await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="fin"]', { timeout: 5000 }).catch(() => null);
 if (oui) await oui.click();
 await page.waitForSelector('#hubModal .hub-suite', { timeout: 120000 });
-// Le palier offert avant le bilan s'ouvre de lui-même : « Plus tard ».
-for (let i = 0; i < 4 && await page.$('#choixModal:not([hidden])'); i++) { const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) await f.click(); else await choix(); await page.waitForTimeout(400); }
-await page.click('#hubModal .hub-suite');
+// Ce qui reste à régler avant le bilan (un palier, un sommaire).
+await regler();
+// Prendre le dernier palier peut mener tout droit au bilan : on ne touche « Voir le bilan » que s'il est là.
+const suite = await page.$('#hubModal .hub-suite');
+if (suite && await suite.isVisible()) await suite.click();
+await page.waitForSelector('.result .score', { timeout: 60000 });
 await page.waitForTimeout(2500);
 const meta = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
 console.log(`5. fin de saison : ${meta.ecussons} écussons · ${meta.runs} run · collection ${(meta.collection || []).length} joueurs · dernière équipe ${(meta.derniereEquipe || []).length}`);

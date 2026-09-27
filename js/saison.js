@@ -1129,8 +1129,10 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const cles = (t, cote, nomT) => {
       const c = conditions(pr, cote);
       const out = [];
-      if (c.gagne) out.push({ bon: true, txt: `Gagne ${pctMot(c.gagne.alors)} des fois où il marque ${c.gagne.k} but${c.gagne.k > 1 ? 's' : ''} ou plus — ça arrive ${pctMot(c.gagne.arrive)} du temps.` });
-      if (c.perd) out.push({ bon: false, txt: `Perd ${pctMot(c.perd.alors)} des fois où il en accorde ${c.perd.k} ou plus — ${pctMot(c.perd.arrive)} du temps.` });
+      // La condition d'abord, sa fréquence ensuite, puis ce qu'elle vaut : une phrase qui se lit d'un trait.
+      const buts = k => `${k} but${k > 1 ? 's' : ''} ou plus`;
+      if (c.gagne) out.push({ bon: true, txt: `S'il marque ${buts(c.gagne.k)} (${pctMot(c.gagne.arrive)} des matchs rejoués), il gagne ${pctMot(c.gagne.alors)} du temps.` });
+      if (c.perd) out.push({ bon: false, txt: `S'il en accorde ${buts(c.perd.k)} (${pctMot(c.perd.arrive)} des matchs rejoués), il perd ${pctMot(c.perd.alors)} du temps.` });
       for (const k of ['an', 'inf']) {
         const m = mesureDe(t, k);
         if (!m || !m.sur) continue;
@@ -1265,9 +1267,11 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const attend = messagesCourants().filter(m => m.bloque);
     retenir = true;
     ouvrirChoix({
-      ico: un ? (gagne(un.m, you) ? '✅' : '❌') : '🗓️', titre, genre: 'sommaire', fermable: true, motFermer: 'Retour au hub',
+      // UN SEUL BOUTON (JP : *jamais dédoubler information*) : retour au hub, ou à la boîte s'il y a du courrier à régler.
+      ico: un ? (gagne(un.m, you) ? '✅' : '❌') : '🗓️', titre, genre: 'sommaire', fermable: true,
+      motFermer: attend.length ? '📥 Voir ma boîte de réception' : 'Retour au hub',
       contexte: `<div class="som">${blocs.join('')}</div>${attend.length ? `<div class="som-attente">📥 ${attend.length} message${attend.length > 1 ? 's' : ''} à traiter t'attend${attend.length > 1 ? 'ent' : ''} au hub : ${ctx.esc(attend[0].sujet)}</div>` : ''}`,
-      options: [{ cle: 'ok', ico: attend.length ? '📥' : '▶', nom: attend.length ? 'Voir ma boîte de réception' : 'Retour au hub' }],
+      options: [],
       onChoix: () => { retenir = false; dessiner(); },
       onFerme: () => { retenir = false; dessiner(); },
     });
