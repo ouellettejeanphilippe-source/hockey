@@ -31,7 +31,10 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, MUTATIONS, motsDeMutation,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
-  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, fitLigne, profilPrincipal, apprentissagePhoto, flechesDe } from './sim.js';
+  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, fitLigne, profilPrincipal, apprentissagePhoto, flechesDe,
+  activeLineup, facteurGardienDe, lancersRelDe } from './sim.js';
+import { seasonLancers } from './ratings.js';
+import { pronostic, conditions, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur } from './cartes.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, planReplie, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN } from './combat.js';
@@ -530,7 +533,9 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
   for (const t of teams) for (const p of Object.values(t.roster || {})) if (p) equipeDe.set(p, t);
   // Le gardien de rappel n'a pas de case, mais il a une équipe.
   for (const t of teams) if (t.rappelG) equipeDe.set(t.rappelG, t);
-  const fiche = new Map(teams.map(t => [t, { W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0 }]));
+  // Les tirs pour et contre, et les unités spéciales (S78) : ce que le dépisteur
+  // compare, lu sur les feuilles révélées — jamais sur une cote.
+  const fiche = new Map(teams.map(t => [t, { W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0, SF: 0, SA: 0, PPG: 0, PPO: 0, PKGA: 0, PKO: 0 }]));
   // Les résultats de chaque club dans l'ordre ('V', 'D', 'DP') : la séquence
   // et les dix derniers matchs, les deux colonnes qu'un journal donne toujours.
   const resultats = new Map(teams.map(t => [t, []]));
@@ -542,6 +547,16 @@ export function ouvrirSaison({ calendrier, teams, you, enSeries = 16, epoque = n
     const gagneA = m.gfA > m.gfB;
     if (gagneA) { a.W++; if (m.ot) b.OTL++; else b.L++; } else { b.W++; if (m.ot) a.OTL++; else a.L++; }
     a.PTS = a.W * 2 + a.OTL; b.PTS = b.W * 2 + b.OTL;
+    const f = m.feuille;
+    if (f) {
+      const tA = tirsTotal(f, 'A'), tB = tirsTotal(f, 'B');
+      a.SF += tA; a.SA += tB; b.SF += tB; b.SA += tA;
+      // `cote` d'une punition : l'équipe punie ; l'autre a l'avantage.
+      const punA = (f.punitions || []).filter(x => x.cote === 'A').length, punB = (f.punitions || []).filter(x => x.cote === 'B').length;
+      const anA = f.buts.filter(x => x.cote === 'A' && x.an).length, anB = f.buts.filter(x => x.cote === 'B' && x.an).length;
+      a.PPO += punB; b.PPO += punA; a.PKO += punA; b.PKO += punB;
+      a.PPG += anA; b.PPG += anB; a.PKGA += anB; b.PKGA += anA;
+    }
     resultats.get(m.A).push(gagneA ? 'V' : m.ot ? 'DP' : 'D');
     resultats.get(m.B).push(gagneA ? (m.ot ? 'DP' : 'D') : 'V');
   };

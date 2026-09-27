@@ -572,6 +572,19 @@ export function grainerHasard(graine = null) {
   return hasard;
 }
 
+/*
+ * UN HASARD À PART (S78, js/pronostic.js). Le temps de `fn`, le moteur tire
+ * d'un générateur neuf ; puis il retrouve LE MÊME générateur qu'avant, à
+ * l'état exact où il l'avait laissé — on ne l'a pas appelé une seule fois.
+ * La saison déjà jouée et les séries, qui continuent sa suite, ne voient
+ * rien passer : c'est ce qui permet de simuler un pronostic sans rien bouger.
+ */
+export function avecHasardIsole(graine, fn) {
+  const avant = hasard;
+  hasard = generateur(graine);
+  try { return fn(); } finally { hasard = avant; }
+}
+
 /** Une graine lisible, tirée du vrai hasard : c'est ce que la saison porte. */
 export const nouvelleGraine = () => Math.floor(Math.random() * 0xffffffff).toString(36);
 
