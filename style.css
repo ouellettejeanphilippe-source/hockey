@@ -9283,3 +9283,153 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .fc-mod-effets .bon { color: color-mix(in srgb, #1f9d63 70%, currentColor); }
 .fc-mod-effets .prix { color: color-mix(in srgb, #d9384a 75%, currentColor); }
 .fc-mods-vide { margin: 0 2px; font-size: 12.5px; color: var(--cj-encre-2); }
+
+
+/* =================================================================
+   LA BOUTIQUE (S79, js/magasin.js) — des rayons de packs à la HUT
+   Chaque pack est un SACHET dans le métal de son tier : bronze, argent,
+   or, premium (l'arc-en-ciel), et les packs de cartes (l'encre violette).
+   Le sachet a sa dent de déchirure en haut, son icône, son tier ; dessous,
+   le nom, le nombre de cartes, sa chance phare et son prix. Toucher ouvre
+   la fiche : toutes les chances, le barème, le choix, « Acheter ».
+   ================================================================= */
+.pk-sheet { position: relative; }
+.pk-corps { gap: 16px; }
+.pk-mot, .pk-garantie { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--sub); }
+.pk-garantie { padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--gold) 10%, transparent); color: var(--text); }
+.pk-rayon h3 { margin: 0 0 8px; font: 800 14px/1.1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.pk-rabais { padding: 2px 8px; border-radius: 999px; background: var(--gold); color: #1b1305; font-size: 11px; letter-spacing: .04em; }
+.pk-rangee { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pk-tuile {
+  --pk-a: #8a6a3c; --pk-b: #d9b27a; --pk-ink: #fff;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px; min-width: 0; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2, var(--panel)); color: var(--text);
+  transition: transform .15s ease, border-color .15s ease;
+}
+.pk-tuile:hover, .pk-tuile:focus-visible { transform: translateY(-3px); border-color: var(--pk-b); outline: none; }
+.pk-tuile.verrou { opacity: .55; }
+.pk-sachet {
+  position: relative; display: grid; place-items: center; aspect-ratio: 3 / 4; border-radius: 8px 8px 10px 10px; overflow: hidden;
+  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .10) 0 3px, transparent 3px 9px), linear-gradient(160deg, var(--pk-b), var(--pk-a) 60%, var(--pk-b));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25), 0 6px 14px rgba(0, 0, 0, .4);
+}
+.pk-dent { position: absolute; top: 0; left: 0; right: 0; height: 9px; background: radial-gradient(circle at 50% 0, var(--panel-2, var(--panel)) 3.5px, transparent 4px) 0 0 / 9px 9px repeat-x; }
+.pk-sachet .pk-ico { font-size: 40px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .45)); }
+.pk-tier { position: absolute; bottom: 6px; left: 0; right: 0; text-align: center; font: 800 11px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--pk-ink); text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.pk-bronze { --pk-a: #6e4a26; --pk-b: #c8925a; }
+.pk-argent { --pk-a: #6f7b87; --pk-b: #dfe5eb; --pk-ink: #10151b; }
+.pk-argent .pk-tier { text-shadow: none; }
+.pk-or { --pk-a: #9a6f14; --pk-b: #ffd76a; --pk-ink: #2a1d04; }
+.pk-or .pk-tier { text-shadow: none; }
+.pk-premium { --pk-a: #5b2d9a; --pk-b: #74c8ff; }
+.pk-premium .pk-sachet { background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .12) 0 3px, transparent 3px 9px), linear-gradient(135deg, #ff6f91, #ffd66e 25%, #7cffc4 50%, #74c8ff 75%, #b58bff); }
+.pk-cartes { --pk-a: #3b2a6b; --pk-b: #8f7cf0; }
+.pk-jour { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 18px color-mix(in srgb, var(--gold) 30%, transparent); }
+.pk-nom { font: 800 14px/1.15 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+.pk-n, .pk-cote { font-size: 11.5px; color: var(--sub); line-height: 1.3; }
+.pk-prix { margin-top: auto; font: 800 15px/1 var(--display); color: var(--gold); }
+.pk-prix s { color: var(--muted); font-weight: 600; margin-right: 3px; }
+/* La fiche d'un pack : par-dessus la boutique, au bas au téléphone. */
+.pk-fiche { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.pk-fiche-carte {
+  width: 100%; max-width: 520px; max-height: 92%; overflow-y: auto; padding: 16px; border-radius: 18px 18px 0 0;
+  background: var(--panel); border-top: 3px solid var(--pk-b, var(--gold)); box-shadow: 0 -10px 30px rgba(0, 0, 0, .5);
+}
+@media (min-width: 700px) { .pk-fiche { align-items: center; } .pk-fiche-carte { border-radius: 18px; } }
+.pk-fiche-tete { display: flex; align-items: center; gap: 12px; }
+.pk-fiche-tete .pk-ico { font-size: 38px; }
+.pk-fiche-nom { font: 800 20px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.pk-fiche-sous { font: 700 13px/1.2 var(--display); color: var(--gold); letter-spacing: .04em; margin-top: 2px; }
+.pk-fiche-texte { font-size: 14px; line-height: 1.45; color: var(--sub); }
+.pk-fiche-carte h4 { margin: 14px 0 6px; font: 800 12px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.pk-chances, .pk-bareme { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.pk-chances th, .pk-bareme th { text-align: left; font-weight: 600; color: var(--sub); padding: 5px 0; }
+.pk-chances td, .pk-bareme td { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; padding: 5px 0; }
+.pk-chances tr + tr, .pk-bareme tr + tr { border-top: 1px solid var(--line-soft, var(--line)); }
+.pk-num, .pk-verrou { font-size: 12.5px; line-height: 1.4; color: var(--muted); margin: 10px 0 0; }
+.pk-choix { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; font: 700 12px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pk-choix select { font: 600 15px/1.2 var(--sans, inherit); padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2, var(--bg)); color: var(--text); text-transform: none; letter-spacing: 0; }
+.pk-fiche-actions { display: flex; gap: 10px; margin-top: 16px; }
+.pk-fiche-actions .btn { flex: 1; min-height: 46px; }
+
+/* =================================================================
+   LES CARTES DE LA BANQUE (S79, js/inventaire.js `carteBanqueHtml`)
+   Une carte par famille, chacune son cadre : le personnel en bleu nuit à
+   filet d'or, les événements en papier journal, les modifs de joueur en
+   violet, les consommables en vert pharmacie, les cartes de match en
+   ardoise. La rareté se lit à la gemme ; la durée de vie à l'étiquette.
+   ================================================================= */
+.bq-carte {
+  --bq-a: #1d2230; --bq-b: #2b3346; --bq-filet: rgba(255, 255, 255, .14);
+  position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 10px;
+  border-radius: 12px; color: var(--text);
+  background: linear-gradient(160deg, var(--bq-b), var(--bq-a) 70%);
+  box-shadow: inset 0 0 0 1.5px var(--bq-filet), 0 6px 14px rgba(0, 0, 0, .35);
+}
+.bq-patron { --bq-a: #111a2e; --bq-b: #203056; --bq-filet: #d9b45a; }
+.bq-evenement { --bq-a: #2b2720; --bq-b: #4a4234; --bq-filet: #c9b98f; }
+.bq-joueur { --bq-a: #22173a; --bq-b: #3d2a66; --bq-filet: #a78bfa; }
+.bq-consommable { --bq-a: #10261f; --bq-b: #1b4637; --bq-filet: #46d39a; }
+.bq-match { --bq-a: #161a21; --bq-b: #2a313d; --bq-filet: #9aa4ae; }
+.bq-saison { --bq-a: #1a2433; --bq-b: #2c3d57; --bq-filet: #74c8ff; }
+.bq-carte.tc-rare { box-shadow: inset 0 0 0 2px #e3e9ef, 0 6px 14px rgba(0, 0, 0, .35); }
+.bq-carte.tc-legendaire { box-shadow: inset 0 0 0 2px #ffd76a, 0 0 16px rgba(255, 215, 106, .25), 0 6px 14px rgba(0, 0, 0, .35); }
+.bq-carte.pas-a-moi { filter: grayscale(1); opacity: .42; }
+.bq-tete { display: flex; align-items: center; gap: 8px; }
+.bq-ico { flex: none; font-size: 24px; line-height: 1; }
+.bq-nom { flex: 1; min-width: 0; font: 800 15px/1.1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+.bq-compte { flex: none; padding: 2px 7px; border-radius: 999px; background: var(--gold); color: #1b1305; font: 800 12px/1.2 var(--display); }
+.bq-sous { display: flex; justify-content: space-between; gap: 6px; font: 700 10.5px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.bq-regle { display: flex; flex-wrap: wrap; gap: 4px; }
+.bq-cache { font-size: 12px; color: var(--muted); font-style: italic; }
+.bq-texte { font-size: 12px; line-height: 1.35; color: var(--sub); font-style: italic; }
+.bq-pied { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 4px; }
+.bq-vie { padding: 2px 7px; border-radius: 999px; font: 700 10.5px/1.3 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.vie-permanent { background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold); }
+.vie-saison { background: color-mix(in srgb, #74c8ff 18%, transparent); color: #9fd6ff; }
+.vie-usage { background: color-mix(in srgb, #46d39a 18%, transparent); color: #7fe0b7; }
+.bq-gemme { font-size: 11px; letter-spacing: 1px; color: var(--muted); }
+.bq-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.bq-actions .btn { flex: 1; min-height: 36px; padding: 6px 8px; font-size: 13px; }
+.inv-engage { font: 700 12px/1.2 var(--display); color: var(--green); letter-spacing: .06em; text-transform: uppercase; }
+
+/* =================================================================
+   L'INVENTAIRE ET LE CLASSEUR (S79)
+   ================================================================= */
+.inv-onglets { flex: none; display: flex; gap: 4px; padding: 8px 12px 0; overflow-x: auto; border-bottom: 1px solid var(--line-soft, var(--line)); }
+.inv-onglet {
+  flex: none; padding: 9px 12px; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--muted); cursor: pointer;
+  font: 800 13px/1 var(--display); letter-spacing: .06em; text-transform: uppercase;
+}
+.inv-onglet span { margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: var(--panel-2, var(--panel)); color: var(--text); font-size: 11px; }
+.inv-onglet.on { color: var(--text); border-bottom-color: var(--gold); }
+.inv-corps { gap: 12px; }
+.inv-mot { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--sub); }
+.inv-filtres { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.inv-filtre {
+  flex: none; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--sub); cursor: pointer;
+  font: 700 12px/1.2 var(--display); letter-spacing: .04em;
+}
+.inv-filtre.on { background: var(--gold); border-color: var(--gold); color: #1b1305; }
+.inv-sec { margin: 6px 0 0; font: 800 13px/1.1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.inv-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
+.inv-vide { margin: 0; font-size: 13.5px; color: var(--muted); grid-column: 1 / -1; }
+.inv-progres { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--sub); }
+.inv-prog b { color: var(--text); font-family: var(--display); }
+.hub-actions .hub-inventaire { flex: 0 0 auto; }
+
+/* Au téléphone, trois sachets de front : la boutique se parcourt sans fin de défilement. */
+@media (max-width: 560px) {
+  .pk-rangee { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .pk-tuile { padding: 6px; }
+  .pk-sachet { aspect-ratio: 4 / 5; }
+  .pk-sachet .pk-ico { font-size: 30px; }
+  .pk-nom { font-size: 12.5px; }
+  .pk-n, .pk-cote { font-size: 10.5px; }
+  .pk-rayon-jour .pk-rangee { grid-template-columns: minmax(0, 1fr); }
+  .pk-rayon-jour .pk-tuile { flex-direction: row; align-items: center; gap: 10px; }
+  .pk-rayon-jour .pk-sachet { width: 84px; flex: none; }
+}
+/* Une puce de règle se replie dans sa carte, jamais hors d'elle. */
+.bq-regle .puce { white-space: normal; max-width: 100%; }
+.bq-actions .btn { min-height: 34px; font-size: 12px; white-space: nowrap; }

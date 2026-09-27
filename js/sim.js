@@ -1137,7 +1137,8 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // LIGNE PAR LIGNE depuis S68 (`lignesDe`, `profilMatch`).
   void adv; void lineup;
   const actifs = effetsActifs(team);
-  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]),
+  // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
+  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []),
     ROULEMENTS[roulementDe(team)], ...actifs];
   for (const c of sources) {
     if (!c) continue;
@@ -1653,7 +1654,7 @@ export function depenserEnergie(team, lineup) {
   const lignes = lignesDe(team, lineup);
   const moy = lignes.reduce((a, l) => a + l.sec, 0) / 4 || SEC_DEFAUT;
   // L'importance du match (et tout effet qui porte `energie`) module l'usure.
-  const k = effetsActifs(team).reduce((a, x) => a * (x.energie || 1), 1);
+  const k = [...effetsActifs(team), ...((team && team.patrons) || [])].reduce((a, x) => a * (x.energie || 1), 1);
   for (let u = 0; u < 4; u++) {
     const us = usureLigne(lignes[u], moy) * k;
     for (const p of Object.values(joueursDeLigne(lineup, u))) if (p) p.energie = Math.max(0, energieDe(p) - ENERGIE_R * us);
@@ -4400,6 +4401,35 @@ function appliquerDecision(team, d, graine = 0) {
     const m = p._maitrise[d.maitrise.tac] || 0;
     p._maitrise[d.maitrise.tac] = m + (1 - m) * (d.maitrise.gain || GAIN_STAGE);
   }
+  /*
+   * UN PATRON ENGAGÉ (S79, js/banque.js) : la décision porte ses chiffres
+   * (`{ cle, role, nom, ico, ...canaux }`) et remplace celui du même rôle —
+   * un seul entraîneur-chef à la fois. Il vaut jusqu'à la fin de la saison,
+   * séries comprises (`effetsDeSaison`).
+   */
+  if (d.patron && d.patron.cle) {
+    const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
+    team.patrons = (team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role));
+    const { remplace: _r, ...pat } = d.patron;
+    team.patrons.push(pat);
+  }
+  /*
+   * LES GESTES D'UNE CARTE (S79) : un soin (des matchs d'infirmerie en
+   * moins), de l'énergie, le repos du gardien — sur les joueurs NOMMÉS par la
+   * décision. Réels, et rejoués comme tout le reste.
+   */
+  if (d.gestes) {
+    const g = d.gestes;
+    const nommes = (g.joueurs || []).map(k => Object.values(team.roster).find(x => x && getPlayerKey(x) === k) || CONNUS.get(k)).filter(Boolean);
+    if (g.soin) for (const p of (g.tousLesBlesses ? [...team.injured.keys()] : nommes)) {
+      const n = team.injured.get(p);
+      if (!n) continue;
+      if (n <= g.soin) team.injured.delete(p); else team.injured.set(p, n - g.soin);
+    }
+    if (g.energie) for (const p of nommes) p.energie = Math.max(0, Math.min(100, energieDe(p) + g.energie));
+    if (g.energieTous) for (const s of SLOTS) { const p = team.roster[s.i]; if (p && p.p !== 'G') p.energie = Math.max(0, Math.min(100, energieDe(p) + g.energieTous)); }
+    if (g.gardienAux) team.gardienAux = Math.max(team.gardienAux || 0, d.jour + g.gardienAux);
+  }
   if (d.effet) {
     const { duree, nom, ico, ...canaux } = d.effet;
     (team.effets = team.effets || []).push({ debut: d.jour, fin: d.jour + (duree || DUREE_MOMENT), source: 'decision', nom, ico, ...canaux });
@@ -4486,7 +4516,7 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
     // LES CARTES SE REMETTENT À ZÉRO ICI. Sans ça, rejouer la saison — ce que
     // fait CHAQUE décision — empilerait les cartes des passages précédents,
     // et une équipe finirait la partie avec quinze fois la même.
-    t.cartes = [];
+    t.cartes = []; t.patrons = [];
     // LES SITUATIONS AUSSI. Elles ne sont pas une décision, mais elles vivent
     // sur les objets joueurs (`_situ`) et sur l'équipe : sans cette remise à
     // zéro, rejouer la saison — ce que fait CHAQUE décision — laisserait la
@@ -4809,7 +4839,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.cartes = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.cartes = []; t.patrons = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
   t.chimie = [0, 0, 0, 0]; t.entente = new Map();
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -4982,6 +5012,30 @@ export const MUTATIONS = {
   pere: { nom: 'Il joue pour son père', ico: '🕊️', cible: 'hasard', source: 'accident',
     quoi: 'Son père est au plus mal : il joue chaque présence comme la dernière.',
     profils: { puissant: 10, createur: 10 }, lancers: 1.05, finition: 1.03 },
+  /*
+   * ---- LES STYLES DE JEU ET LES CONTRATS (S79, la banque) ----
+   * JP : *une vraie banque de cartes … modifs de joueurs … digne d'un vrai
+   * deck builder*. Les « styles » à la FUT : ce qu'un joueur devient pour la
+   * saison — son profil (donc le fit de sa ligne) et un canal réel. Les
+   * contrats : ce qu'une signature change chez lui, avec son prix. Même
+   * contrat que les améliorations : un joueur, quelques pour cent.
+   */
+  style_sniper: { nom: 'Style : franc-tireur', ico: '🎯', cible: 'libre', source: 'style', quoi: 'Il ne cherche plus la passe : il cherche le coin.', profils: { franc: 15 }, finition: 1.05 },
+  style_faiseur: { nom: 'Style : faiseur de jeu', ico: '🪄', cible: 'libre', source: 'style', quoi: 'Il voit trois jeux d\'avance.', profils: { fabricant: 15 }, creation: 1.06 },
+  style_ancre: { nom: 'Style : ancre', ico: '⚓', cible: 'libre', source: 'style', quoi: 'Il ne quitte plus sa zone.', profils: { pur: 15 }, defense: 0.97 },
+  style_locomotive: { nom: 'Style : locomotive', ico: '🚂', cible: 'libre', source: 'style', quoi: 'Il part avant la rondelle et arrive avant tout le monde.', profils: { rapide: 12 }, lancers: 1.05 },
+  style_chasseur: { nom: 'Style : chasseur', ico: '🐺', cible: 'libre', source: 'style', quoi: 'Il écrase le porteur et repart avec la rondelle.', profils: { puissant: 10 }, lancers: 1.03, finition: 1.02 },
+  style_architecte: { nom: 'Style : architecte', ico: '📐', cible: 'libre', source: 'style', quoi: 'Chaque présence est un plan dessiné au tableau.', profils: { createur: 12, fabricant: 8 }, creation: 1.05, finition: 1.02 },
+  style_sentinelle: { nom: 'Style : sentinelle', ico: '🛡️', cible: 'libre', source: 'style', quoi: 'Personne ne passe par son côté.', profils: { defensif: 15 }, defense: 0.96 },
+  style_canonnier: { nom: 'Style : canonnier', ico: '💣', cible: 'libre', source: 'style', quoi: 'Il décoche de la ligne bleue à chaque remise.', profils: { bleue: 15 }, lancers: 1.06 },
+  style_buteur: { nom: 'Style : buteur né', ico: '👑', cible: 'libre', source: 'style', quoi: 'Il sent le but comme d\'autres sentent la pluie.', profils: { franc: 20 }, finition: 1.07, lancers: 1.02 },
+  style_pieuvre: { nom: 'Style : pieuvre', ico: '🐙', cible: 'libre', source: 'style', gardien: true, quoi: 'Des bras et des jambières partout dans le demi-cercle.', arrets: 0.97, blessure: 0.9 },
+  masque_neuf: { nom: 'Le masque neuf', ico: '🎭', cible: 'libre', source: 'style', gardien: true, quoi: 'Un masque peint à ses couleurs : il se sent invincible.', arrets: 0.98 },
+  baton_neuf: { nom: 'Le bâton neuf', ico: '🏒', cible: 'libre', source: 'style', quoi: 'La bonne courbe, enfin.', profils: { franc: 5 }, finition: 1.03 },
+  contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.04, lancers: 1.03, blessure: 1.1 },
+  contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋️', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.85, finition: 0.99 },
+  contrat_bonus: { nom: 'Clause de performance', ico: '💰', cible: 'libre', source: 'contrat', quoi: 'Un boni à trente buts : il force tout, même quand il ne faut pas.', finition: 1.05, creation: 1.03, blessure: 1.15 },
+  contrat_leader: { nom: 'Le « C » cousu', ico: '©️', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { createur: 8, defensif: 8 }, creation: 1.03, defense: 0.98 },
 };
 const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
 /* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */

@@ -83,16 +83,21 @@ export const DEBLOCAGES = {
   garder3: { ico: '🤝', nom: 'Garder trois joueurs', prix: 240, requis: 'garder2', texte: 'Trois joueurs de ta dernière équipe te suivent.' },
   caisse1: { ico: '🪙', nom: 'Une caisse de départ', prix: 30, texte: '+20 jetons au début de chaque run.' },
   caisse2: { ico: '🪙', nom: 'Une grosse caisse', prix: 100, requis: 'caisse1', texte: '+20 jetons de plus au départ (+40 en tout).' },
-  packDefenseurs: { ico: '🧱', nom: 'Le pack Défenseurs', prix: 35, texte: 'La boutique vend un pack de trois défenseurs.' },
-  packGardiens: { ico: '🥅', nom: 'Le pack Gardiens', prix: 50, texte: 'La boutique vend un pack de trois gardiens.' },
-  packAnnees80: { ico: '📼', nom: 'Le pack Années 80', prix: 60, texte: 'La boutique vend un pack des années 80, plus riche en rares.' },
-  packVedettes: { ico: '🌟', nom: 'Le pack Vedettes', prix: 150, texte: 'La boutique vend un pack de vedettes : jamais une commune.' },
+  packDefenseurs: { ico: '🛡️', nom: 'Le pack Défensif', prix: 35, texte: 'La boutique vend le pack Défensif : quatre joueurs au meilleur différentiel de leur saison.' },
+  packGardiens: { ico: '🥅', nom: 'Le pack Gardiens', prix: 50, texte: 'La boutique vend le pack Gardiens : quatre partants au meilleur pourcentage d\'arrêts.' },
+  packAnnees80: { ico: '📼', nom: 'Le pack années 80', prix: 60, texte: 'La boutique vend le pack des années 80, l\'époque des 400 buts par saison.' },
+  packVedettes: { ico: '🌟', nom: 'Les packs Étoiles et Légendes', prix: 150, texte: 'La boutique vend les packs Étoiles et Légendes : les meilleurs de leur saison.' },
   deckPlus: { ico: '🃏', nom: 'Un deck aiguisé', prix: 50, texte: 'Ton deck de départ commence avec « Lancer de la pointe+ » et « Bloquer des tirs+ ».' },
   plombiersPlus: { ico: '🛠️', nom: 'Des plombiers moins pires', prix: 80, texte: 'Tes plombiers de départ sortent du bas de la ligue, pas du fond du baril.' },
 };
 
 /* ---------- le méta ---------- */
-const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: [], runs: 0, meilleur: null, derniereEquipe: [], recompenses: {} });
+/*
+ * S79 : l'INVENTAIRE PERMANENT — `personnel` (les patrons qu'on possède, qu'on
+ * engage à chaque run), `inventaire` (id → nombre de consommables permanents),
+ * et `recus` (les achats déjà versés au méta : une ouverture ne paie qu'une fois).
+ */
+const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: [], runs: 0, meilleur: null, derniereEquipe: [], recompenses: {}, personnel: [], inventaire: {}, recus: {} });
 export function lireMeta() {
   try { return { ...META_VIDE(), ...(JSON.parse(localStorage.getItem(CLE_META) || 'null') || {}) }; } catch { return META_VIDE(); }
 }
@@ -116,6 +121,36 @@ export function acheterDeblocage(cle) {
   m.deblocages = [...(m.deblocages || []), cle];
   ecrireMeta(m);
   return true;
+}
+/*
+ * LES PERMANENTS D'UN PACK (S79) : le personnel et les consommables permanents
+ * vont au méta, UNE fois par achat (`recus[cle]`) — une ouverture ne paie pas
+ * deux fois. Et un consommable permanent qu'on joue le quitte.
+ */
+export function recevoirPermanents(ids = [], cleRecu = '') {
+  const m = lireMeta();
+  m.recus = m.recus || {};
+  if (cleRecu && m.recus[cleRecu]) return false;
+  if (cleRecu) m.recus[cleRecu] = true;
+  const perso = new Set(m.personnel || []);
+  m.inventaire = m.inventaire || {};
+  for (const id of ids) {
+    const [cat, cle] = String(id).split(':');
+    if (cat === 'patron') perso.add(cle);
+    else m.inventaire[id] = (m.inventaire[id] || 0) + 1;
+  }
+  m.personnel = [...perso];
+  const cles = Object.keys(m.recus);
+  if (cles.length > 400) for (const x of cles.slice(0, cles.length - 400)) delete m.recus[x];
+  ecrireMeta(m);
+  return true;
+}
+export function retirerDuMeta(id) {
+  const m = lireMeta();
+  m.inventaire = m.inventaire || {};
+  const n = m.inventaire[id] || 0;
+  if (n <= 1) delete m.inventaire[id]; else m.inventaire[id] = n - 1;
+  ecrireMeta(m);
 }
 /* La collection : les joueurs (clés) et les cartes tirés des packs. Un ensemble : pas de doublon. */
 export function ajouterCollection({ joueurs = [], cartes = [] } = {}) {
