@@ -3433,27 +3433,81 @@ function optionsDe(m, piece) {
    de chaque main, contre une défense qui n'est pas encore là. Une IA qui
    hésite (un geste au hasard 40 % du temps) garde son tempo et gagne
    encore 11-1. Seule la main réduite ramène le naïf à des 0-5 et laisse
-   l'apprenti gagner plus d'un match sur deux. Le compétent, lui, gagne
-   95 % : il a Pro. `MESURE.RECRUE` rejoue les autres formes
-   (hesite, alterne, placement, relance ; `RECRUE_P` pour l'hésitation).
+   l'apprenti gagner plus d'un match sur deux.
+
+   LA RECRUE N'ATTAQUAIT PLUS (S75b). Le passage de vérification : quatre
+   lancers adverses en cinq matchs, aucun dans quatre d'entre eux, un
+   gardien à « 0 arrêt sur 0 ». Son seul geste de la main allait le plus
+   souvent à un coéquipier qui se place — la Pro le paie par sa main
+   entière, la recrue n'avait plus que ça. Mesuré à nouveau, mêmes paires,
+   200 matchs par case (buts pour–contre, puis les lancers de la recrue) :
+
+                         naïf               apprenti                   compétent
+     Pro                 0,9–12,8, 40 tirs  2,0–5,4, 11 % gagnés, 17   2,8–3,0, 51 %, 8
+     moitié (S75)        0,5–5,0, 12        2,4–1,5, 64 %, 3           4,3–0,6, 97 %, 1,2
+     avance              0,8–9,0, 29        2,8–3,0, 49 %, 10          4,7–1,2, 93 %, 4,7
+     tire                0,7–6,8, 23        2,5–2,6, 44 %, 9           4,6–1,4, 91 %, 4,9
+     porteur             0,4–9,1, 28        2,5–3,2, 39 %, 9           4,7–1,1, 91 %, 2,7
+     avance un tour sur deux 0,7–7,9, 25    2,9–2,7, 54 %, 9           4,5–1,3, 87 %, 4,4
+     ÉLASTIQUE (retenu)  0,5–5,4, 14        2,4–2,4, 47 %, 7           4,7–1,2, 92 %, 4,4
+
+   « Avance » : avec la rondelle, le seul geste est celui du PORTEUR — à
+   portée il tire, sinon il monte ou passe. Elle attaque pour de vrai, mais
+   contre le naïf, qui ne défend jamais, elle lance 29 fois. L'ÉLASTIQUE ne
+   fonce que tant qu'elle ne MÈNE pas ; en avance au pointage, elle reprend
+   la tête de la Pro et sa main d'un geste. Contre le naïf elle mène vite
+   et se calme (14 lancers, 5-0 environ) ; contre qui lui tient tête elle
+   attaque (7 lancers contre l'apprenti, qui gagne encore un match sur
+   deux ; 4,4 contre le compétent au lieu de 1,2). C'est la recrue qui
+   pousse quand elle est menée — le joueur, lui, garde ses règles.
+   `MESURE.RECRUE` rejoue toutes les formes (moitie, avance, avance2,
+   attaque, tire, porteur, avanceMi, elastiqueTire, hesite, alterne,
+   placement, relance ; `RECRUE_P` pour l'hésitation).
 
    Les matchs que tu ne joues pas restent Pro : le classement du tournoi se
    compare à règles et à tête égales.
    ====================================================================== */
-const RECRUE = MESURE.RECRUE || 'moitie';
+const RECRUE = MESURE.RECRUE || 'elastique';
 const RECRUE_HESITE = MESURE.RECRUE_P !== undefined ? Number(MESURE.RECRUE_P) : 0.4;
 /** Ce que la recrue fait de différent, en mots — les règles écrites le lisent. */
-export const NIVEAU_RECRUE_MOTS = 'passe sa main après un seul geste (un patin ou une action) et ne relance jamais ses dés ; tes règles et les dés restent les mêmes';
+export const NIVEAU_RECRUE_MOTS = 'passe sa main après un seul geste (un patin ou une action), ne relance jamais ses dés, et fonce au filet tant qu\'elle ne mène pas ; tes règles et les dés restent les mêmes';
 const placementPermis = (m, x) => PLACEMENT && !(RECRUE === 'placement' && m.recrue === x.eq);
-/** La recrue a joué son geste de la main : elle la passe (la forme « alterne », mesurée, un tour sur deux). */
-const recrueAFini = (m, cote) => m.recrue === cote && (RECRUE === 'moitie' || (RECRUE === 'alterne' && (m.tours || 0) % 2 === 1));
+/** Combien de gestes la recrue joue dans cette main-ci (les formes mesurées ; `enAttaque` : elle avait la rondelle en l'ouvrant). */
+function gestesDeRecrue(m) {
+  const attaque = !!m.main.enAttaque;
+  if (['moitie', 'avance', 'tire', 'porteur', 'avanceMi', 'elastique', 'elastiqueTire'].includes(RECRUE)) return 1;
+  if (RECRUE === 'avance2') return attaque ? 2 : 1;
+  if (RECRUE === 'attaque') return attaque ? Infinity : 1;
+  if (RECRUE === 'alterne') return (m.tours || 0) % 2 === 1 ? 1 : Infinity;
+  return Infinity;
+}
+/** La recrue a joué ce que sa main lui donne : elle la passe. */
+const recrueAFini = (m, cote) => m.recrue === cote && (m.main.nRecrue || 0) >= gestesDeRecrue(m);
 
-/** L'hésitation de la recrue : un geste qui vaut quelque chose, pris au hasard — ou rien, et c'est la décision de la Pro. */
-function gesteDeRecrue(m) {
-  if (RECRUE !== 'hesite' || m.de() >= RECRUE_HESITE) return null;
-  const toutes = [];
-  for (const piece of actives(m)) for (const o of optionsDe(m, piece)) if (o.val > 0) toutes.push({ piece, ...o });
-  return toutes.length ? toutes[Math.floor(m.de() * toutes.length)] : null;
+/** Le geste de la recrue quand sa tête n'est pas celle de la Pro — ou null, et c'est la décision de la Pro. */
+function gesteDeRecrue(m, cote) {
+  if (RECRUE === 'hesite') {
+    // L'hésitation (mesurée, écartée) : un geste qui vaut quelque chose, pris au hasard.
+    if (m.de() >= RECRUE_HESITE) return null;
+    const toutes = [];
+    for (const piece of actives(m)) for (const o of optionsDe(m, piece)) if (o.val > 0) toutes.push({ piece, ...o });
+    return toutes.length ? toutes[Math.floor(m.de() * toutes.length)] : null;
+  }
+  const mene = m.recrue && eqDe(m, m.recrue).buts > eqDe(m, adverse(m.recrue)).buts;
+  const forme = RECRUE === 'avanceMi' ? ((m.tours || 0) % 2 ? 'avance' : 'moitie')
+    : RECRUE === 'elastique' ? (mene ? 'moitie' : 'avance')
+    : RECRUE === 'elastiqueTire' ? (mene ? 'moitie' : 'tire') : RECRUE;
+  if (forme === 'avance' || forme === 'avance2' || forme === 'tire' || forme === 'porteur') {
+    // AVEC LA RONDELLE, SON GESTE EST CELUI DU PORTEUR : à portée, il tire ; sinon il monte ou passe.
+    const p = porteur(m);
+    if (p && p.eq === cote && !p.gardien) {
+      if (forme !== 'porteur' && peutAgir(m, p) && peutTirer(m, p)) return { piece: p, type: 'tir' };
+      if (forme === 'tire') return null;
+      const g = meilleurGeste(m, p);
+      if (g && g.val > 0) return { piece: p, ...g };
+    }
+  }
+  return null;
 }
 
 /*
@@ -3474,7 +3528,7 @@ function iaDesert(m) {
  * l'exécution, pour que l'écran joue la main adverse un geste à la fois.
  */
 function iaProchainGeste(m, cote) {
-  if (m.recrue === cote) { const h = gesteDeRecrue(m); if (h) return h; }
+  if (m.recrue === cote) { const h = gesteDeRecrue(m, cote); if (h) return h; }
   let joue = null, sur = null;
   const p = porteur(m);
   for (const piece of actives(m)) {
@@ -3526,6 +3580,8 @@ export function iaGeste(m) {
   if (!fraiche && recrueAFini(m, cote)) { finirMain(m); return null; }
   // Le changement de ligne est instantané (S38) : au début de chaque main.
   if (fraiche && !m.main.change) iaChanger(m, cote);
+  // La recrue sait, en ouvrant sa main, si elle attaque : certaines formes mesurées en dépendent.
+  if (fraiche && m.recrue === cote && !m.main.nRecrue) { const p0 = porteur(m); m.main.enAttaque = !!p0 && p0.eq === cote; }
   const joue = iaProchainGeste(m, cote);
   if (!joue) {
     // RIEN DE BON À JOUER. Une main entamée passe simplement (ses pièces
@@ -3539,7 +3595,9 @@ export function iaGeste(m) {
     return null;
   }
   activer(m, joue.piece);
+  const mainAvant = m.main;
   const jet = jouerGeste(m, joue.piece, joue, cote, true);
+  if (m.recrue === cote && m.main === mainAvant) m.main.nRecrue = (m.main.nRecrue || 0) + 1;
   // Le budget vide, la main passe — sauf si une passe vient d'ouvrir le
   // une-deux : le receveur décide au prochain appel.
   if (!m.fini && m.tour === cote && mainEpuisee(m) && !receptionPossible(m)) finirMain(m);
@@ -3719,18 +3777,21 @@ function fusillade(m) {
   const tir = (tireur, gardien) => {
     // Sans place ni bâtons : le tireur, le gardien, et un dé chacun.
     const d = duel(tireur.st.TI, gardien.st.AR, true, ['TI', 'AR'], false, [tireur.st.TI, gardien.st.AR]);
-    return jeter(m, 'barrage', d).reussi;
+    return jeter(m, 'barrage', d);
   };
+  // Le dé de chaque tir est GARDÉ (S75b) : l'écran rejoue la fusillade tireur par tireur, et il ne l'invente pas.
+  const deDe = j => ({ de: j.de, total: j.total, de2: j.de2, total2: j.total2, reussi: j.reussi });
   const tA = tireursDe(m.A), tB = tireursDe(m.B);
   dire(m, 'Tirs de barrage.', 'periode');
   let i = 0;
   // Trois chacun, puis un pour un jusqu'à ce que l'un manque et l'autre non.
   while (true) {
     const a = tireurs(tA, i), b = tireurs(tB, i);
-    const rA = tir(a, m.B.piece_g), rB = tir(b, m.A.piece_g);
+    const jA = tir(a, m.B.piece_g), jB = tir(b, m.A.piece_g);
+    const rA = jA.reussi, rB = jB.reussi;
     if (rA) m.fusillade.A++;
     if (rB) m.fusillade.B++;
-    m.fusillade.tours.push({ a: a.p, ra: rA, b: b.p, rb: rB });
+    m.fusillade.tours.push({ a: a.p, ra: rA, ja: deDe(jA), b: b.p, rb: rB, jb: deDe(jB) });
     dire(m, `Barrage ${i + 1} — ${nomJoueur(a.p)} ${rA ? 'marque' : 'est arrêté'}, ${nomJoueur(b.p)} ${rB ? 'marque' : 'est arrêté'}.`, rA || rB ? 'but' : 'arret');
     i++;
     if (i >= TIREURS_FUSILLADE && m.fusillade.A !== m.fusillade.B) break;

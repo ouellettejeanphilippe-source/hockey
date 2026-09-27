@@ -225,7 +225,8 @@ export function etatDuTournoi(T) {
     matchs[cleDeMatch(T, mt)] = mt.auto ? 1 : {
       gfA: mt.r.gfA, gfB: mt.r.gfB,
       prolongation: !!mt.r.prolongation, nul: !!mt.r.nul,
-      vainqueur: mt.r.vainqueur || null, fusillade: mt.r.fusillade || null,
+      // La fusillade se garde en deux nombres (S75b) : ses tours portent des joueurs entiers, et le tournoi n'en lit que le compte.
+      vainqueur: mt.r.vainqueur || null, fusillade: mt.r.fusillade ? { A: mt.r.fusillade.A, B: mt.r.fusillade.B } : null,
       A: compacterCote(mt.r.A), B: compacterCote(mt.r.B),
     };
   }
@@ -417,10 +418,19 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
 
   const ligneMatch = mt => {
     const fini = !!mt.r;
-    const gagnantA = fini && mt.r.gfA > mt.r.gfB;
+    /*
+     * LES TIRS DE BARRAGE SE LISENT AU TABLEAU (S75b). Un 0-0 réglé en
+     * fusillade s'écrivait « 0 – 0 PROL. » avec le club d'en face en gras,
+     * même quand tu l'avais gagnée : le gagnant se lisait aux buts (`gfA >
+     * gfB`), que la fusillade ne touche jamais. C'est `gagnantDuMatch` qui
+     * tranche, et la rangée dit « TB » et le compte de la fusillade.
+     */
+    const gagnantA = fini && gagnantDuMatch(mt.r) === 'A';
+    const fs = fini && (mt.r.fusillade || mt.r.vainqueur) ? mt.r.fusillade : null;
+    const marque = !fini ? '' : fs ? `<i>TB${fs && Number.isInteger(fs.A) ? ` ${fs.A}-${fs.B}` : ''}</i>` : mt.r.vainqueur ? '<i>TB</i>' : mt.r.prolongation ? '<i>PROL.</i>' : '';
     return `<div class="tr-match ${mt.a === MOI || mt.b === MOI ? 'mien' : ''}">
       <span class="tr-c ${fini && gagnantA ? 'gagne' : ''}">${logo(T.clubs[mt.a].tag, 18)} ${esc(nomDe(mt.a))}</span>
-      <span class="tr-p">${fini ? `${mt.r.gfA} – ${mt.r.gfB}` : '—'}${fini && mt.r.prolongation ? '<i>PROL.</i>' : ''}</span>
+      <span class="tr-p">${fini ? `${mt.r.gfA} – ${mt.r.gfB}` : '—'}${marque}</span>
       <span class="tr-c ${fini && !gagnantA ? 'gagne' : ''}">${esc(nomDe(mt.b))} ${logo(T.clubs[mt.b].tag, 18)}</span>
     </div>`;
   };

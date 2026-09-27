@@ -4534,8 +4534,8 @@ function montrerFinExhibition(A, B, r) {
   const mienne = A.tag === 'YOU';
   $('gameModalTitle').textContent = 'Match d\'exhibition';
   $('gameModalBody').innerHTML = `
-    <p class="tr-verdict ${mienne && gagneA ? 'gagne' : ''}">${getTeamLogoHtml(A.tag, 22)} ${esc(A.nom)} ${r.gfA} – ${r.gfB} ${esc(B.nom)} ${getTeamLogoHtml(B.tag, 22)}${r.prolongation ? ' <i>PROL.</i>' : ''}</p>
-    <p class="tr-note">${esc(gagneA ? A.nom : B.nom)} l'emporte. Rien n'est écrit : la partie en cours et l'historique ne bougent pas.</p>
+    <p class="tr-verdict ${mienne && gagneA ? 'gagne' : ''}">${getTeamLogoHtml(A.tag, 22)} ${esc(A.nom)} ${r.gfA} – ${r.gfB} ${esc(B.nom)} ${getTeamLogoHtml(B.tag, 22)}${r.fusillade ? ` <i>TB ${r.fusillade.A}-${r.fusillade.B}</i>` : r.prolongation ? ' <i>PROL.</i>' : ''}</p>
+    <p class="tr-note">${esc(gagneA ? A.nom : B.nom)} l'emporte${r.fusillade ? ' aux tirs de barrage' : ''}. Rien n'est écrit : la partie en cours et l'historique ne bougent pas.</p>
     <div class="tr-actions">
       <button type="button" id="exhibitionEncore" class="btn">Un autre match</button>
       <button type="button" id="exhibitionMemes" class="btn">Les mêmes clubs</button>

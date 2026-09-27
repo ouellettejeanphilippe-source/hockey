@@ -435,7 +435,8 @@ if (jugeable) exiger('la parité est ORDONNÉE',
  * graines, en paires. Mesuré sur 200 paires de clubs pris au hasard : 95
  * victoires sur 100 contre la recrue, 4,2 buts à 0,6 ; 51 contre la Pro. Ici
  * les clubs sont RANGÉS par force et le camp A tombe plus souvent sur un
- * fort (la Pro contre la Pro y gagne 54 fois) : 100 sur 100, 4,8 à 0,3.
+ * fort (la Pro contre la Pro y gagne 54 fois) : 100 sur 100, 4,8 à 0,3 avec
+ * la recrue de S75 ; 96, 5,2 à 1,1 et 4 lancers avec l'élastique (S75b).
  * Le plancher dit que la recrue reste une recrue. Le plafond ne porte pas
  * sur ses victoires — contre l'IA Pro, jouer un geste par main ne gagne
  * presque jamais, et c'est voulu : l'IA Pro, c'est le joueur qui n'a plus
@@ -445,7 +446,7 @@ if (jugeable) exiger('la parité est ORDONNÉE',
  */
 {
   const N = Math.min(100, Math.max(20, Math.round(MATCHS / 2)));
-  let vPro = 0, vRec = 0, bRec = 0, bContre = 0;
+  let vPro = 0, vRec = 0, bRec = 0, bContre = 0, tRec = 0;
   for (let i = 0; i < N; i++) {
     const a = clubs[(i * 7 + 3) % clubs.length], b = clubs[(i * 13 + 5) % clubs.length];
     const jouer = recrue => {
@@ -457,11 +458,13 @@ if (jugeable) exiger('la parité est ORDONNÉE',
     const pro = jouer(null), rec = jouer('B');
     if (gagnantDuMatch(pro) === 'A') vPro++;
     if (gagnantDuMatch(rec) === 'A') vRec++;
-    bRec += rec.gfB; bContre += rec.gfA;
+    bRec += rec.gfB; bContre += rec.gfA; tRec += rec.B.tirs;
   }
-  console.log(`\nLe niveau Recrue (${N} paires) : l'IA Pro bat la Pro ${Math.round(100 * vPro / N)} fois sur 100, la Recrue ${Math.round(100 * vRec / N)} — ${(bContre / N).toFixed(2)} buts à ${(bRec / N).toFixed(2)} contre la recrue`);
+  console.log(`\nLe niveau Recrue (${N} paires) : l'IA Pro bat la Pro ${Math.round(100 * vPro / N)} fois sur 100, la Recrue ${Math.round(100 * vRec / N)} — ${(bContre / N).toFixed(2)} buts à ${(bRec / N).toFixed(2)} contre la recrue, qui lance ${(tRec / N).toFixed(2)} fois`);
   borne('la Recrue perd contre l\'IA Pro', 100 * vRec / N, 80, 100, ' sur 100');
   borne('la Recrue marque encore', bRec / N, 0.15, 2.5, ' but par match');
+  // S75b : la recrue qui ne faisait que se placer lançait 1,2 fois par match contre l'IA Pro ; l'élastique, 4,4.
+  borne('la Recrue attaque encore', tRec / N, 2.5, 12, ' lancers par match');
   exiger('la Recrue est plus facile que la Pro', vRec > vPro, `${vRec} contre ${vPro} victoires sur ${N}`);
 }
 
