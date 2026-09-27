@@ -3832,6 +3832,17 @@ a.spin-club:hover {
 .tb-tour.mien { color: var(--gold); }
 .tb-relance { font-size: 11.5px; color: var(--muted); }
 .tb-relance.on { color: var(--green); }
+/* LA GLACE NE SAUTE PAS (S75). Le passage du testeur a mesuré deux sauts :
+   la bannière d'un but, insérée dans le flux, poussait la glace de 39 px, et
+   la pastille d'une punition faisait passer la ligne d'état sur deux lignes
+   (+20 px) — la glace qu'on vise bougeait sous le doigt. La ligne d'état
+   tient sur UNE ligne (ce qui ne tient pas se coupe, la consigne d'abord :
+   elle est aussi dans la barre du bas), et la bannière se POSE par-dessus
+   elle au lieu de s'insérer. */
+.t-tete { position: relative; }
+.tb-etat { flex-wrap: nowrap; white-space: nowrap; min-height: 31px; box-sizing: border-box; }
+.tb-tour { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tb-etat .tb-cachot, .tb-etat .tb-relance { flex: none; }
 
 /* ---------- la glace ---------- */
 .t-plateau { display: flex; justify-content: center; align-items: flex-start; padding: 4px 4px 0; overflow: auto; }
@@ -3936,7 +3947,24 @@ a.spin-club:hover {
   position: absolute; right: 1px; bottom: 0; font-family: var(--display);
   font-size: clamp(11px, calc(var(--tcell) * 0.27), 15px); font-weight: 800; color: var(--text);
   background: var(--fond-creux); padding: 0 3px; border-radius: 3px;
+  /* « 83 % » se coupait en deux lignes dans une case de 26 px (S75). */
+  white-space: nowrap; z-index: 1;
 }
+/* LA COTE D'UNE PIÈCE SE LIT AU-DESSUS DU JETON (S75) : la case est sous la
+   couche des pièces, donc sa pastille était cachée par le jeton lui-même. */
+.t-cotes { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.t-cote-piece {
+  position: absolute; top: 0; left: 0;
+  transform: translate(calc((var(--tc) + 0.5) * var(--tcell) - 50%), calc(var(--tr) * var(--tcell) - 58%));
+  font-family: var(--display); font-size: clamp(11px, calc(var(--tcell) * 0.27), 15px); font-weight: 800;
+  line-height: 1.15; white-space: nowrap; color: var(--text);
+  background: var(--fond-creux); padding: 0 4px; border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--glace-blanc, #fff);
+}
+.t-cote-piece.dessous { transform: translate(calc((var(--tc) + 0.5) * var(--tcell) - 50%), calc((var(--tr) + 1) * var(--tcell) - 42%)); }
+/* TROIS LETTRES DANS UNE CASE ÉTROITE (S75) : c'est la glace mesurée qui pose `t-etroite`. */
+.t-glace.t-etroite .t-nom-long, .t-glace:not(.t-etroite) .t-nom-court { display: none; }
+.t-nom-court { letter-spacing: 0.02em; }
 
 /* ======================================================================
    LES PIÈCES GLISSENT, ELLES NE SE TÉLÉPORTENT PAS.
@@ -4172,11 +4200,17 @@ a.spin-club:hover {
       la question, les deux gestes, et de quoi changer d'avis. Il se balaie
       s'il déborde — sur un téléphone, « Frapper Vaive ? » et deux boutons
       ne tiennent pas toujours sur 390 px. */
-.t-dock-duel { overflow-x: auto; scrollbar-width: none; }
-.t-dock-duel::-webkit-scrollbar { display: none; }
-.t-dock-duel .t-dock-aide { flex: 0 0 auto; }
-.t-dock-duel .t-geste { flex: 0 0 auto; white-space: nowrap; }
-.t-dock-duel .t-annuler { margin-left: auto; color: var(--sub); }
+/* ET RIEN NE SORT DE L'ÉCRAN (S75) : la ligne se balayait, barre cachée, et
+   « Harponner », « Annuler », « Passer la main » étaient hors champ à 390 px.
+   La question et Annuler (épinglé à droite) tiennent la première ligne ; les
+   gestes et la fin de la main suivent, et se replient au lieu de déborder. */
+.t-dock-duel .t-dock-aide { flex: 1 1 auto; min-width: 0; }
+.t-dock-duel .t-annuler { flex: none; margin-left: auto; color: var(--sub); }
+.t-dock-gestes { flex-wrap: wrap; row-gap: 6px; }
+.t-dock-gestes:empty { display: none; }
+.t-dock-gestes .t-geste { flex: 0 0 auto; white-space: nowrap; }
+.t-dock-gestes .t-fin-tour, .t-dock-gestes .t-passer { margin-left: auto; }
+@media (max-width: 560px) { .t-dock-gestes .t-geste i { display: none; } }
 .t-dock .t-de { margin: 0; padding: 6px 8px; width: 100%; }
 .t-bas {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
@@ -4288,6 +4322,11 @@ a.spin-club:hover {
 .tr-note { font-size: 11.5px; color: var(--muted); margin: 6px 0 0; }
 .tr-club { font-size: 12.5px; color: var(--sub); padding-bottom: 6px; }
 .tbl tr.coupure td { border-bottom: 2px solid var(--gold); }
+/* LE NIVEAU DE L'ADVERSAIRE, SOUS LE BOUTON QUI LANCE LE MATCH (S75) : une
+   rangée à lui, petite — c'est un réglage, pas une commande. */
+.hub-niveau { flex: 1 1 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.hub-niveau-t { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sub); }
+.hub-niveau .seg button { min-height: 32px; }
 .tbl tr.mien td { background: var(--gold-soft); }
 
 .hub-prochain { padding: 2px 0 4px; }
@@ -4381,6 +4420,12 @@ a.spin-club:hover {
   font-family: var(--display); font-size: 16px; font-weight: 800;
   letter-spacing: 0.1em; text-transform: uppercase; text-align: center;
   animation: t-eclat-e 240ms ease-out;
+  /* POSÉE, PAS INSÉRÉE (S75) : dans le flux, elle poussait la glace de 39 px
+     pendant une seconde et huit. Elle couvre la ligne d'état, qui n'a rien
+     d'urgent à dire pendant qu'on célèbre. */
+  position: absolute; left: 8px; right: 8px; bottom: 3px; margin: 0; z-index: 3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 .t-eclat span { font-weight: 700; letter-spacing: 0.04em; opacity: 0.9; }
 .t-eclat-A { background: var(--t-a); color: var(--t-a-ink); }
@@ -4434,12 +4479,36 @@ a.spin-club:hover {
    effacerait ce centrage — la boîte sauterait d'une demi-largeur. */
 @keyframes t-dg-tombe { from { opacity: 0; translate: 0 -8px; scale: 0.9; } }
 
-/* Aux deux bords de la glace, la boîte s'aligne sur la case au lieu de s'y
-   centrer : centrée, elle sortirait du plateau et se ferait couper. */
-.t-de-glace.bord-g .t-dg, .t-flash.bord-g .t-flash-mot { left: 0; right: auto; }
-.t-de-glace.bord-d .t-dg, .t-flash.bord-d .t-flash-mot { left: auto; right: 0; }
-.t-de-glace.bord-g .t-dg, .t-de-glace.bord-d .t-dg { transform: none; }
-.t-flash.bord-g .t-flash-mot, .t-flash.bord-d .t-flash-mot { transform: translateY(-50%); }
+/* AUX BORDS, LA BOÎTE REVIENT DANS LA GLACE DE CE QU'IL FAUT (S75). Trois
+   ancrages choisis par la colonne laissaient encore le dé coupé à droite dès
+   la dixième colonne ; `garderDedans` (js/plateau.js) mesure la boîte posée
+   et donne `--dx`, le décalage qui la ramène. */
+.t-dg, .t-flash-mot, .t-sifflet-mot { margin-left: var(--dx, 0px); }
+
+/* LE VERDICT ATTEND QUE LE TAMBOUR S'ARRÊTE (S75). Le total, la couleur de
+   la bordure et le mot (« réussi », « 1 naturel : raté ») se lisaient avant
+   la fin du roulement : on connaissait le résultat pendant que le dé
+   tournait encore. Ils restent cachés le temps du tambour (520 ms), puis
+   paraissent. Même règle dans la barre du bas, où la relance — qui
+   n'existe que sur un échec — le trahissait aussi. */
+.t-dg-calcul b, .t-dg-mot em, .t-de .t-de-verdict, .t-de .t-de-boutons { animation: t-de-attend 0s linear 540ms backwards; }
+.t-dg.ok, .t-dg.rate { animation: t-dg-tombe 200ms cubic-bezier(0.2, 1.4, 0.5, 1), t-dg-teinte 0s linear 540ms backwards; }
+.t-de.ok, .t-de.rate { animation: t-de-teinte 0s linear 540ms backwards; }
+@keyframes t-de-attend { from, to { visibility: hidden; } }
+@keyframes t-dg-teinte { from, to { border-left-color: var(--line); } }
+@keyframes t-de-teinte { from, to { border-left-color: var(--muted); } }
+.t-de { position: relative; }
+.t-de-roule {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: var(--sub);
+  visibility: hidden; animation: t-de-roule 0s linear 540ms backwards;
+}
+@keyframes t-de-roule { from, to { visibility: visible; } }
+.t-dg-texte { display: flex; flex-direction: column; gap: 1px; line-height: 1.15; }
+.t-dg-mot em { font-style: normal; font-weight: 700; }
+.t-dg.ok .t-dg-mot em { color: var(--green); }
+.t-dg.rate .t-dg-mot em { color: var(--red); }
+.t-de-verdict em { font-style: normal; }
 
 /* Le tambour : trois fois les six faces, une fenêtre d'un chiffre de haut. */
 .t-dg-fenetre {
@@ -4488,6 +4557,8 @@ a.spin-club:hover {
 @media (prefers-reduced-motion: reduce) {
   .t-dg, .t-dg-tambour { animation: none; }
   .t-flash-mot { animation: t-flash-fixe 1200ms steps(1) forwards; }
+  /* Sans tambour qui roule, rien n'est à attendre : le verdict est là tout de suite. */
+  .t-dg.ok, .t-dg.rate, .t-de.ok, .t-de.rate, .t-dg-calcul b, .t-dg-mot em, .t-de .t-de-verdict, .t-de .t-de-boutons, .t-de-roule { animation: none; }
 }
 @keyframes t-flash-fixe { 0%, 90% { opacity: 1; } 100% { opacity: 0; } }
 
@@ -4516,8 +4587,14 @@ a.spin-club:hover {
   animation: t-sifflet-point 900ms ease-out infinite;
 }
 @keyframes t-sifflet-point { from { opacity: 0.95; scale: 0.55; } to { opacity: 0; scale: 1.35; } }
+/* LE MOT NE COUVRE PAS LES DEUX CENTRES (S75). Posé juste au-dessus du point,
+   il cachait le centre qui s'y aligne, et le cercle l'autre : on ne voyait
+   pas qui allait gagner la mise au jeu. Il saute la rangée des centres —
+   au-dessus dans la moitié du bas, dessous (`.dessous`) dans celle du haut,
+   jamais vers le filet le plus proche — et tombe entre les avants et les
+   défenseurs, là où la mise au jeu ne pose personne. */
 .t-sifflet-mot {
-  position: absolute; left: 50%; bottom: calc(100% + 5px); transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: calc(100% + var(--tcell) + 2px); transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 1px;
   white-space: nowrap; padding: 3px 9px; border-radius: var(--r-s);
   background: var(--panel); border: 1px solid var(--gold);
@@ -4529,10 +4606,8 @@ a.spin-club:hover {
   letter-spacing: 0.05em; text-transform: uppercase; color: var(--text);
 }
 .t-sifflet-mot i { font-style: normal; font-size: 11.5px; color: var(--sub); }
-/* Même règle que le dé : on ne sort jamais du plateau. */
-.t-sifflet.dessous .t-sifflet-mot { bottom: auto; top: calc(100% + 5px); }
-.t-sifflet.bord-g .t-sifflet-mot { left: 0; transform: none; }
-.t-sifflet.bord-d .t-sifflet-mot { left: auto; right: 0; transform: none; }
+/* Dessous, du côté du centre de la glace ; les côtés, c'est la mesure (`--dx`). */
+.t-sifflet.dessous .t-sifflet-mot { bottom: auto; top: calc(100% + var(--tcell) + 2px); }
 @media (prefers-reduced-motion: reduce) {
   .t-sifflet::before, .t-sifflet-mot { animation: none; }
 }

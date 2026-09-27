@@ -373,14 +373,31 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
   /* ---------- les actions ---------- */
   function dessinerActions() {
     if (T.champion != null) {
-      actions.innerHTML = '<button type="button" class="hub-suite">Voir le bilan du tournoi</button>';
+      actions.innerHTML = '<button type="button" class="btn go hub-suite">Voir le bilan du tournoi</button>';
       return;
     }
     const mt = monMatch();
+    /*
+     * UNE SEULE COMMANDE PRINCIPALE (S75). Les deux boutons se ressemblaient
+     * trait pour trait, et « Le laisser se jouer » a la même taille que « Jouer
+     * le match » : le testeur a hésité devant les deux. Jouer est plein (`go`,
+     * comme « Journée suivante » à l'écran de saison), laisser jouer est cerclé.
+     */
+    /*
+     * LE NIVEAU SE CHOISIT LÀ OÙ ON LANCE LE MATCH (S75). C'est aussi une
+     * option du jeu, mais un enfant qui vient de perdre 0-16 ne va pas la
+     * chercher dans les options : elle est ici, sous le bouton qui lance le
+     * match. Les matchs que tu ne joues pas restent Pro.
+     */
+    const niveau = ctx.niveau ? ctx.niveau() : null;
+    const choixNiveau = niveau ? `<div class="hub-niveau" role="group" aria-label="Le niveau de l'adversaire">
+         <span class="hub-niveau-t">Adversaire</span>
+         <span class="seg"><button type="button" data-niveau="RECRUE" class="${niveau === 'RECRUE' ? 'on' : ''}" aria-pressed="${niveau === 'RECRUE'}">Recrue</button><button type="button" data-niveau="PRO" class="${niveau === 'PRO' ? 'on' : ''}" aria-pressed="${niveau === 'PRO'}">Pro</button></span>
+       </div>` : '';
     actions.innerHTML = mt
-      ? `<button type="button" class="hub-jouer">Jouer le match sur table</button>
-         <button type="button" class="hub-sauter">Le laisser se jouer</button>`
-      : '<button type="button" class="hub-suite">Voir le bilan du tournoi</button>';
+      ? `<button type="button" class="btn go hub-jouer">Jouer le match sur table</button>
+         <button type="button" class="btn hub-sauter">Le laisser se jouer</button>${choixNiveau}`
+      : '<button type="button" class="btn go hub-suite">Voir le bilan du tournoi</button>';
   }
 
   /* ---------- les volets ---------- */
@@ -520,6 +537,8 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
     const t = ev.target;
     const o = t.closest('[data-onglet]');
     if (o) { onglet = o.dataset.onglet; rendre(); return; }
+    const nv = t.closest('[data-niveau]');
+    if (nv && ctx.choisirNiveau) { ctx.choisirNiveau(nv.dataset.niveau); dessinerActions(); return; }
     if (t.closest('.hub-jouer')) { const mt = monMatch(); if (mt) jouerLeMien(mt); return; }
     if (t.closest('.hub-sauter')) {
       const mt = monMatch();
