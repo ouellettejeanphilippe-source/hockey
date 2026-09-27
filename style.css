@@ -7400,57 +7400,6 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 /* États : signée, un anneau vert ; hors d'atteinte, grisée (la règle de base). */
 #pool .pcard.pv.signed { outline: 0; box-shadow: inset 0 0 0 2px var(--green); }
 
-/* LES ÈRES, pièce par pièce. */
-/* e70 : la photo dans une boîte à filet blanc, le nom sur une banderole crème. */
-#pool .pcard.pv.e70 .pcard-avatar, .cj-recto.e70 .cj-fenetre { border-radius: 2px; box-shadow: inset 0 0 0 2px #fff; }
-#pool .pcard.pv.e70 .pcard-name, .cj-recto.e70 .cj-bandeau {
-  background: #f4ecd8; color: #1d1a14;
-  clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 50%, 100% 100%, 0 100%, 7px 50%);
-  padding-left: 12px; padding-right: 12px; border-radius: 0;
-}
-#pool .pcard.pv.e70 .pcard-name .fname, .cj-recto.e70 .cj-bandeau .fname { color: #6b5f48; }
-/* e80 : le haut ondulé de la photo, l'écusson dans un coin (et la rondelle descend), la bande du nom aux couleurs du club. */
-#pool .pcard.pv.e80 .pcard-avatar::before, .cj-recto.e80 .cj-fenetre::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 7px; z-index: 2;
-  background: radial-gradient(circle at 50% 0, #f5eedf 4.5px, transparent 5px) 0 0 / 12px 7px repeat-x;
-}
-#pool .pcard.pv.e80 .pcard-avatar { box-shadow: inset 0 0 0 1.5px var(--team-stripe, #8d97a3); }
-#pool .pcard.pv.e80 .pb-team { align-self: start; margin-top: 9px; background: #f5eedf; color: var(--encre); }
-#pool .pcard.pv.e80 .pb-pos { align-self: end; margin: 0 0 5px 5px; }
-#pool .pcard.pv.e80:not(.cj-meme-club) .pb-pos { margin-bottom: 26px; }
-#pool .pcard.pv.e80 .pcard-name, .cj-recto.e80 .cj-bandeau {
-  background: var(--team-band, #243044); color: var(--team-ink, #fff); border-radius: 3px;
-  box-shadow: inset 0 -2px 0 var(--team-stripe, transparent);
-}
-#pool .pcard.pv.e80 .pcard-name .fname, .cj-recto.e80 .cj-bandeau .fname { color: color-mix(in srgb, var(--team-ink, #fff) 78%, transparent); }
-#pool .pcard.pv.e80 .cj-annee, .cj-recto.e80 .cj-annee { background: #f5eedf; color: var(--encre-rouge); font-style: italic; }
-/* e90 : la photo jusqu'au bord, le nom en diagonale qui mord la photo, un filet de la secondaire. */
-#pool .pcard.pv.e90 { box-shadow: inset 0 0 0 2px var(--team-stripe, #8d97a3); }
-#pool .pcard.pv.e90 .pcard-avatar { margin: -6px -6px 0; border-radius: 12px 12px 0 0; }
-#pool .pcard.pv.e90 .pcard-name, .cj-recto.e90 .cj-bandeau {
-  margin-top: -12px; height: calc(100% + 12px); z-index: 2; border-radius: 0;
-  background: linear-gradient(90deg, var(--team-band, #243044), color-mix(in srgb, var(--team-band, #243044) 70%, var(--team-stripe, #8d97a3)));
-  color: var(--team-ink, #fff); font-style: italic;
-  clip-path: polygon(0 16%, 100% 0, 100% 84%, 0 100%);
-  padding-top: 7px;
-}
-#pool .pcard.pv.e90 .pcard-name .fname, .cj-recto.e90 .cj-bandeau .fname { color: color-mix(in srgb, var(--team-ink, #fff) 78%, transparent); }
-/* e00 : le cadre sombre, un filet d'argent, le nom en lettres d'argent. */
-#pool .pcard.pv.e00 { box-shadow: inset 0 0 0 1px #9aa4ae, inset 0 0 0 3px #111318; }
-#pool .pcard.pv.e00 .pcard-avatar, .cj-recto.e00 .cj-fenetre { box-shadow: inset 0 0 0 1px #cfd6de; border-left: 3px solid var(--team-band, #243044); }
-#pool .pcard.pv.e00 .pcard-name .lname, .cj-recto.e00 .cj-bandeau .lname {
-  background: linear-gradient(180deg, #ffffff, #b9c2cb 55%, #eef1f4); -webkit-background-clip: text; background-clip: text; color: transparent;
-  letter-spacing: 0.05em;
-}
-#pool .pcard.pv.e00 .pcard-name, .cj-recto.e00 .cj-bandeau { border-bottom: 2px solid var(--team-band, #243044); border-radius: 0; }
-/* e10 : le moderne — la photo sur le dégradé du club, le nom net dans une bande qui mord la photo. */
-#pool .pcard.pv.e10 .pcard-avatar { background: transparent; }
-#pool .pcard.pv.e10 .pcard-name, .cj-recto.e10 .cj-bandeau {
-  margin-top: -12px; height: calc(100% + 12px); z-index: 2; border-radius: 0 0 6px 6px;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55) 30%, rgba(0, 0, 0, 0.72));
-  box-shadow: inset 0 -2px 0 var(--team-stripe, transparent); padding-top: 8px;
-}
-
 /* =================================================================
    LA VARIANTE : LA FINITION PAR-DESSUS (S78)
    JP : *Pour les rareté pas par joueur, mais par dessus joueur, comme un
@@ -7584,7 +7533,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
   gap: 8px; padding: 10px; border-radius: 16px; overflow: hidden; touch-action: pan-y; cursor: pointer;
   background: var(--cj-fond); color: var(--cj-encre);
-  box-shadow: inset 0 0 0 1.5px var(--fc-lisere, rgba(255, 255, 255, 0.14)), 0 10px 28px rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0 0 1.5px var(--fc-lisere, rgba(255, 255, 255, 0.14)), var(--a-anneau, 0 0 0 transparent), 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 .fiche-carte .fc-face.fc-cachee { visibility: hidden; pointer-events: none; }
 .fc-face.tc-peu { --fc-lisere: #3fb0d6; }
@@ -7595,7 +7544,6 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .fc-recto .cj-fenetre { aspect-ratio: 1 / 1; flex: none; }
 .fc-face > * { flex-shrink: 0; }
 .fiche-carte .cj-recto .cj-bandeau { height: auto; }
-.fiche-carte .cj-recto.e90 .cj-fenetre { margin: -10px -10px 0; border-radius: 16px 16px 0 0; }
 .fc-recto .cj-bandeau .pcard-full-name { font-size: 28px; }
 .fc-club { margin: -2px 2px 0; font: 700 14px/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--cj-encre-2); }
 .fc-legende, .fc-sec { margin: 2px 2px -3px; font: 700 10.5px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-encre-2); }
@@ -7626,26 +7574,20 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
     repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 7px, transparent 7px 14px),
     radial-gradient(110% 90% at 50% 20%, color-mix(in srgb, var(--team-band, var(--card-primary)) 85%, #ffffff), color-mix(in srgb, var(--team-band, var(--card-primary)) 40%, #05070a) 80%);
 }
-.cj-recto.e10 .cj-fenetre { background: transparent; }
-.cj-recto.e90 .cj-fenetre { margin: -8px -8px 0; border-radius: 12px 12px 0 0; }
 .cj-fenetre > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 8%; transform: none; -webkit-mask-image: none; mask-image: none; }
 .cj-fenetre > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 72px; opacity: 0.35; }
 .cj-rondelle { position: absolute; z-index: 3; top: 8px; left: 8px; }
-.cj-recto.e80 .cj-rondelle { top: auto; bottom: 8px; }
 /* L'écusson dans son coin, SANS cercle (S78) : son ombre épouse sa forme, il ne se décentre jamais dans une pastille. */
 .cj-coin-logo {
   position: absolute; z-index: 3; bottom: 8px; left: 8px; display: grid; place-items: center; width: 32px; height: 32px;
   filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.85)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
-.cj-recto.e80 .cj-coin-logo { bottom: auto; top: 12px; filter: drop-shadow(0 0 1px #f5eedf) drop-shadow(0 0 1px #f5eedf) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5)); }
-.cj-recto.e80 .cj-rondelle + .cj-coin-logo { left: 8px; }
 .cj-coin-logo :is(img, svg) { position: static; width: 28px; height: 28px; transform: none; object-fit: contain; }
 .cj-recto .cj-annee { right: 8px; bottom: 8px; font-size: 13px; padding: 3px 7px; }
 /* Le bandeau du nom : sous la photo, dans le style de l'époque (plus haut, « LES ÈRES »). */
 .cj-bandeau { position: relative; z-index: 3; min-height: 50px; display: flex; align-items: center; padding: 6px 10px; border-radius: 5px; }
 .cj-bandeau .pcard-full-name { min-width: 0; font-size: 24px; line-height: 0.98; overflow-wrap: anywhere; color: inherit; }
 .cj-bandeau .pcard-full-name .fname { color: inherit; opacity: 0.8; font-size: 13px; margin-bottom: 2px; }
-.cj-recto:is(.e90, .e10) .cj-bandeau { margin-top: -14px; }
 /* Ce que la carte JOUE (au verso). */
 .cj-sa-carte { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.28); font-size: 13px; line-height: 1.35; }
 .cj-sa-rarete { font: 800 12px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tc-bord, #9aa4ae); }
@@ -9086,7 +9028,8 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .cj-ruban.etoile { background: linear-gradient(115deg, #b98a24, #fff0b3 30%, #c9961f 55%, #ffe48a 80%); color: #2a1d04; }
 .cj-recto .cj-ruban { bottom: 12px; padding: 5px 16px; font-size: 13px; }
 /* Au vestiaire, le ruban se tient entre l'écusson et l'année quand ils sont là (le loto). */
-@container carte (max-width: 140px) { #pool .pcard.pv .cj-ruban { bottom: auto; top: 30px; padding: 2px 7px; font-size: 7.5px; letter-spacing: 0.06em; } }
+/* Une carte étroite (le loto) : le ruban reste sur le chandail, au-dessus des pastilles du bas — jamais sur un visage. */
+@container carte (max-width: 140px) { #pool .pcard.pv .cj-ruban { bottom: 21px; padding: 2px 7px; font-size: 7.5px; letter-spacing: 0.06em; } }
 
 /* LES MOTIFS DES SOUS-SÉRIES, derrière le portrait. */
 .ss-etoile { --ss-motif:
@@ -9100,101 +9043,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 /* L'étoile : un filet d'or sous la bande du nom. */
 #pool .pcard.pv.ss-etoile .pcard-name, .cj-recto.ss-etoile .cj-bandeau { outline: 1.5px solid #e8c46a; outline-offset: -1.5px; }
 
-/* ---------- s70 · 1970-74 : le bord de couleur à double filet, la photo arrondie ---------- */
-.s70 { --s-logo: 0.12; --s-motif: radial-gradient(circle, rgba(255, 255, 255, 0.16) 1.1px, transparent 1.5px) 0 0 / 7px 7px; }
-#pool .pcard.pv.s70, .cj-recto.s70, .fc-verso.s70 { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--team-band, #1f4aa8) 55%, #000), inset 0 0 0 5px #f4ecd8; }
-#pool .pcard.pv.s70 .pcard-avatar, .cj-recto.s70 .cj-fenetre { border-radius: 16px 16px 4px 4px; box-shadow: inset 0 0 0 2px #fff; }
-
-/* ---------- s75 · 1975-79 : le carton blanc, la photo cadrée du club, le nom en fanion ---------- */
-:is(.pcard.pv, .cj-recto, .fc-verso).s75 {
-  --cj-fond: var(--grain), linear-gradient(176deg, #fbf8f0, #efe8d6);
-  --cj-encre: #1d1a14; --cj-encre-2: #6b5f48; --cj-prix: #a3252b;
-}
-.s75 { --s-logo: 0.1; --s-motif: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 9px); }
-#pool .pcard.pv.s75 .pcard-avatar, .cj-recto.s75 .cj-fenetre { border-radius: 3px; box-shadow: inset 0 0 0 4px var(--team-band, #1f4aa8); }
-#pool .pcard.pv.s75 .pcard-name, .cj-recto.s75 .cj-bandeau {
-  background: var(--team-band, #1f4aa8); color: var(--team-ink, #fff);
-  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%); padding-right: 16px;
-}
-#pool .pcard.pv.s75 .pcard-name .fname, .cj-recto.s75 .cj-bandeau .fname { color: color-mix(in srgb, var(--team-ink, #fff) 78%, transparent); }
-
-/* ---------- s80 · 1980-84 : le bord sombre du club à filet d'or, la photo en arche ---------- */
-:is(.pcard.pv, .cj-recto, .fc-verso).s80 {
-  --cj-fond: linear-gradient(170deg, rgba(255, 255, 255, 0.06), transparent 40%), var(--team-fond, #1b2230);
-  --cj-encre: #f3f5f8; --cj-encre-2: rgba(243, 245, 248, 0.72); --cj-prix: #ffd76a;
-}
-.s80 { --s-logo: 0.1; --s-motif: repeating-conic-gradient(from 0deg at 50% 115%, rgba(255, 255, 255, 0.08) 0 5deg, transparent 5deg 11deg); }
-#pool .pcard.pv.s80, .cj-recto.s80, .fc-verso.s80 { box-shadow: inset 0 0 0 4px var(--team-band, #243044), inset 0 0 0 5.5px #e8c46a; }
-#pool .pcard.pv.s80 .pcard-avatar::before, .cj-recto.s80 .cj-fenetre::before { content: none; }
-#pool .pcard.pv.s80 .pcard-avatar, .cj-recto.s80 .cj-fenetre { border-radius: 42% 42% 5px 5px / 20% 20% 5px 5px; box-shadow: inset 0 0 0 1.5px #e8c46a; }
-#pool .pcard.pv.s80 .pcard-name, .cj-recto.s80 .cj-bandeau { box-shadow: inset 0 -2px 0 #e8c46a; font-style: italic; }
-#pool .pcard.pv.s80 .pb-team { background: #f5eedf; }
-
-/* ---------- s85 · 1985-89 : le carton, le haut ondulé (l'O-Pee-Chee 85-86), des points de trame ---------- */
-.s85 { --s-logo: 0.12; --s-motif: radial-gradient(circle, color-mix(in srgb, var(--team-stripe, #8d97a3) 40%, transparent) 1px, transparent 1.4px) 0 0 / 6px 6px; }
-
-/* ---------- s90 · 1990-92 : la photo pleine, la bande du club sur le côté ---------- */
-.s90 {
-  --s-logo: 0; --s-motif: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 10px);
-  --s-dessus:
-    linear-gradient(90deg, transparent calc(100% - 12px), var(--team-stripe, #8d97a3) calc(100% - 12px) calc(100% - 9px), var(--team-band, #243044) calc(100% - 9px)),
-    linear-gradient(225deg, var(--team-band, #243044) 0 11%, var(--team-stripe, #8d97a3) 11% 12.5%, transparent 12.5%);
-}
-
-/* ---------- s93 · 1993-95 : la photo pleine, le nom doré sur le noir, l'écusson en filigrane ---------- */
-.s93 {
-  --s-logo: 0.18; --s-motif: linear-gradient(160deg, rgba(255, 255, 255, 0.12), transparent 50%);
-  --s-dessus: linear-gradient(180deg, transparent 72%, color-mix(in srgb, var(--team-band, #243044) 65%, transparent));
-}
-#pool .pcard.pv.s93 .pcard-name, .cj-recto.s93 .cj-bandeau {
-  background: linear-gradient(90deg, #07090d, color-mix(in srgb, var(--team-band, #243044) 45%, #07090d));
-  box-shadow: inset 0 2px 0 var(--team-band, #243044); color: #f3f5f8;
-}
-#pool .pcard.pv.s93 .pcard-name .lname, .cj-recto.s93 .cj-bandeau .lname {
-  background: linear-gradient(180deg, #fff6d6, #f1cf6c 45%, #c9961f 60%, #ffe8a3); -webkit-background-clip: text; background-clip: text; color: transparent;
-}
-#pool .pcard.pv.s93 .pcard-name .fname, .cj-recto.s93 .cj-bandeau .fname { color: #d9c28a; }
-
-/* ---------- s96 · 1996-2002 : le noir, l'argent, les coins coupés, un filet arc-en-ciel ---------- */
-.s96 { --s-logo: 0.08; --s-motif:
-  radial-gradient(60% 50% at 50% 35%, color-mix(in srgb, var(--team-band, #243044) 60%, transparent), transparent 72%),
-  linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0 / 100% 6px; }
-#pool .pcard.pv.s96 .pcard-avatar, .cj-recto.s96 .cj-fenetre {
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
-}
-.cj-recto.s96 .cj-annee { right: 16px; }
-#pool .pcard.pv.s96 .pcard-name, .cj-recto.s96 .cj-bandeau {
-  background: linear-gradient(90deg, #ff6f91, #ffd66e, #7cffc4, #74c8ff, #b58bff) 0 100% / 100% 2px no-repeat, #0b0d11;
-  border-bottom: 0;
-}
-
-/* ---------- s03 · 2003-09 : les éclats géométriques du club, la plaque carrée ---------- */
-.s03 { --s-logo: 0; --s-motif:
-  linear-gradient(115deg, transparent 0 36%, color-mix(in srgb, var(--team-band, #243044) 75%, transparent) 36% 52%, transparent 52%),
-  linear-gradient(115deg, transparent 0 57%, color-mix(in srgb, var(--team-stripe, #8d97a3) 55%, transparent) 57% 63%, transparent 63%),
-  linear-gradient(65deg, transparent 0 68%, rgba(255, 255, 255, 0.09) 68% 75%, transparent 75%); }
-#pool .pcard.pv.s03 .pcard-name, .cj-recto.s03 .cj-bandeau {
-  background: #0d0f13; border-bottom: 0; border-radius: 2px; box-shadow: inset 6px 0 0 var(--team-band, #243044); padding-left: 12px;
-}
-
-/* ---------- s10 · 2010-17 : la plaque blanche, le grand écusson en filigrane ---------- */
-.s10 { --s-logo: 0.2; --s-motif: linear-gradient(160deg, rgba(255, 255, 255, 0.14), transparent 45%); }
-#pool .pcard.pv.s10 .pcard-name, .cj-recto.s10 .cj-bandeau {
-  background: #f6f7f9; color: #12151b; box-shadow: inset 0 3px 0 var(--team-band, #243044); border-radius: 0 0 6px 6px;
-}
-#pool .pcard.pv.s10 .pcard-name .fname, .cj-recto.s10 .cj-bandeau .fname { color: #5b6270; opacity: 1; }
-
-/* ---------- s18 · depuis 2018 : les lignes de la patinoire et les projecteurs ---------- */
-.s18 { --s-logo: 0.1; --s-motif:
-  conic-gradient(from 180deg at 50% -8%, transparent 0 162deg, rgba(255, 255, 255, 0.13) 170deg, transparent 178deg, rgba(255, 255, 255, 0.1) 186deg, transparent 194deg),
-  radial-gradient(circle at 50% 64%, transparent 0 29%, rgba(230, 60, 70, 0.35) 29% 30.5%, transparent 30.5%),
-  linear-gradient(90deg, transparent 0 17%, rgba(90, 140, 255, 0.35) 17% 19%, transparent 19% 49%, rgba(230, 60, 70, 0.42) 49% 51%, transparent 51% 81%, rgba(90, 140, 255, 0.35) 81% 83%, transparent 83%); }
-#pool .pcard.pv.s18 .pcard-name, .cj-recto.s18 .cj-bandeau { box-shadow: inset 0 -3px 0 var(--team-band, #243044); }
-
-
-/* Aux années 80, la rondelle et l'écusson tiennent le bas de la photo : le ruban monte d'un cran. */
-#pool .pcard.pv.e80 .cj-ruban, .cj-recto.e80 .cj-ruban { bottom: 34px; }
-
 /* =================================================================
    LA CARTE MINI (S78, js/game.js `carteMiniHtml`)
    JP : *versions normales et version mini, pour genre les picks*. Le même
@@ -9207,22 +9055,17 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
   position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0;
   padding: 5px; border-radius: 10px; overflow: hidden; text-align: left;
   background: var(--cj-fond); color: var(--cj-encre);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--a-anneau, 0 0 0 transparent), 0 6px 16px rgba(0, 0, 0, 0.45);
 }
 .cj-mini-carte > * { flex-shrink: 0; }
 .cj-mini-carte .cj-fenetre { aspect-ratio: 1 / 1; border-radius: 6px; }
-.cj-recto.cj-mini-carte.e90 .cj-fenetre { margin: -5px -5px 0; border-radius: 10px 10px 0 0; }
 .cj-mini-carte .cj-rondelle { top: 5px; left: 5px; height: 20px; min-width: 20px; padding: 0 5px; font-size: 9px; }
-.cj-recto.cj-mini-carte.e80 .cj-rondelle { top: auto; bottom: 5px; }
 .cj-mini-carte .cj-coin-logo { width: 24px; height: 24px; left: 5px; bottom: 5px; }
-.cj-recto.cj-mini-carte.e80 .cj-coin-logo { top: 8px; bottom: auto; }
 .cj-mini-carte .cj-coin-logo :is(img, svg) { width: 20px; height: 20px; }
 .cj-mini-carte .cj-annee { right: 5px; bottom: 5px; padding: 2px 4px; font-size: 9.5px; }
-.cj-mini-carte .cj-ruban { bottom: 32px; padding: 2px 8px; font-size: 8.5px; letter-spacing: 0.08em; }
+/* Sur la mini, le ruban tient le bas de la photo, entre l'écusson et l'année : jamais sur un visage. */
+.cj-mini-carte .cj-ruban { bottom: 5px; padding: 2px 7px; font-size: 8px; letter-spacing: 0.06em; }
 .cj-recto.cj-mini-carte .cj-bandeau { min-height: 36px; height: auto; padding: 3px 7px; }
-.cj-recto.cj-mini-carte:is(.e90, .e10) .cj-bandeau { margin-top: -9px; }
-/* La diagonale de 1990 mord le haut de sa bande : un peu plus de hauteur, pour que le prénom ne s'y perde pas. */
-.cj-recto.cj-mini-carte.e90 .cj-bandeau { min-height: 46px; padding-top: 9px; }
 .cj-mini-carte .cj-bandeau .pcard-full-name { font-size: clamp(13px, 5.2vw, 18px); line-height: 1; }
 .cj-mini-carte .cj-bandeau .pcard-full-name .lname { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cj-mini-carte .cj-bandeau .pcard-full-name .fname { font-size: 10px; margin-bottom: 1px; }
@@ -9283,3 +9126,142 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .fc-mod-effets .bon { color: color-mix(in srgb, #1f9d63 70%, currentColor); }
 .fc-mod-effets .prix { color: color-mix(in srgb, #d9384a 75%, currentColor); }
 .fc-mods-vide { margin: 0 2px; font-size: 12.5px; color: var(--cj-encre-2); }
+
+/* =================================================================
+   UN DESIGN PAR ANNÉE (S78, js/cartes.js `DESIGNS`)
+   JP : *design de carte par années, avec différents concepts visuels*.
+   Chaque saison porte cinq concepts : le cadre (c-), la photo (f-), le nom
+   (n-), le motif derrière le portrait (m-) et l'accent (a-). Chacun s'écrit
+   UNE fois pour les trois gabarits : la carte du vestiaire (#pool), la
+   fiche et la mini (.cj-recto) ; le cadre et l'anneau valent aussi pour le
+   verso. L'époque (e70…e10) ne donne plus que la palette de base.
+   ================================================================= */
+#pool .pcard.pv .pcard-avatar, .cj-recto .cj-fenetre { margin: 0; clip-path: none; transform: none; box-shadow: none; border-left: 0; }
+#pool .pcard.pv .pcard-avatar::before, .cj-recto .cj-fenetre::before { content: none; }
+#pool .pcard.pv .pcard-name, .cj-recto .cj-bandeau { clip-path: none; margin-top: 0; font-style: normal; box-shadow: none; border-bottom: 0; background: none; }
+#pool .pcard.pv .pcard-name { height: auto; }
+#pool .pcard.pv .pcard-name .lname, .cj-recto .cj-bandeau .lname { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: inherit; }
+#pool .pcard.pv { box-shadow: var(--a-anneau, 0 0 0 transparent); }
+#pool .pcard.pv, .cj-recto { --f-fond: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 5px, transparent 5px 10px), radial-gradient(130% 85% at 50% 18%, color-mix(in srgb, var(--team-band, #2a3140) 85%, #ffffff), color-mix(in srgb, var(--team-band, #2a3140) 40%, #05070a) 80%); }
+#pool .pcard.pv .pcard-avatar, .cj-recto .cj-fenetre { background: var(--f-fond); }
+/* LE CADRE : le carton, et ses encres. */
+:is(.pcard.pv, .cj-recto, .fc-verso).c-club { --cj-fond: var(--team-band, #1f4aa8); --cj-encre: var(--team-ink, #fff); --cj-encre-2: color-mix(in srgb, var(--team-ink, #fff) 75%, transparent); --cj-prix: var(--team-ink, #fff); --f-onde: var(--team-band, #1f4aa8); }
+:is(.pcard.pv, .cj-recto, .fc-verso).c-club-sombre { --cj-fond: linear-gradient(170deg, rgba(255, 255, 255, 0.07), transparent 40%), var(--team-fond, #1b2230); --cj-encre: #f3f5f8; --cj-encre-2: rgba(243, 245, 248, 0.72); --cj-prix: #ffd76a; --f-onde: var(--team-fond, #1b2230); }
+:is(.pcard.pv, .cj-recto, .fc-verso).c-blanc { --cj-fond: var(--grain), linear-gradient(176deg, #fdfbf6, #efe8d6); --cj-encre: #1d1a14; --cj-encre-2: #6b5f48; --cj-prix: #a3252b; --f-onde: #fbf8f0; }
+:is(.pcard.pv, .cj-recto, .fc-verso).c-carton { --cj-fond: var(--grain), linear-gradient(176deg, #f7f0e0, var(--carton) 45%, var(--carton-2)); --cj-encre: var(--encre); --cj-encre-2: #6a5d44; --cj-prix: var(--encre-rouge); --f-onde: #f5eedf; }
+:is(.pcard.pv, .cj-recto, .fc-verso).c-noir { --cj-fond: linear-gradient(170deg, #22262e, #111318 70%); --cj-encre: #f3f5f8; --cj-encre-2: rgba(243, 245, 248, 0.7); --cj-prix: #e8edf2; --f-onde: #1a1d23; }
+:is(.pcard.pv, .cj-recto, .fc-verso).c-degrade { --cj-fond: linear-gradient(160deg, var(--team-band, #243044), var(--team-fond, #151a22) 72%); --cj-encre: #f3f5f8; --cj-encre-2: rgba(243, 245, 248, 0.72); --cj-prix: #ffd76a; --f-onde: var(--team-band, #243044); }
+:is(.pcard.pv, .cj-recto, .fc-verso).c-bois { --cj-fond: linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.3)), repeating-linear-gradient(93deg, #6b4423 0 3px, #7b502b 3px 8px, #5c391c 8px 10px, #75492a 10px 15px); --cj-encre: #f7ecd9; --cj-encre-2: rgba(247, 236, 217, 0.76); --cj-prix: #ffd76a; --f-onde: #6b4423; }
+:is(.pcard.pv, .cj-recto, .fc-verso).c-argent { --cj-fond: linear-gradient(135deg, #c9d0d7, #f4f6f8 30%, #aab3bc 58%, #e3e7eb 85%); --cj-encre: #15181d; --cj-encre-2: #4b525c; --cj-prix: #8a1c24; --f-onde: #dfe4e9; }
+:is(.pcard.pv, .cj-recto, .fc-verso).c-vitre { --cj-fond: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03) 42%), var(--team-fond, #1b2230); --cj-encre: #f3f5f8; --cj-encre-2: rgba(243, 245, 248, 0.72); --cj-prix: #7ee0ff; --f-onde: var(--team-fond, #1b2230); }
+:is(#pool .pcard.pv.c-vitre, .cj-recto.c-vitre, .fc-verso.c-vitre) { --a-anneau: inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+/* L'ACCENT : un anneau au cadre, ou un trait au bord de la photo (--s-dessus). */
+:is(#pool .pcard.pv.a-double, .cj-recto.a-double, .fc-verso.a-double) { --a-anneau: inset 0 0 0 3px color-mix(in srgb, var(--team-band, #1f4aa8) 55%, #000), inset 0 0 0 5px #f4ecd8; }
+:is(#pool .pcard.pv.a-or, .cj-recto.a-or, .fc-verso.a-or) { --a-anneau: inset 0 0 0 3px var(--team-band, #243044), inset 0 0 0 4.5px #e8c46a; }
+:is(#pool .pcard.pv.a-club, .cj-recto.a-club, .fc-verso.a-club) { --a-anneau: inset 0 0 0 3px var(--team-band, #243044); }
+:is(.pcard.pv, .cj-recto).a-bande { --s-dessus: linear-gradient(90deg, transparent calc(100% - 12px), var(--team-stripe, #8d97a3) calc(100% - 12px) calc(100% - 9px), var(--team-band, #243044) calc(100% - 9px)); }
+:is(.pcard.pv, .cj-recto).a-coin { --s-dessus: linear-gradient(225deg, var(--team-band, #243044) 0 12%, var(--team-stripe, #8d97a3) 12% 13.5%, transparent 13.5%); }
+:is(.pcard.pv, .cj-recto).a-haut { --s-dessus: linear-gradient(180deg, var(--team-band, #243044) 0 6px, var(--team-stripe, #8d97a3) 6px 8px, transparent 8px); }
+:is(.pcard.pv, .cj-recto).a-bas { --s-dessus: linear-gradient(180deg, transparent 70%, color-mix(in srgb, var(--team-band, #243044) 70%, transparent)); }
+:is(.pcard.pv, .cj-recto).a-arc { --s-dessus: linear-gradient(90deg, #ff6f91, #ffd66e, #7cffc4, #74c8ff, #b58bff) 0 100% / 100% 3px no-repeat; }
+/* LE MOTIF, derrière le portrait (--s-motif), et l'écusson du club en filigrane (--s-logo). */
+:is(.pcard.pv, .cj-recto).m-trame { --s-motif: radial-gradient(circle, rgba(255, 255, 255, 0.16) 1.1px, transparent 1.5px) 0 0 / 7px 7px; --s-logo: 0.12; }
+:is(.pcard.pv, .cj-recto).m-rayons { --s-motif: repeating-conic-gradient(from 0deg at 50% 115%, rgba(255, 255, 255, 0.09) 0 5deg, transparent 5deg 11deg); --s-logo: 0.08; }
+:is(.pcard.pv, .cj-recto).m-rayures { --s-motif: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 9px); --s-logo: 0.1; }
+:is(.pcard.pv, .cj-recto).m-vitesse { --s-motif: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 10px); --s-logo: 0; }
+:is(.pcard.pv, .cj-recto).m-eclats { --s-motif: linear-gradient(115deg, transparent 0 36%, color-mix(in srgb, var(--team-band, #243044) 75%, transparent) 36% 52%, transparent 52%), linear-gradient(115deg, transparent 0 57%, color-mix(in srgb, var(--team-stripe, #8d97a3) 55%, transparent) 57% 63%, transparent 63%), linear-gradient(65deg, transparent 0 68%, rgba(255, 255, 255, 0.09) 68% 75%, transparent 75%); --s-logo: 0; }
+:is(.pcard.pv, .cj-recto).m-glace { --s-motif: radial-gradient(circle at 50% 64%, transparent 0 29%, rgba(230, 60, 70, 0.35) 29% 30.5%, transparent 30.5%), linear-gradient(90deg, transparent 0 17%, rgba(90, 140, 255, 0.35) 17% 19%, transparent 19% 49%, rgba(230, 60, 70, 0.42) 49% 51%, transparent 51% 81%, rgba(90, 140, 255, 0.35) 81% 83%, transparent 83%); --s-logo: 0.1; }
+:is(.pcard.pv, .cj-recto).m-projecteurs { --s-motif: conic-gradient(from 180deg at 50% -8%, transparent 0 162deg, rgba(255, 255, 255, 0.14) 170deg, transparent 178deg, rgba(255, 255, 255, 0.11) 186deg, transparent 194deg), radial-gradient(70% 45% at 50% 0%, rgba(255, 255, 255, 0.12), transparent 70%); --s-logo: 0.14; }
+:is(.pcard.pv, .cj-recto).m-damier { --s-motif: conic-gradient(rgba(255, 255, 255, 0.07) 25%, transparent 0 50%, rgba(255, 255, 255, 0.07) 0 75%, transparent 0) 0 0 / 16px 16px; --s-logo: 0.08; }
+:is(.pcard.pv, .cj-recto).m-vagues { --s-motif: radial-gradient(circle at 50% 100%, transparent 0 7px, rgba(255, 255, 255, 0.1) 7px 9px, transparent 9px) 0 0 / 20px 11px; --s-logo: 0.1; }
+:is(.pcard.pv, .cj-recto).m-carreaux { --s-motif: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px) 0 0 / 12px 12px, linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px) 0 0 / 12px 12px; --s-logo: 0.12; }
+:is(.pcard.pv, .cj-recto).m-bokeh { --s-motif: radial-gradient(circle at 20% 25%, rgba(255, 255, 255, 0.16) 0 7%, transparent 7.5%), radial-gradient(circle at 78% 30%, rgba(255, 255, 255, 0.12) 0 10%, transparent 10.5%), radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.08) 0 13%, transparent 13.5%), radial-gradient(circle at 28% 66%, rgba(255, 255, 255, 0.1) 0 6%, transparent 6.5%); --s-logo: 0.14; }
+:is(.pcard.pv, .cj-recto).m-chevrons { --s-motif: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%) -10px 0 / 20px 20px, linear-gradient(225deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%) -10px 0 / 20px 20px; --s-logo: 0.08; }
+/* LA PHOTO : sa forme. */
+#pool .pcard.pv.f-carre .pcard-avatar, .cj-recto.f-carre .cj-fenetre { border-radius: 5px; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.3); }
+#pool .pcard.pv.f-arrondi .pcard-avatar, .cj-recto.f-arrondi .cj-fenetre { border-radius: 16px 16px 4px 4px; box-shadow: inset 0 0 0 2px #fff; }
+#pool .pcard.pv.f-arche .pcard-avatar, .cj-recto.f-arche .cj-fenetre { border-radius: 42% 42% 5px 5px / 20% 20% 5px 5px; box-shadow: inset 0 0 0 1.5px var(--cj-prix); }
+#pool .pcard.pv.f-coins .pcard-avatar, .cj-recto.f-coins .cj-fenetre { border-radius: 2px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%); }
+.cj-recto.f-coins .cj-annee { right: 16px; }
+#pool .pcard.pv.f-plein .pcard-avatar { margin: -6px -6px 0; border-radius: 12px 12px 0 0; }
+.fiche-carte .cj-recto.f-plein .cj-fenetre { margin: -10px -10px 0; border-radius: 16px 16px 0 0; }
+.cj-recto.cj-mini-carte.f-plein .cj-fenetre { margin: -5px -5px 0; border-radius: 10px 10px 0 0; }
+#pool .pcard.pv.f-onde .pcard-avatar::before, .cj-recto.f-onde .cj-fenetre::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 7px; z-index: 2; background: radial-gradient(circle at 50% 0, var(--f-onde, #f5eedf) 4.5px, transparent 5px) 0 0 / 12px 7px repeat-x; }
+#pool .pcard.pv.f-onde .pcard-avatar, .cj-recto.f-onde .cj-fenetre { border-radius: 3px; box-shadow: inset 0 0 0 1.5px var(--team-stripe, #8d97a3); }
+#pool .pcard.pv.f-ovale .pcard-avatar, .cj-recto.f-ovale .cj-fenetre { background: none; border-radius: 0; overflow: visible; }
+#pool .pcard.pv.f-ovale .pcard-avatar > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus), .cj-recto.f-ovale .cj-fenetre > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus) { border-radius: 50%; }
+#pool .pcard.pv.f-ovale .pcard-avatar > .cj-filigrane, .cj-recto.f-ovale .cj-fenetre > .cj-filigrane { background: var(--ss-motif, none), var(--s-motif, none), var(--f-fond); }
+#pool .pcard.pv.f-ovale .pcard-avatar > .cj-dessus, .cj-recto.f-ovale .cj-fenetre > .cj-dessus { box-shadow: inset 0 0 0 3px #fff; }
+#pool .pcard.pv.f-biais .pcard-avatar, .cj-recto.f-biais .cj-fenetre { background: none; border-radius: 4px 4px 0 0; }
+#pool .pcard.pv.f-biais .pcard-avatar > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus), .cj-recto.f-biais .cj-fenetre > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus) { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 88%); }
+#pool .pcard.pv.f-biais .pcard-avatar > .cj-filigrane, .cj-recto.f-biais .cj-fenetre > .cj-filigrane { background: var(--ss-motif, none), var(--s-motif, none), var(--f-fond); }
+#pool .pcard.pv.f-polaroid .pcard-avatar, .cj-recto.f-polaroid .cj-fenetre { background: #f7f5ef; border-radius: 2px; transform: rotate(-1.4deg); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45); }
+#pool .pcard.pv.f-polaroid .pcard-avatar > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus), .cj-recto.f-polaroid .cj-fenetre > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus) { inset: 5px 5px 16px 5px; }
+#pool .pcard.pv.f-polaroid .pcard-avatar > .cj-filigrane, .cj-recto.f-polaroid .cj-fenetre > .cj-filigrane { background: var(--ss-motif, none), var(--s-motif, none), var(--f-fond); }
+/* LE NOM : toujours une bande PLEINE et contrastée. */
+#pool .pcard.pv.n-banderole .pcard-name, .cj-recto.n-banderole .cj-bandeau { background: #f4ecd8; color: #1d1a14; border-radius: 0; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 50%, 100% 100%, 0 100%, 7px 50%); padding-left: 12px; padding-right: 12px; }
+#pool .pcard.pv.n-banderole .pcard-name .fname, .cj-recto.n-banderole .cj-bandeau .fname { color: #6b5f48; }
+#pool .pcard.pv.n-fanion .pcard-name, .cj-recto.n-fanion .cj-bandeau { background: var(--team-band, #1f4aa8); color: var(--team-ink, #fff); border-radius: 0; clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%); padding-right: 16px; }
+#pool .pcard.pv.n-bande .pcard-name, .cj-recto.n-bande .cj-bandeau { background: var(--team-band, #243044); color: var(--team-ink, #fff); border-radius: 3px; box-shadow: inset 0 -2px 0 var(--team-stripe, transparent); }
+#pool .pcard.pv.n-onglet .pcard-name, .cj-recto.n-onglet .cj-bandeau { background: var(--team-band, #243044); color: var(--team-ink, #fff); border-radius: 10px 10px 2px 2px; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.22); }
+#pool .pcard.pv.n-capsule .pcard-name, .cj-recto.n-capsule .cj-bandeau { background: var(--team-band, #243044); color: var(--team-ink, #fff); border-radius: 999px; padding-left: 14px; padding-right: 14px; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22); }
+#pool .pcard.pv.n-fanion .pcard-name .fname, .cj-recto.n-fanion .cj-bandeau .fname, #pool .pcard.pv.n-bande .pcard-name .fname, .cj-recto.n-bande .cj-bandeau .fname, #pool .pcard.pv.n-onglet .pcard-name .fname, .cj-recto.n-onglet .cj-bandeau .fname, #pool .pcard.pv.n-capsule .pcard-name .fname, .cj-recto.n-capsule .cj-bandeau .fname { color: color-mix(in srgb, var(--team-ink, #fff) 78%, transparent); }
+#pool .pcard.pv.n-bloc .pcard-name, .cj-recto.n-bloc .cj-bandeau { background: #0d0f13; color: #f3f5f8; border-radius: 2px; box-shadow: inset 6px 0 0 var(--team-band, #243044); padding-left: 12px; }
+#pool .pcard.pv.n-bloc .pcard-name .fname, .cj-recto.n-bloc .cj-bandeau .fname { color: rgba(243, 245, 248, 0.72); }
+#pool .pcard.pv.n-or .pcard-name, .cj-recto.n-or .cj-bandeau { background: linear-gradient(90deg, #07090d, color-mix(in srgb, var(--team-band, #243044) 45%, #07090d)); color: #f3f5f8; border-radius: 2px; box-shadow: inset 0 2px 0 var(--team-band, #243044); }
+#pool .pcard.pv.n-or .pcard-name .lname, .cj-recto.n-or .cj-bandeau .lname { background: linear-gradient(180deg, #fff6d6, #f1cf6c 45%, #c9961f 60%, #ffe8a3); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#pool .pcard.pv.n-or .pcard-name .fname, .cj-recto.n-or .cj-bandeau .fname { color: #d9c28a; }
+#pool .pcard.pv.n-argent .pcard-name, .cj-recto.n-argent .cj-bandeau { background: #0b0d11; color: #f3f5f8; border-radius: 0; box-shadow: inset 0 -2px 0 var(--team-band, #243044); }
+#pool .pcard.pv.n-argent .pcard-name .lname, .cj-recto.n-argent .cj-bandeau .lname { background: linear-gradient(180deg, #ffffff, #b9c2cb 55%, #eef1f4); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: 0.05em; }
+#pool .pcard.pv.n-argent .pcard-name .fname, .cj-recto.n-argent .cj-bandeau .fname { color: #aeb7c1; }
+#pool .pcard.pv.n-diagonale .pcard-name, .cj-recto.n-diagonale .cj-bandeau { background: linear-gradient(90deg, var(--team-band, #243044), color-mix(in srgb, var(--team-band, #243044) 70%, var(--team-stripe, #8d97a3))); color: var(--team-ink, #fff); font-style: italic; border-radius: 0; clip-path: polygon(0 16%, 100% 0, 100% 84%, 0 100%); padding-top: 7px; }
+#pool .pcard.pv.n-diagonale .pcard-name .fname, .cj-recto.n-diagonale .cj-bandeau .fname { color: color-mix(in srgb, var(--team-ink, #fff) 78%, transparent); }
+#pool .pcard.pv.n-plaque .pcard-name, .cj-recto.n-plaque .cj-bandeau { background: #f6f7f9; color: #12151b; border-radius: 0 0 6px 6px; box-shadow: inset 0 3px 0 var(--team-band, #243044); }
+#pool .pcard.pv.n-plaque .pcard-name .fname, .cj-recto.n-plaque .cj-bandeau .fname { color: #5b6270; opacity: 1; }
+#pool .pcard.pv.n-fondu .pcard-name, .cj-recto.n-fondu .cj-bandeau { background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55) 30%, rgba(0, 0, 0, 0.78)); color: #fff; border-radius: 0 0 6px 6px; box-shadow: inset 0 -3px 0 var(--team-band, #243044); padding-top: 8px; }
+#pool .pcard.pv.n-diagonale .pcard-name { z-index: 2; margin-top: -12px; height: calc(100% + 12px); }
+.cj-recto.n-diagonale .cj-bandeau { position: relative; z-index: 3; margin-top: -14px; }
+.cj-recto.cj-mini-carte.n-diagonale .cj-bandeau { margin-top: -9px; }
+#pool .pcard.pv.n-plaque .pcard-name { z-index: 2; margin-top: -12px; height: calc(100% + 12px); }
+.cj-recto.n-plaque .cj-bandeau { position: relative; z-index: 3; margin-top: -14px; }
+.cj-recto.cj-mini-carte.n-plaque .cj-bandeau { margin-top: -9px; }
+#pool .pcard.pv.n-fondu .pcard-name { z-index: 2; margin-top: -12px; height: calc(100% + 12px); }
+.cj-recto.n-fondu .cj-bandeau { position: relative; z-index: 3; margin-top: -14px; }
+.cj-recto.cj-mini-carte.n-fondu .cj-bandeau { margin-top: -9px; }
+.cj-recto.cj-mini-carte.n-diagonale .cj-bandeau { min-height: 46px; padding-top: 9px; }
+
+/* UN JOUEUR OFFERT (S78) : la carte se touche pour sa fiche, « Signer » le prend. */
+.tcj-carte { display: block; cursor: zoom-in; border-radius: 10px; }
+.tcj-carte:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+.tcj-signer { width: 100%; min-height: 38px; margin-top: auto; font: 800 14px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; background: var(--gold); color: var(--sur-or, #1b1305); border: 0; border-radius: 8px; }
+.choix-option.tc.tc-joueur { cursor: default; }
+.choix-option.tc.tc-joueur[aria-disabled="true"] { filter: grayscale(0.8); opacity: 0.55; }
+/* La fiche d'un joueur offert s'ouvre PAR-DESSUS le choix. */
+#hockeyCardModal.au-dessus { z-index: 120; }
+/* Qui sort ? : le visage de chacun, devant son nom. */
+.choix-option.avec-visage { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 10px; align-items: center; }
+.choix-option.avec-visage > :not(.choix-option-visage) { grid-column: 2; }
+.choix-option-visage { grid-row: 1 / span 4; position: relative; width: 44px; height: 44px; border-radius: 8px; overflow: hidden; background: var(--panel-2); }
+.choix-option-visage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.choix-option-visage > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; opacity: 0.4; }
+
+/* =================================================================
+   LA CASE DE L'ALIGNEMENT : SON VISAGE, SES POSITIONS (S78)
+   JP : *visage dans alignement* ; *voir position du joueur possible, pas
+   position de l'alignement, c'est mélangeant*. La pastille de la bande dit
+   ce que le JOUEUR peut jouer (« C / AG ») — la case se lit à sa place dans
+   le trio. Le nom garde toute la largeur ; dessous, le visage à gauche, la
+   fiche et les verdicts à droite. La case garde sa hauteur.
+   ================================================================= */
+.slot.cj-case .slot-inner { display: grid; grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "nom nom" "visage faits" "visage tags"; column-gap: 6px; row-gap: 2px; align-content: start; }
+.slot.cj-case .slot-name { grid-area: nom; }
+.slot.cj-case .slot-visage { grid-area: visage; position: relative; width: 34px; height: 34px; border-radius: 6px; overflow: hidden; align-self: start; background: color-mix(in srgb, var(--slot-band, #243044) 55%, #0a0c10); }
+.slot.cj-case .slot-visage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.slot.cj-case .slot-visage > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 18px; opacity: 0.4; }
+.slot.cj-case .slot-faits { grid-area: faits; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot.cj-case .slot-tags { grid-area: tags; margin-top: 0; min-width: 0; }
+
+/* La pastille dit ses positions (« AG / AD ») : elle se serre, et le salaire ne se coupe jamais. */
+.slot.cj-case .slot-band .sb-role { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 4px; padding-right: 4px; letter-spacing: 0; }
+.slot.cj-case .slot-band .sb-logo { flex: none; }
+.slot.cj-case .slot-band .slot-salary { flex: none; white-space: nowrap; }

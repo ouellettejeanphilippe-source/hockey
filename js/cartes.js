@@ -64,13 +64,19 @@ export const brille = r => r === 'rare' || r === 'legendaire';
 export function carteHtml(c) {
   const r = RARETES[c.rarete] ? c.rarete : 'commune';
   const R = RARETES[r];
-  if (c.joueurHtml) return `<button type="button" class="choix-option tc tc-${r} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
+  /*
+   * UN JOUEUR OFFERT NE SE PREND PAS D'UN TOUCHER (S78). JP : *si je clique sur
+   * carte, pas automatiquement la choisir si pas cliqué sur signer*. La carte
+   * se TOUCHE pour voir la fiche (`data-apercu`) ; le bouton « Signer » (ou
+   * « Garder », « Choisir ») est le seul qui choisit (`data-choix`).
+   */
+  if (c.joueurHtml) return `<div class="choix-option tc tc-${r} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-apercu="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' aria-disabled="true"' : ''}>
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
-    ${c.joueurHtml}
+    <span class="tcj-carte" role="button" tabindex="0" title="Voir sa fiche">${c.joueurHtml}</span>
     ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tcj-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
     ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
-    ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : ''}
-  </button>`;
+    ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : `<button type="button" class="btn tcj-signer" data-choix="${c.cle}">${c.motChoixHtml || 'Signer'}</button>`}
+  </div>`;
   return `<button type="button" class="choix-option tc tc-${r}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
     ${brille(r) ? '<span class="tc-holo" aria-hidden="true"></span>' : ''}
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
@@ -201,32 +207,94 @@ export function ereDe(saison) {
   return a < 1980 ? 'e70' : a < 1990 ? 'e80' : a < 1996 ? 'e90' : a < 2010 ? 'e00' : 'e10';
 }
 /*
- * LES SÉRIES (S78). JP : *cartes plus belles et variées, moins basiques, sans
- * perdre lisible*. Une époque avait UN dessin : quarante saisons de cartes se
- * ressemblaient à cinq près. Une vraie collection change de dessin presque
- * chaque année ; on en garde DIX, un par tranche de saisons, chacun inspiré
- * d'une série qu'un kid reconnaîtrait, et chacun RAFFINE son époque (qui
- * reste la palette et le cadre de base) : la carte porte les deux classes.
- *   s70 · 1970-74, le bord de couleur à double filet, la photo arrondie ;
- *   s75 · 1975-79, le carton blanc, la photo cadrée du club, le fanion ;
- *   s80 · 1980-84, le bord du club à filet d'or, l'écusson rond ;
- *   s85 · 1985-89, le haut de photo ondulé (l'O-Pee-Chee 85-86) ;
- *   s90 · 1990-92, la photo pleine et la bande du club sur le côté ;
- *   s93 · 1993-95, la photo pleine, le nom doré, l'écusson en filigrane ;
- *   s96 · 1996-2002, le noir, l'argent et les coins coupés ;
- *   s03 · 2003-09, les éclats géométriques aux couleurs du club ;
- *   s10 · 2010-17, la plaque blanche et le grand écusson en filigrane ;
- *   s18 · depuis 2018, les lignes de la patinoire et les projecteurs.
- * Le NOM garde toujours une bande pleine et contrastée : la beauté ne se paie
- * jamais en lisibilité.
+ * UN DESIGN PAR ANNÉE (S78). JP : *cartes plus belles et variées, moins
+ * basiques, sans perdre lisible* ; puis *design de carte par années, avec
+ * différents concepts visuels*. Une vraie collection change de dessin chaque
+ * année : chaque saison a le SIEN, assemblé de cinq concepts visuels —
+ *   c-  le cadre (le carton) : c-club, c-club-sombre, c-blanc, c-carton,
+ *       c-noir, c-degrade, c-bois, c-argent, c-vitre ;
+ *   f-  la photo : f-carre, f-arrondi, f-arche, f-ovale, f-onde, f-coins,
+ *       f-plein, f-biais, f-polaroid ;
+ *   n-  le nom : n-banderole, n-fanion, n-bande, n-diagonale, n-or,
+ *       n-argent, n-plaque, n-fondu, n-bloc, n-onglet, n-capsule ;
+ *   m-  le motif derrière le portrait : m-trame, m-rayons, m-rayures,
+ *       m-vitesse, m-eclats, m-glace, m-projecteurs, m-damier, m-vagues,
+ *       m-carreaux, m-bokeh, m-chevrons ;
+ *   a-  l'accent : a-double, a-or, a-club (un filet au cadre), a-bande,
+ *       a-coin, a-haut, a-bas, a-arc (sur le bord de la photo), a-aucun.
+ * Les combinaisons sont CHOISIES, pas tirées : deux années voisines ne se
+ * ressemblent pas, et chacune garde l'air de son époque (le carton et les
+ * bandes des années 70-80, la photo pleine et les dorures des années 90,
+ * l'argent et les éclats des années 2000, la plaque et la patinoire d'après
+ * 2010). Le NOM garde toujours une bande pleine et contrastée (style.css,
+ * « UN DESIGN PAR ANNÉE »).
  */
-export const SERIES = [[1975, 's70'], [1980, 's75'], [1985, 's80'], [1990, 's85'], [1993, 's90'], [1996, 's93'], [2003, 's96'], [2010, 's03'], [2018, 's10'], [Infinity, 's18']];
-export function serieDe(saison) {
-  const a = parseInt(String(saison || '').slice(0, 4), 10) || 2000;
-  return SERIES.find(([fin]) => a < fin)[1];
+export const DESIGNS = {
+  '1970-71': 'c-club f-ovale n-banderole m-trame a-double',
+  '1971-72': 'c-blanc f-arrondi n-bande m-rayures a-club',
+  '1972-73': 'c-club-sombre f-carre n-banderole m-rayons a-or',
+  '1973-74': 'c-club f-arrondi n-banderole m-trame a-double',
+  '1974-75': 'c-blanc f-ovale n-fanion m-vagues a-club',
+  '1975-76': 'c-blanc f-carre n-fanion m-rayures a-club',
+  '1976-77': 'c-club f-polaroid n-capsule m-trame a-aucun',
+  '1977-78': 'c-carton f-arrondi n-fanion m-rayons a-coin',
+  '1978-79': 'c-club-sombre f-ovale n-onglet m-damier a-or',
+  '1979-80': 'c-club f-carre n-bande m-rayures a-double',
+  '1980-81': 'c-club-sombre f-arche n-bande m-rayons a-or',
+  '1981-82': 'c-blanc f-carre n-onglet m-trame a-coin',
+  '1982-83': 'c-carton f-polaroid n-bande m-damier a-club',
+  '1983-84': 'c-club f-arche n-capsule m-vagues a-double',
+  '1984-85': 'c-bois f-carre n-banderole m-trame a-or',
+  '1985-86': 'c-carton f-onde n-bande m-trame a-aucun',
+  '1986-87': 'c-club-sombre f-onde n-fanion m-rayons a-club',
+  '1987-88': 'c-bois f-arrondi n-bande m-rayures a-or',
+  '1988-89': 'c-carton f-onde n-onglet m-carreaux a-coin',
+  '1989-90': 'c-blanc f-biais n-bande m-vitesse a-club',
+  '1990-91': 'c-club-sombre f-plein n-diagonale m-vitesse a-bande',
+  '1991-92': 'c-blanc f-plein n-bloc m-chevrons a-coin',
+  '1992-93': 'c-noir f-biais n-diagonale m-eclats a-bande',
+  '1993-94': 'c-noir f-plein n-or m-projecteurs a-bas',
+  '1994-95': 'c-club-sombre f-plein n-or m-bokeh a-arc',
+  '1995-96': 'c-vitre f-coins n-argent m-carreaux a-coin',
+  '1996-97': 'c-noir f-coins n-argent m-projecteurs a-arc',
+  '1997-98': 'c-argent f-plein n-bloc m-chevrons a-haut',
+  '1998-99': 'c-noir f-arche n-argent m-eclats a-or',
+  '1999-00': 'c-vitre f-plein n-capsule m-bokeh a-arc',
+  '2000-01': 'c-noir f-biais n-or m-vagues a-bande',
+  '2001-02': 'c-argent f-coins n-bloc m-carreaux a-club',
+  '2002-03': 'c-noir f-plein n-argent m-vitesse a-haut',
+  '2003-04': 'c-noir f-carre n-bloc m-eclats a-coin',
+  '2005-06': 'c-club-sombre f-coins n-bloc m-eclats a-bande',
+  '2006-07': 'c-degrade f-plein n-fondu m-chevrons a-arc',
+  '2007-08': 'c-noir f-biais n-onglet m-projecteurs a-or',
+  '2008-09': 'c-vitre f-arrondi n-bloc m-carreaux a-haut',
+  '2009-10': 'c-degrade f-coins n-argent m-eclats a-bas',
+  '2010-11': 'c-degrade f-plein n-plaque m-projecteurs a-aucun',
+  '2011-12': 'c-blanc f-arrondi n-plaque m-vagues a-club',
+  '2012-13': 'c-degrade f-biais n-fondu m-bokeh a-bande',
+  '2013-14': 'c-noir f-plein n-plaque m-glace a-or',
+  '2014-15': 'c-vitre f-coins n-capsule m-chevrons a-arc',
+  '2015-16': 'c-degrade f-plein n-bloc m-rayures a-haut',
+  '2016-17': 'c-blanc f-arche n-onglet m-projecteurs a-coin',
+  '2017-18': 'c-degrade f-plein n-plaque m-carreaux a-bas',
+  '2018-19': 'c-degrade f-plein n-fondu m-glace a-aucun',
+  '2019-20': 'c-noir f-coins n-fondu m-vitesse a-arc',
+  '2020-21': 'c-vitre f-plein n-capsule m-bokeh a-bande',
+  '2021-22': 'c-degrade f-biais n-bloc m-glace a-haut',
+  '2022-23': 'c-argent f-arrondi n-plaque m-eclats a-or',
+  '2023-24': 'c-noir f-plein n-or m-projecteurs a-bande',
+  '2024-25': 'c-degrade f-coins n-fondu m-chevrons a-coin',
+  '2025-26': 'c-vitre f-plein n-plaque m-glace a-arc',
+};
+/* Une saison hors de la table (une saison ajoutée plus tard) prend le design de la plus proche qui la précède. */
+export function designDe(saison) {
+  const s = String(saison || '');
+  if (DESIGNS[s]) return DESIGNS[s];
+  const connues = Object.keys(DESIGNS).sort();
+  return DESIGNS[connues.filter(k => k <= s).pop() || connues[0]];
 }
-/* Le dessin complet d'une carte : son époque (la base) et sa série (le raffinement). */
-export const dessinDe = saison => `${ereDe(saison)} ${serieDe(saison)}`;
+/* Le dessin complet d'une carte : son époque (la palette de base) et le design de son année. */
+export const dessinDe = saison => `${ereDe(saison)} ${designDe(saison)}`;
 export const ERES = {
   e70: 'Les années 70', e80: 'Les années 80', e90: 'Le début des années 90', e00: 'De 1996 aux années 2000', e10: 'Depuis 2010',
 };
