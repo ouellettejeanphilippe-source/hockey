@@ -1064,11 +1064,15 @@ function poser(eq, evite = null, point = MJ_CENTRE, permis = null) {
  * Un match sur table. `graine` le rend rejouable ; `presences` permet de le
  * raccourcir (les matchs de l'IA du tournoi se jouent au même nombre de
  * tours que le tien, sinon le classement ne voudrait rien dire).
+ *
+ * `recrue` (S75) : le camp que l'IA joue au niveau RECRUE — celui d'en face
+ * quand tu joues en Recrue, personne sinon (voir `NIVEAU_RECRUE_MOTS`).
  */
-export function nouveauMatch(A, B, graine) {
+export function nouveauMatch(A, B, graine, { recrue = null } = {}) {
   const de = generateur(graine);
   const m = {
     A, B, de,
+    recrue,                // S75 : 'A', 'B' ou null — le camp que l'IA joue en recrue
     periode: 1,
     presence: 1,           // 1 à PRESENCES_PAR_PERIODE × 2 : un TOUR (les dix pièces) en vaut deux
     tour: 'A',             // à qui la main
@@ -1097,7 +1101,20 @@ export const eqDe = (m, cote) => (cote === 'A' ? m.A : m.B);
 export const porteur = m => (m.rondelle && m.rondelle.piece) || null;
 export const libre = m => (m.rondelle && m.rondelle.libre) || null;
 export const caseLibre = (m, r, c) => !occupee(m, r, c);
-const occupee = (m, r, c) => surLaGlace(m).find(x => x.r === r && x.c === c) || null;
+/*
+ * UNE PIÈCE QUI N'EST PLUS SUR LA GLACE NE JOUE PLUS (S75). `poser()` refait
+ * les cinq pièces à CHAQUE mise au jeu : après un but, un hors-jeu ou le
+ * début d'une période, l'objet d'avant le sifflet n'est plus celui du moteur.
+ * L'écran gardait le sien choisi quand la main lui revenait — des cases
+ * allumées autour d'une case vide, et un toucher dépensait le patin de la
+ * main pendant que rien ne bougeait (le passage du testeur, neuf matchs à
+ * 390 px). L'écran ne garde plus une pièce d'avant le sifflet, et le moteur
+ * REFUSE tout geste d'une pièce — ou vers une cible — qui n'est pas en jeu :
+ * c'est à lui de tenir la règle, pas à l'écran de ne jamais se tromper. Le
+ * refus ne touche à rien, pas même au dé.
+ */
+export const enJeu = (m, x) => !!x && (x.gardien ? eqDe(m, x.eq).piece_g === x : eqDe(m, x.eq).pieces.includes(x));
+const occupee =(m, r, c) => surLaGlace(m).find(x => x.r === r && x.c === c) || null;
 
 /*
  * UN GESTE DÉPENSE L'ACTION DU TOUR (S36). JP : *un tour, ça devrait être un
@@ -2026,6 +2043,7 @@ export const ciblesDejouerDe = (m, piece) =>
  * rondelle libre qu'un adversaire touche, c'est une bataille.
  */
 export function deplacer(m, piece, vers) {
+  if (!enJeu(m, piece)) return { ok: false, jet: null, refus: 'pas en jeu' };   // S75 : rien n'est dépensé
   const avecRondelle = porteur(m) === piece;
   /*
    * LA ROUTE SE LIT AVANT DE PARTIR (S74), et c'est le MOTEUR qui la retient :
@@ -2109,6 +2127,7 @@ export function modBataille(m, piece, vers) {
   return duel(piece.st.FO + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece), fort, true, ['FO', 'FO'], false, [piece.st.FO, fort]);
 }
 export function appliquerBataille(m, piece, vers, jet) {
+  if (!jet || !enJeu(m, piece)) return false;
   if (jet.reussi) {
     dire(m, `${nomDe(piece)} gagne la bataille dans le trafic.`, 'bataille');
     deposer(m, piece, vers.r, vers.c);
@@ -2121,6 +2140,7 @@ export function appliquerBataille(m, piece, vers, jet) {
 }
 
 export function appliquerEsquive(m, piece, vers, jet) {
+  if (!jet || !enJeu(m, piece)) return false;
   userHabilete(m, piece, 'PATIN');
   const qui = batonsDuPatin(m, piece, vers);
   if (jet.reussi) {
@@ -2147,12 +2167,14 @@ export function appliquerEsquive(m, piece, vers, jet) {
 
 /** Une passe : à un coéquipier, ou à une case du fond (la rondelle y sera libre). */
 export function passer(m, piece, cible) {
+  if (!enJeu(m, piece) || (cible.st && !enJeu(m, cible))) return null;
   const d = avec(modPasse(m, piece, cible), cible.st && piece.hab === 'VOILEE' && piece.habDispo ? 2 : 0);
   eqDe(m, piece.eq).modsPasse.push({ mod: d.a - d.b, d: dist(piece, cible), opp: d.opp });
   return jeter(m, cible.st ? 'passe' : 'fond', d);
 }
 
 export function appliquerPasse(m, piece, cible, jet) {
+  if (!jet || !enJeu(m, piece) || (cible.st && !enJeu(m, cible))) return false;
   if (cible.st) userHabilete(m, piece, 'VOILEE');
   agir(m, piece);
   // Qui devançait la rondelle AVANT la passe : c'est eux que l'arbitre regarde
@@ -2197,6 +2219,7 @@ export function appliquerPasse(m, piece, cible, jet) {
 }
 
 export function tirer(m, piece) {
+  if (!enJeu(m, piece)) return null;
   const d = avec(modTir(m, piece), piece.hab === 'DECOCHE' && piece.habDispo ? 2 : 0);
   // `vide` est noté ICI, au moment du tir : un but dans le filet désert fait
   // rentrer le gardien, donc après coup on ne peut plus savoir si le tir de
@@ -2206,6 +2229,7 @@ export function tirer(m, piece) {
 }
 
 export function appliquerTir(m, piece, jet) {
+  if (!jet || !enJeu(m, piece)) return false;
   userHabilete(m, piece, 'DECOCHE');
   const eq = eqDe(m, piece.eq);
   const advG = eqDe(m, adverse(piece.eq)).piece_g;
@@ -2332,10 +2356,12 @@ function relaisDe(m, g) {
 }
 
 export function mettreEnEchec(m, piece, cible) {
+  if (!enJeu(m, piece) || !enJeu(m, cible)) return null;
   return jeter(m, 'echec', avec(modEchec(m, piece, cible), (piece.hab === 'ACTIF' || piece.hab === 'EPAULE') && piece.habDispo ? 2 : 0));
 }
 
 export function appliquerEchec(m, piece, cible, jet) {
+  if (!jet || !enJeu(m, piece) || !enJeu(m, cible)) return false;
   const solide = (piece.hab === 'EPAULE' && piece.habDispo) || piece.st.gb === GABARIT_MATADOR;
   userHabilete(m, piece, 'ACTIF', 'EPAULE');
   const eq = eqDe(m, piece.eq);
@@ -2383,10 +2409,12 @@ function pousser(m, piece, cible) {
 /* ---------- harponner ---------- */
 
 export function voler(m, piece, cible) {
+  if (!enJeu(m, piece) || !enJeu(m, cible)) return null;
   return jeter(m, 'vol', avec(modVol(m, piece, cible), piece.hab === 'ACTIF' && piece.habDispo ? 2 : 0));
 }
 
 export function appliquerVol(m, piece, cible, jet) {
+  if (!jet || !enJeu(m, piece) || !enJeu(m, cible)) return false;
   userHabilete(m, piece, 'ACTIF');
   const eq = eqDe(m, piece.eq);
   agir(m, piece);
@@ -2632,9 +2660,11 @@ function liberer(m, eq) {
 /* ---------- feinter : le un contre un du porteur ---------- */
 
 export function dejouer(m, piece, cible) {
+  if (!enJeu(m, piece) || !enJeu(m, cible)) return null;
   return jeter(m, 'dejouer', avec(modDejouer(m, piece, cible), piece.hab === 'PATIN' && piece.habDispo ? 2 : 0));
 }
 export function appliquerDejouer(m, piece, cible, jet) {
+  if (!jet || !enJeu(m, piece) || !enJeu(m, cible)) return false;
   userHabilete(m, piece, 'PATIN');
   agir(m, piece);
   if (jet.reussi) {
@@ -2723,7 +2753,7 @@ export const peutJouer = x => !x.etourdi;   // S38 : une pièce sert à chaque t
  */
 export const peutBouger = (m, x) => !x.etourdi && !x.deplace &&
   (POOL ? (m.main.reserve >= DEMI || !!x.echappee)
-        : (!m.main.bouge || !!x.echappee || (PLACEMENT && !m.main.place && porteur(m) !== x)));
+        : (!m.main.bouge || !!x.echappee || (placementPermis(m, x) && !m.main.place && porteur(m) !== x)));
 export const peutAgir = (m, x) => !x.etourdi && !x.agi && !m.main.agi;
 export const actives = m => eqDe(m, m.tour).pieces.filter(x => peutBouger(m, x) || peutAgir(m, x));
 
@@ -3331,6 +3361,13 @@ function optionChasse(m, piece) {
  * donc partie de la règle, et l'empreinte du moteur le vérifie.
  */
 function meilleurGeste(m, piece) {
+  const options = optionsDe(m, piece);
+  if (!options.length) return null;
+  return options.sort((a, b) => b.val - a.val)[0];
+}
+
+/** Tout ce qu'une pièce peut peser, dans l'ordre des familles (S75 : la recrue y pige). */
+function optionsDe(m, piece) {
   const eq = eqDe(m, piece.eq);
   const options = [];
   const pousser = liste => { for (const o of liste) options.push(o); };
@@ -3355,8 +3392,68 @@ function meilleurGeste(m, piece) {
       pousser(optionChasse(m, piece));
     }
   }
-  if (!options.length) return null;
-  return options.sort((a, b) => b.val - a.val)[0];
+  return options;
+}
+
+/* ======================================================================
+   LE NIVEAU RECRUE (S75)
+   ======================================================================
+   Le passage du testeur : neuf matchs à 390 px, neuf défaites de 0-6 à
+   1-16, deux à quatre lancers pour, vingt à trente et un contre. L'IA ne
+   triche pas — elle joue au mieux, et contre elle-même elle prend 8,5
+   lancers par match ; contre quelqu'un qui apprend, elle en prend trois
+   fois plus. Un enfant n'apprend rien d'un 0-16.
+
+   LA RECRUE NE CHANGE PAS LES RÈGLES, ELLE CHANGE LA TÊTE. Mêmes dés, mêmes
+   cotes, même main pour les deux camps : ce qui est affiché reste vrai. La
+   recrue fait ce que la règle permet à n'importe qui — elle PASSE SA MAIN
+   après un seul geste (un patin OU une action), et elle garde sa relance
+   d'équipe au lieu de la dépenser. Rien n'est tiré au hasard pour ça :
+   un match Recrue se rejoue à l'identique avec sa graine, et un match Pro
+   ne passe jamais par ici — son empreinte ne bouge pas.
+
+   POURQUOI CETTE FORME ET PAS UNE AUTRE : mesuré, en paires (mêmes clubs,
+   mêmes graines, 200 matchs par case), contre trois joueurs. Le NAÏF est
+   celui du test de fumée (il tire dès qu'il peut, fonce au filet, frappe
+   ce qui passe, bouge au hasard) : il reproduit le testeur, 0,9 à 12,8
+   buts, 3 lancers contre 40. L'APPRENTI joue un geste sur deux comme l'IA,
+   l'autre comme le naïf : un enfant qui commence à comprendre. Le
+   COMPÉTENT est l'IA Pro elle-même.
+
+                     naïf                    apprenti               compétent
+     Pro             0,9–12,8, 3–40 lancers  2,0–5,4, 11 % gagnés   2,8–3,0, 51 %
+     hésite (40 %)   1,2–11,5, 4–37          2,4–4,5, 24 %          3,6–2,2, 71 %
+     alterne         0,9–10,6, 3–33          2,3–4,0, 23 %          3,9–1,9, 78 %
+     placement       1,1–11,0, 4–38          —                      4,2–2,0, 81 %
+     relance seule   0,9–12,3, 3–41          —                      3,0–2,7, 57 %
+     moitié (retenu) 0,5–5,0, 2–12           2,3–1,7, 59 %          4,2–0,6, 95 %
+
+   L'enseignement : contre quelqu'un qui apprend, l'IA ne gagne pas par sa
+   finesse, elle gagne par son TEMPO — le patin, l'action et le placement
+   de chaque main, contre une défense qui n'est pas encore là. Une IA qui
+   hésite (un geste au hasard 40 % du temps) garde son tempo et gagne
+   encore 11-1. Seule la main réduite ramène le naïf à des 0-5 et laisse
+   l'apprenti gagner plus d'un match sur deux. Le compétent, lui, gagne
+   95 % : il a Pro. `MESURE.RECRUE` rejoue les autres formes
+   (hesite, alterne, placement, relance ; `RECRUE_P` pour l'hésitation).
+
+   Les matchs que tu ne joues pas restent Pro : le classement du tournoi se
+   compare à règles et à tête égales.
+   ====================================================================== */
+const RECRUE = MESURE.RECRUE || 'moitie';
+const RECRUE_HESITE = MESURE.RECRUE_P !== undefined ? Number(MESURE.RECRUE_P) : 0.4;
+/** Ce que la recrue fait de différent, en mots — les règles écrites le lisent. */
+export const NIVEAU_RECRUE_MOTS = 'passe sa main après un seul geste (un patin ou une action) et ne relance jamais ses dés ; tes règles et les dés restent les mêmes';
+const placementPermis = (m, x) => PLACEMENT && !(RECRUE === 'placement' && m.recrue === x.eq);
+/** La recrue a joué son geste de la main : elle la passe (la forme « alterne », mesurée, un tour sur deux). */
+const recrueAFini = (m, cote) => m.recrue === cote && (RECRUE === 'moitie' || (RECRUE === 'alterne' && (m.tours || 0) % 2 === 1));
+
+/** L'hésitation de la recrue : un geste qui vaut quelque chose, pris au hasard — ou rien, et c'est la décision de la Pro. */
+function gesteDeRecrue(m) {
+  if (RECRUE !== 'hesite' || m.de() >= RECRUE_HESITE) return null;
+  const toutes = [];
+  for (const piece of actives(m)) for (const o of optionsDe(m, piece)) if (o.val > 0) toutes.push({ piece, ...o });
+  return toutes.length ? toutes[Math.floor(m.de() * toutes.length)] : null;
 }
 
 /*
@@ -3377,6 +3474,7 @@ function iaDesert(m) {
  * l'exécution, pour que l'écran joue la main adverse un geste à la fois.
  */
 function iaProchainGeste(m, cote) {
+  if (m.recrue === cote) { const h = gesteDeRecrue(m); if (h) return h; }
   let joue = null, sur = null;
   const p = porteur(m);
   for (const piece of actives(m)) {
@@ -3419,11 +3517,13 @@ export function iaGeste(m) {
     if (x && chancesDe(modTir(m, x)) >= 0.25) {
       const joue = { piece: x, type: 'reception' };
       const jet = jouerGeste(m, x, joue, x.eq, true);
-      if (!m.fini && m.tour === cote && mainEpuisee(m)) finirMain(m);
+      if (!m.fini && m.tour === cote && (mainEpuisee(m) || recrueAFini(m, cote))) finirMain(m);
       return { ...joue, jet };
     }
   }
   const fraiche = !m.main.bouge && !m.main.agi;
+  // La recrue a déjà joué son geste, et elle n'a pas pris le une-deux : sa main passe (S75).
+  if (!fraiche && recrueAFini(m, cote)) { finirMain(m); return null; }
   // Le changement de ligne est instantané (S38) : au début de chaque main.
   if (fraiche && !m.main.change) iaChanger(m, cote);
   const joue = iaProchainGeste(m, cote);
@@ -3443,6 +3543,8 @@ export function iaGeste(m) {
   // Le budget vide, la main passe — sauf si une passe vient d'ouvrir le
   // une-deux : le receveur décide au prochain appel.
   if (!m.fini && m.tour === cote && mainEpuisee(m) && !receptionPossible(m)) finirMain(m);
+  // LA RECRUE PASSE SA MAIN après un seul geste (S75) — sauf le une-deux qu'elle vient d'ouvrir.
+  else if (recrueAFini(m, cote) && !m.fini && m.tour === cote && !receptionPossible(m)) finirMain(m);
   return { ...joue, jet };
 }
 
@@ -3495,30 +3597,35 @@ export function jouerGeste(m, piece, action, cote, ia = false) {
   }
   if (action.type === 'passe') {
     let jet = passer(m, piece, action.cible);
+    if (!jet) return null;
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
     appliquerPasse(m, piece, action.cible, jet);
     return jet;
   }
   if (action.type === 'tir') {
     let jet = tirer(m, piece);
+    if (!jet) return null;
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
     appliquerTir(m, piece, jet);
     return jet;
   }
   if (action.type === 'echec') {
     let jet = mettreEnEchec(m, piece, action.cible);
+    if (!jet) return null;
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
     appliquerEchec(m, piece, action.cible, jet);
     return jet;
   }
   if (action.type === 'vol') {
     let jet = voler(m, piece, action.cible);
+    if (!jet) return null;
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
     appliquerVol(m, piece, action.cible, jet);
     return jet;
   }
   if (action.type === 'dejouer') {
     let jet = dejouer(m, piece, action.cible);
+    if (!jet) return null;
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
     appliquerDejouer(m, piece, action.cible, jet);
     return jet;
@@ -3566,7 +3673,7 @@ function iaChanger(m, cote) {
  */
 function relanceIA(m, cote, jet) {
   const eq = eqDe(m, cote);
-  if (!eq.relance) return jet;
+  if (!eq.relance || m.recrue === cote) return jet;   // S75 : la recrue ne relance jamais
   if (chances(jet.mod, jet.mod2, jet.opp, jet.rondelle) < 0.3) return jet;
   if (jet.quoi === 'esquive' && m.periode <= 2) return jet;
   if (jet.quoi === 'fond') return jet;   // la rondelle est libre de toute façon
@@ -3764,139 +3871,117 @@ export function changerUnite(m, cote, tri, pai) {
    disait six et quatre, et deux paragraphes du même fichier portaient des
    mesures contradictoires. Une règle recopiée est une règle qui ment tôt ou
    tard. Celles-ci ne peuvent pas mentir : elles SONT le code.
+
+   CE QUI SE LIT, PAS POURQUOI ON L'A DÉCIDÉ (S75). La page faisait 3 216
+   mots, et une bonne part était le journal du chantier — « sans lui, le
+   patin et l'action partaient tous les deux sur le porteur », « on ne
+   traverse plus la glace de travers pour le prix d'une ligne droite » :
+   des raisons de concepteur, écrites à l'écran d'un enfant qui veut savoir
+   quoi toucher. Le passage du testeur l'a dit en un mot : illisible. Chaque
+   règle tient maintenant en une phrase qui dit QUOI, et le pourquoi reste
+   là où il sert, dans les commentaires du code qui la fait : le placement à
+   `peutBouger`, la pression à `pression` et `modPasse`, le repli à
+   `posteDe`, la diagonale à `COUT_DIAG`, le sifflet à `arretDeJeu` et
+   `pointDeFond`, le naturel à `gagneLeDuel`, le filet désert à
+   `DESERT_POSSESSIONS`. `check_regles` vérifie toujours que chaque geste
+   joué est écrit et que chaque geste écrit est joué.
    ====================================================================== */
 
 export function reglesDuPlateau() {
+  const diag = COUT_DIAG === 3 && DEMI === 2 ? 'un pas et demi' : `${COUT_DIAG / DEMI} pas`;
   return [
     {
       titre: 'Le match',
       points: [
-        `Trois périodes, et une période, c'est ${POSSESSIONS_PAR_PERIODE} possessions : la sirène sonne à la fin du tour où la rondelle change de camp pour la ${POSSESSIONS_PAR_PERIODE}e fois, et la période suivante repart au centre. Il n'y a pas d'horloge : le rythme, c'est le nombre de fois qu'on se l'enlève.`,
-        `Une possession qui n'en finit pas ne bloque rien : après ${PRESENCES_PAR_PERIODE} tours, la période finit quoi qu'il arrive.`,
-        `Égalité après trois périodes : prolongation de ${POSSESSIONS_PROLONGATION} possessions, mort subite — le premier but finit tout, et on recommence tant que personne ne marque.`,
-        'Tu attaques toujours vers le haut, à toutes les périodes. Le plateau ne se retourne jamais.',
+        `Trois périodes. Une période finit quand la rondelle a changé de camp ${POSSESSIONS_PAR_PERIODE} fois (le compte est sous le pointage).`,
+        `Égalité après trois périodes : prolongation à trois contre trois, ${POSSESSIONS_PROLONGATION} possessions, le premier but gagne. Puis les tirs de barrage.`,
+        'Tu attaques toujours vers le HAUT.',
+        `Deux niveaux. Recrue : l'adversaire ${NIVEAU_RECRUE_MOTS}. Pro : il joue au mieux, comme les matchs que tu ne joues pas.`,
       ],
     },
     {
-      titre: 'Un tour : ta main, la sienne',
+      titre: 'Ta main, puis la sienne',
       points: [
         POOL
-          ? `À ta main, tu as UNE action et ${POOL} PAS à répartir sur qui tu veux — l'ailier fait trois pas vers le filet, le défenseur deux vers le porteur adverse, et le porteur passe. Chaque pièce patine au plus une fois par main, jamais plus loin que son propre PA. Dans l'ordre que tu veux. Puis la main passe à l'adversaire ; quand il a joué la sienne, le tour est fini et tout le monde souffle.`
-          : 'À ta main, UNE pièce PATINE (aussi loin que son PA le permet, jamais plus), UNE pièce AGIT — pas forcément la même — et une pièce qui n\'a PAS la rondelle peut se PLACER : c\'est un deuxième déplacement, et le seul geste de la main qui ne peut pas toucher la rondelle. Dans l\'ordre que tu veux. Puis la main passe à l\'adversaire ; quand il a joué la sienne, le tour est fini et tout le monde souffle.',
-        'TA MAIN FINIT DE TROIS FAÇONS : tu la passes (« Passer la main »), il ne te reste plus rien à dépenser, ou un jet raté avec la rondelle te la coûte — c\'est le revirement. Puis c\'est la sienne, avec le même budget, et tu la regardes geste par geste ; la barre du bas dit pourquoi ta main a fini.',
-        'LE PLACEMENT ne fait pas avancer la rondelle — c\'est le seul geste de la main qui ne peut pas la toucher — il te laisse DÉPLOYER ton équipe : aller au filet, ouvrir une ligne de passe, rentrer couvrir. Sans lui, le patin et l\'action partaient tous les deux sur le porteur, qui montait seul pendant que ses quatre coéquipiers regardaient depuis la case où la mise au jeu les avait posés.',
-        'CE QUI BORNE UNE PIÈCE, C\'EST ELLE : sa VITESSE dit jusqu\'où elle patine (son PA en pas, écrit sur le bouton), son SOUFFLE dit combien de gestes elle a encore. Deux quantités qui lui appartiennent — il n\'y a pas de troisième budget par-dessus.',
-        'La même pièce peut jouer à CHAQUE tour. Ce qui la freine, c\'est son souffle : chaque geste lui en coûte un point, et à mesure qu\'il baisse elle patine moins loin, puis moins bien (voir plus bas).',
-        'LE REVIREMENT : un jet raté qui te coûte la rondelle rend la main sur-le-champ. Mais la rondelle ne CHANGE PAS de camp pour autant : une esquive ratée, une feinte lue, elle tombe LIBRE là où tu l\'as échappée, et c\'est celui qui a des corps autour qui la ramasse.',
-        'QUI PREND LA RONDELLE REPART AVEC, toujours — qu\'il l\'ait volée, arrachée par une mise en échec, ou simplement ramassée par terre. Son déplacement lui est rendu. Un changement de possession DÉPLACE la rondelle, il ne la fige pas là où elle vient de changer de mains.',
-        'Les mains alternent strictement : le camp qui vient de jouer ne rejoue jamais tout de suite. « Passer la main » rend la main sans dépenser ce qui reste.',
-      ],
-    },
-    {
-      titre: 'La pression',
-      points: [
-        'Chaque patineur debout COUVRE les cases à une de lui — à DEUX quand sa défense vaut 5 ou plus. C\'est son rayon, et c\'est sa posture : il n\'a rien à déclarer, il est là.',
-        'LA PRESSION sur une case, c\'est le nombre de rayons adverses qui la couvrent, et le meilleur DE d\'entre eux. Elle est écrite sur la carte du porteur, toujours.',
-        'Elle entre dans les duels du porteur, des deux bords : quand il passe ou feinte, c\'est ce DE-là qu\'il affronte, et chaque bâton de plus lui retire un (deux au plus) ; quand on le frappe ou le harponne, le même malus joue contre lui. Un bâton, une chance ; deux bâtons, une chance de moins.',
-        'Avec la rondelle, entrer dans une case couverte coûte deux pas au lieu d\'un : on contourne un vrai défenseur, on ne le traverse pas.',
-        'MAIS UN RAYON NE PREND PAS LA RONDELLE À DISTANCE. Patiner ne demande d\'ESQUIVER que si un adversaire est COLLÉ à toi — à une case — au départ ou à l\'arrivée. Un défenseur à deux cases te coûte des pas, jamais la rondelle : le rayon coûte du temps, le bâton collé coûte la rondelle. Une case verte sans cote en bas à droite est une case où rien ne peut mal tourner.',
-        `UNE DIAGONALE COÛTE ${COUT_DIAG === 3 && DEMI === 2 ? 'UN PAS ET DEMI' : `${COUT_DIAG / DEMI} PAS`}, un pas droit en coûte un. On file donc plus loin tout droit qu'en biais, et l\'éventail des cases où l\'on peut aller est un losange, pas un carré : on ne traverse plus la glace de travers pour le prix d'une ligne droite.`,
-        'Devant le filet, seul compte ce qui est ENTRE le tireur et le but : un adversaire collé du côté du filet gêne le tir (−1, −2 pour un vrai bloqueur) ; celui qui est dans son dos ne bloque rien.',
-      ],
-    },
-    {
-      titre: 'Le positionnement',
-      points: [
-        'Chaque joueur a un POSTE, et il se déduit de deux choses : son rôle et où est la rondelle. En attaque, les avants passent DEVANT elle et les défenseurs tiennent la pointe DERRIÈRE ; en défense, les défenseurs se placent ENTRE elle et leur filet, et les avants couvrent au-dessus. Un AG et un DG tiennent la gauche, un AD et un DD la droite, le centre le milieu.',
-        'DANS SA ZONE, c\'est le REPLI : les deux défenseurs collapsent devant leur filet, côte à côte, et les avants couvrent la pointe. C\'est pour ça qu\'une rondelle volée ne devient pas un but — il y a du monde à la maison.',
-        'DEUX joueurs vont à la rondelle, pas cinq. Les trois autres tiennent leur poste : une équipe qui converge sur la rondelle n\'a plus de forme, et la glace derrière elle est vide.',
-        'C\'EST DE LÀ QUE VIENT LE RISQUE. Les deux défenseurs rentrés, une attaque est un trois contre deux plus le gardien : pour te créer mieux, il faut MONTER un défenseur — et la pointe qu\'il laisse est exactement le contre que l\'autre attend. Le jeu ne te l\'interdit pas, il te le fait payer.',
+          ? `À ta main : ${POOL} pas à répartir entre tes pièces, et UNE action (passer, tirer, feinter, frapper ou harponner).`
+          : 'À ta main : UNE pièce patine, UNE pièce agit (passer, tirer, feinter, frapper ou harponner) — la même ou une autre — et une pièce SANS la rondelle peut se placer. Dans l\'ordre que tu veux.',
+        'Ta main finit quand tu la passes, quand il ne te reste rien, ou quand un jet raté te fait perdre la rondelle : c\'est le revirement.',
+        'Puis l\'adversaire joue sa main. Touche la glace pour la voir plus vite.',
+        'Qui prend la rondelle repart avec : son patin lui est rendu.',
       ],
     },
     {
       titre: 'Le dé',
       points: [
-        'UN DÉ CHACUN, PLUS SA STAT. Celui qui agit lance un d6 et ajoute sa stat ; celui qui subit lance le sien et ajoute la sienne. Le plus haut l\'emporte, l\'égalité va à celui qui A LA RONDELLE — sauf au tir, où elle revient au gardien : c\'est le seul duel où le défenseur est un spécialiste. Quand personne ne s\'oppose (une passe que rien ne couvre, une rondelle au fond), on bat une difficulté fixe. Entre deux joueurs égaux, 42 % ; +1 de stat, 58 % ; +2, 67 % ; −1, 33 %.',
-        'Un 6 naturel gagne toujours, un 1 naturel perd toujours — pour les deux dés. Deux 6 (ou deux 1) se départagent au total. Rien n\'est jamais sûr ni jamais perdu : tout reste entre 25 et 75 %, quel que soit l\'écart de talent.',
-        'Chaque option affiche ses chances AVANT que tu t\'engages, et le duel qui les fait (« TI 4 contre AR 5 ») : la case où patiner, le coéquipier visé, l\'adversaire à frapper, le bouton de tir.',
-        'LA RELANCE D\'ÉQUIPE : une par période, dépensée après avoir vu les dés — on relance le SIEN, celui de l\'adversaire reste sur la table.',
+        'Un dé chacun, plus sa stat. Le plus haut total gagne. Égalité : à celui qui a la rondelle — sauf au tir, où elle va au gardien.',
+        'Sans adversaire (une passe que rien ne couvre), il faut battre un nombre : le dé dit « il faut 4 ».',
+        'Un 6 naturel gagne TOUJOURS, un 1 naturel perd TOUJOURS, même si les totaux disent le contraire. Le dé l\'écrit : « 1 naturel : raté ».',
+        'Chaque geste montre ses chances AVANT que tu choisisses.',
+        'La relance d\'équipe : une par période, après avoir vu le dé. Tu relances le tien, pas le sien.',
       ],
     },
     {
-      titre: 'Les six gestes',
-      colonnes: ['geste', 'duel', 'ce que ça fait', 'un échec coûte'],
-      rangees: [
-        ['Patiner', 'MA c. DE', `autant de cases que son PA (trois au moins, ${PAS_MAX} au plus), en contournant les pièces ; ${POOL ? `ça se prend dans les ${POOL} pas de la main` : 'c\'est LE patin de la main'}, et le prix de chaque case est écrit dessus — la LIGNE montre par où elle passera. Sans la rondelle, c'est libre. Avec, quitter ou rejoindre une case où un adversaire est COLLÉ demande d'ESQUIVER : ton maniement, +1 d'élan, +1 au petit gabarit, moins les bâtons de trop, contre le meilleur de ceux qui te touchent`, 'revirement : tu échappes la rondelle, elle est libre sur place'],
-        ['Passer', 'MA c. DE', 'à un coéquipier : +1 à trois cases, −1 à sept, −2 à dix, +1 au gabarit moyen, +1 de derrière le filet vers l\'enclave, −1 vers un receveur maladroit (MA 1-2), moins la pression sur toi — contre le meilleur bâton qui couvre la ligne ou le receveur (−1, un bâton sur une ligne n\'est pas sur la rondelle), +1 par bâton de plus ; rien sur la ligne, difficulté 3. Après une passe RÉUSSIE, le receveur peut TIRER SUR RÉCEPTION dans la même main. AU FOND, de la zone neutre : dans un coin ou derrière le filet, la rondelle y est LIBRE — c\'est le dump-and-chase, et ça ouvre la zone. De TA PROPRE zone, c\'est un DÉGAGEMENT REFUSÉ : sifflet, et la mise au jeu revient dans ta zone. De la zone offensive, pas de passe au fond : on y est déjà', 'revirement : le bâton sur la ligne l\'intercepte (au fond : elle rebondit, libre)'],
-        ['Tirer', 'TI c. AR', `de la zone offensive seulement, à ${PORTEE_TIR} cases du filet ou moins : ton TI, ta signature, moins les bâtons devant toi, contre son AR plus la PLACE — rien collé au filet, +${PLACE_GARDIEN.rangee2} à la deuxième rangée de l'enclave, +${PLACE_GARDIEN.pointe} de la pointe et des coins, +${PLACE_GARDIEN.tour} sur un tour du filet. Le 🏹 tir sur réception ne vaut son +2 que sur le une-deux, pas deux mains plus tard`, `l'arrêt : le gardien la garde et la RELANCE à un coéquipier libre ; sous la pression, ou sans personne de libre, il la GÈLE — sifflet, mise au jeu dans SA zone. Sauf de l'enclave, ou raté d'un rien, ou mal contrôlé (son AR contre 5+) : RETOUR, la rondelle rebondit SUR LUI et reste libre devant son filet, à ${RAYON_REBOND} cases au plus — et sans place pour elle dans la mêlée, il tombe dessus`],
-        ['Feinter', 'MA c. DE', 'le porteur prend UN défenseur collé en un contre un : son maniement (+1 au petit gabarit), moins la pression, contre la défense de l\'autre. Battu, le défenseur est hors position jusqu\'à la fin du tour et le porteur repart sans esquive', 'revirement : il lit la feinte, la rondelle est libre sur place'],
-        ['Frapper', 'FO c. FO', 'force contre force sur n\'importe quel adversaire collé : il tombe et recule d\'une case. Sur le porteur, la pression joue contre lui, et sur la bande il perd un de plus — c\'est là qu\'on le coince ; tu repars avec la rondelle. Pas avec la rondelle, pas vidé. Un frappeur reconnu a +1', 'hors position jusqu\'à la fin du tour (le matador reste debout) ; sur un 1, l\'arbitre regarde'],
-        ['Harponner', 'DE c. MA', 'sur le porteur collé à toi : ta défense contre son maniement, la pression contre lui, et tu prends la rondelle sans le toucher. Un voleur reconnu a +1', 'hors position jusqu\'à la fin du tour ; sur un 1, l\'arbitre regarde'],
-        ['Bataille', 'FO c. FO', 'patiner sur une rondelle libre qu\'un adversaire debout touche : force contre le plus fort d\'eux. Gagnée, elle est à toi', 'elle ricoche à côté, libre encore'],
-      ],
-    },
-    {
-      titre: 'La rondelle et le hors-jeu',
+      titre: 'La pression',
       points: [
-        'Qui met le pied sur une rondelle libre la prend : sans dé, sans dépenser son geste. Une pièce au sol, elle, ne ramasse rien. Une rondelle libre n\'est à personne : la possession ne change que quand l\'autre équipe la ramasse.',
-        `LE HORS-JEU SE SIFFLE. Tu PEUX devancer la rondelle : une pièce qui est en zone offensive (à ${PORTEE_TIR} cases du filet ou moins) pendant que la rondelle est dehors porte un fanion ⚑. Mais si la rondelle entre alors qu'elle y est encore — portée, passée ou envoyée au fond — c'est HORS-JEU : sifflet, et mise au jeu au point neutre de ce bord. Le porteur, lui, n'est jamais hors-jeu : il apporte la rondelle. Recevoir une passe en étant déjà dans la zone, si.`,
-        'Derrière le filet on ne tire pas, on passe ; des deux cases collées au filet sur la ligne des buts, on tente le tour du filet.',
-        `Quand le gardien a la rondelle EN JEU, il la relance au début de la main à son coéquipier le plus avancé qui est LIBRE — aucun bâton adverse sur la ligne ni sur lui — et à portée : ${PORTEE_RELANCE} cases au plus, sa zone et sa ligne bleue. C'est la sortie de zone, et on la voit passer. Personne de libre : il la gèle.`,
-        `Une rondelle échappée, ratée ou repoussée RESTE PRÈS de ce qui l'a fait : ${RAYON_REBOND} cases au plus. Elle ne traverse la glace que par une passe, un tir ou un sifflet.`,
+        'Chaque patineur couvre les cases autour de lui — deux cases de rayon si sa DE vaut 5 ou plus. Les cases couvertes sont hachurées.',
+        'Avec la rondelle, une case couverte coûte deux pas. Partir d\'un adversaire COLLÉ, ou aller s\'y coller, demande une ESQUIVE (un dé).',
+        'Chaque bâton de plus sur le porteur rend ses passes et ses feintes plus dures, et ses mises en échec plus faciles.',
+        `Un pas droit coûte un pas, une diagonale ${diag}. Le prix est écrit sur chaque case.`,
+      ],
+    },
+    {
+      titre: 'Les gestes',
+      colonnes: ['geste', 'duel', 'ce que ça fait', 'si ça rate'],
+      rangees: [
+        ['Patiner', 'MA c. DE', 'aussi loin que son PA le permet ; sans dé, sauf pour quitter ou rejoindre un adversaire collé avec la rondelle', 'la rondelle tombe, libre'],
+        ['Passer', 'MA c. DE', 'à un coéquipier : plus c\'est loin et couvert, plus c\'est dur. Le receveur peut tirer tout de suite. Ou AU FOND, de la zone neutre : la rondelle file dans un coin, libre', 'un bâton sur la ligne l\'intercepte'],
+        ['Tirer', 'TI c. AR', `de la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Plus près et plus au centre, mieux c'est`, 'le gardien l\'arrête : il la garde, la relance ou la gèle — ou elle rebondit devant lui'],
+        ['Feinter', 'MA c. DE', 'le porteur déjoue un défenseur collé, qui reste hors jeu jusqu\'à la fin du tour', 'la rondelle tombe, libre'],
+        ['Frapper', 'FO c. FO', 'un adversaire collé tombe et recule ; si c\'est le porteur, tu prends la rondelle', 'tu es hors position un tour'],
+        ['Harponner', 'DE c. MA', 'le porteur collé perd la rondelle, et tu repars avec', 'tu es hors position un tour'],
+        ['Bataille', 'FO c. FO', 'patiner sur une rondelle libre qu\'un adversaire touche aussi', 'elle ricoche à côté'],
+      ],
+    },
+    {
+      titre: 'La rondelle',
+      points: [
+        'Une rondelle libre (cerclée d\'or) est à qui met le pied dessus, sans dé.',
+        `Hors-jeu : si un coéquipier attend dans la zone offensive (fanion ⚑) quand la rondelle y entre, c'est un sifflet. Celui qui porte la rondelle n'est jamais hors-jeu.`,
+        'Au fond de ta propre zone, c\'est un dégagement refusé : sifflet, mise au jeu chez toi.',
+        `Un rebond reste près de ce qui l'a fait (${RAYON_REBOND} cases au plus). Le gardien relance à un coéquipier libre, ou la gèle.`,
       ],
     },
     {
       titre: 'Une pièce',
       points: [
-        'PA patin, MA maniement, TI tir, FO force, DE défense, SO souffle — de 1 à 6, tirés de ce que le joueur a vraiment fait dans sa saison. Chacun sert des deux bords : le patin fait le pas, le maniement passe, esquive et feinte, la force frappe et tient, la défense couvre et harponne, le souffle dit combien de gestes il tient.',
-        `Le GABARIT : ${GABARITS[GABARIT_PETIT].icon} petit et rapide (+1 patin, +1 esquive et feinte, −1 force, −1 souffle, et il reste au sol un tour de plus), ${GABARITS[GABARIT_MOYEN].icon} moyen (+1 souffle, +1 passe, aucune faiblesse), ${GABARITS[GABARIT_MATADOR].icon} matador (+1 force, un contact raté ne le met pas hors position, −1 patin).`,
-        `Le TIR SIGNATURE, et chacun a son contexte : ${Object.values(TIRS).map(t => `${t.icon} ${t.nom.toLowerCase()} (${t.desc.replace(/\.$/, '')})`).join(' · ')}.`,
-        'L\'HABILETÉ, tirée de son archétype : +2 sur un type de geste, une fois par période.',
-        'LES TRAITS du repêchage valent +1 sur un nombre, jamais plus d\'un par nombre : ⚡ Vitesse au patin, 💣 Lancer au tir, 🪄 Créateur au maniement, 🛡️ Selke, 🧱 Norris et 🔁 Bidirectionnel à la défense, 🥊 Colosse à la force, 🥅 Vezina et 🧤 Voleur au gardien. 🧭 Meneur et 🏆 Conn Smythe ne rendent qu\'en prolongation et en séries : le plateau n\'a pas ces canaux-là.',
+        'PA patin, MA maniement, TI tir, FO force, DE défense, SO souffle — de 1 à 6, tirés de la vraie saison du joueur.',
+        `Le gabarit : ${GABARITS[GABARIT_PETIT].icon} petit (plus vite, plus fragile), ${GABARITS[GABARIT_MOYEN].icon} moyen (meilleures passes), ${GABARITS[GABARIT_MATADOR].icon} matador (plus fort, reste debout).`,
+        `Le tir signature : ${Object.values(TIRS).map(t => `${t.icon} ${t.nom.toLowerCase()}`).join(', ')} — chacun vaut plus dans sa situation.`,
+        'L\'habileté (+2 sur un geste) sert une fois par période. Les traits du repêchage valent +1.',
       ],
     },
     {
-      titre: 'Le souffle et le changement',
+      titre: 'Le souffle et les trios',
       points: [
-        'Le réservoir d\'une pièce vaut deux fois son SO. Chaque geste — patiner ou agir — en coûte un point ; au banc, on en reprend un par tour.',
-        'Sous la moitié, la pièce est FATIGUÉE : une case de patin en moins. À zéro, elle est VIDÉE : deux cases en moins, un de moins à tous ses jets, et plus de mise en échec — il lui reste le bâton.',
-        'LE CHANGEMENT EST INSTANTANÉ : à n\'importe quel moment de ta main, une fois par main, sans dépenser ni le déplacement ni l\'action. Chaque pièce qui entre prend la case de celle qui sort. Une seule limite : on ne change pas l\'unité qui porte la rondelle. C\'est pour ça que tu as quatre trios et trois paires.',
+        'Chaque geste coûte un souffle. Fatigué : une case de patin en moins. Vidé : deux cases de moins et −1 à tous ses jets.',
+        'Changer de trio est gratuit, une fois par main — sauf l\'unité qui porte la rondelle. Les entrants prennent la place des sortants.',
       ],
     },
     {
-      titre: 'Les arrêts de jeu',
+      titre: 'Les sifflets',
       points: [
-        `LE PLATEAU A NEUF POINTS DE MISE AU JEU, et chaque sifflet a le sien : le centre, quatre en fond de zone, quatre au neutre. Les cinq pièces de chaque camp se reposent AUTOUR du point — le centre au point, les ailiers sur ses flancs, les défenseurs derrière — donc une mise au jeu en fond de zone se joue dans cette zone-là, pas au centre.`,
-        'LA MISE AU JEU se gagne des mains et du corps : le maniement et la force des deux centres, plus un dé chacun. Un bon centre ravoir la rondelle dans sa propre zone, c\'est ce qui sauve un désavantage numérique.',
-        'SIX CHOSES ARRÊTENT LE JEU. Un BUT : mise au jeu au centre. La FIN DE PÉRIODE : au centre. Le GARDIEN QUI GÈLE la rondelle : en fond de SA zone, là où c\'est arrivé. Une PUNITION : en fond de la zone de l\'équipe punie — l\'avantage numérique commence donc là où il vaut quelque chose. Un HORS-JEU : au point neutre de ce bord. Un DÉGAGEMENT REFUSÉ : en fond de la zone du fautif.',
-        'LE SIFFLET SE VOIT : la glace reste figée le temps de lire ce qui l\'a causé, puis tout le monde se replace autour du point, et la rondelle y est posée. C\'est le SEUL moment où elle change de place sans voyager.',
-        'Tout le reste continue : une rondelle libre n\'arrête rien, un revirement n\'arrête rien, un retour de tir n\'arrête rien. On ne siffle que ce qu\'un arbitre sifflerait.',
-      ],
-    },
-    {
-      titre: 'La fin du match',
-      points: [
-        `À ÉGALITÉ, UNE PROLONGATION À TROIS CONTRE TROIS : un centre, un ailier, un défenseur de chaque côté, ${POSSESSIONS_PROLONGATION} possessions, mort subite. La glace se vide, et c'est ce qui la rend différente du reste du match plutôt qu'un rallongement.`,
-        'TOUJOURS À ÉGALITÉ, LES TIRS DE BARRAGE : trois tireurs chacun, puis un pour un jusqu\'à ce que l\'un marque et l\'autre non. Seul endroit du jeu où un joueur affronte le gardien sans personne autour — son TI contre l\'AR, un dé chacun, ni place ni bâtons. Les tireurs sont les meilleurs TI de l\'alignement, dans l\'ordre.',
-        `LE FILET DÉSERT : mené d'un ou deux buts ${DESERT_POSSESSIONS === 1 ? 'à la dernière possession' : `dans les ${DESERT_POSSESSIONS} dernières possessions`} de la troisième, on peut retirer son gardien pour un SIXIÈME patineur, pris dans un autre trio. Un tir dans un but vide n'affronte plus personne — il n'y a plus de dé en face, juste la distance ; raté, il file à côté ou derrière le filet.`,
-        `ET DANS UN BUT VIDE, ON TIRE DE PARTOUT : la portée de ${PORTEE_TIR} cases ne s'applique plus, un dégagement du fond de sa propre zone peut trouver le filet. Plus c'est loin, plus c'est dur — mais c'est possible, et c'est exactement ce que risque l'équipe qui a retiré son gardien.`,
-        'Le gardien revient à la mise au jeu suivante : on ne rejoue pas à six après un but ni après un sifflet, on redécide.',
-      ],
-    },
-    {
-      titre: 'Les punitions',
-      points: [
-        `Un contact qui sort sur un 1 passe devant l'arbitre : deux fois sur trois, c'est une mineure. Le coupable va au cachot pour ${PUNITION_TOURS} tours et son équipe joue à QUATRE patineurs — un rayon de moins à traverser.`,
-        `DEUX PUNITIONS À LA FOIS, PAS PLUS : c'est le CINQ CONTRE TROIS, et une équipe ne descend jamais sous trois patineurs. Marquer contre une équipe à deux punis n'en libère qu'UN — on revient à cinq contre quatre, pas à égalité.`,
-        'Le rôle reste vide même si on change de trio : c\'est l\'équipe qui est punie. Un but marqué en avantage numérique libère le puni ; sinon, il revient à sa place de départ quand ses tours sont faits. Une seule punition à la fois par équipe.',
+        'Un but, la fin d\'une période, un gardien qui gèle, une punition, un hors-jeu ou un dégagement refusé arrêtent le jeu. Tout le monde se replace autour d\'un point de mise au jeu (au centre après un but).',
+        'La mise au jeu : un dé chacun, plus le maniement et la force des deux centres.',
+        `Une punition : un contact raté sur un 1 peut envoyer au cachot pour ${PUNITION_TOURS} tours, et l'équipe joue à quatre (trois au moins). Un but contre elle libère le puni.`,
+        `Le filet désert : mené d'un ou deux buts à la fin de la troisième, on peut sortir son gardien pour un sixième patineur.`,
       ],
     },
     {
       titre: 'Le tournoi',
       points: [
-        'Six clubs, cinq matchs, tout le monde une fois. Les quatre premiers passent en séries : demi-finale et finale, à match unique.',
-        'Les matchs que tu ne joues pas se règlent avec exactement les mêmes règles — le classement veut donc dire quelque chose.',
-        'Les matchs de séries n\'entrent pas au classement de la saison. Fermer un match ou le tournoi, c\'est laisser jouer le reste : on ne se sauve pas d\'une défaite.',
+        'Six clubs, cinq matchs chacun. Les quatre premiers vont en séries : demi-finale et finale, à match unique.',
+        'Les matchs que tu ne joues pas se jouent avec les mêmes règles, au niveau Pro.',
+        'Quitter un match (✕), c\'est le laisser se jouer sans toi : le résultat compte.',
       ],
     },
   ];

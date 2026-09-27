@@ -428,4 +428,41 @@ if (jugeable) exiger('la parité est ORDONNÉE',
   parite['09'] >= parite['04'] && parite['04'] >= parite.meme && parite['49'] >= parite.meme,
   `1er/10e ${parite['09'].toFixed(0)} · 1er/5e ${parite['04'].toFixed(0)} · 5e/10e ${parite['49'].toFixed(0)} · même décile ${parite.meme.toFixed(0)}`);
 
+/*
+ * LE NIVEAU RECRUE EST PLUS FACILE, ET IL L'EST DE CE QU'ON A DIT (S75).
+ * L'IA Pro joue contre la même IA en Recrue (elle passe sa main après un
+ * geste, elle ne relance pas), puis contre elle-même : mêmes clubs, mêmes
+ * graines, en paires. Mesuré sur 200 paires de clubs pris au hasard : 95
+ * victoires sur 100 contre la recrue, 4,2 buts à 0,6 ; 51 contre la Pro. Ici
+ * les clubs sont RANGÉS par force et le camp A tombe plus souvent sur un
+ * fort (la Pro contre la Pro y gagne 54 fois) : 100 sur 100, 4,8 à 0,3.
+ * Le plancher dit que la recrue reste une recrue. Le plafond ne porte pas
+ * sur ses victoires — contre l'IA Pro, jouer un geste par main ne gagne
+ * presque jamais, et c'est voulu : l'IA Pro, c'est le joueur qui n'a plus
+ * besoin de la Recrue — mais sur ses BUTS : elle doit encore marquer, sinon
+ * elle n'est plus un adversaire. Le joueur naïf et l'apprenti, qui ont
+ * choisi la forme, sont dans le commentaire de `RECRUE` (js/table.js).
+ */
+{
+  const N = Math.min(100, Math.max(20, Math.round(MATCHS / 2)));
+  let vPro = 0, vRec = 0, bRec = 0, bContre = 0;
+  for (let i = 0; i < N; i++) {
+    const a = clubs[(i * 7 + 3) % clubs.length], b = clubs[(i * 13 + 5) % clubs.length];
+    const jouer = recrue => {
+      const m = nouveauMatch(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `niveau-${i}`, { recrue });
+      let g = 0;
+      while (!m.fini && g++ < 4000) iaPresence(m);
+      return resultatDe(m);
+    };
+    const pro = jouer(null), rec = jouer('B');
+    if (gagnantDuMatch(pro) === 'A') vPro++;
+    if (gagnantDuMatch(rec) === 'A') vRec++;
+    bRec += rec.gfB; bContre += rec.gfA;
+  }
+  console.log(`\nLe niveau Recrue (${N} paires) : l'IA Pro bat la Pro ${Math.round(100 * vPro / N)} fois sur 100, la Recrue ${Math.round(100 * vRec / N)} — ${(bContre / N).toFixed(2)} buts à ${(bRec / N).toFixed(2)} contre la recrue`);
+  borne('la Recrue perd contre l\'IA Pro', 100 * vRec / N, 80, 100, ' sur 100');
+  borne('la Recrue marque encore', bRec / N, 0.15, 2.5, ' but par match');
+  exiger('la Recrue est plus facile que la Pro', vRec > vPro, `${vRec} contre ${vPro} victoires sur ${N}`);
+}
+
 verdict('Le plateau tient-il ses cibles ?');
