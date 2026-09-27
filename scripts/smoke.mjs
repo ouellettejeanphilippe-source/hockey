@@ -335,6 +335,38 @@ const butsDuDirect = () => page.$$eval('#liveModal .live-feed .live-ligne', els 
 async function lireLeDirect(entracte) {
   butsVusEnDirect = { buts: await butsDuDirect(), entracte };
 }
+/* Le « Sommaire du match » d'une clé `saison|j|k` ou `series|i|k` : ses buts, période, heure et marqueur. */
+async function butsDuSommaire(cle) {
+  await page.evaluate(c => {
+    const el = document.createElement('div');
+    el.dataset.sommaire = c;
+    document.body.appendChild(el);
+    el.click();
+    el.remove();
+  }, cle);
+  await page.waitForFunction(() => document.getElementById('gameModal').style.display !== 'none', null, { timeout: 5000 }).catch(() => {});
+  const buts = await page.$$eval('#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
+    const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
+    return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
+  }), PERIODES);
+  await page.evaluate(() => document.getElementById('closeGameBtn').click());
+  await page.waitForTimeout(150);
+  return buts;
+}
+/*
+ * ET ÇA RESTE VRAI APRÈS (S79). JP : *surtout, la simulation doit pas se faire
+ * d'avance, pis rester ok après*. Le match vu en direct se relit au bilan,
+ * après toutes les décisions du reste de la saison (et les entractes qui
+ * rebâtissent la ligue jusqu'à leur soir) : les mêmes buts, au caractère près.
+ */
+const aRelire = [];
+async function toujoursLesMemes() {
+  for (const r of aRelire.splice(0)) {
+    const buts = await butsDuSommaire(r.cle);
+    if (JSON.stringify(buts) !== JSON.stringify(r.buts)) errors.push(`${r.etiquette} : au bilan, le match vu en direct (${r.cle}) n'a plus les mêmes buts — ${buts.join(' · ')} contre ${r.buts.join(' · ')} au direct`);
+    else console.log(`   ${r.etiquette} : au bilan, après le reste de la saison, le match vu en direct garde ses ${buts.length} buts, au caractère près`);
+  }
+}
 async function memesButs(etiquette, serie = false) {
   const vu = butsVusEnDirect;
   butsVusEnDirect = null;
@@ -351,21 +383,15 @@ async function memesButs(etiquette, serie = false) {
     }, PERIODES)]);
   }
   // Le « Sommaire du match » : le dernier match révélé (ta série : le plus haut numéro).
-  const ouvert = await page.evaluate(s => {
+  const cle = await page.evaluate(s => {
     const els = [...document.querySelectorAll(s ? '#hubModal [data-sommaire^="series|"]' : '#hubModal .hub-board[data-sommaire]')];
     const el = els.sort((a, b) => Number(a.dataset.sommaire.split('|')[2]) - Number(b.dataset.sommaire.split('|')[2])).pop();
-    if (!el) return false;
-    el.click();
-    return true;
+    return el ? el.dataset.sommaire : null;
   }, serie);
-  if (ouvert) {
-    await page.waitForFunction(() => document.getElementById('gameModal').style.display !== 'none', null, { timeout: 5000 }).catch(() => {});
-    lus.push(['le sommaire du match', await page.$$eval('#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
-      const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
-      return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
-    }), PERIODES)]);
-    await page.evaluate(() => document.getElementById('closeGameBtn').click());
-    await page.waitForTimeout(150);
+  if (cle) {
+    lus.push(['le sommaire du match', await butsDuSommaire(cle)]);
+    // Le match de saison se relira au bilan, après toutes les décisions qui suivent.
+    if (!serie) aRelire.push({ etiquette, cle, buts: vu.buts });
   } else errors.push(`${etiquette} : le match vu en direct n'a pas de sommaire à ouvrir`);
   const direct = JSON.stringify(vu.buts);
   const faux = lus.filter(([, l]) => JSON.stringify(l) !== direct);
@@ -1672,6 +1698,7 @@ async function traverserSaison(etiquette, reprise = false) {
   if (!face) errors.push(`${etiquette} : aucune statistique du match en direct`);
   await cliquerFin();
   await versLeBilan();
+  await toujoursLesMemes();
 }
 
 /*
