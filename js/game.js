@@ -896,7 +896,7 @@ function zoneTag(p, mini = false) {
  * reste vit dans la fiche, à un toucher.
  */
 function roleTag(p) {
-  const marques = (p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="tag tag-mut" title="${esc(MUTATIONS[k].nom)} — ${esc(MUTATIONS[k].quoi)}">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
+  const marques = clesDesMods(p).map(k => MUTATIONS[k] ? `<span class="tag tag-mut" title="${esc(MUTATIONS[k].nom)} — ${esc(MUTATIONS[k].quoi)}">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
   const pp = profilPrincipal(p);
   if (pp) return `<span class="tag tag-role" title="${esc(pp.mot)}">${pp.ico} ${esc(pp.nom)}</span>${marques}`;
   const a = getArchetype(p, getHiddenRatings(p));
@@ -2275,6 +2275,44 @@ function carteMiniHtml(p) {
     <span class="cj-bandeau"><span class="pcard-full-name">${formatName(p.n)}</span></span>
     <span class="cjm-ligne"><b>${cle}</b><span>${st.salaryMain}</span></span>
   </span>`;
+}
+/*
+ * SES CARTES (S78). JP : *pour les cartes, ajouter section au verso ou
+ * ajouter les cartes de modifs de joueurs*. Ce qu'on a joué SUR lui cette
+ * saison — l'atelier, une amélioration, un nouveau rôle — et ce que le hasard
+ * lui a fait (un accident de carte), dans l'ordre, chacune avec son effet en
+ * chiffres. Seulement ce qui est DÉJÀ arrivé : le moteur joue la saison
+ * d'avance (`p._mutCles` porte la fin de l'année), et un accident de la
+ * journée 55 ne se lit pas à la journée 20. Sans saison (le repêchage), rien :
+ * un joueur n'a pas encore de carte jouée sur lui.
+ */
+const SOURCE_MOD = { atelier: 'L\'atelier', amelioration: 'Amélioration', choix: 'Nouveau rôle', accident: 'Le hasard' };
+function modsDuJoueur(p) {
+  const t = G.ligue && G.ligue.you;
+  if (!p || !t || !Array.isArray(t.mutations)) return null;
+  const cle = getPlayerKey(p);
+  const jusqua = porteeRevele('saison') === 'jour' ? (G.journee || 0) : Infinity;
+  return t.mutations.filter(m => m.joueur === cle && m.jour < jusqua && MUTATIONS[m.cle]);
+}
+const clesDesMods = p => (modsDuJoueur(p) || []).map(m => m.cle);
+function sectionMods(p) {
+  const mods = modsDuJoueur(p);
+  // Seulement un joueur de TON équipe (un adversaire n'a pas de cartes jouées par toi).
+  if (!mods || !Object.values(G.roster || {}).some(x => x && getPlayerKey(x) === getPlayerKey(p))) return '';
+  // Un malus que le physio a effacé depuis se lit barré.
+  const physio = Math.max(-1, ...mods.filter(m => m.cle === 'physio').map(m => m.jour));
+  const items = mods.map(m => {
+    const M = MUTATIONS[m.cle];
+    const efface = m.jour < physio && mutationNuit(m.cle);
+    const effets = motsDeMutation(m.cle).map(x => `<span class="${x.bon ? 'bon' : 'prix'}">${esc(x.txt)}</span>`).join('');
+    return `<div class="fc-mod src-${M.source}${efface ? ' efface' : ''}" title="${esc(M.quoi)}">
+      <span class="fc-mod-ico" aria-hidden="true">${M.ico}</span>
+      <span class="fc-mod-txt"><span class="fc-mod-tete"><b>${esc(M.nom)}</b><small>${esc(SOURCE_MOD[M.source] || 'Carte')} · J${m.jour + 1}${efface ? ' · effacé par le physio' : ''}</small></span>
+      ${effets ? `<span class="fc-mod-effets">${effets}</span>` : ''}</span>
+    </div>`;
+  }).join('');
+  return `<div class="fc-sec">Ses cartes${mods.length ? ` · ${mods.length}` : ''}</div>
+    <div class="fc-mods">${items || '<p class="fc-mods-vide">Aucune carte jouée sur lui cette saison.</p>'}</div>`;
 }
 /* La ligne d'un joueur offert : ce que la carte mini ne dit pas (elle dit déjà les points, ou les victoires). */
 const ligneDuChoix = p => (p.p === 'G'
@@ -4167,7 +4205,8 @@ function showPlayerModal(p, opts = {}) {
   const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : mesureTags(p, true, roles) + zoneTag(p)}${realTag(p)}`;
   const milieuVerso = `${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
-    ${saCarte}`;
+    ${saCarte}
+    ${sectionMods(p)}`;
   const verso = versoDeCarte(p, numero, rarete, milieuVerso, ere);
   body.innerHTML = `
     <div class="pcard-full" style="--team-logo:${logoFiligrane(p.t)};--card-primary:${colors.primary};--card-accent:${colors.accent};--team-band:${band.bg};--team-stripe:${band.stripe};--team-ink:${band.ink};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
