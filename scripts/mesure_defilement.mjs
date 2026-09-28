@@ -39,7 +39,10 @@ await page.route(u => !u.href.startsWith(base), r => r.abort());
 await page.goto(base + '/', { waitUntil: 'networkidle' });
 await page.evaluate(() => { try { localStorage.clear(); } catch {} });
 await page.reload({ waitUntil: 'networkidle' });
-await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 });
+// Depuis le menu de départ (S77), une nouvelle partie passe par lui ; la modale « Nouvelle partie » ne s'ouvre plus seule.
+await page.waitForSelector('#menuDepart');
+await page.click('.menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
+await page.waitForSelector('#npGo', { timeout: 30000 });
 await page.evaluate(() => document.getElementById('npGo').click());
 await page.waitForSelector('#choixModal:not([hidden]) .tc', { timeout: 10000 });
 await page.evaluate(() => document.querySelector('#choixModal .tc').click());
