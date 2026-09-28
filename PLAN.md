@@ -373,3 +373,11 @@
 - [x] Bogue : une bande de nom qui mord la photo cachait l'écusson, l'année et le ruban du loto.
 - [x] Bogue : la rangée d'icônes d'une case (quatre émojis) dépassait sa rangée de 2 px (le test de fumée, sur un repêchage au hasard).
 - [x] `scripts/mesure_defilement.mjs` attendait l'ancienne modale de départ (`#partieModal` visible) : il passe par le menu, comme `planche_cartes.mjs`.
+
+## S80 — le gros match annoncé, les blessures, des dilemmes vrais
+- [x] Le gros match s'annonce deux journées d'avance ; l'avant-match arrive à l'annonce (JP : *ces events gros matchs … dans les jours avant*).
+- [x] Les blessures racontées au direct et au sommaire, « Oh non ! » chez toi.
+- [x] Neuf dilemmes à fait de match : ils ne sortent que si le fait est vrai, avec les vrais chiffres.
+- [x] La main d'avant-match ne remonte plus ; les joueurs partis restent dans les stats ; les puces lisibles sur un verso clair ; moteur S81, cache v25.
+- [ ] Les photos en 320 px font un APK de 64 Mo : trop gros pour l'envoi dans la conversation (30 Mo) — livré par OneDrive.
+

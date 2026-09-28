@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v24';  // v24 : le Rogue sur plusieurs saisons (js/depart.js), les packs par niveau, choisir dans l'alignement, les améliorations au verso, les portraits en 320 px, les blessures au direct (S80)
+const VERSION = 'cap82-v25';  // v25 : des vraies cartes (le carton, les finitions, le verso), le gros match annoncé, les blessures au direct, des dilemmes vrais (S80)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
