@@ -545,6 +545,22 @@ export function penaliteAdaptee(player, slot) {
   // Une carte « Polyvalent » (S78, js/rarete.js) fond une part de la pénalité d'entrée de jeu.
   return base * Math.exp(-g / ADAPT_MATCHS) * effetCarte(player, 'horsPosition');
 }
+/*
+ * LA PÉNALITÉ QUE L'ÉCRAN AFFICHE (1.0, J1-J) : celle que le moteur joue
+ * AUJOURD'HUI, arrondie au dixième — pas la pénalité de base, qui restait
+ * « −3 » au jour 40 d'un centre à l'aile qui jouait à −0,2. `matchs` dit
+ * depuis combien de matchs il s'adapte à cette case ; 999 reste la
+ * sentinelle d'`autoRoster` (une case interdite).
+ */
+export function penaliteAffichee(player, slot) {
+  const base = getPositionPenalty(player, slot);
+  if (!base) return { pen: 0, base: 0, matchs: 0 };
+  if (base >= 999) return { pen: 999, base, matchs: 0 };
+  const matchs = (player && player._adapt && player._adapt[slot.role]) || 0;
+  return { pen: Math.round(penaliteAdaptee(player, slot) * 10) / 10, base, matchs };
+}
+/* Le mot de la pénalité : « −3 », ou « −1,2 · s'adapte (9 m.) » une fois l'adaptation commencée. */
+export const motPenalite = a => (a.pen <= 0 ? '' : a.matchs > 0 ? `−${String(a.pen).replace('.', ',')} · s'adapte (${a.matchs} m.)` : `−${a.base}`);
 const effStat = (player, slot, key) => {
   const r = getHiddenRatings(player);
   return Math.max(25, r[key] - penaliteAdaptee(player, slot));

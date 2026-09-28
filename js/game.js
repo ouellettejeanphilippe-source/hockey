@@ -22,7 +22,7 @@
 
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
-  SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
+  SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, penaliteAffichee, motPenalite, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJusqua, bilanLigue, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
   CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, systemeDe, MUTATIONS, effetsEnCours,
@@ -3142,7 +3142,7 @@ function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '', bloque = null
     // S79 : la sortie que le plafond refuse reste visible, avec sa raison.
     const b = bloque ? bloque(q) : '';
     if (b) return { non: b };
-    const pen = getPositionPenalty(p, sl);
+    const pen = penaliteAffichee(p, sl).pen;
     if (pen) marques = true;
     return { marque: pen ? `−${pen}` : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : '', note: note ? note(q) : '' };
   });
@@ -3879,7 +3879,7 @@ function playerCardEl(p) {
   const rem = capLeft();
   const over = p.$ > rem;
   const risky = !over && p.$ > maxForPick();
-  const pen = slot ? getPositionPenalty(p, slot) : 0;
+  const pen = slot ? penaliteAffichee(p, slot).pen : 0;
   const st = displayStats(p);
   const isTargeted = G.target !== null && slot === SLOTS[G.target];
 
@@ -4057,7 +4057,7 @@ async function signPlayer(p, el = null) {
   G.target = null;
   G.selectedSlot = null;
 
-  const pen = getPositionPenalty(p, slot);
+  const pen = penaliteAffichee(p, slot).pen;
   const sous = zoneEcart(p, slot) === 'sous';
   toast(`${p.n} → ${slotShort(slot)}`
     + (pen > 0 ? ` (−${pen} hors position)` : '')
@@ -4442,7 +4442,8 @@ function mesureIcones(p) {
 function slotEl(s) {
   const p = G.roster[s.i];
   const el = document.createElement('div');
-  const pen = p ? getPositionPenalty(p, s) : 0;
+  const adapt = p ? penaliteAffichee(p, s) : { pen: 0, base: 0, matchs: 0 };
+  const pen = adapt.pen;
 
   el.className = 'slot'
     + (p ? '' : ' empty')
@@ -4467,7 +4468,8 @@ function slotEl(s) {
     const ligneStats = G.banc ? ficheDuJour(p) : surTable() ? slotAxesTexte(p) : `${main} · ${secondary}`;
     const blesseTag = G.banc && G.banc.blesses.has(p)
       ? `<span class="tag tag-pen" title="Blessé : il lui reste ${G.banc.blesses.get(p)} match${G.banc.blesses.get(p) > 1 ? 's' : ''}. Un réserviste prend sa place le soir du match.">🩹 ${G.banc.blesses.get(p)}</span>` : '';
-    const penTag = !surTable() && pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position : −${pen}">−${pen}</span>` : '';
+    // Le −N est celui du jour (J1-J) : il fond en jouant à cette case, et la case le dit.
+    const penTag = !surTable() && pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position aujourd'hui : ${esc(motPenalite(adapt))}${adapt.matchs ? ` — elle était de −${adapt.base} au premier match et fond en jouant ici` : ''}">${adapt.matchs ? `−${String(pen).replace('.', ',')}` : `−${pen}`}</span>` : '';
     const ecart = zoneEcart(p, s);
     /* Une flèche seule : « ▼ zone » et « ▲ zone » poussaient la pénalité de
        position hors de la case sur les écrans où un trio n'a que cent pixels
