@@ -399,7 +399,10 @@ for (; essais < 5 && !jouee; essais++) {
 if (await page.$('#inventaireModal:not([hidden])')) await page.click('#inventaireModal .choix-fermer');
 d = await decisions();
 console.log(`11. jouée (${essais} essai(s)) : ${JSON.stringify(d.filter(x => x.joue).map(x => ({ id: x.joue.id, champs: Object.keys(x).filter(k => !['jour', 'joue', 'sel'].includes(k)) })))} · barre : ${await jauge()}`);
-if (!jouee) erreurs.push('aucune carte de l\'inventaire n\'a pu se jouer (cinq essais)');
+// Une modif posée au verso (7a) est déjà une carte jouée : le Rogue paie moins (S80), et l'inventaire
+// ne tient parfois que des modifs. L'erreur, c'est qu'AUCUNE carte n'ait pu se jouer.
+if (!jouee && !d.some(x => x.joue)) erreurs.push('aucune carte de l\'inventaire n\'a pu se jouer (cinq essais)');
+else if (!jouee) console.log('    (rien d\'autre que des modifs dans l\'inventaire : la modif posée au verso compte)');
 // LE CARTABLE (S79) : l'onglet Vestiaire, une fois la saison commencée.
 await page.click('#navbar [data-page="repechage"]');
 await page.waitForSelector('#pageCartable:not([hidden]) .ct-carte', { timeout: 20000 });
