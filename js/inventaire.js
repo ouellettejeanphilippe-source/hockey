@@ -45,6 +45,8 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, jour = 0, rogue = 
     if ((d.achat.vendus || []).includes(t)) return;
     items.push({ ref: `${d.achat.n}:${t}`, id, source: `Pack · journée ${(d.jour || 0) + 1}` });
   });
+  // S80 : une amélioration ou une édition de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
+  for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Palier de la journée ${d.palier}` });
   for (const p of PALIERS_PACK) {
     if (jour < p) continue;
     tirerCartesPack('mixte', graine, `palier${p}`).forEach((id, t) => {

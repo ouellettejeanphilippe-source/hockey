@@ -35,7 +35,7 @@ import { CARTES_MATCH, estPlus } from './combat.js';
 export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Trois postes au plus, un par rôle.' },
   evenement: { ico: '📰', nom: 'Événements', un: 'Événement', mot: 'Ce qui arrive à ton équipe : quelques journées, un bonus et son prix.' },
-  joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, un contrat, une amélioration ou une édition : au joueur de ton choix, pour la saison.' },
+  joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, un contrat, une amélioration ou une édition : elle se pose au verso d\'un joueur de ton choix, pour la saison.' },
   consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Un soin, de l\'énergie, des jetons, un coup de pouce au deck : une utilisation.' },
   match: { ico: '🃏', nom: 'Cartes de match', un: 'Carte de match', mot: 'Ton deck des gros matchs et des séries : jouée, elle entre dans le deck.' },
   plafond: { ico: '💵', nom: 'Masse salariale', un: 'Contrat', mot: 'Le plafond salarial se manipule, comme dans la vraie LNH : de l\'espace, une retenue, un blessé à long terme, un rachat.' },
@@ -234,6 +234,46 @@ const RARETE_MOD = {
   masque_neuf: 'commune', baton_neuf: 'commune', contrat_annee: 'peu', contrat_prolonge: 'commune', contrat_bonus: 'rare', contrat_leader: 'rare',
 };
 export const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source));
+
+/*
+ * LES CASES D'AMÉLIORATION, AU VERSO (S80). JP : *je veux que les upgrades de
+ * joueurs se fassent au verso de la carte, pas nécessairement quand on la
+ * pige* ; *je clique sur le joueur, pis je dois aller au verso pour l'ajouter
+ * dans une des slots joueurs?*. Une modif de joueur (une amélioration, une
+ * édition de l'atelier, un style, un contrat) se GARDE dans l'inventaire, et
+ * se POSE sur une case du verso d'un joueur de ton alignement. La carte a DEUX
+ * cases ; une holo ou une or en a une de plus — la finition est la rareté de
+ * la carte, et une carte rare en porte plus. Chaque carte posée prend une case
+ * pour le reste de la saison, le lustre compris : monter une parallèle en holo
+ * rend la case qu'il a prise.
+ *
+ * Ce qui est posé se lit dans les DÉCISIONS, pas dans le moteur : une carte
+ * posée aujourd'hui ne s'applique qu'au matin de sa journée (rien ne se joue
+ * d'avance), mais sa case est prise tout de suite. Les changements de carte
+ * qui ne sont pas des modifs (un dilemme, un nouveau rôle, un accident) ne
+ * prennent pas de case : ils sont ce qui lui est ARRIVÉ.
+ */
+export const CASES_DE_BASE = 2;
+export const casesDAmelioration = variante => CASES_DE_BASE + (variante === 'rare' || variante === 'legendaire' ? 1 : 0);
+/* Une modif qui se pose (et prend une case). */
+export const sePose = cle => !!MUTATIONS[cle] && SOURCES_MOD.includes(MUTATIONS[cle].source);
+/* Pour qui : une carte de gardien aux gardiens, les autres aux patineurs (avants et défenseurs). */
+export const pourCeJoueur = (cle, estGardien) => !!MUTATIONS[cle] && !!MUTATIONS[cle].gardien === !!estGardien;
+/* Les modifs posées sur un joueur, dans l'ordre : `{ cle, jour, carte }` (la variante d'un lustre). */
+export function poseesSur(decisions = [], joueur) {
+  return decisions.filter(d => d && d.mutation && d.mutation.joueur === joueur && sePose(d.mutation.cle))
+    .sort((a, b) => (a.jour || 0) - (b.jour || 0))
+    .map(d => ({ cle: d.mutation.cle, jour: d.jour || 0, carte: d.mutation.carte || null, joue: d.joue || null, deck: d.deck || null }));
+}
+/* La variante qu'a sa carte une fois ses lustres posés (chaque décision de lustre porte la suivante). */
+export function varianteApres(variante, posees = []) {
+  const l = posees.filter(x => x.carte && x.carte.rar).pop();
+  return l ? l.carte.rar : variante;
+}
+/* Combien de cases il lui reste : celles de sa carte (lustres compris), moins les posées. */
+export function casesLibres(variante, posees = []) {
+  return Math.max(0, casesDAmelioration(varianteApres(variante, posees)) - posees.length);
+}
 
 /* ---------- LE REGISTRE ---------- */
 const fait = (cat, cle, def) => ({ id: `${cat}:${cle}`, cat, cle, ...def });

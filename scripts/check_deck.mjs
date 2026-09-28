@@ -16,7 +16,10 @@
  *      profils), et seulement la sienne ;
  *   5. les nouveaux rôles offerts visent trois joueurs différents de
  *      l'alignement, chacun avec un changement de carte réel ;
- *   6. la saison se rejoue à l'identique avec ces décisions.
+ *   6. la saison se rejoue à l'identique avec ces décisions ;
+ *   7. (S80) une amélioration prise au palier se GARDE : elle va dans la poche,
+ *      la garder ne change rien au moteur, et posée au verso elle prend une
+ *      case (deux, trois pour une holo ou une or).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -26,6 +29,8 @@ import {
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, MUTATIONS, CARTES, PALIERS_CARTES,
   chimieLigne, apprentissagePhoto, getPlayerKey, profilsDe,
 } from '../js/sim.js';
+import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose } from '../js/banque.js';
+import { pocheDeLaPartie } from '../js/inventaire.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -132,6 +137,30 @@ console.log('\n  Le deck (S73)\n');
   const fiche = x => `${x[0].W}-${x[0].L}-${x[0].OTL} ${x[0].GF}-${x[0].GA}`;
   exiger('la saison se rejoue à l\'identique avec ces cartes', fiche(t) === fiche(t2), `${fiche(t)} puis ${fiche(t2)}`);
   borne('écart de victoires que le stage et l\'amélioration ont fait', t[0].W - base[0].W, -12, 12, '');
+
+  /*
+   * 7. L'AMÉLIORATION SE GARDE, ET SE POSE AU VERSO (S80). JP : *je veux que
+   * les upgrades de joueurs se fassent au verso de la carte, pas
+   * nécessairement quand on la pige*. Prise au palier, elle va dans la poche
+   * (`garde`) ; posée, elle en sort et prend une case. La garder ne touche
+   * pas le moteur : la saison est celle d'avant, au but près.
+   */
+  const garde = { jour: J0, equipe: 0, palier: J0, deck: 'amelioration', garde: 'joueur:affute' };
+  const pose = { jour: J0 + 5, equipe: 0, joue: { src: 'partie', ref: `deck:${J0}`, id: 'joueur:affute' }, mutation: { cle: 'affute', joueur: cleCible } };
+  const poche1 = pocheDeLaPartie({ decisions: [garde], graine: 'deck', jour: J0 + 1 });
+  const poche2 = pocheDeLaPartie({ decisions: [garde, pose], graine: 'deck', jour: J0 + 6 });
+  exiger('une amélioration prise au palier va dans la poche, et en sort une fois posée', poche1.some(x => x.ref === `deck:${J0}` && x.id === 'joueur:affute') && !poche2.some(x => x.ref === `deck:${J0}`),
+    `${poche1.filter(x => x.ref.startsWith('deck:')).map(x => x.id).join(', ')} puis ${poche2.filter(x => x.ref.startsWith('deck:')).length} carte(s) du palier`);
+  const t3 = ligue(7300);
+  simulateLeague(t3, 82, { graine: 'deck', decisions: [{ ...garde }] });
+  exiger('la garder ne change rien à la saison (le moteur ne la lit qu\'une fois posée)', fiche(t3) === fiche(base), `${fiche(base)} sans, ${fiche(t3)} avec`);
+  const posees = poseesSur([garde, pose], cleCible);
+  exiger('posée, elle prend une case de son verso', posees.length === 1 && posees[0].cle === 'affute' && casesLibres('commune', posees) === CASES_DE_BASE - 1, `${posees.length} posée, ${casesLibres('commune', posees)} libre`);
+  const lustre = [{ jour: 30, mutation: { cle: 'lustre', joueur: 'k', carte: { rar: 'rare', bonus: [] } } }];
+  exiger('deux cases, trois pour une holo ou une or ; le lustre qui fait une holo rend sa case',
+    casesDAmelioration('commune') === 2 && casesDAmelioration('peu') === 2 && casesDAmelioration('rare') === 3 && casesDAmelioration('legendaire') === 3
+    && casesLibres('peu', poseesSur(lustre, 'k')) === 2 && !sePose('genou') && !sePose('tir_gun') && sePose('partout') && sePose('baton_neuf'),
+    `base ${casesDAmelioration('commune')} · holo ${casesDAmelioration('rare')} · parallèle lustrée en holo : ${casesLibres('peu', poseesSur(lustre, 'k'))} libres`);
 }
 
 verdict('Le deck');
