@@ -360,7 +360,7 @@
 - [x] La carte qui sort (signature, ballottage, recrue, relâché) va au cartable ; relâcher un réserviste (avant la saison, derrière le banc) ; deux cases de réserve à débloquer, la case libre offerte avant « qui sort ? ».
 - [x] `rebatirAdversaires` exclut tout joueur qu'une décision a mis dans l'alignement (un relâché du jour 0) ; le renfort de l'Express lit les 23 cases de base.
 - [x] `check_rogue.mjs` (invariants, courbe à cinq niveaux, campagnes, force des cartes selon le moment) et `scripts/lib/rogue_sim.mjs` (le robot des runs) ; `essai_rogue.mjs` étendu.
-- [ ] Après la fusion de la branche des packs (les taux de tirage des joueurs) : relancer `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` et régler le barème ou les prix des déblocages si la courbe a bougé.
+- [x] Après la fusion de la branche des packs (les taux de tirage des joueurs) : relancé `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` — la première Coupe glissait à la septième run et une campagne sur six n'y arrivait pas ; à 5 🪙 par victoire, les six y arrivent (runs 1, 3, 4, 10, 10, 12).
 - [ ] Le stage reste une carte de confort (la chimie pèse peu en buts, `CHIMIE_BONUS`) : si JP veut des cartes de trio qui gagnent des matchs au début, c'est la chimie ou la maîtrise dans le fit du système qu'il faudra rendre plus lourdes — un choix de moteur, pour tous les modes.
 
 ## S80 — des vraies cartes (fait sur s80-cartes)

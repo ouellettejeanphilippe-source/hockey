@@ -10,7 +10,7 @@
  * avec base des cartes ramassé qui sont pas des consommables*.
  *
  *   node scripts/check_rogue.mjs                       (rapide : 10 runs par niveau, 2 campagnes)
- *   RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs   (la mesure du rapport, une dizaine de minutes)
+ *   RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs   (la mesure du rapport, cinq ou six minutes)
  *
  * Quatre parties :
  *   1. LES INVARIANTS : les cases de réserve de plus (aucun mode ne les
