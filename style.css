@@ -1753,6 +1753,10 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .slot-tags > * { flex: none; }
 .slot-tags .tag { font-size: 9.5px; padding: 1px 5px; }
 .slot-icones { font-size: 11px; line-height: 16px; letter-spacing: -1px; white-space: nowrap; }
+/* Quatre émojis de polices différentes (🧱⚡🪄🧊) s'alignent sur leur ligne de base et la ligne grandit de 2 px au-delà
+   de ses 16 : la rangée coupait le bas (S80, attrapé par `toutEstAtteignable` sur un repêchage au hasard). La boîte
+   tient ses 16 px. */
+.slot-tags > .slot-icones { height: 16px; }
 .slot-roles { flex: none; font-size: 13px; line-height: 16px; letter-spacing: -1px; white-space: nowrap; }
 /* Rien ne rétrécit : la case a une hauteur fixe, ses rangées aussi. */
 .slot-inner > * { flex: none; }
