@@ -325,3 +325,10 @@
 - [x] check_situations : la fusion des rôles faisait pencher la paire vers le porté (+0,92 V) ; `ECHELLE_PESE` passe à 1,3 (balayé sur 10 ligues : +0,08 V, porté +3,4 pts, pesé −2,6).
 - [x] check_plans : les plans de match ont quitté le moteur en S68 (les systèmes de ligne les remplacent, `check_tactiques` les mesure) ; la vérification ne garde que le roulement, le bilan ne montre plus de plan.
 - [ ] À reprendre : check_cartes (New Jersey, −1,17 V sur 12 ligues, −0,67 sur 36) et check_monotonie (décile du haut 49,7 pour 50) — à la limite de leur borne, avant comme après la fusion.
+
+## S79 — les cartes aux couleurs du club
+- [x] Deux régimes par année : très couleurs (cadre au club) ou accents (anneau aux couleurs du club, vives sur les cadres sombres).
+- [x] Bandes de nom or, argent, bloc, fondu sur le fond du club ; plaque et banderole avec liseré et nom au club ; a-arc au club.
+- [x] Bogue : la mini et la fiche perdaient toutes les couleurs du club (guillemet double du filigrane dans l'attribut style).
+- [x] Tampa a un fond (marine éclairci) ; cache v22.
+

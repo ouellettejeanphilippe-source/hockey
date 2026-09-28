@@ -2724,7 +2724,7 @@ function carteMiniHtml(p) {
   const band = getTeamBand(p.t);
   const st = displayStats(p);
   const cle = p.p === 'G' ? `${st.w}<small>V</small>` : `${st.pt}<small>PTS</small>`;
-  return `<span class="cj-recto cj-mini-carte ${classesDeCarte(p)} tc-${rarete}" style="--team-logo:${logoFiligrane(p.t)};--team-band:${band.bg};--team-ink:${band.ink};--team-stripe:${band.stripe};--team-fond:${fondEquipe(p.t) || ''}">
+  return `<span class="cj-recto cj-mini-carte ${classesDeCarte(p)} tc-${rarete}" style="--team-logo:${logoFiligrane(p.t)};--team-band:${band.bg};--team-ink:${band.ink};--team-stripe:${band.stripe};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
     <span class="cj-fenetre">
       <span class="cj-filigrane" aria-hidden="true"></span>
       ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
@@ -2810,8 +2810,13 @@ const apercuJoueur = p => showPlayerModal(p, { apercu: true });
 const ligneDuChoix = p => (p.p === 'G'
   ? `${p.gp} PJ · ${p.l ?? 0} D · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
   : `${p.gp} PJ · ${p.g} B · ${p.a} A`);
-/* L'écusson du club en filigrane derrière un portrait détouré (img/logos, S78). */
-const logoFiligrane = t => (LOGOS_LOCAUX.has(t) ? `url("img/logos/${t}.svg")` : 'none');
+/*
+ * L'écusson du club en filigrane derrière un portrait détouré (img/logos, S78).
+ * Des guillemets SIMPLES (S79) : la valeur entre aussi dans un attribut
+ * `style="…"` (la mini, la fiche), où un guillemet double fermait l'attribut —
+ * toutes les couleurs du club qui suivaient tombaient, et la carte sortait grise.
+ */
+const logoFiligrane = t => (LOGOS_LOCAUX.has(t) ? `url('img/logos/${t}.svg')` : 'none');
 /*
  * LE RUBAN DE LA SOUS-SÉRIE, au bas de la photo : « ★ Étoile », « Recrue »,
  * ou les deux. Il remplace le tampon « Recrue » d'avant — et garde son

@@ -212,7 +212,24 @@ export function fondEquipe(teamCode, cible = 0.045) {
   let base = c.primary;
   if (luminance(base) < cible) base = c.secondary || c.accent || base;
   if (luminance(base) < cible) base = c.accent || base;
-  if (luminance(base) < cible) return null;   // tout le club est noir : le fond de la palette suffit
+  if (luminance(base) < cible) {
+    /*
+     * TOUT LE CLUB EST PLUS SOMBRE QUE LA CIBLE. Un club tout en NOIR n'a
+     * pas de couleur à montrer : le fond de la palette suffit. Mais un club
+     * tout en MARINE (Tampa : marine et marine plus foncé) en a une, et sa
+     * carte sortait sans fond (S79, JP : *les cartes aux couleurs des
+     * équipes*). Son marine s'éclaircit donc jusqu'à la cible.
+     */
+    const p = hexToRgb(c.primary);
+    if (Math.max(...p) - Math.min(...p) < 40) return null;
+    const vif = saturer(p, CHROMA_FOND);
+    let bas = 1, haut = 255 / Math.max(1, ...vif), f = 1;
+    for (let i = 0; i < 20; i++) {
+      f = (bas + haut) / 2;
+      if (luminance(rgbToHex(vif.map(v => Math.min(255, v * f)))) > cible) haut = f; else bas = f;
+    }
+    return rgbToHex(vif.map(v => Math.min(255, v * f)));
+  }
   // Assombrir vers le noir jusqu'à la cible, par dichotomie sur le mélange.
   const rgb = saturer(hexToRgb(base), CHROMA_FOND);
   let lo = 0, hi = 1, k = 1;

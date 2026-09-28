@@ -7597,10 +7597,10 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .cj-fenetre > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 8%; transform: none; -webkit-mask-image: none; mask-image: none; }
 .cj-fenetre > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 72px; opacity: 0.35; }
 .cj-rondelle { position: absolute; z-index: 3; top: 8px; left: 8px; }
-/* L'écusson dans son coin, SANS cercle (S78) : son ombre épouse sa forme, il ne se décentre jamais dans une pastille. */
-.cj-coin-logo {
-  position: absolute; z-index: 3; bottom: 8px; left: 8px; display: grid; place-items: center; width: 32px; height: 32px;
-  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.85)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+/* L'écusson dans son coin, SANS cercle (S78) : son ombre épouse sa forme, il ne se décentre jamais dans une pastille. */
+.cj-coin-logo {
+  position: absolute; z-index: 3; bottom: 8px; left: 8px; display: grid; place-items: center; width: 32px; height: 32px;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.85)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
 .cj-coin-logo :is(img, svg) { position: static; width: 28px; height: 28px; transform: none; object-fit: contain; }
 .cj-recto .cj-annee { right: 8px; bottom: 8px; font-size: 13px; padding: 3px 7px; }
@@ -8993,7 +8993,7 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 #choixModal .live-buteurs { max-height: none; overflow: visible; }
 
 /* L'ÉCUSSON SUR SA BANDE (S78) : un logo de la couleur du club disparaissait sur la bande du club (le Lightning bleu sur bleu). Une pastille claire, comme sur un chandail. */
-/* PAS DE CERCLE AUTOUR D'UN LOGO (JP : *ce qui est logo, je mettrais pas dans cercles pour éviter mauvais centrage*) : un liseré clair qui épouse sa forme. */
+/* PAS DE CERCLE AUTOUR D'UN LOGO (JP : *ce qui est logo, je mettrais pas dans cercles pour éviter mauvais centrage*) : un liseré clair qui épouse sa forme. */
 .live-eq-band .team-logo-img, .hub-eq-band .team-logo-img { filter: drop-shadow(0 0 0.8px #fff) drop-shadow(0 0 0.8px #fff) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45)); }
 
 /* Le dos d'une vraie carte n'a pas de trou : ce qui reste de place au verso reçoit l'écusson du club, en filigrane (il s'efface quand le verso est plein). */
@@ -9342,7 +9342,26 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 :is(.pcard.pv, .cj-recto).a-coin { --s-dessus: linear-gradient(225deg, var(--team-band, #243044) 0 12%, var(--team-stripe, #8d97a3) 12% 13.5%, transparent 13.5%); }
 :is(.pcard.pv, .cj-recto).a-haut { --s-dessus: linear-gradient(180deg, var(--team-band, #243044) 0 6px, var(--team-stripe, #8d97a3) 6px 8px, transparent 8px); }
 :is(.pcard.pv, .cj-recto).a-bas { --s-dessus: linear-gradient(180deg, transparent 70%, color-mix(in srgb, var(--team-band, #243044) 70%, transparent)); }
-:is(.pcard.pv, .cj-recto).a-arc { --s-dessus: linear-gradient(90deg, #ff6f91, #ffd66e, #7cffc4, #74c8ff, #b58bff) 0 100% / 100% 3px no-repeat; }
+/* L'arc passe aux couleurs du club (S79) : l'arc-en-ciel n'était la couleur de personne. */
+:is(.pcard.pv, .cj-recto).a-arc { --s-dessus: linear-gradient(90deg, var(--team-band, #243044), var(--team-stripe, #8d97a3) 50%, var(--team-band, #243044)) 0 100% / 100% 4px no-repeat; }
+/*
+ * LES CARTES AUX COULEURS DU CLUB (S79). JP : *les cartes aux couleurs des
+ * équipes — en accent du moins, selon les années, très couleurs ou accents*.
+ * Deux régimes, décidés par le cadre de l'année :
+ *   TRÈS COULEURS — c-club, c-club-sombre, c-degrade, c-vitre : le carton
+ *     lui-même est au club.
+ *   ACCENTS — c-blanc, c-carton, c-noir, c-bois, c-argent : le carton reste
+ *     celui de l'année, et le club le CERNE toujours, en ses deux couleurs
+ *     (la principale, puis le liseré). Un accent qui a son propre anneau
+ *     (a-double, a-or, a-club — tous au club) le remplace : cette règle-ci
+ *     est moins spécifique exprès.
+ * Les bandes de nom foncées (or, argent, bloc, fondu) posent leurs lettres
+ * sur le FOND DU CLUB plutôt que sur du noir ; la plaque et la banderole
+ * claires prennent un liseré et un nom aux couleurs du club.
+ */
+:is(.pcard.pv, .cj-recto, .fc-verso):is(.c-blanc, .c-carton, .c-argent) { --a-anneau: inset 0 0 0 3px var(--team-band, #243044), inset 0 0 0 5px var(--team-stripe, #8d97a3); }
+/* Sur un carton sombre, le marine de Toronto ne se voit pas : l'anneau prend d'abord la couleur VIVE du club (`couleurVive`, celle qui se voit sur du noir). */
+:is(.pcard.pv, .cj-recto, .fc-verso):is(.c-noir, .c-bois) { --a-anneau: inset 0 0 0 3px var(--team-line, var(--team-band, #243044)), inset 0 0 0 5px var(--team-band, #243044); }
 /* LE MOTIF, derrière le portrait (--s-motif), et l'écusson du club en filigrane (--s-logo). */
 :is(.pcard.pv, .cj-recto).m-trame { --s-motif: radial-gradient(circle, rgba(255, 255, 255, 0.16) 1.1px, transparent 1.5px) 0 0 / 7px 7px; --s-logo: 0.12; }
 :is(.pcard.pv, .cj-recto).m-rayons { --s-motif: repeating-conic-gradient(from 0deg at 50% 115%, rgba(255, 255, 255, 0.09) 0 5deg, transparent 5deg 11deg); --s-logo: 0.08; }
@@ -9378,26 +9397,26 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 #pool .pcard.pv.f-polaroid .pcard-avatar > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus), .cj-recto.f-polaroid .cj-fenetre > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus) { inset: 5px 5px 16px 5px; }
 #pool .pcard.pv.f-polaroid .pcard-avatar > .cj-filigrane, .cj-recto.f-polaroid .cj-fenetre > .cj-filigrane { background: var(--ss-motif, none), var(--s-motif, none), var(--f-fond); }
 /* LE NOM : toujours une bande PLEINE et contrastée. */
-#pool .pcard.pv.n-banderole .pcard-name, .cj-recto.n-banderole .cj-bandeau { background: #f4ecd8; color: #1d1a14; border-radius: 0; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 50%, 100% 100%, 0 100%, 7px 50%); padding-left: 12px; padding-right: 12px; }
-#pool .pcard.pv.n-banderole .pcard-name .fname, .cj-recto.n-banderole .cj-bandeau .fname { color: #6b5f48; }
+#pool .pcard.pv.n-banderole .pcard-name, .cj-recto.n-banderole .cj-bandeau { background: #f4ecd8; color: #1d1a14; border-radius: 0; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 50%, 100% 100%, 0 100%, 7px 50%); padding-left: 12px; padding-right: 12px; box-shadow: inset 0 3px 0 var(--team-band, #243044), inset 0 -3px 0 var(--team-band, #243044); }
+#pool .pcard.pv.n-banderole .pcard-name .fname, .cj-recto.n-banderole .cj-bandeau .fname { color: color-mix(in srgb, var(--team-band, #6b5f48) 55%, #3a3226); }
 #pool .pcard.pv.n-fanion .pcard-name, .cj-recto.n-fanion .cj-bandeau { background: var(--team-band, #1f4aa8); color: var(--team-ink, #fff); border-radius: 0; clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%); padding-right: 16px; }
 #pool .pcard.pv.n-bande .pcard-name, .cj-recto.n-bande .cj-bandeau { background: var(--team-band, #243044); color: var(--team-ink, #fff); border-radius: 3px; box-shadow: inset 0 -2px 0 var(--team-stripe, transparent); }
 #pool .pcard.pv.n-onglet .pcard-name, .cj-recto.n-onglet .cj-bandeau { background: var(--team-band, #243044); color: var(--team-ink, #fff); border-radius: 10px 10px 2px 2px; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.22); }
 #pool .pcard.pv.n-capsule .pcard-name, .cj-recto.n-capsule .cj-bandeau { background: var(--team-band, #243044); color: var(--team-ink, #fff); border-radius: 999px; padding-left: 14px; padding-right: 14px; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22); }
 #pool .pcard.pv.n-fanion .pcard-name .fname, .cj-recto.n-fanion .cj-bandeau .fname, #pool .pcard.pv.n-bande .pcard-name .fname, .cj-recto.n-bande .cj-bandeau .fname, #pool .pcard.pv.n-onglet .pcard-name .fname, .cj-recto.n-onglet .cj-bandeau .fname, #pool .pcard.pv.n-capsule .pcard-name .fname, .cj-recto.n-capsule .cj-bandeau .fname { color: color-mix(in srgb, var(--team-ink, #fff) 78%, transparent); }
-#pool .pcard.pv.n-bloc .pcard-name, .cj-recto.n-bloc .cj-bandeau { background: #0d0f13; color: #f3f5f8; border-radius: 2px; box-shadow: inset 6px 0 0 var(--team-band, #243044); padding-left: 12px; }
+#pool .pcard.pv.n-bloc .pcard-name, .cj-recto.n-bloc .cj-bandeau { background: var(--team-fond, #0d0f13); color: #f3f5f8; border-radius: 2px; box-shadow: inset 6px 0 0 var(--team-band, #243044), inset 8px 0 0 var(--team-stripe, #8d97a3); padding-left: 14px; }
 #pool .pcard.pv.n-bloc .pcard-name .fname, .cj-recto.n-bloc .cj-bandeau .fname { color: rgba(243, 245, 248, 0.72); }
-#pool .pcard.pv.n-or .pcard-name, .cj-recto.n-or .cj-bandeau { background: linear-gradient(90deg, #07090d, color-mix(in srgb, var(--team-band, #243044) 45%, #07090d)); color: #f3f5f8; border-radius: 2px; box-shadow: inset 0 2px 0 var(--team-band, #243044); }
+#pool .pcard.pv.n-or .pcard-name, .cj-recto.n-or .cj-bandeau { background: var(--team-fond, #07090d); color: #f3f5f8; border-radius: 2px; box-shadow: inset 0 3px 0 var(--team-band, #243044), inset 0 -2px 0 var(--team-stripe, #8d97a3); }
 #pool .pcard.pv.n-or .pcard-name .lname, .cj-recto.n-or .cj-bandeau .lname { background: linear-gradient(180deg, #fff6d6, #f1cf6c 45%, #c9961f 60%, #ffe8a3); -webkit-background-clip: text; background-clip: text; color: transparent; }
 #pool .pcard.pv.n-or .pcard-name .fname, .cj-recto.n-or .cj-bandeau .fname { color: #d9c28a; }
-#pool .pcard.pv.n-argent .pcard-name, .cj-recto.n-argent .cj-bandeau { background: #0b0d11; color: #f3f5f8; border-radius: 0; box-shadow: inset 0 -2px 0 var(--team-band, #243044); }
+#pool .pcard.pv.n-argent .pcard-name, .cj-recto.n-argent .cj-bandeau { background: var(--team-fond, #0b0d11); color: #f3f5f8; border-radius: 0; box-shadow: inset 0 -3px 0 var(--team-band, #243044), inset 0 -5px 0 var(--team-stripe, #8d97a3); }
 #pool .pcard.pv.n-argent .pcard-name .lname, .cj-recto.n-argent .cj-bandeau .lname { background: linear-gradient(180deg, #ffffff, #b9c2cb 55%, #eef1f4); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: 0.05em; }
 #pool .pcard.pv.n-argent .pcard-name .fname, .cj-recto.n-argent .cj-bandeau .fname { color: #aeb7c1; }
 #pool .pcard.pv.n-diagonale .pcard-name, .cj-recto.n-diagonale .cj-bandeau { background: linear-gradient(90deg, var(--team-band, #243044), color-mix(in srgb, var(--team-band, #243044) 70%, var(--team-stripe, #8d97a3))); color: var(--team-ink, #fff); font-style: italic; border-radius: 0; clip-path: polygon(0 16%, 100% 0, 100% 84%, 0 100%); padding-top: 7px; }
 #pool .pcard.pv.n-diagonale .pcard-name .fname, .cj-recto.n-diagonale .cj-bandeau .fname { color: color-mix(in srgb, var(--team-ink, #fff) 78%, transparent); }
-#pool .pcard.pv.n-plaque .pcard-name, .cj-recto.n-plaque .cj-bandeau { background: #f6f7f9; color: #12151b; border-radius: 0 0 6px 6px; box-shadow: inset 0 3px 0 var(--team-band, #243044); }
+#pool .pcard.pv.n-plaque .pcard-name, .cj-recto.n-plaque .cj-bandeau { background: #f6f7f9; color: color-mix(in srgb, var(--team-band, #12151b) 60%, #12151b); border-radius: 0 0 6px 6px; box-shadow: inset 0 5px 0 var(--team-band, #243044), inset 0 7px 0 var(--team-stripe, #8d97a3); }
 #pool .pcard.pv.n-plaque .pcard-name .fname, .cj-recto.n-plaque .cj-bandeau .fname { color: #5b6270; opacity: 1; }
-#pool .pcard.pv.n-fondu .pcard-name, .cj-recto.n-fondu .cj-bandeau { background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55) 30%, rgba(0, 0, 0, 0.78)); color: #fff; border-radius: 0 0 6px 6px; box-shadow: inset 0 -3px 0 var(--team-band, #243044); padding-top: 8px; }
+#pool .pcard.pv.n-fondu .pcard-name, .cj-recto.n-fondu .cj-bandeau { background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--team-fond, #000) 70%, transparent) 30%, color-mix(in srgb, var(--team-fond, #000) 92%, transparent)); color: #fff; border-radius: 0 0 6px 6px; box-shadow: inset 0 -3px 0 var(--team-band, #243044), inset 0 -5px 0 var(--team-stripe, #8d97a3); padding-top: 8px; }
 #pool .pcard.pv.n-diagonale .pcard-name { z-index: 2; margin-top: -12px; height: calc(100% + 12px); }
 .cj-recto.n-diagonale .cj-bandeau { position: relative; z-index: 3; margin-top: -14px; }
 .cj-recto.cj-mini-carte.n-diagonale .cj-bandeau { margin-top: -9px; }

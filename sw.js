@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v21';  // v21 : les rôles et les systèmes (js/roles_ref.js), la banque de cartes et les packs, le cartable, la ligue au jour le jour (S79)
+const VERSION = 'cap82-v22';  // v22 : les cartes aux couleurs du club (la mini et la fiche retrouvent leurs couleurs), l'écran Match désencombré (S79)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

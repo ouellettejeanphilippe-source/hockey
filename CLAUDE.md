@@ -1582,3 +1582,13 @@ JP : *l'écran de match a trop d'informations, ça devient bordel*. La règle «
 ## S79 — Après la fusion : les situations et les plans
 - **Les situations** : avec les systèmes au prorata du fit, la paire penchait vers le porté (+0,92 V, check_situations rouge). Balayé avec les molettes `ECHELLE_PORTE` / `ECHELLE_PESE` sur 10 ligues : le pesé passe à ×1,3 par défaut (+0,08 V ; porté +3,4 pts, pesé −2,6 ; tempo +0,03 but).
 - **Les plans de match** (`PLANS`) ne sont plus lus par le moteur depuis S68 ; ils restent pour relire les vieilles sauvegardes. `check_plans.mjs` ne mesure plus que le roulement ; le bilan ne montre plus que le roulement.
+
+## S79 — Les cartes aux couleurs du club
+JP : *les cartes aux couleurs des équipes — en accent du moins, selon les années, très couleurs ou accents*. Deux régimes, décidés par le cadre de l'année (`DESIGNS`, js/cartes.js) :
+- **Très couleurs** : c-club, c-club-sombre, c-degrade, c-vitre — le carton est au club.
+- **Accents** : c-blanc, c-carton, c-argent (anneau à la couleur principale puis au liseré) ; c-noir, c-bois (anneau à la couleur VIVE du club, `--team-line`, puis à la principale : le marine de Toronto ne se voit pas sur du noir). Un accent qui a son propre anneau (a-double, a-or, a-club) le remplace : la règle du cadre est moins spécifique exprès.
+- Les bandes de nom foncées (or, argent, bloc, fondu) posent leurs lettres sur `--team-fond` plutôt que sur du noir, avec le liseré du club ; la plaque et la banderole claires prennent un liseré et un nom aux couleurs du club ; l'accent a-arc est aux couleurs du club (plus d'arc-en-ciel).
+- **Le bogue** : `logoFiligrane` rendait `url("…")`, posé dans un attribut `style="…"` (la mini, la fiche) — le guillemet double fermait l'attribut et toutes les couleurs qui suivaient tombaient : les minis et la fiche sortaient grises. Guillemets simples maintenant. La mini porte aussi `--team-line`.
+- `fondEquipe` : un club tout en marine (Tampa) n'a plus un fond vide — son marine s'éclaircit jusqu'à la cible. Seul un club tout en noir rend encore `null`.
+- Vérifier d'un coup d'oeil : `node scripts/planche_cartes.mjs http://localhost:8000 dossier` (et `--mini`).
+
