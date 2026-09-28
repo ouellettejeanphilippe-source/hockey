@@ -10,9 +10,9 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, playRonde, appliquerDecisionSerie, separerSeries, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
+import { CAP, SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
   PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
-import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
+import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
@@ -807,58 +807,57 @@ export function nombreEnSeries(nTeams) {
 /**
  * Les séries, jouées match par match. Chaque match garde sa feuille — buts
  * avec leur instant, tirs par période, arrêts — et le sommaire s'ouvre d'un
- * clic. C'est la même simulation qu'avant : on ne jetait simplement pas ce
- * que le moteur produisait déjà.
+ * clic.
+ *
+ * RIEN D'AVANCE (S79). JP : *tu devrais jamais simuler d'avance*. Le moteur
+ * des séries (`creerSeries`, js/sim.js) ne joue un match qu'au moment où
+ * l'écran le montre ; la ronde suivante naît quand la dernière série de la
+ * ronde est décidée ; les statistiques des séries s'inscrivent à part match
+ * après match. Une reprise (`opts.depuis`) rejoue jusqu'où on avait regardé,
+ * pas plus.
  */
 export function runPlayoffs(top16, opts = {}) {
   const host = $('playoffsSection');
   if (!host) return;
   RONDES = RONDES_PAR_N[Math.round(Math.log2(top16.length))] || RONDES_PAR_N[4];
-
-  // LES SÉRIES ONT LEURS STATISTIQUES À PART : photo des fiches de saison,
-  // les séries s'inscrivent par-dessus, puis on sépare (js/sim.js).
-  const photo = photoStats(G.ligue ? G.ligue.teams : top16);
-  G.series = [];
-  /*
-   * LES SÉRIES SE JOUENT RONDE PAR RONDE, MATCH PAR MATCH (S69) — toutes les
-   * séries d'une ronde avancent ensemble, dans l'ordre où l'écran les
-   * révèle. Avant chaque match, les décisions de séries de ta formation
-   * (trios, lignes, consigne, ajustement entre deux rounds) s'appliquent et
-   * tirent des dés neufs ; les matchs déjà vus ne bougent pas.
-   */
   const decsSeries = (G.ligue && G.ligue.decisionsSeries) || [];
   const graineSeries = (G.ligue && G.ligue.graine) || 0;
-  const toiPO = top16.find(t => t.isPlayer) || null;
-  let ronde = top16.slice(), n = 0;
-  while (ronde.length > 1) {
-    const paires = [];
-    for (let i = 0; i < ronde.length / 2; i++) paires.push([ronde[i], ronde[ronde.length - 1 - i]]);
-    const r = n;
-    const jouees = playRonde(paires, n, k => {
-      if (!toiPO) return;
-      toiPO.effetsSerie = [];
-      for (const d of decsSeries) if (d.ronde === r && d.match_no === k) appliquerDecisionSerie(toiPO, d, graineSeries);
-    }, graineSeries);
-    ronde = jouees.map(s => s.winner);
-    for (const s of jouees) G.series.push({ ...s, ronde: n, i: G.series.length });
-    n++;
-  }
-  separerSeries(G.ligue ? G.ligue.teams : top16, photo);
-  const champion = ronde[0];
+  const S = creerSeries(top16, { ligue: (G.ligue && G.ligue.moteur) || null, graine: graineSeries, decisions: decsSeries, equipes: G.ligue ? G.ligue.teams : top16 });
+  G.seriesMoteur = S;
+  G.series = S.toutes;
+  const vus = opts.depuis && opts.depuis.revele;
+  if (vus) jouerSeriesVues(S, vus);
+  const btn = $('playoffsBtn');
+  // Les séries commencées, leur bouton s'efface et « Nouvelle partie » redevient le bouton principal (S74).
+  if (btn) { btn.disabled = true; btn.hidden = true; }
+  const encore = $('againBtn');
+  if (encore) encore.classList.add('go');
   /*
-   * LA COUPE ENTRE DANS L'HISTORIQUE. `saveLeaderboard` est appelé au bilan de
-   * la SAISON, donc avant la première série : l'entrée ne portait aucun champ
-   * de séries et rien ne la réécrivait ensuite — le seul but du jeu n'était
-   * enregistré nulle part. On la coud ici, où les séries viennent d'être
-   * jouées, et pas à la révélation : ce qui est joué est joué, que le joueur
-   * le regarde match par match ou qu'il passe à la fin.
+   * UNE REPRISE QUI A DÉJÀ TOUT VU VA DROIT AU TABLEAU, comme une saison
+   * reprise après sa dernière journée va droit au bilan.
    */
-  const toi = top16.find(t => t.isPlayer);
+  if (vus && S.fini && S.toutes.every(x => (vus[x.i] || 0) >= x.feuilles.length)) {
+    finDesSeries(S, host, false);
+    return;
+  }
+  ouvrirEcranSeries(opts.depuis || null);
+}
+
+/*
+ * LA FIN DES SÉRIES : le champion connu, la Coupe entre dans l'historique, le
+ * tableau se dessine, le mode Rogue paie ses écussons. Appelée quand le
+ * dernier match est joué ET montré — jamais avant.
+ */
+function finDesSeries(S, host, rogue = true) {
+  while (!S.fini) jouerMatchSeries(S);
+  const champion = S.champion;
+  const n = S.nRondes;
+  const toi = S.toi;
   if (toi && G.lbId) {
-    const miennes = G.series.filter(s => s.A === toi || s.B === toi);
+    const miennes = G.series.filter(x => x.A === toi || x.B === toi);
     let V = 0, D = 0;
-    for (const s of miennes) {
-      const mien = s.A === toi ? s.wA : s.wB, autre = s.A === toi ? s.wB : s.wA;
+    for (const x of miennes) {
+      const mien = x.A === toi ? x.wA : x.wB, autre = x.A === toi ? x.wB : x.wA;
       V += mien; D += autre;
     }
     const derniere = miennes[miennes.length - 1];
@@ -877,46 +876,27 @@ export function runPlayoffs(top16, opts = {}) {
       },
     });
   }
-  const btn = $('playoffsBtn');
-  // Les séries jouées, leur bouton s'efface et « Nouvelle partie » redevient le bouton principal (S74).
-  if (btn) { btn.disabled = true; btn.hidden = true; }
-  const encore = $('againBtn');
-  if (encore) encore.classList.add('go');
+  dessinerTableauDesSeries(host, n, champion);
+  if (rogue && finDesSeriesRogue) finDesSeriesRogue((G.series || []).filter(x => x.winner && x.winner.isPlayer).length, !!(champion && champion.isPlayer));
+}
 
-  // L'ÉCRAN DES SÉRIES D'ABORD. Tout est déjà joué ; on ne dessine le
-  // tableau complet qu'une fois que le joueur a révélé ses séries match par
-  // match — ou qu'il a passé à la fin. Le mystère tient à ce seul ordre.
-  /*
-   * UNE REPRISE QUI A DÉJÀ TOUT VU VA DROIT AU TABLEAU, comme une saison
-   * reprise après sa dernière journée va droit au bilan : rouvrir l'écran
-   * sur « le champion soulève la Coupe » ferait relire un écran déjà fini.
-   */
-  const vus = opts.depuis && opts.depuis.revele;
-  if (vus && G.series.every(s => (vus[s.i] || 0) >= s.feuilles.length)) {
-    dessinerTableauDesSeries(host, n, champion);
-    return;
-  }
-
+/* L'écran des séries, sur le moteur EN MÉMOIRE : ouvrir, rouvrir après une décision, reprendre. */
+export function ouvrirEcranSeries(depuis = null) {
+  const S = G.seriesMoteur, host = $('playoffsSection');
+  if (!S || !host) return;
   ouvrirSeries({
-    series: G.series, rondes: RONDES, you: top16.find(t => t.isPlayer) || null,
-    // La saison est finie et `separerSeries` vient de rendre à chaque fiche
-    // ses chiffres de saison : l'écran des séries peut donc la montrer.
-    saison: { teams: (G.ligue ? G.ligue.teams : top16), enSeries: top16.length },
+    series: S.toutes, moteur: S, nRondes: S.nRondes, rondes: RONDES, you: S.toi,
+    // Les compteurs de saison ne bougent pas pendant les séries (`cumulerSeries`) : l'écran peut la montrer.
+    saison: { teams: (G.ligue ? G.ligue.teams : S.equipes), enSeries: 2 ** S.nRondes },
     ctx: {
       esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
       // Les séries se révèlent match par match, comme la saison : un nom
       // cliqué ne dit que les matchs déjà vus (mode 'jourSeries').
       fiche: (p, t, html) => lienJoueur(p, t, porteeRevele('series'), html),
     },
-    /*
-     * LA REPRISE. `runPlayoffs` est le seul propriétaire de cet état : le
-     * bouton du bilan et la reprise au chargement appellent la même
-     * fonction, donc il n'y a qu'un endroit qui sait l'écrire et qu'un
-     * endroit qui sait le relire.
-     */
-    depuis: opts.depuis || null,
+    depuis,
     // LES COMBATS DE BOSS (S69) : entre deux rounds, on règle tout.
-    graine: graineSeries, decisions: decsSeries,
+    graine: S.graine, decisions: S.decisions,
     // LE DECK DE MATCH (S74) se déduit aussi des décisions de la saison.
     decisionsSaison: (G.ligue && G.ligue.decisions) || [],
     onDecision: deciderSerie || null,
@@ -924,9 +904,8 @@ export function runPlayoffs(top16, opts = {}) {
     onRevele: etat => { G.seriesVues = etat; saveGame(); },
     // Le tableau dessiné, on y va : il était en bas d'un bilan de 8 800 px (S74, l'agent de test).
     onTermine: () => {
-      dessinerTableauDesSeries(host, n, champion); requestAnimationFrame(() => host.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-      // Le mode Rogue (S77) paie ses écussons de séries : les rondes gagnées, la Coupe.
-      if (finDesSeriesRogue) finDesSeriesRogue((G.series || []).filter(x => x.winner && x.winner.isPlayer).length, !!(champion && champion.isPlayer));
+      finDesSeries(S, host);
+      requestAnimationFrame(() => host.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     },
   });
 }
@@ -1159,6 +1138,12 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
     return t;
   };
 
+  /*
+   * L'HEURE D'UN BUT EST CELLE DU DIRECT : le temps qu'il reste à la période
+   * (`tempsRestant`). JP : *le sommaire post match et ce que je voyais dans
+   * le match, les buts sont pas au même moment* — le sommaire donnait le temps
+   * écoulé (07:26) du but que le direct avait montré à 12:34.
+   */
   const parPeriode = [1, 2, 3, 4].map(per => {
     const buts = f.buts.filter(b => periodeDe(b.instant) === per).map(b => ({ ...b, type: 'but', rang: rangs.get(b) }));
     const punitions = (f.punitions || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'punition' }));
@@ -1171,7 +1156,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       const r = b.rang || { g: 0, a: [] };
       if (b.type === 'punition') {
         return `<div class="som-but som-pun">
-          <span class="som-tps">${tempsDeJeu(b.instant)}</span>
+          <span class="som-tps">${tempsRestant(b.instant)}</span>
           <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
           <span class="som-qui">Punition${b.joueur ? ` à ${lien(b.joueur)}` : ''} · ${b.minutes} min${b.butAN ? ' · écourtée par le but' : ''}</span>
         </div>`;
@@ -1181,7 +1166,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
         : '<span class="som-aides sans">sans aide</span>';
       const situation = b.an ? '<span class="som-sit an">AN</span>' : b.dn ? '<span class="som-sit dn">DN</span>' : '';
       return `<div class="som-but">
-        <span class="som-tps">${tempsDeJeu(b.instant)}</span>
+        <span class="som-tps">${tempsRestant(b.instant)}</span>
         <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
         <span class="som-qui">${situation}${lien(b.marqueur)} <span class="som-xe">(${ord(r.g)})</span> ${aides}</span>
         <span class="som-recit">${esc(recitUnique(b))}</span>

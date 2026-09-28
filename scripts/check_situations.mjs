@@ -93,7 +93,9 @@ function passe(L, table = null) {
   const bras = [];
   for (const parite of [0, 1]) {
     const teams = ligue(5000 + L);
-    simulateLeague(teams, 82, { graine: `situ-${L}`, situations: i => i % 2 === parite });
+    // Sans les accidents de carte (S68), qui suivent sinon le même interrupteur :
+    // ce sont de vraies mutations, et le témoin ne pouvait plus être nul (S79).
+    simulateLeague(teams, 82, { graine: `situ-${L}`, situations: i => i % 2 === parite, accidents: false });
     bras.push(teams.map(t => ({
       W: t.W, GF: t.GF, GA: t.GA,
       situations: t.situations || [],
@@ -284,7 +286,7 @@ informer('les familles', `${portes.length} portés · ${peses.length} pesés`);
     let buts = 0, matchs = 0;
     for (let L = 0; L < LIGUES; L++) {
       const teams = ligue(5000 + L);
-      simulateLeague(teams, 82, { graine: `situ-${L}`, situations: avec });
+      simulateLeague(teams, 82, { graine: `situ-${L}`, situations: avec, accidents: false });
       for (const t of teams) { buts += t.GF; matchs += t.games; }
     }
     return buts / matchs;

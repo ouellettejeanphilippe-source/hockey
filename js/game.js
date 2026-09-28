@@ -23,7 +23,7 @@
 import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
 import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
-  getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
+  getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJusqua, bilanLigue, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
   CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, MUTATIONS, effetsEnCours, TACTIQUES,
   unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation } from './sim.js';
@@ -41,7 +41,7 @@ import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
-import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN, ficheReelleDe } from './bilan.js';
+import { brancherBilan, renderResult, runPlayoffs, ouvrirEcranSeries, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN, ficheReelleDe } from './bilan.js';
 import { brancherEntractes } from './entracte.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { migrer, lireIndex, lirePartieActive, ecrirePartieActive, nouvellePartie, activer } from './sauvegardes.js';
@@ -524,7 +524,7 @@ const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S74';
+const VERSION_MOTEUR = 'S79';  // S79 : la cédule a son propre hasard, la ligue se joue au jour le jour
 function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
@@ -5236,11 +5236,9 @@ async function reprendreSaison() {
   decisions.push(d);
   G.banc = null;
   $('game').classList.remove('banc');
-  G.done = false;
   renderMain();
-  // `reprise` : c'est la MÊME saison qu'on rejoue avec une décision de plus,
-  // pas une saison neuve — elle garde donc son entrée d'historique.
-  await sousVoile('La saison reprend avec ton alignement…', () => runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: b.jour, decisions, reprise: true }));
+  // La MÊME saison, avec une décision de plus : elle garde son entrée d'historique.
+  await continuerSaison(decisions, b.jour, 'La saison reprend avec ton alignement…');
 }
 
 /*
@@ -5276,9 +5274,7 @@ async function subirCarte(at, jour, cle) {
   const palier = `trou:${at}`;
   const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
   decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
-  G.done = false;
-  renderMain();
-  await sousVoile('La saison reprend…', () => runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true }));
+  await continuerSaison(decisions, jour, 'La saison reprend…');
 }
 
 /*
@@ -5305,12 +5301,36 @@ async function deciderSaison(d, depuis) {
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   const deckSeul = d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage);
   decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
-  G.done = false;
-  renderMain();
-  await sousVoile('On rejoue la saison avec ton choix…', () => runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis, decisions, reprise: true }));
+  await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
   if (d.ballottage || d.plafond || d.patron || d.achat) renderCap();
   confirmerDecision(d);
+}
+
+/*
+ * UNE DÉCISION S'APPLIQUE À PARTIR D'AUJOURD'HUI (S79). La ligue ne joue que
+ * ce qui est révélé : une décision datée d'aujourd'hui ou plus tard entre dans
+ * la liste de la ligue EN MÉMOIRE, et l'écran se rouvre sur la même journée —
+ * rien n'est rejoué, pas de voile. Seule une décision datée d'une journée
+ * DÉJÀ jouée (l'entracte d'un gros match qu'on regarde en direct : le soir
+ * est joué pour être montré) reconstruit la ligue, et seulement jusqu'à
+ * aujourd'hui : le passé se rejoue à l'identique de la graine, rien d'avance.
+ */
+async function continuerSaison(decisions, depuis, mot) {
+  const L = G.ligue, M = L && L.moteur;
+  const avant = new Set(L.decisions || []), apres = new Set(decisions);
+  const touchees = [...decisions.filter(d => !avant.has(d)), ...(L.decisions || []).filter(d => !apres.has(d))];
+  const jourMin = touchees.length ? Math.min(...touchees.map(d => d.jour)) : Infinity;
+  if (M && jourMin >= M.jour) {
+    L.decisions = M.decisions = decisions;
+    G.done = true;
+    ouvrirEcranSaison(depuis);
+    saveGame();
+    return;
+  }
+  G.done = false;
+  renderMain();
+  await sousVoile(mot, () => runSeason({ adversaires: L.adversaires, graine: L.graine, depuis, decisions, reprise: true }));
 }
 
 /*
@@ -5510,9 +5530,26 @@ async function deciderSerie(d) {
     // S70 : un entracte par match, et toute autre décision pour ce match l'annule.
     || !!x.entracte);
   // Une récompense de série ne touche que le deck : pas de dés neufs (S74).
-  G.ligue.decisionsSeries = [...(G.ligue.decisionsSeries || []).filter(x => !meme(x)), d.recompense !== undefined ? { ...d } : { ...d, sel: nouvelleGraine() }];
+  const avant = G.ligue.decisionsSeries || [];
+  G.ligue.decisionsSeries = [...avant.filter(x => !meme(x)), d.recompense !== undefined ? { ...d } : { ...d, sel: nouvelleGraine() }];
   const vues = G.seriesVues;
   saveGame();
+  /*
+   * EN AVANT (S79) : une décision pour un match PAS ENCORE JOUÉ (ou une
+   * récompense, que le moteur ne lit pas) entre dans le moteur des séries en
+   * mémoire, et l'écran se rouvre — rien n'est rejoué. Seul l'entracte d'un
+   * match qu'on regarde (joué pour être montré) reconstruit, jusque-là.
+   */
+  const S = G.seriesMoteur;
+  const pasJoue = S && (d.match_no < 0 || d.ronde > S.ronde || (d.ronde === S.ronde && d.match_no >= S.k));
+  const retire = avant.filter(meme);
+  const retireJoue = S && retire.some(x => x.match_no >= 0 && (x.ronde < S.ronde || (x.ronde === S.ronde && x.match_no < S.k)));
+  if (pasJoue && !retireJoue) {
+    S.decisions = G.ligue.decisionsSeries;
+    ouvrirEcranSeries(vues);
+    if (d.recompense) confirmerDecision(d);
+    return;
+  }
   G.done = false;
   renderMain();
   await sousVoile('On rejoue les séries avec ton choix…', async () => {
@@ -5532,9 +5569,7 @@ async function choisirCarte(palier, jour, cle, depuis = jour) {
   if (!G.ligue || !CARTES[cle]) return;
   const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
   decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
-  G.done = false;
-  renderMain();
-  await sousVoile('On rejoue la saison avec ta carte…', () => runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Math.min(depuis, jour), decisions, reprise: true }));
+  await continuerSaison(decisions, Math.min(depuis, jour), 'La saison reprend avec ta carte…');
   toast(`${CARTES[cle].ico} ${CARTES[cle].nom} : pour le reste de la saison.`);
 }
 
@@ -5680,18 +5715,21 @@ async function runSeason(opts = {}) {
       ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus ? [{ jour: 0, deck: 'camp', aiguise: 'lancer', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'bloquer', rogue: { depart: true } }] : [])];
   // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
   poserCartes(decisions);
-  let r, teams, leaders = [], calendrier = [], graine = null;
+  /*
+   * LA LIGUE NE SE JOUE PAS D'AVANCE (S79). JP : *tu devrais jamais simuler
+   * d'avance*. Elle se CRÉE ici — les équipes, la cédule, le hasard — et ne
+   * joue que les journées déjà révélées (une reprise : la sauvegarde, ou une
+   * décision prise après un match déjà joué pour le direct). L'écran de saison
+   * joue chaque journée suivante au moment de la révéler (`ouvrirSaison`,
+   * `ligue`), et le bilan se compose à la dernière (`terminerSaison`).
+   */
+  let r = null, teams, leaders = [], calendrier = [], graine = null, moteur = null;
   if (opponents.length) {
-    const league = simulateLeague([you, ...opponents], 82, { graine: opts.graine || null, decisions });
-    teams = league.standings;
-    leaders = league.leaders;
-    calendrier = league.calendrier;
-    graine = league.graine;
-    r = {
-      W: you.W, L: you.L, OTL: you.OTL, GF: you.GF, GA: you.GA, points: you.PTS,
-      attaque: you.strength.att, brigade: you.strength.def,
-      rob: you.strength.rob, clu: you.strength.clu, gRating: you.strength.g,
-    };
+    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions });
+    jouerJusqua(moteur, opts.depuis || 0);
+    teams = moteur.teams;
+    calendrier = moteur.calendrier;
+    graine = moteur.graine;
   } else {
     r = simulate(G.roster, { graine: opts.graine || null });
     graine = r.graine;
@@ -5700,7 +5738,7 @@ async function runSeason(opts = {}) {
   }
   G.journee = 0;
   G.ligue = {
-    you, teams, calendrier, graine, epoque: G.epoque,
+    you, teams, calendrier, graine, epoque: G.epoque, moteur,
     // Les clés des adversaires, dans l'ordre du tirage : c'est tout ce que la
     // sauvegarde emporte, et `rebatirAdversaires` les redéploie à l'identique.
     cles: opponents.map(t => `${t.season}|${t.tag}`),
@@ -5715,15 +5753,51 @@ async function runSeason(opts = {}) {
     adversaires: opponents.map(t => ({ name: t.name, tag: t.tag, roster: t.roster, season: t.season })),
   };
 
-  // L'ÉCRAN DE SAISON. Tout est joué ; l'écran révèle le calendrier au
-  // rythme du joueur — une journée, dix, la fin, ou son match en direct —
-  // et le bilan ne se dessine qu'après.
-  const montrer = () => renderResult(r, you, teams, leaders, calendrier);
+  if (!moteur) {
+    // La saison solo (aucun adversaire) : `simulate` a tout joué, il n'y a rien à révéler.
+    G.journee = calendrier.length; saveGame(); finDeSaisonRogue();
+    renderResult(r, you, teams, leaders, calendrier);
+    return;
+  }
+  ouvrirEcranSaison(opts.depuis || 0);
+}
+
+/*
+ * LA FIN DE LA SAISON : le classement, les meneurs et la fiche, composés à la
+ * dernière journée — jamais avant, puisque rien n'était joué d'avance.
+ */
+function terminerSaison() {
+  const L = G.ligue, M = L && L.moteur;
+  if (!M) return;
+  jouerJusqua(M, Infinity);
+  const b = bilanLigue(M);
+  const you = L.you;
+  L.teams = b.standings;
+  const r = {
+    W: you.W, L: you.L, OTL: you.OTL, GF: you.GF, GA: you.GA, points: you.PTS,
+    attaque: you.strength.att, brigade: you.strength.def,
+    rob: you.strength.rob, clu: you.strength.clu, gRating: you.strength.g,
+  };
+  G.journee = M.calendrier.length;
+  finDeSaisonRogue();
+  renderResult(r, you, b.standings, b.leaders, M.calendrier);
+}
+
+/*
+ * L'ÉCRAN DE SAISON, sur la ligue EN MÉMOIRE : ouvrir, rouvrir après une
+ * décision, reprendre une partie — sans jamais rejouer ce qui est joué.
+ */
+function ouvrirEcranSaison(depuis = 0) {
+  const L = G.ligue, M = L.moteur;
+  const { you, teams, calendrier, graine } = L;
+  const decisions = L.decisions;
   // Une saison reprise APRÈS sa dernière journée va droit au bilan : rouvrir
   // l'écran sur « journée 82 sur 82 » ferait relire un écran déjà fini.
-  if (calendrier.length && (opts.depuis || 0) < calendrier.length) {
+  if (calendrier.length && depuis < calendrier.length) {
     ouvrirSaison({
       calendrier, teams, you, enSeries: nombreEnSeries(teams.length), epoque: G.epoque,
+      // LA LIGUE EN MÉMOIRE (S79) : l'écran joue chaque journée au moment de la révéler.
+      ligue: M,
       ctx: {
         esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
         // Le bouton du son du plateau bascule la même préférence que les options.
@@ -5758,8 +5832,8 @@ async function runSeason(opts = {}) {
         boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider) },
         inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider) => ouvrirInventaireJeu(j, decider) },
       },
-      onTermine: () => { finDeSaisonRogue(); montrer(); },
-      depuis: opts.depuis || 0,
+      onTermine: () => terminerSaison(),
+      depuis,
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
       // la reprise a besoin de connaître.
       onJour: j => { G.journee = j; saveGame(); if (G.bonus === 'ROGUE') renderCap(); },
@@ -5784,7 +5858,7 @@ async function runSeason(opts = {}) {
       decisions,
       onDecision: deciderSaison,
     });
-  } else { G.journee = calendrier.length; saveGame(); finDeSaisonRogue(); montrer(); }
+  } else { terminerSaison(); saveGame(); }
 }
 
 /* ======================================================================
