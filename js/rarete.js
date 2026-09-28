@@ -56,7 +56,7 @@ export const BONUS = {
 };
 const RESERVE_PATINEUR = ['finition', 'lancers', 'creation', 'defense', 'solide', 'clutch', 'polyvalent'];
 const RESERVE_GARDIEN = ['reflexes', 'reflexes', 'solide'];
-export const RECRUE_PROGRESSE = { ico: '🐣', nom: 'La recrue progresse', mot: 'Contrat d\'entrée : précision +1 % à partir de son 42e match.', apres: 41, finition: 1.01 };
+export const RECRUE_PROGRESSE = { ico: '🐣', nom: 'Le jeune progresse', mot: 'Contrat d\'entrée : précision +1 % à partir de son 42e match.', apres: 41, finition: 1.01 };
 
 /* Un nombre de 0 à 1, pur, de mots. */
 function hache(...parts) {

@@ -180,7 +180,7 @@ export const brillante = r => r === 'peu' || r === 'rare' || r === 'legendaire';
 export function gemmeJoueur(r, traits = []) {
   const R = RARETES[r];
   if (!R) return '';
-  const joue = traits.filter(t => t && t.nom !== 'La recrue progresse');
+  const joue = traits.filter(t => t && t.nom !== 'Le jeune progresse');
   const titre = [`${NOM_VARIANTE[r] || R.nom} : ${sensRarete(r)}`, ...joue.map(t => `${t.ico} ${t.nom} — ${t.mot}`)].join(' · ');
   return `<span class="cj-gemme" title="${echapper(titre)}">${R.gemme}${brillante(r) ? '<i class="cj-shiny" aria-hidden="true">✦</i>' : ''}${joue.map(t => `<b class="cj-trait">${t.ico}</b>`).join('')}</span>`;
 }

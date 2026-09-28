@@ -9601,3 +9601,18 @@ body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { displa
 .hub-route-legende { margin: 0 4px 12px; font-size: 12px; color: var(--muted); }
 /* Grand écran : la colonne des boutons s'étire, ses rangées restent serrées en haut (sans la rangée des outils, elles s'écartaient). */
 body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
+
+/* =====================================================================
+   LE BAS DU PLATEAU TOUJOURS À PORTÉE (S79). JP : *dans les matchs, je
+   réussis pas à cliquer les boutons du bas*. La glace réservait 236 px au
+   reste de l'écran ; la barre du bas (la consigne sur deux lignes, les
+   gestes, « Passer », « Fin du tour ») et la barre de gestes d'Android en
+   prennent plus : « Passer » sortait de l'écran, sous la barre du téléphone.
+   La glace prend maintenant ce qui reste (et défile au besoin) ; la barre du
+   bas ne se coupe jamais et se pose au-dessus de la zone protégée.
+   ===================================================================== */
+@media (max-width: 1199px) {
+  .table-sheet .t-plateau { flex: 1 1 auto; min-height: 0; }
+  .table-sheet .t-dock { flex: none; padding-bottom: calc(8px + var(--safe-bas)); }
+  .t-glace { --tcell: min(calc((100vw - 8px) / var(--tcols, 9)), calc((100dvh - 290px - var(--safe-bas)) / var(--trangs, 11)), 72px); }
+}

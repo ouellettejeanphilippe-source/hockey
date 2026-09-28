@@ -2635,11 +2635,28 @@ function setView(view) {
    Roulette
    ===================================================================== */
 
+/*
+ * LA VRAIE SAISON RECRUE (S79, data/recrues.json, écrit par scripts/recrues.mjs).
+ * JP : *je vois Crosby recrue avec stats de sa deuxième saison ?*. Le ruban
+ * « Recrue » suivait le contrat d'entrée, qui dure jusqu'à trois saisons ; il
+ * suit maintenant la saison recrue, une par joueur (`p.rk`). Le contrat
+ * d'entrée garde son effet de jeu (« Le jeune progresse ») : rien ne se rejoue
+ * autrement.
+ */
+let RECRUES = null;
+async function chargerRecrues() {
+  if (RECRUES) return RECRUES;
+  try { const r = await fetch('data/recrues.json'); RECRUES = r.ok ? await r.json() : {}; } catch { RECRUES = {}; }
+  return RECRUES;
+}
+const estRecrue = p => !!(p && p.rk);
 async function getShard(label) {
   if (G.shards.has(label)) return G.shards.get(label);
   const shard = await loadSeason(label);
+  const recrues = new Set((await chargerRecrues())[label] || []);
   const byTeam = {};
   for (const p of shard.players) {
+    if (recrues.has(p.id)) p.rk = 1;
     if (isD(p) && (!p.np || p.np === 'D')) {
       p.np = (p.shootsCatches === 'R' || p.shoots === 'R') ? 'RD' : 'LD';
     }
@@ -2713,7 +2730,7 @@ function estEtoile(p) {
     : (p.gp || 0) >= s.minP && (p.pt ?? ((p.g || 0) + (p.a || 0))) >= s.pts;
 }
 /* Les classes de la carte : l'époque, la série, la sous-série. */
-const classesDeCarte = p => `${dessinDe(p.s)}${p.elc ? ' ss-recrue' : ''}${estEtoile(p) ? ' ss-etoile' : ''}`;
+const classesDeCarte = p => `${dessinDe(p.s)}${estRecrue(p) ? ' ss-recrue' : ''}${estEtoile(p) ? ' ss-etoile' : ''}`;
 /*
  * LA CARTE MINI (S78). JP : *versions normales et version mini, pour genre
  * les picks*. Le même dessin que la carte normale — l'époque, la série, la
@@ -2827,10 +2844,11 @@ const logoFiligrane = t => (LOGOS_LOCAUX.has(t) ? `url('img/logos/${t}.svg')` : 
  */
 function rubanDe(p) {
   const etoile = estEtoile(p);
-  if (!p.elc && !etoile) return '';
-  const recrue = p.elc ? traitsJoueur(p).find(t => t.nom === 'La recrue progresse') : null;
+  const rk = estRecrue(p);
+  if (!rk && !etoile) return '';
+  const recrue = rk && p.elc ? traitsJoueur(p).find(t => t.nom === 'Le jeune progresse') : null;
   const titre = [etoile ? 'Étoile : parmi les meilleurs de sa vraie saison' : '', recrue ? `${recrue.ico} ${recrue.nom} — ${recrue.mot}` : ''].filter(Boolean).join(' · ');
-  return `<span class="cj-ruban${etoile ? ' etoile' : ''}${p.elc ? ' recrue' : ''}" title="${esc(titre)}">${etoile ? '★ ' : ''}${p.elc ? 'Recrue' : 'Étoile'}${etoile && p.elc ? ' ★' : ''}</span>`;
+  return `<span class="cj-ruban${etoile ? ' etoile' : ''}${rk ? ' recrue' : ''}" title="${esc([rk ? 'Recrue : sa première saison dans la LNH' : '', titre].filter(Boolean).join(' · '))}">${etoile ? '★ ' : ''}${rk ? 'Recrue' : 'Étoile'}${etoile && rk ? ' ★' : ''}</span>`;
 }
 function ouvrirAtelier(cle, { jour, you, onChoix, onFerme, suite = {} }) {
   const M = MUTATIONS[cle];
