@@ -4414,15 +4414,46 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     let qA = pA, qB = pB;
     const e = toi._entracte;
     const eff = e ? effetEntracte(e) : null;
+    const adv = toiA ? B : A;
+    let refaireToi = false, refaireAdv = false;
     if (eff) {
       toi._effetMatch = [...(toi._effetMatch || []), eff];
-      const L = toiA ? LA : LB, adv = toiA ? B : A;
+      refaireToi = true;
+      gros.entracte = { cle: e.cle, incident: e.incident || null };
+      if (journal) journal.entracte.choix = e.cle;
+    }
+    /*
+     * LES CARTES QUI LISENT LE POINTAGE (1.0, J1-G, `apres40`) : « L'instinct
+     * du tueur » ne joue que si on mène après deux périodes. Ta main, puis la
+     * leur (sauf annulée) — l'effet s'ajoute pour la troisième seulement.
+     */
+    const apres40De = (jouees, equipe, mene) => {
+      let ajoute = false;
+      for (const c of jouees || []) {
+        const C = CARTES_MATCH[c];
+        const fx = C && C.apres40 && C.apres40[mene ? 'siMene' : 'sinon'];
+        if (!fx || !Object.keys(fx).length) continue;
+        equipe._effetMatch = [...(equipe._effetMatch || []), { source: 'carte', nom: C.nom, ico: C.ico, ...fx }];
+        ajoute = true;
+      }
+      return ajoute;
+    };
+    const cj = gros.cartesJouees || {};
+    if (apres40De(cj.jouees, toi, gros.apres40.moi > gros.apres40.lui)) refaireToi = true;
+    if (!cj.annulee && apres40De(cj.adverses, adv, gros.apres40.lui > gros.apres40.moi)) refaireAdv = true;
+    if (refaireToi) {
+      const L = toiA ? LA : LB;
       const q = profilMatch(toi, L, adv);
       q.rob = teamStrength(toi, L).rob;
       q.domicile = toiA;
       if (toiA) qA = q; else qB = q;
-      gros.entracte = { cle: e.cle, incident: e.incident || null };
-      if (journal) journal.entracte.choix = e.cle;
+    }
+    if (refaireAdv) {
+      const L = toiA ? LB : LA;
+      const q = profilMatch(adv, L, toi);
+      q.rob = teamStrength(adv, L).rob;
+      q.domicile = !toiA;
+      if (toiA) qB = q; else qA = q;
     }
     // CHANGER DE GARDIEN (S72) : l'auxiliaire prend VRAIMENT le filet pour la troisième.
     if (e && ENTRACTES[e.cle] && ENTRACTES[e.cle].changeGardien) {

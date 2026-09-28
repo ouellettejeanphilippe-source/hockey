@@ -1391,7 +1391,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
     recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}. Tu en signes un, et tu choisis qui lui laisse sa place ; les autres vont à ton classeur.${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
     options: cartes.map(x => {
       const g = groupeDe(x.p);
-      const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', graineVariantes(), getPlayerKey(x.p)));
+      const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', getPlayerKey(x.p), x.rar, x.num || 0));
       return {
         // S80 : son niveau ordonne aussi le retournement (le Phénomène en dernier, avec l'éclat d'une holo).
         cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
@@ -2904,9 +2904,16 @@ function varianteJoueur(p) {
   return G.variantes.cartes[cle] || varianteTiree(COTES_VARIANTES, graineVariantes(), cle);
 }
 const rareteJoueur = varianteJoueur;
-/* La carte d'un joueur : sa variante, son bonus tiré au hasard, et la recrue qui progresse. */
+/*
+ * La carte d'un joueur : sa variante, ses bonus, et la recrue qui progresse.
+ * 1.0 (J1-G) : les bonus appartiennent à LA CARTE — la clé du joueur, sa
+ * variante et son numéro — plus à la graine de la partie. Une holo de
+ * Mogilny a les mêmes bonus dans toutes les runs ; deux ors numérotées
+ * différentes ont des bonus différents. Le cartable n'a rien de plus à garder.
+ */
 function carteJoueur(p) {
-  const c = carteDe(varianteJoueur(p), groupeDe(p) === 'G', graineVariantes(), getPlayerKey(p));
+  const cle = getPlayerKey(p);
+  const c = carteDe(varianteJoueur(p), groupeDe(p) === 'G', cle, varianteJoueur(p), (G.variantes.numeros || {})[cle] || 0);
   if (p.elc) c.recrue = true;
   return c;
 }
@@ -3303,7 +3310,7 @@ function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue && G.l
   if (cle === 'lustre') {
     const r = varianteApres(varianteJoueur(q), posees), n = VARIANTE_SUIVANTE[r];
     if (!n) return { non: 'sa carte est déjà en or' };
-    const carte = carteDe(n, g, graineVariantes(), k);
+    const carte = carteDe(n, g, k, n, (G.variantes.numeros || {})[k] || 0);
     return { note: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]}`, extra: { carte: { rar: carte.rar, bonus: carte.bonus } },
       mot: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte).map(b => `${b.ico} ${b.nom}`).join(' + ')}` };
   }

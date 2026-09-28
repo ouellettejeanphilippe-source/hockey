@@ -854,6 +854,11 @@ export function regleDeCarte(C) {
   if (C.parGenre) out.push({ txt: `${txt(C.parGenre.effet)} par carte ${DE_GENRE[C.parGenre.genre] || ''} jouée ce match`, bon: true });
   if (C.selonLeurMain) out.push({ txt: `${txt(C.selonLeurMain.effet)} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} dans leur main`, bon: true });
   if (C.siVide) out.push({ txt: `Si tu dépenses toute ton énergie : ${txt(C.siVide)}`, bon: true });
+  // 1.0 (J1-G) : un effet conditionnel au pointage après deux périodes — la carte dit sa condition.
+  if (C.apres40) {
+    for (const m of motsDEffet(C.apres40.siMene || null)) out.push({ ...m, txt: `Si tu mènes après deux périodes : ${m.txt}` });
+    for (const m of motsDEffet(C.apres40.sinon || null)) out.push({ ...m, txt: `Sinon : ${m.txt}` });
+  }
   if (C.rabais) out.push({ txt: `Tes cartes ${DE_GENRE[C.rabais] || ''} coûtent 1 de moins ce match`, bon: true });
   if (C.pari) out.push({ txt: `🎲 ${Math.round(C.pari.chance * 100)} % : ${txt(C.pari.gagne)} — sinon : ${txt(C.pari.perd)}`, bon: null });
   if (C.enMain) for (const m of motsDEffet(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
@@ -871,6 +876,7 @@ export function motsDeCarteAdverse(C, echelle = 1) {
   // Ce qui te vise grandit avec le soir, pour eux aussi (S80).
   for (const m of motsDEffet(grandirEffet(C.adv || null, echelle))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
   if (C.pari) out.push({ txt: '🎲 Leur pari', bon: null });
+  if (C.apres40) for (const m of motsDEffet(C.apres40.siMene || null)) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
   if (C.parGenre) for (const m of motsDEffet(C.parGenre.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent`, bon: m.bon == null ? null : !m.bon });
   if (C.selonLeurMain) for (const m of motsDEffet(C.selonLeurMain.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} que TU joues`, bon: m.bon == null ? null : !m.bon });

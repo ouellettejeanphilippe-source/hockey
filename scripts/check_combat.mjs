@@ -26,6 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie, depistageDe, planDuDepistage } from '../js/sim.js';
 import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, coutDe } from '../js/combat.js';
+import { carteDe } from '../js/rarete.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -86,6 +87,37 @@ console.log('\n  Le deck de match (S74)\n');
       `${toutes.length} versions · lancers ${CARTES_MATCH.lancer.effet.volume} → ${P.effet.volume.toFixed(2)} · miracle ${CARTES_MATCH.miracle.cout} → ${M.cout} énergie`);
   }
   exiger('l\'énergie se compte : trois, moins les coûts, plus l\'adrénaline', energieDepensee(['miracle']) === 0 && energieDepensee(['adrenaline', 'miracle', 'discours']) === 0 && ENERGIE_MAIN === 3, '');
+  /*
+   * LA CARTE DIT CE QUE LE MOTEUR JOUE (1.0, J1-G). Une carte « + » n'aggrave
+   * jamais son inconvénient : sur chaque canal, la version + est à 1, ou plus
+   * loin de 1 dans le bon sens seulement (l'inverse sur l'adversaire).
+   */
+  {
+    const SENS = { finition: 1, volume: 1, robustesse: 1, defense: -1, energie: -1, discipline: -1, blessure: -1 };
+    const pires = [];
+    for (const [k, Cb] of Object.entries(CARTES_MATCH)) {
+      if (Cb.maudite || k.endsWith('+')) continue;
+      const P = CARTES_MATCH[`${k}+`];
+      for (const [champ, cote] of [['effet', 1], ['adv', -1]]) {
+        for (const [canal, v] of Object.entries(Cb[champ] || {})) {
+          if (typeof v !== 'number' || !SENS[canal]) continue;
+          const w = P[champ][canal];
+          const bon = Math.sign(v - 1) === SENS[canal] * cote;
+          if (bon ? Math.abs(w - 1) < Math.abs(v - 1) - 1e-9 : Math.abs(w - 1) > Math.abs(v - 1) + 1e-9) pires.push(`${k}+ ${champ}.${canal} ${v} → ${w}`);
+        }
+      }
+    }
+    exiger('une carte « + » n\'amplifie jamais son inconvénient', pires.length === 0, pires.join(' · ') || `${Object.keys(CARTES_MATCH).length / 2} cartes`);
+    const T = CARTES_MATCH.tueur;
+    exiger('« L\'instinct du tueur » ne joue que si on mène après deux périodes, et n\'a plus de malus caché',
+      T.apres40 && T.apres40.siMene.finition > 1 && !Object.keys(T.apres40.sinon).length && !T.effet, JSON.stringify(T.apres40));
+    // Le bonus d'une carte de joueur appartient à la carte (sa clé, sa variante, son numéro), pas à la graine de la partie.
+    const a = carteDe('rare', false, '1991_BUF_8448208', 'rare', 0), b = carteDe('rare', false, '1991_BUF_8448208', 'rare', 0);
+    const n1 = carteDe('legendaire', false, '1991_BUF_8448208', 'legendaire', 1), n2 = carteDe('legendaire', false, '1991_BUF_8448208', 'legendaire', 2);
+    exiger('la même carte a le même dos d\'une run à l\'autre ; deux ors numérotées différentes ont des bonus différents',
+      JSON.stringify(a) === JSON.stringify(b) && a.bonus.length === 1 && JSON.stringify(n1) !== JSON.stringify(n2) && n1.bonus.length === 2,
+      `${a.bonus.map(x => x.cle).join('+')} · nº1 ${n1.bonus.map(x => x.cle).join('+')} · nº2 ${n2.bonus.map(x => x.cle).join('+')}`);
+  }
 }
 
 /* ---------- 3. chaque carte fait quelque chose ---------- */
@@ -98,8 +130,9 @@ console.log('\n  Le deck de match (S74)\n');
     const jouees = Cm.siVide ? [k, 'miracle'] : [k];
     const fx = effetsDesCartes(t, { jouees }, 'x', { mainAdv: Cm.selonLeurMain ? ['lancer', 'bloquer', 'trappe', 'echecAvant'] : [] });
     const siens = fx.effets.filter(e => e.nom === Cm.nom).length;
+    // 1.0 : `apres40` se pose à la troisième période (js/sim.js), pas à l'avant-match — la carte n'est pas muette pour autant.
     const fait = siens || fx.adv.length || fx.lire || fx.contre || fx.annule || fx.energieTous || Cm.pioche || Cm.energiePlus
-      || fx.revele || fx.ecarte || fx.planB || fx.improvise || fx.piege || Cm.rabais;
+      || fx.revele || fx.ecarte || fx.planB || fx.improvise || fx.piege || Cm.rabais || Cm.apres40;
     if (!fait) muettes.push(k);
   }
   const synergies = Object.keys(CARTES_MATCH).filter(k => CARTES_MATCH[k].synergie);
