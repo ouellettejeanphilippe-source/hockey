@@ -9056,6 +9056,8 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 }
 .cj-ruban.recrue { background: var(--team-band, #243044); color: var(--team-ink, #fff); }
 .cj-ruban.etoile { background: linear-gradient(115deg, #b98a24, #fff0b3 30%, #c9961f 55%, #ffe48a 80%); color: #2a1d04; }
+/* S80 : le PHÉNOMÈNE (le 1 % du haut de sa saison), le sommet de l'étoile — l'or sur le pourpre, lisible sur n'importe quel chandail. */
+.cj-ruban.etoile.phenomene { background: linear-gradient(115deg, #3a0c4d, #8c1f6e 45%, #b8235a 70%, #3a0c4d); color: #ffe39a; box-shadow: inset 0 0 0 1px #e8c46a; }
 .cj-recto .cj-ruban { bottom: 12px; padding: 5px 16px; font-size: 13px; }
 /* Au vestiaire, le ruban se tient entre l'écusson et l'année quand ils sont là (le loto). */
 /* Une carte étroite (le loto) : le ruban reste sur le chandail, au-dessus des pastilles du bas — jamais sur un visage. */
@@ -9093,8 +9095,13 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .cj-mini-carte .cj-coin-logo { width: 24px; height: 24px; left: 5px; bottom: 5px; }
 .cj-mini-carte .cj-coin-logo :is(img, svg) { width: 20px; height: 20px; }
 .cj-mini-carte .cj-annee { right: 5px; bottom: 5px; padding: 2px 4px; font-size: 9.5px; }
-/* Sur la mini, le ruban tient le HAUT de la photo (au-dessus de la tête d'un portrait détouré) : en bas, il couvrait l'année. */
-.cj-mini-carte .cj-ruban { top: 5px; bottom: auto; padding: 2px 7px; font-size: 8px; letter-spacing: 0.06em; }
+/*
+ * Sur la mini, le ruban tient le HAUT de la photo (au-dessus de la tête d'un portrait détouré) : en bas, il couvrait l'année.
+ * S80 : collé à DROITE, et la pastille de position passe par-dessus. Centré, « ★ Phénomène » (et déjà « ★ Recrue ★ »)
+ * couvrait « C / AG » ou « DG / DD » : on lisait le niveau et on perdait le poste. À droite, au pire, la pastille mord la pointe.
+ */
+.cj-mini-carte .cj-ruban { top: 5px; bottom: auto; left: auto; right: 5px; transform: none; padding: 2px 7px; font-size: 8px; letter-spacing: 0.06em; }
+.cj-mini-carte .cj-rondelle { z-index: 4; }
 .cj-recto.cj-mini-carte .cj-bandeau { min-height: 36px; height: auto; padding: 3px 7px; }
 .cj-mini-carte .cj-bandeau .pcard-full-name { font-size: clamp(13px, 5.2vw, 18px); line-height: 1; }
 .cj-mini-carte .cj-bandeau .pcard-full-name .lname { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -9219,6 +9226,11 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .pk-chances th, .pk-bareme th { text-align: left; font-weight: 600; color: var(--sub); padding: 5px 0; }
 .pk-chances td, .pk-bareme td { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; padding: 5px 0; }
 .pk-chances tr + tr, .pk-bareme tr + tr { border-top: 1px solid var(--line-soft, var(--line)); }
+/* S80 : le joueur d'une carte — son niveau, ce que le niveau veut dire en rang réel, sa chance. Les chances d'un joueur par pack ont leur ★ en or. */
+.pk-niveaux .pk-rang { text-align: left; font-weight: 500; color: var(--muted); padding: 5px 8px; }
+.pk-niveaux th { white-space: nowrap; }
+.pk-chances tr.pk-niveau th { color: var(--text); }
+.pk-chances tr.pk-niveau + tr:not(.pk-niveau) { border-top-width: 2px; }
 .pk-num, .pk-verrou { font-size: 12.5px; line-height: 1.4; color: var(--muted); margin: 10px 0 0; }
 .pk-choix { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; font: 700 12px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .pk-choix select { font: 600 15px/1.2 var(--sans, inherit); padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2, var(--bg)); color: var(--text); text-transform: none; letter-spacing: 0; }

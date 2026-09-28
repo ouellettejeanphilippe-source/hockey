@@ -114,11 +114,43 @@ const espace = await page.textContent('#magasinModal .pk-plafond').catch(() => '
 await page.click('#magasinModal .choix-fermer');
 console.log(`3. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}`);
 if (!espace) erreurs.push('la boutique ne dit pas l\'espace sous le plafond');
+/*
+ * S80 : LE JOUEUR D'UNE CARTE. La fiche d'un pack par niveau dit ses chances
+ * de joueur par pack (★ Étoile ou mieux, ★ Phénomène) et le niveau d'une
+ * carte (cinq rangées, un rang réel chacune). Capturée aussi dépliée : au
+ * téléphone, la fiche défile.
+ */
+const NOMS_NIVEAUX = ['Soutien', 'Régulier', 'Pilier', 'Étoile', 'Phénomène'];
+await page.click('#hubModal .hub-boutique');
+await page.waitForSelector('#magasinModal:not([hidden]) .pk-tuile', { timeout: 30000 });
+await page.click('#magasinModal .pk-tuile[data-pack="j:hasard_bronze"]');
+await page.waitForSelector('#magasinModal .pk-fiche');
+await page.screenshot({ path: `${DOSSIER}/rogue-fiche-bronze.png` });
+const fiche3 = await page.evaluate(() => {
+  const c = document.querySelector('#magasinModal .pk-fiche-carte');
+  const lu = { titres: [...c.querySelectorAll('h4')].map(h => h.textContent.trim()),
+    chances: [...c.querySelectorAll('.pk-chances tr.pk-niveau')].map(t => t.textContent.replace(/\s+/g, ' ').trim()),
+    niveaux: [...c.querySelectorAll('.pk-niveaux tr')].map(t => t.textContent.replace(/\s+/g, ' ').trim()) };
+  c.style.maxHeight = 'none';
+  return lu;
+});
+await page.locator('#magasinModal .pk-fiche-carte').screenshot({ path: `${DOSSIER}/rogue-fiche-bronze-entiere.png` });
+console.log(`3b. la fiche du Pack Bronze : ${fiche3.chances.join(' · ')} · ${fiche3.niveaux.join(' · ')}`);
+if (!fiche3.titres.includes('Le joueur d\'une carte') || fiche3.niveaux.length !== 5 || !fiche3.chances.some(x => /Phénomène/.test(x))) erreurs.push(`la fiche du pack ne dit pas le joueur d'une carte : ${JSON.stringify(fiche3)}`);
+await page.click('#magasinModal .pk-retour');
+await page.click('#magasinModal .choix-fermer');
 await acheter('j:hasard_argent', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
 const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.map(x => (x.querySelector('.tc-nom, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
-console.log(`4. le pack Argent : ${offres.join(' · ')}`);
+// S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
+const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.map(x => {
+  const ruban = (x.querySelector('.cj-ruban') || {}).textContent || '';
+  const mot = ((x.querySelector('.tc-quoi') || {}).textContent || '').split('\n')[0].trim();
+  return { ruban, mot, fois: noms.filter(n => ruban.includes(n)).length + noms.filter(n => mot === n).length };
+}), NOMS_NIVEAUX);
+if (niveaux.some(x => x.fois !== 1)) erreurs.push(`le niveau d'une carte ouverte n'est pas dit une fois : ${JSON.stringify(niveaux)}`);
+console.log(`4. le pack Argent : ${offres.map((o, i) => `${o} (${NOMS_NIVEAUX.includes(niveaux[i].mot) ? niveaux[i].mot : niveaux[i].ruban})`).join(' · ')}`);
 // Toucher la carte montre sa fiche, sans la prendre (S78) ; « Signer » la prend, puis on choisit qui sort.
 await page.click('#choixModal:not([hidden]) .choix-option.tc .tcj-carte');
 await page.waitForTimeout(600);

@@ -32,15 +32,45 @@
  *
  * TOUT EST PUR : un pack se tire de la graine de la partie, de son genre et du
  * numéro de l'achat. Une partie reprise ouvre les mêmes packs.
+ *
+ * S80 — LE JOUEUR, PUIS SA FINITION. JP : *packs selon les niveaux de
+ * joueurs, genre joueur moins bons plus fréquents, du moins, joueurs brisés
+ * moins fréquents*. Une carte de pack se tire sur DEUX axes, comme dans une
+ * vraie boîte : le JOUEUR (son niveau dans sa vraie saison, js/niveaux.js :
+ * Soutien, Régulier, Pilier, Étoile, Phénomène) et la FINITION de sa carte
+ * (la variante ci-dessus). Les deux sont indépendants : un Soutien peut
+ * sortir en or, un Phénomène en base. Les taux du joueur, par carte (en %) :
+ *
+ *   tier      Soutien  Régulier  Pilier  Étoile  Phénomène   un Phénomène
+ *   bronze       50       36       12      1,8      0,2       1 pack sur 167
+ *   argent       36       38       21      4,4      0,6       1 pack sur 42
+ *   or           24       38       30      7        1         1 pack sur 20
+ *   premium      12       36       38     12        2         1 pack sur 9
+ *
+ * Avant (mesuré par scripts/check_packs.mjs), la moitié productive d'une
+ * saison, à parts égales : un Phénomène sortait à 2,2 % par carte — d'un
+ * pack Bronze sur 15, d'un Premium sur 8 — et un Soutien presque jamais
+ * (6 %). Le Phénomène sort maintenant d'un Bronze sur 167, d'un Premium sur
+ * 9 ; le Soutien fait la moitié d'un Bronze. Le tier compte enfin : le
+ * meilleur joueur d'un pack est un Pilier ou mieux dans 37 % des Bronze
+ * (73 % avant), 99 % des Premium (93 % avant). Les packs Étoiles et Légendes
+ * restent des packs d'étoiles, avec leur part de Phénomènes à eux (8 et 10 %
+ * par carte ; tirées à parts égales, une étoile sur cinq en était un, et
+ * sept packs Étoiles sur dix en donnaient un) ; les packs par talent gardent
+ * leur filtre et le Trio, sa vraie ligne : ni l'un ni l'autre ne tire de niveau.
  */
 import { hache } from './rogue.js';
 import { BANQUE, idsDe } from './banque.js';
+import { getPlayerKey, getPersonKey } from './sim.js';
+import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
+import { ageAtSeason } from './ratings.js';
+import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau } from './niveaux.js';
 
 export const TIERS = {
-  bronze: { nom: 'Bronze', n: 3, cotes: { commune: 82, peu: 14, rare: 3.6, legendaire: 0.4 } },
-  argent: { nom: 'Argent', n: 4, cotes: { commune: 70, peu: 22, rare: 7, legendaire: 1 } },
-  or: { nom: 'Or', n: 5, cotes: { commune: 55, peu: 30, rare: 12, legendaire: 3 } },
-  premium: { nom: 'Premium', n: 6, cotes: { commune: 40, peu: 35, rare: 19, legendaire: 6 } },
+  bronze: { nom: 'Bronze', n: 3, cotes: { commune: 82, peu: 14, rare: 3.6, legendaire: 0.4 }, niveaux: { soutien: 50, regulier: 36, pilier: 12, etoile: 1.8, phenomene: 0.2 } },
+  argent: { nom: 'Argent', n: 4, cotes: { commune: 70, peu: 22, rare: 7, legendaire: 1 }, niveaux: { soutien: 36, regulier: 38, pilier: 21, etoile: 4.4, phenomene: 0.6 } },
+  or: { nom: 'Or', n: 5, cotes: { commune: 55, peu: 30, rare: 12, legendaire: 3 }, niveaux: { soutien: 24, regulier: 38, pilier: 30, etoile: 7, phenomene: 1 } },
+  premium: { nom: 'Premium', n: 6, cotes: { commune: 40, peu: 35, rare: 19, legendaire: 6 }, niveaux: { soutien: 12, regulier: 36, pilier: 38, etoile: 12, phenomene: 2 } },
 };
 /* La numérotation d'une or (en % des or). */
 export const NUMEROS = [['/99', 78], ['/25', 16], ['/10', 5], ['1 de 1', 1]];
@@ -48,10 +78,10 @@ export const NUMEROS = [['/99', 78], ['/25', 16], ['/10', 5], ['1 de 1', 1]];
 export const PITIE = 8;
 
 /*
- * LES PACKS DE JOUEURS. \`genre\` dit où l'on pige ; \`choix\` : le pack se
- * règle à l'achat (une franchise, une saison) ou au hasard. \`qui\` : la
- * part de chaque saison où l'on pige (\`productifs\` : la moitié haute ;
- * \`elite\` : le quart du haut).
+ * LES PACKS DE JOUEURS. \`famille\` dit où l'on pige ; \`choix\` : le pack se
+ * règle à l'achat (une franchise, une saison) ou au hasard. Les familles
+ * hasard, équipe, année et ère tirent le NIVEAU aux taux de leur tier ;
+ * \`niveaux\` les remplace pour les packs d'étoiles.
  */
 export const PACKS_JOUEURS = {
   hasard_bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', prix: 12, texte: 'Trois vrais joueurs de toutes les époques.' },
@@ -74,8 +104,8 @@ export const PACKS_JOUEURS = {
   recrue: { famille: 'skill', nom: 'Pack Recrues', ico: '🐣', tier: 'argent', prix: 22, skill: 'recrue', texte: 'Quatre joueurs à leur contrat d\'entrée.' },
   veteran: { famille: 'skill', nom: 'Pack Vétérans', ico: '🧓', tier: 'argent', prix: 22, skill: 'veteran', texte: 'Quatre joueurs de 33 ans et plus.' },
   trio: { famille: 'trio', nom: 'Pack Trio', ico: '🔗', tier: 'or', prix: 40, texte: 'Une vraie ligne d\'un même club-saison : son centre et ses deux ailiers — ou sa paire et son gardien.' },
-  etoiles: { famille: 'etoiles', nom: 'Pack Étoiles', ico: '⭐', tier: 'or', prix: 55, texte: 'Cinq étoiles de leur saison : le 4 % du haut des pointeurs, le 8 % des gardiens.' },
-  legendes: { famille: 'legendes', nom: 'Pack Légendes', ico: '👑', tier: 'premium', prix: 75, texte: 'Six étoiles d\'avant 1995.' },
+  etoiles: { famille: 'etoiles', nom: 'Pack Étoiles', ico: '⭐', tier: 'or', prix: 55, niveaux: { etoile: 92, phenomene: 8 }, texte: 'Cinq étoiles de leur saison : le 4 % du haut à leur poste.' },
+  legendes: { famille: 'legendes', nom: 'Pack Légendes', ico: '👑', tier: 'premium', prix: 75, niveaux: { etoile: 90, phenomene: 10 }, texte: 'Six étoiles d\'avant 1995.' },
   garanti: { famille: 'hasard', nom: 'Pack garanti', ico: '🔒', tier: 'or', prix: 45, garanti: true, texte: 'Cinq joueurs, dont une holo ou mieux, garantie.' },
 };
 
@@ -138,10 +168,17 @@ export function chancesDe(cle, mods = {}) {
     ];
   }
   const c = cotesDuPack(cle, mods);
-  const n = P.n + (mods.carteExtra || 0);
+  const n = cartesDuPack(cle, mods);
   const r = (c.rare + c.legendaire) / 100, l = c.legendaire / 100, un = l * NUMEROS[3][1] / 100;
   const pr = P.garanti ? 1 : 1 - (1 - r) ** n;
+  // S80 : le JOUEUR d'abord (son niveau), puis la FINITION de sa carte. Un pack d'étoiles ne dit pas « Étoile ou mieux » : c'est chaque carte.
+  const nv = niveauxDuPack(cle);
+  const joueur = nv ? [
+    ...(nv.soutien || nv.regulier || nv.pilier ? [{ nom: '★ Étoile ou mieux', p: 1 - (1 - (nv.etoile + nv.phenomene) / 100) ** n }] : []),
+    { nom: '★ Phénomène', p: 1 - (1 - nv.phenomene / 100) ** n },
+  ].map(x => ({ ...x, txt: formatUnSur(x.p), niveau: true })) : [];
   return [
+    ...joueur,
     { nom: 'Parallèle ou mieux', txt: formatUnSur(1 - (1 - (c.peu + c.rare + c.legendaire) / 100) ** n), p: 1 - (1 - (c.peu + c.rare + c.legendaire) / 100) ** n },
     { nom: 'Holo ou mieux', txt: P.garanti ? 'garantie' : formatUnSur(pr), p: pr },
     { nom: 'Or numérotée', txt: formatUnSur(1 - (1 - l) ** n), p: 1 - (1 - l) ** n },
@@ -167,6 +204,24 @@ export function cotesDuPack(cle, mods = {}) {
   if (mods.sansBase) { c.peu += c.commune; c.commune = 0; }
   return c;
 }
+/* Le nombre de cartes d'un pack, avec la carte de plus d'un patron (jamais pour un trio : une ligne a trois joueurs). */
+export function cartesDuPack(cle, mods = {}) {
+  const P = PACKS_TOUS[cle];
+  if (!P) return 0;
+  return P.n + (P.sorte === 'joueurs' && P.famille !== 'trio' ? (mods.carteExtra || 0) : 0);
+}
+/*
+ * LES TAUX DU JOUEUR d'un pack (S80), par niveau, en % d'une carte — ou null
+ * pour un pack qui ne tire pas de niveau (un talent, un trio). Un niveau
+ * absent vaut 0.
+ */
+export function niveauxDuPack(cle) {
+  const P = PACKS_TOUS[cle];
+  if (!P || P.sorte !== 'joueurs' || P.famille === 'skill' || P.famille === 'trio') return null;
+  const t = P.niveaux || TIERS[P.tier || 'argent'].niveaux;
+  const tot = NIVEAUX.reduce((a, N) => a + (t[N.cle] || 0), 0) || 1;
+  return Object.fromEntries(NIVEAUX.map(N => [N.cle, ((t[N.cle] || 0) / tot) * 100]));
+}
 
 /* ---------- les tirages ---------- */
 const ORDRE_VAR = ['commune', 'peu', 'rare', 'legendaire'];
@@ -183,6 +238,128 @@ export function tirerVariante(cotes, ...parts) {
   }
   return { rar, num };
 }
+/* Un niveau tiré aux taux du pack (son rang dans NIVEAUX), de la graine et de mots. */
+export function tirerNiveau(taux, ...parts) {
+  let r = hache('pack-niveau', ...parts) * 100;
+  let dernier = 0;
+  for (let k = 0; k < NIVEAUX.length; k++) {
+    const w = taux[NIVEAUX[k].cle] || 0;
+    if (w <= 0) continue;
+    dernier = k;
+    r -= w;
+    if (r < 0) return k;
+  }
+  return dernier;
+}
+
+/*
+ * LES JOUEURS D'UN PACK (S79, sortis de js/game.js en S80 pour se mesurer en
+ * Node : scripts/check_packs.mjs). PURS : de la graine de la partie, du pack
+ * et du numéro de l'achat — le reste est ce que le contrôleur fournit :
+ *   saisons   les saisons des données (les étiquettes « 1981-82 ») ;
+ *   shard(s)  la saison chargée : { players, byTeam } (async) ;
+ *   libre(p)  ce que la partie permet : un salaire qu'une sortie ferait
+ *             entrer, un joueur qui n'est ni dans la ligue ni déjà signé.
+ * La FAMILLE du pack dit où l'on pige :
+ *   hasard     n'importe quelle saison ;
+ *   equipe     une franchise, toutes époques (choisie à l'achat, ou au hasard) ;
+ *   annee      une saison (choisie, ou au hasard) ; ere : une décennie ;
+ *   etoiles    les étoiles de leur saison ; legendes : d'avant 1995 ;
+ *   skill      un talent lu dans les VRAIES fiches (\`SKILLS\`) ;
+ *   trio       une vraie ligne d'un même club-saison.
+ * Hors talent et trio, chaque carte tire d'abord son NIVEAU aux taux du pack
+ * (\`niveauxDuPack\`), puis une saison, puis un joueur de ce niveau. Une saison
+ * (ou un club-saison) sans joueur libre de ce niveau en laisse essayer une
+ * autre ; après huit, le niveau d'en dessous — un club sans Phénomène, ou un
+ * plafond qui ne laisse entrer aucune vedette, donne le niveau le plus proche,
+ * jamais un meilleur tant qu'un moins bon existe. Puis, par-dessus chaque
+ * joueur, sa VARIANTE au barème du tier (et le numéro d'une or) : les deux
+ * axes ne se touchent pas. Chaque carte rend { p, niveau, rar, num }.
+ */
+const ESSAIS_NIVEAU = 8;
+export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {}, garantie = false, saisons: toutes, shard, libre = () => true }) {
+  const P = PACKS_TOUS[cle];
+  const an = s => Number(String(s).slice(0, 4));
+  let saisons = toutes.slice();
+  const reglage = { ...params };
+  if (P.famille === 'ere') saisons = saisons.filter(s => an(s) >= P.decennie && an(s) < P.decennie + 10);
+  if (P.famille === 'legendes') saisons = saisons.filter(s => an(s) < 1995);
+  if (P.famille === 'annee') {
+    if (!reglage.saison || !saisons.includes(reglage.saison)) reglage.saison = saisons[Math.floor(hache(graine, 'pack-annee', n) * saisons.length)];
+    saisons = [reglage.saison];
+  }
+  if (P.famille === 'equipe') {
+    if (!reglage.franchise || !FRANCHISES[reglage.franchise]) { const fs = Object.keys(FRANCHISES); reglage.franchise = fs[Math.floor(hache(graine, 'pack-equipe', n) * fs.length)]; }
+    // Les ÉTIQUETTES des saisons de la franchise (\`saisonsDeFranchise\` rend des paires [saison, code]).
+    saisons = saisonsDeFranchise(reglage.franchise, saisons).map(([s]) => s);
+  }
+  const cotes = cotesDuPack(cle, mods);
+  const nb = cartesDuPack(cle, mods);
+  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
+  const out = [];
+  const pris = p => out.some(x => getPersonKey(x.p) === getPersonKey(p));
+  const dispo = p => p && libre(p) && !pris(p);
+  if (P.famille === 'trio') {
+    // UNE VRAIE LIGNE : un club-saison tiré ; son meilleur centre et ses meilleurs ailiers — ou, une fois sur trois, sa première paire et son gardien.
+    for (let t = 0; t < 12 && !out.length; t++) {
+      const sa = saisons[Math.floor(hache(graine, 'pack-trio-saison', n, t) * saisons.length)];
+      const e = await shard(sa);
+      const clubs = Object.keys(e.byTeam);
+      const tag = clubs[Math.floor(hache(graine, 'pack-trio-club', n, t) * clubs.length)];
+      const eff = (e.byTeam[tag] || []).filter(p => (p.gp || 0) >= 30 && dispo(p)).sort((a, b) => prod(b) - prod(a));
+      const paire = hache(graine, 'pack-trio-genre', n, t) < 1 / 3;
+      const estD = p => groupeDuJoueur(p) === 'D';
+      const aile = c => eff.find(p => !estD(p) && p.p !== 'G' && (p.np === c || (p.p === c)));
+      const ligne = paire
+        ? [eff.filter(estD)[0], eff.filter(estD)[1], (e.byTeam[tag] || []).filter(p => p.p === 'G' && (p.gp || 0) >= 20 && dispo(p)).sort((a, b) => (b.gp || 0) - (a.gp || 0))[0]]
+        : [eff.find(p => !estD(p) && p.p !== 'G' && (p.np === 'C' || p.p === 'C')), aile('L') || aile('LW'), aile('R') || aile('RW')];
+      if (!ligne.every(Boolean) || new Set(ligne.map(getPersonKey)).size !== 3) continue;
+      ligne.forEach((p, i) => out.push({ p, niveau: niveauDe(p, e.players), ...tirerVariante(cotes, graine, cle, n, i) }));
+      reglage.club = `${tag} ${sa}`;
+    }
+  } else if (P.famille === 'skill') {
+    // UN TALENT : le quart du haut de sa saison à ce talent (ou tous ceux qui passent son filtre) — pas de niveau tiré.
+    const S = SKILLS[P.skill];
+    for (let t = 0; out.length < nb && t < nb * 5; t++) {
+      const sa = saisons[Math.floor(hache(graine, 'pack-saison', cle, n, t) * saisons.length)];
+      if (!sa) break;
+      const e = await shard(sa);
+      const c = e.players.filter(p => (p.gp || 0) >= S.min && (!S.groupe || groupeDuJoueur(p) === S.groupe) && (!S.skaters || p.p !== 'G')
+        && (!S.filtre || S.filtre(p, ageAtSeason(p.bd, p.s)))).sort((a, b) => S.score(b) - S.score(a));
+      let pool = (S.filtre ? c : c.slice(0, Math.ceil(c.length / 4))).filter(dispo);
+      if (!pool.length) continue;
+      pool.sort((a, b) => hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(a)) - hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(b)));
+      out.push({ p: pool[0], niveau: niveauDe(pool[0], e.players), ...tirerVariante(cotes, graine, cle, n, t) });
+    }
+  } else {
+    // LE NIVEAU D'ABORD : tiré aux taux du pack, puis une saison et un joueur de ce niveau.
+    const taux = niveauxDuPack(cle);
+    const permis = NIVEAUX.map((N, k) => k).filter(k => taux[NIVEAUX[k].cle] > 0);
+    const essais = Math.min(ESSAIS_NIVEAU, saisons.length);
+    for (let c = 0; c < nb && saisons.length; c++) {
+      const voulu = tirerNiveau(taux, graine, cle, n, c);
+      // Le niveau voulu, puis ceux d'en dessous, puis — en dernier recours — ceux d'au-dessus.
+      const ordre = [...permis.filter(k => k <= voulu).reverse(), ...permis.filter(k => k > voulu)];
+      let carte = null;
+      for (const k of ordre) {
+        for (let e = 0; e < essais && !carte; e++) {
+          const sa = saisons[Math.floor(hache(graine, 'pack-saison', cle, n, c, k, e) * saisons.length)];
+          const sh = await shard(sa);
+          const pool = (P.famille === 'equipe'
+            ? (sh.byTeam[codeDeFranchise(reglage.franchise, sa)] || []).filter(p => niveauDe(p, sh.players) === k)
+            : joueursParNiveau(sh.players)[k]).filter(dispo);
+          if (pool.length) carte = { p: pool[Math.floor(hache(graine, 'pack-joueur', cle, n, c, k, e) * pool.length)], niveau: k };
+        }
+        if (carte) break;
+      }
+      if (carte) out.push({ ...carte, ...tirerVariante(cotes, graine, cle, n, c) });
+    }
+  }
+  // LA GARANTIE : le pack garanti, ou la pitié de la run (\`PITIE\`) — la dernière carte monte à holo.
+  if ((P.garanti || garantie) && out.length && !out.some(x => x.rar === 'rare' || x.rar === 'legendaire')) out[out.length - 1].rar = 'rare';
+  return { cartes: out, reglage };
+}
+
 /*
  * LES CARTES D'UN PACK DE CARTES : pures (graine, pack, numéro d'achat). Pour
  * chaque carte : sa FAMILLE d'abord (une des familles du pack, à parts égales —

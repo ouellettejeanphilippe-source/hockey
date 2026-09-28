@@ -174,8 +174,9 @@ export function ouvrirChoix(spec) {
   const clePaquet = `${spec.titre}|${spec.options.map(o => o.cle).join(',')}`;
   const paquet = spec.genre === 'recompense' && spec.cartes && !spec.lecture && spec.options.length > 0
     && !PAQUETS_OUVERTS.has(clePaquet) && !mouvementCalme();
-  // L'ordre du retournement : la meilleure carte en dernier (l'ordre à l'écran ne bouge pas).
-  const ordre = spec.options.map((o, i) => i).sort((a, b) => (RANG_RARETE[spec.options[a].rarete] || 0) - (RANG_RARETE[spec.options[b].rarete] || 0) || a - b);
+  // L'ordre du retournement : la meilleure carte en dernier (l'ordre à l'écran ne bouge pas) ; à rareté égale, le meilleur joueur (`rang`, son niveau, S80).
+  const ordre = spec.options.map((o, i) => i).sort((a, b) => (RANG_RARETE[spec.options[a].rarete] || 0) - (RANG_RARETE[spec.options[b].rarete] || 0)
+    || (spec.options[a].rang || 0) - (spec.options[b].rang || 0) || a - b);
   const rangDe = i => ordre.indexOf(i);
   const meilleure = spec.options.reduce((b, o) => ((RANG_RARETE[o.rarete] || 0) > (RANG_RARETE[b] || 0) ? o.rarete : b), 'commune');
   m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
@@ -199,7 +200,7 @@ export function ouvrirChoix(spec) {
           bonHtml: o.bon ? sub(o.bon) : '', prixHtml: o.prix ? sub(o.prix) : '', coinHtml: o.coin ? esc(o.coin) : '',
           pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
-          dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && (RANG_RARETE[o.rarete] || 0) >= 2,
+          dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
           joueurHtml: o.carteJoueur || '', motChoixHtml: o.motChoix ? esc(o.motChoix) : '',
         });
         return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
