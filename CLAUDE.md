@@ -44,6 +44,9 @@ js/logos.js                 couleurs et écussons des 44 franchises (les disparu
 fonts/                      Barlow Condensed (OFL 1.1), trois graisses, hébergée ici :
                             la police des chiffres et des titres, aucune requête tierce
 js/traits.js                les traits, tirés des votes de `data/trophees.js`
+js/niveaux.js               les niveaux de joueur (S80) : un RANG dans sa vraie
+                            saison, à son poste (Soutien → ★ Phénomène) ; l'étoile
+                            du ruban et les taux des packs s'y lisent
 js/recit.js                 les mots du sommaire d'un match : il ne décide de
                             rien, il raconte ce que le moteur a déjà joué
 js/entracte.js              le rapport d'entracte : des cartons de statistiques
@@ -205,6 +208,9 @@ scripts/check_fiches.mjs    la fiche reconstituée d'un club, sur les 1396 clubs
 scripts/check_coquille.mjs  la coquille hors ligne : le graphe de modules, les
                             styles, la police et le filet `data/seed.json`
                             sont-ils tous dans le `FICHIERS` de sw.js ?
+scripts/check_packs.mjs     les packs selon le niveau des joueurs (S80) : les
+                            fréquences observées par niveau contre les taux
+                            affichés, la pureté, les familles, avant et après
 scripts/smoke.mjs           test de fumée Playwright à 390 px
 scripts/mesure_defilement.mjs le défilement du vestiaire à 390 px, processeur ×4 :
                             images par seconde sur une vraie liste et sur trois
@@ -1591,4 +1597,13 @@ JP : *les cartes aux couleurs des équipes — en accent du moins, selon les ann
 - **Le bogue** : `logoFiligrane` rendait `url("…")`, posé dans un attribut `style="…"` (la mini, la fiche) — le guillemet double fermait l'attribut et toutes les couleurs qui suivaient tombaient : les minis et la fiche sortaient grises. Guillemets simples maintenant. La mini porte aussi `--team-line`.
 - `fondEquipe` : un club tout en marine (Tampa) n'a plus un fond vide — son marine s'éclaircit jusqu'à la cible. Seul un club tout en noir rend encore `null`.
 - Vérifier d'un coup d'oeil : `node scripts/planche_cartes.mjs http://localhost:8000 dossier` (et `--mini`).
+
+## S80 — Les packs selon le niveau des joueurs (branche s80-packs)
+JP : *packs selon les niveaux de joueurs, genre joueur moins bons plus fréquents, du moins, joueurs brisés moins fréquents*. Un pack pigeait à parts égales dans la moitié productive d'une saison : Gretzky à 212 points sortait aussi souvent qu'un joueur de soutien.
+- **Les niveaux** (`js/niveaux.js` : `NIVEAUX`, `niveauDe(p, joueurs)`, `joueursParNiveau`) : un RANG parmi les réguliers de la vraie saison, à son poste (avants, défenseurs, gardiens), aux points par match — au % d'arrêts pour un gardien. ★ Phénomène le 1 % du haut, ★ Étoile le 4 %, Pilier le 20 %, Régulier la moitié du haut, Soutien la moitié du bas. Les réguliers sont ceux de l'étoile de S78 (40 matchs ou la moitié de la saison ; 30 ou 35 % pour un gardien) ; un joueur échangé compte une fois. Pas de « Premier trio » : un joueur ne se nomme pas par une case. Jamais une cote : un mot, un rang réel.
+- **Une seule étoile** : `estEtoile` (js/game.js) = niveau ≥ Étoile. Le ruban dit « ★ Étoile » ou « ★ Phénomène » (une recrue étoile garde « ★ Recrue ★ ») ; le pack Étoiles pige là. Avant, l'étoile se lisait aux points TOTAUX de tous les patineurs et au 8 % des gardiens : 1316 étoiles → 1240 en 55 saisons, 823 en commun, et les défenseurs passent de 51 à 388.
+- **Les taux, par carte** (`TIERS[t].niveaux`, Soutien / Régulier / Pilier / Étoile / Phénomène) : bronze 50 / 36 / 12 / 1,8 / 0,2 ; argent 36 / 38 / 21 / 4,4 / 0,6 ; or 24 / 38 / 30 / 7 / 1 ; premium 12 / 36 / 38 / 12 / 2. Étoiles 92 / 8 et Légendes 90 / 10 (Étoile / Phénomène). Les packs par talent et le Trio ne tirent pas de niveau (`niveauxDuPack` → null). Le niveau et la variante (js/rarete.js) sont deux axes indépendants : le joueur, puis la finition de sa carte.
+- **Le tirage** (`tirerJoueursDuPack`, js/packs.js, pur ; js/game.js ne fournit que les saisons, `getShard` et `libre` — le plafond, la ligue, les signés) : le niveau (`tirerNiveau`), une saison, un joueur de ce niveau. Huit saisons sans joueur libre de ce niveau (un plafond serré, un club qui n'en a pas) donnent le niveau d'en dessous, jamais un meilleur tant qu'un moins bon existe. **Le bogue** : le Pack d'équipe passait des paires `[saison, code]` (`saisonsDeFranchise`) à `getShard` — la saison était introuvable et le pack ne s'ouvrait pas.
+- **L'affichage** : la fiche d'un pack dit « ★ Étoile ou mieux » et « ★ Phénomène » par pack (`chancesDe`, lignes `niveau`), puis « Le joueur d'une carte » (chaque niveau, son rang réel, son taux), puis « La finition d'une carte ». La carte ouverte dit son niveau UNE fois : le ruban, ou un mot sous la carte (`niveauHorsRuban`). À rareté égale, le meilleur joueur se retourne en dernier, et le Phénomène a l'éclat d'une holo. Sur la mini, le ruban est collé à droite et la pastille de position passe par-dessus : centré, il cachait « C / AG ».
+- **Mesuré** (`node scripts/check_packs.mjs`, 4000 packs par tier, 50 vérifications, 20 s) : un Phénomène d'un Bronze sur 174 (affiché 167 ; avant 15), d'un Argent sur 49 (42 ; avant 12), d'un Or sur 20 (20 ; avant 9), d'un Premium sur 9 (9 ; avant 8) ; le meilleur joueur d'un pack est un Pilier ou mieux dans 37 % des Bronze (73 % avant) et 99 % des Premium (93 %). Le pack Étoiles donnait un Phénomène à 21 % par carte, 8 % maintenant. `essai_rogue.mjs` lit la fiche du Pack Bronze et vérifie que chaque carte ouverte dit son niveau une fois.
 
