@@ -11,7 +11,7 @@
  */
 
 import { CAP, SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
-  PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
+  ROULEMENTS, roulementDe } from './sim.js';
 import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
@@ -557,7 +557,8 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
    * qu'une carte. On ne montre que ce qui n'est pas le défaut : « Équilibré ·
    * Quatre trios » n'apprend rien.
    */
-  const reglages = [PLANS[planDe(you)], ROULEMENTS[roulementDe(you)]]
+  // Le plan de match a quitté le moteur en S68 : seul le roulement se porte encore (S79).
+  const reglages = [ROULEMENTS[roulementDe(you)]]
     .filter(x => x && x.bon && x.prix && !/^Rien/.test(x.bon));
   const cartesPrises = mesCartes.length || reglages.length
     ? `<div class="result-section"><h3>Tes cartes</h3>

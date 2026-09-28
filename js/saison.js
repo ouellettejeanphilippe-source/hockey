@@ -112,7 +112,10 @@ function coquille(label) {
   const $ = s => modal.querySelector(s);
   const sheet = $('.hub-sheet');
   if (sheet) sheet.setAttribute('aria-label', label);
-  return { modal, head: $('.hub-head'), carte: $('.hub-carte'), actions: $('.hub-actions'), barre: $('.hub-onglets'), volet: $('.hub-volet'), close: $('.hub-close') };
+  // LES OUTILS DE L'EN-TÊTE (S79) : tes cartes et la boutique, toujours en vue. Chaque écran pose les siens.
+  const outils = $('.hub-outils');
+  if (outils) outils.innerHTML = '';
+  return { modal, head: $('.hub-head'), outils, carte: $('.hub-carte'), actions: $('.hub-actions'), barre: $('.hub-onglets'), volet: $('.hub-volet'), close: $('.hub-close') };
 }
 
 /*
@@ -474,13 +477,17 @@ function routeHtml(jour, N) {
   return `<div class="hub-route" aria-hidden="true"><span class="hub-route-fait" style="width:${pos(jour)}"></span>${marques}<span class="hub-route-ici" style="left:${pos(jour)}"></span></div>`;
 }
 
-/* Le bloc d'une équipe dans la carte du prochain match : écusson, nom, fiche. */
-function blocEquipe(ctx, t, ligne, pos) {
+/*
+ * Le bloc d'une équipe dans la carte du prochain match : écusson, nom, fiche,
+ * et sa forme (S79). Ta fiche vit dans l'en-tête : ton bloc ne la répète pas.
+ */
+function blocEquipe(ctx, t, ligne, pos, forme = '') {
   const b = ctx.band(t.tag);
   return `<div class="hub-eq ${pos}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
     <div class="hub-eq-band">${ctx.logo(t.tag, 26)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
     <div class="hub-eq-nom">${versEquipe(ctx, t, ctx.teamLabel(t))}</div>
-    <div class="hub-eq-fiche">${ctx.esc(ligne)}</div>
+    ${ligne ? `<div class="hub-eq-fiche">${ctx.esc(ligne)}</div>` : ''}
+    ${forme ? `<div class="hub-eq-forme">${forme}</div>` : ''}
   </div>`;
 }
 
@@ -1422,6 +1429,36 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${buts ? `<div class="live-buteurs">${buts}</div>` : ''}</div>`;
   };
 
+  /*
+   * HIER SOIR, EN UNE LIGNE (S79). JP : *l'écran de match a trop
+   * d'informations, ça devient bordel*. Le sommaire du match s'ouvre déjà
+   * après chaque journée où tu joues : l'écran Match n'en répète plus les
+   * buts. Il dit le résultat, et le toucher rouvre le sommaire.
+   */
+  const resultatHier = ({ j, k, m }) => {
+    const v = gagne(m, you);
+    const eq = (t, buts) => `<span class="hub-hier-eq${t === you ? ' toi' : ''}">${ctx.logo(t.tag, 18)}<b>${ctx.esc(ctx.tagCourt(t))}</b><em>${buts}</em></span>`;
+    const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
+    return `<div class="hub-hier ${v ? 'v' : 'd'}"${somm}>
+      <span class="hub-hier-quand">Journée ${j + 1} · <b>${v ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}</b></span>
+      <span class="hub-hier-score">${eq(m.A, m.gfA)}<i>–</i>${eq(m.B, m.gfB)}${m.ot ? '<small>P</small>' : ''}</span>
+      ${m.feuille ? '<span class="hub-hier-voir">Sommaire ›</span>' : ''}
+    </div>`;
+  };
+  // LES RÉSULTATS DE LA JOURNÉE (S79) : ils font le classement, donc ils vivent avec lui.
+  const resultatsDuJour = () => {
+    if (!jour) return afficheJour1();
+    const j = jour - 1, matchs = calendrier[j] || [];
+    return `<details class="hub-plie hub-autres"><summary>Les résultats de la journée ${jour} · ${matchs.length}</summary><div class="cal-grille">${matchs.map((m, i) => carteMatch(m, j, i)).join('')}</div></details>`;
+  };
+  // LA FORME D'UN CLUB, sur l'affiche : ses cinq derniers matchs, le plus récent à droite.
+  const formeHtml = t => {
+    const cinq = (resultats.get(t) || []).slice(-5);
+    if (!cinq.length) return '';
+    const mot = x => (x === 'V' ? 'Victoire' : x === 'DP' ? 'Défaite en prolongation' : 'Défaite');
+    return `<span class="forme" aria-label="Ses cinq derniers matchs">${cinq.map(x => `<span class="forme-p ${x === 'V' ? 'v' : x === 'DP' ? 'dp' : 'd'}" title="${mot(x)}">${x}</span>`).join('')}</span>`;
+  };
+
   const carteMatch = (m, j, k) => {
     const gagneA = m.gfA > m.gfB;
     const eq = (t, buts, g) => `<div class="cal-eq ${g ? 'win' : 'lose'}${t === you ? ' toi' : ''}">${ctx.logo(t.tag, 16)}<span>${ctx.esc(ctx.tagCourt(t))}</span><b>${buts}</b></div>`;
@@ -1443,7 +1480,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (!matchs.length) return '';
     const eq = t => `<div class="cal-eq${t === you ? ' toi' : ''}">${ctx.logo(t.tag, 16)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>`;
     const cartes = matchs.map(m => `<div class="cal-match cal-affiche${m.A === you || m.B === you ? ' toi' : ''}">${eq(m.A)}${eq(m.B)}</div>`).join('');
-    return `<div class="hub-titre">L'affiche de la journée 1</div><div class="cal-grille">${cartes}</div>`;
+    // S79 : pliée, avec le classement — l'écran Match n'a que TON affiche.
+    return `<details class="hub-plie hub-autres"><summary>L'affiche de la journée 1 · ${matchs.length}</summary><div class="cal-grille">${cartes}</div></details>`;
   };
 
   /*
@@ -1470,23 +1508,19 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <tbody>${L.map((x, u) => `<tr><td>${noms[u]}</td><td>${TACTIQUES[lignes[u].tac].ico} ${ctx.esc(TACTIQUES[lignes[u].tac].nom)}${u < 3 && SYSTEMES_D[lignes[u].tacD] && lignes[u].tacD !== 'hourra' ? ` · ${SYSTEMES_D[lignes[u].tacD].ico}` : ''}</td><td>${x.t}</td><td>${x.b}</td><td>${x.bc}</td><td>${x.s}</td><td>${x.e}</td></tr>`).join('')}</tbody></table></div>`;
   };
 
-  // LE PORTAIL EN TÊTE DU VOLET « MATCH » (S77, `tuilesHtml`) : au téléphone
-  // il tombe juste sous les boutons, au bureau il coiffe la colonne de droite
-  // — la colonne de gauche est déjà pleine de l'affiche et des boutons.
-  const voletJournee = () => tuilesHtml() + voletJourneeSeul();
+  // LE VOLET « MATCH » (S79) : l'état de la saison (`etatHtml`), puis hier soir en une ligne.
+  // Au bureau, il coiffe la colonne de droite ; l'affiche et les boutons tiennent la gauche.
+  const voletJournee = () => etatHtml() + voletJourneeSeul();
   const voletJourneeSeul = () => {
-    if (!jour) return afficheJour1();
+    if (!jour) return '';
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
     // PLIÉ PAR DÉFAUT (S78) : le rapport de tes lignes et les quinze autres
     // matchs se déplient au toucher. Au téléphone, ils faisaient deux écrans.
     const rl = k >= 0 ? rapportLignes(matchs[k]) : '';
-    const mien = k >= 0 ? scoreboard({ j, k, m: matchs[k] }) + (rl ? `<details class="hub-plie"><summary>Tes lignes à forces égales, ce soir</summary>${rl}</details>` : '') : `<div class="live-board hub-board"><div class="live-horloge"><span class="live-per">CONGÉ</span><span class="live-tirs">Les NHL Stars ne jouent pas aujourd'hui</span></div></div>`;
-    const autres = matchs.map((m, i) => (i === k ? '' : carteMatch(m, j, i))).join('');
+    const mien = k >= 0 ? resultatHier({ j, k, m: matchs[k] }) + (rl ? `<details class="hub-plie"><summary>Tes lignes à forces égales, ce soir</summary>${rl}</details>` : '') : `<div class="hub-hier conge"><span class="hub-hier-quand">Journée ${jour} · <b>congé</b></span></div>`;
     const mbHier = (you.minisBoss || []).find(x => x.jour === j);
     const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour trois matchs, et les partisans montent` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour trois matchs, et les médias s'acharnent`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
-    const nAutres = matchs.length - (k >= 0 ? 1 : 0);
-    return `<div class="hub-titre">Journée ${jour}</div>${mbMot}${mien}
-      <details class="hub-plie hub-autres"><summary>Les autres matchs · ${nAutres}</summary><div class="cal-grille">${autres}</div></details>`;
+    return `${mbMot}${mien}`;
   };
 
   const voletClassement = () => {
@@ -1494,7 +1528,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // buts, et les deux colonnes qui disent la forme du moment — la séquence
     // en cours et les dix derniers matchs.
     const rangee = (t, i) => { const g = fiche.get(t); return `<tr class="${t === you ? 'toi' : ''}${i === enSeries - 1 ? ' cut' : ''}"><td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 14)} ${ctx.esc(ctx.teamShort(t))}</td><td>${g.W + g.L + g.OTL}</td><td>${g.W}</td><td>${g.L}</td><td>${g.OTL}</td><td class="heros">${g.PTS}</td><td>${g.GF}</td><td>${g.GA}</td><td>${g.GF - g.GA > 0 ? '+' : ''}${g.GF - g.GA}</td><td>${sequenceDe(t)}</td><td>${dixDerniers(t)}</td></tr>`; };
-    return `<div class="live-tableau hub-classement"><div class="live-tableau-titre">Classement · journée ${jour} · les ${enSeries} premiers vont en séries</div>
+    return `${resultatsDuJour()}<div class="live-tableau hub-classement"><div class="live-tableau-titre">Classement · journée ${jour} · les ${enSeries} premiers vont en séries</div>
       <table><thead><tr><th>#</th><th>Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th class="heros">PTS</th><th>BP</th><th>BC</th><th>Diff</th><th title="La séquence en cours">Séq.</th><th title="Les dix derniers matchs : V-D-DP">10 derniers</th></tr></thead>
       <tbody>${classement().map(rangee).join('')}</tbody></table></div>`;
   };
@@ -1561,8 +1595,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }).join('');
     return `<div class="recit"><div class="hub-titre">📖 Ton histoire</div>${riv ? `<div class="recit-rival">⚔️ Ta rivalité : <b>${ctx.esc(ctx.teamLabel(riv.adv))}</b> · ${riv.v}-${riv.d} dans les gros matchs</div>` : ''}${actes}</div>`;
   };
+  /*
+   * LA ROUTE DE LA SAISON (S66) quitte l'écran Match (S79) : quatre rangées
+   * d'icônes au-dessus de l'affiche, sans légende, se lisaient mal. Elle vit
+   * avec ton histoire, et elle dit ce que veut dire chaque marque.
+   */
+  const routeFiche = () => `<div class="hub-titre">La route de la saison</div>${routeHtml(jour, N)}
+    <div class="hub-route-legende">🏢 le proprio fixe un objectif · 🃏 une carte à prendre · ❓ un dilemme · 💬 le vestiaire</div>`;
   const voletFiche = () => {
-    if (!miens.length) return '<div class="hub-note">Aucun match joué encore.</div>';
+    if (!miens.length) return `${routeFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
       const adv = m.A === you ? m.B : m.A;
       const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA;
@@ -1571,7 +1612,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `<div class="hub-jeu${v ? ' v' : ' d'}"${somm}><span class="hub-jeu-n">J${j + 1}</span><span class="hub-jeu-res">${v ? 'V' : m.ot ? 'DP' : 'D'}</span><span class="hub-jeu-score">${pour}–${contre}</span>${ctx.logo(adv.tag, 15)}<span class="hub-jeu-adv">${ctx.esc(ctx.teamLabel(adv))}</span>${m.ot ? '<em>P</em>' : ''}</div>`;
     }).join('');
     const f = fiche.get(you);
-    return `${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
+    return `${routeFiche()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
   };
 
   /*
@@ -1776,99 +1817,37 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
 
   /*
-   * LE PORTAIL, À LA FOOTBALL MANAGER 26 (S77). JP : *Interface plus premium,
-   * cherche les fm, ehm*. FM26 range son écran d'accueil en TUILES : chacune
-   * est un coup d'oeil — la forme, le classement autour de toi, ce que le
-   * proprio attend, l'infirmerie, le deck — et s'ouvre sur sa CARTE, le
-   * détail. Ici la carte existe déjà : c'est l'onglet de la barre qui porte
-   * la chose (« Ma fiche » pour la forme, le classement pour le classement),
-   * donc une tuile touchée OUVRE cet onglet au lieu d'en inventer un autre.
-   *
-   * Rien de neuf n'est calculé : la forme est `resultats`, le classement
-   * `classement()`, l'objectif `objectifEnCours()`, l'infirmerie `blessesDe`,
-   * le deck `deckAvant`. Chaque tuile a une hauteur FIXE, remplie ou non — on
-   * réserve la place, on ne la prend pas : cinq pastilles de forme même au
-   * premier match, trois rangées de classement même en tête de la ligue.
+   * L'ÉTAT DE LA SAISON (S79), à la place du portail de S77 : ce que le
+   * proprio attend et qui manque, en une ou deux lignes.
    */
-  function tuilesHtml() {
-    const f = fiche.get(you);
-    const cl = classement();
-    const rang = cl.indexOf(you) + 1;
-    const r = resultats.get(you) || [];
-    const cinq = r.slice(-5);
-    // La plus récente à DROITE, comme un guide de forme : les cases vides
-    // d'avant le premier match sont à gauche, en pointillé.
-    const forme = Array.from({ length: 5 }, (_, i) => {
-      const x = cinq[i - (5 - cinq.length)];
-      if (!x) return '<span class="forme-p vide" aria-hidden="true"></span>';
-      const mot = x === 'V' ? 'Victoire' : x === 'DP' ? 'Défaite en prolongation' : 'Défaite';
-      return `<span class="forme-p ${x === 'V' ? 'v' : x === 'DP' ? 'dp' : 'd'}" title="${mot}">${x}</span>`;
-    }).join('');
-    // Le classement AUTOUR de toi : celui d'au-dessus, toi, celui d'en dessous
-    // — trois rangées toujours, même au premier ou au dernier rang.
-    const debut = Math.max(0, Math.min(rang - 2, cl.length - 3));
-    const autour = cl.slice(debut, debut + 3).map((t, k) => `<span class="t-cl-rangee${t === you ? ' toi' : ''}">
-        <i>${debut + k + 1}</i>${ctx.logo(t.tag, 14)}<em>${ctx.esc(ctx.tagCourt(t))}</em><b>${fiche.get(t).PTS}</b></span>`).join('');
-    // La ligne des séries, en points : ce qu'on a d'avance sur le premier
-    // exclu, ou ce qui manque pour rattraper le dernier qualifié.
-    const dernierQualifie = cl[enSeries - 1], premierExclu = cl[enSeries];
-    let motSeries = 'La saison commence';
-    if (jour && rang <= enSeries) {
-      const avance = premierExclu ? f.PTS - fiche.get(premierExclu).PTS : null;
-      motSeries = avance == null ? 'En séries' : `En séries · ${avance >= 0 ? '+' : ''}${avance} sur le ${enSeries + 1}e`;
-    } else if (jour && dernierQualifie) {
-      const manque = fiche.get(dernierQualifie).PTS - f.PTS;
-      motSeries = manque > 0 ? `À ${manque} pt${manque > 1 ? 's' : ''} des séries` : 'À égalité avec les séries';
+  function etatHtml() {
+    /*
+     * S79 : les cinq tuiles répétaient ce que l'en-tête, l'affiche et les
+     * onglets disent déjà (la fiche trois fois, le rang deux fois, le deck qui
+     * est dans « Mes cartes »). Il reste ce qui n'a pas d'autre place : ce que
+     * le proprio attend, et qui manque. Rien quand il n'y a rien.
+     */
+    const lignes = [];
+    const oc = onDecision ? objectifEnCours() : null;
+    if (oc && OBJECTIFS[oc.d.objectif.cle]) {
+      const O = OBJECTIFS[oc.d.objectif.cle];
+      const part = Math.max(0, Math.min(1, oc.e.val / Math.max(1, oc.e.cible)));
+      const etat = oc.e.reussi ? ' fait' : oc.e.rate ? ' rate' : O.sens < 0 && part >= 0.8 ? ' serre' : '';
+      lignes.push(`<div class="hub-etat-l hub-etat-proprio" title="${ctx.esc(O.nom)}">
+        <span class="hub-etat-k">🏢 Le proprio</span>
+        <span class="hub-etat-v">${O.ico} ${ctx.esc(O.court)} · <b class="chiffre" data-compte="t-obj">${oc.e.val}</b> / ${oc.e.cible} ${ctx.esc(O.unite)}</span>
+        <span class="tuile-jauge${O.sens < 0 ? ' mur' : ''}${etat}" aria-hidden="true"><span style="width:${(100 * part).toFixed(1)}%"></span></span>
+        <small>${oc.e.joues}/${MATCHS_OBJECTIF} matchs</small>
+      </div>`);
     }
-    const tForme = `<button type="button" class="tuile ouvrable hub-tuile hub-t-forme" data-ouvre="fiche" title="Tes matchs, un à un">
-      <span class="tuile-tete"><span class="etiquette">Forme</span><span class="tuile-coin">${ctx.esc(sequence() || '—')}</span></span>
-      <span class="forme" aria-label="Tes cinq derniers matchs">${forme}</span>
-      <span class="tuile-pied"><span class="chiffre"><b data-compte="t-v">${f.W}</b>-<b data-compte="t-d">${f.L}</b>-<b data-compte="t-dp">${f.OTL}</b></span> · <b class="chiffre" data-compte="t-pts">${f.PTS}</b> pts</span>
-    </button>`;
-    const tClassement = `<button type="button" class="tuile ouvrable hub-tuile hub-t-classement" data-ouvre="classement" title="Le classement complet">
-      <span class="tuile-tete"><span class="etiquette">Classement</span><span class="tuile-coin"><b class="chiffre" data-compte="t-rang">${rang}</b><small>/${cl.length}</small></span></span>
-      <span class="t-cl">${autour}</span>
-      <span class="tuile-pied">${ctx.esc(motSeries)}</span>
-    </button>`;
-    // L'OBJECTIF DU PROPRIO : où on en est, sur une jauge. Un objectif « ou
-    // moins » (les buts contre) se remplit vers un MUR : la jauge dit alors ce
-    // qu'il reste à ne pas dépasser, et elle rougit en approchant.
-    let tProprio = '';
-    if (onDecision) {
-      const oc = objectifEnCours();
-      let corps = '<span class="tuile-vide">Pas d\'objectif en cours</span>';
-      let coin = '';
-      if (oc && OBJECTIFS[oc.d.objectif.cle]) {
-        const O = OBJECTIFS[oc.d.objectif.cle];
-        const part = Math.max(0, Math.min(1, oc.e.val / Math.max(1, oc.e.cible)));
-        const etat = oc.e.reussi ? ' fait' : oc.e.rate ? ' rate' : O.sens < 0 && part >= 0.8 ? ' serre' : '';
-        coin = `${oc.e.joues}/${MATCHS_OBJECTIF}`;
-        corps = `<span class="t-obj-nom">${O.ico} ${ctx.esc(O.court)}</span>
-          <span class="tuile-jauge${O.sens < 0 ? ' mur' : ''}${etat}" aria-hidden="true"><span style="width:${(100 * part).toFixed(1)}%"></span></span>
-          <span class="tuile-pied"><b class="chiffre" data-compte="t-obj">${oc.e.val}</b> / ${oc.e.cible} ${ctx.esc(O.unite)}</span>`;
-      }
-      tProprio = `<div class="tuile hub-tuile hub-t-proprio" title="${oc ? ctx.esc(OBJECTIFS[oc.d.objectif.cle]?.nom || '') : ''}">
-        <span class="tuile-tete"><span class="etiquette">Le proprio</span><span class="tuile-coin">${coin ? `${coin} <small>matchs</small>` : ''}</span></span>
-        ${corps}
-      </div>`;
-    }
-    // L'INFIRMERIE : qui manque, et pour combien de matchs — à ce jour
-    // seulement (`blessesDe` ne révèle que ce qui est arrivé).
+    // L'INFIRMERIE : qui manque, et pour combien de matchs — à ce jour seulement (`blessesDe` ne révèle que ce qui est arrivé).
     const bl = [...blessesDe(you, matchsDe(you))].sort((a, b) => b[1] - a[1]);
     const lien = p => (ctx.fiche ? ctx.fiche(p, you, ctx.esc(p.n)) : ctx.esc(p.n));
-    const tInfirmerie = `<div class="tuile hub-tuile hub-t-infirmerie${bl.length ? ' a-blesses' : ''}">
-      <span class="tuile-tete"><span class="etiquette">Infirmerie</span><span class="tuile-coin chiffre">${bl.length || ''}</span></span>
-      ${bl.length ? `<span class="t-inf">${bl.slice(0, 2).map(([p, n]) => `<span class="t-inf-j"><span class="t-inf-nom">${lien(p)}</span><b>${n} m.</b></span>`).join('')}</span>
-        <span class="tuile-pied">${bl.length > 2 ? `et ${bl.length - 2} autre${bl.length - 2 > 1 ? 's' : ''}` : ''}</span>`
-        : '<span class="tuile-vide">Personne. Tout le monde joue.</span>'}
-    </div>`;
-    const tDeck = onDecision ? `<button type="button" class="tuile ouvrable hub-tuile hub-t-deck hub-deck" title="Tes cartes de match : tu en piges cinq avant chaque gros match">
-      <span class="tuile-tete"><span class="etiquette">Mon deck</span><span class="tuile-coin"><b class="chiffre" data-compte="t-deck">${deckAvant(jour).length}</b> <small>cartes</small></span></span>
-      <span class="tuile-pied">🃏 Cinq piges avant chaque gros match</span>
-    </button>` : '';
-    // Le conteneur de requête : la grille passe de deux colonnes (téléphone)
-    // à une rangée de cinq dès que le volet a la largeur d'un portail.
-    return `<div class="hub-tuiles" role="group" aria-label="Le portail"><div class="tuiles hub-tuiles-grille">${tForme}${tClassement}${tProprio}${tInfirmerie}${tDeck}</div></div>`;
+    if (bl.length) lignes.push(`<div class="hub-etat-l hub-etat-infirmerie">
+        <span class="hub-etat-k">🚑 Infirmerie</span>
+        <span class="hub-etat-v">${bl.slice(0, 3).map(([p, n]) => `${lien(p)} <b>${n} m.</b>`).join(' · ')}${bl.length > 3 ? ` · et ${bl.length - 3} autre${bl.length - 3 > 1 ? 's' : ''}` : ''}</span>
+      </div>`);
+    return lignes.length ? `<div class="hub-etat" role="group" aria-label="Ta saison">${lignes.join('')}</div>` : '';
   }
 
   function dessiner() {
@@ -1891,6 +1870,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
 
     const p = prochain();
     if (jour >= N) {
+      if (ui.outils) ui.outils.innerHTML = '';
       carte.innerHTML = `<div class="live-bilan ${rang <= enSeries ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">Saison terminée · ${f.W}-${f.L}-${f.OTL} · ${rang}${rang === 1 ? 'er' : 'e'} de ${teams.length}${rang <= enSeries ? ' · en séries' : ' · éliminé'}</div></div>`;
       // Une main de palier encore ouverte (on a passé à la fin) : elle vaut encore
       // pour les séries — les cartes de saison y jouent — donc elle s'offre ici.
@@ -1904,7 +1884,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     if (p) {
       const adv = p.m.A === you ? p.m.B : p.m.A;
-      const fa = t => (jour ? `${ficheTexte(t)} · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'}` : ctx.esc(t.season ? `saison ${t.season}` : ''));
+      // Ta fiche est dans l'en-tête ; celle d'en face, ici. La forme des deux clubs, sous leur nom.
+      const fa = t => (jour ? (t === you ? '' : `${ficheTexte(t)} · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'}`) : (t.season ? `saison ${t.season}` : ''));
       // Le dernier affrontement contre ce club, s'il y en a eu un.
       const deja = miens.filter(x => (x.m.A === adv || x.m.B === adv));
       const dernierMot = deja.length
@@ -1968,10 +1949,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const ecJ = effetsEnCours(you, p.j);
       const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => `${e.ico || '✨'} ${e.nom}`), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
       const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans « Préparer le match »">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
-      carte.innerHTML = `${routeHtml(jour, N)}${enJeuHtml}${miniBoss}<div class="hub-match">
+      carte.innerHTML = `${miniBoss}<div class="hub-match">
         <div class="hub-match-titre">Prochain match · Journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
-        <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}</div>
+        <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
         <div class="hub-match-note">${dernierMot}</div>
+        ${enJeuHtml}
         ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
         ${depistage}
         ${planSoir}
@@ -2244,7 +2226,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const m of msgs) if (m.id === ouvert && !m.bloque) boite.lus.add(m.id);
     const nonLus = msgs.filter(m => !m.bloque && !boite.lus.has(m.id)).length;
     const compteur = [bloquants.length ? `<b class="a-traiter">${bloquants.length} à traiter</b>` : '', nonLus ? `<b class="non-lus">${nonLus} non lu${nonLus > 1 ? 's' : ''}</b>` : ''].filter(Boolean).join('') || '<span class="a-jour">À jour</span>';
-    const boiteHtml = `<section class="hub-boite" aria-label="Boîte de réception">
+    // Vide, elle ne prend pas de place (S79) : « À jour » était une rangée pour rien.
+    const boiteHtml = !msgs.length ? '' : `<section class="hub-boite" aria-label="Boîte de réception">
       <div class="hub-boite-tete"><span class="hub-boite-titre">📥 Boîte de réception</span><span class="hub-boite-compte">${compteur}</span></div>
       ${msgs.length ? `<div class="hub-msgs">${msgs.map(m => {
         const o = m.id === ouvert, lu = boite.lus.has(m.id);
@@ -2267,10 +2250,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <div class="hub-actions-rang">
       ${p && !premier ? '<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>' : ''}
       ${premier ? '' : '<button class="btn hub-prochaine" title="Jouer les journées une à une, jusqu\'à la première qui demande une décision">Jusqu\'à la prochaine décision</button>'}
-      ${onDecision && ctx.boutique ? `<button class="btn gold hub-boutique" title="La boutique : des packs de joueurs et de cartes">🛒 ${ctx.boutique.jetons(jour)} 🪙</button>` : ''}
-      ${onDecision && ctx.inventaire ? (n => `<button class="btn hub-inventaire" title="Tes cartes : celles qui se gardent jusqu'au moment voulu, le personnel, le deck, le classeur">🎒 Mes cartes${n ? ` <b class="hub-inv-n">${n}</b>` : ''}</button>`)(ctx.inventaire.compte(jour)) : ''}
       </div>
       ${boiteHtml}`;
+    // TES CARTES ET LA BOUTIQUE, DANS L'EN-TÊTE (S79) : toujours en vue, sans prendre une rangée de boutons.
+    if (ui.outils) ui.outils.innerHTML = [
+      onDecision && ctx.inventaire ? (n => `<button type="button" class="hub-outil hub-inventaire" title="Mes cartes : celles qui se gardent jusqu'au moment voulu, le personnel, le deck, le classeur" aria-label="Mes cartes${n ? ` : ${n} à jouer` : ''}">🎒<span class="hub-outil-mot">Cartes</span>${n ? `<b class="hub-inv-n">${n}</b>` : ''}</button>`)(ctx.inventaire.compte(jour)) : '',
+      onDecision && ctx.boutique ? (n => `<button type="button" class="hub-outil hub-boutique" title="La boutique : des packs de joueurs et de cartes" aria-label="La boutique : ${n} jetons">🛒<b>${n}</b>🪙</button>`)(ctx.boutique.jetons(jour)) : '',
+    ].join('');
 
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
     // Plier et déplier un message ; le lire, c'est l'ouvrir.
@@ -2294,9 +2280,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const d = el.querySelector('[data-defaut]'); if (d) d.focus({ preventScroll: true }); }
     };
     // LA BOUTIQUE (Rogue, S77) : ses décisions passent par le même chemin que les autres choix.
-    const boutique = actions.querySelector('.hub-boutique');
+    const boutique = ui.outils && ui.outils.querySelector('.hub-boutique');
     if (boutique) boutique.onclick = () => ctx.boutique.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
-    const sac = actions.querySelector('.hub-inventaire');
+    const sac = ui.outils && ui.outils.querySelector('.hub-inventaire');
     if (sac) sac.onclick = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
@@ -2927,6 +2913,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const s = maSerie(ronde);
     const finale = deRonde(nRondes - 1)[0];
     const toutFini = ronde === nRondes - 1 && rondeComplete(ronde);
+    // Le ✕ ne saute pas tes matchs (S79) : il n'apparaît que lorsqu'il a quelque chose à faire.
+    ui.close.hidden = !(toutFini || !you || elimination() >= 0);
     const etat = s ? cap(revele.get(s) ? etatDeSerie(ctx, s, gains(s).wA, gains(s).wB) : `contre ${ctx.teamShort(s.A === you ? s.B : s.A)}`) : (elimination() >= 0 ? `Éliminé au ${nomRonde(elimination()).toLowerCase()}` : '');
     head.innerHTML = `<span class="live-ronde">Séries éliminatoires</span>
       <span class="live-match">${ctx.esc(nomRondeCourt(ronde))}${s && !complete(s) ? ` · match ${revele.get(s) + 1}` : ''}</span>

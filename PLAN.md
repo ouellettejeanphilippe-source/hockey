@@ -292,6 +292,7 @@
 | 2026-09-27 | S78 : dix séries de cartes (une par tranche de saisons) par-dessus les cinq époques, les sous-séries Recrue et Étoile (les meilleurs de leur vraie saison) avec leur ruban, l'écusson en filigrane, l'holographique derrière le visage ; la carte mini aux choix d'un joueur (trois côte à côte) et au loto du téléphone. |
 
 | 2026-09-27 | S79 : la banque de cartes (192 en sept familles : patrons, événements, modifs de joueur, consommables, contrats, match, saison), chacune une décision qui se rejoue ; 31 packs à la HUT dans les deux modes (tiers aux vraies cotes, équipe, année, décennies, talents, trio, étoiles, légendes, garanti, cartes), les chances affichées par pack, les or numérotées jusqu'au 1 de 1, la garantie après huit packs ; l'inventaire (ce qui se garde jusqu'au moment voulu, le permanent, le deck, le classeur) ; la masse salariale en Rogue (82 M$) et huit cartes pour la tordre ; le Vestiaire devient le cartable une fois la saison commencée (ton équipe avec sa saison révélée et sa vraie saison, la collection par saison et par club, variantes et doublons). |
+| 2026-09-27 | S79 : les trois branches réunies (la ligue au jour le jour, les rôles et les systèmes, la banque) ; les cartes « Style » parlent les rôles ; cache v21. L'écran Match désencombré : ta fiche dans l'en-tête seulement, la forme des deux clubs sur l'affiche, hier soir en une ligne qui ouvre le sommaire, les résultats du jour avec le classement, la route dans « Ma fiche » avec sa légende, la boîte seulement si elle a un message, tes cartes et la boutique dans l'en-tête ; le ✕ caché tant qu'il ne ferait rien. |
 
 ## S78 — modes (fait sur s78-modes)
 - [x] Mode Exhibition : n'importe quels clubs de toutes les époques, match / série 4 de 7 / 100 fois, direct, trois étoiles.
@@ -312,4 +313,15 @@
 - [x] L'inventaire : poche de la saison (se garde jusqu'au moment voulu), permanent Rogue, deck, classeur (js/inventaire.js).
 - [x] La masse salariale en Rogue (82 M$) et les cartes de contrat ; qui sort respecte le plafond effectif.
 - [x] Le cartable : l'onglet Vestiaire après le repêchage, `cap82_cartable` (js/cartable.js).
-- [ ] À la fusion : js/banque.js, js/packs.js, js/inventaire.js, js/magasin.js, js/cartable.js dans sw.js (fait) ; monter la version du cache.
+- [x] À la fusion : js/banque.js, js/packs.js, js/inventaire.js, js/magasin.js, js/cartable.js dans sw.js ; cache v21 (les trois branches S79 réunies).
+
+## S79 — l'écran Match désencombré (fait sur la branche principale)
+- [x] Une chose, une place : la fiche (V-D-DP, points, rang, séquence) seulement dans l'en-tête ; l'affiche montre la fiche d'en face et la forme des deux clubs.
+- [x] Hier soir en une ligne (`.hub-hier[data-sommaire]`) : le sommaire s'ouvre déjà après chaque journée où tu joues, le hub n'en répète plus les buts.
+- [x] Les résultats de la journée vivent avec le classement ; la route de la saison vit dans « Ma fiche », avec sa légende.
+- [x] Les tuiles du portail remplacées par `etatHtml` : l'objectif du proprio et l'infirmerie, rien quand il n'y a rien. La boîte de réception n'apparaît que si elle a un message.
+- [x] Sous « Journée suivante », deux boutons (Regarder, Jusqu'à la prochaine décision) ; 🎒 Cartes et 🛒 la boutique dans l'en-tête (`.hub-outils`).
+- [x] `.close-btn[hidden]` : le ✕ caché l'est vraiment (il restait affiché, inerte, en pleine saison et en pleine série).
+- [x] check_situations : la fusion des rôles faisait pencher la paire vers le porté (+0,92 V) ; `ECHELLE_PESE` passe à 1,3 (balayé sur 10 ligues : +0,08 V, porté +3,4 pts, pesé −2,6).
+- [x] check_plans : les plans de match ont quitté le moteur en S68 (les systèmes de ligne les remplacent, `check_tactiques` les mesure) ; la vérification ne garde que le roulement, le bilan ne montre plus de plan.
+- [ ] À reprendre : check_cartes (New Jersey, −1,17 V sur 12 ligues, −0,67 sur 36) et check_monotonie (décile du haut 49,7 pour 50) — à la limite de leur borne, avant comme après la fusion.

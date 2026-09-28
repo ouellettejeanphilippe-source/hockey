@@ -372,19 +372,10 @@ async function memesButs(etiquette, serie = false) {
   butsVusEnDirect = null;
   if (!vu) return;
   const lus = [];
-  if (!serie) {
-    lus.push(['le tableau de la journée', await page.$$eval('#hubModal .hub-board .live-buteurs > *', (els, P) => {
-      let per = 0; const out = [];
-      for (const e of els) {
-        if (e.classList.contains('live-but-per')) per = P.indexOf(e.textContent.trim()) + 1;
-        else if (e.classList.contains('live-but-ligne')) out.push(`${per} ${e.querySelector('.live-tps').textContent.trim()} ${e.querySelector('b').textContent.replace(/\s+/g, ' ').trim()}`);
-      }
-      return out;
-    }, PERIODES)]);
-  }
+  // S79 : l'écran Match ne répète plus les buts d'hier (une ligne qui ouvre le sommaire) : le sommaire fait foi.
   // Le « Sommaire du match » : le dernier match révélé (ta série : le plus haut numéro).
   const cle = await page.evaluate(s => {
-    const els = [...document.querySelectorAll(s ? '#hubModal [data-sommaire^="series|"]' : '#hubModal .hub-board[data-sommaire]')];
+    const els = [...document.querySelectorAll(s ? '#hubModal [data-sommaire^="series|"]' : '#hubModal .hub-hier[data-sommaire]')];
     const el = els.sort((a, b) => Number(a.dataset.sommaire.split('|')[2]) - Number(b.dataset.sommaire.split('|')[2])).pop();
     return el ? el.dataset.sommaire : null;
   }, serie);
@@ -1328,7 +1319,14 @@ async function traverserSaison(etiquette, reprise = false) {
      * parties en S72 : aucune jauge ne doit rester à l'écran.
      */
     {
+      // S79 : la route vit dans « Ma fiche » (l'onglet Calendrier), avec sa légende.
+      await _click('.navtab[data-page="calendrier"]');
+      await page.waitForTimeout(250);
       const route = await page.$$eval('#hubModal .hub-route-m', e => e.length);
+      const legende = await page.$('#hubModal .hub-route-legende');
+      if (!legende) errors.push('la route de la saison n\'a pas sa légende dans « Ma fiche »');
+      await _click('.navtab[data-page="match"]');
+      await page.waitForTimeout(250);
       const jauges = await page.$$eval('#hubModal .hub-jauge, #choixModal .hub-jd', e => e.length);
       if (route < 10) errors.push(`la route de la saison n'a que ${route} marques`);
       if (jauges) errors.push(`${jauges} jauges de faction encore à l'écran`);

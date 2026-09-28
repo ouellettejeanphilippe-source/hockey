@@ -9519,3 +9519,64 @@ body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { displa
 .ct-total { font-size: 15px; }
 /* Le corps défile ; ses rangées ne se tassent jamais (une rangée qui défile en x se tassait à zéro). */
 .inv-corps > *, .pk-corps > * { flex-shrink: 0; }
+
+/* =====================================================================
+   L'ÉCRAN MATCH DÉSENCOMBRÉ (S79). JP : *l'écran de match a trop
+   d'informations, ça devient bordel*. Une chose, une place : ta fiche dans
+   l'en-tête, la forme sur l'affiche, hier soir en une ligne, les résultats
+   avec le classement, la route avec ton histoire.
+   ===================================================================== */
+/* Un bouton caché reste caché, même quand sa classe le met en grille. */
+.close-btn[hidden] { display: none; }
+
+/* Les outils de l'en-tête : tes cartes et la boutique. */
+.hub-outils { display: flex; gap: 6px; flex: none; }
+.hub-outils:empty { display: none; }
+.hub-outil {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 34px; padding: 0 10px;
+  border-radius: 999px; border: 0; cursor: pointer;
+  background: color-mix(in srgb, var(--team-ink, var(--text)) 12%, transparent); color: var(--team-ink, var(--text));
+  font: 700 13px/1 var(--display); letter-spacing: .04em;
+}
+.hub-outil:hover, .hub-outil:focus-visible { background: color-mix(in srgb, var(--team-ink, var(--text)) 22%, transparent); }
+.hub-outil b { font-variant-numeric: tabular-nums; }
+.hub-outil .hub-inv-n { margin-left: 2px; }
+@media (max-width: 420px) { .hub-outil-mot { display: none; } }
+
+/* La forme des deux clubs, sur l'affiche. */
+.hub-eq-forme { padding: 4px 8px 8px; }
+.hub-eq-forme .forme { gap: 3px; }
+.hub-eq-forme .forme-p { width: 20px; height: 20px; font-size: 11px; }
+.hub-eq.b .hub-eq-forme .forme { justify-content: flex-end; }
+.hub-match .hub-encours { margin: 8px 0 0; }
+
+/* L'état de la saison : ce que le proprio attend, qui manque. */
+.hub-etat { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: var(--r-m, 12px); background: var(--panel); }
+.hub-etat-l { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font-size: 13.5px; min-width: 0; }
+.hub-etat-k { font: 800 12px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); flex: none; }
+.hub-etat-v { min-width: 0; }
+.hub-etat-l .tuile-jauge { flex: 1 1 80px; min-width: 60px; }
+.hub-etat-l small { color: var(--muted); font-size: 12px; }
+
+/* Hier soir, en une ligne ; le toucher ouvre le sommaire. */
+.hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 8px; padding: 10px 12px;
+  border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: var(--r-m, 12px); background: var(--panel); }
+.hub-hier.v { border-left-color: var(--green); }
+.hub-hier.d { border-left-color: var(--live); }
+.hub-hier[data-sommaire] { cursor: pointer; }
+.hub-hier[data-sommaire]:hover, .hub-hier[data-sommaire]:focus-visible { border-color: var(--ui-accent); }
+.hub-hier-quand { flex: 1 1 100%; font-size: 12.5px; color: var(--muted); letter-spacing: .02em; }
+.hub-hier-quand b { color: var(--text); }
+.hub-hier-score { display: inline-flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 18px; }
+.hub-hier-score i { font-style: normal; color: var(--muted); }
+.hub-hier-score small { font-size: 12px; color: var(--muted); }
+.hub-hier-eq { display: inline-flex; align-items: center; gap: 6px; }
+.hub-hier-eq em { font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hub-hier-eq.toi b { color: var(--gold); }
+.hub-hier-voir { margin-left: auto; font: 700 12.5px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--ui-accent, var(--gold)); }
+
+/* La route, dans « Ma fiche », et ce que ses marques veulent dire. */
+.hub-route-legende { margin: 0 4px 12px; font-size: 12px; color: var(--muted); }
+/* Grand écran : la colonne des boutons s'étire, ses rangées restent serrées en haut (sans la rangée des outils, elles s'écartaient). */
+body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }

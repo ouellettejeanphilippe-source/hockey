@@ -40,7 +40,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague,
-  PLANS, ROULEMENTS, PART_UNITE, partsDuRoulement,
+  ROULEMENTS, PART_UNITE, partsDuRoulement,
 } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -153,12 +153,15 @@ const ligneMesure = (nom, r) => {
     + `${signe(r.tirs, 0)} tir · ${signe(r.pun, 0)} minute de punition · ${signe(r.partF1, 1)} % au 1er trio`);
 };
 
+/*
+ * LES PLANS DE MATCH ONT QUITTÉ LE MOTEUR EN S68 (00431d4, « le poste de
+ * gérant ») : les systèmes de chaque ligne les ont remplacés, et c'est
+ * `check_tactiques.mjs` qui les mesure. `PLANS` ne reste que pour relire les
+ * vieilles sauvegardes ; aucun écran n'en offre plus. Les mesurer ici lisait
+ * +0 exact à chaque fois — trois épreuves rouges sur une mécanique qui
+ * n'existe plus (S79). Il reste le roulement, qui décide toujours de la glace.
+ */
 const mesures = {};
-for (const cle of Object.keys(PLANS)) {
-  if (cle === 'equilibre') continue;   // c'est le témoin : il ne fait rien
-  mesures[cle] = paires('plan', cle);
-  ligneMesure(PLANS[cle].nom, mesures[cle]);
-}
 for (const cle of Object.keys(ROULEMENTS)) {
   if (cle === 'quatre') continue;
   mesures[cle] = paires('roulement', cle);
@@ -166,15 +169,12 @@ for (const cle of Object.keys(ROULEMENTS)) {
 }
 
 /*
- * CHAQUE RÉGLAGE DOIT FAIRE CE QU'IL ANNONCE. Un plan qui ne déplace rien est
- * un plan décoratif, et c'est pire qu'un plan déséquilibré : le joueur le
- * choisit et ne voit jamais la différence. Ces quatre-là sont les promesses
- * écrites sur les boutons, donc des invariants de SIGNE, pas des repères.
+ * CHAQUE RÉGLAGE DOIT FAIRE CE QU'IL ANNONCE. Un roulement qui ne déplace
+ * rien est décoratif, et c'est pire qu'un roulement déséquilibré : le joueur
+ * le choisit et ne voit jamais la différence. Ce sont les promesses écrites
+ * sur les boutons, donc des invariants de SIGNE, pas des repères.
  */
 if (juger) {
-  exiger("l'échec avant prend des punitions", mesures.echec.pun > 10, `${signe(mesures.echec.pun, 0)} minute`);
-  exiger('la trappe alloue moins de buts', mesures.trappe.bc < -3, `${signe(mesures.trappe.bc, 0)} BC`);
-  exiger('tout en attaque marque plus', mesures.surnombre.bp > 3, `${signe(mesures.surnombre.bp, 0)} BP`);
   exiger('trois trios donnent la rondelle au premier trio',
     mesures.trois.partF1 > 1.0, `${signe(mesures.trois.partF1, 1)} % de la production`);
   exiger('un banc profond la répartit', mesures.profond.partF1 < -0.5, `${signe(mesures.profond.partF1, 1)} %`);
@@ -182,4 +182,4 @@ if (juger) {
     mesures.trois.bl > mesures.profond.bl, `${signe(mesures.trois.bl, 1)} contre ${signe(mesures.profond.bl, 1)} blessure`);
 }
 
-verdict('Le plan de match et le roulement');
+verdict('Le roulement');

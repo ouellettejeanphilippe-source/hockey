@@ -2501,8 +2501,16 @@ export const JOURS_SITUATIONS = [10, 28, 46, 64];
  * système sans réécrire douze nombres à la main, et de la régler sur la
  * mesure plutôt que sur l'intuition.
  */
+/*
+ * S79 : les systèmes de ligne au prorata du fit (les rôles) ont fait pencher
+ * la paire vers le porté — +0,66 ± 0,31 victoire sur 10 ligues, hors du
+ * contrat. Balayé sur les mêmes 10 ligues : porté ×0,85 → +0,20 ; porté ×0,8
+ * et pesé ×1,15 → +0,04 mais le pesé tombait à −1,7 point ; PESÉ ×1,3 →
+ * +0,08, le porté toujours à +3,4 points et le pesé à −2,6. On garde le porté
+ * tel quel (c'est lui qu'on VOIT) et le pesé pèse un peu plus.
+ */
 export const ECHELLE_PORTE = Number(ENV_MESURE.ECHELLE_PORTE ?? 1);
-export const ECHELLE_PESE = Number(ENV_MESURE.ECHELLE_PESE ?? 1);
+export const ECHELLE_PESE = Number(ENV_MESURE.ECHELLE_PESE ?? 1.3);
 
 export const SITUATIONS = {
   /* ---------- LES PORTÉS : tirés du bas de l'effectif ---------- */
