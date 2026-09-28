@@ -66,9 +66,16 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, jour = 0, rogue = 
 const CIBLES = { blesse: 'Un blessé', joueur: 'Un joueur', recrue: 'Une recrue', aucune: 'L\'équipe', malediction: 'Le deck', carteMatch: 'Le deck', tactique: 'Un système' };
 /* Un montant en millions, à la québécoise. */
 const M = v => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
-/* La valeur de vente rapide d'une carte, en jetons (selon sa rareté). */
-export const VENTE = { commune: 2, peu: 5, rare: 12, legendaire: 30, maudite: 1 };
-export const valeurDe = id => VENTE[(BANQUE[id] || {}).rarete] || 1;
+/*
+ * La valeur de vente rapide d'une carte, en jetons (selon sa rareté). S82 :
+ * à 2/5/12/30, une carte valait 4,94 🪙 en moyenne aux cotes 55/30/12/3 des
+ * packs (js/packs.js), et acheter un pack pour tout revendre RAPPORTAIT
+ * (Consommables 15 🪙 → 24,7 🪙). Un consommable ne se revend pas (cinq par
+ * pack, vie courte) ; le reste vaut 1,24 🪙 en moyenne, soit au plus le tiers
+ * du prix d'un pack. scripts/check_packs.mjs le mesure pour chaque pack.
+ */
+export const VENTE = { commune: 1, peu: 1, rare: 2, legendaire: 5, maudite: 0 };
+export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'consommable' ? 0 : (VENTE[c.rarete] ?? 1); };
 
 /* ---------- la carte de la banque, en petit ---------- */
 export function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = null } = {}) {
@@ -128,7 +135,7 @@ export function ouvrirInventaire(ctx) {
           .map(([k, n, m]) => `<span class="inv-leg"><span class="${k.startsWith('vie') ? 'bq-vie' : 'bq-moment'} ${k}">${esc(n)}</span> ${esc(m)}</span>`).join('')}</div>
         ${filtres(cats)}
         <div class="inv-grille">${cartes.map(([id, pile]) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
-          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button><button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` })).join('') || vide('Rien dans ta poche : ouvre des packs à la boutique, ou attends le prochain palier.')}</div>`;
+          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` })).join('') || vide('Rien dans ta poche : ouvre des packs à la boutique, ou attends le prochain palier.')}</div>`;
     } else if (etat.onglet === 'permanent') {
       const engages = new Set((ctx.patronsActifs || []).map(p => p.cle));
       const perso = ctx.personnel.filter(k => garde(`patron:${k}`));

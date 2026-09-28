@@ -34,7 +34,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
+import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack } from '../js/packs.js';
+import { VENTE, valeurDe } from '../js/inventaire.js';
+import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey } from '../js/sim.js';
 import { ageAtSeason } from '../js/ratings.js';
@@ -300,6 +302,48 @@ for (const k of ['j:etoiles', 'j:legendes']) {
   informer('le Pack Étoiles, avant → maintenant', `un Phénomène par carte ${pc(phenEtoiles)} → ${pc(nvE)} · par pack ${pc(auMoins(phenEtoiles, 5))} → ${pc(auMoins(nvE, 5))}`);
   exiger('un Phénomène sort moins souvent qu\'avant, dans chaque tier', TOUS.every(t => mesures[t].oPhen < auMoins(parts[PHENOMENE], TIERS[t].n)) && nvE < phenEtoiles,
     `par carte, avant : ${pc(parts[PHENOMENE])}`);
+}
+
+/*
+ * L'ÉCONOMIE NE FUIT PAS (1.0, J1-A). Acheter un pack de cartes pour tout
+ * revendre ne doit jamais rapporter : l'espérance de revente d'un pack vaut
+ * au plus 40 % de son prix. Un consommable ne se revend pas (`valeurDe` = 0) ;
+ * une malédiction non plus.
+ */
+{
+  const lignes = [];
+  let fuit = 0;
+  for (const [k, P] of Object.entries(PACKS_CARTES)) {
+    // Par carte : la rareté tirée (ses cotes), puis la valeur de la carte selon sa famille — la famille la plus chère du pack, pour majorer.
+    const parRarete = r => Math.max(0, ...P.cats.flatMap(idsDe).filter(id => BANQUE[id].rarete === r).map(valeurDe));
+    const esperance = P.n * Object.entries(P.cotes).reduce((a, [r, c]) => a + (c / 100) * parRarete(r), 0);
+    lignes.push(`${P.nom} ${esperance.toFixed(1)}/${P.prix} 🪙 (${Math.round(100 * esperance / P.prix)} %)`);
+    if (esperance > 0.4 * P.prix) fuit++;
+    void k;
+  }
+  informer('revente attendue d\'un pack de cartes (sur son prix)', lignes.join(' · '));
+  exiger('aucun pack de cartes ne se revend plus de 40 % de son prix', fuit === 0, `${fuit} pack(s) qui rapportent · VENTE ${Object.entries(VENTE).map(([r, v]) => `${r} ${v}`).join(', ')}`);
+}
+/* LE PACK DU JOUR N'EST JAMAIS VERROUILLÉ (1.0, J1-H) : soixante dates, des verrous, jamais un cadenas en vitrine. */
+{
+  const verrous = { 'j:ere80': 'verrou', 'j:etoiles': 'verrou', 'j:gardien': 'verrou', 'j:defensif': 'verrou', 'j:legendes': 'verrou' };
+  const ouverts = Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, verrous[k] || true]));
+  const dates = Array.from({ length: 60 }, (_, i) => `2026-${1 + (i % 12)}-${1 + Math.floor(i / 2)}`);
+  const tires = dates.map(d => packDuJour(d, ouverts).pack);
+  const cadenas = tires.filter(k => ouverts[k] !== true);
+  exiger('le pack du jour n\'est jamais un pack verrouillé, et il est pur (même date, même pack)', cadenas.length === 0 && tires.every((k, i) => packDuJour(dates[i], ouverts).pack === k) && new Set(tires).size > 5,
+    `${new Set(tires).size} packs différents sur 60 dates · ${cadenas.length} cadenas`);
+}
+/* LES MALÉDICTIONS DU LOT ONT UN CONSOMMATEUR (1.0, J1-E) : la seule qui frappe à l'ouverture est un contrat (`plafondDe` la lit). */
+{
+  let vues = 0, mortes = 0;
+  for (let n = 0; n < 500; n++) for (const cle of ['lot', 'contrats']) {
+    for (const id of tirerCartesPack(cle, `lot-${n}`, n).filter(x => BANQUE[x].rarete === 'maudite')) {
+      vues++;
+      if (!CONTRATS[String(id).split(':')[1]]) mortes++;
+    }
+  }
+  exiger('chaque malédiction tirée d\'un pack est un contrat, que le plafond applique', vues > 20 && mortes === 0, `${vues} malédictions sur 1 000 packs, ${mortes} sans consommateur`);
 }
 
 for (const l of lignesTaux) informer('mesuré (affiché)', l);
