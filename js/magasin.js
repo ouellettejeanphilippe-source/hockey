@@ -4,11 +4,14 @@
  * Chaque pack est un SACHET à son tier (bronze, argent, or, premium, ou
  * cartes), son prix, son nombre de cartes et sa meilleure chance lisible d'un
  * coup d'oeil ; le toucher ouvre sa fiche : toutes ses chances (« 1 pack sur
- * N »), le barème d'une carte, ce qu'on choisit (la franchise, la saison — ou
- * le hasard), la garantie, et « Acheter ». L'achat est une décision
- * (js/game.js) ; l'ouverture, le paquet qui se déchire (js/gerant.js).
+ * N »), le JOUEUR d'une carte (son niveau, S80 : les taux et ce que chaque
+ * niveau veut dire en rang réel) et sa FINITION (le barème des variantes),
+ * ce qu'on choisit (la franchise, la saison — ou le hasard), la garantie, et
+ * « Acheter ». L'achat est une décision (js/game.js) ; l'ouverture, le
+ * paquet qui se déchire (js/gerant.js).
  */
-import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, prixDe } from './packs.js';
+import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe } from './packs.js';
+import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -22,6 +25,23 @@ const $ = id => document.getElementById(id);
  */
 /* Un montant en millions, à la québécoise. */
 const M = v => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
+/* Un pourcentage à une décimale au plus, à la québécoise : « 4,4 % », « 36 % ». */
+const pct = x => `${(Math.round(x * 10) / 10).toString().replace('.', ',')} %`;
+/*
+ * LE JOUEUR D'UNE CARTE (S80) : ses chances par niveau, et ce que chaque
+ * niveau veut dire dans sa vraie saison — un RANG, jamais une cote. Rien pour
+ * un pack qui ne tire pas de niveau (un talent, un trio).
+ */
+function niveauxHtml(cle) {
+  const nv = niveauxDuPack(cle);
+  if (!nv) return '';
+  const lignes = NIVEAUX.map((N, k) => ({ N, k, v: nv[N.cle] })).filter(x => x.v > 0);
+  // Pourquoi un niveau peut manquer : le plafond, partout ; et pour un pack d'équipe, un club qui n'a jamais eu de Phénomène.
+  const manque = PACKS_TOUS[cle].famille === 'equipe' ? 'sous ton plafond, ou dans ce club' : 'sous ton plafond';
+  return `<h4>Le joueur d'une carte</h4>
+      <table class="pk-bareme pk-niveaux">${lignes.map(({ N, k, v }) => `<tr><th>${k >= ETOILE ? '★ ' : ''}${esc(N.nom)}</th><td class="pk-rang">${esc(N.rang)}</td><td>${pct(v)}</td></tr>`).join('')}</table>
+      <p class="pk-num">Son rang dans sa vraie saison, parmi les réguliers de son poste : aux points par match, au % d'arrêts pour un gardien. Sans joueur de ce niveau ${manque}, la carte prend le niveau le plus proche.</p>`;
+}
 export function ouvrirMagasin(ctx) {
   const m = $('magasinModal');
   if (!m) return;
@@ -34,7 +54,7 @@ export function ouvrirMagasin(ctx) {
     const ch = chancesDe(cle, P.sorte === 'joueurs' ? ctx.mods : {});
     const phare = P.sorte === 'joueurs' ? ch.find(x => x.nom === 'Holo ou mieux') : ch[0];
     const tier = P.sorte === 'cartes' ? 'cartes' : P.tier;
-    const n = P.n + (P.sorte === 'joueurs' ? (ctx.mods.carteExtra || 0) : 0);
+    const n = cartesDuPack(cle, ctx.mods);
     return `<button type="button" class="pk-tuile pk-${tier}${jour ? ' pk-jour' : ''}${verrou ? ' verrou' : ''}" data-pack="${esc(cle)}"${verrou ? ` title="${esc(verrou)}"` : ''}>
       <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[P.tier].nom)}</span></span>
       <span class="pk-nom">${esc(P.nom)}</span>
@@ -85,12 +105,13 @@ export function ouvrirMagasin(ctx) {
     const d = document.createElement('div');
     d.className = 'pk-fiche';
     d.innerHTML = `<div class="pk-fiche-carte pk-${P.sorte === 'cartes' ? 'cartes' : P.tier}">
-      <div class="pk-fiche-tete"><span class="pk-ico">${P.ico}</span><div><div class="pk-fiche-nom">${esc(P.nom)}</div><div class="pk-fiche-sous">${P.n + (P.sorte === 'joueurs' ? (ctx.mods.carteExtra || 0) : 0)} cartes · ${prix} 🪙</div></div></div>
+      <div class="pk-fiche-tete"><span class="pk-ico">${P.ico}</span><div><div class="pk-fiche-nom">${esc(P.nom)}</div><div class="pk-fiche-sous">${cartesDuPack(cle, P.sorte === 'joueurs' ? ctx.mods : {})} cartes · ${prix} 🪙</div></div></div>
       <p class="pk-fiche-texte">${esc(P.texte)}</p>
       <h4>Les chances, par pack</h4>
-      <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
+      <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : x.niveau ? ' class="pk-niveau"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' && ctx.plafond ? `<p class="pk-num">💵 Salaires tirés : jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} (ton espace, plus le plus gros contrat qu'une sortie libérerait).</p>` : ''}
-      <h4>Le barème d'une carte</h4>
+      ${P.sorte === 'joueurs' ? niveauxHtml(cle) : ''}
+      <h4>${P.sorte === 'joueurs' ? 'La finition d\'une carte' : 'Le barème d\'une carte'}</h4>
       <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${RARETES[k] ? RARETES[k].gemme : ''} ${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' ? `<p class="pk-num">Une or est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}. Le numéro est un honneur, pas un bonus.</p>` : ''}
       ${choix}

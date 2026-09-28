@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v22';  // v22 : les cartes aux couleurs du club (la mini et la fiche retrouvent leurs couleurs), l'écran Match désencombré (S79)
+const VERSION = 'cap82-v23';  // v23 : les packs selon le niveau des joueurs (js/niveaux.js), la vraie saison recrue (data/recrues.json), les boutons du direct au-dessus de la barre Android (S79-S80)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
@@ -43,7 +43,7 @@ const FICHIERS = [
   'js/equipes.js', 'js/saison.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/identites.js', 'js/combat.js', 'js/album.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
   'js/sauvegardes.js', 'js/menu.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/packs.js', 'js/inventaire.js', 'js/magasin.js',
-  'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js',
+  'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js',
   'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json', 'data/portraits.json', 'data/recrues.json',
   'fonts/BarlowCondensed-600-latin.woff2', 'fonts/BarlowCondensed-600-latin-ext.woff2',
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',

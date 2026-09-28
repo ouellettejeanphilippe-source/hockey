@@ -48,7 +48,8 @@ import { migrer, lireIndex, lirePartieActive, ecrirePartieActive, nouvellePartie
 import { afficherMenu, fermerMenu } from './menu.js';
 import { ouvrirExhibition } from './exhibition.js';
 import { BANQUE, PATRONS, CONSOMMABLES, CONTRATS, ROLES, MAX_PATRONS, CATEGORIES, VIES, payloadDe, patronsActifs, modificateurs, reglesDe, plafondDe } from './banque.js';
-import { PACKS_TOUS, PITIE, SKILLS, cotesDuPack, tirerVariante, tirerCartesPack, packDuJour, packsSansHolo } from './packs.js';
+import { PACKS_TOUS, PITIE, tirerJoueursDuPack, tirerCartesPack, packDuJour, packsSansHolo } from './packs.js';
+import { NIVEAUX, ETOILE, PHENOMENE, niveauDe } from './niveaux.js';
 import { ouvrirInventaire, pocheDeLaPartie, valeurDe, VENTE } from './inventaire.js';
 import { ouvrirMagasin } from './magasin.js';
 import { rendreCartable, ajouterAuCartable, migrerHistorique, lireCartable } from './cartable.js';
@@ -1314,85 +1315,22 @@ function ouvrirBoutique(j, decider) {
 
 /*
  * LES JOUEURS D'UN PACK (S79) : purs, de la graine de la ligue, du pack et du
- * numéro de l'achat. La FAMILLE du pack dit où l'on pige :
- *   hasard     la moitié productive de n'importe quelle saison ;
- *   equipe     une franchise, toutes époques (choisie à l'achat, ou au hasard) ;
- *   annee      une saison (choisie, ou au hasard) ; ere  une décennie ;
- *   skill      un talent lu dans les VRAIES fiches (js/packs.js `SKILLS`) ;
- *   trio       une vraie ligne d'un même club-saison ;
- *   etoiles    les étoiles de leur saison (`estEtoile`) ; legendes : d'avant 1995.
- * Puis, par-dessus chaque joueur, sa VARIANTE tirée au barème du tier (et le
- * numéro d'une or). Jamais un joueur qui joue déjà dans la ligue, ni un
- * salaire qu'aucune sortie ne ferait entrer sous le plafond (les deux modes).
+ * numéro de l'achat. Le tirage vit dans js/packs.js depuis S80
+ * (`tirerJoueursDuPack` : le NIVEAU du joueur d'abord, puis sa saison, puis
+ * sa variante), pour se mesurer en Node (scripts/check_packs.mjs). Ce qui
+ * reste ici, c'est ce que la PARTIE permet : jamais un joueur qui joue déjà
+ * dans la ligue ou qui est déjà signé, ni un salaire qu'aucune sortie ne
+ * ferait entrer sous le plafond (effectif : les cartes 💵 comptent, les deux modes).
  */
 async function tirerPackJoueurs(cle, n, params = {}, mods = {}, garantie = false) {
-  const P = PACKS_TOUS[cle], Lg = G.ligue, graine = Lg.graine;
+  const Lg = G.ligue;
   const dansLaLigue = new Set();
   for (const t of Lg.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
-  const an = s => Number(String(s).slice(0, 4));
-  let saisons = state.index.seasons.slice();
-  const reglage = { ...params };
-  if (P.famille === 'ere') saisons = saisons.filter(s => an(s) >= P.decennie && an(s) < P.decennie + 10);
-  if (P.famille === 'legendes') saisons = saisons.filter(s => an(s) < 1995);
-  if (P.famille === 'annee') {
-    if (!reglage.saison || !saisons.includes(reglage.saison)) reglage.saison = saisons[Math.floor(hache(graine, 'pack-annee', n) * saisons.length)];
-    saisons = [reglage.saison];
-  }
-  if (P.famille === 'equipe') {
-    if (!reglage.franchise || !FRANCHISES[reglage.franchise]) { const fs = Object.keys(FRANCHISES); reglage.franchise = fs[Math.floor(hache(graine, 'pack-equipe', n) * fs.length)]; }
-    saisons = saisonsDeFranchise(reglage.franchise, saisons);
-  }
-  const cotes = cotesDuPack(cle, mods);
-  const nb = P.n + (P.famille === 'trio' ? 0 : (mods.carteExtra || 0));
-  // Jamais un salaire qu'aucune sortie ne ferait entrer sous le plafond (effectif : les cartes 💵 comptent).
   const salaireMax = salaireMaxDePack();
-  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
-  const libre = (p, out) => p && p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p) && !out.some(x => getPersonKey(x.p) === getPersonKey(p));
-  const productifs = (joueurs, part = 2) => ['F', 'D', 'G'].flatMap(g => {
-    const r = joueurs.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a));
-    return r.slice(0, Math.ceil(r.length / part));
+  return tirerJoueursDuPack(cle, {
+    graine: Lg.graine, n, params, mods, garantie, saisons: state.index.seasons, shard: getShard,
+    libre: p => p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p),
   });
-  const out = [];
-  if (P.famille === 'trio') {
-    // UNE VRAIE LIGNE : un club-saison tiré ; son meilleur centre et ses meilleurs ailiers — ou, une fois sur trois, sa première paire et son gardien.
-    for (let t = 0; t < 12 && !out.length; t++) {
-      const sa = saisons[Math.floor(hache(graine, 'pack-trio-saison', n, t) * saisons.length)];
-      const e = await getShard(sa);
-      const clubs = Object.keys(e.byTeam);
-      const tag = clubs[Math.floor(hache(graine, 'pack-trio-club', n, t) * clubs.length)];
-      const eff = (e.byTeam[tag] || []).filter(p => (p.gp || 0) >= 30 && libre(p, out)).sort((a, b) => prod(b) - prod(a));
-      const paire = hache(graine, 'pack-trio-genre', n, t) < 1 / 3;
-      const aile = c => eff.find(p => !isD(p) && p.p !== 'G' && (p.np === c || (p.p === c)));
-      const ligne = paire
-        ? [eff.filter(p => isD(p))[0], eff.filter(p => isD(p))[1], (e.byTeam[tag] || []).filter(p => p.p === 'G' && (p.gp || 0) >= 20 && libre(p, out)).sort((a, b) => (b.gp || 0) - (a.gp || 0))[0]]
-        : [eff.find(p => !isD(p) && p.p !== 'G' && (p.np === 'C' || p.p === 'C')), aile('L') || aile('LW'), aile('R') || aile('RW')];
-      if (!ligne.every(Boolean) || new Set(ligne.map(getPersonKey)).size !== 3) continue;
-      ligne.forEach((p, i) => out.push({ p, ...tirerVariante(cotes, graine, cle, n, i) }));
-      reglage.club = `${tag} ${sa}`;
-    }
-  } else {
-    for (let t = 0; out.length < nb && t < nb * 5; t++) {
-      const sa = saisons[Math.floor(hache(graine, 'pack-saison', cle, n, t) * saisons.length)];
-      if (!sa) break;
-      const e = await getShard(sa);
-      let pool;
-      if (P.famille === 'equipe') pool = (e.byTeam[codeDeFranchise(reglage.franchise, sa)] || []).filter(p => (p.gp || 0) >= 20);
-      else if (P.famille === 'skill') {
-        const S = SKILLS[P.skill];
-        const c = e.players.filter(p => (p.gp || 0) >= S.min && (!S.groupe || groupeDe(p) === S.groupe) && (!S.skaters || p.p !== 'G')
-          && (!S.filtre || S.filtre(p, ageAtSeason(p.bd, p.s)))).sort((a, b) => S.score(b) - S.score(a));
-        pool = S.filtre ? c : c.slice(0, Math.ceil(c.length / 4));
-      } else if (P.famille === 'etoiles' || P.famille === 'legendes') pool = e.players.filter(p => estEtoile(p));
-      else pool = productifs(e.players, P.famille === 'annee' ? 1 : 2);
-      pool = pool.filter(p => libre(p, out));
-      if (!pool.length) continue;
-      pool.sort((a, b) => hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(a)) - hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(b)));
-      out.push({ p: pool[0], ...tirerVariante(cotes, graine, cle, n, t) });
-    }
-  }
-  // LA GARANTIE : le pack garanti, ou la pitié de la run (js/packs.js `PITIE`) — la dernière carte monte à holo.
-  if ((P.garanti || garantie) && out.length && !out.some(x => x.rar === 'rare' || x.rar === 'legendaire')) out[out.length - 1].rar = 'rare';
-  return { cartes: out, reglage };
 }
 /* La valeur de vente d'un joueur doublon : sa variante, et son numéro s'il en a un. */
 const NUM_VENTE = { '/99': 1, '/25': 2, '/10': 4, '1 de 1': 10 };
@@ -1433,10 +1371,12 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
       const g = groupeDe(x.p);
       const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', graineVariantes(), getPlayerKey(x.p)));
       return {
-        cle: getPlayerKey(x.p), rarete: x.rar, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
+        // S80 : son niveau ordonne aussi le retournement (le Phénomène en dernier, avec l'éclat d'une holo).
+        cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
         art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t) }),
         carteJoueur: miniAvecVariante(x.p, x.rar),
-        texte: [ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`)].filter(Boolean).join('\n'),
+        // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
+        texte: [niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`)].filter(Boolean).join('\n'),
         desactive: x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙` : '',
         apercu: () => apercuJoueur(x.p),
       };
@@ -2708,27 +2648,15 @@ const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
 /*
  * LES SOUS-SÉRIES (S78), comme dans une vraie collection : la RECRUE (son
  * contrat d'entrée) et l'ÉTOILE — les meilleurs de leur saison, lus dans
- * leurs VRAIES fiches, jamais dans une cote : le 4 % du haut des pointeurs
- * réguliers, le 8 % du haut des gardiens partants au pourcentage d'arrêts.
- * Une saison en cours (moins de matchs) abaisse le seuil de « régulier ».
+ * leurs VRAIES fiches, jamais dans une cote. Depuis S80, l'étoile EST un
+ * niveau (js/niveaux.js) : le 4 % du haut des réguliers de sa saison, à son
+ * poste — aux points par match, au % d'arrêts pour un gardien —, et le
+ * PHÉNOMÈNE, le 1 % du haut, en est le sommet. Une seule définition pour le
+ * ruban, le pack Étoiles et les taux des packs. Une saison en cours (moins de
+ * matchs) abaisse le seuil de « régulier ».
  */
-const SEUILS_ETOILE = new Map();
-function estEtoile(p) {
-  const e = p && p.s && G.shards.get(p.s);
-  if (!e) return false;
-  let s = SEUILS_ETOILE.get(p.s);
-  if (!s) {
-    const gpMax = Math.max(1, ...e.players.map(x => x.gp || 0));
-    const minP = Math.min(40, Math.floor(gpMax * 0.5)), minG = Math.min(30, Math.floor(gpMax * 0.35));
-    const pts = x => x.pt ?? ((x.g || 0) + (x.a || 0));
-    const pat = e.players.filter(x => x.p !== 'G' && (x.gp || 0) >= minP).map(pts).sort((a, b) => b - a);
-    const gar = e.players.filter(x => x.p === 'G' && (x.gp || 0) >= minG).map(x => x.sv || 0).sort((a, b) => b - a);
-    s = { minP, minG, pts: pat.length ? pat[Math.max(0, Math.ceil(pat.length * 0.04) - 1)] : Infinity, sv: gar.length ? gar[Math.max(0, Math.ceil(gar.length * 0.08) - 1)] : Infinity };
-    SEUILS_ETOILE.set(p.s, s);
-  }
-  return p.p === 'G' ? (p.gp || 0) >= s.minG && (p.sv || 0) >= s.sv
-    : (p.gp || 0) >= s.minP && (p.pt ?? ((p.g || 0) + (p.a || 0))) >= s.pts;
-}
+const niveauJoueur = p => { const e = p && p.s && G.shards.get(p.s); return e ? niveauDe(p, e.players) : -1; };
+const estEtoile = p => niveauJoueur(p) >= ETOILE;
 /* Les classes de la carte : l'époque, la série, la sous-série. */
 const classesDeCarte = p => `${dessinDe(p.s)}${estRecrue(p) ? ' ss-recrue' : ''}${estEtoile(p) ? ' ss-etoile' : ''}`;
 /*
@@ -2840,16 +2768,22 @@ const logoFiligrane = t => (LOGOS_LOCAUX.has(t) ? `url('img/logos/${t}.svg')` : 
 /*
  * LE RUBAN DE LA SOUS-SÉRIE, au bas de la photo : « ★ Étoile », « Recrue »,
  * ou les deux. Il remplace le tampon « Recrue » d'avant — et garde son
- * infobulle (ce que la recrue gagne en faisant ses classes).
+ * infobulle (ce que la recrue gagne en faisant ses classes). S80 : le
+ * sommet de l'étoile, le PHÉNOMÈNE, se dit « ★ Phénomène » (le 1 % du haut
+ * de sa saison) ; une recrue étoile garde « ★ Recrue ★ ».
  */
 function rubanDe(p) {
-  const etoile = estEtoile(p);
+  // Le NIVEAU (S80, js/niveaux.js) et la VRAIE saison recrue (S79, `estRecrue`) : le ruban dit l'un ou l'autre, ou les deux.
+  const niveau = niveauJoueur(p), etoile = niveau >= ETOILE;
   const rk = estRecrue(p);
   if (!rk && !etoile) return '';
   const recrue = rk && p.elc ? traitsJoueur(p).find(t => t.nom === 'Le jeune progresse') : null;
-  const titre = [etoile ? 'Étoile : parmi les meilleurs de sa vraie saison' : '', recrue ? `${recrue.ico} ${recrue.nom} — ${recrue.mot}` : ''].filter(Boolean).join(' · ');
-  return `<span class="cj-ruban${etoile ? ' etoile' : ''}${rk ? ' recrue' : ''}" title="${esc([rk ? 'Recrue : sa première saison dans la LNH' : '', titre].filter(Boolean).join(' · '))}">${etoile ? '★ ' : ''}${rk ? 'Recrue' : 'Étoile'}${etoile && rk ? ' ★' : ''}</span>`;
+  const N = etoile ? NIVEAUX[niveau] : null;
+  const titre = [rk ? 'Recrue : sa première saison dans la LNH' : '', N ? `${N.nom} : ${N.rang} de sa vraie saison, à son poste` : '', recrue ? `${recrue.ico} ${recrue.nom} — ${recrue.mot}` : ''].filter(Boolean).join(' · ');
+  return `<span class="cj-ruban${etoile ? ' etoile' : ''}${niveau === PHENOMENE ? ' phenomene' : ''}${rk ? ' recrue' : ''}" title="${esc(titre)}">${etoile ? '★ ' : ''}${rk ? 'Recrue' : N.nom}${etoile && rk ? ' ★' : ''}</span>`;
 }
+/* Le niveau que la carte ne dit pas déjà : le ruban nomme l'Étoile et le Phénomène (S80, jamais deux fois la même chose). */
+const niveauHorsRuban = (p, niveau = niveauJoueur(p)) => (niveau < 0 || (niveau >= ETOILE && !estRecrue(p)) ? '' : NIVEAUX[niveau].nom);
 function ouvrirAtelier(cle, { jour, you, onChoix, onFerme, suite = {} }) {
   const M = MUTATIONS[cle];
   if (!M || !you) return;

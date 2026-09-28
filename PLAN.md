@@ -293,6 +293,7 @@
 
 | 2026-09-27 | S79 : la banque de cartes (192 en sept familles : patrons, événements, modifs de joueur, consommables, contrats, match, saison), chacune une décision qui se rejoue ; 31 packs à la HUT dans les deux modes (tiers aux vraies cotes, équipe, année, décennies, talents, trio, étoiles, légendes, garanti, cartes), les chances affichées par pack, les or numérotées jusqu'au 1 de 1, la garantie après huit packs ; l'inventaire (ce qui se garde jusqu'au moment voulu, le permanent, le deck, le classeur) ; la masse salariale en Rogue (82 M$) et huit cartes pour la tordre ; le Vestiaire devient le cartable une fois la saison commencée (ton équipe avec sa saison révélée et sa vraie saison, la collection par saison et par club, variantes et doublons). |
 | 2026-09-27 | S79 : les trois branches réunies (la ligue au jour le jour, les rôles et les systèmes, la banque) ; les cartes « Style » parlent les rôles ; cache v21. L'écran Match désencombré : ta fiche dans l'en-tête seulement, la forme des deux clubs sur l'affiche, hier soir en une ligne qui ouvre le sommaire, les résultats du jour avec le classement, la route dans « Ma fiche » avec sa légende, la boîte seulement si elle a un message, tes cartes et la boutique dans l'en-tête ; le ✕ caché tant qu'il ne ferait rien. |
+| 2026-09-27 | S80 : les packs selon le niveau des joueurs (JP : *joueur moins bons plus fréquents, du moins, joueurs brisés moins fréquents*). Cinq niveaux, des RANGS de la vraie saison à son poste (Soutien, Régulier, Pilier, ★ Étoile, ★ Phénomène) ; une carte tire son joueur puis sa finition, deux axes. Mesuré sur 4000 packs par tier : un Phénomène d'un Bronze sur 174 (affiché 167 ; avant 15), d'un Argent sur 49 (42 ; avant 12), d'un Or sur 20 (20 ; avant 9), d'un Premium sur 9 (9 ; avant 8). L'étoile se lit à son poste (les défenseurs étoiles passent de 51 à 388 en 55 saisons). Le Pack d'équipe, qui ne s'ouvrait pas, s'ouvre. |
 
 ## S78 — modes (fait sur s78-modes)
 - [x] Mode Exhibition : n'importe quels clubs de toutes les époques, match / série 4 de 7 / 100 fois, direct, trois étoiles.
@@ -331,4 +332,11 @@
 - [x] Bandes de nom or, argent, bloc, fondu sur le fond du club ; plaque et banderole avec liseré et nom au club ; a-arc au club.
 - [x] Bogue : la mini et la fiche perdaient toutes les couleurs du club (guillemet double du filigrane dans l'attribut style).
 - [x] Tampa a un fond (marine éclairci) ; cache v22.
+
+## S80 — les packs selon le niveau des joueurs (fait sur s80-packs)
+- [x] Cinq NIVEAUX lus dans la vraie saison, à son poste (`js/niveaux.js`) : Soutien, Régulier, Pilier, ★ Étoile (le 4 % du haut), ★ Phénomène (le 1 %) ; aux points par match, au % d'arrêts pour un gardien. L'étoile du ruban et du pack Étoiles EST ce niveau (une seule définition).
+- [x] Les taux par tier (`TIERS[t].niveaux`, js/packs.js) : un Phénomène d'un Bronze sur 167 (avant : 1 sur 15), d'un Premium sur 9 (avant : 1 sur 8) ; le niveau et la finition sont deux axes.
+- [x] Le tirage sorti de js/game.js (`tirerJoueursDuPack`, pur) ; le Pack d'équipe s'ouvre enfin (il passait des paires [saison, code] au chargeur de saison).
+- [x] La boutique affiche « Le joueur d'une carte » (taux et rang réel) et les chances de joueur par pack ; la carte ouverte dit son niveau une fois (ruban ★ ou un mot).
+- [x] `scripts/check_packs.mjs` (50 vérifications) ; `js/niveaux.js` dans la liste de sw.js (la VERSION du cache se monte à la fusion).
 
