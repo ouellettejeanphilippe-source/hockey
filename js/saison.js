@@ -2372,12 +2372,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
     const ouvrirBallottage = () => ouvrirChoix({
       ico: '📋', titre: 'Au ballottage', cartes: true, genre: 'ballottage', fermable: true, motFermer: 'Garder mon alignement',
-      recit: `${alerte.player.n}${ctx.ouJoue && ctx.ouJoue(alerte.player) ? ` (${ctx.ouJoue(alerte.player)})` : ''} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois joueurs pas chers de sa position sont disponibles : touche une carte pour sa fiche, « Signer » pour le réclamer — puis tu choisis qui lui laisse sa place. Le plafond compte toujours.`,
+      recit: `${alerte.player.n}${ctx.ouJoue && ctx.ouJoue(alerte.player) ? ` (${ctx.ouJoue(alerte.player)})` : ''} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois réguliers de la ligue, sous 3 % du plafond : un dépanneur, pas une vedette. Touche une carte pour sa fiche, « Signer » pour le réclamer${mB.bal.cout ? ` (${mB.bal.cout} 🪙)` : ''} — puis tu choisis qui lui laisse sa place. Le plafond compte toujours.`,
       options: mB.bal.candidats.map(c => ({ cle: c.cle, rarete: c.rarete || 'commune', nom: c.nom, type: `${c.poste || c.pos} · ${c.club}`, coin: c.salaire,
         art: c.p ? joueurArt(c.p) : '', carteJoueur: c.p && ctx.carteMini ? ctx.carteMini(c.p) : '', texte: c.ligne, apercu: c.p && ctx.apercu ? () => ctx.apercu(c.p) : null })),
       onChoix: cle => {
         const c = mB.bal.candidats.find(x => x.cle === cle);
-        const decide = ({ i, sort }) => { boite.traites.add(mB.id); quitter(); onDecision({ jour, palier: mB.palierB, ballottage: { i, entre: cle, sort } }, jour); };
+        const decide = ({ i, sort }) => { boite.traites.add(mB.id); quitter(); onDecision({ jour, palier: mB.palierB, ballottage: { i, entre: cle, sort, ...(mB.bal.cout ? { cout: mB.bal.cout } : {}) } }, jour); };
         if (c && c.p && ctx.quiSort) ctx.quiSort(c.p, { roster: you.roster, genre: 'ballottage', onChoix: decide, onFerme: ouvrirBallottage });
         else decide({ i: mB.bal.i, sort: mB.bal.sort });
       },

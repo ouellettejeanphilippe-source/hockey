@@ -39,6 +39,7 @@ import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, b
 import { CARTES_MATCH, recompensesOffertes, deckDe } from './combat.js';
 import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
+import { candidatsBallottage as candidatsPurs, groupeDe as groupeDuBallottage } from './ballottage.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
@@ -1285,7 +1286,8 @@ function victoiresEntre(de, a) {
 function jetonsRogue(j = G.journee || 0) {
   const L = G.ligue;
   const decs = decisionsDeLaPartie();
-  const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0), 0);
+  // 1.0 (J1-D) : une réclamation au ballottage coûte des jetons en Rogue (`ballottage.cout`).
+  const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0) + ((d.ballottage || {}).cout || 0), 0);
   const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0), 0);
   const direction = modificateurs(decs).jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, j), 0);
   const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
@@ -5962,8 +5964,11 @@ function confirmerDecision(d) {
 const RESERVE_DE = { F: 'Réserve F', D: 'Réserve D', G: 'Réserve' };
 const POSTE_GROUPE = { F: 'Avant', D: 'Défenseur', G: 'Gardien' };
 const PLAFOND_BALLOTTAGE = 0.03;          // la part du plafond qu'un joueur réclamé peut coûter
-const groupeDe = p => (p.p === 'G' ? 'G' : isD(p) ? 'D' : 'F');
+const groupeDe = groupeDuBallottage;
 const ballottageVu = new Map();
+/* En Rogue, une réclamation coûte des jetons (1.0) : un dépanneur, pas un cadeau. En saison, rien. */
+const COUT_BALLOTTAGE_ROGUE = 10;
+const coutBallottage = () => (G.bonus === 'ROGUE' ? COUT_BALLOTTAGE_ROGUE : 0);
 function candidatsBallottage(blesse, at) {
   const L = G.ligue;
   if (!L || !blesse || !L.cles) return null;
@@ -5972,42 +5977,14 @@ function candidatsBallottage(blesse, at) {
   if (!slot) return null;
   const sort = G.roster[slot.i] || null;
   const budget = Math.min(capLeft() + (sort ? sort.$ : 0), MODE().cap * PLAFOND_BALLOTTAGE);
-  const dansLaLigue = new Set();
-  for (const t of L.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
-  const clubs = new Set(L.cles);
-  const pool = [];
-  for (const s of new Set(L.cles.map(c => String(c).split('|')[0]))) {
-    const e = G.shards.get(s);
-    if (!e) continue;
-    for (const [tag, joueurs] of Object.entries(e.byTeam)) {
-      if (clubs.has(`${s}|${tag}`)) continue;
-      for (const p of joueurs) {
-        if ((p.gp || 0) < 20 || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p))) continue;
-        pool.push(p);
-      }
-    }
-  }
-  const h = str => { let x = ((Number(L.graine) >>> 0) ^ Math.imul(at + 1, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
-  // Des offres qui valent la peine : les quinze meilleurs producteurs pas
-  // chers (points par match, ou % d'arrêts), puis trois d'entre eux tirés
-  // de la graine. Un tirage parmi TOUS les pas chers offrait des joueurs à
-  // deux points en trente-sept matchs.
-  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? (p.g + p.a)) || 0) / Math.max(1, p.gp));
-  pool.sort((a, b) => prod(b) - prod(a));
-  pool.length = Math.min(pool.length, 15);
-  pool.sort((a, b) => h(getPlayerKey(a)) - h(getPlayerKey(b)));
-  const out = [], vus = new Set();
-  for (const p of pool) {
-    if (vus.has(getPersonKey(p))) continue;
-    vus.add(getPersonKey(p)); out.push(p);
-    if (out.length === 3) break;
-  }
+  // 1.0 (J1-D) : la fonction pure (js/ballottage.js), qui n'offre que des réguliers — jamais une vedette à son contrat d'entrée.
+  const out = candidatsPurs({ shards: G.shards, ligue: L, blesse, budget, at });
   for (const p of out) ballottageVu.set(getPlayerKey(p), p);
   const ligne = ligneDuChoix;
   // Le joueur et sa rareté voyagent avec l'offre (S76) : le ballottage se
   // présente en CARTES de joueur, portrait et métal compris, comme la recrue.
   return {
-    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null,
+    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, cout: coutBallottage(),
     candidats: out.map(p => ({ cle: getPlayerKey(p), p, nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, poste: POSTE_GROUPE[g], salaire: money(p.$), ligne: ligne(p), rarete: rareteJoueur(p) })),
   };
 }

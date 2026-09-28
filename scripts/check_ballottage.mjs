@@ -13,8 +13,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPlayerKey, getPersonKey, connaitre, photoAlignement } from '../js/sim.js';
+import { candidatsBallottage, productionDe, NIVEAU_MAX_BALLOTTAGE } from '../js/ballottage.js';
+import { niveauDe, joueursParNiveau, groupeDuJoueur } from '../js/niveaux.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { exiger, verdict } from './verdict.mjs';
+import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -77,4 +79,44 @@ const s1 = avecSel('a'), s2 = avecSel('b'), s1b = avecSel('a');
 exiger('la même décision avec un autre sel rejoue AUTREMENT la suite', s1.tout !== s2.tout, 'deux saisons différentes');
 exiger('le même sel redonne la même saison (la sauvegarde)', s1.tout === s1b.tout, 'au but près');
 exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiques');
+
+/*
+ * UN DÉPANNEUR, PAS UNE VEDETTE (1.0, J1-D). Les candidats viennent de la
+ * fonction pure (js/ballottage.js) : sur vingt blessures rejouées dans une
+ * ligue de seize clubs, chaque candidat est au plus un Régulier de sa saison
+ * (jamais un Pilier, une Étoile, un Phénomène), un patineur fait au plus
+ * 0,9 point par match, et la même blessure offre les mêmes trois noms.
+ */
+{
+  const teams = ligue();
+  const cles = teams.map(t => `${t.season}|${t.tag}`);
+  const shards = new Map();
+  for (const f of SAISONS) { const sh = shard(f); const byTeam = {}; for (const p of sh.players) (byTeam[p.t] = byTeam[p.t] || []).push(p); shards.set(sh.season, { players: sh.players, byTeam }); }
+  const L = { cles, teams, graine: 'ballottage' };
+  const budget = 95_500_000 * 0.03;
+  let n = 0, vedettes = 0, gros = 0, vides = 0, instables = 0, offerts = [];
+  for (let i = 0; i < 20; i++) {
+    const t = teams[i % teams.length];
+    const blesse = Object.values(t.roster).filter(Boolean)[(i * 7) % 20];
+    const a = candidatsBallottage({ shards, ligue: L, blesse, budget, at: 10 + i });
+    const b = candidatsBallottage({ shards, ligue: L, blesse, budget, at: 10 + i });
+    if (!a.length) { vides++; continue; }
+    if (a.map(getPlayerKey).join() !== b.map(getPlayerKey).join()) instables++;
+    for (const p of a) {
+      n++;
+      const e = shards.get(String(p.s));
+      if (!e || niveauDe(p, e.players) > NIVEAU_MAX_BALLOTTAGE) vedettes++;
+      // Pas un seuil absolu (un régulier de 1981-82 fait 1,0 point par match) : sous le PLUS FAIBLE Pilier de sa saison, à son poste.
+      if (p.p !== 'G' && e) {
+        const piliers = joueursParNiveau(e.players)[2].filter(x => groupeDuJoueur(x) === groupeDuJoueur(p)).map(productionDe);
+        if (piliers.length && productionDe(p) >= Math.min(...piliers)) gros++;
+      }
+      if (offerts.length < 3) offerts.push(`${p.n} ${p.s} (${productionDe(p).toFixed(2)}/m, ${p.$ / 1e6} M$)`);
+    }
+  }
+  informer('des candidats vus', offerts.join(' · '));
+  exiger('vingt blessures : jamais un Pilier, une Étoile ni un Phénomène au ballottage', n >= 30 && vedettes === 0, `${n} candidats, ${vedettes} au-dessus de Régulier, ${vides} blessures sans offre`);
+  exiger('un patineur réclamé produit moins que le plus faible Pilier de sa saison, à son poste', gros === 0, `${gros} au-dessus`);
+  exiger('la même blessure offre les mêmes trois noms', instables === 0, `${instables} offres qui changent`);
+}
 verdict('Le ballottage et les dés neufs');
