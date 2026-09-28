@@ -80,7 +80,8 @@ const acheter = async (pack, capture) => {
   await page.waitForSelector('#magasinModal .pk-fiche');
   if (capture) await page.screenshot({ path: `${DOSSIER}/${capture}.png` });
   const ok = await page.$('#magasinModal .pk-acheter:not([disabled])');
-  if (!ok) { await page.click('#magasinModal .choix-fermer'); return false; }
+  // Pas assez de jetons : la fiche du pack se referme d'abord (« Retour »), puis la boutique — la fiche couvre le ✕.
+  if (!ok) { await page.click('#magasinModal .pk-retour'); await page.click('#magasinModal .choix-fermer'); return false; }
   await ok.click();
   await dechirer();
   return true;
@@ -138,20 +139,30 @@ const poche = await page.$$eval('#inventaireModal .bq-carte', e => e.map(x => x.
 const plafond = await page.textContent('#inventaireModal .inv-plafond').catch(() => '');
 console.log(`6. inventaire : ${poche.join(' · ') || '(vide)'} · ${(plafond || '(pas de panneau)').replace(/\s+/g, ' ').trim()}`);
 if (!plafond) erreurs.push('l\'inventaire ne montre pas la masse salariale');
-const jouer = (await page.$('#inventaireModal .bq-plafond .inv-jouer:not([disabled])')) || (await page.$('#inventaireModal .inv-jouer:not([disabled])'));
-if (jouer) {
-  await jouer.click();
+/*
+ * UNE CARTE SANS CIBLE VALABLE (« Blessé à long terme » sans blessé) rouvre
+ * l'inventaire au lieu de se jouer : les plombiers sont tirés au hasard, donc
+ * la première carte ne se joue pas toujours. On essaie les cartes une à une
+ * jusqu'à ce qu'une décision entre dans la sauvegarde.
+ */
+let jouee = false, essais = 0;
+for (; essais < 5 && !jouee; essais++) {
+  if (!(await page.$('#inventaireModal:not([hidden])'))) { await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#inventaireModal:not([hidden]) .inv-onglet', { timeout: 10000 }); }
+  const boutons = await page.$$('#inventaireModal .inv-jouer:not([disabled])');
+  if (!boutons[essais]) break;
+  await boutons[essais].click();
   await page.waitForTimeout(600);
   await regler();
+  if (await page.$('#inventaireModal:not([hidden])')) continue;
   await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
   await regler();
   d = await decisions();
-  console.log(`7. jouée : ${JSON.stringify(d.filter(x => x.joue).map(x => ({ id: x.joue.id, champs: Object.keys(x).filter(k => !['jour', 'joue', 'sel'].includes(k)) })))} · barre : ${await jauge()}`);
-  if (!d.some(x => x.joue)) erreurs.push('la carte jouée n\'a laissé aucune décision');
-} else {
-  await page.click('#inventaireModal .choix-fermer');
-  console.log('7. aucune carte à jouer');
+  jouee = d.some(x => x.joue);
 }
+if (await page.$('#inventaireModal:not([hidden])')) await page.click('#inventaireModal .choix-fermer');
+d = await decisions();
+console.log(`7. jouée (${essais} essai(s)) : ${JSON.stringify(d.filter(x => x.joue).map(x => ({ id: x.joue.id, champs: Object.keys(x).filter(k => !['jour', 'joue', 'sel'].includes(k)) })))} · barre : ${await jauge()}`);
+if (!jouee) erreurs.push('aucune carte de l\'inventaire n\'a pu se jouer (cinq essais)');
 // LE CARTABLE (S79) : l'onglet Vestiaire, une fois la saison commencée.
 await page.click('#navbar [data-page="repechage"]');
 await page.waitForSelector('#pageCartable:not([hidden]) .ct-carte', { timeout: 20000 });

@@ -9071,8 +9071,8 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .cj-mini-carte .cj-coin-logo { width: 24px; height: 24px; left: 5px; bottom: 5px; }
 .cj-mini-carte .cj-coin-logo :is(img, svg) { width: 20px; height: 20px; }
 .cj-mini-carte .cj-annee { right: 5px; bottom: 5px; padding: 2px 4px; font-size: 9.5px; }
-/* Sur la mini, le ruban tient le bas de la photo, entre l'écusson et l'année : jamais sur un visage. */
-.cj-mini-carte .cj-ruban { bottom: 5px; padding: 2px 7px; font-size: 8px; letter-spacing: 0.06em; }
+/* Sur la mini, le ruban tient le HAUT de la photo (au-dessus de la tête d'un portrait détouré) : en bas, il couvrait l'année. */
+.cj-mini-carte .cj-ruban { top: 5px; bottom: auto; padding: 2px 7px; font-size: 8px; letter-spacing: 0.06em; }
 .cj-recto.cj-mini-carte .cj-bandeau { min-height: 36px; height: auto; padding: 3px 7px; }
 .cj-mini-carte .cj-bandeau .pcard-full-name { font-size: clamp(13px, 5.2vw, 18px); line-height: 1; }
 .cj-mini-carte .cj-bandeau .pcard-full-name .lname { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

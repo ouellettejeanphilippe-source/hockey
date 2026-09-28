@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v19';  // v19 : les variantes de cartes, l'atelier, les visages et écussons sur l'appareil (S78)
+const VERSION = 'cap82-v20';  // v20 : un design de carte par année, la banque de cartes et les packs, le cartable, le plafond en Rogue (S78-S79)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
