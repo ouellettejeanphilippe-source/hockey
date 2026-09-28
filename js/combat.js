@@ -25,7 +25,7 @@
  * effet sur l'ADVERSAIRE (ses punitions, son énergie, sa finition), son plan
  * de match qui tombe (« La vidéo »), tes deux premières lignes qui jouent son
  * contre, un pari tiré de la graine, de l'énergie rendue à tes joueurs, ou
- * une synergie qui lit ta formation (tes francs-tireurs, tes défenseurs purs,
+ * une synergie qui lit ta formation (tes snipers, tes défenseurs défensifs,
  * tes lignes qui jouent le même système). Rien ne se lit d'une cote.
  *
  * TOUT EST PUR. Le deck se DÉDUIT des décisions (récompenses, retraits,
@@ -123,7 +123,7 @@ export const CARTES_MATCH = {
   systeme: { nom: 'Le système maison', ico: '📘', cout: 1, rarete: 'peu', genre: 'synergie',
     texte: 'Tout le monde connaît sa case les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme' },
   gachettes: { nom: 'Les gâchettes', ico: '🎯', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Ils ne passent pas : ils lancent.', regle: 'Précision +2 % par franc-tireur dans tes deux premiers trios (jusqu\'à +6 %).', synergie: 'gachettes' },
+    texte: 'Ils ne passent pas : ils lancent.', regle: 'Précision +2 % par sniper dans tes deux premiers trios (jusqu\'à +6 %).', synergie: 'gachettes' },
   murBleu: { nom: 'Le mur bleu', ico: '🧱', cout: 1, rarete: 'peu', genre: 'synergie',
     texte: 'Trois défenseurs qui ne montent jamais.', regle: 'Buts contre −2 % par défenseur pur habillé (jusqu\'à −6 %).', synergie: 'mur' },
   jambes: { nom: 'Les jambes', ico: '⚡', cout: 1, rarete: 'peu', genre: 'synergie',
