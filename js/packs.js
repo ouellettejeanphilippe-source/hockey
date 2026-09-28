@@ -136,10 +136,14 @@ export const RAYONS = [
   { cle: 'cartes', nom: 'Les cartes', ico: '🃏', packs: ['c:patrons', 'c:evenements', 'c:modifs', 'c:consommables', 'c:contrats', 'c:match', 'c:mixte', 'c:lot'] },
 ];
 
-/* LE PACK DU JOUR : un pack de la boutique, à 25 % de rabais, qui change chaque jour (la date). */
-export function packDuJour(date = new Date()) {
+/*
+ * LE PACK DU JOUR : un pack de la boutique, à 25 % de rabais, qui change
+ * chaque jour (la date). `ouverts` (1.0) : ce que la boutique permet, clé →
+ * true ou la raison du verrou — un pack verrouillé n'est jamais en vitrine.
+ */
+export function packDuJour(date = new Date(), ouverts = null) {
   const cle = typeof date === 'string' ? date : `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-  const tous = Object.keys(PACKS_TOUS).filter(k => k !== 'c:lot' && k !== 'j:legendes');
+  const tous = Object.keys(PACKS_TOUS).filter(k => k !== 'c:lot' && k !== 'j:legendes' && (!ouverts || ouverts[k] === true));
   return { pack: tous[Math.floor(hache('pack-du-jour', cle) * tous.length)], rabais: 0.75, date: cle };
 }
 export const prixDe = (cle, rabais = 1) => Math.max(1, Math.round((PACKS_TOUS[cle] || {}).prix * rabais));
@@ -387,7 +391,9 @@ export function tirerCartesPack(cleCourte, graine, n) {
   }
   // LA MALCHANCE (le jeu de hasard) : certains packs cachent une malédiction, qui prend la dernière place.
   if (P.maudite && out.length && hache(graine, 'pack-maudite', cleCourte, n) < P.maudite) {
-    const m = P.cats.flatMap(idsDe).filter(id => BANQUE[id].rarete === 'maudite');
+    // 1.0 : seule la taxe de luxe (un contrat) frappe à l'ouverture — `plafondDe` (js/banque.js) la lit ;
+    // les malédictions d'événement et de match, elles, n'ont pas de consommateur à l'ouverture.
+    const m = idsDe('plafond').filter(id => BANQUE[id].rarete === 'maudite');
     if (m.length) out[out.length - 1] = m[Math.floor(hache(graine, 'pack-maudite-carte', cleCourte, n) * m.length)];
   }
   return out;

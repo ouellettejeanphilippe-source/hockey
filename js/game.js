@@ -1256,7 +1256,9 @@ function resultatsRogue(j) {
   const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).length;
   // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`).
   const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && d.carte).length;
-  return { W, L: D, OTL: P, gros, objectifs };
+  // 1.0 (J1-C) : les rondes de séries gagnées (`finDesSeriesRogue` les pose) — la prime `JETONS.serie` se verse enfin.
+  const series = (G.rogue && G.rogue.series && G.rogue.series.rondes) || 0;
+  return { W, L: D, OTL: P, gros, objectifs, series };
 }
 /*
  * LES JETONS DE LA PARTIE (S79), dans les DEUX modes : les résultats
@@ -1322,7 +1324,7 @@ function ouvrirBoutique(j, decider) {
   ouvrirMagasin({
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(),
     mods: modificateurs(decs, j + 1), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
-    duJour: packDuJour(new Date()),
+    duJour: packDuJour(new Date(), packsOuvertsBoutique()),
     franchises: Object.entries(FRANCHISES).map(([cle, F]) => ({ cle, nom: F.nom })).sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
     saisons: state.index.seasons.slice().reverse(),
     acheter: (cle, { prix, params }) => {
