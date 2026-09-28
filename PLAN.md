@@ -332,3 +332,15 @@
 - [x] Bogue : la mini et la fiche perdaient toutes les couleurs du club (guillemet double du filigrane dans l'attribut style).
 - [x] Tampa a un fond (marine éclairci) ; cache v22.
 
+## S80 — le Rogue : le départ du classeur, la courbe, le cartable (fait sur s80-rogue)
+- [x] Le départ du classeur (js/depart.js) : une carte du cartable au hasard sans déblocage ; des pages de plus (2, 3, 4 cartes), le tri (deux fois plus de cartes tirées, on garde), le classeur ouvert (tout le cartable, filtré, cherchable). Budget du classeur (25 M$ sans déblocage), tirage pur (`m.sel`, le numéro de la run), « Prendre » puis « Commencer la run ».
+- [x] Une run sur plusieurs saisons : l'équipe, le deck, les modifs jouées, les jetons et les cases débloquées continuent ; la poche de la saison expire. « Saison N+1 de la run » au bilan.
+- [x] Le mandat du proprio (les séries, une ronde, les demi-finales, la finale) : manqué, la run finit ; la Coupe la gagne. Au hub, au bilan, à l'écran de la run, au menu.
+- [x] Le barème d'une run : 4 🪙 par victoire, 7 et 9 avec les commanditaires (deux déblocages neufs).
+- [x] Dix jalons : l'autre façon de débloquer (un déblocage offert, sinon des écussons), au vestiaire en tête.
+- [x] La courbe des cartes (ligue Rogue) : améliorations et cartes sur l'adversaire ×0,5 → ×1 → ×1,5 → ×2 en finale ; cartes de trio constantes, le stage plafonne (il soude aussi les lignes : `ENTENTE_STAGE`). Les cartes et la main du soir le disent.
+- [x] La carte qui sort (signature, ballottage, recrue, relâché) va au cartable ; relâcher un réserviste (avant la saison, derrière le banc) ; deux cases de réserve à débloquer, la case libre offerte avant « qui sort ? ».
+- [x] `rebatirAdversaires` exclut tout joueur qu'une décision a mis dans l'alignement (un relâché du jour 0) ; le renfort de l'Express lit les 23 cases de base.
+- [x] `check_rogue.mjs` (invariants, courbe à cinq niveaux, campagnes, force des cartes selon le moment) et `scripts/lib/rogue_sim.mjs` (le robot des runs) ; `essai_rogue.mjs` étendu.
+- [ ] Après la fusion de la branche des packs (les taux de tirage des joueurs) : relancer `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` et régler le barème ou les prix des déblocages si la courbe a bougé.
+- [ ] Le stage reste une carte de confort (la chimie pèse peu en buts, `CHIMIE_BONUS`) : si JP veut des cartes de trio qui gagnent des matchs au début, c'est la chimie ou la maîtrise dans le fit du système qu'il faudra rendre plus lourdes — un choix de moteur, pour tous les modes.
