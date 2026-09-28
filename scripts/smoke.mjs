@@ -75,9 +75,46 @@ async function passerIdentite() {
  */
 async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
   await _click(`${portee} .tcj-signer`);
-  await _wait('#choixModal:not([hidden]) .choix-option.avec-visage', { timeout: 5000 });
-  await page.waitForTimeout(200);
-  await _click('#choixModal:not([hidden]) .choix-option.avec-visage');
+  await sortirDansAlignement();
+}
+/*
+ * QUI SORT, DANS L'ALIGNEMENT (S80). JP : *le screen de choix pour les
+ * upgrades et les remplacements sont à chier* ; *dire que x est sur la
+ * xième ligne*. « Qui sort ? » est l'alignement lui-même : on exige ses neuf
+ * rangées titrées par ce qu'elles sont (quatre trios, trois paires, les
+ * gardiens, la réserve), une case par joueur avec son visage, son nom et ses
+ * positions, rien qui déborde à 390 px ; toucher une case ne décide rien — la
+ * barre dit ce qui va se passer, avec la LIGNE de celui qui sort — et c'est
+ * « Confirmer » qui décide. Le parcours prend la première case permise.
+ */
+const alignementsVus = [];
+async function sortirDansAlignement() {
+  await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 5000 });
+  await page.waitForTimeout(150);
+  const lu = await page.evaluate(() => {
+    const m = document.querySelector('#choixModal');
+    const titres = [...m.querySelectorAll('.aln-titre')].map(t => (t.firstChild ? t.firstChild.textContent : t.textContent).trim());
+    const cases = [...m.querySelectorAll('.aln-case[data-aln]')];
+    const incompletes = cases.filter(c => !c.querySelector('.aln-visage') || !(c.querySelector('.aln-nom') || {}).textContent || !((c.querySelector('.aln-pos') || {}).textContent || '').trim()).length;
+    const corps = m.querySelector('.choix-corps');
+    return { titres, n: cases.length, permises: cases.filter(c => !c.disabled).length, incompletes, confirmer: !!m.querySelector('.aln-confirmer'), sw: corps.scrollWidth, cw: corps.clientWidth };
+  });
+  const attendus = ['1er trio', '2e trio', '3e trio', '4e trio', '1re paire', '2e paire', '3e paire', 'Gardiens', 'Réserve'];
+  if (JSON.stringify(lu.titres) !== JSON.stringify(attendus)) errors.push(`« qui sort ? » ne titre pas ses rangées par ce qu'elles sont : ${lu.titres.join(' · ')}`);
+  if (lu.n < 20) errors.push(`« qui sort ? » ne montre que ${lu.n} joueurs de l'alignement`);
+  if (lu.incompletes) errors.push(`« qui sort ? » : ${lu.incompletes} case(s) sans visage, nom ou positions`);
+  if (lu.sw > lu.cw + 1) errors.push(`« qui sort ? » déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
+  if (!lu.confirmer || !lu.permises) { errors.push(`« qui sort ? » : ${lu.permises} case permise, ${lu.confirmer ? 'un' : 'aucun'} bouton Confirmer`); await _click('#choixModal .aln-retour'); return false; }
+  await _click('#choixModal .aln-case[data-aln]:not([disabled])');
+  await page.waitForTimeout(120);
+  const pret = await page.$eval('#choixModal .aln-confirmer', b => !b.disabled);
+  const barre = ((await page.textContent('#choixModal .aln-barre-mot')) || '').replace(/\s+/g, ' ').trim();
+  // « Hal Gill (3e paire) sort, Kevin Hatcher prend sa place. » — et toucher n'a rien décidé : la feuille est encore là.
+  const encore = !!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'));
+  if (!pret || !encore || !/\((\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve)\) sort, .+ prend sa place/.test(barre)) errors.push(`toucher une case de « qui sort ? » ne prépare pas la confirmation : « ${barre} »`);
+  alignementsVus.push(barre);
+  await _click('#choixModal .aln-confirmer');
+  return true;
 }
 /*
  * « NOUVELLE » RAMÈNE AU CHOIX DU MODE (S79). Le bouton de la barre ouvre les
@@ -114,9 +151,10 @@ async function prendrePalier() {
   const eff = await page.$('#choixModal .tc[data-choix^="effet:"]:not([disabled])');
   const nom = eff ? await eff.getAttribute('data-choix') : await page.$eval('#choixModal .tc:not([disabled])', e => e.dataset.choix);
   await _click(`#choixModal .tc[data-choix="${nom}"]`);
-  // Le deuxième choix d'une carte du deck (le joueur, le rôle, l'édition…).
+  // Le deuxième choix d'une carte du deck (le joueur, le rôle, l'édition… et qui sort, dans l'alignement, S80).
   for (let k = 0; k < 3; k++) {
     await page.waitForTimeout(350);
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]')) { await sortirDansAlignement(); continue; }
     if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, button.choix-option:not([disabled]))'))) break;
   }
   // Après la carte : le hub, ou un autre plein écran (un sommaire, un choix, la main suivante).
@@ -223,6 +261,8 @@ async function repondreAuxChoix() {
       await page.waitForTimeout(250);
       continue;
     }
+    // QUI SORT, DANS L'ALIGNEMENT (S80) : ses cases ne sont pas des `.choix-option`.
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]')) { await sortirDansAlignement(); await page.waitForTimeout(350); continue; }
     const opt = await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])');
     if (!opt || !(await opt.isVisible())) {
       /*
@@ -311,7 +351,6 @@ async function repondreAuxChoix() {
       return;
     }
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await signerPuisSortir(); await page.waitForTimeout(350); continue; }
-    if (await page.$('#choixModal:not([hidden]) .choix-option.avec-visage')) { await _click('#choixModal:not([hidden]) .choix-option.avec-visage'); await page.waitForTimeout(350); continue; }
     const titre = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
     const genre = /proprio|objectif/i.test(titre) ? 'hub-proprio' : /de suite/i.test(titre) ? 'hub-sequence' : 'hub-dilemme';
     const sansPuce = await page.$$eval('#choixModal .choix-option', els => els.filter(e => !e.querySelector('.puce')).length);
@@ -1536,11 +1575,15 @@ async function traverserSaison(etiquette, reprise = false) {
         if (off) console.log(`   la carte « ${deck} » est grisée ce palier-ci (personne à qui la donner)`);
         else {
           await _click(`#choixModal .tc[data-choix="${deck}"]`);
-          await _wait('#choixModal:not([hidden]) .choix-option', { timeout: 5000 });
-          const suite = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
-          const nb = await page.$$eval('#choixModal .choix-option:not([disabled])', e => e.length);
-          // L'atelier (S78) demande l'édition, PUIS le joueur : on fait chaque choix qui s'ouvre.
+          // L'amélioration (S80) va droit à l'inventaire : pas de deuxième choix, le hub revient.
+          await _wait('#choixModal:not([hidden]) :is(.choix-option, .aln-case), #hubModal .hub-jour', { timeout: 120000 });
+          await page.waitForTimeout(300);
+          const ouvert = !!(await page.$('#choixModal:not([hidden]) .choix-sheet'));
+          const suite = ouvert ? ((await page.textContent('#choixModal .choix-titre')) || '').trim() : 'gardée dans l\'inventaire';
+          const nb = ouvert ? await page.$$eval('#choixModal :is(.choix-option, .aln-case[data-aln]):not([disabled])', e => e.length) : 0;
+          // L'atelier demande l'édition (S80 : elle se garde) ; la recrue, qui sort (dans l'alignement) : on fait chaque choix qui s'ouvre.
           for (let k = 0; k < 3; k++) {
+            if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]')) { await sortirDansAlignement(); await page.waitForTimeout(400); continue; }
             const o = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, button.choix-option:not([disabled]))');
             if (!o || !(await o.isVisible())) break;
             await o.click();
@@ -1555,7 +1598,16 @@ async function traverserSaison(etiquette, reprise = false) {
           else if (typeof dDeck[0].palier !== 'number') errors.push(`la carte « ${deck} » ne porte pas son palier : ${JSON.stringify(dDeck[0])}`);
           else if (jApresDeck !== jDeck) errors.push(`jouer la carte « ${deck} » rembobine la saison : journée ${jDeck} puis ${jApresDeck}`);
           else if (await page.$('#hubModal .hub-main-ouvrir')) errors.push(`la main reste ouverte après la carte « ${deck} »`);
-          else console.log(`   carte du deck « ${deck} » : ${suite}, ${nb} choix, décision ${JSON.stringify({ deck: dDeck[0].deck, palier: dDeck[0].palier, mutation: dDeck[0].mutation, maitrise: dDeck[0].maitrise, ballottage: dDeck[0].ballottage && dDeck[0].ballottage.entre })}`);
+          else console.log(`   carte du deck « ${deck} » : ${suite}, ${nb} choix, décision ${JSON.stringify({ deck: dDeck[0].deck, palier: dDeck[0].palier, mutation: dDeck[0].mutation, garde: dDeck[0].garde, maitrise: dDeck[0].maitrise, ballottage: dDeck[0].ballottage && dDeck[0].ballottage.entre })}`);
+          // S80 : l'amélioration (ou l'édition) gardée au palier attend dans l'inventaire, prête à poser au verso.
+          if (dDeck.length && dDeck[0].garde) {
+            await _click('#hubModal .hub-inventaire');
+            await _wait('#inventaireModal:not([hidden]) .inv-onglet', { timeout: 10000 });
+            if (!(await page.$(`#inventaireModal .bq-carte[data-id="${dDeck[0].garde}"] .inv-jouer`))) errors.push(`la carte « ${dDeck[0].garde} » gardée au palier n'est pas dans l'inventaire`);
+            else console.log(`   « ${dDeck[0].garde} » attend dans l'inventaire`);
+            await _click('#inventaireModal .choix-fermer');
+            await page.waitForTimeout(300);
+          }
         }
       }
 
@@ -2600,6 +2652,7 @@ await sansCote('express');
  * séquences dépendent des résultats, elles s'informent.
  */
 console.log(`   ballottage : ${ballottage.mot || 'aucune offre croisée (il faut une blessure de quatre matchs et plus)'}`);
+console.log(`   qui sort, dans l'alignement (S80) : ${alignementsVus.length ? `${alignementsVus.length} fois — « ${alignementsVus[0]} »` : 'pas croisé ce parcours-ci (il faut un ballottage ou une recrue)'}`);
 // Un paquet dépend d'une victoire en gros match ou d'une série gagnée : on dit ce qu'on a ouvert.
 console.log(`   paquets ouverts : ${paquetsVus.length ? paquetsVus.join(' · ') : 'aucun (pas de gros match gagné ni de série gagnée)'}`);
 // LE SOMMAIRE DE LA JOURNÉE (S78) : après une avance où ton club a joué, avant le retour au hub.

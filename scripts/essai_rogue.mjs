@@ -47,8 +47,11 @@ async function regler() {
     // Une main de palier (des cartes .tc) : la première carte jouable.
     const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])');
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
-    // Un joueur offert (S78) : « Signer », puis « qui sort ? » se règle comme un choix.
+    // Un joueur offert (S78) : « Signer », puis « qui sort ? » — dans l'alignement (S80) : une case, puis « Confirmer ».
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-confirmer')) {
+      await page.click('#choixModal .aln-case[data-aln]:not([disabled])'); await page.click('#choixModal .aln-confirmer'); await page.waitForTimeout(600); continue;
+    }
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     const t = await page.$('#hubModal .hub-traiter');
     if (t) { const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]'); await (d || t).click(); await page.waitForTimeout(400); continue; }
@@ -162,15 +165,31 @@ await page.waitForTimeout(400);
 // Le nom du joueur qu'on signe : il doit être dans l'alignement tout de suite (S79).
 const nomSigne = await page.$eval('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"])', x => (x.querySelector('.pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim());
 await page.click('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"]) .tcj-signer');
-await page.waitForSelector('#choixModal:not([hidden]) .choix-option.avec-visage', { timeout: 10000 });
+/*
+ * QUI SORT, DANS L'ALIGNEMENT (S80). JP : *le screen de choix pour les
+ * upgrades et les remplacements sont à chier* ; *dire que x est sur la
+ * xième ligne*. Les neuf rangées titrées par ce qu'elles sont ; toucher une
+ * case la surligne et la barre dit ce qui va se passer (la ligne de celui
+ * qui sort) ; rien ne part avant « Confirmer ».
+ */
+await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
+await page.waitForTimeout(300);
+const rangees = await page.$$eval('#choixModal .aln-titre', e => e.map(x => (x.firstChild ? x.firstChild.textContent : x.textContent).trim()));
+if (rangees.join('|') !== '1er trio|2e trio|3e trio|4e trio|1re paire|2e paire|3e paire|Gardiens|Réserve') erreurs.push(`« qui sort ? » : rangées ${rangees.join(' · ')}`);
+const refusees = await page.$$eval('#choixModal .aln-case[data-aln][disabled]', e => e.length);
+await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
+await page.waitForTimeout(250);
+const barreSortie = (await page.textContent('#choixModal .aln-barre-mot')).replace(/\s+/g, ' ').trim();
+if (!/\(.+\) sort, .+ prend sa place/.test(barreSortie)) erreurs.push(`la barre de « qui sort ? » ne dit pas ce qui va se passer : « ${barreSortie} »`);
+if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) erreurs.push('toucher une case de « qui sort ? » a décidé sans « Confirmer »');
 await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
-const refusees = await page.$$eval('#choixModal .choix-option.avec-visage[disabled]', e => e.length);
-await page.click('#choixModal:not([hidden]) .choix-option.avec-visage:not([disabled])');
+console.log(`   qui sort : ${rangees.length} rangées, ${refusees} case(s) grisée(s) · « ${barreSortie} »`);
+await page.click('#choixModal .aln-confirmer');
 await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
 await page.waitForTimeout(800);
 let d = await decisions();
 const signe = d.filter(x => x.achat && x.ballottage);
-console.log(`5. signé : ${JSON.stringify(signe.map(x => ({ pack: x.achat.pack, prix: x.achat.prix, entre: x.ballottage.entre, rar: x.ballottage.rar })))} · ${refusees} sortie(s) refusée(s) par le plafond · barre : ${await jauge()}`);
+console.log(`5. signé : ${JSON.stringify(signe.map(x => ({ pack: x.achat.pack, prix: x.achat.prix, entre: x.ballottage.entre, rar: x.ballottage.rar })))} · ${refusees} case(s) grisée(s) (pas sa position, ou le plafond) · barre : ${await jauge()}`);
 if (!signe.length) erreurs.push('le pack de joueurs n\'a rien signé');
 /*
  * LE JOUEUR SIGNÉ EST DANS L'ALIGNEMENT TOUT DE SUITE (S79). JP : *les cartes
@@ -188,9 +207,9 @@ if (!signe.length) erreurs.push('le pack de joueurs n\'a rien signé');
   await page.click('.navtab[data-page="match"]').catch(() => {});
   await page.waitForTimeout(500);
 }
-// Un pack de cartes : tout va dans l'inventaire ; puis un pack Contrats (la masse salariale).
+// Un pack Modifs (S80 : ses cartes se posent au verso), un pack de cartes : tout va dans l'inventaire ; puis un pack Contrats (la masse salariale).
 await regler();
-for (const pack of ['c:mixte', 'c:contrats']) {
+for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
   await page.screenshot({ path: `${DOSSIER}/rogue-${pack.slice(2)}.png` });
   await page.click('#choixModal:not([hidden]) .choix-plus-tard');
@@ -210,15 +229,55 @@ const plafond = await page.textContent('#inventaireModal .inv-plafond').catch(()
 console.log(`6. inventaire : ${poche.join(' · ') || '(vide)'} · ${(plafond || '(pas de panneau)').replace(/\s+/g, ' ').trim()}`);
 if (!plafond) erreurs.push('l\'inventaire ne montre pas la masse salariale');
 /*
+ * UNE MODIF DE JOUEUR SE POSE AU VERSO (S80). JP : *donne l'alignement, je
+ * clique sur le joueur, pis je dois aller au verso pour l'ajouter dans une
+ * des slots joueurs?* ; *je veux que les upgrades de joueurs se fassent au
+ * verso de la carte*. « Jouer » ouvre l'alignement ; toucher un joueur ouvre
+ * sa fiche retournée au verso, la carte en attente sur sa case libre ;
+ * « Poser ici » décide — une décision `{ joue, mutation }`.
+ */
+let posee = null, nomModif = '';
+{
+  const modif = await page.$('#inventaireModal .bq-joueur .inv-jouer:not([disabled])');
+  if (!modif) erreurs.push('aucune modif de joueur dans l\'inventaire (le pack Modifs en donne quatre)');
+  else {
+    nomModif = await page.$eval('#inventaireModal .bq-joueur .bq-nom', e => e.textContent.trim());
+    await modif.click();
+    await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${DOSSIER}/rogue-poser-alignement.png` });
+    const permis = await page.$$eval('#choixModal .aln-case[data-aln]:not([disabled])', e => e.length);
+    const grises = await page.$$eval('#choixModal .aln-case[data-aln][disabled]', e => e.length);
+    await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
+    await page.waitForSelector('#hockeyCardModal .fc-poser', { timeout: 10000 });
+    await page.waitForTimeout(500);
+    if (!(await page.$eval('#hockeyCardModal .fiche-carte', e => e.classList.contains('au-verso')))) erreurs.push('la fiche ne s\'ouvre pas au verso pour y poser la carte');
+    await page.evaluate(() => document.querySelector('#hockeyCardModal .fc-cases').scrollIntoView({ block: 'center' }));
+    await page.screenshot({ path: `${DOSSIER}/rogue-verso-poser.png` });
+    const nomJoueur = (await page.textContent('#hockeyCardModal .cjv-nom')).trim();
+    await page.click('#hockeyCardModal .fc-poser');
+    await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
+    await page.waitForTimeout(800);
+    await regler();
+    d = await decisions();
+    posee = d.find(x => x.joue && x.mutation) || null;
+    if (!posee) erreurs.push(`« ${nomModif} » n'a pas été posée`);
+    console.log(`7a. « ${nomModif} » posée au verso de ${nomJoueur} (${permis} joueurs permis, ${grises} grisés) : ${JSON.stringify(posee && { joue: posee.joue.id, mutation: posee.mutation })}`);
+  }
+}
+if (!(await page.$('#inventaireModal:not([hidden])'))) { await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#inventaireModal:not([hidden]) .inv-onglet', { timeout: 10000 }); }
+/*
  * UNE CARTE SANS CIBLE VALABLE (« Blessé à long terme » sans blessé) rouvre
  * l'inventaire au lieu de se jouer : les plombiers sont tirés au hasard, donc
  * la première carte ne se joue pas toujours. On essaie les cartes une à une
  * jusqu'à ce qu'une décision entre dans la sauvegarde.
  */
+// Une autre famille que les modifs (elles se posent au verso, plus haut).
+const avantJouees = (await decisions()).filter(x => x.joue).length;
 let jouee = false, essais = 0;
 for (; essais < 5 && !jouee; essais++) {
   if (!(await page.$('#inventaireModal:not([hidden])'))) { await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#inventaireModal:not([hidden]) .inv-onglet', { timeout: 10000 }); }
-  const boutons = await page.$$('#inventaireModal .inv-jouer:not([disabled])');
+  const boutons = await page.$$('#inventaireModal .bq-carte:not(.bq-joueur) .inv-jouer:not([disabled])');
   if (!boutons[essais]) break;
   await boutons[essais].click();
   await page.waitForTimeout(600);
@@ -227,7 +286,7 @@ for (; essais < 5 && !jouee; essais++) {
   await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
   await regler();
   d = await decisions();
-  jouee = d.some(x => x.joue);
+  jouee = d.filter(x => x.joue).length > avantJouees;
 }
 if (await page.$('#inventaireModal:not([hidden])')) await page.click('#inventaireModal .choix-fermer');
 d = await decisions();
@@ -238,6 +297,55 @@ await page.click('#navbar [data-page="repechage"]');
 await page.waitForSelector('#pageCartable:not([hidden]) .ct-carte', { timeout: 20000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-cartable.png` });
 console.log(`8. le cartable : ${(await page.textContent('.ct-comptes')).replace(/\s+/g, ' ').trim()} · ${await page.$$eval('[data-ct-equipe]', e => e.length)} cartes d'équipe`);
+/*
+ * LE VERSO GARDE LA CARTE POSÉE (S80) : la fiche du joueur, retournée, la
+ * montre dans une case pleine. Puis « + Poser une amélioration » d'une fiche
+ * ouverte du cartable : tes cartes qui lui vont, en cartes ; celle qu'on
+ * touche revient EN ATTENTE au verso, et « Poser ici » la pose.
+ */
+if (posee) {
+  await page.click(`[data-ct-equipe="${posee.mutation.joueur}"]`);
+  await page.waitForSelector('#hockeyCardModal .fc-cases', { state: 'attached', timeout: 10000 });
+  await page.click('#hockeyCardModal .fc-recto .cj-retourner');
+  await page.waitForTimeout(700);
+  const pleines = await page.$$eval('#hockeyCardModal .fc-case.pleine', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+  const titre = await page.$$eval('#hockeyCardModal .fc-sec', e => e.map(x => x.textContent.trim()).find(t => /améliorations/i.test(t)) || '');
+  if (!pleines.some(t => t.includes(nomModif))) erreurs.push(`le verso ne montre pas « ${nomModif} » dans une case : ${pleines.join(' | ') || 'aucune case pleine'}`);
+  await page.evaluate(() => document.querySelector('#hockeyCardModal .fc-cases').scrollIntoView({ block: 'center' }));
+  await page.screenshot({ path: `${DOSSIER}/rogue-verso-cases.png` });
+  console.log(`8a. son verso : « ${titre} » — ${pleines.join(' | ')}`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+}
+{
+  let fait = false;
+  for (const cle of (await page.$$eval('[data-ct-equipe]', e => e.map(x => x.dataset.ctEquipe))).slice(0, 23)) {
+    await page.click(`[data-ct-equipe="${cle}"]`);
+    await page.waitForSelector('#hockeyCardModal .fc-cases', { state: 'attached', timeout: 10000 });
+    if (!(await page.$('#hockeyCardModal .fc-plus'))) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); continue; }
+    await page.click('#hockeyCardModal .fc-recto .cj-retourner');
+    await page.waitForTimeout(700);
+    await page.click('#hockeyCardModal .fc-plus');
+    await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="poser"] .tc', { timeout: 10000 });
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${DOSSIER}/rogue-choisir-carte.png` });
+    const offertes = await page.$$eval('#choixModal .tc .tc-nom', e => e.map(x => x.textContent.trim()));
+    await page.click('#choixModal .tc');
+    await page.waitForSelector('#hockeyCardModal .fc-poser', { timeout: 10000 });
+    const avant = (await decisions()).filter(x => x.joue && x.mutation).length;
+    await page.click('#hockeyCardModal .fc-poser');
+    await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
+    await page.waitForTimeout(800);
+    await regler();
+    const apres = (await decisions()).filter(x => x.joue && x.mutation).length;
+    if (apres !== avant + 1) erreurs.push(`« + Poser une amélioration » n'a rien posé (${avant} puis ${apres})`);
+    console.log(`8b. « + Poser une amélioration » : ${offertes.join(' · ')} offertes, la première posée (${apres} modif(s) posée(s))`);
+    fait = true;
+    break;
+  }
+  if (!fait) console.log('8b. plus de modif à poser (ou personne à qui elles vont)');
+  if (!(await page.$('#hubModal .hub-boutique'))) { await page.click('#navbar [data-page="match"]').catch(() => {}); }
+}
 await page.click('#navbar [data-page="match"]');
 await page.waitForSelector('#hubModal .hub-boutique', { timeout: 20000 });
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.

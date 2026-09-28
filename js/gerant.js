@@ -131,11 +131,12 @@ export const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
 
-export function carteJoueur(p) {
+/* `ligne` (S80) : où il joue dans ton alignement (« 3e paire ») — on le dit, on ne le nomme pas par là. */
+export function carteJoueur(p, ligne = '') {
   if (!p) return '';
   const barres = barresProfils(p);
   const marques = (p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="puce neutre">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
-  return `<div class="gj-joueur"><div class="gj-joueur-nom">${esc(p.n)} <span>${esc(p.p)} · ${esc(p.t)} ${esc(p.s)}</span></div>${marques ? `<div class="gj-marques">${marques}</div>` : ''}${barres}</div>`;
+  return `<div class="gj-joueur"><div class="gj-joueur-nom">${esc(p.n)} <span>${esc(p.p)} · ${esc(p.t)} ${esc(p.s)}</span>${ligne ? ` <span class="gj-ligne">${esc(ligne)}</span>` : ''}</div>${marques ? `<div class="gj-marques">${marques}</div>` : ''}${barres}</div>`;
 }
 
 /* ======================================================================
@@ -168,8 +169,10 @@ export function ouvrirChoix(spec) {
   if (!m) return () => {};
   if (fermerChoixCourant) fermerChoixCourant(true);
   const nom = spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : '');
-  // {noms} : les joueurs visés par un geste réel, nommés (S72).
-  const noms = spec.joueurs && spec.joueurs.length ? listeNoms(spec.joueurs.map(p => p.n)) : '';
+  // OÙ IL JOUE (S80, JP : *dire que x est sur la xième ligne*) : `ouDe(p)` rend « 3e paire », dit à côté du nom.
+  const ou = p => (typeof spec.ouDe === 'function' && p ? spec.ouDe(p) || '' : '');
+  // {noms} : les joueurs visés par un geste réel, nommés (S72) — et où ils jouent (S80).
+  const noms = spec.joueurs && spec.joueurs.length ? listeNoms(spec.joueurs.map(p => (ou(p) ? `${p.n} (${ou(p)})` : p.n))) : '';
   const sub = s => esc(String(s || '').replace(/\{nom\}/g, nom || 'ton joueur').replace(/\{noms\}/g, noms || 'tes joueurs'));
   const clePaquet = `${spec.titre}|${spec.options.map(o => o.cle).join(',')}`;
   const paquet = spec.genre === 'recompense' && spec.cartes && !spec.lecture && spec.options.length > 0
@@ -187,7 +190,7 @@ export function ouvrirChoix(spec) {
     </div>
     <div class="choix-corps">
       ${spec.recit ? `<p class="choix-recit">${sub(spec.recit)}</p>` : ''}
-      ${spec.joueur ? carteJoueur(spec.joueur) : ''}
+      ${spec.joueur ? carteJoueur(spec.joueur, ou(spec.joueur)) : ''}
       ${spec.contexte || ''}
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
       <div class="choix-options${spec.cartes ? ` choix-main${paquet ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : ''}">${spec.options.map((o, i) => {
@@ -243,6 +246,111 @@ export function ouvrirChoix(spec) {
   if (paquet) brancherPaquet(m, spec.options.length, () => PAQUETS_OUVERTS.add(clePaquet));
   const premier = m.querySelector(paquet ? '.paquet' : '.choix-option:not([disabled])');
   if (premier) premier.focus({ preventScroll: true });
+  return () => fermer(true);
+}
+
+/*
+ * CHOISIR DANS L'ALIGNEMENT (S80). JP : *le screen de choix pour les upgrades
+ * et les remplacements sont à chier* ; *donne l'alignement, je clique sur le
+ * joueur* ; *dire que x est sur la xième ligne*. « Qui sort ? » était une
+ * liste de dix-neuf rangées — visage, nom, rôle, stats, « libère X $ » — où
+ * l'on cherchait son troisième défenseur gauche en lisant des noms. Le choix
+ * se fait maintenant DANS L'ALIGNEMENT, en petit : les quatre trios, les trois
+ * paires, les gardiens et la réserve, chaque rangée titrée par ce qu'elle est
+ * (« 1er trio », « 2e paire »), chaque case avec son visage, son nom et ses
+ * positions. On voit OÙ joue chacun sans qu'on le nomme par sa case.
+ *
+ * Deux façons de toucher, jamais d'action sans bouton :
+ *   SÉLECTION  (`onChoix`) toucher surligne la case, la barre du bas dit ce
+ *              qui va se passer (« Hal Gill (3e paire) sort, … »), et c'est
+ *              « Confirmer » qui décide ;
+ *   APERÇU     (`onApercu`) toucher ouvre quelque chose par-dessus (la fiche
+ *              du joueur, retournée au verso) — l'action est là-bas.
+ * Une case qu'on ne peut pas prendre reste visible, grisée, avec sa raison ;
+ * quand toute une rangée l'est pour la même raison, la raison se dit une fois,
+ * dans son titre.
+ *
+ * spec : { ico, titre, recit, contexte, aide, motFermer, motConfirmer,
+ *          rangees: [{ titre, cases: [{ cle, vide, visage, nom, nomLong, pos, marque, marqueMot, note, non }] }],
+ *          barre(cle) → html, onChoix(cle) | onApercu(cle), onFerme() }
+ */
+export function ouvrirAlignement(spec) {
+  const m = $('choixModal');
+  if (!m) return () => {};
+  if (fermerChoixCourant) fermerChoixCourant(true);
+  const apercu = typeof spec.onApercu === 'function';
+  // La raison commune d'une rangée entière (« pas sa position ») se dit une fois, dans son titre…
+  const communeDe = r => { const pleines = r.cases.filter(c => !c.vide); return pleines.length && pleines.every(c => c.non && c.non === pleines[0].non) ? pleines[0].non : ''; };
+  // …et une fois pour toutes quand toutes les rangées grisées le sont pour la même (une carte de gardien : sept rangées).
+  const communes = spec.rangees.map(communeDe).filter(Boolean);
+  const partout = communes.length >= 3 && communes.every(x => x === communes[0]) ? communes[0] : '';
+  const rangee = r => {
+    const commune = communeDe(r);
+    return `<section class="aln-rangee${commune ? ' grisee' : ''}" data-cases="${r.cases.length}">
+      <h3 class="aln-titre">${esc(r.titre)}${commune && !partout ? ` <small>· ${esc(commune)}</small>` : ''}</h3>
+      <div class="aln-cases">${r.cases.map(c => (c.vide
+        ? `<div class="aln-case aln-vide" aria-label="Case vide"><span class="aln-nom">Case vide</span>${c.pos ? `<span class="aln-pos">${esc(c.pos)}</span>` : ''}</div>`
+        : `<button type="button" class="aln-case${c.non ? ' non' : ''}" data-aln="${esc(c.cle)}" aria-pressed="false"${c.non ? ' disabled' : ''} title="${esc([c.nomLong || c.nom, c.pos, c.marqueMot, c.non].filter(Boolean).join(' · '))}">
+            <span class="aln-visage" aria-hidden="true">${c.visage || ''}</span>
+            <span class="aln-nom">${esc(c.nom)}</span>
+            <span class="aln-pos"><span>${esc(c.pos || '')}</span>${c.marque ? `<b class="aln-marque" aria-label="${esc(c.marqueMot || c.marque)}">${esc(c.marque)}</b>` : ''}</span>
+            ${c.non && !commune ? `<span class="aln-non">${esc(c.non)}</span>` : !c.non && c.note ? `<span class="aln-note">${esc(c.note)}</span>` : ''}
+          </button>`)).join('')}</div>
+    </section>`;
+  };
+  m.innerHTML = `<div class="choix-sheet choix-aln" data-genre="alignement" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+    <div class="choix-tete">
+      <span class="choix-ico">${spec.ico || '🔁'}</span>
+      <div class="choix-titres"><div class="choix-titre">${esc(spec.titre)}</div></div>
+      <button type="button" class="close-btn choix-fermer" aria-label="${esc(spec.motFermer || 'Retour')}" title="${esc(spec.motFermer || 'Retour')}">✕</button>
+    </div>
+    <div class="choix-corps">
+      ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
+      ${spec.contexte || ''}
+      ${partout ? `<p class="aln-grises">Grisées : ${esc(partout)}.</p>` : ''}
+      <div class="aln">${spec.rangees.map(rangee).join('')}</div>
+    </div>
+    <div class="aln-barre">
+      <p class="aln-barre-mot" aria-live="polite">${esc(spec.aide || 'Touche un joueur.')}</p>
+      <div class="aln-barre-boutons">
+        <button type="button" class="btn aln-retour">${esc(spec.motFermer || 'Retour')}</button>
+        ${apercu ? '' : `<button type="button" class="btn gold aln-confirmer" disabled>${esc(spec.motConfirmer || 'Confirmer')}</button>`}
+      </div>
+    </div>
+  </div>`;
+  m.hidden = false;
+  document.body.classList.add('choix-ouvert');
+  const fermer = (silencieux = false) => {
+    m.hidden = true; m.innerHTML = '';
+    document.body.classList.remove('choix-ouvert');
+    fermerChoixCourant = null;
+    if (!silencieux && spec.onFerme) spec.onFerme();
+  };
+  fermerChoixCourant = fermer;
+  const mot = m.querySelector('.aln-barre-mot');
+  const ok = m.querySelector('.aln-confirmer');
+  let choisie = null;
+  m.querySelectorAll('.aln-case[data-aln]').forEach(b => {
+    b.onclick = () => {
+      if (b.disabled) return;
+      if (apercu) { spec.onApercu(b.dataset.aln); return; }
+      // Toucher la case choisie la relâche ; toucher une autre la remplace.
+      choisie = choisie === b.dataset.aln ? null : b.dataset.aln;
+      m.querySelectorAll('.aln-case[data-aln]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.aln === choisie)));
+      m.querySelector('.aln-barre').classList.toggle('pret', !!choisie);
+      mot.innerHTML = choisie && spec.barre ? spec.barre(choisie) : esc(spec.aide || 'Touche un joueur.');
+      ok.disabled = !choisie;
+    };
+  });
+  if (ok) ok.onclick = () => { if (!choisie) return; const k = choisie; fermer(true); spec.onChoix(k); };
+  for (const x of m.querySelectorAll('.choix-fermer, .aln-retour')) x.onclick = () => fermer();
+  // La première case qu'on peut prendre se montre : une carte de gardien ouvre sur les gardiens, pas sur le 1er trio grisé.
+  const premier = m.querySelector('.aln-case[data-aln]:not([disabled])');
+  if (premier) {
+    premier.focus({ preventScroll: true });
+    const corps = m.querySelector('.choix-corps'), r = premier.getBoundingClientRect(), rc = corps.getBoundingClientRect();
+    if (r.bottom > rc.bottom) premier.closest('.aln-rangee').scrollIntoView({ block: 'center' });
+  }
   return () => fermer(true);
 }
 

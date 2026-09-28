@@ -31,7 +31,7 @@ import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
-import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, optionDeCarteMatch, puces } from './gerant.js';
+import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, ouvrirAlignement, optionDeCarteMatch, puces } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
 import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte, dessinDe } from './cartes.js';
@@ -47,8 +47,9 @@ import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js
 import { migrer, lireIndex, lirePartieActive, ecrirePartieActive, nouvellePartie, activer } from './sauvegardes.js';
 import { afficherMenu, fermerMenu } from './menu.js';
 import { ouvrirExhibition } from './exhibition.js';
-import { BANQUE, PATRONS, CONSOMMABLES, CONTRATS, ROLES, MAX_PATRONS, CATEGORIES, VIES, payloadDe, patronsActifs, modificateurs, reglesDe, plafondDe } from './banque.js';
-import { PACKS_TOUS, PITIE, tirerJoueursDuPack, tirerCartesPack, packDuJour, packsSansHolo } from './packs.js';
+import { BANQUE, PATRONS, CONSOMMABLES, CONTRATS, ROLES, MAX_PATRONS, CATEGORIES, VIES, payloadDe, patronsActifs, modificateurs, reglesDe, plafondDe,
+  CASES_DE_BASE, casesDAmelioration, sePose, pourCeJoueur, poseesSur, varianteApres, casesLibres } from './banque.js';
+import { PACKS_TOUS, PITIE, SKILLS, cotesDuPack, tirerVariante, tirerJoueursDuPack, tirerCartesPack, packDuJour, packsSansHolo } from './packs.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe } from './niveaux.js';
 import { ouvrirInventaire, pocheDeLaPartie, valeurDe, VENTE } from './inventaire.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -1551,24 +1552,19 @@ function jouerCarte(item, j, decider) {
     ecrire(payloadDe(item.id, { patrons: actifs }));
     return;
   }
-  if (c.cat === 'joueur') {
-    if (['partout', 'cran', 'physio', 'lustre'].includes(c.cle)) { ouvrirAtelier(c.cle, { jour: j, you, onChoix: mut => ecrire({ mutation: mut }), onFerme: retour }); return; }
-    const M = MUTATIONS[c.cle];
-    const liste = SLOTS.filter(sl => !sl.scratch && (M.gardien ? sl.group === 'G' : sl.group !== 'G')).map(sl => ({ p: G.roster[sl.i], sous: slotShort(sl) }))
-      .filter(x => x.p && (M.gardien ? x.p.p === 'G' : x.p.p !== 'G'));
-    listeJoueurs(`${M.nom} : à qui ?`, `${M.quoi} Pour le reste de la saison.`, liste, k => ecrire(payloadDe(item.id, { joueur: k })), motsDeMutation(c.cle));
-    return;
-  }
+  // S80 : une modif de joueur se pose AU VERSO, choisie dans l'alignement.
+  if (c.cat === 'joueur') { poserUneModif(item, j, payload => ecrire(payload), retour); return; }
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
     if (C.cible === 'blesse') {
       const bl = blessesAuJour(j);
       if (!bl.length) { toast('Personne à l\'infirmerie : garde-la pour plus tard.'); retour(); return; }
-      listeJoueurs(`${c.nom} : qui soigner ?`, c.texte, bl.map(x => ({ p: x.p, sous: `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie` })), k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
+      listeJoueurs(`${c.nom} : qui soigner ?`, c.texte, bl.map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie`].filter(Boolean).join(' · ') })), k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
       return;
     }
     if (C.cible === 'joueur') {
-      const liste = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => ({ p: G.roster[sl.i], sous: slotShort(sl) })).filter(x => x.p);
+      // S80 : il se nomme par ce qu'il est, et on dit où il joue — pas « 1re paire · DG ».
+      const liste = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => ({ p: G.roster[sl.i], sous: G.roster[sl.i] ? `${quiEst(G.roster[sl.i], { stats: false })} · ${ligneDe(sl)}` : '' })).filter(x => x.p);
       listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
       return;
     }
@@ -1601,17 +1597,45 @@ function jouerCarte(item, j, decider) {
     let liste;
     if (C.cible === 'blesse') {
       liste = blessesAuJour(j).filter(x => signes().some(q => getPlayerKey(q) === getPlayerKey(x.p)) && !deja(getPlayerKey(x.p)))
-        .map(x => ({ p: x.p, sous: `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie · ${money(x.p.$)} hors du plafond` }));
+        .map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie · ${money(x.p.$)} hors du plafond`].filter(Boolean).join(' · ') }));
       if (!liste.length) { toast('Personne à l\'infirmerie sous contrat : garde-la pour plus tard.'); retour(); return; }
     } else {
       liste = signes().filter(p => !deja(getPlayerKey(p)) && (C.cible !== 'recrue' || ageAtSeason(p.bd, p.s) <= 23))
-        .sort((a, b) => (b.$ || 0) - (a.$ || 0)).map(p => ({ p, sous: `${apres(p)}${C.cible === 'recrue' ? ` · ${ageAtSeason(p.bd, p.s)} ans` : ''}` }));
+        .sort((a, b) => (b.$ || 0) - (a.$ || 0)).map(p => ({ p, sous: `${ouJoue(p) ? `${ouJoue(p)} · ` : ''}${apres(p)}${C.cible === 'recrue' ? ` · ${ageAtSeason(p.bd, p.s)} ans` : ''}` }));
       if (!liste.length) { toast(C.cible === 'recrue' ? 'Aucune recrue de 23 ans ou moins dans ton alignement.' : 'Tous tes contrats sont déjà retouchés.'); retour(); return; }
     }
     listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
     return;
   }
   ecrire(payloadDe(item.id));
+}
+/*
+ * JOUER UNE MODIF DE JOUEUR (S80). JP : *donne l'alignement, je clique sur le
+ * joueur, pis je dois aller au verso pour l'ajouter dans une des slots
+ * joueurs?* — oui. « Jouer » ouvre l'ALIGNEMENT (`ouvrirAlignement`, en
+ * aperçu) : chaque case dit ce que la carte lui ferait, ou pourquoi elle ne
+ * peut pas aller sur lui (un gardien, ses cases pleines, aucun malus à
+ * effacer…). Toucher un joueur ouvre sa fiche retournée au VERSO, la carte en
+ * attente sur sa case libre ; « Poser ici » décide. Fermer la fiche ramène à
+ * l'alignement, « Retour » à l'inventaire.
+ */
+function poserUneModif(item, j, decider, retour) {
+  const c = BANQUE[item.id], M = MUTATIONS[c.cle];
+  const you = G.ligue && G.ligue.you;
+  const rangees = rangeesAlignement(G.roster, (sl, q) => { const e = etatPourPoser(c.cle, q, sl, { jour: j, you }); return { non: e.non || '', note: e.note || '' }; });
+  // Poser ferme l'alignement en silence (`fermer`) : la décision part, et l'inventaire ne se rouvre pas.
+  const fermer = ouvrirAlignement({
+    ico: M.ico, titre: `${M.nom} : sur qui ?`, motFermer: 'Retour',
+    recit: `${M.quoi} Touche un joueur : sa carte se retourne, et tu la poses sur une case libre de son verso (${CASES_DE_BASE} par carte, une de plus pour une holo ou une or). Elle y reste pour la saison.`,
+    contexte: `<div class="choix-puces">${puces(motsDeMutation(c.cle))}</div>`,
+    aide: 'Touche un joueur pour voir son verso.',
+    rangees,
+    onApercu: k => {
+      const q = G.roster[Number(k)];
+      if (q) ouvrirVersoPourPoser(q, item, { decider, jour: j, auDessus: true, avant: () => fermer() });
+    },
+    onFerme: retour,
+  });
 }
 /* Un joueur retrouvé par sa clé (« saison_club_id ») : ceux qu'on garde d'une run à l'autre. */
 async function joueurDeCle(cle) {
@@ -2638,13 +2662,7 @@ function carteJoueur(p) {
 }
 /* Ce que la carte d'un joueur fait sur la glace, en mots (`traitsDeCarte`) : pour l'écran. */
 const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p)) : []);
-/*
- * L'ATELIER (S78) : le joueur qui reçoit une édition, choisi dans ton
- * alignement. Chaque rangée dit ce que l'édition lui ferait À CE JOUR — il
- * joue hors position, au-dessus de sa zone, il traîne un malus, sa carte
- * passe de holo à or — et celles qui ne lui feraient rien sont grisées. Les
- * utiles d'abord. Le deck (js/saison.js) et la boutique Rogue passent par ici.
- */
+/* Le lustre de l'atelier (S78) : la variante que la carte prend (voir `etatPourPoser`). */
 const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
 /*
  * LES SOUS-SÉRIES (S78), comme dans une vraie collection : la RECRUE (son
@@ -2698,7 +2716,7 @@ function carteMiniHtml(p) {
  * journée 55 ne se lit pas à la journée 20. Sans saison (le repêchage), rien :
  * un joueur n'a pas encore de carte jouée sur lui.
  */
-const SOURCE_MOD = { atelier: 'L\'atelier', amelioration: 'Amélioration', choix: 'Nouveau rôle', accident: 'Le hasard' };
+const SOURCE_MOD = { atelier: 'L\'atelier', amelioration: 'Amélioration', style: 'Style', contrat: 'Contrat', choix: 'Nouveau rôle', accident: 'Le hasard' };
 function modsDuJoueur(p) {
   const t = G.ligue && G.ligue.you;
   if (!p || !t || !Array.isArray(t.mutations)) return null;
@@ -2707,49 +2725,188 @@ function modsDuJoueur(p) {
   return t.mutations.filter(m => m.joueur === cle && m.jour < jusqua && MUTATIONS[m.cle]);
 }
 const clesDesMods = p => (modsDuJoueur(p) || []).map(m => m.cle);
-function sectionMods(p) {
-  const mods = modsDuJoueur(p);
-  // Seulement un joueur de TON équipe (un adversaire n'a pas de cartes jouées par toi).
-  if (!mods || !Object.values(G.roster || {}).some(x => x && getPlayerKey(x) === getPlayerKey(p))) return '';
-  // Un malus que le physio a effacé depuis se lit barré.
-  const physio = Math.max(-1, ...mods.filter(m => m.cle === 'physio').map(m => m.jour));
-  const items = mods.map(m => {
-    const M = MUTATIONS[m.cle];
-    const efface = m.jour < physio && mutationNuit(m.cle);
-    const effets = motsDeMutation(m.cle).map(x => `<span class="${x.bon ? 'bon' : 'prix'}">${esc(x.txt)}</span>`).join('');
-    return `<div class="fc-mod src-${M.source}${efface ? ' efface' : ''}" title="${esc(M.quoi)}">
+const estDansMonAlignement = p => !!p && Object.values(G.roster || {}).some(x => x && getPlayerKey(x) === getPlayerKey(p));
+/* Une modif, en petite carte couchée : son icône, son nom, d'où elle vient et quand, son effet en chiffres. */
+function modHtml(cle, jour, { efface = false, classe = '' } = {}) {
+  const M = MUTATIONS[cle];
+  const effets = motsDeMutation(cle).map(x => `<span class="${x.bon ? 'bon' : 'prix'}">${esc(x.txt)}</span>`).join('');
+  return `<div class="fc-mod src-${M.source}${efface ? ' efface' : ''}${classe ? ` ${classe}` : ''}" title="${esc(M.quoi)}">
       <span class="fc-mod-ico" aria-hidden="true">${M.ico}</span>
-      <span class="fc-mod-txt"><span class="fc-mod-tete"><b>${esc(M.nom)}</b><small>${esc(SOURCE_MOD[M.source] || 'Carte')} · J${m.jour + 1}${efface ? ' · effacé par le physio' : ''}</small></span>
+      <span class="fc-mod-txt"><span class="fc-mod-tete"><b>${esc(M.nom)}</b><small>${esc(SOURCE_MOD[M.source] || 'Carte')} · J${jour + 1}${efface ? ' · effacé par le physio' : ''}</small></span>
       ${effets ? `<span class="fc-mod-effets">${effets}</span>` : ''}</span>
     </div>`;
-  }).join('');
-  return `<div class="fc-sec">Ses cartes${mods.length ? ` · ${mods.length}` : ''}</div>
-    <div class="fc-mods">${items || '<p class="fc-mods-vide">Aucune carte jouée sur lui cette saison.</p>'}</div>`;
 }
 /*
- * QUI SORT ? (S78). JP : *choisir qui swap si nouveau joueur, pas swap
- * automatique*. Un joueur qui arrive (pack, ballottage, recrue) ne remplace
- * plus d'office le réserviste de sa position : on choisit, parmi les cases
- * qu'il peut jouer, qui lui laisse sa place — les réservistes d'abord, puis
- * les autres, avec leur visage, et ce que la case lui coûterait (hors
- * position). Rend `{ i, sort }` pour la décision de ballottage.
+ * LES CASES D'AMÉLIORATION, AU VERSO (S80, js/banque.js `casesDAmelioration`).
+ * JP : *je veux que les upgrades de joueurs se fassent au verso de la carte,
+ * pas nécessairement quand on la pige*. « Ses cartes » (S78) devient des
+ * CASES : deux, trois pour une holo ou une or. Une case pleine montre la
+ * carte posée (lue dans les DÉCISIONS : posée aujourd'hui, elle prend sa case
+ * tout de suite, même si le moteur ne la jouera qu'au matin de sa journée).
+ * La première case vide montre, selon le moment :
+ *   « Poser ici » quand une carte ATTEND (on vient de la choisir, `attente`) ;
+ *   « + Poser une amélioration » en saison, pour ton alignement, quand tu as
+ *     des cartes qui lui vont (`cartesAPoserSur`) ;
+ *   « Case libre » sinon.
+ * Dessous, ce qui lui est ARRIVÉ sans prendre de case (un dilemme, un nouveau
+ * rôle, un accident), comme avant : seulement ce qui est déjà arrivé.
+ */
+function sectionMods(p, attente = null) {
+  const mods = modsDuJoueur(p);
+  // Seulement un joueur de TON équipe (un adversaire n'a pas de cartes jouées par toi).
+  if (!mods || !estDansMonAlignement(p)) return '';
+  const k = getPlayerKey(p);
+  const posees = poseesSur(decisionsDeLaPartie(), k);
+  const arrives = mods.filter(m => !sePose(m.cle));
+  // Un malus que le physio a effacé depuis se lit barré.
+  const physio = Math.max(-1, ...posees.filter(x => x.cle === 'physio').map(x => x.jour), ...mods.filter(m => m.cle === 'physio').map(m => m.jour));
+  const efface = (cle, jour) => jour < physio && mutationNuit(cle);
+  const n = Math.max(casesDAmelioration(varianteApres(varianteJoueur(p), posees)), posees.length);
+  const cases = posees.map(x => modHtml(x.cle, x.jour, { efface: efface(x.cle, x.jour), classe: 'fc-case pleine' }));
+  const plus = !attente && peutPoserEnSaison() && cartesAPoserSur(p).length > 0;
+  for (let i = posees.length; i < n; i++) {
+    const premiere = i === posees.length;
+    if (premiere && attente) {
+      const M = MUTATIONS[attente.cle];
+      const effets = motsDeMutation(attente.cle).map(x => `<span class="${x.bon ? 'bon' : 'prix'}">${esc(x.txt)}</span>`).join('');
+      cases.push(`<button type="button" class="fc-case fc-poser src-${M.source}" data-poser>
+        <span class="fc-mod-ico" aria-hidden="true">${M.ico}</span>
+        <span class="fc-mod-txt"><span class="fc-mod-tete"><b>${esc(M.nom)}</b><small>${esc(attente.mot || 'En main')}</small></span>
+        ${effets ? `<span class="fc-mod-effets">${effets}</span>` : ''}</span>
+        <span class="fc-poser-mot">Poser ici</span>
+      </button>`);
+    } else if (premiere && plus) cases.push('<button type="button" class="fc-case fc-plus" data-plus>+ Poser une amélioration</button>');
+    else cases.push('<div class="fc-case fc-libre">Case libre</div>');
+  }
+  const plein = attente && posees.length >= n ? '<p class="fc-mods-vide">Ses cases sont pleines : cette carte ne peut pas aller sur lui.</p>' : '';
+  return `<div class="fc-sec" title="Deux cases d'amélioration ; une de plus pour une carte holo ou or. Chaque carte posée prend une case pour la saison.">Ses améliorations · ${posees.length}/${n}</div>
+    <div class="fc-mods fc-cases">${cases.join('')}</div>${plein}
+    ${arrives.length ? `<div class="fc-sec">Ce qui lui est arrivé</div>
+    <div class="fc-mods">${arrives.map(m => modHtml(m.cle, m.jour, { efface: efface(m.cle, m.jour) })).join('')}</div>` : ''}`;
+}
+/*
+ * POSER EN SAISON (S80) : depuis l'écran de saison, qui prête sa décision du
+ * jour (`hub.decider`, js/saison.js) — l'inventaire, le cartable, une fiche
+ * ouverte d'un nom. Derrière le banc ou aux séries, non : la carte attend.
+ */
+const peutPoserEnSaison = () => { const hub = hubActif(); return !!(hub && hub.decider && G.ligue && G.ligue.you && !G.banc); };
+const jourDuHub = () => { const hub = hubActif(); return hub && hub.jour ? hub.jour() : (G.journee || 0); };
+/* Les modifs de ta poche qui vont à ce joueur (son groupe, une case libre, une édition qui lui fait quelque chose), empilées. */
+function cartesAPoserSur(p) {
+  const L = G.ligue;
+  if (!L || !p) return [];
+  const j = jourDuHub();
+  const sl = SLOTS.find(s => G.roster[s.i] && getPlayerKey(G.roster[s.i]) === getPlayerKey(p));
+  const piles = new Map();
+  for (const x of pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: L.graine, jour: j, rogue: G.bonus === 'ROGUE' })) {
+    const c = BANQUE[x.id];
+    if (!c || c.cat !== 'joueur' || etatPourPoser(c.cle, p, sl, { jour: j }).non) continue;
+    if (!piles.has(x.id)) piles.set(x.id, []);
+    piles.get(x.id).push(x);
+  }
+  return [...piles.entries()].map(([id, pile]) => ({ id, pile }));
+}
+/*
+ * « + POSER UNE AMÉLIORATION » (S80) : tes cartes qui vont à ce joueur, en
+ * cartes ; celle qu'on touche retourne au verso, EN ATTENTE sur la case libre,
+ * et c'est « Poser ici » qui la pose. « Retour » rend le verso tel quel.
+ */
+function choisirCarteAPoser(p, rouvrir) {
+  const offre = cartesAPoserSur(p);
+  const groupe = p.p === 'G' ? 'un gardien' : isD(p) ? 'un défenseur' : 'un avant';
+  ouvrirChoix({
+    ico: '🧬', titre: `Au verso de ${p.n}`, cartes: true, genre: 'poser', fermable: true, motFermer: 'Retour',
+    recit: `${p.n}${ouJoue(p) ? ` (${ouJoue(p)})` : ''} : tes cartes qui vont à ${groupe}. Touche celle que tu poses ; elle prendra une case de son verso pour le reste de la saison.`,
+    options: offre.map(({ id, pile }) => {
+      const c = BANQUE[id];
+      return { cle: pile[0].ref, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
+        type: `${CATEGORIES[c.cat].un}${pile.length > 1 ? ` · ×${pile.length}` : ''}`, texte: c.texte, mots: reglesDe(id), motChoix: 'Choisir' };
+    }),
+    onChoix: ref => { const x = offre.find(o => o.pile[0].ref === ref); if (x) rouvrir({ src: 'partie', ref, id: x.id }); },
+    onFerme: () => rouvrir(null),
+  });
+}
+/*
+ * LA FICHE D'UN JOUEUR À TOI, EN SAISON, RETOURNÉE AU VERSO (S80), avec une
+ * carte en attente (`item` : `{ src, ref, id }` de l'inventaire) : « Poser
+ * ici » écrit la décision — `{ joue, mutation }`, la même qu'une carte jouée
+ * de l'inventaire, rejouée comme toute décision. `decider` : celui de
+ * l'inventaire ; sinon celui de l'écran de saison.
+ */
+function ouvrirVersoPourPoser(p, item, { decider = null, jour = null, auDessus = false, avant = null } = {}) {
+  const c = item && BANQUE[item.id];
+  const j = jour ?? jourDuHub();
+  const sl = SLOTS.find(s => G.roster[s.i] && getPlayerKey(G.roster[s.i]) === getPlayerKey(p));
+  const etat = c ? etatPourPoser(c.cle, p, sl, { jour: j }) : null;
+  const attente = c && !etat.non ? { cle: c.cle, mot: etat.mot || 'En main : pose-la sur sa case libre',
+    poser: () => {
+      closeModal('hockeyCardModal');
+      if (avant) avant();
+      const d = { joue: { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) }, mutation: { cle: c.cle, joueur: getPlayerKey(p), ...(etat.extra || {}) } };
+      if (decider) decider({ jour: j, ...d });
+      else { const hub = hubActif(); if (hub && hub.decider) { montrerPage('match'); hub.decider(d); } }
+    } } : null;
+  const L = G.ligue;
+  const mode = porteeRevele('saison') === 'jour' ? 'jour' : 'saison';
+  ouvrirFiche(p, L ? L.you : null, mode, { verso: true, attente, auDessus,
+    // « + Poser une amélioration » rouvre ce même verso, la carte choisie en attente.
+    rouvrir: x => ouvrirVersoPourPoser(p, x, { decider, jour, auDessus, avant }) });
+}
+/*
+ * L'ALIGNEMENT EN RANGÉES, POUR UN CHOIX (S80, `ouvrirAlignement` dans
+ * js/gerant.js) : les quatre trios, les trois paires, les gardiens et la
+ * réserve, dans l'ordre de l'alignement ; chaque case avec son visage, son nom
+ * et ses positions. `etat(sl, q)` dit ce que la case vaut pour CE choix :
+ * `{ non }` (grisée, et pourquoi), `{ marque, marqueMot }` (le « −N »),
+ * `{ note }` (ce qu'elle libère, ce que la carte lui ferait).
+ */
+function rangeesAlignement(roster, etat) {
+  const rangee = (titre, slots) => ({ titre, cases: slots.map(sl => {
+    const q = roster && roster[sl.i];
+    if (!q) return { cle: String(sl.i), vide: true, pos: sl.scratch ? '' : sl.role };
+    return { cle: String(sl.i), visage: headshotHtml(q), nom: nomCourt(q.n), nomLong: q.n, pos: positionLabel(q), ...(etat(sl, q) || {}) };
+  }) });
+  return [
+    ...UNIT_NAMES_F.map((t, u) => rangee(t, SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch))),
+    ...UNIT_NAMES_D.map((t, u) => rangee(t, SLOTS.filter(s => s.group === 'D' && s.unit === u && !s.scratch))),
+    rangee('Gardiens', SLOTS.filter(s => s.group === 'G' && !s.scratch)),
+    rangee('Réserve', SLOTS.filter(s => s.scratch)),
+  ];
+}
+/*
+ * QUI SORT ? (S78, S80). JP : *choisir qui swap si nouveau joueur, pas swap
+ * automatique* ; puis *le screen de choix pour les upgrades et les
+ * remplacements sont à chier*. Un joueur qui arrive (pack, ballottage,
+ * recrue) prend la case de celui qu'on choisit, et on le choisit DANS
+ * L'ALIGNEMENT : on voit où joue chacun. Une case qu'il ne peut pas jouer, ou
+ * que le plafond refuse (`bloque`, S79), reste là, grisée, avec sa raison ; le
+ * « −N » dit qu'il y jouerait hors position ; la note (`note`) dit ce que la
+ * sortie libère. Toucher surligne ; « Confirmer » décide. Rend `{ i, sort }`
+ * pour la décision de ballottage.
  */
 function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '', bloque = null, note = null }) {
-  const cases = SLOTS.filter(sl => roster && roster[sl.i] && fits(p, sl))
-    .sort((a, b) => (b.scratch ? 1 : 0) - (a.scratch ? 1 : 0) || a.i - b.i);
+  void genre;   // la feuille de l'alignement a son propre genre (`alignement`) ; le paramètre reste pour les appels
   const nomDe = n => String(n).split(' ').slice(-1)[0];
-  ouvrirChoix({
-    ico: '🔁', titre: `${p.n} arrive : qui sort ?`, compact: true, fermable: true, motFermer: 'Retour', genre,
-    recit: `${p.n} prend la case de celui qui sort ; celui-là quitte l'équipe. Tu choisis.`,
-    options: cases.map(sl => {
-      const q = roster[sl.i];
-      const pen = getPositionPenalty(p, sl);
-      return { cle: String(sl.i), visage: headshotHtml(q), nom: q.n,
-        sous: [quiEst(q), pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : '', note ? note(q) : ''].filter(Boolean).join(' · '),
-        // S79 : la sortie que le plafond refuse reste visible, avec sa raison.
-        desactive: bloque ? bloque(q) : '' };
-    }),
-    onChoix: k => { const sl = SLOTS[Number(k)]; if (sl && roster[sl.i] && !(bloque && bloque(roster[sl.i]))) onChoix({ i: sl.i, sort: getPlayerKey(roster[sl.i]) }); },
+  let marques = false;
+  const rangees = rangeesAlignement(roster, (sl, q) => {
+    if (!fits(p, sl)) return { non: 'pas sa position' };
+    // S79 : la sortie que le plafond refuse reste visible, avec sa raison.
+    const b = bloque ? bloque(q) : '';
+    if (b) return { non: b };
+    const pen = getPositionPenalty(p, sl);
+    if (pen) marques = true;
+    return { marque: pen ? `−${pen}` : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : '', note: note ? note(q) : '' };
+  });
+  ouvrirAlignement({
+    ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
+    recit: `${p.n} (${quiEst(p)}) prend la case de celui qui sort ; celui-là quitte l'équipe.${marques ? ` « −N » : ${nomDe(p.n)} y jouerait hors position.` : ''}`,
+    aide: 'Touche celui qui lui laisse sa place.',
+    rangees,
+    barre: k => {
+      const sl = SLOTS[Number(k)], q = sl && roster[sl.i];
+      return q ? `<b>${esc(q.n)}</b> (${esc(ligneDe(sl))}) sort, <b>${esc(p.n)}</b> prend sa place.` : '';
+    },
+    onChoix: k => { const sl = SLOTS[Number(k)]; if (sl && roster[sl.i] && fits(p, sl) && !(bloque && bloque(roster[sl.i]))) onChoix({ i: sl.i, sort: getPlayerKey(roster[sl.i]) }); },
     onFerme,
   });
 }
@@ -2785,47 +2942,48 @@ function rubanDe(p) {
 }
 /* Le niveau que la carte ne dit pas déjà : le ruban nomme l'Étoile et le Phénomène (S80, jamais deux fois la même chose). */
 const niveauHorsRuban = (p, niveau = niveauJoueur(p)) => (niveau < 0 || (niveau >= ETOILE && !estRecrue(p)) ? '' : NIVEAUX[niveau].nom);
-function ouvrirAtelier(cle, { jour, you, onChoix, onFerme, suite = {} }) {
+/*
+ * CE QU'UNE MODIF FERAIT À CE JOUEUR, À CE JOUR (S78, S80). L'atelier disait
+ * déjà, joueur par joueur, ce que son édition ferait — il joue hors position,
+ * il est au-dessus de sa zone, il traîne un malus, sa carte passe de holo à
+ * or — et grisait l'inutile. C'est maintenant l'état d'une CASE de
+ * l'alignement quand on pose une modif (`poserUneModif`), et de son verso
+ * (`sectionMods`). Rend `{ non }` (il ne peut pas la recevoir, et pourquoi)
+ * ou `{ note, extra }` : ce qu'elle lui ferait, et ce que la décision porte en
+ * plus (la variante suivante d'un lustre, calculée ici, js/rarete.js). Les
+ * malus sont ceux DÉJÀ arrivés : la ligue se joue au jour le jour.
+ */
+function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue && G.ligue.you, decisions = decisionsDeLaPartie() } = {}) {
   const M = MUTATIONS[cle];
-  if (!M || !you) return;
-  // Les malus DÉJÀ arrivés (le moteur a joué la saison d'avance), depuis le dernier passage du physio.
-  const malus = p => {
-    const k = getPlayerKey(p), siens = (you.mutations || []).filter(m => m.joueur === k && m.jour < jour);
-    const physio = Math.max(-1, ...siens.filter(m => m.cle === 'physio').map(m => m.jour));
-    return siens.filter(m => m.jour >= physio && m.cle !== 'physio' && mutationNuit(m.cle)).map(m => MUTATIONS[m.cle]);
-  };
-  const rangs = SLOTS.filter(sl => !sl.scratch).map(sl => ({ sl, p: you.roster[sl.i] })).filter(x => x.p).map(({ sl, p }) => {
-    const g = p.p === 'G';
-    let sous = '', desactive = '', utile = false, extra = {};
-    if (cle === 'partout') {
-      if (g) desactive = 'Un gardien garde les buts';
-      else if (p._partout) desactive = 'Il joue déjà partout';
-      else { utile = getPositionPenalty(p, sl) > 0; sous = utile ? 'joue hors position en ce moment' : 'à sa position en ce moment'; }
-    } else if (cle === 'cran') {
-      if (g) desactive = 'Un gardien n\'a pas de trio';
-      else { utile = zoneEcart(p, sl) === 'dessus'; sous = `${getLineZone(p, getHiddenRatings(p).v).short}${utile ? ' · au-dessus de sa zone ici' : ''}`; }
-    } else if (cle === 'physio') {
-      const ms = malus(p);
-      if (!ms.length) desactive = 'Aucun malus';
-      else { utile = true; sous = ms.map(x => `${x.ico} ${x.nom}`).join(' · '); }
-    } else if (cle === 'lustre') {
-      const r = varianteJoueur(p), n = VARIANTE_SUIVANTE[r];
-      if (!n) desactive = 'Sa carte est déjà en or';
-      else {
-        const carte = carteDe(n, g, graineVariantes(), getPlayerKey(p));
-        extra = { carte: { rar: carte.rar, bonus: carte.bonus } }; utile = true;
-        sous = `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte).map(b => `${b.ico} ${b.nom}`).join(' + ')}`;
-      }
-    }
-    return { sl, p, sous, desactive, utile, extra };
-  }).sort((a, b) => (a.desactive ? 1 : 0) - (b.desactive ? 1 : 0) || (b.utile ? 1 : 0) - (a.utile ? 1 : 0));
-  ouvrirChoix({
-    fermable: true, motFermer: 'Retour', ...suite, cartes: false, compact: true, ico: M.ico, titre: `${M.nom} : à qui ?`,
-    recit: `${M.quoi} C'est pour le reste de la saison.`,
-    options: rangs.map(x => ({ cle: getPlayerKey(x.p), ico: '', nom: x.p.n, sous: [quiEst(x.p, { stats: false }), x.sous].filter(Boolean).join(' · '), desactive: x.desactive })),
-    onChoix: k => { const x = rangs.find(y => getPlayerKey(y.p) === k); if (x && !x.desactive) onChoix({ cle, joueur: k, ...x.extra }); },
-    onFerme,
-  });
+  if (!M || !q) return { non: 'rien à poser' };
+  const g = q.p === 'G';
+  if (!pourCeJoueur(cle, g)) return { non: g ? 'pas pour un gardien' : 'une carte de gardien' };
+  const k = getPlayerKey(q);
+  const posees = poseesSur(decisions, k);
+  const libres = casesLibres(varianteJoueur(q), posees);
+  if (!libres) return { non: 'ses cases sont pleines' };
+  // Ses cases libres ne se disent que quand elles sortent de l'ordinaire (une seule, ou trois pour une holo) : pas vingt fois « 2 cases libres ».
+  const place = libres === CASES_DE_BASE ? '' : `${libres} case${libres > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''}`;
+  if (cle === 'partout') {
+    if (q._partout || posees.some(x => x.cle === 'partout')) return { non: 'il joue déjà partout' };
+    return { note: sl && getPositionPenalty(q, sl) > 0 ? 'hors position ici' : place };
+  }
+  if (cle === 'cran') return { note: sl && zoneEcart(q, sl) === 'dessus' ? 'au-dessus de sa zone' : place };
+  if (cle === 'physio') {
+    // Les malus depuis le dernier passage du physio (arrivé, ou déjà posé).
+    const siens = ((you && you.mutations) || []).filter(m => m.joueur === k && m.jour < jour);
+    const dernier = Math.max(-1, ...siens.filter(m => m.cle === 'physio').map(m => m.jour), ...posees.filter(x => x.cle === 'physio').map(x => x.jour));
+    const malus = siens.filter(m => m.jour >= dernier && m.cle !== 'physio' && mutationNuit(m.cle)).map(m => MUTATIONS[m.cle]);
+    return malus.length ? { note: `efface ${malus.map(x => x.ico).join(' ')}` } : { non: 'aucun malus' };
+  }
+  if (cle === 'lustre') {
+    const r = varianteApres(varianteJoueur(q), posees), n = VARIANTE_SUIVANTE[r];
+    if (!n) return { non: 'sa carte est déjà en or' };
+    const carte = carteDe(n, g, graineVariantes(), k);
+    return { note: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]}`, extra: { carte: { rar: carte.rar, bonus: carte.bonus } },
+      mot: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte).map(b => `${b.ico} ${b.nom}`).join(' + ')}` };
+  }
+  return { note: place };
 }
 /*
  * LES CARTES QUI JOUENT (S78) : celles de TON alignement, et de ceux qui y
@@ -3162,6 +3320,23 @@ function renderSpin() {
 const uniteNom = s => !s ? '' : s.scratch ? 'Réserve' : s.group === 'G' ? 'Gardiens'
   : s.group === 'D' ? UNIT_NAMES_D[s.unit] : UNIT_NAMES_F[s.unit];
 const slotShort = s => s ? `${uniteNom(s)} · ${s.role}` : '—';
+/*
+ * OÙ IL JOUE (S80). JP : *dire que x est sur la xième ligne*. Un joueur se
+ * NOMME par ce qu'il est (`quiEst`), jamais par sa case ; mais on DIT où il
+ * joue, en contexte : « Hal Gill (3e paire) sort ». La rangée seulement — le
+ * trio, la paire, partant ou auxiliaire, la réserve —, pas le poste de la
+ * case : ses positions à lui sont déjà dans `quiEst`.
+ */
+const ligneDe = s => !s ? '' : s.scratch ? 'réserve' : s.group === 'G' ? (s.unit ? 'auxiliaire' : 'partant')
+  : s.group === 'D' ? UNIT_NAMES_D[s.unit] : UNIT_NAMES_F[s.unit];
+function ouJoue(p, roster = G.roster) {
+  if (!p || !roster) return '';
+  const k = getPlayerKey(p);
+  const sl = SLOTS.find(s => roster[s.i] && getPlayerKey(roster[s.i]) === k);
+  return sl ? ligneDe(sl) : '';
+}
+/* « H. Gill » : le nom qui tient dans une case de l'alignement (le nom entier est dans l'infobulle). */
+const nomCourt = n => { const m = String(n || '').trim().split(' '); const nom = m.pop(); return m.length ? `${m[0][0]}. ${nom}` : nom; };
 
 function renderDash() {
   const host = $('dash');
@@ -4528,11 +4703,11 @@ document.addEventListener('click', ev => {
  * chacun coûterait une seconde par rendu, pour une fiche sur mille qu'on
  * ouvre. Et au clic, le compte est forcément à jour.
  */
-function ouvrirFiche(p, t, mode = 'saison') {
-  if (mode !== 'jour' && mode !== 'jourSeries') { showPlayerModal(p, { sim: mode, team: t }); return; }
+function ouvrirFiche(p, t, mode = 'saison', extra = {}) {
+  if (mode !== 'jour' && mode !== 'jourSeries') { showPlayerModal(p, { sim: mode, team: t, ...extra }); return; }
   showPlayerModal(p, {
     sim: compteEnGrille(compteRevele(mode).get(p)) || {}, team: t,
-    titreSim: mode === 'jourSeries' ? 'Ses séries, à ce jour' : 'Sa saison, à ce jour',
+    titreSim: mode === 'jourSeries' ? 'Ses séries, à ce jour' : 'Sa saison, à ce jour', ...extra,
   });
 }
 
@@ -4677,7 +4852,7 @@ function showPlayerModal(p, opts = {}) {
   const milieuVerso = `${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
     ${saCarte}
-    ${sectionMods(p)}`;
+    ${sectionMods(p, opts.attente || null)}`;
   const verso = versoDeCarte(p, numero, rarete, milieuVerso, ere);
   body.innerHTML = `
     <div class="pcard-full" style="--team-logo:${logoFiligrane(p.t)};--card-primary:${colors.primary};--card-accent:${colors.accent};--team-band:${band.bg};--team-stripe:${band.stripe};--team-ink:${band.ink};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
@@ -4724,8 +4899,23 @@ function showPlayerModal(p, opts = {}) {
       signPlayer(p);
     };
   }
-  brancherRetournement(body.querySelector('.fiche-carte'));
-  modal.classList.toggle('au-dessus', apercu);
+  const carte = body.querySelector('.fiche-carte');
+  brancherRetournement(carte);
+  // S80 : la fiche s'ouvre AU VERSO quand on y vient pour poser une carte — sans tourner, elle y est déjà.
+  if (opts.verso && carte) {
+    carte.classList.add('au-verso');
+    const recto = carte.querySelector('.fc-recto'), dos = carte.querySelector('.fc-verso');
+    if (recto && dos) { recto.classList.add('fc-cachee'); dos.classList.remove('fc-cachee'); recto.setAttribute('aria-hidden', 'true'); dos.setAttribute('aria-hidden', 'false'); }
+  }
+  // LES CASES DU VERSO (S80) : « Poser ici » pose la carte en attente ; « + Poser une amélioration » ouvre tes cartes.
+  const poser = body.querySelector('[data-poser]');
+  if (poser && opts.attente) poser.onclick = () => opts.attente.poser();
+  const plus = body.querySelector('[data-plus]');
+  if (plus) plus.onclick = () => {
+    closeModal('hockeyCardModal');
+    choisirCarteAPoser(p, opts.rouvrir || (x => ouvrirVersoPourPoser(p, x)));
+  };
+  modal.classList.toggle('au-dessus', apercu || !!opts.auDessus);
   ouvrirModale(modal);
 }
 
@@ -5290,7 +5480,8 @@ async function deciderSaison(d, depuis) {
   // ménage) ne tire pas de dés neufs : le moteur ne la lit pas, les matchs ne
   // doivent pas bouger (S74).
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
-  const deckSeul = d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage);
+  // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
+  const deckSeul = d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || (!!d.garde && !d.mutation);
   decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
   await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
@@ -5366,6 +5557,9 @@ function confirmerDecision(d) {
   else if (d.deck === 'menage' && C(d.retrait)) mot = `🗑️ ${C(d.retrait).nom} quitte ton deck.`;
   else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋️ ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
   else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.`;
+  // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
+  else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans ton inventaire : pose-la au verso d'un joueur, quand tu veux.`;
+  else if (d.joue && M) mot = `${M.ico} ${M.nom} : posée au verso de ${qui(d.mutation.joueur)}.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
   else if (d.deck === 'strategie' && d.maitrise && systemeDe(d.maitrise.tac)) mot = `📘 ${systemeDe(d.maitrise.tac).groupe === 'D' ? 'Tes défenseurs apprennent' : 'Tes avants apprennent'} : ${systemeDe(d.maitrise.tac).nom.toLowerCase()}.`;
   // La carte du proprio (objectif atteint) : la seule carte prise sans un mot (QA S74b).
@@ -5815,8 +6009,8 @@ function ouvrirEcranSaison(depuis = 0) {
         ballottage: candidatsBallottage,
         // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.
         recrues: candidatsRecrue,
-        // L'ATELIER (S78) : le joueur qui reçoit l'édition.
-        atelier: ouvrirAtelier,
+        // OÙ IL JOUE (S80) : « 3e paire », dit à côté d'un nom (les dilemmes, le ballottage, un nouveau rôle).
+        ouJoue: p => ouJoue(p),
         // LA CARTE MINI (S78) : un joueur offert se voit en carte de joueur.
         carteMini: carteMiniHtml,
         // Sa fiche en aperçu, et « qui sort ? » quand il arrive (S78).
