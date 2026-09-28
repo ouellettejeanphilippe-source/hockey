@@ -6230,6 +6230,8 @@ export function depistageDe(graine, cle, adv, { precedent = null, ilsOntGagne = 
   out[0].p += 100 - out.reduce((a, x) => a + x.p, 0);
   return out;
 }
+/* Le plan le plus PROBABLE du rapport (J1-N) : ce que l'écran peut montrer sans révéler le vrai. */
+export const planProbable = dep => (dep && dep.length ? dep.reduce((a, b) => (b.p > a.p ? b : a)).plan : null);
 /* Leur VRAI plan, tiré du rapport : pur, de la graine et du match. */
 export function planDuDepistage(graine, cle, dep) {
   let r = hacherMise(graine, 'plan-reel', cle) * 100;
@@ -6403,12 +6405,22 @@ export function effetEntracte(e) {
  */
 /* L'échelle de la fin de partie d'un gros match (S80) : sa journée, ou sa ronde de séries. */
 export const echelleDuGros = (gros, toi) => (!(toi && toi.courbe) ? 1 : echelleTardive(gros && gros.serie ? { serie: true, ronde: gros.ronde || 0 } : { jour: (gros && gros.jour) || 0 }));
+/*
+ * LES LIGNES DE L'ADVERSAIRE SOUS UN PLAN (1.0, J1-N) : ses lignes de la
+ * saison, puis ce que le plan y change. C'est ce que le moteur joue un soir
+ * de gros match (`poserGros`), et ce que l'écran lit pour dire « tu
+ * étouffes » — avec le plan le plus PROBABLE du dépistage, jamais le vrai,
+ * qui reste caché jusqu'au match. Sans plan : les lignes de la saison.
+ */
+export function lignesDeGros(adv, lineup, plan = null) {
+  const P = plan ? PLANS_ADV[plan] : null;
+  const base = lignesDe(adv, lineup, { duSoir: false });
+  return base.map((l, u) => ({ ...l, ...((P && P.lignes && P.lignes[u]) || {}) }));
+}
 function poserGros(toi, adv, gros) {
   toi._gros = gros; adv._gros = null;
   // Le plan règle VRAIMENT les lignes de l'adversaire pour ce match (S72).
-  const P = PLANS_ADV[gros.plan];
-  const base = lignesDe(adv, adv.roster, { duSoir: false });
-  adv._lignesMatch = base.map((l, u) => ({ ...l, ...((P && P.lignes && P.lignes[u]) || {}) }));
+  adv._lignesMatch = lignesDeGros(adv, adv.roster, gros.plan);
   adv._effetMatch = null;
   toi._effetMatch = [...(gros.effetsAvant || [])];
   toi._advGros = adv;

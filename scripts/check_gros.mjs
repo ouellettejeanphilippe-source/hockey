@@ -20,6 +20,7 @@ import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde,
   PLANS_ADV, planEstContre, planDeSerie, entractesOfferts, effetEntracte, contreDe, TACTIQUES,
   AVANT_GROS, avantDuGros, ENTRACTES,
+  lignesDeGros, lignesDe, planProbable, activeLineup,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -180,6 +181,41 @@ for (const [cle, P] of Object.entries(PLANS_ADV)) {
   }
   borne('gros matchs par saison', moy(n), 5, 14, '');
   exiger('chaque gros match porte son plan, son contre et son pointage après deux périodes', complets === total, `${complets}/${total}`);
+}
+
+/*
+ * CE QUE LE HUB MONTRE D'UN GROS MATCH EST CE QUE LE MOTEUR JOUE (1.0, J1-N).
+ * Les indices « tu étouffes » lisaient les lignes de saison de l'adversaire,
+ * alors que le plan les remplace le soir même. Le hub lit maintenant
+ * `lignesDeGros(adv, activeLineup(adv), plan probable)` : quand le plan
+ * probable est le plan joué, ce sont exactement les lignes du match ; et un
+ * blessé adverse n'y figure jamais.
+ */
+{
+  const teams = ligue(9600);
+  simulateLeague(teams, 82, { graine: 'hub-9600', decisions: [] });
+  const mbs = (teams[0].minisBoss || []).filter(x => x.depistage && x.plan);
+  let memes = 0, testes = 0, blesse = 0;
+  for (const mb of mbs) {
+    const adv = mb.adv;
+    if (!adv || !adv.roster) continue;
+    const probable = planProbable(mb.depistage);
+    if (probable !== mb.plan) continue;
+    testes++;
+    const hub = lignesDeGros(adv, adv.roster, probable);
+    const joue = lignesDeGros(adv, adv.roster, mb.plan);
+    if (JSON.stringify(hub) === JSON.stringify(joue)) memes++;
+  }
+  exiger('quand le plan probable est le plan joué, le hub montre les lignes du match', testes > 0 && memes === testes, `${memes}/${testes} gros matchs`);
+  // Un blessé adverse ne figure pas dans l'alignement que le hub lit.
+  for (const t of teams.slice(1, 6)) {
+    const L = activeLineup(t);
+    for (const p of Object.values(L)) if (p && t.injured.has(p)) blesse++;
+  }
+  exiger('aucun blessé dans l\'alignement adverse que le hub lit', blesse === 0, `${blesse} blessé(s)`);
+  // Sans plan, lignesDeGros = les lignes de la saison : rien ne change pour un match ordinaire.
+  const t1 = teams[1];
+  exiger('sans plan, les lignes d\'un match ordinaire sont celles de la saison', JSON.stringify(lignesDeGros(t1, t1.roster, null)) === JSON.stringify(lignesDe(t1, t1.roster, { duSoir: false })));
 }
 
 verdict('Les gros matchs');
