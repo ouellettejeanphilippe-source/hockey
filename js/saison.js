@@ -1899,10 +1899,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const lignes = [];
     // LA RUN ROGUE (S80) : sa saison, et ce que le proprio exige pour qu'elle continue.
     const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
-    if (run) lignes.push(`<div class="hub-etat-l hub-etat-run" title="Manque le mandat et la run est finie ; gagne la Coupe et elle est gagnée">
+    if (run) {
+      // 1.0 (R4) : le barème des jetons, lu dans la run (jamais tapé), et le mandat d'après.
+      const B = run.bareme || {};
+      const bareme = [['Victoire', B.victoire], ['prolongation', B.prolongation], ['défaite', B.defaite], ['gros match', B.grosMatch, '+'], ['objectif', B.objectif, '+'], ['ronde de séries', B.serie, '+']]
+        .filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ');
+      lignes.push(`<div class="hub-etat-l hub-etat-run" title="Manque le mandat et la run est finie ; gagne la Coupe et elle est gagnée">
         <span class="hub-etat-k">💀 La run</span>
-        <span class="hub-etat-v">Saison ${run.saison} · le proprio veut : <b>${ctx.esc(run.mot)}</b></span>
+        <span class="hub-etat-v">Saison ${run.saison} · le proprio veut : <b>${ctx.esc(run.mot)}</b>${run.suivant ? ` <small class="hub-run-suite">· puis : ${ctx.esc(run.suivant)}</small>` : ''}</span>
+        ${bareme ? `<small class="hub-run-bareme" title="Ce que chaque résultat rapporte, en jetons">🪙 ${ctx.esc(bareme)}</small>` : ''}
       </div>`);
+    }
     const oc = onDecision ? objectifEnCours() : null;
     if (oc && OBJECTIFS[oc.d.objectif.cle]) {
       const O = OBJECTIFS[oc.d.objectif.cle];

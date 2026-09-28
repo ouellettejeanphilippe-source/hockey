@@ -6403,8 +6403,11 @@ function ouvrirEcranSaison(depuis = 0) {
         quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), note: q => `libère ${money(capHitDuJour(q))}`, ...o }),
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
         rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider),
-          // S80 : la saison de la run et le mandat du proprio.
-          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot }) } : null,
+          // S80 : la saison de la run et le mandat du proprio. 1.0 (R4) : le barème de la run, tel que
+          // `jetonsRogue` le compte (`G.rogue.bareme`, fixé au départ de la saison), et le mandat d'après.
+          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot,
+            suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
+            bareme: (G.rogue && G.rogue.bareme) || JETONS }) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider) },
         inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider) => ouvrirInventaireJeu(j, decider) },

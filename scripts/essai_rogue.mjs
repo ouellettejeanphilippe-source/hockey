@@ -139,6 +139,18 @@ await regler();
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
 console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
+// 1.0 (R4) : le barème des jetons est écrit au hub, et ses chiffres sont ceux de la run (jamais tapés).
+{
+  const bareme = (await page.textContent('#hubModal .hub-run-bareme').catch(() => '')) || '';
+  const svB = await lireSauvegarde();
+  const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;
+  const lu = [...bareme.matchAll(/(\d+)/g)].map(m => Number(m[1]));
+  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.grosMatch, B.objectif, B.serie] : null;
+  console.log(`5b. le barème au hub : ${bareme.replace(/\s+/g, ' ').trim() || '(absent)'} · attendu ${attendu ? attendu.join('/') : '?'}`);
+  if (!bareme) erreurs.push('le hub n\'écrit pas le barème des jetons de la run');
+  else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème au hub (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
+  if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
+}
 /*
  * « JUSQU'À LA PROCHAINE DÉCISION » (S79) remplace « +10 jours » : elle joue
  * les journées une à une et s'arrête sur ce qui demande le joueur. On attend

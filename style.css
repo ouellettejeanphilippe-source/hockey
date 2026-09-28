@@ -9595,6 +9595,9 @@ body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { displa
 .hub-etat-v { min-width: 0; }
 .hub-etat-l .tuile-jauge { flex: 1 1 80px; min-width: 60px; }
 .hub-etat-l small { color: var(--muted); font-size: 12px; }
+/* 1.0 (R4) : le barème de la run, une ligne sous le mandat ; « puis : … » dans le ton du mandat. */
+.hub-run-bareme { flex: 1 0 100%; font-variant-numeric: tabular-nums; }
+.hub-run-suite { color: var(--sub); }
 
 /* Hier soir, en une ligne ; le toucher ouvre le sommaire. */
 .hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 8px; padding: 10px 12px;
