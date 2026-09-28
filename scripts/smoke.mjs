@@ -286,6 +286,11 @@ async function repondreAuxChoix() {
         await jouable.click();
         const jouees = await page.$$eval('#choixModal .main-jouee', e => e.length);
         if (jouees !== 1) errors.push(`toucher « ${nom} » ne la joue pas (${jouees} carte(s) sur la glace)`);
+        // Une carte de dépistage peut ÉCARTER la piste préparée (c'est son effet) : la préparation
+        // tombe alors, comme dans le jeu. On se prépare pour une piste qui reste (S79 : le test mentait).
+        if (pistes && !(await page.$('#choixModal .dep-piste.on')) && await page.$('#choixModal .dep-piste[data-plan]:not([disabled])')) {
+          await _click('#choixModal .dep-piste[data-plan]:not([disabled])');
+        }
       }
       await _click('#choixModal .main-jouer');
       await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine', { timeout: 120000 });
