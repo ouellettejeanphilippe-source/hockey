@@ -77,7 +77,7 @@ export function modeDe(format, tirage) {
 
 /** Les cases que le joueur comble lui-même dans ce mode. */
 export function casesDuMode(mode) {
-  if (!MODES[mode]?.renfort) return SLOTS;
+  if (!MODES[mode]?.renfort) return CASES_DE_BASE;
   return SLOTS.filter(s => !s.scratch && s.unit === 0 && (s.group === 'F' || s.group === 'D' || s.group === 'G'));
 }
 
@@ -326,7 +326,20 @@ SLOTS.push({ group: 'G', unit: 1, role: 'Auxiliaire', label: 'Gardiens' });
 [['F', 'Réserve F'], ['D', 'Réserve D'], ['ANY', 'Réserve']].forEach(([group, role]) => {
   SLOTS.push({ group, unit: 0, role, label: 'Réservistes', scratch: true });
 });
+/*
+ * LES CASES DE RÉSERVE DE PLUS (S80, le mode Rogue). JP : *possible de
+ * discard les cartes de remplaçants ou débloquer des slots de remplacement*.
+ * Deux cases de réserviste qui prennent n'importe qui, APRÈS les 23 : aucun
+ * mode ne les remplit (`casesDuMode` et `autoRoster` les sautent), et une
+ * case vide ne coûte rien au moteur. Remplies, `activeLineup` les lit comme
+ * les autres réservistes : leur joueur monte quand un habillé se blesse. Le
+ * Rogue les ouvre au vestiaire des déblocages (js/rogue.js `reservesDeLaRun`).
+ */
+export const RESERVES_EN_PLUS = 2;
+for (let n = 1; n <= RESERVES_EN_PLUS; n++) SLOTS.push({ group: 'ANY', unit: n, role: `Réserve +${n}`, label: 'Réservistes', scratch: true, extra: n });
 SLOTS.forEach((s, i) => { s.i = i; });
+/* Les 23 cases de toujours : ce que tous les modes remplissent. */
+export const CASES_DE_BASE = SLOTS.filter(s => !s.extra);
 
 const RATINGS_VAULT = new Map();
 
@@ -2370,6 +2383,36 @@ export const SORTES_DECK = {
   atelier: { ico: '🛠️', nom: 'L\'atelier', mot: 'Édite un de tes joueurs : poste, trios, malus, carte' },
 };
 export const GAIN_STAGE = 0.4;
+/*
+ * LE STAGE SOUDE AUSSI LES LIGNES (S80). JP : *les upgrade de trio aident au
+ * début*. Mesuré (scripts/check_rogue.mjs, le même match sur les mêmes dés) :
+ * le stage ne donnait que sa maîtrise, +7 de chimie par ligne au troisième
+ * soir. Un stage, c'est aussi des pratiques ENSEMBLE : chaque paire de
+ * coéquipiers des lignes qui jouent ce système gagne ENTENTE_STAGE matchs
+ * d'entente (+16 de chimie par ligne au troisième soir). Fort tout de suite,
+ * et ça PLAFONNE tout seul : l'entente d'une paire tend vers 1
+ * (`ENTENTE_MATCHS`), la chimie vers son plafond (`chimieMax`) — en février,
+ * les lignes se connaissent déjà et le stage n'ajoute rien. La chimie pèse
+ * peu en buts (`CHIMIE_BONUS`) : le stage reste une carte de confort, ce que
+ * la mesure dit tel quel. Dans une ligue Rogue seulement (`courbe`).
+ */
+export const ENTENTE_STAGE = 12;
+function stageDEntente(team, tac) {
+  const S = systemeDe(tac);
+  // Une ligue Rogue seulement (`courbe`) : la saison et le tournoi gardent le stage de S73.
+  if (!S || !team || !team.courbe) return;
+  team.entente = team.entente || new Map();
+  const lignes = lignesDe(team, team.roster, { duSoir: false });
+  for (let u = 0; u < 4; u++) {
+    const l = lignes[u] || {};
+    if ((S.groupe === 'D' ? l.tacD : l.tac) !== tac) continue;
+    const js = Object.entries(joueursDeLigne(team.roster, u)).filter(([role, p]) => p && ((role === 'DG' || role === 'DD') === (S.groupe === 'D'))).map(([, p]) => p);
+    for (let a = 0; a < js.length; a++) for (let b = a + 1; b < js.length; b++) {
+      const k = cleDePaire(js[a], js[b]);
+      team.entente.set(k, (team.entente.get(k) || 0) + ENTENTE_STAGE);
+    }
+  }
+}
 export function mainDuDeck(graine, jour, prises = []) {
   const effet = mainDeCartes(graine, jour, prises)[0];
   const autres = ['recrue', 'amelioration', 'profil', 'strategie', 'menage', 'camp', 'atelier']
@@ -4275,6 +4318,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   MEMO_MATCH++;
   // Le soir d'une carte « Clutch » (S78) : les séries et tes gros matchs.
   poserSoirGrand(series || !!(A._gros || B._gros));
+  // L'échelle de la fin de partie (S80) : en saison, la journée ; en séries, la ronde.
+  ECHELLE_SOIR = !(A.courbe || B.courbe) ? 1 : series ? echelleTardive({ serie: true, ronde }) : echelleTardive({ jour: gameIdx });
   const heavy = soirEreintant(gameIdx);
   // Entre deux matchs de séries, les jambes reviennent (S68) ; en saison, la
   // récupération se fait au début de chaque journée (`simulateLeague`).
@@ -4634,14 +4679,17 @@ function appliquerDecision(team, d, graine = 0) {
     if (o) appliquerGestes(team, o, d.jour, d.avant.joueurs, graine, `avant:${d.avant.cle}:${d.avant.choix}`, AVANT_GROS[d.avant.cle].titre);
   }
   // LE STAGE DE SYSTÈME (S73) : toute la formation apprend une tactique d'un coup.
-  if (d.maitrise && systemeDe(d.maitrise.tac)) for (const s of SLOTS) {
-    const p = team.roster[s.i];
-    if (!p || p.p === 'G') continue;
-    // Un système de trio s'apprend aux avants, un système de paire aux défenseurs (S79).
-    if ((systemeDe(d.maitrise.tac).groupe === 'D') !== (s.group === 'D')) continue;
-    p._maitrise = p._maitrise || {};
-    const m = p._maitrise[d.maitrise.tac] || 0;
-    p._maitrise[d.maitrise.tac] = m + (1 - m) * (d.maitrise.gain || GAIN_STAGE);
+  if (d.maitrise && systemeDe(d.maitrise.tac)) {
+    for (const s of SLOTS) {
+      const p = team.roster[s.i];
+      if (!p || p.p === 'G') continue;
+      // Un système de trio s'apprend aux avants, un système de paire aux défenseurs (S79).
+      if ((systemeDe(d.maitrise.tac).groupe === 'D') !== (s.group === 'D')) continue;
+      p._maitrise = p._maitrise || {};
+      const m = p._maitrise[d.maitrise.tac] || 0;
+      p._maitrise[d.maitrise.tac] = m + (1 - m) * (d.maitrise.gain || GAIN_STAGE);
+    }
+    stageDEntente(team, d.maitrise.tac);
   }
   /*
    * UN PATRON ENGAGÉ (S79, js/banque.js) : la décision porte ses chiffres
@@ -4813,7 +4861,7 @@ function ceduleDe(teams, games, graine) {
   return cedule;
 }
 
-export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations } = {}) {
+export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false } = {}) {
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   if (graine === null || graine === undefined) graine = nouvelleGraine();
@@ -4846,8 +4894,10 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       t.effets = []; t.jourCourant = 0;
       t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
       t.chimie = [0, 0, 0, 0]; t.entente = new Map();
+      // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
+      t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
@@ -4864,7 +4914,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       if (!p) continue;
       p.energie = 100;
       delete p._maitrise; delete p._adapt; delete p._situ;
-      delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
+      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
     }
     // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
     poserStyles(teams);
@@ -5224,7 +5274,8 @@ export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
  * ailiers ; un centre de trop passe encore à l'aile, comme dans la vraie
  * ligue, mais plus l'inverse.
  */
-const ORDRE_AUTO = [...SLOTS].sort((a, b) => cleAuto(a) - cleAuto(b));
+// Les cases de réserve de plus (S80) ne se remplissent qu'à la main, en Rogue : jamais par l'alignement automatique.
+const ORDRE_AUTO = CASES_DE_BASE.slice().sort((a, b) => cleAuto(a) - cleAuto(b));
 function cleAuto(s) { return s.i + (s.group === 'F' && !s.scratch && s.role === 'C' ? -1.5 : 0); }
 
 export function autoRoster(pool, exclude = new Set()) {
@@ -5246,12 +5297,73 @@ export function autoRoster(pool, exclude = new Set()) {
 /*
  * Ce qu'une MUTATION de carte multiplie chez ce joueur (S68, voir MUTATIONS),
  * et le bonus de sa VARIANTE (S78, js/rarete.js : une parallèle, une holo ou
- * une or de TON alignement ; 1 pour tout autre joueur).
+ * une or de TON alignement ; 1 pour tout autre joueur). S80 : une AMÉLIORATION
+ * (`p._amel`) grandit avec le soir — voir `echelleTardive`.
  */
 function mutDe(p, champ) {
   const m = p && p._mut;
-  return ((m && m[champ]) || 1) * effetCarte(p, champ);
+  const a = p && p._amel && p._amel[champ];
+  return ((m && m[champ]) || 1) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(p, champ);
 }
+
+/*
+ * LA FIN DE PARTIE (S80). JP : *je veux que ça prenne plusieurs saisons et
+ * upgrades gagner la coupe, pis les upgrade de trio aident au début, mais
+ * les downgrade upgrade sont plus forts late game*.
+ *
+ * DEUX COURBES, dans une ligue Rogue (`creerLigue`, option `courbe`) :
+ *   - LES CARTES DE TRIO (un système appris d'un coup, un style qui fait
+ *     fitter une ligne, l'atelier qui place un joueur, les synergies du deck)
+ *     sont PLEINES TOUT DE SUITE et ne grandissent pas ; celles de la saison
+ *     PLAFONNENT : une ligne apprend son système à force de le jouer
+ *     (`MAITRISE_PAS`, 92 % après trente matchs), ses paires s'entendent
+ *     (`ENTENTE_MATCHS`), la chimie a son plafond (`chimieMax`). Le stage du
+ *     premier mois vaut des semaines de pratique ; celui de février ne vaut
+ *     presque rien — la ligne sait déjà.
+ *   - LES AMÉLIORATIONS D'UN JOUEUR (`source: 'amelioration'`) et les
+ *     cartes qui VISENT L'ADVERSAIRE (le `adv` des cartes de match)
+ *     GRANDISSENT : leur écart à 1 est multiplié par l'échelle du soir —
+ *     ×0,5 au premier match, ×1 à la mi-saison (la valeur écrite sur la
+ *     carte), ×1,5 au dernier, puis ×1,6 · ×1,75 · ×1,9 · ×2 aux quatre
+ *     rondes des séries. « Le tir affûté » (précision +8 %) vaut +4 % en
+ *     octobre, +8 % en janvier, +12 % en avril, +16 % en finale.
+ * Mesuré (scripts/check_rogue.mjs, le même match sur les mêmes dés) : au
+ * troisième soir, une carte de synergie vaut plus qu'une carte qui vise
+ * l'adversaire ; en finale, c'est l'inverse, et une amélioration vaut deux
+ * fois plus qu'en octobre. Commencer à ×1 ne suffisait pas : une carte qui
+ * vise l'adversaire valait déjà plus que tout le reste au troisième soir, et
+ * les cartes de trio n'aidaient jamais « au début ».
+ *
+ * L'échelle se POSE au début de chaque match (`playGame`), comme le soir
+ * « grand » des cartes clutch : le moteur ne lit rien d'autre, et un match
+ * joué ailleurs (le pronostic) la repose pour lui-même. Hors du Rogue, elle
+ * vaut 1 : la saison et le tournoi ne changent pas.
+ */
+export const ECHELLE_DEBUT = 0.5, ECHELLE_FIN_DE_SAISON = 1.5;
+export const ECHELLE_SERIES = [1.6, 1.75, 1.9, 2];
+export function echelleTardive({ jour = 0, serie = false, ronde = 0, matchs = 82 } = {}) {
+  if (serie) return ECHELLE_SERIES[Math.max(0, Math.min(ECHELLE_SERIES.length - 1, ronde || 0))];
+  return ECHELLE_DEBUT + (ECHELLE_FIN_DE_SAISON - ECHELLE_DEBUT) * Math.max(0, Math.min(1, (jour || 0) / Math.max(1, matchs - 1)));
+}
+/* Un facteur qui grandit : son écart à 1, multiplié par l'échelle. */
+export const grandir = (x, e) => 1 + (x - 1) * e;
+/*
+ * Un EFFET de carte qui grandit : chaque canal s'éloigne de 1 à l'échelle ;
+ * la robustesse, qui est une somme (« +1,4 »), se multiplie ; les minutes des
+ * lignes (`F`, `D`) aussi, poste par poste.
+ */
+export function grandirEffet(e, ech) {
+  if (!e || ech === 1) return e ? { ...e } : e;
+  const out = {};
+  for (const [k, v] of Object.entries(e)) {
+    if (k === 'robustesse' && typeof v === 'number') out[k] = v * ech;
+    else if (typeof v === 'number') out[k] = grandir(v, ech);
+    else if (Array.isArray(v)) out[k] = v.map(x => grandir(x, ech));
+    else out[k] = v;
+  }
+  return out;
+}
+let ECHELLE_SOIR = 1;
 
 /* Les trois colonnes brutes d'un profil, pour la mesure (`sonde_aptitudes.mjs`). */
 export const colonnesProfil = p => ({ L: lancersBrut(p), T: tirBrut(p), P: passesRelatives(p) });
@@ -5435,7 +5547,10 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
     if (p._mutCles) p._mutCles = p._mutCles.filter(k => !malusSeul(k));
   }
   p._mut = p._mut || {};
-  for (const c of CANAUX_MUT) if (M[c]) p._mut[c] = (p._mut[c] || 1) * M[c];
+  // S80 : une AMÉLIORATION grandit avec la saison (`echelleTardive`) ; elle vit à part, et `mutDe` la fait grandir.
+  const grandit = M.source === 'amelioration';
+  if (grandit) p._amel = p._amel || {};
+  for (const c of CANAUX_MUT) if (M[c]) { if (grandit) p._amel[c] = (p._amel[c] || 1) * M[c]; else p._mut[c] = (p._mut[c] || 1) * M[c]; }
   p._mutProfils = p._mutProfils || {};
   for (const [k, d] of Object.entries(M.profils || {})) p._mutProfils[k] = (p._mutProfils[k] || 0) + d;
   (p._mutCles = p._mutCles || []).push(cle);
@@ -5478,6 +5593,9 @@ export function motsDeMutation(cle) {
     const P = PROFILS.F[k] || PROFILS.D[k];
     if (P) out.push({ txt: `${P.ico} ${P.nom} ${d > 0 ? '+' : '−'}${Math.abs(Math.round(d))}`, bon: d > 0 });
   }
+  // LES DEUX COURBES (S80, `echelleTardive`) : l'amélioration grandit ; le style et l'atelier font fitter un trio, tout de suite.
+  if (M.source === 'amelioration') out.push({ txt: '📈 En Rogue, grandit : ×0,5 en octobre, ×1 en janvier, ×2 en finale', bon: null });
+  else if (M.source === 'style' || M.partout || M.cran) out.push({ txt: '🔗 Carte de trio : tout de suite, puis elle plafonne', bon: null });
   return out;
 }
 
@@ -6148,6 +6266,8 @@ export function effetEntracte(e) {
  * les effets d'avant-match. `playGame` la lit (`_gros`), coupe le match au
  * deuxième entracte et la retire après.
  */
+/* L'échelle de la fin de partie d'un gros match (S80) : sa journée, ou sa ronde de séries. */
+export const echelleDuGros = (gros, toi) => (!(toi && toi.courbe) ? 1 : echelleTardive(gros && gros.serie ? { serie: true, ronde: gros.ronde || 0 } : { jour: (gros && gros.jour) || 0 }));
 function poserGros(toi, adv, gros) {
   toi._gros = gros; adv._gros = null;
   // Le plan règle VRAIMENT les lignes de l'adversaire pour ce match (S72).
@@ -6168,7 +6288,7 @@ function poserGros(toi, adv, gros) {
   if (gros.cartesAdv) {
     const annulee = !!(gros.cartes && (gros.cartes.jouees || []).some(c => CARTES_MATCH[c] && CARTES_MATCH[c].annule));
     if (!annulee) {
-      const fx = effetsDesCartes(adv, { jouees: gros.cartesAdv }, `${gros.graineMain}:${gros.cleMain}:adverse`, { mainAdv: (gros.cartes && gros.cartes.jouees) || [] });
+      const fx = effetsDesCartes(adv, { jouees: gros.cartesAdv }, `${gros.graineMain}:${gros.cleMain}:adverse`, { mainAdv: (gros.cartes && gros.cartes.jouees) || [], echelle: echelleDuGros(gros, toi) });
       adv._effetMatch = [...(adv._effetMatch || []), ...fx.effets];
       toi._effetMatch.push(...fx.adv);
       if (fx.energieTous) for (const sl of SLOTS) { const p = adv.roster[sl.i]; if (p && p.p !== 'G') p.energie = Math.min(100, energieDe(p) + fx.energieTous); }
@@ -6186,7 +6306,7 @@ function poserGros(toi, adv, gros) {
  * feuille le garde, le direct et ton histoire le disent.
  */
 function poserCartes(toi, adv, gros, base) {
-  const fx = effetsDesCartes(toi, gros.cartes, gros.cleCartes || '', { mainAdv: gros.cartesAdv || [] });
+  const fx = effetsDesCartes(toi, gros.cartes, gros.cleCartes || '', { mainAdv: gros.cartesAdv || [], echelle: echelleDuGros(gros, toi) });
   toi._effetMatch.push(...fx.effets);
   if (fx.adv.length) adv._effetMatch = [...(adv._effetMatch || []), ...fx.adv];
   if (fx.lire) { adv._lignesMatch = null; gros.lu = true; }
@@ -6237,7 +6357,7 @@ function poserPreparation(toi, adv, gros, fx) {
  * profils mesurés et les tactiques de tes lignes). Le pari se tire de
  * `cle` (la graine, le match et le sel de la décision) : pur.
  */
-export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [] } = {}) {
+export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle = 1 } = {}) {
   const out = { effets: [], adv: [], lire: false, contre: false, annule: false, energieTous: 0, paris: [],
     revele: false, ecarte: 0, planB: false, improvise: null, piege: null };
   const jouees = (cartes && cartes.jouees) || [];
@@ -6270,7 +6390,8 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [] } = {}) {
     const C = CARTES_MATCH[c];
     if (!C || C.injouable) return;
     if (C.effet) out.effets.push({ source: 'carte', nom: C.nom, ico: C.ico, ...C.effet });
-    if (C.adv) out.adv.push({ source: 'carte', nom: C.nom, ico: C.ico, ...C.adv });
+    // S80 : une carte qui VISE L'ADVERSAIRE grandit avec le soir (`echelleTardive`).
+    if (C.adv) out.adv.push({ source: 'carte', nom: C.nom, ico: C.ico, ...grandirEffet(C.adv, echelle) });
     if (C.lire) out.lire = true;
     if (C.contre) out.contre = true;
     if (C.annule) out.annule = true;
@@ -6311,14 +6432,16 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [] } = {}) {
  * décision déplace les suivants — il n'en restait qu'une vingtaine d'appariés.
  * Ici, le même match, sur les mêmes dés, avec ou sans cartes.
  */
-export function simulerGrosMatch(toi, adv, { plan = 'trappe', cartes = null, graine = 'mesure', cle = 'j0', prep = null } = {}) {
+export function simulerGrosMatch(toi, adv, { plan = 'trappe', cartes = null, graine = 'mesure', cle = 'j0', prep = null, moment = null } = {}) {
   grainerHasard(`${graine}:${cle}`);
   // Des jambes fraîches des deux côtés : une carte qui rend de l'énergie écrit sur les joueurs, et la mesure d'un match ne doit pas hériter du précédent.
   for (const t of [toi, adv]) for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) p.energie = 100; }
-  const gros = { jour: 0, adv, raison: 'rival', plan, prep, avant: null, effetsAvant: [], cartes, cleCartes: `${graine}:${cle}`, graineMain: graine, cleMain: cle };
+  // LE MOMENT (S80, scripts/check_rogue.mjs) : le même match au jour N de la saison, ou à une ronde des séries — l'échelle de la fin de partie suit.
+  const m = moment || {};
+  const gros = { jour: m.serie ? 0 : (m.jour || 0), serie: !!m.serie, ronde: m.ronde || 0, adv, raison: 'rival', plan, prep, avant: null, effetsAvant: [], cartes, cleCartes: `${graine}:${cle}`, graineMain: graine, cleMain: cle };
   poserGros(toi, adv, gros);
   const feuille = feuilleVierge();
-  const r = playGame(toi, adv, 1, false, false, feuille);
+  const r = playGame(toi, adv, m.serie ? 0 : (moment ? m.jour || 0 : 1), false, !!m.serie, feuille, m.ronde || 0);
   leverGros(toi);
   return { gagne: r.winner === toi, gf: r.gfA, ga: r.gfB, gros };
 }

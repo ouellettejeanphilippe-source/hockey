@@ -86,7 +86,7 @@ function copieDuJour(t, { jourMatch, jourRevele, joues, connus }) {
     else if (p._maitrise) p._maitrise = { ...p._maitrise };
     if (p._adapt) p._adapt = { ...p._adapt };
     delete p._situ;
-    if (tardives.has(p)) { delete p._mut; delete p._mutProfils; delete p._mutCles; }
+    if (tardives.has(p)) { delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; }
   };
   const copie = {
     ...t,

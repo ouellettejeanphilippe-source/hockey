@@ -297,7 +297,9 @@ function hache(...parts) {
  * gagnées avant la ronde `ronde`.
  */
 export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = Infinity, k = Infinity, pertes = [], blessures = [] } = {}) {
-  const deck = DECK_DEPART.slice();
+  // LA SAISON SUIVANTE D'UNE RUN ROGUE (S80) : le deck repart de celui de la fin de la saison d'avant (`deckDeBase`).
+  const base = decisions.find(d => d && Array.isArray(d.deckDeBase));
+  const deck = base ? base.deckDeBase.filter(c => CARTES_MATCH[c]) : DECK_DEPART.slice();
   const retirer = cle => { const i = deck.lastIndexOf(cle); if (i >= 0) deck.splice(i, 1); };
   const saison = decisions.filter(d => d && d.jour != null && d.jour < avant).slice().sort((a, b) => a.jour - b.jour);
   // Les retraits se font APRÈS tous les ajouts : « Le ménage » peut retirer une
