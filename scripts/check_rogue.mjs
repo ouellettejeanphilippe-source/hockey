@@ -42,7 +42,7 @@ import {
 import { deckDe, DECK_DEPART } from '../js/combat.js';
 import {
   DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli,
-  JALONS, jalonsAtteints, recompenseDe, baremeRogue,
+  JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe,
 } from '../js/rogue.js';
 import { jouerRun, acheterDans, metaAuNiveau, coutDuNiveau, classeurSynthetique, ORDRE_DEBLOCAGES, shard, groupe } from './lib/rogue_sim.mjs';
 import { exiger, borne, monte, informer, verdict } from './verdict.mjs';
@@ -235,6 +235,13 @@ if (!isMainThread) {
     exiger('le budget du classeur : 25 M$ sans déblocage, le plafond débloqué le monte', budgetDuClasseur({ deblocages: [] }) === 25_000_000 && budgetDuClasseur({ deblocages: ['plafond1', 'plafond2'] }) === 32_000_000, '25 M$ · 32 M$');
     exiger('les cases de réserve de plus se débloquent une à une', reservesDeLaRun({ deblocages: [] }) === 0 && reservesDeLaRun({ deblocages: ['banc1'] }) === 1 && reservesDeLaRun({ deblocages: ['banc1', 'banc2'] }) === 2 && DEBLOCAGES.banc2.requis === 'banc1', '0 · 1 · 2');
     exiger('le barème d\'une run : 5 🪙 par victoire, 8 et 10 avec les commanditaires', baremeRogue({ deblocages: [] }).victoire === 5 && baremeRogue({ deblocages: ['commanditaire1'] }).victoire === 8 && baremeRogue({ deblocages: ['commanditaire1', 'commanditaire2'] }).victoire === 10, '5 · 8 · 10');
+    // 1.0 (J1-C) : la prime de série se verse — `resultatsRogue` (js/game.js) renvoie enfin `series`, que `jetonsDe` lit.
+    exiger('la prime de série : trois rondes gagnées valent 3 × 40 🪙, et rien sans ronde', jetonsDe({ series: 3 }, 0, 40, JETONS) === 40 + 3 * JETONS.serie && jetonsDe({}, 0, 40, JETONS) === 40 && JETONS.serie === 40,
+      `${jetonsDe({ series: 3 }, 0, 40, JETONS)} 🪙 avec trois rondes, ${jetonsDe({}, 0, 40, JETONS)} sans`);
+    // 1.0 (J1-B) : un achat s'enregistre AVANT le butin — un ballottage de pack porte le palier `k:n:signe`, jamais l'achat lui-même,
+    // donc le numéro d'achat suivant ne bouge pas et la dépense est comptée même sans signature.
+    const achats = [{ jour: 3, palier: 'k:0', achat: { pack: 'j:hasard_bronze', n: 0, prix: 12, sorte: 'joueurs' } }, { jour: 3, palier: 'k:0:signe', ballottage: { i: 20, entre: 'x', sort: null } }];
+    exiger('un pack acheté puis signé fait UNE dépense et UN numéro d\'achat', achats.filter(d => d.achat).length === 1 && jetonsDe({}, achats.reduce((a, d) => a + ((d.achat || {}).prix || 0), 0), 40, JETONS) === 28, '40 − 12 = 28 🪙');
   }
   exiger('le mandat du proprio monte de saison en saison', MANDATS.every((m, i) => i === 0 || m.rondes > MANDATS[i - 1].rondes) && mandatDe(1).rondes === 0 && mandatDe(9).rondes === MANDATS[MANDATS.length - 1].rondes
     && mandatRempli(1, { series: true, rondes: 0 }) && !mandatRempli(2, { series: true, rondes: 0 }) && mandatRempli(2, { series: true, rondes: 1 }) && !mandatRempli(1, { series: false }),
