@@ -936,6 +936,10 @@ export function ouvrirMainDeMatch(spec) {
   const dessiner = () => {
     const defile = m.querySelector('.choix-main');
     const x = defile ? defile.scrollLeft : 0;
+    // L'ÉCRAN NE REMONTE PAS quand on touche une carte (S80, JP : *pas remonter quand choix de carte
+    // prématch*) : la main se redessine, mais on reste où on lisait — la feuille et son corps gardent
+    // leur défilement vertical, comme la rangée des cartes garde le sien.
+    const hauts = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].map(e => (e ? e.scrollTop : 0));
     // Leur plan, déplié, le reste d'une carte à l'autre : il se refermait à
     // chaque carte touchée, et on le lit justement en choisissant (QA S74b).
     const planOuvert = !!m.querySelector('.main-plan[open]');
@@ -995,6 +999,7 @@ export function ouvrirMainDeMatch(spec) {
     </div>`;
     const nd = m.querySelector('.choix-main');
     if (nd) nd.scrollLeft = x;
+    [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].forEach((e, i) => { if (e && hauts[i]) e.scrollTop = hauts[i]; });
     if (planOuvert) { const pl = m.querySelector('.main-plan'); if (pl) pl.open = true; }
     pointsDeBande(m);
     premier = false; pigees = new Set();

@@ -526,7 +526,7 @@ const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S80';  // S80 : le pesé des situations pèse plus, et un soir de gros match n'a ni situation, ni accident, ni dilemme (ils attendent le lendemain)
+const VERSION_MOTEUR = 'S81';  // S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
 function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.

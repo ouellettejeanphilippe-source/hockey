@@ -1996,6 +1996,8 @@ export const MOMENTS = {
   pieuvre: {
     ico: '🐙', titre: 'Une pieuvre sur la glace', irl: 'Détroit, 1952',
     recit: 'Un partisan lance une pieuvre sur la glace après ton but. L\'aréna devient fou. Deux bonnes nouvelles : laquelle tu prends?',
+    // S80 : ton dernier match, chez toi, avec au moins un but.
+    faits: c => (c.dernier && c.dernier.domicile && c.dernier.pour >= 1 ? {} : null),
     options: [
       { cle: 'tradition', nom: 'En faire une tradition', bon: 'La foule pousse, ça rentre', finition: 1.05, duree: 6 },
       { cle: 'calme', nom: 'Remercier la foule, garder la tête froide', bon: 'Une équipe disciplinée', discipline: 0.88, duree: 6 },
@@ -2003,7 +2005,9 @@ export const MOMENTS = {
   },
   rats: {
     ico: '🐀', titre: 'Le rat du vestiaire', irl: 'Floride, 1996',
-    recit: 'Ton ailier écrase un rat dans le vestiaire avant le match, puis marque deux buts. Les partisans lancent des rats en plastique.',
+    recit: '{nom} écrase un rat dans le vestiaire avant le match, puis marque {n} buts. Les partisans lancent des rats en plastique.',
+    // S80 : un de tes avants a vraiment marqué deux buts ou plus à ton dernier match.
+    faits: c => { const x = c.dernier && c.dernier.buteurs.filter(b => b.avant && b.buts >= 2).sort((a, b) => b.buts - a.buts)[0]; return x ? { joueur: x.p, n: x.buts } : null; },
     options: [
       { cle: 'mascotte', nom: 'Adopter la mascotte', bon: 'Si le rat porte chance, ça rentre de partout', prix: 'Sinon, la glace est jonchée de rats et l\'arbitre perd patience',
         pari: { chance: 0.5, gagne: { finition: 1.1, duree: 6 }, perd: { discipline: 1.25, duree: 6 } } },
@@ -2012,7 +2016,9 @@ export const MOMENTS = {
   },
   dernier: {
     ico: '🧳', titre: '« C\'est mon dernier match ici »', irl: 'Montréal, 1995', cible: 'gardien',
-    recit: 'Laissé devant le filet pour neuf buts, {nom} passe devant le banc et lance au président qu\'il a joué son dernier match ici.',
+    recit: 'Laissé devant le filet pour {n} buts, {nom} passe devant le banc et lance au président qu\'il a joué son dernier match ici.',
+    // S80 : ton gardien a vraiment accordé six buts ou plus à ton dernier match (JP : *après neuf buts encaissés… faut que ça soit arrivé pour vrai*).
+    faits: c => (c.dernier && c.dernier.gardien && c.dernier.contre >= 6 ? { joueur: c.dernier.gardien, n: c.dernier.contre } : null),
     options: [
       { cle: 'reposer', nom: 'Le reposer trois matchs', bon: 'Ton auxiliaire prend le filet, {nom} revient la tête froide', prix: 'Trois matchs sans ton partant',
         action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.96 } },
@@ -2022,7 +2028,9 @@ export const MOMENTS = {
   },
   tropdejoueurs: {
     ico: '🧢', titre: 'Trop de joueurs sur la glace', irl: 'Boston, 1979',
-    recit: 'Ton banc s\'emmêle dans un changement et six patineurs sautent sur la glace dans les dernières minutes.',
+    recit: 'Ton banc s\'emmêle dans un changement en fin de match : six patineurs sur la glace, et la punition tombe dans les dernières minutes.',
+    // S80 : une punition à toi dans les cinq dernières minutes de ton dernier match.
+    faits: c => (c.dernier && c.dernier.punitionsTard >= 1 ? {} : null),
     options: [
       { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Plus de fautes bêtes', prix: 'Des présences plus longues, moins de jus', discipline: 0.85, volume: 0.95 },
       { cle: 'rythme', nom: 'Garder le rythme rapide', bon: 'Des jambes fraîches, plus de lancers', prix: 'Ça va se reproduire', volume: 1.06, discipline: 1.15 },
@@ -2050,6 +2058,8 @@ export const MOMENTS = {
   malarchuk: {
     ico: '🕯️', titre: 'Un accident terrible', irl: 'Buffalo, 1989', cible: 'gardien',
     recit: 'Un patin tranche la gorge de {nom} pendant le match. Il survit grâce au soigneur, mais les deux vestiaires sont sous le choc. Aucun bon choix ici.',
+    // S80 : ton gardien s\'est vraiment blessé à ton dernier match.
+    faits: c => (c.dernier && c.dernier.gardienBlesse ? { joueur: c.dernier.gardienBlesse } : null),
     options: [
       { cle: 'temps', nom: 'Lui donner tout le temps qu\'il faut', bon: 'Il revient quand il est prêt', prix: 'Cinq matchs avec l\'auxiliaire',
         action: { absents: 5 } },
@@ -2119,7 +2129,9 @@ export const MOMENTS = {
   },
   barbe: {
     ico: '🧔', titre: 'La barbe porte-bonheur', irl: null,
-    recit: 'Les vétérans refusent de se raser tant que la séquence dure. Le capitaine a l\'air d\'un trappeur.',
+    recit: '{n} victoires de suite. Les vétérans refusent de se raser tant que la séquence dure. Le capitaine a l\'air d\'un trappeur.',
+    // S80 : une vraie séquence de trois victoires ou plus.
+    faits: c => (c.serieV >= 3 ? { n: c.serieV } : null),
     options: [
       { cle: 'pousser', nom: 'Laisser pousser', bon: 'Dans cinq matchs, la barbe fait peur à tout le monde', ensuite: { apres: 5, duree: 10, finition: 1.04 } },
       { cle: 'raser', nom: 'Raser tout le monde ce soir', bon: 'Un vestiaire propre et motivé', finition: 1.03, duree: 5 },
@@ -2135,7 +2147,13 @@ export const MOMENTS = {
   },
   baton: {
     ico: '🏒', titre: 'Le bâton maudit', irl: null, cible: 'vedette',
-    recit: '{nom} jure que son nouveau modèle de bâton lui porte malheur. Il a trois buts en vingt matchs.',
+    recit: '{nom} jure que son nouveau modèle de bâton lui porte malheur. Il a {n} en {m} matchs.',
+    // S80 : un vrai marqueur (25 buts et plus dans sa vraie saison) qui n'a presque rien marqué chez toi ces derniers matchs.
+    faits: c => {
+      const x = c.joueurs.filter(j => j.marqueur && c.recents >= 10 && j.butsRecents <= 2).sort((a, b) => (b.p.g || 0) - (a.p.g || 0))[0];
+      if (!x) return null;
+      return { joueur: x.p, n: x.butsRecents === 0 ? 'aucun but' : x.butsRecents === 1 ? 'un seul but' : `${x.butsRecents} buts`, m: c.recents };
+    },
     options: [
       { cle: 'ancien', nom: 'Ressortir ses vieux bâtons', bon: 'Si c\'était bien le bâton, ça rentre', prix: 'Sinon, rien ne change et il le sait',
         pari: { chance: 0.5, gagne: { finition: 1.08, duree: 8 }, perd: { finition: 0.97, duree: 4 } } },
@@ -2159,6 +2177,8 @@ export const MOMENTS = {
   camp: {
     ico: '🏕️', titre: 'Le camp de mi-saison', irl: null,
     recit: 'La pause du Match des étoiles : trois jours d\'entraînement. Qui travaille quoi?',
+    // S80 : à la mi-saison seulement, quand la pause arrive vraiment.
+    faits: c => (c.J >= 38 && c.J <= 55 ? {} : null),
     options: [
       { cle: 'gun', nom: 'Envoyer {nom} tirer du gun', mutation: 'tir_gun', bon: 'Ton plombier apprend à viser', prix: 'Trois jours sans repos pour les autres', blessure: 1.15 },
       { cle: 'repos', nom: 'Repos pour tout le monde', bon: 'Des jambes neuves', blessure: 0.6 },
@@ -2198,7 +2218,9 @@ export const MOMENTS = {
   },
   ecole: {
     ico: '🧓', titre: 'L\'école du vétéran', irl: null,
-    recit: 'Ton vieux défenseur prend sa retraite dans deux ans. Il propose de prendre {nom} sous son aile.',
+    recit: '{vieux}, ton vieux défenseur, prend sa retraite dans deux ans. Il propose de prendre {nom} sous son aile.',
+    // S80 : tu as vraiment un défenseur de 33 ans ou plus.
+    faits: c => (c.veteransD.length ? { vieux: c.veteransD[0].n } : null),
     options: [
       { cle: 'oui', nom: 'Qu\'il lui apprenne à défendre', mutation: 'dur', bon: '{nom} ne montera plus, il bloquera', prix: 'Moins de relance' },
       { cle: 'non', nom: '{nom} garde son style', bon: 'Rien ne change', rien: true },
@@ -2208,8 +2230,13 @@ export const MOMENTS = {
 
 export const JOURS_MOMENTS = [14, 25, 33, 51, 60, 70];
 /* Le dilemme d'une journée : PUR, graine et jour, jamais deux fois le même. */
-export function momentDuJour(graine, jour, deja = []) {
-  const cles = Object.keys(MOMENTS).filter(c => !deja.includes(c));
+/*
+ * `faits` (S80) : ce qui est VRAIMENT arrivé avant la journée du dilemme (tes matchs, ta
+ * séquence, tes joueurs). Un dilemme qui affirme un fait de match ne se tire que si ce fait
+ * est vrai (`MOMENTS[c].faits`) ; sans faits (une vérification en Node), il ne se tire pas.
+ */
+export function momentDuJour(graine, jour, deja = [], faits = null) {
+  const cles = Object.keys(MOMENTS).filter(c => !deja.includes(c) && (!MOMENTS[c].faits || (faits && MOMENTS[c].faits(faits))));
   if (!cles.length) return null;
   let x = ((Number(graine) >>> 0) ^ (jour * 0x85ebca6b) ^ 0x5bd1e995) >>> 0;
   x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
@@ -4226,7 +4253,30 @@ function updateTogether(team, lineup) {
   }
 }
 
-function applyInjuries(team, lineup, heavy) {
+/*
+ * LE MOMENT D'UNE BLESSURE, SUR LA FEUILLE (S80). JP : *blessures aux joueurs
+ * adverses et de l'équipe dans les matchs, incluant « oh non » notre équipe*.
+ * La blessure se tire après le match (le hasard du moteur n'en sait pas plus) ;
+ * le direct la raconte à un moment du soir. Ce moment ne tire AUCUN hasard —
+ * une empreinte du joueur et du match — et tombe APRÈS sa dernière action de
+ * la soirée (un but, une passe, un tir, une punition purgée) : on ne le voit
+ * jamais marquer après s'être blessé.
+ */
+function empreinte(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h / 4294967296;
+}
+function instantDeBlessure(feuille, p, team) {
+  let dernier = 2;
+  for (const b of feuille.buts) if (b.marqueur === p || (b.passeurs || []).includes(p)) dernier = Math.max(dernier, b.instant);
+  for (const l of feuille.lancers || []) if (l.tireur === p || l.gardien === p) dernier = Math.max(dernier, l.instant);
+  for (const x of feuille.punitions || []) if (x.joueur === p) dernier = Math.max(dernier, x.fin ?? (x.instant + x.minutes));
+  const fin = Math.max(60, ...feuille.buts.map(b => b.instant));
+  if (dernier >= fin - 0.4) return Math.max(dernier, fin - 0.3);
+  return dernier + (fin - 0.3 - dernier) * (0.1 + 0.8 * empreinte(`${getPlayerKey(p)}|${team.name}|${team.games}`));
+}
+function applyInjuries(team, lineup, heavy, feuille = null, cote = null) {
   for (const [p, n] of team.injured) {
     if (n <= 1) team.injured.delete(p); else team.injured.set(p, n - 1);
   }
@@ -4242,6 +4292,7 @@ function applyInjuries(team, lineup, heavy) {
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
       team.injuriesLog.push({ player: p, games: n, at: team.games + 1, jour: Number.isFinite(team.jourCourant) ? team.jourCourant : null });
+      if (feuille && cote) (feuille.blessures = feuille.blessures || []).push({ cote, joueur: p, matchs: n, instant: instantDeBlessure(feuille, p, team) });
     }
   }
 }
@@ -4379,7 +4430,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
     if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB, feuille: journal });
   }
-  applyInjuries(A, LA, heavy); applyInjuries(B, LB, heavy);
+  applyInjuries(A, LA, heavy, journal, 'A'); applyInjuries(B, LB, heavy, journal, 'B');
   if (track) { A.games++; B.games++; }
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
@@ -4857,7 +4908,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
     jour: 0, fini: false,
     calendrier: ceduleDe(teams, games, graine),
     // Le gros match du prochain soir, repéré d'avance sans rien jouer (voir `preludeDuJour`).
-    grosAVenir: null,
+    grosAVenir: null, grosAnnonces: {},
   };
   avecLigue(L, () => {
     for (const t of teams) {
@@ -4879,7 +4930,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
       for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
-      t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = [];
+      t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
     }
     /*
@@ -4930,21 +4981,21 @@ function preludeDuJour(L) {
       energie: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), Math.round(energieDe(p))])),
     };
   }
-  // LE GROS MATCH DU SOIR, repéré sans rien jouer : le même calcul que
-  // `jouerJournee` refera au moment du match (les décisions du jour ne
-  // touchent ni au classement ni aux rivalités). Il se repère AVANT les
-  // situations et les accidents (S79) : eux attendent un jour sans gros match.
-  L.grosAVenir = null;
+  /*
+   * LE GROS MATCH S'ANNONCE D'AVANCE (S80). JP, sur « Le virus dans le
+   * vestiaire » : *ces events gros matchs, ça devrait pas être le jour même,
+   * mais dans les jours avant*. Il se repère ANNONCE_GROS journées plus tôt,
+   * sur le classement et les rivalités de CE jour-là — rien n'est joué
+   * d'avance, on lit ce qui est connu — et il ne bouge plus ensuite :
+   * l'avant-match (le virus, la conférence de presse…) arrive à l'annonce,
+   * son effet joue le soir du match. `grosAVenir` reste le gros match du
+   * soir, repéré AVANT les situations et les accidents (S79) : eux attendent
+   * un jour sans gros match.
+   */
   const toi = teams[0] && teams[0].isPlayer ? teams[0] : null;
-  const m = toi && (L.calendrier[r] || []).find(x => x.A === toi || x.B === toi);
-  if (m && r >= 10) {
-    const adv = m.A === toi ? m.B : m.A;
-    const raison = grosMatchAvant(toi, adv, r, rangsDe(teams));
-    if (raison) {
-      const depistage = depistageDe(L.graine, `j${r}`, adv);
-      L.grosAVenir = { jour: r, adv, raison, depistage, plan: planDuDepistage(L.graine, `j${r}`, depistage) };
-    }
-  }
+  L.grosAnnonces = L.grosAnnonces || {};
+  if (toi) for (let j = r; j <= r + ANNONCE_GROS; j++) annoncerGros(L, toi, j);
+  L.grosAVenir = (toi && L.grosAnnonces[r]) || null;
   /*
    * LES SITUATIONS ET LES ACCIDENTS DU JOUR, avant les décisions : ils ne
    * consomment AUCUN hasard — de la graine, de la journée et du rang.
@@ -5007,17 +5058,18 @@ export function jouerJournee(L) {
      * matchs — le sel est dans la sauvegarde avec la décision.
      */
     if (sel) grainerHasard(`${graine}:${r}:${sel}`);
-    // LES MINI-BOSS DU JOUR (S69), repérés sur le classement de la veille :
-    // seule ta formation (l'équipe 0 quand elle est le joueur) en a.
+    // LES MINI-BOSS DU JOUR (S69) : ceux que le matin d'il y a ANNONCE_GROS
+    // journées a annoncés (S80). Seule ta formation (l'équipe 0 quand elle est
+    // le joueur) en a.
     const toi = teams[0] && teams[0].isPlayer ? teams[0] : null;
-    const rangsVeille = toi && r >= 10 ? rangsDe(teams) : null;
+    const annonce = toi && L.grosAnnonces ? L.grosAnnonces[r] : null;
     for (const m of L.calendrier[r]) {
       // CHAQUE MATCH DE SAISON GARDE SA FEUILLE, comme un match de séries :
       // ses buts avec leurs passeurs, ses gardiens, ses tirs par période.
       const feuille = feuilleVierge();
       const avecToi = toi && (m.A === toi || m.B === toi);
       const advToi = avecToi ? (m.A === toi ? m.B : m.A) : null;
-      const raison = avecToi ? grosMatchAvant(toi, advToi, r, rangsVeille) : null;
+      const raison = avecToi && annonce && annonce.adv === advToi ? annonce.raison : null;
       let gros = null;
       if (raison) {
         const depistage = depistageDe(graine, `j${r}`, advToi);
@@ -5134,6 +5186,7 @@ export function feuilleVierge() {
     buts: [],
     lancers: [],                                          // chaque tir, daté, avec tireur, gardien et mode (FE, AN, DN)
     punitions: [],                                        // { cote (l'équipe punie), instant, joueur, minutes }
+    blessures: [],                                        // { cote, joueur, matchs, instant } : racontées au direct (S80)
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
     prolongation: false,
@@ -5236,7 +5289,7 @@ function remettreANeuf(t) {
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
   t.chimie = [0, 0, 0, 0]; t.entente = new Map();
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
-  t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = [];
+  t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
 }
 export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
   const avant = hasard;
@@ -6463,9 +6516,25 @@ export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
  * défaites contre le même club et s'éteint quand on le bat (la revanche) ;
  * deux gros matchs sont séparés d'au moins ESPACEMENT_GROS journées.
  */
+/*
+ * L'ANNONCE d'un gros match, au matin d'une journée antérieure (S80) : une
+ * fois par journée à venir, écrite une fois pour toutes (`null` quand ce n'en
+ * est pas un). L'espacement se compte d'annonce en annonce.
+ */
+export const ANNONCE_GROS = 2;
+function annoncerGros(L, toi, j) {
+  if (j in L.grosAnnonces || j < 10 || j >= L.calendrier.length) return;
+  const m = (L.calendrier[j] || []).find(x => x.A === toi || x.B === toi);
+  const adv = m ? (m.A === toi ? m.B : m.A) : null;
+  const raison = adv ? grosMatchAvant(toi, adv, j, rangsDe(L.teams)) : null;
+  if (!raison) { L.grosAnnonces[j] = null; return; }
+  toi._dernierAnnonce = j;
+  const depistage = depistageDe(L.graine, `j${j}`, adv);
+  L.grosAnnonces[j] = { jour: j, adv, raison, depistage, plan: planDuDepistage(L.graine, `j${j}`, depistage) };
+}
 function grosMatchAvant(toi, adv, r, rangs) {
   if (!rangs) return null;
-  if (toi._dernierGros != null && r - toi._dernierGros < ESPACEMENT_GROS) return null;
+  if (toi._dernierAnnonce != null && r - toi._dernierAnnonce < ESPACEMENT_GROS) return null;
   toi.defaitesContre = toi.defaitesContre || new Map();
   if ((toi.defaitesContre.get(adv) || 0) >= 2) return 'nemesis';
   if (Math.abs(rangs.get(toi) - rangs.get(adv)) <= 2) return 'rival';

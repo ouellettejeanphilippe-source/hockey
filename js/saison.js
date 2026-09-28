@@ -312,7 +312,7 @@ function tableJoueurs(ctx, { titre, id, colonnes, lignes, tri, tete = 'eq', limi
   // son propre conteneur, comme tous les tableaux du jeu.
   return `<div class="live-tableau hub-table"><div class="live-tableau-titre">${ctx.esc(titre)}</div>
     <div class="hub-scroll"><table><thead><tr><th>#</th><th>Joueur</th><th>${tete === 'eq' ? 'Éq.' : 'Profil'}</th>${colonnes.map(th).join('')}</tr></thead>
-    <tbody>${vues.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}${l.blesse ? ' blesse' : ''}">
+    <tbody>${vues.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}${l.blesse ? ' blesse' : ''}${l.parti ? ' parti' : ''}">
       <td>${i + 1}</td><td class="nom">${nomLie(ctx, l)}${l.blesse ? ` <span class="hub-bl" title="Blessé">🩹 ${l.blesse}</span>` : ''}</td>
       <td class="${tete === 'eq' ? 'eq' : 'role'}">${tete === 'eq' ? versEquipe(ctx, l.t, l.eq) : ctx.esc(l.role)}</td>${cellules(l)}</tr>`).join('')}</tbody></table></div>
     ${vues.length < rangs.length ? `<button type="button" class="hub-plus" data-plus="${id}">Voir les ${rangs.length - vues.length} autres</button>` : ''}
@@ -351,7 +351,7 @@ function meneursHtml(ctx, compte, equipeDe, you, titre, menu, minGardien = 1) {
  * chacun a fait à ce jour. La case de chaque joueur reste affichée — c'est
  * une feuille d'équipe, pas un palmarès — et les colonnes se trient pareil.
  */
-function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blessesDe }) {
+function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blessesDe, anciens = () => [] }) {
   if (!teams.length) return '<div class="live-vide">Aucune équipe.</div>';
   const t = teams.find(x => x === menu.equipe) || (teams.includes(you) ? you : teams[0]);
   menu.equipe = t;
@@ -373,6 +373,15 @@ function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blesses
   const gar = SLOTS.filter(s => s.group === 'G').map(rangee).filter(Boolean);
   // Le gardien de rappel n'a pas de case, mais il a gardé des matchs.
   if (t.rappelG && compte.get(t.rappelG)) gar.push({ p: t.rappelG, t, nom: nom(t.rappelG), role: 'Rappel', c: compte.get(t.rappelG) });
+  /*
+   * CEUX QUI SONT PARTIS (S80). JP : *voir joueurs échangés dans les stats de l'équipe quand même,
+   * ben, retirés de l'alignement*. Un joueur sorti de l'alignement (qui sort, ballottage, relâché)
+   * garde sa ligne : ce qu'il a fait chez toi, grisé, avec le mot qui dit qu'il n'y est plus.
+   */
+  for (const p of anciens(t)) {
+    const r = { p, t, nom: nom(p), role: "Retiré de l'alignement", parti: true, c: compte.get(p) || VIDE };
+    (p.p === 'G' ? gar : pat).push(r);
+  }
   const f = ficheDe(t);
   return `${choix}
     <div class="hub-eq-entete" style="--eq-band:${ctx.band(t.tag).bg};--eq-ink:${ctx.band(t.tag).ink};--eq-stripe:${ctx.band(t.tag).stripe}">
@@ -767,8 +776,53 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (grosDuJour(jour)) return null;
     const J = JOURS_MOMENTS.find(j => jour >= j && !pris.has(`m:${j}`));
     if (J === undefined) return null;
-    const cle = momentDuJour(graine, J, momentsAvant(J));
-    return cle ? { J, cle } : null;
+    const faits = faitsAvant(J);
+    const cle = momentDuJour(graine, J, momentsAvant(J), faits);
+    if (!cle) return null;
+    return { J, cle, faits: MOMENTS[cle].faits ? MOMENTS[cle].faits(faits) : null };
+  };
+  /*
+   * CE QUI EST VRAIMENT ARRIVÉ AVANT UN DILEMME (S80). JP : *les trucs comme,
+   * après neuf buts encaissés… faut que ça soit arrivé pour vrai*. Un dilemme
+   * qui affirme un fait de match (le gardien laissé devant le filet, le doublé
+   * de l'ailier, la séquence de la barbe) ne se tire que si ce fait est vrai,
+   * lu sur tes matchs d'AVANT la journée prévue — le même avant et après un
+   * report —, et il dit les vrais chiffres (`MOMENTS[c].faits`, js/sim.js).
+   */
+  const faitsAvant = J => {
+    const avant = miens.filter(x => x.j < J);
+    const coteDe = m => (m.A === you ? 'A' : 'B');
+    const d = avant[avant.length - 1];
+    let dernier = null;
+    if (d) {
+      const m = d.m, cote = coteDe(m), f = m.feuille || { buts: [], lancers: [], punitions: [] };
+      const buteurs = new Map();
+      for (const b of f.buts) if (b.cote === cote && b.marqueur) buteurs.set(b.marqueur, (buteurs.get(b.marqueur) || 0) + 1);
+      // Ton gardien : celui qui a reçu les tirs d'en face.
+      const recus = new Map();
+      for (const l of f.lancers || []) if (l.cote !== cote && l.gardien) recus.set(l.gardien, (recus.get(l.gardien) || 0) + 1);
+      const gardien = [...recus].sort((a, b) => b[1] - a[1])[0];
+      const blesses = (f.blessures || []).filter(x => x.cote === cote).map(x => x.joueur);
+      dernier = {
+        domicile: cote === 'A', pour: cote === 'A' ? m.gfA : m.gfB, contre: cote === 'A' ? m.gfB : m.gfA,
+        gardien: gardien ? gardien[0] : null,
+        buteurs: [...buteurs].map(([p, buts]) => ({ p, buts, avant: p.p !== 'G' && !/D$/.test(p.p || '') })),
+        punitionsTard: (f.punitions || []).filter(x => x.cote === cote && x.instant >= 55 && x.instant < 60).length,
+        gardienBlesse: blesses.find(p => p && p.p === 'G') || null,
+      };
+    }
+    let serieV = 0;
+    for (let i = avant.length - 1; i >= 0 && gagne(avant[i].m, you); i--) serieV++;
+    // Les buts de chacun sur tes douze derniers matchs.
+    const recents = avant.slice(-12), butsRecents = new Map();
+    for (const { m } of recents) for (const b of (m.feuille ? m.feuille.buts : [])) if (b.cote === coteDe(m) && b.marqueur) butsRecents.set(b.marqueur, (butsRecents.get(b.marqueur) || 0) + 1);
+    const habilles = g => SLOTS.filter(s => !s.scratch && s.group === g).map(s => you.roster[s.i]).filter(Boolean);
+    const age = p => (p.bd && p.s ? parseInt(p.s, 10) - parseInt(p.bd, 10) : 0);
+    return {
+      J, dernier, serieV, recents: recents.length,
+      joueurs: habilles('F').map(p => ({ p, marqueur: (p.g || 0) >= 25, butsRecents: butsRecents.get(p) || 0 })),
+      veteransD: habilles('D').filter(p => age(p) >= 33).sort((a, b) => age(b) - age(a)),
+    };
   };
   /* Tes matchs sous la forme que les objectifs lisent. */
   const mesMatchs = depuisJ => miens.filter(x => x.j >= depuisJ).map(({ m }) => {
@@ -825,14 +879,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * comme un dilemme ; le deuxième entracte arrête « Journée suivante » et le
    * direct. « La fin » ne s'arrête pas : qui demande la fin demande la fin.
    */
-  // Joué, il est dans `minisBoss` ; à venir, le moteur l'a repéré au matin (`grosAVenir`), sans rien jouer (S79).
+  // Joué, il est dans `minisBoss` ; à venir, le moteur l'a ANNONCÉ au matin (`grosAnnonces`,
+  // S80 : deux journées d'avance, sur ce qui était connu ce jour-là), sans rien jouer.
   const grosDuJour = j => (you.minisBoss || []).find(x => x.jour === j)
-    || (ligue && ligue.grosAVenir && ligue.grosAVenir.jour === j ? ligue.grosAVenir : null);
+    || (ligue && ligue.grosAnnonces && ligue.grosAnnonces[j]) || null;
   const entracteAttendu = j => !!(onDecision && grosDuJour(j) && !decs.some(d => d.jour === j && d.entracte));
+  // Le prochain gros match annoncé : son avant-match arrive À L'ANNONCE, pas le soir même (S80).
+  const grosAnnonce = () => (ligue && ligue.grosAnnonces
+    ? Object.values(ligue.grosAnnonces).filter(x => x && x.jour >= jour).sort((x, y) => x.jour - y.jour)[0] : null) || null;
   function avantOuvert() {
     if (!onDecision || jour >= N) return null;
-    const p = prochain();
-    const mb = p ? grosDuJour(p.j) : null;
+    const mb = grosAnnonce();
+    const p = mb ? { j: mb.jour } : null;
     if (!mb || decs.some(d => d.jour === p.j && d.avant)) return null;
     const deja = decs.filter(d => d.avant && d.jour < p.j).map(d => d.avant.cle);
     return { p, mb, cle: avantDuGros(graine, p.j, deja) };
@@ -1649,6 +1707,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
     if (cle === 'equipes') return equipesHtml(ctx, {
       teams: classement(), compte, you, menu, matchsDe, blessesDe,
+      anciens: t => (t === you ? [...compte.keys()].filter(p => !equipeDe.has(p) && (compte.get(p).gp || 0) > 0) : []),
       ficheDe: t => { const g = fiche.get(t); return `${g.W}-${g.L}-${g.OTL} · ${g.PTS} pts · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'} · ${g.GF} BP · ${g.GA} BC`; },
     });
     if (cle === 'fiche') return voletFiche();
@@ -2075,12 +2134,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     if (dl) {
       const m = MOMENTS[dl.cle];
+      // Ce qui est vraiment arrivé (S80) : le joueur en cause et les vrais chiffres.
+      const f = dl.faits || {};
       // LE JOUEUR VISÉ est nommé avant le choix : c'est lui dont la carte change.
       const optMut = m.options.find(o => o.mutation);
-      const cible = optMut ? cibleMutation(you, optMut.mutation) : null;
-      // LES JOUEURS QU'UN GESTE TOUCHE (S72) : nommés avant le choix.
-      const cibles = m.cible ? ciblesDe(you, m.cible, graine, dl.J) : [];
-      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit: m.recit, joueur: cible, joueurs: cibles, ouDe: ctx.ouJoue,
+      const cible = optMut ? (f.joueur || cibleMutation(you, optMut.mutation)) : null;
+      // LES JOUEURS QU'UN GESTE TOUCHE (S72) : nommés avant le choix — celui des faits d'abord.
+      const cibles = m.cible ? (f.joueur ? [f.joueur] : ciblesDe(you, m.cible, graine, dl.J)) : [];
+      const recit = String(m.recit).replace(/\{n\}/g, f.n ?? '').replace(/\{m\}/g, f.m ?? '').replace(/\{vieux\}/g, f.vieux || 'Ton vieux défenseur');
+      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue,
         options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
           desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
         onChoix: cle => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } }) };
@@ -2089,8 +2151,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // L'AVANT-MATCH (S70) : daté du soir du match, pas d'aujourd'hui.
       const A = AVANT_GROS[av.cle], advG = av.mb.adv;
       const ciblesA = A.cible ? ciblesDe(you, A.cible, graine, av.p.j) : [];
+      // Il arrive à l'annonce, quelques jours avant (S80) : le récit dit quand est le match.
+      const dans = av.p.j - jour;
+      const quand = dans <= 0 ? 'Ce soir' : dans === 1 ? 'Demain' : `Dans ${dans} jours`;
       return { de: DE.depisteur, ico: A.ico, titre: A.titre, irl: A.irl, joueurs: ciblesA, ouDe: ctx.ouJoue,
-        recit: `Avant le gros match contre ${ctx.teamLabel(advG)}. ${A.recit}`,
+        recit: `${quand}, le gros match contre ${ctx.teamLabel(advG)}. ${A.recit}`,
         contexte: depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) }),
         options: A.options.map(o => ({ ...o, duree: 1 })),
         onChoix: cle => { const j = jour; quitter(); onDecision({ jour: av.p.j, avant: { cle: av.cle, choix: cle, joueurs: ciblesA.map(getPlayerKey) } }, j); } };
@@ -2899,6 +2964,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     if (cle === 'meneurs') return meneursHtml(ctx, compterFeuilles(feuillesRevelees()), equipeDe, you, 'séries', menu, 1);
     if (cle === 'equipes') return equipesHtml(ctx, {
       teams: clubs(), compte: compterFeuilles(feuillesRevelees()), you, menu,
+      anciens: t => { const c = compterFeuilles(feuillesRevelees()); return t === you ? [...c.keys()].filter(p => !equipeDe.has(p) && (c.get(p).gp || 0) > 0) : []; },
       matchsDe: t => { const f = ficheSeries(t); return f.v + f.d; },
       ficheDe: t => { const f = ficheSeries(t); return `${f.v}-${f.d} en séries`; },
     });

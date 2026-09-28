@@ -152,6 +152,8 @@ function evenementsDuMatch(f, graine) {
     const fin = x.fin ?? (x.instant + x.minutes);
     if (!x.butAN && fin < 60) ev.push({ type: 'finPunition', cote: x.cote, instant: fin + 1e-4, joueur: x.joueur });
   }
+  // LES BLESSURES (S80) : datées sur la feuille, après la dernière action du blessé ce soir-là.
+  for (const x of (f.blessures || [])) ev.push({ type: 'blessure', cote: x.cote, instant: x.instant, joueur: x.joueur, matchs: x.matchs });
   for (let per = 1; per <= 3; per++) ev.push({ type: 'periode', per, instant: per * 20 - 1e-6 });
   ev.push({ type: 'fin', instant: f.ot ? finOT + 1e-6 : 60 });
   ev.sort((x, y) => x.instant - y.instant);
@@ -499,6 +501,18 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       ligne(`punition ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
         <span><b class="live-pun-mot">PUNITION · ${e.minutes} MIN</b> ${com.punition({ j: e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : '', eq: ctx.esc(ctx.teamShort(profite)), autre: ctx.esc(ctx.teamShort(puni)), tard: serre(e.instant) })}</span>`, couleurs(e.cote));
       return 500;
+    }
+    /*
+     * UNE BLESSURE (S80). JP : *blessures aux joueurs adverses et de l'équipe
+     * dans les matchs, incluant « oh non » notre équipe*. Chez toi, le fil s'arrête
+     * une seconde de plus : c'est une mauvaise nouvelle, elle se lit.
+     */
+    if (e.type === 'blessure') {
+      const eq = equipe(e.cote), nous = !!eq.isPlayer;
+      const qui = e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : 'Un joueur';
+      ligne(`blessure ${e.cote === 'A' ? 'a' : 'b'}${nous ? ' nous' : ''}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(eq.tag, 13)}
+        <span>${nous ? `<b class="live-bless-mot">😱 OH NON !</b> ${qui} se blesse et retraite au vestiaire.` : `<b class="live-bless-mot">🚑 BLESSURE</b> ${qui} (${ctx.esc(ctx.teamShort(eq))}) se blesse et quitte le match.`}</span>`);
+      return nous ? 1200 : 500;
     }
     if (e.type === 'finPunition') {
       const puni = equipe(e.cote);

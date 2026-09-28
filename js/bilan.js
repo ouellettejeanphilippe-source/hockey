@@ -1148,13 +1148,22 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   const parPeriode = [1, 2, 3, 4].map(per => {
     const buts = f.buts.filter(b => periodeDe(b.instant) === per).map(b => ({ ...b, type: 'but', rang: rangs.get(b) }));
     const punitions = (f.punitions || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'punition' }));
+    // Les blessures du soir (S80), au même moment que le direct les a racontées.
+    const blessures = (f.blessures || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'blessure' }));
     if (!buts.length && per === 4) return '';
-    const items = [...buts, ...punitions].sort((x, y) => x.instant - y.instant);
+    const items = [...buts, ...punitions, ...blessures].sort((x, y) => x.instant - y.instant);
     const lignes = items.map(b => {
       const t = b.cote === 'A' ? A : B;
       // Chaque nom ouvre la fiche avec ses statistiques des SÉRIES.
       const lien = p => lienJoueur(p, t, mode, `<strong>${formatName(p.n)}</strong>`);
       const r = b.rang || { g: 0, a: [] };
+      if (b.type === 'blessure') {
+        return `<div class="som-but som-pun som-bless">
+          <span class="som-tps">${tempsRestant(b.instant)}</span>
+          <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
+          <span class="som-qui">🚑 Blessure${b.joueur ? ` : ${lien(b.joueur)}` : ''} · absent ${b.matchs} match${b.matchs > 1 ? 's' : ''}</span>
+        </div>`;
+      }
       if (b.type === 'punition') {
         return `<div class="som-but som-pun">
           <span class="som-tps">${tempsRestant(b.instant)}</span>

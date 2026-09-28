@@ -9719,3 +9719,13 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 }
 @keyframes fc-attend { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 35%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .fc-poser { animation: none; } }
+
+/* LES BLESSURES AU DIRECT (S80) : une teinte d'alerte ; chez toi, plus appuyée. */
+.live-ligne.blessure { background: color-mix(in srgb, var(--live, #e0364a) 10%, var(--surface-1, #151a22)); }
+.live-ligne.blessure.nous { background: color-mix(in srgb, var(--live, #e0364a) 22%, var(--surface-1, #151a22)); box-shadow: inset 3px 0 0 var(--live, #e0364a); }
+.live-bless-mot { font-family: var(--display); letter-spacing: 0.06em; color: var(--live, #e0364a); margin-right: 4px; }
+.live-ligne.blessure.nous .live-bless-mot { color: #ff6b7a; }
+
+/* LES JOUEURS PARTIS (S80) : leur ligne reste dans la feuille d'équipe, grisée. */
+.hub-table tr.parti td { opacity: 0.55; }
+.hub-table tr.parti td.role { font-style: italic; }
