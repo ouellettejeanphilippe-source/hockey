@@ -29,6 +29,7 @@ import {
   unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE } from './sim.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
+import { baseVisages } from './distant.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
@@ -1039,16 +1040,26 @@ async function chargerPortraits() {
 }
 
 /*
- * TOUT SUR L'APPAREIL, UNE FOIS (S78). L'APK et l'exe emportent déjà
- * img/ ; la version Web demande au travailleur de service de tout garder,
- * en arrière-plan, après le premier rendu. `cap82_visages` retient le lot
- * déjà gardé : un nouveau lot (plus de joueurs) se complète tout seul.
+ * TOUT SUR L'APPAREIL, UNE FOIS (S78, 1.0). La page demande au travailleur
+ * de service de tout garder, en arrière-plan, après le premier rendu.
+ * `cap82_visages` retient le lot déjà gardé : un nouveau lot (plus de
+ * joueurs) se complète tout seul.
+ *
+ * Sur le Web, les visages et les écussons sont relatifs à la page. Dans
+ * l'application Android (1.0, JP : *télécharger image en background au lieu
+ * d'intégrer*), l'APK n'emporte plus que les écussons et la silhouette : les
+ * visages viennent du site publié (js/distant.js), un par un à l'usage et
+ * tous en arrière-plan — sauf si l'appareil demande d'économiser les
+ * données. Le lot porte sa provenance : une installation Web et une
+ * installation Android n'ont pas le même marqueur.
  */
 async function prechargerVisages() {
   try {
-    if (window.Capacitor || !PORTRAITS_LOCAUX || !navigator.serviceWorker || !location.protocol.startsWith('http')) return;
-    // Le lot : le nombre de visages et d'écussons, et leur taille (S80 : 320 px) — des images neuves se regardent.
-    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}@320`;
+    if (!PORTRAITS_LOCAUX || !navigator.serviceWorker || !location.protocol.startsWith('http')) return;
+    const base = baseVisages();
+    if (base && navigator.connection && navigator.connection.saveData) return;
+    // Le lot : le nombre de visages et d'écussons, leur taille (S80 : 320 px) et leur provenance — des images neuves se regardent.
+    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}@320${base ? '@' + base : ''}`;
     if (localStorage.getItem('cap82_visages') === cle) return;
     const reg = await navigator.serviceWorker.ready;
     if (!reg.active) return;
@@ -1057,7 +1068,9 @@ async function prechargerVisages() {
       try { localStorage.setItem('cap82_visages', cle); } catch { /* stockage plein */ }
       if (ev.data.nouveaux) toast(`📥 Les ${PORTRAITS_LOCAUX.size.toLocaleString('fr-CA')} visages et ${LOGOS_LOCAUX.size} écussons sont sur ton appareil : le jeu marche hors ligne.`);
     });
-    reg.active.postMessage({ cle, precharger: [...[...LOGOS_LOCAUX].map(c => `img/logos/${c}.svg`), ...[...PORTRAITS_LOCAUX].map(id => `img/mugs/${id}.webp`)] });
+    // Les écussons voyagent avec l'APK : seule la version Web les demande au réseau.
+    const ecussons = base ? [] : [...LOGOS_LOCAUX].map(c => `img/logos/${c}.svg`);
+    reg.active.postMessage({ cle, precharger: [...ecussons, ...[...PORTRAITS_LOCAUX].map(id => `${base}img/mugs/${id}.webp`)] });
   } catch { /* pas de travailleur : les visages viendront à l'usage */ }
 }
 
@@ -1066,8 +1079,10 @@ function headshotHtml(p) {
   if (!p || !p.id) return fallback;
   const id = Number(p.id);
   // La classe `visage` porte le cadrage commun (style.css) : aucun écran ne zoome à sa façon.
-  // Sans photo à la LNH : sa silhouette générique, recadrée comme les autres.
-  if (PORTRAITS_LOCAUX) return `${fallback}<img class="visage${PORTRAITS_LOCAUX.has(id) ? '' : ' silhouette'}" src="img/mugs/${PORTRAITS_LOCAUX.has(id) ? id : 'silhouette'}.webp" alt="" loading="lazy" onerror="this.remove()">`;
+  // Sans photo à la LNH : sa silhouette générique, recadrée comme les autres — elle, toujours locale.
+  if (PORTRAITS_LOCAUX) return PORTRAITS_LOCAUX.has(id)
+    ? `${fallback}<img class="visage" src="${baseVisages()}img/mugs/${id}.webp" alt="" loading="lazy" onerror="this.remove()">`
+    : `${fallback}<img class="visage silhouette" src="img/mugs/silhouette.webp" alt="" loading="lazy" onerror="this.remove()">`;
   if (PORTRAITS_ABSENTS.has(id)) return fallback;
   return `${fallback}<img src="https://assets.nhle.com/mugs/nhl/latest/${id}.png" alt="" loading="lazy" onerror="this.remove();cap82.portraitAbsent(${id})">`;
 }

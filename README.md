@@ -49,6 +49,8 @@ node scripts/check_ratings.mjs      # distribution des cotes et cohérence avec 
 
 L'Action génère les shards et les commite. Un rafraîchissement hebdomadaire tient la saison en cours à jour. Le mode `bios` ajoute les dates de naissance aux shards existants (~110 requêtes) : c'est lui qui allume l'âge et le tri par âge dans le jeu.
 
+**L'application Android** (`mobile/fabriquer-apk.ps1`) n'emporte pas les 3 900 visages recadrés (57 Mo) : l'APK n'a que les écussons et la silhouette, et il télécharge les visages depuis le site publié (`js/distant.js`, l'adresse GitHub Pages ci-dessus), un par un à l'usage et tous en arrière-plan après le premier écran. Le travailleur de service les garde sur l'appareil : le jeu marche hors ligne dès que cette passe est faite. Le site doit donc être publié pour que l'application ait des visages.
+
 ## Comment les cotes sont calculées
 
 Elles sont dérivées des vraies stats, pas inventées, et **normalisées par saison**. Chaque joueur est mesuré en z-score contre ses contemporains. C'est ce qui fait que 100 points en 1982 et 100 points en 2004 ne donnent pas la même cote offensive — sinon les années 80 écraseraient tout.

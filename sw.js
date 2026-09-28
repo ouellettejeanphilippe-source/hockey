@@ -14,7 +14,9 @@
  *                             c'est ce qui coûte le plus en données mobiles
  *   visages et écussons (img/) cache d'abord, dans un tiroir qui survit aux
  *                             versions (S78) : la page le remplit une fois,
- *                             en arrière-plan (message `precharger`)
+ *                             en arrière-plan (message `precharger`) ; dans
+ *                             l'application Android, les visages viennent du
+ *                             site publié (1.0), même tiroir
  *   shards (data/seasons)     réseau seulement : IndexedDB s'en occupe déjà,
  *                             avec la version des cotes dans sa clé ;
  *                             data/seed.json, lui, est de la coquille
@@ -45,7 +47,7 @@ const FICHIERS = [
   'js/equipes.js', 'js/saison.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/identites.js', 'js/combat.js', 'js/album.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
   'js/sauvegardes.js', 'js/menu.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/packs.js', 'js/inventaire.js', 'js/magasin.js',
-  'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/depart.js',
+  'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/depart.js', 'js/distant.js',
   'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json', 'data/portraits.json', 'data/recrues.json',
   'fonts/BarlowCondensed-600-latin.woff2', 'fonts/BarlowCondensed-600-latin-ext.woff2',
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',
@@ -70,7 +72,10 @@ self.addEventListener('activate', ev => {
 });
 
 const estPortrait = url => url.hostname === 'assets.nhle.com';
-const estVisage = url => url.origin === self.location.origin && url.pathname.includes('/img/');
+// Les visages viennent du site publié dans l'application Android (1.0, js/distant.js) :
+// même tiroir, même règle. Le travailleur ne peut pas importer un module ES, la constante est répétée ici.
+const DISTANT = 'https://ouellettejeanphilippe-source.github.io/hockey/';
+const estVisage = url => (url.origin === self.location.origin && url.pathname.includes('/img/')) || url.href.startsWith(DISTANT + 'img/');
 // Les shards d'une saison, eux seuls : IndexedDB les garde déjà avec la
 // version des cotes dans sa clé, et en préécrire 55 coûterait des mégaoctets
 // à la première visite. `data/seed.json` n'en est PAS un — c'est le filet
@@ -115,9 +120,15 @@ async function visage(req) {
   const cache = await caches.open(VISAGES);
   const enCache = await cache.match(req, { ignoreSearch: true });
   if (enCache) return enCache;
-  const rep = await fetch(req);
-  if (rep && rep.ok) cache.put(req, rep.clone());
-  return rep;
+  try {
+    const rep = await fetch(req);
+    // Du site publié, la réponse peut arriver opaque (sans CORS) : on la garde quand même.
+    if (rep && (rep.ok || rep.type === 'opaque')) cache.put(req, rep.clone());
+    return rep;
+  } catch {
+    // Hors ligne et pas encore gardé : l'image se retire d'elle-même (`onerror`).
+    return Response.error();
+  }
 }
 
 /*
@@ -129,8 +140,10 @@ async function visage(req) {
  */
 async function precharger(urls, cle, client) {
   const cache = await caches.open(VISAGES);
-  const deja = new Set((await cache.keys()).map(r => new URL(r.url).pathname));
-  const reste = urls.filter(u => !deja.has(new URL(u, self.registration.scope).pathname));
+  // Une entrée de la même origine se reconnaît à son chemin ; une entrée du site publié, à son adresse entière.
+  const nomDe = u => { const url = new URL(u, self.registration.scope); return url.origin === self.location.origin ? url.pathname : url.href; };
+  const deja = new Set((await cache.keys()).map(r => nomDe(r.url)));
+  const reste = urls.filter(u => !deja.has(nomDe(u)));
   for (let i = 0; i < reste.length; i += 24) await Promise.allSettled(reste.slice(i, i + 24).map(u => cache.add(u)));
   if (client) client.postMessage({ visagesPrets: cle, nouveaux: reste.length });
 }
