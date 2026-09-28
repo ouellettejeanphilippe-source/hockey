@@ -1703,17 +1703,8 @@ async function traverserSaison(etiquette, reprise = false) {
      */
     const trajet = [];   // les arrêts de la boucle, dits si la fenêtre ne vient pas
     const jourVu = async () => Number(((await page.textContent('#hubModal .live-match')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
-    for (let i = 0; i < 40 && (await jourVu()) <= 66 && !(await page.$('#hubModal .hub-situ:not(.hub-accident)')); i++) {
-      await page.click('#hubModal .hub-prochaine');
-      await page.waitForTimeout(260);
-      trajet.push(await page.evaluate(() => {
-        const j = (document.querySelector('#hubModal .live-match')?.textContent || '').replace(/\D+/g, ' ').trim().split(' ')[0];
-        const c = document.querySelector('#choixModal:not([hidden]) .choix-titre')?.textContent;
-        return `j${j}${document.querySelector('#hubModal .hub-situ:not(.hub-accident)') ? '·situ' : ''}${c ? `·« ${c} »` : ''}`;
-      }));
-      await guetterTrou();
-    }
-    const situ = await page.evaluate(() => {
+    // La paire se lit DÈS qu'elle paraît : une décision prise deux journées plus tard la range.
+    const lireSitu = () => page.evaluate(() => {
       const el = document.querySelector('#hubModal .hub-situ:not(.hub-accident)');
       if (!el) return null;
       const bout = [...el.querySelectorAll('.hub-situ-bout')].map(b => ({
@@ -1724,7 +1715,27 @@ async function traverserSaison(etiquette, reprise = false) {
       }));
       return { bout, large: el.scrollWidth > el.clientWidth + 1 };
     });
-    if (!situ) errors.push(`aucune fenêtre de situations jusqu'au jour 66 : ${trajet.join(' → ')}`);
+    /*
+     * S80 : une fenêtre qui tombe un soir de gros match attend le lendemain
+     * (64 → 65), et le gros match s'annonce deux journées d'avance — son
+     * avant-match s'ouvre EN ROUTE. La boucle y répond (sinon elle piétine
+     * derrière le choix) et va jusqu'au jour 70.
+     */
+    let situ = await lireSitu();
+    for (let i = 0; i < 50 && !situ && (await jourVu()) <= 70; i++) {
+      if (await page.$('#choixModal:not([hidden])')) { await repondreAuxChoix(); situ = await lireSitu(); if (situ) break; }
+      if (await page.$('#hubModal .hub-prochaine')) await page.click('#hubModal .hub-prochaine');
+      else if (await page.$('#hubModal .hub-traiter')) await page.click('#hubModal .hub-traiter');
+      await page.waitForTimeout(260);
+      situ = await lireSitu();
+      trajet.push(await page.evaluate(() => {
+        const j = (document.querySelector('#hubModal .live-match')?.textContent || '').replace(/\D+/g, ' ').trim().split(' ')[0];
+        const c = document.querySelector('#choixModal:not([hidden]) .choix-titre')?.textContent;
+        return `j${j}${document.querySelector('#hubModal .hub-situ:not(.hub-accident)') ? '·situ' : ''}${c ? `·« ${c} »` : ''}`;
+      }));
+      if (!situ) await guetterTrou();
+    }
+    if (!situ) errors.push(`aucune fenêtre de situations jusqu'au jour 70 : ${trajet.join(' → ')}`);
     else if (situ.bout.length !== 2) errors.push(`le vestiaire nomme ${situ.bout.length} joueur(s) au lieu de deux`);
     else {
       const [a, b] = situ.bout;

@@ -534,6 +534,15 @@ while (tours++ < 4000) {
       return !!e && !touchable(e) && !!document.querySelector('#tableModal .t-cmd:not([hidden]) .t-cmd-fermer');
     })(),
     jouablesCases: cases('#tableModal .t-case.t-jouable:not(.t-sel)'),
+    // MON PORTEUR, s'il est jouable : c'est lui qui offre le mode « Passer » (S80 — le prendre au
+    // hasard, c'était ne voir la passe que certains matchs, comme le duel avant S46).
+    porteurJouable: (() => {
+      const j = [...document.querySelectorAll('#tableModal .t-jeton.mienne')].find(e => e.querySelector('.t-rondelle'));
+      if (!j) return null;
+      const r = j.style.getPropertyValue('--tr'), c = j.style.getPropertyValue('--tc');
+      const e = document.querySelector(`#tableModal .t-case.t-jouable:not(.t-sel)[data-r="${r}"][data-c="${c}"]`);
+      return e && touchable(e) ? `${r},${c}` : null;
+    })(),
     offresCases: cases('#tableModal .t-case.t-offre'),
     contactsCases: cases('#tableModal .t-case.t-offre-echec'),
     // La case d'un adversaire qui PORTE la rondelle et qu'on peut atteindre :
@@ -717,7 +726,10 @@ while (tours++ < 4000) {
     await page.click(caseDe(etat.offresCases[Math.floor(dé() * etat.offres)]));
     gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
-  if (etat.jouables) { await page.click(caseDe(etat.jouablesCases[0])); pieces++; await page.waitForTimeout(50); continue; }
+  if (etat.jouables) {
+    const piece = !modesVus.has('passe') && etat.porteurJouable ? etat.porteurJouable : etat.jouablesCases[0];
+    await page.click(caseDe(piece)); pieces++; await page.waitForTimeout(50); continue;
+  }
   // Un déplacement et une action par main (S36) : quand rien ne peut
   // dépenser ce qui reste, on rend la main ; on ne renonce à la présence
   // que si la main n'était pas entamée.

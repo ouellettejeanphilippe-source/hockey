@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v25';  // v25 : des vraies cartes (le carton, les finitions, le verso), le gros match annoncé, les blessures au direct, des dilemmes vrais (S80)
+const VERSION = 'cap82-v26';  // v26 : la réserve lisible (le ✕ ne cache plus le salaire), 5 🪙 par victoire en Rogue, la carte du New Jersey recentrée (S82). v25 : des vraies cartes (le carton, les finitions, le verso), le gros match annoncé, les blessures au direct, des dilemmes vrais (S80)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

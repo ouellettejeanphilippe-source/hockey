@@ -28,10 +28,12 @@
  *      stage), des améliorations, des cartes qui visent l'adversaire.
  *
  * Les runs, les campagnes et les moments se jouent en parallèle (un
- * travailleur chacun) : le moteur a son état par module, donc par fil.
+ * travailleur chacun, FILS à la fois — 6 par défaut) : le moteur a son état
+ * par module, donc par fil.
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
+import { availableParallelism } from 'node:os';
 import {
   SLOTS, CASES_DE_BASE, RESERVES_EN_PLUS, casesDuMode, autoRoster, activeLineup, createTeam, getPlayerKey, getPersonKey,
   echelleTardive, grandirEffet, effetsDesCartes, appliquerMutation, simulerGrosMatch, MUTATIONS, MAITRISE_PAS, ENTENTE_STAGE,
@@ -232,7 +234,7 @@ if (!isMainThread) {
     exiger('le tirage du classeur est pur : la même graine donne le même ordre, quel que soit l\'ordre du cartable', a.join() === b.join() && a.length === 4, `${a.join(' ')} · une autre run : ${c.join(' ')}`);
     exiger('le budget du classeur : 25 M$ sans déblocage, le plafond débloqué le monte', budgetDuClasseur({ deblocages: [] }) === 25_000_000 && budgetDuClasseur({ deblocages: ['plafond1', 'plafond2'] }) === 32_000_000, '25 M$ · 32 M$');
     exiger('les cases de réserve de plus se débloquent une à une', reservesDeLaRun({ deblocages: [] }) === 0 && reservesDeLaRun({ deblocages: ['banc1'] }) === 1 && reservesDeLaRun({ deblocages: ['banc1', 'banc2'] }) === 2 && DEBLOCAGES.banc2.requis === 'banc1', '0 · 1 · 2');
-    exiger('le barème d\'une run : 4 🪙 par victoire, 7 et 9 avec les commanditaires', baremeRogue({ deblocages: [] }).victoire === 4 &&baremeRogue({ deblocages: ['commanditaire1'] }).victoire === 7 && baremeRogue({ deblocages: ['commanditaire1', 'commanditaire2'] }).victoire === 9, '4 · 7 · 9');
+    exiger('le barème d\'une run : 5 🪙 par victoire, 8 et 10 avec les commanditaires', baremeRogue({ deblocages: [] }).victoire === 5 && baremeRogue({ deblocages: ['commanditaire1'] }).victoire === 8 && baremeRogue({ deblocages: ['commanditaire1', 'commanditaire2'] }).victoire === 10, '5 · 8 · 10');
   }
   exiger('le mandat du proprio monte de saison en saison', MANDATS.every((m, i) => i === 0 || m.rondes > MANDATS[i - 1].rondes) && mandatDe(1).rondes === 0 && mandatDe(9).rondes === MANDATS[MANDATS.length - 1].rondes
     && mandatRempli(1, { series: true, rondes: 0 }) && !mandatRempli(2, { series: true, rondes: 0 }) && mandatRempli(2, { series: true, rondes: 1 }) && !mandatRempli(1, { series: false }),
@@ -251,7 +253,19 @@ if (!isMainThread) {
   for (const [niveau, runsAvant] of NIVEAUX) for (let de = 0; de < RUNS; de += Math.ceil(RUNS / 2)) taches.push({ genre: 'niveau', niveau, runsAvant, de, a: Math.min(RUNS, de + Math.ceil(RUNS / 2)) });
   for (let c = 0; c < CAMPAGNES; c++) taches.push({ genre: 'campagne', c, runs: RUNS_CAMPAGNE });
   for (let i = 0; i < MOMENTS.length; i++) taches.push({ genre: 'force', i, matchs: MATCHS });
-  const resultats = await Promise.all(taches.map(lancer));
+  /*
+   * Au plus FILS travailleurs à la fois (6 par défaut) : à RUNS=40 CAMPAGNES=6,
+   * les dix-neuf d'un coup tenaient 8,6 Go et la machine a manqué de mémoire.
+   * Les campagnes, les plus longues, partent d'abord ; chaque résultat garde
+   * sa place, donc le rapport ne change pas.
+   */
+  const FILS = Math.max(1, Number(process.env.FILS) || Math.min(6, availableParallelism() - 1));
+  const resultats = new Array(taches.length);
+  const ordre = taches.map((t, k) => k).sort((a, b) => (taches[b].genre === 'campagne') - (taches[a].genre === 'campagne'));
+  let suivante = 0;
+  await Promise.all(Array.from({ length: Math.min(FILS, taches.length) }, async () => {
+    while (suivante < ordre.length) { const k = ordre[suivante++]; resultats[k] = await lancer(taches[k]); }
+  }));
 
   /* 2. la courbe */
   const parNiveau = new Map();

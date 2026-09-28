@@ -1006,7 +1006,8 @@ export const CARTES = {
   newjersey: {
     nom: 'Le système du New Jersey', ico: '🧱',
     bon: 'Presque rien ne passe', prix: 'Tu lances beaucoup moins',
-    defense: 0.955, volume: 0.92,
+    // S80 : 0,955 et 0,92 se mesuraient à −0,8 victoire (−1,03 sur 12 ligues, hors de ±1) : recentrée.
+    defense: 0.945, volume: 0.935,
   },
   ouvert: {
     nom: 'Le jeu ouvert', ico: '🏃',

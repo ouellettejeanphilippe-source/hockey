@@ -60,12 +60,18 @@ export function jetonsDe(res, depenses, depart = JETONS.depart, bareme = JETONS)
  * première saison fait les séries une fois sur douze. La défaite et la
  * prolongation paient comme avant (2 et 4 🪙) : une équipe faible perd
  * souvent, c'est son revenu, et le couper faisait des runs mortes d'avance.
- * Le COMMANDITAIRE, au vestiaire, rend ce qu'il faut : 7, puis 9 🪙 par
- * victoire. Le barème est fixé au départ de chaque saison
+ * Le COMMANDITAIRE, au vestiaire, rend ce qu'il faut : 8, puis 10 🪙 par
+ * victoire.
+ *
+ * 5 🪙 DEPUIS LA FUSION DES PACKS PAR NIVEAU (S80) : un pack Bronze ou Argent
+ * donne maintenant surtout des joueurs de soutien, et la même courbe, remesurée
+ * à 4 🪙, repoussait la première Coupe d'une campagne à la septième run (une
+ * campagne sur six n'y arrivait pas en quatorze). JP veut que la Coupe prenne
+ * plusieurs saisons et des déblocages, pas qu'elle soit hors d'atteinte. Le barème est fixé au départ de chaque saison
  * (`G.rogue.bareme`) : un déblocage acheté en cours de route ne change pas
  * les jetons déjà gagnés.
  */
-export const baremeRogue = m => ({ ...JETONS, victoire: 4 + (aDebloque(m, 'commanditaire1') ? 3 : 0) + (aDebloque(m, 'commanditaire2') ? 2 : 0) });
+export const baremeRogue = m => ({ ...JETONS, victoire: 5 + (aDebloque(m, 'commanditaire1') ? 3 : 0) + (aDebloque(m, 'commanditaire2') ? 2 : 0) });
 
 /* ---------- les packs ---------- */
 /*
@@ -101,9 +107,9 @@ export const DEBLOCAGES = {
   garder3: { ico: '🤝', nom: 'Garder trois joueurs', prix: 240, requis: 'garder2', texte: 'Trois joueurs de ta dernière équipe te suivent.' },
   caisse1: { ico: '🪙', nom: 'Une caisse de départ', prix: 30, texte: '+20 jetons au début de chaque run.' },
   caisse2: { ico: '🪙', nom: 'Une grosse caisse', prix: 100, requis: 'caisse1', texte: '+20 jetons de plus au départ (+40 en tout).' },
-  // S80 : le barème d'une run (`baremeRogue`) — 4 🪙 par victoire sans commanditaire.
-  commanditaire1: { ico: '📺', nom: 'Un commanditaire', prix: 60, texte: '+3 🪙 par victoire : 7 au lieu de 4, à chaque saison de la run.' },
-  commanditaire2: { ico: '📺', nom: 'Le commanditaire principal', prix: 150, requis: 'commanditaire1', texte: '+2 🪙 de plus par victoire : 9.' },
+  // S80 : le barème d'une run (`baremeRogue`) — 5 🪙 par victoire sans commanditaire.
+  commanditaire1: { ico: '📺', nom: 'Un commanditaire', prix: 60, texte: '+3 🪙 par victoire : 8 au lieu de 5, à chaque saison de la run.' },
+  commanditaire2: { ico: '📺', nom: 'Le commanditaire principal', prix: 150, requis: 'commanditaire1', texte: '+2 🪙 de plus par victoire : 10.' },
   packDefenseurs: { ico: '🛡️', nom: 'Le pack Défensif', prix: 35, texte: 'La boutique vend le pack Défensif : quatre joueurs au meilleur différentiel de leur saison.' },
   packGardiens: { ico: '🥅', nom: 'Le pack Gardiens', prix: 50, texte: 'La boutique vend le pack Gardiens : quatre partants au meilleur pourcentage d\'arrêts.' },
   packAnnees80: { ico: '📼', nom: 'Le pack années 80', prix: 60, texte: 'La boutique vend le pack des années 80, l\'époque des 400 buts par saison.' },

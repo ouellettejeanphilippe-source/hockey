@@ -354,7 +354,7 @@
 - [x] Le départ du classeur (js/depart.js) : une carte du cartable au hasard sans déblocage ; des pages de plus (2, 3, 4 cartes), le tri (deux fois plus de cartes tirées, on garde), le classeur ouvert (tout le cartable, filtré, cherchable). Budget du classeur (25 M$ sans déblocage), tirage pur (`m.sel`, le numéro de la run), « Prendre » puis « Commencer la run ».
 - [x] Une run sur plusieurs saisons : l'équipe, le deck, les modifs jouées, les jetons et les cases débloquées continuent ; la poche de la saison expire. « Saison N+1 de la run » au bilan.
 - [x] Le mandat du proprio (les séries, une ronde, les demi-finales, la finale) : manqué, la run finit ; la Coupe la gagne. Au hub, au bilan, à l'écran de la run, au menu.
-- [x] Le barème d'une run : 4 🪙 par victoire, 7 et 9 avec les commanditaires (deux déblocages neufs).
+- [x] Le barème d'une run : 4 🪙 par victoire, 7 et 9 avec les commanditaires (deux déblocages neufs) — 5, 8 et 10 depuis les packs par niveau.
 - [x] Dix jalons : l'autre façon de débloquer (un déblocage offert, sinon des écussons), au vestiaire en tête.
 - [x] La courbe des cartes (ligue Rogue) : améliorations et cartes sur l'adversaire ×0,5 → ×1 → ×1,5 → ×2 en finale ; cartes de trio constantes, le stage plafonne (il soude aussi les lignes : `ENTENTE_STAGE`). Les cartes et la main du soir le disent.
 - [x] La carte qui sort (signature, ballottage, recrue, relâché) va au cartable ; relâcher un réserviste (avant la saison, derrière le banc) ; deux cases de réserve à débloquer, la case libre offerte avant « qui sort ? ».
@@ -380,4 +380,11 @@
 - [x] Neuf dilemmes à fait de match : ils ne sortent que si le fait est vrai, avec les vrais chiffres.
 - [x] La main d'avant-match ne remonte plus ; les joueurs partis restent dans les stats ; les puces lisibles sur un verso clair ; moteur S81, cache v25.
 - [ ] Les photos en 320 px font un APK de 64 Mo : trop gros pour l'envoi dans la conversation (30 Mo) — livré par OneDrive.
+
+## S80 — ce qui restait
+- [x] La réserve : le ✕ ne cache plus le salaire, la position ne se coupe plus (téléphone compris).
+- [x] Rogue : 5 🪙 par victoire (8 et 10 avec les commanditaires).
+- [x] La carte du New Jersey recentrée (0,945 · 0,935) ; la monotonie tolère une victoire entre déciles voisins.
+- [x] Le smoke répond à toute situation jusqu'au jour 70 ; l'essai de table trouve la passe (3 fois sur 3) ; `check_rogue` limité à `FILS` travailleurs (6).
+- [x] Moteur S82, cache v26.
 
