@@ -263,7 +263,8 @@ export const compteParCategorie = () => Object.fromEntries(ORDRE_CATEGORIES.map(
 /* Les étiquettes de durée de vie, telles que l'inventaire les affiche. */
 export const VIES = {
   permanent: { nom: 'Permanente', mot: 'Reste dans ton inventaire tant que tu ne t\'en sers pas, d\'une run à l\'autre.' },
-  saison: { nom: 'Cette saison', mot: 'Vaut pour la saison en cours ; elle expire à la fin de la run.' },
+  // S80 : une run dure plusieurs saisons — une carte « cette saison » expire à la fin de SA saison, pas de la run.
+  saison: { nom: 'Cette saison', mot: 'Vaut pour la saison en cours ; elle expire à la fin de la saison.' },
   usage: { nom: '1 utilisation', mot: 'S\'use en la jouant, cette saison.' },
 };
 /*
@@ -314,7 +315,7 @@ export function reglesDe(id) {
     if (C.effet) out.push(...motsDEffet(C.effet, C.duree));
     if (C.gain) out.push({ txt: `+${C.gain} 🪙`, bon: true });
     if (C.pari) out.push({ txt: `${Math.round(C.pari.chance * 100)} % : +${C.pari.gain} 🪙`, bon: true });
-    if (C.maitrise) out.push({ txt: `Maîtrise d'un système +${Math.round(C.maitrise * 100)} %`, bon: true });
+    if (C.maitrise) out.push({ txt: `Maîtrise d'un système +${Math.round(C.maitrise * 100)} %`, bon: true }, { txt: '🔗 Carte de trio : forte au début de la saison, elle plafonne (une ligne apprend son système en jouant)', bon: null });
     if (C.cible === 'malediction') out.push({ txt: 'Retire 1 malédiction du deck', bon: true });
     if (C.cible === 'carteMatch') out.push({ txt: '1 carte du deck devient « + »', bon: true });
     return out;

@@ -36,7 +36,7 @@ import {
 import { POIDS_TRIO } from './ratings.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
-import { effetsDesCartes, PREP_JUSTE, PREP_RATEE } from './sim.js';
+import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet } from './sim.js';
 import { jouerSon } from './sons.js';
 import { avecArticle } from './commentaire.js';
 
@@ -723,6 +723,14 @@ export function regleDeCarte(C) {
   if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
   out.push(...motsDEffet(C.effet || null));
   for (const m of motsDEffet(C.adv || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  /*
+   * LES DEUX COURBES (S80, js/sim.js `echelleTardive`) : une carte qui vise
+   * l'adversaire GRANDIT (×1,5 au dernier soir de la saison, ×2 en finale) ;
+   * une carte de trio — une synergie, les minutes des lignes — est pleine tout
+   * de suite et ne grandit pas.
+   */
+  if (C.adv) out.push({ txt: '📈 En Rogue, grandit : ×0,5 en octobre, ×1 en janvier, ×2 en finale', bon: null });
+  else if (C.synergie || (C.effet && (C.effet.F || C.effet.D))) out.push({ txt: '🔗 Carte de trio : pleine tout de suite, elle ne grandit pas', bon: null });
   if (C.pioche) out.push({ txt: `Pige ${C.pioche} carte${C.pioche > 1 ? 's' : ''}`, bon: true });
   if (C.energiePlus) out.push({ txt: `+${C.energiePlus} énergie`, bon: true });
   if (C.energieTous) out.push({ txt: `Tes patineurs : énergie +${C.energieTous}`, bon: true });
@@ -747,11 +755,12 @@ export function regleDeCarte(C) {
 /* L'ancien nom : les écrans de récompense et de deck l'appellent encore. */
 export const motsDeCarteMatch = regleDeCarte;
 /* Une carte de LEUR main, en puces de ton point de vue : ce qui les aide est rouge pour toi. */
-export function motsDeCarteAdverse(C) {
+export function motsDeCarteAdverse(C, echelle = 1) {
   if (!C) return [];
   const out = [];
   for (const m of motsDEffet(C.effet || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
-  for (const m of motsDEffet(C.adv || null)) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
+  // Ce qui te vise grandit avec le soir, pour eux aussi (S80).
+  for (const m of motsDEffet(grandirEffet(C.adv || null, echelle))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
   if (C.pari) out.push({ txt: '🎲 Leur pari', bon: null });
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
   if (C.parGenre) for (const m of motsDEffet(C.parGenre.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent`, bon: m.bon == null ? null : !m.bon });
@@ -763,11 +772,11 @@ export function motsDeCarteAdverse(C) {
  * LEUR MAIN (S74) : les « intentions » de Slay the Spire. On la connaît avant
  * de jouer la sienne — c'est tout le jeu : répondre.
  */
-export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN } = {}) {
+export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN, echelle = 1 } = {}) {
   if (!cartes || !cartes.length) return '';
   return `<div class="main-adverse"><div class="gl-k">🂠 La main ${nomAdv === 'Eux' ? 'adverse' : esc(avecArticle('de', nomAdv))} ce soir${energie > ENERGIE_MAIN ? ` · <span class="main-adverse-fort" title="En fin de saison et dans les dernières rondes des séries, l'adversaire joue avec une énergie de plus">⚡ ${energie} d'énergie</span>` : ''}</div><div class="main-adverse-cartes">${cartes.map(c => {
     const C = CARTES_MATCH[c];
-    return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C))}</span></span>` : '';
+    return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C, echelle))}</span></span>` : '';
   }).join('')}</div></div>`;
 }
 /* Le plan de l'adversaire, replié dans l'écran de la main (S74) : une ligne, et le détail au toucher. */
@@ -836,9 +845,12 @@ export function ouvrirMainDeMatch(spec) {
       return carteDeMatch(c, i, [etat, pigees.has(i) ? 'pige' : ''].filter(Boolean).join(' '), joue.has(i) ? null : coutDe(c, [...jouees, c]));
     }).join('');
     const sansPari = jouees.filter(c => !CARTES_MATCH[c].pari);
-    const fx = effetsDesCartes(spec.equipe, { jouees: sansPari, enMain: main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain) }, 'apercu');
+    // L'échelle du soir (S80) : ce que le moteur jouera, les cartes qui visent l'adversaire comprises.
+    const echelle = spec.echelle || 1;
+    const fx = effetsDesCartes(spec.equipe, { jouees: sansPari, enMain: main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain) }, 'apercu', { echelle });
     const mots = [...motsDEffet(combiner(fx.effets))];
     for (const x2 of motsDEffet(combiner(fx.adv))) mots.push({ txt: `Eux : ${x2.txt}`, bon: x2.bon == null ? null : !x2.bon });
+    if (fx.adv.length && echelle > 1) mots.push({ txt: `📈 Ce soir, ce qui vise l'adversaire vaut ×${String(Math.round(echelle * 100) / 100).replace('.', ',')}`, bon: true });
     if (fx.lire) mots.push({ txt: 'Leur plan tombe', bon: true });
     if (fx.annule) mots.push({ txt: 'Leur main ne fait rien', bon: true });
     if (fx.contre) mots.push({ txt: 'Tes 2 premières lignes sur leur contre', bon: null });
