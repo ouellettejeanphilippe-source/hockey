@@ -328,16 +328,34 @@ if (!plafond) erreurs.push('l\'inventaire ne montre pas la masse salariale');
  */
 let posee = null, nomModif = '';
 {
-  const modif = await page.$('#inventaireModal .bq-joueur .inv-jouer:not([disabled])');
-  if (!modif) erreurs.push('aucune modif de joueur dans l\'inventaire (le pack Modifs en donne quatre)');
-  else {
-    nomModif = await page.$eval('#inventaireModal .bq-joueur .bq-nom', e => e.textContent.trim());
-    await modif.click();
+  /*
+   * UNE MODIF QUE PERSONNE NE PEUT RECEVOIR (« Le physio » sans malus, un
+   * masque sans gardien…) ouvre l'alignement tout grisé, avec la raison : on
+   * la referme et on essaie la suivante (S80, la fusion : le premier tirage
+   * n'en donnait pas toujours une qui se pose).
+   */
+  const nModifs = await page.$$eval('#inventaireModal .bq-joueur .inv-jouer:not([disabled])', e => e.length);
+  if (!nModifs) erreurs.push('aucune modif de joueur dans l\'inventaire (le pack Modifs en donne quatre)');
+  let permis = 0, grises = 0;
+  for (let k = 0; k < nModifs && !permis; k++) {
+    if (!(await page.$('#inventaireModal:not([hidden])'))) { await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#inventaireModal:not([hidden]) .inv-onglet', { timeout: 10000 }); }
+    const jouer = (await page.$$('#inventaireModal .bq-joueur .inv-jouer:not([disabled])'))[k];
+    if (!jouer) break;
+    nomModif = await jouer.evaluate(b => (((b.closest('.bq-joueur') || b).querySelector('.bq-nom') || {}).textContent || '').trim());
+    await jouer.click();
     await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
     await page.waitForTimeout(400);
+    permis = await page.$$eval('#choixModal .aln-case[data-aln]:not([disabled])', e => e.length);
+    grises = await page.$$eval('#choixModal .aln-case[data-aln][disabled]', e => e.length);
+    if (!permis) {
+      console.log(`   « ${nomModif} » : personne ne peut la recevoir (${grises} grisés), on essaie la suivante`);
+      await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => page.keyboard.press('Escape'));
+      await page.waitForTimeout(500);
+    }
+  }
+  if (nModifs && !permis) console.log('7a. aucune modif ne se pose sur cet alignement : l\'étape du verso est sautée');
+  else if (nModifs) {
     await page.screenshot({ path: `${DOSSIER}/rogue-poser-alignement.png` });
-    const permis = await page.$$eval('#choixModal .aln-case[data-aln]:not([disabled])', e => e.length);
-    const grises = await page.$$eval('#choixModal .aln-case[data-aln][disabled]', e => e.length);
     await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
     await page.waitForSelector('#hockeyCardModal .fc-poser', { timeout: 10000 });
     await page.waitForTimeout(500);
