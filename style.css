@@ -10166,3 +10166,26 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 :is(.pcard.pv, .cj-recto).m-bokeh { --s-motif: radial-gradient(circle at 20% 25%, rgba(255, 255, 255, 0.1) 0 6%, rgba(255, 255, 255, 0.2) 6.6% 7%, transparent 7.5%), radial-gradient(circle at 78% 30%, rgba(255, 255, 255, 0.07) 0 9.2%, rgba(255, 255, 255, 0.16) 9.8% 10%, transparent 10.5%), radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.05) 0 12.2%, rgba(255, 255, 255, 0.11) 12.8% 13%, transparent 13.5%), radial-gradient(circle at 28% 66%, rgba(255, 255, 255, 0.07) 0 5.2%, rgba(255, 255, 255, 0.14) 5.7% 6%, transparent 6.5%); }
 /* m-projecteurs : le faisceau traverse un peu de brume, qui retombe au sol. */
 :is(.pcard.pv, .cj-recto).m-projecteurs { --s-motif: conic-gradient(from 180deg at 50% -8%, transparent 0 162deg, rgba(255, 255, 255, 0.14) 170deg, transparent 178deg, rgba(255, 255, 255, 0.11) 186deg, transparent 194deg), radial-gradient(70% 45% at 50% 0%, rgba(255, 255, 255, 0.14), transparent 70%), radial-gradient(90% 30% at 50% 100%, rgba(255, 255, 255, 0.07), transparent 70%); }
+
+/* =====================================================================
+   LES PUCES SUR UN VERSO CLAIR (S80). Le carton crème, blanc ou argent du
+   verso (les années « accents ») portait des puces pensées pour un fond
+   sombre : l'identité (« 🪄 Les passeurs », gris clair sur un voile orange),
+   les rôles « bon » (vert sur un voile vert) et « prix » (rouge sur un voile
+   rouge) ne se lisaient plus. Lisible d'abord : une encre foncée, un fond
+   crème teinté, un liseré.
+   ===================================================================== */
+.fc-verso:is(.c-blanc, .c-carton, .c-argent) .tag-identite {
+  color: #3b2a12; background: color-mix(in srgb, #f47a38 22%, #fffaf0);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #3b2a12 22%, transparent);
+}
+.fc-verso:is(.c-blanc, .c-carton, .c-argent) .puce.bon {
+  color: #0f5c3a; background: color-mix(in srgb, #1f9d63 18%, #fffaf0);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #0f5c3a 28%, transparent);
+}
+.fc-verso:is(.c-blanc, .c-carton, .c-argent) .puce.prix {
+  color: #8a1623; background: color-mix(in srgb, #e0364a 16%, #fffaf0);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #8a1623 26%, transparent);
+}
+/* « Salaire estimé » : gris sur gris, partout ; il s'éclaircit. */
+.tag.tag-est { color: #c9d0d8; }
