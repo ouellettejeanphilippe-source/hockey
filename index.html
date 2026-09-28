@@ -61,7 +61,7 @@
 
     <nav class="topbar-actions" aria-label="Menu">
       <button class="icon-btn" id="menuBtn" title="Le menu : tes parties et les modes de jeu"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg><span class="icon-lbl">Menu</span></button>
-      <button class="icon-btn" id="openPartieBtn" title="Nouvelle partie : format, tirage, ligue et mode"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg><span class="icon-lbl">Nouvelle</span></button>
+      <button class="icon-btn" id="openPartieBtn" title="Nouvelle partie : choisir le mode, puis ses réglages"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg><span class="icon-lbl">Nouvelle</span></button>
       <button class="icon-btn" id="openOptionsBtn" title="Options d'affichage"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span class="icon-lbl">Options</span></button>
     </nav>
   </div>
@@ -377,8 +377,10 @@
            de sport de table*, puis *viser un modèle à la blood bowl, mais plus
            rapide*. Le repêchage ne change pas d'un poil : c'est ce qu'on FAIT
            de l'alignement une fois bâti qui change. La saison complète reste
-           le jeu ; le tournoi sur table est l'autre façon de s'en servir. -->
-      <div class="opt-row opt-modes">
+           le jeu ; le tournoi sur table est l'autre façon de s'en servir.
+           S79 : le mode se choisit AVANT, au choix des modes (« Nouvelle ») ;
+           la rangée garde l'état mais ne s'affiche plus — une chose, une place. -->
+      <div class="opt-row opt-modes" hidden>
         <div class="opt-text"><strong>Mode</strong></div>
         <div class="seg seg-wrap" data-opt="bonus">
           <button data-val="SAISON" class="on">La saison<em>82 matchs</em></button>

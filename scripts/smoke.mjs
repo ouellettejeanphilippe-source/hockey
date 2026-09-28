@@ -79,6 +79,19 @@ async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
   await page.waitForTimeout(200);
   await _click('#choixModal:not([hidden]) .choix-option.avec-visage');
 }
+/*
+ * « NOUVELLE » RAMÈNE AU CHOIX DU MODE (S79). Le bouton de la barre ouvre les
+ * cartons des modes ; « Commencer » sur la saison bâtit une partie neuve et
+ * ouvre l'écran « Nouvelle partie », réglé sur la saison.
+ */
+async function nouvelleSaison() {
+  await _click('#openPartieBtn');
+  await _wait('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]', { timeout: 10000 });
+  const reprise = await page.$$('#menuDepart [data-menu="reprendre"], #menuDepart .menu-parties');
+  if (reprise.length) errors.push('le choix du mode montre des reprises ou « Mes parties » : c\'est le rôle du bouton Menu');
+  await _click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
+  await _wait('#partieModal', { state: 'visible', timeout: 30000 });
+}
 const ballottage = { fait: false, mot: null };
 /*
  * LA BOÎTE DE RÉCEPTION (S78). JP : *faire une boîte de réception et forcer
@@ -2390,7 +2403,7 @@ if (enabled) {
 /* Le tirage LOTO : trois clubs par case, des relances. Il vit maintenant dans
    l'écran « Nouvelle partie », et RIEN ne s'applique avant le clic sur le pied
    — c'est tout l'objet de l'écran, et c'est ce que ce passage vérifie. */
-await page.click('#openPartieBtn');
+await nouvelleSaison();
 await page.waitForSelector('#partieModal .seg[data-opt="tirage"]', { state: 'visible', timeout: 10000 });
 await page.click('#partieModal .seg[data-opt="tirage"] button[data-val="LOTO"]');
 const armeLoto = await page.$eval('#partieModal .seg[data-opt="tirage"] button[data-val="LOTO"]', b => b.classList.contains('on'));
@@ -2551,7 +2564,7 @@ await page.screenshot({ path: 'scripts/smoke-loto.png', fullPage: false });
  * code entier (`casesDuMode`, `G.renfort`, le plafond qui change) qui n'avait
  * aucun test : le compteur, la roulette, le renfort et la simulation.
  */
-await page.click('#openPartieBtn');
+await nouvelleSaison();
 await page.waitForSelector('#partieModal .seg[data-opt="format"]', { state: 'visible', timeout: 10000 });
 await page.click('#partieModal .seg[data-opt="format"] button[data-val="EXPRESS"]');
 await page.click('#partieModal .seg[data-opt="tirage"] button[data-val="VESTIAIRE"]');

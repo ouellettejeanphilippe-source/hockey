@@ -15,6 +15,11 @@
  *
  * L'EXHIBITION (S78, js/exhibition.js) a son carton sans être un genre de
  * sauvegarde : elle ne garde aucune partie, donc rien dans « Mes parties ».
+ *
+ * LE CHOIX DU MODE (S79, `ctx.choix`). JP : *« Nouvelle » devrait ramener
+ * aux choix des modes*. Le bouton « Nouvelle » de la barre ouvre le même
+ * menu, réduit aux cartons des modes, chacun avec « Commencer » : pas de
+ * reprise, pas de « Mes parties » — c'est le rôle du bouton « Menu ».
  */
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer } from './sauvegardes.js';
 
@@ -79,10 +84,11 @@ function dessiner(m) {
         ${extra ? `<p class="menu-mode-extra">${extra}</p>` : ''}
       </div>
       <div class="menu-mode-actions">
+        ${ctx.choix ? `<button type="button" class="btn go" data-menu="nouvelle" data-genre="${g}">Commencer</button>` : `
         ${reprise ? `<button type="button" class="btn go" data-menu="reprendre" data-id="${reprise.id}">Reprendre<small>${esc(ligneResume(reprise) || quand(reprise.maj))}</small></button>` : ''}
         <button type="button" class="btn${reprise ? '' : ' go'}" data-menu="nouvelle" data-genre="${g}">Nouvelle partie</button>
         ${g === 'rogue' && ctx.rogue ? '<button type="button" class="btn" data-menu="vestiaire">🏅 Le vestiaire des déblocages</button>' : ''}
-        ${g === 'rogue' && ctx.rogue && ctx.rogue.inventaire ? '<button type="button" class="btn" data-menu="inventaire">🎒 L\'inventaire et le classeur</button>' : ''}
+        ${g === 'rogue' && ctx.rogue && ctx.rogue.inventaire ? '<button type="button" class="btn" data-menu="inventaire">🎒 L\'inventaire et le classeur</button>' : ''}`}
       </div>
     </article>`;
   };
@@ -118,16 +124,16 @@ function dessiner(m) {
     <div class="menu-feuille">
       <header class="menu-tete">
         <div class="menu-logo">CAP <b>82-0</b></div>
-        <div class="menu-sous">${ctx.vierge ? 'Bienvenue. Bâtis une équipe de vrais joueurs de 55 saisons, et va chercher la Coupe.' : 'Bâtis une équipe de vrais joueurs. Va chercher la Coupe.'}</div>
+        <div class="menu-sous">${ctx.choix ? 'Nouvelle partie : choisis ton mode. Ta partie en cours reste dans « Mes parties ».' : ctx.vierge ? 'Bienvenue. Bâtis une équipe de vrais joueurs de 55 saisons, et va chercher la Coupe.' : 'Bâtis une équipe de vrais joueurs. Va chercher la Coupe.'}</div>
         ${ctx.enJeu ? '<button type="button" class="menu-fermer" data-menu="continuer" aria-label="Retour à la partie">✕</button>' : ''}
       </header>
-      ${peutContinuer ? `<button type="button" class="menu-continuer" data-menu="continuer">
+      ${peutContinuer && !ctx.choix ? `<button type="button" class="menu-continuer" data-menu="continuer">
         <span class="mc-mot">${ctx.enJeu ? 'Retour à la partie' : 'Continuer'}</span>
         <span class="mc-quoi">${GENRES[active.genre] ? GENRES[active.genre].ico : ''} ${esc(active.titre)} · ${esc(ligneResume(active) || quand(active.maj))}</span>
       </button>` : ''}
       <section class="menu-modes" aria-label="Les modes de jeu">${Object.keys(GENRES).map(carte).join('')}${exhibition}</section>
-      ${ix.parties.length ? `<details class="menu-parties"${ix.parties.length <= 3 ? ' open' : ''}><summary>📂 Mes parties · ${ix.parties.length}</summary>${groupes}</details>` : ''}
-      <footer class="menu-pied"><button type="button" class="btn small" data-menu="options">⚙ Options</button></footer>
+      ${ix.parties.length && !ctx.choix ? `<details class="menu-parties"${ix.parties.length <= 3 ? ' open' : ''}><summary>📂 Mes parties · ${ix.parties.length}</summary>${groupes}</details>` : ''}
+      ${ctx.choix ? '' : '<footer class="menu-pied"><button type="button" class="btn small" data-menu="options">⚙ Options</button></footer>'}
     </div>`;
   m.querySelectorAll('[data-menu]').forEach(b => {
     b.onclick = () => {

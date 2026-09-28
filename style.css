@@ -9547,6 +9547,8 @@ body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { displa
    ===================================================================== */
 /* Un bouton caché reste caché, même quand sa classe le met en grille. */
 .close-btn[hidden] { display: none; }
+/* Même chose pour une rangée d'options cachée (la rangée « Mode » de « Nouvelle partie », S79). */
+.opt-row[hidden] { display: none; }
 
 /* Les outils de l'en-tête : tes cartes et la boutique. */
 .hub-outils { display: flex; gap: 6px; flex: none; }

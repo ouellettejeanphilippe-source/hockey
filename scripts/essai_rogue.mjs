@@ -127,6 +127,8 @@ const encore = !!(await page.$('#choixModal:not([hidden]) .tcj-signer'));
 if (!fiche || !encore) erreurs.push(`toucher la carte : fiche ${fiche}, choix toujours ouvert ${encore}`);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
+// Le nom du joueur qu'on signe : il doit être dans l'alignement tout de suite (S79).
+const nomSigne = await page.$eval('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"])', x => (x.querySelector('.pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim());
 await page.click('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"]) .tcj-signer');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.avec-visage', { timeout: 10000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
@@ -138,6 +140,22 @@ let d = await decisions();
 const signe = d.filter(x => x.achat && x.ballottage);
 console.log(`5. signé : ${JSON.stringify(signe.map(x => ({ pack: x.achat.pack, prix: x.achat.prix, entre: x.ballottage.entre, rar: x.ballottage.rar })))} · ${refusees} sortie(s) refusée(s) par le plafond · barre : ${await jauge()}`);
 if (!signe.length) erreurs.push('le pack de joueurs n\'a rien signé');
+/*
+ * LE JOUEUR SIGNÉ EST DANS L'ALIGNEMENT TOUT DE SUITE (S79). JP : *les cartes
+ * que j'ouvre des packs s'ajoutent pas dans mon équipe ?*. La décision ne
+ * s'appliquait qu'au matin de la journée suivante : l'écran montrait l'ancien
+ * alignement jusque-là (`poserAlignementDuJour`, js/sim.js).
+ */
+{
+  await page.click('.navtab[data-page="alignement"]').catch(() => {});
+  await page.waitForTimeout(800);
+  const noms = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+  const nom = nomSigne.split(' ').slice(-1)[0];
+  if (!noms.some(n => n.includes(nom))) erreurs.push(`${nomSigne}, signé d'un pack, n'est pas dans l'alignement`);
+  else console.log(`   ${nomSigne} est dans l'alignement dès la signature`);
+  await page.click('.navtab[data-page="match"]').catch(() => {});
+  await page.waitForTimeout(500);
+}
 // Un pack de cartes : tout va dans l'inventaire ; puis un pack Contrats (la masse salariale).
 await regler();
 for (const pack of ['c:mixte', 'c:contrats']) {

@@ -26,7 +26,7 @@ import {
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJusqua, bilanLigue, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
   CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, systemeDe, MUTATIONS, effetsEnCours,
-  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation } from './sim.js';
+  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour } from './sim.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
@@ -1158,20 +1158,20 @@ async function continuerBoot(apres = null) {
  * rien garder de la précédente en mémoire (la ligue, les séries, le tournoi,
  * les cotes déjà connues).
  */
-function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
+function contexteDuMenu({ vierge = false, enJeu = true, choix = false } = {}) {
   const ailleurs = (apres = null) => {
     if (!demarre) { fermerMenu(); continuerBoot(apres).catch(() => toast('Impossible de reprendre cette partie.', 'bad')); return; }
     try { sessionStorage.setItem('cap82_session', '1'); if (apres) sessionStorage.setItem('cap82_apres', apres); } catch { /* ignore */ }
     location.reload();
   };
   return {
-    vierge, enJeu,
+    vierge, enJeu, choix,
     continuer: () => { if (demarre) fermerMenu(); else ailleurs(); },
     reprendre: id => { activer(id); ailleurs(); },
     nouvelle: genre => { nouvellePartie(genre); ailleurs(`nouvelle-${genre}`); },
     options: () => openModal('optionsModal'),
     // L'EXHIBITION (S78, js/exhibition.js) : aucune partie, on revient au menu en la fermant.
-    exhibition: () => { fermerMenu(); ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu })))); },
+    exhibition: () => { fermerMenu(); ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu, choix })))); },
     rogue: {
       resume: () => { const m = lireMeta(); return `🏅 ${m.ecussons || 0} écussons · 🗂️ ${(m.collection || []).length} joueurs · ${m.runs || 0} run${(m.runs || 0) > 1 ? 's' : ''}`; },
       nouvelle: () => { nouvellePartie('rogue'); ailleurs('nouvelle-rogue'); },
@@ -1838,7 +1838,10 @@ function setupEvents() {
   // Les équipes, l'historique et les règles sont des PAGES, pas des modales :
   // `montrerPage` les remplit. Il ne reste en haut que ce qui est une ACTION.
   bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
-  bindModal('partieModal', 'openPartieBtn', 'closePartieBtn', semerBrouillon, oublierBrouillon);
+  // « Nouvelle » ramène au CHOIX DU MODE (S79, JP) ; l'écran « Nouvelle partie » s'ouvre ensuite, réglé sur le mode choisi.
+  bindModal('partieModal', null, 'closePartieBtn', semerBrouillon, oublierBrouillon);
+  const nouvelleBtn = $('openPartieBtn');
+  if (nouvelleBtn) nouvelleBtn.onclick = () => { saveGame(); afficherMenu(contexteDuMenu({ enJeu: true, choix: true })); };
   const menuBtn = $('menuBtn');
   if (menuBtn) menuBtn.onclick = () => { saveGame(); afficherMenu(contexteDuMenu({ enJeu: true })); };
   // MES LIGNES AU REPÊCHAGE (S68) : réglées avant la saison, elles entrent
@@ -5358,6 +5361,8 @@ async function continuerSaison(decisions, depuis, mot) {
   const jourMin = touchees.length ? Math.min(...touchees.map(d => d.jour)) : Infinity;
   if (M && jourMin >= M.jour) {
     L.decisions = M.decisions = decisions;
+    // Le joueur signé (un pack, le ballottage) entre dans l'alignement tout de suite (S79).
+    poserAlignementDuJour(M);
     G.done = true;
     ouvrirEcranSaison(depuis);
     saveGame();
@@ -5762,6 +5767,8 @@ async function runSeason(opts = {}) {
   if (opponents.length) {
     moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions });
     jouerJusqua(moteur, opts.depuis || 0);
+    // Un joueur signé aujourd'hui est dans l'alignement dès maintenant, pas au matin (S79).
+    poserAlignementDuJour(moteur);
     teams = moteur.teams;
     calendrier = moteur.calendrier;
     graine = moteur.graine;

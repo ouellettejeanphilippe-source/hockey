@@ -281,16 +281,19 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
     if (fermer && await fermer.isVisible()) await fermer.click();
   } else errors.push('la mise en scène du tir n\'a jamais amené ton porteur à portée en 4000 présences');
 
-  // L'exhibition a fermé l'écran « Nouvelle partie » pour laisser la glace : on le rouvre.
-  await page.click('#openPartieBtn');
+  // L'exhibition a fermé l'écran « Nouvelle partie » pour laisser la glace.
 }
 
-/* ---------- l'écran « Nouvelle partie » : choisir « Sur table » ----------
-   Rien ne s'applique avant le clic sur le pied. */
-await page.waitForSelector('#partieModal [data-opt="bonus"]', { state: 'visible', timeout: 30000 });
-await page.click('#partieModal [data-opt="bonus"] button[data-val="TABLE"]');
+/* ---------- « Sur table » se choisit au CHOIX DU MODE (S79) ----------
+   JP : *« Nouvelle » devrait ramener aux choix des modes*. Le bouton ouvre
+   les cartons des modes ; « Commencer » sur la table ouvre l'écran « Nouvelle
+   partie » déjà réglé sur la table. Rien ne s'applique avant le clic sur le pied. */
+await page.click('#openPartieBtn');
+await page.waitForSelector('#menuDepart .menu-mode[data-genre="table"] [data-menu="nouvelle"]', { timeout: 10000 });
+await page.click('#menuDepart .menu-mode[data-genre="table"] [data-menu="nouvelle"]');
+await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 });
 const choisi = await page.$eval('#partieModal [data-opt="bonus"] button[data-val="TABLE"]', b => b.classList.contains('on'));
-if (!choisi) errors.push('l\'option « Sur table » ne se marque pas');
+if (!choisi) errors.push('« Sur table » choisi au menu n\'arrive pas réglé dans l\'écran « Nouvelle partie »');
 await page.click('#npGo');
 // L'identité de départ (S73) : trois cartes avant la première roulette ; on prend la première.
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"] .tc', { timeout: 10000 });

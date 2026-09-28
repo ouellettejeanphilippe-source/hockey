@@ -97,6 +97,9 @@ export function nouvellePartie(genre, titre = null) {
   // Rien d'écrit encore (créée par le menu, pas encore jouée) ou rien à perdre : on la reprend.
   let rien = false; try { rien = !localStorage.getItem(cle(a ? a.id : '')); } catch { /* ignore */ }
   if (a && ((a.resume && a.resume.vierge) || rien)) {
+    // On reprend la PLACE, pas l'état (S79) : une partie neuve repart à neuf. Sans ça, la
+    // saison vide qu'on quittait prêtait son identité déjà réglée à la table qu'on commençait.
+    try { localStorage.removeItem(cle(a.id)); } catch { /* ignore */ }
     a.genre = genre; a.titre = titre || GENRES[genre].nom; a.maj = Date.now(); a.resume = null;
     ecrireIndex(ix);
     return a.id;

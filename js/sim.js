@@ -4676,6 +4676,16 @@ function appliquerDecision(team, d, graine = 0) {
     const { duree, nom, ico, ...canaux } = d.effet;
     (team.effets = team.effets || []).push({ debut: d.jour, fin: d.jour + (duree || DUREE_MOMENT), source: 'decision', nom, ico, ...canaux });
   }
+  appliquerAlignement(team, d);
+}
+
+/*
+ * LA PART « ALIGNEMENT » D'UNE DÉCISION : qui entre (le ballottage, un pack
+ * signé) et la photo des cases. Elle ne consomme aucun hasard et se rejoue à
+ * l'identique : c'est ce qui permet à l'écran de la poser dès la décision
+ * prise (`poserAlignementDuJour`), avant que le matin de la journée la refasse.
+ */
+function appliquerAlignement(team, d) {
   /*
    * LE BALLOTTAGE (S66) : un joueur réclamé prend une case de réserve, et
    * celui qui l'occupait est libéré. C'est la SEULE décision qui fait entrer
@@ -4702,6 +4712,25 @@ function appliquerDecision(team, d, graine = 0) {
     // mais la décision 0 le nomme encore : on le retrouve parmi les connus.
     const p = parCle.get(cle) || CONNUS.get(cle);
     if (p) team.roster[i] = p;
+  }
+}
+
+/*
+ * L'ALIGNEMENT DE LA JOURNÉE À VENIR, TOUT DE SUITE (S79). JP : *les cartes
+ * que j'ouvre des packs s'ajoutent pas dans mon équipe ?*. Depuis que la ligue
+ * se joue au jour le jour, une décision d'aujourd'hui ne s'applique qu'au matin
+ * de sa journée (`jouerJournee`) : le joueur signé n'apparaissait qu'une fois
+ * la journée jouée, et l'écran montrait l'ancien alignement jusque-là. On pose
+ * donc dès maintenant la part alignement des décisions de la journée à venir —
+ * exactement ce que le matin refera (idempotent, sans hasard). Rien ne se joue
+ * d'avance : aucun match, aucun effet, aucune carte.
+ */
+export function poserAlignementDuJour(L) {
+  if (!L || L.fini || !L.teams) return;
+  for (const d of L.decisions || []) {
+    if (d.jour !== L.jour || !(d.ballottage || d.cases)) continue;
+    const t = L.teams[d.equipe || 0];
+    if (t) appliquerAlignement(t, d);
   }
 }
 
