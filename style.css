@@ -9616,3 +9616,84 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
   .table-sheet .t-dock { flex: none; padding-bottom: calc(8px + var(--safe-bas)); }
   .t-glace { --tcell: min(calc((100vw - 8px) / var(--tcols, 9)), calc((100dvh - 290px - var(--safe-bas)) / var(--trangs, 11)), 72px); }
 }
+
+/* =====================================================================
+   CHOISIR DANS L'ALIGNEMENT (S80, js/gerant.js `ouvrirAlignement`). JP :
+   *le screen de choix pour les upgrades et les remplacements sont à chier* ;
+   *donne l'alignement, je clique sur le joueur*. L'alignement en petit : une
+   rangée par trio, par paire, les gardiens, la réserve — son titre dit ce
+   qu'elle est —, et des cases de trois au téléphone (visage, nom, positions).
+   La barre du bas dit ce qui va se passer ; le bouton le fait.
+   ===================================================================== */
+.choix-aln .choix-corps { gap: 10px; padding-top: 12px; }
+.aln { display: flex; flex-direction: column; gap: 8px; }
+.aln-rangee { display: flex; flex-direction: column; gap: 4px; }
+.aln-titre { margin: 0 2px; font: 800 11px/1.15 var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--sub); }
+.aln-titre small { font: 700 11px/1.15 var(--display); letter-spacing: .04em; text-transform: none; color: var(--muted); }
+.aln-cases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.aln-rangee[data-cases="2"] .aln-cases { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.aln-case {
+  position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); grid-auto-rows: auto; column-gap: 7px; row-gap: 1px; align-items: center;
+  min-width: 0; min-height: 48px; padding: 6px 7px; text-align: left; cursor: pointer;
+  background: var(--panel-2, var(--panel)); color: var(--text); border: 1px solid var(--line); border-radius: 10px; font: inherit;
+}
+.aln-case[hidden] { display: none; }
+.aln-visage { grid-row: 1 / span 2; position: relative; width: 32px; height: 32px; border-radius: 7px; overflow: hidden; background: var(--panel); }
+.aln-visage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.aln-visage > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; opacity: .4; }
+.aln-nom { grid-column: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 13.5px/1.1 var(--display); letter-spacing: .02em; }
+.aln-pos { grid-column: 2; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 4px; font: 700 11px/1.1 var(--display); letter-spacing: .05em; color: var(--muted); white-space: nowrap; }
+.aln-pos > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.aln-note, .aln-non { grid-column: 1 / -1; min-width: 0; margin-top: 3px; font-size: 11px; line-height: 1.2; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aln-non { color: var(--muted); font-style: italic; }
+.aln-grises { margin: -2px 2px 0; font-size: 12.5px; color: var(--muted); font-style: italic; }
+/* Le « −N » : il y jouerait hors position. */
+.aln-marque { flex: none; padding: 1px 5px; border-radius: 6px; font: 800 11px/1.2 var(--display); background: color-mix(in srgb, var(--live) 22%, transparent); color: var(--live); }
+.aln-case:hover:not([disabled]), .aln-case:focus-visible { border-color: var(--gold); outline: none; }
+.aln-case[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-soft); box-shadow: inset 0 0 0 1px var(--gold); }
+.aln-case[disabled] { cursor: not-allowed; opacity: .42; filter: grayscale(.85); }
+.aln-case.aln-vide { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-style: dashed; background: transparent; color: var(--muted); cursor: default; }
+.aln-case.aln-vide .aln-nom { font-size: 11.5px; font-weight: 700; }
+.aln-barre {
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  padding: 10px 16px 12px; border-top: 1px solid var(--line-soft, var(--line)); background: var(--bg);
+}
+.aln-barre[hidden] { display: none; }
+.aln-barre-mot { flex: 1 1 200px; margin: 0; font-size: 14px; line-height: 1.35; color: var(--sub); }
+.aln-barre.pret .aln-barre-mot, .aln-barre-mot b { color: var(--text); }
+.aln-barre-boutons { display: flex; gap: 8px; margin-left: auto; }
+.aln-barre-boutons[hidden] { display: none; }
+.aln-barre .btn { min-height: 44px; }
+@media (min-width: 1000px) { .aln-barre { background: var(--panel); border-radius: 0 0 var(--r-l, 18px) var(--r-l, 18px); } }
+/* Où il joue, à côté de son nom (un dilemme). */
+.gj-joueur-nom .gj-ligne { padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--sub); }
+
+/* LES CASES D'AMÉLIORATION, AU VERSO (S80, js/game.js `sectionMods`) : deux,
+   trois pour une holo ou une or. Pleine, la carte posée ; vide, « Case
+   libre », ou le geste qui la remplit. */
+.fc-cases { gap: 6px; }
+.fc-mod.src-style { --fc-mod: #c08bff; }
+.fc-mod.src-contrat { --fc-mod: #ffb45e; }
+.fc-case.fc-libre {
+  display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 6px 8px; border-radius: 8px;
+  border: 1.5px dashed color-mix(in srgb, currentColor 28%, transparent); color: var(--cj-encre-2);
+  font: 700 11.5px/1 var(--display); letter-spacing: .1em; text-transform: uppercase;
+}
+.fc-case.fc-libre[hidden], .fc-plus[hidden], .fc-poser[hidden] { display: none; }
+.fc-plus {
+  display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; padding: 8px; border-radius: 8px; cursor: pointer;
+  border: 1.5px dashed var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); color: inherit;
+  font: 800 13px/1 var(--display); letter-spacing: .08em; text-transform: uppercase;
+}
+.fc-plus:hover, .fc-plus:focus-visible { background: color-mix(in srgb, var(--gold) 20%, transparent); outline: none; }
+.fc-poser {
+  display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 8px; text-align: left; cursor: pointer;
+  border: 2px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 14%, transparent); color: inherit; font: inherit;
+  animation: fc-attend 1.6s ease-in-out infinite;
+}
+.fc-poser-mot {
+  flex: none; align-self: center; margin-left: auto; padding: 8px 12px; border-radius: 999px;
+  background: var(--gold); color: var(--sur-or, #111); font: 800 12px/1 var(--display); letter-spacing: .08em; text-transform: uppercase;
+}
+@keyframes fc-attend { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 35%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .fc-poser { animation: none; } }

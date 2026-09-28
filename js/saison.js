@@ -890,7 +890,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
 
   /* Ce qu'est le blessé (S79) : ses positions et son rôle — JP, *jamais identifier les joueurs avec leurs places dans l'alignement*. */
-  const caseDe = p => (ctx.quiEst ? ctx.quiEst(p, { stats: false }) : '');
+  // …et où il joue (S80, JP : *dire que x est sur la xième ligne*) : « C / AG · 🎯 Sniper · 2e trio ».
+  const caseDe = p => [ctx.quiEst ? ctx.quiEst(p, { stats: false }) : '', ctx.ouJoue ? ctx.ouJoue(p) : ''].filter(Boolean).join(' · ');
   /*
    * QUI PREND SA PLACE. `activeLineup` promeut le premier réserviste
    * compatible, sinon la case reste vide et le moteur y met un rappel — et
@@ -1562,13 +1563,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       } else if (d.deck && SORTES_DECK[d.deck]) {
         const S = SORTES_DECK[d.deck], M = d.mutation && MUTATIONS[d.mutation.cle], T = d.maitrise && systemeDe(d.maitrise.tac);
         const qui = d.deck === 'recrue' ? nomJoueur(d.ballottage && d.ballottage.entre) : d.mutation ? nomJoueur(d.mutation.joueur) : '';
+        // S80 : la modif gardée au palier (`garde`, « joueur:affute ») attend dans l'inventaire.
+        const MG = d.garde ? MUTATIONS[String(d.garde).split(':')[1]] : null;
         const t = d.deck === 'camp' && CARTES_MATCH[`${d.aiguise}+`] ? `Le camp d'entraînement : ${CARTES_MATCH[d.aiguise].ico} <b>${ctx.esc(CARTES_MATCH[`${d.aiguise}+`].nom)}</b>`
           : d.deck === 'menage' && CARTES_MATCH[d.retrait] ? `Le ménage : ${CARTES_MATCH[d.retrait].ico} <b>${ctx.esc(CARTES_MATCH[d.retrait].nom)}</b> quitte ton deck`
           : d.deck === 'recrue' ? `Recrue : <b>${ctx.esc(qui || 'un joueur')}</b> signé`
+          : MG ? `${MG.ico} <b>${ctx.esc(MG.nom)}</b> gardée dans ton inventaire`
           : M ? `${M.ico} ${ctx.esc(M.nom)} pour <b>${ctx.esc(qui || 'un joueur')}</b>`
             : T ? `Stage de système : ${T.ico} <b>${ctx.esc(T.nom)}</b>` : ctx.esc(S.nom);
         ev.push({ j: d.jour, t: `${S.ico} ${t}` });
-      } else if (d.carte && typeof d.palier === 'number' && CARTES[d.carte]) ev.push({ j: d.jour, t: `🎁 Le palier : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` });
+      } else if (d.joue && d.mutation && MUTATIONS[d.mutation.cle]) ev.push({ j: d.jour, t: `${MUTATIONS[d.mutation.cle].ico} ${ctx.esc(MUTATIONS[d.mutation.cle].nom)} posée au verso de <b>${ctx.esc(nomJoueur(d.mutation.joueur) || 'un joueur')}</b>` });
+      else if (d.carte && typeof d.palier === 'number' && CARTES[d.carte]) ev.push({ j: d.jour, t: `🎁 Le palier : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` });
       else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Un joueur réclamé au ballottage pour boucher un trou' });
     }
     for (const m of you.mutations || []) if (m.jour < jour && m.source !== 'choix' && MUTATIONS[m.cle]) ev.push({ j: m.jour, t: `${MUTATIONS[m.cle].ico} Le hasard s'en mêle : ${ctx.esc(m.p ? m.p.n : '')} — ${ctx.esc(MUTATIONS[m.cle].nom)}` });
@@ -1648,6 +1653,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   });
   // MES CARTES, DE PARTOUT (S79) : le cartable du jeu (l'onglet Vestiaire) les ouvre avec la décision du hub.
   if (onDecision && ctx.inventaire) tabs.hub.cartes = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
+  // LA DÉCISION DU JOUR, PRÊTÉE (S80) : une carte posée au verso d'une fiche ouverte n'importe où pendant la saison.
+  if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
   /*
    * UNE TUILE S'OUVRE SUR SA CARTE (S77) : la forme sur « Ma fiche », le
    * classement sur le classement, le deck sur le deck. Un seul écouteur,
@@ -1705,14 +1712,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         desactive: recrues.length ? '' : 'Personne ne rentre sous ton plafond' };
       if (c.sorte === 'amelioration') {
         const M = MUTATIONS[c.cle];
-        return { cle: `amelioration:${c.cle}`, rarete, ico: M.ico, nom: M.nom, type: `${S.nom} · au joueur de ton choix`, mutation: c.cle };
+        // S80 : elle va dans ton inventaire, et se pose au verso d'un joueur quand tu veux.
+        return { cle: `amelioration:${c.cle}`, rarete, ico: M.ico, nom: M.nom, type: `${S.nom} · se pose au verso`, mutation: c.cle };
       }
       if (c.sorte === 'profil') return { cle: 'profil', rarete, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
         texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
         desactive: roles.length ? '' : 'Personne à convertir' };
-      if (c.sorte === 'atelier') return { cle: 'atelier', rarete, ico: S.ico, nom: S.nom, type: `${S.nom} · au joueur de ton choix`,
-        texte: `Trois éditions : ${editionsDuJour(graine, p0).map(k => `${MUTATIONS[k].ico} ${MUTATIONS[k].nom}`).join(' · ')}. Tu choisis l'édition, puis le joueur.`,
-        desactive: ctx.atelier ? '' : 'L\'atelier est fermé' };
+      if (c.sorte === 'atelier') return { cle: 'atelier', rarete, ico: S.ico, nom: S.nom, type: `${S.nom} · se pose au verso`,
+        texte: `Trois éditions : ${editionsDuJour(graine, p0).map(k => `${MUTATIONS[k].ico} ${MUTATIONS[k].nom}`).join(' · ')}. Tu en gardes une, et tu la poses au verso d'un joueur quand tu veux.` };
       if (c.sorte === 'camp') return { cle: 'camp', rarete, ico: S.ico, nom: 'Le camp d\'entraînement', type: `${S.nom} · ton deck de match`,
         texte: 'Une carte de ton deck de match devient sa version « + » : moitié plus forte, ou une énergie de moins.',
         desactive: deckAvant(jour).some(k => CARTES_MATCH[`${k}+`]) ? '' : 'Tout ton deck est déjà amélioré' };
@@ -1747,30 +1754,28 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         } });
       return;
     }
+    /*
+     * L'AMÉLIORATION ET L'ATELIER SE GARDENT (S80). JP : *je veux que les
+     * upgrades de joueurs se fassent au verso de la carte, pas nécessairement
+     * quand on la pige*. La carte prise au palier (l'amélioration, ou
+     * l'édition gardée des trois de l'atelier) va dans ton inventaire
+     * (`garde`, lu par `pocheDeLaPartie`) ; on la pose au verso d'un joueur
+     * quand on veut. La décision ferme le palier et ne touche pas le moteur.
+     */
     if (sorte === 'atelier') {
       ouvrirChoix({ ...suite, ico: '🛠️', titre: 'L\'atelier',
-        recit: 'Trois éditions : touche celle que tu gardes, puis le joueur qui la reçoit. C\'est pour le reste de la saison.',
+        recit: 'Trois éditions : touche celle que tu gardes. Elle va dans ton inventaire, et tu la poses au verso d\'un joueur quand tu veux ; elle vaut pour le reste de la saison.',
         options: editionsDuJour(graine, p0).map(k => ({ cle: k, rarete: 'rare', ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutation(k) })),
-        onChoix: k => ctx.atelier(k, { jour, you, suite: { genre: 'palier' },
-          onChoix: mut => deciderDeck(p0, { deck: 'atelier', mutation: mut }), onFerme: () => suiteDeLaMain(p0, 'atelier', recrues, roles) }) });
+        onChoix: k => deciderDeck(p0, { deck: 'atelier', garde: `joueur:${k}` }) });
       return;
     }
-    if (sorte === 'amelioration') {
-      const M = MUTATIONS[arg];
-      // Le coach des gardiens (S78) ne s'offre qu'aux gardiens ; le reste, aux patineurs.
-      const js = SLOTS.filter(sl => !sl.scratch && (M.gardien ? sl.group === 'G' : sl.group !== 'G')).map(sl => ({ sl, p: you.roster[sl.i] }))
-        .filter(x => x.p && (M.gardien ? x.p.p === 'G' : x.p.p !== 'G'));
-      ouvrirChoix({ ...suite, cartes: false, compact: true, ico: M.ico, titre: `${M.nom} : à qui ?`,
-        recit: `${M.quoi} C'est pour de bon : choisis bien.`,
-        contexte: `<div class="choix-puces">${puces(motsDeMutation(arg))}</div>`,
-        options: js.map(({ p }) => ({ cle: getPlayerKey(p), ico: '', nom: p.n, sous: ctx.quiEst(p) })),
-        onChoix: k => deciderDeck(p0, { deck: 'amelioration', mutation: { cle: arg, joueur: k } }) });
-      return;
-    }
+    if (sorte === 'amelioration') { deciderDeck(p0, { deck: 'amelioration', garde: `joueur:${arg}` }); return; }
     if (sorte === 'profil') {
       ouvrirChoix({ ...suite, ico: '🔄', titre: 'Nouveau rôle',
         recit: 'Trois conversions possibles dans ton alignement. Le joueur change de profil pour de bon : son fit dans chaque tactique suit.',
-        options: roles.map(x => ({ cle: `${x.cle}|${getPlayerKey(x.p)}`, rarete: 'peu', ico: MUTATIONS[x.cle].ico, nom: MUTATIONS[x.cle].nom, type: x.p.n,
+        options: roles.map(x => ({ cle: `${x.cle}|${getPlayerKey(x.p)}`, rarete: 'peu', ico: MUTATIONS[x.cle].ico, nom: MUTATIONS[x.cle].nom,
+          // Où il joue (S80) : « Hal Gill · 3e paire ».
+          type: ctx.ouJoue && ctx.ouJoue(x.p) ? `${x.p.n} · ${ctx.ouJoue(x.p)}` : x.p.n,
           art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', mutation: x.cle, motChoix: 'Choisir', apercu: ctx.apercu ? () => ctx.apercu(x.p) : null })),
         onChoix: k => { const [m, joueur] = k.split('|'); deciderDeck(p0, { deck: 'profil', mutation: { cle: m, joueur } }); } });
       return;
@@ -2072,7 +2077,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const cible = optMut ? cibleMutation(you, optMut.mutation) : null;
       // LES JOUEURS QU'UN GESTE TOUCHE (S72) : nommés avant le choix.
       const cibles = m.cible ? ciblesDe(you, m.cible, graine, dl.J) : [];
-      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit: m.recit, joueur: cible, joueurs: cibles,
+      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit: m.recit, joueur: cible, joueurs: cibles, ouDe: ctx.ouJoue,
         options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
           desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
         onChoix: cle => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } }) };
@@ -2081,7 +2086,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // L'AVANT-MATCH (S70) : daté du soir du match, pas d'aujourd'hui.
       const A = AVANT_GROS[av.cle], advG = av.mb.adv;
       const ciblesA = A.cible ? ciblesDe(you, A.cible, graine, av.p.j) : [];
-      return { de: DE.depisteur, ico: A.ico, titre: A.titre, irl: A.irl, joueurs: ciblesA,
+      return { de: DE.depisteur, ico: A.ico, titre: A.titre, irl: A.irl, joueurs: ciblesA, ouDe: ctx.ouJoue,
         recit: `Avant le gros match contre ${ctx.teamLabel(advG)}. ${A.recit}`,
         contexte: depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) }),
         options: A.options.map(o => ({ ...o, duree: 1 })),
@@ -2291,7 +2296,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
     const ouvrirBallottage = () => ouvrirChoix({
       ico: '📋', titre: 'Au ballottage', cartes: true, genre: 'ballottage', fermable: true, motFermer: 'Garder mon alignement',
-      recit: `${alerte.player.n} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois joueurs pas chers de sa position sont disponibles : touche une carte pour sa fiche, « Signer » pour le réclamer — puis tu choisis qui lui laisse sa place. Le plafond compte toujours.`,
+      recit: `${alerte.player.n}${ctx.ouJoue && ctx.ouJoue(alerte.player) ? ` (${ctx.ouJoue(alerte.player)})` : ''} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois joueurs pas chers de sa position sont disponibles : touche une carte pour sa fiche, « Signer » pour le réclamer — puis tu choisis qui lui laisse sa place. Le plafond compte toujours.`,
       options: mB.bal.candidats.map(c => ({ cle: c.cle, rarete: c.rarete || 'commune', nom: c.nom, type: `${c.poste || c.pos} · ${c.club}`, coin: c.salaire,
         art: c.p ? joueurArt(c.p) : '', carteJoueur: c.p && ctx.carteMini ? ctx.carteMini(c.p) : '', texte: c.ligne, apercu: c.p && ctx.apercu ? () => ctx.apercu(c.p) : null })),
       onChoix: cle => {
