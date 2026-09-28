@@ -515,6 +515,31 @@ await page.waitForTimeout(2500);
  * suite — la saison suivante si le mandat est rempli (après les séries),
  * sinon une nouvelle run. « Rejouer la saison » n'existe pas dans une run.
  */
+/*
+ * « TA RUN » (1.0, R7) : une run finie (mandat manqué : la première saison
+ * sans séries) ou gagnée ouvre UN écran, une fois, avant qu'on reparte ; ses
+ * chiffres sont ceux du méta. Une run qui continue n'en ouvre pas.
+ */
+{
+  const ecranRun = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]');
+  const svR = await lireSauvegarde();
+  const sort = ((await page.textContent('#resultHost .rg-run').catch(() => '')) || '');
+  const finie = /Mandat manqué|run est gagnée/.test(sort);
+  const metaR = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
+  console.log(`12c. « Ta run » : ${ecranRun ? 'ouvert' : 'fermé'} · run ${finie ? 'finie' : 'en cours'} · dernière run au méta : ${metaR.derniereRun ? JSON.stringify(metaR.derniereRun) : '(aucune)'}`);
+  if (finie && !ecranRun) erreurs.push('la run est finie et l\'écran « Ta run » ne s\'est pas ouvert');
+  if (!finie && ecranRun) erreurs.push('la run continue et l\'écran « Ta run » s\'est ouvert quand même');
+  if (ecranRun) {
+    await page.screenshot({ path: `${DOSSIER}/rogue-ta-run.png` });
+    const txt = (await ecranRun.textContent()).replace(/\s+/g, ' ');
+    const d = metaR.derniereRun || {};
+    if (!new RegExp(`${d.saisons}\\s*saison`).test(txt) || !txt.includes(`+${d.ecussons}`) || !txt.includes(`🏅 ${metaR.ecussons}`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
+    if (!(svR.partie && svR.partie.rogue && svR.partie.rogue.taRunVue) && !(svR.rogue && svR.rogue.taRunVue)) erreurs.push('« Ta run » vu n\'est pas dans la sauvegarde (il se rouvrirait au rechargement)');
+    await page.click('#choixModal:not([hidden]) .choix-fermer');
+    await page.waitForTimeout(300);
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]')) erreurs.push('« Ta run » ne se ferme pas');
+  }
+}
 const blocRun = await page.$('#resultHost .rg-run');
 if (blocRun) { await blocRun.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${DOSSIER}/rogue-run-bilan.png` }); }
 const motRun = blocRun ? (await blocRun.textContent()).replace(/\s+/g, ' ').trim() : '';
