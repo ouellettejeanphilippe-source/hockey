@@ -1983,7 +1983,8 @@ async function continuerRun() {
   }
   // Le lustre : la variante que la carte a prise reste la sienne.
   for (const d of decisionsDeLaPartie()) if (d.mutation && d.mutation.cle === 'lustre' && d.mutation.carte && garder.has(d.mutation.joueur)) G.variantes.cartes[d.mutation.joueur] = d.mutation.carte.rar;
-  const deck = deckDe(L.decisions || [], { serie: L.decisionsSeries || [] });
+  // 1.0 (J1-F) : la saison neuve repart sans les cicatrices de la précédente — elles sont ce que LA saison laisse.
+  const deck = deckDe(L.decisions || [], { serie: L.decisionsSeries || [] }).filter(c => !(CARTES_MATCH[c] && CARTES_MATCH[c].maudite));
   report.push({ jour: 0, deck: 'report', deckDeBase: deck, report: true });
   const reste = Math.max(0, jetonsRogue(L.calendrier.length));
   G.lignes = Array.isArray(you.lignes) ? you.lignes.map(l => ({ ...l })) : G.lignes;

@@ -30,6 +30,7 @@ import {
   chimieLigne, apprentissagePhoto, getPlayerKey, profilsDe,
 } from '../js/sim.js';
 import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose } from '../js/banque.js';
+import { deckDe, DECK_DEPART, CICATRICES_MAX, CARTES_MATCH } from '../js/combat.js';
 import { pocheDeLaPartie } from '../js/inventaire.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -163,6 +164,27 @@ console.log('\n  Le deck (S73)\n');
     casesDAmelioration('commune') === 2 && casesDAmelioration('peu') === 2 && casesDAmelioration('rare') === 3 && casesDAmelioration('legendaire') === 3
     && casesLibres('peu', poseesSur(lustre, 'k')) === 2 && !sePose('genou') && !sePose('tir_gun') && sePose('partout') && sePose('baton_neuf'),
     `base ${casesDAmelioration('commune')} · holo ${casesDAmelioration('rare')} · parallèle lustrée en holo : ${casesLibres('peu', poseesSur(lustre, 'k'))} libres`);
+}
+
+/*
+ * 8. LES CICATRICES ONT UN PLAFOND (1.0, J1-F). Quatre pertes contre la
+ * némésis ne font que deux « doute » ; une série gagnée en efface une ; la
+ * saison suivante d'une run repart sans (le report est filtré dans game.js,
+ * ici on vérifie que deckDe respecte un `deckDeBase` sans malédiction).
+ */
+{
+  const d4 = deckDe([], { pertes: [3, 9, 20, 31] });
+  exiger('quatre gros matchs perdus contre la némésis ne laissent que deux doutes (les plus récents)', d4.filter(c => c === 'doute').length === CICATRICES_MAX && d4.length === DECK_DEPART.length + CICATRICES_MAX && CICATRICES_MAX === 2,
+    `${d4.filter(c => c === 'doute').length} doute(s), ${d4.length} cartes`);
+  const mixte = deckDe([], { pertes: [3, 40], blessures: [20], avant: 30 });
+  exiger('les cicatrices d\'avant le jour demandé seulement, doutes et blessures confondus', mixte.filter(c => CARTES_MATCH[c].maudite).join() === 'doute,trainee', mixte.filter(c => CARTES_MATCH[c].maudite).join(' · '));
+  const dSerie = deckDe([], { pertes: [3, 9], serie: [{ ronde: 0, match_no: -1, recompense: null }], ronde: 1 });
+  const dSerieAvant = deckDe([], { pertes: [3, 9], serie: [{ ronde: 0, match_no: -1, recompense: null }], ronde: 0 });
+  exiger('une série gagnée efface une cicatrice, et seulement à partir de la ronde suivante', dSerie.filter(c => c === 'doute').length === 1 && dSerieAvant.filter(c => c === 'doute').length === 2,
+    `ronde 1 : ${dSerie.filter(c => c === 'doute').length} doute · ronde 0 : ${dSerieAvant.filter(c => c === 'doute').length}`);
+  const base = deckDe([], { pertes: [3, 9] }).filter(c => !CARTES_MATCH[c].maudite);
+  const suivante = deckDe([{ jour: 0, deck: 'report', deckDeBase: base }]);
+  exiger('la saison suivante d\'une run repart d\'un deck sans cicatrice', !suivante.some(c => CARTES_MATCH[c].maudite) && suivante.length === DECK_DEPART.length, `${suivante.length} cartes, ${suivante.filter(c => CARTES_MATCH[c].maudite).length} maudite(s)`);
 }
 
 verdict('Le deck');

@@ -35,6 +35,8 @@
 
 export const ENERGIE_MAIN = 3;
 export const TAILLE_MAIN = 5;
+/* Les cicatrices (le doute, une blessure qui traîne) qu'un deck porte au plus, en même temps (1.0). */
+export const CICATRICES_MAX = 2;
 
 /*
  * Les cartes. `cout` en énergie ; `effet` : les canaux de CE match pour ta
@@ -338,8 +340,17 @@ export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = I
    * blessure qui traîne. Ce sont des résultats du moteur — donc des faits de
    * la graine et des décisions, comme le reste du deck.
    */
-  for (const j of pertes) if (j < avant) deck.push('doute');
-  for (const j of blessures) if (j < avant) deck.push('trainee');
+  /*
+   * DEUX CICATRICES AU PLUS (1.0, J1-F) : elles s'empilaient sans plafond et
+   * traversaient les saisons d'une run — un deck de dix plus quatre cicatrices
+   * tirait une malédiction dans la plupart des mains. La plus ancienne tombe
+   * au-delà de CICATRICES_MAX, et chaque série gagnée en efface une (la plus
+   * ancienne). Au report d'une run (`deckDeBase`), la saison neuve repart sans.
+   */
+  const cicatrices = [...pertes.filter(j => j < avant).map(j => ({ j, cle: 'doute' })), ...blessures.filter(j => j < avant).map(j => ({ j, cle: 'trainee' }))]
+    .sort((a, b) => a.j - b.j).slice(-CICATRICES_MAX);
+  const effacees = serie.filter(d => d && d.ronde < ronde && d.recompense !== undefined).length;
+  for (const c of cicatrices.slice(Math.min(cicatrices.length, effacees))) deck.push(c.cle);
   for (const cle of retraits) retirer(cle);
   /*
    * LES CARTES ÉPUISÉES (S76) : jouées à un match, elles quittent le deck
