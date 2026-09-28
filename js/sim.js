@@ -2720,8 +2720,9 @@ export function situationsDuJour(team, graine, jour, equipe = 0) {
  * joueurs portés et quatre pesés, et « une paire est neutre » ne voudrait
  * plus rien dire.
  */
-function poserSituations(team, graine, jour, equipe) {
-  const paire = situationsDuJour(team, graine, jour, equipe);
+/* `tirage` : la journée PRÉVUE, qui donne le tirage — la situation reportée d'un gros match (S79) garde le sien. */
+function poserSituations(team, graine, jour, equipe, tirage = jour) {
+  const paire = situationsDuJour(team, graine, tirage, equipe);
   if (!paire) return;
   for (const s of SLOTS) { const p = team.roster[s.i]; if (p) delete p._situ; }
   for (const bout of [paire.porte, paire.pese]) {
@@ -4878,7 +4879,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
       for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
-      t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
+      t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = [];
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
     }
     /*
@@ -4929,14 +4930,10 @@ function preludeDuJour(L) {
       energie: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), Math.round(energieDe(p))])),
     };
   }
-  // LES SITUATIONS DU JOUR, avant les décisions : elles ne consomment AUCUN
-  // hasard — de la graine, de la journée et du rang de l'équipe.
-  for (let i = 0; i < teams.length; i++) if (L.vit(i)) poserSituations(teams[i], L.graine, r, i);
-  // LES ACCIDENTS DE CARTE (S68), comme les situations : de la graine.
-  for (let i = 0; i < teams.length; i++) if (L.vitAcc(i)) poserAccident(teams[i], L.graine, r, i);
   // LE GROS MATCH DU SOIR, repéré sans rien jouer : le même calcul que
   // `jouerJournee` refera au moment du match (les décisions du jour ne
-  // touchent ni au classement ni aux rivalités).
+  // touchent ni au classement ni aux rivalités). Il se repère AVANT les
+  // situations et les accidents (S79) : eux attendent un jour sans gros match.
   L.grosAVenir = null;
   const toi = teams[0] && teams[0].isPlayer ? teams[0] : null;
   const m = toi && (L.calendrier[r] || []).find(x => x.A === toi || x.B === toi);
@@ -4946,6 +4943,34 @@ function preludeDuJour(L) {
     if (raison) {
       const depistage = depistageDe(L.graine, `j${r}`, adv);
       L.grosAVenir = { jour: r, adv, raison, depistage, plan: planDuDepistage(L.graine, `j${r}`, depistage) };
+    }
+  }
+  /*
+   * LES SITUATIONS ET LES ACCIDENTS DU JOUR, avant les décisions : ils ne
+   * consomment AUCUN hasard — de la graine, de la journée et du rang.
+   *
+   * PAS LE SOIR D'UN GROS MATCH (S79). JP : *souvent, un jour de match
+   * important, tu sors un événement genre maladie ou truc du genre, ça
+   * devrait pas être synchro*. Chez TA formation, une situation ou un
+   * accident prévu un soir de gros match attend le lendemain (les gros
+   * matchs sont espacés de ESPACEMENT_GROS journées). Il garde son tirage :
+   * la journée PRÉVUE décide qui et quoi, la journée réelle décide quand.
+   */
+  for (let i = 0; i < teams.length; i++) {
+    const t = teams[i];
+    const tienne = t === toi;
+    if (tienne && L.grosAVenir) {
+      if (L.vit(i) && JOURS_SITUATIONS.includes(r)) (t._enAttente = t._enAttente || []).push(['situation', r]);
+      if (L.vitAcc(i) && JOURS_ACCIDENTS.includes(r)) (t._enAttente = t._enAttente || []).push(['accident', r]);
+      continue;
+    }
+    if (L.vit(i)) poserSituations(t, L.graine, r, i);
+    if (L.vitAcc(i)) poserAccident(t, L.graine, r, i);
+    if (tienne && t._enAttente && t._enAttente.length) {
+      for (const [quoi, prevu] of t._enAttente.splice(0)) {
+        if (quoi === 'situation') poserSituations(t, L.graine, r, i, prevu);
+        else poserAccident(t, L.graine, r, i, prevu);
+      }
     }
   }
 }
@@ -5211,7 +5236,7 @@ function remettreANeuf(t) {
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
   t.chimie = [0, 0, 0, 0]; t.entente = new Map();
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
-  t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
+  t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = [];
 }
 export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
   const avant = hasard;
@@ -5474,9 +5499,9 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
 /* Les accidents : cinq fenêtres, une chance sur deux par club, tirés de la graine. */
 export const JOURS_ACCIDENTS = [7, 22, 37, 55, 74];
 export const CHANCE_ACCIDENT = 0.5;
-function poserAccident(team, graine, jour, equipe) {
-  if (!JOURS_ACCIDENTS.includes(jour)) return;
-  const rnd = melangeurSitu(graine, jour + 5000, equipe);
+function poserAccident(team, graine, jour, equipe, tirage = jour) {
+  if (!JOURS_ACCIDENTS.includes(tirage)) return;
+  const rnd = melangeurSitu(graine, tirage + 5000, equipe);
   if (rnd() >= CHANCE_ACCIDENT) return;
   const js = SLOTS.filter(s => !s.scratch && s.group !== 'G').map(s => team.roster[s.i]).filter(p => p && p.p !== 'G')
     .sort((a, b) => (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1));

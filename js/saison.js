@@ -762,6 +762,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     && typeof d.palier === 'string' && Number(d.palier.slice(2)) < J).map(d => d.moment.cle);
   const dilemmeOuvert = () => {
     if (!onDecision || jour >= N) return null;
+    // PAS LE SOIR D'UN GROS MATCH (S79, JP : *un jour de match important… ça devrait pas être
+    // synchro*) : le dilemme attend le lendemain — il reste ouvert tant qu'il n'est pas pris.
+    if (grosDuJour(jour)) return null;
     const J = JOURS_MOMENTS.find(j => jour >= j && !pris.has(`m:${j}`));
     if (J === undefined) return null;
     const cle = momentDuJour(graine, J, momentsAvant(J));

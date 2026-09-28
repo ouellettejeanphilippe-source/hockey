@@ -524,7 +524,7 @@ const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S79';  // S79 : la cédule a son propre hasard, la ligue se joue au jour le jour
+const VERSION_MOTEUR = 'S80';  // S80 : le pesé des situations pèse plus, et un soir de gros match n'a ni situation, ni accident, ni dilemme (ils attendent le lendemain)
 function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.

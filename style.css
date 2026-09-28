@@ -9603,16 +9603,26 @@ body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { displa
 body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 
 /* =====================================================================
-   LE BAS DU PLATEAU TOUJOURS À PORTÉE (S79). JP : *dans les matchs, je
-   réussis pas à cliquer les boutons du bas*. La glace réservait 236 px au
-   reste de l'écran ; la barre du bas (la consigne sur deux lignes, les
-   gestes, « Passer », « Fin du tour ») et la barre de gestes d'Android en
-   prennent plus : « Passer » sortait de l'écran, sous la barre du téléphone.
-   La glace prend maintenant ce qui reste (et défile au besoin) ; la barre du
-   bas ne se coupe jamais et se pose au-dessus de la zone protégée.
+   UNE FEUILLE PLEIN ÉCRAN REMPLIT SA TOILE (S79). JP : *dans les matchs
+   simulés, je réussis pas à cliquer les boutons du bas* — la vitesse, la
+   pause, « Fin du match », l'entracte. La toile de fond (.modal-backdrop)
+   s'arrête déjà sous la barre d'état et au-dessus de la barre de gestes
+   (S70, S78) ; la feuille du direct gardait 100dvh PAR-DESSUS : elle
+   débordait des deux barres, et sa rangée du bas tombait sous la barre de
+   navigation d'Android. Elle remplit maintenant sa toile, et sa rangée du
+   bas n'ajoute plus une deuxième fois la zone protégée.
    ===================================================================== */
+.modal-backdrop.live > .live-sheet { height: 100%; max-height: 100%; }
+.modal-backdrop.live .live-controls { padding-bottom: 10px; }
+/*
+ * LE PLATEAU, MÊME RÈGLE. La glace réservait 236 px au reste de l'écran ; la
+ * barre du bas (la consigne sur deux lignes, les gestes, « Passer ») en
+ * prend plus, et « Passer » sortait de l'écran. La glace prend ce qui reste
+ * de la toile (sans les deux barres du téléphone) et défile au besoin ; la
+ * barre du bas ne se coupe jamais.
+ */
 @media (max-width: 1199px) {
   .table-sheet .t-plateau { flex: 1 1 auto; min-height: 0; }
-  .table-sheet .t-dock { flex: none; padding-bottom: calc(8px + var(--safe-bas)); }
-  .t-glace { --tcell: min(calc((100vw - 8px) / var(--tcols, 9)), calc((100dvh - 290px - var(--safe-bas)) / var(--trangs, 11)), 72px); }
+  .table-sheet .t-dock { flex: none; }
+  .t-glace { --tcell: min(calc((100vw - 8px) / var(--tcols, 9)), calc((100dvh - var(--safe-top) - var(--safe-bas) - 290px) / var(--trangs, 11)), 72px); }
 }
