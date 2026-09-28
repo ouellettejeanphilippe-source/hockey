@@ -1382,6 +1382,8 @@ const UNITE_PAR_ROLE = {
 };
 export function identiteUnite(lineup, groupe, u) {
   const js = SLOTS.filter(s => s.group === groupe && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
+  // Une unité incomplète n'a pas de nom (J1-I) : « Trio polyvalent » à 1/3, c'était un jugement sur rien.
+  if (js.length < (groupe === 'D' ? 2 : 3)) return null;
   const roles = js.map(profilPrincipal).filter(Boolean);
   if (!roles.length) return null;
   const n = {};
@@ -1655,7 +1657,10 @@ export function fitUnite(lineup, groupe, u, cle) {
   for (const [role, prof] of Object.entries(S.slots)) {
     const p = js[role];
     if (p === undefined) continue;          // la 4e ligne n'a pas de paire
-    const pr = p && profilsDe(p);
+    // UNE CASE VIDE N'A PAS DE FIT (1.0, J1-I) : une unité incomplète ne se
+    // juge pas — elle comptait pour 0 et tout trio vide lisait « Mauvais fit ».
+    if (p === null) return null;
+    const pr = profilsDe(p);
     fits.push(pr && pr[prof] != null ? pr[prof] : 0);
   }
   return fits.length ? Math.round(fits.reduce((a, x) => a + x, 0) / fits.length) : 0;
@@ -1670,6 +1675,7 @@ export function meilleureTactique(lineup, u) {
   for (const k of Object.keys(TACTIQUES)) {
     if (k === 'hourra') continue;
     const v = fitUnite(lineup, 'F', u, k);
+    if (v == null) return 'hourra';       // unité incomplète : aucun système ne se choisit
     if (v > f) { f = v; best = k; }
   }
   return best;
@@ -1680,6 +1686,7 @@ export function meilleurSystemeD(lineup, u) {
   for (const k of Object.keys(SYSTEMES_D)) {
     if (k === 'hourra') continue;
     const v = fitUnite(lineup, 'D', u, k);
+    if (v == null) return 'hourra';
     if (v > f) { f = v; best = k; }
   }
   return best;
@@ -1812,16 +1819,20 @@ export function maitriseLigne(app, lineup, u, l) {
 export function fitDeLigne(lineup, u, l) {
   const { tac, tacD } = systemesLigne(l);
   const fF = tac !== 'hourra' ? fitUnite(lineup, 'F', u, tac) : 0;
+  if (fF == null) return null;              // trio incomplet (J1-I)
   if (pairDeLigne(u) == null) return fF;
   const fD = tacD !== 'hourra' ? fitUnite(lineup, 'D', u, tacD) : 0;
+  if (fD == null) return null;
   return Math.round((3 * fF + 2 * fD) / 5);
 }
 /* La chimie d'une ligne : le plafond de son fit × (entente + maîtrise) / 2. Sans aucun système, rien. */
 export function chimieLigne(app, lineup, u, l) {
   const { tac, tacD } = systemesLigne(l);
   if (tac === 'hourra' && tacD === 'hourra') return 0;
+  const fit = fitDeLigne(lineup, u, l);
+  if (fit == null) return 0;                // ligne incomplète : pas de chimie à lire
   const m = maitriseLigne(app, lineup, u, l);
-  return chimieMax(fitDeLigne(lineup, u, l) + MAITRISE_FIT * m) * (ententeLigne(app, lineup, u) + m) / 2;
+  return chimieMax(fit + MAITRISE_FIT * m) * (ententeLigne(app, lineup, u) + m) / 2;
 }
 /* Après un match : chaque paire de coéquipiers et chaque joueur apprennent ce qu'ils ont joué ce soir-là. */
 export function majChimie(team, lineup) {
@@ -3388,7 +3399,7 @@ export function profilMatch(team, lineup, adv = null) {
     const l = lignes[u], A = AGRESSIVITES[l.agr];
     const cle = g === 'D' ? l.tacD : l.tac;
     const S = g === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
-    const fit = S && S.slots ? fitUnite(lineup, g, u, cle) : 0;
+    const fit = S && S.slots ? (fitUnite(lineup, g, u, cle) ?? 0) : 0;
     const c = canal => canalSysteme(S, fit, canal);
     const ph = physiqueUnite(lineup, g, u);
     const eff = rendementPhysique(ph);

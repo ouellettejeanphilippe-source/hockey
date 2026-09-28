@@ -1875,7 +1875,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         recit: `Toute ta formation apprend le système choisi : ${Math.round(GAIN_STAGE * 100)} % du chemin vers la maîtrise, d'un coup. La chimie de chaque ligne qui le joue monte avec.`,
         options: tactiquesDuStage(graine, p0).map(tac => {
           const T = systemeDe(tac);
-          const fits = NOMS[T.groupe].map((_, u) => fitUnite(you.roster, T.groupe, u, tac));
+          const fits = NOMS[T.groupe].map((_, u) => fitUnite(you.roster, T.groupe, u, tac) ?? 0);
           const meilleure = fits.indexOf(Math.max(...fits));
           return { cle: tac, rarete: 'commune', ico: T.ico, nom: T.nom, type: T.groupe === 'D' ? 'Stage · système de paire' : 'Stage · système de trio',
             texte: `${T.mot} ${T.groupe === 'D' ? 'Tes défenseurs' : 'Tes avants'} : ${connait(maitrise(tac))}.`,

@@ -456,11 +456,14 @@ export function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', ch
   const attr = D ? 'tacd' : 'tac';
   const cle = SYS[D ? l.tacD : l.tac] ? (D ? l.tacD : l.tac) : 'hourra';
   const S = SYS[cle];
-  const fit = S.slots ? fitUnite(lineup, groupe, u, cle) : 0;
+  const fitBrut = S.slots ? fitUnite(lineup, groupe, u, cle) : 0;
+  // UNITÉ INCOMPLÈTE (J1-I) : aucun fit, aucun conseil, les systèmes se lisent sans verdict.
+  const incomplete = fitBrut == null;
+  const fit = fitBrut ?? 0;
   const classeFit = f => (f >= 55 ? ' bon' : f < 40 ? ' prix' : '');
   const meilleur = D ? meilleurSystemeD(lineup, u) : meilleureTactique(lineup, u);
-  const fM = SYS[meilleur] && SYS[meilleur].slots ? fitUnite(lineup, groupe, u, meilleur) : 0;
-  const conseil = meilleur !== cle && fM >= fit + 10
+  const fM = SYS[meilleur] && SYS[meilleur].slots ? (fitUnite(lineup, groupe, u, meilleur) ?? 0) : 0;
+  const conseil = !incomplete && meilleur !== cle && fM >= fit + 10
     ? `<div class="ln-conseil">💡 ${D ? 'Cette paire' : 'Ce trio'} irait mieux en <button type="button" class="ln-conseil-btn" data-${attr}="${meilleur}">${nomSys(meilleur)}</button> <small>${motFit(fM).toLowerCase()}</small></div>` : '';
   // En face : le trio adverse de même rang, et sa paire.
   const a = adv && adv[u];
@@ -476,8 +479,8 @@ export function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', ch
     enFace = `<div class="gl-adv">En face, le trio ${esc(avecArticle('de', advNom || 'Eux'))} : <b>${nomSys(aF)}</b>${S.bat === aF ? ' · <span class="ok">✓ ta paire étouffe ses actions spéciales</span>' : pour ? ` · ta paire l'étouffe en <b>${nomSys(pour)}</b>` : ''}</div>`;
   }
   const boutons = Object.entries(SYS).map(([k, X]) => {
-    const f = X.slots ? fitUnite(lineup, groupe, u, k) : null;
-    return `<button type="button" class="gl-tac${cle === k ? ' on' : ''}${aF && X.bat === aF ? ' contre' : ''}" data-${attr}="${k}" aria-pressed="${cle === k}" title="${esc(X.mot)}"><b>${X.ico} ${esc(X.nom)}</b><span class="gl-tac-fit${f == null ? '' : classeFit(f)}">${f == null ? 'rien à assortir' : motFit(f)}</span>${f != null && chimieDe ? `<small class="gl-tac-soir">chimie ${motChimie(chimieDe(k))}</small>` : ''}</button>`;
+    const f = X.slots && !incomplete ? fitUnite(lineup, groupe, u, k) : null;
+    return `<button type="button" class="gl-tac${cle === k ? ' on' : ''}${aF && X.bat === aF ? ' contre' : ''}" data-${attr}="${k}" aria-pressed="${cle === k}" title="${esc(X.mot)}"><b>${X.ico} ${esc(X.nom)}</b><span class="gl-tac-fit${f == null ? '' : classeFit(f)}">${f == null ? (incomplete && X.slots ? 'à compléter' : 'rien à assortir') : motFit(f)}</span>${f != null && chimieDe ? `<small class="gl-tac-soir">chimie ${motChimie(chimieDe(k))}</small>` : ''}</button>`;
   }).join('');
   const effets = effetsDeSysteme(S, fit);
   const etouffe = S.bat ? (D ? ` Étouffe l'action spéciale d'un trio en ${nomSys(S.bat)}.` : ` Étouffe ${nomSys(S.bat)}.`) : '';
@@ -611,7 +614,8 @@ export function ouvrirLignes(spec) {
     }).join('')}</div>`;
     const u = ouverte, l = brouillon[u];
     const sansSysteme = l.tac === 'hourra' && (u > 2 || l.tacD === 'hourra');
-    const fitCourant = fitDeLigne(spec.lineup, u, l);
+    const fitLigneBrut = fitDeLigne(spec.lineup, u, l);
+    const fitCourant = fitLigneBrut ?? 0;
     // LA CARRURE DE LA LIGNE (S71) : c'est elle qui dit si le jeu physique paie.
     const ph = physiqueLigne(spec.lineup, u);
     const carrureLigne = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : '⚖️ ligne moyenne';
@@ -625,7 +629,7 @@ export function ouvrirLignes(spec) {
     const detail = `<section class="gl-ligne">
       <div class="gl-joueurs">${ROLES.map(r => joueurLigne(u, r)).join('')}</div>
       <div class="gl-etat">
-        <div><span class="gl-k">Fit</span> <b>${sansSysteme ? '—' : motFit(fitCourant)}</b> <small>${sansSysteme ? 'aucune chimie' : `plafond de chimie : ${plafondChimie(chimieMax(fitCourant))}`}</small></div>
+        <div><span class="gl-k">Fit</span> <b>${sansSysteme ? '—' : fitLigneBrut == null ? 'À compléter' : motFit(fitCourant)}</b> <small>${sansSysteme ? 'aucune chimie' : fitLigneBrut == null ? 'ligne incomplète' : `plafond de chimie : ${plafondChimie(chimieMax(fitCourant))}`}</small></div>
         <div><span class="gl-k">Chimie ce soir</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(chimieDe(u, l))}%"></span></span> <b>${motChimie(chimieDe(u, l))}</b></div>
         ${app && !sansSysteme ? `<div class="gl-appris"><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise des systèmes : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l))}</b></span></div>
         <div class="gl-mot">La chimie s'apprend et ne se perd pas : changer de système ou de joueur un soir ne défait rien. Plus une ligne joue un système, mieux elle le joue.</div>` : ''}
@@ -733,14 +737,20 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   // La chimie est celle de la LIGNE (trio et paire) : elle s'écrit sous le trio.
   const chimie = patch => (app ? chimieLigne(app, spec.lineup, u, { ...l, ...patch }) : (spec.chimie || [])[u] || 0);
   const mins = minutes(spec.lignes);
-  const sansFit = !S.slots;
-  const fit = sansFit ? 0 : fitUnite(spec.lineup, groupe, u, cle);
+  const fitBrut = S.slots ? fitUnite(spec.lineup, groupe, u, cle) : 0;
+  // UNITÉ INCOMPLÈTE (1.0, J1-I) : ni fit, ni chimie, ni système — « À
+  // compléter ». Un trio vide lisait « Échec avant 2-1-2 · Mauvais fit ».
+  const incomplete = fitBrut == null;
+  const sansFit = !S.slots || incomplete;
+  const fit = fitBrut ?? 0;
   const classeFit = f => (f >= 55 ? ' bon' : f < 40 ? ' prix' : '');
 
   // FERMÉ : une ligne. La chimie ne s'y écrit que derrière le banc — avant
   // la saison, elle est « naissante » pour les quatre, et le dire quatre fois
   // n'apprend rien.
-  const sommaire = `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${D ? '' : `${app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}<span>${mmss(mins[u])} de glace</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
+  const sommaire = incomplete
+    ? `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>À compléter</b>${D ? '' : `<span>${mmss(mins[u])} de glace</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`
+    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${D ? '' : `${app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}<span>${mmss(mins[u])} de glace</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
   if (!ouvert) return { sommaire, corps: '' };
 
   const choix = systemesHtml({ lineup: spec.lineup, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '',
@@ -762,7 +772,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   const avecPaire = u < 3 && !(l.tac === 'hourra' && l.tacD === 'hourra');
   const corps = `
     ${choix}
-    ${sansFit && !avecPaire ? '' : `<div class="ln-etat"><span>Plafond de chimie${u < 3 ? ' (trio et paire)' : ''} : <b>${plafondChimie(chimieMax(fitDeLigne(spec.lineup, u, l)))}</b></span>${app ? `<span>Ce soir : <b>${motChimie(chimie({}))}</b></span><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l))}</b></span>` : ''}</div>`}
+    ${incomplete || (sansFit && !avecPaire) || fitDeLigne(spec.lineup, u, l) == null ? '' : `<div class="ln-etat"><span>Plafond de chimie${u < 3 ? ' (trio et paire)' : ''} : <b>${plafondChimie(chimieMax(fitDeLigne(spec.lineup, u, l)))}</b></span>${app ? `<span>Ce soir : <b>${motChimie(chimie({}))}</b></span><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l))}</b></span>` : ''}</div>`}
     <div class="gl-sec-titre">Agressivité · ${carrure}</div>
     <div class="gl-seg gl-seg-court ln-agr">${agr}</div>
     ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
