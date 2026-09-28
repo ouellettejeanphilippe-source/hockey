@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries,
+import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
   PLANS, ROULEMENTS, planDe, roulementDe, JOURS_SITUATIONS,
   STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
@@ -930,7 +930,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       titre: 'Avant le match', sousTitre: `Match important · journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
       recit: 'Le dépistage dit ce qu\'ils vont probablement jouer : prépare-toi pour une piste, puis joue tes cartes — cinq cartes, trois d\'énergie, pour ce match seulement.',
       depistage: mo.mb.depistage, planReel: mo.mb.plan, nomAdv: ctx.teamShort(adv),
-      contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }) }),
+      contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }), echelle: echelleTardive({ jour: mo.p.j }) }),
+      // S80 : l'échelle du soir — ce qui vise l'adversaire grandit avec la saison.
+      echelle: echelleTardive({ jour: mo.p.j }),
       equipe: you, main, pioche, deck,
       onJouer: (jouees, enMain, _aj, prep) => { const j = jour; quitter(); onDecision({ jour: mo.p.j, main: { jouees, enMain }, prep }, j); },
     });
@@ -1895,6 +1897,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      * le proprio attend, et qui manque. Rien quand il n'y a rien.
      */
     const lignes = [];
+    // LA RUN ROGUE (S80) : sa saison, et ce que le proprio exige pour qu'elle continue.
+    const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
+    if (run) lignes.push(`<div class="hub-etat-l hub-etat-run" title="Manque le mandat et la run est finie ; gagne la Coupe et elle est gagnée">
+        <span class="hub-etat-k">💀 La run</span>
+        <span class="hub-etat-v">Saison ${run.saison} · le proprio veut : <b>${ctx.esc(run.mot)}</b></span>
+      </div>`);
     const oc = onDecision ? objectifEnCours() : null;
     if (oc && OBJECTIFS[oc.d.objectif.cle]) {
       const O = OBJECTIFS[oc.d.objectif.cle];
@@ -2816,7 +2824,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         sousTitre: `${nomRondeCourt(ronde)} · match ${k + 1} · contre ${ctx.teamShort(boss)} · série ${moi}-${lui}`,
         recit: `${resultatPrecedent(s, k)}${k === 0 ? '' : etat === 'derriere' ? 'Ta formation tire de l\'arrière. ' : etat === 'devant' ? 'Ta formation mène la série. ' : 'La série est à égalité. '}${suiteDuPlan(s)} Prépare-toi pour une piste${dejaAjuste ? '' : ', choisis ton ajustement'}, puis joue tes cartes.`,
         depistage: pl ? pl.depistage : null, planReel: pl ? pl.plan : null, nomAdv: ctx.teamShort(boss),
-        contexte: mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }) }),
+        contexte: mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }), echelle: echelleTardive({ serie: true, ronde }) }),
+        echelle: echelleTardive({ serie: true, ronde }),
         ajustements: dejaAjuste ? null : ajustementsOfferts(graine, ronde, k, etat).map(c => ({ cle: c, ...AJUSTEMENTS[c] })),
         equipe: you, main, pioche, deck,
         onJouer: (jouees, enMain, ajustement, prep) => quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees, enMain }, prep })),

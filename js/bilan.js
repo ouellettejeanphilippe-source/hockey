@@ -878,7 +878,8 @@ function finDesSeries(S, host, rogue = true) {
     });
   }
   dessinerTableauDesSeries(host, n, champion);
-  if (rogue && finDesSeriesRogue) finDesSeriesRogue((G.series || []).filter(x => x.winner && x.winner.isPlayer).length, !!(champion && champion.isPlayer));
+  // Le Rogue paie ses écussons une fois (`rogue`) ; une reprise qui a tout vu lui redit quand même le sort de la run (S80).
+  if (finDesSeriesRogue) finDesSeriesRogue((G.series || []).filter(x => x.winner && x.winner.isPlayer).length, !!(champion && champion.isPlayer), { payer: rogue });
 }
 
 /* L'écran des séries, sur le moteur EN MÉMOIRE : ouvrir, rouvrir après une décision, reprendre. */

@@ -121,10 +121,12 @@ console.log('\n  Le deck (S73)\n');
   exiger('et la ligne qui la joue a plus de chimie ce soir-là', ch > chBase + 5, `4e ligne en ${tac} : ${chBase.toFixed(0)} % sans le stage, ${ch.toFixed(0)} % avec`);
   // 4. l'amélioration.
   const p = Object.values(toi.roster).find(x => x && getPlayerKey(x) === cleCible);
-  const autres = Object.values(toi.roster).filter(x => x && x !== p && x._mut && x._mut.finition);
+  // S80 : une amélioration vit à part (`_amel`, elle grandit avec la saison dans une ligue Rogue) ; hors du Rogue elle vaut ce qu'elle dit.
+  const finitionDe = x => ((x && x._mut && x._mut.finition) || 1) * ((x && x._amel && x._amel.finition) || 1);
+  const autres = Object.values(toi.roster).filter(x => x && x !== p && finitionDe(x) !== 1);
   const apres = profilsDe(p);
-  exiger('une amélioration change la carte du joueur choisi', p && p._mut && Math.abs(p._mut.finition - MUTATIONS.affute.finition) < 1e-9 && apres.sniper > profilsAvant.sniper,
-    `${p.n} : finition ×${p._mut && p._mut.finition}, sniper ${profilsAvant.sniper} → ${apres.sniper}`);
+  exiger('une amélioration change la carte du joueur choisi', p && Math.abs(finitionDe(p) - MUTATIONS.affute.finition) < 1e-9 && apres.sniper > profilsAvant.sniper,
+    `${p.n} : finition ×${finitionDe(p)}, sniper ${profilsAvant.sniper} → ${apres.sniper}`);
   exiger('et seulement la sienne', !autres.some(x => (x._mutCles || []).includes('affute')), `${autres.length} autre(s) touché(s)`);
   // 5. les rôles.
   const cles = new Set(roles.map(r => getPlayerKey(r.p)));

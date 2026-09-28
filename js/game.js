@@ -26,7 +26,8 @@ import {
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJusqua, bilanLigue, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
   CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, systemeDe, MUTATIONS, effetsEnCours,
-  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour } from './sim.js';
+  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE } from './sim.js';
+import { ouvrirDepartClasseur } from './depart.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
@@ -53,9 +54,11 @@ import { PACKS_TOUS, PITIE, SKILLS, cotesDuPack, tirerVariante, tirerJoueursDuPa
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe } from './niveaux.js';
 import { ouvrirInventaire, pocheDeLaPartie, valeurDe, VENTE } from './inventaire.js';
 import { ouvrirMagasin } from './magasin.js';
-import { rendreCartable, ajouterAuCartable, migrerHistorique, lireCartable } from './cartable.js';
+import { rendreCartable, ajouterAuCartable, migrerHistorique, lireCartable, meilleureVariante } from './cartable.js';
 import { JETONS, jetonsDe, PACKS, DEBLOCAGES, lireMeta, aDebloque, nombreGardes, jetonsDeDepart, packsOuverts, peutAcheter, acheterDeblocage,
-  ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, rareteTiree, recevoirPermanents, retirerDuMeta, plafondDuVestiaire } from './rogue.js';
+  ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, rareteTiree, recevoirPermanents, retirerDuMeta, plafondDuVestiaire,
+  PLAFOND_ROGUE, ESPACE_DE_DEPART, departDuClasseur, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, ecrireMeta,
+  MANDATS, mandatDe, mandatRempli, JALONS, payerJalons, recompenseDe, baremeRogue } from './rogue.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -254,7 +257,6 @@ const G = {
  * crèvent : les cartes de masse salariale font le reste. Le plafond d'une run
  * est fixé à son départ (`G.rogue.plafond`) ; une vieille run n'en a pas.
  */
-const PLAFOND_ROGUE = 82_000_000;
 const MODE_ROGUE = { ...MODES.CLASSIQUE, nom: 'Rogue', cap: PLAFOND_ROGUE };
 const MODE = () => (G.bonus === 'ROGUE' ? MODE_ROGUE : (MODES[G.mode] || MODES.CLASSIQUE));
 /**
@@ -301,7 +303,18 @@ function saisonDeFranchise(fr, sauf = null) {
   return rnd(autres.length ? autres : ss);
 }
 /** Les cases que TU combles : les 23 d'habitude, six en express. */
-const casesActives = () => casesDuMode(G.mode);
+const casesActives = () => (G.bonus === 'ROGUE' ? casesDeLaRun() : casesDuMode(G.mode));
+/*
+ * LES CASES D'UNE RUN ROGUE (S80) : les 23, plus les cases de réserve que le
+ * vestiaire a débloquées pour cette run (`G.rogue.reserves`, fixé au départ).
+ * Une case de réserve peut rester LIBRE en Rogue : on relâche un réserviste
+ * pour faire de la place ou de l'espace sous le plafond (JP : *possible de
+ * discard les cartes de remplaçants*), et un joueur signé y entre sans que
+ * personne sorte.
+ */
+const reservesOuvertes = () => (G.bonus === 'ROGUE' && G.rogue ? G.rogue.reserves || 0 : 0);
+const caseOuverte = s => !s.extra || s.extra <= reservesOuvertes();
+const casesDeLaRun = () => SLOTS.filter(caseOuverte);
 
 /** Les cinq réglages qui définissent LA PARTIE : ils n'existent que sur #partieModal. */
 const REGLAGES_PARTIE = new Set(['format', 'tirage', 'ligue', 'repechage', 'bonus']);
@@ -353,7 +366,8 @@ function capHit(p, pl) {
 }
 const capUsed = (pl = G.ligue ? plafondEffectif() : null) => signes().reduce((s, p) => s + (pl ? capHit(p, pl) : p.$), 0);
 const capLeft = () => { const pl = plafondEffectif(); return pl.cap - capUsed(G.ligue ? pl : null); };
-const slotsLeft = () => casesActives().filter(s => !G.roster[s.i]).length;
+// En Rogue, une case de réserve libre n'est pas « à combler » (S80) : seules les cases habillées bloquent la saison.
+const slotsLeft = () => casesActives().filter(s => !G.roster[s.i] && !(G.bonus === 'ROGUE' && s.scratch)).length;
 const totalCases = () => casesActives().length;
 
 /**
@@ -611,6 +625,8 @@ function resumePartie() {
     etape = G.seriesVues ? `Les séries · saison ${W}-${D}-${P}` : j >= L.calendrier.length ? `Bilan · ${W}-${D}-${P}` : `Journée ${j} / ${L.calendrier.length} · ${W}-${D}-${P}`;
   }
   const qui = [MODES[G.mode] ? MODES[G.mode].nom : '', G.repechage === 'FRANCHISE' && FRANCHISES[G.franchise] ? FRANCHISES[G.franchise].nom : '', G.epoque || ''].filter(Boolean).join(' · ');
+  // S80 : une run Rogue dit sa saison, au menu comme au hub.
+  if (G.bonus === 'ROGUE' && G.rogue && G.rogue.saison) etape = `Run ${G.rogue.numero || ''} · saison ${G.rogue.saison} · ${etape}`.replace('Run  ·', 'Run ·');
   return { etape, qui, vierge: !signes && !L };
 }
 
@@ -1271,7 +1287,9 @@ function jetonsRogue(j = G.journee || 0) {
   const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0), 0);
   const direction = modificateurs(decs).jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, j), 0);
   const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
-  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart) + ventes + direction;
+  // S80 : le barème de la saison de la run (4 🪙 par victoire sans commanditaire) ; une vieille run garde celui de S79.
+  const bareme = G.bonus === 'ROGUE' && G.rogue && G.rogue.bareme ? G.rogue.bareme : JETONS;
+  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart, bareme) + ventes + direction;
 }
 
 /*
@@ -1393,7 +1411,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
         decider({ jour: j, palier, achat, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) } });
       };
       // QUI SORT : la sortie doit faire entrer son salaire sous le plafond (effectif), ou au moins ne pas l'empirer.
-      choisirQuiSort(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), note: q => `libère ${money(capHitDuJour(q))}`, onChoix: signer, onFerme: offrir });
+      quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), note: q => `libère ${money(capHitDuJour(q))}`, onChoix: signer, onFerme: offrir });
     },
     onFerme: () => decider({ jour: j, palier, achat }),
   });
@@ -1406,7 +1424,8 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
  */
 function bloqueParLePlafond(p, q) {
   const pl = G.ligue ? plafondEffectif() : null;
-  const libere = pl ? capHit(q, pl) : (q.$ || 0);
+  // `q` absent : une case de réserve libre (S80) — personne ne sort, rien ne se libère.
+  const libere = !q ? 0 : pl ? capHit(q, pl) : (q.$ || 0);
   if ((p.$ || 0) <= libere) return '';
   const reste = capLeft() + libere - (p.$ || 0);
   return reste < 0 ? `Plafond : il manque ${money(-reste)}` : '';
@@ -1667,7 +1686,25 @@ async function plombiers(meta, gardes = []) {
       for (let i = 0; i < n && tranche.length; i++) pool.push(tranche.splice(Math.floor(Math.random() * tranche.length), 1)[0]);
     }
   }
-  return autoRoster([...gardes, ...pool]);
+  return placerDevant(autoRoster([...gardes, ...pool]), gardes);
+}
+/*
+ * LES CARTES QU'ON A CHOISIES PASSENT DEVANT (S80) : un joueur gardé ou tiré
+ * du classeur que l'alignement automatique laisserait de côté prend la case
+ * du plombier le moins utile qu'il peut jouer. Il a été PRIS : il est de la
+ * run, pas en option.
+ */
+function placerDevant(roster, prioritaires = []) {
+  const miens = new Set(prioritaires.map(getPersonKey));
+  const place = p => Object.values(roster).some(q => q && getPersonKey(q) === getPersonKey(p));
+  for (const p of prioritaires) {
+    if (place(p)) continue;
+    const cases = SLOTS.filter(sl => !sl.extra && fits(p, sl) && roster[sl.i] && !miens.has(getPersonKey(roster[sl.i])))
+      .map(sl => ({ sl, valeur: getHiddenRatings(roster[sl.i]).v - getPositionPenalty(roster[sl.i], sl) }))
+      .sort((a, b) => a.valeur - b.valeur);
+    if (cases[0]) roster[cases[0].sl.i] = p;
+  }
+  return roster;
 }
 /* Le choix d'un joueur à garder de la dernière run, en cartes. */
 function choisirGarde(joueurs, i, total) {
@@ -1684,18 +1721,25 @@ function choisirGarde(joueurs, i, total) {
   });
 }
 /*
- * UNE RUN QUI COMMENCE : l'écran de la run (ce qu'on a débloqué), les
- * joueurs à garder s'il y en a, puis vingt-trois plombiers et l'alignement.
+ * UNE RUN QUI COMMENCE : l'écran de la run (ce qu'on a débloqué, ce que le
+ * proprio demandera), les joueurs à garder s'il y en a, les cartes du
+ * classeur (S80), puis les plombiers et l'alignement.
  */
+const MODE_CLASSEUR = { hasard: 'au hasard', tri: 'le tri', choix: 'au choix' };
 async function ouvrirRogue() {
   const meta = lireMeta();
   const k = nombreGardes(meta);
+  const D = departDuClasseur(meta);
+  const nCartable = Object.keys(lireCartable().joueurs).length;
   const go = await new Promise(resolve => ouvrirChoix({
     ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant',
-    recit: `Tu pars avec vingt-trois plombiers : de vrais joueurs, les moins productifs de leurs saisons. Chaque résultat rapporte des jetons (🪙 ${jetonsDeDepart(meta)} au départ), et la boutique du hub vend des packs de joueurs et de cartes. Le plafond salarial tient : ${money(PLAFOND_ROGUE + plafondDuVestiaire(meta))}, que des cartes 💵 peuvent tordre. À la fin de la saison, tes écussons 🏅 débloquent la suite au vestiaire du menu.`,
-    options: [{ cle: 'go', ico: '▶', nom: 'Commencer la run',
-      bon: [`${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`, k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : ''].filter(Boolean).join(' · '),
-      prix: `🏅 ${meta.ecussons || 0} écussons · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} jouée${(meta.runs || 0) > 1 ? 's' : ''} · 🗂️ ${(meta.collection || []).length} joueurs dans ta collection` }],
+    recit: `Une run, c'est plusieurs saisons avec la même équipe. Tu pars avec des plombiers — de vrais joueurs, les moins productifs de leurs saisons — et 🪙 ${jetonsDeDepart(meta)} jetons ; la boutique du hub vend des packs, et chaque résultat rapporte des jetons. Le plafond salarial tient : ${money(PLAFOND_ROGUE + plafondDuVestiaire(meta))}. Chaque saison, le proprio en veut plus : ${MANDATS.map(x => x.mot).join(', puis ')}. Manque-le et la run est finie ; gagne la Coupe et elle est gagnée. Une première run gagne rarement la Coupe : tes écussons 🏅 et tes jalons débloquent la suite, au vestiaire du menu.`,
+    options: [{ cle: 'go', ico: '▶', nom: `Commencer la run ${(meta.runs || 0) + 1}`,
+      bon: [nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
+        `${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`,
+        k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
+        aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : ''].filter(Boolean).join(' · '),
+      prix: `🏅 ${meta.ecussons || 0} écussons · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` }],
     onChoix: () => resolve(true),
     onFerme: () => resolve(false),
   }));
@@ -1709,65 +1753,269 @@ async function ouvrirRogue() {
       gardes.push(p);
     }
   }
-  await sousVoile('On rassemble tes plombiers…', () => demarrerRogue(gardes));
+  const tires = await choisirDuClasseur(gardes);
+  await sousVoile('On rassemble tes plombiers…', () => demarrerRogue(gardes, tires));
 }
-async function demarrerRogue(gardes = []) {
+/*
+ * LE TIRAGE DU CLASSEUR (S80), semé par le méta : `sel` (tiré une fois, pour
+ * toujours) et le numéro de la run. Recharger la page devant le tirage
+ * redonne les mêmes cartes — le tirage ne se relance pas.
+ */
+function graineDuClasseur() {
+  const m = lireMeta();
+  if (!m.sel) { m.sel = String(nouvelleGraine()); ecrireMeta(m); }
+  return `${m.sel}:${m.runs || 0}`;
+}
+/*
+ * LE DÉPART DU CLASSEUR (S80, js/depart.js). JP : *le classeur, on peut
+ * piger x cartes aux départ, ou random, selon upgrades*. Les cartes du
+ * cartable, dans l'ordre du tirage ; au hasard et au tri, les premières qui
+ * tiennent dans le budget ; ouvert, toutes. Une même personne ne revient pas
+ * deux fois (un joueur échangé a une carte par club), ni un joueur gardé.
+ */
+async function choisirDuClasseur(gardes = []) {
   const meta = lireMeta();
+  const D = departDuClasseur(meta);
+  const c = lireCartable();
+  const cles = Object.keys(c.joueurs);
+  if (!D.n || !cles.length) return [];
+  const budget = budgetDuClasseur(meta);
+  const exclus = new Set(gardes.map(getPersonKey));
+  const candidats = await sousVoile('On ouvre ton classeur…', async () => {
+    const out = [], personnes = new Set(exclus);
+    for (const cle of tirageDuClasseur(cles, graineDuClasseur())) {
+      if (D.mode !== 'choix' && out.length >= D.vues) break;
+      const p = await joueurDeCle(cle);
+      if (!p || !(p.$ > 0) || p.$ > budget || personnes.has(getPersonKey(p))) continue;
+      personnes.add(getPersonKey(p));
+      const x = c.joueurs[cle];
+      out.push({ cle, p, rar: meilleureVariante(x), num: (x.num || [])[0] || null });
+    }
+    return out;
+  });
+  if (!candidats.length) return [];
+  return new Promise(resolve => ouvrirDepartClasseur({
+    mode: D.mode, n: D.n, budget, run: (meta.runs || 0) + 1, candidats,
+    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
+    mini: (p, rar) => miniAvecVariante(p, rar),
+    onFini: pris => resolve(candidats.filter(x => pris.includes(x.cle))),
+  }));
+}
+async function demarrerRogue(gardes = [], tires = []) {
+  const meta = lireMeta();
+  const D = departDuClasseur(meta);
   G.bonus = 'ROGUE';
   G.mode = 'CLASSIQUE'; G.epoque = null; G.repechage = 'TOUTES'; G.identite = null;
   clearSave();
-  G.variantes = { graine: nouvelleGraine(), cartes: {} };
+  G.variantes = { graine: nouvelleGraine(), cartes: {}, numeros: {} };
+  // Les cartes du classeur gardent leur variante : c'est TA carte, pas une neuve.
+  for (const x of tires) { G.variantes.cartes[x.cle] = x.rar; if (x.num) G.variantes.numeros[x.cle] = x.num; }
   G.roster = {}; poserCartes(); G.tirage = []; G.echelle = {}; G.dette = 0; G.renfort = null;
   G.ligue = null; G.tournoi = null; G.relances = 0; G.left = { ...REROLLS };
   G.target = null; G.mainCase = null; G.mainRang = null; G.selectedSlot = null; G.done = false; G.lignes = null;
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
   $('game').classList.remove('bilan');
-  G.roster = await plombiers(meta, gardes);
-  G.rogue = { depart: jetonsDeDepart(meta), deckPlus: aDebloque(meta, 'deckPlus'), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta) };
+  G.roster = await plombiers(meta, [...gardes, ...tires.map(x => x.p)]);
+  // La run commence : elle prend son numéro (le tirage du classeur suivant change).
+  const m = lireMeta();
+  m.runs = (m.runs || 0) + 1;
+  ecrireMeta(m);
+  G.rogue = {
+    depart: jetonsDeDepart(meta), deckPlus: aDebloque(meta, 'deckPlus'), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta),
+    // S80 : la run sur plusieurs saisons, ses cases de réserve, et ce que le classeur a donné.
+    numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta),
+    classeur: { mode: D.mode, n: D.n, pris: tires.map(x => x.cle) },
+  };
   saveGame(); syncOptionsUI(); render();
   setView('roster');
-  toast(`Tes plombiers sont là${gardes.length ? `, avec ${gardes.map(p => p.n).join(' et ')}` : ''}. Lance la saison quand tu veux : la boutique t'attend au hub.`);
+  const noms = [...gardes.map(p => p.n), ...tires.map(x => x.p.n)];
+  toast(`Tes plombiers sont là${noms.length ? `, avec ${noms.join(', ')}` : ''}. Le proprio veut : ${mandatDe(1).mot}. Lance la saison quand tu veux : la boutique t'attend au hub.`);
 }
 /*
- * LE PLAFOND D'UNE RUN, fixé à son départ : 82 M$, plus ce que le vestiaire a
- * débloqué, et au moins 12 M$ d'espace au-dessus de la masse de départ (trois
- * vedettes gardées de la dernière run ne doivent pas bloquer la saison).
+ * LE PLAFOND D'UNE SAISON DE LA RUN : 82 M$, plus ce que le vestiaire a
+ * débloqué. La première saison garde au moins 12 M$ d'espace au-dessus de la
+ * masse de départ (trois vedettes gardées de la dernière run ne doivent pas
+ * bloquer la saison). Les saisons SUIVANTES (S80) repartent de leur masse,
+ * jamais plus haut : sinon chaque saison gagnerait 12 M$ d'espace et le
+ * plafond ne voudrait plus rien dire au bout de trois saisons.
  */
-const ESPACE_DE_DEPART = 12_000_000;
-function plafondDeDepart(meta) {
+function plafondDeDepart(meta, { suite = false } = {}) {
   const lignes = [];
   let cap = PLAFOND_ROGUE;
   const v = plafondDuVestiaire(meta);
   if (v) { cap += v; lignes.push({ nom: 'Le vestiaire', montant: v }); }
   const masse = signes().reduce((a, p) => a + (p.$ || 0), 0);
-  const min = Math.ceil((masse + ESPACE_DE_DEPART) / 100_000) * 100_000;
+  const min = suite ? masse : Math.ceil((masse + ESPACE_DE_DEPART) / 100_000) * 100_000;
   if (cap < min) { lignes.push({ nom: 'Ta masse de départ', montant: min - cap }); cap = min; }
   return { cap, lignes };
 }
-/* Les écussons d'une saison Rogue, payés une fois (`payerEcussons` s'en souvient). */
+/*
+ * LA FIN D'UNE SAISON ROGUE : les écussons (payés une fois, `payerEcussons`
+ * s'en souvient), les jalons de la saison, et le sort de la run — le mandat
+ * de la première saison se lit ici (les séries), les autres aux séries.
+ */
+const numeroDeSaison = () => (G.rogue && G.rogue.saison) || 1;
+function faitsDeLaSaison() {
+  const L = G.ligue, t = L.you;
+  const rang = (L.teams || []).indexOf(t) + 1;
+  // La plus longue séquence de victoires, lue dans le calendrier joué.
+  let serie = 0, serieMax = 0;
+  for (const jour of L.calendrier || []) for (const m of jour) {
+    if ((m.A !== t && m.B !== t) || !m.joue) continue;
+    serie = (m.A === t) === (m.gfA > m.gfB) ? serie + 1 : 0;
+    serieMax = Math.max(serieMax, serie);
+  }
+  return { pts: t.PTS || 0, rang, premier: rang === 1, series: rang > 0 && rang <= nombreEnSeries((L.teams || []).length), serieMax,
+    saisonDeLaRun: numeroDeSaison(), cartes: Object.keys(lireCartable().joueurs).length };
+}
+function direJalons(payes) {
+  payes.forEach((J, i) => setTimeout(() => toast(`🏁 Jalon : ${J.nom} — ${J.mot}.`), 1800 + i * 1400));
+}
 function finDeSaisonRogue() {
   if (G.bonus !== 'ROGUE' || !G.ligue || !G.ligue.you) return;
   const t = G.ligue.you;
-  const pts = t.PTS || 0;
-  const n = payerEcussons(G.ligue.graine, 'saison', ecussonsDeLaSaison(pts), {
+  const f = faitsDeLaSaison();
+  const n = payerEcussons(G.ligue.graine, 'saison', ecussonsDeLaSaison(f.pts), {
     equipe: Object.values(G.roster || {}).filter(Boolean).map(getPlayerKey),
-    bilan: { pts, W: t.W, L: t.L, OTL: t.OTL },
+    bilan: { pts: f.pts, W: t.W, L: t.L, OTL: t.OTL },
   });
-  if (n) setTimeout(() => toast(`🏅 +${n} écussons pour ta saison (${pts} points) — dépense-les au vestiaire, dans le menu.`), 900);
+  if (n) setTimeout(() => toast(`🏅 +${n} écussons pour ta saison (${f.pts} points) — dépense-les au vestiaire.`), 900);
+  direJalons(payerJalons(f));
+  majRunRogue();
 }
-/* Et ceux des séries : dix par ronde gagnée, vingt de plus pour la Coupe. */
-function finDesSeriesRogue(rondes, coupe) {
+/* Et ceux des séries : dix par ronde gagnée, vingt de plus pour la Coupe ; les jalons des séries ; le sort de la run. */
+function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
   if (G.bonus !== 'ROGUE' || !G.ligue) return;
-  const n = payerEcussons(G.ligue.graine, 'series', ecussonsDesSeries(rondes, coupe), { bilan: { ronde: rondes, coupe: !!coupe } });
-  if (n) setTimeout(() => toast(`🏅 +${n} écussons pour tes séries${coupe ? ' — et la Coupe !' : ''}`), 900);
+  G.rogue = G.rogue || {};
+  G.rogue.series = { rondes, coupe: !!coupe };
+  if (payer) {
+    const n = payerEcussons(G.ligue.graine, 'series', ecussonsDesSeries(rondes, coupe), { bilan: { ronde: rondes, coupe: !!coupe } });
+    if (n) setTimeout(() => toast(`🏅 +${n} écussons pour tes séries${coupe ? ' — et la Coupe !' : ''}`), 900);
+    const S = G.seriesMoteur;
+    const finale = !!(S && S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A.isPlayer || s.B.isPlayer)));
+    direJalons(payerJalons({ ...faitsDeLaSaison(), rondes, coupe: !!coupe, finale }));
+  }
+  saveGame();
+  majRunRogue();
 }
-/* LE VESTIAIRE DES DÉBLOCAGES : ce que les écussons achètent, d'une run à l'autre. */
+/*
+ * LE SORT DE LA RUN (S80), lu dans les résultats : 'attente' (la saison ou
+ * les séries se jouent encore), 'continue' (mandat rempli), 'finie' (mandat
+ * manqué), 'gagnee' (la Coupe).
+ */
+function sortDeLaRun() {
+  const L = G.ligue;
+  if (!L || !L.you || !L.calendrier || (G.journee || 0) < L.calendrier.length) return 'attente';
+  const f = faitsDeLaSaison();
+  if (!f.series) return 'finie';
+  const s = G.rogue && G.rogue.series;
+  if (!s) return 'attente';
+  if (s.coupe) return 'gagnee';
+  return mandatRempli(numeroDeSaison(), { series: true, rondes: s.rondes }) ? 'continue' : 'finie';
+}
+/*
+ * LA RUN AU BILAN : quelle saison, ce que le proprio voulait, et ce qui
+ * vient — la saison suivante, ou une autre run. « Rejouer la saison » n'a
+ * pas de sens dans une run (ce serait relancer les dés d'une saison ratée) :
+ * il disparaît, et « Nouvelle partie » devient « Nouvelle run ».
+ */
+function majRunRogue() {
+  if (G.bonus !== 'ROGUE') return;
+  const res = document.querySelector('#resultHost .result');
+  if (!res) return;
+  for (const id of ['replayBtn', 'againBtn']) { const b = $(id); if (b) b.hidden = true; }
+  let bloc = res.querySelector('.rg-run');
+  if (!bloc) { bloc = document.createElement('div'); bloc.className = 'rg-run'; res.querySelector('.result-actions')?.after(bloc); }
+  const sort = sortDeLaRun();
+  const n = numeroDeSaison(), M = mandatDe(n), suivant = mandatDe(n + 1);
+  const s = (G.rogue && G.rogue.series) || null;
+  const mots = {
+    attente: `Le proprio veut : ${M.mot}. ${faitsDeLaSaison().series ? 'Tes séries le diront.' : ''}`,
+    continue: `Mandat rempli : ${M.mot}. La run continue avec ton équipe, ton deck et tes modifs jouées. La saison ${n + 1}, le proprio voudra : ${suivant.mot}.`,
+    finie: `Mandat manqué — il fallait ${M.mot}. La run est finie après ${n} saison${n > 1 ? 's' : ''}. Tes écussons, tes jalons et ton cartable restent.`,
+    gagnee: `La Coupe Stanley, à la saison ${n} de la run : la run est gagnée ! Tes écussons, tes jalons et ton cartable restent.`,
+  };
+  bloc.className = `rg-run ${sort}`;
+  bloc.innerHTML = `<div class="rg-run-tete"><span>${sort === 'gagnee' ? '🏆' : sort === 'finie' ? '🚪' : '💀'} Run ${(G.rogue && G.rogue.numero) || ''} · saison ${n}</span>
+      <small>${s ? `${s.rondes} ronde${s.rondes > 1 ? 's' : ''} gagnée${s.rondes > 1 ? 's' : ''}` : ''}</small></div>
+    <p class="rg-run-mot">${esc(mots[sort])}</p>
+    ${sort === 'continue' ? '<p class="rg-run-suite">Ce qui te suit : ton alignement et tes réservistes, ton deck de match, les améliorations, styles et éditions joués sur tes joueurs, tes jetons qui restent (plus ta caisse), ton personnel et tes cartes permanentes. Ce qui expire : les cartes « cette saison » et les consommables de ta poche.</p>' : ''}
+    <div class="rg-run-boutons">
+      ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
+      ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
+      <button type="button" class="btn rg-vestiaire">🏅 Le vestiaire · ${lireMeta().ecussons || 0}</button>
+    </div>`;
+  const b1 = bloc.querySelector('.rg-suivante');
+  if (b1) b1.onclick = () => sousVoile('La saison suivante se prépare…', continuerRun);
+  const b2 = bloc.querySelector('.rg-nouvelle');
+  if (b2) b2.onclick = () => contexteDuMenu().rogue.nouvelle();
+  bloc.querySelector('.rg-vestiaire').onclick = () => ouvrirVestiaire(() => majRunRogue());
+}
+/*
+ * LA SAISON SUIVANTE DE LA RUN (S80). JP : *nouvelle saison veut dire
+ * continuer avec base des cartes ramassé qui sont pas des consommables*.
+ * Ce qui continue, et comment :
+ *   - l'ALIGNEMENT : `G.roster` est celui du moteur, signatures comprises ;
+ *   - les MODIFS JOUÉES qui durent (améliorations, styles, l'atelier) : des
+ *     décisions du jour 0 de la saison neuve (`report`), rejouées comme les
+ *     autres ; le lustre passe par la variante de la carte ;
+ *   - le DECK de match : la saison neuve part du deck de la fin (`deckDeBase`) ;
+ *   - les JETONS qui restent, plus la caisse du vestiaire ;
+ *   - le PLAFOND repart de la masse, jamais plus haut (`plafondDeDepart`).
+ * Le personnel et les cartes permanentes vivent déjà dans le méta. Les
+ * cartes « cette saison » et les consommables de la poche expirent : la poche
+ * se déduit des décisions de la saison, et la saison neuve n'en a pas.
+ */
+const SOURCES_DE_RUN = new Set(['amelioration', 'style', 'atelier']);
+async function continuerRun() {
+  if (G.bonus !== 'ROGUE' || !G.ligue || sortDeLaRun() !== 'continue') return;
+  const L = G.ligue, you = L.you, meta = lireMeta();
+  const garder = new Set(Object.values(G.roster).filter(Boolean).map(getPlayerKey));
+  const report = [];
+  for (const m of you.mutations || []) {
+    const M = MUTATIONS[m.cle];
+    if (!M || !SOURCES_DE_RUN.has(M.source) || !garder.has(m.joueur) || m.cle === 'physio') continue;
+    if (m.cle === 'lustre') continue;
+    report.push({ jour: 0, mutation: { cle: m.cle, joueur: m.joueur }, report: true });
+  }
+  // Le lustre : la variante que la carte a prise reste la sienne.
+  for (const d of decisionsDeLaPartie()) if (d.mutation && d.mutation.cle === 'lustre' && d.mutation.carte && garder.has(d.mutation.joueur)) G.variantes.cartes[d.mutation.joueur] = d.mutation.carte.rar;
+  const deck = deckDe(L.decisions || [], { serie: L.decisionsSeries || [] });
+  report.push({ jour: 0, deck: 'report', deckDeBase: deck, report: true });
+  const reste = Math.max(0, jetonsRogue(L.calendrier.length));
+  G.lignes = Array.isArray(you.lignes) ? you.lignes.map(l => ({ ...l })) : G.lignes;
+  G.rogue = {
+    ...G.rogue, saison: numeroDeSaison() + 1, series: null, report,
+    depart: jetonsDeDepart(meta) + reste, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta), plafond: null,
+  };
+  // La saison neuve : ni ligue, ni séries, ni entrée d'historique — `runSeason` les refera.
+  G.ligue = null; G.done = false; G.journee = 0; G.seriesVues = null; G.lbId = null; G.series = null; G.seriesMoteur = null; G.banc = null;
+  G.rogue.plafond = plafondDeDepart(meta, { suite: true });
+  $('resultHost').innerHTML = '';
+  $('resultHost').style.display = 'none';
+  $('game').classList.remove('bilan');
+  saveGame(); render();
+  setView('roster');
+  toast(`Saison ${G.rogue.saison} de la run : ton équipe continue, avec 🪙 ${G.rogue.depart} jetons. Le proprio veut : ${mandatDe(G.rogue.saison).mot}.`);
+}
+/*
+ * LE VESTIAIRE DES DÉBLOCAGES : ce que les écussons achètent, d'une run à
+ * l'autre — et les JALONS (S80), l'autre façon de débloquer : chacun paie une
+ * fois, un déblocage offert ou des écussons.
+ */
 function ouvrirVestiaire(apres = null) {
   const meta = lireMeta();
+  const jalons = `<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
+    <div class="vs-jalons">${JALONS.map(J => {
+      const fait = !!(meta.jalons || {})[J.cle];
+      return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${J.ico}</span><b>${esc(J.nom)}</b><span>${fait ? '✓ Atteint' : `${esc(J.texte)} → ${esc(recompenseDe(meta, J).mot)}`}</span></div>`;
+    }).join('')}</div>
+    <p class="vs-sec">🏅 Les déblocages</p>`;
   ouvrirChoix({
     ico: '🏅', titre: `Le vestiaire · ${meta.ecussons || 0} écussons`, fermable: true, motFermer: 'Fermer',
-    recit: `Tes écussons se gagnent à la fin de chaque run (un par tranche de quatre points, dix par ronde de séries gagnée, vingt de plus pour la Coupe). Ce que tu débloques reste pour toutes les runs. Ta collection : ${(meta.collection || []).length} joueurs, ${(meta.cartes || []).length} cartes.`,
+    recit: `Tes écussons se gagnent à chaque saison : un par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
+    contexte: jalons,
     options: Object.entries(DEBLOCAGES).map(([k, D]) => {
       const pris = aDebloque(meta, k);
       const manque = D.requis && !aDebloque(meta, D.requis) ? `Demande d'abord : ${DEBLOCAGES[D.requis].nom}` : null;
@@ -2908,6 +3156,79 @@ function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '', bloque = null
     },
     onChoix: k => { const sl = SLOTS[Number(k)]; if (sl && roster[sl.i] && fits(p, sl) && !(bloque && bloque(roster[sl.i]))) onChoix({ i: sl.i, sort: getPlayerKey(roster[sl.i]) }); },
     onFerme,
+  });
+}
+/*
+ * UNE CASE DE RÉSERVE LIBRE (S80, le Rogue). JP : *possible de discard les
+ * cartes de remplaçants ou débloquer des slots de remplacement*. Quand un
+ * réserviste a été relâché, ou qu'une case de plus est débloquée, le joueur
+ * qui arrive peut y entrer sans que personne sorte — c'est une action à
+ * part, AVANT « qui sort ? » (`choisirQuiSort` reste tel quel) : on choisit
+ * la case libre, ou on choisit qui sort. Sans case libre, rien ne change.
+ */
+function quiSortOuCaseLibre(p, o) {
+  const libre = G.bonus === 'ROGUE' ? SLOTS.find(sl => sl.scratch && caseOuverte(sl) && !(o.roster || {})[sl.i] && fits(p, sl)) : null;
+  if (!libre) { choisirQuiSort(p, o); return; }
+  const bloque = o.bloque ? o.bloque(null) : '';
+  ouvrirChoix({
+    ico: '🪑', titre: `${p.n} arrive : où ?`, compact: true, fermable: true, motFermer: 'Retour', genre: o.genre || '',
+    recit: `Une case de réserve est libre : ${p.n} peut y entrer sans que personne sorte. Ou tu choisis qui lui laisse sa place — sa carte ira à ton cartable.`,
+    options: [
+      { cle: 'libre', ico: '🪑', nom: 'Dans la case de réserve libre', sous: `Personne ne sort · ${money(p.$ || 0)} de plus sur la masse`, desactive: bloque },
+      { cle: 'sort', ico: '🔁', nom: 'Choisir qui sort', sous: 'Il prend la place d\'un joueur de ton alignement' },
+    ],
+    onChoix: k => {
+      if (k === 'libre') { if (!bloque) o.onChoix({ i: libre.i, sort: null }); return; }
+      choisirQuiSort(p, { ...o, onFerme: () => quiSortOuCaseLibre(p, o) });
+    },
+    onFerme: o.onFerme,
+  });
+}
+/*
+ * LA CARTE QUI SORT VA AU CARTABLE (S80). JP : *envoyer cartes au cartable
+ * quand discard*. Un joueur qui laisse sa place (une signature, un
+ * ballottage, une recrue) ou qu'on relâche n'est pas perdu : sa carte —
+ * avec sa variante — est dans ton cartable, et le classeur peut la tirer au
+ * départ d'une autre run. Elle y est souvent déjà (l'alignement y entre au
+ * début de la saison) : alors rien ne double, la carte y reste.
+ */
+function carteAuCartable(cle) {
+  if (!cle) return null;
+  const p = Object.values(G.roster || {}).find(x => x && getPlayerKey(x) === cle) || ballottageVu.get(cle) || null;
+  if (p) ballottageVu.set(cle, p);
+  ajouterAuCartable([{ cle, rar: p ? varianteJoueur(p) : ((G.variantes && G.variantes.cartes[cle]) || 'commune'), num: (G.variantes.numeros || {})[cle] || null }], { doublons: false });
+  return p;
+}
+/*
+ * RELÂCHER UN RÉSERVISTE (S80, le Rogue). Une action à part, sur la case du
+ * réserviste : on confirme, sa carte va au cartable, sa case se libère (et
+ * son salaire sort de la masse). Avant la saison, c'est fait tout de suite ;
+ * derrière le banc, ça part avec la décision du « Retour au match »
+ * (`G.banc.relaches`), comme le reste de l'alignement.
+ */
+function relacherReserviste(s) {
+  const p = G.roster[s.i];
+  if (!p || !s.scratch || G.bonus !== 'ROGUE') return;
+  ouvrirChoix({
+    ico: '✋', titre: `Relâcher ${p.n} ?`, compact: true, fermable: true, motFermer: 'Le garder', genre: 'relache',
+    recit: `${p.n} quitte ton équipe. Sa carte va à ton cartable : tu la gardes, et le classeur pourra la tirer au départ d'une autre run. Sa case de réserve se libère — un joueur signé pourra y entrer sans que personne sorte.`,
+    options: [{ cle: 'oui', ico: '✋', nom: `Relâcher ${p.n}`, sous: [quiEst(p), `libère ${money(capHitDuJour(p))} sous le plafond`].join(' · ') }],
+    onChoix: () => {
+      const cle = getPlayerKey(p);
+      // Connu par sa clé avant de quitter l'alignement : sa carte garde sa variante, son nom reste lisible.
+      ballottageVu.set(cle, p);
+      delete G.roster[s.i];
+      G.selectedSlot = null;
+      if (G.banc) {
+        (G.banc.relaches = G.banc.relaches || []).push({ i: s.i, sort: cle });
+        toast(`${p.n} est relâché. Sa carte ira à ton cartable au retour au match.`, 'warn');
+      } else {
+        carteAuCartable(cle);
+        saveGame();
+        toast(`${p.n} est relâché : sa carte est dans ton cartable. ${money(capLeft())} de disponible.`, 'warn');
+      }
+      render();
+    },
   });
 }
 /* La fiche d'un joueur offert, en aperçu. */
@@ -4180,8 +4501,11 @@ function slotEl(s) {
     // luit une fois, là où elle vient d'arriver. Rien ne se rejoue au rendu
     // suivant : l'horodatage vieillit.
     if (G.dernierSigne && G.dernierSigne.p === p && Date.now() - G.dernierSigne.t < 1500) el.classList.add('cj-arrive');
+    // EN ROGUE (S80), le ✕ RELÂCHE un réserviste — avant la saison comme derrière le banc ; un habillé ne se retire pas (rien ne comblerait sa case).
+    const relachable = G.bonus === 'ROGUE' && s.scratch && !estRenfort(p);
     el.innerHTML = `
-      ${estRenfort(p) || G.banc ? ''
+      ${relachable ? `<button class="slot-remove slot-relacher" title="Relâcher ${esc(p.n)} : sa carte va à ton cartable" aria-label="Relâcher ${esc(p.n)}">✕</button>`
+        : estRenfort(p) || G.banc || G.bonus === 'ROGUE' ? ''
         : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
       <div class="slot-band${estRenfort(p) ? ' off' : ''}">
         <span class="sb-role ${positionClass(p)}" title="Ses positions : ce qu'il peut jouer (la case, elle, se lit à sa place dans le trio)">${esc(positionLabel(p))}</span>
@@ -4196,7 +4520,8 @@ function slotEl(s) {
         <div class="slot-meta slot-faits">${ligneStats}</div>
         <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>
       </div>`;
-    el.querySelector('.slot-remove')?.addEventListener('click', ev => {
+    el.querySelector('.slot-relacher')?.addEventListener('click', ev => { ev.stopPropagation(); relacherReserviste(s); });
+    el.querySelector('.slot-remove:not(.slot-relacher)')?.addEventListener('click', ev => {
       ev.stopPropagation();
       delete G.roster[s.i];
       G.selectedSlot = null;
@@ -4209,6 +4534,14 @@ function slotEl(s) {
       toast(`${p.n} retiré. ${money(capLeft())} de disponible, `
         + `et la roulette ne tournera pas pour cette case.`, 'warn');
     });
+  } else if (G.bonus === 'ROGUE' && s.extra && !caseOuverte(s)) {
+    // UNE CASE DE RÉSERVE À DÉBLOQUER (S80) : visible, grisée, et elle dit où la débloquer.
+    el.classList.add('verrou');
+    el.innerHTML = `<div class="slot-role">🔒 ${esc(s.role)}</div><div class="slot-sub">Au vestiaire des déblocages</div>`;
+    el.onclick = () => toast('Cette case de réserve se débloque au vestiaire des déblocages, dans le menu (ou par un jalon).');
+    return el;
+  } else if (G.bonus === 'ROGUE' && s.scratch) {
+    el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">Case libre</div>`;
   } else {
     // Sur table, la case vide ne promet pas de zone : le plateau n'en lit pas.
     el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${surTable() ? '' : esc(s.label)}</div>`;
@@ -4235,6 +4568,10 @@ function slotEl(s) {
     } else if (p) {
       G.selectedSlot = s.i;
       toast('Touche une autre case pour déplacer ou permuter.');
+    } else if (G.bonus === 'ROGUE') {
+      // Le Rogue n'a pas de vestiaire où piger (S80) : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
+      toast('Case libre : un joueur signé à la boutique pourra y entrer sans que personne sorte. Tu peux aussi y déplacer un joueur.');
+      return;
     } else {
       G.target = (G.target === s.i ? null : s.i);
       // Retirer sa visée rend la main à la première case vide.
@@ -4304,8 +4641,9 @@ function lineEl(title, slots, group, unit, cls = '') {
       chemHtml = `<span class="line-chem">${filled}/${slots.length} comblés</span>`;
     }
   } else {
-    const filled = slots.filter(s => G.roster[s.i]).length;
-    chemHtml = `<span class="line-chem">${filled}/${slots.length} comblés</span>`;
+    // Une case cadenassée (S80, le Rogue) ne compte pas : elle n'est pas à combler.
+    const filled = slots.filter(s => G.roster[s.i]).length, ouvertes = slots.filter(caseOuverte).length;
+    chemHtml = `<span class="line-chem">${filled}/${ouvertes} comblés</span>`;
   }
 
   // Derrière le banc, chaque trio porte son 🔒 : le trio de fermeture prend le
@@ -4411,7 +4749,9 @@ function renderRoster() {
     host.appendChild(lineEl(name, slots, 'D', u, 'pair'));
   });
   host.appendChild(lineEl('Gardiens', SLOTS.filter(s => s.group === 'G' && !s.scratch), null, null, 'pair'));
-  host.appendChild(lineEl('Réservistes', SLOTS.filter(s => s.scratch), null, null));
+  // Les réservistes : les trois de toujours, les cases débloquées de la run (S80), et la prochaine à débloquer, grisée.
+  const prochaine = G.bonus === 'ROGUE' ? SLOTS.find(s => s.extra && !caseOuverte(s)) : null;
+  host.appendChild(lineEl('Réservistes', SLOTS.filter(s => s.scratch && (caseOuverte(s) || s === prochaine)), null, null));
   ajusterCartes(host);
 }
 
@@ -5307,6 +5647,18 @@ async function rebatirAdversaires(cles, decisions = []) {
     const p = cle && ballottageVu.get(cle);
     if (p) exclude.add(getPersonKey(p));
   }
+  /*
+   * S80 : TOUT JOUEUR QU'UNE DÉCISION A MIS DANS TON ALIGNEMENT était exclu
+   * quand la ligue s'est bâtie — le jour 0 compris — et un réserviste relâché
+   * depuis n'est plus dans `picked()`. Sans lui, son vrai club rebâti
+   * l'habillerait et la saison se rejouerait autrement. Exclure un joueur
+   * qu'aucun club n'avait pris ne change rien : l'alignement automatique ne
+   * l'avait pas choisi.
+   */
+  for (const d of decisions) {
+    if (d.cases) for (const cle of Object.values(d.cases)) if (cle) exclude.add(personneDeCle(cle));
+    for (const x of d.relache || []) if (x && x.sort) exclude.add(personneDeCle(x.sort));
+  }
   const out = [];
   for (const cle of cles) {
     const [season, team] = String(cle).split('|');
@@ -5402,15 +5754,22 @@ function fermetureCourante() {
 async function reprendreSaison() {
   const b = G.banc;
   if (!b || !G.ligue) return;
+  // LES RÉSERVISTES RELÂCHÉS (S80) : leur carte va au cartable, et la décision les nomme (la reprise les exclut des adversaires rebâtis).
+  const relaches = (b.relaches || []).filter(x => !Object.values(G.roster).some(p => p && getPlayerKey(p) === x.sort));
+  for (const x of relaches) carteAuCartable(x.sort);
+  if (relaches.length) toast(`${relaches.length > 1 ? `${relaches.length} réservistes relâchés` : 'Un réserviste relâché'} : ${relaches.length > 1 ? 'leurs cartes sont' : 'sa carte est'} dans ton cartable.`);
   // EN SÉRIES (S69), le banc renvoie aux séries : c'est une décision de série.
   if (b.serie) {
     G.banc = null;
     $('game').classList.remove('banc');
-    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes });
+    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, ...(relaches.length ? { relache: relaches } : {}) });
     return;
   }
   // Le SEL (S68) : des dés neufs pour la suite, voir `simulateLeague`.
   const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, sel: nouvelleGraine() };
+  // Une décision de banc du même jour remplacée garde ses relâchés : ils sont partis pour de bon.
+  const avant = (G.ligue.decisions || []).filter(x => x.jour === b.jour && x.jour !== 0 && x.cases && Array.isArray(x.relache)).flatMap(x => x.relache);
+  if (avant.length || relaches.length) d.relache = [...avant, ...relaches];
   // On ne remplace que la décision de BANC du même jour : une carte, un plan
   // du soir ou un dilemme pris ce jour-là restent.
   const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0 || !x.cases);
@@ -5469,6 +5828,8 @@ async function deciderSaison(d, depuis) {
   // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
   if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
   if (d.ballottage && d.ballottage.entre) ajouterAuCartable([{ cle: d.ballottage.entre, rar: d.ballottage.rar || 'commune', num: d.ballottage.num || null }], { doublons: false });
+  // S80 : celui qui laisse sa place n'est pas perdu — sa carte va au cartable (JP : *envoyer cartes au cartable quand discard*).
+  if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
   const decisions = (G.ligue.decisions || []).filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
     && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour)
@@ -5556,10 +5917,12 @@ function confirmerDecision(d) {
   if (d.recompense && C(d.recompense)) mot = `🎁 ${C(d.recompense).nom} rejoint ton deck.`;
   else if (d.deck === 'menage' && C(d.retrait)) mot = `🗑️ ${C(d.retrait).nom} quitte ton deck.`;
   else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋️ ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
-  else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.`;
+  else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
   else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans ton inventaire : pose-la au verso d'un joueur, quand tu veux.`;
   else if (d.joue && M) mot = `${M.ico} ${M.nom} : posée au verso de ${qui(d.mutation.joueur)}.`;
+  // S80 : une signature dit où va celui qui sort — ou qu'il n'y en a pas.
+  else if (d.ballottage && d.ballottage.entre) mot = d.ballottage.sort ? `📒 ${qui(d.ballottage.entre)} prend la place de ${qui(d.ballottage.sort)} : la carte de ${qui(d.ballottage.sort)} va à ton cartable.` : `🪑 ${qui(d.ballottage.entre)} entre dans une case de réserve libre : personne ne sort.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
   else if (d.deck === 'strategie' && d.maitrise && systemeDe(d.maitrise.tac)) mot = `📘 ${systemeDe(d.maitrise.tac).groupe === 'D' ? 'Tes défenseurs apprennent' : 'Tes avants apprennent'} : ${systemeDe(d.maitrise.tac).nom.toLowerCase()}.`;
   // La carte du proprio (objectif atteint) : la seule carte prise sans un mot (QA S74b).
@@ -5687,11 +6050,16 @@ function candidatsRecrue(palier) {
   return out;
 }
 
-/* À la reprise : les joueurs d'un ballottage (réclamés et libérés) se retrouvent dans leurs shards. */
+/* La personne d'une clé de joueur-saison (« saison_club_id » → « saison_id ») : `getPersonKey` sans l'objet. */
+function personneDeCle(cle) {
+  const parts = String(cle).split('_');
+  return parts.length === 3 ? `${parts[0]}_${parts[2]}` : `${parts[0]}_${parts.slice(2).join('_')}`;
+}
+/* À la reprise : les joueurs d'un ballottage (réclamés et libérés) et les réservistes relâchés (S80) se retrouvent dans leurs shards. */
 async function connaitreBallottages(decisions) {
   for (const d of decisions || []) {
-    if (!d.ballottage) continue;
-    for (const cle of [d.ballottage.entre, d.ballottage.sort]) {
+    if (!d.ballottage && !d.relache) continue;
+    for (const cle of [...(d.ballottage ? [d.ballottage.entre, d.ballottage.sort] : []), ...(d.relache || []).map(x => x && x.sort)]) {
       if (!cle) continue;
       const [s, t] = String(cle).split('_');
       let e = G.shards.get(s);
@@ -5898,8 +6266,10 @@ async function runSeason(opts = {}) {
   const decisions = opts.decisions && opts.decisions.length
     ? opts.decisions
     : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined },
-      // UN DECK AIGUISÉ (Rogue, S77) : deux cartes de départ commencent en « + ».
-      ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus ? [{ jour: 0, deck: 'camp', aiguise: 'lancer', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'bloquer', rogue: { depart: true } }] : [])];
+      // UN DECK AIGUISÉ (Rogue, S77) : deux cartes de départ commencent en « + » — à la première saison d'une run.
+      ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus && !(G.rogue.saison > 1) ? [{ jour: 0, deck: 'camp', aiguise: 'lancer', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'bloquer', rogue: { depart: true } }] : []),
+      // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées et le deck continuent, en décisions du jour 0.
+      ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : [])];
   // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
   poserCartes(decisions);
   /*
@@ -5912,7 +6282,8 @@ async function runSeason(opts = {}) {
    */
   let r = null, teams, leaders = [], calendrier = [], graine = null, moteur = null;
   if (opponents.length) {
-    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions });
+    // S80 : une ligue Rogue porte la courbe de la fin de partie (js/sim.js `echelleTardive`).
+    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE' });
     jouerJusqua(moteur, opts.depuis || 0);
     // Un joueur signé aujourd'hui est dans l'alignement dès maintenant, pas au matin (S79).
     poserAlignementDuJour(moteur);
@@ -5970,6 +6341,8 @@ function terminerSaison() {
   G.journee = M.calendrier.length;
   finDeSaisonRogue();
   renderResult(r, you, b.standings, b.leaders, M.calendrier);
+  // LA RUN AU BILAN (S80) : la saison de la run, le mandat du proprio, la suite.
+  majRunRogue();
 }
 
 /*
@@ -6016,9 +6389,12 @@ function ouvrirEcranSaison(depuis = 0) {
         // Sa fiche en aperçu, et « qui sort ? » quand il arrive (S78).
         apercu: apercuJoueur,
         // S79 : toute signature de la saison (ballottage, recrue) respecte le plafond effectif, et dit ce que libère chaque sortie.
-        quiSort: (p, o) => choisirQuiSort(p, { bloque: q => bloqueParLePlafond(p, q), note: q => `libère ${money(capHitDuJour(q))}`, ...o }),
+        // S80 : une case de réserve libre (Rogue) s'offre d'abord — personne ne sort.
+        quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), note: q => `libère ${money(capHitDuJour(q))}`, ...o }),
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
-        rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider) } : null,
+        rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider),
+          // S80 : la saison de la run et le mandat du proprio.
+          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot }) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider) },
         inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider) => ouvrirInventaireJeu(j, decider) },
@@ -6309,8 +6685,9 @@ async function chargerRenfort() {
     // les Bruins de la même année), et le seuil « au moins 20 » les laissait
     // passer — l'Express héritait d'un alignement à 22 et le bouton restait
     // gris. On tire un autre club plutôt que d'accepter le trou.
-    if (!SLOTS.every(s => actives.has(s.i) || roster[s.i])) continue;
-    for (const s of SLOTS) {
+    // Les 23 cases de toujours (S80) : les cases de réserve de plus du Rogue ne se remplissent jamais ici.
+    if (!CASES_ALIGNEMENT_DE_BASE.every(s => actives.has(s.i) || roster[s.i])) continue;
+    for (const s of CASES_ALIGNEMENT_DE_BASE) {
       if (actives.has(s.i) || !roster[s.i]) continue;
       G.roster[s.i] = { ...roster[s.i], _renfort: true };
     }
