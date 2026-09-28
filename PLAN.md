@@ -332,3 +332,12 @@
 - [x] Bogue : la mini et la fiche perdaient toutes les couleurs du club (guillemet double du filigrane dans l'attribut style).
 - [x] Tampa a un fond (marine éclairci) ; cache v22.
 
+
+## S80 — choisir dans l'alignement, les améliorations au verso (fait sur s80-choix)
+- [x] « Qui sort ? » dans l'alignement : neuf rangées titrées, cases visage / nom / positions, grisées avec leur raison, « −N », ce que la sortie libère ; toucher surligne, « Confirmer » décide (`ouvrirAlignement`, `choisirQuiSort`).
+- [x] Où il joue, dit en contexte (« Hal Gill (3e paire) ») : qui sort, dilemmes, gestes, avant-match, ballottage, alerte de blessure, cibles des consommables et des contrats, nouveau rôle.
+- [x] Les cases d'amélioration au verso : deux, trois pour une holo ou une or ; lues dans les décisions (js/banque.js).
+- [x] « Jouer » une modif : l'alignement, puis le verso du joueur, « Poser ici » ; « + Poser une amélioration » d'une fiche ouverte en saison.
+- [x] Le palier ne l'impose plus : l'amélioration et l'édition de l'atelier se gardent dans l'inventaire (`garde`, sans sel).
+- [x] check_deck 16/16 ; smoke et essai_rogue adaptés au nouvel écran.
+- [ ] Derrière le banc et aux séries, poser n'est pas offert (la carte attend dans l'inventaire) : à ouvrir si JP le demande.
