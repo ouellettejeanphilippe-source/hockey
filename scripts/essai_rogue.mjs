@@ -188,6 +188,8 @@ const dechirer = async () => {
 const acheter = async (pack, capture) => {
   await page.click('#hubModal .hub-boutique');
   await page.waitForSelector('#magasinModal:not([hidden]) .pk-tuile', { timeout: 30000 });
+  // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; « Voir les N packs » montre le reste.
+  if (!(await page.$(`#magasinModal .pk-tuile[data-pack="${pack}"]`)) && await page.$('#magasinModal .pk-tout')) { await page.click('#magasinModal .pk-tout'); await page.waitForTimeout(300); }
   await page.click(`#magasinModal .pk-tuile[data-pack="${pack}"]`);
   await page.waitForSelector('#magasinModal .pk-fiche');
   if (capture) await page.screenshot({ path: `${DOSSIER}/${capture}.png` });
@@ -203,9 +205,28 @@ await page.waitForSelector('#magasinModal:not([hidden]) .pk-tuile', { timeout: 3
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
 const nPacks = await page.$$eval('#magasinModal .pk-tuile', e => e.length);
 const espace = await page.textContent('#magasinModal .pk-plafond').catch(() => '');
-await page.click('#magasinModal .choix-fermer');
-console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}`);
+// 1.0 (R5) : à la première run, quatre packs pour commencer, un bouton « Voir les N packs », et un pack impayable qui dit ce qui manque.
+const voirTout = await page.$('#magasinModal .pk-tout');
+console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}${voirTout ? ` · « ${(await voirTout.textContent()).trim()} »` : ''}`);
 if (!espace) erreurs.push('la boutique ne dit pas l\'espace sous le plafond');
+if (nPacks !== 4 || !voirTout) erreurs.push(`la première run devrait ouvrir sur quatre packs et « Voir les N packs » : ${nPacks} packs, bouton ${voirTout ? 'présent' : 'absent'}`);
+else {
+  await page.screenshot({ path: `${DOSSIER}/rogue-boutique-debut.png` });
+  await voirTout.click(); await page.waitForTimeout(300);
+  const nTout = await page.$$eval('#magasinModal .pk-tuile', e => e.length);
+  const chers = await page.$$eval('#magasinModal .pk-tuile.pk-cher .pk-manque', e => e.map(x => x.textContent.trim()));
+  // Un pack coûte plus que la caisse ? Alors sa tuile doit le dire. (À 84 🪙, aucun pack n'est impayable : rien à exiger.)
+  const jetonsB = Number(((await page.textContent('#magasinModal .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const prixMax = Math.max(...await page.$$eval('#magasinModal .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
+  console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
+  if (nTout < 20) erreurs.push(`« Voir les N packs » ne montre que ${nTout} packs`);
+  if (prixMax > jetonsB && (!chers.length || !chers.every(t => /il te manque \d+/.test(t)))) erreurs.push('un pack impayable ne dit pas ce qui manque');
+  // Échap ferme la boutique (1.0, R5) ; on la rouvre pour continuer comme avant.
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  if (await page.$('#magasinModal:not([hidden])')) erreurs.push('Échap ne ferme pas la boutique');
+  await page.click('#hubModal .hub-boutique'); await page.waitForSelector('#magasinModal:not([hidden]) .pk-tuile', { timeout: 30000 });
+}
+await page.click('#magasinModal .choix-fermer');
 /*
  * S80 : LE JOUEUR D'UNE CARTE. La fiche d'un pack par niveau dit ses chances
  * de joueur par pack (★ Étoile ou mieux, ★ Phénomène) et le niveau d'une

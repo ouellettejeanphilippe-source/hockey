@@ -1323,6 +1323,8 @@ function ouvrirBoutique(j, decider) {
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(),
     mods: modificateurs(decs, j + 1), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     duJour: packDuJour(new Date()),
+    // 1.0 (R5) : à la première run, avant la journée 20, quatre packs ; « Voir les N packs » montre tout.
+    debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < 20,
     franchises: Object.entries(FRANCHISES).map(([cle, F]) => ({ cle, nom: F.nom })).sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
     saisons: state.index.seasons.slice().reverse(),
     acheter: (cle, { prix, params }) => {
@@ -1733,7 +1735,8 @@ async function ouvrirRogue() {
   const nCartable = Object.keys(lireCartable().joueurs).length;
   const go = await new Promise(resolve => ouvrirChoix({
     ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant',
-    recit: `Une run, c'est plusieurs saisons avec la même équipe. Tu pars avec des plombiers — de vrais joueurs, les moins productifs de leurs saisons — et 🪙 ${jetonsDeDepart(meta)} jetons ; la boutique du hub vend des packs, et chaque résultat rapporte des jetons. Le plafond salarial tient : ${money(PLAFOND_ROGUE + plafondDuVestiaire(meta))}. Chaque saison, le proprio en veut plus : ${MANDATS.map(x => x.mot).join(', puis ')}. Manque-le et la run est finie ; gagne la Coupe et elle est gagnée. Une première run gagne rarement la Coupe : tes écussons 🏅 et tes jalons débloquent la suite, au vestiaire du menu.`,
+    // 1.0 (R5) : deux phrases ; le reste se lit dans « Règles », section « Le mode Rogue ».
+    recit: `Une équipe de plombiers, 🪙 ${jetonsDeDepart(meta)} jetons, plusieurs saisons. Chaque saison, le proprio en veut plus ; la Coupe finit la run.`,
     options: [{ cle: 'go', ico: '▶', nom: `Commencer la run ${(meta.runs || 0) + 1}`,
       bon: [nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
         `${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`,
@@ -2151,13 +2154,33 @@ function setupEvents() {
 
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
+      /*
+       * 1.0 (R5) : les plein écran `.choix-modal` (la boutique, l'inventaire, le
+       * classeur, un choix) passent AVANT les modales à fond. La fiche d'un pack
+       * se replie d'abord ; un écran qui a son ✕ se ferme comme par son ✕ ; un
+       * choix forcé (sans ✕) reste, et rien en dessous ne bouge.
+       */
       // L'écran de saison et le direct ont leur propre sortie : Échap ne
       // les ferme pas, ça laisserait la saison à moitié révélée. Et parmi
-      // celles qui restent, on ne ferme que CELLE DU DESSUS.
+      // celles qui restent, on ne ferme que CELLE DU DESSUS : la fiche
+      // « au-dessus » (z 120) passe avant un plein écran (96), qui passe
+      // avant une modale à fond (90) — l'ordre de la feuille de style.
+      const pleins = [...document.querySelectorAll('.choix-modal:not([hidden])')].filter(m => m.firstElementChild);
       const ouvertes = [...document.querySelectorAll('.modal-backdrop:not(.live)')]
         .filter(m => m.style.display && m.style.display !== 'none');
+      const z = el => Number(getComputedStyle(el).zIndex) || 0;
+      const zPleins = pleins.length ? Math.max(...pleins.map(z)) : -1;
+      const zOuvertes = ouvertes.length ? Math.max(...ouvertes.map(z)) : -1;
+      if (pleins.length && zPleins >= zOuvertes) {
+        const haut = pleins[pleins.length - 1];
+        const ficheDePack = haut.querySelector('.pk-fiche');
+        if (ficheDePack) ficheDePack.remove();
+        else { const croix = haut.querySelector('.choix-fermer'); if (croix) croix.click(); }
+        // Un choix forcé (sans ✕) reste, et rien en dessous ne bouge.
+        return;
+      }
       if (ouvertes.length) {
-        ouvertes.sort((a, b) => Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
+        ouvertes.sort((a, b) => z(b) - z(a) || Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
         fermerModale(ouvertes[0]);
       }
       if (G.selectedSlot !== null || G.target !== null) {
@@ -3534,6 +3557,14 @@ function renderSpin() {
   const host = $('spin');
   if (!host) return;
 
+  // 1.0 (R5) : un alignement déjà complet sans roulette (les plombiers du Rogue) ne « tourne » pas.
+  if (!G.loading && !G.tirage.length && slotsLeft() === 0) {
+    host.innerHTML = `<div class="spin-card spin-complet"><div class="spin-top">
+      <div class="spin-logo">${ico('i-list')}</div>
+      <div class="spin-id"><div class="spin-name">Alignement complet</div>
+      <div class="spin-full">Permute tes joueurs, ou lance la saison</div></div></div></div>`;
+    return;
+  }
   if (G.loading || !G.tirage.length) {
     host.innerHTML = `<div class="spin-card"><div class="spin-top">
       <div class="spin-logo">${ico('i-dice')}</div>
