@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-v23';  // v23 : les packs selon le niveau des joueurs (js/niveaux.js), la vraie saison recrue (data/recrues.json), les boutons du direct au-dessus de la barre Android (S79-S80)
+const VERSION = 'cap82-v24';  // v24 : le Rogue sur plusieurs saisons (js/depart.js), les packs par niveau, choisir dans l'alignement, les améliorations au verso, les portraits en 320 px, les blessures au direct (S80)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
