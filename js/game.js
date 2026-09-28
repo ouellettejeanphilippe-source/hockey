@@ -3966,7 +3966,8 @@ function playerCardEl(p) {
     dest = bits.join(' · ');
   }
 
-  const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : 'Signer';
+  // LE BOUTON DIT QUAND IL TE BLOQUE (1.0, J1-Q) : au-delà du budget du choix, il change de mot et de couleur, et demande une confirmation.
+  const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : risky ? 'Signer · bloque la fin' : 'Signer';
 
   // Le bandeau dit d'un coup d'oeil ce qu'on regarde — le poste — et change
   // de couleur quand la carte change d'état. Il porte un fond, jamais du
@@ -3998,15 +3999,22 @@ function playerCardEl(p) {
         </div>
       </div>
       <div class="pcard-dest">${dest}</div>
-      <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
+      <button class="btn-sign${already ? ' is-signed' : ''}${risky ? ' risque' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
     </div>`;
 
   el.onclick = ev => {
     if (ev.target.closest('.btn-sign')) return;
     showPlayerModal(p);
   };
-  el.querySelector('.btn-sign').onclick = ev => {
+  const btn = el.querySelector('.btn-sign');
+  btn.onclick = ev => {
     ev.stopPropagation();
+    // Deux touchers pour une signature qui bloque la fin : le premier dit ce qu'il restera, le second signe.
+    if (btn.classList.contains('risque') && btn.dataset.confirme !== '1') {
+      btn.dataset.confirme = '1';
+      btn.textContent = `Confirmer ? ${money(capLeft() - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}`;
+      return;
+    }
     signPlayer(p, el);
   };
   return el;
@@ -4050,7 +4058,6 @@ async function signPlayer(p, el = null) {
   if (!slot) { toast('Aucune case libre pour ce joueur.', 'bad'); return; }
   if (p.$ > capLeft()) { toast('Hors budget : il te reste ' + money(capLeft()) + '.', 'bad'); return; }
 
-  const risky = p.$ > maxForPick();
   voleAuCartable(el, rareteJoueur(p));
   G.dernierSigne = { p, t: Date.now() };
   G.roster[slot.i] = p;
@@ -4062,12 +4069,7 @@ async function signPlayer(p, el = null) {
   toast(`${p.n} → ${slotShort(slot)}`
     + (pen > 0 ? ` (−${pen} hors position)` : '')
     + (sous ? ' · ▼ sous sa zone' : ''), pen > 0 || sous ? 'warn' : '');
-  if (risky && slotsLeft() > 0) {
-    // Le message se compose maintenant : composé au déclenchement, il disait
-    // « pour 0 cases » quand la dernière signature arrivait entre-temps.
-    const msg = `Attention : ${money(capLeft())} pour ${slotsLeft()} cases, sous le plancher.`;
-    setTimeout(() => toast(msg, 'warn'), 2700);
-  }
+  // Le toast à retardement « sous le plancher » est parti (J1-Q) : le bouton l'a dit AVANT, et a demandé confirmation.
 
   poserEchelle();
   // Une signature, un tour : la roulette tourne à chaque fois, dans les deux
