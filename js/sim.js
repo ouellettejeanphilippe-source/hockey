@@ -1138,7 +1138,8 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // LIGNE PAR LIGNE depuis S68 (`lignesDe`, `profilMatch`).
   void adv; void lineup;
   const actifs = effetsActifs(team);
-  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]),
+  // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
+  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []),
     ROULEMENTS[roulementDe(team)], ...actifs];
   for (const c of sources) {
     if (!c) continue;
@@ -1875,7 +1876,7 @@ export function depenserEnergie(team, lineup) {
   const lignes = lignesDe(team, lineup);
   const moy = lignes.reduce((a, l) => a + l.sec, 0) / 4 || SEC_DEFAUT;
   // L'importance du match (et tout effet qui porte `energie`) module l'usure.
-  const k = effetsActifs(team).reduce((a, x) => a * (x.energie || 1), 1);
+  const k = [...effetsActifs(team), ...((team && team.patrons) || [])].reduce((a, x) => a * (x.energie || 1), 1);
   for (let u = 0; u < 4; u++) {
     const usF = usureLigne(lignes[u], moy, 'F') * k, usD = usureLigne(lignes[u], moy, 'D') * k;
     for (const [role, p] of Object.entries(joueursDeLigne(lineup, u))) if (p) p.energie = Math.max(0, energieDe(p) - ENERGIE_R * (role === 'DG' || role === 'DD' ? usD : usF));
@@ -4634,6 +4635,35 @@ function appliquerDecision(team, d, graine = 0) {
     const m = p._maitrise[d.maitrise.tac] || 0;
     p._maitrise[d.maitrise.tac] = m + (1 - m) * (d.maitrise.gain || GAIN_STAGE);
   }
+  /*
+   * UN PATRON ENGAGÉ (S79, js/banque.js) : la décision porte ses chiffres
+   * (`{ cle, role, nom, ico, ...canaux }`) et remplace celui du même rôle —
+   * un seul entraîneur-chef à la fois. Il vaut jusqu'à la fin de la saison,
+   * séries comprises (`effetsDeSaison`).
+   */
+  if (d.patron && d.patron.cle) {
+    const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
+    team.patrons = (team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role));
+    const { remplace: _r, ...pat } = d.patron;
+    team.patrons.push(pat);
+  }
+  /*
+   * LES GESTES D'UNE CARTE (S79) : un soin (des matchs d'infirmerie en
+   * moins), de l'énergie, le repos du gardien — sur les joueurs NOMMÉS par la
+   * décision. Réels, et rejoués comme tout le reste.
+   */
+  if (d.gestes) {
+    const g = d.gestes;
+    const nommes = (g.joueurs || []).map(k => Object.values(team.roster).find(x => x && getPlayerKey(x) === k) || CONNUS.get(k)).filter(Boolean);
+    if (g.soin) for (const p of (g.tousLesBlesses ? [...team.injured.keys()] : nommes)) {
+      const n = team.injured.get(p);
+      if (!n) continue;
+      if (n <= g.soin) team.injured.delete(p); else team.injured.set(p, n - g.soin);
+    }
+    if (g.energie) for (const p of nommes) p.energie = Math.max(0, Math.min(100, energieDe(p) + g.energie));
+    if (g.energieTous) for (const s of SLOTS) { const p = team.roster[s.i]; if (p && p.p !== 'G') p.energie = Math.max(0, Math.min(100, energieDe(p) + g.energieTous)); }
+    if (g.gardienAux) team.gardienAux = Math.max(team.gardienAux || 0, d.jour + g.gardienAux);
+  }
   if (d.effet) {
     const { duree, nom, ico, ...canaux } = d.effet;
     (team.effets = team.effets || []).push({ debut: d.jour, fin: d.jour + (duree || DUREE_MOMENT), source: 'decision', nom, ico, ...canaux });
@@ -4703,102 +4733,199 @@ export function photoAlignement(roster) {
  * prime PARFAIT : à traitement égal, les deux passages sont la même
  * simulation au lancer près.
  */
-export function simulateLeague(teams, games = 82, { graine = null, decisions = [], situations = true } = {}) {
-  const vitDesSituations = typeof situations === 'function' ? situations : () => !!situations;
-  // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
-  // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
-  // Le générateur reste en place après : les séries, jouées ensuite par
-  // l'interface, continuent la même suite.
-  if (graine === null || graine === undefined) graine = nouvelleGraine();
-  grainerHasard(graine);
-  for (const t of teams) {
-    for (const s of SLOTS) if (t.roster[s.i]) { initSimStats(t.roster[s.i]); connaitre(t.roster[s.i]); }
-    t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
-    // La chance de saison est tirée ICI, sous la graine, et non à
-    // `createTeam` : sinon deux saisons de même graine différaient déjà
-    // avant le premier lancer (check_graine.mjs l'a attrapé).
-    t.luck = gauss() * LUCK_SEASON;
-    // LES CARTES SE REMETTENT À ZÉRO ICI. Sans ça, rejouer la saison — ce que
-    // fait CHAQUE décision — empilerait les cartes des passages précédents,
-    // et une équipe finirait la partie avec quinze fois la même.
-    t.cartes = [];
-    // LES SITUATIONS AUSSI. Elles ne sont pas une décision, mais elles vivent
-    // sur les objets joueurs (`_situ`) et sur l'équipe : sans cette remise à
-    // zéro, rejouer la saison — ce que fait CHAQUE décision — laisserait la
-    // paire du passage précédent collée sur ses deux hommes.
-    t.situations = [];
-    t.trous = []; t.trouEnCours = false;
-    // LES MOMENTS aussi (S66) : ce sont des décisions, rejouées à chaque passage.
-    t.effets = []; t.jourCourant = 0;
-    // LES GESTES RÉELS (S72) : les absents, le gardien auxiliaire imposé, les paris joués.
-    t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
-    // LA CHIMIE ET L'ÉNERGIE (S68) repartent de zéro et de cent à chaque passage.
-    t.chimie = [0, 0, 0, 0]; t.entente = new Map();
-    for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-    for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
-    t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
-    t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
-    for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
-  }
-  /*
-   * LES JOUEURS QUI ARRIVENT EN COURS DE SAISON (S74). La remise à zéro
-   * ci-dessus ne voit que les alignements du jour 0 : un joueur réclamé au
-   * ballottage, une recrue du deck, entre plus tard — et gardait l'énergie, la
-   * maîtrise, l'adaptation et les changements de carte de la saison PRÉCÉDENTE
-   * jouée dans la même session. Un rechargement, lui, repart de joueurs neufs
-   * relus dans les shards : la saison rejouée en session divergeait de la même
-   * saison rechargée (le smoke l'a vu deux fois, en séries, après un
-   * ballottage). Tous les joueurs connus repartent de la même page.
-   */
-  for (const p of CONNUS.values()) {
-    if (!p) continue;
-    p.energie = 100;
-    delete p._maitrise; delete p._adapt; delete p._situ;
-    delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
-  }
-  // Le calendrier : une journée par ronde, ses seize matchs avec leur
-  // pointage. C'est ce que l'écran rejoue jour après jour, et ce qu'on peut
-  // consulter après pour vérifier la saison de n'importe quelle équipe.
-  const calendrier = [];
+/*
+ * LA LIGUE SE JOUE AU JOUR LE JOUR (S79). JP : *tu devrais jamais simuler
+ * d'avance*. La saison se jouait d'un bloc — les 82 journées, dès qu'on
+ * lançait — et l'écran les dévoilait ensuite : tout ce qui lisait l'état du
+ * moteur (les compteurs `sim*`, les changements de carte, l'énergie) lisait
+ * la FIN de l'année, et chaque décision rejouait la saison entière.
+ *
+ * Maintenant le moteur ne joue QUE ce qui est arrivé :
+ *
+ *   creerLigue(teams, games, { graine, decisions })  la ligue, prête à jouer
+ *                    sa journée 0 : les équipes remises à neuf, la chance de
+ *                    saison tirée, les styles posés, la cédule tirée, le matin
+ *                    du jour 0 préparé (`preludeDuJour`) ;
+ *   jouerJournee(L)  UNE journée : ses décisions (lues dans `L.decisions`, la
+ *                    même liste que la sauvegarde), ses matchs, puis le matin
+ *                    du lendemain ;
+ *   jouerJusqua(L, n) les journées jusqu'à ce que `n` soient jouées ;
+ *   bilanLigue(L)    le classement et les meneurs, À CE JOUR.
+ *
+ * `simulateLeague` reste : créer, jouer tout, rendre le bilan — c'est ce que
+ * lisent les scripts de mesure, et c'est EXACTEMENT la même suite que les
+ * mêmes journées jouées une à une (`check_graine.mjs` l'exige).
+ *
+ * LA CÉDULE N'EST PAS UNE SIMULATION. Qui joue contre qui, et quel soir, se
+ * tire d'un générateur À PART (`graine:cedule`) avant la première journée :
+ * l'affiche du prochain match se connaît sans qu'un seul match soit joué, et
+ * les matchs ne consomment plus le hasard de l'affiche. Chaque match est un
+ * objet `{ A, B }` posé d'avance, que sa journée complète (`gfA`, `gfB`,
+ * `ot`, `feuille`, `joue`) : l'écran garde les mêmes objets du début à la fin.
+ *
+ * LE HASARD DE LA LIGUE EST À ELLE (`L.rng`). Le temps d'une journée, le
+ * moteur tire de son générateur, puis rend le sien à qui l'avait : le
+ * pronostic, le plateau ou l'exhibition peuvent tirer entre deux journées
+ * sans décaler d'un seul dé la suite de la saison (`avecLigue`).
+ */
+function avecLigue(L, fn) {
+  const avant = hasard;
+  hasard = L.rng;
+  try { return fn(); } finally { L.rng = hasard; hasard = avant; }
+}
+
+/* La cédule : les affiches de toutes les journées, tirées d'un générateur à part. */
+function ceduleDe(teams, games, graine) {
+  const rng = generateur(`${graine}:cedule`);
+  const melanger = a => {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
   // Ce qu'il reste à jouer à chaque équipe. Une journée apparie tout le monde
   // quand l'effectif est pair ; sinon celle qui a le moins de matchs à jouer
   // est en congé, ce qui garde les restes à un match les uns des autres et
   // fait retomber tout le monde sur `games` à la fin.
-  // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
-  poserStyles(teams);
   const restant = new Map(teams.map(t => [t, games]));
-  for (let r = 0; restant.size; r++) {
-    // LES SITUATIONS DU JOUR, avant les décisions et avant le brassage. Comme
-    // elles, elles ne consomment AUCUN hasard : elles se tirent de la graine,
-    // de la journée et du rang de l'équipe. Une journée qui n'ouvre pas de
-    // fenêtre ne fait rien.
-    for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t); }
-    /*
-     * L'INSTANTANÉ DU JOUR (S68) : la chimie de chaque ligne et l'énergie de
-     * chaque joueur AU DÉBUT de la journée. Le moteur joue toute la saison
-     * d'avance ; sans ça, l'écran ne pourrait montrer que l'état de la FIN.
-     */
-    for (const t of teams) {
-      (t.jourLignes = t.jourLignes || [])[r] = {
-        chimie: (t.chimie || [0, 0, 0, 0]).slice(),
-        // L'APPRENTISSAGE DU JOUR (S73), pour ta formation seulement : l'écran
-        // calcule la chimie qu'aurait une ligne, pour n'importe quelle tactique.
-        ...(t.isPlayer ? { apprentissage: {
-          entente: Object.fromEntries(t.entente || []),
-          maitrise: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), { ...(p._maitrise || {}) }])),
-        } } : {}),
-        energie: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), Math.round(energieDe(p))])),
-      };
+  const cedule = [];
+  while (restant.size) {
+    const order = melanger(teams.filter(t => restant.get(t) > 0));
+    if (order.length < 2) break;
+    // Tri stable : l'ordre du brassage départage les équipes à égalité.
+    order.sort((a, b) => restant.get(b) - restant.get(a));
+    if (order.length % 2) order.pop();
+    const jour = [];
+    for (let i = 0; i < order.length; i += 2) {
+      jour.push({ A: order[i], B: order[i + 1] });
+      restant.set(order[i], restant.get(order[i]) - 1);
+      restant.set(order[i + 1], restant.get(order[i + 1]) - 1);
     }
-    for (let i = 0; i < teams.length; i++) if (vitDesSituations(i)) poserSituations(teams[i], graine, r, i);
-    // LES ACCIDENTS DE CARTE (S68), comme les situations : de la graine.
-    for (let i = 0; i < teams.length; i++) if (vitDesSituations(i)) poserAccident(teams[i], graine, r, i);
-    // Les décisions du jour s'appliquent AVANT le brassage : elles ne
-    // consomment aucun hasard, donc une décision au jour k ne touche pas
-    // aux appariements ni aux journées d'avant.
+    cedule.push(jour);
+    for (const [t, n] of restant) if (n <= 0) restant.delete(t);
+  }
+  return cedule;
+}
+
+export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations } = {}) {
+  // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
+  // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
+  if (graine === null || graine === undefined) graine = nouvelleGraine();
+  const L = {
+    teams, games, graine, decisions,
+    vit: typeof situations === 'function' ? situations : () => !!situations,
+    // Les accidents de carte suivent les situations, sauf demande contraire (une mesure des seules situations).
+    vitAcc: typeof accidents === 'function' ? accidents : () => !!accidents,
+    rng: generateur(graine),
+    // `jour` : les journées JOUÉES. La prochaine à jouer est `L.jour`.
+    jour: 0, fini: false,
+    calendrier: ceduleDe(teams, games, graine),
+    // Le gros match du prochain soir, repéré d'avance sans rien jouer (voir `preludeDuJour`).
+    grosAVenir: null,
+  };
+  avecLigue(L, () => {
+    for (const t of teams) {
+      for (const s of SLOTS) if (t.roster[s.i]) { initSimStats(t.roster[s.i]); connaitre(t.roster[s.i]); }
+      t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
+      // La chance de saison est tirée ICI, sous la graine, et non à
+      // `createTeam` : sinon deux saisons de même graine différaient déjà
+      // avant le premier lancer (check_graine.mjs l'a attrapé).
+      t.luck = gauss() * LUCK_SEASON;
+      // Une ligue neuve part de zéro : les cartes, les situations, les cases
+      // vides, les effets, les gestes réels, la chimie et l'énergie, les
+      // changements de carte, les gros matchs.
+      t.cartes = []; t.patrons = [];
+      t.situations = [];
+      t.trous = []; t.trouEnCours = false;
+      t.effets = []; t.jourCourant = 0;
+      t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
+      t.chimie = [0, 0, 0, 0]; t.entente = new Map();
+      for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
+      t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
+      t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null;
+      for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
+    }
+    /*
+     * LES JOUEURS QUI ARRIVENT EN COURS DE SAISON (S74). La remise à zéro
+     * ci-dessus ne voit que les alignements du jour 0 : un joueur réclamé au
+     * ballottage, une recrue du deck, entre plus tard — et gardait l'énergie,
+     * la maîtrise, l'adaptation et les changements de carte de la saison
+     * PRÉCÉDENTE jouée dans la même session. Tous les joueurs connus repartent
+     * de la même page.
+     */
+    for (const p of CONNUS.values()) {
+      if (!p) continue;
+      p.energie = 100;
+      delete p._maitrise; delete p._adapt; delete p._situ;
+      delete p._mut; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
+    }
+    // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
+    poserStyles(teams);
+    if (!L.calendrier.length) L.fini = true;
+    else preludeDuJour(L);
+  });
+  return L;
+}
+
+/*
+ * LE MATIN D'UNE JOURNÉE : la récupération, l'instantané que l'écran lit
+ * (`jourLignes`), les situations et les accidents du jour — rien de tout ça
+ * ne tire un dé — et le gros match du soir, repéré sur le classement de la
+ * veille. Il se prépare dès la fin de la veille : c'est l'état « à ce jour »
+ * que le banc et le hub lisent, sans jouer un seul match du lendemain.
+ */
+function preludeDuJour(L) {
+  const r = L.jour, teams = L.teams;
+  for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t); }
+  /*
+   * L'INSTANTANÉ DU JOUR (S68) : la chimie de chaque ligne et l'énergie de
+   * chaque joueur AU DÉBUT de la journée.
+   */
+  for (const t of teams) {
+    (t.jourLignes = t.jourLignes || [])[r] = {
+      chimie: (t.chimie || [0, 0, 0, 0]).slice(),
+      // L'APPRENTISSAGE DU JOUR (S73), pour ta formation seulement : l'écran
+      // calcule la chimie qu'aurait une ligne, pour n'importe quelle tactique.
+      ...(t.isPlayer ? { apprentissage: {
+        entente: Object.fromEntries(t.entente || []),
+        maitrise: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), { ...(p._maitrise || {}) }])),
+      } } : {}),
+      energie: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), Math.round(energieDe(p))])),
+    };
+  }
+  // LES SITUATIONS DU JOUR, avant les décisions : elles ne consomment AUCUN
+  // hasard — de la graine, de la journée et du rang de l'équipe.
+  for (let i = 0; i < teams.length; i++) if (L.vit(i)) poserSituations(teams[i], L.graine, r, i);
+  // LES ACCIDENTS DE CARTE (S68), comme les situations : de la graine.
+  for (let i = 0; i < teams.length; i++) if (L.vitAcc(i)) poserAccident(teams[i], L.graine, r, i);
+  // LE GROS MATCH DU SOIR, repéré sans rien jouer : le même calcul que
+  // `jouerJournee` refera au moment du match (les décisions du jour ne
+  // touchent ni au classement ni aux rivalités).
+  L.grosAVenir = null;
+  const toi = teams[0] && teams[0].isPlayer ? teams[0] : null;
+  const m = toi && (L.calendrier[r] || []).find(x => x.A === toi || x.B === toi);
+  if (m && r >= 10) {
+    const adv = m.A === toi ? m.B : m.A;
+    const raison = grosMatchAvant(toi, adv, r, rangsDe(teams));
+    if (raison) {
+      const depistage = depistageDe(L.graine, `j${r}`, adv);
+      L.grosAVenir = { jour: r, adv, raison, depistage, plan: planDuDepistage(L.graine, `j${r}`, depistage) };
+    }
+  }
+}
+/* Le classement à ce jour, par rang (1 = premier) : ce que la veille dit des gros matchs. */
+const rangsDe = teams => new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1]));
+
+/* UNE JOURNÉE : ses décisions, ses matchs, puis le matin du lendemain. */
+export function jouerJournee(L) {
+  if (L.fini) return;
+  const r = L.jour, teams = L.teams, graine = L.graine;
+  avecLigue(L, () => {
+    // Les décisions du jour s'appliquent AVANT les matchs : elles ne
+    // consomment aucun hasard, donc une décision au jour k ne touche pas aux
+    // journées d'avant.
     let sel = null, entracteDuJour = null, mainDuJour = null;
     const avantsDuJour = [];
-    for (const d of decisions) {
+    for (const d of L.decisions) {
       if (d.jour !== r) continue;
       // LE CHOIX DU DEUXIÈME ENTRACTE (S70) se joue à 40:00, pas au matin :
       // ni appliqué ici, ni son sel mêlé aux dés de la journée.
@@ -4814,42 +4941,20 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
      * DES DÉS NEUFS APRÈS CHAQUE DÉCISION (S68). JP : *ça devrait jamais être
      * identique si on simule deux fois un match*. Une décision porte son SEL,
      * tiré au vrai hasard quand on la prend : à partir de sa journée, la
-     * saison se joue sur une suite neuve. Ce qui est déjà révélé ne bouge pas
-     * (les journées d'avant se rejouent sur l'ancienne suite), reprendre la
-     * même décision redonne d'AUTRES matchs, et un rechargement redonne les
-     * mêmes — le sel est dans la sauvegarde avec la décision.
+     * saison se joue sur une suite neuve. Un rechargement redonne les mêmes
+     * matchs — le sel est dans la sauvegarde avec la décision.
      */
-    /*
-     * L'AFFICHE AVANT LES DÉS NEUFS (S74). Le brassage des appariements du
-     * jour se tirait APRÈS le sel des décisions : choisir l'avant-match d'un
-     * gros match, ou jouer sa main de cartes, changeait l'ADVERSAIRE de ce
-     * soir-là — et le gros match qu'on préparait disparaissait (mesuré :
-     * une décision au jour 11 déplaçait les onze gros matchs de la saison).
-     * L'affiche se tire maintenant sur la suite d'avant, celle que l'écran
-     * montrait ; les dés neufs ne jouent que les matchs. Sans décision ce
-     * jour-là, rien ne change : le brassage prend le même rang dans la suite.
-     */
-    const order = shuffle(teams.filter(t => restant.get(t) > 0));
-    if (order.length < 2) break;
-    // Tri stable : l'ordre du brassage départage les équipes à égalité.
-    order.sort((a, b) => restant.get(b) - restant.get(a));
-    if (order.length % 2) order.pop();
     if (sel) grainerHasard(`${graine}:${r}:${sel}`);
-    // LES MINI-BOSS DU JOUR (S69), repérés AVANT les matchs, sur le classement
-    // de la veille : seule ta formation (l'équipe 0 quand elle est le joueur)
-    // en a, donc les mesures du moteur n'en voient jamais.
+    // LES MINI-BOSS DU JOUR (S69), repérés sur le classement de la veille :
+    // seule ta formation (l'équipe 0 quand elle est le joueur) en a.
     const toi = teams[0] && teams[0].isPlayer ? teams[0] : null;
-    const rangsVeille = toi && r >= 10 ? new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1])) : null;
-    const jour = [];
-    for (let i = 0; i < order.length; i += 2) {
+    const rangsVeille = toi && r >= 10 ? rangsDe(teams) : null;
+    for (const m of L.calendrier[r]) {
       // CHAQUE MATCH DE SAISON GARDE SA FEUILLE, comme un match de séries :
       // ses buts avec leurs passeurs, ses gardiens, ses tirs par période.
-      // C'est ce qui permet de lire les statistiques de la ligue à n'importe
-      // quelle journée, d'ouvrir le sommaire d'un match du calendrier, et
-      // de dire « son 12e but » quand il compte.
       const feuille = feuilleVierge();
-      const avecToi = toi && (order[i] === toi || order[i + 1] === toi);
-      const advToi = avecToi ? (order[i] === toi ? order[i + 1] : order[i]) : null;
+      const avecToi = toi && (m.A === toi || m.B === toi);
+      const advToi = avecToi ? (m.A === toi ? m.B : m.A) : null;
       const raison = avecToi ? grosMatchAvant(toi, advToi, r, rangsVeille) : null;
       let gros = null;
       if (raison) {
@@ -4863,29 +4968,50 @@ export function simulateLeague(teams, games = 82, { graine = null, decisions = [
         poserGros(toi, advToi, gros);
         if (entracteDuJour) toi._entracte = { ...entracteDuJour.entracte, graine: `${graine}:${r}:entracte:${entracteDuJour.sel || ''}` };
       }
-      const res = playGame(order[i], order[i + 1], r, true, false, feuille);
+      const res = playGame(m.A, m.B, r, true, false, feuille);
       if (gros && gros.cartesJouees) feuille.cartes = gros.cartesJouees;
-      const m = { A: order[i], B: order[i + 1], gfA: res.gfA, gfB: res.gfB, ot: res.ot, feuille };
-      jour.push(m);
+      Object.assign(m, { gfA: res.gfA, gfB: res.gfB, ot: res.ot, feuille, joue: true });
       if (avecToi) grosMatchApres(toi, m, r, gros);
       if (gros) leverGros(toi);
-      restant.set(order[i], restant.get(order[i]) - 1);
-      restant.set(order[i + 1], restant.get(order[i + 1]) - 1);
     }
-    calendrier.push(jour);
-    for (const [t, n] of restant) if (n <= 0) restant.delete(t);
-  }
-  // Les séries ne lisent aucun effet temporaire : la fenêtre est close.
-  for (const t of teams) t.jourCourant = Infinity;
-  const standings = teams.slice().sort((a, b) =>
+    L.jour = r + 1;
+    if (L.jour >= L.calendrier.length) {
+      L.fini = true;
+      L.grosAVenir = null;
+      // Les séries ne lisent aucun effet temporaire : la fenêtre est close.
+      for (const t of teams) t.jourCourant = Infinity;
+    } else preludeDuJour(L);
+  });
+}
+
+/* Jouer jusqu'à ce que `n` journées soient jouées (ou la saison finie). */
+export function jouerJusqua(L, n) {
+  while (!L.fini && L.jour < n) jouerJournee(L);
+  return L;
+}
+
+/* Le classement et les meneurs, à ce jour. */
+export function bilanLigue(L) {
+  const standings = L.teams.slice().sort((a, b) =>
     b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA) || b.GF - a.GF);
   const skaters = [];
-  for (const t of teams) for (const s of SLOTS) {
+  for (const t of L.teams) for (const s of SLOTS) {
     const p = t.roster[s.i];
     if (p && p.p !== 'G') skaters.push({ player: p, team: t });
   }
   const leaders = skaters.sort((a, b) => b.player.simPTS - a.player.simPTS || b.player.simG - a.player.simG).slice(0, 10);
-  return { standings, leaders, calendrier, graine };
+  return { standings, leaders, calendrier: L.calendrier, graine: L.graine };
+}
+
+/*
+ * LA SAISON D'UN BLOC, pour les mesures : créer, jouer tout, rendre le bilan.
+ * Le générateur de la ligue reste ensuite en place — les séries jouées par un
+ * script de mesure continuent la même suite, comme avant.
+ */
+export function simulateLeague(teams, games = 82, opts = {}) {
+  const L = jouerJusqua(creerLigue(teams, games, opts), Infinity);
+  hasard = L.rng;
+  return { ...bilanLigue(L), ligue: L };
 }
 
 /* Les champs de fiche que la simulation écrit, patineurs et gardiens. */
@@ -5044,7 +5170,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.cartes = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.cartes = []; t.patrons = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
   t.chimie = [0, 0, 0, 0]; t.entente = new Map();
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -5217,6 +5343,30 @@ export const MUTATIONS = {
   pere: { nom: 'Il joue pour son père', ico: '🕊️', cible: 'hasard', source: 'accident',
     quoi: 'Son père est au plus mal : il joue chaque présence comme la dernière.',
     profils: { power: 10, passeur: 10 }, lancers: 1.05, finition: 1.03 },
+  /*
+   * ---- LES STYLES DE JEU ET LES CONTRATS (S79, la banque) ----
+   * JP : *une vraie banque de cartes … modifs de joueurs … digne d'un vrai
+   * deck builder*. Les « styles » à la FUT : ce qu'un joueur devient pour la
+   * saison — son profil (donc le fit de sa ligne) et un canal réel. Les
+   * contrats : ce qu'une signature change chez lui, avec son prix. Même
+   * contrat que les améliorations : un joueur, quelques pour cent.
+   */
+  style_sniper: { nom: 'Style : franc-tireur', ico: '🎯', cible: 'libre', source: 'style', quoi: 'Il ne cherche plus la passe : il cherche le coin.', profils: { sniper: 15 }, finition: 1.05 },
+  style_faiseur: { nom: 'Style : faiseur de jeu', ico: '🪄', cible: 'libre', source: 'style', quoi: 'Il voit trois jeux d\'avance.', profils: { passeur: 15, manieur: 12 }, creation: 1.06 },
+  style_ancre: { nom: 'Style : ancre', ico: '⚓', cible: 'libre', source: 'style', quoi: 'Il ne quitte plus sa zone.', profils: { defensif: 15, checker: 12 }, defense: 0.97 },
+  style_locomotive: { nom: 'Style : locomotive', ico: '🚂', cible: 'libre', source: 'style', quoi: 'Il part avant la rondelle et arrive avant tout le monde.', profils: { energie: 12 }, lancers: 1.05 },
+  style_chasseur: { nom: 'Style : chasseur', ico: '🐺', cible: 'libre', source: 'style', quoi: 'Il écrase le porteur et repart avec la rondelle.', profils: { power: 10, physique: 10 }, lancers: 1.03, finition: 1.02 },
+  style_architecte: { nom: 'Style : architecte', ico: '📐', cible: 'libre', source: 'style', quoi: 'Chaque présence est un plan dessiné au tableau.', profils: { passeur: 12, manieur: 12 }, creation: 1.05, finition: 1.02 },
+  style_sentinelle: { nom: 'Style : sentinelle', ico: '🛡️', cible: 'libre', source: 'style', quoi: 'Personne ne passe par son côté.', profils: { defensif: 15, deuxsens: 10 }, defense: 0.96 },
+  style_canonnier: { nom: 'Style : canonnier', ico: '💣', cible: 'libre', source: 'style', quoi: 'Il décoche de la ligne bleue à chaque remise.', profils: { offensif: 15 }, lancers: 1.06 },
+  style_buteur: { nom: 'Style : buteur né', ico: '👑', cible: 'libre', source: 'style', quoi: 'Il sent le but comme d\'autres sentent la pluie.', profils: { sniper: 20 }, finition: 1.07, lancers: 1.02 },
+  style_pieuvre: { nom: 'Style : pieuvre', ico: '🐙', cible: 'libre', source: 'style', gardien: true, quoi: 'Des bras et des jambières partout dans le demi-cercle.', arrets: 0.97, blessure: 0.9 },
+  masque_neuf: { nom: 'Le masque neuf', ico: '🎭', cible: 'libre', source: 'style', gardien: true, quoi: 'Un masque peint à ses couleurs : il se sent invincible.', arrets: 0.98 },
+  baton_neuf: { nom: 'Le bâton neuf', ico: '🏒', cible: 'libre', source: 'style', quoi: 'La bonne courbe, enfin.', profils: { sniper: 5 }, finition: 1.03 },
+  contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.04, lancers: 1.03, blessure: 1.1 },
+  contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋️', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.85, finition: 0.99 },
+  contrat_bonus: { nom: 'Clause de performance', ico: '💰', cible: 'libre', source: 'contrat', quoi: 'Un boni à trente buts : il force tout, même quand il ne faut pas.', finition: 1.05, creation: 1.03, blessure: 1.15 },
+  contrat_leader: { nom: 'Le « C » cousu', ico: '©️', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.03, defense: 0.98 },
 };
 const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
 /* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */
@@ -5429,6 +5579,177 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
   for (const s of series) s.winner = s.wA === 4 ? s.A : s.B;
   for (const s of series) for (const t of [s.A, s.B]) t.effetsSerie = [];
   return series;
+}
+
+/*
+ * LES SÉRIES SE JOUENT MATCH PAR MATCH (S79). Comme la saison : rien d'avance.
+ * Le moteur des séries (`creerSeries`) ne joue un match qu'au moment où
+ * l'écran veut le montrer (`jouerMatchSeries` : le match k de chaque série
+ * encore ouverte de la ronde, ensemble, comme avant) ; la ronde suivante
+ * naît quand la dernière série de la ronde est décidée.
+ *
+ *   S.toutes      les séries nées jusqu'ici, dans l'ordre (leur `i` est leur
+ *                 rang, comme dans l'ancien `G.series`) ; chacune
+ *                 { A, B, wA, wB, feuilles, plans, ronde, i, winner? }
+ *   S.courante    les séries de la ronde en cours
+ *   S.ronde, S.k  la ronde en cours et le prochain match à y jouer
+ *   S.fini        le champion est connu (`S.champion`)
+ *
+ * TA SÉRIE A SON PROCHAIN PLAN D'AVANCE, sans que rien soit joué : le plan
+ * de l'adversaire et le rapport du dépisteur ne dépendent que de la graine,
+ * de la ronde, du match et du plan d'hier (`planDuMatchDeSerie`) ; le moteur le pose
+ * en `s.plans[k]` dès que le match d'avant est joué, et le complète en le
+ * jouant.
+ *
+ * LES STATISTIQUES DES SÉRIES À PART, match après match (`cumulerSeries`) :
+ * les compteurs de saison ne bougent jamais pendant les séries, et `p.po`,
+ * `t.po` cumulent les séries. C'était `separerSeries`, une fois à la fin —
+ * mais il n'y a plus de « fin » connue d'avance.
+ *
+ * Le hasard est celui de la ligue (`S.ligue`) : les séries continuent la
+ * même suite que la saison, comme avant. Sans ligue (un script), un
+ * générateur à part.
+ */
+export function creerSeries(qualifies, { ligue = null, graine = 0, decisions = [], equipes = qualifies } = {}) {
+  const S = {
+    graine, decisions, ligue, equipes,
+    rng: ligue ? null : generateur(`${graine}:series`),
+    nRondes: Math.max(1, Math.round(Math.log2(qualifies.length))),
+    ronde: 0, k: 0, courante: [], toutes: [], fini: false, champion: null,
+    toi: qualifies.find(t => t.isPlayer) || null,
+  };
+  for (const t of equipes) {
+    t.po = Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, 0]));
+    t.poJournal = []; t.poBlessures = [];
+    for (const s of SLOTS) { const p = t.roster[s.i]; if (p) p.po = {}; }
+  }
+  ouvrirRondeSeries(S, qualifies);
+  return S;
+}
+function ouvrirRondeSeries(S, equipes) {
+  S.courante = [];
+  for (let i = 0; i < equipes.length / 2; i++) {
+    const s = { A: equipes[i], B: equipes[equipes.length - 1 - i], wA: 0, wB: 0, feuilles: [], plans: [], ronde: S.ronde, i: S.toutes.length };
+    S.courante.push(s);
+    S.toutes.push(s);
+  }
+  S.k = 0;
+  poserPlansDeSeries(S);
+}
+/* Le plan de l'adversaire pour le match k de ta série : pur, de la graine et du plan d'hier. */
+function planDuMatchDeSerie(S, s, k) {
+  const toi = s.A.isPlayer ? s.A : s.B.isPlayer ? s.B : null;
+  if (!toi) return null;
+  const adv = toi === s.A ? s.B : s.A, prec = s.plans[k - 1] || null;
+  const cle = `po${s.ronde}:${k}`;
+  const depistage = depistageDe(S.graine, cle, adv, { precedent: prec && prec.plan, ilsOntGagne: prec ? !prec.gagne : false });
+  return { toi, adv, cle, depistage, plan: planDuDepistage(S.graine, cle, depistage) };
+}
+/* Le prochain plan de ta série, posé d'avance (`aVenir`) : l'écran prépare le match avec. */
+function poserPlansDeSeries(S) {
+  for (const s of S.courante) {
+    if (s.wA === 4 || s.wB === 4) continue;
+    const pl = planDuMatchDeSerie(S, s, s.feuilles.length);
+    if (pl) s.plans[s.feuilles.length] = { plan: pl.plan, depistage: pl.depistage, aVenir: true };
+  }
+}
+/* Les compteurs d'un match de séries passent aux statistiques des séries ; la saison ne bouge pas. */
+export function cumulerSeries(teams, photo) {
+  for (const t of teams) {
+    const e = photo.get(t);
+    if (!e) continue;
+    t.po = t.po || Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, 0]));
+    for (const k of CHAMPS_EQUIPE) t.po[k] = (t.po[k] || 0) + ((t[k] || 0) - (e[k] || 0));
+    t.poJournal = [...(t.poJournal || []), ...(t.journal ? t.journal.slice(e.journal) : [])];
+    t.poBlessures = [...(t.poBlessures || []), ...(t.injuriesLog ? t.injuriesLog.slice(e.blessures) : [])];
+    if (t.journal) t.journal.length = e.journal;
+    if (t.injuriesLog) t.injuriesLog.length = e.blessures;
+    for (const k of CHAMPS_EQUIPE) t[k] = e[k];
+    for (const s of SLOTS) {
+      const p = t.roster[s.i];
+      const q = p && photo.get(p);
+      if (!q) continue;
+      p.po = p.po || {};
+      for (const k of CHAMPS_SIM) {
+        if (p[k] === undefined && q[k] === undefined) continue;
+        const cle = k.slice(3);
+        p.po[cle] = (p.po[cle] || 0) + ((p[k] || 0) - (q[k] || 0));
+        p[k] = q[k];
+      }
+    }
+  }
+}
+/* UN MATCH DE SÉRIES : le match k de chaque série encore ouverte de la ronde. */
+export function jouerMatchSeries(S) {
+  if (S.fini) return;
+  const jouer = () => {
+    const r = S.ronde, k = S.k;
+    const photo = photoStats(S.equipes);
+    // Les décisions de séries de ta formation pour ce match (trios, lignes,
+    // consigne, ajustement entre deux rounds) : avant le match, dés neufs.
+    if (S.toi) {
+      S.toi.effetsSerie = [];
+      for (const d of S.decisions) if (d.ronde === r && d.match_no === k) appliquerDecisionSerie(S.toi, d, S.graine);
+    }
+    for (const s of S.courante) {
+      if (s.wA === 4 || s.wB === 4) continue;
+      const feuille = feuilleVierge();
+      // TA SÉRIE (S70) : chaque match est mis en scène, et l'adversaire garde
+      // le plan qui a gagné ou en change après une défaite.
+      const pl = planDuMatchDeSerie(S, s, k);
+      let gros = null;
+      if (pl) {
+        const toi = pl.toi;
+        gros = { serie: true, raison: 'serie', adv: pl.adv, depistage: pl.depistage, plan: pl.plan,
+          prep: toi._mainSerie ? toi._mainSerie.prep || null : null, effetsAvant: [],
+          cartes: toi._mainSerie ? toi._mainSerie.main : null, cleCartes: toi._mainSerie ? toi._mainSerie.cle : '',
+          graineMain: S.graine, cleMain: pl.cle, ronde: r };
+        toi._mainSerie = null;
+        const entracte = toi._entracte;
+        poserGros(toi, pl.adv, gros);
+        toi._entracte = entracte;
+      }
+      const res = playGame(s.A, s.B, k, true, true, feuille, r);
+      if (gros) {
+        const toi = pl.toi;
+        s.plans[k] = { plan: gros.plan, contre: gros.contre, depistage: gros.depistage, preparation: gros.preparation || [], prepJuste: gros.prepJuste ?? null, gagne: res.winner === toi, entracte: gros.entracte || null, apres40: gros.apres40 || null, cartes: gros.cartesJouees || null };
+        if (gros.cartesJouees) feuille.cartes = gros.cartesJouees;
+        leverGros(toi);
+        toi._gardienAuxMatch = false;
+      }
+      if (res.winner === s.A) s.wA++; else s.wB++;
+      // Décidée au quatrième gain, pas à la fin de la ronde : ta série gagnée
+      // en quatre ne demande pas de cinquième match pendant que les autres jouent.
+      if (s.wA === 4 || s.wB === 4) s.winner = s.wA === 4 ? s.A : s.B;
+      feuille.numero = k + 1;
+      feuille.serie = `${s.wA}-${s.wB}`;
+      s.feuilles.push(feuille);
+    }
+    cumulerSeries(S.equipes, photo);
+    S.k = k + 1;
+    if (S.courante.every(s => s.wA === 4 || s.wB === 4)) {
+      for (const s of S.courante) s.winner = s.wA === 4 ? s.A : s.B;
+      for (const s of S.courante) for (const t of [s.A, s.B]) t.effetsSerie = [];
+      const gagnants = S.courante.map(s => s.winner);
+      if (gagnants.length === 1) { S.fini = true; S.champion = gagnants[0]; S.courante = []; }
+      else { S.ronde = r + 1; ouvrirRondeSeries(S, gagnants); }
+    } else poserPlansDeSeries(S);
+  };
+  if (S.ligue) avecLigue(S.ligue, jouer);
+  else { const avant = hasard; hasard = S.rng; try { jouer(); } finally { S.rng = hasard; hasard = avant; } }
+}
+/* Jouer jusqu'à ce que le match k de la ronde r soit joué (ou les séries finies). */
+export function jouerSeriesJusqua(S, r, k = Infinity) {
+  while (!S.fini && (S.ronde < r || (S.ronde === r && S.k <= k))) jouerMatchSeries(S);
+  return S;
+}
+/* Rejouer une reprise : jusqu'à ce que chaque série ait les matchs qu'on en avait vus. */
+export function jouerSeriesVues(S, revele = []) {
+  for (let garde = 0; !S.fini && garde < 64; garde++) {
+    if (!S.toutes.some(s => (revele[s.i] || 0) > s.feuilles.length)) break;
+    jouerMatchSeries(S);
+  }
+  return S;
 }
 
 /*

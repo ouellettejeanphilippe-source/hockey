@@ -149,8 +149,8 @@ async function guetterBallottage() {
   if (ballottage.fait) return;
   const ouvrir = await page.$('#hubModal .hub-ballottage-ouvrir');
   if (!ouvrir || !(await ouvrir.isVisible())) return;
-  // Un choix forcé déjà ouvert passe devant : on y répond d'abord.
-  const force = await page.$('#choixModal:not([hidden]) .choix-option');
+  // Un choix forcé — ou n'importe quel plein écran, le sommaire de la journée compris (S78) — passe devant.
+  const force = await page.$('#choixModal:not([hidden]) .choix-sheet');
   if (force && (await force.isVisible())) return;
   ballottage.fait = true;
   const tete = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
@@ -275,7 +275,7 @@ async function repondreAuxChoix() {
         if (jouees !== 1) errors.push(`toucher « ${nom} » ne la joue pas (${jouees} carte(s) sur la glace)`);
       }
       await _click('#choixModal .main-jouer');
-      await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-fin', { timeout: 120000 });
+      await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine', { timeout: 120000 });
       await page.waitForTimeout(350);
       const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
       if (!d.length) errors.push('la main jouée n\'entre pas dans la sauvegarde');
@@ -311,15 +311,103 @@ async function repondreAuxChoix() {
  * que les deux premières, déjà vues, n'aient pas bougé d'une ligne.
  */
 const entractesVus = [];
+/*
+ * LE DIRECT ET LE SOMMAIRE DISENT LES MÊMES BUTS (S79). JP : *le sommaire
+ * post match et ce que je voyais dans le match, les buts sont pas au même
+ * moment* — le sommaire donnait le temps écoulé, le direct le temps qu'il
+ * reste. `finirDirect` lit les buts du fil (période, heure, marqueur) ;
+ * `memesButs` les compare, au caractère près, au tableau de la journée et au
+ * « Sommaire du match ». Un entracte au milieu n'y change rien : c'est le
+ * même match, continué.
+ */
+const PERIODES = ['1re période', '2e période', '3e période', 'Prolongation'];
+let butsVusEnDirect = null;
+const propre = t => (t || '').replace(/\s+/g, ' ').trim();
+const butsDuDirect = () => page.$$eval('#liveModal .live-feed .live-ligne', els => {
+  let per = 1; const out = [];
+  // Le fil s'écrit du plus récent au plus ancien ; une fin de période est une ligne sans heure.
+  for (const e of els.slice().reverse()) {
+    if (e.classList.contains('periode') && !e.classList.contains('ent2-marque') && !e.querySelector('.live-tps')) { per++; continue; }
+    if (e.classList.contains('but')) out.push(`${per} ${e.querySelector('.live-tps').textContent.trim()} ${e.querySelector('b:not(.live-but-mot)').textContent.replace(/\s+/g, ' ').trim()}`);
+  }
+  return out;
+});
+async function lireLeDirect(entracte) {
+  butsVusEnDirect = { buts: await butsDuDirect(), entracte };
+}
+/* Le « Sommaire du match » d'une clé `saison|j|k` ou `series|i|k` : ses buts, période, heure et marqueur. */
+async function butsDuSommaire(cle) {
+  await page.evaluate(c => {
+    const el = document.createElement('div');
+    el.dataset.sommaire = c;
+    document.body.appendChild(el);
+    el.click();
+    el.remove();
+  }, cle);
+  await page.waitForFunction(() => document.getElementById('gameModal').style.display !== 'none', null, { timeout: 5000 }).catch(() => {});
+  const buts = await page.$$eval('#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
+    const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
+    return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
+  }), PERIODES);
+  await page.evaluate(() => document.getElementById('closeGameBtn').click());
+  await page.waitForTimeout(150);
+  return buts;
+}
+/*
+ * ET ÇA RESTE VRAI APRÈS (S79). JP : *surtout, la simulation doit pas se faire
+ * d'avance, pis rester ok après*. Le match vu en direct se relit au bilan,
+ * après toutes les décisions du reste de la saison (et les entractes qui
+ * rebâtissent la ligue jusqu'à leur soir) : les mêmes buts, au caractère près.
+ */
+const aRelire = [];
+async function toujoursLesMemes() {
+  for (const r of aRelire.splice(0)) {
+    const buts = await butsDuSommaire(r.cle);
+    if (JSON.stringify(buts) !== JSON.stringify(r.buts)) errors.push(`${r.etiquette} : au bilan, le match vu en direct (${r.cle}) n'a plus les mêmes buts — ${buts.join(' · ')} contre ${r.buts.join(' · ')} au direct`);
+    else console.log(`   ${r.etiquette} : au bilan, après le reste de la saison, le match vu en direct garde ses ${buts.length} buts, au caractère près`);
+  }
+}
+async function memesButs(etiquette, serie = false) {
+  const vu = butsVusEnDirect;
+  butsVusEnDirect = null;
+  if (!vu) return;
+  const lus = [];
+  if (!serie) {
+    lus.push(['le tableau de la journée', await page.$$eval('#hubModal .hub-board .live-buteurs > *', (els, P) => {
+      let per = 0; const out = [];
+      for (const e of els) {
+        if (e.classList.contains('live-but-per')) per = P.indexOf(e.textContent.trim()) + 1;
+        else if (e.classList.contains('live-but-ligne')) out.push(`${per} ${e.querySelector('.live-tps').textContent.trim()} ${e.querySelector('b').textContent.replace(/\s+/g, ' ').trim()}`);
+      }
+      return out;
+    }, PERIODES)]);
+  }
+  // Le « Sommaire du match » : le dernier match révélé (ta série : le plus haut numéro).
+  const cle = await page.evaluate(s => {
+    const els = [...document.querySelectorAll(s ? '#hubModal [data-sommaire^="series|"]' : '#hubModal .hub-board[data-sommaire]')];
+    const el = els.sort((a, b) => Number(a.dataset.sommaire.split('|')[2]) - Number(b.dataset.sommaire.split('|')[2])).pop();
+    return el ? el.dataset.sommaire : null;
+  }, serie);
+  if (cle) {
+    lus.push(['le sommaire du match', await butsDuSommaire(cle)]);
+    // Le match de saison se relira au bilan, après toutes les décisions qui suivent.
+    if (!serie) aRelire.push({ etiquette, cle, buts: vu.buts });
+  } else errors.push(`${etiquette} : le match vu en direct n'a pas de sommaire à ouvrir`);
+  const direct = JSON.stringify(vu.buts);
+  const faux = lus.filter(([, l]) => JSON.stringify(l) !== direct);
+  if (faux.length) errors.push(`${etiquette} : ${faux.map(([q, l]) => `${q} (${l.join(' · ')})`).join(' et ')} ne dit pas les mêmes buts que le direct (${vu.buts.join(' · ')})`);
+  else console.log(`   ${etiquette} : le direct, ${lus.map(([q]) => q).join(' et ')} disent les mêmes ${vu.buts.length} buts, période, heure et marqueur${vu.entracte ? ' — entracte compris' : ''} (${propre(vu.buts.slice(0, 3).join(' · '))}${vu.buts.length > 3 ? ' …' : ''})`);
+}
 async function finirDirect(etiquette) {
   await _click('#liveModal .live-fin');
   await _wait('#liveModal .live-suite, #liveModal .live-entracte', { timeout: 10000 });
-  if (!(await page.$('#liveModal .live-entracte'))) return;
+  if (!(await page.$('#liveModal .live-entracte'))) { await lireLeDirect(false); return; }
   const sousLeMarqueur = () => page.$$eval('#liveModal .live-ligne', els => {
     const i = els.findIndex(e => e.classList.contains('ent2-marque'));
     return els.slice(i + 1).map(e => e.textContent.trim()).join(' | ');
   });
   const avant = await sousLeMarqueur();
+  const butsAvant = await butsDuDirect();
   await _click('#liveModal .live-entracte');
   await _wait('#choixModal:not([hidden]) .choix-option', { timeout: 5000 });
   const titre = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
@@ -348,6 +436,10 @@ async function finirDirect(etiquette) {
   entractesVus.push(`${etiquette} « ${titre} » (${opts} options)`);
   if (await page.$('#liveModal .live-fin')) await _click('#liveModal .live-fin');
   await _wait('#liveModal .live-suite', { timeout: 10000 });
+  await lireLeDirect(true);
+  // Le même match, continué : les buts vus avant l'entracte sont ceux des deux premières périodes à la fin.
+  const deuxPeriodes = butsVusEnDirect.buts.filter(b => /^[12] /.test(b));
+  if (JSON.stringify(deuxPeriodes) !== JSON.stringify(butsAvant)) errors.push(`${etiquette} : les buts vus avant l'entracte (${butsAvant.join(' · ')}) ne sont plus ceux des deux premières périodes (${deuxPeriodes.join(' · ')})`);
 }
 /*
  * LES BOUTONS DE L'ÉCRAN DE SAISON VIVENT SUR L'ONGLET « MATCH » (S67) : sur
@@ -371,7 +463,7 @@ async function versLeMatch() {
   if (ou.zone === 'hub' && ou.page !== 'match') { await _click('.navtab[data-page="match"]'); await page.waitForTimeout(200); }
 }
 page.click = async (sel, opts) => {
-  if (typeof sel === 'string' && /hub-(jour|dix|regarder|banc|fin|suite|ronde)\b/.test(sel)) {
+  if (typeof sel === 'string' && /hub-(jour|prochaine|regarder|banc|fin|suite|ronde)\b/.test(sel)) {
     await versLeMatch(); await repondreAuxChoix();
     /*
      * LA JOURNÉE PEUT S'ÊTRE BLOQUÉE ENTRE-TEMPS (S78) : un palier qui s'ouvre
@@ -379,9 +471,21 @@ page.click = async (sel, opts) => {
      * traiter — « +10 » disparaît et « Fin de saison » se grise. Le parcours
      * ne clique pas dans le vide : la boucle qui l'appelle voit le message.
      */
-    if (/hub-(jour|dix|fin)\b/.test(sel) && await page.$('#hubModal .hub-traiter')) {
+    if (/hub-(jour|prochaine|fin)\b/.test(sel) && await page.$('#hubModal .hub-traiter')) {
       const b = await page.$(sel);
       if (!b || !(await b.isVisible()) || await b.isDisabled()) return;
+    }
+    /*
+     * « JUSQU'À LA PROCHAINE DÉCISION » (S79) joue les journées une à une, et
+     * rend la main au navigateur entre deux paquets : le clic revient tout de
+     * suite. On attend qu'elle se soit arrêtée (le bouton se réactive, ou un
+     * plein écran — le sommaire, un choix — s'ouvre).
+     */
+    if (/hub-prochaine\b/.test(sel)) {
+      const r = await _click(sel, opts);
+      await page.waitForFunction(() => !document.querySelector('#hubModal .hub-prochaine[disabled]'), null, { timeout: 120000 }).catch(() => {});
+      await page.waitForTimeout(150);
+      return r;
     }
   }
   // Un choix forcé ouvert par-dessus se règle avant tout autre clic dans l'écran
@@ -403,7 +507,7 @@ page.click = async (sel, opts) => {
   }
 };
 page.waitForSelector = async (sel, opts) => {
-  if (typeof sel === 'string' && /hub-(jour|dix|suite)\b/.test(sel)) {
+  if (typeof sel === 'string' && /hub-(jour|prochaine|suite)\b/.test(sel)) {
     // Le hub prêt, ou un plein écran à régler d'abord (un choix, un palier, un sommaire).
     await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-suite, #choixModal:not([hidden]) .choix-sheet', opts);
     await repondreAuxChoix();
@@ -468,6 +572,30 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
   if (tel.boutons == null || tel.boutons < BARRE) errors.push(`sous une barre d'état de ${BARRE} px, un bouton de la barre du haut commence à ${tel.boutons} px`);
   if (apres.partie !== avant.partie || apres.boutons !== avant.boutons) errors.push(`sans barre d'état, le haut a bougé : ${JSON.stringify(avant)} puis ${JSON.stringify(apres)}`);
   else console.log(`   la barre d'état du téléphone : sous ${BARRE} px, « Nouvelle partie » à ${tel.partie} px et les boutons du haut à ${tel.boutons} px ; sans elle, rien ne bouge`);
+}
+/*
+ * LA BARRE DE GESTES (S78). JP : *ajouter espace protégé dans le bas sur
+ * mobile aussi*. Même épreuve qu'en haut : Capacitor pose
+ * `--safe-area-inset-bottom` ; la barre d'onglets et le bas de l'écran
+ * « Nouvelle partie » doivent s'arrêter au-dessus. Sans elle, rien ne bouge.
+ */
+{
+  const GESTES = 28;
+  const mesurer = () => page.evaluate(() => {
+    const bas = el => (el ? Math.round(innerHeight - el.getBoundingClientRect().bottom) : null);
+    return { navbar: bas(document.querySelector('#navbar')), partie: bas(document.querySelector('#partieModal')) };
+  });
+  const avant = await mesurer();
+  await page.evaluate(n => document.documentElement.style.setProperty('--safe-area-inset-bottom', `${n}px`), GESTES);
+  await page.waitForTimeout(150);
+  const tel = await mesurer();
+  await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-inset-bottom'));
+  await page.waitForTimeout(150);
+  const apres = await mesurer();
+  if (tel.navbar != null && tel.navbar < GESTES) errors.push(`au-dessus d'une barre de gestes de ${GESTES} px, la barre d'onglets finit à ${tel.navbar} px du bas`);
+  if (tel.partie == null || tel.partie < GESTES) errors.push(`au-dessus d'une barre de gestes de ${GESTES} px, l'écran « Nouvelle partie » finit à ${tel.partie} px du bas`);
+  if (JSON.stringify(apres) !== JSON.stringify(avant)) errors.push(`sans barre de gestes, le bas a bougé : ${JSON.stringify(avant)} puis ${JSON.stringify(apres)}`);
+  else console.log(`   la barre de gestes : au-dessus de ${GESTES} px, la barre d'onglets à ${tel.navbar} px du bas et « Nouvelle partie » à ${tel.partie} px ; sans elle, rien ne bouge`);
 }
 /*
  * « COMMENT ON JOUE, EN CINQ CARTES » (S74) : cinq cartes à lire, par-dessus
@@ -916,7 +1044,7 @@ async function traverserSaison(etiquette, reprise = false) {
    * façon qui vaille — la même en-tête des deux côtés d'un `reload`.
    */
   if (reprise) {
-    await page.click('#hubModal .hub-dix');
+    await page.click('#hubModal .hub-prochaine');
     await page.waitForTimeout(400);
     const avant = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
     const sauve = await page.evaluate(() => {
@@ -1313,7 +1441,7 @@ async function traverserSaison(etiquette, reprise = false) {
       // de situations (journées 10, 28, 46, 64) et aux cases vides, en plus
       // des blessures. Le budget suit le nombre d'interruptions possibles.
       for (let i = 0; i < 16 && !(await page.$('#hubModal .hub-main-ouvrir')); i++) {
-        await page.click('#hubModal .hub-dix');
+        await page.click('#hubModal .hub-prochaine');
         await page.waitForTimeout(250);
         await guetterTrou();
       }
@@ -1331,15 +1459,15 @@ async function traverserSaison(etiquette, reprise = false) {
       /*
        * LE PALIER BLOQUE LA JOURNÉE (S78, la boîte de réception) : refermé
        * « Plus tard », il reste à traiter — « Journée suivante » devient
-       * « Règle d'abord » et « +10 » disparaît. On le lit à l'écran.
+       * « Règle d'abord » et « Jusqu'à la prochaine décision » disparaît.
        */
       const bloque = await page.evaluate(() => ({
         traiter: !!document.querySelector('#hubModal .hub-traiter'),
-        dix: !!document.querySelector('#hubModal .hub-dix'),
+        prochaine: !!document.querySelector('#hubModal .hub-prochaine'),
         jour: !!document.querySelector('#hubModal .hub-jour'),
       }));
-      if (!bloque.traiter || bloque.dix || bloque.jour) errors.push(`le palier laissé de côté ne bloque pas la journée : ${JSON.stringify(bloque)}`);
-      else console.log('   le palier laissé de côté bloque la journée : « Règle d\'abord », plus de « +10 »');
+      if (!bloque.traiter || bloque.prochaine || bloque.jour) errors.push(`le palier laissé de côté ne bloque pas la journée : ${JSON.stringify(bloque)}`);
+      else console.log('   le palier laissé de côté bloque la journée : « Règle d\'abord », plus de « Jusqu\'à la prochaine décision »');
       // Reprendre l'offre laissée de côté : elle tient.
       const encore = await lireMain();
       if (JSON.stringify(encore) !== JSON.stringify(offertesMain)) errors.push(`la main du palier ne tient pas : ${offertesMain.join(' · ')} puis ${encore.join(' · ')}`);
@@ -1508,7 +1636,7 @@ async function traverserSaison(etiquette, reprise = false) {
     const trajet = [];   // les arrêts de la boucle, dits si la fenêtre ne vient pas
     const jourVu = async () => Number(((await page.textContent('#hubModal .live-match')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
     for (let i = 0; i < 40 && (await jourVu()) <= 66 && !(await page.$('#hubModal .hub-situ:not(.hub-accident)')); i++) {
-      await page.click('#hubModal .hub-dix');
+      await page.click('#hubModal .hub-prochaine');
       await page.waitForTimeout(260);
       trajet.push(await page.evaluate(() => {
         const j = (document.querySelector('#hubModal .live-match')?.textContent || '').replace(/\D+/g, ' ').trim().split(' ')[0];
@@ -1642,11 +1770,13 @@ async function traverserSaison(etiquette, reprise = false) {
   const xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
   await page.click('#liveModal .live-suite');
   await page.waitForTimeout(150);
+  await memesButs(`${etiquette}, le match vu en direct`);
   const apres = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
   console.log(`   match en direct : ${face} lignes de statistiques, ${xe} · puis ${apres}`);
   if (!face) errors.push(`${etiquette} : aucune statistique du match en direct`);
   await cliquerFin();
   await versLeBilan();
+  await toujoursLesMemes();
 }
 
 /*
@@ -1721,19 +1851,50 @@ async function nomsCliquables(etiquette) {
   await page.waitForTimeout(100);
 }
 
-/* « Fin de saison » (et « Passer à la fin » aux séries) demande confirmation
-   tant qu'il reste des choix à faire (QA S74b) : on dit oui. */
+/*
+ * LA SAISON NE SE SAUTE PLUS (S79). JP : *pas possible de sauter la saison,
+ * mais possible de simuler jusqu'à la prochaine action forcée*. « Fin de
+ * saison » est parti : on JOUE jusqu'au bilan, « Jusqu'à la prochaine
+ * décision » après « Jusqu'à la prochaine décision », en réglant chaque
+ * événement comme un joueur (`repondreAuxChoix`, `debloquer`).
+ */
 async function cliquerFin() {
-  await page.click('#hubModal .hub-fin');
-  const oui = await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="fin"]', { timeout: 1500 }).catch(() => null);
-  if (oui) { await oui.click(); await page.waitForTimeout(150); }
+  for (let i = 0; i < 200; i++) {
+    await repondreAuxChoix();
+    const suite = await page.$('#hubModal .hub-suite');
+    if (suite && await suite.isVisible()) return;
+    if (await page.$('.result .score') && await page.isVisible('.result .score')) return;
+    const p = await page.$('#hubModal .hub-prochaine');
+    if (p && await p.isVisible() && !(await p.isDisabled())) { await page.click('#hubModal .hub-prochaine'); continue; }
+    const j = await page.$('#hubModal .hub-jour');
+    if (j && await j.isVisible()) { await page.click('#hubModal .hub-jour'); continue; }
+    await page.waitForTimeout(300);
+  }
+  errors.push('la saison ne va pas au bilan en 200 arrêts');
 }
 /* La saison jusqu'au bilan, sans rien regarder : ce qui sert à REJOUER
    jusqu'à se qualifier, où seul le classement final compte. */
 async function finirVite() {
-  await page.waitForSelector('#hubModal .hub-fin', { timeout: 90000 });
+  await page.waitForSelector('#hubModal .hub-prochaine, #hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-sheet', { timeout: 90000 });
   await cliquerFin();
   await versLeBilan();
+}
+/*
+ * LES SÉRIES NE SE SAUTENT PAS NON PLUS (S79) tant que ta série se joue :
+ * « Passer à la fin » n'existe qu'éliminé. On joue match après match, ronde
+ * après ronde, en réglant chaque choix, jusqu'au tableau.
+ */
+async function finirSeries() {
+  for (let i = 0; i < 300; i++) {
+    await repondreAuxChoix();
+    const suite = await page.$('#hubModal .hub-suite');
+    if (suite && await suite.isVisible()) return;
+    for (const sel of ['#hubModal .hub-fin', '#hubModal .hub-ronde', '#hubModal .hub-jour']) {
+      const b = await page.$(sel);
+      if (b && await b.isVisible() && !(await b.isDisabled())) { await page.click(sel); await page.waitForTimeout(200); break; }
+    }
+  }
+  errors.push('les séries ne vont pas au tableau en 300 gestes');
 }
 
 if (enabled) {
@@ -2098,7 +2259,7 @@ if (enabled) {
         if (!ds.some(d => Array.isArray(d.lignes) && d.match_no === 0)) errors.push(`la sauvegarde ne porte pas les lignes du round 1 : ${JSON.stringify(ds)}`);
       }
       await page.click('#hubModal .hub-jour');
-      await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-fin, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
+      await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
       await page.waitForTimeout(400);
       await repondreAuxChoix();
       await page.waitForTimeout(400);
@@ -2170,15 +2331,19 @@ if (enabled) {
       const fil = await page.$eval('#liveModal .live-feed', e => e.textContent);
       xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
       await page.click('#liveModal .live-suite');
+      await page.waitForTimeout(150);
+      await memesButs('séries, le match vu en direct', true);
     }
     await repondreAuxChoix();
-    await cliquerFin();
+    await finirSeries();
     await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
     await page.click('#hubModal .hub-suite');
     await page.waitForSelector('#playoffsSection .bk-serie', { timeout: 10000 });
     const series = await page.$$eval('#playoffsSection .bk-serie', l => l.length);
     console.log(`   séries : ${noeuds} nœuds au tableau en cours, ${xe}, ${series} séries au tableau final`);
     if (!series) errors.push('séries : aucun tableau final');
+    // Les rondes pas encore nées (S79) s'y dessinent « à venir » : le tableau en cours a ses quinze places.
+    if (!noeuds) errors.push('séries : le tableau en cours ne se dessine pas');
 
     /*
      * LA COUPE ENTRE DANS L'HISTORIQUE. `saveLeaderboard` n'était appelé qu'au

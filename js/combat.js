@@ -209,6 +209,28 @@ export const CARTES_MATCH = {
   cartouche: { nom: 'La dernière cartouche', ico: '🧨', cout: 0, rarete: 'peu', genre: 'tactique', epuise: true,
     texte: 'Tout ce qui restait dans le coffre.', energiePlus: 2 },
 
+  // ---- LA BANQUE (S79) : dix de plus, sur les mécaniques que le moteur joue déjà ----
+  pressionHaute: { nom: 'La pression haute', ico: '🌪️', cout: 1, rarete: 'commune', genre: 'attaque',
+    texte: 'Deux attaquants dans leur zone à chaque sortie de territoire.', effet: { volume: 1.07, energie: 1.06 } },
+  enclaveNette: { nom: 'Dégager l\'enclave', ico: '🧹', cout: 1, rarete: 'commune', genre: 'defense',
+    texte: 'Personne ne reste planté devant ton gardien.', effet: { defense: 0.96, robustesse: 1.1 } },
+  tirRebond: { nom: 'Le tir pour le rebond', ico: '🔄', cout: 1, rarete: 'commune', genre: 'attaque',
+    texte: 'On lance bas, sur les jambières, et on arrive.', effet: { finition: 1.02, volume: 1.04 } },
+  gardienRelance: { nom: 'Le gardien relance', ico: '🥏', cout: 1, rarete: 'peu', genre: 'defense',
+    texte: 'Il arrête la rondelle derrière le filet et relance tout de suite.', effet: { defense: 0.95, energie: 0.97 } },
+  cinqPuissance: { nom: 'Le cinq de puissance', ico: '⚡', cout: 2, rarete: 'peu', genre: 'attaque',
+    texte: 'Tes cinq meilleurs, en avantage comme à forces égales.', effet: { finition: 1.06, volume: 1.04 } },
+  tempsArret: { nom: 'Le temps d\'arrêt', ico: '⏸️', cout: 0, rarete: 'peu', genre: 'tactique', epuise: true,
+    texte: 'Trente secondes pour respirer, au bon moment.', energiePlus: 1, effet: { energie: 0.95 } },
+  coupGenie: { nom: 'Le coup de génie', ico: '💡', cout: 1, rarete: 'rare', genre: 'tactique', epuise: true,
+    texte: 'Une idée griffonnée sur une serviette de table.', pioche: 2, energiePlus: 1 },
+  rideauFer: { nom: 'Le rideau de fer', ico: '🧱', cout: 2, rarete: 'rare', genre: 'defense',
+    texte: 'Cinq joueurs sous les cercles de mise au jeu.', effet: { defense: 0.9, volume: 0.94 } },
+  feuSacre: { nom: 'Le feu sacré', ico: '🔥', cout: 2, rarete: 'rare', genre: 'attaque',
+    texte: 'Ce soir, ils jouent comme en avril.', effet: { finition: 1.08, volume: 1.05, energie: 1.1 } },
+  nuitMagique: { nom: 'La nuit magique', ico: '🌌', cout: 2, rarete: 'legendaire', genre: 'tactique', epuise: true,
+    texte: 'Tout le monde s\'en souviendra encore dans trente ans.', effet: { finition: 1.06, defense: 0.95, energie: 0.95 } },
+
   // ---- malédictions ----
   distraction: { nom: 'La distraction', ico: '📰', cout: 1, rarete: 'maudite', genre: 'malediction', maudite: true,
     texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 énergie et ne fait rien.' },

@@ -321,7 +321,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 15.5px;
   line-height: 1.45;
-  padding-bottom: calc(var(--actionbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
+  padding-bottom: calc(var(--actionbar-h) + var(--safe-bas) + 12px);
   overflow-x: hidden;
 }
 
@@ -1793,7 +1793,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   background: rgba(6, 12, 20, 0.96);
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 12px calc(8px + var(--safe-bas));
 }
 .actionbar-inner {
   max-width: 1720px;
@@ -2263,7 +2263,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   gap: 8px;
   flex-wrap: wrap;
   justify-content: space-between;
-  padding: 11px 14px calc(11px + env(safe-area-inset-bottom, 0px));
+  padding: 11px 14px calc(11px + var(--safe-bas));
   border-top: 1px solid var(--line);
   background: var(--panel-2);
 }
@@ -2288,7 +2288,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--actionbar-h) + 16px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--actionbar-h) + 16px + var(--safe-bas));
   transform: translate(-50%, 12px);
   z-index: 80;
   max-width: min(88vw, 420px);
@@ -2692,7 +2692,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 
 .live-controls {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 14px calc(10px + var(--safe-bas));
   border-top: 1px solid var(--line-soft);
 }
 .live-controls .btn { flex: 1 1 160px; min-height: 42px; }
@@ -2744,7 +2744,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   flex: 0 0 auto; display: flex; gap: 0;
   background: var(--panel); border-top: 1px solid var(--line);
   overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bas);
 }
 .hub-onglets::-webkit-scrollbar { display: none; }
 .hub-onglets[hidden] { display: none; }
@@ -5208,7 +5208,7 @@ a.spin-club:hover {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 56;
   display: flex; gap: 0;
   background: var(--panel); border-top: 1px solid var(--line);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bas);
   /* UNE FOIS LA SAISON JOUÉE LA BARRE COMPTE NEUF ONGLETS : elle défile en x
      plutôt que de rétrécir « Calendrier » à quarante pixels. C'est le même
      conteneur qui défile que pour un tableau — jamais la page. */
@@ -5232,7 +5232,7 @@ a.spin-club:hover {
 /* La barre d'action ne porte plus que le bouton principal, et elle se pose
    AU-DESSUS des onglets. Elle disparaît sur les pages de référence : le
    bouton « Lancer la saison » n'a rien à dire quand on lit les règles. */
-.actionbar { bottom: calc(var(--navbar-h) + env(safe-area-inset-bottom, 0px)); }
+.actionbar { bottom: calc(var(--navbar-h) + var(--safe-bas)); }
 .actionbar .btn.go { flex: 1 1 100%; }
 body[data-zone="ref"] .actionbar { display: none; }
 /* Et elle s'efface sur le bilan : son bouton y dit « Saison jouée » et ne
@@ -5245,7 +5245,7 @@ body:has(#game.bilan) { --actionbar-h: 0px; }
 /* La place réservée en bas : les deux barres sur un onglet de partie, une
    seule sur une page de référence. */
 body { padding-bottom: 0; }
-.game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + env(safe-area-inset-bottom, 0px) + 12px); }
+.game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + var(--safe-bas) + 12px); }
 
 /* ---------- les pages ---------- */
 /* UNE PAGE EST UNE BOÎTE BORNÉE dont le CORPS défile — l'ancrage de S47.
@@ -5255,7 +5255,7 @@ body { padding-bottom: 0; }
   display: flex; flex-direction: column;
   max-width: 1720px; margin: 0 auto;
   padding: 10px 12px 0;
-  height: calc(100svh - var(--topbar-h) - var(--navbar-h) - env(safe-area-inset-bottom, 0px));
+  height: calc(100svh - var(--topbar-h) - var(--navbar-h) - var(--safe-bas));
   overflow: hidden;
 }
 .page[hidden] { display: none; }
@@ -5318,7 +5318,7 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
    pour relire ce que la roulette offrait. */
 @media (min-width: 1px) {
   body[data-zone="jeu"] .game {
-    height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - env(safe-area-inset-bottom, 0px));
+    height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - var(--safe-bas));
     padding-bottom: 0;
     overflow: hidden;
     display: flex; flex-direction: column;
@@ -5881,7 +5881,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 @media (max-width: 1199.98px) {
   .navbar {
     left: 10px; right: 10px;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(10px + var(--safe-bas));
     padding-bottom: 0;
     border: 0;
     border-radius: var(--r-l);
@@ -5891,11 +5891,11 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
   .navbar { overflow-x: auto; }
   .navtab { border-top: 0; }
   /* La place réservée en bas suit la barre qui flotte. */
-  .game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + 20px + env(safe-area-inset-bottom, 0px)); }
-  .actionbar { bottom: calc(var(--navbar-h) + 18px + env(safe-area-inset-bottom, 0px)); }
+  .game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + 20px + var(--safe-bas)); }
+  .actionbar { bottom: calc(var(--navbar-h) + 18px + var(--safe-bas)); }
   body[data-zone="jeu"] .game,
-  .page { height: calc(100svh - var(--topbar-h) - var(--navbar-h) - 20px - env(safe-area-inset-bottom, 0px)); }
-  body[data-zone="jeu"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - 20px - env(safe-area-inset-bottom, 0px)); }
+  .page { height: calc(100svh - var(--topbar-h) - var(--navbar-h) - 20px - var(--safe-bas)); }
+  body[data-zone="jeu"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - 20px - var(--safe-bas)); }
 }
 
 /* ---------------------------------------------------------------
@@ -5950,7 +5950,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    --------------------------------------------------------------- */
 @media (max-width: 1199.98px) {
   .hub-onglets {
-    margin: 0 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    margin: 0 10px calc(10px + var(--safe-bas));
     border: 0;
     border-radius: var(--r-l);
     background: var(--panel-2);
@@ -6208,7 +6208,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    ===================================================================== */
 :root {
   --rail-w: 0px;
-  --bas-coquille: calc(var(--navbar-h) + 20px + env(safe-area-inset-bottom, 0px));
+  --bas-coquille: calc(var(--navbar-h) + 20px + var(--safe-bas));
 }
 @media (min-width: 1200px) { :root { --rail-w: 186px; --bas-coquille: 0px; } }
 @media (min-width: 1800px) { :root { --rail-w: 220px; } }
@@ -6420,7 +6420,7 @@ body.choix-ouvert { overflow: hidden; }
 .gl-tac-fit.prix { color: var(--live); }
 .gl-mot { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 .gl-sec { width: 100%; }
-.gl-pied { flex: none; display: flex; gap: 10px; justify-content: flex-end; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line-soft, var(--line)); }
+.gl-pied { flex: none; display: flex; gap: 10px; justify-content: flex-end; padding: 12px 16px calc(12px + var(--safe-bas)); border-top: 1px solid var(--line-soft, var(--line)); }
 .gl-pied .btn { min-width: 150px; }
 @media (max-width: 560px) {
   .gl-onglets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -6541,16 +6541,24 @@ body.choix-ouvert { overflow: hidden; }
    jamais la somme. Sur ordinateur et dans un navigateur, tout vaut zéro.
    ===================================================================== */
 :root { --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px)); }
+/* LE BAS AUSSI (S78, JP : *ajouter espace protégé dans le bas sur mobile aussi*) : la barre de gestes d'Android. Même règle que le haut — Capacitor injecte `--safe-area-inset-bottom` quand `env()` rend zéro dans la WebView. Partout où le bas se réserve, c'est `--safe-bas`. */
+:root { --safe-bas: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px)); }
 /* La barre du haut descend d'autant : une bordure plutôt qu'un padding, pour
    ne toucher à aucune des marges qu'elle prend selon la largeur. Sa hauteur
    mesurée (`--topbar-h`, js/game.js) l'inclut, donc tout ce qui se cale
    dessous suit. */
 .topbar { border-top: var(--safe-top) solid rgb(6, 12, 20); }
 /* Les écrans plein écran commencent sous la barre d'état. */
-.modal-backdrop, .choix-modal { top: var(--safe-top); }
+/* Les écrans plein écran commencent sous la barre d'état et finissent au-dessus de la barre de gestes. */
+.modal-backdrop, .choix-modal { top: var(--safe-top); bottom: var(--safe-bas); }
 /* Et rien ne défile derrière l'heure et la batterie. */
 body::before {
   content: ""; position: fixed; top: 0; left: 0; right: 0; height: var(--safe-top);
+  background: rgb(6, 12, 20); z-index: 1000; pointer-events: none;
+}
+/* Et rien ne défile derrière la barre de gestes. */
+body::after {
+  content: ""; position: fixed; bottom: 0; left: 0; right: 0; height: var(--safe-bas);
   background: rgb(6, 12, 20); z-index: 1000; pointer-events: none;
 }
 
@@ -7016,8 +7024,8 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
    d'action mais pas la barre d'onglets sous elle : au téléphone, il se posait
    sur « Lancer la saison » et sur le bouton flottant. Au grand écran, les
    onglets sont un rail à gauche : seule la barre d'action compte. */
-.toast { bottom: calc(var(--actionbar-h) + var(--navbar-h, 0px) + 16px + env(safe-area-inset-bottom, 0px)); }
-@media (min-width: 1200px) { .toast { bottom: calc(var(--actionbar-h) + 16px + env(safe-area-inset-bottom, 0px)); } }
+.toast { bottom: calc(var(--actionbar-h) + var(--navbar-h, 0px) + 16px + var(--safe-bas)); }
+@media (min-width: 1200px) { .toast { bottom: calc(var(--actionbar-h) + 16px + var(--safe-bas)); } }
 
 /* L'ÉTIQUETTE PLUS LARGE QUE SA PLACE (QA S74b). « Fabricant de jeu » sous un
    long nom (Langenbrunner) débordait par la GAUCHE — `flex-end` pousse le
@@ -9085,8 +9093,8 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .cj-mini-carte .cj-coin-logo { width: 24px; height: 24px; left: 5px; bottom: 5px; }
 .cj-mini-carte .cj-coin-logo :is(img, svg) { width: 20px; height: 20px; }
 .cj-mini-carte .cj-annee { right: 5px; bottom: 5px; padding: 2px 4px; font-size: 9.5px; }
-/* Sur la mini, le ruban tient le bas de la photo, entre l'écusson et l'année : jamais sur un visage. */
-.cj-mini-carte .cj-ruban { bottom: 5px; padding: 2px 7px; font-size: 8px; letter-spacing: 0.06em; }
+/* Sur la mini, le ruban tient le HAUT de la photo (au-dessus de la tête d'un portrait détouré) : en bas, il couvrait l'année. */
+.cj-mini-carte .cj-ruban { top: 5px; bottom: auto; padding: 2px 7px; font-size: 8px; letter-spacing: 0.06em; }
 .cj-recto.cj-mini-carte .cj-bandeau { min-height: 36px; height: auto; padding: 3px 7px; }
 .cj-mini-carte .cj-bandeau .pcard-full-name { font-size: clamp(13px, 5.2vw, 18px); line-height: 1; }
 .cj-mini-carte .cj-bandeau .pcard-full-name .lname { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -9149,6 +9157,155 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .fc-mod-effets .prix { color: color-mix(in srgb, #d9384a 75%, currentColor); }
 .fc-mods-vide { margin: 0 2px; font-size: 12.5px; color: var(--cj-encre-2); }
 
+
+/* ==========================================================
+   LA BOUTIQUE (S79, js/magasin.js) — des rayons de packs à la HUT
+   Chaque pack est un SACHET dans le métal de son tier : bronze, argent,
+   or, premium (l'arc-en-ciel), et les packs de cartes (l'encre violette).
+   Le sachet a sa dent de déchirure en haut, son icône, son tier ; dessous,
+   le nom, le nombre de cartes, sa chance phare et son prix. Toucher ouvre
+   la fiche : toutes les chances, le barème, le choix, « Acheter ».
+   ================================================================= */
+.pk-sheet { position: relative; }
+.pk-corps { gap: 16px; }
+.pk-mot, .pk-garantie { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--sub); }
+.pk-garantie { padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--gold) 10%, transparent); color: var(--text); }
+.pk-rayon h3 { margin: 0 0 8px; font: 800 14px/1.1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.pk-rabais { padding: 2px 8px; border-radius: 999px; background: var(--gold); color: #1b1305; font-size: 11px; letter-spacing: .04em; }
+.pk-rangee { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pk-tuile {
+  --pk-a: #8a6a3c; --pk-b: #d9b27a; --pk-ink: #fff;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px; min-width: 0; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2, var(--panel)); color: var(--text);
+  transition: transform .15s ease, border-color .15s ease;
+}
+.pk-tuile:hover, .pk-tuile:focus-visible { transform: translateY(-3px); border-color: var(--pk-b); outline: none; }
+.pk-tuile.verrou { opacity: .55; }
+.pk-sachet {
+  position: relative; display: grid; place-items: center; aspect-ratio: 3 / 4; border-radius: 8px 8px 10px 10px; overflow: hidden;
+  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .10) 0 3px, transparent 3px 9px), linear-gradient(160deg, var(--pk-b), var(--pk-a) 60%, var(--pk-b));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25), 0 6px 14px rgba(0, 0, 0, .4);
+}
+.pk-dent { position: absolute; top: 0; left: 0; right: 0; height: 9px; background: radial-gradient(circle at 50% 0, var(--panel-2, var(--panel)) 3.5px, transparent 4px) 0 0 / 9px 9px repeat-x; }
+.pk-sachet .pk-ico { font-size: 40px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .45)); }
+.pk-tier { position: absolute; bottom: 6px; left: 0; right: 0; text-align: center; font: 800 11px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--pk-ink); text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.pk-bronze { --pk-a: #6e4a26; --pk-b: #c8925a; }
+.pk-argent { --pk-a: #6f7b87; --pk-b: #dfe5eb; --pk-ink: #10151b; }
+.pk-argent .pk-tier { text-shadow: none; }
+.pk-or { --pk-a: #9a6f14; --pk-b: #ffd76a; --pk-ink: #2a1d04; }
+.pk-or .pk-tier { text-shadow: none; }
+.pk-premium { --pk-a: #5b2d9a; --pk-b: #74c8ff; }
+.pk-premium .pk-sachet { background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .12) 0 3px, transparent 3px 9px), linear-gradient(135deg, #ff6f91, #ffd66e 25%, #7cffc4 50%, #74c8ff 75%, #b58bff); }
+.pk-cartes { --pk-a: #3b2a6b; --pk-b: #8f7cf0; }
+.pk-jour { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 18px color-mix(in srgb, var(--gold) 30%, transparent); }
+.pk-nom { font: 800 14px/1.15 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+.pk-n, .pk-cote { font-size: 11.5px; color: var(--sub); line-height: 1.3; }
+.pk-prix { margin-top: auto; font: 800 15px/1 var(--display); color: var(--gold); }
+.pk-prix s { color: var(--muted); font-weight: 600; margin-right: 3px; }
+/* La fiche d'un pack : par-dessus la boutique, au bas au téléphone. */
+.pk-fiche { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.pk-fiche-carte {
+  width: 100%; max-width: 520px; max-height: 92%; overflow-y: auto; padding: 16px; border-radius: 18px 18px 0 0;
+  background: var(--panel); border-top: 3px solid var(--pk-b, var(--gold)); box-shadow: 0 -10px 30px rgba(0, 0, 0, .5);
+}
+@media (min-width: 700px) { .pk-fiche { align-items: center; } .pk-fiche-carte { border-radius: 18px; } }
+.pk-fiche-tete { display: flex; align-items: center; gap: 12px; }
+.pk-fiche-tete .pk-ico { font-size: 38px; }
+.pk-fiche-nom { font: 800 20px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.pk-fiche-sous { font: 700 13px/1.2 var(--display); color: var(--gold); letter-spacing: .04em; margin-top: 2px; }
+.pk-fiche-texte { font-size: 14px; line-height: 1.45; color: var(--sub); }
+.pk-fiche-carte h4 { margin: 14px 0 6px; font: 800 12px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.pk-chances, .pk-bareme { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.pk-chances th, .pk-bareme th { text-align: left; font-weight: 600; color: var(--sub); padding: 5px 0; }
+.pk-chances td, .pk-bareme td { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; padding: 5px 0; }
+.pk-chances tr + tr, .pk-bareme tr + tr { border-top: 1px solid var(--line-soft, var(--line)); }
+.pk-num, .pk-verrou { font-size: 12.5px; line-height: 1.4; color: var(--muted); margin: 10px 0 0; }
+.pk-choix { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; font: 700 12px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pk-choix select { font: 600 15px/1.2 var(--sans, inherit); padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2, var(--bg)); color: var(--text); text-transform: none; letter-spacing: 0; }
+.pk-fiche-actions { display: flex; gap: 10px; margin-top: 16px; }
+.pk-fiche-actions .btn { flex: 1; min-height: 46px; }
+
+/* =================================================================
+   LES CARTES DE LA BANQUE (S79, js/inventaire.js `carteBanqueHtml`)
+   Une carte par famille, chacune son cadre : le personnel en bleu nuit à
+   filet d'or, les événements en papier journal, les modifs de joueur en
+   violet, les consommables en vert pharmacie, les cartes de match en
+   ardoise. La rareté se lit à la gemme ; la durée de vie à l'étiquette.
+   ================================================================= */
+.bq-carte {
+  --bq-a: #1d2230; --bq-b: #2b3346; --bq-filet: rgba(255, 255, 255, .14);
+  position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 10px;
+  border-radius: 12px; color: var(--text);
+  background: linear-gradient(160deg, var(--bq-b), var(--bq-a) 70%);
+  box-shadow: inset 0 0 0 1.5px var(--bq-filet), 0 6px 14px rgba(0, 0, 0, .35);
+}
+.bq-patron { --bq-a: #111a2e; --bq-b: #203056; --bq-filet: #d9b45a; }
+.bq-evenement { --bq-a: #2b2720; --bq-b: #4a4234; --bq-filet: #c9b98f; }
+.bq-joueur { --bq-a: #22173a; --bq-b: #3d2a66; --bq-filet: #a78bfa; }
+.bq-consommable { --bq-a: #10261f; --bq-b: #1b4637; --bq-filet: #46d39a; }
+.bq-match { --bq-a: #161a21; --bq-b: #2a313d; --bq-filet: #9aa4ae; }
+.bq-saison { --bq-a: #1a2433; --bq-b: #2c3d57; --bq-filet: #74c8ff; }
+.bq-carte.tc-rare { box-shadow: inset 0 0 0 2px #e3e9ef, 0 6px 14px rgba(0, 0, 0, .35); }
+.bq-carte.tc-legendaire { box-shadow: inset 0 0 0 2px #ffd76a, 0 0 16px rgba(255, 215, 106, .25), 0 6px 14px rgba(0, 0, 0, .35); }
+.bq-carte.pas-a-moi { filter: grayscale(1); opacity: .42; }
+.bq-tete { display: flex; align-items: center; gap: 8px; }
+.bq-ico { flex: none; font-size: 24px; line-height: 1; }
+.bq-nom { flex: 1; min-width: 0; font: 800 15px/1.1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+.bq-compte { flex: none; padding: 2px 7px; border-radius: 999px; background: var(--gold); color: #1b1305; font: 800 12px/1.2 var(--display); }
+.bq-sous { display: flex; justify-content: space-between; gap: 6px; font: 700 10.5px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.bq-regle { display: flex; flex-wrap: wrap; gap: 4px; }
+.bq-cache { font-size: 12px; color: var(--muted); font-style: italic; }
+.bq-texte { font-size: 12px; line-height: 1.35; color: var(--sub); font-style: italic; }
+.bq-pied { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 4px; }
+.bq-vie { padding: 2px 7px; border-radius: 999px; font: 700 10.5px/1.3 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.vie-permanent { background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold); }
+.vie-saison { background: color-mix(in srgb, #74c8ff 18%, transparent); color: #9fd6ff; }
+.vie-usage { background: color-mix(in srgb, #46d39a 18%, transparent); color: #7fe0b7; }
+.bq-gemme { font-size: 11px; letter-spacing: 1px; color: var(--muted); }
+.bq-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.bq-actions .btn { flex: 1; min-height: 36px; padding: 6px 8px; font-size: 13px; }
+.inv-engage { font: 700 12px/1.2 var(--display); color: var(--green); letter-spacing: .06em; text-transform: uppercase; }
+
+/* =================================================================
+   L'INVENTAIRE ET LE CLASSEUR (S79)
+   ================================================================= */
+.inv-onglets { flex: none; display: flex; gap: 4px; padding: 8px 12px 0; overflow-x: auto; border-bottom: 1px solid var(--line-soft, var(--line)); }
+.inv-onglet {
+  flex: none; padding: 9px 12px; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--muted); cursor: pointer;
+  font: 800 13px/1 var(--display); letter-spacing: .06em; text-transform: uppercase;
+}
+.inv-onglet span { margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: var(--panel-2, var(--panel)); color: var(--text); font-size: 11px; }
+.inv-onglet.on { color: var(--text); border-bottom-color: var(--gold); }
+.inv-corps { gap: 12px; }
+.inv-mot { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--sub); }
+.inv-filtres { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.inv-filtre {
+  flex: none; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--sub); cursor: pointer;
+  font: 700 12px/1.2 var(--display); letter-spacing: .04em;
+}
+.inv-filtre.on { background: var(--gold); border-color: var(--gold); color: #1b1305; }
+.inv-sec { margin: 6px 0 0; font: 800 13px/1.1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.inv-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
+.inv-vide { margin: 0; font-size: 13.5px; color: var(--muted); grid-column: 1 / -1; }
+.inv-progres { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--sub); }
+.inv-prog b { color: var(--text); font-family: var(--display); }
+.hub-actions .hub-inventaire { flex: 0 0 auto; }
+
+/* Au téléphone, trois sachets de front : la boutique se parcourt sans fin de défilement. */
+@media (max-width: 560px) {
+  .pk-rangee { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .pk-tuile { padding: 6px; }
+  .pk-sachet { aspect-ratio: 4 / 5; }
+  .pk-sachet .pk-ico { font-size: 30px; }
+  .pk-nom { font-size: 12.5px; }
+  .pk-n, .pk-cote { font-size: 10.5px; }
+  .pk-rayon-jour .pk-rangee { grid-template-columns: minmax(0, 1fr); }
+  .pk-rayon-jour .pk-tuile { flex-direction: row; align-items: center; gap: 10px; }
+  .pk-rayon-jour .pk-sachet { width: 84px; flex: none; }
+}
+/* Une puce de règle se replie dans sa carte, jamais hors d'elle. */
+.bq-regle .puce { white-space: normal; max-width: 100%; }
+.bq-actions .btn { min-height: 34px; font-size: 12px; white-space: nowrap; }
 /* =================================================================
    UN DESIGN PAR ANNÉE (S78, js/cartes.js `DESIGNS`)
    JP : *design de carte par années, avec différents concepts visuels*.
@@ -9287,3 +9444,78 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .slot.cj-case .slot-band .sb-role { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 4px; padding-right: 4px; letter-spacing: 0; }
 .slot.cj-case .slot-band .sb-logo { flex: none; }
 .slot.cj-case .slot-band .slot-salary { flex: none; white-space: nowrap; }
+
+/* Le polaroïd rétrécit la photo (son bord blanc) : le secours (sous le portrait) se rétrécit avec elle. */
+#pool .pcard.pv.f-polaroid .pcard-avatar > .headshot-fallback, .cj-recto.f-polaroid .cj-fenetre > .headshot-fallback { font-size: 26px; line-height: 1; }
+/* LA MASSE SALARIALE (S79) : le plafond effectif, à l'inventaire et à la boutique. */
+.inv-plafond { margin: 0 var(--sp-3, 12px) 8px; padding: 8px 10px; border: 1px solid var(--line, #2a3340); border-radius: 10px; background: var(--card, rgba(255,255,255,0.03)); }
+.inv-pl-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.inv-pl-tete b { font-variant-numeric: tabular-nums; }
+.inv-pl-barre { height: 6px; border-radius: 3px; background: var(--line, #2a3340); margin: 6px 0; overflow: hidden; }
+.inv-pl-barre i { display: block; height: 100%; background: var(--green, #3fb27f); }
+.inv-plafond.over .inv-pl-barre i { background: var(--red, #e5484d); }
+.inv-plafond.over .inv-pl-tete b { color: var(--red, #e5484d); }
+.inv-pl-lignes { display: flex; flex-wrap: wrap; gap: 4px; }
+.inv-pl-lignes .puce { white-space: normal; }
+.inv-pl-rien { font-size: 12px; color: var(--muted); }
+.pk-plafond { font-size: 13px; color: var(--sub, var(--muted)); margin: 0 0 10px; }
+.pk-plafond.over { color: var(--red, #e5484d); }
+.pk-chances tr.pk-maudite th, .pk-chances tr.pk-maudite td { color: var(--red, #e5484d); }
+.bq-plafond { --bq-a: #1f2410; --bq-b: #3d4a1b; --bq-filet: #b8d65a; }
+
+/* QUAND UNE CARTE JOUE (S79) : se garde, ou jouée immédiatement — à côté de sa durée. */
+.bq-pied { gap: 4px; flex-wrap: wrap; }
+.bq-moment { padding: 2px 6px; border-radius: 999px; font: 700 10px/1.3 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.moment-garde { background: color-mix(in srgb, #c9a0ff 20%, transparent); color: #d9bcff; }
+.moment-immediat { background: color-mix(in srgb, var(--red, #e5484d) 22%, transparent); color: #ff9a9d; }
+.inv-legende { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 10px; font-size: 12px; color: var(--muted); }
+.inv-leg { display: inline-flex; align-items: center; gap: 5px; }
+.hub-inv-n { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--gold); color: #111; font-size: 12px; }
+
+/* LE CARTABLE (S79) : l'onglet Vestiaire une fois la saison commencée. */
+body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { display: none !important; }
+.ct { display: flex; flex-direction: column; gap: 10px; }
+.ct-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ct-comptes { font-size: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ct-vars { display: flex; flex-wrap: wrap; gap: 4px; }
+.ct-var { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--sub, var(--muted)); }
+.ct-var b { color: var(--text); margin-left: 2px; }
+.ct-var.v-peu { border-color: #7fb5ff66; } .ct-var.v-rare { border-color: #e3e9ef99; } .ct-var.v-legendaire { border-color: #ffd76a99; color: #ffd76a; }
+.ct-mes-cartes { flex: none; }
+.ct-n { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: #111; color: var(--gold); font-size: 12px; }
+.ct-vues { display: flex; gap: 6px; flex-wrap: wrap; }
+.ct-vue { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--sub, var(--muted)); font: 700 13px/1 var(--display); letter-spacing: .03em; cursor: pointer; }
+.ct-vue.on { background: var(--gold); border-color: var(--gold); color: #111; }
+.ct-mot { margin: 0; font-size: 13px; color: var(--muted); }
+.ct-vide { color: var(--muted); font-size: 14px; }
+.ct-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.ct-carte { display: flex; flex-direction: column; gap: 4px; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.ct-carte .cj-mini-carte { width: 100%; }
+.ct-stats { display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.ct-ligne { display: flex; flex-direction: column; }
+.ct-ligne i { font-style: normal; font: 700 9.5px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ct-sim { color: var(--text); } .ct-vraie { color: var(--sub, var(--muted)); }
+.ct-badges { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; font-size: 11px; }
+.ct-gemme { padding: 0 4px; border-radius: 4px; background: rgba(255,255,255,.06); }
+.ct-gemme.v-legendaire { color: #ffd76a; } .ct-gemme.v-rare { color: #e3e9ef; } .ct-gemme.v-peu { color: #9cc4ff; }
+.ct-double { padding: 0 5px; border-radius: 999px; background: var(--gold); color: #111; font-weight: 700; }
+.ct-num { padding: 0 5px; border-radius: 4px; border: 1px solid #ffd76a88; color: #ffd76a; }
+.ct-set { border: 1px solid var(--line); border-radius: 10px; background: var(--card, rgba(255,255,255,.03)); }
+.ct-set > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.ct-set > summary::-webkit-details-marker { display: none; }
+.ct-set-nom { font: 800 16px/1.1 var(--display); letter-spacing: .02em; }
+.ct-set-sous { flex: 1; font-size: 12px; color: var(--muted); }
+.ct-set-n { font-variant-numeric: tabular-nums; }
+.ct-set-corps { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 12px; }
+.ct-page-tete { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; font-size: 13px; }
+.ct-completion { font-variant-numeric: tabular-nums; color: var(--sub, var(--muted)); }
+.ct-completion.complet { color: var(--gold); font-weight: 700; }
+.ct-barre { flex: 1; max-width: 160px; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.ct-barre i { display: block; height: 100%; background: var(--gold); }
+.ct-charge { color: var(--muted); font-size: 13px; }
+@media (max-width: 430px) { .ct-grille { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .ct-stats { font-size: 10px; } }
+
+.ct-mes-cartes { min-height: 38px; padding: 7px 14px; font-size: 14px; }
+.ct-total { font-size: 15px; }
+/* Le corps défile ; ses rangées ne se tassent jamais (une rangée qui défile en x se tassait à zéro). */
+.inv-corps > *, .pk-corps > * { flex-shrink: 0; }

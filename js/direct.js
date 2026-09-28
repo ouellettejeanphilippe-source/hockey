@@ -392,7 +392,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         ${rangee('Avantage numérique', `${st.anButs.A} / ${st.anOcc.A}`, `${st.anButs.B} / ${st.anOcc.B}`)}
         ${rangee('Arrêts', gA_ ? `${ctx.esc(famille(gA_))} ${st.arrets.A} / ${st.arrets.A + gB}` : '—', gB_ ? `${ctx.esc(famille(gB_))} ${st.arrets.B} / ${st.arrets.B + gA}` : '—')}
       </tbody></table></div>
-      ${st.buts.length ? `<div class="live-tableau"><div class="live-tableau-titre">Les buts</div>${st.buts.map(x => `<div class="live-but-ligne"><span class="live-tps">${tempsDeJeu(x.instant)}</span>${ctx.logo(equipe(x.cote).tag, 13)}<span><b>${nomLie(x.marqueur, x.cote)}</b> (${ord(x.nG)} but)${x.aides.length ? `, ${x.aides.map(a => `${nomLie(a.p, x.cote)} (${ordF(a.n)} passe)`).join(', ')}` : ''}${x.an ? ' · AN' : x.dn ? ' · DN' : ''} <span class="live-score">${x.score}</span></span></div>`).join('')}</div>` : ''}`;
+      ${st.buts.length ? `<div class="live-tableau"><div class="live-tableau-titre">Les buts</div>${st.buts.map((x, i) => `${i && periodeDe(st.buts[i - 1].instant) === periodeDe(x.instant) ? '' : `<div class="live-but-per">${NOM_PERIODE[periodeDe(x.instant)]}</div>`}<div class="live-but-ligne"><span class="live-tps">${tempsDeJeu(x.instant)}</span>${ctx.logo(equipe(x.cote).tag, 13)}<span><b>${nomLie(x.marqueur, x.cote)}</b> (${ord(x.nG)} but)${x.aides.length ? `, ${x.aides.map(a => `${nomLie(a.p, x.cote)} (${ordF(a.n)} passe)`).join(', ')}` : ''}${x.an ? ' · AN' : x.dn ? ' · DN' : ''} <span class="live-score">${x.score}</span></span></div>`).join('')}</div>` : ''}`;
   };
 
   const horloge = () => {
