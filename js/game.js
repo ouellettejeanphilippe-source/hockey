@@ -35,7 +35,7 @@ import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, ouvrirAlignement, optionDeCarteMatch, puces } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
-import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte, dessinDe } from './cartes.js';
+import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, finiHtml, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte, dessinDe } from './cartes.js';
 import { CARTES_MATCH, recompensesOffertes, deckDe } from './combat.js';
 import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
@@ -2940,6 +2940,7 @@ function carteMiniHtml(p) {
   const st = displayStats(p);
   const cle = p.p === 'G' ? `${st.w}<small>V</small>` : `${st.pt}<small>PTS</small>`;
   return `<span class="cj-recto cj-mini-carte ${classesDeCarte(p)} tc-${rarete}" style="--team-logo:${logoFiligrane(p.t)};--team-band:${band.bg};--team-ink:${band.ink};--team-stripe:${band.stripe};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
+    ${finiHtml(rarete)}
     <span class="cj-fenetre">
       <span class="cj-filigrane" aria-hidden="true"></span>
       ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
@@ -3979,7 +3980,7 @@ function playerCardEl(p) {
   // côte sur la face, année ?* — le tirage « 71/99 » s'y lisait comme une note
   // sur 99 ; il vit au verso), la gemme de la variante et ce qu'elle joue, le
   // tampon « Recrue ». Un éclat quand une brillante sort pour la première fois.
-  el.innerHTML = `
+  el.innerHTML = `${finiHtml(rarete)}
     <div class="pcard-band">
       <span class="pb-pos ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</span>
       <span class="pb-team">${getTeamLogoHtml(p.t, 16)}<span>${esc(p.t)}</span></span>
@@ -5199,6 +5200,7 @@ function showPlayerModal(p, opts = {}) {
       <div class="fiche-carte">
         <div class="fc-faces">
           <div class="fc-face fc-recto pcard-full-photo cj-recto ${ere} tc-${rarete}" title="Touche la carte pour la retourner">
+            ${finiHtml(rarete)}
             <div class="cj-fenetre">
               <span class="cj-filigrane" aria-hidden="true"></span>
               ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
@@ -5210,7 +5212,7 @@ function showPlayerModal(p, opts = {}) {
               <span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>
             </div>
             <div class="cj-bandeau"><div class="pcard-full-name">${formatName(p.n)}</div></div>
-            <div class="fc-club">${esc(TEAMFULL[p.t] || p.t)}</div>
+            <div class="fc-club"><span class="fc-club-nom">${esc(TEAMFULL[p.t] || p.t)}</span><span class="fc-marque" aria-hidden="true">Cap<b>82-0</b></span></div>
             <div class="fc-legende">Sa vraie saison${G.statsProrata ? ' · prorata 82 matchs, ajusté à l\'époque' : ''}</div>
             <div class="fc-stats">${statsCarte}</div>
             <div class="fc-pied">
@@ -5340,13 +5342,21 @@ function versoDeCarte(p, numero, rarete, milieu = '', ere = '') {
   const faits = [];
   if (p.x) faits.push('Échangé en cours de saison : il a porté deux chandails cette année-là.');
   if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p))}`);
+  /*
+   * LE PIED D'UN VRAI VERSO (S80) : la ligne légale de l'imprimeur, en petits
+   * caractères — « © 1985 O-Pee-Chee » disait l'année de la série sans la
+   * nommer. Ici : l'année où la série sort (le début de la saison), la marque,
+   * le nombre de cartes. Rien que le recto dise déjà en toutes lettres.
+   */
+  const anneeSerie = String(p.s || '').slice(0, 4);
   return `<div class="fc-face fc-verso cj-verso ${ere} tc-${rarete} fc-cachee" aria-hidden="true">
-    <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série">${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span></div>
+    ${finiHtml(rarete)}
+    <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série"><small aria-hidden="true">Nº</small>${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span></div>
     ${vit.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${vit.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${vit.map(([, v]) => `<td>${esc(v)}</td>`).join('')}</tr></tbody></table></div>` : ''}
     ${milieu}
     ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
     <div class="fc-filigrane" aria-hidden="true">${getTeamLogoHtml(p.t, 120)}</div>
-    <div class="cjv-pied"><span>© Cap 82-0 · ${TAILLE_SERIE} cartes</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
+    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · Série de ${TAILLE_SERIE} cartes</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
   </div>`;
 }
 
