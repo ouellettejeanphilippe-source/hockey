@@ -5002,13 +5002,21 @@ function versoDeCarte(p, numero, rarete, milieu = '', ere = '') {
   const faits = [];
   if (p.x) faits.push('Échangé en cours de saison : il a porté deux chandails cette année-là.');
   if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p))}`);
+  /*
+   * LE PIED D'UN VRAI VERSO (S80) : la ligne légale de l'imprimeur, en petits
+   * caractères — « © 1985 O-Pee-Chee » disait l'année de la série sans la
+   * nommer. Ici : l'année où la série sort (le début de la saison), la marque,
+   * le nombre de cartes. Rien que le recto dise déjà en toutes lettres.
+   */
+  const anneeSerie = String(p.s || '').slice(0, 4);
   return `<div class="fc-face fc-verso cj-verso ${ere} tc-${rarete} fc-cachee" aria-hidden="true">
-    <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série">${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span></div>
+    ${finiHtml(rarete)}
+    <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série"><small aria-hidden="true">Nº</small>${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span></div>
     ${vit.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${vit.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${vit.map(([, v]) => `<td>${esc(v)}</td>`).join('')}</tr></tbody></table></div>` : ''}
     ${milieu}
     ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
     <div class="fc-filigrane" aria-hidden="true">${getTeamLogoHtml(p.t, 120)}</div>
-    <div class="cjv-pied"><span>© Cap 82-0 · ${TAILLE_SERIE} cartes</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
+    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · Série de ${TAILLE_SERIE} cartes</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
   </div>`;
 }
 

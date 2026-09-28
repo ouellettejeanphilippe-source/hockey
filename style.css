@@ -9961,3 +9961,34 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 .cj-ruban::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 48%, rgba(0, 0, 0, 0.16)); }
 /* La rondelle du poste : un filet de caoutchouc strié sur sa tranche. */
 #pool .pcard.pv .pb-pos, .cj-rondelle { background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px), radial-gradient(120% 90% at 50% 18%, #46464c, #0c0c0f 64%); }
+
+/* ---------------------------------------------------------------
+   LE VERSO D'UNE VRAIE CARTE : la bande du club et son numéro, la grille
+   des mensurations entre deux filets, les intertitres filetés, la ligne
+   légale en petits caractères.
+   --------------------------------------------------------------- */
+.fc-verso .cjv-tete { border-radius: 6px 6px 2px 2px; box-shadow: inset 0 -2px 0 var(--team-stripe, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.14); }
+.fc-verso .cjv-no {
+  display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 46px; border-radius: 4px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--team-band, #243044) 45%, transparent), 0 1px 0 rgba(0, 0, 0, 0.25);
+}
+.fc-verso .cjv-no small { font-size: 9px; letter-spacing: 0.02em; opacity: 0.7; }
+.fc-verso .cjv-table-wrap {
+  background: none; border-radius: 0;
+  border-top: 2px solid color-mix(in srgb, currentColor 55%, transparent); border-bottom: 2px solid color-mix(in srgb, currentColor 55%, transparent);
+}
+.fc-verso .cjv-table thead th { background: color-mix(in srgb, var(--team-band, #243044) 14%, transparent); border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent); letter-spacing: 0.14em; }
+.fc-verso .cjv-table :is(th, td) + :is(th, td) { border-left: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+.fiche-carte .fc-verso .fc-sec { display: flex; align-items: center; gap: 8px; letter-spacing: 0.16em; }
+.fiche-carte .fc-verso .fc-sec::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, currentColor 24%, transparent); }
+.fiche-carte .fc-verso .fc-sec[hidden] { display: none; }
+/* Ce que la carte joue : le nom de la variante se lit sur tous les cartons (l'or sur le crème ne se lisait pas). */
+.cj-sa-rarete.tc-peu { --tc-bord: #3fb0d6; }
+.fc-verso .cj-sa-rarete:not(.tc-commune) { color: color-mix(in srgb, var(--tc-bord, #9aa4ae) 55%, var(--cj-encre)); }
+/* Son encadré porte au flanc la couleur de sa finition : le bleu du refractor, le violet de la holo, l'or. */
+.fc-verso .cj-sa-carte { border-left: 3px solid var(--tc-sa, color-mix(in srgb, currentColor 30%, transparent)); border-radius: 4px 10px 10px 4px; }
+.fc-verso.tc-peu .cj-sa-carte { --tc-sa: #3fb0d6; }
+.fc-verso.tc-rare .cj-sa-carte { --tc-sa: #a57bff; }
+.fc-verso.tc-legendaire .cj-sa-carte { --tc-sa: #d4a017; }
+.fc-verso .cjv-pied { font-size: 9.5px; letter-spacing: 0.08em; }
+.fc-verso .cjv-legal { min-width: 0; }
