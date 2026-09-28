@@ -1030,7 +1030,8 @@ async function chargerPortraits() {
 async function prechargerVisages() {
   try {
     if (window.Capacitor || !PORTRAITS_LOCAUX || !navigator.serviceWorker || !location.protocol.startsWith('http')) return;
-    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}`;
+    // Le lot : le nombre de visages et d'écussons, et leur taille (S80 : 320 px) — des images neuves se regardent.
+    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}@320`;
     if (localStorage.getItem('cap82_visages') === cle) return;
     const reg = await navigator.serviceWorker.ready;
     if (!reg.active) return;

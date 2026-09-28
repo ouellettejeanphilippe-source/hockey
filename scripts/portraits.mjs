@@ -41,8 +41,11 @@ import { chromium } from 'playwright';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const arg = (nom, def) => { const i = process.argv.indexOf(`--${nom}`); return i < 0 ? def : (process.argv[i + 1] ?? true); };
-const TAILLE = Number(arg('taille', 192));
-const QUALITE = Number(arg('qualite', 0.74));
+// 320 px et 0,85 (S80, JP : *les photos des joueurs sont floues*) : à 192 px, une photo de carte (≈ 150 px à
+// l'écran, 450 px physiques sur un téléphone) était agrandie plus du double. 320 garde tout le détail de la
+// source (336 px, recadrée) ; au-delà, on ne gagnerait rien.
+const TAILLE = Number(arg('taille', 320));
+const QUALITE = Number(arg('qualite', 0.85));
 const LIMITE = Number(arg('limite', 0)) || Infinity;
 const BRUT = arg('brut', path.join(os.tmpdir(), 'cap82-mugs'));
 const SORTIE = path.join(ROOT, 'img', 'mugs');

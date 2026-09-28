@@ -29,7 +29,9 @@ const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
 // Les visages recadrés et les écussons (img/, S78) : hors du préfixe « cap82- », donc gardés d'une version à l'autre.
-const VISAGES = 'cap82img-visages';
+// Son NOM change quand les images changent (S80 : les portraits passent de 192 à 320 px, JP : *les photos des
+// joueurs sont floues*) — sinon l'ancien tiroir servirait les vieilles images, même à l'APK, pour toujours.
+const VISAGES = 'cap82img-visages-320';
 
 const FICHIERS = [
   './', 'index.html', 'style.css', 'site.webmanifest', 'favicon.svg',
@@ -62,7 +64,7 @@ self.addEventListener('install', ev => {
 self.addEventListener('activate', ev => {
   ev.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k.startsWith('cap82-') && !k.startsWith(VERSION)).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => (k.startsWith('cap82-') && !k.startsWith(VERSION)) || (k.startsWith('cap82img-') && k !== VISAGES)).map(k => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
