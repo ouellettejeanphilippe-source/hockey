@@ -170,6 +170,18 @@ export const sensRarete = r => SENS_RARETE[r] || SENS_RARETE.commune;
 /* Une variante BRILLANTE (peu commune et au-dessus) : le « shiny ». */
 export const brillante = r => r === 'peu' || r === 'rare' || r === 'legendaire';
 /*
+ * LA FEUILLE DE FINITION (S80). JP : *les visuels des cartes sont un peu plus
+ * grossiers versus une vraie carte, ça manque de détails, de vrai*. Une vraie
+ * parallèle, une holo, une or, c'est le CARTON lui-même qui est traité — le
+ * chrome coloré d'un refractor, la feuille prismatique d'une holo, l'or brossé
+ * — et pas un filet de couleur autour d'une carte de base. Cette couche se
+ * pose sur le carton, SOUS la photo et SOUS chaque mot (style.css, « S80 —
+ * DES VRAIES CARTES ») : elle ne teint jamais un visage et ne passe jamais
+ * sur un chiffre. Une carte de base n'en porte pas (rien de lourd sur une
+ * commune) : les trois gabarits et le verso l'écrivent par ici.
+ */
+export const finiHtml = r => (brillante(r) ? '<span class="cj-fini" aria-hidden="true"></span>' : '');
+/*
  * LA GEMME D'UNE CARTE DE JOUEUR, avec ce que sa variante FAIT. Les diamants
  * disent la rareté (un à trois, l'or pour la légendaire), l'étoile ✦ qu'elle
  * est brillante, et l'icône du trait (`traitsDeCarte`, js/rarete.js) ce

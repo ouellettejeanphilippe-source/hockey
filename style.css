@@ -9719,3 +9719,245 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 }
 @keyframes fc-attend { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 35%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .fc-poser { animation: none; } }
+
+/* =====================================================================
+   S80 — DES VRAIES CARTES (js/cartes.js `finiHtml` ; js/game.js
+   `playerCardEl`, `carteMiniHtml`, `showPlayerModal`, `versoDeCarte`)
+
+   JP : *je trouve que les visuels des cartes sont un peu plus grossiers
+   versus une vraie carte, ça manque de détails, de vrai* ; puis *je veux
+   qualité maximum qu'on peut remarquer en fait, des vraies cartes belles*.
+   Les portraits sont au plafond (320 px pour une source de 336) : c'est la
+   CARTE autour de la photo qui gagne ce qu'une carte imprimée a et que la
+   nôtre, faite d'aplats, n'avait pas. Mise à côté d'une Young Guns d'Upper
+   Deck, d'une O-Pee-Chee, d'une Topps Chrome, d'une Fleer Ultra :
+
+   LE CARTON. Un carton imprimé a un GRAIN (le papier, l'encre qui boit), un
+   VERNIS (la lumière glisse en diagonale), une TRANCHE (l'âme du carton au
+   bord de la coupe), une légère VIGNETTE (l'encre s'épaissit au bord), et
+   des coins d'un huitième de pouce : 5 % de sa largeur.
+   LA PHOTO. Un portrait détouré jette son OMBRE sur le fond du club ; une
+   vieille photo opaque est tenue par le CADRE de l'imprimeur, un filet et un
+   léger biseau — qui passent maintenant PAR-DESSUS la photo : le cadre des
+   designs (f-carre, f-arrondi, f-arche, f-onde) était peint sous le
+   portrait, et une photo opaque le cachait en entier. Le visage ne prend ni
+   flou ni filtre, et la parallèle ne le voile plus.
+   LA FINITION (la variante). Une parallèle, une holo, une or, c'est le
+   CARTON qui est traité, pas un filet de couleur autour d'une carte de
+   base : la parallèle est un REFRACTOR (un chrome bleu à fines stries, dont
+   le reflet glisse quand on penche la carte), la holo une FEUILLE
+   PRISMATIQUE (l'arc-en-ciel d'un réseau de diffraction, strié et semé
+   d'éclats, qui court sous le doigt et avec le téléphone), l'or un MÉTAL
+   BROSSÉ (des stries, un reflet, un cadre en relief). Le cadre de la
+   variante tient l'extérieur, et le club reste dedans en un liseré.
+   LA TYPOGRAPHIE. Le nom en capitales condensées, crénées ; le prénom en
+   petites capitales espacées au-dessus ; le club en petites capitales ;
+   les chiffres en tabulaires ; la marque au recto de la fiche, la ligne
+   légale de l'imprimeur au verso.
+
+   Trois règles tiennent ce bloc.
+   (1) RIEN NE PREND DE PLACE. Tout se PEINT (fonds, pseudo-éléments) : les
+       hauteurs mesurées de S78 ne bougent pas d'un pixel.
+   (2) RIEN DE LOURD. Une carte de base ne porte que son carton ; la couche
+       de finition (`.cj-fini`) n'existe que sur une brillante, et elle est
+       FIXE au repos — elle ne bouge que sous le doigt ou avec le téléphone
+       (le miroitement au repos reste celui de S77, sur la photo d'une holo
+       ou d'une or). Aucun `backdrop-filter`, aucun flou large : l'ombre du
+       portrait est un `drop-shadow` de 3 px, peint une fois.
+   (3) ON LIT D'ABORD. Le carton et son grain → la finition (z 0) → la photo
+       (z 1) → le vernis, la vignette et le reflet (z 1, après la photo) →
+       les mots (z 2) → le nom (z 2-3) → le cadre de la variante (z 4).
+   ===================================================================== */
+:is(.pcard.pv, .cj-recto, .fc-verso) {
+  /* Le grain du papier : deux bruits (des creux sombres, des fibres claires) dans un SVG d'un kilo-octet, tuilé —
+     rasterisé une fois, réutilisé par toutes les cartes. */
+  --papier: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='a' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.05' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -.9 0 0 0 .38'/%3E%3C/filter%3E%3Cfilter id='b' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.05' numOctaves='2' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .8 0 0 0 -.47'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url%28%23a%29'/%3E%3Crect width='180' height='180' filter='url%28%23b%29'/%3E%3C/svg%3E") 0 0 / 180px 180px;
+  /* Le fond de studio d'un portrait détouré : une toile marbrée, comme les fonds des photographes de la ligue. */
+  --marbre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='m' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.011' numOctaves='3' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1.1 0 0 0 -.5'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url%28%23m%29'/%3E%3C/svg%3E") 0 0 / 260px 260px;
+  /* Les éclats d'une feuille holographique : des étoiles à quatre branches, semées. */
+  --eclats: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='46'%3E%3Cg fill='%23fff'%3E%3Cpath d='M9 3l1.1 4.4 4.4 1.1-4.4 1.1L9 14l-1.1-4.4L3.5 8.5l4.4-1.1z'/%3E%3Cpath d='M32 20l.8 2.7 2.7.8-2.7.8-.8 2.7-.8-2.7-2.7-.8 2.7-.8z' opacity='.75'/%3E%3Cpath d='M19 35l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6z' opacity='.6'/%3E%3Ccircle cx='40' cy='6' r='.9' opacity='.8'/%3E%3Ccircle cx='5' cy='28' r='.7' opacity='.7'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 46px 46px;
+  /* LE RÉSEAU DE DIFFRACTION : l'arc-en-ciel (le prisme, qui glisse avec l'inclinaison) strié de lignes fines (le réseau, fixe). */
+  --prisme: repeating-linear-gradient(112deg, #ff5a7a 0px, #ffb45a 18px, #fff36b 36px, #6bffb0 54px, #5ad8ff 72px, #8a7bff 90px, #ff6be0 108px, #ff5a7a 126px) var(--mx) var(--my) / 300% 300%;
+  --reseau: repeating-linear-gradient(24deg, rgba(0, 0, 0, 0.3) 0 1px, rgba(0, 0, 0, 0) 1px 2.4px);
+  /* L'or brossé : les stries du métal, et le lingot qui prend la lumière. */
+  --brosse: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 0.5px, rgba(0, 0, 0, 0.1) 0.5px 1.2px, rgba(255, 255, 255, 0) 1.2px 2px);
+  --lingot: linear-gradient(118deg, #7a5410 0%, #d9ac3e 14%, #fff1b8 24%, #caa04a 34%, #8a6212 46%, #f1cf6c 58%, #fff6d6 66%, #b8860b 78%, #6b4a0c 100%) var(--mx) var(--my) / 260% 260%;
+  /* Le chrome du refractor : de fines stries verticales, et le bleu qui passe. */
+  --chrome: linear-gradient(125deg, #0c3a57 0%, #2aa7d8 12%, #d4f7ff 22%, #36a9d6 32%, #0d5a82 44%, #9be9ff 56%, #1f8bbb 68%, #e3fbff 78%, #2a9dcf 90%, #0c3a57 100%) var(--mx) var(--my) / 300% 300%;
+  --stries: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.26) 0 1px, rgba(255, 255, 255, 0) 1px 2.5px);
+  /* Le carton sombre : un vernis qui glisse, une tranche claire, une vignette. */
+  --vernis: linear-gradient(118deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.075) 43%, rgba(255, 255, 255, 0.025) 51%, rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 16%);
+  --vignette: radial-gradient(125% 100% at 50% 42%, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.26) 100%);
+  --tranche: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 1.5px rgba(255, 255, 255, 0.16);
+  --fini-mode: color-dodge;
+  --club-trait: var(--team-line, var(--team-band, #243044));
+}
+/* Le carton clair (le blanc glacé, le carton crème, l'argent) : le vernis s'y voit plus, la vignette jaunit, la finition teinte au lieu d'éclairer. */
+:is(.pcard.pv, .cj-recto, .fc-verso):is(.c-blanc, .c-carton, .c-argent) {
+  --vernis: linear-gradient(118deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.42) 43%, rgba(255, 255, 255, 0.12) 51%, rgba(255, 255, 255, 0) 60%);
+  --vignette: radial-gradient(125% 100% at 50% 42%, rgba(120, 85, 30, 0) 60%, rgba(120, 85, 30, 0.16) 100%);
+  --tranche: inset 0 0 0 1px rgba(60, 45, 20, 0.38), inset 0 0 0 1.5px rgba(255, 255, 255, 0.65);
+  --fini-mode: multiply;
+  --club-trait: var(--team-band, #243044);
+}
+/* Un carton déjà aux couleurs du club : le liseré prend la seconde couleur. */
+:is(.pcard.pv, .cj-recto, .fc-verso).c-club { --club-trait: var(--team-stripe, #8d97a3); }
+
+/* LES COINS D'UNE VRAIE CARTE : un huitième de pouce sur deux pouces et demi (5 % de la largeur). */
+#pool .pcard.pv { border-radius: 9px; --cadre-l: 3.5px; }
+.cj-recto.cj-mini-carte { border-radius: 7px; --cadre-l: 3px; }
+.fiche-carte .fc-face { --cadre-l: 6px; }
+#pool .pcard.pv.f-plein .pcard-avatar { border-radius: 9px 9px 0 0; }
+.cj-recto.cj-mini-carte.f-plein .cj-fenetre { border-radius: 7px 7px 0 0; }
+
+/* LE CARTON : le vernis, la vignette, le grain, puis la couleur de l'année — des couches du FOND de la carte, pas
+   des éléments de plus : mesuré au processeur ×4 sur quatre cents cartes, chaque couche posée À PART (une
+   vignette en ombre floue, un pseudo-élément par carte) coûtait plus que toutes celles-ci ensemble. */
+#pool .pcard.pv, .cj-recto.cj-mini-carte, .fiche-carte .fc-face { background: var(--vernis), var(--vignette), var(--papier), var(--cj-fond); }
+
+/* LA TRANCHE (au bord de la coupe) et, sur une brillante, LE CADRE de la variante — peints par-dessus tout, sans rien prendre. */
+#pool .pcard.pv::before, .cj-recto::before, .fiche-carte .fc-verso::before {
+  content: ''; position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: inherit;
+  padding: 0; background: none; box-shadow: var(--tranche); animation: none;
+}
+:is(#pool .pcard.pv, .cj-recto, .fiche-carte .fc-verso):is(.tc-peu, .tc-rare, .tc-legendaire)::before {
+  padding: var(--cadre-l, 3px); background: var(--cadre); box-shadow: var(--cadre-relief, none); animation: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* Le club reste DEDANS : un liseré à sa couleur tout contre le cadre de la variante (S79 : les cartes aux couleurs
+   du club), puis l'ombre fine que le cadre, en relief, jette sur le carton. */
+:is(#pool .pcard.pv, .cj-recto, .fc-verso):is(.tc-peu, .tc-rare, .tc-legendaire) {
+  --a-anneau: inset 0 0 0 calc(var(--cadre-l, 3px) + 1.5px) var(--club-trait), inset 0 0 0 calc(var(--cadre-l, 3px) + 2.5px) rgba(0, 0, 0, 0.3);
+}
+.tc-peu { --cadre: var(--stries), var(--chrome); --cadre-relief: inset 0 0 0 0.5px rgba(210, 245, 255, 0.7); }
+.tc-rare { --cadre: var(--eclats), var(--reseau), var(--prisme); --cadre-relief: inset 0 0 0 0.5px rgba(255, 255, 255, 0.75); }
+.tc-legendaire { --cadre: var(--brosse), var(--lingot); --cadre-relief: inset 1px 1px 0 rgba(255, 250, 220, 0.8), inset -1px -1px 0 rgba(90, 60, 5, 0.85); }
+
+/* LE LUSTRE ET LE REFLET, par-dessus la photo et sous les mots : un vernis à peine visible (le visage reste net)
+   et, sous le doigt, la tache de lumière de S77, dans la même couche. La fiche (UNE carte) le porte toujours ;
+   au vestiaire et sur une mini, la couche n'est créée que sur la carte qu'on penche — comme en S77, trente
+   communes n'en paient rien. */
+.fiche-carte .fc-face::after, #pool .pcard.pv:is(.incline, .relache, .gyro)::after, :is(.incline, .relache, .gyro) .cj-recto.cj-mini-carte::after {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
+  background:
+    radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, calc(0.3 * var(--lueur))), rgba(255, 255, 255, calc(0.08 * var(--lueur))) 24%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(118deg, rgba(255, 255, 255, 0) 34%, rgba(255, 255, 255, 0.05) 46%, rgba(255, 255, 255, 0) 58%);
+  box-shadow: none; opacity: 1; mix-blend-mode: normal;
+}
+
+/* LA FINITION D'UNE BRILLANTE (`.cj-fini`) : sur le carton, sous la photo et sous les mots. Plus forte au bord
+   (le cadre de la carte) qu'au milieu, là où l'on lit. */
+.cj-fini {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit;
+  mix-blend-mode: var(--fini-mode, color-dodge); opacity: var(--fini-o, 0.5);
+  -webkit-mask-image: radial-gradient(ellipse 78% 74% at 50% 48%, rgba(0, 0, 0, 0.42) 50%, #000 100%);
+  mask-image: radial-gradient(ellipse 78% 74% at 50% 48%, rgba(0, 0, 0, 0.42) 50%, #000 100%);
+}
+.cj-fini[hidden] { display: none; }
+/* La parallèle : le chrome bleu du refractor — ses stries, et la bande de lumière qui passe. */
+.tc-peu > .cj-fini {
+  --fini-o: 0.5;
+  background:
+    var(--stries),
+    linear-gradient(118deg, rgba(40, 150, 210, 0) 16%, rgba(90, 200, 255, 0.55) 32%, rgba(215, 247, 255, 0.8) 40%, rgba(60, 170, 220, 0.35) 48%, rgba(40, 150, 210, 0) 62%, rgba(120, 220, 255, 0.45) 76%, rgba(40, 150, 210, 0) 88%) var(--mx) var(--my) / 250% 250%,
+    linear-gradient(rgba(63, 176, 214, 0.18), rgba(63, 176, 214, 0.18));
+}
+/* La holo : la feuille prismatique — les éclats, le réseau, le prisme. */
+.tc-rare > .cj-fini { --fini-o: 0.46; background: var(--eclats), var(--reseau), var(--prisme); }
+/* L'or : le métal brossé, et ses paillettes. */
+.tc-legendaire > .cj-fini {
+  --fini-o: 0.42;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 0.8px, transparent 1.3px) 0 0 / 13px 11px,
+    radial-gradient(circle, rgba(255, 244, 200, 0.85) 0 0.7px, transparent 1.2px) 6px 5px / 17px 19px,
+    var(--brosse), var(--lingot);
+}
+:is(.pcard.pv, .cj-recto, .fc-verso):is(.c-blanc, .c-carton, .c-argent) > .cj-fini { --fini-o: 0.42; }
+:is(.pcard.pv, .cj-recto, .fc-verso):not(.c-blanc, .c-carton, .c-argent).tc-legendaire > .cj-fini { --fini-mode: hard-light; --fini-o: 0.34; }
+/* La fiche est UNE carte : sa finition peut miroiter au repos, lentement ; sous le doigt, elle suit. */
+.fiche-carte .fc-face > .cj-fini { animation: cj-miroite 9s ease-in-out infinite alternate; }
+.fiche-carte .fc-face.incline > .cj-fini, .fiche-carte.tourne-1 .cj-fini, .fiche-carte.tourne-2 .cj-fini { animation: none; }
+@media (prefers-reduced-motion: reduce) { .fiche-carte .fc-face > .cj-fini { animation: none; } }
+
+/* LA PARALLÈLE NE VOILE PLUS LE VISAGE : sa lumière est dans son chrome, pas sur la photo. */
+#pool .pcard.pv.tc-peu .pcard-avatar::after, .cj-recto.tc-peu .cj-fenetre::after { content: none; }
+/* La holo et l'or, derrière un portrait détouré : la même feuille que le carton (jamais sur le visage). */
+.tc-rare :is(.pcard-avatar, .cj-fenetre) > .cj-holo { background: var(--eclats), var(--reseau), var(--prisme); opacity: 0.42; }
+.tc-legendaire :is(.pcard-avatar, .cj-fenetre) > .cj-holo { background: var(--brosse), var(--lingot); opacity: 0.5; }
+
+/* Ce qui se lit monte au-dessus du vernis ; la photo reste dessous. */
+.cj-mini-carte > .cjm-ligne { position: relative; z-index: 2; }
+.fiche-carte .fc-recto > .cj-fenetre { z-index: 1; }
+.fiche-carte .fc-recto > :is(.fc-club, .fc-legende, .fc-stats, .fc-pied) { position: relative; z-index: 2; }
+.fiche-carte .fc-verso > :not(.cj-fini) { position: relative; z-index: 2; }
+
+/* ---------------------------------------------------------------
+   LA PHOTO : le cadre de l'imprimeur par-dessus le portrait, l'ombre du détouré.
+   --------------------------------------------------------------- */
+/* Le biseau : un filet sombre au bord, un fil de lumière en haut, une ombre en bas. `.cj-dessus` est au-dessus du
+   portrait (z 2 dans la fenêtre) : le cadre se voit sur une photo opaque comme sur un détouré. */
+.cj-dessus { border-radius: inherit; }
+.cj-dessus::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: var(--f-trait, none);
+  box-shadow: var(--f-biseau, inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 2px 0 0.5px rgba(255, 255, 255, 0.16), inset 0 -2px 0 0.5px rgba(0, 0, 0, 0.2));
+}
+/* L'OMBRE PORTÉE : un portrait détouré se détache du fond du club ; une photo opaque la jette hors de son cadre, où
+   elle ne se voit pas — il n'y a rien à savoir de la photo. Sur la mini et la fiche, un vrai `drop-shadow` qui épouse
+   la silhouette. AU VESTIAIRE, non : mesuré au processeur ×4 sur quatre cents cartes, ce filtre sur chaque portrait
+   coûtait 5 ms par image. Les portraits sont normalisés (la tête fait la même part du cadre, à la même hauteur,
+   scripts/portraits.mjs) : l'ombre y est PEINTE dans le fond, sous le portrait, là où la tête et les épaules la
+   jetteraient — un dégradé, qui ne coûte rien. */
+.cj-recto .cj-fenetre > img.visage { filter: drop-shadow(2px 3px 2.5px rgba(0, 0, 0, 0.42)); }
+.fiche-carte .cj-fenetre > img.visage { filter: drop-shadow(4px 6px 5px rgba(0, 0, 0, 0.4)); }
+#pool .pcard.pv .pcard-avatar > .cj-filigrane::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background:
+    radial-gradient(ellipse 30% 33% at 57% 39%, rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0.16) 70%, transparent 100%),
+    radial-gradient(ellipse 64% 32% at 56% 102%, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.12) 70%, transparent 100%);
+}
+/* Le fond de studio : la toile marbrée par-dessus la lumière du club. */
+#pool .pcard.pv, .cj-recto {
+  --f-fond: var(--marbre), repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 5px, transparent 5px 10px), radial-gradient(130% 85% at 50% 18%, color-mix(in srgb, var(--team-band, #2a3140) 85%, #ffffff), color-mix(in srgb, var(--team-band, #2a3140) 40%, #05070a) 80%);
+}
+
+/* ---------------------------------------------------------------
+   LA TYPOGRAPHIE D'UNE VRAIE CARTE
+   --------------------------------------------------------------- */
+#pool .pcard.pv .pcard-name .lname, .cj-recto .cj-bandeau .lname, .fc-verso .cjv-nom {
+  font-kerning: normal; font-feature-settings: "kern" 1, "liga" 1; text-rendering: optimizeLegibility;
+}
+/* Le prénom : de petites capitales espacées, dans la police du nom (il était dans celle de l'interface). */
+#pool .pcard.pv .pcard-name .fname, .cj-bandeau .pcard-full-name .fname {
+  font-family: var(--display); font-weight: 700; text-transform: uppercase; letter-spacing: 0.13em;
+}
+#pool .pcard.pv .pcard-name .fname { font-size: 9.5px; line-height: 1.15; }
+.cj-mini-carte .cj-bandeau .pcard-full-name .fname { font-size: 8.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fiche-carte .cj-bandeau .pcard-full-name .fname { font-size: 12.5px; letter-spacing: 0.16em; margin-bottom: 3px; }
+/* Les chiffres d'une carte sont des chiffres d'imprimerie : tabulaires, alignés. */
+#pool .pcard.pv :is(.pcard-price, .pcard-big b), .cjm-ligne, .cj-annee, .fc-stat b, .fc-salaire, .fc-verso .cjv-table, .fc-verso .cjv-no { font-variant-numeric: tabular-nums lining-nums; }
+/* Le club en petites capitales, et la marque de la série au bout de la ligne (la fiche). */
+.fiche-carte .fc-club { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font: 700 12.5px/1.2 var(--display); letter-spacing: 0.16em; }
+.fiche-carte .fc-club[hidden] { display: none; }
+.fc-club-nom { min-width: 0; overflow-wrap: anywhere; }
+.fc-marque { flex: none; font: italic 800 10.5px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-encre-2); }
+.fc-marque b { margin-left: 2px; color: var(--cj-prix); }
+.fiche-carte .fc-legende { letter-spacing: 0.16em; }
+
+/* ---------------------------------------------------------------
+   LES DÉTAILS QUI FONT VRAI
+   --------------------------------------------------------------- */
+/* L'ÉCUSSON, JAMAIS DANS UN CERCLE NI UNE BOÎTE (S78) : un liseré blanc découpé à sa forme, comme un
+   autocollant de chandail, et son ombre. */
+.cj-coin-logo { filter: drop-shadow(0 0 0.5px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 0.6px rgba(255, 255, 255, 0.9)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+/* Au loto, le club de chaque carte : l'écusson et son code sans pastille noire autour. */
+#pool .pcard.pv .pb-team { background: none; padding: 0; text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.85); }
+#pool .pcard.pv .pb-team :is(img, svg) { filter: drop-shadow(0 0 0.5px #fff) drop-shadow(0 0 0.5px #fff) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+/* Le médaillon d'une carte de choix était un cercle noir autour de l'écusson : le même liseré. */
+.cj-art .tc-medaille { background: none; box-shadow: none; border-radius: 0; filter: drop-shadow(0 0 0.6px #fff) drop-shadow(0 0 0.6px #fff) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.65)); }
+/* L'année dans son cartouche imprimé ; le ruban plié, qui prend la lumière en haut. */
+.cj-annee { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 1px 2px rgba(0, 0, 0, 0.35); }
+.cj-ruban::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 48%, rgba(0, 0, 0, 0.16)); }
+/* La rondelle du poste : un filet de caoutchouc strié sur sa tranche. */
+#pool .pcard.pv .pb-pos, .cj-rondelle { background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px), radial-gradient(120% 90% at 50% 18%, #46464c, #0c0c0f 64%); }
