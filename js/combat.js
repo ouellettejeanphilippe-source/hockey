@@ -475,3 +475,26 @@ export function energieDepensee(jouees) {
   for (const c of jouees) { const C = CARTES_MATCH[c]; if (!C) continue; e -= coutDe(c, jouees); e += C.energiePlus || 0; }
   return e;
 }
+
+/*
+ * L'ADJOINT JOUE LA MAIN (1.0, J2-13) : les cartes qui rapportent le plus,
+ * tant que l'élan suffit. Il ne joue ni pari, ni pioche, ni carte qui
+ * s'épuise : il ne décide pas à ta place de ce qui ne revient pas.
+ */
+const ecartDe = o => Object.entries(o || {}).reduce((a, [k, v]) => a + (typeof v !== 'number' ? 0 : k === 'energie' ? 1 - v : Math.abs(v - 1)), 0);
+export function gainDeCarte(cle) {
+  const C = CARTES_MATCH[cle];
+  if (!C) return 0;
+  return ecartDe(C.effet) + ecartDe(C.adv) + ecartDe(C.siVide) + (ecartDe(C.piege) + ecartDe(C.improvise)) / 2
+    + (C.apres40 ? (ecartDe(C.apres40.siMene) + ecartDe(C.apres40.sinon)) / 2 : 0)
+    + (C.parGenre ? ecartDe(C.parGenre.effet) : 0) + (C.selonLeurMain ? ecartDe(C.selonLeurMain.effet) : 0)
+    + (C.synergie ? 0.04 : 0) + (C.lire || C.annule || C.contre || C.revele || C.planB || C.ecarte ? 0.03 : 0) + (C.energieTous ? 0.03 : 0);
+}
+export function mainDeLAdjoint(main = []) {
+  const ordre = main.map((c, i) => ({ c, i, C: CARTES_MATCH[c], g: gainDeCarte(c) }))
+    .filter(x => x.C && !x.C.injouable && !x.C.pari && !x.C.pioche && !x.C.epuise && x.g > 0)
+    .sort((a, b) => b.g - a.g || a.i - b.i);
+  const jouees = [], pris = new Set();
+  for (const x of ordre) if (energieDepensee([...jouees, x.c]) >= 0) { jouees.push(x.c); pris.add(x.i); }
+  return { jouees, enMain: main.filter((c, i) => !pris.has(i) && CARTES_MATCH[c] && CARTES_MATCH[c].enMain) };
+}

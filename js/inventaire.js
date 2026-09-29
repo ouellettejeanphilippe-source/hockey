@@ -46,12 +46,12 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, jour = 0, rogue = 
     items.push({ ref: `${d.achat.n}:${t}`, id, source: `Pack · journée ${(d.jour || 0) + 1}` });
   });
   // S80 : une amélioration ou une édition de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
-  for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Palier de la journée ${d.palier}` });
+  for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main de la journée ${d.palier}` });
   for (const p of PALIERS_PACK) {
     if (jour < p) continue;
     tirerCartesPack('mixte', graine, `palier${p}`).forEach((id, t) => {
       if (!BANQUE[id] || BANQUE[id].vie === 'permanent') return;
-      items.push({ ref: `p${p}:${t}`, id, source: `Palier de la journée ${p}` });
+      items.push({ ref: `p${p}:${t}`, id, source: `Main de la journée ${p}` });
     });
   }
   const parties = new Set();
@@ -132,7 +132,7 @@ export function ouvrirInventaire(ctx) {
       corps = `<p class="inv-mot">Ce que tes packs de la partie ont donné. <b>${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}</b> Jouer une carte, c'est une décision : elle vaut à partir d'aujourd'hui.${ctx.mode === 'rogue' ? ' <b>À la fin de la saison, ta poche expire.</b> Ce qui te suit à la saison suivante de la run : ton équipe, ton deck, les modifs jouées sur tes joueurs, ton personnel et tes cartes permanentes.' : ''}</p>
                 ${filtres(cats)}
         <div class="inv-grille">${cartes.map(([id, pile]) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
-          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` })).join('') || vide('Rien dans ta poche : ouvre des packs à la boutique, ou attends le prochain palier.')}</div>`;
+          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` })).join('') || vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (journées ${PALIERS_PACK.join(', ')}).`)}</div>`;
     } else if (etat.onglet === 'permanent') {
       const engages = new Set((ctx.patronsActifs || []).map(p => p.cle));
       const perso = ctx.personnel.filter(k => garde(`patron:${k}`));

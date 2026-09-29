@@ -25,7 +25,7 @@
  */
 
 import {
-  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, SEC_MIN, SEC_MAX, SEC_DEFAUT,
+  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
   profilsDe, profilPrincipal, roleSecond, fitUnite, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
@@ -589,7 +589,11 @@ export function ouvrirLignes(spec) {
   const app = spec.apprentissage ? apprentissagePhoto(spec.apprentissage) : null;
   const chimieDe = (u, l) => (app ? chimieLigne(app, spec.lineup, u, l) : (spec.chimie || [])[u] || 0);
   const brouillon = spec.lignes.map(l => ({ ...l }));
-  const match = spec.match ? { importance: spec.match.importance || 'normale', ad: spec.match.ad || 0 } : null;
+  // La consigne porte la répartition attaque / défense (1.0, J2-11) : `ad` suit l'importance.
+  const importance0 = spec.match ? (spec.match.importance || 'normale') : null;
+  const match = spec.match ? { importance: importance0, ad: AD_DE_CONSIGNE[importance0] ?? 0 } : null;
+  // Ce que joue une consigne, exactement comme le moteur la pose (`effetDeMoment`).
+  const effetConsigne = k => effetDeMoment({ jour: 0, match: { importance: k, ad: AD_DE_CONSIGNE[k] ?? 0 } });
   let ouverte = 0;
   /*
    * DEVANT LE FILET CE SOIR (1.0, C4). JP : *je comprends pas la gestion des
@@ -648,10 +652,8 @@ export function ouvrirLignes(spec) {
     const consigne = match ? `<section class="gl-consigne">
       <div class="gl-sec-titre">Consigne du match</div>
       <div class="gl-seg gl-seg-court">${Object.entries(IMPORTANCES).map(([k, I]) => `<button type="button" class="gl-seg-btn${match.importance === k ? ' on' : ''}" data-importance="${k}">
-        <b>${I.ico} ${esc(I.nom)}</b><span class="choix-puces">${puces(motsDEffet(I))}</span></button>`).join('')}</div>
-      <div class="gl-consigne-effet"><small>${esc(Icour.mot)}</small> <span class="choix-puces">${puces(motsDEffet(Icour))}${spec.grosMatch && match.importance !== 'haute' ? '<span class="puce neutre" title="Un gros match : la consigne Haute joue plus fort, au prix de la fatigue et des blessures. Elle se choisit.">🔥 Haute conseillée</span>' : ''}</span></div>
-      <div class="gl-ad"><span>🛡️ Défense</span><input type="range" min="-2" max="2" step="1" value="${match.ad}" class="gl-ad-range" aria-label="Attaque ou défense"><span>Attaque 🎯</span></div>
-      <div class="choix-puces gl-ad-puces">${puces(motsDEffet({ finition: 1 + 0.025 * match.ad, defense: 1 + 0.02 * match.ad }))}${match.ad ? '' : '<span class="puce neutre">Équilibré</span>'}</div>
+        <b>${I.ico} ${esc(I.nom)}</b><span class="choix-puces">${puces(motsDEffet(effetConsigne(k)).filter(x => !/±0 %/.test(x.txt)))}</span></button>`).join('')}</div>
+      <div class="gl-consigne-effet"><small>${esc(Icour.mot)}</small>${spec.grosMatch && match.importance !== 'haute' ? ' <span class="choix-puces"><span class="puce neutre" title="Un gros match : la consigne Haute joue plus fort, au prix des jambes et des blessures. Elle se choisit.">🌡️ Haute conseillée</span></span>' : ''}</div>
     </section>` : '';
     /*
      * LES TOTAUX DU SOIR (1.0, C5). Tout ce qui joue ce soir, multiplié et
@@ -663,6 +665,19 @@ export function ouvrirLignes(spec) {
       <div class="gl-totaux-l"><b>Ce soir :</b> <span class="choix-puces">${tot.length ? puces(tot) : '<span class="puce neutre">aucun effet</span>'}</span></div>
       <div class="gl-mot">Les effets se multiplient entre eux.</div>
     </section>` : '';
+    /*
+     * L'ADVERSAIRE D'ABORD (1.0, J2-11). Tout ce qui se règle ici se règle
+     * CONTRE quelqu'un : son nom, son plan probable (le dépistage d'un gros
+     * match) ou, un soir ordinaire, les systèmes de ses deux premières lignes.
+     * Le détail par ligne (« pour l'étouffer ») reste sous chaque système.
+     */
+    const advL = (spec.adv && spec.adv.lignes) || [];
+    const sysAdv = l => { const T = l && TACTIQUES[l.tac]; return T ? `${T.ico} ${esc(T.nom)}` : ''; };
+    const advTete = spec.adv ? `<section class="gl-adv-tete">
+      <div class="gl-sec-titre">En face · ${esc(spec.adv.nom || 'Eux')}</div>
+      ${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv.nom || 'Eux' })
+        : advL.length ? `<div class="gl-adv">Leur 1re ligne : <b>${sysAdv(advL[0])}</b>${advL[1] ? ` · leur 2e : <b>${sysAdv(advL[1])}</b>` : ''}</div>` : ''}
+    </section>` : (spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: 'Eux' }) : '');
     const svTxt = g => (g && Number.isFinite(g.sv) ? g.sv.toFixed(3).replace(/^0/, '') : '—');
     const boutonGardien = (qui, g) => {
       const e = g ? (spec.energie[getPlayerKey(g)] ?? 100) : 100;
@@ -701,8 +716,7 @@ export function ouvrirLignes(spec) {
       <div class="gl-etat">
         <div><span class="gl-k">Fit</span> <b>${sansSysteme ? '—' : fitLigneBrut == null ? 'À compléter' : motFit(fitCourant)}</b> <small>${sansSysteme ? 'aucune chimie' : fitLigneBrut == null ? 'ligne incomplète' : `plafond de chimie : ${plafondChimie(chimieMax(fitCourant))}`}</small></div>
         <div><span class="gl-k">Chimie ce soir</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(chimieDe(u, l))}%"></span></span> <b>${motChimie(chimieDe(u, l))}</b></div>
-        ${app && !sansSysteme ? `<div class="gl-appris"><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise des systèmes : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l))}</b></span></div>
-        <div class="gl-mot">La chimie s'apprend en gardant ses lignes, et ne se perd pas.</div>` : ''}
+        ${app && !sansSysteme ? `<div class="gl-appris" title="La chimie s'apprend en gardant ses lignes, et ne se perd pas."><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise des systèmes : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l))}</b></span></div>` : ''}
       </div>
       ${choixDe('F')}
       ${u < 3 ? choixDe('D') : ''}
@@ -724,7 +738,7 @@ export function ouvrirLignes(spec) {
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
-      <div class="choix-corps">${totauxHtml}${effetsHtml(spec.effets)}${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv ? spec.adv.nom : 'Eux' }) : ''}${consigne}${filetHtml}${onglets}${detail}</div>
+      <div class="choix-corps">${advTete}${totauxHtml}${effetsHtml(spec.effets)}${consigne}${filetHtml}${onglets}${detail}</div>
       <div class="gl-pied">
         ${spec.onBanc ? '<button type="button" class="btn gl-banc">Changer les trios</button>' : ''}
         <button type="button" class="btn go gl-appliquer">${esc(spec.motAppliquer || 'Appliquer')}</button>
@@ -739,10 +753,8 @@ export function ouvrirLignes(spec) {
     m.querySelectorAll('[data-agr]').forEach(b => { b.onclick = () => { brouillon[ouverte].agr = Number(b.dataset.agr); dessiner(); }; });
     const s = m.querySelector('.gl-sec');
     if (s) s.onchange = () => { brouillon[ouverte].sec = Number(s.value); dessiner(); };
-    m.querySelectorAll('[data-importance]').forEach(b => { b.onclick = () => { match.importance = b.dataset.importance; dessiner(); }; });
+    m.querySelectorAll('[data-importance]').forEach(b => { b.onclick = () => { match.importance = b.dataset.importance; match.ad = AD_DE_CONSIGNE[match.importance] ?? 0; dessiner(); }; });
     m.querySelectorAll('[data-filet]').forEach(b => { b.onclick = () => { filet = b.dataset.filet; dessiner(); }; });
-    const ad = m.querySelector('.gl-ad-range');
-    if (ad) ad.onchange = () => { match.ad = Number(ad.value); dessiner(); };
     m.querySelector('.gl-annuler').onclick = fermer;
     m.querySelector('.gl-appliquer').onclick = () => { fermer(); spec.onAppliquer(brouillon, match, filetSortie()); };
     const bb = m.querySelector('.gl-banc');
@@ -1133,6 +1145,7 @@ export function ouvrirMainDeMatch(spec) {
         <div class="main-outils">
           <button type="button" class="btn main-reprendre"${jouees.length ? '' : ' disabled'}>Recommencer la main</button>
           <button type="button" class="btn main-deck">${voirDeck ? 'Cacher mon deck' : `Mon deck · ${deck.length}`}</button>
+          ${spec.onAdjoint ? '<button type="button" class="btn main-adjoint" title="Il joue tes mains et garde le cap aux entractes, jusqu\'à la fin de la série">L\'adjoint joue cette série</button>' : ''}
         </div>
         ${voirDeck ? `<div class="deck-grille">${deck.map(c => `<span class="deck-mini tc-${CARTES_MATCH[c].maudite ? 'commune' : CARTES_MATCH[c].rarete}${CARTES_MATCH[c].maudite ? ' maudite' : ''}" title="${esc(CARTES_MATCH[c].texte)}"><b>${CARTES_MATCH[c].injouable ? '✕' : CARTES_MATCH[c].cout}</b>${CARTES_MATCH[c].ico} ${esc(CARTES_MATCH[c].nom)}</span>`).join('')}</div>` : ''}
       </div>
@@ -1173,6 +1186,8 @@ export function ouvrirMainDeMatch(spec) {
     m.querySelectorAll('.main-aj').forEach(b => { b.onclick = () => { aj = b.dataset.aj; jouerSon('joue'); dessiner(); }; });
     m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; dessiner(); };
     m.querySelector('.main-deck').onclick = () => { voirDeck = !voirDeck; dessiner(); };
+    const adj = m.querySelector('.main-adjoint');
+    if (adj) adj.onclick = () => { fermer(true); spec.onAdjoint(); };
     // Le focus reste DANS la main : le clavier ne tombe jamais sur la page dessous.
     m.querySelector('.main-jouer').focus({ preventScroll: true });
   };

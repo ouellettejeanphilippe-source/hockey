@@ -138,7 +138,7 @@ const ballottage = { fait: false, mot: null };
  * LA BOÎTE DE RÉCEPTION (S78). JP : *faire une boîte de réception et forcer
  * que le joueur agisse avant de continuer*. Tant qu'un message bloque (une
  * blessure, une case vide, un palier, un choix forcé), « Journée suivante »
- * devient « ⏳ Règle d'abord… » et « +10 » disparaît. Le parcours règle ces
+ * devient « ⏳ À régler avant le match… » et « +10 » disparaît. Le parcours règle ces
  * messages comme un joueur : la réponse par défaut du message ouvert
  * (`[data-defaut]` : garder l'alignement, compris, ouvrir le choix). La case
  * vide s'éprouve d'abord (`guetterTrouHook`, posé par la saison) ; le palier
@@ -196,7 +196,7 @@ async function debloquer() {
     await guetterBallottage();
     if (ballottage.fait !== avantBal) continue;
     if (await toucher('#hubModal .hub-msg.bloque.ouvert [data-defaut]')) continue;
-    // Le message à traiter est plié : « Règle d'abord » l'ouvre.
+    // Le message à traiter est plié : « À régler avant le match » l'ouvre.
     await toucher('#hubModal .hub-traiter');
   }
 }
@@ -258,7 +258,7 @@ async function repondreAuxChoix() {
   let rouvert = false;
   for (let i = 0; i < 12; i++) {
     if (await ouvrirPaquet()) continue;
-    // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au hub ».
+    // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au bureau ».
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]')) {
       sommairesVus++;
       await _click('#choixModal:not([hidden]) .choix-plus-tard, #choixModal:not([hidden]) .choix-fermer');
@@ -690,10 +690,59 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
   if (n !== 5 || lisibles !== 5 || !encore) errors.push(`« Comment on joue » : ${n} cartes, ${lisibles} à lire, « Nouvelle partie » ${encore ? 'encore ouverte' : 'refermée'}`);
   else console.log('   « Comment on joue » : cinq cartes à lire, et « Nouvelle partie » reste ouverte dessous');
 }
+/*
+ * DEUX LISTES QUI N'EXISTENT QUE QUAND ELLES SERVENT (1.0, J2-2) : la saison
+ * et la franchise se montrent au choix qui les demande ; le résumé du pied se
+ * lit en entier (deux lignes au plus), et la toute première partie dit
+ * « première roulette ».
+ */
+{
+  const lu = () => page.evaluate(() => {
+    const vu = id => { const e = document.getElementById(id); return !!(e && e.offsetParent); };
+    const r = document.getElementById('npResume');
+    return { saison: vu('epoqueSelect'), franchise: vu('franchiseSelect'), coupe: r.scrollHeight > r.clientHeight + 1, note: (document.getElementById('npGoNote') || {}).textContent };
+  });
+  const avant = await lu();
+  await _click('#partieModal .seg[data-opt="ligue"] button[data-val="UNE"]');
+  await page.waitForTimeout(120);
+  const une = await lu();
+  await _click('#partieModal .seg[data-opt="ligue"] button[data-val="TOUTES"]');
+  await page.waitForTimeout(120);
+  if (avant.saison || avant.franchise) errors.push(`« Nouvelle partie » montre une liste qui ne sert pas : saison ${avant.saison}, franchise ${avant.franchise}`);
+  if (!une.saison) errors.push('« Une saison » ne montre pas la liste des saisons');
+  if (avant.coupe || une.coupe) errors.push('le résumé de « Nouvelle partie » est coupé');
+  if (avant.note !== 'première roulette') errors.push(`la toute première partie ne dit pas « première roulette » : « ${avant.note} »`);
+  await sansDebordement('Nouvelle partie');
+  console.log(`   « Nouvelle partie » : les listes suivent le choix, le résumé tient, « ${avant.note} »`);
+}
 await page.click('#npGo');
 await passerIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
 console.log('   écran « Nouvelle partie » : ouvert à la première visite, refermé');
+/*
+ * LE VESTIAIRE DIT UN SEUL NOMBRE (1.0, J2-6) : le badge de l'onglet, le
+ * titre du vestiaire et le tableau de bord comptent les mêmes signables ;
+ * les onglets vides avant le premier match sont estompés ; le bouton du bas
+ * est une jauge ; et la première roulette ne s'annonce pas par un toast.
+ */
+{
+  await page.waitForSelector('#pool .pcard', { timeout: 30000 });
+  await page.waitForTimeout(400);
+  const lu = await page.evaluate(() => {
+    const txt = s => (document.querySelector(s) || {}).textContent || '';
+    const badge = txt('.navtab[data-page="repechage"] .navtab-badge').trim();
+    const dash = (txt('#dash').match(/(\d+)\s*signables/) || [])[1];
+    const titre = (txt('#poolCount').match(/(\d+)\s*signable/) || [])[1];
+    const b = document.getElementById('mainBtn');
+    return { badge, dash, titre, morts: [...document.querySelectorAll('.navtab.mort')].map(x => x.dataset.page).join(','),
+      jauge: b.classList.contains('jauge'), mot: b.textContent.trim(), toast: txt('#toast') };
+  });
+  if (!(lu.badge && lu.badge === lu.dash && lu.dash === lu.titre)) errors.push(`le vestiaire dit plusieurs nombres : onglet ${lu.badge}, tableau ${lu.dash}, titre ${lu.titre}`);
+  if (!/classement/.test(lu.morts) || !/meneurs/.test(lu.morts)) errors.push(`les onglets vides du repêchage ne sont pas estompés : ${lu.morts || 'aucun'}`);
+  if (!lu.jauge || !/^\d+ \/ \d+ · encore \d+$/.test(lu.mot)) errors.push(`le bouton du bas n'est pas une jauge : « ${lu.mot} »`);
+  if (/repart à zéro/.test(lu.toast)) errors.push(`la première roulette s'annonce par un toast : « ${lu.toast} »`);
+  console.log(`   le vestiaire : ${lu.badge} signables partout, onglets estompés (${lu.morts}), jauge « ${lu.mot} »`);
+}
 /*
  * LA FICHE : « SIGNER » SOUS LE POUCE (1.0, J2-5). Sur téléphone, le bouton
  * de la fiche tombait sous le pli ; il colle au bas de la feuille. On ouvre la
@@ -1165,6 +1214,19 @@ async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
   await page.click('#hubModal .hub-jour');
   await page.waitForTimeout(150);
+  /*
+   * UN MATCH ORDINAIRE SE LIT AU BUREAU (1.0, J2-8) : pas de plein écran,
+   * le résultat en tête du volet. Le plein écran ne vient que pour une
+   * raison qu'il dit (une blessure, un gros match, du courrier à régler).
+   */
+  {
+    await page.waitForTimeout(250);
+    const som = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]');
+    const txt = som ? ((await som.textContent()) || '') : '';
+    if (som && !/🚑|Gros match|à traiter/.test(txt)) errors.push(`le sommaire s'ouvre en plein écran pour un match ordinaire : « ${txt.replace(/\s+/g, ' ').slice(0, 80)} »`);
+    else if (!som && !(await page.$('#hubModal .hub-hier'))) errors.push('après « Journée suivante », le résultat n\'est ni en plein écran ni au bureau');
+    else if (!som) console.log('   un match ordinaire : pas de plein écran, le résultat monte au bureau');
+  }
   const jour = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
 
   /*
@@ -1524,6 +1586,14 @@ async function traverserSaison(etiquette, reprise = false) {
         const multiplient = await page.$$eval('#lignesModal .gl-totaux .gl-mot', e => e.filter(x => x.textContent.trim() === 'Les effets se multiplient entre eux.').length);
         if (!/^Ce soir :/.test(totAvant)) errors.push(`« Préparer le match » ne dit pas les totaux du soir : « ${totAvant} »`);
         if (multiplient !== 1) errors.push(`« Les effets se multiplient entre eux. » paraît ${multiplient} fois dans « Préparer le match »`);
+        // L'ADVERSAIRE D'ABORD, UN SEUL RÉGLAGE (1.0, J2-11) : « En face » avant la consigne, et plus de curseur attaque / défense.
+        const ordre = await page.evaluate(() => {
+          const a = document.querySelector('#lignesModal .gl-adv-tete'), c = document.querySelector('#lignesModal .gl-consigne');
+          return { adv: !!a, avant: !!(a && c && (a.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING)), curseur: !!document.querySelector('#lignesModal .gl-ad-range, #lignesModal .gl-ad') };
+        });
+        if (!ordre.adv || !ordre.avant) errors.push('« Préparer le match » ne montre pas l\'adversaire avant la consigne');
+        if (ordre.curseur) errors.push('« Préparer le match » garde un curseur attaque / défense à côté de la consigne');
+        await deuxCaptures('preparer');
         // DEVANT LE FILET CE SOIR (C4) : deux gardiens, la rotation choisie, l'autre se touche.
         const filets = await page.$$eval('#lignesModal .gl-filet [data-filet]', e => e.map(b => ({ qui: b.dataset.filet, on: b.classList.contains('on'), jambes: !!b.querySelector('.jambes') })));
         if (filets.length !== 2 || filets.filter(f => f.on).length !== 1 || !filets.every(f => f.jambes)) errors.push(`« Devant le filet ce soir » n'a pas ses deux gardiens : ${JSON.stringify(filets)}`);
@@ -1548,6 +1618,24 @@ async function traverserSaison(etiquette, reprise = false) {
       }
     }
 
+    /*
+     * LE PORTAIL DU BUREAU (1.0, J2-7) : à 1440 px, quatre tuiles remplissent
+     * la colonne de droite ; au téléphone, aucune (les onglets les portent).
+     */
+    {
+      const tuiles = () => page.$$eval('#hubModal .hub-portail .hub-tuile', e => e.filter(x => x.offsetParent).length);
+      await page.screenshot({ path: 'scripts/smoke-j2-bureau-390.png' });
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.waitForTimeout(300);
+      const large = await tuiles();
+      await page.screenshot({ path: 'scripts/smoke-portail-1440.png' });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.waitForTimeout(300);
+      const tel = await tuiles();
+      if (large !== 4) errors.push(`le bureau à 1440 px montre ${large} tuile(s) au lieu de quatre`);
+      if (tel) errors.push(`au téléphone, le bureau montre ${tel} tuile(s) : l'onglet s'allonge`);
+      else console.log('   le portail du bureau : quatre tuiles à 1440 px, aucune au téléphone');
+    }
     await redimensionner('la saison, onglet Match');
     await _click('.navtab[data-page="classement"]');
     await page.waitForTimeout(250);
@@ -1675,7 +1763,7 @@ async function traverserSaison(etiquette, reprise = false) {
       /*
        * LE PALIER BLOQUE LA JOURNÉE (S78, la boîte de réception) : refermé
        * « Plus tard », il reste à traiter — « Journée suivante » devient
-       * « Règle d'abord » et « Jusqu'à la prochaine décision » disparaît.
+       * « À régler avant le match » et « Jusqu'à la prochaine décision » disparaît.
        */
       const bloque = await page.evaluate(() => ({
         traiter: !!document.querySelector('#hubModal .hub-traiter'),
@@ -2124,6 +2212,19 @@ async function finirVite() {
  * « Passer à la fin » n'existe qu'éliminé. On joue match après match, ronde
  * après ronde, en réglant chaque choix, jusqu'au tableau.
  */
+/* Les captures des écrans du jalon 2 (scripts/smoke-j2-*.png) : au téléphone, puis à 1440 px. */
+async function deuxCaptures(nom, voir = null) {
+  const vp = page.viewportSize();
+  const montrer = () => (voir ? page.$eval(voir, e => e.scrollIntoView({ block: 'center' })).catch(() => {}) : null);
+  await montrer();
+  await page.screenshot({ path: `scripts/smoke-j2-${nom}-390.png` });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(300);
+  await montrer();
+  await page.screenshot({ path: `scripts/smoke-j2-${nom}-1440.png` });
+  await page.setViewportSize(vp);
+  await page.waitForTimeout(300);
+}
 async function finirSeries() {
   for (let i = 0; i < 300; i++) {
     await repondreAuxChoix();
@@ -2143,6 +2244,13 @@ if (enabled) {
   const score = await page.textContent('.result .score');
   const rows = await page.$$eval('.rrow', r => r.length);
   console.log(`4. fiche ${score.trim()}, ${rows} rangées`);
+  // LE CONSEIL DU BILAN CITE SES CHIFFRES (1.0, J2-18) : un nombre, jamais « regarde tes trois derniers trios ».
+  {
+    const conseil = ((await page.textContent('#resultHost .note').catch(() => '')) || '').trim();
+    if (!/\d/.test(conseil) || /trois derniers trios|bât blesse/.test(conseil)) errors.push(`le conseil du bilan ne cite aucun chiffre : « ${conseil} »`);
+    else console.log(`   le conseil du bilan : « ${conseil} »`);
+    await deuxCaptures('bilan');
+  }
   /*
    * L'ALBUM (S74) : la saison jouée y entre — ses 23 joueurs au cartable,
    * ses cartes de match (au moins celles du départ), sans déborder.
@@ -2573,6 +2681,42 @@ if (enabled) {
       await page.click('#liveModal .live-suite');
       await page.waitForTimeout(150);
       await memesButs('séries, le match vu en direct', true);
+    }
+    /*
+     * L'ADJOINT JOUE CETTE SÉRIE (1.0, J2-13) : la main qui s'ouvre lui est
+     * confiée ; ses décisions portent `auto`, et la main du match d'après ne
+     * s'ouvre plus. Sans main ouverte (série finie), il n'y a rien à confier.
+     */
+    {
+      await page.waitForTimeout(400);
+      const mainOuverte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]');
+      const adj = await page.$('#choixModal:not([hidden]) .main-adjoint');
+      if (mainOuverte && !adj) errors.push('la main d\'un match de séries n\'offre pas « L\'adjoint joue cette série »');
+      else if (adj) {
+        await deuxCaptures('adjoint', '#choixModal .main-adjoint');
+        await adj.click();
+        await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
+        await page.waitForTimeout(600);
+        const dsA = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisionsSeries || []; } catch { return []; } });
+        const auto = dsA.filter(d => d.auto && d.main);
+        if (!auto.length) errors.push(`l'adjoint n'a rien décidé : ${JSON.stringify(dsA.slice(-2))}`);
+        else {
+          const r0 = auto[0].ronde;
+          let mainsAuto = 0;
+          for (let i = 0; i < 8; i++) {
+            const b = await page.$('#hubModal .hub-jour');
+            if (!b || !(await b.isVisible()) || await page.$('#hubModal .hub-ronde')) break;
+            if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) { errors.push('une main s\'ouvre encore dans une série confiée à l\'adjoint'); break; }
+            if (await page.$('#choixModal:not([hidden])')) break;
+            await b.click();
+            await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
+            await page.waitForTimeout(700);
+            const dsB = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisionsSeries || []; } catch { return []; } });
+            mainsAuto = dsB.filter(d => d.auto && d.ronde === r0 && d.main).length;
+          }
+          console.log(`   l'adjoint joue la série : ${mainsAuto || auto.length} main(s) décidée(s) par lui, « ${auto[0].main.jouees.join(', ') || 'rien'} » au premier match`);
+        }
+      }
     }
     await repondreAuxChoix();
     await finirSeries();

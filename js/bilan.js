@@ -12,7 +12,7 @@
 
 import { CAP, SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
   ROULEMENTS, roulementDe } from './sim.js';
-import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE } from './recit.js';
+import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
@@ -493,12 +493,8 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   const enSeries = nTeams > 1 ? nombreEnSeries(nTeams) : 0;
   const perfect = (r.L + r.OTL) === 0;
 
-  const note = perfect
-    ? '82-0-0. Saison parfaite. Les Bruins de 2022-23, meilleure saison de l\'histoire, ont fini 65-12-5.'
-    : r.W >= 65 ? `${r.W} victoires : mieux que le record réel de la LNH (65, Bruins de 2022-23).`
-    : r.W >= 55 ? 'Grosse saison, mais la perfection exige de la profondeur sur les quatre trios.'
-    : r.W >= 41 ? 'Saison au-dessus de la moyenne. Regarde tes trois derniers trios : c\'est souvent là que ça se joue.'
-    : 'Le plafond a coûté cher. La feuille de match ci-dessous montre où le bât blesse.';
+  // Le conseil nomme ce qui a coûté, avec ses chiffres (1.0, J2-18, js/recit.js).
+  const note = conseilDuBilan(r, you, teams, calendrier);
 
   const rows = SLOTS.filter(s => G.roster[s.i]).map(s => {
     const p = G.roster[s.i];

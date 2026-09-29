@@ -28,7 +28,7 @@ import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, CAP, REROLLS, MODES, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
   ENERGIE_SEUIL, ENERGIE_EFFET, ENERGIE_BLESSURE, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
   GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE,
-  PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty,
+  PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE,
 } from '../js/sim.js';
 import { TRAITS } from '../js/traits.js';
 import { BONUS } from '../js/rarete.js';
@@ -41,6 +41,8 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const nombre = x => String(Math.round(x * 1000) / 1000).replace('.', ',');
 const pct = x => nombre(Math.abs(x - 1) * 100);
+// Une consigne telle que le moteur la pose (importance + répartition), arrondie au point comme l'écran l'affiche.
+const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, match: { importance: k, ad: AD_DE_CONSIGNE[k] } })[canal] - 1) * 100));
 
 /* ---------- 1. une icône = un sens ---------- */
 {
@@ -128,6 +130,19 @@ function chainesDe(src) {
   const texte = html.replace(/<[^>]+>/g, ' ');
   if (/énergie/i.test(texte)) trouvés.push(`index.html : « ${texte.match(/.{0,40}énergie.{0,20}/i)[0].trim()} »`);
   exiger('aucune chaîne de l\'écran ne dit « énergie » (jambes, élan, plombier)', trouvés.length === 0, trouvés.slice(0, 5).join(' · ') || 'aucune');
+  /*
+   * DES MOTS DE HOCKEY, PAS DE DÉVELOPPEUR (1.0, J2-9) : « hub » et « palier »
+   * sont des noms de code. L'écran dit « le bureau » et « la main de la
+   * journée ». On ne juge que la prose (une chaîne avec une espace) : les clés
+   * et les sélecteurs (`'palier'`, `'.hub-jour'`) ne sont pas lus par le joueur.
+   */
+  const code = [];
+  const MOTS_DE_CODE = /(^|[\s«(])(hub|paliers?)(?=[\s».,:;!?)]|$)/i;
+  for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'))) {
+    for (const ch of chainesDe(lire(`js/${f}`))) if (/\s/.test(ch.trim()) && MOTS_DE_CODE.test(ch)) code.push(`${f} : « ${ch.trim().slice(0, 60)} »`);
+  }
+  if (MOTS_DE_CODE.test(texte)) code.push(`index.html : « ${texte.match(/.{0,40}(hub|palier).{0,20}/i)[0].trim()} »`);
+  exiger('l\'écran dit « bureau » et « main de la journée », pas « hub » ni « palier »', code.length === 0, code.slice(0, 5).join(' · ') || 'aucune');
 }
 
 /* ---------- 3 et 4. la page des règles ---------- */
@@ -161,8 +176,9 @@ function chainesDe(src) {
     [`des deux tiers en ${ADAPT_MATCHS} matchs`, 'l\'adaptation'],
     [`de ${SEC_MIN} à ${SEC_MAX} secondes par présence, ${SEC_DEFAUT} par défaut`, 'la glace'],
     [`à ${PART_UNITE.F.slice(0, 3).map(x => nombre(x * 100)).join(', ')} et ${nombre(PART_UNITE.F[3] * 100)} %, les paires à ${PART_UNITE.D.slice(0, 2).map(x => nombre(x * 100)).join(', ')} et ${nombre(PART_UNITE.D[2] * 100)} %`, 'les parts de glace'],
-    [`basse (précision −${pct(IMPORTANCES.basse.finition)} %, buts contre +${pct(IMPORTANCES.basse.defense)} %, usure des jambes −${pct(IMPORTANCES.basse.energie)} %)`, 'la consigne basse'],
-    [`haute (précision +${pct(IMPORTANCES.haute.finition)} %, buts contre −${pct(IMPORTANCES.haute.defense)} %, blessures +${pct(IMPORTANCES.haute.blessure)} %, usure des jambes +${pct(IMPORTANCES.haute.energie)} %)`, 'la consigne haute'],
+    // 1.0 (J2-11) : la consigne porte la répartition attaque / défense ; ses chiffres sont ceux que le moteur pose (`effetDeMoment`).
+    [`basse (précision −${pctE('basse', 'finition')} %, usure des jambes −${pctE('basse', 'energie')} %)`, 'la consigne basse'],
+    [`haute (précision +${pctE('haute', 'finition')} %, buts contre −${pctE('haute', 'defense')} %, blessures +${pctE('haute', 'blessure')} %, usure des jambes +${pctE('haute', 'energie')} %)`, 'la consigne haute'],
     [`Sous ${ENERGIE_SEUIL}, chaque point de moins lui coûte ${nombre(ENERGIE_EFFET)} %`, 'l\'effet des jambes'],
     [`sous ${ENERGIE_BLESSURE}, il se blesse plus`, 'le seuil de blessure'],
     [`entre ${nombre(PART_AUX_MIN * 100)} et ${nombre(PART_AUX_MAX * 100)} %`, 'la part de l\'auxiliaire'],
