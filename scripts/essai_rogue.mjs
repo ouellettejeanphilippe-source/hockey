@@ -323,13 +323,13 @@ else if (!libreOfferte) erreurs.push(`la case de réserve libre n'a pas été of
  * alignement jusque-là (`poserAlignementDuJour`, js/sim.js).
  */
 {
-  await page.click('.navtab[data-page="alignement"]').catch(() => {});
+  await page.click('#navbar .navtab[data-section="effectif"]').catch(() => {});
   await page.waitForTimeout(800);
   const noms = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
   const nom = nomSigne.split(' ').slice(-1)[0];
   if (!noms.some(n => n.includes(nom))) erreurs.push(`${nomSigne}, signé d'un pack, n'est pas dans l'alignement`);
   else console.log(`   ${nomSigne} est dans l'alignement dès la signature`);
-  await page.click('.navtab[data-page="match"]').catch(() => {});
+  await page.click('#navbar .navtab[data-section="club"]').catch(() => {});
   await page.waitForTimeout(500);
 }
 // Un pack Modifs (S80 : ses cartes se posent au verso), un pack de cartes : tout va dans l'inventaire ; puis un pack Contrats (la masse salariale).
@@ -438,8 +438,9 @@ console.log(`11. jouée (${essais} essai(s)) : ${JSON.stringify(d.filter(x => x.
 // ne tient parfois que des modifs. L'erreur, c'est qu'AUCUNE carte n'ait pu se jouer.
 if (!jouee && !d.some(x => x.joue)) erreurs.push('aucune carte de l\'inventaire n\'a pu se jouer (cinq essais)');
 else if (!jouee) console.log('    (rien d\'autre que des modifs dans l\'inventaire : la modif posée au verso compte)');
-// LE CARTABLE (S79) : l'onglet Vestiaire, une fois la saison commencée.
-await page.click('#navbar [data-page="repechage"]');
+// LE CARTABLE (S79) : dans la Collection (1.0, R1), à côté de tes saisons.
+await page.click('#navbar .navtab[data-section="collection"]');
+await page.click('#sousNav .soustab[data-page="cartable"]');
 await page.waitForSelector('#pageCartable:not([hidden]) .ct-carte', { timeout: 20000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-cartable.png` });
 console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace(/\s+/g, ' ').trim()} · ${await page.$$eval('[data-ct-equipe]', e => e.length)} cartes d'équipe`);

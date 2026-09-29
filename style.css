@@ -431,6 +431,17 @@ a { color: var(--blue); text-decoration: none; }
 .tete-ch-v { font: 800 22px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -0.2px; white-space: nowrap; }
 #menuBtn { grid-area: menu; }
 .capgauge.tete-ch { justify-items: stretch; text-align: left; }
+@media (max-width: 679.98px) {
+  .tete-ch { flex: 1 1 0; }
+  .tete-ch-v, .capgauge-amt .amt { font-size: 19px; }
+  .capgauge { max-width: none; }
+  .tete-chiffres:has(#teteFiche:not([hidden])) .capgauge-row:not(.small) { flex-direction: column; align-items: flex-start; gap: 3px; }
+  body:not(.au-repechage):not(.mode-rogue) .capgauge-row.small { display: none; }
+  body.au-repechage .capgauge { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: baseline; column-gap: 8px; }
+  body.au-repechage .capgauge-row { display: contents; }
+  body.au-repechage .capgauge-row.small > span:first-child { justify-self: end; }
+  body.au-repechage .capgauge .track { grid-column: 1 / -1; order: 1; }
+}
 @media (min-width: 680px) {
   .topbar-inner { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "retour club chiffres menu"; }
   .tete-chiffres { gap: 24px; }
@@ -2936,8 +2947,6 @@ table.data .pts { font-weight: 900; color: var(--green); }
     gap: 14px;
     align-items: start;
   }
-  .panes[data-view="pool"] .pane-roster,
-  .panes[data-view="roster"] .pane-pool { display: block; }
   .roster {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -2965,6 +2974,9 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .game, .topbar-inner, .actionbar-inner { max-width: 2100px; }
 }
 @media (min-width: 1400px) {
+  /* Les deux volets côte à côte : l'alignement reste sous les yeux pendant le repêchage. */
+  .panes[data-view="pool"] .pane-roster,
+  .panes[data-view="roster"] .pane-pool { display: block; }
   .panes { grid-template-columns: minmax(0, 2.15fr) minmax(340px, 0.75fr); }
   .roster { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
   .pane-roster {
@@ -4918,10 +4930,12 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
    ====================================================================== */
 
 .navbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 56;
+  position: fixed; left: 0; right: 0; bottom: var(--safe-bas); z-index: 56;
   display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
   background: var(--surface-0); border-top: 1px solid var(--line);
-  padding-bottom: var(--safe-bas);
+  /* La barre de gestes d'Android passe dessous : l'ombre, pleine et décalée
+     d'autant, en garde la couleur — rien ne défile derrière. */
+  box-shadow: 0 var(--safe-bas) 0 var(--surface-0);
 }
 .rail-logo { display: none; }
 .navtab {
@@ -5018,7 +5032,7 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
     top: 0; right: auto; bottom: 0; width: var(--rail-w);
     display: flex; flex-direction: column; gap: 2px;
     padding: calc(10px + var(--safe-top)) 8px 10px;
-    border-top: 0; border-right: 1px solid var(--line);
+    border-top: 0; border-right: 1px solid var(--line); box-shadow: none;
   }
   .rail-logo {
     display: block; margin: 4px 0 14px; text-align: center;
@@ -5059,7 +5073,7 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
   body[data-page="alignement"] .workspace { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   body[data-page="repechage"] #draft { flex: 0 0 auto; }
   body[data-page="repechage"] .panes,
-  body[data-page="alignement"] .panes { flex: 1 1 auto; min-height: 0; }
+  body[data-page="alignement"] .panes { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
   body[data-page="repechage"] .pane,
   body[data-page="alignement"] .pane { height: 100%; display: flex; flex-direction: column; }
   body[data-page="repechage"] .pane-head,
@@ -9617,8 +9631,9 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 /* LES POSITIONS NE SE COUPENT JAMAIS (S80). JP : *voir position du joueur possible*. À 390 px, la
    bande (positions, écusson, salaire, et le ✕) coupait « C / AG » en « C … ». Sur un écran étroit, les
    positions s'écrivent serrées (« C/AG ») et ne rétrécissent plus ; l'écusson de la bande s'efface — la
-   couleur de la case et le chandail disent déjà le club. */
-@media (max-width: 520px) {
+   couleur de la case et le chandail disent déjà le club. 1.0 (R1) : au bureau aussi, où les trios se
+   rangent trois ou quatre de front et la case redevient aussi étroite qu'au téléphone. */
+@media (max-width: 520px), (min-width: 1000px) {
   .slot-band .sb-logo { display: none; }
   .slot:has(> .slot-remove) .slot-band { padding-right: 24px; }
   .slot.cj-case .slot-band { gap: 3px; padding-left: 5px; }

@@ -285,11 +285,12 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
   // L'exhibition a fermé l'écran « Nouvelle partie » pour laisser la glace.
 }
 
-/* ---------- « Sur table » se choisit au CHOIX DU MODE (S79) ----------
-   JP : *« Nouvelle » devrait ramener aux choix des modes*. Le bouton ouvre
-   les cartons des modes ; « Commencer » sur la table ouvre l'écran « Nouvelle
-   partie » déjà réglé sur la table. Rien ne s'applique avant le clic sur le pied. */
-await page.click('#openPartieBtn');
+/* ---------- « Sur table » se choisit au CHOIX DU MODE (S79 ; 1.0, R1) ----------
+   JP : *« Nouvelle » devrait ramener aux choix des modes*. Le Menu de l'en-tête
+   (le menu pause) montre les cartons des modes ; « Nouvelle partie » sur la
+   table ouvre l'écran « Nouvelle partie » déjà réglé sur la table. Rien ne
+   s'applique avant le clic sur le pied. */
+await page.click('#menuBtn');
 await page.waitForSelector('#menuDepart .menu-mode[data-genre="table"] [data-menu="nouvelle"]', { timeout: 10000 });
 await page.click('#menuDepart .menu-mode[data-genre="table"] [data-menu="nouvelle"]');
 await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 });
@@ -892,11 +893,16 @@ await page.waitForSelector('#hubModal', { state: 'visible', timeout: 20000 });
  * sienne : le CLASSEMENT (les matchs à vide ont rejoué pareil) et les MENEURS
  * (ta feuille est revenue entière, joueurs compris).
  */
+/* LA COQUILLE (1.0, R1) : le classement et les meneurs sont des onglets internes de la Ligue. */
+const aLaLigue = async cle => {
+  await page.click('#navbar .navtab[data-section="ligue"]');
+  await page.click(`#sousNav .soustab[data-page="${cle}"]`);
+};
 const litTournoi = async () => {
-  await page.click('.navtab[data-page="classement"]');
+  await aLaLigue('classement');
   await page.waitForTimeout(250);
   const classement = (await page.textContent('#hubModal .hub-volet')).replace(/\s+/g, ' ').trim();
-  await page.click('.navtab[data-page="meneurs"]');
+  await aLaLigue('meneurs');
   await page.waitForTimeout(250);
   const meneurs = (await page.textContent('#hubModal .hub-volet')).replace(/\s+/g, ' ').trim();
   const tete = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
@@ -943,7 +949,8 @@ else console.log(`   reprise du tournoi : ${apresT.tete} — ${sauveT.vide} matc
    aucune importance. Le cumul se fait à l'affichage, en parcourant les matchs
    joués, et il inclut les séries. */
 {
-  const bouton = await page.$('.navtab[data-page="meneurs"]');
+  await page.click('#navbar .navtab[data-section="ligue"]');
+  const bouton = await page.$('#sousNav .soustab[data-page="meneurs"]');
   if (!bouton) errors.push('le tournoi n\'a pas d\'onglet « Meneurs »');
   else {
     await bouton.click();
@@ -960,8 +967,8 @@ else console.log(`   reprise du tournoi : ${apresT.tete} — ${sauveT.vide} matc
     if (deborde3 > 1) errors.push(`les meneurs du tournoi débordent de ${deborde3} px à 390 px`);
   }
 }
-// Les boutons du tournoi vivent sur l'onglet « Match » (S67).
-await page.click('.navtab[data-page="match"]');
+// Les boutons du tournoi vivent au Club (S67 ; 1.0, R1).
+await page.click('#navbar .navtab[data-section="club"]');
 await page.waitForTimeout(250);
 let tour = 0;
 /*

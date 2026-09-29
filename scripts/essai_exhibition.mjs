@@ -137,8 +137,8 @@ const h1 = await hasard(async () => {
 }, '10. la saison au hasard');
 verifier(/🎲 Le hasard a choisi la saison \d{4}-\d{2}/.test(h1.toast) && /^\d{4}-\d{2}$/.test(h1.etat.epoque || ''), 'la saison au hasard ne s\'est pas résolue');
 await page.screenshot({ path: `${DOSSIER}/exh-hasard-saison.png` });
-// S79 : « Nouvelle » ouvre le choix du mode, puis l'écran de la saison.
-await page.click('#openPartieBtn');
+// S79 ; 1.0 (R1) : le Menu de l'en-tête ouvre le choix du mode, puis l'écran de la saison.
+await page.click('#menuBtn');
 await page.waitForSelector('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]', { timeout: 10000 });
 await page.click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
 await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 });
