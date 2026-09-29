@@ -15,6 +15,7 @@ import { franchiseDuCode } from './franchises.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
+import { estD, borne } from './util.js';
 
 export const CAP = 95_500_000;
 /*
@@ -1318,7 +1319,6 @@ export const PROFILS = {
     deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, ses minutes' },
   },
 };
-const estD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
 /* Les trois colonnes brutes, SANS situation ni trait ni énergie (sonde_aptitudes.mjs). */
 function lancersBrut(p) {
   const base = seasonLancers(p.s)[estD(p) ? 3 : 2];
@@ -3275,8 +3275,6 @@ export const PASSE_D = 0.38;
 /** Volume de tirs et finition d'un rappel de la ligue mineure. */
 const RAPPEL_LANCERS = 0.70;
 const RAPPEL_PCT_TIR = 0.80;
-
-const borne = (x, min, max) => Math.max(min, Math.min(max, x));
 
 /**
  * Volume de tirs d'un joueur, en écart à sa ligue. Un ailier de 1981 et un

@@ -32,6 +32,7 @@
  * malédictions) ; la main d'un match se tire de la graine et du match ; les
  * récompenses offertes aussi. Une partie reprise retrouve les mêmes mains.
  */
+import { hache } from './util.js';
 
 export const ENERGIE_MAIN = 3;
 export const TAILLE_MAIN = 5;
@@ -317,14 +318,6 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
 }
 
 export const DECK_DEPART = ['lancer', 'lancer', 'lancer', 'bloquer', 'bloquer', 'bloquer', 'changements', 'changements', 'discours', 'video'];
-
-/* Un nombre de 0 à 1 tiré de la graine et de mots : la même entrée, le même nombre. */
-function hache(...parts) {
-  let h = 2166136261 >>> 0;
-  for (const c of parts.join('|')) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-  h ^= h >>> 13; h = Math.imul(h, 2246822507) >>> 0; h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
 
 /*
  * LE DECK À UN MOMENT DE LA SAISON : le départ, plus les récompenses, moins

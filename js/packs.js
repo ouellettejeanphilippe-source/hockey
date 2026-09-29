@@ -59,7 +59,7 @@
  * sept packs Étoiles sur dix en donnaient un) ; les packs par talent gardent
  * leur filtre et le Trio, sa vraie ligne : ni l'un ni l'autre ne tire de niveau.
  */
-import { hache } from './rogue.js';
+import { hache } from './util.js';
 import { BANQUE, idsDe } from './banque.js';
 import { getPlayerKey, getPersonKey } from './sim.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';

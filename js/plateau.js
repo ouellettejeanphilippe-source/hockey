@@ -42,8 +42,8 @@ import { archetypeKey, ARCHETYPES } from './ratings.js';
 import { TRAITS } from './traits.js';
 import { jouerSon, sonsActifs } from './sons.js';
 import { ouvrirChoix } from './gerant.js';
+import { ordF as ordP } from './util.js';
 
-const ordP = n => (n === 1 ? '1re' : `${n}e`);
 /* Les demis d'un budget de pas, écrits en pas : 9 demis, c'est « 4½ ». */
 const demisEnPas = n => (n % 2 ? `${(n - 1) / 2}½` : `${n / 2}`);
 const nomCourt = p => {

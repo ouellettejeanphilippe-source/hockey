@@ -42,6 +42,7 @@ import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant, NOM_PERIODE } from './recit.js';
 import { animerComptes } from './mouvement.js';
+import { ord, ordF, cap, nom, pct3 } from './util.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -83,8 +84,6 @@ function motEntracte(ctx, mb) {
 }
 
 /* « 1er », « 12e » : le rang d'un but ou d'une passe. */
-const ord = n => (n === 1 ? '1er' : `${n}e`);
-const ordF = n => (n === 1 ? '1re' : `${n}e`);
 /* La rivalité d'une saison (S69) : le club croisé le plus souvent dans les
    gros matchs, au moins deux fois, avant la journée `jusque`. */
 function rivaliteDe(you, jusque = Infinity) {
@@ -97,8 +96,6 @@ function rivaliteDe(you, jusque = Infinity) {
   }
   return [...par.values()].filter(x => x.v + x.d >= 2).sort((a, b) => (b.v + b.d) - (a.v + a.d) || b.d - a.d)[0] || null;
 }
-const nom = p => (p && p.n) || '';
-const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 /* « 1er trio · AG », « 2e paire · DD », « Partant », « Réserve D ». */
 const caseCourte = s => (s.group === 'F' && !s.scratch ? `${s.unit + 1}${s.unit ? 'e' : 'er'} trio · ${s.role}`
   : s.group === 'D' && !s.scratch ? `${s.unit + 1}${s.unit ? 'e' : 're'} paire · ${s.role}` : s.role);
@@ -202,7 +199,6 @@ function onglets(barre, volet, liste, rendre) {
    a déjà vu.
    ===================================================================== */
 
-const pct3 = x => x.toFixed(3).replace(/^0/, '');
 const plusMoins = n => (n > 0 ? `+${n}` : `${n}`);
 const VIDE = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0 };
 

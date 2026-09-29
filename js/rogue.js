@@ -29,6 +29,7 @@
  * de la ligue et du numéro de l'achat. Une run reprise retrouve les mêmes
  * packs. Seul le méta est un état, et il ne touche pas au moteur.
  */
+import { hache } from './util.js';
 
 const CLE_META = 'cap82_rogue';
 
@@ -337,18 +338,4 @@ export function payerJalons(faits) {
   }
   if (payes.length) ecrireMeta(m);
   return payes;
-}
-
-/* ---------- le hasard pur ---------- */
-export function hache(...parts) {
-  let h = 2166136261 >>> 0;
-  for (const c of parts.join('|')) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-  h ^= h >>> 13; h = Math.imul(h, 2246822507) >>> 0; h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
-/* Une rareté tirée selon des cotes (en %), de la graine et de mots. */
-export function rareteTiree(cotes, ...parts) {
-  let r = hache(...parts) * 100;
-  for (const k of ['commune', 'peu', 'rare', 'legendaire']) { r -= cotes[k] || 0; if (r < 0) return k; }
-  return 'commune';
 }

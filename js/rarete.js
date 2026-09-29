@@ -32,6 +32,7 @@
  * adverses jouent leurs joueurs, pas des cartes. Un script de mesure qui ne
  * pose rien n'a aucun de ces effets.
  */
+import { hache } from './util.js';
 
 /* Les cotes d'une carte ordinaire (le repêchage, le ballottage, la recrue) : une sur quatre brille. */
 export const COTES_VARIANTES = { commune: 75, peu: 17, rare: 6, legendaire: 2 };
@@ -59,13 +60,6 @@ const RESERVE_PATINEUR = ['finition', 'lancers', 'creation', 'defense', 'solide'
 const RESERVE_GARDIEN = ['reflexes', 'reflexes', 'solide'];
 export const RECRUE_PROGRESSE = { ico: '🐣', nom: 'Le jeune progresse', mot: 'Contrat d\'entrée : précision +1 % à partir de son 42e match.', apres: 41, finition: 1.01 };
 
-/* Un nombre de 0 à 1, pur, de mots. */
-function hache(...parts) {
-  let h = 2166136261 >>> 0;
-  for (const c of parts.join('|')) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-  h ^= h >>> 13; h = Math.imul(h, 2246822507) >>> 0; h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
 /* La variante tirée selon des cotes (en %), de la graine et de la clé du joueur. */
 export function varianteTiree(cotes, ...parts) {
   let r = hache('variante', ...parts) * 100;

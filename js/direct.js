@@ -28,6 +28,7 @@ import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { CARTES_MATCH } from './combat.js';
 import { jouerSon } from './sons.js';
+import { ord, ordF, cap, nom } from './util.js';
 
 /*
  * L'HORLOGE DESCEND. Un tableau indicateur de hockey compte à rebours,
@@ -58,13 +59,9 @@ const PAUSE_BUT = 1400;              // ms : l'horloge s'arrête sur un but
 const PAUSE_PERIODE = 1100;          // ms : entre deux périodes
 
 /* « ta formation » en tête de phrase devient « Ta formation ». */
-const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 /* Le nom d'un joueur, en texte brut : le fil est du texte, pas des cartes. */
-const nom = p => (p && p.n) || '';
 const famille = p => nom(p).split(' ').slice(-1)[0];
 /* « 1er », « 12e » : le rang d'un but ou d'une passe dans les séries ou la saison. */
-const ord = n => (n === 1 ? '1er' : `${n}e`);
-const ordF = n => (n === 1 ? '1re' : `${n}e`);   // « 1re passe »
 
 /*
  * LES ONGLETS DE LA PAUSE. Le direct n'a qu'un fil ; en pause, une barre

@@ -19,6 +19,7 @@
 import { autoRoster, jouerExhibition, copieDeJoueur, nouvelleGraine, periodeDe, tirsTotal } from './sim.js';
 import { diffuserMatch } from './direct.js';
 import { nomCourt, NOM_PERIODE } from './recit.js';
+import { estD, pct3 as pct } from './util.js';
 
 const CLE = 'cap82_exhibition';
 /* Les visiteurs à gauche, les locaux à droite, comme sur un tableau. Les locaux sont A : ils reçoivent. */
@@ -36,7 +37,6 @@ let occupe = false;
 const CLUBS = new Map();                  // saison -> [codes], les clubs assez garnis pour s'aligner
 
 /* Un club s'aligne s'il a de quoi remplir l'alignement : douze avants, six défenseurs, deux gardiens (comme la ligue). */
-const estD = p => p.p === 'D' || p.p === 'LD' || p.p === 'RD';
 async function clubsDe(saison) {
   if (CLUBS.has(saison)) return CLUBS.get(saison);
   const e = await ctx.shard(saison);
@@ -241,7 +241,6 @@ const temps = instant => {
   const mm = Math.floor(t), ss = Math.floor((t - mm) * 60);
   return `${mm}:${String(ss).padStart(2, '0')}`;
 };
-const pct = x => x.toFixed(3).replace(/^0/, '');
 
 /* Le tableau du pointage : les visiteurs (B) en haut, les locaux (A) en bas, par période. */
 function tableau(f, A, B) {

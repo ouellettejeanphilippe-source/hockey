@@ -24,18 +24,25 @@
  * les données arrivent en arguments, et les décisions repartent par rappel.
  */
 
-import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet } from './sim.js';
+import {
+  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, SEC_MIN, SEC_MAX, SEC_DEFAUT,
+  profilsDe, profilPrincipal, roleSecond, fitUnite, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
+  joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
+  MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
+  PLANS_ADV, commentContrer, reglageDuPlan,
+  physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
+  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales,
+} from './sim.js';
 import { POIDS_TRIO } from './ratings.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet } from './sim.js';
 import { jouerSon } from './sons.js';
 import { avecArticle } from './commentaire.js';
+import { esc, cap as majuscule } from './util.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
-const majuscule = s => (s ? s[0].toUpperCase() + s.slice(1) : s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /* Les puces d'un effet : vert s'il aide, rouge s'il coûte, gris s'il ne fait que déplacer. */
 export function puces(mots) {
@@ -1006,10 +1013,6 @@ export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN
     const C = CARTES_MATCH[c];
     return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C, echelle))}</span></span>` : '';
   }).join('')}</div></div>`;
-}
-/* Le plan de l'adversaire, replié dans l'écran de la main (S74) : une ligne, et le détail au toucher. */
-export function planReplie(html, resume) {
-  return html ? `<details class="main-plan"><summary>${resume}</summary>${html}</details>` : '';
 }
 /* Une carte de match en option d'`ouvrirChoix` (une récompense, un retrait). */
 export function optionDeCarteMatch(cle) {

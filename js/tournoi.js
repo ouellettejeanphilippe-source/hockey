@@ -28,8 +28,6 @@ import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 export const CLUBS = 6;              // toi et cinq vrais clubs
 export const EN_SERIES = 4;
 
-const ordP = n => (n === 1 ? '1re' : `${n}e`);
-
 /**
  * Le calendrier d'un tournoi à six : le cercle de Berger, cinq journées, trois
  * matchs par journée, chacun contre chacun une fois. Ta formation est

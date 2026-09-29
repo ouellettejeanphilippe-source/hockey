@@ -22,6 +22,7 @@ import { animerComptes } from './mouvement.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
+import { ord, ordF } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
 let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
@@ -1091,8 +1092,6 @@ document.addEventListener('keydown', ev => {
 });
 
 /* « 1er », « 12e » : le rang d'un but ou d'une passe. */
-const ord = n => (n === 1 ? '1er' : `${n}e`);
-const ordF = n => (n === 1 ? '1re' : `${n}e`);
 
 /** La clé `data-sommaire` d'une feuille, qu'elle vienne du calendrier ou des séries ; null sinon. */
 export function cleDeSommaire(feuille) {

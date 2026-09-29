@@ -30,6 +30,7 @@ import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIF
   TACTIQUES, SYSTEMES_D, AGRESSIVITES, contreDe, contreDeD, fitUnite, meilleureTactique, meilleurSystemeD, meilleureAgressivite,
   bilanAgressivite, physiqueLigne, effetsDeSysteme, effetDeMoment, identiteUnite, joueursDeLigne, profilsDe,
   SEC_MIN, SPEC_BASE, SPEC_MULT } from './sim.js';
+import { virgule } from './util.js';
 
 /* Les joueurs qu'un match peut toucher : les deux alignements, et le gardien de rappel. */
 const joueursDe = t => [...SLOTS.map(s => t.roster[s.i]).filter(Boolean), ...(t.rappelG ? [t.rappelG] : [])];
@@ -177,7 +178,6 @@ const RANG_PAIRE = ['1re paire', '2e paire', '3e paire'];
 const RANG_LIGNE = ['1re ligne', '2e ligne', '3e ligne', '4e ligne'];
 const nomSysteme = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.ico} ${S.nom}` : ''; };
 const motFit = f => (f >= 70 ? 'sur mesure' : f >= 55 ? 'bon fit' : f >= 40 ? 'fit moyen' : 'mauvais fit');
-const virgule = x => String(x).replace('.', ',');
 const pctE = v => `${v >= 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)} %`;
 export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = {}, adv = null, forces = null, consigne = null }) {
   const out = [];

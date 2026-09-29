@@ -30,7 +30,7 @@ import {
 import { ouvrirDepartClasseur } from './depart.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { surAppareil, imgVisage, demarrerVisages } from './visages.js';
-import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
+import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, ouvrirAlignement, optionDeCarteMatch, puces, ouvrirStrategie, brancherPastilleNiveau, jambesHtml, sesRolesHtml } from './gerant.js';
@@ -58,9 +58,10 @@ import { ouvrirInventaire, pocheDeLaPartie, valeurDe, VENTE } from './inventaire
 import { ouvrirMagasin } from './magasin.js';
 import { rendreCartable, ajouterAuCartable, migrerHistorique, lireCartable, meilleureVariante } from './cartable.js';
 import { JETONS, jetonsDe, DEBLOCAGES, lireMeta, aDebloque, nombreGardes, jetonsDeDepart, peutAcheter, acheterDeblocage,
-  ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, recevoirPermanents, retirerDuMeta, plafondDuVestiaire,
+  ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, recevoirPermanents, retirerDuMeta, plafondDuVestiaire,
   PLAFOND_ROGUE, ESPACE_DE_DEPART, departDuClasseur, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, ecrireMeta,
   MANDATS, mandatDe, mandatRempli, JALONS, payerJalons, recompenseDe, baremeRogue } from './rogue.js';
+import { esc, estD as isD, signe, money, hache } from './util.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -70,16 +71,10 @@ import { activerSons } from './sons.js';
 
 const $ = id => document.getElementById(id);
 const rnd = a => a[Math.floor(Math.random() * a.length)];
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /** Salaire plancher de la LNH dans le barème du jeu : sert au calcul du budget restant. */
 const MIN_SAL = 775_000;
 
-const money = n => {
-  const m = n / 1e6;
-  const s = Math.abs(m) >= 10 ? m.toFixed(1) : m.toFixed(2);
-  return (n < 0 ? '−$' : '$') + s.replace('-', '').replace(/\.?0+$/, '') + 'M';
-};
 const pctCap = n => (n / CAP * 100).toFixed(1) + ' %';
 
 const TEAMFULL = {
@@ -842,8 +837,6 @@ function applyTeamColors(team) {
   root.setProperty('--gold-soft', `color-mix(in srgb, ${vive} 15%, transparent)`);
   root.setProperty('--sur-or', encreSur(vive));
 }
-
-const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
 
 function positionLabel(p) {
   if (!p) return '';
@@ -5168,7 +5161,6 @@ function ouvrirFiche(p, t, mode = 'saison', extra = {}) {
 }
 
 const cellStat = (k, v, hl = false) => `<div class="stat-cell${hl ? ' hl' : ''}"><div class="k">${k}</div><div class="v">${v}</div></div>`;
-const signe = n => (n > 0 ? `+${n}` : `${n}`);
 
 /** La grille de statistiques simulées d'un joueur (patineur ou gardien). */
 function grilleSim(p, S) {
@@ -5252,7 +5244,7 @@ function showPlayerModal(p, opts = {}) {
     : surTable() ? `<div class="dash-note">Ira au <strong>${esc(slotShort(slot))}</strong>. Sur table, ni zone ni pénalité de position : il joue sur ses nombres, où qu'on le mette. Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`
     : `<div class="dash-note${zoneEcart(p, slot) === 'sous' ? ' dash-bad' : ''}">Ira au <strong>${esc(slotShort(slot))}</strong>${pen > 0 ? ` avec une pénalité de <strong>−${pen}</strong> hors position` : ' sans pénalité de position'}${zoneEcart(p, slot) === 'sous' ? `, <strong>sous sa zone</strong> : son talent y est gaspillé et l'unité porte un malus. Vise une autre case ou déplace quelqu'un.` : zoneEcart(p, slot) === 'dessus' ? ', au-dessus de sa zone (−3 par cran, léger).' : ', dans sa zone.'} Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`;
 
-  const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
+  const nhlUrl = nhlPlayerUrl(p.id) || `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
   const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
 
   const equipeSim = opts.team ? `<span class="pcard-full-club">${getTeamLogoHtml(opts.team.tag, 14)} ${esc(teamLabel(opts.team))}</span>` : '';

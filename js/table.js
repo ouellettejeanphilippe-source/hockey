@@ -50,10 +50,11 @@
  * rejouer un tournoi.
  */
 
-import { pctTirRelDe, lancersRelDe, passesRelDe, facteurGardienDe } from './sim.js';
+import { generateur, getHiddenRatings, SLOTS } from './sim.js';
 import { pctTirRelDe, lancersRelDe, passesRelDe, facteurGardienDe } from './sim.js';
 import { archetypeKey, GABARIT_PETIT, GABARIT_MOYEN, GABARIT_MATADOR } from './ratings.js';
 import { getTraits } from './traits.js';
+import { ordF as ordP, borne } from './util.js';
 
 /* Les interrupteurs de MESURE (`scripts/`), jamais du jeu : le navigateur n'a pas de `process` et prend les valeurs écrites. */
 const MESURE = typeof process !== 'undefined' && process.env ? process.env : {};
@@ -280,9 +281,6 @@ export const sensDe = but => (but === FILET_HAUT ? 1 : -1);
  */
 export const profondeur = (r, but) => (r - but) * sensDe(but);
 
-/** « 1re », « 2e » : l'ordinal féminin d'une période. */
-export const ordP = n => (n === 1 ? '1re' : `${n}e`);
-
 /** La profondeur d'une pièce devant le filet qu'elle attaque (négative : derrière). */
 export const distanceAuFilet = (m, piece) => profondeur(piece.r, eqDe(m, piece.eq).but);
 
@@ -370,7 +368,6 @@ export const dist = (a, b) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c))
    comme partout ailleurs ici.
    ====================================================================== */
 
-const borne = (x, a, b) => Math.max(a, Math.min(b, x));
 const surSix = x => borne(Math.round(x), 1, 6);
 
 /** Le centile de robustesse mesuré, posé dans le shard (`mr`) ; 0,5 par défaut. */

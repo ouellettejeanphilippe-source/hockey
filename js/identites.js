@@ -20,8 +20,8 @@
  */
 import { profilsDe } from './sim.js';
 import { ageAtSeason } from './ratings.js';
+import { estD } from './util.js';
 
-const estD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
 const borne01 = x => Math.max(0, Math.min(1, x));
 /* Un profil, 0 à 1 ; un gardien est neutre (0,5) : l'identité parle des patineurs. */
 /* S79 : les rôles (profilsDe) ; une clé peut en nommer plusieurs, ils se moyennent. */
