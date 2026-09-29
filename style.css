@@ -6401,7 +6401,7 @@ body.choix-ouvert { overflow: hidden; }
 .gl-ligne { display: flex; flex-direction: column; gap: 8px; }
 .gl-joueurs { display: flex; flex-direction: column; gap: 4px; }
 .gl-j {
-  display: grid; grid-template-columns: 30px minmax(0, 1fr) 54px 64px 70px auto; align-items: center; gap: 8px;
+  display: grid; grid-template-columns: 30px minmax(0, 1fr) auto auto 56px 110px auto; align-items: center; gap: 8px;
   padding: 7px 9px; border-radius: var(--r-s, 10px); background: var(--panel-2, var(--panel)); font-size: 13px;
 }
 .gl-j.fit-bon .gl-j-voulu { color: var(--green); }
@@ -6409,6 +6409,7 @@ body.choix-ouvert { overflow: hidden; }
 .gl-j-role { font: 800 12px/1 var(--display); color: var(--muted); }
 .gl-j-nom { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-j-prof, .gl-j-voulu { font: 700 12px/1 var(--display); white-space: nowrap; }
+.gl-j-prof small { font: 700 11px/1 var(--display); color: var(--sub); }
 .gl-j-energie { height: 6px; border-radius: 3px; background: var(--fond-creux, rgba(255,255,255,.08)); overflow: hidden; }
 .gl-j-energie > span { display: block; height: 100%; background: var(--green); }
 .gl-j-energie > span.moyen { background: var(--gold); }
@@ -6437,7 +6438,13 @@ body.choix-ouvert { overflow: hidden; }
 .gl-pied .btn { min-width: 150px; }
 @media (max-width: 560px) {
   .gl-onglets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .gl-j { grid-template-columns: 26px minmax(0, 1fr) 46px 56px 44px; }
+  .gl-j { grid-template-columns: 26px minmax(0, 1fr) auto auto; grid-template-areas: "role nom nom niv" "role prof voulu jambes"; row-gap: 5px; }
+  .gl-j .gl-j-role { grid-area: role; }
+  .gl-j .gl-j-nom { grid-area: nom; }
+  .gl-j .gl-j-niv { grid-area: niv; }
+  .gl-j .gl-j-prof { grid-area: prof; }
+  .gl-j .gl-j-voulu { grid-area: voulu; }
+  .gl-j .jambes { grid-area: jambes; min-width: 96px; }
   .gl-j .gl-j-mut { display: none; }
 }
 /* Le résumé des lignes sur l'affiche du match. */
@@ -7981,6 +7988,13 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .ln-strat .gl-tac-soir { font-size: 11px; }
 .ln-choisie { display: flex; flex-direction: column; gap: 4px; }
 .ln-strat-d .ln-som-k { color: var(--sub); }
+/* 1.0 (les lignes) : la rangée est un BOUTON qui ouvre la fenêtre de réglage, plus un tiroir. */
+button.ln-strat { width: 100%; background: none; border: 0; border-top: 1px solid var(--line-soft); text-align: left; font: inherit; color: var(--sub); }
+button.ln-strat .ln-som-ouvre { width: auto; height: 26px; padding: 0 10px; border-radius: 13px; }
+button.ln-strat .ln-som-ouvre::after { content: 'Régler ›'; font: 800 11px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
+.line-head-regle { cursor: pointer; }
+.line-head-regle:hover .line-name { color: var(--gold); }
+.ln-fenetre .choix-corps { display: flex; flex-direction: column; gap: 8px; }
 .ln-conseil { font-size: 12.5px; line-height: 1.35; color: var(--sub); }
 .ln-conseil small { color: var(--muted); }
 .ln-conseil-btn { font: inherit; font-weight: 800; color: var(--gold); background: none; border: 0; border-bottom: 1px dashed currentColor; padding: 0 1px; cursor: pointer; }
@@ -9509,6 +9523,36 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .slot.cj-case .slot-visage > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 18px; opacity: 0.4; }
 .slot.cj-case .slot-faits { grid-area: faits; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot.cj-case .slot-tags { grid-area: tags; margin-top: 0; min-width: 0; }
+/* 1.0 (les lignes) : plus de visage dans la case — nom, rôle et niveau, zone, jambes. */
+.slot.cj-case .slot-inner { display: flex; flex-direction: column; gap: 3px; padding: 4px 7px 5px; }
+.slot.cj-case .slot-name { font-size: 15px; line-height: 1.02; white-space: normal; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.cell-l1 { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cell-role { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 3px; min-width: 0; font-size: 12px; letter-spacing: 0; overflow: hidden; }
+.cell-role > span { font: 700 11px/1.1 var(--display); letter-spacing: .02em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot.cj-case .cell-l2 { margin-top: 0; align-items: center; }
+.cell-zone { font: 800 11px/16px var(--display); padding: 0 2px; }
+.cell-zone.ok { color: var(--green); }
+.cell-zone.sous { color: var(--live); }
+.cell-zone.dessus { color: var(--gold); }
+.cell-trait { font-size: 12px; line-height: 16px; }
+.cell-prod { margin-left: auto; font: 700 11px/16px var(--display); color: var(--sub); font-variant-numeric: tabular-nums; }
+/* Le niveau : une pastille à la place d'une cote (aucune cote n'entre dans le DOM). */
+.niv { flex: none; display: inline-block; padding: 1px 6px; border-radius: 999px; font: 800 10px/1.4 var(--display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
+  color: #fff; background: #5b6675; }
+.niv-partiel { background: transparent; color: var(--sub); box-shadow: inset 0 0 0 1px var(--line); }
+.niv-regulier { background: #2f6fb8; }
+.niv-pilier { background: #2c8a57; }
+.niv-etoile { background: #c9961a; color: #1a1406; }
+.niv-phenomene { background: #7a3fc4; }
+.cell-l1 .niv { margin-left: auto; }
+/* Les jambes : la fatigue d'un joueur, sur 100, en chiffre et en barre. */
+.jambes { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 10.5px; color: var(--sub); }
+.jambes-k { font: 800 9.5px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.jambes b { font: 800 12px/1 var(--display); color: var(--text); font-variant-numeric: tabular-nums; min-width: 20px; }
+.jambes i { flex: 1; height: 4px; border-radius: 2px; background: var(--fond-creux, rgba(255,255,255,.1)); overflow: hidden; min-width: 20px; }
+.jambes i > span { display: block; height: 100%; background: var(--green); }
+.jambes i > span.moyen { background: var(--gold); }
+.jambes i > span.bas { background: var(--live); }
 
 /* La pastille dit ses positions (« AG / AD ») : elle se serre, et le salaire ne se coupe jamais. */
 .slot.cj-case .slot-band .sb-role { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 4px; padding-right: 4px; letter-spacing: 0; }
