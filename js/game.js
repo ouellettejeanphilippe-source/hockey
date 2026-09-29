@@ -1192,7 +1192,14 @@ function contexteDuMenu({ vierge = false, enJeu = true, choix = false } = {}) {
     // L'EXHIBITION (S78, js/exhibition.js) : aucune partie, on revient au menu en la fermant.
     exhibition: () => { fermerMenu(); ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu, choix })))); },
     rogue: {
-      resume: () => { const m = lireMeta(); return `🏅 ${m.ecussons || 0} écussons · 🗂️ ${(m.collection || []).length} joueurs · ${m.runs || 0} run${(m.runs || 0) > 1 ? 's' : ''}`; },
+      // 1.0 (R7, R8) : la dernière run sur le carton, rien à la première visite.
+      resume: () => {
+        const m = lireMeta();
+        if (!(m.runs > 0)) return '';
+        const d = m.derniereRun;
+        if (d && d.numero === m.runs) return `Run ${d.numero} · ${esc(motDeRun(d))} · 🏅 ${m.ecussons || 0}`;
+        return `Run ${m.runs} en cours · 🏅 ${m.ecussons || 0}`;
+      },
       nouvelle: () => { nouvellePartie('rogue'); ailleurs('nouvelle-rogue'); },
       vestiaire: () => ouvrirVestiaire(() => { if (document.getElementById('menuDepart')) afficherMenu(contexteDuMenu({ vierge, enJeu })); }),
       // L'INVENTAIRE PERMANENT ET LE CLASSEUR (S79) : hors saison, on regarde ; on joue du hub.

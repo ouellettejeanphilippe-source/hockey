@@ -582,8 +582,16 @@ await page.reload({ waitUntil: 'networkidle' });
    partie » par-dessus, exactement comme la première visite d'avant. */
 await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
 const modesAuMenu = await page.$$eval('#menuDepart .menu-mode', l => l.map(x => x.dataset.genre).join(','));
-// S78 : l'exhibition a son carton, sans être un genre de sauvegarde.
-if (modesAuMenu !== 'saison,table,rogue,exhibition') errors.push(`le menu au départ n'offre pas les quatre modes : ${modesAuMenu}`);
+// 1.0 (R8) : le Rogue est le héros du menu — premier dans le DOM et le plus haut ; l'exhibition est un lien sous la grille.
+if (modesAuMenu !== 'rogue,saison,table') errors.push(`le menu au départ n'offre pas les trois modes, le Rogue en premier : ${modesAuMenu}`);
+if (!(await page.$('#menuDepart .menu-lien[data-menu="exhibition"]'))) errors.push('le menu au départ n\'a pas le lien Exhibition');
+{
+  const hauteurs = await page.$$eval('#menuDepart .menu-mode', l => l.map(x => [x.dataset.genre, x.getBoundingClientRect().height]));
+  const rogue = hauteurs.find(h => h[0] === 'rogue');
+  if (!rogue || hauteurs.some(h => h[0] !== 'rogue' && h[1] > rogue[1])) errors.push(`le carton Rogue n'est pas le plus haut du menu : ${hauteurs.map(h => `${h[0]} ${Math.round(h[1])}`).join(', ')}`);
+  const extra = await page.$('#menuDepart .menu-mode[data-genre="rogue"] .menu-mode-extra');
+  if (extra) errors.push('à la première visite, le carton Rogue affiche un résumé de run qui n\'existe pas');
+}
 await page.click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');

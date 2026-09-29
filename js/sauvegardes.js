@@ -25,7 +25,7 @@ export const MAX_PARTIES = 24;
 export const GENRES = {
   saison: { ico: '🏒', nom: 'La saison', mot: 'Le repêchage, 82 matchs, les séries' },
   table: { ico: '🎲', nom: 'Sur table', mot: 'Le tournoi au plateau, pièce par pièce' },
-  rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Des plombiers, des packs, une saison à survivre' },
+  rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Des plombiers, des packs, une run de plusieurs saisons' },
 };
 /* Le genre d'une sauvegarde, lu dans ce qu'elle porte. */
 export const genreDe = data => (data && data.bonus === 'TABLE' ? 'table' : data && data.bonus === 'ROGUE' ? 'rogue' : 'saison');

@@ -106,16 +106,10 @@ function dessiner(m) {
     </div>`;
   };
   // L'exhibition : deux clubs de n'importe quelle époque, pour le fun (S78).
-  const exhibition = ctx.exhibition ? `<article class="menu-mode" data-genre="exhibition">
-      <div class="menu-mode-ico" aria-hidden="true">🏟️</div>
-      <div class="menu-mode-corps">
-        <h3 class="menu-mode-nom">Exhibition</h3>
-        <p class="menu-mode-mot">N'importe quels clubs de toutes les époques, un match ou une série, sur le vrai moteur</p>
-      </div>
-      <div class="menu-mode-actions">
-        <button type="button" class="btn go" data-menu="exhibition">Choisir l'affiche</button>
-      </div>
-    </article>` : '';
+  // 1.0 (R8) : un lien sous la grille, pas un quatrième carton.
+  const exhibition = ctx.exhibition ? `<button type="button" class="menu-lien" data-menu="exhibition">🏟️ Exhibition <small>n'importe quels clubs, toutes les époques, un match ou une série</small> ›</button>` : '';
+  // 1.0 (R8) : le Rogue est le héros du menu — premier dans le DOM, pleine largeur sur grand écran.
+  const ordreModes = ['rogue', ...Object.keys(GENRES).filter(g => g !== 'rogue')].filter(g => GENRES[g]);
   const groupes = Object.keys(GENRES).map(g => {
     const ps = partiesDuGenre(g);
     return ps.length ? `<div class="menu-groupe"><div class="menu-groupe-t">${GENRES[g].ico} ${esc(GENRES[g].nom)} · ${ps.length}</div>${ps.map(ligne).join('')}</div>` : '';
@@ -131,7 +125,8 @@ function dessiner(m) {
         <span class="mc-mot">${ctx.enJeu ? 'Retour à la partie' : 'Continuer'}</span>
         <span class="mc-quoi">${GENRES[active.genre] ? GENRES[active.genre].ico : ''} ${esc(active.titre)} · ${esc(ligneResume(active) || quand(active.maj))}</span>
       </button>` : ''}
-      <section class="menu-modes" aria-label="Les modes de jeu">${Object.keys(GENRES).map(carte).join('')}${exhibition}</section>
+      <section class="menu-modes" aria-label="Les modes de jeu">${ordreModes.map(carte).join('')}</section>
+      ${exhibition}
       ${ix.parties.length && !ctx.choix ? `<details class="menu-parties"${ix.parties.length <= 3 ? ' open' : ''}><summary>📂 Mes parties · ${ix.parties.length}</summary>${groupes}</details>` : ''}
       ${ctx.choix ? '' : '<footer class="menu-pied"><button type="button" class="btn small" data-menu="options">⚙ Options</button></footer>'}
     </div>`;
