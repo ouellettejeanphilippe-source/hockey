@@ -606,8 +606,10 @@ export function brancherInclinaison(doc = document) {
  * et la saison en plaque par-dessus, comme la carte du vestiaire. Le petit
  * médaillon rond d'avant faisait de la recrue une carte d'effet avec un
  * visage dedans ; c'est une carte de JOUEUR. Sans portrait, l'écusson seul.
+ * 1.0 : une photo d'action (`photoAction`) prend toute l'illustration quand
+ * elle est là ; si elle manque au chargement, le portrait revient.
  */
-export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison = '', club = '' }) {
+export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison = '', club = '', actionSrc = '' }) {
   if (!portraitHtml) return `<span class="tc-joueur">
     <span class="tc-logo">${logoHtml}</span>
     <span class="tc-pos">${pos}</span>
@@ -615,7 +617,7 @@ export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison =
   </span>`;
   const fond = club ? getTeamBand(club).bg : '';
   return `<span class="tc-joueur cj-art"${fond ? ` style="--cj-fond:${fond}"` : ''}>
-    <span class="tc-portrait">${portraitHtml}</span>
+    <span class="tc-portrait">${actionSrc ? `<img class="tc-action" src="${echapper(actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}${portraitHtml}</span>
     <span class="tc-medaille">${logoHtml}</span>
     <span class="tc-pos">${pos}</span>
     <span class="tc-saison">${club ? `${club} · ` : ''}${saison}</span>

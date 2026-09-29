@@ -3,7 +3,7 @@
  * parallèles, côte à côte, pour juger les dessins d'un coup d'oeil
  * (js/cartes.js `SERIES`, style.css « LES SÉRIES »).
  *
- *   node scripts/planche_cartes.mjs http://localhost:8000 [dossier] [--actions <dossier d'images>]
+ *   node scripts/planche_cartes.mjs http://localhost:8000 [dossier] [--actions <dossier d'images>] [--seul <planche>]
  *
  * Planches (dans le dossier, `scripts` par défaut) :
  *   cartes-series-1.png, -2.png  une rangée par série, à la taille du vestiaire
@@ -28,6 +28,9 @@ const BASE = process.argv[2] || 'http://localhost:8000';
 const DOSSIER = process.argv[3] && !process.argv[3].startsWith('--') ? process.argv[3] : 'scripts';
 const iA = process.argv.indexOf('--actions');
 const ACTIONS = iA > 0 ? process.argv[iA + 1] : null;
+// --seul <début de nom> : une seule planche (cartes-match, cartes-series…), pour itérer vite.
+const iS = process.argv.indexOf('--seul');
+const SEUL = iS > 0 ? process.argv[iS + 1] : null;
 // Une saison au milieu de chaque série.
 const SAISONS = ['1974-75', '1981-82', '1988-89', '1992-93', '1996-97', '2000-01', '2006-07', '2010-11', '2015-16', '2022-23'];
 const RARETES = ['commune', 'peu', 'rare', 'legendaire'];
@@ -62,6 +65,7 @@ async function demarrer(largeur, hauteur) {
 
 // Une planche : un conteneur par-dessus tout, rempli par `remplir` (dans la page), puis photographié.
 async function planche(page, nom, colonnes, largeur, remplir, arg) {
+  if (SEUL && !nom.startsWith(SEUL)) return;
   await page.evaluate(async ({ colonnes, largeur, source, arg }) => {
     let p = document.getElementById('planche');
     if (!p) { p = document.createElement('div'); p.id = 'planche'; document.body.appendChild(p); }
@@ -164,6 +168,27 @@ await planche(page, 'verso', 5, 330, async p => {
   document.querySelector('#hockeyCardModal .close-btn, #hockeyCardModal [data-fermer]')?.click();
 });
 
+// 6 bis. Les cartes de match, une rangée par genre (et une carte sans genre au bout de la dernière).
+await planche(page, 'match', 6, 212, async p => {
+  const { CARTES_MATCH } = await import('/js/combat.js');
+  const { optionDeCarteMatch, puces } = await import('/js/gerant.js');
+  const { carteHtml } = await import('/js/cartes.js');
+  const esc = t => String(t).replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));
+  for (const genre of ['attaque', 'defense', 'tactique', 'synergie', 'malediction']) {
+    const cles = Object.keys(CARTES_MATCH).filter(k => !k.endsWith('+') && CARTES_MATCH[k].genre === genre);
+    const choix = ['commune', 'peu', 'rare', 'legendaire', 'maudite'].flatMap(r => cles.filter(k => CARTES_MATCH[k].rarete === r).slice(0, 2)).slice(0, 6);
+    for (const k of choix) {
+      const o = optionDeCarteMatch(k);
+      const d = document.createElement('div');
+      d.innerHTML = carteHtml({ cle: k, rarete: o.rarete, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(o.type), texteHtml: '<i class=\"tc-ambiance\">' + esc(o.texte) + '</i>', coinHtml: esc(o.coin), pucesHtml: puces(o.mots), genreCarte: o.genreCarte, dessin: o.dessin });
+      p.appendChild(d.firstElementChild);
+    }
+  }
+  const d = document.createElement('div');
+  d.innerHTML = carteHtml({ cle: 'x', rarete: 'peu', ico: '🧪', nomHtml: 'Une carte sans genre', typeHtml: 'Amélioration · au joueur de ton choix', texteHtml: 'Une modif, un événement, une identité : son icône sur un médaillon.', pucesHtml: puces([{ txt: 'Précision +3 %', bon: true }, { txt: 'Jambes −5', bon: false }]) });
+  p.appendChild(d.firstElementChild);
+});
+
 // 7. Les photos d'action, si on en a.
 if (ACTIONS) {
   const ids = fs.readdirSync(ACTIONS).filter(f => f.endsWith('.webp')).map(f => f.replace('.webp', ''));
@@ -190,10 +215,12 @@ if (ACTIONS) {
 await page.close();
 
 // 8. Le vestiaire au téléphone, tel quel.
+if (!SEUL || 'vestiaire'.startsWith(SEUL)) {
 const tel = await demarrer(390, 844);
 await tel.screenshot({ path: path.join(DOSSIER, 'cartes-vestiaire-tel.png') });
 console.log('   cartes-vestiaire-tel.png');
 await tel.close();
+}
 
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await navigateur.close();

@@ -1147,8 +1147,6 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   .pool.by-pos .pool-col:nth-child(6) .pool-col-head { --pos-line: var(--gold); }
 }
 
-/* Les règles de colonne étroite vivent après les règles de base de la carte,
-   plus bas : voir « COLONNE ÉTROITE ». */
 
 /*
  * LA CARTE DU VESTIAIRE (1.0) : le CARTON du joueur, dans le dessin de sa
@@ -5909,39 +5907,129 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
   animation: tc-reflet 3.6s ease-in-out infinite;
   content: none;
 }
+/*
+ * LA CARTE DE MATCH (1.0). JP : *ça feel vraiment cheap*. Une vraie carte de
+ * jeu de cartes : le COÛT dans une gemme taillée qui déborde du coin, le nom,
+ * l'ILLUSTRATION (un dessin au trait, `dessinHtml`) sur le fond de son GENRE,
+ * la BANNIÈRE du type qui traverse la carte, la règle, les effets en lignes
+ * de couleur, le pied de la série. Le genre (`tc-g-*`) donne un fond et une
+ * couleur ; la rareté garde le métal du cadre.
+ *   attaque     la glace qui fuit vers le filet, le demi-cercle bleu, la ligne rouge ;
+ *   défense     la nuit sur la ligne bleue, les points de mise au jeu ;
+ *   tactique    le tableau blanc du coach, sa grille et ses X et O à la craie ;
+ *   synergie    les liens d'une équipe : des nœuds reliés ;
+ *   malédiction la glace noire fendue, la lueur rouge.
+ * Une carte sans genre (un événement, une modif, une identité) garde son
+ * icône, sur un médaillon de laiton.
+ */
+.choix-option.tc { --tc-genre: #c9a45c; --tc-genre-encre: #1b1305; }
+.tc.tc-g-attaque { --tc-genre: #e8573f; --tc-genre-encre: #ffffff; }
+.tc.tc-g-defense { --tc-genre: #3f8fe8; --tc-genre-encre: #ffffff; }
+.tc.tc-g-tactique { --tc-genre: #23a07a; --tc-genre-encre: #ffffff; }
+.tc.tc-g-synergie { --tc-genre: #9b63e6; --tc-genre-encre: #ffffff; }
+.tc.tc-g-malediction { --tc-genre: #b3203a; --tc-genre-encre: #ffe6e9; }
 .tc-cadre {
   position: relative; z-index: 1; display: flex; flex-direction: column; gap: 7px; height: 100%;
   padding: 9px 10px 8px; border-radius: 11px; color: var(--text);
-  background: radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--tc-bord) 16%, #161a21), #0f1217 70%);
+  background: radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--tc-genre) 20%, #161a21), #0f1217 72%);
 }
-.tc-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.tc-nom { font: 800 18.5px/1.08 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.tc-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; }
+.tc-tete:has(> .tc-coin) { padding-left: 36px; }
+.tc-nom { font: 800 18.5px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+/* LE COÛT : une gemme taillée à six pans, qui déborde du coin — l'élan se lit avant le nom. */
 .tc-coin {
-  flex: none; font: 800 13px/1 var(--display); padding: 4px 7px; border-radius: 999px;
-  background: color-mix(in srgb, var(--tc-bord) 22%, #0b0d11); color: var(--tc-bord); border: 1px solid color-mix(in srgb, var(--tc-bord) 55%, transparent);
-  min-width: 26px; text-align: center; font-size: 15px;
-}
-.tc-art {
-  flex: none; position: relative; display: grid; place-items: center; height: 116px; border-radius: 9px; overflow: hidden;
+  position: absolute; top: -3px; left: -3px; z-index: 3; display: grid; place-items: center; width: 40px; height: 44px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, .035) 0 8px, transparent 8px 16px),
-    radial-gradient(90% 90% at 50% 60%, color-mix(in srgb, var(--tc-bord) 34%, #0b0e12), #07090c);
-  border: 1px solid color-mix(in srgb, var(--tc-bord) 40%, transparent);
+    linear-gradient(150deg, rgba(255, 255, 255, 0.55) 0 22%, transparent 22% 52%, rgba(0, 0, 0, 0.28) 52%),
+    radial-gradient(90% 90% at 40% 30%, color-mix(in srgb, var(--tc-genre) 70%, #fff), var(--tc-genre) 55%, color-mix(in srgb, var(--tc-genre) 55%, #000));
+  font: 800 19px/1 var(--display); color: #fff; font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55), 0 0 6px rgba(0, 0, 0, 0.35);
 }
-.tc-art-ico { font-size: 60px; line-height: 1; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .55)); }
+.tc-coin s { font-size: 11px; opacity: 0.7; margin-right: 1px; }
+.tc-art {
+  flex: none; position: relative; display: grid; place-items: center; height: 116px; border-radius: 9px 9px 3px 3px; overflow: hidden;
+  color: #f2f4f7; --tc-accent: var(--tc-genre);
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 9px),
+    radial-gradient(90% 90% at 50% 40%, #2c3544, #121821 75%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc-bord) 45%, transparent);
+}
+.tc-g-attaque .tc-art {
+  color: #13233a;
+  background:
+    radial-gradient(34% 44% at 104% 44%, rgba(90, 160, 235, 0.42) 88%, rgba(214, 40, 48, 0.8) 89% 94%, transparent 95%),
+    repeating-conic-gradient(from 225deg at 104% 44%, rgba(30, 60, 100, 0.09) 0 0.7deg, transparent 0.7deg 6deg),
+    linear-gradient(98deg, transparent 0 16%, rgba(214, 40, 48, 0.3) 16% 18.2%, transparent 18.2%),
+    repeating-linear-gradient(-16deg, rgba(255, 255, 255, 0.7) 0 1px, transparent 1px 11px),
+    linear-gradient(165deg, #f1f6fa, #c7d6e2);
+}
+.tc-g-defense .tc-art {
+  background:
+    radial-gradient(circle at 78% 28%, rgba(214, 40, 48, 0.85) 0 3.5px, transparent 4px),
+    radial-gradient(circle at 78% 76%, rgba(214, 40, 48, 0.85) 0 3.5px, transparent 4px),
+    linear-gradient(100deg, transparent 0 30%, rgba(80, 150, 255, 0.55) 30% 39%, rgba(150, 200, 255, 0.8) 39% 39.6%, transparent 39.6%),
+    repeating-linear-gradient(-16deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 11px),
+    linear-gradient(165deg, #1f3a60, #0c182b);
+}
+.tc-g-tactique .tc-art {
+  color: #1d3a5c; --tc-accent: #d33b3b;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='116' fill='none' stroke-linecap='round' stroke-width='2.2'%3E%3Cg stroke='%231d5fb0' opacity='.34'%3E%3Cpath d='M16 18l10 10M26 18 16 28M184 84l10 10M194 84l-10 10'/%3E%3Ccircle cx='190' cy='24' r='7'/%3E%3Ccircle cx='24' cy='92' r='7'/%3E%3C/g%3E%3Cpath d='M34 30c30 4 40 30 58 34' stroke='%23c83232' opacity='.3' stroke-dasharray='5 5'/%3E%3Cpath d='M186 38c-22 10-24 30-44 36' stroke='%23c83232' opacity='.3'/%3E%3C/svg%3E") center / cover no-repeat,
+    repeating-linear-gradient(0deg, rgba(40, 70, 110, 0.06) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(90deg, rgba(40, 70, 110, 0.06) 0 1px, transparent 1px 14px),
+    linear-gradient(170deg, #fbfbf7, #e2e5dc);
+  box-shadow: inset 0 0 0 3px #c9ced3, inset 0 0 0 4px #9aa1a8;
+}
+.tc-g-synergie .tc-art {
+  color: #f1e8ff; --tc-accent: #c79bff;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='90' fill='none' stroke='%23d9c2ff' stroke-width='1.2' opacity='.3'%3E%3Cpath d='M10 20 44 8l38 22 28-14M44 8l-8 42 46 20M82 30 36 50 12 78M82 30l18 44'/%3E%3Cg fill='%23d9c2ff'%3E%3Ccircle cx='10' cy='20' r='3'/%3E%3Ccircle cx='44' cy='8' r='3'/%3E%3Ccircle cx='82' cy='30' r='3.5'/%3E%3Ccircle cx='110' cy='16' r='2.5'/%3E%3Ccircle cx='36' cy='50' r='3'/%3E%3Ccircle cx='82' cy='70' r='2.5'/%3E%3Ccircle cx='12' cy='78' r='2.5'/%3E%3Ccircle cx='100' cy='74' r='3'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 120px 90px,
+    radial-gradient(90% 90% at 50% 40%, #40286e, #160e2a 78%);
+}
+.tc-g-malediction .tc-art {
+  color: #ffd9de; --tc-accent: #ff4d63;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='116' fill='none' stroke-linecap='round'%3E%3Cpath d='M110 58 70 30 52 6M110 58l-28 22-40 8M110 58l46-12 30-30M110 58l34 30 10 26M70 30l-26 8M156 46l22 18M82 80l-6 32' stroke='%23e8eef3' stroke-width='1.3' opacity='.28'/%3E%3Cpath d='M110 58 70 30M110 58l46-12' stroke='%23ff4d63' stroke-width='.8' opacity='.5'/%3E%3C/svg%3E") center / cover no-repeat,
+    radial-gradient(60% 70% at 50% 55%, rgba(200, 30, 50, 0.35), transparent 70%),
+    linear-gradient(165deg, #1c1418, #07060a);
+}
+/* LE DESSIN : un trait, une couleur d'accent ; l'ombre le pose sur son fond. */
+.tc-dessin { position: absolute; left: 50%; top: 44%; height: min(74px, 64%); width: auto; aspect-ratio: 1; transform: translate(-50%, -50%); overflow: visible; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.18)); }
+.tc-dessin .a { fill: var(--tc-accent); stroke: none; opacity: 0.9; }
+.tc-dessin .s { stroke: var(--tc-accent); }
+.tc-dessin .f { stroke-width: 1.2; opacity: 0.7; }
+/* Une carte sans dessin (une modif, un événement) : son icône sur un médaillon de laiton. */
+.tc-art-ico {
+  position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%);
+  display: grid; place-items: center; height: min(74px, 66%); width: auto; aspect-ratio: 1; border-radius: 50%; font-size: 40px; line-height: 1;
+  background: radial-gradient(circle at 50% 35%, #2e3645, #151a22 70%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tc-genre) 70%, #fff), 0 0 0 5px rgba(0, 0, 0, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.12);
+}
 .tc-joueur { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .tc-logo { display: grid; place-items: center; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .5)); }
 .tc-pos { font: 800 22px/1 var(--display); letter-spacing: .08em; color: var(--tc-bord); }
 .tc-saison { font: 700 11.5px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--sub); }
+/* LA BANNIÈRE DU TYPE : elle traverse la carte sous l'illustration, à la couleur du genre. */
 .tc-type {
-  display: flex; align-items: center; justify-content: space-between; gap: 6px;
-  padding: 4px 7px; border-radius: 6px; background: rgba(255, 255, 255, .06);
-  font: 700 11.5px/1.2 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--sub);
+  position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  margin: -15px -14px 0; padding: 5px 16px 5px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc-genre) 88%, #fff), var(--tc-genre) 60%, color-mix(in srgb, var(--tc-genre) 70%, #000));
+  clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 50%, 100% 100%, 0 100%, 7px 50%);
+  font: 800 11.5px/1.2 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--tc-genre-encre);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
 }
-.tc-gemme { color: var(--tc-bord); font-size: 13px; }
+.tc-gemme { color: inherit; font-size: 12px; }
 .tc-texte { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.4; color: var(--sub); }
 .tc-quoi { color: var(--text); opacity: .92; }
-.tc-puces { margin-top: 0; }
+/* LES EFFETS EN LIGNES DE COULEUR, pas en pastilles : un filet au flanc, le texte à la couleur de ce qu'il fait. */
+.tc-puces { display: flex; flex-direction: column; gap: 3px; margin-top: 0; }
+.tc-puces .puce {
+  display: block; padding: 0 0 0 8px; border: 0; border-left: 2.5px solid currentColor; border-radius: 0; background: none;
+  font-size: 12.5px; font-weight: 700; line-height: 1.3; white-space: normal; text-align: left;
+}
+.tc-puces .puce.bon { color: #5fd49c; }
+.tc-puces .puce.prix { color: #ff8a8a; }
+.tc-puces .puce.neutre { color: var(--sub); }
 .tc-pied {
   display: flex; justify-content: space-between; margin-top: auto; padding-top: 4px;
   font: 700 10px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
@@ -6270,18 +6358,18 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 /* =====================================================================
    LES JOUEURS SONT DES CARTES (S76) — ET ELLES EN ONT LE LOOK (S77)
 
-   S78 CHANGE DEUX CHOSES DE CE QUI SUIT. La rareté ne vient plus du salaire :
-   c'est une VARIANTE (js/rarete.js) posée PAR-DESSUS le joueur, une finition
-   (voir « LA VARIANTE »). Et les deux familles (carton, lustre) sont devenues
-   cinq ÉPOQUES, par la saison du joueur (voir « LES ÈRES »). La carte du
-   vestiaire est DEBOUT (« LA GRILLE DU VESTIAIRE ») : la règle (1) tient —
-   toutes les cartes d'une vue ont la même hauteur — mais ce n'est plus
-   189,5 px. La case de l'alignement reste couchée, et simple.
-   js/cartes.js (`rareteDeSalaire`, `PALIERS_RARETE`, `gemmeJoueur`,
-   `artJoueur`, `paquetHtml`, `brancherInclinaison`), js/game.js
-   (`playerCardEl`, `slotEl`, `showPlayerModal`, `versoDeCarte`,
-   `voleAuCartable`), js/gerant.js (`ouvrirChoix` : le paquet), js/bilan.js
-   (la feuille de match), js/saison.js (la recrue et le ballottage).
+   1.0 CHANGE LE DESSIN DE CE QUI SUIT. La rareté est une VARIANTE
+   (js/rarete.js) posée PAR-DESSUS le joueur (S78), et le joueur est un
+   CARTON dessiné par sa SÉRIE — dix dessins, un par époque (« LES SÉRIES »,
+   js/cartes.js `SERIES`, `cartonHtml`) — où la variante devient une
+   PARALLÈLE. Les cartes de match ont leur genre, leur gemme et leur dessin
+   (« LA CARTE DE MATCH (1.0) »). Ce qui suit reste vrai pour les deux :
+   l'inclinaison, le reflet, l'holographique, la gemme. La case de
+   l'alignement reste couchée, et simple. js/cartes.js (`gemmeJoueur`,
+   `artJoueur`, `paquetHtml`, `brancherInclinaison`), js/repechage.js
+   (`playerCardEl`, `cartonDe`, `carteMiniHtml`, `voleAuCartable`),
+   js/fiche.js (`showPlayerModal`, `versoDeCarte`), js/gerant.js
+   (`ouvrirChoix` : le paquet), js/bilan.js (la feuille de match).
 
    S76. JP : *Même dans le ui et le ux, renforcer que les joueurs aussi,
    c'est des cartes de hockey*. Le joueur prend le langage des cartes de
@@ -6314,8 +6402,8 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
        SOUS le texte (z-index : fond → holo, reflet → contenu → cadre) ; sur
        une carte de match, ils ne touchent que le cadre et l'illustration —
        la règle chiffrée garde son fond uni.
-   (3) RIEN DE LOURD SUR UNE COMMUNE. `.cj-holo` n'existe que sur les rares
-       et les légendaires (une carte sur huit) ; le reflet n'est créé que sur
+   (3) RIEN DE LOURD SUR UNE COMMUNE. La parallèle et l'holographique
+       n'existent que sur les brillantes ; le reflet n'est créé que sur
        la carte qu'on penche (`.incline`, `.relache`, `.gyro`). Le reste est
        du fond statique : peint une fois, défilé par le compositeur.
    (4) ON N'ANIME QUE `transform` ET `opacity` — et `background-position`
@@ -6393,9 +6481,6 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 @media (hover: none) {
   .choix-option.tc.incline:not([disabled]) { --leve: -5px; --gros: 1.02; }
 }
-/* LE REFLET : une tache de lumière qui suit le doigt, créée seulement sur la
-   carte qu'on penche (ou qui brille). En `soft-light`, il éclaire le fond
-   sans jamais blanchir le texte, qui est au-dessus. */
 
 /* L'HOLOGRAPHIQUE : l'arc-en-ciel en `color-dodge`, qui brûle les hautes
    lumières comme une vraie feuille holographique. Il bouge avec le doigt ;
@@ -6562,13 +6647,13 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   --c-fond: radial-gradient(125% 95% at 50% 40%, transparent 58%, rgba(120, 88, 38, 0.2)), radial-gradient(circle at 30% 40%, rgba(110, 80, 30, 0.11) 0 0.7px, transparent 1.1px) 0 0 / 4px 4px, linear-gradient(#f1e7cf, #e8dcbf);
   --c-encre: #2b2216;
 }
-.cs-vintage .carton-photo { inset: 5.5cqw 5.5cqw auto; height: 89cqw; border-radius: 7cqw; background: linear-gradient(#c7d2d8, #8fa1ab); box-shadow: 0 0 0 1.3cqw var(--band), 0 0 0 2.1cqw #efe5cc, 0 0 0 2.6cqw var(--stripe); }
+.cs-vintage .carton-photo { inset: 5.5cqw 5.5cqw auto; height: 95cqw; border-radius: 7cqw; background: linear-gradient(#c7d2d8, #8fa1ab); box-shadow: 0 0 0 1.3cqw var(--band), 0 0 0 2.1cqw #efe5cc, 0 0 0 2.6cqw var(--stripe); }
 .cs-vintage .carton-nom {
-  --nom-l: 60cqw; left: 0; width: 80cqw; top: 88cqw; height: 25cqw; padding: 0 12cqw 0 6cqw;
+  --nom-l: 60cqw; left: 0; width: 80cqw; top: 94cqw; height: 26cqw; padding: 0 12cqw 0 6cqw;
   background: linear-gradient(transparent 86%, rgba(0, 0, 0, 0.22) 86%), var(--band); color: var(--ink);
   clip-path: polygon(0 0, 100% 0, 88% 50%, 100% 100%, 0 100%);
 }
-.cs-vintage .carton-club { right: 4.5cqw; top: 90cqw; width: 21cqw; height: 21cqw; padding: 3.4cqw; border-radius: 50%; background: #f3ead4; box-shadow: 0 0 0 1.1cqw var(--band), 0 0 0 1.7cqw #f3ead4, 0 0 0 2.1cqw var(--stripe); }
+.cs-vintage .carton-club { right: 4.5cqw; top: 96.5cqw; width: 21cqw; height: 21cqw; padding: 3.4cqw; border-radius: 50%; background: #f3ead4; box-shadow: 0 0 0 1.1cqw var(--band), 0 0 0 1.7cqw #f3ead4, 0 0 0 2.1cqw var(--stripe); }
 .cs-vintage .carton-imprime { left: 6cqw; right: 6cqw; bottom: 5cqw; justify-content: space-between; color: #5d4d33; }
 
 /* ---------------------------------------------------------------
@@ -6807,8 +6892,8 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 /* Sur un carton clair (le crème, le blanc, la glace, le nacre), la parallèle TEINTE plutôt que d'éclairer. */
 :is(.cs-vintage, .cs-retro, .cs-glace, .cs-signature, .cs-chrome) { --fini-mode: multiply; --fini-o: 0.42; }
 .cs-chrome.tc-peu { --fini-mode: overlay; --fini-o: 0.8; }
-/* Le filet d'une brillante : l'argent de la parallèle, l'arc-en-ciel de la holo, l'or — tout autour du carton. */
-/* (Sur un enfant du carton : une longueur en `cqw` posée sur le carton lui-même se lirait dans le conteneur d'au-dessus.) */
+/* Le filet d'une brillante : l'argent de la parallèle, l'arc-en-ciel de la holo, l'or — tout autour du carton.
+   Il se pose sur un ENFANT du carton : une longueur en `cqw` posée sur le carton lui-même se lirait dans le conteneur d'au-dessus. */
 .carton:is(.tc-peu, .tc-rare, .tc-legendaire) .carton-deco { border-radius: inherit; box-shadow: inset 0 0 0 1.4cqw var(--para), inset 0 0 0 1.8cqw rgba(0, 0, 0, 0.25); }
 .carton.tc-peu { --para: #c9dbe6; }
 .carton.tc-rare { --para: #d9c8ff; }
@@ -6891,8 +6976,6 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 #pool.pool:not(.by-pos) { grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); gap: 8px; }
 #panePool.loto #pool.pool { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 @container pool (min-width: 700px) { #panePool.loto #pool.pool { grid-template-columns: repeat(3, minmax(0, 220px)); justify-content: center; gap: 12px; } }
-/* Au loto, la carte a 112 px au téléphone : la ligne d'avertissement, en 9 px, garde sa place. */
-
 
 /* =================================================================
    LA CASE DE L'ALIGNEMENT, DU BANC ET DES RÉSERVISTES (`.slot.cj-case`, S78)
@@ -7029,6 +7112,10 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   font: 700 9.5px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--cj-encre-2);
 }
 .fc-verso .cjv-legal { min-width: 0; }
+/* Sur un dos clair (le crème, le gris carton, le métal, la glace, le nacre), les étiquettes pensées pour le noir prennent une encre foncée. */
+.fc-verso:is(.cs-vintage, .cs-retro, .cs-chrome, .cs-glace, .cs-signature) .tag-identite { color: #3b2a12; background: color-mix(in srgb, #f47a38 22%, #fffaf0); box-shadow: inset 0 0 0 1px color-mix(in srgb, #3b2a12 22%, transparent); }
+.fc-verso:is(.cs-vintage, .cs-retro, .cs-chrome, .cs-glace, .cs-signature) .puce.bon { color: #0f5c3a; background: color-mix(in srgb, #1f9d63 18%, #fffaf0); box-shadow: inset 0 0 0 1px color-mix(in srgb, #0f5c3a 28%, transparent); }
+.fc-verso:is(.cs-vintage, .cs-retro, .cs-chrome, .cs-glace, .cs-signature) .puce.prix { color: #8a1623; background: color-mix(in srgb, #e0364a 16%, #fffaf0); box-shadow: inset 0 0 0 1px color-mix(in srgb, #8a1623 26%, transparent); }
 .fc-verso::after {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.35), transparent 55%); opacity: var(--lueur);
@@ -7065,14 +7152,6 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.16), transparent 50%);
   opacity: var(--lueur);
 }
-/* LE COÛT DANS UNE RONDELLE, cerclée du métal de la rareté. */
-.choix-option.tc .tc-coin {
-  display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 6px; border: 0; border-radius: 999px;
-  font: 800 16px/1 var(--display); color: #fff; font-variant-numeric: tabular-nums;
-  background: radial-gradient(110% 80% at 50% 22%, #4a4a50, #0d0d10 62%);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2), inset 0 -3px 0 rgba(0, 0, 0, 0.55), 0 0 0 2px var(--tc-bord), 0 3px 6px rgba(0, 0, 0, 0.5);
-}
-.choix-option.tc .tc-coin s { font-size: 10px; opacity: 0.55; margin-right: 1px; }
 /* L'illustration d'une rare ou d'une légendaire est holographique. */
 .choix-option.tc:is(.tc-rare, .tc-legendaire) .tc-art::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
@@ -7081,22 +7160,6 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   animation: cj-miroite 7s ease-in-out infinite alternate;
 }
 .choix-option.tc:is(.incline, .gyro) .tc-art::after { animation: none; }
-/* LA LÉGENDAIRE EST SUR ACÉTATE : une patinoire translucide — la ligne rouge,
-   les deux bleues, le cercle et les points de mise au jeu — derrière son
-   illustration, comme les cartes « sur glace » des années 2000. */
-.choix-option.tc.tc-legendaire .tc-art {
-  background:
-    radial-gradient(circle at 50% 50%, transparent 21px, rgba(60, 110, 220, 0.55) 21.5px 23px, transparent 23.5px),
-    radial-gradient(circle at 50% 50%, rgba(60, 110, 220, 0.75) 0 3px, transparent 3.5px),
-    radial-gradient(circle at 16% 28%, rgba(215, 50, 60, 0.6) 0 3px, transparent 3.5px),
-    radial-gradient(circle at 16% 72%, rgba(215, 50, 60, 0.6) 0 3px, transparent 3.5px),
-    radial-gradient(circle at 84% 28%, rgba(215, 50, 60, 0.6) 0 3px, transparent 3.5px),
-    radial-gradient(circle at 84% 72%, rgba(215, 50, 60, 0.6) 0 3px, transparent 3.5px),
-    linear-gradient(90deg, transparent calc(50% - 1.5px), rgba(215, 50, 60, 0.7) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)),
-    linear-gradient(90deg, transparent 29%, rgba(60, 110, 220, 0.65) 29% calc(29% + 4px), transparent calc(29% + 4px) calc(71% - 4px), rgba(60, 110, 220, 0.65) calc(71% - 4px) 71%, transparent 71%),
-    linear-gradient(180deg, rgba(236, 246, 255, 0.3), rgba(190, 220, 245, 0.14)),
-    #0b1522;
-}
 @media (prefers-reduced-motion: reduce) { .choix-option.tc .tc-art::after { animation: none; } }
 
 /* LE DOS D'UNE CARTE (le paquet) : le bleu de nuit de la série et sa marque. */
@@ -7257,6 +7320,8 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
 }
 .cj-art .tc-portrait .headshot-fallback { font-size: 54px; }
+.cj-art .tc-portrait > .tc-action { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.cj-art .tc-portrait:has(> .tc-action) > :not(.tc-action) { display: none; }
 .cj-art .tc-medaille {
   top: 6px; right: 6px; bottom: auto; width: 30px; height: 30px; 
   
@@ -8533,7 +8598,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .slot.cj-case .slot-band .sb-logo { flex: none; }
 .slot.cj-case .slot-band .slot-salary { flex: none; white-space: nowrap; }
 
-/* Le polaroïd rétrécit la photo (son bord blanc) : le secours (sous le portrait) se rétrécit avec elle. */
 
 /* LA MASSE SALARIALE (S79) : le plafond effectif, à l'inventaire et à la boutique. */
 .inv-plafond { margin: 0 var(--sp-3, 12px) 8px; padding: 8px 10px; border: 1px solid var(--line, #2a3340); border-radius: 10px; background: var(--card, rgba(255,255,255,0.03)); }
@@ -8954,12 +9018,15 @@ img.visage.brut { object-position: 50% 12% !important; }
   .choix-main.trois > .tc { flex: none; min-width: 0; }
   .choix-main.trois > .tc .tc-cadre { padding: 7px 6px; gap: 5px; }
   .choix-main.trois > .tc .tc-nom { font-size: 13px; line-height: 1.05; overflow-wrap: anywhere; }
-  .choix-main.trois > .tc .tc-coin { font-size: 11px; padding: 3px 5px; }
+  .choix-main.trois > .tc .tc-coin { width: 30px; height: 33px; font-size: 15px; }
+  .choix-main.trois > .tc .tc-tete { min-height: 26px; }
+  .choix-main.trois > .tc .tc-tete:has(> .tc-coin) { padding-left: 25px; }
+  .choix-main.trois > .tc .tc-type { margin: -12px -10px 0; padding: 4px 11px; }
   .choix-main.trois > .tc .tc-art { height: 56px; }
   .choix-main.trois > .tc .tc-art-ico { font-size: 30px; }
   .choix-main.trois > .tc .tc-type { font-size: 9.5px; letter-spacing: .02em; white-space: normal; }
   .choix-main.trois > .tc .tc-texte { font-size: 11.5px; line-height: 1.3; }
-  .choix-main.trois > .tc .puce { font-size: 10px; padding: 2px 6px; }
+  .choix-main.trois > .tc .puce { font-size: 10px; padding: 0 0 0 5px; }
   .choix-main.trois > .tc .tc-pied { display: none; }
   .choix-main.trois > .tc .tc-quoi { -webkit-line-clamp: 8; }
 }

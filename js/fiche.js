@@ -328,14 +328,15 @@ export function showPlayerModal(p, opts = {}) {
    * LA FICHE EST UNE CARTE, RECTO ET VERSO (S78). JP : *devant de carte
    * vertical, pour stats et face complète car portraits* ; puis *les cartes
    * devraient être verticales, pis recto verso même style, avec largeur
-   * pleine*. Une seule carte debout, sur toute la largeur de la fiche (420 px
-   * au plus, au bureau), dans le dessin de son ÉPOQUE et aux couleurs de son
-   * CLUB (`ereDe`, style.css « LES ÈRES ») ; la variante n'est que la
-   * finition, la même sur les deux faces. Les deux faces s'empilent dans la
+   * pleine*. Une seule carte debout, sur toute la largeur de la fiche (400 px
+   * au plus, au bureau), dans le dessin de sa SÉRIE et aux couleurs de son
+   * CLUB (1.0, `cartonDe`, style.css « LES SÉRIES ») ; la variante en est la
+   * parallèle, la même sur les deux faces. Les deux faces s'empilent dans la
    * même case : la carte a la taille de la plus haute, et elle ne change pas
    * de taille quand on la retourne.
-   *   RECTO — le visage entier, la rondelle du poste, l'écusson et l'année ;
-   *     le nom et le club ; la vraie saison (six nombres) ; le salaire.
+   *   RECTO — le carton (le visage, le poste, le niveau, la gemme, le nom, le
+   *     club, les petits caractères), puis la plaque : la vraie saison (six
+   *     nombres) et le salaire.
    *   VERSO — le numéro de la carte, le nom et le poste ; les mensurations ;
    *     ce qu'il sait faire ; les traits, les mesures et la zone ; ce que sa
    *     carte JOUE (la variante et son bonus, en toutes lettres) ; l'échange
