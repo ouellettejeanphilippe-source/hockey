@@ -1738,6 +1738,14 @@ export const IMPORTANCES = {
   normale: { nom: 'Normale', ico: '🎚️', mot: 'un match comme un autre' },
   haute: { nom: 'Haute', ico: '🌡️', mot: 'on joue ça comme un match des séries', finition: 1.03, defense: 0.97, blessure: 1.25, energie: 1.12 },
 };
+/*
+ * UN SEUL RÉGLAGE (1.0, J2-11) : la consigne porte aussi la répartition
+ * attaque / défense (`ad`, −2 à 2) qu'un curseur réglait à part. Basse penche
+ * défense, Haute penche attaque. Le moteur lit toujours `match.ad` (la même
+ * formule, `effetDeMoment`) : une vieille décision garde son `ad` et rejoue
+ * à l'identique.
+ */
+export const AD_DE_CONSIGNE = { basse: -1, normale: 0, haute: 1 };
 
 /* La ligne u : son trio, et sa paire (la quatrième ligne n'en a pas). */
 export const pairDeLigne = u => (u < 3 ? u : null);
@@ -6497,7 +6505,7 @@ export const PLANS_ADV = {
   matraquage: { ico: '🔨', nom: 'Le matraquage', mot: 'Ils vont frapper tout ce qui bouge.', lignes: { 0: { agr: 3 }, 1: { agr: 3 }, 2: { agr: 3 }, 3: { agr: 3 } },
     contre: { agrMax: 0, n: 2 }, pourquoi: 'ne pas répondre : leurs punitions deviennent tes avantages numériques' },
   vedette: { ico: '⭐', nom: 'Tout passe par leur premier trio', mot: 'Leur premier trio va jouer une éternité.', lignes: { 0: { sec: 85 }, 3: { sec: 40 } },
-    contre: { ad: -1 }, pourquoi: 'une consigne penchée défense serre leur premier trio' },
+    contre: { ad: -1 }, pourquoi: 'la consigne Basse, qui penche défense, serre leur premier trio' },
 };
 /* Ce qui contre un plan : la tactique qui étouffe la leur, ou le réglage que le plan dit. */
 const contreDuPlan = P => (P.contre ? P.contre : P.tac ? { tac: contreDe(P.tac), n: 2 } : null);
@@ -6507,7 +6515,7 @@ export function commentContrer(cle) {
   if (!c) return '';
   if (c.tac) return `${c.n} lignes en ${TACTIQUES[c.tac].ico} ${TACTIQUES[c.tac].nom} — leur système est étouffé, plus d'actions spéciales`;
   if (c.agrMax != null) return `${c.n} lignes en agressivité ${AGRESSIVITES[c.agrMax].nom.toLowerCase()} — ${P.pourquoi}`;
-  return `une consigne de match penchée défense (Préparer le match) — ${P.pourquoi}`;
+  return `la consigne ${IMPORTANCES.basse.ico} ${IMPORTANCES.basse.nom} (Préparer le match) — ${P.pourquoi}`;
 }
 /* Le plan est-il contré ? Des lignes `{ tac, agr }` × 4 et la consigne du match (`ad`, −2 à 2). */
 export function planEstContre(cle, lignes, ad = 0) {

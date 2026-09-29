@@ -1573,6 +1573,13 @@ async function traverserSaison(etiquette, reprise = false) {
         const multiplient = await page.$$eval('#lignesModal .gl-totaux .gl-mot', e => e.filter(x => x.textContent.trim() === 'Les effets se multiplient entre eux.').length);
         if (!/^Ce soir :/.test(totAvant)) errors.push(`« Préparer le match » ne dit pas les totaux du soir : « ${totAvant} »`);
         if (multiplient !== 1) errors.push(`« Les effets se multiplient entre eux. » paraît ${multiplient} fois dans « Préparer le match »`);
+        // L'ADVERSAIRE D'ABORD, UN SEUL RÉGLAGE (1.0, J2-11) : « En face » avant la consigne, et plus de curseur attaque / défense.
+        const ordre = await page.evaluate(() => {
+          const a = document.querySelector('#lignesModal .gl-adv-tete'), c = document.querySelector('#lignesModal .gl-consigne');
+          return { adv: !!a, avant: !!(a && c && (a.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING)), curseur: !!document.querySelector('#lignesModal .gl-ad-range, #lignesModal .gl-ad') };
+        });
+        if (!ordre.adv || !ordre.avant) errors.push('« Préparer le match » ne montre pas l\'adversaire avant la consigne');
+        if (ordre.curseur) errors.push('« Préparer le match » garde un curseur attaque / défense à côté de la consigne');
         // DEVANT LE FILET CE SOIR (C4) : deux gardiens, la rotation choisie, l'autre se touche.
         const filets = await page.$$eval('#lignesModal .gl-filet [data-filet]', e => e.map(b => ({ qui: b.dataset.filet, on: b.classList.contains('on'), jambes: !!b.querySelector('.jambes') })));
         if (filets.length !== 2 || filets.filter(f => f.on).length !== 1 || !filets.every(f => f.jambes)) errors.push(`« Devant le filet ce soir » n'a pas ses deux gardiens : ${JSON.stringify(filets)}`);
