@@ -491,9 +491,9 @@ if (posee) {
     break;
   }
   if (!fait) console.log('12b. plus de modif à poser (ou personne à qui elles vont)');
-  if (!(await page.$('#hubModal .hub-boutique'))) { await page.click('#navbar [data-page="match"]').catch(() => {}); }
+  if (!(await page.$('#hubModal .hub-boutique'))) { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); }
 }
-await page.click('#navbar [data-page="match"]');
+await page.click('#navbar .navtab[data-section="club"]');
 await page.waitForSelector('#hubModal .hub-boutique', { timeout: 20000 });
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
 for (let i = 0; i < 200; i++) {
