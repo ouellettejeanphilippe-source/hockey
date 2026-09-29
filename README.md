@@ -83,7 +83,9 @@ Avec 23 joueurs de cote uniforme contre la moyenne de la ligue : cote 60 donne 5
 - [CLAUDE.md](CLAUDE.md) — conventions et règles pour les agents de code
 - [AGENTS.md](AGENTS.md) — même chose, pour Jules et compagnie
 - [ARCHITECTURE.md](ARCHITECTURE.md) — pourquoi le découpage par saison, les trois sources de données
+- [LIVRAISON.md](LIVRAISON.md) — le plan de travail vers la 1.0
 - [PLAN.md](PLAN.md) — état du projet, ce qui reste à faire
+- [docs/](docs/README.md) — l'historique : décisions, référence du moteur, journal par sprint
 
 ## Données
 
