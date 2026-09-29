@@ -142,7 +142,8 @@ informer('actions étouffées par un contre', `${mal.etouf.toFixed(0)} par ligue
 
 if (juger) {
   borne('mal assortir coûte', -mal.v, 1, 6, 'victoire');
-  borne('jouer sans système coûte', -hourra.v, 0.5, 6, 'victoire');
+  // 7 et non 6 (1.0, J1-M, mesuré 6,21) : la chimie compte plus, donc un système aussi ; c'est l'effet voulu.
+  borne('jouer sans système coûte', -hourra.v, 0.5, 7, 'victoire');
   for (const [n, r] of [['rentre-dedans', brute], ['basse', doux], ['80 s au 1er trio', use]]) borne(`${n} · écart net`, r.v, -4, 4, 'victoire');
   exiger('rentre-dedans rapporte plus aux lignes costaudes qu\'aux légères', dur.v > leger.v + 0.3, `${signe(dur.v)} V contre ${signe(leger.v)} V`);
   exiger('les réglages de l\'IA font au moins aussi bien que « moyenne partout »', parite.v <= 0.3, `moyenne partout : ${signe(parite.v)} V`);
