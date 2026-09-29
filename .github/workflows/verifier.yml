@@ -40,6 +40,8 @@ name: Vérifier
 #                   une pièce par case, la rondelle toujours jouable, le
 #                   porteur jamais au sol, un match qui finit sur un gagnant —
 #                   et les règles écrites comparées aux gestes réellement joués
+#   check_actions   les photos d'action (1.0) : la liste, le recadrage 5:7,
+#                   et une carte sans photo qui garde son portrait
 #   smoke           le parcours complet à 390 px dans Chromium : vestiaire,
 #                   loto, saison, séries, zéro erreur console
 #   smoke_table     le même, en mode bonus : le tournoi, le plateau, un match
@@ -140,6 +142,12 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.47.2
           npx playwright install --with-deps chromium
+
+      # Les photos d'action (1.0) : la liste versionnée, le recadrage 5:7 sur des
+      # images de synthèse (dans Chromium), actionSrc sans les images. Sans
+      # réseau ; l'appareil simulé se lance à la main. Cinq secondes.
+      - name: Les photos d'action
+        run: node scripts/check_actions.mjs
 
       - name: Test de fumée à 390 px
         run: |
