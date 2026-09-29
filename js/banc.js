@@ -16,7 +16,7 @@ import { effetsHtml } from './gerant.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS } from './rogue.js';
-import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capHitDuJour, capLeft, estRenfort, headshotHtml, isPicked, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
+import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capHitDuJour, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, poserCartes, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain } from './alignement.js';
 import { bloqueParLePlafond, cartesAJouer, finDeSaisonRogue, jetonsRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs } from './rogue-jeu.js';
@@ -709,7 +709,7 @@ function ouvrirEcranSaison(depuis = 0) {
       depuis,
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
       // la reprise a besoin de connaître.
-      onJour: j => { G.journee = j; saveGame(); if (G.bonus === 'ROGUE') renderCap(); },
+      onJour: j => { G.journee = j; saveGame(); if (G.bonus === 'ROGUE') renderCap(); majEntete(); },
       // LES CARTES DE SAISON : la graine décide de la main offerte à chaque
       // palier (sans toucher au hasard du moteur), et les paliers déjà pris
       // se lisent dans les décisions — il n'y a pas d'autre état.

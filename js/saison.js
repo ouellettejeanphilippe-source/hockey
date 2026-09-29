@@ -1741,6 +1741,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   });
   // MES CARTES, DE PARTOUT (S79) : le cartable du jeu (l'onglet Vestiaire) les ouvre avec la décision du hub.
   if (onDecision && ctx.inventaire) tabs.hub.cartes = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
+  // LE MARCHÉ (1.0, R1) : la boutique du jour, de la section Marché de la coquille.
+  if (onDecision && ctx.boutique) tabs.hub.boutique = () => ctx.boutique.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
   // LA DÉCISION DU JOUR, PRÊTÉE (S80) : une carte posée au verso d'une fiche ouverte n'importe où pendant la saison.
   if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
   /*

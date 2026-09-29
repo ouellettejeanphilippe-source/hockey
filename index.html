@@ -41,30 +41,44 @@
   <symbol id="i-cup" viewBox="0 0 24 24"><path d="M8 3h8l1 4H7l1-4z"/><path d="M9 7v3a3 3 0 0 0 6 0V7"/><path d="M12 13v5M7 21h10M9 18h6"/></symbol>
   <symbol id="i-son" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
   <symbol id="i-muet" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l5 6M21 9l-5 6"/></symbol>
+  <symbol id="i-club" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
+  <symbol id="i-marche" viewBox="0 0 24 24"><path d="M3 4h2.5l2.2 10.5h10.6L20.5 7H7"/><circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></symbol>
+  <symbol id="i-cartes" viewBox="0 0 24 24"><rect x="7" y="3.5" width="12" height="16" rx="2"/><path d="M5 7v11.5A2.5 2.5 0 0 0 7.5 21H15"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
+  <symbol id="i-retour" viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></symbol>
   <symbol id="i-new" viewBox="0 0 24 24"><ellipse cx="10" cy="13.5" rx="7" ry="3.2"/><path d="M3 13.5v2.4c0 1.8 3.1 3.2 7 3.2s7-1.4 7-3.2v-2.4"/><path d="M19.5 4v6M16.5 7h6"/></symbol>
 </svg>
 
-<!-- ===== Barre du haut : plafond et accès, rien d'autre ===== -->
+<!-- ===== L'EN-TÊTE DU CLUB (1.0, R1) : toujours là, dans tous les modes. Ton
+     écusson, ton nom et où en est la partie ; à droite, trois chiffres — la
+     fiche, le rang, le plafond. Le reste (une nouvelle partie, les options,
+     les règles) vit dans le Menu. Les onglets internes d'une section (la
+     Ligue, la Collection) se rangent dessous. ===== -->
 <header class="topbar" id="topbar">
   <div class="topbar-inner">
-    <div class="capgauge" id="capGauge">
-      <div class="capgauge-row">
-        <span class="capgauge-label">Plafond restant</span>
-        <span class="capgauge-amt"><strong id="capAmt" class="amt" data-compte-suivi>—</strong> <span class="capgauge-max" id="capMaxLbl">/ 95,5&nbsp;M$</span></span>
-      </div>
-      <div class="track" aria-hidden="true"><div class="fill" id="capFill" style="width:0%"></div><div class="fill-marker" id="capMarker"></div></div>
-      <div class="capgauge-row small">
-        <span><strong id="cnt">0 / 23</strong> signés</span>
-        <span id="perSlotLbl" title="Budget moyen disponible par case restante">—/case</span>
+    <button type="button" class="retour-btn" id="retourBtn" data-retour hidden><svg class="ico" aria-hidden="true"><use href="#i-retour"/></svg>Retour</button>
+    <div class="tete-club">
+      <span class="tete-ecu" id="teteEcu" aria-hidden="true"></span>
+      <span class="tete-id"><b class="tete-nom">NHL Stars</b><span class="tete-etat" id="teteEtat">—</span></span>
+    </div>
+    <div class="tete-chiffres">
+      <div class="tete-ch" id="teteFiche" hidden><span class="tete-ch-l">Fiche</span><b class="tete-ch-v">—</b></div>
+      <div class="tete-ch" id="teteRang" hidden><span class="tete-ch-l">Rang</span><b class="tete-ch-v">—</b></div>
+      <div class="capgauge tete-ch" id="capGauge">
+        <div class="capgauge-row">
+          <span class="capgauge-label tete-ch-l">Plafond restant</span>
+          <span class="capgauge-amt"><strong id="capAmt" class="amt" data-compte-suivi>—</strong> <span class="capgauge-max" id="capMaxLbl">/ 95,5&nbsp;M$</span></span>
+        </div>
+        <div class="track" aria-hidden="true"><div class="fill" id="capFill" style="width:0%"></div><div class="fill-marker" id="capMarker"></div></div>
+        <div class="capgauge-row small">
+          <span><strong id="cnt">0 / 23</strong> signés</span>
+          <span id="perSlotLbl" title="Budget moyen disponible par case restante">—/case</span>
+        </div>
       </div>
     </div>
-
-    <nav class="topbar-actions" aria-label="Menu">
-      <button class="icon-btn" id="menuBtn" title="Le menu : tes parties et les modes de jeu"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg><span class="icon-lbl">Menu</span></button>
-      <button class="icon-btn" id="openPartieBtn" title="Nouvelle partie : choisir le mode, puis ses réglages"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg><span class="icon-lbl">Nouvelle</span></button>
-      <button class="icon-btn" id="openOptionsBtn" title="Options d'affichage"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span class="icon-lbl">Options</span></button>
-    </nav>
+    <button type="button" class="icon-btn" id="menuBtn" title="Le menu : continuer, les modes, tes parties, les options et les règles"><svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg><span class="icon-lbl">Menu</span></button>
   </div>
+  <nav class="sousnav" id="sousNav" role="tablist" aria-label="Les onglets de la section" hidden></nav>
 </header>
 
 <div id="boot" class="boot">
@@ -159,12 +173,15 @@
   </div>
 </div>
 
-<!-- ===== LA BARRE D'ONGLETS : la seule du jeu, et elle est toujours en bas.
-     Elle est bâtie par `majNavbar` (js/game.js) parce que SES ENTRÉES SUIVENT
-     LA PHASE : pendant le repêchage on bâtit (Vestiaire, Alignement), une fois
-     la saison jouée on la lit (Bilan, Classement, Calendrier, Meneurs,
-     Alignement, Séries). Les trois destinations de référence ne bougent pas. -->
+<!-- ===== LES CINQ SECTIONS (1.0, R1) : Club, Effectif, Marché, Ligue,
+     Collection. Toujours les mêmes, dans le même ordre, dans tous les modes :
+     un rail à gauche dès 1000 px, une barre d'onglets en bas au téléphone.
+     Elle est bâtie par `majNavbar` (js/game.js) : un badge suit la partie,
+     jamais les entrées. ===== -->
 <nav class="navbar" id="navbar" role="tablist" aria-label="Sections"></nav>
+
+<!-- Les commandes de la manette ou du clavier, au bas du rail (js/manette.js). -->
+<div class="invites" id="invites" aria-hidden="true"></div>
 
 <!-- Radar (hexagone) quand le brouillard est levé -->
 
@@ -255,10 +272,16 @@
   <div class="page-corps" id="pageVideCorps"></div>
 </section>
 
-<!-- ===== LE CARTABLE (S79) : l'onglet Vestiaire une fois la saison commencée ===== -->
+<!-- ===== LE CARTABLE (S79) : la Collection, tes joueurs gagnés ===== -->
 <section id="pageCartable" class="page" aria-label="Ton cartable" hidden>
-  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-dice"/></svg>Ton cartable</h2></div>
+  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-cartes"/></svg>Ton cartable</h2></div>
   <div class="page-corps" id="pageCartableCorps"></div>
+</section>
+
+<!-- ===== LE MARCHÉ (1.0, R1) : une fois le repêchage fini, la boutique et tes cartes ===== -->
+<section id="pageMarche" class="page" aria-label="Le marché" hidden>
+  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-marche"/></svg>Le marché</h2></div>
+  <div class="page-corps" id="pageMarcheCorps"></div>
 </section>
 
 <!-- ===== Modale : historique ===== -->
@@ -408,9 +431,9 @@
   </div>
 </div>
 
-<!-- ===== Modale : règles ===== -->
+<!-- ===== LES RÈGLES : un écran secondaire du Menu, par-dessus tout ; « ‹ Retour » y ramène ===== -->
 <section id="pageRegles" class="page" aria-label="Règles du jeu" hidden>
-  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Les règles</h2></div>
+  <div class="page-tete"><button type="button" class="retour-btn" data-retour><svg class="ico" aria-hidden="true"><use href="#i-retour"/></svg>Retour</button><h2><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Les règles</h2></div>
     <div class="page-corps bible" id="bibleBody">
       <!-- 1.0 (C6). La page dit les règles avec les MOTS DE L'ÉCRAN, rangées par ce qui fait un build. Chaque
            chiffre vient d'une constante du code ; scripts/check_clarte.mjs les compare. L'historique des règles

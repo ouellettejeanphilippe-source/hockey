@@ -26,6 +26,10 @@
  *
  * `activerSons(false)` coupe tout : c'est l'option « Sons » et le bouton du
  * plateau, tous deux branchés ici par js/game.js.
+ *
+ * L'INTERFACE A LES SIENS (1.0, R1) : le curseur qui passe d'un bouton à
+ * l'autre, une touche qui confirme, un retour. Trois petits bruits, à peine
+ * audibles — c'est ce qui fait qu'un menu de console se sent sous le pouce.
  */
 
 let ctx = null;
@@ -201,6 +205,10 @@ const SONS = {
   },
   /* Une carte refusée (trop chère) : un bruit sourd, sans note. */
   refus(c, t) { note(c, t, { forme: 'sine', freq: 200, vers: 140, gain: 0.08, dec: 0.12 }); },
+  /* ---- L'INTERFACE (1.0, R1) : le curseur, la confirmation, le retour ---- */
+  curseur(c, t) { note(c, t, { forme: 'triangle', freq: 1320, gain: 0.018, dec: 0.03 }); },
+  valide(c, t) { note(c, t, { forme: 'triangle', freq: 880, vers: 1175, gain: 0.04, dec: 0.07 }); },
+  arriere(c, t) { note(c, t, { forme: 'triangle', freq: 740, vers: 494, gain: 0.035, dec: 0.08 }); },
   /* La récompense : un arpège qui brille. */
   recompense(c, t) {
     [523, 659, 784, 1047].forEach((f, i) => note(c, t + i * 0.07, { forme: 'triangle', freq: f, gain: 0.07, dec: 0.35 }));

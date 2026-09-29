@@ -47,6 +47,63 @@ const choixVus = new Map();
 const _click = page.click.bind(page);
 const _wait = page.waitForSelector.bind(page);
 /*
+ * LA COQUILLE (1.0, R1) : cinq sections — Club, Effectif, Marché, Ligue,
+ * Collection —, et des onglets internes pour la Ligue et la Collection. Le
+ * parcours y va comme un joueur : il touche la section, puis l'onglet interne
+ * s'il y en a un. Les règles vivent dans le Menu. `clic` est `page.click`
+ * (qui règle d'abord les choix forcés, plus bas) ou `_click`.
+ */
+const SECTION_DE = {
+  match: 'club', alignement: 'effectif', repechage: 'marche', marche: 'marche',
+  classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'collection', cartable: 'collection',
+};
+const SECTIONS = ['club', 'effectif', 'marche', 'ligue', 'collection'];
+/*
+ * LA COQUILLE EN PLEINE SAISON (1.0, R1), une fois, après la première
+ * journée : les MÊMES cinq sections qu'au repêchage ; l'en-tête dit la
+ * journée, la fiche, le rang et le plafond ; de la Ligue, du Marché et de la
+ * Collection, Échap remonte au Club en un geste ; aucun nom n'est souligné.
+ */
+let coquilleVue = false;
+async function eprouverCoquille() {
+  coquilleVue = true;
+  const sections = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.section).join(','));
+  if (sections !== SECTIONS.join(',')) errors.push(`en pleine saison, la barre ne porte pas les cinq sections : « ${sections} »`);
+  const tete = await page.evaluate(() => {
+    const v = id => { const e = document.getElementById(id); return e && !e.hidden ? e.querySelector('.tete-ch-v').textContent.trim() : null; };
+    return { etat: document.getElementById('teteEtat').textContent.trim(), fiche: v('teteFiche'), rang: v('teteRang'), plafond: document.getElementById('capAmt').textContent.trim() };
+  });
+  if (!/journée \d+ \/ \d+/.test(tete.etat)) errors.push(`l'en-tête ne dit pas la journée : « ${tete.etat} »`);
+  if (!/^\d+-\d+-\d+$/.test(tete.fiche || '')) errors.push(`l'en-tête ne montre pas la fiche : « ${tete.fiche} »`);
+  if (!/^\d+(er|e)$/.test(tete.rang || '')) errors.push(`l'en-tête ne montre pas le rang : « ${tete.rang} »`);
+  if (!/M\$|—/.test(tete.plafond)) errors.push(`l'en-tête ne montre pas le plafond : « ${tete.plafond} »`);
+  const gestes = [];
+  for (const s of ['ligue', 'marche', 'collection']) {
+    await page.click(`#navbar .navtab[data-section="${s}"]`);
+    await page.waitForTimeout(300);
+    let n = 0;
+    while (n < 3 && await page.evaluate(() => document.body.dataset.page !== 'match')) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); n++; }
+    gestes.push(`${s} ${n}`);
+    if (await page.evaluate(() => document.body.dataset.page !== 'match')) errors.push(`en pleine saison, Échap ne ramène pas au Club depuis « ${s} »`);
+    else if (n > 1) errors.push(`en pleine saison, de « ${s} », Échap prend ${n} gestes pour remonter au Club (un seul attendu)`);
+  }
+  const soulignes = await page.evaluate(() => [...document.querySelectorAll('a, button, .lien-joueur, .lien-equipe')]
+    .filter(e => e.offsetParent && getComputedStyle(e).textDecorationLine.includes('underline')).map(e => e.textContent.trim().slice(0, 24)));
+  if (soulignes.length) errors.push(`en pleine saison, des liens soulignés : ${soulignes.slice(0, 4).join(' · ')}`);
+  console.log(`   la coquille en saison : ${sections.split(',').length} sections · « ${tete.etat} » · fiche ${tete.fiche} · ${tete.rang} · plafond ${tete.plafond} · Échap vers le Club : ${gestes.join(', ')}`);
+}
+async function aller(cle, clic = s => page.click(s)) {
+  if (cle === 'regles') {
+    await clic('#menuBtn');
+    await _wait('#menuDepart [data-menu="regles"]', { timeout: 10000 });
+    await clic('#menuDepart [data-menu="regles"]');
+    await _wait('#pageRegles:not([hidden])', { timeout: 10000 });
+    return;
+  }
+  await clic(`#navbar .navtab[data-section="${SECTION_DE[cle]}"]`);
+  if (await page.$(`#sousNav:not([hidden]) .soustab[data-page="${cle}"]`)) await clic(`#sousNav .soustab[data-page="${cle}"]`);
+}
+/*
  * L'IDENTITÉ DE DÉPART (S73) : « Commencer » ouvre trois cartes en plein
  * écran avant la première roulette. Le parcours prend la première et exige
  * qu'il y en ait trois ; ce qu'il a vu se dit à la fin.
@@ -121,15 +178,16 @@ async function sortirDansAlignement() {
   return true;
 }
 /*
- * « NOUVELLE » RAMÈNE AU CHOIX DU MODE (S79). Le bouton de la barre ouvre les
- * cartons des modes ; « Commencer » sur la saison bâtit une partie neuve et
- * ouvre l'écran « Nouvelle partie », réglé sur la saison.
+ * UNE NOUVELLE PARTIE SE LANCE DU MENU (S79 ; 1.0, R1). L'en-tête n'a plus de
+ * bouton « Nouvelle » : le Menu, ouvert en pleine partie, est le menu pause —
+ * son héros dit « Retour à la partie », et le carton d'un mode commence une
+ * partie neuve et ouvre l'écran « Nouvelle partie », réglé sur ce mode.
  */
 async function nouvelleSaison() {
-  await _click('#openPartieBtn');
+  await _click('#menuBtn');
   await _wait('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]', { timeout: 10000 });
-  const reprise = await page.$$('#menuDepart [data-menu="reprendre"], #menuDepart .menu-parties');
-  if (reprise.length) errors.push('le choix du mode montre des reprises ou « Mes parties » : c\'est le rôle du bouton Menu');
+  const heros = ((await page.textContent('#menuDepart .menu-continuer').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  if (!/^Retour à la partie/.test(heros)) errors.push(`le Menu ouvert en pleine partie ne dit pas « Retour à la partie » : « ${heros} »`);
   await _click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
   await _wait('#partieModal', { state: 'visible', timeout: 30000 });
 }
@@ -538,7 +596,7 @@ async function versLeBilan() {
 }
 async function versLeMatch() {
   const ou = await page.evaluate(() => ({ zone: document.body.dataset.zone, page: document.body.dataset.page }));
-  if (ou.zone === 'hub' && ou.page !== 'match') { await _click('.navtab[data-page="match"]'); await page.waitForTimeout(200); }
+  if (ou.zone === 'hub' && ou.page !== 'match') { await aller('match', _click); await page.waitForTimeout(200); }
 }
 page.click = async (sel, opts) => {
   if (typeof sel === 'string' && /hub-(jour|prochaine|regarder|banc|fin|suite|ronde)\b/.test(sel)) {
@@ -568,7 +626,7 @@ page.click = async (sel, opts) => {
   }
   // Un choix forcé ouvert par-dessus se règle avant tout autre clic dans l'écran
   // — et avant un onglet de la barre, que le plein écran couvre aussi (S74b).
-  else if (typeof sel === 'string' && /^(#hubModal|\.navtab)\b/.test(sel)) await repondreAuxChoix();
+  else if (typeof sel === 'string' && /^(#hubModal|\.navtab|#navbar|#sousNav)\b/.test(sel)) await repondreAuxChoix();
   /*
    * « À RÉGLER AVANT LE MATCH » PEUT S'ÊTRE RÉGLÉ EN ROUTE (1.0). Répondre aux
    * choix ouverts, juste au-dessus, règle souvent le message qui bloquait : le
@@ -752,15 +810,16 @@ console.log('   écran « Nouvelle partie » : ouvert à la première visite, re
   await page.waitForTimeout(400);
   const lu = await page.evaluate(() => {
     const txt = s => (document.querySelector(s) || {}).textContent || '';
-    const badge = txt('.navtab[data-page="repechage"] .navtab-badge').trim();
+    const badge = txt('.navtab[data-section="marche"] .navtab-badge').trim();
     const dash = (txt('#dash').match(/(\d+)\s*signables/) || [])[1];
     const titre = (txt('#poolCount').match(/(\d+)\s*signable/) || [])[1];
     const b = document.getElementById('mainBtn');
-    return { badge, dash, titre, morts: [...document.querySelectorAll('.navtab.mort')].map(x => x.dataset.page).join(','),
+    return { badge, dash, titre, morts: [...document.querySelectorAll('#navbar .navtab.mort')].map(x => x.dataset.section).join(','),
       jauge: b.classList.contains('jauge'), mot: b.textContent.trim(), toast: txt('#toast') };
   });
   if (!(lu.badge && lu.badge === lu.dash && lu.dash === lu.titre)) errors.push(`le vestiaire dit plusieurs nombres : onglet ${lu.badge}, tableau ${lu.dash}, titre ${lu.titre}`);
-  if (!/classement/.test(lu.morts) || !/meneurs/.test(lu.morts)) errors.push(`les onglets vides du repêchage ne sont pas estompés : ${lu.morts || 'aucun'}`);
+  // 1.0 (R1) : le classement et les meneurs vivent dans la Ligue — c'est elle qui s'estompe.
+  if (!/ligue/.test(lu.morts)) errors.push(`les onglets vides du repêchage ne sont pas estompés : ${lu.morts || 'aucun'}`);
   if (!lu.jauge || !/^\d+ \/ \d+ · encore \d+$/.test(lu.mot)) errors.push(`le bouton du bas n'est pas une jauge : « ${lu.mot} »`);
   if (/repart à zéro/.test(lu.toast)) errors.push(`la première roulette s'annonce par un toast : « ${lu.toast} »`);
   console.log(`   le vestiaire : ${lu.badge} signables partout, onglets estompés (${lu.morts}), jauge « ${lu.mot} »`);
@@ -936,7 +995,7 @@ async function toutEstAtteignable(ou) {
  */
 const TAILLES = [[360, 640], [768, 1024], [1280, 800], [1920, 1080], [3840, 2160]];
 async function redimensionner(ou) {
-  const lireBarre = () => page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.page).join(' · '));
+  const lireBarre = () => page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.section).join(' · '));
   const ref = await lireBarre();
   const vus = [];
   for (const [w, h] of TAILLES) {
@@ -1008,7 +1067,7 @@ async function sansCote(ou) {
  * voulu). Le `atteignable` de S55 reste, et c'est lui qui attrape le cas où
  * quelque chose passe par-dessus.
  */
-const FLOTTE = 10;       // le retrait du bas, en pixels (voir `.navbar`, style.css)
+const FLOTTE = 0;        // le retrait du bas, en pixels : 1.0 (R1), la barre est posée au bas (voir `.navbar`, style.css)
 const FLOTTE_MAX = FLOTTE + 4;
 const malPlacee = fond => fond < -1 || fond > FLOTTE_MAX;
 
@@ -1142,7 +1201,7 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
  * faux.
  */
 {
-  await page.click('.navtab[data-page="equipes"]');
+  await aller('equipes');
   await page.waitForSelector('#pageEquipes .eq-carte', { timeout: 40000 });
   const clubs = await page.$$eval('#pageEquipes .eq-carte', l => l.length);
   const annee = await page.$eval('#pageEquipes .eq-select', e => e.value);
@@ -1183,7 +1242,7 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
   if (!ficheOuverte) errors.push("la fiche d'un joueur ne s'ouvre pas depuis l'écran des équipes");
   if (!dessous) errors.push("Échap ferme l'écran des équipes SOUS la fiche d'un joueur : une modale du dessous ne doit pas partir avec celle du dessus");
   console.log(`   les équipes : ${clubs} clubs en ${annee}, écran ancré, ${await sansDebordement('écran des équipes')} px de débordement, ${await sansCote('écran des équipes')} cote(s)`);
-  await page.click('.navtab[data-page="repechage"]');
+  await aller('repechage');
   await page.waitForTimeout(250);
 }
 
@@ -1211,13 +1270,29 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
     };
   });
   const vus = [];
-  // LA BARRE EST FIXE (S67) : ses neuf entrées existent dès le repêchage, et
-  // celles qui n'ont encore rien à montrer tiennent leur état vide sur un écran.
-  for (const cle of ['match', 'repechage', 'alignement', 'classement', 'calendrier', 'meneurs', 'equipes', 'historique', 'regles']) {
-    const b = await page.$(`.navtab[data-page="${cle}"]`);
-    if (!b) { errors.push(`la barre d'onglets n'a pas d'onglet « ${cle} »`); continue; }
-    await b.click();
+  // LA BARRE EST FIXE (S67 ; 1.0, R1) : ses cinq sections existent dès le
+  // repêchage, et chaque page de chaque section tient sur un écran, même vide.
+  const sections = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.section).join(','));
+  if (sections !== SECTIONS.join(',')) errors.push(`la barre du repêchage ne porte pas les cinq sections : « ${sections} »`);
+  for (const cle of ['match', 'repechage', 'alignement', 'classement', 'calendrier', 'meneurs', 'equipes', 'historique', 'cartable', 'regles']) {
+    if (cle !== 'regles' && !(await page.$(`#navbar .navtab[data-section="${SECTION_DE[cle]}"]`))) { errors.push(`la barre n'a pas de section pour « ${cle} »`); continue; }
+    await aller(cle);
     await page.waitForTimeout(cle === 'equipes' ? 2500 : 400);
+    if (cle === 'regles') {
+      // Les règles : un écran secondaire du Menu, par-dessus tout, qui tient sur un écran ; Échap y remonte.
+      const r = await page.evaluate(() => { const p = document.getElementById('pageRegles'); const b = p.getBoundingClientRect(); return { vu: !p.hidden, haut: Math.round(b.height), fenetre: innerHeight }; });
+      vus.push(`regles ${r.vu ? 'ouvertes' : 'fermées'}`);
+      if (!r.vu || r.haut > r.fenetre + 1) errors.push(`les règles ne s'ouvrent pas du Menu sur un écran : ${JSON.stringify(r)}`);
+      await sansDebordement('les règles');
+      await toutEstAtteignable('les règles');
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(250);
+      if (!(await page.$('#pageRegles[hidden]'))) errors.push('Échap ne referme pas les règles');
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(250);
+      if (await page.$('#menuDepart')) errors.push('Échap ne referme pas le Menu ouvert en pleine partie');
+      continue;
+    }
     const e = await lire();
     vus.push(`${cle} ${e.ecrans}×`);
     if (e.page !== cle) errors.push(`l'onglet « ${cle} » ne pose pas la page : body[data-page] vaut « ${e.page} »`);
@@ -1231,9 +1306,66 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
     }
   }
   console.log(`   un onglet, une raison d'être : ${vus.join(' · ')}`);
-  barreAuRepechage = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.page).join(' · '));
+  /*
+   * LE RETOUR, UN NIVEAU À LA FOIS (1.0, R1). De chaque section, Échap remonte
+   * au Club en un geste (deux au plus quand une case est visée) ; une fiche
+   * ouverte par-dessus se ferme d'abord, et la section reste.
+   */
+  {
+    const gestes = [];
+    for (const s of ['effectif', 'marche', 'ligue', 'collection']) {
+      await page.click(`#navbar .navtab[data-section="${s}"]`);
+      await page.waitForTimeout(300);
+      if (s === 'effectif') {
+        const nom = await page.$('.slot .slot-fiche');
+        if (nom) {
+          await nom.click();
+          await page.waitForSelector('#hockeyCardModal', { state: 'visible', timeout: 5000 }).catch(() => {});
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(250);
+          const o = await page.evaluate(() => ({ fiche: document.getElementById('hockeyCardModal').style.display !== 'none', page: document.body.dataset.page }));
+          if (o.fiche || o.page !== 'alignement') errors.push(`Échap sur une fiche ouverte de l'alignement : fiche ${o.fiche ? 'encore ouverte' : 'fermée'}, page « ${o.page} »`);
+        }
+      }
+      let n = 0;
+      while (n < 3 && await page.evaluate(() => document.body.dataset.page !== 'match')) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); n++; }
+      gestes.push(`${s} ${n}`);
+      if (await page.evaluate(() => document.body.dataset.page !== 'match')) errors.push(`Échap ne ramène pas au Club depuis « ${s} » en trois gestes`);
+      else if (n > 2) errors.push(`de « ${s} », Échap prend ${n} gestes pour remonter au Club`);
+    }
+    /*
+     * LES IDIOMES DE CONSOLE : le corps ne se sélectionne pas comme un texte,
+     * aucun bouton ni lien n'est souligné, et les flèches déplacent le focus
+     * — avec son anneau lumineux, en mode clavier seulement.
+     */
+    await page.click('#navbar .navtab[data-section="effectif"]');
+    await page.waitForTimeout(300);
+    const idiomes = await page.evaluate(() => ({
+      selection: getComputedStyle(document.body).userSelect,
+      soulignes: [...document.querySelectorAll('a, button, .lien-joueur, .lien-equipe')]
+        .filter(e => e.offsetParent && getComputedStyle(e).textDecorationLine.includes('underline')).map(e => e.textContent.trim().slice(0, 24)),
+    }));
+    if (idiomes.selection !== 'none') errors.push(`le corps de la page se sélectionne comme un texte (user-select: ${idiomes.selection})`);
+    if (idiomes.soulignes.length) errors.push(`des boutons ou des liens soulignés : ${idiomes.soulignes.slice(0, 4).join(' · ')}`);
+    const focus = () => page.evaluate(() => { const a = document.activeElement; return a && a !== document.body ? `${a.tagName}|${a.className}|${(a.textContent || '').trim().slice(0, 20)}` : null; });
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(120);
+    const f1 = await focus();
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(120);
+    const f2 = await focus();
+    const clavier = await page.evaluate(() => document.body.classList.contains('nav-clavier'));
+    if (!f1 || !f2 || f1 === f2) errors.push(`les flèches ne déplacent pas le focus : « ${f1} » puis « ${f2} »`);
+    if (!clavier) errors.push('les flèches ne passent pas en mode clavier (l\'anneau du focus reste éteint)');
+    await page.screenshot({ path: 'scripts/smoke-focus.png', fullPage: false });
+    await page.mouse.click(5, 5);
+    const eteint = await page.evaluate(() => !document.body.classList.contains('nav-clavier'));
+    if (!eteint) errors.push('un clic n\'éteint pas l\'anneau du focus');
+    console.log(`   le retour : Échap vers le Club (${gestes.join(', ')}) · user-select ${idiomes.selection} · ${idiomes.soulignes.length} souligné(s) · les flèches : « ${(f1 || '').split('|')[2]} » → « ${(f2 || '').split('|')[2]} »`);
+  }
+  barreAuRepechage = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.section).join(' · '));
   await redimensionner('le repêchage');
-  await page.click('.navtab[data-page="repechage"]');
+  await aller('repechage');
   await page.waitForTimeout(300);
 }
 
@@ -1260,6 +1392,7 @@ async function traverserSaison(etiquette, reprise = false) {
     else if (!som) console.log('   un match ordinaire : pas de plein écran, le résultat monte au bureau');
   }
   const jour = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
+  if (!coquilleVue) { await repondreAuxChoix(); await eprouverCoquille(); }
 
   /*
    * UNE SAISON EN COURS SURVIT À UN RAFRAÎCHISSEMENT. La sauvegarde s'arrêtait
@@ -1310,7 +1443,7 @@ async function traverserSaison(etiquette, reprise = false) {
      */
     const teteAvantBanc = apres;
     // L'onglet Alignement mène derrière le banc (S78 : le bouton « Le banc » faisait doublon).
-    await page.click('.navtab[data-page="alignement"]');
+    await aller('alignement');
     await page.waitForSelector('#bancPanel:not([hidden])', { timeout: 5000 });
     await page.waitForTimeout(300);
     /*
@@ -1603,12 +1736,12 @@ async function traverserSaison(etiquette, reprise = false) {
      */
     {
       // S79 : la route vit dans « Ma fiche » (l'onglet Calendrier), avec sa légende.
-      await _click('.navtab[data-page="calendrier"]');
+      await aller('calendrier', _click);
       await page.waitForTimeout(250);
       const route = await page.$$eval('#hubModal .hub-route-m', e => e.length);
       const legende = await page.$('#hubModal .hub-route-legende');
       if (!legende) errors.push('la route de la saison n\'a pas sa légende dans « Ma fiche »');
-      await _click('.navtab[data-page="match"]');
+      await aller('match', _click);
       await page.waitForTimeout(250);
       const jauges = await page.$$eval('#hubModal .hub-jauge, #choixModal .hub-jd', e => e.length);
       if (route < 10) errors.push(`la route de la saison n'a que ${route} marques`);
@@ -1683,7 +1816,7 @@ async function traverserSaison(etiquette, reprise = false) {
       else console.log('   le portail du bureau : quatre tuiles à 1440 px, aucune au téléphone');
     }
     await redimensionner('la saison, onglet Match');
-    await _click('.navtab[data-page="classement"]');
+    await aller('classement', _click);
     await page.waitForTimeout(250);
     if ((await page.evaluate(() => document.body.dataset.zone)) !== 'hub') errors.push('en pleine saison, le classement ne s\'ouvre pas dans l\'écran de saison');
     /*
@@ -1712,7 +1845,7 @@ async function traverserSaison(etiquette, reprise = false) {
       if (cl.cache) errors.push(`au bout du classement, le bouton flottant couvre ta rangée de ${cl.cache}`);
     }
     await redimensionner('la saison, onglet Classement');
-    await _click('.navtab[data-page="match"]');
+    await aller('match', _click);
     await page.waitForTimeout(250);
 
     const trouVu = { fait: false, mot: null, erreurs: [] };
@@ -1912,13 +2045,13 @@ async function traverserSaison(etiquette, reprise = false) {
        */
       if (etiquette === 'saison') {
         await repondreAuxChoix();
-        await page.click('.navtab[data-page="calendrier"]');
+        await aller('calendrier');
         await page.waitForTimeout(250);
         const recit = await page.$$eval('#hubModal .recit .recit-ev', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
         const actes = await page.$$eval('#hubModal .recit .recit-acte-t', e => e.map(x => x.textContent.trim()));
         if (!recit.length || !recit.some(t => /proprio/i.test(t))) errors.push(`« Ma fiche » ne raconte pas la saison : ${recit.slice(0, 3).join(' | ') || 'rien'}`);
         else console.log(`   ton histoire : ${recit.length} moments en ${actes.length} acte(s) — ${recit.slice(0, 3).join(' | ')}`);
-        await page.click('.navtab[data-page="match"]');
+        await aller('match');
         await page.waitForTimeout(200);
       }
 
@@ -2097,7 +2230,7 @@ async function traverserSaison(etiquette, reprise = false) {
     else if (malPlacee(ou.fond)) errors.push(`la barre de l'écran de saison est à ${ou.fond} px du bas (retrait voulu ${FLOTTE})`);
     else console.log(`   une seule barre, celle du jeu : l'écran de saison finit à ${ou.volet} px, la barre commence à ${ou.barre} px, à ${ou.fond} px du bas`);
   }
-  await page.click('.navtab[data-page="meneurs"]');
+  await aller('meneurs');
   const tableaux = await page.$$eval('#hubModal .hub-volet .live-tableau', l => l.length);
   const meneurs = await page.$$eval('#hubModal .hub-volet tbody tr', l => l.length);
   console.log(`   ${etiquette} : ${jour} · meneurs : ${tableaux} tableaux, ${meneurs} rangées`);
@@ -2221,7 +2354,7 @@ async function nomsCliquables(etiquette) {
       ls.filter(tr => tr.querySelector('td.nom') && !tr.querySelector('td.nom .lien-joueur')).length);
     if (dansLeClub) errors.push(`${etiquette} : ${dansLeClub} nom(s) muet(s) dans la feuille d'une équipe`);
   }
-  await page.click('.navtab[data-page="meneurs"]');
+  await aller('meneurs');
   await page.waitForTimeout(100);
 }
 
@@ -2302,7 +2435,7 @@ if (enabled) {
    * ses cartes de match (au moins celles du départ), sans déborder.
    */
   {
-    await page.click('.navtab[data-page="historique"]');
+    await aller('historique');
     await page.waitForTimeout(300);
     await page.click('.lb-vues [data-vue="album"]');
     await page.waitForTimeout(400);
@@ -2315,7 +2448,7 @@ if (enabled) {
     else console.log(`   l'album : ${a.joueurs} joueurs au cartable, ${a.cartes} cartes eues, ${a.trous} à trouver`);
     await sansDebordement('l\'album');
     await page.click('.lb-vues [data-vue="saisons"]');
-    await page.click('.navtab[data-page="match"]');
+    await aller('match');
     await page.waitForTimeout(300);
   }
   // Le bilan porte les tableaux les plus larges du jeu (onze colonnes) : s'il
@@ -2329,7 +2462,7 @@ if (enabled) {
    * décidés par les colonnes : ce que le moteur tranche, jamais ce qu'un vote
    * trancherait.
    */
-  await page.click('.navtab[data-page="meneurs"]');
+  await aller('meneurs');
   await page.waitForTimeout(350);
   const trophees = await page.$$eval('.tro-carte', els => els.map(e => ({
     nom: (e.querySelector('.tro-nom') || {}).textContent || '',
@@ -2351,7 +2484,7 @@ if (enabled) {
    * donc on l'ATTEND plutôt que de la lire tout de suite.
    */
   {
-    await page.click('.navtab[data-page="classement"]');
+    await aller('classement');
     await page.waitForTimeout(150);
     const cible = await page.$$eval('#resultHost .result-pane[data-volet="classement"] .lien-equipe', ls => {
       const i = ls.findIndex(b => !/NHL/.test(b.textContent));
@@ -2397,7 +2530,7 @@ if (enabled) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(120);
     }
-    await page.click('.navtab[data-page="match"]');
+    await aller('match');
     await page.waitForTimeout(120);
     /*
      * ET LES CARTONS D'ENTRACTE, qui sont l'autre endroit où le bilan nomme
@@ -2460,10 +2593,10 @@ if (enabled) {
    */
   {
     // S67 : « La ligue » se lit sous le classement, dans le même onglet.
-    const ong = await page.$('.navtab[data-page="classement"]');
+    const ong = await page.$('#navbar .navtab[data-section="ligue"]');
     if (!ong) errors.push("l'onglet du classement n'existe pas au bilan");
     else {
-      await ong.click();
+      await aller('classement');
       await page.waitForTimeout(3500);   // les shards des 31 adversaires
       const n = await page.evaluate(() => {
         const v = document.querySelector('#resultHost .result-pane[data-volet="ligue"]');
@@ -2498,7 +2631,7 @@ if (enabled) {
    * chaque nombre du jeu au-dessus du vrai.
    */
   {
-    await page.click('.navtab[data-page="equipes"]');
+    await aller('equipes');
     await page.waitForTimeout(2600);
     const ouverte = await page.$$eval('#pageEquipes [data-source].on', e => e.map(x => x.dataset.source));
     if (ouverte[0] !== 'ligue') errors.push(`l'onglet des équipes ouvre « ${ouverte[0] || 'rien'} » au lieu de ma ligue une fois la saison jouée`);
@@ -2530,7 +2663,7 @@ if (enabled) {
       await sansDebordement('un club de ma ligue');
       await sansCote('un club de ma ligue');
     }
-    await page.click('.navtab[data-page="match"]');
+    await aller('match');
     await page.waitForTimeout(400);
   }
   /*
@@ -2551,7 +2684,7 @@ if (enabled) {
     });
     // LA MÊME BARRE QU'AU REPÊCHAGE (S67), entrée pour entrée, dans le même
     // ordre : c'est ce que « même organisation, peu importe le moment » veut dire.
-    const ici = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.page).join(' · '));
+    const ici = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.section).join(' · '));
     if (barreAuRepechage && ici !== barreAuRepechage) errors.push(`la barre a changé depuis le repêchage : « ${barreAuRepechage} » puis « ${ici} »`);
     if (b.deborde) errors.push(`la barre du bas déborde la page de ${b.deborde} px : c'est LA BARRE qui défile, pas la page`);
     if (malPlacee(b.bas)) errors.push(`la barre du bas est à ${b.bas} px du bas (retrait voulu ${FLOTTE})`);
@@ -2559,11 +2692,11 @@ if (enabled) {
   }
   const hauteurs = {};
   for (const v of ['match', 'classement', 'calendrier', 'meneurs', 'alignement']) {
-    const b = await page.$(`.navtab[data-page="${v}"]`);
+    const b = await page.$(`#navbar .navtab[data-section="${SECTION_DE[v]}"]`);
     // Un onglet manquant ne se saute PAS : c'était un test qui passait
     // toujours. La saison est jouée, donc la barre porte ses sections.
     if (!b) { errors.push(`la barre du bas n'a pas d'onglet « ${v} » une fois la saison jouée`); continue; }
-    await b.click();
+    await aller(v);
     await page.waitForTimeout(220);
     const pose = await page.evaluate(() => document.body.dataset.page);
     if (pose !== v) errors.push(`l'onglet « ${v} » ne pose pas la page : body[data-page] vaut « ${pose} »`);
@@ -2573,7 +2706,7 @@ if (enabled) {
   }
   console.log(`   jamais une longue page : ${Object.entries(hauteurs).map(([k, n]) => `${k} ${n}×`).join(' · ')}`);
   await redimensionner('le bilan');
-  await page.click('.navtab[data-page="match"]');
+  await aller('match');
   await page.waitForTimeout(200);
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
   /*
@@ -2712,9 +2845,9 @@ if (enabled) {
     else console.log(`   reprise des séries : ${poApres} — ${poSauve.vus} match(s) révélé(s), ${lbApres} entrée(s) d'historique`);
 
     await repondreAuxChoix();
-    await page.click('.navtab[data-page="classement"]');
+    await aller('classement');
     const noeuds = await page.$$eval('#hubModal .bk-serie', l => l.length);
-    await page.click('.navtab[data-page="match"]');
+    await aller('match');
     await page.waitForTimeout(200);
     const regarder = await page.$('#hubModal .hub-regarder');
     let xe = 'pas de match à regarder';
@@ -2789,15 +2922,21 @@ if (enabled) {
     else if (!Number.isFinite(po2.series.V) || !po2.series.rondes) errors.push(`le verdict des séries est incomplet : ${JSON.stringify(po2.series)}`);
     else console.log(`   historique : ${po2.series.coupe ? '🏆 Coupe' : po2.series.ronde} · séries ${po2.series.V}-${po2.series.D} · format ${po2.mode}`);
     // Et l'écran de l'historique le montre, avec le compte des Coupes en tête.
-    await page.click('.navtab[data-page="historique"]');
+    await aller('historique');
     await page.waitForSelector('#pageHistorique:not([hidden])', { timeout: 10000 });
     const tete = ((await page.textContent('#leaderboardBody .lb-tete')) || '').replace(/\s+/g, ' ').trim();
     if (!/Coupe/.test(tete)) errors.push(`l'historique ne dit pas les Coupes : « ${tete} »`);
     else console.log(`   l'historique en tête : ${tete}`);
     // LA BARRE NE PERD RIEN (S67) : le vestiaire reste là, et il dit que le
     // repêchage est fini plutôt que de disparaître.
-    if (!(await page.$('.navtab[data-page="repechage"]'))) errors.push("la barre a perdu l'onglet du vestiaire une fois la saison jouée");
-    await page.click('.navtab[data-page="match"]');
+    if (!(await page.$('#navbar .navtab[data-section="marche"]'))) errors.push("la barre a perdu l'onglet du vestiaire une fois la saison jouée");
+    await aller('marche');
+    await page.waitForTimeout(250);
+    if (!(await page.$('#pageMarche:not([hidden]) [data-marche="cartes"]'))) errors.push('le Marché ne montre pas « Mes cartes » une fois la saison jouée');
+    await aller('cartable');
+    await page.waitForTimeout(250);
+    if (!(await page.$('#pageCartable:not([hidden])'))) errors.push('la Collection ne montre pas le cartable');
+    await aller('match');
     await page.waitForTimeout(250);
   }
 
@@ -2808,7 +2947,7 @@ if (enabled) {
 
   // L'historique garde l'alignement : « Rejouer » relit les 23 joueurs et
   // repart une saison.
-  await page.click('.navtab[data-page="historique"]');
+  await aller('historique');
   await page.waitForSelector('#pageHistorique:not([hidden])', { timeout: 10000 });
   const entrees = await page.$$('.lb-replay');
   console.log(`   historique : ${entrees.length} alignements rejouables`);
@@ -2869,7 +3008,7 @@ if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se l
     await page.waitForTimeout(400);
     const clubsApresSignature = await clubs();
 
-    await page.click('.navtab[data-page="alignement"]');
+    await aller('alignement');
     await page.waitForTimeout(220);
     const retirer = await page.$('.slot .slot-remove');
     if (!retirer) errors.push('aucune case remplie à retirer pour éprouver le ✕');
@@ -2881,7 +3020,7 @@ if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se l
       // On revise la MÊME case : signer avait déplacé la main à la suivante.
       const vide = await page.$('.slot');
       if (vide) { await vide.evaluate(el => el.click()); await page.waitForTimeout(350); }
-      await page.click('.navtab[data-page="repechage"]');
+      await aller('repechage');
       await page.waitForTimeout(250);
 
       /*
@@ -2896,11 +3035,11 @@ if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se l
        */
       const cases = await page.$$('.slot');
       const mainDe = async (n) => {
-        await page.click('.navtab[data-page="alignement"]');
+        await aller('alignement');
         await page.waitForTimeout(200);
         await (await page.$$('.slot'))[n].evaluate(el => el.click());
         await page.waitForTimeout(320);
-        await page.click('.navtab[data-page="repechage"]');
+        await aller('repechage');
         await page.waitForTimeout(220);
         return mainNoms();
       };
@@ -2918,11 +3057,11 @@ if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se l
         await page.waitForTimeout(400);
         if ((await clubs()) !== clubsApresSignature) errors.push('la signature qui repaie la dette a fait tourner la roulette');
         else console.log('   la signature suivante repaie le tour : la roulette ne tourne pas');
-        await page.click('.navtab[data-page="alignement"]');
+        await aller('alignement');
         await page.waitForTimeout(220);
         const r = await page.$('.slot .slot-remove');
         if (r) { await r.evaluate(el => el.click()); await page.waitForTimeout(320); }
-        await page.click('.navtab[data-page="repechage"]');
+        await aller('repechage');
         await page.waitForTimeout(220);
       }
     }
@@ -2938,12 +3077,12 @@ if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se l
  */
 {
   const nomsMain = async () => (await page.$$eval('.pcard .pcard-name', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim()))).join(' | ');
-  const cases = async () => { await page.click('.navtab[data-page="alignement"]'); await page.waitForTimeout(220); return page.$$('.slot'); };
+  const cases = async () => { await aller('alignement'); await page.waitForTimeout(220); return page.$$('.slot'); };
   let s = await cases();
   if (s.length > 6) {
     await s[6].evaluate(el => el.click());
     await page.waitForTimeout(300);
-    await page.click('.navtab[data-page="repechage"]');
+    await aller('repechage');
     await page.waitForTimeout(250);
     const b = await page.$('.pcard .btn-sign:not([disabled])');
     if (!b) errors.push('aucun joueur signable pour éprouver le rangement');
@@ -2957,7 +3096,7 @@ if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se l
       s = await page.$$('.slot');
       await s[0].evaluate(el => el.click());
       await page.waitForTimeout(300);
-      await page.click('.navtab[data-page="repechage"]');
+      await aller('repechage');
       await page.waitForTimeout(250);
       const apres = await nomsMain();
       if (!avant) errors.push('la main était vide avant le rangement');
@@ -2966,7 +3105,7 @@ if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se l
       await cases();
       const r = await page.$('.slot .slot-remove');
       if (r) { await r.evaluate(el => el.click()); await page.waitForTimeout(320); }
-      await page.click('.navtab[data-page="repechage"]');
+      await aller('repechage');
       await page.waitForTimeout(220);
     }
   }

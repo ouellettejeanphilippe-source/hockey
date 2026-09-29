@@ -19,7 +19,7 @@ Lis `MOTEUR.md` — c'est la spécification de la refonte de la simulation par �
 ## Structure
 
 ```
-index.html            la page unique : barre du haut, roulette, vestiaire, alignement, modales
+index.html            la page unique : l'en-tête du club, les cinq sections, roulette, vestiaire, alignement, modales
 style.css             tous les styles, mobile d'abord (390 px), deux volets dès 1080 px
 sw.js                 travailleur de service : la coquille hors ligne (FICHIERS), les visages en cache
 site.webmanifest, favicon.svg, icon-*.png   installation et icônes
@@ -28,7 +28,7 @@ data/                 shards par saison (seasons/), index, seed, portraits.json,
 img/logos, img/mugs   écussons des 44 franchises et visages recadrés (scripts/logos.mjs, scripts/portraits.mjs)
 img/actions           photos de match recadrées en 5:7 pour les cartes, HORS DU DÉPÔT (scripts/actions.mjs les refait ; data/actions.json les liste)
 
-js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les onglets, l'historique
+js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les cinq sections et l'en-tête, l'historique
 js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes
 js/alignement.js      les cases, les trios et les paires, le système en fenêtre, le résumé d'équipe
 js/fiche.js           la fiche d'un joueur : recto verso, ses rôles, l'impact, le profil mesuré
@@ -43,7 +43,9 @@ js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache I
 js/saison.js          l'écran de saison et des séries : le hub, la boîte de réception, les choix forcés
 js/gerant.js          « Préparer le match » et la fenêtre du système d'une ligne
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
-js/coquille.js        la coquille fixe : une barre d'onglets, toujours la même
+js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
+js/pile.js            le retour, un niveau à la fois : Échap, bouton B, retour Android, « ‹ Retour »
+js/manette.js         la manette et le clavier : le focus au voisin, l'anneau lumineux, les invites
 js/direct.js          un match en direct, rejoué depuis sa feuille
 js/commentaire.js     le commentateur du direct
 js/recit.js           les mots du sommaire d'un match
@@ -72,7 +74,7 @@ js/traits.js          les traits, tirés des votes de data/trophees.js
 js/roles_ref.js       la référence des rôles
 js/franchises.js      les franchises et leurs relocalisations
 js/logos.js, js/logos_locaux.js   couleurs et écussons des 44 franchises
-js/menu.js            le menu de départ
+js/menu.js            l'écran titre, et le même écran en menu pause en pleine partie
 js/sauvegardes.js     les parties sauvegardées
 js/mouvement.js       les chiffres qui se comptent
 js/exhibition.js      l'exhibition
@@ -128,7 +130,8 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 
 **L'interface**
 - Mobile d'abord : rien ne déborde à 390 px, tout ce qu'on touche est atteignable — smoke `sansDebordement`, `toutEstAtteignable`.
-- Jamais une longue page : chaque onglet tient en un écran ; une seule barre d'onglets, les mêmes entrées dans le même ordre — smoke.
+- Jamais une longue page : chaque onglet tient en un écran, la page elle-même ne défile jamais ; cinq sections (Club, Effectif, Marché, Ligue, Collection), les mêmes dans le même ordre dans tous les modes — smoke.
+- Un seul retour, un niveau à la fois (js/pile.js) ; rien de sélectionnable, aucun lien souligné ; l'anneau du focus en mode clavier ou manette seulement — smoke.
 - La boîte de réception bloque « Journée suivante » tant qu'un message est à traiter.
 - Toute commande visible doit fonctionner.
 - Une surface de base se change À LA SOURCE, jamais en fin de fichier.
