@@ -119,6 +119,18 @@ jobs:
       - name: La clarté
         run: node scripts/check_clarte.mjs
 
+      # Zéro code inutile (1.0, jalon 3) : aucune déclaration morte, aucun
+      # `export` ni import de trop, aucune classe CSS sans élément. Cinq secondes.
+      - name: Le code mort
+        run: node scripts/check_mort.mjs
+
+      # Les vérifications rapides (moins de quinze secondes chacune) qui ne
+      # tournaient nulle part : le deck, l'identité, l'atelier, le dépistage,
+      # les totaux du soir. `scripts/tout.mjs` les enchaîne et sort en échec si
+      # une seule échoue. Une demi-minute.
+      - name: Les vérifications rapides
+        run: node scripts/tout.mjs
+
       - name: Installer Playwright (Chromium)
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.47.2

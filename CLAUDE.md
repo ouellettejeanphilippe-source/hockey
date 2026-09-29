@@ -70,8 +70,9 @@ js/plateau.js         Sur table : l'écran du plateau
 js/tournoi.js         Sur table : le tournoi de six clubs
 js/sons.js            les effets sonores synthétisés (Web Audio)
 
-scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs, portraits.mjs…), vérifications
-                      (check_*.mjs, smoke*.mjs), calibration (calibrate_sim, mock_*), verdict.mjs (le juge partagé)
+scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs, portraits.mjs, recrues.mjs → data/recrues.json
+                      la vraie saison recrue…), vérifications (check_*.mjs, smoke*.mjs, tout.mjs qui enchaîne les rapides),
+                      calibration (calibrate_sim, mock_*), verdict.mjs (le juge partagé), lib/mort.mjs (la mesure du code mort)
 mobile/, desktop/     l'APK (Capacitor) et l'exe (Electron) ; seul leur code est versionné
 docs/                 l'historique et la référence (voir docs/README.md)
 ```
@@ -125,6 +126,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 **Le code et les tests**
 - Modules ES natifs, pas de build step, aucune dépendance npm.
 - `sw.js` liste tout ce que la page charge — `check_coquille`.
+- Zéro code inutile : aucune déclaration morte, aucun `export` ni import de trop, aucune classe CSS sans élément — `check_mort`. Un petit outil qui sert à plusieurs modules va dans `js/util.js`, pas dans une copie de plus.
 - Un chiffre qu'on imprime sans le juger est un chiffre que personne ne relit : chaque script passe par `scripts/verdict.mjs`, qui pose le code de sortie.
 - Un test de fumée qui dépend du tirage n'est pas un test, c'est une loterie.
 - Français québécois, partout.
@@ -161,6 +163,8 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 `node scripts/smoke_table.mjs http://localhost:8000` fait le même parcours en mode bonus : l'option « Sur table » dans les options, le même auto-draft, le tournoi (`#hubModal`), le plateau (`#tableModal`, 247 cases, deux filets d'une case) où il joue un match geste par geste — il touche une pièce, lit les cases allumées, choisit des modes, dégage, tire, saute des verdicts en touchant la glace, dépense des relances d'équipe, change de trio — puis le reste du tournoi et le bilan. Il échoue si moins de quinze gestes ont pu être joués : c'est ce qui attrape une interface qui se fige.
 
 L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `check_feuilles.mjs` sur une ligue, plus `check_fiches.mjs`, `check_table.mjs`, `check_regles.mjs` et `smoke_table.mjs`. Les scripts de calibration (monotonie, plafond, tireurs) restent à lancer à la main.
+
+`node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (douze minutes) se lancent à part.
 
 Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
 
