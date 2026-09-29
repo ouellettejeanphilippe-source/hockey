@@ -28,6 +28,17 @@
  */
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer } from './sauvegardes.js';
 import { esc } from './util.js';
+import { surAppareil } from './visages.js';
+
+/*
+ * L'APPLICATION ANDROID, OFFERTE PAR LA VERSION WEB (1.0). JP : *possible sur la version web, de pouvoir
+ * télécharger apk?* L'APK vit dans les versions publiées du dépôt GitHub, jamais dans le dépôt : l'adresse
+ * « latest » suit toujours la dernière (scripts/publier-apk.mjs la publie). Ni l'APK ni l'exe de bureau
+ * ne l'offrent : on y est déjà. Sur un téléphone Android, l'entrée passe en tête du pied.
+ */
+const ADRESSE_APK = 'https://github.com/ouellettejeanphilippe-source/hockey/releases/latest/download/Cap-82-0.apk';
+const offrirApk = () => !surAppareil() && !(navigator.userAgent || '').includes('Electron/');
+const surAndroid = () => /Android/i.test(navigator.userAgent || '');
 
 /* « il y a 5 min », « hier », sinon la date : une partie se reconnaît à quand on l'a jouée. */
 function quand(t) {
@@ -130,6 +141,7 @@ function dessiner(m) {
       ${exhibition}
       ${ix.parties.length ? `<details class="menu-parties"${ix.parties.length <= 3 ? ' open' : ''}><summary>📂 Mes parties · ${ix.parties.length}</summary>${groupes}</details>` : ''}
       <nav class="menu-pied" aria-label="Réglages et règles">
+        ${offrirApk() ? `<a class="menu-entree menu-apk${surAndroid() ? ' en-tete' : ''}" href="${ADRESSE_APK}" download rel="noopener" title="L'application Android : le jeu hors ligne, en plein écran (environ 7 Mo)"><svg class="ico" aria-hidden="true"><use href="#i-telecharger"/></svg>Application Android</a>` : ''}
         <button type="button" class="menu-entree" data-menu="options"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg>Options</button>
         <button type="button" class="menu-entree" data-menu="regles"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles</button>
       </nav>

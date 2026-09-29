@@ -7569,6 +7569,8 @@ body.menu-ouvert { overflow: hidden; }
 .menu-entree:hover { border-color: var(--gold); }
 .menu-entree:active { transform: scale(0.97); }
 .menu-entree .ico { color: var(--gold); }
+.menu-apk { text-decoration: none; }
+.menu-apk.en-tete { order: -1; border-color: var(--gold); }
 @media (prefers-reduced-motion: reduce) { .menu-continuer { transition: none; } }
 /* Un choix plein écran ouvert DU menu (le vestiaire, l'écran de la run) passe par-dessus lui. */
 body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }

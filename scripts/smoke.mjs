@@ -96,6 +96,9 @@ async function aller(cle, clic = s => page.click(s)) {
   if (cle === 'regles') {
     await clic('#menuBtn');
     await _wait('#menuDepart [data-menu="regles"]', { timeout: 10000 });
+    // La version web offre l'application Android (1.0) : la dernière version publiée sur GitHub.
+    const apk = await page.getAttribute('#menuDepart .menu-apk', 'href').catch(() => null);
+    if (!apk || !apk.endsWith('/releases/latest/download/Cap-82-0.apk')) errors.push(`la version web n'offre pas l'application Android au Menu (${apk})`);
     await clic('#menuDepart [data-menu="regles"]');
     await _wait('#pageRegles:not([hidden])', { timeout: 10000 });
     return;
