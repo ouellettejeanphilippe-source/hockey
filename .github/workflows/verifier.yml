@@ -124,6 +124,11 @@ jobs:
       - name: Le code mort
         run: node scripts/check_mort.mjs
 
+      # Une définition par composant (1.0, J3-3) : les sélecteurs en double dans
+      # un même contexte et les `!important` ne montent plus. Une seconde.
+      - name: Le CSS
+        run: node scripts/check_css.mjs
+
       # Les vérifications rapides (moins de quinze secondes chacune) qui ne
       # tournaient nulle part : le deck, l'identité, l'atelier, le dépistage,
       # les totaux du soir. `scripts/tout.mjs` les enchaîne et sort en échec si
