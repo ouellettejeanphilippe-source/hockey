@@ -1266,7 +1266,7 @@ function renderJetons() {
   const lignes = [...pl.lignes.map(l => `${l.nom} ${l.montant > 0 ? '+' : '−'}${money(Math.abs(l.montant))}`),
     ...[...pl.facteurs].map(([k, f]) => `${(signes().find(p => getPlayerKey(p) === k) || {}).n || 'Un ancien'} : ${Math.round(f * 100)} % de son salaire`),
     ...[...pl.ltir].map(k => `${(signes().find(p => getPlayerKey(p) === k) || {}).n || 'Un ancien'} : blessé à long terme${pl.blesses.has(k) ? ' (hors plafond)' : ''}`)];
-  g.title = `Plafond de la run : ${money(pl.cap)}${lignes.length ? ` — ${lignes.join(' · ')}` : ''}. Masse : ${money(used)}. Jetons : ${jetonsRogue()} 🪙 (la boutique du hub vend des packs).`;
+  g.title = `Plafond de la run : ${money(pl.cap)}${lignes.length ? ` — ${lignes.join(' · ')}` : ''}. Masse : ${money(used)}. Jetons : ${jetonsRogue()} 🪙 (la boutique du bureau vend des packs).`;
   $('capFill').style.width = Math.min(100, Math.max(0, (used / pl.cap) * 100)) + '%';
   $('capFill').classList.toggle('over', rem < 0);
   $('capFill').classList.toggle('tight', rem >= 0 && rem < 3_000_000);
@@ -1528,7 +1528,7 @@ function ouvrirPackCartes(cle, prix, j, n, decider) {
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Tout ranger',
     recit: (rogue
       ? `Tout va dans ton inventaire : le personnel et les consommables permanents y restent d'une run à l'autre, le reste vaut pour cette saison.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
-      : 'Tout va dans ton inventaire : joue chaque carte quand tu veux, du hub (🎒).')
+      : 'Tout va dans ton inventaire : joue chaque carte quand tu veux, du bureau (🎒).')
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
     options: [...ids.map((id, t) => ({ ...optionDeBanque(id), cle: String(t), prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : '' })),
       ...maudites.map((id, t) => ({ ...optionDeBanque(id), cle: `m${t}`, prix: 'Malédiction : elle frappe tout de suite' }))],
@@ -1893,7 +1893,7 @@ async function demarrerRogue(gardes = [], tires = []) {
   saveGame(); syncOptionsUI(); render();
   setView('roster');
   const noms = [...gardes.map(p => p.n), ...tires.map(x => x.p.n)];
-  toast(`Tes plombiers sont là${noms.length ? `, avec ${noms.join(', ')}` : ''}. Le proprio veut : ${mandatDe(1).mot}. Lance la saison quand tu veux : la boutique t'attend au hub.`);
+  toast(`Tes plombiers sont là${noms.length ? `, avec ${noms.join(', ')}` : ''}. Le proprio veut : ${mandatDe(1).mot}. Lance la saison quand tu veux : la boutique t'attend au bureau.`);
 }
 /*
  * LE PLAFOND D'UNE SAISON DE LA RUN : 82 M$, plus ce que le vestiaire a

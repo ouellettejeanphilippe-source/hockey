@@ -138,7 +138,7 @@ const ballottage = { fait: false, mot: null };
  * LA BOÎTE DE RÉCEPTION (S78). JP : *faire une boîte de réception et forcer
  * que le joueur agisse avant de continuer*. Tant qu'un message bloque (une
  * blessure, une case vide, un palier, un choix forcé), « Journée suivante »
- * devient « ⏳ Règle d'abord… » et « +10 » disparaît. Le parcours règle ces
+ * devient « ⏳ À régler avant le match… » et « +10 » disparaît. Le parcours règle ces
  * messages comme un joueur : la réponse par défaut du message ouvert
  * (`[data-defaut]` : garder l'alignement, compris, ouvrir le choix). La case
  * vide s'éprouve d'abord (`guetterTrouHook`, posé par la saison) ; le palier
@@ -196,7 +196,7 @@ async function debloquer() {
     await guetterBallottage();
     if (ballottage.fait !== avantBal) continue;
     if (await toucher('#hubModal .hub-msg.bloque.ouvert [data-defaut]')) continue;
-    // Le message à traiter est plié : « Règle d'abord » l'ouvre.
+    // Le message à traiter est plié : « À régler avant le match » l'ouvre.
     await toucher('#hubModal .hub-traiter');
   }
 }
@@ -258,7 +258,7 @@ async function repondreAuxChoix() {
   let rouvert = false;
   for (let i = 0; i < 12; i++) {
     if (await ouvrirPaquet()) continue;
-    // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au hub ».
+    // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au bureau ».
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]')) {
       sommairesVus++;
       await _click('#choixModal:not([hidden]) .choix-plus-tard, #choixModal:not([hidden]) .choix-fermer');
@@ -1724,7 +1724,7 @@ async function traverserSaison(etiquette, reprise = false) {
       /*
        * LE PALIER BLOQUE LA JOURNÉE (S78, la boîte de réception) : refermé
        * « Plus tard », il reste à traiter — « Journée suivante » devient
-       * « Règle d'abord » et « Jusqu'à la prochaine décision » disparaît.
+       * « À régler avant le match » et « Jusqu'à la prochaine décision » disparaît.
        */
       const bloque = await page.evaluate(() => ({
         traiter: !!document.querySelector('#hubModal .hub-traiter'),

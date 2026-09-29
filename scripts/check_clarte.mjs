@@ -128,6 +128,19 @@ function chainesDe(src) {
   const texte = html.replace(/<[^>]+>/g, ' ');
   if (/énergie/i.test(texte)) trouvés.push(`index.html : « ${texte.match(/.{0,40}énergie.{0,20}/i)[0].trim()} »`);
   exiger('aucune chaîne de l\'écran ne dit « énergie » (jambes, élan, plombier)', trouvés.length === 0, trouvés.slice(0, 5).join(' · ') || 'aucune');
+  /*
+   * DES MOTS DE HOCKEY, PAS DE DÉVELOPPEUR (1.0, J2-9) : « hub » et « palier »
+   * sont des noms de code. L'écran dit « le bureau » et « la main de la
+   * journée ». On ne juge que la prose (une chaîne avec une espace) : les clés
+   * et les sélecteurs (`'palier'`, `'.hub-jour'`) ne sont pas lus par le joueur.
+   */
+  const code = [];
+  const MOTS_DE_CODE = /(^|[\s«(])(hub|paliers?)(?=[\s».,:;!?)]|$)/i;
+  for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'))) {
+    for (const ch of chainesDe(lire(`js/${f}`))) if (/\s/.test(ch.trim()) && MOTS_DE_CODE.test(ch)) code.push(`${f} : « ${ch.trim().slice(0, 60)} »`);
+  }
+  if (MOTS_DE_CODE.test(texte)) code.push(`index.html : « ${texte.match(/.{0,40}(hub|palier).{0,20}/i)[0].trim()} »`);
+  exiger('l\'écran dit « bureau » et « main de la journée », pas « hub » ni « palier »', code.length === 0, code.slice(0, 5).join(' · ') || 'aucune');
 }
 
 /* ---------- 3 et 4. la page des règles ---------- */

@@ -1397,8 +1397,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     ouvrirChoix({
       // UN SEUL BOUTON (JP : *jamais dédoubler information*) : retour au hub, ou à la boîte s'il y a du courrier à régler.
       ico: un ? (gagne(un.m, you) ? '✅' : '❌') : '🗓️', titre, genre: 'sommaire', fermable: true,
-      motFermer: attend.length ? '📥 Voir ma boîte de réception' : 'Retour au hub',
-      contexte: `<div class="som">${blocs.join('')}</div>${attend.length ? `<div class="som-attente">📥 ${attend.length} message${attend.length > 1 ? 's' : ''} à traiter t'attend${attend.length > 1 ? 'ent' : ''} au hub : ${ctx.esc(attend[0].sujet)}</div>` : ''}`,
+      motFermer: attend.length ? '📥 Voir ma boîte de réception' : 'Retour au bureau',
+      contexte: `<div class="som">${blocs.join('')}</div>${attend.length ? `<div class="som-attente">📥 ${attend.length} message${attend.length > 1 ? 's' : ''} à traiter t'attend${attend.length > 1 ? 'ent' : ''} au bureau : ${ctx.esc(attend[0].sujet)}</div>` : ''}`,
       options: [],
       onChoix: () => { retenir = false; dessiner(); },
       onFerme: () => { retenir = false; dessiner(); },
@@ -1649,7 +1649,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
             : T ? `Stage de système : ${T.ico} <b>${ctx.esc(T.nom)}</b>` : ctx.esc(S.nom);
         ev.push({ j: d.jour, t: `${S.ico} ${t}` });
       } else if (d.joue && d.mutation && MUTATIONS[d.mutation.cle]) ev.push({ j: d.jour, t: `${MUTATIONS[d.mutation.cle].ico} ${ctx.esc(MUTATIONS[d.mutation.cle].nom)} posée au verso de <b>${ctx.esc(nomJoueur(d.mutation.joueur) || 'un joueur')}</b>` });
-      else if (d.carte && typeof d.palier === 'number' && CARTES[d.carte]) ev.push({ j: d.jour, t: `🎁 Le palier : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` });
+      else if (d.carte && typeof d.palier === 'number' && CARTES[d.carte]) ev.push({ j: d.jour, t: `🎁 La main de la journée : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` });
       else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Un joueur réclamé au ballottage pour boucher un trou' });
     }
     for (const m of you.mutations || []) if (m.jour < jour && m.source !== 'choix' && MUTATIONS[m.cle]) ev.push({ j: m.jour, t: `${MUTATIONS[m.cle].ico} Le hasard s'en mêle : ${ctx.esc(m.p ? m.p.n : '')} — ${ctx.esc(MUTATIONS[m.cle].nom)}` });
@@ -1806,7 +1806,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         texte: `Une semaine de pratiques sur un seul système : ta formation fait ${Math.round(GAIN_STAGE * 100)} % du chemin vers sa maîtrise d'un coup. Trois systèmes offerts.` };
     });
     ouvrirChoix({
-      ico: '🎁', titre: `Le palier de la journée ${p0}`, cartes: true, genre: 'palier', fermable: true, motFermer: 'Plus tard',
+      ico: '🎁', titre: `La main de la journée ${p0}`, cartes: true, genre: 'palier', fermable: true, motFermer: 'Plus tard',
       recit: 'Trois cartes, trois sortes. Touche celle que tu gardes pour le reste de la saison ; les deux autres retournent dans le jeu.',
       options,
       onChoix: cle => suiteDeLaMain(p0, cle, recrues, roles),
@@ -1816,7 +1816,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const retour = () => ouvrirMain(p0);
     const [sorte, arg] = cle.split(':');
     if (sorte === 'effet') { const j = jour, s = soirDuProchain(); quitter(); onCarte(p0, s, arg, j); return; }
-    const suite = { cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour au palier', onFerme: retour };
+    const suite = { cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour aux trois cartes', onFerme: retour };
     if (sorte === 'recrue') {
       ouvrirChoix({ ...suite, ico: '🎟️', titre: 'Joueur au choix',
         recit: 'Trois vrais joueurs, style loto. Touche une carte pour sa fiche, « Signer » pour le prendre — puis tu choisis qui lui laisse sa place.',
@@ -1970,7 +1970,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // Une main de palier encore ouverte (on a passé à la fin) : elle vaut encore
       // pour les séries — les cartes de saison y jouent — donc elle s'offre ici.
       const palFin = palierOuvert();
-      actions.innerHTML = `${palFin !== undefined ? '<button class="btn hub-main-ouvrir">🎁 Le palier t\'attend : trois cartes</button>' : ''}<button class="btn gold hub-suite">Voir le bilan de la saison</button>`;
+      actions.innerHTML = `${palFin !== undefined ? '<button class="btn hub-main-ouvrir">🎁 La main de la journée t\'attend : trois cartes</button>' : ''}<button class="btn gold hub-suite">Voir le bilan de la saison</button>`;
       actions.querySelector('.hub-suite').onclick = fermer;
       const vm = actions.querySelector('.hub-main-ouvrir');
       if (vm) vm.onclick = () => ouvrirMain(palFin);
@@ -2263,7 +2263,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // écran (S73) ; le message en montre le dos et de quoi l'ouvrir.
     const pal = palierOuvert();
     if (pal !== undefined) {
-      out.push({ id: `p:${pal}`, genre: 'palier', bloque: !!onDecision, de: DE.dg, sujet: `Le palier de la journée ${pal} : trois cartes`, pal,
+      out.push({ id: `p:${pal}`, genre: 'palier', bloque: !!onDecision, de: DE.dg, sujet: `La main de la journée ${pal} : trois cartes`, pal,
         corps: `<div class="hub-cartes hub-main" role="group" aria-label="Une main de trois cartes">
           <div class="hub-dos-rang">${mainDuDeck(graine, pal, dejaPrises).map(c => `<span class="hub-dos tc-${RARETE_SORTE[c.sorte]}" data-sorte="${c.sorte}" title="${ctx.esc(SORTES_DECK[c.sorte].nom)}">${SORTES_DECK[c.sorte].ico}</span>`).join('')}</div>
           <button type="button" class="btn gold hub-main-ouvrir" data-defaut>Voir les cartes</button>
@@ -2368,7 +2368,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     </section>`;
     // UNE SEULE ACTION EN TÊTE : la journée suivante, ou ce qui la retient.
     const primaire = premier
-      ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend tes réponses">⏳ Règle d'abord ${bloquants.length > 1 ? `tes ${bloquants.length} messages` : 'ce message'} : ${ctx.esc(premier.sujet)}</button>`
+      ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend tes réponses">⏳ À régler avant le match${bloquants.length > 1 ? ` (${bloquants.length})` : ''} : ${ctx.esc(premier.sujet)}</button>`
       : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>';
     // « Le banc » a quitté la rangée : l'onglet Alignement de la barre fait la même chose (JP : jamais deux fois la même chose).
     actions.innerHTML = `${primaire}
