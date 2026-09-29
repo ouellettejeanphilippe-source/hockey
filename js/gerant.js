@@ -61,8 +61,8 @@ export function motsDAction(a, noms = '') {
   const qui = noms || 'le joueur visé';
   const out = [];
   if (a.absents) out.push({ txt: `👥 ${qui} au vestiaire ${plur(a.absents, 'match')} — un réserviste ou un rappelé joue`, bon: null });
-  if (a.energie) out.push({ txt: `👥 ${qui} : énergie ${a.energie > 0 ? '+' : '−'}${Math.abs(a.energie)}`, bon: a.energie > 0 });
-  if (a.energieTous) out.push({ txt: `👥 Toute l'équipe : énergie ${a.energieTous > 0 ? '+' : '−'}${Math.abs(a.energieTous)}`, bon: a.energieTous > 0 });
+  if (a.energie) out.push({ txt: `👥 ${qui} : jambes ${a.energie > 0 ? '+' : '−'}${Math.abs(a.energie)}`, bon: a.energie > 0 });
+  if (a.energieTous) out.push({ txt: `👥 Toute l'équipe : jambes ${a.energieTous > 0 ? '+' : '−'}${Math.abs(a.energieTous)}`, bon: a.energieTous > 0 });
   if (a.gardienAux) out.push({ txt: `🧤 L'auxiliaire garde le filet ${plur(a.gardienAux, 'match')}`, bon: null });
   return out;
 }
@@ -432,10 +432,10 @@ function pointsDeBande(m) {
  */
 let pastilleNiveau = () => '';
 export const brancherPastilleNiveau = f => { pastilleNiveau = f; };
-/* Les jambes d'un joueur (sa fatigue, sur 100), en chiffre et en barre. Un gardien n'en a pas : le moteur ne l'use pas. */
+/* Les jambes d'un joueur (sa fatigue, sur 100), en chiffre et en barre. Celles d'un gardien se comptent en départs de suite (C4). */
 export function jambesHtml(e) {
   const v = Math.round(e);
-  return `<span class="jambes" title="Ses jambes ce matin, sur 100. Sous 60, il rend moins et se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${v < 60 ? 'bas' : v < 85 ? 'moyen' : ''}"></span></i></span>`;
+  return `<span class="jambes" title="Ses jambes ce matin, sur 100. À 90 et plus, il rend tout ; sous 90, il rend un peu moins à chaque point ; sous 60, il se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${v < 75 ? 'bas' : v < 90 ? 'moyen' : ''}"></span></i></span>`;
 }
 
 /* ======================================================================
@@ -574,6 +574,18 @@ export function ouvrirLignes(spec) {
   const brouillon = spec.lignes.map(l => ({ ...l }));
   const match = spec.match ? { importance: spec.match.importance || 'normale', ad: spec.match.ad || 0 } : null;
   let ouverte = 0;
+  /*
+   * DEVANT LE FILET CE SOIR (1.0, C4). JP : *je comprends pas la gestion des
+   * gardiens*. Le partant et l'auxiliaire, leurs jambes et leur % d'arrêts de
+   * leur vraie saison ; la rotation du club est choisie d'office, toucher
+   * l'autre gardien lui donne le filet pour CE soir (une décision, qui se
+   * rejoue). `spec.filet` : { partant, aux (clés), rotation: 'partant'|'aux', choix }.
+   */
+  const F0 = spec.filet || null;
+  const gardienDe = cle => (cle ? Object.values(spec.lineup || {}).find(p => p && getPlayerKey(p) === cle) || null : null);
+  const gPartant = F0 ? gardienDe(F0.partant) : null, gAux = F0 ? gardienDe(F0.aux) : null;
+  let filet = F0 ? (F0.choix && F0.choix !== 'auto' ? F0.choix : F0.rotation) : null;
+  const filetSortie = () => (!F0 ? undefined : filet === F0.rotation ? (F0.choix && F0.choix !== 'auto' ? 'auto' : undefined) : filet);
 
   const joueurLigne = (u, role) => {
     const js = joueursDeLigne(spec.lineup, u);
@@ -624,6 +636,30 @@ export function ouvrirLignes(spec) {
       <div class="gl-ad"><span>🛡️ Défense</span><input type="range" min="-2" max="2" step="1" value="${match.ad}" class="gl-ad-range" aria-label="Attaque ou défense"><span>Attaque 🎯</span></div>
       <div class="choix-puces gl-ad-puces">${puces(motsDEffet({ finition: 1 + 0.025 * match.ad, defense: 1 + 0.02 * match.ad }))}${match.ad ? '' : '<span class="puce neutre">Équilibré</span>'}</div>
     </section>` : '';
+    /*
+     * LES TOTAUX DU SOIR (1.0, C5). Tout ce qui joue ce soir, multiplié et
+     * passé sous les bornes du moteur (`totauxDuSoir`, js/sim.js) — la
+     * consigne qu'on règle ici comprise, recalculée à chaque toucher.
+     */
+    const tot = spec.totaux ? spec.totaux(match, brouillon) : null;
+    const totauxHtml = tot ? `<section class="gl-totaux">
+      <div class="gl-totaux-l"><b>Ce soir :</b> <span class="choix-puces">${tot.length ? puces(tot) : '<span class="puce neutre">aucun effet</span>'}</span></div>
+      <div class="gl-mot">Les effets se multiplient entre eux.</div>
+    </section>` : '';
+    const svTxt = g => (g && Number.isFinite(g.sv) ? g.sv.toFixed(3).replace(/^0/, '') : '—');
+    const boutonGardien = (qui, g) => {
+      const e = g ? (spec.energie[getPlayerKey(g)] ?? 100) : 100;
+      const estRot = F0 && F0.rotation === qui;
+      return `<button type="button" class="gl-seg-btn gl-gardien${filet === qui ? ' on' : ''}" data-filet="${qui}" aria-pressed="${filet === qui}">
+        <b>🥅 ${g ? esc(g.n) : 'Le rappel du club-école'}</b>
+        <span class="gl-gardien-l"><small>${qui === 'partant' ? 'Partant' : 'Auxiliaire'}${estRot ? ' · la rotation' : ''}</small><small title="Son % d'arrêts de sa vraie saison">${svTxt(g)} d'arrêts</small></span>
+        ${jambesHtml(e)}</button>`;
+    };
+    const filetHtml = F0 ? `<section class="gl-filet">
+      <div class="gl-sec-titre">Devant le filet ce soir</div>
+      <div class="gl-seg gl-seg-court">${boutonGardien('partant', gPartant)}${boutonGardien('aux', gAux)}</div>
+      <div class="gl-mot">Un gardien garde ses jambes trois départs de suite ; au quatrième, il en perd 5 par départ, et chaque 5 points perdus lui coûtent 1 % de buts accordés de plus. Une soirée de congé les lui rend. La rotation du club est choisie d'office ; touche l'autre pour lui donner le filet ce soir.</div>
+    </section>` : '';
     const onglets = `<div class="gl-onglets" role="tablist">${NOMS_LIGNE.map((n, u) => {
       const T = TACTIQUES[brouillon[u].tac] || TACTIQUES.hourra, D = u < 3 ? SYSTEMES_D[brouillon[u].tacD] || SYSTEMES_D.hourra : null;
       return `<button type="button" role="tab" class="gl-onglet${u === ouverte ? ' on' : ''}" data-ligne="${u}" aria-selected="${u === ouverte}">
@@ -667,11 +703,11 @@ export function ouvrirLignes(spec) {
       }).join('')}</div>
       <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
       <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-      <div class="gl-mot">Plus de glace, plus de lancers pour cette ligne — et plus de fatigue : sous 60 de jambes (sur 100), un joueur rend moins et se blesse plus.</div>
+      <div class="gl-mot">Plus de glace, plus de lancers pour cette ligne — et plus d'usure : sous 90 de jambes (sur 100), un joueur rend un peu moins à chaque point, et sous 60 il se blesse plus.</div>
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
-      <div class="choix-corps">${effetsHtml(spec.effets)}${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv ? spec.adv.nom : 'Eux' }) : ''}${consigne}${onglets}${detail}</div>
+      <div class="choix-corps">${totauxHtml}${effetsHtml(spec.effets)}${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv ? spec.adv.nom : 'Eux' }) : ''}${consigne}${filetHtml}${onglets}${detail}</div>
       <div class="gl-pied">
         ${spec.onBanc ? '<button type="button" class="btn gl-banc">Changer les trios</button>' : ''}
         <button type="button" class="btn go gl-appliquer">${esc(spec.motAppliquer || 'Appliquer')}</button>
@@ -687,10 +723,11 @@ export function ouvrirLignes(spec) {
     const s = m.querySelector('.gl-sec');
     if (s) s.onchange = () => { brouillon[ouverte].sec = Number(s.value); dessiner(); };
     m.querySelectorAll('[data-importance]').forEach(b => { b.onclick = () => { match.importance = b.dataset.importance; dessiner(); }; });
+    m.querySelectorAll('[data-filet]').forEach(b => { b.onclick = () => { filet = b.dataset.filet; dessiner(); }; });
     const ad = m.querySelector('.gl-ad-range');
     if (ad) ad.onchange = () => { match.ad = Number(ad.value); dessiner(); };
     m.querySelector('.gl-annuler').onclick = fermer;
-    m.querySelector('.gl-appliquer').onclick = () => { fermer(); spec.onAppliquer(brouillon, match); };
+    m.querySelector('.gl-appliquer').onclick = () => { fermer(); spec.onAppliquer(brouillon, match, filetSortie()); };
     const bb = m.querySelector('.gl-banc');
     if (bb) bb.onclick = () => { fermer(); spec.onBanc(); };
   }
@@ -795,7 +832,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
     <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
     <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-    <div class="gl-mot">Plus de glace, plus de lancers — et plus de fatigue : sous 60 de jambes (sur 100), un joueur rend moins et se blesse plus.</div>`;
+    <div class="gl-mot">Plus de glace, plus de lancers — et plus d'usure : sous 90 de jambes (sur 100), un joueur rend un peu moins à chaque point, et sous 60 il se blesse plus.</div>`;
   return { sommaire, corps };
 }
 
@@ -910,7 +947,7 @@ export function regleDeCarte(C) {
   else if (courbe && (C.synergie || (C.effet && (C.effet.F || C.effet.D)))) out.push({ txt: '🔗 Carte de trio : pleine tout de suite, elle ne grandit pas', bon: null });
   if (C.pioche) out.push({ txt: `Pige ${C.pioche} carte${C.pioche > 1 ? 's' : ''}`, bon: true });
   if (C.energiePlus) out.push({ txt: `+${C.energiePlus} énergie`, bon: true });
-  if (C.energieTous) out.push({ txt: `Tes patineurs : énergie +${C.energieTous}`, bon: true });
+  if (C.energieTous) out.push({ txt: `Tes patineurs : jambes +${C.energieTous}`, bon: true });
   if (C.lire) out.push({ txt: 'Leur plan tombe', bon: true });
   if (C.annule) out.push({ txt: 'Leur main ne fait rien', bon: true });
   if (C.contre) out.push({ txt: 'Tes 2 premières lignes sur leur contre', bon: null });
@@ -948,7 +985,7 @@ export function motsDeCarteAdverse(C, echelle = 1) {
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
   if (C.parGenre) for (const m of motsDEffet(C.parGenre.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent`, bon: m.bon == null ? null : !m.bon });
   if (C.selonLeurMain) for (const m of motsDEffet(C.selonLeurMain.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} que TU joues`, bon: m.bon == null ? null : !m.bon });
-  if (C.energieTous) out.push({ txt: `Leurs patineurs +${C.energieTous} d'énergie`, bon: false });
+  if (C.energieTous) out.push({ txt: `Leurs patineurs : jambes +${C.energieTous}`, bon: false });
   return out;
 }
 /*
@@ -1041,7 +1078,7 @@ export function ouvrirMainDeMatch(spec) {
     if (fx.lire) mots.push({ txt: 'Leur plan tombe', bon: true });
     if (fx.annule) mots.push({ txt: 'Leur main ne fait rien', bon: true });
     if (fx.contre) mots.push({ txt: 'Tes 2 premières lignes sur leur contre', bon: null });
-    if (fx.energieTous) mots.push({ txt: `Tes patineurs : énergie +${fx.energieTous}`, bon: true });
+    if (fx.energieTous) mots.push({ txt: `Tes patineurs : jambes +${fx.energieTous}`, bon: true });
     // LE DÉPISTAGE DU SOIR (S76) : les cartes jouées le resserrent, et ta préparation suit.
     const pistes = pistesDuRapport(spec.depistage, { planReel: spec.planReel, ecarte: fx.ecarte, revele: fx.revele });
     if (fx.revele && spec.planReel) prep = [spec.planReel];

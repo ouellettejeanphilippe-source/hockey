@@ -4617,7 +4617,7 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
     : '<span class="cell-zone ok" title="Dans sa zone : il rend à plein ici.">✓</span>';
   const t = getTraits(p).map(x => TRAITS[x.cle]).filter(Boolean)[0];
   const trophee = t ? `<span class="cell-trait" title="${esc(t.short || t.nom || '')}">${t.icon}</span>` : '';
-  const jambes = G.banc && p.p !== 'G' ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100) : '';
+  const jambes = G.banc ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100) : '';
   return `<div class="cell-l1">${role}${pastilleNiveau(p)}</div>
         <div class="slot-tags cell-l2">${blesseTag}${marque}${zone}${penTag}${trophee}<span class="cell-prod slot-faits">${esc(G.banc ? ficheDuJour(p) : main)}</span></div>
         ${jambes}`;

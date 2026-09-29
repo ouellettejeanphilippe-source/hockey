@@ -1508,6 +1508,9 @@ async function traverserSaison(etiquette, reprise = false) {
       if (!(await page.$('#hubModal .hub-preparer'))) errors.push('l\'affiche n\'offre pas « Préparer le match »');
       else {
         const jAvant = await jourDit();
+        // LES TOTAUX DU SOIR (1.0, C5) : la ligne est sur l'affiche.
+        const totHub = ((await page.textContent('#hubModal .hub-totaux').catch(() => '')) || '').trim();
+        if (!/^(Ce soir|Au prochain match) :/.test(totHub)) errors.push(`l'affiche ne dit pas les totaux du soir : « ${totHub} »`);
         await _click('#hubModal .hub-preparer');
         await page.waitForSelector('#lignesModal:not([hidden]) [data-importance="haute"]', { timeout: 5000 });
         const puces = await page.$$eval('#lignesModal [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
@@ -1515,7 +1518,21 @@ async function traverserSaison(etiquette, reprise = false) {
         if (!(await page.$('#lignesModal .gl-effets'))) errors.push('« Préparer le match » ne montre pas ce qui joue sur ta formation');
         // En chiffres depuis S76 : « Précision +3 % », plus des flèches.
         if (!puces.some(t => /Précision [+−]\d+ %/.test(t))) errors.push(`l'importance haute ne dit pas son effet : ${puces.join(' · ')}`);
+        // LES TOTAUX (C5) en tête, dits une fois, et recalculés quand la consigne change.
+        const lireTot = () => page.$eval('#lignesModal .gl-totaux-l', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
+        const totAvant = await lireTot();
+        const multiplient = await page.$$eval('#lignesModal .gl-totaux .gl-mot', e => e.filter(x => x.textContent.trim() === 'Les effets se multiplient entre eux.').length);
+        if (!/^Ce soir :/.test(totAvant)) errors.push(`« Préparer le match » ne dit pas les totaux du soir : « ${totAvant} »`);
+        if (multiplient !== 1) errors.push(`« Les effets se multiplient entre eux. » paraît ${multiplient} fois dans « Préparer le match »`);
+        // DEVANT LE FILET CE SOIR (C4) : deux gardiens, la rotation choisie, l'autre se touche.
+        const filets = await page.$$eval('#lignesModal .gl-filet [data-filet]', e => e.map(b => ({ qui: b.dataset.filet, on: b.classList.contains('on'), jambes: !!b.querySelector('.jambes') })));
+        if (filets.length !== 2 || filets.filter(f => f.on).length !== 1 || !filets.every(f => f.jambes)) errors.push(`« Devant le filet ce soir » n'a pas ses deux gardiens : ${JSON.stringify(filets)}`);
+        const autreFilet = (filets.find(f => !f.on) || {}).qui;
         await _click('#lignesModal [data-importance="haute"]');
+        const totApres = await lireTot();
+        if (totApres === totAvant) errors.push(`les totaux ne suivent pas la consigne : « ${totAvant} » avant et après « Haute »`);
+        if (autreFilet) await _click(`#lignesModal .gl-filet [data-filet="${autreFilet}"]`);
+        console.log(`   totaux du soir : « ${totAvant} » → « ${totApres} » · devant le filet : ${autreFilet || '—'}`);
         await _click('#lignesModal .gl-appliquer');
         await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
         await repondreAuxChoix();
@@ -1525,6 +1542,7 @@ async function traverserSaison(etiquette, reprise = false) {
         const imp = ((await page.textContent('#hubModal .hub-lignes-imp').catch(() => '')) || '').trim();
         if (jApres !== jAvant) errors.push(`la consigne du match rembobine la saison : journée ${jAvant} puis ${jApres}`);
         if (!dMatch.length || dMatch[dMatch.length - 1].match.importance !== 'haute' || !Array.isArray(dMatch[dMatch.length - 1].lignes)) errors.push(`la sauvegarde ne porte pas la consigne du match : ${JSON.stringify(dMatch)}`);
+        else if (autreFilet && dMatch[dMatch.length - 1].filet !== autreFilet) errors.push(`choisir l'autre gardien ne laisse pas de décision « filet » : ${JSON.stringify(dMatch[dMatch.length - 1].filet)} au lieu de « ${autreFilet} »`);
         else if (!/Haute/.test(imp)) errors.push(`l'affiche ne dit pas l'importance choisie : « ${imp} »`);
         else console.log(`   préparer le match : importance haute pour la journée ${dMatch[dMatch.length - 1].jour + 1}, route ${route} marques, aucune faction, ce qui joue sur ta formation à côté des lignes`);
       }

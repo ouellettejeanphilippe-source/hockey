@@ -10408,3 +10408,26 @@ img.visage.brut { object-position: 50% 12% !important; }
 /* La case grandit si sa rangée passe à la ligne (106 px au moins, comme avant). */
 .slot.cj-case { height: auto; min-height: 106px; }
 .slot.cj-case .slot-inner { flex: 1 0 auto; }
+
+/* =====================================================================
+   DEVANT LE FILET CE SOIR (1.0, C4) : les deux gardiens, leurs jambes
+   et leur % d'arrêts, dans « Préparer le match ». Deux boutons, pas trois.
+   ===================================================================== */
+.gl-filet .gl-seg.gl-seg-court { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gl-filet .gl-seg-btn.gl-gardien { display: grid; gap: 4px; text-align: left; padding: 8px 10px; }
+.gl-filet .gl-gardien b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-gardien-l { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; color: var(--sub); }
+.gl-filet .gl-gardien .jambes { width: 100%; }
+.gl-filet .gl-gardien .jambes i { flex: 1 1 auto; }
+
+/* =====================================================================
+   LES TOTAUX DU SOIR (1.0, C5) : une ligne, ce que le moteur appliquera ce
+   soir — effets multipliés et bornés (`totauxDuSoir`, js/sim.js). Dans
+   « Préparer le match » en tête, et sur l'affiche du prochain match.
+   ===================================================================== */
+.gl-totaux { margin: 0 0 12px; padding: 8px 10px; border-radius: var(--r-s, 10px); background: var(--panel-2); border: 1px solid var(--line); }
+.gl-totaux-l, .hub-totaux { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.gl-totaux-l b, .hub-totaux b { font-family: var(--display); letter-spacing: .02em; }
+.gl-totaux .choix-puces, .hub-totaux .choix-puces { display: flex; flex-wrap: wrap; gap: 4px; }
+.gl-totaux .gl-mot { margin-top: 4px; }
+.hub-totaux { margin: 0 14px 10px; font-size: 12.5px; cursor: help; }
