@@ -220,7 +220,7 @@ export function ouvrirChoix(spec) {
           pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
-          joueurHtml: o.carteJoueur || '', motChoixHtml: o.motChoix ? esc(o.motChoix) : '',
+          joueurHtml: o.carteJoueur || '', motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin,
         });
         return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
           ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
@@ -1032,7 +1032,7 @@ export function optionDeCarteMatch(cle) {
   return {
     cle, rarete: C.maudite ? 'commune' : C.rarete, ico: C.ico, nom: C.nom,
     type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} élan`}`,
-    texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C),
+    texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C), genreCarte: C.genre, dessin: cle,
   };
 }
 const carteDeMatch = (cle, i, etat, cout = null) => {
@@ -1040,7 +1040,7 @@ const carteDeMatch = (cle, i, etat, cout = null) => {
   const coin = cout != null && CARTES_MATCH[cle] && cout < CARTES_MATCH[cle].cout ? `<s>${CARTES_MATCH[cle].cout}</s>${cout}` : esc(o.coin);
   return carteHtml({
     cle: String(i), rarete: o.rarete, i, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(o.type),
-    texteHtml: `<i class="tc-ambiance">${esc(o.texte)}</i>`, coinHtml: coin, pucesHtml: puces(o.mots),
+    texteHtml: `<i class="tc-ambiance">${esc(o.texte)}</i>`, coinHtml: coin, pucesHtml: puces(o.mots), genreCarte: o.genreCarte, dessin: o.dessin,
   }).replace('class="choix-option tc', `class="choix-option tc main-carte${String(cle).endsWith('+') ? ' plus' : ''}${etat ? ` ${etat}` : ''}`);
 };
 

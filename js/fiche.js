@@ -5,18 +5,18 @@
 
 import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, signe, money, pct3 } from './util.js';
+import { esc, signe, money, pct3, ord } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
 import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
-import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, getTeamBand, fondEquipe, couleurVive, teamSeasonUrl } from './logos.js';
+import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { sesRolesHtml, barresProfils } from './gerant.js';
-import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, brille, anneeDeCarte, tirageLimite, TAILLE_SERIE } from './cartes.js';
+import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
-import { choisirCarteAPoser, classesDeCarte, destinationFor, identiteTag, logoFiligrane, mesure, ouvrirVersoPourPoser, rareteJoueur, rubanDe, sectionMods, signPlayer, slotShort, traitsJoueur } from './repechage.js';
-import { $, G, TEAMFULL, capLeft, closeModal, displayStats, formatName, headshotHtml, ico, isPicked, openModal, ouvrirModale, positionClass, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag } from './game.js';
+import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
+import { $, G, capLeft, closeModal, displayStats, formatName, ico, isPicked, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag } from './game.js';
 
 /* =====================================================================
    Hexagone (seulement si le brouillard est levé)
@@ -328,14 +328,15 @@ export function showPlayerModal(p, opts = {}) {
    * LA FICHE EST UNE CARTE, RECTO ET VERSO (S78). JP : *devant de carte
    * vertical, pour stats et face complète car portraits* ; puis *les cartes
    * devraient être verticales, pis recto verso même style, avec largeur
-   * pleine*. Une seule carte debout, sur toute la largeur de la fiche (420 px
-   * au plus, au bureau), dans le dessin de son ÉPOQUE et aux couleurs de son
-   * CLUB (`ereDe`, style.css « LES ÈRES ») ; la variante n'est que la
-   * finition, la même sur les deux faces. Les deux faces s'empilent dans la
+   * pleine*. Une seule carte debout, sur toute la largeur de la fiche (400 px
+   * au plus, au bureau), dans le dessin de sa SÉRIE et aux couleurs de son
+   * CLUB (1.0, `cartonDe`, style.css « LES SÉRIES ») ; la variante en est la
+   * parallèle, la même sur les deux faces. Les deux faces s'empilent dans la
    * même case : la carte a la taille de la plus haute, et elle ne change pas
    * de taille quand on la retourne.
-   *   RECTO — le visage entier, la rondelle du poste, l'écusson et l'année ;
-   *     le nom et le club ; la vraie saison (six nombres) ; le salaire.
+   *   RECTO — le carton (le visage, le poste, le niveau, la gemme, le nom, le
+   *     club, les petits caractères), puis la plaque : la vraie saison (six
+   *     nombres) et le salaire.
    *   VERSO — le numéro de la carte, le nom et le poste ; les mensurations ;
    *     ce qu'il sait faire ; les traits, les mesures et la zone ; ce que sa
    *     carte JOUE (la variante et son bonus, en toutes lettres) ; l'échange
@@ -346,9 +347,8 @@ export function showPlayerModal(p, opts = {}) {
    */
   const rarete = rareteJoueur(p);
   const R = RARETES[rarete];
-  const band = getTeamBand(p.t);
   const numero = numeroDeCarte(getPlayerKey(p));
-  const ere = classesDeCarte(p);
+  const serie = serieDe(p.s);
   const joue = traitsJoueur(p);
   const roles = p.p === 'G' ? '' : barresProfils(p);
   const saCarte = `<div class="cj-sa-carte"><span class="cj-sa-rarete tc-${rarete}" title="${esc(sensRarete(rarete))}">${R.gemme}${brillante(rarete) ? '✦' : ''} ${esc(NOM_VARIANTE[rarete] || R.nom)}</span>${joue.length
@@ -364,30 +364,20 @@ export function showPlayerModal(p, opts = {}) {
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
     ${saCarte}
     ${sectionMods(p, opts.attente || null)}`;
-  const verso = versoDeCarte(p, numero, rarete, milieuVerso, ere);
+  const verso = versoDeCarte(p, numero, rarete, milieuVerso, serie);
   body.innerHTML = `
-    <div class="pcard-full" style="--team-logo:${logoFiligrane(p.t)};--card-primary:${colors.primary};--card-accent:${colors.accent};--team-band:${band.bg};--team-stripe:${band.stripe};--team-ink:${band.ink};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
+    <div class="pcard-full" style="${varsEquipe(p)};--card-primary:${colors.primary};--card-accent:${colors.accent}">
       <div class="fiche-carte">
         <div class="fc-faces">
-          <div class="fc-face fc-recto pcard-full-photo cj-recto ${ere} tc-${rarete}" title="Touche la carte pour la retourner">
-            ${finiHtml(rarete)}
-            <div class="cj-fenetre">
-              <span class="cj-filigrane" aria-hidden="true"></span>
-              ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
-              ${headshotHtml(p)}
-              <span class="cj-dessus" aria-hidden="true"></span>
-              ${rubanDe(p)}
-              <span class="cj-rondelle ${positionClass(p)}">${esc(positionLabel(p))}</span>
-              <span class="cj-coin-logo">${getTeamLogoHtml(p.t, 26)}</span>
-              <span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>
-            </div>
-            <div class="cj-bandeau"><div class="pcard-full-name">${formatName(p.n)}</div></div>
-            <div class="fc-club"><span class="fc-club-nom">${esc(TEAMFULL[p.t] || p.t)}</span><span class="fc-marque" aria-hidden="true">Cap<b>82-0</b></span></div>
+          <div class="fc-face fc-recto cs-${serie} tc-${rarete}" title="Touche la carte pour la retourner">
+            ${cartonDe(p, { nomClasse: 'pcard-full-name' })}
+            <div class="fc-plaque">
             <div class="fc-legende">Sa vraie saison${G.statsProrata ? ' · prorata 82 matchs, ajusté à l\'époque' : ''}</div>
             <div class="fc-stats">${statsCarte}</div>
             <div class="fc-pied">
               <span class="fc-salaire"><b>${st.salaryMain}</b><small>${[st.salarySub, G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`].filter(Boolean).join(' · ')}</small></span>
               <button type="button" class="cj-retourner" aria-label="Retourner la carte">↻ Verso</button>
+            </div>
             </div>
           </div>
           ${verso}
@@ -501,7 +491,25 @@ const POSTE_MOT = { AG: 'Ailier gauche', AD: 'Ailier droit', C: 'Centre', DG: 'D
  *     tirage d'une légendaire (qui a quitté sa photo : « 71/99 » s'y lisait
  *     comme une cote).
  */
-function versoDeCarte(p, numero, rarete, milieu = '', ere = '') {
+/*
+ * SA LIGUE EN UNE LIGNE (1.0), comme la bio d'un vrai verso : son rang dans sa
+ * vraie saison — aux points parmi les patineurs, au % d'arrêts parmi les
+ * gardiens de 25 matchs et plus. Le recto dit ses nombres ; le verso, ce
+ * qu'ils valaient dans la ligue. Rien au-delà du 30e (du 10e gardien).
+ */
+function rangDansLaLigue(p) {
+  const e = G.shards.get(p.s);
+  if (!e) return '';
+  if (p.p === 'G') {
+    if (p.sv == null || (p.gp || 0) < 25) return '';
+    const r = 1 + e.players.filter(x => x.p === 'G' && (x.gp || 0) >= 25 && x.sv != null && Number(x.sv) > Number(p.sv)).length;
+    return r <= 10 ? `${ord(r)} % d'arrêts de la ligue en ${p.s}, parmi les gardiens de 25 matchs et plus.` : '';
+  }
+  const pts = x => x.pt ?? ((x.g || 0) + (x.a || 0));
+  const r = 1 + e.players.filter(x => x.p !== 'G' && pts(x) > pts(p)).length;
+  return r <= 30 ? `${ord(r)} pointeur de la ligue en ${p.s}.` : '';
+}
+function versoDeCarte(p, numero, rarete, milieu = '', serie = 'signature') {
   const prim = positionLabel(p).split(' / ')[0];
   const vit = [];
   if (p.hgt) vit.push(['Taille', `${Math.floor(p.hgt / 12)}′${p.hgt % 12}″`]);
@@ -509,9 +517,9 @@ function versoDeCarte(p, numero, rarete, milieu = '', ere = '') {
   if (p.bd) { const [a, m, j] = String(p.bd).split('-').map(Number); if (a && m && j) vit.push(['Naissance', `${String(j).padStart(2, '0')}-${String(m).padStart(2, '0')}-${a}`]); }
   const age = ageAtSeason(p.bd, p.s);
   if (age) vit.push(['Âge', `${age} ans`]);
-  const faits = [];
+  const faits = [rangDansLaLigue(p)].filter(Boolean);
   if (p.x) faits.push('Échangé en cours de saison : il a porté deux chandails cette année-là.');
-  if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p))}`);
+  if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p), (G.variantes.numeros || {})[getPlayerKey(p)] || '/99')}`);
   /*
    * LE PIED D'UN VRAI VERSO (S80) : la ligne légale de l'imprimeur, en petits
    * caractères — « © 1985 O-Pee-Chee » disait l'année de la série sans la
@@ -519,14 +527,14 @@ function versoDeCarte(p, numero, rarete, milieu = '', ere = '') {
    * le nombre de cartes. Rien que le recto dise déjà en toutes lettres.
    */
   const anneeSerie = String(p.s || '').slice(0, 4);
-  return `<div class="fc-face fc-verso cj-verso ${ere} tc-${rarete} fc-cachee" aria-hidden="true">
+  return `<div class="fc-face fc-verso cj-verso cs-${serie} tc-${rarete} fc-cachee" aria-hidden="true">
     ${finiHtml(rarete)}
-    <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série"><small aria-hidden="true">Nº</small>${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span></div>
+    <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série"><small aria-hidden="true">Nº</small>${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span><span class="cjv-logo">${getTeamLogoHtml(p.t, 22)}</span></div>
     ${vit.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${vit.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${vit.map(([, v]) => `<td>${esc(v)}</td>`).join('')}</tr></tbody></table></div>` : ''}
     ${milieu}
     ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
     <div class="fc-filigrane" aria-hidden="true">${getTeamLogoHtml(p.t, 120)}</div>
-    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · Série de ${TAILLE_SERIE} cartes</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
+    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${SERIES[serie].nom} · série de ${TAILLE_SERIE} cartes</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
   </div>`;
 }
 

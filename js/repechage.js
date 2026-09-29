@@ -11,7 +11,7 @@ import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ra
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
-import { dessinDe, finiHtml, brille, anneeDeCarte, brillante, gemmeJoueur } from './cartes.js';
+import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, numeroDeCarte, tirageLimite } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE } from './banque.js';
 import { hubActif } from './coquille.js';
@@ -112,7 +112,6 @@ const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
  * matchs) abaisse le seuil de « régulier ».
  */
 const niveauJoueur = p => { const e = p && p.s && G.shards.get(p.s); return e ? niveauDe(p, e.players) : -1; };
-const estEtoile = p => niveauJoueur(p) >= ETOILE;
 /*
  * LA PASTILLE DE NIVEAU (1.0, les lignes) : ce qui se lit à la place d'une cote
  * générale — son rang dans sa vraie saison, à son poste. Aucune cote n'entre
@@ -126,36 +125,42 @@ export function pastilleNiveau(p) {
   return `<span class="niv niv-${N.cle}" title="${esc(N.nom)} : ${esc(N.rang)} de sa saison, à son poste">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}</span>`;
 }
 brancherPastilleNiveau(pastilleNiveau);
-/* Les classes de la carte : l'époque, la série, la sous-série. */
-export const classesDeCarte = p => `${dessinDe(p.s)}${estRecrue(p) ? ' ss-recrue' : ''}${estEtoile(p) ? ' ss-etoile' : ''}`;
+/*
+ * LE CARTON D'UN JOUEUR (1.0) : ce que le gabarit (`cartonHtml`, js/cartes.js)
+ * pose dans le dessin de sa série — le même au vestiaire, dans la carte mini
+ * et dans la fiche. o : { nomClasse, clubClasse, eclat }
+ */
+const sansTaille = html => html.replace(/ style="width:\d+px;height:\d+px;object-fit:contain"/, '');
+export function cartonDe(p, o = {}) {
+  const rarete = rareteJoueur(p);
+  const cle = getPlayerKey(p);
+  const mots = String(p.n || '').trim().split(' ');
+  return cartonHtml({
+    serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p),
+    pos: esc(positionLabel(p)), posClasse: positionClass(p),
+    gemmeHtml: gemmeJoueur(rarete, traitsJoueur(p)), rubanHtml: rubanDe(p),
+    nomHtml: formatName(p.n), nomLettres: mots[mots.length - 1].length, nomClasse: o.nomClasse,
+    logoHtml: sansTaille(getTeamLogoHtml(p.t, 48)), club: esc(p.t), clubNom: esc(TEAMFULL[p.t] || p.t), clubClasse: o.clubClasse,
+    numero: numeroDeCarte(cle), annee: esc(anneeDeCarte(p.s)),
+    tirage: esc(tirageLimite(cle, (G.variantes.numeros || {})[cle] || '/99')), signature: esc(p.n), eclat: o.eclat,
+  });
+}
+/* Les couleurs du club, posées sur la carte : le carton de chaque série les lit. */
+export function varsEquipe(p) {
+  const band = getTeamBand(p.t);
+  return `--team-logo:${logoFiligrane(p.t)};--team-band:${band.bg};--team-ink:${band.ink};--team-stripe:${band.stripe};--team-fond:${fondEquipe(p.t) || band.bg};--team-line:${couleurVive(p.t)}`;
+}
 /*
  * LA CARTE MINI (S78). JP : *versions normales et version mini, pour genre
- * les picks*. Le même dessin que la carte normale — l'époque, la série, la
- * sous-série, la variante, les couleurs du club — en petit : la photo, le
- * nom, et UNE ligne (le chiffre clé et le salaire). Elle sert aux choix d'un
+ * les picks*. Le même carton que la carte du vestiaire, en petit, et UNE
+ * ligne dessous : le chiffre clé et le salaire. Elle sert aux choix d'un
  * joueur (pack, ballottage, recrue, garder, nouveau rôle), où trois cartes
  * se comparent côte à côte ; la fiche reste la version complète.
  */
 export function carteMiniHtml(p) {
-  const rarete = rareteJoueur(p);
-  const band = getTeamBand(p.t);
   const st = displayStats(p);
   const cle = p.p === 'G' ? `${svCourt(p)}<small>%ARR</small>` : `${st.pt}<small>PTS</small>`;
-  return `<span class="cj-recto cj-mini-carte ${classesDeCarte(p)} tc-${rarete}" style="--team-logo:${logoFiligrane(p.t)};--team-band:${band.bg};--team-ink:${band.ink};--team-stripe:${band.stripe};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
-    ${finiHtml(rarete)}
-    <span class="cj-fenetre">
-      <span class="cj-filigrane" aria-hidden="true"></span>
-      ${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}
-      ${headshotHtml(p)}
-      <span class="cj-dessus" aria-hidden="true"></span>
-      <span class="cj-rondelle ${positionClass(p)}">${esc(positionLabel(p))}</span>
-      <span class="cj-coin-logo">${getTeamLogoHtml(p.t, 18)}</span>
-      <span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>
-      ${rubanDe(p)}
-    </span>
-    <span class="cj-bandeau"><span class="pcard-full-name">${formatName(p.n)}</span></span>
-    <span class="cjm-ligne"><b>${cle}</b><span>${st.salaryMain}</span></span>
-  </span>`;
+  return `<span class="cj-mini-carte" style="${varsEquipe(p)}">${cartonDe(p)}<span class="cjm-ligne"><b>${cle}</b><span>${st.salaryMain}</span></span></span>`;
 }
 /*
  * SES CARTES (S78). JP : *pour les cartes, ajouter section au verso ou
@@ -446,7 +451,7 @@ export const ligneDuChoix = p => (p.p === 'G'
  * `style="…"` (la mini, la fiche), où un guillemet double fermait l'attribut —
  * toutes les couleurs du club qui suivaient tombaient, et la carte sortait grise.
  */
-export const logoFiligrane = t => (LOGOS_LOCAUX.has(t) ? `url('img/logos/${t}.svg')` : 'none');
+const logoFiligrane = t => (LOGOS_LOCAUX.has(t) ? `url('img/logos/${t}.svg')` : 'none');
 /*
  * LE RUBAN DE LA SOUS-SÉRIE, au bas de la photo : « ★ Étoile », « Recrue »,
  * ou les deux. Il remplace le tampon « Recrue » d'avant — et garde son
@@ -454,7 +459,7 @@ export const logoFiligrane = t => (LOGOS_LOCAUX.has(t) ? `url('img/logos/${t}.sv
  * sommet de l'étoile, le PHÉNOMÈNE, se dit « ★ Phénomène » (le 1 % du haut
  * de sa saison) ; une recrue étoile garde « ★ Recrue ★ ».
  */
-export function rubanDe(p) {
+function rubanDe(p) {
   // Le NIVEAU (S80, js/niveaux.js) et la VRAIE saison recrue (S79, `estRecrue`) : le ruban dit l'un ou l'autre, ou les deux.
   const niveau = niveauJoueur(p), etoile = niveau >= ETOILE;
   const rk = estRecrue(p);
@@ -1087,48 +1092,20 @@ export function playerCardEl(p) {
   const st = displayStats(p);
   const isTargeted = G.target !== null && slot === SLOTS[G.target];
 
-  // UNE CARTE DE HOCKEY (S76) : `cj` pose le cadre, le reflet et la fenêtre
-  // du portrait ; `tc-<rareté>` le métal du cadre, le même que les cartes
-  // de match. La rareté vient du salaire (`rareteJoueur`), jamais d'une cote.
+  // UNE CARTE DE HOCKEY (S76), DANS LE DESSIN DE SA SÉRIE (1.0) : le carton
+  // (`cartonDe`) est celui de sa saison, aux couleurs de son club, et sa
+  // variante (`tc-<variante>`) n'en est que la parallèle.
   const rarete = rareteJoueur(p);
   const el = document.createElement('div');
-  /*
-   * LA CARTE EST DEBOUT, DESSINÉE PAR SON ÉPOQUE (S78). JP : *Devant de carte
-   * vertical, pour stats et face complète car portraits* ; *couleur et style
-   * de carte différentes selon années, pis couleurs de l'équipe du joueur*.
-   * `pv` la met debout (la photo en haut, le visage entier), `e70`…`e10` lui
-   * donne le dessin de sa saison (`ereDe`), les couleurs du club font la
-   * palette, et `tc-<variante>` n'est que la FINITION par-dessus : la
-   * parallèle, l'holographique, la dorée. Au VESTIAIRE (`cj-meme-club`), toutes
-   * les cartes sont du club et de la saison que l'en-tête affiche déjà : ni
-   * l'écusson ni l'année ne s'y répètent. Au loto, trois clubs de trois
-   * saisons : chaque carte dit les siens.
-   */
+  // ✦ Une brillante qui sort pour la première fois éclate une fois (`VARIANTES_VUES`).
   const cleVue = `${getPlayerKey(p)}|${rarete}`;
   const neuve = brillante(rarete) && !VARIANTES_VUES.has(cleVue);
   if (neuve) VARIANTES_VUES.add(cleVue);
-  el.className = `pcard cj pv ${classesDeCarte(p)} tc-${rarete}${MODE().loto ? '' : ' cj-meme-club'}${neuve ? ' cj-apparait' : ''}`
+  el.className = `pcard tc-${rarete}${neuve ? ' cj-apparait' : ''}`
     + (already ? ' signed' : '')
     + ((already || !slot || over) ? ' locked' : '');
   el.title = 'Toucher la carte pour la fiche complète';
-  const band = getTeamBand(p.t);
-  el.style.setProperty('--team-line', couleurVive(p.t));
-  el.style.setProperty('--team-logo', logoFiligrane(p.t));
-  // LE CORPS DE LA CARTE PORTE LA VRAIE COULEUR DU CLUB, assombrie juste
-  // assez pour qu'un nom blanc se lise dessus (`fondEquipe`, js/logos.js).
-  el.style.setProperty('--team-fond', fondEquipe(p.t) || '');
-  el.style.setProperty('--team-band', band.bg);
-  el.style.setProperty('--team-ink', band.ink);
-  el.style.setProperty('--team-stripe', band.stripe);
-  // Le bouton « Signer » porte la couleur secondaire du club (voir style.css).
-  el.style.setProperty('--team-stripe-ink', band.stripeInk);
-  el.style.setProperty('--team-bouton', band.bouton);
-  el.style.setProperty('--team-bouton-ink', band.boutonInk);
-  // La plaque de l'écusson : la SECONDE couleur du club. Elle se pose ici et
-  // pas seulement sur `:root` — en loto, trois clubs sont à l'écran en même
-  // temps, et la plaque de chacun doit être la sienne.
-  el.style.setProperty('--team-plaque', band.plaque);
-  el.style.setProperty('--team-plaque-ink', band.plaqueInk);
+  el.setAttribute('style', varsEquipe(p));
 
   // La carte ne porte que l'essentiel : qui, combien, ce qu'il vaut et où il
   // va. Le détail des statistiques est dans la fiche, à un clic.
@@ -1139,10 +1116,8 @@ export function playerCardEl(p) {
   // Sur table, la carte porte les nombres du plateau à la place du chiffre
   // clé, et le gabarit, le tir et l'habileté à la place de l'archétype, des
   // mesures et de la zone — ce que le plateau lit, rien de ce qu'il ignore.
-  const mid = surTable()
-    ? `<span class="pcard-axes">${axesTableHtml(p)}</span><div class="tags">${tagsTableHtml(p)}</div>`
-    : `<div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
-          <div class="tags">${[identiteTag(p), roleTag(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
+  const cle = surTable() ? `<span class="pcard-axes">${axesTableHtml(p)}</span>` : `<span class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></span>`;
+  const mid = `<div class="tags">${surTable() ? tagsTableHtml(p) : [identiteTag(p), roleTag(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
 
   let dest;
   if (already) {
@@ -1174,35 +1149,15 @@ export function playerCardEl(p) {
   // LE BOUTON DIT QUAND IL TE BLOQUE (1.0, J1-Q) : au-delà du budget du choix, il change de mot et de couleur, et demande une confirmation.
   const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : risky ? 'Signer · bloque la fin' : 'Signer';
 
-  // Le bandeau dit d'un coup d'oeil ce qu'on regarde — le poste — et change
-  // de couleur quand la carte change d'état. Il porte un fond, jamais du
-  // texte de contenu : la même règle que les couleurs d'équipe.
-  const etat = already ? 'signe' : over || !slot ? 'off' : '';
-  // LE BANDEAU PORTE LA COULEUR DE L'ÉQUIPE, le poste et la provenance : tout
-  // ce qui identifie la carte tient sur une ligne au lieu d'être éparpillé.
-  // Le corps range le reste sur deux lignes à côté du portrait, plutôt que de
-  // l'empiler : même information, deux fois moins de hauteur.
-  // Sur la photo : le poste en rondelle, l'écusson et l'ANNÉE (JP : *au lieu de
-  // côte sur la face, année ?* — le tirage « 71/99 » s'y lisait comme une note
-  // sur 99 ; il vit au verso), la gemme de la variante et ce qu'elle joue, le
-  // tampon « Recrue ». Un éclat quand une brillante sort pour la première fois.
-  el.innerHTML = `${finiHtml(rarete)}
-    <div class="pcard-band">
-      <span class="pb-pos ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</span>
-      <span class="pb-team">${getTeamLogoHtml(p.t, 16)}<span>${esc(p.t)}</span></span>
-      ${gemmeJoueur(rarete, traitsJoueur(p))}
-    </div>
-    <div class="pcard-inner">
-      <div class="pcard-avatar"><span class="cj-filigrane" aria-hidden="true"></span>${brille(rarete) ? '<span class="cj-holo" aria-hidden="true"></span>' : ''}${headshotHtml(p)}<span class="cj-dessus" aria-hidden="true"></span><span class="cj-annee">${esc(anneeDeCarte(p.s))}</span>${rubanDe(p)}${neuve ? '<span class="cj-eclat" aria-hidden="true"></span>' : ''}</div>
-      <div class="pcard-body">
-        <div class="pcard-head">
-          <div class="pcard-name">${formatName(p.n)}</div>
-          <div class="pcard-price">${st.salaryMain}</div>
-        </div>
-        <div class="pcard-mid">
-          ${mid}
-        </div>
-      </div>
+  // LE CARTON, PUIS LA BANDE (1.0) : au-dessus, la carte telle qu'on la
+  // collectionne ; dessous, ce qui se COMPARE d'une carte à l'autre — le
+  // salaire, le chiffre clé, le rôle et la zone, où il ira, le bouton — à la
+  // même place dans les dix séries. Le tirage d'une or est sur la carte
+  // (« 07/25 »), sur un tampon qui ne se lit pas comme une note.
+  el.innerHTML = `${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team', eclat: neuve })}
+    <div class="pcard-fiche">
+      <div class="pcard-ligne"><span class="pcard-price">${st.salaryMain}</span>${cle}</div>
+      <div class="pcard-mid">${mid}</div>
       <div class="pcard-dest">${dest}</div>
       <button class="btn-sign${already ? ' is-signed' : ''}${risky ? ' risque' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
     </div>`;
@@ -1236,12 +1191,12 @@ export function playerCardEl(p) {
  */
 function voleAuCartable(el, rarete) {
   if (!el || !el.isConnected || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const src = el.querySelector('.pcard-avatar');
+  const src = el.querySelector('.carton-photo');
   const r = (src && src.offsetParent ? src : el).getBoundingClientRect();
   if (!r.width) return;
   const cible = [...document.querySelectorAll('.navtab[data-page="alignement"]')].find(b => b.offsetParent) || $('cnt');
   const rc = cible ? cible.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight - 40, width: 0, height: 0 };
-  const img = src && src.querySelector('img');
+  const img = src && src.querySelector('img.visage, img.carton-action');
   const v = document.createElement('div');
   v.className = `cj-vole tc-${rarete}`;
   v.setAttribute('aria-hidden', 'true');

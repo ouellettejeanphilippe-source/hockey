@@ -53,7 +53,7 @@ export function albumHtml(historique, ctx) {
     const C = CARTES_MATCH[k], n = A.cartes.get(k) || 0;
     if (!n) return `<span class="album-trou tc-${C.rarete}" title="Pas encore eue — ${esc(RARETES[C.rarete].nom.toLowerCase())}"><b>?</b><small>${esc(RARETES[C.rarete].nom)}</small></span>`;
     return carteHtml({ cle: `album:${k}`, rarete: C.rarete, i, ico: C.ico, nomHtml: esc(C.nom), typeHtml: esc(`${C.cout} élan`),
-      texteHtml: esc(C.texte), coinHtml: esc(`×${n}`) }).replace('class="choix-option tc', 'class="choix-option tc lecture album-carte');
+      texteHtml: esc(C.texte), coinHtml: esc(`×${n}`), genreCarte: C.genre, dessin: k }).replace('class="choix-option tc', 'class="choix-option tc lecture album-carte');
   }).join('');
   const ids = Object.entries(IDENTITES).map(([k, I]) => {
     const n = A.identites.get(k) || 0;
