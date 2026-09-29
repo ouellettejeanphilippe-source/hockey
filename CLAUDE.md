@@ -82,6 +82,9 @@ scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs,
                       la vraie saison recrue…), vérifications (check_*.mjs, smoke*.mjs, tout.mjs qui enchaîne les rapides),
                       calibration (calibrate_sim, mock_*), verdict.mjs (le juge partagé), lib/mort.mjs (la mesure du code mort)
 mobile/, desktop/     l'APK (Capacitor) et l'exe (Electron) ; seul leur code est versionné
+mobile/assembler-www.mjs  www/ de l'APK : sans data/salaries ni data/seed.json, JS regroupé en lots et minifié,
+                      CSS minifié (esbuild, devDependency de mobile/ seulement ; --brut pour s'en passer),
+                      cartes de sources à côté dans www-cartes/ ; la liste hors ligne de sw.js est réécrite
 docs/                 l'historique et la référence (voir docs/README.md)
 ```
 
