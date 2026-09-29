@@ -432,7 +432,7 @@ function pointsDeBande(m) {
  */
 let pastilleNiveau = () => '';
 export const brancherPastilleNiveau = f => { pastilleNiveau = f; };
-/* Les jambes d'un joueur (sa fatigue, sur 100), en chiffre et en barre. Un gardien n'en a pas : le moteur ne l'use pas. */
+/* Les jambes d'un joueur (sa fatigue, sur 100), en chiffre et en barre. Celles d'un gardien se comptent en départs de suite (C4). */
 export function jambesHtml(e) {
   const v = Math.round(e);
   return `<span class="jambes" title="Ses jambes ce matin, sur 100. À 90 et plus, il rend tout ; sous 90, il rend un peu moins à chaque point ; sous 60, il se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${v < 75 ? 'bas' : v < 90 ? 'moyen' : ''}"></span></i></span>`;
@@ -574,6 +574,18 @@ export function ouvrirLignes(spec) {
   const brouillon = spec.lignes.map(l => ({ ...l }));
   const match = spec.match ? { importance: spec.match.importance || 'normale', ad: spec.match.ad || 0 } : null;
   let ouverte = 0;
+  /*
+   * DEVANT LE FILET CE SOIR (1.0, C4). JP : *je comprends pas la gestion des
+   * gardiens*. Le partant et l'auxiliaire, leurs jambes et leur % d'arrêts de
+   * leur vraie saison ; la rotation du club est choisie d'office, toucher
+   * l'autre gardien lui donne le filet pour CE soir (une décision, qui se
+   * rejoue). `spec.filet` : { partant, aux (clés), rotation: 'partant'|'aux', choix }.
+   */
+  const F0 = spec.filet || null;
+  const gardienDe = cle => (cle ? Object.values(spec.lineup || {}).find(p => p && getPlayerKey(p) === cle) || null : null);
+  const gPartant = F0 ? gardienDe(F0.partant) : null, gAux = F0 ? gardienDe(F0.aux) : null;
+  let filet = F0 ? (F0.choix && F0.choix !== 'auto' ? F0.choix : F0.rotation) : null;
+  const filetSortie = () => (!F0 ? undefined : filet === F0.rotation ? (F0.choix && F0.choix !== 'auto' ? 'auto' : undefined) : filet);
 
   const joueurLigne = (u, role) => {
     const js = joueursDeLigne(spec.lineup, u);
@@ -624,6 +636,20 @@ export function ouvrirLignes(spec) {
       <div class="gl-ad"><span>🛡️ Défense</span><input type="range" min="-2" max="2" step="1" value="${match.ad}" class="gl-ad-range" aria-label="Attaque ou défense"><span>Attaque 🎯</span></div>
       <div class="choix-puces gl-ad-puces">${puces(motsDEffet({ finition: 1 + 0.025 * match.ad, defense: 1 + 0.02 * match.ad }))}${match.ad ? '' : '<span class="puce neutre">Équilibré</span>'}</div>
     </section>` : '';
+    const svTxt = g => (g && Number.isFinite(g.sv) ? g.sv.toFixed(3).replace(/^0/, '') : '—');
+    const boutonGardien = (qui, g) => {
+      const e = g ? (spec.energie[getPlayerKey(g)] ?? 100) : 100;
+      const estRot = F0 && F0.rotation === qui;
+      return `<button type="button" class="gl-seg-btn gl-gardien${filet === qui ? ' on' : ''}" data-filet="${qui}" aria-pressed="${filet === qui}">
+        <b>🥅 ${g ? esc(g.n) : 'Le rappel du club-école'}</b>
+        <span class="gl-gardien-l"><small>${qui === 'partant' ? 'Partant' : 'Auxiliaire'}${estRot ? ' · la rotation' : ''}</small><small title="Son % d'arrêts de sa vraie saison">${svTxt(g)} d'arrêts</small></span>
+        ${jambesHtml(e)}</button>`;
+    };
+    const filetHtml = F0 ? `<section class="gl-filet">
+      <div class="gl-sec-titre">Devant le filet ce soir</div>
+      <div class="gl-seg gl-seg-court">${boutonGardien('partant', gPartant)}${boutonGardien('aux', gAux)}</div>
+      <div class="gl-mot">Un gardien garde ses jambes trois départs de suite ; au quatrième, il en perd 5 par départ, et chaque 5 points perdus lui coûtent 1 % de buts accordés de plus. Une soirée de congé les lui rend. La rotation du club est choisie d'office ; touche l'autre pour lui donner le filet ce soir.</div>
+    </section>` : '';
     const onglets = `<div class="gl-onglets" role="tablist">${NOMS_LIGNE.map((n, u) => {
       const T = TACTIQUES[brouillon[u].tac] || TACTIQUES.hourra, D = u < 3 ? SYSTEMES_D[brouillon[u].tacD] || SYSTEMES_D.hourra : null;
       return `<button type="button" role="tab" class="gl-onglet${u === ouverte ? ' on' : ''}" data-ligne="${u}" aria-selected="${u === ouverte}">
@@ -671,7 +697,7 @@ export function ouvrirLignes(spec) {
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
-      <div class="choix-corps">${effetsHtml(spec.effets)}${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv ? spec.adv.nom : 'Eux' }) : ''}${consigne}${onglets}${detail}</div>
+      <div class="choix-corps">${effetsHtml(spec.effets)}${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv ? spec.adv.nom : 'Eux' }) : ''}${consigne}${filetHtml}${onglets}${detail}</div>
       <div class="gl-pied">
         ${spec.onBanc ? '<button type="button" class="btn gl-banc">Changer les trios</button>' : ''}
         <button type="button" class="btn go gl-appliquer">${esc(spec.motAppliquer || 'Appliquer')}</button>
@@ -687,10 +713,11 @@ export function ouvrirLignes(spec) {
     const s = m.querySelector('.gl-sec');
     if (s) s.onchange = () => { brouillon[ouverte].sec = Number(s.value); dessiner(); };
     m.querySelectorAll('[data-importance]').forEach(b => { b.onclick = () => { match.importance = b.dataset.importance; dessiner(); }; });
+    m.querySelectorAll('[data-filet]').forEach(b => { b.onclick = () => { filet = b.dataset.filet; dessiner(); }; });
     const ad = m.querySelector('.gl-ad-range');
     if (ad) ad.onchange = () => { match.ad = Number(ad.value); dessiner(); };
     m.querySelector('.gl-annuler').onclick = fermer;
-    m.querySelector('.gl-appliquer').onclick = () => { fermer(); spec.onAppliquer(brouillon, match); };
+    m.querySelector('.gl-appliquer').onclick = () => { fermer(); spec.onAppliquer(brouillon, match, filetSortie()); };
     const bb = m.querySelector('.gl-banc');
     if (bb) bb.onclick = () => { fermer(); spec.onBanc(); };
   }

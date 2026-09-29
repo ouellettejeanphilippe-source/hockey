@@ -32,7 +32,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
-  activeLineup, facteurGardienDe, lancersRelDe } from './sim.js';
+  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur } from './cartes.js';
@@ -2063,9 +2063,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // « Normale » par défaut, même un gros match (J1-O) : « Haute » a un prix (blessures, énergie) et se choisit.
         match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
         grosMatch: !!mb,
+        // DEVANT LE FILET CE SOIR (1.0, C4) : la rotation du matin, et ton choix s'il y en a un.
+        filet: etat.filet ? { ...etat.filet, choix: (decs.find(d => d.jour === p.j && d.filet) || {}).filet || 'auto' } : null,
         motAppliquer: 'Appliquer — la saison reprend ici',
         onBanc: onBanc ? () => { quitter(); onBanc(jour); } : null,
-        onAppliquer: (lignes, match) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match }, j); },
+        onAppliquer: (lignes, match, filet) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match, ...(filet ? { filet } : {}) }, j); },
       });
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les NHL Stars ne jouent plus d'ici la fin de la saison.</div></div>`;
@@ -2823,13 +2825,15 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       titre: `Préparer le match ${k + 1}`, sousTitre: `${nomRondeCourt(ronde)} · contre ${ctx.teamShort(boss)}`,
       lineup: you.roster, lignes: lignesDe(you, you.roster),
       chimie: (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).chimie || [0, 0, 0, 0],
-      energie: (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).energie || {},
+      energie: { ...((you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).energie || {}),
+        ...Object.fromEntries(Object.values(you.roster).filter(g => g && g.p === 'G').map(g => [getPlayerKey(g), Math.round(jambesGardien(g))])) },
+      filet: { ...filetDuSoir(you), choix: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.filet) || {}).filet || 'auto' },
       adv: { nom: ctx.teamShort(boss), lignes: lignesDe(boss, boss.roster) },
       depistage: planDuMatch(s) ? planDuMatch(s).depistage : null,
       match: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.match) || {}).match || { importance: 'haute', ad: 0 },
       motAppliquer: `Appliquer — le match ${k + 1} se joue comme ça`,
       onBanc: onBanc ? () => quitterPour(r => onBanc(r, k)) : null,
-      onAppliquer: (lignes, match) => quitterPour(r => onDecision({ ronde: r, match_no: k, lignes, match })),
+      onAppliquer: (lignes, match, filet) => quitterPour(r => onDecision({ ronde: r, match_no: k, lignes, match, ...(filet ? { filet } : {}) })),
     });
     const bb = actions.querySelector('.hub-banc-serie');
     if (bb) bb.onclick = () => quitterPour(r => onBanc(r, k));

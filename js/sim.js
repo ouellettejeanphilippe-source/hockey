@@ -2019,6 +2019,8 @@ export const facteurEnergie = p => 1 - ENERGIE_EFFET * Math.max(0, ENERGIE_SEUIL
 /* Rendre des jambes : jusqu'à 100, et le surplus en réserve pour le prochain match. */
 export function rendreJambes(p, n) {
   if (!p || !n) return;
+  // Un gardien (C4) : ses jambes se comptent en départs ; un geste les prend ou les rend jusqu'à sa prochaine soirée de congé.
+  if (p.p === 'G') { p._aine = Math.max(0, Math.min(100 - GARDIEN_JAMBES_MIN, (p._aine || 0) - n)); return; }
   const e = energieDe(p) + n;
   if (n < 0) { p.energie = Math.max(0, e); return; }
   p.energie = Math.min(100, e);
@@ -3339,7 +3341,35 @@ function facteurGardien(g) {
   const svLigue = 1 - seasonLancers(g.s)[1] / 100;
   const sv = g.sv || svLigue;
   // Une carte « Réflexes » (S78, js/rarete.js) ou le coach des gardiens (l'atelier) : quelques buts accordés de moins.
-  return borne((1 - sv) / Math.max(0.02, 1 - svLigue), 0.55, 1.60) * mutDe(g, 'arrets');
+  // SES JAMBES (1.0, C4) : chaque 5 points de jambes perdus, 1 % de buts accordés de plus.
+  return borne((1 - sv) / Math.max(0.02, 1 - svLigue), 0.55, 1.60) * mutDe(g, 'arrets') * usureGardien(g);
+}
+
+/*
+ * LES JAMBES D'UN GARDIEN (1.0, C4). JP : *je comprends pas la gestion des
+ * gardiens*. Un gardien ne s'use pas présence par présence comme un patineur :
+ * il s'use de DÉPART EN DÉPART. Trois départs de suite ne coûtent rien ; au
+ * quatrième, il perd `GARDIEN_JAMBES_PAS` (5) points de jambes par départ, et
+ * chaque 5 points perdus lui coûtent `GARDIEN_USURE` (1 %) de buts accordés
+ * de plus — jusqu'à 12 %. Une soirée où il ne part pas lui rend tout.
+ * `_suite` compte ses départs consécutifs, `_aine` les jambes qu'un geste lui
+ * a prises (« Laisser ses rituels ») jusqu'à sa prochaine soirée de congé.
+ * Rien ne tire un dé : la rotation du club est une règle, et ton choix du
+ * soir (« Devant le filet ce soir ») une décision qui se rejoue.
+ */
+export const GARDIEN_SUITE_LIBRE = 3, GARDIEN_JAMBES_PAS = 5, GARDIEN_USURE = 0.01, GARDIEN_JAMBES_MIN = 40;
+export function jambesGardien(g) {
+  if (!g) return 100;
+  const pas = Math.max(0, (g._suite || 0) - (GARDIEN_SUITE_LIBRE - 1));
+  return Math.max(GARDIEN_JAMBES_MIN, 100 - GARDIEN_JAMBES_PAS * pas - (g._aine || 0));
+}
+export const usureGardien = g => 1 + GARDIEN_USURE * (100 - jambesGardien(g)) / GARDIEN_JAMBES_PAS;
+/* Après le match : le partant ajoute un départ à sa suite, les autres gardiens du club soufflent. */
+function noterDepart(team, g) {
+  if (!team || !g) return;
+  const autres = [...SLOTS.map(s => team.roster[s.i]).filter(p => p && p.p === 'G'), team.rappelG].filter(Boolean);
+  for (const p of autres) if (p !== g) { p._suite = 0; p._aine = 0; }
+  g._suite = (g._suite || 0) + 1;
 }
 
 /* Exposés pour `scripts/check_neutre.mjs`, qui mesure le profil de l'équipe
@@ -4416,6 +4446,26 @@ function gardienDeRappel(team, modele) {
   return team.rappelG;
 }
 
+/* Qui la rotation du club enverrait ce soir, sans aucun choix imposé (pour l'écran). */
+export function gardienDeRotation(lineup, gameIdx, team = null) {
+  const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]);
+  const [starter, backup] = gs;
+  if (team && ((team.gardienAux || 0) > (team.jourCourant ?? -1))) return backup || starter || null;
+  const part = backup ? partAuxiliaire(starter, backup) : (starter ? PART_SANS_AUX : 1);
+  const useBackup = Math.floor((gameIdx + 1) * part) > Math.floor(gameIdx * part);
+  return (useBackup ? backup : starter) || starter || backup || null;
+}
+
+/* Pour l'instantané du matin (ta formation) : qui est partant, qui est auxiliaire, et qui la rotation enverrait. */
+export function filetDuSoir(team) {
+  const lu = activeLineup(team);
+  const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lu[s.i]);
+  const [starter, backup] = gs;
+  const rot = gardienDeRotation(lu, team.games || 0, team);
+  return { partant: starter ? getPlayerKey(starter) : null, aux: backup ? getPlayerKey(backup) : null,
+    rotation: rot && backup && rot === backup ? 'aux' : 'partant', impose: (team.gardienAux || 0) > (team.jourCourant ?? -1) };
+}
+
 function pickGoalie(lineup, gameIdx, team = null) {
   const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]);
   const [starter, backup] = gs;
@@ -4424,6 +4474,10 @@ function pickGoalie(lineup, gameIdx, team = null) {
   // les 70 départs, là où la vraie ligue le tient.
   // LE GARDIEN AUXILIAIRE IMPOSÉ (S72) : une carte ou un ajustement lui donne le filet.
   // Sans auxiliaire au roster, le club rappelle un gardien du club-école — pour vrai.
+  // DEVANT LE FILET CE SOIR (1.0, C4) : ton choix pour CE soir passe avant tout le reste.
+  const soir = team && team._filetForce && team._filetForce.jour === team.jourCourant ? team._filetForce.qui : team && team._filetMatch;
+  if (soir === 'partant' && starter) return starter;
+  if (soir === 'aux') return backup || gardienDeRappel(team, starter) || starter || null;
   if (team && ((team.gardienAux || 0) > (team.jourCourant ?? -1) || team._gardienAuxMatch)) return backup || gardienDeRappel(team, starter) || starter || null;
   const part = backup ? partAuxiliaire(starter, backup) : (starter ? PART_SANS_AUX : 1);
   const useBackup = Math.floor((gameIdx + 1) * part) > Math.floor(gameIdx * part);
@@ -4570,6 +4624,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   noterTrous(A, LA); noterTrous(B, LB);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   let gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
+  const partantA = gA, partantB = gB;
 
   const pA = profilMatch(A, LA, B), pB = profilMatch(B, LB, A);
   pA.rob = sA.rob; pB.rob = sB.rob;
@@ -4685,6 +4740,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     // ont joué, et l'usure de ceux qui étaient sur la glace.
     majChimie(A, LA); majChimie(B, LB);
     depenserEnergie(A, LA); depenserEnergie(B, LB);
+    noterDepart(A, partantA); noterDepart(B, partantB);
     // Le journal de la saison : ce qu'il faut pour raconter une séquence,
     // un début de saison, une raclée. Le moteur n'y lit jamais rien.
     if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
@@ -4928,6 +4984,8 @@ function appliquerDecision(team, d, graine = 0) {
   }
   // LES LIGNES À LA HOCKEYARENA (S68) : [{ tac, agr, sec }] × 4.
   if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
+  // DEVANT LE FILET CE SOIR (1.0, C4) : 'partant', 'aux' ou 'auto' (la rotation).
+  if (d.filet && Number.isFinite(d.jour)) team._filetForce = d.filet === 'auto' ? null : { jour: d.jour, qui: d.filet };
   // UN MOMENT (S66) : un effet temporaire, du jour de la décision à sa fin.
   const eff = effetDeMoment(d);
   if (eff) (team.effets = team.effets || []).push(eff);
@@ -5188,12 +5246,12 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       t.situations = [];
       t.trous = []; t.trouEnCours = false;
       t.effets = []; t.jourCourant = 0;
-      t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
+      t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
       t.chimie = [0, 0, 0, 0]; t.entente = new Map();
       // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
@@ -5208,7 +5266,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
      */
     for (const p of CONNUS.values()) {
       if (!p) continue;
-      p.energie = 100; delete p._reserve;
+      p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
       delete p._maitrise; delete p._adapt; delete p._situ;
       delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
     }
@@ -5243,7 +5301,8 @@ function preludeDuJour(L) {
         entente: Object.fromEntries(t.entente || []),
         maitrise: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), { ...(p._maitrise || {}) }])),
       } } : {}),
-      energie: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), Math.round(energieDe(p))])),
+      energie: Object.fromEntries(SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => [getPlayerKey(p), Math.round(p.p === 'G' ? jambesGardien(p) : energieDe(p))])),
+      ...(t.isPlayer ? { filet: filetDuSoir(t) } : {}),
     };
   }
   /*
@@ -5545,13 +5604,13 @@ export function copieDeJoueur(p) {
   return c;
 }
 function remettreANeuf(t) {
-  for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { initSimStats(p); p.energie = 100; delete p._reserve; } }
+  for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { initSimStats(p); p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; } }
   t.injured = new Map(); t.together = new Map(); t.togetherSig = new Map(); t.injuriesLog = []; t.journal = [];
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
   t.cartes = []; t.patrons = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
-  t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false;
+  t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0]; t.entente = new Map();
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
   t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
@@ -6039,6 +6098,7 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
         leverGros(toi);
         toi._gardienAuxMatch = false;
       }
+      toi._filetMatch = null;
       if (r.winner === s.A) s.wA++; else s.wB++;
       feuille.numero = k + 1;
       feuille.serie = `${s.wA}-${s.wB}`;
@@ -6234,6 +6294,7 @@ export function appliquerDecisionSerie(team, d, graine) {
   // et des lignes peuvent être pris avant le même round.
   team.effetsSerie = team.effetsSerie || [];
   if (d.match) team.effetsSerie.push(effetDeMoment({ match: d.match, jour: 0 }));
+  if (d.filet) team._filetMatch = d.filet === 'auto' ? null : d.filet;
   if (d.ajustement && AJUSTEMENTS[d.ajustement]) {
     const { ico, nom, bon, prix, si, gardienAux, pari, ...canaux } = AJUSTEMENTS[d.ajustement];
     void bon; void prix; void si;
@@ -6521,7 +6582,7 @@ export const AVANT_GROS = {
     irl: 'Patrick Roy parlait à ses poteaux pendant les matchs ; il disait qu\'ils étaient ses amis.',
     recit: '{nom} a ses rituels. Ce soir, le soigneur veut les couper pour son aine.',
     options: [
-      { cle: 'rituels', nom: 'Laisser ses rituels', bon: 'Il est dans sa bulle', prix: 'Son aine souffre', defense: 0.96, action: { energie: -20 } },
+      { cle: 'rituels', nom: 'Laisser ses rituels', bon: 'Il est dans sa bulle', prix: 'Son aine souffre : jambes −20 jusqu\'à sa prochaine soirée de congé', defense: 0.96, action: { energie: -20 } },
       { cle: 'auxiliaire', nom: 'Le reposer : l\'auxiliaire prend le gros match', bon: '{nom} est frais pour la suite', prix: 'Ton auxiliaire dans un gros match', action: { gardienAux: 1 } },
     ] },
   ancien: { ico: '🧳', titre: 'Le retour de l\'ancien',
