@@ -5,8 +5,9 @@
  *   node scripts/check_actions.mjs http://localhost:8000    plus l'appareil Android, simulé (réseau requis)
  *
  * 1. La liste (data/actions.json) : des joueurs du jeu, triés, sans doublon,
- *    et la place du joueur (`fx`, de 0 à 100) pour chacun ; si img/actions/
- *    est là, une image par joueur listé.
+ *    et la place du joueur (`fx`, de 0 à 100) pour chacun, et ceux dont le
+ *    visage est sur fond opaque (`opaques`, parmi eux) ; si img/actions/ est
+ *    là, une image par joueur listé.
  * 2. Le traitement, dans Chromium, par le texte de la fonction (comme le
  *    script et l'appareil la reçoivent) : il GARDE L'IMAGE ENTIÈRE (JP : *le
  *    maximum de pixels*), en 854 × 480, et `fx` suit un sujet net posé à
@@ -26,7 +27,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { exiger, informer, verdict } from './verdict.mjs';
 import { recadrerAction } from '../js/recadrage-action.js';
-import { actionFx, actionSrc } from '../js/actions.js';
+import { actionFx, actionSrc, visageOpaque } from '../js/actions.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const URL_JEU = process.argv[2] || null;
@@ -44,6 +45,9 @@ exiger('data/actions.json : des joueurs du jeu', ids.length > 0 && !etrangers.le
 exiger('data/actions.json : triée, sans doublon', ids.every((id, i) => i === 0 || id > ids[i - 1]), '');
 const fx = liste.fx || [];
 exiger('data/actions.json : la place du joueur (fx) pour chacun', fx.length === ids.length && fx.every(v => Number.isInteger(v) && v >= 0 && v <= 100), `${fx.length} fx pour ${ids.length} photos`);
+const opaques = liste.opaques || [];
+const listes = new Set(ids);
+exiger('data/actions.json : les visages opaques sont des joueurs listés', Array.isArray(liste.opaques) && opaques.every(id => listes.has(id)), `${opaques.length} visages sur fond opaque`);
 const DOSSIER = path.join(ROOT, 'img', 'actions');
 if (fs.existsSync(DOSSIER)) {
   const manquent = ids.filter(id => !fs.existsSync(path.join(DOSSIER, `${id}.webp`)));
@@ -80,7 +84,7 @@ for (const [nom, cx] of [['à droite', 960], ['à gauche', 170], ['au centre', 6
 }
 
 /* 3. actionSrc, dans Node : la liste chargée par un faux fetch, les images présentes ou non. */
-exiger('actionSrc sans liste : null', actionSrc(ids[0]) === null && actionFx(ids[0]) === 50, '');
+exiger('actionSrc sans liste : null', actionSrc(ids[0]) === null && actionFx(ids[0]) === 50 && !visageOpaque(ids[0]), '');
 const vraiFetch = globalThis.fetch;
 const charger = async (imagesLa) => {
   globalThis.fetch = async u => {
@@ -102,6 +106,8 @@ const charger = async (imagesLa) => {
   exiger('joueur sans photo : null (sa carte garde son portrait)', m.actionSrc(absent) === null, `${absent}`);
   const k = ids.length >> 1;
   exiger('actionFx : la place listée, 50 sans photo', m.actionFx(ids[k]) === fx[k] && m.actionFx(absent) === 50, `${ids[k]} → ${m.actionFx(ids[k])} (liste : ${fx[k]}) ; ${absent} → ${m.actionFx(absent)}`);
+  const detoure = ids.find(id => !opaques.includes(id));
+  exiger('visageOpaque : les listés seulement', (!opaques.length || m.visageOpaque(opaques[0])) && !m.visageOpaque(detoure) && !m.visageOpaque(absent), `${opaques[0]} → ${m.visageOpaque(opaques[0])} ; ${detoure} → ${m.visageOpaque(detoure)}`);
 }
 
 globalThis.fetch = vraiFetch;

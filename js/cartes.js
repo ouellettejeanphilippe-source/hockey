@@ -24,7 +24,7 @@
 
 import { getTeamBand } from './logos.js';
 import { NOM_VARIANTE } from './rarete.js';
-import { actionSrc } from './actions.js';
+import { actionFx, actionSrc, visageOpaque } from './actions.js';
 
 /*
  * Les quatre raretés, de la plus commune à la plus rare. La gemme se lit sans
@@ -313,21 +313,27 @@ const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '
  * La SAISON choisit la série (`DEBUTS`), le CLUB la palette, la VARIANTE
  * (js/rarete.js) la parallèle — le même dessin, traité : voir `cartonHtml`.
  *
- * `action` : ce que la série fait d'une photo d'action (`photoAction`) —
- * 'plein', sur toute la carte ; 'fenetre', dans sa fenêtre ; rien, elle garde
- * le portrait, comme les vraies séries d'avant la photo d'action.
+ * LA PHOTO D'ACTION (`photoAction`) : les dix séries la prennent, et en
+ * montrent le PLUS possible (JP : *je veux que le maximum de pixels de
+ * l'image y soient*) — la photo entière (16:9) à fond perdu en haut de la
+ * carte, ou une fenêtre jamais plus étroite que 4:3, recentrée sur le joueur
+ * (`focaleAction`). La carte change alors de mise en page (style.css,
+ * `.avec-action`) : la photo en haut, le nom et l'écusson dessous. `cameo` :
+ * la série pose aussi le visage détouré — un médaillon, un écran, le joueur
+ * qui sort du cadre —, comme les cartes de photo d'action des années 90.
+ * Sans photo, chaque série garde sa mise en page du portrait.
  */
 export const SERIES = {
-  vintage: { nom: 'Vintage 70' },
-  retro: { nom: 'Rétro 80' },
-  tableau: { nom: 'Tableau', action: 'fenetre' },
-  mosaique: { nom: 'Mosaïque', action: 'fenetre' },
-  filet: { nom: 'Filet', action: 'fenetre' },
-  chrome: { nom: 'Chrome', action: 'fenetre' },
-  ecusson: { nom: 'Écusson', action: 'plein' },
-  glace: { nom: 'Glace', action: 'fenetre' },
-  arena: { nom: 'Aréna', action: 'plein' },
-  signature: { nom: 'Signature', action: 'fenetre' },
+  vintage: { nom: 'Vintage 70', cameo: true },
+  retro: { nom: 'Rétro 80', cameo: true },
+  tableau: { nom: 'Tableau', cameo: true },
+  mosaique: { nom: 'Mosaïque', cameo: true },
+  filet: { nom: 'Filet', cameo: true },
+  chrome: { nom: 'Chrome', cameo: true },
+  ecusson: { nom: 'Écusson', cameo: true },
+  glace: { nom: 'Glace', cameo: true },
+  arena: { nom: 'Aréna', cameo: true },
+  signature: { nom: 'Signature' },
 };
 /* La première saison de chaque série : une saison prend la série de la dernière qui l'a commencée. */
 const DEBUTS = [
@@ -347,15 +353,22 @@ export function anneeDeCarte(saison) {
   return ['vintage', 'retro'].includes(serieDe(s)) ? `'${s.slice(2)}` : s;
 }
 /*
- * LA PHOTO D'ACTION. Le contrat : l'adresse d'une image au format carte
- * (portrait 5:7), ou rien. js/actions.js la fournit (les images, leur
- * liste, leur téléchargement sur l'appareil), `p.actionSrc` la force (les
- * planches) ; elle se branche ICI, et tous
- * les gabarits (le vestiaire, la carte mini, la fiche, `artJoueur`) la
- * reçoivent par ce seul endroit. Sans elle — ou si l'image manque au
- * chargement (`onerror`) — chaque série retombe sur le portrait.
+ * LA PHOTO D'ACTION. Le contrat : l'adresse de la photo ENTIÈRE (16:9), ou
+ * rien. js/actions.js la fournit (les images, leur liste, leur
+ * téléchargement sur l'appareil) ; `p.actionSrc` la force, ou l'interdit
+ * s'il est vide (les planches). Elle se branche ICI, et tous les gabarits (le
+ * vestiaire, la carte mini, la fiche, `artJoueur`) la reçoivent par ce seul
+ * endroit. Sans elle — ou si l'image manque au chargement (`onerror`) —
+ * chaque série retombe sur le portrait. `focaleAction` : la place du joueur
+ * dans la photo (0 à 100, de gauche à droite), pour qu'une fenêtre plus
+ * étroite que la photo se recentre sur lui.
  */
-export const photoAction = p => (p && (p.actionSrc || (p.id && actionSrc(p.id)))) || '';
+export const photoAction = p => (!p ? '' : (p.actionSrc !== undefined ? p.actionSrc : (p.id && actionSrc(p.id))) || '');
+export const focaleAction = p => (!p ? 50 : p.actionFx ?? actionFx(p.id));
+/* Un visage sur fond opaque (une vieille photo) : la série qui le détoure lui met un cadre. */
+export const cameoOpaque = p => !!p && visageOpaque(p.id);
+/* La photo d'action dans une carte : manquante au chargement, la carte reprend sa mise en page du portrait. */
+const imgAction = (classe, src, fx) => `<img class="${classe}" src="${echapper(src)}" alt="" loading="lazy" decoding="async" style="--fx:${Math.round(Number(fx) || 50)}" onerror="this.closest('.avec-action')?.classList.remove('avec-action');this.remove()">`;
 
 /*
  * LE NUMÉRO DE LA CARTE ET LE TIRAGE LIMITÉ (S77). Une vraie série numérote
@@ -414,21 +427,30 @@ export function tirageLimite(cle, num = '/99') {
  *                     suce*.
  * Le tout reste sous les mots : on lit d'abord, on brille ensuite.
  *
- * c : { serie, rarete, portraitHtml, actionSrc, pos, posClasse, gemmeHtml,
+ * LA PHOTO D'ACTION (`actionSrc`, `fx`) change la mise en page : la carte
+ * porte `.avec-action`, la photo prend le haut, et une série à `cameo` pose
+ * aussi le visage détouré (`.carton-cameo`). Le portrait reste dans la
+ * fenêtre, caché : si la photo manque au chargement, il revient. `paysage`
+ * (la fiche) : avec sa photo, la carte s'imprime à l'horizontale, la photo
+ * entière en haut.
+ *
+ * c : { serie, rarete, portraitHtml, actionSrc, fx, cameoOpaque, pos, posClasse, gemmeHtml,
  *       rubanHtml, nomHtml (`formatName`), nomLettres (le nom de famille, pour
  *       la taille de la plaque), nomClasse, logoHtml, club, clubNom, numero,
- *       annee, tirage, clubClasse, eclat }
+ *       annee, tirage, clubClasse, eclat, paysage }
  */
 export function cartonHtml(c) {
   const serie = SERIES[c.serie] ? c.serie : 'signature';
   const r = RARETES[c.rarete] ? c.rarete : 'commune';
-  const action = c.actionSrc && SERIES[serie].action
-    ? `<img class="carton-action" src="${echapper(c.actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
-    : '';
-  return `<span class="carton cs-${serie} tc-${r}${action ? (SERIES[serie].action === 'plein' ? ' action-plein' : ' action-fenetre') : ''}">
+  const action = c.actionSrc ? imgAction('carton-action', c.actionSrc, c.fx) : '';
+  // Le caméo veut un vrai visage : ni la silhouette générique, ni la seule icône de repli.
+  const cameo = action && SERIES[serie].cameo && /<img\b/.test(c.portraitHtml || '') && !c.portraitHtml.includes('silhouette')
+    ? `<span class="carton-cameo${c.cameoOpaque ? ' opaque' : ''}" aria-hidden="true">${c.portraitHtml}</span>` : '';
+  return `<span class="carton cs-${serie} tc-${r}${action ? ' avec-action' : ''}${action && c.paysage ? ' paysage' : ''}">
     ${brillante(r) ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
     <span class="carton-photo">${action}${c.portraitHtml || ''}</span>
     <span class="carton-deco" aria-hidden="true"></span>
+    ${cameo}
     ${r === 'rare' ? '<span class="carton-relique" aria-hidden="true"><i>Relique</i></span>' : ''}
     <span class="carton-pos ${c.posClasse || ''}">${c.pos || ''}</span>
     ${c.rubanHtml || ''}${c.gemmeHtml || ''}
@@ -609,9 +631,11 @@ export function brancherInclinaison(doc = document) {
  * médaillon rond d'avant faisait de la recrue une carte d'effet avec un
  * visage dedans ; c'est une carte de JOUEUR. Sans portrait, l'écusson seul.
  * 1.0 : une photo d'action (`photoAction`) prend toute l'illustration quand
- * elle est là ; si elle manque au chargement, le portrait revient.
+ * elle est là — l'illustration est en largeur, presque la photo entière,
+ * recentrée sur le joueur (`fx`) ; si elle manque au chargement, le
+ * portrait revient.
  */
-export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison = '', club = '', actionSrc = '' }) {
+export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison = '', club = '', actionSrc = '', fx = 50 }) {
   if (!portraitHtml) return `<span class="tc-joueur">
     <span class="tc-logo">${logoHtml}</span>
     <span class="tc-pos">${pos}</span>
@@ -619,7 +643,7 @@ export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison =
   </span>`;
   const fond = club ? getTeamBand(club).bg : '';
   return `<span class="tc-joueur cj-art"${fond ? ` style="--cj-fond:${fond}"` : ''}>
-    <span class="tc-portrait">${actionSrc ? `<img class="tc-action" src="${echapper(actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}${portraitHtml}</span>
+    <span class="tc-portrait">${actionSrc ? imgAction('tc-action', actionSrc, fx) : ''}${portraitHtml}</span>
     <span class="tc-medaille">${logoHtml}</span>
     <span class="tc-pos">${pos}</span>
     <span class="tc-saison">${club ? `${club} · ` : ''}${saison}</span>

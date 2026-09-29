@@ -3,7 +3,7 @@
  * parallèles, côte à côte, pour juger les dessins d'un coup d'oeil
  * (js/cartes.js `SERIES`, style.css « LES SÉRIES »).
  *
- *   node scripts/planche_cartes.mjs http://localhost:8000 [dossier] [--actions <dossier d'images>] [--seul <planche>]
+ *   node scripts/planche_cartes.mjs http://localhost:8000 [dossier] [--seul <planche>]
  *
  * Planches (dans le dossier, `scripts` par défaut) :
  *   cartes-series-1.png, -2.png  une rangée par série, à la taille du vestiaire
@@ -14,20 +14,22 @@
  *   cartes-mini.png              la carte mini des choix (`carteMiniHtml`) ;
  *   cartes-verso.png             le dos de la fiche, cinq séries ;
  *   cartes-match.png             les cartes de match, par genre (js/combat.js) ;
- *   cartes-actions.png           avec --actions : les séries modernes avec une
- *                                photo d'action (<dossier>/<id>.webp, au format
- *                                5:7, servie sous img/actions/) ;
+ *   cartes-actions.png           les dix séries avec une photo d'action, à la
+ *                                taille du vestiaire : une rangée par série, le
+ *                                même joueur avec et sans sa photo, une photo
+ *                                lointaine (McDavid), un gardien, une or ;
+ *   cartes-paysage.png           la fiche COUCHÉE d'un joueur qui a sa photo,
+ *                                une par série, à 400 px ;
+ *   cartes-fiche-vraie-*.png     la vraie fiche au téléphone, recto et verso ;
  *   cartes-vestiaire-tel.png     le vestiaire au téléphone (390 px), tel quel.
- * Rien ne sort du réseau : une photo d'action absente retombe sur le portrait.
+ * Les photos d'action viennent de img/actions (node scripts/actions.mjs) ;
+ * rien ne sort du réseau : une photo absente retombe sur le portrait.
  */
-import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
 const BASE = process.argv[2] || 'http://localhost:8000';
 const DOSSIER = process.argv[3] && !process.argv[3].startsWith('--') ? process.argv[3] : 'scripts';
-const iA = process.argv.indexOf('--actions');
-const ACTIONS = iA > 0 ? process.argv[iA + 1] : null;
 // --seul <début de nom> : une seule planche (cartes-match, cartes-series…), pour itérer vite.
 const iS = process.argv.indexOf('--seul');
 const SEUL = iS > 0 ? process.argv[iS + 1] : null;
@@ -43,12 +45,6 @@ async function demarrer(largeur, hauteur) {
   const page = await contexte.newPage();
   page.on('pageerror', e => erreurs.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) erreurs.push(m.text()); });
-  if (ACTIONS) {
-    await page.route('**/img/actions/*.webp', route => {
-      const f = path.join(ACTIONS, path.basename(new URL(route.request().url()).pathname));
-      return fs.existsSync(f) ? route.fulfill({ path: f, contentType: 'image/webp' }) : route.fulfill({ status: 404 });
-    });
-  }
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await page.reload({ waitUntil: 'networkidle' });
@@ -76,9 +72,15 @@ async function planche(page, nom, colonnes, largeur, remplir, arg) {
     // Une planche est plus haute que l'écran : toutes ses images se chargent, pas seulement celles du haut.
     for (const i of p.querySelectorAll('img[loading="lazy"]')) i.loading = 'eager';
   }, { colonnes, largeur, source: remplir.toString(), arg });
-  await page.waitForTimeout(1500);
+  // Toutes ses images chargées, pas seulement celles du haut : la fenêtre du navigateur prend la hauteur de la planche
+  // (une image paresseuse loin sous l'écran ne part jamais), puis on attend qu'elles soient toutes là (ou tombées).
   const boite = await page.evaluate(() => { const r = document.getElementById('planche').getBoundingClientRect(); return { x: r.left, y: r.top + scrollY, width: r.width, height: r.height }; });
+  const vue = page.viewportSize();
+  await page.setViewportSize({ width: vue.width, height: Math.min(16000, Math.ceil(boite.y + boite.height + 20)) });
+  await page.waitForFunction(() => [...document.querySelectorAll('#planche img')].every(i => i.complete), null, { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(DOSSIER, `cartes-${nom}.png`), clip: boite, fullPage: true });
+  await page.setViewportSize(vue);
   console.log(`   cartes-${nom}.png`);
 }
 
@@ -189,30 +191,75 @@ await planche(page, 'match', 6, 212, async p => {
   p.appendChild(d.firstElementChild);
 });
 
-// 7. Les photos d'action, si on en a.
-if (ACTIONS) {
-  const ids = fs.readdirSync(ACTIONS).filter(f => f.endsWith('.webp')).map(f => f.replace('.webp', ''));
-  await planche(page, 'actions', 5, 220, async (p, { ids }) => {
-    const { cartonDe, varsEquipe } = await import('/js/repechage.js');
-    const { getShard } = window.cap82.dev;
-    const saisons = ['1996-97', '2000-01', '2006-07', '2010-11', '2015-16', '2022-23'];
-    const trouves = new Map();
-    for (const s of saisons) {
-      const e = await getShard(s);
-      for (const j of e.players) if (ids.includes(String(j.id)) && !trouves.has(`${j.id}|${s}`)) trouves.set(`${j.id}|${s}`, j);
+// 7-8. Les photos d'action : les dix séries (la saison choisit la série), des joueurs qui ont leur photo.
+const VEDETTES = [['1992-93', 8448782], ['2010-11', 8471675], ['2022-23', 8478402], ['2014-15', 8471679], ['2008-09', 8471214]];
+const AVEC_PHOTO = async () => {
+  const { getShard } = window.cap82.dev;
+  const trouve = async ([s, id]) => (await getShard(s)).players.find(j => Number(j.id) === id);
+  return Promise.all(window.__vedettes.map(trouve));
+};
+await page.evaluate(v => { window.__vedettes = v; }, VEDETTES);
+await page.evaluate(src => { window.__avecPhoto = (0, eval)(`(${src})`); }, AVEC_PHOTO.toString());
+await planche(page, 'actions', 6, 158, async (p, { saisons }) => {
+  const { cartonDe, varsEquipe } = await import('/js/repechage.js');
+  const { getPlayerKey } = await import('/js/sim.js');
+  const G = window.cap82.G;
+  const [lemieux, crosby, mcdavid, price, ovechkin] = await window.__avecPhoto();
+  for (const s of saisons) {
+    // Crosby avec et sans sa photo, McDavid (une photo lointaine), Price (un gardien), Ovechkin en or, Lemieux en holo.
+    for (const [j, r, sans] of [[crosby, 'commune', false], [crosby, 'commune', true], [mcdavid, 'peu', false], [price, 'commune', false], [ovechkin, 'legendaire', false], [lemieux, 'rare', false]]) {
+      const x = { ...j, s, ...(sans ? { actionSrc: '' } : {}) };
+      G.variantes.cartes[getPlayerKey(x)] = r;
+      const d = document.createElement('div');
+      d.setAttribute('style', varsEquipe(x));
+      d.innerHTML = cartonDe(x);
+      p.appendChild(d);
     }
-    for (const j of trouves.values()) {
-      for (const avec of [true, false]) {
-        const x = { ...j, actionSrc: avec ? `img/actions/${j.id}.webp` : '' };
-        const d = document.createElement('div');
-        d.setAttribute('style', varsEquipe(x));
-        d.innerHTML = cartonDe(x);
-        p.appendChild(d);
-      }
-    }
-  }, { ids });
-}
+  }
+}, { saisons: SAISONS });
+await planche(page, 'paysage', 2, 400, async (p, { saisons }) => {
+  const { cartonDe, varsEquipe } = await import('/js/repechage.js');
+  const { getPlayerKey } = await import('/js/sim.js');
+  const G = window.cap82.G;
+  const vedettes = await window.__avecPhoto();
+  saisons.forEach((s, i) => {
+    const x = { ...vedettes[i % vedettes.length], s };
+    G.variantes.cartes[getPlayerKey(x)] = ['commune', 'legendaire', 'peu', 'rare', 'commune'][i % 5];
+    const d = document.createElement('div');
+    d.setAttribute('style', varsEquipe(x));
+    d.innerHTML = cartonDe(x, { nomClasse: 'pcard-full-name', paysage: true });
+    p.appendChild(d);
+  });
+}, { saisons: SAISONS });
 await page.close();
+
+// 9. La vraie fiche au téléphone, recto et verso : deux joueurs qui ont leur photo (couchée), le meilleur pointeur de
+//    1974-75 qui n'en a pas (debout).
+if (!SEUL || 'fiche-vraie'.startsWith(SEUL)) {
+  const tel = await demarrer(390, 844);
+  let n = 0;
+  for (const [s, id] of [['2010-11', 8471675], ['2022-23', 8478402], ['1974-75', null]]) {
+    await tel.evaluate(async ({ s, id }) => {
+      const { showPlayerModal } = await import('/js/fiche.js');
+      const { photoAction } = await import('/js/cartes.js');
+      const pts = x => x.pt ?? ((x.g || 0) + (x.a || 0));
+      const joueurs = (await window.cap82.dev.getShard(s)).players;
+      const j = id ? joueurs.find(x => Number(x.id) === id) : joueurs.filter(x => x.p !== 'G' && !photoAction(x)).sort((a, b) => pts(b) - pts(a))[0];
+      showPlayerModal(j, {});
+    }, { s, id });
+    await tel.waitForSelector('#hockeyCardModal:not([hidden]) .fiche-carte', { timeout: 15000 });
+    await tel.waitForTimeout(1200);
+    n++;
+    await tel.screenshot({ path: path.join(DOSSIER, `cartes-fiche-vraie-${n}-recto.png`) });
+    await tel.click('#hockeyCardModal .fc-recto .cj-retourner');
+    await tel.waitForTimeout(900);
+    await tel.screenshot({ path: path.join(DOSSIER, `cartes-fiche-vraie-${n}-verso.png`) });
+    console.log(`   cartes-fiche-vraie-${n}-recto.png, -verso.png`);
+    await tel.keyboard.press('Escape');
+    await tel.waitForTimeout(400);
+  }
+  await tel.close();
+}
 
 // 8. Le vestiaire au téléphone, tel quel.
 if (!SEUL || 'vestiaire'.startsWith(SEUL)) {

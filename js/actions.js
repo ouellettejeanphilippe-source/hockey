@@ -38,6 +38,7 @@ const EN_MEME_TEMPS = 2;
 
 let liste = null;            // les joueurs qui ont une photo (data/actions.json)
 let focales = new Map();     // id → la place du joueur dans sa photo (fx, 0 à 100)
+let opaques = new Set();     // ceux dont le visage est une vieille photo sur fond opaque (pas un détourage)
 let chargement = null;       // la promesse de actionsDisponibles()
 let surLeWeb = false;        // les fichiers img/actions/ répondent
 
@@ -54,6 +55,7 @@ export function actionsDisponibles() {
       const ids = json.ids || [];
       liste = new Set(ids);
       focales = new Map(ids.map((id, i) => [id, (json.fx || [])[i] ?? 50]));
+      opaques = new Set(json.opaques || []);
       if (!ids.length || surAppareil()) return ids;
       // Une vraie lecture (pas un HEAD : hors ligne, seul un GET passe par le tiroir du travailleur de service),
       // et le corps lu jusqu'au bout — une réponse laissée ouverte garde la page « occupée » pour toujours.
@@ -81,6 +83,8 @@ export function actionSrc(id) {
 export function actionFx(id) {
   return focales.get(Number(id)) ?? 50;
 }
+/* Son visage est-il une vieille photo sur fond opaque ? Une carte qui le pose détouré lui met alors un cadre. */
+export const visageOpaque = id => opaques.has(Number(id));
 
 /* ---------- l'appareil Android ---------- */
 

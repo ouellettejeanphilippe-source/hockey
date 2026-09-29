@@ -104,6 +104,16 @@ await page.evaluate(({ LARGEUR, HAUTEUR, QUALITE }) => {
     for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) if (g(i + 1, j) > g(i, j)) octets[(j * 16 + i) >> 3] |= 1 << (i & 7);
     return octets;
   };
+  // Un visage OPAQUE (une vieille photo sur fond gris, js/recadrage.js « opaque ») : ses coins du haut ne sont pas transparents.
+  window.opaque = async b64 => {
+    const img = await createImageBitmap(await (await fetch(`data:image/webp;base64,${b64}`)).blob());
+    const c = new OffscreenCanvas(32, 32), x = c.getContext('2d');
+    x.drawImage(img, 0, 0, 32, 32);
+    const d = x.getImageData(0, 0, 32, 32).data;
+    let min = 255;
+    for (const [i0, j0] of [[0, 0], [28, 0]]) for (let j = j0; j < j0 + 4; j++) for (let i = i0; i < i0 + 4; i++) min = Math.min(min, d[(j * 32 + i) * 4 + 3]);
+    return min > 250;
+  };
   window.recadrer = async b64 => {
     const blob = await (await fetch(`data:image/jpeg;base64,${b64}`)).blob();
     const { webp, fenetre, fx, mesures } = await window.recadrerActionBlob(blob, { largeur: LARGEUR, hauteur: HAUTEUR, qualite: QUALITE });
@@ -179,16 +189,23 @@ for (const id of ecartees.keys()) fs.rmSync(path.join(SORTIE, `${id}.webp`), { f
 
 // 3. La liste des photos présentes : le jeu la lit avant de demander une photo, l'appareil pour savoir quoi télécharger.
 //    `fx` (en parallèle de `ids`) : la place du joueur dans sa photo, de 0 (à gauche) à 100 (à droite).
+//    `opaques` : ceux dont le VISAGE (img/mugs) est une vieille photo sur fond opaque, pas un détourage — une série
+//    qui pose le visage détouré sur la carte (Écusson, Glace) lui donne alors un cadre (js/cartes.js, le caméo).
 presents.sort((a, b) => a - b);
+const opaques = [];
+for (const id of presents) {
+  const f = path.join(ROOT, 'img', 'mugs', `${id}.webp`);
+  if (fs.existsSync(f) && await page.evaluate(b => window.opaque(b), fs.readFileSync(f).toString('base64'))) opaques.push(id);
+}
 if (LIMITE === Infinity && !arg('ids', null)) {
-  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: presents, fx: presents.map(id => focales.get(id)) }));
+  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: presents, fx: presents.map(id => focales.get(id)), opaques }));
 }
 const brutsTotal = presents.reduce((a, id) => a + fs.statSync(path.join(BRUT, `${id}.jpg`)).size, 0);
 const parRaison = {};
 for (const r of ecartees.values()) parRaison[r] = (parRaison[r] || 0) + 1;
 console.log(`\n  ${presents.length} photos d'action écrites sur ${liste.length} joueurs ; ${liste.length - presents.length - ecartees.size} sans photo à la LNH`);
 console.log(`  ${ecartees.size} écartées, pas une photo du joueur : ${Object.entries(parRaison).map(([k, n]) => `${k} ${n}`).join(' · ')}`);
-console.log(`  ${(octets / 1048576).toFixed(1)} Mo en tout, ${(octets / Math.max(1, presents.length) / 1024).toFixed(1)} Ko en moyenne`);
+console.log(`  ${(octets / 1048576).toFixed(1)} Mo en tout, ${(octets / Math.max(1, presents.length) / 1024).toFixed(1)} Ko en moyenne ; ${opaques.length} visages sur fond opaque`);
 console.log(`  bruts : ${(brutsTotal / 1048576).toFixed(0)} Mo (${telecharges} téléchargés cette fois, ${(octetsBruts / 1048576).toFixed(0)} Mo) — ce que l'appareil téléchargerait`);
 console.log(`  ${Math.round((Date.now() - t0) / 1000)} s\n`);
 
