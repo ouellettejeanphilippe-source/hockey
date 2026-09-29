@@ -73,33 +73,6 @@ export function jetonsDe(res, depenses, depart = JETONS.depart, bareme = JETONS)
  */
 export const baremeRogue = m => ({ ...JETONS, victoire: 5 + (aDebloque(m, 'commanditaire1') ? 3 : 0) + (aDebloque(m, 'commanditaire2') ? 2 : 0) });
 
-/* ---------- les packs ---------- */
-/*
- * Les chances d'un pack de joueurs, par VARIANTE de carte (S78, js/rarete.js :
- * la variante se pose par-dessus un vrai joueur productif, avec son bonus tiré
- * au hasard). Un pack de base : surtout des cartes de base, une holo de temps
- * en temps, une or rarement. Le pack Vedettes, déblocable, renverse ça et ne
- * pige que dans le quart du haut de chaque saison (`elite`).
- */
-const COTES_BASE = { commune: 62, peu: 27, rare: 9, legendaire: 2 };
-export const PACKS = {
-  joueurs: { ico: '📦', nom: 'Pack de joueurs', prix: 20, genre: 'joueurs', cotes: COTES_BASE,
-    texte: 'Trois vrais joueurs de toutes les époques : tu en signes un.' },
-  cartes: { ico: '🃏', nom: 'Pack de cartes', prix: 12, genre: 'cartes',
-    texte: 'Trois cartes de match : tu en gardes une pour ton deck.' },
-  // L'ATELIER (S78) : éditer un de tes joueurs — son poste, ses trios, ses malus, sa carte.
-  atelier: { ico: '🛠️', nom: 'L\'atelier', prix: 15, genre: 'atelier',
-    texte: 'Trois éditions de joueur (poste, trios, malus, carte) : tu en gardes une, pour le joueur de ton choix.' },
-  defenseurs: { ico: '🧱', nom: 'Pack Défenseurs', prix: 20, genre: 'joueurs', groupe: 'D', cotes: COTES_BASE, deblocage: 'packDefenseurs',
-    texte: 'Trois défenseurs : tu en signes un.' },
-  gardiens: { ico: '🥅', nom: 'Pack Gardiens', prix: 25, genre: 'joueurs', groupe: 'G', cotes: COTES_BASE, deblocage: 'packGardiens',
-    texte: 'Trois gardiens : le poste qui gagne les séries.' },
-  annees80: { ico: '📼', nom: 'Pack Années 80', prix: 20, genre: 'joueurs', decennie: 1980, cotes: { commune: 55, peu: 30, rare: 12, legendaire: 3 }, deblocage: 'packAnnees80',
-    texte: 'Trois joueurs des années 80, l\'époque des 400 buts par saison.' },
-  vedettes: { ico: '🌟', nom: 'Pack Vedettes', prix: 50, genre: 'joueurs', elite: true, cotes: { commune: 0, peu: 40, rare: 45, legendaire: 15 }, deblocage: 'packVedettes',
-    texte: 'Trois vedettes du quart du haut de leur saison, jamais une carte de base.' },
-};
-
 /* ---------- les déblocages (le vestiaire) ---------- */
 export const DEBLOCAGES = {
   garder1: { ico: '🤝', nom: 'Garder un joueur', prix: 40, texte: 'Au début d\'une run, garde un joueur de ta dernière équipe.' },
@@ -202,7 +175,6 @@ export const aDebloque = (m, cle) => (m.deblocages || []).includes(cle);
 /* Combien de joueurs on garde : zéro, un, deux, trois selon les déblocages. */
 export const nombreGardes = m => (aDebloque(m, 'garder3') ? 3 : aDebloque(m, 'garder2') ? 2 : aDebloque(m, 'garder1') ? 1 : 0);
 export const jetonsDeDepart = m => JETONS.depart + (aDebloque(m, 'caisse1') ? 20 : 0) + (aDebloque(m, 'caisse2') ? 20 : 0);
-export const packsOuverts = m => Object.entries(PACKS).filter(([, P]) => !P.deblocage || aDebloque(m, P.deblocage)).map(([k]) => k);
 /* Un déblocage s'achète si on en a les moyens et si ce qu'il demande est déjà pris. */
 export function peutAcheter(m, cle) {
   const D = DEBLOCAGES[cle];

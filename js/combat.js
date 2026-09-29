@@ -291,7 +291,7 @@ const plusDe = (v, k = null, cote = 1) => {
 const canauxPlus = (e, cote = 1) => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, plusDe(v, k, cote)])) : e);
 for (const [cle, C] of Object.entries(CARTES_MATCH)) {
   if (C.maudite) continue;
-  const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.contre || C.revele || C.planB || C.rabais;
+  const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.revele || C.planB || C.rabais;
   const P = { ...C, nom: `${C.nom}+`, plus: true };
   if (moinsCher && C.cout > 0) P.cout = C.cout - 1;
   else {
@@ -426,7 +426,7 @@ const POOL_ADVERSE = Object.keys(CARTES_MATCH).filter(k => {
   if (C.revele || C.ecarte || C.planB || C.improvise || C.piege || C.rabais || C.epuise || C.siVide) return false;
   // Ni une carte d'origine (1.0) : une vraie équipe est d'un seul club et d'une saison, elle les aurait toutes au maximum.
   if (C.origine) return false;
-  return !C.maudite && !C.lire && !C.contre && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
+  return !C.maudite && !C.lire && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
     && (C.effet || C.adv || C.pari || C.synergie || C.energieTous || C.parGenre || C.selonLeurMain || C.apres40);
 });
 export function mainAdverse(graine, cle, energie = ENERGIE_MAIN) {

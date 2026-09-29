@@ -208,8 +208,6 @@ const SONS = {
   },
 };
 
-export const NOMS_SONS = Object.keys(SONS);
-
 /** Joue un son de la liste, `delai` secondes plus tard. Silence si coupé. */
 export function jouerSon(nom, delai = 0) {
   if (!actif || !SONS[nom]) return;

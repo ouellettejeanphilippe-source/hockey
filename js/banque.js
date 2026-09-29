@@ -42,7 +42,6 @@ export const CATEGORIES = {
   saison: { ico: '📘', nom: 'Cartes de saison', un: 'Carte de saison', mot: 'Un réglage pour toute la saison : un bonus payé par un malus.' },
 };
 export const ORDRE_CATEGORIES = ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match', 'saison'];
-export const RARETES_BANQUE = ['commune', 'peu', 'rare', 'legendaire', 'maudite'];
 
 /* ---------- LES PATRONS : le personnel, des reliques ---------- */
 export const MAX_PATRONS = 3;

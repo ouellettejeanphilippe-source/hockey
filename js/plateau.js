@@ -23,17 +23,17 @@
  */
 
 import {
-  COLS, RANGS, BUT_COL, MI_GLACE, FILET_HAUT, FILET_BAS, estFilet, PERIODES, POSSESSIONS_PAR_PERIODE, POSSESSIONS_PROLONGATION, chancesDe, avec, ecartDuel,
-  HABILETES, GABARITS, TIRS, nouveauMatch, surLaGlace, eqDe, adverse, porteur, libre, actives, peutJouer,
-  deplacementsDe, cheminVers, receveursDe, enCourse, ciblesEchecDe, ciblesVolDe, ciblesFondDe, natureCase, dist, batons, chances,
+  COLS, RANGS, BUT_COL, MI_GLACE, FILET_HAUT, FILET_BAS, estFilet, POSSESSIONS_PAR_PERIODE, POSSESSIONS_PROLONGATION, chancesDe, avec, ecartDuel,
+  HABILETES, GABARITS, TIRS, nouveauMatch, surLaGlace, eqDe, porteur, libre, peutJouer,
+  deplacementsDe, cheminVers, receveursDe, enCourse, ciblesEchecDe, ciblesVolDe, ciblesFondDe, natureCase, dist, 
   modTir, modPasse, modEchec, modEsquive, modVol, esquiveRequise, peutTirer, distanceAuFilet, PORTEE_TIR,
   deplacer, appliquerEsquive, passer, appliquerPasse, tirer, appliquerTir,
   mettreEnEchec, appliquerEchec, voler, appliquerVol,
   souffleDe, essouffle, uniteDe, statsDeTable, AXE_MOT,
   ciblesDejouerDe, modDejouer, dejouer, appliquerDejouer,
   receptionPossible, tirerSurReception,
-  relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, gagnantDuMatch, changerUnite, nomDe, reglesDuPlateau,
-  peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, pressionDe, PUNITION_TOURS, PAS_PAR_MAIN, pasRestants, porteeDe,
+  relancer, activer, finirMain, renoncer, iaPresence, iaGeste, GESTES_MAX, resultatDe, gagnantDuMatch, changerUnite, reglesDuPlateau,
+  peutBouger, peutAgir, souffleMax, etatSouffle, couvreurs, pressionDe, PAS_PAR_MAIN, pasRestants, porteeDe,
   enPositionHorsJeu, POINTS_MJ, MJ_CENTRE, MJ_FOND,
   bataillePossible, modBataille, appliquerBataille, enJeu,
   peutRetirerGardien, retirerGardien, expliquerGeste,

@@ -24,8 +24,8 @@
  */
 
 import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
-  PLANS, ROULEMENTS, planDe, roulementDe, JOURS_SITUATIONS,
-  STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
+  JOURS_SITUATIONS,
+  MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS, motsDeMutation,
@@ -36,8 +36,8 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
 import { seasonLancers } from './ratings.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur } from './cartes.js';
-import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, planReplie, depistageHtml, pistesDuRapport } from './gerant.js';
-import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN } from './combat.js';
+import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
+import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant, NOM_PERIODE } from './recit.js';
@@ -426,42 +426,6 @@ function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, car
   // répondait encore aux clics de celui des séries et réécrivait le volet
   // avec son propre classement.
   return () => { for (const z of zones) { z.removeEventListener('click', agir); z.removeEventListener('keydown', touche); } };
-}
-
-/*
- * LE PLAN ET LA GLACE SE LISENT SUR L'AFFICHE (S62). Deux décisions qui valent
- * toute la saison et qui se changent derrière le banc : si l'écran ne les dit
- * pas, on oublie ce qu'on a choisi en janvier. Les mots viennent de `PLANS` et
- * `ROULEMENTS` — jamais recopiés ici, sinon un réglage retouché fait mentir
- * l'affiche.
- */
-function motDuPlan(ctx, you, onBanc) {
-  const pl = PLANS[planDe(you)], ro = ROULEMENTS[roulementDe(you)];
-  if (!pl || !ro) return '';
-  const dit = x => `${x.ico} ${ctx.esc(x.nom)}`;
-  const inf = x => `${x.nom}${x.bon ? ` — ${x.bon}` : ''}${x.prix ? `, mais ${x.prix.charAt(0).toLowerCase()}${x.prix.slice(1)}` : ''}`;
-  return `<div class="hub-match-note hub-plan">
-    <span title="${ctx.esc(inf(pl))}">${dit(pl)}</span> · <span title="${ctx.esc(inf(ro))}">${dit(ro)}</span>${onBanc ? ' <span class="hub-plan-ou">derrière le banc</span>' : ''}
-  </div>`;
-}
-
-/*
- * UN CHOIX, À LA FAÇON D'UN ÉVÉNEMENT DE SLAY THE SPIRE (S66) : une histoire,
- * et des options qui disent chacune ce qu'elles achètent, ce qu'elles coûtent
- * et quelles factions elles bougent. C'est le même gabarit pour les dilemmes,
- * les séquences et les objectifs, pour qu'un seul langage s'apprenne.
- */
-
-function panneauChoix(ctx, { classe, ico, titre, irl, recit, options, attr }) {
-  return `<div class="hub-choix ${classe}" role="group" aria-label="${ctx.esc(titre)}">
-    <div class="hub-choix-tete"><span class="hub-choix-ico">${ico}</span><span class="hub-choix-titre">${ctx.esc(titre)}</span>${irl ? `<span class="hub-choix-irl">${ctx.esc(irl)}</span>` : ''}</div>
-    ${recit ? `<div class="hub-choix-recit">${ctx.esc(recit)}</div>` : ''}
-    <div class="hub-choix-rang">${options.map(o => `<button type="button" class="hub-option" ${attr}="${ctx.esc(o.cle)}">
-      <span class="hub-option-nom">${o.ico ? `${o.ico} ` : ''}${ctx.esc(o.nom)}</span>
-      ${o.bon ? `<span class="hub-option-bon">+ ${ctx.esc(o.bon)}</span>` : ''}
-      ${o.prix ? `<span class="hub-option-prix">− ${ctx.esc(o.prix)}</span>` : ''}
-    </button>`).join('')}</div>
-  </div>`;
 }
 
 

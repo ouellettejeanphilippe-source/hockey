@@ -50,9 +50,9 @@
  * rejouer un tournoi.
  */
 
-import { generateur, getHiddenRatings, SLOTS } from './sim.js';
 import { pctTirRelDe, lancersRelDe, passesRelDe, facteurGardienDe } from './sim.js';
-import { archetypeKey, ARCHETYPES, GABARIT_PETIT, GABARIT_MOYEN, GABARIT_MATADOR } from './ratings.js';
+import { pctTirRelDe, lancersRelDe, passesRelDe, facteurGardienDe } from './sim.js';
+import { archetypeKey, GABARIT_PETIT, GABARIT_MOYEN, GABARIT_MATADOR } from './ratings.js';
 import { getTraits } from './traits.js';
 
 /* Les interrupteurs de MESURE (`scripts/`), jamais du jeu : le navigateur n'a pas de `process` et prend les valeurs écrites. */
@@ -872,8 +872,6 @@ export const PROLONGATIONS_MAX = 1;
  * que les vraies équipes envoient.
  */
 export const ROLES_PROLONGATION = ['C', 'AG', 'DG'];
-/** Les rôles qu'une équipe habille en ce moment : cinq, ou trois en prolongation. */
-export const rolesEnJeu = m => (m && m.prolongation ? ROLES_PROLONGATION : null);
 /*
  * PUNI EN PROLONGATION, C'EST L'AUTRE QUI AJOUTE UN JOUEUR (S75b). JP : *nhl
  * adds a player when a penalty in overtime*. La règle de la vraie ligue : à
@@ -1179,7 +1177,6 @@ export const adverse = cote => (cote === 'A' ? 'B' : 'A');
 export const eqDe = (m, cote) => (cote === 'A' ? m.A : m.B);
 export const porteur = m => (m.rondelle && m.rondelle.piece) || null;
 export const libre = m => (m.rondelle && m.rondelle.libre) || null;
-export const caseLibre = (m, r, c) => !occupee(m, r, c);
 /*
  * UNE PIÈCE QUI N'EST PLUS SUR LA GLACE NE JOUE PLUS (S75). `poser()` refait
  * les cinq pièces à CHAQUE mise au jeu : après un but, un hors-jeu ou le

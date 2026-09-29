@@ -25,26 +25,26 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, penaliteAffichee, motPenalite, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJusqua, bilanLigue, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, origineUnite, systemeDe, MUTATIONS, effetsEnCours,
-  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, AFFICHAGE_COURBE, echelleTardive } from './sim.js';
+  CARTES, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, origineUnite, systemeDe, MUTATIONS, effetsEnCours,
+  unitesIdeales, mutationNuit, motsDeMutation, poserAlignementDuJour, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, AFFICHAGE_COURBE, echelleTardive } from './sim.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { surAppareil, imgVisage, demarrerVisages } from './visages.js';
-import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
+import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, ouvrirAlignement, optionDeCarteMatch, puces, ouvrirStrategie, brancherPastilleNiveau, jambesHtml, sesRolesHtml } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
-import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, finiHtml, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte, dessinDe } from './cartes.js';
-import { CARTES_MATCH, recompensesOffertes, deckDe } from './combat.js';
+import { RARETES, gemmeJoueur, sensRarete, artJoueur, brille, brillante, finiHtml, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, anneeDeCarte, dessinDe } from './cartes.js';
+import { CARTES_MATCH, deckDe } from './combat.js';
 import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
 import { candidatsBallottage as candidatsPurs, groupeDe as groupeDuBallottage } from './ballottage.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
-import { brancherBilan, renderResult, runPlayoffs, ouvrirEcranSeries, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN, ficheReelleDe } from './bilan.js';
+import { brancherBilan, renderResult, runPlayoffs, ouvrirEcranSeries, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ficheReelleDe } from './bilan.js';
 import { brancherEntractes } from './entracte.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { migrer, lireIndex, lirePartieActive, ecrirePartieActive, nouvellePartie, activer } from './sauvegardes.js';
@@ -52,13 +52,13 @@ import { afficherMenu, fermerMenu } from './menu.js';
 import { ouvrirExhibition } from './exhibition.js';
 import { BANQUE, PATRONS, CONSOMMABLES, CONTRATS, ROLES, MAX_PATRONS, CATEGORIES, VIES, payloadDe, patronsActifs, modificateurs, reglesDe, plafondDe,
   CASES_DE_BASE, casesDAmelioration, sePose, pourCeJoueur, poseesSur, varianteApres, casesLibres } from './banque.js';
-import { PACKS_TOUS, PITIE, SKILLS, cotesDuPack, tirerVariante, tirerJoueursDuPack, tirerCartesPack, packDuJour, packsSansHolo } from './packs.js';
+import { PACKS_TOUS, PITIE, tirerJoueursDuPack, tirerCartesPack, packDuJour, packsSansHolo } from './packs.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe } from './niveaux.js';
 import { ouvrirInventaire, pocheDeLaPartie, valeurDe, VENTE } from './inventaire.js';
 import { ouvrirMagasin } from './magasin.js';
 import { rendreCartable, ajouterAuCartable, migrerHistorique, lireCartable, meilleureVariante } from './cartable.js';
-import { JETONS, jetonsDe, PACKS, DEBLOCAGES, lireMeta, aDebloque, nombreGardes, jetonsDeDepart, packsOuverts, peutAcheter, acheterDeblocage,
-  ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, rareteTiree, recevoirPermanents, retirerDuMeta, plafondDuVestiaire,
+import { JETONS, jetonsDe, DEBLOCAGES, lireMeta, aDebloque, nombreGardes, jetonsDeDepart, peutAcheter, acheterDeblocage,
+  ajouterCollection, payerEcussons, ecussonsDeLaSaison, ecussonsDesSeries, hache, recevoirPermanents, retirerDuMeta, plafondDuVestiaire,
   PLAFOND_ROGUE, ESPACE_DE_DEPART, departDuClasseur, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, ecrireMeta,
   MANDATS, mandatDe, mandatRempli, JALONS, payerJalons, recompenseDe, baremeRogue } from './rogue.js';
 
@@ -879,25 +879,12 @@ function quiEst(p, { role = true, stats = true } = {}) {
   const traits = getTraits(p).map(t => TRAITS[t.cle] && TRAITS[t.cle].icon).filter(Boolean).join('');
   return [positionLabel(p), pp ? `${pp.ico} ${pp.nom}` : '', saison, traits].filter(Boolean).join(' · ');
 }
-/* Le poste écrit au long, pour le bandeau de carte. */
-const POSTE_LONG = {
-  AG: 'Ailier gauche', C: 'Centre', AD: 'Ailier droit',
-  DG: 'Défenseur gauche', DD: 'Défenseur droit', G: 'Gardien', F: 'Attaquant',
-};
-const posteLong = p => POSTE_LONG[positionLabel(p).split(' / ')[0]] || '';
 
 function positionClass(p) {
   if (!p) return 'pos-f';
   if (p.p === 'G') return 'pos-g';
   if (isD(p)) return 'pos-d';
   return 'pos-f';
-}
-
-function positionColor(p) {
-  if (!p) return 'var(--line)';
-  if (p.p === 'G') return '#fcd34d';
-  if (isD(p)) return '#c4b5fd';
-  return '#7dd3fc';
 }
 
 function formatName(full) {
@@ -1013,17 +1000,6 @@ function traitTagList(p, full = false) {
   });
 }
 const traitTags = (p, full = false) => traitTagList(p, full).join('');
-
-function ageTag(p) {
-  const age = ageAtSeason(p.bd, p.s);
-  return age ? `<span class="tag tag-age" title="Âge au début de la saison ${p.s}">${age} ans</span>` : '';
-}
-
-function elcTag(p, full = false) {
-  if (!p.elc) return '';
-  const txt = full ? " Contrat d'entrée" : '';
-  return `<span class="tag tag-elc" title="Contrat d'entrée : premier contrat d'un joueur de 24 ans ou moins. Base plafonnée selon l'époque, plus bonis.">🐣${esc(txt)}</span>`;
-}
 
 function realTag(p) {
   return p.isReal
@@ -4420,19 +4396,6 @@ if (topbar && 'ResizeObserver' in window) {
    ===================================================================== */
 
 /*
- * LE BANDEAU D'UNE CASE EST ÉTROIT — trois cases par trio sur un quart de
- * l'écran, soit environ cent pixels. « Réserve F » n'y tient pas à côté du
- * salaire, et le libellé se coupait à « RÉ… ». On abrège donc dans le
- * bandeau seulement, et seulement là où c'est nécessaire : la case vide, elle,
- * garde le mot entier puisqu'elle a toute la place, et les gardiens gardent
- * « Partant » et « Auxiliaire » puisqu'ils ne sont que deux par rangée.
- */
-const ROLE_COURT = {
-  'Réserve F': 'Rés. F', 'Réserve D': 'Rés. D', 'Réserve': 'Rés.',
-};
-const roleCourt = r => ROLE_COURT[r] || r;
-
-/*
  * LA CASE NE PORTE QUE LE VERDICT DE PLACEMENT : la zone d'efficacité,
  * l'écart à cette zone, la pénalité de position. Rien d'autre.
  *
@@ -4770,24 +4733,6 @@ function slotEl(s) {
  */
 const UNIT_NAMES_F = ['1er trio', '2e trio', '3e trio', '4e trio'];
 const UNIT_NAMES_D = ['1re paire', '2e paire', '3e paire'];
-
-/* Version courte des libellés de chimie : l'en-tête d'une unité est étroit,
-   le texte complet reste dans l'infobulle. */
-const CHEM_SHORT = {
-  'Chimie parfaite 🌟': '🌟 Parfaite',
-  'Tandem moteur 🎯': '🎯 Tandem',
-  'Conflit de rôles ⚠️': '⚠️ Conflit',
-  'Chimie standard 👍': '👍 Standard',
-  'Paire équilibrée ⚖️': '⚖️ Équilibrée',
-  'Paire hyper-offensive 🚀': '🚀 Hyper-off.',
-  'Paire hermétique 🔒': '🔒 Hermétique',
-  'Paire standard 👍': '👍 Standard',
-  'Trio standard 👍': '👍 Standard',
-};
-const chemShort = name => CHEM_SHORT[name] || name;
-const ZONE_SHORT = { optimal: '✨ Optimal', mal: '⚠️ Mal assorti', hors: '🚨 Hors de ses lignes' };
-const zoneShort = (tag, etat) => ZONE_SHORT[etat]
-  || (!tag ? '' : tag.replace('Trio ', '').replace('Paire ', '').replace('optimale', 'optimal'));
 
 /*
  * LA PUCE D'ORIGINE (1.0). Ce que l'unité a en commun, sans chiffre (la carte les porte) : au plus deux
@@ -6342,27 +6287,6 @@ function renderBanc() {
       renderBanc();
     };
   });
-}
-
-/*
- * UNE RANGÉE DE SEGMENTS : le plan de match, la glace. Le mot du réglage
- * choisi porte ce qu'il achète et ce qu'il paie — c'est la seule chose à lire
- * pour décider, et elle vient de `PLANS` / `ROULEMENTS`, jamais d'un texte
- * recopié ici : un réglage retouché ferait sinon mentir l'écran.
- */
-function segments(titre, champ, table, choisi) {
-  const cour = table[choisi] || Object.values(table)[0];
-  const btns = Object.entries(table).map(([cle, x]) => {
-    const on = cle === choisi;
-    return `<button type="button" class="banc-seg-btn${on ? ' on' : ''}" data-champ="${champ}" data-cle="${cle}"
-      title="${esc(x.nom)}${x.bon ? ` — ${esc(x.bon)}` : ''}${x.prix ? `, mais ${esc(x.prix.charAt(0).toLowerCase() + x.prix.slice(1))}` : ''}"
-      aria-pressed="${on}">${x.ico} <span class="banc-seg-nom">${esc(x.nom)}</span></button>`;
-  }).join('');
-  return `<div class="banc-seg">
-    <div class="banc-seg-tete">${titre}</div>
-    <div class="banc-seg-btns">${btns}</div>
-    <div class="banc-seg-mot">${cour.bon ? `<b>${esc(cour.bon)}</b>` : ''}${cour.prix ? ` · ${esc(cour.prix)}` : ''}</div>
-  </div>`;
 }
 
 /*

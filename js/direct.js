@@ -24,7 +24,7 @@
  */
 
 import { periodeDe, PLANS_ADV } from './sim.js';
-import { recitDeBut, tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
+import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { CARTES_MATCH } from './combat.js';
 import { jouerSon } from './sons.js';
@@ -363,7 +363,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   const cartesDuSoir = f.cartes && f.cartes.jouees ? f.cartes.jouees.filter(c => CARTES_MATCH[c]) : [];
   if (cartesDuSoir.length) {
     const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} ${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
-    const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', f.cartes.contre ? '🧠 tes deux premières lignes jouent leur contre' : '', ...paris].filter(Boolean);
+    const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', ...paris].filter(Boolean);
     ligne('debut cartes', `🃏 <b>Tu joues</b> ${cartesDuSoir.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${suite.length ? ` — ${suite.join(', ')}` : ''}.`);
   }
   /*

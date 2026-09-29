@@ -153,13 +153,5 @@ export function copier(id) {
   return nid;
 }
 
-export function renommer(id, titre) {
-  const ix = lireIndex();
-  const p = ix.parties.find(x => x.id === id);
-  if (!p || !titre) return;
-  p.titre = String(titre).slice(0, 60);
-  ecrireIndex(ix);
-}
-
 /* Toutes les parties d'un genre, la plus récente en tête. */
 export const partiesDuGenre = g => lireIndex().parties.filter(p => p.genre === g).sort((a, b) => b.maj - a.maj);

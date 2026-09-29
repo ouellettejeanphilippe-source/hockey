@@ -257,27 +257,6 @@ function saturer(rgb, f) {
   return rgb.map(v => Math.max(0, Math.min(255, moy + (v - moy) * f)));
 }
 
-/** Accent lisible d'une équipe, prêt à poser dans une variable CSS. */
-/**
- * L'encre à poser SUR un aplat de la couleur d'équipe — le seul endroit du
- * jeu où du texte repose sur cette couleur, et donc le seul où il faut la
- * mesurer plutôt que la deviner.
- *
- * On calcule les deux rapports de contraste (WCAG) et on garde le meilleur.
- * Mesuré sur les 32 équipes : parce que `getTeamAccent` éclaircit tout
- * jusqu'à une luminance de 0,30, le blanc ne dépasse jamais **2,8:1** —
- * sous le seuil lisible de 4,5:1 — pendant que le bleu nuit donne 7,5:1
- * (Vancouver, Philadelphie) à 12,1:1 (Boston, Nashville). L'encre foncée
- * gagne donc partout aujourd'hui ; le calcul reste pour que ça tienne si
- * l'éclaircissement change.
- */
-export function getTeamInk(teamCode) {
-  const L = luminance(getTeamAccent(teamCode));
-  const surBlanc = 1.05 / (L + 0.05);
-  const surFonce = (L + 0.05) / 0.05;
-  return surFonce >= surBlanc ? '#08131f' : '#ffffff';
-}
-
 /*
  * LE BANDEAU PORTE LA COULEUR BRUTE DE L'ÉQUIPE, PAS SA VERSION ÉCLAIRCIE.
  * `getTeamAccent` éclaircit jusqu'à une luminance de 0,30 pour qu'une bordure
@@ -466,13 +445,6 @@ export function viveSurFond(teamCode, fond) {
   const base = couleurVive(teamCode);
   if (!fond) return base;
   return contrast(base, fond) >= 4.5 ? base : inkFor(fond);
-}
-
-/** L'ancienne couleur éclaircie. Gardée pour les fonds et les lueurs, jamais pour un trait. */
-export function getTeamAccent(teamCode) {
-  const c = TEAM_COLORS[teamCode];
-  if (!c) return '#8ab4f0';
-  return readableAccent(c.accent || c.primary);
 }
 
 /**

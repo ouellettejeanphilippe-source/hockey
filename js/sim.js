@@ -82,9 +82,6 @@ export function casesDuMode(mode) {
   return SLOTS.filter(s => !s.scratch && s.unit === 0 && (s.group === 'F' || s.group === 'D' || s.group === 'G'));
 }
 
-/** L'unité d'une case : un trio, une paire, les deux gardiens, les trois réservistes. */
-export const uniteDeCase = s => !s ? '' : s.scratch ? 'R' : s.group === 'G' ? 'G' : `${s.group}${s.unit}`;
-
 /**
  * Le joueur que cette équipe met à CETTE case : la main du tirage LOTO.
  *
@@ -2015,8 +2012,6 @@ export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.9;
  */
 export const ENERGIE_C = Number(ENV_MESURE.ENERGIE_C ?? 3.8), ENERGIE_RECUP = 0.5, ENERGIE_SEUIL = 90,
   ENERGIE_EFFET = Number(ENV_MESURE.ENERGIE_EFFET ?? 0.5), ENERGIE_BLESSURE = 60, RESERVE_MAX = 30;
-/* Gardé pour les vieux appelants : l'ancienne constante de récupération. */
-export const ENERGIE_R = 18;
 export const energieDe = p => (p && Number.isFinite(p.energie) ? p.energie : 100);
 export const facteurEnergie = p => 1 - ENERGIE_EFFET * Math.max(0, ENERGIE_SEUIL - energieDe(p)) / 100;
 /* Rendre des jambes : jusqu'à 100, et le surplus en réserve pour le prochain match. */
@@ -2126,8 +2121,6 @@ export const STYLES = {
   robuste: { nom: 'Robuste', ico: '🥊', mot: 'Ils frappent tout ce qui bouge', contre: 'surnombre' },
   equilibre: { nom: 'Équilibré', ico: '⚖️', mot: 'Rien ne dépasse', contre: null },
 };
-/* La lecture parfaite : le bon contre-plan, ce soir-là. */
-export const CONTRE_PLAN = { finition: 1.04, defense: 0.96 };
 const STYLE_SEUIL = 0.35;
 
 export function poserStyles(teams) {
@@ -4499,12 +4492,6 @@ function pickGoalie(lineup, gameIdx, team = null) {
   return gardienDeRappel(team, starter || backup) || starter || backup || null;
 }
 
-function pickUnit(weights) {
-  let r = hasard() * weights.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) return i; }
-  return weights.length - 1;
-}
-
 function weightedPick(list, wfn) {
   const ws = list.map(wfn);
   let r = hasard() * ws.reduce((a, b) => a + b, 0);
@@ -5487,30 +5474,6 @@ export function photoStats(teams) {
   return photo;
 }
 
-export function separerSeries(teams, photo) {
-  for (const t of teams) {
-    const e = photo.get(t);
-    if (!e) continue;
-    t.po = Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, (t[k] || 0) - (e[k] || 0)]));
-    t.poJournal = t.journal ? t.journal.slice(e.journal) : [];
-    t.poBlessures = t.injuriesLog ? t.injuriesLog.slice(e.blessures) : [];
-    if (t.journal) t.journal.length = e.journal;
-    if (t.injuriesLog) t.injuriesLog.length = e.blessures;
-    for (const k of CHAMPS_EQUIPE) t[k] = e[k];
-    for (const s of SLOTS) {
-      const p = t.roster[s.i];
-      const q = p && photo.get(p);
-      if (!q) continue;
-      p.po = {};
-      for (const k of CHAMPS_SIM) {
-        if (p[k] === undefined && q[k] === undefined) continue;
-        p.po[k.slice(3)] = (p[k] || 0) - (q[k] || 0);
-        p[k] = q[k];
-      }
-    }
-  }
-}
-
 /** Une feuille de match vierge, prête à recevoir le journal d'un match. */
 export function feuilleVierge() {
   return {
@@ -6351,11 +6314,6 @@ export function jouerMatchSeries(S) {
   if (S.ligue) avecLigue(S.ligue, jouer);
   else { const avant = hasard; hasard = S.rng; try { jouer(); } finally { S.rng = hasard; hasard = avant; } }
 }
-/* Jouer jusqu'à ce que le match k de la ronde r soit joué (ou les séries finies). */
-export function jouerSeriesJusqua(S, r, k = Infinity) {
-  while (!S.fini && (S.ronde < r || (S.ronde === r && S.k <= k))) jouerMatchSeries(S);
-  return S;
-}
 /* Rejouer une reprise : jusqu'à ce que chaque série ait les matchs qu'on en avait vus. */
 export function jouerSeriesVues(S, revele = []) {
   for (let garde = 0; !S.fini && garde < 64; garde++) {
@@ -6533,11 +6491,6 @@ export function reglageDuPlan(cle) {
   return '';
 }
 
-/* Le plan d'un gros match de saison : pur, de la graine et de la journée. */
-export function planDuGros(graine, r) {
-  const cles = Object.keys(PLANS_ADV);
-  return cles[Math.floor(hacherMise(graine, 'plan', r) * cles.length)];
-}
 /*
  * Le plan de l'adversaire au k-ième match d'une série : il GARDE celui qui a
  * gagné, et en CHANGE après une défaite — jamais pour le même.
@@ -6810,22 +6763,13 @@ function poserCartes(toi, adv, gros) {
   toi._effetMatch.push(...fx.effets);
   if (fx.adv.length) adv._effetMatch = [...(adv._effetMatch || []), ...fx.adv];
   if (fx.lire) { adv._lignesMatch = null; gros.lu = true; }
-  if (fx.contre) {
-    const P = PLANS_ADV[gros.plan];
-    const c = P && contreDuPlan(P);
-    const lignes = lignesDe(toi, toi.roster, { duSoir: false });
-    if (c && c.tac) toi._lignesMatch = lignes.map((l, u) => (u < c.n ? { ...l, tac: c.tac } : l));
-    else if (c && c.agrMax != null) toi._lignesMatch = lignes.map((l, u) => (u < c.n ? { ...l, agr: Math.min(l.agr ?? 1, c.agrMax) } : l));
-    else toi._effetMatch.push({ source: 'carte', nom: 'Le contre parfait', ico: '🧠', defense: 0.97 });
-    gros.contre = !gros.lu && planEstContre(gros.plan, toi._lignesMatch || lignes, (c && c.ad != null) ? Math.min(0, c.ad) : adDeLEquipe(toi));
-  }
   // Leur plan tombé, il n'y a plus rien à contrer : le récit le dit comme une lecture parfaite.
   if (fx.lire) gros.contre = true;
   if (fx.energieTous) for (const sl of SLOTS) {
     const p = toi.roster[sl.i];
     if (p && p.p !== 'G') rendreJambes(p, fx.energieTous);
   }
-  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire, contre: !!fx.contre };
+  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire };
   return fx;
 }
 /* Ta préparation contre leur plan (S76, voir `PREP_JUSTE`) : juste, fausse, ou rien. */
@@ -6903,7 +6847,6 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
     // S80 : une carte qui VISE L'ADVERSAIRE grandit avec le soir (`echelleTardive`).
     if (C.adv) out.adv.push({ source: 'carte', nom: C.nom, ico: C.ico, ...grandirEffet(C.adv, echelle) });
     if (C.lire) out.lire = true;
-    if (C.contre) out.contre = true;
     if (C.annule) out.annule = true;
     if (C.energieTous) out.energieTous += C.energieTous;
     if (C.synergie) { const e = synergie(C.synergie); if (e) out.effets.push({ source: 'carte', nom: C.nom, ico: C.ico, ...e }); }

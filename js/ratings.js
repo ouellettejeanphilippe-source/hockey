@@ -118,11 +118,10 @@ export const LISSAGE_EQUIPE = 0.5;
  *   robustesse  ses minutes de punition et ses mises en échec (depuis 2005-06)
  *
  * Chaque rang est un centile parmi les réguliers (20 matchs et plus) de la
- * même position. Un joueur au SEUIL_MESURE (85e centile) porte l'étiquette
- * 🛡️ Défensif ou 🪨 Robuste sur sa carte, et le bassin se trie sur les deux.
+ * même position ; le bassin se trie sur les deux (1.0 : l'étiquette 🧊 / 🪨
+ * de la carte est partie, le rôle et la carrure la portent).
  * Ce ne sont pas des cotes : les colonnes sont sur la fiche, chacune en clair.
  */
-export const SEUIL_MESURE = 0.85;
 
 /*
  * LE GABARIT : petit et rapide, moyen, matador.

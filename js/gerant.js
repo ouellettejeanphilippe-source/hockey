@@ -24,15 +24,7 @@
  * les données arrivent en arguments, et les décisions repartent par rappel.
  */
 
-import {
-  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, SEC_MIN, SEC_MAX, SEC_DEFAUT,
-  profilsDe, profilPrincipal, roleSecond, fitUnite, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
-  joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
-  MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
-  PLANS_ADV, commentContrer, planEstContre, reglageDuPlan,
-  physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
-  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales,
-} from './sim.js';
+import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet } from './sim.js';
 import { POIDS_TRIO } from './ratings.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
@@ -967,7 +959,6 @@ export function regleDeCarte(C) {
   if (C.energieTous) out.push({ txt: `Tes patineurs : jambes +${C.energieTous}`, bon: true });
   if (C.lire) out.push({ txt: 'Leur plan tombe', bon: true });
   if (C.annule) out.push({ txt: 'Leur main ne fait rien', bon: true });
-  if (C.contre) out.push({ txt: 'Tes 2 premières lignes sur leur contre', bon: null });
   if (C.ecarte) out.push({ txt: `🔎 Écarte ${C.ecarte} plan${C.ecarte > 1 ? 's' : ''} qu'ils ne joueront pas`, bon: true });
   if (C.revele) out.push({ txt: '🔎 Tu sais leur plan : ta préparation vise juste', bon: true });
   if (C.planB) out.push({ txt: '🎯 Tu te prépares pour 2 plans', bon: true });
@@ -1094,7 +1085,6 @@ export function ouvrirMainDeMatch(spec) {
     if (fx.adv.length && echelle > 1) mots.push({ txt: `📈 Ce soir, ce qui vise l'adversaire vaut ×${String(Math.round(echelle * 100) / 100).replace('.', ',')}`, bon: true });
     if (fx.lire) mots.push({ txt: 'Leur plan tombe', bon: true });
     if (fx.annule) mots.push({ txt: 'Leur main ne fait rien', bon: true });
-    if (fx.contre) mots.push({ txt: 'Tes 2 premières lignes sur leur contre', bon: null });
     if (fx.energieTous) mots.push({ txt: `Tes patineurs : jambes +${fx.energieTous}`, bon: true });
     // LE DÉPISTAGE DU SOIR (S76) : les cartes jouées le resserrent, et ta préparation suit.
     const pistes = pistesDuRapport(spec.depistage, { planReel: spec.planReel, ecarte: fx.ecarte, revele: fx.revele });

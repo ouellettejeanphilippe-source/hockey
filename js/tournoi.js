@@ -20,7 +20,7 @@
  * joueur qui a déjà vu l'écran de saison n'a rien à réapprendre.
  */
 
-import { equipeDeTable, jouerMatchAuto, resultatDe, gagnantDuMatch } from './table.js';
+import { equipeDeTable, jouerMatchAuto, gagnantDuMatch } from './table.js';
 import { getPlayerKey } from './sim.js';
 import { ouvrirTable } from './plateau.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';

@@ -307,9 +307,6 @@ export function designDe(saison) {
 }
 /* Le dessin complet d'une carte : son époque (la palette de base) et le design de son année. */
 export const dessinDe = saison => `${ereDe(saison)} ${designDe(saison)}`;
-export const ERES = {
-  e70: 'Les années 70', e80: 'Les années 80', e90: 'Le début des années 90', e00: 'De 1996 aux années 2000', e10: 'Depuis 2010',
-};
 /* L'année sur la photo, dans le style de l'époque : « '85-86 » pour les
    cartes d'avant 1990 (le millésime imprimé), « 1993-94 » ensuite. */
 export function anneeDeCarte(saison) {
