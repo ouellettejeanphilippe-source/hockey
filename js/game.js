@@ -26,7 +26,7 @@ import {
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJusqua, bilanLigue, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
   CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, systemeDe, MUTATIONS, effetsEnCours,
-  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE } from './sim.js';
+  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, AFFICHAGE_COURBE, echelleTardive } from './sim.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { surAppareil, imgVisage, demarrerVisages } from './visages.js';
@@ -261,6 +261,18 @@ const G = {
  */
 const MODE_ROGUE = { ...MODES.CLASSIQUE, nom: 'Rogue', cap: PLAFOND_ROGUE };
 const MODE = () => (G.bonus === 'ROGUE' ? MODE_ROGUE : (MODES[G.mode] || MODES.CLASSIQUE));
+/*
+ * LA COURBE À L'ÉCRAN (1.0, J2-16, R6) : une carte ne parle de sa courbe
+ * qu'en Rogue, et sa jauge allume le cran du soir — la journée révélée, ou la
+ * ronde des séries. Avant la saison, la jauge dit la courbe entière.
+ */
+AFFICHAGE_COURBE.actif = () => G.bonus === 'ROGUE';
+AFFICHAGE_COURBE.echelle = () => {
+  if (G.bonus !== 'ROGUE') return null;
+  if (G.seriesVues) return echelleTardive({ serie: true, ronde: G.seriesVues.ronde || 0 });
+  if (G.ligue) return echelleTardive({ jour: G.journee || 0 });
+  return null;
+};
 /**
  * La saison à laquelle la ROULETTE est tenue : celle de la ligue quand elle
  * est fixée et que le repêchage reste dans l'année, sinon null — et null veut
@@ -2766,6 +2778,14 @@ function marquerPage(cle) {
     p.hidden = !vis.includes(p.dataset.volet) || !p.textContent.trim();
   });
   if (G.done) brancherEntractes($('resultHost'));   // un deck caché mesure zéro
+  /*
+   * UNE RANGÉE CACHÉE MESURE ZÉRO (1.0, J2-4). `ajusterCartes` réduit les
+   * noms et les étiquettes qui débordent — mais l'alignement se dessine
+   * pendant qu'on est au vestiaire, onglet caché : chaque rangée mesurait 0,
+   * rien n'était réduit, et à l'ouverture de l'onglet les icônes d'une case
+   * sortaient coupées à droite. On remesure l'onglet une fois montré.
+   */
+  requestAnimationFrame(() => ajusterCartes(document));
   majNavbar(cle, liste);
   for (const id of ['pageEquipes', 'pageHistorique', 'pageRegles']) {
     const el = $(id);
@@ -5259,7 +5279,8 @@ function showPlayerModal(p, opts = {}) {
   // mises en échec, les mises au jeu — là pour qui les cherche.
   const detailStats = p.p === 'G' ? '' : cell('PTS/M', st.ppgStr) + cell('TG/M', p.toi ? Number(p.toi).toFixed(1) : '—')
     + (p.ht != null ? cell('MÉ/M', p.ht) : '') + (p.fo != null ? cell('MJ %', Math.round(p.fo * 100)) : '');
-  const plusDeDetails = `<details class="fiche-plus"><summary>Plus de détails</summary>
+  // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
+  const plusDeDetails = `<details class="fiche-plus"${matchMedia('(min-width: 900px)').matches ? ' open' : ''}><summary>Plus de détails</summary>
        ${detailStats ? `<div class="stat-grid">${detailStats}</div>` : ''}
        <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
        ${ratings}</details>`;

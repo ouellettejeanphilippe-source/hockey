@@ -310,7 +310,9 @@ await page.click('#choixModal .aln-confirmer');
 await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
 await page.waitForTimeout(800);
 let d = await decisions();
-const signe = d.filter(x => x.achat && x.ballottage);
+// 1.0 (J1-B) : l'achat est la décision `k:n` ; la signature, une seconde décision `k:n:signe` (sans l'achat).
+const signe = d.filter(x => x.ballottage && (x.achat || /^k:\d+:signe$/.test(x.palier || '')))
+  .map(x => ({ ...x, achat: x.achat || (d.find(a => a.achat && a.palier === x.palier.replace(/:signe$/, '')) || {}).achat || {} }));
 console.log(`9. signé : ${JSON.stringify(signe.map(x => ({ pack: x.achat.pack, entre: x.ballottage.entre, sort: x.ballottage.sort, i: x.ballottage.i, rar: x.ballottage.rar })))} · « ${titre} » · case libre offerte : ${libreOfferte} · ${refusees} case(s) grisée(s) (pas sa position, ou le plafond) · barre : ${await jauge()}`);
 if (!signe.length) erreurs.push('le pack de joueurs n\'a rien signé');
 else if (!libreOfferte) erreurs.push(`la case de réserve libre n'a pas été offerte (« ${titre} »)`);

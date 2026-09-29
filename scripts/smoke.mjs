@@ -34,6 +34,7 @@ const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: p
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const errors = [];
 let barreAuRepechage = null;   // la barre au repêchage, pour la comparer au bilan (S67)
+let toastVu = false;           // le premier toast d'une signature, mesuré une fois (1.0, J2-17)
 
 /*
  * LES CHOIX FORCÉS (S66). Le proprio, les dilemmes et les séquences CACHENT
@@ -58,6 +59,9 @@ async function passerIdentite() {
   if (!carte) { errors.push('« Commencer » n\'offre pas l\'identité de départ'); return; }
   const offre = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
   if (offre.length !== 3 || new Set(offre).size !== 3) errors.push(`l'identité de départ offre ${offre.join(' · ')} au lieu de trois cartes différentes`);
+  // TROIS CARTES, ON LES VOIT TOUTES (1.0, J2-3) : sur téléphone, les trois tiennent dans l'écran, sans balayer.
+  const horsEcran = await page.$$eval('#choixModal .tc', e => e.filter(t => { const r = t.getBoundingClientRect(); return r.left < -1 || r.right > innerWidth + 1; }).length);
+  if (horsEcran) errors.push(`l'identité de départ laisse ${horsEcran} carte(s) hors de l'écran : il faut balayer pour les voir`);
   identitesVues.push(offre[0]);
   await _click('#choixModal .tc');
 }
@@ -318,6 +322,24 @@ async function repondreAuxChoix() {
         prepsVues++;
         // La première : une capture, pour que JP voie le dépistage tel qu'un kid le voit.
         if (prepsVues === 1) await page.screenshot({ path: 'scripts/smoke-main.png' });
+        /*
+         * L'EFFET AVANT L'AMBIANCE (1.0, J2-12) : à 1440 × 900, la puce chiffrée
+         * de chaque carte est au-dessus des boutons collés en bas, sans défiler.
+         */
+        if (prepsVues === 1) {
+          const vp = page.viewportSize();
+          await page.setViewportSize({ width: 1440, height: 900 });
+          await page.waitForTimeout(250);
+          const sous = await page.evaluate(() => {
+            const b = document.querySelector('#choixModal .main-boutons');
+            if (!b) return null;
+            const haut = b.getBoundingClientRect().top;
+            return [...document.querySelectorAll('#choixModal .main-carte .tc-puces')].filter(p => p.getBoundingClientRect().bottom > haut + 1).length;
+          });
+          await page.setViewportSize(vp);
+          await page.waitForTimeout(250);
+          if (sous) errors.push(`à 1440 × 900, ${sous} carte(s) de la main ont leur effet sous les boutons`);
+        }
       }
       const jouable = await page.$('#choixModal .main-carte:not(.trop-cher):not(.injouable):not(.jouee)');
       let nom = null;
@@ -672,6 +694,25 @@ await page.click('#npGo');
 await passerIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
 console.log('   écran « Nouvelle partie » : ouvert à la première visite, refermé');
+/*
+ * LA FICHE : « SIGNER » SOUS LE POUCE (1.0, J2-5). Sur téléphone, le bouton
+ * de la fiche tombait sous le pli ; il colle au bas de la feuille. On ouvre la
+ * fiche d'un joueur du vestiaire et on exige le bouton dans l'écran, sans
+ * défiler.
+ */
+{
+  const carte = await page.waitForSelector('#pool .pcard', { timeout: 30000 }).catch(() => null);
+  if (carte) {
+    await carte.click({ position: { x: 30, y: 30 } });
+    const btn = await page.waitForSelector('#hockeyCardModal #modalSignBtn', { timeout: 5000 }).catch(() => null);
+    if (btn) {
+      const r = await btn.boundingBox();
+      if (!r || r.y + r.height > 844 + 1) errors.push(`la fiche d'un joueur laisse « Signer » sous le pli (${r ? Math.round(r.y + r.height) : '?'} px sur 844)`);
+    } else errors.push('la fiche d\'un joueur du vestiaire ne s\'ouvre pas, ou n\'a pas de bouton « Signer »');
+    await page.click('#closeHockeyCardBtn').catch(() => {});
+    await page.waitForTimeout(250);
+  }
+}
 
 /*
  * DEUX RÈGLES FERMES QUE RIEN NE VÉRIFIAIT.
@@ -772,6 +813,24 @@ async function toutEstAtteignable(ou) {
       const rc = c.getBoundingClientRect();
       const bas = r.bottom - rc.top + c.scrollTop;
       if (bas > c.scrollHeight + 2) out.push(`« ${(el.textContent || '').trim().slice(0, 36)} » (${nom(el)}) dépasse de ${Math.round(bas - c.scrollHeight)} px ce que ${nom(c)} peut révéler`);
+      /*
+       * COUPÉ À DROITE (1.0, J2-4). Une puce en `nowrap` sortait de sa carte
+       * (« un réserviste ou un rappel j… ») et rien ne le voyait : la question
+       * du bas ne regarde que la hauteur. Le premier ancêtre qui rogne en X
+       * révèle sa largeur de défilement s'il défile en X, sa largeur visible
+       * sinon — un `overflow: hidden` compte le contenu coupé dans son
+       * `scrollWidth`, donc c'est `clientWidth` qui dit ce qu'on voit.
+       */
+      let cx = el.parentElement;
+      while (cx && !['hidden', 'auto', 'scroll', 'clip'].includes(st(cx).overflowX)) cx = cx.parentElement;
+      // Un ancêtre en `text-overflow: ellipsis` coupe EXPRÈS, et le dit par « … » (un nom long dans une bande étroite).
+      if (cx && st(cx).textOverflow !== 'ellipsis') {
+        const defileX = ['auto', 'scroll'].includes(st(cx).overflowX);
+        const rx = cx.getBoundingClientRect();
+        const droite = r.right - (rx.left + cx.clientLeft) + (defileX ? cx.scrollLeft : 0);
+        const limite = defileX ? cx.scrollWidth : cx.clientWidth;
+        if (droite > limite + 2) out.push(`« ${(el.textContent || '').trim().slice(0, 36)} » (${nom(el)}) est coupé à droite de ${Math.round(droite - limite)} px dans ${nom(cx)}`);
+      }
     }
     return [...new Set(out)];
   });
@@ -970,6 +1029,11 @@ async function drafter(etiquette) {
       });
       // Le plancher du jeu est 0,775 M$ par case (MIN_SAL de js/game.js) ; le 0,95 d'ici est la marge de l'auto-draft.
       if (etat.rem != null && etat.left != null && etat.rem + 0.01 < 0.775 * etat.left) errors.push(`une signature d'un seul clic a laissé ${etat.rem} M$ pour ${etat.left} cases, sous le plancher`);
+      // LE TOAST EN HAUT SUR TÉLÉPHONE (1.0, J2-17) : il se posait sur les boutons du pouce.
+      if (!toastVu) {
+        const t = await page.evaluate(() => { const e = document.querySelector('#toast.on'); if (!e) return null; const r = e.getBoundingClientRect(); return { haut: r.top, bas: r.bottom, h: innerHeight, w: innerWidth }; });
+        if (t) { toastVu = true; if (t.w < 1200 && t.bas > t.h / 2) errors.push(`le toast se pose dans la moitié basse du téléphone (${Math.round(t.haut)}–${Math.round(t.bas)} px sur ${t.h})`); }
+      }
     }
   }
   console.log(`   ${etiquette} : ${signed}/${total} signés`);
@@ -1436,6 +1500,31 @@ async function traverserSaison(etiquette, reprise = false) {
     await _click('.navtab[data-page="classement"]');
     await page.waitForTimeout(250);
     if ((await page.evaluate(() => document.body.dataset.zone)) !== 'hub') errors.push('en pleine saison, le classement ne s\'ouvre pas dans l\'écran de saison');
+    /*
+     * LE CLASSEMENT SUR TÉLÉPHONE (1.0, J2-10) : aucun nom d'équipe coupé
+     * (sous 480 px la cellule dit « CGY '93 »), et ta rangée, défilée au
+     * bout, reste au-dessus du bouton flottant.
+     */
+    {
+      const cl = await page.evaluate(async () => {
+        const noms = [...document.querySelectorAll('#hubModal .hub-classement td.nom')];
+        const coupes = noms.filter(td => td.scrollWidth > td.clientWidth + 1).map(td => td.textContent.trim()).slice(0, 3);
+        const toi = document.querySelector('#hubModal .hub-classement tr.toi');
+        const f = document.getElementById('hubFlottant');
+        let cache = null;
+        if (toi && f && !f.hidden && getComputedStyle(f).display !== 'none') {
+          const sc = [...document.querySelectorAll('#hubModal, #hubModal *')].find(e => ['auto', 'scroll'].includes(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1);
+          if (sc) sc.scrollTop = sc.scrollHeight;
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const r = toi.getBoundingClientRect(), rf = f.getBoundingClientRect();
+          if (r.bottom > rf.top && r.top < rf.bottom) cache = `${Math.round(r.bottom - rf.top)} px`;
+          if (sc) sc.scrollTop = 0;
+        }
+        return { n: noms.length, coupes, cache, w: innerWidth };
+      });
+      if (cl.w <= 480 && cl.coupes.length) errors.push(`le classement coupe des noms d'équipe à ${cl.w} px : ${cl.coupes.join(' · ')}`);
+      if (cl.cache) errors.push(`au bout du classement, le bouton flottant couvre ta rangée de ${cl.cache}`);
+    }
     await redimensionner('la saison, onglet Classement');
     await _click('.navtab[data-page="match"]');
     await page.waitForTimeout(250);

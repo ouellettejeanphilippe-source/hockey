@@ -6355,7 +6355,9 @@ body.choix-ouvert { overflow: hidden; }
 .puce {
   display: inline-flex; align-items: center; gap: 3px;
   padding: 3px 8px; border-radius: 999px;
-  font: 700 11.5px/1.2 var(--display); letter-spacing: .02em; white-space: nowrap;
+  font: 700 11.5px/1.2 var(--display); letter-spacing: .02em;
+  /* 1.0 (J2-4) : une puce longue passe à la ligne au lieu de déborder (une puce courte tient sur une ligne). */
+  white-space: normal; max-width: 100%; overflow-wrap: anywhere; text-align: left;
   background: var(--fond-creux, rgba(255,255,255,.06)); color: var(--sub);
 }
 .puce.bon { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
@@ -9355,7 +9357,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
   .pk-rayon-jour .pk-sachet { width: 84px; flex: none; }
 }
 /* Une puce de règle se replie dans sa carte, jamais hors d'elle. */
-.bq-regle .puce { white-space: normal; max-width: 100%; }
 .bq-actions .btn { min-height: 34px; font-size: 12px; white-space: nowrap; }
 /* =================================================================
    UN DESIGN PAR ANNÉE (S78, js/cartes.js `DESIGNS`)
@@ -9526,7 +9527,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .inv-plafond.over .inv-pl-barre i { background: var(--red, #e5484d); }
 .inv-plafond.over .inv-pl-tete b { color: var(--red, #e5484d); }
 .inv-pl-lignes { display: flex; flex-wrap: wrap; gap: 4px; }
-.inv-pl-lignes .puce { white-space: normal; }
 .inv-pl-rien { font-size: 12px; color: var(--muted); }
 .pk-plafond { font-size: 13px; color: var(--sub, var(--muted)); margin: 0 0 10px; }
 .pk-plafond.over { color: var(--red, #e5484d); }
@@ -10245,3 +10245,98 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 
 /* 1.0 : dans l'application Android, la photo BRUTE de la LNH en attendant son recadrage (js/visages.js) : la tête en haut du cadre. */
 img.visage.brut { object-position: 50% 12% !important; }
+/* ---------------------------------------------------------------
+   1.0 (J2-17) — LE TOAST EN HAUT SUR TÉLÉPHONE. En bas, il se posait sur
+   « Journée suivante » et sur le bouton flottant, pile là où le pouce
+   travaille. Il descend de la barre du haut, qui ne porte rien qu'on touche
+   à ce moment-là. Au bureau, il reste en bas, loin du rail.
+   --------------------------------------------------------------- */
+@media (max-width: 1199px) {
+  .toast {
+    top: calc(var(--topbar-h) + 8px);
+    bottom: auto;
+    transform: translate(-50%, -12px) scale(0.96);
+  }
+  .toast.on { transform: translate(-50%, 0) scale(1); }
+}
+
+/* ---------------------------------------------------------------
+   1.0 (J2-10) — LE CLASSEMENT SUR TÉLÉPHONE. (1) Le bouton flottant
+   (« Journée suivante ») cachait deux rangées, dont souvent la tienne : le
+   volet garde sous lui la place du bouton. (2) « Flames 19… » et
+   « Oilers 202… » perdaient l'année, qui est leur identité dans une ligue où
+   il y a trois Oilers : sous 480 px, la cellule dit « CGY '93 », comme la
+   carte du prochain match.
+   --------------------------------------------------------------- */
+.hub-classement td.nom .nom-court { display: none; }
+@media (max-width: 480px) {
+  .hub-classement td.nom .nom-long { display: none; }
+  .hub-classement td.nom .nom-court { display: inline; }
+}
+@media (max-width: 1199px) {
+  body.hub-docke .hub-sheet .hub-volet { padding-bottom: calc(var(--bas-coquille, 70px) + 72px); }
+}
+
+/* ---------------------------------------------------------------
+   1.0 (J2-12) — LA MAIN DE MATCH : L'EFFET AVANT L'AMBIANCE. À 1440 × 900,
+   la puce chiffrée de chaque carte (« Tirs +6 % ») passait sous « Ne rien
+   jouer » : c'est elle qu'on lit pour décider, le texte d'ambiance ensuite.
+   Les puces montent sous la ligne de type, l'illustration rapetisse, et
+   l'ambiance tient en deux lignes.
+   --------------------------------------------------------------- */
+.main-sheet .choix-option.tc .tc-puces { order: 1; }
+.main-sheet .choix-option.tc .tc-texte { order: 2; }
+.main-sheet .choix-option.tc .choix-option-non,
+.main-sheet .choix-option.tc .tc-pied { order: 3; }
+.main-sheet .choix-option.tc .tc-quoi { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (min-width: 641px) {
+  .main-sheet .tc-art { height: 64px; }
+  .main-sheet .tc-art-ico { font-size: 38px; }
+}
+
+/* ---------------------------------------------------------------
+   1.0 (J2-16) — UNE CARTE NE COUPE PAS SES PUCES. Le texte d'ambiance
+   poussait les puces chiffrées hors du bas de la carte (« Le mur » au
+   palier) : il tient en quatre lignes, les puces restent entières. Une carte
+   à lire (« Comment on joue ») garde tout son texte.
+   --------------------------------------------------------------- */
+.choix-option.tc:not(.lecture) .tc-quoi { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.choix-option.tc .tc-puces { flex: none; }
+
+/* ---------------------------------------------------------------
+   1.0 (J2-3) — TROIS CARTES, ON LES VOIT TOUTES. Sur téléphone, une main de
+   deux ou trois cartes (l'identité, le palier, une récompense) se balayait
+   une carte à la fois : on choisissait une carte sur trois en en voyant une
+   et un cinquième. Slay the Spire montre les trois, toujours. Elles tiennent
+   côte à côte, resserrées : le nom, l'illustration, la ligne de type, le
+   texte et les puces en petit ; le pied de série s'efface. Un toucher choisit,
+   comme avant. Au-delà de trois cartes (une main à lire), la bande reste.
+   --------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .choix-sheet:not(.main-sheet) .choix-main.trois {
+    display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px;
+    margin: 0; padding: 4px 0 10px; overflow: visible; scroll-snap-type: none;
+  }
+  .choix-main.trois > .tc { flex: none; min-width: 0; }
+  .choix-main.trois > .tc .tc-cadre { padding: 7px 6px; gap: 5px; }
+  .choix-main.trois > .tc .tc-nom { font-size: 13px; line-height: 1.05; overflow-wrap: anywhere; }
+  .choix-main.trois > .tc .tc-coin { font-size: 11px; padding: 3px 5px; }
+  .choix-main.trois > .tc .tc-art { height: 56px; }
+  .choix-main.trois > .tc .tc-art-ico { font-size: 30px; }
+  .choix-main.trois > .tc .tc-type { font-size: 9.5px; letter-spacing: .02em; white-space: normal; }
+  .choix-main.trois > .tc .tc-texte { font-size: 11.5px; line-height: 1.3; }
+  .choix-main.trois > .tc .puce { font-size: 10px; padding: 2px 6px; }
+  .choix-main.trois > .tc .tc-pied { display: none; }
+  .choix-main.trois > .tc .tc-quoi { -webkit-line-clamp: 8; }
+}
+
+/* ---------------------------------------------------------------
+   1.0 (J2-5) — LA FICHE : « SIGNER » TOUJOURS SOUS LE POUCE. Sur téléphone,
+   la carte prend l'écran et le bouton de la fiche tombait sous le pli : on
+   voyait les liens externes avant l'action. Le pied colle au bas de la
+   feuille qui défile, le bouton en tête et sur toute la largeur.
+   --------------------------------------------------------------- */
+@media (max-width: 899px) {
+  #hockeyCardModal .pcard-full-foot { position: sticky; bottom: 0; z-index: 6; }
+  #hockeyCardModal .pcard-full-foot > #modalSignBtn { order: -1; flex: 1 0 100%; min-height: 46px; }
+}

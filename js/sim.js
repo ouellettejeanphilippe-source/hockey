@@ -5530,6 +5530,27 @@ export function grandirEffet(e, ech) {
   return out;
 }
 let ECHELLE_SOIR = 1;
+/*
+ * LA COURBE, À L'ÉCRAN (1.0, J2-16 et R6). Une carte qui grandit ne le dit
+ * qu'en Rogue — la saison et le tournoi n'ont pas de courbe, et « En Rogue,
+ * grandit » sur une carte de saison parlait d'un autre mode. Et elle le dit
+ * par une JAUGE à quatre crans (octobre ×0,5, janvier ×1, avril ×1,5, finale
+ * ×2), le cran d'aujourd'hui allumé, au lieu d'une phrase coupée au bord.
+ * Le contrôleur (js/game.js) branche les deux lectures : le mode, et
+ * l'échelle du jour (null avant la saison).
+ */
+export const AFFICHAGE_COURBE = { actif: () => false, echelle: () => null };
+const CRANS_COURBE = [0.5, 1, 1.5, 2];
+export function motCourbe() {
+  if (!AFFICHAGE_COURBE.actif()) return null;
+  const e = AFFICHAGE_COURBE.echelle();
+  const fmt = x => String(Math.round(x * 100) / 100).replace('.', ',');
+  if (e == null) return { txt: '📈 Grandit : ×0,5 en octobre → ×2 en finale', bon: null };
+  let k = 0;
+  CRANS_COURBE.forEach((c, i) => { if (Math.abs(e - c) < Math.abs(e - CRANS_COURBE[k])) k = i; });
+  const jauge = CRANS_COURBE.map((c, i) => (i === k ? '▰' : '▱')).join('');
+  return { txt: `📈 Grandit ${jauge} ×${fmt(e)} ce soir · ×2 en finale`, bon: null };
+}
 
 /* Les trois colonnes brutes d'un profil, pour la mesure (`sonde_aptitudes.mjs`). */
 export const colonnesProfil = p => ({ L: lancersBrut(p), T: tirBrut(p), P: passesRelatives(p) });
@@ -5760,8 +5781,9 @@ export function motsDeMutation(cle) {
     if (P) out.push({ txt: `${P.ico} ${P.nom} ${d > 0 ? '+' : '−'}${Math.abs(Math.round(d))}`, bon: d > 0 });
   }
   // LES DEUX COURBES (S80, `echelleTardive`) : l'amélioration grandit ; le style et l'atelier font fitter un trio, tout de suite.
-  if (M.source === 'amelioration') out.push({ txt: '📈 En Rogue, grandit : ×0,5 en octobre, ×1 en janvier, ×2 en finale', bon: null });
-  else if (M.source === 'style' || M.partout || M.cran) out.push({ txt: '🔗 Carte de trio : tout de suite, puis elle plafonne', bon: null });
+  const courbe = M.source === 'amelioration' ? motCourbe() : null;
+  if (courbe) out.push(courbe);
+  else if (M.source !== 'amelioration' && (M.source === 'style' || M.partout || M.cran)) out.push({ txt: '🔗 Carte de trio : tout de suite, puis elle plafonne', bon: null });
   return out;
 }
 
