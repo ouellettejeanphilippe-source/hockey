@@ -1636,6 +1636,20 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .line-chem.good { color: var(--green); }
 .line-chem.bad { color: var(--red); }
+/* D'où viennent ses joueurs (1.0) : une puce sans chiffre, la carte d'origine porte les nombres. */
+.line-orig {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
+  color: var(--text);
+  font: 700 11px/1.35 var(--display);
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .line-slots {
   display: grid;

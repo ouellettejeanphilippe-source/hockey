@@ -25,7 +25,7 @@ import {
   SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, penaliteAffichee, motPenalite, registerHiddenRatings,
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJusqua, bilanLigue, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, systemeDe, MUTATIONS, effetsEnCours,
+  CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, origineUnite, systemeDe, MUTATIONS, effetsEnCours,
   unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE } from './sim.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
@@ -4750,6 +4750,20 @@ const ZONE_SHORT = { optimal: '✨ Optimal', mal: '⚠️ Mal assorti', hors: '�
 const zoneShort = (tag, etat) => ZONE_SHORT[etat]
   || (!tag ? '' : tag.replace('Trio ', '').replace('Paire ', '').replace('optimale', 'optimal'));
 
+/*
+ * LA PUCE D'ORIGINE (1.0). Ce que l'unité a en commun, sans chiffre (la carte les porte) : au plus deux
+ * mots, du plus rare au plus courant. Les icônes sont celles des cartes d'origine (js/combat.js).
+ */
+function puceOrigine(o, group) {
+  if (!o) return '';
+  const mots = [];
+  if (o.ligneOrigine) mots.push(['🧩', group === 'D' ? 'Paire d\'origine' : 'Ligne d\'origine', 'Tous du même club, la même saison : la carte « La ligne d\'origine » la paie.']);
+  else if (o.coequipiers) mots.push(['👬', 'Coéquipiers', 'Deux vrais coéquipiers (même club, même saison) : la carte « Les vrais coéquipiers » les paie.']);
+  if (!o.ligneOrigine && o.famille) mots.push(['🎽', 'Même franchise', 'Tous de la même franchise, d\'une époque ou d\'une autre : « La même famille » et « La dynastie de club » la comptent.']);
+  if (o.decennie != null && mots.length < 2) mots.push(['🕰️', `Années ${String(o.decennie).slice(2)}`, 'Trois joueurs de la même décennie : la carte « La décennie » les paie.']);
+  return mots.slice(0, 2).map(([ico, mot, titre]) => `<span class="line-orig" title="${esc(titre)}">${ico} ${esc(mot)}</span>`).join('');
+}
+
 function lineEl(title, slots, group, unit, cls = '') {
   const wrap = document.createElement('div');
   wrap.className = 'line';
@@ -4794,7 +4808,9 @@ function lineEl(title, slots, group, unit, cls = '') {
   // QUI EST CETTE UNITÉ (S79) : « Trio de snipers », « Paire classique » — les icônes sont dans les cases.
   const id = (group === 'F' || group === 'D') && !surTable() ? identiteUnite(G.roster, group, unit) : null;
   const idHtml = id ? `<span class="line-id" title="${esc(id.roles.join(' · '))}">${esc(id.nom)}</span>` : '';
-  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${fermHtml}${chemHtml}</div>`;
+  // D'OÙ ILS VIENNENT (1.0) : la puce se voit même sans la carte, pour qu'on apprenne à bâtir pour elle ; la carte d'origine la paie.
+  const orig = (group === 'F' || group === 'D') && !surTable() ? puceOrigine(origineUnite(G.roster, group, unit), group) : '';
+  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${orig}${fermHtml}${chemHtml}</div>`;
   const fermBtn = wrap.querySelector('.line-ferm');
   if (fermBtn) fermBtn.onclick = ev => {
     ev.stopPropagation();
