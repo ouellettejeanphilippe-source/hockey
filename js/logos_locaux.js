@@ -1,0 +1,2 @@
+/* Écrit par scripts/logos.mjs : les écussons copiés dans img/logos/ (S78). Ne pas éditer à la main. */
+export const LOGOS_LOCAUX = new Set(["AFM","ANA","ARI","ATL","BOS","BUF","CAR","CBJ","CGS","CGY","CHI","CLE","CLR","COL","DAL","DET","EDM","FLA","HFD","KCS","LAK","MIN","MNS","MTL","NJD","NSH","NYI","NYR","OAK","OTT","PHI","PHX","PIT","QUE","SEA","SJS","STL","TBL","TOR","UTA","VAN","VGK","WIN","WPG","WSH"]);

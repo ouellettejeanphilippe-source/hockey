@@ -5,7 +5,9 @@ Ce dépôt suit les conventions décrites dans **[CLAUDE.md](CLAUDE.md)**. Lis-l
 Ensuite :
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — pourquoi les données sont découpées par saison, et les trois sources de chargement.
-- **[PLAN.md](PLAN.md)** — état du projet, tâches restantes par ordre de priorité, journal des changements.
+- **[LIVRAISON.md](LIVRAISON.md)** — le plan de travail courant vers la 1.0, avec son journal.
+- **[PLAN.md](PLAN.md)** — état court du projet et décisions prises.
+- **[docs/](docs/README.md)** — l'historique : les décisions en long, la référence du moteur, le journal par sprint.
 
 ## Démarrage rapide
 

@@ -23,8 +23,12 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe } from './sim.js';
-import { recitDeBut, tempsRestant, NOM_PERIODE } from './recit.js';
+import { periodeDe, PLANS_ADV } from './sim.js';
+import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
+import { commentateur, nomDeMicro } from './commentaire.js';
+import { CARTES_MATCH } from './combat.js';
+import { jouerSon } from './sons.js';
+import { ord, ordF, cap, nom } from './util.js';
 
 /*
  * L'HORLOGE DESCEND. Un tableau indicateur de hockey compte à rebours,
@@ -50,17 +54,14 @@ function rng(seed) {
 const VITESSES = [0.5, 1, 2, 4, 8];  // minutes de jeu par seconde réelle
 const ETIQ_VITESSE = { 0.5: '×½', 1: '×1', 2: '×2', 4: '×4', 8: '×8' };
 const CLE_VITESSE = 'cap82_direct_vitesse';
+const CLE_TOUS_TIRS = 'cap82_tous_tirs';   // le fil : les jeux marquants (défaut) ou tous les tirs (S70)
 const PAUSE_BUT = 1400;              // ms : l'horloge s'arrête sur un but
 const PAUSE_PERIODE = 1100;          // ms : entre deux périodes
 
 /* « ta formation » en tête de phrase devient « Ta formation ». */
-const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 /* Le nom d'un joueur, en texte brut : le fil est du texte, pas des cartes. */
-const nom = p => (p && p.n) || '';
 const famille = p => nom(p).split(' ').slice(-1)[0];
 /* « 1er », « 12e » : le rang d'un but ou d'une passe dans les séries ou la saison. */
-const ord = n => (n === 1 ? '1er' : `${n}e`);
-const ordF = n => (n === 1 ? '1re' : `${n}e`);   // « 1re passe »
 
 /*
  * LES ONGLETS DE LA PAUSE. Le direct n'a qu'un fil ; en pause, une barre
@@ -113,7 +114,21 @@ function evenementsDuMatch(f, graine) {
   // Une feuille plus ancienne (partie sauvegardée) n'a que les comptes par
   // période, et on date les arrêts nous-mêmes.
   if (f.lancers && f.lancers.length) {
-    for (const l of f.lancers) if (!l.but) ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien });
+    // LE SEUIL DE DANGER EST CELUI DE LA PÉRIODE (S71, S73) : les 15 % de
+    // tirs les plus dangereux de CETTE période, quelle que soit l'époque ou
+    // le gardien. Pas du match entier : un choix à l'entracte rejoue la
+    // troisième, et un seuil de match aurait changé ce que le fil montrait
+    // des deux premières — déjà vues (le smoke l'a attrapé).
+    const seuils = new Map();
+    for (let per = 1; per <= 4; per++) {
+      const ps = f.lancers.filter(l => !l.but && l.p != null && periodeDe(l.instant) === per).map(l => l.p).sort((x, y) => x - y);
+      if (ps.length) seuils.set(per, ps[Math.floor(ps.length * (1 - PART_DANGER))]);
+    }
+    for (const l of f.lancers) if (!l.but) {
+      const seuil = seuils.get(periodeDe(l.instant));
+      ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien, p: l.p, special: l.special, mode: l.mode, tac: l.tac,
+        danger: seuil != null && l.p != null ? l.p >= seuil : null });
+    }
   } else for (const cote of ['A', 'B']) {
     for (let per = 1; per <= 4; per++) {
       const buts = f.buts.filter(b => b.cote === cote && periodeDe(b.instant) === per).length;
@@ -134,11 +149,44 @@ function evenementsDuMatch(f, graine) {
     const fin = x.fin ?? (x.instant + x.minutes);
     if (!x.butAN && fin < 60) ev.push({ type: 'finPunition', cote: x.cote, instant: fin + 1e-4, joueur: x.joueur });
   }
+  // LES BLESSURES (S80) : datées sur la feuille, après la dernière action du blessé ce soir-là.
+  for (const x of (f.blessures || [])) ev.push({ type: 'blessure', cote: x.cote, instant: x.instant, joueur: x.joueur, matchs: x.matchs });
   for (let per = 1; per <= 3; per++) ev.push({ type: 'periode', per, instant: per * 20 - 1e-6 });
   ev.push({ type: 'fin', instant: f.ot ? finOT + 1e-6 : 60 });
   ev.sort((x, y) => x.instant - y.instant);
   return ev;
 }
+
+/*
+ * LE FIL RACONTE LES JEUX, PAS LES LANCERS (S70). JP : *pas mettre tous les
+ * tirs par défaut, juste les jeux dangereux ou beaux jeux défensifs, les
+ * arrêts, décrits. Possibilité de voir tous les tirs aussi. Aussi, les buts
+ * plus faciles à voir versus les tirs.*
+ *
+ * Le moteur note sur chaque lancer sa chance d'entrer (`p`) et l'action
+ * spéciale qu'il porte. Mesuré sur une saison : une cinquantaine d'arrêts par
+ * match, le médian à 9 %. Dans les PART_DANGER tirs les plus dangereux DE LA
+ * PÉRIODE (un seuil absolu vidait le fil des époques à faible pointage), ou au
+ * bout d'une action spéciale, l'arrêt est un JEU DANGEREUX, raconté ; une
+ * action étouffée ou un tir de loin en avantage numérique est un BEAU JEU
+ * DÉFENSIF ; le reste est un tir, caché tant qu'on ne demande pas tous les
+ * tirs. Une feuille d'avant (sans `p`) garde un arrêt sur quatre.
+ */
+/* Le style d'un tireur, dans les mots des banques du commentateur. */
+const STYLE_MICRO = { canonnier: 'canon', fabricant: 'fab', rapide: 'rapide', tireur: 'tireur' };
+const PART_DANGER = 0.15;
+const SEUIL_DANGER = 0.16;   // le repli, pour une feuille qui n'a pas de seuil
+const SEUIL_BLOQUE = 0.07;
+function genreDuTir(e) {
+  if (e.special === 'etouffee') return 'defense';
+  if (e.mode === 'AN' && e.p != null && e.p < SEUIL_BLOQUE) return 'defense';
+  if (e.special === 'reussie') return 'danger';
+  if (e.danger != null) return e.danger ? 'danger' : 'tir';
+  if (e.p != null) return e.p >= SEUIL_DANGER ? 'danger' : 'tir';
+  return Math.floor(e.instant * 1000) % 4 === 0 ? 'danger' : 'tir';
+}
+/* Les phrases elles-mêmes vivent dans js/commentaire.js : des banques de fragments, montés sans remise. */
+
 
 /** Les victoires d'une série, en pastilles : ●●○○ contre ●○○○. */
 export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${'○'.repeat(Math.max(0, 4 - w))}</span>`;
@@ -159,17 +207,41 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  *   apres      un mot sur ce qui vient après (« La série se poursuit. »), facultatif
  *   ctx        { esc, teamLabel, teamShort, tagCourt, logo, band, mug }
  */
-export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine }) {
+/*
+ * LE DEUXIÈME ENTRACTE D'UN GROS MATCH (S70). `arret` : le direct s'arrête à
+ * la fin de la deuxième période et rend la main (`onArret`) sans révéler la
+ * suite — le choix de l'entracte rejoue la troisième. `depuis` : le direct
+ * reprend à cette minute, ce qui précède posé d'un coup dans le fil.
+ */
+export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, arret = null, onArret = null, depuis = 0 }) {
   const modal = document.getElementById('liveModal');
   if (!modal || !f) { onTermine(); return; }
   const $ = id => modal.querySelector(id);
   const head = $('.live-head'), board = $('.live-board'), feed = $('.live-feed'),
     controls = $('.live-controls'), etat = $('.live-etat');
 
+  // LES JEUX MARQUANTS OU TOUS LES TIRS (S70) : le choix tient d'un match à l'autre.
+  let tous = false;
+  try { tous = localStorage.getItem(CLE_TOUS_TIRS) === '1'; } catch { /* stockage fermé : les jeux marquants */ }
+  feed.classList.toggle('tous', tous);
+  let filtre = modal.querySelector('.live-filtre');
+  if (!filtre) { filtre = document.createElement('div'); filtre.className = 'live-filtre'; feed.parentNode.insertBefore(filtre, feed); }
+  const dessinerFiltre = () => {
+    filtre.innerHTML = `<span class="live-filtre-mot">${tous ? 'Tous les tirs' : 'Les jeux marquants : buts, arrêts, défense'}</span>
+      <button type="button" class="btn live-tous" aria-pressed="${tous}">${tous ? 'Seulement les jeux marquants' : 'Voir tous les tirs'}</button>`;
+    filtre.querySelector('.live-tous').onclick = () => {
+      tous = !tous;
+      try { localStorage.setItem(CLE_TOUS_TIRS, tous ? '1' : '0'); } catch { /* rien à retenir */ }
+      feed.classList.toggle('tous', tous);
+      dessinerFiltre();
+    };
+  };
+  dessinerFiltre();
+
   let vitesse = Number(localStorage.getItem(CLE_VITESSE)) || 2;
   if (!VITESSES.includes(vitesse)) vitesse = 2;
 
-  let timer = null, termine = false, enPause = false, fini = false;
+  let timer = null, termine = false, enPause = false, fini = false, enArret = false;
   const stop = () => { if (timer) { cancelAnimationFrame(timer); timer = null; } };
   const onglets = ongletsDePause(modal, [{ cle: 'fil', titre: 'Fil' }, { cle: 'stats', titre: 'Statistiques du match' }], () => statsDuMatch());
   const fermer = () => {
@@ -201,7 +273,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     const el = document.createElement('div');
     el.className = `live-ligne ${cls}`;
     if (style) el.setAttribute('style', style);
-    el.innerHTML = html;
+    // Une ligne sans horodatage (le début, une période, les cartes) est UN texte :
+    // en flex, ses nœuds nus devenaient cinq colonnes (S74, l'agent de test).
+    el.innerHTML = /^\s*<span class="live-tps">/.test(html) ? html : `<span class="live-txt">${html}</span>`;
     feed.prepend(el);
   };
 
@@ -219,14 +293,22 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   /* Les couleurs de l'équipe qui tire, posées sur la ligne du fil. */
   const couleurs = cote => { const b = ctx.band(equipe(cote).tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
 
-  /* Le tableau indicateur : deux équipes, le pointage, l'horloge. */
+  /*
+   * Le tableau indicateur : deux équipes, le pointage, l'horloge. Depuis S77
+   * c'est un BANDEAU DE DIFFUSION (le « score bug » d'une télé) : une seule
+   * barre, l'aplat du club, son nom, son pointage dans une case sombre,
+   * l'horloge au centre. Le pointage vit dans un `<b>` à l'intérieur de sa
+   * case : au but, la CASE s'allume aux couleurs du club pendant que le
+   * CHIFFRE roule de bas en haut (style.css, `.live-eq-buts.flash`) — deux
+   * gestes qui ne peuvent pas partager la même boîte.
+   */
   function dessinerBoard(gA, gB, h) {
     const cote = (t, buts, pos) => {
       const b = ctx.band(t.tag);
       return `<div class="live-eq ${pos}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
         <div class="live-eq-band">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
         <div class="live-eq-nom">${ctx.esc(ctx.teamLabel(t))}</div>
-        <div class="live-eq-buts" data-cote="${pos === 'a' ? 'A' : 'B'}">${buts}</div>
+        <div class="live-eq-buts" data-cote="${pos === 'a' ? 'A' : 'B'}"><b>${buts}</b></div>
       </div>`;
     };
     board.innerHTML = `${cote(A, gA, 'a')}
@@ -235,6 +317,20 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   }
 
   const ev = evenementsDuMatch(f, graine);
+  /*
+   * LES SONS DU DIRECT (S74b) : la sirène d'un but, le sifflet d'une punition
+   * et d'une fin de période, un coup mat sur un arrêt dangereux — ceux du
+   * plateau (js/sons.js), coupés par l'option « Sons ». Pas pendant l'avance
+   * rapide (« Fin du match », la reprise à 40:00) : la sirène douze fois de
+   * suite n'annonce rien.
+   */
+  let muet = false;
+  const son = n => { if (!muet) jouerSon(n); };
+  // LE COMMENTATEUR (S70) : des banques de fragments montés au hasard de la
+  // graine, sans remise — le même match se redit pareil, deux matchs jamais.
+  const com = commentateur(graine);
+  const butsCeSoir = new Map();
+  const serre = t => t >= 55 && Math.abs(gA - gB) <= 1;
   let iEv = 0, t = 0, gA = 0, gB = 0, tA = 0, tB = 0, pause = 0, dernier = performance.now();
   // LE XIÈME BUT. Le compte d'avant ce match, cloné : chaque but l'avance,
   // et le fil dit « (12e but) », « (8e passe) ». L'écran qui nous a appelés
@@ -259,7 +355,28 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     ${tally ? `<span class="live-tally">${pastilles(tally.wA)} <span class="live-tally-sep">${ctx.esc(ctx.tagCourt(A))} · ${ctx.esc(ctx.tagCourt(B))}</span> ${pastilles(tally.wB)}</span>` : ''}`;
   feed.innerHTML = '';
   etat.innerHTML = '';
-  ligne('debut', `Mise au jeu. ${ctx.esc(cap(ctx.teamShort(A)))} contre ${ctx.esc(ctx.teamShort(B))}${titre ? `, ${ctx.esc(titre.toLowerCase())}` : ''}${sousTitre ? `, ${ctx.esc(sousTitre.toLowerCase())}` : ''}.`);
+  ligne('debut', `${ctx.esc(com.debut())} <b>${ctx.esc(cap(ctx.teamShort(A)))}</b> contre <b>${ctx.esc(ctx.teamShort(B))}</b>${titre ? `, ${ctx.esc(titre.toLowerCase())}` : ''}${sousTitre ? `, ${ctx.esc(sousTitre.toLowerCase())}` : ''}.`);
+  // LES CARTES DU SOIR (S74) : ce que tu as joué se dit avant la mise au jeu, et ce qu'elles ont fait de leur plan.
+  const cartesDuSoir = f.cartes && f.cartes.jouees ? f.cartes.jouees.filter(c => CARTES_MATCH[c]) : [];
+  if (cartesDuSoir.length) {
+    const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} ${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
+    const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', ...paris].filter(Boolean);
+    ligne('debut cartes', `🃏 <b>Tu joues</b> ${cartesDuSoir.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${suite.length ? ` — ${suite.join(', ')}` : ''}.`);
+  }
+  /*
+   * LEUR PLAN SE DÉVOILE À LA MISE AU JEU (S76). Avant le match on n'avait
+   * qu'un rapport de dépistage ; c'est ici qu'on apprend ce qu'ils jouent, et
+   * si ta préparation visait juste — ou si t'as chié ta préparation.
+   */
+  const Pl = f.cartes && f.cartes.plan ? PLANS_ADV[f.cartes.plan] : null;
+  if (Pl) {
+    const pj = f.cartes.prepJuste;
+    const mot = pj === true ? '🎯 <b>ta préparation vise juste</b> : leur plan tombe' : pj === false ? '💥 <b>t\'as chié ta préparation</b>' : 'tu n\'avais rien préparé';
+    ligne(`debut cartes prep${pj === true ? ' juste' : pj === false ? ' ratee' : ''}`, `${Pl.ico} <b>Ils jouent ${ctx.esc(Pl.nom.toLowerCase())}</b> — ${mot}.`);
+  }
+  // LEUR MAIN (S74) : ce qu'ils ont joué, ou ce que ta main a annulé.
+  const leurs = f.cartes && f.cartes.adverses ? f.cartes.adverses.filter(c => CARTES_MATCH[c]) : [];
+  if (leurs.length) ligne('debut cartes eux', `🂠 <b>${f.cartes.annulee ? 'Leur main ne sert à rien' : 'Eux'}</b> ${leurs.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${f.cartes.annulee ? ' — tu connaissais leur cahier par cœur' : ''}.`);
 
   const statsDuMatch = () => {
     const per = [1, 2, 3, 4].filter(k => k < 4 || st.tirs.A[4] + st.tirs.B[4] > 0);
@@ -274,15 +391,18 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         ${rangee('Avantage numérique', `${st.anButs.A} / ${st.anOcc.A}`, `${st.anButs.B} / ${st.anOcc.B}`)}
         ${rangee('Arrêts', gA_ ? `${ctx.esc(famille(gA_))} ${st.arrets.A} / ${st.arrets.A + gB}` : '—', gB_ ? `${ctx.esc(famille(gB_))} ${st.arrets.B} / ${st.arrets.B + gA}` : '—')}
       </tbody></table></div>
-      ${st.buts.length ? `<div class="live-tableau"><div class="live-tableau-titre">Les buts</div>${st.buts.map(x => `<div class="live-but-ligne"><span class="live-tps">${tempsDeJeu(x.instant)}</span>${ctx.logo(equipe(x.cote).tag, 13)}<span><b>${nomLie(x.marqueur, x.cote)}</b> (${ord(x.nG)} but)${x.aides.length ? `, ${x.aides.map(a => `${nomLie(a.p, x.cote)} (${ordF(a.n)} passe)`).join(', ')}` : ''}${x.an ? ' · AN' : x.dn ? ' · DN' : ''} <span class="live-score">${x.score}</span></span></div>`).join('')}</div>` : ''}`;
+      ${st.buts.length ? `<div class="live-tableau"><div class="live-tableau-titre">Les buts</div>${st.buts.map((x, i) => `${i && periodeDe(st.buts[i - 1].instant) === periodeDe(x.instant) ? '' : `<div class="live-but-per">${NOM_PERIODE[periodeDe(x.instant)]}</div>`}<div class="live-but-ligne"><span class="live-tps">${tempsDeJeu(x.instant)}</span>${ctx.logo(equipe(x.cote).tag, 13)}<span><b>${nomLie(x.marqueur, x.cote)}</b> (${ord(x.nG)} but)${x.aides.length ? `, ${x.aides.map(a => `${nomLie(a.p, x.cote)} (${ordF(a.n)} passe)`).join(', ')}` : ''}${x.an ? ' · AN' : x.dn ? ' · DN' : ''} <span class="live-score">${x.score}</span></span></div>`).join('')}</div>` : ''}`;
   };
 
   const horloge = () => {
     // Sans prolongation, 60:00 est la fin de la 3e période (0:00 au
     // tableau), pas le début de la 4e.
     const enOT = f.ot && t >= 60;
-    const per = enOT ? 4 : t >= 60 ? 3 : periodeDe(t);
-    const temps = !enOT && t >= 60 ? '00:00' : tempsDeJeu(Math.min(t, 64.999));
+    // Arrêté au deuxième entracte (t = 40), c'est la FIN de la 2e — pas la
+    // 3e à 20:00, qui annonçait une période pas encore jouée (QA S74b).
+    const entracte = enArret && t >= 40 && t < 60;
+    const per = enOT ? 4 : t >= 60 ? 3 : entracte ? 2 : periodeDe(t);
+    const temps = (!enOT && t >= 60) || entracte ? '00:00' : tempsDeJeu(Math.min(t, 64.999));
     // L'avantage en cours : la fenêtre de deux minutes d'une punition, ou
     // moins si un but l'a fermée — c'est le tableau indicateur qui le dit.
     const an = fenetres.find(([a, b]) => t >= a && t < b);
@@ -299,8 +419,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     const sit = board.querySelector('.live-situation');
     sit.textContent = h.situation || '';
     sit.classList.toggle('on', !!h.situation);
-    board.querySelector('[data-cote="A"]').textContent = gA;
-    board.querySelector('[data-cote="B"]').textContent = gB;
+    // Le chiffre, pas la case : la case garde son `<b>` pour le roulement du but.
+    board.querySelector('[data-cote="A"] > b').textContent = gA;
+    board.querySelector('[data-cote="B"] > b').textContent = gB;
   };
 
   const appliquer = e => {
@@ -309,10 +430,33 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       st.tirs[e.cote][periodeDe(Math.min(e.instant, 64.999))]++;
       st.arrets[e.cote === 'A' ? 'B' : 'A']++;
       const g = e.gardien || gardien(e.cote);
-      const qui = e.tireur ? `Lancer de <b>${nomLie(e.tireur, e.cote)}</b>` : `Tir de ${ctx.esc(ctx.teamShort(equipe(e.cote)))}`;
-      ligne(`arret ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(e.cote).tag, 13)}
-        <span>${qui}${g ? `, arrêt de <b>${nomLie(g, autre(e.cote))}</b>` : ', arrêt'}.</span>`, couleurs(e.cote));
-      return 0;
+      const genre = genreDuTir(e);
+      const t = e.tireur ? `<b>${nomLie(e.tireur, e.cote)}</b>` : ctx.esc(ctx.teamShort(equipe(e.cote)));
+      const gg = g ? `<b>${nomLie(g, autre(e.cote))}</b>` : 'le gardien';
+      const att = ctx.esc(ctx.teamShort(equipe(e.cote))), def = ctx.esc(ctx.teamShort(equipe(autre(e.cote))));
+      const cGard = autre(e.cote);
+      // CE QUE LE COMMENTATEUR SAIT DU JEU (S71) : le poste et le style du tireur,
+      // la tactique de sa ligne, la situation, ses buts de la saison.
+      const style = e.tireur ? STYLE_MICRO[profil(e.tireur)] || null : null;
+      const contexte = { t, g: gg, att, def, nArrets: st.arrets[cGard], r: tempsRestant(e.instant), serre: serre(e.instant),
+        poste: e.tireur && /^(D|LD|RD)$/.test(e.tireur.p) ? 'D' : 'F', style, tac: e.tac || null, mode: e.mode === 'AN' || e.mode === 'DN' ? e.mode : null,
+        butsSaison: e.tireur ? ((compte.get(e.tireur) || {}).g || 0) : 0,
+        pousse: (e.cote === 'A' ? gA < gB : gB < gA) && e.instant >= 40,
+        blanchissage: e.instant >= 40 && (cGard === 'A' ? gB : gA) === 0 };
+      if (genre === 'danger') son('arret');
+      if (genre === 'defense') {
+        const mots = e.special === 'etouffee' ? com.defense(contexte) : com.bloque(contexte);
+        ligne(`arret defense ${autre(e.cote) === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(autre(e.cote)).tag, 13)}
+          <span><b class="live-jeu-mot">🧱 DÉFENSE</b> ${mots}</span>`, couleurs(autre(e.cote)));
+      } else if (genre === 'danger') {
+        const mots = e.special === 'reussie' ? com.sequence(contexte) : com.arret(contexte);
+        ligne(`arret danger ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(autre(e.cote)).tag, 13)}
+          <span><b class="live-jeu-mot">🧤 ARRÊT</b> ${mots}</span>`, couleurs(autre(e.cote)));
+      } else {
+        ligne(`arret mineur ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(e.cote).tag, 13)}
+          <span>${com.tir(contexte)}</span>`, couleurs(e.cote));
+      }
+      return genre === 'tir' ? 0 : 250;
     }
     if (e.type === 'but') {
       if (e.cote === 'A') { tA++; gA++; } else { tB++; gB++; }
@@ -323,9 +467,17 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       const aidesN = b.passeurs.map(p => ({ p, n: avancer(p, 'a') }));
       const aides = aidesN.length ? ` (${aidesN.map(a => `${nomLie(a.p, e.cote)}, ${ordF(a.n)} passe`).join(' ; ')})` : ' (sans aide)';
       st.buts.push({ cote: e.cote, instant: b.instant, marqueur: b.marqueur, nG, aides: aidesN, an: b.an, dn: b.dn, score: `${gA}-${gB}` });
+      butsCeSoir.set(b.marqueur, (butsCeSoir.get(b.marqueur) || 0) + 1);
+      const micro = com.but({
+        but: b, m: nomDeMicro(b.marqueur, ctx.esc), g: b.gardien ? ctx.esc(nomCourt(b.gardien.n)) : 'le gardien',
+        eq: ctx.esc(ctx.teamShort(equipe(e.cote))), autre: ctx.esc(ctx.teamShort(equipe(autre(e.cote)))),
+        pour: e.cote === 'A' ? gA : gB, contre: e.cote === 'A' ? gB : gA, nMatch: butsCeSoir.get(b.marqueur),
+        r: tempsRestant(b.instant), tard: b.instant >= 56 && b.instant < 60, ot: b.instant >= 60,
+      });
       ligne(`but ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
-        <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} — ${ctx.esc(recitDeBut(b))} <span class="live-score">${gA}-${gB}</span></span>`, couleurs(e.cote));
+        <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} <span class="live-score">${gA}-${gB}</span> <span class="live-micro">${micro}</span></span>`, couleurs(e.cote));
       majBoard();
+      son('but');
       const cell = board.querySelector(`[data-cote="${e.cote}"]`);
       cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
       // La bannière de but, aux couleurs du marqueur, le temps de la pause.
@@ -339,27 +491,55 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       return PAUSE_BUT;
     }
     if (e.type === 'punition') {
+      son('sifflet');
       const puni = equipe(e.cote), profite = equipe(e.cote === 'A' ? 'B' : 'A');
       st.pun[e.cote]++;
       st.anOcc[e.cote === 'A' ? 'B' : 'A']++;
       ligne(`punition ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
-        <span><b class="live-pun-mot">PUNITION</b> ${e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>, ` : ''}${e.minutes} min — avantage numérique pour ${ctx.esc(ctx.teamShort(profite))}.</span>`, couleurs(e.cote));
+        <span><b class="live-pun-mot">PUNITION · ${e.minutes} MIN</b> ${com.punition({ j: e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : '', eq: ctx.esc(ctx.teamShort(profite)), autre: ctx.esc(ctx.teamShort(puni)), tard: serre(e.instant) })}</span>`, couleurs(e.cote));
       return 500;
+    }
+    /*
+     * UNE BLESSURE (S80). JP : *blessures aux joueurs adverses et de l'équipe
+     * dans les matchs, incluant « oh non » notre équipe*. Chez toi, le fil s'arrête
+     * une seconde de plus : c'est une mauvaise nouvelle, elle se lit.
+     */
+    if (e.type === 'blessure') {
+      const eq = equipe(e.cote), nous = !!eq.isPlayer;
+      const qui = e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : 'Un joueur';
+      ligne(`blessure ${e.cote === 'A' ? 'a' : 'b'}${nous ? ' nous' : ''}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(eq.tag, 13)}
+        <span>${nous ? `<b class="live-bless-mot">😱 OH NON !</b> ${qui} se blesse et retraite au vestiaire.` : `<b class="live-bless-mot">🚑 BLESSURE</b> ${qui} (${ctx.esc(ctx.teamShort(eq))}) se blesse et quitte le match.`}</span>`);
+      return nous ? 1200 : 500;
     }
     if (e.type === 'finPunition') {
       const puni = equipe(e.cote);
       ligne('periode', `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
-        <span>Fin de la punition${e.joueur ? ` de <b>${nomLie(e.joueur, e.cote)}</b>` : ''} : ${ctx.esc(ctx.teamShort(puni))} revient à cinq.</span>`);
+        <span>${com.retour({ j: e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : '', eq: ctx.esc(ctx.teamShort(puni)), autre: ctx.esc(ctx.teamShort(equipe(autre(e.cote)))) })}</span>`);
       return 0;
     }
     if (e.type === 'periode') {
-      ligne('periode', `Fin de la ${ctx.esc(NOM_PERIODE[e.per])} · <b>${gA}-${gB}</b> · tirs ${f.tirs.A[e.per]} – ${f.tirs.B[e.per]}${e.per === 3 && f.ot ? ' · égalité, on va en prolongation' : ''}`);
+      const tA_ = f.tirs.A[e.per] || 0, tB_ = f.tirs.B[e.per] || 0;
+      const P = com.periode({
+        per: NOM_PERIODE[e.per], ot: e.per === 3 && f.ot, s: `${Math.max(gA, gB)}-${Math.min(gA, gB)}`,
+        eq: gA === gB ? null : ctx.esc(ctx.teamShort(gA > gB ? A : B)),
+        eqTirs: Math.abs(tA_ - tB_) >= 5 ? ctx.esc(ctx.teamShort(tA_ > tB_ ? A : B)) : null,
+        autreTirs: ctx.esc(ctx.teamShort(tA_ > tB_ ? B : A)),
+      });
+      ligne('periode', `${P.tete} <b>${gA}-${gB}</b> · tirs ${tA_} – ${tB_}. ${P.couleur}`);
+      son('periode');
+      if (arret != null && e.per === 2 && onArret) { arreter(); return 0; }
       return PAUSE_PERIODE;
     }
     if (e.type === 'fin') {
       fini = true;
+      son('fin');
       const vainqueur = f.vainqueur === 'A' ? A : B;
-      ligne('fin', `<b>Fin du match.</b> ${ctx.esc(cap(ctx.teamShort(vainqueur)))} l'emporte ${Math.max(gA, gB)}-${Math.min(gA, gB)}${f.ot ? ' en prolongation' : ''}.${apres ? ` ${ctx.esc(apres)}` : ''}`);
+      const perdant = vainqueur === A ? B : A;
+      const gVainqueur = f.vainqueur === 'A' ? f.gardienA : f.gardienB;
+      const F = com.fin({ eq: ctx.esc(ctx.teamShort(vainqueur)), autre: ctx.esc(ctx.teamShort(perdant)),
+        g: gVainqueur ? ctx.esc(nomCourt(gVainqueur.n)) : 'le gardien', blanchissage: Math.min(gA, gB) === 0,
+        ecart: Math.abs(gA - gB), ot: !!f.ot });
+      ligne('fin', `<b>${ctx.esc(F.tete)}</b> ${ctx.esc(cap(ctx.teamShort(vainqueur)))} l'emporte ${Math.max(gA, gB)}-${Math.min(gA, gB)}${f.ot ? ' en prolongation' : ''}. ${F.couleur}${apres ? ` ${ctx.esc(apres)}` : ''}`);
       finDeMatch();
       return 0;
     }
@@ -367,15 +547,16 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   };
 
   const tick = now => {
-    if (fini || termine || enPause) return;
+    if (fini || termine || enPause || enArret) return;
     const dt = Math.min(0.1, (now - dernier) / 1000);
     dernier = now;
     if (pause > 0) { pause -= dt * 1000; timer = requestAnimationFrame(tick); return; }
     t += dt * vitesse;
-    while (iEv < ev.length && ev[iEv].instant <= t && !fini) {
+    while (iEv < ev.length && ev[iEv].instant <= t && !fini && !enArret) {
       const p = appliquer(ev[iEv++]);
       if (p) { pause = p; t = Math.max(t, ev[iEv - 1].instant); break; }
     }
+    if (enArret) { t = 40; majBoard(); return; }
     if (!fini) { majBoard(); timer = requestAnimationFrame(tick); }
   };
 
@@ -384,10 +565,29 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     enPause = false;
     modal.classList.remove('en-pause');
     onglets.fermer();
-    while (iEv < ev.length && !fini) appliquer(ev[iEv++]);
-    t = f.ot ? 65 : 60;
+    muet = true;
+    while (iEv < ev.length && !fini && !enArret) appliquer(ev[iEv++]);
+    muet = false;
+    t = enArret ? 40 : f.ot ? 65 : 60;
     majBoard();
   };
+  /* L'ARRÊT AU DEUXIÈME ENTRACTE : la main passe au choix, rien de plus n'est révélé. */
+  function arreter() {
+    enArret = true;
+    stop();
+    ligne('periode ent2-marque', '<b>🎬 Deuxième entracte.</b> Le vestiaire t\'attend : ton choix décidera de la troisième période.');
+    boutons(`<button class="btn gold live-entracte">Au vestiaire — ton choix</button>`);
+    controls.querySelector('.live-entracte').onclick = () => {
+      if (termine) return;
+      termine = true;
+      onglets.fermer();
+      window.removeEventListener('keydown', clavier);
+      modal.style.display = 'none';
+      modal.classList.remove('en-pause');
+      document.body.style.overflow = '';
+      onArret();
+    };
+  }
   /* LA PAUSE DANS LE MATCH. L'horloge s'arrête où elle est ; les onglets
      s'ouvrent au-dessus du fil, avec les statistiques du match à cet
      instant. Reprendre referme les onglets et repart l'horloge. */
@@ -420,6 +620,15 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   });
   controls.querySelector('.live-fin').onclick = jusquAuBout;
 
+  // LA REPRISE APRÈS L'ENTRACTE : les deux premières périodes d'un coup, puis l'horloge.
+  if (depuis > 0) {
+    muet = true;
+    while (iEv < ev.length && ev[iEv].instant <= depuis && !fini) appliquer(ev[iEv++]);
+    muet = false;
+    t = depuis;
+    ligne('periode ent2-marque', '<b>🎬 Troisième période.</b> Ton choix est sur la glace.');
+    majBoard();
+  }
   dernier = performance.now();
   timer = requestAnimationFrame(tick);
 }

@@ -22,7 +22,7 @@
 export const RATINGS_VERSION = 27;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
-export const CAP_REF = 95_500_000;
+const CAP_REF = 95_500_000;
 
 /* ---------- Plafond (ou plus gros budget d'équipe) par saison ----------
  *
@@ -55,13 +55,13 @@ export const SEASON_ERA_CAP = {
 };
 
 /** Vrai si des salaires publiés existent pour la saison (1989-90 et après). */
-export function isRealEra(season) {
+function isRealEra(season) {
   if (!season) return false;
   const year = parseInt(season.slice(0, 4), 10);
   return year >= 1989;
 }
 
-export function eraCapFor(season) {
+function eraCapFor(season) {
   return SEASON_ERA_CAP[season] || CAP_REF;
 }
 
@@ -73,7 +73,7 @@ export function getEraSalary(salary2026, season, refCap = null) {
 }
 
 /** Salaire de l'époque -> salaire 2026, au prorata du plafond de l'année. */
-export function getModernSalary(eraSalary, season, refCap = null) {
+function getModernSalary(eraSalary, season, refCap = null) {
   const eraCap = refCap || eraCapFor(season);
   return Math.max(775_000, Math.round((eraSalary * CAP_REF / eraCap) / 25_000) * 25_000);
 }
@@ -93,14 +93,14 @@ export function getModernSalary(eraSalary, season, refCap = null) {
  * individuels effacés). À 0,5 l'équipe médiane des années 1990 revient à
  * 64-68 M$ et Brett Hull 1989-90 reste une aubaine.
  */
-export const LISSAGE_AVANT_PLAFOND = 0.5;
+const LISSAGE_AVANT_PLAFOND = 0.5;
 
 /**
  * Part de la moyenne du vestiaire retranchée du +/- d'un joueur, pour
  * séparer sa contribution de celle de son club sans effacer un club qui
  * était vraiment bon. Voir le commentaire dans `rateSkaters`.
  */
-export const LISSAGE_EQUIPE = 0.5;
+const LISSAGE_EQUIPE = 0.5;
 
 /*
  * LES DEUX MESURES QUE LA CARTE NE DISAIT PAS : la défensive et la robustesse.
@@ -118,11 +118,10 @@ export const LISSAGE_EQUIPE = 0.5;
  *   robustesse  ses minutes de punition et ses mises en échec (depuis 2005-06)
  *
  * Chaque rang est un centile parmi les réguliers (20 matchs et plus) de la
- * même position. Un joueur au SEUIL_MESURE (85e centile) porte l'étiquette
- * 🛡️ Défensif ou 🪨 Robuste sur sa carte, et le bassin se trie sur les deux.
+ * même position ; le bassin se trie sur les deux (1.0 : l'étiquette 🧊 / 🪨
+ * de la carte est partie, le rôle et la carrure la portent).
  * Ce ne sont pas des cotes : les colonnes sont sur la fiche, chacune en clair.
  */
-export const SEUIL_MESURE = 0.85;
 
 /*
  * LE GABARIT : petit et rapide, moyen, matador.
@@ -148,7 +147,7 @@ export const SEUIL_MESURE = 0.85;
  */
 export const GABARIT_PETIT = 0, GABARIT_MOYEN = 1, GABARIT_MATADOR = 2;
 
-export function gabaritDeSaison(players) {
+function gabaritDeSaison(players) {
   const out = new Map();
   const mesures = players.filter(p => p && p.hgt > 0 && p.wgt > 0);
   if (mesures.length < 20) return out;   // trop peu pour ranger quoi que ce soit
@@ -217,7 +216,7 @@ export function mesuresDeSaison(players) {
 }
 
 /** Cap hits réels 2023-24 à 2025-26 au prorata de 95,5 M$, centiles 0 à 100. */
-export const SALAIRE_REF_CENTILES = [
+const SALAIRE_REF_CENTILES = [
   775_000, 775_000, 775_000, 800_000, 825_000, 850_000, 850_000, 850_000,
   850_000, 850_000, 875_000, 875_000, 875_000, 875_000, 875_000, 875_000,
   875_000, 900_000, 900_000, 925_000, 925_000, 925_000, 925_000, 950_000,
@@ -234,7 +233,7 @@ export const SALAIRE_REF_CENTILES = [
 ];
 
 /** Salaire moderne qu'occupe le rang centile q (0..1) parmi les salaires réels d'aujourd'hui. */
-export function salaryAtQuantile(q) {
+function salaryAtQuantile(q) {
   const x = clamp(q, 0, 1) * 100;
   const i = Math.min(99, Math.floor(x));
   const t = x - i;
@@ -399,7 +398,7 @@ export function creationAutour(est_D, memes, autre) {
  * Sans ce contexte, la création s'ajouterait à un pourcentage de tir qui la
  * contient déjà, et les vraies grandes équipes seraient comptées deux fois.
  */
-export function contexteDeCreation(players, season = null) {
+function contexteDeCreation(players, season = null) {
   // À l'étage 2 les enregistrements sont repliés : `teams` plutôt que `t`,
   // et pas de `s`. Un joueur échangé entre dans le vestiaire de chacune de
   // ses équipes, et son contexte est la moyenne de ceux qu'il y a eus.
@@ -460,7 +459,7 @@ export const ARCHETYPES = {
   PLAYMAKER:     { label: 'Fabricant de jeu',          short: 'Fabricant',       icon: '🎨', desc: 'Distribue la rondelle avec précision' },
   POWER_FWD:     { label: 'Attaquant de puissance',    short: 'Puissance',       icon: '💥', desc: 'Marque dans le trafic et frappe fort' },
   TWO_WAY_FWD:   { label: 'Attaquant complet',         short: 'Complet',         icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' },
-  ENERGY:        { label: "Joueur d'énergie",          short: 'Énergie',         icon: '🔋', desc: 'Intensité, échec avant et mises en échec' },
+  ENERGY:        { label: 'Plombier',                  short: 'Plombier',        icon: '🔋', desc: 'Intensité, échec avant et mises en échec' },
   SKILLED_FWD:   { label: 'Attaquant offensif',        short: 'Offensif',        icon: '✨', desc: 'Aisance offensive naturelle' },
   CHECKER:       { label: 'Attaquant de profondeur',   short: 'Profondeur',      icon: '🏃', desc: 'Profondeur et ardeur au travail' },
   // Défenseurs
@@ -470,10 +469,11 @@ export const ARCHETYPES = {
   TWO_WAY_D:     { label: 'Défenseur polyvalent',      short: 'Polyvalent',      icon: '🔄', desc: 'Efficace dans toutes les situations' },
   CHECKER_D:     { label: 'Défenseur de profondeur',   short: 'Profondeur',      icon: '🧱', desc: 'Fiabilité et minutes tranquilles' },
   // Gardiens
-  WALL:          { label: "Gardien d'élite",           short: 'Élite',           icon: '🧱', desc: '% d\'arrêts et moyenne d\'élite' },
-  ACROBAT:       { label: 'Gardien acrobatique',       short: 'Acrobate',        icon: '⚡', desc: 'Réflexes et arrêts spectaculaires' },
-  WORKHORSE:     { label: 'Gardien de fer',            short: 'De fer',          icon: '🔋', desc: 'Grosse charge de travail' },
-  HYBRID_G:      { label: 'Gardien régulier',          short: 'Régulier',        icon: '🥅', desc: 'Style fiable et constant' },
+  // 1.0 (C1) : un gardien se lit par ce seul mot ; ni l'icône d'un trophée (🧱 Norris, 🥅 Vezina, ⚡ Vitesse), ni un mot de niveau (« Régulier »).
+  WALL:          { label: 'Gardien mur',               short: 'Mur',             icon: '🏔️', desc: '% d\'arrêts et moyenne d\'élite' },
+  ACROBAT:       { label: 'Gardien acrobatique',       short: 'Acrobate',        icon: '🤸', desc: 'Réflexes et arrêts spectaculaires' },
+  WORKHORSE:     { label: 'Gardien de fer',            short: 'De fer',          icon: '🦾', desc: 'Grosse charge de travail' },
+  HYBRID_G:      { label: 'Gardien constant',          short: 'Constant',        icon: '🧍', desc: 'Style fiable et constant' },
   UNKNOWN:       { label: 'Inconnu',                   short: 'Inconnu',         icon: '❓', desc: '' },
 };
 
@@ -613,6 +613,13 @@ export const ZONE_THRESHOLDS = {
  * « 1re-2e paire » — et `label`, sur la fiche, garde le mot du hockey devant.
  * Les unités et les seuils ne bougent pas : c'est le mot qui change.
  */
+/* Les zones des vedettes (cote 78+, 80+ pour un gardien) : une seule unité idéale.
+   `getLineZone` les rend, et les étiquettes des cases (js/sim.js) les lisent (1.0 · J1-K). */
+export const ZONES_ETOILE = {
+  F: { level: 1, label: 'Top 3 · 1er trio', short: '1er trio', mini: 'T1', idealUnits: [0] },
+  D: { level: 1, label: 'Top 2 · 1re paire', short: '1re paire', mini: 'P1', idealUnits: [0] },
+  G: { level: 1, label: 'Partant numéro un', short: 'Partant no 1', mini: 'no 1', idealUnits: [0] },
+};
 export const LINE_ZONES = {
   F: [
     { level: 1, label: 'Top 6 · 1er ou 2e trio',     short: '1er-2e trio', mini: 'T1-2', idealUnits: [0, 1] },
@@ -633,7 +640,7 @@ export const LINE_ZONES = {
   ],
 };
 
-export function zoneLevelFor(pos, v) {
+function zoneLevelFor(pos, v) {
   const t = ZONE_THRESHOLDS[pos] || ZONE_THRESHOLDS.F;
   for (let i = 0; i < t.length; i++) if (v >= t[i]) return i + 1;
   return t.length + 1;
@@ -685,15 +692,7 @@ export function getLineZone(p, v = null) {
   const rating = ovr ?? 50;
 
   // 1. Étoiles (Stars)
-  if (pos === 'G' && rating >= 80) {
-    return { level: 1, label: "Partant numéro un", short: 'Partant no 1', mini: 'no 1', idealUnits: [0] };
-  }
-  if (pos === 'F' && rating >= 78) {
-    return { level: 1, label: 'Top 3 · 1er trio', short: '1er trio', mini: 'T1', idealUnits: [0] };
-  }
-  if (pos === 'D' && rating >= 78) {
-    return { level: 1, label: 'Top 2 · 1re paire', short: '1re paire', mini: 'P1', idealUnits: [0] };
-  }
+  if (rating >= (pos === 'G' ? 80 : 78)) return { ...ZONES_ETOILE[pos], idealUnits: [0] };
 
   // 2. Joueurs hyper versatiles
   const sec = getSecondaryPosition(p);
@@ -704,7 +703,7 @@ export function getLineZone(p, v = null) {
     }
     if (pos === 'D') {
       if (rating >= 63) return { level: 2, label: 'Top 6 D · 1re à 3e paire', short: '1re-3e paire', mini: 'P1-3', idealUnits: [0, 1, 2] };
-      return { level: 3, label: 'Bottom 6 D · 2e ou 3e paire', short: '2e-3e paire', mini: 'P2-3', idealUnits: [1, 2] };
+      return { level: 3, label: 'Bottom 4 · 2e ou 3e paire', short: '2e-3e paire', mini: 'P2-3', idealUnits: [1, 2] };
     }
   }
 
@@ -833,7 +832,7 @@ export function ageAtSeason(bd, season) {
   return year - by - (md > '10-01' ? 1 : 0);
 }
 
-export function elcEra(season) {
+function elcEra(season) {
   const year = parseInt(season.slice(0, 4), 10);
   if (year < 1995) return null;
   if (year < 2005) return { basePct: 0.027, bonusPct: 0.030 };
@@ -841,7 +840,7 @@ export function elcEra(season) {
 }
 
 /** Nombre de saisons de contrat d'entrée selon l'âge à la première saison. */
-export function elcYearsForAge(age) {
+function elcYearsForAge(age) {
   if (age == null || Number.isNaN(age)) return 0;
   if (age <= 21) return 3;
   if (age <= 23) return 2;
@@ -849,14 +848,14 @@ export function elcYearsForAge(age) {
   return 0;
 }
 
-export function elcSalaryFor(ovr, season) {
+function elcSalaryFor(ovr, season) {
   const era = elcEra(season) || { basePct: 0.010, bonusPct: 0.030 };
   const base = era.basePct * CAP_REF;
   const bonus = era.bonusPct * CAP_REF * clamp((ovr - 70) / 29, 0, 1);
   return Math.round((base + bonus) / 25_000) * 25_000;
 }
 
-export function salaryFor(ovr, pos, elc = false, season = '2025-26') {
+function salaryFor(ovr, pos, elc = false, season = '2025-26') {
   const anchors = !isRealEra(season) ? PRE_1990_LOG_ANCHORS : LOG_ANCHORS;
   let base = Math.exp(lerpTable(ovr, anchors));
   if (pos === 'G') base *= 0.90;
@@ -865,7 +864,7 @@ export function salaryFor(ovr, pos, elc = false, season = '2025-26') {
   return Math.max(775_000, base);
 }
 
-export function capPctFor(salary) {
+function capPctFor(salary) {
   return Math.round((salary / CAP_REF) * 1000) / 10;
 }
 
@@ -876,7 +875,7 @@ function teamsOf(row) {
   return String(row.teamAbbrevs || '').split(',').map(t => t.trim()).filter(t => t && t !== '???');
 }
 
-export function rateSkaters(rows, realtimeById = null) {
+function rateSkaters(rows, realtimeById = null) {
   const rt = id => (realtimeById && realtimeById[id]) || null;
   const hasRT = realtimeById && Object.keys(realtimeById).length > 0;
   // Le temps de glace n'est publié qu'à partir de 1997-98 : avant, l'API
@@ -1025,7 +1024,7 @@ export function rateSkaters(rows, realtimeById = null) {
 
 /* ---------- gardiens : sous-cotes ---------- */
 
-export function rateGoalies(rows) {
+function rateGoalies(rows) {
   const z = {
     svp:  zfn(rows.map(r => r.savePct)),
     gaa:  zfn(rows.map(r => r.goalsAgainstAverage)),
@@ -1122,7 +1121,7 @@ export function seasonGames(season) {
  * conception ; changer combien de joueurs valent 70 en serait un autre, et on
  * n'en veut qu'un à la fois.
  */
-export const VALEUR_CENTILES = {
+const VALEUR_CENTILES = {
   F: [
     34, 37, 38, 39, 39, 40, 40, 40, 41, 41,
     41, 42, 42, 42, 42, 43, 43, 43, 43, 44,
@@ -1215,7 +1214,7 @@ function valeurAuCentile(pos, q) {
  * crée pas d'aubaine défensive : un alignement glouton sur la cote `d` par
  * dollar ne fait que 40,5 victoires, faute de marquer.
  */
-export const POIDS_VALEUR = {
+const POIDS_VALEUR = {
   F: { prod: 0.54, vol: 0.10, pm: 0.12, usage: 0.24 },
   D: { prod: 0.34, vol: 0.10, pm: 0.24, usage: 0.32 },
 };
@@ -1250,7 +1249,7 @@ const PROD_PUISSANCE_F = 0.75;
 const PM_PLANCHER_F = -0.75;
 
 /** Poids d'un échantillon : un taux sur huit matchs pèse le tiers d'un vrai. */
-export const FIABILITE = 22;
+const FIABILITE = 22;
 const fiable = (gp, valeur, moyenne = 1) => {
   const w = gp / (gp + FIABILITE);
   return w * valeur + (1 - w) * moyenne;
@@ -1288,7 +1287,7 @@ function scoreGardien(p, ctx) {
 }
 
 /** La valeur d'un joueur : son rang statistique, sur l'échelle du jeu. */
-export function valeurDeSaison(players, season, games) {
+function valeurDeSaison(players, season, games) {
   const pmEquipe = new Map();
   const acc = new Map();
   for (const p of players) {
@@ -1314,7 +1313,7 @@ export function valeurDeSaison(players, season, games) {
   }
 }
 
-export function finalizeSeason(players, season, opts = {}) {
+function finalizeSeason(players, season, opts = {}) {
   const year = parseInt(season.slice(0, 4), 10);
   const games = seasonGames(season);
 
@@ -1399,7 +1398,7 @@ export function finalizeSeason(players, season, opts = {}) {
 }
 
 /** Duplique chaque joueur dans le vestiaire de CHAQUE équipe où il a passé, marqué x:1. */
-export function expandByTeam(players, label) {
+function expandByTeam(players, label) {
   const entries = [];
   for (const rec of players) {
     const { teams, ...base } = rec;
@@ -1414,7 +1413,7 @@ export function expandByTeam(players, label) {
  * Regroupe les entrées d'un shard (une par équipe) en joueurs uniques avec
  * leur liste d'équipes — l'inverse d'expandByTeam.
  */
-export function collapseByTeam(entries) {
+function collapseByTeam(entries) {
   const byKey = new Map();
   for (const e of entries) {
     const key = e.id != null ? `id:${e.id}` : `n:${e.n}|${e.p}`;

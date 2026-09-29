@@ -10,21 +10,25 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { CAP, SLOTS, getPlayerKey, photoStats, playSeries, separerSeries, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
-  PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
-import { recitDeBut, recitDeSerie, tempsDeJeu, NOM_PERIODE } from './recit.js';
+import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
+  ROULEMENTS, roulementDe } from './sim.js';
+import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
+import { deckDe, CARTES_MATCH } from './combat.js';
+import { RARETES, sensRarete } from './cartes.js';
+import { animerComptes } from './mouvement.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
+import { ord, ordF, pct3 } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard;
+let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard } = c);
+  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue } = c);
 }
 
 /* =====================================================================
@@ -57,7 +61,7 @@ export function teamLabel(t) {
  * Hockey-Reference (`teamSeasonUrl`, js/logos.js) : une adresse par
  * équipe-saison, pas la page de la ligue où il fallait ensuite la chercher.
  */
-export function teamCell(t, taille = 15) {
+function teamCell(t, taille = 15) {
   const label = esc(teamLabel(t));
   const url = t.isPlayer ? null : teamSeasonUrl(t.tag, t.season);
   const nom = url
@@ -130,7 +134,7 @@ const TROPHEES = [
   { cle: 'passes', nom: 'Meilleur passeur', quoi: 'le plus de passes',
     val: x => `${x.S.A} passes`, sous: x => `${x.S.PTS} pts` },
   { cle: 'arrets', nom: 'Meilleur gardien', quoi: 'pourcentage d\'arrêts',
-    val: x => (x.S.SA ? (x.S.SV / x.S.SA).toFixed(3).slice(1) : '—'), sous: x => `${x.S.W} V · ${x.S.SO} BL` },
+    val: x => (x.S.SA ? pct3(x.S.SV / x.S.SA) : '—'), sous: x => `${x.S.W} V · ${x.S.SO} BL` },
   { cle: 'plusmoins', nom: 'Meilleur différentiel', quoi: 'le plus grand +/-',
     val: x => `${x.S.PM > 0 ? '+' : ''}${x.S.PM}`, sous: x => `${x.S.PTS} pts` },
 ];
@@ -186,12 +190,12 @@ function tropheesHtml(stats, teams) {
     <td class="left">${esc(x.role)}</td>
     <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 14)}${lienJoueur(x.p, x.t, 'saison', `<span>${esc(x.p.n)}</span>`)}</div></td>
     <td class="sub-cell">${lienEquipe(x.t, 'saison', esc(x.t.isPlayer ? 'NHL' : `${x.t.tag} ${(x.t.season || '').slice(2)}`))}</td>
-    <td class="stat heros">${x.p.p === 'G' ? (x.S.SA ? (x.S.SV / x.S.SA).toFixed(3).slice(1) : '—') : `${x.S.PTS} pts`}</td>
+    <td class="stat heros">${x.p.p === 'G' ? (x.S.SA ? pct3(x.S.SV / x.S.SA) : '—') : `${x.S.PTS} pts`}</td>
   </tr>`;
   const miens = gagnants.filter(g => g.x.t.isPlayer).length + etoiles.filter(x => x.t.isPlayer).length;
   return `<div class="result-section">
     <h3>${ico('i-cup')}Les trophées de la saison</h3>
-    <p class="series-legende">Le Hart, le Norris, le Selke et le Vezina sont des votes : le moteur n'a pas d'électeurs.
+    <p class="series-legende">Le Hart, le Norris, le Selke et le Vézina sont des votes : le moteur n'a pas d'électeurs.
       ${miens ? `<strong>${miens} de tes joueurs y sont.</strong>` : ''}</p>
     <div class="trophees">${gagnants.map(carte).join('')}</div>
     <h4 class="tro-titre">Première équipe d'étoiles</h4>
@@ -227,7 +231,7 @@ const PALMARES = [
   { cle: 'moyenne', titre: 'Gardiens · MBA', cols: ['PJ', 'V', 'BL', 'MBA'], heros: 3,
     vals: S => [S.GP, S.W, S.SO, `<b>${(S.GA / Math.max(1, S.GP)).toFixed(2)}</b>`] },
   { cle: 'arrets', titre: 'Gardiens · %ARR', cols: ['PJ', 'ARR', 'TIRS', '%ARR'], heros: 3,
-    vals: S => [S.GP, S.SV || 0, S.SA || 0, `<b>${S.SA ? (S.SV / S.SA).toFixed(3).slice(1) : '—'}</b>`] },
+    vals: S => [S.GP, S.SV || 0, S.SA || 0, `<b>${S.SA ? pct3(S.SV / S.SA) : '—'}</b>`] },
   { cle: 'victoires', titre: 'Gardiens · victoires', cols: ['PJ', 'V', 'D', 'BL'], heros: 1,
     vals: S => [S.GP, `<b>${S.W}</b>`, S.L, S.SO] },
 ];
@@ -297,7 +301,7 @@ function calendrierHtml(calendrier, jour) {
  * tant que son volet est vide, et c'est le DOM qui le dit (`ongletsCourants`,
  * js/game.js) — un drapeau de plus serait une deuxième vérité.
  */
-export const ONGLETS_BILAN = [
+const ONGLETS_BILAN = [
   { cle: 'bilan', ico: 'i-target', titre: 'Bilan' },
   { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
   { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier' },
@@ -469,7 +473,7 @@ function voletNiveau(teams, reelles) {
         <div class="niv-tuile"><span class="k">Points attendus</span><b>${moi.attendu.toFixed(1)}</b></div>
         <div class="niv-tuile"><span class="k">Écart</span><b class="${moi.ecart >= 0 ? 'pm-pos' : 'pm-neg'}">${signe(moi.ecart)}</b></div>
       </div>
-      <p class="series-legende">Pythagore : ce que ton différentiel de buts annonçait. Au-dessus, tu as gagné tes matchs serrés ; en dessous, tu en as perdu que tes buts méritaient.</p>
+      <p class="series-legende">Pythagore : ce que ton différentiel de buts annonçait. Au-dessus, tu as gagné tes matchs serrés ; en dessous, tu as perdu des matchs que tes buts méritaient.</p>
       <div class="table-wrap"><table class="std niv-table">
         <thead><tr><th class="left">Équipe</th><th>PTS</th><th>Attendus</th><th class="heros">Écart</th><th>Calendrier</th><th>Vraie saison</th></tr></thead>
         <tbody>${parEcart.map(x => `<tr class="${x.t.isPlayer ? 'you' : ''}">
@@ -490,12 +494,8 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   const enSeries = nTeams > 1 ? nombreEnSeries(nTeams) : 0;
   const perfect = (r.L + r.OTL) === 0;
 
-  const note = perfect
-    ? '82-0-0. Saison parfaite. Les Bruins de 2022-23, meilleure saison de l\'histoire, ont fini 65-12-5.'
-    : r.W >= 65 ? `${r.W} victoires : mieux que le record réel de la LNH (65, Bruins de 2022-23).`
-    : r.W >= 55 ? 'Grosse saison, mais la perfection exige de la profondeur sur les quatre trios.'
-    : r.W >= 41 ? 'Saison au-dessus de la moyenne. Regarde tes trois derniers trios : c\'est souvent là que ça se joue.'
-    : 'Le plafond a coûté cher. La feuille de match ci-dessous montre où le bât blesse.';
+  // Le conseil nomme ce qui a coûté, avec ses chiffres (1.0, J2-18, js/recit.js).
+  const note = conseilDuBilan(r, you, teams, calendrier);
 
   const rows = SLOTS.filter(s => G.roster[s.i]).map(s => {
     const p = G.roster[s.i];
@@ -505,7 +505,12 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     const stats = p.p === 'G'
       ? `${p.simGP || 0} PJ · ${p.simW || 0}-${p.simL || 0}-${p.simOTL || 0} · ${((p.simGA || 0) / Math.max(1, p.simGP || 1)).toFixed(2)} MBA · ${p.simSO || 0} BL${inj}`
       : `${p.simGP || 0} PJ · <b>${p.simG || 0} B</b> ${p.simA || 0} A · <b>${p.simPTS || 0} PTS</b> · <span class="${pmCls}">${pmStr}</span>${inj}`;
-    return `<div class="rrow">
+    // LA FEUILLE DE MATCH EST UN CARTABLE (S76) : chaque rangée commence par la
+    // carte du joueur en vignette — son visage, le métal de sa variante (S78,
+    // js/rarete.js : la carte que la saison a posée sur lui).
+    const rar = (p._carte && p._carte.rar) || 'commune';
+    return `<div class="rrow rr-cj">
+      <span class="rr-carte cj-mini tc-${rar}" style="--team-band:${getTeamBand(p.t).bg}" title="${esc(`${RARETES[rar].nom} : ${sensRarete(rar)}`)}">${headshotHtml(p)}</span>
       <div class="rn">${getTeamLogoHtml(p.t, 15)} ${lienJoueur(p, you, 'saison', `<span>${formatName(p.n)} <span class="sub">${esc(s.role)}</span></span>`)}</div>
       <div class="rs">${stats}${p.p === 'G' ? '' : ` · <span class="sub">${p.simSH || 0} lancers</span>`}</div>
     </div>`;
@@ -549,13 +554,36 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
    * qu'une carte. On ne montre que ce qui n'est pas le défaut : « Équilibré ·
    * Quatre trios » n'apprend rien.
    */
-  const reglages = [PLANS[planDe(you)], ROULEMENTS[roulementDe(you)]]
+  // Le plan de match a quitté le moteur en S68 : seul le roulement se porte encore (S79).
+  const reglages = [ROULEMENTS[roulementDe(you)]]
     .filter(x => x && x.bon && x.prix && !/^Rien/.test(x.bon));
   const cartesPrises = mesCartes.length || reglages.length
     ? `<div class="result-section"><h3>Tes cartes</h3>
         <ul class="inj-list">${[...reglages, ...mesCartes].map(c => `<li>${c.ico} <strong>${esc(c.nom)}</strong> — ${esc(c.bon)}, ${esc(c.prix.toLowerCase())}</li>`).join('')}</ul>
       </div>`
     : '';
+
+  /*
+   * TON DECK (S74) : les cartes de match avec lesquelles tu finis l'année, et
+   * celles que tu as le plus jouées dans tes gros matchs — ce que le moteur a
+   * gardé dans `minisBoss`. La fin d'une course de Slay the Spire, en hockey.
+   */
+  const deckFinal = deckDe((G.ligue && G.ligue.decisions) || [], {
+    pertes: (you.minisBoss || []).filter(m => !m.gagne && m.raison === 'nemesis').map(m => m.jour + 1),
+    blessures: (you.injuriesLog || []).filter(i => i.games >= 15 && i.jour != null).map(i => i.jour + 1),
+  });
+  const jouees = new Map();
+  for (const mb of you.minisBoss || []) for (const c of (mb.cartes && mb.cartes.jouees) || []) jouees.set(c, (jouees.get(c) || 0) + 1);
+  const grosV = (you.minisBoss || []).filter(m => m.gagne).length, grosN = (you.minisBoss || []).length;
+  const compteDeck = new Map();
+  for (const c of deckFinal) compteDeck.set(c, (compteDeck.get(c) || 0) + 1);
+  const tonDeck = deckFinal.length ? `<div class="result-section"><h3>Ton deck · ${deckFinal.length} cartes</h3>
+      <div class="dash-note">Gros matchs : ${grosV} gagné${grosV > 1 ? 's' : ''} sur ${grosN}.${jouees.size ? ` Les plus jouées : ${[...jouees.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${CARTES_MATCH[c] ? CARTES_MATCH[c].ico : ''} ${esc(CARTES_MATCH[c] ? CARTES_MATCH[c].nom : c)} ×${n}`).join(' · ')}.` : ''}</div>
+      <div class="deck-grille">${[...compteDeck.entries()].filter(([c]) => CARTES_MATCH[c]).map(([c, n]) => {
+        const C = CARTES_MATCH[c];
+        return `<span class="deck-mini tc-${C.maudite ? 'commune' : C.rarete}${C.maudite ? ' maudite' : ''}" title="${esc(C.texte)}"><b>${C.injouable ? '✕' : C.cout}</b>${C.ico} ${esc(C.nom)}${n > 1 ? ` ×${n}` : ''}</span>`;
+      }).join('')}</div>
+    </div>` : '';
 
   /*
    * L'ANNÉE DU VESTIAIRE. Les situations ne sont pas des décisions — on ne
@@ -592,8 +620,13 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     graine: G.ligue && G.ligue.graine || null,
     alignement: SLOTS.map(s => {
       const p = G.roster[s.i];
-      return p ? { i: s.i, s: p.s, k: getPlayerKey(p), n: p.n, r: p._renfort ? 1 : 0 } : null;
+      return p ? { i: s.i, s: p.s, k: getPlayerKey(p), n: p.n, t: p.t, p: p.p, r: p._renfort ? 1 : 0 } : null;
     }),
+    // L'ALBUM (S74, js/album.js) se déduit de l'historique : le deck de match
+    // de fin de saison, l'identité de départ, la franchise.
+    deck: deckDe((G.ligue && G.ligue.decisions) || []),
+    identite: G.identite || null,
+    franchise: G.repechage === 'FRANCHISE' ? G.franchise : null,
   // L'identifiant de la saison en cours, s'il y en a un : une reprise
   // réécrit SON entrée, elle n'en empile pas une deuxième.
   }, G.lbId);
@@ -610,6 +643,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         ${cartons}
       </div>` : ''}
       ${cartesPrises}
+      ${tonDeck}
       ${vestiaire}
       <div class="result-section">
         <h3>Forces des NHL Stars</h3>
@@ -672,12 +706,12 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         <div class="hero-band ${rank === 1 ? 'or' : rank <= enSeries ? '' : 'out'}">
           ${rank === 1 ? '1er de la ligue' : rank <= enSeries ? `${rank}e de ${nTeams} · en séries` : `${rank}e de ${nTeams} · éliminé`}
         </div>
-        <div class="score ${perfect ? 'perfect' : ''}">${r.W}-${r.L}-${r.OTL}</div>
+        <div class="score ${perfect ? 'perfect' : ''}"><span data-compte="bilan-v" data-compte-depart="0">${r.W}</span>-<span data-compte="bilan-d" data-compte-depart="0">${r.L}</span>-<span data-compte="bilan-dp" data-compte-depart="0">${r.OTL}</span></div>
         <div class="result-strip">
-          <div class="rs-cell"><span class="k">PTS</span><b>${r.points}</b></div>
-          <div class="rs-cell"><span class="k">Rang</span><b>${rank}<small>/${nTeams}</small></b></div>
-          <div class="rs-cell"><span class="k">BP</span><b>${r.GF}</b></div>
-          <div class="rs-cell"><span class="k">BC</span><b>${r.GA}</b></div>
+          <div class="rs-cell"><span class="k">PTS</span><b data-compte="bilan-pts" data-compte-depart="0">${r.points}</b></div>
+          <div class="rs-cell"><span class="k">Rang</span><b><span data-compte="bilan-rang" data-compte-depart="${nTeams}">${rank}</span><small>/${nTeams}</small></b></div>
+          <div class="rs-cell"><span class="k">BP</span><b data-compte="bilan-bp" data-compte-depart="0">${r.GF}</b></div>
+          <div class="rs-cell"><span class="k">BC</span><b data-compte="bilan-bc" data-compte-depart="0">${r.GA}</b></div>
           <div class="rs-cell"><span class="k">Diff</span><b class="${r.GF - r.GA >= 0 ? 'pm-pos' : 'pm-neg'}">${r.GF - r.GA > 0 ? '+' : ''}${r.GF - r.GA}</b></div>
           <div class="rs-cell"><span class="k">Masse</span><b>${money(capUsed())}</b></div>
         </div>
@@ -687,13 +721,17 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         ${rank <= enSeries ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
         <button class="btn blue" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
         <button class="btn" id="replayBtn" title="Le même alignement, les mêmes 31 clubs, d'autres dés">${ico('i-dice')}Rejouer la saison</button>
-        <button class="btn go" id="againBtn">Nouvelle partie</button>
+        <button class="btn${rank <= enSeries ? '' : ' go'}" id="againBtn">Nouvelle partie</button>
       </div>
 
       ${ONGLETS_BILAN.map(o => `<div class="result-pane" data-volet="${o.cle}"${o.cle === 'bilan' ? '' : ' hidden'}>${volets[o.cle] || ''}</div>`).join('')}
     </div>`;
 
   brancherEntractes($('resultHost'));
+  // LA FICHE SE COMPTE (S77) : la saison se révèle en 400 ms, du zéro à la
+  // fiche finale, le rang du dernier au sien. Le texte du DOM est déjà le
+  // vrai (js/mouvement.js) — seul ce qu'on voit roule.
+  animerComptes($('resultHost'));
   // Les vraies fiches des adversaires arrivent des shards : le volet « La
   // ligue » se complète tout seul.
   if (teams.length > 1) chargerNiveau(teams);
@@ -719,7 +757,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     const po = G.lbId ? (lireSeriesHistorique(G.lbId)) : null;
     const txt = `🏒 Cap 82-0\n`
       + `Fiche : ${r.W}-${r.L}-${r.OTL} (${r.points} pts)\n`
-      + `Rang : ${rank}e de ${nTeams}\n`
+      + `Rang : ${rank === 1 ? '1er' : `${rank}e`} de ${nTeams}\n`
       + (po ? (po.coupe ? `🏆 Coupe Stanley — séries ${po.V}-${po.D}\n` : `Séries : ${po.ronde} (${po.V}-${po.D})\n`) : '')
       + (G.ligue && G.ligue.epoque ? `Saison : ${G.ligue.epoque}\n` : '')
       + `Masse salariale : ${money(capUsed())} / ${money(capMax())}\n`
@@ -767,52 +805,64 @@ export function nombreEnSeries(nTeams) {
 /**
  * Les séries, jouées match par match. Chaque match garde sa feuille — buts
  * avec leur instant, tirs par période, arrêts — et le sommaire s'ouvre d'un
- * clic. C'est la même simulation qu'avant : on ne jetait simplement pas ce
- * que le moteur produisait déjà.
+ * clic.
+ *
+ * RIEN D'AVANCE (S79). JP : *tu devrais jamais simuler d'avance*. Le moteur
+ * des séries (`creerSeries`, js/sim.js) ne joue un match qu'au moment où
+ * l'écran le montre ; la ronde suivante naît quand la dernière série de la
+ * ronde est décidée ; les statistiques des séries s'inscrivent à part match
+ * après match. Une reprise (`opts.depuis`) rejoue jusqu'où on avait regardé,
+ * pas plus.
  */
 export function runPlayoffs(top16, opts = {}) {
   const host = $('playoffsSection');
   if (!host) return;
   RONDES = RONDES_PAR_N[Math.round(Math.log2(top16.length))] || RONDES_PAR_N[4];
-
-  // LES SÉRIES ONT LEURS STATISTIQUES À PART : photo des fiches de saison,
-  // les séries s'inscrivent par-dessus, puis on sépare (js/sim.js).
-  const photo = photoStats(G.ligue ? G.ligue.teams : top16);
-  G.series = [];
-  let ronde = top16.slice(), n = 0;
-  while (ronde.length > 1) {
-    const suivant = [];
-    for (let i = 0; i < ronde.length / 2; i++) {
-      const A = ronde[i], B = ronde[ronde.length - 1 - i];
-      const s = playSeries(A, B, true, n);   // la ronde : l'usure s'accumule
-      suivant.push(s.winner);
-      G.series.push({ ...s, A, B, ronde: n, i: G.series.length });
-    }
-    ronde = suivant;
-    n++;
-  }
-  separerSeries(G.ligue ? G.ligue.teams : top16, photo);
-  const champion = ronde[0];
-
+  const decsSeries = (G.ligue && G.ligue.decisionsSeries) || [];
+  const graineSeries = (G.ligue && G.ligue.graine) || 0;
+  const S = creerSeries(top16, { ligue: (G.ligue && G.ligue.moteur) || null, graine: graineSeries, decisions: decsSeries, equipes: G.ligue ? G.ligue.teams : top16 });
+  G.seriesMoteur = S;
+  G.series = S.toutes;
+  const vus = opts.depuis && opts.depuis.revele;
+  if (vus) jouerSeriesVues(S, vus);
+  const btn = $('playoffsBtn');
+  // Les séries commencées, leur bouton s'efface et « Nouvelle partie » redevient le bouton principal (S74).
+  if (btn) { btn.disabled = true; btn.hidden = true; }
+  const encore = $('againBtn');
+  if (encore) encore.classList.add('go');
   /*
-   * LA COUPE ENTRE DANS L'HISTORIQUE. `saveLeaderboard` est appelé au bilan de
-   * la SAISON, donc avant la première série : l'entrée ne portait aucun champ
-   * de séries et rien ne la réécrivait ensuite — le seul but du jeu n'était
-   * enregistré nulle part. On la coud ici, où les séries viennent d'être
-   * jouées, et pas à la révélation : ce qui est joué est joué, que le joueur
-   * le regarde match par match ou qu'il passe à la fin.
+   * UNE REPRISE QUI A DÉJÀ TOUT VU VA DROIT AU TABLEAU, comme une saison
+   * reprise après sa dernière journée va droit au bilan.
    */
-  const toi = top16.find(t => t.isPlayer);
+  if (vus && S.fini && S.toutes.every(x => (vus[x.i] || 0) >= x.feuilles.length)) {
+    finDesSeries(S, host, false);
+    return;
+  }
+  ouvrirEcranSeries(opts.depuis || null);
+}
+
+/*
+ * LA FIN DES SÉRIES : le champion connu, la Coupe entre dans l'historique, le
+ * tableau se dessine, le mode Rogue paie ses écussons. Appelée quand le
+ * dernier match est joué ET montré — jamais avant.
+ */
+function finDesSeries(S, host, rogue = true) {
+  while (!S.fini) jouerMatchSeries(S);
+  const champion = S.champion;
+  const n = S.nRondes;
+  const toi = S.toi;
   if (toi && G.lbId) {
-    const miennes = G.series.filter(s => s.A === toi || s.B === toi);
+    const miennes = G.series.filter(x => x.A === toi || x.B === toi);
     let V = 0, D = 0;
-    for (const s of miennes) {
-      const mien = s.A === toi ? s.wA : s.wB, autre = s.A === toi ? s.wB : s.wA;
+    for (const x of miennes) {
+      const mien = x.A === toi ? x.wA : x.wB, autre = x.A === toi ? x.wB : x.wA;
       V += mien; D += autre;
     }
     const derniere = miennes[miennes.length - 1];
     const coupe = champion === toi;
     majLeaderboard(G.lbId, {
+      // Le deck après les séries : les cartes gagnées en séries comptent à l'album.
+      deck: deckDe((G.ligue && G.ligue.decisions) || [], { serie: (G.ligue && G.ligue.decisionsSeries) || [] }),
       series: {
         coupe, V, D,
         rondes: miennes.length,
@@ -824,43 +874,38 @@ export function runPlayoffs(top16, opts = {}) {
       },
     });
   }
-  const btn = $('playoffsBtn');
-  if (btn) btn.disabled = true;
+  dessinerTableauDesSeries(host, n, champion);
+  // Le Rogue paie ses écussons une fois (`rogue`) ; une reprise qui a tout vu lui redit quand même le sort de la run (S80).
+  if (finDesSeriesRogue) finDesSeriesRogue((G.series || []).filter(x => x.winner && x.winner.isPlayer).length, !!(champion && champion.isPlayer), { payer: rogue });
+}
 
-  // L'ÉCRAN DES SÉRIES D'ABORD. Tout est déjà joué ; on ne dessine le
-  // tableau complet qu'une fois que le joueur a révélé ses séries match par
-  // match — ou qu'il a passé à la fin. Le mystère tient à ce seul ordre.
-  /*
-   * UNE REPRISE QUI A DÉJÀ TOUT VU VA DROIT AU TABLEAU, comme une saison
-   * reprise après sa dernière journée va droit au bilan : rouvrir l'écran
-   * sur « le champion soulève la Coupe » ferait relire un écran déjà fini.
-   */
-  const vus = opts.depuis && opts.depuis.revele;
-  if (vus && G.series.every(s => (vus[s.i] || 0) >= s.feuilles.length)) {
-    dessinerTableauDesSeries(host, n, champion);
-    return;
-  }
-
+/* L'écran des séries, sur le moteur EN MÉMOIRE : ouvrir, rouvrir après une décision, reprendre. */
+export function ouvrirEcranSeries(depuis = null) {
+  const S = G.seriesMoteur, host = $('playoffsSection');
+  if (!S || !host) return;
   ouvrirSeries({
-    series: G.series, rondes: RONDES, you: top16.find(t => t.isPlayer) || null,
-    // La saison est finie et `separerSeries` vient de rendre à chaque fiche
-    // ses chiffres de saison : l'écran des séries peut donc la montrer.
-    saison: { teams: (G.ligue ? G.ligue.teams : top16), enSeries: top16.length },
+    series: S.toutes, moteur: S, nRondes: S.nRondes, rondes: RONDES, you: S.toi,
+    // Les compteurs de saison ne bougent pas pendant les séries (`cumulerSeries`) : l'écran peut la montrer.
+    saison: { teams: (G.ligue ? G.ligue.teams : S.equipes), enSeries: 2 ** S.nRondes },
     ctx: {
       esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
       // Les séries se révèlent match par match, comme la saison : un nom
       // cliqué ne dit que les matchs déjà vus (mode 'jourSeries').
       fiche: (p, t, html) => lienJoueur(p, t, porteeRevele('series'), html),
     },
-    /*
-     * LA REPRISE. `runPlayoffs` est le seul propriétaire de cet état : le
-     * bouton du bilan et la reprise au chargement appellent la même
-     * fonction, donc il n'y a qu'un endroit qui sait l'écrire et qu'un
-     * endroit qui sait le relire.
-     */
-    depuis: opts.depuis || null,
+    depuis,
+    // LES COMBATS DE BOSS (S69) : entre deux rounds, on règle tout.
+    graine: S.graine, decisions: S.decisions,
+    // LE DECK DE MATCH (S74) se déduit aussi des décisions de la saison.
+    decisionsSaison: (G.ligue && G.ligue.decisions) || [],
+    onDecision: deciderSerie || null,
+    onBanc: bancSerie || null,
     onRevele: etat => { G.seriesVues = etat; saveGame(); },
-    onTermine: () => dessinerTableauDesSeries(host, n, champion),
+    // Le tableau dessiné, on y va : il était en bas d'un bilan de 8 800 px (S74, l'agent de test).
+    onTermine: () => {
+      finDesSeries(S, host);
+      requestAnimationFrame(() => host.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    },
   });
 }
 
@@ -939,6 +984,16 @@ function dessinerTableauDesSeries(host, n, champion) {
   </div>`;
 
   host.innerHTML = html;
+  // Au téléphone l'arbre se balaie en largeur : il s'ouvrait sur la moitié de
+  // gauche, même quand ta formation jouait à droite (QA S74b). Il s'ouvre sur
+  // TA moitié — en x seulement, la page reste où elle est.
+  const balai = host.querySelector('.bracket-scroll');
+  const tienne = balai && balai.querySelector('.bk-serie.you');
+  if (tienne) requestAnimationFrame(() => {
+    if (balai.scrollWidth <= balai.clientWidth) return;
+    const a = balai.getBoundingClientRect(), b = tienne.getBoundingClientRect();
+    balai.scrollLeft += (b.left + b.width / 2) - (a.left + a.width / 2);
+  });
   host.querySelectorAll('.mcard').forEach(b => {
     b.onclick = () => showGameModal(Number(b.dataset.serie), Number(b.dataset.match));
   });
@@ -1033,8 +1088,6 @@ document.addEventListener('keydown', ev => {
 });
 
 /* « 1er », « 12e » : le rang d'un but ou d'une passe. */
-const ord = n => (n === 1 ? '1er' : `${n}e`);
-const ordF = n => (n === 1 ? '1re' : `${n}e`);
 
 /** La clé `data-sommaire` d'une feuille, qu'elle vienne du calendrier ou des séries ; null sinon. */
 export function cleDeSommaire(feuille) {
@@ -1082,19 +1135,34 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
     return t;
   };
 
+  /*
+   * L'HEURE D'UN BUT EST CELLE DU DIRECT : le temps qu'il reste à la période
+   * (`tempsRestant`). JP : *le sommaire post match et ce que je voyais dans
+   * le match, les buts sont pas au même moment* — le sommaire donnait le temps
+   * écoulé (07:26) du but que le direct avait montré à 12:34.
+   */
   const parPeriode = [1, 2, 3, 4].map(per => {
     const buts = f.buts.filter(b => periodeDe(b.instant) === per).map(b => ({ ...b, type: 'but', rang: rangs.get(b) }));
     const punitions = (f.punitions || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'punition' }));
+    // Les blessures du soir (S80), au même moment que le direct les a racontées.
+    const blessures = (f.blessures || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'blessure' }));
     if (!buts.length && per === 4) return '';
-    const items = [...buts, ...punitions].sort((x, y) => x.instant - y.instant);
+    const items = [...buts, ...punitions, ...blessures].sort((x, y) => x.instant - y.instant);
     const lignes = items.map(b => {
       const t = b.cote === 'A' ? A : B;
       // Chaque nom ouvre la fiche avec ses statistiques des SÉRIES.
       const lien = p => lienJoueur(p, t, mode, `<strong>${formatName(p.n)}</strong>`);
       const r = b.rang || { g: 0, a: [] };
+      if (b.type === 'blessure') {
+        return `<div class="som-but som-pun som-bless">
+          <span class="som-tps">${tempsRestant(b.instant)}</span>
+          <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
+          <span class="som-qui">🚑 Blessure${b.joueur ? ` : ${lien(b.joueur)}` : ''} · absent ${b.matchs} match${b.matchs > 1 ? 's' : ''}</span>
+        </div>`;
+      }
       if (b.type === 'punition') {
         return `<div class="som-but som-pun">
-          <span class="som-tps">${tempsDeJeu(b.instant)}</span>
+          <span class="som-tps">${tempsRestant(b.instant)}</span>
           <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
           <span class="som-qui">Punition${b.joueur ? ` à ${lien(b.joueur)}` : ''} · ${b.minutes} min${b.butAN ? ' · écourtée par le but' : ''}</span>
         </div>`;
@@ -1104,7 +1172,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
         : '<span class="som-aides sans">sans aide</span>';
       const situation = b.an ? '<span class="som-sit an">AN</span>' : b.dn ? '<span class="som-sit dn">DN</span>' : '';
       return `<div class="som-but">
-        <span class="som-tps">${tempsDeJeu(b.instant)}</span>
+        <span class="som-tps">${tempsRestant(b.instant)}</span>
         <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
         <span class="som-qui">${situation}${lien(b.marqueur)} <span class="som-xe">(${ord(r.g)})</span> ${aides}</span>
         <span class="som-recit">${esc(recitUnique(b))}</span>

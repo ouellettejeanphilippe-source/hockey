@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cap 82-0</string>
+    <string name="title_activity_main">Cap 82-0</string>
+    <string name="package_name">ca.local.cap82</string>
+    <string name="custom_url_scheme">ca.local.cap82</string>
+</resources>

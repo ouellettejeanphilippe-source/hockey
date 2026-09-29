@@ -1,6 +1,17 @@
 /**
  * Données de logos et couleurs des équipes (actuelles et disparues).
  */
+import { LOGOS_LOCAUX } from './logos_locaux.js';
+
+/*
+ * L'ÈRE DE L'ÉCUSSON OFFICIEL d'un club disparu, telle que la LNH la nomme
+ * (vérifiée, S78). Les Mighty Ducks n'y sont pas : leur dessin reste.
+ */
+export const LOGOS_OFFICIELS = {
+  QUE: '19791980-19941995', HFD: '19791980-19911992', MNS: '19851986-19901991', WIN: '19791980-19891990',
+  PHX: '19961997-19981999', ATL: '19992000-20102011', AFM: '19721973-19791980', KCS: '19741975-19751976',
+  CLR: '19761977-19811982', CLE: '19761977-19771978', CGS: '19701971-19731974', OAK: '19671968-19691970',
+};
 
 // Logos SVG inline intégrés pour les franchises disparues / historiques sans URL officielle active
 const INLINE_LOGOS = {
@@ -43,7 +54,7 @@ const INLINE_LOGOS = {
   // Jets de Winnipeg (1979-96)
   WIN: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <circle cx="50" cy="50" r="46" fill="#00205b" stroke="#c8102e" stroke-width="4"/>
-    <text x="50" y="48" font-family="sans-serif" font-weight="900" font-size="22" fill="#ffffff" text-anchor="middle">JETS</text>
+    <text x="50" y="48" font-family="sans-serif" font-weight="900" font-size="22" fill="#ffffff" text-anchor="middle" textLength="58" lengthAdjust="spacingAndGlyphs">JETS</text>
     <path d="M25 62 L75 62 L65 72 L35 72 Z" fill="#c8102e"/>
   </svg>`,
 
@@ -67,11 +78,11 @@ const INLINE_LOGOS = {
   </svg>`,
 
   // Scouts de Kansas City / Rockies du Colorado / Barons de Cleveland / Seals
-  KCS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#c8102e"/><text x="50" y="58" font-size="28" font-weight="900" fill="#ffc72c" text-anchor="middle">KC</text></svg>`,
+  KCS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#c8102e"/><text x="50" y="58" font-size="28" font-weight="900" fill="#ffc72c" text-anchor="middle" textLength="40" lengthAdjust="spacingAndGlyphs">KC</text></svg>`,
   CLR: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="50,10 90,85 10,85" fill="#00205b"/><polygon points="50,30 75,75 25,75" fill="#c8102e"/><circle cx="50" cy="58" r="8" fill="#ffc72c"/></svg>`,
   CLE: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="20" width="80" height="60" rx="10" fill="#c8102e"/><text x="50" y="60" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle">B</text></svg>`,
-  CGS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="58" font-size="24" font-weight="900" fill="#ffc72c" text-anchor="middle">SEALS</text></svg>`,
-  OAK: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="58" font-size="24" font-weight="900" fill="#ffffff" text-anchor="middle">OAK</text></svg>`,
+  CGS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="57" font-size="20" font-weight="900" fill="#ffc72c" text-anchor="middle" textLength="74" lengthAdjust="spacingAndGlyphs">SEALS</text></svg>`,
+  OAK: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="#00843d"/><text x="50" y="58" font-size="24" font-weight="900" fill="#ffffff" text-anchor="middle" textLength="52" lengthAdjust="spacingAndGlyphs">OAK</text></svg>`,
   MDA: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M20 20 L80 80 M80 20 L20 80" stroke="#00685e" stroke-width="12"/><ellipse cx="50" cy="50" rx="30" ry="22" fill="#00685e"/><polygon points="35,45 65,45 50,65" fill="#f0592b"/></svg>`,
 
   // TON équipe : les NHL Stars. Un écusson d'étoiles à l'ancienne, noir,
@@ -83,7 +94,7 @@ const INLINE_LOGOS = {
     <polygon points="50,14 58.5,36 82,36 63,50 70,73 50,59 30,73 37,50 18,36 41.5,36" fill="#ffffff"/>
     <polygon points="50,24 55,37 69,37 58,45.5 62.5,59 50,50.5 37.5,59 42,45.5 31,37 45,37" fill="#f47a20"/>
     <rect x="14" y="70" width="72" height="16" rx="3" fill="#f47a20"/>
-    <text x="50" y="82.5" font-family="Arial Narrow, Arial, sans-serif" font-weight="900" font-size="13.5" letter-spacing="1.5" fill="#0b0b0b" text-anchor="middle">NHL STARS</text>
+    <text x="50" y="82.5" font-family="Arial Narrow, Arial, sans-serif" font-weight="900" font-size="13.5" letter-spacing="1.5" fill="#0b0b0b" text-anchor="middle" textLength="62" lengthAdjust="spacingAndGlyphs">NHL STARS</text>
   </svg>`,
 };
 
@@ -169,7 +180,7 @@ function luminance(hex) {
  * jeu. Sans ça, le bleu marine de St. Louis ou le noir des Kings donnent une
  * bordure invisible et une étiquette illisible.
  */
-export function readableAccent(hex, target = 0.30) {
+function readableAccent(hex, target = 0.30) {
   let rgb = hexToRgb(hex);
   let lum = luminance(rgbToHex(rgb));
   let guard = 0;
@@ -201,7 +212,24 @@ export function fondEquipe(teamCode, cible = 0.045) {
   let base = c.primary;
   if (luminance(base) < cible) base = c.secondary || c.accent || base;
   if (luminance(base) < cible) base = c.accent || base;
-  if (luminance(base) < cible) return null;   // tout le club est noir : le fond de la palette suffit
+  if (luminance(base) < cible) {
+    /*
+     * TOUT LE CLUB EST PLUS SOMBRE QUE LA CIBLE. Un club tout en NOIR n'a
+     * pas de couleur à montrer : le fond de la palette suffit. Mais un club
+     * tout en MARINE (Tampa : marine et marine plus foncé) en a une, et sa
+     * carte sortait sans fond (S79, JP : *les cartes aux couleurs des
+     * équipes*). Son marine s'éclaircit donc jusqu'à la cible.
+     */
+    const p = hexToRgb(c.primary);
+    if (Math.max(...p) - Math.min(...p) < 40) return null;
+    const vif = saturer(p, CHROMA_FOND);
+    let bas = 1, haut = 255 / Math.max(1, ...vif), f = 1;
+    for (let i = 0; i < 20; i++) {
+      f = (bas + haut) / 2;
+      if (luminance(rgbToHex(vif.map(v => Math.min(255, v * f)))) > cible) haut = f; else bas = f;
+    }
+    return rgbToHex(vif.map(v => Math.min(255, v * f)));
+  }
   // Assombrir vers le noir jusqu'à la cible, par dichotomie sur le mélange.
   const rgb = saturer(hexToRgb(base), CHROMA_FOND);
   let lo = 0, hi = 1, k = 1;
@@ -227,27 +255,6 @@ const CHROMA_FOND = 1.45;
 function saturer(rgb, f) {
   const moy = (rgb[0] + rgb[1] + rgb[2]) / 3;
   return rgb.map(v => Math.max(0, Math.min(255, moy + (v - moy) * f)));
-}
-
-/** Accent lisible d'une équipe, prêt à poser dans une variable CSS. */
-/**
- * L'encre à poser SUR un aplat de la couleur d'équipe — le seul endroit du
- * jeu où du texte repose sur cette couleur, et donc le seul où il faut la
- * mesurer plutôt que la deviner.
- *
- * On calcule les deux rapports de contraste (WCAG) et on garde le meilleur.
- * Mesuré sur les 32 équipes : parce que `getTeamAccent` éclaircit tout
- * jusqu'à une luminance de 0,30, le blanc ne dépasse jamais **2,8:1** —
- * sous le seuil lisible de 4,5:1 — pendant que le bleu nuit donne 7,5:1
- * (Vancouver, Philadelphie) à 12,1:1 (Boston, Nashville). L'encre foncée
- * gagne donc partout aujourd'hui ; le calcul reste pour que ça tienne si
- * l'éclaircissement change.
- */
-export function getTeamInk(teamCode) {
-  const L = luminance(getTeamAccent(teamCode));
-  const surBlanc = 1.05 / (L + 0.05);
-  const surFonce = (L + 0.05) / 0.05;
-  return surFonce >= surBlanc ? '#08131f' : '#ffffff';
 }
 
 /*
@@ -440,18 +447,31 @@ export function viveSurFond(teamCode, fond) {
   return contrast(base, fond) >= 4.5 ? base : inkFor(fond);
 }
 
-/** L'ancienne couleur éclaircie. Gardée pour les fonds et les lueurs, jamais pour un trait. */
-export function getTeamAccent(teamCode) {
-  const c = TEAM_COLORS[teamCode];
-  if (!c) return '#8ab4f0';
-  return readableAccent(c.accent || c.primary);
-}
-
 /**
  * Retourne le HTML d'un logo pour le code d'équipe fourni.
  */
 export function getTeamLogoHtml(teamCode, size = 32) {
   if (!teamCode) return '';
+  /*
+   * L'ÉCUSSON COPIÉ AVEC LE JEU (S78, scripts/logos.mjs) : servi d'ici, hors
+   * ligne dès le premier lancement. Le dessin maison reste le secours.
+   */
+  if (LOGOS_LOCAUX.has(teamCode)) {
+    const secours = INLINE_LOGOS[teamCode] ? encodeURIComponent(INLINE_LOGOS[teamCode]).replace(/'/g, '%27') : '';
+    return `<img src="img/logos/${teamCode}.svg" class="team-logo-img" style="width:${size}px;height:${size}px;object-fit:contain" alt="${teamCode}" onerror="${secours ? `this.onerror=null;this.src='data:image/svg+xml,${secours}'` : 'this.style.display=\'none\''}">`;
+  }
+  /*
+   * LES VRAIS ÉCUSSONS DES CLUBS DISPARUS (S78). JP : *les Nordiques, t'as
+   * pas le choix, logo officiel avec le N*. La LNH les garde sous le nom de
+   * leur ère (« QUE_19791980-19941995 ») : on prend l'écusson qu'on se
+   * rappelle, et le dessin maison ne sert plus qu'en secours, si l'image ne
+   * vient pas (hors ligne, au premier lancement).
+   */
+  const officiel = LOGOS_OFFICIELS[teamCode];
+  if (officiel) {
+    const secours = INLINE_LOGOS[teamCode] ? encodeURIComponent(INLINE_LOGOS[teamCode]).replace(/'/g, '%27') : '';
+    return `<img src="https://assets.nhle.com/logos/nhl/svg/${teamCode}_${officiel}_light.svg" class="team-logo-img" style="width:${size}px;height:${size}px;object-fit:contain" alt="${teamCode}" onerror="${secours ? `this.onerror=null;this.src='data:image/svg+xml,${secours}'` : 'this.style.display=\'none\''}">`;
+  }
   if (INLINE_LOGOS[teamCode]) {
     return `<div class="team-logo-inline" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-center">${INLINE_LOGOS[teamCode]}</div>`;
   }

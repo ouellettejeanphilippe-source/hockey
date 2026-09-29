@@ -20,21 +20,20 @@
  * joueur qui a déjà vu l'écran de saison n'a rien à réapprendre.
  */
 
-import { equipeDeTable, jouerMatchAuto, resultatDe, gagnantDuMatch } from './table.js';
+import { equipeDeTable, jouerMatchAuto, gagnantDuMatch } from './table.js';
 import { getPlayerKey } from './sim.js';
 import { ouvrirTable } from './plateau.js';
+import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 
 export const CLUBS = 6;              // toi et cinq vrais clubs
-export const EN_SERIES = 4;
-
-const ordP = n => (n === 1 ? '1re' : `${n}e`);
+const EN_SERIES = 4;
 
 /**
  * Le calendrier d'un tournoi à six : le cercle de Berger, cinq journées, trois
  * matchs par journée, chacun contre chacun une fois. Ta formation est
  * toujours l'indice 0, donc elle joue chaque journée.
  */
-export function calendrierRondRobin(n) {
+function calendrierRondRobin(n) {
   const idx = [...Array(n).keys()];
   const journees = [];
   for (let j = 0; j < n - 1; j++) {
@@ -74,7 +73,7 @@ const surTable = (club, cote) => equipeDeTable(club.nom, club.tag, club.roster, 
  * séries n'y entre PAS, sinon le premier de la saison finissait 7-0 dans un
  * calendrier de cinq matchs et le classement ne voulait plus rien dire.
  */
-export function jouerAuto(T, match, compte = true) {
+function jouerAuto(T, match, compte = true) {
   const A = surTable(T.clubs[match.a], 'A');
   const B = surTable(T.clubs[match.b], 'B');
   match.r = jouerMatchAuto(A, B, match.graine);
@@ -89,9 +88,9 @@ export function jouerAuto(T, match, compte = true) {
 }
 
 /** Tous les matchs du tournoi, saison et séries : une seule définition. */
-export const tousLesMatchs = T => [...T.journees.flat(), ...(T.series ? T.series.rondes.flat() : [])];
+const tousLesMatchs = T => [...T.journees.flat(), ...(T.series ? T.series.rondes.flat() : [])];
 
-export function inscrire(T, match) {
+function inscrire(T, match) {
   const fa = T.fiches[match.a], fb = T.fiches[match.b];
   const { gfA, gfB } = match.r;
   fa.PJ++; fb.PJ++;
@@ -118,7 +117,7 @@ export const classement = T => T.clubs.map((c, i) => ({ i, c, f: T.fiches[i] }))
  * naturellement — ce sont les meneurs DU TOURNOI, pas ceux du classement (qui,
  * lui, ignore les séries exprès).
  */
-export function meneursDuTournoi(T) {
+function meneursDuTournoi(T) {
   const par = new Map();
   const trouver = (club, joueur) => {
     const cle = `${club}|${(joueur && joueur.n) || '?'}`;
@@ -150,7 +149,7 @@ export function meneursDuTournoi(T) {
  * ce qui rend les séries rapides, et c'est ce qui rend la première place
  * précieuse sans la rendre décisive.
  */
-export function ouvrirLesSeries(T) {
+function ouvrirLesSeries(T) {
   const cl = classement(T).slice(0, EN_SERIES);
   T.series = {
     ronde: 0,
@@ -164,10 +163,10 @@ export function ouvrirLesSeries(T) {
 }
 
 /** Le gagnant d'un match des séries, par indice de club. */
-export const gagnantDe = mt => (!mt.r ? null : gagnantDuMatch(mt.r) === 'A' ? mt.a : mt.b);
+const gagnantDe = mt => (!mt.r ? null : gagnantDuMatch(mt.r) === 'A' ? mt.a : mt.b);
 
 /** Une fois la demi-finale jouée, la finale connaît ses deux clubs. */
-export function composerFinale(T) {
+function composerFinale(T) {
   const demi = T.series.rondes[0];
   if (demi.some(x => !x.r)) return false;
   T.series.rondes[1][0].a = gagnantDe(demi[0]);
@@ -224,7 +223,8 @@ export function etatDuTournoi(T) {
     matchs[cleDeMatch(T, mt)] = mt.auto ? 1 : {
       gfA: mt.r.gfA, gfB: mt.r.gfB,
       prolongation: !!mt.r.prolongation, nul: !!mt.r.nul,
-      vainqueur: mt.r.vainqueur || null, fusillade: mt.r.fusillade || null,
+      // La fusillade se garde en deux nombres (S75b) : ses tours portent des joueurs entiers, et le tournoi n'en lit que le compte.
+      vainqueur: mt.r.vainqueur || null, fusillade: mt.r.fusillade ? { A: mt.r.fusillade.A, B: mt.r.fusillade.B } : null,
       A: compacterCote(mt.r.A), B: compacterCote(mt.r.B),
     };
   }
@@ -372,20 +372,37 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
   /* ---------- les actions ---------- */
   function dessinerActions() {
     if (T.champion != null) {
-      actions.innerHTML = '<button type="button" class="hub-suite">Voir le bilan du tournoi</button>';
+      actions.innerHTML = '<button type="button" class="btn go hub-suite">Voir le bilan du tournoi</button>';
       return;
     }
     const mt = monMatch();
+    /*
+     * UNE SEULE COMMANDE PRINCIPALE (S75). Les deux boutons se ressemblaient
+     * trait pour trait, et « Le laisser se jouer » a la même taille que « Jouer
+     * le match » : le testeur a hésité devant les deux. Jouer est plein (`go`,
+     * comme « Journée suivante » à l'écran de saison), laisser jouer est cerclé.
+     */
+    /*
+     * LE NIVEAU SE CHOISIT LÀ OÙ ON LANCE LE MATCH (S75). C'est aussi une
+     * option du jeu, mais un enfant qui vient de perdre 0-16 ne va pas la
+     * chercher dans les options : elle est ici, sous le bouton qui lance le
+     * match. Les matchs que tu ne joues pas restent Pro.
+     */
+    const niveau = ctx.niveau ? ctx.niveau() : null;
+    const choixNiveau = niveau ? `<div class="hub-niveau" role="group" aria-label="Le niveau de l'adversaire">
+         <span class="hub-niveau-t">Adversaire</span>
+         <span class="seg"><button type="button" data-niveau="RECRUE" class="${niveau === 'RECRUE' ? 'on' : ''}" aria-pressed="${niveau === 'RECRUE'}">Recrue</button><button type="button" data-niveau="PRO" class="${niveau === 'PRO' ? 'on' : ''}" aria-pressed="${niveau === 'PRO'}">Pro</button></span>
+       </div>` : '';
     actions.innerHTML = mt
-      ? `<button type="button" class="hub-jouer">Jouer le match sur table</button>
-         <button type="button" class="hub-sauter">Le laisser se jouer</button>`
-      : '<button type="button" class="hub-suite">Voir le bilan du tournoi</button>';
+      ? `<button type="button" class="btn go hub-jouer">Jouer le match sur table</button>
+         <button type="button" class="btn hub-sauter">Le laisser se jouer</button>${choixNiveau}`
+      : '<button type="button" class="btn go hub-suite">Voir le bilan du tournoi</button>';
   }
 
   /* ---------- les volets ---------- */
   const ONGLETS = () => (T.series
-    ? [{ cle: 'series', ico: 'i-cup', titre: 'Séries' }, { cle: 'classement', ico: 'i-chart', titre: 'Saison' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs' }]
-    : [{ cle: 'journee', ico: 'i-cal', titre: 'La journée' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs' }]);
+    ? [{ cle: 'series', ico: 'i-cup', titre: 'Séries', page: 'match' }, { cle: 'classement', ico: 'i-chart', titre: 'Saison', page: 'classement' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs', page: 'equipes' }]
+    : [{ cle: 'journee', ico: 'i-cal', titre: 'La journée', page: 'match' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement', page: 'classement' }, { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'clubs', ico: 'i-jersey', titre: 'Les clubs', page: 'equipes' }]);
 
   // La même barre que partout ailleurs : en bas, une icône, un mot.
   function dessinerBarre() {
@@ -399,10 +416,19 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
 
   const ligneMatch = mt => {
     const fini = !!mt.r;
-    const gagnantA = fini && mt.r.gfA > mt.r.gfB;
+    /*
+     * LES TIRS DE BARRAGE SE LISENT AU TABLEAU (S75b). Un 0-0 réglé en
+     * fusillade s'écrivait « 0 – 0 PROL. » avec le club d'en face en gras,
+     * même quand tu l'avais gagnée : le gagnant se lisait aux buts (`gfA >
+     * gfB`), que la fusillade ne touche jamais. C'est `gagnantDuMatch` qui
+     * tranche, et la rangée dit « TB » et le compte de la fusillade.
+     */
+    const gagnantA = fini && gagnantDuMatch(mt.r) === 'A';
+    const fs = fini && (mt.r.fusillade || mt.r.vainqueur) ? mt.r.fusillade : null;
+    const marque = !fini ? '' : fs ? `<i>TB${fs && Number.isInteger(fs.A) ? ` ${fs.A}-${fs.B}` : ''}</i>` : mt.r.vainqueur ? '<i>TB</i>' : mt.r.prolongation ? '<i>PROL.</i>' : '';
     return `<div class="tr-match ${mt.a === MOI || mt.b === MOI ? 'mien' : ''}">
       <span class="tr-c ${fini && gagnantA ? 'gagne' : ''}">${logo(T.clubs[mt.a].tag, 18)} ${esc(nomDe(mt.a))}</span>
-      <span class="tr-p">${fini ? `${mt.r.gfA} – ${mt.r.gfB}` : '—'}${fini && mt.r.prolongation ? '<i>PROL.</i>' : ''}</span>
+      <span class="tr-p">${fini ? `${mt.r.gfA} – ${mt.r.gfB}` : '—'}${marque}</span>
       <span class="tr-c ${fini && !gagnantA ? 'gagne' : ''}">${esc(nomDe(mt.b))} ${logo(T.clubs[mt.b].tag, 18)}</span>
     </div>`;
   };
@@ -463,7 +489,15 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
     // trois endroits à ne pas oublier au prochain bouton.
     if (onAvance) onAvance(T);
     dessinerTete(); dessinerCarte(); dessinerActions(); dessinerBarre(); dessinerVolet();
+    const vue = (ONGLETS().find(o => o.cle === onglet) || {}).page || '';
+    const sheet = modal.querySelector('.hub-sheet');
+    if (sheet) sheet.dataset.vue = vue;
+    signalerVue();
   }
+
+  // LA COQUILLE (S67) : la barre du jeu ouvre les volets du tournoi.
+  const hub = { onglets: () => ONGLETS(), montrer: cle => { onglet = cle; rendre(); }, courant: () => onglet };
+  inscrireHub(hub);
 
   /* ---------- avancer ---------- */
 
@@ -511,6 +545,8 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
     const t = ev.target;
     const o = t.closest('[data-onglet]');
     if (o) { onglet = o.dataset.onglet; rendre(); return; }
+    const nv = t.closest('[data-niveau]');
+    if (nv && ctx.choisirNiveau) { ctx.choisirNiveau(nv.dataset.niveau); dessinerActions(); return; }
     if (t.closest('.hub-jouer')) { const mt = monMatch(); if (mt) jouerLeMien(mt); return; }
     if (t.closest('.hub-sauter')) {
       const mt = monMatch();
@@ -530,6 +566,7 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
     // Fermer ne redessine pas : c'est le seul chemin que `rendre` ne couvre pas.
     if (onAvance) onAvance(T);
     modal.removeEventListener('click', clic);
+    retirerHub(hub);
     modal.style.display = 'none';
     document.body.style.overflow = '';
     onTermine(T);

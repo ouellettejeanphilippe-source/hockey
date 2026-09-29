@@ -41,29 +41,44 @@
   <symbol id="i-cup" viewBox="0 0 24 24"><path d="M8 3h8l1 4H7l1-4z"/><path d="M9 7v3a3 3 0 0 0 6 0V7"/><path d="M12 13v5M7 21h10M9 18h6"/></symbol>
   <symbol id="i-son" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
   <symbol id="i-muet" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l5 6M21 9l-5 6"/></symbol>
+  <symbol id="i-club" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
+  <symbol id="i-marche" viewBox="0 0 24 24"><path d="M3 4h2.5l2.2 10.5h10.6L20.5 7H7"/><circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></symbol>
+  <symbol id="i-cartes" viewBox="0 0 24 24"><rect x="7" y="3.5" width="12" height="16" rx="2"/><path d="M5 7v11.5A2.5 2.5 0 0 0 7.5 21H15"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
+  <symbol id="i-retour" viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></symbol>
   <symbol id="i-new" viewBox="0 0 24 24"><ellipse cx="10" cy="13.5" rx="7" ry="3.2"/><path d="M3 13.5v2.4c0 1.8 3.1 3.2 7 3.2s7-1.4 7-3.2v-2.4"/><path d="M19.5 4v6M16.5 7h6"/></symbol>
 </svg>
 
-<!-- ===== Barre du haut : plafond et accès, rien d'autre ===== -->
+<!-- ===== L'EN-TÊTE DU CLUB (1.0, R1) : toujours là, dans tous les modes. Ton
+     écusson, ton nom et où en est la partie ; à droite, trois chiffres — la
+     fiche, le rang, le plafond. Le reste (une nouvelle partie, les options,
+     les règles) vit dans le Menu. Les onglets internes d'une section (la
+     Ligue, la Collection) se rangent dessous. ===== -->
 <header class="topbar" id="topbar">
   <div class="topbar-inner">
-    <div class="capgauge" id="capGauge">
-      <div class="capgauge-row">
-        <span class="capgauge-label">Plafond restant</span>
-        <span class="capgauge-amt"><strong id="capAmt" class="amt">—</strong> <span class="capgauge-max" id="capMaxLbl">/ $95.5M</span></span>
-      </div>
-      <div class="track" aria-hidden="true"><div class="fill" id="capFill" style="width:0%"></div><div class="fill-marker" id="capMarker"></div></div>
-      <div class="capgauge-row small">
-        <span><strong id="cnt">0 / 23</strong> signés</span>
-        <span id="perSlotLbl" title="Budget moyen disponible par case restante">—/case</span>
+    <button type="button" class="retour-btn" id="retourBtn" data-retour hidden><svg class="ico" aria-hidden="true"><use href="#i-retour"/></svg>Retour</button>
+    <div class="tete-club">
+      <span class="tete-ecu" id="teteEcu" aria-hidden="true"></span>
+      <span class="tete-id"><b class="tete-nom">NHL Stars</b><span class="tete-etat" id="teteEtat">—</span></span>
+    </div>
+    <div class="tete-chiffres">
+      <div class="tete-ch" id="teteFiche" hidden><span class="tete-ch-l">Fiche</span><b class="tete-ch-v">—</b></div>
+      <div class="tete-ch" id="teteRang" hidden><span class="tete-ch-l">Rang</span><b class="tete-ch-v">—</b></div>
+      <div class="capgauge tete-ch" id="capGauge">
+        <div class="capgauge-row">
+          <span class="capgauge-label tete-ch-l">Plafond restant</span>
+          <span class="capgauge-amt"><strong id="capAmt" class="amt" data-compte-suivi>—</strong> <span class="capgauge-max" id="capMaxLbl">/ 95,5&nbsp;M$</span></span>
+        </div>
+        <div class="track" aria-hidden="true"><div class="fill" id="capFill" style="width:0%"></div><div class="fill-marker" id="capMarker"></div></div>
+        <div class="capgauge-row small">
+          <span><strong id="cnt">0 / 23</strong> signés</span>
+          <span id="perSlotLbl" title="Budget moyen disponible par case restante">—/case</span>
+        </div>
       </div>
     </div>
-
-    <nav class="topbar-actions" aria-label="Menu">
-      <button class="icon-btn" id="openPartieBtn" title="Nouvelle partie : format, tirage, ligue et mode"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg><span class="icon-lbl">Nouvelle</span></button>
-      <button class="icon-btn" id="openOptionsBtn" title="Options d'affichage"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span class="icon-lbl">Options</span></button>
-    </nav>
+    <button type="button" class="icon-btn" id="menuBtn" title="Le menu : continuer, les modes, tes parties, les options et les règles"><svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg><span class="icon-lbl">Menu</span></button>
   </div>
+  <nav class="sousnav" id="sousNav" role="tablist" aria-label="Les onglets de la section" hidden></nav>
 </header>
 
 <div id="boot" class="boot">
@@ -99,13 +114,13 @@
                  rangé par le tri courant. -->
             <div class="seg seg-view" data-opt="poolView" role="tablist" aria-label="Affichage du vestiaire">
               <button data-val="POS" class="on" title="Par poste : six colonnes, une par poste — balaie pour changer de poste"><svg class="ico" aria-hidden="true"><use href="#i-cols"/></svg><span class="lbl">Par poste</span></button>
-              <button data-val="LIST" title="Tous : les joueurs ensemble, dans l'ordre du tri"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg><span class="lbl">Tous</span></button>
+              <button data-val="LIST" title="Liste : les joueurs ensemble, dans l'ordre du tri"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg><span class="lbl">Liste</span></button>
             </div>
             <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input id="searchInput" type="search" placeholder="Chercher un joueur…" autocomplete="off"></label>
             <!-- Libellés courts : le tri partage sa rangée avec la recherche et
                  la bascule sur téléphone. L'infobulle dit le reste. -->
             <select id="sortSelect" class="select" aria-label="Trier le bassin" title="Trier le bassin">
-              <option value="PTS">Points / V</option>
+              <option value="PTS">Points / %ARR</option>
               <option value="PPG">Pts par match</option>
               <option value="SAL">Salaire</option>
               <option value="VAL">Pts par M$</option>
@@ -133,6 +148,10 @@
             <span class="pane-meta" id="rosterMeta">0 / 23</span>
           </div>
           <div class="roster-hint" id="rosterHint">Touche un joueur, puis sa case.</div>
+          <!-- MES LIGNES (S68) vivaient dans une modale, derrière un bouton ici.
+               Depuis S78, la stratégie de chaque ligne est un tiroir SOUS son
+               trio (JP : « Alignement et stratégie et trio, ça devrait être
+               ensemble »). -->
         </div>
         <!-- DERRIÈRE LE BANC : ouvert depuis l'écran de saison. Les fiches
              sont celles À CE JOUR, jamais celles de fin de saison. -->
@@ -154,12 +173,15 @@
   </div>
 </div>
 
-<!-- ===== LA BARRE D'ONGLETS : la seule du jeu, et elle est toujours en bas.
-     Elle est bâtie par `majNavbar` (js/game.js) parce que SES ENTRÉES SUIVENT
-     LA PHASE : pendant le repêchage on bâtit (Vestiaire, Alignement), une fois
-     la saison jouée on la lit (Bilan, Classement, Calendrier, Meneurs,
-     Alignement, Séries). Les trois destinations de référence ne bougent pas. -->
+<!-- ===== LES CINQ SECTIONS (1.0, R1) : Club, Effectif, Marché, Ligue,
+     Collection. Toujours les mêmes, dans le même ordre, dans tous les modes :
+     un rail à gauche dès 1000 px, une barre d'onglets en bas au téléphone.
+     Elle est bâtie par `majNavbar` (js/game.js) : un badge suit la partie,
+     jamais les entrées. ===== -->
 <nav class="navbar" id="navbar" role="tablist" aria-label="Sections"></nav>
+
+<!-- Les commandes de la manette ou du clavier, au bas du rail (js/manette.js). -->
+<div class="invites" id="invites" aria-hidden="true"></div>
 
 <!-- Radar (hexagone) quand le brouillard est levé -->
 
@@ -172,6 +194,7 @@
   <div class="live-sheet hub-sheet" role="dialog" aria-modal="true" aria-label="La saison">
     <div class="live-top">
       <div class="live-head hub-head"></div>
+      <div class="hub-outils"></div>
       <button class="close-btn hub-close" aria-label="Passer à la fin">✕</button>
     </div>
     <div class="hub-carte"></div>
@@ -188,7 +211,7 @@
       <div class="live-head t-titre"></div>
       <button class="icon-btn table-son" title="Couper les sons" aria-label="Couper les sons" aria-pressed="true"></button>
       <button class="icon-btn table-regles" title="Les règles du plateau" aria-label="Les règles du plateau">?</button>
-      <button class="close-btn table-close" aria-label="Laisser le match se finir tout seul">✕</button>
+      <button class="close-btn table-close" aria-label="Quitter le match (il se joue sans toi)" title="Quitter le match (il se joue sans toi)">✕</button>
     </div>
     <div class="t-tete"></div>
     <div class="t-plateau"></div>
@@ -196,6 +219,14 @@
     <div class="t-bas"></div>
   </div>
 </div>
+
+<!-- ===== LES DÉCISIONS EN PLEIN ÉCRAN (S68) : un choix, et « Mes lignes ».
+     Par-dessus tout, barre comprise : une décision se prend en entier. ===== -->
+<div id="magasinModal" class="choix-modal" hidden></div>
+<div id="inventaireModal" class="choix-modal" hidden></div>
+<div id="departModal" class="choix-modal" hidden></div>
+<div id="choixModal" class="choix-modal" hidden></div>
+<div id="lignesModal" class="choix-modal" hidden></div>
 
 <!-- ===== Modale : sommaire d'un match de séries ===== -->
 <div id="gameModal" class="modal-backdrop" style="display:none;">
@@ -233,6 +264,25 @@
     <div id="hockeyCardBody"></div>
   </div>
 </div>
+
+<!-- ===== L'ÉTAT VIDE (S67) : un onglet qui n'a encore rien à montrer dit
+     pourquoi et offre la suite. La barre ne perd jamais une entrée. ===== -->
+<section id="pageVide" class="page" aria-live="polite" hidden>
+  <div class="page-tete"><h2 id="pageVideTitre"></h2></div>
+  <div class="page-corps" id="pageVideCorps"></div>
+</section>
+
+<!-- ===== LE CARTABLE (S79) : la Collection, tes joueurs gagnés ===== -->
+<section id="pageCartable" class="page" aria-label="Ton cartable" hidden>
+  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-cartes"/></svg>Ton cartable</h2></div>
+  <div class="page-corps" id="pageCartableCorps"></div>
+</section>
+
+<!-- ===== LE MARCHÉ (1.0, R1) : une fois le repêchage fini, la boutique et tes cartes ===== -->
+<section id="pageMarche" class="page" aria-label="Le marché" hidden>
+  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-marche"/></svg>Le marché</h2></div>
+  <div class="page-corps" id="pageMarcheCorps"></div>
+</section>
 
 <!-- ===== Modale : historique ===== -->
 <section id="pageHistorique" class="page" aria-label="Tes saisons" hidden>
@@ -272,8 +322,13 @@
         <div class="seg" data-opt="salary"><button data-val="2026" class="on">Valeur 2026</button><button data-val="ERA">Valeur époque</button></div>
       </div>
       <div class="opt-row">
-        <div class="opt-text"><strong>Sons</strong><span>Le match sur table.</span></div>
+        <div class="opt-text"><strong>Sons</strong><span>Le direct, le match sur table et tes cartes.</span></div>
         <div class="seg" data-opt="sons"><button data-val="on" class="on">Avec sons</button><button data-val="off">Silence</button></div>
+      </div>
+      <!-- S75 : le niveau de l'adversaire sur table. Une préférence, pas un réglage de partie. -->
+      <div class="opt-row">
+        <div class="opt-text"><strong>Adversaire sur table</strong><span>Recrue : un geste par main, jamais de relance, et il fonce au filet quand il est mené. Pro : il joue au mieux.</span></div>
+        <div class="seg" data-opt="niveauTable"><button data-val="RECRUE" class="on">Recrue</button><button data-val="PRO">Pro</button></div>
       </div>
       <div class="opt-row">
         <div class="opt-text"><strong>Signables seulement</strong></div>
@@ -304,11 +359,12 @@
 
     <div class="modal-body options np-body">
       <p class="np-reprise" id="npReprise" hidden></p>
+      <button type="button" class="btn np-aide" id="npAide">❓ Comment on joue, en cinq cartes</button>
       <div class="opt-row opt-modes">
         <div class="opt-text"><strong>Alignement</strong></div>
         <div class="seg seg-wrap" data-opt="format">
-          <button data-val="COMPLET" class="on">Complet<em>23 joueurs · 95,5 M$</em></button>
-          <button data-val="EXPRESS">Express<em>6 cases · 34 M$</em></button>
+          <button data-val="COMPLET" class="on">Complet<em>23 joueurs · 95,5&nbsp;M$</em></button>
+          <button data-val="EXPRESS">Express<em>6 cases · 34&nbsp;M$</em></button>
         </div>
       </div>
       <div class="opt-row opt-modes">
@@ -326,22 +382,29 @@
         </div>
         <select id="epoqueSelect" class="opt-select" aria-label="La saison à jouer"></select>
       </div>
-      <!-- Le repêchage : d'où viennent TES joueurs, quand la ligue est fixée à
-           une année. Toutes les époques, c'est le fantasy draft : une équipe de
-           rêve bâtie sur 55 saisons pour aller chercher la Coupe de 1970-71. -->
+      <!-- Le repêchage : d'où viennent TES joueurs. Toutes les époques, c'est le
+           fantasy draft : une équipe de rêve bâtie sur 55 saisons pour aller
+           chercher la Coupe de 1970-71. Dans la saison, les clubs de l'année de
+           la ligue. Une franchise (S73), toute l'histoire d'un club,
+           relocalisations comprises : Sakic nordique et Sakic avalanche. -->
       <div class="opt-row opt-modes" id="repechageRow" hidden>
         <div class="opt-text"><strong>Repêchage</strong></div>
         <div class="seg seg-wrap" data-opt="repechage">
           <button data-val="SAISON" class="on">Dans la saison<em>les clubs de l'année</em></button>
-          <button data-val="TOUTES">Toutes les époques<em>fantasy draft</em></button>
+          <button data-val="TOUTES">Toutes les époques<em>l'équipe de rêve</em></button>
+          <button data-val="FRANCHISE">Une franchise<em>toute son histoire</em></button>
         </div>
+        <select id="franchiseSelect" class="opt-select" aria-label="La franchise"></select>
+        <small class="np-lignee" id="franchiseLignee"></small>
       </div>
       <!-- LE MODE BONUS. JP : *mode bonus genre blood bowl, fft et autres jeux
            de sport de table*, puis *viser un modèle à la blood bowl, mais plus
            rapide*. Le repêchage ne change pas d'un poil : c'est ce qu'on FAIT
            de l'alignement une fois bâti qui change. La saison complète reste
-           le jeu ; le tournoi sur table est l'autre façon de s'en servir. -->
-      <div class="opt-row opt-modes">
+           le jeu ; le tournoi sur table est l'autre façon de s'en servir.
+           S79 : le mode se choisit AVANT, au choix des modes (« Nouvelle ») ;
+           la rangée garde l'état mais ne s'affiche plus — une chose, une place. -->
+      <div class="opt-row opt-modes" hidden>
         <div class="opt-text"><strong>Mode</strong></div>
         <div class="seg seg-wrap" data-opt="bonus">
           <button data-val="SAISON" class="on">La saison<em>82 matchs</em></button>
@@ -368,139 +431,59 @@
   </div>
 </div>
 
-<!-- ===== Modale : règles ===== -->
+<!-- ===== LES RÈGLES : un écran secondaire du Menu, par-dessus tout ; « ‹ Retour » y ramène ===== -->
 <section id="pageRegles" class="page" aria-label="Règles du jeu" hidden>
-  <div class="page-tete"><h2><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles et mathématiques du jeu</h2></div>
+  <div class="page-tete"><button type="button" class="retour-btn" data-retour><svg class="ico" aria-hidden="true"><use href="#i-retour"/></svg>Retour</button><h2><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Les règles</h2></div>
     <div class="page-corps bible" id="bibleBody">
-      <h3>0. Comment on joue</h3>
-      <p>La roulette sort une <strong>saison</strong> et une <strong>équipe</strong>. Tu signes <strong>un seul joueur</strong> de ce vestiaire, puis elle tourne à nouveau. Tu as 2 relances d'année, 2 relances d'équipe et 2 « passer » — elles sont rares, garde-les pour un vestiaire qui ne donne rien. Objectif : 23 joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>, puis 82 matchs contre 31 vraies équipes historiques et les séries. Le 82-0 est le Graal ; la Coupe est le vrai but. Une partie prend cinq à dix minutes : c'est un sudoku de hockey.</p>
-      <p><strong>Le jeu récompense la chasse aux aubaines.</strong> Les salaires sont ceux qui ont vraiment été payés, et un contrat ne suit pas toujours la saison : Fedorov 1993-94 coûte 1,15 M$. Trouver ces joueurs-là est le métier. Le garde-fou, c'est la <strong>zone d'efficacité</strong> (section 5) : un joueur ne rend pas partout dans l'alignement, alors on ne peut pas empiler douze vedettes sous-payées sans en gaspiller la moitié.</p>
-      <p>Ce que tu vois avant de signer : le salaire, l'archétype, la zone et les traits sur la carte, puis toutes les statistiques et le <strong>profil mesuré</strong> dans la fiche au clic. Ce que tu ne vois pas : <strong>aucune cote</strong>. Le jeu n'en affiche nulle part. Un joueur se juge sur ce qu'il a fait.</p>
-      <p>La carte propose la case où le joueur rend le mieux : sa position naturelle d'abord, puis sa zone. Quand la seule case libre est <strong>sous sa zone</strong>, la carte le dit en rouge avant que tu signes. Tu peux viser une autre case en la touchant dans l'alignement, ou déplacer quelqu'un après coup.</p>
-      <p><strong>Budget du choix</strong> : le plafond restant moins le salaire plancher (0,775 M$) de chaque case qu'il te restera à combler. Dépasser ce budget, c'est te condamner à ne pas finir tes 23.</p>
+      <!-- 1.0 (C6). La page dit les règles avec les MOTS DE L'ÉCRAN, rangées par ce qui fait un build. Chaque
+           chiffre vient d'une constante du code ; scripts/check_clarte.mjs les compare. L'historique des règles
+           est dans docs/decisions.md. -->
+      <h3>Le repêchage et le plafond</h3>
+      <p>La roulette sort une <strong>saison</strong> et une <strong>équipe</strong> ; tu signes un joueur de ce vestiaire, puis elle tourne. Tu as <strong>2</strong> relances d'année, <strong>2</strong> d'équipe et <strong>2</strong> « passer ». Il faut <strong>23</strong> joueurs (4 trios, 3 paires, 2 gardiens, 3 réservistes) sous le plafond de <strong>95,5 M$</strong>. En <strong>Express</strong>, tu combles 6 cases sous 34 M$ et une vraie équipe fournit le reste ; en <strong>Loto</strong>, la roulette te montre le joueur d'une même case chez trois clubs.</p>
+      <p>Le <strong>budget du choix</strong>, c'est le plafond restant moins 0,775 M$ par case qu'il te restera à combler. Au-delà, le bouton dit « Signer · bloque la fin ». Les salaires sont les vrais, ramenés au plafond : trouver les aubaines, c'est le métier. Aucune cote ne s'affiche, ni avant ni après : un joueur se juge sur ce qu'il a fait.</p>
 
-      <!-- Les règles du mode bonus sont ÉCRITES DANS LE CODE et injectées ici
-           par `remplirReglesDuPlateau` (js/game.js) depuis `reglesDuPlateau()`
-           (js/table.js) : l'écran du plateau lit la même source, et personne
-           ne recopie un chiffre qui finira par mentir. -->
-      <h3>0a. Le mode bonus « Sur table »</h3>
-      <p>Un <strong>quatrième réglage</strong> dans les options dit ce qu'on fait de l'alignement une fois bâti : la saison de 82 matchs (le jeu d'origine) ou un <strong>tournoi de six clubs joué sur un plateau</strong>, à la Blood Bowl, où c'est toi qui joues chaque geste. Le repêchage ne change pas d'un poil — mêmes 23 cases, même plafond, même roulette.</p>
-      <p>C'est un jeu d'<strong>arcade</strong>, pas une simulation : cinq buts par équipe par match, des pointages de borne. La crédibilité, c'est la saison qui la porte.</p>
-      <p>Pour l'essayer sans bâtir d'alignement : <strong>« Jouer un match d'exhibition »</strong>, dans l'écran Nouvelle partie, tire deux vrais clubs et ouvre le plateau tout de suite. Rien n'est écrit — ni la partie en cours, ni l'historique.</p>
+      <h3>Un joueur se lit</h3>
+      <ul>
+        <li><strong>Son rôle</strong>, ce qu'il fait : 🎯 sniper, 🅰️ passeur, ☯️ two-way, 🦍 power forward, 🔧 checker, 🪠 plombier, 👊 bagarreur ; en défense 🛑 défensif, 🚀 offensif, 🏒 manieur de rondelle, 💪 physique, ☯️ two-way. Il est lu dans ses vraies stats, comparées à celles de sa saison. La fiche montre <strong>ses rôles</strong> : sa maîtrise de chacun, d'élite à faible.</li>
+        <li><strong>Son niveau</strong>, ce qu'il valait dans sa saison à son poste : Soutien, Régulier, Pilier, ★ Étoile (le 4 % du haut), ★ Phénomène (le 1 % du haut).</li>
+        <li><strong>Sa zone</strong>, où il rend : T1, T1-2, T2-3, T3-4, T4 pour un avant ; P1, P1-2, P2, P3 pour un défenseur. Chaque case de l'alignement nomme les zones qui y sont chez elles. Un cran de trop passe ; deux coûtent cher, et plusieurs joueurs mal placés dans une même unité coûtent plus que leur somme.</li>
+        <li><strong>Sa position</strong> : un centre à l'aile perd 3, un ailier au centre 5, un ailier sur l'autre aile 2, un défenseur du mauvais côté 2. Il s'adapte : la pénalité fond des deux tiers en 15 matchs à la même case.</li>
+        <li><strong>Sa carrure</strong> : 🪨 costaud ou 🪶 léger. Elle décide de ce que rapporte l'agressivité.</li>
+        <li><strong>Ses jambes</strong> : sa fatigue, sur 100.</li>
+        <li><strong>Un trophée</strong>, rarement : 🛡️ Selke, 🧱 Norris, 🥅 Vézina, 🏆 Conn Smythe, ⚡ vitesse, 💣 lancer, 🧭 meneur, 🥊 colosse, 🔁 bidirectionnel, 🪄 créateur, 🧤 voleur. Chacun ajoute à un chiffre que le moteur lit déjà.</li>
+        <li><strong>Un gardien</strong> se lit à son % d'arrêts, le seul chiffre de sa fiche que le moteur lit, et à son style : 🏔️ mur, 🤸 acrobate, 🦾 de fer, 🧍 constant.</li>
+      </ul>
+
+      <h3>Tes lignes</h3>
+      <p>Chaque trio et chaque paire joue un <strong>système</strong>. Trios : 🔥 Échec avant 2-1-2, 🌀 Cycle et possession, 🌧️ Volume de tirs, 🪤 Trappe 1-3-1, 🏹 Contre-attaque, 🧲 Jeu d'enclave, 🧰 Trio de plombiers, ou 🎲 Hourra, sans système. Paires : 🏠 Rester à la maison, 🛫 Activer les défenseurs, 💨 Relance rapide, 🧹 Nettoyer l'enclave, 🌗 Jeu à deux sens.</p>
+      <p>Un système demande un rôle par case. Le <strong>fit</strong> (sur mesure, bon, moyen, mauvais) dit à quel point tes joueurs le remplissent : c'est leur maîtrise de ce rôle qui compte, pas seulement leur rôle principal. Le fit plafonne la <strong>chimie</strong>, qui monte en jouant ensemble et ne se perd pas ; l'<strong>entente</strong> (des joueurs qui restent ensemble) et la <strong>maîtrise des systèmes</strong> s'apprennent de la même façon. Chaque système a un gain et un prix, chiffrés dans sa fenêtre, et chacun en étouffe un autre : la fenêtre dit lequel l'adversaire jouera probablement, selon le dépistage.</p>
+      <p><strong>L'agressivité</strong> (🕊️ basse, ⚖️ moyenne, 💥 haute, 🪓 rentre-dedans) se juge à la carrure de la ligne. Une ligne costaude 🪨 tire jusqu'au double du bonus défensif du jeu physique ; une ligne légère 🪶 presque rien, et elle prend jusqu'à deux fois plus de punitions de trop. Jouée basse, une ligne légère perd peu et gagne en discipline.</p>
+      <p><strong>La glace</strong> : de 30 à 90 secondes par présence, 60 par défaut. Plus de glace, plus de lancers, et plus d'usure des jambes. À la base, les trios se partagent la glace à 30, 26, 23,5 et 20,5 %, les paires à 39, 31,5 et 29,5 %.</p>
+      <p><strong>Le trio de fermeture</strong> 🔒 part contre le premier trio adverse ; c'est le 3e par défaut. Désigne un trio qui étouffe.</p>
+      <p><strong>La consigne du match</strong>, un seul réglage : 😌 basse (précision −5 %, usure des jambes −20 %), 🎚️ normale, ou 🌡️ haute (précision +6 %, buts contre −1 %, blessures +25 %, usure des jambes +12 %). Basse penche défense, haute penche attaque.</p>
+
+      <h3>Les jambes et les gardiens</h3>
+      <p>Chaque patineur a des <strong>jambes</strong>, sur 100. Un match les use selon sa glace, l'agressivité et le système de sa ligne ; chaque journée en rend. Sous 90, chaque point de moins lui coûte 0,5 % de lancers, de finition et de création ; sous 60, il se blesse plus. Pousser ton premier trio rapporte et se paie : un banc solide est un vrai build.</p>
+      <p><strong>Les gardiens</strong> : la rotation du club choisit le partant d'office. L'auxiliaire prend sa vraie part des départs, entre 12 et 50 % ; sans auxiliaire, un gardien rappelé en prend 20 %. Un gardien garde ses jambes trois départs de suite ; au quatrième, il en perd 5 par départ, jamais sous 40, et chaque 5 points perdus lui coûtent 1 % de buts accordés de plus. Une soirée de congé les lui rend. Dans « Préparer le match », <strong>Devant le filet ce soir</strong> te laisse donner le filet à l'autre.</p>
+
+      <h3>Les cartes</h3>
+      <p>Avant chaque <strong>gros match</strong>, annoncé 2 journées d'avance, et chaque match de séries, tu piges une <strong>main de 5 cartes</strong> et tu as <strong>3 d'élan</strong> pour les jouer. L'adversaire joue aussi sa main, que tu vois avant de jouer la tienne ; à partir de la journée 55 et dès la troisième ronde des séries, il a 4 d'élan. Le <strong>dépistage</strong> donne ses plans probables : prépare-toi pour un. S'il le joue, précision +5 % et buts contre −5 % ; si tu t'es trompé, précision −4 % et buts contre +4 %.</p>
+      <p>Ton <strong>deck</strong> commence avec 10 cartes : trois lancers de la pointe, trois blocs de tirs, deux changements courts, le discours du capitaine et la vidéo de l'adversaire. Une victoire dans un gros match ou une série gagnée en ajoute une, que tu choisis ; tu peux aussi passer, car un deck mince pige plus souvent ses meilleures cartes. Une défaite contre ta némésis ou une longue blessure glisse une malédiction dans le deck, deux au plus, et une série gagnée en retire une.</p>
+      <p><strong>Les cartes de club</strong> paient d'où viennent tes joueurs : 👬 vrais coéquipiers (même club, même saison), 🎽 même franchise, 🧩 ligne d'origine, 🕰️ même décennie, 🪖 vieille garde, 🔰 relève, 🏛️ dynastie de club. La puce se voit sur l'unité même sans la carte.</p>
+      <p><strong>Les mains</strong> des journées 20, 40 et 60 t'offrent trois cartes de sortes différentes : un effet pour la saison, un vrai joueur, une amélioration à poser au verso d'une carte, un stage de système. <strong>Le proprio</strong> fixe un défi pour tes 20 prochains matchs : réussi, une carte de plus ; raté, les voyages usent les jambes de 12 % de plus pendant 10 matchs. <strong>Les dilemmes</strong> arrivent à journées fixes, tirés d'histoires vraies, avec leurs chiffres. Au <strong>ballottage</strong>, une longue blessure t'offre trois réguliers de la ligue, sous 3 % du plafond.</p>
+
+      <h3>Les effets et les pourcentages</h3>
+      <p>Un effet se lit en pourcentage de ce qu'il change. « Tirs +8 % » multiplie ton volume de tirs, « Précision +4 % » ta finition, « Buts contre −5 % » la chance qu'un tir adverse entre, « Usure des jambes +12 % » ce qu'un match coûte à tes jambes. Les effets <strong>se multiplient entre eux</strong>, puis le moteur les passe sous ses plafonds : une équipe déjà au plafond de précision ne gagne rien d'une carte de précision. « Préparer le match » et l'affiche du prochain match donnent le <strong>total du soir</strong> par effet, tel que le moteur le jouera. Les systèmes et l'agressivité jouent ligne par ligne, en dehors de ce total.</p>
+
+      <h3>La ligue et les séries</h3>
+      <p>Ta formation joue contre 31 vraies équipes historiques, tirées dans 55 saisons ; un même joueur-saison n'habille qu'une équipe. En mode <strong>Une saison</strong>, la ligue est la vraie ligue de l'année, et tu es l'équipe de trop. Les 16 premiers vont en séries (8 dans une ligue de moins de seize clubs) : quatre rondes 4 de 7, match par match, avec blessures et usure. Chaque match de ta série a sa main, son dépistage et un choix au deuxième entracte. Il n'y a pas de conférences : le classement général décide, départagé aux victoires puis au différentiel. Un match regardé en direct est celui que le moteur joue : le direct, le sommaire et le bilan disent les mêmes buts.</p>
+
+      <h3>Le mode Rogue</h3>
+      <p>Une run, c'est plusieurs saisons avec la même équipe. Tu pars avec des plombiers, 40 jetons et un plafond de 82 M$. Chaque résultat rapporte : une victoire 5 jetons (8, puis 10 avec les commanditaires), une défaite en prolongation 4, une défaite 2, un gros match gagné 20, un objectif du proprio 20, une ronde de séries gagnée 40. Chaque saison, le proprio en veut plus : faire les séries, puis gagner une ronde, puis atteindre les demi-finales, puis la finale. Manque-le et la run finit ; gagne la Coupe et elle est gagnée. La boutique vend des packs de joueurs et de cartes ; au ballottage, une réclamation coûte 10 jetons. Tes écussons et tes jalons débloquent la suite, pour toutes les runs.</p>
+
+      <h3>Sur table, le mode bonus</h3>
+      <p>Ton alignement peut aussi jouer un <strong>tournoi de six clubs sur un plateau</strong>, à la Blood Bowl, où tu joues chaque geste. C'est un jeu d'arcade ; la saison porte la crédibilité. Pour l'essayer tout de suite : <strong>Exhibition</strong>, dans le menu. Ses règles, tirées du code du plateau :</p>
       <div id="reglesPlateau"></div>
-
-      <h3>0b. Deux alignements, deux tirages</h3>
-      <p>Le moteur ne change pas d'un mode à l'autre : ce sont toujours 23 cases, le même malus de zone et la même ligue de 32 équipes. Ce qui change, c'est ce qu'on te demande de bâtir, et comment la roulette te le propose. Les deux réglages sont dans les <strong>options</strong>, et en changer relance une partie.</p>
-      <p><strong>L'alignement</strong> dit combien de cases tu combles :</p>
-      <ul>
-        <li><strong>Complet</strong> — les 23, sous 95,5 M$. La partie complète, cinq à dix minutes.</li>
-        <li><strong>Express</strong> — six cases seulement : un trio, une paire, un partant. Le reste de l'alignement t'est fourni par une vraie équipe tirée au hasard, affichée au tableau de bord ; ces joueurs ne coûtent rien au plafond et ne se déplacent pas. Le plafond suit : <strong>34 M$</strong>, la médiane mesurée de ce qu'une vraie équipe met sur ces six cases-là (25e centile 23 M$, 75e centile 43 M$ sur les 1395 équipes-saisons). Deux minutes.</li>
-      </ul>
-      <p><strong>Le tirage</strong> dit d'où viennent les joueurs :</p>
-      <ul>
-        <li><strong>Vestiaire</strong> — le jeu d'origine, décrit ci-dessus : une équipe, tout son club, un joueur par tour pour n'importe quelle case libre, et les relances d'année, d'équipe et de passe.</li>
-        <li><strong>Loto</strong> — la roulette sort <strong>trois</strong> équipes et te montre, de chacune, le joueur qui <strong>joue la position</strong> de la case que tu combles, au rang de la case : le deuxième ailier gauche de trois clubs pour ton deuxième trio, leur deuxième gardien pour ton auxiliaire. Trois candidats à leur poste, jamais un centre poussé à l'aile. Tu en choisis un. Viser une autre case vide recompose la main des mêmes trois clubs ; les <strong>relances</strong> relancent les trois clubs d'un coup — deux, comme ailleurs.</li>
-      </ul>
-
-      <h3>1. La valeur d'un joueur : son rang, pas une cote</h3>
-      <p>Chaque joueur reçoit une <strong>valeur</strong> interne qui est son <strong>rang statistique dans sa propre saison</strong>, projeté sur l'échelle historique de sa position. Elle sert à trois choses : sa zone d'efficacité, son salaire quand aucun montant réel n'est publié, et l'alignement automatique des 31 équipes adverses. Elle ne s'affiche jamais.</p>
-      <ul>
-        <li><strong>Attaquant</strong> : production 54 % (points par match, à la puissance 0,75 pour que le premier se détache du vingtième), volume de lancers 10 %, différentiel 12 % (une mauvaise équipe coûte au plus la moitié de ce qu'une grande donne), usage 24 % (temps de glace, sinon part des matchs joués). Un fabricant de jeu qui tire peu — Oates, Federko, Stastny — n'est plus puni de servir plutôt que de finir.</li>
-        <li><strong>Défenseur</strong> : production 30 %, lancers 10 %, différentiel 36 %, usage 24 %.</li>
-        <li><strong>Gardien</strong> : écart d'arrêts à sa ligue 72 %, charge de travail 28 %.</li>
-      </ul>
-      <p>La fiche montre le <strong>profil mesuré</strong> sur ces axes, plus la création : chacun en écart au régulier moyen, 1,00 = la moyenne.</p>
-      <p>Chaque terme est divisé par le <strong>régulier moyen de la saison</strong> du joueur, pour que 60 points en 1981 et 60 points en 2003 ne se ressemblent pas. Le différentiel est lissé de la moitié de celui de son vestiaire, sinon le premier trio d'une équipe faible serait puni de l'être. Et un taux sur huit matchs ne veut rien dire : chaque taux est ramené vers la moyenne au prorata de l'échantillon.</p>
-      <div class="math-box"><code>poids de l'échantillon = PJ / (PJ + 22)</code></div>
-      <p><strong>Ce que le rang ne voit pas, et c'est assumé</strong> : la défensive d'un attaquant avant 1998, et tout ce que le +/- attribue au joueur alors que c'est l'équipe. Les traits (section 7) existent pour ça.</p>
-
-      <h3>2. Ajustement par époque</h3>
-      <p>L'option « prorata 82 · époque » ramène les points sur la base de la LNH moderne (~3,15 buts par équipe par match) et sur 82 matchs pour les saisons écourtées. C'est un confort de lecture : le moteur, lui, compare toujours un joueur au régulier moyen de sa saison.</p>
-      <div class="math-box"><code>Facteur d'époque = 3,15 / (buts par match de la saison)</code><br><code>Points ajustés = points réels × facteur</code></div>
-
-      <h3>3. Salaires et plafond</h3>
-      <p>Quand un salaire réel publié existe (1989-90 et après), c'est lui, au prorata du plafond de l'année ; la fiche indique <strong>Salaire réel</strong>. Pour 1989-90 à 2003-04, le « plafond » est la masse salariale de l'équipe la plus dépensière, lissée à moitié vers le rang centile moderne. Sinon, <strong>Salaire estimé</strong> par un barème sur la valeur :</p>
-      <div class="math-box"><code>Valeur 50 → 0,78 M$ · 70 → 2,3 M$ · 80 → 5,6 M$ · 85 → 8,8 M$ · 88 → 11,5 M$ · 92 → 13,75 M$ · 99 → 18,5 M$</code><br><code>Avant 1989-90, barème tassé vers le haut : 99 → 11,5 M$</code><br><code>Salaire époque = salaire 2026 × (plafond de l'année / 95,5 M$)</code></div>
-      <p><strong>🐣 Contrat d'entrée</strong> : rien avant 1995-96 ; de 1995-96 à 2003-04, base plafonnée (~2,7 % du plus gros budget) avec bonis ; depuis 2005-06, base ~1 % du plafond et bonis plafonnés à 2,85 M$. Il couvre le premier contrat d'un joueur de 24 ans ou moins : 3 saisons à 18-21 ans, 2 à 22-23, 1 à 24.</p>
-
-      <h3>4. Positions et pénalités</h3>
-      <ul>
-        <li>Centre à l'aile : <strong>−3</strong>. Ailier du mauvais côté : <strong>−2</strong>. Ailier au centre : <strong>−5</strong>.</li>
-        <li>Défenseur du mauvais côté (gaucher à droite ou l'inverse, d'après la main de tir) : <strong>−2</strong>.</li>
-        <li>Un défenseur ne joue jamais à l'attaque, ni l'inverse. Les cases de réserve prennent tout le monde.</li>
-        <li>Les réservistes remplacent les blessés à la première case compatible ; une case vide est comblée par un rappel de la ligue mineure, qui tire 30 % moins et finit 20 % moins bien que le régulier moyen.</li>
-      </ul>
-
-      <h3>5. Zones d'efficacité : le garde-fou</h3>
-      <p>Chaque joueur a une zone, les unités où il rend à 100 %. Elle vient de sa valeur, et de sa polyvalence pour les zones « 9 » et « 6 D » :</p>
-      <ul>
-        <li><strong>Attaquants</strong> — l'étiquette dit les trios où il rend à 100 % : « 1er trio » (Top 3), « 1er-2e trio » (Top 6), « 1er-3e trio » (Top 9, polyvalent), « 2e-3e trio » (Middle 6), « 2e-4e trio » (Bottom 9, polyvalent), « 3e-4e trio » (Bottom 6), « 4e trio ».</li>
-        <li><strong>Défenseurs</strong> — « 1re paire » (Top 2), « 1re-2e paire » (Top 4), « 1re-3e paire » (Top 6 D, polyvalent), « 2e paire » (tient la 3e), « 3e paire » (peut tenir la 2e), « Réserve D ».</li>
-        <li><strong>Gardiens</strong> — partant numéro un, partant (les deux rôles), auxiliaire. Pas de malus chez les gardiens.</li>
-      </ul>
-      <p>Une unité où tout le monde est dans sa zone reçoit <strong>✨ optimal, +2 en attaque et +2 en défense</strong>. Sinon elle est <strong>⚠️ mal assortie</strong>, et le malus est <strong>asymétrique</strong> :</p>
-      <div class="math-box"><code>Sous sa zone (un Top 6 au 4e trio) : −0,40 × (sa valeur − le calibre attendu de la case), par joueur</code><br><code>Au-dessus de sa zone (un Bottom 6 au 1er trio) : −3 par cran</code><br><code>Plafond : −70 par unité</code></div>
-      <p>Empiler, c'est mettre du talent qu'on paie <em>sous</em> sa zone, et on le punit fort. Une équipe faible qui place ses joueurs <em>au-dessus</em> de la leur n'a personne de mieux : on la punit à peine. Le malus est proportionnel plutôt que forfaitaire pour qu'améliorer un joueur ne puisse jamais rendre l'équipe pire.</p>
-      <p>Ces points se convertissent en buts attendus de l'unité, moitié par le volume de lancers, moitié par leur qualité :</p>
-      <div class="math-box"><code>facteur sur les buts attendus = e^(points / 42)</code><br><code>−10 → −21 % · −20 → −38 % · −50 → −70 %</code></div>
-      <p>C'est le mécanisme qui décide de la partie. Mesuré : le meilleur alignement légal choisi sur la seule valeur, cueilli librement dans 55 saisons, fait environ 60 victoires, comme le Canadien de 1976-77 ; le même exercice fait <em>parfaitement</em>, chaque joueur dans sa zone et chaque trio en chimie parfaite, en fait 68 à 70. Monter son alignement vaut donc huit à dix victoires, et c'est là que le jeu se joue. Sans le malus, l'empilement se placerait loin au-dessus de toute vraie équipe de l'histoire.</p>
-
-      <h3>6. La chimie : lue dans la fiche</h3>
-      <p>Aucune cote n'entre dans la chimie. Le <strong>penchant</strong> d'un attaquant est la part de ses points qui vient de ses buts, moins celle de sa ligue (≈ 0,42, stable sur 55 ans). Positif = il finit, négatif = il sert. Sous 15 points, le penchant est nul.</p>
-      <p>Deux nombres décident d'un trio : l'<strong>écart</strong> entre le plus tireur et le plus passeur (un trio a besoin de quelqu'un qui finit <em>et</em> de quelqu'un qui sert), et l'<strong>excès</strong>, à quel point le trio penche du même bord (trois tireurs pour une rondelle).</p>
-      <div class="math-box"><code>chimie du trio = production moyenne × (14 × écart − 12 × excès)</code><br><code>🌟 Chimie parfaite ≥ +3 · 🎯 Tandem moteur ≥ +1,2 · 👍 Standard · ⚠️ Conflit de rôles ≤ −1,2</code></div>
-      <p>La mesure regarde l'équilibre, jamais le niveau : le moteur compte déjà le volume, la finition et la création de chacun, et récompenser un trio parce qu'il produit compterait deux fois. Seul le poids suit la production. <strong>La chimie de trio ne touche que l'attaque.</strong> Le talent du passeur, lui, passe par la création (section 8) : un fabricant de génie et un fabricant ordinaire donnent le même équilibre, pas les mêmes buts.</p>
-      <p>Une paire de défenseurs se lit sur la production de chacun : un qui monte et un qui couvre, c'est ⚖️ équilibré ; deux qui montent, c'est 🚀 hyper-offensif, et la paire concède en repli ; deux qui ne produisent rien, c'est 🔒 hermétique.</p>
-      <div class="math-box"><code>attaque = 3 × écart de production + 1,5 × (production moyenne − 1)</code><br><code>défense = −2,6 × (production moyenne − 1,2) si les deux montent · +2,2 × (0,85 − production moyenne) si hermétique</code></div>
-      <p>Un trio ou une paire qui reste intact gagne jusqu'à <strong>+2 de continuité</strong>, un point par 25 matchs.</p>
-      <p>L'<strong>archétype</strong> (🎯 franc-tireur, 🪄 fabricant, 💥 puissance, ⚖️ complet, 🔋 énergie… ; 🚀 défenseur offensif, 🔒 défensif… ; 🧱 mur, ⚡ acrobate, 🔋 de fer) décrit la <strong>saison</strong> sur quatre axes : production, penchant, lancers, punitions, chacun sur le régulier moyen de l'année. Il aide à lire un vestiaire ; il n'entre pas dans le moteur. Gretzky 1981-82 sort franc-tireur, Gretzky 1985-86 fabricant : les deux sont vrais.</p>
-      <p>Deux étiquettes disent ce qu'un joueur fait <strong>sans la rondelle</strong>, au 85e centile des réguliers de sa saison et de sa position : <strong>🧊 Défensif</strong> (son différentiel corrigé de celui de son club, ses points en désavantage numérique, son temps de glace) et <strong>🪨 Robuste</strong> (ses minutes de punition, ses mises en échec). Le bassin se trie sur les deux. Une brigade défensive alloue moins de buts ; une équipe robuste pèse les soirs éreintants et en séries, où l'usure s'accumule de ronde en ronde.</p>
-
-      <h3>7. Les traits : ce que la feuille de pointage ne dit pas</h3>
-      <p>Un trait n'existe que là où les colonnes sont aveugles. Le moteur lit déjà les lancers, la finition, les arrêts et le +/- ; un trait « franc-tireur » recompterait ce qu'il compte déjà. Deux étages, et rien d'autre. Un trait <strong>appartient au joueur, pas à sa case</strong> : un Selke au 4e trio défend comme au 1er. Seule condition : être habillé. Un réserviste ne compte pas.</p>
-      <p><strong>Les votés</strong>, une saison à la fois (lauréat, puis finaliste) :</p>
-      <ul>
-        <li>🛡️ <strong>Selke</strong> et 🧱 <strong>Norris</strong> : l'équipe concède 2 % de buts en moins (1 % pour un finaliste), sur tout le match. Le Selke étouffe en plus <strong>pendant ses présences</strong> : les lancers concédés quand son trio est sur la glace entrent 9 % moins (6 % pour un finaliste).</li>
-        <li>🥅 <strong>Vezina</strong> : le gardien laisse passer 4 % de moins (2 %). Seulement depuis 1981-82 : avant, le Vezina allait au club qui allouait le moins de buts, ce que le moteur mesure déjà.</li>
-        <li>🏆 <strong>Conn Smythe</strong> : <strong>en séries seulement</strong>, +3 % d'attaque, ou un gardien 4 % plus dur à battre.</li>
-      </ul>
-      <p><strong>Les réputations</strong>, sur toute une carrière, 179 joueurs marquants dont un amateur affirmerait le trait sans hésiter :</p>
-      <ul>
-        <li>⚡ <strong>Vitesse</strong> : +3,5 % de lancers pour lui. S'éteint après 34 ans quand l'âge est connu.</li>
-        <li>💣 <strong>Lancer</strong> : ses lancers entrent 3 % plus souvent.</li>
-        <li>🪄 <strong>Créateur</strong> : toute son équipe finit 0,6 % mieux.</li>
-        <li>🧭 <strong>Meneur</strong> : +2 de clutch en prolongation (plafonné à 9 par équipe) et +1 % en séries.</li>
-        <li>🔁 <strong>Bidirectionnel</strong> : les dieux des deux sens (Gainey, Carbonneau, Bergeron, Danault…), <strong>dans leurs grosses saisons seulement</strong> — celles où les colonnes les montrent au 85e centile défensif. Même effet de présence que le Selke : 9 % de buts en moins quand ils sont sur la glace.</li>
-        <li>🥊 <strong>Colosse</strong> : dans ses grosses saisons (85e centile de robustesse), il ajoute un demi-écart-type à la robustesse de l'équipe, qui pèse les soirs éreintants et en séries (plafond : 1,8 par équipe).</li>
-        <li>🧤 <strong>Voleur</strong> : le gardien laisse passer 1,2 % de moins, toutes époques. Il rachète le trou du Vezina d'avant 1981-82.</li>
-      </ul>
-      <p><strong>Les canaux d'équipe saturent</strong> : la défensive au mieux −6 %, l'attaque +5 %, les séries +6 %, le gardien −6 %. Le quatrième Norris d'un vestiaire n'apporte pas autant que le premier. Vitesse et lancer, qui portent sur les lancers de leur seul porteur, ne sont pas bornés. Mesuré : une vraie équipe qui porte onze à treize traits gagne trois à quatre matchs de plus que la même rejouée sans.</p>
-      <p>Rareté : 1 % des joueurs-saisons portent un trait voté, 9 % une réputation. Ne rien porter veut dire « rien de particulier », ce qui est vrai. Sept saisons n'ont aucun Selke possible (créé en 1977-78).</p>
-
-      <h3>8. Le moteur : un match se joue lancer par lancer</h3>
-      <p>En 55 saisons, les lancers par équipe par match vont de 27 à 31 pendant que les buts varient de 55 % : le rythme n'a pas bougé, la finition oui. L'événement de base est donc le <strong>lancer</strong>, avec un tireur, un gardien et deux issues. La feuille de match en découle sans aucun ajustement après coup : les buts d'une équipe sont la somme de ceux de ses joueurs, les lancers d'un gardien sont ses arrêts plus les buts alloués, chaque but reçoit au plus deux passes (85 % une première, puis 62 % une seconde), attribuées aux coéquipiers sur la glace au prorata de leur propension à la passe.</p>
-      <div class="math-box"><code>lancers attendus = 28,7 × (pression / référence) × (pression adverse / référence)^−0,15</code><br><code>P(but) = 9,27 % × finition du tireur × facteur du gardien × facteur défensif × traits × chimie de l'unité × chance</code></div>
-      <ul>
-        <li><strong>Qui tire</strong> : un trio est tiré au prorata de son temps de glace (34/28/22/16 %), de son volume de lancers et de sa chimie ; une paire pareil (40/34/26 %). Les défenseurs prennent 25 % des lancers. Dans l'unité, le tireur est tiré au prorata de ses lancers par match dans sa vraie saison.</li>
-        <li><strong>La possession se partage, et la finition a un plafond.</strong> Le volume d'une unité est borné à 2 fois le régulier moyen et les lancers d'une équipe à environ 38 par match ; la finition de l'équipe (le % de tir de ses patineurs, pondéré par leurs lancers) est bornée à 1,2 fois la ligue. Ces trois bornes sont le 99e centile des vraies équipes : une ligne n'a qu'une rondelle, et douze pourcentages de tir d'élite ne s'additionnent pas. La chimie s'applique par-dessus, c'est elle qu'on récompense. Mesuré : un alignement parfaitement monté, chaque joueur dans sa zone et chaque trio en chimie parfaite, fait 68 à 70 victoires, quelques matchs de mieux que le Canadien de 1976-77 ; le même talent empilé sans égard aux zones en fait 52.</li>
-        <li><strong>Punitions et unités spéciales.</strong> Chaque équipe prend des punitions au rythme de son époque (≈ 4 par match en 1970, 5 dans les années 1980, 3 aujourd'hui), plus ou moins selon les minutes de punition réelles de ses joueurs habillés — et c'est le plus puni qui va au banc. Chaque mineure ouvre deux minutes d'avantage numérique, jouées comme un petit match dans le match : ta première unité (trois attaquants et deux défenseurs, les meilleurs à la création et à la finition) tire plus et finit mieux, la deuxième prend le tiers du temps, et les quatre meilleures cotes défensives d'en face défendent. Le premier but ferme l'avantage. Environ un but sur quatre se marque ainsi. Le +/- ne compte pas les buts en avantage, comme dans la vraie ligue.</li>
-        <li><strong>Finition</strong> : le pourcentage de tir du joueur, sur celui de sa ligue. Sous 20 lancers dans sa saison, il est pris pour moyen.</li>
-        <li><strong>Les passes causent les buts.</strong> Chaque lancer porte la <strong>création</strong> des quatre coéquipiers sur la glace : leurs passes par match, sur le régulier moyen de leur position et de leur saison. Elle est comparée à la création que le tireur a <em>vraiment</em> eue autour de lui dans sa saison (reconstituée en rangeant son équipe en trios et en paires), et la probabilité que le lancer entre suit la racine carrée du rapport. Rejoué avec ses vrais coéquipiers, un joueur marque comme dans la vraie vie ; placé à côté d'un meilleur passeur, il marque plus. Mesuré : Kurri 1984-85 marque 71 buts à côté de Gretzky, son vrai total, et 49 à côté d'un centre de quatrième trio. La création entre dans la finition d'équipe, donc sous le même plafond.</li>
-        <li><strong>Gardien</strong> : ce qu'il laisse passer par rapport à la ligue de sa saison. Un ,920 en 1975 est hors norme, le même chiffre en 2015 est ordinaire. L'auxiliaire part un match sur six.</li>
-        <li><strong>Défensive</strong> : elle agit sur la <strong>qualité</strong> des lancers, pas leur nombre. Mesuré sur 1392 équipes-saisons : la brigade d'un alignement n'explique pas les lancers concédés, elle explique le pourcentage d'arrêts. L'unité qui défend est tirée <strong>présence par présence</strong>, au prorata de son temps de glace seul, et chaque écart-type de brigade retire 4 % à la probabilité de but. Un 4e trio poreux coûte donc pendant ses propres treize minutes.</li>
-        <li><strong>Référence</strong> : tout est exprimé en écart à l'<strong>équipe moyenne une fois alignée</strong>, pas au joueur moyen. Les 18 meilleurs patineurs d'un club et son partant tirent 27 % de plus que le régulier moyen et arrêtent 10 % de plus.</li>
-        <li><strong>Chance</strong> : du PDO. Un bruit de 10 % sur la finition à chaque match, et un biais d'équipe de 3,5 % tiré une fois pour la saison. Le même alignement rejoué varie d'environ ±5 victoires.</li>
-        <li><strong>Prolongation</strong> : sigmoïde sur le clutch des deux équipes, plus les meneurs, divisée par 9. Le but gagnant appartient à un joueur comme les autres.</li>
-        <li><strong>Usure</strong> : un match sur quatre est éreintant ; la robustesse de l'alignement ajuste alors la défensive et les blessures y sont 50 % plus fréquentes.</li>
-        <li><strong>Blessures</strong> : chaque match, 0,15 % plus 1,5 % × (part des matchs ratés dans sa vraie saison)². Durée moyenne huit matchs, plafond quarante. Un réserviste prend la place, sinon un rappel. <strong>Les blessures s'appliquent aussi en séries.</strong></li>
-      </ul>
-
-      <h3>9. La ligue et les séries</h3>
-      <p>Ta formation plus 31 vraies équipes historiques tirées au hasard dans 55 saisons et alignées automatiquement (les 18 meilleurs patineurs par valeur, position par position). 82 rondes d'appariements, 1 312 matchs. Un même joueur-saison ne peut habiller qu'une seule équipe de la ligue, la tienne comprise.</p>
-      <p>À la fin de la saison, les <strong>statistiques de la ligue</strong> donnent les meneurs pour les points, les buts, les passes et le différentiel, plus les gardiens au pourcentage d'arrêts, à la moyenne de buts alloués et aux victoires (25 départs minimum pour les deux premiers, comme la vraie ligue l'exige). Chaque équipe historique est cliquable vers sa saison sur Hockey-Reference (adresse vérifiée pour chacune des 44 franchises).</p>
-      <p>Ton équipe s'appelle les <strong>NHL Stars</strong> — noir, blanc et orange, comme les vieux chandails du match des étoiles. <strong>La saison se pilote depuis l'écran de saison</strong> : ton prochain match en tête avec la fiche des deux clubs, puis les boutons qui font avancer le temps — une journée (ou la barre d'espace), dix journées, la fin — et les onglets qui disent où on en est : la journée (ton match et les quinze autres, chacun avec son sommaire), le classement, les meneurs, ton équipe avec ses blessés, ta fiche. <strong>Regarder le match</strong> ouvre le direct pour ton prochain match seulement, lancer par lancer, l'horloge qui descend, la pause avec les statistiques du match ; on n'y entre jamais d'office. Tout est déjà joué, l'écran révèle. Après, <strong>le bilan se lit par onglets</strong>, comme dans un jeu de gestion : le pointage et les boutons en tête, puis Bilan, Classement, Calendrier, Statistiques, Alignement — et Séries une fois jouées — un volet à la fois. Le <strong>calendrier complet</strong> se consulte journée par journée, chaque équipe ouvre son alignement avec ses 23 fiches simulées et ses 82 résultats, et chaque nom ouvre la fiche du joueur avec ses statistiques simulées à côté de sa vraie saison. Les palmarès rangent tous les joueurs de la ligue, pas seulement dix. Le <strong>récit de la saison</strong>, en tête du bilan, met des mots sur ce qui est arrivé : le départ, les séquences, les soirs qu'on retient, les vedettes, le gardien, l'infirmerie — il ne décide de rien, il raconte.</p>
-      <p>Les 16 premiers font les séries : quatre rondes 4 de 7, avec blessures et usure. <strong>Une saison, la Coupe cette année-là</strong> (options, « Ligue ») : tu choisis une année, la roulette ne sort que ses clubs, et la ligue est faite de tous ses vrais clubs — quatorze en 1970-71, vingt et un en 1985-86, trente-deux en 2024-25 — plutôt que de 31 clubs tirés dans 55 ans. <strong>Personne ne cède sa place : tu es l'équipe de trop.</strong> Ta formation s'ajoute à la vraie ligue (trente-trois clubs en 2024-25), et quand l'effectif est impair une équipe est en congé chaque journée, comme dans la vraie ligue : tout le monde joue quand même ses 82 matchs, la saison compte simplement quelques journées de plus. <strong>Le repêchage se règle à part</strong> (options, « Repêchage ») : dans la saison choisie, ou dans les 55 — le fantasy draft toutes époques, avec la Coupe de l'année à gagner au bout. <strong>Les séries se pilotent depuis l'écran des séries</strong> : ta série en tableau indicateur, un match à la fois dans toute la ronde (« Match suivant »), la ronde d'un coup, ou tout jusqu'à la Coupe ; les onglets montrent le tableau qui se remplit au fur et à mesure, les matchs de ta série, la ronde entière et les meneurs des séries. <strong>Regarder le match</strong> ouvre le direct pour ton prochain match : l'horloge <strong>descend</strong> comme au tableau indicateur, les tirs et les buts tombent au moment où ils sont arrivés, et tu ne connais le résultat qu'à la fin. Le moteur a déjà joué le match ; l'écran ne fait que le rejouer dans le temps. Dans une ligue de moins de seize clubs, huit vont en séries (quarts de finale, demi-finales, finale). Chaque match se joue <strong>lancer par lancer comme les autres</strong> et garde son sommaire — les buts avec leur temps écoulé (la convention de la feuille officielle) et leurs passes, les punitions, les tirs par période, les arrêts de chaque gardien. Clique un match pour l'ouvrir. Le temps d'un but n'est pas simulé par le moteur : chaque lancer reçoit un instant tiré dans les 60 minutes, ce qui met la feuille en ordre sans toucher à aucune probabilité. <strong>Les punitions se suivent sur une seule ligne du temps</strong> : une situation à la fois, deux minutes, fermée par le premier but de l'avantage (pas par un but en désavantage), et le puni revient au jeu. Les phrases qui accompagnent les buts décrivent ce qui vient d'arriver — elles ne décident de rien. <strong>Les statistiques des séries sont tenues à part</strong> de celles de la saison : leurs propres palmarès, leurs propres fiches.</p>
-      <p>Repères, mesurés sur le moteur : l'équipe moyenne fait 41 victoires. Une vraie équipe du dernier décile en fait 26, du premier 52. Le Canadien de 1976-77 en fait 61 à 63. Un alignement parfaitement monté en fait 68 à 70 et gagne la Coupe deux fois sur trois, pas plus. Le 82-0 n'est pas atteignable, et c'est voulu : dominer est possible, la Coupe reste un pari.</p>
     </div>
 </section>
 

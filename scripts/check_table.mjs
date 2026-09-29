@@ -53,7 +53,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, getHiddenRatings, SLOTS } from '../js/sim.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { equipeDeTable, jouerMatchAuto, nouveauMatch, iaPresence, resultatDe,
+import { equipeDeTable, jouerMatchAuto, nouveauMatch, iaPresence, resultatDe, gagnantDuMatch,
          statsDeTable, PERIODES, PRESENCES_PAR_PERIODE, GABARITS, TIRS,
          surLaGlace, essouffle } from '../js/table.js';
 
@@ -312,7 +312,17 @@ for (const [ia, ib, mot] of [[0, 9, 'le 1er décile contre le 10e'], [0, 4, 'le 
       const eqB = equipeDeTable(b.nom, b.tag, b.roster, inverse ? 'A' : 'B');
       const r = jouerMatchAuto(inverse ? eqB : eqA, inverse ? eqA : eqB, `p${ia}${ib}${i}${j}${inverse}`);
       const butsA = inverse ? r.gfB : r.gfA, butsB = inverse ? r.gfA : r.gfB;
-      if (butsA > butsB) v++;
+      /*
+       * UNE VICTOIRE EN TIRS DE BARRAGE EST UNE VICTOIRE (S74). On comptait
+       * `butsA > butsB` — mais la fusillade ne touche PAS au pointage (S46,
+       * exprès : sinon les égalités de la feuille cassent), donc un match
+       * gagné aux tirs de barrage comptait comme une DÉFAITE des deux côtés,
+       * et « deux clubs du même décile » lisait 50 moins la moitié du taux de
+       * fusillade. Tant qu'il y en avait 4 %, ça ne se voyait pas ; à 2,8
+       * buts par équipe il y a plus de nulles, et le repère est tombé à 43
+       * sans qu'une équipe ait un avantage. Le gagnant est celui du moteur.
+       */
+      if (gagnantDuMatch(r) === (inverse ? 'B' : 'A')) v++;
       bu += butsA - butsB;
       n++;
     }
@@ -417,5 +427,45 @@ if (jugeable) {
 if (jugeable) exiger('la parité est ORDONNÉE',
   parite['09'] >= parite['04'] && parite['04'] >= parite.meme && parite['49'] >= parite.meme,
   `1er/10e ${parite['09'].toFixed(0)} · 1er/5e ${parite['04'].toFixed(0)} · 5e/10e ${parite['49'].toFixed(0)} · même décile ${parite.meme.toFixed(0)}`);
+
+/*
+ * LE NIVEAU RECRUE EST PLUS FACILE, ET IL L'EST DE CE QU'ON A DIT (S75).
+ * L'IA Pro joue contre la même IA en Recrue (elle passe sa main après un
+ * geste, elle ne relance pas), puis contre elle-même : mêmes clubs, mêmes
+ * graines, en paires. Mesuré sur 200 paires de clubs pris au hasard : 95
+ * victoires sur 100 contre la recrue, 4,2 buts à 0,6 ; 51 contre la Pro. Ici
+ * les clubs sont RANGÉS par force et le camp A tombe plus souvent sur un
+ * fort (la Pro contre la Pro y gagne 54 fois) : 100 sur 100, 4,8 à 0,3 avec
+ * la recrue de S75 ; 96, 5,2 à 1,1 et 4 lancers avec l'élastique (S75b).
+ * Le plancher dit que la recrue reste une recrue. Le plafond ne porte pas
+ * sur ses victoires — contre l'IA Pro, jouer un geste par main ne gagne
+ * presque jamais, et c'est voulu : l'IA Pro, c'est le joueur qui n'a plus
+ * besoin de la Recrue — mais sur ses BUTS : elle doit encore marquer, sinon
+ * elle n'est plus un adversaire. Le joueur naïf et l'apprenti, qui ont
+ * choisi la forme, sont dans le commentaire de `RECRUE` (js/table.js).
+ */
+{
+  const N = Math.min(100, Math.max(20, Math.round(MATCHS / 2)));
+  let vPro = 0, vRec = 0, bRec = 0, bContre = 0, tRec = 0;
+  for (let i = 0; i < N; i++) {
+    const a = clubs[(i * 7 + 3) % clubs.length], b = clubs[(i * 13 + 5) % clubs.length];
+    const jouer = recrue => {
+      const m = nouveauMatch(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `niveau-${i}`, { recrue });
+      let g = 0;
+      while (!m.fini && g++ < 4000) iaPresence(m);
+      return resultatDe(m);
+    };
+    const pro = jouer(null), rec = jouer('B');
+    if (gagnantDuMatch(pro) === 'A') vPro++;
+    if (gagnantDuMatch(rec) === 'A') vRec++;
+    bRec += rec.gfB; bContre += rec.gfA; tRec += rec.B.tirs;
+  }
+  console.log(`\nLe niveau Recrue (${N} paires) : l'IA Pro bat la Pro ${Math.round(100 * vPro / N)} fois sur 100, la Recrue ${Math.round(100 * vRec / N)} — ${(bContre / N).toFixed(2)} buts à ${(bRec / N).toFixed(2)} contre la recrue, qui lance ${(tRec / N).toFixed(2)} fois`);
+  borne('la Recrue perd contre l\'IA Pro', 100 * vRec / N, 80, 100, ' sur 100');
+  borne('la Recrue marque encore', bRec / N, 0.15, 2.5, ' but par match');
+  // S75b : la recrue qui ne faisait que se placer lançait 1,2 fois par match contre l'IA Pro ; l'élastique, 4,4.
+  borne('la Recrue attaque encore', tRec / N, 2.5, 12, ' lancers par match');
+  exiger('la Recrue est plus facile que la Pro', vRec > vPro, `${vRec} contre ${vPro} victoires sur ${N}`);
+}
 
 verdict('Le plateau tient-il ses cibles ?');

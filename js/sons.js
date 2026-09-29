@@ -26,6 +26,10 @@
  *
  * `activerSons(false)` coupe tout : c'est l'option « Sons » et le bouton du
  * plateau, tous deux branchés ici par js/game.js.
+ *
+ * L'INTERFACE A LES SIENS (1.0, R1) : le curseur qui passe d'un bouton à
+ * l'autre, une touche qui confirme, un retour. Trois petits bruits, à peine
+ * audibles — c'est ce qui fait qu'un menu de console se sent sous le pouce.
  */
 
 let ctx = null;
@@ -48,7 +52,7 @@ function contexte() {
 }
 
 /* Le premier toucher débloque le son : la règle des navigateurs. */
-export function debloquer() { if (actif) contexte(); }
+function debloquer() { if (actif) contexte(); }
 if (typeof document !== 'undefined') {
   document.addEventListener('pointerdown', debloquer, { passive: true });
   document.addEventListener('keydown', debloquer, { passive: true });
@@ -188,9 +192,29 @@ const SONS = {
   fin(c, t) { SONS.sifflet(c, t, true); SONS.but(c, t + 0.5); },
   /* La fin d'une période : un sifflet, court. */
   periode(c, t) { SONS.sifflet(c, t); },
-};
 
-export const NOMS_SONS = Object.keys(SONS);
+  /* ---- LES CARTES (S74) : on les entend comme on les tient ---- */
+  /* La donne : trois cartes qui glissent sur la table. */
+  donne(c, t) {
+    [0, 0.12, 0.24].forEach((d, i) => bruit(c, t + d, { gain: 0.1 - i * 0.015, att: 0.01, dec: 0.08, type: 'highpass', freq: 3000, vers: 1800 }));
+  },
+  /* Jouer une carte : un claquement sur la table, et une petite note qui monte. */
+  joue(c, t) {
+    bruit(c, t, { gain: 0.18, dec: 0.04, type: 'bandpass', freq: 2200, q: 1.2 });
+    note(c, t + 0.02, { forme: 'triangle', freq: 523, vers: 784, gain: 0.07, dec: 0.16 });
+  },
+  /* Une carte refusée (trop chère) : un bruit sourd, sans note. */
+  refus(c, t) { note(c, t, { forme: 'sine', freq: 200, vers: 140, gain: 0.08, dec: 0.12 }); },
+  /* ---- L'INTERFACE (1.0, R1) : le curseur, la confirmation, le retour ---- */
+  curseur(c, t) { note(c, t, { forme: 'triangle', freq: 1320, gain: 0.018, dec: 0.03 }); },
+  valide(c, t) { note(c, t, { forme: 'triangle', freq: 880, vers: 1175, gain: 0.04, dec: 0.07 }); },
+  arriere(c, t) { note(c, t, { forme: 'triangle', freq: 740, vers: 494, gain: 0.035, dec: 0.08 }); },
+  /* La récompense : un arpège qui brille. */
+  recompense(c, t) {
+    [523, 659, 784, 1047].forEach((f, i) => note(c, t + i * 0.07, { forme: 'triangle', freq: f, gain: 0.07, dec: 0.35 }));
+    bruit(c, t + 0.2, { gain: 0.05, att: 0.05, dec: 0.5, type: 'highpass', freq: 5000 });
+  },
+};
 
 /** Joue un son de la liste, `delai` secondes plus tard. Silence si coupé. */
 export function jouerSon(nom, delai = 0) {

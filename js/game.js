@@ -20,42 +20,52 @@
  * lui-même le brouillard de guerre dans les options.
  */
 
-import { loadIndex, loadSeason, prefetch, state, cacheClear } from './data.js';
-import {
-  SLOTS, CAP, REROLLS, fits, simulate, getPositionPenalty, registerHiddenRatings,
-  getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, simulateLeague, photoAlignement, trioDeFermetureAuto, soirEreintant,
-  autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
-  CARTES, PLANS, ROULEMENTS, planDe, roulementDe } from './sim.js';
-import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
-import { ouvrirSaison } from './saison.js';
-import { ouvrirEquipes, motDeClub } from './equipes.js';
-import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
-import { ouvrirTable } from './plateau.js';
-import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
-import { brancherBilan, renderResult, runPlayoffs, teamShort, teamLabel, tagCourt, cleDeSommaire, nombreEnSeries, ONGLETS_BILAN, ficheReelleDe } from './bilan.js';
+import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, getHiddenRatings, fits, profilPrincipal, MUTATIONS, roleSecond, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate } from './sim.js';
+import { PLAFOND_ROGUE, lireMeta } from './rogue.js';
+import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
+import { IDENTITES, scoreIdentite } from './identites.js';
+import { state, loadIndex, cacheClear } from './data.js';
+import { plafondDe } from './banque.js';
+import { ecrirePartieActive, nouvellePartie, lirePartieActive, migrer, lireIndex, activer } from './sauvegardes.js';
+import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSur, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
+import { estD as isD, esc, money, pct3 } from './util.js';
+import { getSecondaryPosition, getEraFactor, getEraSalary, getLineZone, getArchetype } from './ratings.js';
+import { getTraits, TRAITS } from './traits.js';
+import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
+import { actionsDisponibles, demarrerActions } from './actions.js';
+import { LOGOS_LOCAUX } from './logos_locaux.js';
+import { brancherBilan, teamLabel, teamShort, tagCourt } from './bilan.js';
+import { activerSons, jouerSon } from './sons.js';
+import { brancherRetour } from './pile.js';
+import { brancherManette } from './manette.js';
+import { brancherInclinaison } from './cartes.js';
+import { afficherMenu, fermerMenu } from './menu.js';
+import { MT, chargerTable } from './charge-table.js';
+import { ouvrirChoix } from './gerant.js';
+import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { brancherEntractes } from './entracte.js';
+import { migrerHistorique, rendreCartable, ajouterAuCartable } from './cartable.js';
+import { ouvrirEquipes } from './equipes.js';
+import { albumHtml } from './album.js';
+import { blessesAuJour, cartesAJouer, decisionsDeLaPartie, finDesSeriesRogue, jetonsRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire } from './rogue-jeu.js';
+import { ajusterCartes, carteMiniHtml, clesDesMods, compteSignables, getShard, nextSpin, playerCardEl, poserCartes, renderCap, renderDash, renderFilters, renderPool, renderPoolMeta, renderSpin, syncAgeControls, varianteJoueur } from './repechage.js';
+import { ballottageVu, bancSerie, connaitreBallottages, deciderSerie, personneDeCle, renderBanc, reprendreSaison, reprendreSeries, runSeason, sousVoile } from './banc.js';
+import { compteEnGrille, compteRevele, lienEquipe, lienJoueur, ouvrirFiche, porteeRevele, showPlayerModal, statsSim } from './fiche.js';
+import { actionDuBouton, choisirIdentite, majPiedPartie, oublierBrouillon, ouvrirNouvellePartie, poserBrouillon, resoudreHasard, semerBrouillon, syncOptionsUI } from './partie.js';
+import { renderMain, renderRoster, renderTeamSummary, surTable } from './alignement.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
-const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
-import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives, mesuresDeSaison, SEUIL_MESURE } from './ratings.js';
-import { getTraits, TRAITS } from './traits.js';
-import { activerSons } from './sons.js';
+export const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
 
-const $ = id => document.getElementById(id);
-const rnd = a => a[Math.floor(Math.random() * a.length)];
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export const $ = id => document.getElementById(id);
+export const rnd = a => a[Math.floor(Math.random() * a.length)];
 
 /** Salaire plancher de la LNH dans le barème du jeu : sert au calcul du budget restant. */
-const MIN_SAL = 775_000;
+export const MIN_SAL = 775_000;
 
-const money = n => {
-  const m = n / 1e6;
-  const s = Math.abs(m) >= 10 ? m.toFixed(1) : m.toFixed(2);
-  return (n < 0 ? '−$' : '$') + s.replace('-', '').replace(/\.?0+$/, '') + 'M';
-};
 const pctCap = n => (n / CAP * 100).toFixed(1) + ' %';
 
-const TEAMFULL = {
+export const TEAMFULL = {
   QUE: 'Nordiques de Québec', HFD: 'Whalers de Hartford', MNS: 'North Stars du Minnesota',
   AFM: "Flames d'Atlanta", ATL: "Thrashers d'Atlanta", KCS: 'Scouts de Kansas City',
   CLR: 'Rockies du Colorado', CLE: 'Barons de Cleveland', CGS: 'Golden Seals de Californie',
@@ -74,13 +84,13 @@ const TEAMFULL = {
   SEA: 'Kraken de Seattle', UTA: 'Utah', UTM: 'Utah',
   YOU: 'NHL Stars',
 };
-const DEFUNCT = new Set(['QUE', 'HFD', 'MNS', 'AFM', 'ATL', 'KCS', 'CLR', 'CLE', 'CGS', 'OAK', 'WIN', 'PHX', 'MDA', 'ARI']);
+export const DEFUNCT = new Set(['QUE', 'HFD', 'MNS', 'AFM', 'ATL', 'KCS', 'CLR', 'CLE', 'CGS', 'OAK', 'WIN', 'PHX', 'MDA', 'ARI']);
 
 /* =====================================================================
    État
    ===================================================================== */
 
-const G = {
+export const G = {
   roster: {},
   /*
    * Ce que la roulette a sorti : une liste de vestiaires `{ season, team,
@@ -110,9 +120,17 @@ const G = {
    * acier). Rien d'autre ne change dans l'interface.
    */
   palette: 'graphite',  // graphite | oled | glace
+  franchise: 'MTL',     // la franchise du repêchage « Une franchise » (S73, js/franchises.js)
   /* Les effets sonores du plateau (js/sons.js). Une préférence d'affichage,
      pas un réglage de partie : couper le son ne change rien à ce qui est joué. */
   sons: true,
+  /*
+   * LE NIVEAU DE L'ADVERSAIRE SUR TABLE (S75). Une préférence, comme les sons :
+   * elle ne touche ni au repêchage ni au tournoi déjà joué, seulement à la
+   * tête de l'IA d'en face dans TES prochains matchs (`nouveauMatch`, `recrue`).
+   * Recrue par défaut : le passage du testeur a perdu neuf matchs de 0-6 à 1-16.
+   */
+  niveauTable: 'RECRUE',  // RECRUE | PRO
   /*
    * LE MODE BONUS. JP : *mode bonus genre blood bowl, fft et autres jeux de
    * sport de table*. Ce réglage ne touche PAS au repêchage : les 23 cases, le
@@ -121,6 +139,12 @@ const G = {
    * le tournoi sur table (js/tournoi.js, js/plateau.js, js/table.js).
    */
   bonus: 'SAISON',      // SAISON | TABLE
+  /*
+   * LES VARIANTES DE CARTES (S78, js/rarete.js) : la graine de la partie, d'où
+   * chaque joueur tire sa variante (base, parallèle, holo, or) et son bonus,
+   * et celles qu'un pack du mode Rogue a sorties (`cartes`, clé → variante).
+   */
+  variantes: { graine: null, cartes: {} },
   poolView: 'POS',      // POS | LIST
   sortBy: 'PTS',
   search: '',
@@ -172,6 +196,17 @@ const G = {
    */
   mainCase: null,       // index de case, ou null (se recalcule alors)
   /*
+   * LE RANG DE LA MAIN, FIGÉ AVEC ELLE (S71). JP : *pas reseed si joueur
+   * déplacé dans la sélection des joueurs*. Épingler la CASE ne suffisait
+   * pas : déplacer un signé DANS la case de la main la remplissait, la main
+   * se recalculait sur la première case vide — un autre trio, donc un autre
+   * rang — et les trois joueurs offerts changeaient. Le rang se fige quand la
+   * main se compose ; un déplacement qui remplit la case de la main passe
+   * l'épingle à la case qu'il libère (même poste), rang compris. Seuls signer,
+   * relancer ou viser une autre case recomposent la main.
+   */
+  mainRang: null,
+  /*
    * L'ÉCHELLE DU LOTO, ET LA DETTE DE TOUR. Deux compteurs qui existent pour
    * la même raison : retirer un joueur ne doit rien RENDRE.
    *
@@ -200,41 +235,137 @@ const G = {
   shards: new Map(),
 };
 
-const MODE = () => MODES[G.mode] || MODES.CLASSIQUE;
+/*
+ * LE MODE ROGUE (S77, js/rogue.js). S79 : il a son plafond, 82 M$ (le nom du
+ * jeu) — mesuré, des plombiers coûtent de 29 à 51 M$ (médiane 39) ; une
+ * vingtaine de signatures à 4 M$ le remplissent, des étoiles à 6-11 M$ le
+ * crèvent : les cartes de masse salariale font le reste. Le plafond d'une run
+ * est fixé à son départ (`G.rogue.plafond`) ; une vieille run n'en a pas.
+ */
+const MODE_ROGUE = { ...MODES.CLASSIQUE, nom: 'Rogue', cap: PLAFOND_ROGUE };
+export const MODE = () => (G.bonus === 'ROGUE' ? MODE_ROGUE : (MODES[G.mode] || MODES.CLASSIQUE));
+/*
+ * LA COURBE À L'ÉCRAN (1.0, J2-16, R6) : une carte ne parle de sa courbe
+ * qu'en Rogue, et sa jauge allume le cran du soir — la journée révélée, ou la
+ * ronde des séries. Avant la saison, la jauge dit la courbe entière.
+ */
+AFFICHAGE_COURBE.actif = () => G.bonus === 'ROGUE';
+AFFICHAGE_COURBE.echelle = () => {
+  if (G.bonus !== 'ROGUE') return null;
+  if (G.seriesVues) return echelleTardive({ serie: true, ronde: G.seriesVues.ronde || 0 });
+  if (G.ligue) return echelleTardive({ jour: G.journee || 0 });
+  return null;
+};
 /**
  * La saison à laquelle la ROULETTE est tenue : celle de la ligue quand elle
  * est fixée et que le repêchage reste dans l'année, sinon null — et null veut
  * dire « n'importe laquelle des 55 ». La ligue, elle, lit toujours `G.epoque`.
  */
-const epoqueDuTirage = () => (G.epoque && G.repechage === 'SAISON') ? G.epoque : null;
+export const epoqueDuTirage = () => (G.epoque && G.repechage === 'SAISON') ? G.epoque : null;
+/*
+ * L'HISTOIRE D'UNE FRANCHISE (S73). JP : *ajouter possible de juste piger
+ * dans l'histoire d'une équipe, comme l'équivalent dans une même saison pour
+ * l'alignement*. Le repêchage « Une franchise » ne sort que les vestiaires de
+ * ce club, n'importe quelle saison de son histoire, relocalisations comprises
+ * (js/franchises.js). La ligue, elle, ne change pas.
+ */
+export const franchiseDuTirage = () => (G.repechage === 'FRANCHISE' && FRANCHISES[G.franchise]) ? G.franchise : null;
+/* Le repêchage d'une sauvegarde ou d'un brouillon : les trois valeurs connues, et la saison par défaut. */
+export const normRepechage = v => (v === 'TOUTES' || v === 'FRANCHISE' ? v : 'SAISON');
+/*
+ * L'IDENTITÉ DE DÉPART (S73, js/identites.js) : la roulette tire deux clubs et
+ * garde celui dont le joueur offert colle le mieux. `undefined` : pas encore
+ * choisie pour cette partie (le choix s'offre au démarrage) ; `null` : pas de
+ * préférence.
+ */
+export const identite = () => (IDENTITES[G.identite] ? G.identite : null);
+/* Le seuil d'une carte qui « colle » à l'identité : le même que scripts/check_identite.mjs. */
+export const SEUIL_IDENTITE = 0.62;
+/* En loto : le joueur que ce club tend pour la case de la main. */
+export function scoreDeLaMain(v) {
+  const c = caseDeLaMain();
+  if (!c || !v) return -1;
+  const p = joueurEquivalent(v.pool, c, new Set(picked().map(getPersonKey)), G.mainRang ?? rangDeLaMain(c));
+  return p ? scoreIdentite(identite(), p) : -1;
+}
+/* Au vestiaire : la moyenne des cinq joueurs signables qui collent le mieux. */
+export function scoreDuVestiaire(pool) {
+  const xs = pool.filter(p => !isPicked(p) && openSlots(p).length).map(p => scoreIdentite(identite(), p)).sort((a, b) => b - a).slice(0, 5);
+  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : -1;
+}
+/* Une saison de la franchise, autre que `sauf` quand il y en a une autre. */
+export function saisonDeFranchise(fr, sauf = null) {
+  const ss = saisonsDeFranchise(fr, state.index.seasons).map(([x]) => x);
+  const autres = ss.filter(x => x !== sauf);
+  return rnd(autres.length ? autres : ss);
+}
 /** Les cases que TU combles : les 23 d'habitude, six en express. */
-const casesActives = () => casesDuMode(G.mode);
+const casesActives = () => (G.bonus === 'ROGUE' ? casesDeLaRun() : casesDuMode(G.mode));
+/*
+ * LES CASES D'UNE RUN ROGUE (S80) : les 23, plus les cases de réserve que le
+ * vestiaire a débloquées pour cette run (`G.rogue.reserves`, fixé au départ).
+ * Une case de réserve peut rester LIBRE en Rogue : on relâche un réserviste
+ * pour faire de la place ou de l'espace sous le plafond (JP : *possible de
+ * discard les cartes de remplaçants*), et un joueur signé y entre sans que
+ * personne sorte.
+ */
+const reservesOuvertes = () => (G.bonus === 'ROGUE' && G.rogue ? G.rogue.reserves || 0 : 0);
+export const caseOuverte = s => !s.extra || s.extra <= reservesOuvertes();
+const casesDeLaRun = () => SLOTS.filter(caseOuverte);
 
 /** Les cinq réglages qui définissent LA PARTIE : ils n'existent que sur #partieModal. */
 const REGLAGES_PARTIE = new Set(['format', 'tirage', 'ligue', 'repechage', 'bonus']);
 /** Un démarrage à la fois : deux clics ne doivent pas mettre deux roulettes en vol. */
 let demarrageEnCours = false;
 /** Le premier vestiaire sorti — celui qui colore l'interface en tirage VESTIAIRE. */
-const vestiaire = () => G.tirage[0] || null;
+export const vestiaire = () => G.tirage[0] || null;
 /** Un renfort est fourni par le mode express : il occupe une case, ne coûte rien. */
-const estRenfort = p => !!(p && p._renfort);
+export const estRenfort = p => !!(p && p._renfort);
 
 const picked = () => Object.values(G.roster);
 /** Les joueurs que tu as signés toi-même — les seuls qui touchent au plafond. */
-const signes = () => picked().filter(p => !estRenfort(p));
+export const signes = () => picked().filter(p => !estRenfort(p));
 /**
  * Ce joueur-SAISON est-il déjà signé ? Comparer les objets ne suffit pas :
  * un joueur échangé est dans le vestiaire de chacune de ses équipes, avec un
  * objet par équipe, et on pouvait donc le signer deux fois.
  */
-const isPicked = p => {
+export const isPicked = p => {
   const k = getPersonKey(p);
   return picked().some(x => getPersonKey(x) === k);
 };
-const capUsed = () => signes().reduce((s, p) => s + p.$, 0);
-const capLeft = () => MODE().cap - capUsed();
-const slotsLeft = () => casesActives().filter(s => !G.roster[s.i]).length;
-const totalCases = () => casesActives().length;
+/*
+ * LA MASSE SALARIALE MANIPULÉE (S79, js/banque.js `CONTRATS`). Avant la
+ * saison, le plafond du mode et la somme des salaires, comme toujours. En
+ * saison, le plafond EFFECTIF de la journée (l'espace gagné, la taxe, le DG
+ * du plafond flexible) et le « cap hit » de chacun : sa retenue, son rachat,
+ * son contrat d'entrée, ses bonis — zéro s'il est blessé à long terme ET à
+ * l'infirmerie ce jour-là. Tout se déduit des décisions. `G.roster` est
+ * l'alignement même du moteur : il suit les signatures de la saison.
+ */
+export function plafondEffectif(j = G.journee || 0) {
+  const r = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.plafond) || null) : null;
+  const base = G.bonus === 'ROGUE' ? (r ? r.cap : 1e12) : MODE().cap;
+  const depart = r ? r.lignes || [] : [];
+  if (!G.ligue) return { cap: base, base, lignes: depart, facteurs: new Map(), ltir: new Set(), blesses: new Set() };
+  const pl = plafondDe(decisionsDeLaPartie(), j + 1, { base });
+  const blesses = new Set(pl.ltir.size ? blessesAuJour(j).map(x => getPlayerKey(x.p)) : []);
+  return { ...pl, base, lignes: [...depart, ...pl.lignes], blesses };
+}
+/* Ce qu'un joueur de ton alignement compte au plafond aujourd'hui. */
+export const capHitDuJour = q => (G.ligue ? capHit(q, plafondEffectif()) : (q.$ || 0));
+/* Ce que ce joueur compte au plafond (`pl` : `plafondEffectif`). */
+export function capHit(p, pl) {
+  if (!p) return 0;
+  const k = getPlayerKey(p);
+  if (pl && pl.ltir.has(k) && pl.blesses.has(k)) return 0;
+  return Math.round((p.$ || 0) * ((pl && pl.facteurs.get(k)) || 1));
+}
+export const capUsed = (pl = G.ligue ? plafondEffectif() : null) => signes().reduce((s, p) => s + (pl ? capHit(p, pl) : p.$), 0);
+export const capLeft = () => { const pl = plafondEffectif(); return pl.cap - capUsed(G.ligue ? pl : null); };
+// En Rogue, une case de réserve libre n'est pas « à combler » (S80) : seules les cases habillées bloquent la saison.
+export const slotsLeft = () => casesActives().filter(s => !G.roster[s.i] && !(G.bonus === 'ROGUE' && s.scratch)).length;
+export const totalCases = () => casesActives().length;
 
 /**
  * Où ce joueur va-t-il naturellement ? On classe les cases libres par ordre
@@ -245,7 +376,7 @@ const totalCases = () => casesActives().length;
 function slotFitScore(p, s) {
   const pen = getPositionPenalty(p, s);
   if (s.scratch) return 1000 + pen * 40 + s.i;      // les réservistes en dernier
-  const ideal = getLineZone(p, getHiddenRatings(p).v).idealUnits;
+  const ideal = unitesIdeales(p, getHiddenRatings(p).v);
   const dist = Math.min(...ideal.map(u => Math.abs(u - s.unit)));
   return pen * 40 + (dist === 0 ? 0 : 12 + dist * 6) + s.unit;
 }
@@ -256,18 +387,18 @@ function slotFitScore(p, s) {
  * (un Bottom 6 au 1er trio, puni à peine) ou null. Les gardiens et les
  * réservistes n'ont pas de malus de zone.
  */
-function zoneEcart(p, s) {
+export function zoneEcart(p, s) {
   if (!p || !s || s.scratch || s.group === 'G' || p.p === 'G') return null;
-  const ideal = getLineZone(p, getHiddenRatings(p).v).idealUnits;
+  const ideal = unitesIdeales(p, getHiddenRatings(p).v);
   if (s.unit > Math.max(...ideal)) return 'sous';
   if (s.unit < Math.min(...ideal)) return 'dessus';
   return null;
 }
 
-const ZONE_SOUS_TITLE = 'Sous sa zone : ici, son talent est gaspillé et toute l\'unité porte un malus proportionnel à ce qu\'on perd. Vise une autre case dans l\'alignement ou déplace quelqu\'un.';
-const ZONE_DESSUS_TITLE = 'Au-dessus de sa zone : −3 par cran, léger. Il tient la case faute de mieux.';
+export const ZONE_SOUS_TITLE = 'Sous sa zone : ici, son talent est gaspillé et toute l\'unité porte un malus proportionnel à ce qu\'on perd. Vise une autre case dans l\'alignement ou déplace quelqu\'un.';
+export const ZONE_DESSUS_TITLE = 'Au-dessus de sa zone : −3 par cran, léger. Il tient la case faute de mieux.';
 
-const nextNeed = () => casesActives().find(s => !G.roster[s.i]) || null;
+export const nextNeed = () => casesActives().find(s => !G.roster[s.i]) || null;
 
 /**
  * LA CASE COURANTE : celle que tu vises, sinon la première vide dans l'ordre
@@ -275,7 +406,7 @@ const nextNeed = () => casesActives().find(s => !G.roster[s.i]) || null;
  * les réservistes). En tirage LOTO c'est elle qui dit quel joueur exact les
  * trois clubs te tendent.
  */
-const caseCourante = () => (G.target !== null && !G.roster[G.target] && casesActives().includes(SLOTS[G.target]))
+export const caseCourante = () => (G.target !== null && !G.roster[G.target] && casesActives().includes(SLOTS[G.target]))
   ? SLOTS[G.target] : nextNeed();
 
 /**
@@ -288,10 +419,14 @@ const caseCourante = () => (G.target !== null && !G.roster[G.target] && casesAct
  */
 function caseDeLaMain() {
   // Viser une case recompose la main des mêmes trois clubs : c'est voulu.
-  if (G.target !== null && !G.roster[G.target] && casesActives().includes(SLOTS[G.target])) G.mainCase = G.target;
+  if (G.target !== null && !G.roster[G.target] && casesActives().includes(SLOTS[G.target])) {
+    if (G.mainCase !== G.target) G.mainRang = null;
+    G.mainCase = G.target;
+  }
   const epinglee = G.mainCase !== null ? SLOTS[G.mainCase] : null;
   if (epinglee && !G.roster[G.mainCase] && casesActives().includes(epinglee)) return epinglee;
   const s = nextNeed();
+  if ((s ? s.i : null) !== G.mainCase) G.mainRang = null;
   G.mainCase = s ? s.i : null;
   return s;
 }
@@ -322,7 +457,7 @@ function rangDeLaMain(c) {
 }
 
 /** Le plancher se pose APRÈS chaque signature : c'est elle qui fait descendre. */
-function poserEchelle() {
+export function poserEchelle() {
   for (const c of casesActives()) {
     if (c.scratch) continue;
     const deja = signes().filter(p => fits(p, c) && getPositionPenalty(p, c) === 0).length;
@@ -338,13 +473,14 @@ function poserEchelle() {
  * joueurs déjà signés sont exclus de l'alignement, donc un club qui ressort
  * montre son trio recomposé sans eux.
  */
-function candidats() {
+export function candidats() {
   if (!G.tirage.length) return [];
   if (!MODE().loto) return vestiaire().pool;
   const c = caseDeLaMain();
   if (!c) return [];
   const exclude = new Set(picked().map(getPersonKey));
-  const rang = rangDeLaMain(c);
+  if (G.mainRang == null) G.mainRang = rangDeLaMain(c);
+  const rang = G.mainRang;
   const vus = new Set();
   const out = [];
   for (const v of G.tirage) {
@@ -361,7 +497,7 @@ function candidats() {
  * n'importe quelle case libre qui lui convient ; en LOTO, la main est celle
  * d'une seule case, et il n'y en a pas d'autre.
  */
-const openSlots = p => {
+export const openSlots = p => {
   let libres = casesActives().filter(s => !G.roster[s.i] && fits(p, s));
   if (MODE().loto) { const c = caseDeLaMain(); libres = libres.filter(s => s === c); }
   return libres.sort((a, b) => slotFitScore(p, a) - slotFitScore(p, b) || a.i - b.i);
@@ -372,7 +508,7 @@ const openSlots = p => {
  * de remplir les cases suivantes au salaire plancher. C'est le vrai budget
  * du directeur général, pas seulement le plafond restant.
  */
-const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
+export const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
 
 /* ---------- sauvegarde ---------- */
 
@@ -394,9 +530,19 @@ const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_SAL;
  * exactement la boucle de `buildOpponents` — même ordre, même `exclude` qui
  * s'accumule, donc les mêmes alignements.
  */
-function saveGame() {
+/*
+ * LA VERSION DU MOTEUR DANS LA SAUVEGARDE (S74). Une saison se REJOUE de sa
+ * graine et de ses décisions : quand le moteur change (S74 : la main de
+ * l'adversaire aux gros matchs, l'affiche tirée avant les dés neufs), une
+ * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
+ * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
+ */
+const VERSION_MOTEUR = 'S82';  // S82 : la carte du New Jersey recentrée (0,945 · 0,935). S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
+export function saveGame() {
   try {
-    localStorage.setItem('cap82_save', JSON.stringify({
+    // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
+    ecrirePartieActive(({
+      moteur: VERSION_MOTEUR,
       roster: G.roster,
       partie: G.done && G.ligue ? {
         graine: G.ligue.graine,
@@ -409,6 +555,7 @@ function saveGame() {
         // regardées. `lbId` suit, sinon la reprise coudrait la Coupe sur une
         // entrée d'historique neuve au lieu de celle qu'on joue.
         series: G.seriesVues || null,
+        decisionsSeries: G.ligue.decisionsSeries || [],
         lbId: G.lbId || null,
       } : null,
       /*
@@ -418,7 +565,7 @@ function saveGame() {
        * aucune graine ne redonne tes décisions (voir `etatDuTournoi`).
        */
       tournoi: G.bonus === 'TABLE' && G.done && G.tournoi ? {
-        ...etatDuTournoi(G.tournoi),
+        ...MT.etatDuTournoi(G.tournoi),   // un tournoi existe : le mode table est chargé (js/charge-table.js)
         clubs: (G.tournoi.clubs || []).slice(1).map(c => `${c.season}|${c.tag}`),
       } : null,
       relances: G.relances,
@@ -426,19 +573,58 @@ function saveGame() {
       tirage: G.tirage.map(v => ({ season: v.season, team: v.team })),
       target: G.target,
       mainCase: G.mainCase,
+      mainRang: G.mainRang,
       echelle: G.echelle,
+      lignes: G.lignes || null,
       dette: G.dette,
       mode: G.mode,
       epoque: G.epoque,
       repechage: G.repechage,
+      franchise: G.franchise,
+      identite: G.identite ?? null,
       bonus: G.bonus,
       renfort: G.renfort,
-    }));
+      rogue: G.rogue || null,
+      variantes: G.variantes,
+    }), resumePartie());
   } catch { /* stockage indisponible */ }
 }
 
-function clearSave() {
-  try { localStorage.removeItem('cap82_save'); } catch { /* ignore */ }
+/*
+ * « EFFACER » EST DEVENU « COMMENCER UNE AUTRE » (S77). Une partie neuve ne
+ * jette plus la précédente : elle prend une nouvelle place dans l'index, du
+ * genre de son mode, et l'ancienne reste au menu.
+ */
+const genreCourant = () => (G.bonus === 'TABLE' ? 'table' : G.bonus === 'ROGUE' ? 'rogue' : 'saison');
+export function clearSave() { nouvellePartie(genreCourant()); }
+
+/*
+ * LE RÉSUMÉ D'UNE PARTIE, tel que le menu le lit : où on en est, en une
+ * ligne (« Journée 34 · 20-12-2 », « Repêchage · 12/23 signés »). `vierge`
+ * dit qu'il n'y a encore rien à perdre : la partie neuve suivante la
+ * réutilise au lieu d'en ajouter une vide.
+ */
+function resumePartie() {
+  const signes = Object.values(G.roster || {}).filter(Boolean).length;
+  const total = casesDuMode(G.mode).length;
+  const L = G.ligue;
+  let etape = `Repêchage · ${signes}/${total} signés`;
+  if (G.bonus === 'TABLE' && G.done && G.tournoi) etape = 'Le tournoi sur table';
+  else if (L && G.done && Array.isArray(L.calendrier)) {
+    const toi = (L.teams || []).find(t => t.isPlayer);
+    const j = Math.min(G.journee || 0, L.calendrier.length);
+    let W = 0, D = 0, P = 0;
+    for (const jour of L.calendrier.slice(0, j)) for (const m of jour) {
+      if (m.A !== toi && m.B !== toi) continue;
+      const pour = m.A === toi ? m.gfA : m.gfB, contre = m.A === toi ? m.gfB : m.gfA;
+      if (pour > contre) W++; else if (m.ot) P++; else D++;
+    }
+    etape = G.seriesVues ? `Les séries · saison ${W}-${D}-${P}` : j >= L.calendrier.length ? `Bilan · ${W}-${D}-${P}` : `Journée ${j} / ${L.calendrier.length} · ${W}-${D}-${P}`;
+  }
+  const qui = [MODES[G.mode] ? MODES[G.mode].nom : '', G.repechage === 'FRANCHISE' && FRANCHISES[G.franchise] ? FRANCHISES[G.franchise].nom : '', G.epoque || ''].filter(Boolean).join(' · ');
+  // S80 : une run Rogue dit sa saison, au menu comme au hub.
+  if (G.bonus === 'ROGUE' && G.rogue && G.rogue.saison) etape = `Run ${G.rogue.numero || ''} · saison ${G.rogue.saison} · ${etape}`.replace('Run  ·', 'Run ·');
+  return { etape, qui, vierge: !signes && !L };
 }
 
 const PALETTES = ['graphite', 'oled', 'glace'];
@@ -447,11 +633,11 @@ function appliquerPalette() {
   document.documentElement.dataset.palette = G.palette;
 }
 
-function saveOpts() {
+export function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode, epoque: G.epoque,
-      repechage: G.repechage, palette: G.palette, bonus: G.bonus, sons: G.sons,
+      repechage: G.repechage, franchise: G.franchise, palette: G.palette, bonus: G.bonus, sons: G.sons, niveauTable: G.niveauTable,
       onlyFit: G.onlyFit, sortBy: G.sortBy, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
@@ -467,23 +653,25 @@ function loadOpts() {
     if (o.poolView === 'POS' || o.poolView === 'LIST') G.poolView = o.poolView;
     if (PALETTES.includes(o.palette)) G.palette = o.palette;
     if (typeof o.sons === 'boolean') G.sons = o.sons;
+    if (o.niveauTable === 'RECRUE' || o.niveauTable === 'PRO') G.niveauTable = o.niveauTable;
     // Un mode disparu (l'ancien « Par unité ») retombe sur le classique.
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
     // Les saisons ne sont pas encore chargées ici : `boot` vérifie après.
     if (o.bonus === 'TABLE' || o.bonus === 'SAISON') G.bonus = o.bonus;
     if (typeof o.epoque === 'string') G.epoque = o.epoque;
-    if (o.repechage === 'SAISON' || o.repechage === 'TOUTES') G.repechage = o.repechage;
+    if (o.repechage === 'SAISON' || o.repechage === 'TOUTES' || o.repechage === 'FRANCHISE') G.repechage = o.repechage;
+    if (FRANCHISES[o.franchise]) G.franchise = o.franchise;
   } catch { /* ignore */ }
 }
 
 async function restoreSave() {
   try {
-    const raw = localStorage.getItem('cap82_save');
-    if (!raw) return false;
-    const data = JSON.parse(raw);
+    const data = lirePartieActive();
+    if (!data) return false;
     // Une sauvegarde d'avant les mains (`cur` au lieu de `tirage`) ne se
     // reprend pas : le vestiaire qu'elle décrit n'existe plus sous ces règles.
-    if (!data || !Array.isArray(data.tirage) || !data.tirage.length || !MODES[data.mode]) return false;
+    // Une run Rogue n'a pas de tirage : elle part d'une équipe de plombiers (S77).
+    if (!data || !Array.isArray(data.tirage) || (!data.tirage.length && data.bonus !== 'ROGUE') || !MODES[data.mode]) return false;
 
     const tirage = [];
     for (const v of data.tirage) {
@@ -516,8 +704,16 @@ async function restoreSave() {
     // express reprise en classique n'aurait plus le bon plafond.
     G.mode = data.mode;
     G.epoque = typeof data.epoque === 'string' && state.index.seasons.includes(data.epoque) ? data.epoque : null;
-    G.repechage = data.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
-    G.bonus = data.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
+    G.repechage = normRepechage(data.repechage);
+    if (FRANCHISES[data.franchise]) G.franchise = data.franchise;
+    // Une partie d'avant S73 n'a jamais vu le choix : il s'offrira au prochain démarrage.
+    G.identite = 'identite' in data ? (IDENTITES[data.identite] ? data.identite : null) : undefined;
+    G.bonus = data.bonus === 'TABLE' || data.bonus === 'ROGUE' ? data.bonus : 'SAISON';
+    G.rogue = data.rogue || null;
+    // Une partie d'avant S78 n'a pas de graine de variantes : elle en reçoit une au premier rendu.
+    G.variantes = data.variantes && typeof data.variantes === 'object'
+      ? { graine: data.variantes.graine || null, cartes: { ...(data.variantes.cartes || {}) }, numeros: { ...(data.variantes.numeros || {}) } }
+      : { graine: null, cartes: {} };
     G.renfort = data.renfort || null;
     G.tirage = tirage;
     G.roster = data.roster || {};
@@ -525,12 +721,14 @@ async function restoreSave() {
     G.left = data.left || { ...REROLLS };
     G.target = data.target ?? null;
     G.mainCase = Number.isInteger(data.mainCase) && SLOTS[data.mainCase] ? data.mainCase : null;
+    G.mainRang = Number.isInteger(data.mainRang) ? data.mainRang : null;
     // Les deux compteurs qui empêchent le ✕ d'être une relance : une partie
     // reprise doit les retrouver, sinon recharger la page les remet à zéro et
     // rouvre l'exploit.
     G.echelle = (data.echelle && typeof data.echelle === 'object') ? { ...data.echelle } : {};
     G.dette = Number.isFinite(data.dette) && data.dette > 0 ? data.dette : 0;
-    applyTeamColors(MODE().loto ? null : tirage[0].team);
+    G.lignes = Array.isArray(data.lignes) ? data.lignes : null;
+    applyTeamColors(MODE().loto || !tirage.length ? null : tirage[0].team);
     // LA SAISON EN COURS. Elle se REJOUE, elle ne se relit pas : la graine et
     // les clés des adversaires suffisent, `runSeason` refait exactement la
     // même ligue et l'écran reprend à la journée révélée. `reprise` est rendu
@@ -538,14 +736,19 @@ async function restoreSave() {
     // simulerait 1312 matchs devant un écran de chargement vide.
     if (data.tournoi && data.tournoi.graine) {
       const etat = data.tournoi;
-      return { reprise: async () => { await reprendreTournoi(etat); } };
+      return { reprise: async () => { await (await chargerTable()).reprendreTournoi(etat); } };
     }
     if (data.partie && data.partie.graine) {
-      const { graine, adversaires = [], journee = 0, decisions = [], series = null, lbId = null } = data.partie;
+      const { graine, adversaires = [], journee = 0, decisions = [], series = null, lbId = null, decisionsSeries = [] } = data.partie;
+      if (data.moteur !== VERSION_MOTEUR) setTimeout(() => toast('Le jeu a changé depuis ta dernière visite : ta saison en cours se rejoue avec les nouvelles règles, et des matchs déjà vus peuvent finir autrement.'), 1500);
       G.lbId = lbId;
+      G.dsReprise = decisionsSeries;
       G.seriesVues = series;
       return { reprise: async () => {
-        const clubs = await rebatirAdversaires(adversaires);
+        // Les joueurs du ballottage d'abord : l'exclusion des adversaires et
+        // la décision 0 les nomment.
+        await connaitreBallottages(decisions);
+        const clubs = await rebatirAdversaires(adversaires, decisions);
         if (!clubs.length) return;
         // Les séries reprises rejouent d'abord la saison ENTIÈRE : c'est elle
         // qui pose le générateur à l'endroit exact où `playSeries` l'a pris,
@@ -553,8 +756,10 @@ async function restoreSave() {
         // `Infinity` et non 82 : une ligue impaire compte 85 journées, et un
         // nombre écrit à la main rouvrirait l'écran de saison sur ses trois
         // dernières au lieu d'aller au bilan.
-        await runSeason({ adversaires: clubs, graine, depuis: series ? Infinity : journee, decisions, reprise: true });
-        if (series) reprendreSeries(series);
+        await sousVoile(series ? 'On retrouve tes séries…' : 'On retrouve ta saison…', async () => {
+          await runSeason({ adversaires: clubs, graine, depuis: series ? Infinity : journee, decisions, reprise: true });
+          if (series) reprendreSeries(series);
+        });
       } };
     }
     return true;
@@ -586,7 +791,7 @@ async function restoreSave() {
  * Sans équipe (tirage LOTO : trois clubs, aucun ne domine), c'est ta propre
  * équipe qui donne le ton — tu es le directeur général, c'est ton bureau.
  */
-function applyTeamColors(team) {
+export function applyTeamColors(team) {
   const code = team && TEAM_COLORS[team] ? team : 'YOU';
   const c = TEAM_COLORS[code];
   const vive = couleurVive(code);
@@ -621,9 +826,7 @@ function applyTeamColors(team) {
   root.setProperty('--sur-or', encreSur(vive));
 }
 
-const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
-
-function positionLabel(p) {
+export function positionLabel(p) {
   if (!p) return '';
   if (p.p === 'G') return 'G';
   let primary = 'F';
@@ -642,28 +845,30 @@ function positionLabel(p) {
   return `${primary} / ${secLabel}`;
 }
 
-/* Le poste écrit au long, pour le bandeau de carte. */
-const POSTE_LONG = {
-  AG: 'Ailier gauche', C: 'Centre', AD: 'Ailier droit',
-  DG: 'Défenseur gauche', DD: 'Défenseur droit', G: 'Gardien', F: 'Attaquant',
-};
-const posteLong = p => POSTE_LONG[positionLabel(p).split(' / ')[0]] || '';
+/*
+ * UN JOUEUR SE NOMME PAR CE QU'IL EST (S79). JP : *jamais identifier les
+ * joueurs avec leurs places dans l'alignement, mais leurs vrais traits,
+ * stats et positions*. « C / AG · 🎯 Sniper · 45 B · 82 PTS » : ses
+ * positions, son rôle (lu dans ses vraies stats), sa vraie saison, ses
+ * traits. La case ne se nomme que là où c'est ELLE qu'on choisit.
+ */
+export function quiEst(p, { role = true, stats = true } = {}) {
+  if (!p) return '';
+  const pp = role ? profilPrincipal(p) : null;
+  const st = stats ? displayStats(p) : null;
+  const saison = !st ? '' : p.p === 'G' ? `${st.w} V${p.sv != null ? ` · ${p.sv} %ARR` : ''}` : `${st.g} B · ${st.pt} PTS`;
+  const traits = getTraits(p).map(t => TRAITS[t.cle] && TRAITS[t.cle].icon).filter(Boolean).join('');
+  return [positionLabel(p), pp ? `${pp.ico} ${pp.nom}` : '', saison, traits].filter(Boolean).join(' · ');
+}
 
-function positionClass(p) {
+export function positionClass(p) {
   if (!p) return 'pos-f';
   if (p.p === 'G') return 'pos-g';
   if (isD(p)) return 'pos-d';
   return 'pos-f';
 }
 
-function positionColor(p) {
-  if (!p) return 'var(--line)';
-  if (p.p === 'G') return '#fcd34d';
-  if (isD(p)) return '#c4b5fd';
-  return '#7dd3fc';
-}
-
-function formatName(full) {
+export function formatName(full) {
   if (!full) return '';
   const parts = String(full).trim().split(' ');
   if (parts.length === 1) return `<strong class="lname">${esc(full)}</strong>`;
@@ -677,8 +882,11 @@ const seasonMaxGP = season =>
     : season === '2019-20' ? 70
     : 82;
 
+/* Le % d'arrêts d'un gardien, à la façon d'une carte (« ,912 ») : son chiffre clé depuis 1.0 (C2), le seul que le moteur lit. */
+export const svCourt = p => (p.sv == null ? '—' : pct3(Number(p.sv)));
+
 /** Statistiques telles qu'affichées, selon les options (prorata, salaire). */
-function displayStats(p) {
+export function displayStats(p) {
   const maxGP = seasonMaxGP(p.s);
   const factor = (G.statsProrata && maxGP < 82) ? (82 / maxGP) : 1;
   const eraF = G.statsProrata ? getEraFactor(p.s) : 1;
@@ -712,23 +920,49 @@ function displayStats(p) {
  * joindre l'endpoint bios de la LNH. Sans elles, on masque tout ce qui parle
  * d'âge plutôt que d'afficher des tirets partout.
  */
-function agesAvailable() {
+export function agesAvailable() {
   return G.tirage.some(v => v.pool.some(p => p.bd)) || picked().some(p => p.bd);
 }
 
-function zoneTag(p, mini = false) {
-  const z = getLineZone(p, getHiddenRatings(p).v);
-  const where = z.idealUnits.map(u => u + 1).join(', ');
+export function zoneTag(p, mini = false) {
+  const v = getHiddenRatings(p).v;
+  const z = getLineZone(p, v);
+  // LA ZONE QUI A GRANDI (l'atelier, S78) : « ⏫ Monte d'un cran » lui ouvre
+  // une unité de plus vers le haut. L'étiquette dit la zone qu'il a
+  // MAINTENANT (`unitesIdeales`) — « T2-3 » mentirait sur un joueur qui rend
+  // désormais au 1er trio.
+  const ideal = p.p === 'G' ? z.idealUnits : unitesIdeales(p, v);
+  const grandie = ideal.length !== z.idealUnits.length;
+  const where = ideal.map(u => u + 1).join(', ');
   const unit = isD(p) ? 'paires' : p.p === 'G' ? 'rôles' : 'trios';
-  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}. Rend à 100 % sur les ${unit} ${where}.">${esc(mini ? (z.mini || z.short) : z.short)}</span>`;
+  let court = mini ? (z.mini || z.short) : z.short;
+  if (grandie) {
+    const lo = Math.min(...ideal) + 1, hi = Math.max(...ideal) + 1;
+    const ord = n => (n === 1 ? (isD(p) ? '1re' : '1er') : `${n}e`);
+    court = mini ? `${isD(p) ? 'P' : 'T'}${lo}-${hi}` : `${ord(lo)}-${ord(hi)} ${isD(p) ? 'paire' : 'trio'}`;
+  }
+  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}${grandie ? ', monté d\'un cran' : ''}. Rend à 100 % sur les ${unit} ${where}.">${esc(court)}</span>`;
 }
 
-/** Archétype : icône seulement dans le pick et le depth chart, libellé complet sur la fiche. */
-function archTag(p, full = false) {
+
+/*
+ * SON RÔLE, EN UN MOT (S71). JP : *la carte des joueurs est rendue trop
+ * complexe à lire*. La carte portait cinq sortes de pastilles, la plupart en
+ * icône seule (« 🎯 98 », 🧊, 🪨, l'archétype, les traits) : elle dit
+ * maintenant ce qu'il est — son meilleur rôle, en mots — et où il rend. Le
+ * reste vit dans la fiche, à un toucher.
+ */
+export function roleTag(p) {
+  const marques = clesDesMods(p).map(k => MUTATIONS[k] ? `<span class="tag tag-mut" title="${esc(MUTATIONS[k].nom)} — ${esc(MUTATIONS[k].quoi)}">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
+  const pp = profilPrincipal(p);
+  const r2 = pp && roleSecond(p);
+  if (pp) return `<span class="tag tag-role" title="${esc(pp.nom)} — lu dans ${esc(pp.mot)}${r2 ? ` · second rôle : ${esc(r2.nom)}` : ''}">${pp.ico} ${esc(pp.nom)}${r2 ? ` <small>· ${r2.ico}</small>` : ''}</span>${marques}`;
+  // 1.0 (C2) : l'archétype ne se lit que pour un gardien ; un patineur sans rôle lu (trop peu joué) n'en porte pas.
+  if (p.p !== 'G') return marques;
   const a = getArchetype(p, getHiddenRatings(p));
-  const txt = full ? ` ${esc(a.label)}` : '';
-  return `<span class="tag tag-arch" title="${esc(a.label)} — ${esc(a.desc)}">${a.icon}${txt}</span>`;
+  return `<span class="tag tag-role" title="${esc(a.desc)}">${a.icon} ${esc(a.label)}</span>${marques}`;
 }
+
 
 /**
  * Les traits : rares, donc ils ont leur place sur la carte. Un joueur sur cent
@@ -746,20 +980,9 @@ function traitTagList(p, full = false) {
       + `${meta.icon}${txt}</span>`;
   });
 }
-const traitTags = (p, full = false) => traitTagList(p, full).join('');
+export const traitTags = (p, full = false) => traitTagList(p, full).join('');
 
-function ageTag(p) {
-  const age = ageAtSeason(p.bd, p.s);
-  return age ? `<span class="tag tag-age" title="Âge au début de la saison ${p.s}">${age} ans</span>` : '';
-}
-
-function elcTag(p, full = false) {
-  if (!p.elc) return '';
-  const txt = full ? " Contrat d'entrée" : '';
-  return `<span class="tag tag-elc" title="Contrat d'entrée : premier contrat d'un joueur de 24 ans ou moins. Base plafonnée selon l'époque, plus bonis.">🐣${esc(txt)}</span>`;
-}
-
-function realTag(p) {
+export function realTag(p) {
   return p.isReal
     ? `<span class="tag tag-real" title="Salaire réellement publié cette saison-là, converti au prorata du plafond de l'année.">Salaire réel</span>`
     : `<span class="tag tag-est" title="Salaire estimé par le barème de cote globale : aucun montant publié pour cette saison.">Salaire estimé</span>`;
@@ -773,18 +996,71 @@ function realTag(p) {
  */
 const PORTRAITS_ABSENTS = new Set();
 const portraitAbsent = id => { PORTRAITS_ABSENTS.add(Number(id)); };
+/*
+ * LES PORTRAITS DU JEU (S78, scripts/portraits.mjs). JP : *télécharger toutes
+ * les faces sur le device* ; *assurer que les portraits soient toujours bien
+ * cadrés, partout*. Chaque visage de la LNH est recadré une fois, à la
+ * fabrication — la tête fait la même part du cadre, à la même hauteur, pour
+ * une vieille photo de 1972 comme pour une photo détourée de 2024 — et voyage
+ * avec le jeu (img/mugs/{id}.webp). `data/portraits.json` dit qui en a un :
+ * un joueur absent n'est jamais demandé. Sans la liste (une copie qui n'a pas
+ * passé le script), on retombe sur le réseau de la LNH.
+ */
+let PORTRAITS_LOCAUX = null;
+async function chargerPortraits() {
+  try {
+    const r = await fetch('data/portraits.json');
+    if (r.ok) PORTRAITS_LOCAUX = new Set((await r.json()).ids);
+  } catch { /* hors ligne sans la liste : le réseau prendra le relais */ }
+}
 
-function headshotHtml(p) {
+/*
+ * TOUT SUR L'APPAREIL, UNE FOIS (S78, 1.0). Sur le Web, la page demande au
+ * travailleur de service de garder les visages et les écussons, en
+ * arrière-plan, après le premier rendu ; `cap82_visages` retient le lot déjà
+ * gardé, et un nouveau lot se complète tout seul. Les photos d'action
+ * (img/actions, 1.0) suivent le même chemin. Dans l'application Android,
+ * l'APK n'emporte ni les visages ni les photos : l'appareil les télécharge à
+ * la LNH et les recadre lui-même (js/visages.js, puis js/actions.js, une fois
+ * les visages gardés).
+ */
+async function prechargerVisages() {
+  try {
+    if (!PORTRAITS_LOCAUX) return;
+    if (surAppareil()) { demarrerVisages([...PORTRAITS_LOCAUX], { toast }).catch(() => {}).then(demarrerActions); return; }
+    if (!navigator.serviceWorker || !location.protocol.startsWith('http')) return;
+    const actions = await actionsDisponibles();
+    // Le lot : le nombre de visages, d'écussons et de photos, et leur taille (S80 : 320 px) — des images neuves se regardent.
+    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}+${actions.length}@320`;
+    if (localStorage.getItem('cap82_visages') === cle) return;
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg.active) return;
+    navigator.serviceWorker.addEventListener('message', ev => {
+      if (!ev.data || ev.data.visagesPrets !== cle) return;
+      try { localStorage.setItem('cap82_visages', cle); } catch { /* stockage plein */ }
+      if (ev.data.nouveaux) toast(`📥 Les ${PORTRAITS_LOCAUX.size.toLocaleString('fr-CA')} visages et ${LOGOS_LOCAUX.size} écussons sont sur ton appareil : le jeu marche hors ligne.`);
+    });
+    reg.active.postMessage({ cle, precharger: [...[...LOGOS_LOCAUX].map(c => `img/logos/${c}.svg`), ...[...PORTRAITS_LOCAUX].map(id => `img/mugs/${id}.webp`), ...actions.map(id => `img/actions/${id}.webp`)] });
+  } catch { /* pas de travailleur : les visages viendront à l'usage */ }
+}
+
+export function headshotHtml(p) {
   const fallback = `<span class="headshot-fallback">👤</span>`;
-  if (PORTRAITS_ABSENTS.has(Number(p.id))) return fallback;
-  if (!p.id) return fallback;
-  return `${fallback}<img src="https://assets.nhle.com/mugs/nhl/latest/${p.id}.png" alt="" loading="lazy" onerror="this.remove();cap82.portraitAbsent(${Number(p.id)})">`;
+  if (!p || !p.id) return fallback;
+  const id = Number(p.id);
+  // La classe `visage` porte le cadrage commun (style.css) : aucun écran ne zoome à sa façon.
+  // Sans photo à la LNH : sa silhouette générique, recadrée comme les autres — elle, toujours locale.
+  if (PORTRAITS_LOCAUX) return PORTRAITS_LOCAUX.has(id)
+    ? `${fallback}${surAppareil() ? imgVisage(id) : `<img class="visage" src="img/mugs/${id}.webp" alt="" loading="lazy" onerror="this.remove()">`}`
+    : `${fallback}<img class="visage silhouette" src="img/mugs/silhouette.webp" alt="" loading="lazy" onerror="this.remove()">`;
+  if (PORTRAITS_ABSENTS.has(id)) return fallback;
+  return `${fallback}<img src="https://assets.nhle.com/mugs/nhl/latest/${id}.png" alt="" loading="lazy" onerror="this.remove();cap82.portraitAbsent(${id})">`;
 }
 
 /* ---------- toast ---------- */
 
 let toastTimer = null;
-function toast(msg, kind = '') {
+export function toast(msg, kind = '') {
   const el = $('toast');
   if (!el) return;
   el.className = 'toast on' + (kind ? ' ' + kind : '');
@@ -807,44 +1083,44 @@ async function boot() {
     $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele,
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
-    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast,
+    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, deciderSerie, bancSerie, finDesSeriesRogue,
     // L'onglet « La ligue » reconstitue la VRAIE fiche des 31 adversaires :
     // il lui faut le shard de leur saison, et le chargeur le met en cache.
     getShard,
   });
+  // S77 : l'ancienne sauvegarde unique devient la première partie de l'index.
+  migrer();
   // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
   let vierge = false;
-  try { vierge = !localStorage.getItem('cap82_opts') && !localStorage.getItem('cap82_save'); } catch { /* stockage indisponible */ }
+  try { vierge = !localStorage.getItem('cap82_opts') && !lireIndex().parties.length; } catch { /* stockage indisponible */ }
   try {
     loadOpts();
     appliquerPalette();
     activerSons(G.sons);
-    await loadIndex();
+    await Promise.all([loadIndex(), chargerPortraits(), actionsDisponibles()]);
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
     if (G.epoque && !state.index.seasons.includes(G.epoque)) G.epoque = null;
     setupEvents();
+    // Les cartes se penchent sous le doigt (S77) : un seul écouteur délégué, pour tout le jeu.
+    brancherInclinaison(document);
     // Les segments démarrent sur la valeur écrite dans le HTML : sans cette
     // ligne, un réglage relu du stockage s'appliquait au rendu mais pas au
     // bouton, qui montrait alors autre chose que ce qu'on regardait.
     syncOptionsUI();
-    const restored = await restoreSave();
-    if (!restored) await demarrerPartie();     // une seule séquence, plus de copie ici
-    $('boot').style.display = 'none';
-    $('game').style.display = '';
-    $('actionbar').style.display = '';
-    render();
-    // Une saison était en cours : on la rejoue sous sa graine et l'écran
-    // rouvre à la journée où on l'avait laissée. Après `render()`, pour que la
-    // page soit là pendant la simulation.
-    if (restored && restored.reprise) await restored.reprise();
     /*
-     * L'écran s'ouvre PAR-DESSUS une partie déjà bâtie, à la première visite
-     * seulement. Le retarder aurait rendu l'écran bloquant, or Échap ferme
-     * toute modale non-`live` : on aurait laissé le joueur devant un espace de
-     * travail vide. Le prix est une requête de shard à la toute première
-     * visite, et « Commencer » sans rien changer se contente alors de refermer.
+     * LE MENU AU DÉPART (S77). JP : *un menu au départ pour choisir*. Au
+     * premier lancement d'une SESSION (l'appli qu'on ouvre), le menu d'abord :
+     * continuer, un mode, une partie. Recharger la page pendant qu'on joue
+     * reste un rechargement — on retombe dans la partie, pas au menu.
      */
-    if (vierge) ouvrirNouvellePartie();
+    let dejaVu = true;
+    try { dejaVu = sessionStorage.getItem('cap82_session') === '1'; } catch { /* stockage indisponible */ }
+    if (!dejaVu) {
+      $('boot').style.display = 'none';
+      afficherMenu(contexteDuMenu({ vierge, enJeu: false }));
+      return;
+    }
+    await continuerBoot();
   } catch (e) {
     $('boot').innerHTML = `<div class="err">Impossible de charger les données.<br>
       <span class="mono">${esc(e.message)}</span><br><br>
@@ -852,6 +1128,80 @@ async function boot() {
       <span class="mono">python3 scripts/build_shards.py</span>.</div>`;
   }
 }
+
+/*
+ * LA SUITE DU DÉMARRAGE, une fois la partie choisie : reprendre la partie
+ * active (elle se rejoue de sa graine), ou en bâtir une si elle est neuve.
+ * `apres` dit ce qu'on ouvre ensuite — l'écran « Nouvelle partie » d'un mode.
+ */
+let demarre = false;
+async function continuerBoot(apres = null) {
+  try { sessionStorage.setItem('cap82_session', '1'); } catch { /* ignore */ }
+  let suite = apres;
+  try { suite = suite || sessionStorage.getItem('cap82_apres'); sessionStorage.removeItem('cap82_apres'); } catch { /* ignore */ }
+  const restored = await restoreSave();
+  if (!restored) await demarrerPartie();     // une seule séquence, plus de copie ici
+  demarre = true;
+  $('boot').style.display = 'none';
+  $('game').style.display = '';
+  $('actionbar').style.display = '';
+  render();
+  // Les visages et les écussons sur l'appareil, en arrière-plan (S78).
+  setTimeout(prechargerVisages, 4000);
+  // Une saison était en cours : on la rejoue sous sa graine et l'écran
+  // rouvre à la journée où on l'avait laissée. Après `render()`, pour que la
+  // page soit là pendant la simulation.
+  if (restored && restored.reprise) await restored.reprise();
+  if (suite === 'nouvelle-saison') ouvrirNouvellePartie('SAISON');
+  else if (suite === 'nouvelle-table') ouvrirNouvellePartie('TABLE');
+  else if (suite === 'nouvelle-rogue' && typeof ouvrirRogue === 'function') ouvrirRogue();
+}
+/*
+ * CE QUE LE MENU PEUT FAIRE. Changer de partie RECHARGE la page : une partie
+ * se rejoue de sa graine au démarrage, et c'est la seule façon sûre de ne
+ * rien garder de la précédente en mémoire (la ligue, les séries, le tournoi,
+ * les cotes déjà connues).
+ */
+export function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
+  const ailleurs = (apres = null) => {
+    if (!demarre) { fermerMenu(); continuerBoot(apres).catch(() => toast('Impossible de reprendre cette partie.', 'bad')); return; }
+    try { sessionStorage.setItem('cap82_session', '1'); if (apres) sessionStorage.setItem('cap82_apres', apres); } catch { /* ignore */ }
+    location.reload();
+  };
+  return {
+    vierge, enJeu,
+    continuer: () => { if (demarre) fermerMenu(); else ailleurs(); },
+    reprendre: id => { activer(id); ailleurs(); },
+    nouvelle: genre => { nouvellePartie(genre); ailleurs(`nouvelle-${genre}`); },
+    options: () => { syncOptionsUI(); openModal('optionsModal'); },
+    regles: ouvrirRegles,
+    // L'EXHIBITION (S78, js/exhibition.js) : aucune partie, on revient au menu en la fermant.
+    // 1.0 (J3-6) : l'écran d'exhibition se charge au clic, pas avec le premier écran.
+    exhibition: () => { fermerMenu(); import('./exhibition.js').then(({ ouvrirExhibition }) => ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
+    rogue: {
+      // 1.0 (R7, R8) : la dernière run sur le carton, rien à la première visite.
+      resume: () => {
+        const m = lireMeta();
+        if (!(m.runs > 0)) return '';
+        const d = m.derniereRun;
+        if (d && d.numero === m.runs) return `Run ${d.numero} · ${esc(motDeRun(d))} · 🏅 ${m.ecussons || 0}`;
+        return `Run ${m.runs} en cours · 🏅 ${m.ecussons || 0}`;
+      },
+      nouvelle: () => { nouvellePartie('rogue'); ailleurs('nouvelle-rogue'); },
+      vestiaire: () => ouvrirVestiaire(() => { if (document.getElementById('menuDepart')) afficherMenu(contexteDuMenu({ vierge, enJeu })); }),
+      // L'INVENTAIRE PERMANENT ET LE CLASSEUR (S79) : hors saison, on regarde ; on joue du hub.
+      inventaire: () => ouvrirInventaireJeu(null, null),
+    },
+  };
+}
+
+/* Ce que l'exhibition lit du jeu : les saisons, le chargeur de shards, l'affichage — et le direct. */
+const ctxExhibition = onFerme => ({
+  saisons: state.index.seasons, shard: getShard, esc, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
+  nom: code => TEAMFULL[code] || code,
+  direct: { esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
+  onFerme,
+});
 
 function setupEvents() {
   // Recherche et tri (tirage VESTIAIRE)
@@ -867,14 +1217,21 @@ function setupEvents() {
   }
   syncAgeControls();
 
-  // LA BARRE D'ONGLETS DU BAS : la seule navigation du jeu. C'est
-  // `majNavbar` qui la bâtit et qui branche ses boutons.
+  // LES CINQ SECTIONS : la seule navigation du jeu. C'est `majNavbar` qui
+  // les bâtit et qui branche leurs boutons.
 
   // Modales
-  // Les équipes, l'historique et les règles sont des PAGES, pas des modales :
-  // `montrerPage` les remplit. Il ne reste en haut que ce qui est une ACTION.
-  bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
-  bindModal('partieModal', 'openPartieBtn', 'closePartieBtn', semerBrouillon, oublierBrouillon);
+  // Les équipes et tes saisons sont des PAGES, pas des modales : `montrerPage`
+  // les remplit. L'en-tête ne garde que le Menu : une nouvelle partie, les
+  // options et les règles y vivent (1.0, R1).
+  bindModal('optionsModal', null, 'closeOptionsBtn');
+  // Un mode choisi au Menu ouvre l'écran « Nouvelle partie », réglé sur ce mode (S79).
+  bindModal('partieModal', null, 'closePartieBtn', semerBrouillon, oublierBrouillon);
+  const menuBtn = $('menuBtn');
+  if (menuBtn) menuBtn.onclick = () => { saveGame(); afficherMenu(contexteDuMenu({ enJeu: true })); };
+  // MES LIGNES AU REPÊCHAGE (S68) : réglées avant la saison, elles entrent
+  // dans la décision 0. Depuis S78, elles se règlent SOUS chaque trio de
+  // l'alignement (`rangeeStrategie`, en fenêtre) : le bouton « Mes lignes » est parti.
   bindModal('hockeyCardModal', null, 'closeHockeyCardBtn');
   bindModal('gameModal', null, 'closeGameBtn');
 
@@ -903,14 +1260,34 @@ function setupEvents() {
   // L'exhibition ne passe PAS par le pied : elle n'applique rien, elle ouvre
   // un match. C'est un deuxième bouton, avec sa propre porte.
   const ex = $('npExhibition');
-  if (ex) ex.onclick = () => jouerExhibition();
+  if (ex) ex.onclick = () => chargerTable().then(m => m.jouerExhibition());
+  /*
+   * COMMENT ON JOUE, EN CINQ CARTES (S74). Pour un kid qui ouvre le jeu : la
+   * boucle entière, une carte par étape, en plein écran — à lire, pas à
+   * prendre. Par-dessus « Nouvelle partie », qui reste là dessous.
+   */
+  const aide = $('npAide');
+  if (aide) aide.onclick = () => ouvrirChoix({
+    ico: '❓', titre: 'Comment on joue', cartes: true, lecture: true, genre: 'aide', fermable: true, motFermer: 'Compris !',
+    recit: 'Cap 82-0, c\'est bâtir une équipe de vrais joueurs et aller chercher la Coupe. Balaie les cartes.',
+    options: [
+      { cle: 'a1', rarete: 'commune', ico: '🎰', nom: '1. Repêche', type: 'Le repêchage', texte: 'La roulette sort de vrais clubs de 55 saisons. Signe 23 joueurs sous le plafond : trouver les aubaines, c\'est le métier.' },
+      { cle: 'a2', rarete: 'peu', ico: '🧬', nom: '2. Ton identité', type: 'Avant le premier tour', texte: 'Une carte parmi trois colore ton repêchage : la roulette sort plus souvent tes francs-tireurs, tes costauds, tes aubaines…' },
+      { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'Derrière le banc', texte: 'Chaque ligne joue un système. Plus elle le joue, plus sa chimie monte — mais contre un gros adversaire, il faut parfois changer.' },
+      { cle: 'a4', rarete: 'rare', ico: '🃏', nom: '4. Tes cartes', type: 'Gros matchs et séries', texte: 'Cinq cartes, trois d\'élan. Tu vois la main de l\'adversaire : réponds-lui. Gagne, et ton deck grandit.' },
+      { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: '82 matchs, puis les séries, match par match, contre des boss. La Coupe est le vrai but ; le 82-0, le Graal. Tout ce que tu gagnes va dans ton album.' },
+    ],
+    onChoix: () => {},
+  });
 
   const go = $('npGo');
   if (go) {
     go.onclick = async () => {
       if (demarrageEnCours || !G.brouillon) return;
       const b = { ...G.brouillon };
-      const act = actionDuBouton(b);
+      // Le dé se jette ici, une fois : une partie « au hasard » repart toujours.
+      const auHasard = resoudreHasard(b);
+      const act = auHasard.length ? 'DEMARRER' : actionDuBouton(b);
       if (act === 'RIEN') { closeModal('partieModal'); return; }
       if (act === 'BONUS') {
         // Le mode bonus ne touche pas au repêchage : c'est le seul réglage de
@@ -929,9 +1306,15 @@ function setupEvents() {
       demarrageEnCours = true;
       go.disabled = true;
       try {
-        await demarrerPartie(b);
+        // Le toast ne dit que ce qu'on ne voit pas (1.0, J2-6g) : le hasard qui
+        // a choisi, ou une partie en cours qu'on vient d'effacer. Au premier tour
+        // d'une partie neuve, la roulette à l'écran suffit.
+        const effacee = !G.done && signes().length > 0;
+        // L'identité se choisit AVANT la roulette, par-dessus cet écran.
+        const choix = await choisirIdentite();
+        await demarrerPartie({ ...b, identite: choix });
         closeModal('partieModal');
-        toast(`${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''} : la roulette repart à zéro.`);
+        if (auHasard.length || effacee) toast(`${auHasard.length ? `🎲 Le hasard a choisi ${auHasard.join(' et ')}. ` : ''}${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''}${b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? ` · ${FRANCHISES[b.franchise].nom}` : ''} : la roulette repart à zéro.`);
       } catch {
         toast('Impossible de charger cette saison. Réessaie ou change de ligue.');
       } finally {
@@ -942,25 +1325,64 @@ function setupEvents() {
     };
   }
 
-  window.addEventListener('keydown', ev => {
-    if (ev.key === 'Escape') {
-      // L'écran de saison et le direct ont leur propre sortie : Échap ne
-      // les ferme pas, ça laisserait la saison à moitié révélée. Et parmi
-      // celles qui restent, on ne ferme que CELLE DU DESSUS.
-      const ouvertes = [...document.querySelectorAll('.modal-backdrop:not(.live)')]
-        .filter(m => m.style.display && m.style.display !== 'none');
-      if (ouvertes.length) {
-        ouvertes.sort((a, b) => Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
-        fermerModale(ouvertes[0]);
-      }
-      if (G.selectedSlot !== null || G.target !== null) {
-        G.selectedSlot = null; G.target = null; render();
-      }
-    }
-    if (ev.key === 'Tab') piegerFocus(ev);
-  });
+  /*
+   * LE RETOUR, UN NIVEAU À LA FOIS (1.0, R1, js/pile.js) : Échap, B, le bouton
+   * d'Android et « ‹ Retour » passent tous par ici, du plus haut au plus bas.
+   */
+  brancherRetour([
+    fermerCoucheDuDessus,
+    // Le direct et le plateau ont leur propre sortie : la saison ne se laisse
+    // pas à moitié révélée, et un match sur table ne s'abandonne pas d'une touche.
+    () => ['liveModal', 'tableModal'].some(id => $(id) && $(id).style.display === 'flex'),
+    // L'exhibition, ouverte du Menu, se referme sur lui.
+    () => { const b = document.querySelector('#exhibitionModal .exh-fermer'); if (!b) return false; b.click(); return true; },
+    fermerRegles,
+    // Le Menu en pleine partie : « Retour à la partie ». Au lancement, il est
+    // l'écran titre, et rien n'est sous lui.
+    () => { if (!$('menuDepart')) return false; if (demarre) fermerMenu(); return true; },
+    // Une case visée ou un joueur choisi dans l'alignement.
+    () => {
+      if (G.selectedSlot === null && G.target === null) return false;
+      G.selectedSlot = null; G.target = null; render();
+      return true;
+    },
+    // Une section : on remonte au Club. Au Club, rien — on y est.
+    () => { if (!demarre || document.body.dataset.page === 'match') return false; montrerPage('match'); return true; },
+  ]);
+  brancherManette();
+  window.addEventListener('keydown', ev => { if (ev.key === 'Tab') piegerFocus(ev); });
 
   $('mainBtn').onclick = runSeason;
+}
+
+/*
+ * LA COUCHE DU DESSUS SE FERME, ET ELLE SEULE. 1.0 (R5) : les plein écran
+ * `.choix-modal` (la boutique, l'inventaire, le classeur, un choix) passent
+ * AVANT les modales à fond. La fiche d'un pack se replie d'abord ; un écran
+ * qui a son ✕ se ferme comme par son ✕ ; un choix forcé (sans ✕) reste, et
+ * rien en dessous ne bouge. Parmi les modales, on ne ferme que CELLE DU
+ * DESSUS : la fiche « au-dessus » (z 120) passe avant un plein écran (96), qui
+ * passe avant une modale à fond (90) — l'ordre de la feuille de style.
+ * Vrai s'il y avait une couche.
+ */
+function fermerCoucheDuDessus() {
+  const pleins = [...document.querySelectorAll('.choix-modal:not([hidden])')].filter(m => m.firstElementChild);
+  const ouvertes = [...document.querySelectorAll('.modal-backdrop:not(.live)')]
+    .filter(m => m.style.display && m.style.display !== 'none');
+  if (!pleins.length && !ouvertes.length) return false;
+  const z = el => Number(getComputedStyle(el).zIndex) || 0;
+  const zPleins = pleins.length ? Math.max(...pleins.map(z)) : -1;
+  const zOuvertes = ouvertes.length ? Math.max(...ouvertes.map(z)) : -1;
+  if (pleins.length && zPleins >= zOuvertes) {
+    const haut = pleins[pleins.length - 1];
+    const ficheDePack = haut.querySelector('.pk-fiche');
+    if (ficheDePack) ficheDePack.remove();
+    else { const croix = haut.querySelector('.choix-fermer'); if (croix) croix.click(); }
+    return true;
+  }
+  ouvertes.sort((a, b) => z(b) - z(a) || Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
+  fermerModale(ouvertes[0]);
+  return true;
 }
 
 /*
@@ -983,7 +1405,7 @@ const modaleOuverte = () => [...document.querySelectorAll('.modal-backdrop')].fi
  * rien de l'ordre d'ouverture, d'où ce compteur.
  */
 let rangModale = 0;
-function ouvrirModale(m) {
+export function ouvrirModale(m) {
   if (!m) return;
   if (!modaleOuverte()) focusAvantModale = document.activeElement;
   m.dataset.rang = String(++rangModale);
@@ -1024,10 +1446,10 @@ function bindModal(modalId, openId, closeId, onOpen, onClose) {
   modal.onclick = ev => { if (ev.target === modal) fermerModale(modal); };
 }
 
-const closeModal = id => fermerModale($(id));
-const openModal = id => ouvrirModale($(id));
+export const closeModal = id => fermerModale($(id));
+export const openModal = id => ouvrirModale($(id));
 
-function setOption(key, val) {
+export function setOption(key, val) {
   if (key === 'poolView') {
     G.poolView = val === 'LIST' ? 'LIST' : 'POS';
     // Demander les six colonnes quand un filtre n'en laisse qu'une seule ne
@@ -1045,1597 +1467,556 @@ function setOption(key, val) {
     return;
   }
   else if (key === 'sons') { G.sons = val === 'on'; activerSons(G.sons); }
+  else if (key === 'niveauTable') G.niveauTable = val === 'PRO' ? 'PRO' : 'RECRUE';
   else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';
   saveOpts();
 }
 
-/* =====================================================================
-   L'ÉCRAN « NOUVELLE PARTIE » : on compose, puis on lance
-   =====================================================================
-   JP : *faire bouton new game aussi, qui permet de choisir les options du jeu
-   au lieu d'un menu option, pour faire plus « jeu »*.
-
-   DEUX INVARIANTS. (1) Un réglage de PARTIE ne touche jamais `G` avant le
-   bouton du pied, et UN SEUL `demarrerPartie()` part par clic — `setOption`
-   lançait un `newGame()` non attendu dans quatre branches, donc changer le
-   format puis le tirage mettait deux `chargerRenfort()` et deux `nextSpin()`
-   en vol, et le plus lent écrivait `G.tirage`. (2) Un réglage qui, changé,
-   oblige à jeter l'alignement est un réglage de PARTIE ; les quatre qui
-   restent dans les options peuvent changer au milieu d'un tour sans rien
-   perdre.
-   ===================================================================== */
-
-/** Les valeurs de départ viennent de l'état VIVANT, jamais des préférences. */
-function semerBrouillon() {
-  const dernier = state.index.seasons[state.index.seasons.length - 1];
-  G.brouillon = {
-    mode: G.mode, epoque: G.epoque, repechage: G.repechage, bonus: G.bonus,
-    // La saison RETENUE, même quand la ligue est « toutes les époques » : un
-    // aller-retour ne doit pas ramener la dernière saison de la liste.
-    epoqueChoisie: G.epoque || dernier,
-  };
-  syncOptionsUI();
-  majPiedPartie();
-}
-
-function oublierBrouillon() { G.brouillon = null; syncOptionsUI(); }
-
-function poserBrouillon(key, val) {
-  const b = G.brouillon;
-  if (!b) return;
-  if (key === 'format' || key === 'tirage') {
-    // Le mode est le PRODUIT des deux : la clé se compose une seule fois, ici.
-    const M = MODES[b.mode] || MODES.CLASSIQUE;
-    b.mode = modeDe(key === 'format' ? val : M.format, key === 'tirage' ? val : M.tirage);
-  } else if (key === 'ligue') b.epoque = val === 'UNE' ? b.epoqueChoisie : null;
-  else if (key === 'repechage') b.repechage = val === 'TOUTES' ? 'TOUTES' : 'SAISON';
-  else if (key === 'bonus') b.bonus = val === 'TABLE' ? 'TABLE' : 'SAISON';
-  syncOptionsUI();
-  majPiedPartie();
-}
-
-/**
- * Ce que le bouton du pied va faire : RIEN (rien n'est signé et rien n'a
- * changé — on referme), BONUS (le seul réglage qui ne touche pas au
- * repêchage : on garde l'alignement) ou DEMARRER.
- */
-function actionDuBouton(b) {
-  const enPartie = !G.done && G.tirage.length > 0;
-  const memeRepechage = b.mode === G.mode && b.epoque === G.epoque && b.repechage === G.repechage;
-  if (!enPartie || !memeRepechage) return 'DEMARRER';
-  if (b.bonus !== G.bonus) return 'BONUS';
-  return signes().length ? 'DEMARRER' : 'RIEN';
-}
-
-function majPiedPartie() {
-  const b = G.brouillon;
-  if (!b) return;
-  const M = MODES[b.mode] || MODES.CLASSIQUE;
-  // Aucun chiffre recopié à la main : tout vient de MODES, casesDuMode et
-  // REROLLS. Une constante recopiée est une constante qui ment tôt ou tard —
-  // le dépôt en porte déjà la preuve dans deux `desc` de MODES.
-  $('npResume').textContent = [
-    `${casesDuMode(b.mode).length} cases`,
-    money(M.cap),
-    M.loto ? `trois clubs par case · ${M.relances} relances`
-      : `un vestiaire au complet · ${REROLLS.season}/${REROLLS.team}/${REROLLS.pass} relances`,
-    b.epoque ? `ligue ${b.epoque}` : 'toutes les époques',
-    b.epoque && b.repechage === 'TOUTES' ? 'repêchage toutes époques' : null,
-    b.bonus === 'TABLE' ? 'sur table' : null,
-  ].filter(Boolean).join(' · ');
-
-  const n = signes().length;
-  const enPartie = !G.done && G.tirage.length > 0;
-  const rep = $('npReprise');
-  rep.hidden = !(enPartie && n > 0);
-  if (!rep.hidden) rep.textContent = `Une partie est en cours : ${n} joueur${n > 1 ? 's' : ''} signé${n > 1 ? 's' : ''}. Ferme cet écran (✕) pour y revenir.`;
-
-  const act = actionDuBouton(b);
-  const efface = act === 'DEMARRER' && enPartie && n > 0;
-  $('npGoVerbe').textContent = efface ? 'Recommencer' : act === 'BONUS' ? 'Appliquer' : 'Commencer';
-  // La note n'est JAMAIS vide : le bouton ne change pas de hauteur.
-  $('npGoNote').textContent = efface ? `efface ${n} joueur${n > 1 ? 's' : ''}`
-    : act === 'DEMARRER' ? 'la roulette repart' : "rien n'est effacé";
-  $('npGo').classList.toggle('efface', efface);
-}
-
-function ouvrirNouvellePartie() { semerBrouillon(); openModal('partieModal'); }
-
-function syncOptionsUI() {
-  // Le BROUILLON gagne tant qu'il existe : l'écran montre ce qu'on est en
-  // train de composer, pas la partie en cours. `G` porte les mêmes noms de
-  // champs, donc une seule ligne suffit.
-  const src = G.brouillon || G;
-  const M = MODES[src.mode] || MODES.CLASSIQUE;
-  const cur = {
-    stats: G.statsProrata ? 'prorata' : 'real',
-    salary: G.salaryMode,
-    onlyFit: G.onlyFit ? 'on' : 'off',
-    poolView: G.poolView,
-    palette: G.palette,
-    sons: G.sons ? 'on' : 'off',
-    format: M.format,
-    tirage: M.tirage,
-    ligue: src.epoque ? 'UNE' : 'TOUTES',
-    repechage: src.repechage,
-    bonus: src.bonus,
-  };
-  const sel = $('epoqueSelect');
-  if (sel) {
-    if (!sel.options.length) {
-      sel.innerHTML = state.index.seasons.slice().reverse().map(x => `<option value="${x}">${x}</option>`).join('');
-      // Choisir dans la liste ne relance plus rien : ça garnit le brouillon.
-      sel.onchange = () => {
-        if (!G.brouillon) return;
-        G.brouillon.epoqueChoisie = sel.value;
-        G.brouillon.epoque = sel.value;
-        majPiedPartie();
-      };
-    }
-    sel.value = (G.brouillon ? G.brouillon.epoqueChoisie : G.epoque) || state.index.seasons[state.index.seasons.length - 1];
-    // ON DÉSACTIVE, ON NE CACHE PLUS. `piegerFocus` filtre sur `offsetParent`,
-    // donc une rangée qui disparaît change l'ordre de tabulation à chaque
-    // clic — et « on réserve la place, on ne la prend pas ».
-    sel.disabled = !src.epoque;
-  }
-  const rep = $('repechageRow');
-  if (rep) {
-    rep.hidden = false;
-    rep.classList.toggle('desactive', !src.epoque);
-    rep.querySelectorAll('.seg button').forEach(x => { x.disabled = !src.epoque; });
-  }
-  document.querySelectorAll('.seg').forEach(seg => {
-    seg.querySelectorAll('button').forEach(b => {
-      b.classList.toggle('on', b.dataset.val === cur[seg.dataset.opt]);
-    });
-  });
-}
-
 /* ======================================================================
-   UN ONGLET, UNE RAISON D'ÊTRE
+   LA COQUILLE : CINQ SECTIONS (1.0, R1)
    ======================================================================
-   JP : *mettre onglets en bas, pages séparées de l'accueil* ; *un onglet, une
-   raison d'être genre* ; *je veux pas avoir tout restant dans la page, picks,
-   alignement, match du jour/calendrier, standings, leaders, C'EST TOUS DES
-   ONGLETS DIFFÉRENTS*.
+   JP : *je me sens comme une balle de pinball* ; *que si je le montre à
+   quelqu'un, ça ait pas l'air d'un jeu web, mais d'un jeu console, PC ou
+   mobile*. La barre portait neuf onglets, dont trois pages de référence :
+   c'était un site. Un jeu de gestion a cinq portes, toujours les mêmes, dans
+   le même ordre, dans tous les modes ; ce qui change avec la phase, c'est ce
+   que chaque porte MONTRE, jamais la barre (S67).
 
-   Le jeu avait TROIS systèmes d'onglets à trois endroits — les deux volets
-   en bas, le bilan au milieu, l'écran de saison au milieu aussi — et trois
-   destinations enfermées dans des modales ouvertes par des icônes du haut.
-   Il n'y en a plus qu'un : la barre du bas. Ce qui reste en haut est ce qui
-   n'est pas une destination — la jauge de plafond, Nouvelle partie, Options.
+     Club        le bureau : la saison à lancer, le prochain match, la série, le bilan
+     Effectif    l'alignement ; en pleine saison, derrière le banc
+     Marché      le vestiaire (ou le loto) au repêchage ; ensuite la boutique et tes cartes
+     Ligue       Classement · Calendrier · Meneurs · Équipes
+     Collection  Saisons · Cartable
 
-   `document.body.dataset.page` est le seul état, et la feuille de style en
-   déduit tout : c'est elle qui décide que la roulette ne s'affiche pas sur
-   l'onglet de l'alignement, plutôt qu'un `hidden` posé à la main quelque part.
+   Une section de plusieurs pages a ses onglets internes, sous l'en-tête du
+   club. Les règles, les options et une nouvelle partie vivent dans le Menu.
+   Une page qui n'a encore rien à montrer ne disparaît pas : elle dit pourquoi
+   et offre la suite (`remplirVide`).
+
+   `document.body.dataset.page` reste le seul état de la page, et la feuille
+   de style en déduit tout ; `data-section` dit quelle porte est ouverte.
    ====================================================================== */
-/*
- * LES ENTRÉES DE LA BARRE SUIVENT LA PHASE DE LA PARTIE. JP : *picks,
- * alignement, match du jour/calendrier, standings, leaders, C'EST TOUS DES
- * ONGLETS DIFFÉRENTS*. Le classement, le calendrier et les meneurs étaient
- * des onglets du bilan, dans une DEUXIÈME barre collée sous la barre du
- * haut : deux barres sur le même écran, et celle du bas ne parlait plus de
- * ce qu'on regardait. Ils sont maintenant des onglets de la SEULE barre,
- * et c'est la phase qui décide desquels on a besoin — on bâtit, puis on lit.
- *
- * `alignement` est dans les deux listes exprès : c'est la même raison d'être
- * (l'alignement), et c'est son CONTENU qui change — le tableau de profondeur
- * qu'on remplit pendant le repêchage, la fiche des 23 après la saison.
- */
-const ONGLETS_REF = [
-  { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes' },
-  { cle: 'historique', ico: 'i-trophy', titre: 'Saisons' },
-  { cle: 'regles', ico: 'i-book', titre: 'Règles' },
+const SECTIONS = [
+  { cle: 'club', ico: 'i-club', titre: 'Club' },
+  { cle: 'effectif', ico: 'i-list', titre: 'Effectif' },
+  { cle: 'marche', ico: 'i-marche', titre: 'Marché' },
+  { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
+  { cle: 'collection', ico: 'i-cartes', titre: 'Collection' },
 ];
+/* Le vestiaire (ou le loto) tant qu'on repêche. Le Rogue bâtit par packs : il ne repêche jamais. */
+const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
+/* Les pages de chaque section, dans l'ordre de ses onglets internes. */
+const PAGES_DE = {
+  club: () => ['match'],
+  effectif: () => ['alignement'],
+  marche: () => [auVestiaire() ? 'repechage' : 'marche'],
+  ligue: () => ['classement', 'calendrier', 'meneurs', 'equipes'],
+  collection: () => ['historique', 'cartable'],
+};
+/* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
+const PAGE = {
+  match: ['i-club', 'Club'], alignement: ['i-list', 'Effectif'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Marché'],
+  classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
+  historique: ['i-trophy', 'Saisons'], cartable: ['i-cartes', 'Cartable'],
+};
+const ALIAS_PAGE = { bilan: 'match', series: 'match', stats: 'meneurs', ligue: 'classement' };
+/* Les sections du bilan que montre chaque page. */
+const VOLETS_DU_BILAN = {
+  match: ['series', 'bilan'], classement: ['classement', 'ligue'], calendrier: ['calendrier'],
+  meneurs: ['stats'], alignement: ['alignement'],
+};
+const PAGES_DE_SAISON = ['match', 'classement', 'calendrier', 'meneurs', 'equipes'];
+/* Les pages de lecture, pareilles à tout moment de la partie. */
+const PAGES_REF = ['equipes', 'historique'];
 
 /*
- * Les onglets du moment, dans l'ordre de la barre.
- *
- * LA QUESTION N'EST PAS « LA SAISON EST-ELLE JOUÉE » MAIS « LE BILAN
- * EXISTE-T-IL ». `G.done` passe à vrai dès que `simulateLeague` a joué les
- * 82 matchs — bien avant `renderResult`, puisque l'écran de saison les
- * RÉVÈLE ensuite journée par journée. Le lire ici vidait la barre de ses
- * onglets de partie pendant toute la saison : « Derrière le banc » tombait
- * alors sur la page des équipes, et le panneau du banc restait caché. Les
- * volets du bilan sont la seule vérité, et « Séries » n'a d'onglet qu'une
- * fois le sien rempli — pas de drapeau de plus.
+ * UN VOLET VIDE EST UN VOLET SANS RIEN À LIRE, et c'est `textContent` qui le
+ * dit — pas `innerHTML` : le volet des séries porte d'avance le conteneur que
+ * `dessinerTableauDesSeries` remplira.
  */
-function ongletsCourants() {
-  // UN VOLET VIDE EST UN VOLET SANS RIEN À LIRE, et c'est `textContent` qui
-  // le dit — pas `innerHTML`. Le volet des séries porte d'avance le conteneur
-  // que `dessinerTableauDesSeries` remplira (`<div id="playoffsSection">`),
-  // donc son balisage n'est jamais vide : l'onglet « Séries » s'affichait dès
-  // le bilan de la saison régulière, avant qu'une seule série soit jouée.
-  const prets = new Set(
-    [...document.querySelectorAll('#resultHost .result-pane')]
-      .filter(p => p.textContent.trim() !== '').map(p => p.dataset.volet));
-  if (prets.size) return [...ONGLETS_BILAN.filter(o => prets.has(o.cle)), ...ONGLETS_REF];
-  const loto = MODE().loto;
-  return [
-    { cle: 'repechage', ico: 'i-dice', titre: loto ? 'La main' : 'Vestiaire', badge: String(poolFiltered().length) },
-    { cle: 'alignement', ico: 'i-list', titre: 'Alignement', badge: `${signes().length}/${totalCases()}` },
-    ...ONGLETS_REF,
-  ];
+function voletsPrets() {
+  return new Set([...document.querySelectorAll('#resultHost .result-pane')]
+    .filter(p => p.textContent.trim() !== '').map(p => p.dataset.volet));
+}
+const bilanPret = () => voletsPrets().size > 0;
+export const enRepechage = () => !G.done && !bilanPret() && !hubActif();
+
+const sectionDe = cle => (SECTIONS.find(s => PAGES_DE[s.cle]().includes(cle)) || SECTIONS[0]).cle;
+const PAGES = () => SECTIONS.flatMap(s => PAGES_DE[s.cle]());
+/* La dernière page ouverte de chaque section : la Ligue rouvre sur le calendrier qu'on lisait. */
+const dernierePage = {};
+
+function sectionsCourantes() {
+  const draft = enRepechage();
+  return SECTIONS.map(s => ({
+    ...s,
+    // ESTOMPÉE PENDANT LE REPÊCHAGE (1.0, J2-6e) : la Ligue n'a rien avant le
+    // premier match et le dit d'un coup d'oeil. La toucher reste permis.
+    mort: draft && s.cle === 'ligue' ? 'Dès le premier match' : '',
+    badge: !draft ? '' : s.cle === 'marche' && auVestiaire() ? String(compteSignables())
+      : s.cle === 'effectif' ? `${signes().length}/${totalCases()}` : '',
+  }));
 }
 
-const PAGES = () => ongletsCourants().map(o => o.cle);
-
 /*
- * LA BARRE. Elle se rebâtit quand ses entrées changent, jamais à chaque
- * rendu : sur un téléphone elle défile en x (neuf onglets après la saison),
- * et un `innerHTML` par rendu remettrait ce défilement à zéro.
+ * LA BARRE (un rail à gauche dès 1000 px, des onglets en bas au téléphone).
+ * Elle se rebâtit quand un badge change, jamais à chaque rendu. Ses entrées,
+ * elles, ne changent jamais.
  */
-function majNavbar(cle, liste = ongletsCourants()) {
+export function majNavbar(cle = G.page) {
   const nav = $('navbar');
   if (!nav) return;
-  // LA PAGE COURANTE EST TOUJOURS UNE PAGE QUI EXISTE. « Rejouer la saison »
-  // et « Rejouer » depuis l'historique remettent `G.done` à faux pendant que
-  // `G.page` dit encore « classement » : l'onglet a disparu avec la phase, et
-  // la barre marquait alors un onglet mort pendant que la feuille de style
-  // cherchait `body[data-page="classement"]`. On retombe sur le premier.
-  if (!liste.some(o => o.cle === cle)) { marquerPage(cle); return; }
-  const sig = liste.map(o => `${o.cle}:${o.titre}:${o.badge || ''}`).join('|');
+  const liste = sectionsCourantes();
+  const sig = liste.map(o => `${o.cle}:${o.badge}:${o.mort ? 1 : 0}`).join('|');
   if (nav.dataset.sig !== sig) {
     nav.dataset.sig = sig;
-    nav.innerHTML = liste.map(o => `<button class="navtab" type="button" role="tab" data-page="${o.cle}" aria-selected="false">
-      <svg class="ico" aria-hidden="true"><use href="#${o.ico}"/></svg>
-      <span class="navtab-lbl">${esc(o.titre)}</span>
-      ${o.badge ? `<span class="navtab-badge">${esc(o.badge)}</span>` : ''}
-    </button>`).join('');
-    nav.querySelectorAll('.navtab').forEach(b => { b.onclick = () => montrerPage(b.dataset.page); });
+    nav.innerHTML = `<div class="rail-logo" aria-hidden="true">CAP <b>82-0</b></div>${liste.map(o => `<button class="navtab${o.mort ? ' mort' : ''}" type="button" role="tab" data-section="${o.cle}" aria-selected="false"${o.mort ? ` title="${esc(o.mort)}"` : ''}>
+      ${ico(o.ico)}<span class="navtab-lbl">${esc(o.titre)}</span>${o.badge ? `<span class="navtab-badge">${esc(o.badge)}</span>` : ''}
+    </button>`).join('')}`;
+    nav.querySelectorAll('.navtab').forEach(b => { b.onclick = () => ouvrirSection(b.dataset.section); });
   }
-  let ouvert = null;
+  const sec = sectionDe(cle);
   nav.querySelectorAll('.navtab').forEach(b => {
+    const on = b.dataset.section === sec;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  majSousNav(cle, sec);
+}
+
+/* LES ONGLETS INTERNES d'une section de plusieurs pages, sous l'en-tête du club. */
+function majSousNav(cle, sec) {
+  const sous = $('sousNav');
+  if (!sous) return;
+  const pages = PAGES_DE[sec]();
+  sous.hidden = pages.length < 2;
+  const sig = sous.hidden ? '' : pages.join('|');
+  if (sous.dataset.sig !== sig) {
+    sous.dataset.sig = sig;
+    sous.innerHTML = sous.hidden ? '' : pages.map(p => `<button type="button" class="soustab" role="tab" data-page="${p}" aria-selected="false">${esc(PAGE[p][1])}</button>`).join('');
+    sous.querySelectorAll('.soustab').forEach(b => { b.onclick = () => { jouerSon('valide'); montrerPage(b.dataset.page); }; });
+  }
+  sous.querySelectorAll('.soustab').forEach(b => {
     const on = b.dataset.page === cle;
     b.classList.toggle('on', on);
     b.setAttribute('aria-selected', on ? 'true' : 'false');
-    if (on) ouvert = b;
   });
-  // L'onglet ouvert reste en vue : on déplace LA BARRE, jamais la page.
-  if (ouvert && nav.scrollWidth > nav.clientWidth + 1) {
-    const g = ouvert.offsetLeft - 8, d = ouvert.offsetLeft + ouvert.offsetWidth + 8 - nav.clientWidth;
-    if (nav.scrollLeft > g) nav.scrollTo({ left: g, behavior: 'smooth' });
-    else if (nav.scrollLeft < d) nav.scrollTo({ left: d, behavior: 'smooth' });
-  }
 }
 
-/** Pose la page courante. Ne remplit rien : c'est `montrerPage` qui le fait. */
+/* Toucher une section rouvre la page qu'on y lisait, sinon sa première. */
+function ouvrirSection(sec) {
+  const pages = PAGES_DE[sec]();
+  jouerSon('valide');
+  montrerPage(pages.includes(dernierePage[sec]) ? dernierePage[sec] : pages[0]);
+}
+
+/*
+ * OÙ VIT UNE PAGE, À CE MOMENT-CI. Un seul endroit à la fois :
+ *   'hub'       un volet de l'écran de saison, des séries ou du tournoi
+ *   'jeu'       le repêchage, l'alignement, ou une section du bilan (#game)
+ *   'ref'       une page de lecture (les équipes, tes saisons)
+ *   'marche'    la boutique et tes cartes, une fois le repêchage fini
+ *   'cartable'  tes joueurs gagnés
+ *   'vide'      rien encore : la page dit pourquoi et offre la suite
+ */
+function zoneDe(cle) {
+  const hub = hubActif();
+  if (hub && voletPour(cle)) return 'hub';
+  if (PAGES_REF.includes(cle)) return 'ref';
+  if (cle === 'marche' || cle === 'cartable') return cle;
+  if (bilanPret() && !hub) return VOLETS_DU_BILAN[cle] ? 'jeu' : 'vide';
+  if (cle === 'repechage') return 'jeu';
+  // Pendant les séries et le tournoi, l'alignement est figé : rien à y faire.
+  if (cle === 'alignement') return hub ? 'vide' : 'jeu';
+  return 'vide';
+}
+
+/* Une page d'avant la coquille (une sauvegarde, un rappel) retombe sur ses pieds. */
+function normaliser(cle) {
+  cle = ALIAS_PAGE[cle] || cle;
+  // Le vestiaire n'existe qu'au repêchage ; le marché prend sa place ensuite, et réciproquement.
+  if (cle === 'repechage' || cle === 'marche') cle = PAGES_DE.marche()[0];
+  return PAGES().includes(cle) ? cle : 'match';
+}
+
+/** Pose la page courante. Ne remplit rien d'autre que les pages de la coquille. */
 function marquerPage(cle) {
-  const liste = ongletsCourants();
-  if (!liste.some(o => o.cle === cle)) cle = liste[0].cle;
+  cle = normaliser(cle);
+  const avant = document.body.dataset.page;
   G.page = cle;
+  const sec = sectionDe(cle);
+  dernierePage[sec] = cle;
+  const zone = zoneDe(cle);
   document.body.dataset.page = cle;
-  // La ZONE dit si on est dans la partie ou dans une page de référence. C'est
-  // elle que la feuille de style lit pour borner la hauteur, parce que les
-  // onglets de partie changent de nom avec la phase et qu'une règle qui les
-  // énumère est une règle qui oublie le prochain.
-  document.body.dataset.zone = ONGLETS_REF.some(o => o.cle === cle) ? 'ref' : 'jeu';
-  // Le bilan est un onglet par SECTION : c'est la page qui ouvre son volet.
-  document.querySelectorAll('#resultHost .result-pane').forEach(p => { p.hidden = p.dataset.volet !== cle; });
-  if (G.done) brancherEntractes($('resultHost'));   // un deck caché mesure zéro
-  majNavbar(cle, liste);
-  for (const id of ['pageEquipes', 'pageHistorique', 'pageRegles']) {
-    const el = $(id);
-    if (el) el.hidden = id !== `page${cle[0].toUpperCase()}${cle.slice(1)}`;
+  document.body.dataset.section = sec;
+  document.body.dataset.zone = zone;
+  // L'ÉCRAN DE SAISON S'ANCRE DANS LA PAGE (S67) : sous l'en-tête, à côté du
+  // rail ou au-dessus des onglets, jamais par-dessus. Quand la page ouverte
+  // n'est pas l'un de ses volets (le marché, tes saisons), il se retire sans se fermer.
+  const hub = hubActif();
+  document.body.classList.toggle('hub-docke', !!hub);
+  document.body.classList.toggle('hub-cache', !!hub && zone !== 'hub');
+  if (zone === 'hub') {
+    const v = voletPour(cle);
+    if (v && hub.courant() !== v) hub.montrer(v);
   }
+  // Les sections du bilan que cette page porte, et elles seules.
+  const vis = VOLETS_DU_BILAN[cle] || [];
+  document.querySelectorAll('#resultHost .result-pane').forEach(p => {
+    p.hidden = !vis.includes(p.dataset.volet) || !p.textContent.trim();
+  });
+  if (G.done) brancherEntractes($('resultHost'));   // un deck caché mesure zéro
+  /*
+   * UNE RANGÉE CACHÉE MESURE ZÉRO (1.0, J2-4). `ajusterCartes` réduit les
+   * noms et les étiquettes qui débordent — mais l'alignement se dessine
+   * pendant qu'on est au vestiaire, onglet caché : chaque rangée mesurait 0,
+   * rien n'était réduit, et à l'ouverture de l'onglet les icônes d'une case
+   * sortaient coupées à droite. On remesure l'onglet une fois montré.
+   */
+  requestAnimationFrame(() => ajusterCartes(document));
+  majNavbar(cle);
+  majEntete();
+  for (const [id, p] of [['pageEquipes', 'equipes'], ['pageHistorique', 'historique']]) {
+    const el = $(id);
+    if (el) el.hidden = !(zone === 'ref' && cle === p);
+  }
+  const vide = $('pageVide');
+  if (vide) {
+    vide.hidden = zone !== 'vide';
+    if (zone === 'vide') remplirVide(cle);
+  }
+  const cartable = $('pageCartable');
+  if (cartable) {
+    cartable.hidden = zone !== 'cartable';
+    if (zone === 'cartable') remplirCartable();
+  }
+  const marche = $('pageMarche');
+  if (marche) {
+    marche.hidden = zone !== 'marche';
+    if (zone === 'marche') remplirMarche();
+  }
+  if (avant && avant !== cle) animerEntree(zone);
 }
 
-function montrerPage(cle) {
-  const pages = PAGES();
-  if (!pages.includes(cle)) cle = pages[0];
-  // Les deux onglets de repêchage SONT les deux volets : `setView` marque la
-  // page lui-même, donc les anciens appels (le banc, une nouvelle partie)
-  // suivent. Après la saison, l'alignement est un volet du bilan.
-  if (cle === 'repechage') setView('pool');
-  else if (cle === 'alignement' && !G.done) setView('roster');
+/*
+ * L'ÉCRAN QUI ARRIVE SE VOIT ARRIVER (1.0, R1) : il se fond en moins d'un
+ * quart de seconde (rien sous prefers-reduced-motion). L'écran de saison a
+ * déjà son propre glissement de volet (S77).
+ */
+function animerEntree(zone) {
+  if (zone === 'hub') return;
+  const el = document.querySelector('.page:not([hidden]):not(#pageRegles)') || $('game');
+  if (!el) return;
+  el.classList.remove('ecran-entre');
+  void el.offsetWidth;
+  el.classList.add('ecran-entre');
+}
+
+/*
+ * L'EN-TÊTE DU CLUB (1.0, R1) : ton écusson, où en est la partie, et trois
+ * chiffres — la fiche et le rang à la DERNIÈRE JOURNÉE RÉVÉLÉE (jamais la fin
+ * de l'année : on ne lit que ce qui est arrivé), puis le plafond, que
+ * `renderCap` tient déjà. Le rang suit le bris d'égalité du classement de
+ * l'écran de saison (js/saison.js).
+ */
+let ficheEnCache = null;
+function ficheEtRang() {
+  const L = G.ligue;
+  if (!L || !L.you || !Array.isArray(L.calendrier) || !Array.isArray(L.teams)) return null;
+  const jour = Math.min(G.journee || 0, L.calendrier.length);
+  if (!jour) return null;
+  if (ficheEnCache && ficheEnCache.L === L && ficheEnCache.jour === jour) return ficheEnCache.r;
+  const f = new Map(L.teams.map(t => [t, { W: 0, L: 0, OTL: 0, PTS: 0, GF: 0, GA: 0 }]));
+  for (const m of L.calendrier.slice(0, jour).flat()) {
+    const a = f.get(m.A), b = f.get(m.B);
+    if (!a || !b) continue;
+    a.GF += m.gfA; a.GA += m.gfB; b.GF += m.gfB; b.GA += m.gfA;
+    if (m.gfA > m.gfB) { a.W++; if (m.ot) b.OTL++; else b.L++; } else { b.W++; if (m.ot) a.OTL++; else a.L++; }
+  }
+  for (const x of f.values()) x.PTS = x.W * 2 + x.OTL;
+  const rang = L.teams.slice().sort((x, y) => {
+    const a = f.get(x), b = f.get(y);
+    return b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA) || b.GF - a.GF
+      || String(`${x.tag}${x.season || ''}`).localeCompare(String(`${y.tag}${y.season || ''}`));
+  }).indexOf(L.you) + 1;
+  const y = f.get(L.you);
+  const r = y ? { fiche: `${y.W}-${y.L}-${y.OTL}`, rang } : null;
+  ficheEnCache = { L, jour, r };
+  return r;
+}
+function etatDeLaPartie() {
+  const L = G.ligue, N = L && Array.isArray(L.calendrier) ? L.calendrier.length : 0;
+  const j = Math.min(G.journee || 0, N);
+  const hub = hubActif();
+  if (enRepechage()) {
+    return G.bonus === 'ROGUE' ? `Rogue · run ${(G.rogue && G.rogue.numero) || 1} · avant la saison`
+      : `Repêchage · ${MODE().nom}`;
+  }
+  if (G.bonus === 'TABLE') return hub ? 'Sur table · le tournoi' : 'Sur table · le tournoi est joué';
+  if (G.banc) return `Derrière le banc · journée ${j} / ${N}`;
+  if (hub && hub.onglets().some(o => o.cle === 'serie')) return 'Séries éliminatoires';
+  if (hub && N && j < N) return `Saison régulière · journée ${j} / ${N}`;
+  return hub ? 'Saison régulière · terminée' : 'La saison est jouée';
+}
+export function majEntete() {
+  const etat = $('teteEtat');
+  if (!etat) return;
+  etat.textContent = etatDeLaPartie();
+  const ecu = $('teteEcu');
+  if (ecu && !ecu.firstElementChild) ecu.innerHTML = getTeamLogoHtml('YOU', 34);
+  const fr = enRepechage() ? null : ficheEtRang();
+  const poser = (id, v) => {
+    const el = $(id);
+    if (!el) return;
+    el.hidden = !v;
+    if (v) el.querySelector('.tete-ch-v').textContent = v;
+  };
+  poser('teteFiche', fr && fr.fiche);
+  poser('teteRang', fr && `${fr.rang}${fr.rang === 1 ? 'er' : 'e'}`);
+  // Les compteurs de la jauge (les signés, le budget par case, les jetons) : au repêchage et au Rogue.
+  document.body.classList.toggle('au-repechage', enRepechage());
+  document.body.classList.toggle('mode-rogue', G.bonus === 'ROGUE');
+  // DERRIÈRE LE BANC, un écran secondaire de la saison : « ‹ Retour » y ramène au match.
+  const retour = $('retourBtn');
+  if (retour) retour.hidden = !G.banc;
+}
+
+/*
+ * LE MARCHÉ (1.0, R1), une fois le repêchage fini : la boutique (des packs de
+ * joueurs et de cartes, entre deux journées) et tes cartes. Ce sont les portes
+ * que l'en-tête de l'écran de saison offrait déjà (🛒, 🎒) ; elles ont
+ * maintenant leur section, la même dans tous les modes. Le Rogue y ajoute le
+ * vestiaire des déblocages.
+ */
+function remplirMarche() {
+  const host = $('pageMarcheCorps');
+  if (!host) return;
+  const hub = hubActif();
+  const tuile = (id, icone, titre, mot) => {
+    const corps = `<span class="marche-ico" aria-hidden="true">${icone}</span><span class="marche-txt"><b>${esc(titre)}</b><small>${esc(mot)}</small></span>`;
+    return id ? `<button type="button" class="marche-tuile" data-marche="${id}">${corps}</button>` : `<div class="marche-tuile off">${corps}</div>`;
+  };
+  const enSaison = !!(hub && hub.boutique);
+  const n = enSaison && G.ligue ? cartesAJouer(G.journee || 0) : 0;
+  host.innerHTML = `<div class="marche">
+    ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `Des packs de joueurs et de cartes · ${jetonsRogue(G.journee || 0)} jetons` : 'Elle ouvre pendant la saison, entre deux journées.')}
+    ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer · la main, le deck, le personnel` : 'Ton inventaire et ton classeur, à lire')}
+    ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Le vestiaire des déblocages', `${lireMeta().ecussons || 0} écussons à dépenser`) : ''}
+  </div>`;
+  host.querySelectorAll('[data-marche]').forEach(b => {
+    b.onclick = () => {
+      const quoi = b.dataset.marche, h = hubActif();
+      // Une carte jouée ou un pack acheté est une décision du jour : la
+      // saison reprend au Club, comme du bouton de son en-tête.
+      if (quoi === 'boutique' && h && h.boutique) { montrerPage('match'); h.boutique(); }
+      else if (quoi === 'cartes' && h && h.cartes) { montrerPage('match'); h.cartes(); }
+      else if (quoi === 'cartes') ouvrirInventaireJeu(null, null);
+      else if (quoi === 'deblocages') ouvrirVestiaire(() => remplirMarche());
+    };
+  });
+}
+
+/*
+ * LES RÈGLES (1.0, R1) : un écran secondaire du Menu, par-dessus tout. Le
+ * Retour (Échap, B, le bouton d'Android, « ‹ Retour ») le referme et rend le
+ * Menu qui l'a ouvert.
+ */
+function ouvrirRegles() {
+  const p = $('pageRegles');
+  if (!p) return;
+  p.hidden = false;
+  document.body.classList.add('regles-ouvertes');
+  chargerTable().then(m => m.remplirReglesDuPlateau());
+  const b = p.querySelector('[data-retour]');
+  if (b) b.focus({ preventScroll: true });
+}
+function fermerRegles() {
+  const p = $('pageRegles');
+  if (!p || p.hidden) return false;
+  p.hidden = true;
+  document.body.classList.remove('regles-ouvertes');
+  return true;
+}
+
+/*
+ * LE CARTABLE (S79, js/cartable.js). JP : *page vestiaire devrait contenir
+ * toutes les cartes, comme un cartable de carte, clickables, etc, avec stats
+ * de la saison en cours et saisons réelles comme vraie carte. Je veux
+ * collectionner.* Ton équipe — sa saison RÉVÉLÉE (`compteRevele`, jamais la
+ * fin de l'année) et sa vraie saison — puis la collection, par saison et par
+ * club. « Mes cartes » ouvre les cartes de jeu (l'inventaire) : du hub avec
+ * sa décision quand une saison se joue, en lecture sinon.
+ */
+function ligneDeSaison(p, S) {
+  if (!S || !S.GP) return 'pas encore joué';
+  return p.p === 'G'
+    ? `${S.GP} PJ · ${S.W || 0} V · ${S.SA ? pct3(S.SV / S.SA) : '—'}`
+    : `${S.GP} PJ · ${S.G || 0} B · ${S.A || 0} A · ${S.PTS || 0} PTS`;
+}
+function ligneVraieSaison(p) {
+  const st = displayStats(p);
+  return p.p === 'G' ? `${st.gp} PJ · ${st.w} V · ${pct3(p.sv || 0)}` : `${st.gp} PJ · ${st.g} B · ${st.a} A · ${st.pt} PTS`;
+}
+function remplirCartable() {
+  const host = $('pageCartableCorps');
+  if (!host) return;
+  const L = G.ligue;
+  const portee = L ? porteeRevele('saison') : null;
+  const statsDe = p => (!L ? null : portee === 'jour' ? compteEnGrille(compteRevele('jour').get(p)) : statsSim(p, 'saison'));
+  const hub = hubActif();
+  // Les joueurs des anciennes parties (l'historique) y entrent une fois.
+  migrerHistorique(lireHistorique().flatMap(e => (e.alignement || []).filter(a => a && !a.r && a.k).map(a => a.k)));
+  rendreCartable(host, {
+    esc,
+    equipe: signes().map(p => ({ p, cle: getPlayerKey(p), mini: carteMiniHtml(p), saison: ligneDeSaison(p, statsDe(p)), vraie: ligneVraieSaison(p) })),
+    titreSaison: !L ? 'La saison n\'a pas commencé.' : portee === 'jour' ? `Cette saison : jusqu'à la journée ${G.journee || 0}.` : 'Cette saison : les 82 matchs.',
+    nCartes: L ? cartesAJouer(G.journee || 0) : 0,
+    ouvrirCartes: () => {
+      // En pleine saison : l'inventaire du hub, qui joue une carte comme décision du jour.
+      if (hub && hub.cartes) { montrerPage('match'); hub.cartes(); return; }
+      ouvrirInventaireJeu(null, null);
+    },
+    ficheEquipe: p => (L ? ouvrirFiche(p, L.you, portee === 'jour' ? 'jour' : 'saison') : showPlayerModal(p, { apercu: true })),
+    fiche: (cle, p) => showPlayerModal(p, { apercu: true }),
+    charger: s => getShard(s),
+    mini: (p, rar) => miniAvecVariante(p, rar),
+    cleDe: getPlayerKey,
+    club: t => TEAMFULL[t] || t,
+    vraie: ligneVraieSaison,
+  });
+}
+/* L'alignement entre au cartable au départ d'une saison (une variante neuve compte, pas un doublon). */
+export const alignementAuCartable = () => ajouterAuCartable(signes().map(p => ({ cle: getPlayerKey(p), rar: varianteJoueur(p), num: (G.variantes.numeros || {})[getPlayerKey(p)] || null })), { doublons: false });
+
+/*
+ * L'ÉTAT VIDE : un onglet qui n'a encore rien à montrer dit pourquoi, et
+ * offre ce qu'on peut faire maintenant. On ne cache pas un onglet parce qu'il
+ * est vide — c'est ce qui faisait bouger la barre.
+ */
+function remplirVide(cle) {
+  const titre = $('pageVideTitre'), corps = $('pageVideCorps');
+  if (!titre || !corps) return;
+  const [icone, mot] = PAGE[cle] || PAGE.match;
+  titre.innerHTML = `${ico(icone)}${esc(mot)}`;
+  const bouton = (id, mot, go = false) => `<button type="button" class="btn ${go ? 'go' : 'gold'}" data-vide="${id}">${esc(mot)}</button>`;
+  let msg = '', btns = '';
+  const manque = totalCases() - signes().length;
+  const QUOI = { classement: 'Le classement du jour', calendrier: 'Tes matchs, journée par journée,', meneurs: 'Les meneurs de la ligue' };
+  if (enRepechage()) {
+    if (cle === 'match') {
+      msg = manque > 0
+        ? `Ta formation n'est pas complète : il reste <b>${manque}</b> case${manque > 1 ? 's' : ''} à combler sous le plafond. La saison se lance d'ici dès que les ${totalCases()} sont signés.`
+        : 'Ta formation est complète. La saison t\'attend.';
+      btns = manque > 0
+        ? bouton('repechage', MODE().loto ? 'Au loto' : 'Au vestiaire', true)
+        : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : 'Lancer la saison', true);
+    } else {
+      msg = `La saison n'a pas commencé. ${QUOI[cle] || 'Tout ça'} s'affichera ici dès le premier match.`;
+      btns = bouton('match', 'Au club');
+    }
+  } else if (G.banc) {
+    msg = 'Tu es derrière le banc. La saison reprend là où tu l\'as laissée.';
+    btns = bouton('reprendre', 'Retour au match', true);
+  } else if (cle === 'alignement' && hubActif()) {
+    msg = 'Ton alignement est figé : on ne touche plus aux trios quand ça compte.';
+    btns = bouton('match', 'Au club', true);
+  } else if (cle === 'calendrier' && hubActif()) {
+    msg = 'Le tournoi n\'a pas de calendrier à lui : ses journées se lisent au club.';
+    btns = bouton('match', 'Au club', true);
+  } else {
+    msg = 'Rien à lire ici pour l\'instant.';
+    btns = bouton('match', 'Au club', true);
+  }
+  corps.innerHTML = `<div class="vide"><p class="vide-mot">${msg}</p><div class="vide-btns">${btns}</div></div>`;
+  corps.querySelectorAll('[data-vide]').forEach(b => {
+    b.onclick = () => {
+      const quoi = b.dataset.vide;
+      if (quoi === 'lancer') $('mainBtn').click();
+      else if (quoi === 'reprendre') reprendreSaison();
+      else montrerPage(quoi);
+    };
+  });
+}
+
+export function montrerPage(cle) {
+  cle = normaliser(cle);
+  const hub = hubActif();
+  // DERRIÈRE LE BANC, les onglets de la saison y RAMÈNENT : la saison reprend
+  // (même graine, même jour), puis l'onglet demandé s'ouvre.
+  if (G.banc && PAGES_DE_SAISON.includes(cle)) { G.pageVoulue = cle; reprendreSaison(); return; }
+  // EN PLEINE SAISON, L'ALIGNEMENT EST LE BANC : c'est là qu'on y touche.
+  if (hub && cle === 'alignement' && hub.banc) { hub.banc(); return; }
+  if (cle === 'repechage' && enRepechage()) setView('pool');
+  else if (cle === 'alignement' && !bilanPret() && !hub) setView('roster');
   else {
     marquerPage(cle);
-    if (cle === 'historique') showLeaderboard();
-    else if (cle === 'regles') remplirReglesDuPlateau();
-    else if (cle === 'equipes') ouvrirEquipes({
-      ctx: {
-        esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
-        teamFull: t => TEAMFULL[t] || t,
-        // La fiche d'un joueur de la ligue en cours ouvre ses statistiques
-        // SIMULÉES, la vraie saison dessous. On y arrive aussi de derrière le
-        // banc, en pleine saison, d'où `porteeRevele` : la fiche s'arrête
-        // alors à la dernière journée révélée. Hors ligue, la vraie seule.
-        fiche: (p, enLigue) => (enLigue ? ouvrirFiche(p, null, porteeRevele('saison')) : showPlayerModal(p, {})),
-        statsSim,
-      },
-      saisons: (state.index.seasons || []).slice().reverse(),
-      saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
-      charger: getShard,
-      // LA LIGUE EN COURS, si elle existe : ses 32 clubs, avec leurs
-      // alignements. Les objets joueurs y portent DÉJÀ leurs compteurs
-      // simulés et leur vraie saison — l'écran n'a rien à recalculer, il
-      // met les deux nombres l'un sous l'autre.
-      ligue: () => (G.ligue && G.ligue.teams && G.ligue.teams.length > 1 ? G.ligue.teams : null),
-    });
+    if (document.body.dataset.zone === 'ref') {
+      if (cle === 'historique') showLeaderboard();
+      else if (cle === 'equipes') ouvrirEquipes({
+        ctx: {
+          esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
+          teamFull: t => TEAMFULL[t] || t,
+          // La fiche d'un joueur de la ligue en cours ouvre ses statistiques
+          // SIMULÉES, la vraie saison dessous. On y arrive aussi de derrière
+          // le banc, en pleine saison, d'où `porteeRevele` : la fiche s'arrête
+          // alors à la dernière journée révélée. Hors ligue, la vraie seule.
+          fiche: (p, enLigue) => (enLigue ? ouvrirFiche(p, null, porteeRevele('saison')) : showPlayerModal(p, {})),
+          statsSim,
+        },
+        saisons: (state.index.seasons || []).slice().reverse(),
+        saison: G.epoque || (G.tirage[0] && G.tirage[0].season) || null,
+        charger: getShard,
+        // LA LIGUE EN COURS, si elle existe : ses clubs, avec leurs
+        // alignements. Les objets joueurs y portent DÉJÀ leurs compteurs
+        // simulés et leur vraie saison.
+        ligue: () => (G.ligue && G.ligue.teams && G.ligue.teams.length > 1 ? G.ligue.teams : null),
+      });
+    }
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-function setView(view) {
+/*
+ * L'ÉCRAN DE SAISON PRÉVIENT LA COQUILLE (js/coquille.js). Quand il change
+ * de volet de lui-même, la barre suit ; quand il s'ouvre, il prend l'onglet
+ * qu'on avait demandé de derrière le banc ; quand il se ferme, la page
+ * courante se recalcule (le bilan, ou l'état vide).
+ */
+surCoquille(ev => {
+  if (ev.type === 'vue') {
+    if (G.pageVoulue) {
+      const cible = G.pageVoulue;
+      G.pageVoulue = null;
+      if (voletPour(cible)) { marquerPage(cible); return; }
+    }
+    // Un volet que l'écran ouvre de lui-même ne déplace la barre que si on
+    // regardait l'écran ; sinon on reste sur la page qu'on lisait.
+    if (!ev.page) return;
+    const ici = document.body.dataset.zone === 'hub' || !G.page || voletPour(G.page) === null
+      ? ev.page : G.page;
+    marquerPage(document.body.dataset.zone === 'hub' ? ev.page : ici);
+    return;
+  }
+  if (ev.type === 'ferme') {
+    document.body.classList.remove('hub-docke', 'hub-cache');
+    marquerPage(G.page || 'match');
+  }
+});
+
+export function setView(view) {
   G.view = view;
   $('panes').dataset.view = view;
   marquerPage(view === 'roster' ? 'alignement' : 'repechage');
 }
 
-/* =====================================================================
-   Roulette
-   ===================================================================== */
-
-async function getShard(label) {
-  if (G.shards.has(label)) return G.shards.get(label);
-  const shard = await loadSeason(label);
-  const byTeam = {};
-  for (const p of shard.players) {
-    if (isD(p) && (!p.np || p.np === 'D')) {
-      p.np = (p.shootsCatches === 'R' || p.shoots === 'R') ? 'RD' : 'LD';
-    }
-    registerHiddenRatings(p);
-    (byTeam[p.t] = byTeam[p.t] || []).push(p);
-  }
-  // Les deux mesures que la carte ne disait pas (défensive, robustesse),
-  // rangées parmi les réguliers de la saison : voir `mesuresDeSaison`.
-  const entry = { players: shard.players, byTeam, mesures: mesuresDeSaison(shard.players) };
-  G.shards.set(label, entry);
-  return entry;
-}
-
-/** La défensive et la robustesse mesurées d'un joueur, ou null (gardien, moins de 20 matchs). */
-function mesure(p) {
-  const entry = p && G.shards.get(p.s);
-  return (entry && entry.mesures && entry.mesures.get(p)) || null;
-}
-
-/*
- * 🛡️ Défensif, 🪨 Robuste : les étiquettes de ce que le joueur a fait sans la
- * rondelle, au 85e centile des réguliers de sa saison et de sa position. Elles
- * sont sur la carte pour qu'un bâti défensif ou robuste se trouve sans ouvrir
- * chaque fiche ; la fiche donne les colonnes derrière.
- */
-function mesureTags(p, full = false) {
-  const m = mesure(p);
-  if (!m) return '';
-  const tags = [];
-  if (m.def != null && m.def >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Défensif — ${Math.round(m.def * 100)}e centile des réguliers de ${esc(p.s)} à sa position : différentiel corrigé de son club, points en désavantage, temps de glace.">🧊${full ? ' Défensif' : ''}</span>`);
-  if (m.rob != null && m.rob >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Robuste — ${Math.round(m.rob * 100)}e centile des réguliers de ${esc(p.s)} à sa position : minutes de punition et mises en échec. Il pèse les soirs éreintants et en séries.">🪨${full ? ' Robuste' : ''}</span>`);
-  return tags.join('');
-}
-
-/**
- * Un vestiaire au hasard : une saison, une équipe qui a de quoi s'aligner,
- * jamais un club déjà dans `deja` (le tirage précédent, ou les deux autres
- * clubs du même loto).
- */
-async function vestiaireAuHasard(deja) {
-  const seasons = state.index.seasons;
-  for (let essai = 0; essai < 12; essai++) {
-    const season = epoqueDuTirage() || rnd(seasons);
-    let shard;
-    try { shard = await getShard(season); } catch { continue; }
-    const teams = Object.keys(shard.byTeam)
-      .filter(t => shard.byTeam[t].length >= 8 && !deja.has(`${season}_${t}`));
-    if (!teams.length) continue;
-    const team = rnd(teams);
-    return { season, team, pool: shard.byTeam[team] };
-  }
-  return null;
-}
-
-/**
- * LA ROULETTE TOURNE.
- *
- * En VESTIAIRE (le jeu d'origine) : une saison et une équipe au hasard ;
- * `newSeason` et `newTeam` disent ce qu'une relance garde — « autre année »
- * change la saison et l'équipe, « autre équipe » garde la saison. Le club
- * doit avoir au moins un joueur plaçable ; le budget, c'est aux relances et
- * à la bande de secours de s'en occuper, comme avant.
- *
- * En LOTO : trois clubs, et la main doit contenir au moins un joueur qui a
- * une case et qui tient dans le budget du choix — vingt essais sur ce
- * critère, puis sous le plafond restant, puis plaçable.
- */
-async function nextSpin(newSeason = true, newTeam = true) {
-  G.loading = true;
-  G.selectedSlot = null;
-  renderSpin();
-
-  const besoin = nextNeed();
-  const seasons = state.index.seasons;
-
-  if (!MODE().loto) {
-    const cur = vestiaire();
-    for (let attempt = 0; attempt < 25 && besoin; attempt++) {
-      const season = epoqueDuTirage() || ((!newSeason && cur) ? cur.season : rnd(seasons));
-      let shard;
-      try { shard = await getShard(season); } catch { continue; }
-
-      let teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 8);
-      if (!newTeam && cur && shard.byTeam[cur.team]?.length >= 8) {
-        teams = [cur.team];
-      } else if (cur) {
-        teams = teams.filter(t => !(season === cur.season && t === cur.team));
-      }
-      if (!teams.length) continue;
-
-      const team = rnd(teams);
-      const pool = shard.byTeam[team];
-      if (!pool.some(p => !isPicked(p) && openSlots(p).length)) continue;
-
-      G.tirage = [{ season, team, pool }];
-      break;
-    }
-    G.loading = false;
-    applyTeamColors(vestiaire()?.team);
-    saveGame();
-    if (!epoqueDuTirage()) prefetch([rnd(seasons), rnd(seasons)]);
-    return;
-  }
-
-  const n = 3;
-  const avant = new Set(G.tirage.map(v => `${v.season}_${v.team}`));
-  let dernier = null;
-
-  for (let attempt = 0; attempt < 30 && besoin; attempt++) {
-    const deja = new Set(avant);
-    const tirage = [];
-    for (let k = 0; k < n; k++) {
-      const v = await vestiaireAuHasard(deja);
-      if (!v) break;
-      deja.add(`${v.season}_${v.team}`);
-      tirage.push(v);
-    }
-    if (tirage.length < n) continue;
-
-    G.tirage = tirage;
-    const main = candidats().filter(p => !isPicked(p) && openSlots(p).length);
-    if (!main.length) continue;
-    dernier = tirage;
-    const plafond = attempt < 20 ? maxForPick() : attempt < 26 ? capLeft() : Infinity;
-    if (!main.some(p => p.$ <= plafond)) continue;
-    break;
-  }
-
-  if (dernier) G.tirage = dernier;
-  G.loading = false;
-  applyTeamColors(null);
-  saveGame();
-  if (!epoqueDuTirage()) prefetch([rnd(seasons), rnd(seasons)]);
-}
-
-/* =====================================================================
-   Rendu — plafond, roulette, tableau de bord
-   ===================================================================== */
-
-function renderCap() {
-  const used = capUsed(), rem = capLeft(), left = slotsLeft();
-  const isEra = G.salaryMode === 'ERA';
-  const season = vestiaire()?.season || '2025-26';
-  const eraCap = SEASON_ERA_CAP[season] || CAP;
-
-  const amt = $('capAmt');
-  amt.textContent = isEra ? money(getEraSalary(rem, season)) : money(rem);
-
-  // Serré quand il reste moins de 1,5 M$ par case à combler
-  const tight = left > 0 && rem < left * 1_500_000;
-  amt.classList.toggle('over', rem < 0);
-  amt.classList.toggle('tight', rem >= 0 && tight);
-
-  $('capMaxLbl').textContent = isEra ? `/ ${money(eraCap)} (${season})` : `/ ${money(MODE().cap)}`;
-  // Le `title` était écrit en dur à 95,5 M$ dans le HTML : il mentait en Express.
-  $('capGauge').title = `Plafond salarial de ${money(MODE().cap)} (valeur 2026)`;
-
-  const fill = $('capFill');
-  fill.style.width = Math.min(100, Math.max(0, (used / MODE().cap) * 100)) + '%';
-  fill.classList.toggle('over', rem < 0);
-  fill.classList.toggle('tight', rem >= 0 && tight);
-
-  // Repère : masse salariale « au rythme » pour 23 joueurs
-  const marker = $('capMarker');
-  if (marker) marker.style.left = Math.min(100, (signes().length / totalCases()) * 100) + '%';
-
-  $('cnt').textContent = `${signes().length} / ${totalCases()}`;
-
-  const perSlot = $('perSlotLbl');
-  if (perSlot) {
-    perSlot.textContent = left > 0
-      ? `${money(rem / left)} / case`
-      : (rem >= 0 ? 'Sous le plafond ✓' : 'Plafond dépassé');
-    perSlot.className = left === 0 && rem < 0 ? 'dash-bad' : '';
-  }
-}
-
-function renderSpin() {
-  const host = $('spin');
-  if (!host) return;
-
-  if (G.loading || !G.tirage.length) {
-    host.innerHTML = `<div class="spin-card"><div class="spin-top">
-      <div class="spin-logo">${ico('i-dice')}</div>
-      <div class="spin-id"><div class="spin-name">La roulette tourne…</div>
-      <div class="spin-full">Chargement du vestiaire</div></div></div></div>`;
-    return;
-  }
-
-  const need = nextNeed();
-  const c = caseCourante();
-  const targetSlot = G.target !== null ? SLOTS[G.target] : null;
-  const instruction = targetSlot
-    ? `${ico('i-target')} Case ciblée : <span class="target-on">${esc(slotShort(targetSlot))}</span> — touche-la à nouveau pour annuler.`
-    : need ? ''
-      : `Alignement complet : permute tes joueurs ou simule.`;
-
-  if (MODE().loto) {
-    // TROIS CLUBS, UN CHOIX. La carte porte la case qu'on comble en gros —
-    // c'est elle qu'on décide — et les trois clubs en pastilles, chacune
-    // vers sa vraie saison sur Hockey-Reference. Les cartes de la main
-    // portent déjà chacune la couleur de leur vestiaire.
-    const clubs = G.tirage.map(v => {
-      const url = teamSeasonUrl(v.team, v.season);
-      const dead = DEFUNCT.has(v.team) ? ' spin-club-dead' : '';
-      const inner = `${getTeamLogoHtml(v.team, 18)}<span class="spin-club-code">${esc(v.team)}</span><span class="spin-club-season">${esc(v.season)}</span>`;
-      return url
-        ? `<a class="spin-club${dead}" href="${url}" target="_blank" rel="noopener" title="${esc(TEAMFULL[v.team] || v.team)} ${esc(v.season)} sur Hockey-Reference">${inner}</a>`
-        : `<span class="spin-club${dead}">${inner}</span>`;
-    }).join('');
-    host.innerHTML = `
-      <div class="spin-card">
-        <div class="spin-top">
-          <div class="spin-logo">${ico('i-dice')}</div>
-          <div class="spin-id">
-            <div class="spin-kicker"><span class="spin-code">Loto</span><span class="spin-season">${G.tirage.length} clubs</span></div>
-            <div class="spin-name">${c ? esc(slotShort(c)) : 'Alignement complet'}</div>
-          </div>
-        </div>
-        <div class="spin-clubs">${clubs}</div>
-        ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
-        <div class="rerolls">
-          <button id="rrL" class="reroll" ${G.relances > 0 && need ? '' : 'disabled'} title="Relancer les trois clubs d'un coup">
-            <span class="rr-lbl">${ico('i-dice')}Relancer les trois</span><span class="rr-count">${G.relances}</span></button>
-        </div>
-      </div>`;
-    ajusterCartes(host);
-    $('rrL').onclick = async () => {
-      if (G.relances <= 0 || !need) return;
-      G.relances--;
-      await nextSpin();
-      render();
-    };
-    return;
-  }
-
-  // UN CLUB, TOUT SON VESTIAIRE — le jeu d'origine. La carte se lit comme
-  // une carte de pointage : le code et l'année en surtitre, le NOM de
-  // l'équipe en gros, l'écusson en filigrane, et les trois relances en pied.
-  // Le lien mène à la vraie saison de ce club sur Hockey-Reference.
-  const v = vestiaire();
-  const full = TEAMFULL[v.team] || v.team;
-  const dead = DEFUNCT.has(v.team) ? ` <span class="spin-dead">· disparue</span>` : '';
-  const url = teamSeasonUrl(v.team, v.season);
-  host.innerHTML = `
-    <div class="spin-card">
-      <div class="spin-top">
-        <!-- L'écusson fantôme vit DANS le bandeau, pas derrière tout le bloc :
-             c'est le grand logo en filigrane d'un bandeau de diffusion. -->
-        <div class="spin-watermark" aria-hidden="true">${getTeamLogoHtml(v.team, 150)}</div>
-        <div class="spin-logo">${getTeamLogoHtml(v.team, 40)}</div>
-        <div class="spin-id">
-          <div class="spin-kicker"><span class="spin-code">${esc(v.team)}</span><span class="spin-season">${esc(v.season)}</span>${dead}</div>
-          <div class="spin-name">${esc(full)}</div>
-        </div>
-        ${url ? `<a class="spin-ext" href="${url}" target="_blank" rel="noopener" title="La saison ${esc(v.season)} de cette équipe sur Hockey-Reference">${ico('i-ext')}</a>` : ''}
-      </div>
-      ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
-      <div class="rerolls">
-        <button id="rrS" class="reroll" ${G.left.season && need && !epoqueDuTirage() ? '' : 'disabled'} title="${epoqueDuTirage() ? `Le repêchage est fixé à ${esc(G.epoque)} : pas d'autre année` : 'Retirer une autre saison au hasard'}">
-          <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season}</span></button>
-        <button id="rrT" class="reroll" ${G.left.team && need ? '' : 'disabled'} title="Garder la saison, changer d'équipe">
-          <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team}</span></button>
-        <button id="rrP" class="reroll" ${G.left.pass && need ? '' : 'disabled'} title="Passer ce vestiaire au complet">
-          <span class="rr-lbl">${ico('i-skip')}Passer</span><span class="rr-count">${G.left.pass}</span></button>
-      </div>
-    </div>`;
-
-  const reroll = async (kind, ns, nt) => {
-    if (!G.left[kind] || !need) return;
-    G.left[kind]--;
-    await nextSpin(ns, nt);
-    render();
-  };
-  ajusterCartes(host);
-  $('rrS').onclick = () => reroll('season', true, false);
-  $('rrT').onclick = () => reroll('team', false, true);
-  $('rrP').onclick = () => reroll('pass', true, true);
-}
-
-/*
- * UNE CASE SE NOMME PAR SON RANG, PAS PAR SA ZONE. « Top 6 · C » désignait
- * aussi bien le premier trio que le deuxième — Lemieux allait « au Top 6 »
- * et on ne savait pas lequel. « 2e trio · C » le dit. La zone reste sur la
- * pastille du joueur, là où elle sert à décider.
- */
-const uniteNom = s => !s ? '' : s.scratch ? 'Réserve' : s.group === 'G' ? 'Gardiens'
-  : s.group === 'D' ? UNIT_NAMES_D[s.unit] : UNIT_NAMES_F[s.unit];
-const slotShort = s => s ? `${uniteNom(s)} · ${s.role}` : '—';
-
-function renderDash() {
-  const host = $('dash');
-  if (!host) return;
-
-  const left = slotsLeft(), rem = capLeft();
-  const maxPick = maxForPick();
-  const need = caseCourante();
-  const pool = candidats();
-  const affordable = pool.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem).length;
-  const safe = pool.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= maxPick).length;
-
-  const budgetCls = left === 0 ? (rem >= 0 ? 'dash-good' : 'dash-bad')
-    : maxPick < MIN_SAL ? 'dash-bad'
-    : maxPick < 2_000_000 ? 'dash-warn' : '';
-  const poolCls = affordable === 0 && left > 0 ? 'dash-bad' : safe === 0 ? 'dash-warn' : '';
-
-  // Les explications vivent dans l'infobulle et dans les règles : le tableau
-  // de bord ne montre que le chiffre qui sert à trancher.
-  const needTitle = need
-    ? (MODE().loto
-      ? `Case qu'on comble : ${slotShort(need)}. La main est le joueur que trois clubs mettent à cette case exacte. Touche une autre case vide dans l'alignement pour la viser à la place : la main se recompose des mêmes clubs.`
-      : `Prochaine case libre de l'alignement : ${slotShort(need)}. Touche une autre case dans l'alignement pour la viser à la place.`)
-    : `Les ${totalCases()} cases sont comblées.`;
-  const budgetTitle = left === 0
-    ? (rem >= 0 ? `Masse salariale : ${money(capUsed())}, sous le plafond de ${money(MODE().cap)}.` : `Tu dépasses le plafond de ${money(-rem)} : retire un joueur.`)
-    : `Le maximum que tu peux mettre sur ce joueur-ci en gardant de quoi combler les ${left - 1} case${left - 1 > 1 ? 's' : ''} suivantes au salaire plancher de ${money(MIN_SAL)}. Il te reste ${money(rem)} pour ${left} cases.`;
-  const poolTitle = `${safe} joueur${safe > 1 ? 's' : ''} de ${MODE().loto ? 'cette main' : 'ce vestiaire'} tiennent dans le budget du prochain choix, ${affordable} sous le plafond restant, ${pool.length} au total.`
-    + (MODE().loto ? ` Relances : ${G.relances}.` : ` Relances : ${G.left.season} année${G.left.season > 1 ? 's' : ''}, ${G.left.team} équipe${G.left.team > 1 ? 's' : ''}, ${G.left.pass} passe${G.left.pass > 1 ? 's' : ''}.`);
-
-  host.innerHTML = `
-    <div class="dash-card" title="${esc(needTitle)}">
-      <h3>À combler</h3>
-      <div class="dash-big sm">${need ? esc(slotShort(need)) : 'Complet'}</div>
-    </div>
-    <div class="dash-card" title="${esc(budgetTitle)}">
-      <h3>Budget <span class="h3-long">du choix</span></h3>
-      <div class="dash-big ${budgetCls}">${left ? money(Math.max(0, maxPick)) : money(rem)}</div>
-    </div>
-    <div class="dash-card" title="${esc(poolTitle)}">
-      <h3>${MODE().loto ? '<span class="h3-long">Cette </span>main' : '<span class="h3-long">Ce </span>vestiaire'}</h3>
-      <div class="dash-big ${poolCls}">${safe}<span class="dash-unit">signables</span></div>
-    </div>
-    ${G.renfort ? `<div class="dash-card" title="Les dix-sept autres cases sont comblées par cette vraie équipe. Elles ne coûtent rien au plafond et ne se modifient pas.">
-      <h3>Renfort</h3>
-      <div class="dash-big sm">${getTeamLogoHtml(G.renfort.team, 15)} ${esc(G.renfort.team)} <span class="dash-unit">${esc(G.renfort.season)}</span></div>
-    </div>` : ''}`;
-}
-
-/* =====================================================================
-   Rendu — bassin
-   ===================================================================== */
-
-/* Besoins par position (réservistes exclus) */
-const POS_NEED = [
-  { key: 'AG', label: 'AG', role: 'AG', req: 4 },
-  { key: 'C', label: 'C', role: 'C', req: 4 },
-  { key: 'AD', label: 'AD', role: 'AD', req: 4 },
-  { key: 'LD', label: 'DG', role: 'DG', req: 3 },
-  { key: 'RD', label: 'DD', role: 'DD', req: 3 },
-  { key: 'G', label: 'G', group: 'G', req: 2 },
-];
-
-function signedCount(def) {
-  return SLOTS.filter(s => !s.scratch && G.roster[s.i] &&
-    (def.group ? s.group === def.group : s.role === def.role)).length;
-}
-
-/** Valeur de tri « points par million », utile pour repérer les aubaines. */
-const valuePerM = p => ((p.p === 'G' ? (p.w ?? 0) * 2.4 : (p.pt || 0)) / Math.max(0.775, p.$ / 1e6));
-
-function renderFilters() {
-  const host = $('filters');
-  if (!host) return;
-  /*
-   * TOUJOURS AG, C, AD, DG, DD, G — le même ordre et les mêmes sigles que les
-   * colonnes du bassin, les rangées du tableau de profondeur et les bandeaux
-   * de carte. Les pastilles disaient « Centres » avant « Ailiers G. », donc
-   * dans un ordre qui n'était celui de rien d'autre dans le jeu, et les
-   * libellés longs débordaient la rangée à 390 px : on ne voyait plus les
-   * gardiens. Le mot complet reste dans l'infobulle.
-   */
-  const defs = [
-    ['ALL', 'Tous', 'Tout le vestiaire', null],
-    ['AG', 'AG', 'Ailiers gauches', POS_NEED[0]],
-    ['C', 'C', 'Centres', POS_NEED[1]],
-    ['AD', 'AD', 'Ailiers droits', POS_NEED[2]],
-    ['LD', 'DG', 'Défenseurs gauches', POS_NEED[3]],
-    ['RD', 'DD', 'Défenseurs droits', POS_NEED[4]],
-    ['G', 'G', 'Gardiens', POS_NEED[5]],
-  ];
-  host.innerHTML = defs.map(([key, label, titre, def]) => {
-    let badge = '';
-    if (key === 'ALL') {
-      badge = `<span class="chip-need${slotsLeft() === 0 ? ' full' : ''}">${signes().length}/${totalCases()}</span>`;
-    } else if (def) {
-      const n = signedCount(def);
-      badge = `<span class="chip-need${n >= def.req ? ' full' : ''}">${n}/${def.req}</span>`;
-    }
-    return `<button class="chip${G.filter === key ? ' on' : ''}" data-f="${key}" role="tab"`
-      + ` title="${esc(titre)}" aria-label="${esc(titre)}" aria-selected="${G.filter === key}">${esc(label)}${badge}</button>`;
-  }).join('');
-
-  host.querySelectorAll('.chip').forEach(b => {
-    b.onclick = () => { G.filter = b.dataset.f; renderFilters(); renderPool(); renderPoolMeta(); };
-  });
-}
-
-/*
- * En VESTIAIRE, le club entier passe par le filtre de position, la recherche,
- * l'option « signables seulement » et le tri. En LOTO, la main se lit telle
- * quelle, dans l'ordre des trois clubs : trois cartes n'ont besoin de rien.
- */
-function poolFiltered() {
-  if (MODE().loto) return candidats();
-  let list = candidats().slice();
-
-  const f = G.filter;
-  if (f === 'C') list = list.filter(p => !isD(p) && p.p !== 'G' && p.np === 'C');
-  else if (f === 'AG') list = list.filter(p => !isD(p) && p.p !== 'G' && (p.np === 'L' || p.np === 'AG'));
-  else if (f === 'AD') list = list.filter(p => !isD(p) && p.p !== 'G' && (p.np === 'R' || p.np === 'AD'));
-  else if (f === 'LD') list = list.filter(p => isD(p) && (p.np === 'LD' || p.np === 'DG' || p.np === 'L'));
-  else if (f === 'RD') list = list.filter(p => isD(p) && (p.np === 'RD' || p.np === 'DD' || p.np === 'R'));
-  else if (f === 'G') list = list.filter(p => p.p === 'G');
-
-  if (G.search) {
-    const q = G.search.toLowerCase();
-    list = list.filter(p => p.n.toLowerCase().includes(q));
-  }
-
-  if (G.onlyFit) {
-    const rem = capLeft();
-    list = list.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem);
-  }
-
-  const key = p => (surTable() ? p.$ : p.p === 'G' ? (p.w ?? 0) : (p.pt ?? 0));
-  // Sur table, un axe du plateau ; le gardien se range sur son AR quel que
-  // soit l'axe demandé, puisqu'il n'en a qu'un.
-  const axe = k => p => tableStats(p)[p.p === 'G' ? 'AR' : k];
-  const parAxe = k => (a, b) => axe(k)(b) - axe(k)(a) || key(b) - key(a);
-  const cmp = {
-    TI: parAxe('TI'), MA: parAxe('MA'), FO: parAxe('FO'), DE: parAxe('DE'), PA: parAxe('PA'), SO: parAxe('SO'),
-    PTS: (a, b) => key(b) - key(a) || b.$ - a.$,
-    PPG: (a, b) => (displayStats(b).ppg ?? -1) - (displayStats(a).ppg ?? -1) || key(b) - key(a),
-    SAL: (a, b) => b.$ - a.$ || key(b) - key(a),
-    VAL: (a, b) => valuePerM(b) - valuePerM(a),
-    PM: (a, b) => (b.pm ?? 0) - (a.pm ?? 0) || key(b) - key(a),
-    DEF: (a, b) => ((mesure(b) || {}).def ?? -1) - ((mesure(a) || {}).def ?? -1) || key(b) - key(a),
-    ROB: (a, b) => ((mesure(b) || {}).rob ?? -1) - ((mesure(a) || {}).rob ?? -1) || key(b) - key(a),
-    AGE: (a, b) => (ageAtSeason(a.bd, a.s) ?? 99) - (ageAtSeason(b.bd, b.s) ?? 99) || key(b) - key(a),
-    NAME: (a, b) => a.n.localeCompare(b.n, 'fr'),
-  }[G.sortBy] || ((a, b) => key(b) - key(a));
-
-  return list.sort(cmp);
-}
-
-/** Masque le tri par âge quand aucune date de naissance n'est disponible. */
-function syncAgeControls() {
-  syncSortOptions();
-  const sort = $('sortSelect');
-  if (!sort) return;
-  const opt = sort.querySelector('option[value="AGE"]');
-  if (!opt) return;
-  const ok = agesAvailable();
-  opt.hidden = !ok;
-  opt.disabled = !ok;
-  if (!ok && G.sortBy === 'AGE') { G.sortBy = 'PTS'; saveOpts(); }
-  sort.value = G.sortBy;
-}
-
-/* Une colonne par position, comme au tableau d'un vrai vestiaire. */
-const POOL_COLS = [
-  { key: 'AG', title: 'AG · ailier g.', need: POS_NEED[0], test: p => p.p === 'F' && (p.np === 'L' || p.np === 'AG') },
-  { key: 'C',  title: 'C · centre',         need: POS_NEED[1], test: p => p.p === 'F' && p.np !== 'L' && p.np !== 'AG' && p.np !== 'R' && p.np !== 'AD' },
-  { key: 'AD', title: 'AD · ailier d.',  need: POS_NEED[2], test: p => p.p === 'F' && (p.np === 'R' || p.np === 'AD') },
-  { key: 'DG', title: 'DG · déf. gauche', need: POS_NEED[3], test: p => isD(p) && p.np !== 'RD' && p.np !== 'DD' && p.np !== 'R' },
-  { key: 'DD', title: 'DD · déf. droit',  need: POS_NEED[4], test: p => isD(p) && (p.np === 'RD' || p.np === 'DD' || p.np === 'R') },
-  { key: 'G',  title: 'G · gardien',        need: POS_NEED[5], test: p => p.p === 'G' },
-];
-
-function renderPoolMeta() {
-  syncSortOptions();
-  const list = poolFiltered();
-  const loto = MODE().loto;
-  // Le volet change de nom avec le tirage : « Vestiaire » (tout le club) ou
-  // « La main » (trois cartes) — et cache ses outils en loto.
-  $('panePool')?.classList.toggle('loto', loto);
-  const titre = $('poolTitle');
-  if (titre) titre.textContent = loto ? 'La main' : 'Vestiaire';
-  /*
-   * LA BARRE SE MET À JOUR ICI, et elle se rebâtit toute seule si ses entrées
-   * ont changé — le nom du premier onglet suit le tirage (« Vestiaire » ou
-   * « La main »), et la phase décide de la liste entière.
-   */
-  majNavbar(G.page);
-  const meta = $('poolCount');
-  if (meta) {
-    const c = caseCourante();
-    meta.textContent = loto
-      ? (c ? `${list.length} joueur${list.length > 1 ? 's' : ''} · ${slotShort(c)}` : 'Complet')
-      : `${list.length} joueur${list.length > 1 ? 's' : ''}`;
-  }
-  const rMeta = $('rosterMeta');
-  if (rMeta) rMeta.textContent = `${signes().length} / ${totalCases()} · ${money(capUsed())}`;
-}
-
-/** Case où irait ce joueur : la cible si compatible, sinon la moins pénalisée. */
-function destinationFor(p) {
-  const vise = G.target !== null ? SLOTS[G.target] : null;
-  const viseOK = vise && !G.roster[G.target] && fits(p, vise) && (!MODE().loto || vise === caseCourante());
-  if (viseOK) return vise;
-  return openSlots(p)[0] || null;
-}
-
-function playerCardEl(p) {
-  const already = isPicked(p);
-  const slot = destinationFor(p);
-  const rem = capLeft();
-  const over = p.$ > rem;
-  const risky = !over && p.$ > maxForPick();
-  const pen = slot ? getPositionPenalty(p, slot) : 0;
-  const st = displayStats(p);
-  const isTargeted = G.target !== null && slot === SLOTS[G.target];
-
-  const el = document.createElement('div');
-  el.className = 'pcard'
-    + (already ? ' signed' : '')
-    + ((already || !slot || over) ? ' locked' : '');
-  el.title = 'Toucher la carte pour la fiche complète';
-  const band = getTeamBand(p.t);
-  el.style.setProperty('--team-line', couleurVive(p.t));
-  // LE CORPS DE LA CARTE PORTE LA VRAIE COULEUR DU CLUB, assombrie juste
-  // assez pour qu'un nom blanc se lise dessus (`fondEquipe`, js/logos.js).
-  el.style.setProperty('--team-fond', fondEquipe(p.t) || '');
-  el.style.setProperty('--team-band', band.bg);
-  el.style.setProperty('--team-ink', band.ink);
-  el.style.setProperty('--team-stripe', band.stripe);
-  // Le bouton « Signer » porte la couleur secondaire du club (voir style.css).
-  el.style.setProperty('--team-stripe-ink', band.stripeInk);
-  el.style.setProperty('--team-bouton', band.bouton);
-  el.style.setProperty('--team-bouton-ink', band.boutonInk);
-  // La plaque de l'écusson : la SECONDE couleur du club. Elle se pose ici et
-  // pas seulement sur `:root` — en loto, trois clubs sont à l'écran en même
-  // temps, et la plaque de chacun doit être la sienne.
-  el.style.setProperty('--team-plaque', band.plaque);
-  el.style.setProperty('--team-plaque-ink', band.plaqueInk);
-
-  // La carte ne porte que l'essentiel : qui, combien, ce qu'il vaut et où il
-  // va. Le détail des statistiques est dans la fiche, à un clic.
-  const bigVal = p.p === 'G' ? st.w : st.pt;
-  const bigUnit = p.p === 'G' ? 'V' : 'PTS';
-
-  // Sur table, la carte porte les nombres du plateau à la place du chiffre
-  // clé, et le gabarit, le tir et l'habileté à la place de l'archétype, des
-  // mesures et de la zone — ce que le plateau lit, rien de ce qu'il ignore.
-  const mid = surTable()
-    ? `<span class="pcard-axes">${axesTableHtml(p)}</span><div class="tags">${tagsTableHtml(p)}</div>`
-    : `<div class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></div>
-          <div class="tags">${[traitTags(p), archTag(p), mesureTags(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
-
-  let dest;
-  if (already) {
-    const cur = SLOTS.find(s => G.roster[s.i] === p);
-    dest = `<span class="dest-ok">✓ signé</span>${cur ? ` · ${esc(slotShort(cur))}` : ''}`;
-  } else if (!slot) {
-    dest = `<span class="dest-bad">aucune case libre</span>`;
-  } else if (over) {
-    dest = `<span class="dest-bad">hors budget</span>`;
-  } else {
-    // La destination n'est dite que quand elle mérite un avertissement : la
-    // case visée, une pénalité de position, ou une case hors de sa zone. Le
-    // « sous sa zone » est celui qui coûte cher, il se dit en rouge AVANT la
-    // signature plutôt qu'après dans le volet de l'alignement.
-    const ecart = zoneEcart(p, slot);
-    const bits = [];
-    if (isTargeted) bits.push(`<span class="dest-target">${ico('i-target')} ${esc(slotShort(slot))}</span>`);
-    if (risky) bits.push(`<span class="dest-bad" title="Ce salaire laisse moins que le plancher pour les cases restantes : tu ne pourrais plus compléter les ${totalCases()}.">⚠ bloque la fin</span>`);
-    // Le plateau ne lit ni la pénalité de position ni la zone : on ne
-    // menace pas d'un malus que le mode bonus ne jouera pas.
-    if (!surTable()) {
-      if (pen > 0) bits.push(`<span class="dest-bad">−${pen} hors position</span>`);
-      if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ sous sa zone${isTargeted ? '' : ` : ${esc(slotShort(slot))}`}</span>`);
-      else if (ecart === 'dessus') bits.push(`<span class="dest-warn" title="${esc(ZONE_DESSUS_TITLE)}">▲ au-dessus de sa zone</span>`);
-    }
-    dest = bits.join(' · ');
-  }
-
-  const label = already ? '✓ Signé' : !slot ? 'Position pleine' : over ? 'Hors budget' : 'Signer';
-
-  // Le bandeau dit d'un coup d'oeil ce qu'on regarde — le poste — et change
-  // de couleur quand la carte change d'état. Il porte un fond, jamais du
-  // texte de contenu : la même règle que les couleurs d'équipe.
-  const etat = already ? 'signe' : over || !slot ? 'off' : '';
-  // LE BANDEAU PORTE LA COULEUR DE L'ÉQUIPE, le poste et la provenance : tout
-  // ce qui identifie la carte tient sur une ligne au lieu d'être éparpillé.
-  // Le corps range le reste sur deux lignes à côté du portrait, plutôt que de
-  // l'empiler : même information, deux fois moins de hauteur.
-  el.innerHTML = `
-    <div class="pcard-band">
-      <span class="pb-pos ${positionClass(p)} ${etat}">${esc(positionLabel(p))}</span>
-      <span class="pb-team">${getTeamLogoHtml(p.t, 14)}<span>${esc(p.t)}</span></span>
-      <span class="pb-season">${esc(p.s)}</span>
-    </div>
-    <div class="pcard-inner">
-      <div class="pcard-avatar">${headshotHtml(p)}</div>
-      <div class="pcard-body">
-        <div class="pcard-head">
-          <div class="pcard-name">${formatName(p.n)}</div>
-          <div class="pcard-price">${st.salaryMain}</div>
-        </div>
-        <div class="pcard-mid">
-          ${mid}
-        </div>
-      </div>
-      <div class="pcard-dest">${dest}</div>
-      <button class="btn-sign${already ? ' is-signed' : ''}" ${already || !slot || over ? 'disabled' : ''}>${label}</button>
-    </div>`;
-
-  el.onclick = ev => {
-    if (ev.target.closest('.btn-sign')) return;
-    showPlayerModal(p);
-  };
-  el.querySelector('.btn-sign').onclick = ev => {
-    ev.stopPropagation();
-    signPlayer(p);
-  };
-  return el;
-}
-
-async function signPlayer(p) {
-  if (isPicked(p)) { toast(`${p.n} est déjà dans ton alignement.`, 'warn'); return; }
-  const slot = destinationFor(p);
-  if (!slot) { toast('Aucune case libre pour ce joueur.', 'bad'); return; }
-  if (p.$ > capLeft()) { toast('Hors budget : il te reste ' + money(capLeft()) + '.', 'bad'); return; }
-
-  const risky = p.$ > maxForPick();
-  G.roster[slot.i] = p;
-  G.target = null;
-  G.selectedSlot = null;
-
-  const pen = getPositionPenalty(p, slot);
-  const sous = zoneEcart(p, slot) === 'sous';
-  toast(`${p.n} → ${slotShort(slot)}`
-    + (pen > 0 ? ` (−${pen} hors position)` : '')
-    + (sous ? ' · ▼ sous sa zone' : ''), pen > 0 || sous ? 'warn' : '');
-  if (risky && slotsLeft() > 0) {
-    // Le message se compose maintenant : composé au déclenchement, il disait
-    // « pour 0 cases » quand la dernière signature arrivait entre-temps.
-    const msg = `Attention : ${money(capLeft())} pour ${slotsLeft()} cases, sous le plancher.`;
-    setTimeout(() => toast(msg, 'warn'), 2700);
-  }
-
-  poserEchelle();
-  // Une signature, un tour : la roulette tourne à chaque fois, dans les deux
-  // tirages. Ton premier trio sort de trois clubs, pas d'un seul. SAUF si une
-  // case a été vidée depuis : ce tour-là a déjà été joué, la signature le
-  // repaie et la roulette reste où elle est.
-  if (G.dette > 0) G.dette--;
-  else await nextSpin();
-  saveGame();
-  render();
-  document.getElementById('topbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-/**
- * Impasse : plus aucune signature possible dans ce vestiaire (tout est hors
- * budget ou sans case libre). C'est récupérable — il faut libérer de la masse
- * salariale — mais il faut le dire clairement plutôt que de laisser le joueur
- * devant une grille de cartes toutes grisées.
- */
-function blockedState() {
-  if (G.done || slotsLeft() === 0 || !G.tirage.length) return null;
-  const rem = capLeft();
-  const free = candidats().filter(p => !isPicked(p) && openSlots(p).length);
-  if (free.some(p => p.$ <= rem)) return null;
-  const cheapest = free.length ? free.reduce((a, b) => (b.$ < a.$ ? b : a)) : null;
-  // Seuls tes propres contrats se libèrent : un renfort ne coûte rien.
-  const priciest = signes().slice().sort((a, b) => b.$ - a.$)[0] || null;
-  const rerolls = MODE().loto ? G.relances : G.left.season + G.left.team + G.left.pass;
-  return { rem, cheapest, priciest, rerolls };
-}
-
-function blockedBannerEl(st) {
-  const el = document.createElement('div');
-  el.className = 'blocked';
-  const slot = st.priciest ? SLOTS.find(s => G.roster[s.i] === st.priciest) : null;
-  const vise = G.target !== null;
-  const issue = st.rerolls
-    ? `Tu peux relancer (${st.rerolls} relance${st.rerolls > 1 ? 's' : ''} restante${st.rerolls > 1 ? 's' : ''})${vise ? ', viser une autre case' : ''} ou libérer de la masse salariale.`
-    : vise ? 'Vise une autre case, ou libère de la masse salariale.'
-      : 'Tes relances sont épuisées : il faut libérer de la masse salariale.';
-  const ici = MODE().loto ? 'cette main' : 'ce vestiaire';
-  el.innerHTML = `
-    <div class="blocked-title">⚠ Aucune signature possible ici</div>
-    <p>Il te reste <strong>${money(st.rem)}</strong> pour <strong>${slotsLeft()} case${slotsLeft() > 1 ? 's' : ''}</strong>.
-      ${st.cheapest ? `Le moins cher de ${ici} qui a une case libre coûte ${money(st.cheapest.$)}.` : `Aucun joueur de ${ici} ne convient à une case libre.`}
-      ${issue}</p>
-    ${st.priciest ? `<button class="btn danger" id="freeCapBtn">Retirer ${esc(st.priciest.n)} · ${money(st.priciest.$)}${slot ? ` (${esc(slot.role)})` : ''}</button>` : ''}`;
-  const btn = el.querySelector('#freeCapBtn');
-  if (btn && slot) {
-    btn.onclick = () => {
-      delete G.roster[slot.i];
-      G.selectedSlot = null;
-      G.dette++;   // une case vidée est une case vidée, même pour se sortir d'une impasse
-      saveGame();
-      render();
-      toast(`${st.priciest.n} retiré. ${money(capLeft())} de disponible, `
-        + `et la roulette ne tournera pas pour cette case.`, 'warn');
-    };
-  }
-  return el;
-}
-
-function renderPool() {
-  const host = $('pool');
-  if (!host) return;
-
-  /*
-   * L'avertissement d'impasse a son propre conteneur, au-dessus du bassin.
-   * Dans le bassin il devenait une colonne de la bande qu'on balaie — donc
-   * un panneau de plus à faire défiler, alors que c'est justement le moment
-   * où le joueur est bloqué et doit le lire tout de suite.
-   */
-  const notice = $('poolNotice');
-  if (notice) notice.innerHTML = '';
-
-  if (G.loading) {
-    host.className = 'pool';
-    host.innerHTML = `<div class="empty-msg">Ouverture du vestiaire…</div>`;
-    return;
-  }
-
-  const blocked = blockedState();
-  if (blocked && notice) notice.appendChild(blockedBannerEl(blocked));
-
-  const list = poolFiltered();
-  if (!list.length) {
-    host.className = 'pool';
-    host.innerHTML = `<div class="empty-msg">${MODE().loto
-      ? (slotsLeft() === 0 ? 'Alignement complet : permute tes joueurs ou simule.'
-        : 'Ce tirage ne met personne à cette case.<br>Vise une autre case dans l\'alignement' + (G.relances ? ' ou relance.' : '.'))
-      : `Aucun joueur ne correspond.<br>${G.search ? 'Efface la recherche' : G.onlyFit ? 'Désactive « signables seulement » dans les options' : 'Change de filtre'} ou utilise une relance.`}</div>`;
-    return;
-  }
-
-  const frag = document.createDocumentFragment();
-
-  /*
-   * En VESTIAIRE : six colonnes, une par poste — sauf si on a demandé la liste
-   * complète, ou si un filtre de position ne laisse déjà qu'un seul poste :
-   * ranger une colonne en six colonnes n'a pas de sens. La feuille de style
-   * décide ensuite de leur forme : de vraies colonnes côte à côte sur grand
-   * écran, une bande qu'on balaie du doigt sur téléphone. En LOTO : la main,
-   * trois cartes dans l'ordre des clubs, rien d'autre à ranger.
-   */
-  const byPos = !MODE().loto && G.poolView === 'POS' && G.filter === 'ALL';
-  host.className = 'pool' + (byPos ? ' by-pos' : '');
-
-  if (byPos) {
-    for (const col of POOL_COLS) {
-      const players = list.filter(col.test);
-      const n = signedCount(col.need);
-      const el = document.createElement('div');
-      el.className = 'pool-col';
-      // Le liseré relie l'en-tête à la couleur des cartes de la colonne :
-      // on retrouve son poste sans relire le titre.
-      const ton = col.key === 'G' ? 'pos-g' : (col.key === 'DG' || col.key === 'DD') ? 'pos-d' : 'pos-f';
-      el.innerHTML = `<div class="pool-col-head ${ton}">
-        <span class="pool-col-title">${esc(col.title)}</span>
-        <span class="pool-col-meta"><span>${players.length} dispo</span>
-        <span class="chip-need${n >= col.need.req ? ' full' : ''}" title="Signés sur requis à cette position">${n}/${col.need.req}</span></span>
-      </div>`;
-      const cards = document.createElement('div');
-      cards.className = 'pool-col-cards';
-      if (!players.length) cards.innerHTML = `<div class="empty-msg small">Aucun</div>`;
-      else for (const p of players) cards.appendChild(playerCardEl(p));
-      el.appendChild(cards);
-      frag.appendChild(el);
-    }
-  } else {
-    for (const p of list) frag.appendChild(playerCardEl(p));
-  }
-
-  host.innerHTML = '';
-  host.appendChild(frag);
-  ajusterCartes(host);
-}
-
-/*
- * LE NOM DE FAMILLE, LES POINTS, LE SALAIRE ET LES ICÔNES SONT TOUJOURS
- * ENTIERS. C'est la règle de JP, et elle remplace les points de suspension
- * sur ces quatre-là : une carte qu'on signe sans avoir lu le nom ne sert à
- * rien. La boîte ne grandit toujours pas — les hauteurs restent fixes — mais
- * le contenu s'adapte : le nom rétrécit sa police jusqu'à tenir (plancher
- * 10 px), et la rangée d'étiquettes se réduit à l'échelle quand elle est
- * plus large que sa place (elle est alignée à droite, on la réduit vers la
- * droite). Les points et le salaire ne rétrécissent jamais : c'est le nom
- * qui cède la place, puisque c'est lui qui a le plus de marge.
- *
- * Lectures d'abord, écritures ensuite : mesurer puis écrire élément par
- * élément forcerait une remise en page par carte.
- */
-function ajusterCartes(root) {
-  const noms = [...root.querySelectorAll('.pcard-name .lname, .slot-name, .spin-name')];
-  const tags = [...root.querySelectorAll('.pcard-mid .tags, .slot-tags')];
-  for (const el of noms) el.style.fontSize = '';
-  for (const el of tags) el.style.transform = '';
-  const mesN = noms.map(el => [el, el.scrollWidth, el.clientWidth, parseFloat(getComputedStyle(el).fontSize)]);
-  const mesT = tags.map(el => [el, el.scrollWidth, el.clientWidth]);
-  for (const [el, sw, cw, fs] of mesN) {
-    // Le nom du vestiaire a un plancher plus haut : c'est un titre, pas une étiquette.
-    const plancher = el.classList.contains('spin-name') ? 17 : 10;
-    if (sw > cw && cw > 0) el.style.fontSize = `${Math.max(plancher, Math.floor(fs * cw / sw * 10) / 10 - 0.2)}px`;
-  }
-  for (const [el, sw, cw] of mesT) {
-    if (sw > cw && cw > 0) el.style.transform = `scale(${Math.max(0.6, cw / sw).toFixed(3)})`;
-  }
-}
-let ajusteTimer = null;
-window.addEventListener('resize', () => {
-  clearTimeout(ajusteTimer);
-  ajusteTimer = setTimeout(() => ajusterCartes(document), 120);
-});
-// La police d'affichage arrive après le premier rendu : on remesure avec elle.
-if (document.fonts?.ready) document.fonts.ready.then(() => ajusterCartes(document));
-
-// LA HAUTEUR RÉELLE DE LA BARRE DU HAUT. Elle fait 84 px sur téléphone et
-// 55 px à partir de 680 px, et deux choses se collent dessous — le volet de
-// l'alignement en grand écran, la barre d'onglets du bilan. `--topbar-h`
-// était une constante à 88 px, donc un jour de 33 px en grand écran ; on la
-// mesure, et elle suit la police et le redimensionnement.
-const topbar = document.querySelector('.topbar');
-if (topbar && 'ResizeObserver' in window) {
-  new ResizeObserver(() => {
-    document.documentElement.style.setProperty('--topbar-h', `${Math.round(topbar.offsetHeight)}px`);
-  }).observe(topbar);
-}
-
-/* =====================================================================
-   Rendu — alignement
-   ===================================================================== */
-
-/*
- * LE BANDEAU D'UNE CASE EST ÉTROIT — trois cases par trio sur un quart de
- * l'écran, soit environ cent pixels. « Réserve F » n'y tient pas à côté du
- * salaire, et le libellé se coupait à « RÉ… ». On abrège donc dans le
- * bandeau seulement, et seulement là où c'est nécessaire : la case vide, elle,
- * garde le mot entier puisqu'elle a toute la place, et les gardiens gardent
- * « Partant » et « Auxiliaire » puisqu'ils ne sont que deux par rangée.
- */
-const ROLE_COURT = {
-  'Réserve F': 'Rés. F', 'Réserve D': 'Rés. D', 'Réserve': 'Rés.',
-};
-const roleCourt = r => ROLE_COURT[r] || r;
-
-/*
- * LA CASE NE PORTE QUE LE VERDICT DE PLACEMENT : la zone d'efficacité,
- * l'écart à cette zone, la pénalité de position. Rien d'autre.
- *
- * Elle portait aussi les traits et l'archétype, et c'est ce qui la salissait :
- * quatre cases par trio sur un quart d'écran font des cases de cent pixels,
- * où la quatrième étiquette se coupait en deux et laissait un moignon au
- * bord. Les traits n'ont pas disparu — ils sont sur la carte du bassin, au
- * moment où on décide de signer, et sur la fiche. Le tableau de profondeur,
- * lui, répond à une seule question : ce joueur est-il à sa place ?
- */
-const SLOT_TAGS_MAX = 8;   // les icônes de traits devant le verdict, la rangée se réduit à l'échelle au besoin
-/*
- * La case porte le verdict de placement — zone, écart, pénalité — et, devant,
- * les ICÔNES du joueur : ses traits et ses étiquettes mesurées. JP : *à voir
- * les icônes dans l'alignement* — on lit d'un coup d'œil son trio
- * d'étouffement et ses colosses une fois l'alignement monté.
- */
-/* =====================================================================
-   SUR TABLE : le repêchage montre les nombres du PLATEAU
-   =====================================================================
-   JP : *le mode Blood Bowl, montrer les stats du jeu de table, pas les
-   vraies stats*. On repêchait sous un jeu de règles et on jouait sous un
-   autre : la carte disait 78 PTS, la case disait « ▼ sous sa zone », la
-   rangée disait « chimie +2/+2 », les tuiles comptaient les unités
-   « optimales » — et le plateau se joue sur PA MA TI FO SO, le gabarit, le
-   tir signature et l'habileté. Pire que les vraies stats : `js/table.js` ne
-   lit NI les zones, NI la pénalité de position, NI la chimie (vérifié : zéro
-   occurrence), donc ces verdicts-là parlaient d'un moteur qui n'allait pas
-   jouer.
-
-   Quand `G.bonus` vaut TABLE, le repêchage lit donc `statsDeTable` — la
-   même fonction que la carte du plateau, aucun nombre neuf — et tait ce que
-   le plateau ignore. Le repêchage lui-même ne change pas : mêmes 23 cases,
-   même plafond, même roulette.
-   ===================================================================== */
-const surTable = () => G.bonus === 'TABLE';
-
-/* Les cinq nombres d'un joueur, mémorisés : le tri les demande n log n fois. */
-const STATS_TABLE = new WeakMap();
-function tableStats(p) {
-  let st = STATS_TABLE.get(p);
-  if (!st) { st = statsDeTable(p); STATS_TABLE.set(p, st); }
-  return st;
-}
-
-const AXES_PATINEUR = ['PA', 'MA', 'TI', 'FO', 'DE', 'SO'];
-const axesDe = p => (p.p === 'G' ? ['AR'] : AXES_PATINEUR);
-
-/* Un axe : son sigle, son nombre, et le trait qui le majore dans l'infobulle
-   — « le trait EST le nombre », comme sur la carte du plateau. */
-function axeHtml(p, k, cls = 't-axe') {
-  const st = tableStats(p);
-  const tr = (st.traits || {})[k];
-  const T = tr && TRAITS[tr];
-  return `<span class="${cls}${T ? ' majore' : ''}" title="${esc(AXE_MOT[k])}${T ? ` — ${T.icon} ${T.label} : +1` : ''}"><i>${k}</i><b>${st[k]}</b></span>`;
-}
-const axesTableHtml = p => axesDe(p).map(k => axeHtml(p, k)).join('');
-
-/* Le gabarit, le tir signature et l'habileté : ce qui nomme une pièce. Pas
-   d'étiquette de trait à côté — ⚡ Vitesse et ⚡ Coup de patin se liraient
-   comme un doublon, et le second vient du premier. */
-function tagsTableHtml(p, full = false) {
-  const st = tableStats(p);
-  const gab = GABARITS[st.gb], tir = TIRS[st.ts] || TIRS.P;
-  const hab = HABILETES[habileteDe(p)];
-  const tag = (o, t) => `<span class="tag tag-table" title="${esc(t)}">${o.icon}${full ? ` ${esc(o.nom)}` : ''}</span>`;
-  return [
-    tag(gab, `${gab.nom} — ${gab.desc}`),
-    p.p === 'G' ? '' : tag(tir, `${tir.nom} — ${tir.desc}`),
-    hab ? tag(hab, `${hab.nom}, une fois par période — ${hab.desc}`) : '',
-  ].join('');
-}
-
-/* Dans la case de l'alignement, étroite : les trois nombres qui décident
-   d'un geste, serrés ; le patin et le souffle passent en étiquette. */
-function slotAxesTexte(p) {
-  const st = tableStats(p);
-  // Neuf caractères tiennent sur la ligne d'une case de trio à 390 px, à
-  // côté du visage — « TI2 MA2 FO6 » se coupait. Deux nombres par rôle ici,
-  // les trois autres dans l'étiquette, qui se réduit à l'échelle.
-  return p.p === 'G' ? `AR${st.AR}` : isD(p) ? `FO${st.FO} MA${st.MA}` : `TI${st.TI} MA${st.MA}`;
-}
-function slotAxesReste(p) {
-  const st = tableStats(p);
-  return p.p === 'G' ? '' : isD(p) ? `TI${st.TI} PA${st.PA} SO${st.SO}` : `FO${st.FO} PA${st.PA} SO${st.SO}`;
-}
-
-/*
- * LE TRI SUIT LE JEU. Trier sur les points, en mode Sur table, c'est trier
- * sur un nombre que le plateau ne lit pas. Les options du `<select>` sont
- * donc bâties d'ici, par mode, et un choix qui n'existe plus dans l'autre
- * mode retombe sur le premier de la liste.
- */
-const SORTS_SAISON = [
-  ['PTS', 'Points / V'], ['PPG', 'Pts par match'], ['SAL', 'Salaire'], ['VAL', 'Pts par M$'],
-  ['PM', 'Différentiel'], ['DEF', 'Défensive'], ['ROB', 'Robustesse'], ['AGE', 'Âge'], ['NAME', 'Nom'],
-];
-const SORTS_TABLE = [
-  ['TI', 'Tir'], ['MA', 'Maniement'], ['FO', 'Force'], ['DE', 'Défense'], ['PA', 'Patin'], ['SO', 'Souffle'],
-  ['SAL', 'Salaire'], ['NAME', 'Nom'],
-];
-function syncSortOptions() {
-  const sort = $('sortSelect');
-  if (!sort) return;
-  const jeu = surTable() ? 'table' : 'saison';
-  const liste = surTable() ? SORTS_TABLE : SORTS_SAISON;
-  if (sort.dataset.jeu !== jeu) {
-    sort.innerHTML = liste.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
-    sort.dataset.jeu = jeu;
-  }
-  if (!liste.some(([v]) => v === G.sortBy)) { G.sortBy = liste[0][0]; saveOpts(); }
-  sort.value = G.sortBy;
-}
-
-/** La fiche d'un joueur à ce jour, telle que le banc la lit : « 12-18-30 · +7 », « 14-6 · ,918 ». */
-function ficheDuJour(p) {
-  const c = G.banc && G.banc.compte.get(p);
-  if (!c || !c.gp) return 'aucun match';
-  if (p.p === 'G') return `${c.w}-${c.l} · ${c.sa ? (c.sv / c.sa).toFixed(3).replace('0.', ',') : '—'}`;
-  return `${c.g}-${c.a}-${c.pts} · ${c.pm > 0 ? '+' : ''}${c.pm}`;
-}
-
-function slotTags(p, zoneEcartTag, penTag) {
-  if (surTable()) {
-    // Le plateau ne lit ni zone ni pénalité : la case porte le gabarit, le
-    // tir et l'habileté, et les deux nombres qui n'ont pas tenu sur la ligne.
-    const st = tableStats(p);
-    const gab = GABARITS[st.gb], tir = TIRS[st.ts] || TIRS.P, hab = HABILETES[habileteDe(p)];
-    const icones = [gab, p.p === 'G' ? null : tir, hab].filter(Boolean);
-    return `<span class="slot-icones" title="${esc(icones.map(i => i.nom).join(' · '))}">${icones.map(i => i.icon).join('')}</span>`
-      + (p.p === 'G' ? '' : `<span class="tag tag-table" title="${esc(isD(p) ? AXE_MOT.TI : AXE_MOT.FO)} · ${esc(AXE_MOT.PA)} · ${esc(AXE_MOT.SO)}">${slotAxesReste(p)}</span>`);
-  }
-  // Les icônes, serrées, sans cadre : la case est étroite. Le survol donne le mot.
-  const icones = [...getTraits(p).map(t => TRAITS[t.cle]), ...mesureIcones(p)];
-  const compact = icones.length
-    ? `<span class="slot-icones" title="${esc(icones.map(i => i.short).join(' · '))}">${icones.map(i => i.icon).join('')}</span>` : '';
-  return [compact, zoneTag(p, true), zoneEcartTag, penTag]
-    .filter(Boolean).slice(0, SLOT_TAGS_MAX).join('');
-}
-
-/** Les étiquettes mesurées d'un joueur, en icônes : `[{ icon, short }]`. */
-function mesureIcones(p) {
-  const m = mesure(p);
-  if (!m) return [];
-  const out = [];
-  if (m.def != null && m.def >= SEUIL_MESURE) out.push({ icon: '🧊', short: 'Défensif' });
-  if (m.rob != null && m.rob >= SEUIL_MESURE) out.push({ icon: '🪨', short: 'Robuste' });
-  return out;
-}
-
-function slotEl(s) {
-  const p = G.roster[s.i];
-  const el = document.createElement('div');
-  const pen = p ? getPositionPenalty(p, s) : 0;
-
-  el.className = 'slot'
-    + (p ? '' : ' empty')
-    + (G.selectedSlot === s.i ? ' selected' : '')
-    + (!p && G.target === s.i ? ' target' : '')
-    + (pen > 0 ? ' oop' : '');
-
-  if (p) {
-    el.style.setProperty('--slot-line', couleurVive(p.t));
-    el.style.setProperty('--slot-fond', fondEquipe(p.t, 0.035) || '');
-    const band = getTeamBand(p.t);
-    el.style.setProperty('--slot-band', band.bg);
-    el.style.setProperty('--slot-ink', band.ink);
-    el.style.setProperty('--slot-stripe', band.stripe);
-    const st = displayStats(p);
-    const main = p.p === 'G' ? `${st.w} V` : `${st.pt} PTS`;
-    /* La case est étroite : la ligne de statistiques y tient en une seule,
-       donc on abrège « PTS/M » en « /M ». La fiche donne le libellé complet. */
-    const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr}/M`;
-    // Sur table : les nombres du plateau, et rien de ce qu'il ne lit pas.
-    // Derrière le banc : la fiche À CE JOUR, jamais celle de fin de saison.
-    const ligneStats = G.banc ? ficheDuJour(p) : surTable() ? slotAxesTexte(p) : `${main} · ${secondary}`;
-    const blesseTag = G.banc && G.banc.blesses.has(p)
-      ? `<span class="tag tag-pen" title="Blessé : il lui reste ${G.banc.blesses.get(p)} match${G.banc.blesses.get(p) > 1 ? 's' : ''}. Un réserviste prend sa place le soir du match.">🩹 ${G.banc.blesses.get(p)}</span>` : '';
-    const penTag = !surTable() && pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position : −${pen}">−${pen}</span>` : '';
-    const ecart = zoneEcart(p, s);
-    /* Une flèche seule : « ▼ zone » et « ▲ zone » poussaient la pénalité de
-       position hors de la case sur les écrans où un trio n'a que cent pixels
-       par joueur. L'infobulle dit la phrase entière. */
-    const zoneEcartTag = surTable() ? '' : ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
-      : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>` : '';
-    if (estRenfort(p)) el.classList.add('renfort');
-    // Le visage dans la case aussi : on reconnaît son alignement d'un coup
-    // d'oeil, comme sur un tableau de vestiaire.
-    el.innerHTML = `
-      ${estRenfort(p) || G.banc ? ''
-        : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
-      <div class="slot-band${estRenfort(p) ? ' off' : ''}">
-        <span class="sb-role ${positionClass(p)}">${esc(roleCourt(s.role))}</span>
-        <span class="sb-logo">${getTeamLogoHtml(p.t, 12)}</span>
-        ${estRenfort(p)
-          ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
-          : `<span class="slot-salary">${st.salaryMain}</span>`}
-      </div>
-      <div class="slot-inner">
-        <div class="slot-face pcard-avatar">${headshotHtml(p)}</div>
-        <div class="slot-texte">
-          <div class="slot-name">${formatName(p.n)}</div>
-          <div class="slot-meta">${esc(positionLabel(p))} · ${esc(p.t)} '${esc(p.s.slice(-2))}</div>
-          <div class="slot-meta">${ligneStats}</div>
-          <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>
-        </div>
-      </div>`;
-    el.querySelector('.slot-remove')?.addEventListener('click', ev => {
-      ev.stopPropagation();
-      delete G.roster[s.i];
-      G.selectedSlot = null;
-      // Le tour est déjà joué : la prochaine signature comble cette case sans
-      // faire tourner la roulette. Sans ça, « signer le moins cher puis ✕ »
-      // était un « Passer » gratuit et illimité.
-      if (!estRenfort(p)) G.dette++;
-      saveGame();
-      render();
-      toast(`${p.n} retiré. ${money(capLeft())} de disponible, `
-        + `et la roulette ne tournera pas pour cette case.`, 'warn');
-    });
-  } else {
-    // Sur table, la case vide ne promet pas de zone : le plateau n'en lit pas.
-    el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${surTable() ? '' : esc(s.label)}</div>`;
-  }
-
-  el.onclick = () => {
-    if (estRenfort(p)) { toast('Les renforts sont fournis : tu ne peux pas les déplacer.', 'warn'); return; }
-    if (G.selectedSlot !== null) {
-      if (G.selectedSlot === s.i) {
-        G.selectedSlot = null;
-      } else {
-        const src = G.selectedSlot;
-        const a = G.roster[src], b = G.roster[s.i];
-        if (a) G.roster[s.i] = a; else delete G.roster[s.i];
-        if (b) G.roster[src] = b; else delete G.roster[src];
-        G.selectedSlot = null;
-        G.target = null;
-        saveGame();
-        toast(b ? 'Joueurs permutés.' : 'Joueur déplacé.');
-      }
-    } else if (p) {
-      G.selectedSlot = s.i;
-      toast('Touche une autre case pour déplacer ou permuter.');
-    } else {
-      G.target = (G.target === s.i ? null : s.i);
-      // Retirer sa visée rend la main à la première case vide.
-      if (G.target === null) G.mainCase = null;
-      if (G.target !== null) {
-        setView('pool');
-        toast(`Case ciblée : ${slotShort(s)}. ${MODE().loto ? 'La main se recompose pour cette case.' : 'Les signatures iront là.'}`);
-      }
-    }
-    render();
-  };
-  return el;
-}
-
-/*
- * Titres des rangées du tableau de profondeur. On les nomme par leur RANG —
- * 1er trio, 2e paire — et non par leur zone : deux rangées s'appelaient
- * « Top 6 » et deux autres « Top 4 », si bien qu'on ne savait plus laquelle
- * on regardait. La zone reste écrite sur la case vide et sur l'étiquette du
- * joueur, là où elle sert à décider.
- */
-const UNIT_NAMES_F = ['1er trio', '2e trio', '3e trio', '4e trio'];
-const UNIT_NAMES_D = ['1re paire', '2e paire', '3e paire'];
-
-/* Version courte des libellés de chimie : l'en-tête d'une unité est étroit,
-   le texte complet reste dans l'infobulle. */
-const CHEM_SHORT = {
-  'Chimie parfaite 🌟': '🌟 Parfaite',
-  'Tandem moteur 🎯': '🎯 Tandem',
-  'Conflit de rôles ⚠️': '⚠️ Conflit',
-  'Chimie standard 👍': '👍 Standard',
-  'Paire équilibrée ⚖️': '⚖️ Équilibrée',
-  'Paire hyper-offensive 🚀': '🚀 Hyper-off.',
-  'Paire hermétique 🔒': '🔒 Hermétique',
-  'Paire standard 👍': '👍 Standard',
-  'Trio standard 👍': '👍 Standard',
-};
-const chemShort = name => CHEM_SHORT[name] || name;
-const ZONE_SHORT = { optimal: '✨ Optimal', mal: '⚠️ Mal assorti', hors: '🚨 Hors de ses lignes' };
-const zoneShort = (tag, etat) => ZONE_SHORT[etat]
-  || (!tag ? '' : tag.replace('Trio ', '').replace('Paire ', '').replace('optimale', 'optimal'));
-
-function lineEl(title, slots, group, unit, cls = '') {
-  const wrap = document.createElement('div');
-  wrap.className = 'line';
-
-  let chemHtml = '<span class="line-chem">incomplet</span>';
-  // Sur table, pas de chimie : le plateau joue chaque pièce sur ses nombres,
-  // et annoncer « +2/+2 » serait promettre un bonus que rien n'applique.
-  if (group != null && !surTable()) {
-    const syn = getUnitSynergy(G.roster, group, unit);
-    const sum = (syn.bonusOff || 0) + (syn.bonusDef || 0);
-    const filled = slots.filter(s => G.roster[s.i]).length;
-    if (filled === slots.length) {
-      const kind = sum > 0 ? 'good' : sum < 0 ? 'bad' : '';
-      if (kind) wrap.classList.add(kind);
-      const sign = x => { const v = Math.round(x * 10) / 10; return v > 0 ? `+${v}` : `${v}`; };
-      const bits = [chemShort(syn.chem || syn.name)];
-      if (syn.zone) bits.push(zoneShort(syn.zone, syn.zoneEtat));
-      const full = `${syn.name}${syn.desc ? ' — ' + syn.desc : ''} · attaque ${sign(syn.bonusOff || 0)}, défense ${sign(syn.bonusDef || 0)}`;
-      chemHtml = `<span class="line-chem ${kind}" title="${esc(full)}">${esc(bits.join(' · '))} <b>${sign(syn.bonusOff || 0)}/${sign(syn.bonusDef || 0)}</b></span>`;
-    } else {
-      chemHtml = `<span class="line-chem">${filled}/${slots.length} · chimie à venir</span>`;
-    }
-  } else {
-    const filled = slots.filter(s => G.roster[s.i]).length;
-    chemHtml = `<span class="line-chem">${filled}/${slots.length} comblés</span>`;
-  }
-
-  // Derrière le banc, chaque trio porte son 🔒 : le trio de fermeture prend le
-  // premier trio adverse (voir FERMETURE_DEFAUT dans js/sim.js).
-  let fermHtml = '';
-  if (G.banc && group === 'F') {
-    const ferm = fermetureCourante();
-    const on = ferm === unit;
-    fermHtml = `<button type="button" class="line-ferm${on ? ' on' : ''}" data-unit="${unit}" title="${on ? 'Ton trio de fermeture : il prend le premier trio adverse. Touche pour le libérer.' : 'En faire ton trio de fermeture : il prendra le premier trio adverse. Son blocage est celui de ses trois joueurs.'}">🔒${on ? ' Fermeture' : ''}</button>`;
-    if (on) wrap.classList.add('fermeture');
-  }
-  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${fermHtml}${chemHtml}</div>`;
-  const fermBtn = wrap.querySelector('.line-ferm');
-  if (fermBtn) fermBtn.onclick = ev => {
-    ev.stopPropagation();
-    G.banc.fermeture = fermetureCourante() === unit ? null : unit;
-    render();
-  };
-  const row = document.createElement('div');
-  row.className = 'line-slots' + (cls ? ' ' + cls : '');
-  slots.forEach(s => row.appendChild(slotEl(s)));
-  wrap.appendChild(row);
-  return wrap;
-}
-
-function renderRoster() {
-  const host = $('rosterBoard');
-  if (!host) return;
-  host.innerHTML = '';
-
-  UNIT_NAMES_F.forEach((name, u) => {
-    const slots = SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch);
-    host.appendChild(lineEl(name, slots, 'F', u));
-  });
-  UNIT_NAMES_D.forEach((name, u) => {
-    const slots = SLOTS.filter(s => s.group === 'D' && s.unit === u && !s.scratch);
-    host.appendChild(lineEl(name, slots, 'D', u, 'pair'));
-  });
-  host.appendChild(lineEl('Gardiens', SLOTS.filter(s => s.group === 'G' && !s.scratch), null, null, 'pair'));
-  host.appendChild(lineEl('Réservistes', SLOTS.filter(s => s.scratch), null, null));
-  ajusterCartes(host);
-}
-
-function renderTeamSummary() {
-  const host = $('teamSummary');
-  if (!host) return;
-
-  const oop = SLOTS.filter(s => G.roster[s.i] && getPositionPenalty(G.roster[s.i], s) > 0).length;
-  let optimal = 0, miscast = 0, hors = 0;
-  const units = [...Array(4).keys()].map(u => ['F', u]).concat([...Array(3).keys()].map(u => ['D', u]));
-  for (const [g, u] of units) {
-    const syn = getUnitSynergy(G.roster, g, u);
-    // `zoneEtat`, PAS l'émoji du libellé : ajouter une étiquette (S62 en a
-    // ajouté une, « hors de ses lignes ») ferait sinon rater les pires unités
-    // sans que rien ne casse.
-    if (syn.zoneEtat === 'optimal') optimal++;
-    if (syn.zoneEtat === 'mal' || syn.zoneEtat === 'hors') miscast++;
-    if (syn.zoneEtat === 'hors') hors++;
-  }
-
-  const tile = (k, v, cls, title) =>
-    `<div class="sum-item" title="${esc(title)}"><div class="k">${k}</div><div class="v ${cls || ''}">${v}</div></div>`;
-
-  if (surTable()) {
-    // Sur table, ni zone ni chimie ni pénalité : les tuiles disent ce que
-    // le plateau va lire — le tir des attaquants, la force des patineurs,
-    // l'arrêt du partant. Des moyennes de nombres qui existent, rien de neuf.
-    const habilles = SLOTS.filter(s => !s.scratch && G.roster[s.i]).map(s => [s, G.roster[s.i]]);
-    const moy = (xs, k) => (xs.length ? (xs.reduce((a, p) => a + tableStats(p)[k], 0) / xs.length).toFixed(1) : '—');
-    const att = habilles.filter(([s, p]) => s.group === 'F' && p.p !== 'G').map(([, p]) => p);
-    const pat = habilles.filter(([, p]) => p.p !== 'G').map(([, p]) => p);
-    const partant = habilles.find(([s]) => s.group === 'G')?.[1];
-    host.innerHTML =
-      tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
-      + tile('Vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
-      + tile('Tir', moy(att, 'TI'), '', `TI moyen des ${att.length} attaquants habillés — ${AXE_MOT.TI.toLowerCase()}. Sur six.`)
-      + tile('Force', moy(pat, 'FO'), '', `FO moyen des ${pat.length} patineurs habillés — ${AXE_MOT.FO.toLowerCase()}. Sur six.`)
-      + tile('Arrêt', partant ? tableStats(partant).AR : '—', '', `AR de ton partant — ${AXE_MOT.AR.toLowerCase()}. Sur six.`);
-    return;
-  }
-  host.innerHTML =
-    tile('Masse', money(capUsed()), '', `Somme des salaires signés, sur un plafond de ${money(MODE().cap)}. Il reste ${money(capLeft())}.`)
-    + tile('Vides', slotsLeft(), slotsLeft() ? 'dash-warn' : 'dash-good', `Cases encore à combler sur les ${totalCases()}.`)
-    + tile('Optimales', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone d'efficacité : +2 en attaque et +2 en défense. Les quatre trios et les trois paires comptent.")
-    + tile('Mal assorties', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
-      `Unités où au moins un joueur joue hors de sa zone. Un cran d'écart ne coûte presque rien ; ${hors ? `${hors} unité${hors > 1 ? 's' : ''} est à deux crans ou plus, et là ça coûte cher.` : 'à deux crans ou plus, ça coûte cher.'}`)
-    + tile('Hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
-}
-
-function renderMain() {
-  const b = $('mainBtn');
-  const reste = slotsLeft();
-  const over = capLeft() < 0;
-  if (G.banc) {
-    b.disabled = reste > 0;
-    b.textContent = `Retour au match · journée ${G.banc.jour}`;
-    return;
-  }
-  b.disabled = reste > 0 || G.done || over;
-  b.textContent = G.done ? (G.bonus === 'TABLE' ? 'Tournoi joué' : 'Saison jouée')
-    : over ? `Plafond dépassé de ${money(-capLeft())}`
-    : reste === 0 ? (G.bonus === 'TABLE' ? `Au tournoi sur table · ${CLUBS_TOURNOI} clubs` : 'Lancer la saison · 82 matchs')
-    : `Encore ${reste} joueur${reste > 1 ? 's' : ''}`;
-}
-
-function render() {
+export function render() {
+  // LE MODE TABLE SE CHARGE À LA DEMANDE (1.0, J3-6) : son premier rendu attend ses modules, puis se refait.
+  if (G.bonus === 'TABLE' && !MT.pret) { chargerTable().then(() => render()); return; }
   syncAgeControls();
   renderCap();
+  majEntete();
   renderSpin();
   renderDash();
   renderFilters();
@@ -2651,453 +2032,12 @@ function render() {
       ? 'Touche une case pour le déplacer.'
       : G.target !== null
         ? 'Case ciblée : la prochaine signature ira là.'
-        : 'Touche un joueur, puis sa case.';
+        // LA LÉGENDE DES VERDICTS (S78) : ce que disent les marques d'une case,
+        // une fois, au-dessus de l'alignement. Sur table, ni zone ni position.
+        : surTable() ? 'Touche un joueur, puis sa case.'
+          : 'Touche un joueur, puis sa case. ▼ ▲ hors de sa zone · −N hors position.';
   }
 }
-
-/* =====================================================================
-   Hexagone (seulement si le brouillard est levé)
-   ===================================================================== */
-
-/**
- * Le profil mesuré : les mêmes axes que ceux qui décident de l'archétype et
- * de la valeur, exprimés en écart au régulier moyen de la saison du joueur.
- * 1,00 = exactement le régulier moyen ; 2,00 = le double.
- */
-/* La fiche en mode Sur table : les nombres du plateau dans la grille du
-   profil, un axe par cellule, le laiton sur celui qu'un trait majore. */
-function ficheTable(p) {
-  const st = tableStats(p);
-  const cell = k => {
-    const tr = (st.traits || {})[k], T = tr && TRAITS[tr];
-    return `<div class="profil-cell${T ? ' majore' : ''}" title="${esc(AXE_MOT[k])}${T ? ` — ${T.icon} ${T.label} : +1` : ''}"><div class="k">${k}</div><div class="v">${st[k]}<span class="profil-sur">/6</span></div></div>`;
-  };
-  return `<div class="profil-grid">${axesDe(p).map(cell).join('')}</div>
-  <div class="tags fiche-table-tags">${tagsTableHtml(p, true)}</div>`;
-}
-
-function profilMesure(p) {
-  const gp = Math.max(1, p.gp || 1);
-  const [, pctTir, shF, shD, ptF, ptD, partButs, pimF] = seasonLancers(p.s);
-  const cell = (k, v, t) =>
-    `<div class="profil-cell" title="${esc(t)}"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`;
-
-  if (p.p === 'G') {
-    const svLigue = 1 - (pctTir || 10.5) / 100;
-    const ecart = ((p.sv ?? svLigue) - svLigue) * 1000;
-    return `<div class="profil-grid">
-      ${cell('ARRÊTS', (ecart >= 0 ? '+' : '') + ecart.toFixed(1), `Millièmes d'arrêts au-dessus de sa ligue en ${p.s} (${(svLigue * 1000).toFixed(0)}).`)}
-      ${cell('CHARGE', ((p.sa || 0) / gp).toFixed(1), 'Lancers vus par match.')}
-      ${cell('DÉPARTS', p.gp, 'Matchs joués — un partant se reconnaît autant à sa charge qu\'à son pourcentage.')}
-    </div>`;
-  }
-
-  const est_D = p.p === 'D';
-  const r = (x) => x.toFixed(2);
-  const prod = (p.pt || 0) / gp / (est_D ? (ptD || 0.35) : (ptF || 0.62));
-  const vol = (p.sh || 0) / gp / (est_D ? (shD || 1.35) : (shF || 1.75));
-  const pen = (p.pt || 0) >= 15 ? (p.g || 0) / p.pt - (partButs || 0.40) : 0;
-  const dur = (p.pim || 0) / gp / (pimF || 0.90);
-
-  // Avec la rondelle, puis sans : la seconde rangée porte ce qui décide des
-  // étiquettes 🛡️ Défensif et 🪨 Robuste, en colonnes claires.
-  const m = mesure(p);
-  const signe = x => (x >= 0 ? '+' : '') + Math.round(x);
-  return `<div class="profil-titre">Avec la rondelle</div>
-  <div class="profil-grid">
-    ${cell('PRODUCTION', r(prod), `Points par match, sur le régulier moyen de ${p.s}. 1,00 = la moyenne.`)}
-    ${cell('LANCERS', r(vol), `Lancers par match, sur le régulier moyen de ${p.s}.`)}
-    ${cell('CRÉATION', r(passesRelatives(p)), `Passes par match, sur le régulier moyen de ${p.s} à sa position. C'est ce qu'il apporte aux lancers des autres : ses coéquipiers finissent mieux à ses côtés.`)}
-    ${cell('PENCHANT', (pen >= 0 ? '+' : '') + pen.toFixed(2), pen >= 0
-      ? 'Il finit plus que la moyenne : ses points sont surtout des buts.'
-      : 'Il sert plus qu\'il ne finit : ses points sont surtout des passes.')}
-  </div>
-  <div class="profil-titre">Sans la rondelle${m ? ` · défensive ${Math.round(m.def * 100)}e centile, robustesse ${Math.round(m.rob * 100)}e` : ''}</div>
-  <div class="profil-grid">
-    ${m ? cell('DIFFÉRENTIEL', signe(m.diff82), `Son +/- par 82 matchs, corrigé à moitié de celui de son club — un bon joueur d'un mauvais club n'est pas puni deux fois.`) : ''}
-    ${m && m.dn82 != null ? cell('DÉSAVANTAGE', Math.round(m.dn82), `Points en désavantage numérique par 82 matchs : qui tue les punitions.`) : ''}
-    ${p.toi ? cell('MINUTES', p.toi.toFixed(1), 'Temps de glace par match, en minutes.') : ''}
-    ${cell('ROBUSTESSE', r(dur), `Minutes de punition par match, sur le régulier moyen de ${p.s}${p.ht != null ? ` · ${p.ht} mises en échec par match` : ''}.`)}
-  </div>`;
-}
-
-
-/* =====================================================================
-   Fiche complète du joueur
-   ===================================================================== */
-
-/*
- * LES STATISTIQUES SIMULÉES D'UN JOUEUR, saison ou séries, sous une même
- * forme. La saison vit dans les compteurs `sim*` que le moteur écrit ; les
- * séries dans `p.po`, posé par `separerSeries` une fois les séries jouées.
- */
-function statsSim(p, mode = 'saison') {
-  if (mode === 'series') return p.po || null;
-  if (p.simGP === undefined) return null;
-  const o = {};
-  for (const k of ['GP', 'G', 'A', 'PTS', 'PM', 'Inj', 'SH', 'PIM', 'PPG', 'W', 'L', 'OTL', 'GA', 'SO', 'SA', 'SV']) {
-    if (p['sim' + k] !== undefined) o[k] = p['sim' + k];
-  }
-  return o;
-}
-
-/*
- * CE QUE `compterFeuilles` COMPTE, DANS LA FORME DE LA GRILLE. Deux tables
- * existent pour de bonnes raisons — le moteur écrit `simG` sur le joueur, les
- * feuilles cumulent `g` dans une Map — et la fiche n'en sait lire qu'une.
- * Ce qu'une feuille ne porte pas (la défaite en prolongation, le but en
- * avantage) n'est PAS posé à zéro : une case absente se tait, un zéro ment.
- */
-const compteEnGrille = c => c && {
-  GP: c.gp, G: c.g, A: c.a, PTS: c.pts, PM: c.pm, SH: c.sh, PIM: c.pim,
-  W: c.w, L: c.l, GA: c.ga, SO: c.bl, SA: c.sa, SV: c.sv,
-};
-
-/*
- * LES COMPTEURS À CE JOUR, cumulés des feuilles RÉVÉLÉES — jamais des
- * compteurs `sim*`, qui portent les 82 matchs dès que `simulateLeague` a
- * joué (la leçon de `G.done`, S49). C'est la même lecture que « Derrière le
- * banc » et que les meneurs de l'écran de saison : on ne montre rien que le
- * joueur n'ait déjà vu.
- *
- * Mémorisé sur la journée (et sur l'état des séries) parce qu'un tableau de
- * meneurs porte sept cents noms : recompter 1312 feuilles par nom serait
- * une seconde par rendu. La clé change à chaque révélation, donc le cache
- * ne peut pas servir un chiffre périmé.
- */
-let COMPTE_JOUR = { cle: null, map: null };
-function compteRevele(portee = 'jour') {
-  const L = G.ligue;
-  const vues = G.seriesVues;
-  const cle = portee === 'jourSeries'
-    ? `s|${vues ? (vues.revele || []).join(',') : ''}`
-    : `j|${G.journee || 0}`;
-  if (COMPTE_JOUR.cle === cle) return COMPTE_JOUR.map;
-  let map = new Map();
-  if (portee === 'jourSeries') {
-    const rev = (vues && vues.revele) || [];
-    for (const s of (G.series || [])) compterFeuilles(s.feuilles.slice(0, rev[s.i] || 0), map);
-  } else if (L && L.calendrier) {
-    map = compterFeuilles(L.calendrier.slice(0, G.journee || 0).flat().map(m => m.feuille));
-  }
-  COMPTE_JOUR = { cle, map };
-  return map;
-}
-
-/*
- * JUSQU'OÙ UN NOM A LE DROIT DE PARLER. La règle tient en une ligne — tant
- * qu'il reste une journée ou un match à révéler, une fiche ne dit que ce qui
- * est joué DEVANT le joueur — et elle n'a qu'UN propriétaire : l'écran de
- * saison, le bilan, le sommaire d'un match et l'onglet des équipes la lisent
- * tous ici plutôt que d'en garder chacun sa version.
- */
-function porteeRevele(quoi = 'saison') {
-  if (quoi === 'series') {
-    const vues = (G.seriesVues && G.seriesVues.revele) || null;
-    if (!vues) return 'series';
-    return (G.series || []).some(s => (vues[s.i] || 0) < s.feuilles.length) ? 'jourSeries' : 'series';
-  }
-  const cal = G.ligue && G.ligue.calendrier;
-  return cal && (G.journee || 0) < cal.length ? 'jour' : 'saison';
-}
-
-/*
- * UN NOM CLIQUABLE OUVRE LA FICHE. Partout où un joueur est nommé après la
- * simulation — feuille de match, palmarès, sommaire, alignement d'une
- * équipe — son nom est un bouton qui ouvre sa fiche avec ses statistiques
- * SIMULÉES, saison ou séries. Le registre relie l'identifiant du DOM à
- * l'objet joueur ; un seul écouteur délégué sert tout le document.
- */
-const MOT_MODE = {
-  saison: 'de la saison simulée', series: 'des séries',
-  jour: 'à ce jour', jourSeries: 'des séries, à ce jour',
-};
-const FICHES = new Map();
-function lienJoueur(p, t, mode = 'saison', html = null) {
-  if (!p) return html ?? '';
-  const cle = `${getPlayerKey(p)}|${mode}`;
-  FICHES.set(cle, { p, t, mode });
-  return `<button type="button" class="lien-joueur" data-fiche="${esc(cle)}" title="Fiche et statistiques ${MOT_MODE[mode] || MOT_MODE.saison}">${html ?? formatName(p.n)}</button>`;
-}
-const EQUIPES = new Map();
-function lienEquipe(t, mode = 'saison', html = null) {
-  if (!t) return html ?? '';
-  const cle = `${t.tag}|${t.season || ''}|${mode}`;
-  EQUIPES.set(cle, { t, mode });
-  return `<button type="button" class="lien-equipe" data-equipe="${esc(cle)}" title="L'alignement et la saison complète de cette équipe">${html ?? esc(teamLabel(t))}</button>`;
-}
-document.addEventListener('click', ev => {
-  const bj = ev.target.closest('[data-fiche]');
-  if (bj && FICHES.has(bj.dataset.fiche)) {
-    ev.preventDefault(); ev.stopPropagation();
-    const { p, t, mode } = FICHES.get(bj.dataset.fiche);
-    ouvrirFiche(p, t, mode);
-    return;
-  }
-  const be = ev.target.closest('[data-equipe]');
-  if (be && EQUIPES.has(be.dataset.equipe)) {
-    ev.preventDefault(); ev.stopPropagation();
-    const { t, mode } = EQUIPES.get(be.dataset.equipe);
-    showTeamModal(t, mode);
-  }
-});
-
-/*
- * LA FICHE D'UN JOUEUR, BORNÉE À CE QU'IL A VU. Les modes 'saison' et
- * 'series' lisent les compteurs du moteur — toute l'année ; les modes en
- * cours lisent les feuilles révélées.
- *
- * LE COMPTE SE FAIT AU CLIC, pas au rendu. Un tableau de meneurs porte sept
- * cents noms et se refait à chaque journée : cumuler les feuilles pour
- * chacun coûterait une seconde par rendu, pour une fiche sur mille qu'on
- * ouvre. Et au clic, le compte est forcément à jour.
- */
-function ouvrirFiche(p, t, mode = 'saison') {
-  if (mode !== 'jour' && mode !== 'jourSeries') { showPlayerModal(p, { sim: mode, team: t }); return; }
-  showPlayerModal(p, {
-    sim: compteEnGrille(compteRevele(mode).get(p)) || {}, team: t,
-    titreSim: mode === 'jourSeries' ? 'Ses séries, à ce jour' : 'Sa saison, à ce jour',
-  });
-}
-
-const cellStat = (k, v, hl = false) => `<div class="stat-cell${hl ? ' hl' : ''}"><div class="k">${k}</div><div class="v">${v}</div></div>`;
-const signe = n => (n > 0 ? `+${n}` : `${n}`);
-
-/** La grille de statistiques simulées d'un joueur (patineur ou gardien). */
-function grilleSim(p, S) {
-  if (!S) return '<div class="dash-note">Aucun match joué.</div>';
-  if (p.p === 'G') {
-    const pct = S.SA ? (S.SV / S.SA).toFixed(3).slice(1) : '—';
-    return cellStat('PJ', S.GP || 0) + cellStat('V', S.W || 0, true) + cellStat('D', S.L || 0)
-      + (S.OTL === undefined ? '' : cellStat('DP', S.OTL))
-      + cellStat('BL', S.SO || 0) + cellStat('MBA', ((S.GA || 0) / Math.max(1, S.GP || 1)).toFixed(2)) + cellStat('%ARR', pct)
-      + cellStat('ARR', S.SV || 0) + cellStat('TIRS', S.SA || 0);
-  }
-  return cellStat('PJ', S.GP || 0) + cellStat('B', S.G || 0) + cellStat('A', S.A || 0) + cellStat('PTS', S.PTS || 0, true)
-    + cellStat('PTS/M', S.GP ? ((S.PTS || 0) / S.GP).toFixed(2) : '—') + cellStat('+/-', signe(S.PM || 0))
-    + cellStat('PUN', S.PIM || 0) + cellStat('L', S.SH || 0) + cellStat('%', S.SH ? (100 * (S.G || 0) / S.SH).toFixed(1) : '—')
-    + (S.PPG === undefined ? '' : cellStat('BAN', S.PPG)) + (S.Inj ? cellStat('RATÉS', S.Inj) : '');
-}
-
-/**
- * La fiche. Sans option, c'est celle du bassin : la vraie saison, le profil,
- * l'impact sur ton alignement et le bouton Signer. Avec `sim`, c'est la
- * fiche d'APRÈS : les statistiques simulées d'abord (saison ou séries),
- * la vraie saison dessous pour comparer, et ni destination ni signature.
- */
-function showPlayerModal(p, opts = {}) {
-  const modal = $('hockeyCardModal');
-  const body = $('hockeyCardBody');
-  if (!modal || !body) return;
-
-  /*
-   * `opts.sim` dit CE QU'ON MONTRE, et il a trois formes.
-   *
-   * 'saison' et 'series' lisent les compteurs du moteur — la saison ENTIÈRE.
-   * C'est juste au bilan, et c'est un SPOILER en cours de saison : `simG` et
-   * ses voisins portent les 82 matchs dès que `simulateLeague` a joué, bien
-   * avant que l'écran ne les révèle (la leçon de `G.done`, S49). Un nom
-   * cliqué à la journée 20 annoncerait donc la fin de l'année.
-   *
-   * La troisième forme est un OBJET de compteurs déjà cumulés — ce que
-   * `compterFeuilles` rend pour les journées révélées, exactement ce que
-   * « Derrière le banc » affiche déjà. `titreSim` dit alors jusqu'où on
-   * compte, sinon la fiche ne se distingue pas de celle de fin d'année.
-   */
-  const sim = opts.sim ? (typeof opts.sim === 'object' ? opts.sim : statsSim(p, opts.sim)) : null;
-  const apres = !!opts.sim;
-  const already = isPicked(p);
-  const slot = apres ? null : destinationFor(p);
-  const rem = capLeft();
-  const over = p.$ > rem;
-  const pen = slot ? getPositionPenalty(p, slot) : 0;
-  const st = displayStats(p);
-  const colors = TEAM_COLORS[p.t] || { primary: '#112236', accent: '#38bdf8' };
-
-  const cell = cellStat;
-  const pmStr = signe(st.pm);
-
-  const stats = p.p === 'G'
-    ? cell('PJ', st.gp) + cell('V', st.w, true) + cell('D', st.l) + cell('BL', st.so)
-      + cell('%ARR', p.sv ?? '—') + cell('MBA', p.ga ?? '—')
-    : cell('PJ', st.gp) + cell('B', st.g) + cell('A', st.a) + cell('PTS', st.pt, true)
-      + cell('PTS/M', st.ppgStr) + cell('+/-', pmStr) + cell('PUN', p.pim ?? '—')
-      + cell('TG/M', p.toi ? Number(p.toi).toFixed(1) : '—')
-      + (p.ht != null ? cell('MÉ/M', p.ht) : '')
-      + (p.fo != null ? cell('MJ %', Math.round(p.fo * 100)) : '');
-
-  /*
-   * Plus de cotes sur la fiche. Un joueur se juge sur ce qu'il a fait, et
-   * « ce qu'il a fait » se lit en écart au régulier moyen de SA saison —
-   * sinon 60 points en 1981 et 60 points en 2003 auraient l'air pareils.
-   */
-  const ratings = profilMesure(p);
-
-  const label = already ? '✓ Déjà signé' : !slot ? 'Aucune case libre' : over ? 'Hors budget' : `Signer · ${slot.role}`;
-  const destNote = already ? ''
-    : !slot ? `<div class="dash-note dash-bad">Toutes les cases compatibles sont prises. Déplace un joueur ou vise une autre position.</div>`
-    : over ? `<div class="dash-note dash-bad">${money(p.$)} pour ${money(rem)} restants.</div>`
-    : surTable() ? `<div class="dash-note">Ira au <strong>${esc(slotShort(slot))}</strong>. Sur table, ni zone ni pénalité de position : il joue sur ses nombres, où qu'on le mette. Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`
-    : `<div class="dash-note${zoneEcart(p, slot) === 'sous' ? ' dash-bad' : ''}">Ira au <strong>${esc(slotShort(slot))}</strong>${pen > 0 ? ` avec une pénalité de <strong>−${pen}</strong> hors position` : ' sans pénalité de position'}${zoneEcart(p, slot) === 'sous' ? `, <strong>sous sa zone</strong> : son talent y est gaspillé et l'unité porte un malus. Vise une autre case ou déplace quelqu'un.` : zoneEcart(p, slot) === 'dessus' ? ', au-dessus de sa zone (−3 par cran, léger).' : ', dans sa zone.'} Il resterait ${money(rem - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}.</div>`;
-
-  const nhlUrl = p.id ? `https://www.nhl.com/player/${p.id}` : `https://www.nhl.com/search?q=${encodeURIComponent(p.n)}`;
-  const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
-
-  const equipeSim = opts.team ? `<span class="pcard-full-club">${getTeamLogoHtml(opts.team.tag, 14)} ${esc(teamLabel(opts.team))}</span>` : '';
-  const corps = apres
-    ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
-       <div class="stat-grid">${grilleSim(p, sim)}</div>
-       ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
-       <div class="section-label">Sa vraie saison ${esc(p.s)}${G.statsProrata ? ' (prorata 82, ajusté)' : ''}</div>
-       <div class="stat-grid">${stats}</div>
-       <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
-       ${ratings}`
-    : surTable()
-    ? `<div class="section-label">Sur la glace de table</div>
-       ${ficheTable(p)}
-       <div class="section-label">Impact sur ton alignement</div>
-       ${destNote}
-       <div class="section-label">D'où viennent ces nombres — sa saison ${esc(p.s)}</div>
-       <div class="stat-grid">${stats}</div>`
-    : `<div class="section-label">Statistiques ${G.statsProrata ? '(prorata 82 matchs, ajusté à l\'époque)' : `de la saison ${esc(p.s)}`}</div>
-       <div class="stat-grid">${stats}</div>
-       <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
-       ${ratings}
-       <div class="section-label">Impact sur ton alignement</div>
-       ${destNote}`;
-
-  body.innerHTML = `
-    <div class="pcard-full" style="--card-primary:${colors.primary};--card-accent:${colors.accent}">
-      <div class="pcard-full-head">
-        <div class="pcard-full-watermark">${getTeamLogoHtml(p.t, 128)}</div>
-        <div class="pcard-full-top">
-          <div class="pcard-full-photo">${headshotHtml(p)}</div>
-          <div class="pcard-full-id">
-            <div class="pcard-full-name">${formatName(p.n)}</div>
-            <div class="pcard-full-team">${getTeamLogoHtml(p.t, 16)} ${esc(TEAMFULL[p.t] || p.t)} · ${esc(p.s)}
-              <span class="pos-chip ${positionClass(p)}">${esc(positionLabel(p))}</span></div>
-            <div class="pcard-full-liens">
-              ${nhlPlayerUrl(p.id) ? `<a href="${nhlPlayerUrl(p.id)}" target="_blank" rel="noopener" title="La fiche officielle de ${esc(p.n)} sur nhl.com">${ico('i-ext')}Sa fiche à la LNH</a>` : ''}
-              ${teamSeasonUrl(p.t, p.s) ? `<a href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de ce club sur Hockey-Reference">${ico('i-ext')}La saison du club</a>` : ''}
-            </div>
-            <div class="tags pcard-full-tags">${traitTags(p, true)}${surTable() && !apres ? '' : archTag(p, true) + mesureTags(p, true) + zoneTag(p)}${ageTag(p)}${elcTag(p, true)}${realTag(p)}${p.x ? '<span class="tag tag-traded">↔ Échangé</span>' : ''}</div>
-            <div class="pcard-full-salary">
-              <span class="big">${st.salaryMain}</span>
-              <span class="small">${st.salarySub}</span>
-              <span class="small">${G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-body">${corps}</div>
-      <div class="pcard-full-foot">
-        <div class="ext-links">
-          <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ${ico('i-ext')}</a>
-          <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ${ico('i-ext')}</a>
-          ${teamSeasonUrl(p.t, p.s) ? `<a class="ext-link" href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de son équipe sur Hockey-Reference">${esc(p.t)} ${esc(p.s)} ${ico('i-ext')}</a>` : ''}
-        </div>
-        ${apres ? '' : `<button class="btn go" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>`}
-      </div>
-    </div>`;
-
-  const btn = $('modalSignBtn');
-  if (btn) {
-    btn.onclick = () => {
-      closeModal('hockeyCardModal');
-      signPlayer(p);
-    };
-  }
-  ouvrirModale(modal);
-}
-
-/*
- * L'ALIGNEMENT COMPLET D'UNE ÉQUIPE, ET SA SAISON. Ce que la ligue a joué
- * se vérifie ici, équipe par équipe : les 23 fiches simulées (patineurs par
- * points, gardiens à part), puis les 82 résultats dans l'ordre du calendrier.
- * En mode séries, ce sont les statistiques et les matchs des séries.
- */
-function showTeamModal(t, mode = 'saison') {
-  const joueurs = SLOTS.map(s => t.roster[s.i]).filter(Boolean);
-  const pat = joueurs.filter(p => p.p !== 'G').map(p => [p, statsSim(p, mode)]).filter(([, S]) => S)
-    .sort((a, b) => (b[1].PTS || 0) - (a[1].PTS || 0) || (b[1].G || 0) - (a[1].G || 0));
-  const gar = joueurs.filter(p => p.p === 'G').map(p => [p, statsSim(p, mode)]).filter(([, S]) => S)
-    .sort((a, b) => (b[1].GP || 0) - (a[1].GP || 0));
-  const ligneP = ([p, S]) => `<tr>
-    <td class="left"><div class="team-cell">${lienJoueur(p, t, mode, `<span>${esc(p.n)}</span>`)}</div></td>
-    <td class="sub-cell">${esc(positionLabel(p).split(' / ')[0])}</td>
-    <td class="stat">${S.GP || 0}</td><td class="stat">${S.G || 0}</td><td class="stat">${S.A || 0}</td>
-    <td class="stat heros">${S.PTS || 0}</td><td class="stat">${signe(S.PM || 0)}</td><td class="stat">${S.PIM || 0}</td>
-    <td class="stat">${S.SH || 0}</td><td class="stat">${S.PPG || 0}</td></tr>`;
-  const ligneG = ([p, S]) => `<tr>
-    <td class="left"><div class="team-cell">${lienJoueur(p, t, mode, `<span>${esc(p.n)}</span>`)}</div></td>
-    <td class="sub-cell">G</td>
-    <td class="stat">${S.GP || 0}</td><td class="stat heros">${S.W || 0}</td><td class="stat">${S.L || 0}</td><td class="stat">${S.OTL || 0}</td>
-    <td class="stat">${((S.GA || 0) / Math.max(1, S.GP || 1)).toFixed(2)}</td><td class="stat">${S.SA ? (S.SV / S.SA).toFixed(3).slice(1) : '—'}</td>
-    <td class="stat">${S.SO || 0}</td></tr>`;
-
-  const journal = mode === 'series' ? (t.poJournal || []) : (t.journal || []);
-  // Chaque match de la liste ouvre son sommaire, quand sa feuille existe.
-  const resultats = journal.map(m => { const cle = cleDeSommaire(m.feuille); return `<tr class="${m.win ? 'gagne' : 'perdu'}${cle ? ' ouvrable' : ''}"${cle ? ` data-sommaire="${esc(cle)}" title="Sommaire du match"` : ''}>
-    <td class="sub-cell">${m.n}</td>
-    <td class="left"><div class="team-cell">${getTeamLogoHtml(m.adv.tag, 14)}${lienEquipe(m.adv, mode, `<span>${esc(teamLabel(m.adv))}</span>`)}</div></td>
-    <td class="stat ${m.win ? 'v' : 'd'}">${m.win ? 'V' : m.ot ? 'DP' : 'D'}</td>
-    <td class="stat">${m.gf}-${m.ga}${m.ot ? ' <small>P</small>' : ''}</td>
-    <td class="sub-cell">${m.gardien ? esc(m.gardien.n) : ''}</td></tr>`; }).join('');
-
-  const bilan = mode === 'series' && t.po ? t.po : t;
-  /*
-   * LE LIEN EXTERNE, comme sur la fiche d'un joueur : la vraie saison du
-   * club chez Hockey-Reference (`teamSeasonUrl`, adresse vérifiée sur les 44
-   * codes). Ta propre formation n'en a pas — les NHL Stars n'ont pas de
-   * saison 1976-77 à consulter.
-   */
-  const urlClub = t.isPlayer ? null : teamSeasonUrl(t.tag, t.season);
-  $('gameModalTitle').innerHTML = `${getTeamLogoHtml(t.tag, 20)} ${esc(teamLabel(t))} <span class="som-ot">${mode === 'series' ? 'séries' : `${bilan.W}-${bilan.L}-${bilan.OTL} · ${bilan.PTS} pts`}</span>`
-    + (urlClub ? ` <a class="modal-lien" href="${esc(urlClub)}" target="_blank" rel="noopener" title="La saison du club sur Hockey-Reference">${ico('i-ext')}</a>` : '');
-  $('gameModalBody').innerHTML = `
-    <div class="section-label">${mode === 'series' ? 'Statistiques des séries' : 'Alignement et statistiques de la saison'}</div>
-    <div class="table-wrap haute"><table class="data">
-      <thead><tr><th class="left">Joueur</th><th>Pos</th><th>PJ</th><th>B</th><th>A</th><th class="heros">PTS</th><th>+/-</th><th>PUN</th><th>L</th><th>BAN</th></tr></thead>
-      <tbody>${pat.map(ligneP).join('') || '<tr><td colspan="10">Aucun patineur.</td></tr>'}</tbody>
-    </table></div>
-    <div class="table-wrap" style="margin-top:8px"><table class="data">
-      <thead><tr><th class="left">Gardien</th><th>Pos</th><th>PJ</th><th class="heros">V</th><th>D</th><th>DP</th><th>MBA</th><th>%ARR</th><th>BL</th></tr></thead>
-      <tbody>${gar.map(ligneG).join('') || '<tr><td colspan="9">Aucun gardien.</td></tr>'}</tbody>
-    </table></div>
-    <div class="section-label" style="margin-top:14px">${mode === 'series' ? 'Les matchs des séries' : `Les ${journal.length} matchs de la saison`}</div>
-    <div class="table-wrap haute"><table class="data calendrier-equipe">
-      <thead><tr><th>#</th><th class="left">Adversaire</th><th>R</th><th>Pointage</th><th class="left">Gardien</th></tr></thead>
-      <tbody>${resultats || '<tr><td colspan="5">Aucun match.</td></tr>'}</tbody>
-    </table></div>
-    <div class="section-label" id="eqVraieTitre">Sa vraie saison ${esc(t.season || '')} · reconstituée</div>
-    <div class="stat-grid" id="eqVraie"><div class="dash-note eq-vraie-attente">On reconstitue la vraie saison…</div></div>`;
-  /*
-   * LA VRAIE SAISON ARRIVE EN ASYNCHRONE, comme dans l'onglet « La ligue » :
-   * elle sort du shard du club, pas de la ligue en cours. Ce qui est
-   * RECONSTITUÉ est dit comme tel — un shard porte des joueurs et pas un
-   * classement, donc la fiche V-D vient des gardiens et le troisième nombre
-   * est ce qui reste.
-   *
-   * UNE CASE ABSENTE SE TAIT (la règle de `grilleSim`, S60) : un club dont
-   * un gardien a été échangé n'a pas de nuls déductibles, et quatre clubs
-   * sur 1396 n'ont aucun gardien à eux. `motDeClub` dit alors pourquoi,
-   * plutôt que de laisser un zéro l'affirmer.
-   */
-  if (t.isPlayer || !t.season) { $('eqVraie')?.remove(); $('eqVraieTitre')?.remove(); }
-  else ficheReelleDe(t).then(f => {
-    const h = $('eqVraie');
-    if (!h) return;
-    if (!f) { h.innerHTML = '<div class="dash-note eq-vraie-attente">Sa vraie saison n\'a pas pu être lue.</div>'; return; }
-    const mot = motDeClub(f);
-    h.innerHTML = cellStat('PJ', f.mj)
-      + (f.V == null ? '' : cellStat('V', f.V, true) + cellStat('D', f.D))
-      + (f.N == null ? '' : cellStat('N', f.N))
-      + cellStat('BP', f.BP) + (f.BC == null ? '' : cellStat('BC', f.BC))
-      + (mot ? `<div class="dash-note eq-vraie-mot">${esc(mot)}</div>` : '');
-  });
-  openModal('gameModal');
-}
-
 /* =====================================================================
    Historique
    ===================================================================== */
@@ -3158,9 +2098,23 @@ function showLeaderboard() {
   const body = $('leaderboardBody');
   if (!body) return;
   const list = lireHistorique();
+  /*
+   * DEUX VUES, UNE PAGE (S74) : tes saisons, et TON ALBUM — les cartes de
+   * match gagnées d'une partie à l'autre, tes identités, et le cartable des
+   * joueurs (js/album.js). L'album se déduit de cette même liste.
+   */
+  const vue = G.vueHistorique === 'album' ? 'album' : 'saisons';
+  const bascule = `<div class="seg lb-vues" role="tablist"><button type="button" data-vue="saisons" class="${vue === 'saisons' ? 'on' : ''}">Tes saisons</button><button type="button" data-vue="album" class="${vue === 'album' ? 'on' : ''}">Ton album</button></div>`;
+  const brancher = () => body.querySelectorAll('.lb-vues [data-vue]').forEach(b => { b.onclick = () => { G.vueHistorique = b.dataset.vue; showLeaderboard(); }; });
+  if (vue === 'album') {
+    body.innerHTML = bascule + albumHtml(list, { logo: getTeamLogoHtml, mug: headshotHtml });
+    brancher();
+    return;
+  }
 
   if (!list.length) {
-    body.innerHTML = `<div class="empty-msg">Aucune saison enregistrée.<br>Complète un alignement de 23 et simule pour apparaître ici.</div>`;
+    body.innerHTML = bascule + `<div class="empty-msg">Aucune saison enregistrée.<br>Complète un alignement de 23 et simule pour apparaître ici.</div>`;
+    brancher();
     return;
   }
   /*
@@ -3179,7 +2133,7 @@ function showLeaderboard() {
     + (coupes ? ` · <strong>${coupes} Coupe${coupes > 1 ? 's' : ''}</strong> 🏆` : ' · aucune Coupe')
     + `</div>`;
 
-  body.innerHTML = tete + list.map((i, idx) => {
+  body.innerHTML = bascule + tete + list.map((i, idx) => {
     // LE VERDICT DES SÉRIES. Une entrée d'avant ce changement n'en a pas :
     // elle ne dit rien plutôt que de prétendre que la Coupe a été perdue.
     const po = i.series;
@@ -3196,7 +2150,7 @@ function showLeaderboard() {
         ${verdict ? `<div class="lb-verdict">${verdict}${fiche}</div>` : ''}
       </div>
       <div class="lb-details">
-        <div>${i.rank ? `${i.rank}e de ${i.nTeams}` : ''}${i.epoque ? ` · saison ${esc(i.epoque)}` : ''}</div>
+        <div>${i.rank ? `${i.rank === 1 ? '1er' : `${i.rank}e`} de ${i.nTeams}` : ''}${i.epoque ? ` · saison ${esc(i.epoque)}` : ''}</div>
         <div>${format ? `${esc(format)} · ` : ''}Masse : ${money(i.capUsed)}</div>
         <div>${esc(i.date)}</div>
         ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Rejouer</button>` : ''}
@@ -3206,6 +2160,7 @@ function showLeaderboard() {
   body.querySelectorAll('.lb-replay').forEach(b => {
     b.onclick = () => reprendreAlignement(list[Number(b.dataset.idx)]);
   });
+  brancher();
 }
 
 /* =====================================================================
@@ -3227,7 +2182,7 @@ const bar = (label, val) => {
  * ligue d'une saison — plutôt que `count` clubs tirés au hasard : le tournoi
  * dans les 55 saisons, ou l'exhibition dans une saison donnée.
  */
-async function buildOpponents(count, { epoque = G.epoque, tous = !!epoque } = {}) {
+export async function buildOpponents(count, { epoque = G.epoque, tous = !!epoque } = {}) {
   // Par joueur-SAISON : sans ça, un adversaire pouvait aligner le même homme
   // que toi sous les couleurs de l'autre équipe où il a passé cette année-là.
   const exclude = new Set(picked().map(getPersonKey));
@@ -3284,8 +2239,26 @@ async function buildOpponents(count, { epoque = G.epoque, tous = !!epoque } = {}
  * rejouer la même liste dans le même ordre redonne exactement les mêmes
  * alignements. Les shards manquants se rechargent.
  */
-async function rebatirAdversaires(cles) {
+export async function rebatirAdversaires(cles, decisions = []) {
   const exclude = new Set(picked().map(getPersonKey));
+  // Un joueur libéré au ballottage était repêché quand la ligue s'est bâtie :
+  // il reste exclu, sinon un adversaire rebâti pourrait l'habiller.
+  for (const d of decisions) if (d.ballottage) for (const cle of [d.ballottage.entre, d.ballottage.sort]) {
+    const p = cle && ballottageVu.get(cle);
+    if (p) exclude.add(getPersonKey(p));
+  }
+  /*
+   * S80 : TOUT JOUEUR QU'UNE DÉCISION A MIS DANS TON ALIGNEMENT était exclu
+   * quand la ligue s'est bâtie — le jour 0 compris — et un réserviste relâché
+   * depuis n'est plus dans `picked()`. Sans lui, son vrai club rebâti
+   * l'habillerait et la saison se rejouerait autrement. Exclure un joueur
+   * qu'aucun club n'avait pris ne change rien : l'alignement automatique ne
+   * l'avait pas choisi.
+   */
+  for (const d of decisions) {
+    if (d.cases) for (const cle of Object.values(d.cases)) if (cle) exclude.add(personneDeCle(cle));
+    for (const x of d.relache || []) if (x && x.sort) exclude.add(personneDeCle(x.sort));
+  }
   const out = [];
   for (const cle of cles) {
     const [season, team] = String(cle).split('|');
@@ -3301,574 +2274,6 @@ async function rebatirAdversaires(cles) {
   return out;
 }
 
-/* ======================================================================
-   DERRIÈRE LE BANC — les choix en saison
-   ======================================================================
-   JP : *faire que ya plus de choix à faire pendant la saison* ; *ça peut être
-   nice de pouvoir faire des lockdown lines qui bloquent mieux les
-   adversaires*. La saison se jouait d'un coup et l'écran révélait ; ce qu'on
-   avait signé au repêchage était l'alignement des 82 matchs, blessures
-   comprises. Le moteur étant déterministe, une décision au jour k rejoue les
-   k premières journées à l'identique et diverge ensuite (`simulateLeague`,
-   `decisions`) — c'est ce qui permet de fermer l'écran de saison, de
-   toucher à ses trios, et de reprendre exactement là.
-
-   Ce qu'on voit derrière le banc est CE QUI EST ARRIVÉ, jamais ce qui va
-   arriver : les fiches se cumulent des feuilles des journées révélées
-   (`compterFeuilles`), les blessés sont ceux du jour avec les matchs qu'il
-   leur reste. Les compteurs `sim*` des joueurs, eux, portent la fin de la
-   saison — on ne les lit pas ici.
-   ====================================================================== */
-
-/** L'écran de saison se retire ; l'alignement s'ouvre avec les fiches à ce jour. */
-function ouvrirBanc(jour) {
-  const L = G.ligue;
-  if (!L || !L.calendrier) return;
-  const vus = L.calendrier.slice(0, jour);
-  const compte = compterFeuilles(vus.flat().map(m => m.feuille));
-  const miens = vus.map(j => j.find(m => m.A === L.you || m.B === L.you)).filter(Boolean);
-  const fiche = { W: 0, L: 0, OTL: 0 };
-  for (const m of miens) {
-    const gagne = (m.A === L.you) === (m.gfA > m.gfB);
-    if (gagne) fiche.W++; else if (m.ot) fiche.OTL++; else fiche.L++;
-  }
-  // Les blessés à ce jour, comme l'écran de saison les compte (`at` est le
-  // numéro du match de l'équipe, pas de la journée).
-  const joues = miens.length;
-  const blesses = new Map();
-  for (const b of (L.you.injuriesLog || [])) {
-    const reste = b.at + b.games - (joues + 1);
-    if (b.at <= joues + 1 && reste > 0) blesses.set(b.player, reste);
-  }
-  let prochain = null;
-  for (let j = jour; j < L.calendrier.length && !prochain; j++) {
-    const m = L.calendrier[j].find(x => x.A === L.you || x.B === L.you);
-    if (m) prochain = { j, adv: m.A === L.you ? m.B : m.A };
-  }
-  const derniere = (L.decisions || [])[L.decisions.length - 1] || {};
-  /*
-   * LES RÉGLAGES EN VIGUEUR SE LISENT SUR L'ÉQUIPE, jamais sur la dernière
-   * décision : celle-ci peut être une CARTE, qui ne porte ni fermeture, ni
-   * plan, ni roulement — et le banc remettrait alors tout à « auto » en
-   * écrivant sa décision, donc effacerait un choix en silence.
-   */
-  G.banc = {
-    jour, compte, blesses, prochain, fiche, N: L.calendrier.length,
-    fermeture: L.you.fermeture ?? derniere.fermeture ?? 'auto',
-    plan: planDe(L.you), roulement: roulementDe(L.you),
-  };
-  $('game').classList.add('banc');
-  G.selectedSlot = null; G.target = null;
-  setView('roster');
-  render();
-  // Le panneau du banc est la première chose à voir : on remonte après le
-  // rendu, pas avant (l'écran de saison vient de rendre le défilement au corps).
-  requestAnimationFrame(() => window.scrollTo(0, 0));
-}
-
-/** Le trio de fermeture tel que le banc le montre : le désigné, ou celui que 'auto' prendrait. */
-function fermetureCourante() {
-  if (!G.banc) return null;
-  return G.banc.fermeture === 'auto' ? trioDeFermetureAuto() : G.banc.fermeture;
-}
-
-/** Retour au match : la décision entre dans la liste, la saison se rejoue de la graine et reprend là. */
-async function reprendreSaison() {
-  const b = G.banc;
-  if (!b || !G.ligue) return;
-  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, plan: b.plan, roulement: b.roulement };
-  const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0);
-  decisions.push(d);
-  G.banc = null;
-  $('game').classList.remove('banc');
-  G.done = false;
-  renderMain();
-  // `reprise` : c'est la MÊME saison qu'on rejoue avec une décision de plus,
-  // pas une saison neuve — elle garde donc son entrée d'historique.
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: b.jour, decisions, reprise: true });
-}
-
-/*
- * PRENDRE UNE CARTE DE SAISON. C'est une DÉCISION comme le banc : elle entre
- * dans `G.ligue.decisions`, donc dans la sauvegarde, et la saison se rejoue
- * de la graine avec elle. Un palier ne se prend qu'une fois — le filtre
- * enlève une carte déjà prise au même PALIER, pour qu'un rechargement ou un
- * double clic n'en empile pas deux.
- *
- * `palier` et `jour` sont deux choses : le palier est l'offre, le jour est
- * l'instant où elle entre en vigueur. Rejouer depuis le PALIER rembobinerait
- * la saison pour qui a laissé passer l'offre et l'a prise vingt journées
- * plus tard ; on rejoue donc depuis le jour courant.
- */
-/*
- * LA CARTE QU'ON N'A PAS CHOISIE. JP : *pour les blessures, faire que si pas
- * de joueur à la position, carte random pigée*. Quand un match se joue avec
- * une case que personne ne peut remplir, le vestiaire s'ajuste — et la carte
- * est TIRÉE, pas offerte. Elle passe par exactement la même machinerie qu'un
- * palier (une décision `{ jour, carte, palier }`, donc rejouée de la graine),
- * avec un palier nommé `trou:<match>` pour qu'elle n'entre jamais en
- * collision avec les paliers 20 / 40 / 60 et qu'un même épisode ne puisse
- * pas en donner deux.
- *
- * Ce n'est PAS une compensation : toutes les cartes portent un bonus ET un
- * malus, donc celle-ci peut très bien ne pas t'arranger. C'est ce qu'est une
- * crise d'effectif — un ajustement qu'on subit. Mesuré : 1,02 épisode par
- * équipe par saison, donc le budget passe de trois cartes à quatre dans les
- * mauvaises années, jamais plus de huit au pire cas observé.
- */
-async function subirCarte(at, jour, cle) {
-  if (!G.ligue || !CARTES[cle]) return;
-  const palier = `trou:${at}`;
-  const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
-  decisions.push({ jour, carte: cle, palier });
-  G.done = false;
-  renderMain();
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
-}
-
-async function choisirCarte(palier, jour, cle) {
-  if (!G.ligue || !CARTES[cle]) return;
-  const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
-  decisions.push({ jour, carte: cle, palier });
-  G.done = false;
-  renderMain();
-  await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: jour, decisions, reprise: true });
-}
-
-/** Le panneau du banc : la journée, la fiche, le prochain match, les blessés, la consigne. */
-function renderBanc() {
-  const host = $('bancPanel');
-  if (!host) return;
-  const b = G.banc;
-  host.hidden = !b;
-  if (!b) return;
-  const L = G.ligue;
-  const adv = b.prochain ? L.teams.find(t => t === b.prochain.adv) || b.prochain.adv : null;
-  const blesses = [...b.blesses].map(([p, reste]) => `${esc(p.n)} <span class="banc-reste">${reste} match${reste > 1 ? 's' : ''}</span>`);
-  const ferm = fermetureCourante();
-  host.innerHTML = `
-    <div class="banc-tete">
-      <div class="banc-titre">Derrière le banc <span class="banc-jour">journée ${b.jour} sur ${b.N}</span></div>
-      <div class="banc-fiche" title="Ta fiche à ce jour : victoires, défaites, défaites en prolongation">${b.fiche.W}-${b.fiche.L}-${b.fiche.OTL}</div>
-    </div>
-    ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
-    <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
-    ${segments('Plan', 'plan', PLANS, b.plan)}
-    ${segments('Glace', 'roulement', ROULEMENTS, b.roulement)}
-    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste. 🔒 désigne ton <b>trio de fermeture</b>${ferm != null ? ` — pour l'instant, le ${UNIT_NAMES_F[ferm].toLowerCase()}` : ' — personne pour l\'instant'}.</div>
-    <details class="banc-plus"><summary>Le plan, la glace et le trio de fermeture</summary>
-      <div class="banc-ligne"><b>Le plan de match</b> est ton style : ${Object.values(PLANS).map(x => `${x.ico} ${esc(x.nom)}`).join(', ')}. Chacun achète quelque chose et le paie — il n'y en a pas de gratuit, et aucun ne vaut plus d'une victoire et demie sur une saison.</div>
-      <div class="banc-ligne"><b>La glace</b> dit où passent les minutes. Raccourcir le banc donne la rondelle à tes meilleurs et les use ; un banc profond ménage tout le monde et demande de la profondeur. La somme ne change pas : c'est QUI joue qui change.</div>
-      <div class="banc-ligne"><b>Le trio de fermeture</b> prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
-    </details>
-    <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios, ce plan et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
-  $('bancRetour').onclick = reprendreSaison;
-  /*
-   * UN SEUL ÉCOUTEUR, DÉLÉGUÉ, et il est reposé à chaque rendu parce que
-   * `innerHTML` vient de jeter les anciens boutons : brancher chaque bouton
-   * un par un en laisserait un derrière au premier réglage qu'on ajoute.
-   */
-  host.querySelectorAll('.banc-seg-btn').forEach(btn => {
-    btn.onclick = () => {
-      const champ = btn.dataset.champ;
-      if (!G.banc || G.banc[champ] === btn.dataset.cle) return;
-      G.banc[champ] = btn.dataset.cle;
-      renderBanc();
-    };
-  });
-}
-
-/*
- * UNE RANGÉE DE SEGMENTS : le plan de match, la glace. Le mot du réglage
- * choisi porte ce qu'il achète et ce qu'il paie — c'est la seule chose à lire
- * pour décider, et elle vient de `PLANS` / `ROULEMENTS`, jamais d'un texte
- * recopié ici : un réglage retouché ferait sinon mentir l'écran.
- */
-function segments(titre, champ, table, choisi) {
-  const cour = table[choisi] || Object.values(table)[0];
-  const btns = Object.entries(table).map(([cle, x]) => {
-    const on = cle === choisi;
-    return `<button type="button" class="banc-seg-btn${on ? ' on' : ''}" data-champ="${champ}" data-cle="${cle}"
-      title="${esc(x.nom)}${x.bon ? ` — ${esc(x.bon)}` : ''}${x.prix ? `, mais ${esc(x.prix.charAt(0).toLowerCase() + x.prix.slice(1))}` : ''}"
-      aria-pressed="${on}">${x.ico} <span class="banc-seg-nom">${esc(x.nom)}</span></button>`;
-  }).join('');
-  return `<div class="banc-seg">
-    <div class="banc-seg-tete">${titre}</div>
-    <div class="banc-seg-btns">${btns}</div>
-    <div class="banc-seg-mot">${cour.bon ? `<b>${esc(cour.bon)}</b>` : ''}${cour.prix ? ` · ${esc(cour.prix)}` : ''}</div>
-  </div>`;
-}
-
-/*
- * REPRENDRE LES SÉRIES APRÈS UN RAFRAÎCHISSEMENT. La saison vient d'être
- * rejouée en entier : le classement est donc le même, les appariements sont
- * les mêmes, et surtout le générateur est à l'endroit exact où `playSeries`
- * l'avait pris la première fois — `grainerHasard` n'est appelé que par
- * `simulateLeague`, et il reste en place ensuite (js/sim.js). Rejouer les
- * séries redonne donc les mêmes feuilles, au but près. Il ne reste qu'à dire
- * à l'écran jusqu'où le joueur les avait regardées.
- */
-function reprendreSeries(vues) {
-  const teams = G.ligue && G.ligue.teams;
-  if (!teams || teams.length < 2) return;
-  runPlayoffs(teams.slice(0, nombreEnSeries(teams.length)), { depuis: vues });
-}
-
-async function runSeason(opts = {}) {
-  if (G.banc && !opts.adversaires) { await reprendreSaison(); return; }
-  if (slotsLeft() > 0 || G.done || capLeft() < 0) return;
-  // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
-  // simulateLeague ici — le tournoi a son propre moteur, celui du plateau.
-  if (G.bonus === 'TABLE' && !opts.adversaires) { await lancerTournoi(); return; }
-  /*
-   * UNE SAISON QUI COMMENCE N'A NI SÉRIES NI ENTRÉE D'HISTORIQUE ; une
-   * REPRISE garde les deux, puisque c'est la même saison qu'on rouvre. Un
-   * seul endroit décide, sinon « Rejouer la saison » réécrirait l'entrée de
-   * la saison d'avant et hériterait de ses séries.
-   */
-  if (!opts.reprise) { G.seriesVues = null; G.lbId = null; }
-  G.done = true;
-  // LA SAISON SE JOUE DANS TES COULEURS : noir, blanc, orange. Le repêchage
-  // portait celles du vestiaire sorti ; à partir d'ici, c'est ton club.
-  applyTeamColors('YOU');
-  const mb = $('mainBtn');
-  mb.disabled = true;
-  mb.textContent = 'La ligue joue ses 82 matchs…';
-  await new Promise(r => setTimeout(r, 20));
-
-  let opponents = [];
-  if (opts.adversaires) {
-    opponents = opts.adversaires.map(a => createTeam(a.name, a.tag, a.roster, { season: a.season }));
-  } else {
-    try { opponents = await buildOpponents(31); } catch { opponents = []; }
-  }
-  // TU ES LA 33e ÉQUIPE. Une saison fixée met dans la ligue TOUS ses vrais
-  // clubs, et la tienne par-dessus : trente-trois en 2024-25, vingt-deux en
-  // 1985-86. C'était le club le plus faible qui cédait sa place pour garder
-  // l'effectif pair ; la cédule sait maintenant faire jouer un nombre impair
-  // d'équipes (une en congé chaque journée, 82 matchs pour tout le monde —
-  // voir `simulateLeague`), donc plus personne n'est retranché.
-
-  const you = createTeam('NHL Stars', 'YOU', G.roster, { isPlayer: true });
-  // LES DÉCISIONS EN SAISON (voir `simulateLeague`) : la décision 0 est
-  // l'alignement du repêchage, les suivantes viennent du banc. Une reprise
-  // rejoue exactement les mêmes.
-  const decisions = opts.decisions && opts.decisions.length
-    ? opts.decisions
-    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', plan: 'equilibre', roulement: 'quatre' }];
-  let r, teams, leaders = [], calendrier = [], graine = null;
-  if (opponents.length) {
-    const league = simulateLeague([you, ...opponents], 82, { graine: opts.graine || null, decisions });
-    teams = league.standings;
-    leaders = league.leaders;
-    calendrier = league.calendrier;
-    graine = league.graine;
-    r = {
-      W: you.W, L: you.L, OTL: you.OTL, GF: you.GF, GA: you.GA, points: you.PTS,
-      attaque: you.strength.att, brigade: you.strength.def,
-      rob: you.strength.rob, clu: you.strength.clu, gRating: you.strength.g,
-    };
-  } else {
-    r = simulate(G.roster, { graine: opts.graine || null });
-    graine = r.graine;
-    Object.assign(you, { W: r.W, L: r.L, OTL: r.OTL, GF: r.GF, GA: r.GA, PTS: r.points });
-    teams = [you];
-  }
-  G.journee = 0;
-  G.ligue = {
-    you, teams, calendrier, graine, epoque: G.epoque,
-    // Les clés des adversaires, dans l'ordre du tirage : c'est tout ce que la
-    // sauvegarde emporte, et `rebatirAdversaires` les redéploie à l'identique.
-    cles: opponents.map(t => `${t.season}|${t.tag}`),
-    decisions,
-    // Les trois réglages sont FIGÉS ici, avec la graine : l'écran « Nouvelle
-    // partie » peut muter G pendant qu'un bilan est encore à l'écran, et
-    // l'historique doit enregistrer la partie qui a été jouée, pas celle
-    // qu'on est en train de composer.
-    mode: G.mode, repechage: G.repechage, bonus: G.bonus,
-    // De quoi rejouer : les mêmes 31 clubs, à partir des mêmes alignements.
-    adversaires: opponents.map(t => ({ name: t.name, tag: t.tag, roster: t.roster, season: t.season })),
-  };
-
-  // L'ÉCRAN DE SAISON. Tout est joué ; l'écran révèle le calendrier au
-  // rythme du joueur — une journée, dix, la fin, ou son match en direct —
-  // et le bilan ne se dessine qu'après.
-  const montrer = () => renderResult(r, you, teams, leaders, calendrier);
-  // Une saison reprise APRÈS sa dernière journée va droit au bilan : rouvrir
-  // l'écran sur « journée 82 sur 82 » ferait relire un écran déjà fini.
-  if (calendrier.length && (opts.depuis || 0) < calendrier.length) {
-    ouvrirSaison({
-      calendrier, teams, you, enSeries: nombreEnSeries(teams.length), epoque: G.epoque,
-      ctx: {
-        esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
-        // Le bouton du son du plateau bascule la même préférence que les options.
-        basculerSons: () => { setOption('sons', G.sons ? 'off' : 'on'); syncOptionsUI(); },
-        /*
-         * UN NOM SE CLIQUE PENDANT LA SAISON, SANS DÉVOILER LA FIN. Le mode
-         * 'jour' fait lire les feuilles RÉVÉLÉES au moment du clic — les
-         * compteurs `sim*`, eux, portent les 82 matchs dès que le moteur a
-         * joué. Les meneurs, la feuille d'une équipe et le fil du match en
-         * direct passent tous par là (ils partagent ce `ctx`).
-         */
-        fiche: (p, t, html) => lienJoueur(p, t, porteeRevele('saison'), html),
-        // UNE CASE SE NOMME PAR SON RANG, et `slotShort` en est le seul
-        // propriétaire : l'alerte de blessure le lit plutôt que d'écrire sa
-        // propre version (« 2e trio · AD », jamais « Top 6 »).
-        slotShort,
-      },
-      onTermine: montrer,
-      depuis: opts.depuis || 0,
-      // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
-      // la reprise a besoin de connaître.
-      onJour: j => { G.journee = j; saveGame(); },
-      // LES CARTES DE SAISON : la graine décide de la main offerte à chaque
-      // palier (sans toucher au hasard du moteur), et les paliers déjà pris
-      // se lisent dans les décisions — il n'y a pas d'autre état.
-      graine,
-      cartesPrises: (decisions || []).filter(d => d.carte).map(d => ({ palier: d.palier ?? d.jour, carte: d.carte })),
-      onCarte: choisirCarte,
-      onTrou: subirCarte,
-      // Les épisodes de case vide déjà encaissés, pour qu'un trou ne retende
-      // pas sa carte à chaque reprise (voir `trousFaits`, js/saison.js).
-      trousPris: (decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('trou:'))
-        .map(d => Number(d.palier.slice(5))),
-      // DERRIÈRE LE BANC : l'écran se retire, l'alignement s'ouvre avec les
-      // fiches à ce jour, et « Retour au match » rejoue la saison depuis la
-      // graine avec la décision (voir `ouvrirBanc`).
-      onBanc: j => ouvrirBanc(j),
-    });
-  } else { G.journee = calendrier.length; saveGame(); montrer(); }
-}
-
-/* ======================================================================
-   LE TOURNOI SUR TABLE
-   ======================================================================
-   JP : *mode bonus genre blood bowl, fft et autres jeux de sport de table* ;
-   puis *viser un modèle à la blood bowl, mais plus rapide, surtout pour genre
-   les séries, ou faire mini saisons et séries*.
-
-   Le repêchage ne change pas d'un poil : mêmes 23 cases, même plafond, même
-   roulette. C'est l'aval qui change — au lieu des 82 matchs de
-   `simulateLeague`, ton alignement va jouer un tournoi de six clubs sur un
-   plateau, cinq matchs de saison et deux rondes de séries, et tu joues chaque
-   geste toi-même.
-   ====================================================================== */
-
-const ctxTable = () => ({ esc, band: getTeamBand, vive: couleurVive, logo: getTeamLogoHtml, mug: headshotHtml });
-
-/*
- * LES RÈGLES DU PLATEAU DANS LA PAGE DES RÈGLES, depuis la même source que
- * l'écran du match (`reglesDuPlateau`, js/table.js). `CLAUDE.md` a annoncé
- * pendant tout un temps « cinq présences par période » quand le code en
- * jouait six : une règle recopiée est une règle qui ment tôt ou tard.
- */
-function remplirReglesDuPlateau() {
-  const hote = $('reglesPlateau');
-  if (!hote || hote.dataset.pret) return;
-  hote.dataset.pret = '1';
-  hote.innerHTML = reglesDuPlateau().map(sec => `
-    <h4>${esc(sec.titre)}</h4>
-    ${sec.points ? `<ul>${sec.points.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-    ${sec.rangees ? `<div class="tbl-wrap"><table class="tbl">
-      <thead><tr>${sec.colonnes.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>
-      <tbody>${sec.rangees.map(r => `<tr>${r.map((v, i) => `<td${i === 0 ? ' class="t-regle-nom"' : ''}>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></div>` : ''}`).join('');
-}
-
-async function lancerTournoi() {
-  applyTeamColors('YOU');
-  const mb = $('mainBtn');
-  mb.disabled = true;
-  mb.textContent = `Tirage des ${CLUBS_TOURNOI - 1} clubs du tournoi…`;
-  await new Promise(r => setTimeout(r, 20));
-  let rivaux = [];
-  try { rivaux = await buildOpponents(CLUBS_TOURNOI - 1); } catch { rivaux = []; }
-  if (rivaux.length < CLUBS_TOURNOI - 1) {
-    toast('Impossible de réunir assez de clubs pour le tournoi.');
-    mb.disabled = false; renderMain();
-    return;
-  }
-  // `G.done` est posé par `afficherTournoi` : un seul endroit ouvre un
-  // tournoi, qu'il vienne d'un tirage neuf ou d'une reprise.
-  // LA SAISON DE CHAQUE CLUB EST GARDÉE : c'est la moitié de sa clé, et sans
-  // elle la reprise n'a aucun moyen de rebâtir les cinq rivaux.
-  const clubs = [
-    { nom: 'NHL Stars', tag: 'YOU', roster: G.roster },
-    ...rivaux.slice(0, CLUBS_TOURNOI - 1).map(t => ({ nom: t.name, tag: t.tag, roster: t.roster, season: t.season })),
-  ];
-  afficherTournoi(nouveauTournoi(clubs, nouvelleGraine()));
-}
-
-/* L'écran du tournoi, d'où qu'il vienne — un tirage neuf ou une reprise. */
-function afficherTournoi(T) {
-  G.done = true;
-  G.tournoi = T;
-  applyTeamColors('YOU');
-  ouvrirTournoi({
-    T, ctx: ctxTable(), onTermine: montrerBilanTournoi,
-    // Le tournoi bouge, la sauvegarde suit — comme la journée en saison.
-    onAvance: () => saveGame(),
-  });
-}
-
-/*
- * REPRENDRE UN TOURNOI SUR TABLE. Les cinq rivaux se rebâtissent par leurs
- * clés, exactement comme les 31 clubs d'une ligue (`rebatirAdversaires` rejoue
- * la boucle de `buildOpponents`, même ordre et même `exclude` qui s'accumule),
- * puis `relireTournoi` rejoue les matchs joués à vide et relit les tiens.
- * Rend faux si quoi que ce soit ne se recolle pas : on retombe alors sur
- * l'alignement complet, prêt à repartir, plutôt que sur un tournoi troué.
- */
-async function reprendreTournoi(etat) {
-  const rivaux = await rebatirAdversaires(etat.clubs || []);
-  if (rivaux.length !== CLUBS_TOURNOI - 1) return false;
-  const clubs = [
-    { nom: 'NHL Stars', tag: 'YOU', roster: G.roster },
-    ...rivaux.map(t => ({ nom: t.name, tag: t.tag, roster: t.roster, season: t.season })),
-  ];
-  const T = relireTournoi(etat, clubs);
-  if (!T) return false;
-  afficherTournoi(T);
-  return true;
-}
-
-/**
- * Le bilan du tournoi : le classement final, les séries, et ce que TES
- * joueurs ont fait sur le plateau. Les fiches se cumulent des feuilles de
- * chaque match — comme `compterFeuilles` le fait pour la saison, en plus
- * petit : un match sur table ne compte que des buts et des passes.
- */
-function montrerBilanTournoi(T) {
-  const cl = classementTournoi(T);
-  const finale = T.series && T.series.rondes[1][0];
-  // Ce que les tiens ont fait, cumulé des feuilles de tes matchs.
-  const fiches = new Map();
-  for (const mt of [...T.journees.flat(), ...(T.series ? T.series.rondes.flat() : [])]) {
-    if (!mt.r) continue;
-    for (const cote of ['A', 'B']) {
-      const idx = cote === 'A' ? mt.a : mt.b;
-      if (idx !== 0) continue;
-      for (const l of mt.r[cote].marqueurs) {
-        const f = fiches.get(l.p) || { p: l.p, b: 0, a: 0 };
-        f.b += l.buts; f.a += l.passes;
-        fiches.set(l.p, f);
-      }
-    }
-  }
-  const meneurs = [...fiches.values()].sort((x, y) => (y.b + y.a) - (x.b + x.a) || y.b - x.b).slice(0, 10);
-  const gagne = T.champion === 0;
-  $('gameModalTitle').textContent = 'Le tournoi sur table';
-  $('gameModalBody').innerHTML = `
-    <p class="tr-verdict ${gagne ? 'gagne' : ''}">${gagne
-      ? 'Tu remportes le tournoi sur table.'
-      : `${esc(T.clubs[T.champion ?? 0].nom)} remporte le tournoi.`}</p>
-    ${finale && finale.r ? `<p class="tr-note">Finale : ${esc(T.clubs[finale.a].nom)} ${finale.r.gfA} – ${finale.r.gfB} ${esc(T.clubs[finale.b].nom)}.</p>` : ''}
-    <h3 class="tr-jour">Le classement de la saison</h3>
-    <div class="tbl-wrap"><table class="tbl">
-      <thead><tr><th>#</th><th>Club</th><th>PJ</th><th>V</th><th>D</th><th>BP</th><th>BC</th><th>PTS</th></tr></thead>
-      <tbody>${cl.map((x, n) => `<tr class="${x.i === 0 ? 'mien' : ''}">
-        <td>${n + 1}</td><td>${getTeamLogoHtml(x.c.tag, 18)} ${esc(x.c.nom)}</td>
-        <td>${x.f.PJ}</td><td>${x.f.V}</td><td>${x.f.D}</td><td>${x.f.BP}</td><td>${x.f.BC}</td><td><b>${x.f.PTS}</b></td>
-      </tr>`).join('')}</tbody></table></div>
-    ${meneurs.length ? `<h3 class="tr-jour">Tes meneurs sur le plateau</h3>
-    <div class="tbl-wrap"><table class="tbl">
-      <thead><tr><th>Joueur</th><th>B</th><th>A</th><th>PTS</th></tr></thead>
-      <tbody>${meneurs.map(f => `<tr><td>${lienJoueur(f.p)}</td><td>${f.b}</td><td>${f.a}</td><td><b>${f.b + f.a}</b></td></tr>`).join('')}</tbody>
-    </table></div>` : ''}
-    <div class="tr-actions"><button type="button" id="tournoiNouveau" class="btn">Nouvelle partie</button></div>`;
-  openModal('gameModal');
-  const b = $('tournoiNouveau');
-  if (b) b.onclick = () => { closeModal('gameModal'); ouvrirNouvellePartie(); };
-  renderMain();
-}
-
-/* ======================================================================
-   L'EXHIBITION : LE PLATEAU TOUT DE SUITE, SANS REPÊCHAGE
-   ======================================================================
-   JP : *créer exhibition pour jeu de table pour plus facile de tester ?*.
-
-   Pour toucher le plateau, il fallait bâtir vingt-trois cases, lancer le
-   tournoi, puis ouvrir son premier match : dix minutes avant le premier
-   geste, sur le mode qu'on retouche le plus. Un match d'exhibition tire deux
-   vrais clubs — dans la saison que l'écran « Nouvelle partie » affiche, sinon
-   dans les 55 — et ouvre le plateau directement ; ta formation prend la
-   place du premier club si elle est complète, parce qu'un alignement qu'on
-   vient de bâtir est ce qu'on a le plus envie d'essayer.
-
-   RIEN N'EST ÉCRIT : ni la partie en cours, ni la sauvegarde, ni
-   l'historique. C'est une partie de pratique. Le match fini, la feuille sort
-   comme au tournoi, puis un mot du résultat offre un autre match — deux
-   clubs neufs, ou les mêmes sur d'autres dés — parce que tester, c'est
-   rejouer.
-   ====================================================================== */
-
-let exhibition = null;        // { epoque, A, B } — le dernier match, pour le rejouer
-let exhibitionEnCours = false;
-
-async function jouerExhibition({ memes = false } = {}) {
-  if (exhibitionEnCours) return;
-  exhibitionEnCours = true;
-  const bouton = $('npExhibition');
-  const libelle = bouton ? bouton.textContent : '';
-  if (bouton) { bouton.disabled = true; bouton.textContent = 'Tirage des clubs…'; }
-  try {
-    // La saison est celle que l'ÉCRAN montre tant que le brouillon existe :
-    // l'exhibition suit ce qu'on lit, sans rien appliquer à la partie. Le
-    // brouillon est jeté à la fermeture, donc « Un autre match » relit la
-    // saison mémorisée au premier tirage.
-    const epoque = G.brouillon ? G.brouillon.epoque : exhibition ? exhibition.epoque : G.epoque;
-    let A, B;
-    if (memes && exhibition) ({ A, B } = exhibition);
-    else {
-      const mienne = slotsLeft() === 0 && capLeft() >= 0;
-      const n = mienne ? 1 : 2;
-      // Deux saisons de plus dans le sac avant de tirer : `buildOpponents` ne
-      // charge que s'il manque des clubs, et au premier match il n'y a que la
-      // saison de la roulette — l'exhibition ressortait 1978-79 contre 1978-79
-      // à chaque coup. Une saison, c'est une requête, et le cache la garde.
-      if (!epoque) for (let i = 0; i < 2; i++) { try { await getShard(rnd(state.index.seasons)); } catch { /* on tire avec ce qu'on a */ } }
-      let clubs = [];
-      try { clubs = await buildOpponents(n, { epoque, tous: false }); } catch { clubs = []; }
-      if (clubs.length < n) { toast('Impossible de réunir deux clubs pour l\'exhibition.', 'bad'); return; }
-      const club = t => ({ nom: t.name, tag: t.tag, roster: t.roster });
-      A = mienne ? { nom: 'NHL Stars', tag: 'YOU', roster: { ...G.roster } } : club(clubs[0]);
-      B = club(clubs[n - 1]);
-    }
-    exhibition = { epoque, A, B };
-    closeModal('partieModal');
-    ouvrirTable({
-      A: equipeDeTable(A.nom, A.tag, A.roster, 'A'),
-      B: equipeDeTable(B.nom, B.tag, B.roster, 'B'),
-      graine: nouvelleGraine(), ctx: ctxTable(),
-      titre: 'Exhibition', sousTitre: `${A.nom} contre ${B.nom}`,
-      onTermine: r => montrerFinExhibition(A, B, r),
-    });
-  } finally {
-    exhibitionEnCours = false;
-    if (bouton) { bouton.disabled = false; bouton.textContent = libelle; }
-  }
-}
-
-/** Le mot du résultat, et la suite : un autre match, les mêmes clubs, ou rien. */
-function montrerFinExhibition(A, B, r) {
-  if (!r) return;
-  const gagneA = gagnantDuMatch(r) === 'A';
-  const mienne = A.tag === 'YOU';
-  $('gameModalTitle').textContent = 'Match d\'exhibition';
-  $('gameModalBody').innerHTML = `
-    <p class="tr-verdict ${mienne && gagneA ? 'gagne' : ''}">${getTeamLogoHtml(A.tag, 22)} ${esc(A.nom)} ${r.gfA} – ${r.gfB} ${esc(B.nom)} ${getTeamLogoHtml(B.tag, 22)}${r.prolongation ? ' <i>PROL.</i>' : ''}</p>
-    <p class="tr-note">${esc(gagneA ? A.nom : B.nom)} l'emporte. Rien n'est écrit : la partie en cours et l'historique ne bougent pas.</p>
-    <div class="tr-actions">
-      <button type="button" id="exhibitionEncore" class="btn">Un autre match</button>
-      <button type="button" id="exhibitionMemes" class="btn">Les mêmes clubs</button>
-      <button type="button" id="exhibitionFin" class="btn">Fermer</button>
-    </div>`;
-  openModal('gameModal');
-  $('exhibitionEncore').onclick = () => { closeModal('gameModal'); jouerExhibition(); };
-  $('exhibitionMemes').onclick = () => { closeModal('gameModal'); jouerExhibition({ memes: true }); };
-  $('exhibitionFin').onclick = () => closeModal('gameModal');
-}
-
 /**
  * EXPRESS : le reste de l'alignement vient d'une vraie équipe, tirée au
  * hasard. Ces joueurs occupent leur case, ne coûtent rien au plafond et ne
@@ -3878,11 +2283,12 @@ function montrerFinExhibition(A, B, r) {
 async function chargerRenfort() {
   G.renfort = null;
   const actives = new Set(casesActives().map(s => s.i));
+  const fr = franchiseDuTirage();
   for (let essai = 0; essai < 14; essai++) {
-    const season = epoqueDuTirage() || rnd(state.index.seasons);
+    const season = fr ? saisonDeFranchise(fr) : (epoqueDuTirage() || rnd(state.index.seasons));
     let shard;
     try { shard = await getShard(season); } catch { continue; }
-    const teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 20);
+    const teams = Object.keys(shard.byTeam).filter(t => shard.byTeam[t].length >= 20 && (!fr || t === codeDeFranchise(fr, season)));
     if (!teams.length) continue;
     const team = rnd(teams);
     const roster = autoRoster(shard.byTeam[team]);
@@ -3891,8 +2297,9 @@ async function chargerRenfort() {
     // les Bruins de la même année), et le seuil « au moins 20 » les laissait
     // passer — l'Express héritait d'un alignement à 22 et le bouton restait
     // gris. On tire un autre club plutôt que d'accepter le trou.
-    if (!SLOTS.every(s => actives.has(s.i) || roster[s.i])) continue;
-    for (const s of SLOTS) {
+    // Les 23 cases de toujours (S80) : les cases de réserve de plus du Rogue ne se remplissent jamais ici.
+    if (!CASES_ALIGNEMENT_DE_BASE.every(s => actives.has(s.i) || roster[s.i])) continue;
+    for (const s of CASES_ALIGNEMENT_DE_BASE) {
       if (actives.has(s.i) || !roster[s.i]) continue;
       G.roster[s.i] = { ...roster[s.i], _renfort: true };
     }
@@ -3944,7 +2351,8 @@ async function reprendreAlignement(entree) {
   G.epoque = typeof entree.epoque === 'string' && state.index.seasons.includes(entree.epoque) ? entree.epoque : null;
   // Sans ces deux-là, reprendre un vieil alignement pendant que « Sur table »
   // traîne l'envoyait au plateau au lieu des 82 matchs.
-  G.repechage = entree.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
+  G.repechage = normRepechage(entree.repechage);
+  if (FRANCHISES[entree.franchise]) G.franchise = entree.franchise;
   G.bonus = entree.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
   saveOpts(); syncOptionsUI();
   clearSave();
@@ -3953,7 +2361,7 @@ async function reprendreAlignement(entree) {
   G.echelle = {};
   G.dette = 0;
   G.target = null;
-  G.mainCase = null;
+  G.mainCase = null; G.mainRang = null;
   G.selectedSlot = null;
   G.done = false;
   G.ligue = null;
@@ -3982,11 +2390,16 @@ async function demarrerPartie(r = {}) {
   // saison absente de l'index donne ZÉRO adversaire à `buildOpponents` — la
   // saison bascule alors en solo, sans classement ni séries, sans un mot.
   if ('epoque' in r) G.epoque = (typeof r.epoque === 'string' && state.index.seasons.includes(r.epoque)) ? r.epoque : null;
-  if (r.repechage) G.repechage = r.repechage === 'TOUTES' ? 'TOUTES' : 'SAISON';
-  if (r.bonus) G.bonus = r.bonus === 'TABLE' ? 'TABLE' : 'SAISON';
+  if (r.repechage) G.repechage = normRepechage(r.repechage);
+  if (FRANCHISES[r.franchise]) G.franchise = r.franchise;
+  if ('identite' in r) G.identite = IDENTITES[r.identite] ? r.identite : null;
+  if (r.bonus) G.bonus = r.bonus === 'TABLE' || r.bonus === 'ROGUE' ? r.bonus : 'SAISON';
+  if (G.bonus !== 'ROGUE') G.rogue = null;
 
   clearSave();
+  G.variantes = { graine: nouvelleGraine(), cartes: {} };
   G.roster = {};
+  poserCartes();
   G.tirage = [];
   G.echelle = {};
   G.dette = 0;
@@ -4000,7 +2413,7 @@ async function demarrerPartie(r = {}) {
   G.relances = MODE().relances;
   G.left = { ...REROLLS };
   G.target = null;
-  G.mainCase = null;
+  G.mainCase = null; G.mainRang = null;
   G.selectedSlot = null;
   G.done = false;
   G.search = '';
@@ -4022,5 +2435,6 @@ async function demarrerPartie(r = {}) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-window.cap82 = { G, cacheClear, simulate, portraitAbsent };
+// `dev` : de quoi dresser une planche de cartes dans un script de capture (scripts/planche_cartes.mjs), rien de plus.
+window.cap82 = { G, cacheClear, simulate, portraitAbsent, dev: { playerCardEl, carteMiniHtml, getShard } };
 boot();

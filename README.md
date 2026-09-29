@@ -4,9 +4,19 @@ Bâtis un alignement de 23 joueurs de la LNH — n'importe quelle saison depuis 
 
 Chaque tour, la roulette sort une saison et une équipe. Tu piges dans ce vestiaire-là. Tu vois les vraies stats et le salaire. Aucune cote ne s'affiche, ni avant ni après : un joueur se juge sur ce qu'il a fait, et la simulation joue lancer par lancer sur ses vraies colonnes.
 
+## La boucle, façon deckbuilder
+
+- **Ton identité** : avant le premier tour, une carte parmi trois oriente la roulette (francs-tireurs, costauds, aubaines, jeunesse…).
+- **Le repêchage** : vestiaire (une équipe entière) ou loto (le même joueur de trois clubs), dans toutes les époques, dans la saison de la ligue, ou dans **l'histoire d'une franchise** (relocalisations comprises).
+- **Le mode Rogue** : une run de plusieurs saisons avec la même équipe. Tu pars avec des plombiers et 40 jetons ; la boutique vend des packs ; chaque saison, le proprio en veut plus. Écussons, jalons et cartable débloquent la suite d'une run à l'autre.
+- **La saison** : tes lignes, leur système et leur chimie qui s'apprend ; les jambes de tes joueurs et de tes gardiens ; des dilemmes tirés d'histoires vraies ; aux journées 20, 40 et 60, la **main de la journée** en plein écran — un effet, un vrai joueur au choix, une amélioration, un nouveau rôle, un stage de système, le ménage du deck.
+- **Les gros matchs et les séries** : un **deck de match** (50 cartes, de commune à légendaire, et des malédictions). Cinq cartes, trois d'élan ; l'adversaire joue aussi sa main, connue d'avance. Les victoires font grandir le deck, et les cartes de club paient les vrais coéquipiers, la même franchise, une vraie ligne d'origine.
+- **L'album** : d'une partie à l'autre, les cartes eues, les identités essayées, et le cartable des joueurs — les champions de la Coupe en holographique.
+- **Sur table** : le même alignement, joué comme un jeu de plateau à la Blood Bowl.
+
 ## Jouer
 
-Le jeu est un site statique. Aucun serveur, aucun compte.
+Le jeu est un site statique qui se joue en local. Aucun compte, aucun serveur distant.
 
 ```bash
 python3 scripts/build_shards.py --seed-only   # ~10 saisons, 2 minutes
@@ -15,7 +25,7 @@ python3 -m http.server 8000
 
 Ouvre http://localhost:8000. Les modules ES exigent `http://`, pas `file://`.
 
-L'écran est celui d'un directeur général : la jauge de plafond et le budget par case restante en haut, la roulette et le tableau de bord dessous, puis le vestiaire et l'alignement. Le vestiaire se range par position — une colonne par poste sur grand écran, des sections empilées sur téléphone. Sur téléphone, vestiaire et alignement se prennent par onglets ; sur écran large, l'alignement reste sous les yeux. Chaque carte dit l'essentiel : le poste, le salaire, le chiffre clé, l'archétype, la zone d'efficacité et la case où le joueur irait. Un clic ouvre sa fiche complète — statistiques détaillées, salaire d'époque, pénalité de position et effet sur ton alignement.
+L'écran est celui d'un directeur général : la jauge de plafond et le budget par case restante en haut, la roulette et le tableau de bord dessous, puis le vestiaire et l'alignement. Le vestiaire se range par position — une colonne par poste sur grand écran, des sections empilées sur téléphone. Sur téléphone, vestiaire et alignement se prennent par onglets ; sur écran large, l'alignement reste sous les yeux. Chaque carte dit l'essentiel : le poste, le salaire, le chiffre clé, le rôle, la zone d'efficacité et la case où le joueur irait. Un clic ouvre sa fiche complète — statistiques détaillées, salaire d'époque, pénalité de position et effet sur ton alignement.
 
 Pour la base complète — 1970-71 à aujourd'hui, tout joueur à 10+ matchs :
 
@@ -32,13 +42,29 @@ python3 scripts/build_shards.py --rerate
 node scripts/check_ratings.mjs      # distribution des cotes et cohérence avec les vrais classements
 ```
 
-## Publier sur GitHub Pages
+## En images (1.0)
 
-1. Pousse le dépôt
-2. Settings → Pages → Source : `main`, dossier `/`
-3. Onglet Actions → « Bâtir les données » → Run workflow
+| Le bureau | Un système, en fenêtre |
+|---|---|
+| ![Le bureau à 1440 px](docs/captures/bureau-1440.png) | ![La fenêtre du système à 390 px](docs/captures/systeme-390.png) |
 
-L'Action génère les shards et les commite. Un rafraîchissement hebdomadaire tient la saison en cours à jour. Le mode `bios` ajoute les dates de naissance aux shards existants (~110 requêtes) : c'est lui qui allume l'âge et le tri par âge dans le jeu.
+| La main d'un match de séries | Les règles |
+|---|---|
+| ![La main de match à 1440 px](docs/captures/main-de-match-1440.png) | ![La page des règles à 390 px](docs/captures/regles-390.png) |
+
+## Android et bureau
+
+Le jeu n'est plus publié en ligne : il se joue en local, dans le navigateur, sur Android (`mobile/`, Capacitor) ou sur Windows (`desktop/`, Electron).
+
+```powershell
+powershell -ExecutionPolicy Bypass -File mobile\fabriquer-apk.ps1   # l'APK signé, dans mobile\Cap-82-0.apk
+```
+
+`mobile/assembler-www.mjs` regroupe et minifie le jeu (esbuild, devDependency de `mobile/` seulement) ; les salaires et le filet `data/seed.json` restent hors de l'APK.
+
+La GitHub Action « Bâtir les données » existe encore pour régénérer les shards depuis l'API de la LNH (modes `full`, `bios`, `rerate`, `seed`) ; en local, `scripts/build_shards.py` fait la même chose.
+
+**L'application Android** (`mobile/fabriquer-apk.ps1`) n'emporte pas les 3 900 visages recadrés (57 Mo) : l'APK n'a que les écussons et la silhouette. Au premier lancement, en arrière-plan, l'appareil télécharge chaque portrait au site de la LNH, le recadre lui-même avec le code de `scripts/portraits.mjs` (`js/recadrage.js`) et le garde dans son cache (`js/visages.js`). En attendant, la photo brute de la LNH s'affiche ; hors ligne, la silhouette. Le jeu marche hors ligne dès que cette passe est faite.
 
 ## Comment les cotes sont calculées
 
@@ -72,7 +98,9 @@ Avec 23 joueurs de cote uniforme contre la moyenne de la ligue : cote 60 donne 5
 - [CLAUDE.md](CLAUDE.md) — conventions et règles pour les agents de code
 - [AGENTS.md](AGENTS.md) — même chose, pour Jules et compagnie
 - [ARCHITECTURE.md](ARCHITECTURE.md) — pourquoi le découpage par saison, les trois sources de données
+- [LIVRAISON.md](LIVRAISON.md) — le plan de travail vers la 1.0
 - [PLAN.md](PLAN.md) — état du projet, ce qui reste à faire
+- [docs/](docs/README.md) — l'historique : décisions, référence du moteur, journal par sprint
 
 ## Données
 

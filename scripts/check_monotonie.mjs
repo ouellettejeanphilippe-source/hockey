@@ -74,12 +74,14 @@ for (let d = 0; d < 10; d++) {
  * ses joueurs ne doit jamais rendre l'équipe pire » est la propriété la plus
  * forte du moteur ; elle était imprimée avec une croix et un code de sortie 0.
  *
- * La tolérance d'un tiers de victoire absorbe le bruit d'échantillon entre
- * deux déciles voisins (`ESSAIS` vaut 1 par défaut, sur ~139 équipes par
- * décile) sans rien laisser passer d'une vraie inversion : quand le moteur
- * s'est cassé, l'inversion se comptait en matchs, pas en dixièmes.
+ * La tolérance d'UNE victoire absorbe le bruit d'échantillon entre deux
+ * déciles voisins sans rien laisser passer d'une vraie inversion : quand le
+ * moteur s'est cassé, l'inversion se comptait en matchs, pas en dixièmes.
+ * Elle était d'un tiers (S80) : avec ~139 équipes par décile et une chance
+ * de ±6,5 victoires par équipe, l'écart entre deux déciles voisins a un bruit
+ * d'environ 0,8 victoire — le test rougissait au hasard (43,75 → 43,30).
  */
-monte('monotone sur les dix déciles', deciles, 1 / 3);
+monte('monotone sur les dix déciles', deciles, 1);
 borne('le 1er décile', deciles[0], 22, 32, ' V');
 borne('le 10e décile', deciles[9], 50, 60, ' V');
 borne('l\'écart du 1er au 10e', deciles[9] - deciles[0], 20, 34, ' V');   // réel : 28,8

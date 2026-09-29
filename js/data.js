@@ -88,7 +88,7 @@ async function apiGet(path, params) {
 }
 
 /** Teste une fois si le navigateur peut joindre l'API (CORS). */
-export async function probeLive() {
+async function probeLive() {
   if (state.liveOK !== null) return state.liveOK;
   try {
     const d = await apiGet('skater/summary', {

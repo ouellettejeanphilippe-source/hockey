@@ -19,6 +19,7 @@
 import { CAP, ZONE_ECHELLE, ZONE_NOMBRE, ZONE_PEN_MAX, malusZoneUnite } from '../js/sim.js';
 import { ZONE_THRESHOLDS, LINE_ZONES } from '../js/ratings.js';
 import { meilleurAlignementLegal, equipesTemoins } from './lib/vestiaires.mjs';
+import { borne, informer, verdict } from './verdict.mjs';
 
 
 const POIDS_TRIO = [0.34, 0.28, 0.22, 0.16];
@@ -85,7 +86,9 @@ console.log(`  ${'réglage'.padEnd(24)} ${'EMPILÉ'.padStart(6)}  ${refs.map(([l
 ligne('aucun malus', { malus: false });
 ligne('linéaire (avant S62)', { lineaire: true, sous: 0.40, dessus: 3 });
 ligne(`EN VIGUEUR (${ZONE_ECHELLE.slice(1).join('/')} · nombre ${ZONE_NOMBRE.slice(2).join('/')})`, {});
+ligne('le nombre plein dès un cran', { nombreDes: 1, nombreUn: ZONE_NOMBRE });
 ligne('sans le nombre', { nombre: [1, 1, 1, 1] });
+ligne('sans le nombre adouci', { nombreUn: [1, 1, 1, 1] });
 ligne('échelle 0,3/1,6/2,4', { echelle: [0, 0.30, 1.60, 2.40] });
 ligne('nombre 1/2,0/3,0', { nombre: [1, 1, 2.0, 3.0] });
 console.log(`
@@ -94,3 +97,13 @@ console.log(`
   lourdement le premier et légèrement le second ferme l'empilement sans
   toucher aux vraies équipes.
 `);
+
+/* 1.0 · J1-L : un cran passe, deux (ou plusieurs à un cran) ne passent plus — et l'empilement reste fermé. */
+{
+  const e = indice(...EMP, {});
+  borne('l\'empilement reste sous la meilleure vraie équipe', e, 0, 67.5);
+  const base = refs.map(([, a]) => indice(...a, { lineaire: true, sous: 0.40, dessus: 3 }));
+  const ecarts = refs.map(([, a], k) => indice(...a, {}) - base[k]);
+  informer('les témoins, contre le malus linéaire', ecarts.map(x => (x >= 0 ? '+' : '') + x.toFixed(1)).join(' · '));
+  verdict('Le malus de zone');
+}

@@ -32,14 +32,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPersonKey,
-         SITUATIONS, JOURS_SITUATIONS, situationsDuJour, SLOTS, CARTES, mainDeCartes } from '../js/sim.js';
+         SITUATIONS, JOURS_SITUATIONS, situationsDuJour, SLOTS, CARTES, mainDeCartes,
+         penaliteAffichee, getPositionPenalty, penaliteAdaptee, motPenalite, fits } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
-const LIGUES = Number(process.env.LIGUES ?? 6);
+// 12 et non 6 (1.0) : à 6 ligues, « la force du club ne bouge pas » lisait 0,531 pour une borne de 0,5 — du bruit ;
+// à 12, 0,427 avec les jambes et 0,417 sans. Deux minutes au lieu d'une.
+const LIGUES = Number(process.env.LIGUES ?? 12);
 
 const C = new Map();
 const shard = f => { if (!C.has(f)) C.set(f, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))); return C.get(f); };
@@ -93,7 +96,9 @@ function passe(L, table = null) {
   const bras = [];
   for (const parite of [0, 1]) {
     const teams = ligue(5000 + L);
-    simulateLeague(teams, 82, { graine: `situ-${L}`, situations: i => i % 2 === parite });
+    // Sans les accidents de carte (S68), qui suivent sinon le même interrupteur :
+    // ce sont de vraies mutations, et le témoin ne pouvait plus être nul (S79).
+    simulateLeague(teams, 82, { graine: `situ-${L}`, situations: i => i % 2 === parite, accidents: false });
     bras.push(teams.map(t => ({
       W: t.W, GF: t.GF, GA: t.GA,
       situations: t.situations || [],
@@ -284,7 +289,7 @@ informer('les familles', `${portes.length} portés · ${peses.length} pesés`);
     let buts = 0, matchs = 0;
     for (let L = 0; L < LIGUES; L++) {
       const teams = ligue(5000 + L);
-      simulateLeague(teams, 82, { graine: `situ-${L}`, situations: avec });
+      simulateLeague(teams, 82, { graine: `situ-${L}`, situations: avec, accidents: false });
       for (const t of teams) { buts += t.GF; matchs += t.games; }
     }
     return buts / matchs;
@@ -392,6 +397,36 @@ function ligueComplete(seed) {
   const auTrou = mainDeCartes(7, 1000 + 20, []);
   exiger('un épisode au match 20 ne tire pas la carte du palier 20', auPalier[0] !== auTrou[0],
     `palier ${auPalier[0]} · trou ${auTrou[0]}`);
+}
+
+/*
+ * LE « −N » AFFICHÉ EST CELUI DU JOUR (1.0, J1-J). L'écran lisait la
+ * pénalité de base à chaque case ; le moteur, lui, la fait fondre des deux
+ * tiers en quinze matchs (`penaliteAdaptee`). `penaliteAffichee` est la
+ * seule source de l'interface : après quinze matchs à la même case, elle
+ * affiche au plus base × 0,37 + 0,05, et le même chiffre que le moteur joue.
+ */
+{
+  const t = ligueComplete(5900)[0];
+  let p = null, slot = null;
+  for (const s of SLOTS) {
+    if (s.scratch || s.group !== 'F') continue;
+    const c = Object.values(t.roster).find(x => x && x.p !== 'G' && fits(x, s) && getPositionPenalty(x, s) > 0);
+    if (c) { p = c; slot = s; break; }
+  }
+  if (!p) informer('−N affiché', 'aucun avant hors position trouvé pour l\'épreuve');
+  else {
+    const garde = p._adapt;
+    p._adapt = {};
+    const neuf = penaliteAffichee(p, slot);
+    p._adapt = { [slot.role]: 15 };
+    const rode = penaliteAffichee(p, slot);
+    const joue = penaliteAdaptee(p, slot);
+    p._adapt = garde;
+    exiger('au premier match, le −N affiché est la pénalité de base', neuf.pen === neuf.base && neuf.matchs === 0 && motPenalite(neuf) === `−${neuf.base}`, motPenalite(neuf));
+    exiger('après quinze matchs, le −N affiché a fondu comme le moteur', rode.pen <= neuf.base * 0.37 + 0.05 && Math.abs(rode.pen - joue) < 0.06 && /s'adapte \(15 m\.\)/.test(motPenalite(rode)),
+      `${motPenalite(neuf)} → ${motPenalite(rode)} (moteur ${joue.toFixed(2)})`);
+  }
 }
 
 verdict('Les situations');

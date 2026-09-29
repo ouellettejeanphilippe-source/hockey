@@ -16,7 +16,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries,
-         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS, PLANS, ROULEMENTS } from '../js/sim.js';
+         creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame, feuilleVierge,
+         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS, ROULEMENTS, TACTIQUES, AGRESSIVITES } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -144,16 +145,27 @@ dire(!mortes.length, mortes.length ? `cartes sans effet : ${mortes.join(', ')}` 
  */
 const JOUR_PLAN = 20;
 const reglage = (champ, cle) => () => [{ jour: JOUR_PLAN, [champ]: cle }];
-const p1 = jouer('la-meme-graine', reglage('plan', 'echec'));
-const p2 = jouer('la-meme-graine', reglage('plan', 'echec'));
+/*
+ * LE PLAN SE JOUE LIGNE PAR LIGNE depuis S68 : une décision porte les quatre
+ * lignes (tactique, agressivité, secondes de présence). Chaque tactique, chaque
+ * agressivité et la glace doivent déplacer la saison — rien n'est décoratif.
+ */
+const lignes = (tac, agr = 1, sec = 60) => [0, 1, 2, 3].map(() => ({ tac, agr, sec }));
+const p1 = jouer('la-meme-graine', reglage('lignes', lignes('echec', 2)));
+const p2 = jouer('la-meme-graine', reglage('lignes', lignes('echec', 2)));
 dire(a.jours.slice(0, JOUR_PLAN).join('\n') === p1.jours.slice(0, JOUR_PLAN).join('\n'),
-  `un plan au jour ${JOUR_PLAN} laisse les ${JOUR_PLAN} journées d'avant identiques`);
-dire(a.jours.slice(JOUR_PLAN).join('\n') !== p1.jours.slice(JOUR_PLAN).join('\n'), 'et change ce qui suit');
-dire(p1.feuilles === p2.feuilles && p1.joueurs === p2.joueurs, 'le même plan se rejoue à l\'identique');
-const plansMorts = Object.keys(PLANS).filter(cle => cle !== 'equilibre'
-  && jouer('la-meme-graine', reglage('plan', cle)).feuilles === a.feuilles);
-dire(!plansMorts.length, plansMorts.length ? `plans sans effet : ${plansMorts.join(', ')}`
-  : `les ${Object.keys(PLANS).length - 1} plans déplacent la saison`);
+  `des lignes au jour ${JOUR_PLAN} laissent les ${JOUR_PLAN} journées d'avant identiques`);
+dire(a.jours.slice(JOUR_PLAN).join('\n') !== p1.jours.slice(JOUR_PLAN).join('\n'), 'et changent ce qui suit');
+dire(p1.feuilles === p2.feuilles && p1.joueurs === p2.joueurs, 'les mêmes lignes se rejouent à l\'identique');
+const tacMortes = Object.keys(TACTIQUES)
+  .filter(cle => jouer('la-meme-graine', reglage('lignes', lignes(cle))).feuilles === a.feuilles);
+dire(!tacMortes.length, tacMortes.length ? `tactiques sans effet : ${tacMortes.join(', ')}`
+  : `les ${Object.keys(TACTIQUES).length} tactiques déplacent la saison`);
+const hourraMoyen = jouer('la-meme-graine', reglage('lignes', lignes('hourra', 1))).feuilles;
+const agrMortes = [0, 2, 3].filter(i => jouer('la-meme-graine', reglage('lignes', lignes('hourra', i))).feuilles === hourraMoyen);
+dire(!agrMortes.length, agrMortes.length ? `agressivités sans effet : ${agrMortes.map(i => AGRESSIVITES[i].nom).join(', ')}` : 'les agressivités déplacent la saison');
+const secMorte = jouer('la-meme-graine', reglage('lignes', [70, 60, 50, 40].map(sec => ({ tac: 'hourra', agr: 1, sec })))).feuilles === hourraMoyen;
+dire(!secMorte, secMorte ? 'les secondes de présence sont sans effet' : 'les secondes de présence déplacent la saison');
 const roulMorts = Object.keys(ROULEMENTS).filter(cle => cle !== 'quatre'
   && jouer('la-meme-graine', reglage('roulement', cle)).feuilles === a.feuilles);
 dire(!roulMorts.length, roulMorts.length ? `roulements sans effet : ${roulMorts.join(', ')}`
@@ -203,6 +215,79 @@ const situMortes = Object.keys(SITUATIONS).filter(cle => {
 });
 dire(!situMortes.length, situMortes.length ? `situations sans effet : ${situMortes.join(', ')}`
   : `les ${Object.keys(SITUATIONS).length} situations déplacent la saison`);
+
+/*
+ * LA LIGUE AU JOUR LE JOUR (S79). JP : *tu devrais jamais simuler d'avance*.
+ * Le moteur ne joue plus que ce qui est arrivé (`creerLigue`, `jouerJournee`) ;
+ * `simulateLeague` n'est plus qu'un raccourci. Trois choses s'exigent :
+ *   (1) jouées une à une, les journées donnent EXACTEMENT la saison d'un bloc ;
+ *   (2) le hasard de la ligue est à elle : tirer ailleurs entre deux journées
+ *       (un pronostic, un match d'exhibition) ne décale pas un seul dé ;
+ *   (3) une décision prise EN COURS de route — ajoutée à la liste au jour J,
+ *       sans rejouer l'avant — donne la même saison que la même décision
+ *       connue dès le départ.
+ */
+function equipesNeuves() {
+  return vestiaires.map(v => {
+    const pool = v.pool.map(p => ({ ...p }));
+    pool.forEach(registerHiddenRatings);
+    return createTeam(`${v.tag} ${v.season}`, v.tag, autoRoster(pool), { season: v.season });
+  });
+}
+const texteDe = cal => cal.flat().map(m => `${m.A.name}|${m.B.name}|${m.gfA}-${m.gfB}${m.ot ? 'p' : ''}|${(m.feuille && m.feuille.buts.length) || 0}`).join('\n');
+const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filter(Boolean)
+  .map(p => `${p.n} ${p.simGP} ${p.simG} ${p.simA} ${p.simPM} ${p.simSV || 0}`)).join('\n');
+{
+  const bloc = simulateLeague(equipesNeuves(), 82, { graine: 'jour-le-jour' });
+  const texteBloc = texteDe(bloc.calendrier), joueursBloc = joueursDe(bloc.standings);
+  // (1) et (2) : une journée à la fois, et du hasard tiré AILLEURS entre chacune.
+  const L = creerLigue(equipesNeuves(), 82, { graine: 'jour-le-jour' });
+  const [x, y] = equipesNeuves();
+  let n = 0;
+  while (!L.fini) {
+    jouerJournee(L);
+    // Le pronostic, l'exhibition : du hasard pris hors de la ligue, entre deux journées.
+    if (n % 7 === 0) { avecHasardIsole(`ailleurs-${n}`, () => playGame(x, y, n, false, false, feuilleVierge())); Math.random(); }
+    n++;
+  }
+  const pas = bilanLigue(L);
+  dire(texteDe(pas.calendrier) === texteBloc && joueursDe(pas.standings) === joueursBloc,
+    `jouées une à une (${n} journées), les journées donnent la saison d'un bloc, au but près`);
+  // Avant d'être jouée, une journée n'a ni pointage ni feuille : rien n'existe d'avance.
+  const L2 = creerLigue(equipesNeuves(), 82, { graine: 'jour-le-jour' });
+  jouerJusqua(L2, 20);
+  const futurs = L2.calendrier.slice(20).flat();
+  dire(L2.jour === 20 && futurs.length > 0 && futurs.every(m => !m.joue && m.gfA === undefined && !m.feuille)
+    && L2.calendrier.slice(0, 20).flat().every(m => m.joue),
+    `après 20 journées, les ${futurs.length} matchs à venir n'ont ni pointage ni feuille`);
+  dire(L2.teams.every(t => t.W + t.L + t.OTL <= 20) && L2.teams.some(t => t.W + t.L + t.OTL > 0),
+    'les fiches ne comptent que les matchs joués');
+  // Le tiroir des trios lit `p._mutCles` : il ne porte plus la fin de l'année, seulement ce qui est arrivé.
+  const cles = L2.teams.reduce((k, t) => k + SLOTS.reduce((m, s) => m + ((t.roster[s.i] && t.roster[s.i]._mutCles) || []).length, 0), 0);
+  const posees = L2.teams.flatMap(t => t.mutations || []);
+  dire(posees.every(m => m.jour <= L2.jour) && cles === posees.length,
+    `après 20 journées, les marques des joueurs (${cles}) ne sont que les mutations déjà posées (aucune après le jour 20)`);
+  // (3) la décision prise en route.
+  const decider = equipes => {
+    const t = equipes[0];
+    const ag = i => SLOTS.find(sl => sl.group === 'F' && sl.unit === i && sl.role === 'AG' && !sl.scratch).i;
+    const cases = photoAlignement(t.roster);
+    [cases[ag(0)], cases[ag(3)]] = [cases[ag(3)], cases[ag(0)]];
+    return { jour: 40, cases, sel: 'en-route' };
+  };
+  const eqConnue = equipesNeuves();
+  const connue = simulateLeague(eqConnue, 82, { graine: 'jour-le-jour', decisions: [{ jour: 0, cases: photoAlignement(eqConnue[0].roster) }, decider(eqConnue)] });
+  const eqRoute = equipesNeuves();
+  const decs = [{ jour: 0, cases: photoAlignement(eqRoute[0].roster) }];
+  const L3 = creerLigue(eqRoute, 82, { graine: 'jour-le-jour', decisions: decs });
+  jouerJusqua(L3, 40);
+  const avant40 = texteDe(L3.calendrier.slice(0, 40));
+  decs.push(decider(eqRoute));
+  jouerJusqua(L3, Infinity);
+  dire(texteDe(L3.calendrier) === texteDe(connue.calendrier) && avant40 === texteDe(L3.calendrier.slice(0, 40)),
+    'une décision prise en route (au jour 40, sans rejouer l\'avant) donne la même saison que connue d\'avance');
+  dire(texteDe(L3.calendrier) !== texteBloc, 'et elle change bien ce qui suit');
+}
 
 console.log(echecs ? `\n${echecs} échec(s)` : '\ntout se rejoue');
 process.exit(echecs ? 1 : 0);

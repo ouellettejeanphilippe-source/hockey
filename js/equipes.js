@@ -39,6 +39,8 @@
  * un chiffre qui veut dire autre chose que ce que la colonne annonce doit le
  * dire, sinon il ment.
  */
+import { pct3 } from './util.js';
+
 
 /* Les colonnes, et leur ordre : le même vocabulaire que partout ailleurs
    (AG, C, AD, DG, DD, G ; PJ, B, A, PTS, PUN, V, D, BL, MBA). */
@@ -57,7 +59,7 @@ const COL_GAR = [
   { cle: 'gp', t: 'PJ', titre: 'Matchs joués', v: p => p.gp || 0 },
   { cle: 'w', t: 'V', titre: 'Victoires', v: p => p.w || 0, heros: true },
   { cle: 'l', t: 'D', titre: 'Défaites', v: p => p.l || 0 },
-  { cle: 'sv', t: '%ARR', titre: "Pourcentage d'arrêts", v: p => p.sv || 0, fmt: x => (x ? x.toFixed(3).replace(/^0/, '') : '—') },
+  { cle: 'sv', t: '%ARR', titre: "Pourcentage d'arrêts", v: p => p.sv || 0, fmt: x => (x ? pct3(x) : '—') },
   { cle: 'ga', t: 'MBA', titre: 'Moyenne de buts alloués', v: p => p.ga || 0, fmt: x => (x ? x.toFixed(2) : '—'), petit: true },
   { cle: 'sa', t: 'LC', titre: 'Lancers contre', v: p => p.sa || 0 },
   { cle: 'so', t: 'BL', titre: 'Blanchissages', v: p => p.so || 0 },

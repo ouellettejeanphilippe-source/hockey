@@ -26,7 +26,7 @@ const { chromium } = pw;
 
 const base = process.argv[2] || 'http://localhost:8000';
 // La glace vient du moteur : le test lit la même source que le jeu.
-const { COLS: COLS_ATTENDU, RANGS: RANGS_ATTENDU } = await import('../js/table.js');
+const { COLS: COLS_ATTENDU, RANGS: RANGS_ATTENDU, FILET_HAUT, FILET_BAS, BUT_COL } = await import('../js/table.js');
 /* CHROMIUM : le chemin d'un Chromium déjà installé (un poste où la version
    de Playwright ne correspond pas à celle du navigateur). Vide dans
    l'Action, qui installe le sien. */
@@ -74,9 +74,25 @@ const semer = graine => {
 const dé = semer(GRAINE);
 await page.addInitScript(`(${semer.toString()})(${JSON.stringify(GRAINE + '-page')}) && (Math.random = (${semer.toString()})(${JSON.stringify(GRAINE + '-page')}));`);
 
+/* Quitter le plateau : le ✕, puis « Oui » à la question quand le match n'est pas fini (S75). */
+const quitterTable = async () => {
+  await page.click('#tableModal .table-close');
+  const oui = await page.waitForSelector('#choixModal:not([hidden]) [data-choix="quitter"]', { timeout: 1500 }).catch(() => null);
+  if (oui) await oui.click();
+};
+
 await page.goto(base + '/', { waitUntil: 'networkidle' });
 await page.evaluate(() => { try { localStorage.clear(); } catch {} });
 await page.reload({ waitUntil: 'networkidle' });
+/* LE MENU AU DÉPART (S77) : le premier lancement d'une session ouvre le menu.
+   « La saison · Nouvelle partie » bâtit la partie et ouvre l'écran « Nouvelle
+   partie » par-dessus, exactement comme la première visite d'avant. */
+await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
+const modesAuMenu = await page.$$eval('#menuDepart .menu-mode', l => l.map(x => x.dataset.genre).join(','));
+// S78 : l'exhibition a son carton, sans être un genre de sauvegarde.
+// 1.0 (R8) : le Rogue en premier, l'exhibition en lien sous la grille.
+if (modesAuMenu !== 'rogue,saison,table') errors.push(`le menu au départ n'offre pas les trois modes, le Rogue en premier : ${modesAuMenu}`);
+await page.click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');
 
@@ -99,7 +115,18 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
   if (casesEx !== COLS_ATTENDU * RANGS_ATTENDU) errors.push(`l'exhibition montre ${casesEx} cases au lieu de ${COLS_ATTENDU * RANGS_ATTENDU}`);
   const debordeEx = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (debordeEx > 1) errors.push(`l'exhibition déborde de ${debordeEx} px à 390 px`);
+  /* LE ✕ DEMANDE AVANT DE LAISSER FILER LE MATCH (S75). Un match pas fini ne
+     se ferme plus d'un toucher : la question vient, « Non, je reste » garde
+     le plateau ouvert, « Oui » le laisse se jouer. */
   await page.click('#tableModal .table-close');
+  const question = await page.waitForSelector('#choixModal:not([hidden]) [data-choix="rester"]', { timeout: 5000 }).catch(() => null);
+  if (!question) errors.push('le ✕ du plateau ferme le match sans demander');
+  else {
+    await question.click();
+    await page.waitForTimeout(200);
+    if (!(await page.isVisible('#tableModal .t-glace'))) errors.push('« Non, je reste » a quand même fermé le plateau');
+    await quitterTable();
+  }
   await page.waitForSelector('#gameModal', { state: 'visible', timeout: 30000 });
   const mot = (await page.textContent('#gameModal .tr-verdict')).replace(/\s+/g, ' ').trim();
   console.log(`   résultat : « ${mot} »`);
@@ -116,29 +143,179 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
   if (titre2 === titre) errors.push('« Un autre match » a rejoué les mêmes clubs');
   if (resultatFantome) errors.push('la glace du deuxième match d\'exhibition porte le résultat du premier');
   console.log(`   un autre match : « ${titre2} »`);
-  await page.click('#tableModal .table-close');
+  await quitterTable();
   await page.waitForSelector('#gameModal', { state: 'visible', timeout: 30000 });
   await page.click('#exhibitionFin');
   await page.waitForSelector('#gameModal', { state: 'hidden', timeout: 5000 });
   const signesEx = parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
   if (signesEx !== 0) errors.push(`l'exhibition a touché la partie : ${signesEx} signé(s)`);
-  // L'exhibition a fermé l'écran « Nouvelle partie » pour laisser la glace : on le rouvre.
-  await page.click('#openPartieBtn');
+
+  /*
+   * LES TIRS DE BARRAGE SE VOIENT (S75b). Le passage de vérification a vu un
+   * 0-0 finir « Prolongation · Terminé », une feuille à 0-0, puis une défaite
+   * au tournoi : la fusillade était jouée par le moteur et montrée nulle part.
+   * On ouvre le plateau sur un match qui y va — Floride contre Toronto
+   * 2013-14, Pro contre Pro — par la couture `preparer`, et on exige le
+   * panneau, la barre et la feuille.
+   *
+   * LA GRAINE SE CHERCHE, ELLE NE S'ÉCRIT PAS (S75b). `tb-50` allait en
+   * fusillade à douze possessions ; à treize (JP : *go*), plus du tout. Une
+   * graine écrite en dur casse au prochain réglage du tempo sans qu'une ligne
+   * de l'écran ait bougé. Le test joue donc les graines `tb-0`, `tb-1`…
+   * dans le moteur jusqu'à la première qui va en fusillade, et c'est le
+   * MOTEUR qui dit ce que l'écran doit montrer : le nombre de tours, le
+   * vainqueur et son compte.
+   */
+  await page.evaluate(async () => {
+    const [sim, table, logos, plateau] = await Promise.all([import('/js/sim.js'), import('/js/table.js'), import('/js/logos.js'), import('/js/plateau.js')]);
+    const shard = await (await fetch('/data/seasons/2013-14.json')).json();
+    const club = t => { const pool = shard.players.filter(p => p.t === t).map(p => ({ ...p })); pool.forEach(sim.registerHiddenRatings); return sim.autoRoster(pool); };
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    window.__tb = null;
+    const equipes = () => ({ A: table.equipeDeTable('FLA 2013-14', 'FLA', club('FLA'), 'A'), B: table.equipeDeTable('TOR 2013-14', 'TOR', club('TOR'), 'B') });
+    let graine = null, attendu = null;
+    for (let k = 0; k < 600 && !graine; k++) {
+      const { A, B } = equipes();
+      const m = table.nouveauMatch(A, B, `tb-${k}`);
+      let g = 0; while (!m.fini && g++ < 4000) table.iaPresence(m);
+      if (m.fusillade) {
+        graine = `tb-${k}`;
+        const v = m.fusillade.A > m.fusillade.B ? 'A' : 'B';
+        attendu = { graine, tours: m.fusillade.tours.length, vainqueur: v, tag: v === 'A' ? 'FLA' : 'TOR',
+          compte: `${Math.max(m.fusillade.A, m.fusillade.B)}-${Math.min(m.fusillade.A, m.fusillade.B)}` };
+      }
+    }
+    window.__tbAttendu = attendu;
+    if (!graine) return;
+    plateau.ouvrirTable({
+      ...equipes(),
+      graine, titre: 'Essai', sousTitre: 'Les tirs de barrage',
+      ctx: {
+        esc, band: logos.getTeamBand, vive: logos.couleurVive, logo: logos.getTeamLogoHtml, niveau: () => 'PRO',
+        preparer: m => { let g = 0; while (!m.fini && g++ < 4000) table.iaPresence(m); },
+      },
+      onTermine: r => { window.__tb = r; },
+    });
+  });
+  const attendu = await page.evaluate(() => window.__tbAttendu);
+  const panneau = attendu ? await page.waitForSelector('#tableModal .t-barrage:not([hidden])', { timeout: 5000 }).catch(() => null) : null;
+  if (!attendu) errors.push('aucune des 600 graines ne va en fusillade entre la Floride et Toronto : la prolongation règle tout ?');
+  else if (!panneau) errors.push('un match réglé aux tirs de barrage ne montre pas la fusillade sur la glace');
+  else {
+    const tb = await page.evaluate(() => ({
+      tours: document.querySelectorAll('#tableModal .t-barrage-tours li').length,
+      fin: document.querySelector('#tableModal .t-barrage-fin')?.textContent || '',
+      mot: document.querySelector('#tableModal .t-dock .t-barrage-mot')?.textContent || '',
+      periode: document.querySelector('#tableModal .tb-periode')?.textContent || '',
+    }));
+    await page.click('#tableModal .t-barrage');   // toucher montre tout
+    await page.screenshot({ path: 'scripts/smoke-table-barrage.png' });
+    await page.click('#tableModal .t-resultat');
+    const feuilleTB = await page.waitForSelector('#tableModal .tf-barrage', { timeout: 5000 }).catch(() => null);
+    const rangsTB = feuilleTB ? await page.$$eval('#tableModal .tf-barrage tr', l => l.length) : 0;
+    await page.click('#tableModal .t-feuille-suite');
+    const r = await page.evaluate(() => window.__tb);
+    console.log(`   tirs de barrage (graine ${attendu.graine}) : ${tb.tours} tours, « ${tb.fin.trim()} », la barre dit « ${tb.mot.replace(/\s+/g, ' ').trim()} », la feuille en montre ${rangsTB}`);
+    if (tb.tours !== attendu.tours || !tb.fin.includes(attendu.tag) || !tb.fin.includes(attendu.compte)) errors.push(`le panneau de la fusillade dit ${tb.tours} tours et « ${tb.fin} » au lieu de ${attendu.tours} et ${attendu.tag} ${attendu.compte}`);
+    if (!/Tirs de barrage/i.test(tb.periode)) errors.push(`le tableau indicateur dit « ${tb.periode} » après une fusillade`);
+    if (!tb.mot.includes(attendu.tag)) errors.push('la barre du bas ne dit pas qui a gagné la fusillade');
+    if (rangsTB !== attendu.tours) errors.push(`la feuille du match montre ${rangsTB} tour(s) de fusillade au lieu de ${attendu.tours}`);
+    if (!r || r.vainqueur !== attendu.vainqueur || !r.fusillade) errors.push('le match de la fusillade ne rend pas son vainqueur');
+  }
+
+  /*
+   * LE TIR SE PROPOSE, MIS EN SCÈNE (S77). Le joueur scripté du tournoi ne
+   * s'approche du filet qu'au hasard de ses gestes et du minutage : depuis que
+   * la zone neutre a grandi (S75c), la zone de tir a rapetissé d'une rangée,
+   * et « le tir n'a jamais été offert » rougissait une exécution sur trois ou
+   * quatre, sans qu'une ligne de la carte ait bougé. Un test qui dépend du
+   * tirage n'est pas un test. Ici, l'IA joue les deux camps (`ctx.preparer`)
+   * jusqu'à ce que ce soit TA main, ton porteur à portée ; on touche le porteur,
+   * et la carte doit offrir « Tirer ».
+   */
+  await page.evaluate(async () => {
+    const [sim, table, logos, plateau] = await Promise.all([import('/js/sim.js'), import('/js/table.js'), import('/js/logos.js'), import('/js/plateau.js')]);
+    const shard = await (await fetch('/data/seasons/2013-14.json')).json();
+    const club = t => { const pool = shard.players.filter(p => p.t === t).map(p => ({ ...p })); pool.forEach(sim.registerHiddenRatings); return sim.autoRoster(pool); };
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    window.__tirPret = false;
+    plateau.ouvrirTable({
+      A: table.equipeDeTable('PIT 2013-14', 'PIT', club('PIT'), 'A'), B: table.equipeDeTable('BUF 2013-14', 'BUF', club('BUF'), 'B'),
+      graine: 'tir-scene', titre: 'Essai', sousTitre: 'Le tir',
+      ctx: {
+        esc, band: logos.getTeamBand, vive: logos.couleurVive, logo: logos.getTeamLogoHtml, niveau: () => 'PRO',
+        preparer: m => {
+          for (let g = 0; !m.fini && g < 4000; g++) {
+            const p = table.porteur(m);
+            if (m.tour === 'A' && p && p.eq === 'A' && table.peutTirer(m, p)) { window.__tirPret = true; return; }
+            table.iaPresence(m);
+          }
+        },
+      },
+      onTermine: () => {},
+    });
+  });
+  let tirScene = false;
+  if (await page.evaluate(() => window.__tirPret)) {
+    await page.waitForSelector('#tableModal .t-glace', { timeout: 10000 });
+    await page.waitForTimeout(900);
+    const caseP = await page.evaluate(() => {
+      const j = [...document.querySelectorAll('#tableModal .t-jeton.mienne')].find(e => e.querySelector('.t-rondelle'));
+      return j ? `${j.style.getPropertyValue('--tr')},${j.style.getPropertyValue('--tc')}` : null;
+    });
+    if (caseP) {
+      // Un toucher pendant la LECTURE du plateau l'accélère ou la saute (S75) : on touche jusqu'à ce que
+      // le porteur soit choisi, comme un joueur qui tape deux fois — quatre fois au plus.
+      for (let k = 0; k < 4; k++) {
+        if (await page.$('#tableModal .t-jeton.mienne.choisie .t-rondelle')) break;
+        await page.click(`#tableModal .t-case[data-r="${caseP.split(',')[0]}"][data-c="${caseP.split(',')[1]}"]`);
+        await page.waitForTimeout(500);
+      }
+      tirScene = !!(await page.$('#tableModal [data-geste="tir"]'));
+    }
+    console.log(`   le tir mis en scène : porteur en ${caseP || '?'}, « Tirer » ${tirScene ? 'offert' : 'ABSENT'}`);
+    if (!tirScene) errors.push('ton porteur à portée de tir ne se voit pas offrir « Tirer » sur la carte');
+    await quitterTable();
+    await page.waitForTimeout(600);
+    // Ce qu'un match fermé laisse à l'écran (le mot du résultat) se referme aussi.
+    const fermer = await page.$('#gameModal:not([style*="display: none"]) .close-btn, #gameModal:not([style*="display: none"]) [data-close]');
+    if (fermer && await fermer.isVisible()) await fermer.click();
+  } else errors.push('la mise en scène du tir n\'a jamais amené ton porteur à portée en 4000 présences');
+
+  // L'exhibition a fermé l'écran « Nouvelle partie » pour laisser la glace.
 }
 
-/* ---------- l'écran « Nouvelle partie » : choisir « Sur table » ----------
-   Rien ne s'applique avant le clic sur le pied. */
-await page.waitForSelector('#partieModal [data-opt="bonus"]', { state: 'visible', timeout: 30000 });
-await page.click('#partieModal [data-opt="bonus"] button[data-val="TABLE"]');
+/* ---------- « Sur table » se choisit au CHOIX DU MODE (S79 ; 1.0, R1) ----------
+   JP : *« Nouvelle » devrait ramener aux choix des modes*. Le Menu de l'en-tête
+   (le menu pause) montre les cartons des modes ; « Nouvelle partie » sur la
+   table ouvre l'écran « Nouvelle partie » déjà réglé sur la table. Rien ne
+   s'applique avant le clic sur le pied. */
+await page.click('#menuBtn');
+await page.waitForSelector('#menuDepart .menu-mode[data-genre="table"] [data-menu="nouvelle"]', { timeout: 10000 });
+await page.click('#menuDepart .menu-mode[data-genre="table"] [data-menu="nouvelle"]');
+await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 });
 const choisi = await page.$eval('#partieModal [data-opt="bonus"] button[data-val="TABLE"]', b => b.classList.contains('on'));
-if (!choisi) errors.push('l\'option « Sur table » ne se marque pas');
+if (!choisi) errors.push('« Sur table » choisi au menu n\'arrive pas réglé dans l\'écran « Nouvelle partie »');
 await page.click('#npGo');
+// L'identité de départ (S73) : trois cartes avant la première roulette ; on prend la première.
+await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"] .tc', { timeout: 10000 });
+await page.click('#choixModal .tc');
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 console.log(`   option « Sur table » choisie : ${choisi}`);
 
 /* ---------- l'auto-draft, identique au test de fumée principal ---------- */
 const MIN_SAL = 0.95;
-const parseM = t => parseFloat(String(t || '').replace(/[^0-9.]/g, '')) || 0;
+/*
+ * LIRE UN NOMBRE DE L'ÉCRAN (1.0, gel des chaînes) : « 95,5 M$ », « 0,78 M$ »,
+ * « −1,2 M$ », « ,912 », « 46 PTS ». La virgule est décimale, le moins est
+ * typographique, l'espace avant M$ est insécable. L'ancien lecteur gardait les
+ * chiffres et les POINTS : « 95,5 M$ » y serait devenu 955, « ,912 » 912.
+ */
+const lireNombre = t => {
+  const m = String(t || '').replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/);
+  return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0;
+};
+const parseM = lireNombre;
 const lireSignes = async () => parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
 let signed = 0, guard = 0;
 while (signed < 23 && guard++ < 320) {
@@ -146,7 +323,7 @@ while (signed < 23 && guard++ < 320) {
   const maxPick = rem - Math.max(0, 23 - signed - 1) * MIN_SAL;
   const cards = await page.$$('.pcard');
   const infos = await page.$$eval('.pcard', els => els.map(el => ({
-    price: parseFloat((el.querySelector('.pcard-price')?.textContent || '').replace(/[^0-9.]/g, '')) || 0,
+    price: (((t) => { const m = t.replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/); return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0; })(el.querySelector('.pcard-price')?.textContent || '')),
     ok: !!el.querySelector('.btn-sign:not([disabled])'),
   })));
   let idx = infos.findIndex(c => c.ok && c.price <= maxPick);
@@ -203,6 +380,63 @@ if (filets !== 2) errors.push(`${filets} cases de filet au lieu de deux`);
 if (derriere < 2 * (COLS_ATTENDU - 1)) errors.push(`seulement ${derriere} cases derrière les filets`);
 
 /*
+ * LE POINTAGE NE COURT PAS DEVANT LA RONDELLE, ET LA GLACE NE SAUTE PAS (S75).
+ * Le tableau lisait le moteur : le but y était pendant que le dé adverse
+ * roulait encore et que la rondelle n'avait pas quitté la palette. Chaque
+ * fois que le pointage change à l'écran, la rondelle MONTRÉE doit être au
+ * fond d'un filet — ou déjà au point de mise au jeu, sifflet posé, quand un
+ * toucher a fini la lecture d'un coup. Et le haut de la glace ne bouge
+ * jamais : la bannière du but et la pastille d'une punition s'y inséraient
+ * et la poussaient de 39 et 20 px. Les deux se lisent dans le DOM, à chaque
+ * réécriture du tableau, par un observateur posé avant le premier geste.
+ * Prouvé en remettant le pointage sur le moteur : le premier but rougit.
+ */
+await page.evaluate(({ haut, bas, col }) => {
+  const S = window.__plateau = { enAvance: [], changements: 0, hauts: [] };
+  const tete = document.querySelector('#tableModal .t-tete');
+  const glace = document.querySelector('#tableModal .t-glace');
+  const score = () => [...tete.querySelectorAll('.tb-score b')].map(b => b.textContent).join('-');
+  let avant = score();
+  new MutationObserver(() => {
+    if (glace.offsetParent) { const h = Math.round(glace.getBoundingClientRect().top); if (!S.hauts.includes(h)) S.hauts.push(h); }
+    const s = score();
+    if (!s || s === avant) return;
+    S.changements++;
+    const j = document.querySelector('#tableModal .t-rondelle-libre-jeton');
+    const r = +j.style.getPropertyValue('--tr'), c = +j.style.getPropertyValue('--tc');
+    const auFilet = (r === haut || r === bas) && c === col;
+    const siffle = !document.querySelector('#tableModal .t-sifflet').hidden;
+    if (!auFilet && !siffle) S.enAvance.push(`${avant} → ${s}, rondelle en ${r},${c}`);
+    avant = s;
+  }).observe(tete, { subtree: true, childList: true, characterData: true });
+  /*
+   * LE POINT DU PORTEUR N'ARRIVE PAS AVANT LA RONDELLE (S75b). Le receveur
+   * d'une passe portait son point dès le départ, pendant que la rondelle
+   * volait encore : deux rondelles à l'écran, jusqu'à onze cases l'une de
+   * l'autre. À chaque image, là où elles sont DESSINÉES (la transition en
+   * cours comprise), le jeton qui porte le point et la rondelle ne sont
+   * jamais à plus d'une case et demie l'un de l'autre.
+   */
+  const P = window.__point = { images: 0, ecarts: 0, pire: 0 };
+  const cellule = document.querySelector('#tableModal .t-case');
+  const regarder = () => {
+    const modal = document.getElementById('tableModal');
+    if (modal && modal.style.display !== 'none' && glace.offsetParent) {
+      const rond = modal.querySelector('.t-rondelle-libre-jeton');
+      const point = modal.querySelector('.t-jeton .t-rondelle');
+      if (rond && point && !rond.hidden) {
+        const a = rond.getBoundingClientRect(), b = point.closest('.t-jeton').getBoundingClientRect(), cote = cellule.getBoundingClientRect().width || 1;
+        const d = Math.hypot(a.left + a.width / 2 - b.left - b.width / 2, a.top + a.height / 2 - b.top - b.height / 2) / cote;
+        P.images++;
+        if (d > 1.5) { P.ecarts++; P.pire = Math.max(P.pire, d); }
+      }
+    }
+    requestAnimationFrame(regarder);
+  };
+  requestAnimationFrame(regarder);
+}, { haut: FILET_HAUT, bas: FILET_BAS, col: BUT_COL });
+
+/*
  * Le joueur automatique : il fait ce qu'un pouce ferait, et il doit toucher à
  * TOUT — sinon il ne teste que la moitié du plateau. Il tire quand il peut,
  * joue une case allumée (patiner, passer, frapper), prend un geste de la
@@ -229,6 +463,7 @@ let activationsVues = 0;   // le une-deux ouvert à l'écran (S35) : le bouton �
 let alternances = 0, gesteAvant = false;
 let captureModes = false;
 const vus = new Set();
+let dernierPorteur = null, essaisPorteur = 0;   // le porteur qu'on a choisi exprès (S75b)
 const modesVus = new Set();
 const motsFin = new Set();
 let passerMal = null;
@@ -242,6 +477,10 @@ const casesTouchables = (sel) => page.evaluate((s) => [...document.querySelector
   return !!t && (t === e || e.contains(t));
 }).map(e => `${e.dataset.r},${e.dataset.c}`), sel);
 let dernierDuel = null, duelsSecs = 0;
+/* LA BARRE DU BAS NE MORD PAS SUR LA GLACE (S75b). La consigne de la passe
+   faisait trois lignes et cachait la dernière rangée, là où sont les
+   coéquipiers derrière ton filet. Mesuré à chaque tour du joueur scripté. */
+const barreSurGlace = { n: 0, pire: 0, ou: '' };
 let menuMenti = null;          // la carte de commandes a-t-elle nommé la mauvaise pièce ?
 while (tours++ < 4000) {
   if (!(await page.$('#tableModal .t-glace'))) break;
@@ -286,11 +525,36 @@ while (tours++ < 4000) {
       bloque: !!document.querySelector('#tableModal .t-annuler') || !!document.querySelector('#tableModal .t-suite') || !!document.querySelector('#tableModal .t-relancer'),
       ouverte: !!(cmd && !cmd.hidden),
       dit: nu(cmd && cmd.querySelector('.t-cmd-tete') ? cmd.querySelector('.t-cmd-tete').textContent : ''),
-      piece: nu(jetonSel.textContent),
+      // Le rôle et le NOM ENTIER du jeton (S75) : dans une case étroite il n'en affiche que trois
+      // lettres, mais c'est toujours la même pièce que la carte doit nommer.
+      piece: nu(`${(jetonSel.querySelector('.t-role') || {}).textContent || ''}${(jetonSel.querySelector('.t-nom-long') || jetonSel).textContent}`),
     } : null,
     // La pièce choisie porte-t-elle la rondelle ? Le joueur scripté monte alors vers le filet.
     porteur: !!document.querySelector('#tableModal .t-jeton.mienne.choisie .t-rondelle'),
+    // Mon porteur, s'il peut encore jouer et qu'il n'est pas la pièce choisie (S75b).
+    porteurJouable: (() => {
+      const j = [...document.querySelectorAll('#tableModal .t-jeton.mienne')].find(e => e.querySelector('.t-rondelle'));
+      if (!j || j.classList.contains('choisie')) return null;
+      const r = j.style.getPropertyValue('--tr'), c = j.style.getPropertyValue('--tc');
+      return document.querySelector(`#tableModal .t-case.t-jouable[data-r="${r}"][data-c="${c}"]`) ? `${r},${c}` : null;
+    })(),
+    // La carte de commandes, ouverte sur une AUTRE pièce, peut couvrir le porteur (S75c) : un pouce la ferme d'abord.
+    porteurCouvert: (() => {
+      const j = [...document.querySelectorAll('#tableModal .t-jeton.mienne')].find(e => e.querySelector('.t-rondelle'));
+      if (!j) return false;
+      const e = document.querySelector(`#tableModal .t-case[data-r="${j.style.getPropertyValue('--tr')}"][data-c="${j.style.getPropertyValue('--tc')}"]`);
+      return !!e && !touchable(e) && !!document.querySelector('#tableModal .t-cmd:not([hidden]) .t-cmd-fermer');
+    })(),
     jouablesCases: cases('#tableModal .t-case.t-jouable:not(.t-sel)'),
+    // MON PORTEUR, s'il est jouable : c'est lui qui offre le mode « Passer » (S80 — le prendre au
+    // hasard, c'était ne voir la passe que certains matchs, comme le duel avant S46).
+    porteurJouable: (() => {
+      const j = [...document.querySelectorAll('#tableModal .t-jeton.mienne')].find(e => e.querySelector('.t-rondelle'));
+      if (!j) return null;
+      const r = j.style.getPropertyValue('--tr'), c = j.style.getPropertyValue('--tc');
+      const e = document.querySelector(`#tableModal .t-case.t-jouable:not(.t-sel)[data-r="${r}"][data-c="${c}"]`);
+      return e && touchable(e) ? `${r},${c}` : null;
+    })(),
     offresCases: cases('#tableModal .t-case.t-offre'),
     contactsCases: cases('#tableModal .t-case.t-offre-echec'),
     // La case d'un adversaire qui PORTE la rondelle et qu'on peut atteindre :
@@ -317,9 +581,17 @@ while (tours++ < 4000) {
     passer: (document.querySelector('#tableModal .t-passer') || {}).textContent || '',
     fin: !!document.querySelector('#tableModal .t-resultat'),
     unites: !!document.querySelector('#tableModal .t-seg button:not(.on):not([disabled])'),
+    // S75b : de combien la barre du bas mord sur la glace (0 attendu), et dans quel état.
+    recouvre: (() => {
+      const g = document.querySelector('#tableModal .t-glace'), d = document.querySelector('#tableModal .t-dock');
+      if (!g || !d || d.hidden) return 0;
+      return Math.round(g.getBoundingClientRect().bottom - d.getBoundingClientRect().top);
+    })(),
+    etatBarre: document.querySelector('#tableModal .t-dock-gestes .t-geste') ? 'duel' : document.querySelector('#tableModal .t-annuler') ? 'mode' : document.querySelector('#tableModal .t-suite') ? 'dé' : document.querySelector('#tableModal .t-dock-consigne') ? 'consigne' : 'main',
   });
   });
   etat.offres = etat.offresCases.length;
+  if (etat.recouvre > 1) { barreSurGlace.n++; if (etat.recouvre > barreSurGlace.pire) { barreSurGlace.pire = etat.recouvre; barreSurGlace.ou = etat.etatBarre; } }
   etat.contacts = etat.contactsCases.length;
   etat.jouables = etat.jouablesCases.length;
   // La carte de commandes doit nommer la pièce choisie, pas la précédente.
@@ -429,6 +701,20 @@ while (tours++ < 4000) {
     gestes++; await page.waitForTimeout(50); continue;
   }
   if (etat.tir) { await page.click('#tableModal [data-geste="tir"]'); gestes++; await page.waitForTimeout(50); continue; }
+  /*
+   * AVEC LA RONDELLE, ON PREND LE PORTEUR (S75b). Le joueur scripté prenait
+   * la première pièce jouable, rarement celle qui porte : sous certaines
+   * graines il ne tirait jamais, et l'assertion « le tir a été offert »
+   * tombait avec le tempo (treize possessions : trois graines sur sept sans
+   * un seul tir offert, pour une carte qui l'offre très bien). Un joueur
+   * qui a la rondelle la joue ; le test aussi. Trois essais au plus sur la
+   * même case, pour ne jamais tourner en rond.
+   */
+  if (etat.porteurJouable && !etat.modeOn) {
+    if (etat.porteurJouable !== dernierPorteur) { dernierPorteur = etat.porteurJouable; essaisPorteur = 0; }
+    if (etat.porteurCouvert) { await page.click('#tableModal .t-cmd-fermer'); await page.waitForTimeout(50); continue; }
+    if (++essaisPorteur <= 3) { await page.click(caseDe(etat.porteurJouable)); pieces++; await page.waitForTimeout(50); continue; }
+  }
   if (etat.offres && dé() < 0.62) {
     /*
      * LE PORTEUR MONTE (S41). Un patin tiré au sort ne traverse jamais une
@@ -452,7 +738,10 @@ while (tours++ < 4000) {
     await page.click(caseDe(etat.offresCases[Math.floor(dé() * etat.offres)]));
     gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
-  if (etat.jouables) { await page.click(caseDe(etat.jouablesCases[0])); pieces++; await page.waitForTimeout(50); continue; }
+  if (etat.jouables) {
+    const piece = !modesVus.has('passe') && etat.porteurJouable ? etat.porteurJouable : etat.jouablesCases[0];
+    await page.click(caseDe(piece)); pieces++; await page.waitForTimeout(50); continue;
+  }
   // Un déplacement et une action par main (S36) : quand rien ne peut
   // dépenser ce qui reste, on rend la main ; on ne renonce à la présence
   // que si la main n'était pas entamée.
@@ -519,7 +808,8 @@ if (!modesVus.has('deplacer') || !modesVus.has('passe')) errors.push(`les modes 
  * le TIR, et le HARPONNAGE dès qu'un duel s'est ouvert (le bâton, lui, ne
  * demande pas d'être à l'arrêt). Le reste est rapporté, pas exigé.
  */
-if (!vus.has('tir')) errors.push(`le geste « tir » n'a jamais été offert par la carte (vus : ${[...vus].join(', ') || 'aucun'})`);
+// Le joueur scripté ne l'exige plus : c'est la mise en scène du tir (plus haut) qui le garantit.
+if (!vus.has('tir')) console.log(`   (le joueur scripté ne s'est pas vu offrir de tir ce match-ci : vus ${[...vus].join(', ') || 'aucun'} — la mise en scène l'a éprouvé)`);
 if (occasionsDuel) {
   if (!vus.has('vol')) errors.push(`le duel s'est présenté ${occasionsDuel} fois mais le geste « vol » n'a jamais été offert`);
   console.log(`   le duel épaule / bâton s'est présenté ${occasionsDuel} fois · frapper ${vus.has('echec') ? 'offert' : 'jamais offert (le porteur était fermé en pleine course)'}`);
@@ -528,6 +818,18 @@ if (occasionsDuel) {
 }
 console.log(`   ${pointage.replace(/\s+/g, ' ').trim()}`);
 if (gestes < 15) errors.push(`seulement ${gestes} gestes joués sur le plateau : le match n'avance pas`);
+{
+  const P = await page.evaluate(() => window.__plateau);
+  console.log(`   le pointage suit la rondelle : ${P.changements} but(s) au tableau, ${P.enAvance.length} en avance · le haut de la glace : ${P.hauts.join(', ')} px`);
+  if (P.enAvance.length) errors.push(`le pointage a changé avant que la rondelle arrive : ${P.enAvance.slice(0, 3).join(' ; ')}`);
+  if (P.hauts.length > 1) errors.push(`la glace a sauté pendant le match : son haut a pris ${P.hauts.join(', ')} px`);
+  console.log(`   la barre du bas sur la glace : ${barreSurGlace.n} fois${barreSurGlace.n ? `, jusqu'à ${barreSurGlace.pire} px (${barreSurGlace.ou})` : ''}`);
+  if (barreSurGlace.n) errors.push(`la barre du bas a couvert la glace ${barreSurGlace.n} fois, jusqu'à ${barreSurGlace.pire} px (${barreSurGlace.ou})`);
+  const Q = await page.evaluate(() => window.__point);
+  console.log(`   le point du porteur suit la rondelle : ${Q.images} images regardées, ${Q.ecarts} avec un écart de plus d'une case et demie${Q.ecarts ? ` (jusqu'à ${Q.pire.toFixed(1)})` : ''}`);
+  if (!Q.images) errors.push('le point du porteur n\'a jamais été regardé : le contrôle ne contrôle rien');
+  if (Q.ecarts) errors.push(`le point du porteur a devancé la rondelle sur ${Q.ecarts} image(s), jusqu'à ${Q.pire.toFixed(1)} cases`);
+}
 await page.screenshot({ path: 'scripts/smoke-table.png' });
 
 /* ---------- rien ne déborde à 390 px ---------- */
@@ -561,16 +863,20 @@ if (fin) {
     rangees: document.querySelectorAll('#tableModal .tf-table tr').length,
     gardiens: document.querySelectorAll('#tableModal .tf-gardien').length,
     resume: (document.querySelector('#tableModal .tf-etoile') || {}).textContent || '',
+    // Les lancers de l'adversaire (S75b) : la Recrue, par défaut, doit encore attaquer.
+    tirsB: parseInt((document.querySelectorAll('#tableModal .tf-cote')[1]?.querySelector('.tf-chiffres b') || {}).textContent, 10) || 0,
   }));
   console.log(`   feuille du match : ${lu.etoiles} étoile(s), ${lu.cotes} côtés, ${lu.rangees} rangées, ${lu.gardiens} gardiens · ${lu.resume.replace(/\s+/g, ' ').trim()}`);
   if (lu.cotes !== 2) errors.push(`la feuille du match montre ${lu.cotes} côté(s) au lieu de deux`);
   if (!lu.etoiles) errors.push('la feuille du match ne nomme aucune étoile');
   if (!lu.rangees) errors.push('la feuille du match ne montre aucun joueur');
   if (lu.gardiens !== 2) errors.push(`la feuille du match montre ${lu.gardiens} gardien(s) au lieu de deux`);
+  console.log(`   l'adversaire (Recrue) a lancé ${lu.tirsB} fois`);
+  if (lu.tirsB < 3) errors.push(`l'adversaire Recrue n'a lancé que ${lu.tirsB} fois : il n'attaque plus`);
   const deborde2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (deborde2 > 1) errors.push(`la feuille du match déborde de ${deborde2} px à 390 px`);
   await page.click('#tableModal .t-feuille-suite');
-} else await page.click('#tableModal .table-close');
+} else await quitterTable();
 await page.waitForTimeout(400);
 
 /* ---------- le reste du tournoi ---------- */
@@ -587,11 +893,16 @@ await page.waitForSelector('#hubModal', { state: 'visible', timeout: 20000 });
  * sienne : le CLASSEMENT (les matchs à vide ont rejoué pareil) et les MENEURS
  * (ta feuille est revenue entière, joueurs compris).
  */
+/* LA COQUILLE (1.0, R1) : le classement et les meneurs sont des onglets internes de la Ligue. */
+const aLaLigue = async cle => {
+  await page.click('#navbar .navtab[data-section="ligue"]');
+  await page.click(`#sousNav .soustab[data-page="${cle}"]`);
+};
 const litTournoi = async () => {
-  await page.click('#hubModal [data-onglet="classement"]');
+  await aLaLigue('classement');
   await page.waitForTimeout(250);
   const classement = (await page.textContent('#hubModal .hub-volet')).replace(/\s+/g, ' ').trim();
-  await page.click('#hubModal [data-onglet="meneurs"]');
+  await aLaLigue('meneurs');
   await page.waitForTimeout(250);
   const meneurs = (await page.textContent('#hubModal .hub-volet')).replace(/\s+/g, ' ').trim();
   const tete = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
@@ -600,7 +911,7 @@ const litTournoi = async () => {
 const avantT = await litTournoi();
 const sauveT = await page.evaluate(() => {
   try {
-    const brut = localStorage.getItem('cap82_save') || '';
+    const brut = localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif)) || '';
     const d = JSON.parse(brut || '{}');
     const m = (d.tournoi && d.tournoi.matchs) || {};
     const cles = Object.keys(m);
@@ -638,7 +949,8 @@ else console.log(`   reprise du tournoi : ${apresT.tete} — ${sauveT.vide} matc
    aucune importance. Le cumul se fait à l'affichage, en parcourant les matchs
    joués, et il inclut les séries. */
 {
-  const bouton = await page.$('#hubModal [data-onglet="meneurs"]');
+  await page.click('#navbar .navtab[data-section="ligue"]');
+  const bouton = await page.$('#sousNav .soustab[data-page="meneurs"]');
   if (!bouton) errors.push('le tournoi n\'a pas d\'onglet « Meneurs »');
   else {
     await bouton.click();
@@ -655,13 +967,34 @@ else console.log(`   reprise du tournoi : ${apresT.tete} — ${sauveT.vide} matc
     if (deborde3 > 1) errors.push(`les meneurs du tournoi débordent de ${deborde3} px à 390 px`);
   }
 }
+// Les boutons du tournoi vivent au Club (S67 ; 1.0, R1).
+await page.click('#navbar .navtab[data-section="club"]');
+await page.waitForTimeout(250);
 let tour = 0;
+/*
+ * UNE ÉGALITÉ AU TABLEAU EST UNE FUSILLADE, ET ELLE A UN GAGNANT (S75b). La
+ * rangée d'un match nul disait « PROL. » et mettait en gras le club de
+ * droite, gagnant ou non : le gagnant se lisait aux buts. Chaque rangée à
+ * égalité dit « TB » et met UN club en gras.
+ */
+const egalites = { vues: 0, fausses: [] };
+const lireEgalites = async () => {
+  for (const r of await page.$$eval('#hubModal .tr-match', l => l.map(e => ({ p: e.querySelector('.tr-p')?.textContent || '', g: e.querySelectorAll('.tr-c.gagne').length })))) {
+    const s = r.p.match(/(\d+) – (\d+)/);
+    if (!s || s[1] !== s[2]) continue;
+    egalites.vues++;
+    if (!/TB/.test(r.p) || r.g !== 1) egalites.fausses.push(`${r.p.trim()} (${r.g} en gras)`);
+  }
+};
 while (tour++ < 20) {
+  await lireEgalites();
   const sauter = await page.$('#hubModal .hub-sauter');
   if (!sauter) break;
   await sauter.click();
   await page.waitForTimeout(220);
 }
+console.log(`   égalités au tableau du tournoi : ${egalites.vues} vue(s), ${egalites.fausses.length} sans « TB » ou sans gagnant`);
+if (egalites.fausses.length) errors.push(`une égalité au tableau ne dit pas sa fusillade : ${egalites.fausses.slice(0, 3).join(' ; ')}`);
 const suite = await page.$('#hubModal .hub-suite');
 if (suite) await suite.click(); else await page.click('#hubModal .hub-close');
 await page.waitForSelector('#gameModal', { state: 'visible', timeout: 20000 });

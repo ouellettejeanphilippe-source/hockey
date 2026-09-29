@@ -6,6 +6,13 @@ name: Vérifier
 #                   `data/seed.json` était servi au réseau SEULEMENT)
 #   check_graine    la même graine rejoue la même saison (un `Math.random`
 #                   glissé dans js/sim.js la fait échouer)
+#   check_ballottage la seule décision qui fait ENTRER un joueur neuf se
+#                   rejoue aussi, et les journées d'avant ne bougent pas (S66)
+#   check_gros      les gros matchs (S70) : une ligue sans joueur n'en a pas,
+#                   les plans sont neutres pas contrés et payants contrés, et
+#                   l'entracte ne touche pas aux deux premières périodes
+#   check_commentaire le commentateur (S70) : aucun gabarit oublié, un match
+#                   ne radote pas, la même graine redit la même chose
 #   check_feuilles  les quatre égalités de la feuille de match, sur une ligue
 #                   de 1312 matchs — la colonne vertébrale du moteur
 #   check_table     les égalités de la feuille d'un match SUR TABLE (les buts
@@ -33,6 +40,8 @@ name: Vérifier
 #                   une pièce par case, la rondelle toujours jouable, le
 #                   porteur jamais au sol, un match qui finit sur un gagnant —
 #                   et les règles écrites comparées aux gestes réellement joués
+#   check_actions   les photos d'action (1.0) : la liste, le recadrage 5:7,
+#                   et une carte sans photo qui garde son portrait
 #   smoke           le parcours complet à 390 px dans Chromium : vestiaire,
 #                   loto, saison, séries, zéro erreur console
 #   smoke_table     le même, en mode bonus : le tournoi, le plateau, un match
@@ -70,6 +79,15 @@ jobs:
       - name: Le moteur se rejoue sur sa graine
         run: node scripts/check_graine.mjs
 
+      - name: Le ballottage se rejoue
+        run: node scripts/check_ballottage.mjs
+
+      - name: Les gros matchs mis en scène
+        run: LIGUES=4 node scripts/check_gros.mjs
+
+      - name: Le commentateur du direct
+        run: node scripts/check_commentaire.mjs
+
       - name: Les égalités de la feuille de match
         run: LIGUES=1 node scripts/check_feuilles.mjs
 
@@ -98,10 +116,38 @@ jobs:
       - name: La fiche reconstituée d'un club tient
         run: node scripts/check_fiches.mjs
 
+      # Une icône = un sens, « énergie » hors de l'écran, et les chiffres de la page des règles
+      # reconstruits depuis leurs constantes (1.0, jalon C). Une seconde.
+      - name: La clarté
+        run: node scripts/check_clarte.mjs
+
+      # Zéro code inutile (1.0, jalon 3) : aucune déclaration morte, aucun
+      # `export` ni import de trop, aucune classe CSS sans élément. Cinq secondes.
+      - name: Le code mort
+        run: node scripts/check_mort.mjs
+
+      # Une définition par composant (1.0, J3-3) : les sélecteurs en double dans
+      # un même contexte et les `!important` ne montent plus. Une seconde.
+      - name: Le CSS
+        run: node scripts/check_css.mjs
+
+      # Les vérifications rapides (moins de quinze secondes chacune) qui ne
+      # tournaient nulle part : le deck, l'identité, l'atelier, le dépistage,
+      # les totaux du soir. `scripts/tout.mjs` les enchaîne et sort en échec si
+      # une seule échoue. Une demi-minute.
+      - name: Les vérifications rapides
+        run: node scripts/tout.mjs
+
       - name: Installer Playwright (Chromium)
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.47.2
           npx playwright install --with-deps chromium
+
+      # Les photos d'action (1.0) : la liste versionnée, le recadrage 5:7 sur des
+      # images de synthèse (dans Chromium), actionSrc sans les images. Sans
+      # réseau ; l'appareil simulé se lance à la main. Cinq secondes.
+      - name: Les photos d'action
+        run: node scripts/check_actions.mjs
 
       - name: Test de fumée à 390 px
         run: |

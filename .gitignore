@@ -5,3 +5,47 @@ server.log
 node_modules/
 package-lock.json
 package.json
+img/actions/
+
+# ── Applications locales (bureau et Android) ─────────────────────────────────
+# Le CODE de desktop/ et mobile/ est a versionner ; ce que les outils FABRIQUENT,
+# non. Ce sont des artefacts reproductibles, et ils pesent lourd : chaque EXE fait
+# 98 Mo, l'Electron de desktop/node_modules 368 Mo (deja couvert par node_modules/
+# plus haut).
+#
+# Pour tout refaire :
+#   desktop -> npm install && npm run build
+#   mobile  -> npm install && powershell -File mobile\fabriquer-apk.ps1
+#
+# ATTENTION : git ne reconnait un commentaire qu'en DEBUT de ligne. Un `#` place
+# apres un motif en fait partie, et le motif ne filtre plus rien.
+
+desktop/dist/
+
+mobile/www/
+mobile/android/app/src/main/assets/public/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/*.apk
+mobile/*.aab
+mobile/*.idsig
+mobile/android/app/src/main/res/mipmap-*/
+mobile/android/app/src/main/res/drawable-*/
+mobile/android/app/src/main/res/drawable/splash.png
+
+# `package.json` et `package-lock.json` sont exclus globalement plus haut (le jeu
+# n'en a pas besoin : aucune dependance a installer). Mais desktop/ et mobile/ sont
+# de vrais projets npm, et le leur DOIT etre versionne — sans quoi on ne peut plus
+# refabriquer ni l'EXE ni l'APK.
+!desktop/package.json
+!desktop/package-lock.json
+!desktop/deps/package.json
+!desktop/deps/package-lock.json
+!mobile/package.json
+!mobile/package-lock.json
+
+# Le mot de passe de la cle de signature Android, et un dossier de build d'essai.
+mobile/cle-signature.local
+mobile/www-cartes/

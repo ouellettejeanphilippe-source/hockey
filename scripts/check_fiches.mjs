@@ -27,6 +27,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ficheDeClub, ligneDeClub, tauxDeClub } from '../js/equipes.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
+import { conseilDuBilan } from '../js/recit.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS = path.join(ROOT, 'data', 'seasons');
@@ -129,6 +130,21 @@ borne('l\'écart ENTRE les deux colonnes', ecartDiff / liste.length, 0, 5, ' %')
 
 const taux = lisibles.map(c => tauxDeClub(c.f)).filter(x => x != null).sort((a, b) => a - b);
 borne('le taux de victoires médian d\'un club', taux[Math.floor(taux.length / 2)], 0.45, 0.55, '');
+
+/* ---------- le conseil du bilan cite ses chiffres (1.0, J2-18) ---------- */
+{
+  // Une saison construite : quatre trios, le 4e convertit le moins ; puis une saison ratée, où la défense est la pire.
+  const moi = { isPlayer: true, GF: 250, GA: 290 };
+  const autres = Array.from({ length: 7 }, (_, i) => ({ GF: 240 + i * 5, GA: 220 + i * 5 }));
+  const tir = (ligne, but) => ({ ligne, mode: 'FE', cote: 'A', but });
+  const lancers = [];
+  for (const [u, t, b] of [[0, 90, 12], [1, 70, 8], [2, 50, 5], [3, 40, 2]]) for (let k = 0; k < t; k++) lancers.push(tir(u, k < b));
+  const calendrier = [[{ A: moi, B: autres[0], feuille: { lancers } }]];
+  const bon = conseilDuBilan({ W: 46, L: 30, OTL: 6, GF: 250, GA: 290 }, moi, [moi, ...autres], calendrier);
+  exiger('le conseil nomme le trio qui convertit le moins, avec ses buts et ses tirs', /4e trio a marqué 2 buts en 40 tirs/.test(bon), bon);
+  const rate = conseilDuBilan({ W: 32, L: 40, OTL: 10, GF: 250, GA: 290 }, moi, [moi, ...autres], calendrier);
+  exiger('sous 41 victoires, le conseil nomme la défense et son rang', /accordé 290 buts, 8e de la ligue sur 8/.test(rate), rate);
+}
 
 /* ---------- ce qui se lit sans se juger ---------- */
 
