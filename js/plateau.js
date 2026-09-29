@@ -36,6 +36,7 @@ import {
   peutBouger, peutAgir, mainEpuisee, souffleMax, etatSouffle, couvreurs, pressionDe, PUNITION_TOURS, PAS_PAR_MAIN, pasRestants, porteeDe,
   enPositionHorsJeu, POINTS_MJ, MJ_CENTRE, MJ_FOND,
   bataillePossible, modBataille, appliquerBataille, enJeu,
+  peutRetirerGardien, retirerGardien, expliquerGeste,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
 import { TRAITS } from './traits.js';
@@ -1464,7 +1465,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       modes.push(modeEteint('dejouer', 'Feinter', 'il n\'a pas la rondelle'));
       const adv = peutAgir(m, sel) ? ciblesEchecDe(m, sel) : [];
       if (adv.length) modes.push(modeBouton('echec', 'Frapper', meilleure(adv, x => avec(modEchec(m, sel, x), bonus('ACTIF') + bonus('EPAULE')))));
-      else modes.push(modeEteint('echec', 'Frapper', sansAction || (enCourse(m, sel) ? 'il vient de patiner' : 'personne de collé')));
+      else modes.push(modeEteint('echec', 'Frapper', sansAction || (essouffle(m, sel) ? 'à bout de souffle' : enCourse(m, sel) ? 'il vient de patiner' : 'personne de collé')));
       const vol = peutAgir(m, sel) ? ciblesVolDe(m, sel) : [];
       /*
        * LA RAISON DIT CE QUI EST VRAI (S75). « Le porteur n'est pas collé »
@@ -1476,7 +1477,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       const sansPorteur = !pv ? (libre(m) ? 'la rondelle est libre' : 'personne ne la porte')
         : pv.eq === sel.eq ? 'on a la rondelle' : 'le porteur n\'est pas collé';
       if (vol.length) modes.push(modeBouton('vol', 'Harponner', meilleure(vol, x => avec(modVol(m, sel, x), bonus('ACTIF'))), 'la rondelle'));
-      else modes.push(modeEteint('vol', 'Harponner', sansAction || (enCourse(m, sel) ? 'il vient de patiner' : sansPorteur)));
+      else modes.push(modeEteint('vol', 'Harponner', sansAction || (essouffle(m, sel) ? 'à bout de souffle' : enCourse(m, sel) ? 'il vient de patiner' : sansPorteur)));
     }
 
     // Le TIR est dans la barre d'ancrage, sous la glace (`dock`) : c'est le
@@ -1574,8 +1575,9 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const bouton = (geste, nom, d, cls = '') =>
     `<button type="button" class="t-geste ${cls}" data-geste="${geste}">${esc(nom)} <b>${cote(d)}</b><i>${esc(detail(d))}</i></button>`;
   /* Un bouton de MODE : le geste qu'on choisit avant de toucher la glace ; `mod` est la meilleure cote parmi ses cibles. */
+  const aideDe = quoi => `<button type="button" class="t-aide" data-aide="${quoi}" title="La règle de ce geste, dans le fil" aria-label="La règle : ${esc(quoi)}">?</button>`;
   const modeBouton = (quoi, nom, d, note = '') =>
-    `<button type="button" class="t-mode ${mode === quoi ? 'on' : ''}" data-mode="${quoi}">${esc(nom)}${d === null ? '' : ` <b>${cote(d)}</b>`}${note ? `<i>${esc(note)}</i>` : ''}</button>`;
+    `<button type="button" class="t-mode ${mode === quoi ? 'on' : ''}" data-mode="${quoi}">${esc(nom)}${d === null ? '' : ` <b>${cote(d)}</b>`}${note ? `<i>${esc(note)}</i>` : ''}</button>${aideDe(quoi)}`;
   /*
    * UN GESTE IMPOSSIBLE RESTE À L'ÉCRAN, ÉTEINT, AVEC SA RAISON (S45). JP :
    * *je sais pas toujours ce que je peux faire pour vrai*. La barre ne
@@ -1588,7 +1590,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   /* Il ne porte PAS `data-mode` : un sélecteur qui matche un bouton désactivé
      est un test qui clique dans le vide (la leçon du changement de trio). */
   const modeEteint = (quoi, nom, pourquoi) =>
-    `<button type="button" class="t-mode t-mode-non" data-non="${quoi}" disabled title="${esc(pourquoi)}">${esc(nom)}<i>${esc(pourquoi)}</i></button>`;
+    `<button type="button" class="t-mode t-mode-non" data-non="${quoi}" disabled title="${esc(pourquoi)}">${esc(nom)}<i>${esc(pourquoi)}</i></button>${aideDe(quoi)}`;
 
   /* ---------- le dé ---------- */
 
@@ -1669,6 +1671,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         <span class="t-unites-t">Qui saute ?</span>
         ${seg('tri', 4, 'trio', A.tri, trio)}
         ${seg('pai', 3, 'paire', A.pai, paire)}
+        ${peutRetirerGardien(m, 'A') && aMoi() ? '<button type="button" class="t-desert" title="Mené d\'un ou deux buts à la fin de la troisième : un sixième patineur, et ton filet reste ouvert.">🥅 Sortir le gardien</button>' : ''}
       </div>`;
   }
 
@@ -2355,11 +2358,23 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     if (t.closest('.t-annuler')) { cible = null; mode = null; rendre(); return; }
     if (t.closest('.t-fin-tour')) { sel = null; cible = null; mode = null; deGlace = null; finDeMain = 'Main passée'; finirMain(m); apres(); return; }
     if (t.closest('.t-passer')) { sel = null; cible = null; mode = null; deGlace = null; flash = null; finDeMain = 'Main passée sans jouer'; renoncer(m); apres(); return; }
+    // LE FILET DÉSERT SE DÉCIDE ICI (1.0 · J4-P2) : le moteur le permettait à
+    // l'IA seule ; le joueur a maintenant le même bouton, aux mêmes conditions.
+    if (t.closest('.t-desert')) {
+      if (aMoi() && retirerGardien(m, 'A')) { jouerSon('tap'); volet = false; sel = null; cible = null; choisirSeul(); }
+      rendre();
+      return;
+    }
+    // LE « ? » D'UN GESTE : sa règle, écrite dans le fil.
+    const aide = t.closest('.t-aide');
+    if (aide) { expliquerGeste(m, aide.dataset.aide); rendre(); return; }
     const uni = t.closest('.t-seg button');
     if (uni) {
+      // LE BANC N'EST OUVERT QUE PENDANT TA MAIN (1.0 · J4-P3) : le moteur le
+      // refuse aussi, l'écran ne fait pas semblant.
+      if (!aMoi()) return;
       const quoi = uni.parentElement.dataset.u, v = +uni.dataset.v;
-      changerUnite(m, 'A', quoi === 'tri' ? v : A.tri, quoi === 'pai' ? v : A.pai);
-      jouerSon('tap');
+      if (changerUnite(m, 'A', quoi === 'tri' ? v : A.tri, quoi === 'pai' ? v : A.pai)) jouerSon('tap');
       volet = false;
       sel = null; cible = null; choisirSeul(); rendre();
       return;

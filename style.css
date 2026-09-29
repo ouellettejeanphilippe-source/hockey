@@ -4385,6 +4385,12 @@ a.spin-club:hover {
 .t-mode i { font-style: normal; font-size: 11.5px; color: var(--muted); }
 .t-mode.on { background: var(--ui-accent); color: var(--sur-accent); border-color: var(--ui-accent); }
 .t-mode.on b, .t-mode.on i { color: var(--sur-accent); }
+/* Le « ? » d'un geste (1.0 · J4) : discret, collé au bouton du geste, il écrit la règle dans le fil. */
+.t-aide { width: 20px; height: 20px; padding: 0; margin: 0 6px 0 -3px; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--muted); font-family: var(--display); font-size: 12px; font-weight: 700; line-height: 18px; cursor: pointer; align-self: center; }
+.t-aide:hover, .t-aide:focus-visible { color: var(--gold); border-color: var(--gold); }
+/* Sortir le gardien (1.0 · J4-P2) : sous « Qui saute ? », seulement quand la règle le permet. */
+.t-desert { border: 1px solid var(--gold); background: transparent; color: var(--gold); font-family: var(--display); font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: var(--r-s); cursor: pointer; }
+.t-desert:hover, .t-desert:focus-visible { background: var(--gold); color: var(--panel); }
 .t-gestes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .t-geste { display: inline-flex; align-items: baseline; gap: 5px; font-family: var(--display); font-size: 14px; font-weight: 700; padding: 6px 11px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: var(--r-s); cursor: pointer; }
 .t-geste b { font-size: 15px; color: var(--gold); }
