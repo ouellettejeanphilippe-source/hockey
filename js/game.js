@@ -32,6 +32,7 @@ import { estD as isD, esc, money, pct3 } from './util.js';
 import { getSecondaryPosition, getEraFactor, getEraSalary, getLineZone, getArchetype } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
+import { actionsDisponibles, demarrerActions } from './actions.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { brancherBilan, teamLabel, teamShort, tagCourt } from './bilan.js';
 import { activerSons } from './sons.js';
@@ -1015,17 +1016,20 @@ async function chargerPortraits() {
  * TOUT SUR L'APPAREIL, UNE FOIS (S78, 1.0). Sur le Web, la page demande au
  * travailleur de service de garder les visages et les écussons, en
  * arrière-plan, après le premier rendu ; `cap82_visages` retient le lot déjà
- * gardé, et un nouveau lot se complète tout seul. Dans l'application Android,
- * l'APK n'emporte pas les visages : l'appareil les télécharge à la LNH et les
- * recadre lui-même (js/visages.js).
+ * gardé, et un nouveau lot se complète tout seul. Les photos d'action
+ * (img/actions, 1.0) suivent le même chemin. Dans l'application Android,
+ * l'APK n'emporte ni les visages ni les photos : l'appareil les télécharge à
+ * la LNH et les recadre lui-même (js/visages.js, puis js/actions.js, une fois
+ * les visages gardés).
  */
 async function prechargerVisages() {
   try {
     if (!PORTRAITS_LOCAUX) return;
-    if (surAppareil()) { demarrerVisages([...PORTRAITS_LOCAUX], { toast }); return; }
+    if (surAppareil()) { demarrerVisages([...PORTRAITS_LOCAUX], { toast }).catch(() => {}).then(demarrerActions); return; }
     if (!navigator.serviceWorker || !location.protocol.startsWith('http')) return;
-    // Le lot : le nombre de visages et d'écussons, et leur taille (S80 : 320 px) — des images neuves se regardent.
-    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}@320`;
+    const actions = await actionsDisponibles();
+    // Le lot : le nombre de visages, d'écussons et de photos, et leur taille (S80 : 320 px) — des images neuves se regardent.
+    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}+${actions.length}@320`;
     if (localStorage.getItem('cap82_visages') === cle) return;
     const reg = await navigator.serviceWorker.ready;
     if (!reg.active) return;
@@ -1034,7 +1038,7 @@ async function prechargerVisages() {
       try { localStorage.setItem('cap82_visages', cle); } catch { /* stockage plein */ }
       if (ev.data.nouveaux) toast(`📥 Les ${PORTRAITS_LOCAUX.size.toLocaleString('fr-CA')} visages et ${LOGOS_LOCAUX.size} écussons sont sur ton appareil : le jeu marche hors ligne.`);
     });
-    reg.active.postMessage({ cle, precharger: [...[...LOGOS_LOCAUX].map(c => `img/logos/${c}.svg`), ...[...PORTRAITS_LOCAUX].map(id => `img/mugs/${id}.webp`)] });
+    reg.active.postMessage({ cle, precharger: [...[...LOGOS_LOCAUX].map(c => `img/logos/${c}.svg`), ...[...PORTRAITS_LOCAUX].map(id => `img/mugs/${id}.webp`), ...actions.map(id => `img/actions/${id}.webp`)] });
   } catch { /* pas de travailleur : les visages viendront à l'usage */ }
 }
 
@@ -1091,7 +1095,7 @@ async function boot() {
     loadOpts();
     appliquerPalette();
     activerSons(G.sons);
-    await Promise.all([loadIndex(), chargerPortraits()]);
+    await Promise.all([loadIndex(), chargerPortraits(), actionsDisponibles()]);
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
     if (G.epoque && !state.index.seasons.includes(G.epoque)) G.epoque = null;
     setupEvents();
