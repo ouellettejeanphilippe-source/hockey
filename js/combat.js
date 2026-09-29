@@ -132,6 +132,21 @@ export const CARTES_MATCH = {
     texte: 'Trois défenseurs qui ne montent jamais.', regle: 'Buts contre −2 % par défenseur pur habillé (jusqu\'à −6 %).', synergie: 'mur' },
   jambes: { nom: 'Les jambes', ico: '⚡', cout: 1, rarete: 'peu', genre: 'synergie',
     texte: 'Ça part en contre-attaque avant la ligne rouge.', regle: 'Tirs +2 % par patineur rapide dans ton top 6 (jusqu\'à +8 %).', synergie: 'jambes' },
+  // LES CARTES D'ORIGINE (1.0) : JP, *des cartes qui activent bonus s'il même équipe*. Elles lisent d'où viennent tes joueurs
+  // (js/sim.js `originesDe`) ; l'alignement montre la puce d'une unité qui les déclenche. `origine` : l'adversaire ne les joue
+  // pas — une vraie équipe est tout entière d'un club et d'une saison, elle les aurait toutes au maximum.
+  coequipiers: { nom: 'Les vrais coéquipiers', ico: '👬', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
+    texte: 'Ils ont gagné ensemble pour vrai : ils savent où l\'autre sera.', regle: 'Précision +2 % par paire de vrais coéquipiers (même club, même saison) dans tes deux premiers trios et tes deux premières paires (jusqu\'à +6 %).', synergie: 'coequipiers' },
+  famille: { nom: 'La même famille', ico: '🎽', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
+    texte: 'Le même chandail, d\'une génération à l\'autre.', regle: 'Buts contre −2 % par joueur habillé de ta franchise la plus nombreuse, à partir du troisième (jusqu\'à −6 %).', synergie: 'famille' },
+  decennie: { nom: 'La décennie', ico: '🕰️', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
+    texte: 'Ils ont appris le même hockey.', regle: 'Tirs +2 % par trio dont les trois joueurs sont de la même décennie (jusqu\'à +8 %).', synergie: 'decennie' },
+  vieilleGarde: { nom: 'La vieille garde', ico: '🪖', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
+    texte: 'Ils ont tout vu, et ils ne paniquent plus.', regle: 'Buts contre −1 % par joueur habillé de 31 ans et plus (jusqu\'à −6 %).', synergie: 'vieilleGarde' },
+  releve: { nom: 'La relève', ico: '🔰', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
+    texte: 'Des jambes de vingt ans.', regle: 'Tirs +1 % par joueur habillé de 23 ans et moins (jusqu\'à +8 %).', synergie: 'releve' },
+  ligneOrigine: { nom: 'La ligne d\'origine', ico: '🧩', cout: 1, rarete: 'rare', genre: 'synergie', origine: true,
+    texte: 'La ligne telle qu\'elle a joué, remontée d\'un bloc.', regle: 'Tirs +4 % et précision +2 % par ligne d\'origine — un trio ou une paire d\'un même club, la même saison (jusqu\'à deux lignes).', synergie: 'ligneOrigine' },
   des: { nom: 'Coup de dés', ico: '🎲', cout: 0, rarete: 'peu', genre: 'tactique',
     texte: 'Une soirée où tout rentre, ou une soirée où rien ne tient.',
     pari: { chance: 0.5, gagne: { finition: 1.1 }, perd: { defense: 1.08 } } },
@@ -175,6 +190,8 @@ export const CARTES_MATCH = {
     texte: 'Le genre de soirée qui finit sur une affiche dans une chambre d\'enfant.', effet: { finition: 1.12, defense: 0.92 } },
   dynastie: { nom: 'La dynastie', ico: '👑', cout: 2, rarete: 'legendaire', genre: 'synergie',
     texte: 'Tes lignes jouent leur système les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme', annule: true },
+  dynastieClub: { nom: 'La dynastie de club', ico: '🏛️', cout: 2, rarete: 'legendaire', genre: 'synergie', origine: true,
+    texte: 'Les bannières au plafond, et leurs noms dessus.', regle: 'Si 5 joueurs habillés ou plus viennent de la même franchise : précision +6 % et buts contre −4 %.', synergie: 'dynastieClub' },
   ferveur: { nom: 'La ferveur', ico: '📣', cout: 1, rarete: 'rare', genre: 'attaque',
     texte: 'L\'aréna tremble dès la mise au jeu.', effet: { finition: 1.05, volume: 1.05, energie: 1.1 } },
 
@@ -407,6 +424,8 @@ const POOL_ADVERSE = Object.keys(CARTES_MATCH).filter(k => {
   if (estPlus(k)) return false;
   // Ni dépistage, ni rabais, ni épuisée (S76) : ce sont des gestes de TA préparation et de TON deck.
   if (C.revele || C.ecarte || C.planB || C.improvise || C.piege || C.rabais || C.epuise || C.siVide) return false;
+  // Ni une carte d'origine (1.0) : une vraie équipe est d'un seul club et d'une saison, elle les aurait toutes au maximum.
+  if (C.origine) return false;
   return !C.maudite && !C.lire && !C.contre && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
     && (C.effet || C.adv || C.pari || C.synergie || C.energieTous || C.parGenre || C.selonLeurMain || C.apres40);
 });

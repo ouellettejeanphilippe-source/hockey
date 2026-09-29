@@ -24,7 +24,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie, depistageDe, planDuDepistage } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, originesDe, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie, depistageDe, planDuDepistage } from '../js/sim.js';
 import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, coutDe } from '../js/combat.js';
 import { carteDe } from '../js/rarete.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -142,6 +142,48 @@ console.log('\n  Le deck de match (S74)\n');
   exiger('chaque carte jouable fait quelque chose que le moteur lit', vraiesMuettes.length === 0, vraiesMuettes.join(' · ') || `${Object.keys(CARTES_MATCH).length} cartes`);
   const doute = effetsDesCartes(t, { jouees: [], enMain: ['doute'] }, 'x');
   exiger('une malédiction restée dans la main coûte', doute.effets.length === 1 && doute.effets[0].finition < 1, JSON.stringify(doute.effets[0] || {}));
+}
+
+/* ---------- 3b. les cartes d'origine (1.0) : même club, même franchise, même décennie, même âge ---------- */
+{
+  // Une vraie équipe est tout entière d'un club et d'une saison : elle déclenche chaque carte d'origine au maximum.
+  const vraie = eq('DET 2001-02', 'DET', equipeReelle('2001-02', 'DET'), '2001-02');
+  // La même, mélangée : un club par joueur, trois décennies par trio, aucun âge connu.
+  const melange = eq('MIX', 'MIX', equipeReelle('2001-02', 'DET'), '2001-02');
+  Object.values(melange.roster).forEach((p, i) => { if (p) { p.t = `Z${i}`; p.s = `${1970 + (i % 3) * 10}-${String(71 + (i % 3) * 10).slice(-2)}`; p.bd = null; } });
+  const O = originesDe(vraie);
+  // Le canal, le compteur et le seuil de chaque carte ; les CHIFFRES viennent de sa règle écrite, jamais d'ici.
+  const REGLES = {
+    coequipiers: { canaux: ['finition'], n: O.coequipiers },
+    famille: { canaux: ['defense'], n: Math.max(0, O.franchise - 2) },
+    decennie: { canaux: ['volume'], n: O.triosDecennie },
+    vieilleGarde: { canaux: ['defense'], n: O.veterans },
+    releve: { canaux: ['volume'], n: O.jeunes },
+    ligneOrigine: { canaux: ['volume', 'finition'], n: Math.min(2, O.lignesOrigine), parLigne: true },
+    dynastieClub: { canaux: ['finition', 'defense'], n: O.franchise >= 5 ? 1 : 0, seuil: true },
+  };
+  const origines = Object.keys(CARTES_MATCH).filter(k => CARTES_MATCH[k].origine && !k.endsWith('+'));
+  exiger('les sept cartes d\'origine sont au deck, chacune avec sa version « + »', origines.length === 7 && origines.every(k => CARTES_MATCH[`${k}+`]), origines.join(' · '));
+  const nombres = r => [...r.matchAll(/([+−-])(\d+(?:,\d+)?) %/g)].map(m => (m[1] === '+' ? 1 : -1) * Number(m[2].replace(',', '.')) / 100);
+  const fautes = [];
+  for (const k of origines) {
+    const R = REGLES[k], C = CARTES_MATCH[k], nb = nombres(C.regle);
+    const fx = effetsDesCartes(vraie, { jouees: [k] }, 'x').effets.filter(e => e.nom === C.nom);
+    const vide = effetsDesCartes(melange, { jouees: [k] }, 'x').effets.filter(e => e.nom === C.nom);
+    if (!fx.length) { fautes.push(`${k} : muette sur une vraie équipe`); continue; }
+    if (vide.length) fautes.push(`${k} : active sans sa condition`);
+    // Attendu : par unité × compteur, sous le plafond « jusqu'à » (règle simple) ; un bonus par canal (règle à deux canaux).
+    const attendu = R.canaux.length === 1
+      ? { [R.canaux[0]]: 1 + Math.sign(nb[0]) * Math.min(Math.abs(nb[1]), Math.abs(nb[0]) * R.n) }
+      : Object.fromEntries(R.canaux.map((c, j) => [c, 1 + nb[j] * (R.seuil ? 1 : R.n)]));
+    for (const [c, v] of Object.entries(attendu)) if (Math.abs((fx[0][c] ?? 1) - v) > 1e-9) fautes.push(`${k} : ${c} ${fx[0][c]} au lieu de ${v} (règle « ${C.regle} »)`);
+  }
+  exiger('chaque carte d\'origine joue exactement les chiffres de sa règle, sous son plafond, et rien sans sa condition', fautes.length === 0,
+    fautes.join(' · ') || `${origines.length} cartes · ${JSON.stringify(O)}`);
+  // L'adversaire ne les joue pas : une vraie équipe les aurait toutes au maximum, tous les soirs.
+  let vues = 0;
+  for (let i = 0; i < 400; i++) vues += mainAdverse('adv', `j${i}`).filter(c => CARTES_MATCH[c] && CARTES_MATCH[c].origine).length;
+  exiger('la main adverse ne pige jamais une carte d\'origine', vues === 0, `${vues} sur 400 mains`);
 }
 
 /* ---------- 4, 5, 6. dans les feuilles ---------- */

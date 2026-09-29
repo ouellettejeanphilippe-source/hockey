@@ -10,7 +10,8 @@ import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepen
 import { effetCarte, poserSoirGrand } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
 import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS,
-         POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour } from './ratings.js';
+         POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour, ageAtSeason } from './ratings.js';
+import { franchiseDuCode } from './franchises.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
@@ -1411,6 +1412,53 @@ export function identiteUnite(lineup, groupe, u) {
       : parmi(['sniper', 'passeur', 'power']) >= 2 ? 'Trio offensif' : parmi(['checker', 'deuxsens']) >= 2 ? 'Trio défensif'
         : parmi(['energie', 'bagarreur', 'checker', 'power']) >= 2 ? 'Trio robuste' : 'Trio polyvalent';
   return { nom, ico: roles.map(r => r.ico).join(''), roles: roles.map(r => r.nom) };
+}
+/*
+ * LES ORIGINES (1.0). JP : *ajouter des cartes qui activent bonus s'il même
+ * équipe, ou autres trucs du genre*. D'où vient un joueur — son club, sa
+ * saison, sa franchise, sa décennie, son âge — se lit sur la carte ; aucune
+ * cote, aucune stat neuve. `origineUnite` dit ce qu'une unité a en commun
+ * (l'alignement le montre en puce), `originesDe` compte ce que la formation
+ * habillée a en commun (les cartes d'origine le paient, js/combat.js).
+ */
+const clubSaison = p => `${p.t}|${p.s}`;
+const decennieDe = p => { const a = parseInt(String(p.s || '').slice(0, 4), 10); return Number.isFinite(a) ? Math.floor(a / 10) * 10 : null; };
+const franchiseDe = p => franchiseDuCode(p.t) || p.t;
+/* Les paires d'un groupe de joueurs qui partagent une même clé : n joueurs d'une clé font n(n−1)/2 paires. */
+function pairesDe(js, cle) {
+  const n = new Map();
+  for (const p of js) { const k = cle(p); if (k != null) n.set(k, (n.get(k) || 0) + 1); }
+  let paires = 0;
+  for (const c of n.values()) paires += (c * (c - 1)) / 2;
+  return paires;
+}
+export function origineUnite(lineup, groupe, u) {
+  const js = SLOTS.filter(s => s.group === groupe && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
+  if (js.length < (groupe === 'D' ? 2 : 3)) return null;
+  const tous = (cle) => new Set(js.map(cle)).size === 1;
+  return {
+    ligneOrigine: tous(clubSaison),
+    coequipiers: pairesDe(js, clubSaison),
+    famille: tous(franchiseDe),
+    decennie: groupe === 'F' && tous(decennieDe) ? decennieDe(js[0]) : null,
+  };
+}
+export function originesDe(team) {
+  const lineup = team && team.roster;
+  const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
+  const top = SLOTS.filter(s => !s.scratch && s.unit <= 1 && (s.group === 'F' || s.group === 'D')).map(s => lineup && lineup[s.i]).filter(Boolean);
+  const unites = [...[0, 1, 2, 3].map(u => origineUnite(lineup, 'F', u)), ...[0, 1, 2].map(u => origineUnite(lineup, 'D', u))].filter(Boolean);
+  const parFranchise = new Map();
+  for (const p of habilles) { const k = franchiseDe(p); parFranchise.set(k, (parFranchise.get(k) || 0) + 1); }
+  const ages = habilles.map(p => ageAtSeason(p.bd, p.s)).filter(a => a != null);
+  return {
+    coequipiers: pairesDe(top, clubSaison),
+    franchise: Math.max(0, ...parFranchise.values()),
+    lignesOrigine: unites.filter(o => o.ligneOrigine).length,
+    triosDecennie: unites.filter(o => o.decennie != null).length,
+    veterans: ages.filter(a => a >= 31).length,
+    jeunes: ages.filter(a => a <= 23).length,
+  };
 }
 /* Le meilleur profil d'un joueur : ce que la carte affiche. */
 export function profilPrincipal(p) {
@@ -6525,7 +6573,7 @@ function poserCartes(toi, adv, gros) {
     const p = toi.roster[sl.i];
     if (p && p.p !== 'G') p.energie = Math.min(100, energieDe(p) + fx.energieTous);
   }
-  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire, contre: !!fx.contre };
+  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire, contre: !!fx.contre };
   return fx;
 }
 /* Ta préparation contre leur plan (S76, voir `PREP_JUSTE`) : juste, fausse, ou rien. */
@@ -6556,6 +6604,7 @@ function poserPreparation(toi, adv, gros, fx) {
  * profils mesurés et les tactiques de tes lignes). Le pari se tire de
  * `cle` (la graine, le match et le sel de la décision) : pur.
  */
+const ORIGINES_SYN = new Set(['coequipiers', 'famille', 'ligneOrigine', 'decennie', 'vieilleGarde', 'releve', 'dynastieClub']);
 export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle = 1 } = {}) {
   const out = { effets: [], adv: [], lire: false, contre: false, annule: false, energieTous: 0, paris: [],
     revele: false, ecarte: 0, planB: false, improvise: null, piege: null };
@@ -6566,6 +6615,7 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
   const fusion = (a, b) => { const o = { ...(a || {}) }; for (const [k, v] of Object.entries(b)) o[k] = (o[k] ?? 1) * v; return o; };
   const dresses = SLOTS.filter(sl => !sl.scratch).map(sl => ({ sl, p: team && team.roster[sl.i] })).filter(x => x.p && x.p.p !== 'G');
   const principal = p => { const pr = profilPrincipal(p); return pr ? pr.cle : null; };
+  let origines = null;
   const synergie = k => {
     if (k === 'systeme') {
       const tacs = lignesDe(team, team.roster, { duSoir: false }).map(l => l.tac).filter(t => t && t !== 'hourra');
@@ -6583,6 +6633,15 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
       const n = dresses.filter(x => x.sl.group === 'F' && x.sl.unit <= 1 && principal(x.p) === 'rapide').length;
       return n ? { volume: 1 + Math.min(0.08, 0.02 * n) } : null;
     }
+    // LES ORIGINES (1.0) : même club, même franchise, même décennie, même âge. Les chiffres sont ceux de la `regle` (js/combat.js).
+    const o = ORIGINES_SYN.has(k) ? (origines = origines || originesDe(team)) : null;
+    if (k === 'coequipiers') return o.coequipiers ? { finition: 1 + Math.min(0.06, 0.02 * o.coequipiers) } : null;
+    if (k === 'famille') { const n = Math.max(0, o.franchise - 2); return n ? { defense: 1 - Math.min(0.06, 0.02 * n) } : null; }
+    if (k === 'ligneOrigine') { const n = Math.min(2, o.lignesOrigine); return n ? { volume: 1 + 0.04 * n, finition: 1 + 0.02 * n } : null; }
+    if (k === 'decennie') return o.triosDecennie ? { volume: 1 + Math.min(0.08, 0.02 * o.triosDecennie) } : null;
+    if (k === 'vieilleGarde') return o.veterans ? { defense: 1 - Math.min(0.06, 0.01 * o.veterans) } : null;
+    if (k === 'releve') return o.jeunes ? { volume: 1 + Math.min(0.08, 0.01 * o.jeunes) } : null;
+    if (k === 'dynastieClub') return o.franchise >= 5 ? { finition: 1.06, defense: 0.96 } : null;
     return null;
   };
   jouees.forEach((c, i) => {
