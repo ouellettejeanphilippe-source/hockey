@@ -32,7 +32,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPersonKey,
-         SITUATIONS, JOURS_SITUATIONS, situationsDuJour, SLOTS, CARTES, mainDeCartes } from '../js/sim.js';
+         SITUATIONS, JOURS_SITUATIONS, situationsDuJour, SLOTS, CARTES, mainDeCartes,
+         penaliteAffichee, getPositionPenalty, penaliteAdaptee, motPenalite, fits } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -394,6 +395,36 @@ function ligueComplete(seed) {
   const auTrou = mainDeCartes(7, 1000 + 20, []);
   exiger('un épisode au match 20 ne tire pas la carte du palier 20', auPalier[0] !== auTrou[0],
     `palier ${auPalier[0]} · trou ${auTrou[0]}`);
+}
+
+/*
+ * LE « −N » AFFICHÉ EST CELUI DU JOUR (1.0, J1-J). L'écran lisait la
+ * pénalité de base à chaque case ; le moteur, lui, la fait fondre des deux
+ * tiers en quinze matchs (`penaliteAdaptee`). `penaliteAffichee` est la
+ * seule source de l'interface : après quinze matchs à la même case, elle
+ * affiche au plus base × 0,37 + 0,05, et le même chiffre que le moteur joue.
+ */
+{
+  const t = ligueComplete(5900)[0];
+  let p = null, slot = null;
+  for (const s of SLOTS) {
+    if (s.scratch || s.group !== 'F') continue;
+    const c = Object.values(t.roster).find(x => x && x.p !== 'G' && fits(x, s) && getPositionPenalty(x, s) > 0);
+    if (c) { p = c; slot = s; break; }
+  }
+  if (!p) informer('−N affiché', 'aucun avant hors position trouvé pour l\'épreuve');
+  else {
+    const garde = p._adapt;
+    p._adapt = {};
+    const neuf = penaliteAffichee(p, slot);
+    p._adapt = { [slot.role]: 15 };
+    const rode = penaliteAffichee(p, slot);
+    const joue = penaliteAdaptee(p, slot);
+    p._adapt = garde;
+    exiger('au premier match, le −N affiché est la pénalité de base', neuf.pen === neuf.base && neuf.matchs === 0 && motPenalite(neuf) === `−${neuf.base}`, motPenalite(neuf));
+    exiger('après quinze matchs, le −N affiché a fondu comme le moteur', rode.pen <= neuf.base * 0.37 + 0.05 && Math.abs(rode.pen - joue) < 0.06 && /s'adapte \(15 m\.\)/.test(motPenalite(rode)),
+      `${motPenalite(neuf)} → ${motPenalite(rode)} (moteur ${joue.toFixed(2)})`);
+  }
 }
 
 verdict('Les situations');

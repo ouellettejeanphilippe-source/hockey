@@ -21,7 +21,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitLigne, fitUnite, TACTIQUES, SYSTEMES_D, SLOTS, physiqueLigne } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitLigne, fitUnite, TACTIQUES, SYSTEMES_D, SLOTS, physiqueLigne,
+  meilleureTactique, meilleurSystemeD, identiteUnite, fitDeLigne, chimieLigne } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 
@@ -151,4 +152,26 @@ if (juger) {
   exiger('aucun système n\'est bon partout (forcé partout : +1 V au plus)', !dominant.length, dominant.length ? dominant.map(([n, r]) => `${n} ${signe(r.v)} V`).join(' · ') : `le meilleur : ${forces.slice().sort((a, b) => b[1].v - a[1].v)[0].map((x, i) => (i ? signe(x.v) + ' V' : x)).join(' ')}`);
   exiger('le fit compte par degrés : le 2e système coûte moins que le pire', second.v > mal.v + 0.8 && second.v < 0.3, `2e : ${signe(second.v)} V · pire : ${signe(mal.v)} V`);
 } else informer('non jugé', `${LIGUES} ligues sous le plancher de 6`);
+/*
+ * UNE UNITÉ INCOMPLÈTE NE SE JUGE PAS (1.0, J1-I). Un trio vide lisait
+ * « Échec avant 2-1-2 · Mauvais fit » : le fit comptait chaque case vide
+ * pour 0 et le choix de système prenait la première clé à égalité. Le fit
+ * d'une unité incomplète est null, aucun système ne se choisit, et l'unité
+ * n'a pas de nom avant d'être entière.
+ */
+{
+  const vide = {};
+  const t = ligue(9500)[0];
+  const L = activeLineup(t);
+  const deuxSurTrois = { ...L };
+  const casesTrio1 = SLOTS.filter(s => s.group === 'F' && s.unit === 1 && !s.scratch);
+  delete deuxSurTrois[casesTrio1[0].i];
+  exiger('le fit d\'un trio vide est null', fitUnite(vide, 'F', 0, 'echec') === null, `${fitUnite(vide, 'F', 0, 'echec')}`);
+  exiger('aucun système ne se choisit pour un trio vide', meilleureTactique(vide, 0) === 'hourra' && meilleurSystemeD(vide, 0) === 'hourra');
+  exiger('un trio à deux sur trois n\'a ni fit ni nom', fitUnite(deuxSurTrois, 'F', 1, 'echec') === null && identiteUnite(deuxSurTrois, 'F', 1) === null);
+  exiger('une ligne incomplète n\'a pas de chimie', fitDeLigne(deuxSurTrois, 1, { tac: 'echec', tacD: 'maison', agr: 1, sec: 60 }) === null
+    && chimieLigne(null, deuxSurTrois, 1, { tac: 'echec', tacD: 'maison', agr: 1, sec: 60 }) === 0);
+  exiger('un alignement complet garde son fit et son nom', Number.isFinite(fitUnite(L, 'F', 0, 'echec')) && !!identiteUnite(L, 'F', 0));
+}
+
 verdict('Les lignes à la HockeyArena');

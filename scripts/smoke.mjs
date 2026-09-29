@@ -895,7 +895,8 @@ async function drafter(etiquette) {
     const cards = await page.$$('.pcard');
     const infos = await page.$$eval('.pcard', els => els.map(el => ({
       price: parseFloat((el.querySelector('.pcard-price')?.textContent || '').replace(/[^0-9.]/g, '')) || 0,
-      ok: !!el.querySelector('.btn-sign:not([disabled])'),
+      // Un bouton « Signer · bloque la fin » (1.0, J1-Q) demande deux touchers : l'auto-draft ne le prend jamais d'un seul.
+      ok: !!el.querySelector('.btn-sign:not([disabled]):not(.risque)'),
       // La carte DIT en rouge ce que la signature va coûter : « ▼ sous sa
       // zone », « −N hors position », « ⚠ bloque la fin ». Un joueur ne signe
       // pas cette carte-là s'il en a une propre ; l'auto-draft non plus.
@@ -950,7 +951,18 @@ async function drafter(etiquette) {
     }
     await cards[idx].$eval('.btn-sign', b => b.click());
     await page.waitForTimeout(200);
+    const avant = signed;
     signed = await lireSignes();
+    // Un seul clic ne laisse jamais moins que le plancher pour les cases restantes (J1-Q).
+    if (signed > avant) {
+      const etat = await page.evaluate(() => {
+        const m = (document.querySelector('#capAmt')?.textContent || '').match(/\$([\d.]+)M/);
+        const s = (document.querySelector('#cnt')?.textContent || '').match(/(\d+)\s*\/\s*(\d+)/);
+        return { rem: m ? parseFloat(m[1]) : null, left: s ? Number(s[2]) - Number(s[1]) : null };
+      });
+      // Le plancher du jeu est 0,775 M$ par case (MIN_SAL de js/game.js) ; le 0,95 d'ici est la marge de l'auto-draft.
+      if (etat.rem != null && etat.left != null && etat.rem + 0.01 < 0.775 * etat.left) errors.push(`une signature d'un seul clic a laissé ${etat.rem} M$ pour ${etat.left} cases, sous le plancher`);
+    }
   }
   console.log(`   ${etiquette} : ${signed}/${total} signés`);
   return { signed, total };

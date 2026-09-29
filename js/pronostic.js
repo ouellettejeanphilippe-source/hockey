@@ -182,7 +182,7 @@ const pctE = v => `${v >= 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)} %
 export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = {}, adv = null, forces = null, consigne = null }) {
   const out = [];
   const avec = (u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : { ...l }));
-  const fitDe = (g, u, k) => (k && k !== 'hourra' && (g === 'D' ? SYSTEMES_D : TACTIQUES)[k] ? fitUnite(lineup, g, u, k) : 0);
+  const fitDe = (g, u, k) => (k && k !== 'hourra' && (g === 'D' ? SYSTEMES_D : TACTIQUES)[k] ? (fitUnite(lineup, g, u, k) ?? 0) : 0);
   const nomUnite = (g, u) => (g === 'D' ? RANG_PAIRE[u] : RANG_TRIO[u]);
   const idDe = (L, g, u) => { const id = L && identiteUnite(L, g, u); return id ? id.nom : ''; };
   const touche = new Set();   // une unité, un conseil

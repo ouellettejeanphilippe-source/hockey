@@ -28,7 +28,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
-  lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS, motsDeMutation,
+  lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS, motsDeMutation,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
@@ -1236,7 +1236,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const matchPris = decs.find(d => d.match && d.jour === p.j);
     const conseils = conseilsDuMatch({
       lineup: you.roster, lignes: lignesDe(you, you.roster, { duSoir: false }), fermeture: you.fermeture, energie: snap(you).energie || {},
-      adv: { lignes: lignesDe(adv, adv.roster, { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster },
+      adv: { lignes: lignesDe(adv, activeLineup(adv), { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster },
       forces: { moi: { attaque: axes[0].a, defense: axes[1].a }, lui: { attaque: axes[0].b, gardien: axes[2].b } },
       consigne: matchPris ? matchPris.match.ad : null,
     });
@@ -1875,7 +1875,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         recit: `Toute ta formation apprend le système choisi : ${Math.round(GAIN_STAGE * 100)} % du chemin vers la maîtrise, d'un coup. La chimie de chaque ligne qui le joue monte avec.`,
         options: tactiquesDuStage(graine, p0).map(tac => {
           const T = systemeDe(tac);
-          const fits = NOMS[T.groupe].map((_, u) => fitUnite(you.roster, T.groupe, u, tac));
+          const fits = NOMS[T.groupe].map((_, u) => fitUnite(you.roster, T.groupe, u, tac) ?? 0);
           const meilleure = fits.indexOf(Math.max(...fits));
           return { cle: tac, rarete: 'commune', ico: T.ico, nom: T.nom, type: T.groupe === 'D' ? 'Stage · système de paire' : 'Stage · système de trio',
             texte: `${T.mot} ${T.groupe === 'D' ? 'Tes défenseurs' : 'Tes avants'} : ${connait(maitrise(tac))}.`,
@@ -2048,10 +2048,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (prep) prep.onclick = () => ouvrirLignes({
         titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
         lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie, apprentissage: etat.apprentissage,
-        adv: { nom: ctx.teamShort(adv), lignes: lignesDe(adv, adv.roster) },
+        // Un gros match (J1-N) : les indices « tu étouffes » lisent leurs lignes SOUS LE PLAN LE PLUS
+        // PROBABLE du dépistage (le vrai reste caché), sur l'alignement qui jouera (blessés retirés).
+        adv: { nom: ctx.teamShort(adv), lignes: lignesDeGros(adv, activeLineup(adv), mb ? planProbable(mb.depistage) : null), selonDepistage: !!mb },
         depistage: mb ? mb.depistage : null,
         effets: { ...effetsEnCours(you, p.j), cartes: decs.filter(d => d.carte && d.jour <= p.j).map(d => d.carte) },
-        match: (matchPris && matchPris.match) || { importance: mb ? 'haute' : 'normale', ad: 0 },
+        // « Normale » par défaut, même un gros match (J1-O) : « Haute » a un prix (blessures, énergie) et se choisit.
+        match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
+        grosMatch: !!mb,
         motAppliquer: 'Appliquer — la saison reprend ici',
         onBanc: onBanc ? () => { quitter(); onBanc(jour); } : null,
         onAppliquer: (lignes, match) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match }, j); },

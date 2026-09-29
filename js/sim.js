@@ -545,6 +545,22 @@ export function penaliteAdaptee(player, slot) {
   // Une carte « Polyvalent » (S78, js/rarete.js) fond une part de la pénalité d'entrée de jeu.
   return base * Math.exp(-g / ADAPT_MATCHS) * effetCarte(player, 'horsPosition');
 }
+/*
+ * LA PÉNALITÉ QUE L'ÉCRAN AFFICHE (1.0, J1-J) : celle que le moteur joue
+ * AUJOURD'HUI, arrondie au dixième — pas la pénalité de base, qui restait
+ * « −3 » au jour 40 d'un centre à l'aile qui jouait à −0,2. `matchs` dit
+ * depuis combien de matchs il s'adapte à cette case ; 999 reste la
+ * sentinelle d'`autoRoster` (une case interdite).
+ */
+export function penaliteAffichee(player, slot) {
+  const base = getPositionPenalty(player, slot);
+  if (!base) return { pen: 0, base: 0, matchs: 0 };
+  if (base >= 999) return { pen: 999, base, matchs: 0 };
+  const matchs = (player && player._adapt && player._adapt[slot.role]) || 0;
+  return { pen: Math.round(penaliteAdaptee(player, slot) * 10) / 10, base, matchs };
+}
+/* Le mot de la pénalité : « −3 », ou « −1,2 · s'adapte (9 m.) » une fois l'adaptation commencée. */
+export const motPenalite = a => (a.pen <= 0 ? '' : a.matchs > 0 ? `−${String(a.pen).replace('.', ',')} · s'adapte (${a.matchs} m.)` : `−${a.base}`);
 const effStat = (player, slot, key) => {
   const r = getHiddenRatings(player);
   return Math.max(25, r[key] - penaliteAdaptee(player, slot));
@@ -1382,6 +1398,8 @@ const UNITE_PAR_ROLE = {
 };
 export function identiteUnite(lineup, groupe, u) {
   const js = SLOTS.filter(s => s.group === groupe && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
+  // Une unité incomplète n'a pas de nom (J1-I) : « Trio polyvalent » à 1/3, c'était un jugement sur rien.
+  if (js.length < (groupe === 'D' ? 2 : 3)) return null;
   const roles = js.map(profilPrincipal).filter(Boolean);
   if (!roles.length) return null;
   const n = {};
@@ -1655,7 +1673,10 @@ export function fitUnite(lineup, groupe, u, cle) {
   for (const [role, prof] of Object.entries(S.slots)) {
     const p = js[role];
     if (p === undefined) continue;          // la 4e ligne n'a pas de paire
-    const pr = p && profilsDe(p);
+    // UNE CASE VIDE N'A PAS DE FIT (1.0, J1-I) : une unité incomplète ne se
+    // juge pas — elle comptait pour 0 et tout trio vide lisait « Mauvais fit ».
+    if (p === null) return null;
+    const pr = profilsDe(p);
     fits.push(pr && pr[prof] != null ? pr[prof] : 0);
   }
   return fits.length ? Math.round(fits.reduce((a, x) => a + x, 0) / fits.length) : 0;
@@ -1670,6 +1691,7 @@ export function meilleureTactique(lineup, u) {
   for (const k of Object.keys(TACTIQUES)) {
     if (k === 'hourra') continue;
     const v = fitUnite(lineup, 'F', u, k);
+    if (v == null) return 'hourra';       // unité incomplète : aucun système ne se choisit
     if (v > f) { f = v; best = k; }
   }
   return best;
@@ -1680,6 +1702,7 @@ export function meilleurSystemeD(lineup, u) {
   for (const k of Object.keys(SYSTEMES_D)) {
     if (k === 'hourra') continue;
     const v = fitUnite(lineup, 'D', u, k);
+    if (v == null) return 'hourra';
     if (v > f) { f = v; best = k; }
   }
   return best;
@@ -1812,16 +1835,20 @@ export function maitriseLigne(app, lineup, u, l) {
 export function fitDeLigne(lineup, u, l) {
   const { tac, tacD } = systemesLigne(l);
   const fF = tac !== 'hourra' ? fitUnite(lineup, 'F', u, tac) : 0;
+  if (fF == null) return null;              // trio incomplet (J1-I)
   if (pairDeLigne(u) == null) return fF;
   const fD = tacD !== 'hourra' ? fitUnite(lineup, 'D', u, tacD) : 0;
+  if (fD == null) return null;
   return Math.round((3 * fF + 2 * fD) / 5);
 }
 /* La chimie d'une ligne : le plafond de son fit × (entente + maîtrise) / 2. Sans aucun système, rien. */
 export function chimieLigne(app, lineup, u, l) {
   const { tac, tacD } = systemesLigne(l);
   if (tac === 'hourra' && tacD === 'hourra') return 0;
+  const fit = fitDeLigne(lineup, u, l);
+  if (fit == null) return 0;                // ligne incomplète : pas de chimie à lire
   const m = maitriseLigne(app, lineup, u, l);
-  return chimieMax(fitDeLigne(lineup, u, l) + MAITRISE_FIT * m) * (ententeLigne(app, lineup, u) + m) / 2;
+  return chimieMax(fit + MAITRISE_FIT * m) * (ententeLigne(app, lineup, u) + m) / 2;
 }
 /* Après un match : chaque paire de coéquipiers et chaque joueur apprennent ce qu'ils ont joué ce soir-là. */
 export function majChimie(team, lineup) {
@@ -3388,7 +3415,7 @@ export function profilMatch(team, lineup, adv = null) {
     const l = lignes[u], A = AGRESSIVITES[l.agr];
     const cle = g === 'D' ? l.tacD : l.tac;
     const S = g === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
-    const fit = S && S.slots ? fitUnite(lineup, g, u, cle) : 0;
+    const fit = S && S.slots ? (fitUnite(lineup, g, u, cle) ?? 0) : 0;
     const c = canal => canalSysteme(S, fit, canal);
     const ph = physiqueUnite(lineup, g, u);
     const eff = rendementPhysique(ph);
@@ -6234,6 +6261,8 @@ export function depistageDe(graine, cle, adv, { precedent = null, ilsOntGagne = 
   out[0].p += 100 - out.reduce((a, x) => a + x.p, 0);
   return out;
 }
+/* Le plan le plus PROBABLE du rapport (J1-N) : ce que l'écran peut montrer sans révéler le vrai. */
+export const planProbable = dep => (dep && dep.length ? dep.reduce((a, b) => (b.p > a.p ? b : a)).plan : null);
 /* Leur VRAI plan, tiré du rapport : pur, de la graine et du match. */
 export function planDuDepistage(graine, cle, dep) {
   let r = hacherMise(graine, 'plan-reel', cle) * 100;
@@ -6407,12 +6436,22 @@ export function effetEntracte(e) {
  */
 /* L'échelle de la fin de partie d'un gros match (S80) : sa journée, ou sa ronde de séries. */
 export const echelleDuGros = (gros, toi) => (!(toi && toi.courbe) ? 1 : echelleTardive(gros && gros.serie ? { serie: true, ronde: gros.ronde || 0 } : { jour: (gros && gros.jour) || 0 }));
+/*
+ * LES LIGNES DE L'ADVERSAIRE SOUS UN PLAN (1.0, J1-N) : ses lignes de la
+ * saison, puis ce que le plan y change. C'est ce que le moteur joue un soir
+ * de gros match (`poserGros`), et ce que l'écran lit pour dire « tu
+ * étouffes » — avec le plan le plus PROBABLE du dépistage, jamais le vrai,
+ * qui reste caché jusqu'au match. Sans plan : les lignes de la saison.
+ */
+export function lignesDeGros(adv, lineup, plan = null) {
+  const P = plan ? PLANS_ADV[plan] : null;
+  const base = lignesDe(adv, lineup, { duSoir: false });
+  return base.map((l, u) => ({ ...l, ...((P && P.lignes && P.lignes[u]) || {}) }));
+}
 function poserGros(toi, adv, gros) {
   toi._gros = gros; adv._gros = null;
   // Le plan règle VRAIMENT les lignes de l'adversaire pour ce match (S72).
-  const P = PLANS_ADV[gros.plan];
-  const base = lignesDe(adv, adv.roster, { duSoir: false });
-  adv._lignesMatch = base.map((l, u) => ({ ...l, ...((P && P.lignes && P.lignes[u]) || {}) }));
+  adv._lignesMatch = lignesDeGros(adv, adv.roster, gros.plan);
   adv._effetMatch = null;
   toi._effetMatch = [...(gros.effetsAvant || [])];
   toi._advGros = adv;

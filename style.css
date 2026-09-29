@@ -1488,6 +1488,9 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .btn-sign:active:not(:disabled) { transform: scale(0.96); }
 .btn-sign:disabled { border-color: var(--line); background: transparent; color: var(--muted); box-shadow: none; }
 .btn-sign.is-signed { background: transparent; color: var(--green); border-color: rgba(70, 201, 139, 0.5); box-shadow: none; }
+/* Une signature qui bloque la fin (1.0, J1-Q) : le bouton le dit en rouge, et demande un second toucher. */
+.btn-sign.risque { background: var(--red); border-color: var(--red); color: #fff; font-size: 14px; letter-spacing: 0.05em; white-space: normal; line-height: 1.15; }
+.btn-sign.risque[data-confirme="1"] { background: transparent; color: var(--red); }
 
 
 /*
