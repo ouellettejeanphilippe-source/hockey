@@ -772,6 +772,23 @@ async function toutEstAtteignable(ou) {
       const rc = c.getBoundingClientRect();
       const bas = r.bottom - rc.top + c.scrollTop;
       if (bas > c.scrollHeight + 2) out.push(`« ${(el.textContent || '').trim().slice(0, 36)} » (${nom(el)}) dépasse de ${Math.round(bas - c.scrollHeight)} px ce que ${nom(c)} peut révéler`);
+      /*
+       * COUPÉ À DROITE (1.0, J2-4). Une puce en `nowrap` sortait de sa carte
+       * (« un réserviste ou un rappel j… ») et rien ne le voyait : la question
+       * du bas ne regarde que la hauteur. Le premier ancêtre qui rogne en X
+       * révèle sa largeur de défilement s'il défile en X, sa largeur visible
+       * sinon — un `overflow: hidden` compte le contenu coupé dans son
+       * `scrollWidth`, donc c'est `clientWidth` qui dit ce qu'on voit.
+       */
+      let cx = el.parentElement;
+      while (cx && !['hidden', 'auto', 'scroll', 'clip'].includes(st(cx).overflowX)) cx = cx.parentElement;
+      if (cx) {
+        const defileX = ['auto', 'scroll'].includes(st(cx).overflowX);
+        const rx = cx.getBoundingClientRect();
+        const droite = r.right - (rx.left + cx.clientLeft) + (defileX ? cx.scrollLeft : 0);
+        const limite = defileX ? cx.scrollWidth : cx.clientWidth;
+        if (droite > limite + 2) out.push(`« ${(el.textContent || '').trim().slice(0, 36)} » (${nom(el)}) est coupé à droite de ${Math.round(droite - limite)} px dans ${nom(cx)}`);
+      }
     }
     return [...new Set(out)];
   });

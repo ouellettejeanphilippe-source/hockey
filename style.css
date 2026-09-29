@@ -6355,7 +6355,9 @@ body.choix-ouvert { overflow: hidden; }
 .puce {
   display: inline-flex; align-items: center; gap: 3px;
   padding: 3px 8px; border-radius: 999px;
-  font: 700 11.5px/1.2 var(--display); letter-spacing: .02em; white-space: nowrap;
+  font: 700 11.5px/1.2 var(--display); letter-spacing: .02em;
+  /* 1.0 (J2-4) : une puce longue passe à la ligne au lieu de déborder (une puce courte tient sur une ligne). */
+  white-space: normal; max-width: 100%; overflow-wrap: anywhere; text-align: left;
   background: var(--fond-creux, rgba(255,255,255,.06)); color: var(--sub);
 }
 .puce.bon { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
@@ -9355,7 +9357,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
   .pk-rayon-jour .pk-sachet { width: 84px; flex: none; }
 }
 /* Une puce de règle se replie dans sa carte, jamais hors d'elle. */
-.bq-regle .puce { white-space: normal; max-width: 100%; }
 .bq-actions .btn { min-height: 34px; font-size: 12px; white-space: nowrap; }
 /* =================================================================
    UN DESIGN PAR ANNÉE (S78, js/cartes.js `DESIGNS`)
@@ -9526,7 +9527,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .inv-plafond.over .inv-pl-barre i { background: var(--red, #e5484d); }
 .inv-plafond.over .inv-pl-tete b { color: var(--red, #e5484d); }
 .inv-pl-lignes { display: flex; flex-wrap: wrap; gap: 4px; }
-.inv-pl-lignes .puce { white-space: normal; }
 .inv-pl-rien { font-size: 12px; color: var(--muted); }
 .pk-plafond { font-size: 13px; color: var(--sub, var(--muted)); margin: 0 0 10px; }
 .pk-plafond.over { color: var(--red, #e5484d); }
