@@ -31,6 +31,7 @@
  */
 import { CARTES, MUTATIONS, motsDEffet, motsDeMutation } from './sim.js';
 import { CARTES_MATCH, estPlus } from './combat.js';
+import { money } from './util.js';
 
 export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Trois postes au plus, un par rôle.' },
@@ -134,7 +135,7 @@ export const CONTRATS = {
   rachat: { nom: 'Rachat de contrat', ico: '🧾', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 2 / 3, cout: 10, texte: 'Le reste de son contrat étalé : un tiers de moins cette saison, 10 jetons de frais.' },
   entree: { nom: 'Le contrat d\'entrée', ico: '🐣', rarete: 'commune', vie: 'usage', cible: 'recrue', facteur: 0.6, texte: 'Une recrue sous contrat d\'entrée compte pour 40 % de moins.' },
   bonis: { nom: 'La clause de bonis', ico: '🎯', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.85, texte: 'Une part de son salaire devient des bonis de performance, hors du plafond.' },
-  taxe: { nom: 'La taxe de luxe', ico: '💸', rarete: 'maudite', vie: 'saison', cible: 'aucune', espace: -3_000_000, texte: 'La ligue sévit : ton plafond fond de 3 M$ cette saison.' },
+  taxe: { nom: 'La taxe de luxe', ico: '💸', rarete: 'maudite', vie: 'saison', cible: 'aucune', espace: -3_000_000, texte: 'La ligue sévit : ton plafond fond de 3\u00a0M$ cette saison.' },
 };
 /*
  * LE PLAFOND EFFECTIF À UNE JOURNÉE, pur : la base, l'espace gagné, la taxe,
@@ -361,9 +362,8 @@ export function reglesDe(id) {
   }
   if (c.cat === 'plafond') {
     const C = CONTRATS[c.cle];
-    const M = x => `${(Math.abs(x) / 1e6).toFixed(1).replace('.', ',')} M$`;
     const out = [];
-    if (C.espace) out.push({ txt: `Plafond ${C.espace > 0 ? '+' : '−'}${M(C.espace)} cette saison`, bon: C.espace > 0 });
+    if (C.espace) out.push({ txt: `Plafond ${C.espace > 0 ? '+' : '−'}${money(Math.abs(C.espace))} cette saison`, bon: C.espace > 0 });
     if (C.facteur) out.push({ txt: `${C.cible === 'recrue' ? 'Une recrue (23 ans ou moins)' : 'Un joueur'} : son salaire compte ${Math.round((C.facteur - 1) * 100)} %`, bon: true });
     if (C.ltir) out.push({ txt: 'Un blessé : 100 % de son salaire hors du plafond, tant qu\'il est blessé', bon: true });
     if (C.cout) out.push({ txt: `−${C.cout} 🪙`, bon: false });

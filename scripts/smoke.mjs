@@ -1002,7 +1002,17 @@ const FLOTTE_MAX = FLOTTE + 4;
 const malPlacee = fond => fond < -1 || fond > FLOTTE_MAX;
 
 const MIN_SAL = 0.95;    // plancher réservé par case restante, en millions (marge sur les 0,775 M$ du barème)
-const parseM = t => parseFloat(String(t || '').replace(/[^0-9.]/g, '')) || 0;
+/*
+ * LIRE UN NOMBRE DE L'ÉCRAN (1.0, gel des chaînes) : « 95,5 M$ », « 0,78 M$ »,
+ * « −1,2 M$ », « ,912 », « 46 PTS ». La virgule est décimale, le moins est
+ * typographique, l'espace avant M$ est insécable. L'ancien lecteur gardait les
+ * chiffres et les POINTS : « 95,5 M$ » y serait devenu 955, « ,912 » 912.
+ */
+const lireNombre = t => {
+  const m = String(t || '').replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/);
+  return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0;
+};
+const parseM = lireNombre;
 const lireSignes = async () => parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
 // Le total vient du COMPTEUR, pas d'une constante : l'Express en a six, le
 // Complet vingt-trois, et `casesDuMode` est la seule source de vérité.
@@ -1021,7 +1031,7 @@ async function drafter(etiquette) {
 
     const cards = await page.$$('.pcard');
     const infos = await page.$$eval('.pcard', els => els.map(el => ({
-      price: parseFloat((el.querySelector('.pcard-price')?.textContent || '').replace(/[^0-9.]/g, '')) || 0,
+      price: (((t) => { const m = t.replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/); return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0; })(el.querySelector('.pcard-price')?.textContent || '')),
       // Un bouton « Signer · bloque la fin » (1.0, J1-Q) demande deux touchers : l'auto-draft ne le prend jamais d'un seul.
       ok: !!el.querySelector('.btn-sign:not([disabled]):not(.risque)'),
       // La carte DIT en rouge ce que la signature va coûter : « ▼ sous sa
@@ -1031,7 +1041,7 @@ async function drafter(etiquette) {
       // Le chiffre clé de la carte : des points pour un patineur, des victoires
       // pour un gardien. Ce n'est PAS une cote — celles-là ne sont pas dans le
       // DOM, et c'est une règle du dépôt — mais c'est ce que le joueur lit.
-      cle: parseFloat((el.querySelector('.pcard-big b')?.textContent || '0').replace(/[^0-9.]/g, '')) || 0,
+      cle: (((t) => { const m = t.replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/); return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0; })(el.querySelector('.pcard-big b')?.textContent || '0')),
     })));
 
     /*
@@ -1083,9 +1093,9 @@ async function drafter(etiquette) {
     // Un seul clic ne laisse jamais moins que le plancher pour les cases restantes (J1-Q).
     if (signed > avant) {
       const etat = await page.evaluate(() => {
-        const m = (document.querySelector('#capAmt')?.textContent || '').match(/\$([\d.]+)M/);
+        const m = (document.querySelector('#capAmt')?.textContent || '').replace(/\u00a0/g, ' ').match(/(−?[\d,]+)\s*M\$/);
         const s = (document.querySelector('#cnt')?.textContent || '').match(/(\d+)\s*\/\s*(\d+)/);
-        return { rem: m ? parseFloat(m[1]) : null, left: s ? Number(s[2]) - Number(s[1]) : null };
+        return { rem: m ? parseFloat(m[1].replace('−', '-').replace(',', '.')) : null, left: s ? Number(s[2]) - Number(s[1]) : null };
       });
       // Le plancher du jeu est 0,775 M$ par case (MIN_SAL de js/game.js) ; le 0,95 d'ici est la marge de l'auto-draft.
       if (etat.rem != null && etat.left != null && etat.rem + 0.01 < 0.775 * etat.left) errors.push(`une signature d'un seul clic a laissé ${etat.rem} M$ pour ${etat.left} cases, sous le plancher`);

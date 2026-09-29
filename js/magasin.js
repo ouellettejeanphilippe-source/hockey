@@ -13,7 +13,7 @@
 import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
-import { esc, millions as M } from './util.js';
+import { esc, money as M } from './util.js';
 
 const $ = id => document.getElementById(id);
 
@@ -23,7 +23,6 @@ const $ = id => document.getElementById(id);
  *         duJour { pack, rabais }, franchises [{ cle, nom }], saisons [labels],
  *         acheter(cle, { prix, params }), onFerme() }
  */
-/* Un montant en millions, à la québécoise. */
 /* Un pourcentage à une décimale au plus, à la québécoise : « 4,4 % », « 36 % ». */
 const pct = x => `${(Math.round(x * 10) / 10).toString().replace('.', ',')} %`;
 /*

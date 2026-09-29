@@ -24,7 +24,7 @@ import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, r
 import { tirerCartesPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch } from './gerant.js';
-import { esc, millions as M } from './util.js';
+import { esc, money as M } from './util.js';
 
 const $ = id => document.getElementById(id);
 
@@ -64,7 +64,6 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, jour = 0, rogue = 
 
 /* Sur qui une carte se joue : ce que dit le coin de la carte (sa famille est déjà en haut). */
 const CIBLES = { blesse: 'Un blessé', joueur: 'Un joueur', recrue: 'Une recrue', aucune: 'L\'équipe', malediction: 'Le deck', carteMatch: 'Le deck', tactique: 'Un système' };
-/* Un montant en millions, à la québécoise. */
 /*
  * La valeur de vente rapide d'une carte, en jetons (selon sa rareté). S82 :
  * à 2/5/12/30, une carte valait 4,94 🪙 en moyenne aux cotes 55/30/12/3 des
