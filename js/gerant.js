@@ -423,6 +423,21 @@ function pointsDeBande(m) {
   maj();
 }
 
+/*
+ * LA PASTILLE DE NIVEAU (1.0, les lignes). JP : *au lieu des photos, icônes et
+ * cote générale à sa position dans l'alignement, ou quelque chose de même*.
+ * Aucune cote ne s'affiche (règle ferme) : la pastille est son NIVEAU, son
+ * rang dans sa vraie saison à son poste (js/niveaux.js). Le contrôleur la
+ * branche, parce que lui seul connaît les saisons chargées.
+ */
+let pastilleNiveau = () => '';
+export const brancherPastilleNiveau = f => { pastilleNiveau = f; };
+/* Les jambes d'un joueur (sa fatigue, sur 100), en chiffre et en barre. Un gardien n'en a pas : le moteur ne l'use pas. */
+export function jambesHtml(e) {
+  const v = Math.round(e);
+  return `<span class="jambes" title="Ses jambes ce matin, sur 100. Sous 60, il rend moins et se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${v < 60 ? 'bas' : v < 85 ? 'moyen' : ''}"></span></i></span>`;
+}
+
 /* ======================================================================
    MES LIGNES, EN PLEIN ÉCRAN
    ====================================================================== */
@@ -579,9 +594,10 @@ export function ouvrirLignes(spec) {
     return `<div class="gl-j${fitRole != null ? (fitRole >= 60 ? ' fit-bon' : fitRole < 40 ? ' fit-mauvais' : '') : ''}">
       <span class="gl-j-role">${role}</span>
       <span class="gl-j-nom">${p ? esc(p.n) : '<i>vide</i>'}${place ? place.html : ''}</span>
-      <span class="gl-j-prof" title="${pp ? `Son meilleur rôle : ${esc(pp.nom)} (${niveauDe(pp.fit)})${c ? ` · ${c.mot}` : ''}` : ''}">${c ? c.ico : ''}</span>
+      <span class="gl-j-prof" title="${pp ? `Son rôle : ${esc(pp.nom)} (${niveauDe(pp.fit)})${c ? ` · ${c.mot}` : ''}` : ''}">${pp ? `${pp.ico} <small>${esc(pp.nom)}</small>` : ''}</span>
+      <span class="gl-j-niv">${p ? pastilleNiveau(p) : ''}</span>
       ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y est ${niveauDe(fitRole ?? 0)}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
-      <span class="gl-j-energie" title="Énergie ${e} %"><span style="width:${e}%" class="${e < 60 ? 'bas' : e < 85 ? 'moyen' : ''}"></span></span>
+      ${p ? jambesHtml(e) : '<span class="jambes"></span>'}
       ${(p && p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="gl-j-mut" title="${esc(MUTATIONS[k].nom)}">${MUTATIONS[k].ico}</span>` : '').join('')}
     </div>`;
   };
@@ -651,7 +667,7 @@ export function ouvrirLignes(spec) {
       }).join('')}</div>
       <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
       <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-      <div class="gl-mot">Plus de glace, plus de lancers pour cette ligne — et plus de fatigue : un joueur usé rend moins et, sous 60 % d'énergie, se blesse plus.</div>
+      <div class="gl-mot">Plus de glace, plus de lancers pour cette ligne — et plus de fatigue : sous 60 de jambes (sur 100), un joueur rend moins et se blesse plus.</div>
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
@@ -756,7 +772,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
 
   const choix = systemesHtml({ lineup: spec.lineup, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
     chimieDe: app ? k => chimie({ [D ? 'tacD' : 'tac']: k }) : null });
-  if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Elle joue avec le ${NOMS_TRIO[u]} : leur chimie, leur agressivité et leur glace se lisent et se règlent sous le trio.</div>` };
+  if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Elle joue avec le ${NOMS_TRIO[u]} : leur chimie, leur agressivité et leur glace se règlent avec le trio.</div>` };
 
   const ph = physiqueLigne(spec.lineup, u);
   const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : '⚖️ ligne moyenne';
@@ -779,8 +795,48 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
     <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
     <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-    <div class="gl-mot">Plus de glace, plus de lancers — et plus de fatigue : sous 60 % d'énergie, un joueur rend moins et se blesse plus.</div>`;
+    <div class="gl-mot">Plus de glace, plus de lancers — et plus de fatigue : sous 60 de jambes (sur 100), un joueur rend moins et se blesse plus.</div>`;
   return { sommaire, corps };
+}
+
+/*
+ * LE RÉGLAGE D'UNE UNITÉ, EN FENÊTRE (1.0, les lignes). JP : *la page des
+ * lignes et stratégie, au lieu de dropdown, modal*. Le tiroir sous chaque
+ * trio est devenu une rangée qu'on touche : elle ouvre cette fenêtre, avec les
+ * mêmes systèmes, le même fit, les mêmes chiffres. On essaie (rien ne
+ * s'applique en touchant), puis « Appliquer » décide ; ✕ ou « Annuler » ne
+ * change rien. `onAppliquer(ligne)` reçoit la ligne réglée (tac, tacD, agr, sec).
+ */
+const NOMS_PAIRE = ['1re paire', '2e paire', '3e paire'];
+export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
+  const m = $('lignesModal');
+  if (!m) return;
+  const brouillon = spec.lignes.map(l => ({ ...l }));
+  const app = spec.apprentissage ? apprentissagePhoto(spec.apprentissage) : null;
+  const titre = groupe === 'D' ? NOMS_PAIRE[u] : NOMS_TRIO[u];
+  const fermer = () => { m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); };
+  function dessiner() {
+    const { corps } = strategieDeLigne({ ...spec, lignes: brouillon, _app: app }, u, true, groupe);
+    m.innerHTML = `<div class="choix-sheet gl-sheet ln-fenetre" role="dialog" aria-modal="true" aria-label="Système du ${esc(titre)}" data-g="${groupe}" data-u="${u}">
+      <div class="choix-tete">
+        <span class="choix-ico">${groupe === 'D' ? '🛡️' : '🏒'}</span>
+        <div class="choix-titres"><div class="choix-titre">${esc(titre)} · son système</div><div class="choix-irl">Touche un système pour le lire, puis « Appliquer ».</div></div>
+        <button type="button" class="close-btn gl-annuler" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
+      </div>
+      <div class="choix-corps">${corps}</div>
+      <div class="gl-pied"><button type="button" class="btn gl-annuler">Annuler</button><button type="button" class="btn go gl-appliquer">Appliquer</button></div>
+    </div>`;
+    m.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => { brouillon[u].tac = b.dataset.tac; dessiner(); }; });
+    m.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => { brouillon[u].tacD = b.dataset.tacd; dessiner(); }; });
+    m.querySelectorAll('[data-agr]').forEach(b => { b.onclick = () => { brouillon[u].agr = Number(b.dataset.agr); dessiner(); }; });
+    const sec = m.querySelector('.gl-sec');
+    if (sec) sec.onchange = () => { brouillon[u].sec = Number(sec.value); dessiner(); };
+    m.querySelectorAll('.gl-annuler').forEach(b => { b.onclick = fermer; });
+    m.querySelector('.gl-appliquer').onclick = () => { fermer(); onAppliquer({ ...brouillon[u] }); };
+  }
+  m.hidden = false;
+  document.body.classList.add('choix-ouvert');
+  dessiner();
 }
 
 /* ======================================================================

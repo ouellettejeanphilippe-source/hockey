@@ -33,7 +33,7 @@ import { surAppareil, imgVisage, demarrerVisages } from './visages.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
-import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, ouvrirAlignement, optionDeCarteMatch, puces } from './gerant.js';
+import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, ouvrirAlignement, optionDeCarteMatch, puces, ouvrirStrategie, brancherPastilleNiveau, jambesHtml } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
 import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, finiHtml, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte, dessinDe } from './cartes.js';
@@ -2167,7 +2167,7 @@ function setupEvents() {
   if (menuBtn) menuBtn.onclick = () => { saveGame(); afficherMenu(contexteDuMenu({ enJeu: true })); };
   // MES LIGNES AU REPÊCHAGE (S68) : réglées avant la saison, elles entrent
   // dans la décision 0. Depuis S78, elles se règlent SOUS chaque trio de
-  // l'alignement (`tiroirStrategie`) : le bouton « Mes lignes » est parti.
+  // l'alignement (`rangeeStrategie`, en fenêtre) : le bouton « Mes lignes » est parti.
   bindModal('hockeyCardModal', null, 'closeHockeyCardBtn');
   bindModal('gameModal', null, 'closeGameBtn');
 
@@ -3067,6 +3067,19 @@ const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
  */
 const niveauJoueur = p => { const e = p && p.s && G.shards.get(p.s); return e ? niveauDe(p, e.players) : -1; };
 const estEtoile = p => niveauJoueur(p) >= ETOILE;
+/*
+ * LA PASTILLE DE NIVEAU (1.0, les lignes) : ce qui se lit à la place d'une cote
+ * générale — son rang dans sa vraie saison, à son poste. Aucune cote n'entre
+ * dans le DOM (`sansCote`) : le niveau est un rang, lu dans ses stats.
+ */
+function pastilleNiveau(p) {
+  const n = niveauJoueur(p);
+  // Moins de matchs qu'un régulier (js/niveaux.js) : pas de rang, et la pastille le dit.
+  if (n < 0) return p && p.s && G.shards.get(p.s) ? '<span class="niv niv-partiel" title="Trop peu de matchs dans sa saison pour un rang parmi les réguliers">Peu joué</span>' : '';
+  const N = NIVEAUX[n];
+  return `<span class="niv niv-${N.cle}" title="${esc(N.nom)} : ${esc(N.rang)} de sa saison, à son poste">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}</span>`;
+}
+brancherPastilleNiveau(pastilleNiveau);
 /* Les classes de la carte : l'époque, la série, la sous-série. */
 const classesDeCarte = p => `${dessinDe(p.s)}${estRecrue(p) ? ' ss-recrue' : ''}${estEtoile(p) ? ' ss-etoile' : ''}`;
 /*
@@ -4582,6 +4595,33 @@ function slotTags(p, zoneEcartTag, penTag) {
     .filter(Boolean).slice(0, SLOT_TAGS_MAX).join('');
 }
 
+/*
+ * LA CASE D'UN JOUEUR, SANS PHOTO (1.0, les lignes). JP : *au lieu des photos,
+ * icônes et cote générale à sa position dans l'alignement*. Un joueur se lit
+ * en trois choses (LIVRAISON.md, jalon C) : son RÔLE (une icône et un mot),
+ * son NIVEAU (la pastille, son rang dans sa saison) et sa ZONE (✓ chez lui,
+ * ▼ trop bas, ▲ trop haut) — plus −N hors position, 🩹 blessé, un trophée s'il
+ * en a un, et derrière le banc ses JAMBES. Sa production : ses PTS (ou V)
+ * au repêchage, sa fiche à ce jour derrière le banc ; le visage et tout le reste sont dans la fiche, à un toucher.
+ */
+function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
+  const pp = profilPrincipal(p);
+  const a = pp ? null : getArchetype(p, getHiddenRatings(p));
+  const role = pp
+    ? `<span class="slot-roles cell-role" title="${esc(pp.nom)} — lu dans ${esc(pp.mot)}">${pp.ico} <span>${esc(pp.nom)}</span></span>`
+    : `<span class="slot-roles cell-role" title="${esc(a.desc)}">${a.icon} <span>${esc(a.label)}</span></span>`;
+  const zone = zoneTag(p, true);
+  const marque = ecart === 'sous' ? `<span class="cell-zone sous" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
+    : ecart === 'dessus' ? `<span class="cell-zone dessus" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>`
+    : '<span class="cell-zone ok" title="Dans sa zone : il rend à plein ici.">✓</span>';
+  const t = getTraits(p).map(x => TRAITS[x.cle]).filter(Boolean)[0];
+  const trophee = t ? `<span class="cell-trait" title="${esc(t.short || t.nom || '')}">${t.icon}</span>` : '';
+  const jambes = G.banc && p.p !== 'G' ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100) : '';
+  return `<div class="cell-l1">${role}${pastilleNiveau(p)}</div>
+        <div class="slot-tags cell-l2">${blesseTag}${marque}${zone}${penTag}${trophee}<span class="cell-prod slot-faits">${esc(G.banc ? ficheDuJour(p) : main)}</span></div>
+        ${jambes}`;
+}
+
 /** Les étiquettes mesurées d'un joueur, en icônes : `[{ icon, short }]`. */
 function mesureIcones(p) {
   const m = mesure(p);
@@ -4668,13 +4708,12 @@ function slotEl(s) {
         <span class="sb-logo">${getTeamLogoHtml(p.t, 12)}</span>
         ${estRenfort(p)
           ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
-          : `<span class="slot-salary">${st.salaryMain}</span>`}
+          : G.banc ? '' : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
         <div class="slot-name">${formatName(p.n)}</div>
-        <div class="slot-visage" aria-hidden="true">${headshotHtml(p)}</div>
-        <div class="slot-meta slot-faits">${ligneStats}</div>
-        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>
+        ${surTable() ? `<div class="slot-meta slot-faits">${ligneStats}</div>
+        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : celluleJoueur(p, s, { ecart, penTag, blesseTag, main })}
       </div>`;
     el.querySelector('.slot-relacher')?.addEventListener('click', ev => { ev.stopPropagation(); relacherReserviste(s); });
     el.querySelector('.slot-remove:not(.slot-relacher)')?.addEventListener('click', ev => {
@@ -4831,6 +4870,13 @@ function lineEl(title, slots, group, unit, cls = '') {
   // D'OÙ ILS VIENNENT (1.0) : la puce se voit même sans la carte, pour qu'on apprenne à bâtir pour elle ; la carte d'origine la paie.
   const orig = (group === 'F' || group === 'D') && !surTable() ? puceOrigine(origineUnite(G.roster, group, unit), group) : '';
   wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${orig}${fermHtml}${chemHtml}</div>`;
+  // UN TOUCHER SUR L'EN-TÊTE OUVRE LE SYSTÈME DE L'UNITÉ (1.0, les lignes).
+  if ((group === 'F' || group === 'D') && !surTable()) {
+    const tete = wrap.querySelector('.line-head');
+    tete.classList.add('line-head-regle');
+    tete.title = `Régler le système ${group === 'D' ? 'de la paire' : 'du trio'}`;
+    tete.onclick = () => ouvrirReglage(unit, group);
+  }
   const fermBtn = wrap.querySelector('.line-ferm');
   if (fermBtn) fermBtn.onclick = ev => {
     ev.stopPropagation();
@@ -4841,24 +4887,20 @@ function lineEl(title, slots, group, unit, cls = '') {
   row.className = 'line-slots' + (cls ? ' ' + cls : '');
   slots.forEach(s => row.appendChild(slotEl(s)));
   wrap.appendChild(row);
-  // LA STRATÉGIE SOUS SON TRIO (S78). Sur table, rien : le plateau ne lit ni
-  // tactique ni glace, et un tiroir de réglages y promettrait ce que rien
-  // n'applique.
-  if ((group === 'F' || group === 'D') && !surTable()) wrap.appendChild(tiroirStrategie(unit, group));
+  // LA STRATÉGIE SOUS SON TRIO (S78 ; en fenêtre depuis 1.0). Sur table, rien :
+  // le plateau ne lit ni tactique ni glace.
+  if ((group === 'F' || group === 'D') && !surTable()) wrap.appendChild(rangeeStrategie(unit, group));
   return wrap;
 }
 
 /*
- * LE TIROIR DE STRATÉGIE D'UN TRIO (S78). JP : *Alignement et stratégie et
- * trio, ça devrait être ensemble* ; *sur mobile … dropdown, modals … pour
- * gagner espace, page trop longue*. Un <details> par trio, et un seul ouvert
- * à la fois (`name`, l'accordéon natif) : l'alignement reste court, et le
- * tiroir fermé dit déjà la tactique, le fit et la glace.
- *
- * Un réglage s'applique TOUT DE SUITE — il n'y a plus de modale à valider :
- * avant la saison il va dans `G.lignes` (sauvegardé), derrière le banc dans
- * `G.banc.lignes`, qui part avec la décision au « Retour au match ». Seul le
- * tiroir se redessine : l'alignement ne bouge pas sous le doigt.
+ * LA STRATÉGIE D'UNE UNITÉ (S78 ; en fenêtre depuis 1.0). JP : *au lieu de
+ * dropdown, modal*. Sous chaque trio et chaque paire, une rangée dit le
+ * système, le fit et la glace ; la toucher (ou toucher l'en-tête de l'unité)
+ * ouvre la fenêtre de réglage (`ouvrirStrategie`, js/gerant.js). Rien ne
+ * s'applique avant « Appliquer » : avant la saison le réglage va dans
+ * `G.lignes` (sauvegardé), derrière le banc dans `G.banc.lignes`, qui part
+ * avec la décision au « Retour au match ».
  */
 function specStrategie() {
   const b = G.banc;
@@ -4868,43 +4910,25 @@ function specStrategie() {
     adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
   };
 }
-function tiroirStrategie(unit, groupe = 'F') {
-  const d = document.createElement('details');
-  const ici = `${groupe}${unit}`;
-  d.className = `ln-strat${groupe === 'D' ? ' ln-strat-d' : ''}`;
-  d.setAttribute('name', 'strategie');
-  d.dataset.u = unit;
-  d.dataset.g = groupe;
-  if (G.stratOuverte === ici) d.open = true;
-  // Le corps n'existe que tiroir ouvert : fermé, il n'y a rien à calculer ni
-  // à peindre, et rien de caché qui dépasserait de sa rangée.
-  d.addEventListener('toggle', () => {
-    if (d.open) G.stratOuverte = ici;
-    else if (G.stratOuverte === ici) G.stratOuverte = null;
-    dessiner();
+function rangeeStrategie(unit, groupe = 'F') {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `ln-strat ln-som${groupe === 'D' ? ' ln-strat-d' : ''}`;
+  b.dataset.u = unit;
+  b.dataset.g = groupe;
+  b.innerHTML = strategieDeLigne(specStrategie(), unit, false, groupe).sommaire;
+  b.onclick = () => ouvrirReglage(unit, groupe);
+  return b;
+}
+function ouvrirReglage(unit, groupe) {
+  const spec = specStrategie();
+  ouvrirStrategie(spec, unit, groupe, ligne => {
+    const lignes = spec.lignes.map(l => ({ ...l }));
+    lignes[unit] = { ...lignes[unit], ...ligne };
+    if (G.banc) G.banc.lignes = lignes;
+    else { G.lignes = lignes; saveGame(); }
+    render();
   });
-  const dessiner = () => {
-    const spec = specStrategie();
-    const { sommaire, corps } = strategieDeLigne(spec, unit, d.open, groupe);
-    d.innerHTML = `<summary class="ln-som">${sommaire}</summary>${d.open ? `<div class="ln-corps">${corps}</div>` : ''}`;
-    const regler = patch => {
-      const lignes = spec.lignes.map(l => ({ ...l }));
-      Object.assign(lignes[unit], patch);
-      if (G.banc) G.banc.lignes = lignes;
-      else { G.lignes = lignes; saveGame(); }
-      // Les secondes d'une ligne déplacent la glace des TROIS autres (les
-      // minutes se partagent soixante) : chaque tiroir se redessine.
-      document.querySelectorAll('#rosterBoard .ln-strat').forEach(x => x._dessiner && x._dessiner());
-    };
-    d.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => regler({ tac: b.dataset.tac }); });
-    d.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => regler({ tacD: b.dataset.tacd }); });
-    d.querySelectorAll('[data-agr]').forEach(b => { b.onclick = () => regler({ agr: Number(b.dataset.agr) }); });
-    const s = d.querySelector('.gl-sec');
-    if (s) s.onchange = () => regler({ sec: Number(s.value) });
-  };
-  d._dessiner = dessiner;
-  dessiner();
-  return d;
 }
 
 function renderRoster() {
@@ -6324,7 +6348,7 @@ function renderBanc() {
     <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios, ce plan et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
   $('bancRetour').onclick = reprendreSaison;
   // MES LIGNES, derrière le banc (S68) : elles se règlent sous chaque trio
-  // depuis S78 (`tiroirStrategie`), et partent avec la décision du banc au
+  // depuis S78 (`rangeeStrategie`, en fenêtre depuis 1.0), et partent avec la décision du banc au
   // « Retour au match ».
   /*
    * UN SEUL ÉCOUTEUR, DÉLÉGUÉ, et il est reposé à chaque rendu parce que
