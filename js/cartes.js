@@ -409,14 +409,15 @@ export function tirageLimite(cle, num = '/99') {
  *   rare (Holo)     — la feuille PRISMATIQUE sur le carton, et la RELIQUE :
  *                     un carré de chandail aux couleurs du club, tissé ;
  *   legendaire (Or) — l'OR brossé, le carton DÉCOUPÉ (les coins en rondelle),
- *                     le nom doré à chaud, la signature en FAC-SIMILÉ et le
- *                     TIRAGE numéroté (« 07/25 »).
+ *                     le nom doré à chaud et le TIRAGE numéroté (« 07/25 »).
+ *                     Pas de fausse signature : JP, *le faux manuscrit, ça
+ *                     suce*.
  * Le tout reste sous les mots : on lit d'abord, on brille ensuite.
  *
  * c : { serie, rarete, portraitHtml, actionSrc, pos, posClasse, gemmeHtml,
  *       rubanHtml, nomHtml (`formatName`), nomLettres (le nom de famille, pour
  *       la taille de la plaque), nomClasse, logoHtml, club, clubNom, numero,
- *       annee, tirage, signature, clubClasse, eclat }
+ *       annee, tirage, clubClasse, eclat }
  */
 export function cartonHtml(c) {
   const serie = SERIES[c.serie] ? c.serie : 'signature';
@@ -432,7 +433,6 @@ export function cartonHtml(c) {
     <span class="carton-pos ${c.posClasse || ''}">${c.pos || ''}</span>
     ${c.rubanHtml || ''}${c.gemmeHtml || ''}
     <span class="carton-nom ${c.nomClasse || ''}" style="--n:${Math.max(4, c.nomLettres || 8)}">${c.nomHtml || ''}${c.clubNom ? `<span class="carton-club-nom">${c.clubNom}</span>` : ''}</span>
-    ${r === 'legendaire' && c.signature ? `<span class="carton-signature" aria-hidden="true" style="--sig:${Math.max(8, c.signature.length)}">${c.signature}<small>fac-similé</small></span>` : ''}
     <span class="carton-club ${c.clubClasse || ''}">${c.logoHtml || ''}<span class="carton-sigle">${c.club || ''}</span></span>
     <span class="carton-imprime"><b>Nº ${c.numero || ''}</b><span>${SERIES[serie].nom}</span><span>${c.annee || ''}</span></span>
     ${r === 'legendaire' && c.tirage ? `<span class="carton-tirage">${c.tirage}</span>` : ''}

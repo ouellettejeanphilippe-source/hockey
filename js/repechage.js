@@ -142,7 +142,7 @@ export function cartonDe(p, o = {}) {
     nomHtml: formatName(p.n), nomLettres: mots[mots.length - 1].length, nomClasse: o.nomClasse,
     logoHtml: sansTaille(getTeamLogoHtml(p.t, 48)), club: esc(p.t), clubNom: esc(TEAMFULL[p.t] || p.t), clubClasse: o.clubClasse,
     numero: numeroDeCarte(cle), annee: esc(anneeDeCarte(p.s)),
-    tirage: esc(tirageLimite(cle, (G.variantes.numeros || {})[cle] || '/99')), signature: esc(p.n), eclat: o.eclat,
+    tirage: esc(tirageLimite(cle, (G.variantes.numeros || {})[cle] || '/99')), eclat: o.eclat,
   });
 }
 /* Les couleurs du club, posées sur la carte : le carton de chaque série les lit. */
