@@ -485,7 +485,7 @@ export function renderBanc() {
     <div class="banc-ligne banc-aide">Déplace ou permute : le fit suit les joueurs. 🔒 : ton <b>trio de fermeture</b>.</div>
     ${effets}
     <details class="banc-plus"><summary>Les lignes et le trio de fermeture</summary>
-      <div class="banc-ligne"><b>Chaque ligne a sa tactique</b>, comme dans HockeyArena : chacune demande un profil par poste, et le fit plafonne la chimie. Changer un joueur coûte de la chimie ; une ligne soudée joue son système plus souvent.</div>
+      <div class="banc-ligne"><b>Chaque ligne joue un système</b> : il demande un rôle par case, et le fit plafonne la chimie. La chimie monte en jouant ensemble et ne se perd pas ; un nouveau venu bâtit son entente avec ses coéquipiers. Une ligne soudée joue son système plus souvent.</div>
       <div class="banc-ligne"><b>Le trio de fermeture</b> prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
     </details>
     <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios, ce plan et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;

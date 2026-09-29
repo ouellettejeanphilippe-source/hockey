@@ -300,23 +300,23 @@ awk '/^## /{if(n)print b"\t"s"\t"n; n=$0; s=NR; b=0} {b+=length($0)+1} END{print
 
 ### Fini, ça veut dire
 
-- [ ] Aucune boucle d'argent : `check_packs` revente ≤ 40 %, `check_rogue` achat avant butin, prime de série versée.
-- [ ] Le robot ne gagne pas : `check_robot` Coupe ≤ 5 % sur 40 saisons, ballottage ≤ +3 V.
-- [ ] L'écran dit le moteur : fit null sur unité incomplète, un seul « −N », étiquettes de zone dérivées, indices de contre sur le plan probable, cartes + sans malus amplifié.
-- [ ] Rien de coupé à 390 px : `toutEstAtteignable` avec « coupé à droite » sur repêchage, fiche, dilemme, main, classement, bilan.
-- [ ] Rien de vide à 1440 px : quatre tuiles au hub, fiche remplie, menu sans carton étiré.
-- [ ] Une décision montre tout : trois cartes visibles, puces au-dessus du pli, l'adversaire en tête de « Préparer ».
-- [ ] Des mots de hockey : zéro « hub », « palier », « Classique » affichés ; intro Rogue en deux phrases ; légende de l'inventaire en infobulles.
+- [x] Aucune boucle d'argent : `check_packs` revente ≤ 40 %, `check_rogue` achat avant butin, prime de série versée.
+- [x] Le robot ne gagne pas : `check_robot` Coupe ≤ 5 % sur 40 saisons, ballottage ≤ +3 V.
+- [x] L'écran dit le moteur : fit null sur unité incomplète, un seul « −N », étiquettes de zone dérivées, indices de contre sur le plan probable, cartes + sans malus amplifié.
+- [x] Rien de coupé à 390 px : `toutEstAtteignable` avec « coupé à droite » sur repêchage, fiche, dilemme, main, classement, bilan.
+- [x] Rien de vide à 1440 px : quatre tuiles au hub, fiche remplie, menu sans carton étiré.
+- [x] Une décision montre tout : trois cartes visibles, puces au-dessus du pli, l'adversaire en tête de « Préparer ».
+- [x] Des mots de hockey : zéro « hub », « palier », « Classique » affichés ; intro Rogue en deux phrases ; légende de l'inventaire en infobulles.
 - [ ] Zéro code inutile : zéro export non importé, zéro fonction sans appel, zéro sélecteur sans élément, zéro script orphelin.
-- [ ] Poids : < 900 Ko et < 25 requêtes au premier écran ; Sur table à la demande ; style.css < 150 Ko.
-- [ ] Sur table : `check_regles` avec les sept règles neuves, ou le carton porte « bêta ».
+- [ ] Poids : < 900 Ko et < 25 requêtes au premier écran ; Sur table à la demande ; style.css < 150 Ko. — *29 sept. : l'APK y est (13 requêtes, 1,25 Mo au premier écran) ; la version locale non minifiée charge 56 requêtes et 2,45 Mo, sans conséquence puisqu'elle est servie en local (JP : « juste local »).*
+- [x] Sur table : `check_regles` avec les sept règles neuves, ou le carton porte « bêta ».
 - [ ] CI verte sur `1.0`, `sw.js` en 1.0.0, `site.webmanifest` et l'APK au même numéro.
 - [ ] Un vrai téléphone : une saison complète sur Android (barre d'état, barre de gestes, clavier dans la recherche), sans page qui défile de côté.
 - [ ] Docs vivantes : CLAUDE.md < 40 Ko, journal dans `docs/journal/`, README avec les captures de la 1.0.
 
 ### La semaine de sortie
 
-- [ ] Lundi · gel des chaînes : relire toutes les chaînes affichées (accents, majuscules, « ,880 » cohérent, zéro mot de développeur).
+- [x] Lundi · gel des chaînes : relire toutes les chaînes affichées (accents, majuscules, « ,880 » cohérent, zéro mot de développeur).
 - [ ] Mardi · `v1.0.0-rc1` : `VERSION` du cache dans `sw.js`, APK via `mobile/fabriquer-apk.ps1`, Pages depuis `1.0`.
 - [ ] Mercredi et jeudi · deux saisons à la main (téléphone et bureau) par quelqu'un qui n'a jamais joué ; noter chaque hésitation de plus de trois secondes ; corriger seulement ce qui est cassé.
 - [ ] Vendredi · `v1.0.0` : fusion dans `main`, tag, README, lien Pages et APK. Ensuite, les idées gelées (défi du jour, deux joueurs, avant 1970) reprennent sur `main`.
@@ -338,3 +338,4 @@ awk '/^## /{if(n)print b"\t"s"\t"n; n=$0; s=NR; b=0} {b+=length($0)+1} END{print
 - 2026-09-29 — Jalon 2 fini : Nouvelle partie (listes à la demande), vestiaire (un seul compte, jauge, onglets atténués pendant le repêchage), bureau (quatre tuiles dès 1200 px), match ordinaire lu au bureau, « bureau » et « main de la journée », Préparer (l'adversaire d'abord ; le curseur attaque/défense fondu dans la consigne : Basse −1, Normale 0, Haute +1), « L'adjoint joue cette série », entracte en 2 × 2, bilan chiffré. Écarts : pas de badge « dès J1 » (infobulle), portail caché sous 1200 px (jamais une longue page), bande par poste gardée au téléphone.
 - 2026-09-29 — J3, première passe : 33 déclarations et 3 branches mortes, 33 imports, 220 export, 106 classes CSS (−26 Ko de CSS), js/util.js, check_mort et tout.mjs en CI, check_traits déterministe. Reste : fusion des sélecteurs CSS en double (et les correctifs posés en fin de fichier), découpage de game.js et chargement de Sur table à la demande, minification à la publication, données.
 - 2026-09-29 — J3-6/7/9 : game.js 6 933 → 2 254 lignes (repechage, alignement, fiche, banc, rogue-jeu, partie, modes-table, charge-table) ; Sur table et l'exhibition chargés à la demande ; l'APK est regroupé et minifié à la fabrication (esbuild, devDependency de mobile/), sans data/salaries ni seed.json : APK 8,33 → 6,80 Mo, premier écran de l'APK 13 requêtes et 1,25 Mo. Le jeu n'est plus publié en ligne (JP : « juste local ») : la minification se fait à la fabrication, pas dans une Action.
+- 2026-09-29 — J5 lundi, gel des chaînes : l'argent s'écrit « 95,5 M$ » par une seule fonction (`money`, 73 appels ; la barre écrivait « $9.3M » et la boutique « 82,0 M$ »), le % d'arrêts « ,912 » par `pct3` (16 sites dans 10 fichiers), un mot par idée (« tactique » et « profil » → système et rôle dans 6 chaînes, l'aide du banc qui disait que changer un joueur coûte de la chimie), la typographie (espace avant « ? », apostrophe droite, « Vézina », « L'œil du public »). `check_clarte` juge désormais l'argent, les ordinaux, « … », l'espace avant « ; ! ? » et le passage par `money` et `pct3` (20 vérifications) ; le lecteur de chaînes est partagé dans `scripts/lib/chaines.mjs`.

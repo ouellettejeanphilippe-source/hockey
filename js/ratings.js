@@ -703,7 +703,7 @@ export function getLineZone(p, v = null) {
     }
     if (pos === 'D') {
       if (rating >= 63) return { level: 2, label: 'Top 6 D · 1re à 3e paire', short: '1re-3e paire', mini: 'P1-3', idealUnits: [0, 1, 2] };
-      return { level: 3, label: 'Bottom 6 D · 2e ou 3e paire', short: '2e-3e paire', mini: 'P2-3', idealUnits: [1, 2] };
+      return { level: 3, label: 'Bottom 4 · 2e ou 3e paire', short: '2e-3e paire', mini: 'P2-3', idealUnits: [1, 2] };
     }
   }
 

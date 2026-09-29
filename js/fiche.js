@@ -5,7 +5,7 @@
 
 import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, signe, money } from './util.js';
+import { esc, signe, money, pct3 } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
 import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
@@ -224,7 +224,7 @@ const cellStat = (k, v, hl = false) => `<div class="stat-cell${hl ? ' hl' : ''}"
 function grilleSim(p, S) {
   if (!S) return '<div class="dash-note">Aucun match joué.</div>';
   if (p.p === 'G') {
-    const pct = S.SA ? (S.SV / S.SA).toFixed(3).slice(1) : '—';
+    const pct = S.SA ? pct3(S.SV / S.SA) : '—';
     return cellStat('PJ', S.GP || 0) + cellStat('V', S.W || 0, true) + cellStat('D', S.L || 0)
       + (S.OTL === undefined ? '' : cellStat('DP', S.OTL))
       + cellStat('BL', S.SO || 0) + cellStat('MBA', ((S.GA || 0) / Math.max(1, S.GP || 1)).toFixed(2)) + cellStat('%ARR', pct)
@@ -552,7 +552,7 @@ function showTeamModal(t, mode = 'saison') {
     <td class="left"><div class="team-cell">${lienJoueur(p, t, mode, `<span>${esc(p.n)}</span>`)}</div></td>
     <td class="sub-cell">G</td>
     <td class="stat">${S.GP || 0}</td><td class="stat heros">${S.W || 0}</td><td class="stat">${S.L || 0}</td><td class="stat">${S.OTL || 0}</td>
-    <td class="stat">${((S.GA || 0) / Math.max(1, S.GP || 1)).toFixed(2)}</td><td class="stat">${S.SA ? (S.SV / S.SA).toFixed(3).slice(1) : '—'}</td>
+    <td class="stat">${((S.GA || 0) / Math.max(1, S.GP || 1)).toFixed(2)}</td><td class="stat">${S.SA ? pct3(S.SV / S.SA) : '—'}</td>
     <td class="stat">${S.SO || 0}</td></tr>`;
 
   const journal = mode === 'series' ? (t.poJournal || []) : (t.journal || []);
