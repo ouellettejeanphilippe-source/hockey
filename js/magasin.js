@@ -55,19 +55,26 @@ export function ouvrirMagasin(ctx) {
     const phare = P.sorte === 'joueurs' ? ch.find(x => x.nom === 'Holo ou mieux') : ch[0];
     const tier = P.sorte === 'cartes' ? 'cartes' : P.tier;
     const n = cartesDuPack(cle, ctx.mods);
-    return `<button type="button" class="pk-tuile pk-${tier}${jour ? ' pk-jour' : ''}${verrou ? ' verrou' : ''}" data-pack="${esc(cle)}"${verrou ? ` title="${esc(verrou)}"` : ''}>
+    // 1.0 (R5) : un pack impayable se grise et dit ce qui manque ; il s'ouvre encore (sa fiche explique).
+    const manque = !verrou && ctx.jetons < prix ? prix - ctx.jetons : 0;
+    return `<button type="button" class="pk-tuile pk-${tier}${jour ? ' pk-jour' : ''}${verrou ? ' verrou' : ''}${manque ? ' pk-cher' : ''}" data-pack="${esc(cle)}"${verrou ? ` title="${esc(verrou)}"` : manque ? ` title="Il te manque ${manque} 🪙"` : ''}>
       <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[P.tier].nom)}</span></span>
       <span class="pk-nom">${esc(P.nom)}</span>
       <span class="pk-n">${n} carte${n > 1 ? 's' : ''}</span>
       ${phare ? `<span class="pk-cote">${esc(phare.nom)} : ${esc(phare.txt)}</span>` : ''}
-      <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) < 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}</span>
+      <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) < 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
     </button>`;
   };
+  // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; le reste attend « Voir les N packs ».
+  const DEBUT = ['j:hasard_bronze', 'j:hasard_argent', 'c:match', 'c:consommables'];
+  let tout = !ctx.debutant;
   const dessiner = () => {
-    const rayons = RAYONS.map(R => {
+    const rayons = tout ? RAYONS.map(R => {
       if (R.cle === 'jour') return ctx.duJour ? `<section class="pk-rayon pk-rayon-jour"><h3>${R.ico} ${esc(R.nom)} <span class="pk-rabais">−${Math.round((1 - ctx.duJour.rabais) * 100)} % aujourd'hui</span></h3><div class="pk-rangee">${tuile(ctx.duJour.pack, true)}</div></section>` : '';
       return `<section class="pk-rayon"><h3>${R.ico} ${esc(R.nom)}</h3><div class="pk-rangee">${R.packs.map(k => tuile(k)).join('')}</div></section>`;
-    }).join('');
+    }).join('')
+      : `<section class="pk-rayon pk-rayon-debut"><h3>🎒 Pour commencer</h3><div class="pk-rangee">${DEBUT.filter(k => PACKS_TOUS[k]).map(k => tuile(k)).join('')}</div>
+        <button type="button" class="btn pk-tout">Voir les ${Object.keys(PACKS_TOUS).length} packs</button></section>`;
     const garantie = ctx.mode === 'rogue'
       ? `<p class="pk-garantie">🛟 La garantie : ${PITIE} packs de joueurs d'affilée sans holo ni or, et le suivant en a une. ${ctx.sansHolo ? `Tu en es à ${ctx.sansHolo} sans.` : ''}</p>` : '';
     // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
@@ -88,6 +95,8 @@ export function ouvrirMagasin(ctx) {
     </div>`;
     m.querySelector('.choix-fermer').onclick = () => fermer();
     m.querySelectorAll('[data-pack]').forEach(b => { b.onclick = () => fiche(b.dataset.pack); });
+    const voirTout = m.querySelector('.pk-tout');
+    if (voirTout) voirTout.onclick = () => { tout = true; dessiner(); };
   };
   const fiche = cle => {
     const P = PACKS_TOUS[cle];

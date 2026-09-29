@@ -130,10 +130,7 @@ export function ouvrirInventaire(ctx) {
       const cats = ORDRE_CATEGORIES.filter(c => c !== 'saison' && [...piles.keys()].some(id => BANQUE[id].cat === c));
       const cartes = [...piles.entries()].filter(([id]) => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a[0]].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b[0]].cat));
       corps = `<p class="inv-mot">Ce que tes packs de la partie ont donné. <b>${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}</b> Jouer une carte, c'est une décision : elle vaut à partir d'aujourd'hui.${ctx.mode === 'rogue' ? ' <b>À la fin de la saison, ta poche expire.</b> Ce qui te suit à la saison suivante de la run : ton équipe, ton deck, les modifs jouées sur tes joueurs, ton personnel et tes cartes permanentes.' : ''}</p>
-        <div class="inv-legende">${[['moment-garde', `${MOMENTS.garde.ico} ${MOMENTS.garde.nom}`, 'joue-la quand tu veux'], ['moment-immediat', `${MOMENTS.immediat.ico} ${MOMENTS.immediat.nom}`, 'dès que tu la reçois'],
-          ['vie-saison', VIES.saison.nom, 'expire à la fin de la saison'], ['vie-usage', VIES.usage.nom, 's\'use en la jouant'], ['vie-permanent', VIES.permanent.nom, 'reste d\'une run à l\'autre']]
-          .map(([k, n, m]) => `<span class="inv-leg"><span class="${k.startsWith('vie') ? 'bq-vie' : 'bq-moment'} ${k}">${esc(n)}</span> ${esc(m)}</span>`).join('')}</div>
-        ${filtres(cats)}
+                ${filtres(cats)}
         <div class="inv-grille">${cartes.map(([id, pile]) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
           actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` })).join('') || vide('Rien dans ta poche : ouvre des packs à la boutique, ou attends le prochain palier.')}</div>`;
     } else if (etat.onglet === 'permanent') {

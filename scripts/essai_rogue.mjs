@@ -139,6 +139,18 @@ await regler();
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
 console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
+// 1.0 (R4) : le barème des jetons est écrit au hub, et ses chiffres sont ceux de la run (jamais tapés).
+{
+  const bareme = (await page.textContent('#hubModal .hub-run-bareme').catch(() => '')) || '';
+  const svB = await lireSauvegarde();
+  const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;
+  const lu = [...bareme.matchAll(/(\d+)/g)].map(m => Number(m[1]));
+  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.grosMatch, B.objectif, B.serie] : null;
+  console.log(`5b. le barème au hub : ${bareme.replace(/\s+/g, ' ').trim() || '(absent)'} · attendu ${attendu ? attendu.join('/') : '?'}`);
+  if (!bareme) erreurs.push('le hub n\'écrit pas le barème des jetons de la run');
+  else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème au hub (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
+  if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
+}
 /*
  * « JUSQU'À LA PROCHAINE DÉCISION » (S79) remplace « +10 jours » : elle joue
  * les journées une à une et s'arrête sur ce qui demande le joueur. On attend
@@ -176,6 +188,8 @@ const dechirer = async () => {
 const acheter = async (pack, capture) => {
   await page.click('#hubModal .hub-boutique');
   await page.waitForSelector('#magasinModal:not([hidden]) .pk-tuile', { timeout: 30000 });
+  // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; « Voir les N packs » montre le reste.
+  if (!(await page.$(`#magasinModal .pk-tuile[data-pack="${pack}"]`)) && await page.$('#magasinModal .pk-tout')) { await page.click('#magasinModal .pk-tout'); await page.waitForTimeout(300); }
   await page.click(`#magasinModal .pk-tuile[data-pack="${pack}"]`);
   await page.waitForSelector('#magasinModal .pk-fiche');
   if (capture) await page.screenshot({ path: `${DOSSIER}/${capture}.png` });
@@ -191,9 +205,28 @@ await page.waitForSelector('#magasinModal:not([hidden]) .pk-tuile', { timeout: 3
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
 const nPacks = await page.$$eval('#magasinModal .pk-tuile', e => e.length);
 const espace = await page.textContent('#magasinModal .pk-plafond').catch(() => '');
-await page.click('#magasinModal .choix-fermer');
-console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}`);
+// 1.0 (R5) : à la première run, quatre packs pour commencer, un bouton « Voir les N packs », et un pack impayable qui dit ce qui manque.
+const voirTout = await page.$('#magasinModal .pk-tout');
+console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}${voirTout ? ` · « ${(await voirTout.textContent()).trim()} »` : ''}`);
 if (!espace) erreurs.push('la boutique ne dit pas l\'espace sous le plafond');
+if (nPacks !== 4 || !voirTout) erreurs.push(`la première run devrait ouvrir sur quatre packs et « Voir les N packs » : ${nPacks} packs, bouton ${voirTout ? 'présent' : 'absent'}`);
+else {
+  await page.screenshot({ path: `${DOSSIER}/rogue-boutique-debut.png` });
+  await voirTout.click(); await page.waitForTimeout(300);
+  const nTout = await page.$$eval('#magasinModal .pk-tuile', e => e.length);
+  const chers = await page.$$eval('#magasinModal .pk-tuile.pk-cher .pk-manque', e => e.map(x => x.textContent.trim()));
+  // Un pack coûte plus que la caisse ? Alors sa tuile doit le dire. (À 84 🪙, aucun pack n'est impayable : rien à exiger.)
+  const jetonsB = Number(((await page.textContent('#magasinModal .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const prixMax = Math.max(...await page.$$eval('#magasinModal .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
+  console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
+  if (nTout < 20) erreurs.push(`« Voir les N packs » ne montre que ${nTout} packs`);
+  if (prixMax > jetonsB && (!chers.length || !chers.every(t => /il te manque \d+/.test(t)))) erreurs.push('un pack impayable ne dit pas ce qui manque');
+  // Échap ferme la boutique (1.0, R5) ; on la rouvre pour continuer comme avant.
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  if (await page.$('#magasinModal:not([hidden])')) erreurs.push('Échap ne ferme pas la boutique');
+  await page.click('#hubModal .hub-boutique'); await page.waitForSelector('#magasinModal:not([hidden]) .pk-tuile', { timeout: 30000 });
+}
+await page.click('#magasinModal .choix-fermer');
 /*
  * S80 : LE JOUEUR D'UNE CARTE. La fiche d'un pack par niveau dit ses chances
  * de joueur par pack (★ Étoile ou mieux, ★ Phénomène) et le niveau d'une
@@ -482,6 +515,31 @@ await page.waitForTimeout(2500);
  * suite — la saison suivante si le mandat est rempli (après les séries),
  * sinon une nouvelle run. « Rejouer la saison » n'existe pas dans une run.
  */
+/*
+ * « TA RUN » (1.0, R7) : une run finie (mandat manqué : la première saison
+ * sans séries) ou gagnée ouvre UN écran, une fois, avant qu'on reparte ; ses
+ * chiffres sont ceux du méta. Une run qui continue n'en ouvre pas.
+ */
+{
+  const ecranRun = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]');
+  const svR = await lireSauvegarde();
+  const sort = ((await page.textContent('#resultHost .rg-run').catch(() => '')) || '');
+  const finie = /Mandat manqué|run est gagnée/.test(sort);
+  const metaR = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
+  console.log(`12c. « Ta run » : ${ecranRun ? 'ouvert' : 'fermé'} · run ${finie ? 'finie' : 'en cours'} · dernière run au méta : ${metaR.derniereRun ? JSON.stringify(metaR.derniereRun) : '(aucune)'}`);
+  if (finie && !ecranRun) erreurs.push('la run est finie et l\'écran « Ta run » ne s\'est pas ouvert');
+  if (!finie && ecranRun) erreurs.push('la run continue et l\'écran « Ta run » s\'est ouvert quand même');
+  if (ecranRun) {
+    await page.screenshot({ path: `${DOSSIER}/rogue-ta-run.png` });
+    const txt = (await ecranRun.textContent()).replace(/\s+/g, ' ');
+    const d = metaR.derniereRun || {};
+    if (!new RegExp(`${d.saisons}\\s*saison`).test(txt) || !txt.includes(`+${d.ecussons}`) || !txt.includes(`🏅 ${metaR.ecussons}`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
+    if (!(svR.partie && svR.partie.rogue && svR.partie.rogue.taRunVue) && !(svR.rogue && svR.rogue.taRunVue)) erreurs.push('« Ta run » vu n\'est pas dans la sauvegarde (il se rouvrirait au rechargement)');
+    await page.click('#choixModal:not([hidden]) .choix-fermer');
+    await page.waitForTimeout(300);
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]')) erreurs.push('« Ta run » ne se ferme pas');
+  }
+}
 const blocRun = await page.$('#resultHost .rg-run');
 if (blocRun) { await blocRun.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${DOSSIER}/rogue-run-bilan.png` }); }
 const motRun = blocRun ? (await blocRun.textContent()).replace(/\s+/g, ' ').trim() : '';

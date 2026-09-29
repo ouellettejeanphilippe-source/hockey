@@ -9195,6 +9195,11 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 }
 .pk-tuile:hover, .pk-tuile:focus-visible { transform: translateY(-3px); border-color: var(--pk-b); outline: none; }
 .pk-tuile.verrou { opacity: .55; }
+/* 1.0 (R5) : un pack impayable se grise et dit ce qui manque ; « Voir les N packs » ferme la vitrine du débutant. */
+.pk-tuile.pk-cher { opacity: .6; }
+.pk-tuile.pk-cher .pk-prix { color: var(--muted); }
+.pk-manque { display: block; margin-top: 3px; font: 600 11px/1.2 var(--font, inherit); letter-spacing: 0; text-transform: none; color: var(--sub); }
+.pk-rayon-debut .pk-tout { margin-top: 10px; width: 100%; }
 .pk-sachet {
   position: relative; display: grid; place-items: center; aspect-ratio: 3 / 4; border-radius: 8px 8px 10px 10px; overflow: hidden;
   background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .10) 0 3px, transparent 3px 9px), linear-gradient(160deg, var(--pk-b), var(--pk-a) 60%, var(--pk-b));
@@ -9506,8 +9511,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .bq-moment { padding: 2px 6px; border-radius: 999px; font: 700 10px/1.3 var(--display); letter-spacing: .04em; text-transform: uppercase; }
 .moment-garde { background: color-mix(in srgb, #c9a0ff 20%, transparent); color: #d9bcff; }
 .moment-immediat { background: color-mix(in srgb, var(--red, #e5484d) 22%, transparent); color: #ff9a9d; }
-.inv-legende { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 10px; font-size: 12px; color: var(--muted); }
-.inv-leg { display: inline-flex; align-items: center; gap: 5px; }
 .hub-inv-n { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--gold); color: #111; font-size: 12px; }
 
 /* LE CARTABLE (S79) : l'onglet Vestiaire une fois la saison commencée. */
@@ -9598,6 +9601,9 @@ body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { displa
 .hub-etat-v { min-width: 0; }
 .hub-etat-l .tuile-jauge { flex: 1 1 80px; min-width: 60px; }
 .hub-etat-l small { color: var(--muted); font-size: 12px; }
+/* 1.0 (R4) : le barème de la run, une ligne sous le mandat ; « puis : … » dans le ton du mandat. */
+.hub-run-bareme { flex: 1 0 100%; font-variant-numeric: tabular-nums; }
+.hub-run-suite { color: var(--sub); }
 
 /* Hier soir, en une ligne ; le toucher ouvre le sommaire. */
 .hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 8px; padding: 10px 12px;

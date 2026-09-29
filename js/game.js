@@ -1342,6 +1342,8 @@ function ouvrirBoutique(j, decider) {
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(),
     mods: modificateurs(decs, j + 1), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     duJour: packDuJour(new Date(), packsOuvertsBoutique()),
+    // 1.0 (R5) : à la première run, avant la journée 20, quatre packs ; « Voir les N packs » montre tout.
+    debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < 20,
     franchises: Object.entries(FRANCHISES).map(([cle, F]) => ({ cle, nom: F.nom })).sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
     saisons: state.index.seasons.slice().reverse(),
     acheter: (cle, { prix, params }) => {
@@ -1752,7 +1754,8 @@ async function ouvrirRogue() {
   const nCartable = Object.keys(lireCartable().joueurs).length;
   const go = await new Promise(resolve => ouvrirChoix({
     ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant',
-    recit: `Une run, c'est plusieurs saisons avec la même équipe. Tu pars avec des plombiers — de vrais joueurs, les moins productifs de leurs saisons — et 🪙 ${jetonsDeDepart(meta)} jetons ; la boutique du hub vend des packs, et chaque résultat rapporte des jetons. Le plafond salarial tient : ${money(PLAFOND_ROGUE + plafondDuVestiaire(meta))}. Chaque saison, le proprio en veut plus : ${MANDATS.map(x => x.mot).join(', puis ')}. Manque-le et la run est finie ; gagne la Coupe et elle est gagnée. Une première run gagne rarement la Coupe : tes écussons 🏅 et tes jalons débloquent la suite, au vestiaire du menu.`,
+    // 1.0 (R5) : deux phrases ; le reste se lit dans « Règles », section « Le mode Rogue ».
+    recit: `Une équipe de plombiers, 🪙 ${jetonsDeDepart(meta)} jetons, plusieurs saisons. Chaque saison, le proprio en veut plus ; la Coupe finit la run.`,
     options: [{ cle: 'go', ico: '▶', nom: `Commencer la run ${(meta.runs || 0) + 1}`,
       bon: [nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
         `${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`,
@@ -1845,6 +1848,8 @@ async function demarrerRogue(gardes = [], tires = []) {
     // S80 : la run sur plusieurs saisons, ses cases de réserve, et ce que le classeur a donné.
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta),
     classeur: { mode: D.mode, n: D.n, pris: tires.map(x => x.cle) },
+    // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
+    cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],
   };
   saveGame(); syncOptionsUI(); render();
   setView('roster');
@@ -1890,7 +1895,11 @@ function faitsDeLaSaison() {
 }
 function direJalons(payes) {
   payes.forEach((J, i) => setTimeout(() => toast(`🏁 Jalon : ${J.nom} — ${J.mot}.`), 1800 + i * 1400));
+  // 1.0 (R7) : la run se souvient de ses jalons, pour l'écran « Ta run ».
+  if (payes.length && G.rogue) G.rogue.jalonsRun = [...(G.rogue.jalonsRun || []), ...payes.map(J => J.nom)];
 }
+/* 1.0 (R7) : les écussons gagnés par CETTE run, cumulés au moment où ils se paient (exacts, jamais recalculés). */
+function compterEcussonsRun(n) { if (n && G.rogue) G.rogue.ecussonsRun = (G.rogue.ecussonsRun || 0) + n; }
 function finDeSaisonRogue() {
   if (G.bonus !== 'ROGUE' || !G.ligue || !G.ligue.you) return;
   const t = G.ligue.you;
@@ -1900,6 +1909,7 @@ function finDeSaisonRogue() {
     bilan: { pts: f.pts, W: t.W, L: t.L, OTL: t.OTL },
   });
   if (n) setTimeout(() => toast(`🏅 +${n} écussons pour ta saison (${f.pts} points) — dépense-les au vestiaire.`), 900);
+  compterEcussonsRun(n);
   direJalons(payerJalons(f));
   majRunRogue();
 }
@@ -1911,6 +1921,7 @@ function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
   if (payer) {
     const n = payerEcussons(G.ligue.graine, 'series', ecussonsDesSeries(rondes, coupe), { bilan: { ronde: rondes, coupe: !!coupe } });
     if (n) setTimeout(() => toast(`🏅 +${n} écussons pour tes séries${coupe ? ' — et la Coupe !' : ''}`), 900);
+    compterEcussonsRun(n);
     const S = G.seriesMoteur;
     const finale = !!(S && S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A.isPlayer || s.B.isPlayer)));
     direJalons(payerJalons({ ...faitsDeLaSaison(), rondes, coupe: !!coupe, finale }));
@@ -1965,11 +1976,54 @@ function majRunRogue() {
       ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
       <button type="button" class="btn rg-vestiaire">🏅 Le vestiaire · ${lireMeta().ecussons || 0}</button>
     </div>`;
+  // 1.0 (R7) : la run finie ou gagnée s'ouvre UNE fois en plein écran, avant qu'on reparte.
+  if ((sort === 'finie' || sort === 'gagnee') && G.rogue && !G.rogue.taRunVue) montrerTaRun(sort, n, s);
   const b1 = bloc.querySelector('.rg-suivante');
   if (b1) b1.onclick = () => sousVoile('La saison suivante se prépare…', continuerRun);
   const b2 = bloc.querySelector('.rg-nouvelle');
   if (b2) b2.onclick = () => contexteDuMenu().rogue.nouvelle();
   bloc.querySelector('.rg-vestiaire').onclick = () => ouvrirVestiaire(() => majRunRogue());
+}
+/*
+ * « TA RUN » (1.0, R7) : un seul écran quand la run finit — les saisons jouées,
+ * la Coupe ou le mandat manqué, les écussons gagnés par la run, les jalons
+ * débloqués, les cartes entrées au cartable. Tout se lit dans le méta et dans
+ * `G.rogue` (comptés au moment où ils se paient), rien n'est recalculé. Le
+ * méta garde le résumé (`derniereRun`) pour le carton du menu.
+ */
+const MOT_RONDES = ['éliminé au premier tour', 'éliminé au deuxième tour', 'éliminé en demi-finale', 'perdu en finale'];
+function motDeRun(d) {
+  if (d.coupe) return 'la Coupe 🏆';
+  if (!d.series) return 'sans séries';
+  return MOT_RONDES[Math.min(3, d.rondes || 0)];
+}
+function montrerTaRun(sort, n, s) {
+  const meta = lireMeta();
+  const f = faitsDeLaSaison();
+  const M = mandatDe(n);
+  const d = { numero: G.rogue.numero || meta.runs || 1, saisons: n, sort, series: !!f.series, rondes: (s && s.rondes) || 0, coupe: !!(s && s.coupe),
+    ecussons: G.rogue.ecussonsRun || 0, jalons: G.rogue.jalonsRun || [] };
+  const nCartable = Object.keys(lireCartable().joueurs).length;
+  const entrees = G.rogue.cartableDepart != null ? Math.max(0, nCartable - G.rogue.cartableDepart) : null;
+  G.rogue.taRunVue = true;
+  meta.derniereRun = d;
+  ecrireMeta(meta);
+  saveGame();
+  const ligne = (k, v) => `<div class="run-l"><span class="run-k">${esc(k)}</span><b class="run-v">${v}</b></div>`;
+  ouvrirChoix({
+    ico: sort === 'gagnee' ? '🏆' : '🚪', titre: 'Ta run', genre: 'run', fermable: true, motFermer: 'Compris',
+    irl: `Run ${d.numero} · ${n} saison${n > 1 ? 's' : ''}`,
+    recit: sort === 'gagnee' ? `La Coupe Stanley, à la saison ${n} de la run.` : `Mandat manqué : il fallait ${esc(M.mot)}.`,
+    contexte: `<div class="run-bilan">
+      ${ligne('Saisons jouées', n)}
+      ${ligne('Le sort', esc(motDeRun(d)))}
+      ${ligne('Écussons gagnés par la run', `🏅 +${d.ecussons}`)}
+      ${ligne('Jalons débloqués', d.jalons.length ? esc(d.jalons.join(' · ')) : 'aucun')}
+      ${entrees != null ? ligne('Cartes entrées au cartable', `📒 +${entrees}`) : ''}
+      ${ligne('Ton vestiaire', `🏅 ${meta.ecussons || 0} écussons · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''}`)}
+    </div>`,
+    options: [], onChoix: () => {},
+  });
 }
 /*
  * LA SAISON SUIVANTE DE LA RUN (S80). JP : *nouvelle saison veut dire
@@ -2171,13 +2225,33 @@ function setupEvents() {
 
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
+      /*
+       * 1.0 (R5) : les plein écran `.choix-modal` (la boutique, l'inventaire, le
+       * classeur, un choix) passent AVANT les modales à fond. La fiche d'un pack
+       * se replie d'abord ; un écran qui a son ✕ se ferme comme par son ✕ ; un
+       * choix forcé (sans ✕) reste, et rien en dessous ne bouge.
+       */
       // L'écran de saison et le direct ont leur propre sortie : Échap ne
       // les ferme pas, ça laisserait la saison à moitié révélée. Et parmi
-      // celles qui restent, on ne ferme que CELLE DU DESSUS.
+      // celles qui restent, on ne ferme que CELLE DU DESSUS : la fiche
+      // « au-dessus » (z 120) passe avant un plein écran (96), qui passe
+      // avant une modale à fond (90) — l'ordre de la feuille de style.
+      const pleins = [...document.querySelectorAll('.choix-modal:not([hidden])')].filter(m => m.firstElementChild);
       const ouvertes = [...document.querySelectorAll('.modal-backdrop:not(.live)')]
         .filter(m => m.style.display && m.style.display !== 'none');
+      const z = el => Number(getComputedStyle(el).zIndex) || 0;
+      const zPleins = pleins.length ? Math.max(...pleins.map(z)) : -1;
+      const zOuvertes = ouvertes.length ? Math.max(...ouvertes.map(z)) : -1;
+      if (pleins.length && zPleins >= zOuvertes) {
+        const haut = pleins[pleins.length - 1];
+        const ficheDePack = haut.querySelector('.pk-fiche');
+        if (ficheDePack) ficheDePack.remove();
+        else { const croix = haut.querySelector('.choix-fermer'); if (croix) croix.click(); }
+        // Un choix forcé (sans ✕) reste, et rien en dessous ne bouge.
+        return;
+      }
       if (ouvertes.length) {
-        ouvertes.sort((a, b) => Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
+        ouvertes.sort((a, b) => z(b) - z(a) || Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
         fermerModale(ouvertes[0]);
       }
       if (G.selectedSlot !== null || G.target !== null) {
@@ -3561,6 +3635,14 @@ function renderSpin() {
   const host = $('spin');
   if (!host) return;
 
+  // 1.0 (R5) : un alignement déjà complet sans roulette (les plombiers du Rogue) ne « tourne » pas.
+  if (!G.loading && !G.tirage.length && slotsLeft() === 0) {
+    host.innerHTML = `<div class="spin-card spin-complet"><div class="spin-top">
+      <div class="spin-logo">${ico('i-list')}</div>
+      <div class="spin-id"><div class="spin-name">Alignement complet</div>
+      <div class="spin-full">Permute tes joueurs, ou lance la saison</div></div></div></div>`;
+    return;
+  }
   if (G.loading || !G.tirage.length) {
     host.innerHTML = `<div class="spin-card"><div class="spin-top">
       <div class="spin-logo">${ico('i-dice')}</div>
@@ -6409,8 +6491,11 @@ function ouvrirEcranSaison(depuis = 0) {
         quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), note: q => `libère ${money(capHitDuJour(q))}`, ...o }),
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
         rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider),
-          // S80 : la saison de la run et le mandat du proprio.
-          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot }) } : null,
+          // S80 : la saison de la run et le mandat du proprio. 1.0 (R4) : le barème de la run, tel que
+          // `jetonsRogue` le compte (`G.rogue.bareme`, fixé au départ de la saison), et le mandat d'après.
+          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot,
+            suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
+            bareme: (G.rogue && G.rogue.bareme) || JETONS }) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider) },
         inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider) => ouvrirInventaireJeu(j, decider) },
