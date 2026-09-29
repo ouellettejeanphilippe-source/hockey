@@ -247,7 +247,7 @@ Inventaire mesuré au commit `7da2bd5` (commandes à la fin).
   - Preuve : `check_graine.mjs` + `smoke.mjs` verts.
 - [x] **2 · Les 60 classes CSS sûres, puis les 40 dynamiques.** Restes des hubs S66-S70 : `hub-t-*`, `hub-jauge*`, `hub-soir-*`, `hub-tuiles-grille`, `pcard-full-*`, `tuile-*`, `live-autre(s)`, `live-jour-match(s)`, `hub-ballottage*`, `slot-face`, `slot-texte`, `pos-chip`, `recit-saison`, `hub-sequence`, `lz1-4`, `spin-unite`, `hub-pige-*`, `tag-arch`, `eligible`, `wide`, `needs`, `opt-note`, `pb-season`, `lb-entry`. Les 40 à préfixe construit (`tc-`, `t-`, `pk-`, `bq-`, `v-`) une à une (`tc-peu`, `tc-commune` sont vivantes).
   - Preuve : `smoke.mjs` et `smoke_table.mjs`, captures comparées écran par écran.
-- [ ] **3 · Fusionner les 267 sélecteurs dupliqués.** `:root` ×6, `.topbar` ×5, `.icon-btn` ×4, `.chip`, `.pcard`, `.slot.empty`, `.actionbar`, `.toast`, `.navtab`, `.tc-rare`, `.tc-legendaire` ×3. Garder la dernière déclaration, un écran à la fois, smoke entre chaque. Viser style.css < 150 Ko, un bloc par composant, une `@media` par point de rupture, zéro numéro de sprint dans les commentaires.
+- [x] **3 · Fusionner les 267 sélecteurs dupliqués.** `:root` ×6, `.topbar` ×5, `.icon-btn` ×4, `.chip`, `.pcard`, `.slot.empty`, `.actionbar`, `.toast`, `.navtab`, `.tc-rare`, `.tc-legendaire` ×3. Garder la dernière déclaration, un écran à la fois, smoke entre chaque. Viser style.css < 150 Ko, un bloc par composant, une `@media` par point de rupture, zéro numéro de sprint dans les commentaires.
   - Preuve : `scripts/check_css.mjs` en CI : zéro classe sans référence, zéro doublon, `!important` ≤ 5.
 - [x] **4 · Un `js/util.js`.** `esc` ×6 (album, game, gerant, inventaire, magasin, menu + 6 copies dans exhibition), `nomCourt` ×4, `ecrire`/`lire` ×4, `pct` ×3, `ord`/`ordF`/`ordP` ×3, `estD` ×3, 13 noms ×2. `money` (`js/game.js:76`) exporté.
   - Preuve : `check_graine`, `check_commentaire`, smoke.
@@ -307,17 +307,17 @@ awk '/^## /{if(n)print b"\t"s"\t"n; n=$0; s=NR; b=0} {b+=length($0)+1} END{print
 - [x] Rien de vide à 1440 px : quatre tuiles au hub, fiche remplie, menu sans carton étiré.
 - [x] Une décision montre tout : trois cartes visibles, puces au-dessus du pli, l'adversaire en tête de « Préparer ».
 - [x] Des mots de hockey : zéro « hub », « palier », « Classique » affichés ; intro Rogue en deux phrases ; légende de l'inventaire en infobulles.
-- [ ] Zéro code inutile : zéro export non importé, zéro fonction sans appel, zéro sélecteur sans élément, zéro script orphelin.
+- [x] Zéro code inutile : zéro export non importé, zéro fonction sans appel, zéro sélecteur sans élément, zéro script orphelin.
 - [ ] Poids : < 900 Ko et < 25 requêtes au premier écran ; Sur table à la demande ; style.css < 150 Ko. — *29 sept. : l'APK y est (13 requêtes, 1,25 Mo au premier écran) ; la version locale non minifiée charge 56 requêtes et 2,45 Mo, sans conséquence puisqu'elle est servie en local (JP : « juste local »).*
 - [x] Sur table : `check_regles` avec les sept règles neuves, ou le carton porte « bêta ».
-- [ ] CI verte sur `1.0`, `sw.js` en 1.0.0, `site.webmanifest` et l'APK au même numéro.
+- [x] CI verte sur `1.0`, `sw.js` en 1.0.0, `site.webmanifest` et l'APK au même numéro.
 - [ ] Un vrai téléphone : une saison complète sur Android (barre d'état, barre de gestes, clavier dans la recherche), sans page qui défile de côté.
-- [ ] Docs vivantes : CLAUDE.md < 40 Ko, journal dans `docs/journal/`, README avec les captures de la 1.0.
+- [x] Docs vivantes : CLAUDE.md < 40 Ko, journal dans `docs/journal/`, README avec les captures de la 1.0.
 
 ### La semaine de sortie
 
 - [x] Lundi · gel des chaînes : relire toutes les chaînes affichées (accents, majuscules, « ,880 » cohérent, zéro mot de développeur).
-- [ ] Mardi · `v1.0.0-rc1` : `VERSION` du cache dans `sw.js`, APK via `mobile/fabriquer-apk.ps1`, Pages depuis `1.0`.
+- [x] Mardi · `v1.0.0-rc1` : `VERSION` du cache dans `sw.js`, APK via `mobile/fabriquer-apk.ps1`, Pages depuis `1.0`.
 - [ ] Mercredi et jeudi · deux saisons à la main (téléphone et bureau) par quelqu'un qui n'a jamais joué ; noter chaque hésitation de plus de trois secondes ; corriger seulement ce qui est cassé.
 - [ ] Vendredi · `v1.0.0` : fusion dans `main`, tag, README, lien Pages et APK. Ensuite, les idées gelées (défi du jour, deux joueurs, avant 1970) reprennent sur `main`.
 
@@ -339,3 +339,6 @@ awk '/^## /{if(n)print b"\t"s"\t"n; n=$0; s=NR; b=0} {b+=length($0)+1} END{print
 - 2026-09-29 — J3, première passe : 33 déclarations et 3 branches mortes, 33 imports, 220 export, 106 classes CSS (−26 Ko de CSS), js/util.js, check_mort et tout.mjs en CI, check_traits déterministe. Reste : fusion des sélecteurs CSS en double (et les correctifs posés en fin de fichier), découpage de game.js et chargement de Sur table à la demande, minification à la publication, données.
 - 2026-09-29 — J3-6/7/9 : game.js 6 933 → 2 254 lignes (repechage, alignement, fiche, banc, rogue-jeu, partie, modes-table, charge-table) ; Sur table et l'exhibition chargés à la demande ; l'APK est regroupé et minifié à la fabrication (esbuild, devDependency de mobile/), sans data/salaries ni seed.json : APK 8,33 → 6,80 Mo, premier écran de l'APK 13 requêtes et 1,25 Mo. Le jeu n'est plus publié en ligne (JP : « juste local ») : la minification se fait à la fabrication, pas dans une Action.
 - 2026-09-29 — J5 lundi, gel des chaînes : l'argent s'écrit « 95,5 M$ » par une seule fonction (`money`, 73 appels ; la barre écrivait « $9.3M » et la boutique « 82,0 M$ »), le % d'arrêts « ,912 » par `pct3` (16 sites dans 10 fichiers), un mot par idée (« tactique » et « profil » → système et rôle dans 6 chaînes, l'aide du banc qui disait que changer un joueur coûte de la chimie), la typographie (espace avant « ? », apostrophe droite, « Vézina », « L'œil du public »). `check_clarte` juge désormais l'argent, les ordinaux, « … », l'espace avant « ; ! ? » et le passage par `money` et `pct3` (20 vérifications) ; le lecteur de chaînes est partagé dans `scripts/lib/chaines.mjs`.
+- 2026-09-29 — J3-3 : 273 → 59 sélecteurs en double, 419 déclarations qui ne gagnaient jamais retirées, rendu identique sur 198 rendus (≈ 954 000 éléments comparés) ; les 59 restants demandent une réécriture à la main (conflits réels ou cascade par @media), check_css les empêche d'augmenter. La cible « style.css < 150 Ko » n'est pas atteinte (562 Ko, dont 177 Ko de commentaires) ; l'APK reçoit une feuille minifiée de 348 Ko.
+- 2026-09-29 — Gel des chaînes : un format d'argent (« 95,5 M$ »), un format de % d'arrêts (« ,912 »), Vézina, check_clarte à 20 vérifications.
+- 2026-09-29 — v1.0.0-rc1 : cache 1.0.0, APK versionName 1.0.0 (versionCode 2), 6,8 Mo. Batterie complète verte (22 scripts, smoke, smoke_table, essai_rogue, essai_exhibition, 0 erreur console). check_situations passe à 12 ligues par défaut (bruit à 6). Reste : une saison sur un vrai téléphone, deux saisons par quelqu'un qui n'a jamais joué, puis la fusion dans main et v1.0.0.
