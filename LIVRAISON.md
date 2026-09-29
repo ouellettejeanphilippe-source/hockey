@@ -15,18 +15,18 @@ Portée de la 1.0, décision de JP (28 septembre) : **le mode Rogue est le héro
 
 Ce qui rend un roguelike bon, dans l'ordre où un joueur de Slay the Spire ou de Balatro le ressent : (1) l'économie ne triche pas et chaque jeton compte ; (2) chaque run est différente et les choix se voient dans les résultats ; (3) la boutique et l'inventaire se lisent en une seconde ; (4) perdre donne envie de recommencer parce que le méta (écussons, jalons, cartable) avance. Le Rogue d'aujourd'hui a les quatre morceaux, mais le premier fuit, le troisième est un catalogue, et le quatrième cache son barème. Chemin de travail, à cocher dans cet ordre avant tout le reste :
 
-- [ ] **R0 · Mesurer la run.** `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (existe) : noter la première Coupe par campagne et le taux d'élimination par saison. Plus `check_robot.mjs` (jalon 0) en variante Rogue : `jouerRun` avec la boutique jouée au hasard (premier pack payable, première carte). Cibles : la Coupe arrive entre la run 3 et la run 8 ; un robot ne la gagne jamais avant la run 5.
+- [x] **R0 · Mesurer la run.** `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (existe) : noter la première Coupe par campagne et le taux d'élimination par saison. Plus `check_robot.mjs` (jalon 0) en variante Rogue : `jouerRun` avec la boutique jouée au hasard (premier pack payable, première carte). Cibles : la Coupe arrive entre la run 3 et la run 8 ; un robot ne la gagne jamais avant la run 5.
 - [x] **R1 · L'argent** : J1-A (revente), J1-B (achat avant butin), J1-C (prime de série), J1-H (pack du jour). Quatre items, un après-midi, et l'économie tient.
 - [x] **R2 · Le ballottage** : J1-D. En Rogue, une réclamation coûte 10 🪙 et n'offre que des réguliers.
 - [x] **R3 · Le deck** : J1-E (malédictions), J1-F (cicatrices), J1-G (le + et l'holo). Le deck qui traverse les saisons de la run devient un vrai build, pas une pile de cicatrices.
 - [x] **R4 · Le barème, visible.** Nulle part à l'écran : 5/4/2 🪙 par résultat, 20 par gros match, 20 par objectif, 40 par ronde de séries (`js/rogue.js:41`), et le mandat qui plafonne à « atteindre la finale » dès la saison 4 (`mandatDe`, `:313`). Une ligne sous « 💀 La run » au hub : « Victoire 5 🪙 · prolongation 2 · gros match +20 · objectif +20 · ronde +40 ». Le mandat dit sa suite (« puis : gagner une ronde »).
   - Preuve : smoke Rogue (`essai_rogue.mjs`) exige la ligne du barème au hub, chiffres égaux à `JETONS`.
 - [x] **R5 · La boutique et l'inventaire** : J2-15 (quatre packs à la première run, intro en deux phrases, légende en infobulles, Échap, roulette figée). Puis le prix de chaque pack comparé à la caisse : un pack impayable est grisé avec « il te manque 8 🪙 » (`js/magasin.js`, `render`).
-- [ ] **R6 · Les cartes qu'on choisit** : J2-3 (trois cartes visibles), J2-4 (puces), J2-12 (puces de la main visibles), J2-16 (texte Rogue seulement en Rogue). En Rogue, la puce « grandit : ×0,5 en octobre, ×1 en janvier, ×2 en finale » devient une jauge sur la carte (quatre crans, le cran du jour allumé) plutôt qu'une phrase.
+- [x] **R6 · Les cartes qu'on choisit** : J2-3 (trois cartes visibles), J2-4 (puces), J2-12 (puces de la main visibles), J2-16 (texte Rogue seulement en Rogue). En Rogue, la puce « grandit : ×0,5 en octobre, ×1 en janvier, ×2 en finale » devient une jauge sur la carte (quatre crans, le cran du jour allumé) plutôt qu'une phrase.
 - [x] **R7 · Le méta qui donne envie.** Le vestiaire des déblocages (`js/game.js`, « Le vestiaire · 0 écussons ») est bon ; ce qui manque : à la fin d'une run, un écran unique « Ta run » (saisons jouées, Coupe ou mandat manqué, écussons gagnés, jalon débloqué, cartes entrées au cartable) avant le retour au menu. Réutiliser le bilan (`js/bilan.js`) et `finDesSeriesRogue` (`js/game.js:1888`). Le carton Rogue du menu montre la dernière run (« Run 3 · finale · 210 🏅 ») au lieu de « 0 écussons · 0 joueurs · 0 run ».
   - Preuve : `essai_rogue.mjs` : après une run finie, l'écran « Ta run » s'ouvre une fois, ses chiffres égalent le méta sauvegardé.
 - [x] **R8 · Le menu** : J2-1 avec le Rogue en carton héros (pleine largeur, fond sombre, la dernière run dessus), La saison et Sur table dessous, Exhibition en lien.
-- [ ] **R9 · Rejouer R0** : la Coupe entre la run 3 et 8, le robot jamais avant la run 5. Sinon, les curseurs sont la courbe des cartes (`×0,5 → ×2`, `js/rogue.js`) et le prix des packs Or et Premium.
+- [x] **R9 · Rejouer R0** : la Coupe entre la run 3 et 8, le robot jamais avant la run 5. Sinon, les curseurs sont la courbe des cartes (`×0,5 → ×2`, `js/rogue.js`) et le prix des packs Or et Premium.
 
 Ensuite seulement : le reste du jalon 1 (I à Q, qui améliorent aussi le Rogue par le moteur), le reste du jalon 2, puis 3, 4, 5.
 
@@ -67,7 +67,7 @@ Jours-personne pour un dev qui connaît le dépôt. Les jalons 1 et 2 se mènent
 ## Jalon 0 · Le gel
 
 - [x] Créer la branche `1.0` depuis `main`. Jusqu'à la sortie : aucune carte, aucun mode, aucune règle nouvelle. Chaque commit ferme un item de ce fichier et le nomme (`1.0 · J1-D ballottage`).
-- [ ] La CI est le juge : `verifier.yml` passe 15 vérifications ; y ajouter au fil des jalons les assertions listées sous « Preuve ».
+- [x] La CI est le juge : `verifier.yml` passe 15 vérifications ; y ajouter au fil des jalons les assertions listées sous « Preuve ».
 - [x] Écrire `scripts/check_robot.mjs` avant de corriger. Harnais existant : `scripts/lib/rogue_sim.mjs` (`jouerRun`), `scripts/check_plafond.mjs` (`simulateLeague`/`playSeries`), `scripts/lib/vestiaires.mjs`. Le script bâtit un alignement « premier Signer » (tri points, premier joueur sous `maxForPick`), joue 82 matchs avec les choix par défaut (aucune carte, première option d'entracte), réclame le premier candidat au ballottage à chaque blessure ≥ 7, puis les séries sans carte. Deux passes `BALLOTTAGE=1|0`, 40 saisons.
   - Preuve : `borne('Coupe du robot', taux, [0, 0.05])`, `borne('séries du robot', taux, [0.2, 0.5])`, `informer('apport du ballottage', ΔV)`. Mesure de départ (40 saisons, sans ballottage) : fiche 45-33-4, séries 60 %, finale 3 %, Coupe 0 / 40.
 
@@ -114,13 +114,13 @@ Jours-personne pour un dev qui connaît le dépôt. Les jalons 1 et 2 se mènent
 - [x] **J · Un seul « −N », celui du jour.** Moteur `penaliteAdaptee` (`js/sim.js:541-548`) = base × e^(−matchs/15) ; écran `getPositionPenalty` à `js/game.js:3145, 3962, 4060, 4445`.
   - Correctif : exporter `penaliteAffichee(player, slot)` de `sim.js` (arrondi au dixième, 999 gardé pour `autoRoster`) ; libellé « −1,2 · s'adapte (9 m.) ».
   - Preuve : `check_situations.mjs` : après 15 matchs, affiché ≤ base × 0,37 + 0,05.
-- [ ] **K · Les cases portent leurs vraies zones.** `js/sim.js:315-319` Top 6 / Middle 6 / Bottom 6 ; zones réelles chevauchantes (`js/ratings.js:616-636`).
+- [x] **K · Les cases portent leurs vraies zones.** `js/sim.js:315-319` Top 6 / Middle 6 / Bottom 6 ; zones réelles chevauchantes (`js/ratings.js:616-636`).
   - Correctif : étiquette dérivée de `idealUnits` : F « T1 · T1-2 », « T1-2 · T2-3 », « T2-3 · T3-4 », « T3-4 · T4 » ; D « P1 · P1-2 », « P1-2 · P2 · P3 », « P2 · P3 · rés. ».
   - Preuve : `check_chimie.mjs` : `zoneEcart === 'ok'` ⇔ l'étiquette contient la zone.
-- [ ] **L · Un cran ça passe, deux c'est énorme.** `malusZoneUnite` (`js/sim.js:305-311`) : `ZONE_NOMBRE = [1, 1, 1.6, 2.2]` quel que soit l'écart ; `ZONE_DUR = 12`. Deux vedettes au 2e trio = 14,4 → « hors de ses lignes ».
+- [x] **L · Un cran ça passe, deux c'est énorme.** `malusZoneUnite` (`js/sim.js:305-311`) : `ZONE_NOMBRE = [1, 1, 1.6, 2.2]` quel que soit l'écart ; `ZONE_DUR = 12`. Deux vedettes au 2e trio = 14,4 → « hors de ses lignes ».
   - Correctif : multiplicateur de nombre seulement si l'écart max ≥ 2 ; `ZONE_DUR = 15`. 1/2/3 vedettes au 2e trio = 4,5 / 9,0 / 13,5. Si `mock_zones.mjs` lit EMPILÉ > 67,5, monter `ZONE_ECHELLE[1]` de 0,45 à 0,60.
   - Preuve : `mock_zones.mjs` (EMPILÉ ≤ 67,5) et `check_monotonie.mjs`.
-- [ ] **M · La chimie devient un levier, sans gonfler la ligue.** `CHIMIE_BONUS = 3,4` (`js/sim.js:4057`), `SYN_ECHELLE = 42` (`:2939`) → ×1,041 à 100.
+- [x] **M · La chimie devient un levier, sans gonfler la ligue.** `CHIMIE_BONUS = 3,4` (`js/sim.js:4057`), `SYN_ECHELLE = 42` (`:2939`) → ×1,041 à 100.
   - Correctif : bonus relatif `CHIMIE_BONUS × (c − 53) / 100` avec `CHIMIE_BONUS = 8,0` (2 × 42 × ln 1,10) : ligne soudée ×1,046, ligne cassée ×0,95, moyenne de ligue inchangée. Sinon, retirer « Plafond / Entente / Maîtrise » du tiroir (`js/gerant.js:757`).
   - Preuve : `calibrate_sim.mjs` (buts/match ±0,1) ; `check_chimie.mjs` : chimie 100 vs 0 → +9 à +11 % de buts sur 2 000 matchs.
 
@@ -137,7 +137,7 @@ Jours-personne pour un dev qui connaît le dépôt. Les jalons 1 et 2 se mènent
 - [x] **Q · Le bouton Signer dit quand il te bloque.** `maxForPick` (`js/game.js:514`) et `risky` (`:3881`) existent ; badge et toast à retardement (`:4066`) ; le refus (`:4051`) ne regarde que le plafond.
   - Correctif : `<button class="btn-sign risque">Signer · bloque la fin</button>` en rouge du club ; 1er toucher « Confirmer ? il restera 0,1 M$ pour 1 case », 2e toucher signe. Retirer le toast.
   - Preuve : `smoke.mjs` : `.btn-sign.risque` exige deux clics ; jamais `capLeft() < slotsLeft() × MIN_SAL` après un clic simple.
-- [ ] **R · Le robot ne gagne plus la Coupe.** Relire `check_robot.mjs` après A à Q. Si Coupe > 5 % : `EFFET`/`BORNES` des réputations (CLAUDE.md « Recalibrer ») et le prix d'une main non préparée (`energieAdverse`, `js/sim.js`).
+- [x] **R · Le robot ne gagne plus la Coupe.** Relire `check_robot.mjs` après A à Q. Si Coupe > 5 % : `EFFET`/`BORNES` des réputations (CLAUDE.md « Recalibrer ») et le prix d'une main non préparée (`energieAdverse`, `js/sim.js`).
   - Preuve : `check_robot.mjs` en CI : Coupe ≤ 5 %, séries 20 à 50 %, apport du ballottage ≤ +3 V.
 
 ## Jalon 2 · L'interface pro
@@ -152,17 +152,17 @@ Jours-personne pour un dev qui connaît le dépôt. Les jalons 1 et 2 se mènent
 
 ### Les cartes à choisir
 
-- [ ] **3 · Trois cartes visibles sur téléphone.** `style.css:6741-6749` bande `.choix-main` à 78 vw ; points `js/gerant.js:412`.
+- [x] **3 · Trois cartes visibles sur téléphone.** `style.css:6741-6749` bande `.choix-main` à 78 vw ; points `js/gerant.js:412`.
   - Correctif : trois mini-cartes (`calc((100vw − 48px) / 3)`, art 56 px, texte et puces masqués) ; la carte touchée s'ouvre en grand dans `.choix-lue` (gabarit `carteHtml`, `js/cartes.js:80`) ; second toucher choisit. Plus de points.
   - Preuve : `passerIdentite` (`smoke.mjs:57`) exige 3 `.tc` dont le bord droit ≤ `innerWidth`.
-- [ ] **4 · Les puces passent à la ligne.** `style.css:6346` `.puce { white-space: nowrap }` ; dérogations `:9323`, `:9494`.
+- [x] **4 · Les puces passent à la ligne.** `style.css:6346` `.puce { white-space: nowrap }` ; dérogations `:9323`, `:9494`.
   - Correctif : `white-space: normal; max-width: 100%` sur les puces de `.choix-option` et `.choix-sheet`, retirer les dérogations.
   - Preuve : `toutEstAtteignable` : question « coupé à droite » (`r.right > scrollWidth`).
-- [ ] **16 · Une carte ne parle que du mode joué.** `js/gerant.js:841` et `js/sim.js:5705` « En Rogue, grandit… » → `if (C.adv && MODE().rogue)`. `.tc-quoi` (`style.css:6726`) : `-webkit-line-clamp: 3`, puces toujours visibles.
+- [x] **16 · Une carte ne parle que du mode joué.** `js/gerant.js:841` et `js/sim.js:5705` « En Rogue, grandit… » → `if (C.adv && MODE().rogue)`. `.tc-quoi` (`style.css:6726`) : `-webkit-line-clamp: 3`, puces toujours visibles.
 
 ### Le repêchage et la fiche
 
-- [ ] **5 · La fiche : Signer collé au bas, verso au recto.** `js/game.js:5081-5135` (`ouvrirFiche`), `:5193` (« Ce qu'il sait faire » au verso).
+- [x] **5 · La fiche : Signer collé au bas, verso au recto.** `js/game.js:5081-5135` (`ouvrirFiche`), `:5193` (« Ce qu'il sait faire » au verso).
   - Correctif : bouton dans `.fiche-pied` `position: sticky; bottom: 0` (≤ 640 px) ; à ≥ 900 px, colonne droite = archétypes et traits + « Plus de détails » ouvert.
   - Preuve : `toutEstAtteignable('fiche')` + bouton visible sans défiler.
 - [ ] **6 · Sept retouches du vestiaire.** (a) Signer en risque : J1-Q. (b) Un seul compte : `:2564` badge = signables, `:3849` « Vestiaire · 35 signables ». (c) `index.html:102` « Tous » de la vue → « Liste », chip « Tous » → « Tout » ; sur téléphone, vue liste forcée quand le filtre est « Tout » (`style.css:1065`). (d) « À compléter » : J1-I. (e) `:2560-2570` onglets `mort` pendant le repêchage, opacité 0,45, badge « dès J1 ». (f) `:4822` « Encore N joueurs » → jauge (dégradé au pourcentage, « 14 / 23 · encore 9 »). (g) `:2141` toast « Classique… » seulement si une partie existait.
@@ -177,20 +177,20 @@ Jours-personne pour un dev qui connaît le dépôt. Les jalons 1 et 2 se mènent
   - Preuve : `sommairesVus` (`smoke.mjs:262`) ≈ gros matchs + avances ; `memesButs` inchangé.
 - [ ] **9 · Des mots de hockey.** `js/saison.js:1387` « Retour au hub » → « Retour au bureau » ; `:2327` « ⏳ Règle d'abord ce message » → « À régler avant le match » ; `:1796, 2222` « Le palier de la journée N » → « La main de la journée N ».
   - Preuve : grep `hub` dans les chaînes affichées → 0.
-- [ ] **10 · Le classement sur téléphone.** `#hubFlottant` (`js/saison.js:514`, CSS `:6908`) cache des rangées ; `:1594` `teamShort(t)` tronqué.
+- [x] **10 · Le classement sur téléphone.** `#hubFlottant` (`js/saison.js:514`, CSS `:6908`) cache des rangées ; `:1594` `teamShort(t)` tronqué.
   - Correctif : `padding-bottom: calc(var(--bas-coquille) + 72px)` sur le volet ; à ≤ 480 px, `tagCourt(t)` (« CGY '93 », déjà `:1504`).
   - Preuve : à 390, aucune `td.nom` tronquée, `tr.toi` au-dessus du flottant.
 - [ ] **11 · Préparer le match : l'adversaire d'abord, un seul réglage.** `js/gerant.js:495` (`enFace` par ligne), `:596` (titre), `:604-605` (curseur `gl-ad`), `:631` (phrase chimie).
   - Correctif : bloc `gl-adv-tete` une fois sous le titre, depuis le dépistage ; phrase chimie en `title` ; curseur retiré du tiroir et de `match.ad` dans `js/sim.js` (il alimente `finition 1 + 0,025·ad` : l'encoder dans la consigne, basse = −1, haute = +1).
   - Preuve : `.gl-adv-tete` précède `.gl-consigne` ; `toutEstAtteignable`.
-- [ ] **12 · Les puces des cartes de la main visibles à 900 px.** `js/cartes.js:87-88` texte d'ambiance avant les puces ; `.main-sheet .tc-art` 84 px (`style.css:6818`).
+- [x] **12 · Les puces des cartes de la main visibles à 900 px.** `js/cartes.js:87-88` texte d'ambiance avant les puces ; `.main-sheet .tc-art` 84 px (`style.css:6818`).
   - Correctif : `.main-sheet .tc-puces { order: -1 }` sous le type, art 64 px, ambiance à deux lignes.
   - Preuve : `smoke.mjs:290` à 1440 × 900 : chaque `.tc-puces` au-dessus de `.main-boutons`.
 - [ ] **13 · « L'adjoint joue cette série ».** Ouverture de la main de série `js/saison.js:925` (`ouvrirMainGros`) ; aucun robot de main n'existe.
   - Correctif : `mainParDefaut(main, energie, pistes)` dans `js/combat.js` (piste la plus probable, cartes par gain décroissant sous `ENERGIE_MAIN`) ; option qui enregistre `{ main, auto: true, serie: i }` et saute mains et entractes de la série (« Garder le cap »).
   - Preuve : `check_combat.mjs` : jamais au-dessus de l'énergie ; smoke série accepte « adjoint ».
 - [ ] **14 · L'entracte en 2 × 2.** `style.css:6331` : `.choix-options:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, 1fr) }` à ≥ 900 px ; poser `data-genre="entracte"`.
-- [ ] **17 · Le toast en haut sur téléphone.** `style.css:2292, 7031` : à ≤ 1199 px, `top: calc(var(--topbar-h) + 8px + env(safe-area-inset-top))`.
+- [x] **17 · Le toast en haut sur téléphone.** `style.css:2292, 7031` : à ≤ 1199 px, `top: calc(var(--topbar-h) + 8px + env(safe-area-inset-top))`.
   - Preuve : après une signature, `#toast` dans la moitié haute.
 - [ ] **18 · Le bilan conseille avec ses chiffres.** `js/bilan.js:498-501` → « Ton 4e trio a marqué 3 buts en 80 tirs : c'est là que ça se joue. » depuis le rapport du dépisteur ; sous 41 V, la défense et son rang.
   - Preuve : `check_fiches.mjs` : la phrase cite un nombre du rapport.
@@ -219,9 +219,9 @@ Un joueur se lit donc en : RÔLE (icône, mot, et ses scores dans les autres rô
 
 - [ ] **C1 · Un mot par idée.** « Jambes » pour la fatigue d'un joueur (sur 100, jamais « % ») ; « Élan » pour la mana des cartes ; le rôle 🌪️ Énergie devient « Plombier » ; « Punitions / match » là où la fiche écrit « ROBUSTESSE » ; « niveau » ne désigne plus que Soutien → Phénomène (le rôle dit élite / très bon / bon…). Une icône = un sens (liste des huit doublons dans le diagnostic : 🪨 🧊 🚀 🎯 🪄 🧤 🔄 🧱).
 - [ ] **C2 · Moins de familles à l'écran, pas moins de profondeur.** Retirer de l'affichage ce que le moteur ne lit pas ou qui répète : archétype des patineurs, PRODUCTION et PENCHANT du profil mesuré, MJ %, MBA et BL des gardiens hors fiche, la marque 🧊 (le rôle la porte). La carrure 🪨 / 🪶 RESTE (elle fait le build d'agressivité), avec son seul sens. Les scores d'un joueur dans les autres rôles deviennent visibles à un toucher (ils décident déjà du fit). Le chiffre clé d'un gardien devient son % d'arrêts (celui que le moteur lit), pas ses victoires.
-- [ ] **C3 · La fatigue qui compte et qui se voit.** Récupération journalière ajustée pour que le 1er trio d'une équipe qui joue Haute descende vraiment (cible : 75-85 au matin après une semaine chargée, 100 au repos) ; les jambes affichées en chiffre sur la case de l'alignement et dans « Préparer le match » ; le roulement « jambes fraîches » agit vraiment sur les jambes (ou son texte change) ; les gestes « énergie +N » ne sont offerts que sous 100.
-- [ ] **C4 · Les gardiens.** Une fatigue du gardien (départs consécutifs, sans effet sous trois de suite, qui pèse au quatrième) ; dans « Préparer le match », « Devant le filet ce soir » : le partant et l'auxiliaire avec leurs jambes et leur % d'arrêts, et on choisit. La rotation automatique reste le défaut.
-- [ ] **C5 · Les pourcentages disent ce qu'ils multiplient.** Dans « Préparer le match » et au hub : le TOTAL par canal ce soir (« Tirs +14 % · Précision −3 % · Buts contre −6 % »), calculé comme le moteur le fait (produit, plafonds compris) ; une phrase une fois : « les effets se multiplient ». Les puces gardent leur chiffre.
+- [x] **C3 · La fatigue qui compte et qui se voit.** Récupération journalière ajustée pour que le 1er trio d'une équipe qui joue Haute descende vraiment (cible : 75-85 au matin après une semaine chargée, 100 au repos) ; les jambes affichées en chiffre sur la case de l'alignement et dans « Préparer le match » ; le roulement « jambes fraîches » agit vraiment sur les jambes (ou son texte change) ; les gestes « énergie +N » ne sont offerts que sous 100.
+- [x] **C4 · Les gardiens.** Une fatigue du gardien (départs consécutifs, sans effet sous trois de suite, qui pèse au quatrième) ; dans « Préparer le match », « Devant le filet ce soir » : le partant et l'auxiliaire avec leurs jambes et leur % d'arrêts, et on choisit. La rotation automatique reste le défaut.
+- [x] **C5 · Les pourcentages disent ce qu'ils multiplient.** Dans « Préparer le match » et au hub : le TOTAL par canal ce soir (« Tirs +14 % · Précision −3 % · Buts contre −6 % »), calculé comme le moteur le fait (produit, plafonds compris) ; une phrase une fois : « les effets se multiplient ». Les puces gardent leur chiffre.
 - [ ] **C6 · La page des règles réécrite** sur le modèle ci-dessus, courte, sans ce qui est périmé, avec les mêmes mots que l'écran.
 - Preuves : un `scripts/check_clarte.mjs` qui refuse une icône à deux sens, le mot « énergie » hors des jambes, et un chiffre affiché que le moteur ne lit pas (liste blanche) ; `check_situations` pour les jambes (cible C3) ; smoke : la case de l'alignement montre rôle, niveau, zone, jambes.
 
@@ -257,7 +257,7 @@ Inventaire mesuré au commit `7da2bd5` (commandes à la fin).
 - [ ] **7 · Une minification à la publication.** Une étape `esbuild --minify` dans l'Action Pages vers le dossier publié, source maps ; le dépôt reste sans build. Gain attendu : −55 % JS, −30 % CSS avant gzip.
 - [ ] **8 · Scripts et couverture.** Supprimer `essai_menu.mjs`, `mock_plafond.mjs` ; documenter `recrues.mjs` (écrit `data/recrues.json`). `npm test` avec les `check_*` sous 15 s (`check_deck`, `check_packs`, `check_combat`, `check_banque`, `check_identite`, `check_atelier`, `check_pronostic`…) dans `verifier.yml`.
 - [ ] **9 · Les données.** Publier seulement index.html, style.css, sw.js, js/, fonts/, img/logos, img/mugs, `data/{index,seed,portraits,recrues}.json`, `data/{trophees,reputations}.js`, `data/seasons/*.json`. `data/salaries/` (1,9 Mo) hors du publié. `data/seed.json` (2,8 Mo) hors de la coquille précachée, en cache à la demande. Portraits (57 Mo du dépôt, 64 Mo de l'APK) : 160 px pour le vestiaire, 320 px pour la fiche, ou téléchargement à la première ouverture.
-- [ ] **10 · Les docs.** CLAUDE.md < 40 Ko : projet en une phrase, avant de coder, structure, invariants en une ligne avec leur script, tester, ce qu'il ne faut pas faire. Le reste dans `docs/journal/S66.md … S80.md` et `docs/decisions.md` (388 paragraphes en gras → titres datés). PLAN.md < 15 Ko ; son journal (220 Ko) dans `docs/journal/`. MOTEUR.md : garder.
+- [x] **10 · Les docs.** CLAUDE.md < 40 Ko : projet en une phrase, avant de coder, structure, invariants en une ligne avec leur script, tester, ce qu'il ne faut pas faire. Le reste dans `docs/journal/S66.md … S80.md` et `docs/decisions.md` (388 paragraphes en gras → titres datés). PLAN.md < 15 Ko ; son journal (220 Ko) dans `docs/journal/`. MOTEUR.md : garder.
 
 Rejouer l'inventaire :
 
@@ -332,3 +332,5 @@ awk '/^## /{if(n)print b"\t"s"\t"n; n=$0; s=NR; b=0} {b+=length($0)+1} END{print
 - 2026-09-28 — Mobile : l'APK ne porte plus les 3 913 portraits (www/ 80 → 23 Mo), ils se téléchargent en arrière-plan depuis le site publié (js/distant.js). À faire : activer GitHub Pages, sinon silhouettes.
 - 2026-09-28 — Fusionnés dans 1.0 : J0 (check_robot), J1 A B C D E F G H I J N O Q, R4 R5 R7 R8, J4 au complet. Correctif : poserGros lisait une variable disparue après l'extraction de lignesDeGros.
 - 2026-09-28 — JP : *les packs sont trop généreux en joueurs étoiles*. Au moins une étoile par pack : Bronze 2,5 %, Argent 7 %, Or 16 %, Premium 35 % (avant 6, 18, 34, 60 %).
+- 2026-09-29 — Fusionnés : J1 K L M (zones, deux vedettes, chimie relative), J2 3 4 5 10 12 16 17 et R6 (mobile), les cartes de club (7 cartes d'origine), la page des lignes (cases sans photo, niveau, jambes ; le système en fenêtre), C3 C4 C5 (jambes qui comptent, gardiens et « Devant le filet ce soir », totaux du soir), J3-10 (CLAUDE.md 608 → 14 Ko, PLAN.md 284 → 5 Ko, historique dans docs/).
+- 2026-09-29 — Mesures : Rogue sans déblocage 2,5 % de Coupe par run, première Coupe à la run 3,5 en médiane (R9 tenu) ; robot 0 Coupe sur 40, séries 57 %, ballottage −0,4 V ; chimie 100 contre 0 : +10,9 % de buts ; jambes du 1er trio 92,7 au défaut, 84,0 poussé.
