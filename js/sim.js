@@ -1019,8 +1019,8 @@ export const CARTES = {
   // avril (+0,90 contre −0,80, plus ce que les séries prendront).
   jeunesse: {
     nom: 'La jeunesse', ico: '⚡',
-    bon: 'Des jambes fraîches : plus de lancers', prix: 'Moins robuste quand ça brasse',
-    volume: 1.04, robustesse: -1.0,
+    bon: 'Des jambes fraîches : plus de lancers, et on s\'use moins', prix: 'Moins robuste quand ça brasse',
+    volume: 1.04, robustesse: -1.0, energie: 0.85,
   },
   /*
    * QUATRE CARTES DE PLUS (S62), et la variété était la raison : JP voulait
@@ -1636,7 +1636,7 @@ export function canalSysteme(S, fit, canal) {
  * moteur. Le jeu robuste est le canal « physique » : ce que la mise en échec
  * rapporte les soirs éreintants et en séries.
  */
-const CANAUX_SYSTEME = [['volume', 'Tirs', 1], ['finition', 'Précision', 1], ['defense', 'Buts contre', -1], ['discipline', 'Punitions', -1], ['energie', 'Fatigue', -1], ['physique', 'Jeu robuste', 1]];
+const CANAUX_SYSTEME = [['volume', 'Tirs', 1], ['finition', 'Précision', 1], ['defense', 'Buts contre', -1], ['discipline', 'Punitions', -1], ['energie', 'Usure des jambes', -1], ['physique', 'Jeu robuste', 1]];
 export function effetsDeSysteme(S, fit) {
   if (!S || !S.slots) return [];
   return CANAUX_SYSTEME.map(([c, nom, sens]) => {
@@ -1981,38 +1981,89 @@ export function majChimie(team, lineup) {
 // meilleures lignes, qui lancent le plus ; la part des actions spéciales revient à ~12 %.
 export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.9;
 
-/* ---------- l'énergie ---------- */
+/* ---------- l'énergie : les JAMBES (1.0, C3) ---------- */
 /*
- * Par joueur, de 0 à 100, sur toute la saison. Un match coûte `ENERGIE_R` ×
- * l'usure de sa ligne (ses secondes de présence, son agressivité, sa
- * tactique) ; chaque journée rend `ENERGIE_R` × (2 − énergie/100), donc à
- * usure normale on reste à 100, et à usure 1,2 on se stabilise vers 80. Un
- * joueur usé rend moins (la moitié de ce qui lui manque) et, sous 60, se
- * blesse plus.
+ * Par joueur, sur 100, sur toute la saison. JP : *je veux variété de build*.
+ * Les jambes sont le levier « profondeur contre vedettes » : pousser son
+ * premier trio (plus de glace, une agressivité haute, un système qui use)
+ * lui donne plus de lancers ce soir et lui coûte des jambes demain.
+ *
+ * L'USURE d'une unité par match suit sa PART DE GLACE (`partsDuRoulement` :
+ * les secondes de présence, le roulement, les moments qui déplacent les
+ * minutes, renormalisées), rapportée à la part moyenne — le 1er trio s'use
+ * 1,36 fois la moyenne à 60 s, le 4e 0,64 fois —, multipliée par
+ * l'agressivité, le prix du système et les effets qui portent `energie`
+ * (l'importance du match, une carte, un patron).
+ *
+ * UN MATCH COÛTE `ENERGIE_C` × usure² (convexe : pousser coûte de plus en
+ * plus) ; CHAQUE JOURNÉE rend la moitié de ce qui manque (`ENERGIE_RECUP`).
+ * À l'équilibre, un matin vaut donc 100 − C × usure² : un 1er trio réglé par
+ * défaut dort à 93, un 4e à 98 ; un 1er trio à 80 s, rentre-dedans, en
+ * échec avant, un soir important, tombe vers 80. Une journée de congé
+ * rend la moitié du manque de plus ; un repos (les gestes « énergie +N »)
+ * rend des jambes, et ce qui dépasse 100 reste EN RÉSERVE : le prochain
+ * match le brûle d'abord (`p._reserve`, au plus `RESERVE_MAX`).
+ *
+ * CE QUE ÇA COÛTE SUR LA GLACE : au-dessus de `ENERGIE_SEUIL` (90), un
+ * joueur rend tout ; en dessous, il perd `ENERGIE_EFFET` × (90 − jambes)/100
+ * en lancers, en finition et en création (82 de jambes : −4 % sur chacun).
+ * Sous `ENERGIE_BLESSURE` (60), il se blesse plus. Le seuil garde la ligue
+ * calibrée : une ligne réglée par défaut ne passe jamais sous 90.
  */
-export const ENERGIE_R = 18, ENERGIE_EFFET = 0.5, ENERGIE_BLESSURE = 60;
+export const ENERGIE_C = Number(ENV_MESURE.ENERGIE_C ?? 3.8), ENERGIE_RECUP = 0.5, ENERGIE_SEUIL = 90,
+  ENERGIE_EFFET = Number(ENV_MESURE.ENERGIE_EFFET ?? 0.5), ENERGIE_BLESSURE = 60, RESERVE_MAX = 30;
+/* Gardé pour les vieux appelants : l'ancienne constante de récupération. */
+export const ENERGIE_R = 18;
 export const energieDe = p => (p && Number.isFinite(p.energie) ? p.energie : 100);
-export const facteurEnergie = p => 1 - ENERGIE_EFFET * (1 - energieDe(p) / 100);
-/* L'usure d'une ligne par match : 1 à la glace et à l'agressivité par défaut. */
-export function usureLigne(l, sParts, groupe = 'F') {
+export const facteurEnergie = p => 1 - ENERGIE_EFFET * Math.max(0, ENERGIE_SEUIL - energieDe(p)) / 100;
+/* Rendre des jambes : jusqu'à 100, et le surplus en réserve pour le prochain match. */
+export function rendreJambes(p, n) {
+  if (!p || !n) return;
+  const e = energieDe(p) + n;
+  if (n < 0) { p.energie = Math.max(0, e); return; }
+  p.energie = Math.min(100, e);
+  if (e > 100) p._reserve = Math.min(RESERVE_MAX, (p._reserve || 0) + (e - 100));
+}
+/* L'usure par match d'une unité (1 = la part de glace moyenne, défaut). */
+export function usureLigne(l, part, partMoy, groupe = 'F') {
   const S = groupe === 'D' ? SYSTEMES_D[l.tacD] : TACTIQUES[l.tac];
   const prix = S && S.prix && S.prix.energie ? S.prix.energie : 1;
-  return (l.sec / sParts) * AGRESSIVITES[l.agr].energie * prix;
+  return (part / (partMoy || part || 1)) * AGRESSIVITES[l.agr].energie * prix;
 }
-export function depenserEnergie(team, lineup) {
+/* Le multiplicateur d'usure des effets, des cartes de saison et des patrons. */
+export function kUsure(team) {
+  const src = [...effetsActifs(team), ...((team && team.patrons) || []), ...((team && team.cartes) || []).map(c => CARTES[c])];
+  return src.reduce((a, x) => a * ((x && x.energie) || 1), 1);
+}
+/* L'usure de chaque ligne ce soir : { F: [4], D: [3] }. */
+export function usuresDe(team, lineup) {
   const lignes = lignesDe(team, lineup);
-  const moy = lignes.reduce((a, l) => a + l.sec, 0) / 4 || SEC_DEFAUT;
-  // L'importance du match (et tout effet qui porte `energie`) module l'usure.
-  const k = [...effetsActifs(team), ...((team && team.patrons) || [])].reduce((a, x) => a * (x.energie || 1), 1);
+  const pF = partsDuRoulement(POIDS_TRIO, 'F', team), pD = partsDuRoulement(POIDS_PAIRE, 'D', team);
+  const mF = pF.reduce((a, b) => a + b, 0) / pF.length, mD = pD.reduce((a, b) => a + b, 0) / pD.length;
+  const k = kUsure(team);
+  return {
+    F: [0, 1, 2, 3].map(u => usureLigne(lignes[u], pF[u], mF, 'F') * k),
+    D: [0, 1, 2].map(u => usureLigne(lignes[u], pD[u], mD, 'D') * k),
+  };
+}
+/* Les jambes qu'une ligne aurait au matin, à l'équilibre, jouée ainsi tous les soirs. */
+export const jambesEquilibre = us => Math.max(0, Math.min(100, 100 - ENERGIE_C * us * us));
+export function depenserEnergie(team, lineup) {
+  const us = usuresDe(team, lineup);
   for (let u = 0; u < 4; u++) {
-    const usF = usureLigne(lignes[u], moy, 'F') * k, usD = usureLigne(lignes[u], moy, 'D') * k;
-    for (const [role, p] of Object.entries(joueursDeLigne(lineup, u))) if (p) p.energie = Math.max(0, energieDe(p) - ENERGIE_R * (role === 'DG' || role === 'DD' ? usD : usF));
+    for (const [role, p] of Object.entries(joueursDeLigne(lineup, u))) {
+      if (!p) continue;
+      const d = role === 'DG' || role === 'DD';
+      let cout = ENERGIE_C * Math.pow(d ? us.D[pairDeLigne(u)] : us.F[u], 2);
+      if (p._reserve) { const r = Math.min(p._reserve, cout); p._reserve -= r; cout -= r; }
+      p.energie = Math.max(0, energieDe(p) - cout);
+    }
   }
 }
 export function recupererEnergie(team) {
   for (const s of SLOTS) {
     const p = team.roster[s.i];
-    if (p) p.energie = Math.min(100, energieDe(p) + ENERGIE_R * (2 - energieDe(p) / 100));
+    if (p) p.energie = Math.min(100, energieDe(p) + ENERGIE_RECUP * (100 - energieDe(p)));
   }
 }
 
@@ -4932,8 +4983,8 @@ function appliquerDecision(team, d, graine = 0) {
       if (!n) continue;
       if (n <= g.soin) team.injured.delete(p); else team.injured.set(p, n - g.soin);
     }
-    if (g.energie) for (const p of nommes) p.energie = Math.max(0, Math.min(100, energieDe(p) + g.energie));
-    if (g.energieTous) for (const s of SLOTS) { const p = team.roster[s.i]; if (p && p.p !== 'G') p.energie = Math.max(0, Math.min(100, energieDe(p) + g.energieTous)); }
+    if (g.energie) for (const p of nommes) rendreJambes(p, g.energie);
+    if (g.energieTous) for (const s of SLOTS) { const p = team.roster[s.i]; if (p && p.p !== 'G') rendreJambes(p, g.energieTous); }
     if (g.gardienAux) team.gardienAux = Math.max(team.gardienAux || 0, d.jour + g.gardienAux);
   }
   if (d.effet) {
@@ -5142,7 +5193,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
@@ -5157,7 +5208,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
      */
     for (const p of CONNUS.values()) {
       if (!p) continue;
-      p.energie = 100;
+      p.energie = 100; delete p._reserve;
       delete p._maitrise; delete p._adapt; delete p._situ;
       delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
     }
@@ -5494,7 +5545,7 @@ export function copieDeJoueur(p) {
   return c;
 }
 function remettreANeuf(t) {
-  for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { initSimStats(p); p.energie = 100; } }
+  for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { initSimStats(p); p.energie = 100; delete p._reserve; } }
   t.injured = new Map(); t.together = new Map(); t.togetherSig = new Map(); t.injuriesLog = []; t.journal = [];
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
@@ -5929,7 +5980,7 @@ export function motsDEffet(e, duree = null) {
   if (e.defense && e.defense !== 1) out.push({ txt: `Buts contre ${pct(e.defense)}`, bon: e.defense < 1 });
   if (e.discipline && e.discipline !== 1) out.push({ txt: `Punitions ${pct(e.discipline)}`, bon: e.discipline < 1 });
   if (e.blessure && e.blessure !== 1) out.push({ txt: `Blessures ${pct(e.blessure)}`, bon: e.blessure < 1 });
-  if (e.energie && e.energie !== 1) out.push({ txt: `Fatigue ${pct(e.energie)}`, bon: e.energie < 1 });
+  if (e.energie && e.energie !== 1) out.push({ txt: `Usure des jambes ${pct(e.energie)}`, bon: e.energie < 1 });
   if (e.robustesse) out.push({ txt: `Robustesse ${e.robustesse > 0 ? '+' : '−'}${String(Math.abs(Math.round(e.robustesse * 10) / 10)).replace('.', ',')}`, bon: e.robustesse > 0 });
   const rangF = ['1er trio', '2e trio', '3e trio', '4e trio'], rangD = ['1re paire', '2e paire', '3e paire'];
   for (const [g, noms] of [['F', rangF], ['D', rangD]]) if (Array.isArray(e[g])) e[g].forEach((m, i) => {
@@ -6596,7 +6647,7 @@ function poserGros(toi, adv, gros) {
       const fx = effetsDesCartes(adv, { jouees: gros.cartesAdv }, `${gros.graineMain}:${gros.cleMain}:adverse`, { mainAdv: (gros.cartes && gros.cartes.jouees) || [], echelle: echelleDuGros(gros, toi) });
       adv._effetMatch = [...(adv._effetMatch || []), ...fx.effets];
       toi._effetMatch.push(...fx.adv);
-      if (fx.energieTous) for (const sl of SLOTS) { const p = adv.roster[sl.i]; if (p && p.p !== 'G') p.energie = Math.min(100, energieDe(p) + fx.energieTous); }
+      if (fx.energieTous) for (const sl of SLOTS) { const p = adv.roster[sl.i]; if (p && p.p !== 'G') rendreJambes(p, fx.energieTous); }
     }
     gros.cartesJouees = { ...(gros.cartesJouees || { jouees: [] }), plan: gros.plan, adverses: gros.cartesAdv.slice(), annulee };
   }
@@ -6628,7 +6679,7 @@ function poserCartes(toi, adv, gros) {
   if (fx.lire) gros.contre = true;
   if (fx.energieTous) for (const sl of SLOTS) {
     const p = toi.roster[sl.i];
-    if (p && p.p !== 'G') p.energie = Math.min(100, energieDe(p) + fx.energieTous);
+    if (p && p.p !== 'G') rendreJambes(p, fx.energieTous);
   }
   gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire, contre: !!fx.contre };
   return fx;
@@ -6750,7 +6801,7 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
 export function simulerGrosMatch(toi, adv, { plan = 'trappe', cartes = null, graine = 'mesure', cle = 'j0', prep = null, moment = null } = {}) {
   grainerHasard(`${graine}:${cle}`);
   // Des jambes fraîches des deux côtés : une carte qui rend de l'énergie écrit sur les joueurs, et la mesure d'un match ne doit pas hériter du précédent.
-  for (const t of [toi, adv]) for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) p.energie = 100; }
+  for (const t of [toi, adv]) for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) { p.energie = 100; delete p._reserve; } }
   // LE MOMENT (S80, scripts/check_rogue.mjs) : le même match au jour N de la saison, ou à une ronde des séries — l'échelle de la fin de partie suit.
   const m = moment || {};
   const gros = { jour: m.serie ? 0 : (m.jour || 0), serie: !!m.serie, ronde: m.ronde || 0, adv, raison: 'rival', plan, prep, avant: null, effetsAvant: [], cartes, cleCartes: `${graine}:${cle}`, graineMain: graine, cleMain: cle };
@@ -6801,8 +6852,8 @@ export function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = 
   const gestes = (a, j0) => {
     if (!a) return;
     if (a.absents) for (const p of joueurs) team.absents.set(p, Math.max(team.absents.get(p) || 0, j0 + a.absents));
-    if (a.energie) for (const p of joueurs) p.energie = Math.max(0, Math.min(100, energieDe(p) + a.energie));
-    if (a.energieTous) for (const s of SLOTS) { const p = team.roster[s.i]; if (p && p.p !== 'G') p.energie = Math.max(0, Math.min(100, energieDe(p) + a.energieTous)); }
+    if (a.energie) for (const p of joueurs) rendreJambes(p, a.energie);
+    if (a.energieTous) for (const s of SLOTS) { const p = team.roster[s.i]; if (p && p.p !== 'G') rendreJambes(p, a.energieTous); }
     if (a.gardienAux) team.gardienAux = Math.max(team.gardienAux || 0, j0 + a.gardienAux);
   };
   const effet = (e, j0, source) => {

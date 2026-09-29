@@ -376,8 +376,8 @@ export function reglesDe(id) {
 function motsDesGestes(g) {
   const out = [];
   if (g.soin) out.push({ txt: `${g.tousLesBlesses ? 'Tous tes blessés' : 'Un blessé'} : −${g.soin} match${g.soin > 1 ? 's' : ''} d'infirmerie`, bon: true });
-  if (g.energie) out.push({ txt: `Un joueur : énergie +${g.energie}`, bon: true });
-  if (g.energieTous) out.push({ txt: `Tes patineurs : énergie +${g.energieTous}`, bon: true });
+  if (g.energie) out.push({ txt: `Un joueur : jambes +${g.energie}`, bon: true });
+  if (g.energieTous) out.push({ txt: `Tes patineurs : jambes +${g.energieTous}`, bon: true });
   return out;
 }
 
