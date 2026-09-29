@@ -1073,6 +1073,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // UN SOMMAIRE EST À L'ÉCRAN : les choix forcés attendent qu'il se ferme (ils
   // passeraient devant, et ouvrir l'un fermerait l'autre sans un mot).
   let retenir = false;
+  // UN MATCH ORDINAIRE NE S'OUVRE PLUS EN PLEIN ÉCRAN (1.0, J2-8) : son
+  // résultat monte en tête du volet (`hierFrais` = la journée), et s'anime une
+  // fois (`hierAnimer`). « Sommaire › » l'ouvre au besoin.
+  let hierFrais = -1, hierAnimer = false;
 
   const gpDe = t => { const g = fiche.get(t); return g ? g.W + g.L + g.OTL : 0; };
   const virgule = (x, d = 1) => Number(x).toFixed(d).replace('.', ',');
@@ -1366,6 +1370,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   function ouvrirSommaire(avant) {
     const nouveaux = miens.slice(avant.joues);
     if (!nouveaux.length) return false;
+    const attend = messagesCourants().filter(m => m.bloque);
+    /*
+     * LE PLEIN ÉCRAN SE MÉRITE (1.0, J2-8). JP ne voulait pas tout relire à
+     * chaque journée : un seul match ordinaire, sans gros match, sans
+     * blessure neuve et sans courrier à régler, se lit au bureau — le
+     * résultat monte en tête du volet. Le plein écran reste pour les avances
+     * de plusieurs journées, les gros matchs, les blessures et l'attente.
+     */
+    const grosVu = (you.minisBoss || []).some(mb => mb.jour >= avant.jour && mb.jour < jour);
+    const blesse = (you.injuriesLog || []).some(b => b.at > avant.joues && b.at <= miens.length);
+    if (nouveaux.length === 1 && !grosVu && !blesse && !attend.length) { hierFrais = jour; hierAnimer = true; return false; }
     const f = fiche.get(you), rang = rangDe(you);
     const W = nouveaux.filter(x => gagne(x.m, you)).length;
     const OTL = nouveaux.filter(x => !gagne(x.m, you) && x.m.ot).length, L = nouveaux.length - W - OTL;
@@ -1392,7 +1407,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const mb of (you.minisBoss || []).filter(mb => mb.jour >= avant.jour && mb.jour < jour)) {
       blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.gagne ? ELAN.duree : SONNE.duree} matchs</div>`);
     }
-    const attend = messagesCourants().filter(m => m.bloque);
     retenir = true;
     ouvrirChoix({
       // UN SEUL BOUTON (JP : *jamais dédoubler information*) : retour au hub, ou à la boîte s'il y a du courrier à régler.
@@ -1516,7 +1530,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const v = gagne(m, you);
     const eq = (t, buts) => `<span class="hub-hier-eq${t === you ? ' toi' : ''}">${ctx.logo(t.tag, 18)}<b>${ctx.esc(ctx.tagCourt(t))}</b><em>${buts}</em></span>`;
     const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
-    return `<div class="hub-hier ${v ? 'v' : 'd'}"${somm}>
+    // Le résultat neuf, lu au bureau plutôt qu'en plein écran (J2-8) : il s'anime une fois.
+    const neuf = hierFrais === j + 1 && hierAnimer ? ' neuf' : '';
+    if (neuf) hierAnimer = false;
+    return `<div class="hub-hier ${v ? 'v' : 'd'}${neuf}"${somm}>
       <span class="hub-hier-quand">Journée ${j + 1} · <b>${v ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}</b></span>
       <span class="hub-hier-score">${eq(m.A, m.gfA)}<i>–</i>${eq(m.B, m.gfB)}${m.ot ? '<small>P</small>' : ''}</span>
       ${m.feuille ? '<span class="hub-hier-voir">Sommaire ›</span>' : ''}
@@ -1587,7 +1604,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
 
   // LE VOLET « MATCH » (S79) : l'état de la saison (`etatHtml`), puis hier soir en une ligne.
   // Au bureau, il coiffe la colonne de droite ; l'affiche et les boutons tiennent la gauche.
-  const voletJournee = () => etatHtml() + voletJourneeSeul();
+  // Le soir d'un match lu au bureau (J2-8), son résultat passe devant l'état de la saison.
+  const voletJournee = () => (hierFrais === jour ? voletJourneeSeul() + etatHtml() : etatHtml() + voletJourneeSeul());
   const voletJourneeSeul = () => {
     if (!jour) return '';
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];

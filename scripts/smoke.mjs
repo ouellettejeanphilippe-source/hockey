@@ -1214,6 +1214,19 @@ async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
   await page.click('#hubModal .hub-jour');
   await page.waitForTimeout(150);
+  /*
+   * UN MATCH ORDINAIRE SE LIT AU BUREAU (1.0, J2-8) : pas de plein écran,
+   * le résultat en tête du volet. Le plein écran ne vient que pour une
+   * raison qu'il dit (une blessure, un gros match, du courrier à régler).
+   */
+  {
+    await page.waitForTimeout(250);
+    const som = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]');
+    const txt = som ? ((await som.textContent()) || '') : '';
+    if (som && !/🚑|Gros match|à traiter/.test(txt)) errors.push(`le sommaire s'ouvre en plein écran pour un match ordinaire : « ${txt.replace(/\s+/g, ' ').slice(0, 80)} »`);
+    else if (!som && !(await page.$('#hubModal .hub-hier'))) errors.push('après « Journée suivante », le résultat n\'est ni en plein écran ni au bureau');
+    else if (!som) console.log('   un match ordinaire : pas de plein écran, le résultat monte au bureau');
+  }
   const jour = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
 
   /*

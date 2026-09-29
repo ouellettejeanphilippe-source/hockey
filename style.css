@@ -9719,6 +9719,10 @@ body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { displa
 .hub-hier.v { border-left-color: var(--green); }
 .hub-hier.d { border-left-color: var(--live); }
 .hub-hier[data-sommaire] { cursor: pointer; }
+/* 1.0 (J2-8) : le résultat d'un match ordinaire, lu au bureau, entre une fois. */
+.hub-hier.neuf { animation: hier-neuf 400ms var(--e-ressort, ease-out) both; }
+@keyframes hier-neuf { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hub-hier.neuf { animation: none; } }
 .hub-hier[data-sommaire]:hover, .hub-hier[data-sommaire]:focus-visible { border-color: var(--ui-accent); }
 .hub-hier-quand { flex: 1 1 100%; font-size: 12.5px; color: var(--muted); letter-spacing: .02em; }
 .hub-hier-quand b { color: var(--text); }
