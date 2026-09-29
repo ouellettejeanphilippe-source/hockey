@@ -18,8 +18,9 @@ const verifier = (ok, mot) => { if (!ok) problemes.push(mot); };
 
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForSelector('#menuDepart', { timeout: 20000 });
-verifier(!!(await page.$('.menu-mode[data-genre="exhibition"] [data-menu="exhibition"]')), 'le menu n\'a pas de carton Exhibition');
-await page.$eval('.menu-mode[data-genre="exhibition"]', e => e.scrollIntoView());
+// 1.0 (R8) : l'exhibition est un lien sous la grille des modes, plus un carton.
+verifier(!!(await page.$('#menuDepart .menu-lien[data-menu="exhibition"]')), 'le menu n\'a pas de lien Exhibition');
+await page.$eval('#menuDepart .menu-lien[data-menu="exhibition"]', e => e.scrollIntoView());
 await page.screenshot({ path: `${DOSSIER}/exh-menu.png` });
 const cles = () => page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('cap82_partie')).map(k => `${k}:${(localStorage.getItem(k) || '').length}`).sort().join(','));
 const avant = await cles();
