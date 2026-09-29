@@ -3033,7 +3033,11 @@ export const REF = { pression: 1.233, zDef: 0.169, fg: 0.899, pctTir: 1.025, cre
  * 43,4 dans la réalité. À 1,045, la moyenne retombe exactement sur le réel,
  * et les dix déciles de `check_monotonie.mjs` avec elle.
  */
-export const PCT_TIR_NEUTRE = 0.965;
+// 1.0 · J1-M : 0,965 → 0,945. La chimie relative (bonus négatif sous le pivot) coûte au
+// solo, où la chimie part de zéro contre un adversaire qui n'en a pas : les déciles de
+// check_monotonie reculaient d'une demi-victoire (50,1 → 49,6 au 10e) ; 0,945 les remet
+// à 25,2 / 50,3. Le jeu, lui, joue en ligue (simulateLeague) et ne lit pas ce nombre.
+export const PCT_TIR_NEUTRE = Number(ENV_MESURE.PCT_TIR_NEUTRE ?? 0.945);
 
 /*
  * Le pourcentage de tir de référence, et donc l'ancrage du pointage : c'est
@@ -3377,7 +3381,7 @@ export function profilMatch(team, lineup, adv = null) {
     for (let u = 0; u < poids.length; u++) {
       const slots = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch);
       const syn = getUnitSynergy(lineup, group, u);
-      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + CHIMIE_BONUS * chimieSoir[u] / 100) / SYN_ECHELLE));
+      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + bonusChimie(CHIMIE_FORCEE != null && team.isPlayer ? CHIMIE_FORCEE : chimieSoir[u])) / SYN_ECHELLE));
       const volume = Math.min(VOLUME_UNITE_MAX,
         slots.reduce((a, s) => a + lancersFE(lineup[s.i], membresAN), 0) / slots.length);
       const joueurs = slots.map(s => lineup[s.i]).filter(Boolean);
@@ -4119,12 +4123,27 @@ const REPLACEMENT = 40;     // cote d'un rappel de la ligue mineure
  * porte la chimie de la ligne u.
  */
 // Recalé en S73 : la chimie apprise tourne à 53 % chez l'IA (la maîtrise relève le plafond), donc 3,4 pour garder +1,8 en moyenne.
-export const CHIMIE_BONUS = 3.4;
+/*
+ * LA CHIMIE DEVIENT UN LEVIER, SANS GONFLER LA LIGUE (1.0 · J1-M). À 3,4, une
+ * ligne soudée ne valait que 6 % de buts de plus qu'une ligne cassée, pour un
+ * tiroir entier à l'écran. Le bonus est maintenant RELATIF à un pivot :
+ * CHIMIE_BONUS × (c − CHIMIE_PIVOT) / 100. Le pivot est choisi pour que le
+ * bonus MOYEN reste celui que check_chimie borne (1,88 pt à 55 % de chimie
+ * moyenne : 6,5 × (55,4 − 26) / 100) — la ligue marque autant (3,09 buts par
+ * équipe par match, avant comme après). Mesuré EN PAIRES (ta formation à chimie
+ * forcée, 40 saisons, 3 280 matchs) : chimie 100 contre 0 = +10,9 % de buts et
+ * +3,6 victoires (c'était +6,1 %).
+ */
+export const CHIMIE_BONUS = Number(ENV_MESURE.CHIMIE_BONUS ?? 6.5);
+export const CHIMIE_PIVOT = Number(ENV_MESURE.CHIMIE_PIVOT ?? 26);
+// MESURE seulement (check_chimie) : la chimie du bonus de ta formation, forcée. Le navigateur n'a pas de process : null.
+export const CHIMIE_FORCEE = ENV_MESURE.CHIMIE_FORCEE == null ? null : Number(ENV_MESURE.CHIMIE_FORCEE);
+export const bonusChimie = c => CHIMIE_BONUS * (c - CHIMIE_PIVOT) / 100;
 function bonusDeChimie(team, u, lineup = null) {
   let c;
   if (lineup && team) c = chimieLigne(apprentissageDe(team), lineup, u, lignesDe(team, lineup)[u]);
   else c = team && team.chimie ? team.chimie[u] || 0 : 0;
-  return CHIMIE_BONUS * c / 100;
+  return bonusChimie(c);
 }
 
 function gauss() {

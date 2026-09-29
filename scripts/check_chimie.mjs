@@ -14,14 +14,16 @@
  *   3. mais s'adapter n'est pas complet : un système peu joué a moins de
  *      chimie ce soir-là que le système maîtrisé ;
  *   4. la pénalité d'un joueur hors position fond en jouant à cette case ;
- *   5. la ligue garde son bonus moyen (calibrage de CHIMIE_BONUS).
+ *   5. la ligue garde son bonus moyen (calibrage de CHIMIE_BONUS) ;
+ *   6. (1.0 · J1-M) le levier : chimie 100 contre 0 vaut au moins 8 % de buts ;
+ *   7. (1.0 · J1-K) l'étiquette d'une case nomme les zones qui y sont chez elles.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, activeLineup, lignesDe, contreDe,
-  chimieLigne, apprentissagePhoto, penaliteAdaptee, getPositionPenalty, CHIMIE_BONUS, fits,
+  chimieLigne, apprentissagePhoto, penaliteAdaptee, getPositionPenalty, bonusChimie, fits,
 } from '../js/sim.js';
 import { LINE_ZONES, ZONES_ETOILE } from '../js/ratings.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -51,6 +53,24 @@ function ligue(seed) {
   return out;
 }
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
+
+/*
+ * LE LEVIER DE LA CHIMIE (1.0 · J1-M), mesuré dans un processus à part : la
+ * chimie forcée se lit au chargement de js/sim.js (CHIMIE_FORCEE, MESURE
+ * seulement). Ce fichier se relance lui-même avec LEVIER=1 : il joue alors
+ * `LEVIER_SAISONS` saisons, ta formation à la chimie forcée, et rend ses buts.
+ */
+if (process.env.LEVIER) {
+  const n = Number(process.env.LEVIER_SAISONS || 16);
+  let gf = 0, gp = 0;
+  for (let s = 0; s < n; s++) {
+    const t = ligue(9100 + s * 37);
+    simulateLeague(t, 82, { graine: `levier-${s}`, decisions: [] });
+    gf += t[0].GF; gp += t[0].games;
+  }
+  console.log(JSON.stringify({ bpm: gf / gp, matchs: gp }));
+  process.exit(0);
+}
 
 console.log('\n  La chimie apprise (S73)\n');
 
@@ -128,7 +148,19 @@ const base = bases[0];
 {
   const tous = [];
   for (const t of base) for (const j of t.jourLignes || []) if (j) tous.push(moy(j.chimie));
-  borne('bonus de chimie moyen de la ligue', CHIMIE_BONUS * moy(tous) / 100, 1.4, 2.3, ' pt');
+  borne('bonus de chimie moyen de la ligue', bonusChimie(moy(tous)), 1.4, 2.3, ' pt');
+}
+
+/* ---------- 6. le levier : une ligne soudée contre une ligne cassée (1.0 · J1-M) ---------- */
+{
+  const { execFileSync } = await import('node:child_process');
+  const lire = c => JSON.parse(execFileSync(process.execPath, [fileURLToPath(import.meta.url)], {
+    env: { ...process.env, LEVIER: '1', CHIMIE_FORCEE: String(c) },
+  }).toString().trim().split('\n').pop());
+  const zero = lire(0), cent = lire(100);
+  // Graines fixes : la lecture est la même d'une exécution à l'autre (9,4 % ; +10,9 % sur 40 saisons).
+  // L'ancien réglage (3,4 sans pivot) y lit 6,6 % : le plancher de 8 le fait rougir.
+  borne('chimie 100 contre 0 : buts de ta formation', (cent.bpm / zero.bpm - 1) * 100, 8, 16, ' %');
 }
 
 /* ---------- 1.0 · J1-K : l'étiquette d'une case dit qui y est chez lui ---------- */
