@@ -2488,12 +2488,11 @@ function majPiedPartie() {
   // le dépôt en porte déjà la preuve dans deux `desc` de MODES.
   $('npResume').textContent = [
     `${casesDuMode(b.mode).length} cases`,
-    money(M.cap),
-    M.loto ? `trois clubs par case · ${M.relances} relances`
-      : `un vestiaire au complet · ${REROLLS.season}/${REROLLS.team}/${REROLLS.pass} relances`,
+    M.loto ? `3 clubs par case · ${M.relances} relances`
+      : `vestiaire complet · relances ${REROLLS.season}/${REROLLS.team}/${REROLLS.pass}`,
     b.epoque === HASARD ? 'ligue 🎲 au hasard' : b.epoque ? `ligue ${b.epoque}` : 'toutes les époques',
-    b.repechage === 'FRANCHISE' && b.franchise === HASARD ? 'repêchage : 🎲 une franchise au hasard'
-      : b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? `repêchage : ${FRANCHISES[b.franchise].nom}`
+    b.repechage === 'FRANCHISE' && b.franchise === HASARD ? '🎲 une franchise au hasard'
+      : b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? FRANCHISES[b.franchise].nom
       : b.epoque && b.repechage === 'TOUTES' ? 'repêchage toutes époques' : null,
     b.bonus === 'TABLE' ? 'sur table' : null,
   ].filter(Boolean).join(' · ');
@@ -2509,7 +2508,7 @@ function majPiedPartie() {
   $('npGoVerbe').textContent = efface ? 'Recommencer' : act === 'BONUS' ? 'Appliquer' : 'Commencer';
   // La note n'est JAMAIS vide : le bouton ne change pas de hauteur.
   $('npGoNote').textContent = efface ? `efface ${n} joueur${n > 1 ? 's' : ''}`
-    : act === 'DEMARRER' ? 'la roulette repart' : "rien n'est effacé";
+    : act === 'DEMARRER' ? (n === 0 && !G.done ? 'première roulette' : 'la roulette repart') : "rien n'est effacé";
   $('npGo').classList.toggle('efface', efface);
 }
 
@@ -2572,10 +2571,12 @@ function syncOptionsUI() {
       };
     }
     sel.value = (G.brouillon ? G.brouillon.epoqueChoisie : G.epoque) || state.index.seasons[state.index.seasons.length - 1];
-    // ON DÉSACTIVE, ON NE CACHE PLUS. `piegerFocus` filtre sur `offsetParent`,
-    // donc une rangée qui disparaît change l'ordre de tabulation à chaque
-    // clic — et « on réserve la place, on ne la prend pas ».
-    sel.disabled = !src.epoque;
+    // LA LISTE N'EXISTE QUE QUAND ELLE SERT (1.0, J2-2). Grisée, elle se
+    // lisait comme un réglage de plus à comprendre ; cachée, elle sort aussi
+    // de l'ordre de tabulation (`piegerFocus` filtre sur `offsetParent`), et
+    // c'est voulu : on ne tabule pas vers un réglage qui ne vaut rien.
+    sel.hidden = !src.epoque;
+    sel.disabled = false;
   }
   const rep = $('repechageRow');
   if (rep) {
@@ -2599,7 +2600,8 @@ function syncOptionsUI() {
       };
     }
     fsel.value = (G.brouillon ? G.brouillon.franchise : G.franchise) || 'MTL';
-    fsel.disabled = src.repechage !== 'FRANCHISE';
+    fsel.hidden = src.repechage !== 'FRANCHISE';
+    fsel.disabled = false;
     const F = FRANCHISES[fsel.value];
     const lig = $('franchiseLignee');
     if (lig) lig.textContent = src.repechage !== 'FRANCHISE' ? '' : fsel.value === HASARD ? 'Le dé choisit la franchise au départ.' : F && F.lignee ? F.lignee : '';

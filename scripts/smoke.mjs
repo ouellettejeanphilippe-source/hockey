@@ -690,6 +690,31 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
   if (n !== 5 || lisibles !== 5 || !encore) errors.push(`« Comment on joue » : ${n} cartes, ${lisibles} à lire, « Nouvelle partie » ${encore ? 'encore ouverte' : 'refermée'}`);
   else console.log('   « Comment on joue » : cinq cartes à lire, et « Nouvelle partie » reste ouverte dessous');
 }
+/*
+ * DEUX LISTES QUI N'EXISTENT QUE QUAND ELLES SERVENT (1.0, J2-2) : la saison
+ * et la franchise se montrent au choix qui les demande ; le résumé du pied se
+ * lit en entier (deux lignes au plus), et la toute première partie dit
+ * « première roulette ».
+ */
+{
+  const lu = () => page.evaluate(() => {
+    const vu = id => { const e = document.getElementById(id); return !!(e && e.offsetParent); };
+    const r = document.getElementById('npResume');
+    return { saison: vu('epoqueSelect'), franchise: vu('franchiseSelect'), coupe: r.scrollHeight > r.clientHeight + 1, note: (document.getElementById('npGoNote') || {}).textContent };
+  });
+  const avant = await lu();
+  await _click('#partieModal .seg[data-opt="ligue"] button[data-val="UNE"]');
+  await page.waitForTimeout(120);
+  const une = await lu();
+  await _click('#partieModal .seg[data-opt="ligue"] button[data-val="TOUTES"]');
+  await page.waitForTimeout(120);
+  if (avant.saison || avant.franchise) errors.push(`« Nouvelle partie » montre une liste qui ne sert pas : saison ${avant.saison}, franchise ${avant.franchise}`);
+  if (!une.saison) errors.push('« Une saison » ne montre pas la liste des saisons');
+  if (avant.coupe || une.coupe) errors.push('le résumé de « Nouvelle partie » est coupé');
+  if (avant.note !== 'première roulette') errors.push(`la toute première partie ne dit pas « première roulette » : « ${avant.note} »`);
+  await sansDebordement('Nouvelle partie');
+  console.log(`   « Nouvelle partie » : les listes suivent le choix, le résumé tient, « ${avant.note} »`);
+}
 await page.click('#npGo');
 await passerIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
