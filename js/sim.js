@@ -6459,7 +6459,7 @@ function poserGros(toi, adv, gros) {
   if (OPTIONS_COMBAT.adverses && gros.cleMain != null) {
     gros.cartesAdv = mainAdverse(gros.graineMain, gros.cleMain, energieAdverse({ jour: gros.jour || 0, serie: !!gros.serie, ronde: gros.ronde || 0 }));
   }
-  const fxToi = gros.cartes && Array.isArray(gros.cartes.jouees) ? poserCartes(toi, adv, gros, base) : null;
+  const fxToi = gros.cartes && Array.isArray(gros.cartes.jouees) ? poserCartes(toi, adv, gros) : null;
   poserPreparation(toi, adv, gros, fxToi);
   gros.contre = !!gros.prepJuste || !!gros.lu || planEstContre(gros.plan, toi._lignesMatch || lignesDe(toi, toi.roster), adDeLEquipe(toi));
   // LEUR MAIN (S74, js/combat.js) : connue d'avance, jouée ici — sauf si ta main l'annule.
@@ -6483,7 +6483,7 @@ function poserGros(toi, adv, gros) {
  * pari tiré de la graine. `gros.cartesJouees` raconte ce qui a été joué — la
  * feuille le garde, le direct et ton histoire le disent.
  */
-function poserCartes(toi, adv, gros, base) {
+function poserCartes(toi, adv, gros) {
   const fx = effetsDesCartes(toi, gros.cartes, gros.cleCartes || '', { mainAdv: gros.cartesAdv || [], echelle: echelleDuGros(gros, toi) });
   toi._effetMatch.push(...fx.effets);
   if (fx.adv.length) adv._effetMatch = [...(adv._effetMatch || []), ...fx.adv];
@@ -6503,8 +6503,7 @@ function poserCartes(toi, adv, gros, base) {
     const p = toi.roster[sl.i];
     if (p && p.p !== 'G') p.energie = Math.min(100, energieDe(p) + fx.energieTous);
   }
-  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire, contre: !!fx.contre };
-  void base;
+  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire, contre: !!fx.contre };
   return fx;
 }
 /* Ta préparation contre leur plan (S76, voir `PREP_JUSTE`) : juste, fausse, ou rien. */
