@@ -49,7 +49,7 @@ node scripts/check_ratings.mjs      # distribution des cotes et cohérence avec 
 
 L'Action génère les shards et les commite. Un rafraîchissement hebdomadaire tient la saison en cours à jour. Le mode `bios` ajoute les dates de naissance aux shards existants (~110 requêtes) : c'est lui qui allume l'âge et le tri par âge dans le jeu.
 
-**L'application Android** (`mobile/fabriquer-apk.ps1`) n'emporte pas les 3 900 visages recadrés (57 Mo) : l'APK n'a que les écussons et la silhouette, et il télécharge les visages depuis le site publié (`js/distant.js`, l'adresse GitHub Pages ci-dessus), un par un à l'usage et tous en arrière-plan après le premier écran. Le travailleur de service les garde sur l'appareil : le jeu marche hors ligne dès que cette passe est faite. Le site doit donc être publié pour que l'application ait des visages.
+**L'application Android** (`mobile/fabriquer-apk.ps1`) n'emporte pas les 3 900 visages recadrés (57 Mo) : l'APK n'a que les écussons et la silhouette. Au premier lancement, en arrière-plan, l'appareil télécharge chaque portrait au site de la LNH, le recadre lui-même avec le code de `scripts/portraits.mjs` (`js/recadrage.js`) et le garde dans son cache (`js/visages.js`). En attendant, la photo brute de la LNH s'affiche ; hors ligne, la silhouette. Le jeu marche hors ligne dès que cette passe est faite.
 
 ## Comment les cotes sont calculées
 

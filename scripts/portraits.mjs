@@ -38,6 +38,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { recadrer } from '../js/recadrage.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const arg = (nom, def) => { const i = process.argv.indexOf(`--${nom}`); return i < 0 ? def : (process.argv[i + 1] ?? true); };
@@ -89,49 +90,16 @@ async function telecharger(id) {
 const navigateur = await chromium.launch();
 const page = await navigateur.newPage();
 await page.setContent('<body></body>');
+// Le recadrage vit dans js/recadrage.js (1.0) : le même code recadre ici et sur l'appareil Android.
+// Il ne lit aucune variable extérieure, donc son texte suffit à le poser dans la page.
+await page.addScriptTag({ content: `window.recadrerBlob = ${recadrer.toString()};` });
 await page.evaluate(({ TAILLE, QUALITE, PART_TETE, MARGE_HAUT }) => {
   window.recadrer = async b64 => {
     const blob = await (await fetch(`data:image/png;base64,${b64}`)).blob();
-    const img = await createImageBitmap(blob);
-    const W = img.width, H = img.height;
-    const c = new OffscreenCanvas(W, H), x = c.getContext('2d');
-    x.drawImage(img, 0, 0);
-    const d = x.getImageData(0, 0, W, H).data;
-    const a = (i, j) => d[(j * W + i) * 4 + 3];
-    // Une photo détourée : ses coins du haut sont transparents.
-    const detouree = a(2, 2) < 16 && a(W - 3, 2) < 16;
-    let sx = 0, sy = 0, cote = Math.min(W, H), famille = 'opaque';
-    if (detouree) {
-      const rangs = [];
-      for (let j = 0; j < H; j++) {
-        let g = -1, dr = -1, n = 0;
-        for (let i = 0; i < W; i++) if (a(i, j) > 40) { if (g < 0) g = i; dr = i; n++; }
-        rangs.push(n > W * 0.015 ? { g, dr } : null);
-      }
-      const haut = rangs.findIndex(Boolean);
-      let bas = H - 1; while (bas > haut && !rangs[bas]) bas--;
-      if (haut >= 0) {
-        // La tête : le tiers du haut de la silhouette (du crâne à la bouche).
-        const fin = Math.round(haut + 0.30 * (bas - haut));
-        let large = 0, somme = 0, k = 0;
-        for (let j = haut; j <= fin; j++) { const r = rangs[j]; if (!r) continue; large = Math.max(large, r.dr - r.g); somme += (r.g + r.dr) / 2; k++; }
-        if (large > 8 && k) {
-          cote = large / PART_TETE;
-          sx = somme / k - cote / 2;
-          sy = haut - MARGE_HAUT * cote;
-          famille = 'detouree';
-        }
-      }
-    }
-    const out = new OffscreenCanvas(TAILLE, TAILLE), o = out.getContext('2d');
-    o.imageSmoothingQuality = 'high';
-    const e = TAILLE / cote;
-    // L'image entière, placée : ce qui dépasse du cadre reste transparent (jamais d'étirement).
-    o.drawImage(img, -sx * e, -sy * e, W * e, H * e);
-    const webp = await out.convertToBlob({ type: 'image/webp', quality: QUALITE });
+    const { webp, famille, cote } = await window.recadrerBlob(blob, { taille: TAILLE, qualite: QUALITE, partTete: PART_TETE, margeHaut: MARGE_HAUT });
     const buf = new Uint8Array(await webp.arrayBuffer());
     let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-    return { webp: btoa(s), famille, cote: Math.round(cote) };
+    return { webp: btoa(s), famille, cote };
   };
 }, { TAILLE, QUALITE, PART_TETE, MARGE_HAUT });
 

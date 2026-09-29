@@ -15,9 +15,10 @@
  * --------------------------------------------
  * JP : *pour mobile, pour limiter taille, telecharger image en background au
  * lieu d'integrer*. Les 3 900 visages recadres (img/mugs, 57 Mo) faisaient un
- * APK de 64 Mo. L'application les demande au site publie (js/distant.js),
- * un par un a l'usage, et tous en arriere-plan apres le premier ecran ; le
- * travailleur de service (sw.js, tiroir VISAGES) les garde, donc le jeu marche
+ * APK de 64 Mo. Aucun site ne sert nos visages (JP : *juste local*) : au
+ * premier lancement, en arriere-plan, l'appareil telecharge chaque portrait a
+ * la LNH, le recadre lui-meme avec le code de scripts/portraits.mjs
+ * (js/recadrage.js) et le garde dans le cache (js/visages.js). Le jeu marche
  * hors ligne des que la passe est faite. Seuls partent img/logos (les
  * ecussons, 0,4 Mo) et img/mugs/silhouette.webp (le visage de secours).
  *
@@ -106,7 +107,7 @@ console.log(`www/ : ${n} fichiers, ${(octets / 1024 / 1024).toFixed(1)} Mo`);
 
 // Le filet du hors-ligne : sw.js liste ce qu'il precache, et le jeu ne demarre
 // pas sans ses shards. Si l'un des trois manque, autant le savoir ici.
-for (const attendu of ['index.html', 'js/game.js', 'js/distant.js', 'data/seed.json', 'data/portraits.json', SILHOUETTE]) {
+for (const attendu of ['index.html', 'js/game.js', 'js/visages.js', 'js/recadrage.js', 'data/seed.json', 'data/portraits.json', SILHOUETTE]) {
   try {
     await fs.access(path.join(WWW, attendu));
   } catch {
