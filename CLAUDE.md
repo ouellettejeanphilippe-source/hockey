@@ -165,4 +165,4 @@ Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 4
 - Ne scrape pas hockey-reference ni hockeydb. Leurs conditions l'interdisent. L'API de la LNH est publique et couvre 1917 à aujourd'hui.
 - N'ajoute pas de dépendance npm sans une bonne raison écrite dans `PLAN.md`.
 - Ne commite pas `data/seasons/*.json` à la main — c'est le job du script et de l'Action.
-- Ne mets pas les cotes cachées dans le DOM avant la simulation. Un joueur curieux qui ouvre l'inspecteur ne devrait pas pouvoir les lire. (Actuellement elles sont dans l'objet JS en mémoire — voir PLAN.md tâche J4.)
+- Ne mets pas les cotes cachées dans le DOM avant la simulation. Un joueur curieux qui ouvre l'inspecteur ne devrait pas pouvoir les lire. Elles vivent dans le coffre privé `RATINGS_VAULT` (js/game.js), hors de `window.cap82.G`, et ne sortent que pour la simulation.
