@@ -2247,11 +2247,15 @@ function setupEvents() {
       demarrageEnCours = true;
       go.disabled = true;
       try {
+        // Le toast ne dit que ce qu'on ne voit pas (1.0, J2-6g) : le hasard qui
+        // a choisi, ou une partie en cours qu'on vient d'effacer. Au premier tour
+        // d'une partie neuve, la roulette à l'écran suffit.
+        const effacee = !G.done && signes().length > 0;
         // L'identité se choisit AVANT la roulette, par-dessus cet écran.
         const choix = await choisirIdentite();
         await demarrerPartie({ ...b, identite: choix });
         closeModal('partieModal');
-        toast(`${auHasard.length ? `🎲 Le hasard a choisi ${auHasard.join(' et ')}. ` : ''}${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''}${b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? ` · ${FRANCHISES[b.franchise].nom}` : ''} : la roulette repart à zéro.`);
+        if (auHasard.length || effacee) toast(`${auHasard.length ? `🎲 Le hasard a choisi ${auHasard.join(' et ')}. ` : ''}${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''}${b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? ` · ${FRANCHISES[b.franchise].nom}` : ''} : la roulette repart à zéro.`);
       } catch {
         toast('Impossible de charger cette saison. Réessaie ou change de ligue.');
       } finally {
@@ -2694,13 +2698,17 @@ const enRepechage = () => !G.done && !bilanPret() && !hubActif();
 function ongletsCourants() {
   const loto = MODE().loto;
   const draft = enRepechage();
+  // ESTOMPÉS PENDANT LE REPÊCHAGE (1.0, J2-6e) : la barre garde ses entrées
+  // (une seule barre, toujours la même), mais celles qui n'ont rien avant le
+  // premier match le disent d'un coup d'oeil. Le toucher reste permis.
+  const vide = draft ? 'Dès le premier match' : '';
   return [
-    { cle: 'match', ico: 'i-cup', titre: 'Match' },
-    { cle: 'repechage', ico: 'i-dice', titre: loto ? 'Le loto' : 'Vestiaire', badge: draft ? String(poolFiltered().length) : '' },
+    { cle: 'match', ico: 'i-cup', titre: 'Match', mort: vide },
+    { cle: 'repechage', ico: 'i-dice', titre: loto ? 'Le loto' : 'Vestiaire', badge: draft ? String(compteSignables()) : '' },
     { cle: 'alignement', ico: 'i-list', titre: 'Alignement', badge: draft ? `${signes().length}/${totalCases()}` : '' },
-    { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
-    { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier' },
-    { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs' },
+    { cle: 'classement', ico: 'i-chart', titre: 'Classement', mort: vide },
+    { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier', mort: vide },
+    { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', mort: vide },
     ...ONGLETS_REF,
   ];
 }
@@ -2715,10 +2723,10 @@ const PAGES = () => ongletsCourants().map(o => o.cle);
 function majNavbar(cle, liste = ongletsCourants()) {
   const nav = $('navbar');
   if (!nav) return;
-  const sig = liste.map(o => `${o.cle}:${o.titre}:${o.badge || ''}`).join('|');
+  const sig = liste.map(o => `${o.cle}:${o.titre}:${o.badge || ''}:${o.mort ? 1 : 0}`).join('|');
   if (nav.dataset.sig !== sig) {
     nav.dataset.sig = sig;
-    nav.innerHTML = liste.map(o => `<button class="navtab" type="button" role="tab" data-page="${o.cle}" aria-selected="false">
+    nav.innerHTML = liste.map(o => `<button class="navtab${o.mort ? ' mort' : ''}" type="button" role="tab" data-page="${o.cle}" aria-selected="false"${o.mort ? ` title="${esc(o.mort)}"` : ''}>
       <svg class="ico" aria-hidden="true"><use href="#${o.ico}"/></svg>
       <span class="navtab-lbl">${esc(o.titre)}</span>
       ${o.badge ? `<span class="navtab-badge">${esc(o.badge)}</span>` : ''}
@@ -3814,6 +3822,17 @@ function ouJoue(p, roster = G.roster) {
 /* « H. Gill » : le nom qui tient dans une case de l'alignement (le nom entier est dans l'infobulle). */
 const nomCourt = n => { const m = String(n || '').trim().split(' '); const nom = m.pop(); return m.length ? `${m[0][0]}. ${nom}` : nom; };
 
+/*
+ * UN SEUL COMPTE (1.0, J2-6b) : les joueurs qu'on peut signer à ce choix-ci —
+ * une case libre leur va et leur salaire tient dans le budget du choix. Le
+ * titre du vestiaire, le tableau de bord et le badge de l'onglet disent ce
+ * même nombre ; avant, ils en disaient trois (le club entier, les signables,
+ * le filtre courant).
+ */
+function compteSignables(pool = candidats(), maxPick = maxForPick()) {
+  return pool.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= maxPick).length;
+}
+
 function renderDash() {
   const host = $('dash');
   if (!host) return;
@@ -3823,7 +3842,7 @@ function renderDash() {
   const need = caseCourante();
   const pool = candidats();
   const affordable = pool.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem).length;
-  const safe = pool.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= maxPick).length;
+  const safe = compteSignables(pool, maxPick);
 
   const budgetCls = left === 0 ? (rem >= 0 ? 'dash-good' : 'dash-bad')
     : maxPick < MIN_SAL ? 'dash-bad'
@@ -3896,7 +3915,7 @@ function renderFilters() {
    * gardiens. Le mot complet reste dans l'infobulle.
    */
   const defs = [
-    ['ALL', 'Tous', 'Tout le vestiaire', null],
+    ['ALL', 'Tout', 'Tout le vestiaire', null],
     ['AG', 'AG', 'Ailiers gauches', POS_NEED[0]],
     ['C', 'C', 'Centres', POS_NEED[1]],
     ['AD', 'AD', 'Ailiers droits', POS_NEED[2]],
@@ -3995,7 +4014,6 @@ const POOL_COLS = [
 
 function renderPoolMeta() {
   syncSortOptions();
-  const list = poolFiltered();
   const loto = MODE().loto;
   // Le volet change de nom avec le tirage : « Vestiaire » (tout le club) ou
   // « La main » (trois cartes) — et cache ses outils en loto.
@@ -4011,9 +4029,10 @@ function renderPoolMeta() {
   const meta = $('poolCount');
   if (meta) {
     const c = caseCourante();
-    meta.textContent = loto
-      ? (c ? `${list.length} joueur${list.length > 1 ? 's' : ''} · ${slotShort(c)}` : 'Complet')
-      : `${list.length} joueur${list.length > 1 ? 's' : ''}`;
+    // Le même nombre que le tableau de bord et le badge de l'onglet (1.0, J2-6b).
+    const n = compteSignables();
+    const mot = `${n} signable${n > 1 ? 's' : ''}`;
+    meta.textContent = loto ? (c ? `${mot} · ${slotShort(c)}` : 'Complet') : mot;
   }
   const rMeta = $('rosterMeta');
   if (rMeta) rMeta.textContent = `${signes().length} / ${totalCases()} · ${money(capUsed())}`;
@@ -4993,10 +5012,15 @@ function renderMain() {
     return;
   }
   b.disabled = reste > 0 || G.done || over;
+  // UNE JAUGE, PAS UN BOUTON ÉTEINT (1.0, J2-6f) : « 14 / 23 · encore 9 » se remplit à chaque signature.
+  const total = totalCases();
+  const jauge = !G.done && !over && reste > 0;
+  b.classList.toggle('jauge', jauge);
+  b.style.setProperty('--pct', `${Math.round(100 * (total - reste) / Math.max(1, total))}%`);
   b.textContent = G.done ? (G.bonus === 'TABLE' ? 'Tournoi joué' : 'Saison jouée')
     : over ? `Plafond dépassé de ${money(-capLeft())}`
     : reste === 0 ? (G.bonus === 'TABLE' ? `Au tournoi sur table · ${CLUBS_TOURNOI} clubs` : 'Lancer la saison · 82 matchs')
-    : `Encore ${reste} joueur${reste > 1 ? 's' : ''}`;
+    : `${total - reste} / ${total} · encore ${reste}`;
 }
 
 function render() {

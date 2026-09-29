@@ -720,6 +720,30 @@ await passerIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
 console.log('   écran « Nouvelle partie » : ouvert à la première visite, refermé');
 /*
+ * LE VESTIAIRE DIT UN SEUL NOMBRE (1.0, J2-6) : le badge de l'onglet, le
+ * titre du vestiaire et le tableau de bord comptent les mêmes signables ;
+ * les onglets vides avant le premier match sont estompés ; le bouton du bas
+ * est une jauge ; et la première roulette ne s'annonce pas par un toast.
+ */
+{
+  await page.waitForSelector('#pool .pcard', { timeout: 30000 });
+  await page.waitForTimeout(400);
+  const lu = await page.evaluate(() => {
+    const txt = s => (document.querySelector(s) || {}).textContent || '';
+    const badge = txt('.navtab[data-page="repechage"] .navtab-badge').trim();
+    const dash = (txt('#dash').match(/(\d+)\s*signables/) || [])[1];
+    const titre = (txt('#poolCount').match(/(\d+)\s*signable/) || [])[1];
+    const b = document.getElementById('mainBtn');
+    return { badge, dash, titre, morts: [...document.querySelectorAll('.navtab.mort')].map(x => x.dataset.page).join(','),
+      jauge: b.classList.contains('jauge'), mot: b.textContent.trim(), toast: txt('#toast') };
+  });
+  if (!(lu.badge && lu.badge === lu.dash && lu.dash === lu.titre)) errors.push(`le vestiaire dit plusieurs nombres : onglet ${lu.badge}, tableau ${lu.dash}, titre ${lu.titre}`);
+  if (!/classement/.test(lu.morts) || !/meneurs/.test(lu.morts)) errors.push(`les onglets vides du repêchage ne sont pas estompés : ${lu.morts || 'aucun'}`);
+  if (!lu.jauge || !/^\d+ \/ \d+ · encore \d+$/.test(lu.mot)) errors.push(`le bouton du bas n'est pas une jauge : « ${lu.mot} »`);
+  if (/repart à zéro/.test(lu.toast)) errors.push(`la première roulette s'annonce par un toast : « ${lu.toast} »`);
+  console.log(`   le vestiaire : ${lu.badge} signables partout, onglets estompés (${lu.morts}), jauge « ${lu.mot} »`);
+}
+/*
  * LA FICHE : « SIGNER » SOUS LE POUCE (1.0, J2-5). Sur téléphone, le bouton
  * de la fiche tombait sous le pli ; il colle au bas de la feuille. On ouvre la
  * fiche d'un joueur du vestiaire et on exige le bouton dans l'écran, sans
