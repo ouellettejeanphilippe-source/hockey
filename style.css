@@ -10257,3 +10257,20 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
   }
   .toast.on { transform: translate(-50%, 0) scale(1); }
 }
+
+/* ---------------------------------------------------------------
+   1.0 (J2-10) — LE CLASSEMENT SUR TÉLÉPHONE. (1) Le bouton flottant
+   (« Journée suivante ») cachait deux rangées, dont souvent la tienne : le
+   volet garde sous lui la place du bouton. (2) « Flames 19… » et
+   « Oilers 202… » perdaient l'année, qui est leur identité dans une ligue où
+   il y a trois Oilers : sous 480 px, la cellule dit « CGY '93 », comme la
+   carte du prochain match.
+   --------------------------------------------------------------- */
+.hub-classement td.nom .nom-court { display: none; }
+@media (max-width: 480px) {
+  .hub-classement td.nom .nom-long { display: none; }
+  .hub-classement td.nom .nom-court { display: inline; }
+}
+@media (max-width: 1199px) {
+  body.hub-docke .hub-sheet .hub-volet { padding-bottom: calc(var(--bas-coquille, 70px) + 72px); }
+}

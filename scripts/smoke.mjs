@@ -1459,6 +1459,31 @@ async function traverserSaison(etiquette, reprise = false) {
     await _click('.navtab[data-page="classement"]');
     await page.waitForTimeout(250);
     if ((await page.evaluate(() => document.body.dataset.zone)) !== 'hub') errors.push('en pleine saison, le classement ne s\'ouvre pas dans l\'écran de saison');
+    /*
+     * LE CLASSEMENT SUR TÉLÉPHONE (1.0, J2-10) : aucun nom d'équipe coupé
+     * (sous 480 px la cellule dit « CGY '93 »), et ta rangée, défilée au
+     * bout, reste au-dessus du bouton flottant.
+     */
+    {
+      const cl = await page.evaluate(async () => {
+        const noms = [...document.querySelectorAll('#hubModal .hub-classement td.nom')];
+        const coupes = noms.filter(td => td.scrollWidth > td.clientWidth + 1).map(td => td.textContent.trim()).slice(0, 3);
+        const toi = document.querySelector('#hubModal .hub-classement tr.toi');
+        const f = document.getElementById('hubFlottant');
+        let cache = null;
+        if (toi && f && !f.hidden && getComputedStyle(f).display !== 'none') {
+          const sc = [...document.querySelectorAll('#hubModal, #hubModal *')].find(e => ['auto', 'scroll'].includes(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1);
+          if (sc) sc.scrollTop = sc.scrollHeight;
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const r = toi.getBoundingClientRect(), rf = f.getBoundingClientRect();
+          if (r.bottom > rf.top && r.top < rf.bottom) cache = `${Math.round(r.bottom - rf.top)} px`;
+          if (sc) sc.scrollTop = 0;
+        }
+        return { n: noms.length, coupes, cache, w: innerWidth };
+      });
+      if (cl.w <= 480 && cl.coupes.length) errors.push(`le classement coupe des noms d'équipe à ${cl.w} px : ${cl.coupes.join(' · ')}`);
+      if (cl.cache) errors.push(`au bout du classement, le bouton flottant couvre ta rangée de ${cl.cache}`);
+    }
     await redimensionner('la saison, onglet Classement');
     await _click('.navtab[data-page="match"]');
     await page.waitForTimeout(250);
