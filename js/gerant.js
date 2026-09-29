@@ -27,7 +27,7 @@
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, SEC_MIN, SEC_MAX, SEC_DEFAUT,
   profilsDe, profilPrincipal, roleSecond, fitUnite, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
-  joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, chimieMax,
+  joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, planEstContre, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
@@ -849,8 +849,9 @@ export function regleDeCarte(C) {
    * une carte de trio — une synergie, les minutes des lignes — est pleine tout
    * de suite et ne grandit pas.
    */
-  if (C.adv) out.push({ txt: '📈 En Rogue, grandit : ×0,5 en octobre, ×1 en janvier, ×2 en finale', bon: null });
-  else if (C.synergie || (C.effet && (C.effet.F || C.effet.D))) out.push({ txt: '🔗 Carte de trio : pleine tout de suite, elle ne grandit pas', bon: null });
+  const courbe = motCourbe();
+  if (courbe && C.adv) out.push(courbe);
+  else if (courbe && (C.synergie || (C.effet && (C.effet.F || C.effet.D)))) out.push({ txt: '🔗 Carte de trio : pleine tout de suite, elle ne grandit pas', bon: null });
   if (C.pioche) out.push({ txt: `Pige ${C.pioche} carte${C.pioche > 1 ? 's' : ''}`, bon: true });
   if (C.energiePlus) out.push({ txt: `+${C.energiePlus} énergie`, bon: true });
   if (C.energieTous) out.push({ txt: `Tes patineurs : énergie +${C.energieTous}`, bon: true });

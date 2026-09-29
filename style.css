@@ -10291,3 +10291,12 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
   .main-sheet .tc-art { height: 64px; }
   .main-sheet .tc-art-ico { font-size: 38px; }
 }
+
+/* ---------------------------------------------------------------
+   1.0 (J2-16) — UNE CARTE NE COUPE PAS SES PUCES. Le texte d'ambiance
+   poussait les puces chiffrées hors du bas de la carte (« Le mur » au
+   palier) : il tient en quatre lignes, les puces restent entières. Une carte
+   à lire (« Comment on joue ») garde tout son texte.
+   --------------------------------------------------------------- */
+.choix-option.tc:not(.lecture) .tc-quoi { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.choix-option.tc .tc-puces { flex: none; }

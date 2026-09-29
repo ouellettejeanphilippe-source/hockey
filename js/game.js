@@ -26,7 +26,7 @@ import {
   getHiddenRatings, getUnitSynergy, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJusqua, bilanLigue, photoAlignement, trioDeFermetureAuto, soirEreintant,
   autoRoster, MODES, modeDe, casesDuMode, joueurEquivalent, nouvelleGraine, compterFeuilles,
   CARTES, PLANS, ROULEMENTS, planDe, roulementDe, connaitre, lignesDe, profilPrincipal, roleSecond, identiteUnite, systemeDe, MUTATIONS, effetsEnCours,
-  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE } from './sim.js';
+  unitesIdeales, mutationNuit, editionsDuJour, motsDeMutation, poserAlignementDuJour, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, AFFICHAGE_COURBE, echelleTardive } from './sim.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { baseVisages } from './distant.js';
@@ -261,6 +261,18 @@ const G = {
  */
 const MODE_ROGUE = { ...MODES.CLASSIQUE, nom: 'Rogue', cap: PLAFOND_ROGUE };
 const MODE = () => (G.bonus === 'ROGUE' ? MODE_ROGUE : (MODES[G.mode] || MODES.CLASSIQUE));
+/*
+ * LA COURBE À L'ÉCRAN (1.0, J2-16, R6) : une carte ne parle de sa courbe
+ * qu'en Rogue, et sa jauge allume le cran du soir — la journée révélée, ou la
+ * ronde des séries. Avant la saison, la jauge dit la courbe entière.
+ */
+AFFICHAGE_COURBE.actif = () => G.bonus === 'ROGUE';
+AFFICHAGE_COURBE.echelle = () => {
+  if (G.bonus !== 'ROGUE') return null;
+  if (G.seriesVues) return echelleTardive({ serie: true, ronde: G.seriesVues.ronde || 0 });
+  if (G.ligue) return echelleTardive({ jour: G.journee || 0 });
+  return null;
+};
 /**
  * La saison à laquelle la ROULETTE est tenue : celle de la ligue quand elle
  * est fixée et que le repêchage reste dans l'année, sinon null — et null veut
