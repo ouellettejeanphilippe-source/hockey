@@ -2201,6 +2201,19 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      * avant d'être écrite. `.hub-tiree` et non `.hub-pige` : une carte qu'on
      * ne choisit pas n'est pas une pige (voir S54 et `smoke.mjs`).
      */
+    /*
+     * UN PACK OUVERT, PERSONNE DE SIGNÉ (1.0, J1-B) : l'achat est enregistré
+     * (`k:n`), la signature manque (`k:n:signe`) — la page a été rechargée en
+     * plein choix. Le même tirage se rouvre ; rien n'est retiré ni repayé.
+     */
+    const packOuvert = onDecision && ctx.boutique && ctx.boutique.rouvrir
+      ? decs.find(d => d && d.achat && d.achat.sorte === 'joueurs' && typeof d.palier === 'string' && /^k:\d+$/.test(d.palier) && !pris.has(`${d.palier}:signe`)) || null
+      : null;
+    if (packOuvert) {
+      out.push({ id: packOuvert.palier, genre: 'pack', bloque: true, de: DE.dg, sujet: 'Un pack ouvert : signe un joueur, ou passe', achat: packOuvert.achat,
+        corps: `<div class="hub-msg-mot">Ton pack est payé et ses cartes sont au classeur. Il reste à signer un des joueurs — ou à ne signer personne.</div>
+          <button type="button" class="btn gold hub-pack-rouvrir" data-defaut>Ouvrir le pack</button>` });
+    }
     const cTrou = trou ? carteDuTrou(trou) : null;
     if (trou && cTrou && onTrou) {
       out.push({ id: `t:${trou.at}`, genre: 'trou', bloque: true, de: DE.dg, sujet: nomsDesCases(trou.cases),
@@ -2367,6 +2380,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (sac) sac.onclick = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
+    const mPack = msgs.find(m => m.genre === 'pack');
+    const rouvrirPack = actions.querySelector('.hub-pack-rouvrir');
+    if (rouvrirPack && mPack) rouvrirPack.onclick = () => ctx.boutique.rouvrir(mPack.achat, jour, d => { const j = jour; quitter(); onDecision(d, j); });
     // LE BALLOTTAGE, en plein écran : trois joueurs en CARTES (S76), ou garder son réserviste.
     const mB = msgs.find(m => m.genre === 'blessure');
     const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
