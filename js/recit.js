@@ -173,7 +173,7 @@ export function recitDeSerie(wV, wP, nomV, nomP, feuilles) {
  * moteur (une journée = une liste de matchs `{ A, B, feuille }`), `teams` le
  * classement final.
  */
-export function lignesAForcesEgales(calendrier, you) {
+function lignesAForcesEgales(calendrier, you) {
   const L = [0, 1, 2, 3].map(() => ({ t: 0, b: 0 }));
   for (const jour of calendrier || []) for (const m of jour || []) {
     if (!m || !m.feuille || (m.A !== you && m.B !== you)) continue;

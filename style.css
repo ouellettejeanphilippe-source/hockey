@@ -796,7 +796,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .dash-warn { color: var(--gold); }
 .dash-bad { color: var(--red); }
 
-
 /* ---------------------------------------------------------------
    Volets
    --------------------------------------------------------------- */
@@ -1174,9 +1173,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 /* Les règles de colonne étroite vivent après les règles de base de la carte,
    plus bas : voir « COLONNE ÉTROITE ». */
 
-
-
-
 .pcard {
   display: flex;
   flex-direction: column;
@@ -1458,7 +1454,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 /* Une signature qui bloque la fin (1.0, J1-Q) : le bouton le dit en rouge, et demande un second toucher. */
 .btn-sign.risque { background: var(--red); border-color: var(--red); color: #fff; font-size: 14px; letter-spacing: 0.05em; white-space: normal; line-height: 1.15; }
 .btn-sign.risque[data-confirme="1"] { background: transparent; color: var(--red); }
-
 
 /*
  * COLONNE ÉTROITE (six colonnes à 1080 px : environ 160 px chacune). Mesuré
@@ -2086,7 +2081,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 
 .pcard-full { --card-accent: var(--team-accent); }
 
-
 /*
  * LE PORTRAIT EN GRAND, comme sur une carte de collection : détouré (les
  * portraits de la LNH ont un fond transparent), sans cadre, posé sur la
@@ -2105,7 +2099,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .pcard-full-photo .headshot-fallback { font-size: 80.5px; line-height: 1; opacity: 0.35; margin-bottom: 8px; }
 .pcard-full-name { font-family: var(--display); font-size: 31.5px; font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; overflow-wrap: anywhere; }
 .pcard-full-name .fname { color: var(--sub); font-weight: 600; font-size: 18px; text-transform: none; letter-spacing: 0.02em; display: block; margin-bottom: 2px; }
-
 
 .section-label {
   font-size: 10.5px;
@@ -3216,7 +3209,6 @@ table.data tr.gagne td.stat.v { color: var(--green); font-weight: 900; }
 table.data tr.perdu td.stat.d { color: var(--red); font-weight: 900; }
 table.data td small { font-size: 10px; color: var(--muted); }
 
-
 /* ---- le calendrier : une journée, ses seize matchs ---- */
 .cal-barre { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
 .cal-barre input[type="range"] { flex: 1; min-width: 0; accent-color: var(--ui-accent); }
@@ -3300,7 +3292,6 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 }
 .series-legende .lg-or { background: var(--gold); color: var(--sur-or); }
 .series-legende .lg-ot { background: var(--live); color: #fff; }
-
 
 /* =====================================================================
    LE RAPPORT D'ENTRACTE (js/entracte.js)
@@ -4383,7 +4374,6 @@ a.spin-club:hover {
 .bible h4 { margin: 14px 0 4px; font-family: var(--display); font-size: 15.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
 .bible .t-regle-nom { font-family: var(--display); font-weight: 700; white-space: nowrap; }
 
-
 /* ======================================================================
    CE QUI VIENT D'ARRIVER SE VOIT AVANT DE SE LIRE.
 
@@ -4416,7 +4406,6 @@ a.spin-club:hover {
   .t-jeton.visee { animation: none; box-shadow: 0 0 0 3px var(--red); }
   .t-eclat { animation: none; }
 }
-
 
 /* ======================================================================
    LE DÉ SE JETTE SUR LA GLACE, ET LE VERDICT ÉCLATE OÙ IL TOMBE.
@@ -4665,7 +4654,6 @@ a.spin-club:hover {
 .profil-sur { font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 1px; }
 .fiche-table-tags { margin-top: 8px; }
 .fiche-table-tags .tag { font-size: 12px; padding: 3px 8px; }
-
 
 /* =====================================================================
    DERRIÈRE LE BANC — les choix en saison
@@ -5272,7 +5260,6 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
      écran large — la place d'une barre qui n'y est pas. */
   body[data-zone="jeu"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h)); }
 }
-
 
 /* =====================================================================
    S58 — LA PASSE MODERNE : l'échelle, le HUD, l'état qui se voit
@@ -5963,10 +5950,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
   border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--bg);
 }
 
-
-
-
-
 /* =====================================================================
    LA COQUILLE FIXE (S67) — une barre, toujours la même, et l'écran de
    saison ANCRÉ dans la page au lieu d'être posé par-dessus.
@@ -6025,7 +6008,6 @@ body[data-zone="vide"] #game, body[data-zone="vide"] .actionbar { display: none 
 .vide-mot b { color: var(--gold); font-family: var(--display); font-size: 18px; }
 .vide-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 .vide-btns .btn { min-width: 160px; }
-
 
 /* LA BARRE TIENT ENTIÈRE DÈS 600 PX (S67) : neuf onglets se partagent la
    largeur au lieu de défiler. Sous 600 px elle défile, et l'onglet ouvert
@@ -8013,11 +7995,10 @@ body.exh-ouverte { overflow: hidden; }
    --------------------------------------------------------------- */
 .chiffre { font-family: var(--display); font-weight: 800; font-variant-numeric: tabular-nums; }
 
-
 /* La tuile : un aplat un ton au-dessus de la page, le filet de lumière,
    un rayon de 12. Une tuile qui s'ouvre (`.ouvrable`, ou un `<button>`)
    monte d'un ton au survol et se cerne de l'accent ; elle s'enfonce au doigt. */
-.tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: var(--esp-2); }
+
 .tuile {
   position: relative; display: flex; flex-direction: column; gap: var(--esp-1);
   min-width: 0; padding: var(--esp-3);
@@ -8035,16 +8016,9 @@ body.exh-ouverte { overflow: hidden; }
   box-shadow: inset 0 1px 0 var(--filet-tuile), inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent);
 }
 .tuile.ouvrable:active, button.tuile:active { transform: scale(0.975); }
-.tuile-grande { grid-column: 1 / -1; padding: var(--esp-4); }
-.tuile-tete { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); min-width: 0; }
-.tuile-coin { flex: none; font: 800 16px/1 var(--display); font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
-.tuile-coin small { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
-.tuile-pied { margin-top: auto; min-width: 0; font-size: 12.5px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tuile-pied b { color: var(--text); }
-.tuile-vide { margin: auto 0; font-size: 12.5px; color: var(--muted); }
+
 .tuile-jauge { display: block; height: 6px; border-radius: 3px; background: var(--fond-creux); overflow: hidden; }
 .tuile-jauge > span { display: block; height: 100%; border-radius: inherit; background: var(--gold); transition: width var(--t-compte) var(--e-ressort); }
-
 
 /* ---------------------------------------------------------------
    2. LE CHIFFRE QUI SE COMPTE (js/mouvement.js). Pendant les 400 ms du
@@ -8168,40 +8142,8 @@ body.hub-docke #hubModal .hub-sheet .live-top,
      tête, l'infirmerie et le deck en bandes dessous — mesuré à 1 280 px, cinq
      tuiles de 130 px coupaient la cinquième case de forme ;
    - large (980 px, le bureau) : une rangée de cinq. */
-.hub-tuiles { container: portail / inline-size; }
+
 .hub-tuile { padding: 10px 12px; }
-.hub-tuiles-grille {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, 114px);
-  grid-auto-rows: 54px;
-}
-.hub-t-deck { grid-column: 1 / -1; justify-content: center; gap: 2px; padding-block: 8px; }
-@container portail (min-width: 620px) {
-  .hub-tuiles-grille { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: 114px; grid-auto-rows: 54px; }
-  .hub-t-forme, .hub-t-classement, .hub-t-proprio { grid-column: span 2; }
-  .hub-t-infirmerie { grid-column: span 3; }
-  .hub-t-deck { grid-column: span 3; }
-  /* L'infirmerie en bande : la tête et les noms sur une ligne. */
-  .hub-t-infirmerie { flex-direction: row; align-items: center; gap: var(--esp-3); padding-block: 8px; }
-  .hub-t-infirmerie .tuile-tete { flex: none; gap: var(--esp-2); }
-  .hub-t-infirmerie .t-inf { flex-direction: row; gap: var(--esp-3); flex: 1; }
-  .hub-t-infirmerie .t-inf-j { justify-content: flex-start; }
-  .hub-t-infirmerie .tuile-pied, .hub-t-infirmerie .tuile-vide { margin: 0; }
-  /* Sans le proprio (pas de moments), le deck prend sa place en tête. */
-  .hub-tuiles-grille:not(:has(.hub-t-proprio)) .hub-t-infirmerie { grid-column: 1 / -1; }
-}
-@container portail (min-width: 980px) {
-  .hub-tuiles-grille { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: 114px; }
-  .hub-t-forme, .hub-t-classement, .hub-t-proprio, .hub-t-infirmerie, .hub-t-deck { grid-column: auto; }
-  .hub-t-infirmerie { flex-direction: column; align-items: stretch; gap: var(--esp-1); padding-block: 10px; }
-  .hub-t-infirmerie .t-inf { flex-direction: column; gap: 2px; flex: none; }
-  .hub-t-infirmerie .t-inf-j { justify-content: space-between; }
-  .hub-t-infirmerie .tuile-pied { margin-top: auto; }
-  .hub-t-deck { justify-content: flex-start; gap: var(--esp-1); padding-block: 10px; }
-  .hub-t-deck .tuile-pied { white-space: normal; line-height: 1.3; }
-  .hub-tuiles-grille:not(:has(.hub-t-proprio)) .hub-t-infirmerie { grid-column: auto; }
-}
-.hub-tuile .tuile-coin .chiffre { font-size: 18px; }
 
 /* La forme : cinq cases, la plus récente à droite. La couleur dit le
    résultat, la LETTRE aussi — V, D, DP se lisent sans la couleur. */
@@ -8781,7 +8723,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 /* La variante de base, lisible sur toutes les encres (le carton crème des années 80 compris). */
 .fc-verso .cj-sa-rarete.tc-commune { color: var(--cj-encre-2); }
 
-
 /* =================================================================
    LES SÉRIES ET LES SOUS-SÉRIES (S78, js/cartes.js `serieDe`)
    JP : *cartes plus belles et variées, moins basiques, sans perdre
@@ -8935,7 +8876,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .fc-mod-effets .bon { color: color-mix(in srgb, #1f9d63 70%, currentColor); }
 .fc-mod-effets .prix { color: color-mix(in srgb, #d9384a 75%, currentColor); }
 .fc-mods-vide { margin: 0 2px; font-size: 12.5px; color: var(--cj-encre-2); }
-
 
 /* ==========================================================
    LA BOUTIQUE (S79, js/magasin.js) — des rayons de packs à la HUT

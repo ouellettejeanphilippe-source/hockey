@@ -561,6 +561,17 @@ page.click = async (sel, opts) => {
   // Un choix forcé ouvert par-dessus se règle avant tout autre clic dans l'écran
   // — et avant un onglet de la barre, que le plein écran couvre aussi (S74b).
   else if (typeof sel === 'string' && /^(#hubModal|\.navtab)\b/.test(sel)) await repondreAuxChoix();
+  /*
+   * « À RÉGLER AVANT LE MATCH » PEUT S'ÊTRE RÉGLÉ EN ROUTE (1.0). Répondre aux
+   * choix ouverts, juste au-dessus, règle souvent le message qui bloquait : le
+   * bouton disparaît, et le clic attendait trente secondes un bouton parti
+   * (« ÉCHEC du clic #hubModal .hub-traiter », erreurs relevées : aucune). Un
+   * joueur ne toucherait pas un bouton qui n'est plus là ; le parcours non plus.
+   */
+  if (typeof sel === 'string' && /hub-traiter\b/.test(sel)) {
+    const b = await page.$(sel);
+    if (!b || !(await b.isVisible().catch(() => false))) return;
+  }
   try { return await _click(sel, opts); }
   catch (e) {
     // UN CLIC QUI ÉCHOUE LAISSE UNE TRACE (S74b) : l'écran, ce que dit

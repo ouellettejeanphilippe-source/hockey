@@ -475,7 +475,7 @@ export function energieDepensee(jouees) {
  * s'épuise : il ne décide pas à ta place de ce qui ne revient pas.
  */
 const ecartDe = o => Object.entries(o || {}).reduce((a, [k, v]) => a + (typeof v !== 'number' ? 0 : k === 'energie' ? 1 - v : Math.abs(v - 1)), 0);
-export function gainDeCarte(cle) {
+function gainDeCarte(cle) {
   const C = CARTES_MATCH[cle];
   if (!C) return 0;
   return ecartDe(C.effet) + ecartDe(C.adv) + ecartDe(C.siVide) + (ecartDe(C.piege) + ecartDe(C.improvise)) / 2

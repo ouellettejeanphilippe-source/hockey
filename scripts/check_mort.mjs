@@ -39,8 +39,7 @@ const jsFiles = Object.keys(code).filter(f => f.startsWith('js/'));
 const EXPORTS_GARDES = new Set(['leagueStats', 'finirPresence', 'BORNES', 'EFFET']);
 // Classes gardées : les tuiles du hub d'avant S77, que le chantier du hub sur bureau (jalon 2, item 7) peut reprendre.
 // À retirer d'ici, et de style.css si elles restent sans élément, une fois ce chantier fusionné.
-const CLASSES_GARDEES = new Set(['hub-tuiles', 'hub-tuiles-grille', 'hub-t-classement', 'hub-t-deck', 'hub-t-forme', 'hub-t-infirmerie',
-  'hub-t-proprio', 'tuiles', 'tuile-coin', 'tuile-grande', 'tuile-pied', 'tuile-tete', 'tuile-vide']);
+const CLASSES_GARDEES = new Set([]);   // aucune réserve : le hub sur bureau est fait (1.0, J2-7)
 
 /* 1 et 2. Les déclarations mortes, et les `export` de trop. */
 const mortes = [], exportsDeTrop = [];
