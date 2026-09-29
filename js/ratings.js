@@ -460,7 +460,7 @@ export const ARCHETYPES = {
   PLAYMAKER:     { label: 'Fabricant de jeu',          short: 'Fabricant',       icon: '🎨', desc: 'Distribue la rondelle avec précision' },
   POWER_FWD:     { label: 'Attaquant de puissance',    short: 'Puissance',       icon: '💥', desc: 'Marque dans le trafic et frappe fort' },
   TWO_WAY_FWD:   { label: 'Attaquant complet',         short: 'Complet',         icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' },
-  ENERGY:        { label: "Joueur d'énergie",          short: 'Énergie',         icon: '🔋', desc: 'Intensité, échec avant et mises en échec' },
+  ENERGY:        { label: 'Plombier',                  short: 'Plombier',        icon: '🔋', desc: 'Intensité, échec avant et mises en échec' },
   SKILLED_FWD:   { label: 'Attaquant offensif',        short: 'Offensif',        icon: '✨', desc: 'Aisance offensive naturelle' },
   CHECKER:       { label: 'Attaquant de profondeur',   short: 'Profondeur',      icon: '🏃', desc: 'Profondeur et ardeur au travail' },
   // Défenseurs
@@ -470,10 +470,11 @@ export const ARCHETYPES = {
   TWO_WAY_D:     { label: 'Défenseur polyvalent',      short: 'Polyvalent',      icon: '🔄', desc: 'Efficace dans toutes les situations' },
   CHECKER_D:     { label: 'Défenseur de profondeur',   short: 'Profondeur',      icon: '🧱', desc: 'Fiabilité et minutes tranquilles' },
   // Gardiens
-  WALL:          { label: "Gardien d'élite",           short: 'Élite',           icon: '🧱', desc: '% d\'arrêts et moyenne d\'élite' },
-  ACROBAT:       { label: 'Gardien acrobatique',       short: 'Acrobate',        icon: '⚡', desc: 'Réflexes et arrêts spectaculaires' },
-  WORKHORSE:     { label: 'Gardien de fer',            short: 'De fer',          icon: '🔋', desc: 'Grosse charge de travail' },
-  HYBRID_G:      { label: 'Gardien régulier',          short: 'Régulier',        icon: '🥅', desc: 'Style fiable et constant' },
+  // 1.0 (C1) : un gardien se lit par ce seul mot ; ni l'icône d'un trophée (🧱 Norris, 🥅 Vezina, ⚡ Vitesse), ni un mot de niveau (« Régulier »).
+  WALL:          { label: 'Gardien mur',               short: 'Mur',             icon: '🏔️', desc: '% d\'arrêts et moyenne d\'élite' },
+  ACROBAT:       { label: 'Gardien acrobatique',       short: 'Acrobate',        icon: '🤸', desc: 'Réflexes et arrêts spectaculaires' },
+  WORKHORSE:     { label: 'Gardien de fer',            short: 'De fer',          icon: '🦾', desc: 'Grosse charge de travail' },
+  HYBRID_G:      { label: 'Gardien constant',          short: 'Constant',        icon: '🧍', desc: 'Style fiable et constant' },
   UNKNOWN:       { label: 'Inconnu',                   short: 'Inconnu',         icon: '❓', desc: '' },
 };
 

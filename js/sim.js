@@ -1309,7 +1309,8 @@ export const PROFILS = {
     deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, son infériorité' },
     power: { nom: 'Power forward', ico: '🦍', mot: 'ses buts, sa robustesse mesurée, son gabarit' },
     checker: { nom: 'Checker', ico: '🔧', mot: 'ses mises en échec (sa robustesse avant 2005), sa défensive, peu de points' },
-    energie: { nom: 'Énergie', ico: '🌪️', mot: 'ses lancers et ses mises en échec en peu de minutes' },
+    // 1.0 (C1) : « Plombier », pas « Énergie » — l'énergie était aussi la fatigue et la mana des cartes. La clé reste.
+    energie: { nom: 'Plombier', ico: '🪠', mot: 'ses lancers et ses mises en échec en peu de minutes' },
     bagarreur: { nom: 'Bagarreur', ico: '👊', mot: 'ses minutes de punition, son gabarit, peu de points' },
   },
   D: {
@@ -1432,7 +1433,7 @@ export function roleSecond(p) {
  * et un offensif la « Paire classique ».
  */
 const UNITE_PAR_ROLE = {
-  F: { sniper: 'Trio de snipers', passeur: 'Trio de passeurs', deuxsens: 'Trio two-way', power: 'Trio de power forwards', checker: 'Trio de checkers', energie: 'Trio d\'énergie', bagarreur: 'Trio de durs' },
+  F: { sniper: 'Trio de snipers', passeur: 'Trio de passeurs', deuxsens: 'Trio two-way', power: 'Trio de power forwards', checker: 'Trio de checkers', energie: 'Trio de plombiers', bagarreur: 'Trio de durs' },
   D: { defensif: 'Paire défensive', offensif: 'Paire offensive', manieur: 'Paire de relance', physique: 'Paire physique', deuxsens: 'Paire two-way' },
 };
 export function identiteUnite(lineup, groupe, u) {
@@ -1567,13 +1568,14 @@ export const TACTIQUES = {
     gain: { finition: 1.06 }, prix: { defense: 1.03 },
   },
   derriere: {
-    nom: 'Jeu d\'enclave', ico: '🥅', bat: null,
+    // 1.0 (C1) : 🥅 est le trophée Vezina ; l'enclave attire les rebonds.
+    nom: 'Jeu d\'enclave', ico: '🧲', bat: null,
     slots: { AG: 'power', C: 'passeur', AD: 'power' },
     mot: 'Deux gros devant le filet, un passeur derrière : écrans, rebonds, déviations.',
     gain: { finition: 1.03, volume: 1.03 }, prix: { discipline: 1.06 },
   },
   energie: {
-    nom: 'Trio d\'énergie', ico: '🔋', bat: null,
+    nom: 'Trio de plombiers', ico: '🧰', bat: null,
     slots: { AG: 'checker', C: 'energie', AD: 'bagarreur' },
     mot: 'On frappe tout ce qui bouge et on use l\'adversaire : ça paie les soirs durs.',
     gain: { defense: 0.97, physique: 1.5 }, prix: { discipline: 1.12, energie: 1.08 },
@@ -1732,8 +1734,9 @@ export function bilanAgressivite(agr, ph) {
  */
 export const IMPORTANCES = {
   basse: { nom: 'Basse', ico: '😌', mot: 'on se ménage', finition: 0.97, defense: 1.02, energie: 0.8 },
-  normale: { nom: 'Normale', ico: '🏒', mot: 'un match comme un autre' },
-  haute: { nom: 'Haute', ico: '🔥', mot: 'on joue ça comme un match des séries', finition: 1.03, defense: 0.97, blessure: 1.25, energie: 1.12 },
+  // 1.0 (C1) : une icône par sens — 🏒 est le manieur de rondelle, 🔥 l'échec avant.
+  normale: { nom: 'Normale', ico: '🎚️', mot: 'un match comme un autre' },
+  haute: { nom: 'Haute', ico: '🌡️', mot: 'on joue ça comme un match des séries', finition: 1.03, defense: 0.97, blessure: 1.25, energie: 1.12 },
 };
 
 /* La ligne u : son trio, et sa paire (la quatrième ligne n'en a pas). */

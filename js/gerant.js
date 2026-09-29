@@ -125,6 +125,23 @@ export function rolesDe(p) {
 }
 /* L'ancien nom : la fiche l'appelle encore. */
 export const barresProfils = rolesDe;
+/*
+ * SES RÔLES, TOUS (1.0, C2). JP : *variété de build, complexe mais clair*. Un
+ * système demande des rôles ; le joueur en a un, et une maîtrise de chacun
+ * des autres qui décide DÉJÀ du fit (`fitUnite` lit son score dans le rôle
+ * demandé, pas son rôle affiché). On la montre, en mots, du meilleur au moins
+ * bon — jamais un chiffre (aucune cote dans le DOM).
+ */
+export function sesRolesHtml(p) {
+  const pr = p && p.p !== 'G' ? profilsDe(p) : null;
+  if (!pr) return '';
+  const g = p.p === 'D' || p.p === 'LD' || p.p === 'RD' ? 'D' : 'F';
+  const liste = Object.entries(pr).filter(([k]) => PROFILS[g][k]).sort((a, b) => b[1] - a[1]);
+  return `<div class="ses-roles">${liste.map(([k, x], i) => {
+    const R = PROFILS[g][k];
+    return `<span class="ses-role${i === 0 ? ' premier' : x < 40 ? ' faible' : ''}" title="${esc(R.nom)} — lu dans ${esc(R.mot)}">${R.ico} ${esc(R.nom)} <b>${niveauDe(x)}</b></span>`;
+  }).join('')}</div>`;
+}
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
 export const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(', ')} et ${ns[ns.length - 1]}`);
 /* Les canaux d'effet d'un objet : ce que motsDEffet sait dire. */
@@ -658,7 +675,7 @@ export function ouvrirLignes(spec) {
     const filetHtml = F0 ? `<section class="gl-filet">
       <div class="gl-sec-titre">Devant le filet ce soir</div>
       <div class="gl-seg gl-seg-court">${boutonGardien('partant', gPartant)}${boutonGardien('aux', gAux)}</div>
-      <div class="gl-mot">Un gardien garde ses jambes trois départs de suite ; au quatrième, il en perd 5 par départ, et chaque 5 points perdus lui coûtent 1 % de buts accordés de plus. Une soirée de congé les lui rend. La rotation du club est choisie d'office ; touche l'autre pour lui donner le filet ce soir.</div>
+      <div class="gl-mot">Trois départs de suite sans perte ; ensuite ses jambes baissent. Touche l'autre pour lui donner le filet.</div>
     </section>` : '';
     const onglets = `<div class="gl-onglets" role="tablist">${NOMS_LIGNE.map((n, u) => {
       const T = TACTIQUES[brouillon[u].tac] || TACTIQUES.hourra, D = u < 3 ? SYSTEMES_D[brouillon[u].tacD] || SYSTEMES_D.hourra : null;
@@ -671,7 +688,7 @@ export function ouvrirLignes(spec) {
     const fitCourant = fitLigneBrut ?? 0;
     // LA CARRURE DE LA LIGNE (S71) : c'est elle qui dit si le jeu physique paie.
     const ph = physiqueLigne(spec.lineup, u);
-    const carrureLigne = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : '⚖️ ligne moyenne';
+    const carrureLigne = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : 'ligne moyenne';
     // UN SYSTÈME POUR LE TRIO, UN AUTRE POUR LA PAIRE (S79), chacun sous le nom de ce que ses joueurs sont.
     const choixDe = groupe => {
       const id = identiteUnite(spec.lineup, groupe, u);
@@ -685,12 +702,12 @@ export function ouvrirLignes(spec) {
         <div><span class="gl-k">Fit</span> <b>${sansSysteme ? '—' : fitLigneBrut == null ? 'À compléter' : motFit(fitCourant)}</b> <small>${sansSysteme ? 'aucune chimie' : fitLigneBrut == null ? 'ligne incomplète' : `plafond de chimie : ${plafondChimie(chimieMax(fitCourant))}`}</small></div>
         <div><span class="gl-k">Chimie ce soir</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(chimieDe(u, l))}%"></span></span> <b>${motChimie(chimieDe(u, l))}</b></div>
         ${app && !sansSysteme ? `<div class="gl-appris"><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise des systèmes : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l))}</b></span></div>
-        <div class="gl-mot">La chimie s'apprend et ne se perd pas : changer de système ou de joueur un soir ne défait rien. Plus une ligne joue un système, mieux elle le joue.</div>` : ''}
+        <div class="gl-mot">La chimie s'apprend en gardant ses lignes, et ne se perd pas.</div>` : ''}
       </div>
       ${choixDe('F')}
       ${u < 3 ? choixDe('D') : ''}
       <div class="gl-sec-titre">Agressivité · ${carrureLigne}</div>
-      <div class="gl-mot">Le jeu physique rapporte aux lignes costaudes 🪨. Une ligne légère 🪶 accroche au lieu de frapper : elle prend des punitions.</div>
+      <div class="gl-mot">🪨 Le physique paie aux costauds ; 🪶 les légers prennent des punitions.</div>
       <div class="gl-seg">${AGRESSIVITES.map((A, i) => {
         const b = bilanAgressivite(i, ph);
         const verdict = i === 1 ? { txt: 'Par défaut', bon: null } : b.net > 0.006 ? { txt: '✓ Payant pour cette ligne', bon: true } : b.net < -0.006 ? { txt: '✗ Coûteux pour cette ligne', bon: false } : { txt: '≈ Neutre pour cette ligne', bon: null };
@@ -703,7 +720,7 @@ export function ouvrirLignes(spec) {
       }).join('')}</div>
       <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
       <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-      <div class="gl-mot">Plus de glace, plus de lancers pour cette ligne — et plus d'usure : sous 90 de jambes (sur 100), un joueur rend un peu moins à chaque point, et sous 60 il se blesse plus.</div>
+      <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
@@ -809,10 +826,10 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
 
   const choix = systemesHtml({ lineup: spec.lineup, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
     chimieDe: app ? k => chimie({ [D ? 'tacD' : 'tac']: k }) : null });
-  if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Elle joue avec le ${NOMS_TRIO[u]} : leur chimie, leur agressivité et leur glace se règlent avec le trio.</div>` };
+  if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Chimie, agressivité et glace : avec le ${NOMS_TRIO[u]}.</div>` };
 
   const ph = physiqueLigne(spec.lineup, u);
-  const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : '⚖️ ligne moyenne';
+  const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : 'ligne moyenne';
   const agr = AGRESSIVITES.map((A, i) => {
     const b = bilanAgressivite(i, ph);
     const verdict = i === 1 ? 'par défaut' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre';
@@ -832,7 +849,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
     <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
     <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-    <div class="gl-mot">Plus de glace, plus de lancers — et plus d'usure : sous 90 de jambes (sur 100), un joueur rend un peu moins à chaque point, et sous 60 il se blesse plus.</div>`;
+    <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>`;
   return { sommaire, corps };
 }
 
@@ -946,7 +963,7 @@ export function regleDeCarte(C) {
   if (courbe && C.adv) out.push(courbe);
   else if (courbe && (C.synergie || (C.effet && (C.effet.F || C.effet.D)))) out.push({ txt: '🔗 Carte de trio : pleine tout de suite, elle ne grandit pas', bon: null });
   if (C.pioche) out.push({ txt: `Pige ${C.pioche} carte${C.pioche > 1 ? 's' : ''}`, bon: true });
-  if (C.energiePlus) out.push({ txt: `+${C.energiePlus} énergie`, bon: true });
+  if (C.energiePlus) out.push({ txt: `+${C.energiePlus} élan`, bon: true });
   if (C.energieTous) out.push({ txt: `Tes patineurs : jambes +${C.energieTous}`, bon: true });
   if (C.lire) out.push({ txt: 'Leur plan tombe', bon: true });
   if (C.annule) out.push({ txt: 'Leur main ne fait rien', bon: true });
@@ -958,7 +975,7 @@ export function regleDeCarte(C) {
   if (C.piege) out.push({ txt: `Si ta préparation vise juste : ${txt(C.piege)} de plus`, bon: true });
   if (C.parGenre) out.push({ txt: `${txt(C.parGenre.effet)} par carte ${DE_GENRE[C.parGenre.genre] || ''} jouée ce match`, bon: true });
   if (C.selonLeurMain) out.push({ txt: `${txt(C.selonLeurMain.effet)} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} dans leur main`, bon: true });
-  if (C.siVide) out.push({ txt: `Si tu dépenses toute ton énergie : ${txt(C.siVide)}`, bon: true });
+  if (C.siVide) out.push({ txt: `Si tu dépenses tout ton élan : ${txt(C.siVide)}`, bon: true });
   // 1.0 (J1-G) : un effet conditionnel au pointage après deux périodes — la carte dit sa condition.
   if (C.apres40) {
     for (const m of motsDEffet(C.apres40.siMene || null)) out.push({ ...m, txt: `Si tu mènes après deux périodes : ${m.txt}` });
@@ -994,7 +1011,7 @@ export function motsDeCarteAdverse(C, echelle = 1) {
  */
 export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN, echelle = 1 } = {}) {
   if (!cartes || !cartes.length) return '';
-  return `<div class="main-adverse"><div class="gl-k">🂠 La main ${nomAdv === 'Eux' ? 'adverse' : esc(avecArticle('de', nomAdv))} ce soir${energie > ENERGIE_MAIN ? ` · <span class="main-adverse-fort" title="En fin de saison et dans les dernières rondes des séries, l'adversaire joue avec une énergie de plus">⚡ ${energie} d'énergie</span>` : ''}</div><div class="main-adverse-cartes">${cartes.map(c => {
+  return `<div class="main-adverse"><div class="gl-k">🂠 La main ${nomAdv === 'Eux' ? 'adverse' : esc(avecArticle('de', nomAdv))} ce soir${energie > ENERGIE_MAIN ? ` · <span class="main-adverse-fort" title="En fin de saison et dans les dernières rondes des séries, l'adversaire joue avec un élan de plus">⚡ ${energie} d'élan</span>` : ''}</div><div class="main-adverse-cartes">${cartes.map(c => {
     const C = CARTES_MATCH[c];
     return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C, echelle))}</span></span>` : '';
   }).join('')}</div></div>`;
@@ -1008,7 +1025,7 @@ export function optionDeCarteMatch(cle) {
   const C = CARTES_MATCH[cle];
   return {
     cle, rarete: C.maudite ? 'commune' : C.rarete, ico: C.ico, nom: C.nom,
-    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} énergie`}`,
+    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} élan`}`,
     texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C),
   };
 }
@@ -1102,7 +1119,7 @@ export function ouvrirMainDeMatch(spec) {
           const mots = [...motsDEffet(canaux), ...(o.pari ? [{ txt: '🎲 Pari', bon: null }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
-        <div class="main-energie" aria-label="Énergie : ${energie}"><span class="gl-k">Énergie</span><span class="main-orbes">${orbes}</span><b>${energie}</b>
+        <div class="main-energie" aria-label="Élan : ${energie}"><span class="gl-k">Élan</span><span class="main-orbes">${orbes}</span><b>${energie}</b>
           <span class="main-pioche" title="Les cartes qui restent à piger ce match">🂠 ${pioche.length}</span></div>
         <div class="choix-options choix-main${premier ? ' donne' : ''}">${cartes}</div>
         <div class="main-apercu">
@@ -1180,7 +1197,7 @@ export function ouvrirDeck({ deck, titre = 'Mon deck', recit = '' }) {
   for (const c of tri) compte.set(c, (compte.get(c) || 0) + 1);
   return ouvrirChoix({
     ico: '🃏', titre: `${titre} · ${deck.length} cartes`, cartes: true, genre: 'deck', fermable: true, motFermer: 'Fermer',
-    recit: recit || 'Tes cartes de match : avant chaque gros match et chaque match de séries, tu en piges cinq et tu as trois d\'énergie pour les jouer.',
+    recit: recit || 'Tes cartes de match : avant chaque gros match et chaque match de séries, tu en piges cinq et tu as trois d\'élan pour les jouer.',
     lecture: true,
     options: [...compte.entries()].map(([c, n]) => ({ ...optionDeCarteMatch(c), cle: `vue:${c}`, nom: n > 1 ? `${CARTES_MATCH[c].nom} ×${n}` : CARTES_MATCH[c].nom })),
     onChoix: () => {},

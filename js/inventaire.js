@@ -83,7 +83,7 @@ export function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, 
   if (!c) return '';
   const mots = c.cat === 'match' ? optionDeCarteMatch(c.cle).mots : reglesDe(id);
   const R = RARETES[c.rarete] || { gemme: '◆', nom: c.rarete };
-  const sous = c.cat === 'patron' ? ROLES[c.role].nom : c.cat === 'match' ? `${c.cout} énergie` : c.cat === 'evenement' ? `${c.duree} journées`
+  const sous = c.cat === 'patron' ? ROLES[c.role].nom : c.cat === 'match' ? `${c.cout} élan` : c.cat === 'evenement' ? `${c.duree} journées`
     : c.cat === 'saison' ? 'Toute la saison' : c.cat === 'joueur' ? 'Un joueur' : (CIBLES[c.cible] || CATEGORIES[c.cat].un);
   const v = vie || c.vie;
   return `<div class="bq-carte bq-${c.cat} tc-${c.rarete}${possede ? '' : ' pas-a-moi'}" data-id="${esc(id)}">

@@ -41,7 +41,7 @@ js/recit.js           les mots du sommaire d'un match
 js/entracte.js        le rapport d'entracte en cartons
 js/pronostic.js       le dépistage d'avant-match
 js/equipes.js         l'écran des équipes et leurs vraies statistiques
-js/combat.js          le deck de match : cartes, main, énergie, main adverse
+js/combat.js          le deck de match : cartes, main, élan, main adverse
 js/cartes.js          le gabarit des cartes (recto, verso, finitions)
 js/rarete.js          les variantes de carte et leur bonus
 js/banque.js          la banque de cartes (patrons, événements, modifs, consommables, contrats)
@@ -118,7 +118,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Toute commande visible doit fonctionner.
 - Une surface de base se change À LA SOURCE, jamais en fin de fichier.
 - Le noir est le décor ; la couleur vient des équipes, aux vraies couleurs, jamais délavées ; les écussons des disparues sont dessinés (`js/logos.js`), jamais empruntés.
-- Moins de mots, et surtout pas les évidents.
+- Moins de mots, et surtout pas les évidents : une ligne à l'écran, le détail chiffré dans la page des règles, dont chaque chiffre vient d'une constante — `check_clarte`.
 - Ton équipe s'appelle les NHL Stars.
 - On ne décerne que ce que les colonnes décident, jamais ce qu'un vote déciderait.
 
@@ -138,7 +138,11 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **rôle** : ce que le joueur fait (sniper, passeur, checker…), une icône et un mot ; un système demande des rôles.
 - **zone** : où le joueur rend (T1-2, P1…) ; une case porte les zones qui y sont chez elles.
 - **carrure** : 🪨 costaud ou 🪶 léger ; elle décide de ce que rapporte l'agressivité.
-- **énergie** : aujourd'hui, la mana des cartes de match (trois par main). L'item C1 de `LIVRAISON.md` la renomme « élan » ; ne l'emploie pas pour la fatigue.
+- **élan** : la mana des cartes de match (trois par main, « 1 élan » sur une carte).
+- **plombier** : le rôle 🪠 d'un attaquant de quatrième trio qui lance et frappe en peu de minutes ; le système 🧰 Trio de plombiers.
+- **usure des jambes** : ce qu'un match coûte aux jambes (la puce « Usure des jambes +12 % »).
+- « énergie » n'est plus un mot de l'écran (il voulait dire cinq choses) — `check_clarte`. Les clés du code (`energie`, `ENERGIE_MAIN`) restent, pour ne pas casser les sauvegardes.
+- **Une icône = un sens** dans les étiquettes qu'on voit en jouant : rôles, systèmes, trophées, bonus de carte, styles de gardien, carrure, agressivité, consigne — `check_clarte`. Avant d'ajouter une icône, cherche-la dans `js/`.
 
 ## Tester
 

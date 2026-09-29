@@ -941,7 +941,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const adv = mo.mb.adv;
     ouvrirMainDeMatch({
       titre: 'Avant le match', sousTitre: `Match important · journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
-      recit: 'Le dépistage dit ce qu\'ils vont probablement jouer : prépare-toi pour une piste, puis joue tes cartes — cinq cartes, trois d\'énergie, pour ce match seulement.',
+      recit: 'Le dépistage dit ce qu\'ils vont probablement jouer : prépare-toi pour une piste, puis joue tes cartes — cinq cartes, trois d\'élan, pour ce match seulement.',
       depistage: mo.mb.depistage, planReel: mo.mb.plan, nomAdv: ctx.teamShort(adv),
       contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }), echelle: echelleTardive({ jour: mo.p.j }) }),
       // S80 : l'échelle du soir — ce qui vise l'adversaire grandit avec la saison.
@@ -1798,7 +1798,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (c.sorte === 'atelier') return { cle: 'atelier', rarete, ico: S.ico, nom: S.nom, type: `${S.nom} · se pose au verso`,
         texte: `Trois éditions : ${editionsDuJour(graine, p0).map(k => `${MUTATIONS[k].ico} ${MUTATIONS[k].nom}`).join(' · ')}. Tu en gardes une, et tu la poses au verso d'un joueur quand tu veux.` };
       if (c.sorte === 'camp') return { cle: 'camp', rarete, ico: S.ico, nom: 'Le camp d\'entraînement', type: `${S.nom} · ton deck de match`,
-        texte: 'Une carte de ton deck de match devient sa version « + » : moitié plus forte, ou une énergie de moins.',
+        texte: 'Une carte de ton deck de match devient sa version « + » : moitié plus forte, ou un élan de moins.',
         desactive: deckAvant(jour).some(k => CARTES_MATCH[`${k}+`]) ? '' : 'Tout ton deck est déjà amélioré' };
       if (c.sorte === 'menage') return { cle: 'menage', rarete, ico: S.ico, nom: 'Le ménage du vestiaire', type: `${S.nom} · ton deck de match`,
         texte: `Une carte de moins dans ton deck de match (${deckAvant(jour).length} cartes) : les autres sortent plus souvent. Tu choisis laquelle.` };
@@ -2207,7 +2207,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onChoix: k => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: k }, j); },
         onFerme: () => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null }, j); } };
     }
-    if (mo) return { de: DE.depisteur, ico: '🃏', titre: 'Ta main pour le gros match', recit: 'Cinq cartes, trois d\'énergie, pour ce match seulement — et le dépistage de leurs pistes.', ouvrir: () => ouvrirMainGros(mo) };
+    if (mo) return { de: DE.depisteur, ico: '🃏', titre: 'Ta main pour le gros match', recit: 'Cinq cartes, trois d\'élan, pour ce match seulement — et le dépistage de leurs pistes.', ouvrir: () => ouvrirMainGros(mo) };
     return null;
   }
   const titreDuChoix = spec => String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : ''));

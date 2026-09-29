@@ -114,6 +114,11 @@ jobs:
       - name: La fiche reconstituée d'un club tient
         run: node scripts/check_fiches.mjs
 
+      # Une icône = un sens, « énergie » hors de l'écran, et les chiffres de la page des règles
+      # reconstruits depuis leurs constantes (1.0, jalon C). Une seconde.
+      - name: La clarté
+        run: node scripts/check_clarte.mjs
+
       - name: Installer Playwright (Chromium)
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.47.2

@@ -14,7 +14,7 @@
  * BONUS TIRÉ AU HASARD dans une réserve — précision, canon, vision,
  * défensif, solide, clutch, polyvalent ; réflexes ou solide pour un gardien
  * — et il colle au joueur… ou pas : un défensif en or avec « Précision », un
- * franc-tireur en holo avec « Défensif ». C'est la chance du paquet.
+ * franc-tireur en holo avec « Étanche ». C'est la chance du paquet.
  *
  * LA FORCE SUIT LA RARETÉ : une parallèle +3 %, une holo +5 %, une or DEUX
  * bonus à +5 %. Les canaux qui pèsent moins au quotidien (les blessures, le
@@ -44,15 +44,16 @@ export const NOM_VARIANTE = { commune: 'Base', peu: 'Parallèle', rare: 'Holo', 
  * buts contre, moins de blessures). `fois` : le multiplicateur de force d'un
  * canal qui pèse moins au quotidien.
  */
+/* 1.0 (C1) : aucune icône d'un rôle ou d'un trophée — 🎯 est le sniper, 🚀 le défenseur offensif, 🪄 le Créateur, 🛡️ le Selke, 🧤 le Voleur. */
 export const BONUS = {
-  finition: { ico: '🎯', nom: 'Précision', canal: 'finition', sens: 1, mot: x => `Ses tirs entrent : précision +${x} %.` },
-  lancers: { ico: '🚀', nom: 'Canon', canal: 'lancers', sens: 1, mot: x => `Il lance plus : tirs +${x} %.` },
-  creation: { ico: '🪄', nom: 'Vision', canal: 'creation', sens: 1, mot: x => `Ses passes font marquer : création +${x} %.` },
-  defense: { ico: '🛡️', nom: 'Défensif', canal: 'defense', sens: -1, mot: x => `Buts contre −${x} % quand il est sur la glace.` },
+  finition: { ico: '📍', nom: 'Précision', canal: 'finition', sens: 1, mot: x => `Ses tirs entrent : précision +${x} %.` },
+  lancers: { ico: '☄️', nom: 'Canon', canal: 'lancers', sens: 1, mot: x => `Il lance plus : tirs +${x} %.` },
+  creation: { ico: '👓', nom: 'Vision', canal: 'creation', sens: 1, mot: x => `Ses passes font marquer : création +${x} %.` },
+  defense: { ico: '⛔', nom: 'Étanche', canal: 'defense', sens: -1, mot: x => `Buts contre −${x} % quand il est sur la glace.` },
   solide: { ico: '🩹', nom: 'Solide', canal: 'blessure', sens: -1, fois: 4, mot: x => `Blessures −${x} %.` },
   clutch: { ico: '🧊', nom: 'Clutch', canal: 'clutch', sens: 1, fois: 2, mot: x => `Les grands soirs (gros match, séries) : précision +${x} %.` },
   polyvalent: { ico: '🔄', nom: 'Polyvalent', canal: 'horsPosition', sens: -1, fois: 6, mot: x => `Pénalité hors position −${x} %.` },
-  reflexes: { ico: '🧤', nom: 'Réflexes', canal: 'arrets', sens: -1, mot: x => `Buts accordés −${x} %.` },
+  reflexes: { ico: '🐱', nom: 'Réflexes', canal: 'arrets', sens: -1, mot: x => `Buts accordés −${x} %.` },
 };
 const RESERVE_PATINEUR = ['finition', 'lancers', 'creation', 'defense', 'solide', 'clutch', 'polyvalent'];
 const RESERVE_GARDIEN = ['reflexes', 'reflexes', 'solide'];
