@@ -502,7 +502,15 @@ async function finirDirect(etiquette) {
   }
   const repris = await page.$eval('#liveModal .live-feed', e => e.textContent);
   if (!/Troisième période/.test(repris)) errors.push(`${etiquette} : le direct ne reprend pas à la troisième période après l'entracte`);
-  else if (avant !== await sousLeMarqueur()) errors.push(`${etiquette} : les deux premières périodes ont changé après le choix de l'entracte`);
+  else {
+    const apres = await sousLeMarqueur();
+    if (avant !== apres) {
+      // La PREMIÈRE ligne qui diffère, pour savoir quoi réparer (un mot du commentateur, un but, une punition…).
+      const a = avant.split(' | '), b = apres.split(' | ');
+      const k = a.findIndex((x, i) => x !== b[i]);
+      errors.push(`${etiquette} : les deux premières périodes ont changé après le choix de l'entracte — ligne ${k} : « ${(a[k] || '').slice(0, 140)} » devient « ${(b[k] || '').slice(0, 140)} » (${a.length} lignes avant, ${b.length} après)`);
+    }
+  }
   entractesVus.push(`${etiquette} « ${titre} » (${opts} options)`);
   if (await page.$('#liveModal .live-fin')) await _click('#liveModal .live-fin');
   await _wait('#liveModal .live-suite', { timeout: 10000 });
@@ -1459,6 +1467,20 @@ async function traverserSaison(etiquette, reprise = false) {
     await page.locator('.slot').nth(9).click(); await page.waitForTimeout(200);
     const nomsApres = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.trim()));
     if (nomsAvant[0] !== nomsApres[9]) errors.push('la permutation derrière le banc n\'a pas eu lieu');
+    /*
+     * LE NOM OUVRE SA CARTE (1.0). JP : *dans alignement, peser sur nom ouvre
+     * carte*. Toucher le nom ouvre la fiche et ne choisit PAS la case ; le reste
+     * de la case garde son geste (la permutation, juste au-dessus).
+     */
+    {
+      await page.locator('.slot .slot-fiche').nth(2).click();
+      const fiche = await page.waitForSelector('#hockeyCardModal', { state: 'visible', timeout: 5000 }).catch(() => null);
+      const choisie = await page.$('.slot.selected');
+      if (!fiche) errors.push('toucher le nom dans l\'alignement n\'ouvre pas sa carte');
+      if (choisie) errors.push('toucher le nom dans l\'alignement choisit aussi la case');
+      if (fiche) { await page.evaluate(() => document.getElementById('closeHockeyCardBtn').click()); await page.waitForTimeout(150); }
+      if (fiche && !choisie) console.log('   le nom ouvre sa carte, et la case n\'est pas choisie');
+    }
     // Au téléphone, le « Retour au match » du panneau se cache : la barre du bas porte le même (QA S74b).
     if (await page.isVisible('#bancRetour')) errors.push('à 390 px, le panneau du banc répète le « Retour au match » de la barre du bas');
     await page.click('#mainBtn');

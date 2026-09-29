@@ -15,6 +15,14 @@ import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, displayStats, estRenfort, formatName, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, svCourt, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { fermetureCourante } from './banc.js';
+import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
+
+/* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
+function ouvrirCarteDe(p) {
+  const L = G.ligue;
+  if (L) ouvrirFiche(p, L.you, porteeRevele('saison') === 'jour' ? 'jour' : 'saison');
+  else showPlayerModal(p, {});
+}
 
 /* =====================================================================
    Rendu — alignement
@@ -279,10 +287,13 @@ function slotEl(s) {
           : G.banc ? '' : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
-        <div class="slot-name">${formatName(p.n)}</div>
+        <button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button>
         ${surTable() ? `<div class="slot-meta slot-faits">${ligneStats}</div>
         <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : celluleJoueur(p, s, { ecart, penTag, blesseTag, main })}
       </div>`;
+    // LE NOM OUVRE SA CARTE (1.0, JP : *dans alignement, peser sur nom ouvre carte*). Le reste de
+    // la case garde son geste : la toucher la choisit pour déplacer ou permuter.
+    el.querySelector('.slot-fiche')?.addEventListener('click', ev => { ev.stopPropagation(); ouvrirCarteDe(p); });
     el.querySelector('.slot-relacher')?.addEventListener('click', ev => { ev.stopPropagation(); relacherReserviste(s); });
     el.querySelector('.slot-remove:not(.slot-relacher)')?.addEventListener('click', ev => {
       ev.stopPropagation();

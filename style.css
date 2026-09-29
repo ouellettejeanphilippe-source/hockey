@@ -3096,6 +3096,8 @@ table.data .pts { font-weight: 900; color: var(--green); }
   transition: text-decoration-color .15s;
 }
 .lien-joueur:hover, .lien-equipe:hover { text-decoration-color: var(--gold); color: var(--text); }
+/* Le nom d'une case d'alignement : un lien vers sa carte, sur toute la largeur de la case. */
+.slot .slot-fiche { width: 100%; justify-content: flex-start; }
 .lien-joueur > span, .lien-equipe > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .team-ext { color: var(--muted); display: inline-flex; flex: none; margin-left: 2px; }
 .team-ext .ico { width: 12px; height: 12px; }
