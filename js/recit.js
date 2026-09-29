@@ -163,3 +163,43 @@ export function recitDeSerie(wV, wP, nomV, nomP, feuilles) {
   else if (prolongations === 1) phrase += ' Un match s\'est réglé en prolongation.';
   return phrase;
 }
+
+/*
+ * LE CONSEIL DU BILAN (1.0, J2-18). « Regarde tes trois derniers trios » ne
+ * disait rien que le joueur puisse vérifier. Le conseil nomme maintenant ce
+ * qui a le plus coûté, avec ses chiffres — les mêmes que le rapport du
+ * dépisteur au bureau : tes lignes à forces égales (buts et tirs), ou tes buts
+ * pour et contre et leur rang dans la ligue. Pur : `calendrier` est celui du
+ * moteur (une journée = une liste de matchs `{ A, B, feuille }`), `teams` le
+ * classement final.
+ */
+export function lignesAForcesEgales(calendrier, you) {
+  const L = [0, 1, 2, 3].map(() => ({ t: 0, b: 0 }));
+  for (const jour of calendrier || []) for (const m of jour || []) {
+    if (!m || !m.feuille || (m.A !== you && m.B !== you)) continue;
+    const cote = m.A === you ? 'A' : 'B';
+    for (const l of m.feuille.lancers || []) {
+      if (l.ligne == null || l.mode !== 'FE' || l.cote !== cote || !L[l.ligne]) continue;
+      L[l.ligne].t++;
+      if (l.but) L[l.ligne].b++;
+    }
+  }
+  return L;
+}
+const rangDans = (teams, you, cle, bas) => teams.slice().sort((a, b) => (bas ? a[cle] - b[cle] : b[cle] - a[cle]))
+  .findIndex(t => t === you || t.isPlayer) + 1;
+export function conseilDuBilan(r, you, teams = [], calendrier = []) {
+  if ((r.L + r.OTL) === 0) return '82-0-0. Saison parfaite. Les Bruins de 2022-23, meilleure saison de l\'histoire, ont fini 65-12-5.';
+  if (r.W >= 65) return `${r.W} victoires : mieux que le record réel de la LNH (65, Bruins de 2022-23).`;
+  const n = teams.length;
+  const rGF = n > 1 ? rangDans(teams, you, 'GF', false) : 0;
+  const rGA = n > 1 ? rangDans(teams, you, 'GA', true) : 0;
+  // Le trio qui convertit le moins, parmi ceux qui ont assez tiré pour qu'on le juge.
+  const NOMS = ['1er', '2e', '3e', '4e'];
+  const pire = lignesAForcesEgales(calendrier, you).map((x, u) => ({ ...x, u, pct: x.t ? x.b / x.t : 0 }))
+    .filter(x => x.t >= 30).sort((a, b) => a.pct - b.pct)[0];
+  if (r.W >= 41 && pire) return `Ton ${NOMS[pire.u]} trio a marqué ${pire.b} but${pire.b > 1 ? 's' : ''} en ${pire.t} tirs à forces égales : c'est là que ça se joue.`;
+  if (rGA && rGA >= rGF) return `Ta défense a accordé ${r.GA} buts, ${rGA}e de la ligue sur ${n} : c'est là que ça se joue.`;
+  if (rGF) return `Ton attaque a marqué ${r.GF} buts, ${rGF}e de la ligue sur ${n} : c'est là que ça se joue.`;
+  return r.W >= 41 ? 'Saison au-dessus de la moyenne.' : 'Une saison sous la moyenne.';
+}

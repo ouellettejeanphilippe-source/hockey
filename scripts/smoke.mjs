@@ -2192,6 +2192,12 @@ if (enabled) {
   const score = await page.textContent('.result .score');
   const rows = await page.$$eval('.rrow', r => r.length);
   console.log(`4. fiche ${score.trim()}, ${rows} rangées`);
+  // LE CONSEIL DU BILAN CITE SES CHIFFRES (1.0, J2-18) : un nombre, jamais « regarde tes trois derniers trios ».
+  {
+    const conseil = ((await page.textContent('#resultHost .note').catch(() => '')) || '').trim();
+    if (!/\d/.test(conseil) || /trois derniers trios|bât blesse/.test(conseil)) errors.push(`le conseil du bilan ne cite aucun chiffre : « ${conseil} »`);
+    else console.log(`   le conseil du bilan : « ${conseil} »`);
+  }
   /*
    * L'ALBUM (S74) : la saison jouée y entre — ses 23 joueurs au cartable,
    * ses cartes de match (au moins celles du départ), sans déborder.
