@@ -147,7 +147,7 @@ Jours-personne pour un dev qui connaît le dépôt. Les jalons 1 et 2 se mènent
 - [x] **1 · Le Rogue en héros.** `js/menu.js:73-96` (`carte`), `:109-118` (exhibition) ; `style.css:8035` `repeat(auto-fit, minmax(260px, 1fr))` étire et orpheline.
   - Correctif : grille `"rogue rogue" "saison table"` à ≥ 900 px, `align-items: start`, carton Rogue pleine largeur avec la dernière run dessus (voir R7) ; exhibition en lien `menu-lien` ; « écussons · joueurs · run » (`:77`) remplacé par le résumé de la dernière run, ou rien à la première visite.
   - Preuve : `smoke.mjs` (~470) : le carton Rogue a la plus grande hauteur et vient en premier dans le DOM.
-- [ ] **2 · Deux listes qui n'existent que quand elles servent.** `js/game.js:2450, 2470` `disabled` → `.opt-row.sans-liste` `display:none`. `#npResume` (`style.css:3037`) : `white-space: normal`, deux lignes, sans le plafond (`:2356`). Note du bouton (`:2378`) : « première roulette » quand `G.tirage` est vide.
+- [x] **2 · Deux listes qui n'existent que quand elles servent.** `js/game.js:2450, 2470` `disabled` → `.opt-row.sans-liste` `display:none`. `#npResume` (`style.css:3037`) : `white-space: normal`, deux lignes, sans le plafond (`:2356`). Note du bouton (`:2378`) : « première roulette » quand `G.tirage` est vide.
   - Preuve : `sansDebordement('Nouvelle partie')` + `#npResume` sans débordement.
 
 ### Les cartes à choisir
@@ -165,34 +165,34 @@ Jours-personne pour un dev qui connaît le dépôt. Les jalons 1 et 2 se mènent
 - [x] **5 · La fiche : Signer collé au bas, verso au recto.** `js/game.js:5081-5135` (`ouvrirFiche`), `:5193` (« Ce qu'il sait faire » au verso).
   - Correctif : bouton dans `.fiche-pied` `position: sticky; bottom: 0` (≤ 640 px) ; à ≥ 900 px, colonne droite = archétypes et traits + « Plus de détails » ouvert.
   - Preuve : `toutEstAtteignable('fiche')` + bouton visible sans défiler.
-- [ ] **6 · Sept retouches du vestiaire.** (a) Signer en risque : J1-Q. (b) Un seul compte : `:2564` badge = signables, `:3849` « Vestiaire · 35 signables ». (c) `index.html:102` « Tous » de la vue → « Liste », chip « Tous » → « Tout » ; sur téléphone, vue liste forcée quand le filtre est « Tout » (`style.css:1065`). (d) « À compléter » : J1-I. (e) `:2560-2570` onglets `mort` pendant le repêchage, opacité 0,45, badge « dès J1 ». (f) `:4822` « Encore N joueurs » → jauge (dégradé au pourcentage, « 14 / 23 · encore 9 »). (g) `:2141` toast « Classique… » seulement si une partie existait.
+- [x] **6 · Sept retouches du vestiaire.** (a) Signer en risque : J1-Q. (b) Un seul compte : `:2564` badge = signables, `:3849` « Vestiaire · 35 signables ». (c) `index.html:102` « Tous » de la vue → « Liste », chip « Tous » → « Tout » ; sur téléphone, vue liste forcée quand le filtre est « Tout » (`style.css:1065`). (d) « À compléter » : J1-I. (e) `:2560-2570` onglets `mort` pendant le repêchage, opacité 0,45, badge « dès J1 ». (f) `:4822` « Encore N joueurs » → jauge (dégradé au pourcentage, « 14 / 23 · encore 9 »). (g) `:2141` toast « Classique… » seulement si une partie existait.
 
 ### La saison
 
-- [ ] **7 · La colonne droite du hub, remplie.** `style.css:5157-5180` (grille carte | volet), `voletJourneeSeul` (`js/saison.js:1577`).
+- [x] **7 · La colonne droite du hub, remplie.** `style.css:5157-5180` (grille carte | volet), `voletJourneeSeul` (`js/saison.js:1577`).
   - Correctif : `.hub-tuiles` 2 × 2 à ≥ 1200 px : classement autour de toi (`voletClassement` `:1590` avec `{ autour: 5 }`), cinq prochains matchs (`L.calendrier.slice(jour, jour + 5)` via `carteMatch` `:1516`), trois meneurs (`leagueStats`, `js/bilan.js:83`), le deck. Une colonne à 390 px.
   - Preuve : `smoke.mjs` : 4 `.hub-tuile` à 1440, une colonne à 390.
-- [ ] **8 · Le sommaire ne se force plus chaque jour.** `ouvrirSommaire` (`js/saison.js:19`, `:1384`).
+- [x] **8 · Le sommaire ne se force plus chaque jour.** `ouvrirSommaire` (`js/saison.js:19`, `:1384`).
   - Correctif : match ordinaire sans attente → pas de plein écran ; `hub-hier` (`:1506`) monte en tête du volet avec animation 400 ms, « Sommaire › » l'ouvre. Plein écran gardé pour gros matchs, avances multiples (`:1445`) et choix en attente.
   - Preuve : `sommairesVus` (`smoke.mjs:262`) ≈ gros matchs + avances ; `memesButs` inchangé.
-- [ ] **9 · Des mots de hockey.** `js/saison.js:1387` « Retour au hub » → « Retour au bureau » ; `:2327` « ⏳ Règle d'abord ce message » → « À régler avant le match » ; `:1796, 2222` « Le palier de la journée N » → « La main de la journée N ».
+- [x] **9 · Des mots de hockey.** `js/saison.js:1387` « Retour au hub » → « Retour au bureau » ; `:2327` « ⏳ Règle d'abord ce message » → « À régler avant le match » ; `:1796, 2222` « Le palier de la journée N » → « La main de la journée N ».
   - Preuve : grep `hub` dans les chaînes affichées → 0.
 - [x] **10 · Le classement sur téléphone.** `#hubFlottant` (`js/saison.js:514`, CSS `:6908`) cache des rangées ; `:1594` `teamShort(t)` tronqué.
   - Correctif : `padding-bottom: calc(var(--bas-coquille) + 72px)` sur le volet ; à ≤ 480 px, `tagCourt(t)` (« CGY '93 », déjà `:1504`).
   - Preuve : à 390, aucune `td.nom` tronquée, `tr.toi` au-dessus du flottant.
-- [ ] **11 · Préparer le match : l'adversaire d'abord, un seul réglage.** `js/gerant.js:495` (`enFace` par ligne), `:596` (titre), `:604-605` (curseur `gl-ad`), `:631` (phrase chimie).
+- [x] **11 · Préparer le match : l'adversaire d'abord, un seul réglage.** `js/gerant.js:495` (`enFace` par ligne), `:596` (titre), `:604-605` (curseur `gl-ad`), `:631` (phrase chimie).
   - Correctif : bloc `gl-adv-tete` une fois sous le titre, depuis le dépistage ; phrase chimie en `title` ; curseur retiré du tiroir et de `match.ad` dans `js/sim.js` (il alimente `finition 1 + 0,025·ad` : l'encoder dans la consigne, basse = −1, haute = +1).
   - Preuve : `.gl-adv-tete` précède `.gl-consigne` ; `toutEstAtteignable`.
 - [x] **12 · Les puces des cartes de la main visibles à 900 px.** `js/cartes.js:87-88` texte d'ambiance avant les puces ; `.main-sheet .tc-art` 84 px (`style.css:6818`).
   - Correctif : `.main-sheet .tc-puces { order: -1 }` sous le type, art 64 px, ambiance à deux lignes.
   - Preuve : `smoke.mjs:290` à 1440 × 900 : chaque `.tc-puces` au-dessus de `.main-boutons`.
-- [ ] **13 · « L'adjoint joue cette série ».** Ouverture de la main de série `js/saison.js:925` (`ouvrirMainGros`) ; aucun robot de main n'existe.
+- [x] **13 · « L'adjoint joue cette série ».** Ouverture de la main de série `js/saison.js:925` (`ouvrirMainGros`) ; aucun robot de main n'existe.
   - Correctif : `mainParDefaut(main, energie, pistes)` dans `js/combat.js` (piste la plus probable, cartes par gain décroissant sous `ENERGIE_MAIN`) ; option qui enregistre `{ main, auto: true, serie: i }` et saute mains et entractes de la série (« Garder le cap »).
   - Preuve : `check_combat.mjs` : jamais au-dessus de l'énergie ; smoke série accepte « adjoint ».
-- [ ] **14 · L'entracte en 2 × 2.** `style.css:6331` : `.choix-options:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, 1fr) }` à ≥ 900 px ; poser `data-genre="entracte"`.
+- [x] **14 · L'entracte en 2 × 2.** `style.css:6331` : `.choix-options:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, 1fr) }` à ≥ 900 px ; poser `data-genre="entracte"`.
 - [x] **17 · Le toast en haut sur téléphone.** `style.css:2292, 7031` : à ≤ 1199 px, `top: calc(var(--topbar-h) + 8px + env(safe-area-inset-top))`.
   - Preuve : après une signature, `#toast` dans la moitié haute.
-- [ ] **18 · Le bilan conseille avec ses chiffres.** `js/bilan.js:498-501` → « Ton 4e trio a marqué 3 buts en 80 tirs : c'est là que ça se joue. » depuis le rapport du dépisteur ; sous 41 V, la défense et son rang.
+- [x] **18 · Le bilan conseille avec ses chiffres.** `js/bilan.js:498-501` → « Ton 4e trio a marqué 3 buts en 80 tirs : c'est là que ça se joue. » depuis le rapport du dépisteur ; sous 41 V, la défense et son rang.
   - Preuve : `check_fiches.mjs` : la phrase cite un nombre du rapport.
 
 ### Le Rogue
@@ -335,3 +335,4 @@ awk '/^## /{if(n)print b"\t"s"\t"n; n=$0; s=NR; b=0} {b+=length($0)+1} END{print
 - 2026-09-29 — Fusionnés : J1 K L M (zones, deux vedettes, chimie relative), J2 3 4 5 10 12 16 17 et R6 (mobile), les cartes de club (7 cartes d'origine), la page des lignes (cases sans photo, niveau, jambes ; le système en fenêtre), C3 C4 C5 (jambes qui comptent, gardiens et « Devant le filet ce soir », totaux du soir), J3-10 (CLAUDE.md 608 → 14 Ko, PLAN.md 284 → 5 Ko, historique dans docs/).
 - 2026-09-29 — Mesures : Rogue sans déblocage 2,5 % de Coupe par run, première Coupe à la run 3,5 en médiane (R9 tenu) ; robot 0 Coupe sur 40, séries 57 %, ballottage −0,4 V ; chimie 100 contre 0 : +10,9 % de buts ; jambes du 1er trio 92,7 au défaut, 84,0 poussé.
 - 2026-09-29 — C1 C2 C6 fusionnés : élan (mana des cartes), 🪠 Plombier, PUN / MATCH, une icône par sens (check_clarte, 56 icônes), « Ses rôles » dans la fiche, % d'arrêts comme chiffre clé d'un gardien ; règles 6 037 → 1 520 mots, 28 chiffres reconstruits depuis leurs constantes.
+- 2026-09-29 — Jalon 2 fini : Nouvelle partie (listes à la demande), vestiaire (un seul compte, jauge, onglets atténués pendant le repêchage), bureau (quatre tuiles dès 1200 px), match ordinaire lu au bureau, « bureau » et « main de la journée », Préparer (l'adversaire d'abord ; le curseur attaque/défense fondu dans la consigne : Basse −1, Normale 0, Haute +1), « L'adjoint joue cette série », entracte en 2 × 2, bilan chiffré. Écarts : pas de badge « dès J1 » (infobulle), portail caché sous 1200 px (jamais une longue page), bande par poste gardée au téléphone.
