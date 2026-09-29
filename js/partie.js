@@ -200,7 +200,6 @@ export function syncOptionsUI() {
   const rep = $('repechageRow');
   if (rep) {
     rep.hidden = false;
-    rep.classList.remove('desactive');
     // « Dans la saison » demande une ligue fixée ; les deux autres valent toujours.
     rep.querySelectorAll('.seg button').forEach(x => { x.disabled = x.dataset.val === 'SAISON' && !src.epoque; });
   }
