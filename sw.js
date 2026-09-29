@@ -37,7 +37,10 @@ const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
 const VISAGES = 'cap82img-visages-320';
 // Les tiroirs que l'application Android remplit elle-même (js/visages.js, js/actions.js) : l'activation ne les
 // jette pas (elle jetait tout « cap82img- » autre que VISAGES, donc les visages déjà recadrés par l'appareil).
-const TIROIRS = [VISAGES, 'cap82img-appareil-320', 'cap82img-actions-400'];
+// Les photos d'action du Web (img/actions/) ont leur tiroir, nommé d'après leur FORMAT : passées de 5:7 à la photo
+// entière (16:9), elles gardent leur adresse, et l'ancien tiroir servirait les vieilles pour toujours.
+const ACTIONS_WEB = 'cap82img-actions-web-854';
+const TIROIRS = [VISAGES, ACTIONS_WEB, 'cap82img-appareil-320', 'cap82img-actions-854'];
 
 const FICHIERS = [
   './', 'index.html', 'style.css', 'site.webmanifest', 'favicon.svg',
@@ -74,6 +77,8 @@ self.addEventListener('activate', ev => {
   ev.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => (k.startsWith('cap82-') && !k.startsWith(VERSION)) || (k.startsWith('cap82img-') && !TIROIRS.includes(k))).map(k => caches.delete(k))))
+      // Les photos d'action 5:7 d'avant vivaient avec les visages : elles en sortent.
+      .then(() => caches.open(VISAGES)).then(c => c.keys().then(ks => Promise.all(ks.filter(k => k.url.includes('/img/actions/')).map(k => c.delete(k)))))
       .then(() => self.clients.claim()),
   );
 });
@@ -119,9 +124,9 @@ async function cacheDabord(req) {
   return rep;
 }
 
-/* Un visage ou un écusson du jeu : le tiroir d'abord, puis le réseau (et on le garde). */
+/* Un visage, un écusson ou une photo d'action du jeu : le tiroir d'abord, puis le réseau (et on le garde). */
 async function visage(req) {
-  const cache = await caches.open(VISAGES);
+  const cache = await caches.open(req.url.includes('/img/actions/') ? ACTIONS_WEB : VISAGES);
   const enCache = await cache.match(req, { ignoreSearch: true });
   if (enCache) return enCache;
   try {
@@ -142,11 +147,15 @@ async function visage(req) {
  * là où on était.
  */
 async function precharger(urls, cle, client) {
-  const cache = await caches.open(VISAGES);
-  const deja = new Set((await cache.keys()).map(r => new URL(r.url).pathname));
-  const reste = urls.filter(u => !deja.has(new URL(u, self.registration.scope).pathname));
-  for (let i = 0; i < reste.length; i += 24) await Promise.allSettled(reste.slice(i, i + 24).map(u => cache.add(u)));
-  if (client) client.postMessage({ visagesPrets: cle, nouveaux: reste.length });
+  let nouveaux = 0;
+  for (const [nom, lot] of [[VISAGES, urls.filter(u => !u.includes('img/actions/'))], [ACTIONS_WEB, urls.filter(u => u.includes('img/actions/'))]]) {
+    const cache = await caches.open(nom);
+    const deja = new Set((await cache.keys()).map(r => new URL(r.url).pathname));
+    const reste = lot.filter(u => !deja.has(new URL(u, self.registration.scope).pathname));
+    for (let i = 0; i < reste.length; i += 24) await Promise.allSettled(reste.slice(i, i + 24).map(u => cache.add(u)));
+    nouveaux += reste.length;
+  }
+  if (client) client.postMessage({ visagesPrets: cle, nouveaux });
 }
 self.addEventListener('message', ev => {
   const d = ev.data;

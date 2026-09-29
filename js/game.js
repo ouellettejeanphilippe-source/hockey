@@ -1030,8 +1030,8 @@ async function prechargerVisages() {
     if (surAppareil()) { demarrerVisages([...PORTRAITS_LOCAUX], { toast }).catch(() => {}).then(demarrerActions); return; }
     if (!navigator.serviceWorker || !location.protocol.startsWith('http')) return;
     const actions = await actionsDisponibles();
-    // Le lot : le nombre de visages, d'écussons et de photos, et leur taille (S80 : 320 px) — des images neuves se regardent.
-    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}+${actions.length}@320`;
+    // Le lot : le nombre de visages, d'écussons et de photos, et leur taille (S80 : visages de 320 px ; photos entières de 854) — des images neuves se regardent.
+    const cle = `${PORTRAITS_LOCAUX.size}+${LOGOS_LOCAUX.size}+${actions.length}@320+854`;
     if (localStorage.getItem('cap82_visages') === cle) return;
     const reg = await navigator.serviceWorker.ready;
     if (!reg.active) return;

@@ -5,7 +5,10 @@
  * La LNH publie une photo de match pour la plupart des joueurs d'après 2005.
  * `data/actions.json` (scripts/actions.mjs) dit qui en a une : un joueur
  * absent n'est jamais demandé, et sa carte garde son portrait. Une carte
- * demande `actionSrc(id)` — une adresse d'image 5:7 (400 × 560), ou null.
+ * demande `actionSrc(id)` — l'adresse de la photo ENTIÈRE, 16:9 (854 × 480 ;
+ * JP : *je veux que le maximum de pixels de l'image y soient*), ou null — et
+ * `actionFx(id)`, la place du joueur dans la photo (0 à 100), pour s'y
+ * recentrer quand sa fenêtre est plus étroite.
  *
  * SUR LE WEB, les photos sont recadrées à la fabrication (img/actions/, hors
  * du dépôt : scripts/actions.mjs les refait). La liste est versionnée mais les
@@ -27,11 +30,14 @@ import { recadrerAction } from './recadrage-action.js';
 import { surAppareil } from './visages.js';
 
 const SOURCE = id => `https://assets.nhle.com/mugs/actionshots/1296x729/${id}.jpg`;
-const TIROIR = 'cap82img-actions-400';
+// Le nom change avec le format : le tiroir 5:7 d'avant (`-400`) est jeté au démarrage.
+const TIROIR = 'cap82img-actions-854';
+const ANCIEN_TIROIR = 'cap82img-actions-400';
 const cleDe = id => `https://cap82.appareil/actions/${id}.webp`;
 const EN_MEME_TEMPS = 2;
 
 let liste = null;            // les joueurs qui ont une photo (data/actions.json)
+let focales = new Map();     // id → la place du joueur dans sa photo (fx, 0 à 100)
 let chargement = null;       // la promesse de actionsDisponibles()
 let surLeWeb = false;        // les fichiers img/actions/ répondent
 
@@ -44,8 +50,10 @@ export function actionsDisponibles() {
     try {
       const r = await fetch('data/actions.json');
       if (!r.ok) return [];
-      const ids = (await r.json()).ids || [];
+      const json = await r.json();
+      const ids = json.ids || [];
       liste = new Set(ids);
+      focales = new Map(ids.map((id, i) => [id, (json.fx || [])[i] ?? 50]));
       if (!ids.length || surAppareil()) return ids;
       // Une vraie lecture (pas un HEAD : hors ligne, seul un GET passe par le tiroir du travailleur de service),
       // et le corps lu jusqu'au bout — une réponse laissée ouverte garde la page « occupée » pour toujours.
@@ -58,7 +66,7 @@ export function actionsDisponibles() {
   return chargement;
 }
 
-/* L'image d'action d'un joueur, 5:7, ou null (la carte garde son portrait). */
+/* La photo d'action d'un joueur, entière (16:9), ou null (la carte garde son portrait). */
 export function actionSrc(id) {
   id = Number(id);
   if (!liste || !liste.has(id)) return null;
@@ -67,6 +75,11 @@ export function actionSrc(id) {
   if (src) return src;
   demander(id);
   return null;
+}
+
+/* La place du joueur dans sa photo, de 0 (à gauche) à 100 (à droite) ; 50 sans photo. */
+export function actionFx(id) {
+  return focales.get(Number(id)) ?? 50;
 }
 
 /* ---------- l'appareil Android ---------- */
@@ -163,6 +176,7 @@ export async function demarrerActions() {
   try {
     const ids = await actionsDisponibles();
     if (!ids.length) return;
+    caches.delete(ANCIEN_TIROIR).catch(() => {});
     const t = await ouvrirTiroir();
     for (const r of await t.keys()) { const m = r.url.match(/(\d+)\.webp$/); if (m) gardes.add(Number(m[1])); }
     // Le reste, des joueurs les plus récents aux plus anciens (toujours le même ordre).

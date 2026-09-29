@@ -26,7 +26,7 @@ site.webmanifest, favicon.svg, icon-*.png   installation et icônes
 fonts/                Barlow Condensed (OFL), hébergée ici
 data/                 shards par saison (seasons/), index, seed, portraits.json, salaires, trophées, réputations
 img/logos, img/mugs   écussons des 44 franchises et visages recadrés (scripts/logos.mjs, scripts/portraits.mjs)
-img/actions           photos de match recadrées en 5:7 pour les cartes, HORS DU DÉPÔT (scripts/actions.mjs les refait ; data/actions.json les liste)
+img/actions           photos de match ENTIÈRES (16:9, 854 × 480) pour les cartes, HORS DU DÉPÔT (scripts/actions.mjs les refait ; data/actions.json les liste)
 
 js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les cinq sections et l'en-tête, l'historique
 js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes
@@ -67,8 +67,8 @@ js/album.js           l'album d'une partie à l'autre
 js/ballottage.js      le ballottage, en fonction pure (Node et navigateur)
 js/visages.js         l'application Android : télécharge et recadre les visages sur l'appareil
 js/recadrage.js       le recadrage d'un portrait (partagé par scripts/portraits.mjs et js/visages.js)
-js/actions.js         les photos d'action : actionSrc(id) pour une carte ; l'appareil Android les télécharge et les recadre
-js/recadrage-action.js le recadrage 5:7 d'une photo de match (partagé par scripts/actions.mjs et js/actions.js)
+js/actions.js         les photos d'action : actionSrc(id) et actionFx(id) pour une carte ; l'appareil Android les télécharge
+js/recadrage-action.js la photo de match entière et la place du joueur (fx), partagé par scripts/actions.mjs et js/actions.js
 js/identites.js       l'identité de départ
 js/traits.js          les traits, tirés des votes de data/trophees.js
 js/roles_ref.js       la référence des rôles

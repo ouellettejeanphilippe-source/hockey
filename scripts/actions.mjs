@@ -17,12 +17,15 @@
  *   1. il télécharge chaque photo (le brut reste dans un cache, hors du dépôt,
  *      pour qu'une deuxième passe ne retélécharge rien ; les absents aussi
  *      sont retenus) ;
- *   2. il découpe une fenêtre 5:7 centrée sur le joueur, trouvé par la
- *      netteté (js/recadrage-action.js, le même code que l'appareil Android) ;
- *   3. il écrit un WebP 400 × 560 (img/actions/{id}.webp, HORS DU DÉPÔT :
+ *   2. il garde l'image ENTIÈRE (JP : *je veux que le maximum de pixels de
+ *      l'image y soient*) et y trouve le joueur, par la netteté
+ *      (js/recadrage-action.js, le même code que l'appareil Android) ;
+ *   3. il écrit un WebP 854 × 480 (img/actions/{id}.webp, HORS DU DÉPÔT :
  *      des dizaines de Mo qui se refont) et la liste des photos qui existent
- *      (data/actions.json, versionnée) : le jeu ne demande jamais une photo
- *      absente, et l'appareil sait quoi télécharger.
+ *      (data/actions.json, versionnée), avec la place du joueur dans chacune
+ *      (`fx`, 0 à 100) : une carte plus étroite que la photo s'y recentre ;
+ *      le jeu ne demande jamais une photo absente, et l'appareil sait quoi
+ *      télécharger.
  *
  * Le traitement se fait dans Chromium (Playwright) : le décodage JPEG, le
  * canevas et l'encodage WebP y sont natifs, sans dépendance de plus.
@@ -36,7 +39,7 @@ import { recadrerAction } from '../js/recadrage-action.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const arg = (nom, def) => { const i = process.argv.indexOf(`--${nom}`); return i < 0 ? def : (process.argv[i + 1] ?? true); };
-const LARGEUR = 400, HAUTEUR = 560;
+const LARGEUR = 854, HAUTEUR = 480;
 const QUALITE = Number(arg('qualite', 0.8));
 const LIMITE = Number(arg('limite', 0)) || Infinity;
 const BRUT = arg('brut', path.join(os.tmpdir(), 'cap82-actions'));
@@ -103,10 +106,10 @@ await page.evaluate(({ LARGEUR, HAUTEUR, QUALITE }) => {
   };
   window.recadrer = async b64 => {
     const blob = await (await fetch(`data:image/jpeg;base64,${b64}`)).blob();
-    const { webp, fenetre, mesures } = await window.recadrerActionBlob(blob, { largeur: LARGEUR, hauteur: HAUTEUR, qualite: QUALITE });
+    const { webp, fenetre, fx, mesures } = await window.recadrerActionBlob(blob, { largeur: LARGEUR, hauteur: HAUTEUR, qualite: QUALITE });
     const buf = new Uint8Array(await webp.arrayBuffer());
     let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-    return { webp: btoa(s), fenetre, mesures, empreinte: await empreinte(blob) };
+    return { webp: btoa(s), fenetre, fx, mesures, empreinte: await empreinte(blob) };
   };
 }, { LARGEUR, HAUTEUR, QUALITE });
 
@@ -134,7 +137,7 @@ const ECARTEES_A_L_OEIL = new Set([8476433, 8478176]);
 const EMPREINTE_PROCHE = 10;
 const distance = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) { let v = a[i] ^ b[i]; while (v) { n += v & 1; v >>= 1; } } return n; };
 
-const presents = [], fenetres = new Map(), empreintes = new Map(), ecartees = new Map();
+const presents = [], fenetres = new Map(), focales = new Map(), empreintes = new Map(), ecartees = new Map();
 let faits = 0, octets = 0;
 const file = liste.slice();
 async function ouvrier() {
@@ -150,7 +153,7 @@ async function ouvrier() {
       try { r = await page.evaluate(b => window.recadrer(b), fs.readFileSync(brut).toString('base64')); } catch { fs.rmSync(brut, { force: true }); }
     }
     if (!r) { console.log(`   ${id} : image illisible, laissée de côté`); continue; }
-    fenetres.set(id, r.fenetre);
+    fenetres.set(id, r.fenetre); focales.set(id, r.fx);
     if (vueDArena(r.mesures) && !GARDEES_A_L_OEIL.has(id)) { ecartees.set(id, 'aréna'); continue; }
     if (ECARTEES_A_L_OEIL.has(id)) { ecartees.set(id, 'à l\'œil'); continue; }
     const buf = Buffer.from(r.webp, 'base64');
@@ -175,9 +178,10 @@ presents.splice(0, presents.length, ...presents.filter(id => !communes.has(id)))
 for (const id of ecartees.keys()) fs.rmSync(path.join(SORTIE, `${id}.webp`), { force: true });
 
 // 3. La liste des photos présentes : le jeu la lit avant de demander une photo, l'appareil pour savoir quoi télécharger.
+//    `fx` (en parallèle de `ids`) : la place du joueur dans sa photo, de 0 (à gauche) à 100 (à droite).
 presents.sort((a, b) => a - b);
 if (LIMITE === Infinity && !arg('ids', null)) {
-  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: presents }));
+  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: presents, fx: presents.map(id => focales.get(id)) }));
 }
 const brutsTotal = presents.reduce((a, id) => a + fs.statSync(path.join(BRUT, `${id}.jpg`)).size, 0);
 const parRaison = {};
@@ -194,8 +198,9 @@ if (arg('planche', false)) {
   const vus = Array.from({ length: Math.min(n, presents.length) }, (_, k) => presents[Math.floor(k * presents.length / Math.min(n, presents.length))]);
   const b64 = f => fs.readFileSync(f).toString('base64');
   const cartes = vus.map(id => `<figure style="margin:3px;display:inline-block;text-align:center;color:#ccc;font:10px sans-serif">
-    <img src="data:image/webp;base64,${b64(path.join(SORTIE, `${id}.webp`))}" style="width:110px;height:154px;border-radius:6px;display:block">
-    <figcaption>${id}</figcaption></figure>`).join('');
+    <div style="position:relative"><img src="data:image/webp;base64,${b64(path.join(SORTIE, `${id}.webp`))}" style="width:213px;height:120px;border-radius:6px;display:block">
+    <div style="position:absolute;top:0;bottom:0;left:${focales.get(id) * 2.13}px;width:0;border-left:2px dashed #ff0"></div></div>
+    <figcaption>${id} · fx ${focales.get(id)}</figcaption></figure>`).join('');
   const bruts = vus.map(id => { const [x, y, l, hh] = fenetres.get(id); const e = 200 / 1296; return `<figure style="margin:3px;display:inline-block;position:relative;color:#ccc;font:10px sans-serif">
     <img src="data:image/jpeg;base64,${b64(path.join(BRUT, `${id}.jpg`))}" style="width:200px;height:112px;display:block">
     <div style="position:absolute;left:${x * e}px;top:${y * e}px;width:${l * e}px;height:${hh * e}px;outline:2px solid #ff0"></div>
