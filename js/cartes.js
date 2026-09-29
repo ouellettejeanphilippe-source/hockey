@@ -40,7 +40,80 @@ export const RARETES = {
   legendaire: { nom: 'Légendaire', gemme: '◆◆◆' },
 };
 /* Les deux raretés qui brillent : l'holographique, le reflet, l'inclinaison au téléphone. */
-export const brille = r => r === 'rare' || r === 'legendaire';
+const brille = r => r === 'rare' || r === 'legendaire';
+
+/*
+ * LES ILLUSTRATIONS DES CARTES DE MATCH (1.0). JP : *ça feel vraiment cheap
+ * et pas professionnel*. L'émoji dans une boîte grise était l'icône d'une
+ * étiquette, pas l'image d'une carte. Une vraie série a UN style de dessin :
+ * ici un trait rond de 2,4 sur une grille de 48, une seule couleur d'accent
+ * (`.a` en aplat, `.s` en trait), le reste à l'encre de la carte. Trente-six
+ * motifs de hockey servent les quatre-vingt-quatre cartes (`DESSIN_DE`) ; une
+ * carte sans motif prend celui de son genre. L'émoji reste l'icône de la
+ * carte partout ailleurs (listes, main adverse, puces) : une icône = un sens.
+ */
+const DESSINS = {
+  baton: '<path d="M34 5 21 34c-1.4 3-3.4 4-6.5 4H6"/><ellipse class="a" cx="36" cy="40" rx="6.5" ry="2.8"/>',
+  rondelle: '<ellipse class="a" cx="29" cy="20" rx="12" ry="5"/><ellipse cx="29" cy="20" rx="12" ry="5"/><path d="M17 20v6c0 2.8 5.4 5 12 5s12-2.2 12-5v-6M4 19h8M3 26h9M6 33h7"/>',
+  filet: '<path class="s" d="M8 40V12h32v28"/><path d="M8 12l7 7h18l7-7"/><path class="f" d="M15 19v21M33 19v21M15 26h18M15 33h18M21 19v21M27 19v21"/>',
+  masque: '<path d="M13 13c0-5 22-5 22 0v13c0 8-6 13-11 13s-11-5-11-13z"/><path class="s" d="M17 23h14M17 28.5h14M24 19v19"/>',
+  bouclier: '<path class="a" d="M24 11l9 3.3v7c0 6-3.8 10-9 13.5z"/><path d="M24 5l15 5.5v11c0 9.5-6.3 16-15 21.5C15.3 37.5 9 31 9 21.5v-11z"/>',
+  mur: '<rect x="6" y="10" width="36" height="28" rx="2"/><path d="M6 19.3h36M6 28.7h36M16 10v9.3M28 10v9.3M22 19.3v9.4M34 19.3v9.4M16 28.7V38M28 28.7V38"/><path class="a" d="M22 19.3h12v9.4H22z"/>',
+  cadenas: '<rect x="11" y="21" width="26" height="20" rx="3"/><path d="M16 21v-6a8 8 0 0 1 16 0v6M24 32v4"/><circle class="a" cx="24" cy="30" r="2.8"/>',
+  chrono: '<circle cx="24" cy="27" r="14"/><path class="s" d="M24 13a14 14 0 0 1 14 14"/><path d="M24 27l6-6M20 7h8M24 7v6M36 13l3-3"/>',
+  sifflet: '<path d="M16 19h24v8H24.6A9 9 0 1 1 16 19z"/><circle class="a" cx="16" cy="28" r="3.2"/><path d="M40 23c3 0 4.5-3 3-6.5"/>',
+  tableau: '<rect x="5" y="7" width="38" height="28" rx="2"/><path d="M11 14l5 5M16 14l-5 5M15 35l-3 7M33 35l3 7"/><circle cx="33" cy="16" r="3.2"/><path class="s" d="M14 28c6-7 12 2 18-6M28.5 21.6l3.5.4-.6 3.4"/>',
+  planchette: '<rect x="10" y="8" width="28" height="34" rx="3"/><path d="M18 8V5h12v3M16 18h16M16 25h16M16 32h9"/><path class="s" d="M28 31l3 3 6-7"/>',
+  micro: '<rect class="a" x="18" y="5" width="12" height="20" rx="6"/><rect x="18" y="5" width="12" height="20" rx="6"/><path d="M12 21a12 12 0 0 0 24 0M24 33v8M17 41h14"/>',
+  video: '<rect x="5" y="8" width="38" height="26" rx="3"/><path class="a" d="M20 15v12l10-6z"/><path d="M16 41h16M24 34v7"/>',
+  ampoule: '<path d="M17 30c-3-2.5-5-6-5-10a12 12 0 0 1 24 0c0 4-2 7.5-5 10v4H17z"/><path d="M18 38h12M20 42h8"/><path class="s" d="M21 24l3-5 3 5"/>',
+  impact: '<path class="a" d="M24 14l3 6 6-2-2 6 6 3-6 3 2 6-6-2-3 6-3-6-6 2 2-6-6-3 6-3-2-6 6 2z"/><path d="M24 4l4 10 10-5-5 10 11 5-11 5 5 10-10-5-4 10-4-10-10 5 5-10L3 24l11-5-5-10 10 5z"/>',
+  eclair: '<path class="a" d="M27 4 10 27h12l-3 17 19-24H26z"/><path d="M27 4 10 27h12l-3 17 19-24H26z"/>',
+  flamme: '<path d="M24 44c-8 0-13-5.5-13-12.5 0-7 5-10 7-17 4 3 5 7 5 10 2-2 3-5 3-9 6 4 11 10 11 16.5C37 38.5 32 44 24 44z"/><path class="a" d="M24 44c-3.5 0-6-2.6-6-6 0-3.6 2.8-5.2 4-9 2.6 2 4.5 4.8 4.5 7.5 1-1 1.8-2.4 2-4 1.5 1.6 1.5 3.6 1.5 5.5 0 3.4-2.5 6-6 6z"/>',
+  cible: '<circle cx="22" cy="26" r="16"/><circle cx="22" cy="26" r="9.5"/><circle class="a" cx="22" cy="26" r="4"/><path d="M22 26 42 6M35 6h7v7"/>',
+  des: '<rect x="5" y="17" width="19" height="19" rx="4"/><rect x="22" y="9" width="19" height="19" rx="4" transform="rotate(14 31.5 18.5)"/><circle class="a" cx="10.5" cy="22.5" r="2"/><circle class="a" cx="18.5" cy="30.5" r="2"/><circle class="a" cx="14.5" cy="26.5" r="2"/><circle class="a" cx="31.5" cy="18.5" r="2"/>',
+  coupe: '<path class="a" d="M16 7h16v9a8 8 0 0 1-16 0z"/><path d="M16 7h16v9a8 8 0 0 1-16 0zM16 10h-5c0 5 2 8 6 9M32 10h5c0 5-2 8-6 9M24 24v8M17 41h14l-2-9H19z"/>',
+  couronne: '<path d="M8 36 6 16l10 8 8-13 8 13 10-8-2 20z"/><path d="M8 41h32"/><circle class="a" cx="24" cy="29" r="2.8"/><circle class="a" cx="15" cy="31" r="2"/><circle class="a" cx="33" cy="31" r="2"/>',
+  etoile: '<path class="a" d="M24 5l5.9 12 13.1 1.9-9.5 9.3 2.2 13.1L24 35.1l-11.7 6.2 2.2-13.1L5 18.9 18.1 17z"/><path d="M24 5l5.9 12 13.1 1.9-9.5 9.3 2.2 13.1L24 35.1l-11.7 6.2 2.2-13.1L5 18.9 18.1 17z"/>',
+  lien: '<rect x="4" y="17" width="23" height="13" rx="6.5" transform="rotate(-35 15.5 23.5)"/><rect class="s" x="21" y="18" width="23" height="13" rx="6.5" transform="rotate(-35 32.5 24.5)"/>',
+  vague: '<path d="M4 30c5 0 5-6 10-6s5 6 10 6 5-6 10-6 5 6 10 6M4 38c5 0 5-6 10-6s5 6 10 6 5-6 10-6 5 6 10 6"/><path class="s" d="M9 20c2-8 10-12 18-10-5 1-8 5-7 10"/>',
+  lune: '<path class="a" d="M29 8a16 16 0 1 0 11 25A13 13 0 0 1 29 8z"/><path d="M29 8a16 16 0 1 0 11 25A13 13 0 0 1 29 8z"/><path d="M31 13h6l-6 7h6M39 4h4l-4 4h4"/>',
+  nuage: '<path d="M14 30a8 8 0 0 1 1-16 11 11 0 0 1 21 3 7 7 0 0 1-1 13z"/><path class="s" d="M17 36l-2 5M25 36l-2 5M33 36l-2 5"/>',
+  croix: '<rect x="5" y="18" width="38" height="12" rx="6" transform="rotate(-38 24 24)"/><rect class="s" x="5" y="18" width="38" height="12" rx="6" transform="rotate(38 24 24)"/><circle class="a" cx="24" cy="24" r="2.6"/>',
+  journal: '<path d="M8 8h26v32H12a4 4 0 0 1-4-4zM34 16h6v20a4 4 0 0 1-4 4M13 15h16M13 21h6M13 27h6M13 33h16"/><rect class="a" x="23" y="20" width="7" height="8"/>',
+  loupe: '<circle cx="20" cy="20" r="12"/><path d="M29 29l12 12"/><path class="s" d="M14 17a7 7 0 0 1 6-5"/>',
+  oeil: '<path d="M4 24s7-12 20-12 20 12 20 12-7 12-20 12S4 24 4 24z"/><circle cx="24" cy="24" r="6.5"/><circle class="a" cx="24" cy="24" r="2.8"/>',
+  patin: '<path d="M10 8h10v12l12 5c4 2 6 4 6 8v2H10z"/><path d="M5 41h34c2 0 3.5-1.2 3.5-3M15 35v6M33 35v6"/><path class="s" d="M20 14h-4M22 20h-5"/>',
+  chandail: '<path d="M17 6 6 13l4 9 5-2v22h18V20l5 2 4-9-11-7c-1 3-4 5-7 5s-6-2-7-5z"/><path class="s" d="M15 30h18M15 35h18"/>',
+  sablier: '<path d="M13 6h22M13 42h22M15 6c0 10 9 12 9 18s-9 8-9 18M33 6c0 10-9 12-9 18s9 8 9 18"/><path class="a" d="M18 39c1-5 4-7 6-8 2 1 5 3 6 8z"/>',
+  portevoix: '<path class="a" d="M14 20v8l18 10V10z"/><path d="M8 20v8h6l18 10V10L14 20zM14 28l2 10h5l-2-8"/><path class="s" d="M37 18c2 2 2 10 0 12M41 14c4 4 4 16 0 20"/>',
+  coeur: '<path d="M24 41S7 30 7 18a9 9 0 0 1 17-4 9 9 0 0 1 17 4c0 12-17 23-17 23z"/><path class="s" d="M10 24h8l3-6 4 11 3-5h9"/>',
+  fleches: '<path d="M6 34 30 10M22 10h8v8"/><path class="s" d="M42 14 18 38M26 38h-8v-8"/>',
+  toile: '<path d="M24 5v38M5 24h38M10.5 10.5l27 27M37.5 10.5l-27 27"/><path class="s" d="M24 12l8.5 3.5L36 24l-3.5 8.5L24 36l-8.5-3.5L12 24l3.5-8.5z"/><path class="f" d="M24 18l4.2 1.8L30 24l-1.8 4.2L24 30l-4.2-1.8L18 24l1.8-4.2z"/>',
+  cle: '<path d="M30 6a9 9 0 0 0-8.4 12.2L7 32.8a4 4 0 0 0 5.7 5.7l14.6-14.6A9 9 0 0 0 39.5 15l-5.5 5.5-5.6-1.9-1.9-5.6z"/><circle class="a" cx="10" cy="35.5" r="1.8"/>',
+  chapeau: '<path class="a" d="M15 26c3 1.6 15 1.6 18 0v6H15z"/><path d="M10 36c0-3 6-5 14-5s14 2 14 5-6 5-14 5-14-2-14-5zM15 32V14c0-3 4-5 9-5s9 2 9 5v18"/>',
+};
+/* Le motif de chaque carte de match (sa clé, sans le « + » d'une carte améliorée). */
+const DESSIN_DE = {
+  lancer: 'baton', bloquer: 'bouclier', changements: 'chrono', discours: 'portevoix', video: 'video', echecAvant: 'impact',
+  trappe: 'toile', sagesse: 'sifflet', frapper: 'impact', partout: 'cible', retour: 'filet', conge: 'lune', prudence: 'cadenas',
+  provoquer: 'flamme', quatrieme: 'cle', enclave: 'filet', poignets: 'rondelle', blitz: 'eclair', presse: 'micro',
+  doublePresence: 'patin', contrePlan: 'tableau', gardienFeu: 'masque', avantage: 'etoile', systeme: 'tableau', gachettes: 'cible',
+  murBleu: 'mur', jambes: 'patin', coequipiers: 'lien', famille: 'chandail', decennie: 'sablier', vieilleGarde: 'sablier',
+  releve: 'vague', ligneOrigine: 'lien', des: 'des', user: 'patin', ombre: 'oeil', adrenaline: 'coeur', fermeture: 'cadenas',
+  barrage: 'mur', zamboni: 'vague', vieux: 'micro', tueur: 'cible', miracle: 'etoile', legende: 'masque', chapeau: 'chapeau',
+  coach: 'tableau', preparation: 'planchette', espion: 'loupe', capitaine: 'chandail', mur: 'mur', butEnOr: 'coupe',
+  dynastie: 'couronne', dynastieClub: 'couronne', ferveur: 'portevoix', filature: 'loupe', improvisation: 'ampoule', piege: 'toile',
+  elan: 'vague', forteresse: 'bouclier', toutOuRien: 'des', riposte: 'fleches', contreAttaque: 'fleches', systemeDef: 'planchette',
+  lecture: 'oeil', grandSoir: 'etoile', sacrifice: 'coeur', cartouche: 'impact', pressionHaute: 'fleches', enclaveNette: 'filet',
+  tirRebond: 'rondelle', gardienRelance: 'masque', cinqPuissance: 'eclair', tempsArret: 'chrono', coupGenie: 'ampoule',
+  rideauFer: 'mur', feuSacre: 'flamme', nuitMagique: 'lune', distraction: 'journal', doute: 'nuage', trainee: 'croix',
+};
+const DESSIN_DU_GENRE = { attaque: 'rondelle', defense: 'bouclier', tactique: 'tableau', synergie: 'lien', malediction: 'nuage' };
+function dessinHtml(cle, genre) {
+  const d = DESSINS[DESSIN_DE[String(cle).replace(/\+$/, '')]] || DESSINS[DESSIN_DU_GENRE[genre]];
+  return d ? `<svg class="tc-dessin" viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${d}</svg>` : '';
+}
 
 /*
  * LE VRAI LOOK DE CARTE (S77). JP : *Carte qui font upper deck ou ô pee Chee
@@ -59,7 +132,9 @@ export const brille = r => r === 'rare' || r === 'legendaire';
  *       face cachée et se retourne, js/gerant.js `ouvrirChoix`), r (son rang
  *       dans le retournement), meilleure (la dernière retournée, qui éclate),
  *       joueurHtml (S78 : une CARTE MINI de joueur, qui remplace le cadre
- *       d'« insert » — le choix d'un joueur se voit en carte de joueur) }
+ *       d'« insert » — le choix d'un joueur se voit en carte de joueur),
+ *       genreCarte, dessin (1.0 : une carte de MATCH — son genre donne le fond
+ *       de l'illustration et la couleur de sa bannière, sa clé son dessin) }
  */
 export function carteHtml(c) {
   const r = RARETES[c.rarete] ? c.rarete : 'commune';
@@ -77,12 +152,14 @@ export function carteHtml(c) {
     ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
     ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : `<button type="button" class="btn tcj-signer" data-choix="${c.cle}">${c.motChoixHtml || 'Signer'}</button>`}
   </div>`;
-  return `<button type="button" class="choix-option tc tc-${r}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
+  const genre = DESSIN_DU_GENRE[c.genreCarte] ? c.genreCarte : '';
+  const art = c.artHtml || (c.dessin ? dessinHtml(c.dessin, genre) : '') || `<span class="tc-art-ico" aria-hidden="true">${c.ico || '🃏'}</span>`;
+  return `<button type="button" class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
     ${brille(r) ? '<span class="tc-holo" aria-hidden="true"></span>' : ''}
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
     <span class="tc-cadre">
       <span class="tc-tete"><span class="tc-nom">${c.nomHtml || ''}</span>${c.coinHtml ? `<span class="tc-coin">${c.coinHtml}</span>` : ''}</span>
-      <span class="tc-art">${c.artHtml || `<span class="tc-art-ico" aria-hidden="true">${c.ico || '🃏'}</span>`}</span>
+      <span class="tc-art">${art}</span>
       <span class="tc-type"><span>${c.typeHtml || ''}</span><span class="tc-gemme" title="${R.nom}">${R.gemme}</span></span>
       ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
       ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
@@ -199,120 +276,84 @@ export function gemmeJoueur(r, traits = []) {
 const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /*
- * L'ÈRE D'UNE CARTE (S78). JP : *couleur et style de carte différentes selon
- * années, pis couleurs de l'équipe du joueur*. Comme les vraies séries qui
- * changeaient de look chaque année, le DESSIN d'une carte vient de sa saison
- * et sa PALETTE de son club ; la rareté n'est que la finition par-dessus.
- * Cinq époques, cinq dessins (style.css, « LES ÈRES ») :
- *   e70 — les années 70 : le bord de couleur (la série de 1979-80 était bleue),
- *         une photo dans une boîte simple, le nom sur une banderole ;
- *   e80 — les années 80 : le bord blanc d'un carton, la photo au haut ondulé
- *         (1985-86), l'écusson dans un coin, le nom sur une bande au bas ;
- *   e90 — le début des années 90 : le glacé, la photo jusqu'au bord, un filet
- *         de couleur, le nom en diagonale ;
- *   e00 — de 1996 aux années 2000 : le cadre sombre et l'argent estampé ;
- *   e10 — depuis 2010 : le moderne, la photo sur un dégradé aux couleurs du
- *         club, le nom dans une bande nette, rien de trop.
+ * LES SÉRIES (1.0). JP : *les visuels des cartes sont un peu plus grossiers
+ * versus une vraie carte, ça manque de détails, de vrai* ; *les cartes, ça
+ * manque de variété de mise en page* ; puis *sauf les cartes, qui ont l'air
+ * de vraies cartes, et avec background variés qui font pro* et *pense à des
+ * cartes complexes*.
+ *
+ * Avant, une carte s'assemblait de cinq modules tirés d'une table (le cadre,
+ * la photo, le nom, le motif, l'accent) : cinquante combinaisons qui se
+ * ressemblaient toutes, parce que la MISE EN PAGE ne changeait jamais. Une
+ * vraie collection change de DESSIN d'une série à l'autre. Il y en a dix,
+ * chacune complète — le carton, la fenêtre de la photo, la plaque du nom, la
+ * typographie, les petits caractères — et chacune inspirée des cartes de son
+ * époque sans en copier aucune (ni marque, ni logo de fabricant) :
+ *   vintage   1970-78  le carton crème, la fenêtre aux coins ronds cernée de
+ *                      la couleur du club, le fanion du nom, le médaillon ;
+ *   retro     1978-86  le bord blanc, la photo carrée, la bande du nom en
+ *                      biais entre deux rayures du club ;
+ *   tableau   1986-91  le tableau indicateur : le noir, la photo cernée
+ *                      d'ampoules, le nom en points lumineux ;
+ *   mosaique  1991-95  le graphisme du début des années 90 : une colonne de
+ *                      tuiles aux couleurs du club, le nom à la verticale ;
+ *   filet     1995-99  le filet : les poteaux et la barre rouges autour de la
+ *                      photo, les mailles derrière, le nom en italique ;
+ *   chrome    1999-03  le métal brossé, la fenêtre biseautée, la capsule du
+ *                      nom estampée ;
+ *   ecusson   2003-08  le ton sur ton : l'écusson géant embossé dans le
+ *                      carton, le joueur détouré, le nom sur deux lignes ;
+ *   glace     2008-13  la glace rayée et ses lignes, le joueur qui sort de
+ *                      son cadre, la plaque du nom en biais ;
+ *   arena     2013-19  l'aréna dans le noir : les projecteurs, la foule en
+ *                      trame, la plaque blanche ;
+ *   signature 2019-    le haut de gamme sobre : le carton nacré, les marges,
+ *                      le nom espacé, l'écusson doré à chaud.
+ * La SAISON choisit la série (`DEBUTS`), le CLUB la palette, la VARIANTE
+ * (js/rarete.js) la parallèle — le même dessin, traité : voir `cartonHtml`.
+ *
+ * `action` : ce que la série fait d'une photo d'action (`photoAction`) —
+ * 'plein', sur toute la carte ; 'fenetre', dans sa fenêtre ; rien, elle garde
+ * le portrait, comme les vraies séries d'avant la photo d'action.
  */
-function ereDe(saison) {
-  const a = parseInt(String(saison || '').slice(0, 4), 10) || 2000;
-  return a < 1980 ? 'e70' : a < 1990 ? 'e80' : a < 1996 ? 'e90' : a < 2010 ? 'e00' : 'e10';
-}
-/*
- * UN DESIGN PAR ANNÉE (S78). JP : *cartes plus belles et variées, moins
- * basiques, sans perdre lisible* ; puis *design de carte par années, avec
- * différents concepts visuels*. Une vraie collection change de dessin chaque
- * année : chaque saison a le SIEN, assemblé de cinq concepts visuels —
- *   c-  le cadre (le carton) : c-club, c-club-sombre, c-blanc, c-carton,
- *       c-noir, c-degrade, c-bois, c-argent, c-vitre ;
- *   f-  la photo : f-carre, f-arrondi, f-arche, f-ovale, f-onde, f-coins,
- *       f-plein, f-biais, f-polaroid ;
- *   n-  le nom : n-banderole, n-fanion, n-bande, n-diagonale, n-or,
- *       n-argent, n-plaque, n-fondu, n-bloc, n-onglet, n-capsule ;
- *   m-  le motif derrière le portrait : m-trame, m-rayons, m-rayures,
- *       m-vitesse, m-eclats, m-glace, m-projecteurs, m-damier, m-vagues,
- *       m-carreaux, m-bokeh, m-chevrons ;
- *   a-  l'accent : a-double, a-or, a-club (un filet au cadre), a-bande,
- *       a-coin, a-haut, a-bas, a-arc (sur le bord de la photo), a-aucun.
- * Les combinaisons sont CHOISIES, pas tirées : deux années voisines ne se
- * ressemblent pas, et chacune garde l'air de son époque (le carton et les
- * bandes des années 70-80, la photo pleine et les dorures des années 90,
- * l'argent et les éclats des années 2000, la plaque et la patinoire d'après
- * 2010). Le NOM garde toujours une bande pleine et contrastée (style.css,
- * « UN DESIGN PAR ANNÉE »).
- */
-const DESIGNS = {
-  '1970-71': 'c-club f-ovale n-banderole m-trame a-double',
-  '1971-72': 'c-blanc f-arrondi n-bande m-rayures a-club',
-  '1972-73': 'c-club-sombre f-carre n-banderole m-rayons a-or',
-  '1973-74': 'c-club f-arrondi n-banderole m-trame a-double',
-  '1974-75': 'c-blanc f-ovale n-fanion m-vagues a-club',
-  '1975-76': 'c-blanc f-carre n-fanion m-rayures a-club',
-  '1976-77': 'c-club f-polaroid n-capsule m-trame a-aucun',
-  '1977-78': 'c-carton f-arrondi n-fanion m-rayons a-coin',
-  '1978-79': 'c-club-sombre f-ovale n-onglet m-damier a-or',
-  '1979-80': 'c-club f-carre n-bande m-rayures a-double',
-  '1980-81': 'c-club-sombre f-arche n-bande m-rayons a-or',
-  '1981-82': 'c-blanc f-carre n-onglet m-trame a-coin',
-  '1982-83': 'c-carton f-polaroid n-bande m-damier a-club',
-  '1983-84': 'c-club f-arche n-capsule m-vagues a-double',
-  '1984-85': 'c-bois f-carre n-banderole m-trame a-or',
-  '1985-86': 'c-carton f-onde n-bande m-trame a-aucun',
-  '1986-87': 'c-club-sombre f-onde n-fanion m-rayons a-club',
-  '1987-88': 'c-bois f-arrondi n-bande m-rayures a-or',
-  '1988-89': 'c-carton f-onde n-onglet m-carreaux a-coin',
-  '1989-90': 'c-blanc f-biais n-bande m-vitesse a-club',
-  '1990-91': 'c-club-sombre f-plein n-diagonale m-vitesse a-bande',
-  '1991-92': 'c-blanc f-plein n-bloc m-chevrons a-coin',
-  '1992-93': 'c-noir f-biais n-diagonale m-eclats a-bande',
-  '1993-94': 'c-noir f-plein n-or m-projecteurs a-bas',
-  '1994-95': 'c-club-sombre f-plein n-or m-bokeh a-arc',
-  '1995-96': 'c-vitre f-coins n-argent m-carreaux a-coin',
-  '1996-97': 'c-noir f-coins n-argent m-projecteurs a-arc',
-  '1997-98': 'c-argent f-plein n-bloc m-chevrons a-haut',
-  '1998-99': 'c-noir f-arche n-argent m-eclats a-or',
-  '1999-00': 'c-vitre f-plein n-capsule m-bokeh a-arc',
-  '2000-01': 'c-noir f-biais n-or m-vagues a-bande',
-  '2001-02': 'c-argent f-coins n-bloc m-carreaux a-club',
-  '2002-03': 'c-noir f-plein n-argent m-vitesse a-haut',
-  '2003-04': 'c-noir f-carre n-bloc m-eclats a-coin',
-  '2005-06': 'c-club-sombre f-coins n-bloc m-eclats a-bande',
-  '2006-07': 'c-degrade f-plein n-fondu m-chevrons a-arc',
-  '2007-08': 'c-noir f-biais n-onglet m-projecteurs a-or',
-  '2008-09': 'c-vitre f-arrondi n-bloc m-carreaux a-haut',
-  '2009-10': 'c-degrade f-coins n-argent m-eclats a-bas',
-  '2010-11': 'c-degrade f-plein n-plaque m-projecteurs a-aucun',
-  '2011-12': 'c-blanc f-arrondi n-plaque m-vagues a-club',
-  '2012-13': 'c-degrade f-biais n-fondu m-bokeh a-bande',
-  '2013-14': 'c-noir f-plein n-plaque m-glace a-or',
-  '2014-15': 'c-vitre f-coins n-capsule m-chevrons a-arc',
-  '2015-16': 'c-degrade f-plein n-bloc m-rayures a-haut',
-  '2016-17': 'c-blanc f-arche n-onglet m-projecteurs a-coin',
-  '2017-18': 'c-degrade f-plein n-plaque m-carreaux a-bas',
-  '2018-19': 'c-degrade f-plein n-fondu m-glace a-aucun',
-  '2019-20': 'c-noir f-coins n-fondu m-vitesse a-arc',
-  '2020-21': 'c-vitre f-plein n-capsule m-bokeh a-bande',
-  '2021-22': 'c-degrade f-biais n-bloc m-glace a-haut',
-  '2022-23': 'c-argent f-arrondi n-plaque m-eclats a-or',
-  '2023-24': 'c-noir f-plein n-or m-projecteurs a-bande',
-  '2024-25': 'c-degrade f-coins n-fondu m-chevrons a-coin',
-  '2025-26': 'c-vitre f-plein n-plaque m-glace a-arc',
+export const SERIES = {
+  vintage: { nom: 'Vintage 70' },
+  retro: { nom: 'Rétro 80' },
+  tableau: { nom: 'Tableau', action: 'fenetre' },
+  mosaique: { nom: 'Mosaïque', action: 'fenetre' },
+  filet: { nom: 'Filet', action: 'fenetre' },
+  chrome: { nom: 'Chrome', action: 'fenetre' },
+  ecusson: { nom: 'Écusson', action: 'plein' },
+  glace: { nom: 'Glace', action: 'fenetre' },
+  arena: { nom: 'Aréna', action: 'plein' },
+  signature: { nom: 'Signature', action: 'fenetre' },
 };
-/* Une saison hors de la table (une saison ajoutée plus tard) prend le design de la plus proche qui la précède. */
-function designDe(saison) {
+/* La première saison de chaque série : une saison prend la série de la dernière qui l'a commencée. */
+const DEBUTS = [
+  ['1970-71', 'vintage'], ['1978-79', 'retro'], ['1986-87', 'tableau'], ['1991-92', 'mosaique'], ['1995-96', 'filet'],
+  ['1999-00', 'chrome'], ['2003-04', 'ecusson'], ['2008-09', 'glace'], ['2013-14', 'arena'], ['2019-20', 'signature'],
+];
+export function serieDe(saison) {
   const s = String(saison || '');
-  if (DESIGNS[s]) return DESIGNS[s];
-  const connues = Object.keys(DESIGNS).sort();
-  return DESIGNS[connues.filter(k => k <= s).pop() || connues[0]];
+  let serie = DEBUTS[0][1];
+  for (const [debut, cle] of DEBUTS) if (s >= debut) serie = cle;
+  return serie;
 }
-/* Le dessin complet d'une carte : son époque (la palette de base) et le design de son année. */
-export const dessinDe = saison => `${ereDe(saison)} ${designDe(saison)}`;
-/* L'année sur la photo, dans le style de l'époque : « '85-86 » pour les
-   cartes d'avant 1990 (le millésime imprimé), « 1993-94 » ensuite. */
+/* L'année imprimée, dans le style de sa série : « '77-78 » sur un carton
+   des années 70-80 (le millésime), « 1993-94 » ensuite. */
 export function anneeDeCarte(saison) {
   const s = String(saison || '');
-  return ereDe(s) === 'e70' || ereDe(s) === 'e80' ? `'${s.slice(2)}` : s;
+  return ['vintage', 'retro'].includes(serieDe(s)) ? `'${s.slice(2)}` : s;
 }
+/*
+ * LA PHOTO D'ACTION. Le contrat : l'adresse d'une image au format carte
+ * (portrait 5:7), ou rien. Une autre chaîne la fournit (les images, leur
+ * liste, leur téléchargement sur l'appareil) ; elle se branche ICI, et tous
+ * les gabarits (le vestiaire, la carte mini, la fiche, `artJoueur`) la
+ * reçoivent par ce seul endroit. Sans elle — ou si l'image manque au
+ * chargement (`onerror`) — chaque série retombe sur le portrait.
+ */
+export const photoAction = p => (p && p.actionSrc) || '';
 
 /*
  * LE NUMÉRO DE LA CARTE ET LE TIRAGE LIMITÉ (S77). Une vraie série numérote
@@ -329,7 +370,73 @@ function empreinte(cle) {
 }
 export const TAILLE_SERIE = 396;     // une série de l'époque : 396 cartes
 export const numeroDeCarte = cle => 1 + (empreinte(cle) % TAILLE_SERIE);
-export const tirageLimite = cle => `${String(1 + (empreinte(`${cle}|tirage`) % 99)).padStart(2, '0')}/99`;
+/*
+ * LE TIRAGE D'UNE OR. Le paquet lui a donné sa série limitée (`NUMEROS`,
+ * js/packs.js : « /99 », « /25 », « /10 », « 1 de 1 ») ; l'exemplaire se
+ * déduit de sa clé, comme le numéro de la carte. Sans série (le repêchage),
+ * « /99 ».
+ */
+export function tirageLimite(cle, num = '/99') {
+  if (num === '1 de 1') return '1 de 1';
+  const sur = parseInt(String(num).replace(/\D/g, ''), 10) || 99;
+  return `${String(1 + (empreinte(`${cle}|tirage`) % sur)).padStart(2, '0')}/${sur}`;
+}
+
+/*
+ * LE CARTON D'UN JOUEUR (1.0) : UN gabarit, partout où un joueur est une
+ * carte — le vestiaire, la carte mini des choix, la fiche. Il reçoit du HTML
+ * déjà fait (le portrait, l'écusson, la gemme, le ruban du niveau) et le pose
+ * dans le dessin de sa SÉRIE (`SERIES`, style.css « LES SÉRIES »).
+ *
+ * CE QUI NE BOUGE JAMAIS, d'une série à l'autre : le poste en haut à gauche,
+ * le ruban du niveau à côté, la gemme en haut à droite. Le reste — la
+ * fenêtre, la plaque du nom, l'écusson, les petits caractères — est à la
+ * série. Au vestiaire, le salaire, le chiffre clé et le rôle vivent SOUS le
+ * carton, dans une bande identique pour toutes (js/repechage.js).
+ *
+ * LES COUCHES, du fond vers l'œil : le carton de la série (son fond et ses
+ * motifs, en CSS) ; la PARALLÈLE (`.carton-fini`) ; la photo ; le décor de
+ * la série par-dessus la photo (un cadre, des poteaux, des rayures) ; les
+ * mots ; le reflet de l'inclinaison. Une commune ne porte aucune couche de
+ * plus : trente cartes au vestiaire, vingt-deux et demie sont des communes.
+ *
+ * LES PARALLÈLES (la variante, js/rarete.js) traitent la série au lieu de la
+ * recouvrir, comme les vraies :
+ *   peu (Parallèle) — le RÉFRACTEUR : le carton devient un chrome irisé, le
+ *                     filet de la série prend l'argent ;
+ *   rare (Holo)     — la feuille PRISMATIQUE sur le carton, et la RELIQUE :
+ *                     un carré de chandail aux couleurs du club, tissé ;
+ *   legendaire (Or) — l'OR brossé, le carton DÉCOUPÉ (les coins en rondelle),
+ *                     le nom doré à chaud, la signature en FAC-SIMILÉ et le
+ *                     TIRAGE numéroté (« 07/25 »).
+ * Le tout reste sous les mots : on lit d'abord, on brille ensuite.
+ *
+ * c : { serie, rarete, portraitHtml, actionSrc, pos, posClasse, gemmeHtml,
+ *       rubanHtml, nomHtml (`formatName`), nomLettres (le nom de famille, pour
+ *       la taille de la plaque), nomClasse, logoHtml, club, clubNom, numero,
+ *       annee, tirage, signature, clubClasse, eclat }
+ */
+export function cartonHtml(c) {
+  const serie = SERIES[c.serie] ? c.serie : 'signature';
+  const r = RARETES[c.rarete] ? c.rarete : 'commune';
+  const action = c.actionSrc && SERIES[serie].action
+    ? `<img class="carton-action" src="${echapper(c.actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+    : '';
+  return `<span class="carton cs-${serie} tc-${r}${action ? (SERIES[serie].action === 'plein' ? ' action-plein' : ' action-fenetre') : ''}">
+    ${brillante(r) ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
+    <span class="carton-photo">${action}${c.portraitHtml || ''}</span>
+    <span class="carton-deco" aria-hidden="true"></span>
+    ${r === 'rare' ? '<span class="carton-relique" aria-hidden="true"><i>Relique</i></span>' : ''}
+    <span class="carton-pos ${c.posClasse || ''}">${c.pos || ''}</span>
+    ${c.rubanHtml || ''}${c.gemmeHtml || ''}
+    <span class="carton-nom ${c.nomClasse || ''}" style="--n:${Math.max(4, c.nomLettres || 8)}">${c.nomHtml || ''}${c.clubNom ? `<span class="carton-club-nom">${c.clubNom}</span>` : ''}</span>
+    ${r === 'legendaire' && c.signature ? `<span class="carton-signature" aria-hidden="true" style="--sig:${Math.max(8, c.signature.length)}">${c.signature}<small>fac-similé</small></span>` : ''}
+    <span class="carton-club ${c.clubClasse || ''}">${c.logoHtml || ''}<span class="carton-sigle">${c.club || ''}</span></span>
+    <span class="carton-imprime"><b>Nº ${c.numero || ''}</b><span>${SERIES[serie].nom}</span><span>${c.annee || ''}</span></span>
+    ${r === 'legendaire' && c.tirage ? `<span class="carton-tirage">${c.tirage}</span>` : ''}
+    ${c.eclat ? '<span class="cj-eclat" aria-hidden="true"></span>' : ''}
+  </span>`;
+}
 
 /*
  * LE PAQUET (S77) : une récompense s'ouvre comme un paquet de cartes. JP :
@@ -382,10 +489,11 @@ export function paquetHtml({ n = 3, meilleure = 'commune', serie = 'Récompense'
  * tourne sous la lampe. Une image par rafraîchissement au plus, rien quand
  * l'onglet est caché, rien sous `prefers-reduced-motion`.
  */
-/* Ce qui se penche : une carte du vestiaire, la PHOTO de la fiche (c'est elle
-   la carte, pas les renseignements autour), son dos, une carte de match. Une
-   case de l'alignement ne se penche pas (S78) : elle doit se lire, pas briller. */
-const INCLINABLES = '.pcard.cj, .choix-option.tc:not(.jouee), .pcard-full-photo, .cj-verso';
+/* Ce qui se penche : le CARTON d'un joueur (1.0 : la carte, pas la bande de
+   renseignements dessous ni le bouton), le dos de la fiche, une carte de
+   match. Une case de l'alignement ne se penche pas (S78) : elle doit se lire,
+   pas briller. */
+const INCLINABLES = '.carton, .choix-option.tc:not(.jouee), .cj-verso';
 const INCLINE_MAX = 12;
 const GYRO_MAX = 6;
 const PROPS = ['--mx', '--my', '--rx', '--ry', '--lueur'];
@@ -425,7 +533,7 @@ export function brancherInclinaison(doc = document) {
     const c = ev.target.closest(INCLINABLES);
     if (c !== carte) {
       relacher();
-      if (!c || c.matches('.locked, [disabled]')) return;
+      if (!c || c.matches('[disabled]') || c.closest('.locked')) return;
       carte = c;
       c.classList.remove('relache', 'gyro');
       c.classList.add('incline');
@@ -463,7 +571,7 @@ export function brancherInclinaison(doc = document) {
   const tactile = win.matchMedia && win.matchMedia('(pointer: coarse)').matches;
   if (!Ori || typeof Ori.requestPermission === 'function' || !tactile) return;
   let base = null, lu = null, rafG = 0, avant = '';
-  const RARES = '.pcard.cj:is(.tc-rare, .tc-legendaire), .cj-recto:is(.tc-rare, .tc-legendaire), .choix-option.tc.tc-rare, .choix-option.tc.tc-legendaire';
+  const RARES = '.carton:is(.tc-rare, .tc-legendaire), .choix-option.tc:is(.tc-rare, .tc-legendaire)';
   const pencher = () => {
     rafG = 0;
     if (!lu || calme.matches || doc.hidden) return;
