@@ -9,7 +9,7 @@
 import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
 import { effetCarte, poserSoirGrand } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
-import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS,
+import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour, ageAtSeason } from './ratings.js';
 import { franchiseDuCode } from './franchises.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
@@ -202,6 +202,11 @@ export const ZONE_PEN_MAX = 70;      // plafond par unité
  *                  énormément. Le malus reste PROPORTIONNEL au talent gaspillé
  *                  — l'échelle ne fait que le multiplier — donc il ne peut
  *                  toujours pas s'inverser (le piège du forfait, ci-dessus).
+ *   (1.0 · J1-L) ZONE_NOMBRE ne joue plus que si un joueur de l'unité est à
+ *   DEUX crans ou plus ; quand tous sont à un cran au plus, c'est
+ *   ZONE_NOMBRE_UN (1 · 1 · 1,25 · 1,8) : deux vedettes au 2e trio passent,
+ *   trois non. Un cran coûte 0,55 au lieu de 0,45 pour garder l'empilement
+ *   fermé (mock_zones : EMPILÉ 66,8, les témoins à +0,2 du linéaire).
  *   ZONE_NOMBRE    par NOMBRE DE MAL PLACÉS dans l'unité, indexée par le
  *                  compte. Un mal placé coûte ce qu'il coûte, deux coûtent
  *                  1,6 fois la somme, trois 2,2 fois : un joueur hors de sa
@@ -228,16 +233,23 @@ export const ZONE_PEN_MAX = 70;      // plafond par unité
  * sa zone faute de mieux et que la punir deux fois serait la punir de son
  * effectif.
  */
-export const ZONE_ECHELLE = lireListe('ZONE_ECHELLE', [0, 0.45, 1.30, 1.90]);
+// 1.0 · J1-L : un cran passe de 0,45 à 0,55 — le prix du nombre adouci (ZONE_NOMBRE_UN), mesuré sur mock_zones.
+export const ZONE_ECHELLE = lireListe('ZONE_ECHELLE', [0, 0.55, 1.30, 1.90]);
 export const ZONE_PUISSANCE = Number(ENV_MESURE.ZONE_PUISSANCE ?? 2);
 export const ZONE_NOMBRE = lireListe('ZONE_NOMBRE', [1, 1, 1.6, 2.2]);
+// Le nombre ne multiplie que si un joueur de l'unité est à ce nombre de crans ou plus (1.0 · J1-L).
+export const ZONE_NOMBRE_DES = Number(ENV_MESURE.ZONE_NOMBRE_DES ?? 2);
+// En dessous (tous à un cran au plus), un multiplicateur adouci : deux mal placés passent, trois non (1.0 · J1-L).
+export const ZONE_NOMBRE_UN = lireListe('ZONE_NOMBRE_UN', [1, 1, 1.25, 1.8]);
 /*
  * Au-delà de ce malus, l'écran ne dit plus « mal assorti » mais « hors de ses
  * lignes » (voir `zoneEtat` plus bas). Douze points de synergie, c'est ce que
  * coûte un joueur à deux crans de sa zone : le seuil marque donc exactement la
  * frontière que JP a demandée, et l'étiquette la rend visible.
  */
-export const ZONE_DUR = 12;
+// 1.0 · J1-L : 15. Deux vedettes au 2e trio (5,5 × 2 × 1,25 = 13,8) disent « un joueur mal placé » ;
+// trois (29,7) et tout joueur à deux crans de sa zone disent « hors de ses lignes ».
+export const ZONE_DUR = 15;
 
 /**
  * Calibre attendu d'une case : la cote plancher de la meilleure zone dont
@@ -299,24 +311,50 @@ export function malusZoneJoueur(group, unit, v, ideal, opts = {}) {
  * cote (jamais négatif), déjà plafonné, et le nombre de mal placés.
  */
 export function malusZoneUnite(group, unit, entrees, opts = {}) {
-  let somme = 0, mal = 0;
+  let somme = 0, mal = 0, ecartMax = 0;
   for (const e of entrees) {
     const pen = malusZoneJoueur(group, unit, e.v, e.ideal, opts);
-    if (pen > 0 || Math.min(...e.ideal.map(u => Math.abs(u - unit))) > 0) mal++;
+    const ecart = Math.min(...e.ideal.map(u => Math.abs(u - unit)));
+    if (pen > 0 || ecart > 0) mal++;
+    if (ecart > ecartMax) ecartMax = ecart;
     somme += pen;
   }
+  /*
+   * UN CRAN PASSE, DEUX NE PASSENT PLUS — MÊME À PLUSIEURS (1.0 · J1-L). Le
+   * multiplicateur de nombre s'appliquait quel que soit l'écart : deux vedettes
+   * au 2e trio (un cran chacune) coûtaient 2 × 4,5 × 1,6 = 14,4, donc « hors de
+   * ses lignes ». Il ne joue plus que si un joueur de l'unité est à deux crans
+   * ou plus — c'est là qu'il ferme l'empilement (mesuré : un vrai club n'a
+   * presque jamais d'écart de deux, l'alignement empilé en a partout).
+   */
   const nombre = opts.nombre ?? ZONE_NOMBRE;
-  const mult = opts.lineaire ? 1 : nombre[Math.min(mal, nombre.length - 1)];
+  const seuil = opts.nombreDes ?? ZONE_NOMBRE_DES;
+  const table = ecartMax >= seuil ? nombre : (opts.nombreUn ?? ZONE_NOMBRE_UN);
+  const mult = opts.lineaire ? 1 : table[Math.min(mal, table.length - 1)];
   return { pen: Math.min(opts.plafond ?? ZONE_PEN_MAX, somme * mult), mal };
 }
 
 /* ---------- 23 joueurs : 4 trios, 3 paires, 2 gardiens, 3 réservistes ---------- */
 
+/*
+ * L'ÉTIQUETTE D'UNE CASE DIT QUI Y EST CHEZ LUI (1.0 · J1-K). Avant : « Top 6 /
+ * Middle 6 / Bottom 6 » et « Top 4 / Bottom 4 », alors que les zones se
+ * chevauchent — un Bottom 6 est chez lui au 3e trio (une case « Middle 6 »), et
+ * un 78+ n'est chez lui qu'au 1er trio (le 2e, une case « Top 6 », lui coûtait un
+ * cran). L'étiquette liste les zones standard et vedette dont les unités idéales
+ * comprennent la case : la même table que le moteur (les zones des polyvalents,
+ * T1-3 et cie, couvrent plusieurs cases et ne s'écrivent pas sur une case).
+ */
+export const zonesDeLaCase = (group, unit) =>
+  [ZONES_ETOILE[group], ...LINE_ZONES[group]].filter(z => z.idealUnits.includes(unit));
+const etiquetteDeCase = (group, unit) => zonesDeLaCase(group, unit).map(z => z.mini).join(' · ');
 export const SLOTS = [];
-['Top 6', 'Top 6', 'Middle 6', 'Bottom 6'].forEach((label, unit) => {
+[0, 1, 2, 3].forEach(unit => {
+  const label = etiquetteDeCase('F', unit);
   ['AG', 'C', 'AD'].forEach(role => SLOTS.push({ group: 'F', unit, role, label }));
 });
-['Top 4', 'Top 4', 'Bottom 4'].forEach((label, unit) => {
+[0, 1, 2].forEach(unit => {
+  const label = etiquetteDeCase('D', unit);
   ['DG', 'DD'].forEach(role => SLOTS.push({ group: 'D', unit, role, label }));
 });
 // Le partant et l'auxiliaire portent des unités différentes pour que la zone
@@ -3043,7 +3081,11 @@ export const REF = { pression: 1.233, zDef: 0.169, fg: 0.899, pctTir: 1.025, cre
  * 43,4 dans la réalité. À 1,045, la moyenne retombe exactement sur le réel,
  * et les dix déciles de `check_monotonie.mjs` avec elle.
  */
-export const PCT_TIR_NEUTRE = 0.965;
+// 1.0 · J1-M : 0,965 → 0,945. La chimie relative (bonus négatif sous le pivot) coûte au
+// solo, où la chimie part de zéro contre un adversaire qui n'en a pas : les déciles de
+// check_monotonie reculaient d'une demi-victoire (50,1 → 49,6 au 10e) ; 0,945 les remet
+// à 25,2 / 50,3. Le jeu, lui, joue en ligue (simulateLeague) et ne lit pas ce nombre.
+export const PCT_TIR_NEUTRE = Number(ENV_MESURE.PCT_TIR_NEUTRE ?? 0.945);
 
 /*
  * Le pourcentage de tir de référence, et donc l'ancrage du pointage : c'est
@@ -3387,7 +3429,7 @@ export function profilMatch(team, lineup, adv = null) {
     for (let u = 0; u < poids.length; u++) {
       const slots = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch);
       const syn = getUnitSynergy(lineup, group, u);
-      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + CHIMIE_BONUS * chimieSoir[u] / 100) / SYN_ECHELLE));
+      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + bonusChimie(CHIMIE_FORCEE != null && team.isPlayer ? CHIMIE_FORCEE : chimieSoir[u])) / SYN_ECHELLE));
       const volume = Math.min(VOLUME_UNITE_MAX,
         slots.reduce((a, s) => a + lancersFE(lineup[s.i], membresAN), 0) / slots.length);
       const joueurs = slots.map(s => lineup[s.i]).filter(Boolean);
@@ -4129,12 +4171,27 @@ const REPLACEMENT = 40;     // cote d'un rappel de la ligue mineure
  * porte la chimie de la ligne u.
  */
 // Recalé en S73 : la chimie apprise tourne à 53 % chez l'IA (la maîtrise relève le plafond), donc 3,4 pour garder +1,8 en moyenne.
-export const CHIMIE_BONUS = 3.4;
+/*
+ * LA CHIMIE DEVIENT UN LEVIER, SANS GONFLER LA LIGUE (1.0 · J1-M). À 3,4, une
+ * ligne soudée ne valait que 6 % de buts de plus qu'une ligne cassée, pour un
+ * tiroir entier à l'écran. Le bonus est maintenant RELATIF à un pivot :
+ * CHIMIE_BONUS × (c − CHIMIE_PIVOT) / 100. Le pivot est choisi pour que le
+ * bonus MOYEN reste celui que check_chimie borne (1,88 pt à 55 % de chimie
+ * moyenne : 6,5 × (55,4 − 26) / 100) — la ligue marque autant (3,09 buts par
+ * équipe par match, avant comme après). Mesuré EN PAIRES (ta formation à chimie
+ * forcée, 40 saisons, 3 280 matchs) : chimie 100 contre 0 = +10,9 % de buts et
+ * +3,6 victoires (c'était +6,1 %).
+ */
+export const CHIMIE_BONUS = Number(ENV_MESURE.CHIMIE_BONUS ?? 6.5);
+export const CHIMIE_PIVOT = Number(ENV_MESURE.CHIMIE_PIVOT ?? 26);
+// MESURE seulement (check_chimie) : la chimie du bonus de ta formation, forcée. Le navigateur n'a pas de process : null.
+export const CHIMIE_FORCEE = ENV_MESURE.CHIMIE_FORCEE == null ? null : Number(ENV_MESURE.CHIMIE_FORCEE);
+export const bonusChimie = c => CHIMIE_BONUS * (c - CHIMIE_PIVOT) / 100;
 function bonusDeChimie(team, u, lineup = null) {
   let c;
   if (lineup && team) c = chimieLigne(apprentissageDe(team), lineup, u, lignesDe(team, lineup)[u]);
   else c = team && team.chimie ? team.chimie[u] || 0 : 0;
-  return CHIMIE_BONUS * c / 100;
+  return bonusChimie(c);
 }
 
 function gauss() {

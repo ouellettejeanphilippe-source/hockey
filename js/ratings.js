@@ -613,6 +613,13 @@ export const ZONE_THRESHOLDS = {
  * « 1re-2e paire » — et `label`, sur la fiche, garde le mot du hockey devant.
  * Les unités et les seuils ne bougent pas : c'est le mot qui change.
  */
+/* Les zones des vedettes (cote 78+, 80+ pour un gardien) : une seule unité idéale.
+   `getLineZone` les rend, et les étiquettes des cases (js/sim.js) les lisent (1.0 · J1-K). */
+export const ZONES_ETOILE = {
+  F: { level: 1, label: 'Top 3 · 1er trio', short: '1er trio', mini: 'T1', idealUnits: [0] },
+  D: { level: 1, label: 'Top 2 · 1re paire', short: '1re paire', mini: 'P1', idealUnits: [0] },
+  G: { level: 1, label: 'Partant numéro un', short: 'Partant no 1', mini: 'no 1', idealUnits: [0] },
+};
 export const LINE_ZONES = {
   F: [
     { level: 1, label: 'Top 6 · 1er ou 2e trio',     short: '1er-2e trio', mini: 'T1-2', idealUnits: [0, 1] },
@@ -685,15 +692,7 @@ export function getLineZone(p, v = null) {
   const rating = ovr ?? 50;
 
   // 1. Étoiles (Stars)
-  if (pos === 'G' && rating >= 80) {
-    return { level: 1, label: "Partant numéro un", short: 'Partant no 1', mini: 'no 1', idealUnits: [0] };
-  }
-  if (pos === 'F' && rating >= 78) {
-    return { level: 1, label: 'Top 3 · 1er trio', short: '1er trio', mini: 'T1', idealUnits: [0] };
-  }
-  if (pos === 'D' && rating >= 78) {
-    return { level: 1, label: 'Top 2 · 1re paire', short: '1re paire', mini: 'P1', idealUnits: [0] };
-  }
+  if (rating >= (pos === 'G' ? 80 : 78)) return { ...ZONES_ETOILE[pos], idealUnits: [0] };
 
   // 2. Joueurs hyper versatiles
   const sec = getSecondaryPosition(p);
