@@ -694,6 +694,25 @@ await page.click('#npGo');
 await passerIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
 console.log('   écran « Nouvelle partie » : ouvert à la première visite, refermé');
+/*
+ * LA FICHE : « SIGNER » SOUS LE POUCE (1.0, J2-5). Sur téléphone, le bouton
+ * de la fiche tombait sous le pli ; il colle au bas de la feuille. On ouvre la
+ * fiche d'un joueur du vestiaire et on exige le bouton dans l'écran, sans
+ * défiler.
+ */
+{
+  const carte = await page.waitForSelector('#pool .pcard', { timeout: 30000 }).catch(() => null);
+  if (carte) {
+    await carte.click({ position: { x: 30, y: 30 } });
+    const btn = await page.waitForSelector('#hockeyCardModal #modalSignBtn', { timeout: 5000 }).catch(() => null);
+    if (btn) {
+      const r = await btn.boundingBox();
+      if (!r || r.y + r.height > 844 + 1) errors.push(`la fiche d'un joueur laisse « Signer » sous le pli (${r ? Math.round(r.y + r.height) : '?'} px sur 844)`);
+    } else errors.push('la fiche d\'un joueur du vestiaire ne s\'ouvre pas, ou n\'a pas de bouton « Signer »');
+    await page.click('#closeHockeyCardBtn').catch(() => {});
+    await page.waitForTimeout(250);
+  }
+}
 
 /*
  * DEUX RÈGLES FERMES QUE RIEN NE VÉRIFIAIT.

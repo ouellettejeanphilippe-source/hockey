@@ -5279,7 +5279,8 @@ function showPlayerModal(p, opts = {}) {
   // mises en échec, les mises au jeu — là pour qui les cherche.
   const detailStats = p.p === 'G' ? '' : cell('PTS/M', st.ppgStr) + cell('TG/M', p.toi ? Number(p.toi).toFixed(1) : '—')
     + (p.ht != null ? cell('MÉ/M', p.ht) : '') + (p.fo != null ? cell('MJ %', Math.round(p.fo * 100)) : '');
-  const plusDeDetails = `<details class="fiche-plus"><summary>Plus de détails</summary>
+  // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
+  const plusDeDetails = `<details class="fiche-plus"${matchMedia('(min-width: 900px)').matches ? ' open' : ''}><summary>Plus de détails</summary>
        ${detailStats ? `<div class="stat-grid">${detailStats}</div>` : ''}
        <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
        ${ratings}</details>`;

@@ -10327,3 +10327,14 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
   .choix-main.trois > .tc .tc-pied { display: none; }
   .choix-main.trois > .tc .tc-quoi { -webkit-line-clamp: 8; }
 }
+
+/* ---------------------------------------------------------------
+   1.0 (J2-5) — LA FICHE : « SIGNER » TOUJOURS SOUS LE POUCE. Sur téléphone,
+   la carte prend l'écran et le bouton de la fiche tombait sous le pli : on
+   voyait les liens externes avant l'action. Le pied colle au bas de la
+   feuille qui défile, le bouton en tête et sur toute la largeur.
+   --------------------------------------------------------------- */
+@media (max-width: 899px) {
+  #hockeyCardModal .pcard-full-foot { position: sticky; bottom: 0; z-index: 6; }
+  #hockeyCardModal .pcard-full-foot > #modalSignBtn { order: -1; flex: 1 0 100%; min-height: 46px; }
+}
