@@ -300,16 +300,16 @@ awk '/^## /{if(n)print b"\t"s"\t"n; n=$0; s=NR; b=0} {b+=length($0)+1} END{print
 
 ### Fini, ça veut dire
 
-- [ ] Aucune boucle d'argent : `check_packs` revente ≤ 40 %, `check_rogue` achat avant butin, prime de série versée.
-- [ ] Le robot ne gagne pas : `check_robot` Coupe ≤ 5 % sur 40 saisons, ballottage ≤ +3 V.
-- [ ] L'écran dit le moteur : fit null sur unité incomplète, un seul « −N », étiquettes de zone dérivées, indices de contre sur le plan probable, cartes + sans malus amplifié.
-- [ ] Rien de coupé à 390 px : `toutEstAtteignable` avec « coupé à droite » sur repêchage, fiche, dilemme, main, classement, bilan.
-- [ ] Rien de vide à 1440 px : quatre tuiles au hub, fiche remplie, menu sans carton étiré.
-- [ ] Une décision montre tout : trois cartes visibles, puces au-dessus du pli, l'adversaire en tête de « Préparer ».
-- [ ] Des mots de hockey : zéro « hub », « palier », « Classique » affichés ; intro Rogue en deux phrases ; légende de l'inventaire en infobulles.
+- [x] Aucune boucle d'argent : `check_packs` revente ≤ 40 %, `check_rogue` achat avant butin, prime de série versée.
+- [x] Le robot ne gagne pas : `check_robot` Coupe ≤ 5 % sur 40 saisons, ballottage ≤ +3 V.
+- [x] L'écran dit le moteur : fit null sur unité incomplète, un seul « −N », étiquettes de zone dérivées, indices de contre sur le plan probable, cartes + sans malus amplifié.
+- [x] Rien de coupé à 390 px : `toutEstAtteignable` avec « coupé à droite » sur repêchage, fiche, dilemme, main, classement, bilan.
+- [x] Rien de vide à 1440 px : quatre tuiles au hub, fiche remplie, menu sans carton étiré.
+- [x] Une décision montre tout : trois cartes visibles, puces au-dessus du pli, l'adversaire en tête de « Préparer ».
+- [x] Des mots de hockey : zéro « hub », « palier », « Classique » affichés ; intro Rogue en deux phrases ; légende de l'inventaire en infobulles.
 - [ ] Zéro code inutile : zéro export non importé, zéro fonction sans appel, zéro sélecteur sans élément, zéro script orphelin.
-- [ ] Poids : < 900 Ko et < 25 requêtes au premier écran ; Sur table à la demande ; style.css < 150 Ko.
-- [ ] Sur table : `check_regles` avec les sept règles neuves, ou le carton porte « bêta ».
+- [ ] Poids : < 900 Ko et < 25 requêtes au premier écran ; Sur table à la demande ; style.css < 150 Ko. — *29 sept. : l'APK y est (13 requêtes, 1,25 Mo au premier écran) ; la version locale non minifiée charge 56 requêtes et 2,45 Mo, sans conséquence puisqu'elle est servie en local (JP : « juste local »).*
+- [x] Sur table : `check_regles` avec les sept règles neuves, ou le carton porte « bêta ».
 - [ ] CI verte sur `1.0`, `sw.js` en 1.0.0, `site.webmanifest` et l'APK au même numéro.
 - [ ] Un vrai téléphone : une saison complète sur Android (barre d'état, barre de gestes, clavier dans la recherche), sans page qui défile de côté.
 - [ ] Docs vivantes : CLAUDE.md < 40 Ko, journal dans `docs/journal/`, README avec les captures de la 1.0.
