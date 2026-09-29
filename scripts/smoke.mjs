@@ -34,6 +34,7 @@ const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: p
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const errors = [];
 let barreAuRepechage = null;   // la barre au repêchage, pour la comparer au bilan (S67)
+let toastVu = false;           // le premier toast d'une signature, mesuré une fois (1.0, J2-17)
 
 /*
  * LES CHOIX FORCÉS (S66). Le proprio, les dilemmes et les séquences CACHENT
@@ -987,6 +988,11 @@ async function drafter(etiquette) {
       });
       // Le plancher du jeu est 0,775 M$ par case (MIN_SAL de js/game.js) ; le 0,95 d'ici est la marge de l'auto-draft.
       if (etat.rem != null && etat.left != null && etat.rem + 0.01 < 0.775 * etat.left) errors.push(`une signature d'un seul clic a laissé ${etat.rem} M$ pour ${etat.left} cases, sous le plancher`);
+      // LE TOAST EN HAUT SUR TÉLÉPHONE (1.0, J2-17) : il se posait sur les boutons du pouce.
+      if (!toastVu) {
+        const t = await page.evaluate(() => { const e = document.querySelector('#toast.on'); if (!e) return null; const r = e.getBoundingClientRect(); return { haut: r.top, bas: r.bottom, h: innerHeight, w: innerWidth }; });
+        if (t) { toastVu = true; if (t.w < 1200 && t.bas > t.h / 2) errors.push(`le toast se pose dans la moitié basse du téléphone (${Math.round(t.haut)}–${Math.round(t.bas)} px sur ${t.h})`); }
+      }
     }
   }
   console.log(`   ${etiquette} : ${signed}/${total} signés`);

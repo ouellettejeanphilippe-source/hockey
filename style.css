@@ -10242,3 +10242,18 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
   .slot.cj-case .slot-band .slot-salary { font-size: 0.92em; letter-spacing: -0.01em; }
   .slot.cj-case .slot-band .sb-role { padding-left: 3px; padding-right: 3px; }
 }
+
+/* ---------------------------------------------------------------
+   1.0 (J2-17) — LE TOAST EN HAUT SUR TÉLÉPHONE. En bas, il se posait sur
+   « Journée suivante » et sur le bouton flottant, pile là où le pouce
+   travaille. Il descend de la barre du haut, qui ne porte rien qu'on touche
+   à ce moment-là. Au bureau, il reste en bas, loin du rail.
+   --------------------------------------------------------------- */
+@media (max-width: 1199px) {
+  .toast {
+    top: calc(var(--topbar-h) + 8px);
+    bottom: auto;
+    transform: translate(-50%, -12px) scale(0.96);
+  }
+  .toast.on { transform: translate(-50%, 0) scale(1); }
+}
