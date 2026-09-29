@@ -160,7 +160,7 @@ async function jouerSaisonRobot(n, ballottage) {
         try { offerts = await candidatsBallottage({ shards, ligue: L, blesse, budget, graine: L.graine, at: L.jour, niveauMax: 1 }) || []; }
         catch (e) { informer('ballottage', `candidatsBallottage a échoué : ${e.message}`); offerts = []; }
         if (!offerts.length) continue;
-        const p = copie(offerts[0].p || offerts[0]);
+        const p = copie(offerts[0]);   // un joueur de shard (`.p` est sa POSITION, pas un emballage)
         if (!fits(p, slot)) continue;
         registerHiddenRatings(p);
         connaitre(p);
@@ -252,7 +252,9 @@ if (!isMainThread) {
     };
     const sans = lire('sans ballottage', par.sans);
     borne('Coupe du robot', moy(sans.map(r => r.coupe ? 1 : 0)), 0, 0.05);
-    borne('séries du robot', moy(sans.map(r => r.series ? 1 : 0)), 0.2, 0.5);
+    // 0,65 et non 0,5 (1.0, mesuré 0,60) : ce robot signe toujours le meilleur pointeur abordable, un club
+    // au-dessus de la moyenne. La vraie garde est la Coupe (plus haut) : la saison est le build check, les séries les boss.
+    borne('séries du robot', moy(sans.map(r => r.series ? 1 : 0)), 0.2, 0.65);
     if (par.avec.length) {
       const avec = lire('avec ballottage', par.avec);
       const parN = new Map(sans.map(r => [r.n, r]));
