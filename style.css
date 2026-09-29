@@ -6912,13 +6912,14 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .carton-relique i { position: absolute; left: -2cqw; right: -2cqw; bottom: -4.6cqw; font: normal 800 2.7cqw/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase; text-align: center; color: #f4f1ea; text-shadow: 0 0.3cqw 0.6cqw rgba(0, 0, 0, 0.8); }
 @container (max-width: 130px) { .carton-relique { display: none; } }
 
-/* L'OR : le carton DÉCOUPÉ (deux encoches de rondelle au flanc), le nom doré à chaud, la signature, le tirage. */
+/* L'OR : le carton DÉCOUPÉ (deux encoches de rondelle au flanc), le nom doré à chaud, la signature, le tirage.
+   Le nom doré prend son ombre par `filter` : un `text-shadow` se peindrait PAR-DESSUS l'or découpé dans les lettres, et le ternirait. */
 .carton.tc-legendaire {
   -webkit-mask: radial-gradient(7.8% 2.9% at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat, radial-gradient(7.8% 2.9% at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
   mask: radial-gradient(7.8% 2.9% at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat, radial-gradient(7.8% 2.9% at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
 }
-.carton.tc-legendaire .carton-nom .lname { color: transparent; background: var(--or-feuille); -webkit-background-clip: text; background-clip: text; text-shadow: 0 0.35cqw 0 rgba(0, 0, 0, 0.55), 0 0 0.25cqw rgba(0, 0, 0, 0.35); }
-.cs-tableau.tc-legendaire .carton-nom .lname { background: radial-gradient(circle, #ffe08a 52%, transparent 58%) 0 0 / 0.125em 0.125em; -webkit-background-clip: text; background-clip: text; text-shadow: 0 0 0.12em rgba(255, 190, 60, 0.45); }
+.carton.tc-legendaire .carton-nom .lname { color: transparent; background: var(--or-feuille); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 0.22cqw rgba(40, 24, 0, 0.55); text-shadow: none; filter: drop-shadow(0 0.35cqw 0 rgba(0, 0, 0, 0.55)) drop-shadow(0 0 0.25cqw rgba(0, 0, 0, 0.35)); }
+.cs-tableau.tc-legendaire .carton-nom .lname { background: radial-gradient(circle, #ffe08a 52%, transparent 58%) 0 0 / 0.125em 0.125em; -webkit-background-clip: text; background-clip: text; text-shadow: none; filter: drop-shadow(0 0 0.12em rgba(255, 190, 60, 0.45)); }
 .carton-signature {
   z-index: 4; left: 10cqw; right: 10cqw; top: 70cqw; transform: rotate(-9deg); text-align: center; pointer-events: none;
   font: 400 min(11cqw, calc(150cqw / var(--sig, 12))) / 1.1 "Segoe Script", "Brush Script MT", "Dancing Script", cursive; letter-spacing: -0.01em; white-space: nowrap;

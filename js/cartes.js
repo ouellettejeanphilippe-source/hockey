@@ -24,6 +24,7 @@
 
 import { getTeamBand } from './logos.js';
 import { NOM_VARIANTE } from './rarete.js';
+import { actionSrc } from './actions.js';
 
 /*
  * Les quatre raretés, de la plus commune à la plus rare. La gemme se lit sans
@@ -347,13 +348,14 @@ export function anneeDeCarte(saison) {
 }
 /*
  * LA PHOTO D'ACTION. Le contrat : l'adresse d'une image au format carte
- * (portrait 5:7), ou rien. Une autre chaîne la fournit (les images, leur
- * liste, leur téléchargement sur l'appareil) ; elle se branche ICI, et tous
+ * (portrait 5:7), ou rien. js/actions.js la fournit (les images, leur
+ * liste, leur téléchargement sur l'appareil), `p.actionSrc` la force (les
+ * planches) ; elle se branche ICI, et tous
  * les gabarits (le vestiaire, la carte mini, la fiche, `artJoueur`) la
  * reçoivent par ce seul endroit. Sans elle — ou si l'image manque au
  * chargement (`onerror`) — chaque série retombe sur le portrait.
  */
-export const photoAction = p => (p && p.actionSrc) || '';
+export const photoAction = p => (p && (p.actionSrc || (p.id && actionSrc(p.id)))) || '';
 
 /*
  * LE NUMÉRO DE LA CARTE ET LE TIRAGE LIMITÉ (S77). Une vraie série numérote
