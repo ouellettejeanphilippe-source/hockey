@@ -47,7 +47,11 @@ export function actionsDisponibles() {
       const ids = (await r.json()).ids || [];
       liste = new Set(ids);
       if (!ids.length || surAppareil()) return ids;
-      surLeWeb = (await fetch(`img/actions/${ids[0]}.webp`)).ok;
+      // Une vraie lecture (pas un HEAD : hors ligne, seul un GET passe par le tiroir du travailleur de service),
+      // et le corps lu jusqu'au bout — une réponse laissée ouverte garde la page « occupée » pour toujours.
+      const v = await fetch(`img/actions/${ids[0]}.webp`);
+      await v.blob();
+      surLeWeb = v.ok;
       return surLeWeb ? ids : [];
     } catch { return []; }
   })();
