@@ -40,7 +40,9 @@ import { exiger, borne, informer, verdict } from './verdict.mjs';
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
-const LIGUES = Number(process.env.LIGUES ?? 6);
+// 12 et non 6 (1.0) : à 6 ligues, « la force du club ne bouge pas » lisait 0,531 pour une borne de 0,5 — du bruit ;
+// à 12, 0,427 avec les jambes et 0,417 sans. Deux minutes au lieu d'une.
+const LIGUES = Number(process.env.LIGUES ?? 12);
 
 const C = new Map();
 const shard = f => { if (!C.has(f)) C.set(f, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))); return C.get(f); };
