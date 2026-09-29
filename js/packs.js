@@ -66,11 +66,16 @@ import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js
 import { ageAtSeason } from './ratings.js';
 import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau } from './niveaux.js';
 
+/*
+ * 1.0 — MOINS D'ÉTOILES (JP : *les packs sont trop généreux en joueurs étoiles*).
+ * Au moins une étoile ou un phénomène par pack : Bronze 2,5 %, Argent 7 %, Or 16 %,
+ * Premium 35 % (avant : 6, 18, 34, 60 %). La part retirée va aux réguliers et aux piliers.
+ */
 export const TIERS = {
-  bronze: { nom: 'Bronze', n: 3, cotes: { commune: 82, peu: 14, rare: 3.6, legendaire: 0.4 }, niveaux: { soutien: 50, regulier: 36, pilier: 12, etoile: 1.8, phenomene: 0.2 } },
-  argent: { nom: 'Argent', n: 4, cotes: { commune: 70, peu: 22, rare: 7, legendaire: 1 }, niveaux: { soutien: 36, regulier: 38, pilier: 21, etoile: 4.4, phenomene: 0.6 } },
-  or: { nom: 'Or', n: 5, cotes: { commune: 55, peu: 30, rare: 12, legendaire: 3 }, niveaux: { soutien: 24, regulier: 38, pilier: 30, etoile: 7, phenomene: 1 } },
-  premium: { nom: 'Premium', n: 6, cotes: { commune: 40, peu: 35, rare: 19, legendaire: 6 }, niveaux: { soutien: 12, regulier: 36, pilier: 38, etoile: 12, phenomene: 2 } },
+  bronze: { nom: 'Bronze', n: 3, cotes: { commune: 82, peu: 14, rare: 3.6, legendaire: 0.4 }, niveaux: { soutien: 51, regulier: 37, pilier: 11.15, etoile: 0.8, phenomene: 0.05 } },
+  argent: { nom: 'Argent', n: 4, cotes: { commune: 70, peu: 22, rare: 7, legendaire: 1 }, niveaux: { soutien: 38, regulier: 39, pilier: 21.25, etoile: 1.6, phenomene: 0.15 } },
+  or: { nom: 'Or', n: 5, cotes: { commune: 55, peu: 30, rare: 12, legendaire: 3 }, niveaux: { soutien: 26, regulier: 40, pilier: 30.6, etoile: 3, phenomene: 0.4 } },
+  premium: { nom: 'Premium', n: 6, cotes: { commune: 40, peu: 35, rare: 19, legendaire: 6 }, niveaux: { soutien: 14, regulier: 40, pilier: 39, etoile: 6, phenomene: 1 } },
 };
 /* La numérotation d'une or (en % des or). */
 export const NUMEROS = [['/99', 78], ['/25', 16], ['/10', 5], ['1 de 1', 1]];
