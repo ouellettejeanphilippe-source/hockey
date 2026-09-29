@@ -25,7 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, originesDe, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie, depistageDe, planDuDepistage } from '../js/sim.js';
-import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, coutDe } from '../js/combat.js';
+import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, coutDe, mainDeLAdjoint } from '../js/combat.js';
 import { carteDe } from '../js/rarete.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -371,6 +371,22 @@ console.log('\n  Le deck de match (S74)\n');
   const pc = x => `${(x / NN * 100).toFixed(1)} %`;
   informer('la préparation (victoires)', `${NN} matchs : juste ${pc(vJ)} · rien ${pc(vR)} · fausse ${pc(vF)}`);
   exiger('viser juste vaut plus que ne rien préparer, qui vaut plus que se tromper', vJ > vR && vR > vF, `${pc(vJ)} > ${pc(vR)} > ${pc(vF)}`);
+
+  // L'ADJOINT JOUE LA MAIN (1.0, J2-13) : jamais plus que l'élan, jamais une injouable, un pari ou une carte qui s'épuise.
+  const toutes = Object.keys(CARTES_MATCH);
+  let mainsA = 0, fautes = [], cartesA = 0;
+  for (let k = 0; k < 600; k++) {
+    const main = mainDuMatch(`adj${k}`, `po0:${k % 7}`, [...DECK_DEPART, ...toutes.filter((_, i) => (i * 7 + k) % 5 === 0)]).main;
+    const { jouees, enMain } = mainDeLAdjoint(main);
+    mainsA++; cartesA += jouees.length;
+    const reste = main.slice();
+    for (const c of jouees) { const i = reste.indexOf(c); if (i < 0) fautes.push(`${c} hors de la main`); else reste.splice(i, 1); }
+    if (energieDepensee(jouees) < 0) fautes.push(`élan ${energieDepensee(jouees)} : ${jouees.join(',')}`);
+    for (const c of jouees) if (CARTES_MATCH[c].injouable || CARTES_MATCH[c].pari || CARTES_MATCH[c].epuise || CARTES_MATCH[c].pioche) fautes.push(`${c} jouée`);
+    if (enMain.some(c => !CARTES_MATCH[c].enMain)) fautes.push('enMain sans malédiction');
+  }
+  exiger('l\'adjoint joue sa main dans l\'élan, sans pari, pioche, carte injouable ou qui s\'épuise', !fautes.length && cartesA > mainsA,
+    fautes.length ? fautes.slice(0, 3).join(' · ') : `${mainsA} mains, ${(cartesA / mainsA).toFixed(1)} carte(s) jouée(s) par main`);
 }
 
 verdict('Le deck de match');

@@ -1145,6 +1145,7 @@ export function ouvrirMainDeMatch(spec) {
         <div class="main-outils">
           <button type="button" class="btn main-reprendre"${jouees.length ? '' : ' disabled'}>Recommencer la main</button>
           <button type="button" class="btn main-deck">${voirDeck ? 'Cacher mon deck' : `Mon deck · ${deck.length}`}</button>
+          ${spec.onAdjoint ? '<button type="button" class="btn main-adjoint" title="Il joue tes mains et garde le cap aux entractes, jusqu\'à la fin de la série">L\'adjoint joue cette série</button>' : ''}
         </div>
         ${voirDeck ? `<div class="deck-grille">${deck.map(c => `<span class="deck-mini tc-${CARTES_MATCH[c].maudite ? 'commune' : CARTES_MATCH[c].rarete}${CARTES_MATCH[c].maudite ? ' maudite' : ''}" title="${esc(CARTES_MATCH[c].texte)}"><b>${CARTES_MATCH[c].injouable ? '✕' : CARTES_MATCH[c].cout}</b>${CARTES_MATCH[c].ico} ${esc(CARTES_MATCH[c].nom)}</span>`).join('')}</div>` : ''}
       </div>
@@ -1185,6 +1186,8 @@ export function ouvrirMainDeMatch(spec) {
     m.querySelectorAll('.main-aj').forEach(b => { b.onclick = () => { aj = b.dataset.aj; jouerSon('joue'); dessiner(); }; });
     m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; dessiner(); };
     m.querySelector('.main-deck').onclick = () => { voirDeck = !voirDeck; dessiner(); };
+    const adj = m.querySelector('.main-adjoint');
+    if (adj) adj.onclick = () => { fermer(true); spec.onAdjoint(); };
     // Le focus reste DANS la main : le clavier ne tombe jamais sur la page dessous.
     m.querySelector('.main-jouer').focus({ preventScroll: true });
   };

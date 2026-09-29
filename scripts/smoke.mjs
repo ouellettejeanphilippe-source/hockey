@@ -2666,6 +2666,42 @@ if (enabled) {
       await page.waitForTimeout(150);
       await memesButs('séries, le match vu en direct', true);
     }
+    /*
+     * L'ADJOINT JOUE CETTE SÉRIE (1.0, J2-13) : la main qui s'ouvre lui est
+     * confiée ; ses décisions portent `auto`, et la main du match d'après ne
+     * s'ouvre plus. Sans main ouverte (série finie), il n'y a rien à confier.
+     */
+    {
+      await page.waitForTimeout(400);
+      const mainOuverte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]');
+      const adj = await page.$('#choixModal:not([hidden]) .main-adjoint');
+      if (mainOuverte && !adj) errors.push('la main d\'un match de séries n\'offre pas « L\'adjoint joue cette série »');
+      else if (adj) {
+        await page.screenshot({ path: 'scripts/smoke-adjoint.png' });
+        await adj.click();
+        await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
+        await page.waitForTimeout(600);
+        const dsA = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisionsSeries || []; } catch { return []; } });
+        const auto = dsA.filter(d => d.auto && d.main);
+        if (!auto.length) errors.push(`l'adjoint n'a rien décidé : ${JSON.stringify(dsA.slice(-2))}`);
+        else {
+          const r0 = auto[0].ronde;
+          let mainsAuto = 0;
+          for (let i = 0; i < 8; i++) {
+            const b = await page.$('#hubModal .hub-jour');
+            if (!b || !(await b.isVisible()) || await page.$('#hubModal .hub-ronde')) break;
+            if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) { errors.push('une main s\'ouvre encore dans une série confiée à l\'adjoint'); break; }
+            if (await page.$('#choixModal:not([hidden])')) break;
+            await b.click();
+            await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
+            await page.waitForTimeout(700);
+            const dsB = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisionsSeries || []; } catch { return []; } });
+            mainsAuto = dsB.filter(d => d.auto && d.ronde === r0 && d.main).length;
+          }
+          console.log(`   l'adjoint joue la série : ${mainsAuto || auto.length} main(s) décidée(s) par lui, « ${auto[0].main.jouees.join(', ') || 'rien'} » au premier match`);
+        }
+      }
+    }
     await repondreAuxChoix();
     await finirSeries();
     await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
