@@ -4581,8 +4581,8 @@ function slotTags(p, zoneEcartTag, penTag) {
  * en trois choses (LIVRAISON.md, jalon C) : son RÔLE (une icône et un mot),
  * son NIVEAU (la pastille, son rang dans sa saison) et sa ZONE (✓ chez lui,
  * ▼ trop bas, ▲ trop haut) — plus −N hors position, 🩹 blessé, un trophée s'il
- * en a un, et derrière le banc ses JAMBES. Au repêchage, sa production (PTS ou
- * V) ; le visage et tout le reste sont dans la fiche, à un toucher.
+ * en a un, et derrière le banc ses JAMBES. Sa production : ses PTS (ou V)
+ * au repêchage, sa fiche à ce jour derrière le banc ; le visage et tout le reste sont dans la fiche, à un toucher.
  */
 function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   const pp = profilPrincipal(p);
@@ -4598,7 +4598,7 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   const trophee = t ? `<span class="cell-trait" title="${esc(t.short || t.nom || '')}">${t.icon}</span>` : '';
   const jambes = G.banc && p.p !== 'G' ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100) : '';
   return `<div class="cell-l1">${role}${pastilleNiveau(p)}</div>
-        <div class="slot-tags cell-l2">${blesseTag}${marque}${zone}${penTag}${trophee}${G.banc ? '' : `<span class="cell-prod">${esc(main)}</span>`}</div>
+        <div class="slot-tags cell-l2">${blesseTag}${marque}${zone}${penTag}${trophee}<span class="cell-prod slot-faits">${esc(G.banc ? ficheDuJour(p) : main)}</span></div>
         ${jambes}`;
 }
 

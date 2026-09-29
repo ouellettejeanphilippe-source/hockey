@@ -1218,58 +1218,92 @@ async function traverserSaison(etiquette, reprise = false) {
       if (lu.ids.length !== 7 || lu.ids.some(t => !/^(Trio|Paire) /.test(t))) errors.push(`les trios et les paires ne disent pas ce qu'ils sont : ${lu.ids.join(' | ')}`);
       else console.log(`   l'alignement : ${lu.roles} rôles en icônes · ${lu.ids.join(' · ')}`);
     }
-    await _click('#rosterBoard .ln-strat[data-g="F"][data-u="0"] > summary');
-    await page.waitForSelector('#rosterBoard .ln-strat[data-g="F"][data-u="0"][open] .gl-tac', { timeout: 5000 });
+    /*
+     * LA CASE SANS PHOTO, LE SYSTÈME EN FENÊTRE (1.0, les lignes). JP : *au
+     * lieu de dropdown, modal, et au lieu des photos, icônes et cote générale
+     * à sa position*. Aucune photo dans les cases ; chaque case porte un rôle
+     * et une pastille de NIVEAU (jamais une cote : `sansCote` le vérifie) et,
+     * derrière le banc, ses jambes. La rangée « Régler › » ouvre une fenêtre ;
+     * rien ne s'applique avant « Appliquer », « Annuler » ne change rien.
+     */
+    {
+      const cases = await page.evaluate(() => {
+        const cs = [...document.querySelectorAll('#rosterBoard .line .slot:not(.empty):not(.verrou)')];
+        return { n: cs.length, visages: document.querySelectorAll('#rosterBoard .slot img.visage').length,
+          sansNiveau: cs.filter(c => !c.querySelector('.niv')).length, sansRole: cs.filter(c => !c.querySelector('.cell-role')).length,
+          jambes: document.querySelectorAll('#rosterBoard .slot .jambes').length };
+      });
+      if (cases.visages) errors.push(`l'alignement montre encore ${cases.visages} photo(s) dans ses cases`);
+      if (cases.sansNiveau || cases.sansRole) errors.push(`des cases n'ont pas leur niveau ou leur rôle : ${cases.sansNiveau} sans niveau, ${cases.sansRole} sans rôle sur ${cases.n}`);
+      if (cases.jambes < cases.n - 3) errors.push(`derrière le banc, les jambes ne se lisent que sur ${cases.jambes} cases sur ${cases.n}`);
+      else console.log(`   la case sans photo : ${cases.n} cases, chacune un rôle et un niveau, ${cases.jambes} jambes lisibles`);
+    }
+    const ouvrirFenetre = async (g, u) => {
+      await _click(`#rosterBoard .ln-strat[data-g="${g}"][data-u="${u}"]`);
+      await page.waitForSelector(`#lignesModal:not([hidden]) .ln-fenetre[data-g="${g}"][data-u="${u}"] .gl-tac`, { timeout: 5000 });
+    };
+    const tacOn = (attr) => page.$eval(`#lignesModal .gl-tac.on`, (b, a) => b.dataset[a], attr).catch(() => null);
+    await ouvrirFenetre('F', 0);
     {
       const lu = await page.evaluate(() => ({
-        tacs: document.querySelectorAll('.ln-strat[open] .gl-tac').length,
-        fits: [...document.querySelectorAll('.ln-strat[open] .gl-tac-fit')].map(e => e.textContent.trim()),
-        demandes: document.querySelectorAll('.ln-strat[open] .ln-dem').length,
-        ouverts: document.querySelectorAll('.ln-strat[open]').length,
+        tacs: document.querySelectorAll('#lignesModal .gl-tac').length,
+        fits: [...document.querySelectorAll('#lignesModal .gl-tac-fit')].map(e => e.textContent.trim()),
+        demandes: document.querySelectorAll('#lignesModal .ln-dem').length,
       }));
-      if (lu.tacs !== 8) errors.push(`le tiroir du 1er trio n'a pas ses huit systèmes : ${lu.tacs}`);
+      if (lu.tacs !== 8) errors.push(`la fenêtre du 1er trio n'a pas ses huit systèmes : ${lu.tacs}`);
       // LE FIT EN MOTS (S71, S79) : « Sur mesure », « Bon fit », « Fit moyen », « Mauvais fit ».
       if (lu.fits.filter(f => /^(Sur mesure|Bon fit|Fit moyen|Mauvais fit)$/.test(f)).length !== 7) errors.push(`les systèmes n'annoncent pas leur fit : ${lu.fits.join(' | ')}`);
       if (lu.fits.some(f => /\d+ %/.test(f))) errors.push(`le fit s'affiche encore en pourcentage : ${lu.fits.join(' | ')}`);
-      // Le rôle demandé, poste par poste : les trois du trio (la paire a son tiroir).
-      const tacOuverte = await page.$eval('.ln-strat[open] .gl-tac.on', b => b.dataset.tac);
+      const tacOuverte = await tacOn('tac');
       if (tacOuverte !== 'hourra' && lu.demandes !== 3) errors.push(`le 1er trio dit le rôle demandé à ${lu.demandes} postes au lieu de trois`);
-      if (lu.ouverts !== 1) errors.push(`${lu.ouverts} tiroirs ouverts : l'accordéon n'en garde qu'un`);
-      tacChoisie = await page.$eval('.ln-strat[open] .gl-tac:not(.on):not([data-tac="hourra"])', b => b.dataset.tac);
-      await _click(`.ln-strat[open] .gl-tac[data-tac="${tacChoisie}"]`);
-      await _click('.ln-strat[open] [data-agr="2"]');
+      tacChoisie = await page.$eval('#lignesModal .gl-tac:not(.on):not([data-tac="hourra"])', b => b.dataset.tac);
+      await _click(`#lignesModal .gl-tac[data-tac="${tacChoisie}"]`);
+      await _click('#lignesModal [data-agr="2"]');
       await page.waitForTimeout(150);
-      const reglee = await page.evaluate(() => ({ tac: document.querySelector('.ln-strat[data-g="F"][data-u="0"] .gl-tac.on')?.dataset.tac, ouvert: document.querySelector('.ln-strat[data-g="F"][data-u="0"]').open }));
-      if (reglee.tac !== tacChoisie || !reglee.ouvert) errors.push(`le tiroir ne garde pas le réglage ou se referme sous le doigt : ${JSON.stringify(reglee)}`);
       await page.screenshot({ path: 'scripts/smoke-lignes.png', fullPage: false });
-      // LA PAIRE (S79) : son tiroir, ses six systèmes, ses deux postes ; ouvrir referme le trio.
-      await _click('#rosterBoard .ln-strat[data-g="D"][data-u="0"] > summary');
-      await page.waitForSelector('#rosterBoard .ln-strat[data-g="D"][data-u="0"][open] .gl-tac', { timeout: 5000 });
-      const paire = await page.evaluate(() => ({
-        tacs: [...document.querySelectorAll('.ln-strat[open] .gl-tac')].map(b => b.dataset.tacd),
-        demandes: document.querySelectorAll('.ln-strat[open] .ln-dem').length,
-        ouverts: [...document.querySelectorAll('.ln-strat[open]')].map(x => x.dataset.g + x.dataset.u),
-      }));
-      if (paire.tacs.length !== 6 || paire.tacs.some(k => !k)) errors.push(`le tiroir de la 1re paire n'a pas ses six systèmes de défenseurs : ${JSON.stringify(paire.tacs)}`);
-      if (JSON.stringify(paire.ouverts) !== '["D0"]') errors.push(`ouvrir la paire ne referme pas le trio : ${JSON.stringify(paire.ouverts)}`);
-      tacDChoisi = await page.$eval('.ln-strat[open] .gl-tac:not(.on):not([data-tacd="hourra"])', b => b.dataset.tacd);
-      await _click(`.ln-strat[open] .gl-tac[data-tacd="${tacDChoisi}"]`);
+      if ((await tacOn('tac')) !== tacChoisie) errors.push('toucher un système dans la fenêtre ne le sélectionne pas');
+      await _click('#lignesModal .gl-appliquer');
+      await page.waitForTimeout(200);
+      if (await page.isVisible('#lignesModal')) errors.push('« Appliquer » ne referme pas la fenêtre du système');
+      await ouvrirFenetre('F', 0);
+      const reglee = await tacOn('tac');
+      if (reglee !== tacChoisie) errors.push(`la fenêtre n'a pas appliqué le système : ${reglee} au lieu de ${tacChoisie}`);
+      await _click('#lignesModal .gl-pied .gl-annuler');
       await page.waitForTimeout(150);
-      const paireReglee = await page.$eval('.ln-strat[data-g="D"][data-u="0"] .gl-tac.on', b => b.dataset.tacd).catch(() => null);
-      if (paireReglee !== tacDChoisi) errors.push(`le tiroir de la paire ne garde pas son système : ${paireReglee} au lieu de ${tacDChoisi}`);
-      const demPaire = await page.$$eval('.ln-strat[open] .ln-dem', e => e.length);
+      // LA PAIRE (S79) : sa fenêtre, ses six systèmes, ses deux postes.
+      await ouvrirFenetre('D', 0);
+      const paire = await page.evaluate(() => ({
+        tacs: [...document.querySelectorAll('#lignesModal .gl-tac')].map(b => b.dataset.tacd),
+        demandes: document.querySelectorAll('#lignesModal .ln-dem').length,
+      }));
+      if (paire.tacs.length !== 6 || paire.tacs.some(k => !k)) errors.push(`la fenêtre de la 1re paire n'a pas ses six systèmes de défenseurs : ${JSON.stringify(paire.tacs)}`);
+      tacDChoisi = await page.$eval('#lignesModal .gl-tac:not(.on):not([data-tacd="hourra"])', b => b.dataset.tacd);
+      await _click(`#lignesModal .gl-tac[data-tacd="${tacDChoisi}"]`);
+      await page.waitForTimeout(150);
+      const demPaire = await page.$$eval('#lignesModal .ln-dem', e => e.length);
       if (demPaire !== 2) errors.push(`la 1re paire dit le rôle demandé à ${demPaire} postes au lieu de deux`);
       await page.screenshot({ path: 'scripts/smoke-paire.png', fullPage: false });
-      // L'accordéon : ouvrir le 2e trio referme la paire ; on le referme ensuite.
-      await _click('#rosterBoard .ln-strat[data-g="F"][data-u="1"] > summary');
+      await _click('#lignesModal .gl-appliquer');
+      await page.waitForTimeout(200);
+      await ouvrirFenetre('D', 0);
+      const paireReglee = await tacOn('tacd');
+      if (paireReglee !== tacDChoisi) errors.push(`la fenêtre de la paire n'a pas appliqué son système : ${paireReglee} au lieu de ${tacDChoisi}`);
+      await _click('#lignesModal .gl-pied .gl-annuler');
       await page.waitForTimeout(150);
-      const ouverts = await page.$$eval('.ln-strat[open]', e => e.map(x => x.dataset.g + x.dataset.u));
-      if (JSON.stringify(ouverts) !== '["F1"]') errors.push(`ouvrir le 2e tiroir ne referme pas l'autre : ${JSON.stringify(ouverts)}`);
-      await _click('#rosterBoard .ln-strat[data-g="F"][data-u="1"] > summary');
+      // « Annuler » ne change rien : le 2e trio garde son système.
+      await ouvrirFenetre('F', 1);
+      const avant = await tacOn('tac');
+      const autre = await page.$eval('#lignesModal .gl-tac:not(.on)', b => b.dataset.tac);
+      await _click(`#lignesModal .gl-tac[data-tac="${autre}"]`);
+      await _click('#lignesModal .gl-pied .gl-annuler');
       await page.waitForTimeout(150);
+      await ouvrirFenetre('F', 1);
+      if ((await tacOn('tac')) !== avant) errors.push('« Annuler » a changé le système du 2e trio');
+      await _click('#lignesModal .gl-pied .gl-annuler');
+      await page.waitForTimeout(150);
+      console.log(`   la fenêtre du système : 1er trio en ${tacChoisie}, 1re paire en ${tacDChoisi}, « Annuler » ne change rien`);
     }
     await toutEstAtteignable('derrière le banc, lignes réglées');
-    await toutEstAtteignable('derrière le banc, réglages ouverts');
     // Le banc à 390 px, réglages compris : c'est l'écran des décisions de
     // saison, et il doit tenir sans rien pousser hors du cadre.
     await page.screenshot({ path: 'scripts/smoke-banc.png', fullPage: false });
