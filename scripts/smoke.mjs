@@ -59,6 +59,9 @@ async function passerIdentite() {
   if (!carte) { errors.push('« Commencer » n\'offre pas l\'identité de départ'); return; }
   const offre = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
   if (offre.length !== 3 || new Set(offre).size !== 3) errors.push(`l'identité de départ offre ${offre.join(' · ')} au lieu de trois cartes différentes`);
+  // TROIS CARTES, ON LES VOIT TOUTES (1.0, J2-3) : sur téléphone, les trois tiennent dans l'écran, sans balayer.
+  const horsEcran = await page.$$eval('#choixModal .tc', e => e.filter(t => { const r = t.getBoundingClientRect(); return r.left < -1 || r.right > innerWidth + 1; }).length);
+  if (horsEcran) errors.push(`l'identité de départ laisse ${horsEcran} carte(s) hors de l'écran : il faut balayer pour les voir`);
   identitesVues.push(offre[0]);
   await _click('#choixModal .tc');
 }
