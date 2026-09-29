@@ -6176,7 +6176,7 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
         leverGros(toi);
         toi._gardienAuxMatch = false;
       }
-      toi._filetMatch = null;
+      if (toi) toi._filetMatch = null;
       if (r.winner === s.A) s.wA++; else s.wB++;
       feuille.numero = k + 1;
       feuille.serie = `${s.wA}-${s.wB}`;
@@ -6297,6 +6297,8 @@ export function jouerMatchSeries(S) {
     // consigne, ajustement entre deux rounds) : avant le match, dés neufs.
     if (S.toi) {
       S.toi.effetsSerie = [];
+      // Devant le filet (C4) : le choix vaut pour UN match ; le suivant repart de la rotation.
+      S.toi._filetMatch = null;
       for (const d of S.decisions) if (d.ronde === r && d.match_no === k) appliquerDecisionSerie(S.toi, d, S.graine);
     }
     for (const s of S.courante) {
