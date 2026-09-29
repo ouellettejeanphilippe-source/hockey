@@ -30,6 +30,7 @@ import {
   TRAJETS, caseDeLaRondelle, PORTEE_RELANCE, FILET_HAUT, MJ_FOND, MJ_NEUTRE,
   deplacer, appliquerPasse, appliquerTir, appliquerEchec, ciblesFondDe,
   enJeu, passer, tirer, mettreEnEchec, voler,
+  peutBouger, appliquerDejouer, peutRetirerGardien, retirerGardien, expliquerGeste, modEsquive, adverse,
 } from '../js/table.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -279,7 +280,7 @@ const nom = x => `${(x.p && x.p.n) || 'Rappel'} (${x.eq}${x.role})`;
    LE DÉROULEMENT : un match doit toujours finir, et finir sur un gagnant.
    ====================================================================== */
 let casses = new Map();
-let nuls = 0, jamaisFinis = 0, presencesTotal = 0, matchsAvecOT = 0, gestesTotal = 0, tirsHorsPortee = 0;
+let nuls = 0, jamaisFinis = 0, presencesTotal = 0, matchsAvecOT = 0, gestesTotal = 0, tirsHorsPortee = 0, icingsTotal = 0;
 const parType = {};
 const ajouter = (regle, quoi) => {
   const l = casses.get(regle) || [];
@@ -345,6 +346,7 @@ for (let i = 0; i < MATCHS; i++) {
   }
   if (!m.fini) { jamaisFinis++; continue; }
   if (m.prolongation) matchsAvecOT++;
+  icingsTotal += m.icings || 0;
   const r = resultatDe(m);
   /*
    * LA FUSILLADE NE TOUCHE PAS AU POINTAGE (S46) : elle ne fait que désigner
@@ -367,6 +369,9 @@ console.log(`\nDÉROULEMENT`);
 console.log(`  matchs jamais terminés      ${jamaisFinis}`);
 console.log(`  matchs allés en prolongation ${matchsAvecOT} (${(100 * matchsAvecOT / MATCHS).toFixed(0)} %)`);
 console.log(`  avantage en prolongation    ${avantagesEnProlongation.size} match(s) — la punie reste à trois, l'autre ajoute un patineur (la règle de la LNH)`);
+// AUCUN DÉGAGEMENT REFUSÉ N'EST JAMAIS SIFFLÉ (1.0 · J4-P7) : le geste n'existe plus de sa propre zone, donc personne ne peut le commettre.
+if (icingsTotal) { console.log(`  ✗ ${icingsTotal} dégagement(s) refusé(s) sifflé(s) : le geste ne devrait pas exister de sa propre zone`); echecs++; }
+else console.log('  ✓ aucun dégagement refusé sifflé : le geste n\'existe pas de sa propre zone');
 console.log(`  activations par match        ${(presencesTotal / MATCHS).toFixed(1)} (une main à la fois, en alternance ; ${PERIODES} × ${POSSESSIONS_PAR_PERIODE} possessions, ${PRESENCES_PAR_PERIODE} tours au plus par période)`);
 console.log(`  gestes joués                 ${Object.entries(parType).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / gestesTotal).toFixed(0)} %`).join(' · ')}`);
 /* CHAQUE GESTE DOIT ÊTRE JOUÉ AU MOINS UNE FOIS : un geste que personne
@@ -490,14 +495,62 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'recepti
     const { m, p } = scene({ 'A-C': [6, 6] }, 'A-C');
     juger('de la zone offensive, pas de passe au fond (on y est déjà)', ciblesFondDe(m, p).length === 0, `${ciblesFondDe(m, p).length} cases`);
   }
-  // 6. De sa propre zone : c'est un dégagement refusé, mise au jeu CHEZ LE FAUTIF.
+  // 6. De sa propre zone : le geste n'est plus OFFERT (1.0 · J4-P7) — une réussite qui est un sifflet contre soi
+  //    n'est pas une option. Le moteur garde le sifflet pour une rondelle qui y arriverait autrement.
   {
     const { m, p } = scene({ 'A-C': [18, 6] }, 'A-C');
     const cibles = ciblesFondDe(m, p);
-    let mj = null;
-    if (cibles.length) { appliquerPasse(m, p, cibles[0], { reussi: true }); mj = siffle(m, 'Dégagement refusé'); }
-    juger('de sa propre zone : DÉGAGEMENT REFUSÉ, mise au jeu dans SA zone',
-      !!mj && mj.point.r === MJ_FOND[1], cibles.length ? `${dernieres(m, 2)}${mj ? ` · point ${mj.point.r},${mj.point.c}` : ''}` : 'aucune case offerte');
+    juger('de sa propre zone : aucune passe au fond offerte', cibles.length === 0, `${cibles.length} case(s) offerte(s)`);
+    appliquerPasse(m, p, { r: FILET_HAUT, c: 0 }, { reussi: true });
+    const mj = siffle(m, 'Dégagement refusé');
+    juger('forcée quand même : DÉGAGEMENT REFUSÉ, mise au jeu dans SA zone', !!mj && mj.point.r === MJ_FOND[1], `${dernieres(m, 2)}${mj ? ` · point ${mj.point.r},${mj.point.c}` : ''}`);
+  }
+  // 12. L'ordre patin / placement est libre (1.0 · J4-P4) : un ailier se place d'abord, le porteur garde son patin.
+  {
+    const { m, p, piece } = scene({ 'A-C': [Z + 2, 6], 'A-AG': [Z + 4, 2] }, 'A-C');
+    const ailier = piece('A-AG');
+    const d = deplacer(m, ailier, { r: Z + 3, c: 2 });
+    juger('après le placement d\'un ailier, le porteur peut encore patiner',
+      d.ok && m.main.place && !m.main.bouge && peutBouger(m, p), `place=${m.main.place} bouge=${m.main.bouge} porteur peut bouger=${peutBouger(m, p)}`);
+  }
+  // 13. La feinte rend l'élan (1.0 · J4-P6) : le patin de la main dépensé, une feinte réussie remet le porteur en route.
+  {
+    const { m, p, piece } = scene({ 'A-C': [Z + 2, 6], 'B-DG': [Z + 1, 6] }, 'A-C');
+    m.main.bouge = true; p.deplace = true;
+    appliquerDejouer(m, p, piece('B-DG'), { reussi: true });
+    juger('après une feinte réussie, le porteur repart même si le patin de la main est dépensé', peutBouger(m, p), `echappee=${!!p.echappee} deplace=${!!p.deplace}`);
+  }
+  // 14. La cote affichée est la cote jouée (1.0 · J4-P5) : à un souffle, le dé roule avec ce que l'écran a dit.
+  {
+    let essais = 0, faux = 0;
+    for (let k = 0; k < 500 && faux < 5; k++) {
+      const c = 3 + (k % 7);
+      const { m, p } = scene({ 'A-C': [Z + 2, c], 'B-DG': [Z + 1, c], 'B-DD': [Z + 1, c + 1] }, 'A-C');
+      eqDe(m, 'A').souffle.set(p.p, 1 + (k % 3));   // à un souffle, le vidé arrive PENDANT le geste
+      p.hab = 'AUCUNE';
+      const vers = { r: Z + 1, c: c - 1 };
+      const affiche = modEsquive(m, p, vers);
+      const d = deplacer(m, p, vers);
+      if (!d.jet) continue;
+      essais++;
+      if (d.jet.mod !== affiche.a || d.jet.mod2 !== affiche.b) faux++;
+    }
+    juger('la cote d\'esquive affichée est celle que le dé joue, souffle compris', essais > 100 && !faux, `${faux} écart(s) sur ${essais} esquives`);
+  }
+  // 15. Sortir son gardien (1.0 · J4-P2) : ce que l'IA faisait, le joueur le peut, aux mêmes conditions.
+  {
+    const { m } = scene({ 'A-C': [Z + 2, 6] }, 'A-C');
+    m.periode = PERIODES; m.possessions = POSSESSIONS_PAR_PERIODE - 1; m.A.buts = 1; m.B.buts = 2;
+    const avant = peutRetirerGardien(m, 'A');
+    const ok = retirerGardien(m, 'A');
+    juger('mené d\'un but à la dernière possession, le joueur sort son gardien : six patineurs, filet désert',
+      avant && ok && m.A.desert && m.A.piece_g.sorti && m.A.pieces.length === 6 && m.fil[0].genre === 'desert', `permis=${avant} fait=${ok} pièces=${m.A.pieces.length}`);
+  }
+  // 16. Le « ? » d'un geste écrit sa règle dans le fil (1.0 · J4).
+  {
+    const { m } = scene({ 'A-C': [Z + 2, 6] }, 'A-C');
+    const ok = expliquerGeste(m, 'tir');
+    juger('le « ? » d\'un geste écrit sa règle dans le fil', ok && m.fil[0].genre === 'aide' && /Tirer/.test(m.fil[0].texte), m.fil[0].texte.slice(0, 60));
   }
   // 7. Un arrêt contrôlé, un défenseur libre à portée : la relance, à lui, jamais plus loin que la ligne bleue.
   {
@@ -566,6 +619,62 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'recepti
   console.log('\nLES SIFFLETS, MIS EN SCÈNE');
   for (const [nomScene, ok, detail] of scenes) {
     console.log(`  ${ok ? '✓' : '✗'} ${nomScene}${ok ? '' : `\n      ${detail}`}`);
+    if (!ok) echecs++;
+  }
+}
+
+/* ======================================================================
+   L'ALTERNANCE ET LE BANC (1.0 · J4-P1, J4-P3)
+   ======================================================================
+   JP : *je vois encore le cpu jouer plusieurs joueurs à la suite*. Un
+   sifflet ou un but finissaient la présence sans passer par `finirMain`,
+   et le tour suivant s'ouvrait par le camp interrompu. On rejoue des matchs
+   un geste à la fois : chaque fois qu'une présence finit (le compteur de
+   tours monte) sans changer de période, le camp qui vient de jouer ne
+   rejoue pas. Et le banc : pendant la main d'un camp, l'autre ne change
+   jamais ses lignes, et un camp ne les change qu'une fois par main.
+   ====================================================================== */
+{
+  const N = Math.min(40, MATCHS);
+  let presencesFinies = 0, rejoue = 0, bancAdverse = 0, deuxiemeChangement = 0, changements = 0, essaisAdverse = 0;
+  for (let i = 0; i < N; i++) {
+    const a = clubs[(i * 23 + 5) % clubs.length], b = clubs[(i * 41 + 11) % clubs.length];
+    const m = nouveauMatch(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `alt-${i}`);
+    const mainsChangees = new Set();
+    let garde = 0;
+    while (!m.fini && garde++ < 20000) {
+      const main = m.main, camp = m.tour, tours0 = m.tours || 0, periode0 = m.periode;
+      // Le banc d'en face est fermé : l'essai doit être refusé, et ne rien bouger.
+      if (garde % 7 === 0) {
+        const autre = adverse(camp), eqA = eqDe(m, autre), tri0 = eqA.tri, pai0 = eqA.pai;
+        essaisAdverse++;
+        if (changerUnite(m, autre, (tri0 + 1) % 4, pai0) || eqA.tri !== tri0) bancAdverse++;
+      }
+      // Un changement par main : le deuxième, dans la même main, est refusé.
+      if (garde % 11 === 0 && !mainsChangees.has(main)) {
+        const eq = eqDe(m, camp);
+        if (changerUnite(m, camp, (eq.tri + 1) % 4, eq.pai)) {
+          changements++;
+          mainsChangees.add(main);
+          if (m.main === main && changerUnite(m, camp, (eq.tri + 1) % 4, eq.pai)) deuxiemeChangement++;
+        }
+      }
+      const g = iaGeste(m);
+      if (m.tour === camp && m.main === main && !g && !m.fini) finirMain(m);
+      if ((m.tours || 0) > tours0 && !m.fini && m.periode === periode0) {
+        presencesFinies++;
+        if (m.tour === camp) rejoue++;
+      }
+    }
+  }
+  const regles = [
+    ['après un sifflet, un but ou un tour plein, l\'autre camp ouvre', !rejoue, `${rejoue} fois sur ${presencesFinies} le camp qui venait de jouer a rejoué`],
+    ['le banc d\'en face est fermé pendant ta main', !bancAdverse, `${bancAdverse} changement(s) adverse(s) passé(s) sur ${essaisAdverse} essais`],
+    ['un seul changement de lignes par main', !deuxiemeChangement && changements > 0, `${deuxiemeChangement} deuxième(s) changement(s) sur ${changements}`],
+  ];
+  console.log(`\nL'ALTERNANCE ET LE BANC (${N} matchs, ${presencesFinies} présences finies, ${changements} changements de lignes)`);
+  for (const [nomRegle, ok, detail] of regles) {
+    console.log(`  ${ok ? '✓' : '✗'} ${nomRegle}${ok ? '' : `\n      ${detail}`}`);
     if (!ok) echecs++;
   }
 }

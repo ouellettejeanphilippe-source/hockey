@@ -1613,6 +1613,20 @@ function arretDeJeu(m, mot, point) {
 
 export const nomDe = piece => (piece && piece.p && piece.p.n) || 'Rappel';
 
+/*
+ * LE « ? » D'UN GESTE (1.0 · J4). Toucher le point d'interrogation à côté
+ * d'un geste écrit sa règle dans le fil — la même ligne que la page des
+ * règles, au moment où l'on en a besoin, sans modale.
+ */
+export const MOTS_GESTES = { deplacer: 'Patiner', passe: 'Passer', tir: 'Tirer', dejouer: 'Feinter', echec: 'Frapper', vol: 'Harponner', bataille: 'Bataille' };
+export function expliquerGeste(m, geste) {
+  const mot = MOTS_GESTES[geste];
+  const rangee = mot && reglesDuPlateau().find(x => x.rangees).rangees.find(r => r[0] === mot);
+  if (!rangee) return false;
+  dire(m, `${rangee[0]} (${rangee[1]}) : ${rangee[2]}. Si ça rate : ${rangee[3]}.`, 'aide');
+  return true;
+}
+
 /* ======================================================================
    LES SIX GESTES
    ======================================================================
@@ -1707,6 +1721,14 @@ export function ciblesFondDe(m, piece) {
    * la zone offensive, on y est déjà — on passe ou on tire.
    */
   if (s <= PORTEE_TIR) return [];
+  /*
+   * ET PLUS DE SA PROPRE ZONE (1.0 · J4-P7). L'écran offrait « au fond
+   * 83 % » depuis son territoire, et réussir, c'était le dégagement refusé
+   * — un sifflet contre soi présenté comme une réussite. Le geste n'existe
+   * plus de là ; le moteur garde le sifflet (`appliquerPasse`) pour une
+   * rondelle qui y arriverait autrement. Du neutre seulement.
+   */
+  if (s > LONGUEUR - PORTEE_TIR) return [];
   const out = [];
   for (let r = 0; r < RANGS; r++) for (let c = 0; c < COLS; c++) {
     if (!dansLaGlace(r, c) || occupee(m, r, c)) continue;
@@ -2107,7 +2129,7 @@ export const ciblesEchecDe = (m, piece) =>
 /** Les cibles d'un harponnage : le porteur adverse collé, et lui seul. */
 export const ciblesVolDe = (m, piece) => {
   const p = porteur(m);
-  if (piece.gardien || enCourse(m, piece)) return [];
+  if (piece.gardien || essouffle(m, piece) || enCourse(m, piece)) return [];   // vidé : ni frapper ni harponner (1.0 · J4)
   return p && p.eq !== piece.eq && !p.gardien && !p.etourdi && dist(p, piece) === 1 ? [p] : [];
 };
 /** Les cibles d'une feinte : un défenseur collé au porteur. */
@@ -2133,9 +2155,16 @@ export function deplacer(m, piece, vers) {
   m.patin = { piece, de: { r: piece.r, c: piece.c }, vers: { r: vers.r, c: vers.c }, chemin: cheminVers(m, piece, vers) };
   piece.deplace = true;
   piece.echappee = false;
-  // Le patin de la main d'abord ; sinon c'est le PLACEMENT, réservé à qui
-  // n'a pas la rondelle (`peutBouger` l'a déjà vérifié).
-  if (!m.main.bouge) m.main.bouge = true; else m.main.place = true;
+  /*
+   * DANS L'ORDRE QUE TU VEUX (1.0 · J4-P4). Le premier patin de la main,
+   * peu importe la pièce, consommait le patin : placer un ailier d'abord
+   * privait le porteur de son patin. Une pièce SANS la rondelle prend
+   * d'abord le placement (s'il est permis et libre), le patin reste au
+   * porteur ; `peutBouger` juge avec les mêmes compteurs.
+   */
+  if (porteur(m) !== piece && !m.main.place && placementPermis(m, piece)) m.main.place = true;
+  else if (!m.main.bouge) m.main.bouge = true;
+  else m.main.place = true;
   if (POOL && !piece.echappee) {
     const opt = deplacementsDe(m, piece).find(v => v.r === vers.r && v.c === vers.c);
     m.main.reserve = Math.max(0, m.main.reserve - (opt ? opt.demis : DEMI));
@@ -2143,12 +2172,20 @@ export function deplacer(m, piece, vers) {
   m.main.mobiles.push(piece);
   m.main.pas = dist(piece, vers);
   m.reception = null;
-  depenser(m, piece);
+  /*
+   * LE DUEL SE LIT AVANT DE DÉPENSER LE SOUFFLE (1.0 · J4-P5). L'écran
+   * calcule la cote avant le geste ; le moteur dépensait le souffle PUIS
+   * calculait : à un souffle, l'écran disait 58 % et le dé roulait avec le
+   * malus du vidé. Même ordre des deux côtés, maintenant.
+   */
   if (!avecRondelle && bataillePossible(m, piece, vers)) {
+    const d = modBataille(m, piece, vers);
+    depenser(m, piece);
     piece.libre = false;
-    return { ok: true, jet: jeter(m, 'bataille', modBataille(m, piece, vers)), bataille: true };
+    return { ok: true, jet: jeter(m, 'bataille', d), bataille: true };
   }
   if (!esquiveRequise(m, piece, vers)) {
+    depenser(m, piece);
     piece.libre = false;
     const avant = avecRondelle ? devantLaRondelle(m, piece.eq) : null;
     deposer(m, piece, vers.r, vers.c);
@@ -2156,6 +2193,7 @@ export function deplacer(m, piece, vers) {
     return { ok: true, jet: null };
   }
   const d = avec(modEsquive(m, piece, vers), piece.hab === 'PATIN' && piece.habDispo ? 2 : 0);
+  depenser(m, piece);
   return { ok: true, jet: jeter(m, 'esquive', d), vers, piece };
 }
 
@@ -2752,7 +2790,9 @@ export function appliquerDejouer(m, piece, cible, jet) {
   agir(m, piece);
   if (jet.reussi) {
     cible.etourdi = 1;                            // battu : hors position jusqu'à la fin du tour
-    piece.deplace = false; piece.libre = true;    // et le porteur repart, sans esquive
+    // Et le porteur repart, sans esquive — même si le patin de la main est
+    // déjà dépensé : `echappee` le lui rend, comme après un contact (1.0 · J4-P6).
+    piece.deplace = false; piece.libre = true; piece.echappee = true;
     dire(m, `${nomDe(piece)} feinte ${nomDe(cible)} et s'en va.`, 'dejoue');
     return true;
   }
@@ -2888,6 +2928,16 @@ export function renoncer(m) {
 
 /** Le tour est fini pour les DEUX équipes : souffle, compteurs, et l'autre ouvre le suivant. */
 export function finirPresence(m, butMarque = false) {
+  /*
+   * QUI JOUAIT QUAND ÇA S'EST ARRÊTÉ (1.0 · J4-P1). `finirMain` posait
+   * `m.dernier` ; un sifflet (`arretDeJeu`) ou un but arrivaient ici sans
+   * passer par lui, donc `m.dernier` gardait l'AVANT-dernière main et le
+   * tour suivant rendait la main au camp interrompu : le CPU tirait, le
+   * gardien gelait, mise au jeu, le CPU rejouait. La règle « le camp qui
+   * n'a pas joué la dernière main ouvre » se lit maintenant ici, à la seule
+   * porte par où toute présence finit.
+   */
+  m.dernier = m.tour;
   m.main = mainNeuve();
   m.mains = { A: 0, B: 0 };
   m.tours = (m.tours || 0) + 1;   // les tours joués : ce que les scripts comptent
@@ -3889,8 +3939,13 @@ function fusillade(m) {
    * un vainqueur, et c'est `m.vainqueur` que `gagnantDuMatch` lit en
    * premier. Le tableau reste à égalité, comme une vraie feuille de match.
    */
-  const gagne = m.fusillade.A > m.fusillade.B ? 'A' : m.fusillade.B > m.fusillade.A ? 'B' : null;
-  m.vainqueur = gagne || 'A';   // 'A' : jamais vu, deux alignements identiques sur 40 tours
+  let gagne = m.fusillade.A > m.fusillade.B ? 'A' : m.fusillade.B > m.fusillade.A ? 'B' : null;
+  if (!gagne) {
+    // Quarante rondes égales (jamais vu) : un dernier dé tranche, et il est ÉCRIT (1.0 · J4).
+    gagne = m.de() < 0.5 ? 'A' : 'B';
+    dire(m, `Quarante rondes à égalité : un dernier dé tranche pour ${eqDe(m, gagne).nom}.`, 'de');
+  }
+  m.vainqueur = gagne;
   m.fini = true;
   dire(m, `Fin du match après les tirs de barrage. ${m.A.buts} – ${m.B.buts}`, 'fin');
 }
@@ -3955,7 +4010,10 @@ export function changerUnite(m, cote, tri, pai) {
   if (!roles.length) return false;
   const p = porteur(m);
   if (p && p.eq === cote && roles.includes(p.role)) return false;
-  if (m.main.change && m.tour === cote) return false;
+  // UN CHANGEMENT PAR MAIN, PAR LE CAMP QUI A LA MAIN (1.0 · J4-P3) : le
+  // banc d'en face est fermé pendant qu'on joue, sinon on pose un défenseur
+  // frais sur le chemin du porteur adverse autant de fois qu'on veut.
+  if (m.tour !== cote || m.main.change) return false;
   eq.tri = tri; eq.pai = pai;
   const unite = uniteDe(eq.roster, tri, pai);
   const prises = new Set(surLaGlace(m).map(x => `${x.r},${x.c}`));
@@ -3991,7 +4049,7 @@ export function changerUnite(m, cote, tri, pai) {
   // `normaliserEffectif` qui tranche, et lui seul — il garde le rôle, jette
   // le sixième, et en renvoie un autre.
   normaliserEffectif(m, eq);
-  if (m.tour === cote) m.main.change = true;
+  m.main.change = true;
   // Un des entrants peut se poser sur la rondelle libre : la même règle vaut
   // pour lui que pour celui qui patine dessus.
   for (const x of eq.pieces) if (deposer(m, x, x.r, x.c)) break;
@@ -4038,7 +4096,7 @@ export function reglesDuPlateau() {
       titre: 'Le match',
       points: [
         `Trois périodes. Une période finit quand la rondelle a changé de camp ${POSSESSIONS_PAR_PERIODE} fois (le compte est sous le pointage).`,
-        `Égalité après trois périodes : prolongation à trois contre trois, ${POSSESSIONS_PROLONGATION} possessions, le premier but gagne. Une punition y fait jouer l'autre équipe à quatre contre trois, comme dans la LNH. Puis les tirs de barrage.`,
+        `Égalité après trois périodes : prolongation à trois contre trois, ${POSSESSIONS_PROLONGATION} possessions, le premier but gagne. Une punition y fait jouer l'autre équipe à quatre contre trois, comme dans la LNH. Puis les tirs de barrage : ${TIREURS_FUSILLADE} tireurs chacun, puis un à la fois ; après quarante rondes égales, un dernier dé tranche, et il est écrit.`,
         'Tu attaques toujours vers le HAUT.',
         `Deux niveaux. Recrue : l'adversaire ${NIVEAU_RECRUE_MOTS}. Pro : il joue au mieux, comme les matchs que tu ne joues pas.`,
       ],
@@ -4051,7 +4109,8 @@ export function reglesDuPlateau() {
           : 'À ta main : UNE pièce patine, UNE pièce agit (passer, tirer, feinter, frapper ou harponner) — la même ou une autre — et une pièce SANS la rondelle peut se placer. Dans l\'ordre que tu veux.',
         'Ta main finit quand tu la passes, quand il ne te reste rien, ou quand un jet raté te fait perdre la rondelle : c\'est le revirement.',
         'Puis l\'adversaire joue sa main. Touche la glace pour la voir plus vite.',
-        'Qui prend la rondelle repart avec : son patin lui est rendu.',
+        'Qui prend la rondelle repart avec : son patin lui est rendu. Une feinte réussie le rend aussi.',
+        'Après un sifflet ou un but, c\'est l\'autre camp qui ouvre. Mené d\'un ou deux buts à la fin de la troisième, tu peux sortir ton gardien (le bouton 🥅 sous « Qui saute ? »).',
       ],
     },
     {
@@ -4068,7 +4127,7 @@ export function reglesDuPlateau() {
       titre: 'La pression',
       points: [
         'Chaque patineur couvre les cases autour de lui — deux cases de rayon si sa DE vaut 5 ou plus. Les cases couvertes sont hachurées.',
-        'Avec la rondelle, une case couverte coûte deux pas. Partir d\'un adversaire COLLÉ, ou aller s\'y coller, demande une ESQUIVE (un dé).',
+        'Avec la rondelle, une case couverte coûte le double : deux pas tout droit, trois en diagonale. Partir d\'un adversaire COLLÉ, ou aller s\'y coller, demande une ESQUIVE (un dé).',
         'Chaque bâton de plus sur le porteur rend ses passes et ses feintes plus dures, et ses mises en échec plus faciles.',
         `Un pas droit coûte un pas, une diagonale ${diag}. Le prix est écrit sur chaque case.`,
       ],
@@ -4081,7 +4140,7 @@ export function reglesDuPlateau() {
         ['Passer', 'MA c. DE', 'à un coéquipier : plus c\'est loin et couvert, plus c\'est dur. Le receveur peut tirer tout de suite. Ou AU FOND, de la zone neutre : la rondelle file dans un coin, libre', 'un bâton sur la ligne l\'intercepte'],
         ['Tirer', 'TI c. AR', `de la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Plus près et plus au centre, mieux c'est`, 'le gardien l\'arrête : il la garde, la relance ou la gèle — ou elle rebondit devant lui'],
         ['Feinter', 'MA c. DE', 'le porteur déjoue un défenseur collé, qui reste hors jeu jusqu\'à la fin du tour', 'la rondelle tombe, libre'],
-        ['Frapper', 'FO c. FO', 'un adversaire collé tombe et recule ; si c\'est le porteur, tu prends la rondelle', 'tu es hors position un tour'],
+        ['Frapper', 'FO c. FO', 'un adversaire collé tombe et recule (un tour au sol ; le porteur, deux, trois s\'il est petit) ; si c\'est le porteur, tu prends la rondelle', 'tu es hors position un tour'],
         ['Harponner', 'DE c. MA', 'le porteur collé perd la rondelle, et tu repars avec', 'tu es hors position un tour'],
         ['Bataille', 'FO c. FO', 'patiner sur une rondelle libre qu\'un adversaire touche aussi', 'elle ricoche à côté'],
       ],
@@ -4091,7 +4150,7 @@ export function reglesDuPlateau() {
       points: [
         'Une rondelle libre (cerclée d\'or) est à qui met le pied dessus, sans dé.',
         `Hors-jeu : si un coéquipier attend dans la zone offensive (fanion ⚑) quand la rondelle y entre, c'est un sifflet. Celui qui porte la rondelle n'est jamais hors-jeu.`,
-        'Au fond de ta propre zone, c\'est un dégagement refusé : sifflet, mise au jeu chez toi.',
+        'De ta propre zone, pas de passe au fond : ce serait un dégagement refusé (sifflet, mise au jeu chez toi). On passe, ou on patine.',
         `Un rebond reste près de ce qui l'a fait (${RAYON_REBOND} cases au plus). Le gardien relance à un coéquipier libre, ou la gèle.`,
       ],
     },
@@ -4107,8 +4166,8 @@ export function reglesDuPlateau() {
     {
       titre: 'Le souffle et les trios',
       points: [
-        'Chaque geste coûte un souffle. Fatigué : une case de patin en moins. Vidé : deux cases de moins et −1 à tous ses jets.',
-        'Changer de trio est gratuit, une fois par main — sauf l\'unité qui porte la rondelle. Les entrants prennent la place des sortants.',
+        'Chaque geste coûte un souffle. Fatigué : une case de patin en moins. Vidé : deux cases de moins, −1 à tous ses jets, et il ne frappe ni ne harponne plus.',
+        'Changer de trio est gratuit, une fois par main, et seulement pendant TA main — sauf l\'unité qui porte la rondelle. Les entrants prennent la place des sortants.',
       ],
     },
     {
