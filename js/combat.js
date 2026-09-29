@@ -32,6 +32,7 @@
  * malédictions) ; la main d'un match se tire de la graine et du match ; les
  * récompenses offertes aussi. Une partie reprise retrouve les mêmes mains.
  */
+import { hache } from './util.js';
 
 export const ENERGIE_MAIN = 3;
 export const TAILLE_MAIN = 5;
@@ -291,7 +292,7 @@ const plusDe = (v, k = null, cote = 1) => {
 const canauxPlus = (e, cote = 1) => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, plusDe(v, k, cote)])) : e);
 for (const [cle, C] of Object.entries(CARTES_MATCH)) {
   if (C.maudite) continue;
-  const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.contre || C.revele || C.planB || C.rabais;
+  const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.revele || C.planB || C.rabais;
   const P = { ...C, nom: `${C.nom}+`, plus: true };
   if (moinsCher && C.cout > 0) P.cout = C.cout - 1;
   else {
@@ -317,14 +318,6 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
 }
 
 export const DECK_DEPART = ['lancer', 'lancer', 'lancer', 'bloquer', 'bloquer', 'bloquer', 'changements', 'changements', 'discours', 'video'];
-
-/* Un nombre de 0 à 1 tiré de la graine et de mots : la même entrée, le même nombre. */
-function hache(...parts) {
-  let h = 2166136261 >>> 0;
-  for (const c of parts.join('|')) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-  h ^= h >>> 13; h = Math.imul(h, 2246822507) >>> 0; h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
 
 /*
  * LE DECK À UN MOMENT DE LA SAISON : le départ, plus les récompenses, moins
@@ -426,7 +419,7 @@ const POOL_ADVERSE = Object.keys(CARTES_MATCH).filter(k => {
   if (C.revele || C.ecarte || C.planB || C.improvise || C.piege || C.rabais || C.epuise || C.siVide) return false;
   // Ni une carte d'origine (1.0) : une vraie équipe est d'un seul club et d'une saison, elle les aurait toutes au maximum.
   if (C.origine) return false;
-  return !C.maudite && !C.lire && !C.contre && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
+  return !C.maudite && !C.lire && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
     && (C.effet || C.adv || C.pari || C.synergie || C.energieTous || C.parGenre || C.selonLeurMain || C.apres40);
 });
 export function mainAdverse(graine, cle, energie = ENERGIE_MAIN) {
@@ -450,7 +443,7 @@ export function mainAdverse(graine, cle, energie = ENERGIE_MAIN) {
  * d'un deckbuilder : quatre d'énergie à partir de la journée 55, et dès la
  * troisième ronde des séries. L'écran l'annonce avec la main.
  */
-export const JOUR_ADVERSE_FORT = 55, RONDE_ADVERSE_FORTE = 2;
+const JOUR_ADVERSE_FORT = 55, RONDE_ADVERSE_FORTE = 2;
 export function energieAdverse({ jour = 0, serie = false, ronde = 0 } = {}) {
   return (serie ? ronde >= RONDE_ADVERSE_FORTE : jour >= JOUR_ADVERSE_FORT) ? ENERGIE_MAIN + 1 : ENERGIE_MAIN;
 }

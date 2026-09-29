@@ -736,7 +736,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .spin-club-season { color: var(--gold); font-variant-numeric: tabular-nums; letter-spacing: 0; font-size: 13.5px; }
 .spin-club-dead .spin-club-code { color: var(--red); }
 /* L'unité qu'on regarde, en surtitre à côté de l'année : « 1er trio ». */
-.spin-unite { color: var(--gold); text-transform: none; letter-spacing: 0.02em; }
 
 /* ---------- Tableau de bord ---------- */
 
@@ -764,14 +763,13 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   min-width: 0;
 }
 .dash .dash-card:first-child { border-left: 0; padding-left: 0; margin-left: 0; }
-.dash .needs, .dash .dash-note { display: none; }
+.dash .dash-note { display: none; }
 .dash:has(> :nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* Deux lignes réservées : « BUDGET DU CHOIX » passait à la ligne quand ses
    voisins tenaient sur une, et les trois chiffres ne s'alignaient plus. */
 .dash-card h3 { margin-bottom: 3px; min-height: 24px; }
 .dash-big.sm { font-size: 18px; letter-spacing: 0.01em; }
 .h3-long { display: none; }
-.dash-line { flex-wrap: wrap; }
 
 .dash-card h3 {
   font-size: 10.5px;
@@ -798,26 +796,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .dash-warn { color: var(--gold); }
 .dash-bad { color: var(--red); }
 
-.needs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.need-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--sub);
-  font-variant-numeric: tabular-nums;
-}
-.need-chip.done { border-color: rgba(70, 201, 139, 0.4); background: var(--green-soft); color: var(--green); }
-.need-chip.urgent { border-color: rgba(215, 177, 113, 0.5); background: var(--gold-soft); color: var(--gold); }
 
 /* ---------------------------------------------------------------
    Volets
@@ -1303,10 +1281,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   box-shadow: inset 0 -2px 0 var(--team-stripe, var(--blue));
 }
 .pcard-band .pb-team { display: inline-flex; align-items: center; gap: 4px; }
-.pcard-band .pb-season {
-  margin-left: auto; font-weight: 800; letter-spacing: 0;
-  font-variant-numeric: tabular-nums; opacity: 0.78;
-}
 
 /* Le chip de poste, sur l'aplat : un verre translucide, encre de l'équipe. */
 .pb-pos, .sb-role {
@@ -1409,8 +1383,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   white-space: nowrap;
   line-height: 1.4;
 }
-.tag-arch { color: #d8b4fe; border-color: rgba(192, 132, 252, 0.32); }
-.tag-mesure { color: #9fe3cf; border-color: rgba(159, 227, 207, 0.35); }
 /* Les traits sont rares (1 % des joueurs-saisons) : ils ont donc le droit de
    se voir plus que le reste. Le finaliste est le même signal, en sourdine. */
 .tag-trait {
@@ -1436,11 +1408,8 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .tag-zone.lz2 { background: var(--zone-clair); border-color: var(--zone-clair); }
 .tag-zone.lz3 { background: var(--zone-sourd); border-color: var(--zone-sourd); color: #0a0b0e; }
 .tag-zone.lz4 { background: transparent; border-color: var(--line); color: var(--muted); }
-.tag-elc { color: var(--green); border-color: rgba(70, 201, 139, 0.35); }
-.tag-age { color: var(--sub); }
 .tag-real { color: var(--green); border-color: rgba(70, 201, 139, 0.35); }
 .tag-est { color: var(--muted); }
-.tag-traded { color: var(--violet); }
 .tag-pen { color: var(--red); border-color: rgba(229, 112, 122, 0.45); background: var(--red-soft); }
 .tag-zone-up { color: var(--orange); border-color: rgba(251, 146, 60, 0.4); background: rgba(251, 146, 60, 0.12); }
 
@@ -1455,10 +1424,8 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
      rien à dire, sinon la carte change de hauteur selon le joueur. */
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.pcard-dest .dest-slot { color: var(--blue); }
 .pcard-dest .dest-target { color: var(--gold); }
 .pcard-dest .dest-ok { color: var(--green); }
-.pcard-dest .dest-after { font-weight: 600; }
 .pcard-dest .dest-bad { color: var(--red); }
 .pcard-dest .dest-warn { color: var(--orange); }
 
@@ -1658,7 +1625,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   padding: 7px;
 }
 .line-slots.pair { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-.line-slots.wide { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 
 /*
  * LA CASE A UNE HAUTEUR FIXE, comme la carte du bassin et pour la même
@@ -1701,7 +1667,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   background: var(--gold-soft);
   animation: pulse 1.6s ease-in-out infinite;
 }
-.slot.empty.eligible { border-color: rgba(70, 201, 139, 0.5); }
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(215, 177, 113, 0.35); }
   50% { box-shadow: 0 0 0 5px rgba(215, 177, 113, 0); }
@@ -1861,15 +1826,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   transition: background .15s, color .15s;
 }
 .tab.on { background: var(--panel-3); color: var(--text); }
-.tab-badge {
-  font-size: 10.5px;
-  font-weight: 900;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--gold);
-  font-variant-numeric: tabular-nums;
-}
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -2038,21 +1994,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 .bible strong { color: var(--text); }
 .bible ul { margin: 0 0 10px; padding-left: 18px; color: var(--sub); }
 .bible li { margin-bottom: 4px; }
-.math-box {
-  background: var(--fond-creux);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--blue);
-  border-radius: var(--r-s);
-  padding: 9px 11px;
-  margin: 8px 0 11px;
-  overflow-x: auto;
-}
-.math-box code {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--blue);
-  white-space: pre;
-}
 
 /* Historique */
 
@@ -2145,21 +2086,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 
 .pcard-full { --card-accent: var(--team-accent); }
 
-.pcard-full-head {
-  position: relative;
-  overflow: hidden;
-  padding: 14px 14px 0;
-  background: color-mix(in srgb, var(--card-primary, var(--neutre-eq)) 40%, #0a0b0e);
-  border-bottom: 1px solid var(--line);
-}
-.pcard-full-watermark {
-  position: absolute;
-  right: -18px;
-  top: -18px;
-  opacity: 0.13;
-  pointer-events: none;
-}
-.pcard-full-watermark img, .pcard-full-watermark svg { width: 128px; height: 128px; }
 
 /*
  * LE PORTRAIT EN GRAND, comme sur une carte de collection : détouré (les
@@ -2167,12 +2093,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
  * ligne du bandeau, le nom et le salaire à sa droite. Le petit carré
  * encadré d'avant ressemblait à une photo de passeport.
  */
-.pcard-full-top {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-}
 .pcard-full-photo {
   flex: none;
   width: 126px;
@@ -2183,39 +2103,9 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
 }
 .pcard-full-photo img { width: 100%; height: 100%; object-fit: contain; object-position: bottom; }
 .pcard-full-photo .headshot-fallback { font-size: 80.5px; line-height: 1; opacity: 0.35; margin-bottom: 8px; }
-.pcard-full-id { min-width: 0; flex: 1; padding-bottom: 12px; }
 .pcard-full-name { font-family: var(--display); font-size: 31.5px; font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; overflow-wrap: anywhere; }
 .pcard-full-name .fname { color: var(--sub); font-weight: 600; font-size: 18px; text-transform: none; letter-spacing: 0.02em; display: block; margin-bottom: 2px; }
-.pcard-full-team {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--gold);
-  margin-top: 3px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.pcard-full-tags { margin-top: 7px; }
 
-.pcard-full-salary {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-  position: relative;
-}
-.pcard-full-salary .big {
-  font-family: var(--display);
-  font-size: 33.5px;
-  line-height: 1;
-  font-weight: 800;
-  color: var(--gold);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.5px;
-}
-.pcard-full-salary .small { font-size: 12.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
 
 .section-label {
   font-size: 10.5px;
@@ -2671,13 +2561,6 @@ table.data .pts { font-weight: 900; color: var(--green); }
   letter-spacing: 0.08em; text-transform: uppercase; background: var(--green); color: #062413;
 }
 .live-bilan.perdu .live-bilan-titre { background: var(--live); color: #fff; }
-.live-coupe { padding: 10px 12px; font-family: var(--display); font-size: 24.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); border: 1px solid var(--gold); border-radius: var(--r-m); margin-bottom: 8px; text-align: center; }
-.live-autres { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
-.live-autres .k { font-size: 10.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
-.live-autre { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: baseline; }
-.live-autre .v { font-family: var(--display); font-size: 18px; font-weight: 800; color: var(--gold); }
-.live-autre .p { color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.live-autre > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .live-feed { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 4px; }
 .live-ligne {
@@ -2714,7 +2597,6 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-banniere span { font-size: 20px; font-weight: 700; }
 .live-banniere b { font-size: 33.5px; font-weight: 800; line-height: 1; }
 @keyframes banniere { 0% { opacity: 0; transform: translateY(-50%) scale(0.92); } 12% { opacity: 1; transform: translateY(-50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
-.live-enchainer { flex: none; }
 
 .live-controls {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -2725,7 +2607,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-vitesse { flex: none; }
 .live-vitesse button { min-width: 40px; }
 /* En pause, le bouton « Reprendre » passe à l'or : c'est l'état qu'on lit. */
-.live-controls .live-pause, .live-controls .live-pas { flex: 1 1 120px; }
+.live-controls .live-pause { flex: 1 1 120px; }
 #liveModal.en-pause .live-pause { background: var(--gold); border-color: var(--gold); color: var(--sur-or); }
 
 /* L'ÉCRAN DE SAISON ET L'ÉCRAN DES SÉRIES (js/saison.js). La même coquille
@@ -3028,8 +2910,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .rs-cell .k { font-size: 10.5px; }
   .line-slots { grid-template-columns: repeat(3, 1fr); }
   .line-slots.pair { grid-template-columns: repeat(2, 1fr); }
-  .line-slots.wide { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
-  .slot-name .fname { display: inline; color: var(--sub); font-weight: 600; }
+    .slot-name .fname { display: inline; color: var(--sub); font-weight: 600; }
 }
 
 /* ---- l'écran « Nouvelle partie » : on compose, puis on lance ----
@@ -3296,7 +3177,6 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .seg-wrap { flex-wrap: wrap; }
 .seg-wrap button { display: flex; flex-direction: column; align-items: center; gap: 1px; line-height: 1.2; }
 .seg-wrap button em { font-style: normal; font-size: 10.5px; opacity: 0.75; font-weight: 600; }
-.opt-note { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
 /* La note d'un mode prend toute la largeur de sa rangée : posée en troisième
    dans une rangée horizontale, elle écrasait la description en colonne. */
 .opt-modes { flex-wrap: wrap; }
@@ -3306,14 +3186,11 @@ table.data .pts { font-weight: 900; color: var(--green); }
   font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: 0.04em;
 }
 .opt-select[hidden] { display: none; }
-.opt-modes .opt-note { flex: 1 1 100%; }
 /* En colonne (téléphone) la base de flex serait une HAUTEUR : 220 px de vide sous le texte. */
 .opt-modes .opt-text { flex: 1 1 auto; }
 
 /* ---- le visage : dans la case de l'alignement, dans la bannière de but ---- */
 .slot-inner { flex-direction: row; align-items: stretch; gap: 7px; }
-.slot-face { flex: none; width: 34px; height: 34px; border-radius: 8px; align-self: flex-start; }
-.slot-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .live-visage {
   flex: none; width: 56px; height: 56px; border-radius: 50%; overflow: hidden; position: relative;
   background: rgba(0, 0, 0, 0.25); display: grid; place-items: center;
@@ -3339,9 +3216,6 @@ table.data tr.gagne td.stat.v { color: var(--green); font-weight: 900; }
 table.data tr.perdu td.stat.d { color: var(--red); font-weight: 900; }
 table.data td small { font-size: 10px; color: var(--muted); }
 
-/* ---- le récit de la saison ---- */
-.recit-saison p { font-size: 14.5px; line-height: 1.55; color: var(--text); margin: 0 0 9px; }
-.recit-saison p:first-child { font-size: 15.5px; }
 
 /* ---- le calendrier : une journée, ses seize matchs ---- */
 .cal-barre { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
@@ -3363,16 +3237,8 @@ table.data td small { font-size: 10px; color: var(--muted); }
 .equipes-series .cal-eq { font-size: 13px; }
 
 /* ---- la saison en direct : le fil des journées ---- */
-.live-jour { justify-content: space-between; }
-.live-jour-matchs { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 2px 10px 8px; font-size: 13px; color: var(--sub); }
-.live-jour-match { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.live-jour-match .g { color: var(--text); font-weight: 800; }
-.live-jour-match .p { color: var(--muted); }
-.live-jour-match .sep { color: var(--muted); }
-.live-jour-match em { font-style: normal; font-size: 10px; font-weight: 900; color: var(--live); }
 .live-eq.perdant .live-eq-buts { opacity: 0.55; }
 .live-board .live-horloge:only-child { grid-column: 1 / -1; }
-.live-autre.toi span { color: var(--gold); }
 .slot.renfort { opacity: 0.72; border-style: dashed; }
 .slot-salary.renfort {
   color: var(--muted); font-weight: 700; font-size: 10.5px;
@@ -3435,11 +3301,6 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 .series-legende .lg-or { background: var(--gold); color: var(--sur-or); }
 .series-legende .lg-ot { background: var(--live); color: #fff; }
 
-/* La fiche n'a pas de bandeau : le poste y reste une pastille. */
-.pos-chip {
-  display: inline-block; padding: 1px 7px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 900; letter-spacing: 0.06em;
-}
 
 /* =====================================================================
    LE RAPPORT D'ENTRACTE (js/entracte.js)
@@ -3878,13 +3739,6 @@ a.spin-club:hover {
 /* Sur une carte, le drapeau serait un trait de plus : c'est l'ANNÉE qui
    passe sur la plaque, en bout de bandeau. Aucun écusson dessus, donc aucun
    risque, et la bande devient bicolore d'un bout à l'autre. */
-.pcard-band .pb-season {
-  background: var(--team-plaque, transparent);
-  color: var(--team-plaque-ink, inherit);
-  opacity: 1;
-  padding: 1px 6px;
-  border-radius: 3px;
-}
 .pcard.signed .pcard-band { --team-plaque: rgba(255, 255, 255, 0.22); --team-plaque-ink: #ffffff; }
 .pcard.locked:not(.signed) .pcard-band { --team-plaque: rgba(255, 255, 255, 0.12); --team-plaque-ink: #93a9c0; }
 
@@ -5053,24 +4907,10 @@ a.spin-club:hover {
   border-left: 3px solid var(--gold);
   border-radius: var(--r-s);
 }
-.hub-cartes-tete { font: 800 15.5px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--gold); }
-.hub-cartes-rang { display: flex; gap: 7px; margin: 8px 0 6px; overflow-x: auto; scrollbar-width: none; }
-.hub-cartes-rang::-webkit-scrollbar { display: none; }
 /* `.hub-pige` et non `.hub-carte` : LA CARTE DU MATCH PORTE DÉJÀ CE NOM
    (index.html, le panneau « Prochain match »), et ce bloc-ci le repeignait
    en bouton — flex, 112 px de large, curseur, bordure. Un nom de classe
    repris est un défaut muet : rien ne casse, tout se déplace. */
-.hub-pige {
-  flex: 1 0 0; min-width: 112px;
-  display: flex; flex-direction: column; gap: 3px; text-align: left;
-  padding: 8px 9px; cursor: pointer;
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
-  color: var(--text);
-}
-.hub-pige:hover { border-color: var(--gold); }
-.hub-pige-nom { font: 800 13px/1.15 var(--display); letter-spacing: .02em; }
-.hub-pige-bon { font-size: 10.5px; line-height: 1.25; color: var(--green); }
-.hub-pige-prix { font-size: 10.5px; line-height: 1.25; color: var(--live); }
 .hub-cartes-note { font-size: 11px; color: var(--muted); line-height: 1.3; }
 
 /* LES SITUATIONS : deux hommes nommés, rien à cliquer. Le panneau prend
@@ -5433,21 +5273,6 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
   body[data-zone="jeu"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h)); }
 }
 
-/* LES DEUX LIENS DE LA FICHE : le joueur chez la LNH (par son identifiant
-   exact), son club chez Hockey-Reference. On y envoie, on n'en lit rien. */
-.pcard-full-liens { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 5px; }
-.pcard-full-liens a {
-  display: inline-flex; align-items: center; gap: 5px;
-  color: var(--sub); text-decoration: none;
-  font: 700 11.5px/1 var(--display); letter-spacing: .04em; text-transform: uppercase;
-  /* TREIZE PIXELS DE HAUT, c'est ce que ces deux liens mesuraient au doigt.
-     Le rembourrage agrandit la zone touchable à 33 px et la marge négative
-     lui reprend exactement la place : la fiche ne bouge pas d'un pixel, et
-     le lien devient tapable. */
-  padding: 10px 0; margin: -10px 0;
-}
-.pcard-full-liens a:hover { color: var(--gold); text-decoration: underline; }
-.pcard-full-liens .ico { width: 13px; height: 13px; }
 
 /* =====================================================================
    S58 — LA PASSE MODERNE : l'échelle, le HUD, l'état qui se voit
@@ -5847,13 +5672,10 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 .icon-btn,
 .tag,
 .sum-item,
-.need-chip,
 .btn,
 .live-board,
 .hub-board,
-.trophee,
-.ent-carton,
-.lb-entry {
+.trophee {
   border-color: transparent;
 }
 /* Les boutons et les pastilles reposaient sur leur filet pour exister : ils
@@ -5894,7 +5716,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 /* `:not(.slot-face)` : la case de l'alignement réutilise `.pcard-avatar` pour
    son visage, et elle n'a que 113 px de large. Un portrait de 46 px lui
    prenait 12 px de nom — mesuré, onze noms coupés au lieu de huit. */
-.pcard-avatar:not(.slot-face) { width: 46px; height: 46px; border-radius: var(--r-s); }
 .pcard-big b { font-size: 37px; letter-spacing: -1px; }
 .pcard-name .lname { font-size: 21px; }
 /* Le pied : pleine largeur, coins du bas de la carte, rien autour. */
@@ -6067,16 +5888,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    BALAIE (c'est elle qui défile, jamais la page — la règle du dépôt), le nom
    s'efface sous 420 px et il ne reste que l'icône, qui porte l'infobulle.
    --------------------------------------------------------------- */
-.banc-seg { margin-top: var(--sp-2); }
-.banc-seg-tete {
-  font-family: var(--display); font-size: 11.5px; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--muted);
-}
-.banc-seg-btns {
-  display: flex; gap: 4px; margin-top: 3px;
-  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-}
-.banc-seg-btns::-webkit-scrollbar { display: none; }
 .banc-seg-btn {
   flex: 0 0 auto; display: flex; align-items: center; gap: 4px;
   min-height: 32px; padding: 4px 9px; border-radius: var(--r-xs);
@@ -6088,8 +5899,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
   background: var(--ui-accent); border-color: var(--ui-accent);
   color: var(--sur-accent); font-weight: 600;
 }
-.banc-seg-mot { font-size: 12px; color: var(--sub); margin-top: 3px; line-height: 1.35; }
-.banc-seg-mot b { color: var(--text); }
 /*
  * LE NOM RESTE, MÊME À 390 PX, et la rangée se balaie. Icône seule, il fallait
  * TOUCHER chaque segment pour savoir ce qu'il fait — sur un téléphone il n'y a
@@ -6100,8 +5909,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 @media (max-width: 419px) {
   .banc-seg-btn { padding: 4px 7px; font-size: 12.5px; }
 }
-.hub-plan { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
-.hub-plan-ou { color: var(--muted); font-size: 11.5px; }
 /* Le lien externe dans le titre d'une modale : la vraie saison du club chez
    Hockey-Reference, au même endroit et de la même taille que celui d'une
    fiche de joueur. On y envoie, on n'en lit rien. */
@@ -6156,81 +5963,9 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
   border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--bg);
 }
 
-/* Les quatre factions : une barre chacune, le mot de l'effet quand il joue. */
-.hub-jauges {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0 0 8px;
-}
-.hub-jauge {
-  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 5px; row-gap: 2px;
-  align-items: center; min-width: 0;
-  padding: 5px 6px; border-radius: var(--r-xs, 6px); background: var(--panel-2, var(--panel));
-}
-.hub-jauge-ico { grid-row: 1 / span 2; font-size: 15px; }
-.hub-jauge-barre { height: 5px; border-radius: 3px; background: var(--fond-creux, rgba(255,255,255,.08)); overflow: hidden; }
-.hub-jauge-barre > span { display: block; height: 100%; background: var(--sub); border-radius: 3px; }
-.hub-jauge-mot { font: 700 10.5px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--muted);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hub-jauge.haut .hub-jauge-barre > span { background: var(--green); }
-.hub-jauge.haut .hub-jauge-mot { color: var(--green); }
-.hub-jauge.bas .hub-jauge-barre > span { background: var(--live); }
-.hub-jauge.bas .hub-jauge-mot { color: var(--live); }
 
-/* Le plan du soir : le style de l'adversaire, puis cinq boutons. */
-.hub-soir { margin-top: 8px; }
-.hub-soir-tete { font-size: 12px; color: var(--sub); line-height: 1.3; }
-.hub-soir-indice { color: var(--muted); }
-.hub-soir-btns { display: flex; gap: 5px; margin-top: 6px; overflow-x: auto; scrollbar-width: none; }
-.hub-soir-btns::-webkit-scrollbar { display: none; }
-.hub-soir-btn {
-  flex: 1 0 auto; display: inline-flex; align-items: center; gap: 4px; justify-content: center;
-  min-height: 34px; padding: 4px 9px; cursor: pointer;
-  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 999px;
-  font: 700 12px/1 var(--display); letter-spacing: .02em; white-space: nowrap;
-}
-.hub-soir-btn.contre { border-style: dashed; border-color: color-mix(in srgb, var(--gold) 60%, transparent); }
-.hub-soir-btn.on { background: var(--gold); color: var(--sur-or, #111); border-color: var(--gold); }
-.hub-soir-btn:hover { border-color: var(--gold); }
 
-/* Le choix forcé : une histoire, et des options qu'on ne peut pas dépasser. */
-.hub-choix {
-  flex: 1 1 100%;
-  padding: 10px 11px; margin-bottom: 4px;
-  background: color-mix(in srgb, var(--ui-accent, #fff) 6%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ui-accent, #fff) 22%, transparent);
-  border-left: 3px solid var(--ui-accent, #fff);
-  border-radius: var(--r-s);
-}
-.hub-choix.hub-proprio { border-left-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
-.hub-choix.hub-proprio.rate { border-left-color: var(--live); }
-.hub-choix.hub-sequence.defaites { border-left-color: var(--live); }
-.hub-choix.hub-sequence.victoires { border-left-color: var(--green); }
-.hub-choix-tete { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
-.hub-choix-ico { font-size: 18px; line-height: 1; }
-.hub-choix-titre { font: 800 15.5px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
-.hub-choix-irl { font: 700 11px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
-.hub-choix-recit { font-size: 12.5px; line-height: 1.4; color: var(--sub); margin-top: 6px; }
-.hub-choix-rang { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
-.hub-option {
-  flex: 1 1 150px; min-width: 0;
-  display: flex; flex-direction: column; gap: 3px; text-align: left;
-  padding: 9px 10px; cursor: pointer;
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
-  color: var(--text);
-}
-.hub-option:hover, .hub-option:focus-visible { border-color: var(--gold); }
-.hub-option-nom { font: 800 13.5px/1.15 var(--display); letter-spacing: .02em; }
-.hub-option-bon { font-size: 11px; line-height: 1.25; color: var(--green); }
-.hub-option-prix { font-size: 11px; line-height: 1.25; color: var(--live); }
-.hub-option-jauges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
-.hub-jd { font: 700 11px/1 var(--display); letter-spacing: .02em; }
-.hub-jd.up { color: var(--green); }
-.hub-jd.down { color: var(--live); }
 
-/* L'objectif en cours, sous les actions. */
-.hub-objectif {
-  flex: 1 1 100%; font-size: 12px; color: var(--sub); padding: 4px 2px;
-}
-.hub-objectif b { color: var(--gold); font-family: var(--display); font-size: 14px; }
 
 /* =====================================================================
    LA COQUILLE FIXE (S67) — une barre, toujours la même, et l'écran de
@@ -6291,12 +6026,6 @@ body[data-zone="vide"] #game, body[data-zone="vide"] .actionbar { display: none 
 .vide-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 .vide-btns .btn { min-width: 160px; }
 
-/* Le ballottage, sous l'alerte de blessure : les mêmes options que les choix. */
-.hub-ballottage { margin-top: 8px; }
-.hub-ballottage-tete { font: 800 12.5px/1.1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: var(--sub); }
-.hub-ballottage .hub-choix-rang { margin-top: 6px; }
-.hub-ballottage .hub-option-bon { color: var(--text); }
-.hub-ballottage .hub-option-prix { color: var(--muted); }
 
 /* LA BARRE TIENT ENTIÈRE DÈS 600 PX (S67) : neuf onglets se partagent la
    largeur au lieu de défiler. Sous 600 px elle défile, et l'onglet ouvert
@@ -6325,9 +6054,8 @@ body[data-zone="vide"] #game, body[data-zone="vide"] .actionbar { display: none 
 .hub-route-m.haut { top: 0; }
 .hub-route-m.bas { top: 20px; }
 .hub-route-ici { top: 11px; }
-.hub-alerte > *, .hub-choix > *, .hub-cartes > *, .hub-situ > *, .hub-trou > * { flex: none; }
+.hub-alerte > *, .hub-cartes > *, .hub-situ > *, .hub-trou > * { flex: none; }
 .hub-carte { container: carte / inline-size; }
-@container carte (max-width: 340px) { .hub-jauges { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* =====================================================================
    LES DÉCISIONS EN PLEIN ÉCRAN ET « MES LIGNES » (S68)
@@ -6397,10 +6125,6 @@ body.choix-ouvert { overflow: hidden; }
 .gj-joueur-nom { font: 800 17px/1.1 var(--display); }
 .gj-joueur-nom span { font: 600 12px/1 var(--display); color: var(--muted); margin-left: 6px; }
 .gj-marques { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.gj-profs { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 4px 14px; margin-top: 8px; }
-.gj-prof { display: grid; grid-template-columns: 1fr 90px 30px; align-items: center; gap: 8px; font-size: 12.5px; color: var(--sub); }
-.gj-prof.top { color: var(--text); font-weight: 700; }
-.gj-prof b { text-align: right; font-family: var(--display); }
 .gj-barre { display: inline-block; height: 6px; border-radius: 3px; background: var(--fond-creux, rgba(255,255,255,.08)); overflow: hidden; }
 .gj-barre > span { display: block; height: 100%; background: var(--gold); border-radius: 3px; }
 
@@ -6440,10 +6164,6 @@ body.choix-ouvert { overflow: hidden; }
 .gl-j-nom { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-j-prof, .gl-j-voulu { font: 700 12px/1 var(--display); white-space: nowrap; }
 .gl-j-prof small { font: 700 11px/1 var(--display); color: var(--sub); }
-.gl-j-energie { height: 6px; border-radius: 3px; background: var(--fond-creux, rgba(255,255,255,.08)); overflow: hidden; }
-.gl-j-energie > span { display: block; height: 100%; background: var(--green); }
-.gl-j-energie > span.moyen { background: var(--gold); }
-.gl-j-energie > span.bas { background: var(--live); }
 .gl-etat { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--sub); }
 .gl-etat b { color: var(--text); font-family: var(--display); }
 .gl-k { font: 800 11px/1 var(--display); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
@@ -6495,7 +6215,6 @@ body.choix-ouvert { overflow: hidden; }
 .hub-ballottage-ouvrir { width: 100%; }
 
 /* Le profil de ligne sur la carte, et la fiche. */
-.tag-profil { font-family: var(--display); font-weight: 700; }
 .tag-mut { background: color-mix(in srgb, var(--gold) 14%, transparent); }
 .fiche-profils { margin-top: 10px; }
 
@@ -8015,8 +7734,6 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .ln-strat[open] > .ln-som .ln-som-detail { display: none; }
 .ln-strat[open] > .ln-som .ln-som-ouvre::after { transform: rotate(180deg); }
 .ln-strat[open] > .ln-som .ln-som-k { color: var(--gold); }
-.ln-corps { display: flex; flex-direction: column; gap: 7px; padding: 2px 10px 12px; }
-.ln-corps .gl-sec-titre { margin: 6px 0 0; font-size: 12px; }
 /* Sept tactiques en deux colonnes au téléphone, trois ou quatre ailleurs :
    le nom et le fit, rien d'autre — la tactique choisie dit le reste dessous. */
 .ln-tacs { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); }
@@ -8294,23 +8011,8 @@ body.exh-ouverte { overflow: hidden; }
    saison — l'écran de départ, un menu, un bilan : une tuile, une étiquette,
    un chiffre, un titre de section, deux boutons.
    --------------------------------------------------------------- */
-.etiquette {
-  font: 700 var(--etiquette-taille)/1.1 var(--display);
-  letter-spacing: var(--etiquette-espace); text-transform: uppercase;
-  color: var(--muted);
-}
 .chiffre { font-family: var(--display); font-weight: 800; font-variant-numeric: tabular-nums; }
 
-/* Le titre de section : la condensée en petites capitales, l'accent du club,
-   et un filet qui finit la ligne — la même langue que `.hub-titre` et les
-   titres du bilan, en brique. */
-.entete-section {
-  display: flex; align-items: center; gap: var(--esp-2);
-  margin: 0 0 var(--esp-2);
-  font: 800 13px/1.1 var(--display); letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--gold);
-}
-.entete-section::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
 
 /* La tuile : un aplat un ton au-dessus de la page, le filet de lumière,
    un rayon de 12. Une tuile qui s'ouvre (`.ouvrable`, ou un `<button>`)
@@ -8343,22 +8045,6 @@ body.exh-ouverte { overflow: hidden; }
 .tuile-jauge { display: block; height: 6px; border-radius: 3px; background: var(--fond-creux); overflow: hidden; }
 .tuile-jauge > span { display: block; height: 100%; border-radius: inherit; background: var(--gold); transition: width var(--t-compte) var(--e-ressort); }
 
-/* Les deux boutons de la maison. Le PREMIER porte l'accent du club et une
-   encre mesurée (`--sur-or`) ; le SECOND est une surface. Même taille, même
-   lettre, même enfoncement : un menu qui les aligne se lit d'un coup. */
-.btn-prime, .btn-second {
-  display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-2);
-  min-height: 52px; padding: var(--esp-3) var(--esp-5);
-  border: 1px solid transparent; border-radius: var(--r-s);
-  font: 800 19px/1.1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
-  cursor: pointer;
-  transition: transform var(--t-lent) var(--e-ressort), filter var(--t-vite), background var(--t-vite);
-}
-.btn-prime { background: var(--gold); border-color: var(--gold); color: var(--sur-or); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2); }
-.btn-second { background: var(--surface-3); color: var(--text); box-shadow: inset 0 1px 0 var(--filet-tuile); }
-.btn-prime:hover:not(:disabled), .btn-second:hover:not(:disabled) { filter: brightness(1.1); }
-.btn-prime:active:not(:disabled), .btn-second:active:not(:disabled) { transform: scale(0.96); }
-.btn-prime:disabled, .btn-second:disabled { opacity: 0.5; cursor: default; }
 
 /* ---------------------------------------------------------------
    2. LE CHIFFRE QUI SE COMPTE (js/mouvement.js). Pendant les 400 ms du
@@ -8559,7 +8245,6 @@ body.hub-docke #hubModal .hub-sheet .live-top,
 .t-inf-nom { min-width: 0; overflow: hidden; white-space: nowrap; }
 .t-inf-nom .lien-joueur { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .t-inf-j b { flex: none; font: 800 12.5px/1 var(--display); color: var(--live); }
-.hub-t-infirmerie.a-blesses { box-shadow: inset 0 1px 0 var(--filet-tuile), inset 3px 0 0 var(--live); }
 
 /* (e) LE CHANGEMENT D'ONGLET SE VOIT : le volet entre en glissant, une fois
    par changement (js/saison.js pose `.volet-entre`) ; une page de la barre
@@ -8912,7 +8597,7 @@ table.data thead th { font-family: var(--display); font-weight: 700; letter-spac
   .live-board .live-eq-buts.flash, .live-board .live-eq-buts.flash > b,
   .live-board .live-eq:has(.live-eq-buts.flash) .live-eq-band::after,
   #liveModal .live-banniere { animation: none !important; }
-  .tuile, .tuile-jauge > span, .capgauge .fill, .toast, .btn-prime, .btn-second,
+  .tuile, .tuile-jauge > span, .capgauge .fill, .toast,
   .choix-option, .np-go, .close-btn, .icon-btn, #hubModal .hub-actions .btn,
   .result-actions .btn, #liveModal .live-controls .btn { transition: none !important; }
 }
@@ -8981,7 +8666,7 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .hub-msg-corps > .hub-alerte, .hub-msg-corps > .hub-trou, .hub-msg-corps > .hub-cartes, .hub-msg-corps > .hub-situ {
   padding: 0; margin: 0; border: 0; background: none; border-radius: 0;
 }
-.hub-msg-corps .hub-alerte-tete, .hub-msg-corps .hub-trou-tete, .hub-msg-corps .hub-situ-tete, .hub-msg-corps .hub-cartes-tete { display: none; }
+.hub-msg-corps .hub-alerte-tete, .hub-msg-corps .hub-trou-tete, .hub-msg-corps .hub-situ-tete { display: none; }
 .hub-msg-corps .hub-alerte-note, .hub-msg-corps .hub-trou-note { font-size: 13px; }
 .hub-alerte-choix { display: flex; flex-wrap: wrap; gap: 6px; }
 .hub-msg-corps .hub-alerte-choix .btn { flex: 1 1 150px; align-self: stretch; }
@@ -9556,9 +9241,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
    ================================================================= */
 .slot.cj-case .slot-inner { display: grid; grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "nom nom" "visage faits" "visage tags"; column-gap: 6px; row-gap: 2px; align-content: start; }
 .slot.cj-case .slot-name { grid-area: nom; }
-.slot.cj-case .slot-visage { grid-area: visage; position: relative; width: 34px; height: 34px; border-radius: 6px; overflow: hidden; align-self: start; background: color-mix(in srgb, var(--slot-band, #243044) 55%, #0a0c10); }
-.slot.cj-case .slot-visage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.slot.cj-case .slot-visage > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-size: 18px; opacity: 0.4; }
 .slot.cj-case .slot-faits { grid-area: faits; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot.cj-case .slot-tags { grid-area: tags; margin-top: 0; min-width: 0; }
 /* 1.0 (les lignes) : plus de visage dans la case — nom, rôle et niveau, zone, jambes. */
@@ -9903,7 +9585,6 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 .rg-run-suite { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
 .rg-run-boutons { display: flex; flex-wrap: wrap; gap: 8px; }
 .rg-run-boutons .btn { flex: 1 1 160px; }
-.rg-jalons { display: flex; flex-wrap: wrap; gap: 4px; }
 /* Un bouton du bilan caché l'est vraiment : .btn est en flex, qui écrasait l'attribut hidden (« Rejouer la saison » restait là en Rogue). */
 .result-actions > [hidden] { display: none; }
 

@@ -48,7 +48,7 @@ function contexte() {
 }
 
 /* Le premier toucher débloque le son : la règle des navigateurs. */
-export function debloquer() { if (actif) contexte(); }
+function debloquer() { if (actif) contexte(); }
 if (typeof document !== 'undefined') {
   document.addEventListener('pointerdown', debloquer, { passive: true });
   document.addEventListener('keydown', debloquer, { passive: true });
@@ -207,8 +207,6 @@ const SONS = {
     bruit(c, t + 0.2, { gain: 0.05, att: 0.05, dec: 0.5, type: 'highpass', freq: 5000 });
   },
 };
-
-export const NOMS_SONS = Object.keys(SONS);
 
 /** Joue un son de la liste, `delai` secondes plus tard. Silence si coupé. */
 export function jouerSon(nom, delai = 0) {

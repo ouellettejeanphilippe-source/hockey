@@ -23,12 +23,11 @@
  */
 
 import { SLOTS } from './sim.js';
+import { virgule, signe } from './util.js';
 
 /* ---------- les briques d'une carte ---------- */
 
 const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const virgule = x => String(x).replace('.', ',');
-const signe = n => (n > 0 ? `+${n}` : `${n}`);
 const pct3 = x => virgule(x.toFixed(3).replace(/^0/, ''));
 const un = (x, n = 1) => virgule(x.toFixed(n));
 const rangCourt = r => `${r}${r === 1 ? 'er' : 'e'}`;
@@ -55,7 +54,7 @@ const cellule = v => (v && typeof v === 'object' && v.html !== undefined ? v.htm
  * autres des chiffres, et la dernière porte l'or — c'est la colonne vedette,
  * comme partout ailleurs dans le jeu.
  */
-export const tableau = (cols, lignes) => `<div class="ent-table"><table>
+const tableau = (cols, lignes) => `<div class="ent-table"><table>
   <thead><tr>${cols.map((c, i) => `<th class="${i === 0 ? 'left' : ''}${i === cols.length - 1 ? ' heros' : ''}">${e(c)}</th>`).join('')}</tr></thead>
   <tbody>${lignes.map(l => `<tr>${l.map((v, i) => `<td class="${i === 0 ? 'left' : ''}${i === l.length - 1 ? ' heros' : ''}">${cellule(v)}</td>`).join('')}</tr>`).join('')}</tbody>
 </table></div>`;
@@ -280,7 +279,7 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
  * s'il gagne, une autre s'il blanchit. Un blanchissage de 30 arrêts vaut donc
  * autant qu'un tour du chapeau, ce qui est à peu près le consensus.
  */
-export function troisEtoiles(f, A, B) {
+function troisEtoiles(f, A, B) {
   const score = new Map();
   const pose = (p, t, pts, ligne) => {
     if (!p) return;

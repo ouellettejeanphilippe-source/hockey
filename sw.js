@@ -47,7 +47,7 @@ const FICHIERS = [
   'js/equipes.js', 'js/saison.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/identites.js', 'js/combat.js', 'js/album.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
   'js/sauvegardes.js', 'js/menu.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/packs.js', 'js/inventaire.js', 'js/magasin.js',
-  'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/depart.js', 'js/visages.js', 'js/recadrage.js', 'js/ballottage.js',
+  'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/depart.js', 'js/visages.js', 'js/recadrage.js', 'js/ballottage.js', 'js/util.js',
   'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json', 'data/portraits.json', 'data/recrues.json',
   'fonts/BarlowCondensed-600-latin.woff2', 'fonts/BarlowCondensed-600-latin-ext.woff2',
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',

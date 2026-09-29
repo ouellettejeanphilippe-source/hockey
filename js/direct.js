@@ -24,10 +24,11 @@
  */
 
 import { periodeDe, PLANS_ADV } from './sim.js';
-import { recitDeBut, tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
+import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { CARTES_MATCH } from './combat.js';
 import { jouerSon } from './sons.js';
+import { ord, ordF, cap, nom } from './util.js';
 
 /*
  * L'HORLOGE DESCEND. Un tableau indicateur de hockey compte à rebours,
@@ -58,13 +59,9 @@ const PAUSE_BUT = 1400;              // ms : l'horloge s'arrête sur un but
 const PAUSE_PERIODE = 1100;          // ms : entre deux périodes
 
 /* « ta formation » en tête de phrase devient « Ta formation ». */
-const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 /* Le nom d'un joueur, en texte brut : le fil est du texte, pas des cartes. */
-const nom = p => (p && p.n) || '';
 const famille = p => nom(p).split(' ').slice(-1)[0];
 /* « 1er », « 12e » : le rang d'un but ou d'une passe dans les séries ou la saison. */
-const ord = n => (n === 1 ? '1er' : `${n}e`);
-const ordF = n => (n === 1 ? '1re' : `${n}e`);   // « 1re passe »
 
 /*
  * LES ONGLETS DE LA PAUSE. Le direct n'a qu'un fil ; en pause, une barre
@@ -180,7 +177,7 @@ const STYLE_MICRO = { canonnier: 'canon', fabricant: 'fab', rapide: 'rapide', ti
 const PART_DANGER = 0.15;
 const SEUIL_DANGER = 0.16;   // le repli, pour une feuille qui n'a pas de seuil
 const SEUIL_BLOQUE = 0.07;
-export function genreDuTir(e) {
+function genreDuTir(e) {
   if (e.special === 'etouffee') return 'defense';
   if (e.mode === 'AN' && e.p != null && e.p < SEUIL_BLOQUE) return 'defense';
   if (e.special === 'reussie') return 'danger';
@@ -363,7 +360,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   const cartesDuSoir = f.cartes && f.cartes.jouees ? f.cartes.jouees.filter(c => CARTES_MATCH[c]) : [];
   if (cartesDuSoir.length) {
     const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} ${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
-    const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', f.cartes.contre ? '🧠 tes deux premières lignes jouent leur contre' : '', ...paris].filter(Boolean);
+    const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', ...paris].filter(Boolean);
     ligne('debut cartes', `🃏 <b>Tu joues</b> ${cartesDuSoir.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${suite.length ? ` — ${suite.join(', ')}` : ''}.`);
   }
   /*

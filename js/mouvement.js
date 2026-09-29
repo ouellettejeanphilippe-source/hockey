@@ -44,7 +44,7 @@ const reduit = () => typeof matchMedia === 'function' && matchMedia('(prefers-re
 const X1 = 0.34, Y1 = 1.56, X2 = 0.64, Y2 = 1;
 const bez = (t, a, b) => 3 * (1 - t) * (1 - t) * t * a + 3 * (1 - t) * t * t * b + t * t * t;
 const dBez = (t, a, b) => 3 * (1 - t) * (1 - t) * a + 6 * (1 - t) * t * (b - a) + 3 * t * t * (1 - b);
-export function ressort(x) {
+function ressort(x) {
   if (x <= 0) return 0;
   if (x >= 1) return 1;
   let t = x;
@@ -122,7 +122,7 @@ export function animerComptes(racine) {
  * Le contrôleur continue d'écrire `textContent` comme avant ; c'est le
  * changement lui-même qui se voit.
  */
-export function suivreChiffre(el) {
+function suivreChiffre(el) {
   if (!el || el._compteSuivi || typeof MutationObserver !== 'function') return;
   el._compteSuivi = true;
   let dernier = lire(el.textContent);

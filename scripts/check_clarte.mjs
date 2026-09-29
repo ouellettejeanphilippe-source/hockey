@@ -64,7 +64,7 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
   for (const I of Object.values(IMPORTANCES)) noter(I.ico, `consigne ${I.nom}`, 'consigne');
   // La carrure vit dans js/gerant.js (`carrureDe`) : ses deux icônes, lues dans la source.
   const gerant = lire('js/gerant.js');
-  const carrure = gerant.match(/export const carrureDe = [^\n]+/);
+  const carrure = gerant.match(/^(?:export )?const carrureDe = [^\n]+/m);
   exiger('la carrure a ses deux icônes, 🪨 costaud et 🪶 léger', !!carrure && /🪨', mot: 'Costaud'/.test(carrure[0]) && /🪶', mot: 'Léger'/.test(carrure[0]), carrure ? '' : 'carrureDe introuvable');
   noter('🪨', 'carrure costaud', 'carrure'); noter('🪶', 'carrure léger', 'carrure');
   // « Two-way » en attaque et en défense : un seul sens.

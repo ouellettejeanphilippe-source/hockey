@@ -15,6 +15,7 @@ import { franchiseDuCode } from './franchises.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
+import { estD, borne } from './util.js';
 
 export const CAP = 95_500_000;
 /*
@@ -81,9 +82,6 @@ export function casesDuMode(mode) {
   if (!MODES[mode]?.renfort) return CASES_DE_BASE;
   return SLOTS.filter(s => !s.scratch && s.unit === 0 && (s.group === 'F' || s.group === 'D' || s.group === 'G'));
 }
-
-/** L'unité d'une case : un trio, une paire, les deux gardiens, les trois réservistes. */
-export const uniteDeCase = s => !s ? '' : s.scratch ? 'R' : s.group === 'G' ? 'G' : `${s.group}${s.unit}`;
 
 /**
  * Le joueur que cette équipe met à CETTE case : la main du tirage LOTO.
@@ -182,8 +180,8 @@ const lireListe = (cle, defaut) => {
  * fabrique une marche artificielle à o = 76 (frontière d'archétype) : sa table
  * n'est pas le juge de la monotonie.
  */
-export const ZONE_PEN_SOUS = 0.40;   // fraction de l'excédent de cote, par joueur mal placé
-export const ZONE_PEN_DESSUS = Number(ENV_MESURE.ZONE_PEN_DESSUS ?? 1.5);
+const ZONE_PEN_SOUS = 0.40;   // fraction de l'excédent de cote, par joueur mal placé
+const ZONE_PEN_DESSUS = Number(ENV_MESURE.ZONE_PEN_DESSUS ?? 1.5);
 export const ZONE_PEN_MAX = 70;      // plafond par unité
 
 /*
@@ -235,12 +233,12 @@ export const ZONE_PEN_MAX = 70;      // plafond par unité
  */
 // 1.0 · J1-L : un cran passe de 0,45 à 0,55 — le prix du nombre adouci (ZONE_NOMBRE_UN), mesuré sur mock_zones.
 export const ZONE_ECHELLE = lireListe('ZONE_ECHELLE', [0, 0.55, 1.30, 1.90]);
-export const ZONE_PUISSANCE = Number(ENV_MESURE.ZONE_PUISSANCE ?? 2);
+const ZONE_PUISSANCE = Number(ENV_MESURE.ZONE_PUISSANCE ?? 2);
 export const ZONE_NOMBRE = lireListe('ZONE_NOMBRE', [1, 1, 1.6, 2.2]);
 // Le nombre ne multiplie que si un joueur de l'unité est à ce nombre de crans ou plus (1.0 · J1-L).
-export const ZONE_NOMBRE_DES = Number(ENV_MESURE.ZONE_NOMBRE_DES ?? 2);
+const ZONE_NOMBRE_DES = Number(ENV_MESURE.ZONE_NOMBRE_DES ?? 2);
 // En dessous (tous à un cran au plus), un multiplicateur adouci : deux mal placés passent, trois non (1.0 · J1-L).
-export const ZONE_NOMBRE_UN = lireListe('ZONE_NOMBRE_UN', [1, 1, 1.25, 1.8]);
+const ZONE_NOMBRE_UN = lireListe('ZONE_NOMBRE_UN', [1, 1, 1.25, 1.8]);
 /*
  * Au-delà de ce malus, l'écran ne dit plus « mal assorti » mais « hors de ses
  * lignes » (voir `zoneEtat` plus bas). Douze points de synergie, c'est ce que
@@ -249,7 +247,7 @@ export const ZONE_NOMBRE_UN = lireListe('ZONE_NOMBRE_UN', [1, 1, 1.25, 1.8]);
  */
 // 1.0 · J1-L : 15. Deux vedettes au 2e trio (5,5 × 2 × 1,25 = 13,8) disent « un joueur mal placé » ;
 // trois (29,7) et tout joueur à deux crans de sa zone disent « hors de ses lignes ».
-export const ZONE_DUR = 15;
+const ZONE_DUR = 15;
 
 /**
  * Calibre attendu d'une case : la cote plancher de la meilleure zone dont
@@ -290,7 +288,7 @@ export function unitesIdeales(p, v) {
  * l'appellent tous les deux, sinon la maquette et le moteur divergeraient en
  * silence.
  */
-export function malusZoneJoueur(group, unit, v, ideal, opts = {}) {
+function malusZoneJoueur(group, unit, v, ideal, opts = {}) {
   const ecart = Math.min(...ideal.map(u => Math.abs(u - unit)));
   if (ecart === 0) return 0;
   const puissance = opts.puissance ?? ZONE_PUISSANCE;
@@ -345,7 +343,7 @@ export function malusZoneUnite(group, unit, entrees, opts = {}) {
  * comprennent la case : la même table que le moteur (les zones des polyvalents,
  * T1-3 et cie, couvrent plusieurs cases et ne s'écrivent pas sur une case).
  */
-export const zonesDeLaCase = (group, unit) =>
+const zonesDeLaCase = (group, unit) =>
   [ZONES_ETOILE[group], ...LINE_ZONES[group]].filter(z => z.idealUnits.includes(unit));
 const etiquetteDeCase = (group, unit) => zonesDeLaCase(group, unit).map(z => z.mini).join(' · ');
 export const SLOTS = [];
@@ -620,7 +618,7 @@ const effStat = (player, slot, key) => {
 let hasard = Math.random;
 
 /** Hache un texte ou un nombre en 32 bits (cyrb53 tronqué, suffit ici). */
-export function graineDe(x) {
+function graineDe(x) {
   const str = String(x);
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
   for (let i = 0; i < str.length; i++) {
@@ -714,7 +712,7 @@ function poisson(lambda) {
 export const LANCERS_BASE = 28.7;
 
 /** Part des lancers d'une équipe prise par les défenseurs. */
-export const PART_LANCERS_D = 0.25;
+const PART_LANCERS_D = 0.25;
 
 /*
  * La suppression de lancers. `scripts/check_suppression.mjs`, sur 1392
@@ -727,7 +725,7 @@ export const PART_LANCERS_D = 0.25;
  * l'entraîneur, pas aux joueurs signés. On ne le vend donc pas au joueur
  * comme quelque chose qui s'achète.
  */
-export const ALPHA_POSSESSION = 0.150;
+const ALPHA_POSSESSION = 0.150;
 
 /*
  * LA POSSESSION SE PARTAGE, ELLE NE S'ADDITIONNE PAS. Deux plafonds, mesurés,
@@ -763,8 +761,8 @@ export const ALPHA_POSSESSION = 0.150;
  * malus punit le talent mal placé, ces plafonds empêchent le talent bien
  * placé de compenser à lui seul.
  */
-export const VOLUME_UNITE_MAX = 2.0;
-export const PRESSION_MAX = 1.35;
+const VOLUME_UNITE_MAX = 2.0;
+const PRESSION_MAX = 1.35;
 
 /*
  * LA FINITION D'UNE ÉQUIPE A UN PLAFOND, ELLE AUSSI. Les deux bornes
@@ -790,7 +788,7 @@ export const PRESSION_MAX = 1.35;
  * par valeur reste à 59-61 et l'empilement de tireurs sans zones tombe à 52.
  * Les vraies équipes ne bougent pas.
  */
-export const FINITION_MAX = 1.20;
+const FINITION_MAX = 1.20;
 
 /*
  * LE TEMPS DE GLACE NE SE COMPTE QU'UNE FOIS.
@@ -843,12 +841,12 @@ export const VOLUME_EXPOSANT = Number(ENV_MESURE.VOLUME_EXPOSANT ?? 0.30);
  * bougent pas d'un centième (0,24 et 0,66 avant comme après) — c'est le même
  * signal sans le biais.
  */
-export const VOLUME_RANG = {
+const VOLUME_RANG = {
   F: [1.57, 1.22, 0.99, 0.80],
   D: [1.43, 1.06, 0.86],
 };
 /* Molette de mesure : 0 éteint le centrage sur le rang, pour la comparaison. */
-export const VOLUME_CENTRE = Number(ENV_MESURE.VOLUME_CENTRE ?? 1);
+const VOLUME_CENTRE = Number(ENV_MESURE.VOLUME_CENTRE ?? 1);
 
 /*
  * LA PART OFFENSIVE D'UNE UNITÉ, RÉGLÉE SUR LA SORTIE (S62).
@@ -1131,7 +1129,7 @@ export const CARTES = {
  * tableau. Aucun ne doit valoir plus d'une victoire et demie — un plan est un
  * STYLE, pas un cadeau, et le jeu se gagne avec l'alignement.
  */
-export const PLANS = {
+const PLANS = {
   equilibre: {
     nom: 'Équilibré', ico: '⚖️',
     bon: 'Rien à payer', prix: 'Rien à gagner',
@@ -1321,7 +1319,6 @@ export const PROFILS = {
     deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, ses minutes' },
   },
 };
-const estD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
 /* Les trois colonnes brutes, SANS situation ni trait ni énergie (sonde_aptitudes.mjs). */
 function lancersBrut(p) {
   const base = seasonLancers(p.s)[estD(p) ? 3 : 2];
@@ -1626,7 +1623,7 @@ export const contreDeD = cle => Object.keys(SYSTEMES_D).find(k => SYSTEMES_D[k].
 /* Le gain d'un système suit le fit : rien sous 30 %, tout à 75 %, un quart de plus au-delà. */
 export const echelleFit = fit => borne((fit - 30) / 45, 0, 1.25);
 /* Ce qu'un système fait à un canal, pour une unité de ce fit : son gain au prorata, son prix entier. */
-export function canalSysteme(S, fit, canal) {
+function canalSysteme(S, fit, canal) {
   if (!S) return 1;
   const g = S.gain && S.gain[canal] != null ? 1 + (S.gain[canal] - 1) * echelleFit(fit) : 1;
   const p = S.prix && S.prix[canal] != null ? S.prix[canal] : 1;
@@ -1702,10 +1699,10 @@ function physiqueBrut(p) {
   const x = 0.8 * cz(p.mr) + 0.6 * (gb - 1) + colosse;
   return 1 / (1 + Math.exp(-1.4 * borne(x, -3, 3)));
 }
-export const rendementPhysique = ph => borne(1 + 4 * (ph - 0.5), 0.2, 2);
-export const coutPhysique = ph => borne(1 - 4 * (ph - 0.5), 0.2, 2);
+const rendementPhysique = ph => borne(1 + 4 * (ph - 0.5), 0.2, 2);
+const coutPhysique = ph => borne(1 - 4 * (ph - 0.5), 0.2, 2);
 /* Le physique moyen d'une unité (un trio, une paire) ou d'une ligne entière. */
-export function physiqueUnite(lineup, group, u) {
+function physiqueUnite(lineup, group, u) {
   const js = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
   return js.length ? js.reduce((a, p) => a + physiqueDe(p), 0) / js.length : 0.5;
 }
@@ -1748,7 +1745,7 @@ export const IMPORTANCES = {
 export const AD_DE_CONSIGNE = { basse: -1, normale: 0, haute: 1 };
 
 /* La ligne u : son trio, et sa paire (la quatrième ligne n'en a pas). */
-export const pairDeLigne = u => (u < 3 ? u : null);
+const pairDeLigne = u => (u < 3 ? u : null);
 export function joueursDeLigne(lineup, u) {
   const out = {};
   for (const s of SLOTS) {
@@ -1948,7 +1945,7 @@ export function chimieLigne(app, lineup, u, l) {
   return chimieMax(fit + MAITRISE_FIT * m) * (ententeLigne(app, lineup, u) + m) / 2;
 }
 /* Après un match : chaque paire de coéquipiers et chaque joueur apprennent ce qu'ils ont joué ce soir-là. */
-export function majChimie(team, lineup) {
+function majChimie(team, lineup) {
   team.entente = team.entente || new Map();
   const soir = lignesDe(team, lineup);
   for (let u = 0; u < 4; u++) {
@@ -2023,8 +2020,6 @@ export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.9;
  */
 export const ENERGIE_C = Number(ENV_MESURE.ENERGIE_C ?? 3.8), ENERGIE_RECUP = 0.5, ENERGIE_SEUIL = 90,
   ENERGIE_EFFET = Number(ENV_MESURE.ENERGIE_EFFET ?? 0.5), ENERGIE_BLESSURE = 60, RESERVE_MAX = 30;
-/* Gardé pour les vieux appelants : l'ancienne constante de récupération. */
-export const ENERGIE_R = 18;
 export const energieDe = p => (p && Number.isFinite(p.energie) ? p.energie : 100);
 export const facteurEnergie = p => 1 - ENERGIE_EFFET * Math.max(0, ENERGIE_SEUIL - energieDe(p)) / 100;
 /* Rendre des jambes : jusqu'à 100, et le surplus en réserve pour le prochain match. */
@@ -2038,13 +2033,13 @@ export function rendreJambes(p, n) {
   if (e > 100) p._reserve = Math.min(RESERVE_MAX, (p._reserve || 0) + (e - 100));
 }
 /* L'usure par match d'une unité (1 = la part de glace moyenne, défaut). */
-export function usureLigne(l, part, partMoy, groupe = 'F') {
+function usureLigne(l, part, partMoy, groupe = 'F') {
   const S = groupe === 'D' ? SYSTEMES_D[l.tacD] : TACTIQUES[l.tac];
   const prix = S && S.prix && S.prix.energie ? S.prix.energie : 1;
   return (part / (partMoy || part || 1)) * AGRESSIVITES[l.agr].energie * prix;
 }
 /* Le multiplicateur d'usure des effets, des cartes de saison et des patrons. */
-export function kUsure(team) {
+function kUsure(team) {
   const src = [...effetsActifs(team), ...((team && team.patrons) || []), ...((team && team.cartes) || []).map(c => CARTES[c])];
   return src.reduce((a, x) => a * ((x && x.energie) || 1), 1);
 }
@@ -2134,11 +2129,9 @@ export const STYLES = {
   robuste: { nom: 'Robuste', ico: '🥊', mot: 'Ils frappent tout ce qui bouge', contre: 'surnombre' },
   equilibre: { nom: 'Équilibré', ico: '⚖️', mot: 'Rien ne dépasse', contre: null },
 };
-/* La lecture parfaite : le bon contre-plan, ce soir-là. */
-export const CONTRE_PLAN = { finition: 1.04, defense: 0.96 };
 const STYLE_SEUIL = 0.35;
 
-export function poserStyles(teams) {
+function poserStyles(teams) {
   const forces = teams.map(t => t.strength || teamStrength(t));
   const axes = [['offensif', 'att'], ['defensif', 'def'], ['robuste', 'rob']];
   const stats = axes.map(([, k]) => {
@@ -2163,7 +2156,7 @@ export function poserStyles(teams) {
  * et le paie ; aucune n'est gratuite, et `check_moments.mjs` mesure qu'aucune
  * ne vaut une victoire à elle seule. La durée est en journées.
  */
-export const DUREE_MOMENT = 10;
+const DUREE_MOMENT = 10;
 /*
  * LES DILEMMES (S66, refaits en S72). JP : *les choix, pas obligé d'être
  * toujours avec un malus et un bonus, varie les « cartes »* ; *mettons que tu
@@ -2462,7 +2455,7 @@ export const SEQUENCES = {
     ],
   },
 };
-export const DUREE_SEQUENCE = 8;
+const DUREE_SEQUENCE = 8;
 /* Pas deux séquences l'une sur l'autre : le vestiaire a une mémoire. */
 export const RECUL_SEQUENCE = 10;
 
@@ -2757,8 +2750,8 @@ export const JOURS_SITUATIONS = [10, 28, 46, 64];
  * +0,08, le porté toujours à +3,4 points et le pesé à −2,6. On garde le porté
  * tel quel (c'est lui qu'on VOIT) et le pesé pèse un peu plus.
  */
-export const ECHELLE_PORTE = Number(ENV_MESURE.ECHELLE_PORTE ?? 1);
-export const ECHELLE_PESE = Number(ENV_MESURE.ECHELLE_PESE ?? 1.3);
+const ECHELLE_PORTE = Number(ENV_MESURE.ECHELLE_PORTE ?? 1);
+const ECHELLE_PESE = Number(ENV_MESURE.ECHELLE_PESE ?? 1.3);
 
 export const SITUATIONS = {
   /* ---------- LES PORTÉS : tirés du bas de l'effectif ---------- */
@@ -3026,7 +3019,7 @@ function poserSituations(team, graine, jour, equipe, tirage = jour) {
  * quatrième trio gagne à jouer à côté de Gretzky — avec 0,5, un tiers de
  * finition en plus, ce qui est à peu près ce que l'histoire raconte.
  */
-export const BETA_CREATION = 0.5;
+const BETA_CREATION = 0.5;
 
 /*
  * La défensive, elle, agit sur la QUALITÉ des lancers. Même mesure : la
@@ -3044,7 +3037,7 @@ export const BETA_CREATION = 0.5;
  * gardien, qui efface au passage l'équipe qui suit son gardien) à 0,050
  * (sans contrôle, donc contaminé par le gardien). On prend le milieu.
  */
-export const K_DEFENSE = 0.050;   // le haut de l'intervalle mesuré : voir ROBUSTESSE ci-dessous, et check_builds.mjs
+const K_DEFENSE = 0.050;   // le haut de l'intervalle mesuré : voir ROBUSTESSE ci-dessous, et check_builds.mjs
 
 /*
  * LA DÉFENSIVE AGIT AUSSI, UN PEU, SUR LE VOLUME. `check_suppression.mjs` a
@@ -3054,7 +3047,7 @@ export const K_DEFENSE = 0.050;   // le haut de l'intervalle mesuré : voir ROBU
  * 7 % donne 1,2 % de lancers en moins par écart-type de brigade. C'est ce que
  * la mesure autorise, pas plus : la qualité reste le canal principal.
  */
-export const K_VOLUME_DEF = 0.012;
+const K_VOLUME_DEF = 0.012;
 
 /*
  * LA ROBUSTESSE — le canal que le moteur n'avait pas.
@@ -3090,17 +3083,17 @@ export const K_VOLUME_DEF = 0.012;
  * à K_ROB = 0,10, la vraie équipe la plus dure de son époque gagne deux ou
  * trois matchs de plus, pas dix.
  */
-export const K_ROB = 0.07;
-export const ROB_SERIES = 0.15;
-export const ROB_BLESSURE = 0.35;
-export const MOY_ROB_EQUIPE = 48.1;
-export const ECART_ROB_EQUIPE = 2.4;
+const K_ROB = 0.07;
+const ROB_SERIES = 0.15;
+const ROB_BLESSURE = 0.35;
+const MOY_ROB_EQUIPE = 48.1;
+const ECART_ROB_EQUIPE = 2.4;
 // Les colosses (js/traits.js) ajoutent leur poids, en écarts-types, dans leurs grosses saisons.
 const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_ROB_EQUIPE + (t.traitRob || 0), -3, 3) : 0);
 
 /** Cote défensive d'équipe : moyenne et écart-type des 1392 équipes-saisons. */
-export const MOY_DEF_EQUIPE = 57.6;
-export const ECART_DEF_EQUIPE = 4.3;
+const MOY_DEF_EQUIPE = 57.6;
+const ECART_DEF_EQUIPE = 4.3;
 
 /*
  * Conversion d'un bonus de chimie ou d'un malus de zone (en points de cote)
@@ -3113,7 +3106,7 @@ export const ECART_DEF_EQUIPE = 4.3;
  * équipe de l'histoire) et `check_monotonie.mjs` (améliorer son équipe ne
  * doit jamais la rendre pire).
  */
-export const SYN_ECHELLE = 42;
+const SYN_ECHELLE = 42;
 
 /*
  * L'ÉQUIPE de référence, et non le joueur de référence.
@@ -3149,7 +3142,7 @@ export const REF = { pression: 1.233, zDef: 0.169, fg: 0.899, pctTir: 1.025, cre
 // solo, où la chimie part de zéro contre un adversaire qui n'en a pas : les déciles de
 // check_monotonie reculaient d'une demi-victoire (50,1 → 49,6 au 10e) ; 0,945 les remet
 // à 25,2 / 50,3. Le jeu, lui, joue en ligue (simulateLeague) et ne lit pas ce nombre.
-export const PCT_TIR_NEUTRE = Number(ENV_MESURE.PCT_TIR_NEUTRE ?? 0.945);
+const PCT_TIR_NEUTRE = Number(ENV_MESURE.PCT_TIR_NEUTRE ?? 0.945);
 
 /*
  * Le pourcentage de tir de référence, et donc l'ancrage du pointage : c'est
@@ -3177,7 +3170,7 @@ export const PCT_TIR_NEUTRE = Number(ENV_MESURE.PCT_TIR_NEUTRE ?? 0.945);
  * exécution de `check_feuilles.mjs`.
  */
 export const CIBLE_PCT_TIR = 0.0927;
-export const PCT_TIR_MAX = 0.35;
+const PCT_TIR_MAX = 0.35;
 
 /* ======================================================================
  *  LES UNITÉS SPÉCIALES — punitions, avantage et désavantage numériques
@@ -3224,7 +3217,7 @@ export const PCT_TIR_MAX = 0.35;
  * 2005-06, 3,11 en 2015-16, 2,88 en 2025-26 — les repères publics d'avant la
  * mesure disaient 5,3 pour les années 1980, c'était trop.
  */
-export const AVANTAGES_EPOQUE = [
+const AVANTAGES_EPOQUE = [
   [1970, 3.8], [1977, 4.0], [1980, 4.25], [1985, 4.63], [1990, 4.57], [1995, 5.04],
   [2000, 4.59], [2005, 5.85], [2010, 3.54], [2015, 3.11], [2020, 2.89], [2026, 2.88],
 ];
@@ -3233,12 +3226,12 @@ export const AVANTAGES_EPOQUE = [
  * (colonne [9] de SEASON_LANCERS, posée par build_lancers.mjs depuis le bloc
  * `an` des shards) quand elles existent, sinon le repère d'époque.
  */
-export function occasionsDe(p) {
+function occasionsDe(p) {
   const mesure = seasonLancers(p && p.s)[9];
   if (mesure > 0) return mesure;
   return occasionsEpoque(parseInt((p && p.s || '').slice(0, 4), 10) || null);
 }
-export function occasionsEpoque(annee) {
+function occasionsEpoque(annee) {
   const t = AVANTAGES_EPOQUE;
   if (!annee || annee <= t[0][0]) return t[0][1];
   for (let i = 1; i < t.length; i++) {
@@ -3249,13 +3242,13 @@ export function occasionsEpoque(annee) {
   }
   return t[t.length - 1][1];
 }
-export const AN_MINUTES = 2;          // une mineure
-export const AN_TIRS_MIN = 0.60;      // lancers par minute de l'équipe en avantage (fenêtre de deux minutes, coupée par le but)
-export const DN_TIRS_MIN = 0.09;      // lancers par minute de l'équipe en désavantage
-export const AN_QUALITE = 1.35;       // réglé sur la mesure : part des buts d'avantage simulée = réelle (26,5 %) chez les mêmes joueurs (check_feuilles)
-export const DN_QUALITE = 1.00;       // finition en désavantage
-export const FE_TIRS = 1.20;          // le cinq contre cinq, réglé sur la sortie
-export const FE_QUALITE = 1.03;       // idem, sur la finition
+const AN_MINUTES = 2;          // une mineure
+const AN_TIRS_MIN = 0.60;      // lancers par minute de l'équipe en avantage (fenêtre de deux minutes, coupée par le but)
+const DN_TIRS_MIN = 0.09;      // lancers par minute de l'équipe en désavantage
+const AN_QUALITE = 1.35;       // réglé sur la mesure : part des buts d'avantage simulée = réelle (26,5 %) chez les mêmes joueurs (check_feuilles)
+const DN_QUALITE = 1.00;       // finition en désavantage
+const FE_TIRS = 1.20;          // le cinq contre cinq, réglé sur la sortie
+const FE_QUALITE = 1.03;       // idem, sur la finition
 /*
  * La part des lancers d'un joueur d'avantage numérique qui vient de
  * l'avantage. Son volume réel (`sh` par match) la contient déjà : à forces
@@ -3263,19 +3256,19 @@ export const FE_QUALITE = 1.03;       // idem, sur la finition
  * Bondra 2001-02 faisait 93 buts au lieu de 46. Repère public : un joueur
  * de première unité prend le quart à la moitié de ses tirs en avantage.
  */
-export const PART_AN_TIRS = [0.35, 0.15];   // première unité, deuxième unité
-export const POIDS_AN = [0.65, 0.35];        // part du temps d'avantage de chaque unité
-export const POIDS_DN = [0.60, 0.40];
-export const PART_LANCERS_D_AN = 0.38;       // en avantage, la pointe tire plus (Lidström) — repère public
-export const DISCIPLINE_MIN = 0.5;    // bornes de l'indiscipline d'un alignement
-export const DISCIPLINE_MAX = 1.8;
+const PART_AN_TIRS = [0.35, 0.15];   // première unité, deuxième unité
+const POIDS_AN = [0.65, 0.35];        // part du temps d'avantage de chaque unité
+const POIDS_DN = [0.60, 0.40];
+const PART_LANCERS_D_AN = 0.38;       // en avantage, la pointe tire plus (Lidström) — repère public
+const DISCIPLINE_MIN = 0.5;    // bornes de l'indiscipline d'un alignement
+const DISCIPLINE_MAX = 1.8;
 
 /** Période d'un instant du match : 1, 2, 3, puis la prolongation. */
 export const periodeDe = t => (t < 20 ? 1 : t < 40 ? 2 : t < 60 ? 3 : 4);
 
 /** Un but reçoit une passe principale, puis parfois une secondaire. */
-export const P_PASSE_1 = 0.95;   // réel : 1,66 passe par but sur 55 saisons (0,95 + 0,95 × 0,75 = 1,66)
-export const P_PASSE_2 = 0.75;
+const P_PASSE_1 = 0.95;   // réel : 1,66 passe par but sur 55 saisons (0,95 + 0,95 × 0,75 = 1,66)
+const P_PASSE_2 = 0.75;
 /*
  * LE POIDS D'UN DÉFENSEUR DANS LE TIRAGE DES PASSEURS. Deux des quatre
  * coéquipiers sur la glace sont des défenseurs, et sans ce poids ils
@@ -3290,8 +3283,6 @@ export const PASSE_D = 0.38;
 /** Volume de tirs et finition d'un rappel de la ligue mineure. */
 const RAPPEL_LANCERS = 0.70;
 const RAPPEL_PCT_TIR = 0.80;
-
-const borne = (x, min, max) => Math.max(min, Math.min(max, x));
 
 /**
  * Volume de tirs d'un joueur, en écart à sa ligue. Un ailier de 1981 et un
@@ -3757,8 +3748,8 @@ export function profilMatch(team, lineup, adv = null) {
  * Mesuré après, huit ligues (`check_pm.mjs`) : voir CLAUDE.md, le réglage se
  * lit dans ce script.
  */
-export const APPARIEMENT = 2.5;
-export const APPARIEMENT_PROPRE = 5.0;
+const APPARIEMENT = 2.5;
+const APPARIEMENT_PROPRE = 5.0;
 /*
  * LE PLAN D'APPARIEMENT, ET LE TRIO DE FERMETURE. JP : *pouvoir faire des
  * lockdown lines qui bloquent mieux les adversaires, en prenant en compte
@@ -3795,8 +3786,8 @@ export const APPARIEMENT_PROPRE = 5.0;
  * MESURE (check_pm.mjs) ; le navigateur n'a pas de `process` et prend les
  * valeurs écrites ici.
  */
-export const FERMETURE_DEFAUT = 2;   // le 3e trio
-export const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.0);
+const FERMETURE_DEFAUT = 2;   // le 3e trio
+const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.0);
 /*
  * LA FORCE DU PLAN. Un plan STRICT (la cible du premier trio adverse est la
  * fermeture, toujours) fait exploser le +/- par rang : premier trio à +21,7
@@ -3821,8 +3812,8 @@ export const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.
  * de fermeture est, de loin, celui qui voit le plus le premier trio
  * adverse — « généralement 1 v 3 » — pour le même écart qu'à 0,25.
  */
-export const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
-export const P_MELANGE = Number(ENV_MESURE.P_MELANGE ?? 0.40);
+const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
+const P_MELANGE = Number(ENV_MESURE.P_MELANGE ?? 0.40);
 /*
  * LE −1 SUIT LE RYTHME : 0 le met à la présence seule, plus haut il l'incline
  * vers les unités qui génèrent le plus (voir CREDIT_AU_RYTHME plus haut et
@@ -3884,7 +3875,7 @@ export const P_MELANGE = Number(ENV_MESURE.P_MELANGE ?? 0.40);
  * l'alignement, donc relève le haut à somme fixe) : les deux se prennent
  * ensemble ou pas du tout.
  */
-export const RYTHME_CREDIT = Number(ENV_MESURE.RYTHME_CREDIT ?? 0.75);
+const RYTHME_CREDIT = Number(ENV_MESURE.RYTHME_CREDIT ?? 0.75);
 /*
  * SUR QUOI LE RYTHME S'INCLINE, et c'est ce que S62 avait rendu INERTE sans
  * s'en apercevoir (molette de mesure, voir S65).
@@ -3905,7 +3896,7 @@ export const RYTHME_CREDIT = Number(ENV_MESURE.RYTHME_CREDIT ?? 0.75);
  * premier trio est là » veut dire : un trio qui génère beaucoup de lancers
  * joue dans un match plus ouvert, et il en concède plus.
  */
-export const RYTHME_BASE = ENV_MESURE.RYTHME_BASE || 'rythme';
+const RYTHME_BASE = ENV_MESURE.RYTHME_BASE || 'rythme';
 /*
  * LE RYTHME NE DESCEND PAS SOUS LA PRÉSENCE (S65), et c'est ce qui rend la
  * demande de JP livrable. La somme des −1 est FIXE (5 × les buts alloués) :
@@ -3924,7 +3915,7 @@ export const RYTHME_BASE = ENV_MESURE.RYTHME_BASE || 'rythme';
  * contre que ses minutes n'en contiennent, mais un trio défensif n'est pas
  * sur la glace pour MOINS — il joue contre le meilleur de l'adversaire.
  */
-export const RYTHME_PLANCHER = Number(ENV_MESURE.RYTHME_PLANCHER ?? 1);
+const RYTHME_PLANCHER = Number(ENV_MESURE.RYTHME_PLANCHER ?? 1);
 
 /**
  * Une unité tirée à la présence, appariée au rang d'une autre : l'unité qui
@@ -4278,8 +4269,8 @@ const REPLACEMENT = 40;     // cote d'un rappel de la ligue mineure
  * forcée, 40 saisons, 3 280 matchs) : chimie 100 contre 0 = +10,9 % de buts et
  * +3,6 victoires (c'était +6,1 %).
  */
-export const CHIMIE_BONUS = Number(ENV_MESURE.CHIMIE_BONUS ?? 6.5);
-export const CHIMIE_PIVOT = Number(ENV_MESURE.CHIMIE_PIVOT ?? 26);
+const CHIMIE_BONUS = Number(ENV_MESURE.CHIMIE_BONUS ?? 6.5);
+const CHIMIE_PIVOT = Number(ENV_MESURE.CHIMIE_PIVOT ?? 26);
 // MESURE seulement (check_chimie) : la chimie du bonus de ta formation, forcée. Le navigateur n'a pas de process : null.
 export const CHIMIE_FORCEE = ENV_MESURE.CHIMIE_FORCEE == null ? null : Number(ENV_MESURE.CHIMIE_FORCEE);
 export const bonusChimie = c => CHIMIE_BONUS * (c - CHIMIE_PIVOT) / 100;
@@ -4306,12 +4297,12 @@ const shuffle = a => {
 };
 
 /** Part des matchs joués par le joueur dans sa vraie saison (0-1). */
-export function gpShare(p) {
+function gpShare(p) {
   return Math.max(0, Math.min(1, (p.gp || 0) / seasonGames(p.s)));
 }
 
 /** Probabilité de blessure à un match donné. */
-export function injuryChance(p, heavy = false) {
+function injuryChance(p, heavy = false) {
   const frail = 1 - gpShare(p);
   let pr = 0.0015 + 0.015 * frail * frail;
   if (p.p === 'G') pr *= 0.5;
@@ -4327,7 +4318,7 @@ function injuryLength() {   // moyenne ~8 matchs, plafond 40
   return n;
 }
 
-export function initSimStats(p) {
+function initSimStats(p) {
   delete p.po;   // les statistiques des séries d'une saison rejouée ne survivent pas
   p.simGP = 0; p.simG = 0; p.simA = 0; p.simPTS = 0; p.simPM = 0; p.simPlus = 0; p.simMoins = 0; p.simInj = 0;
   p.simSH = 0; p.simPIM = 0; p.simPPG = 0;
@@ -4425,7 +4416,7 @@ const goalieRating = g => g ? (0.6 * getHiddenRatings(g).o + 0.4 * getHiddenRati
 export const PART_AUX_MIN = 0.12;   // au moins ~10 départs : le corps a ses limites
 export const PART_AUX_MAX = 0.50;   // un vrai tandem, jamais plus que la moitié
 
-export function partAuxiliaire(starter, backup) {
+function partAuxiliaire(starter, backup) {
   if (!starter || !backup) return 0;
   const gs = gpShare(starter), gb = gpShare(backup);
   if (gs + gb <= 0) return 1 / 6;
@@ -4462,7 +4453,7 @@ function gardienDeRappel(team, modele) {
 }
 
 /* Qui la rotation du club enverrait ce soir, sans aucun choix imposé (pour l'écran). */
-export function gardienDeRotation(lineup, gameIdx, team = null) {
+function gardienDeRotation(lineup, gameIdx, team = null) {
   const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]);
   const [starter, backup] = gs;
   if (team && ((team.gardienAux || 0) > (team.jourCourant ?? -1))) return backup || starter || null;
@@ -4505,12 +4496,6 @@ function pickGoalie(lineup, gameIdx, team = null) {
   // club habillait alors un de ses gardiens BLESSÉS, à pleine cote ; il
   // habille maintenant un rappel, qui garde comme un rappel.
   return gardienDeRappel(team, starter || backup) || starter || backup || null;
-}
-
-function pickUnit(weights) {
-  let r = hasard() * weights.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) return i; }
-  return weights.length - 1;
 }
 
 function weightedPick(list, wfn) {
@@ -5481,7 +5466,7 @@ const CHAMPS_EQUIPE = ['W', 'L', 'OTL', 'GF', 'GA', 'PTS', 'games'];
  * à part. Les compteurs d'équipe et le journal reprennent aussi leur état
  * de fin de saison.
  */
-export function photoStats(teams) {
+function photoStats(teams) {
   const photo = new Map();
   for (const t of teams) {
     photo.set(t, Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, t[k]])));
@@ -5493,30 +5478,6 @@ export function photoStats(teams) {
     }
   }
   return photo;
-}
-
-export function separerSeries(teams, photo) {
-  for (const t of teams) {
-    const e = photo.get(t);
-    if (!e) continue;
-    t.po = Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, (t[k] || 0) - (e[k] || 0)]));
-    t.poJournal = t.journal ? t.journal.slice(e.journal) : [];
-    t.poBlessures = t.injuriesLog ? t.injuriesLog.slice(e.blessures) : [];
-    if (t.journal) t.journal.length = e.journal;
-    if (t.injuriesLog) t.injuriesLog.length = e.blessures;
-    for (const k of CHAMPS_EQUIPE) t[k] = e[k];
-    for (const s of SLOTS) {
-      const p = t.roster[s.i];
-      const q = p && photo.get(p);
-      if (!q) continue;
-      p.po = {};
-      for (const k of CHAMPS_SIM) {
-        if (p[k] === undefined && q[k] === undefined) continue;
-        p.po[k.slice(3)] = (p[k] || 0) - (q[k] || 0);
-        p[k] = q[k];
-      }
-    }
-  }
 }
 
 /** Une feuille de match vierge, prête à recevoir le journal d'un match. */
@@ -5735,14 +5696,14 @@ function mutDe(p, champ) {
  * joué ailleurs (le pronostic) la repose pour lui-même. Hors du Rogue, elle
  * vaut 1 : la saison et le tournoi ne changent pas.
  */
-export const ECHELLE_DEBUT = 0.5, ECHELLE_FIN_DE_SAISON = 1.5;
-export const ECHELLE_SERIES = [1.6, 1.75, 1.9, 2];
+const ECHELLE_DEBUT = 0.5, ECHELLE_FIN_DE_SAISON = 1.5;
+const ECHELLE_SERIES = [1.6, 1.75, 1.9, 2];
 export function echelleTardive({ jour = 0, serie = false, ronde = 0, matchs = 82 } = {}) {
   if (serie) return ECHELLE_SERIES[Math.max(0, Math.min(ECHELLE_SERIES.length - 1, ronde || 0))];
   return ECHELLE_DEBUT + (ECHELLE_FIN_DE_SAISON - ECHELLE_DEBUT) * Math.max(0, Math.min(1, (jour || 0) / Math.max(1, matchs - 1)));
 }
 /* Un facteur qui grandit : son écart à 1, multiplié par l'échelle. */
-export const grandir = (x, e) => 1 + (x - 1) * e;
+const grandir = (x, e) => 1 + (x - 1) * e;
 /*
  * Un EFFET de carte qui grandit : chaque canal s'éloigne de 1 à l'échelle ;
  * la robustesse, qui est une somme (« +1,4 »), se multiplie ; les minutes des
@@ -5918,7 +5879,7 @@ export const mutationNuit = k => {
   const M = MUTATIONS[k];
   return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
 };
-export const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'lustre'];
+const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'lustre'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.
@@ -5975,8 +5936,8 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
 }
 
 /* Les accidents : cinq fenêtres, une chance sur deux par club, tirés de la graine. */
-export const JOURS_ACCIDENTS = [7, 22, 37, 55, 74];
-export const CHANCE_ACCIDENT = 0.5;
+const JOURS_ACCIDENTS = [7, 22, 37, 55, 74];
+const CHANCE_ACCIDENT = 0.5;
 function poserAccident(team, graine, jour, equipe, tirage = jour) {
   if (!JOURS_ACCIDENTS.includes(tirage)) return;
   const rnd = melangeurSitu(graine, tirage + 5000, equipe);
@@ -6035,7 +5996,7 @@ export function motsDeMutation(cle) {
  * « Buts contre −5 % ». Le nom est resté (`flechesDe`) pour ne pas toucher
  * tous ses appels ; `seuils` ne sert plus.
  */
-export function pctDe(x) {
+function pctDe(x) {
   const d = (x - 1) * 100;
   if (Math.abs(d) < 0.5) return '±0 %';
   const n = Math.abs(d) < 1 ? Math.abs(d).toFixed(1).replace('.', ',') : String(Math.round(Math.abs(d)));
@@ -6273,7 +6234,7 @@ function poserPlansDeSeries(S) {
   }
 }
 /* Les compteurs d'un match de séries passent aux statistiques des séries ; la saison ne bouge pas. */
-export function cumulerSeries(teams, photo) {
+function cumulerSeries(teams, photo) {
   for (const t of teams) {
     const e = photo.get(t);
     if (!e) continue;
@@ -6358,11 +6319,6 @@ export function jouerMatchSeries(S) {
   };
   if (S.ligue) avecLigue(S.ligue, jouer);
   else { const avant = hasard; hasard = S.rng; try { jouer(); } finally { S.rng = hasard; hasard = avant; } }
-}
-/* Jouer jusqu'à ce que le match k de la ronde r soit joué (ou les séries finies). */
-export function jouerSeriesJusqua(S, r, k = Infinity) {
-  while (!S.fini && (S.ronde < r || (S.ronde === r && S.k <= k))) jouerMatchSeries(S);
-  return S;
 }
 /* Rejouer une reprise : jusqu'à ce que chaque série ait les matchs qu'on en avait vus. */
 export function jouerSeriesVues(S, revele = []) {
@@ -6485,7 +6441,7 @@ function hacherMise(...parts) {
 }
 
 /* Deux gros matchs sont séparés d'au moins autant de journées. */
-export const ESPACEMENT_GROS = 4;
+const ESPACEMENT_GROS = 4;
 
 /*
  * LE PLAN DE L'ADVERSAIRE EST UN VRAI RÉGLAGE DE SES LIGNES (S72). JP : *tout
@@ -6541,11 +6497,6 @@ export function reglageDuPlan(cle) {
   return '';
 }
 
-/* Le plan d'un gros match de saison : pur, de la graine et de la journée. */
-export function planDuGros(graine, r) {
-  const cles = Object.keys(PLANS_ADV);
-  return cles[Math.floor(hacherMise(graine, 'plan', r) * cles.length)];
-}
 /*
  * Le plan de l'adversaire au k-ième match d'une série : il GARDE celui qui a
  * gagné, et en CHANGE après une défaite — jamais pour le même.
@@ -6692,7 +6643,7 @@ export function avantDuGros(graine, cle, deja = []) {
 }
 
 /* L'effet d'une option d'avant-match, pour la journée du match. */
-export function effetAvant(d) {
+function effetAvant(d) {
   const A = d && d.avant && AVANT_GROS[d.avant.cle];
   const o = A && A.options.find(x => x.cle === d.avant.choix);
   if (!o) return null;
@@ -6732,7 +6683,7 @@ export const INCIDENTS = {
     option: { cle: 'cinq', ico: '🔄', nom: 'Doubler la 1re paire', bon: 'Tes meilleurs défenseurs sur la glace', prix: 'Ils vont finir à plat', D: [1.35, 1, 0.65], energie: 1.1 } },
 };
 /* L'incident de l'entracte : pur, de la graine et du match. */
-export function incidentDuMatch(graine, cle) {
+function incidentDuMatch(graine, cle) {
   const cles = Object.keys(INCIDENTS);
   return cles[Math.floor(hacherMise(graine, 'incident', cle) * cles.length)];
 }
@@ -6765,7 +6716,7 @@ export function effetEntracte(e) {
  * deuxième entracte et la retire après.
  */
 /* L'échelle de la fin de partie d'un gros match (S80) : sa journée, ou sa ronde de séries. */
-export const echelleDuGros = (gros, toi) => (!(toi && toi.courbe) ? 1 : echelleTardive(gros && gros.serie ? { serie: true, ronde: gros.ronde || 0 } : { jour: (gros && gros.jour) || 0 }));
+const echelleDuGros = (gros, toi) => (!(toi && toi.courbe) ? 1 : echelleTardive(gros && gros.serie ? { serie: true, ronde: gros.ronde || 0 } : { jour: (gros && gros.jour) || 0 }));
 /*
  * LES LIGNES DE L'ADVERSAIRE SOUS UN PLAN (1.0, J1-N) : ses lignes de la
  * saison, puis ce que le plan y change. C'est ce que le moteur joue un soir
@@ -6818,22 +6769,13 @@ function poserCartes(toi, adv, gros) {
   toi._effetMatch.push(...fx.effets);
   if (fx.adv.length) adv._effetMatch = [...(adv._effetMatch || []), ...fx.adv];
   if (fx.lire) { adv._lignesMatch = null; gros.lu = true; }
-  if (fx.contre) {
-    const P = PLANS_ADV[gros.plan];
-    const c = P && contreDuPlan(P);
-    const lignes = lignesDe(toi, toi.roster, { duSoir: false });
-    if (c && c.tac) toi._lignesMatch = lignes.map((l, u) => (u < c.n ? { ...l, tac: c.tac } : l));
-    else if (c && c.agrMax != null) toi._lignesMatch = lignes.map((l, u) => (u < c.n ? { ...l, agr: Math.min(l.agr ?? 1, c.agrMax) } : l));
-    else toi._effetMatch.push({ source: 'carte', nom: 'Le contre parfait', ico: '🧠', defense: 0.97 });
-    gros.contre = !gros.lu && planEstContre(gros.plan, toi._lignesMatch || lignes, (c && c.ad != null) ? Math.min(0, c.ad) : adDeLEquipe(toi));
-  }
   // Leur plan tombé, il n'y a plus rien à contrer : le récit le dit comme une lecture parfaite.
   if (fx.lire) gros.contre = true;
   if (fx.energieTous) for (const sl of SLOTS) {
     const p = toi.roster[sl.i];
     if (p && p.p !== 'G') rendreJambes(p, fx.energieTous);
   }
-  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire, contre: !!fx.contre };
+  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire };
   return fx;
 }
 /* Ta préparation contre leur plan (S76, voir `PREP_JUSTE`) : juste, fausse, ou rien. */
@@ -6911,7 +6853,6 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
     // S80 : une carte qui VISE L'ADVERSAIRE grandit avec le soir (`echelleTardive`).
     if (C.adv) out.adv.push({ source: 'carte', nom: C.nom, ico: C.ico, ...grandirEffet(C.adv, echelle) });
     if (C.lire) out.lire = true;
-    if (C.contre) out.contre = true;
     if (C.annule) out.annule = true;
     if (C.energieTous) out.energieTous += C.energieTous;
     if (C.synergie) { const e = synergie(C.synergie); if (e) out.effets.push({ source: 'carte', nom: C.nom, ico: C.ico, ...e }); }
@@ -6998,7 +6939,7 @@ export function ciblesDe(team, sorte, graine = 0, jour = 0) {
  * ses gestes réels sur les joueurs nommés. Le pari est noté sur l'équipe
  * (`team.paris`) pour que l'écran et le récit disent comment il a tourné.
  */
-export function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
+function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
   if (!team || !o) return;
   const joueurs = (cles || []).map(k => Object.values(team.roster || {}).find(p => p && getPlayerKey(p) === k)).filter(Boolean);
   const gestes = (a, j0) => {

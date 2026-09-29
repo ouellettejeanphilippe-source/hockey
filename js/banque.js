@@ -42,7 +42,6 @@ export const CATEGORIES = {
   saison: { ico: '📘', nom: 'Cartes de saison', un: 'Carte de saison', mot: 'Un réglage pour toute la saison : un bonus payé par un malus.' },
 };
 export const ORDRE_CATEGORIES = ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match', 'saison'];
-export const RARETES_BANQUE = ['commune', 'peu', 'rare', 'legendaire', 'maudite'];
 
 /* ---------- LES PATRONS : le personnel, des reliques ---------- */
 export const MAX_PATRONS = 3;
@@ -233,7 +232,7 @@ const RARETE_MOD = {
   style_architecte: 'rare', style_sentinelle: 'rare', style_canonnier: 'rare', style_buteur: 'legendaire', style_pieuvre: 'rare',
   masque_neuf: 'commune', baton_neuf: 'commune', contrat_annee: 'peu', contrat_prolonge: 'commune', contrat_bonus: 'rare', contrat_leader: 'rare',
 };
-export const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source));
+const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source));
 
 /*
  * LES CASES D'AMÉLIORATION, AU VERSO (S80). JP : *je veux que les upgrades de

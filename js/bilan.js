@@ -10,7 +10,7 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { CAP, SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
+import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
   ROULEMENTS, roulementDe } from './sim.js';
 import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
@@ -22,6 +22,7 @@ import { animerComptes } from './mouvement.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
+import { ord, ordF } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
 let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
@@ -60,7 +61,7 @@ export function teamLabel(t) {
  * Hockey-Reference (`teamSeasonUrl`, js/logos.js) : une adresse par
  * équipe-saison, pas la page de la ligue où il fallait ensuite la chercher.
  */
-export function teamCell(t, taille = 15) {
+function teamCell(t, taille = 15) {
   const label = esc(teamLabel(t));
   const url = t.isPlayer ? null : teamSeasonUrl(t.tag, t.season);
   const nom = url
@@ -300,7 +301,7 @@ function calendrierHtml(calendrier, jour) {
  * tant que son volet est vide, et c'est le DOM qui le dit (`ongletsCourants`,
  * js/game.js) — un drapeau de plus serait une deuxième vérité.
  */
-export const ONGLETS_BILAN = [
+const ONGLETS_BILAN = [
   { cle: 'bilan', ico: 'i-target', titre: 'Bilan' },
   { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
   { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier' },
@@ -1087,8 +1088,6 @@ document.addEventListener('keydown', ev => {
 });
 
 /* « 1er », « 12e » : le rang d'un but ou d'une passe. */
-const ord = n => (n === 1 ? '1er' : `${n}e`);
-const ordF = n => (n === 1 ? '1re' : `${n}e`);
 
 /** La clé `data-sommaire` d'une feuille, qu'elle vienne du calendrier ou des séries ; null sinon. */
 export function cleDeSommaire(feuille) {

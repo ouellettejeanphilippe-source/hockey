@@ -17,13 +17,13 @@
  */
 import { getPlayerKey, getPersonKey } from './sim.js';
 import { niveauDe, joueursParNiveau, groupeDuJoueur, mesureDuNiveau } from './niveaux.js';
+import { estD as isD } from './util.js';
 
-const isD = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
 export const groupeDe = p => (p.p === 'G' ? 'G' : isD(p) ? 'D' : 'F');
 /* La production d'un joueur dans sa saison : points par match, ou % d'arrêts. */
 export const productionDe = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
 
-export const MEILLEURS_BALLOTTAGE = 15;
+const MEILLEURS_BALLOTTAGE = 15;
 export const NIVEAU_MAX_BALLOTTAGE = 1;   // Régulier (js/niveaux.js) : jamais un Pilier, une Étoile ou un Phénomène
 
 /*

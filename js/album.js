@@ -16,11 +16,10 @@
 import { CARTES_MATCH, estPlus, carteDeBase } from './combat.js';
 import { IDENTITES } from './identites.js';
 import { carteHtml, RARETES } from './cartes.js';
-
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+import { esc } from './util.js';
 
 /* Ce que l'historique contient, compté. */
-export function lireAlbum(historique = []) {
+function lireAlbum(historique = []) {
   const cartes = new Map(), joueurs = new Map(), identites = new Map();
   let coupes = 0;
   for (const e of historique) {

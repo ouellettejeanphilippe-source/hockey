@@ -24,12 +24,12 @@ import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, r
 import { tirerCartesPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch } from './gerant.js';
+import { esc, millions as M } from './util.js';
 
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = id => document.getElementById(id);
 
 /* Les paliers de la saison donnent un pack mixte gratuit (S79) : ses cartes de saison, jamais un permanent. */
-export const PALIERS_PACK = [20, 40, 60];
+const PALIERS_PACK = [20, 40, 60];
 
 /*
  * LA POCHE DE LA PARTIE, pure : les cartes des packs achetés (\`achat.cartes\`)
@@ -65,7 +65,6 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, jour = 0, rogue = 
 /* Sur qui une carte se joue : ce que dit le coin de la carte (sa famille est déjà en haut). */
 const CIBLES = { blesse: 'Un blessé', joueur: 'Un joueur', recrue: 'Une recrue', aucune: 'L\'équipe', malediction: 'Le deck', carteMatch: 'Le deck', tactique: 'Un système' };
 /* Un montant en millions, à la québécoise. */
-const M = v => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
 /*
  * La valeur de vente rapide d'une carte, en jetons (selon sa rareté). S82 :
  * à 2/5/12/30, une carte valait 4,94 🪙 en moyenne aux cotes 55/30/12/3 des
@@ -78,7 +77,7 @@ export const VENTE = { commune: 1, peu: 1, rare: 2, legendaire: 5, maudite: 0 };
 export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'consommable' ? 0 : (VENTE[c.rarete] ?? 1); };
 
 /* ---------- la carte de la banque, en petit ---------- */
-export function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = null } = {}) {
+function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = null } = {}) {
   const c = carteBanque(id);
   if (!c) return '';
   const mots = c.cat === 'match' ? optionDeCarteMatch(c.cle).mots : reglesDe(id);

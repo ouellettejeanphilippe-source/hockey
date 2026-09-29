@@ -72,6 +72,3 @@ export function saisonsDeFranchise(cle, saisons) {
 export function franchiseDuCode(code) {
   return Object.keys(FRANCHISES).find(k => FRANCHISES[k].codes.some(([c]) => c === code)) || null;
 }
-
-/* L'écusson qui la représente : celui de son code actuel (le dernier de la lignée). */
-export const codeActuel = cle => { const F = FRANCHISES[cle]; return F ? F.codes[F.codes.length - 1][0] : null; };

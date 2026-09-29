@@ -22,8 +22,7 @@
  * reprise, pas de « Mes parties » — c'est le rôle du bouton « Menu ».
  */
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer } from './sauvegardes.js';
-
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+import { esc } from './util.js';
 
 /* « il y a 5 min », « hier », sinon la date : une partie se reconnaît à quand on l'a jouée. */
 function quand(t) {

@@ -13,8 +13,8 @@
 import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
+import { esc, millions as M } from './util.js';
 
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = id => document.getElementById(id);
 
 /*
@@ -24,7 +24,6 @@ const $ = id => document.getElementById(id);
  *         acheter(cle, { prix, params }), onFerme() }
  */
 /* Un montant en millions, à la québécoise. */
-const M = v => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
 /* Un pourcentage à une décimale au plus, à la québécoise : « 4,4 % », « 36 % ». */
 const pct = x => `${(Math.round(x * 10) / 10).toString().replace('.', ',')} %`;
 /*

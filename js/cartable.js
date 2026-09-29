@@ -22,7 +22,7 @@
  */
 const CLE_CARTABLE = 'cap82_cartable';
 const VIDE = () => ({ v: 1, joueurs: {}, migre: false });
-export const VARIANTES = [
+const VARIANTES = [
   ['commune', 'Base', '◆'], ['peu', 'Parallèle', '◆◆'], ['rare', 'Holo', '✦'], ['legendaire', 'Or', '★'],
 ];
 const RANG = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
@@ -78,16 +78,16 @@ export function migrerHistorique(cles = []) {
 /* La meilleure variante obtenue d'une carte. */
 export const meilleureVariante = x => ['legendaire', 'rare', 'peu', 'commune'].find(r => x && x.v && x.v[r]) || 'commune';
 /* Les comptes du cartable : joueurs, copies, doublons, par variante, numérotées. */
-export function comptesDuCartable(c = lireCartable()) {
+function comptesDuCartable(c = lireCartable()) {
   const xs = Object.values(c.joueurs);
   const parVariante = Object.fromEntries(VARIANTES.map(([r]) => [r, xs.filter(x => x.v && x.v[r]).length]));
   const copies = xs.reduce((a, x) => a + (x.n || 1), 0);
   return { joueurs: xs.length, copies, doublons: copies - xs.length, parVariante, numerotees: xs.filter(x => (x.num || []).length).length };
 }
 /* La clé d'un joueur-saison-club : « saison_club_id ». */
-export const partsDe = cle => { const [s, t] = String(cle).split('_'); return { s, t }; };
+const partsDe = cle => { const [s, t] = String(cle).split('_'); return { s, t }; };
 /* Les ensembles : saison → club → clés ; club → saison → clés. */
-export function ensembles(c = lireCartable()) {
+function ensembles(c = lireCartable()) {
   const parSaison = new Map(), parClub = new Map();
   for (const cle of Object.keys(c.joueurs)) {
     const { s, t } = partsDe(cle);

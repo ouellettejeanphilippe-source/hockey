@@ -119,7 +119,8 @@ for (const [cle, n] of cibles) {
     pool.forEach(registerHiddenRatings);
     const roster = autoRoster(pool);
     const rs = [];
-    for (let i = 0; i < ESSAIS; i++) rs.push(simulate(roster));
+    // Graines fixes, et les MÊMES avec et sans traits : l'écart se lit sur des saisons jumelles (1.0).
+    for (let i = 0; i < ESSAIS; i++) rs.push(simulate(roster, { graine: `traits:${cle}:${i}` }));
     return { W: moy(rs.map(r => r.W)), GF: moy(rs.map(r => r.GF)), GA: moy(rs.map(r => r.GA)) };
   };
   const avec = jouer(false), sans = jouer(true);
@@ -180,8 +181,9 @@ console.log('  Un trait doit se voir sans décider la saison à lui seul.\n');
 
 /*
  * L'ÉCART EST BRUITÉ, ET C'EST POUR ÇA QU'IL EST BORNÉ LARGE. Dix saisons
- * rejouées avec puis sans, sous des graines tirées : le script n'est pas
- * déterministe, contrairement à `check_table`. Les bornes disent seulement
+ * rejouées avec puis sans, sous des graines FIXES depuis la 1.0 (la même pour
+ * les deux bras : des saisons jumelles) : le script est déterministe, comme
+ * `check_table` — il tirait ses graines et rougissait une fois sur quatre. Les bornes disent seulement
  * « un trait doit se VOIR sans décider la saison à lui seul » — le premier
  * réglage du bidirectionnel donnait +12 victoires aux Red Wings de 2001-02,
  * et rien n'avait rougi.

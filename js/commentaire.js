@@ -180,7 +180,6 @@ export const ACTIONS_TIR = [
   ['{t} lance en entrée de zone', 'F rapide contre'], ['Tir précipité de {t}', 'echec'], ['{t} tente un tir en rotation', 'F'],
   ['{t} lance sur l\'avantage numérique', 'AN'], ['Tir de loin de {t} pour dégager la pression', 'DN'],
 ];
-export const ACTION_TIR = ACTIONS_TIR.map(([t]) => t);
 export const ISSUE_TIR = [
   'arrêt de {g}', '{g} immobilise', '{g} bloque sans problème', 'facile pour {g}', '{g} fait dévier dans le coin',
   '{g} contrôle le retour', '{g} était bien placé', '{g} le voit venir', '{g} met la mitaine dessus', '{g} fige le jeu',

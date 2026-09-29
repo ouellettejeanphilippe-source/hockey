@@ -24,8 +24,8 @@
  */
 
 import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
-  PLANS, ROULEMENTS, planDe, roulementDe, JOURS_SITUATIONS,
-  STYLES, MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
+  JOURS_SITUATIONS,
+  MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS, motsDeMutation,
@@ -36,12 +36,13 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
 import { seasonLancers } from './ratings.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur } from './cartes.js';
-import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, planReplie, depistageHtml, pistesDuRapport } from './gerant.js';
+import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant, NOM_PERIODE } from './recit.js';
 import { animerComptes } from './mouvement.js';
+import { ord, ordF, cap, nom, pct3 } from './util.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -83,8 +84,6 @@ function motEntracte(ctx, mb) {
 }
 
 /* « 1er », « 12e » : le rang d'un but ou d'une passe. */
-const ord = n => (n === 1 ? '1er' : `${n}e`);
-const ordF = n => (n === 1 ? '1re' : `${n}e`);
 /* La rivalité d'une saison (S69) : le club croisé le plus souvent dans les
    gros matchs, au moins deux fois, avant la journée `jusque`. */
 function rivaliteDe(you, jusque = Infinity) {
@@ -97,8 +96,6 @@ function rivaliteDe(you, jusque = Infinity) {
   }
   return [...par.values()].filter(x => x.v + x.d >= 2).sort((a, b) => (b.v + b.d) - (a.v + a.d) || b.d - a.d)[0] || null;
 }
-const nom = p => (p && p.n) || '';
-const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 /* « 1er trio · AG », « 2e paire · DD », « Partant », « Réserve D ». */
 const caseCourte = s => (s.group === 'F' && !s.scratch ? `${s.unit + 1}${s.unit ? 'e' : 'er'} trio · ${s.role}`
   : s.group === 'D' && !s.scratch ? `${s.unit + 1}${s.unit ? 'e' : 're'} paire · ${s.role}` : s.role);
@@ -202,7 +199,6 @@ function onglets(barre, volet, liste, rendre) {
    a déjà vu.
    ===================================================================== */
 
-const pct3 = x => x.toFixed(3).replace(/^0/, '');
 const plusMoins = n => (n > 0 ? `+${n}` : `${n}`);
 const VIDE = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0 };
 
@@ -428,42 +424,6 @@ function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, car
   return () => { for (const z of zones) { z.removeEventListener('click', agir); z.removeEventListener('keydown', touche); } };
 }
 
-/*
- * LE PLAN ET LA GLACE SE LISENT SUR L'AFFICHE (S62). Deux décisions qui valent
- * toute la saison et qui se changent derrière le banc : si l'écran ne les dit
- * pas, on oublie ce qu'on a choisi en janvier. Les mots viennent de `PLANS` et
- * `ROULEMENTS` — jamais recopiés ici, sinon un réglage retouché fait mentir
- * l'affiche.
- */
-function motDuPlan(ctx, you, onBanc) {
-  const pl = PLANS[planDe(you)], ro = ROULEMENTS[roulementDe(you)];
-  if (!pl || !ro) return '';
-  const dit = x => `${x.ico} ${ctx.esc(x.nom)}`;
-  const inf = x => `${x.nom}${x.bon ? ` — ${x.bon}` : ''}${x.prix ? `, mais ${x.prix.charAt(0).toLowerCase()}${x.prix.slice(1)}` : ''}`;
-  return `<div class="hub-match-note hub-plan">
-    <span title="${ctx.esc(inf(pl))}">${dit(pl)}</span> · <span title="${ctx.esc(inf(ro))}">${dit(ro)}</span>${onBanc ? ' <span class="hub-plan-ou">derrière le banc</span>' : ''}
-  </div>`;
-}
-
-/*
- * UN CHOIX, À LA FAÇON D'UN ÉVÉNEMENT DE SLAY THE SPIRE (S66) : une histoire,
- * et des options qui disent chacune ce qu'elles achètent, ce qu'elles coûtent
- * et quelles factions elles bougent. C'est le même gabarit pour les dilemmes,
- * les séquences et les objectifs, pour qu'un seul langage s'apprenne.
- */
-
-function panneauChoix(ctx, { classe, ico, titre, irl, recit, options, attr }) {
-  return `<div class="hub-choix ${classe}" role="group" aria-label="${ctx.esc(titre)}">
-    <div class="hub-choix-tete"><span class="hub-choix-ico">${ico}</span><span class="hub-choix-titre">${ctx.esc(titre)}</span>${irl ? `<span class="hub-choix-irl">${ctx.esc(irl)}</span>` : ''}</div>
-    ${recit ? `<div class="hub-choix-recit">${ctx.esc(recit)}</div>` : ''}
-    <div class="hub-choix-rang">${options.map(o => `<button type="button" class="hub-option" ${attr}="${ctx.esc(o.cle)}">
-      <span class="hub-option-nom">${o.ico ? `${o.ico} ` : ''}${ctx.esc(o.nom)}</span>
-      ${o.bon ? `<span class="hub-option-bon">+ ${ctx.esc(o.bon)}</span>` : ''}
-      ${o.prix ? `<span class="hub-option-prix">− ${ctx.esc(o.prix)}</span>` : ''}
-    </button>`).join('')}</div>
-  </div>`;
-}
-
 
 /*
  * LA ROUTE DE LA SAISON, à la carte de Slay the Spire : ce qui s'en vient se
@@ -524,7 +484,7 @@ function boutonFlottant(actions, termine) {
   f._io = new IntersectionObserver(([e]) => { f.hidden = e.isIntersecting || window.innerWidth >= 1200; }, { threshold: 0.6 });
   f._io.observe(cible);
 }
-export function cacherBoutonFlottant() {
+function cacherBoutonFlottant() {
   const f = document.getElementById('hubFlottant');
   if (f) { f.hidden = true; if (f._io) { f._io.disconnect(); f._io = null; } }
 }
