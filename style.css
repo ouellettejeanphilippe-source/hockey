@@ -6364,6 +6364,8 @@ body.choix-ouvert { overflow: hidden; }
 .choix-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
 .choix-recit { font-size: 15px; line-height: 1.5; color: var(--sub); margin: 0; }
 .choix-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+/* 1.0 (J2-14) : les quatre options de l'entracte en 2 × 2 — trois en rangée laissaient la quatrième seule. */
+@media (min-width: 900px) { .choix-sheet[data-genre="entracte"] .choix-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .choix-option {
   display: flex; flex-direction: column; gap: 6px; text-align: left; cursor: pointer;
   padding: 14px; min-height: 120px;
