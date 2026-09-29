@@ -201,6 +201,11 @@ export const ZONE_PEN_MAX = 70;      // plafond par unité
  *                  énormément. Le malus reste PROPORTIONNEL au talent gaspillé
  *                  — l'échelle ne fait que le multiplier — donc il ne peut
  *                  toujours pas s'inverser (le piège du forfait, ci-dessus).
+ *   (1.0 · J1-L) ZONE_NOMBRE ne joue plus que si un joueur de l'unité est à
+ *   DEUX crans ou plus ; quand tous sont à un cran au plus, c'est
+ *   ZONE_NOMBRE_UN (1 · 1 · 1,25 · 1,8) : deux vedettes au 2e trio passent,
+ *   trois non. Un cran coûte 0,55 au lieu de 0,45 pour garder l'empilement
+ *   fermé (mock_zones : EMPILÉ 66,8, les témoins à +0,2 du linéaire).
  *   ZONE_NOMBRE    par NOMBRE DE MAL PLACÉS dans l'unité, indexée par le
  *                  compte. Un mal placé coûte ce qu'il coûte, deux coûtent
  *                  1,6 fois la somme, trois 2,2 fois : un joueur hors de sa
@@ -227,16 +232,23 @@ export const ZONE_PEN_MAX = 70;      // plafond par unité
  * sa zone faute de mieux et que la punir deux fois serait la punir de son
  * effectif.
  */
-export const ZONE_ECHELLE = lireListe('ZONE_ECHELLE', [0, 0.45, 1.30, 1.90]);
+// 1.0 · J1-L : un cran passe de 0,45 à 0,55 — le prix du nombre adouci (ZONE_NOMBRE_UN), mesuré sur mock_zones.
+export const ZONE_ECHELLE = lireListe('ZONE_ECHELLE', [0, 0.55, 1.30, 1.90]);
 export const ZONE_PUISSANCE = Number(ENV_MESURE.ZONE_PUISSANCE ?? 2);
 export const ZONE_NOMBRE = lireListe('ZONE_NOMBRE', [1, 1, 1.6, 2.2]);
+// Le nombre ne multiplie que si un joueur de l'unité est à ce nombre de crans ou plus (1.0 · J1-L).
+export const ZONE_NOMBRE_DES = Number(ENV_MESURE.ZONE_NOMBRE_DES ?? 2);
+// En dessous (tous à un cran au plus), un multiplicateur adouci : deux mal placés passent, trois non (1.0 · J1-L).
+export const ZONE_NOMBRE_UN = lireListe('ZONE_NOMBRE_UN', [1, 1, 1.25, 1.8]);
 /*
  * Au-delà de ce malus, l'écran ne dit plus « mal assorti » mais « hors de ses
  * lignes » (voir `zoneEtat` plus bas). Douze points de synergie, c'est ce que
  * coûte un joueur à deux crans de sa zone : le seuil marque donc exactement la
  * frontière que JP a demandée, et l'étiquette la rend visible.
  */
-export const ZONE_DUR = 12;
+// 1.0 · J1-L : 15. Deux vedettes au 2e trio (5,5 × 2 × 1,25 = 13,8) disent « un joueur mal placé » ;
+// trois (29,7) et tout joueur à deux crans de sa zone disent « hors de ses lignes ».
+export const ZONE_DUR = 15;
 
 /**
  * Calibre attendu d'une case : la cote plancher de la meilleure zone dont
@@ -298,14 +310,26 @@ export function malusZoneJoueur(group, unit, v, ideal, opts = {}) {
  * cote (jamais négatif), déjà plafonné, et le nombre de mal placés.
  */
 export function malusZoneUnite(group, unit, entrees, opts = {}) {
-  let somme = 0, mal = 0;
+  let somme = 0, mal = 0, ecartMax = 0;
   for (const e of entrees) {
     const pen = malusZoneJoueur(group, unit, e.v, e.ideal, opts);
-    if (pen > 0 || Math.min(...e.ideal.map(u => Math.abs(u - unit))) > 0) mal++;
+    const ecart = Math.min(...e.ideal.map(u => Math.abs(u - unit)));
+    if (pen > 0 || ecart > 0) mal++;
+    if (ecart > ecartMax) ecartMax = ecart;
     somme += pen;
   }
+  /*
+   * UN CRAN PASSE, DEUX NE PASSENT PLUS — MÊME À PLUSIEURS (1.0 · J1-L). Le
+   * multiplicateur de nombre s'appliquait quel que soit l'écart : deux vedettes
+   * au 2e trio (un cran chacune) coûtaient 2 × 4,5 × 1,6 = 14,4, donc « hors de
+   * ses lignes ». Il ne joue plus que si un joueur de l'unité est à deux crans
+   * ou plus — c'est là qu'il ferme l'empilement (mesuré : un vrai club n'a
+   * presque jamais d'écart de deux, l'alignement empilé en a partout).
+   */
   const nombre = opts.nombre ?? ZONE_NOMBRE;
-  const mult = opts.lineaire ? 1 : nombre[Math.min(mal, nombre.length - 1)];
+  const seuil = opts.nombreDes ?? ZONE_NOMBRE_DES;
+  const table = ecartMax >= seuil ? nombre : (opts.nombreUn ?? ZONE_NOMBRE_UN);
+  const mult = opts.lineaire ? 1 : table[Math.min(mal, table.length - 1)];
   return { pen: Math.min(opts.plafond ?? ZONE_PEN_MAX, somme * mult), mal };
 }
 
