@@ -64,7 +64,7 @@ import { JETONS, jetonsDe, PACKS, DEBLOCAGES, lireMeta, aDebloque, nombreGardes,
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
-import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives, mesuresDeSaison, SEUIL_MESURE } from './ratings.js';
+import { getArchetype, getEraFactor, getEraSalary, getLineZone, ageAtSeason, SEASON_ERA_CAP, getSecondaryPosition, seasonLancers, passesRelatives, mesuresDeSaison } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { activerSons } from './sons.js';
 
@@ -914,6 +914,9 @@ const seasonMaxGP = season =>
     : season === '2019-20' ? 70
     : 82;
 
+/* Le % d'arrêts d'un gardien, à la façon d'une carte (« ,912 ») : son chiffre clé depuis 1.0 (C2), le seul que le moteur lit. */
+const svCourt = p => (p.sv == null ? '—' : Number(p.sv).toFixed(3).replace(/^0\./, ','));
+
 /** Statistiques telles qu'affichées, selon les options (prorata, salaire). */
 function displayStats(p) {
   const maxGP = seasonMaxGP(p.s);
@@ -986,6 +989,8 @@ function roleTag(p) {
   const pp = profilPrincipal(p);
   const r2 = pp && roleSecond(p);
   if (pp) return `<span class="tag tag-role" title="${esc(pp.nom)} — lu dans ${esc(pp.mot)}${r2 ? ` · second rôle : ${esc(r2.nom)}` : ''}">${pp.ico} ${esc(pp.nom)}${r2 ? ` <small>· ${r2.ico}</small>` : ''}</span>${marques}`;
+  // 1.0 (C2) : l'archétype ne se lit que pour un gardien ; un patineur sans rôle lu (trop peu joué) n'en porte pas.
+  if (p.p !== 'G') return marques;
   const a = getArchetype(p, getHiddenRatings(p));
   return `<span class="tag tag-role" title="${esc(a.desc)}">${a.icon} ${esc(a.label)}</span>${marques}`;
 }
@@ -2210,7 +2215,7 @@ function setupEvents() {
       { cle: 'a1', rarete: 'commune', ico: '🎰', nom: '1. Repêche', type: 'Le repêchage', texte: 'La roulette sort de vrais clubs de 55 saisons. Signe 23 joueurs sous le plafond : trouver les aubaines, c\'est le métier.' },
       { cle: 'a2', rarete: 'peu', ico: '🧬', nom: '2. Ton identité', type: 'Avant le premier tour', texte: 'Une carte parmi trois colore ton repêchage : la roulette sort plus souvent tes francs-tireurs, tes costauds, tes aubaines…' },
       { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'Derrière le banc', texte: 'Chaque ligne joue une tactique. Plus elle la joue, plus sa chimie monte — mais contre un gros adversaire, il faut parfois changer.' },
-      { cle: 'a4', rarete: 'rare', ico: '🃏', nom: '4. Tes cartes', type: 'Gros matchs et séries', texte: 'Cinq cartes, trois d\'énergie. Tu vois la main de l\'adversaire : réponds-lui. Gagne, et ton deck grandit.' },
+      { cle: 'a4', rarete: 'rare', ico: '🃏', nom: '4. Tes cartes', type: 'Gros matchs et séries', texte: 'Cinq cartes, trois d\'élan. Tu vois la main de l\'adversaire : réponds-lui. Gagne, et ton deck grandit.' },
       { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: '82 matchs, puis les séries, match par match, contre des boss. La Coupe est le vrai but ; le 82-0, le Graal. Tout ce que tu gagnes va dans ton album.' },
     ],
     onChoix: () => {},
@@ -3094,7 +3099,7 @@ function carteMiniHtml(p) {
   const rarete = rareteJoueur(p);
   const band = getTeamBand(p.t);
   const st = displayStats(p);
-  const cle = p.p === 'G' ? `${st.w}<small>V</small>` : `${st.pt}<small>PTS</small>`;
+  const cle = p.p === 'G' ? `${svCourt(p)}<small>%ARR</small>` : `${st.pt}<small>PTS</small>`;
   return `<span class="cj-recto cj-mini-carte ${classesDeCarte(p)} tc-${rarete}" style="--team-logo:${logoFiligrane(p.t)};--team-band:${band.bg};--team-ink:${band.ink};--team-stripe:${band.stripe};--team-fond:${fondEquipe(p.t) || ''};--team-line:${couleurVive(p.t)}">
     ${finiHtml(rarete)}
     <span class="cj-fenetre">
@@ -3496,27 +3501,10 @@ function mesure(p) {
   return (entry && entry.mesures && entry.mesures.get(p)) || null;
 }
 
-/*
- * 🛡️ Défensif, 🪨 Robuste : les étiquettes de ce que le joueur a fait sans la
- * rondelle, au 85e centile des réguliers de sa saison et de sa position. Elles
- * sont sur la carte pour qu'un bâti défensif ou robuste se trouve sans ouvrir
- * chaque fiche ; la fiche donne les colonnes derrière.
- */
 /* L'IDENTITÉ DE DÉPART (S73) : pendant le repêchage, un joueur qui y colle porte son icône. */
 function identiteTag(p, full = false) {
   const I = identite() && enRepechage() && scoreIdentite(identite(), p) >= SEUIL_IDENTITE ? IDENTITES[identite()] : null;
   return I ? `<span class="tag tag-identite" title="Colle à ton identité : ${esc(I.nom)}">${I.ico}${full ? ` ${esc(I.nom)}` : ''}</span>` : '';
-}
-/* `deja` : le texte des rôles que la fiche affiche à côté (S78) — une étiquette
-   « Défensif » ne se répète pas sous un rôle « Défensif · bon ». */
-function mesureTags(p, full = false, deja = '') {
-  const tagI = identiteTag(p, full);
-  const m = mesure(p);
-  if (!m) return tagI;
-  const tags = tagI ? [tagI] : [];
-  if (m.def != null && m.def >= SEUIL_MESURE && !/Défensif/.test(deja)) tags.push(`<span class="tag tag-mesure" title="Défensif — ${Math.round(m.def * 100)}e centile des réguliers de ${esc(p.s)} à sa position : différentiel corrigé de son club, points en désavantage, temps de glace.">🧊${full ? ' Défensif' : ''}</span>`);
-  if (m.rob != null && m.rob >= SEUIL_MESURE) tags.push(`<span class="tag tag-mesure" title="Robuste — ${Math.round(m.rob * 100)}e centile des réguliers de ${esc(p.s)} à sa position : minutes de punition et mises en échec. Il pèse les soirs éreintants et en séries.">🪨${full ? ' Robuste' : ''}</span>`);
-  return tags.join('');
 }
 
 /* L'identité choisie, en une puce dans la roulette : ce qu'elle oriente se lit au survol. */
@@ -3958,7 +3946,7 @@ function poolFiltered() {
     list = list.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem);
   }
 
-  const key = p => (surTable() ? p.$ : p.p === 'G' ? (p.w ?? 0) : (p.pt ?? 0));
+  const key = p => (surTable() ? p.$ : p.p === 'G' ? (p.sv ?? 0) : (p.pt ?? 0));
   // Sur table, un axe du plateau ; le gardien se range sur son AR quel que
   // soit l'axe demandé, puisqu'il n'en a qu'un.
   const axe = k => p => tableStats(p)[p.p === 'G' ? 'AR' : k];
@@ -4092,8 +4080,9 @@ function playerCardEl(p) {
 
   // La carte ne porte que l'essentiel : qui, combien, ce qu'il vaut et où il
   // va. Le détail des statistiques est dans la fiche, à un clic.
-  const bigVal = p.p === 'G' ? st.w : st.pt;
-  const bigUnit = p.p === 'G' ? 'V' : 'PTS';
+  // 1.0 (C2) : un gardien se juge à son % d'arrêts — le seul chiffre de sa fiche que le moteur lit.
+  const bigVal = p.p === 'G' ? svCourt(p) : st.pt;
+  const bigUnit = p.p === 'G' ? '%ARR' : 'PTS';
 
   // Sur table, la carte porte les nombres du plateau à la place du chiffre
   // clé, et le gabarit, le tir et l'habileté à la place de l'archétype, des
@@ -4538,7 +4527,7 @@ function slotAxesReste(p) {
  * mode retombe sur le premier de la liste.
  */
 const SORTS_SAISON = [
-  ['PTS', 'Points / V'], ['PPG', 'Pts par match'], ['SAL', 'Salaire'], ['VAL', 'Pts par M$'],
+  ['PTS', 'Points / %ARR'], ['PPG', 'Pts par match'], ['SAL', 'Salaire'], ['VAL', 'Pts par M$'],
   ['PM', 'Différentiel'], ['DEF', 'Défensive'], ['ROB', 'Robustesse'], ['AGE', 'Âge'], ['NAME', 'Nom'],
 ];
 const SORTS_TABLE = [
@@ -4586,7 +4575,7 @@ function slotTags(p, zoneEcartTag, penTag) {
   const pp = profilPrincipal(p), r2 = pp && roleSecond(p);
   const roles = pp ? `<span class="slot-roles" title="${esc(pp.nom)}${r2 ? ` · second rôle : ${esc(r2.nom)}` : ''}">${pp.ico}${r2 ? r2.ico : ''}</span>` : '';
   // Les icônes, serrées, sans cadre : la case est étroite. Le survol donne le mot.
-  const icones = [...getTraits(p).map(t => TRAITS[t.cle]), ...mesureIcones(p)];
+  const icones = getTraits(p).map(t => TRAITS[t.cle]);
   const compact = icones.length
     ? `<span class="slot-icones" title="${esc(icones.map(i => i.short).join(' · '))}">${icones.map(i => i.icon).join('')}</span>` : '';
   // LES VERDICTS D'ABORD (S78) : sa zone, puis ce qui cloche — c'est ce qu'on
@@ -4607,10 +4596,10 @@ function slotTags(p, zoneEcartTag, penTag) {
  */
 function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   const pp = profilPrincipal(p);
-  const a = pp ? null : getArchetype(p, getHiddenRatings(p));
+  const a = pp || p.p !== 'G' ? null : getArchetype(p, getHiddenRatings(p));
   const role = pp
     ? `<span class="slot-roles cell-role" title="${esc(pp.nom)} — lu dans ${esc(pp.mot)}">${pp.ico} <span>${esc(pp.nom)}</span></span>`
-    : `<span class="slot-roles cell-role" title="${esc(a.desc)}">${a.icon} <span>${esc(a.label)}</span></span>`;
+    : a ? `<span class="slot-roles cell-role" title="${esc(a.desc)}">${a.icon} <span>${esc(a.label)}</span></span>` : '';
   const zone = zoneTag(p, true);
   const marque = ecart === 'sous' ? `<span class="cell-zone sous" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
     : ecart === 'dessus' ? `<span class="cell-zone dessus" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>`
@@ -4621,16 +4610,6 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   return `<div class="cell-l1">${role}${pastilleNiveau(p)}</div>
         <div class="slot-tags cell-l2">${blesseTag}${marque}${zone}${penTag}${trophee}<span class="cell-prod slot-faits">${esc(G.banc ? ficheDuJour(p) : main)}</span></div>
         ${jambes}`;
-}
-
-/** Les étiquettes mesurées d'un joueur, en icônes : `[{ icon, short }]`. */
-function mesureIcones(p) {
-  const m = mesure(p);
-  if (!m) return [];
-  const out = [];
-  if (m.def != null && m.def >= SEUIL_MESURE) out.push({ icon: '🧊', short: 'Défensif' });
-  if (m.rob != null && m.rob >= SEUIL_MESURE) out.push({ icon: '🪨', short: 'Robuste' });
-  return out;
 }
 
 function slotEl(s) {
@@ -4653,7 +4632,7 @@ function slotEl(s) {
     el.style.setProperty('--slot-ink', band.ink);
     el.style.setProperty('--slot-stripe', band.stripe);
     const st = displayStats(p);
-    const main = p.p === 'G' ? `${st.w} V` : `${st.pt} PTS`;
+    const main = p.p === 'G' ? `${svCourt(p)} %ARR` : `${st.pt} PTS`;
     /* La case est étroite : la ligne de statistiques y tient en une seule,
        donc on abrège « PTS/M » en « /M ». La fiche donne le libellé complet. */
     const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr}/M`;
@@ -5066,7 +5045,7 @@ function ficheTable(p) {
 
 function profilMesure(p) {
   const gp = Math.max(1, p.gp || 1);
-  const [, pctTir, shF, shD, ptF, ptD, partButs, pimF] = seasonLancers(p.s);
+  const [, pctTir, shF, shD, , , , pimF] = seasonLancers(p.s);
   const cell = (k, v, t) =>
     `<div class="profil-cell" title="${esc(t)}"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`;
 
@@ -5082,30 +5061,25 @@ function profilMesure(p) {
 
   const est_D = p.p === 'D';
   const r = (x) => x.toFixed(2);
-  const prod = (p.pt || 0) / gp / (est_D ? (ptD || 0.35) : (ptF || 0.62));
   const vol = (p.sh || 0) / gp / (est_D ? (shD || 1.35) : (shF || 1.75));
-  const pen = (p.pt || 0) >= 15 ? (p.g || 0) / p.pt - (partButs || 0.40) : 0;
   const dur = (p.pim || 0) / gp / (pimF || 0.90);
 
-  // Avec la rondelle, puis sans : la seconde rangée porte ce qui décide des
-  // étiquettes 🛡️ Défensif et 🪨 Robuste, en colonnes claires.
+  // Avec la rondelle, puis sans. 1.0 (C2) : seulement ce que le moteur lit —
+  // PRODUCTION (les points, déjà sur la carte) et PENCHANT (l'ancienne chimie
+  // de trio, retirée en S72) sont partis.
   const m = mesure(p);
   const signe = x => (x >= 0 ? '+' : '') + Math.round(x);
   return `<div class="profil-titre">Avec la rondelle</div>
   <div class="profil-grid">
-    ${cell('PRODUCTION', r(prod), `Points par match, sur le régulier moyen de ${p.s}. 1,00 = la moyenne.`)}
     ${cell('LANCERS', r(vol), `Lancers par match, sur le régulier moyen de ${p.s}.`)}
     ${cell('CRÉATION', r(passesRelatives(p)), `Passes par match, sur le régulier moyen de ${p.s} à sa position. C'est ce qu'il apporte aux lancers des autres : ses coéquipiers finissent mieux à ses côtés.`)}
-    ${cell('PENCHANT', (pen >= 0 ? '+' : '') + pen.toFixed(2), pen >= 0
-      ? 'Il finit plus que la moyenne : ses points sont surtout des buts.'
-      : 'Il sert plus qu\'il ne finit : ses points sont surtout des passes.')}
   </div>
-  <div class="profil-titre">Sans la rondelle${m ? ` · défensive ${Math.round(m.def * 100)}e centile, robustesse ${Math.round(m.rob * 100)}e` : ''}</div>
+  <div class="profil-titre">Sans la rondelle${m ? ` · défensive ${Math.round(m.def * 100)}e centile, jeu physique ${Math.round(m.rob * 100)}e` : ''}</div>
   <div class="profil-grid">
     ${m ? cell('DIFFÉRENTIEL', signe(m.diff82), `Son +/- par 82 matchs, corrigé à moitié de celui de son club — un bon joueur d'un mauvais club n'est pas puni deux fois.`) : ''}
     ${m && m.dn82 != null ? cell('DÉSAVANTAGE', Math.round(m.dn82), `Points en désavantage numérique par 82 matchs : qui tue les punitions.`) : ''}
     ${p.toi ? cell('MINUTES', p.toi.toFixed(1), 'Temps de glace par match, en minutes.') : ''}
-    ${cell('ROBUSTESSE', r(dur), `Minutes de punition par match, sur le régulier moyen de ${p.s}${p.ht != null ? ` · ${p.ht} mises en échec par match` : ''}.`)}
+    ${cell('PUN / MATCH', r(dur), `Minutes de punition par match, sur le régulier moyen de ${p.s} : c'est ce qui décide de ses punitions${p.ht != null ? ` · ${p.ht} mises en échec par match` : ''}.`)}
   </div>`;
 }
 
@@ -5319,7 +5293,7 @@ function showPlayerModal(p, opts = {}) {
   // LE DÉTAIL SE REPLIE (S71) : le profil mesuré, le temps de glace, les
   // mises en échec, les mises au jeu — là pour qui les cherche.
   const detailStats = p.p === 'G' ? '' : cell('PTS/M', st.ppgStr) + cell('TG/M', p.toi ? Number(p.toi).toFixed(1) : '—')
-    + (p.ht != null ? cell('MÉ/M', p.ht) : '') + (p.fo != null ? cell('MJ %', Math.round(p.fo * 100)) : '');
+    + (p.ht != null ? cell('MÉ/M', p.ht) : '');   // 1.0 (C2) : le MJ % ne joue pas dans la saison ; il est parti
   // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
   const plusDeDetails = `<details class="fiche-plus"${matchMedia('(min-width: 900px)').matches ? ' open' : ''}><summary>Plus de détails</summary>
        ${detailStats ? `<div class="stat-grid">${detailStats}</div>` : ''}
@@ -5386,7 +5360,7 @@ function showPlayerModal(p, opts = {}) {
   const statsCarte = p.p === 'G'
     ? nb('PJ', st.gp) + nb('V', st.w, true) + nb('D', st.l) + nb('BL', st.so) + nb('%ARR', p.sv ?? '—') + nb('MBA', p.ga ?? '—')
     : nb('PJ', st.gp) + nb('B', st.g) + nb('A', st.a) + nb('PTS', st.pt, true) + nb('+/-', pmStr) + nb('PUN', p.pim ?? '—');
-  const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : mesureTags(p, true, roles) + zoneTag(p)}${realTag(p)}`;
+  const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p)}${realTag(p)}`;
   const milieuVerso = `${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
     ${saCarte}

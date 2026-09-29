@@ -36,7 +36,7 @@ export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Trois postes au plus, un par rôle.' },
   evenement: { ico: '📰', nom: 'Événements', un: 'Événement', mot: 'Ce qui arrive à ton équipe : quelques journées, un bonus et son prix.' },
   joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, un contrat, une amélioration ou une édition : elle se pose au verso d\'un joueur de ton choix, pour la saison.' },
-  consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Un soin, de l\'énergie, des jetons, un coup de pouce au deck : une utilisation.' },
+  consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Un soin, des jambes, des jetons, un coup de pouce au deck : une utilisation.' },
   match: { ico: '🃏', nom: 'Cartes de match', un: 'Carte de match', mot: 'Ton deck des gros matchs et des séries : jouée, elle entre dans le deck.' },
   plafond: { ico: '💵', nom: 'Masse salariale', un: 'Contrat', mot: 'Le plafond salarial se manipule, comme dans la vraie LNH : de l\'espace, une retenue, un blessé à long terme, un rachat.' },
   saison: { ico: '📘', nom: 'Cartes de saison', un: 'Carte de saison', mot: 'Un réglage pour toute la saison : un bonus payé par un malus.' },

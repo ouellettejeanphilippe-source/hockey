@@ -946,7 +946,7 @@ export function regleDeCarte(C) {
   if (courbe && C.adv) out.push(courbe);
   else if (courbe && (C.synergie || (C.effet && (C.effet.F || C.effet.D)))) out.push({ txt: '🔗 Carte de trio : pleine tout de suite, elle ne grandit pas', bon: null });
   if (C.pioche) out.push({ txt: `Pige ${C.pioche} carte${C.pioche > 1 ? 's' : ''}`, bon: true });
-  if (C.energiePlus) out.push({ txt: `+${C.energiePlus} énergie`, bon: true });
+  if (C.energiePlus) out.push({ txt: `+${C.energiePlus} élan`, bon: true });
   if (C.energieTous) out.push({ txt: `Tes patineurs : jambes +${C.energieTous}`, bon: true });
   if (C.lire) out.push({ txt: 'Leur plan tombe', bon: true });
   if (C.annule) out.push({ txt: 'Leur main ne fait rien', bon: true });
@@ -958,7 +958,7 @@ export function regleDeCarte(C) {
   if (C.piege) out.push({ txt: `Si ta préparation vise juste : ${txt(C.piege)} de plus`, bon: true });
   if (C.parGenre) out.push({ txt: `${txt(C.parGenre.effet)} par carte ${DE_GENRE[C.parGenre.genre] || ''} jouée ce match`, bon: true });
   if (C.selonLeurMain) out.push({ txt: `${txt(C.selonLeurMain.effet)} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} dans leur main`, bon: true });
-  if (C.siVide) out.push({ txt: `Si tu dépenses toute ton énergie : ${txt(C.siVide)}`, bon: true });
+  if (C.siVide) out.push({ txt: `Si tu dépenses tout ton élan : ${txt(C.siVide)}`, bon: true });
   // 1.0 (J1-G) : un effet conditionnel au pointage après deux périodes — la carte dit sa condition.
   if (C.apres40) {
     for (const m of motsDEffet(C.apres40.siMene || null)) out.push({ ...m, txt: `Si tu mènes après deux périodes : ${m.txt}` });
@@ -994,7 +994,7 @@ export function motsDeCarteAdverse(C, echelle = 1) {
  */
 export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN, echelle = 1 } = {}) {
   if (!cartes || !cartes.length) return '';
-  return `<div class="main-adverse"><div class="gl-k">🂠 La main ${nomAdv === 'Eux' ? 'adverse' : esc(avecArticle('de', nomAdv))} ce soir${energie > ENERGIE_MAIN ? ` · <span class="main-adverse-fort" title="En fin de saison et dans les dernières rondes des séries, l'adversaire joue avec une énergie de plus">⚡ ${energie} d'énergie</span>` : ''}</div><div class="main-adverse-cartes">${cartes.map(c => {
+  return `<div class="main-adverse"><div class="gl-k">🂠 La main ${nomAdv === 'Eux' ? 'adverse' : esc(avecArticle('de', nomAdv))} ce soir${energie > ENERGIE_MAIN ? ` · <span class="main-adverse-fort" title="En fin de saison et dans les dernières rondes des séries, l'adversaire joue avec un élan de plus">⚡ ${energie} d'élan</span>` : ''}</div><div class="main-adverse-cartes">${cartes.map(c => {
     const C = CARTES_MATCH[c];
     return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C, echelle))}</span></span>` : '';
   }).join('')}</div></div>`;
@@ -1008,7 +1008,7 @@ export function optionDeCarteMatch(cle) {
   const C = CARTES_MATCH[cle];
   return {
     cle, rarete: C.maudite ? 'commune' : C.rarete, ico: C.ico, nom: C.nom,
-    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} énergie`}`,
+    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} élan`}`,
     texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C),
   };
 }
@@ -1102,7 +1102,7 @@ export function ouvrirMainDeMatch(spec) {
           const mots = [...motsDEffet(canaux), ...(o.pari ? [{ txt: '🎲 Pari', bon: null }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
-        <div class="main-energie" aria-label="Énergie : ${energie}"><span class="gl-k">Énergie</span><span class="main-orbes">${orbes}</span><b>${energie}</b>
+        <div class="main-energie" aria-label="Élan : ${energie}"><span class="gl-k">Élan</span><span class="main-orbes">${orbes}</span><b>${energie}</b>
           <span class="main-pioche" title="Les cartes qui restent à piger ce match">🂠 ${pioche.length}</span></div>
         <div class="choix-options choix-main${premier ? ' donne' : ''}">${cartes}</div>
         <div class="main-apercu">
@@ -1180,7 +1180,7 @@ export function ouvrirDeck({ deck, titre = 'Mon deck', recit = '' }) {
   for (const c of tri) compte.set(c, (compte.get(c) || 0) + 1);
   return ouvrirChoix({
     ico: '🃏', titre: `${titre} · ${deck.length} cartes`, cartes: true, genre: 'deck', fermable: true, motFermer: 'Fermer',
-    recit: recit || 'Tes cartes de match : avant chaque gros match et chaque match de séries, tu en piges cinq et tu as trois d\'énergie pour les jouer.',
+    recit: recit || 'Tes cartes de match : avant chaque gros match et chaque match de séries, tu en piges cinq et tu as trois d\'élan pour les jouer.',
     lecture: true,
     options: [...compte.entries()].map(([c, n]) => ({ ...optionDeCarteMatch(c), cle: `vue:${c}`, nom: n > 1 ? `${CARTES_MATCH[c].nom} ×${n}` : CARTES_MATCH[c].nom })),
     onChoix: () => {},

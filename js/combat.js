@@ -103,7 +103,7 @@ export const CARTES_MATCH = {
     texte: 'On ne force rien.', effet: { defense: 0.97, finition: 0.97 } },
   provoquer: { nom: 'Les provoquer', ico: '😈', cout: 1, rarete: 'commune', genre: 'tactique',
     texte: 'Un mot de trop après chaque sifflet : ils vont au banc des punitions.', adv: { discipline: 1.25 } },
-  quatrieme: { nom: 'Le trio d\'énergie', ico: '🔋', cout: 0, rarete: 'commune', genre: 'tactique',
+  quatrieme: { nom: 'Le trio de plombiers', ico: '🔋', cout: 0, rarete: 'commune', genre: 'tactique',
     texte: 'Ton quatrième trio joue plus, et tes vedettes respirent.', effet: { F: [0.95, 0.95, 1, 1.25], energie: 0.93 } },
   enclave: { nom: 'Devant le filet', ico: '🏗️', cout: 1, rarete: 'commune', genre: 'attaque',
     texte: 'Un gros bonhomme plante sa tente devant leur gardien.', effet: { finition: 1.04, robustesse: 1.2 } },
@@ -254,7 +254,7 @@ export const CARTES_MATCH = {
 
   // ---- malédictions ----
   distraction: { nom: 'La distraction', ico: '📰', cout: 1, rarete: 'maudite', genre: 'malediction', maudite: true,
-    texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 énergie et ne fait rien.' },
+    texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 élan et ne fait rien.' },
   doute: { nom: 'Le doute', ico: '🌧️', cout: 0, rarete: 'maudite', genre: 'malediction', maudite: true, injouable: true,
     texte: 'La défaite contre ta rivale te trotte dans la tête.', enMain: { finition: 0.97 } },
   trainee: { nom: 'Une blessure qui traîne', ico: '🩹', cout: 0, rarete: 'maudite', genre: 'malediction', maudite: true, injouable: true,
@@ -310,8 +310,8 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
     if (C.parGenre) P.parGenre = { ...C.parGenre, effet: canauxPlus(C.parGenre.effet) };
     if (C.selonLeurMain) P.selonLeurMain = { ...C.selonLeurMain, effet: canauxPlus(C.selonLeurMain.effet) };
   }
-  const quoi = P.cout < C.cout ? 'une énergie de moins' : C.pioche ? 'une carte de plus'
-    : C.energieTous ? 'dix d\'énergie de plus' : C.pari ? 'le pari rentre plus souvent' : C.ecarte ? 'écarte un plan de plus' : 'moitié plus forte';
+  const quoi = P.cout < C.cout ? 'un élan de moins' : C.pioche ? 'une carte de plus'
+    : C.energieTous ? 'dix de jambes de plus' : C.pari ? 'le pari rentre plus souvent' : C.ecarte ? 'écarte un plan de plus' : 'moitié plus forte';
   P.texte = `${C.texte} — Améliorée : ${quoi}.`;
   CARTES_MATCH[`${cle}+`] = P;
 }
