@@ -26,6 +26,7 @@ site.webmanifest, favicon.svg, icon-*.png   installation et icônes
 fonts/                Barlow Condensed (OFL), hébergée ici
 data/                 shards par saison (seasons/), index, seed, portraits.json, salaires, trophées, réputations
 img/logos, img/mugs   écussons des 44 franchises et visages recadrés (scripts/logos.mjs, scripts/portraits.mjs)
+img/actions           photos de match recadrées en 5:7 pour les cartes, HORS DU DÉPÔT (scripts/actions.mjs les refait ; data/actions.json les liste)
 
 js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les onglets, l'historique
 js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes
@@ -64,6 +65,8 @@ js/album.js           l'album d'une partie à l'autre
 js/ballottage.js      le ballottage, en fonction pure (Node et navigateur)
 js/visages.js         l'application Android : télécharge et recadre les visages sur l'appareil
 js/recadrage.js       le recadrage d'un portrait (partagé par scripts/portraits.mjs et js/visages.js)
+js/actions.js         les photos d'action : actionSrc(id) pour une carte ; l'appareil Android les télécharge et les recadre
+js/recadrage-action.js le recadrage 5:7 d'une photo de match (partagé par scripts/actions.mjs et js/actions.js)
 js/identites.js       l'identité de départ
 js/traits.js          les traits, tirés des votes de data/trophees.js
 js/roles_ref.js       la référence des rôles
@@ -78,7 +81,7 @@ js/plateau.js         Sur table : l'écran du plateau
 js/tournoi.js         Sur table : le tournoi de six clubs
 js/sons.js            les effets sonores synthétisés (Web Audio)
 
-scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs, portraits.mjs, recrues.mjs → data/recrues.json
+scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs, portraits.mjs, actions.mjs, recrues.mjs → data/recrues.json
                       la vraie saison recrue…), vérifications (check_*.mjs, smoke*.mjs, tout.mjs qui enchaîne les rapides),
                       calibration (calibrate_sim, mock_*), verdict.mjs (le juge partagé), lib/mort.mjs (la mesure du code mort)
 mobile/, desktop/     l'APK (Capacitor) et l'exe (Electron) ; seul leur code est versionné
@@ -177,7 +180,7 @@ L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `
 
 `node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (douze minutes) se lancent à part.
 
-Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
+Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (avec l'adresse du jeu en argument, il simule aussi l'application Android ; réseau requis). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
 
 ## Ce qu'il ne faut pas faire
 

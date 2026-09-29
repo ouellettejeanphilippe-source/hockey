@@ -22,6 +22,11 @@
  * hors ligne des que la passe est faite. Seuls partent img/logos (les
  * ecussons, 0,4 Mo) et img/mugs/silhouette.webp (le visage de secours).
  *
+ * Les photos d'action (img/actions, 1.0, 49 Mo) ne partent pas non plus :
+ * l'appareil les telecharge et les recadre de la meme facon (js/actions.js),
+ * apres les visages et en Wi-Fi ; data/actions.json lui dit lesquelles.
+ * (L'exe de desktop/ copie `img/**` : il les emporte si elles sont la.)
+ *
  * LA BARRE D'ETAT D'ANDROID : C'EST LE CSS QUI LA DEGAGE
  * ------------------------------------------------------
  * Le JSON n'accepte pas de commentaire, alors la raison est ici.
@@ -86,7 +91,7 @@ const SILHOUETTE = 'img/mugs/silhouette.webp';
  *                   jamais atteint (2,8 Mo). Sur le Web, il RESTE dans la
  *                   coquille de sw.js — scripts/check_coquille.mjs dit pourquoi.
  */
-const HORS_APK = [path.join('data', 'salaries'), path.join('data', 'seed.json')];
+const HORS_APK = [path.join('data', 'salaries'), path.join('data', 'seed.json'), path.join('img', 'actions')];
 
 await fs.rm(WWW, { recursive: true, force: true });
 await fs.mkdir(WWW, { recursive: true });
@@ -174,7 +179,7 @@ const apres = await peser(WWW);
 console.log(`www/ : ${apres.n} fichiers, ${(apres.octets / 1024 / 1024).toFixed(1)} Mo`);
 
 // Le filet du hors-ligne : ce dont le jeu ne peut pas se passer.
-for (const attendu of ['index.html', 'js/game.js', 'data/index.json', 'data/portraits.json', SILHOUETTE]) {
+for (const attendu of ['index.html', 'js/game.js', 'data/index.json', 'data/portraits.json', 'data/actions.json', SILHOUETTE]) {
   try { await fs.access(path.join(WWW, attendu)); }
   catch { console.error(`MANQUANT : ${attendu}`); process.exit(1); }
 }

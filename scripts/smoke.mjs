@@ -604,6 +604,9 @@ page.waitForSelector = async (sel, opts) => {
   return _wait(sel, opts);
 };
 let netErrors = 0;   // images externes (assets.nhle.com) : réseau, pas l'application
+// Les photos d'action (1.0) : sur le Web, elles viennent de img/actions ; seule l'application Android va à la LNH.
+let actionsLNH = 0;
+page.on('request', r => { if (r.url().includes('/mugs/actionshots/')) actionsLNH++; });
 page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
 page.on('console', m => {
   if (m.type() !== 'error') return;
@@ -3023,6 +3026,7 @@ console.log(`   mains de match jouées : ${mainsVues.length} (${mainsVues.slice(
 console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
 if (!choixVus.has('hub-proprio')) errors.push('le proprio n\'a jamais fixé d\'objectif');
 if (!choixVus.has('hub-dilemme')) errors.push('aucun dilemme croisé en traversant une saison');
+if (actionsLNH) errors.push(`la version Web a demandé ${actionsLNH} photo(s) d'action à la LNH (elles viennent de img/actions)`);
 
 console.log(`7. erreurs console : ${errors.length} (ressources externes non chargées : ${netErrors})`);
 for (const e of errors) console.log('   ', e);
