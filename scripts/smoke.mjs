@@ -1617,6 +1617,23 @@ async function traverserSaison(etiquette, reprise = false) {
       }
     }
 
+    /*
+     * LE PORTAIL DU BUREAU (1.0, J2-7) : à 1440 px, quatre tuiles remplissent
+     * la colonne de droite ; au téléphone, aucune (les onglets les portent).
+     */
+    {
+      const tuiles = () => page.$$eval('#hubModal .hub-portail .hub-tuile', e => e.filter(x => x.offsetParent).length);
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.waitForTimeout(300);
+      const large = await tuiles();
+      await page.screenshot({ path: 'scripts/smoke-portail-1440.png' });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.waitForTimeout(300);
+      const tel = await tuiles();
+      if (large !== 4) errors.push(`le bureau à 1440 px montre ${large} tuile(s) au lieu de quatre`);
+      if (tel) errors.push(`au téléphone, le bureau montre ${tel} tuile(s) : l'onglet s'allonge`);
+      else console.log('   le portail du bureau : quatre tuiles à 1440 px, aucune au téléphone');
+    }
     await redimensionner('la saison, onglet Match');
     await _click('.navtab[data-page="classement"]');
     await page.waitForTimeout(250);

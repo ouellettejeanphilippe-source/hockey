@@ -9723,6 +9723,23 @@ body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { displa
 .hub-hier.neuf { animation: hier-neuf 400ms var(--e-ressort, ease-out) both; }
 @keyframes hier-neuf { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .hub-hier.neuf { animation: none; } }
+/* 1.0 (J2-7) : le portail du bureau — quatre tuiles qui s'ouvrent sur leur onglet. Au téléphone,
+   ces onglets sont dans la barre : le portail ne s'y montre pas (jamais une longue page). */
+.hub-portail { display: none; }
+@media (min-width: 1200px) {
+  .hub-portail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  .hub-portail .hub-tuile { display: flex; flex-direction: column; gap: 3px; min-width: 0; cursor: pointer;
+    background: var(--surface-2, var(--panel-2)); border: 1px solid var(--line-soft, var(--line)); border-radius: 12px; }
+  .hub-portail .hub-tuile:hover { border-color: var(--gold); }
+  .hp-t { font: 800 12px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .hp-l { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; line-height: 1.35; }
+  .hp-l b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .hp-l em { flex: none; font-style: normal; color: var(--sub); font-variant-numeric: tabular-nums; }
+  .hp-l small { color: var(--muted); }
+  .hp-l.toi b { color: var(--gold); }
+  .hp-l.prix b { color: var(--live); }
+  .hp-n { flex: none; min-width: 2.2em; color: var(--muted); font-variant-numeric: tabular-nums; }
+}
 .hub-hier[data-sommaire]:hover, .hub-hier[data-sommaire]:focus-visible { border-color: var(--ui-accent); }
 .hub-hier-quand { flex: 1 1 100%; font-size: 12.5px; color: var(--muted); letter-spacing: .02em; }
 .hub-hier-quand b { color: var(--text); }

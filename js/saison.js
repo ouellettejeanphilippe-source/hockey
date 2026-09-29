@@ -1615,7 +1615,40 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mien = k >= 0 ? resultatHier({ j, k, m: matchs[k] }) + (rl ? `<details class="hub-plie"><summary>Tes lignes à forces égales, ce soir</summary>${rl}</details>` : '') : `<div class="hub-hier conge"><span class="hub-hier-quand">Journée ${jour} · <b>congé</b></span></div>`;
     const mbHier = (you.minisBoss || []).find(x => x.jour === j);
     const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour trois matchs, et les partisans montent` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour trois matchs, et les médias s'acharnent`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
-    return `${mbMot}${mien}`;
+    return `${mbMot}${mien}${portailHtml()}`;
+  };
+
+  /*
+   * LE PORTAIL DU BUREAU (1.0, J2-7). Au bureau, la colonne de droite restait
+   * vide 80 soirs sur 82. Quatre tuiles d'un coup d'oeil, chacune s'ouvre sur
+   * son onglet (`ouvrirTuile`) : le classement autour de toi, tes cinq
+   * prochains matchs, tes trois meneurs, ton deck. Sur téléphone, ces onglets
+   * sont à un toucher dans la barre : le portail ne s'y montre pas, pour
+   * qu'aucun onglet ne devienne une longue page.
+   */
+  const portailHtml = () => {
+    if (!jour || jour >= N) return '';
+    const cl = classement(), r = cl.indexOf(you);
+    const de = Math.max(0, Math.min(r - 2, cl.length - 5));
+    const rangs = cl.slice(de, de + 5).map((t, i) => `<div class="hp-l${t === you ? ' toi' : ''}"><span class="hp-n">${de + i + 1}</span>${ctx.logo(t.tag, 14)}<b>${ctx.esc(t === you ? 'NHL Stars' : ctx.tagCourt(t))}</b><em>${fiche.get(t).PTS} pts</em></div>`).join('');
+    const avenir = [];
+    for (let d = jour; d < N && avenir.length < 5; d++) { const k = indexMien(d); if (k >= 0) avenir.push({ d, m: calendrier[d][k] }); }
+    const prochains = avenir.map(({ d, m }) => {
+      const adv = m.A === you ? m.B : m.A;
+      return `<div class="hp-l"><span class="hp-n">J${d + 1}</span>${ctx.logo(adv.tag, 14)}<b>${m.A === you ? '' : '@ '}${ctx.esc(ctx.tagCourt(adv))}</b><em>${ficheTexte(adv)}</em></div>`;
+    }).join('');
+    const tete = Object.values(you.roster || {}).filter(p => p && p.p !== 'G').map(p => ({ p, s: compte.get(p) }))
+      .filter(x => x.s && x.s.pts).sort((a, b) => b.s.pts - a.s.pts || b.s.g - a.s.g).slice(0, 3);
+    const meneurs = tete.map(({ p, s }) => `<div class="hp-l"><b>${ctx.esc(p.n)}</b><em>${s.g}-${s.a}-${s.pts}</em></div>`).join('')
+      || '<div class="hp-l"><b>Personne n\'a encore de point.</b></div>';
+    const deck = deckAvant(jour);
+    const maudites = deck.filter(c => CARTES_MATCH[c] && CARTES_MATCH[c].maudite).length;
+    return `<div class="hub-portail">
+      <div class="hub-tuile" data-ouvre="classement" role="button" tabindex="0"><div class="hp-t">Classement</div>${rangs}</div>
+      <div class="hub-tuile" data-ouvre="fiche" role="button" tabindex="0"><div class="hp-t">Tes ${avenir.length} prochains</div>${prochains}</div>
+      <div class="hub-tuile" data-ouvre="meneurs" role="button" tabindex="0"><div class="hp-t">Tes meneurs</div>${meneurs}</div>
+      <div class="hub-tuile hub-deck" role="button" tabindex="0"><div class="hp-t">Ton deck</div><div class="hp-l"><b>${deck.length} cartes</b><em>${ENERGIE_MAIN} d'élan par main</em></div>${maudites ? `<div class="hp-l prix"><b>${maudites} malédiction${maudites > 1 ? 's' : ''}</b></div>` : ''}<div class="hp-l"><small>Touche pour le voir</small></div></div>
+    </div>`;
   };
 
   const voletClassement = () => {
