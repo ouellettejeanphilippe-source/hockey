@@ -4901,14 +4901,6 @@ a.spin-club:hover {
    (index.html, le panneau « Prochain match »), et ce bloc-ci le repeignait
    en bouton — flex, 112 px de large, curseur, bordure. Un nom de classe
    repris est un défaut muet : rien ne casse, tout se déplace. */
-.hub-pige {
-  flex: 1 0 0; min-width: 112px;
-  display: flex; flex-direction: column; gap: 3px; text-align: left;
-  padding: 8px 9px; cursor: pointer;
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-s);
-  color: var(--text);
-}
-.hub-pige:hover { border-color: var(--gold); }
 .hub-cartes-note { font-size: 11px; color: var(--muted); line-height: 1.3; }
 
 /* LES SITUATIONS : deux hommes nommés, rien à cliquer. Le panneau prend
@@ -5959,17 +5951,8 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
   border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--bg);
 }
 
-/* Les quatre factions : une barre chacune, le mot de l'effet quand il joue. */
-.hub-jauge {
-  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 5px; row-gap: 2px;
-  align-items: center; min-width: 0;
-  padding: 5px 6px; border-radius: var(--r-xs, 6px); background: var(--panel-2, var(--panel));
-}
 
 
-/* Le choix forcé : une histoire, et des options qu'on ne peut pas dépasser. */
-.hub-jd { font: 700 11px/1 var(--display); letter-spacing: .02em; }
-.hub-jd.up { color: var(--green); }
 
 
 /* =====================================================================
@@ -8014,11 +7997,6 @@ body.exh-ouverte { overflow: hidden; }
    saison — l'écran de départ, un menu, un bilan : une tuile, une étiquette,
    un chiffre, un titre de section, deux boutons.
    --------------------------------------------------------------- */
-.etiquette {
-  font: 700 var(--etiquette-taille)/1.1 var(--display);
-  letter-spacing: var(--etiquette-espace); text-transform: uppercase;
-  color: var(--muted);
-}
 .chiffre { font-family: var(--display); font-weight: 800; font-variant-numeric: tabular-nums; }
 
 
