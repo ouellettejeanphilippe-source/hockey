@@ -1263,6 +1263,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 .pcard-mid { display: flex; align-items: center; min-width: 0; overflow: hidden; }
 .pcard-mid .tags { flex-wrap: nowrap; flex: 1; min-width: 0; transform-origin: left center; }
 .pcard-mid .tags > * { flex: none; }
+.pcard-mid .tags.en-deux { flex-wrap: wrap; row-gap: 3px; }
 
 @container pcard (max-width: 135px) {
   .pcard-fiche { padding: 6px 5px; }

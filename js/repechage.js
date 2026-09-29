@@ -1386,7 +1386,7 @@ export function ajusterCartes(root) {
   // La rangée de la case d'alignement (1.0, .cell-l2) passe à la ligne : elle ne se réduit pas.
   const tags = [...root.querySelectorAll('.pcard-mid .tags, .slot-tags:not(.cell-l2)')];
   for (const el of noms) el.style.fontSize = '';
-  for (const el of tags) el.style.transform = '';
+  for (const el of tags) { el.style.transform = ''; el.classList.remove('en-deux'); }
   const mesN = noms.map(el => [el, el.scrollWidth, el.clientWidth, parseFloat(getComputedStyle(el).fontSize)]);
   const mesT = tags.map(el => [el, el.scrollWidth, el.clientWidth]);
   for (const [el, sw, cw, fs] of mesN) {
@@ -1394,7 +1394,16 @@ export function ajusterCartes(root) {
     const plancher = el.classList.contains('spin-name') ? 17 : 10;
     if (sw > cw && cw > 0) el.style.fontSize = `${Math.max(plancher, Math.floor(fs * cw / sw * 10) / 10 - 0.2)}px`;
   }
+  // Une rangée du vestiaire qu'il faudrait réduire sous 72 % passe plutôt sur deux lignes (1.0) : à 390 px,
+  // l'âge, un long rôle (« Manieur de rondelle ») et la zone ne tenaient pas, même réduits à 60 %.
+  const enDeux = [];
   for (const [el, sw, cw] of mesT) {
+    if (!(sw > cw && cw > 0)) continue;
+    if (cw / sw < 0.72 && el.closest('.pcard-mid')) { el.classList.add('en-deux'); enDeux.push(el); }
+    else el.style.transform = `scale(${Math.max(0.6, cw / sw).toFixed(3)})`;
+  }
+  const mesD = enDeux.map(el => [el, el.scrollWidth, el.clientWidth]);
+  for (const [el, sw, cw] of mesD) {
     if (sw > cw && cw > 0) el.style.transform = `scale(${Math.max(0.6, cw / sw).toFixed(3)})`;
   }
 }
