@@ -195,7 +195,7 @@ function tropheesHtml(stats, teams) {
   const miens = gagnants.filter(g => g.x.t.isPlayer).length + etoiles.filter(x => x.t.isPlayer).length;
   return `<div class="result-section">
     <h3>${ico('i-cup')}Les trophées de la saison</h3>
-    <p class="series-legende">Le Hart, le Norris, le Selke et le Vezina sont des votes : le moteur n'a pas d'électeurs.
+    <p class="series-legende">Le Hart, le Norris, le Selke et le Vézina sont des votes : le moteur n'a pas d'électeurs.
       ${miens ? `<strong>${miens} de tes joueurs y sont.</strong>` : ''}</p>
     <div class="trophees">${gagnants.map(carte).join('')}</div>
     <h4 class="tro-titre">Première équipe d'étoiles</h4>
@@ -473,7 +473,7 @@ function voletNiveau(teams, reelles) {
         <div class="niv-tuile"><span class="k">Points attendus</span><b>${moi.attendu.toFixed(1)}</b></div>
         <div class="niv-tuile"><span class="k">Écart</span><b class="${moi.ecart >= 0 ? 'pm-pos' : 'pm-neg'}">${signe(moi.ecart)}</b></div>
       </div>
-      <p class="series-legende">Pythagore : ce que ton différentiel de buts annonçait. Au-dessus, tu as gagné tes matchs serrés ; en dessous, tu en as perdu que tes buts méritaient.</p>
+      <p class="series-legende">Pythagore : ce que ton différentiel de buts annonçait. Au-dessus, tu as gagné tes matchs serrés ; en dessous, tu as perdu des matchs que tes buts méritaient.</p>
       <div class="table-wrap"><table class="std niv-table">
         <thead><tr><th class="left">Équipe</th><th>PTS</th><th>Attendus</th><th class="heros">Écart</th><th>Calendrier</th><th>Vraie saison</th></tr></thead>
         <tbody>${parEcart.map(x => `<tr class="${x.t.isPlayer ? 'you' : ''}">

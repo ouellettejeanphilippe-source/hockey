@@ -89,7 +89,7 @@ export const TRAITS = {
     desc: 'Reconnu comme le meilleur défenseur de sa saison',
   },
   VEZINA: {
-    label: 'Gardien d\'élite', short: 'Vezina', icon: '🥅',
+    label: 'Gardien d\'élite', short: 'Vézina', icon: '🥅',
     desc: 'Reconnu comme le meilleur gardien de sa saison',
   },
   SMYTHE: {

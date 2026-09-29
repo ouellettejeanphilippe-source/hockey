@@ -195,7 +195,7 @@ export const EVENEMENTS = {
   photo: { nom: 'La photo d\'équipe', ico: '📸', rarete: 'commune', duree: 5, texte: 'Tout le monde en complet, les cheveux peignés.', effet: { discipline: 0.9, finition: 1.01 } },
   engueulade: { nom: 'Le coach sort de ses gonds', ico: '🤬', rarete: 'peu', duree: 5, texte: 'Un bâton cassé sur le banc.', effet: { finition: 1.05, discipline: 1.1, blessure: 1.05 } },
   brunch: { nom: 'Le brunch des familles', ico: '🥞', rarete: 'commune', duree: 7, texte: 'Les enfants dans le vestiaire.', effet: { energie: 0.94, volume: 0.99 } },
-  public: { nom: 'L\'oeil du public', ico: '👁️', rarete: 'rare', duree: 10, texte: 'Chaque match est télévisé d\'un océan à l\'autre.', effet: { finition: 1.03, defense: 0.98, energie: 1.05 } },
+  public: { nom: 'L\'œil du public', ico: '👁️', rarete: 'rare', duree: 10, texte: 'Chaque match est télévisé d\'un océan à l\'autre.', effet: { finition: 1.03, defense: 0.98, energie: 1.05 } },
   arena: { nom: 'Le déménagement d\'aréna', ico: '🏟️', rarete: 'peu', duree: 6, texte: 'La glace neuve est rapide.', effet: { volume: 1.04, defense: 1.02 } },
 };
 

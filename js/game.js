@@ -1267,7 +1267,7 @@ function setupEvents() {
     options: [
       { cle: 'a1', rarete: 'commune', ico: '🎰', nom: '1. Repêche', type: 'Le repêchage', texte: 'La roulette sort de vrais clubs de 55 saisons. Signe 23 joueurs sous le plafond : trouver les aubaines, c\'est le métier.' },
       { cle: 'a2', rarete: 'peu', ico: '🧬', nom: '2. Ton identité', type: 'Avant le premier tour', texte: 'Une carte parmi trois colore ton repêchage : la roulette sort plus souvent tes francs-tireurs, tes costauds, tes aubaines…' },
-      { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'Derrière le banc', texte: 'Chaque ligne joue une tactique. Plus elle la joue, plus sa chimie monte — mais contre un gros adversaire, il faut parfois changer.' },
+      { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'Derrière le banc', texte: 'Chaque ligne joue un système. Plus elle le joue, plus sa chimie monte — mais contre un gros adversaire, il faut parfois changer.' },
       { cle: 'a4', rarete: 'rare', ico: '🃏', nom: '4. Tes cartes', type: 'Gros matchs et séries', texte: 'Cinq cartes, trois d\'élan. Tu vois la main de l\'adversaire : réponds-lui. Gagne, et ton deck grandit.' },
       { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: '82 matchs, puis les séries, match par match, contre des boss. La Coupe est le vrai but ; le 82-0, le Graal. Tout ce que tu gagnes va dans ton album.' },
     ],

@@ -7,7 +7,7 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, money, pct3 } from './util.js';
-import { profilPrincipal, roleSecond, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty } from './sim.js';
+import { profilPrincipal, roleSecond, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
 import { getArchetype } from './ratings.js';
 import { jambesHtml, strategieDeLigne, ouvrirStrategie } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
@@ -548,7 +548,7 @@ export function renderTeamSummary() {
     + tile('Unités en place', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone : le trio rend à plein. Les quatre trios et les trois paires comptent.")
     + tile('Unités mal placées', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
       `Unités où au moins un joueur joue hors de sa zone. Un cran d'écart ne coûte presque rien ; ${hors ? `${hors} unité${hors > 1 ? 's' : ''} est à deux crans ou plus, et là ça coûte cher.` : 'à deux crans ou plus, ça coûte cher.'}`)
-    + tile('Joueurs hors position', oop, oop ? 'dash-warn' : '', 'Joueurs placés ailleurs qu\'à leur position naturelle. Chacun perd de 2 à 5 points sur toutes ses cotes.');
+    + tile('Joueurs hors position', oop, oop ? 'dash-warn' : '', `Joueurs placés ailleurs qu'à leur position naturelle : chacun y perd de 2 à 5 points, et s'adapte en jouant (la pénalité fond des deux tiers en ${ADAPT_MATCHS} matchs).`);
 }
 
 export function renderMain() {

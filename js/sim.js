@@ -2179,7 +2179,7 @@ const DUREE_MOMENT = 10;
 export const MOMENTS = {
   pieuvre: {
     ico: '🐙', titre: 'Une pieuvre sur la glace', irl: 'Détroit, 1952',
-    recit: 'Un partisan lance une pieuvre sur la glace après ton but. L\'aréna devient fou. Deux bonnes nouvelles : laquelle tu prends?',
+    recit: 'Un partisan lance une pieuvre sur la glace après ton but. L\'aréna devient fou. Deux bonnes nouvelles : laquelle tu prends ?',
     // S80 : ton dernier match, chez toi, avec au moins un but.
     faits: c => (c.dernier && c.dernier.domicile && c.dernier.pour >= 1 ? {} : null),
     options: [
@@ -2305,7 +2305,7 @@ export const MOMENTS = {
   },
   tempete: {
     ico: '🌨️', titre: 'La tempête de neige', irl: 'Buffalo, 2014',
-    recit: 'Deux mètres de neige. L\'avion ne décolle pas, et le match est dans deux jours à l\'autre bout du continent. Les deux options font mal : laquelle moins?',
+    recit: 'Deux mètres de neige. L\'avion ne décolle pas, et le match est dans deux jours à l\'autre bout du continent. Les deux options font mal : laquelle moins ?',
     options: [
       { cle: 'autobus', nom: 'Vingt heures d\'autobus', prix: 'Toute l\'équipe arrive épuisée', action: { energieTous: -15 } },
       { cle: 'attendre', nom: 'Attendre l\'avion à l\'hôtel', prix: 'On arrive le matin du match, sans réchauffement', finition: 0.95, volume: 0.95, duree: 3 },
@@ -2360,7 +2360,7 @@ export const MOMENTS = {
    */
   camp: {
     ico: '🏕️', titre: 'Le camp de mi-saison', irl: null,
-    recit: 'La pause du Match des étoiles : trois jours d\'entraînement. Qui travaille quoi?',
+    recit: 'La pause du Match des étoiles : trois jours d\'entraînement. Qui travaille quoi ?',
     // S80 : à la mi-saison seulement, quand la pause arrive vraiment.
     faits: c => (c.J >= 38 && c.J <= 55 ? {} : null),
     options: [
@@ -2571,8 +2571,8 @@ export const SORTES_DECK = {
   effet: { ico: '🃏', nom: 'Carte d\'effet', mot: 'Un effet pour le reste de la saison' },
   recrue: { ico: '🎟️', nom: 'Joueur au choix', mot: 'Trois vrais joueurs, style loto : tu en prends un' },
   amelioration: { ico: '⬆️', nom: 'Amélioration', mot: 'Un de tes joueurs s\'améliore pour de bon' },
-  profil: { ico: '🔄', nom: 'Nouveau rôle', mot: 'Un de tes joueurs change de profil' },
-  strategie: { ico: '📘', nom: 'Stage de système', mot: 'Ta formation apprend une tactique d\'un coup' },
+  profil: { ico: '🔄', nom: 'Nouveau rôle', mot: 'Un de tes joueurs change de rôle' },
+  strategie: { ico: '📘', nom: 'Stage de système', mot: 'Ta formation apprend un système d\'un coup' },
   // LE MÉNAGE (S74) : une carte de moins dans le deck de match (js/combat.js) — l'autre moitié d'un deckbuilder.
   menage: { ico: '🗑️', nom: 'Le ménage', mot: 'Retire une carte de ton deck de match' },
   // LE CAMP D'ENTRAÎNEMENT (S74) : une carte du deck de match devient sa version « + ».
@@ -6587,7 +6587,7 @@ export const AVANT_GROS = {
       { cle: 'glace', nom: 'Laisser parler la glace', bon: 'Tête froide', discipline: 0.85 },
     ] },
   virus: { ico: '🦠', titre: 'Le virus dans le vestiaire', cible: 'trois',
-    recit: '{noms} ont passé la nuit malades. Le soigneur dit qu\'ils peuvent jouer, « à peu près ». Aucun bon choix : lequel fait le moins mal?',
+    recit: '{noms} ont passé la nuit malades. Le soigneur dit qu\'ils peuvent jouer, « à peu près ». Aucun bon choix : lequel fait le moins mal ?',
     options: [
       { cle: 'jouer', nom: 'Ils jouent quand même', prix: '{noms} jouent épuisés', action: { energie: -35 } },
       { cle: 'rappel', nom: 'Les garder au lit, rappeler du club-école', prix: 'Des réservistes et des rappelés jouent à leur place ce soir', action: { absents: 1 } },
