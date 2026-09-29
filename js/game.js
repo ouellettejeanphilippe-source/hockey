@@ -1389,7 +1389,6 @@ function miniAvecVariante(p, rar) {
  * L'achat est une décision, qu'on signe ou non.
  */
 async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
-  const P = PACKS_TOUS[cle];
   const decs = decisionsDeLaPartie();
   const mods = modificateurs(decs, j + 1);
   const pitie = G.bonus === 'ROGUE' && packsSansHolo(decs) >= PITIE - 1;
@@ -1398,11 +1397,34 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
   const vendus = [];
   let vente = 0;
   cartes.forEach((x, t) => { x.doublon = avant.has(getPlayerKey(x.p)); if (x.doublon) { vendus.push(t); vente += venteJoueur(x); } });
-  ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
-  ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
   const meilleure = ['legendaire', 'rare', 'peu', 'commune'].find(r => cartes.some(x => x.rar === r)) || 'commune';
   const achat = { pack: cle, n, prix, sorte: 'joueurs', params: reglage, meilleure, vente, ...(vendus.length ? { vendus } : {}), ...(pitie ? { pitie: true } : {}) };
-  const palier = `k:${n}`;
+  /*
+   * L'ACHAT D'ABORD (1.0, J1-B). Avant, le butin entrait au méta (collection,
+   * cartable) AVANT que la décision n'enregistre l'achat : recharger la page
+   * pendant l'ouverture gardait les cartes sans payer, et le même numéro
+   * rejouait le même pack. Maintenant la décision `k:n` (l'achat, le prix)
+   * est écrite tout de suite ; la signature est une SECONDE décision,
+   * `k:n:signe` — et un achat sans signature rouvre le choix au hub
+   * (`rouvrirPackJoueurs`, le même tirage), sans retirer ni repayer.
+   */
+  decider({ jour: j, palier: `k:${n}`, achat });
+  ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
+  ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
+  offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider });
+}
+/* Un achat enregistré sans signature (la page rechargée en plein choix) : le même tirage, à choisir. */
+async function rouvrirPackJoueurs(achat, j, decider) {
+  const decs = decisionsDeLaPartie();
+  const mods = modificateurs(decs, j + 1);
+  const { cartes, reglage } = await tirerPackJoueurs(achat.pack, achat.n, achat.params || {}, mods, !!achat.pitie);
+  cartes.forEach((x, t) => { x.doublon = (achat.vendus || []).includes(t); });
+  offrirPackJoueurs({ cle: achat.pack, cartes, reglage, pitie: !!achat.pitie, vente: achat.vente || 0, n: achat.n, j, decider });
+}
+/* Le paquet se déchire (js/gerant.js) ; on en signe UN (« Signer », puis QUI SORT — `choisirQuiSort`), ou personne. */
+function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }) {
+  const P = PACKS_TOUS[cle];
+  const palier = `k:${n}:signe`;
   for (const x of cartes) ballottageVu.set(getPlayerKey(x.p), x.p);
   const titre = `${P.nom}${reglage.franchise ? ` · ${FRANCHISES[reglage.franchise].nom}` : reglage.saison ? ` · ${reglage.saison}` : reglage.club ? ` · ${reglage.club}` : ''}`;
   const offrir = () => ouvrirChoix({
@@ -1429,12 +1451,12 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
         if (!sortie) return;
         G.variantes.cartes[k] = x.rar;
         if (x.num) (G.variantes.numeros = G.variantes.numeros || {})[k] = x.num;
-        decider({ jour: j, palier, achat, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) } });
+        decider({ jour: j, palier, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) } });
       };
       // QUI SORT : la sortie doit faire entrer son salaire sous le plafond (effectif), ou au moins ne pas l'empirer.
       quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), note: q => `libère ${money(capHitDuJour(q))}`, onChoix: signer, onFerme: offrir });
     },
-    onFerme: () => decider({ jour: j, palier, achat }),
+    onFerme: () => decider({ jour: j, palier, signe: false }),
   });
   offrir();
 }
@@ -1481,10 +1503,11 @@ function ouvrirPackCartes(cle, prix, j, n, decider) {
     const dejaVu = c.cat === 'patron' && (perso.has(c.cle) || ids.slice(0, t).includes(id));
     if (rogue && dejaVu) { vendus.push(t); vente += valeurDe(id); }
   });
+  const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(vendus.length ? { vendus, vente } : {}), ...(maudites.length ? { maudites } : {}) };
+  // 1.0 (J1-B) : l'achat est une décision AVANT que le butin n'entre au méta — recharger la page ne donne plus les cartes gratis.
+  decider({ jour: j, palier: `k:${n}`, achat });
   if (rogue) recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${Lg.graine}:k:${n}`);
   ajouterCollection({ cartes: ids });
-  const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(vendus.length ? { vendus, vente } : {}), ...(maudites.length ? { maudites } : {}) };
-  const dec = { jour: j, palier: `k:${n}`, achat };
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Tout ranger',
     recit: (rogue
@@ -1493,8 +1516,8 @@ function ouvrirPackCartes(cle, prix, j, n, decider) {
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
     options: [...ids.map((id, t) => ({ ...optionDeBanque(id), cle: String(t), prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : '' })),
       ...maudites.map((id, t) => ({ ...optionDeBanque(id), cle: `m${t}`, prix: 'Malédiction : elle frappe tout de suite' }))],
-    onChoix: () => decider(dec),
-    onFerme: () => decider(dec),
+    onChoix: () => {},
+    onFerme: () => {},
   });
 }
 
@@ -5965,7 +5988,7 @@ async function deciderSaison(d, depuis) {
   // doivent pas bouger (S74).
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
-  const deckSeul = d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || (!!d.garde && !d.mutation);
+  const deckSeul = d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || (!!d.garde && !d.mutation);
   decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
   await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
@@ -6497,7 +6520,7 @@ function ouvrirEcranSaison(depuis = 0) {
             suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
             bareme: (G.rogue && G.rogue.bareme) || JETONS }) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
-        boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider) },
+        boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
         inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider) => ouvrirInventaireJeu(j, decider) },
       },
       onTermine: () => terminerSaison(),
