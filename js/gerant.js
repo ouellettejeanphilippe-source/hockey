@@ -636,6 +636,16 @@ export function ouvrirLignes(spec) {
       <div class="gl-ad"><span>🛡️ Défense</span><input type="range" min="-2" max="2" step="1" value="${match.ad}" class="gl-ad-range" aria-label="Attaque ou défense"><span>Attaque 🎯</span></div>
       <div class="choix-puces gl-ad-puces">${puces(motsDEffet({ finition: 1 + 0.025 * match.ad, defense: 1 + 0.02 * match.ad }))}${match.ad ? '' : '<span class="puce neutre">Équilibré</span>'}</div>
     </section>` : '';
+    /*
+     * LES TOTAUX DU SOIR (1.0, C5). Tout ce qui joue ce soir, multiplié et
+     * passé sous les bornes du moteur (`totauxDuSoir`, js/sim.js) — la
+     * consigne qu'on règle ici comprise, recalculée à chaque toucher.
+     */
+    const tot = spec.totaux ? spec.totaux(match, brouillon) : null;
+    const totauxHtml = tot ? `<section class="gl-totaux">
+      <div class="gl-totaux-l"><b>Ce soir :</b> <span class="choix-puces">${tot.length ? puces(tot) : '<span class="puce neutre">aucun effet</span>'}</span></div>
+      <div class="gl-mot">Les effets se multiplient entre eux.</div>
+    </section>` : '';
     const svTxt = g => (g && Number.isFinite(g.sv) ? g.sv.toFixed(3).replace(/^0/, '') : '—');
     const boutonGardien = (qui, g) => {
       const e = g ? (spec.energie[getPlayerKey(g)] ?? 100) : 100;
@@ -697,7 +707,7 @@ export function ouvrirLignes(spec) {
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
-      <div class="choix-corps">${effetsHtml(spec.effets)}${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv ? spec.adv.nom : 'Eux' }) : ''}${consigne}${filetHtml}${onglets}${detail}</div>
+      <div class="choix-corps">${totauxHtml}${effetsHtml(spec.effets)}${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv ? spec.adv.nom : 'Eux' }) : ''}${consigne}${filetHtml}${onglets}${detail}</div>
       <div class="gl-pied">
         ${spec.onBanc ? '<button type="button" class="btn gl-banc">Changer les trios</button>' : ''}
         <button type="button" class="btn go gl-appliquer">${esc(spec.motAppliquer || 'Appliquer')}</button>

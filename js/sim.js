@@ -3652,6 +3652,9 @@ export function profilMatch(team, lineup, adv = null) {
 
   const patineurs = habilles.filter(p => p.p !== 'G');
   const cartes = effetsDeSaison(team, adv, lineup);
+  // L'indiscipline de l'alignement SANS les effets (C5) : `totauxDuSoir` en tire ce que les effets y changent, bornes comprises.
+  const disciplineBase = patineurs.length
+    ? discTac * patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length + discAgr : 1;
 
   return {
     unites,
@@ -3662,9 +3665,9 @@ export function profilMatch(team, lineup, adv = null) {
     // L'indiscipline : combien cet alignement prend de punitions. Le plan de
     // match entre ICI — un échec avant lourd se paie à l'arbitre.
     discipline: patineurs.length
-      ? borne(cartes.discipline * (discTac * patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length + discAgr),
-        DISCIPLINE_MIN, DISCIPLINE_MAX)
+      ? borne(cartes.discipline * disciplineBase, DISCIPLINE_MIN, DISCIPLINE_MAX)
       : cartes.discipline,
+    disciplineBase, cartes,
     annee: anneeDe(habilles),
     // Les occasions d'avantage de cet alignement : mesurées par saison quand
     // les shards les portent, repère d'époque sinon (voir occasionsDe).
@@ -3674,6 +3677,7 @@ export function profilMatch(team, lineup, adv = null) {
     // sous sa borne, `finitionFacteur` sous la sienne (le plafond du jeu ne
     // se contourne pas avec une carte).
     pression: borne(pression * cartes.volume, 0.40, REF.pression * PRESSION_MAX),
+    pressionBrute: pression,
     finEquipe, creaEquipe,
     finitionFacteur: Math.min(FINITION_MAX / finEquipe, cartes.finition),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
@@ -6049,6 +6053,80 @@ export function motsDEffet(e, duree = null) {
   if (duree) out.push({ txt: `${duree} match${duree > 1 ? 's' : ''}`, bon: null, duree: true });
   return out;
 }
+/*
+ * LES TOTAUX DU SOIR (1.0, C5). JP : *je comprends pas plusieurs mécaniques*.
+ * Les cartes, les patrons, le roulement, les moments et la consigne du match se
+ * MULTIPLIENT entre eux (`effetsDeSaison`), puis `profilMatch` les passe sous
+ * ses bornes : la pression sous PRESSION_MAX, la finition sous FINITION_MAX,
+ * l'indiscipline entre DISCIPLINE_MIN et DISCIPLINE_MAX. Ce que l'écran annonce
+ * est donc ce que le moteur applique CE SOIR, rapporté au même alignement sans
+ * aucun effet : borne(x × effets) / borne(x). Rien n'est recalculé à part — les
+ * nombres viennent du profil du match lui-même (`check_totaux.mjs` le prouve).
+ * Les systèmes et l'agressivité jouent ligne par ligne : ils vivent dans les
+ * lignes, pas dans ce total.
+ *
+ * `aVenir` : les décisions de CE jour pas encore jouées (la consigne qu'on vient
+ * de choisir, une carte prise ce matin). Le moteur ne les applique qu'en jouant
+ * la journée ; ce qu'elles ont de PUR (cartes, patrons, effets, roulement,
+ * lignes) est posé le temps du calcul, puis l'équipe est remise telle quelle.
+ */
+export function totauxDuSoir(team, lineup = null, adv = null, aVenir = []) {
+  if (!team) return null;
+  const champs = ['cartes', 'patrons', 'effets', 'effetsSerie', 'roulement', 'lignes'];
+  const avant = champs.map(k => [k, k in team, team[k]]);
+  // En séries, le match qui vient lit `effetsSerie` (S69), pas les effets datés de la saison.
+  const serie = team.jourCourant === Infinity;
+  const ajouter = x => { if (serie) team.effetsSerie = [...(team.effetsSerie || []), x]; else team.effets = [...(team.effets || []), x]; };
+  try {
+    for (const d of aVenir || []) {
+      if (d.carte && CARTES[d.carte]) team.cartes = [...(team.cartes || []), d.carte];
+      if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
+      if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
+      const eff = serie ? (d.match ? effetDeMoment({ match: d.match, jour: 0 }) : null) : effetDeMoment(d);
+      if (eff) ajouter(eff);
+      if (d.effet && !serie) {
+        const { duree, nom, ico, ...canaux } = d.effet;
+        ajouter({ debut: d.jour, fin: d.jour + (duree || DUREE_MOMENT), nom, ico, ...canaux });
+      }
+      if (serie && d.ajustement && AJUSTEMENTS[d.ajustement]) {
+        const { ico, nom, bon, prix, si, gardienAux, pari, ...canaux } = AJUSTEMENTS[d.ajustement];
+        void bon; void prix; void si; void gardienAux; void pari;
+        ajouter({ source: 'ajustement', nom, ico, ...canaux });
+      }
+      if (d.patron && d.patron.cle) {
+        const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
+        const { remplace: _r, ...pat } = d.patron; void _r;
+        team.patrons = [...(team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role)), pat];
+      }
+    }
+    return totauxBruts(team, lineup, adv);
+  } finally {
+    for (const [k, avait, v] of avant) { if (avait) team[k] = v; else delete team[k]; }
+  }
+}
+function totauxBruts(team, lineup, adv) {
+  const lu = lineup || activeLineup(team);
+  const P = profilMatch(team, lu, adv);
+  const c = P.cartes;
+  const pMax = REF.pression * PRESSION_MAX;
+  const fMax = FINITION_MAX / P.finEquipe;
+  const dSans = borne(P.disciplineBase, DISCIPLINE_MIN, DISCIPLINE_MAX);
+  return {
+    volume: P.pression / borne(P.pressionBrute, 0.40, pMax),
+    finition: P.finitionFacteur / Math.min(fMax, 1),
+    defense: c.defense,
+    discipline: P.patineurs.length ? P.discipline / dSans : c.discipline,
+    brut: { volume: c.volume, finition: c.finition, defense: c.defense, discipline: c.discipline },
+  };
+}
+/* Les mots des totaux : les quatre canaux, dans l'ordre, arrondis au pour cent (0 % se tait). */
+export function motsDesTotaux(t) {
+  if (!t) return [];
+  const e = {};
+  for (const k of ['volume', 'finition', 'defense', 'discipline']) if (Math.round((t[k] - 1) * 100) !== 0) e[k] = t[k];
+  return motsDEffet(e);
+}
+
 /* La durée d'une option de dilemme ou de séquence, en journées. */
 export const dureeOption = (o, famille) => (o && o.duree) || (famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
 

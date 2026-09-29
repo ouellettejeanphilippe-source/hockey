@@ -32,7 +32,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
-  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien } from './sim.js';
+  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur } from './cartes.js';
@@ -766,6 +766,19 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * par-dessus — qui demande la fin demande la fin.
    */
   const decs = decisions || [];
+  /*
+   * LES TOTAUX DU SOIR (1.0, C5). Ce que le moteur appliquera au match de la
+   * journée `j` : les effets déjà posés, plus les décisions pas encore jouées
+   * d'ici là (le moteur ne les applique qu'en jouant la journée). `brouillon`
+   * remplace la consigne et les lignes de ce soir-là (« Préparer le match »).
+   */
+  const totauxDuMatch = (j, brouillon = null) => {
+    const aVenir = decs.filter(d => d.jour >= jour && d.jour <= j && !d.entracte && !(brouillon && d.jour === j && (d.match || d.lignes)));
+    if (brouillon) aVenir.push({ jour: j, ...brouillon });
+    const jc = you.jourCourant;
+    you.jourCourant = j;
+    try { return totauxDuSoir(you, null, null, aVenir); } finally { you.jourCourant = jc; }
+  };
   const pris = new Set(decs.filter(d => typeof d.palier === 'string').map(d => d.palier));
   const momentsAvant = J => decs.filter(d => d.moment && d.moment.famille === 'moment'
     && typeof d.palier === 'string' && Number(d.palier.slice(2)) < J).map(d => d.moment.cle);
@@ -2031,10 +2044,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const ecJ = effetsEnCours(you, p.j);
       const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => `${e.ico || '✨'} ${e.nom}`), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
       const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans « Préparer le match »">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
+      // LES TOTAUX DU SOIR (1.0, C5) : ce que le moteur appliquera, effets multipliés et bornés.
+      const totJ = motsDesTotaux(totauxDuMatch(p.j));
+      const totauxHtml = `<div class="hub-totaux" title="Les effets se multiplient entre eux. Le détail est dans « Préparer le match »."><b>${p.j === jour ? 'Ce soir' : 'Au prochain match'} :</b> <span class="choix-puces">${totJ.length ? puces(totJ) : '<span class="puce neutre">aucun effet</span>'}</span></div>`;
       carte.innerHTML = `${miniBoss}<div class="hub-match">
         <div class="hub-match-titre">Prochain match · Journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
         <div class="hub-match-note">${dernierMot}</div>
+        ${totauxHtml}
         ${enJeuHtml}
         ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
         ${depistage}
@@ -2063,6 +2080,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // « Normale » par défaut, même un gros match (J1-O) : « Haute » a un prix (blessures, énergie) et se choisit.
         match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
         grosMatch: !!mb,
+        totaux: (match, lignes) => motsDesTotaux(totauxDuMatch(p.j, { match, lignes })),
         // DEVANT LE FILET CE SOIR (1.0, C4) : la rotation du matin, et ton choix s'il y en a un.
         filet: etat.filet ? { ...etat.filet, choix: (decs.find(d => d.jour === p.j && d.filet) || {}).filet || 'auto' } : null,
         motAppliquer: 'Appliquer — la saison reprend ici',
@@ -2831,6 +2849,14 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       adv: { nom: ctx.teamShort(boss), lignes: lignesDe(boss, boss.roster) },
       depistage: planDuMatch(s) ? planDuMatch(s).depistage : null,
       match: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.match) || {}).match || { importance: 'haute', ad: 0 },
+      // LES TOTAUX DU SOIR (1.0, C5) : les effets du match précédent tombent, ceux de ce match-ci s'ajoutent.
+      totaux: (match, lignes) => {
+        const aVenir = decsSerie.filter(d => d.ronde === ronde && d.match_no === k && !d.entracte && !d.match && !d.lignes);
+        aVenir.push({ match, lignes });
+        const es = you.effetsSerie, jc = you.jourCourant;
+        you.effetsSerie = []; you.jourCourant = Infinity;
+        try { return motsDesTotaux(totauxDuSoir(you, null, null, aVenir)); } finally { you.effetsSerie = es; you.jourCourant = jc; }
+      },
       motAppliquer: `Appliquer — le match ${k + 1} se joue comme ça`,
       onBanc: onBanc ? () => quitterPour(r => onBanc(r, k)) : null,
       onAppliquer: (lignes, match, filet) => quitterPour(r => onDecision({ ronde: r, match_no: k, lignes, match, ...(filet ? { filet } : {}) })),
