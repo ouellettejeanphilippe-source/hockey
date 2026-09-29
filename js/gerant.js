@@ -125,6 +125,23 @@ export function rolesDe(p) {
 }
 /* L'ancien nom : la fiche l'appelle encore. */
 export const barresProfils = rolesDe;
+/*
+ * SES RÔLES, TOUS (1.0, C2). JP : *variété de build, complexe mais clair*. Un
+ * système demande des rôles ; le joueur en a un, et une maîtrise de chacun
+ * des autres qui décide DÉJÀ du fit (`fitUnite` lit son score dans le rôle
+ * demandé, pas son rôle affiché). On la montre, en mots, du meilleur au moins
+ * bon — jamais un chiffre (aucune cote dans le DOM).
+ */
+export function sesRolesHtml(p) {
+  const pr = p && p.p !== 'G' ? profilsDe(p) : null;
+  if (!pr) return '';
+  const g = p.p === 'D' || p.p === 'LD' || p.p === 'RD' ? 'D' : 'F';
+  const liste = Object.entries(pr).filter(([k]) => PROFILS[g][k]).sort((a, b) => b[1] - a[1]);
+  return `<div class="ses-roles">${liste.map(([k, x], i) => {
+    const R = PROFILS[g][k];
+    return `<span class="ses-role${i === 0 ? ' premier' : x < 40 ? ' faible' : ''}" title="${esc(R.nom)} — lu dans ${esc(R.mot)}">${R.ico} ${esc(R.nom)} <b>${niveauDe(x)}</b></span>`;
+  }).join('')}</div>`;
+}
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
 export const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(', ')} et ${ns[ns.length - 1]}`);
 /* Les canaux d'effet d'un objet : ce que motsDEffet sait dire. */

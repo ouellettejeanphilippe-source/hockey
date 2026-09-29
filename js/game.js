@@ -33,7 +33,7 @@ import { surAppareil, imgVisage, demarrerVisages } from './visages.js';
 import { getTeamLogoHtml, TEAM_COLORS, couleurVive, encreSur, fondEquipe, viveSurFond, getTeamBand, teamSeasonUrl, nhlPlayerUrl } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
-import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, ouvrirAlignement, optionDeCarteMatch, puces, ouvrirStrategie, brancherPastilleNiveau, jambesHtml } from './gerant.js';
+import { strategieDeLigne, effetsHtml, barresProfils, ouvrirChoix, ouvrirAlignement, optionDeCarteMatch, puces, ouvrirStrategie, brancherPastilleNiveau, jambesHtml, sesRolesHtml } from './gerant.js';
 import { IDENTITES, scoreIdentite, identitesOffertes } from './identites.js';
 import { albumHtml } from './album.js';
 import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, brillante, finiHtml, tirageLimite, numeroDeCarte, TAILLE_SERIE, brancherInclinaison, ereDe, anneeDeCarte, dessinDe } from './cartes.js';
@@ -5311,10 +5311,13 @@ function showPlayerModal(p, opts = {}) {
   const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
 
   const equipeSim = opts.team ? `<span class="pcard-full-club">${getTeamLogoHtml(opts.team.tag, 14)} ${esc(teamLabel(opts.team))}</span>` : '';
-  const corps = apercu ? plusDeDetails : apres
+  // SES RÔLES (1.0, C2) : sa maîtrise de chaque rôle, qui décide du fit dans un système, à un toucher.
+  const sesRoles = p.p === 'G' || surTable() ? '' : `<div class="section-label">Ses rôles</div>${sesRolesHtml(p)}`;
+  const corps = apercu ? sesRoles + plusDeDetails : apres
     ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
+       ${sesRoles}
        ${plusDeDetails}`
     : surTable()
     ? `<div class="section-label">Sur la glace de table</div>
@@ -5323,6 +5326,7 @@ function showPlayerModal(p, opts = {}) {
        ${destNote}`
     : `<div class="section-label">Impact sur ton alignement</div>
        ${destNote}
+       ${sesRoles}
        ${plusDeDetails}`;
 
   /*

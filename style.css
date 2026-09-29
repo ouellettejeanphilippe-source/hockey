@@ -6650,6 +6650,13 @@ body::after {
 /* ===== Des cartes qui se lisent d'un coup d'oeil (S71) ===== */
 .tag-role { font-weight: 700; background: rgba(0, 0, 0, 0.32); border: 1px solid rgba(255, 255, 255, 0.14); color: var(--text); }
 .gj-roles { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+/* SES RÔLES (1.0, C2) : sa maîtrise de chaque rôle, en mots ; le premier en avant, les faibles en retrait. */
+.ses-roles { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 10px; }
+.ses-role { display: inline-flex; align-items: baseline; gap: 5px; padding: 3px 8px; border-radius: 999px; font-size: 12px; line-height: 1.3; background: var(--panel-2); color: var(--text); white-space: normal; }
+.ses-role b { font-weight: 700; color: var(--sub); }
+.ses-role.premier { box-shadow: inset 0 0 0 1px var(--gold); }
+.ses-role.premier b { color: var(--gold); }
+.ses-role.faible { opacity: 0.55; }
 .gj-roles .puce { font-size: 12.5px; }
 details.fiche-plus { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 8px; }
 details.fiche-plus > summary { cursor: pointer; color: var(--sub); font-size: 13px; font-weight: 700; letter-spacing: .04em; list-style: none; }
