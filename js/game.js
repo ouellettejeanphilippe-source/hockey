@@ -4387,7 +4387,8 @@ function renderPool() {
  */
 function ajusterCartes(root) {
   const noms = [...root.querySelectorAll('.pcard-name .lname, .slot-name, .spin-name')];
-  const tags = [...root.querySelectorAll('.pcard-mid .tags, .slot-tags')];
+  // La rangée de la case d'alignement (1.0, .cell-l2) passe à la ligne : elle ne se réduit pas.
+  const tags = [...root.querySelectorAll('.pcard-mid .tags, .slot-tags:not(.cell-l2)')];
   for (const el of noms) el.style.fontSize = '';
   for (const el of tags) el.style.transform = '';
   const mesN = noms.map(el => [el, el.scrollWidth, el.clientWidth, parseFloat(getComputedStyle(el).fontSize)]);

@@ -10398,3 +10398,13 @@ img.visage.brut { object-position: 50% 12% !important; }
   #hockeyCardModal .pcard-full-foot { position: sticky; bottom: 0; z-index: 6; }
   #hockeyCardModal .pcard-full-foot > #modalSignBtn { order: -1; flex: 1 0 100%; min-height: 46px; }
 }
+
+/* 1.0 : dans une case étroite, le rôle et la production passent à la ligne au lieu de se couper (smoke : « coupé à droite »). */
+.cell-role { flex-wrap: wrap; overflow: visible; }
+.cell-role > span { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.slot.cj-case .cell-l2 { flex-wrap: wrap; row-gap: 2px; }
+.slot.cj-case .slot-faits, .cell-prod { white-space: nowrap; overflow: visible; }
+.slot.cj-case .cell-l2 { overflow: visible; }
+/* La case grandit si sa rangée passe à la ligne (106 px au moins, comme avant). */
+.slot.cj-case { height: auto; min-height: 106px; }
+.slot.cj-case .slot-inner { flex: 1 0 auto; }
