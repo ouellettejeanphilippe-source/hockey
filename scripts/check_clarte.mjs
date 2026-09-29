@@ -161,8 +161,9 @@ function chainesDe(src) {
 
   // Chaque chiffre annoncé, reconstruit depuis sa constante.
   const minSal = Number((lire('js/game.js').match(/const MIN_SAL = ([\d_]+);/) || [])[1].replace(/_/g, ''));
-  const coutBal = Number((lire('js/game.js').match(/const COUT_BALLOTTAGE_ROGUE = (\d+);/) || [])[1]);
-  const plafBal = Number((lire('js/game.js').match(/const PLAFOND_BALLOTTAGE = ([\d.]+);/) || [])[1]);
+  // Le ballottage vit dans js/banc.js depuis le découpage de js/game.js (1.0, J3-6).
+  const coutBal = Number((lire('js/banc.js').match(/const COUT_BALLOTTAGE_ROGUE = (\d+);/) || [])[1]);
+  const plafBal = Number((lire('js/banc.js').match(/const PLAFOND_BALLOTTAGE = ([\d.]+);/) || [])[1]);
   const slot = role => SLOTS.find(s => s.role === role && !s.scratch);
   const pen = (p, role) => getPositionPenalty(p, slot(role));
   const B = baremeRogue({});

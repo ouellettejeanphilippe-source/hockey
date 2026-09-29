@@ -27,7 +27,15 @@ fonts/                Barlow Condensed (OFL), hébergée ici
 data/                 shards par saison (seasons/), index, seed, portraits.json, salaires, trophées, réputations
 img/logos, img/mugs   écussons des 44 franchises et visages recadrés (scripts/logos.mjs, scripts/portraits.mjs)
 
-js/game.js            le contrôleur : repêchage, alignement, fiche, packs, décisions, démarrage
+js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les onglets, l'historique
+js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes
+js/alignement.js      les cases, les trios et les paires, le système en fenêtre, le résumé d'équipe
+js/fiche.js           la fiche d'un joueur : recto verso, ses rôles, l'impact, le profil mesuré
+js/banc.js            derrière le banc : les décisions en saison, le ballottage, l'écran de saison
+js/partie.js          l'écran « Nouvelle partie » (le brouillon)
+js/rogue-jeu.js       le Rogue à l'écran : jetons, boutique, packs, inventaire, départ, la run
+js/modes-table.js     le tournoi Sur table, ses règles, son bilan, le match d'exhibition au plateau
+js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, plateau) : MT.nom, chargerTable()
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard()
 js/ratings.js         les cotes cachées (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
@@ -173,4 +181,4 @@ Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 4
 - Ne scrape pas hockey-reference ni hockeydb. Leurs conditions l'interdisent. L'API de la LNH est publique et couvre 1917 à aujourd'hui.
 - N'ajoute pas de dépendance npm sans une bonne raison écrite dans `PLAN.md`.
 - Ne commite pas `data/seasons/*.json` à la main — c'est le job du script et de l'Action.
-- Ne mets pas les cotes cachées dans le DOM avant la simulation. Un joueur curieux qui ouvre l'inspecteur ne devrait pas pouvoir les lire. Elles vivent dans le coffre privé `RATINGS_VAULT` (js/game.js), hors de `window.cap82.G`, et ne sortent que pour la simulation.
+- Ne mets pas les cotes cachées dans le DOM avant la simulation. Un joueur curieux qui ouvre l'inspecteur ne devrait pas pouvoir les lire. Elles vivent dans le coffre privé `RATINGS_VAULT` (js/sim.js), hors de `window.cap82.G`, et ne sortent que pour la simulation.
