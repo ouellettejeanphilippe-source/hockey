@@ -1789,38 +1789,6 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   opacity: 1; cursor: default; color: var(--text); border-color: var(--line);
   background: linear-gradient(90deg, color-mix(in srgb, var(--green) 34%, var(--panel-2)) var(--pct, 0%), var(--panel-2) var(--pct, 0%));
 }
-.actionbar .tabs { flex: 1 1 54%; }
-
-.tabs {
-  display: flex;
-  flex: 1 1 auto;
-  gap: 4px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 3px;
-}
-.tab {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-height: 38px;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: var(--sub);
-  font-family: var(--display);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  transition: background .15s, color .15s;
-}
-.tab.on { background: var(--panel-3); color: var(--text); }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -2251,7 +2219,7 @@ a.spin-club:hover { border-color: var(--team-accent); background: rgba(0, 0, 0, 
   line-height: 1.05;
 }
 .result .score.perfect { color: var(--gold); }
-.result .rec { font-size: 13.5px; font-weight: 800; color: var(--sub); margin-top: 3px; }
+
 /* Le tableau indicateur : six chiffres sur une ligne sous le pointage, comme
    une bande de diffusion. Les libellés raccourcissent, jamais les chiffres. */
 .result-strip {
@@ -2915,7 +2883,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
    DÉSACTIVENT au lieu de se cacher, parce que `piegerFocus` filtre sur
    `offsetParent` et qu'une rangée qui disparaît change l'ordre de tabulation
    à chaque clic. */
-.np-body .opt-row.desactive { opacity: 0.5; }
+
 .np-body .seg button:disabled { cursor: default; }
 .np-reprise {
   margin: 0; padding: 6px 0 6px 9px; font-size: 12.5px; color: var(--sub);
@@ -2978,7 +2946,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
     gap: 10px;
     align-items: stretch;
   }
-  .tabs { display: none; }
+
   .actionbar-inner { justify-content: center; }
   .actionbar .btn.go { flex: 0 1 520px; font-size: 20px; padding: 12px 18px; }
 }
@@ -4006,7 +3974,6 @@ a.spin-club:hover {
 .t-role { font-size: clamp(9px, calc(var(--tcell) * 0.22), 14px); font-weight: 800; letter-spacing: 0.04em; opacity: 0.8; }
 .t-nom { font-size: clamp(10.5px, calc(var(--tcell) * 0.26), 17px); font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 1px; }
 .t-rondelle { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 1.5px var(--fond-creux); }
-.t-rondelle.t-seule { position: static; width: 12px; height: 12px; background: var(--gold); }
 
 /* ---------- le bas : le dé, la pièce, les gestes, le fil ---------- */
 /* ======================================================================
@@ -4026,11 +3993,11 @@ a.spin-club:hover {
 .t-dock-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-size: 16px; font-weight: 800; letter-spacing: 0.02em; }
 .t-dock-nom .t-fiche-role { margin-right: 4px; }
 .t-dock-nom i { font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 6px; }
-.t-dock-vide, .t-dock-attente { font-size: 13.5px; font-weight: 600; color: var(--sub); }
+.t-dock-attente { font-size: 13.5px; font-weight: 600; color: var(--sub); }
 /* La consigne dit la main — ce qu'elle achète, ce qu'il en reste, pourquoi
    elle a fini — donc elle peut faire deux lignes : elle ne se coupe pas aux
    points de suspension. Le mot de la fin de main est en laiton. */
-.t-dock-vide, .t-dock-attente { white-space: normal; line-height: 1.2; }
+.t-dock-attente { white-space: normal; line-height: 1.2; }
 .t-dock-attente b { color: var(--gold); font-weight: 800; }
 .t-dock-consigne { font-size: 13.5px; font-weight: 600; color: var(--sub); line-height: 1.25; }
 .t-dock-consigne i { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 4px; }
@@ -4046,8 +4013,6 @@ a.spin-club:hover {
 .t-budget i.fait { border-color: var(--line-soft); color: var(--muted); text-decoration: line-through; }
 .t-budget b { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--sub); align-self: center; margin-right: 2px; }
 .t-budget i b { color: inherit; font-size: inherit; margin-right: 3px; }   /* les pas qu'il reste, dans la pastille (S42) */
-.t-dock-actions { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-.t-dock-actions::-webkit-scrollbar { display: none; }
 
 /* ======================================================================
    LA CARTE DE COMMANDES, À LA FFT (S45). JP : *quand on clique sur le gars,
@@ -4129,7 +4094,7 @@ a.spin-club:hover {
    ce qui ne se touche pas ne ressemble pas à un bouton.
    ====================================================================== */
 /* 1. UNE SEULE HAUTEUR pour tout ce qui se touche. */
-.t-dock-ligne button, .t-dock-actions .t-geste, .t-dock-actions .t-mode {
+.t-dock-ligne button {
   min-height: 32px; display: inline-flex; align-items: center; padding-top: 0; padding-bottom: 0;
 }
 /* 2. LE BUDGET N'EST PAS UN BOUTON : il se lit, il ne se touche pas. Des
@@ -4148,10 +4113,7 @@ a.spin-club:hover {
 .t-budget i.fait::before { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
 /* 3. UNE SEULE COMMANDE PRINCIPALE : le geste qu'on cherche est plein, le
       reste est cerclé. Sans hiérarchie, huit boutons identiques se valent. */
-.t-dock-actions .t-tir { background: var(--gold); border-color: var(--gold); color: var(--sur-or, #1b1710); }
-.t-dock-actions .t-tir b, .t-dock-actions .t-tir i { color: inherit; opacity: 0.82; }
 
-.t-dock-actions .t-geste, .t-dock-actions .t-mode { flex: 0 0 auto; white-space: nowrap; }
 /* 4. LE DUEL EST UNE DÉCISION, DONC IL PREND LA BARRE, comme le dé (S46) :
       la question, les deux gestes, et de quoi changer d'avis. Il se balaie
       s'il déborde — sur un téléphone, « Frapper Vaive ? » et deux boutons
@@ -4226,8 +4188,7 @@ a.spin-club:hover {
 }
 .t-de.ok { border-left-color: var(--green); }
 .t-de.rate { border-left-color: var(--red); }
-.t-de-face { font-family: var(--display); font-size: 27px; font-weight: 800; line-height: 1; min-width: 34px; text-align: center; background: var(--fond-creux); border: 1px solid var(--line); border-radius: var(--r-s); padding: 2px 0; }
-.t-de-calcul { font-size: 12.5px; color: var(--sub); }
+
 .t-de-verdict { font-family: var(--display); font-size: 14px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
 .t-de.ok .t-de-verdict { color: var(--green); }
 .t-de.rate .t-de-verdict { color: var(--red); }
@@ -4244,11 +4205,10 @@ a.spin-club:hover {
 .t-axe { display: flex; flex-direction: column; align-items: center; min-width: 26px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-s); padding: 1px 3px; }
 .t-axe i { font-style: normal; font-size: 9.5px; color: var(--muted); letter-spacing: 0.06em; }
 .t-axe b { font-family: var(--display); font-size: 15px; font-weight: 800; }
-.t-hab { display: inline-block; margin-top: 7px; font-size: 12px; padding: 3px 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: var(--r-s); }
-.t-hab.on { color: var(--gold); border-color: var(--gold); }
+
 /* LES MODES : un bouton par geste à cible, l'actif en creux. JP : *boutons
    pour passer, dumper, frapper, esquiver, bloquer, pour un jeu tactique*. */
-.t-modes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
 .t-mode { display: inline-flex; align-items: baseline; gap: 5px; font-family: var(--display); font-size: 14px; font-weight: 700; padding: 6px 11px; border: 1px solid var(--line); background: var(--panel); color: var(--sub); border-radius: var(--r-s); cursor: pointer; }
 .t-mode b { font-size: 15px; color: var(--gold); }
 .t-mode i { font-style: normal; font-size: 11.5px; color: var(--muted); }
@@ -4260,15 +4220,13 @@ a.spin-club:hover {
 /* Sortir le gardien (1.0 · J4-P2) : sous « Qui saute ? », seulement quand la règle le permet. */
 .t-desert { border: 1px solid var(--gold); background: transparent; color: var(--gold); font-family: var(--display); font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: var(--r-s); cursor: pointer; }
 .t-desert:hover, .t-desert:focus-visible { background: var(--gold); color: var(--panel); }
-.t-gestes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
 .t-geste { display: inline-flex; align-items: baseline; gap: 5px; font-family: var(--display); font-size: 14px; font-weight: 700; padding: 6px 11px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: var(--r-s); cursor: pointer; }
 .t-geste b { font-size: 15px; color: var(--gold); }
 .t-geste i { font-style: normal; font-size: 11.5px; color: var(--muted); }
 .t-tir { border-color: var(--gold); }
 .t-aide { margin: 7px 0 0; font-size: 11.5px; color: var(--muted); }
 
-.t-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 9px 0; }
-.t-actions button { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; padding: 7px 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: var(--r-s); cursor: pointer; }
 .t-evident { border-color: var(--gold) !important; color: var(--gold) !important; }
 
 .t-fil { border-top: 1px solid var(--line-soft); padding-top: 7px; }
@@ -4322,8 +4280,7 @@ a.spin-club:hover {
 .t-seg button em { display: block; font-style: normal; font-size: 8.5px; letter-spacing: 0.08em; opacity: 0.85; }
 .t-seg button.vide { color: var(--red); }
 .t-seg button.on.vide { color: #6b1d22; }
-.t-vide-air, .t-ecran { position: absolute; bottom: 0; left: 1px; font-size: 9px; line-height: 1; }
-.t-ecran { left: auto; right: 1px; }
+.t-vide-air { position: absolute; bottom: 0; left: 1px; font-size: 9px; line-height: 1; }
 
 /* ---------- Sur table : le volet des règles, par-dessus le plateau ---------- */
 .table-regles { flex: none; font-family: var(--display); font-size: 19px; font-weight: 800; width: 30px; height: 30px; padding: 0; border-radius: 50%; }
@@ -5645,24 +5602,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    garde un trait : les tableaux (une rangée se suit du doigt), les états
    (choisi, ciblé, en danger) et les séparateurs qui portent un sens.
    --------------------------------------------------------------- */
-.pcard,
-.pcard-avatar,
-.slot,
-.pane,
-.result,
-.modal-sheet,
-.hub-eq,
-.hub-jeu,
-.cal-match,
-.bk-serie,
-.eq-carte,
-.icon-btn,
-.tag,
-.sum-item,
-.btn,
-.live-board,
-.hub-board,
-.trophee {
+.pcard, .pcard-avatar, .slot, .pane, .result, .modal-sheet, .hub-eq, .hub-jeu, .cal-match, .bk-serie, .eq-carte, .icon-btn, .tag, .sum-item, .btn, .live-board, .hub-board {
   border-color: transparent;
 }
 /* Les boutons et les pastilles reposaient sur leur filet pour exister : ils
@@ -5863,39 +5803,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    bordure n'a plus à le redire. */
 .pcard.signed { border-color: transparent; }
 
-/* ---------------------------------------------------------------
-   14. LE PLAN DE MATCH ET LA GLACE, derrière le banc (S62).
-
-   Deux rangées de segments, dans la langue des segments d'options : un aplat
-   pour le choisi, un filet pour les autres. Le MOT sous la rangée dit ce que
-   le réglage choisi achète et ce qu'il paie — il vient de `PLANS` /
-   `ROULEMENTS`, jamais d'un texte recopié dans la feuille de style.
-
-   À 390 px les cinq plans ne tiennent pas sur une ligne : la rangée SE
-   BALAIE (c'est elle qui défile, jamais la page — la règle du dépôt), le nom
-   s'efface sous 420 px et il ne reste que l'icône, qui porte l'infobulle.
-   --------------------------------------------------------------- */
-.banc-seg-btn {
-  flex: 0 0 auto; display: flex; align-items: center; gap: 4px;
-  min-height: 32px; padding: 4px 9px; border-radius: var(--r-xs);
-  background: var(--panel-2); border: 1px solid var(--line);
-  color: var(--sub); font-family: var(--display); font-size: 13px;
-  letter-spacing: .02em; cursor: pointer;
-}
-.banc-seg-btn.on {
-  background: var(--ui-accent); border-color: var(--ui-accent);
-  color: var(--sur-accent); font-weight: 600;
-}
-/*
- * LE NOM RESTE, MÊME À 390 PX, et la rangée se balaie. Icône seule, il fallait
- * TOUCHER chaque segment pour savoir ce qu'il fait — sur un téléphone il n'y a
- * pas de survol, donc pas d'infobulle. Cinq noms ne tiennent pas dans 366 px :
- * le cinquième affleure, et c'est l'affordance. La rangée défile, jamais la
- * page (la règle du dépôt).
- */
-@media (max-width: 419px) {
-  .banc-seg-btn { padding: 4px 7px; font-size: 12.5px; }
-}
 /* Le lien externe dans le titre d'une modale : la vraie saison du club chez
    Hockey-Reference, au même endroit et de la même taille que celui d'une
    fiche de joueur. On y envoie, on n'en lit rien. */
@@ -6674,11 +6581,7 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
 
 /* L'écran de la main au téléphone (S74, l'agent de test) : le plan se replie, les
    cartes sont plus étroites (une et demie à l'écran), « Jouer » reste en bas. */
-.main-plan { border-radius: var(--r-m, 14px); background: var(--panel-2); border: 1px solid var(--line); }
-.main-plan > summary { cursor: pointer; padding: 9px 12px; font-size: 14px; list-style: none; }
-.main-plan > summary::before { content: '▸ '; color: var(--sub); }
-.main-plan[open] > summary::before { content: '▾ '; }
-.main-plan .plan-adv { margin: 0; border: 0; }
+
 .main-sheet .main-boutons { position: sticky; bottom: 0; z-index: 3; padding: 10px 0 4px; background: linear-gradient(transparent, var(--bg) 30%); }
 @media (max-width: 640px) {
   .main-sheet .choix-main > .tc { flex-basis: min(64vw, 240px); }
@@ -7999,24 +7902,6 @@ body.exh-ouverte { overflow: hidden; }
    un rayon de 12. Une tuile qui s'ouvre (`.ouvrable`, ou un `<button>`)
    monte d'un ton au survol et se cerne de l'accent ; elle s'enfonce au doigt. */
 
-.tuile {
-  position: relative; display: flex; flex-direction: column; gap: var(--esp-1);
-  min-width: 0; padding: var(--esp-3);
-  background: var(--surface-2); color: var(--text);
-  border: 0; border-radius: var(--r-s);
-  box-shadow: inset 0 1px 0 var(--filet-tuile);
-  font: inherit; text-align: left; overflow: hidden;
-}
-.tuile.ouvrable, button.tuile {
-  cursor: pointer;
-  transition: background var(--t-vite), box-shadow var(--t-vite), transform var(--t-lent) var(--e-ressort);
-}
-.tuile.ouvrable:hover, button.tuile:hover {
-  background: var(--surface-3);
-  box-shadow: inset 0 1px 0 var(--filet-tuile), inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent);
-}
-.tuile.ouvrable:active, button.tuile:active { transform: scale(0.975); }
-
 .tuile-jauge { display: block; height: 6px; border-radius: 3px; background: var(--fond-creux); overflow: hidden; }
 .tuile-jauge > span { display: block; height: 100%; border-radius: inherit; background: var(--gold); transition: width var(--t-compte) var(--e-ressort); }
 
@@ -8159,33 +8044,18 @@ body.hub-docke #hubModal .hub-sheet .live-top,
 .forme-p.vide { border: 1px dashed var(--line); }
 .forme-p:last-child:not(.vide) { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 3px color-mix(in srgb, var(--text) 45%, transparent); }
 
-/* Le classement autour de toi : trois rangées, la tienne à l'accent. */
-.t-cl { display: flex; flex-direction: column; gap: 1px; }
-.t-cl-rangee {
-  display: grid; grid-template-columns: 18px 14px minmax(0, 1fr) auto; align-items: center; gap: 6px;
-  height: 16px; padding: 0 4px; margin: 0 -4px; border-radius: 4px;
-  font-size: 12.5px; color: var(--sub);
-}
-.t-cl-rangee i { font: 700 12px/1 var(--display); font-style: normal; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
-.t-cl-rangee em { font: 700 13px/1 var(--display); font-style: normal; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.t-cl-rangee b { font: 800 13px/1 var(--display); font-variant-numeric: tabular-nums; }
-.t-cl-rangee .team-logo-img, .t-cl-rangee .team-logo-inline { width: 14px !important; height: 14px !important; }
-.t-cl-rangee.toi { color: var(--text); background: color-mix(in srgb, var(--gold) 16%, transparent); box-shadow: inset 2px 0 0 var(--gold); }
-.t-cl-rangee.toi i, .t-cl-rangee.toi b { color: var(--gold); }
-
 /* L'objectif du proprio : une jauge. Atteint, elle verdit ; un objectif « ou
    moins » qui approche du mur rougit. */
-.t-obj-nom { font: 700 14px/1.15 var(--display); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .tuile-jauge.fait > span { background: var(--green); }
 .tuile-jauge.mur > span { background: color-mix(in srgb, var(--orange) 80%, var(--surface-3)); }
 .tuile-jauge.serre > span, .tuile-jauge.rate > span { background: var(--live); }
 
 /* L'infirmerie : deux noms, leurs matchs d'absence en rouge. Un filet rouge
    au flanc quand elle n'est pas vide — l'état se voit par sa forme. */
-.t-inf { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
 .t-inf-j { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; font-size: 13px; }
-.t-inf-nom { min-width: 0; overflow: hidden; white-space: nowrap; }
-.t-inf-nom .lien-joueur { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+
 .t-inf-j b { flex: none; font: 800 12.5px/1 var(--display); color: var(--live); }
 
 /* (e) LE CHANGEMENT D'ONGLET SE VOIT : le volet entre en glissant, une fois
@@ -8539,9 +8409,7 @@ table.data thead th { font-family: var(--display); font-weight: 700; letter-spac
   .live-board .live-eq-buts.flash, .live-board .live-eq-buts.flash > b,
   .live-board .live-eq:has(.live-eq-buts.flash) .live-eq-band::after,
   #liveModal .live-banniere { animation: none !important; }
-  .tuile, .tuile-jauge > span, .capgauge .fill, .toast,
-  .choix-option, .np-go, .close-btn, .icon-btn, #hubModal .hub-actions .btn,
-  .result-actions .btn, #liveModal .live-controls .btn { transition: none !important; }
+  .tuile-jauge > span, .capgauge .fill, .toast, .choix-option, .np-go, .close-btn, .icon-btn, #hubModal .hub-actions .btn, .result-actions .btn, #liveModal .live-controls .btn { transition: none !important; }
 }
 /* L'affiche d'un match joué s'ouvre sur son sommaire : l'anneau dit qu'elle se touche. */
 .hub-board[data-sommaire]:hover, .hub-board[data-sommaire]:focus-visible { box-shadow: 0 0 0 1px var(--ui-accent), inset 0 1px 0 var(--filet-lumiere); }
