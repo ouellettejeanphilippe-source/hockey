@@ -1,25 +1,30 @@
 /**
- * LE MENU (S77). JP : *chaque mode de jeu a ses saves et possibilité de
- * sauvegarder les saves et les reprendre, un menu au départ pour choisir*.
+ * L'ÉCRAN TITRE (S77 ; 1.0, R1). JP : *chaque mode de jeu a ses saves et
+ * possibilité de sauvegarder les saves et les reprendre, un menu au départ
+ * pour choisir* ; *que si je le montre à quelqu'un, ça ait pas l'air d'un jeu
+ * web*.
  *
- * Au lancement de l'appli, et par le bouton « Menu » de la barre du haut :
- *   - CONTINUER la dernière partie jouée ;
- *   - un carton par MODE (la saison, sur table, le mode Rogue) : reprendre
- *     la dernière partie de ce mode, ou en commencer une ;
+ * Au lancement de l'appli, plein écran, sur une glace d'aréna dessinée en
+ * CSS : le logo, puis
+ *   - CONTINUER la dernière partie jouée (le héros, avec son résumé) ;
+ *   - un carton par MODE, le Rogue en tête : reprendre la dernière partie de
+ *     ce mode, ou en commencer une ;
+ *   - l'exhibition, un lien sous les cartons ;
  *   - MES PARTIES : toutes, rangées par mode — reprendre, sauvegarder une
- *     copie (un instantané qu'on peut rouvrir plus tard), supprimer.
+ *     copie (un instantané qu'on peut rouvrir plus tard), supprimer ;
+ *   - les OPTIONS et les RÈGLES.
+ *
+ * En pleine partie, le bouton « Menu » de l'en-tête ouvre LE MÊME ÉCRAN par
+ * dessus le jeu, comme le menu pause d'une console : son héros devient
+ * « Retour à la partie », et le Retour (Échap, B, le bouton d'Android) y
+ * ramène aussi (js/pile.js).
  *
  * Le menu ne sait rien du jeu : il lit l'index (js/sauvegardes.js) et rend
  * la main au contrôleur par ses rappels (`continuer`, `reprendre`,
- * `nouvelle`, `options`, et `rogue` quand le mode existe).
+ * `nouvelle`, `options`, `regles`, `exhibition`, et `rogue`).
  *
- * L'EXHIBITION (S78, js/exhibition.js) a son carton sans être un genre de
- * sauvegarde : elle ne garde aucune partie, donc rien dans « Mes parties ».
- *
- * LE CHOIX DU MODE (S79, `ctx.choix`). JP : *« Nouvelle » devrait ramener
- * aux choix des modes*. Le bouton « Nouvelle » de la barre ouvre le même
- * menu, réduit aux cartons des modes, chacun avec « Commencer » : pas de
- * reprise, pas de « Mes parties » — c'est le rôle du bouton « Menu ».
+ * L'EXHIBITION (S78, js/exhibition.js) n'est pas un genre de sauvegarde :
+ * elle ne garde aucune partie, donc rien dans « Mes parties ».
  */
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer } from './sauvegardes.js';
 import { esc } from './util.js';
@@ -36,13 +41,11 @@ function quand(t) {
 const ligneResume = p => [p.resume && p.resume.etape, p.resume && p.resume.qui].filter(Boolean).join(' · ');
 
 let ctxCourant = null;
-let clavier = null;
 
 export function fermerMenu() {
   const m = document.getElementById('menuDepart');
   if (m) m.remove();
   document.body.classList.remove('menu-ouvert');
-  if (clavier) { window.removeEventListener('keydown', clavier); clavier = null; }
 }
 
 export function afficherMenu(ctx) {
@@ -57,12 +60,12 @@ export function afficherMenu(ctx) {
     m.setAttribute('aria-label', 'Le menu de Cap 82-0');
     document.body.appendChild(m);
   }
+  m.classList.toggle('en-jeu', !!ctx.enJeu);
   document.body.classList.add('menu-ouvert');
   dessiner(m);
-  if (!clavier) {
-    clavier = ev => { if (ev.key === 'Escape' && ctxCourant && ctxCourant.enJeu) fermerMenu(); };
-    window.addEventListener('keydown', clavier);
-  }
+  // Le focus sur le héros : la manette et le clavier partent de là.
+  const h = m.querySelector('.menu-continuer') || m.querySelector('.menu-mode [data-menu]');
+  if (h) h.focus({ preventScroll: true });
 }
 
 function dessiner(m) {
@@ -83,11 +86,10 @@ function dessiner(m) {
         ${extra ? `<p class="menu-mode-extra">${extra}</p>` : ''}
       </div>
       <div class="menu-mode-actions">
-        ${ctx.choix ? `<button type="button" class="btn go" data-menu="nouvelle" data-genre="${g}">Commencer</button>` : `
         ${reprise ? `<button type="button" class="btn go" data-menu="reprendre" data-id="${reprise.id}">Reprendre<small>${esc(ligneResume(reprise) || quand(reprise.maj))}</small></button>` : ''}
         <button type="button" class="btn${reprise ? '' : ' go'}" data-menu="nouvelle" data-genre="${g}">Nouvelle partie</button>
         ${g === 'rogue' && ctx.rogue ? '<button type="button" class="btn" data-menu="vestiaire">🏅 Le vestiaire des déblocages</button>' : ''}
-        ${g === 'rogue' && ctx.rogue && ctx.rogue.inventaire ? '<button type="button" class="btn" data-menu="inventaire">🎒 L\'inventaire et le classeur</button>' : ''}`}
+        ${g === 'rogue' && ctx.rogue && ctx.rogue.inventaire ? '<button type="button" class="btn" data-menu="inventaire">🎒 L\'inventaire et le classeur</button>' : ''}
       </div>
     </article>`;
   };
@@ -113,21 +115,24 @@ function dessiner(m) {
     const ps = partiesDuGenre(g);
     return ps.length ? `<div class="menu-groupe"><div class="menu-groupe-t">${GENRES[g].ico} ${esc(GENRES[g].nom)} · ${ps.length}</div>${ps.map(ligne).join('')}</div>` : '';
   }).join('');
-  m.innerHTML = `<div class="menu-fond" aria-hidden="true"></div>
+  const heros = ctx.enJeu || peutContinuer;
+  m.innerHTML = `<div class="menu-fond" aria-hidden="true"><div class="menu-glace"></div></div>
     <div class="menu-feuille">
       <header class="menu-tete">
         <div class="menu-logo">CAP <b>82-0</b></div>
-        <div class="menu-sous">${ctx.choix ? 'Nouvelle partie : choisis ton mode. Ta partie en cours reste dans « Mes parties ».' : ctx.vierge ? 'Bienvenue. Bâtis une équipe de vrais joueurs de 55 saisons, et va chercher la Coupe.' : 'Bâtis une équipe de vrais joueurs. Va chercher la Coupe.'}</div>
-        ${ctx.enJeu ? '<button type="button" class="menu-fermer" data-menu="continuer" aria-label="Retour à la partie">✕</button>' : ''}
+        <div class="menu-sous">${ctx.vierge ? 'Bienvenue. Bâtis une équipe de vrais joueurs de 55 saisons, et va chercher la Coupe.' : 'Bâtis une équipe de vrais joueurs. Va chercher la Coupe.'}</div>
       </header>
-      ${peutContinuer && !ctx.choix ? `<button type="button" class="menu-continuer" data-menu="continuer">
+      ${heros ? `<button type="button" class="menu-continuer" data-menu="continuer">
         <span class="mc-mot">${ctx.enJeu ? 'Retour à la partie' : 'Continuer'}</span>
-        <span class="mc-quoi">${GENRES[active.genre] ? GENRES[active.genre].ico : ''} ${esc(active.titre)} · ${esc(ligneResume(active) || quand(active.maj))}</span>
+        ${active ? `<span class="mc-quoi">${GENRES[active.genre] ? GENRES[active.genre].ico : ''} ${esc(active.titre)} · ${esc(ligneResume(active) || quand(active.maj))}</span>` : ''}
       </button>` : ''}
       <section class="menu-modes" aria-label="Les modes de jeu">${ordreModes.map(carte).join('')}</section>
       ${exhibition}
-      ${ix.parties.length && !ctx.choix ? `<details class="menu-parties"${ix.parties.length <= 3 ? ' open' : ''}><summary>📂 Mes parties · ${ix.parties.length}</summary>${groupes}</details>` : ''}
-      ${ctx.choix ? '' : '<footer class="menu-pied"><button type="button" class="btn small" data-menu="options">⚙ Options</button></footer>'}
+      ${ix.parties.length ? `<details class="menu-parties"${ix.parties.length <= 3 ? ' open' : ''}><summary>📂 Mes parties · ${ix.parties.length}</summary>${groupes}</details>` : ''}
+      <nav class="menu-pied" aria-label="Réglages et règles">
+        <button type="button" class="menu-entree" data-menu="options"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg>Options</button>
+        <button type="button" class="menu-entree" data-menu="regles"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles</button>
+      </nav>
     </div>`;
   m.querySelectorAll('[data-menu]').forEach(b => {
     b.onclick = () => {
@@ -142,6 +147,7 @@ function dessiner(m) {
       else if (quoi === 'inventaire' && ctx.rogue && ctx.rogue.inventaire) ctx.rogue.inventaire();
       else if (quoi === 'exhibition' && ctx.exhibition) ctx.exhibition();
       else if (quoi === 'options') ctx.options();
+      else if (quoi === 'regles') ctx.regles();
       else if (quoi === 'copier') { copier(id); dessiner(m); ouvrirParties(m); }
       else if (quoi === 'supprimer') {
         // Deux touches, jamais une : une partie supprimée ne revient pas.

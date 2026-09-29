@@ -233,7 +233,7 @@
   --t-lent: .24s;
   --e-sortie: cubic-bezier(.2, .8, .3, 1);
   --rail-w: 0px;
-  --bas-coquille: calc(var(--navbar-h) + 20px + var(--safe-bas));
+  --bas-coquille: calc(var(--navbar-h) + var(--safe-bas));
   --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
   --safe-bas: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
 }
@@ -331,9 +331,20 @@
   --sur-or: #0a1218;
 }
 
-* { box-sizing: border-box; }
+/* LES DÉFILEMENTS D'UN JEU (1.0, R1) : une glissière mince, du ton du texte,
+   sans rail — pas la barre grise d'une page web. */
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text) 22%, transparent) transparent;
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 22%, transparent); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* LA PAGE NE DÉFILE JAMAIS (1.0, R1) : chaque écran tient dans la fenêtre, et
+   ce sont ses volets qui défilent. Un jeu ne rebondit pas au bout du pouce. */
+html { -webkit-text-size-adjust: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; }
 
 body {
   margin: 0;
@@ -346,6 +357,13 @@ body {
   line-height: 1.45;
   overflow-x: hidden;
   padding-bottom: 0;
+  /* Un jeu ne se sélectionne pas comme un texte : un appui long sur un nom
+     ouvre sa carte, il ne surligne pas le mot. Les champs de saisie gardent
+     leur sélection. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1, h2, h3, h4 { margin: 0; font-weight: 800; }
@@ -362,15 +380,19 @@ h1, h2, h3, h4 { margin: 0; font-weight: 800; }
 .result-section > h3 .ico { margin-right: 5px; }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; }
-input, select { font: inherit; color: inherit; }
-a { color: var(--blue); }
+input, select, textarea { font: inherit; color: inherit; -webkit-user-select: text; user-select: text; }
+a { color: var(--blue); text-decoration: none; }
 
 
 .mono { font-family: var(--mono); }
 .num { font-variant-numeric: tabular-nums; }
 
 /* ---------------------------------------------------------------
-   Barre du haut
+   L'EN-TÊTE DU CLUB (1.0, R1). Toujours là, dans tous les modes : ton
+   écusson, ton nom, où en est la partie ; à droite, trois chiffres en
+   condensée — la fiche, le rang, le plafond. Au téléphone les chiffres
+   passent sur une deuxième rangée ; les onglets internes d'une section
+   (la Ligue, la Collection) ferment l'en-tête par en dessous.
    --------------------------------------------------------------- */
 
 .topbar {
@@ -380,21 +402,69 @@ a { color: var(--blue); }
   /* Le filet du haut est de la couleur du vestiaire en cours : c'est le
      bandeau d'une diffusion, et il change à chaque tour de roulette. */
   transition: box-shadow .3s;
+  margin-left: var(--rail-w);
 }
 
 .topbar-inner {
   max-width: 1720px;
   margin: 0 auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "retour club menu" "chiffres chiffres chiffres";
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
+}
+.topbar-inner > .retour-btn { grid-area: retour; }
+.topbar-inner > .retour-btn[hidden] { display: none; }
+.tete-club { grid-area: club; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tete-ecu { flex: none; display: grid; place-items: center; width: 34px; height: 34px; }
+.tete-ecu > * { max-width: 100%; max-height: 100%; }
+.tete-id { display: grid; min-width: 0; line-height: 1.15; }
+.tete-nom { font: 800 19px/1.05 var(--display); letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; }
+.tete-etat { font-size: 12.5px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tete-chiffres { grid-area: chiffres; display: flex; align-items: flex-end; gap: 16px; min-width: 0; }
+.tete-ch { display: grid; gap: 3px; min-width: 0; }
+.tete-ch[hidden] { display: none; }
+.tete-ch-l {
+  font: 700 9.5px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); white-space: nowrap;
+}
+.tete-ch-v { font: 800 22px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -0.2px; white-space: nowrap; }
+#menuBtn { grid-area: menu; }
+.capgauge.tete-ch { justify-items: stretch; text-align: left; }
+@media (min-width: 680px) {
+  .topbar-inner { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "retour club chiffres menu"; }
+  .tete-chiffres { gap: 24px; }
+  .tete-ch { text-align: right; justify-items: end; }
 }
 
-.topbar-actions {
-  flex: none;
-  display: flex;
-  gap: var(--sp-2);
+/* LE RETOUR VISIBLE (1.0, R1) : sur un écran secondaire, « ‹ Retour » remonte
+   d'un niveau, comme Échap, B ou le bouton d'Android (js/pile.js). */
+.retour-btn {
+  display: inline-flex; align-items: center; gap: 2px; flex: none;
+  min-height: 38px; padding: 0 12px 0 6px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--text);
+  font: 700 13px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
+  transition: background var(--t-vite), transform var(--t-vite);
 }
+.retour-btn .ico { width: 18px; height: 18px; }
+.retour-btn:hover { background: var(--surface-3); }
+.retour-btn:active { transform: scale(0.96); }
+
+/* LES ONGLETS INTERNES d'une section : une rangée de mots, l'ouvert souligné de l'accent. */
+.sousnav {
+  display: flex; gap: 4px; max-width: 1720px; margin: 8px auto 0;
+  overflow-x: auto; scrollbar-width: none;
+}
+.sousnav[hidden] { display: none; }
+.sousnav::-webkit-scrollbar { display: none; }
+.soustab {
+  flex: none; min-height: 36px; padding: 0 14px;
+  border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted);
+  font: 700 13px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+  transition: color var(--t-vite), border-color var(--t-vite);
+}
+.soustab:hover { color: var(--text); }
+.soustab.on { color: var(--text); border-bottom-color: var(--gold); }
 
 .icon-btn {
   display: inline-flex;
@@ -419,6 +489,7 @@ a { color: var(--blue); }
 .capgauge {
   flex: 1 1 auto;
   min-width: 0;
+  max-width: 320px;
   padding: 0;
   /* Plate : la barre du haut EST la boîte. Une jauge encadrée dans une barre
      encadrée au-dessus d'une carte encadrée, c'était trois cadres pour un
@@ -451,7 +522,7 @@ a { color: var(--blue); }
   color: var(--green);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.3px;
-  font-size: 25px;
+  font-size: 22px;
 }
 .capgauge-amt .amt.tight { color: var(--gold); }
 .capgauge-amt .amt.over { color: var(--red); }
@@ -2773,18 +2844,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .game { padding: 14px 16px; }
   .topbar-inner { gap: 14px; }
   .icon-lbl { display: inline; }
-  /* La jauge sur une seule ligne : étiquette, montant, barre, signés, budget
-     par case — les deux rangées deviennent des cases d'une grille. */
-  .capgauge {
-    display: grid;
-    grid-template-columns: auto auto minmax(120px, 1fr) auto auto;
-    align-items: center;
-    gap: 0 14px;
-  }
-  .capgauge-row, .capgauge-row.small { display: contents; }
-  .capgauge .track { margin: 0; }
-  .capgauge-row.small span:first-child { font-size: 12.5px; color: var(--sub); }
-  .capgauge-max { margin-left: -8px; }
+  .capgauge { width: 260px; }
   /* Le bloc de la roulette : le nom à gauche, les relances à droite, la bande
      des chiffres dessous sur toute la largeur. */
   .spin-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 20px; }
@@ -3089,13 +3149,17 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-ban-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 
 /* ---- un nom cliquable ouvre la fiche, une équipe ouvre sa page ---- */
+/* 1.0 (R1) : UN BOUTON, PAS UN LIEN. Le pointillé souligné disait « page web » ;
+   le nom se touche comme une commande — il s'allume sous le pointeur et
+   s'enfonce sous le doigt. */
 .lien-joueur, .lien-equipe {
   background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
   text-align: left; cursor: pointer; min-width: 0; display: inline-flex; align-items: center; gap: 6px;
-  text-decoration: underline dotted color-mix(in srgb, currentColor 30%, transparent); text-underline-offset: 3px;
-  transition: text-decoration-color .15s;
+  border-radius: 4px;
+  transition: color var(--t-vite), background var(--t-vite), transform var(--t-vite);
 }
-.lien-joueur:hover, .lien-equipe:hover { text-decoration-color: var(--gold); color: var(--text); }
+.lien-joueur:hover, .lien-equipe:hover { color: var(--gold); }
+.lien-joueur:active, .lien-equipe:active { transform: scale(0.97); background: color-mix(in srgb, var(--gold) 12%, transparent); }
 /* Le nom d'une case d'alignement : un lien vers sa carte, sur toute la largeur de la case. */
 .slot .slot-fiche { width: 100%; justify-content: flex-start; }
 .lien-joueur > span, .lien-equipe > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4754,7 +4818,7 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 .eq-table td.heros, .eq-table th.heros { color: var(--gold); }
 .eq-table td.sub-cell { color: var(--muted); font: 700 11px/1 var(--display); }
 .eq-joueur { background: none; border: none; color: var(--ink); font: inherit; padding: 0; cursor: pointer; text-align: left; }
-.eq-joueur:hover { color: var(--gold); text-decoration: underline; }
+.eq-joueur:hover { color: var(--gold); }
 
 /* ======================================================================
    LES GRANDS ÉCRANS — la largeur dormante, mesurée puis rendue
@@ -4840,18 +4904,13 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 }
 
 /* ======================================================================
-   UN ONGLET, UNE RAISON D'ÊTRE — la barre du bas, et une page par onglet
+   LES CINQ SECTIONS (1.0, R1) — la barre du bas, et une page par onglet
    ======================================================================
-   JP : *mettre onglets en bas, pages séparées de l'accueil* ; *un onglet,
-   une raison d'être genre* ; *je veux pas avoir tout restant dans la page,
-   picks, alignement, match du jour/calendrier, standings, leaders, C'EST
-   TOUS DES ONGLETS DIFFÉRENTS* ; *pense à l'interface d'un EHM*.
-
-   Le jeu avait trois systèmes d'onglets à trois endroits et trois
-   destinations enfermées dans des modales ouvertes par des icônes du haut.
-   Il n'y en a plus qu'un, et il est EN BAS — sous le pouce sur un téléphone,
-   et sur le rail de gauche dès qu'il y a la place, comme le menu d'un
-   Eastside Hockey Manager.
+   JP : *je me sens comme une balle de pinball* ; *que ça ait pas l'air d'un
+   jeu web*. Cinq portes, toujours les mêmes, dans tous les modes : Club,
+   Effectif, Marché, Ligue, Collection. Au téléphone, une barre d'onglets
+   posée au bas, sous le pouce ; dès 1000 px, un rail étroit à gauche, l'icône
+   sur le mot, comme le menu d'une console ou d'un Eastside Hockey Manager.
 
    `body[data-page]` est le seul état ; tout le reste s'en déduit ici. C'est
    ce qui garantit qu'on ne peut pas ajouter une section sans décider sur
@@ -4860,31 +4919,39 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 
 .navbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 56;
-  display: flex; gap: 0;
-  background: var(--panel); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--surface-0); border-top: 1px solid var(--line);
   padding-bottom: var(--safe-bas);
-  /* UNE FOIS LA SAISON JOUÉE LA BARRE COMPTE NEUF ONGLETS : elle défile en x
-     plutôt que de rétrécir « Calendrier » à quarante pixels. C'est le même
-     conteneur qui défile que pour un tableau — jamais la page. */
-  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
-.navbar::-webkit-scrollbar { display: none; }
+.rail-logo { display: none; }
 .navtab {
-  flex: 1 0 auto; min-width: max(68px, calc(100% / 5.6));
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  min-height: var(--navbar-h); padding: 6px 2px;
-  border: 0; border-top: 2px solid transparent; background: none; cursor: pointer;
-  font: 700 10.5px/1.1 var(--display); letter-spacing: .04em; text-transform: uppercase;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-width: 0; min-height: var(--navbar-h); padding: 6px 2px;
+  border: 0; background: none; cursor: pointer;
+  font: 700 11px/1.1 var(--display); letter-spacing: .06em; text-transform: uppercase;
   color: var(--muted);
-  transition: color var(--t-vite);
+  transition: color var(--t-vite), background var(--t-vite);
   position: relative;
 }
-.navtab .ico { width: 19px; height: 19px; transition: transform var(--t-lent) var(--e-sortie); }
+.navtab .ico { width: 21px; height: 21px; transition: transform var(--t-lent) var(--e-sortie); }
 .navtab-lbl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.navtab-badge { font-size: 9.5px; font-weight: 800; color: var(--muted); opacity: .8; }
+.navtab-badge {
+  position: absolute; top: 5px; left: calc(50% + 8px);
+  min-width: 18px; padding: 2px 5px; border-radius: 999px;
+  font: 800 10px/1 var(--display); color: var(--text); background: var(--surface-3);
+}
 /* 1.0 (J2-6e) : rien derrière avant le premier match — l'onglet reste touchable. */
 .navtab.mort:not(.on) { opacity: 0.45; }
-.navtab.on .navtab-badge { color: var(--gold); }
+/* L'ONGLET OUVERT SE VOIT : le mot s'allume, l'icône prend l'accent du club,
+   un trait de l'accent le coiffe. La forme dit l'état avant la couleur. */
+.navtab.on { color: var(--text); }
+.navtab.on .ico { color: var(--gold); transform: translateY(-1px); }
+.navtab.on::before {
+  content: ""; position: absolute; top: 0; left: 28%; right: 28%; height: 2px;
+  border-radius: 0 0 2px 2px; background: var(--gold);
+}
+.navtab.on .navtab-badge { color: var(--ui-on-accent); background: var(--gold); }
+.navtab:active .ico { transform: scale(0.9); }
 
 /* La barre d'action ne porte plus que le bouton principal, et elle se pose
    AU-DESSUS des onglets. Elle disparaît sur les pages de référence : le
@@ -4917,17 +4984,24 @@ body:has(#game.bilan) { --actionbar-h: 0px; }
 .page-tete { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 2px 2px 10px; border-bottom: 1px solid var(--line); }
 .page-tete h2 { margin: 0; display: flex; align-items: center; gap: 8px; font: 800 19px/1 var(--display); letter-spacing: .03em; }
 .page-tete .ico { width: 20px; height: 20px; color: var(--gold); }
+.page-tete .retour-btn .ico { color: inherit; }
 .page-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 0 18px; }
 /* L'écran des équipes tient sa propre hauteur : son corps ne défile pas, son
    `.eq-scroll` le fait (l'ancrage de S47). */
 .page-corps.eq-corps { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
 
+/* LES RÈGLES (1.0, R1) : un écran secondaire du Menu, plein écran par-dessus
+   tout, avec son « ‹ Retour ». */
+#pageRegles {
+  position: fixed; inset: 0; z-index: 430; max-width: none; height: auto; margin: 0;
+  padding: calc(12px + var(--safe-top)) max(16px, calc((100vw - 900px) / 2)) var(--safe-bas);
+  background: var(--bg);
+}
+
 /* ---------- ce que chaque onglet montre ---------- */
 /* Une page de référence cache le jeu, et réciproquement. On lit la ZONE et
-   non le nom de l'onglet : les onglets de partie changent avec la phase
-   (Vestiaire et Alignement pendant le repêchage, les cinq sections du bilan
-   ensuite), et une règle qui les énumère est une règle qui oublie le
-   prochain. */
+   non le nom de l'onglet : les pages de partie changent avec la phase, et
+   une règle qui les énumère est une règle qui oublie la prochaine. */
 body[data-zone="ref"] #game { display: none !important; }
 
 /* L'ALIGNEMENT EST UN ONGLET, DONC IL NE PORTE QUE L'ALIGNEMENT. La roulette,
@@ -4938,32 +5012,31 @@ body[data-page="alignement"] #dash,
 body[data-page="alignement"] #game:not(.bilan) .result-host,
 body[data-page="alignement"] .pane-pool { display: none !important; }
 
-/* ---------- EHM : le rail de gauche dès qu'il y a la place ---------- */
-@media (min-width: 1200px) {
+/* ---------- le rail de gauche dès qu'il y a la place ---------- */
+@media (min-width: 1000px) {
   .navbar {
-    top: var(--topbar-h); right: auto; bottom: 0; width: 186px;
-    flex-direction: column; justify-content: flex-start; 
-    border-top: 0; border-right: 1px solid var(--line); 
+    top: 0; right: auto; bottom: 0; width: var(--rail-w);
+    display: flex; flex-direction: column; gap: 2px;
+    padding: calc(10px + var(--safe-top)) 8px 10px;
+    border-top: 0; border-right: 1px solid var(--line);
   }
-  .navtab {
-    flex: 0 0 auto; flex-direction: row; justify-content: flex-start; gap: 10px;
-    min-height: 42px; border-top: 0; 
-    font-size: 13px; text-align: left;
+  .rail-logo {
+    display: block; margin: 4px 0 14px; text-align: center;
+    font: 900 16px/0.95 var(--display); letter-spacing: 0.06em; color: var(--text);
   }
-  .navtab .ico { width: 17px; height: 17px; flex: 0 0 auto; }
-  .navtab-lbl { flex: 1; }
-  .navtab.on { border-top: 0; }
-  .game, .page { margin-left: 186px; }
-  .actionbar { left: 186px; bottom: 0; }
+  .rail-logo b { display: block; color: var(--gold); font-size: 21px; }
+  .navtab { flex: 0 0 auto; min-height: 64px; border-radius: var(--r-s); font-size: 12px; gap: 5px; }
+  .navtab:not(.on):hover { color: var(--text); background: color-mix(in srgb, var(--text) 5%, transparent); }
+  .navtab.on { background: var(--surface-2); }
+  .navtab.on::before { top: 12px; bottom: 12px; left: 0; right: auto; width: 3px; height: auto; border-radius: 0 3px 3px 0; }
+  .navtab.on .ico { transform: none; }
+  .navtab-badge { top: 6px; left: calc(50% + 6px); }
+  .game, .page { margin-left: var(--rail-w); }
+  .actionbar { left: var(--rail-w); bottom: 0; }
   .game { padding-bottom: calc(var(--actionbar-h) + 16px); }
   /* Le rail est à gauche : la page reprend la hauteur que la barre du bas
      lui prenait. */
   .page { height: calc(100svh - var(--topbar-h)); }
-}
-@media (min-width: 1800px) {
-  .navbar { width: 220px; }
-  .game, .page { margin-left: 220px; }
-  .actionbar { left: 220px; }
 }
 
 /* LE REPÊCHAGE S'ANCRE AUSSI : la roulette et le tableau de bord restent en
@@ -5042,7 +5115,7 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
   body[data-page="repechage"] .pool.by-pos { overflow-y: hidden; }
   body[data-page="repechage"] .pool.by-pos .pool-col { min-height: 0; overflow-y: auto; }
 }
-@media (min-width: 1200px) {
+@media (min-width: 1000px) {
   /* Le rail est à GAUCHE : la hauteur ne lui doit plus rien. Sans cette
      reprise, chaque onglet de partie laissait 58 px de noir sous lui sur un
      écran large — la place d'une barre qui n'y est pas. */
@@ -5079,13 +5152,19 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
    l'interface, et il se pose PAR-DESSUS plutôt qu'à côté : `outline-offset`
    positif disparaît sous le premier parent qui rogne, et la moitié des
    boutons du jeu vivent dans une boîte en `overflow: hidden`. */
-:focus-visible {
+:focus-visible { outline: none; }
+/* LE FOCUS LUMINEUX (1.0, R1) : au clavier ou à la manette (`body.nav-clavier`,
+   js/manette.js), ce qu'on vise s'allume de l'accent du club — un anneau et
+   son halo, comme le curseur d'un menu de console. Un doigt ou une souris
+   l'éteint. */
+body.nav-clavier :focus {
   outline: 2px solid var(--gold);
   outline-offset: -2px;
   border-radius: inherit;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 28%, transparent), 0 0 22px color-mix(in srgb, var(--gold) 42%, transparent);
 }
 /* Sauf là où il y a de la place : un bouton isolé se cercle mieux au large. */
-.btn:focus-visible, .chip:focus-visible, .navtab:focus-visible, .icon-btn:focus-visible {
+body.nav-clavier .btn:focus, body.nav-clavier .chip:focus, body.nav-clavier .navtab:focus, body.nav-clavier .icon-btn:focus {
   outline-offset: 2px;
 }
 
@@ -5103,24 +5182,15 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
    Mesuré à 390 px : 91 px → 62, et la première carte du vestiaire remonte
    de 467 px à 402.
    --------------------------------------------------------------- */
-.topbar { position: relative; padding: var(--sp-3) var(--sp-4) 9px; }
-.capgauge-row:not(.small) { justify-content: flex-start; gap: var(--sp-2); }
-
-@media (max-width: 679.98px) {
-  .capgauge-row.small { margin-top: 3px; }
-  .capgauge .track {
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    height: 3px; margin: 0;
-    border: 0; border-radius: 0;
-    background: var(--fond-creux);
-  }
-  .fill-marker { top: 0; bottom: 0; }
-}
+.topbar { position: relative; padding: var(--sp-3) var(--sp-4) 0; }
+.capgauge-row:not(.small) { justify-content: space-between; gap: var(--sp-2); }
+.capgauge .track { height: 5px; margin-top: 4px; }
+.capgauge-row.small { margin-top: 3px; font-size: 12px; }
 @media (min-width: 680px) {
-  .topbar { padding: var(--sp-3) var(--sp-5); }
-  .capgauge .track { height: 5px; }
+  .topbar { padding: var(--sp-3) var(--sp-5) 0; }
 }
+/* Sans onglets internes, l'en-tête se ferme par son propre souffle. */
+.topbar:has(.sousnav[hidden]) { padding-bottom: var(--sp-3); }
 
 /* ---------------------------------------------------------------
    3. LE TABLEAU DE BORD : les mêmes trois chiffres, la moitié de la
@@ -5158,57 +5228,6 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
 }
 .btn.go:disabled { box-shadow: none; background: var(--panel-2); border-color: var(--line); color: var(--muted); }
 .btn:active:not(:disabled) { transform: scale(0.975); }
-
-/* ---------------------------------------------------------------
-   6. L'ÉTAT ACTIF SE VOIT. Un onglet choisi n'était qu'un filet de 2 px
-   et un fond à 9 % : à 390 px, sur cinq onglets identiques, il fallait
-   chercher lequel était ouvert. Il porte maintenant une PASTILLE pleine
-   sous son icône — la forme dit l'état avant que la couleur ne le dise,
-   ce qui reste vrai pour un daltonien et sur un écran au soleil.
-   --------------------------------------------------------------- */
-.navtab.on {
-  color: var(--gold);
-  background: none;
-  border-top-color: transparent;
-}
-.navtab.on .ico { transform: translateY(-1px); }
-/* La pastille : un aplat de l'accent, derrière l'icône seulement. */
-.navtab.on::before {
-  content: "";
-  position: absolute;
-  top: 5px; left: 50%;
-  width: 34px; height: 26px;
-  margin-left: -17px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--gold) 18%, transparent);
-  pointer-events: none;
-}
-.navtab .ico, .navtab-lbl, .navtab-badge { position: relative; }
-
-/* ---------------------------------------------------------------
-   7. LE RAIL DE GAUCHE, ASSORTI. Sur grand écran l'onglet ouvert devient
-   une rangée pleine avec un repère au bord — le menu d'un EHM, pas une
-   liste de liens posée sur du noir.
-   --------------------------------------------------------------- */
-@media (min-width: 1200px) {
-  .navbar { padding: var(--sp-4) var(--sp-3); gap: var(--sp-1); }
-  .navtab { border-radius: var(--r-s); padding: var(--sp-3) var(--sp-4); }
-  .navtab.on::before {
-    top: 0; bottom: 0; left: 0; right: 0;
-    width: auto; height: auto; margin: 0;
-    border-radius: var(--r-s);
-    background: color-mix(in srgb, var(--gold) 14%, transparent);
-  }
-  .navtab.on::after {
-    content: "";
-    position: absolute;
-    left: 0; top: 50%; transform: translateY(-50%);
-    width: 3px; height: 18px;
-    border-radius: 0 3px 3px 0;
-    background: var(--gold);
-  }
-  .navtab.on .ico { transform: none; }
-}
 
 /* ---------------------------------------------------------------
    8. LA BANDE DU BASSIN NE COUPE JAMAIS UNE COLONNE EN DEUX.
@@ -5456,36 +5475,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 .btn-sign.is-signed { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
 
 /* ---------------------------------------------------------------
-   4. LA BARRE D'ONGLETS SE DÉTACHE DU BORD.
-
-   Une barre collée au bas, pleine largeur, avec un filet dessus, c'est la
-   barre d'un site. La même barre posée EN RETRAIT, arrondie, flottant
-   au-dessus du fond, c'est celle d'un jeu — et le geste ne coûte rien : la
-   hauteur réservée ne change pas, les cibles tactiles non plus.
-   --------------------------------------------------------------- */
-@media (max-width: 1199.98px) {
-  .navbar {
-    left: 10px; right: 10px;
-    bottom: calc(10px + var(--safe-bas));
-    padding-bottom: 0;
-    border: 0;
-    border-radius: var(--r-l);
-    overflow: hidden;
-    overflow-x: auto;
-    background: color-mix(in srgb, var(--surface-2) 90%, transparent);
-    backdrop-filter: blur(16px) saturate(1.2);
-    box-shadow: var(--ombre-flottante), inset 0 1px 0 var(--filet-lumiere);
-  }
-  .navtab { border-top: 0; }
-  /* La place réservée en bas suit la barre qui flotte. */
-  .game { padding-bottom: calc(var(--actionbar-h) + var(--navbar-h) + 20px + var(--safe-bas)); }
-  .actionbar { bottom: calc(var(--navbar-h) + 18px + var(--safe-bas)); }
-  body[data-zone="jeu"] .game,
-  .page { height: calc(100svh - var(--topbar-h) - var(--navbar-h) - 20px - var(--safe-bas)); }
-  body[data-zone="jeu"] .game { height: calc(100svh - var(--topbar-h) - var(--actionbar-h) - var(--navbar-h) - 20px - var(--safe-bas)); }
-}
-
-/* ---------------------------------------------------------------
    5. LA BARRE D'ACTION EST UN BOUTON, PAS UNE BARRE.
    Elle portait un fond, un filet et 68 px pleine largeur pour un seul
    bouton : le bouton se suffit.
@@ -5659,8 +5648,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    déduisent des jetons de la coquille, donc un redimensionnement recompose
    tout sans rien couper.
    ===================================================================== */
-@media (min-width: 1200px) { :root { --rail-w: 186px; --bas-coquille: 0px; } }
-@media (min-width: 1800px) { :root { --rail-w: 220px; } }
+@media (min-width: 1000px) { :root { --rail-w: 96px; --bas-coquille: 0px; } }
 
 body.hub-docke #hubModal {
   inset: auto;
@@ -6458,7 +6446,7 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
    sur « Lancer la saison » et sur le bouton flottant. Au grand écran, les
    onglets sont un rail à gauche : seule la barre d'action compte. */
 .toast { bottom: calc(var(--actionbar-h) + var(--navbar-h, 0px) + 16px + var(--safe-bas)); }
-@media (min-width: 1200px) { .toast { bottom: calc(var(--actionbar-h) + 16px + var(--safe-bas)); } }
+@media (min-width: 1000px) { .toast { bottom: calc(var(--actionbar-h) + 16px + var(--safe-bas)); } }
 
 /* L'ÉTIQUETTE PLUS LARGE QUE SA PLACE (QA S74b). « Fabricant de jeu » sous un
    long nom (Langenbrunner) débordait par la GAUCHE — `flex-end` pousse le
@@ -7468,18 +7456,48 @@ button.ln-strat .ln-som-ouvre::after { content: 'Régler ›'; font: 800 11px/1 
    Plein écran, par-dessus tout ; une glace qui luit doucement derrière.
    ===================================================================== */
 body.menu-ouvert { overflow: hidden; }
-.menu-depart { position: fixed; inset: 0; z-index: 400; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); }
+.menu-depart { position: fixed; inset: 0; z-index: 400; overflow-y: auto; overscroll-behavior: contain; background: #05080c; }
+/* EN PLEINE PARTIE, LE MENU PAUSE (1.0, R1) : le même écran, par-dessus le jeu qu'on devine derrière. */
+.menu-depart.en-jeu { background: color-mix(in srgb, #05080c 84%, transparent); backdrop-filter: blur(12px) saturate(0.8); }
 .menu-fond {
-  position: fixed; inset: 0; pointer-events: none;
+  position: fixed; inset: 0; pointer-events: none; overflow: hidden;
   background:
-    radial-gradient(120% 60% at 50% -10%, rgba(255, 140, 40, 0.18), transparent 60%),
-    radial-gradient(90% 50% at 100% 100%, rgba(60, 140, 255, 0.14), transparent 60%),
-    repeating-linear-gradient(90deg, transparent 0 calc(50% - 2px), rgba(220, 40, 40, 0.10) calc(50% - 2px) calc(50% + 2px), transparent calc(50% + 2px) 100%);
+    radial-gradient(55% 40% at 50% -6%, rgba(255, 255, 255, 0.11), transparent 70%),
+    radial-gradient(30% 55% at 16% -8%, rgba(255, 210, 140, 0.10), transparent 70%),
+    radial-gradient(30% 55% at 84% -8%, rgba(150, 195, 255, 0.10), transparent 70%),
+    linear-gradient(180deg, #05080c 0%, #09101a 55%, #0c1520 100%);
 }
+.menu-depart.en-jeu .menu-fond { opacity: 0.5; }
+/* LA GLACE, VUE DES GRADINS : la ligne rouge, les deux bleues, le cercle et
+   le point de la mise au jeu — dessinés en CSS, couchés en perspective, et
+   un reflet qui passe lentement comme sous les projecteurs. */
+.menu-glace {
+  position: absolute; left: -35%; right: -35%; bottom: -10%; height: 64%;
+  transform: perspective(700px) rotateX(60deg); transform-origin: 50% 100%;
+  border-radius: 50% 50% 0 0 / 22% 22% 0 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(30, 80, 190, 0.9) 0 9px, transparent 10px),
+    radial-gradient(circle at 50% 42%, transparent 0 88px, rgba(30, 80, 190, 0.75) 89px 94px, transparent 95px),
+    linear-gradient(90deg, transparent calc(50% - 4px), rgba(205, 30, 45, 0.85) calc(50% - 4px) calc(50% + 4px), transparent calc(50% + 4px)),
+    linear-gradient(90deg, transparent calc(30% - 7px), rgba(30, 80, 190, 0.75) calc(30% - 7px) calc(30% + 7px), transparent calc(30% + 7px) calc(70% - 7px), rgba(30, 80, 190, 0.75) calc(70% - 7px) calc(70% + 7px), transparent calc(70% + 7px)),
+    radial-gradient(120% 90% at 50% 38%, #e6eef4 0%, #b6c4d0 62%, #7f90a1 100%);
+  opacity: 0.17;
+  -webkit-mask-image: linear-gradient(to top, #000 35%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 35%, transparent 100%);
+  overflow: hidden;
+}
+.menu-glace::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+  transform: translateX(-60%);
+  animation: glace-luit 9s ease-in-out infinite;
+}
+@keyframes glace-luit { 0%, 20% { transform: translateX(-60%); } 70%, 100% { transform: translateX(60%); } }
 .menu-feuille { position: relative; max-width: 980px; margin: 0 auto; padding: max(18px, env(safe-area-inset-top, 0px)) 16px 28px; }
 .menu-tete { position: relative; text-align: center; padding: 22px 8px 10px; }
-.menu-logo { font: 900 44px/1 var(--display); letter-spacing: 0.06em; color: var(--text); text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5); }
+.menu-logo { font: 900 clamp(58px, 13vw, 108px)/0.92 var(--display); letter-spacing: 0.05em; color: var(--text); text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6), 0 0 60px color-mix(in srgb, var(--gold) 18%, transparent); }
 .menu-logo b { color: var(--gold); }
+.menu-logo::after { content: ""; display: block; width: min(220px, 50%); height: 3px; margin: 16px auto 0; border-radius: 3px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
 .menu-sous { margin-top: 8px; color: var(--sub); font-size: 15px; }
 .menu-fermer { position: absolute; top: 12px; right: 4px; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 18px; cursor: pointer; }
 /* À PLAT, comme l'interface premium (S77, JP : « y a trop de 3D ») : le ton et un filet, pas de dégradé. */
@@ -7543,10 +7561,19 @@ body.menu-ouvert { overflow: hidden; }
 .mp-badge.copie { background: var(--panel-3); color: var(--sub); }
 .mp-etape { color: var(--sub); font-size: 13px; margin-top: 4px; }
 .mp-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.menu-pied { display: flex; justify-content: center; margin-top: 18px; }
+.menu-pied { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.menu-entree {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 999px;
+  border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 80%, transparent); color: var(--text);
+  font: 700 14px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+  transition: border-color var(--t-vite), transform var(--t-vite);
+}
+.menu-entree:hover { border-color: var(--gold); }
+.menu-entree:active { transform: scale(0.97); }
+.menu-entree .ico { color: var(--gold); }
 @media (prefers-reduced-motion: reduce) { .menu-continuer { transition: none; } }
 /* Un choix plein écran ouvert DU menu (le vestiaire, l'écran de la run) passe par-dessus lui. */
-body.menu-ouvert .choix-modal { z-index: 450; }
+body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 /* =====================================================================
    L'EXHIBITION (S78, js/exhibition.js) — deux clubs de n'importe quelle
    époque, pour le fun. Plein écran par-dessus le menu, à plat comme lui :
@@ -7736,23 +7763,6 @@ body.exh-ouverte { overflow: hidden; }
 .capgauge .fill { transition: width var(--t-compte) var(--e-ressort), background var(--t-vite); }
 .icon-btn { transition: color var(--t-vite), transform var(--t-lent) var(--e-ressort); }
 .icon-btn:active { transform: scale(0.94); }
-
-/* ---------------------------------------------------------------
-   4. LA BARRE D'ONGLETS. Elle ne bouge pas (S67 : mêmes entrées, même
-   place) ; elle se POLIT. Au téléphone elle flotte déjà : elle devient une
-   vraie couche — verre dépoli, filet de lumière, ombre douce. Au bureau, le
-   rail d'EHM reçoit un survol et une surface à lui.
-   --------------------------------------------------------------- */
-.navtab .navtab-lbl { letter-spacing: 0.06em; }
-.navtab.on::before { background: color-mix(in srgb, var(--gold) 22%, transparent); }
-.navtab:active .ico { transform: scale(0.9); }
-@media (min-width: 1200px) {
-  .navbar { background: var(--surface-0); border-right-color: var(--line); }
-  .navtab { transition: color var(--t-vite), background var(--t-vite); }
-  .navtab:not(.on):hover { color: var(--text); background: color-mix(in srgb, var(--text) 5%, transparent); }
-  .navtab.on { color: var(--text); }
-  .navtab.on .ico { color: var(--gold); }
-}
 
 /* ---------------------------------------------------------------
    5. L'ÉCRAN DE SAISON, UN PORTAIL.
@@ -8950,7 +8960,44 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .hub-inv-n { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--gold); color: #111; font-size: 12px; }
 
 /* LE CARTABLE (S79) : l'onglet Vestiaire une fois la saison commencée. */
-body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar { display: none !important; }
+body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar,
+body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: none !important; }
+/* LE MARCHÉ (1.0, R1) : ses portes en grandes tuiles, une par destination. */
+.marche { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.marche-tuile {
+  display: flex; align-items: center; gap: 14px; min-height: 92px; padding: 16px 18px;
+  text-align: left; color: var(--text); border-radius: var(--r-m);
+  border: 1px solid var(--line); background: var(--surface-2);
+  box-shadow: inset 0 1px 0 var(--filet-tuile);
+  transition: border-color var(--t-vite), transform var(--t-vite);
+}
+button.marche-tuile:hover { border-color: var(--gold); }
+button.marche-tuile:active { transform: scale(0.98); }
+.marche-tuile.off { opacity: 0.55; }
+.marche-ico { font-size: 30px; line-height: 1; flex: none; }
+.marche-txt { display: grid; gap: 4px; min-width: 0; }
+.marche-txt b { font: 800 18px/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.marche-txt small { color: var(--sub); font-size: 13px; line-height: 1.35; }
+
+/* L'ÉCRAN QUI ARRIVE (1.0, R1) : un fondu de 200 ms ; prefers-reduced-motion l'éteint avec le reste. */
+.ecran-entre { animation: ecran-entre 200ms var(--e-sortie) both; }
+@keyframes ecran-entre { from { opacity: 0; } }
+
+/* LES INVITES (1.0, R1) : au bas du rail, les boutons de la manette ou les
+   touches du clavier. Sur ordinateur seulement : un doigt n'en a pas besoin. */
+.invites { display: none; }
+@media (min-width: 1000px) and (hover: hover) {
+  .invites {
+    position: fixed; left: 0; bottom: calc(12px + var(--safe-bas)); width: var(--rail-w); z-index: 57;
+    display: grid; justify-items: center; gap: 10px; pointer-events: none;
+    font: 600 10.5px/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  }
+  .invites span { display: grid; justify-items: center; gap: 3px; }
+  .invites kbd {
+    min-width: 24px; padding: 3px 6px; border-radius: 5px; text-align: center;
+    font: 700 11px/1 var(--display); color: var(--text); background: var(--surface-2); border: 1px solid var(--line);
+  }
+}
 .ct { display: flex; flex-direction: column; gap: 10px; }
 .ct-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .ct-comptes { font-size: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }

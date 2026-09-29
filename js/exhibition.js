@@ -28,7 +28,7 @@ const lire = () => { try { return JSON.parse(localStorage.getItem(CLE) || 'null'
 const ecrire = v => { try { localStorage.setItem(CLE, JSON.stringify(v)); } catch { /* stockage fermé : rien à retenir */ } };
 const auHasard = liste => liste[Math.floor(Math.random() * liste.length)];
 
-let ctx = null, el = null, clavier = null;
+let ctx = null, el = null;
 let choix = { vis: null, loc: null };   // { saison, club }
 let ouvert = null;                        // le côté dont le sélecteur est ouvert
 let saisonVue = { vis: null, loc: null }; // la saison affichée dans le sélecteur de chaque côté
@@ -83,7 +83,6 @@ function fermerExhibition() {
   if (el) el.remove();
   el = null;
   document.body.classList.remove('exh-ouverte');
-  if (clavier) { window.removeEventListener('keydown', clavier); clavier = null; }
 }
 
 export async function ouvrirExhibition(c) {
@@ -102,10 +101,6 @@ export async function ouvrirExhibition(c) {
     document.body.appendChild(el);
   }
   document.body.classList.add('exh-ouverte');
-  if (!clavier) {
-    clavier = ev => { if (ev.key === 'Escape' && el && el.style.display !== 'none') fermer(); };
-    window.addEventListener('keydown', clavier);
-  }
   // Une première visite part d'une affiche tirée au hasard : on joue tout de suite.
   if (!choix.vis) await tirer('vis');
   if (!choix.loc) await tirer('loc');

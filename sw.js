@@ -46,7 +46,7 @@ const FICHIERS = [
   'js/entracte.js',
   'js/equipes.js', 'js/saison.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/identites.js', 'js/combat.js', 'js/album.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
-  'js/sauvegardes.js', 'js/menu.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/packs.js', 'js/inventaire.js', 'js/magasin.js',
+  'js/sauvegardes.js', 'js/menu.js', 'js/pile.js', 'js/manette.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/packs.js', 'js/inventaire.js', 'js/magasin.js',
   'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/depart.js', 'js/visages.js', 'js/recadrage.js', 'js/ballottage.js', 'js/util.js',
   // 1.0 (J3-6) : js/game.js découpé ; ces modules sont importés par lui (ou chargés à la demande).
   'js/rogue-jeu.js', 'js/partie.js', 'js/repechage.js', 'js/alignement.js', 'js/fiche.js', 'js/banc.js', 'js/modes-table.js', 'js/charge-table.js',

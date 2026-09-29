@@ -34,7 +34,9 @@ import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { brancherBilan, teamLabel, teamShort, tagCourt } from './bilan.js';
-import { activerSons } from './sons.js';
+import { activerSons, jouerSon } from './sons.js';
+import { brancherRetour } from './pile.js';
+import { brancherManette } from './manette.js';
 import { brancherInclinaison } from './cartes.js';
 import { afficherMenu, fermerMenu } from './menu.js';
 import { MT, chargerTable } from './charge-table.js';
@@ -44,7 +46,7 @@ import { brancherEntractes } from './entracte.js';
 import { migrerHistorique, rendreCartable, ajouterAuCartable } from './cartable.js';
 import { ouvrirEquipes } from './equipes.js';
 import { albumHtml } from './album.js';
-import { blessesAuJour, cartesAJouer, decisionsDeLaPartie, finDesSeriesRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire } from './rogue-jeu.js';
+import { blessesAuJour, cartesAJouer, decisionsDeLaPartie, finDesSeriesRogue, jetonsRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire } from './rogue-jeu.js';
 import { ajusterCartes, carteMiniHtml, clesDesMods, compteSignables, getShard, nextSpin, playerCardEl, poserCartes, renderCap, renderDash, renderFilters, renderPool, renderPoolMeta, renderSpin, syncAgeControls, varianteJoueur } from './repechage.js';
 import { ballottageVu, bancSerie, connaitreBallottages, deciderSerie, personneDeCle, renderBanc, reprendreSaison, reprendreSeries, runSeason, sousVoile } from './banc.js';
 import { compteEnGrille, compteRevele, lienEquipe, lienJoueur, ouvrirFiche, porteeRevele, showPlayerModal, statsSim } from './fiche.js';
@@ -1156,21 +1158,22 @@ async function continuerBoot(apres = null) {
  * rien garder de la précédente en mémoire (la ligue, les séries, le tournoi,
  * les cotes déjà connues).
  */
-export function contexteDuMenu({ vierge = false, enJeu = true, choix = false } = {}) {
+export function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
   const ailleurs = (apres = null) => {
     if (!demarre) { fermerMenu(); continuerBoot(apres).catch(() => toast('Impossible de reprendre cette partie.', 'bad')); return; }
     try { sessionStorage.setItem('cap82_session', '1'); if (apres) sessionStorage.setItem('cap82_apres', apres); } catch { /* ignore */ }
     location.reload();
   };
   return {
-    vierge, enJeu, choix,
+    vierge, enJeu,
     continuer: () => { if (demarre) fermerMenu(); else ailleurs(); },
     reprendre: id => { activer(id); ailleurs(); },
     nouvelle: genre => { nouvellePartie(genre); ailleurs(`nouvelle-${genre}`); },
-    options: () => openModal('optionsModal'),
+    options: () => { syncOptionsUI(); openModal('optionsModal'); },
+    regles: ouvrirRegles,
     // L'EXHIBITION (S78, js/exhibition.js) : aucune partie, on revient au menu en la fermant.
     // 1.0 (J3-6) : l'écran d'exhibition se charge au clic, pas avec le premier écran.
-    exhibition: () => { fermerMenu(); import('./exhibition.js').then(({ ouvrirExhibition }) => ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu, choix }))))); },
+    exhibition: () => { fermerMenu(); import('./exhibition.js').then(({ ouvrirExhibition }) => ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
     rogue: {
       // 1.0 (R7, R8) : la dernière run sur le carton, rien à la première visite.
       resume: () => {
@@ -1210,17 +1213,16 @@ function setupEvents() {
   }
   syncAgeControls();
 
-  // LA BARRE D'ONGLETS DU BAS : la seule navigation du jeu. C'est
-  // `majNavbar` qui la bâtit et qui branche ses boutons.
+  // LES CINQ SECTIONS : la seule navigation du jeu. C'est `majNavbar` qui
+  // les bâtit et qui branche leurs boutons.
 
   // Modales
-  // Les équipes, l'historique et les règles sont des PAGES, pas des modales :
-  // `montrerPage` les remplit. Il ne reste en haut que ce qui est une ACTION.
-  bindModal('optionsModal', 'openOptionsBtn', 'closeOptionsBtn', syncOptionsUI);
-  // « Nouvelle » ramène au CHOIX DU MODE (S79, JP) ; l'écran « Nouvelle partie » s'ouvre ensuite, réglé sur le mode choisi.
+  // Les équipes et tes saisons sont des PAGES, pas des modales : `montrerPage`
+  // les remplit. L'en-tête ne garde que le Menu : une nouvelle partie, les
+  // options et les règles y vivent (1.0, R1).
+  bindModal('optionsModal', null, 'closeOptionsBtn');
+  // Un mode choisi au Menu ouvre l'écran « Nouvelle partie », réglé sur ce mode (S79).
   bindModal('partieModal', null, 'closePartieBtn', semerBrouillon, oublierBrouillon);
-  const nouvelleBtn = $('openPartieBtn');
-  if (nouvelleBtn) nouvelleBtn.onclick = () => { saveGame(); afficherMenu(contexteDuMenu({ enJeu: true, choix: true })); };
   const menuBtn = $('menuBtn');
   if (menuBtn) menuBtn.onclick = () => { saveGame(); afficherMenu(contexteDuMenu({ enJeu: true })); };
   // MES LIGNES AU REPÊCHAGE (S68) : réglées avant la saison, elles entrent
@@ -1319,45 +1321,64 @@ function setupEvents() {
     };
   }
 
-  window.addEventListener('keydown', ev => {
-    if (ev.key === 'Escape') {
-      /*
-       * 1.0 (R5) : les plein écran `.choix-modal` (la boutique, l'inventaire, le
-       * classeur, un choix) passent AVANT les modales à fond. La fiche d'un pack
-       * se replie d'abord ; un écran qui a son ✕ se ferme comme par son ✕ ; un
-       * choix forcé (sans ✕) reste, et rien en dessous ne bouge.
-       */
-      // L'écran de saison et le direct ont leur propre sortie : Échap ne
-      // les ferme pas, ça laisserait la saison à moitié révélée. Et parmi
-      // celles qui restent, on ne ferme que CELLE DU DESSUS : la fiche
-      // « au-dessus » (z 120) passe avant un plein écran (96), qui passe
-      // avant une modale à fond (90) — l'ordre de la feuille de style.
-      const pleins = [...document.querySelectorAll('.choix-modal:not([hidden])')].filter(m => m.firstElementChild);
-      const ouvertes = [...document.querySelectorAll('.modal-backdrop:not(.live)')]
-        .filter(m => m.style.display && m.style.display !== 'none');
-      const z = el => Number(getComputedStyle(el).zIndex) || 0;
-      const zPleins = pleins.length ? Math.max(...pleins.map(z)) : -1;
-      const zOuvertes = ouvertes.length ? Math.max(...ouvertes.map(z)) : -1;
-      if (pleins.length && zPleins >= zOuvertes) {
-        const haut = pleins[pleins.length - 1];
-        const ficheDePack = haut.querySelector('.pk-fiche');
-        if (ficheDePack) ficheDePack.remove();
-        else { const croix = haut.querySelector('.choix-fermer'); if (croix) croix.click(); }
-        // Un choix forcé (sans ✕) reste, et rien en dessous ne bouge.
-        return;
-      }
-      if (ouvertes.length) {
-        ouvertes.sort((a, b) => z(b) - z(a) || Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
-        fermerModale(ouvertes[0]);
-      }
-      if (G.selectedSlot !== null || G.target !== null) {
-        G.selectedSlot = null; G.target = null; render();
-      }
-    }
-    if (ev.key === 'Tab') piegerFocus(ev);
-  });
+  /*
+   * LE RETOUR, UN NIVEAU À LA FOIS (1.0, R1, js/pile.js) : Échap, B, le bouton
+   * d'Android et « ‹ Retour » passent tous par ici, du plus haut au plus bas.
+   */
+  brancherRetour([
+    fermerCoucheDuDessus,
+    // Le direct et le plateau ont leur propre sortie : la saison ne se laisse
+    // pas à moitié révélée, et un match sur table ne s'abandonne pas d'une touche.
+    () => ['liveModal', 'tableModal'].some(id => $(id) && $(id).style.display === 'flex'),
+    // L'exhibition, ouverte du Menu, se referme sur lui.
+    () => { const b = document.querySelector('#exhibitionModal .exh-fermer'); if (!b) return false; b.click(); return true; },
+    fermerRegles,
+    // Le Menu en pleine partie : « Retour à la partie ». Au lancement, il est
+    // l'écran titre, et rien n'est sous lui.
+    () => { if (!$('menuDepart')) return false; if (demarre) fermerMenu(); return true; },
+    // Une case visée ou un joueur choisi dans l'alignement.
+    () => {
+      if (G.selectedSlot === null && G.target === null) return false;
+      G.selectedSlot = null; G.target = null; render();
+      return true;
+    },
+    // Une section : on remonte au Club. Au Club, rien — on y est.
+    () => { if (!demarre || document.body.dataset.page === 'match') return false; montrerPage('match'); return true; },
+  ]);
+  brancherManette();
+  window.addEventListener('keydown', ev => { if (ev.key === 'Tab') piegerFocus(ev); });
 
   $('mainBtn').onclick = runSeason;
+}
+
+/*
+ * LA COUCHE DU DESSUS SE FERME, ET ELLE SEULE. 1.0 (R5) : les plein écran
+ * `.choix-modal` (la boutique, l'inventaire, le classeur, un choix) passent
+ * AVANT les modales à fond. La fiche d'un pack se replie d'abord ; un écran
+ * qui a son ✕ se ferme comme par son ✕ ; un choix forcé (sans ✕) reste, et
+ * rien en dessous ne bouge. Parmi les modales, on ne ferme que CELLE DU
+ * DESSUS : la fiche « au-dessus » (z 120) passe avant un plein écran (96), qui
+ * passe avant une modale à fond (90) — l'ordre de la feuille de style.
+ * Vrai s'il y avait une couche.
+ */
+function fermerCoucheDuDessus() {
+  const pleins = [...document.querySelectorAll('.choix-modal:not([hidden])')].filter(m => m.firstElementChild);
+  const ouvertes = [...document.querySelectorAll('.modal-backdrop:not(.live)')]
+    .filter(m => m.style.display && m.style.display !== 'none');
+  if (!pleins.length && !ouvertes.length) return false;
+  const z = el => Number(getComputedStyle(el).zIndex) || 0;
+  const zPleins = pleins.length ? Math.max(...pleins.map(z)) : -1;
+  const zOuvertes = ouvertes.length ? Math.max(...ouvertes.map(z)) : -1;
+  if (pleins.length && zPleins >= zOuvertes) {
+    const haut = pleins[pleins.length - 1];
+    const ficheDePack = haut.querySelector('.pk-fiche');
+    if (ficheDePack) ficheDePack.remove();
+    else { const croix = haut.querySelector('.choix-fermer'); if (croix) croix.click(); }
+    return true;
+  }
+  ouvertes.sort((a, b) => z(b) - z(a) || Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0));
+  fermerModale(ouvertes[0]);
+  return true;
 }
 
 /*
@@ -1450,70 +1471,61 @@ export function setOption(key, val) {
 }
 
 /* ======================================================================
-   UN ONGLET, UNE RAISON D'ÊTRE
+   LA COQUILLE : CINQ SECTIONS (1.0, R1)
    ======================================================================
-   JP : *mettre onglets en bas, pages séparées de l'accueil* ; *un onglet, une
-   raison d'être genre* ; *je veux pas avoir tout restant dans la page, picks,
-   alignement, match du jour/calendrier, standings, leaders, C'EST TOUS DES
-   ONGLETS DIFFÉRENTS*.
+   JP : *je me sens comme une balle de pinball* ; *que si je le montre à
+   quelqu'un, ça ait pas l'air d'un jeu web, mais d'un jeu console, PC ou
+   mobile*. La barre portait neuf onglets, dont trois pages de référence :
+   c'était un site. Un jeu de gestion a cinq portes, toujours les mêmes, dans
+   le même ordre, dans tous les modes ; ce qui change avec la phase, c'est ce
+   que chaque porte MONTRE, jamais la barre (S67).
 
-   Le jeu avait TROIS systèmes d'onglets à trois endroits — les deux volets
-   en bas, le bilan au milieu, l'écran de saison au milieu aussi — et trois
-   destinations enfermées dans des modales ouvertes par des icônes du haut.
-   Il n'y en a plus qu'un : la barre du bas. Ce qui reste en haut est ce qui
-   n'est pas une destination — la jauge de plafond, Nouvelle partie, Options.
+     Club        le bureau : la saison à lancer, le prochain match, la série, le bilan
+     Effectif    l'alignement ; en pleine saison, derrière le banc
+     Marché      le vestiaire (ou le loto) au repêchage ; ensuite la boutique et tes cartes
+     Ligue       Classement · Calendrier · Meneurs · Équipes
+     Collection  Saisons · Cartable
 
-   `document.body.dataset.page` est le seul état, et la feuille de style en
-   déduit tout : c'est elle qui décide que la roulette ne s'affiche pas sur
-   l'onglet de l'alignement, plutôt qu'un `hidden` posé à la main quelque part.
+   Une section de plusieurs pages a ses onglets internes, sous l'en-tête du
+   club. Les règles, les options et une nouvelle partie vivent dans le Menu.
+   Une page qui n'a encore rien à montrer ne disparaît pas : elle dit pourquoi
+   et offre la suite (`remplirVide`).
+
+   `document.body.dataset.page` reste le seul état de la page, et la feuille
+   de style en déduit tout ; `data-section` dit quelle porte est ouverte.
    ====================================================================== */
-/*
- * LES ENTRÉES DE LA BARRE SUIVENT LA PHASE DE LA PARTIE. JP : *picks,
- * alignement, match du jour/calendrier, standings, leaders, C'EST TOUS DES
- * ONGLETS DIFFÉRENTS*. Le classement, le calendrier et les meneurs étaient
- * des onglets du bilan, dans une DEUXIÈME barre collée sous la barre du
- * haut : deux barres sur le même écran, et celle du bas ne parlait plus de
- * ce qu'on regardait. Ils sont maintenant des onglets de la SEULE barre,
- * et c'est la phase qui décide desquels on a besoin — on bâtit, puis on lit.
- *
- * `alignement` est dans les deux listes exprès : c'est la même raison d'être
- * (l'alignement), et c'est son CONTENU qui change — le tableau de profondeur
- * qu'on remplit pendant le repêchage, la fiche des 23 après la saison.
- */
-const ONGLETS_REF = [
-  { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes' },
-  { cle: 'historique', ico: 'i-trophy', titre: 'Saisons' },
-  { cle: 'regles', ico: 'i-book', titre: 'Règles' },
+const SECTIONS = [
+  { cle: 'club', ico: 'i-club', titre: 'Club' },
+  { cle: 'effectif', ico: 'i-list', titre: 'Effectif' },
+  { cle: 'marche', ico: 'i-marche', titre: 'Marché' },
+  { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
+  { cle: 'collection', ico: 'i-cartes', titre: 'Collection' },
 ];
-
-/*
- * LA BARRE NE CHANGE PLUS JAMAIS (S67). JP : *faire que l'interface soit
- * toujours, peu importe le moment, même organisation*. Elle suivait la phase
- * — deux onglets au repêchage, neuf au bilan — et l'écran de saison, les
- * séries et le tournoi avaient chacun la leur, plein écran par-dessus. Il n'y
- * en a plus qu'une, et ses entrées sont FIXES : ce qui change avec la phase,
- * c'est ce que chaque onglet MONTRE.
- *
- *   Match       ce qui se joue : lancer la saison, le prochain match et ses
- *               boutons, la série en cours, le bilan
- *   Vestiaire   le repêchage (la main en loto)
- *   Alignement  le tableau de profondeur ; en pleine saison, le banc
- *   Classement  le classement du jour, le tableau des séries, le final
- *   Calendrier  tes matchs, la ronde, le calendrier de la saison
- *   Meneurs     les meneurs à ce jour, ou de la saison
- *   Équipes · Saisons · Règles
- *
- * Un onglet qui n'a encore rien à montrer ne disparaît pas : il dit pourquoi
- * et offre la suite (`remplirVide`). Une barre dont les entrées bougent se
- * réapprend à chaque phase ; une barre fixe s'apprend une fois.
- */
+/* Le vestiaire (ou le loto) tant qu'on repêche. Le Rogue bâtit par packs : il ne repêche jamais. */
+const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
+/* Les pages de chaque section, dans l'ordre de ses onglets internes. */
+const PAGES_DE = {
+  club: () => ['match'],
+  effectif: () => ['alignement'],
+  marche: () => [auVestiaire() ? 'repechage' : 'marche'],
+  ligue: () => ['classement', 'calendrier', 'meneurs', 'equipes'],
+  collection: () => ['historique', 'cartable'],
+};
+/* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
+const PAGE = {
+  match: ['i-club', 'Club'], alignement: ['i-list', 'Effectif'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Marché'],
+  classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
+  historique: ['i-trophy', 'Saisons'], cartable: ['i-cartes', 'Cartable'],
+};
 const ALIAS_PAGE = { bilan: 'match', series: 'match', stats: 'meneurs', ligue: 'classement' };
-/* Les sections du bilan que montre chaque onglet. */
+/* Les sections du bilan que montre chaque page. */
 const VOLETS_DU_BILAN = {
   match: ['series', 'bilan'], classement: ['classement', 'ligue'], calendrier: ['calendrier'],
   meneurs: ['stats'], alignement: ['alignement'],
 };
 const PAGES_DE_SAISON = ['match', 'classement', 'calendrier', 'meneurs', 'equipes'];
+/* Les pages de lecture, pareilles à tout moment de la partie. */
+const PAGES_REF = ['equipes', 'historique'];
 
 /*
  * UN VOLET VIDE EST UN VOLET SANS RIEN À LIRE, et c'est `textContent` qui le
@@ -1527,91 +1539,118 @@ function voletsPrets() {
 const bilanPret = () => voletsPrets().size > 0;
 export const enRepechage = () => !G.done && !bilanPret() && !hubActif();
 
-function ongletsCourants() {
-  const loto = MODE().loto;
+const sectionDe = cle => (SECTIONS.find(s => PAGES_DE[s.cle]().includes(cle)) || SECTIONS[0]).cle;
+const PAGES = () => SECTIONS.flatMap(s => PAGES_DE[s.cle]());
+/* La dernière page ouverte de chaque section : la Ligue rouvre sur le calendrier qu'on lisait. */
+const dernierePage = {};
+
+function sectionsCourantes() {
   const draft = enRepechage();
-  // ESTOMPÉS PENDANT LE REPÊCHAGE (1.0, J2-6e) : la barre garde ses entrées
-  // (une seule barre, toujours la même), mais celles qui n'ont rien avant le
-  // premier match le disent d'un coup d'oeil. Le toucher reste permis.
-  const vide = draft ? 'Dès le premier match' : '';
-  return [
-    { cle: 'match', ico: 'i-cup', titre: 'Match', mort: vide },
-    { cle: 'repechage', ico: 'i-dice', titre: loto ? 'Le loto' : 'Vestiaire', badge: draft ? String(compteSignables()) : '' },
-    { cle: 'alignement', ico: 'i-list', titre: 'Alignement', badge: draft ? `${signes().length}/${totalCases()}` : '' },
-    { cle: 'classement', ico: 'i-chart', titre: 'Classement', mort: vide },
-    { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier', mort: vide },
-    { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', mort: vide },
-    ...ONGLETS_REF,
-  ];
+  return SECTIONS.map(s => ({
+    ...s,
+    // ESTOMPÉE PENDANT LE REPÊCHAGE (1.0, J2-6e) : la Ligue n'a rien avant le
+    // premier match et le dit d'un coup d'oeil. La toucher reste permis.
+    mort: draft && s.cle === 'ligue' ? 'Dès le premier match' : '',
+    badge: !draft ? '' : s.cle === 'marche' && auVestiaire() ? String(compteSignables())
+      : s.cle === 'effectif' ? `${signes().length}/${totalCases()}` : '',
+  }));
 }
 
-const PAGES = () => ongletsCourants().map(o => o.cle);
-
 /*
- * LA BARRE. Elle se rebâtit quand ses entrées changent (un badge), jamais à
- * chaque rendu : sur un téléphone elle défile en x, et un `innerHTML` par
- * rendu remettrait ce défilement à zéro.
+ * LA BARRE (un rail à gauche dès 1000 px, des onglets en bas au téléphone).
+ * Elle se rebâtit quand un badge change, jamais à chaque rendu. Ses entrées,
+ * elles, ne changent jamais.
  */
-export function majNavbar(cle, liste = ongletsCourants()) {
+export function majNavbar(cle = G.page) {
   const nav = $('navbar');
   if (!nav) return;
-  const sig = liste.map(o => `${o.cle}:${o.titre}:${o.badge || ''}:${o.mort ? 1 : 0}`).join('|');
+  const liste = sectionsCourantes();
+  const sig = liste.map(o => `${o.cle}:${o.badge}:${o.mort ? 1 : 0}`).join('|');
   if (nav.dataset.sig !== sig) {
     nav.dataset.sig = sig;
-    nav.innerHTML = liste.map(o => `<button class="navtab${o.mort ? ' mort' : ''}" type="button" role="tab" data-page="${o.cle}" aria-selected="false"${o.mort ? ` title="${esc(o.mort)}"` : ''}>
-      <svg class="ico" aria-hidden="true"><use href="#${o.ico}"/></svg>
-      <span class="navtab-lbl">${esc(o.titre)}</span>
-      ${o.badge ? `<span class="navtab-badge">${esc(o.badge)}</span>` : ''}
-    </button>`).join('');
-    nav.querySelectorAll('.navtab').forEach(b => { b.onclick = () => montrerPage(b.dataset.page); });
+    nav.innerHTML = `<div class="rail-logo" aria-hidden="true">CAP <b>82-0</b></div>${liste.map(o => `<button class="navtab${o.mort ? ' mort' : ''}" type="button" role="tab" data-section="${o.cle}" aria-selected="false"${o.mort ? ` title="${esc(o.mort)}"` : ''}>
+      ${ico(o.ico)}<span class="navtab-lbl">${esc(o.titre)}</span>${o.badge ? `<span class="navtab-badge">${esc(o.badge)}</span>` : ''}
+    </button>`).join('')}`;
+    nav.querySelectorAll('.navtab').forEach(b => { b.onclick = () => ouvrirSection(b.dataset.section); });
   }
-  let ouvert = null;
+  const sec = sectionDe(cle);
   nav.querySelectorAll('.navtab').forEach(b => {
+    const on = b.dataset.section === sec;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  majSousNav(cle, sec);
+}
+
+/* LES ONGLETS INTERNES d'une section de plusieurs pages, sous l'en-tête du club. */
+function majSousNav(cle, sec) {
+  const sous = $('sousNav');
+  if (!sous) return;
+  const pages = PAGES_DE[sec]();
+  sous.hidden = pages.length < 2;
+  const sig = sous.hidden ? '' : pages.join('|');
+  if (sous.dataset.sig !== sig) {
+    sous.dataset.sig = sig;
+    sous.innerHTML = sous.hidden ? '' : pages.map(p => `<button type="button" class="soustab" role="tab" data-page="${p}" aria-selected="false">${esc(PAGE[p][1])}</button>`).join('');
+    sous.querySelectorAll('.soustab').forEach(b => { b.onclick = () => { jouerSon('valide'); montrerPage(b.dataset.page); }; });
+  }
+  sous.querySelectorAll('.soustab').forEach(b => {
     const on = b.dataset.page === cle;
     b.classList.toggle('on', on);
     b.setAttribute('aria-selected', on ? 'true' : 'false');
-    if (on) ouvert = b;
   });
-  // L'onglet ouvert reste en vue : on déplace LA BARRE, jamais la page.
-  if (ouvert && nav.scrollWidth > nav.clientWidth + 1) {
-    const g = ouvert.offsetLeft - 8, d = ouvert.offsetLeft + ouvert.offsetWidth + 8 - nav.clientWidth;
-    if (nav.scrollLeft > g) nav.scrollTo({ left: g, behavior: 'smooth' });
-    else if (nav.scrollLeft < d) nav.scrollTo({ left: d, behavior: 'smooth' });
-  }
+}
+
+/* Toucher une section rouvre la page qu'on y lisait, sinon sa première. */
+function ouvrirSection(sec) {
+  const pages = PAGES_DE[sec]();
+  jouerSon('valide');
+  montrerPage(pages.includes(dernierePage[sec]) ? dernierePage[sec] : pages[0]);
 }
 
 /*
- * OÙ VIT UN ONGLET, À CE MOMENT-CI. Quatre endroits, et un seul à la fois :
- *   'hub'   un volet de l'écran de saison, des séries ou du tournoi
- *   'jeu'   le repêchage, l'alignement, ou une section du bilan (#game)
- *   'ref'   une page de référence (équipes, saisons, règles)
- *   'vide'  rien encore : la page dit pourquoi et offre la suite
+ * OÙ VIT UNE PAGE, À CE MOMENT-CI. Un seul endroit à la fois :
+ *   'hub'       un volet de l'écran de saison, des séries ou du tournoi
+ *   'jeu'       le repêchage, l'alignement, ou une section du bilan (#game)
+ *   'ref'       une page de lecture (les équipes, tes saisons)
+ *   'marche'    la boutique et tes cartes, une fois le repêchage fini
+ *   'cartable'  tes joueurs gagnés
+ *   'vide'      rien encore : la page dit pourquoi et offre la suite
  */
 function zoneDe(cle) {
   const hub = hubActif();
   if (hub && voletPour(cle)) return 'hub';
-  if (ONGLETS_REF.some(o => o.cle === cle)) return 'ref';
-  // LE CARTABLE (S79) : le Vestiaire, une fois le repêchage fini (le Rogue ne repêche jamais).
-  if (cle === 'repechage' && (!enRepechage() || G.bonus === 'ROGUE')) return 'cartable';
+  if (PAGES_REF.includes(cle)) return 'ref';
+  if (cle === 'marche' || cle === 'cartable') return cle;
   if (bilanPret() && !hub) return VOLETS_DU_BILAN[cle] ? 'jeu' : 'vide';
-  if (cle === 'repechage') return enRepechage() ? 'jeu' : 'vide';
+  if (cle === 'repechage') return 'jeu';
   // Pendant les séries et le tournoi, l'alignement est figé : rien à y faire.
   if (cle === 'alignement') return hub ? 'vide' : 'jeu';
   return 'vide';
 }
 
-/** Pose la page courante. Ne remplit rien d'autre que l'état vide. */
-function marquerPage(cle) {
+/* Une page d'avant la coquille (une sauvegarde, un rappel) retombe sur ses pieds. */
+function normaliser(cle) {
   cle = ALIAS_PAGE[cle] || cle;
-  const liste = ongletsCourants();
-  if (!liste.some(o => o.cle === cle)) cle = 'match';
+  // Le vestiaire n'existe qu'au repêchage ; le marché prend sa place ensuite, et réciproquement.
+  if (cle === 'repechage' || cle === 'marche') cle = PAGES_DE.marche()[0];
+  return PAGES().includes(cle) ? cle : 'match';
+}
+
+/** Pose la page courante. Ne remplit rien d'autre que les pages de la coquille. */
+function marquerPage(cle) {
+  cle = normaliser(cle);
+  const avant = document.body.dataset.page;
   G.page = cle;
+  const sec = sectionDe(cle);
+  dernierePage[sec] = cle;
   const zone = zoneDe(cle);
   document.body.dataset.page = cle;
+  document.body.dataset.section = sec;
   document.body.dataset.zone = zone;
-  // L'ÉCRAN DE SAISON S'ANCRE DANS LA PAGE (S67) : entre la barre du haut et
-  // celle du bas, jamais par-dessus. Quand l'onglet ouvert n'est pas l'un des
-  // siens (le vestiaire, les règles), il se retire sans se fermer.
+  // L'ÉCRAN DE SAISON S'ANCRE DANS LA PAGE (S67) : sous l'en-tête, à côté du
+  // rail ou au-dessus des onglets, jamais par-dessus. Quand la page ouverte
+  // n'est pas l'un de ses volets (le marché, tes saisons), il se retire sans se fermer.
   const hub = hubActif();
   document.body.classList.toggle('hub-docke', !!hub);
   document.body.classList.toggle('hub-cache', !!hub && zone !== 'hub');
@@ -1619,7 +1658,7 @@ function marquerPage(cle) {
     const v = voletPour(cle);
     if (v && hub.courant() !== v) hub.montrer(v);
   }
-  // Les sections du bilan que cet onglet porte, et elles seules.
+  // Les sections du bilan que cette page porte, et elles seules.
   const vis = VOLETS_DU_BILAN[cle] || [];
   document.querySelectorAll('#resultHost .result-pane').forEach(p => {
     p.hidden = !vis.includes(p.dataset.volet) || !p.textContent.trim();
@@ -1633,10 +1672,11 @@ function marquerPage(cle) {
    * sortaient coupées à droite. On remesure l'onglet une fois montré.
    */
   requestAnimationFrame(() => ajusterCartes(document));
-  majNavbar(cle, liste);
-  for (const id of ['pageEquipes', 'pageHistorique', 'pageRegles']) {
+  majNavbar(cle);
+  majEntete();
+  for (const [id, p] of [['pageEquipes', 'equipes'], ['pageHistorique', 'historique']]) {
     const el = $(id);
-    if (el) el.hidden = !(zone === 'ref' && id === `page${cle[0].toUpperCase()}${cle.slice(1)}`);
+    if (el) el.hidden = !(zone === 'ref' && cle === p);
   }
   const vide = $('pageVide');
   if (vide) {
@@ -1648,6 +1688,147 @@ function marquerPage(cle) {
     cartable.hidden = zone !== 'cartable';
     if (zone === 'cartable') remplirCartable();
   }
+  const marche = $('pageMarche');
+  if (marche) {
+    marche.hidden = zone !== 'marche';
+    if (zone === 'marche') remplirMarche();
+  }
+  if (avant && avant !== cle) animerEntree(zone);
+}
+
+/*
+ * L'ÉCRAN QUI ARRIVE SE VOIT ARRIVER (1.0, R1) : il se fond en moins d'un
+ * quart de seconde (rien sous prefers-reduced-motion). L'écran de saison a
+ * déjà son propre glissement de volet (S77).
+ */
+function animerEntree(zone) {
+  if (zone === 'hub') return;
+  const el = document.querySelector('.page:not([hidden]):not(#pageRegles)') || $('game');
+  if (!el) return;
+  el.classList.remove('ecran-entre');
+  void el.offsetWidth;
+  el.classList.add('ecran-entre');
+}
+
+/*
+ * L'EN-TÊTE DU CLUB (1.0, R1) : ton écusson, où en est la partie, et trois
+ * chiffres — la fiche et le rang à la DERNIÈRE JOURNÉE RÉVÉLÉE (jamais la fin
+ * de l'année : on ne lit que ce qui est arrivé), puis le plafond, que
+ * `renderCap` tient déjà. Le rang suit le bris d'égalité du classement de
+ * l'écran de saison (js/saison.js).
+ */
+let ficheEnCache = null;
+function ficheEtRang() {
+  const L = G.ligue;
+  if (!L || !L.you || !Array.isArray(L.calendrier) || !Array.isArray(L.teams)) return null;
+  const jour = Math.min(G.journee || 0, L.calendrier.length);
+  if (!jour) return null;
+  if (ficheEnCache && ficheEnCache.L === L && ficheEnCache.jour === jour) return ficheEnCache.r;
+  const f = new Map(L.teams.map(t => [t, { W: 0, L: 0, OTL: 0, PTS: 0, GF: 0, GA: 0 }]));
+  for (const m of L.calendrier.slice(0, jour).flat()) {
+    const a = f.get(m.A), b = f.get(m.B);
+    if (!a || !b) continue;
+    a.GF += m.gfA; a.GA += m.gfB; b.GF += m.gfB; b.GA += m.gfA;
+    if (m.gfA > m.gfB) { a.W++; if (m.ot) b.OTL++; else b.L++; } else { b.W++; if (m.ot) a.OTL++; else a.L++; }
+  }
+  for (const x of f.values()) x.PTS = x.W * 2 + x.OTL;
+  const rang = L.teams.slice().sort((x, y) => {
+    const a = f.get(x), b = f.get(y);
+    return b.PTS - a.PTS || b.W - a.W || (b.GF - b.GA) - (a.GF - a.GA) || b.GF - a.GF
+      || String(`${x.tag}${x.season || ''}`).localeCompare(String(`${y.tag}${y.season || ''}`));
+  }).indexOf(L.you) + 1;
+  const y = f.get(L.you);
+  const r = y ? { fiche: `${y.W}-${y.L}-${y.OTL}`, rang } : null;
+  ficheEnCache = { L, jour, r };
+  return r;
+}
+function etatDeLaPartie() {
+  const L = G.ligue, N = L && Array.isArray(L.calendrier) ? L.calendrier.length : 0;
+  const j = Math.min(G.journee || 0, N);
+  const hub = hubActif();
+  if (enRepechage()) {
+    return G.bonus === 'ROGUE' ? `Rogue · run ${(G.rogue && G.rogue.numero) || 1} · avant la saison`
+      : `Repêchage · ${MODE().nom}`;
+  }
+  if (G.bonus === 'TABLE') return hub ? 'Sur table · le tournoi' : 'Sur table · le tournoi est joué';
+  if (G.banc) return `Derrière le banc · journée ${j} / ${N}`;
+  if (hub && hub.onglets().some(o => o.cle === 'serie')) return 'Séries éliminatoires';
+  if (hub && N && j < N) return `Saison régulière · journée ${j} / ${N}`;
+  return hub ? 'Saison régulière · terminée' : 'La saison est jouée';
+}
+export function majEntete() {
+  const etat = $('teteEtat');
+  if (!etat) return;
+  etat.textContent = etatDeLaPartie();
+  const ecu = $('teteEcu');
+  if (ecu && !ecu.firstElementChild) ecu.innerHTML = getTeamLogoHtml('YOU', 34);
+  const fr = enRepechage() ? null : ficheEtRang();
+  const poser = (id, v) => {
+    const el = $(id);
+    if (!el) return;
+    el.hidden = !v;
+    if (v) el.querySelector('.tete-ch-v').textContent = v;
+  };
+  poser('teteFiche', fr && fr.fiche);
+  poser('teteRang', fr && `${fr.rang}${fr.rang === 1 ? 'er' : 'e'}`);
+  document.body.dataset.phase = enRepechage() ? 'repechage' : 'saison';
+}
+
+/*
+ * LE MARCHÉ (1.0, R1), une fois le repêchage fini : la boutique (des packs de
+ * joueurs et de cartes, entre deux journées) et tes cartes. Ce sont les portes
+ * que l'en-tête de l'écran de saison offrait déjà (🛒, 🎒) ; elles ont
+ * maintenant leur section, la même dans tous les modes. Le Rogue y ajoute le
+ * vestiaire des déblocages.
+ */
+function remplirMarche() {
+  const host = $('pageMarcheCorps');
+  if (!host) return;
+  const hub = hubActif();
+  const tuile = (id, icone, titre, mot) => {
+    const corps = `<span class="marche-ico" aria-hidden="true">${icone}</span><span class="marche-txt"><b>${esc(titre)}</b><small>${esc(mot)}</small></span>`;
+    return id ? `<button type="button" class="marche-tuile" data-marche="${id}">${corps}</button>` : `<div class="marche-tuile off">${corps}</div>`;
+  };
+  const enSaison = !!(hub && hub.boutique);
+  const n = enSaison && G.ligue ? cartesAJouer(G.journee || 0) : 0;
+  host.innerHTML = `<div class="marche">
+    ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `Des packs de joueurs et de cartes · ${jetonsRogue(G.journee || 0)} jetons` : 'Elle ouvre pendant la saison, entre deux journées.')}
+    ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer · la main, le deck, le personnel` : 'Ton inventaire et ton classeur, à lire')}
+    ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Le vestiaire des déblocages', `${lireMeta().ecussons || 0} écussons à dépenser`) : ''}
+  </div>`;
+  host.querySelectorAll('[data-marche]').forEach(b => {
+    b.onclick = () => {
+      const quoi = b.dataset.marche, h = hubActif();
+      // Une carte jouée ou un pack acheté est une décision du jour : la
+      // saison reprend au Club, comme du bouton de son en-tête.
+      if (quoi === 'boutique' && h && h.boutique) { montrerPage('match'); h.boutique(); }
+      else if (quoi === 'cartes' && h && h.cartes) { montrerPage('match'); h.cartes(); }
+      else if (quoi === 'cartes') ouvrirInventaireJeu(null, null);
+      else if (quoi === 'deblocages') ouvrirVestiaire(() => remplirMarche());
+    };
+  });
+}
+
+/*
+ * LES RÈGLES (1.0, R1) : un écran secondaire du Menu, par-dessus tout. Le
+ * Retour (Échap, B, le bouton d'Android, « ‹ Retour ») le referme et rend le
+ * Menu qui l'a ouvert.
+ */
+function ouvrirRegles() {
+  const p = $('pageRegles');
+  if (!p) return;
+  p.hidden = false;
+  document.body.classList.add('regles-ouvertes');
+  chargerTable().then(m => m.remplirReglesDuPlateau());
+  const b = p.querySelector('[data-retour]');
+  if (b) b.focus({ preventScroll: true });
+}
+function fermerRegles() {
+  const p = $('pageRegles');
+  if (!p || p.hidden) return false;
+  p.hidden = true;
+  document.body.classList.remove('regles-ouvertes');
+  return true;
 }
 
 /*
@@ -1708,8 +1889,8 @@ export const alignementAuCartable = () => ajouterAuCartable(signes().map(p => ({
 function remplirVide(cle) {
   const titre = $('pageVideTitre'), corps = $('pageVideCorps');
   if (!titre || !corps) return;
-  const o = ongletsCourants().find(x => x.cle === cle) || { titre: '', ico: 'i-cup' };
-  titre.innerHTML = `<svg class="ico" aria-hidden="true"><use href="#${o.ico}"/></svg>${esc(o.titre)}`;
+  const [icone, mot] = PAGE[cle] || PAGE.match;
+  titre.innerHTML = `${ico(icone)}${esc(mot)}`;
   const bouton = (id, mot, go = false) => `<button type="button" class="btn ${go ? 'go' : 'gold'}" data-vide="${id}">${esc(mot)}</button>`;
   let msg = '', btns = '';
   const manque = totalCases() - signes().length;
@@ -1724,23 +1905,20 @@ function remplirVide(cle) {
         : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : 'Lancer la saison', true);
     } else {
       msg = `La saison n'a pas commencé. ${QUOI[cle] || 'Tout ça'} s'affichera ici dès le premier match.`;
-      btns = bouton('match', 'Au match');
+      btns = bouton('match', 'Au club');
     }
   } else if (G.banc) {
     msg = 'Tu es derrière le banc. La saison reprend là où tu l\'as laissée.';
     btns = bouton('reprendre', 'Retour au match', true);
-  } else if (cle === 'repechage') {
-    msg = 'Le repêchage est terminé : ta formation joue.';
-    btns = bouton('match', 'Au match', true) + bouton('nouvelle', 'Nouvelle partie');
   } else if (cle === 'alignement' && hubActif()) {
     msg = 'Ton alignement est figé : on ne touche plus aux trios quand ça compte.';
-    btns = bouton('match', 'Au match', true);
+    btns = bouton('match', 'Au club', true);
   } else if (cle === 'calendrier' && hubActif()) {
-    msg = 'Le tournoi n\'a pas de calendrier à lui : ses journées se lisent sous le match.';
-    btns = bouton('match', 'Au match', true);
+    msg = 'Le tournoi n\'a pas de calendrier à lui : ses journées se lisent au club.';
+    btns = bouton('match', 'Au club', true);
   } else {
     msg = 'Rien à lire ici pour l\'instant.';
-    btns = bouton('match', 'Au match', true);
+    btns = bouton('match', 'Au club', true);
   }
   corps.innerHTML = `<div class="vide"><p class="vide-mot">${msg}</p><div class="vide-btns">${btns}</div></div>`;
   corps.querySelectorAll('[data-vide]').forEach(b => {
@@ -1748,15 +1926,13 @@ function remplirVide(cle) {
       const quoi = b.dataset.vide;
       if (quoi === 'lancer') $('mainBtn').click();
       else if (quoi === 'reprendre') reprendreSaison();
-      else if (quoi === 'nouvelle') ouvrirNouvellePartie();
       else montrerPage(quoi);
     };
   });
 }
 
 export function montrerPage(cle) {
-  cle = ALIAS_PAGE[cle] || cle;
-  if (!PAGES().includes(cle)) cle = 'match';
+  cle = normaliser(cle);
   const hub = hubActif();
   // DERRIÈRE LE BANC, les onglets de la saison y RAMÈNENT : la saison reprend
   // (même graine, même jour), puis l'onglet demandé s'ouvre.
@@ -1769,7 +1945,6 @@ export function montrerPage(cle) {
     marquerPage(cle);
     if (document.body.dataset.zone === 'ref') {
       if (cle === 'historique') showLeaderboard();
-      else if (cle === 'regles') chargerTable().then(m => m.remplirReglesDuPlateau());
       else if (cle === 'equipes') ouvrirEquipes({
         ctx: {
           esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
@@ -1832,6 +2007,7 @@ export function render() {
   if (G.bonus === 'TABLE' && !MT.pret) { chargerTable().then(() => render()); return; }
   syncAgeControls();
   renderCap();
+  majEntete();
   renderSpin();
   renderDash();
   renderFilters();
