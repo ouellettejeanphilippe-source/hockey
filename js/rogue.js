@@ -91,8 +91,8 @@ export const DEBLOCAGES = {
   deckPlus: { ico: '🃏', nom: 'Un deck aiguisé', prix: 50, texte: 'Ton deck de départ commence avec « Lancer de la pointe+ » et « Bloquer des tirs+ ».' },
   plombiersPlus: { ico: '🛠️', nom: 'Des plombiers moins pires', prix: 80, texte: 'Tes plombiers de départ sortent du bas de la ligue, pas du fond du baril.' },
   // S79 : la masse salariale se débloque aussi.
-  plafond1: { ico: '💵', nom: 'Une masse salariale indexée', prix: 45, texte: '+3 M$ de plafond au début de chaque run.' },
-  plafond2: { ico: '💰', nom: 'Le proprio dépense', prix: 110, requis: 'plafond1', texte: '+4 M$ de plus au début de chaque run (+7 M$ en tout).' },
+  plafond1: { ico: '💵', nom: 'Une masse salariale indexée', prix: 45, texte: '+3\u00a0M$ de plafond au début de chaque run.' },
+  plafond2: { ico: '💰', nom: 'Le proprio dépense', prix: 110, requis: 'plafond1', texte: '+4\u00a0M$ de plus au début de chaque run (+7\u00a0M$ en tout).' },
   dgFlexible: { ico: '🧮', nom: 'Le DG du plafond flexible', prix: 70, personnel: 'dir_flexible', texte: 'Il rejoint ton personnel pour de bon : engagé, il donne 5 % de plafond de plus.' },
   /*
    * S80 : LE DÉPART DU CLASSEUR. JP : *le classeur, on peut piger x cartes aux

@@ -575,7 +575,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   function arreter() {
     enArret = true;
     stop();
-    ligne('periode ent2-marque', '<b>🎬 Deuxième entracte.</b> Le vestiaire t’attend : ton choix décidera de la troisième période.');
+    ligne('periode ent2-marque', '<b>🎬 Deuxième entracte.</b> Le vestiaire t\'attend : ton choix décidera de la troisième période.');
     boutons(`<button class="btn gold live-entracte">Au vestiaire — ton choix</button>`);
     controls.querySelector('.live-entracte').onclick = () => {
       if (termine) return;

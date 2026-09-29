@@ -34,16 +34,28 @@ export const signe = n => (n > 0 ? `+${n}` : `${n}`);
 /** Un nombre gardé entre deux bornes. */
 export const borne = (x, min, max) => Math.max(min, Math.min(max, x));
 
-/** Un pourcentage d'arrêts à la façon d'une fiche : « ,912 ». */
-export const pct3 = x => x.toFixed(3).replace(/^0/, '');
+/**
+ * Un pourcentage d'arrêts à la façon d'une fiche québécoise : « ,912 » (et
+ * « 1,000 » pour un blanchissage parfait). Une seule forme dans tout le jeu
+ * (1.0, gel des chaînes) : on lisait aussi « .912 » et « 91,2 % ».
+ */
+export const pct3 = x => (Number.isFinite(x) ? x.toFixed(3).replace(/^0\./, ',').replace('.', ',') : '—');
 
-/** De l'argent : « $9.3M » (le plafond, la barre du haut) ; « 9,3 M$ » (la boutique, l'inventaire). */
+/*
+ * DE L'ARGENT, À LA QUÉBÉCOISE : « 9,3 M$ », « 0,78 M$ », « −1,2 M$ » (1.0,
+ * gel des chaînes ; la barre du haut écrivait « $9.3M » et la boutique
+ * « 9,3 M$ »). Deux décimales sous 10 M$, une au-delà, sans zéro de trop.
+ * L'espace avant « M$ » est insécable : le symbole ne passe jamais seul à la
+ * ligne. Une seule fonction pour tout le jeu : la boutique écrivait aussi
+ * « 82,0 M$ » quand la barre disait « 82 M$ ».
+ */
+const ESPACE_INSECABLE = '\u00a0';
 export const money = n => {
-  const m = n / 1e6;
-  const s = Math.abs(m) >= 10 ? m.toFixed(1) : m.toFixed(2);
-  return (n < 0 ? '−$' : '$') + s.replace('-', '').replace(/\.?0+$/, '') + 'M';
+  const m = Math.abs(n) / 1e6;
+  let s = m >= 10 ? m.toFixed(1) : m.toFixed(2);
+  if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return (n < 0 ? '−' : '') + s.replace('.', ',') + ESPACE_INSECABLE + 'M$';
 };
-export const millions = v => `${(v / 1e6).toFixed(1).replace('.', ',')} M$`;
 
 /** Un nombre de 0 à 1 tiré de mots : la même entrée, le même nombre (le hasard pur des packs, des variantes, du deck). */
 export function hache(...parts) {

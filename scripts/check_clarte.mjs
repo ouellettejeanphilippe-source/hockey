@@ -24,6 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
+import { chainesDe } from './lib/chaines.mjs';
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, CAP, REROLLS, MODES, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
   ENERGIE_SEUIL, ENERGIE_EFFET, ENERGIE_BLESSURE, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
@@ -72,50 +73,12 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
   informer('icônes lues', `${sens.size} icônes dans 9 familles`);
   exiger('une icône = un sens', doublons.length === 0, doublons.join(' · ') || 'aucun doublon');
   exiger('« Défensif » ne nomme qu\'un rôle', Object.values(BONUS).every(B => B.nom !== 'Défensif') && ARCHETYPES.WALL.label !== TRAITS.VEZINA.label,
-    'le bonus de carte s\'appelle Étanche ; le gardien-mur ne s\'appelle plus « Gardien d\'élite » (le trophée Vezina)');
+    'le bonus de carte s\'appelle Étanche ; le gardien-mur ne s\'appelle plus « Gardien d\'élite » (le trophée Vézina)');
   exiger('« Régulier » ne nomme qu\'un niveau', ARCHETYPES.HYBRID_G.label.indexOf('régulier') < 0 && ARCHETYPES.HYBRID_G.short !== 'Régulier', ARCHETYPES.HYBRID_G.label);
 }
 
 /* ---------- 2. « énergie » n'est plus un mot de l'écran ---------- */
-/*
- * Les chaînes d'un module, sans ses commentaires : un petit lecteur à états
- * (code, commentaire, chaîne, gabarit et ses ${…}, expression régulière). Une
- * expression régulière commence après un caractère qui ne peut pas finir une
- * valeur — assez pour ce dépôt, qui n'a ni JSX ni division ambiguë.
- */
-function chainesDe(src) {
-  const out = [];
-  let i = 0, dernier = '';
-  const pile = [];   // les gabarits ouverts dont on lit un ${…}
-  while (i < src.length) {
-    const c = src[i], d = src[i + 1];
-    if (c === '/' && d === '/') { i = src.indexOf('\n', i); if (i < 0) break; continue; }
-    if (c === '/' && d === '*') { i = src.indexOf('*/', i + 2); if (i < 0) break; i += 2; continue; }
-    if (c === '"' || c === "'") {
-      let j = i + 1, s = '';
-      while (j < src.length && src[j] !== c) { if (src[j] === '\\') { s += src[j + 1]; j += 2; } else s += src[j++]; }
-      out.push(s); i = j + 1; dernier = 'v'; continue;
-    }
-    if (c === '`' || (c === '}' && pile.length && pile[pile.length - 1] === 0)) {
-      if (c === '}') pile.pop();
-      let j = i + 1, s = '';
-      while (j < src.length && src[j] !== '`' && !(src[j] === '$' && src[j + 1] === '{')) { if (src[j] === '\\') { s += src[j + 1]; j += 2; } else s += src[j++]; }
-      out.push(s);
-      if (src[j] === '$') { pile.push(0); i = j + 2; dernier = '('; } else { i = j + 1; dernier = 'v'; }
-      continue;
-    }
-    if (c === '{' && pile.length) pile[pile.length - 1]++;
-    if (c === '}' && pile.length) pile[pile.length - 1]--;
-    if (c === '/' && (dernier === '' || '(,=:[!&|?{};+-*%<>~^'.includes(dernier))) {
-      let j = i + 1, classe = false;
-      while (j < src.length && (classe || src[j] !== '/')) { if (src[j] === '\\') j++; else if (src[j] === '[') classe = true; else if (src[j] === ']') classe = false; j++; }
-      i = j + 1; while (/[a-z]/i.test(src[i] || '')) i++; dernier = 'v'; continue;
-    }
-    if (!/\s/.test(c)) dernier = /[\w$)\]]/.test(c) ? 'v' : c;
-    i++;
-  }
-  return out;
-}
+/* Les chaînes d'un module, sans ses commentaires : scripts/lib/chaines.mjs (partagé avec le gel des chaînes). */
 {
   // Le lecteur lit vraiment : il trouve des chaînes connues, et il verrait un « énergie » glissé dans un gabarit.
   const sim = chainesDe(lire('js/sim.js')), ger = chainesDe(lire('js/gerant.js'));
@@ -143,6 +106,52 @@ function chainesDe(src) {
   }
   if (MOTS_DE_CODE.test(texte)) code.push(`index.html : « ${texte.match(/.{0,40}(hub|palier).{0,20}/i)[0].trim()} »`);
   exiger('l\'écran dit « bureau » et « main de la journée », pas « hub » ni « palier »', code.length === 0, code.slice(0, 5).join(' · ') || 'aucune');
+}
+
+/*
+ * ---------- 2b. le gel des chaînes (1.0, J5) ----------
+ * Une seule forme par sorte de nombre, et la typographie du jeu : l'argent à
+ * la québécoise (« 95,5 M$ », jamais « $95.5M »), les ordinaux « 1er, 2e »
+ * (jamais « 2ème »), le « … » d'un seul caractère, une espace avant « ; ! ? »
+ * comme partout ailleurs. On juge la prose de l'écran : les chaînes de js/
+ * sans leurs balises, et le texte d'index.html.
+ */
+{
+  const prose = [];
+  for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'))) {
+    for (const { s, ligne } of chainesDe(lire(`js/${f}`), { lignes: true })) {
+      const t = s.replace(/<[^>]*>/g, ' ');
+      if (/\p{L}{2,}\s+\p{L}{2,}/u.test(t)) prose.push({ ou: `js/${f}:${ligne}`, t });
+    }
+  }
+  const html = lire('index.html').replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)[\s\S]*?<\/\1>/g, '');
+  prose.push({ ou: 'index.html', t: html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ') });
+  // La contre-épreuve : chaque motif attrape bien la faute qu'il vise, et laisse passer la bonne forme.
+  const TEMOINS = [
+    [/\$\d|\b\d+(?:[.,]\d+)?M\b(?!\$)/u, 'il reste $9.3M', 'il reste 9,3 M$'],
+    [/\d\s?(?:ème|eme|ième)s?\b|\b1ère\b/u, 'la 2ème période', 'la 2e période'],
+    [/\p{L}\.\.\./u, 'on attend...', 'on attend…'],
+    [/\p{L}[;!?](?=\s|$|["'»<])/u, 'laquelle tu prends?', 'laquelle tu prends ?'],
+  ];
+  exiger('les motifs du gel des chaînes attrapent ce qu\'ils visent', TEMOINS.every(([re, faux, bon]) => re.test(faux) && !re.test(bon)), `${TEMOINS.length} témoins`);
+  const fautes = (nom, re) => {
+    const vus = prose.filter(x => re.test(x.t)).map(x => `${x.ou} « ${(x.t.match(new RegExp(`.{0,24}${re.source}.{0,12}`, re.flags.replace('g', ''))) || [x.t])[0].trim()} »`);
+    exiger(nom, vus.length === 0, vus.slice(0, 4).join(' · ') || 'aucune');
+  };
+  fautes('l\'argent s\'écrit « 95,5 M$ », jamais « $95.5M »', /\$\d|\b\d+(?:[.,]\d+)?M\b(?!\$)/u);
+  fautes('les ordinaux s\'écrivent « 2e », jamais « 2ème »', /\d\s?(?:ème|eme|ième)s?\b|\b1ère\b/u);
+  fautes('les points de suspension sont « … », pas « ... »', /\p{L}\.\.\./u);
+  fautes('une espace avant « ; ! ? » (la typographie du jeu)', /\p{L}[;!?](?=\s|$|["'»<])/u);
+  // Un % d'arrêts passe par pct3, l'argent par money (js/util.js) : aucun « .912 » ni « 82,0 M$ » fabriqué à la main.
+  const aLaMain = [], argentMain = [];
+  for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && f !== 'util.js')) {
+    lire(`js/${f}`).split('\n').forEach((l, k) => {
+      if (/toFixed\(3\)\.(?:slice\(1\)|replace\(\/\^0)/.test(l)) aLaMain.push(`js/${f}:${k + 1}`);
+      if (/\/\s*1e6\b[^\n]*M\$/.test(l)) argentMain.push(`js/${f}:${k + 1}`);
+    });
+  }
+  exiger('un % d\'arrêts s\'écrit « ,912 », par pct3 (js/util.js)', aLaMain.length === 0, aLaMain.slice(0, 5).join(' · ') || 'une seule forme');
+  exiger('un montant s\'écrit par money (js/util.js), jamais à la main', argentMain.length === 0, argentMain.slice(0, 5).join(' · ') || 'une seule forme');
 }
 
 /* ---------- 3 et 4. la page des règles ---------- */

@@ -304,7 +304,17 @@ console.log(`   option « Sur table » choisie : ${choisi}`);
 
 /* ---------- l'auto-draft, identique au test de fumée principal ---------- */
 const MIN_SAL = 0.95;
-const parseM = t => parseFloat(String(t || '').replace(/[^0-9.]/g, '')) || 0;
+/*
+ * LIRE UN NOMBRE DE L'ÉCRAN (1.0, gel des chaînes) : « 95,5 M$ », « 0,78 M$ »,
+ * « −1,2 M$ », « ,912 », « 46 PTS ». La virgule est décimale, le moins est
+ * typographique, l'espace avant M$ est insécable. L'ancien lecteur gardait les
+ * chiffres et les POINTS : « 95,5 M$ » y serait devenu 955, « ,912 » 912.
+ */
+const lireNombre = t => {
+  const m = String(t || '').replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/);
+  return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0;
+};
+const parseM = lireNombre;
 const lireSignes = async () => parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
 let signed = 0, guard = 0;
 while (signed < 23 && guard++ < 320) {
@@ -312,7 +322,7 @@ while (signed < 23 && guard++ < 320) {
   const maxPick = rem - Math.max(0, 23 - signed - 1) * MIN_SAL;
   const cards = await page.$$('.pcard');
   const infos = await page.$$eval('.pcard', els => els.map(el => ({
-    price: parseFloat((el.querySelector('.pcard-price')?.textContent || '').replace(/[^0-9.]/g, '')) || 0,
+    price: (((t) => { const m = t.replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/); return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0; })(el.querySelector('.pcard-price')?.textContent || '')),
     ok: !!el.querySelector('.btn-sign:not([disabled])'),
   })));
   let idx = infos.findIndex(c => c.ok && c.price <= maxPick);

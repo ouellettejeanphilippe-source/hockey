@@ -68,7 +68,7 @@ async function faits({ saison, club }) {
   const gardien = pool.filter(p => p.p === 'G').sort((a, b) => (b.gp || 0) - (a.gp || 0))[0];
   return [
     meneur ? `${nomCourt(meneur.n)} ${pts(meneur)} pts` : null,
-    gardien && gardien.sv ? `${nomCourt(gardien.n)} ${gardien.sv.toFixed(3).replace(/^0/, '')}` : null,
+    gardien && gardien.sv ? `${nomCourt(gardien.n)} ${pct(gardien.sv)}` : null,
   ].filter(Boolean).join(' · ');
 }
 

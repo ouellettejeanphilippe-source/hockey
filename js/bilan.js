@@ -22,7 +22,7 @@ import { animerComptes } from './mouvement.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
-import { ord, ordF } from './util.js';
+import { ord, ordF, pct3 } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
 let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
@@ -134,7 +134,7 @@ const TROPHEES = [
   { cle: 'passes', nom: 'Meilleur passeur', quoi: 'le plus de passes',
     val: x => `${x.S.A} passes`, sous: x => `${x.S.PTS} pts` },
   { cle: 'arrets', nom: 'Meilleur gardien', quoi: 'pourcentage d\'arrêts',
-    val: x => (x.S.SA ? (x.S.SV / x.S.SA).toFixed(3).slice(1) : '—'), sous: x => `${x.S.W} V · ${x.S.SO} BL` },
+    val: x => (x.S.SA ? pct3(x.S.SV / x.S.SA) : '—'), sous: x => `${x.S.W} V · ${x.S.SO} BL` },
   { cle: 'plusmoins', nom: 'Meilleur différentiel', quoi: 'le plus grand +/-',
     val: x => `${x.S.PM > 0 ? '+' : ''}${x.S.PM}`, sous: x => `${x.S.PTS} pts` },
 ];
@@ -190,12 +190,12 @@ function tropheesHtml(stats, teams) {
     <td class="left">${esc(x.role)}</td>
     <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 14)}${lienJoueur(x.p, x.t, 'saison', `<span>${esc(x.p.n)}</span>`)}</div></td>
     <td class="sub-cell">${lienEquipe(x.t, 'saison', esc(x.t.isPlayer ? 'NHL' : `${x.t.tag} ${(x.t.season || '').slice(2)}`))}</td>
-    <td class="stat heros">${x.p.p === 'G' ? (x.S.SA ? (x.S.SV / x.S.SA).toFixed(3).slice(1) : '—') : `${x.S.PTS} pts`}</td>
+    <td class="stat heros">${x.p.p === 'G' ? (x.S.SA ? pct3(x.S.SV / x.S.SA) : '—') : `${x.S.PTS} pts`}</td>
   </tr>`;
   const miens = gagnants.filter(g => g.x.t.isPlayer).length + etoiles.filter(x => x.t.isPlayer).length;
   return `<div class="result-section">
     <h3>${ico('i-cup')}Les trophées de la saison</h3>
-    <p class="series-legende">Le Hart, le Norris, le Selke et le Vezina sont des votes : le moteur n'a pas d'électeurs.
+    <p class="series-legende">Le Hart, le Norris, le Selke et le Vézina sont des votes : le moteur n'a pas d'électeurs.
       ${miens ? `<strong>${miens} de tes joueurs y sont.</strong>` : ''}</p>
     <div class="trophees">${gagnants.map(carte).join('')}</div>
     <h4 class="tro-titre">Première équipe d'étoiles</h4>
@@ -231,7 +231,7 @@ const PALMARES = [
   { cle: 'moyenne', titre: 'Gardiens · MBA', cols: ['PJ', 'V', 'BL', 'MBA'], heros: 3,
     vals: S => [S.GP, S.W, S.SO, `<b>${(S.GA / Math.max(1, S.GP)).toFixed(2)}</b>`] },
   { cle: 'arrets', titre: 'Gardiens · %ARR', cols: ['PJ', 'ARR', 'TIRS', '%ARR'], heros: 3,
-    vals: S => [S.GP, S.SV || 0, S.SA || 0, `<b>${S.SA ? (S.SV / S.SA).toFixed(3).slice(1) : '—'}</b>`] },
+    vals: S => [S.GP, S.SV || 0, S.SA || 0, `<b>${S.SA ? pct3(S.SV / S.SA) : '—'}</b>`] },
   { cle: 'victoires', titre: 'Gardiens · victoires', cols: ['PJ', 'V', 'D', 'BL'], heros: 1,
     vals: S => [S.GP, `<b>${S.W}</b>`, S.L, S.SO] },
 ];
@@ -473,7 +473,7 @@ function voletNiveau(teams, reelles) {
         <div class="niv-tuile"><span class="k">Points attendus</span><b>${moi.attendu.toFixed(1)}</b></div>
         <div class="niv-tuile"><span class="k">Écart</span><b class="${moi.ecart >= 0 ? 'pm-pos' : 'pm-neg'}">${signe(moi.ecart)}</b></div>
       </div>
-      <p class="series-legende">Pythagore : ce que ton différentiel de buts annonçait. Au-dessus, tu as gagné tes matchs serrés ; en dessous, tu en as perdu que tes buts méritaient.</p>
+      <p class="series-legende">Pythagore : ce que ton différentiel de buts annonçait. Au-dessus, tu as gagné tes matchs serrés ; en dessous, tu as perdu des matchs que tes buts méritaient.</p>
       <div class="table-wrap"><table class="std niv-table">
         <thead><tr><th class="left">Équipe</th><th>PTS</th><th>Attendus</th><th class="heros">Écart</th><th>Calendrier</th><th>Vraie saison</th></tr></thead>
         <tbody>${parEcart.map(x => `<tr class="${x.t.isPlayer ? 'you' : ''}">
