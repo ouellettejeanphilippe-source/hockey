@@ -255,7 +255,7 @@ await page.click('#magasinModal .choix-fermer');
 await acheter('j:hasard_argent', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
-const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.map(x => (x.querySelector('.tc-nom, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
+const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.map(x => (x.querySelector('.tc-nom, .carton-nom .lname, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
 // S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
 const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.map(x => {
   const ruban = (x.querySelector('.cj-ruban') || {}).textContent || '';
@@ -273,7 +273,7 @@ if (!fiche || !encore) erreurs.push(`toucher la carte : fiche ${fiche}, choix to
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
 // Le nom du joueur qu'on signe : il doit être dans l'alignement tout de suite (S79).
-const nomSigne = await page.$eval('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"])', x => (x.querySelector('.pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim());
+const nomSigne = await page.$eval('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"])', x => (x.querySelector('.carton-nom .lname, .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim());
 await page.click('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"]) .tcj-signer');
 /*
  * UNE CASE DE RÉSERVE LIBRE (S80, le Rogue) : avant « qui sort ? », le choix
