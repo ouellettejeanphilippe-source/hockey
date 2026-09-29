@@ -40,6 +40,7 @@ import { RARETES, rareteDeSalaire, gemmeJoueur, sensRarete, artJoueur, brille, b
 import { CARTES_MATCH, recompensesOffertes, deckDe } from './combat.js';
 import { COTES_VARIANTES, varianteTiree, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { ouvrirEquipes, motDeClub } from './equipes.js';
+import { candidatsBallottage as candidatsPurs, groupeDe as groupeDuBallottage } from './ballottage.js';
 import { nouveauTournoi, ouvrirTournoi, classement as classementTournoi, etatDuTournoi, relireTournoi, CLUBS as CLUBS_TOURNOI } from './tournoi.js';
 import { ouvrirTable } from './plateau.js';
 import { reglesDuPlateau, statsDeTable, GABARITS, TIRS, HABILETES, habileteDe, AXE_MOT, equipeDeTable, gagnantDuMatch } from './table.js';
@@ -1300,7 +1301,8 @@ function victoiresEntre(de, a) {
 function jetonsRogue(j = G.journee || 0) {
   const L = G.ligue;
   const decs = decisionsDeLaPartie();
-  const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0), 0);
+  // 1.0 (J1-D) : une réclamation au ballottage coûte des jetons en Rogue (`ballottage.cout`).
+  const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0) + ((d.ballottage || {}).cout || 0), 0);
   const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0), 0);
   const direction = modificateurs(decs).jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, j), 0);
   const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
@@ -1406,7 +1408,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
     recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}. Tu en signes un, et tu choisis qui lui laisse sa place ; les autres vont à ton classeur.${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
     options: cartes.map(x => {
       const g = groupeDe(x.p);
-      const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', graineVariantes(), getPlayerKey(x.p)));
+      const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', getPlayerKey(x.p), x.rar, x.num || 0));
       return {
         // S80 : son niveau ordonne aussi le retournement (le Phénomène en dernier, avec l'éclat d'une holo).
         cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
@@ -1998,7 +2000,8 @@ async function continuerRun() {
   }
   // Le lustre : la variante que la carte a prise reste la sienne.
   for (const d of decisionsDeLaPartie()) if (d.mutation && d.mutation.cle === 'lustre' && d.mutation.carte && garder.has(d.mutation.joueur)) G.variantes.cartes[d.mutation.joueur] = d.mutation.carte.rar;
-  const deck = deckDe(L.decisions || [], { serie: L.decisionsSeries || [] });
+  // 1.0 (J1-F) : la saison neuve repart sans les cicatrices de la précédente — elles sont ce que LA saison laisse.
+  const deck = deckDe(L.decisions || [], { serie: L.decisionsSeries || [] }).filter(c => !(CARTES_MATCH[c] && CARTES_MATCH[c].maudite));
   report.push({ jour: 0, deck: 'report', deckDeBase: deck, report: true });
   const reste = Math.max(0, jetonsRogue(L.calendrier.length));
   G.lignes = Array.isArray(you.lignes) ? you.lignes.map(l => ({ ...l })) : G.lignes;
@@ -2919,9 +2922,16 @@ function varianteJoueur(p) {
   return G.variantes.cartes[cle] || varianteTiree(COTES_VARIANTES, graineVariantes(), cle);
 }
 const rareteJoueur = varianteJoueur;
-/* La carte d'un joueur : sa variante, son bonus tiré au hasard, et la recrue qui progresse. */
+/*
+ * La carte d'un joueur : sa variante, ses bonus, et la recrue qui progresse.
+ * 1.0 (J1-G) : les bonus appartiennent à LA CARTE — la clé du joueur, sa
+ * variante et son numéro — plus à la graine de la partie. Une holo de
+ * Mogilny a les mêmes bonus dans toutes les runs ; deux ors numérotées
+ * différentes ont des bonus différents. Le cartable n'a rien de plus à garder.
+ */
 function carteJoueur(p) {
-  const c = carteDe(varianteJoueur(p), groupeDe(p) === 'G', graineVariantes(), getPlayerKey(p));
+  const cle = getPlayerKey(p);
+  const c = carteDe(varianteJoueur(p), groupeDe(p) === 'G', cle, varianteJoueur(p), (G.variantes.numeros || {})[cle] || 0);
   if (p.elc) c.recrue = true;
   return c;
 }
@@ -3318,7 +3328,7 @@ function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue && G.l
   if (cle === 'lustre') {
     const r = varianteApres(varianteJoueur(q), posees), n = VARIANTE_SUIVANTE[r];
     if (!n) return { non: 'sa carte est déjà en or' };
-    const carte = carteDe(n, g, graineVariantes(), k);
+    const carte = carteDe(n, g, k, n, (G.variantes.numeros || {})[k] || 0);
     return { note: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]}`, extra: { carte: { rar: carte.rar, bonus: carte.bonus } },
       mot: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte).map(b => `${b.ico} ${b.nom}`).join(' + ')}` };
   }
@@ -5969,8 +5979,11 @@ function confirmerDecision(d) {
 const RESERVE_DE = { F: 'Réserve F', D: 'Réserve D', G: 'Réserve' };
 const POSTE_GROUPE = { F: 'Avant', D: 'Défenseur', G: 'Gardien' };
 const PLAFOND_BALLOTTAGE = 0.03;          // la part du plafond qu'un joueur réclamé peut coûter
-const groupeDe = p => (p.p === 'G' ? 'G' : isD(p) ? 'D' : 'F');
+const groupeDe = groupeDuBallottage;
 const ballottageVu = new Map();
+/* En Rogue, une réclamation coûte des jetons (1.0) : un dépanneur, pas un cadeau. En saison, rien. */
+const COUT_BALLOTTAGE_ROGUE = 10;
+const coutBallottage = () => (G.bonus === 'ROGUE' ? COUT_BALLOTTAGE_ROGUE : 0);
 function candidatsBallottage(blesse, at) {
   const L = G.ligue;
   if (!L || !blesse || !L.cles) return null;
@@ -5979,42 +5992,14 @@ function candidatsBallottage(blesse, at) {
   if (!slot) return null;
   const sort = G.roster[slot.i] || null;
   const budget = Math.min(capLeft() + (sort ? sort.$ : 0), MODE().cap * PLAFOND_BALLOTTAGE);
-  const dansLaLigue = new Set();
-  for (const t of L.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
-  const clubs = new Set(L.cles);
-  const pool = [];
-  for (const s of new Set(L.cles.map(c => String(c).split('|')[0]))) {
-    const e = G.shards.get(s);
-    if (!e) continue;
-    for (const [tag, joueurs] of Object.entries(e.byTeam)) {
-      if (clubs.has(`${s}|${tag}`)) continue;
-      for (const p of joueurs) {
-        if ((p.gp || 0) < 20 || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p))) continue;
-        pool.push(p);
-      }
-    }
-  }
-  const h = str => { let x = ((Number(L.graine) >>> 0) ^ Math.imul(at + 1, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
-  // Des offres qui valent la peine : les quinze meilleurs producteurs pas
-  // chers (points par match, ou % d'arrêts), puis trois d'entre eux tirés
-  // de la graine. Un tirage parmi TOUS les pas chers offrait des joueurs à
-  // deux points en trente-sept matchs.
-  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? (p.g + p.a)) || 0) / Math.max(1, p.gp));
-  pool.sort((a, b) => prod(b) - prod(a));
-  pool.length = Math.min(pool.length, 15);
-  pool.sort((a, b) => h(getPlayerKey(a)) - h(getPlayerKey(b)));
-  const out = [], vus = new Set();
-  for (const p of pool) {
-    if (vus.has(getPersonKey(p))) continue;
-    vus.add(getPersonKey(p)); out.push(p);
-    if (out.length === 3) break;
-  }
+  // 1.0 (J1-D) : la fonction pure (js/ballottage.js), qui n'offre que des réguliers — jamais une vedette à son contrat d'entrée.
+  const out = candidatsPurs({ shards: G.shards, ligue: L, blesse, budget, at });
   for (const p of out) ballottageVu.set(getPlayerKey(p), p);
   const ligne = ligneDuChoix;
   // Le joueur et sa rareté voyagent avec l'offre (S76) : le ballottage se
   // présente en CARTES de joueur, portrait et métal compris, comme la recrue.
   return {
-    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null,
+    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, cout: coutBallottage(),
     candidats: out.map(p => ({ cle: getPlayerKey(p), p, nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, poste: POSTE_GROUPE[g], salaire: money(p.$), ligne: ligne(p), rarete: rareteJoueur(p) })),
   };
 }

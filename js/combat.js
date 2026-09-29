@@ -35,6 +35,8 @@
 
 export const ENERGIE_MAIN = 3;
 export const TAILLE_MAIN = 5;
+/* Les cicatrices (le doute, une blessure qui traîne) qu'un deck porte au plus, en même temps (1.0). */
+export const CICATRICES_MAX = 2;
 
 /*
  * Les cartes. `cout` en énergie ; `effet` : les canaux de CE match pour ta
@@ -54,6 +56,8 @@ export const TAILLE_MAIN = 5;
  * « Eux : punitions +25 % » — et `regle` ne s'écrit à la main que pour une
  * carte conditionnelle. Et de nouvelles MÉCANIQUES, pas seulement de
  * nouveaux pourcentages :
+ *   `apres40`       (1.0) un effet posé à la troisième période seulement, selon le
+ *                   pointage après deux : `siMene` quand on mène, `sinon` autrement ;
  *   `ecarte`        le dépistage écarte N plans qu'ils ne joueront pas ;
  *   `revele`        tu SAIS leur plan : ta préparation vise juste ;
  *   `planB`         ta préparation couvre deux plans ;
@@ -146,7 +150,7 @@ export const CARTES_MATCH = {
   vieux: { nom: 'Le vétéran parle', ico: '🧓', cout: 1, rarete: 'peu', genre: 'defense',
     texte: 'Pas de panique : on joue notre match, on ne donne rien.', effet: { discipline: 0.85, defense: 0.97 } },
   tueur: { nom: 'L\'instinct du tueur', ico: '🗡️', cout: 2, rarete: 'peu', genre: 'attaque',
-    texte: 'Quand on mène, on en veut un autre.', effet: { finition: 1.06, defense: 1.02 } },
+    texte: 'Quand on mène, on en veut un autre.', apres40: { siMene: { finition: 1.06 }, sinon: {} } },
 
   // ---- rares ----
   miracle: { nom: 'Le miracle sur glace', ico: '✨', cout: 3, rarete: 'rare', genre: 'attaque',
@@ -252,8 +256,22 @@ export const CARTES_MATCH = {
  */
 export const estPlus = cle => String(cle).endsWith('+');
 export const carteDeBase = cle => String(cle).replace(/\+$/, '');
-const plusDe = v => (typeof v === 'number' ? 1 + (v - 1) * 1.5 : Array.isArray(v) ? v.map(plusDe) : v);
-const canauxPlus = e => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, plusDe(v)])) : e);
+/*
+ * LE SENS D'UN CANAL (1.0, J1-G) : ce qui est bon quand ça monte (finition,
+ * volume, robustesse) et ce qui est bon quand ça baisse (défensive, énergie,
+ * discipline, blessure). Une carte « + » n'amplifie que dans le BON sens,
+ * jamais son inconvénient (« Tirer de partout+ » garde précision −3 %, pas
+ * −4,5 %) ; sur l'adversaire (`adv`), le bon sens est l'inverse. Les minutes
+ * des lignes (F, D) restent telles quelles.
+ */
+const SENS = { finition: 1, volume: 1, robustesse: 1, defense: -1, energie: -1, discipline: -1, blessure: -1 };
+const plusDe = (v, k = null, cote = 1) => {
+  if (typeof v !== 'number') return v;
+  const s = k ? SENS[k] : null;
+  if (s && Math.sign(v - 1) !== s * cote) return v;
+  return 1 + (v - 1) * 1.5;
+};
+const canauxPlus = (e, cote = 1) => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, plusDe(v, k, cote)])) : e);
 for (const [cle, C] of Object.entries(CARTES_MATCH)) {
   if (C.maudite) continue;
   const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.contre || C.revele || C.planB || C.rabais;
@@ -261,7 +279,8 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
   if (moinsCher && C.cout > 0) P.cout = C.cout - 1;
   else {
     if (C.effet) P.effet = canauxPlus(C.effet);
-    if (C.adv) P.adv = canauxPlus(C.adv);
+    if (C.adv) P.adv = canauxPlus(C.adv, -1);
+    if (C.apres40) P.apres40 = { siMene: canauxPlus(C.apres40.siMene), sinon: canauxPlus(C.apres40.sinon) };
     if (C.pioche) P.pioche = C.pioche + 1;
     if (C.energieTous) P.energieTous = C.energieTous + 10;
     if (C.pari) P.pari = { ...C.pari, chance: Math.min(0.8, C.pari.chance + 0.15) };
@@ -321,8 +340,17 @@ export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = I
    * blessure qui traîne. Ce sont des résultats du moteur — donc des faits de
    * la graine et des décisions, comme le reste du deck.
    */
-  for (const j of pertes) if (j < avant) deck.push('doute');
-  for (const j of blessures) if (j < avant) deck.push('trainee');
+  /*
+   * DEUX CICATRICES AU PLUS (1.0, J1-F) : elles s'empilaient sans plafond et
+   * traversaient les saisons d'une run — un deck de dix plus quatre cicatrices
+   * tirait une malédiction dans la plupart des mains. La plus ancienne tombe
+   * au-delà de CICATRICES_MAX, et chaque série gagnée en efface une (la plus
+   * ancienne). Au report d'une run (`deckDeBase`), la saison neuve repart sans.
+   */
+  const cicatrices = [...pertes.filter(j => j < avant).map(j => ({ j, cle: 'doute' })), ...blessures.filter(j => j < avant).map(j => ({ j, cle: 'trainee' }))]
+    .sort((a, b) => a.j - b.j).slice(-CICATRICES_MAX);
+  const effacees = serie.filter(d => d && d.ronde < ronde && d.recompense !== undefined).length;
+  for (const c of cicatrices.slice(Math.min(cicatrices.length, effacees))) deck.push(c.cle);
   for (const cle of retraits) retirer(cle);
   /*
    * LES CARTES ÉPUISÉES (S76) : jouées à un match, elles quittent le deck
@@ -380,7 +408,7 @@ const POOL_ADVERSE = Object.keys(CARTES_MATCH).filter(k => {
   // Ni dépistage, ni rabais, ni épuisée (S76) : ce sont des gestes de TA préparation et de TON deck.
   if (C.revele || C.ecarte || C.planB || C.improvise || C.piege || C.rabais || C.epuise || C.siVide) return false;
   return !C.maudite && !C.lire && !C.contre && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
-    && (C.effet || C.adv || C.pari || C.synergie || C.energieTous || C.parGenre || C.selonLeurMain);
+    && (C.effet || C.adv || C.pari || C.synergie || C.energieTous || C.parGenre || C.selonLeurMain || C.apres40);
 });
 export function mainAdverse(graine, cle, energie = ENERGIE_MAIN) {
   const out = [];
