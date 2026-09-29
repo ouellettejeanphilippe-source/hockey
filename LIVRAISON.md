@@ -225,6 +225,16 @@ Un joueur se lit donc en : RÔLE (icône, mot, et ses scores dans les autres rô
 - [x] **C6 · La page des règles réécrite** sur le modèle ci-dessus, courte, sans ce qui est périmé, avec les mêmes mots que l'écran.
 - Preuves : un `scripts/check_clarte.mjs` qui refuse une icône à deux sens, le mot « énergie » hors des jambes, et un chiffre affiché que le moteur ne lit pas (liste blanche) ; `check_situations` pour les jambes (cible C3) ; smoke : la case de l'alignement montre rôle, niveau, zone, jambes.
 
+## Jalon R · La refonte (JP, 29 sept. : *les cartes pis le UI, ça feel vraiment cheap* ; *tu vas pas assez loin, je parle des menus, de comment c'est monté, de tout* ; *que si je le montre à quelqu'un, ça ait pas l'air d'un jeu web, mais d'un jeu console, PC ou mobile* ; *je me sens comme une balle de pinball*)
+
+Diagnostic et maquettes : https://claude.ai/artifact/4yq6wM131Bp1b231nmJmMk (la structure) et https://claude.ai/artifact/ACR6EPD4nmrDBXXcYZXHeK (la peau). Direction retenue : A (télédiffusion) pour l'interface, B (carte de collection) pour les cartes. Le moteur, les sauvegardes et les règles ne bougent pas : c'est une refonte de l'interface.
+
+- [ ] **R1 · La coquille.** Cinq sections fixes dans tous les modes (Club, Effectif, Marché, Ligue, Collection) : rail à gauche au bureau, barre en bas au téléphone ; l'en-tête du club (écusson, fiche, rang, plafond) ; l'écran titre (« Continuer » en héros) ; le Menu prend Nouvelle partie, Options et Règles ; une seule pile d'écrans (Retour = Échap, bouton B, retour Android) ; clavier et manette avec un focus lumineux et les invites « Ⓐ Confirmer · Ⓑ Retour » ; transitions d'écran, sons d'interface, rien de sélectionnable, aucun lien souligné. Les écrans existants s'y rangent tels quels.
+- [ ] **R2 · Le Club et sa boîte de réception.** Les décisions deviennent des messages réglés dans un panneau (bureau) ou une feuille (téléphone) ; plus de plein écran de choix, sauf les moments de fête (pack, main de la journée, Coupe).
+- [ ] **R3 · Le soir de match** en quatre étapes (Aperçu, Préparation, Match, Résultat) à la place de la chaîne de fenêtres.
+- [ ] **R4 · Effectif, Marché, Ligue, Collection**, écran par écran.
+- [ ] **R5 · La peau.** Jetons de design (7 tailles, 3 rayons, ~20 couleurs), icônes au trait à la place des 973 émojis, cartes de collection par époque, illustrations des cartes de match.
+
 ## Jalon 3 · Zéro code inutile
 
 Inventaire mesuré au commit `7da2bd5` (commandes à la fin).
