@@ -1593,6 +1593,7 @@ async function traverserSaison(etiquette, reprise = false) {
         });
         if (!ordre.adv || !ordre.avant) errors.push('« Préparer le match » ne montre pas l\'adversaire avant la consigne');
         if (ordre.curseur) errors.push('« Préparer le match » garde un curseur attaque / défense à côté de la consigne');
+        await deuxCaptures('preparer');
         // DEVANT LE FILET CE SOIR (C4) : deux gardiens, la rotation choisie, l'autre se touche.
         const filets = await page.$$eval('#lignesModal .gl-filet [data-filet]', e => e.map(b => ({ qui: b.dataset.filet, on: b.classList.contains('on'), jambes: !!b.querySelector('.jambes') })));
         if (filets.length !== 2 || filets.filter(f => f.on).length !== 1 || !filets.every(f => f.jambes)) errors.push(`« Devant le filet ce soir » n'a pas ses deux gardiens : ${JSON.stringify(filets)}`);
@@ -1623,6 +1624,7 @@ async function traverserSaison(etiquette, reprise = false) {
      */
     {
       const tuiles = () => page.$$eval('#hubModal .hub-portail .hub-tuile', e => e.filter(x => x.offsetParent).length);
+      await page.screenshot({ path: 'scripts/smoke-j2-bureau-390.png' });
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.waitForTimeout(300);
       const large = await tuiles();
@@ -2210,6 +2212,19 @@ async function finirVite() {
  * « Passer à la fin » n'existe qu'éliminé. On joue match après match, ronde
  * après ronde, en réglant chaque choix, jusqu'au tableau.
  */
+/* Les captures des écrans du jalon 2 (scripts/smoke-j2-*.png) : au téléphone, puis à 1440 px. */
+async function deuxCaptures(nom, voir = null) {
+  const vp = page.viewportSize();
+  const montrer = () => (voir ? page.$eval(voir, e => e.scrollIntoView({ block: 'center' })).catch(() => {}) : null);
+  await montrer();
+  await page.screenshot({ path: `scripts/smoke-j2-${nom}-390.png` });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(300);
+  await montrer();
+  await page.screenshot({ path: `scripts/smoke-j2-${nom}-1440.png` });
+  await page.setViewportSize(vp);
+  await page.waitForTimeout(300);
+}
 async function finirSeries() {
   for (let i = 0; i < 300; i++) {
     await repondreAuxChoix();
@@ -2234,6 +2249,7 @@ if (enabled) {
     const conseil = ((await page.textContent('#resultHost .note').catch(() => '')) || '').trim();
     if (!/\d/.test(conseil) || /trois derniers trios|bât blesse/.test(conseil)) errors.push(`le conseil du bilan ne cite aucun chiffre : « ${conseil} »`);
     else console.log(`   le conseil du bilan : « ${conseil} »`);
+    await deuxCaptures('bilan');
   }
   /*
    * L'ALBUM (S74) : la saison jouée y entre — ses 23 joueurs au cartable,
@@ -2677,7 +2693,7 @@ if (enabled) {
       const adj = await page.$('#choixModal:not([hidden]) .main-adjoint');
       if (mainOuverte && !adj) errors.push('la main d\'un match de séries n\'offre pas « L\'adjoint joue cette série »');
       else if (adj) {
-        await page.screenshot({ path: 'scripts/smoke-adjoint.png' });
+        await deuxCaptures('adjoint', '#choixModal .main-adjoint');
         await adj.click();
         await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
         await page.waitForTimeout(600);
