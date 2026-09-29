@@ -319,6 +319,24 @@ async function repondreAuxChoix() {
         prepsVues++;
         // La première : une capture, pour que JP voie le dépistage tel qu'un kid le voit.
         if (prepsVues === 1) await page.screenshot({ path: 'scripts/smoke-main.png' });
+        /*
+         * L'EFFET AVANT L'AMBIANCE (1.0, J2-12) : à 1440 × 900, la puce chiffrée
+         * de chaque carte est au-dessus des boutons collés en bas, sans défiler.
+         */
+        if (prepsVues === 1) {
+          const vp = page.viewportSize();
+          await page.setViewportSize({ width: 1440, height: 900 });
+          await page.waitForTimeout(250);
+          const sous = await page.evaluate(() => {
+            const b = document.querySelector('#choixModal .main-boutons');
+            if (!b) return null;
+            const haut = b.getBoundingClientRect().top;
+            return [...document.querySelectorAll('#choixModal .main-carte .tc-puces')].filter(p => p.getBoundingClientRect().bottom > haut + 1).length;
+          });
+          await page.setViewportSize(vp);
+          await page.waitForTimeout(250);
+          if (sous) errors.push(`à 1440 × 900, ${sous} carte(s) de la main ont leur effet sous les boutons`);
+        }
       }
       const jouable = await page.$('#choixModal .main-carte:not(.trop-cher):not(.injouable):not(.jouee)');
       let nom = null;

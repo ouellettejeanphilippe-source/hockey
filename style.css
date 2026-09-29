@@ -10274,3 +10274,20 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 @media (max-width: 1199px) {
   body.hub-docke .hub-sheet .hub-volet { padding-bottom: calc(var(--bas-coquille, 70px) + 72px); }
 }
+
+/* ---------------------------------------------------------------
+   1.0 (J2-12) — LA MAIN DE MATCH : L'EFFET AVANT L'AMBIANCE. À 1440 × 900,
+   la puce chiffrée de chaque carte (« Tirs +6 % ») passait sous « Ne rien
+   jouer » : c'est elle qu'on lit pour décider, le texte d'ambiance ensuite.
+   Les puces montent sous la ligne de type, l'illustration rapetisse, et
+   l'ambiance tient en deux lignes.
+   --------------------------------------------------------------- */
+.main-sheet .choix-option.tc .tc-puces { order: 1; }
+.main-sheet .choix-option.tc .tc-texte { order: 2; }
+.main-sheet .choix-option.tc .choix-option-non,
+.main-sheet .choix-option.tc .tc-pied { order: 3; }
+.main-sheet .choix-option.tc .tc-quoi { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (min-width: 641px) {
+  .main-sheet .tc-art { height: 64px; }
+  .main-sheet .tc-art-ico { font-size: 38px; }
+}
