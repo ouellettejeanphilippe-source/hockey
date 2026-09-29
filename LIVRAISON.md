@@ -233,6 +233,7 @@ Diagnostic et maquettes : https://claude.ai/artifact/4yq6wM131Bp1b231nmJmMk (la 
 - [ ] **R2 · Le Club et sa boîte de réception.** Les décisions deviennent des messages réglés dans un panneau (bureau) ou une feuille (téléphone) ; plus de plein écran de choix, sauf les moments de fête (pack, main de la journée, Coupe).
 - [ ] **R3 · Le soir de match** en quatre étapes (Aperçu, Préparation, Match, Résultat) à la place de la chaîne de fenêtres.
 - [ ] **R4 · Effectif, Marché, Ligue, Collection**, écran par écran.
+- [ ] **R5-cartes · De vraies cartes** (JP, 29 sept. : *sauf les cartes, qui ont l'air de vraies cartes, et avec background variés qui font pro*). Une dizaine de séries complètes (Vintage 70, Rétro 80, Glace, Aréna, Filet, Chrome, Écusson, Tableau, Signature…), chacune avec sa mise en page et un fond travaillé, assignées par époque ; les finitions deviennent des parallèles (réfracteur, dorure, numérotée) ; les cartes de match ont un fond par genre (tactique : tableau de coach à la craie) et de vraies illustrations au trait. Le poste, le salaire, le chiffre clé et le rôle restent au même endroit sur toutes les séries.
 - [ ] **R5 · La peau.** Jetons de design (7 tailles, 3 rayons, ~20 couleurs), icônes au trait à la place des 973 émojis, cartes de collection par époque, illustrations des cartes de match.
 
 ## Jalon 3 · Zéro code inutile
