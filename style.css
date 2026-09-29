@@ -6821,6 +6821,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .cs-filet.carton.avec-action:not(.paysage) .carton-club { bottom: 10cqw; }
 .cs-filet.carton.avec-action:not(.paysage) .carton-relique { left: 45cqw; right: auto; top: 110cqw; }
 .carton.avec-action.paysage.cs-filet .carton-deco::before { display: block; left: 1.6cqw; right: 1.6cqw; top: 1.6cqw; height: 55cqw; border-width: 1.8cqw; }
+.carton.avec-action.paysage.cs-filet .carton-nom::after { display: none; }
 
 /* ---------------------------------------------------------------
    6 · CHROME (1999-03) — le métal brossé, la fenêtre biseautée cerclée de
