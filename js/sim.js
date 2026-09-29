@@ -9,7 +9,7 @@
 import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
 import { effetCarte, poserSoirGrand } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
-import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONE_THRESHOLDS,
+import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour } from './ratings.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
@@ -311,11 +311,25 @@ export function malusZoneUnite(group, unit, entrees, opts = {}) {
 
 /* ---------- 23 joueurs : 4 trios, 3 paires, 2 gardiens, 3 réservistes ---------- */
 
+/*
+ * L'ÉTIQUETTE D'UNE CASE DIT QUI Y EST CHEZ LUI (1.0 · J1-K). Avant : « Top 6 /
+ * Middle 6 / Bottom 6 » et « Top 4 / Bottom 4 », alors que les zones se
+ * chevauchent — un Bottom 6 est chez lui au 3e trio (une case « Middle 6 »), et
+ * un 78+ n'est chez lui qu'au 1er trio (le 2e, une case « Top 6 », lui coûtait un
+ * cran). L'étiquette liste les zones standard et vedette dont les unités idéales
+ * comprennent la case : la même table que le moteur (les zones des polyvalents,
+ * T1-3 et cie, couvrent plusieurs cases et ne s'écrivent pas sur une case).
+ */
+export const zonesDeLaCase = (group, unit) =>
+  [ZONES_ETOILE[group], ...LINE_ZONES[group]].filter(z => z.idealUnits.includes(unit));
+const etiquetteDeCase = (group, unit) => zonesDeLaCase(group, unit).map(z => z.mini).join(' · ');
 export const SLOTS = [];
-['Top 6', 'Top 6', 'Middle 6', 'Bottom 6'].forEach((label, unit) => {
+[0, 1, 2, 3].forEach(unit => {
+  const label = etiquetteDeCase('F', unit);
   ['AG', 'C', 'AD'].forEach(role => SLOTS.push({ group: 'F', unit, role, label }));
 });
-['Top 4', 'Top 4', 'Bottom 4'].forEach((label, unit) => {
+[0, 1, 2].forEach(unit => {
+  const label = etiquetteDeCase('D', unit);
   ['DG', 'DD'].forEach(role => SLOTS.push({ group: 'D', unit, role, label }));
 });
 // Le partant et l'auxiliaire portent des unités différentes pour que la zone
@@ -6503,7 +6517,7 @@ function poserCartes(toi, adv, gros) {
     const p = toi.roster[sl.i];
     if (p && p.p !== 'G') p.energie = Math.min(100, energieDe(p) + fx.energieTous);
   }
-  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire, contre: !!fx.contre };
+  gros.cartesJouees = { jouees: gros.cartes.jouees.slice(), paris: fx.paris, lu: !!fx.lire, contre: !!fx.contre };
   return fx;
 }
 /* Ta préparation contre leur plan (S76, voir `PREP_JUSTE`) : juste, fausse, ou rien. */

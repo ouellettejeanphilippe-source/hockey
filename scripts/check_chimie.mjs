@@ -23,6 +23,7 @@ import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, activeLineup, lignesDe, contreDe,
   chimieLigne, apprentissagePhoto, penaliteAdaptee, getPositionPenalty, CHIMIE_BONUS, fits,
 } from '../js/sim.js';
+import { LINE_ZONES, ZONES_ETOILE } from '../js/ratings.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -128,6 +129,20 @@ const base = bases[0];
   const tous = [];
   for (const t of base) for (const j of t.jourLignes || []) if (j) tous.push(moy(j.chimie));
   borne('bonus de chimie moyen de la ligue', CHIMIE_BONUS * moy(tous) / 100, 1.4, 2.3, ' pt');
+}
+
+/* ---------- 1.0 · J1-K : l'étiquette d'une case dit qui y est chez lui ---------- */
+{
+  const faux = [];
+  for (const g of ['F', 'D']) {
+    for (const s of SLOTS.filter(x => x.group === g && !x.scratch)) {
+      const mots = s.label.split(' · ');
+      for (const z of [ZONES_ETOILE[g], ...LINE_ZONES[g]]) {
+        if (z.idealUnits.includes(s.unit) !== mots.includes(z.mini)) faux.push(`${g}${s.unit} ${z.mini} « ${s.label} »`);
+      }
+    }
+  }
+  exiger('une zone est chez elle à une case ⇔ l\'étiquette de la case la nomme', faux.length === 0, faux.join(' · ') || [...new Set(SLOTS.filter(x => !x.scratch && x.group !== 'G').map(x => x.label))].join(' | '));
 }
 
 verdict('La chimie apprise');
