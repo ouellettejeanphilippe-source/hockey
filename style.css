@@ -374,16 +374,11 @@ a { color: var(--blue); }
    --------------------------------------------------------------- */
 
 .topbar {
-  position: sticky;
   top: 0;
   z-index: 60;
   background: rgba(6, 12, 20, 0.96);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line);
   /* Le filet du haut est de la couleur du vestiaire en cours : c'est le
      bandeau d'une diffusion, et il change à chaque tour de roulette. */
-  box-shadow: inset 0 3px 0 var(--team-band);
-  padding: 11px 12px 8px;
   transition: box-shadow .3s;
 }
 
@@ -398,7 +393,7 @@ a { color: var(--blue); }
 .topbar-actions {
   flex: none;
   display: flex;
-  gap: 6px;
+  gap: var(--sp-2);
 }
 
 .icon-btn {
@@ -406,23 +401,11 @@ a { color: var(--blue); }
   align-items: center;
   gap: 7px;
   color: var(--sub);
-  background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 7px 11px;
   font-size: 15.5px;
   line-height: 1;
-  min-height: 36px;
-  /* CARRÉ AU DOIGT. Le libellé est caché sur téléphone, donc le bouton
-     tombait à 28 px de large pour 36 de haut — sous le seuil confortable,
-     et ce sont les deux seules commandes de la barre du haut. `min-width`
-     en fait une pastille de 36 sans rien changer là où le libellé s'affiche. */
-  min-width: 36px;
   justify-content: center;
-  transition: border-color .15s, background .15s, transform .1s;
 }
-.icon-btn:hover { border-color: var(--ui-accent); background: var(--panel-3); color: var(--text); }
-.icon-btn:active { transform: scale(0.94); }
 .icon-lbl {
   display: none;
   font-weight: 700;
@@ -449,8 +432,8 @@ a { color: var(--blue); }
 }
 .capgauge-row.small {
   margin-top: 5px;
-  font-size: 12.5px;
   color: var(--sub);
+  font-family: var(--display); font-size: 13px; letter-spacing: 0.03em;
 }
 .capgauge-row.small strong { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 800; }
 .capgauge-label {
@@ -578,6 +561,12 @@ a { color: var(--blue); }
    nom d'équipe en capitales condensées — insécable, coupé aux points de
    suspension — poussait la carte hors de l'écran à 390 px. */
 
+.spin-card {
+  position: relative;
+  min-width: 0;
+  animation: cardIn .3s ease;
+  padding: 0;
+}
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: none; }
@@ -693,8 +682,9 @@ a { color: var(--blue); }
      le volet de la roulette rétrécit alors que la fenêtre s'élargit, et les
      libellés en `vw` débordaient de leur bouton. */
   container-type: inline-size;
-  gap: 6px;
-  margin-top: 10px;
+  margin-top: 0;
+  gap: 0;
+  padding: 0 14px;
 }
 .reroll {
   display: flex;
@@ -774,11 +764,10 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  /* La bande des chiffres, en pied du bloc : un fond plus sombre, un filet,
-     pas de cadre. */
-  background: rgba(0, 0, 0, 0.3);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 8px 14px;
+  /* ---- 4. La bande des chiffres : une seule bande noire, des filets ---- */
+  background: transparent;
+  border-top: 1px solid var(--line-soft);
+  padding: var(--sp-2) 14px;
 }
 .dash .dash-card {
   background: none;
@@ -794,6 +783,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 .dash:has(> :nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* Deux lignes réservées : « BUDGET DU CHOIX » passait à la ligne quand ses
    voisins tenaient sur une, et les trois chiffres ne s'alignaient plus. */
+.dash-big.sm { letter-spacing: 0.01em; font-size: 16px; }
 .h3-long { display: none; }
 
 .dash-big {
@@ -867,11 +857,8 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   .pane-title { display: none; }
   .pool-tools { min-width: 0; }
   .pool-tools > * { min-width: 0; }
-  .search { flex: 1 1 0; }
-  .seg-view { flex: none; }
   .seg-view .lbl { display: none; }
-  .seg-view button { padding: 4px 9px; }
-  .select { flex: 0 1 auto; max-width: 108px; padding-left: 7px; padding-right: 4px; }
+  .select { max-width: 108px; padding-left: 7px; padding-right: 4px; }
 }
 .seg-view .ico { width: 15px; height: 15px; }
 
@@ -917,11 +904,9 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 
 .filters {
   display: flex;
-  gap: 5px;
   overflow-x: auto;
-  padding-bottom: 4px;
-  margin-bottom: 9px;
   scrollbar-width: none;
+  padding-bottom: 0; margin-bottom: var(--sp-2); gap: var(--sp-1);
 }
 .filters::-webkit-scrollbar { display: none; }
 
@@ -937,22 +922,15 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   .filters {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 4px;
     overflow: visible;
   }
   .chip {
     flex-direction: column;
     justify-content: center;
-    gap: 1px;
-    padding: 5px 2px;
-    min-height: 42px;
-    border-radius: var(--r-s);
-    font-size: 12.5px;
     min-width: 0;
     overflow: hidden;
   }
   .chip .chip-need { padding: 0 3px; font-size: 10px; background: none; }
-  .chip.on .chip-need { background: none; }
 }
 .chip {
   flex: none;
@@ -985,7 +963,6 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   font-variant-numeric: tabular-nums;
 }
 .chip .chip-need.full { color: var(--green); }
-.chip.on .chip-need.full { color: var(--green); background: none; }
 
 /* ---------------------------------------------------------------
    Bassin — cartes de joueurs
@@ -1076,10 +1053,6 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
     grid-column: auto;
     margin: 0;
     padding: 7px 10px;
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    border-left: 3px solid currentColor;
-    border-radius: var(--r-s);
     position: sticky;
     top: 0;
     z-index: 2;
@@ -1156,10 +1129,6 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
     align-items: flex-start;
     justify-content: center;
     gap: 2px;
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    border-bottom: 2px solid var(--pos-line, var(--line));
-    border-radius: var(--r-s);
     position: sticky;
     top: 0;
     z-index: 2;
@@ -1191,7 +1160,6 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
      du noir : le rouge de Chicago donne un bordeaux sombre, le marine de
      Toronto un bleu de nuit. On reconnaît le vestiaire avant de lire le
      bandeau, et ça reste assez sombre pour que le nom se lise. */
-  background: var(--team-fond, var(--panel-0));
   /* UN CONTOUR, PAS UNE BARRE. La couleur d'équipe cerne la carte sur tout
      son pourtour, d'un trait fin et clair — c'est ce qui la détache du fond
      sans lui coller une bande sur le flanc. */
@@ -1199,13 +1167,11 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   border-radius: var(--r-m);
   overflow: hidden;
   cursor: pointer;
-  transition: border-color .15s, box-shadow .15s, transform .1s;
 }
 .pcard:hover { border-color: var(--team-line, var(--ui-accent)); }
 .pcard.locked { border-color: var(--line); }
 .pcard:active { transform: scale(0.995); }
 .pcard.locked { opacity: 0.45; }
-.pcard.signed { border-color: rgba(70, 201, 139, 0.55); }
 
 /* Haut de carte : le nom, le prix. Le portrait est parti avec le reste. */
 .pcard-head {
@@ -1238,8 +1204,9 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   letter-spacing: 0.02em; color: var(--sub);
 }
 .pcard-name .lname {
-  font-family: var(--display); font-size: 19.5px; line-height: 1;
+  font-family: var(--display); line-height: 1;
   font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em;
+  font-size: 21px;
 }
 .pcard-price {
   /* Le prix se pose sur la ligne du nom de famille, pas sur celle du prénom :
@@ -1277,8 +1244,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 .pcard-band, .slot-band {
   display: flex; align-items: center; gap: 7px;
   white-space: nowrap; overflow: hidden;
-  padding: 4px 9px 6px;
-  font-size: 10.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+  font-weight: 900; text-transform: uppercase;
   background: var(--team-band, var(--neutre-eq));
   color: var(--team-ink, #ffffff);
   /* Le liseré du maillot, dessiné à l'intérieur : la hauteur ne bouge pas. */
@@ -1336,7 +1302,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 .pcard-avatar {
   position: relative;
   width: 40px; height: 40px; border-radius: 9px; overflow: hidden;
-  background: #0a1521; border: 1px solid var(--line);
+  border: 1px solid var(--line);
   display: grid; place-items: center;
 }
 .pcard-avatar img {
@@ -1359,10 +1325,8 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 .pcard-big { flex: none; display: flex; align-items: baseline; gap: 3px; }
 .pcard-big b {
   font-family: var(--display);
-  font-size: 33.5px;
   font-weight: 800;
   line-height: 1;
-  letter-spacing: 0;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
@@ -1460,7 +1424,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 .btn-sign:hover:not(:disabled) { filter: brightness(1.1); }
 .btn-sign:active:not(:disabled) { transform: scale(0.96); }
 .btn-sign:disabled { border-color: var(--line); background: transparent; color: var(--muted); box-shadow: none; }
-.btn-sign.is-signed { background: transparent; color: var(--green); border-color: rgba(70, 201, 139, 0.5); box-shadow: none; }
+.btn-sign.is-signed { background: transparent; border-color: rgba(70, 201, 139, 0.5); box-shadow: none; }
 /* Une signature qui bloque la fin (1.0, J1-Q) : le bouton le dit en rouge, et demande un second toucher. */
 .btn-sign.risque { background: var(--red); border-color: var(--red); color: #fff; font-size: 14px; letter-spacing: 0.05em; white-space: normal; line-height: 1.15; }
 .btn-sign.risque[data-confirme="1"] { background: transparent; color: var(--red); }
@@ -1483,9 +1447,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
  */
 @container col (max-width: 235px) {
   .pcard-avatar { width: 36px; height: 36px; }
-  .pcard-name .lname { font-size: 17px; }
   .pcard-price { font-size: 15.5px; }
-  .pcard-big b { font-size: 27px; }
   .pcard-dest { font-size: 11px; }
 }
 @container col (max-width: 200px) {
@@ -1649,7 +1611,6 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.018) 0 6px, transparent 6px 12px), var(--panel-0);
   border-style: dashed;
   align-items: center;
-  justify-content: center;
   text-align: center;
   gap: 2px;
 }
@@ -1689,7 +1650,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 .slot-band .sb-role { flex: none; }
 .slot-band.off { background: var(--verrou); color: var(--sub); box-shadow: inset 0 -2px 0 var(--verrou-liseré); }
 .slot-band.off .slot-salary { color: var(--muted); }
-.slot-inner { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 3px; padding: 5px 7px 6px 8px; }
+.slot-inner { flex: 1; min-height: 0; display: flex; padding: 5px 7px 6px 8px; }
 .slot.empty { padding: 6px 7px; justify-content: center; }
 .slot-salary {
   font-family: var(--display);
@@ -1774,10 +1735,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
   z-index: 55;
-  background: rgba(6, 12, 20, 0.96);
-  backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
   padding: 8px 12px calc(8px + var(--safe-bas));
 }
@@ -1789,7 +1747,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   gap: 9px;
   padding: 0 10px;
 }
-.actionbar .btn.go { flex: 1 1 46%; font-size: 16px; letter-spacing: 0.04em; padding: 10px 8px; line-height: 1.1; }
+.actionbar .btn.go { font-size: 16px; letter-spacing: 0.04em; padding: 10px 8px; line-height: 1.1; flex: 1 1 100%; border-radius: var(--r-m); }
 /* 1.0 (J2-6f) : tant que l'alignement n'est pas complet, le bouton est une JAUGE, pas un bouton éteint. */
 .actionbar .btn.go.jauge:disabled {
   opacity: 1; cursor: default; color: var(--text); border-color: var(--line);
@@ -1800,7 +1758,6 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 44px;
   padding: 10px 16px;
-  border-radius: var(--r-m);
   border: 1px solid var(--line);
   /* S59 : sans filet, c'est la surface qui fait le bouton — un cran
      au-dessus du panneau qui le porte. */
@@ -1811,16 +1768,12 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  transition: transform .1s, filter .15s, background .15s;
 }
 .btn:hover:not(:disabled) { filter: brightness(1.12); }
-.btn:active:not(:disabled) { transform: scale(0.975); }
 .btn:disabled { opacity: 0.5; }
 
 .btn.go {
   flex: 1 1 auto;
-  background: #16a34a;
-  border-color: #1b9c4c;
   color: #f0fff5;
   box-shadow: none;
 }
@@ -1853,10 +1806,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   max-height: 92vh;
   display: flex;
   flex-direction: column;
-  background: var(--panel);
-  border: 1px solid var(--line);
   border-radius: var(--r-l) var(--r-l) 0 0;
-  box-shadow: var(--shadow-2);
   animation: sheetUp .22s cubic-bezier(.2, .8, .3, 1);
   overflow: hidden;
 }
@@ -1868,13 +1818,9 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 13px 14px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel-2);
 }
 .modal-header h2 {
-  font-family: var(--display);
-  font-weight: 800;
+  font-family: var(--display); font-weight: 800;
   text-transform: uppercase;
   font-size: 20px; letter-spacing: 0.1em;
 }
@@ -1887,12 +1833,11 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   place-items: center;
   border-radius: 50%;
   border: 1px solid var(--line);
-  background: var(--panel);
   color: var(--sub);
   font-size: 15.5px;
   z-index: 3;
 }
-.close-btn:hover { color: var(--red); border-color: var(--red); }
+.close-btn:hover { color: var(--red); }
 
 .modal-body {
   padding: 14px;
@@ -1911,6 +1856,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   gap: 8px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line-soft);
+  border-bottom-color: var(--line-soft);
 }
 .opt-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .opt-text strong { display: block; font-size: 14.5px; }
@@ -2167,8 +2113,6 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--actionbar-h) + 16px + var(--safe-bas));
-  transform: translate(-50%, 12px);
   z-index: 80;
   max-width: min(88vw, 420px);
   padding: 9px 15px;
@@ -2178,10 +2122,8 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   color: var(--text);
   font-size: 14px;
   font-weight: 700;
-  box-shadow: var(--shadow-2);
   opacity: 0;
   pointer-events: none;
-  transition: opacity .2s, transform .2s;
   text-align: center;
 }
 .toast.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
@@ -2206,18 +2148,16 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 /* Le bandeau dit tout de suite ce qui compte : es-tu en séries ? La couleur
    porte un fond, jamais du texte — même règle que les couleurs d'équipe. */
 .hero-band {
-  display: inline-block; margin-bottom: 9px; padding: 4px 13px;
-  border-radius: 999px; background: var(--blue-deep); color: #fff;
-  font-size: 12px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase;
+  display: inline-block; margin-bottom: 9px; 
+  background: var(--blue-deep); color: #fff;
+  font-weight: 800; text-transform: uppercase;
 }
 .hero-band.out { background: var(--live); }
 .result .score {
   font-family: var(--display);
-  font-size: 67px;
   font-weight: 800;
-  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
-  line-height: 1.05;
+  font-size: 76px; line-height: 1; letter-spacing: 0;
 }
 
 /* Le tableau indicateur : six chiffres sur une ligne sous le pointage, comme
@@ -2233,17 +2173,12 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   border-left-color: var(--line-soft);
 }
 .rs-cell:first-child { border-left: 0; }
-.rs-cell .k { font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.rs-cell .k { text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .rs-cell b { font-family: var(--display); font-size: 24.5px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rs-cell b small { font-size: 13.5px; color: var(--muted); font-weight: 700; }
 .result .note {
   font-size: 14px;
-  color: var(--sub);
   line-height: 1.55;
-  background: rgba(0, 0, 0, 0.24);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-m);
-  padding: 10px 12px;
   margin-top: 12px;
 }
 
@@ -2477,8 +2412,8 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-close { position: static; flex: none; }
 
 .live-board {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: stretch; gap: 8px; padding: 12px 14px 10px;
+  display: grid; 
+  align-items: stretch; 
   border-bottom: 1px solid var(--line-soft);
 }
 .live-eq { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; background: var(--panel); }
@@ -2538,7 +2473,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-ligne.fin { color: var(--text); }
 /* Un but prend les couleurs de l'équipe qui marque : l'aplat de son bandeau,
    son encre, son liseré. On sait qui a marqué avant d'avoir lu. */
-.live-ligne.but { background: var(--eq-band, var(--gold)); color: var(--eq-ink, var(--sur-or)); box-shadow: inset 0 -2px 0 var(--eq-stripe, transparent); padding: 8px 10px 10px; }
+.live-ligne.but { background: var(--eq-band, var(--gold)); color: var(--eq-ink, var(--sur-or)); box-shadow: inset 0 -2px 0 var(--eq-stripe, transparent); }
 .live-ligne.but .live-tps { color: inherit; opacity: 0.75; }
 .live-ligne.but.gagnant { outline: 2px solid var(--gold); outline-offset: 1px; }
 .live-but-mot { font-family: var(--display); font-size: 17px; letter-spacing: 0.1em; margin-right: 4px; }
@@ -2640,8 +2575,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   flex: none; display: inline-flex; align-items: center; gap: 5px;
   padding: 6px 11px; min-height: 34px;
   border: 1px solid var(--line); border-radius: 999px;
-  color: var(--sub); font-family: var(--display);
-  font-weight: 700;
+  color: var(--sub); font-family: var(--display); font-weight: 700;
   text-transform: uppercase; white-space: nowrap;
   background: var(--surface-2); border-color: transparent; box-shadow: inset 0 1px 0 var(--filet-tuile); font-size: 13.5px; letter-spacing: 0.08em;
 }
@@ -2680,14 +2614,13 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 
 .hub-titre {
-  font-family: var(--display); font-size: 14.5px; font-weight: 800; letter-spacing: 0.1em;
+  font-family: var(--display); font-weight: 800; 
   text-transform: uppercase; color: var(--muted); margin-top: 6px;
   display: flex; align-items: center; gap: 8px;
 }
 .hub-titre::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
 .hub-note, .hub-carte-note { font-size: 14px; color: var(--sub); line-height: 1.45; }
 .hub-carte-note { padding: 8px 12px 10px; }
-.live-vide { color: var(--muted); font-size: 14px; padding: 20px; text-align: center; }
 
 /* Le tableau indicateur de ton match, dans le volet : la même grille que le
    direct, sans le filet du dessous, et cliquable vers le sommaire. */
@@ -2698,32 +2631,35 @@ table.data .pts { font-weight: 900; color: var(--green); }
 
 /* LA CARTE DU PROCHAIN MATCH : les deux clubs face à face, la fiche de chacun
    sous son nom, un mot sur les affrontements de la saison. */
-.hub-match { border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel); overflow: hidden; }
+.hub-match { border-radius: var(--r-m); overflow: hidden; }
+.hub-match-titre {
+  font-family: var(--display); font-size: 13.5px; font-weight: 800;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold);
+  border-bottom: 0; padding: 9px 14px 2px;
+}
 .hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 10px; padding: 8px 12px 12px; }
 .hub-vs { align-self: center; font-family: var(--display); font-weight: 800; color: var(--muted); font-size: 15px; letter-spacing: 0.12em; }
-.hub-eq { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
+.hub-eq { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .hub-eq-band {
   display: flex; align-items: center; gap: 6px;
   background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 -2px 0 var(--eq-stripe);
-  font-family: var(--display);
-  font-weight: 800; letter-spacing: 0.06em;
+  font-family: var(--display); font-weight: 800; letter-spacing: 0.06em;
   padding: 7px 10px; font-size: 18px;
 }
 .hub-eq.b .hub-eq-band { flex-direction: row-reverse; }
 .hub-eq-nom { font-weight: 700; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 9px 10px 0; font-size: 13px; }
 .hub-eq-fiche {
-  font-family: var(--display);
-  font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--display); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   padding: 3px 10px 11px; font-size: 19px;
 }
 .hub-eq.b .hub-eq-nom, .hub-eq.b .hub-eq-fiche { text-align: right; }
 .hub-match-note { font-size: 13.5px; color: var(--sub); padding: 0 14px 12px; }
 
 /* TES MATCHS, un par ligne : la journée, le verdict, le pointage, l'adversaire. */
-.hub-jeux { display: flex; flex-direction: column; gap: 4px; }
+.hub-jeux { display: flex; flex-direction: column; }
 .hub-jeu {
-  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
-  border: 1px solid var(--line); border-radius: var(--r-s); background: var(--panel);
+  display: flex; align-items: center; gap: 8px; 
+  
   font-size: 14px; cursor: pointer;
 }
 .hub-jeu:hover, .hub-jeu:focus-visible { border-color: var(--ui-accent); }
@@ -2731,7 +2667,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .hub-jeu.d { border-left: 3px solid var(--live); }
 .hub-jeu.or { border-color: var(--gold); }
 .hub-jeu-n { flex: none; min-width: 30px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.hub-jeu-res { flex: none; min-width: 22px; font-family: var(--display); font-size: 15.5px; font-weight: 800; }
+.hub-jeu-res { flex: none; font-family: var(--display); font-weight: 800; }
 .hub-jeu-score { flex: none; font-family: var(--display); font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .hub-jeu-adv { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-jeu em { flex: none; font-style: normal; font-size: 10px; font-weight: 900; color: var(--live); }
@@ -2807,6 +2743,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .live-but-ligne:last-child { border-bottom: 0; }
 .live-but-ligne.toi b { color: var(--gold); }
 .live-xe { color: var(--sub); font-size: 12.5px; }
+.live-vide { color: var(--muted); font-size: 14px; padding: 20px; text-align: center; }
 /* Les buts de ton match du jour, sous le tableau indicateur. */
 .live-buteurs { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel); max-height: 138px; overflow-y: auto; }
 @media (max-width: 479.98px) {
@@ -2850,14 +2787,12 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .capgauge-max { margin-left: -8px; }
   /* Le bloc de la roulette : le nom à gauche, les relances à droite, la bande
      des chiffres dessous sur toute la largeur. */
-  .spin-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 20px; padding: 14px 18px 14px; }
+  .spin-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 20px; }
   .spin-top { grid-column: 1; grid-row: 1; }
   .spin-instruction { grid-column: 1 / -1; margin-top: 0; }
-  .rerolls { grid-column: 2; grid-row: 1; margin-top: 0; width: 372px; gap: 8px; }
-  .dash { padding: 9px 18px; }
+  .rerolls { grid-column: 2; grid-row: 1; width: 372px; }
   .dash .dash-card { display: flex; align-items: baseline; gap: 9px; padding-left: 16px; margin-left: 16px; }
-  .dash-card h3 { min-height: 0; margin: 0; }
-  .dash-big.sm { font-size: 20px; }
+  .dash-card h3 { margin: 0; }
   .h3-long { display: inline; }
   .pane { --pane-pad: 14px; }
   .pane-head { flex-direction: row; align-items: center; justify-content: space-between; }
@@ -2868,15 +2803,11 @@ table.data .pts { font-weight: 900; color: var(--green); }
   .modal-backdrop { align-items: center; padding: 20px; }
   .modal-sheet { border-radius: var(--r-l); max-height: 88vh; }
   .opt-row { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }
-  .opt-modes .opt-text { flex: 1 1 220px; }
-  .np-exhibition { align-self: center; }
 
   .opt-text { flex: 1; }
   .seg { flex: none; }
   .result { padding: 20px 22px 24px; }
-  .result .score { font-size: 85px; }
   .rs-cell b { font-size: 31.5px; }
-  .rs-cell .k { font-size: 10.5px; }
   .line-slots { grid-template-columns: repeat(3, 1fr); }
   .line-slots.pair { grid-template-columns: repeat(2, 1fr); }
     .slot-name .fname { display: inline; color: var(--sub); font-weight: 600; }
@@ -2902,7 +2833,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
    vue. `flex: none` : sans lui il s'écrase quand le corps est haut. */
 .np-pied {
   flex: none; display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; background: var(--panel-0); border-top: 1px solid var(--line);
+  
 }
 /* Deux lignes au plus (1.0, J2-2) : le résumé se lit en entier ; le plafond, lui, est dans la barre du haut.
    Sur téléphone, il prend sa propre rangée au-dessus du bouton. */
@@ -2912,7 +2843,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 .np-go {
   flex: none; display: flex; flex-direction: column; align-items: center; gap: 1px;
-  min-width: 136px; line-height: 1.15;
+  line-height: 1.15;
   background: var(--ui-accent); border-color: var(--ui-accent); color: var(--ui-on-accent);
 }
 /* La note n'est jamais vide (voir `majPiedPartie`) : rien à réserver. */
@@ -2933,7 +2864,6 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .np-exhibition { flex: none; align-self: flex-start; white-space: nowrap; }
 .np-exhibition:disabled { color: var(--muted); }
 /* Quatre pastilles dans la barre du haut : sur téléphone elles se serrent. */
-@media (max-width: 560px) { .topbar-actions { gap: 2px; } }
 
 /* Bureau : plus d'onglets, les deux volets sont visibles. De 1080 à 1600 px
    ils sont empilés pleine largeur — le bassin garde ainsi ses six colonnes de
@@ -2956,7 +2886,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
   }
 
   .actionbar-inner { justify-content: center; }
-  .actionbar .btn.go { flex: 0 1 520px; font-size: 20px; padding: 12px 18px; }
+  .actionbar .btn.go { font-size: 20px; padding: 12px 18px; }
 }
 
 @media (min-width: 1400px) {
@@ -3179,10 +3109,11 @@ table.data td small { font-size: 10px; color: var(--muted); }
 .cal-barre { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
 .cal-barre input[type="range"] { flex: 1; min-width: 0; accent-color: var(--ui-accent); }
 .cal-titre { font-family: var(--display); font-size: 17px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; min-width: 96px; text-align: center; }
+.btn.small { padding: 4px 10px; min-height: 30px; font-size: 15.5px; border-radius: var(--r-xs, 6px); }
 .cal-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 .cal-match {
-  position: relative; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px;
-  border: 1px solid var(--line); border-radius: var(--r-s); background: var(--panel-2);
+  position: relative; display: flex; flex-direction: column; gap: 2px; 
+  border: 1px solid var(--line); 
 }
 .cal-eq { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 13.5px; }
 .cal-eq b { margin-left: auto; font-family: var(--display); font-size: 18px; font-weight: 800; }
@@ -3451,7 +3382,6 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
   background: var(--team-line);
   z-index: 3;
 }
-.spin-card { position: relative; min-width: 0; animation: cardIn .3s ease; padding: 0; }
 
 /* Tout ce qui vit sur l'aplat se mesure à l'encre du bandeau, jamais à une
    couleur d'interface : selon le club, cette encre est blanche ou bleu nuit,
@@ -3466,13 +3396,6 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 }
 /* L'écusson est posé à même la bande : dans un bandeau de diffusion, un
    logo n'a pas de cadre, il EST la marque. */
-.spin-top .spin-logo {
-  background: none;
-  border: 0;
-  border-radius: 0;
-  width: 44px;
-  height: 44px;
-}
 .spin-top .spin-ext {
   color: inherit;
   background: none;
@@ -3483,22 +3406,12 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 /* L'écusson en filigrane, au fond de la bande. */
 
 /* ---- 3. Les relances : trois cellules, deux filets ---- */
-.rerolls {
-  margin-top: 0;
-  gap: 0;
-  padding: 0 14px;
-}
 .reroll:first-child { border-left: 0; }
 .reroll:hover:not(:disabled) {
   background: color-mix(in srgb, var(--team-line) 12%, transparent);
   border-color: var(--line-soft);
 }
 
-/* ---- 4. La bande des chiffres : une seule bande noire, des filets ---- */
-.dash {
-  background: transparent;
-  border-top: 1px solid var(--line-soft);
-}
 
 /* ---- 5. La barre d'outils du bassin : un filet dessous, pas une boîte ---- */
 .pool-tools .search, .pool-tools .select {
@@ -3528,6 +3441,7 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
   color: var(--text);
 }
 .chip.on .chip-need { background: none; color: var(--gold); }
+.chip.on .chip-need.full { color: var(--green); background: none; }
 @container pool (max-width: 559.98px) {
   .chip { border-radius: 0; }
 }
@@ -3541,10 +3455,9 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 .icon-btn {
   background: transparent;
   border-color: transparent;
-  border-radius: 0;
   padding: 7px 5px;
 }
-.icon-btn:hover { background: transparent; border-color: transparent; color: var(--gold); }
+.icon-btn:hover { border-color: transparent; color: var(--gold); }
 
 /* ---- 8. Les en-têtes de colonne deviennent des rails ---- */
 /* Un titre de poste dans une boîte arrondie par-dessus des cartes qui en
@@ -3611,6 +3524,13 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
   width: 14px;
   background: var(--team-plaque);
   z-index: 1;
+}
+.spin-top .spin-logo {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  width: 44px;
+  height: 44px;
 }
 
 
@@ -3926,9 +3846,7 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 /* Le budget de la main (S36) : deux pastilles, Patin et Action, qui s'éteignent une fois dépensées. */
 .t-budget { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 9px; margin-right: auto; padding-left: 2px; }
 .t-budget i {
-  font-style: normal; font-family: var(--display);
-  font-weight: 700;
-  text-transform: uppercase;
+  font-style: normal; font-family: var(--display); font-weight: 700; text-transform: uppercase;
   border: 0; border-radius: 0; padding: 0; color: var(--sub);
   display: inline-flex; align-items: center; gap: 4px; font-size: 11px; letter-spacing: 0.08em;
 }
@@ -4128,10 +4046,7 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
 .t-mode.on b, .t-mode.on i { color: var(--sur-accent); }
 /* Le « ? » d'un geste (1.0 · J4) : discret, collé au bouton du geste, il écrit la règle dans le fil. */
 .t-aide {
-  width: 20px; height: 20px; padding: 0;
-  border: 1px solid var(--line); border-radius: 50%; background: transparent;
-  font-family: var(--display);
-  font-weight: 700; line-height: 18px; cursor: pointer; align-self: center;
+  width: 20px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: transparent; font-family: var(--display); font-weight: 700; line-height: 18px; cursor: pointer; align-self: center;
   margin: 7px 0 0; font-size: 11.5px; color: var(--muted);
 }
 .t-aide:hover, .t-aide:focus-visible { color: var(--gold); border-color: var(--gold); }
@@ -4708,7 +4623,7 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
    grandit d'une ligne.
    ====================================================================== */
 .eq-source { flex: 0 0 auto; }
-.eq-carte.mienne { outline: 2px solid var(--gold); outline-offset: -2px; }
+.eq-carte.mienne { outline: 2px solid var(--gold); }
 .eq-carte-an { font-style: normal; margin-left: auto; font-size: 10.5px; opacity: .85; }
 .eq-tete-reel { display: block; font-style: normal; font-weight: 700; font-size: 10.5px; color: var(--muted); letter-spacing: .02em; }
 .eq-table.eq-double td.stat { line-height: 1.05; }
@@ -4907,8 +4822,7 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
      avec ce qui sert à DÉCIDER, et le volet prend toute la hauteur. */
   .hub-sheet .hub-onglets {
     grid-area: onglets; align-self: start;
-    flex-direction: column;
-    overflow: visible;
+    flex-direction: column; overflow: visible;
     background: none; border-top: 1px solid var(--line-soft);
     gap: var(--sp-1); padding: var(--sp-4) 14px 14px;
   }
@@ -4974,7 +4888,6 @@ tr.ouvrable:hover td { background: rgba(255, 255, 255, 0.03); }
    AU-DESSUS des onglets. Elle disparaît sur les pages de référence : le
    bouton « Lancer la saison » n'a rien à dire quand on lit les règles. */
 .actionbar { bottom: calc(var(--navbar-h) + var(--safe-bas)); }
-.actionbar .btn.go { flex: 1 1 100%; }
 body[data-zone="ref"] .actionbar { display: none; }
 /* Et elle s'efface sur le bilan : son bouton y dit « Saison jouée » et ne
    fait rien, pendant que les vraies actions (copier, rejouer, nouvelle
@@ -5027,12 +4940,12 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
 @media (min-width: 1200px) {
   .navbar {
     top: var(--topbar-h); right: auto; bottom: 0; width: 186px;
-    flex-direction: column; justify-content: flex-start; gap: 2px;
-    border-top: 0; border-right: 1px solid var(--line); padding: 10px 8px;
+    flex-direction: column; justify-content: flex-start; 
+    border-top: 0; border-right: 1px solid var(--line); 
   }
   .navtab {
     flex: 0 0 auto; flex-direction: row; justify-content: flex-start; gap: 10px;
-    min-height: 42px; padding: 8px 10px; border-top: 0; border-radius: var(--r-s);
+    min-height: 42px; border-top: 0; 
     font-size: 13px; text-align: left;
   }
   .navtab .ico { width: 17px; height: 17px; flex: 0 0 auto; }
@@ -5192,8 +5105,7 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
 .capgauge-row:not(.small) { justify-content: flex-start; gap: var(--sp-2); }
 
 @media (max-width: 679.98px) {
-  .topbar { border-bottom: 0; }
-  .capgauge-row.small { margin-top: 3px; font-size: 11.5px; }
+  .capgauge-row.small { margin-top: 3px; }
   .capgauge .track {
     position: absolute;
     left: 0; right: 0; bottom: 0;
@@ -5215,14 +5127,11 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
    « BUDGET DU CHOIX » ne décale pas ses voisins. Le libellé court tient
    sur une, et les trois chiffres s'alignent toujours. 73 px → 52.
    --------------------------------------------------------------- */
-.dash { padding: var(--sp-2) 14px; }
 .dash-card h3 { line-height: 1.25; text-transform: uppercase; color: var(--muted); font-weight: 800; min-height: 0; margin-bottom: var(--sp-1); font-size: 9.5px; letter-spacing: 0.12em; }
-.dash-big.sm { letter-spacing: 0.01em; font-size: 16px; }
 
 /* ---------------------------------------------------------------
    4. LES SEPT PASTILLES DE POSTE : le même onglet, serré. 62 px → 48.
    --------------------------------------------------------------- */
-.filters { padding-bottom: 0; margin-bottom: var(--sp-2); gap: var(--sp-1); }
 @container pool (max-width: 559.98px) {
   .chip { min-height: 38px; padding: var(--sp-1) 2px; }
 }
@@ -5246,7 +5155,7 @@ body[data-page="alignement"] .pane-pool { display: none !important; }
   color: color-mix(in srgb, var(--green) 18%, #000);
 }
 .btn.go:disabled { box-shadow: none; background: var(--panel-2); border-color: var(--line); color: var(--muted); }
-.btn.small { padding: 4px 10px; min-height: 30px; font-size: 15.5px; border-radius: var(--r-xs, 6px); }
+.btn:active:not(:disabled) { transform: scale(0.975); }
 
 /* ---------------------------------------------------------------
    6. L'ÉTAT ACTIF SE VOIT. Un onglet choisi n'était qu'un filet de 2 px
@@ -5503,7 +5412,12 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    --------------------------------------------------------------- */
 .pcard { outline: 0 solid transparent; outline-offset: -2px; transition: outline-color var(--t-vite), transform var(--t-vite), filter var(--t-vite); }
 .pcard:hover { outline: 2px solid color-mix(in srgb, var(--team-line, var(--ui-accent)) 70%, transparent); }
-.pcard.signed { outline: 2px solid var(--green); }
+.pcard.signed {
+  outline: 2px solid var(--green);
+  /* Et la carte signée ne porte pas DEUX verts : l'anneau dit l'état, la
+     bordure n'a plus à le redire. */
+  border-color: transparent;
+}
 .pcard.locked { outline: 0; }
 .slot.cible { outline: 2px solid var(--gold); outline-offset: -2px; }
 .eq-carte.mienne { outline-offset: -2px; }
@@ -5526,7 +5440,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    son visage, et elle n'a que 113 px de large. Un portrait de 46 px lui
    prenait 12 px de nom — mesuré, onze noms coupés au lieu de huit. */
 .pcard-big b { font-size: 37px; letter-spacing: -1px; }
-.pcard-name .lname { font-size: 21px; }
 /* Le pied : pleine largeur, coins du bas de la carte, rien autour. */
 .pcard-inner > .btn-sign {
   align-self: end;
@@ -5576,7 +5489,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    bouton : le bouton se suffit.
    --------------------------------------------------------------- */
 .actionbar { background: none; border: 0; backdrop-filter: none; }
-.actionbar .btn.go { border-radius: var(--r-m); }
 
 /* ---------------------------------------------------------------
    6. LE MOUVEMENT : ce qui apparaît glisse, ce qui se choisit répond.
@@ -5598,11 +5510,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    laissait.
    --------------------------------------------------------------- */
 .hub-match { border: 0; background: var(--panel); }
-.hub-match-titre {
-  font-family: var(--display); font-size: 13.5px; font-weight: 800;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold);
-  border-bottom: 0; padding: 9px 14px 2px;
-}
 .hub-eq {
   border: 0;
   border-radius: var(--r-s);
@@ -5643,7 +5550,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    Sans leur filet, côte à côte sur la même surface, elles se lisaient
    comme un seul bloc de 74 px. Deux pastilles rondes, un vrai écart.
    --------------------------------------------------------------- */
-.topbar-actions { gap: var(--sp-2); }
+/* Carré au doigt : le libellé est caché au téléphone, le bouton reste une pastille de 38 px. */
 .icon-btn { border-radius: 999px; min-width: 38px; min-height: 38px; }
 .icon-btn:hover { background: var(--panel-3); }
 
@@ -5654,7 +5561,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    --------------------------------------------------------------- */
 .seg { display: flex; border: 0; background: var(--panel-2); border-radius: var(--r-s); padding: 3px; gap: 3px; }
 .opt-select, .select, .search { border-color: transparent; background: var(--panel-2); border-radius: var(--r-s); }
-.opt-row { border-bottom-color: var(--line-soft); }
 
 /* ---------------------------------------------------------------
    12. LA MODALE FLOTTE ELLE AUSSI : un plateau posé, pas une feuille
@@ -5680,9 +5586,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    --------------------------------------------------------------- */
 .slot.empty { border-color: var(--line); }
 
-/* Et la carte signée ne porte pas DEUX verts : l'anneau dit l'état, la
-   bordure n'a plus à le redire. */
-.pcard.signed { border-color: transparent; }
 
 /* Le lien externe dans le titre d'une modale : la vraie saison du club chez
    Hockey-Reference, au même endroit et de la même taille que celui d'une
@@ -5719,8 +5622,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 
 /* La route de la saison : une ligne, des marques, et où on est. */
 .hub-route {
-  position: relative;
-  margin: 2px 4px 8px;
+  position: relative; margin: 2px 4px 8px;
   height: 34px;
 }
 .hub-route::before {
@@ -5737,8 +5639,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 }
 .hub-route-m.passe { opacity: .35; filter: grayscale(1); }
 .hub-route-ici {
-  position: absolute;
-  width: 12px; height: 12px; transform: translateX(-50%);
+  position: absolute; width: 12px; height: 12px; transform: translateX(-50%);
   border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--bg);
   top: 11px;
 }
@@ -5788,7 +5689,7 @@ body[data-zone="vide"] #game, body[data-zone="vide"] .actionbar { display: none 
       "carte   volet"
       "actions volet";
   }
-  body.hub-docke .hub-sheet .hub-actions { align-self: stretch; min-height: 0; overflow-y: auto; }
+  body.hub-docke .hub-sheet .hub-actions { align-self: stretch; overflow-y: auto; }
 }
 
 /* L'état vide : un mot, et ce qu'on peut faire. */
@@ -5854,9 +5755,9 @@ body.choix-ouvert { overflow: hidden; }
   border-bottom: 1px solid var(--line-soft, var(--line));
   box-shadow: inset 0 3px 0 var(--gold); padding: var(--esp-4) var(--esp-4) var(--esp-3);
 }
-.choix-ico { font-size: 30px; line-height: 1; }
+.choix-ico { line-height: 1; }
 .choix-titres { flex: 1; min-width: 0; }
-.choix-titre { font: 800 21px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.choix-titre { font: 800 21px/1.1 var(--display); text-transform: uppercase; }
 .choix-irl { font: 700 12px/1.2 var(--display); text-transform: uppercase; color: var(--muted); margin-top: 3px; letter-spacing: 0.1em; }
 .choix-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: var(--esp-4); }
 .choix-recit { font-size: 15px; line-height: 1.5; color: var(--sub); margin: 0; }
@@ -5866,8 +5767,8 @@ body.choix-ouvert { overflow: hidden; }
 .choix-option {
   display: flex; flex-direction: column; gap: 6px; text-align: left; cursor: pointer;
   padding: 14px; min-height: 120px;
-  background: var(--panel-2, var(--panel)); color: var(--text);
-  border: 1px solid var(--line); border-radius: var(--r-m, 14px);
+  color: var(--text);
+  border-radius: var(--r-m, 14px);
 }
 .choix-option:hover:not([disabled]), .choix-option:focus-visible { border-color: var(--gold); outline: none; }
 .choix-option[disabled] { opacity: .45; cursor: not-allowed; }
@@ -6084,7 +5985,6 @@ body.choix-ouvert { overflow: hidden; }
    mesurée (`--topbar-h`, js/game.js) l'inclut, donc tout ce qui se cale
    dessous suit. */
 .topbar { border-top: var(--safe-top) solid rgb(6, 12, 20); }
-/* Les écrans plein écran commencent sous la barre d'état. */
 /* Les écrans plein écran commencent sous la barre d'état et finissent au-dessus de la barre de gestes. */
 .modal-backdrop, .choix-modal { top: var(--safe-top); bottom: var(--safe-bas); }
 /* Et rien ne défile derrière l'heure et la batterie. */
@@ -6194,11 +6094,6 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
    ===================================================================== */
 .tc-commune { --tc-bord: #9aa4ae; --tc-bord2: #4f5760; }
 .tc-peu { --tc-bord: #43b3d6; --tc-bord2: #1d5f78; --cadre: var(--stries), var(--chrome); --cadre-relief: inset 0 0 0 0.5px rgba(210, 245, 255, 0.7); }
-.tc-rare { --tc-bord: #e3e9ef; --tc-bord2: #7f8a95; --cadre: var(--eclats), var(--reseau), var(--prisme); --cadre-relief: inset 0 0 0 0.5px rgba(255, 255, 255, 0.75); }
-.tc-legendaire {
-  --tc-bord: #ffd76a; --tc-bord2: #9a6f14;
-  --cadre: var(--brosse), var(--lingot); --cadre-relief: inset 1px 1px 0 rgba(255, 250, 220, 0.8), inset -1px -1px 0 rgba(90, 60, 5, 0.85);
-}
 .choix-main {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 260px));
   justify-content: center; gap: 18px; padding: 6px 0 4px; perspective: 1200px;
@@ -6208,7 +6103,6 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
 .choix-option.tc {
   position: relative; display: block; padding: 6px; min-height: 0; text-align: left;
   border: 0; border-radius: 16px; overflow: hidden; isolation: isolate;
-  background: linear-gradient(150deg, var(--tc-bord), var(--tc-bord2) 55%, var(--tc-bord));
   box-shadow: 0 8px 22px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(255, 255, 255, .18);
   transition: transform .18s ease, box-shadow .18s ease;
 }
@@ -6226,7 +6120,6 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
 }
 .choix-option.tc:active:not([disabled]) { transform: translateY(-2px) scale(.985); }
 .choix-option.tc[disabled] { filter: grayscale(.8); opacity: .55; }
-.choix-option.tc.tc-legendaire { background: conic-gradient(from 210deg, #fff1b8, #d4a017, #ff9ec2, #fff6d6, #8fe3ff, #b8860b, #ffe08a, #fff1b8); }
 /* Le reflet sur les VRAIES cartes seulement : un dos de carte ou une silhouette
    d'album n'est pas positionné, et le reflet balayait toute la page. */
 .choix-option.tc.tc-rare::after, .choix-option.tc.tc-legendaire::after {
@@ -6397,8 +6290,7 @@ details.fiche-plus[open] > summary::before { content: '▾ '; }
 .album-id.eue { color: var(--text); border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); background: color-mix(in srgb, var(--gold) 12%, transparent); }
 .album-joueurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .album-joueur {
-  position: relative; display: grid;
-  grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+  position: relative; display: grid; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
   padding: 8px 10px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); overflow: hidden;
   grid-template-columns: 32px 1fr;
 }
@@ -6711,6 +6603,11 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
    Avant, la rare de match était dorée et la légendaire violette, et un
    joueur rare aurait porté l'or d'une carte de match rare. Les pastilles du
    deck, le dos des cartes au palier et les trous de l'album suivent. */
+.tc-rare { --tc-bord: #e3e9ef; --tc-bord2: #7f8a95; --cadre: var(--eclats), var(--reseau), var(--prisme); --cadre-relief: inset 0 0 0 0.5px rgba(255, 255, 255, 0.75); }
+.tc-legendaire {
+  --tc-bord: #ffd76a; --tc-bord2: #9a6f14;
+  --cadre: var(--brosse), var(--lingot); --cadre-relief: inset 1px 1px 0 rgba(255, 250, 220, 0.8), inset -1px -1px 0 rgba(90, 60, 5, 0.85);
+}
 
 /* ---------------------------------------------------------------
    L'INCLINAISON, LE REFLET ET L'HOLOGRAPHIQUE (communs à toutes les cartes)
@@ -6881,8 +6778,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   grid-template-rows: auto 32px 24px 20px 14px 32px;
   grid-template-areas: "photo photo" "nom nom" "prix pts" "tags tags" "dest dest" "btn btn";
   gap: 3px 6px; padding: 6px;
-  border: 0;
-  overflow: hidden; outline: 0;
+  border: 0; overflow: hidden; outline: 0;
   background: var(--cj-fond); color: var(--cj-encre);
   box-shadow: var(--a-anneau, 0 0 0 transparent);
   border-radius: 9px; --cadre-l: 3.5px;
@@ -6924,13 +6820,9 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
    fiche la dit en entier), les étiquettes gardent leur place. */
 @container carte (max-width: 140px) {
   #pool .pcard.pv .pb-pos { min-width: 18px; height: 18px; padding: 0 4px; font-size: 8.5px; margin: 3px 0 0 3px; }
-  #pool .pcard.pv .cj-gemme { padding: 2px 4px; margin: 3px 3px 0 0; }
   #pool .pcard.pv .cj-gemme .cj-trait { display: none; }
-  #pool .pcard.pv .pb-team { font-size: 9px; padding: 1px 4px 1px 2px; margin: 0 0 3px 3px; }
-  #pool .pcard.pv .pb-team :is(img, svg) { width: 12px; height: 12px; }
+  #pool .pcard.pv .pb-team { font-size: 9px; }
   #pool .pcard.pv .cj-annee { font-size: 9px; padding: 1px 3px; right: 3px; bottom: 3px; }
-  #pool .pcard.pv .pcard-big span { font-size: 7.5px; }
-  #pool .pcard.pv .tags > .tag { font-size: 8.5px; padding: 1px 3px; }
 }
 #pool .pcard.pv .cj-gemme {
   grid-area: photo; z-index: 3; align-self: start; justify-self: end; margin: 5px 5px 0 0;
@@ -6939,8 +6831,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 #pool .pcard.pv .pb-team {
   grid-area: photo; z-index: 3; align-self: end; justify-self: start; margin: 0 0 5px 5px;
   display: inline-flex; align-items: center; gap: 3px; max-width: calc(100% - 10px); overflow: hidden;
-  border-radius: 999px;
-  color: #fff;
+  border-radius: 999px; color: #fff;
   font: 800 10px/1 var(--display); letter-spacing: 0.06em; clip-path: none; box-shadow: none;
   background: none; padding: 0; text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.85);
 }
@@ -7062,7 +6953,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
    d'holographique : une variante brillante n'y garde qu'un liseré de sa
    couleur au-dessus de la bande. La case fait toujours 106 px.
    ================================================================= */
-.slot.cj-case .slot-inner { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 3px; padding: 5px 8px 6px; }
+.slot.cj-case .slot-inner { min-height: 0; align-items: stretch; }
 .slot.cj-case .slot-name .fname { display: none; }
 .slot.cj-case.sous-zone { border-color: color-mix(in srgb, var(--orange, #fb923c) 70%, transparent); }
 .slot.cj-case:is(.tc-peu, .tc-rare, .tc-legendaire) .slot-band { box-shadow: inset 0 -2px 0 var(--slot-stripe, var(--blue)), inset 0 2px 0 var(--cj-liseré); }
@@ -7195,9 +7086,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   border-radius: 6px 6px 2px 2px; box-shadow: inset 0 -2px 0 var(--team-stripe, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 .fc-verso .cjv-no {
-  flex: none;
-  place-items: center;
-  height: 28px; padding: 0 6px;
+  flex: none; place-items: center; height: 28px; padding: 0 6px;
   background: var(--team-ink, #fff); color: var(--team-band, #243044); font-size: 14px; letter-spacing: 0;
   display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 46px; border-radius: 4px;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--team-band, #243044) 45%, transparent), 0 1px 0 rgba(0, 0, 0, 0.25);
@@ -7207,8 +7096,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .fc-verso .cjv-table { width: 100%; border-collapse: collapse; font: 700 15px/1.2 var(--display); font-variant-numeric: tabular-nums; }
 .fc-verso .cjv-table th, .fc-verso .cjv-table td { padding: 6px 4px; text-align: center; white-space: nowrap; }
 .fc-verso .cjv-table thead th {
-  font-size: 10.5px;
-  text-transform: uppercase; color: var(--cj-encre-2);
+  font-size: 10.5px; text-transform: uppercase; color: var(--cj-encre-2);
   background: color-mix(in srgb, var(--team-band, #243044) 14%, transparent); border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent); letter-spacing: 0.14em;
 }
 .fc-verso .fiche-profils { margin: 0; }
@@ -7221,8 +7109,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .fc-verso .cjv-pied {
   display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px;
   border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent);
-  font: 700 10px/1 var(--display);
-  text-transform: uppercase; color: var(--cj-encre-2);
+  font: 700 10px/1 var(--display); text-transform: uppercase; color: var(--cj-encre-2);
   font-size: 9.5px; letter-spacing: 0.08em;
 }
 /* « ↻ » prend l'encre de sa face : lisible sur le carton des années 80 comme sur le noir des années 2000. */
@@ -7253,6 +7140,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
     linear-gradient(150deg, var(--tc-bord), var(--tc-bord2) 55%, var(--tc-bord));
 }
 .choix-option.tc.tc-rare { background: var(--argent); }
+.choix-option.tc.tc-legendaire { background: conic-gradient(from 210deg, #fff1b8, #d4a017, #ff9ec2, #fff6d6, #8fe3ff, #b8860b, #ffe08a, #fff1b8); }
 .choix-option.tc .tc-cadre { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.35); }
 /* L'ancien reflet passait sur la règle : il ne vit plus. L'holographique du
    cadre (`.tc-holo`, sous la carte) et celui de l'illustration le remplacent. */
@@ -7456,8 +7344,8 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 }
 .cj-art .tc-portrait .headshot-fallback { font-size: 54px; }
 .cj-art .tc-medaille {
-  top: 6px; right: 6px; bottom: auto; width: 30px; height: 30px; border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55); box-shadow: 0 0 0 1px color-mix(in srgb, var(--tc-bord) 70%, transparent);
+  top: 6px; right: 6px; bottom: auto; width: 30px; height: 30px; 
+  
 }
 .cj-art .tc-pos {
   position: absolute; left: 6px; bottom: 6px; padding: 4px 9px; border-radius: 999px;
@@ -7843,9 +7731,9 @@ body.exh-ouverte { overflow: hidden; }
   backdrop-filter: blur(14px) saturate(1.15);
   border-bottom: 1px solid var(--line);
 }
-.capgauge-row.small { font-family: var(--display); font-size: 13px; letter-spacing: 0.03em; }
 .capgauge .fill { transition: width var(--t-compte) var(--e-ressort), background var(--t-vite); }
 .icon-btn { transition: color var(--t-vite), transform var(--t-lent) var(--e-ressort); }
+.icon-btn:active { transform: scale(0.94); }
 
 /* ---------------------------------------------------------------
    4. LA BARRE D'ONGLETS. Elle ne bouge pas (S67 : mêmes entrées, même
@@ -7853,8 +7741,6 @@ body.exh-ouverte { overflow: hidden; }
    vraie couche — verre dépoli, filet de lumière, ombre douce. Au bureau, le
    rail d'EHM reçoit un survol et une surface à lui.
    --------------------------------------------------------------- */
-@media (max-width: 1199.98px) {
-}
 .navtab .navtab-lbl { letter-spacing: 0.06em; }
 .navtab.on::before { background: color-mix(in srgb, var(--gold) 22%, transparent); }
 .navtab:active .ico { transform: scale(0.9); }
@@ -8196,7 +8082,6 @@ table.data tr.you td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
   padding: 5px 14px; border-radius: var(--r-xs);
 }
 .hero-band.or { background: var(--or-trophee); color: #191206; }
-.result .score { font-size: 76px; line-height: 1; letter-spacing: 0; }
 .result .score.perfect { color: var(--or-trophee); }
 .rs-cell .k { font-family: var(--display); font-weight: 700; font-size: var(--etiquette-taille); letter-spacing: 0.14em; }
 .result-actions .btn:active:not(:disabled) { transform: scale(0.96); }
@@ -8232,8 +8117,6 @@ table.data tr.you td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
   font-size: 26px;
 }
 .choix-titre { font-size: 22px; letter-spacing: 0.05em; }
-@media (min-width: 1000px) {
-}
 /* Une option de choix (pas une carte) : une tuile qui s'ouvre. */
 .choix-option {
   border: 0; background: var(--surface-2);
@@ -8550,8 +8433,7 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
    ================================================================= */
 .cj-recto.cj-mini-carte {
   position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0;
-  padding: 5px;
-  overflow: hidden; text-align: left;
+  padding: 5px; overflow: hidden; text-align: left;
   background: var(--cj-fond); color: var(--cj-encre);
   box-shadow: var(--a-anneau, 0 0 0 transparent), 0 6px 16px rgba(0, 0, 0, 0.45);
   border-radius: 7px; --cadre-l: 3px;
@@ -8916,7 +8798,6 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 #pool .pcard.pv.f-ovale .pcard-avatar, .cj-recto.f-ovale .cj-fenetre { background: none; border-radius: 0; overflow: visible; }
 #pool .pcard.pv.f-ovale .pcard-avatar > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus), .cj-recto.f-ovale .cj-fenetre > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus) { border-radius: 50%; }
 #pool .pcard.pv.f-ovale .pcard-avatar > .cj-filigrane, .cj-recto.f-ovale .cj-fenetre > .cj-filigrane { background: var(--ss-motif, none), var(--s-motif, none), var(--f-fond); }
-#pool .pcard.pv.f-ovale .pcard-avatar > .cj-dessus, .cj-recto.f-ovale .cj-fenetre > .cj-dessus { box-shadow: inset 0 0 0 3px #fff, 0 2px 5px rgba(0, 0, 0, 0.35); }
 #pool .pcard.pv.f-biais .pcard-avatar, .cj-recto.f-biais .cj-fenetre { background: none; border-radius: 4px 4px 0 0; }
 #pool .pcard.pv.f-biais .pcard-avatar > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus), .cj-recto.f-biais .cj-fenetre > :is(img, .headshot-fallback, .cj-filigrane, .cj-holo, .cj-dessus) { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 88%); }
 #pool .pcard.pv.f-biais .pcard-avatar > .cj-filigrane, .cj-recto.f-biais .cj-fenetre > .cj-filigrane { background: var(--ss-motif, none), var(--s-motif, none), var(--f-fond); }
@@ -9000,14 +8881,13 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
    le trio. Le nom garde toute la largeur ; dessous, le visage à gauche, la
    fiche et les verdicts à droite. La case garde sa hauteur.
    ================================================================= */
-.slot.cj-case .slot-inner { display: grid; grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "nom nom" "visage faits" "visage tags"; column-gap: 6px; row-gap: 2px; align-content: start; }
+.slot.cj-case .slot-inner { grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "nom nom" "visage faits" "visage tags"; column-gap: 6px; row-gap: 2px; align-content: start; }
 .slot.cj-case .slot-faits { font-size: 11px; color: var(--text); opacity: 0.86; grid-area: faits; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot.cj-case .slot-tags { grid-area: tags; margin-top: 0; min-width: 0; }
 /* 1.0 (les lignes) : plus de visage dans la case — nom, rôle et niveau, zone, jambes. */
 .slot.cj-case .slot-inner { display: flex; flex-direction: column; gap: 3px; padding: 4px 7px 5px; }
 .slot.cj-case .slot-name {
-  min-width: 0;
-  text-overflow: ellipsis;
+  min-width: 0; text-overflow: ellipsis;
   grid-area: nom;
   font-size: 15px; line-height: 1.02; white-space: normal; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
@@ -9617,6 +9497,7 @@ body.hub-docke .hub-sheet .hub-actions { align-content: flex-start; }
 :is(.pcard.pv, .cj-recto).f-plein { --f-biseau: inset 0 -2px 0 color-mix(in srgb, var(--team-stripe, #8d97a3) 85%, #000), inset 0 -3px 0 rgba(0, 0, 0, 0.3); }
 /* f-ovale : le médaillon blanc jette son ombre sur le carton. */
 :is(.pcard.pv, .cj-recto).f-ovale { --f-biseau: inset 0 0 0 3px transparent, inset 0 0 0 4px rgba(0, 0, 0, 0.28); }
+#pool .pcard.pv.f-ovale .pcard-avatar > .cj-dessus, .cj-recto.f-ovale .cj-fenetre > .cj-dessus { box-shadow: inset 0 0 0 3px #fff, 0 2px 5px rgba(0, 0, 0, 0.35); }
 /* f-biais : la coupe en biais porte une bande du club (la coupe va de 88 % à gauche à 100 % à droite d'un carré). */
 :is(.pcard.pv, .cj-recto).f-biais { --f-trait: linear-gradient(186.84deg, transparent 86.9%, var(--team-stripe, #8d97a3) 86.9% 89.3%, transparent 89.3%); }
 /* f-polaroid : la photo est collée DANS le cadre blanc, un peu en creux. */
