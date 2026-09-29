@@ -6314,7 +6314,7 @@ function renderBanc() {
     </div>
     ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
     <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
-    <div class="banc-ligne banc-aide">Déplace, permute, monte un réserviste : le fit de chaque ligne suit ses joueurs. Sous chaque trio, sa <b>stratégie</b> ; 🔒 désigne ton <b>trio de fermeture</b>.</div>
+    <div class="banc-ligne banc-aide">Déplace ou permute : le fit suit les joueurs. 🔒 : ton <b>trio de fermeture</b>.</div>
     ${effets}
     <details class="banc-plus"><summary>Les lignes et le trio de fermeture</summary>
       <div class="banc-ligne"><b>Chaque ligne a sa tactique</b>, comme dans HockeyArena : chacune demande un profil par poste, et le fit plafonne la chimie. Changer un joueur coûte de la chimie ; une ligne soudée joue son système plus souvent.</div>

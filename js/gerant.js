@@ -658,7 +658,7 @@ export function ouvrirLignes(spec) {
     const filetHtml = F0 ? `<section class="gl-filet">
       <div class="gl-sec-titre">Devant le filet ce soir</div>
       <div class="gl-seg gl-seg-court">${boutonGardien('partant', gPartant)}${boutonGardien('aux', gAux)}</div>
-      <div class="gl-mot">Un gardien garde ses jambes trois départs de suite ; au quatrième, il en perd 5 par départ, et chaque 5 points perdus lui coûtent 1 % de buts accordés de plus. Une soirée de congé les lui rend. La rotation du club est choisie d'office ; touche l'autre pour lui donner le filet ce soir.</div>
+      <div class="gl-mot">Trois départs de suite sans perte ; ensuite ses jambes baissent. Touche l'autre pour lui donner le filet.</div>
     </section>` : '';
     const onglets = `<div class="gl-onglets" role="tablist">${NOMS_LIGNE.map((n, u) => {
       const T = TACTIQUES[brouillon[u].tac] || TACTIQUES.hourra, D = u < 3 ? SYSTEMES_D[brouillon[u].tacD] || SYSTEMES_D.hourra : null;
@@ -685,12 +685,12 @@ export function ouvrirLignes(spec) {
         <div><span class="gl-k">Fit</span> <b>${sansSysteme ? '—' : fitLigneBrut == null ? 'À compléter' : motFit(fitCourant)}</b> <small>${sansSysteme ? 'aucune chimie' : fitLigneBrut == null ? 'ligne incomplète' : `plafond de chimie : ${plafondChimie(chimieMax(fitCourant))}`}</small></div>
         <div><span class="gl-k">Chimie ce soir</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(chimieDe(u, l))}%"></span></span> <b>${motChimie(chimieDe(u, l))}</b></div>
         ${app && !sansSysteme ? `<div class="gl-appris"><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise des systèmes : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l))}</b></span></div>
-        <div class="gl-mot">La chimie s'apprend et ne se perd pas : changer de système ou de joueur un soir ne défait rien. Plus une ligne joue un système, mieux elle le joue.</div>` : ''}
+        <div class="gl-mot">La chimie s'apprend en gardant ses lignes, et ne se perd pas.</div>` : ''}
       </div>
       ${choixDe('F')}
       ${u < 3 ? choixDe('D') : ''}
       <div class="gl-sec-titre">Agressivité · ${carrureLigne}</div>
-      <div class="gl-mot">Le jeu physique rapporte aux lignes costaudes 🪨. Une ligne légère 🪶 accroche au lieu de frapper : elle prend des punitions.</div>
+      <div class="gl-mot">🪨 Le physique paie aux costauds ; 🪶 les légers prennent des punitions.</div>
       <div class="gl-seg">${AGRESSIVITES.map((A, i) => {
         const b = bilanAgressivite(i, ph);
         const verdict = i === 1 ? { txt: 'Par défaut', bon: null } : b.net > 0.006 ? { txt: '✓ Payant pour cette ligne', bon: true } : b.net < -0.006 ? { txt: '✗ Coûteux pour cette ligne', bon: false } : { txt: '≈ Neutre pour cette ligne', bon: null };
@@ -703,7 +703,7 @@ export function ouvrirLignes(spec) {
       }).join('')}</div>
       <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
       <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-      <div class="gl-mot">Plus de glace, plus de lancers pour cette ligne — et plus d'usure : sous 90 de jambes (sur 100), un joueur rend un peu moins à chaque point, et sous 60 il se blesse plus.</div>
+      <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
@@ -809,7 +809,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
 
   const choix = systemesHtml({ lineup: spec.lineup, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
     chimieDe: app ? k => chimie({ [D ? 'tacD' : 'tac']: k }) : null });
-  if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Elle joue avec le ${NOMS_TRIO[u]} : leur chimie, leur agressivité et leur glace se règlent avec le trio.</div>` };
+  if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Chimie, agressivité et glace : avec le ${NOMS_TRIO[u]}.</div>` };
 
   const ph = physiqueLigne(spec.lineup, u);
   const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : '⚖️ ligne moyenne';
@@ -832,7 +832,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
     <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
     <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-    <div class="gl-mot">Plus de glace, plus de lancers — et plus d'usure : sous 90 de jambes (sur 100), un joueur rend un peu moins à chaque point, et sous 60 il se blesse plus.</div>`;
+    <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>`;
   return { sommaire, corps };
 }
 
