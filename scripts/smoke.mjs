@@ -823,7 +823,8 @@ async function toutEstAtteignable(ou) {
        */
       let cx = el.parentElement;
       while (cx && !['hidden', 'auto', 'scroll', 'clip'].includes(st(cx).overflowX)) cx = cx.parentElement;
-      if (cx) {
+      // Un ancêtre en `text-overflow: ellipsis` coupe EXPRÈS, et le dit par « … » (un nom long dans une bande étroite).
+      if (cx && st(cx).textOverflow !== 'ellipsis') {
         const defileX = ['auto', 'scroll'].includes(st(cx).overflowX);
         const rx = cx.getBoundingClientRect();
         const droite = r.right - (rx.left + cx.clientLeft) + (defileX ? cx.scrollLeft : 0);

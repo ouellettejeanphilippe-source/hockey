@@ -2786,6 +2786,14 @@ function marquerPage(cle) {
     p.hidden = !vis.includes(p.dataset.volet) || !p.textContent.trim();
   });
   if (G.done) brancherEntractes($('resultHost'));   // un deck caché mesure zéro
+  /*
+   * UNE RANGÉE CACHÉE MESURE ZÉRO (1.0, J2-4). `ajusterCartes` réduit les
+   * noms et les étiquettes qui débordent — mais l'alignement se dessine
+   * pendant qu'on est au vestiaire, onglet caché : chaque rangée mesurait 0,
+   * rien n'était réduit, et à l'ouverture de l'onglet les icônes d'une case
+   * sortaient coupées à droite. On remesure l'onglet une fois montré.
+   */
+  requestAnimationFrame(() => ajusterCartes(document));
   majNavbar(cle, liste);
   for (const id of ['pageEquipes', 'pageHistorique', 'pageRegles']) {
     const el = $(id);
