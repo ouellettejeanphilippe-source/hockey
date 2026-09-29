@@ -34,8 +34,12 @@ export const signe = n => (n > 0 ? `+${n}` : `${n}`);
 /** Un nombre gardé entre deux bornes. */
 export const borne = (x, min, max) => Math.max(min, Math.min(max, x));
 
-/** Un pourcentage d'arrêts à la façon d'une fiche : « ,912 ». */
-export const pct3 = x => x.toFixed(3).replace(/^0/, '');
+/**
+ * Un pourcentage d'arrêts à la façon d'une fiche québécoise : « ,912 » (et
+ * « 1,000 » pour un blanchissage parfait). Une seule forme dans tout le jeu
+ * (1.0, gel des chaînes) : on lisait aussi « .912 » et « 91,2 % ».
+ */
+export const pct3 = x => (Number.isFinite(x) ? x.toFixed(3).replace(/^0\./, ',').replace('.', ',') : '—');
 
 /*
  * DE L'ARGENT, À LA QUÉBÉCOISE : « 9,3 M$ », « 0,78 M$ », « −1,2 M$ » (1.0,

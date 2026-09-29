@@ -99,7 +99,7 @@ function rivaliteDe(you, jusque = Infinity) {
 /* « 1er trio · AG », « 2e paire · DD », « Partant », « Réserve D ». */
 const caseCourte = s => (s.group === 'F' && !s.scratch ? `${s.unit + 1}${s.unit ? 'e' : 'er'} trio · ${s.role}`
   : s.group === 'D' && !s.scratch ? `${s.unit + 1}${s.unit ? 'e' : 're'} paire · ${s.role}` : s.role);
-const pct = (sv, sa) => (sv / Math.max(1, sa)).toFixed(3).replace(/^0/, '');
+const pct = (sv, sa) => pct3(sv / Math.max(1, sa));
 
 /* ---------- la coquille : en-tête, carte, actions, onglets, volet ---------- */
 
@@ -1050,7 +1050,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return { rang: liste.indexOf(t) + 1, sur: liste.length };
   };
   const svLigueDe = g => (g && g.s ? 1 - seasonLancers(g.s)[1] / 100 : null);
-  const svMot = x => (Number.isFinite(x) ? x.toFixed(3).replace(/^0/, '').replace('.', ',') : '—');
+  const svMot = x => (Number.isFinite(x) ? pct3(x) : '—');
   const partantDe = t => SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => t.roster[s.i]).find(Boolean) || null;
 
   /*
@@ -2741,7 +2741,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         <div class="gl-k">Rapport d'éclaireur</div>
         <div class="boss-lignes">${lb.map((l, u) => { const T = TACTIQUES[l.tac], c = contreDe(l.tac), D = u < 3 && SYSTEMES_D[l.tacD] && l.tacD !== 'hourra' ? SYSTEMES_D[l.tacD] : null; return `<span title="Sa ${u + 1}${u ? 'e' : 're'} ligne : trio en ${ctx.esc(T.nom)}${D ? `, paire en ${ctx.esc(D.nom)}` : ''}${c ? ` — étouffé par ${ctx.esc(TACTIQUES[c].nom)}` : ''}">${u + 1}. ${T.ico} ${ctx.esc(T.nom)}${D ? ` · ${D.ico}` : ''}${c ? ` <small>↪ ${TACTIQUES[c].ico}</small>` : ''}</span>`; }).join('')}</div>
         ${ved ? `<div>⭐ Sa vedette : <b>${ctx.esc(ved.n)}</b> · ${ved.simPTS || 0} pts en saison</div>` : ''}
-        ${gar ? `<div>🥅 Son gardien : <b>${ctx.esc(gar.n)}</b>${gar.simSA ? ` · ${((gar.simSV || 0) / gar.simSA).toFixed(3).replace(/^0/, '')} en saison` : ''}</div>` : ''}
+        ${gar ? `<div>🥅 Son gardien : <b>${ctx.esc(gar.n)}</b>${gar.simSA ? ` · ${pct3((gar.simSV || 0) / gar.simSA)} en saison` : ''}</div>` : ''}
       </div>
       ${planDuMatch(s) ? depistageHtml(pistesDuRapport(planDuMatch(s).depistage), { nomAdv: ctx.teamShort(boss) }) + `<div class="dep-suite">${ctx.esc(suiteDuPlan(s))}</div>` : ''}
       ${onDecision ? mainAdverseHtml(mainAdverse(graine, `po${ronde}:${revele.get(s)}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }) }) : ''}

@@ -5,7 +5,7 @@
  */
 
 import { loadSeason, state, prefetch } from './data.js';
-import { estD as isD, esc, money } from './util.js';
+import { estD as isD, esc, money, pct3 } from './util.js';
 import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SLOTS, fits, penaliteAffichee, getPositionPenalty, CAP } from './sim.js';
 import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ratings.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
@@ -438,7 +438,7 @@ export function relacherReserviste(s) {
 export const apercuJoueur = p => showPlayerModal(p, { apercu: true });
 /* La ligne d'un joueur offert : ce que la carte mini ne dit pas (elle dit déjà les points, ou les victoires). */
 export const ligneDuChoix = p => (p.p === 'G'
-  ? `${p.gp} PJ · ${p.l ?? 0} D · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}`
+  ? `${p.gp} PJ · ${p.l ?? 0} D · ${pct3(p.sv || 0)}`
   : `${p.gp} PJ · ${p.g} B · ${p.a} A`);
 /*
  * L'écusson du club en filigrane derrière un portrait détouré (img/logos, S78).

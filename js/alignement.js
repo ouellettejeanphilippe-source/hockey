@@ -6,7 +6,7 @@
 
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, estD as isD, money } from './util.js';
+import { esc, estD as isD, money, pct3 } from './util.js';
 import { profilPrincipal, roleSecond, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty } from './sim.js';
 import { getArchetype } from './ratings.js';
 import { jambesHtml, strategieDeLigne, ouvrirStrategie } from './gerant.js';
@@ -140,7 +140,7 @@ function ficheDuJour(p) {
   const c = G.banc && G.banc.compte.get(p);
   if (!c || !c.gp) return 'aucun match';
   // 1,000 : un blanchissage en début de saison s'écrivait « 1.000 » (le remplacement ne visait que « 0. »).
-  if (p.p === 'G') return `${c.w}-${c.l} · ${c.sa ? (c.sv / c.sa).toFixed(3).replace(/^0\./, ',').replace('.', ',') : '—'}`;
+  if (p.p === 'G') return `${c.w}-${c.l} · ${c.sa ? pct3(c.sv / c.sa) : '—'}`;
   return `${c.g}-${c.a}-${c.pts} · ${c.pm > 0 ? '+' : ''}${c.pm}`;
 }
 

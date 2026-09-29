@@ -39,7 +39,7 @@ import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js
 import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet } from './sim.js';
 import { jouerSon } from './sons.js';
 import { avecArticle } from './commentaire.js';
-import { esc, cap as majuscule } from './util.js';
+import { esc, cap as majuscule, pct3 } from './util.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -677,7 +677,7 @@ export function ouvrirLignes(spec) {
       ${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv.nom || 'Eux' })
         : advL.length ? `<div class="gl-adv">Leur 1re ligne : <b>${sysAdv(advL[0])}</b>${advL[1] ? ` · leur 2e : <b>${sysAdv(advL[1])}</b>` : ''}</div>` : ''}
     </section>` : (spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: 'Eux' }) : '');
-    const svTxt = g => (g && Number.isFinite(g.sv) ? g.sv.toFixed(3).replace(/^0/, '') : '—');
+    const svTxt = g => (g && Number.isFinite(g.sv) ? pct3(g.sv) : '—');
     const boutonGardien = (qui, g) => {
       const e = g ? (spec.energie[getPlayerKey(g)] ?? 100) : 100;
       const estRot = F0 && F0.rotation === qui;

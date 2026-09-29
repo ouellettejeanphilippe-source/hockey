@@ -28,7 +28,7 @@ import { state, loadIndex, cacheClear } from './data.js';
 import { plafondDe } from './banque.js';
 import { ecrirePartieActive, nouvellePartie, lirePartieActive, migrer, lireIndex, activer } from './sauvegardes.js';
 import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSur, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { estD as isD, esc, money } from './util.js';
+import { estD as isD, esc, money, pct3 } from './util.js';
 import { getSecondaryPosition, getEraFactor, getEraSalary, getLineZone, getArchetype } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
@@ -880,7 +880,7 @@ const seasonMaxGP = season =>
     : 82;
 
 /* Le % d'arrêts d'un gardien, à la façon d'une carte (« ,912 ») : son chiffre clé depuis 1.0 (C2), le seul que le moteur lit. */
-export const svCourt = p => (p.sv == null ? '—' : Number(p.sv).toFixed(3).replace(/^0\./, ','));
+export const svCourt = p => (p.sv == null ? '—' : pct3(Number(p.sv)));
 
 /** Statistiques telles qu'affichées, selon les options (prorata, salaire). */
 export function displayStats(p) {
@@ -1662,12 +1662,12 @@ function marquerPage(cle) {
 function ligneDeSaison(p, S) {
   if (!S || !S.GP) return 'pas encore joué';
   return p.p === 'G'
-    ? `${S.GP} PJ · ${S.W || 0} V · ${S.SA ? (S.SV / S.SA).toFixed(3).replace(/^0/, '') : '—'}`
+    ? `${S.GP} PJ · ${S.W || 0} V · ${S.SA ? pct3(S.SV / S.SA) : '—'}`
     : `${S.GP} PJ · ${S.G || 0} B · ${S.A || 0} A · ${S.PTS || 0} PTS`;
 }
 function ligneVraieSaison(p) {
   const st = displayStats(p);
-  return p.p === 'G' ? `${st.gp} PJ · ${st.w} V · ${(p.sv || 0).toFixed(3).replace(/^0/, '')}` : `${st.gp} PJ · ${st.g} B · ${st.a} A · ${st.pt} PTS`;
+  return p.p === 'G' ? `${st.gp} PJ · ${st.w} V · ${pct3(p.sv || 0)}` : `${st.gp} PJ · ${st.g} B · ${st.a} A · ${st.pt} PTS`;
 }
 function remplirCartable() {
   const host = $('pageCartableCorps');

@@ -23,12 +23,11 @@
  */
 
 import { SLOTS } from './sim.js';
-import { virgule, signe } from './util.js';
+import { virgule, signe, pct3 } from './util.js';
 
 /* ---------- les briques d'une carte ---------- */
 
 const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const pct3 = x => virgule(x.toFixed(3).replace(/^0/, ''));
 const un = (x, n = 1) => virgule(x.toFixed(n));
 const rangCourt = r => `${r}${r === 1 ? 'er' : 'e'}`;
 
