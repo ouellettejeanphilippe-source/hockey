@@ -688,7 +688,7 @@ export function ouvrirLignes(spec) {
     const fitCourant = fitLigneBrut ?? 0;
     // LA CARRURE DE LA LIGNE (S71) : c'est elle qui dit si le jeu physique paie.
     const ph = physiqueLigne(spec.lineup, u);
-    const carrureLigne = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : '⚖️ ligne moyenne';
+    const carrureLigne = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : 'ligne moyenne';
     // UN SYSTÈME POUR LE TRIO, UN AUTRE POUR LA PAIRE (S79), chacun sous le nom de ce que ses joueurs sont.
     const choixDe = groupe => {
       const id = identiteUnite(spec.lineup, groupe, u);
@@ -829,7 +829,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Chimie, agressivité et glace : avec le ${NOMS_TRIO[u]}.</div>` };
 
   const ph = physiqueLigne(spec.lineup, u);
-  const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : '⚖️ ligne moyenne';
+  const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : 'ligne moyenne';
   const agr = AGRESSIVITES.map((A, i) => {
     const b = bilanAgressivite(i, ph);
     const verdict = i === 1 ? 'par défaut' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre';

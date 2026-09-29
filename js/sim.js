@@ -1568,7 +1568,8 @@ export const TACTIQUES = {
     gain: { finition: 1.06 }, prix: { defense: 1.03 },
   },
   derriere: {
-    nom: 'Jeu d\'enclave', ico: '🥅', bat: null,
+    // 1.0 (C1) : 🥅 est le trophée Vezina ; l'enclave attire les rebonds.
+    nom: 'Jeu d\'enclave', ico: '🧲', bat: null,
     slots: { AG: 'power', C: 'passeur', AD: 'power' },
     mot: 'Deux gros devant le filet, un passeur derrière : écrans, rebonds, déviations.',
     gain: { finition: 1.03, volume: 1.03 }, prix: { discipline: 1.06 },
