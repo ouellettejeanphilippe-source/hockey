@@ -235,7 +235,7 @@ export function niveauxDuPack(cle) {
 /* ---------- les tirages ---------- */
 const ORDRE_VAR = ['commune', 'peu', 'rare', 'legendaire'];
 /* Une variante tirée aux cotes du pack, et son numéro si c'est une or. */
-export function tirerVariante(cotes, ...parts) {
+function tirerVariante(cotes, ...parts) {
   let r = hache('pack-var', ...parts) * 100;
   let rar = 'commune';
   for (const k of ORDRE_VAR) { r -= cotes[k] || 0; if (r < 0) { rar = k; break; } }
@@ -248,7 +248,7 @@ export function tirerVariante(cotes, ...parts) {
   return { rar, num };
 }
 /* Un niveau tiré aux taux du pack (son rang dans NIVEAUX), de la graine et de mots. */
-export function tirerNiveau(taux, ...parts) {
+function tirerNiveau(taux, ...parts) {
   let r = hache('pack-niveau', ...parts) * 100;
   let dernier = 0;
   for (let k = 0; k < NIVEAUX.length; k++) {

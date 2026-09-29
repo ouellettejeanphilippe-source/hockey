@@ -142,7 +142,7 @@ export function departDuClasseur(m) {
  * et la masse salariale ne voudrait plus rien dire. 25 M$ sans déblocage :
  * deux vedettes, ou quatre bons joueurs.
  */
-export const RESERVE_PLOMBIERS = 45_000_000;
+const RESERVE_PLOMBIERS = 45_000_000;
 export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESPACE_DE_DEPART - RESERVE_PLOMBIERS;
 /* Les cases de réserve de plus d'une run (js/sim.js `RESERVES_EN_PLUS`). */
 export const reservesDeLaRun = m => (aDebloque(m, 'banc2') ? 2 : aDebloque(m, 'banc1') ? 1 : 0);

@@ -158,7 +158,7 @@ export const FILET_BAS = RANGS - 2;           // celle du bas ; la dernière ran
 export const BUT_COL = (COLS - 1) / 2;        // le centre du filet
 export const RANG_MIN = 0, RANG_MAX = RANGS - 1;   // les patineurs vont partout, sauf dans les deux filets
 export const MI_GLACE = (RANGS - 1) / 2;      // la ligne du centre, où on met au jeu
-export const LONGUEUR = FILET_BAS - FILET_HAUT;   // d'une ligne des buts à l'autre
+const LONGUEUR = FILET_BAS - FILET_HAUT;   // d'une ligne des buts à l'autre
 /** Le filet lui-même : une seule case, où personne ne va sauf le gardien. */
 export const estFilet = (r, c) => (r === FILET_HAUT || r === FILET_BAS) && c === BUT_COL;
 
@@ -176,8 +176,8 @@ export const estFilet = (r, c) => (r === FILET_HAUT || r === FILET_BAS) && c ===
  */
 
 /** La zone offensive garde la MÊME taille quelle que soit la longueur de la glace. */
-export const RANGS_ENCLAVE = 2;               // les deux rangées collées au filet (S38 : la glace a doublé)
-export const DEMI_ENCLAVE = 3;                // sa largeur, de part et d'autre du filet
+const RANGS_ENCLAVE = 2;               // les deux rangées collées au filet (S38 : la glace a doublé)
+const DEMI_ENCLAVE = 3;                // sa largeur, de part et d'autre du filet
 /*
  * LA PLACE PORTE LE SEUIL DU TIR, LE JOUEUR PORTE LE MODIFICATEUR.
  *
@@ -197,7 +197,7 @@ export const DEMI_ENCLAVE = 3;                // sa largeur, de part et d'autre 
  * filet, 28 % à la deuxième rangée, 17 % de loin — les buts viennent du
  * volume et des retours, comme au hockey.
  */
-export const PLACE_GARDIEN = { enclave: 1, rangee2: 2, pointe: 3, coin: 3, tour: 4 };
+const PLACE_GARDIEN = { enclave: 1, rangee2: 2, pointe: 3, coin: 3, tour: 4 };
 
 /*
  * LA PORTÉE DU TIR : on ne tire que de la zone offensive.
@@ -270,16 +270,16 @@ export const PLACE_GARDIEN = { enclave: 1, rangee2: 2, pointe: 3, coin: 3, tour:
 export const PORTEE_TIR = Number(MESURE.TIR_PORTEE) || 7;
 
 /** Le filet qu'une équipe attaque : 'A' monte, 'B' descend. */
-export const filetDe = cote => (cote === 'A' ? FILET_HAUT : FILET_BAS);
+const filetDe = cote => (cote === 'A' ? FILET_HAUT : FILET_BAS);
 /** Le sens de l'attaque vers ce filet : +1 quand les rangées croissent en s'en éloignant. */
-export const sensDe = but => (but === FILET_HAUT ? 1 : -1);
+const sensDe = but => (but === FILET_HAUT ? 1 : -1);
 /**
  * LA PROFONDEUR d'une case devant le filet qu'on attaque : 1 collé au filet,
  * 3 à la ligne bleue, 0 SUR la ligne des buts (à côté du filet), négative
  * DERRIÈRE. C'est le nombre que toute la géométrie lit — jamais une distance
  * absolue, qui ferait d'une case derrière le filet une case collée devant.
  */
-export const profondeur = (r, but) => (r - but) * sensDe(but);
+const profondeur = (r, but) => (r - but) * sensDe(but);
 
 /** La profondeur d'une pièce devant le filet qu'elle attaque (négative : derrière). */
 export const distanceAuFilet = (m, piece) => profondeur(piece.r, eqDe(m, piece.eq).but);
@@ -309,7 +309,7 @@ export const peutTirerDe = (r, c, but, vide = false) => {
   return (s >= 1 && s <= PORTEE_TIR) || (s === 0 && Math.abs(c - BUT_COL) === 1);
 };
 /** Le filet visé par cette pièce est-il vide ? */
-export const filetVide = (m, piece) => !!eqDe(m, adverse(piece.eq)).piece_g.sorti;
+const filetVide = (m, piece) => !!eqDe(m, adverse(piece.eq)).piece_g.sorti;
 export const peutTirer = (m, piece) => !piece.gardien
   && peutTirerDe(piece.r, piece.c, eqDe(m, piece.eq).but, filetVide(m, piece));
 
@@ -591,7 +591,7 @@ export const GABARITS = {
 };
 
 /** Le gabarit d'un joueur ; moyen quand la taille et le poids manquent. */
-export const gabaritDe = p => (p && (p.gb === 0 || p.gb === 1 || p.gb === 2) ? p.gb : GABARIT_MOYEN);
+const gabaritDe = p => (p && (p.gb === 0 || p.gb === 1 || p.gb === 2) ? p.gb : GABARIT_MOYEN);
 
 /* ======================================================================
    LES HABILETÉS — l'étage FFT
@@ -717,7 +717,7 @@ const gagneLeDuel = (de, total, de2, total2, rondelle = false) => {
 const d6 = m => Math.floor(m.de() * 6) + 1;
 
 /** Les chances de l'attaquant : les naturels, sinon dé + a > dé + b (ou > b sans adversaire). */
-export function chances(a, b, opp = true, rondelle = false) {
+function chances(a, b, opp = true, rondelle = false) {
   let n = 0, tot = 0;
   for (let dA = 1; dA <= 6; dA++) {
     if (opp) for (let dB = 1; dB <= 6; dB++) { tot++; if (gagneLeDuel(dA, dA + a, dB, dB + b, rondelle)) n++; }
@@ -861,7 +861,7 @@ export const PRESENCES_PROLONGATION = 30;
  * des moments de match que le plateau savait déjà jouer : trois pièces au
  * lieu de cinq, et un duel TI contre AR par tireur.
  */
-export const PROLONGATIONS_MAX = 1;
+const PROLONGATIONS_MAX = 1;
 /*
  * TROIS CONTRE TROIS. La glace se vide, et c'est ce qui rend la
  * prolongation différente du reste du match plutôt qu'un rallongement.
@@ -884,8 +884,8 @@ export const ROLES_PROLONGATION = ['C', 'AG', 'DG'];
  *
  * Les rôles s'ajoutent dans cet ordre : le deuxième défenseur, puis l'autre ailier.
  */
-export const ORDRE_PROLONGATION = ['C', 'AG', 'DG', 'DD', 'AD'];
-export function rolesEnJeuDe(m, eq) {
+const ORDRE_PROLONGATION = ['C', 'AG', 'DG', 'DD', 'AD'];
+function rolesEnJeuDe(m, eq) {
   if (!m || !m.prolongation) return null;
   const autre = eqDe(m, adverse(eq.cote));
   const n = Math.min(ROLES_PROLONGATION.length + autre.penalites.length, ORDRE_PROLONGATION.length);
@@ -913,7 +913,7 @@ export function uniteDe(roster, tri, pai) {
 }
 
 /** Le gardien : le partant, sinon l'auxiliaire. */
-export function gardienDe(roster) {
+function gardienDe(roster) {
   const g0 = SLOTS.find(s => s.group === 'G' && s.unit === 0);
   const g1 = SLOTS.find(s => s.group === 'G' && s.unit === 1);
   return roster[g0.i] || roster[g1.i] || null;
@@ -934,7 +934,7 @@ export function gardienDe(roster) {
  * MOTEUR qui les porte et `patinoireSvg` qui les lit — l'inverse aurait
  * laissé deux définitions libres de diverger.
  */
-export const MJ_COL = [Math.round(COLS / 6), COLS - 1 - Math.round(COLS / 6)];
+const MJ_COL = [Math.round(COLS / 6), COLS - 1 - Math.round(COLS / 6)];
 export const MJ_FOND = [FILET_HAUT + 3, FILET_BAS - 3];
 export const MJ_NEUTRE = [FILET_HAUT + PORTEE_TIR + 2, FILET_BAS - PORTEE_TIR - 2];
 export const MJ_CENTRE = { r: MI_GLACE, c: BUT_COL, nom: 'au centre' };
@@ -1299,10 +1299,10 @@ const POOL = MESURE.POOL !== undefined ? Number(MESURE.POOL) : 0;
  * le tireur compte encore : c'est le réglage qui rend le gardien réel sans
  * rendre le tir aveugle.
  */
-export const GARDIEN_PLUS = MESURE.GARDIEN !== undefined ? Number(MESURE.GARDIEN) : 1;
+const GARDIEN_PLUS = MESURE.GARDIEN !== undefined ? Number(MESURE.GARDIEN) : 1;
 const TIR_AU_TIREUR = MESURE.TIR_EGALITE === '1';    // l'égalité au tireur : écartée, voir modTir
 const VAL_RETOUR = MESURE.VAL_RETOUR !== undefined ? Number(MESURE.VAL_RETOUR) : 3;
-export const PAS_MAX = 6;   // S38 : sur seize rangées, un ailier à PA 6 en fait six
+const PAS_MAX = 6;   // S38 : sur seize rangées, un ailier à PA 6 en fait six
 /*
  * LE PATIN SUIT LA VITESSE, ET TRAVERSER PREND DES TOURS (S35). JP : *limite
  * les déplacements selon la vitesse du joueur, ça devrait prendre 3-5 tours
@@ -1330,7 +1330,7 @@ export const PAS_MAX = 6;   // S38 : sur seize rangées, un ailier à PA 6 en fa
  * lenteur, c'était des JOUEURS AILLEURS QUE SUR LA RONDELLE (voir le
  * placement et les postes). Noté ici pour qu'on ne le redécouvre pas.
  */
-export const pasDe = (m, piece) => {
+const pasDe = (m, piece) => {
   // S40 : trois pas à PA 2-3, quatre à PA 4-5, cinq à PA 6 — la vitesse se voit sans décider le match.
   const base = Math.min(PAS_MAX, piece.st.PA <= 3 ? 3 : piece.st.PA <= 5 ? 4 : 5);
   const etat = etatSouffle(m, piece);
@@ -1377,7 +1377,7 @@ function respirer(eq) {
  * malus qui joue contre lui. Un seul nombre, calculé d'une seule façon, et
  * l'écran le montre.
  */
-export const rayonDe = piece => (piece.gardien ? 0 : piece.st.DE >= 5 ? 2 : 1);
+const rayonDe = piece => (piece.gardien ? 0 : piece.st.DE >= 5 ? 2 : 1);
 /** Les adversaires debout dont le rayon couvre cette case. */
 export const couvreurs = (m, cote, r, c) =>
   surLaGlace(m).filter(x => x.eq !== cote && !x.gardien && !x.etourdi && dist(x, { r, c }) <= rayonDe(x));
@@ -1388,7 +1388,7 @@ export function pression(m, cote, r, c) {
 }
 export const pressionDe = (m, piece) => pression(m, piece.eq, piece.r, piece.c);
 /** Ce que la pression retire au porteur dans tout duel : un bâton, une chance ; chaque bâton de plus, −1 (deux au plus). */
-export const malusPression = n => Math.min(2, Math.max(0, n - 1));
+const malusPression = n => Math.min(2, Math.max(0, n - 1));
 /** Le bâton le plus fort d'une pression, celui à qui la rondelle va quand le porteur la perd. */
 const meilleurBaton = qui => qui.slice().sort((a, b) => b.st.DE - a.st.DE)[0] || null;
 
@@ -1405,10 +1405,10 @@ const meilleurBaton = qui => qui.slice().sort((a, b) => b.st.DE - a.st.DE)[0] ||
  * RONDELLE. `collesSur` est le seul endroit qui dit ce qu'est un bâton sur
  * la rondelle, et `batons` comme l'esquive le lisent là.
  */
-export const collesSur = (m, cote, r, c) =>
+const collesSur = (m, cote, r, c) =>
   surLaGlace(m).filter(x => x.eq !== cote && !x.gardien && !x.etourdi && dist(x, { r, c }) === 1);
 /** Un bâton adverse collé à cette case (le contact demande d'être collé). */
-export function batons(m, cote, r, c) {
+function batons(m, cote, r, c) {
   return collesSur(m, cote, r, c).length;
 }
 
@@ -1418,7 +1418,7 @@ export function batons(m, cote, r, c) {
  * c'est la mesure défensive `md` qui répond. C'est l'aptitude qui vient de
  * la colonne, l'action existe pour les 55 saisons.
  */
-export function ecranVaut(p) {
+function ecranVaut(p) {
   if (!p) return 1;
   if (typeof p.bl === 'number') return p.bl >= 1.4 ? 2 : 1;
   return (p.md ?? 0) >= 0.80 ? 2 : 1;
@@ -1430,7 +1430,7 @@ export function ecranVaut(p) {
  * compte un, deux si c'est un vrai bloqueur. C'est la seule pression qui
  * pèse sur un tir : de derrière, on ne bloque pas une rondelle.
  */
-export function batonsTir(m, cote, r, c) {
+function batonsTir(m, cote, r, c) {
   const but = eqDe(m, cote).but;
   const moi = profondeur(r, but);
   let n = 0;
@@ -1444,9 +1444,9 @@ export function batonsTir(m, cote, r, c) {
 }
 
 /** Un voleur de rondelle : `tk`, les vols par match (2005-06+), sinon `md`. */
-export const bonVoleur = p => (typeof p?.tk === 'number' ? p.tk >= 0.70 : (p?.md ?? 0) >= 0.80);
+const bonVoleur = p => (typeof p?.tk === 'number' ? p.tk >= 0.70 : (p?.md ?? 0) >= 0.80);
 /** Un frappeur : `ht`, les mises en échec par match (2005-06+), sinon la robustesse mesurée. */
-export const bonFrappeur = p => (typeof p?.ht === 'number' && p.ht > 0 ? p.ht >= 2.2 : (p?.mr ?? 0) >= 0.80);
+const bonFrappeur = p => (typeof p?.ht === 'number' && p.ht > 0 ? p.ht >= 2.2 : (p?.mr ?? 0) >= 0.80);
 
 function dire(m, texte, genre = '') {
   m.fil.unshift({ texte, genre, periode: m.periode, presence: m.presence });
@@ -1513,7 +1513,7 @@ function donner(m, piece, compte = true, genre = 'passe', suite = null) {
  * dans le trafic pouvait reparaître à l'autre bout de la mêlée. Deux cases,
  * pas plus : au-delà, c'est une autre règle qui décide (le gardien couvre).
  */
-export const RAYON_REBOND = 2;
+const RAYON_REBOND = 2;
 /*
  * LA RELANCE DU GARDIEN PORTE JUSQU'À SA LIGNE BLEUE. Il relançait à sa
  * pièce la plus avancée où qu'elle soit : dix cases en moyenne, jusqu'à
@@ -1612,7 +1612,7 @@ export const nomDe = piece => (piece && piece.p && piece.p.n) || 'Rappel';
  * d'un geste écrit sa règle dans le fil — la même ligne que la page des
  * règles, au moment où l'on en a besoin, sans modale.
  */
-export const MOTS_GESTES = { deplacer: 'Patiner', passe: 'Passer', tir: 'Tirer', dejouer: 'Feinter', echec: 'Frapper', vol: 'Harponner', bataille: 'Bataille' };
+const MOTS_GESTES = { deplacer: 'Patiner', passe: 'Passer', tir: 'Tirer', dejouer: 'Feinter', echec: 'Frapper', vol: 'Harponner', bataille: 'Bataille' };
 export function expliquerGeste(m, geste) {
   const mot = MOTS_GESTES[geste];
   const rangee = mot && reglesDuPlateau().find(x => x.rangees).rangees.find(r => r[0] === mot);
@@ -1680,7 +1680,7 @@ export function modPasse(m, piece, cible) {
   return duel(a, fort - 1 + malusPression(Math.min(3, qui.length)), true, ['MA', 'DE'], true, [piece.st.MA, fort]);
 }
 /** Les bâtons qui couvrent la ligne d'une passe ou son receveur : chacun une fois. */
-export function batonsSurLaLigne(m, piece, cible) {
+function batonsSurLaLigne(m, piece, cible) {
   const vus = new Set(couvreurs(m, piece.eq, cible.r, cible.c));
   const n = dist(piece, cible);
   for (let i = 1; i < n; i++) {
@@ -1733,7 +1733,7 @@ export function ciblesFondDe(m, piece) {
 }
 
 /** Ce que le gardien ajoute à son dé selon d'où l'on tire (voir PLACE_GARDIEN). */
-export function placeGardien(m, piece, ou = piece) {
+function placeGardien(m, piece, ou = piece) {
   const but = eqDe(m, piece.eq).but;
   const d = profondeur(ou.r, but);
   const nature = natureCase(ou.r, ou.c, but);
@@ -1799,7 +1799,7 @@ export function modTir(m, piece, ou = piece) {
  * lui retirent un chacun — et sur la bande il perd un de plus : c'est là
  * qu'on le coince. Un frappeur reconnu (mises en échec par match) a +1.
  */
-export const surLaBande = (r, c) => c === 0 || c === COLS - 1 || r === RANG_MIN || r === RANG_MAX;
+const surLaBande = (r, c) => c === 0 || c === COLS - 1 || r === RANG_MIN || r === RANG_MAX;
 export function modEchec(m, piece, cible) {
   const porte = porteur(m) === cible;
   const bande = porte && surLaBande(cible.r, cible.c) ? 1 : 0;
@@ -1835,7 +1835,7 @@ export function modDejouer(m, piece, cible) {
  * d'équipe se demande APRÈS avoir vu les dés — c'est tout l'intérêt du team
  * re-roll de Blood Bowl : on le dépense en connaissance de cause.
  */
-export function jeter(m, quoi, d) {
+function jeter(m, quoi, d) {
   const de = d6(m);
   const de2 = d.opp ? d6(m) : null;
   const total = de + d.a, total2 = d.opp ? de2 + d.b : d.b;
@@ -1908,7 +1908,7 @@ function revirement(m, texte) {
  * n'importe qui, ou libre — la zone est fermée à qui ne l'a pas, et ceux qui
  * y sont doivent en SORTIR. Une passe au fond l'ouvre : le dump-and-chase.
  */
-export const rondelleEnZone = (m, cote) => {
+const rondelleEnZone = (m, cote) => {
   const but = eqDe(m, cote).but;
   const pos = porteur(m) || libre(m);
   return !!pos && profondeur(pos.r, but) <= PORTEE_TIR;
@@ -2110,7 +2110,7 @@ export const receveursDe = (m, piece) =>
  * match finissaient les possessions, 3 tirs par équipe par match.)
  */
 /** Une main neuve : rien de dépensé, et la réserve de pas pleine en mode partagé. */
-export const mainNeuve = () => ({ bouge: false, agi: false, place: false, mobiles: [], pas: 0, change: false, reserve: POOL * DEMI });
+const mainNeuve = () => ({ bouge: false, agi: false, place: false, mobiles: [], pas: 0, change: false, reserve: POOL * DEMI });
 /** Le budget de pas de la main, et ce qu'il en reste, en pas entiers : ce que la barre d'ancrage affiche. */
 export const PAS_PAR_MAIN = POOL;
 export const pasRestants = m => Math.ceil(m.main.reserve / DEMI);
@@ -2584,8 +2584,8 @@ export const PUNITION_TOURS = 4;
  * UNE : le retrait se paie encore — trois fois sur dix, comme dans la vraie
  * ligue — et l'écart d'un but redevient le plus fréquent.
  */
-export const DESERT_POSSESSIONS = MESURE.DESERT !== undefined ? Number(MESURE.DESERT) : 1;
-export const DESERT_ECART = 2;
+const DESERT_POSSESSIONS = MESURE.DESERT !== undefined ? Number(MESURE.DESERT) : 1;
+const DESERT_ECART = 2;
 /** Peut-on retirer son gardien maintenant ? (dernière période, mené, pas trop loin) */
 export function peutRetirerGardien(m, cote) {
   const eq = eqDe(m, cote);
@@ -2713,7 +2713,7 @@ function remettreGardien(m, cote) {
  * équipe ne descend jamais sous trois patineurs, la troisième faute est
  * différée jusqu'à la sortie d'un puni.
  */
-export const PUNITIONS_MAX = 2;
+const PUNITIONS_MAX = 2;
 function punir(m, piece, jet) {
   if (jet.de !== 1 || piece.gardien) return false;
   const eq = eqDe(m, piece.eq);
@@ -2900,7 +2900,7 @@ export function activer(m, piece) {
  * rejoue à chaque tour, le tour est simplement : ta main, la sienne. Les
  * compteurs de la pièce se remettent à zéro à chaque main.
  */
-export const aLaMain = (m, cote) => m.mains[cote] < 1 && eqDe(m, cote).pieces.some(peutJouer);
+const aLaMain = (m, cote) => m.mains[cote] < 1 && eqDe(m, cote).pieces.some(peutJouer);
 export function finirMain(m) {
   m.main = mainNeuve();
   m.reception = null;
@@ -2913,7 +2913,7 @@ export function finirMain(m) {
   finirPresence(m);
 }
 /** Le budget de la main est-il vide, ou plus personne ne peut-il s'en servir ? */
-export const mainEpuisee = m => !actives(m).length;
+const mainEpuisee = m => !actives(m).length;
 
 /** Renoncer au reste de sa présence : toutes ses pièces sont épuisées, l'adversaire enchaîne. */
 export function renoncer(m) {
@@ -3129,15 +3129,15 @@ function finirMatch(m) {
 const ROLE_COL = { AG: -1, C: 0, AD: 1, DG: -1, DD: 1 };
 const estDefenseur = piece => piece.role === 'DG' || piece.role === 'DD';
 /* La profondeur d'un poste, en rangées depuis le filet attaqué. */
-export const POSTE = {
+const POSTE = {
   avanceF: 2,   // en attaque, l'avant passe DEVANT la rondelle
   reculD: 4,    // en attaque, le défenseur tient la pointe DERRIÈRE elle
   couvF: 1,     // en défense, l'avant couvre au-dessus de la rondelle
   couvD: 2,     // en défense, le défenseur se met ENTRE la rondelle et son filet
 };
-export const LARGEUR_POSTE = Math.round((COLS - 1) / 4);   // l'écart d'une aile au centre
+const LARGEUR_POSTE = Math.round((COLS - 1) / 4);   // l'écart d'une aile au centre
 /* Combien de pièces vont à la rondelle : les autres tiennent leur poste. */
-export const FORECHECK = 2;
+const FORECHECK = 2;
 
 /**
  * Le poste d'une pièce : la case qu'elle doit occuper, vu son rôle et où est
@@ -3156,7 +3156,7 @@ export const FORECHECK = 2;
  *                    filet était un désert. Un revirement devenait un but
  *                    parce que personne n'était à la maison.
  */
-export function posteDe(m, piece) {
+function posteDe(m, piece) {
   const eq = eqDe(m, piece.eq);
   const but = eq.but;
   const pos = porteur(m) || libre(m);
@@ -3241,7 +3241,7 @@ const entreeHorsJeu = (m, piece, r) => !rondelleEnZone(m, piece.eq)
  * d'affilée, jusqu'à 29. Au hockey, une rondelle libre est une mêlée :
  * `FORECHECK_LIBRE` pièces y vont.
  */
-export const FORECHECK_LIBRE = Number(MESURE.CHASSE) || 4;
+const FORECHECK_LIBRE = Number(MESURE.CHASSE) || 4;
 /* Ce que vaut la course à la rondelle libre, en plus : `CHASSEV` pour la MESURE. */
 const CHASSE_VAL = MESURE.CHASSEV !== undefined ? Number(MESURE.CHASSEV) : 5;
 /* Ce que coûte un dégagement refusé dans la balance de l'IA : la mise au jeu revient chez elle. */
@@ -3597,7 +3597,7 @@ function optionsDe(m, piece) {
 const RECRUE = MESURE.RECRUE || 'elastique';
 const RECRUE_HESITE = MESURE.RECRUE_P !== undefined ? Number(MESURE.RECRUE_P) : 0.4;
 /** Ce que la recrue fait de différent, en mots — les règles écrites le lisent. */
-export const NIVEAU_RECRUE_MOTS = 'passe sa main après un seul geste (un patin ou une action), ne relance jamais ses dés, et fonce au filet tant qu\'elle ne mène pas ; tes règles et les dés restent les mêmes';
+const NIVEAU_RECRUE_MOTS = 'passe sa main après un seul geste (un patin ou une action), ne relance jamais ses dés, et fonce au filet tant qu\'elle ne mène pas ; tes règles et les dés restent les mêmes';
 const placementPermis = (m, x) => PLACEMENT && !(RECRUE === 'placement' && m.recrue === x.eq);
 /** Combien de gestes la recrue joue dans cette main-ci (les formes mesurées ; `enAttaque` : elle avait la rondelle en l'ouvrant). */
 function gestesDeRecrue(m) {
@@ -3770,7 +3770,7 @@ export function iaPresence(m, surGeste = null) {
  * pour offrir la relance entre les deux. Rend le JET quand il y en a eu un,
  * pour que l'écran puisse le montrer aussi quand c'est l'adversaire qui joue.
  */
-export function jouerGeste(m, piece, action, cote, ia = false) {
+function jouerGeste(m, piece, action, cote, ia = false) {
   if (action.type === 'deplacer') {
     const d = deplacer(m, piece, action.vers);
     if (!d.jet) return null;

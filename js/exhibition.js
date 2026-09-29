@@ -79,7 +79,7 @@ async function club(cote) {
   return { nom: `${code} ${saison}`, tag: code, saison, roster: autoRoster((e.byTeam[code] || []).map(copieDeJoueur)) };
 }
 
-export function fermerExhibition() {
+function fermerExhibition() {
   if (el) el.remove();
   el = null;
   document.body.classList.remove('exh-ouverte');

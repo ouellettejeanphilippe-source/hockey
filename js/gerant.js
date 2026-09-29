@@ -55,7 +55,7 @@ export function puces(mots) {
  * plus tard, un geste réel qui il touche et ce qui lui arrive.
  */
 const plur = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
-export function motsDAction(a, noms = '') {
+function motsDAction(a, noms = '') {
   if (!a) return [];
   const qui = noms || 'le joueur visé';
   const out = [];
@@ -65,7 +65,7 @@ export function motsDAction(a, noms = '') {
   if (a.gardienAux) out.push({ txt: `🧤 L'auxiliaire garde le filet ${plur(a.gardienAux, 'match')}`, bon: null });
   return out;
 }
-export function motsDeCarte(o, noms = '') {
+function motsDeCarte(o, noms = '') {
   const out = [];
   if (o.action) out.push(...motsDAction(o.action, noms));
   if (o.changeGardien) out.push({ txt: '🧤 L\'auxiliaire prend le filet', bon: null });
@@ -113,8 +113,8 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJ
  * carrure quand elle compte (le jeu physique en dépend).
  */
 export const niveauDe = x => (x >= 85 ? 'élite' : x >= 70 ? 'très bon' : x >= 55 ? 'bon' : x >= 40 ? 'correct' : 'faible');
-export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
-export function rolesDe(p) {
+const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
+function rolesDe(p) {
   const pp = profilPrincipal(p);
   if (!pp) return '';
   const r2 = roleSecond(p);
@@ -142,7 +142,7 @@ export function sesRolesHtml(p) {
   }).join('')}</div>`;
 }
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
-export const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(', ')} et ${ns[ns.length - 1]}`);
+const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(', ')} et ${ns[ns.length - 1]}`);
 /* Les canaux d'effet d'un objet : ce que motsDEffet sait dire. */
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
@@ -467,7 +467,7 @@ function minutes(lignes) {
 }
 const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
 /* Le fit d'une ligne à une tactique, et sa chimie, en mots (S71). */
-export const motFit = f => (f >= 70 ? 'Sur mesure' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
+const motFit = f => (f >= 70 ? 'Sur mesure' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
 const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= 20 ? 'correcte' : 'naissante');
 /* L'entente et la maîtrise, de 0 à 1, en mots (S73). */
 const motAppris = x => (x >= 0.75 ? 'solide' : x >= 0.45 ? 'bonne' : x >= 0.2 ? 'en route' : 'à bâtir');
@@ -481,7 +481,7 @@ const nomSys = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.i
  * chiffres, au prorata du fit), qui il étouffe et qui l'étouffe, ce qu'il
  * demande à chaque poste — et ce qu'il y a en face.
  */
-export function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
+function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
   const D = groupe === 'D';
   const SYS = D ? SYSTEMES_D : TACTIQUES;
   const attr = D ? 'tacd' : 'tac';
@@ -945,7 +945,7 @@ const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tac
  * qui t'aide, en rouge ce qui coûte. `regle` n'est écrite à la main que pour
  * une carte qui lit ta formation.
  */
-export function regleDeCarte(C) {
+function regleDeCarte(C) {
   if (!C) return [];
   const out = [];
   const txt = e => motsDEffet(e).map(m => m.txt).join(', ');
@@ -987,9 +987,9 @@ export function regleDeCarte(C) {
   return out;
 }
 /* L'ancien nom : les écrans de récompense et de deck l'appellent encore. */
-export const motsDeCarteMatch = regleDeCarte;
+const motsDeCarteMatch = regleDeCarte;
 /* Une carte de LEUR main, en puces de ton point de vue : ce qui les aide est rouge pour toi. */
-export function motsDeCarteAdverse(C, echelle = 1) {
+function motsDeCarteAdverse(C, echelle = 1) {
   if (!C) return [];
   const out = [];
   for (const m of motsDEffet(C.effet || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });

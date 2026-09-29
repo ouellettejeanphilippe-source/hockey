@@ -48,7 +48,7 @@ function contexte() {
 }
 
 /* Le premier toucher débloque le son : la règle des navigateurs. */
-export function debloquer() { if (actif) contexte(); }
+function debloquer() { if (actif) contexte(); }
 if (typeof document !== 'undefined') {
   document.addEventListener('pointerdown', debloquer, { passive: true });
   document.addEventListener('keydown', debloquer, { passive: true });

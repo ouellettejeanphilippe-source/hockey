@@ -61,7 +61,7 @@ export function teamLabel(t) {
  * Hockey-Reference (`teamSeasonUrl`, js/logos.js) : une adresse par
  * équipe-saison, pas la page de la ligue où il fallait ensuite la chercher.
  */
-export function teamCell(t, taille = 15) {
+function teamCell(t, taille = 15) {
   const label = esc(teamLabel(t));
   const url = t.isPlayer ? null : teamSeasonUrl(t.tag, t.season);
   const nom = url
@@ -301,7 +301,7 @@ function calendrierHtml(calendrier, jour) {
  * tant que son volet est vide, et c'est le DOM qui le dit (`ongletsCourants`,
  * js/game.js) — un drapeau de plus serait une deuxième vérité.
  */
-export const ONGLETS_BILAN = [
+const ONGLETS_BILAN = [
   { cle: 'bilan', ico: 'i-target', titre: 'Bilan' },
   { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
   { cle: 'calendrier', ico: 'i-cal', titre: 'Calendrier' },

@@ -29,7 +29,7 @@ import { esc, millions as M } from './util.js';
 const $ = id => document.getElementById(id);
 
 /* Les paliers de la saison donnent un pack mixte gratuit (S79) : ses cartes de saison, jamais un permanent. */
-export const PALIERS_PACK = [20, 40, 60];
+const PALIERS_PACK = [20, 40, 60];
 
 /*
  * LA POCHE DE LA PARTIE, pure : les cartes des packs achetés (\`achat.cartes\`)
@@ -77,7 +77,7 @@ export const VENTE = { commune: 1, peu: 1, rare: 2, legendaire: 5, maudite: 0 };
 export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'consommable' ? 0 : (VENTE[c.rarete] ?? 1); };
 
 /* ---------- la carte de la banque, en petit ---------- */
-export function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = null } = {}) {
+function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = null } = {}) {
   const c = carteBanque(id);
   if (!c) return '';
   const mots = c.cat === 'match' ? optionDeCarteMatch(c.cle).mots : reglesDe(id);

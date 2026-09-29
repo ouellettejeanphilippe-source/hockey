@@ -180,7 +180,7 @@ function luminance(hex) {
  * jeu. Sans ça, le bleu marine de St. Louis ou le noir des Kings donnent une
  * bordure invisible et une étiquette illisible.
  */
-export function readableAccent(hex, target = 0.30) {
+function readableAccent(hex, target = 0.30) {
   let rgb = hexToRgb(hex);
   let lum = luminance(rgbToHex(rgb));
   let guard = 0;

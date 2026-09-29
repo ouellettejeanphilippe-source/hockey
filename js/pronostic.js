@@ -54,7 +54,7 @@ function rendre(photos) {
  * ce qui règle la rotation des gardiens (`pickGoalie` lit `games`) et ce qui
  * dit quels blessés sont encore à l'infirmerie.
  */
-export function matchsAvant(calendrier, t, jour) {
+function matchsAvant(calendrier, t, jour) {
   let n = 0;
   for (let j = 0; j < Math.min(jour, calendrier.length); j++) for (const m of calendrier[j]) if (m.A === t || m.B === t) n++;
   return n;

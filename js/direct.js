@@ -177,7 +177,7 @@ const STYLE_MICRO = { canonnier: 'canon', fabricant: 'fab', rapide: 'rapide', ti
 const PART_DANGER = 0.15;
 const SEUIL_DANGER = 0.16;   // le repli, pour une feuille qui n'a pas de seuil
 const SEUIL_BLOQUE = 0.07;
-export function genreDuTir(e) {
+function genreDuTir(e) {
   if (e.special === 'etouffee') return 'defense';
   if (e.mode === 'AN' && e.p != null && e.p < SEUIL_BLOQUE) return 'defense';
   if (e.special === 'reussie') return 'danger';

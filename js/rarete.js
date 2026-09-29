@@ -58,7 +58,7 @@ export const BONUS = {
 };
 const RESERVE_PATINEUR = ['finition', 'lancers', 'creation', 'defense', 'solide', 'clutch', 'polyvalent'];
 const RESERVE_GARDIEN = ['reflexes', 'reflexes', 'solide'];
-export const RECRUE_PROGRESSE = { ico: '🐣', nom: 'Le jeune progresse', mot: 'Contrat d\'entrée : précision +1 % à partir de son 42e match.', apres: 41, finition: 1.01 };
+const RECRUE_PROGRESSE = { ico: '🐣', nom: 'Le jeune progresse', mot: 'Contrat d\'entrée : précision +1 % à partir de son 42e match.', apres: 41, finition: 1.01 };
 
 /* La variante tirée selon des cotes (en %), de la graine et de la clé du joueur. */
 export function varianteTiree(cotes, ...parts) {

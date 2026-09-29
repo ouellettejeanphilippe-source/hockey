@@ -26,14 +26,14 @@ import { ouvrirTable } from './plateau.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 
 export const CLUBS = 6;              // toi et cinq vrais clubs
-export const EN_SERIES = 4;
+const EN_SERIES = 4;
 
 /**
  * Le calendrier d'un tournoi à six : le cercle de Berger, cinq journées, trois
  * matchs par journée, chacun contre chacun une fois. Ta formation est
  * toujours l'indice 0, donc elle joue chaque journée.
  */
-export function calendrierRondRobin(n) {
+function calendrierRondRobin(n) {
   const idx = [...Array(n).keys()];
   const journees = [];
   for (let j = 0; j < n - 1; j++) {
@@ -73,7 +73,7 @@ const surTable = (club, cote) => equipeDeTable(club.nom, club.tag, club.roster, 
  * séries n'y entre PAS, sinon le premier de la saison finissait 7-0 dans un
  * calendrier de cinq matchs et le classement ne voulait plus rien dire.
  */
-export function jouerAuto(T, match, compte = true) {
+function jouerAuto(T, match, compte = true) {
   const A = surTable(T.clubs[match.a], 'A');
   const B = surTable(T.clubs[match.b], 'B');
   match.r = jouerMatchAuto(A, B, match.graine);
@@ -88,9 +88,9 @@ export function jouerAuto(T, match, compte = true) {
 }
 
 /** Tous les matchs du tournoi, saison et séries : une seule définition. */
-export const tousLesMatchs = T => [...T.journees.flat(), ...(T.series ? T.series.rondes.flat() : [])];
+const tousLesMatchs = T => [...T.journees.flat(), ...(T.series ? T.series.rondes.flat() : [])];
 
-export function inscrire(T, match) {
+function inscrire(T, match) {
   const fa = T.fiches[match.a], fb = T.fiches[match.b];
   const { gfA, gfB } = match.r;
   fa.PJ++; fb.PJ++;
@@ -117,7 +117,7 @@ export const classement = T => T.clubs.map((c, i) => ({ i, c, f: T.fiches[i] }))
  * naturellement — ce sont les meneurs DU TOURNOI, pas ceux du classement (qui,
  * lui, ignore les séries exprès).
  */
-export function meneursDuTournoi(T) {
+function meneursDuTournoi(T) {
   const par = new Map();
   const trouver = (club, joueur) => {
     const cle = `${club}|${(joueur && joueur.n) || '?'}`;
@@ -149,7 +149,7 @@ export function meneursDuTournoi(T) {
  * ce qui rend les séries rapides, et c'est ce qui rend la première place
  * précieuse sans la rendre décisive.
  */
-export function ouvrirLesSeries(T) {
+function ouvrirLesSeries(T) {
   const cl = classement(T).slice(0, EN_SERIES);
   T.series = {
     ronde: 0,
@@ -163,10 +163,10 @@ export function ouvrirLesSeries(T) {
 }
 
 /** Le gagnant d'un match des séries, par indice de club. */
-export const gagnantDe = mt => (!mt.r ? null : gagnantDuMatch(mt.r) === 'A' ? mt.a : mt.b);
+const gagnantDe = mt => (!mt.r ? null : gagnantDuMatch(mt.r) === 'A' ? mt.a : mt.b);
 
 /** Une fois la demi-finale jouée, la finale connaît ses deux clubs. */
-export function composerFinale(T) {
+function composerFinale(T) {
   const demi = T.series.rondes[0];
   if (demi.some(x => !x.r)) return false;
   T.series.rondes[1][0].a = gagnantDe(demi[0]);

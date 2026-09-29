@@ -443,7 +443,7 @@ export function mainAdverse(graine, cle, energie = ENERGIE_MAIN) {
  * d'un deckbuilder : quatre d'énergie à partir de la journée 55, et dès la
  * troisième ronde des séries. L'écran l'annonce avec la main.
  */
-export const JOUR_ADVERSE_FORT = 55, RONDE_ADVERSE_FORTE = 2;
+const JOUR_ADVERSE_FORT = 55, RONDE_ADVERSE_FORTE = 2;
 export function energieAdverse({ jour = 0, serie = false, ronde = 0 } = {}) {
   return (serie ? ronde >= RONDE_ADVERSE_FORTE : jour >= JOUR_ADVERSE_FORT) ? ENERGIE_MAIN + 1 : ENERGIE_MAIN;
 }

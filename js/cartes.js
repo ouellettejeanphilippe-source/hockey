@@ -123,9 +123,9 @@ export function carteHtml(c) {
  * joueurs en montre une ou deux rares, et une légendaire une fois sur deux :
  * ce qu'on trouve en ouvrant un paquet.
  */
-export const PALIERS_RARETE = [['legendaire', 0.97], ['rare', 0.88], ['peu', 0.65]];
+const PALIERS_RARETE = [['legendaire', 0.97], ['rare', 0.88], ['peu', 0.65]];
 /* Le centile (la part de sa saison payée MOINS que lui) vers la rareté. */
-export function rareteDuCentile(c) {
+function rareteDuCentile(c) {
   for (const [r, seuil] of PALIERS_RARETE) if (c >= seuil) return r;
   return 'commune';
 }
@@ -214,7 +214,7 @@ const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '
  *   e10 — depuis 2010 : le moderne, la photo sur un dégradé aux couleurs du
  *         club, le nom dans une bande nette, rien de trop.
  */
-export function ereDe(saison) {
+function ereDe(saison) {
   const a = parseInt(String(saison || '').slice(0, 4), 10) || 2000;
   return a < 1980 ? 'e70' : a < 1990 ? 'e80' : a < 1996 ? 'e90' : a < 2010 ? 'e00' : 'e10';
 }
@@ -241,7 +241,7 @@ export function ereDe(saison) {
  * 2010). Le NOM garde toujours une bande pleine et contrastée (style.css,
  * « UN DESIGN PAR ANNÉE »).
  */
-export const DESIGNS = {
+const DESIGNS = {
   '1970-71': 'c-club f-ovale n-banderole m-trame a-double',
   '1971-72': 'c-blanc f-arrondi n-bande m-rayures a-club',
   '1972-73': 'c-club-sombre f-carre n-banderole m-rayons a-or',
@@ -299,7 +299,7 @@ export const DESIGNS = {
   '2025-26': 'c-vitre f-plein n-plaque m-glace a-arc',
 };
 /* Une saison hors de la table (une saison ajoutée plus tard) prend le design de la plus proche qui la précède. */
-export function designDe(saison) {
+function designDe(saison) {
   const s = String(saison || '');
   if (DESIGNS[s]) return DESIGNS[s];
   const connues = Object.keys(DESIGNS).sort();

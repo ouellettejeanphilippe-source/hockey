@@ -484,7 +484,7 @@ function boutonFlottant(actions, termine) {
   f._io = new IntersectionObserver(([e]) => { f.hidden = e.isIntersecting || window.innerWidth >= 1200; }, { threshold: 0.6 });
   f._io.observe(cible);
 }
-export function cacherBoutonFlottant() {
+function cacherBoutonFlottant() {
   const f = document.getElementById('hubFlottant');
   if (f) { f.hidden = true; if (f._io) { f._io.disconnect(); f._io = null; } }
 }

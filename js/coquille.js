@@ -44,7 +44,7 @@ export function voletPour(page) {
 }
 
 /* La page de la barre que montre le volet courant de l'écran. */
-export function pageDuHub() {
+function pageDuHub() {
   if (!actif) return null;
   const o = actif.onglets().find(x => x.cle === actif.courant());
   return o ? o.page : null;

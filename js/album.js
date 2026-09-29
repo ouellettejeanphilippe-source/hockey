@@ -19,7 +19,7 @@ import { carteHtml, RARETES } from './cartes.js';
 import { esc } from './util.js';
 
 /* Ce que l'historique contient, compté. */
-export function lireAlbum(historique = []) {
+function lireAlbum(historique = []) {
   const cartes = new Map(), joueurs = new Map(), identites = new Map();
   let coupes = 0;
   for (const e of historique) {

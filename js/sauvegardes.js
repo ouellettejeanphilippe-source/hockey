@@ -19,7 +19,7 @@
 const INDEX = 'cap82_parties';
 const ANCIENNE = 'cap82_save';
 const cle = id => `cap82_partie_${id}`;
-export const MAX_PARTIES = 24;
+const MAX_PARTIES = 24;
 
 /* Les trois familles de parties, telles que le menu les range. */
 export const GENRES = {
@@ -28,7 +28,7 @@ export const GENRES = {
   rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Des plombiers, des packs, une run de plusieurs saisons' },
 };
 /* Le genre d'une sauvegarde, lu dans ce qu'elle porte. */
-export const genreDe = data => (data && data.bonus === 'TABLE' ? 'table' : data && data.bonus === 'ROGUE' ? 'rogue' : 'saison');
+const genreDe = data => (data && data.bonus === 'TABLE' ? 'table' : data && data.bonus === 'ROGUE' ? 'rogue' : 'saison');
 
 const lire = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
@@ -59,7 +59,7 @@ export function migrer() {
 }
 
 export const partieActive = () => { const ix = lireIndex(); return ix.parties.find(p => p.id === ix.actif) || null; };
-export const lirePartie = id => (id ? lire(cle(id)) : null);
+const lirePartie = id => (id ? lire(cle(id)) : null);
 export const lirePartieActive = () => { const a = partieActive(); return a ? lirePartie(a.id) : null; };
 /* La plus récente d'un genre : ce que « Reprendre » ouvre sur la carte du mode. */
 export const derniereDuGenre = g => lireIndex().parties.filter(p => p.genre === g).sort((a, b) => b.maj - a.maj)[0] || null;

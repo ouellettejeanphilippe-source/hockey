@@ -74,7 +74,7 @@ import { ageAtSeason } from './ratings.js';
  * Mesuré : au 85e, Gainey ne gardait que 4 de ses 16 saisons et Danault 4 de
  * 11 ; au 70e, 7 et 7, et les saisons de fin de carrière tombent toujours.
  */
-export const SEUIL_GROSSE_SAISON = 0.70;
+const SEUIL_GROSSE_SAISON = 0.70;
 
 /** Première saison où le Vezina est un vote sur le meilleur gardien. */
 export const VEZINA_VOTE_DEPUIS = '1981-82';
