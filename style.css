@@ -9092,6 +9092,8 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
    Le nom garde partout une bande PLEINE et contrastée.
    ================================================================= */
 :is(.pcard-avatar, .cj-fenetre) > :is(img, .headshot-fallback) { position: absolute; z-index: 1; }
+/* 1.0 : le visage de repli reste DANS son cadre (smoke : il dépassait de 5 px). */
+:is(.pcard-avatar, .cj-fenetre) > .headshot-fallback { inset: 0; display: grid; place-items: center; overflow: hidden; line-height: 1; }
 :is(.pcard-avatar, .cj-fenetre) > .headshot-fallback { inset: 0; display: grid; place-items: center; }
 .cj-filigrane { position: absolute; inset: 0; z-index: 0; pointer-events: none; background: var(--ss-motif, none), var(--s-motif, none); }
 .cj-filigrane::before {
