@@ -1,0 +1,82 @@
+# docs/ — l'historique et la référence
+
+- `decisions.md` — les « Règles fermes » de S1 à S80, mot pour mot, un titre par décision, et « L'interface premium » (S77).
+- `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).
+- `structure-detaillee.md` — la structure du dépôt, fichier par fichier, dans sa version longue.
+- `plan-historique.md` — « Fait » et les trois « À faire » de PLAN.md d'avant 1.0.
+- `journal/` — le journal par sprint : les sections S78 à S80 de CLAUDE.md et PLAN.md, et les rangées du journal de PLAN.md classées par le sprint qu'elles nomment (`avant-S78.md` : celles qui n'en nomment aucun).
+  - `journal/avant-S78.md`
+  - `journal/S7.md`
+  - `journal/S8.md`
+  - `journal/S10.md`
+  - `journal/S11.md`
+  - `journal/S12.md`
+  - `journal/S13.md`
+  - `journal/S14.md`
+  - `journal/S15.md`
+  - `journal/S16.md`
+  - `journal/S17.md`
+  - `journal/S18.md`
+  - `journal/S19.md`
+  - `journal/S20.md`
+  - `journal/S21.md`
+  - `journal/S22.md`
+  - `journal/S23.md`
+  - `journal/S24.md`
+  - `journal/S25.md`
+  - `journal/S26.md`
+  - `journal/S27.md`
+  - `journal/S28.md`
+  - `journal/S29.md`
+  - `journal/S30.md`
+  - `journal/S31.md`
+  - `journal/S33.md`
+  - `journal/S34.md`
+  - `journal/S35.md`
+  - `journal/S36.md`
+  - `journal/S37.md`
+  - `journal/S38.md`
+  - `journal/S39.md`
+  - `journal/S40.md`
+  - `journal/S41.md`
+  - `journal/S42.md`
+  - `journal/S43.md`
+  - `journal/S44.md`
+  - `journal/S45.md`
+  - `journal/S46.md`
+  - `journal/S47.md`
+  - `journal/S48.md`
+  - `journal/S49.md`
+  - `journal/S50.md`
+  - `journal/S51.md`
+  - `journal/S52.md`
+  - `journal/S53.md`
+  - `journal/S54.md`
+  - `journal/S55.md`
+  - `journal/S56.md`
+  - `journal/S57.md`
+  - `journal/S58.md`
+  - `journal/S59.md`
+  - `journal/S60.md`
+  - `journal/S61.md`
+  - `journal/S62.md`
+  - `journal/S63.md`
+  - `journal/S64.md`
+  - `journal/S65.md`
+  - `journal/S66.md`
+  - `journal/S67.md`
+  - `journal/S68.md`
+  - `journal/S69.md`
+  - `journal/S70.md`
+  - `journal/S71.md`
+  - `journal/S72.md`
+  - `journal/S73.md`
+  - `journal/S74.md`
+  - `journal/S75.md`
+  - `journal/S76.md`
+  - `journal/S77.md`
+  - `journal/S78.md`
+  - `journal/S79.md`
+  - `journal/S80.md`
+
+Le plan courant est `../LIVRAISON.md`. Les consignes vivantes sont dans `../CLAUDE.md`.
