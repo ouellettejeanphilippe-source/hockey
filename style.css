@@ -1268,7 +1268,10 @@ button.marche-tuile:active { transform: scale(0.98); }
   isolation: isolate; overflow: hidden; border-radius: 4.5% / 3.2%;
   background: var(--c-fond, #1b2230); color: var(--c-encre, #ffffff);
   font-family: var(--display); line-height: 1; text-align: left;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.45), 0 5px 14px rgba(0, 0, 0, 0.38);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--encre) 28%, transparent),
+    0 1px 1px color-mix(in srgb, var(--noir) 55%, transparent),
+    0 6px 16px color-mix(in srgb, var(--noir) 42%, transparent);
   transition: --rx 0.65s var(--e-ressort), --ry 0.65s var(--e-ressort), --mx 0.5s ease, --my 0.5s ease, --lueur 0.45s ease, --leve 0.25s var(--e-ressort), transform 0.18s ease, box-shadow 0.2s ease;
 }
 .carton > * { position: absolute; }
@@ -1337,7 +1340,7 @@ button.marche-tuile:active { transform: scale(0.98); }
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.12) 24%, transparent 56%);
   mix-blend-mode: soft-light; opacity: var(--lueur);
 }
-.carton.incline { transition-duration: 0.08s, 0.08s, 0.08s, 0.08s, 0.2s, 0.15s, 0s, 0.2s; --leve: -3px; box-shadow: 0 2px 2px rgba(0, 0, 0, 0.4), 0 16px 28px rgba(0, 0, 0, 0.5); }
+.carton.incline { transition-duration: 0.08s, 0.08s, 0.08s, 0.08s, 0.2s, 0.15s, 0s, 0.2s; --leve: -3px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--encre) 40%, transparent), 0 2px 2px color-mix(in srgb, var(--noir) 50%, transparent), 0 16px 28px color-mix(in srgb, var(--noir) 55%, transparent); }
 .carton.relache { transition-property: --rx, --ry, --mx, --my, --lueur, --leve, box-shadow; }
 .carton:is(.incline, .relache, .gyro) { transform: perspective(900px) translateY(var(--leve)) rotateX(var(--rx)) rotateY(var(--ry)); }
 @media (prefers-reduced-motion: reduce) { .carton { transition: none; } }
@@ -3217,17 +3220,21 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 :is(.tc, .deck-mini, .main-adverse-carte).tc-rare { --tc-bord: var(--choisi); }
 :is(.tc, .deck-mini, .main-adverse-carte).tc-legendaire { --tc-bord: var(--or); }
 /* Le genre : une couleur et son encre, dérivées des jetons ; sans genre (un événement, une modif, une identité), l'or. */
+.tc { --tc-genre: var(--or); --tc-genre-encre: var(--encre-sur-or); }
 .tc.tc-g-attaque { --tc-genre: var(--mauvais); --tc-genre-encre: color-mix(in srgb, var(--mauvais) 18%, var(--noir)); }
 .tc.tc-g-defense { --tc-genre: var(--bleu); --tc-genre-encre: color-mix(in srgb, var(--bleu) 18%, var(--noir)); }
 .tc.tc-g-tactique { --tc-genre: var(--bon); --tc-genre-encre: color-mix(in srgb, var(--bon) 18%, var(--noir)); }
 .tc.tc-g-synergie { --tc-genre: var(--violet); --tc-genre-encre: color-mix(in srgb, var(--violet) 18%, var(--noir)); }
 .tc.tc-g-malediction { --tc-genre: var(--live); --tc-genre-encre: var(--encre); }
 .choix-option.tc {
-  --tc-genre: var(--or); --tc-genre-encre: var(--encre-sur-or);
   position: relative; display: block; padding: 0; min-height: 0; text-align: left; isolation: isolate; container-type: inline-size;
   transition: transform var(--t-vite), border-color var(--t-vite), opacity var(--t-vite), --rx var(--t-lent) var(--e-ressort), --ry var(--t-lent) var(--e-ressort), --lueur var(--t-lent);
 }
-.choix-option.tc:not(.tc-joueur) { overflow: hidden; border: 2px solid var(--tc-bord); border-radius: var(--r-2); background: var(--fond-1); }
+.choix-option.tc:not(.tc-joueur) {
+  overflow: hidden; border: 2px solid var(--tc-bord); border-radius: var(--r-2);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--encre) 6%, var(--fond-2)), var(--fond-1) 22%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--encre) 14%, transparent);
+}
 .choix-option.tc:hover:not([disabled]):not(.lecture), .choix-option.tc:focus-visible { transform: translateY(-4px); border-color: var(--choisi); outline: none; }
 .choix-option.tc:active:not([disabled]):not(.lecture) { transform: translateY(-2px) scale(0.985); }
 .choix-option.tc:is([disabled], [aria-disabled="true"]) { opacity: 0.45; cursor: not-allowed; }
@@ -3254,7 +3261,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 @keyframes tc-reflet { from { background-position: 120% 0; } to { background-position: -20% 0; } }
 /* Le cadre : la bannière du genre en tête, le dessin, la ligne de type, la règle, les effets, le pied de série. */
 .tc-cadre { position: relative; z-index: 2; display: flex; flex-direction: column; gap: var(--esp-2); height: 100%; padding: 0 0 var(--esp-2); color: var(--encre); }
-.tc-tete { display: flex; align-items: center; min-height: 44px; padding: var(--esp-1) var(--esp-3) var(--esp-1) 48px; background: var(--tc-genre); color: var(--tc-genre-encre); }
+.tc-tete { display: flex; align-items: center; min-height: 44px; padding: var(--esp-1) var(--esp-3) var(--esp-1) 48px; background: var(--tc-genre); color: var(--tc-genre-encre); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--encre) 32%, transparent), inset 0 -2px 0 color-mix(in srgb, var(--noir) 30%, transparent); }
 .tc-tete:not(:has(> .tc-coin)) { padding-left: var(--esp-3); }
 .tc-nom { font: 800 clamp(var(--t-1), 9cqw, var(--t-4))/1.05 var(--display); letter-spacing: 0.03em; text-transform: uppercase; overflow-wrap: anywhere; }
 .choix-option.tc.plus .tc-tete { border-bottom: 3px solid var(--or); }
@@ -3263,12 +3270,28 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
   position: absolute; top: 4px; left: var(--esp-2); z-index: 3; display: grid; place-items: center; width: 32px; height: 36px;
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   background: var(--noir); color: var(--encre); font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--encre) 30%, transparent);
 }
 .tc-coin s { font-size: var(--t-1); opacity: 0.6; margin-right: 1px; }
 .tc-art {
   --tc-accent: var(--tc-genre);
   flex: none; position: relative; display: grid; place-items: center; height: 110px; margin: 0 var(--esp-2); border-radius: var(--r-1); overflow: hidden;
-  color: var(--encre); background: color-mix(in srgb, var(--tc-genre) 16%, var(--fond-3));
+  color: var(--encre);
+  background:
+    radial-gradient(80% 55% at 50% 118%, color-mix(in srgb, var(--tc-accent) 50%, transparent), transparent 62%),
+    linear-gradient(180deg, color-mix(in srgb, var(--tc-accent) 24%, var(--fond-3)), color-mix(in srgb, var(--noir) 55%, var(--fond-3)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc-accent) 48%, transparent);
+}
+/* Une carte qu'on tient (pas la rangée serrée du bureau) : la fenêtre est une patinoire. */
+@container (min-width: 200px) {
+  .tc-art {
+    background:
+      linear-gradient(color-mix(in srgb, var(--tc-accent) 70%, transparent), color-mix(in srgb, var(--tc-accent) 70%, transparent)) center 22% / 78% 1px no-repeat,
+      linear-gradient(color-mix(in srgb, var(--tc-accent) 70%, transparent), color-mix(in srgb, var(--tc-accent) 70%, transparent)) center 78% / 70% 1px no-repeat,
+      radial-gradient(circle at 50% 50%, transparent 16%, color-mix(in srgb, var(--tc-accent) 55%, transparent) 17.2% 19.2%, transparent 20.4%),
+      radial-gradient(80% 55% at 50% 118%, color-mix(in srgb, var(--tc-accent) 40%, transparent), transparent 64%),
+      linear-gradient(180deg, color-mix(in srgb, var(--tc-accent) 16%, var(--fond-3)), color-mix(in srgb, var(--noir) 58%, var(--fond-3)));
+  }
 }
 .tc-art > .cj-art { position: absolute; inset: 0; }
 .tc-dessin { width: min(72px, 44cqw); height: auto; max-height: 86%; overflow: visible; }
