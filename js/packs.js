@@ -66,6 +66,7 @@ import { getPlayerKey, getPersonKey } from './sim.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { ageAtSeason } from './ratings.js';
 import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau } from './niveaux.js';
+import { IDENTITES } from './identites.js';
 
 /*
  * 1.0 — MOINS D'ÉTOILES (JP : *les packs sont trop généreux en joueurs étoiles*).
@@ -184,7 +185,7 @@ export function chancesDe(cle, mods = {}) {
   const r = (c.rare + c.legendaire) / 100, l = c.legendaire / 100, un = l * NUMEROS[3][1] / 100;
   const pr = P.garanti ? 1 : 1 - (1 - r) ** n;
   // S80 : le JOUEUR d'abord (son niveau), puis la FINITION de sa carte. Un pack d'étoiles ne dit pas « Étoile ou mieux » : c'est chaque carte.
-  const nv = niveauxDuPack(cle);
+  const nv = niveauxDuPack(cle, mods);
   const joueur = nv ? [
     ...(nv.soutien || nv.regulier || nv.pilier ? [{ nom: '★ Étoile ou mieux', p: 1 - (1 - (nv.etoile + nv.phenomene) / 100) ** n }] : []),
     { nom: '★ Phénomène', p: 1 - (1 - nv.phenomene / 100) ** n },
@@ -227,10 +228,26 @@ export function cartesDuPack(cle, mods = {}) {
  * pour un pack qui ne tire pas de niveau (un talent, un trio). Un niveau
  * absent vaut 0.
  */
-export function niveauxDuPack(cle) {
+export function niveauxDuPack(cle, mods = {}) {
   const P = PACKS_TOUS[cle];
   if (!P || P.sorte !== 'joueurs' || P.famille === 'skill' || P.famille === 'trio') return null;
-  const t = P.niveaux || TIERS[P.tier || 'argent'].niveaux;
+  const t = { ...(P.niveaux || TIERS[P.tier || 'argent'].niveaux) };
+  /*
+   * LE PRESTIGE DU CLUB (v2, js/rogue.js `PRESTIGES`) : il multiplie les taux
+   * des Étoiles et des Phénomènes. Ce qu'on leur retire (ou ajoute) passe aux
+   * piliers ; un pack d'étoiles, qui n'a pas de piliers, ne touche qu'à ses
+   * Phénomènes, et la différence va à ses Étoiles.
+   */
+  const pr = mods.prestige;
+  if (pr) {
+    const avecPiliers = (t.pilier || 0) > 0;
+    for (const k of avecPiliers ? ['etoile', 'phenomene'] : ['phenomene']) {
+      const avant = t[k] || 0, apres = avant * (pr[k] ?? 1);
+      const vers = avecPiliers ? 'pilier' : 'etoile';
+      const delta = Math.min(apres - avant, t[vers] || 0);
+      t[k] = avant + delta; t[vers] = (t[vers] || 0) - delta;
+    }
+  }
   const tot = NIVEAUX.reduce((a, N) => a + (t[N.cle] || 0), 0) || 1;
   return Object.fromEntries(NIVEAUX.map(N => [N.cle, ((t[N.cle] || 0) / tot) * 100]));
 }
@@ -289,6 +306,28 @@ function tirerNiveau(taux, ...parts) {
  * axes ne se touchent pas. Chaque carte rend { p, niveau, rar, num }.
  */
 const ESSAIS_NIVEAU = 8;
+/*
+ * LE DÉPISTEUR DU COACH (v2). Le coach de la run oriente le recrutement : à
+ * niveau égal, un pack de joueurs tire DEUX candidats et garde celui qui
+ * colle le mieux à sa philosophie — le « meilleur de deux » de l'identité de
+ * départ (js/identites.js), lu dans les vraies stats, jamais dans une cote.
+ * Le Frelon attire des patineurs qui lancent, la Tortue des joueurs de devoir.
+ * Le niveau ne change pas : c'est le style qui penche, pas la qualité.
+ */
+const RECRUE_DU_COACH = {
+  essaim: IDENTITES.rapides.score, rapaces: IDENTITES.francs.score, tortue: IDENTITES.defensive.score,
+  rhinos: IDENTITES.costauds.score, souffle: IDENTITES.jeunesse.score, profondeur: IDENTITES.aubaines.score,
+  etoiles: IDENTITES.artistes.score, banque: IDENTITES.aubaines.score,
+  // L'Abbé : peu de minutes de punition par match (un gardien reste neutre).
+  choeur: p => (p.p === 'G' ? 0.5 : 1 - Math.min(1, ((p.pim || 0) / Math.max(1, p.gp || 1)) / 1.5)),
+};
+function recrue(pool, coach, graine, ...parts) {
+  const a = pool[Math.floor(hache(graine, 'pack-joueur', ...parts) * pool.length)];
+  const score = RECRUE_DU_COACH[coach];
+  if (!score || pool.length < 2) return a;
+  const b = pool[Math.floor(hache(graine, 'pack-joueur-coach', ...parts) * pool.length)];
+  return score(b) > score(a) ? b : a;
+}
 export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {}, garantie = false, saisons: toutes, shard, libre = () => true }) {
   const P = PACKS_TOUS[cle];
   const an = s => Number(String(s).slice(0, 4));
@@ -345,7 +384,7 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
     }
   } else {
     // LE NIVEAU D'ABORD : tiré aux taux du pack, puis une saison et un joueur de ce niveau.
-    const taux = niveauxDuPack(cle);
+    const taux = niveauxDuPack(cle, mods);
     const permis = NIVEAUX.map((N, k) => k).filter(k => taux[NIVEAUX[k].cle] > 0);
     const essais = Math.min(ESSAIS_NIVEAU, saisons.length);
     for (let c = 0; c < nb && saisons.length; c++) {
@@ -360,7 +399,7 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
           const pool = (P.famille === 'equipe'
             ? (sh.byTeam[codeDeFranchise(reglage.franchise, sa)] || []).filter(p => niveauDe(p, sh.players) === k)
             : joueursParNiveau(sh.players)[k]).filter(dispo);
-          if (pool.length) carte = { p: pool[Math.floor(hache(graine, 'pack-joueur', cle, n, c, k, e) * pool.length)], niveau: k };
+          if (pool.length) carte = { p: recrue(pool, mods.coach, graine, cle, n, c, k, e), niveau: k };
         }
         if (carte) break;
       }

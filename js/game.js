@@ -20,7 +20,8 @@
  * lui-même le brouillard de guerre dans les options.
  */
 
-import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, profilPrincipal, MUTATIONS, roleSecond, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate } from './sim.js';
+import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, profilPrincipal, MUTATIONS, roleSecond, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur } from './sim.js';
+import { COACHS, JOUEUR_COACH } from './coachs.js';
 import { PLAFOND_ROGUE, lireMeta } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
 import { IDENTITES, scoreIdentite } from './identites.js';
@@ -954,6 +955,11 @@ export function agesAvailable() {
   return G.tirage.some(v => v.pool.some(p => p.bd)) || picked().some(p => p.bd);
 }
 
+/* SA COULEUR (v2, js/coachs.js) : le coach de son meilleur rôle maîtrisé — ses cartes et la confiance de ce coach comptent sur lui. */
+export function coachTag(p) {
+  const C = COACHS[coachDuJoueur(p)];
+  return C ? `<span class="tag" title="Joueur ${esc(C.de)} : il porte la confiance de ce coach (+${Math.round(JOUEUR_COACH * 100)} % par joueur habillé) et fait grandir ses cartes de vestiaire.">${C.ico} ${esc(C.nom)}</span>` : '';
+}
 export function zoneTag(p, mini = false) {
   const v = getHiddenRatings(p).v;
   const z = getLineZone(p, v);

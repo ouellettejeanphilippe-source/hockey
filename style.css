@@ -3044,7 +3044,8 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 /* ---- Le fil : des rangées de 44 px, l'heure à gauche en tabulaire, le texte en phrase, le plus récent en tête ---- */
 .live-feed { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--esp-2) var(--esp-3); display: flex; flex-direction: column; gap: 2px; }
 .live-feed:not(.tous) .live-ligne.mineur { display: none; }
-.live-ligne { display: flex; align-items: baseline; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); line-height: 1.4; animation: ligneIn var(--t-lent) var(--e-sortie); }
+/* `flex: none` : dans une colonne qui défile, une rangée qui se comprime laisse son texte déborder sur la suivante. */
+.live-ligne { flex: none; display: flex; align-items: baseline; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); line-height: 1.4; animation: ligneIn var(--t-lent) var(--e-sortie); }
 @keyframes ligneIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .live-ligne .team-logo-img, .live-ligne .team-logo-inline { flex: none; align-self: center; }
 .live-txt { display: inline; }

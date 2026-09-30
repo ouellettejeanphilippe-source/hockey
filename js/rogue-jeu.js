@@ -5,9 +5,9 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage } from './rogue.js';
+import { lireMeta, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, motsDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, motsDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur } from './sim.js';
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, MAX_PATRONS, ROLES, payloadDe, CONSOMMABLES, CONTRATS, CASES_DE_BASE, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS } from './coachs.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack } from './packs.js';
@@ -146,7 +146,7 @@ export function ouvrirBoutique(j, decider, page = null) {
   ouvrirMagasin({
     ...(page || {}),
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(),
-    mods: modificateurs(decs, j + 1), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
+    mods: modsDesPacks(decs, j), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     duJour: packDuJour(new Date(), packsOuvertsBoutique()),
     // 1.0 (R5) : à la première run, avant la journée 20, quatre packs ; « Voir les N packs » montre tout.
     debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < 20,
@@ -181,6 +181,19 @@ async function tirerPackJoueurs(cle, n, params = {}, mods = {}, garantie = false
     libre: p => p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p),
   });
 }
+/*
+ * CE QUI CHANGE UN PACK DE JOUEURS : les patrons (js/banque.js `modificateurs`)
+ * et, en Rogue, la run (v2) — son PRESTIGE, fixé au départ (les Étoiles et les
+ * Phénomènes qu'il ouvre), et son COACH (le style qu'il recrute). Une partie
+ * d'avant la v2 n'a ni l'un ni l'autre : ses packs ne bougent pas.
+ */
+function modsDesPacks(decs, j) {
+  const m = modificateurs(decs, j + 1);
+  const r = G.bonus === 'ROGUE' && G.rogue ? G.rogue : null;
+  if (r && PRESTIGES[r.prestige]) m.prestige = { ...PRESTIGES[r.prestige], rang: r.prestige };
+  if (r && COACHS[r.coach]) m.coach = r.coach;
+  return m;
+}
 /* La valeur de vente d'un joueur doublon : sa variante, et son numéro s'il en a un. */
 const NUM_VENTE = { '/99': 1, '/25': 2, '/10': 4, '1 de 1': 10 };
 const venteJoueur = x => (VENTE[x.rar] || 2) * (NUM_VENTE[x.num] || 1);
@@ -198,7 +211,7 @@ export function miniAvecVariante(p, rar) {
  */
 async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
   const decs = decisionsDeLaPartie();
-  const mods = modificateurs(decs, j + 1);
+  const mods = modsDesPacks(decs, j);
   const pitie = G.bonus === 'ROGUE' && packsSansHolo(decs) >= PITIE - 1;
   const { cartes, reglage } = await tirerPackJoueurs(cle, n, params, mods, pitie);
   const avant = new Set(lireMeta().collection || []);
@@ -224,7 +237,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
 /* Un achat enregistré sans signature (la page rechargée en plein choix) : le même tirage, à choisir. */
 export async function rouvrirPackJoueurs(achat, j, decider) {
   const decs = decisionsDeLaPartie();
-  const mods = modificateurs(decs, j + 1);
+  const mods = modsDesPacks(decs, j);
   const { cartes, reglage } = await tirerPackJoueurs(achat.pack, achat.n, achat.params || {}, mods, !!achat.pitie);
   cartes.forEach((x, t) => { x.doublon = (achat.vendus || []).includes(t); });
   offrirPackJoueurs({ cle: achat.pack, cartes, reglage, pitie: !!achat.pitie, vente: achat.vente || 0, n: achat.n, j, decider });
@@ -247,7 +260,9 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
         art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
         carteJoueur: miniAvecVariante(x.p, x.rar),
         // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
-        texte: [niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`)].filter(Boolean).join('\n'),
+        texte: [niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
+          // v2 : sa couleur — il porte la confiance de ce coach et fait grandir ses cartes de vestiaire.
+          COACHS[coachDuJoueur(x.p)] ? `${COACHS[coachDuJoueur(x.p)].ico} Joueur ${COACHS[coachDuJoueur(x.p)].de}` : ''].filter(Boolean).join('\n'),
         desactive: x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙` : '',
         apercu: () => apercuJoueur(x.p),
       };
@@ -287,7 +302,7 @@ function optionDeBanque(id) {
   if (c.cat === 'match') return optionDeCarteMatch(c.cle);
   const etiquette = etiquetteBanque(id);
   return { cle: id, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
-    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[c.vie] || VIES.saison).nom}${COACHS[c.coach] ? ` · ${COACHS[c.coach].ico} ${COACHS[c.coach].nom}` : ''}`, texte: c.texte, mots: reglesDe(id), ...(etiquette ? { etiquette } : {}) };
+    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[c.vie] || VIES.saison).nom}${COACHS[c.coach] ? ` · ${COACHS[c.coach].ico} ${COACHS[c.coach].nom}` : ' · Neutre'}`, texte: c.texte, mots: reglesDe(id), ...(etiquette ? { etiquette } : {}) };
 }
 /*
  * L'OUVERTURE D'UN PACK DE CARTES : tout va dans l'inventaire. En Rogue, le
@@ -362,7 +377,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
     personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
     patronsActifs: enSaison ? patronsActifs(decs, j + 1) : [], maxPatrons: MAX_PATRONS,
     deck: enSaison ? deckDe(Lg.decisions || []) : [],
-    ...(enSaison ? { build: buildDe(decs, j + 1), coachsActifs: coachsActifs(decs, j + 1), coachRun: (rogue && G.rogue && G.rogue.coach) || null } : {}),
+    ...(enSaison ? { build: buildDe(decs, j + 1), coachsActifs: coachsActifs(decs, j + 1), coachRun: (rogue && G.rogue && G.rogue.coach) || null, joueurs: joueursDesCoachs(Lg.you) } : {}),
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
     jouer: item => jouerCarte(item, j, decider),
@@ -402,7 +417,7 @@ function jouerCarte(item, j, decider) {
   const Lg = G.ligue, decs = decisionsDeLaPartie(), you = Lg.you;
   const joue = { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) };
   // v2 : une carte de coach grandit avec les cartes de son coach déjà jouées (js/banque.js `grandi`).
-  const build = buildDe(decs, j + 1);
+  const build = buildDe(decs, j + 1), joueurs = joueursDesCoachs(you);
   const retour = () => ouvrirInventaireJeu(j, decider);
   const ecrire = payload => {
     if (!payload) return;
@@ -421,11 +436,11 @@ function jouerCarte(item, j, decider) {
       ouvrirChoix({ ico: '👔', titre: `${c.nom} : qui part ?`, compact: true, fermable: true, motFermer: 'Retour',
         recit: `${MAX_PATRONS} postes au plus. ${c.nom} prend la place de qui ?`,
         options: actifs.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: ROLES[x.role] ? ROLES[x.role].nom : '' })),
-        onChoix: k => { const p = payloadDe(item.id, { patrons: actifs, build }); p.patron.remplace = [...(p.patron.remplace || []), k]; ecrire(p); },
+        onChoix: k => { const p = payloadDe(item.id, { patrons: actifs, build, joueurs }); p.patron.remplace = [...(p.patron.remplace || []), k]; ecrire(p); },
         onFerme: retour });
       return;
     }
-    ecrire(payloadDe(item.id, { patrons: actifs, build }));
+    ecrire(payloadDe(item.id, { patrons: actifs, build, joueurs }));
     return;
   }
   // S80 : une modif de joueur se pose AU VERSO, choisie dans l'alignement.
@@ -461,7 +476,7 @@ function jouerCarte(item, j, decider) {
         onChoix: k => ecrire(payloadDe(item.id, { tactique: k })), onFerme: retour });
       return;
     }
-    ecrire(payloadDe(item.id, { alea: hache(Lg.graine, 'billet', item.ref || item.id, j) }));
+    ecrire(payloadDe(item.id, { alea: hache(Lg.graine, 'billet', item.ref || item.id, j), build, joueurs }));
     return;
   }
   if (c.cat === 'plafond') {
@@ -485,7 +500,7 @@ function jouerCarte(item, j, decider) {
     listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
     return;
   }
-  ecrire(payloadDe(item.id, { build }));
+  ecrire(payloadDe(item.id, { build, joueurs }));
 }
 /*
  * JOUER UNE MODIF DE JOUEUR (S80). JP : *donne l'alignement, je clique sur le
@@ -598,7 +613,7 @@ export async function ouvrirRogue() {
       bon: [nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
         `${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`,
         k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
-        aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : ''].filter(Boolean).join(' · '),
+        aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : '', `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`].filter(Boolean).join(' · '),
       prix: `🏅 ${meta.ecussons || 0} écussons · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` }],
     onChoix: () => resolve(true),
     onFerme: () => resolve(false),
@@ -632,7 +647,7 @@ function choisirCoach() {
     recit: `Il part avec sa confiance I. Chaque carte de sa couleur la fait monter : II à ${SEUILS[1]} cartes, III à ${SEUILS[2]}. Les autres coachs aussi, si tu joues leurs cartes.`,
     options: trois.map(k => {
       const C = COACHS[k];
-      return { cle: k, ico: C.ico, nom: C.nom, sous: C.mot,
+      return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
         mots: [{ txt: 'Confiance I', bon: null, duree: true }, ...reglesDePalier(k, 1)], quand: `${idsDuCoach(k).length} cartes de sa couleur` };
     }),
     onChoix: k => resolve(k),
@@ -708,8 +723,9 @@ async function demarrerRogue(gardes = [], tires = [], coach = null) {
     depart: jetonsDeDepart(meta), deckPlus: aDebloque(meta, 'deckPlus'), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta),
     // S80 : la run sur plusieurs saisons, ses cases de réserve, et ce que le classeur a donné.
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta),
-    // v2 : le coach choisi au départ (js/coachs.js) — sa confiance I est une décision du jour 0 (js/banc.js).
-    ...(COACHS[coach] ? { coach } : {}),
+    // v2 : le coach choisi au départ (js/coachs.js) — sa confiance I est une décision du jour 0 (js/banc.js) —
+    // et le prestige du club, FIXÉ pour la run (js/rogue.js `PRESTIGES`) : un rang gagné en route sert la suivante.
+    ...(COACHS[coach] ? { coach } : {}), prestige: rangDePrestige(meta),
     classeur: { mode: D.mode, n: D.n, pris: tires.map(x => x.cle) },
     // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
     cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],
@@ -948,7 +964,16 @@ async function continuerRun() {
  */
 export function ouvrirVestiaire(apres = null) {
   const meta = lireMeta();
-  const jalons = `<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
+  // v2 : LE PRESTIGE DU CLUB (js/rogue.js) — l'échelle entière, ce qui est atteint et ce qu'il faut pour la suite.
+  const rang = rangDePrestige(meta), vie = ecussonsAVie(meta);
+  const jalonDe = k => (JALONS.find(J => J.cle === k) || {}).nom || k;
+  const prestige = `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie</p>
+    <div class="vs-jalons">${PRESTIGES.map((P, k) => {
+      const fait = k <= rang;
+      const quoi = `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
+      return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${fait ? '✓' : k}</span><b>${esc(P.nom)}</b><span>${fait ? esc(quoi) : `${P.min} 🏅 à vie${P.jalon ? ` et « ${esc(jalonDe(P.jalon))} »` : ''} → ${esc(quoi)}`}</span></div>`;
+    }).join('')}</div>`;
+  const jalons = `${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
     <div class="vs-jalons">${JALONS.map(J => {
       const fait = !!(meta.jalons || {})[J.cle];
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${J.ico}</span><b>${esc(J.nom)}</b><span>${fait ? '✓ Atteint' : `${esc(J.texte)} → ${esc(recompenseDe(meta, J).mot)}`}</span></div>`;

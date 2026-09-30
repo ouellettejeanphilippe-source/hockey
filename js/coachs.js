@@ -53,31 +53,75 @@ export const SEUILS = [3, 6, 9];
 export const ROMAINS = ['', 'I', 'II', 'III'];
 
 /*
+ * LA COULEUR D'UN JOUEUR (v2). JP : *je veux que les cartes de joueurs aient
+ * des synergies avec certaines cartes, même chose pour coach*. Un joueur est de
+ * la couleur du coach de son MEILLEUR RÔLE, s'il le maîtrise (« bon » et plus,
+ * `ROLE_BON`, les mots de la fiche) : lu dans ses vraies stats, jamais dans une
+ * cote. Un style posé qui déplace ses rôles déplace aussi sa couleur. Un
+ * gardien, ou un joueur sans rôle maîtrisé, n'en a pas. Le Comptable n'a pas
+ * de joueurs : il paie.
+ */
+export const ROLE_BON = 55;
+export const COACH_DU_ROLE = {
+  F: { sniper: 'rapaces', passeur: 'etoiles', deuxsens: 'tortue', power: 'essaim', checker: 'profondeur', energie: 'souffle', bagarreur: 'rhinos' },
+  D: { defensif: 'tortue', offensif: 'essaim', manieur: 'choeur', physique: 'rhinos', deuxsens: 'tortue' },
+};
+/* Le coach de ces rôles (`profilsDe`, js/sim.js) pour un avant ('F') ou un défenseur ('D'), ou null. */
+export function coachDesRoles(roles, groupe) {
+  if (!roles || !COACH_DU_ROLE[groupe]) return null;
+  const [role, score] = Object.entries(roles).filter(([k]) => COACH_DU_ROLE[groupe][k]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] || [];
+  return role && score >= ROLE_BON ? COACH_DU_ROLE[groupe][role] : null;
+}
+/*
+ * SES JOUEURS PORTENT UN COACH : la confiance d'un coach joue `JOUEUR_COACH`
+ * plus fort (l'écart de chaque canal à 1) par joueur de sa couleur HABILLÉ,
+ * jusqu'à `JOUEURS_MAX` — compté au soir du match (js/sim.js `coachsJoues`) :
+ * signer un sniper renforce l'Aigle dès le lendemain.
+ */
+export const JOUEUR_COACH = 0.1, JOUEURS_MAX = 5;
+/* L'effet d'une confiance, porté par `n` joueurs de sa couleur : chaque canal s'éloigne de 1 d'autant plus (les minutes et la boutique restent). */
+export function porteParSesJoueurs(c, n) {
+  const k = 1 + JOUEUR_COACH * Math.min(JOUEURS_MAX, n || 0);
+  if (k === 1) return c;
+  const out = { ...c };
+  for (const [cle, v] of Object.entries(c)) {
+    if (typeof v !== 'number' || cle === 'palier') continue;
+    out[cle] = cle === 'robustesse' ? v * k : 1 + (v - 1) * k;
+  }
+  return out;
+}
+/* La maîtrise que la confiance II d'un coach donne à son système (js/sim.js, `maitrise` d'une décision). */
+export const GAIN_SYSTEME = 0.25;
+/*
  * Un coach : son visage (`ico`, un totem : une icône, un coach), son surnom,
  * `de` pour les phrases (« une carte du Frelon »), sa philosophie en une
- * ligne, et ce que chaque confiance joue pour la saison. `econ` : comme un
+ * ligne, et ce que chaque confiance joue pour la saison. Les SYSTÈMES SE
+ * TIENNENT (v2, JP : *mieux ficeler les systèmes entre eux*) : `systeme`, le
+ * système de trio que ses avants apprennent à sa confiance II (la maîtrise
+ * du stage de système, `GAIN_SYSTEME`) ; `recrute`, le style de joueur que son
+ * dépisteur fait pencher dans les packs de joueurs de la run (js/packs.js). `econ` : comme un
  * patron (js/banque.js `modificateurs`, `plafondDe`).
  */
 export const COACHS = {
-  essaim: { ico: '🐝', nom: 'Le Frelon', de: 'du Frelon', mot: 'Tirer de partout, tout le temps.',
+  essaim: { ico: '🐝', nom: 'Le Frelon', de: 'du Frelon', mot: 'Tirer de partout, tout le temps.', systeme: 'bleue', recrute: 'des patineurs qui lancent',
     paliers: [{ volume: 1.02 }, { volume: 1.04 }, { volume: 1.07 }] },
-  rapaces: { ico: '🦅', nom: 'L\'Aigle', de: 'de l\'Aigle', mot: 'Chaque lancer doit rentrer.',
+  rapaces: { ico: '🦅', nom: 'L\'Aigle', de: 'de l\'Aigle', mot: 'Chaque lancer doit rentrer.', systeme: 'derriere', recrute: 'des francs-tireurs',
     paliers: [{ finition: 1.02 }, { finition: 1.04 }, { finition: 1.07 }] },
-  tortue: { ico: '🐢', nom: 'La Tortue', de: 'de la Tortue', mot: 'Fermer la porte, gagner 2-1.',
+  tortue: { ico: '🐢', nom: 'La Tortue', de: 'de la Tortue', mot: 'Fermer la porte, gagner 2-1.', systeme: 'defensive', recrute: 'des joueurs de devoir',
     paliers: [{ defense: 0.98 }, { defense: 0.965 }, { defense: 0.95 }] },
-  rhinos: { ico: '🦏', nom: 'Le Rhino', de: 'du Rhino', mot: 'Cogner et tenir, jusqu\'en avril.',
+  rhinos: { ico: '🦏', nom: 'Le Rhino', de: 'du Rhino', mot: 'Cogner et tenir, jusqu\'en avril.', systeme: 'echec', recrute: 'des gros gabarits',
     paliers: [{ robustesse: 0.2 }, { robustesse: 0.5 }, { robustesse: 0.85, blessure: 0.9 }] },
-  souffle: { ico: '🫁', nom: 'Le Doc', de: 'du Doc', mot: 'Des jambes fraîches et personne à l\'infirmerie.',
+  souffle: { ico: '🫁', nom: 'Le Doc', de: 'du Doc', mot: 'Des jambes fraîches et personne à l\'infirmerie.', recrute: 'des jeunes de 23 ans et moins',
     paliers: [{ energie: 0.94, blessure: 0.8 }, { energie: 0.9, blessure: 0.7 }, { energie: 0.86, blessure: 0.55, volume: 1.01 }] },
-  choeur: { ico: '😇', nom: 'L\'Abbé', de: 'de l\'Abbé', mot: 'Jamais au cachot ; eux, souvent.',
+  choeur: { ico: '😇', nom: 'L\'Abbé', de: 'de l\'Abbé', mot: 'Jamais au cachot ; eux, souvent.', systeme: 'courtes', recrute: 'des joueurs qui restent hors du cachot',
     paliers: [{ discipline: 0.9 }, { discipline: 0.84 }, { discipline: 0.76, finition: 1.01 }] },
-  profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.',
+  profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.', systeme: 'energie', recrute: 'des aubaines pour leur salaire',
     paliers: [{ F: [0.98, 1, 1.02, 1.05], energie: 0.95, blessure: 0.9 }, { F: [0.96, 1, 1.04, 1.1], energie: 0.9, blessure: 0.8, robustesse: 0.3 },
       { F: [0.94, 1, 1.06, 1.16], energie: 0.85, blessure: 0.7, robustesse: 0.5, volume: 1.03 }] },
-  etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.',
+  etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.', systeme: 'contre', recrute: 'des créatifs',
     paliers: [{ F: [1.05, 1.02, 0.98, 0.95], finition: 1.01 }, { F: [1.1, 1.04, 0.96, 0.9], finition: 1.02 },
       { F: [1.16, 1.06, 0.94, 0.84], finition: 1.04 }] },
-  banque: { ico: '🏦', nom: 'Le Comptable', de: 'du Comptable', mot: 'Chaque jeton, chaque dollar du plafond.',
+  banque: { ico: '🏦', nom: 'Le Comptable', de: 'du Comptable', mot: 'Chaque jeton, chaque dollar du plafond.', recrute: 'des aubaines pour leur salaire',
     paliers: [{ econ: { rabais: 0.95 } }, { econ: { rabais: 0.9, jetonsVictoire: 1 } }, { econ: { rabais: 0.85, jetonsVictoire: 2, plafond: 0.03 } }] },
 };
 export const ORDRE_COACHS = Object.keys(COACHS);
@@ -98,9 +142,12 @@ export const avantProchain = n => { const s = SEUILS.find(x => (n || 0) < x); re
  * qui vaut le plus en victoires, avalerait tout, et une carte de discipline à
  * −15 % se lirait moins qu'une précision à +1 %. Le coach qui a le plus de
  * points gagne ; le malus ne compte pas : il est le prix, pas le build. Rend
- * null pour une carte qui ne touche à aucun canal (piocher, lire leur plan).
+ * null — une carte NEUTRE — pour une carte qui ne touche à aucun canal (piocher,
+ * lire leur plan), qui y touche à peine, ou qui sert deux coachs à parts égales.
  */
-const AMPLEUR = { finition: 3, volume: 4, defense: 3, robustesse: 0.8, discipline: 10, blessure: 20, energie: 8, minutes: 15 };
+/* Une carte neutre : son meilleur coach marque moins que ça, ou le deuxième en marque au moins cette part. */
+const SIGNAL_MIN = 0.7, PARTAGE = 0.8;
+const AMPLEUR = { finition: 3, volume: 4, defense: 3, robustesse: 0.6, discipline: 10, blessure: 20, energie: 8, minutes: 15 };
 export function coachDesCanaux(c = {}) {
   const s = {};
   const plus = (k, x) => { if (x > 0) s[k] = (s[k] || 0) + x; };
@@ -147,8 +194,11 @@ export function coachDesCanaux(c = {}) {
     // Un contrat : ce qu'il coûte au plafond, c'est la banque.
     if (M.source === 'contrat') plus('banque', 1);
   }
-  const top = Object.entries(s).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
-  return top && top[1] >= 0.1 ? top[0] : null;
+  // NEUTRE (v2, JP : *faudrait quand même des cartes qui sont pas liées à un coach*) : un signal faible — une carte
+  // d'appoint, moins de `SIGNAL_MIN` fois l'ampleur ordinaire de son canal — ou partagé presque à égalité entre deux coachs.
+  const [top, deux] = Object.entries(s).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  if (!top || top[1] < SIGNAL_MIN || (deux && deux[1] >= top[1] * PARTAGE)) return null;
+  return top[0];
 }
 
 /* L'effet d'une confiance, tel qu'une décision le porte : `{ cle, palier, nom, ico, ...canaux, econ? }`. */

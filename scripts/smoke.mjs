@@ -648,6 +648,9 @@ async function finirDirect(etiquette) {
     await page.waitForTimeout(250);
   }
   const repris = await page.$eval('#liveModal .live-feed', e => e.textContent);
+  // v2 : une rangée du fil ne se comprime jamais sous son texte (JP : *problème affichage*, les jeux se chevauchaient).
+  const debordent = await page.$$eval('#liveModal .live-feed .live-ligne', e => e.filter(x => x.offsetParent && x.scrollHeight > x.clientHeight + 1).length);
+  if (debordent) errors.push(`${etiquette} : ${debordent} rangée(s) du fil débordent sur la suivante`);
   if (!/Troisième période/.test(repris)) errors.push(`${etiquette} : le direct ne reprend pas à la troisième période après l'entracte`);
   else {
     const apres = await sousLeMarqueur();

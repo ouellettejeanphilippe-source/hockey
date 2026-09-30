@@ -283,7 +283,8 @@ function confirmerDecision(d) {
   // v2 : la carte qui fait croire le vestiaire à un coach le dit, avec ce que sa confiance joue.
   if (d.coach && COACHS[d.coach.cle]) {
     const C = COACHS[d.coach.cle];
-    mot = `${mot ? `${mot} ` : ''}${C.ico} Le vestiaire croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.`;
+    const sys = d.maitrise && systemeDe(d.maitrise.tac);
+    mot = `${mot ? `${mot} ` : ''}${C.ico} Le vestiaire croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.${sys ? ` Tes avants apprennent ${sys.nom.toLowerCase()}.` : ''}`;
   }
   if (mot) toast(mot);
 }
