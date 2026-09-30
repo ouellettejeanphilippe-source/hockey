@@ -31,7 +31,7 @@ import {
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
-  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas,
+  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
 } from './sim.js';
 import { POIDS_TRIO } from './ratings.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
@@ -146,6 +146,59 @@ const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(
 /* Les canaux d'effet d'un objet : ce que motsDEffet sait dire. */
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
+/* Une forme, un mot : ce qu'on lit avant les chiffres. Un cadeau n'est pas un échange. */
+const CANAUX_FORME = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse'];
+const CARTES_REGLEMENT = new Set(['sixGlace', 'courbeIllegale', 'paragraphe', 'filetDesert', 'retardement']);
+const aideCanal = (k, v) => (k === 'robustesse' ? v > 0 : (k === 'defense' || k === 'discipline' || k === 'blessure' || k === 'energie' ? v < 1 : v > 1));
+function bitsDe(e, pourToi) {
+  const out = [];
+  if (!e) return out;
+  for (const k of CANAUX_FORME) {
+    const v = e[k];
+    if (v == null) continue;
+    if (k === 'robustesse' ? v === 0 : v === 1) continue;
+    const bon = aideCanal(k, v);
+    out.push(pourToi ? bon : !bon);
+  }
+  return out;
+}
+function formeDeCarte(C, cle) {
+  if (C.pari) return 'Pari';
+  if (C.effet && (Array.isArray(C.effet.F) || Array.isArray(C.effet.D))) return 'Minutes';
+  if (CARTES_REGLEMENT.has(String(cle || '').replace(/\+$/, ''))) return 'Règlement';
+  const bits = [...bitsDe(C.effet, true), ...bitsDe(C.adv, false)];
+  if (bits.length && bits.some(Boolean) && bits.some(b => !b)) return 'Échange';
+  if (bits.length && bits.every(b => !b)) return 'Moindre mal';
+  return '';
+}
+export function formeDe(o) {
+  if (!o || typeof o !== 'object') return '';
+  if (o.etiquette) return o.etiquette;
+  if (o.pari) return 'Pari';
+  if (o.ensuite) return 'Plus tard';
+  if (o.action) return 'Geste';
+  if (o.rien) return 'Rien';
+  if (o.trou || (o.mutation && EDITIONS_REGLEMENT.includes(o.mutation))) return 'Règlement';
+  if (!(o.genreCarte || o.dessin) && EDITIONS_REGLEMENT.includes(o.cle)) return 'Règlement';
+  if (o.genreCarte || o.dessin) {
+    const cle = o.dessin || o.cle;
+    const C = CARTES_MATCH[cle];
+    return C ? formeDeCarte(C, cle) : '';
+  }
+  const src = o.effet || o;
+  if (Array.isArray(src.F) || Array.isArray(src.D)) return 'Minutes';
+  const bits = bitsDe(src, true);
+  if (!bits.length) return '';
+  if (bits.every(Boolean)) return 'Cadeau';
+  if (bits.every(b => !b)) return 'Moindre mal';
+  return 'Échange';
+}
+function typeAvecForme(type, forme) {
+  if (!forme) return type || '';
+  if (!type) return forme;
+  const m = /^(.*) · (\d+ élan|injouable)$/.exec(type);
+  return m ? `${m[1]} · ${forme} · ${m[2]}` : `${type} · ${forme}`;
+}
 
 /* `ligne` (S80) : où il joue dans ton alignement (« 3e paire ») — on le dit, on ne le nomme pas par là. */
 export function carteJoueur(p, ligne = '') {
@@ -200,7 +253,8 @@ export function ouvrirChoix(spec) {
   const meilleure = spec.options.reduce((b, o) => ((RANG_RARETE[o.rarete] || 0) > (RANG_RARETE[b] || 0) ? o.rarete : b), 'commune');
   // Le genre dit CE QUE C'EST, à part du titre : un événement n'est pas le combat, le butin n'est pas l'événement.
   const BADGE = { evenement: 'Événement', recompense: 'Butin', entracte: 'Combat' };
-  const badge = BADGE[spec.genre] ? `<div class="choix-badge">${BADGE[spec.genre]}</div>` : '';
+  const badgeTxt = spec.regle && spec.genre === 'evenement' ? 'Événement · Règlement' : (BADGE[spec.genre] || '');
+  const badge = badgeTxt ? `<div class="choix-badge">${badgeTxt}</div>` : '';
   m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '❓'}</span>
@@ -215,9 +269,10 @@ export function ouvrirChoix(spec) {
       <div class="choix-options${spec.cartes ? ` choix-main${paquet ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
         const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
-        // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner.
+        const forme = formeDe(o);
+        // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner. La forme tient dans le type, le visage ne bouge pas.
         if (spec.cartes) return carteHtml({
-          cle: esc(o.cle), rarete: o.rarete, i, ico: o.ico, nomHtml: sub(o.nom), typeHtml: esc(o.type || ''),
+          cle: esc(o.cle), rarete: o.rarete, i, ico: o.ico, nomHtml: sub(o.nom), typeHtml: esc(typeAvecForme(o.type || '', forme)),
           artHtml: o.art || '', texteHtml: o.texte ? sub(o.texte) : (o.mutation ? esc(MUTATIONS[o.mutation].quoi) : ''),
           bonHtml: o.bon ? sub(o.bon) : '', prixHtml: o.prix ? sub(o.prix) : '', coinHtml: o.coin ? esc(o.coin) : '',
           pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
@@ -225,14 +280,16 @@ export function ouvrirChoix(spec) {
           dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
           joueurHtml: o.carteJoueur || '', motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin,
         });
+        const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
         return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
           ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
           <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
+          ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
           ${o.sous ? `<span class="choix-option-sous">${sub(o.sous)}</span>` : ''}
+          ${pucesHtml ? `<span class="choix-puces">${pucesHtml}</span>` : ''}
           ${o.bon ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
           ${o.prix ? `<span class="choix-option-prix">− ${sub(o.prix)}</span>` : ''}
           ${o.mutation ? `<span class="choix-option-mut">${MUTATIONS[o.mutation].ico} ${esc(MUTATIONS[o.mutation].quoi)}</span>` : ''}
-          <span class="choix-puces">${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}</span>
           ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
         </button>`;
       }).join('')}</div>
@@ -571,16 +628,26 @@ function placementDe(p, role, u) {
  */
 export function effetsHtml(e) {
   if (!e) return '';
-  const lignes = [];
+  const ligne = (nom, mots, duree) => `<div class="gl-effet"><span class="gl-effet-nom">${nom}</span><span class="choix-puces">${puces(mots)}${duree}</span></div>`;
+  const regle = [];
+  const reste = [];
   for (const x of e.effets || []) {
     const mots = motsDEffet(canauxDe(x));
     if (!mots.length) continue;
-    lignes.push(`<div class="gl-effet"><span class="gl-effet-nom">${x.ico ? `${x.ico} ` : ''}${esc(x.nom || 'Effet')}${x.choix ? ` <small>· ${esc(x.choix)}</small>` : ''}</span><span class="choix-puces">${puces(mots)}<span class="puce neutre duree">${plur(x.reste, 'match')}</span></span></div>`);
+    const nom = `${x.ico ? `${x.ico} ` : ''}${esc(x.nom || 'Effet')}${x.choix ? ` <small>· ${esc(x.choix)}</small>` : ''}`;
+    (x.regle ? regle : reste).push(ligne(nom, mots, `<span class="puce neutre duree">${plur(x.reste, 'match')}</span>`));
   }
-  for (const c of e.cartes || []) if (CARTES[c]) lignes.push(`<div class="gl-effet"><span class="gl-effet-nom">${CARTES[c].ico} ${esc(CARTES[c].nom)} <small>· carte</small></span><span class="choix-puces">${puces(motsDEffet(canauxDe(CARTES[c])))}<span class="puce neutre duree">la saison</span></span></div>`);
-  for (const a of e.absents || []) lignes.push(`<div class="gl-effet"><span class="gl-effet-nom">👥 ${esc(a.p.n)} <small>· au vestiaire</small></span><span class="choix-puces"><span class="puce neutre duree">${plur(a.reste, 'match')}</span></span></div>`);
-  if (e.gardienAux) lignes.push(`<div class="gl-effet"><span class="gl-effet-nom">🧤 L'auxiliaire au filet</span><span class="choix-puces"><span class="puce neutre duree">${plur(e.gardienAux, 'match')}</span></span></div>`);
-  return `<section class="gl-effets"><div class="gl-sec-titre">Ce qui joue sur ta formation</div>${lignes.length ? lignes.join('') : '<div class="gl-mot">Rien pour l\'instant : tes lignes jouent sur leur propre valeur.</div>'}</section>`;
+  for (const t of e.trous || []) {
+    const M = MUTATIONS[t.cle];
+    if (!M) continue;
+    const qui = t.p && t.p.n ? ` <small>· ${esc(t.p.n)}</small>` : '';
+    regle.push(ligne(`${M.ico} ${esc(M.nom)}${qui}`, motsDeMutation(t.cle), '<span class="puce neutre duree">la saison</span>'));
+  }
+  for (const c of e.cartes || []) if (CARTES[c]) reste.push(ligne(`${CARTES[c].ico} ${esc(CARTES[c].nom)} <small>· carte</small>`, motsDEffet(canauxDe(CARTES[c])), '<span class="puce neutre duree">la saison</span>'));
+  for (const a of e.absents || []) reste.push(`<div class="gl-effet"><span class="gl-effet-nom">👥 ${esc(a.p.n)} <small>· au vestiaire</small></span><span class="choix-puces"><span class="puce neutre duree">${plur(a.reste, 'match')}</span></span></div>`);
+  if (e.gardienAux) reste.push(`<div class="gl-effet"><span class="gl-effet-nom">🧤 L'auxiliaire au filet</span><span class="choix-puces"><span class="puce neutre duree">${plur(e.gardienAux, 'match')}</span></span></div>`);
+  const corps = `${regle.length ? `<div class="gl-k">Le règlement contourné</div>${regle.join('')}` : ''}${reste.join('')}`;
+  return `<section class="gl-effets"><div class="gl-sec-titre">Ce qui joue sur ta formation</div>${corps || '<div class="gl-mot">Rien pour l\'instant : tes lignes jouent sur leur propre valeur.</div>'}</section>`;
 }
 export function ouvrirLignes(spec) {
   // Dans une page du Club (1.0, R3 : `spec.dans`, `spec.fermer`) ou dans sa fenêtre.

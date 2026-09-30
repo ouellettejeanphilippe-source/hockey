@@ -13,7 +13,7 @@ import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
 import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, numeroDeCarte, tirageLimite } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE } from './banque.js';
+import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
 import { pocheDeLaPartie } from './inventaire.js';
 import { ajouterAuCartable } from './cartable.js';
@@ -275,8 +275,9 @@ export function choisirCarteAPoser(p, rouvrir) {
     recit: `${p.n}${ouJoue(p) ? ` (${ouJoue(p)})` : ''} : tes cartes qui vont à ${groupe}. Touche celle que tu poses ; elle prendra une case de son verso pour le reste de la saison.`,
     options: offre.map(({ id, pile }) => {
       const c = BANQUE[id];
+      const etiquette = etiquetteBanque(id);
       return { cle: pile[0].ref, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
-        type: `${CATEGORIES[c.cat].un}${pile.length > 1 ? ` · ×${pile.length}` : ''}`, texte: c.texte, mots: reglesDe(id), motChoix: 'Choisir' };
+        type: `${CATEGORIES[c.cat].un}${pile.length > 1 ? ` · ×${pile.length}` : ''}`, texte: c.texte, mots: reglesDe(id), motChoix: 'Choisir', ...(etiquette ? { etiquette } : {}) };
     }),
     onChoix: ref => { const x = offre.find(o => o.pile[0].ref === ref); if (x) rouvrir({ src: 'partie', ref, id: x.id }); },
     onFerme: () => rouvrir(null),

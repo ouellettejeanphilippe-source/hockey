@@ -29,7 +29,8 @@
  * (légendaire) pour toute la saison ; trois postes au plus. Un événement ne
  * dure que quelques journées : il change la FORME d'un bout de saison.
  */
-import { CARTES, MUTATIONS, motsDEffet, motsDeMutation } from './sim.js';
+import { CARTES, MUTATIONS, motsDEffet, motsDeMutation, EDITIONS_REGLEMENT } from './sim.js';
+import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus } from './combat.js';
 import { money } from './util.js';
 
@@ -198,10 +199,10 @@ export const EVENEMENTS = {
   brunch: { nom: 'Le brunch des familles', ico: '🥞', rarete: 'commune', duree: 7, texte: 'Les enfants dans le vestiaire.', effet: { energie: 0.94, volume: 0.99 } },
   public: { nom: 'L\'œil du public', ico: '👁️', rarete: 'rare', duree: 10, texte: 'Chaque match est télévisé d\'un océan à l\'autre.', effet: { finition: 1.03, defense: 0.98, energie: 1.05 } },
   arena: { nom: 'Le déménagement d\'aréna', ico: '🏟️', rarete: 'peu', duree: 6, texte: 'La glace neuve est rapide.', effet: { volume: 1.04, defense: 1.02 } },
-  batons: { nom: 'L\'atelier des bâtons', ico: '📏', rarete: 'peu', duree: 8, texte: 'Tout le vestiaire a la même courbe, un cran au-delà du gabarit.', effet: { finition: 1.03, discipline: 1.08 } },
-  siffletPoche: { nom: 'Le sifflet dans la poche', ico: '🦓', rarete: 'commune', duree: 6, texte: 'Les arbitres laissent jouer. On en profite dans les coins.', effet: { defense: 0.97, discipline: 1.1 } },
-  planDesert: { nom: 'Le plan du filet désert', ico: '🚪', rarete: 'peu', duree: 4, texte: 'Le sixième attaquant sort trop tôt, plusieurs soirs de suite.', effet: { volume: 1.04, defense: 1.04 } },
-  obstruction: { nom: 'L\'obstruction oubliée', ico: '🪝', rarete: 'peu', duree: 8, texte: 'On joue le hockey d\'avant la règle : les bâtons retiennent, les corps bloquent.', effet: { defense: 0.97, volume: 0.97, discipline: 1.08 } },
+  batons: { nom: 'L\'atelier des bâtons', ico: '📏', rarete: 'peu', duree: 8, regle: true, texte: 'Tout le vestiaire a la même courbe, un cran au-delà du gabarit.', effet: { finition: 1.03, discipline: 1.08 } },
+  siffletPoche: { nom: 'Le sifflet dans la poche', ico: '🦓', rarete: 'commune', duree: 6, regle: true, texte: 'Les arbitres laissent jouer. On en profite dans les coins.', effet: { defense: 0.97, discipline: 1.1 } },
+  planDesert: { nom: 'Le plan du filet désert', ico: '🚪', rarete: 'peu', duree: 4, regle: true, texte: 'Le sixième attaquant sort trop tôt, plusieurs soirs de suite.', effet: { volume: 1.04, defense: 1.04 } },
+  obstruction: { nom: 'L\'obstruction oubliée', ico: '🪝', rarete: 'peu', duree: 8, regle: true, texte: 'On joue le hockey d\'avant la règle : les bâtons retiennent, les corps bloquent.', effet: { defense: 0.97, volume: 0.97, discipline: 1.08 } },
 };
 
 /* ---------- LES CONSOMMABLES : une utilisation ---------- */
@@ -227,7 +228,7 @@ export const CONSOMMABLES = {
   exorciste: { nom: 'L\'exorciste', ico: '🕯️', rarete: 'rare', vie: 'permanent', cible: 'malediction', texte: 'Il chasse une malédiction de ton deck de match.' },
   campExpress: { nom: 'Le camp express', ico: '⛺', rarete: 'peu', vie: 'usage', cible: 'carteMatch', texte: 'Une carte de ton deck de match devient sa version « + ».' },
   stageExpress: { nom: 'Le stage express', ico: '📘', rarete: 'peu', vie: 'usage', cible: 'tactique', maitrise: 0.25, texte: 'Ta formation fait 25 % du chemin vers la maîtrise d\'un système.' },
-  gabarit: { nom: 'Le gabarit de poche', ico: '📐', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { finition: 1.03, discipline: 1.08 }, duree: 3, texte: 'Tu mesures leurs bâtons. Les tiens restent dans le sac.' },
+  gabarit: { nom: 'Le gabarit de poche', ico: '📐', rarete: 'peu', vie: 'usage', cible: 'aucune', regle: true, effet: { finition: 1.03, discipline: 1.08 }, duree: 3, texte: 'Tu mesures leurs bâtons. Les tiens restent dans le sac.' },
 };
 
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
@@ -288,12 +289,12 @@ function construire() {
   const B = {};
   const mettre = c => { B[c.id] = c; };
   for (const [cle, P] of Object.entries(PATRONS)) mettre(fait('patron', cle, { nom: P.nom, ico: P.ico, rarete: P.rarete, texte: P.texte, vie: 'permanent', role: P.role }));
-  for (const [cle, E] of Object.entries(EVENEMENTS)) mettre(fait('evenement', cle, { nom: E.nom, ico: E.ico, rarete: E.rarete, texte: E.texte, vie: 'saison', duree: E.duree }));
+  for (const [cle, E] of Object.entries(EVENEMENTS)) mettre(fait('evenement', cle, { nom: E.nom, ico: E.ico, rarete: E.rarete, texte: E.texte, vie: 'saison', duree: E.duree, ...(E.regle ? { regle: true } : {}) }));
   for (const cle of MODS_JOUEUR) {
     const M = MUTATIONS[cle];
     mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, rarete: RARETE_MOD[cle] || 'peu', texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source }));
   }
-  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible }));
+  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.regle ? { regle: true } : {}) }));
   for (const [cle, C] of Object.entries(CONTRATS)) mettre(fait('plafond', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible }));
   for (const [cle, C] of Object.entries(CARTES_MATCH)) {
     if (estPlus(cle)) continue;
@@ -304,6 +305,18 @@ function construire() {
 }
 export const BANQUE = construire();
 export const carteBanque = id => BANQUE[id] || null;
+/* La forme d'une carte de la banque, le mot qu'on lit avant les chiffres. */
+export function etiquetteBanque(id) {
+  const c = carteBanque(id);
+  if (!c) return '';
+  if (c.regle || (c.cat === 'joueur' && EDITIONS_REGLEMENT.includes(c.cle))) return 'Règlement';
+  if (c.cat === 'match') return formeDe({ genreCarte: c.genre, dessin: c.cle });
+  if (c.cat === 'evenement') return formeDe({ effet: (EVENEMENTS[c.cle] && EVENEMENTS[c.cle].effet) || {} });
+  if (c.cat === 'saison') return formeDe({ effet: CARTES[c.cle] });
+  if (c.cat === 'patron') return formeDe({ effet: (PATRONS[c.cle] && PATRONS[c.cle].effet) || {} });
+  if (c.cat === 'consommable') return formeDe({ effet: (CONSOMMABLES[c.cle] && CONSOMMABLES[c.cle].effet) || {} });
+  return '';
+}
 export const idsDe = cat => Object.values(BANQUE).filter(c => c.cat === cat).map(c => c.id);
 export const compteParCategorie = () => Object.fromEntries(ORDRE_CATEGORIES.map(c => [c, idsDe(c).length]));
 
@@ -437,7 +450,7 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
   }
   if (c.cat === 'evenement') {
     const E = EVENEMENTS[c.cle];
-    return { effet: { nom: E.nom, ico: E.ico, duree: E.duree, ...(E.effet || {}) }, ...(E.gestes ? { gestes: { ...E.gestes } } : {}) };
+    return { effet: { nom: E.nom, ico: E.ico, duree: E.duree, ...(E.effet || {}), ...(E.regle ? { regle: true } : {}) }, ...(E.gestes ? { gestes: { ...E.gestes } } : {}) };
   }
   if (c.cat === 'joueur') return joueur ? { mutation: { cle: c.cle, joueur } } : null;
   if (c.cat === 'consommable') {
@@ -448,7 +461,7 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
     if (C.cible === 'tactique') return tactique ? { deck: 'strategie', maitrise: { tac: tactique, gain: C.maitrise } } : null;
     const out = {};
     if (C.gestes) out.gestes = { ...C.gestes };
-    if (C.effet) out.effet = { nom: C.nom, ico: C.ico, duree: C.duree, ...C.effet };
+    if (C.effet) out.effet = { nom: C.nom, ico: C.ico, duree: C.duree, ...C.effet, ...(C.regle ? { regle: true } : {}) };
     if (C.gain) out.gain = C.gain;
     if (C.pari) out.gain = alea !== null && alea < C.pari.chance ? C.pari.gain : 0;
     return out;

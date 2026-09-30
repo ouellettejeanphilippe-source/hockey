@@ -473,7 +473,7 @@ export function renderBanc() {
    */
   const toi = L && (L.teams || []).find(t => t.isPlayer);
   const fx = toi ? { ...effetsEnCours(toi, b.jour), cartes: (L.decisions || []).filter(d => d.carte && d.jour <= b.jour).map(d => d.carte) } : null;
-  const nbFx = fx ? (fx.effets || []).length + fx.cartes.length + (fx.absents || []).length + (fx.gardienAux ? 1 : 0) : 0;
+  const nbFx = fx ? (fx.effets || []).length + (fx.trous || []).length + fx.cartes.length + (fx.absents || []).length + (fx.gardienAux ? 1 : 0) : 0;
   const effets = nbFx ? `<details class="banc-plus banc-effets"><summary>Ce qui joue sur ta formation · ${nbFx}</summary>${effetsHtml(fx)}</details>` : '';
   host.innerHTML = `
     <div class="banc-tete">

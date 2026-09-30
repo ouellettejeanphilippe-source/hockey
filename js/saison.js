@@ -2410,7 +2410,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LES JOUEURS QU'UN GESTE TOUCHE (S72) : nommés avant le choix — celui des faits d'abord.
       const cibles = m.cible ? (f.joueur ? [f.joueur] : ciblesDe(you, m.cible, graine, dl.J)) : [];
       const recit = String(m.recit).replace(/\{n\}/g, f.n ?? '').replace(/\{m\}/g, f.m ?? '').replace(/\{vieux\}/g, f.vieux || 'Ton vieux défenseur');
-      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue,
+      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue,
         options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
           desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
         onChoix: cle => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } }) };
@@ -2423,7 +2423,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // l'événement ; le combat est le bandeau, pas la première phrase.
       const dans = av.p.j - jour;
       const quand = dans <= 0 ? 'ce soir' : dans === 1 ? 'demain' : `dans ${dans} jours`;
-      return { de: DE.coach, ico: A.ico, titre: A.titre, irl: A.irl, genre: 'evenement', joueurs: ciblesA, ouDe: ctx.ouJoue,
+      return { de: DE.coach, ico: A.ico, titre: A.titre, irl: A.irl, genre: 'evenement', regle: !!A.regle, joueurs: ciblesA, ouDe: ctx.ouJoue,
         recit: A.recit,
         contexte: `<p class="choix-avant">Avant le combat · ${quand} contre ${ctx.esc(ctx.teamShort(advG))}</p>${depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) })}`,
         options: A.options.map(o => ({ ...o, duree: 1 })),
