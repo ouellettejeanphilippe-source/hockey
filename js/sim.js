@@ -2654,52 +2654,52 @@ export const MOMENTS = {
    * l'embellissement, le filet désert, l'obstruction, les minutes de trop.
    */
   courbe: {
-    ico: '📏', titre: 'La courbe illégale', irl: 'La LNH mesure les courbes depuis 1990',
+    ico: '📏', titre: 'La courbe illégale', irl: 'La LNH mesure les courbes depuis 1990', regle: true,
     recit: 'Le préposé à l\'équipement te tend un bâton. La courbe dépasse le gabarit, « juste assez pour que le tir tombe ».',
     options: [
       { cle: 'laisser', nom: 'Laisser la courbe', bon: 'Une chance sur deux : le tir trompe', prix: 'Sinon, l\'arbitre sort le gabarit',
-        pari: { chance: 0.5, gagne: { finition: 1.06, duree: 6 }, perd: { discipline: 1.22, duree: 6 } } },
+        pari: { chance: 0.5, gagne: { finition: 1.06, duree: 6 }, perd: { discipline: 1.22, duree: 6 } }, trou: true },
       { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions bêtes', prix: 'Des lancers plus honnêtes, donc moins dangereux', discipline: 0.9, volume: 0.97, duree: 6 },
     ],
   },
   trapeze: {
-    ico: '🥅', titre: 'Hors du trapèze', irl: 'Martin Brodeur, avant la règle de 2005', cible: 'gardien',
+    ico: '🥅', titre: 'Hors du trapèze', irl: 'Martin Brodeur, avant la règle de 2005', cible: 'gardien', regle: true,
     recit: '{nom} joue la rondelle partout derrière le filet. La règle qui l\'en empêchera n\'est pas encore écrite — ou tu fais comme si.',
     options: [
-      { cle: 'sortir', nom: 'Le laisser sortir', bon: 'Il coupe les jeux avant qu\'ils naissent', prix: 'Il se fait prendre, et l\'arbitre s\'en mêle', defense: 0.96, discipline: 1.12, duree: 6 },
+      { cle: 'sortir', nom: 'Le laisser sortir', bon: 'Il coupe les jeux avant qu\'ils naissent', prix: 'Il se fait prendre, et l\'arbitre s\'en mêle', defense: 0.96, discipline: 1.12, duree: 6, trou: true },
       { cle: 'filet', nom: 'Le garder dans la peinture', bon: 'Un gardien à sa place', defense: 0.985, duree: 5 },
     ],
   },
   embellir: {
-    ico: '🎭', titre: 'L\'embellissement', irl: null,
+    ico: '🎭', titre: 'L\'embellissement', irl: null, regle: true,
     recit: 'Ton ailier sait tomber. Un mot de trop après le contact, et l\'arbitre lève le bras. La ligue, elle, regarde les reprises.',
     options: [
       { cle: 'plonger', nom: 'Le laisser vendre le contact', bon: 'Deux fois sur cinq, la punition tombe de ton côté', prix: 'Le reste du temps, c\'est toi qu\'on siffle',
-        pari: { chance: 0.4, gagne: { finition: 1.05, duree: 5 }, perd: { discipline: 1.25, duree: 8 } } },
+        pari: { chance: 0.4, gagne: { finition: 1.05, duree: 5 }, perd: { discipline: 1.25, duree: 8 } }, trou: true },
       { cle: 'debout', nom: 'Rester debout', bon: 'Une réputation propre', discipline: 0.9, duree: 6 },
     ],
   },
   desert: {
-    ico: '🚪', titre: 'Le gardien sort trop tôt', irl: null,
+    ico: '🚪', titre: 'Le gardien sort trop tôt', irl: null, regle: true,
     recit: 'Il reste dix minutes. Le banc veut déjà le sixième attaquant. Ce n\'est pas le moment, et tout le monde le sait.',
     options: [
-      { cle: 'sortir', nom: 'Le sortir quand même', bon: 'Un attaquant de plus, longtemps', prix: 'Le filet est vide bien trop tôt', volume: 1.06, defense: 1.06, duree: 4 },
+      { cle: 'sortir', nom: 'Le sortir quand même', bon: 'Un attaquant de plus, longtemps', prix: 'Le filet est vide bien trop tôt', volume: 1.06, defense: 1.06, duree: 4, trou: true },
       { cle: 'attendre', nom: 'Attendre la dernière minute', bon: 'On ne donne pas le filet', defense: 0.985, duree: 4 },
     ],
   },
   mort: {
-    ico: '🪝', titre: 'Le hockey qu\'on a interdit', irl: 'La règle de l\'obstruction, 2005',
+    ico: '🪝', titre: 'Le hockey qu\'on a interdit', irl: 'La règle de l\'obstruction, 2005', regle: true,
     recit: 'Tes vétérans veulent le hockey d\'avant : accrocher dans les coins, retenir le bâton, tuer le jeu au centre. La ligue a écrit une règle contre ça.',
     options: [
-      { cle: 'accrocher', nom: 'Jouer comme en 1998', bon: 'Presque rien ne passe', prix: 'Tu ne tires plus, et les punitions s\'accumulent', defense: 0.95, volume: 0.95, discipline: 1.12, duree: 8 },
+      { cle: 'accrocher', nom: 'Jouer comme en 1998', bon: 'Presque rien ne passe', prix: 'Tu ne tires plus, et les punitions s\'accumulent', defense: 0.95, volume: 0.95, discipline: 1.12, duree: 8, trou: true },
       { cle: 'aujourd', nom: 'Jouer le hockey d\'aujourd\'hui', bon: 'De l\'espace, des lancers', prix: 'Des trous derrière', volume: 1.04, defense: 1.03, duree: 6 },
     ],
   },
   minutes: {
-    ico: '⏱️', titre: 'La paire qui ne descend plus', irl: null,
+    ico: '⏱️', titre: 'La paire qui ne descend plus', irl: null, regle: true,
     recit: 'Le règlement ne limite pas les minutes. Ton adjoint, lui, dit que vingt-huit minutes par défenseur, c\'est déjà trop.',
     options: [
-      { cle: 'doubler', nom: 'Les laisser sur la glace', bon: 'Ta première paire joue le gros des soirs', prix: 'Elle finit à plat, et la troisième ne joue plus', D: [1.22, 1, 0.72], blessure: 1.2, energie: 1.08, duree: 6 },
+      { cle: 'doubler', nom: 'Les laisser sur la glace', bon: 'Ta première paire joue le gros des soirs', prix: 'Elle finit à plat, et la troisième ne joue plus', D: [1.22, 1, 0.72], blessure: 1.2, energie: 1.08, duree: 6, trou: true },
       { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Les corps tiennent', prix: 'Un peu moins de lancers', blessure: 0.85, volume: 0.98, duree: 6 },
     ],
   },
@@ -2736,7 +2736,7 @@ export const SEQUENCES = {
       { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.95 },
       { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Si les jambes suivent, on redevient une équipe physique', prix: 'Sinon, des corps fatigués',
         pari: { chance: 0.5, gagne: { robustesse: 1.3, duree: 8 }, perd: { blessure: 1.35, duree: 8 } } },
-      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.96, discipline: 1.18, blessure: 1.15 },
+      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.96, discipline: 1.18, blessure: 1.15, trou: true },
     ],
   },
   victoires: {
@@ -2746,7 +2746,7 @@ export const SEQUENCES = {
       { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.3 },
       { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', defense: 0.96 },
       { cle: 'tous', nom: 'Tout le monde joue', bon: 'Le 4e trio goûte au succès, les corps se reposent', prix: 'Tes vedettes jouent moins', F: [0.9, 0.97, 1.05, 1.2], D: [0.95, 1, 1.08], blessure: 0.8 },
-      { cle: 'forcer', nom: 'La séquence passe avant le repos', bon: 'Le premier trio ne sort plus', prix: 'Les jambes lâchent, et l\'arbitre aussi', F: [1.22, 1, 0.95, 0.8], discipline: 1.12, blessure: 1.2 },
+      { cle: 'forcer', nom: 'La séquence passe avant le repos', bon: 'Le premier trio ne sort plus', prix: 'Les jambes lâchent, et l\'arbitre aussi', F: [1.22, 1, 0.95, 0.8], discipline: 1.12, blessure: 1.2, trou: true },
     ],
   },
 };
@@ -2838,10 +2838,10 @@ export function effetDeMoment(d) {
   const o = fam && fam.options.find(x => x.cle === m.choix);
   if (!o) return null;
   const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, ...canaux } = o;
-  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n;
+  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, ...canaux } = o;
+  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t;
   if (!Object.keys(canaux).length) return null;
-  return { debut: d.jour, fin: d.jour + duree, source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux };
+  return { debut: d.jour, fin: d.jour + duree, source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };
 }
 
 /*
@@ -7013,23 +7013,23 @@ export const AVANT_GROS = {
       { cle: 'cibler', nom: 'Le cibler', bon: 'On lui fait payer son départ', prix: 'L\'arbitre le voit venir', robustesse: 1, discipline: 1.1 },
       { cle: 'ignorer', nom: 'L\'ignorer', bon: 'On joue notre match', defense: 0.97 },
     ] },
-  gabarit: { ico: '📏', titre: 'Le gabarit dans le vestiaire',
+  gabarit: { ico: '📏', titre: 'Le gabarit dans le vestiaire', regle: true,
     irl: 'Depuis 1990, les arbitres peuvent mesurer la courbe d\'un bâton.',
     recit: 'Quelqu\'un a laissé un gabarit sur le banc. Tes meilleurs bâtons ne passeraient pas.',
     options: [
-      { cle: 'garder', nom: 'Garder les courbes', bon: 'Le tir tombe', prix: 'S\'ils mesurent, les punitions tombent aussi', finition: 1.04, discipline: 1.15 },
+      { cle: 'garder', nom: 'Garder les courbes', bon: 'Le tir tombe', prix: 'S\'ils mesurent, les punitions tombent aussi', finition: 1.04, discipline: 1.15, trou: true },
       { cle: 'changer', nom: 'Changer les bâtons', bon: 'Rien à mesurer', discipline: 0.92 },
     ] },
-  desert: { ico: '🚪', titre: 'Le plan du filet désert',
+  desert: { ico: '🚪', titre: 'Le plan du filet désert', regle: true,
     recit: 'Ton adjoint a écrit un jeu : le gardien sort à la moitié de la troisième, pas à la dernière minute.',
     options: [
-      { cle: 'tot', nom: 'Le sortir tôt', bon: 'Un attaquant de plus quand ça compte', prix: 'Le filet est vide longtemps', volume: 1.05, defense: 1.06 },
+      { cle: 'tot', nom: 'Le sortir tôt', bon: 'Un attaquant de plus quand ça compte', prix: 'Le filet est vide longtemps', volume: 1.05, defense: 1.06, trou: true },
       { cle: 'tard', nom: 'À la dernière minute, comme tout le monde', bon: 'On ne donne pas le match', defense: 0.98 },
     ] },
-  sifflet: { ico: '🦓', titre: 'Cet arbitre laisse jouer',
+  sifflet: { ico: '🦓', titre: 'Cet arbitre laisse jouer', regle: true,
     recit: 'Le rapport est clair : celui de ce soir a le sifflet dans la poche. Tes vétérans veulent en profiter.',
     options: [
-      { cle: 'profiter', nom: 'Accrocher, retenir, bloquer', bon: 'Les jeux meurent dans les coins', prix: 'S\'il change d\'idée, ça coûte cher', defense: 0.95, discipline: 1.12 },
+      { cle: 'profiter', nom: 'Accrocher, retenir, bloquer', bon: 'Les jeux meurent dans les coins', prix: 'S\'il change d\'idée, ça coûte cher', defense: 0.95, discipline: 1.12, trou: true },
       { cle: 'propre', nom: 'Jouer propre quand même', bon: 'La tête froide', discipline: 0.9 },
     ] },
 };
@@ -7046,9 +7046,9 @@ function effetAvant(d) {
   const A = d && d.avant && AVANT_GROS[d.avant.cle];
   const o = A && A.options.find(x => x.cle === d.avant.choix);
   if (!o) return null;
-  const { cle, nom, bon, prix, pari, action, enjeu, ensuite, ...canaux } = o;
-  void cle; void bon; void prix; void pari; void action; void enjeu; void ensuite;
-  return { source: 'avant', nom, ...canaux };
+  const { cle, nom, bon, prix, pari, action, enjeu, ensuite, trou: _t, ...canaux } = o;
+  void cle; void bon; void prix; void pari; void action; void enjeu; void ensuite; void _t;
+  return { source: 'avant', nom, ...canaux, ...(_t ? { regle: true } : {}) };
 }
 
 /*
@@ -7355,7 +7355,7 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
     const { duree, apres, action, ...canaux } = e;
     void apres;
     gestes(action, j0);
-    if (Object.keys(canaux).length) (team.effets = team.effets || []).push({ debut: j0, fin: j0 + (duree || DUREE_MOMENT), source, nom: titre, ...canaux });
+    if (Object.keys(canaux).length) (team.effets = team.effets || []).push({ debut: j0, fin: j0 + (duree || DUREE_MOMENT), source, nom: titre, ...canaux, ...(o.trou ? { regle: true } : {}) });
   };
   gestes(o.action, jour);
   if (o.ensuite) effet(o.ensuite, jour + (o.ensuite.apres || 0), 'ensuite');
@@ -7372,12 +7372,15 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
  * les paris, les investissements, les cartes —, pour qu'ils se lisent au même
  * endroit que les stratégies. Et les absents du jour.
  */
+/* Les éditions qui contournent une règle déjà écrite : la zone, l'ombre, l'étouffement. */
+export const EDITIONS_REGLEMENT = ['enBas', 'chasse', 'partout', 'cran', 'style_fantome', 'style_courbe', 'style_accrocheur'];
 export function effetsEnCours(team, jour) {
-  if (!team) return { effets: [], cartes: [], absents: [] };
+  if (!team) return { effets: [], cartes: [], absents: [], trous: [] };
   const effets = (team.effets || []).filter(e => jour >= e.debut && jour < e.fin && e.source !== 'match');
   const absents = [...(team.absents || new Map()).entries()].filter(([, j]) => j > jour).map(([p, j]) => ({ p, reste: j - jour }));
   const aux = team.gardienAux && team.gardienAux > jour ? team.gardienAux - jour : 0;
-  return { effets: effets.map(e => ({ ...e, reste: e.fin - jour })), cartes: (team.cartes || []).slice(), absents, gardienAux: aux };
+  const trous = (team.mutations || []).filter(x => x && EDITIONS_REGLEMENT.includes(x.cle) && x.jour <= jour);
+  return { effets: effets.map(e => ({ ...e, reste: e.fin - jour })), cartes: (team.cartes || []).slice(), absents, gardienAux: aux, trous };
 }
 
 export const MINI_BOSS = {
