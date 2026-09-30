@@ -1719,11 +1719,15 @@ async function traverserSaison(etiquette, reprise = false) {
      * décision comme une autre : elle entre dans la sauvegarde.
      */
     {
-      await _click('#hubModal .hub-depistage > summary');
-      await page.waitForSelector('#hubModal .hub-depistage[open] .dep3-table', { timeout: 60000 });
+      // Au téléphone (1.0, R2), le dépistage est une sous-page (#gameModal) ouverte par sa tuile ; au bureau, il se déplie dans l'affiche.
+      const tuileDep = await page.$('#hubModal .hub-tt-dep');
+      const enSousPage = !!(tuileDep && await tuileDep.isVisible());
+      const portee = enSousPage ? '#gameModal' : '#hubModal';
+      if (enSousPage) await tuileDep.click(); else await _click('#hubModal .hub-depistage > summary');
+      await page.waitForSelector(enSousPage ? '#gameModal .dep3-table' : '#hubModal .hub-depistage[open] .dep3-table', { timeout: 60000 });
       await page.waitForTimeout(300);
-      const dep = await page.evaluate(() => {
-        const d = document.querySelector('#hubModal .hub-depistage');
+      const dep = await page.evaluate(sel => {
+        const d = document.querySelector(sel);
         return {
           rangees: d.querySelectorAll('.dep3-table tbody tr').length,
           marques: [...d.querySelectorAll('.dep3-av')].map(x => x.textContent.trim()),
@@ -1732,10 +1736,10 @@ async function traverserSaison(etiquette, reprise = false) {
           titres: [...d.querySelectorAll('.dep3-conseil-t')].map(x => x.textContent.trim()),
           texte: d.textContent,
         };
-      });
+      }, enSousPage ? '#gameModal .hub-dep-corps' : '#hubModal .hub-depistage');
       if (dep.rangees < 5) errors.push(`le tableau des forces n'a que ${dep.rangees} rangées`);
       if (dep.marques.some(m => !/^[◀▶=]$/.test(m))) errors.push(`l'avantage du tableau n'est pas marqué : ${dep.marques.join(' ')}`);
-      if (!(await page.$('#hubModal .dep3-conseils'))) errors.push('le dépistage ne dit pas quoi faire ce soir');
+      if (!(await page.$(`${portee} .dep3-conseils`))) errors.push('le dépistage ne dit pas quoi faire ce soir');
       if (/S'il marque|S'il en accorde/.test(dep.texte)) errors.push('le dépistage dit encore « s\'il marque… » : ça ne décide de rien');
       if (/\b(?:[odrcv]|sp)\s*[:=]\s*\d/.test(dep.texte)) errors.push('le dépistage montre une cote cachée');
       console.log(`   le dépistage : ${dep.rangees} forces (${dep.marques.join('')}), ${dep.conseils} conseil(s)${dep.titres.length ? ` — ${dep.titres.slice(0, 3).join(' · ')}` : ''}`);
@@ -1743,14 +1747,14 @@ async function traverserSaison(etiquette, reprise = false) {
       if (dep.boutons) {
         const lire = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } });
         const avant = (await lire()).length;
-        await _click('#hubModal .dep3-appliquer');
+        await _click(`${portee} .dep3-appliquer`);
         await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter', { timeout: 120000 });
         await page.waitForTimeout(400);
         const apres = await lire();
         const d = apres[apres.length - 1];
         if (apres.length !== avant + 1 || !d || !(Array.isArray(d.lignes) || d.match || 'fermeture' in d)) errors.push(`« Appliquer » n'a pas laissé de décision : ${JSON.stringify(d)}`);
         else console.log(`   « Appliquer » : une décision au jour ${d.jour} (${Array.isArray(d.lignes) ? 'lignes' : d.match ? 'consigne' : 'fermeture'})`);
-      }
+      } else if (enSousPage) { await page.click('#closeGameBtn'); await page.waitForTimeout(200); }
     }
 
     /*

@@ -2148,6 +2148,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         if (ctx.sousPage && matchMedia('(max-width: 1199.98px)').matches) {
           const corps = ctx.sousPage(`🔎 Le dépistage · ${ctx.esc(ctx.teamShort(adv))}`, `<div class="hub-dep-corps">${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>`);
           brancherConseils(corps);
+          // Un conseil appliqué ferme la sous-page avant de rejouer la saison depuis ce soir.
+          corps.querySelectorAll('.dep3-appliquer').forEach(b => { const f = b.onclick; b.onclick = e => { const c = document.getElementById('closeGameBtn'); if (c) c.click(); if (f) f.call(b, e); }; });
           return;
         }
         const d = carte.querySelector('.hub-depistage');

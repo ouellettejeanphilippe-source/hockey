@@ -319,6 +319,8 @@ const parseM = lireNombre;
 const lireSignes = async () => parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
 let signed = 0, guard = 0;
 while (signed < 23 && guard++ < 320) {
+  // La roulette se pose avant qu'on lise les cartes : signer pendant qu'elle tourne, c'est signer dans l'ancien vestiaire.
+  await page.waitForFunction(() => !/La roulette tourne/.test(document.querySelector('#spin')?.textContent || ''), null, { timeout: 60000 }).catch(() => {});
   const rem = parseM(await page.textContent('#capAmt'));
   const maxPick = rem - Math.max(0, 23 - signed - 1) * MIN_SAL;
   const cards = await page.$$('.pcard');
