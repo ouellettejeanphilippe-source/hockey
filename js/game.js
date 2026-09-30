@@ -1807,6 +1807,7 @@ export function majEntete() {
   // Les compteurs de la jauge (les signés, le budget par case, les jetons) : au repêchage et au Rogue.
   document.body.classList.toggle('au-repechage', enRepechage());
   document.body.classList.toggle('mode-rogue', G.bonus === 'ROGUE');
+  document.body.classList.toggle('mode-table', G.bonus === 'TABLE');
   // DERRIÈRE LE BANC, un écran secondaire de la saison : « ‹ Retour » y ramène au match.
   const retour = $('retourBtn');
   if (retour) retour.hidden = !G.banc;

@@ -1334,7 +1334,9 @@ export function renderPool() {
    * écran, une bande qu'on balaie du doigt sur téléphone. En LOTO : la main,
    * trois cartes dans l'ordre des clubs, rien d'autre à ranger.
    */
-  const byPos = !MODE().loto && G.poolView === 'POS' && G.filter === 'ALL';
+  // Au téléphone, la liste (1.0, R4) : six colonnes qu'on balaie sous des filtres qui font la même chose, c'était deux
+  // façons de chercher le même joueur ; la bascule y est cachée (style.css, .pool-tools .seg-view).
+  const byPos = !MODE().loto && G.poolView === 'POS' && G.filter === 'ALL' && !matchMedia('(max-width: 679.98px)').matches;
   host.className = 'pool' + (byPos ? ' by-pos' : '');
 
   if (byPos) {

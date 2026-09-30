@@ -87,6 +87,24 @@ async function eprouverCoquille() {
     if (await page.evaluate(() => document.body.dataset.page !== 'match')) errors.push(`en pleine saison, Échap ne ramène pas au Club depuis « ${s} »`);
     else if (n > 1) errors.push(`en pleine saison, de « ${s} », Échap prend ${n} gestes pour remonter au Club (un seul attendu)`);
   }
+  /*
+   * LE CLUB AU TÉLÉPHONE, EN UN ÉCRAN (1.0, R2). JP : *surtout sur mobile, c'est un clusterfuck d'information*.
+   * L'en-tête dit déjà la journée, la fiche et le rang : la bande de tête du bureau ne les redit pas ; hier soir
+   * tient en une ligne, une seule fois ; l'affiche du prochain match et « Journée suivante » se voient sans défiler.
+   */
+  await page.click('#navbar .navtab[data-section="club"]');
+  await page.waitForTimeout(300);
+  const club = await page.evaluate(() => {
+    const vis = e => { if (!e) return false; const r = e.getBoundingClientRect(); return r.height > 0 && r.top >= 0 && r.bottom <= innerHeight; };
+    const teteVisible = (e => e && e.getBoundingClientRect().height > 0)(document.querySelector('#hubModal .hub-head'));
+    return { teteVisible, hiers: document.querySelectorAll('#hubModal .hub-hier').length,
+      affiche: vis(document.querySelector('#hubModal .hub-face')), bouton: vis(document.querySelector('#hubModal .hub-barre :is(.hub-jour, .hub-traiter)')) };
+  });
+  if (club.teteVisible) errors.push('au téléphone, le bureau redit la journée, la fiche et le rang sous l\'en-tête qui les dit déjà');
+  if (club.hiers > 1) errors.push(`au bureau, hier soir est dit ${club.hiers} fois`);
+  if (!club.affiche) errors.push('au téléphone, l\'affiche du prochain match ne se voit pas sans défiler');
+  if (!club.bouton) errors.push('au téléphone, « Journée suivante » ne se voit pas sans défiler');
+  console.log(`   le Club au téléphone : hier ${club.hiers} fois, l'affiche ${club.affiche ? 'visible' : 'cachée'}, le bouton ${club.bouton ? 'visible' : 'caché'}`);
   const soulignes = await page.evaluate(() => [...document.querySelectorAll('a, button, .lien-joueur, .lien-equipe')]
     .filter(e => e.offsetParent && getComputedStyle(e).textDecorationLine.includes('underline')).map(e => e.textContent.trim().slice(0, 24)));
   if (soulignes.length) errors.push(`en pleine saison, des liens soulignés : ${soulignes.slice(0, 4).join(' · ')}`);
@@ -1202,6 +1220,24 @@ async function drafter(etiquette) {
   return { signed, total };
 }
 
+/*
+ * LA CARTE ENTIÈRE AU PREMIER REGARD (1.0, R4). À 390 px, le prix, le chiffre clé et « Signer » de la première
+ * carte tombaient sous le pli : 460 px de bandeau, de relances, de cellules et d'outils avant elle. Sans défiler,
+ * la première carte se lit jusqu'à son bouton, et la barre d'action ne prend pas de place tant qu'il n'y a rien à lancer.
+ */
+{
+  const carte = await page.evaluate(() => {
+    const b = document.querySelector('.pcard .btn-sign');
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    const barre = document.querySelector('#actionbar');
+    return { bas: Math.round(r.bottom), h: innerHeight, barre: !!(barre && barre.getBoundingClientRect().height > 0 && getComputedStyle(barre).display !== 'none') };
+  });
+  if (!carte) errors.push('le vestiaire n\'offre aucune carte à signer');
+  else if (carte.bas > carte.h) errors.push(`à 390 px, le bouton Signer de la première carte tombe sous le pli (${carte.bas} px pour ${carte.h})`);
+  else if (carte.barre) errors.push('à 390 px, la barre d\'action prend de la place au vestiaire alors qu\'il n\'y a rien à lancer');
+  else console.log(`   la première carte se lit jusqu'à Signer sans défiler (${carte.bas} px sur ${carte.h})`);
+}
 let { signed } = await drafter('vestiaire');
 console.log(`2. ${signed}/23 signés`);
 // Le vestiaire est plein : c'est le moment où le DOM porte le plus de cartes,
@@ -2844,7 +2880,7 @@ if (enabled) {
     const lbAvant = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]').length; } catch { return -1; } });
     await page.reload({ waitUntil: 'networkidle' });
     let poRepris = true;
-    try { await page.waitForSelector('#hubModal .hub-head', { state: 'visible', timeout: 90000 }); }
+    try { await page.waitForSelector('#hubModal .hub-sheet', { state: 'visible', timeout: 90000 }); }
     catch { poRepris = false; }
     if (!poRepris) {
       console.log('\n✗ les séries en cours ne survivent pas à un rafraîchissement : l\'écran des séries ne rouvre pas.');

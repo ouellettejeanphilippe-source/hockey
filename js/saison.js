@@ -1611,7 +1611,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // PLIÉ PAR DÉFAUT (S78) : le rapport de tes lignes et les quinze autres
     // matchs se déplient au toucher. Au téléphone, ils faisaient deux écrans.
     const rl = k >= 0 ? rapportLignes(matchs[k]) : '';
-    const mien = k >= 0 ? resultatHier({ j, k, m: matchs[k] }) + (rl ? `<details class="hub-plie"><summary>Tes lignes à forces égales, ce soir</summary>${rl}</details>` : '') : `<div class="hub-hier conge"><span class="hub-hier-quand">Journée ${jour} · <b>congé</b></span></div>`;
+    // L'affiche porte déjà hier soir tant qu'on n'a pas passé à l'aperçu du suivant : le volet ne le redit pas.
+    const dansAffiche = k >= 0 && !soirPasse && jour < N && !!prochain();
+    const mien = k >= 0 ? (dansAffiche ? '' : resultatHier({ j, k, m: matchs[k] })) + (rl ? `<details class="hub-plie"><summary>Tes lignes à forces égales, ce soir</summary>${rl}</details>` : '') : `<div class="hub-hier conge"><span class="hub-hier-quand">Journée ${jour} · <b>congé</b></span></div>`;
     const mbHier = (you.minisBoss || []).find(x => x.jour === j);
     const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour trois matchs, et les partisans montent` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour trois matchs, et les médias s'acharnent`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
     return `${mbMot}${mien}${portailHtml()}`;
@@ -2107,10 +2109,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const apercuVu = boite.apercuVu === p.j || boite.depOuvert === p.j;
       const etape = hier ? 'resultat' : prepFaite ? 'match' : apercuVu ? 'prep' : 'apercu';
       const faits = new Set(hier ? ['apercu', 'prep', 'match'] : [...(apercuVu ? ['apercu'] : []), ...(prepFaite ? ['prep'] : [])]);
-      const resultatHtml = hier ? `<section class="soir-resultat" aria-label="Hier soir">
-        ${scoreboard(hier)}${drameHtml(hier.m)}
-        <div class="soir-pied"><button type="button" class="btn soir-suivant">Prochain match ›</button></div>
-      </section>` : '';
+      /*
+       * HIER SOIR EN UNE LIGNE, LE PROCHAIN MATCH JUSTE DESSOUS (1.0, R2). JP :
+       * *surtout sur mobile, c'est un clusterfuck d'information*. Le tableau
+       * final et ses buteurs prenaient tout l'écran et le prochain match
+       * attendait derrière un bouton ; le sommaire les dit déjà. Le résultat
+       * est la bande d'hier (toucher : le sommaire), le drame en une ligne, et
+       * l'affiche continue sans un geste de plus.
+       */
+      const resultatHtml = hier ? `<section class="soir-resultat" aria-label="Hier soir">${resultatHier(hier)}${drameHtml(hier.m)}</section>` : '';
       carte.innerHTML = `${miniBoss}<div class="hub-match">
         ${soirHtml(etape, faits)}${resultatHtml}
         <div class="hub-match-titre">Prochain match · journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
@@ -2133,8 +2140,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           setTimeout(() => { if (cible.isConnected) { cible.innerHTML = depistageMatchHtml(p); brancherConseils(cible); } }, 30);
         }
       });
-      const suivant = carte.querySelector('.soir-suivant');
-      if (suivant) suivant.onclick = () => { soirPasse = true; boite.apercuVu = p.j; dessiner(); };
       carte.querySelectorAll('.soir-etape').forEach(b => {
         b.onclick = () => {
           const e = b.dataset.etape;
@@ -2454,11 +2459,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend tes réponses">⏳ À régler avant le match${bloquants.length > 1 ? ` (${bloquants.length})` : ''} : ${ctx.esc(premier.sujet)}</button>`
       : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>';
     // « Le banc » a quitté la rangée : l'onglet Alignement de la barre fait la même chose (JP : jamais deux fois la même chose).
-    actions.innerHTML = `${primaire}
+    // LA BARRE D'ACTION (1.0, R2) : le bouton et ses seconds rôles dans une barre, collée au bas du téléphone ; la boîte à part.
+    actions.innerHTML = `<div class="hub-barre">${primaire}
       <div class="hub-actions-rang">
       ${p && !premier ? '<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>' : ''}
       ${premier ? '' : '<button class="btn hub-prochaine" title="Jouer les journées une à une, jusqu\'à la première qui demande une décision">Jusqu\'à la prochaine décision</button>'}
-      </div>
+      </div></div>
       ${boiteHtml}`;
     // TES CARTES ET LA BOUTIQUE, DANS L'EN-TÊTE (S79) : toujours en vue, sans prendre une rangée de boutons.
     if (ui.outils) ui.outils.innerHTML = [
@@ -3200,7 +3206,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     if (s && !complete(s) && onDecision) boutons.unshift(`<div class="hub-actions-rang"><button class="btn gold hub-preparer">Préparer le match ${revele.get(s) + 1}</button>${onBanc ? '<button class="btn hub-banc-serie">Le banc</button>' : ''}</div>`);
     if (plusRienADecider) boutons.push(`<button class="btn hub-fin" title="Jouer toutes les séries et voir le tableau">Passer à la fin</button>`);
     if (onDecision) boutons.push(`<button class="btn hub-deck" title="Tes cartes de match : tu en piges cinq avant chaque match de ta série">🃏 Mon deck · ${deckDeSerie().length}</button>`);
-    actions.innerHTML = boutons.join('');
+    actions.innerHTML = `<div class="hub-barre">${boutons.join('')}</div>`;
     const vd = actions.querySelector('.hub-deck');
     if (vd) vd.onclick = () => ouvrirDeck({ deck: deckDeSerie() });
     boutonFlottant(actions, termine);
