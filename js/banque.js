@@ -135,6 +135,7 @@ export const CONTRATS = {
   rachat: { nom: 'Rachat de contrat', ico: '🧾', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 2 / 3, cout: 10, texte: 'Le reste de son contrat étalé : un tiers de moins cette saison, 10 jetons de frais.' },
   entree: { nom: 'Le contrat d\'entrée', ico: '🐣', rarete: 'commune', vie: 'usage', cible: 'recrue', facteur: 0.6, texte: 'Une recrue sous contrat d\'entrée compte pour 40 % de moins.' },
   bonis: { nom: 'La clause de bonis', ico: '🎯', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.85, texte: 'Une part de son salaire devient des bonis de performance, hors du plafond.' },
+  enterre: { nom: 'Le contrat enterré', ico: '🗃️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.8, texte: 'Une part de son salaire est réputée au club-école. Il compte pour moins, et il joue encore.' },
   taxe: { nom: 'La taxe de luxe', ico: '💸', rarete: 'maudite', vie: 'saison', cible: 'aucune', espace: -3_000_000, texte: 'La ligue sévit : ton plafond fond de 3\u00a0M$ cette saison.' },
 };
 /*
@@ -197,6 +198,10 @@ export const EVENEMENTS = {
   brunch: { nom: 'Le brunch des familles', ico: '🥞', rarete: 'commune', duree: 7, texte: 'Les enfants dans le vestiaire.', effet: { energie: 0.94, volume: 0.99 } },
   public: { nom: 'L\'œil du public', ico: '👁️', rarete: 'rare', duree: 10, texte: 'Chaque match est télévisé d\'un océan à l\'autre.', effet: { finition: 1.03, defense: 0.98, energie: 1.05 } },
   arena: { nom: 'Le déménagement d\'aréna', ico: '🏟️', rarete: 'peu', duree: 6, texte: 'La glace neuve est rapide.', effet: { volume: 1.04, defense: 1.02 } },
+  batons: { nom: 'L\'atelier des bâtons', ico: '📏', rarete: 'peu', duree: 8, texte: 'Tout le vestiaire a la même courbe, un cran au-delà du gabarit.', effet: { finition: 1.03, discipline: 1.08 } },
+  siffletPoche: { nom: 'Le sifflet dans la poche', ico: '🦓', rarete: 'commune', duree: 6, texte: 'Les arbitres laissent jouer. On en profite dans les coins.', effet: { defense: 0.97, discipline: 1.1 } },
+  planDesert: { nom: 'Le plan du filet désert', ico: '🚪', rarete: 'peu', duree: 4, texte: 'Le sixième attaquant sort trop tôt, plusieurs soirs de suite.', effet: { volume: 1.04, defense: 1.04 } },
+  obstruction: { nom: 'L\'obstruction oubliée', ico: '🪝', rarete: 'peu', duree: 8, texte: 'On joue le hockey d\'avant la règle : les bâtons retiennent, les corps bloquent.', effet: { defense: 0.97, volume: 0.97, discipline: 1.08 } },
 };
 
 /* ---------- LES CONSOMMABLES : une utilisation ---------- */
@@ -222,16 +227,18 @@ export const CONSOMMABLES = {
   exorciste: { nom: 'L\'exorciste', ico: '🕯️', rarete: 'rare', vie: 'permanent', cible: 'malediction', texte: 'Il chasse une malédiction de ton deck de match.' },
   campExpress: { nom: 'Le camp express', ico: '⛺', rarete: 'peu', vie: 'usage', cible: 'carteMatch', texte: 'Une carte de ton deck de match devient sa version « + ».' },
   stageExpress: { nom: 'Le stage express', ico: '📘', rarete: 'peu', vie: 'usage', cible: 'tactique', maitrise: 0.25, texte: 'Ta formation fait 25 % du chemin vers la maîtrise d\'un système.' },
+  gabarit: { nom: 'Le gabarit de poche', ico: '📐', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { finition: 1.03, discipline: 1.08 }, duree: 3, texte: 'Tu mesures leurs bâtons. Les tiens restent dans le sac.' },
 };
 
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
 const SOURCES_MOD = ['amelioration', 'atelier', 'style', 'contrat'];
 const RARETE_MOD = {
   affute: 'peu', moteur: 'peu', mur: 'peu', vision: 'peu', coach: 'peu',
-  partout: 'rare', cran: 'rare', physio: 'peu', lustre: 'legendaire',
+  partout: 'rare', cran: 'rare', physio: 'peu', lustre: 'legendaire', enBas: 'rare', chasse: 'rare',
   style_sniper: 'peu', style_faiseur: 'peu', style_ancre: 'peu', style_locomotive: 'peu', style_chasseur: 'peu',
   style_architecte: 'rare', style_sentinelle: 'rare', style_canonnier: 'rare', style_buteur: 'legendaire', style_pieuvre: 'rare',
   masque_neuf: 'commune', baton_neuf: 'commune', contrat_annee: 'peu', contrat_prolonge: 'commune', contrat_bonus: 'rare', contrat_leader: 'rare',
+  style_courbe: 'peu', style_accrocheur: 'peu', style_fantome: 'rare',
 };
 const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source));
 

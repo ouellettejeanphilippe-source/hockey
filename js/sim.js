@@ -266,6 +266,9 @@ function calibreAttendu(group, unit) {
 /*
  * LES UNITÉS OÙ UN JOUEUR REND À 100 % : sa zone (`getLineZone`), plus un
  * cran vers le haut par carte « Monte d'un cran » (S78, l'atelier : `_cran`).
+ * « Joue en bas » (`_enBas`) n'agrandit PAS cette liste : le 2e et le 3e trio
+ * restent punis. Seul le DERNIER rang (4e trio, 3e paire) échappe au malus,
+ * et `malusZoneUnite` est le seul endroit qui le sait.
  */
 export function unitesIdeales(p, v) {
   const ideal = getLineZone(p, v).idealUnits;
@@ -274,6 +277,15 @@ export function unitesIdeales(p, v) {
   const haut = Math.min(...ideal), plus = [];
   for (let k = 1; k <= cran && haut - k >= 0; k++) plus.push(haut - k);
   return [...plus, ...ideal];
+}
+
+/** Dernier rang du groupe : le 4e trio, la 3e paire. C'est là que « Joue en bas » ne punit plus. */
+function rangDuBas(group) {
+  return group === 'D' || group === 'LD' || group === 'RD' ? 2 : 3;
+}
+/** Vrai si ce joueur, assis au dernier rang, ne paie pas la pénalité de joueur trop bas. */
+export function joueEnBas(p, group, unit) {
+  return !!(p && p._enBas && unit === rangDuBas(group));
 }
 
 /**
@@ -310,9 +322,16 @@ function malusZoneJoueur(group, unit, v, ideal, opts = {}) {
  */
 export function malusZoneUnite(group, unit, entrees, opts = {}) {
   let somme = 0, mal = 0, ecartMax = 0;
+  const bas = rangDuBas(group);
   for (const e of entrees) {
-    const pen = malusZoneJoueur(group, unit, e.v, e.ideal, opts);
-    const ecart = Math.min(...e.ideal.map(u => Math.abs(u - unit)));
+    const ideal = e.ideal;
+    const ecartBrut = Math.min(...ideal.map(u => Math.abs(u - unit)));
+    // « Joue en bas » : le dernier rang seulement, et seulement s'il était
+    // trop bas. Le 2e et le 3e trio gardent leur écart — sinon cacher une
+    // vedette un cran sous sa zone ne coûterait plus rien.
+    const auFond = !!(e.enBas && unit === bas && unit > Math.max(...ideal));
+    const ecart = auFond ? 0 : ecartBrut;
+    const pen = auFond ? 0 : malusZoneJoueur(group, unit, e.v, ideal, opts);
     if (pen > 0 || ecart > 0) mal++;
     if (ecart > ecartMax) ecartMax = ecart;
     somme += pen;
@@ -515,6 +534,7 @@ export function getUnitSynergy(roster, group, unit) {
   // joueur hors de sa zone -> pénalité selon l'écart, ASYMÉTRIQUE.
   const entrees = ps.map((x, i) => ({
     v: hidden[i].v, ideal: unitesIdeales(x.player, hidden[i].v),
+    enBas: !!(x.player && x.player._enBas),
   }));
   const { pen, mal } = malusZoneUnite(group, unit, entrees);
   let zone = null;
@@ -2628,6 +2648,61 @@ export const MOMENTS = {
       { cle: 'non', nom: '{nom} garde son style', bon: 'Rien ne change', rien: true },
     ],
   },
+  /*
+   * CONTOURNER LE RÈGLEMENT (JP). Pas un cadeau : chaque trou dans le livre
+   * a son prix, sur les canaux qui existent déjà. La courbe, le trapèze,
+   * l'embellissement, le filet désert, l'obstruction, les minutes de trop.
+   */
+  courbe: {
+    ico: '📏', titre: 'La courbe illégale', irl: 'La LNH mesure les courbes depuis 1990',
+    recit: 'Le préposé à l\'équipement te tend un bâton. La courbe dépasse le gabarit, « juste assez pour que le tir tombe ».',
+    options: [
+      { cle: 'laisser', nom: 'Laisser la courbe', bon: 'Une chance sur deux : le tir trompe', prix: 'Sinon, l\'arbitre sort le gabarit',
+        pari: { chance: 0.5, gagne: { finition: 1.06, duree: 6 }, perd: { discipline: 1.22, duree: 6 } } },
+      { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions bêtes', prix: 'Des lancers plus honnêtes, donc moins dangereux', discipline: 0.9, volume: 0.97, duree: 6 },
+    ],
+  },
+  trapeze: {
+    ico: '🥅', titre: 'Hors du trapèze', irl: 'Martin Brodeur, avant la règle de 2005', cible: 'gardien',
+    recit: '{nom} joue la rondelle partout derrière le filet. La règle qui l\'en empêchera n\'est pas encore écrite — ou tu fais comme si.',
+    options: [
+      { cle: 'sortir', nom: 'Le laisser sortir', bon: 'Il coupe les jeux avant qu\'ils naissent', prix: 'Il se fait prendre, et l\'arbitre s\'en mêle', defense: 0.96, discipline: 1.12, duree: 6 },
+      { cle: 'filet', nom: 'Le garder dans la peinture', bon: 'Un gardien à sa place', defense: 0.985, duree: 5 },
+    ],
+  },
+  embellir: {
+    ico: '🎭', titre: 'L\'embellissement', irl: null,
+    recit: 'Ton ailier sait tomber. Un mot de trop après le contact, et l\'arbitre lève le bras. La ligue, elle, regarde les reprises.',
+    options: [
+      { cle: 'plonger', nom: 'Le laisser vendre le contact', bon: 'Deux fois sur cinq, la punition tombe de ton côté', prix: 'Le reste du temps, c\'est toi qu\'on siffle',
+        pari: { chance: 0.4, gagne: { finition: 1.05, duree: 5 }, perd: { discipline: 1.25, duree: 8 } } },
+      { cle: 'debout', nom: 'Rester debout', bon: 'Une réputation propre', discipline: 0.9, duree: 6 },
+    ],
+  },
+  desert: {
+    ico: '🚪', titre: 'Le gardien sort trop tôt', irl: null,
+    recit: 'Il reste dix minutes. Le banc veut déjà le sixième attaquant. Ce n\'est pas le moment, et tout le monde le sait.',
+    options: [
+      { cle: 'sortir', nom: 'Le sortir quand même', bon: 'Un attaquant de plus, longtemps', prix: 'Le filet est vide bien trop tôt', volume: 1.06, defense: 1.06, duree: 4 },
+      { cle: 'attendre', nom: 'Attendre la dernière minute', bon: 'On ne donne pas le filet', defense: 0.985, duree: 4 },
+    ],
+  },
+  mort: {
+    ico: '🪝', titre: 'Le hockey qu\'on a interdit', irl: 'La règle de l\'obstruction, 2005',
+    recit: 'Tes vétérans veulent le hockey d\'avant : accrocher dans les coins, retenir le bâton, tuer le jeu au centre. La ligue a écrit une règle contre ça.',
+    options: [
+      { cle: 'accrocher', nom: 'Jouer comme en 1998', bon: 'Presque rien ne passe', prix: 'Tu ne tires plus, et les punitions s\'accumulent', defense: 0.95, volume: 0.95, discipline: 1.12, duree: 8 },
+      { cle: 'aujourd', nom: 'Jouer le hockey d\'aujourd\'hui', bon: 'De l\'espace, des lancers', prix: 'Des trous derrière', volume: 1.04, defense: 1.03, duree: 6 },
+    ],
+  },
+  minutes: {
+    ico: '⏱️', titre: 'La paire qui ne descend plus', irl: null,
+    recit: 'Le règlement ne limite pas les minutes. Ton adjoint, lui, dit que vingt-huit minutes par défenseur, c\'est déjà trop.',
+    options: [
+      { cle: 'doubler', nom: 'Les laisser sur la glace', bon: 'Ta première paire joue le gros des soirs', prix: 'Elle finit à plat, et la troisième ne joue plus', D: [1.22, 1, 0.72], blessure: 1.2, energie: 1.08, duree: 6 },
+      { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Les corps tiennent', prix: 'Un peu moins de lancers', blessure: 0.85, volume: 0.98, duree: 6 },
+    ],
+  },
 };
 
 export const JOURS_MOMENTS = [14, 25, 33, 51, 60, 70];
@@ -2661,6 +2736,7 @@ export const SEQUENCES = {
       { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.95 },
       { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Si les jambes suivent, on redevient une équipe physique', prix: 'Sinon, des corps fatigués',
         pari: { chance: 0.5, gagne: { robustesse: 1.3, duree: 8 }, perd: { blessure: 1.35, duree: 8 } } },
+      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.96, discipline: 1.18, blessure: 1.15 },
     ],
   },
   victoires: {
@@ -2670,6 +2746,7 @@ export const SEQUENCES = {
       { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.3 },
       { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', defense: 0.96 },
       { cle: 'tous', nom: 'Tout le monde joue', bon: 'Le 4e trio goûte au succès, les corps se reposent', prix: 'Tes vedettes jouent moins', F: [0.9, 0.97, 1.05, 1.2], D: [0.95, 1, 1.08], blessure: 0.8 },
+      { cle: 'forcer', nom: 'La séquence passe avant le repos', bon: 'Le premier trio ne sort plus', prix: 'Les jambes lâchent, et l\'arbitre aussi', F: [1.22, 1, 0.95, 0.8], discipline: 1.12, blessure: 1.2 },
     ],
   },
 };
@@ -2840,7 +2917,7 @@ export function mainDuDeck(graine, jour, prises = []) {
     : { sorte: k });
   return main;
 }
-/* L'atelier : trois éditions sur quatre, tirées de la graine ; le joueur, tu le choisis. */
+/* L'atelier : trois éditions tirées de la graine ; le joueur, tu le choisis. */
 export function editionsDuJour(graine, jour) {
   return MUTATIONS_ATELIER.map(k => [k, hacherMise(graine, 'atelier', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([k]) => k);
 }
@@ -3729,7 +3806,8 @@ const lancersFE = (p, partAN) => lancersRel(p) * (1 - ((partAN && partAN.get(p))
  * La chimie d'unité et le malus de zone entrent ici — moitié sur le volume
  * de lancers, moitié sur leur qualité. C'est ce qui rend le placement d'un
  * joueur décisif : une vedette au quatrième trio tire deux fois moins ET
- * traîne le malus de zone de l'unité.
+ * traîne le malus de zone de l'unité. « Joue en bas » efface ce malus au
+ * dernier rang seulement ; ses minutes, elles, ne bougent pas.
  */
 export function profilMatch(team, lineup, adv = null) {
   const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
@@ -4238,6 +4316,17 @@ const PROFIL_NEUTRE = {
   pctTirDefaut: PCT_TIR_NEUTRE, fgDefaut: REF.fg,
 };
 
+/** Le meilleur joueur offensif de ce côté : celui que « La chasse » colle. Pur, départagé par la clé. */
+function vedetteOffensive(patineurs) {
+  let best = null, score = -1;
+  for (const p of patineurs || []) {
+    if (!p || p.p === 'G') continue;
+    const s = lancersRel(p) * pctTirRel(p);
+    if (!best || s > score || (s === score && getPlayerKey(p) < getPlayerKey(best))) { score = s; best = p; }
+  }
+  return best;
+}
+
 /** Tire une unité au prorata de son poids de présence. */
 function choisirUnite(unites) {
   let r = hasard() * unites.reduce((a, x) => a + x.poids, 0);
@@ -4303,6 +4392,13 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
   // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
   const traits = (def.traitDef ?? 1) * (off.traitAtt ?? 1)
     * (series ? (off.traitSeries ?? 1) : 1);
+
+  // « La chasse à la vedette » : un habillé colle à LEUR meilleur joueur,
+  // même quand son trio n'est pas sur la glace. Un seul effet, le plus fort :
+  // deux ombres ne s'additionnent pas. Sans le drapeau, aucun dé de plus.
+  let ombre = 1;
+  if (def.patineurs) for (const q of def.patineurs) if (q && q._ombre && q._ombre < ombre) ombre = q._ombre;
+  const vedette = ombre < 1 ? vedetteOffensive(off.patineurs) : null;
 
   let buts = 0, tires = 0;
   for (let i = 0; i < lancers; i++) {
@@ -4377,6 +4473,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     } else {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef - REF.zDef));
     }
+    // « Le fantôme » : leur couverture ne le trouve pas. Il ignore une part
+    // de l'étouffement de CETTE présence, pas le gardien, pas le volume.
+    if (tireur && tireur._abri && facteurDef < 1) facteurDef = 1 - (1 - facteurDef) * (1 - tireur._abri);
 
     // Les passes causent les buts : la création des coéquipiers sur la glace
     // change la probabilité que CE lancer entre.
@@ -4406,7 +4505,8 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir * crea
         * (fg / REF.fg) * facteurDef * facteurRob * traits * (unite ? unite.qualite : 1) * chance * devantFilet * elanDe(off, instant)
         * (off.finitionFacteur ?? 1) * qualite * (mode === 'FE' && st ? FE_QUALITE : 1)
-        * (mode === 'FE' ? SPEC_NORME : 1) * (special === 'reussie' ? SPEC_MULT : 1),
+        * (mode === 'FE' ? SPEC_NORME : 1) * (special === 'reussie' ? SPEC_MULT : 1)
+        * (vedette && tireur === vedette ? ombre : 1),
       0.005, PCT_TIR_MAX);
 
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
@@ -5513,7 +5613,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
@@ -5530,7 +5630,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       if (!p) continue;
       p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
       delete p._maitrise; delete p._adapt; delete p._situ;
-      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran;
+      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri;
     }
     // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
     poserStyles(teams);
@@ -6059,6 +6159,10 @@ export const MUTATIONS = {
     quoi: 'Il apprend les autres postes de son groupe : plus aucune pénalité hors position (centre ou ailes ; les deux côtés en défense).' },
   cran: { nom: 'Monte d\'un cran', ico: '⏫', cible: 'libre', source: 'atelier', cran: 1,
     quoi: 'Il rend à 100 % une ligne plus haut : un trio (ou une paire) de plus où il est à sa place.' },
+  enBas: { nom: 'Joue en bas', ico: '⏬', cible: 'libre', source: 'atelier', enBas: true, lancers: 0.96,
+    quoi: 'Un franc-tireur de premier trio qui rend au quatrième : la pénalité de joueur trop bas ne le touche plus, là seulement. Un cran plus haut, elle mord encore. Il lance un peu moins.' },
+  chasse: { nom: 'La chasse à la vedette', ico: '👤', cible: 'libre', source: 'atelier', ombre: 0.86, lancers: 0.97,
+    quoi: 'Tant qu\'il est habillé, il colle à leur meilleur joueur, même quand son trio n\'est pas sur la glace. Ce joueur-là marque moins. Lui lance un peu moins.' },
   physio: { nom: 'Le physio', ico: '🩺', cible: 'libre', source: 'atelier', physio: true,
     quoi: 'Le physio et le psy s\'en occupent : tous ses malus de carte disparaissent (un genou qui grince, une confiance ébranlée, un tir perdu).' },
   lustre: { nom: 'Le lustre', ico: '✨', cible: 'libre', source: 'atelier', lustre: true,
@@ -6131,6 +6235,10 @@ export const MUTATIONS = {
   contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋️', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.85, finition: 0.99 },
   contrat_bonus: { nom: 'Clause de performance', ico: '💰', cible: 'libre', source: 'contrat', quoi: 'Un boni à trente buts : il force tout, même quand il ne faut pas.', finition: 1.05, creation: 1.03, blessure: 1.15 },
   contrat_leader: { nom: 'Le « C » cousu', ico: '©️', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.03, defense: 0.98 },
+  style_courbe: { nom: 'Style : la courbe', ico: '📏', cible: 'libre', source: 'style', quoi: 'La courbe que le gabarit n\'aime pas : le lancer trompe, il passe moins.', profils: { sniper: 10, passeur: -6 }, finition: 1.04, creation: 0.98 },
+  style_accrocheur: { nom: 'Style : l\'accrocheur', ico: '🪝', cible: 'libre', source: 'style', quoi: 'Il retient le bâton dans les coins, comme avant la règle. Moins de jeux, moins de lancers.', profils: { checker: 10, defensif: 8 }, defense: 0.97, lancers: 0.97 },
+  style_fantome: { nom: 'Style : le fantôme', ico: '👻', cible: 'libre', source: 'style', abri: 0.5, creation: 0.96,
+    quoi: 'Leur paire ne le trouve pas : la moitié de leur étouffement ne compte pas sur ses lancers. Il joue seul, alors il crée moins.' },
 };
 const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
 /* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */
@@ -6145,7 +6253,7 @@ export const mutationNuit = k => {
   const M = MUTATIONS[k];
   return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
 };
-const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'lustre'];
+const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'lustre', 'enBas', 'chasse'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.
@@ -6184,6 +6292,9 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   if (!M || !p) return;
   if (M.partout) p._partout = true;
   if (M.cran) p._cran = (p._cran || 0) + M.cran;
+  if (M.enBas) p._enBas = true;
+  if (M.ombre) p._ombre = Math.min(p._ombre || 1, M.ombre);
+  if (M.abri) p._abri = Math.max(p._abri || 0, M.abri);
   if (M.lustre && extra && extra.carte && extra.carte.rar) p._carte = { ...extra.carte, recrue: !!(p._carte && p._carte.recrue) };
   if (M.physio) {
     for (const c of CANAUX_MUT) if (p._mut && p._mut[c] && estMalus(c, p._mut[c])) p._mut[c] = 1;
@@ -6231,6 +6342,9 @@ export function motsDeMutation(cle) {
   if (M.arrets) out.push({ txt: `Buts accordés ${flechesDe(M.arrets)}`, bon: M.arrets < 1 });
   if (M.partout) out.push({ txt: 'Pénalité hors position : aucune', bon: true });
   if (M.cran) out.push({ txt: `Trios possibles : +${M.cran} vers le haut`, bon: true });
+  if (M.enBas) out.push({ txt: '4e trio et 3e paire : pénalité de zone 0', bon: true });
+  if (M.ombre) out.push({ txt: `Leur meilleur joueur : précision ${flechesDe(M.ombre)}`, bon: true });
+  if (M.abri) out.push({ txt: `Il ignore ${Math.round(M.abri * 100)} % de leur étouffement`, bon: true });
   if (M.physio) out.push({ txt: 'Ses malus de carte : effacés', bon: true });
   if (M.lustre) out.push({ txt: 'Sa carte : une variante de plus', bon: true });
   for (const [k, d] of Object.entries(M.profils || {})) {
@@ -6240,7 +6354,7 @@ export function motsDeMutation(cle) {
   // LES DEUX COURBES (S80, `echelleTardive`) : l'amélioration grandit ; le style et l'atelier font fitter un trio, tout de suite.
   const courbe = M.source === 'amelioration' ? motCourbe() : null;
   if (courbe) out.push(courbe);
-  else if (M.source !== 'amelioration' && (M.source === 'style' || M.partout || M.cran)) out.push({ txt: '🔗 Carte de trio : tout de suite, puis elle plafonne', bon: null });
+  else if (M.source !== 'amelioration' && (M.source === 'style' || M.partout || M.cran || M.enBas)) out.push({ txt: '🔗 Carte de trio : tout de suite, puis elle plafonne', bon: null });
   return out;
 }
 
@@ -6899,6 +7013,25 @@ export const AVANT_GROS = {
       { cle: 'cibler', nom: 'Le cibler', bon: 'On lui fait payer son départ', prix: 'L\'arbitre le voit venir', robustesse: 1, discipline: 1.1 },
       { cle: 'ignorer', nom: 'L\'ignorer', bon: 'On joue notre match', defense: 0.97 },
     ] },
+  gabarit: { ico: '📏', titre: 'Le gabarit dans le vestiaire',
+    irl: 'Depuis 1990, les arbitres peuvent mesurer la courbe d\'un bâton.',
+    recit: 'Quelqu\'un a laissé un gabarit sur le banc. Tes meilleurs bâtons ne passeraient pas.',
+    options: [
+      { cle: 'garder', nom: 'Garder les courbes', bon: 'Le tir tombe', prix: 'S\'ils mesurent, les punitions tombent aussi', finition: 1.04, discipline: 1.15 },
+      { cle: 'changer', nom: 'Changer les bâtons', bon: 'Rien à mesurer', discipline: 0.92 },
+    ] },
+  desert: { ico: '🚪', titre: 'Le plan du filet désert',
+    recit: 'Ton adjoint a écrit un jeu : le gardien sort à la moitié de la troisième, pas à la dernière minute.',
+    options: [
+      { cle: 'tot', nom: 'Le sortir tôt', bon: 'Un attaquant de plus quand ça compte', prix: 'Le filet est vide longtemps', volume: 1.05, defense: 1.06 },
+      { cle: 'tard', nom: 'À la dernière minute, comme tout le monde', bon: 'On ne donne pas le match', defense: 0.98 },
+    ] },
+  sifflet: { ico: '🦓', titre: 'Cet arbitre laisse jouer',
+    recit: 'Le rapport est clair : celui de ce soir a le sifflet dans la poche. Tes vétérans veulent en profiter.',
+    options: [
+      { cle: 'profiter', nom: 'Accrocher, retenir, bloquer', bon: 'Les jeux meurent dans les coins', prix: 'S\'il change d\'idée, ça coûte cher', defense: 0.95, discipline: 1.12 },
+      { cle: 'propre', nom: 'Jouer propre quand même', bon: 'La tête froide', discipline: 0.9 },
+    ] },
 };
 
 /* L'événement d'avant un gros match : pur, et jamais deux fois le même dans une partie (`deja`). */
@@ -6947,6 +7080,8 @@ export const INCIDENTS = {
     option: { cle: 'accrocher', ico: '🪝', nom: 'En profiter : accrocher, retenir', bon: 'Tout passe', prix: 'Si ça tourne, ça tourne mal', defense: 0.93, discipline: 0.9 } },
   paire: { ico: '🚑', titre: 'Un de tes défenseurs est resté au vestiaire',
     option: { cle: 'cinq', ico: '🔄', nom: 'Doubler la 1re paire', bon: 'Tes meilleurs défenseurs sur la glace', prix: 'Ils vont finir à plat', D: [1.35, 1, 0.65], energie: 1.1 } },
+  gabarit: { ico: '📏', titre: 'L\'arbitre a sorti son gabarit',
+    option: { cle: 'courbes', ico: '🏒', nom: 'Garder les courbes quand même', bon: 'Le tir reste vicieux', prix: 'Une punition s\'il mesure le bon bâton', finition: 1.04, discipline: 1.22 } },
 };
 /* L'incident de l'entracte : pur, de la graine et du match. */
 function incidentDuMatch(graine, cle) {

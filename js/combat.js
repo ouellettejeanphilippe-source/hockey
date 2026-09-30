@@ -253,6 +253,23 @@ export const CARTES_MATCH = {
   nuitMagique: { nom: 'La nuit magique', ico: '🌌', cout: 2, rarete: 'legendaire', genre: 'tactique', epuise: true,
     texte: 'Tout le monde s\'en souviendra encore dans trente ans.', effet: { finition: 1.06, defense: 0.95, energie: 0.95 } },
 
+  /*
+   * CONTOURNER LE RÈGLEMENT. Les mêmes canaux, un prix à chaque trou :
+   * un joueur de trop, une courbe hors gabarit, une carte d'attaque qui
+   * coûte moins, le filet désert, le jeu retardé.
+   */
+  sixGlace: { nom: 'Six sur la glace', ico: '🧢', cout: 1, rarete: 'commune', genre: 'attaque',
+    texte: 'Le changement de trop, fait exprès : un joueur de plus le temps d\'un jeu.', effet: { volume: 1.07, discipline: 1.18 } },
+  courbeIllegale: { nom: 'La courbe illégale', ico: '📏', cout: 1, rarete: 'peu', genre: 'attaque',
+    texte: 'Le tir tombe. L\'arbitre a un gabarit dans la poche.',
+    pari: { chance: 0.5, gagne: { finition: 1.08 }, perd: { discipline: 1.22 } } },
+  paragraphe: { nom: 'Le paragraphe oublié', ico: '📖', cout: 1, rarete: 'peu', genre: 'tactique',
+    texte: 'Ce jeu n\'est dans aucun livre. Tes cartes d\'attaque coûtent moins cher.', rabais: 'attaque', effet: { volume: 1.02 } },
+  filetDesert: { nom: 'Le filet désert', ico: '🚪', cout: 2, rarete: 'rare', genre: 'attaque',
+    texte: 'Le sixième attaquant sort trop tôt, et il reste sorti.', effet: { volume: 1.08, finition: 1.04, defense: 1.08 } },
+  retardement: { nom: 'Retarder le jeu', ico: '🕐', cout: 1, rarete: 'peu', genre: 'defense',
+    texte: 'La rondelle glacée, le dégagement dans la vitre, le gardien qui fige.', effet: { defense: 0.97, volume: 0.97 }, adv: { volume: 0.96 } },
+
   // ---- malédictions ----
   distraction: { nom: 'La distraction', ico: '📰', cout: 1, rarete: 'maudite', genre: 'malediction', maudite: true,
     texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 élan et ne fait rien.' },
