@@ -2369,7 +2369,11 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
   .hub-barre .hub-actions-rang .btn { min-height: 36px; }
   body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: var(--esp-4); }
   /* Hors de « Match », le volet seul : l'affiche et les boutons appartiennent à l'onglet Journée. */
-  body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-carte, body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-actions { display: none; }
+  body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-carte, body.hub-docke .hub-sheet:not([data-vue="match"]):not([data-vue="boite"]) .hub-actions { display: none; }
+  /* Les sous-onglets du Club (1.0, R2) : sur « Match », la boîte ne s'empile pas (sa tuile y mène) ; sur « Boîte », elle seule, dépliée, avec la barre. */
+  body.hub-docke .hub-sheet[data-vue="match"] .hub-boite { display: none; }
+  body.hub-docke .hub-sheet[data-vue="boite"] .hub-volet { display: none; }
+  body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.pliee .hub-msgs { display: flex; }
   body.hub-docke .hub-sheet .hub-actions { overflow: visible; min-height: auto; }
 }
 @media (min-width: 1200px) {
@@ -2384,6 +2388,9 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
   /* Le panneau de droite : les boutons puis la boîte. `height: 0` pour qu'il ne gonfle pas la rangée de
      l'affiche qu'il enjambe ; `min-height: 100%` le rend à sa hauteur une fois la grille posée. */
   body.hub-docke .hub-sheet .hub-actions { grid-area: boite; height: 0; min-height: 100%; align-content: flex-start; overflow-y: auto; padding: var(--esp-4) var(--esp-4) var(--esp-4) 0; border-bottom: 0; }
+  /* Sur « Boîte » au bureau, la boîte prend toute la largeur ; l'affiche et le volet attendent « Match ». */
+  body.hub-docke .hub-sheet[data-vue="boite"] .hub-carte, body.hub-docke .hub-sheet[data-vue="boite"] .hub-volet { display: none; }
+  body.hub-docke .hub-sheet[data-vue="boite"] .hub-actions { grid-column: 1 / -1; padding-left: var(--esp-4); }
 }
 @media (min-width: 1600px) { body.hub-docke .hub-sheet { grid-template-columns: minmax(0, 1fr) 440px; } }
 

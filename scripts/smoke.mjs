@@ -54,7 +54,7 @@ const _wait = page.waitForSelector.bind(page);
  * (qui règle d'abord les choix forcés, plus bas) ou `_click`.
  */
 const SECTION_DE = {
-  match: 'club', alignement: 'effectif', repechage: 'marche', marche: 'marche',
+  match: 'club', boite: 'club', saison: 'club', alignement: 'effectif', repechage: 'marche', marche: 'marche',
   classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'collection', cartable: 'collection',
 };
 const SECTIONS = ['club', 'effectif', 'marche', 'ligue', 'collection'];
@@ -116,6 +116,21 @@ async function eprouverCoquille() {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(250);
     if (await page.isVisible('#gameModal')) { await page.click('#closeGameBtn').catch(() => {}); await page.waitForTimeout(200); }
+  }
+  // LES SOUS-ONGLETS DU CLUB (1.0, R2) : Match, Boîte, Saison — la boîte de réception ne s'empile plus sous l'affiche.
+  await page.click('#navbar .navtab[data-section="club"]');
+  await page.waitForTimeout(200);
+  const sousClub = await page.$$eval('#sousNav:not([hidden]) .soustab', e => e.map(x => x.dataset.page).join(','));
+  if (sousClub !== 'match,boite,saison') errors.push(`en saison, le Club n'a pas ses trois sous-onglets : « ${sousClub} »`);
+  else {
+    await page.click('#sousNav .soustab[data-page="saison"]');
+    await page.waitForTimeout(300);
+    const saison = await page.evaluate(() => ({ route: !!document.querySelector('#hubModal .hub-route'), affiche: (e => e && e.getBoundingClientRect().height > 0)(document.querySelector('#hubModal .hub-face')) }));
+    if (!saison.route) errors.push('l\'onglet Saison du Club ne montre pas la route de la saison');
+    if (saison.affiche) errors.push('l\'onglet Saison du Club montre encore l\'affiche du match');
+    await page.click('#sousNav .soustab[data-page="match"]');
+    await page.waitForTimeout(200);
+    console.log(`   le Club en sous-onglets : ${sousClub}`);
   }
   const soulignes = await page.evaluate(() => [...document.querySelectorAll('a, button, .lien-joueur, .lien-equipe')]
     .filter(e => e.offsetParent && getComputedStyle(e).textDecorationLine.includes('underline')).map(e => e.textContent.trim().slice(0, 24)));
@@ -1812,8 +1827,8 @@ async function traverserSaison(etiquette, reprise = false) {
      * parties en S72 : aucune jauge ne doit rester à l'écran.
      */
     {
-      // S79 : la route vit dans « Ma fiche » (l'onglet Calendrier), avec sa légende.
-      await aller('calendrier', _click);
+      // S79 : la route vit dans « Ma fiche » (Club › Saison), avec sa légende.
+      await aller('saison', _click);
       await page.waitForTimeout(250);
       const route = await page.$$eval('#hubModal .hub-route-m', e => e.length);
       const legende = await page.$('#hubModal .hub-route-legende');
@@ -2122,7 +2137,7 @@ async function traverserSaison(etiquette, reprise = false) {
        */
       if (etiquette === 'saison') {
         await repondreAuxChoix();
-        await aller('calendrier');
+        await aller('saison');
         await page.waitForTimeout(250);
         const recit = await page.$$eval('#hubModal .recit .recit-ev', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
         const actes = await page.$$eval('#hubModal .recit .recit-acte-t', e => e.map(x => x.textContent.trim()));
