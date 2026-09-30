@@ -153,6 +153,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 
 - **jambes** : la fatigue d'un joueur, sur 100 (jamais « % », jamais « énergie »).
+- **Sur la glace** : dans la fiche, en mots, ce que le moteur fera du joueur — l'effet de son rôle maîtrisé, ce qu'un coup lui coûte (js/fiche.js). Pas une cote, pas une statistique de plus ; le profil en crans a été essayé et retiré.
 - **niveau** : ce que le joueur valait dans sa saison, à son poste — Soutien, Régulier, Pilier, ★ Étoile, ★ Phénomène (`js/niveaux.js`). Le rôle a ses propres mots (élite, très bon, bon…), qui ne s'appellent pas « niveau ».
 - **rôle** : ce que le joueur fait (sniper, passeur, checker…), une icône et un mot ; un système demande des rôles.
 - **zone** : où le joueur rend (T1-2, P1…) ; une case porte les zones qui y sont chez elles.

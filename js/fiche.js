@@ -7,10 +7,10 @@ import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, signe, money, pct3, ord } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
-import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS } from './sim.js';
+import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, profilPrincipal, maitrise, EFFET_ROLE, COUP_JAMBES, COUP_ABSORBE } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { sesRolesHtml, barresProfils } from './gerant.js';
+import { sesRolesHtml, barresProfils, niveauDe as motDeMaitrise, carrureDe } from './gerant.js';
 import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
@@ -37,6 +37,50 @@ function ficheTable(p) {
   };
   return `<div class="profil-grid">${axesDe(p).map(cell).join('')}</div>
   <div class="tags fiche-table-tags">${tagsTableHtml(p, true)}</div>`;
+}
+
+/*
+ * SUR LA GLACE (1.0). JP : *pas nécessairement une cote, mais quelque chose qui me dit comment le joueur va jouer et
+ * impacter le jeu* ; puis *mets juste pas de stats*. Des mots, tirés de ce que le moteur fera de lui : l'effet de son
+ * rôle maîtrisé, avec le chiffre du moteur (EFFET_ROLE), et ce qu'un coup lui coûte selon sa carrure (COUP_JAMBES,
+ * COUP_ABSORBE). Les mots du moteur, jamais ses cotes, et aucune statistique de plus.
+ */
+const pctMot = x => `${Math.round(x * 100)} %`;
+const EFFETS_GLACE = {
+  sniper: { bon: 'en avantage numérique, c\'est lui qui tire — jusqu\'à deux fois plus souvent', mal: 'en avantage numérique, on ne lui laisse pas la rondelle' },
+  passeur: { bon: 'il crée : ses passes font finir ses coéquipiers', mal: 'il crée peu pour les autres' },
+  manieur: { bon: 'il crée : ses passes font finir ses coéquipiers', mal: 'il crée peu pour les autres' },
+  deuxsens: { bon: `il étouffe les lancers adverses pendant ses présences (jusqu'à −${pctMot(EFFET_ROLE.deuxsens)})`, mal: 'il laisse des lancers de qualité pendant ses présences' },
+  checker: { bon: `il étouffe les lancers adverses pendant ses présences (jusqu'à −${pctMot(EFFET_ROLE.checker)})`, mal: 'il laisse des lancers de qualité pendant ses présences' },
+  defensif: { bon: `il étouffe les lancers adverses pendant ses présences (jusqu'à −${pctMot(EFFET_ROLE.defensif)})`, mal: 'il laisse des lancers de qualité pendant ses présences' },
+  physique: { bon: `il étouffe les lancers adverses pendant ses présences (jusqu'à −${pctMot(EFFET_ROLE.physique)})`, mal: 'il laisse des lancers de qualité pendant ses présences' },
+  bagarreur: { bon: `il intimide le trio d'en face : sa finition tombe de ${pctMot(EFFET_ROLE.bagarreur)} pendant ses présences`, mal: 'il n\'intimide personne' },
+  power: { bon: `devant le filet, ses coéquipiers finissent mieux (+${pctMot(EFFET_ROLE.power)})`, mal: 'devant le filet, il ne gêne personne' },
+  energie: { bon: `il garde ses jambes : son match lui coûte ${pctMot(EFFET_ROLE.energie)} de moins`, mal: 'son match lui coûte plus de jambes qu\'à un plombier' },
+  offensif: { bon: `il lance de la pointe : sa paire tire ${pctMot(EFFET_ROLE.offensif)} de plus`, mal: 'de la pointe, il ne lance pas' },
+};
+function surLaGlaceHtml(p) {
+  if (surTable()) return '';
+  const li = (txt, cls = '') => `<li${cls ? ` class="${cls}"` : ''}>${txt}</li>`;
+  const lignes = [];
+  if (p.p === 'G') {
+    lignes.push(li('Son % d\'arrêts est le chiffre que le moteur lit sur chaque lancer ; son style dit comment il les fait.'));
+    lignes.push(li('Il garde ses jambes trois départs de suite ; au quatrième, elles baissent et il accorde plus.'));
+    return `<ul class="glace">${lignes.join('')}</ul>`;
+  }
+  const pp = profilPrincipal(p);
+  if (pp) {
+    const mot = motDeMaitrise(pp.fit), m = maitrise(p, pp.cle), E = EFFETS_GLACE[pp.cle];
+    const fort = m >= 0.05, faible = m <= -0.05;
+    const phrase = E ? (faible ? E.mal : fort ? E.bon : `${E.bon}, ni plus ni moins qu'un ${pp.nom.toLowerCase()} moyen de la ligue`) : '';
+    lignes.push(li(`<b>${pp.ico} ${esc(pp.nom)} ${esc(mot)}</b>${phrase ? ` : ${esc(phrase)}.` : '.'}`, fort ? 'bon' : faible ? 'prix' : ''));
+  }
+  const c = carrureDe(p);
+  if (c) {
+    const cout = x => (COUP_JAMBES * x).toFixed(1).replace('.', ',');
+    lignes.push(li(c.ico === '🪨' ? `<b>${c.ico} ${c.mot}</b> : un coup reçu ne lui coûte que ${cout(1 - COUP_ABSORBE)} jambe, et le jeu physique de sa ligne rapporte.` : `<b>${c.ico} ${c.mot}</b> : un coup reçu lui coûte ${cout(1 + COUP_ABSORBE)} jambes, et sa ligne prend des punitions en rentre-dedans.`, c.ico === '🪨' ? 'bon' : 'prix'));
+  }
+  return lignes.length ? `<ul class="glace">${lignes.join('')}</ul>` : '';
 }
 
 function profilMesure(p) {
@@ -307,12 +351,15 @@ export function showPlayerModal(p, opts = {}) {
 
   const equipeSim = opts.team ? `<span class="pcard-full-club">${getTeamLogoHtml(opts.team.tag, 14)} ${esc(teamLabel(opts.team))}</span>` : '';
   // SES RÔLES (1.0, C2) : sa maîtrise de chaque rôle, qui décide du fit dans un système, à un toucher.
+  // LE PROFIL EN CRANS (1.0) : d'un coup d'oeil, où il se range dans sa saison sur ce que le moteur lit — avant ses rôles.
+  const glace = surLaGlaceHtml(p);
+  const profil = glace ? `<div class="section-label">Sur la glace</div>${glace}` : '';
   const sesRoles = p.p === 'G' || surTable() ? '' : `<div class="section-label">Ses rôles</div>${sesRolesHtml(p)}`;
-  const corps = apercu ? sesRoles + plusDeDetails : apres
+  const corps = apercu ? profil + sesRoles + plusDeDetails : apres
     ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
-       ${sesRoles}
+       ${profil}${sesRoles}
        ${plusDeDetails}`
     : surTable()
     ? `<div class="section-label">Sur la glace de table</div>
@@ -321,7 +368,7 @@ export function showPlayerModal(p, opts = {}) {
        ${destNote}`
     : `<div class="section-label">Impact sur ton alignement</div>
        ${destNote}
-       ${sesRoles}
+       ${profil}${sesRoles}
        ${plusDeDetails}`;
 
   /*

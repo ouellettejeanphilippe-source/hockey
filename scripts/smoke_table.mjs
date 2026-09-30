@@ -319,12 +319,15 @@ const parseM = lireNombre;
 const lireSignes = async () => parseInt((await page.textContent('#cnt')).trim(), 10) || 0;
 let signed = 0, guard = 0;
 while (signed < 23 && guard++ < 320) {
+  // La roulette se pose avant qu'on lise les cartes : signer pendant qu'elle tourne, c'est signer dans l'ancien vestiaire.
+  await page.waitForFunction(() => !/La roulette tourne/.test(document.querySelector('#spin')?.textContent || ''), null, { timeout: 60000 }).catch(() => {});
   const rem = parseM(await page.textContent('#capAmt'));
   const maxPick = rem - Math.max(0, 23 - signed - 1) * MIN_SAL;
   const cards = await page.$$('.pcard');
   const infos = await page.$$eval('.pcard', els => els.map(el => ({
     price: (((t) => { const m = t.replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/); return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0; })(el.querySelector('.pcard-price')?.textContent || '')),
-    ok: !!el.querySelector('.btn-sign:not([disabled])'),
+    // Un bouton « Signer · bloque la fin » (1.0, J1-Q) demande deux touchers : l'auto-draft ne le prend jamais d'un seul.
+    ok: !!el.querySelector('.btn-sign:not([disabled]):not(.risque)'),
   })));
   let idx = infos.findIndex(c => c.ok && c.price <= maxPick);
   if (idx < 0) {

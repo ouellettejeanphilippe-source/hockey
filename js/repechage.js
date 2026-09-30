@@ -1154,7 +1154,11 @@ export function playerCardEl(p) {
   // salaire, le chiffre clé, le rôle et la zone, où il ira, le bouton — à la
   // même place dans les dix séries. Le tirage d'une or est sur la carte
   // (« 07/25 »), sur un tampon qui ne se lit pas comme une note.
-  el.innerHTML = `${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team', eclat: neuve })}
+  // LA RANGÉE DE LISTE (1.0, R4). JP : *mêmes fonctionnalités, organisées totalement différemment*. Au téléphone, le
+  // vestiaire est une LISTE : une rangée par joueur — son visage, son nom, ses positions et son club — et la bande qui
+  // se compare ; le carton, lui, est dans sa fiche, à un toucher. Au bureau, la rangée se cache et le carton reste.
+  el.innerHTML = `<div class="pcard-rangee"><span class="pcard-mug">${headshotHtml(p)}</span><span class="pcard-qui"><b class="pcard-nom">${formatName(p.n)}</b><small>${esc(positionLabel(p).split(' / ').join('/'))} · ${esc(p.t)} ${esc(p.s || '')}</small></span></div>
+    ${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team', eclat: neuve })}
     <div class="pcard-fiche">
       <div class="pcard-ligne"><span class="pcard-price">${st.salaryMain}</span>${cle}</div>
       <div class="pcard-mid">${mid}</div>
@@ -1334,7 +1338,9 @@ export function renderPool() {
    * écran, une bande qu'on balaie du doigt sur téléphone. En LOTO : la main,
    * trois cartes dans l'ordre des clubs, rien d'autre à ranger.
    */
-  const byPos = !MODE().loto && G.poolView === 'POS' && G.filter === 'ALL';
+  // Au téléphone, la liste (1.0, R4) : six colonnes qu'on balaie sous des filtres qui font la même chose, c'était deux
+  // façons de chercher le même joueur ; la bascule y est cachée (style.css, .pool-tools .seg-view).
+  const byPos = !MODE().loto && G.poolView === 'POS' && G.filter === 'ALL' && !matchMedia('(max-width: 679.98px)').matches;
   host.className = 'pool' + (byPos ? ' by-pos' : '');
 
   if (byPos) {

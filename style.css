@@ -183,6 +183,16 @@ a { color: var(--bleu); text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+/* ---- Au téléphone (1.0, R2), les jetons baissent À LA SOURCE : les tailles et les espaces d'un bureau à 1440 px sont
+   trop gros pour 390 px — tout paraissait zoomé et empilé. Rien sous 12 px, rien sous 44 px de cible. ---- */
+@media (max-width: 679.98px) {
+  :root {
+    --t-2: 13px; --t-3: 15px; --t-4: 17px; --t-5: 22px; --t-6: 30px; --t-7: 44px;
+    --esp-3: 10px; --esp-4: 12px; --esp-5: 16px; --esp-6: 20px;
+    --actionbar-h: 64px; --navbar-h: 56px;
+  }
+}
+
 /* =====================================================================
    1. LA COQUILLE — le tableau indicateur, le rail et la barre, l'écran,
       la barre d'action, le retour, le focus, le toast, le chargement
@@ -247,20 +257,30 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 .fill-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--or); opacity: 0.8; transition: left var(--t-compte) var(--e-sortie); pointer-events: none; }
 @media (max-width: 430px) { .capgauge-max { display: none; } }
 @media (max-width: 679.98px) {
-  .tete-ch { flex: 1 1 0; }
-  .tete-ch-v, .capgauge-amt .amt { font-size: var(--t-4); }
-  .capgauge.tete-ch { max-width: none; }
-  body:not(.au-repechage) .capgauge { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: var(--esp-2); }
-  body:not(.au-repechage) .capgauge-row { display: contents; }
-  body:not(.au-repechage) .capgauge-label { grid-column: 1 / -1; margin-bottom: 2px; }
-  body:not(.au-repechage) .capgauge-row.small > span:first-child { display: none; }
-  body:not(.au-repechage) #perSlotLbl { justify-self: end; }
-  body:not(.au-repechage) .capgauge .track { grid-column: 1 / -1; order: 1; }
+  /* Une rangée : l'écusson, le club et son état, puis les chiffres en cellules, le menu. Les étiquettes s'effacent
+     (une fiche « 4-0-0 », un rang « 3e » et un montant se reconnaissent seuls) ; la barre du plafond reste, en 3 px. */
+  .topbar { padding: var(--esp-2) var(--esp-3) 0; }
+  .topbar:has(.sousnav[hidden]) { padding-bottom: var(--esp-2); }
+  .topbar-inner { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "retour club chiffres menu"; gap: var(--esp-2); }
+  .tete-club { gap: var(--esp-2); }
+  .tete-ecu { width: 28px; height: 28px; }
+  .tete-nom { font-size: var(--t-3); }
+  .tete-chiffres { flex: none; }
+  .tete-ch { align-content: center; padding: 0 var(--esp-2); }
+  .tete-ch:last-child { padding-right: 0; }
+  .tete-ch-l, .capgauge-label, .capgauge-max, #perSlotLbl { display: none; }
+  .tete-ch-v, .capgauge-amt .amt { font-size: var(--t-3); }
+  .capgauge.tete-ch { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: var(--esp-2); max-width: none; }
+  .capgauge-row { display: contents; }
+  .capgauge-row.small > span:first-child { font-size: var(--t-1); }
+  .capgauge-row.small strong { font-size: var(--t-3); }
+  .capgauge .track { grid-column: 1 / -1; order: 1; height: 3px; margin-top: 2px; }
   body:not(.au-repechage):not(.mode-rogue) .capgauge-row.small { display: none; }
-  body.au-repechage .capgauge { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: baseline; column-gap: var(--esp-2); }
-  body.au-repechage .capgauge-row { display: contents; }
-  body.au-repechage .capgauge-row.small > span:first-child { justify-self: end; }
-  body.au-repechage .capgauge .track { grid-column: 1 / -1; order: 1; }
+  #menuBtn { width: 40px; height: 40px; }
+  /* Avec « ‹ Retour » (derrière le banc), le nom du club cède la place : l'écusson suffit à dire chez qui on est. */
+  .topbar-inner:has(> .retour-btn:not([hidden])) .tete-id { display: none; }
+  .sousnav { margin-top: var(--esp-1); }
+  .soustab { min-height: 36px; padding: 0 var(--esp-3); }
 }
 @media (min-width: 680px) {
   .topbar { padding: var(--esp-2) var(--esp-4) 0; }
@@ -456,6 +476,12 @@ body.hub-cache #hubModal { display: none !important; }
   background: linear-gradient(90deg, color-mix(in srgb, var(--bon) 34%, var(--fond-2)) var(--pct, 0%), var(--fond-2) var(--pct, 0%));
 }
 body[data-zone="ref"] .actionbar { display: none; }
+/* Au téléphone, tant que l'alignement est incomplet, la barre n'a rien à faire : le compte des signés est dans
+   l'en-tête, et la place revient aux cartes. Elle arrive avec « Lancer la saison ». */
+@media (max-width: 999.98px) {
+  body.au-repechage:has(#mainBtn:disabled) { --actionbar-h: 0px; }
+  body.au-repechage:has(#mainBtn:disabled) .actionbar { display: none; }
+}
 body:has(#game.bilan) .actionbar { display: none; }
 body:has(#game.bilan) { --actionbar-h: 0px; }
 .hub-flottant { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--bas-coquille, 70px) + var(--esp-3)); min-width: 230px; min-height: 52px; box-shadow: var(--ombre); }
@@ -474,6 +500,10 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
 .toast.warn { border-left-color: var(--or); }
 .toast.bad { border-left-color: var(--mauvais); }
+@media (max-width: 1199.98px) {
+  .toast { left: var(--esp-3); right: var(--esp-3); max-width: none; transform: translateY(-6px); text-align: left; }
+  .toast.on { transform: none; }
+}
 @media (min-width: 1200px) { .toast { top: auto; bottom: calc(var(--actionbar-h) + var(--esp-4) + var(--safe-bas)); } }
 
 /* ---- Le chargement et le voile ---- */
@@ -711,7 +741,8 @@ img.visage.brut { object-position: 50% 12%; }
 .modal-header h2 { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
 .modal-header h2 .ico { width: 20px; height: 20px; color: var(--or); }
 .modal-body { padding: var(--esp-4); overflow-y: auto; -webkit-overflow-scrolling: touch; }
-.modal-card .close-btn { position: absolute; top: var(--esp-3); right: var(--esp-3); }
+/* La fiche : « ‹ Retour » dans une bande en tête, comme partout (le ✕ se posait sur le coin du carton). */
+.fiche-barre { flex: none; display: flex; align-items: center; padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); background: var(--fond-1); }
 .modal-lien { display: inline-flex; align-items: center; gap: var(--esp-1); margin-top: var(--esp-3); color: var(--bleu); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; }
 @media (min-width: 680px) {
   .modal-backdrop { align-items: center; padding: var(--esp-5); }
@@ -996,6 +1027,24 @@ a.spin-club:hover { background: var(--fond-2); }
 .dash-bad { color: var(--mauvais); }
 @media (min-width: 680px) { .h3-long { display: inline; } }
 
+/* ---- Au téléphone (1.0, R4) : le bandeau, les relances et le tableau de bord tiennent en trois rangées basses,
+        pour que la carte entière — le prix, le chiffre clé, Signer — tienne dans l'écran sous les filtres ---- */
+@media (max-width: 679.98px) {
+  .spin-top { padding: var(--esp-2) var(--esp-3) var(--esp-2) calc(var(--esp-3) + 10px); gap: var(--esp-2); }
+  .spin-top::before { width: 10px; }
+  .spin-logo { width: 32px; height: 32px; }
+  .spin-name { margin-top: 2px; font-size: var(--t-5); }
+  .spin-full, .spin-instruction { display: none; }
+  .spin-ext { width: 40px; height: 40px; }
+  .reroll { flex-direction: row; gap: var(--esp-2); min-height: 40px; font-size: var(--t-1); }
+  /* Deux chiffres : la case qu'on comble et le budget du choix ; les signables sont le badge de l'onglet Marché. */
+  .dash { padding: var(--esp-1) var(--esp-3); justify-content: space-between; gap: var(--esp-3); }
+  .dash-card { flex: 0 1 auto; display: flex; align-items: baseline; gap: var(--esp-2); padding: 0; border-left: 0; }
+  .dash-card:first-child h3, .dash-card:nth-child(3) { display: none; }
+  .dash-big, .dash-big.sm { font-size: var(--t-3); }
+  .pool-tools .seg-view { display: none; }
+}
+
 /* ---- Le Loto au téléphone : le bandeau se resserre, ce qui s'y répète disparaît ---- */
 .spin-loto .spin-top { padding-top: var(--esp-2); padding-bottom: var(--esp-2); }
 .spin-loto .spin-logo { width: 32px; height: 32px; }
@@ -1134,6 +1183,30 @@ a.spin-club:hover { background: var(--fond-2); }
   .pcard-price { font-size: var(--t-2); }
   .pcard-big b { font-size: var(--t-4); }
   .btn-sign { padding: 0 var(--esp-1); font-size: var(--t-2); letter-spacing: 0.04em; }
+}
+
+/* ---- Au téléphone (1.0, R4), le vestiaire est une LISTE : une rangée par joueur — visage, nom, poste et club, prix
+        et chiffre clé, puis rôle et zone, où il ira, Signer. Le carton est dans la fiche, à un toucher. ---- */
+.pcard-rangee { display: none; }
+@media (max-width: 679.98px) {
+  .pane-pool .pool, .pane-pool.loto .pool { grid-template-columns: minmax(0, 1fr); gap: 1px; background: var(--filet-2); border-top: 1px solid var(--filet-2); }
+  .pcard { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-areas: "mug qui ligne" "mid mid sign" "dest dest sign"; align-items: center; gap: var(--esp-2) var(--esp-3); padding: var(--esp-3) var(--esp-4); background: var(--fond-1); container: none; }
+  .pcard > .carton { display: none; }
+  .pcard-rangee, .pcard-fiche { display: contents; }
+  .pcard-mug { grid-area: mug; position: relative; width: 44px; height: 44px; border-radius: var(--r-1); overflow: hidden; background: var(--fond-3); }
+  .pcard-mug > * { position: absolute; inset: 0; display: grid; place-items: center; }
+  .pcard-mug img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+  .pcard-qui { grid-area: qui; display: grid; min-width: 0; }
+  .pcard-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pcard-qui small { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pcard-ligne { grid-area: ligne; justify-content: flex-end; gap: var(--esp-3); }
+  .pcard-big b { font-size: var(--t-4); }
+  .pcard-mid { grid-area: mid; }
+  .pcard-dest { grid-area: dest; }
+  .pcard-dest:empty { display: none; }
+  .pcard .btn-sign { grid-area: sign; width: auto; min-width: 96px; min-height: 40px; font-size: var(--t-2); }
+  .pcard.locked .pcard-mug { opacity: 0.45; }
+  .pcard.signed .pcard-mug { outline: 2px solid var(--bon); }
 }
 
 /* ---- La page Marché : des tuiles plates, une icône au trait, un mot, une phrase ---- */
@@ -1753,7 +1826,7 @@ button.marche-tuile:active { transform: scale(0.98); }
 .pcard-full-club { display: inline-flex; align-items: center; gap: var(--esp-1); margin-left: var(--esp-2); color: var(--encre); text-transform: none; letter-spacing: 0; font-weight: 600; }
 
 /* ---- La carte, recto et verso empilés dans la même case : elle garde la hauteur de la plus haute face ---- */
-.fiche-carte { position: relative; width: calc(100% - var(--esp-5)); max-width: 400px; margin: var(--esp-3) auto 0; }
+.fiche-carte { position: relative; width: calc(100% - var(--esp-5)); max-width: min(400px, 52dvh * 5 / 7); margin: var(--esp-3) auto 0; }
 .fc-faces { display: grid; }
 .fc-faces > .fc-face { grid-area: 1 / 1; }
 .fc-face { position: relative; isolation: isolate; min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); touch-action: pan-y; cursor: pointer; }
@@ -1821,6 +1894,13 @@ button.marche-tuile:active { transform: scale(0.98); }
 .fc-poser-mot { flex: none; align-self: center; margin-left: auto; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--or); color: var(--sur-or); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
 @keyframes fc-attend { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--or) 35%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .fc-poser { animation: none; } }
+
+/* ---- Sur la glace (js/fiche.js) : trois ou quatre phrases, un filet vert pour ce qui rapporte, rouge pour ce qui coûte ---- */
+.glace { list-style: none; display: grid; gap: var(--esp-2); margin: var(--esp-2) 0 var(--esp-3); padding: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.glace li { padding-left: var(--esp-3); border-left: 2px solid var(--filet); }
+.glace li.bon { border-left-color: var(--bon); }
+.glace li.prix { border-left-color: var(--mauvais); }
+.glace li b { color: var(--encre); }
 
 /* ---- Sous la carte : ce qui décide — où il ira, ses rôles, le détail replié ---- */
 /* Ses rôles : une liste, le mot à droite ; le premier en vert, les faibles en retrait. */
@@ -1904,6 +1984,10 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line-head-regle:hover .line-name { color: var(--or); }
 .line-name { flex: none; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .line-id { flex: 1 1 auto; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; color: var(--or); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Ce que l'unité produit : les points par match des habillés, additionnés — une vraie stat en tête de bande. */
+.line-prod { flex: none; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
+.cell-l3 { flex-wrap: wrap; }
+.cell-sec { flex: 1 0 100%; text-align: right; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 .line-orig { flex: 0 1 auto; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-ferm { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 44px; padding: 0 var(--esp-2); border: 0; background: none; color: var(--encre-3); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; transition: color var(--t-vite); }
 .line-ferm:hover { color: var(--encre); }
@@ -2200,6 +2284,40 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 }
 /* Le volet de l'alignement à côté du vestiaire est étroit : le chiffre du résumé reprend sa taille de téléphone. */
 @media (min-width: 1400px) { body[data-page="repechage"] .sum-item .v { font-size: var(--t-4); } }
+/* ---- Au téléphone (1.0, R4), APRÈS les cases (à égalité de spécificité, la dernière règle gagne) : l'onglet nomme déjà l'écran,
+   le titre et la phrase d'aide s'effacent, le résumé tient sur une ligne, un onglet à la fois, une RANGÉE par joueur. ---- */
+.seg-effectif { display: none; }
+@media (max-width: 999.98px) {
+  /* Un onglet à la fois — l'attaque, la défense, le filet et la réserve — pour que l'alignement tienne en un écran. */
+  .seg-effectif { display: flex; }
+  body[data-effectif="F"] #rosterBoard .line:not([data-groupe="F"]), body[data-effectif="D"] #rosterBoard .line:not([data-groupe="D"]), body[data-effectif="G"] #rosterBoard .line:not([data-groupe="G"]) { display: none; }
+  .line-head { min-height: 36px; }
+  /* Une RANGÉE par joueur : la case (le poste, le salaire) à gauche, le nom et le chiffre clé, puis le rôle, le niveau et la zone. */
+  .line-slots, .line-slots.pair { grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 0; background: var(--filet-2); }
+  .slot { flex-direction: row; align-items: stretch; min-height: 56px; border: 0; border-radius: 0; }
+  .slot-band { flex: none; width: 54px; flex-direction: column; justify-content: center; gap: 1px; padding: 2px; box-shadow: inset -2px 0 0 var(--slot-stripe, var(--club-2)); }
+  .slot:has(> .slot-remove) .slot-band { padding-right: 2px; }
+  .slot-band .sb-role { font-size: var(--t-1); }
+  .slot-salary { margin: 0; font-size: var(--t-1); opacity: 0.85; }
+  .slot-inner { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "nom cle" "l1 l2"; align-items: center; column-gap: var(--esp-2); row-gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); }
+  .slot .slot-name { grid-area: nom; font-size: var(--t-3); }
+  .cell-l3 { grid-area: cle; justify-self: end; text-align: right; }
+  .cell-l1 { grid-area: l1; }
+  .slot-tags.cell-l2 { grid-area: l2; justify-self: end; margin: 0; justify-content: flex-end; }
+  .slot-inner .jambes { grid-column: 1 / -1; }
+  .slot-inner > .slot-meta, .slot-inner > .slot-tags:not(.cell-l2) { grid-column: 1 / -1; }
+  .slot.empty { flex-direction: row; justify-content: flex-start; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border: 1px dashed var(--filet); background: var(--fond-1); }
+  .slot-remove { top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: var(--r-1); opacity: 1; }
+  .slot:has(> .slot-remove) .slot-inner { padding-right: 34px; }
+  .ln-strat { min-height: 36px; }
+  .pane-roster .pane-title, .roster-hint { display: none; }
+  .team-summary { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-4); margin: var(--esp-2) 0 var(--esp-3); }
+  .sum-item { display: flex; align-items: baseline; gap: var(--esp-1); padding: 0; border-left: 0; }
+  .sum-item .k { min-height: auto; }
+  .sum-item .v { margin-top: 0; font-size: var(--t-3); }
+}
+
+
 /* == 6a. LE CLUB — le bureau (l'écran de saison), la boîte de réception, le dépistage, le portail, les tableaux du bureau == */
 /* Le bureau est le tableau de bord du gérant : l'affiche du match en bandeau bicolore, UN bouton
    (« Journée suivante »), la boîte de réception en panneau, le portail en tuiles, les tableaux en
@@ -2208,6 +2326,11 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 
 /* ---- La feuille : une colonne au téléphone (elle défile entière), une grille dès 1200 px ---- */
 body.hub-docke .hub-sheet { max-width: none; }
+/* Le tableau indicateur dit déjà la journée, la fiche et le rang (1.0, R2) : la bande de tête du bureau ne les redit pas.
+   Il ne reste que les outils (tes cartes, la boutique) et le ✕, à droite ; sans eux, pas de bande. Sur table, le tournoi la garde. */
+body.hub-docke:not(.mode-table) .hub-sheet .hub-head { display: none; }
+body.hub-docke:not(.mode-table) .hub-sheet .live-top { justify-content: flex-end; }
+body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):has(.hub-close[hidden]) { display: none; }
 .hub-carte { flex: none; padding: var(--esp-3) var(--esp-3) 0; container-type: inline-size; container-name: carte; }
 .hub-carte:empty { display: none; }
 .hub-volet { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
@@ -2215,14 +2338,42 @@ body.hub-docke .hub-sheet { max-width: none; }
 @media (max-width: 1199.98px) {
   body.hub-docke .hub-sheet { overflow-y: auto; overscroll-behavior: contain; }
   body.hub-docke .hub-sheet > * { flex-shrink: 0; }
-  body.hub-docke .hub-sheet .live-top { position: sticky; top: 0; z-index: 3; }
+  body.hub-docke .hub-sheet .live-top { position: sticky; top: 0; z-index: 3; padding: var(--esp-1) var(--esp-3); }
+  /* La barre d'action (1.0, R2) : « Journée suivante » et ses seconds rôles collés au bas de la feuille, jamais par-dessus le volet ;
+     la boîte de réception se range entre l'affiche et le volet. */
+  body.hub-docke .hub-sheet .hub-actions:has(> .hub-barre) { display: contents; }
+  body.hub-docke .hub-sheet .hub-barre { order: 10; flex: 0 0 auto; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
+  body.hub-docke .hub-sheet .hub-boite { order: 2; margin: 0; padding: var(--esp-3) var(--esp-3) 0; }
+  /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire s'ouvrent en sous-page
+     depuis une rangée de tuiles à icône ; ce qu'elles portent ne s'empile plus dans l'affiche. */
+  .hub-match .hub-match-note:not(.hub-ereintant), .hub-match .hub-depistage, .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
+  body.hub-docke:not(.mode-table) .hub-sheet .live-top { padding: 2px var(--esp-3); }
+  body.hub-docke:not(.mode-table) .hub-sheet .hub-outil { min-height: 32px; padding: 0 var(--esp-2); }
+  .hub-tuiles-tel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; border-top: 1px solid var(--filet-2); background: var(--filet-2); }
+  .hub-tt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-height: 64px; padding: var(--esp-1); border: 0; background: var(--fond-1); color: var(--encre); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+  .hub-tt i { font-style: normal; font-size: var(--t-4); line-height: 1; }
+  .hub-tt { position: relative; }
+  .hub-tt b { position: absolute; top: 6px; right: calc(50% - 26px); min-width: 16px; padding: 2px 4px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
+  .hub-tt:active { background: var(--fond-2); }
+  /* La boîte pliée : sa bande de tête seule, tant que rien ne bloque et qu'on ne l'a pas dépliée. */
+  .hub-boite.pliee .hub-msgs { display: none; }
+  .hub-boite .hub-boite-tete { min-height: 44px; cursor: pointer; }
+  .hub-volet .hub-etat { padding: var(--esp-2) var(--esp-3); }
+  .hub-volet .hub-etat-l { font-size: var(--t-1); }
+  .hub-match-titre { padding: var(--esp-1) var(--esp-3); }
+  .hub-eq { padding: var(--esp-2) var(--esp-3); }
+  .hub-eq-forme { margin: var(--esp-1) calc(-1 * var(--esp-3)) calc(-1 * var(--esp-2)); }
+  .soir-etape { min-height: 36px; }
+  .soir-drame { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-bottom: 0; margin-bottom: var(--esp-2); }
+  .hub-barre .hub-jour, .hub-barre .hub-suite { min-height: 48px; font-size: var(--t-3); }
+  .hub-barre .hub-actions-rang .btn { min-height: 36px; }
+  body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: var(--esp-4); }
   /* Hors de « Match », le volet seul : l'affiche et les boutons appartiennent à l'onglet Journée. */
   body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-carte, body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-actions { display: none; }
   body.hub-docke .hub-sheet .hub-actions { overflow: visible; min-height: auto; }
-  /* Le bouton flottant (01-coquille) ne couvre jamais la dernière rangée du volet. */
-  body.hub-docke .hub-sheet .hub-volet { flex: 1 0 auto; overflow: visible; padding-bottom: calc(var(--bas-coquille) + 72px); }
 }
 @media (min-width: 1200px) {
+  .hub-tuiles-tel { display: none; }
   body.hub-docke .hub-sheet {
     display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto auto minmax(0, 1fr);
     grid-template-areas: "top top" "carte boite" "volet boite"; column-gap: var(--esp-4);
@@ -2271,21 +2422,10 @@ body.hub-docke .hub-sheet { max-width: none; }
 .soir-etape.fait { color: var(--bon); }
 .soir-etape.on { color: var(--or); border-bottom-color: var(--or); }
 .soir-etape:hover:not(.on) { color: var(--encre); }
-/* Hier soir, en premier : le tableau final, le drame en une ligne, puis « Prochain match › ». */
+/* Hier soir, en premier et en une ligne : la bande du résultat (toucher : le sommaire), le drame dessous, le prochain match suit. */
 .soir-resultat { border-bottom: 1px solid var(--filet); }
-.soir-resultat .hub-board { border: 0; border-radius: 0; }
+.soir-resultat .hub-hier { border-width: 0 0 0 3px; border-radius: 0; }
 .soir-drame { padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
-.soir-pied { padding: var(--esp-2) var(--esp-3) var(--esp-3); }
-.soir-suivant { width: 100%; border-color: var(--or); color: var(--or); }
-.soir-suivant:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 12%, transparent); }
-/* Au téléphone, l'affiche est étroite : le tableau final garde le sigle et le pointage, l'horloge se resserre, le nom long s'efface. */
-@media (max-width: 639.98px) {
-  .soir-resultat .live-eq-nom { display: none; }
-  .soir-resultat .live-eq-band { padding: var(--esp-2) var(--esp-2); font-size: var(--t-3); }
-  .soir-resultat .live-eq-buts { min-width: 40px; padding: 0 var(--esp-1); font-size: var(--t-5); }
-  .soir-resultat .live-horloge { min-width: 0; padding: var(--esp-2) var(--esp-1); }
-  .soir-resultat .live-horloge .live-tirs { white-space: normal; }
-}
 
 /* ---- L'affiche du match : un bandeau bicolore, les deux clubs face à face, VS au centre ---- */
 .hub-match { display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); overflow: hidden; }
@@ -2334,6 +2474,7 @@ body.hub-docke .hub-sheet { max-width: none; }
 
 /* ---- Les actions : « Journée suivante » pleine largeur, les seconds rôles en contour sur une rangée ---- */
 .hub-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--esp-2); padding: var(--esp-3); border-bottom: 1px solid var(--filet); flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.hub-barre { display: flex; flex-wrap: wrap; gap: var(--esp-2); flex: 1 1 100%; }
 .hub-actions .btn { flex: 1 1 140px; }
 .hub-actions .hub-jour, .hub-actions .hub-traiter, .hub-actions .hub-suite { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
 .hub-actions .hub-traiter { justify-content: flex-start; text-align: left; white-space: normal; line-height: 1.2; padding: var(--esp-2) var(--esp-3); font-size: var(--t-3); border-color: var(--mauvais); background: color-mix(in srgb, var(--mauvais) 12%, transparent); }
@@ -2519,6 +2660,12 @@ body.hub-docke .hub-sheet { max-width: none; }
 @media (max-width: 480px) {
   .hub-classement td.nom .nom-long { display: none; }
   .hub-classement td.nom .nom-court { display: inline; }
+}
+/* Au téléphone, le classement tient sans défiler : le rang, le club, PJ, V, D, DP, PTS et le différentiel ; les buts, la séquence
+   et les dix derniers matchs attendent le bureau (la page de l'équipe les dit). */
+@media (max-width: 679.98px) {
+  .hub-classement :is(th, td):is(:nth-child(8), :nth-child(9), :nth-child(11), :nth-child(12)) { display: none; }
+  .hub-volet .live-tableau th, .hub-volet .live-tableau td { height: 44px; padding: 0 var(--esp-2); }
 }
 @media (max-width: 1199.98px) {
   .hub-volet .hub-classement { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }

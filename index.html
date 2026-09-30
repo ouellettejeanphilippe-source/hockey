@@ -148,6 +148,10 @@
             <span class="pane-meta" id="rosterMeta">0 / 23</span>
           </div>
           <div class="roster-hint" id="rosterHint">Touche un joueur, puis sa case.</div>
+          <!-- Au téléphone (1.0, R4), un onglet à la fois : l'alignement tient en un écran. -->
+          <div class="seg seg-effectif" data-opt="effectif" role="tablist" aria-label="La partie de l'alignement">
+            <button data-val="F" class="on">Attaque</button><button data-val="D">Défense</button><button data-val="G">Filet · réserve</button>
+          </div>
           <!-- MES LIGNES (S68) vivaient dans une modale, derrière un bouton ici.
                Depuis S78, la stratégie de chaque ligne est un tiroir SOUS son
                trio (JP : « Alignement et stratégie et trio, ça devrait être
@@ -260,7 +264,7 @@
 
 <div id="hockeyCardModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet modal-card" role="dialog" aria-modal="true" aria-label="Fiche du joueur">
-    <button id="closeHockeyCardBtn" class="close-btn" aria-label="Fermer">✕</button>
+    <div class="fiche-barre"><button type="button" id="closeHockeyCardBtn" class="retour-btn"><svg class="ico" aria-hidden="true"><use href="#i-retour"/></svg>Retour</button></div>
     <div id="hockeyCardBody"></div>
   </div>
 </div>

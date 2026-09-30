@@ -113,7 +113,7 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJ
  * carrure quand elle compte (le jeu physique en dépend).
  */
 export const niveauDe = x => (x >= 85 ? 'élite' : x >= 70 ? 'très bon' : x >= 55 ? 'bon' : x >= 40 ? 'correct' : 'faible');
-const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
+export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
 function rolesDe(p) {
   const pp = profilPrincipal(p);
   if (!pp) return '';

@@ -1107,6 +1107,7 @@ async function boot() {
   // `body[data-page]` pour décider ce que chaque onglet montre, et sans elle
   // le premier dessin se ferait sans page.
   marquerPage('repechage');
+  document.body.dataset.effectif = 'F';
   // Le bilan (js/bilan.js) reçoit ici tout ce qu'il lui faut du contrôleur.
   brancherBilan({
     $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele,
@@ -1486,6 +1487,11 @@ export function setOption(key, val) {
     // faire. Une commande visible doit toujours faire quelque chose.
     if (G.poolView === 'POS' && G.filter !== 'ALL') { G.filter = 'ALL'; renderFilters(); }
   }
+  else if (key === 'effectif') {
+    // L'onglet de l'alignement au téléphone (1.0, R4) : un état d'écran, jamais sauvegardé.
+    document.body.dataset.effectif = ['F', 'D', 'G'].includes(val) ? val : 'F';
+    document.querySelectorAll('.seg-effectif button').forEach(b => b.classList.toggle('on', b.dataset.val === document.body.dataset.effectif));
+  }
   else if (key === 'palette') {
     // La palette ne touche qu'à des couleurs : pas de nouvelle partie.
     if (!PALETTES.includes(val) || val === G.palette) return;
@@ -1807,6 +1813,7 @@ export function majEntete() {
   // Les compteurs de la jauge (les signés, le budget par case, les jetons) : au repêchage et au Rogue.
   document.body.classList.toggle('au-repechage', enRepechage());
   document.body.classList.toggle('mode-rogue', G.bonus === 'ROGUE');
+  document.body.classList.toggle('mode-table', G.bonus === 'TABLE');
   // DERRIÈRE LE BANC, un écran secondaire de la saison : « ‹ Retour » y ramène au match.
   const retour = $('retourBtn');
   if (retour) retour.hidden = !G.banc;
