@@ -1,77 +1,82 @@
 /**
- * SITUATIONS DE RUN — catalogue + tireur.
- *
- * Une situation n'invente pas de cote. Elle pose un choix dont l'effet
- * est un tag déjà jouable (proprio, jambes, repos, ligne, fermeture…).
- * Brancher plus tard depuis le hub : chargerSituations() puis pigerSituation(etat).
+ * Dilemmes de plus, dans le MÊME format que MOMENTS (js/sim.js).
+ * `brancherMoments` les ajoute au catalogue vivant : le tirage, l'écran et
+ * le moteur les jouent comme les autres. Pas de cote neuve, pas de canal neuf.
  */
-export let SITUATIONS = [];
+const JOURS_PLUS = [8, 42];
 
-export async function chargerSituations() {
-  if (SITUATIONS.length) return SITUATIONS;
-  const r = await fetch('data/situations.json');
-  const catalogue = await r.json();
-  SITUATIONS = catalogue.situations || [];
-  return SITUATIONS;
-}
-
-const SI = {
-  'pct<0.40': e => pct(e) < 0.4 && (e.w + e.l + (e.otl || 0)) >= 8,
-  'pct<0.45': e => pct(e) < 0.45 && (e.w + e.l + (e.otl || 0)) >= 12,
-  'serieDef>=4': e => (e.serieDef || 0) >= 4,
-  'serieDef>=3': e => (e.serieDef || 0) >= 3,
-  'serieVic>=5': e => (e.serieVic || 0) >= 5,
-  'vedetteSeche>=8': e => (e.vedetteSeche || 0) >= 8,
-  'soirsEreintants>=3': e => (e.soirsEreintants || 0) >= 3,
-  'blessure&&capSerre': e => !!(e.blessure && e.capSerre),
-  'departsPartant>=12': e => (e.departsPartant || 0) >= 12,
-  'toi4<0.14': e => (e.toi4 || 1) < 0.14,
-  rival: e => !!e.rival,
-  advTop: e => !!e.advTop,
-  retourBlessure: e => !!e.retourBlessure,
-  vedetteChere: e => !!e.vedetteChere,
-  jeuneChaud: e => !!e.jeuneChaud,
-  veteranLent: e => !!e.veteranLent,
-  auxChaud: e => !!e.auxChaud,
-  identite: e => !!e.identite,
-  objectifRate: e => !!e.objectifRate,
-  ppSec: e => !!e.ppSec,
-  pkMou: e => !!e.pkMou,
-  soirMarque: e => !!e.soirMarque,
-  true: () => true,
-  recrue: e => !!e.recrue,
-  gfBas: e => !!e.gfBas,
-  matchChaud: e => !!e.matchChaud,
-  series: e => !!e.series,
-  game7: e => !!e.game7,
-  uneFois: e => !(e.deja && e.deja.has && e.deja.has('malediction-une')),
-  trioFroid: e => !!e.trioFroid,
-  placeSeries: e => !!e.placeSeries,
+const MOMENTS_PLUS = {
+  virus: {
+    ico: '🤒', titre: 'Le virus du vestiaire', irl: null,
+    recit: 'Trois gars toussent depuis mardi. Le médecin veut qu\'on ralentisse.',
+    options: [
+      { cle: 'ralentir', nom: 'Pratiques courtes, une semaine', bon: 'Moins de corps à terre', prix: 'Le rythme tombe', volume: 0.96, blessure: 0.85, duree: 7 },
+      { cle: 'jouer', nom: 'On joue quand même', bon: 'L\'alignement ne bouge pas', prix: 'Ça peut se répandre', blessure: 1.2, duree: 6 },
+    ],
+  },
+  glace: {
+    ico: '🧊', titre: 'La glace est molle', irl: null,
+    recit: 'La surfaceuse a lâché. La glace est lente, et tout le monde le sait.',
+    options: [
+      { cle: 'cycle', nom: 'On cycle, on ne patine pas', bon: 'On garde la rondelle', prix: 'Moins de lancers', volume: 0.94, finition: 1.04, duree: 4 },
+      { cle: 'tirer', nom: 'On tire de partout quand même', bon: 'Le volume reste', prix: 'Les lancers meurent dans la mélasse', volume: 1.04, finition: 0.96, duree: 4 },
+    ],
+  },
+  hymne: {
+    ico: '🎤', titre: 'L\'hymne n\'en finit plus', irl: null,
+    recit: 'Le chanteur étire. Le vestiaire rit, ou grince, selon toi.',
+    options: [
+      { cle: 'rire', nom: 'On en rit', bon: 'La pression tombe', finition: 1.04, duree: 3 },
+      { cle: 'serieux', nom: 'On reste de glace', bon: 'Rien ne change', rien: true },
+    ],
+  },
+  masque: {
+    ico: '🥅', titre: 'Le masque neuf', irl: null, cible: 'gardien',
+    recit: '{nom} dévoile un masque neuf. Il dit que ça change sa vue. Personne n\'en est sûr.',
+    options: [
+      { cle: 'garder', nom: 'Il le garde', bon: 'Une fois sur deux, il y voit mieux', prix: 'Sinon, le masque le gêne',
+        pari: { chance: 0.5, gagne: { defense: 0.96, duree: 8 }, perd: { defense: 1.04, duree: 4 } } },
+      { cle: 'ancien', nom: 'On ressort l\'ancien', bon: 'Il connaît ses angles', defense: 0.98, duree: 6 },
+    ],
+  },
+  arbitre: {
+    ico: '🦓', titre: 'L\'arbitre qu\'on connaît', irl: null,
+    recit: 'C\'est le même qu\'en octobre. Cette fois-là, il avait le sifflet long.',
+    options: [
+      { cle: 'propre', nom: 'On joue propre', bon: 'Moins de punitions', prix: 'Moins de liberté', discipline: 0.88, volume: 0.97, duree: 3 },
+      { cle: 'bord', nom: 'On joue à la limite', bon: 'Plus de présence', prix: 'Il va siffler', discipline: 1.18, finition: 1.03, duree: 3 },
+    ],
+  },
+  classe: {
+    ico: '🎒', titre: 'Une classe dans le vestiaire', irl: null,
+    recit: 'Trente enfants, des crayons, et le capitaine qui ne sait plus où se mettre.',
+    options: [
+      { cle: 'rester', nom: 'On reste avec eux', bon: 'Le vestiaire est léger', finition: 1.04, duree: 4 },
+      { cle: 'porte', nom: 'On ferme la porte', bon: 'La routine tient', rien: true },
+    ],
+  },
+  charter: {
+    ico: '✈️', titre: 'Le proprio coupe la classe affaires', irl: null,
+    recit: 'Les vols de l\'Ouest se font en économique. Les sièges sont étroits, les nuits courtes.',
+    options: [
+      { cle: 'encaisser', nom: 'On encaisse', prix: 'Les jambes arrivent lourdes', action: { energieTous: -12 } },
+      { cle: 'bus', nom: 'On part la veille', bon: 'On dort à l\'hôtel', prix: 'Une journée de pratique en moins', volume: 0.97, blessure: 0.92, duree: 5 },
+    ],
+  },
+  journal: {
+    ico: '🎙️', titre: 'Le micro est resté ouvert', irl: null,
+    recit: 'Ton entraîneur parle du 4e trio sans savoir que ça enregistre. La bande sort le lendemain.',
+    options: [
+      { cle: 'assumer', nom: 'Il assume devant eux', bon: 'Si le vestiaire embarque, ça brasse', prix: 'Sinon, le 4e boude',
+        pari: { chance: 0.5, gagne: { volume: 1.06, duree: 6 }, perd: { finition: 0.96, duree: 6 } } },
+      { cle: 'excuses', nom: 'Des excuses, et on passe', bon: 'La page se tourne', defense: 0.98, duree: 4 },
+    ],
+  },
 };
 
-function pct(e) {
-  const n = (e.w || 0) + (e.l || 0) + (e.otl || 0);
-  return n ? (e.w || 0) / n : 0.5;
-}
-
-export function situationsPossibles(etat = {}) {
-  const j = etat.jour || 0;
-  const vues = etat.deja instanceof Set ? etat.deja : new Set(etat.deja || []);
-  return SITUATIONS.filter(s => {
-    if (vues.has(s.id)) return false;
-    const [a, b] = s.quand;
-    if (j < a || j > b) return false;
-    const test = SI[s.si];
-    return test ? test({ ...etat, deja: vues }) : false;
-  });
-}
-
-export function pigerSituation(etat = {}, alea = Math.random) {
-  const pool = situationsPossibles(etat);
-  if (!pool.length) return null;
-  return pool[Math.floor(alea() * pool.length) % pool.length];
-}
-
-export function remplir(texte, vars = {}) {
-  return String(texte || '').replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+/** Ajoute les dilemmes et les journées au catalogue déjà chargé par le moteur. */
+export function brancherMoments(MOMENTS, JOURS) {
+  for (const [k, v] of Object.entries(MOMENTS_PLUS)) if (!MOMENTS[k]) MOMENTS[k] = v;
+  for (const j of JOURS_PLUS) if (!JOURS.includes(j)) JOURS.push(j);
+  JOURS.sort((a, b) => a - b);
 }
