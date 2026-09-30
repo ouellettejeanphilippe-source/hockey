@@ -23,7 +23,7 @@ import { animerComptes } from './mouvement.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
-import { ord, ordF, pct3 } from './util.js';
+import { ord, ordF, pct3, pmMatch } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
 let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
@@ -99,7 +99,7 @@ export function leagueStats(teams, mode = 'saison') {
     points: top(patineurs, x => x.S.PTS * 1000 + x.S.G),
     buts: top(patineurs, x => x.S.G * 1000 + x.S.PTS),
     passes: top(patineurs, x => x.S.A * 1000 + x.S.PTS),
-    plusmoins: top(patineurs, x => x.S.PM),
+    plusmoins: top(patineurs.filter(x => x.S.GP >= Math.max(1, Math.round(matchs * 20 / 82))), x => x.S.PM / x.S.GP),
     avantage: top(patineurs, x => (x.S.PPG || 0) * 1000 + x.S.G),
     punitions: top(patineurs, x => (x.S.PIM || 0) * 1000 + x.S.PTS),
     arrets: top(gardiens.filter(x => x.S.GP >= seuilG), x => (x.S.SA ? x.S.SV / x.S.SA : 0)),
@@ -136,8 +136,8 @@ const TROPHEES = [
     val: x => `${x.S.A} passes`, sous: x => `${x.S.PTS} pts` },
   { cle: 'arrets', nom: 'Meilleur gardien', quoi: 'pourcentage d\'arrêts',
     val: x => (x.S.SA ? pct3(x.S.SV / x.S.SA) : '—'), sous: x => `${x.S.W} V · ${x.S.SO} BL` },
-  { cle: 'plusmoins', nom: 'Meilleur différentiel', quoi: 'le plus grand +/-',
-    val: x => `${x.S.PM > 0 ? '+' : ''}${x.S.PM}`, sous: x => `${x.S.PTS} pts` },
+  { cle: 'plusmoins', nom: 'Meilleur différentiel', quoi: 'le plus haut +/- par match',
+    val: x => pmMatch(x.S.PM, x.S.GP), sous: x => `${x.S.PTS} pts` },
 ];
 
 /**
@@ -223,8 +223,8 @@ const PALMARES = [
     vals: S => [S.GP, `<b>${S.G}</b>`, S.SH || 0, S.SH ? (100 * S.G / S.SH).toFixed(1) : '—'] },
   { cle: 'passes', titre: 'Passeurs', cols: ['PJ', 'A', 'PTS'], heros: 1,
     vals: S => [S.GP, `<b>${S.A}</b>`, S.PTS] },
-  { cle: 'plusmoins', titre: 'Différentiel', cols: ['PJ', 'PTS', '+/-'], heros: 2,
-    vals: S => [S.GP, S.PTS, `<b>${S.PM > 0 ? '+' : ''}${S.PM}</b>`] },
+  { cle: 'plusmoins', titre: 'Différentiel', cols: ['PJ', 'PTS', '+/M'], heros: 2,
+    vals: S => [S.GP, S.PTS, `<b>${pmMatch(S.PM, S.GP)}</b>`] },
   { cle: 'avantage', titre: 'Avantage numérique', cols: ['PJ', 'B', 'BAN'], heros: 2,
     vals: S => [S.GP, S.G, `<b>${S.PPG || 0}</b>`] },
   { cle: 'punitions', titre: 'Punitions', cols: ['PJ', 'PTS', 'PUN'], heros: 2,
@@ -501,7 +501,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   const rows = SLOTS.filter(s => G.roster[s.i]).map(s => {
     const p = G.roster[s.i];
     const pmCls = (p.simPM || 0) > 0 ? 'pm-pos' : (p.simPM || 0) < 0 ? 'pm-neg' : '';
-    const pmStr = (p.simPM || 0) > 0 ? `+${p.simPM}` : `${p.simPM || 0}`;
+    const pmStr = pmMatch(p.simPM || 0, p.simGP || 0);
     const inj = p.simInj ? ` · <span class="inj">🩹 ${p.simInj} PJ ratés</span>` : '';
     const stats = p.p === 'G'
       ? `${p.simGP || 0} PJ · ${p.simW || 0}-${p.simL || 0}-${p.simOTL || 0} · ${((p.simGA || 0) / Math.max(1, p.simGP || 1)).toFixed(2)} MBA · ${p.simSO || 0} BL${inj}`

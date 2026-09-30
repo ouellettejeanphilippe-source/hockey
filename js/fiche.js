@@ -5,7 +5,7 @@
 
 import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, signe, money, pct3, ord } from './util.js';
+import { esc, money, pct3, ord, pmMatch } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
 import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, profilPrincipal, maitrise, EFFET_ROLE, COUP_JAMBES, COUP_ABSORBE } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
@@ -108,7 +108,6 @@ function profilMesure(p) {
   // PRODUCTION (les points, déjà sur la carte) et PENCHANT (l'ancienne chimie
   // de trio, retirée en S72) sont partis.
   const m = mesure(p);
-  const signe = x => (x >= 0 ? '+' : '') + Math.round(x);
   return `<div class="profil-titre">Avec la rondelle</div>
   <div class="profil-grid">
     ${cell('LANCERS', r(vol), `Lancers par match, sur le régulier moyen de ${p.s}.`)}
@@ -116,7 +115,7 @@ function profilMesure(p) {
   </div>
   <div class="profil-titre">Sans la rondelle${m ? ` · défensive ${Math.round(m.def * 100)}e centile, jeu physique ${Math.round(m.rob * 100)}e` : ''}</div>
   <div class="profil-grid">
-    ${m ? cell('DIFFÉRENTIEL', signe(m.diff82), `Son +/- par 82 matchs, corrigé à moitié de celui de son club — un bon joueur d'un mauvais club n'est pas puni deux fois.`) : ''}
+    ${m ? cell('DIFFÉRENTIEL', pmMatch(m.diff82, 82), `Son +/- par match, corrigé à moitié de celui de son club — un bon joueur d'un mauvais club n'est pas puni deux fois.`) : ''}
     ${m && m.dn82 != null ? cell('DÉSAVANTAGE', Math.round(m.dn82), `Points en désavantage numérique par 82 matchs : qui tue les punitions.`) : ''}
     ${p.toi ? cell('MINUTES', p.toi.toFixed(1), 'Temps de glace par match, en minutes.') : ''}
     ${cell('PUN / MATCH', r(dur), `Minutes de punition par match, sur le régulier moyen de ${p.s} : c'est ce qui décide de ses punitions${p.ht != null ? ` · ${p.ht} mises en échec par match` : ''}.`)}
@@ -275,7 +274,7 @@ function grilleSim(p, S) {
       + cellStat('ARR', S.SV || 0) + cellStat('TIRS', S.SA || 0);
   }
   return cellStat('PJ', S.GP || 0) + cellStat('B', S.G || 0) + cellStat('A', S.A || 0) + cellStat('PTS', S.PTS || 0, true)
-    + cellStat('PTS/M', S.GP ? ((S.PTS || 0) / S.GP).toFixed(2) : '—') + cellStat('+/-', signe(S.PM || 0))
+    + cellStat('PTS/M', S.GP ? ((S.PTS || 0) / S.GP).toFixed(2) : '—') + cellStat('+/M', pmMatch(S.PM || 0, S.GP || 0))
     + cellStat('PUN', S.PIM || 0) + cellStat('L', S.SH || 0) + cellStat('%', S.SH ? (100 * (S.G || 0) / S.SH).toFixed(1) : '—')
     + (S.PPG === undefined ? '' : cellStat('BAN', S.PPG)) + (S.Inj ? cellStat('RATÉS', S.Inj) : '');
 }
@@ -319,7 +318,7 @@ export function showPlayerModal(p, opts = {}) {
   const colors = TEAM_COLORS[p.t] || { primary: '#112236', accent: '#38bdf8' };
 
   const cell = cellStat;
-  const pmStr = signe(st.pm);
+  const pmStr = pmMatch(st.pm, st.gp);
   // La vraie saison (six colonnes, S71) se lit au RECTO de la carte (`statsCarte`, plus bas) ;
   // le temps de glace, les mises en échec et les mises au jeu vivent dans le détail.
 
@@ -408,7 +407,7 @@ export function showPlayerModal(p, opts = {}) {
   const statsCarte = p.p === 'G'
     ? nb('PJ', st.gp) + nb('V', st.w, true) + nb('D', st.l) + nb('BL', st.so) + nb('%ARR', p.sv ?? '—') + nb('MBA', p.ga ?? '—')
     : nb('PJ', st.gp) + nb('B', st.g) + nb('A', st.a) + nb('PTS', st.pt, cle.u === 'PTS')
-      + (cle.u === 'MÉ/M' || cle.u === 'TB/M' ? nb(cle.u, cle.v, true) : nb('+/-', pmStr, cle.u === '+/−')) + nb('PUN', p.pim ?? '—', cle.u === 'PUN');
+      + (cle.u === 'MÉ/M' || cle.u === 'TB/M' ? nb(cle.u, cle.v, true) : nb('+/M', pmStr, cle.u === '+/M')) + nb('PUN', p.pim ?? '—', cle.u === 'PUN');
   const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p)}${realTag(p)}`;
   const milieuVerso = `${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
@@ -604,7 +603,7 @@ function showTeamModal(t, mode = 'saison') {
     <td class="left"><div class="team-cell">${lienJoueur(p, t, mode, `<span>${esc(p.n)}</span>`)}</div></td>
     <td class="sub-cell">${esc(positionLabel(p).split(' / ')[0])}</td>
     <td class="stat">${S.GP || 0}</td><td class="stat">${S.G || 0}</td><td class="stat">${S.A || 0}</td>
-    <td class="stat heros">${S.PTS || 0}</td><td class="stat">${signe(S.PM || 0)}</td><td class="stat">${S.PIM || 0}</td>
+    <td class="stat heros">${S.PTS || 0}</td><td class="stat">${pmMatch(S.PM || 0, S.GP || 0)}</td><td class="stat">${S.PIM || 0}</td>
     <td class="stat">${S.SH || 0}</td><td class="stat">${S.PPG || 0}</td></tr>`;
   const ligneG = ([p, S]) => `<tr>
     <td class="left"><div class="team-cell">${lienJoueur(p, t, mode, `<span>${esc(p.n)}</span>`)}</div></td>
@@ -635,7 +634,7 @@ function showTeamModal(t, mode = 'saison') {
   $('gameModalBody').innerHTML = `
     <div class="section-label">${mode === 'series' ? 'Statistiques des séries' : 'Alignement et statistiques de la saison'}</div>
     <div class="table-wrap haute"><table class="data">
-      <thead><tr><th class="left">Joueur</th><th>Pos</th><th>PJ</th><th>B</th><th>A</th><th class="heros">PTS</th><th>+/-</th><th>PUN</th><th>L</th><th>BAN</th></tr></thead>
+      <thead><tr><th class="left">Joueur</th><th>Pos</th><th>PJ</th><th>B</th><th>A</th><th class="heros">PTS</th><th>+/M</th><th>PUN</th><th>L</th><th>BAN</th></tr></thead>
       <tbody>${pat.map(ligneP).join('') || '<tr><td colspan="10">Aucun patineur.</td></tr>'}</tbody>
     </table></div>
     <div class="table-wrap" style="margin-top:8px"><table class="data">

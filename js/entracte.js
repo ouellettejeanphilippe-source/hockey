@@ -23,7 +23,7 @@
  */
 
 import { SLOTS } from './sim.js';
-import { virgule, signe, pct3 } from './util.js';
+import { virgule, signe, pct3, pmMatch } from './util.js';
 
 /* ---------- les briques d'une carte ---------- */
 
@@ -195,7 +195,7 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
     + tableau(['Meneurs', 'B', 'A', 'PTS'], pat.slice(0, 5).map(p => [nomLie(ctx, p, nomCourt(p.n)), p.simG, p.simA, p.simPTS])));
 
   /* 3. LA DÉFENSIVE — ce qu'on concède, et qui étouffe. */
-  const pm = pat.slice().sort((a, b) => b.simPM - a.simPM).slice(0, 5);
+  const pm = pat.filter(p => p.simGP).sort((a, b) => (b.simPM / b.simGP) - (a.simPM / a.simGP)).slice(0, 5);
   const c3 = carte('Défensive', 'Sans la rondelle',
     grille([
       { k: 'Buts alloués / m.', v: un(you.GA / Math.max(1, pj), 2) },
@@ -203,7 +203,7 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
       { k: '% d\'arrêts', v: pct3(arrets / Math.max(1, tirsContre)) },
       { k: 'Punitions / match', v: un(pun / Math.max(1, pj)) },
     ])
-    + tableau(['Différentiel', 'PJ', 'PTS', '+/-'], pm.map(p => [nomLie(ctx, p, nomCourt(p.n)), p.simGP, p.simPTS, signe(p.simPM || 0)])));
+    + tableau(['Différentiel', 'PJ', 'PTS', '+/M'], pm.map(p => [nomLie(ctx, p, nomCourt(p.n)), p.simGP, p.simPTS, pmMatch(p.simPM || 0, p.simGP || 0)])));
 
   /* 4. LES GARDIENS — la ligne de chacun, comme au dos d'une carte. */
   const c4 = gar.length ? carte('Devant le filet', 'Les gardiens',
