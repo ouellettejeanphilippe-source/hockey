@@ -1979,7 +1979,8 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line-id { flex: 1 1 auto; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; color: var(--or); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Ce que l'unité produit : les points par match des habillés, additionnés — une vraie stat en tête de bande. */
 .line-prod { flex: none; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
-.cell-sec { display: block; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
+.cell-l3 { flex-wrap: wrap; }
+.cell-sec { flex: 1 0 100%; text-align: right; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 .line-orig { flex: 0 1 auto; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-ferm { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 44px; padding: 0 var(--esp-2); border: 0; background: none; color: var(--encre-3); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; transition: color var(--t-vite); }
 .line-ferm:hover { color: var(--encre); }
