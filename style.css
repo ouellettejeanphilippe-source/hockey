@@ -6484,6 +6484,8 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .pari.perdu { border-left: 3px solid var(--red); }
 .pari.gagne b { color: var(--green); }
 .pari.perdu b { color: var(--red); }
+/* Le dé du jour au bureau (1.0) : sur la carte du match qu'il touche. */
+.hub-pari { margin: 0 14px 10px; padding: 7px 10px; border-radius: var(--r-s, 10px); font-size: 13px; line-height: 1.4; background: var(--surface-1); }
 
 /* =====================================================================
    LES JOUEURS SONT DES CARTES (S76) — ET ELLES EN ONT LE LOOK (S77)

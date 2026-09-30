@@ -33,6 +33,19 @@ const base = process.argv[2] || 'http://localhost:8000';
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const errors = [];
+/*
+ * LE DÉ SE LIT (1.0). JP : *quand ya un lancement de dés, genre malus ou bonus avec %, je vois pas ce qui a
+ * gagné*. Chaque ligne de pari montrée pendant le parcours (le bureau, le direct, le sommaire) est notée par
+ * un observateur ; à la fin, chacune doit dire sa chance, le bord gagnant et l'effet qui s'applique.
+ */
+await page.addInitScript(() => {
+  window.__parisVus = [];
+  const noter = el => { if (el.classList && el.classList.contains('pari')) window.__parisVus.push(el.textContent.replace(/\s+/g, ' ').trim()); };
+  new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) { noter(n); n.querySelectorAll && n.querySelectorAll('.pari').forEach(noter); } })
+    .observe(document.documentElement, { childList: true, subtree: true });
+});
+const parisVus = new Set();
+setInterval(() => page.evaluate(() => (window.__parisVus || []).splice(0)).then(l => l.forEach(t => parisVus.add(t))).catch(() => {}), 1500).unref();
 let barreAuRepechage = null;   // la barre au repêchage, pour la comparer au bilan (S67)
 let toastVu = false;           // le premier toast d'une signature, mesuré une fois (1.0, J2-17)
 
@@ -3371,6 +3384,10 @@ if (!choixVus.has('hub-proprio')) errors.push('le proprio n\'a jamais fixé d\'o
 if (!choixVus.has('hub-dilemme')) errors.push('aucun dilemme croisé en traversant une saison');
 if (actionsLNH) errors.push(`la version Web a demandé ${actionsLNH} photo(s) d'action à la LNH (elles viennent de img/actions)`);
 
+for (const t of await page.evaluate(() => (window.__parisVus || []).splice(0)).catch(() => [])) parisVus.add(t);
+const parisMuets = [...parisVus].filter(t => !/(tombe de ton bord|tombe du mauvais bord)/.test(t) || !/ — \S/.test(t) || (!/\d+ % de chances/.test(t) && !/^🃏/.test(t)));
+console.log(`   dés lus : ${parisVus.size}${parisVus.size ? ` (« ${[...parisVus][0].slice(0, 110)} »)` : ' (aucun pari croisé)'}`);
+if (parisMuets.length) errors.push(`un pari ne dit pas ce qui a gagné : « ${parisMuets[0].slice(0, 140)} »`);
 console.log(`7. erreurs console : ${errors.length} (ressources externes non chargées : ${netErrors})`);
 for (const e of errors) console.log('   ', e);
 await browser.close();

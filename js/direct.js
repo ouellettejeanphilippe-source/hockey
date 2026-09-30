@@ -23,7 +23,7 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe, PLANS_ADV, motsDEffet } from './sim.js';
+import { periodeDe, PLANS_ADV, motsDEffet, issueDePari } from './sim.js';
 import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { CARTES_MATCH } from './combat.js';
@@ -213,7 +213,16 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  * suite — le choix de l'entracte rejoue la troisième. `depuis` : le direct
  * reprend à cette minute, ce qui précède posé d'un coup dans le fil.
  */
-export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, arret = null, onArret = null, depuis = 0 }) {
+/*
+ * UN PARI DU BUREAU, EN UNE LIGNE (1.0) : son titre, le choix, la chance, le bord gagnant, l'effet et sa durée.
+ * Le même texte partout — le bureau le jour même, le direct, le sommaire, le journal.
+ */
+export function lignePariHtml(x, esc, { choix = true } = {}) {
+  const i = issueDePari(x);
+  if (!i) return '';
+  return `🎲 <b>${esc(x.titre || 'Le pari')}</b>${choix && x.choix ? ` — ${esc(x.choix)}` : ''} : ${i.chance != null ? `${i.chance} % de chances, ` : ''}<b class="pari-issue">${i.issue}</b> — <b>${esc(i.effet)}</b>${i.pour ? ` (${i.pour})` : ''}.`;
+}
+export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', paris = [], etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, arret = null, onArret = null, depuis = 0 }) {
   const modal = document.getElementById('liveModal');
   if (!modal || !f) { onTermine(); return; }
   const $ = id => modal.querySelector(id);
@@ -373,6 +382,8 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       ligne(`debut cartes pari ${p.gagne ? 'gagne' : 'perdu'}`, `🎲 <b>${ctx.esc(C.nom)} : ${p.gagne ? 'le dé tombe de ton bord !' : 'le dé tombe du mauvais bord.'}</b> ${Math.round(C.pari.chance * 100)} % de chances${effet ? ` — ce soir : <b>${ctx.esc(effet)}</b>` : ''}.`);
     }
   }
+  // LES PARIS DU BUREAU POUR CE SOIR (1.0) : tirés le matin, ils se disent à la mise au jeu, avec leur effet.
+  for (const x of paris || []) ligne(`debut cartes pari ${x.gagne ? 'gagne' : 'perdu'}`, lignePariHtml(x, ctx.esc));
   /*
    * LEUR PLAN SE DÉVOILE À LA MISE AU JEU (S76). Avant le match on n'avait
    * qu'un rapport de dépistage ; c'est ici qu'on apprend ce qu'ils jouent, et

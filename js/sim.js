@@ -6008,6 +6008,28 @@ export function flechesDe(x, seuils = null) {
   void seuils;
   return pctDe(x);
 }
+/*
+ * L'ISSUE D'UN PARI, EN MOTS (1.0). JP : *quand ya un lancement de dés, genre malus ou bonus avec %, je vois
+ * pas ce qui a gagné*. Un pari noté sur l'équipe (`team.paris`) porte sa chance, le bord gagnant et l'effet
+ * qui s'applique : la chance (« 50 % »), l'issue, l'effet et sa durée — un match au bout d'une série.
+ */
+export function issueDePari(x) {
+  if (!x) return null;
+  const e = x.effet || {};
+  const { duree, apres, action, ...canaux } = e;
+  void apres;
+  const mots = motsDEffet(canaux).map(m => m.txt);
+  if (action && action.absents) mots.push(`Absents ${action.absents} journées`);
+  if (action && action.energie) mots.push(`Jambes ${action.energie > 0 ? '+' : '−'}${Math.abs(action.energie)}`);
+  const pour = x.serie ? 'ce match' : `${duree || DUREE_MOMENT} journées`;
+  return {
+    gagne: !!x.gagne,
+    chance: Number.isFinite(x.chance) ? Math.round(x.chance * 100) : null,
+    issue: x.gagne ? 'le dé tombe de ton bord' : 'le dé tombe du mauvais bord',
+    effet: mots.length ? mots.join(' · ') : 'rien de plus',
+    pour: mots.length ? pour : '',
+  };
+}
 export function motsDEffet(e, duree = null) {
   if (!e) return [];
   const out = [];
@@ -6352,7 +6374,7 @@ export function appliquerDecisionSerie(team, d, graine) {
     if (pari) {
       const gagne = hacherMise(graine, 'pari-serie', d.ronde, d.match_no) < pari.chance;
       team.effetsSerie.push({ source: 'pari', nom, ico, ...(gagne ? pari.gagne : pari.perd) });
-      (team.paris = team.paris || []).push({ ronde: d.ronde, match_no: d.match_no, titre: nom, gagne });
+      (team.paris = team.paris || []).push({ ronde: d.ronde, match_no: d.match_no, titre: nom, gagne, chance: pari.chance, effet: (gagne ? pari.gagne : pari.perd) || null, serie: true });
     }
   }
   // LA MAIN DU MATCH (S74) : posée avec le gros match, juste avant la mise au jeu.
@@ -6962,7 +6984,8 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
   if (o.ensuite) effet(o.ensuite, jour + (o.ensuite.apres || 0), 'ensuite');
   if (o.pari) {
     const gagne = hacherMise(graine, 'pari', jour, cleTirage) < o.pari.chance;
-    (team.paris = team.paris || []).push({ jour, titre, choix: o.nom, gagne });
+    // L'issue garde sa chance et son effet (1.0) : l'écran dit ce qui a gagné, pas seulement « le pari a payé ».
+    (team.paris = team.paris || []).push({ jour, titre, choix: o.nom, gagne, chance: o.pari.chance, effet: (gagne ? o.pari.gagne : o.pari.perd) || null });
     effet(gagne ? o.pari.gagne : o.pari.perd, jour, 'pari');
   }
 }
