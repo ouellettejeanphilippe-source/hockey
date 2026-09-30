@@ -2555,6 +2555,12 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .c82-rl-eq.d { justify-content: flex-end; }
 .c82-rl-eq.gagne { color: var(--text); }
 .hub-jeu.avenir { opacity: 0.6; cursor: default; }
+/* Au bureau, le tableau d'affichage a sa colonne : il respire, et la piste se lit de loin. */
+@media (min-width: 1000px) {
+  .c82 { gap: 12px; padding: 22px 18px 18px; }
+  .c82-piste i { height: 14px; }
+  .c82-dernier { font-size: 18px; }
+}
 /* LA BARRE DE L'ÉCRAN DE SAISON EST EN BAS, comme celle du jeu, et dans la
    même langue (ses boutons portent `.navtab`). L'écran est plein écran, donc
    la barre du jeu est derrière lui : il n'y a jamais qu'UNE barre d'onglets à
