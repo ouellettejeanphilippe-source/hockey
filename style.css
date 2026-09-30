@@ -2497,6 +2497,9 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
 
 /* ---- La boîte de réception : une pile de bandes, un message plié sauf celui qu'on traite ---- */
 .hub-boite { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-2); }
+/* Vide, elle ne se montre que sur son sous-onglet (1.0, R2) : sa bande de tête, « À jour ». */
+.hub-boite.vide { display: none; }
+body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-boite-tete { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); padding-bottom: var(--esp-2); border-bottom: 1px solid var(--filet); }
 .hub-boite-titre { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-boite-compte { display: flex; gap: var(--esp-3); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }

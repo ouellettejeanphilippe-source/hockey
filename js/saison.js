@@ -2486,10 +2486,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const m of msgs) if (m.id === ouvert && !m.bloque) boite.lus.add(m.id);
     const nonLus = msgs.filter(m => !m.bloque && !boite.lus.has(m.id)).length;
     const compteur = [bloquants.length ? `<b class="a-traiter">${bloquants.length} à traiter</b>` : '', nonLus ? `<b class="non-lus">${nonLus} non lu${nonLus > 1 ? 's' : ''}</b>` : ''].filter(Boolean).join('') || '<span class="a-jour">À jour</span>';
-    // Vide, elle ne prend pas de place (S79) : « À jour » était une rangée pour rien.
+    // Vide, elle ne prend pas de place (S79) : « À jour » était une rangée pour rien — sauf sur son propre
+    // sous-onglet (1.0, R2), où sa bande de tête dit « À jour » plutôt qu'un écran noir (style.css, .hub-boite.vide).
     // Pliée au téléphone tant que rien ne bloque et qu'on ne l'a pas dépliée (style.css, .hub-boite.pliee).
     const pliee = !bloquants.length && !boite.deplie;
-    const boiteHtml = !msgs.length ? '' : `<section class="hub-boite${pliee ? ' pliee' : ''}" aria-label="Boîte de réception">
+    const boiteHtml = `<section class="hub-boite${pliee ? ' pliee' : ''}${msgs.length ? '' : ' vide'}" aria-label="Boîte de réception">
       <div class="hub-boite-tete" role="button" tabindex="0"><span class="hub-boite-titre">📥 Boîte de réception</span><span class="hub-boite-compte">${compteur}</span></div>
       ${msgs.length ? `<div class="hub-msgs">${msgs.map(m => {
         const o = m.id === ouvert, lu = boite.lus.has(m.id);

@@ -130,7 +130,8 @@ async function regler() {
     }
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     const t = await page.$('#hubModal .hub-traiter');
-    if (t) { const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]'); await (d || t).click(); await page.waitForTimeout(400); continue; }
+    // Le message plié, ou rangé sous le sous-onglet Boîte du téléphone (1.0, R2) : « À régler » l'ouvre et y mène.
+    if (t) { const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]'); await (d && await d.isVisible() ? d : t).click(); await page.waitForTimeout(400); continue; }
     return;
   }
 }

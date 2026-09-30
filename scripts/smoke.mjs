@@ -253,7 +253,7 @@ let palierAuto = false;
 const paliersJoues = [];
 let sommairesVus = 0;
 async function prendrePalier() {
-  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
   await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
   const eff = await page.$('#choixModal .tc[data-choix^="effet:"]:not([disabled])');
   const nom = eff ? await eff.getAttribute('data-choix') : await page.$eval('#choixModal .tc:not([disabled])', e => e.dataset.choix);
@@ -280,10 +280,19 @@ async function toucher(sel) {
   await page.waitForTimeout(350);
   return true;
 }
+// LA BOÎTE, UN SOUS-ONGLET DU CLUB (1.0, R2) : au téléphone, ses messages ne se touchent que depuis « Boîte ».
+async function versLaBoite() {
+  const boite = await page.$('#hubModal .hub-boite');
+  if (!boite || await boite.isVisible().catch(() => false)) return;
+  const tab = await page.$('#sousNav:not([hidden]) .soustab[data-page="boite"]');
+  if (tab) { await tab.click(); await page.waitForTimeout(200); }
+}
+async function ouvrirLaMain() { await versLaBoite(); await _click('#hubModal .hub-main-ouvrir'); }
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet')) return;
     if (!(await page.$('#hubModal .hub-traiter'))) return;
+    await versLaBoite();
     if (await page.$('#hubModal .hub-msg.bloque .hub-trou-prendre')) {
       if (guetterTrouHook) await guetterTrouHook();
       await toucher('#hubModal .hub-msg.bloque .hub-trou-prendre');
@@ -1968,6 +1977,7 @@ async function traverserSaison(etiquette, reprise = false) {
       if (carte.pige) trouVu.erreurs.push(`la case vide porte ${carte.pige} carte(s) « à prendre » : on ne choisit pas celle-là`);
       if (!carte.nom.trim()) trouVu.erreurs.push('la carte tirée n\'est pas nommée');
       const quel = await page.$eval('#hubModal .hub-trou-prendre', e => e.dataset.trou);
+      await versLaBoite();
       await _click('#hubModal .hub-trou-prendre');
       await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
       await page.waitForTimeout(400);
@@ -2004,7 +2014,7 @@ async function traverserSaison(etiquette, reprise = false) {
     const lireMain = async () => {
       // Un choix forcé passe devant le palier (S74b) : on y répond d'abord.
       if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await repondreAuxChoix();
-      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
       await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
       const main = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
       await _click('#choixModal .choix-plus-tard');
@@ -2049,7 +2059,7 @@ async function traverserSaison(etiquette, reprise = false) {
       const jPrise = await jourDit();
       const pris = offertes[0];
       // La main du palier a pu s'ouvrir d'elle-même après un choix forcé (S74b).
-      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
       await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
       await _click(`#choixModal .tc[data-choix="effet:${pris}"]`);
       await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
@@ -2089,7 +2099,7 @@ async function traverserSaison(etiquette, reprise = false) {
         await repondreAuxChoix();
         const jDeck = await jourDit();
         // La main du palier a pu s'ouvrir d'elle-même après un choix forcé (S74b).
-        if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+        if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
         await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
         const off = await page.$eval(`#choixModal .tc[data-choix="${deck}"]`, b => b.disabled);
         if (off) console.log(`   la carte « ${deck} » est grisée ce palier-ci (personne à qui la donner)`);
