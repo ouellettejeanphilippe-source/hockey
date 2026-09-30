@@ -16,7 +16,7 @@ import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
 import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
-import { $, G, capLeft, closeModal, displayStats, formatName, ico, isPicked, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag } from './game.js';
+import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag } from './game.js';
 
 /* =====================================================================
    Hexagone (seulement si le brouillard est levé)
@@ -355,10 +355,13 @@ export function showPlayerModal(p, opts = {}) {
     ? joue.map(t => `<span class="cj-sa-trait"><b>${t.ico} ${esc(t.nom)}</b> — ${esc(t.mot)}</span>`).join('')
     : '<span class="cj-sa-trait">La carte de base : elle ne joue rien de plus.</span>'}</div>`;
   // La vraie saison, sur la carte : six nombres, comme au dos d'une vraie carte… mais au recto, où on les cherche.
+  // Le nombre en évidence est son chiffre clé (`chiffreCle`) : les punitions d'un bagarreur, les mises en échec d'un checker.
+  const cle = chiffreCle(p);
   const nb = (k, v, hl = false) => `<div class="fc-stat${hl ? ' hl' : ''}"><span class="k">${k}</span><b>${v}</b></div>`;
   const statsCarte = p.p === 'G'
     ? nb('PJ', st.gp) + nb('V', st.w, true) + nb('D', st.l) + nb('BL', st.so) + nb('%ARR', p.sv ?? '—') + nb('MBA', p.ga ?? '—')
-    : nb('PJ', st.gp) + nb('B', st.g) + nb('A', st.a) + nb('PTS', st.pt, true) + nb('+/-', pmStr) + nb('PUN', p.pim ?? '—');
+    : nb('PJ', st.gp) + nb('B', st.g) + nb('A', st.a) + nb('PTS', st.pt, cle.u === 'PTS')
+      + (cle.u === 'MÉ/M' || cle.u === 'TB/M' ? nb(cle.u, cle.v, true) : nb('+/-', pmStr, cle.u === '+/−')) + nb('PUN', p.pim ?? '—', cle.u === 'PUN');
   const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p)}${realTag(p)}`;
   const milieuVerso = `${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}

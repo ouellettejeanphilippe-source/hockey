@@ -20,7 +20,7 @@ import { ajouterAuCartable } from './cartable.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { scoreIdentite, IDENTITES } from './identites.js';
 import { codeDeFranchise, saisonsDeFranchise, FRANCHISES } from './franchises.js';
-import { $, DEFUNCT, G, MIN_SAL, MODE, SEUIL_IDENTITE, TEAMFULL, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, agesAvailable, applyTeamColors, candidats, capHitDuJour, capLeft, capUsed, caseCourante, caseOuverte, closeModal, displayStats, enRepechage, epoqueDuTirage, formatName, franchiseDuTirage, headshotHtml, ico, identite, isPicked, majNavbar, maxForPick, montrerPage, nextNeed, openSlots, poserEchelle, positionClass, positionLabel, quiEst, render, rnd, roleTag, saisonDeFranchise, saveGame, saveOpts, scoreDeLaMain, scoreDuVestiaire, signes, slotsLeft, svCourt, toast, totalCases, vestiaire, zoneEcart, zoneTag } from './game.js';
+import { $, DEFUNCT, G, MIN_SAL, MODE, SEUIL_IDENTITE, TEAMFULL, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, agesAvailable, applyTeamColors, candidats, capHitDuJour, capLeft, chiffreCle, capUsed, caseCourante, caseOuverte, closeModal, displayStats, enRepechage, epoqueDuTirage, formatName, franchiseDuTirage, headshotHtml, ico, identite, isPicked, majNavbar, maxForPick, montrerPage, nextNeed, openSlots, poserEchelle, positionClass, positionLabel, quiEst, render, rnd, roleTag, saisonDeFranchise, saveGame, saveOpts, scoreDeLaMain, scoreDuVestiaire, signes, slotsLeft, toast, totalCases, vestiaire, zoneEcart, zoneTag } from './game.js';
 import { ballottageVu, groupeDe } from './banc.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { decisionsDeLaPartie, renderJetons } from './rogue-jeu.js';
@@ -159,8 +159,8 @@ export function varsEquipe(p) {
  */
 export function carteMiniHtml(p) {
   const st = displayStats(p);
-  const cle = p.p === 'G' ? `${svCourt(p)}<small>%ARR</small>` : `${st.pt}<small>PTS</small>`;
-  return `<span class="cj-mini-carte" style="${varsEquipe(p)}">${cartonDe(p)}<span class="cjm-ligne"><b>${cle}</b><span>${st.salaryMain}</span></span></span>`;
+  const c = chiffreCle(p);
+  return `<span class="cj-mini-carte" style="${varsEquipe(p)}">${cartonDe(p)}<span class="cjm-ligne"><b title="${esc(c.mot)}">${c.v}<small>${c.u}</small></b><span>${st.salaryMain}</span></span></span>`;
 }
 /*
  * SES CARTES (S78). JP : *pour les cartes, ajouter section au verso ou
@@ -1109,14 +1109,14 @@ export function playerCardEl(p) {
 
   // La carte ne porte que l'essentiel : qui, combien, ce qu'il vaut et où il
   // va. Le détail des statistiques est dans la fiche, à un clic.
-  // 1.0 (C2) : un gardien se juge à son % d'arrêts — le seul chiffre de sa fiche que le moteur lit.
-  const bigVal = p.p === 'G' ? svCourt(p) : st.pt;
-  const bigUnit = p.p === 'G' ? '%ARR' : 'PTS';
+  // 1.0 (C2) : un gardien se juge à son % d'arrêts — le seul chiffre de sa fiche que le moteur lit ;
+  // et le chiffre suit le RÔLE (`chiffreCle`) : un bagarreur lit ses punitions, un checker ses mises en échec.
+  const { v: bigVal, u: bigUnit, mot: motCle } = chiffreCle(p);
 
   // Sur table, la carte porte les nombres du plateau à la place du chiffre
   // clé, et le gabarit, le tir et l'habileté à la place de l'archétype, des
   // mesures et de la zone — ce que le plateau lit, rien de ce qu'il ignore.
-  const cle = surTable() ? `<span class="pcard-axes">${axesTableHtml(p)}</span>` : `<span class="pcard-big"><b>${bigVal}</b><span>${bigUnit}</span></span>`;
+  const cle = surTable() ? `<span class="pcard-axes">${axesTableHtml(p)}</span>` : `<span class="pcard-big" title="Son chiffre clé : ${esc(motCle)}"><b>${bigVal}</b><span>${bigUnit}</span></span>`;
   const mid = `<div class="tags">${surTable() ? tagsTableHtml(p) : [identiteTag(p), roleTag(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
 
   let dest;

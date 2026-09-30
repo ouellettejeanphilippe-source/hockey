@@ -862,7 +862,22 @@ console.log('   écran « Nouvelle partie » : ouvert à la première visite, re
  * gabarit) qui est couvert, pas la malveillance.
  */
 const COTES = ['o', 'd', 'r', 'c', 'v', 'sp'];
+/*
+ * AU REPOS (1.0). La case du dernier joueur signé se pose en s'agrandissant
+ * (`cj-arrive`, scale 1,04 à mi-course) et l'animation ne part que quand le
+ * volet s'affiche : mesurée 400 ms après l'ouverture de l'onglet, en plein
+ * saut, sa boîte dépassait de 2 ou 3 px ce que `clientWidth` révèle — la CI
+ * lisait « très bon » coupé, à un joueur différent chaque fois. On attend la
+ * fin des animations qui finissent (jamais celles qui bouclent) avant de
+ * mesurer : le jeu se juge à l'arrêt.
+ */
+async function auRepos() {
+  await page.evaluate(() => Promise.all(document.getAnimations()
+    .filter(a => { try { return a.effect.getTiming().iterations !== Infinity; } catch { return false; } })
+    .map(a => a.finished.catch(() => {}))));
+}
 async function sansDebordement(ou) {
+  await auRepos();
   const trop = await page.evaluate(() => {
     const el = document.documentElement;
     return el.scrollWidth - el.clientWidth;
@@ -900,6 +915,7 @@ async function sansDebordement(ou) {
  * l'alignement.
  */
 async function toutEstAtteignable(ou) {
+  await auRepos();
   const mauvais = await page.evaluate(() => {
     const st = el => getComputedStyle(el);
     const rogne = el => { const s = st(el); return ['hidden','auto','scroll'].includes(s.overflowY) || ['hidden','auto','scroll'].includes(s.overflowX); };
@@ -1112,6 +1128,10 @@ async function drafter(etiquette) {
       // pour un gardien. Ce n'est PAS une cote — celles-là ne sont pas dans le
       // DOM, et c'est une règle du dépôt — mais c'est ce que le joueur lit.
       cle: (((t) => { const m = t.replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/); return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0; })(el.querySelector('.pcard-big b')?.textContent || '0')),
+      // Le chiffre clé SUIT LE RÔLE (1.0) : des points, des punitions, des mises en échec par match… Deux chiffres ne
+      // se comparent que dans la même unité ; entre deux unités, c'est le NIVEAU du ruban (Soutien → Phénomène) qui tranche.
+      unite: (el.querySelector('.pcard-big span')?.textContent || '').trim(),
+      niveau: ['Soutien', 'Régulier', 'Pilier', 'Étoile', 'Phénomène'].indexOf(((el.querySelector('.cj-ruban')?.textContent || '').replace(/[★\s]/g, ''))),
     })));
 
     /*
@@ -1135,7 +1155,9 @@ async function drafter(etiquette) {
      * Ce n'est pas un test qu'on truque : c'est la décision que l'écran
      * demande de prendre, avec la seule information qu'il donne.
      */
-    const rang = (a, b) => (infos[b].propre - infos[a].propre) || (infos[b].cle - infos[a].cle);
+    // Un ordre TOTAL (sinon le tri mélange) : à niveau égal, les points d'abord, puis le chiffre dans son unité.
+    const rang = (a, b) => (infos[b].propre - infos[a].propre) || (infos[b].niveau - infos[a].niveau)
+      || ((infos[b].unite === 'PTS') - (infos[a].unite === 'PTS')) || (infos[a].unite === infos[b].unite ? infos[b].cle - infos[a].cle : infos[a].unite < infos[b].unite ? -1 : 1);
     const tenables = infos.map((c, i) => i).filter(i => infos[i].ok && infos[i].price <= maxPick);
     let idx = tenables.length ? tenables.sort(rang)[0] : -1;
     if (idx < 0) {

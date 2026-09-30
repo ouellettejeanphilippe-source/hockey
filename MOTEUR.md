@@ -342,6 +342,87 @@ de robustesse entre les deux clubs (`K_ROB`, js/sim.js) et l'intensité monte de
 `ROB_SERIES` par ronde. Un bâti robuste fait une saison moyenne et soulève la
 Coupe aussi souvent que l'empilement de valeur (`check_builds.mjs`).
 
+**Fait, 1.0 (le dur de quatrième trio) :** JP : *on ne distingue pas bien les
+joueurs selon position ; un excellent bagarreur de quatrième trio devrait être
+impactant*. Mesuré : trois soirs sur quatre, la robustesse ne pesait rien
+(intensité 0), et un bagarreur n'était qu'un coût de punitions. Deux canaux
+existants, deux constantes (`js/sim.js`, sous `K_ROB`) : les soirs ordinaires
+pèsent `ROB_ORDINAIRE` (0,35) de l'intensité d'un soir éreintant, donc un
+écart-type de robustesse vaut 2,5 % de finition chaque soir au lieu de rien ;
+et la DISSUASION — la robustesse d'alignement réduit les blessures de l'équipe
+de 1 − e^(−`DISSUASION`) = 18 % par écart-type. `check_builds.mjs` (2 essais,
+solo) : ROBUSTE 55,5 → 60,5 V, DÉF+ROB 60,5 → 65,5, VALEUR 67 inchangé, et le
+« pur r » (des bagarreurs à 99 pour 19 M$) reste à 20 V : pas d'exploit.
+`check_monotonie` : monotone, 25,6 / 51,4. À l'écran, le chiffre clé suit le
+rôle (`chiffreCle`, js/game.js) : un bagarreur lit ses punitions, un checker
+ses mises en échec par match, un défensif ses tirs bloqués.
+
+**Fait, 1.0 (la maîtrise des rôles, les coups, les jambes en continu) :** JP :
+*chaque type de joueur devrait avoir un impact quand maîtrisé et changer
+comment les matchs se jouent ; ajouter des stats de robustesse au sim avec
+perte d'énergie des joueurs frappés ; des niveaux de fatigue, pas de cap à 90*.
+Trois chantiers dans `js/sim.js`, sous `MAITRISE_LIGUE` et `ENERGIE_REF` :
+
+- **La maîtrise** d'un rôle (0 à « bon », 1 à « élite »), centrée sur la
+  moyenne des 29 000 réguliers (`MAITRISE_LIGUE`, mesurée) pour que la ligue
+  ne bouge pas. Un canal par rôle, celui que ses stats ne portent pas :
+  checker, two-way, défensif, physique ÉTOUFFENT la qualité des lancers
+  adverses pendant leurs présences (`EFFET_ROLE` 6 / 3 %) ; le bagarreur
+  INTIMIDE le trio en face (5 %) ; le power forward tient DEVANT LE FILET
+  (finition des coéquipiers +5 %) ; le plombier garde ses JAMBES (−15 %
+  d'usure) ; le sniper TIRE EN AVANTAGE NUMÉRIQUE (jusqu'à ×2 dans le choix
+  du tireur) ; le défenseur offensif lance DE LA POINTE (volume +5 %) ;
+  passeur et manieur créent, déjà lu dans `passesRel`.
+- **Les coups coûtent des jambes** (`encaisserCoups`) : les mises en échec
+  d'une unité (`ht` par match, estimées de `r` avant 2005-06, portées par
+  l'agressivité) tombent sur les unités adverses qu'elle croise (les poids
+  de l'appariement, 60 % sur les trios, 40 % sur les paires) ; chaque coup
+  reçu coûte `COUP_JAMBES` (1,2) à un joueur moyen, la moitié à un costaud,
+  une fois et demie à un léger (`COUP_ABSORBE`). Après le match, comme
+  l'usure. Mesuré (12 vraies équipes, 82 matchs) : 16 à 29 coups par match
+  par club, les jambes du matin passent de 95,9 à 94,5 en moyenne, le plus
+  frappé à 88-91 ; à 2 le 1er trio par défaut passait sous 90 au matin
+  (89,5), la borne de calibration — d'où 1,5, puis 1,2 quand les coups
+  marquants (ci-dessous) ont pris leur part.
+- **Le jeu physique en événements** (`tirerPhysique`, `journal.physique`,
+  1.0). JP : *tu devrais pouvoir pilonner ou être pilonné ; je veux des
+  batailles et du chamaillage aussi, tout ce qui arrive dans un vrai match
+  et ajoute du drama*. Trois événements, tirés par `hasard()` avant les
+  lancers, datés sur la feuille, racontés au direct (`js/direct.js`, les
+  banques `PHRASE_COUP`, `PHRASE_BAGARRE`, `PHRASE_MELEE` de
+  `js/commentaire.js`) et au sommaire (`js/bilan.js`) :
+  - le COUP MARQUANT — `COUP_MARQUANT_PART` (12 %) des coups attendus d'un
+    club, le frappeur pesé par ses mises en échec et son physique, la cible
+    tirée sur une unité adverse ; elle perd `COUP_MARQUANT_JAMBES` (2)
+    sur-le-champ et se blesse `BLESSURE_SONNE` (×1,5) ce soir ;
+  - la BAGARRE — `BAGARRE_PAR_PIM` (0,55) par punition de ligue de l'époque
+    (une par match en 1987, une sur trois en 2023), montée quand les deux
+    clubs ont un vrai bagarreur et quand les lignes jouent rentre-dedans ;
+    chaque club envoie son bagarreur (le score du rôle au cube), le duel se
+    joue au rôle, au physique, au gabarit et à un `gauss()` ; cinq minutes
+    chacun HORS DE LEURS UNITÉS (`auCachot` filtre la glace et le tireur
+    dans `jouerCote`), le vainqueur donne `ELAN_BAGARRE` (×1,06) à la
+    finition de son club pendant `ELAN_DUREE` (10 min), le perdant
+    `ELAN_BAGARRE_PERDU` (×0,94 : symétrique, la ligue ne bouge pas), le
+    battu se blesse `BLESSURE_BAGARRE_PERDUE` (×3) ce soir ;
+  - la MÊLÉE — `MELEE_BASE` (0,5) par match, deux minutes qui s'annulent à un
+    costaud de chaque bord ; du drama, des minutes de punition, rien de plus.
+  Mesuré (DET 2021-22 dans une ligue de 12 vraies équipes) : 4,0 coups
+  marquants, 0,37 bagarre, 0,30 mêlée par match, 33 mises en échec ; les
+  minutes vont à la feuille (`compterFeuilles`) et le direct compte les
+  mises en échec dans ses statistiques.
+- **Plus de zone morte** : `facteurEnergie` = 1 − 0,5 % × (94 − jambes), en
+  continu, centré sur `ENERGIE_REF` (les jambes d'une ligne ordinaire au
+  matin) ; un joueur frais gagne jusqu'à +3 %, un joueur usé perd tout de
+  suite ; les niveaux `NIVEAUX_JAMBES` (Frais 95, Correct 85, Lourd 70,
+  Vidé) se lisent dans la case et derrière le banc.
+
+Mesuré après : `check_feuilles` 28,6 lancers, 3,01 buts (inchangé) ;
+`check_monotonie` monotone, 27,3 / 53,5 ; `check_jambes` 11/11 (1er trio
+par défaut 90,3, poussé 81,1) ; `check_situations`, `check_gros`,
+`check_graine` verts ; `check_builds` (2 essais, bruit ±4) VALEUR 67,5,
+DÉFENSIF 67, ROBUSTE 58,5, « pur r » 23,5.
+
 **À mesurer** : quelle amplitude de tirage ramène une équipe forte de 99 % à
 quelque chose comme 40 à 60 % de chances de Coupe. Mon test préliminaire dit que
 la variance seule ne suffit pas — la vraie cause est que l'alignement du joueur

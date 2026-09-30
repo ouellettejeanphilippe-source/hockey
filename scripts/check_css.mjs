@@ -21,8 +21,8 @@ import { exiger, informer, verdict } from './verdict.mjs';
 import { regles } from './lib/css.mjs';
 
 // Les plafonds : le compte à la fusion (J3-3). On les baisse, on ne les monte pas.
-const PLAFOND_DOUBLONS = 59;
-const PLAFOND_IMPORTANT = 23;
+const PLAFOND_DOUBLONS = 20;
+const PLAFOND_IMPORTANT = 6;
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const src = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');
@@ -46,4 +46,23 @@ const impRm = rs.filter(r => /prefers-reduced-motion/.test(r.contexte)).reduce((
 exiger(`${PLAFOND_IMPORTANT} \`!important\` au plus (hors prefers-reduced-motion)`, imp <= PLAFOND_IMPORTANT, `${imp} (et ${impRm} dans les blocs prefers-reduced-motion)`);
 
 informer('la feuille', `${(Buffer.byteLength(src) / 1024).toFixed(0)} Ko · ${rs.length} règles`);
+
+/*
+ * 3. LE SYSTÈME DE DESIGN (1.0, la refonte — docs/refonte-ui.md) : sept
+ * tailles, trois rayons, une vingtaine de couleurs, toutes des jetons. On
+ * compte ce qui s'en écarte HORS des jetons (:root) : une taille écrite en
+ * px, un rayon en px, une couleur en hexadécimal. Les cartons de collection
+ * (`cqw`) et le plateau (`--tcell`) ont droit à leurs unités relatives ; les
+ * plafonds sont ceux de la fusion et ne montent pas.
+ */
+const PLAFOND_TAILLES_PX = Number(process.env.PLAFOND_TAILLES_PX ?? 6);
+const PLAFOND_RAYONS_PX = Number(process.env.PLAFOND_RAYONS_PX ?? 1);
+const PLAFOND_COULEURS = Number(process.env.PLAFOND_COULEURS ?? 342);
+const horsJetons = src.replace(/:root[^{]*\{[^}]*\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+const taillesPx = (horsJetons.match(/font(?:-size)?:[^;]*?\b\d+(?:\.\d+)?px/g) || []).length;
+const rayonsPx = (horsJetons.match(/border-radius:[^;]*?\b\d+(?:\.\d+)?px/g) || []).filter(x => !/50%/.test(x)).length;
+const couleurs = (horsJetons.match(/#[0-9a-fA-F]{3,8}\b|\brgba?\(/g) || []).length;
+exiger(`${PLAFOND_TAILLES_PX} tailles de police en px au plus hors des jetons (les sept tailles sont --t-1 à --t-7)`, taillesPx <= PLAFOND_TAILLES_PX, `${taillesPx}`);
+exiger(`${PLAFOND_RAYONS_PX} rayons en px au plus hors des jetons (--r-0, --r-1, --r-2)`, rayonsPx <= PLAFOND_RAYONS_PX, `${rayonsPx}`);
+exiger(`${PLAFOND_COULEURS} couleurs écrites en dur au plus hors des jetons`, couleurs <= PLAFOND_COULEURS, `${couleurs}`);
 verdict('Le CSS');

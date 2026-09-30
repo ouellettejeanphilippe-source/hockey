@@ -27,9 +27,11 @@ import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, CAP, REROLLS, MODES, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
-  ENERGIE_SEUIL, ENERGIE_EFFET, ENERGIE_BLESSURE, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
+  ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
   GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE,
-  PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE,
+  PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
+  EFFET_ROLE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
+  BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES,
 } from '../js/sim.js';
 import { TRAITS } from '../js/traits.js';
 import { BONUS } from '../js/rarete.js';
@@ -189,7 +191,23 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     // 1.0 (J2-11) : la consigne porte la répartition attaque / défense ; ses chiffres sont ceux que le moteur pose (`effetDeMoment`).
     [`basse (précision −${pctE('basse', 'finition')} %, usure des jambes −${pctE('basse', 'energie')} %)`, 'la consigne basse'],
     [`haute (précision +${pctE('haute', 'finition')} %, buts contre −${pctE('haute', 'defense')} %, blessures +${pctE('haute', 'blessure')} %, usure des jambes +${pctE('haute', 'energie')} %)`, 'la consigne haute'],
-    [`Sous ${ENERGIE_SEUIL}, chaque point de moins lui coûte ${nombre(ENERGIE_EFFET)} %`, 'l\'effet des jambes'],
+    // La robustesse (1.0, le dur de quatrième trio) : un écart-type, un soir ordinaire et un soir éreintant, et la dissuasion.
+    [`ta finition monte de ${nombre(Math.round((Math.exp(K_ROB * ROB_ORDINAIRE) - 1) * 1000) / 10)} % et la sienne baisse d'autant ; un soir éreintant (un match sur quatre) de ${nombre(Math.round((Math.exp(K_ROB) - 1) * 1000) / 10)} %`, 'la robustesse'],
+    [`réduit les blessures de tes joueurs de ${nombre(Math.round((1 - Math.exp(-DISSUASION)) * 100))} %`, 'la dissuasion'],
+    // La maîtrise des rôles (1.0) : chaque effet, depuis EFFET_ROLE ; les coups, depuis COUP_JAMBES et COUP_ABSORBE.
+    [`(jusqu'à ${nombre(EFFET_ROLE.checker * 100)} %, ${nombre(EFFET_ROLE.deuxsens * 100)} % pour le two-way et le physique)`, 'les rôles qui étouffent'],
+    [`(finition −${nombre(EFFET_ROLE.bagarreur * 100)} %)`, 'le bagarreur'],
+    [`(finition de ses coéquipiers +${nombre(EFFET_ROLE.power * 100)} %)`, 'le power forward'],
+    [`(son match lui coûte ${nombre(EFFET_ROLE.energie * 100)} % de moins)`, 'le plombier'],
+    [`(jusqu'à ${nombre(1 + EFFET_ROLE.sniper)} fois plus souvent)`, 'le sniper'],
+    [`(volume de sa paire +${nombre(EFFET_ROLE.offensif * 100)} %)`, 'le défenseur offensif'],
+    [`Chaque coup reçu coûte ${nombre(COUP_JAMBES)} jambes à un joueur moyen : ${nombre(COUP_JAMBES * (1 - COUP_ABSORBE))} à un costaud 🪨, ${nombre(COUP_JAMBES * (1 + COUP_ABSORBE))} à un léger 🪶.`, 'les coups'],
+    // Le jeu physique en événements (1.0).
+    [`le frappé perd ${nombre(COUP_MARQUANT_JAMBES)} jambes sur-le-champ et se blesse ${nombre(BLESSURE_SONNE)} fois plus ce soir`, 'le coup marquant'],
+    [`${BAGARRE_MINUTES} minutes chacun, hors de leurs unités pendant ce temps ; le club du vainqueur gagne ${nombre(Math.round((ELAN_BAGARRE - 1) * 100))} % de finition pendant ${ELAN_DUREE} minutes, le perdant en perd ${nombre(Math.round((1 - ELAN_BAGARRE_PERDU) * 100))} %, et le battu se blesse ${nombre(BLESSURE_BAGARRE_PERDUE)} fois plus ce soir`, 'la bagarre'],
+    [`${MELEE_MINUTES} minutes qui s'annulent`, 'la mêlée'],
+    [`à ${ENERGIE_REF}, il rend sa moyenne ; chaque point de moins lui coûte ${nombre(ENERGIE_EFFET)} %`, 'l\'effet des jambes'],
+    [`Frais (${NIVEAUX_JAMBES[0].min} et plus), Correct (${NIVEAUX_JAMBES[1].min}), Lourd (${NIVEAUX_JAMBES[2].min}), Vidé`, 'les niveaux de fatigue'],
     [`sous ${ENERGIE_BLESSURE}, il se blesse plus`, 'le seuil de blessure'],
     [`entre ${nombre(PART_AUX_MIN * 100)} et ${nombre(PART_AUX_MAX * 100)} %`, 'la part de l\'auxiliaire'],
     [`en prend ${nombre(PART_SANS_AUX * 100)} %`, 'le gardien rappelé'],

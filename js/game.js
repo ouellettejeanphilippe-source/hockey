@@ -28,7 +28,7 @@ import { state, loadIndex, cacheClear } from './data.js';
 import { plafondDe } from './banque.js';
 import { ecrirePartieActive, nouvellePartie, lirePartieActive, migrer, lireIndex, activer } from './sauvegardes.js';
 import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSur, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { estD as isD, esc, money, pct3 } from './util.js';
+import { estD as isD, esc, money, pct3, signe } from './util.js';
 import { getSecondaryPosition, getEraFactor, getEraSalary, getLineZone, getArchetype } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
@@ -883,7 +883,36 @@ const seasonMaxGP = season =>
     : 82;
 
 /* Le % d'arrêts d'un gardien, à la façon d'une carte (« ,912 ») : son chiffre clé depuis 1.0 (C2), le seul que le moteur lit. */
-export const svCourt = p => (p.sv == null ? '—' : pct3(Number(p.sv)));
+const svCourt = p => (p.sv == null ? '—' : pct3(Number(p.sv)));
+/*
+ * LE CHIFFRE CLÉ D'UN JOUEUR SUIT SON RÔLE (1.0). JP : *on ne distingue pas
+ * bien les joueurs selon position ; un excellent bagarreur de quatrième trio
+ * devrait être impactant*. Les points disaient tout de tout le monde, donc un
+ * bagarreur lisait « 3 PTS » et rien de ce qu'il fait. Une vraie stat, jamais
+ * une cote : un gardien son % d'arrêts ; un bagarreur ses minutes de punition ;
+ * un checker, un plombier ou un défenseur physique ses mises en échec par
+ * match (comptées dès 2005-06 — avant, les punitions pour le physique, les
+ * points pour les autres) ; un défenseur défensif ses tirs bloqués par match
+ * (dès 2005-06, sinon son différentiel) ; les autres leurs points. La carte du
+ * vestiaire, la carte mini, la case de l'alignement et la fiche lisent tous
+ * ici — un seul chiffre par joueur, le même partout.
+ */
+const parMatch = x => (Math.round(x * 10) / 10).toFixed(1).replace('.', ',');
+export function chiffreCle(p) {
+  if (p.p === 'G') return { v: svCourt(p), u: '%ARR', mot: 'son % d\'arrêts' };
+  const st = displayStats(p);
+  const cle = (profilPrincipal(p) || {}).cle;
+  if (cle === 'bagarreur') return { v: p.pim ?? 0, u: 'PUN', mot: 'ses minutes de punition' };
+  if (cle === 'checker' || cle === 'energie' || cle === 'physique') {
+    if (p.ht != null) return { v: parMatch(p.ht), u: 'MÉ/M', mot: 'ses mises en échec par match' };
+    if (cle === 'physique') return { v: p.pim ?? 0, u: 'PUN', mot: 'ses minutes de punition' };
+  }
+  if (cle === 'defensif') {
+    if (p.bl != null) return { v: parMatch(p.bl), u: 'TB/M', mot: 'ses tirs bloqués par match' };
+    return { v: signe(st.pm), u: '+/−', mot: 'son différentiel' };
+  }
+  return { v: st.pt, u: 'PTS', mot: 'ses points' };
+}
 
 /** Statistiques telles qu'affichées, selon les options (prorata, salaire). */
 export function displayStats(p) {

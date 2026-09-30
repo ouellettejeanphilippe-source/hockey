@@ -36,7 +36,7 @@ import {
 import { POIDS_TRIO } from './ratings.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
-import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet } from './sim.js';
+import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
 import { jouerSon } from './sons.js';
 import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, pct3 } from './util.js';
@@ -451,7 +451,9 @@ export const brancherPastilleNiveau = f => { pastilleNiveau = f; };
 /* Les jambes d'un joueur (sa fatigue, sur 100), en chiffre et en barre. Celles d'un gardien se comptent en départs de suite (C4). */
 export function jambesHtml(e) {
   const v = Math.round(e);
-  return `<span class="jambes" title="Ses jambes ce matin, sur 100. À 90 et plus, il rend tout ; sous 90, il rend un peu moins à chaque point ; sous 60, il se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${v < 75 ? 'bas' : v < 90 ? 'moyen' : ''}"></span></i></span>`;
+  const N = niveauJambes(v);
+  const effet = Math.round((facteurEnergie({ energie: v }) - 1) * 1000) / 10;
+  return `<span class="jambes jambes-${N.cle}" title="Ses jambes ce matin, sur 100 : ${N.nom.toLowerCase()}. Chaque point sous ${ENERGIE_REF} lui coûte ${String(ENERGIE_EFFET).replace('.', ',')} % de lancers, de finition et de création, chaque point au-dessus lui en rend autant (ce matin : ${effet > 0 ? '+' : ''}${String(effet).replace('.', ',')} %) ; sous ${ENERGIE_BLESSURE}, il se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${N.cle}"></span></i><em class="jambes-mot">${N.nom}</em></span>`;
 }
 
 /* ======================================================================

@@ -9,10 +9,10 @@ import { MT } from './charge-table.js';
 import { esc, estD as isD, money, pct3 } from './util.js';
 import { profilPrincipal, roleSecond, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
 import { getArchetype } from './ratings.js';
-import { jambesHtml, strategieDeLigne, ouvrirStrategie } from './gerant.js';
+import { jambesHtml, niveauDe, strategieDeLigne, ouvrirStrategie } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
-import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, displayStats, estRenfort, formatName, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, svCourt, toast, totalCases, zoneEcart, zoneTag } from './game.js';
+import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { fermetureCourante } from './banc.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
@@ -193,8 +193,10 @@ function slotTags(p, zoneEcartTag, penTag) {
 function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   const pp = profilPrincipal(p);
   const a = pp || p.p !== 'G' ? null : getArchetype(p, getHiddenRatings(p));
+  // Le rôle ET son mot (élite, très bon, bon…) : un bagarreur élite se lit comme tel, même à « Soutien ».
+  const mot = pp ? niveauDe(pp.fit) : '';
   const role = pp
-    ? `<span class="slot-roles cell-role" title="${esc(pp.nom)} — lu dans ${esc(pp.mot)}">${pp.ico} <span>${esc(pp.nom)}</span></span>`
+    ? `<span class="slot-roles cell-role" title="${esc(pp.nom)}, ${mot} — lu dans ${esc(pp.mot)}, comparé aux joueurs de sa saison">${pp.ico} <span>${esc(pp.court || pp.nom)}</span><i class="cell-mot ${mot === 'élite' ? 'elite' : mot === 'très bon' ? 'tres-bon' : mot}">${mot}</i></span>`
     : a ? `<span class="slot-roles cell-role" title="${esc(a.desc)}">${a.icon} <span>${esc(a.label)}</span></span>` : '';
   const zone = zoneTag(p, true);
   const marque = ecart === 'sous' ? `<span class="cell-zone sous" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
@@ -203,8 +205,10 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   const t = getTraits(p).map(x => TRAITS[x.cle]).filter(Boolean)[0];
   const trophee = t ? `<span class="cell-trait" title="${esc(t.short || t.nom || '')}">${t.icon}</span>` : '';
   const jambes = G.banc ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100) : '';
-  return `<div class="cell-l1">${role}${pastilleNiveau(p)}</div>
-        <div class="slot-tags cell-l2">${blesseTag}${marque}${zone}${penTag}${trophee}<span class="cell-prod slot-faits">${esc(G.banc ? ficheDuJour(p) : main)}</span></div>
+  // Trois rangées : le rôle et son mot ; le niveau et la zone ; le chiffre clé (sa fiche à ce jour derrière le banc).
+  return `<div class="cell-l1">${role}</div>
+        <div class="slot-tags cell-l2">${pastilleNiveau(p)}${blesseTag}${marque}${zone}${penTag}${trophee}</div>
+        <div class="cell-l3"><span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${chiffreCle(p).mot}`)}">${esc(G.banc ? ficheDuJour(p) : main)}</span></div>
         ${jambes}`;
 }
 
@@ -228,10 +232,13 @@ function slotEl(s) {
     el.style.setProperty('--slot-ink', band.ink);
     el.style.setProperty('--slot-stripe', band.stripe);
     const st = displayStats(p);
-    const main = p.p === 'G' ? `${svCourt(p)} %ARR` : `${st.pt} PTS`;
+    // Le chiffre clé suit le rôle (`chiffreCle`, js/game.js) : ses punitions pour un bagarreur, ses mises en échec pour un checker.
+    const cle = chiffreCle(p);
+    const main = `${cle.v} ${cle.u}`;
     /* La case est étroite : la ligne de statistiques y tient en une seule,
-       donc on abrège « PTS/M » en « /M ». La fiche donne le libellé complet. */
-    const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : `${st.ppgStr}/M`;
+       donc on abrège « PTS/M » en « /M ». La fiche donne le libellé complet.
+       Quand le chiffre clé n'est pas ses points, ses points suivent. */
+    const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : cle.u === 'PTS' ? `${st.ppgStr}/M` : `${st.pt} PTS`;
     // Sur table : les nombres du plateau, et rien de ce qu'il ne lit pas.
     // Derrière le banc : la fiche À CE JOUR, jamais celle de fin de saison.
     const ligneStats = G.banc ? ficheDuJour(p) : surTable() ? slotAxesTexte(p) : `${main} · ${secondary}`;

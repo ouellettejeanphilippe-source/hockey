@@ -1146,8 +1146,10 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
     const punitions = (f.punitions || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'punition' }));
     // Les blessures du soir (S80), au même moment que le direct les a racontées.
     const blessures = (f.blessures || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'blessure' }));
+    // Le jeu physique (1.0) : coups marquants, bagarres, mêlées, aux mêmes instants que le direct.
+    const physique = (f.physique || []).filter(x => periodeDe(x.instant) === per);
     if (!buts.length && per === 4) return '';
-    const items = [...buts, ...punitions, ...blessures].sort((x, y) => x.instant - y.instant);
+    const items = [...buts, ...punitions, ...blessures, ...physique].sort((x, y) => x.instant - y.instant);
     const lignes = items.map(b => {
       const t = b.cote === 'A' ? A : B;
       // Chaque nom ouvre la fiche avec ses statistiques des SÉRIES.
@@ -1158,6 +1160,18 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
           <span class="som-tps">${tempsRestant(b.instant)}</span>
           <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
           <span class="som-qui">🚑 Blessure${b.joueur ? ` : ${lien(b.joueur)}` : ''} · absent ${b.matchs} match${b.matchs > 1 ? 's' : ''}</span>
+        </div>`;
+      }
+      if (b.type === 'coup' || b.type === 'bagarre' || b.type === 'melee') {
+        const autre = b.cote === 'A' ? B : A;
+        const lienAutre = p => lienJoueur(p, autre, mode, `<strong>${formatName(p.n)}</strong>`);
+        const texte = b.type === 'coup' ? `${lien(b.joueur)} écrase ${lienAutre(b.cible)}`
+          : b.type === 'bagarre' ? `Bagarre ${lienJoueur(b.joueur, A, mode, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${lienJoueur(b.cible, B, mode, `<strong>${formatName(b.cible.n)}</strong>`)}${b.gagnant ? ` · ${esc(teamShort(b.gagnant === 'A' ? A : B))} l'emporte` : ' · match nul'} · ${b.minutes} min chacun`
+          : `Mêlée ${lienJoueur(b.joueur, A, mode, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${lienJoueur(b.cible, B, mode, `<strong>${formatName(b.cible.n)}</strong>`)} · ${b.minutes} min chacun`;
+        return `<div class="som-but som-pun som-${b.type}${b.type === 'bagarre' && b.gagnant ? ` som-gagne-${b.gagnant.toLowerCase()}` : ''}">
+          <span class="som-tps">${tempsRestant(b.instant)}</span>
+          <span class="som-eq">${b.type === 'coup' ? getTeamLogoHtml(t.tag, 13) : `${getTeamLogoHtml(A.tag, 13)}${getTeamLogoHtml(B.tag, 13)}`}</span>
+          <span class="som-qui">${texte}</span>
         </div>`;
       }
       if (b.type === 'punition') {

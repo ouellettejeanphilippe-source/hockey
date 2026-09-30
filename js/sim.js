@@ -1305,7 +1305,8 @@ export const PROFILS = {
     sniper: { nom: 'Sniper', ico: '🎯', mot: 'ses buts par match, son % de tir, ses lancers' },
     passeur: { nom: 'Passeur', ico: '🅰️', mot: 'ses passes par match, ses points en avantage' },
     deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, son infériorité' },
-    power: { nom: 'Power forward', ico: '🦍', mot: 'ses buts, sa robustesse mesurée, son gabarit' },
+    // `court` : le nom qui tient dans une case de l'alignement (cent pixels) ; les autres tiennent déjà.
+    power: { nom: 'Power forward', court: 'Power', ico: '🦍', mot: 'ses buts, sa robustesse mesurée, son gabarit' },
     checker: { nom: 'Checker', ico: '🔧', mot: 'ses mises en échec (sa robustesse avant 2005), sa défensive, peu de points' },
     // 1.0 (C1) : « Plombier », pas « Énergie » — l'énergie était aussi la fatigue et la mana des cartes. La clé reste.
     energie: { nom: 'Plombier', ico: '🪠', mot: 'ses lancers et ses mises en échec en peu de minutes' },
@@ -1314,7 +1315,7 @@ export const PROFILS = {
   D: {
     defensif: { nom: 'Défensif', ico: '🛑', mot: 'sa défensive mesurée, ses tirs bloqués, peu de points' },
     offensif: { nom: 'Offensif', ico: '🚀', mot: 'ses points, ses buts, ses lancers' },
-    manieur: { nom: 'Manieur de rondelle', ico: '🏒', mot: 'ses passes, ses minutes, ses points en avantage' },
+    manieur: { nom: 'Manieur de rondelle', court: 'Manieur', ico: '🏒', mot: 'ses passes, ses minutes, ses points en avantage' },
     physique: { nom: 'Physique', ico: '💪', mot: 'sa robustesse mesurée, ses mises en échec, son gabarit' },
     deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, ses minutes' },
   },
@@ -1724,6 +1725,205 @@ export function bilanAgressivite(agr, ph) {
 }
 
 /*
+ * LA MAÎTRISE DES RÔLES (1.0). JP : *chaque type de joueur devrait avoir un
+ * impact quand maîtrisé et changer comment les matchs se jouent ; les bons
+ * joueurs de soutien doivent se démarquer des moins bons*. Un rôle est un
+ * score de 0 à 100 lu dans ses vraies stats (`rolesBruts`) ; sa MAÎTRISE va
+ * de 0 à « bon » (55) à 1 à « élite » (85), les mots de la fiche. Chaque rôle
+ * a UN canal, celui que ses stats ne portent pas déjà (les buts d'un sniper
+ * sont déjà dans sa finition) : une interaction avec l'adversaire, la glace ou
+ * les coéquipiers. CENTRÉ sur la maîtrise moyenne de la ligue (`MAITRISE_LIGUE`,
+ * mesurée sur 29 000 réguliers) : la ligue ne bouge pas, un checker élite
+ * étouffe, un checker faible laisse passer.
+ *
+ *   checker, two-way (F) · défensif, physique (D) : ÉTOUFFENT — la qualité des
+ *     lancers adverses pendant leurs présences (le canal de la défense) ;
+ *   bagarreur : INTIMIDE — la finition du trio adverse pendant ses présences ;
+ *   power forward : DEVANT LE FILET — la finition de ses coéquipiers ;
+ *   plombier : DES JAMBES — son match lui coûte moins ;
+ *   sniper : EN AVANTAGE NUMÉRIQUE, c'est lui qui tire ;
+ *   défenseur offensif : DE LA POINTE — le volume de sa paire ;
+ *   passeur, manieur : la CRÉATION, déjà lue dans ses passes (`passesRel`).
+ *
+ * Et les MISES EN ÉCHEC COÛTENT DES JAMBES (JP : *perte d'énergie des joueurs
+ * frappés*) : les coups d'une unité (ses `ht` par match, estimés de sa
+ * robustesse avant 2005-06, portés par son agressivité) tombent sur les
+ * unités adverses qu'elle croise (les mêmes poids que l'appariement), et
+ * chaque coup reçu coûte COUP_JAMBES à un joueur moyen — la moitié à un
+ * costaud, une fois et demie à un léger (COUP_ABSORBE). Après le match, comme
+ * l'usure : les coups d'aujourd'hui pèsent demain, et de match en match en
+ * séries. Déterministe : la même graine rejoue la même saison.
+ */
+const MAITRISE_DE = 55, MAITRISE_A = 85;
+const MAITRISE_LIGUE = {
+  F: { sniper: 0.244, passeur: 0.222, deuxsens: 0.24, power: 0.274, checker: 0.159, energie: 0.126, bagarreur: 0.148 },
+  D: { defensif: 0.133, offensif: 0.275, manieur: 0.287, physique: 0.144, deuxsens: 0.321 },
+};
+export const EFFET_ROLE = { checker: 0.06, deuxsens: 0.03, defensif: 0.06, physique: 0.03, bagarreur: 0.05, power: 0.05, energie: 0.15, sniper: 1.0, offensif: 0.05 };
+export const COUP_JAMBES = Number(ENV_MESURE.COUP_JAMBES ?? 1.2), COUP_ABSORBE = 0.5, COUP_MOYEN = 1.2;
+/* La maîtrise d'un joueur dans un rôle, centrée sur la ligue (0 = la moyenne). */
+export function maitrise(p, role) {
+  const pr = profilsDe(p);
+  if (!pr || pr[role] == null) return 0;
+  return borne((pr[role] - MAITRISE_DE) / (MAITRISE_A - MAITRISE_DE), 0, 1) - MAITRISE_LIGUE[estD(p) ? 'D' : 'F'][role];
+}
+const maitriseUnite = (joueurs, role) => (joueurs.length ? joueurs.reduce((a, p) => a + maitrise(p, role), 0) / joueurs.length : 0);
+/* Les mises en échec d'un joueur par match : comptées dès 2005-06, estimées de sa robustesse avant. */
+function coupsDe(p) {
+  if (!p || p.p === 'G') return 0;
+  if (p.ht != null) return p.ht;
+  return COUP_MOYEN * Math.exp(0.5 * (getHiddenRatings(p).r - 50) / 12);
+}
+/* Ce qu'un coup reçu coûte à ce joueur, en jambes : un costaud encaisse, un léger accuse. */
+const coutDuCoup = p => COUP_JAMBES * (1 + COUP_ABSORBE * (1 - 2 * physiqueDe(p)));
+/*
+ * Les coups d'un alignement tombent sur l'autre. `frappeur` et `frappe` sont
+ * les profils de match (`profilMatch`) : leurs unités portent la présence, le
+ * rang et l'agressivité. Une unité frappe au prorata de sa présence et de
+ * son agressivité, les coups se répartissent sur les unités adverses par les
+ * poids de l'appariement (60 % sur les trios, 40 % sur les paires).
+ */
+function encaisserCoups(frappeur, frappe) {
+  if (!frappeur || !frappe || !frappeur.unites || !frappe.unites) return;
+  const cibles = (unites, rang, n) => {
+    const w = unites.map(x => (x.presence || 0) * Math.exp(-APPARIEMENT * Math.abs((unites.length > 1 ? (x.rang || 0) / (unites.length - 1) : 0) - (n > 1 ? rang / (n - 1) : 0))));
+    const t = w.reduce((a, b) => a + b, 0) || 1;
+    return w.map(x => x / t);
+  };
+  for (const g of ['F', 'D']) for (const u of frappeur.unites[g]) {
+    if (!u.joueurs.length) continue;
+    const A = AGRESSIVITES[u.agr ?? 1] || AGRESSIVITES[1];
+    const coups = u.joueurs.reduce((a, p) => a + coupsDe(p), 0) * (u.presence || 0) / (PART_UNITE[g][u.rang] || u.presence || 1) * (0.6 + A.physique);
+    if (!coups) continue;
+    for (const [gg, part] of [['F', 0.6], ['D', 0.4]]) {
+      const cible = frappe.unites[gg];
+      const w = cibles(cible, u.rang || 0, frappeur.unites[g].length);
+      cible.forEach((x, i) => {
+        if (!x.joueurs.length) return;
+        const parJoueur = coups * part * w[i] / x.joueurs.length;
+        for (const q of x.joueurs) q.energie = Math.max(0, energieDe(q) - parJoueur * coutDuCoup(q));
+      });
+    }
+  }
+}
+
+/*
+ * LE JEU PHYSIQUE EN ÉVÉNEMENTS (1.0). JP : *tu devrais pouvoir pilonner ou
+ * être pilonné ; je veux des batailles et du chamaillage aussi, tout ce qui
+ * arrive dans un vrai match et ajoute du drama*. Trois événements, tirés
+ * AVANT les lancers par `hasard()` (la même graine rejoue le même match),
+ * écrits sur la feuille (`journal.physique`) pour le direct et le sommaire :
+ *
+ *   LE COUP MARQUANT : un dur (ses mises en échec, son physique) écrase un
+ *     adversaire tiré sur les unités qu'il croise ; le frappé perd des
+ *     jambes sur-le-champ (COUP_MARQUANT_JAMBES, donc le reste du match
+ *     s'en ressent) et se blesse plus facilement ce soir (BLESSURE_SONNE).
+ *   LA BAGARRE : deux joueurs jettent les gants — chaque club envoie son
+ *     bagarreur (le score du rôle, au cube) ; le duel se joue au score de
+ *     bagarreur, au physique et au gabarit, avec du hasard ; cinq minutes
+ *     chacun, hors de leurs unités pendant ce temps (`auCachot`) ; le
+ *     vainqueur donne de l'ÉLAN à son club (ELAN_BAGARRE pendant ELAN_DUREE
+ *     minutes, la finition), le perdant en coûte (ELAN_BAGARRE_PERDU) et se
+ *     blesse plus (BLESSURE_BAGARRE_PERDUE). Combien : BAGARRE_PAR_PIM par
+ *     punition de ligue de l'époque (1987 en voit une par match, 2023 une
+ *     sur trois), plus quand les deux clubs ont un vrai bagarreur, plus
+ *     quand les lignes jouent rentre-dedans.
+ *   LA MÊLÉE : le chamaillage après un sifflet — deux minutes qui s'annulent,
+ *     à un costaud de chaque bord ; du drama et des punitions, rien de plus.
+ *
+ * Ce que ça change à la ligue : rien en moyenne (les mineures ne bougent
+ * pas, l'élan est symétrique), tout dans le match — un club qui pilonne use
+ * l'autre, un bagarreur gagné vaut dix minutes de finition.
+ */
+const BAGARRE_PAR_PIM = 0.55, MELEE_BASE = 0.5, COUP_MARQUANT_PART = 0.12, BAGARRE_JAMBES = 8;
+export const ELAN_BAGARRE = 1.06, ELAN_BAGARRE_PERDU = 0.94, ELAN_DUREE = 10, BAGARRE_MINUTES = 5, MELEE_MINUTES = 2;
+export const COUP_MARQUANT_JAMBES = 2, BLESSURE_SONNE = 1.5, BLESSURE_BAGARRE_PERDUE = 3;
+/* Les coups qu'un alignement donne par match, attendus (la même formule qu'`encaisserCoups`). */
+function coupsAttendus(profil) {
+  let total = 0;
+  if (!profil || !profil.unites) return 0;
+  for (const g of ['F', 'D']) for (const u of profil.unites[g]) {
+    if (!u.joueurs.length) continue;
+    const A = AGRESSIVITES[u.agr ?? 1] || AGRESSIVITES[1];
+    total += u.joueurs.reduce((a, p) => a + coupsDe(p), 0) * (u.presence || 0) / (PART_UNITE[g][u.rang] || u.presence || 1) * (0.6 + A.physique);
+  }
+  return total;
+}
+const scoreBagarreur = p => ((profilsDe(p) || {}).bagarreur || 0) / 100;
+/* Est-il au cachot à cet instant ? (les cinq minutes d'une bagarre) */
+const auCachot = (profil, p, instant) => !!(profil.cachot && profil.cachot.some(c => c.joueur === p && instant >= c.t0 && instant < c.t1));
+/* L'élan d'un club à cet instant : ce qu'une bagarre gagnée (ou perdue) fait à sa finition. */
+const elanDe = (profil, instant) => (profil.elan ? profil.elan.reduce((a, e) => (instant >= e.t0 && instant < e.t1 ? a * e.mult : a), 1) : 1);
+function tirerPhysique(pA, pB, T0, T1, journal, track) {
+  const frac = (T1 - T0) / 60;
+  const pats = { A: pA.patineurs || [], B: pB.patineurs || [] };
+  if (!pats.A.length || !pats.B.length) return;
+  const tous = [...pats.A, ...pats.B];
+  // Les punitions de l'époque : la base de `punitionsRel` (par match, par joueur), moyennée sur les deux clubs.
+  const pimBase = tous.reduce((a, p) => a + (seasonLancers(p.s)[7] || 0.9), 0) / tous.length;
+  const agrDe = profil => {
+    const us = [...profil.unites.F, ...profil.unites.D];
+    return us.length ? us.reduce((a, u) => a + (0.6 + (AGRESSIVITES[u.agr ?? 1] || AGRESSIVITES[1]).physique), 0) / us.length : 1;
+  };
+  const agr = (agrDe(pA) + agrDe(pB)) / 2;
+  const bag = { A: Math.max(...pats.A.map(scoreBagarreur)), B: Math.max(...pats.B.map(scoreBagarreur)) };
+  const instant = () => T0 + hasard() * (T1 - T0);
+  const noter = e => { if (journal) journal.physique.push(e); };
+  pA.cachot = pA.cachot || []; pB.cachot = pB.cachot || []; pA.elan = pA.elan || []; pB.elan = pB.elan || [];
+  const profil = { A: pA, B: pB };
+  // Les coups marquants, par club.
+  for (const cote of ['A', 'B']) {
+    const moi = profil[cote], lui = profil[cote === 'A' ? 'B' : 'A'];
+    const n = poisson(COUP_MARQUANT_PART * coupsAttendus(moi) * frac);
+    for (let k = 0; k < n; k++) {
+      const t = instant();
+      const frappeur = weightedPick(pats[cote], p => coupsDe(p) * (0.3 + physiqueDe(p)) + 0.01);
+      const cibleUnite = choisirPresence(hasard() < 0.6 ? lui.unites.F : lui.unites.D);
+      const cible = cibleUnite && cibleUnite.joueurs.length ? cibleUnite.joueurs[Math.floor(hasard() * cibleUnite.joueurs.length)] : null;
+      if (!cible) continue;
+      cible.energie = Math.max(0, energieDe(cible) - COUP_MARQUANT_JAMBES);
+      cible._sonne = true;
+      noter({ type: 'coup', cote, instant: t, joueur: frappeur, cible });
+    }
+  }
+  // Les bagarres.
+  const nBag = poisson(BAGARRE_PAR_PIM * pimBase * (0.5 + 0.7 * (bag.A + bag.B)) * agr * frac);
+  // Une bagarre par joueur par soir : la deuxième, c'est l'expulsion, donc le club envoie quelqu'un d'autre.
+  const dejaBattus = new Set();
+  for (let k = 0; k < nBag; k++) {
+    const t = instant();
+    const libres = c => { const l = pats[c].filter(p => !dejaBattus.has(p)); return l.length ? l : pats[c]; };
+    const a = weightedPick(libres('A'), p => Math.pow(scoreBagarreur(p), 3) + 0.02);
+    const b = weightedPick(libres('B'), p => Math.pow(scoreBagarreur(p), 3) + 0.02);
+    dejaBattus.add(a); dejaBattus.add(b);
+    const force = p => scoreBagarreur(p) + 0.6 * physiqueDe(p) + 0.2 * ((p.gb == null ? 1 : Number(p.gb)) - 1) + gauss() * 0.35;
+    const fa = force(a), fb = force(b);
+    const gagnant = Math.abs(fa - fb) < 0.15 ? null : fa > fb ? 'A' : 'B';
+    for (const [cote, p] of [['A', a], ['B', b]]) {
+      profil[cote].cachot.push({ joueur: p, t0: t, t1: t + BAGARRE_MINUTES });
+      p.energie = Math.max(0, energieDe(p) - BAGARRE_JAMBES);
+      if (track) p.simPIM = (p.simPIM || 0) + BAGARRE_MINUTES;
+    }
+    if (gagnant) {
+      profil[gagnant].elan.push({ t0: t, t1: t + ELAN_DUREE, mult: ELAN_BAGARRE });
+      profil[gagnant === 'A' ? 'B' : 'A'].elan.push({ t0: t, t1: t + ELAN_DUREE, mult: ELAN_BAGARRE_PERDU });
+      (gagnant === 'A' ? b : a)._bagarrePerdue = true;
+    }
+    noter({ type: 'bagarre', cote: 'A', instant: t, joueur: a, cible: b, gagnant, minutes: BAGARRE_MINUTES });
+  }
+  // Les mêlées : deux minutes qui s'annulent.
+  const nMel = poisson(MELEE_BASE * (pimBase / 0.9) * agr * frac);
+  for (let k = 0; k < nMel; k++) {
+    const t = instant();
+    const a = weightedPick(pats.A, p => 0.5 * scoreBagarreur(p) + physiqueDe(p));
+    const b = weightedPick(pats.B, p => 0.5 * scoreBagarreur(p) + physiqueDe(p));
+    if (track) { a.simPIM = (a.simPIM || 0) + MELEE_MINUTES; b.simPIM = (b.simPIM || 0) + MELEE_MINUTES; }
+    noter({ type: 'melee', cote: hasard() < 0.5 ? 'A' : 'B', instant: t, joueur: a, cible: b, minutes: MELEE_MINUTES });
+  }
+  if (journal) { journal.coups.A += Math.round(coupsAttendus(pA) * frac); journal.coups.B += Math.round(coupsAttendus(pB) * frac); }
+}
+
+/*
  * L'IMPORTANCE DU MATCH (S68), comme HockeyArena : un gros match fait jouer
  * plus fort, et ça se paie au moral du vestiaire et à l'infirmerie ; un match
  * pris à la légère repose les jambes et le moral, et se joue un cran en
@@ -2012,16 +2212,32 @@ export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.9;
  * rend des jambes, et ce qui dépasse 100 reste EN RÉSERVE : le prochain
  * match le brûle d'abord (`p._reserve`, au plus `RESERVE_MAX`).
  *
- * CE QUE ÇA COÛTE SUR LA GLACE : au-dessus de `ENERGIE_SEUIL` (90), un
- * joueur rend tout ; en dessous, il perd `ENERGIE_EFFET` × (90 − jambes)/100
- * en lancers, en finition et en création (82 de jambes : −4 % sur chacun).
- * Sous `ENERGIE_BLESSURE` (60), il se blesse plus. Le seuil garde la ligue
- * calibrée : une ligne réglée par défaut ne passe jamais sous 90.
+ * CE QUE ÇA COÛTE SUR LA GLACE : voir ENERGIE_REF juste dessous (plus de
+ * seuil à 90 depuis 1.0). Sous `ENERGIE_BLESSURE` (60), il se blesse plus.
  */
-export const ENERGIE_C = Number(ENV_MESURE.ENERGIE_C ?? 3.8), ENERGIE_RECUP = 0.5, ENERGIE_SEUIL = 90,
+/*
+ * PLUS DE ZONE MORTE (1.0). JP : *faudrait des niveaux de fatigue pis pas de
+ * cap à 90*. Le seuil à 90 rendait la fatigue invisible tant qu'on ne poussait
+ * pas : trois trios sur quatre ne la sentaient jamais. Les jambes comptent
+ * maintenant EN CONTINU, centrées sur `ENERGIE_REF` (94, les jambes d'une
+ * ligne ordinaire au matin, `check_jambes`) : chaque point sous 94 coûte
+ * `ENERGIE_EFFET` (0,5 %) de lancers, de finition et de création ; chaque
+ * point au-dessus en rend autant, jusqu'à +3 % à 100. Centré, la ligue ne
+ * bouge pas ; un joueur frais gagne, un joueur usé perd, tout de suite. Et
+ * les jambes se LISENT en niveaux (`NIVEAUX_JAMBES`) : Frais, Correct, Lourd,
+ * Vidé — le même mot dans la case, au banc et dans le direct.
+ */
+export const ENERGIE_C = Number(ENV_MESURE.ENERGIE_C ?? 3.8), ENERGIE_RECUP = 0.5, ENERGIE_REF = 94,
   ENERGIE_EFFET = Number(ENV_MESURE.ENERGIE_EFFET ?? 0.5), ENERGIE_BLESSURE = 60, RESERVE_MAX = 30;
+export const NIVEAUX_JAMBES = [
+  { cle: 'frais', nom: 'Frais', min: 95 },
+  { cle: 'correct', nom: 'Correct', min: 85 },
+  { cle: 'lourd', nom: 'Lourd', min: 70 },
+  { cle: 'vide', nom: 'Vidé', min: 0 },
+];
+export const niveauJambes = e => NIVEAUX_JAMBES.find(n => e >= n.min) || NIVEAUX_JAMBES[NIVEAUX_JAMBES.length - 1];
 export const energieDe = p => (p && Number.isFinite(p.energie) ? p.energie : 100);
-export const facteurEnergie = p => 1 - ENERGIE_EFFET * Math.max(0, ENERGIE_SEUIL - energieDe(p)) / 100;
+export const facteurEnergie = p => 1 - ENERGIE_EFFET * (ENERGIE_REF - energieDe(p)) / 100;
 /* Rendre des jambes : jusqu'à 100, et le surplus en réserve pour le prochain match. */
 export function rendreJambes(p, n) {
   if (!p || !n) return;
@@ -2063,6 +2279,8 @@ export function depenserEnergie(team, lineup) {
       if (!p) continue;
       const d = role === 'DG' || role === 'DD';
       let cout = ENERGIE_C * Math.pow(d ? us.D[pairDeLigne(u)] : us.F[u], 2);
+      // Le plombier maîtrisé (EFFET_ROLE.energie) : son match lui coûte moins.
+      if (!d) cout *= 1 - EFFET_ROLE.energie * maitrise(p, 'energie');
       if (p._reserve) { const r = Math.min(p._reserve, cout); p._reserve -= r; cout -= r; }
       p.energie = Math.max(0, energieDe(p) - cout);
     }
@@ -3082,10 +3300,28 @@ const K_VOLUME_DEF = 0.012;
  * une robustesse d'alignement de 48,1 ± 2,4 (120 vraies équipes alignées) :
  * à K_ROB = 0,10, la vraie équipe la plus dure de son époque gagne deux ou
  * trois matchs de plus, pas dix.
+ *
+ * LE DUR DE QUATRIÈME TRIO COMPTE CHAQUE SOIR (1.0). JP : *on ne distingue pas
+ * bien les joueurs selon position ; un excellent bagarreur de quatrième trio
+ * devrait être impactant*. Mesuré avant : trois soirs sur quatre, la
+ * robustesse ne faisait RIEN (intensité 0), et un bagarreur n'était qu'un
+ * coût de punitions. Deux ajouts, par les canaux qui existent :
+ *
+ *   4. Les SOIRS ORDINAIRES, la robustesse pèse à ROB_ORDINAIRE de son poids
+ *      d'un soir éreintant : un club à un écart-type au-dessus de l'autre y
+ *      finit mieux de deux et demi pour cent, et laisse moins entrer d'autant.
+ *      Un soir éreintant vaut toujours 1, les séries davantage à chaque ronde.
+ *   5. LA DISSUASION : la robustesse d'alignement (celle des durs habillés,
+ *      pondérée par la glace de leur trio) protège les coéquipiers — chaque
+ *      écart-type réduit les blessures de l'équipe de 1 − e^(−DISSUASION),
+ *      dix-huit pour cent. C'est ce qu'un bagarreur fait de plus visible :
+ *      les vedettes jouent leurs 82 matchs.
  */
-const K_ROB = 0.07;
+export const K_ROB = 0.07;
 const ROB_SERIES = 0.15;
 const ROB_BLESSURE = 0.35;
+export const ROB_ORDINAIRE = 0.35;
+export const DISSUASION = 0.2;
 const MOY_ROB_EQUIPE = 48.1;
 const ECART_ROB_EQUIPE = 2.4;
 // Les colosses (js/traits.js) ajoutent leur poids, en écarts-types, dans leurs grosses saisons.
@@ -3592,10 +3828,19 @@ export function profilMatch(team, lineup, adv = null) {
     const c = canal => canalSysteme(S, fit, canal);
     const ph = physiqueUnite(lineup, g, u);
     const eff = rendementPhysique(ph);
-    x.ligne = u; x.tactique = cle; x.fit = fit;
+    x.ligne = u; x.tactique = cle; x.fit = fit; x.agr = l.agr;
     x.chimie = chimieSoir[u];
     x.poids *= c('volume');
     x.qualite *= c('finition');
+    // LA MAÎTRISE DES RÔLES (voir MAITRISE_LIGUE) : ce que l'unité étouffe et intimide pendant ses présences, ce qu'elle tire de la pointe.
+    if (g === 'F') {
+      x.etouffe = 1 - EFFET_ROLE.checker * maitriseUnite(x.joueurs, 'checker') - EFFET_ROLE.deuxsens * maitriseUnite(x.joueurs, 'deuxsens');
+      x.intimide = 1 - EFFET_ROLE.bagarreur * maitriseUnite(x.joueurs, 'bagarreur');
+    } else {
+      x.etouffe = 1 - EFFET_ROLE.defensif * maitriseUnite(x.joueurs, 'defensif') - EFFET_ROLE.physique * maitriseUnite(x.joueurs, 'physique');
+      x.intimide = 1;
+      x.poids *= 1 + EFFET_ROLE.offensif * maitriseUnite(x.joueurs, 'offensif');
+    }
     // Plus physique, on donne moins — CENTRÉ sur l'agressivité moyenne, pour
     // que le réglage par défaut ne déplace pas la ligue.
     x.defTac = c('defense') * (1 - A.def * eff);
@@ -4049,10 +4294,10 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     instants = Array.from({ length: lancers }, () => instantForcesEgales(st?.fenetres, journal?.prolongation, st?.plage));
   }
 
-  // La robustesse : les soirs éreintants et tous les matchs de séries, où
-  // l'usure s'accumule de ronde en ronde (voir K_ROB).
-  const intensite = series ? 1 + ROB_SERIES * ronde : heavy ? 1 : 0;
-  const facteurRob = intensite ? Math.exp(K_ROB * intensite * (robZ(off) - robZ(def))) : 1;
+  // La robustesse : chaque soir (à ROB_ORDINAIRE), à plein les soirs éreintants,
+  // et davantage en séries, où l'usure s'accumule de ronde en ronde (voir K_ROB).
+  const intensite = series ? 1 + ROB_SERIES * ronde : heavy ? 1 : ROB_ORDINAIRE;
+  const facteurRob = Math.exp(K_ROB * intensite * (robZ(off) - robZ(def)));
   const fg = (gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20))
     * facteurTraitGardien(gardien, series) * situDe(gardien, 'gardien');
   // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
@@ -4090,12 +4335,16 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       // qui faisait fuir une poignée de buts et de lancers par saison hors
       // des feuilles de match.
       if (!glace.length) continue;
+      // Au cachot (une bagarre) : ni sur la glace, ni tireur pendant ses cinq minutes.
+      if (off.cachot && off.cachot.length) { const g = glace.filter(q => !auCachot(off, q, instant)); if (g.length) glace = g; }
       const membres = mode === 'FE' && off.avantage ? off.avantage.partAN : null;
       // En avantage la rondelle circule : le tireur se tire sur la RACINE de
       // son volume, sinon le canonnier de l'unité prenait un tir sur trois
       // et doublait sa saison (Larmer 1992-93 : 61 buts au lieu de 29).
-      tireur = weightedPick(unite.joueurs.length ? unite.joueurs : glace,
-        mode === 'AN' ? p => Math.sqrt(lancersRel(p)) : p => lancersFE(p, membres));
+      // En avantage numérique, le sniper maîtrisé est celui qui tire (EFFET_ROLE.sniper).
+      const candidats = (unite.joueurs.length ? unite.joueurs : glace).filter(q => !auCachot(off, q, instant));
+      tireur = weightedPick(candidats.length ? candidats : glace,
+        mode === 'AN' ? p => Math.sqrt(lancersRel(p)) * (1 + EFFET_ROLE.sniper * Math.max(0, maitrise(p, 'sniper'))) : p => lancersFE(p, membres));
     }
     tires++;
 
@@ -4113,7 +4362,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       const kApp = def.domicile ? APPARIEMENT : APPARIEMENT_VISITEUR;
       dTrio = choisirApparie(unitesDef.F, rangOff, nOff, kApp, 'presence', true);
       dPaire = choisirApparie(unitesDef.D, rangOff, nOff, kApp);
-      defGlace = [...dTrio.joueurs, ...dPaire.joueurs];
+      defGlace = [...dTrio.joueurs, ...dPaire.joueurs].filter(q => !auCachot(def, q, instant));
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
       // Le bidirectionnel (et le Selke) étouffe PENDANT SES PRÉSENCES : c'est
       // le seul trait qui passe par ici, voir EFFET dans js/traits.js.
@@ -4122,7 +4371,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
         * defGlace.reduce((a, q) => a * mutDe(q, 'defense'), 1)
         // La consigne des deux unités qui défendent (S68) : la trappe étouffe,
         // tout en attaque laisse le champ libre — chacune pour sa moitié.
-        * Math.sqrt((dTrio.defTac ?? 1) * (dPaire.defTac ?? 1));
+        * Math.sqrt((dTrio.defTac ?? 1) * (dPaire.defTac ?? 1))
+        // Les rôles maîtrisés qui défendent : le checker et le défensif étouffent, le bagarreur intimide.
+        * (dTrio.etouffe ?? 1) * (dPaire.etouffe ?? 1) * (dTrio.intimide ?? 1);
     } else {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef - REF.zDef));
     }
@@ -4134,6 +4385,8 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // élites autour de lui la comptaient deux fois (mesuré : Zetterberg
     // 2006-07 à 110 buts au lieu de 48).
     const crea = glace ? (mode === 'AN' ? Math.sqrt(facteurCreation(glace, tireur)) : facteurCreation(glace, tireur)) : 1;
+    // Le power forward maîtrisé devant le filet : la finition de ses COÉQUIPIERS de trio (EFFET_ROLE.power).
+    const devantFilet = trioOff && tireur ? 1 + EFFET_ROLE.power * maitriseUnite(trioOff.joueurs.filter(q => q !== tireur), 'power') : 1;
 
     /*
      * L'ACTION SPÉCIALE (S68) : à forces égales, la ligne qui a un système a
@@ -4151,7 +4404,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir * crea
-        * (fg / REF.fg) * facteurDef * facteurRob * traits * (unite ? unite.qualite : 1) * chance
+        * (fg / REF.fg) * facteurDef * facteurRob * traits * (unite ? unite.qualite : 1) * chance * devantFilet * elanDe(off, instant)
         * (off.finitionFacteur ?? 1) * qualite * (mode === 'FE' && st ? FE_QUALITE : 1)
         * (mode === 'FE' ? SPEC_NORME : 1) * (special === 'reussie' ? SPEC_MULT : 1),
       0.005, PCT_TIR_MAX);
@@ -4557,10 +4810,12 @@ function instantDeBlessure(feuille, p, team) {
   if (dernier >= fin - 0.4) return Math.max(dernier, fin - 0.3);
   return dernier + (fin - 0.3 - dernier) * (0.1 + 0.8 * empreinte(`${getPlayerKey(p)}|${team.name}|${team.games}`));
 }
-function applyInjuries(team, lineup, heavy, feuille = null, cote = null) {
+function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil = null) {
   for (const [p, n] of team.injured) {
     if (n <= 1) team.injured.delete(p); else team.injured.set(p, n - 1);
   }
+  // LA DISSUASION (voir K_ROB) : les durs de l'alignement protègent les autres.
+  const dissuasion = profil ? Math.exp(-DISSUASION * robZ(profil)) : 1;
   for (const p of Object.values(lineup)) {
     if (!p || team.injured.has(p)) continue;
     // Le risque suit la carte, le plan et le roulement : « Roulement court » et
@@ -4568,7 +4823,10 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null) {
     // Et la situation du joueur : « Il joue amoché » finit par payer.
     // L'ÉNERGIE (S68) : sous 60, le risque monte — jusqu'au double à 30.
     const usee = 1 + Math.max(0, ENERGIE_BLESSURE - energieDe(p)) / 30;
-    if (hasard() < injuryChance(p, heavy) * effetsDeSaison(team).blessure * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
+    // Sonné par un coup marquant, ou une bagarre perdue (1.0) : ce soir, il se blesse plus.
+    const soiree = (p._sonne ? BLESSURE_SONNE : 1) * (p._bagarrePerdue ? BLESSURE_BAGARRE_PERDUE : 1);
+    delete p._sonne; delete p._bagarrePerdue;
+    if (hasard() < injuryChance(p, heavy) * dissuasion * soiree * effetsDeSaison(team).blessure * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
       const n = injuryLength();
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
@@ -4740,13 +4998,15 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     // ont joué, et l'usure de ceux qui étaient sur la glace.
     majChimie(A, LA); majChimie(B, LB);
     depenserEnergie(A, LA); depenserEnergie(B, LB);
+    // LES MISES EN ÉCHEC COÛTENT DES JAMBES (voir MAITRISE_LIGUE) : les coups de chaque club tombent sur l'autre.
+    encaisserCoups(pA, pB); encaisserCoups(pB, pA);
     noterDepart(A, partantA); noterDepart(B, partantB);
     // Le journal de la saison : ce qu'il faut pour raconter une séquence,
     // un début de saison, une raclée. Le moteur n'y lit jamais rien.
     if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
     if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB, feuille: journal });
   }
-  applyInjuries(A, LA, heavy, journal, 'A'); applyInjuries(B, LB, heavy, journal, 'B');
+  applyInjuries(A, LA, heavy, journal, 'A', pA); applyInjuries(B, LB, heavy, journal, 'B', pB);
   if (track) { A.games++; B.games++; }
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
@@ -4783,6 +5043,8 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
   let gfA = 0, gfB = 0;
   const fenetres = [];
   let minutesAN = 0;
+  // Le jeu physique de la soirée (coups, bagarres, mêlées), avant les lancers : il décide qui est au cachot et qui a l'élan.
+  tirerPhysique(pA, pB, T0, T1, journal, track);
 
   /*
    * UNE SEULE LIGNE DU TEMPS. Chaque équipe prend son nombre de punitions
@@ -4919,7 +5181,7 @@ export function simulate(roster, { graine = null } = {}) {
 
     crediterMatch(lineup, gardien, ga, win, otl);
     updateTogether(team, lineup);
-    applyInjuries(team, lineup, heavy);
+    applyInjuries(team, lineup, heavy, null, null, profil);
     team.games++;
     GF += gf; GA += ga;
   }
@@ -5487,6 +5749,8 @@ export function feuilleVierge() {
     lancers: [],                                          // chaque tir, daté, avec tireur, gardien et mode (FE, AN, DN)
     punitions: [],                                        // { cote (l'équipe punie), instant, joueur, minutes }
     blessures: [],                                        // { cote, joueur, matchs, instant } : racontées au direct (S80)
+    physique: [],                                         // { type: coup | bagarre | melee, cote, instant, joueur, cible, gagnant, minutes } (1.0)
+    coups: { A: 0, B: 0 },                                // les mises en échec de chaque club, attendues (1.0)
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
     prolongation: false,
@@ -5522,6 +5786,8 @@ export function compterFeuilles(feuilles, compte = new Map()) {
     }
     for (const l of f.lancers || []) if (l.tireur) de(l.tireur).sh++;
     for (const pu of f.punitions || []) if (pu.joueur) de(pu.joueur).pim += pu.minutes || 2;
+    // Les bagarres et les mêlées (1.0) : les minutes vont aux deux.
+    for (const e of f.physique || []) if (e.minutes) { if (e.joueur) de(e.joueur).pim += e.minutes; if (e.cible) de(e.cible).pim += e.minutes; }
     for (const cote of ['A', 'B']) {
       const g = cote === 'A' ? f.gardienA : f.gardienB;
       if (!g) continue;
