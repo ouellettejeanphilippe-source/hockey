@@ -1888,10 +1888,14 @@ function tirerPhysique(pA, pB, T0, T1, journal, track) {
   }
   // Les bagarres.
   const nBag = poisson(BAGARRE_PAR_PIM * pimBase * (0.5 + 0.7 * (bag.A + bag.B)) * agr * frac);
+  // Une bagarre par joueur par soir : la deuxième, c'est l'expulsion, donc le club envoie quelqu'un d'autre.
+  const dejaBattus = new Set();
   for (let k = 0; k < nBag; k++) {
     const t = instant();
-    const a = weightedPick(pats.A, p => Math.pow(scoreBagarreur(p), 3) + 0.02);
-    const b = weightedPick(pats.B, p => Math.pow(scoreBagarreur(p), 3) + 0.02);
+    const libres = c => { const l = pats[c].filter(p => !dejaBattus.has(p)); return l.length ? l : pats[c]; };
+    const a = weightedPick(libres('A'), p => Math.pow(scoreBagarreur(p), 3) + 0.02);
+    const b = weightedPick(libres('B'), p => Math.pow(scoreBagarreur(p), 3) + 0.02);
+    dejaBattus.add(a); dejaBattus.add(b);
     const force = p => scoreBagarreur(p) + 0.6 * physiqueDe(p) + 0.2 * ((p.gb == null ? 1 : Number(p.gb)) - 1) + gauss() * 0.35;
     const fa = force(a), fb = force(b);
     const gagnant = Math.abs(fa - fb) < 0.15 ? null : fa > fb ? 'A' : 'B';

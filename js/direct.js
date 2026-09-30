@@ -524,7 +524,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       const eq = equipe(e.cote), autre_ = equipe(autre(e.cote));
       st.coups[e.cote]++;
       ligne(`coup ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(eq.tag, 13)}
-        <span><b class="live-coup-mot">💥 MISE EN ÉCHEC</b> ${com.coup({ j: `<b>${nomLie(e.joueur, e.cote)}</b>`, c: `<b>${nomLie(e.cible, autre(e.cote))}</b>`, eq: ctx.esc(ctx.teamShort(eq)), autre: ctx.esc(ctx.teamShort(autre_)) })}</span>`, couleurs(e.cote));
+        <span><b class="live-coup-mot">MISE EN ÉCHEC</b> ${com.coup({ j: `<b>${nomLie(e.joueur, e.cote)}</b>`, c: `<b>${nomLie(e.cible, autre(e.cote))}</b>`, eq: ctx.esc(ctx.teamShort(eq)), autre: ctx.esc(ctx.teamShort(autre_)) })}</span>`, couleurs(e.cote));
       return 400;
     }
     if (e.type === 'bagarre') {
@@ -532,7 +532,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       st.pun.A++; st.pun.B++;
       const gagnant = g ? (g === 'A' ? a : b) : null, perdant = g ? (g === 'A' ? b : a) : null;
       ligne(`bagarre${g ? ` ${g === 'A' ? 'a' : 'b'}` : ''}${g && equipe(g).isPlayer ? ' nous' : ''}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(A.tag, 13)}${ctx.logo(B.tag, 13)}
-        <span><b class="live-bag-mot">🥊 BAGARRE</b> ${com.bagarre({ j: `<b>${nomLie(a, 'A')}</b>`, c: `<b>${nomLie(b, 'B')}</b>`, g: gagnant ? `<b>${nomLie(gagnant, g)}</b>` : null, p: perdant ? nomLie(perdant, autre(g)) : null,
+        <span><b class="live-bag-mot">BAGARRE</b> ${com.bagarre({ j: `<b>${nomLie(a, 'A')}</b>`, c: `<b>${nomLie(b, 'B')}</b>`, g: gagnant ? `<b>${nomLie(gagnant, g)}</b>` : null, p: perdant ? nomLie(perdant, autre(g)) : null,
           eq: g ? ctx.esc(ctx.teamShort(equipe(g))) : null, autre: g ? ctx.esc(ctx.teamShort(equipe(autre(g)))) : null })} <span class="live-micro">${e.minutes} min chacun.</span></span>`, g ? couleurs(g) : undefined);
       son('periode');
       return 1200;

@@ -1037,6 +1037,42 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // résultat monte en tête du volet (`hierFrais` = la journée), et s'anime une
   // fois (`hierAnimer`). « Sommaire › » l'ouvre au besoin.
   let hierFrais = -1, hierAnimer = false;
+  /*
+   * LE SOIR DE MATCH EN QUATRE ÉTAPES (1.0, R3). JP : *l'interface actuelle
+   * met beaucoup d'informations un peu tout croche, surtout sur mobile, mais
+   * en même temps peu, c'est comme pas agréable à naviguer*. L'affiche porte
+   * les quatre étapes du soir — APERÇU (le dépistage), PRÉPARATION (consigne,
+   * filet, lignes, la main d'un gros match), MATCH (le direct), RÉSULTAT — et
+   * dit où on en est : l'étape courante en or, les faites cochées. Après la
+   * journée, le RÉSULTAT vient en premier dans l'affiche (le pointage, les
+   * buteurs, le drame du soir), puis « Prochain match › » passe à l'aperçu
+   * du suivant. Les boutons de l'écran ne changent pas : les étapes sont un
+   * raccourci vers ce qui existait déjà en chaîne de fenêtres.
+   */
+  let soirPasse = false;
+  const ETAPES_SOIR = [['apercu', 'Aperçu'], ['prep', 'Préparation'], ['match', 'Match'], ['resultat', 'Résultat']];
+  const soirHtml = (courant, faits) => `<nav class="soir" aria-label="Le soir de match">${ETAPES_SOIR.map(([cle, mot], i) => {
+    const fait = faits.has(cle) && cle !== courant;
+    return `<button type="button" class="soir-etape${cle === courant ? ' on' : fait ? ' fait' : ''}" data-etape="${cle}"${cle === courant ? ' aria-current="step"' : ''}><b>${fait ? '✓' : i + 1}</b><span>${mot}</span></button>`;
+  }).join('')}</nav>`;
+  /* Le drame d'hier soir, en une ligne : les bagarres, les coups marquants, les blessés (les événements physiques de la feuille). */
+  const drameHtml = m => {
+    const f = m.feuille;
+    if (!f) return '';
+    const bits = [];
+    for (const e of (f.physique || []).filter(x => x.type === 'bagarre')) {
+      const gagnant = e.gagnant ? (e.gagnant === 'A' ? e.joueur : e.cible) : null;
+      bits.push(gagnant ? `<b>${ctx.esc(nom(gagnant))}</b> gagne sa bagarre contre ${ctx.esc(nom(e.gagnant === 'A' ? e.cible : e.joueur))}` : `bagarre nulle entre ${ctx.esc(nom(e.joueur))} et ${ctx.esc(nom(e.cible))}`);
+    }
+    // Pilonner ou être pilonné : les coups marquants donnés par tes gars, et ceux qu'ils ont reçus.
+    const coups = (f.physique || []).filter(x => x.type === 'coup');
+    const moi = m.A === you ? 'A' : 'B';
+    const donnes = coups.filter(x => x.cote === moi).length, recus = coups.length - donnes;
+    if (coups.length) bits.push(`${donnes} coup${donnes > 1 ? 's' : ''} marquant${donnes > 1 ? 's' : ''} donné${donnes > 1 ? 's' : ''}, ${recus} reçu${recus > 1 ? 's' : ''}`);
+    const bl = (f.blessures || []).filter(x => x.joueur);
+    if (bl.length) bits.push(`blessé${bl.length > 1 ? 's' : ''} : ${bl.map(x => ctx.esc(nom(x.joueur))).join(', ')}`);
+    return bits.length ? `<div class="soir-drame">${cap(bits.join(' · '))}.</div>` : '';
+  };
 
   const gpDe = t => { const g = fiche.get(t); return g ? g.W + g.L + g.OTL : 0; };
   const virgule = (x, d = 1) => Number(x).toFixed(d).replace('.', ',');
@@ -1433,9 +1469,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const avant = { jour, joues: miens.length, rang: rangDe(you) };
     retenir = true;
     avancer(n, true);
+    soirPasse = false;
     dernierAvance = { joues0: avant.joues };
     boite.ouvert = null;
     dessiner();
+    // Le résultat d'hier est en tête de l'affiche : on la remonte, sinon on relit les boutons du bas.
+    for (let el = carte; el && el !== document.body; el = el.parentElement) if (el.scrollTop > 0) el.scrollTop = 0;
     tabs.suivre('journee');
     if (entracteDemande) { retenir = false; ouvrirEntracte(); return; }
     if (!ouvrirSommaire(avant)) { retenir = false; dessiner(); }
@@ -2060,7 +2099,20 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LES TOTAUX DU SOIR (1.0, C5) : ce que le moteur appliquera, effets multipliés et bornés.
       const totJ = motsDesTotaux(totauxDuMatch(p.j));
       const totauxHtml = `<div class="hub-totaux" title="Les effets se multiplient entre eux. Le détail est dans « Préparer le match »."><b>${p.j === jour ? 'Ce soir' : 'Au prochain match'} :</b> <span class="choix-puces">${totJ.length ? puces(totJ) : '<span class="puce neutre">aucun effet</span>'}</span></div>`;
+      // Les quatre étapes du soir : où on en est, et hier soir en premier tant qu'on ne l'a pas passé.
+      const kHier = jour > 0 ? indexMien(jour - 1) : -1;
+      const hierMatch = kHier >= 0 && calendrier[jour - 1][kHier].gfA != null ? { j: jour - 1, k: kHier, m: calendrier[jour - 1][kHier] } : null;
+      const hier = hierMatch && !soirPasse ? hierMatch : null;
+      const prepFaite = !!matchPris || boite.prepVu === p.j;
+      const apercuVu = boite.apercuVu === p.j || boite.depOuvert === p.j;
+      const etape = hier ? 'resultat' : prepFaite ? 'match' : apercuVu ? 'prep' : 'apercu';
+      const faits = new Set(hier ? ['apercu', 'prep', 'match'] : [...(apercuVu ? ['apercu'] : []), ...(prepFaite ? ['prep'] : [])]);
+      const resultatHtml = hier ? `<section class="soir-resultat" aria-label="Hier soir">
+        ${scoreboard(hier)}${drameHtml(hier.m)}
+        <div class="soir-pied"><button type="button" class="btn soir-suivant">Prochain match ›</button></div>
+      </section>` : '';
       carte.innerHTML = `${miniBoss}<div class="hub-match">
+        ${soirHtml(etape, faits)}${resultatHtml}
         <div class="hub-match-titre">Prochain match · journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
         <div class="hub-match-note">${dernierMot}</div>
@@ -2081,8 +2133,26 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           setTimeout(() => { if (cible.isConnected) { cible.innerHTML = depistageMatchHtml(p); brancherConseils(cible); } }, 30);
         }
       });
+      const suivant = carte.querySelector('.soir-suivant');
+      if (suivant) suivant.onclick = () => { soirPasse = true; boite.apercuVu = p.j; dessiner(); };
+      carte.querySelectorAll('.soir-etape').forEach(b => {
+        b.onclick = () => {
+          const e = b.dataset.etape;
+          if (e === 'apercu') {
+            soirPasse = true; boite.apercuVu = p.j; dessiner();
+            const d = carte.querySelector('.hub-depistage');
+            if (d) { if (!d.open) d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+          } else if (e === 'prep') {
+            soirPasse = true;
+            const pb = carte.querySelector('.hub-preparer');
+            if (pb) pb.click();
+          } else if (e === 'match') {
+            if (!messagesCourants().some(m => m.bloque)) regarderProchain();
+          } else if (hierMatch) { soirPasse = false; dessiner(); }
+        };
+      });
       const prep = carte.querySelector('.hub-preparer');
-      if (prep) prep.onclick = () => ouvrirLignes({
+      if (prep) prep.onclick = () => { boite.prepVu = p.j; ouvrirLignes({
         titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
         lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie, apprentissage: etat.apprentissage,
         // Un gros match (J1-N) : les indices « tu étouffes » lisent leurs lignes SOUS LE PLAN LE PLUS
@@ -2099,7 +2169,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         motAppliquer: 'Appliquer — la saison reprend ici',
         onBanc: onBanc ? () => { quitter(); onBanc(jour); } : null,
         onAppliquer: (lignes, match, filet) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match, ...(filet ? { filet } : {}) }, j); },
-      });
+      }); };
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les NHL Stars ne jouent plus d'ici la fin de la saison.</div></div>`;
     }
@@ -2530,7 +2600,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       etat: jour ? `${f.W}-${f.L}-${f.OTL} · ${rangDe(you)}${rangDe(you) === 1 ? 'er' : 'e'}` : 'Premier match de la saison',
       graine: (p.j + 1) * 100 + p.k, avant: compte, ctx,
       arret: attente ? 40 : null, onArret: attente ? () => { dessiner(); ouvrirEntracte(true); } : null, depuis,
-      onTermine: () => { if (termine) return; avancer(1); dessiner(); tabs.suivre('journee'); },
+      onTermine: () => { if (termine) return; avancer(1); soirPasse = false; dessiner(); tabs.suivre('journee'); },
     });
     void apresA; void apresB;
   }

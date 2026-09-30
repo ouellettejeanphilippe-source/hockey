@@ -1165,8 +1165,8 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       if (b.type === 'coup' || b.type === 'bagarre' || b.type === 'melee') {
         const autre = b.cote === 'A' ? B : A;
         const lienAutre = p => lienJoueur(p, autre, mode, `<strong>${formatName(p.n)}</strong>`);
-        const texte = b.type === 'coup' ? `💥 ${lien(b.joueur)} écrase ${lienAutre(b.cible)}`
-          : b.type === 'bagarre' ? `🥊 Bagarre ${lienJoueur(b.joueur, A, mode, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${lienJoueur(b.cible, B, mode, `<strong>${formatName(b.cible.n)}</strong>`)}${b.gagnant ? ` · ${esc(teamShort(b.gagnant === 'A' ? A : B))} l'emporte` : ' · match nul'} · ${b.minutes} min chacun`
+        const texte = b.type === 'coup' ? `${lien(b.joueur)} écrase ${lienAutre(b.cible)}`
+          : b.type === 'bagarre' ? `Bagarre ${lienJoueur(b.joueur, A, mode, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${lienJoueur(b.cible, B, mode, `<strong>${formatName(b.cible.n)}</strong>`)}${b.gagnant ? ` · ${esc(teamShort(b.gagnant === 'A' ? A : B))} l'emporte` : ' · match nul'} · ${b.minutes} min chacun`
           : `Mêlée ${lienJoueur(b.joueur, A, mode, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${lienJoueur(b.cible, B, mode, `<strong>${formatName(b.cible.n)}</strong>`)} · ${b.minutes} min chacun`;
         return `<div class="som-but som-pun som-${b.type}${b.type === 'bagarre' && b.gagnant ? ` som-gagne-${b.gagnant.toLowerCase()}` : ''}">
           <span class="som-tps">${tempsRestant(b.instant)}</span>
