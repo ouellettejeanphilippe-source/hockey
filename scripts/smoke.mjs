@@ -54,7 +54,7 @@ const _wait = page.waitForSelector.bind(page);
  * (qui règle d'abord les choix forcés, plus bas) ou `_click`.
  */
 const SECTION_DE = {
-  match: 'club', alignement: 'effectif', repechage: 'marche', marche: 'marche',
+  match: 'club', boite: 'club', saison: 'club', alignement: 'effectif', repechage: 'marche', marche: 'marche',
   classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'collection', cartable: 'collection',
 };
 const SECTIONS = ['club', 'effectif', 'marche', 'ligue', 'collection'];
@@ -116,6 +116,21 @@ async function eprouverCoquille() {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(250);
     if (await page.isVisible('#gameModal')) { await page.click('#closeGameBtn').catch(() => {}); await page.waitForTimeout(200); }
+  }
+  // LES SOUS-ONGLETS DU CLUB (1.0, R2) : Match, Boîte, Saison — la boîte de réception ne s'empile plus sous l'affiche.
+  await page.click('#navbar .navtab[data-section="club"]');
+  await page.waitForTimeout(200);
+  const sousClub = await page.$$eval('#sousNav:not([hidden]) .soustab', e => e.map(x => x.dataset.page).join(','));
+  if (sousClub !== 'match,boite,saison') errors.push(`en saison, le Club n'a pas ses trois sous-onglets : « ${sousClub} »`);
+  else {
+    await page.click('#sousNav .soustab[data-page="saison"]');
+    await page.waitForTimeout(300);
+    const saison = await page.evaluate(() => ({ route: !!document.querySelector('#hubModal .hub-route'), affiche: (e => e && e.getBoundingClientRect().height > 0)(document.querySelector('#hubModal .hub-face')) }));
+    if (!saison.route) errors.push('l\'onglet Saison du Club ne montre pas la route de la saison');
+    if (saison.affiche) errors.push('l\'onglet Saison du Club montre encore l\'affiche du match');
+    await page.click('#sousNav .soustab[data-page="match"]');
+    await page.waitForTimeout(200);
+    console.log(`   le Club en sous-onglets : ${sousClub}`);
   }
   const soulignes = await page.evaluate(() => [...document.querySelectorAll('a, button, .lien-joueur, .lien-equipe')]
     .filter(e => e.offsetParent && getComputedStyle(e).textDecorationLine.includes('underline')).map(e => e.textContent.trim().slice(0, 24)));
@@ -238,7 +253,7 @@ let palierAuto = false;
 const paliersJoues = [];
 let sommairesVus = 0;
 async function prendrePalier() {
-  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
   await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
   const eff = await page.$('#choixModal .tc[data-choix^="effet:"]:not([disabled])');
   const nom = eff ? await eff.getAttribute('data-choix') : await page.$eval('#choixModal .tc:not([disabled])', e => e.dataset.choix);
@@ -265,10 +280,19 @@ async function toucher(sel) {
   await page.waitForTimeout(350);
   return true;
 }
+// LA BOÎTE, UN SOUS-ONGLET DU CLUB (1.0, R2) : au téléphone, ses messages ne se touchent que depuis « Boîte ».
+async function versLaBoite() {
+  const boite = await page.$('#hubModal .hub-boite');
+  if (!boite || await boite.isVisible().catch(() => false)) return;
+  const tab = await page.$('#sousNav:not([hidden]) .soustab[data-page="boite"]');
+  if (tab) { await tab.click(); await page.waitForTimeout(200); }
+}
+async function ouvrirLaMain() { await versLaBoite(); await _click('#hubModal .hub-main-ouvrir'); }
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet')) return;
     if (!(await page.$('#hubModal .hub-traiter'))) return;
+    await versLaBoite();
     if (await page.$('#hubModal .hub-msg.bloque .hub-trou-prendre')) {
       if (guetterTrouHook) await guetterTrouHook();
       await toucher('#hubModal .hub-msg.bloque .hub-trou-prendre');
@@ -1812,8 +1836,8 @@ async function traverserSaison(etiquette, reprise = false) {
      * parties en S72 : aucune jauge ne doit rester à l'écran.
      */
     {
-      // S79 : la route vit dans « Ma fiche » (l'onglet Calendrier), avec sa légende.
-      await aller('calendrier', _click);
+      // S79 : la route vit dans « Ma fiche » (Club › Saison), avec sa légende.
+      await aller('saison', _click);
       await page.waitForTimeout(250);
       const route = await page.$$eval('#hubModal .hub-route-m', e => e.length);
       const legende = await page.$('#hubModal .hub-route-legende');
@@ -1953,6 +1977,7 @@ async function traverserSaison(etiquette, reprise = false) {
       if (carte.pige) trouVu.erreurs.push(`la case vide porte ${carte.pige} carte(s) « à prendre » : on ne choisit pas celle-là`);
       if (!carte.nom.trim()) trouVu.erreurs.push('la carte tirée n\'est pas nommée');
       const quel = await page.$eval('#hubModal .hub-trou-prendre', e => e.dataset.trou);
+      await versLaBoite();
       await _click('#hubModal .hub-trou-prendre');
       await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
       await page.waitForTimeout(400);
@@ -1989,7 +2014,7 @@ async function traverserSaison(etiquette, reprise = false) {
     const lireMain = async () => {
       // Un choix forcé passe devant le palier (S74b) : on y répond d'abord.
       if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await repondreAuxChoix();
-      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
       await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
       const main = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
       await _click('#choixModal .choix-plus-tard');
@@ -2034,7 +2059,7 @@ async function traverserSaison(etiquette, reprise = false) {
       const jPrise = await jourDit();
       const pris = offertes[0];
       // La main du palier a pu s'ouvrir d'elle-même après un choix forcé (S74b).
-      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
       await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
       await _click(`#choixModal .tc[data-choix="effet:${pris}"]`);
       await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
@@ -2074,7 +2099,7 @@ async function traverserSaison(etiquette, reprise = false) {
         await repondreAuxChoix();
         const jDeck = await jourDit();
         // La main du palier a pu s'ouvrir d'elle-même après un choix forcé (S74b).
-        if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+        if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
         await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
         const off = await page.$eval(`#choixModal .tc[data-choix="${deck}"]`, b => b.disabled);
         if (off) console.log(`   la carte « ${deck} » est grisée ce palier-ci (personne à qui la donner)`);
@@ -2122,7 +2147,7 @@ async function traverserSaison(etiquette, reprise = false) {
        */
       if (etiquette === 'saison') {
         await repondreAuxChoix();
-        await aller('calendrier');
+        await aller('saison');
         await page.waitForTimeout(250);
         const recit = await page.$$eval('#hubModal .recit .recit-ev', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
         const actes = await page.$$eval('#hubModal .recit .recit-acte-t', e => e.map(x => x.textContent.trim()));

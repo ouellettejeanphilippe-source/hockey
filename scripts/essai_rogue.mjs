@@ -130,7 +130,8 @@ async function regler() {
     }
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     const t = await page.$('#hubModal .hub-traiter');
-    if (t) { const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]'); await (d || t).click(); await page.waitForTimeout(400); continue; }
+    // Le message plié, ou rangé sous le sous-onglet Boîte du téléphone (1.0, R2) : « À régler » l'ouvre et y mène.
+    if (t) { const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]'); await (d && await d.isVisible() ? d : t).click(); await page.waitForTimeout(400); continue; }
     return;
   }
 }
@@ -138,7 +139,9 @@ async function regler() {
 await page.click('#mainBtn');
 await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
 await regler();
-// LE MANDAT DU PROPRIO (S80) : le hub dit la saison de la run et ce que le proprio veut.
+// LE MANDAT DU PROPRIO (S80) : le hub dit la saison de la run et ce que le proprio veut — sous le sous-onglet Saison du Club (1.0, R2).
+const versSaison = await page.$('#sousNav:not([hidden]) .soustab[data-page="saison"]');
+if (versSaison) { await versSaison.click(); await page.waitForTimeout(300); }
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
 console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
@@ -153,6 +156,7 @@ if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat d
   if (!bareme) erreurs.push('le hub n\'écrit pas le barème des jetons de la run');
   else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème au hub (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
   if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
+  if (versSaison) { await page.click('#sousNav .soustab[data-page="match"]'); await page.waitForTimeout(200); }
 }
 /*
  * « JUSQU'À LA PROCHAINE DÉCISION » (S79) remplace « +10 jours » : elle joue

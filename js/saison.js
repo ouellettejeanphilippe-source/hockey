@@ -1604,7 +1604,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // LE VOLET « MATCH » (S79) : l'état de la saison (`etatHtml`), puis hier soir en une ligne.
   // Au bureau, il coiffe la colonne de droite ; l'affiche et les boutons tiennent la gauche.
   // Le soir d'un match lu au bureau (J2-8), son résultat passe devant l'état de la saison.
-  const voletJournee = () => (hierFrais === jour ? voletJourneeSeul() + etatHtml() : etatHtml() + voletJourneeSeul());
+  // L'état de la saison (le proprio, la run, l'infirmerie) vit dans l'onglet Saison depuis 1.0 (R2) : la journée ne le redit pas.
+  const voletJournee = () => voletJourneeSeul();
   const voletJourneeSeul = () => {
     if (!jour) return '';
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
@@ -1646,7 +1647,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const maudites = deck.filter(c => CARTES_MATCH[c] && CARTES_MATCH[c].maudite).length;
     return `<div class="hub-portail">
       <div class="hub-tuile" data-ouvre="classement" role="button" tabindex="0"><div class="hp-t">Classement</div>${rangs}</div>
-      <div class="hub-tuile" data-ouvre="fiche" role="button" tabindex="0"><div class="hp-t">Tes ${avenir.length} prochains</div>${prochains}</div>
+      <div class="hub-tuile" data-ouvre="saison" role="button" tabindex="0"><div class="hp-t">Tes ${avenir.length} prochains</div>${prochains}</div>
       <div class="hub-tuile" data-ouvre="meneurs" role="button" tabindex="0"><div class="hp-t">Tes meneurs</div>${meneurs}</div>
       <div class="hub-tuile hub-deck" role="button" tabindex="0"><div class="hp-t">Ton deck</div><div class="hp-l"><b>${deck.length} cartes</b><em>${ENERGIE_MAIN} d'élan par main</em></div>${maudites ? `<div class="hp-l prix"><b>${maudites} malédiction${maudites > 1 ? 's' : ''}</b></div>` : ''}<div class="hp-l"><small>Touche pour le voir</small></div></div>
     </div>`;
@@ -1768,8 +1769,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const tabs = onglets(barre, volet, [
     { cle: 'journee', ico: 'i-cal', titre: 'Journée', page: 'match' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement', page: 'classement' },
     { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' },
-    { cle: 'fiche', ico: 'i-target', titre: 'Ma fiche', page: 'calendrier' },
+    // LE CLUB EN SOUS-ONGLETS (1.0, R2) : la boîte de réception (rendue dans .hub-actions, montrée par la vue) et
+    // la saison — le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
+    { cle: 'boite', ico: 'i-boite', titre: 'Boîte', page: 'boite' },
+    { cle: 'saison', ico: 'i-saison', titre: 'Saison', page: 'saison' },
   ], cle => {
+    if (cle === 'boite') return '';
+    if (cle === 'saison') return etatHtml() + voletFiche();
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
     if (cle === 'equipes') return equipesHtml(ctx, {
@@ -1777,7 +1783,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       anciens: t => (t === you ? [...compte.keys()].filter(p => !equipeDe.has(p) && (compte.get(p).gp || 0) > 0) : []),
       ficheDe: t => { const g = fiche.get(t); return `${g.W}-${g.L}-${g.OTL} · ${g.PTS} pts · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'} · ${g.GF} BP · ${g.GA} BC`; },
     });
-    if (cle === 'fiche') return voletFiche();
     return voletJournee();
   });
   // MES CARTES, DE PARTOUT (S79) : le cartable du jeu (l'onglet Vestiaire) les ouvre avec la décision du hub.
@@ -2169,7 +2174,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         if (sous) sous.click();
       }; });
       const tBoite = carte.querySelector('.hub-tt-boite');
-      if (tBoite) tBoite.onclick = () => { boite.deplie = true; rendreActions(messagesCourants(), p); const b = actions.querySelector('.hub-boite'); if (b) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+      if (tBoite) tBoite.onclick = () => { boite.deplie = true; rendreActions(messagesCourants(), p); tabs.montrer('boite'); };
       // Le dépistage se calcule quand on l'ouvre, et reste ouvert d'un rendu à l'autre le même soir.
       const det = carte.querySelector('.hub-depistage');
       brancherConseils(det);
@@ -2481,10 +2486,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const m of msgs) if (m.id === ouvert && !m.bloque) boite.lus.add(m.id);
     const nonLus = msgs.filter(m => !m.bloque && !boite.lus.has(m.id)).length;
     const compteur = [bloquants.length ? `<b class="a-traiter">${bloquants.length} à traiter</b>` : '', nonLus ? `<b class="non-lus">${nonLus} non lu${nonLus > 1 ? 's' : ''}</b>` : ''].filter(Boolean).join('') || '<span class="a-jour">À jour</span>';
-    // Vide, elle ne prend pas de place (S79) : « À jour » était une rangée pour rien.
+    // Vide, elle ne prend pas de place (S79) : « À jour » était une rangée pour rien — sauf sur son propre
+    // sous-onglet (1.0, R2), où sa bande de tête dit « À jour » plutôt qu'un écran noir (style.css, .hub-boite.vide).
     // Pliée au téléphone tant que rien ne bloque et qu'on ne l'a pas dépliée (style.css, .hub-boite.pliee).
     const pliee = !bloquants.length && !boite.deplie;
-    const boiteHtml = !msgs.length ? '' : `<section class="hub-boite${pliee ? ' pliee' : ''}" aria-label="Boîte de réception">
+    const boiteHtml = `<section class="hub-boite${pliee ? ' pliee' : ''}${msgs.length ? '' : ' vide'}" aria-label="Boîte de réception">
       <div class="hub-boite-tete" role="button" tabindex="0"><span class="hub-boite-titre">📥 Boîte de réception</span><span class="hub-boite-compte">${compteur}</span></div>
       ${msgs.length ? `<div class="hub-msgs">${msgs.map(m => {
         const o = m.id === ouvert, lu = boite.lus.has(m.id);
@@ -2543,6 +2549,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (premier.genre === 'choix') { (premier.spec.ouvrir ? premier.spec.ouvrir() : ouvrirChoix(premier.spec)); return; }
       if (premier.genre === 'palier') { ouvrirMain(premier.pal); return; }
       boite.ouvert = premier.id;
+      boite.deplie = true;
+      // Au téléphone, la boîte est un sous-onglet du Club : « À régler » y mène.
+      if (tabs.courant() !== 'boite' && matchMedia('(max-width: 1199.98px)').matches) tabs.montrer('boite');
       redessinerBoite();
       const el = actions.querySelector(`.hub-msg[data-id="${CSS.escape(premier.id)}"]`);
       if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const d = el.querySelector('[data-defaut]'); if (d) d.focus({ preventScroll: true }); }
