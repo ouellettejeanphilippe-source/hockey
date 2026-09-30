@@ -94,10 +94,10 @@ async function eprouverCoquille() {
    */
   await page.click('#navbar .navtab[data-section="club"]');
   await page.waitForTimeout(300);
-  // Le matin d'abord (1.0, R3) : hier soir seul, sans l'affiche ; « Le prochain match › » ouvre le soir.
+  // Le matin d'abord (1.0, R3) : hier soir seul, sans l'affiche ; « Aujourd'hui › », dans la barre, ouvre le soir.
   if (await page.$('#hubModal .hub-hier')) {
     if (await page.isVisible('#hubModal .hub-face')) errors.push('le matin, le bureau montre déjà l\'affiche du prochain match à côté d\'hier soir');
-    if (!(await versLeSoir())) errors.push('le matin, le bureau n\'offre pas « Le prochain match › »');
+    if (!(await versLeSoir())) errors.push('le matin, le bureau n\'offre pas « Aujourd\'hui › »');
     else if (await page.$('#hubModal .hub-hier')) errors.push('le soir, le bureau redit hier soir');
     else console.log('   la journée en deux : le matin (hier soir), puis le soir (l\'affiche)');
   }
@@ -298,7 +298,7 @@ async function versLaBoite() {
   if (tab) { await tab.click(); await page.waitForTimeout(200); }
 }
 async function ouvrirLaMain() { await versLaBoite(); await _click('#hubModal .hub-main-ouvrir'); }
-// LA JOURNÉE EN DEUX (1.0, R3) : le matin, hier soir seul ; « Le prochain match › » mène au soir et à l'affiche.
+// LA JOURNÉE EN DEUX (1.0, R3) : le matin, hier soir seul ; « Aujourd'hui › » mène au soir et à l'affiche.
 async function versLeSoir() {
   const b = await page.$('#hubModal .hub-vers-soir');
   if (!b || !(await b.isVisible().catch(() => false))) return false;
