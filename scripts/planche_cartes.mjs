@@ -52,8 +52,9 @@ async function demarrer(largeur, hauteur) {
   await page.click('.menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
   await page.waitForSelector('#npGo', { timeout: 30000 });
   await page.click('#npGo');
-  await page.waitForSelector('#choixModal:not([hidden]) .tc', { timeout: 20000 });
-  await page.evaluate(() => document.querySelector('#choixModal .tc').click());
+  // Le Cap 82 pur (1.0) part sans identité : le choix ne s'ouvre plus toujours.
+  const identite = await page.waitForSelector('#choixModal:not([hidden]) .tc', { timeout: 6000 }).catch(() => null);
+  if (identite) await page.evaluate(() => document.querySelector('#choixModal .tc').click());
   await page.waitForSelector('#pool .pcard', { timeout: 30000 });
   await page.waitForTimeout(600);
   return page;

@@ -7211,7 +7211,8 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   -webkit-mask: radial-gradient(7.8% 2.9% at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat, radial-gradient(7.8% 2.9% at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
   mask: radial-gradient(7.8% 2.9% at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat, radial-gradient(7.8% 2.9% at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
 }
-.carton.tc-legendaire .carton-nom .lname { color: transparent; background: var(--or-feuille); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 0.22cqw rgba(40, 24, 0, 0.55); text-shadow: none; filter: drop-shadow(0 0.35cqw 0 rgba(0, 0, 0, 0.55)) drop-shadow(0 0 0.25cqw rgba(0, 0, 0, 0.35)); }
+.carton.tc-legendaire .carton-nom .lname { color: transparent; background: var(--or-feuille); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 0.3cqw rgba(24, 14, 0, 0.85); text-shadow: none; filter: drop-shadow(0 0 0.18cqw #000) drop-shadow(0 0 0.55cqw rgba(0, 0, 0, 0.9)) drop-shadow(0 0.3cqw 0 rgba(0, 0, 0, 0.5)); }
+/* Le halo sombre (1.0) : sur une bande jaune ou or (Bruins, Penguins, Sabres), l'or se fondait dans la bande. Serré, il découpe les lettres sur n'importe quelle couleur de club. */
 .cs-tableau.tc-legendaire .carton-nom .lname { background: radial-gradient(circle, #ffe08a 52%, transparent 58%) 0 0 / 0.125em 0.125em; -webkit-background-clip: text; background-clip: text; text-shadow: none; filter: drop-shadow(0 0 0.12em rgba(255, 190, 60, 0.45)); }
 .carton-tirage {
   z-index: 5; right: 3.6cqw; top: 14cqw; display: grid; place-items: center; min-width: 17cqw; height: 17cqw; padding: 0 1.5cqw; border-radius: 50%;
