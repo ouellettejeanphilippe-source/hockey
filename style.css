@@ -2453,18 +2453,6 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 }
 @media (min-width: 1600px) { body.hub-docke .hub-sheet { grid-template-columns: minmax(0, 1fr) 440px; } }
 
-/* ---- Les liens du bureau (1.0, R3) : une rangée d'icônes, chacune un lien vers une page du Club, un sous-onglet ou la Ligue ---- */
-.hub-liens { display: flex; flex-wrap: wrap; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet); }
-.hub-lien {
-  position: relative; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 36px; padding: 0 var(--esp-3) 0 var(--esp-2);
-  border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); color: var(--encre);
-  font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; transition: background var(--t-vite), border-color var(--t-vite);
-}
-.hub-lien i { font-style: normal; font-size: var(--t-3); line-height: 1; }
-.hub-lien b { min-width: 16px; padding: 2px 4px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
-.hub-lien:hover, .hub-lien:focus-visible { background: var(--fond-2); border-color: var(--encre-3); }
-.hub-lien:active { background: var(--fond-3); }
-
 /* ---- Une page du Club (1.0, R3) : « ‹ » pour revenir, un titre, le corps ; l'affiche, la boîte et le volet attendent derrière ---- */
 body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet, .hub-onglets) { display: none; }
 .hub-page { display: flex; flex-direction: column; min-width: 0; }

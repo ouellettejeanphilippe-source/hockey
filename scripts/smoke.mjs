@@ -112,15 +112,17 @@ async function eprouverCoquille() {
   if (!club.affiche) errors.push('au téléphone, l\'affiche du prochain match ne se voit pas sans défiler');
   if (!club.bouton) errors.push('au téléphone, « Journée suivante » ne se voit pas sans défiler');
   console.log(`   le Club au téléphone : hier ${club.hiers} fois, l'affiche ${club.affiche ? 'visible' : 'cachée'}, le bouton ${club.bouton ? 'visible' : 'caché'}`);
-  // Les pages du Club (1.0, R3) : le lien 🔎 ouvre le dépistage en page (les chances calculées), et Échap revient au bureau.
-  const lien = await page.$('#hubModal .hub-liens .hub-tt-dep');
-  if (!lien || !(await lien.isVisible())) errors.push('au téléphone, l\'affiche n\'offre pas le lien du dépistage');
+  // Les pages du Club (1.0, R3) : l'étape « 1 Aperçu » ouvre le dépistage en page (les chances calculées), et Échap revient au bureau.
+  // v2 : plus de rangée de liens au bureau (chacun doublait une autre porte) — aucun .hub-lien ne doit revenir.
+  if (await page.$('#hubModal .hub-lien')) errors.push('le bureau affiche encore la rangée de liens qui doublait les étapes, la boîte, la Ligue et le Marché');
+  const lien = await page.$('#hubModal .soir-etape[data-etape="apercu"]');
+  if (!lien || !(await lien.isVisible())) errors.push('au téléphone, l\'affiche n\'offre pas l\'étape du dépistage');
   else {
     await lien.click();
     const chances = await page.waitForSelector('#hubModal .hub-page[data-genre="depistage"] .dep2-chances', { state: 'visible', timeout: 10000 }).catch(() => null);
     if (!chances) errors.push('le lien du dépistage n\'ouvre pas sa page avec les chances du match');
     else if (await page.isVisible('#hubModal .hub-face')) errors.push('la page du dépistage laisse l\'affiche du match derrière elle');
-    else console.log('   le lien 🔎 ouvre le dépistage en page du Club');
+    else console.log('   l\'étape « Aperçu » ouvre le dépistage en page du Club');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(250);
     if (await page.$('#hubModal .hub-page')) errors.push('Échap ne referme pas la page du dépistage');
@@ -1780,7 +1782,7 @@ async function traverserSaison(etiquette, reprise = false) {
       // Sous 1200 px (1.0, R3), le dépistage est une page du Club ouverte par son lien ; au bureau, il se déplie dans l'affiche.
       const enSousPage = page.viewportSize().width < 1200;
       const portee = enSousPage ? '#hubModal .hub-page[data-genre="depistage"]' : '#hubModal';
-      if (enSousPage) await _click('#hubModal .hub-tt-dep'); else await _click('#hubModal .hub-depistage > summary');
+      if (enSousPage) await _click('#hubModal .soir-etape[data-etape="apercu"]'); else await _click('#hubModal .hub-depistage > summary');
       await page.waitForSelector(enSousPage ? `${portee} .dep3-table` : '#hubModal .hub-depistage[open] .dep3-table', { timeout: 60000 });
       await page.waitForTimeout(300);
       const dep = await page.evaluate(sel => {
@@ -2165,7 +2167,8 @@ async function traverserSaison(etiquette, reprise = false) {
           else console.log(`   carte du deck « ${deck} » : ${suite}, ${nb} choix, décision ${JSON.stringify({ deck: dDeck[0].deck, palier: dDeck[0].palier, mutation: dDeck[0].mutation, garde: dDeck[0].garde, maitrise: dDeck[0].maitrise, ballottage: dDeck[0].ballottage && dDeck[0].ballottage.entre })}`);
           // S80 : l'amélioration (ou l'édition) gardée au palier attend dans l'inventaire, prête à poser au verso.
           if (dDeck.length && dDeck[0].garde) {
-            await _click('#hubModal .hub-inventaire');
+            await _click('#navbar .navtab[data-section="marche"]');
+            await _click('#pageMarcheCorps [data-marche="cartes"]');
             await _wait('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
             if (!(await page.$(`#hubModal .hub-page[data-genre="cartes"] .bq-carte[data-id="${dDeck[0].garde}"] .inv-jouer`))) errors.push(`la carte « ${dDeck[0].garde} » gardée au palier n'est pas dans l'inventaire`);
             else console.log(`   « ${dDeck[0].garde} » attend dans l'inventaire`);
