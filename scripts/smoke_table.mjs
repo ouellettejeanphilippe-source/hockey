@@ -324,7 +324,8 @@ while (signed < 23 && guard++ < 320) {
   const cards = await page.$$('.pcard');
   const infos = await page.$$eval('.pcard', els => els.map(el => ({
     price: (((t) => { const m = t.replace(/\u00a0/g, ' ').match(/[−-]?\d*[.,]?\d+/); return m ? parseFloat(m[0].replace('−', '-').replace(',', '.')) || 0 : 0; })(el.querySelector('.pcard-price')?.textContent || '')),
-    ok: !!el.querySelector('.btn-sign:not([disabled])'),
+    // Un bouton « Signer · bloque la fin » (1.0, J1-Q) demande deux touchers : l'auto-draft ne le prend jamais d'un seul.
+    ok: !!el.querySelector('.btn-sign:not([disabled]):not(.risque)'),
   })));
   let idx = infos.findIndex(c => c.ok && c.price <= maxPick);
   if (idx < 0) {

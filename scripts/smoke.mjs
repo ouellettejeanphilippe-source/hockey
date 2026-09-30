@@ -1600,6 +1600,9 @@ async function traverserSaison(etiquette, reprise = false) {
       else console.log(`   la case sans photo : ${cases.n} cases, chacune un rôle et un niveau, ${cases.jambes} jambes lisibles`);
     }
     const ouvrirFenetre = async (g, u) => {
+      // Au téléphone (1.0, R4), l'alignement se lit par onglet : la paire est sous « Défense ».
+      const onglet = await page.$(`.seg-effectif [data-val="${g}"]`);
+      if (onglet && await onglet.isVisible()) { await onglet.click(); await page.waitForTimeout(200); }
       await _click(`#rosterBoard .ln-strat[data-g="${g}"][data-u="${u}"]`);
       await page.waitForSelector(`#lignesModal:not([hidden]) .ln-fenetre[data-g="${g}"][data-u="${u}"] .gl-tac`, { timeout: 5000 });
     };
