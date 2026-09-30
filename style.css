@@ -893,6 +893,11 @@ body.menu-ouvert { overflow: hidden; }
 .mp-etape { margin-top: 2px; color: var(--encre-2); font-size: var(--t-2); }
 .mp-actions { display: flex; flex-wrap: wrap; gap: var(--esp-2); margin-top: var(--esp-2); }
 .mp-actions .btn { min-height: 44px; min-width: 44px; }
+/* Le transfert : importer (et coller, sur l'appareil) ; le mot du dernier geste à côté. */
+.menu-transfert { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); margin-top: var(--esp-3); }
+.menu-transfert .btn { min-height: 44px; }
+.menu-transfert-mot { flex: 1 1 100%; color: var(--encre-2); font-size: var(--t-2); }
+.menu-transfert-mot:empty { display: none; }
 
 /* ---- Le pied : Options et Règles ---- */
 .menu-pied { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--esp-3); margin-top: var(--esp-5); }
