@@ -1891,6 +1891,8 @@ async function traverserSaison(etiquette, reprise = false) {
       const jauges = await page.$$eval('#hubModal .hub-jauge, #choixModal .hub-jd', e => e.length);
       if (route < 10) errors.push(`la route de la saison n'a que ${route} marques`);
       if (jauges) errors.push(`${jauges} jauges de faction encore à l'écran`);
+      // Le matin n'a que hier soir : « Préparer le match » est sur l'affiche du soir.
+      await versLeSoir();
       if (!(await page.$('#hubModal .hub-preparer'))) errors.push('l\'affiche n\'offre pas « Préparer le match »');
       else {
         const jAvant = await jourDit();
