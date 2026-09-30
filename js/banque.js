@@ -38,7 +38,7 @@ export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Trois postes au plus, un par rôle.' },
   evenement: { ico: '📰', nom: 'Événements', un: 'Événement', mot: 'Ce qui arrive à ton équipe : quelques journées, un bonus et son prix.' },
   joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, un contrat, une amélioration ou une édition : elle se pose au verso d\'un joueur de ton choix, pour la saison.' },
-  consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Un soin, des jambes, des jetons, un coup de pouce au deck : une utilisation.' },
+  consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Une utilisation : un soin, des jambes, le filet, les minutes, des jetons, le deck, ou un trou dans le règlement.' },
   match: { ico: '🃏', nom: 'Cartes de match', un: 'Carte de match', mot: 'Ton deck des gros matchs et des séries : jouée, elle entre dans le deck.' },
   plafond: { ico: '💵', nom: 'Masse salariale', un: 'Contrat', mot: 'Le plafond salarial se manipule, comme dans la vraie LNH : de l\'espace, une retenue, un blessé à long terme, un rachat.' },
   saison: { ico: '📘', nom: 'Cartes de saison', un: 'Carte de saison', mot: 'Un réglage pour toute la saison : un bonus payé par un malus.' },
@@ -215,20 +215,24 @@ export const EVENEMENTS = {
 export const CONSOMMABLES = {
   glace: { nom: 'Glace et compression', ico: '🧊', rarete: 'commune', vie: 'usage', cible: 'blesse', gestes: { soin: 2 }, texte: 'Vingt minutes, trois fois par jour.' },
   physio: { nom: 'La séance de physio', ico: '💆', rarete: 'peu', vie: 'usage', cible: 'blesse', gestes: { soin: 5 }, texte: 'Des ultrasons et de la patience.' },
-  chirurgie: { nom: 'La chirurgie éclair', ico: '🏥', rarete: 'rare', vie: 'permanent', cible: 'blesse', gestes: { soin: 12 }, texte: 'Le meilleur chirurgien du pays a une plage libre.' },
+  chirurgie: { nom: 'La chirurgie éclair', ico: '🏥', rarete: 'rare', vie: 'permanent', cible: 'blesse', gestes: { soin: 12 }, effet: { blessure: 1.2 }, duree: 5, texte: 'Le meilleur chirurgien a une plage libre. Le vestiaire paie la salle d\'attente.' },
   infirmerie: { nom: 'La ronde de l\'infirmerie', ico: '🩺', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { soin: 2, tousLesBlesses: true }, texte: 'Le médecin passe voir tout le monde.' },
-  boisson: { nom: 'La boisson énergétique', ico: '🥤', rarete: 'commune', vie: 'usage', cible: 'joueur', gestes: { energie: 25 }, texte: 'Bleue, et on ne veut pas savoir ce qu\'il y a dedans.' },
-  bainGlace: { nom: 'Le bain de glace', ico: '🛁', rarete: 'commune', vie: 'usage', cible: 'aucune', gestes: { energieTous: 6 }, texte: 'Personne n\'aime ça. Tout le monde le fait.' },
+  boisson: { nom: 'La boisson', ico: '🥤', rarete: 'commune', vie: 'usage', cible: 'joueur', gestes: { energie: 25 }, texte: 'Bleue, et on ne veut pas savoir ce qu\'il y a dedans.' },
+  bainGlace: { nom: 'Le bain de glace', ico: '🛁', rarete: 'commune', vie: 'usage', cible: 'aucune', gestes: { energieTous: 10 }, effet: { blessure: 1.12 }, duree: 4, texte: 'Le froid remet les jambes. Les corps restent fragiles.' },
   conge: { nom: 'La journée de congé', ico: '🛌', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { energieTous: 12 }, texte: 'Pas de patin, pas de gym, pas de vidéo.' },
-  hyperbare: { nom: 'La chambre hyperbare', ico: '🫧', rarete: 'rare', vie: 'permanent', cible: 'joueur', gestes: { energie: 40, energieTous: 8 }, texte: 'Une heure dans le tube, et il repart comme en septembre.' },
+  hyperbare: { nom: 'La chambre hyperbare', ico: '🫧', rarete: 'rare', vie: 'permanent', cible: 'joueur', gestes: { energie: 40 }, effet: { volume: 0.96 }, duree: 3, texte: 'Une heure dans le tube. La pratique du matin saute.' },
   cure: { nom: 'La cure thermale', ico: '♨️', rarete: 'peu', vie: 'permanent', cible: 'aucune', effet: { blessure: 0.6 }, duree: 10, texte: 'Dix jours de sources chaudes pour les corps usés.' },
   enveloppe: { nom: 'L\'enveloppe brune', ico: '✉️', rarete: 'peu', vie: 'usage', cible: 'aucune', gain: 20, texte: 'On ne pose pas de question.' },
-  coffre: { nom: 'Le coffre du proprio', ico: '🧰', rarete: 'rare', vie: 'permanent', cible: 'aucune', gain: 40, texte: 'Le proprio a trouvé la clé.' },
+  coffre: { nom: 'Le coffre du proprio', ico: '🧰', rarete: 'rare', vie: 'permanent', cible: 'aucune', gain: 45, effet: { discipline: 1.06 }, duree: 5, texte: 'Le proprio a trouvé la clé. La ligue a trouvé la photo.' },
   billet: { nom: 'Le billet de loterie', ico: '🎟️', rarete: 'commune', vie: 'usage', cible: 'aucune', pari: { chance: 0.5, gain: 30 }, texte: 'Une chance sur deux de gratter 30 jetons.' },
   exorciste: { nom: 'L\'exorciste', ico: '🕯️', rarete: 'rare', vie: 'permanent', cible: 'malediction', texte: 'Il chasse une malédiction de ton deck de match.' },
   campExpress: { nom: 'Le camp express', ico: '⛺', rarete: 'peu', vie: 'usage', cible: 'carteMatch', texte: 'Une carte de ton deck de match devient sa version « + ».' },
   stageExpress: { nom: 'Le stage express', ico: '📘', rarete: 'peu', vie: 'usage', cible: 'tactique', maitrise: 0.25, texte: 'Ta formation fait 25 % du chemin vers la maîtrise d\'un système.' },
   gabarit: { nom: 'Le gabarit de poche', ico: '📐', rarete: 'peu', vie: 'usage', cible: 'aucune', regle: true, effet: { finition: 1.03, discipline: 1.08 }, duree: 3, texte: 'Tu mesures leurs bâtons. Les tiens restent dans le sac.' },
+  repos: { nom: 'Le repos du partant', ico: '🧤', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { gardienAux: 3 }, texte: 'Le partant regarde. L\'auxiliaire prend les trois prochains.' },
+  bancCourt: { nom: 'Le banc court', ico: '🔥', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { F: [1.22, 1.02, 0.92, 0.78], blessure: 1.15, energie: 1.06 }, duree: 4, texte: 'Le premier trio ne sort plus. Le quatrième rouille.' },
+  profondeur: { nom: 'La glace du bas', ico: '🔋', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { F: [0.88, 1.02, 1.08, 1.16], volume: 0.98, blessure: 0.9 }, duree: 5, texte: 'Le bas de l\'alignement joue. Les vedettes respirent.' },
+  crochet: { nom: 'Le crochet de poche', ico: '🪝', rarete: 'commune', vie: 'usage', cible: 'aucune', regle: true, effet: { defense: 0.97, discipline: 1.08 }, duree: 3, texte: 'Trois soirs, on accroche. L\'arbitre finit par le voir.' },
 };
 
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
@@ -305,16 +309,81 @@ function construire() {
 }
 export const BANQUE = construire();
 export const carteBanque = id => BANQUE[id] || null;
-/* La forme d'une carte de la banque, le mot qu'on lit avant les chiffres. */
+/* Un canal d'équipe, du bon côté : buts contre, punitions, blessures et usure descendent. */
+const canalBon = (k, v) => (k === 'robustesse' ? v > 0 : (k === 'defense' || k === 'discipline' || k === 'blessure' || k === 'energie' ? v < 1 : v > 1));
+const bitsDEffet = e => {
+  const out = [];
+  if (!e) return out;
+  for (const k of ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse']) {
+    const v = e[k];
+    if (v == null || (k === 'robustesse' ? v === 0 : v === 1)) continue;
+    out.push(canalBon(k, v));
+  }
+  return out;
+};
+/* La forme d'un consommable, lue sur toute la carte. Le mot dit le verbe, pas « un peu ». */
+function formeDeConsommable(C) {
+  if (!C) return '';
+  if (C.pari) return 'Pari';
+  if (C.regle) return 'Règlement';
+  const e = C.effet || {};
+  if (Array.isArray(e.F) || Array.isArray(e.D)) return 'Minutes';
+  const bits = bitsDEffet(e);
+  const g = C.gestes || {};
+  if (g.soin) bits.push(true);
+  if (g.energie) bits.push(g.energie > 0);
+  if (g.energieTous) bits.push(g.energieTous > 0);
+  if (C.gain) bits.push(true);
+  if (bits.some(Boolean) && bits.some(b => !b)) return 'Échange';
+  if (C.cible === 'malediction') return 'Malédiction';
+  if (C.cible === 'carteMatch') return 'Plus';
+  if (C.cible === 'tactique') return 'Système';
+  if (C.gain) return 'Jetons';
+  if (g.gardienAux) return 'Filet';
+  if (g.soin) return 'Soin';
+  if (g.energie || g.energieTous) return 'Jambes';
+  if (!bits.length) return '';
+  if (bits.every(Boolean)) return 'Cadeau';
+  return 'Moindre mal';
+}
+/* Un événement qui soigne ou repose en plus de son effet n'est pas qu'un moindre mal. */
+function formeDEvenement(E) {
+  if (!E) return '';
+  if (E.regle) return 'Règlement';
+  const base = formeDe({ effet: E.effet || {} });
+  const g = E.gestes;
+  if (!g) return base;
+  const bon = !!(g.soin || g.energie > 0 || g.energieTous > 0 || g.gardienAux);
+  const mal = !!((g.energie && g.energie < 0) || (g.energieTous && g.energieTous < 0));
+  if ((bon && base === 'Moindre mal') || (mal && base === 'Cadeau')) return 'Échange';
+  if (!base && g.gardienAux) return 'Filet';
+  if (!base && g.soin) return 'Soin';
+  if (!base && (g.energie || g.energieTous)) return 'Jambes';
+  return base;
+}
+function formeDePlafond(C) {
+  if (!C) return '';
+  if (C.espace < 0) return 'Moindre mal';
+  if (C.cout) return 'Échange';
+  if (C.espace || C.ltir) return 'Plafond';
+  if (C.facteur) return 'Salaire';
+  return '';
+}
+/* La forme d'une carte de la banque, le mot qu'on lit avant les chiffres. Pas les cartes de joueur : elles disent leur édition. */
 export function etiquetteBanque(id) {
   const c = carteBanque(id);
   if (!c) return '';
-  if (c.regle || (c.cat === 'joueur' && EDITIONS_REGLEMENT.includes(c.cle))) return 'Règlement';
+  if (c.cat === 'joueur') return (c.regle || EDITIONS_REGLEMENT.includes(c.cle)) ? 'Règlement' : '';
+  if (c.regle) return 'Règlement';
   if (c.cat === 'match') return formeDe({ genreCarte: c.genre, dessin: c.cle });
-  if (c.cat === 'evenement') return formeDe({ effet: (EVENEMENTS[c.cle] && EVENEMENTS[c.cle].effet) || {} });
+  if (c.cat === 'evenement') return formeDEvenement(EVENEMENTS[c.cle]);
   if (c.cat === 'saison') return formeDe({ effet: CARTES[c.cle] });
-  if (c.cat === 'patron') return formeDe({ effet: (PATRONS[c.cle] && PATRONS[c.cle].effet) || {} });
-  if (c.cat === 'consommable') return formeDe({ effet: (CONSOMMABLES[c.cle] && CONSOMMABLES[c.cle].effet) || {} });
+  if (c.cat === 'patron') {
+    const P = PATRONS[c.cle] || {};
+    return formeDe({ effet: P.effet || {} }) || (P.econ ? 'Boutique' : '');
+  }
+  if (c.cat === 'consommable') return formeDeConsommable(CONSOMMABLES[c.cle]);
+  if (c.cat === 'plafond') return formeDePlafond(CONTRATS[c.cle]);
   return '';
 }
 export const idsDe = cat => Object.values(BANQUE).filter(c => c.cat === cat).map(c => c.id);
@@ -395,8 +464,9 @@ export function reglesDe(id) {
 function motsDesGestes(g) {
   const out = [];
   if (g.soin) out.push({ txt: `${g.tousLesBlesses ? 'Tous tes blessés' : 'Un blessé'} : −${g.soin} match${g.soin > 1 ? 's' : ''} d'infirmerie`, bon: true });
-  if (g.energie) out.push({ txt: `Un joueur : jambes +${g.energie}`, bon: true });
-  if (g.energieTous) out.push({ txt: `Tes patineurs : jambes +${g.energieTous}`, bon: true });
+  if (g.energie) out.push({ txt: `Un joueur : jambes ${g.energie > 0 ? '+' : '−'}${Math.abs(g.energie)}`, bon: g.energie > 0 });
+  if (g.energieTous) out.push({ txt: `Tes patineurs : jambes ${g.energieTous > 0 ? '+' : '−'}${Math.abs(g.energieTous)}`, bon: g.energieTous > 0 });
+  if (g.gardienAux) out.push({ txt: `L'auxiliaire garde le filet ${g.gardienAux} match${g.gardienAux > 1 ? 's' : ''}`, bon: null });
   return out;
 }
 
@@ -455,13 +525,17 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
   if (c.cat === 'joueur') return joueur ? { mutation: { cle: c.cle, joueur } } : null;
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
-    if (C.cible === 'blesse' || C.cible === 'joueur') { if (!joueur) return null; return { gestes: { ...C.gestes, joueurs: [joueur] } }; }
+    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...C.effet, ...(C.regle ? { regle: true } : {}) } : null;
+    if (C.cible === 'blesse' || C.cible === 'joueur') {
+      if (!joueur) return null;
+      return { gestes: { ...C.gestes, joueurs: [joueur] }, ...(effet ? { effet } : {}) };
+    }
     if (C.cible === 'malediction') return carte ? { deck: 'menage', retrait: carte } : null;
     if (C.cible === 'carteMatch') return carte ? { deck: 'camp', aiguise: carte } : null;
     if (C.cible === 'tactique') return tactique ? { deck: 'strategie', maitrise: { tac: tactique, gain: C.maitrise } } : null;
     const out = {};
     if (C.gestes) out.gestes = { ...C.gestes };
-    if (C.effet) out.effet = { nom: C.nom, ico: C.ico, duree: C.duree, ...C.effet, ...(C.regle ? { regle: true } : {}) };
+    if (effet) out.effet = effet;
     if (C.gain) out.gain = C.gain;
     if (C.pari) out.gain = alea !== null && alea < C.pari.chance ? C.pari.gain : 0;
     return out;
