@@ -42,7 +42,7 @@ await page.addInitScript(() => {
   window.__parisVus = [];
   const noter = el => { if (el.classList && el.classList.contains('pari')) window.__parisVus.push(el.textContent.replace(/\s+/g, ' ').trim()); };
   new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) { noter(n); n.querySelectorAll && n.querySelectorAll('.pari').forEach(noter); } })
-    .observe(document.documentElement, { childList: true, subtree: true });
+    .observe(document, { childList: true, subtree: true });
 });
 const parisVus = new Set();
 setInterval(() => page.evaluate(() => (window.__parisVus || []).splice(0)).then(l => l.forEach(t => parisVus.add(t))).catch(() => {}), 1500).unref();
@@ -214,8 +214,18 @@ let guetterTrouHook = null;
 let palierAuto = false;
 const paliersJoues = [];
 let sommairesVus = 0;
+/*
+ * LA BOÎTE NE DÉPLIE QUE LE PREMIER MESSAGE À TRAITER (1.0). Au Rogue, un autre message bloquant (un pack à
+ * signer, une case vide) peut passer devant la main : son « Voir les cartes » est alors dans un message PLIÉ —
+ * présent, pas visible, et le clic attendait jusqu'au délai. On déplie le message de la main, comme un joueur.
+ */
+async function ouvrirLaMain() {
+  const dansBoite = await page.$('#hubModal .hub-msg[data-msg="palier"] .hub-main-ouvrir');
+  if (dansBoite && !(await dansBoite.isVisible())) await _click('#hubModal .hub-msg[data-msg="palier"] .hub-msg-tete');
+  await _click(dansBoite ? '#hubModal .hub-msg[data-msg="palier"] .hub-main-ouvrir' : '#hubModal .hub-main-ouvrir');
+}
 async function prendrePalier() {
-  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
   await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
   const eff = await page.$('#choixModal .tc[data-choix^="effet:"]:not([disabled])');
   const nom = eff ? await eff.getAttribute('data-choix') : await page.$eval('#choixModal .tc:not([disabled])', e => e.dataset.choix);
@@ -1921,7 +1931,7 @@ async function traverserSaison(etiquette, reprise = false) {
     const lireMain = async () => {
       // Un choix forcé passe devant le palier (S74b) : on y répond d'abord.
       if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await repondreAuxChoix();
-      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
       await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
       const main = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
       await _click('#choixModal .choix-plus-tard');
@@ -1966,7 +1976,7 @@ async function traverserSaison(etiquette, reprise = false) {
       const jPrise = await jourDit();
       const pris = offertes[0];
       // La main du palier a pu s'ouvrir d'elle-même après un choix forcé (S74b).
-      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+      if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
       await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
       await _click(`#choixModal .tc[data-choix="effet:${pris}"]`);
       await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
@@ -2006,7 +2016,7 @@ async function traverserSaison(etiquette, reprise = false) {
         await repondreAuxChoix();
         const jDeck = await jourDit();
         // La main du palier a pu s'ouvrir d'elle-même après un choix forcé (S74b).
-        if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await _click('#hubModal .hub-main-ouvrir');
+        if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
         await _wait('#choixModal:not([hidden]) .tc', { timeout: 5000 });
         const off = await page.$eval(`#choixModal .tc[data-choix="${deck}"]`, b => b.disabled);
         if (off) console.log(`   la carte « ${deck} » est grisée ce palier-ci (personne à qui la donner)`);
@@ -3137,7 +3147,21 @@ if (enabled) {
     await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
     await page.click('#hubModal .hub-suite');
     await page.waitForSelector('#playoffsSection .bk-serie', { timeout: 10000 });
-    const series = await page.$$eval('#playoffsSection .bk-serie', l => l.length);
+    /*
+     * « TA RUN » (1.0). Ce parcours de saison se joue maintenant au Rogue (le Cap 82 est pur) : une Coupe y
+     * finit la run, et l'écran « Ta run » s'ouvre par-dessus le bilan — c'est voulu (essai_rogue le vérifie en
+     * détail). Il doit dire la Coupe ou le mandat manqué ; on le lit, puis on le ferme comme un joueur.
+     */
+    await page.waitForTimeout(400);
+    const taRun = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]');
+    if (taRun) {
+      const txt = ((await taRun.textContent()) || '').replace(/\s+/g, ' ');
+      if (!/Coupe|Mandat manqué/.test(txt)) errors.push(`« Ta run » ne dit ni la Coupe ni le mandat manqué : « ${txt.slice(0, 140)} »`);
+      console.log(`   « Ta run » après les séries : ${/Coupe/.test(txt) ? 'la Coupe' : 'mandat manqué'}, fermé d'un geste`);
+      await _click('#choixModal:not([hidden]) .choix-fermer');
+      await page.waitForTimeout(300);
+    }
+    const series = await page.$eval('#playoffsSection .bk-serie', l => l.length);
     console.log(`   séries : ${noeuds} nœuds au tableau en cours, ${xe}, ${series} séries au tableau final`);
     if (!series) errors.push('séries : aucun tableau final');
     // Les rondes pas encore nées (S79) s'y dessinent « à venir » : le tableau en cours a ses quinze places.
