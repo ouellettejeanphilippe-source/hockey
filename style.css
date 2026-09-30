@@ -259,8 +259,8 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 @media (max-width: 679.98px) {
   /* Une rangée : l'écusson, le club et son état, puis les chiffres en cellules, le menu. Les étiquettes s'effacent
      (une fiche « 4-0-0 », un rang « 3e » et un montant se reconnaissent seuls) ; la barre du plafond reste, en 3 px. */
-  .topbar { padding: var(--esp-1) var(--esp-3) 0; }
-  .topbar:has(.sousnav[hidden]) { padding-bottom: var(--esp-1); }
+  .topbar { padding: var(--esp-2) var(--esp-3) 0; }
+  .topbar:has(.sousnav[hidden]) { padding-bottom: var(--esp-2); }
   .topbar-inner { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "retour club chiffres menu"; gap: var(--esp-2); }
   .tete-club { gap: var(--esp-2); }
   .tete-ecu { width: 28px; height: 28px; }
@@ -277,6 +277,8 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
   .capgauge .track { grid-column: 1 / -1; order: 1; height: 3px; margin-top: 2px; }
   body:not(.au-repechage):not(.mode-rogue) .capgauge-row.small { display: none; }
   #menuBtn { width: 40px; height: 40px; }
+  /* Avec « ‹ Retour » (derrière le banc), le nom du club cède la place : l'écusson suffit à dire chez qui on est. */
+  .topbar-inner:has(> .retour-btn:not([hidden])) .tete-id { display: none; }
   .sousnav { margin-top: var(--esp-1); }
   .soustab { min-height: 36px; padding: 0 var(--esp-3); }
 }
@@ -1188,10 +1190,10 @@ a.spin-club:hover { background: var(--fond-2); }
 .pcard-rangee { display: none; }
 @media (max-width: 679.98px) {
   .pane-pool .pool, .pane-pool.loto .pool { grid-template-columns: minmax(0, 1fr); gap: 1px; background: var(--filet-2); border-top: 1px solid var(--filet-2); }
-  .pcard { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "mug qui ligne" "mid mid sign" "dest dest sign"; align-items: center; gap: var(--esp-1) var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--fond-1); container: none; }
+  .pcard { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-areas: "mug qui ligne" "mid mid sign" "dest dest sign"; align-items: center; gap: var(--esp-2) var(--esp-3); padding: var(--esp-3) var(--esp-4); background: var(--fond-1); container: none; }
   .pcard > .carton { display: none; }
   .pcard-rangee, .pcard-fiche { display: contents; }
-  .pcard-mug { grid-area: mug; position: relative; width: 40px; height: 40px; border-radius: var(--r-1); overflow: hidden; background: var(--fond-3); }
+  .pcard-mug { grid-area: mug; position: relative; width: 44px; height: 44px; border-radius: var(--r-1); overflow: hidden; background: var(--fond-3); }
   .pcard-mug > * { position: absolute; inset: 0; display: grid; place-items: center; }
   .pcard-mug img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
   .pcard-qui { grid-area: qui; display: grid; min-width: 0; }
@@ -1202,7 +1204,7 @@ a.spin-club:hover { background: var(--fond-2); }
   .pcard-mid { grid-area: mid; }
   .pcard-dest { grid-area: dest; }
   .pcard-dest:empty { display: none; }
-  .pcard .btn-sign { grid-area: sign; width: auto; min-width: 88px; min-height: 36px; font-size: var(--t-2); }
+  .pcard .btn-sign { grid-area: sign; width: auto; min-width: 96px; min-height: 40px; font-size: var(--t-2); }
   .pcard.locked .pcard-mug { opacity: 0.45; }
   .pcard.signed .pcard-mug { outline: 2px solid var(--bon); }
 }
@@ -2281,12 +2283,12 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
   .line-head { min-height: 36px; }
   /* Une RANGÉE par joueur : la case (le poste, le salaire) à gauche, le nom et le chiffre clé, puis le rôle, le niveau et la zone. */
   .line-slots, .line-slots.pair { grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 0; background: var(--filet-2); }
-  .slot { flex-direction: row; align-items: stretch; min-height: 48px; border: 0; border-radius: 0; }
+  .slot { flex-direction: row; align-items: stretch; min-height: 56px; border: 0; border-radius: 0; }
   .slot-band { flex: none; width: 54px; flex-direction: column; justify-content: center; gap: 1px; padding: 2px; box-shadow: inset -2px 0 0 var(--slot-stripe, var(--club-2)); }
   .slot:has(> .slot-remove) .slot-band { padding-right: 2px; }
   .slot-band .sb-role { font-size: var(--t-1); }
   .slot-salary { margin: 0; font-size: var(--t-1); opacity: 0.85; }
-  .slot-inner { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nom cle" "l1 l2"; align-items: center; column-gap: var(--esp-2); row-gap: 2px; padding: var(--esp-1) var(--esp-2); }
+  .slot-inner { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nom cle" "l1 l2"; align-items: center; column-gap: var(--esp-3); row-gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); }
   .slot .slot-name { grid-area: nom; font-size: var(--t-3); }
   .cell-l3 { grid-area: cle; }
   .cell-l1 { grid-area: l1; }
@@ -2298,7 +2300,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
   .slot:has(> .slot-remove) .slot-inner { padding-right: 34px; }
   .ln-strat { min-height: 36px; }
   .pane-roster .pane-title, .roster-hint { display: none; }
-  .team-summary { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); margin-bottom: var(--esp-2); }
+  .team-summary { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-4); margin: var(--esp-2) 0 var(--esp-3); }
   .sum-item { display: flex; align-items: baseline; gap: var(--esp-1); padding: 0; border-left: 0; }
   .sum-item .k { min-height: auto; }
   .sum-item .v { margin-top: 0; font-size: var(--t-3); }
@@ -2337,7 +2339,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
   body.hub-docke:not(.mode-table) .hub-sheet .live-top { padding: 2px var(--esp-3); }
   body.hub-docke:not(.mode-table) .hub-sheet .hub-outil { min-height: 32px; padding: 0 var(--esp-2); }
   .hub-tuiles-tel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; border-top: 1px solid var(--filet-2); background: var(--filet-2); }
-  .hub-tt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 56px; padding: var(--esp-1); border: 0; background: var(--fond-1); color: var(--encre); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+  .hub-tt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-height: 64px; padding: var(--esp-1); border: 0; background: var(--fond-1); color: var(--encre); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
   .hub-tt i { font-style: normal; font-size: var(--t-4); line-height: 1; }
   .hub-tt { position: relative; }
   .hub-tt b { position: absolute; top: 6px; right: calc(50% - 26px); min-width: 16px; padding: 2px 4px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
@@ -2351,7 +2353,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
   .hub-eq { padding: var(--esp-2) var(--esp-3); }
   .hub-eq-forme { margin: var(--esp-1) calc(-1 * var(--esp-3)) calc(-1 * var(--esp-2)); }
   .soir-etape { min-height: 36px; }
-  .soir-drame { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .soir-drame { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-bottom: 0; margin-bottom: var(--esp-2); }
   .hub-barre .hub-jour, .hub-barre .hub-suite { min-height: 48px; font-size: var(--t-3); }
   .hub-barre .hub-actions-rang .btn { min-height: 36px; }
   body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: var(--esp-4); }
@@ -2647,6 +2649,12 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
 @media (max-width: 480px) {
   .hub-classement td.nom .nom-long { display: none; }
   .hub-classement td.nom .nom-court { display: inline; }
+}
+/* Au téléphone, le classement tient sans défiler : le rang, le club, PJ, V, D, DP, PTS et le différentiel ; les buts, la séquence
+   et les dix derniers matchs attendent le bureau (la page de l'équipe les dit). */
+@media (max-width: 679.98px) {
+  .hub-classement :is(th, td):is(:nth-child(8), :nth-child(9), :nth-child(11), :nth-child(12)) { display: none; }
+  .hub-volet .live-tableau th, .hub-volet .live-tableau td { height: 44px; padding: 0 var(--esp-2); }
 }
 @media (max-width: 1199.98px) {
   .hub-volet .hub-classement { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
