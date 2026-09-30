@@ -3153,6 +3153,8 @@ if (enabled) {
      * détail). Il doit dire la Coupe ou le mandat manqué ; on le lit, puis on le ferme comme un joueur.
      */
     await page.waitForTimeout(400);
+    // Le tableau se compte avant « Ta run » : on lit le bilan tel qu'il s'ouvre.
+    const series = await page.$$eval('#playoffsSection .bk-serie', l => l.length);
     const taRun = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]');
     if (taRun) {
       const txt = ((await taRun.textContent()) || '').replace(/\s+/g, ' ');
@@ -3161,7 +3163,6 @@ if (enabled) {
       await _click('#choixModal:not([hidden]) .choix-fermer');
       await page.waitForTimeout(300);
     }
-    const series = await page.$eval('#playoffsSection .bk-serie', l => l.length);
     console.log(`   séries : ${noeuds} nœuds au tableau en cours, ${xe}, ${series} séries au tableau final`);
     if (!series) errors.push('séries : aucun tableau final');
     // Les rondes pas encore nées (S79) s'y dessinent « à venir » : le tableau en cours a ses quinze places.
