@@ -1900,7 +1900,8 @@ async function traverserSaison(etiquette, reprise = false) {
         await versLeSoir();
         const totHub = ((await page.textContent('#hubModal .hub-totaux').catch(() => '')) || '').trim();
         if (!/^(Ce soir|Au prochain match) :/.test(totHub)) errors.push(`l'affiche ne dit pas les totaux du soir : « ${totHub} »`);
-        await _click('#hubModal .hub-preparer');
+        // Au téléphone, le bouton de l'affiche est caché : l'étape « Préparation » fait le même geste.
+        await _click('#hubModal .soir-etape[data-etape="prep"]');
         await page.waitForSelector('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"]', { timeout: 5000 });
         const puces = await page.$$eval('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
         // TOUT ENSEMBLE (S72) : « Ce qui joue sur ta formation » est dans le même écran que les lignes.
