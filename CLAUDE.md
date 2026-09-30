@@ -20,7 +20,7 @@ Lis `MOTEUR.md` — c'est la spécification de la refonte de la simulation par �
 
 ```
 index.html            la page unique : l'en-tête du club, les cinq sections, roulette, vestiaire, alignement, modales
-style.css             tous les styles, mobile d'abord (390 px), deux volets dès 1080 px
+style.css             tous les styles, une seule feuille écrite dans l'ordre des écrans (docs/refonte-ui.md), mobile d'abord (390 px), le rail dès 1000 px
 sw.js                 travailleur de service : la coquille hors ligne (FICHIERS), les visages en cache
 site.webmanifest, favicon.svg, icon-*.png   installation et icônes
 fonts/                Barlow Condensed (OFL), hébergée ici
