@@ -529,6 +529,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   for (const t of teams) for (const p of Object.values(t.roster || {})) if (p) equipeDe.set(p, t);
   // Le gardien de rappel n'a pas de case, mais il a une équipe.
   for (const t of teams) if (t.rappelG) equipeDe.set(t.rappelG, t);
+  // Celui qui a quitté son club en cours de route (le ballottage, un relâché) garde ses points aux
+  // meneurs : son équipe est celle pour qui il a été habillé, lue sur les feuilles (1.0).
+  for (const j of calendrier) for (const m of j || []) for (const cote of ['A', 'B'])
+    for (const p of (m.feuille && m.feuille.alignes && m.feuille.alignes[cote]) || []) if (!equipeDe.has(p)) equipeDe.set(p, m[cote]);
   // Les tirs pour et contre, et les unités spéciales (S78) : ce que le dépisteur
   // compare, lu sur les feuilles révélées — jamais sur une cote.
   const fiche = new Map(teams.map(t => [t, { W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0, SF: 0, SA: 0, PPG: 0, PPO: 0, PKGA: 0, PKO: 0 }]));
@@ -2661,6 +2665,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     for (const p of Object.values(t.roster || {})) if (p) equipeDe.set(p, t);
     if (t.rappelG) equipeDe.set(t.rappelG, t);
   }
+  for (const s of series) for (const f of s.feuilles || []) for (const cote of ['A', 'B'])
+    for (const p of (f && f.alignes && f.alignes[cote]) || []) if (!equipeDe.has(p)) equipeDe.set(p, s[cote]);
   const feuillesRevelees = () => series.flatMap(s => s.feuilles.slice(0, revele.get(s)));
   const nomRonde = r => rondes[r] || `Ronde ${r + 1}`;
   const nomRondeCourt = r => nomRonde(r).replace('Finale de la Coupe Stanley', 'Finale');

@@ -23,7 +23,7 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe, PLANS_ADV } from './sim.js';
+import { periodeDe, PLANS_ADV, motsDEffet } from './sim.js';
 import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { CARTES_MATCH } from './combat.js';
@@ -359,9 +359,19 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   // LES CARTES DU SOIR (S74) : ce que tu as joué se dit avant la mise au jeu, et ce qu'elles ont fait de leur plan.
   const cartesDuSoir = f.cartes && f.cartes.jouees ? f.cartes.jouees.filter(c => CARTES_MATCH[c]) : [];
   if (cartesDuSoir.length) {
-    const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} ${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
-    const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', ...paris].filter(Boolean);
+    const suite = [f.cartes.lu ? '📼 leur plan tombe' : ''].filter(Boolean);
     ligne('debut cartes', `🃏 <b>Tu joues</b> ${cartesDuSoir.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${suite.length ? ` — ${suite.join(', ')}` : ''}.`);
+    /*
+     * LE DÉ SE LIT (1.0). JP : *quand ya un lancement de dés, genre malus ou bonus avec %, je vois pas ce qui a
+     * gagné*. Le direct disait « le pari rentre », collé au bout des cartes jouées : ni l'issue, ni son effet.
+     * Chaque pari a maintenant sa ligne — gagné ou perdu, en couleur, et l'effet qui s'applique ce soir.
+     */
+    for (const p of f.cartes.paris || []) {
+      const C = CARTES_MATCH[p.cle];
+      if (!C || !C.pari) continue;
+      const effet = motsDEffet(p.gagne ? C.pari.gagne : C.pari.perd).map(m => m.txt).join(' · ');
+      ligne(`debut cartes pari ${p.gagne ? 'gagne' : 'perdu'}`, `🎲 <b>${ctx.esc(C.nom)} : ${p.gagne ? 'le dé tombe de ton bord !' : 'le dé tombe du mauvais bord.'}</b> ${Math.round(C.pari.chance * 100)} % de chances${effet ? ` — ce soir : <b>${ctx.esc(effet)}</b>` : ''}.`);
+    }
   }
   /*
    * LEUR PLAN SE DÉVOILE À LA MISE AU JEU (S76). Avant le match on n'avait
