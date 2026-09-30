@@ -35,7 +35,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
-import { artJoueur, photoAction } from './cartes.js';
+import { artJoueur, focaleAction, photoAction } from './cartes.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
@@ -1789,7 +1789,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const deciderDeck = (p0, d) => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: p0, ...d }, j); };
   const POSTE_CARTE = { G: 'Gardien', D: 'Défenseur', LD: 'Défenseur', RD: 'Défenseur', C: 'Centre', LW: 'Ailier', RW: 'Ailier' };
   // Le visage du joueur, l'écusson en médaillon (S74, l'agent de test : « le logo au lieu du visage »).
-  const joueurArt = p => artJoueur({ portraitHtml: ctx.mug ? ctx.mug(p) : '', logoHtml: ctx.logo(p.t, ctx.mug ? 24 : 60), pos: ctx.esc(POSTE_CARTE[p.p] || 'Avant'), saison: ctx.esc(p.s), club: ctx.esc(p.t), actionSrc: ctx.mug ? photoAction(p) : '' });
+  const joueurArt = p => artJoueur({ portraitHtml: ctx.mug ? ctx.mug(p) : '', logoHtml: ctx.logo(p.t, ctx.mug ? 24 : 60), pos: ctx.esc(POSTE_CARTE[p.p] || 'Avant'), saison: ctx.esc(p.s), club: ctx.esc(p.t), actionSrc: ctx.mug ? photoAction(p) : '', fx: focaleAction(p) });
   const connait = x => (x >= 0.6 ? 'le connaît bien' : x >= 0.3 ? 'le connaît un peu' : x > 0.02 ? 'le connaît à peine' : 'ne le connaît pas encore');
   function ouvrirMain(p0) {
     const main = mainDuDeck(graine, p0, dejaPrises);

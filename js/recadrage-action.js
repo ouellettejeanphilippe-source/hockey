@@ -4,21 +4,24 @@
  *
  * La LNH publie, pour la plupart des joueurs d'après 2005, une photo de match
  * en paysage (1296 × 729) : le joueur net, au milieu d'une foule et d'une
- * bande floues. Une carte est en portrait (5:7). On y découpe donc une fenêtre
- * 5:7 centrée sur le JOUEUR, qu'on trouve par la netteté : le fond est flou
- * (faible profondeur de champ), le joueur est ce qui porte les contours.
+ * bande floues. JP : *je veux que le maximum de pixels de l'image y soient*.
+ * On ne la RECADRE donc plus : on la garde entière, en 16:9, réduite. On y
+ * trouve seulement le JOUEUR, par la netteté (le fond est flou, faible
+ * profondeur de champ ; le joueur est ce qui porte les contours) : une carte
+ * dont la fenêtre est plus étroite que la photo (4:3 au plus étroit) s'y
+ * recentre par `fx`.
  *
  *   1. l'image réduite en gris (324 px de large), la force de ses contours en
  *      chaque point, moins le bruit de fond ;
- *   2. par colonne, la somme de ces contours, le haut de l'image pesant plus
- *      que le bas (la tête et le chandail plutôt que la palette et les
- *      patins) : la fenêtre 5:7 qui en garde le plus, avec une légère
- *      préférence pour le centre (c'est là que le photographe met le joueur),
- *      puis recentrée sur le barycentre de ce qu'elle garde ;
- *   3. en hauteur, la fenêtre est un peu plus basse que l'image (on serre le
- *      joueur) : son haut s'arrête juste au-dessus du premier contour fort —
- *      on coupe les patins avant le casque ;
- *   4. la fenêtre, jamais hors de l'image, ramenée à 400 × 560 en WebP.
+ *   2. LE JOUEUR : par colonne, la somme de ces contours, le haut de l'image
+ *      pesant plus que le bas (la tête et le chandail plutôt que la palette et
+ *      les patins) ; la bande étroite (5:7) qui en garde le plus, avec une
+ *      légère préférence pour le centre (c'est là que le photographe met le
+ *      joueur), puis son barycentre : le milieu du joueur ;
+ *   3. l'image ENTIÈRE (si elle n'est pas en 16:9, la plus grande fenêtre
+ *      16:9 qu'elle contient, centrée sur lui) ; `fx`, la place du joueur
+ *      dans l'image gardée, de 0 (à gauche) à 100 (à droite) ;
+ *   4. ramenée à 854 × 480 en WebP.
  *
  * Elle rend aussi quatre MESURES de l'image entière, que la fabrication lit
  * pour écarter une vue d'aréna sans joueur (scripts/actions.mjs) : le contour
@@ -31,7 +34,7 @@
  * l'appareil). La fonction ne lit AUCUNE variable extérieure : le script
  * l'injecte dans Chromium par son texte (`recadrerAction.toString()`).
  */
-export async function recadrerAction(blob, { largeur = 400, hauteur = 560, qualite = 0.8, serre = 0.9 } = {}) {
+export async function recadrerAction(blob, { largeur = 854, hauteur = 480, qualite = 0.8 } = {}) {
   const img = await createImageBitmap(blob);
   const W = img.width, H = img.height;
   // 1. L'image réduite, en gris ; la force des contours, moins le fond.
@@ -65,10 +68,8 @@ export async function recadrerAction(blob, { largeur = 400, hauteur = 560, quali
   const fond = tri[Math.floor(tri.length * 0.6)];
   for (let k = 0; k < w * h; k++) { const v = force[k] - fond; force[k] = v > 0 ? v * v : 0; }
 
-  // 2. La fenêtre : sa hauteur (un peu serrée), sa largeur 5:7 ; le haut de l'image pèse plus.
-  const ratio = largeur / hauteur;
-  let fh = Math.min(h, Math.round(h * serre)), fl = Math.round(fh * ratio);
-  if (fl > w) { fl = w; fh = Math.round(fl / ratio); }
+  // 2. Le joueur : la bande 5:7 (un peu serrée en hauteur) qui garde le plus de contours ; le haut de l'image pèse plus.
+  const bande = Math.min(w, Math.round(h * 0.9 * 5 / 7));
   const col = new Float32Array(w);
   for (let j = 0; j < h; j++) {
     const poids = 1.2 - 0.7 * (j / h);
@@ -76,37 +77,31 @@ export async function recadrerAction(blob, { largeur = 400, hauteur = 560, quali
   }
   const cumul = new Float32Array(w + 1);
   for (let i = 0; i < w; i++) cumul[i + 1] = cumul[i] + col[i];
-  let meilleur = -1, gx = Math.round((w - fl) / 2);
-  for (let g = 0; g + fl <= w; g++) {
-    const dc = ((g + fl / 2) - w / 2) / (w / 2);
-    const s = (cumul[g + fl] - cumul[g]) * (1 - 0.45 * dc * dc);
-    if (s > meilleur) { meilleur = s; gx = g; }
+  let meilleur = -1, gb = Math.round((w - bande) / 2);
+  for (let g = 0; g + bande <= w; g++) {
+    const dc = ((g + bande / 2) - w / 2) / (w / 2);
+    const s = (cumul[g + bande] - cumul[g]) * (1 - 0.45 * dc * dc);
+    if (s > meilleur) { meilleur = s; gb = g; }
   }
-  // Recentrée sur le barycentre de ce qu'elle garde (le joueur, pas le bord de sa fenêtre).
+  // Le milieu du joueur : le barycentre de ce que la bande garde (pas le bord de la bande).
   let m = 0, mx = 0;
-  for (let i = gx; i < gx + fl; i++) { m += col[i]; mx += col[i] * (i + 0.5); }
-  if (m > 0) gx = Math.round(mx / m - fl / 2);
-  gx = Math.max(0, Math.min(w - fl, gx));
+  for (let i = gb; i < gb + bande; i++) { m += col[i]; mx += col[i] * (i + 0.5); }
+  const cx = m > 0 ? mx / m : gb + bande / 2;
 
-  // 3. En hauteur : le haut juste au-dessus du premier contour fort, dans les colonnes gardées.
-  let gy = 0;
-  if (fh < h) {
-    const rang = new Float32Array(h);
-    let somme = 0;
-    for (let j = 0; j < h; j++) { for (let i = gx; i < gx + fl; i++) rang[j] += force[j * w + i]; somme += rang[j]; }
-    let haut = 0, acc = 0;
-    while (haut < h - 1 && acc + rang[haut] < somme * 0.02) acc += rang[haut++];
-    gy = Math.max(0, Math.min(h - fh, Math.round(haut - fh * 0.05)));
-  }
-
-  // 4. Dans l'image d'origine, jamais hors de ses bords.
+  // 3. L'image gardée : entière en 16:9 ; sinon la plus grande fenêtre de ce format, centrée sur lui, le haut gardé.
   const e = W / w;
-  const sl = Math.min(W, fl * e), sh = Math.min(H, fh * e);
-  const sx = Math.max(0, Math.min(W - sl, gx * e)), sy = Math.max(0, Math.min(H - sh, gy * e));
+  let sl = W, sh = Math.round(W * hauteur / largeur);
+  if (sh > H) { sh = H; sl = Math.round(H * largeur / hauteur); }
+  if (H - sh <= 2) sh = H;   // l'écart d'un arrondi (1296 × 729 n'est pas tout à fait 854 × 480) : l'image entière
+  if (W - sl <= 2) sl = W;
+  const sx = Math.max(0, Math.min(W - sl, Math.round(cx * e - sl / 2))), sy = 0;
+  const fx = Math.max(0, Math.min(100, Math.round((cx * e - sx) / sl * 100)));
+
+  // 4. Ramenée au format de la carte.
   const out = new OffscreenCanvas(largeur, hauteur), o = out.getContext('2d');
   o.imageSmoothingQuality = 'high';
   o.drawImage(img, sx, sy, sl, sh, 0, 0, largeur, hauteur);
   if (img.close) img.close();
   const webp = await out.convertToBlob({ type: 'image/webp', quality: qualite });
-  return { webp, fenetre: [Math.round(sx), Math.round(sy), Math.round(sl), Math.round(sh)], mesures };
+  return { webp, fenetre: [Math.round(sx), Math.round(sy), Math.round(sl), Math.round(sh)], fx, mesures };
 }

@@ -17,12 +17,15 @@
  *   1. il télécharge chaque photo (le brut reste dans un cache, hors du dépôt,
  *      pour qu'une deuxième passe ne retélécharge rien ; les absents aussi
  *      sont retenus) ;
- *   2. il découpe une fenêtre 5:7 centrée sur le joueur, trouvé par la
- *      netteté (js/recadrage-action.js, le même code que l'appareil Android) ;
- *   3. il écrit un WebP 400 × 560 (img/actions/{id}.webp, HORS DU DÉPÔT :
+ *   2. il garde l'image ENTIÈRE (JP : *je veux que le maximum de pixels de
+ *      l'image y soient*) et y trouve le joueur, par la netteté
+ *      (js/recadrage-action.js, le même code que l'appareil Android) ;
+ *   3. il écrit un WebP 854 × 480 (img/actions/{id}.webp, HORS DU DÉPÔT :
  *      des dizaines de Mo qui se refont) et la liste des photos qui existent
- *      (data/actions.json, versionnée) : le jeu ne demande jamais une photo
- *      absente, et l'appareil sait quoi télécharger.
+ *      (data/actions.json, versionnée), avec la place du joueur dans chacune
+ *      (`fx`, 0 à 100) : une carte plus étroite que la photo s'y recentre ;
+ *      le jeu ne demande jamais une photo absente, et l'appareil sait quoi
+ *      télécharger.
  *
  * Le traitement se fait dans Chromium (Playwright) : le décodage JPEG, le
  * canevas et l'encodage WebP y sont natifs, sans dépendance de plus.
@@ -36,7 +39,7 @@ import { recadrerAction } from '../js/recadrage-action.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const arg = (nom, def) => { const i = process.argv.indexOf(`--${nom}`); return i < 0 ? def : (process.argv[i + 1] ?? true); };
-const LARGEUR = 400, HAUTEUR = 560;
+const LARGEUR = 854, HAUTEUR = 480;
 const QUALITE = Number(arg('qualite', 0.8));
 const LIMITE = Number(arg('limite', 0)) || Infinity;
 const BRUT = arg('brut', path.join(os.tmpdir(), 'cap82-actions'));
@@ -101,12 +104,22 @@ await page.evaluate(({ LARGEUR, HAUTEUR, QUALITE }) => {
     for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) if (g(i + 1, j) > g(i, j)) octets[(j * 16 + i) >> 3] |= 1 << (i & 7);
     return octets;
   };
+  // Un visage OPAQUE (une vieille photo sur fond gris, js/recadrage.js « opaque ») : ses coins du haut ne sont pas transparents.
+  window.opaque = async b64 => {
+    const img = await createImageBitmap(await (await fetch(`data:image/webp;base64,${b64}`)).blob());
+    const c = new OffscreenCanvas(32, 32), x = c.getContext('2d');
+    x.drawImage(img, 0, 0, 32, 32);
+    const d = x.getImageData(0, 0, 32, 32).data;
+    let min = 255;
+    for (const [i0, j0] of [[0, 0], [28, 0]]) for (let j = j0; j < j0 + 4; j++) for (let i = i0; i < i0 + 4; i++) min = Math.min(min, d[(j * 32 + i) * 4 + 3]);
+    return min > 250;
+  };
   window.recadrer = async b64 => {
     const blob = await (await fetch(`data:image/jpeg;base64,${b64}`)).blob();
-    const { webp, fenetre, mesures } = await window.recadrerActionBlob(blob, { largeur: LARGEUR, hauteur: HAUTEUR, qualite: QUALITE });
+    const { webp, fenetre, fx, mesures } = await window.recadrerActionBlob(blob, { largeur: LARGEUR, hauteur: HAUTEUR, qualite: QUALITE });
     const buf = new Uint8Array(await webp.arrayBuffer());
     let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-    return { webp: btoa(s), fenetre, mesures, empreinte: await empreinte(blob) };
+    return { webp: btoa(s), fenetre, fx, mesures, empreinte: await empreinte(blob) };
   };
 }, { LARGEUR, HAUTEUR, QUALITE });
 
@@ -134,7 +147,7 @@ const ECARTEES_A_L_OEIL = new Set([8476433, 8478176]);
 const EMPREINTE_PROCHE = 10;
 const distance = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) { let v = a[i] ^ b[i]; while (v) { n += v & 1; v >>= 1; } } return n; };
 
-const presents = [], fenetres = new Map(), empreintes = new Map(), ecartees = new Map();
+const presents = [], fenetres = new Map(), focales = new Map(), empreintes = new Map(), ecartees = new Map();
 let faits = 0, octets = 0;
 const file = liste.slice();
 async function ouvrier() {
@@ -150,7 +163,7 @@ async function ouvrier() {
       try { r = await page.evaluate(b => window.recadrer(b), fs.readFileSync(brut).toString('base64')); } catch { fs.rmSync(brut, { force: true }); }
     }
     if (!r) { console.log(`   ${id} : image illisible, laissée de côté`); continue; }
-    fenetres.set(id, r.fenetre);
+    fenetres.set(id, r.fenetre); focales.set(id, r.fx);
     if (vueDArena(r.mesures) && !GARDEES_A_L_OEIL.has(id)) { ecartees.set(id, 'aréna'); continue; }
     if (ECARTEES_A_L_OEIL.has(id)) { ecartees.set(id, 'à l\'œil'); continue; }
     const buf = Buffer.from(r.webp, 'base64');
@@ -175,16 +188,24 @@ presents.splice(0, presents.length, ...presents.filter(id => !communes.has(id)))
 for (const id of ecartees.keys()) fs.rmSync(path.join(SORTIE, `${id}.webp`), { force: true });
 
 // 3. La liste des photos présentes : le jeu la lit avant de demander une photo, l'appareil pour savoir quoi télécharger.
+//    `fx` (en parallèle de `ids`) : la place du joueur dans sa photo, de 0 (à gauche) à 100 (à droite).
+//    `opaques` : ceux dont le VISAGE (img/mugs) est une vieille photo sur fond opaque, pas un détourage — une série
+//    qui pose le visage détouré sur la carte (Écusson, Glace) lui donne alors un cadre (js/cartes.js, le caméo).
 presents.sort((a, b) => a - b);
+const opaques = [];
+for (const id of presents) {
+  const f = path.join(ROOT, 'img', 'mugs', `${id}.webp`);
+  if (fs.existsSync(f) && await page.evaluate(b => window.opaque(b), fs.readFileSync(f).toString('base64'))) opaques.push(id);
+}
 if (LIMITE === Infinity && !arg('ids', null)) {
-  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: presents }));
+  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: presents, fx: presents.map(id => focales.get(id)), opaques }));
 }
 const brutsTotal = presents.reduce((a, id) => a + fs.statSync(path.join(BRUT, `${id}.jpg`)).size, 0);
 const parRaison = {};
 for (const r of ecartees.values()) parRaison[r] = (parRaison[r] || 0) + 1;
 console.log(`\n  ${presents.length} photos d'action écrites sur ${liste.length} joueurs ; ${liste.length - presents.length - ecartees.size} sans photo à la LNH`);
 console.log(`  ${ecartees.size} écartées, pas une photo du joueur : ${Object.entries(parRaison).map(([k, n]) => `${k} ${n}`).join(' · ')}`);
-console.log(`  ${(octets / 1048576).toFixed(1)} Mo en tout, ${(octets / Math.max(1, presents.length) / 1024).toFixed(1)} Ko en moyenne`);
+console.log(`  ${(octets / 1048576).toFixed(1)} Mo en tout, ${(octets / Math.max(1, presents.length) / 1024).toFixed(1)} Ko en moyenne ; ${opaques.length} visages sur fond opaque`);
 console.log(`  bruts : ${(brutsTotal / 1048576).toFixed(0)} Mo (${telecharges} téléchargés cette fois, ${(octetsBruts / 1048576).toFixed(0)} Mo) — ce que l'appareil téléchargerait`);
 console.log(`  ${Math.round((Date.now() - t0) / 1000)} s\n`);
 
@@ -194,8 +215,9 @@ if (arg('planche', false)) {
   const vus = Array.from({ length: Math.min(n, presents.length) }, (_, k) => presents[Math.floor(k * presents.length / Math.min(n, presents.length))]);
   const b64 = f => fs.readFileSync(f).toString('base64');
   const cartes = vus.map(id => `<figure style="margin:3px;display:inline-block;text-align:center;color:#ccc;font:10px sans-serif">
-    <img src="data:image/webp;base64,${b64(path.join(SORTIE, `${id}.webp`))}" style="width:110px;height:154px;border-radius:6px;display:block">
-    <figcaption>${id}</figcaption></figure>`).join('');
+    <div style="position:relative"><img src="data:image/webp;base64,${b64(path.join(SORTIE, `${id}.webp`))}" style="width:213px;height:120px;border-radius:6px;display:block">
+    <div style="position:absolute;top:0;bottom:0;left:${focales.get(id) * 2.13}px;width:0;border-left:2px dashed #ff0"></div></div>
+    <figcaption>${id} · fx ${focales.get(id)}</figcaption></figure>`).join('');
   const bruts = vus.map(id => { const [x, y, l, hh] = fenetres.get(id); const e = 200 / 1296; return `<figure style="margin:3px;display:inline-block;position:relative;color:#ccc;font:10px sans-serif">
     <img src="data:image/jpeg;base64,${b64(path.join(BRUT, `${id}.jpg`))}" style="width:200px;height:112px;display:block">
     <div style="position:absolute;left:${x * e}px;top:${y * e}px;width:${l * e}px;height:${hh * e}px;outline:2px solid #ff0"></div>

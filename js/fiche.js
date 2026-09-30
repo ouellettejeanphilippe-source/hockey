@@ -333,7 +333,10 @@ export function showPlayerModal(p, opts = {}) {
    * CLUB (1.0, `cartonDe`, style.css « LES SÉRIES ») ; la variante en est la
    * parallèle, la même sur les deux faces. Les deux faces s'empilent dans la
    * même case : la carte a la taille de la plus haute, et elle ne change pas
-   * de taille quand on la retourne.
+   * de taille quand on la retourne. 1.0 : un joueur qui a sa PHOTO D'ACTION
+   * a une carte COUCHÉE (JP : *je veux que le maximum de pixels de l'image y
+   * soient*) — la photo entière en haut, l'habillage de sa série dessous,
+   * comme les cartes en paysage des années 90-2000.
    *   RECTO — le carton (le visage, le poste, le niveau, la gemme, le nom, le
    *     club, les petits caractères), puis la plaque : la vraie saison (six
    *     nombres) et le salaire.
@@ -370,7 +373,7 @@ export function showPlayerModal(p, opts = {}) {
       <div class="fiche-carte">
         <div class="fc-faces">
           <div class="fc-face fc-recto cs-${serie} tc-${rarete}" title="Touche la carte pour la retourner">
-            ${cartonDe(p, { nomClasse: 'pcard-full-name' })}
+            ${cartonDe(p, { nomClasse: 'pcard-full-name', paysage: true })}
             <div class="fc-plaque">
             <div class="fc-legende">Sa vraie saison${G.statsProrata ? ' · prorata 82 matchs, ajusté à l\'époque' : ''}</div>
             <div class="fc-stats">${statsCarte}</div>

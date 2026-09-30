@@ -11,7 +11,7 @@ import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ra
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
-import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, numeroDeCarte, tirageLimite } from './cartes.js';
+import { anneeDeCarte, brillante, cameoOpaque, gemmeJoueur, serieDe, cartonHtml, focaleAction, photoAction, numeroDeCarte, tirageLimite } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE } from './banque.js';
 import { hubActif } from './coquille.js';
@@ -128,7 +128,7 @@ brancherPastilleNiveau(pastilleNiveau);
 /*
  * LE CARTON D'UN JOUEUR (1.0) : ce que le gabarit (`cartonHtml`, js/cartes.js)
  * pose dans le dessin de sa série — le même au vestiaire, dans la carte mini
- * et dans la fiche. o : { nomClasse, clubClasse, eclat }
+ * et dans la fiche. o : { nomClasse, clubClasse, eclat, paysage }
  */
 const sansTaille = html => html.replace(/ style="width:\d+px;height:\d+px;object-fit:contain"/, '');
 export function cartonDe(p, o = {}) {
@@ -136,13 +136,13 @@ export function cartonDe(p, o = {}) {
   const cle = getPlayerKey(p);
   const mots = String(p.n || '').trim().split(' ');
   return cartonHtml({
-    serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p),
+    serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p), fx: focaleAction(p), cameoOpaque: cameoOpaque(p),
     pos: esc(positionLabel(p)), posClasse: positionClass(p),
     gemmeHtml: gemmeJoueur(rarete, traitsJoueur(p)), rubanHtml: rubanDe(p),
     nomHtml: formatName(p.n), nomLettres: mots[mots.length - 1].length, nomClasse: o.nomClasse,
     logoHtml: sansTaille(getTeamLogoHtml(p.t, 48)), club: esc(p.t), clubNom: esc(TEAMFULL[p.t] || p.t), clubClasse: o.clubClasse,
     numero: numeroDeCarte(cle), annee: esc(anneeDeCarte(p.s)),
-    tirage: esc(tirageLimite(cle, (G.variantes.numeros || {})[cle] || '/99')), signature: esc(p.n), eclat: o.eclat,
+    tirage: esc(tirageLimite(cle, (G.variantes.numeros || {})[cle] || '/99')), eclat: o.eclat, paysage: o.paysage,
   });
 }
 /* Les couleurs du club, posées sur la carte : le carton de chaque série les lit. */

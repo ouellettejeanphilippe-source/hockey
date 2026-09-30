@@ -18,7 +18,7 @@ import { ajouterAuCartable, lireCartable, meilleureVariante } from './cartable.j
 import { ouvrirChoix, optionDeCarteMatch, puces, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
 import { PHENOMENE } from './niveaux.js';
-import { artJoueur, photoAction } from './cartes.js';
+import { artJoueur, focaleAction, photoAction } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
 import { ageAtSeason } from './ratings.js';
@@ -240,7 +240,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
       return {
         // S80 : son niveau ordonne aussi le retournement (le Phénomène en dernier, avec l'éclat d'une holo).
         cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
-        art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
+        art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p), fx: focaleAction(x.p) }),
         carteJoueur: miniAvecVariante(x.p, x.rar),
         // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
         texte: [niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`)].filter(Boolean).join('\n'),
@@ -561,7 +561,7 @@ function choisirGarde(joueurs, i, total) {
       ico: '🤝', titre: `Garder un joueur · ${i + 1} sur ${total}`, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Personne',
       recit: 'Ta dernière équipe : celui que tu touches te suit dans cette run, avec ta nouvelle bande de plombiers.',
       options: joueurs.map(p => ({ cle: getPlayerKey(p), rarete: rareteJoueur(p), nom: p.n, type: `${POSTE_GROUPE[groupeDe(p)]} · ${p.t} ${p.s}`, coin: money(p.$),
-        art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[groupeDe(p)]), saison: esc(p.s), club: esc(p.t), actionSrc: photoAction(p) }),
+        art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[groupeDe(p)]), saison: esc(p.s), club: esc(p.t), actionSrc: photoAction(p), fx: focaleAction(p) }),
         carteJoueur: carteMiniHtml(p), motChoix: 'Garder', apercu: () => apercuJoueur(p) })),
       onChoix: k => resolve(joueurs.find(p => getPlayerKey(p) === k) || null),
       onFerme: () => resolve(null),
