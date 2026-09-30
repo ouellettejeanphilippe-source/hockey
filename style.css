@@ -8636,9 +8636,15 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .jambes-k { font: 800 9.5px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .jambes b { font: 800 12px/1 var(--display); color: var(--text); font-variant-numeric: tabular-nums; min-width: 20px; }
 .jambes i { flex: 1; height: 4px; border-radius: 2px; background: var(--fond-creux, rgba(255,255,255,.1)); overflow: hidden; min-width: 20px; }
+/* Les niveaux de fatigue (NIVEAUX_JAMBES, js/sim.js) : Frais, Correct, Lourd, Vidé — la barre et le mot portent la même couleur. */
 .jambes i > span { display: block; height: 100%; background: var(--green); }
-.jambes i > span.moyen { background: var(--gold); }
-.jambes i > span.bas { background: var(--live); }
+.jambes i > span.correct { background: var(--blue); }
+.jambes i > span.lourd { background: var(--gold); }
+.jambes i > span.vide { background: var(--live); }
+.jambes-mot { flex: none; font: 800 10.5px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; font-style: normal; color: var(--green); }
+.jambes-correct .jambes-mot { color: var(--blue); }
+.jambes-lourd .jambes-mot { color: var(--gold); }
+.jambes-vide .jambes-mot { color: var(--live); }
 
 /* La pastille dit ses positions (« AG / AD ») : elle se serre, et le salaire ne se coupe jamais. */
 .slot.cj-case .slot-band .sb-role { min-width: 0; white-space: nowrap; padding-left: 4px; padding-right: 4px; letter-spacing: 0; flex: none; overflow: visible; text-overflow: clip; }

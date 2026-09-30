@@ -357,6 +357,44 @@ solo) : ROBUSTE 55,5 → 60,5 V, DÉF+ROB 60,5 → 65,5, VALEUR 67 inchangé, et
 rôle (`chiffreCle`, js/game.js) : un bagarreur lit ses punitions, un checker
 ses mises en échec par match, un défensif ses tirs bloqués.
 
+**Fait, 1.0 (la maîtrise des rôles, les coups, les jambes en continu) :** JP :
+*chaque type de joueur devrait avoir un impact quand maîtrisé et changer
+comment les matchs se jouent ; ajouter des stats de robustesse au sim avec
+perte d'énergie des joueurs frappés ; des niveaux de fatigue, pas de cap à 90*.
+Trois chantiers dans `js/sim.js`, sous `MAITRISE_LIGUE` et `ENERGIE_REF` :
+
+- **La maîtrise** d'un rôle (0 à « bon », 1 à « élite »), centrée sur la
+  moyenne des 29 000 réguliers (`MAITRISE_LIGUE`, mesurée) pour que la ligue
+  ne bouge pas. Un canal par rôle, celui que ses stats ne portent pas :
+  checker, two-way, défensif, physique ÉTOUFFENT la qualité des lancers
+  adverses pendant leurs présences (`EFFET_ROLE` 6 / 3 %) ; le bagarreur
+  INTIMIDE le trio en face (5 %) ; le power forward tient DEVANT LE FILET
+  (finition des coéquipiers +5 %) ; le plombier garde ses JAMBES (−15 %
+  d'usure) ; le sniper TIRE EN AVANTAGE NUMÉRIQUE (jusqu'à ×2 dans le choix
+  du tireur) ; le défenseur offensif lance DE LA POINTE (volume +5 %) ;
+  passeur et manieur créent, déjà lu dans `passesRel`.
+- **Les coups coûtent des jambes** (`encaisserCoups`) : les mises en échec
+  d'une unité (`ht` par match, estimées de `r` avant 2005-06, portées par
+  l'agressivité) tombent sur les unités adverses qu'elle croise (les poids
+  de l'appariement, 60 % sur les trios, 40 % sur les paires) ; chaque coup
+  reçu coûte `COUP_JAMBES` (1,5) à un joueur moyen, la moitié à un costaud,
+  une fois et demie à un léger (`COUP_ABSORBE`). Après le match, comme
+  l'usure. Mesuré (12 vraies équipes, 82 matchs) : 16 à 29 coups par match
+  par club, les jambes du matin passent de 95,9 à 94,5 en moyenne, le plus
+  frappé à 88-91 ; à 2 le 1er trio par défaut passait sous 90 au matin
+  (89,5), la borne de calibration — d'où 1,5.
+- **Plus de zone morte** : `facteurEnergie` = 1 − 0,5 % × (94 − jambes), en
+  continu, centré sur `ENERGIE_REF` (les jambes d'une ligne ordinaire au
+  matin) ; un joueur frais gagne jusqu'à +3 %, un joueur usé perd tout de
+  suite ; les niveaux `NIVEAUX_JAMBES` (Frais 95, Correct 85, Lourd 70,
+  Vidé) se lisent dans la case et derrière le banc.
+
+Mesuré après : `check_feuilles` 28,6 lancers, 3,01 buts (inchangé) ;
+`check_monotonie` monotone, 27,3 / 53,5 ; `check_jambes` 11/11 (1er trio
+par défaut 90,3, poussé 81,1) ; `check_situations`, `check_gros`,
+`check_graine` verts ; `check_builds` (2 essais, bruit ±4) VALEUR 67,5,
+DÉFENSIF 67, ROBUSTE 58,5, « pur r » 23,5.
+
 **À mesurer** : quelle amplitude de tirage ramène une équipe forte de 99 % à
 quelque chose comme 40 à 60 % de chances de Coupe. Mon test préliminaire dit que
 la variance seule ne suffit pas — la vraie cause est que l'alignement du joueur

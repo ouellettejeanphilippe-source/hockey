@@ -1725,6 +1725,89 @@ export function bilanAgressivite(agr, ph) {
 }
 
 /*
+ * LA MAÎTRISE DES RÔLES (1.0). JP : *chaque type de joueur devrait avoir un
+ * impact quand maîtrisé et changer comment les matchs se jouent ; les bons
+ * joueurs de soutien doivent se démarquer des moins bons*. Un rôle est un
+ * score de 0 à 100 lu dans ses vraies stats (`rolesBruts`) ; sa MAÎTRISE va
+ * de 0 à « bon » (55) à 1 à « élite » (85), les mots de la fiche. Chaque rôle
+ * a UN canal, celui que ses stats ne portent pas déjà (les buts d'un sniper
+ * sont déjà dans sa finition) : une interaction avec l'adversaire, la glace ou
+ * les coéquipiers. CENTRÉ sur la maîtrise moyenne de la ligue (`MAITRISE_LIGUE`,
+ * mesurée sur 29 000 réguliers) : la ligue ne bouge pas, un checker élite
+ * étouffe, un checker faible laisse passer.
+ *
+ *   checker, two-way (F) · défensif, physique (D) : ÉTOUFFENT — la qualité des
+ *     lancers adverses pendant leurs présences (le canal de la défense) ;
+ *   bagarreur : INTIMIDE — la finition du trio adverse pendant ses présences ;
+ *   power forward : DEVANT LE FILET — la finition de ses coéquipiers ;
+ *   plombier : DES JAMBES — son match lui coûte moins ;
+ *   sniper : EN AVANTAGE NUMÉRIQUE, c'est lui qui tire ;
+ *   défenseur offensif : DE LA POINTE — le volume de sa paire ;
+ *   passeur, manieur : la CRÉATION, déjà lue dans ses passes (`passesRel`).
+ *
+ * Et les MISES EN ÉCHEC COÛTENT DES JAMBES (JP : *perte d'énergie des joueurs
+ * frappés*) : les coups d'une unité (ses `ht` par match, estimés de sa
+ * robustesse avant 2005-06, portés par son agressivité) tombent sur les
+ * unités adverses qu'elle croise (les mêmes poids que l'appariement), et
+ * chaque coup reçu coûte COUP_JAMBES à un joueur moyen — la moitié à un
+ * costaud, une fois et demie à un léger (COUP_ABSORBE). Après le match, comme
+ * l'usure : les coups d'aujourd'hui pèsent demain, et de match en match en
+ * séries. Déterministe : la même graine rejoue la même saison.
+ */
+const MAITRISE_DE = 55, MAITRISE_A = 85;
+const MAITRISE_LIGUE = {
+  F: { sniper: 0.244, passeur: 0.222, deuxsens: 0.24, power: 0.274, checker: 0.159, energie: 0.126, bagarreur: 0.148 },
+  D: { defensif: 0.133, offensif: 0.275, manieur: 0.287, physique: 0.144, deuxsens: 0.321 },
+};
+export const EFFET_ROLE = { checker: 0.06, deuxsens: 0.03, defensif: 0.06, physique: 0.03, bagarreur: 0.05, power: 0.05, energie: 0.15, sniper: 1.0, offensif: 0.05 };
+export const COUP_JAMBES = Number(ENV_MESURE.COUP_JAMBES ?? 1.5), COUP_ABSORBE = 0.5, COUP_MOYEN = 1.2;
+/* La maîtrise d'un joueur dans un rôle, centrée sur la ligue (0 = la moyenne). */
+export function maitrise(p, role) {
+  const pr = profilsDe(p);
+  if (!pr || pr[role] == null) return 0;
+  return borne((pr[role] - MAITRISE_DE) / (MAITRISE_A - MAITRISE_DE), 0, 1) - MAITRISE_LIGUE[estD(p) ? 'D' : 'F'][role];
+}
+const maitriseUnite = (joueurs, role) => (joueurs.length ? joueurs.reduce((a, p) => a + maitrise(p, role), 0) / joueurs.length : 0);
+/* Les mises en échec d'un joueur par match : comptées dès 2005-06, estimées de sa robustesse avant. */
+function coupsDe(p) {
+  if (!p || p.p === 'G') return 0;
+  if (p.ht != null) return p.ht;
+  return COUP_MOYEN * Math.exp(0.5 * (getHiddenRatings(p).r - 50) / 12);
+}
+/* Ce qu'un coup reçu coûte à ce joueur, en jambes : un costaud encaisse, un léger accuse. */
+const coutDuCoup = p => COUP_JAMBES * (1 + COUP_ABSORBE * (1 - 2 * physiqueDe(p)));
+/*
+ * Les coups d'un alignement tombent sur l'autre. `frappeur` et `frappe` sont
+ * les profils de match (`profilMatch`) : leurs unités portent la présence, le
+ * rang et l'agressivité. Une unité frappe au prorata de sa présence et de
+ * son agressivité, les coups se répartissent sur les unités adverses par les
+ * poids de l'appariement (60 % sur les trios, 40 % sur les paires).
+ */
+function encaisserCoups(frappeur, frappe) {
+  if (!frappeur || !frappe || !frappeur.unites || !frappe.unites) return;
+  const cibles = (unites, rang, n) => {
+    const w = unites.map(x => (x.presence || 0) * Math.exp(-APPARIEMENT * Math.abs((unites.length > 1 ? (x.rang || 0) / (unites.length - 1) : 0) - (n > 1 ? rang / (n - 1) : 0))));
+    const t = w.reduce((a, b) => a + b, 0) || 1;
+    return w.map(x => x / t);
+  };
+  for (const g of ['F', 'D']) for (const u of frappeur.unites[g]) {
+    if (!u.joueurs.length) continue;
+    const A = AGRESSIVITES[u.agr ?? 1] || AGRESSIVITES[1];
+    const coups = u.joueurs.reduce((a, p) => a + coupsDe(p), 0) * (u.presence || 0) / (PART_UNITE[g][u.rang] || u.presence || 1) * (0.6 + A.physique);
+    if (!coups) continue;
+    for (const [gg, part] of [['F', 0.6], ['D', 0.4]]) {
+      const cible = frappe.unites[gg];
+      const w = cibles(cible, u.rang || 0, frappeur.unites[g].length);
+      cible.forEach((x, i) => {
+        if (!x.joueurs.length) return;
+        const parJoueur = coups * part * w[i] / x.joueurs.length;
+        for (const q of x.joueurs) q.energie = Math.max(0, energieDe(q) - parJoueur * coutDuCoup(q));
+      });
+    }
+  }
+}
+
+/*
  * L'IMPORTANCE DU MATCH (S68), comme HockeyArena : un gros match fait jouer
  * plus fort, et ça se paie au moral du vestiaire et à l'infirmerie ; un match
  * pris à la légère repose les jambes et le moral, et se joue un cran en
@@ -2013,16 +2096,32 @@ export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.9;
  * rend des jambes, et ce qui dépasse 100 reste EN RÉSERVE : le prochain
  * match le brûle d'abord (`p._reserve`, au plus `RESERVE_MAX`).
  *
- * CE QUE ÇA COÛTE SUR LA GLACE : au-dessus de `ENERGIE_SEUIL` (90), un
- * joueur rend tout ; en dessous, il perd `ENERGIE_EFFET` × (90 − jambes)/100
- * en lancers, en finition et en création (82 de jambes : −4 % sur chacun).
- * Sous `ENERGIE_BLESSURE` (60), il se blesse plus. Le seuil garde la ligue
- * calibrée : une ligne réglée par défaut ne passe jamais sous 90.
+ * CE QUE ÇA COÛTE SUR LA GLACE : voir ENERGIE_REF juste dessous (plus de
+ * seuil à 90 depuis 1.0). Sous `ENERGIE_BLESSURE` (60), il se blesse plus.
  */
-export const ENERGIE_C = Number(ENV_MESURE.ENERGIE_C ?? 3.8), ENERGIE_RECUP = 0.5, ENERGIE_SEUIL = 90,
+/*
+ * PLUS DE ZONE MORTE (1.0). JP : *faudrait des niveaux de fatigue pis pas de
+ * cap à 90*. Le seuil à 90 rendait la fatigue invisible tant qu'on ne poussait
+ * pas : trois trios sur quatre ne la sentaient jamais. Les jambes comptent
+ * maintenant EN CONTINU, centrées sur `ENERGIE_REF` (94, les jambes d'une
+ * ligne ordinaire au matin, `check_jambes`) : chaque point sous 94 coûte
+ * `ENERGIE_EFFET` (0,5 %) de lancers, de finition et de création ; chaque
+ * point au-dessus en rend autant, jusqu'à +3 % à 100. Centré, la ligue ne
+ * bouge pas ; un joueur frais gagne, un joueur usé perd, tout de suite. Et
+ * les jambes se LISENT en niveaux (`NIVEAUX_JAMBES`) : Frais, Correct, Lourd,
+ * Vidé — le même mot dans la case, au banc et dans le direct.
+ */
+export const ENERGIE_C = Number(ENV_MESURE.ENERGIE_C ?? 3.8), ENERGIE_RECUP = 0.5, ENERGIE_REF = 94,
   ENERGIE_EFFET = Number(ENV_MESURE.ENERGIE_EFFET ?? 0.5), ENERGIE_BLESSURE = 60, RESERVE_MAX = 30;
+export const NIVEAUX_JAMBES = [
+  { cle: 'frais', nom: 'Frais', min: 95 },
+  { cle: 'correct', nom: 'Correct', min: 85 },
+  { cle: 'lourd', nom: 'Lourd', min: 70 },
+  { cle: 'vide', nom: 'Vidé', min: 0 },
+];
+export const niveauJambes = e => NIVEAUX_JAMBES.find(n => e >= n.min) || NIVEAUX_JAMBES[NIVEAUX_JAMBES.length - 1];
 export const energieDe = p => (p && Number.isFinite(p.energie) ? p.energie : 100);
-export const facteurEnergie = p => 1 - ENERGIE_EFFET * Math.max(0, ENERGIE_SEUIL - energieDe(p)) / 100;
+export const facteurEnergie = p => 1 - ENERGIE_EFFET * (ENERGIE_REF - energieDe(p)) / 100;
 /* Rendre des jambes : jusqu'à 100, et le surplus en réserve pour le prochain match. */
 export function rendreJambes(p, n) {
   if (!p || !n) return;
@@ -2064,6 +2163,8 @@ export function depenserEnergie(team, lineup) {
       if (!p) continue;
       const d = role === 'DG' || role === 'DD';
       let cout = ENERGIE_C * Math.pow(d ? us.D[pairDeLigne(u)] : us.F[u], 2);
+      // Le plombier maîtrisé (EFFET_ROLE.energie) : son match lui coûte moins.
+      if (!d) cout *= 1 - EFFET_ROLE.energie * maitrise(p, 'energie');
       if (p._reserve) { const r = Math.min(p._reserve, cout); p._reserve -= r; cout -= r; }
       p.energie = Math.max(0, energieDe(p) - cout);
     }
@@ -3611,10 +3712,19 @@ export function profilMatch(team, lineup, adv = null) {
     const c = canal => canalSysteme(S, fit, canal);
     const ph = physiqueUnite(lineup, g, u);
     const eff = rendementPhysique(ph);
-    x.ligne = u; x.tactique = cle; x.fit = fit;
+    x.ligne = u; x.tactique = cle; x.fit = fit; x.agr = l.agr;
     x.chimie = chimieSoir[u];
     x.poids *= c('volume');
     x.qualite *= c('finition');
+    // LA MAÎTRISE DES RÔLES (voir MAITRISE_LIGUE) : ce que l'unité étouffe et intimide pendant ses présences, ce qu'elle tire de la pointe.
+    if (g === 'F') {
+      x.etouffe = 1 - EFFET_ROLE.checker * maitriseUnite(x.joueurs, 'checker') - EFFET_ROLE.deuxsens * maitriseUnite(x.joueurs, 'deuxsens');
+      x.intimide = 1 - EFFET_ROLE.bagarreur * maitriseUnite(x.joueurs, 'bagarreur');
+    } else {
+      x.etouffe = 1 - EFFET_ROLE.defensif * maitriseUnite(x.joueurs, 'defensif') - EFFET_ROLE.physique * maitriseUnite(x.joueurs, 'physique');
+      x.intimide = 1;
+      x.poids *= 1 + EFFET_ROLE.offensif * maitriseUnite(x.joueurs, 'offensif');
+    }
     // Plus physique, on donne moins — CENTRÉ sur l'agressivité moyenne, pour
     // que le réglage par défaut ne déplace pas la ligue.
     x.defTac = c('defense') * (1 - A.def * eff);
@@ -4113,8 +4223,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       // En avantage la rondelle circule : le tireur se tire sur la RACINE de
       // son volume, sinon le canonnier de l'unité prenait un tir sur trois
       // et doublait sa saison (Larmer 1992-93 : 61 buts au lieu de 29).
+      // En avantage numérique, le sniper maîtrisé est celui qui tire (EFFET_ROLE.sniper).
       tireur = weightedPick(unite.joueurs.length ? unite.joueurs : glace,
-        mode === 'AN' ? p => Math.sqrt(lancersRel(p)) : p => lancersFE(p, membres));
+        mode === 'AN' ? p => Math.sqrt(lancersRel(p)) * (1 + EFFET_ROLE.sniper * Math.max(0, maitrise(p, 'sniper'))) : p => lancersFE(p, membres));
     }
     tires++;
 
@@ -4141,7 +4252,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
         * defGlace.reduce((a, q) => a * mutDe(q, 'defense'), 1)
         // La consigne des deux unités qui défendent (S68) : la trappe étouffe,
         // tout en attaque laisse le champ libre — chacune pour sa moitié.
-        * Math.sqrt((dTrio.defTac ?? 1) * (dPaire.defTac ?? 1));
+        * Math.sqrt((dTrio.defTac ?? 1) * (dPaire.defTac ?? 1))
+        // Les rôles maîtrisés qui défendent : le checker et le défensif étouffent, le bagarreur intimide.
+        * (dTrio.etouffe ?? 1) * (dPaire.etouffe ?? 1) * (dTrio.intimide ?? 1);
     } else {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef - REF.zDef));
     }
@@ -4153,6 +4266,8 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // élites autour de lui la comptaient deux fois (mesuré : Zetterberg
     // 2006-07 à 110 buts au lieu de 48).
     const crea = glace ? (mode === 'AN' ? Math.sqrt(facteurCreation(glace, tireur)) : facteurCreation(glace, tireur)) : 1;
+    // Le power forward maîtrisé devant le filet : la finition de ses COÉQUIPIERS de trio (EFFET_ROLE.power).
+    const devantFilet = trioOff && tireur ? 1 + EFFET_ROLE.power * maitriseUnite(trioOff.joueurs.filter(q => q !== tireur), 'power') : 1;
 
     /*
      * L'ACTION SPÉCIALE (S68) : à forces égales, la ligne qui a un système a
@@ -4170,7 +4285,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir * crea
-        * (fg / REF.fg) * facteurDef * facteurRob * traits * (unite ? unite.qualite : 1) * chance
+        * (fg / REF.fg) * facteurDef * facteurRob * traits * (unite ? unite.qualite : 1) * chance * devantFilet
         * (off.finitionFacteur ?? 1) * qualite * (mode === 'FE' && st ? FE_QUALITE : 1)
         * (mode === 'FE' ? SPEC_NORME : 1) * (special === 'reussie' ? SPEC_MULT : 1),
       0.005, PCT_TIR_MAX);
@@ -4761,6 +4876,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     // ont joué, et l'usure de ceux qui étaient sur la glace.
     majChimie(A, LA); majChimie(B, LB);
     depenserEnergie(A, LA); depenserEnergie(B, LB);
+    // LES MISES EN ÉCHEC COÛTENT DES JAMBES (voir MAITRISE_LIGUE) : les coups de chaque club tombent sur l'autre.
+    encaisserCoups(pA, pB); encaisserCoups(pB, pA);
     noterDepart(A, partantA); noterDepart(B, partantB);
     // Le journal de la saison : ce qu'il faut pour raconter une séquence,
     // un début de saison, une raclée. Le moteur n'y lit jamais rien.

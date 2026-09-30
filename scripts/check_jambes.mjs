@@ -26,7 +26,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, joueursDeLigne, activeLineup,
-  energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_SEUIL, ENERGIE_C } from '../js/sim.js';
+  energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_C } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 
@@ -126,7 +126,8 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
   t.lignes = [80, 58, 50, 42].map((sec, u) => ({ tac: undefined, agr: u === 0 ? 3 : 1, sec }));
   const up = usuresDe(t, lu);
   console.log(`  à l'équilibre, 1er trio à 80 s rentre-dedans : ${jambesEquilibre(up.F[0]).toFixed(0)} (un soir important : ${jambesEquilibre(up.F[0] * 1.12).toFixed(0)})`);
-  exiger('à 60 s, un 1er trio dort au-dessus de 90', ms[0] > ENERGIE_SEUIL, ms[0].toFixed(1));
+  // 90 : la borne de calibration d'une ligne ordinaire (les jambes comptent en continu depuis 1.0, centrées sur ENERGIE_REF).
+  exiger('à 60 s, un 1er trio dort au-dessus de 90', ms[0] > 90, ms[0].toFixed(1));
   // 2. Le repos : un jour de congé rend la moitié du manque ; un geste de repos garde son surplus.
   const p = Object.values(joueursDeLigne(lu, 0)).find(Boolean);
   p.energie = 80; recupererEnergie(t);
