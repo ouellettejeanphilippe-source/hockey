@@ -380,6 +380,20 @@ async function ouvrirPaquet() {
  * range ce qu'on a croisé par son titre, et on exige que chaque option dise
  * son effet en puces — c'est ce que JP a demandé : *tout devrait être clair*.
  */
+/*
+ * Après un choix, l'écran suivant est PRÊT quand quelque chose de visible
+ * attend le joueur. Un « À régler » caché sous une page (le sommaire, hauteur
+ * 0) ne compte pas : Playwright s'arrêtait sur lui et ne voyait pas la page.
+ */
+const ecranPret = (timeout = 120000) => page.waitForFunction(() => {
+  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
+  return [...document.querySelectorAll(sel)].some(el => {
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return false;
+    const s = getComputedStyle(el);
+    return s.display !== 'none' && s.visibility !== 'hidden' && Number(s.opacity) > 0;
+  });
+}, null, { timeout });
 async function repondreAuxChoix() {
   await ouvrirPaquet();
   await guetterBallottage();
@@ -483,7 +497,7 @@ async function repondreAuxChoix() {
         }
       }
       await _click('#choixModal .main-jouer');
-      await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine', { timeout: 120000 });
+      await ecranPret();
       await page.waitForTimeout(350);
       const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
       if (!d.length) errors.push('la main jouée n\'entre pas dans la sauvegarde');
@@ -507,7 +521,7 @@ async function repondreAuxChoix() {
     if (sansPuce && genre !== 'hub-proprio') errors.push(`le choix « ${titre} » a ${sansPuce} option(s) sans effet chiffré`);
     choixVus.set(genre, [...(choixVus.get(genre) || []), titre]);
     await opt.click();
-    await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite', { timeout: 120000 });
+    await ecranPret();
     await page.waitForTimeout(350);
   }
 }
@@ -558,7 +572,8 @@ async function butsDuSommaire(cle) {
     const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
     return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
   }), PERIODES);
-  if (enPage) await page.click('#hubModal .hub-page-retour'); else await page.evaluate(() => document.getElementById('closeGameBtn').click());
+  if (enPage) await page.evaluate(() => document.querySelector('#hubModal .hub-page[data-genre="sommaire-match"] .hub-page-retour')?.click());
+  else await page.evaluate(() => document.getElementById('closeGameBtn').click());
   await page.waitForTimeout(150);
   return buts;
 }
