@@ -4,13 +4,17 @@
  * Au boot : Continuer (s'il y a une partie), une carte par mode
  * (une action primaire), Exhibition, Parties, Options, Règles.
  *
- * En partie : ce n'est plus le lanceur. Quatre lignes —
- * Retour à la partie, Options, Règles, Parties — plus « Quitter vers le titre ».
- * Les modes ne s'empilent plus par-dessus le match.
- * Les déblocages Rogue restent dans Collection / Marché, pas ici.
+ * En partie : ce n'est plus le lanceur. Retour à la partie, Options,
+ * Règles, Parties, puis « Quitter vers le titre ». Les modes ne
+ * s'empilent plus par-dessus le match.
+ * En run Rogue seulement : Inventaire et Vestiaire, deux liens.
  */
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer } from './sauvegardes.js';
 import { esc } from './util.js';
+import { MOMENTS, JOURS_MOMENTS } from './sim.js';
+import { brancherMoments } from './situations.js';
+
+brancherMoments(MOMENTS, JOURS_MOMENTS);
 
 function quand(t) {
   const d = (Date.now() - t) / 1000;
@@ -105,6 +109,11 @@ function dessiner(m) {
       <button type="button" class="menu-entree" data-menu="regles"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles</button>
     </nav>`;
 
+  const liensRogue = ctx.enJeu && active && active.genre === 'rogue' && ctx.rogue
+    ? [ctx.rogue.inventaire ? '<button type="button" class="menu-lien" data-menu="inventaire">Inventaire</button>' : '',
+      ctx.rogue.vestiaire ? '<button type="button" class="menu-lien" data-menu="vestiaire">Vestiaire</button>' : ''].join('')
+    : '';
+
   if (ctx.enJeu) {
     m.innerHTML = `<div class="menu-fond" aria-hidden="true"><div class="menu-glace"></div></div>
       <div class="menu-feuille">
@@ -117,6 +126,7 @@ function dessiner(m) {
           ${active ? `<span class="mc-quoi">${GENRES[active.genre] ? GENRES[active.genre].ico : ''} ${esc(active.titre)}${ligneResume(active) ? ' · ' + esc(ligneResume(active)) : ''}</span>` : ''}
         </button>
         ${pied}
+        ${liensRogue}
         ${partiesBloc}
         <button type="button" class="menu-lien" data-menu="titre">Quitter vers le titre</button>
       </div>`;
@@ -154,6 +164,8 @@ function dessiner(m) {
         else ctx.nouvelle(b.dataset.genre);
       }
       else if (quoi === 'exhibition' && ctx.exhibition) ctx.exhibition();
+      else if (quoi === 'vestiaire' && ctx.rogue) ctx.rogue.vestiaire();
+      else if (quoi === 'inventaire' && ctx.rogue && ctx.rogue.inventaire) ctx.rogue.inventaire();
       else if (quoi === 'options') ctx.options();
       else if (quoi === 'regles') ctx.regles();
       else if (quoi === 'copier') { copier(id); dessiner(m); ouvrirParties(m); }
