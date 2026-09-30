@@ -1970,11 +1970,10 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .slot .slot-name { display: block; width: 100%; min-width: 0; font: 800 var(--t-4)/1.05 var(--display); letter-spacing: 0.01em; text-transform: uppercase; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot-name .fname { display: none; color: var(--encre-2); font-weight: 600; }
 /* Rangée 1 : le rôle (une icône, un mot) et son mot de maîtrise à droite. */
-.cell-l1 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); min-width: 0; }
-.cell-role { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 3px; min-width: 0; font-size: var(--t-3); line-height: 1; white-space: nowrap; overflow: hidden; }
+.cell-l1 { display: flex; align-items: center; gap: var(--esp-1); min-width: 0; }
+/* Le rôle, son icône et son mot sur une rangée qui plie : le mot passe à la ligne plutôt que de couper le rôle (« S… TRÈS BON ») ou d'être coupé lui-même (le smoke le mesure). */
+.cell-role { flex: 1 1 auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; min-width: 0; font-size: var(--t-3); line-height: 1; white-space: nowrap; overflow: hidden; }
 .cell-role > span { flex: 0 1 auto; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Le mot du rôle passe à la ligne plutôt que de couper le rôle (« S… TRÈS BON » à 390 px). */
-.cell-role { flex: 1 0 auto; }
 .cell-mot { flex: none; margin-left: auto; font: 700 var(--t-1)/1.1 var(--display); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; }
 .cell-mot.elite { color: var(--or); }
 .cell-mot.tres-bon { color: var(--bon); }
