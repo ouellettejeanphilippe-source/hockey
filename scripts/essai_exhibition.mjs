@@ -121,11 +121,9 @@ const hasard = async (preparer, attendu) => {
   // Le toast de l'essai d'avant ne doit pas passer pour celui-ci.
   await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.textContent = ''; });
   await page.click('#npGo');
-  // L'identité (S73) : pas de préférence.
-  await page.waitForSelector('.choix-modal .choix-fermer', { timeout: 15000 }).catch(() => null);
-  const fermer = await page.$('.choix-modal .choix-fermer');
-  if (fermer && await fermer.isVisible()) await fermer.click();
+  // Cap 82 n'a pas d'identité (1.0, Jalon K) : le toast du hasard arrive tout de suite.
   await page.waitForFunction(() => /repart à zéro/.test(document.getElementById('toast')?.textContent || ''), null, { timeout: 30000 });
+  verifier(!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"]')), 'Cap 82 offre encore l\'identité de départ');
   const toast = await page.$eval('#toast', e => e.textContent);
   const etat = await page.evaluate(() => ({ epoque: window.cap82.G.epoque, franchise: window.cap82.G.franchise, repechage: window.cap82.G.repechage }));
   console.log(`   ${attendu} · pied : « ${resume} »\n   toast : « ${toast} » · partie : ${JSON.stringify(etat)}`);

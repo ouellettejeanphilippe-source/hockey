@@ -493,6 +493,8 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   const rank = teams.findIndex(t => t.isPlayer) + 1;
   const enSeries = nTeams > 1 ? nombreEnSeries(nTeams) : 0;
   const perfect = (r.L + r.OTL) === 0;
+  // CAP 82 (1.0, Jalon K) : ses séries sont déjà jouées par l'écran qui défile, et il n'a ni deck ni cartes.
+  const pur = G.bonus === 'SAISON';
 
   // Le conseil nomme ce qui a coûté, avec ses chiffres (1.0, J2-18, js/recit.js).
   const note = conseilDuBilan(r, you, teams, calendrier);
@@ -577,7 +579,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   const grosV = (you.minisBoss || []).filter(m => m.gagne).length, grosN = (you.minisBoss || []).length;
   const compteDeck = new Map();
   for (const c of deckFinal) compteDeck.set(c, (compteDeck.get(c) || 0) + 1);
-  const tonDeck = deckFinal.length ? `<div class="result-section"><h3>Ton deck · ${deckFinal.length} cartes</h3>
+  const tonDeck = !pur && deckFinal.length ? `<div class="result-section"><h3>Ton deck · ${deckFinal.length} cartes</h3>
       <div class="dash-note">Gros matchs : ${grosV} gagné${grosV > 1 ? 's' : ''} sur ${grosN}.${jouees.size ? ` Les plus jouées : ${[...jouees.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${CARTES_MATCH[c] ? CARTES_MATCH[c].ico : ''} ${esc(CARTES_MATCH[c] ? CARTES_MATCH[c].nom : c)} ×${n}`).join(' · ')}.` : ''}</div>
       <div class="deck-grille">${[...compteDeck.entries()].filter(([c]) => CARTES_MATCH[c]).map(([c, n]) => {
         const C = CARTES_MATCH[c];
@@ -624,7 +626,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     }),
     // L'ALBUM (S74, js/album.js) se déduit de l'historique : le deck de match
     // de fin de saison, l'identité de départ, la franchise.
-    deck: deckDe((G.ligue && G.ligue.decisions) || []),
+    deck: pur ? [] : deckDe((G.ligue && G.ligue.decisions) || []),
     identite: G.identite || null,
     franchise: G.repechage === 'FRANCHISE' ? G.franchise : null,
   // L'identifiant de la saison en cours, s'il y en a un : une reprise
@@ -636,8 +638,21 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   // game*. Le pointage et les trois boutons restent en tête ; tout le reste
   // vit dans un volet à la fois. Les volets sont tous dans le DOM (les
   // palmarès restent construits onglet par onglet), seul l'affichage change.
+  /*
+   * TES MENEURS (1.0, Jalon K) : tes trois pointeurs et ton gardien, en tête du bilan — ce qu'on retient
+   * d'une saison avant d'ouvrir les tableaux. Les compteurs `sim*` : la saison est finie, ils la disent toute.
+   */
+  const habilles = SLOTS.map(s => G.roster[s.i]).filter(p => p && (p.simGP || 0) > 0);
+  const meneursDuClub = habilles.filter(p => p.p !== 'G').sort((a, b) => (b.simPTS || 0) - (a.simPTS || 0) || (b.simG || 0) - (a.simG || 0)).slice(0, 3);
+  const gardienDuClub = habilles.filter(p => p.p === 'G').sort((a, b) => (b.simGP || 0) - (a.simGP || 0))[0];
+  const ligneMeneur = (p, chiffre, detail) => `<div class="bm"><span class="bm-visage">${headshotHtml(p)}</span><span class="bm-nom">${lienJoueur(p, you, 'saison', formatName(p.n))}</span><b>${chiffre}</b><small>${detail}</small></div>`;
+  const tesMeneurs = meneursDuClub.length ? `<div class="result-section"><h3>Tes meneurs</h3><div class="bilan-meneurs">
+      ${meneursDuClub.map(p => ligneMeneur(p, `${p.simPTS || 0} PTS`, `${p.simG || 0} B · ${p.simA || 0} A · ${p.simGP || 0} PJ`)).join('')}
+      ${gardienDuClub ? ligneMeneur(gardienDuClub, `${gardienDuClub.simW || 0} V`, `${pct3((gardienDuClub.simSV || 0) / Math.max(1, gardienDuClub.simSA || 0))} · ${gardienDuClub.simGP || 0} PJ`) : ''}
+    </div></div>` : '';
+
   const volets = {
-    bilan: `<div class="note">${note}</div>
+    bilan: `${tesMeneurs}<div class="note">${note}</div>
       ${cartons ? `<div class="result-section">
         <h3>Le rapport de saison</h3>
         ${cartons}
@@ -707,6 +722,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
           ${rank === 1 ? '1er de la ligue' : rank <= enSeries ? `${rank}e de ${nTeams} · en séries` : `${rank}e de ${nTeams} · éliminé`}
         </div>
         <div class="score ${perfect ? 'perfect' : ''}"><span data-compte="bilan-v" data-compte-depart="0">${r.W}</span>-<span data-compte="bilan-d" data-compte-depart="0">${r.L}</span>-<span data-compte="bilan-dp" data-compte-depart="0">${r.OTL}</span></div>
+        ${pur ? `<div class="hero-verdict${rank <= enSeries ? '' : ' elimine'}" id="heroVerdict">${rank <= enSeries ? '' : 'Hors des séries'}</div>` : ''}
         <div class="result-strip">
           <div class="rs-cell"><span class="k">PTS</span><b data-compte="bilan-pts" data-compte-depart="0">${r.points}</b></div>
           <div class="rs-cell"><span class="k">Rang</span><b><span data-compte="bilan-rang" data-compte-depart="${nTeams}">${rank}</span><small>/${nTeams}</small></b></div>
@@ -718,10 +734,10 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       </div>
 
       <div class="result-actions">
-        ${rank <= enSeries ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
+        ${rank <= enSeries && !pur ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
         <button class="btn blue" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
         <button class="btn" id="replayBtn" title="Le même alignement, les mêmes 31 clubs, d'autres dés">${ico('i-dice')}Rejouer la saison</button>
-        <button class="btn${rank <= enSeries ? '' : ' go'}" id="againBtn">Nouvelle partie</button>
+        <button class="btn${rank <= enSeries && !pur ? '' : ' go'}" id="againBtn">${pur ? 'Nouveau club' : 'Nouvelle partie'}</button>
       </div>
 
       ${ONGLETS_BILAN.map(o => `<div class="result-pane" data-volet="${o.cle}"${o.cle === 'bilan' ? '' : ' hidden'}>${volets[o.cle] || ''}</div>`).join('')}
@@ -772,7 +788,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     }
   };
 
-  if (rank <= enSeries) $('playoffsBtn').onclick = () => runPlayoffs(teams.slice(0, enSeries));
+  if (rank <= enSeries && !pur) $('playoffsBtn').onclick = () => runPlayoffs(teams.slice(0, enSeries));
   // C'est LE moment où on change de format : le bouton ouvre l'écran.
   $('againBtn').onclick = () => ouvrirNouvellePartie();
   $('replayBtn').onclick = () => rejouerSaison();
@@ -842,6 +858,39 @@ export function runPlayoffs(top16, opts = {}) {
 }
 
 /*
+ * LES SÉRIES DE CAP 82 (1.0, Jalon K) : l'écran qui défile (js/cap82.js) les
+ * révèle ronde par ronde, sans aucune décision ; le moteur est le même.
+ * `revele` rejoue une reprise jusqu'où on les avait vues.
+ */
+export function seriesCap82(qualifies, revele = null) {
+  RONDES = RONDES_PAR_N[Math.round(Math.log2(qualifies.length))] || RONDES_PAR_N[4];
+  const S = creerSeries(qualifies, { ligue: (G.ligue && G.ligue.moteur) || null, graine: (G.ligue && G.ligue.graine) || 0, decisions: [], equipes: G.ligue ? G.ligue.teams : qualifies });
+  G.seriesMoteur = S;
+  G.series = S.toutes;
+  if (revele) jouerSeriesVues(S, revele);
+  return S;
+}
+export const nomDeRonde = r => RONDES[r] || `Ronde ${r + 1}`;
+/* Le résultat de Cap 82 reçoit ses séries : l'historique, le tableau, et la ligne du verdict sous la fiche. */
+export function conclureSeriesCap82(S) {
+  const host = $('playoffsSection');
+  if (!host || !S) return;
+  G.seriesMoteur = S;
+  G.series = S.toutes;
+  finDesSeries(S, host, false);
+  const v = $('heroVerdict');
+  const miennes = S.toutes.filter(x => x.A === S.toi || x.B === S.toi);
+  const derniere = miennes[miennes.length - 1];
+  if (v && derniere) {
+    const coupe = S.champion === S.toi;
+    const adv = derniere.A === S.toi ? derniere.B : derniere.A;
+    const w = derniere.A === S.toi ? `${derniere.wA}-${derniere.wB}` : `${derniere.wB}-${derniere.wA}`;
+    v.className = `hero-verdict ${coupe ? 'coupe' : 'elimine'}`;
+    v.innerHTML = coupe ? `${ico('i-cup')}Champions de la Coupe Stanley` : `Éliminés · ${esc((r => r.charAt(0).toLowerCase() + r.slice(1))(RONDES[derniere.ronde] || ''))} · ${w} contre ${esc(tagCourt(adv))}`;
+  }
+}
+
+/*
  * LA FIN DES SÉRIES : le champion connu, la Coupe entre dans l'historique, le
  * tableau se dessine, le mode Rogue paie ses écussons. Appelée quand le
  * dernier match est joué ET montré — jamais avant.
@@ -862,7 +911,7 @@ function finDesSeries(S, host, rogue = true) {
     const coupe = champion === toi;
     majLeaderboard(G.lbId, {
       // Le deck après les séries : les cartes gagnées en séries comptent à l'album.
-      deck: deckDe((G.ligue && G.ligue.decisions) || [], { serie: (G.ligue && G.ligue.decisionsSeries) || [] }),
+      deck: G.bonus === 'SAISON' ? [] : deckDe((G.ligue && G.ligue.decisions) || [], { serie: (G.ligue && G.ligue.decisionsSeries) || [] }),
       series: {
         coupe, V, D,
         rondes: miennes.length,

@@ -23,7 +23,8 @@ const MAX_PARTIES = 24;
 
 /* Les trois familles de parties, telles que le menu les range. */
 export const GENRES = {
-  saison: { ico: '🏒', nom: 'La saison', mot: 'Le repêchage, 82 matchs, les séries' },
+  // 1.0 (Jalon K) : le jeu pur — repêcher sous le plafond, puis regarder la saison se jouer.
+  saison: { ico: '🏒', nom: 'Cap 82', mot: 'Ton club sous le plafond, 82 matchs, le résultat' },
   table: { ico: '🎲', nom: 'Sur table', mot: 'Le tournoi au plateau, pièce par pièce' },
   rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Des plombiers, des packs, une run de plusieurs saisons' },
 };

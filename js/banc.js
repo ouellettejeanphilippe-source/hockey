@@ -11,7 +11,8 @@ import { CARTES_MATCH } from './combat.js';
 import { BANQUE } from './banque.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs } from './ballottage.js';
 import { money, esc } from './util.js';
-import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt } from './bilan.js';
+import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, seriesCap82, conclureSeriesCap82, nomDeRonde } from './bilan.js';
+import { ouvrirCap82 } from './cap82.js';
 import { effetsHtml } from './gerant.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
@@ -293,9 +294,8 @@ export const POSTE_GROUPE = { F: 'Avant', D: 'Défenseur', G: 'Gardien' };
 const PLAFOND_BALLOTTAGE = 0.03;          // la part du plafond qu'un joueur réclamé peut coûter
 export const groupeDe = groupeDuBallottage;
 export const ballottageVu = new Map();
-/* En Rogue, une réclamation coûte des jetons (1.0) : un dépanneur, pas un cadeau. En saison, rien. */
+/* Une réclamation coûte des jetons (1.0) : un dépanneur, pas un cadeau. Le ballottage n'existe qu'au Rogue (Jalon K). */
 const COUT_BALLOTTAGE_ROGUE = 10;
-const coutBallottage = () => (G.bonus === 'ROGUE' ? COUT_BALLOTTAGE_ROGUE : 0);
 function candidatsBallottage(blesse, at) {
   const L = G.ligue;
   if (!L || !blesse || !L.cles) return null;
@@ -311,7 +311,7 @@ function candidatsBallottage(blesse, at) {
   // Le joueur et sa rareté voyagent avec l'offre (S76) : le ballottage se
   // présente en CARTES de joueur, portrait et métal compris, comme la recrue.
   return {
-    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, cout: coutBallottage(),
+    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, cout: COUT_BALLOTTAGE_ROGUE,
     candidats: out.map(p => ({ cle: getPlayerKey(p), p, nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, poste: POSTE_GROUPE[g], salaire: money(p.$), ligne: ligne(p), rarete: rareteJoueur(p) })),
   };
 }
@@ -526,7 +526,8 @@ export function reprendreSeries(vues) {
 export async function runSeason(opts = {}) {
   if (G.banc && !opts.adversaires) { await reprendreSaison(); return; }
   if (slotsLeft() > 0 || G.done || (capLeft() < 0 && !opts.adversaires)) return;
-  if (!opts.reprise) alignementAuCartable();
+  // Le cartable se nourrit du Rogue et de Sur table ; Cap 82 est le jeu pur (1.0, Jalon K) : rien à collectionner.
+  if (!opts.reprise && G.bonus !== 'SAISON') alignementAuCartable();
   // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
   // simulateLeague ici — le tournoi a son propre moteur, celui du plateau.
   if (G.bonus === 'TABLE' && !opts.adversaires) { await (await chargerTable()).lancerTournoi(); return; }
@@ -537,8 +538,8 @@ export async function runSeason(opts = {}) {
    * la saison d'avant et hériterait de ses séries.
    */
   if (!opts.reprise) { G.seriesVues = null; G.lbId = null; }
-  // Les décisions de SÉRIES suivent une reprise (S69), jamais une saison neuve.
-  const dsPrec = opts.reprise ? ((G.ligue && G.ligue.decisionsSeries) || G.dsReprise || []) : [];
+  // Les décisions de SÉRIES suivent une reprise (S69), jamais une saison neuve ; Cap 82 n'en a pas.
+  const dsPrec = opts.reprise && G.bonus !== 'SAISON' ? ((G.ligue && G.ligue.decisionsSeries) || G.dsReprise || []) : [];
   G.dsReprise = null;
   G.done = true;
   // LA SAISON SE JOUE DANS TES COULEURS : noir, blanc, orange. Le repêchage
@@ -566,13 +567,23 @@ export async function runSeason(opts = {}) {
   // LES DÉCISIONS EN SAISON (voir `simulateLeague`) : la décision 0 est
   // l'alignement du repêchage, les suivantes viennent du banc. Une reprise
   // rejoue exactement les mêmes.
-  const decisions = opts.decisions && opts.decisions.length
+  let decisions = opts.decisions && opts.decisions.length
     ? opts.decisions
-    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined },
+    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: (G.bonus !== 'SAISON' && G.lignes) || undefined },
       // UN DECK AIGUISÉ (Rogue, S77) : deux cartes de départ commencent en « + » — à la première saison d'une run.
       ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus && !(G.rogue.saison > 1) ? [{ jour: 0, deck: 'camp', aiguise: 'lancer', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'bloquer', rogue: { depart: true } }] : []),
       // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées et le deck continuent, en décisions du jour 0.
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : [])];
+  /*
+   * UNE VIEILLE PARTIE DE LA SAISON (1.0, Jalon K) : faite avec les cartes, les dilemmes, le banc. Cap 82
+   * n'a plus rien de ça — l'alignement du repêchage (sans système réglé), et la saison se rejoue sans le reste.
+   */
+  if (G.bonus === 'SAISON') {
+    const zero = decisions.find(d => d && d.jour === 0 && d.cases);
+    const purs = zero ? [{ jour: 0, cases: zero.cases, fermeture: 'auto' }] : [];
+    if (opts.reprise && decisions.some(d => d && d !== zero)) setTimeout(() => toast('Cette partie vient d\'une version avec les cartes : la saison est rejouée sans elles.'), 1200);
+    decisions = purs.length ? purs : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' }];
+  }
   // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
   poserCartes(decisions);
   /*
@@ -649,10 +660,57 @@ function terminerSaison() {
 }
 
 /*
+ * CAP 82, LE JEU PUR (1.0, Jalon K) : la saison défile, les séries ronde par
+ * ronde, puis le résultat (js/cap82.js). Aucune décision : l'écran joue la
+ * ligue en mémoire au rythme où il la montre. Des séries déjà toutes vues
+ * (`fini`) vont droit au résultat, comme une saison reprise après sa fin.
+ */
+function ouvrirEcranCap82(depuis = 0) {
+  const L = G.ligue, M = L.moteur;
+  const enSeries = nombreEnSeries(L.teams.length);
+  const classementFinal = () => {
+    jouerJusqua(M, Infinity);
+    L.teams = bilanLigue(M).standings;
+    return L.teams;
+  };
+  const terminer = S => {
+    terminerSaison();
+    if (S) conclureSeriesCap82(S);
+    G.seriesVues = { revele: S ? S.toutes.map(s => s.feuilles.length) : [], fini: true };
+    saveGame();
+  };
+  const vues = G.seriesVues;
+  if (vues && vues.fini) {
+    const standings = classementFinal();
+    const qualifie = standings.indexOf(L.you) + 1 <= enSeries;
+    terminer(qualifie ? seriesCap82(standings.slice(0, enSeries), vues.revele) : null);
+    return;
+  }
+  ouvrirCap82({
+    ligue: M, you: L.you, teams: L.teams, calendrier: L.calendrier, enSeries, epoque: G.epoque, depuis, vues,
+    ctx: {
+      esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, quiEst,
+      // Un nom se clique pendant que ça joue, sans dévoiler la suite (`porteeRevele`).
+      fiche: (p, t, html) => lienJoueur(p, t, porteeRevele('saison'), html),
+      // L'en-tête du club suit l'écran : la fiche, le rang, et où en est la partie (`hub.etat`).
+      entete: majEntete,
+    },
+    onJour: j => { G.journee = j; },
+    sauver: () => saveGame(),
+    classementFinal,
+    creerSeries: (qualifies, revele = null) => seriesCap82(qualifies, revele),
+    nomDeRonde,
+    onSeries: etat => { G.seriesVues = etat; },
+    onTermine: terminer,
+  });
+}
+
+/*
  * L'ÉCRAN DE SAISON, sur la ligue EN MÉMOIRE : ouvrir, rouvrir après une
  * décision, reprendre une partie — sans jamais rejouer ce qui est joué.
  */
 function ouvrirEcranSaison(depuis = 0) {
+  if (G.bonus === 'SAISON') { ouvrirEcranCap82(depuis); return; }
   const L = G.ligue, M = L.moteur;
   const { you, teams, calendrier, graine } = L;
   const decisions = L.decisions;
@@ -695,13 +753,14 @@ function ouvrirEcranSaison(depuis = 0) {
         // S80 : une case de réserve libre (Rogue) s'offre d'abord — personne ne sort.
         quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), note: q => `libère ${money(capHitDuJour(q))}`, ...o }),
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
-        rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider),
+        // 1.0 (Jalon K) : cet écran n'est plus que celui du Rogue — Cap 82 défile dans js/cap82.js.
+        rogue: { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider),
           // S80 : la saison de la run et le mandat du proprio. 1.0 (R4) : le barème de la run, tel que
           // `jetonsRogue` le compte (`G.rogue.bareme`, fixé au départ de la saison), et le mandat d'après.
           mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot,
             suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
-            bareme: (G.rogue && G.rogue.bareme) || JETONS }) } : null,
-        // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
+            bareme: (G.rogue && G.rogue.bareme) || JETONS }) },
+        // LA BOUTIQUE ET L'INVENTAIRE (S79).
         boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
         inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider) => ouvrirInventaireJeu(j, decider) },
       },
@@ -709,7 +768,7 @@ function ouvrirEcranSaison(depuis = 0) {
       depuis,
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
       // la reprise a besoin de connaître.
-      onJour: j => { G.journee = j; saveGame(); if (G.bonus === 'ROGUE') renderCap(); majEntete(); },
+      onJour: j => { G.journee = j; saveGame(); renderCap(); majEntete(); },
       // LES CARTES DE SAISON : la graine décide de la main offerte à chaque
       // palier (sans toucher au hasard du moteur), et les paliers déjà pris
       // se lisent dans les décisions — il n'y a pas d'autre état.

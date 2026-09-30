@@ -4,6 +4,8 @@
 
 Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs.
 
+Trois modes. **Cap 82** est le jeu pur : le repêchage, puis la saison qui défile, les séries et le résultat — ni carte, ni pack, ni système à régler, aucune décision en saison (1.0, Jalon K de `LIVRAISON.md`). **Le Rogue** porte tout le reste : les cartes de match, les packs, la boutique, la boîte de réception, le banc, plusieurs saisons. **Sur table** joue le même alignement sur un plateau.
+
 Hébergé sur GitHub Pages. Aucun backend, aucune dépendance npm, aucun framework.
 
 ## Avant de coder
@@ -32,7 +34,8 @@ js/game.js            le contrôleur : l'état G, render(), le démarrage, la sa
 js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes
 js/alignement.js      les cases, les trios et les paires, le système en fenêtre, le résumé d'équipe
 js/fiche.js           la fiche d'un joueur : recto verso, ses rôles, l'impact, le profil mesuré
-js/banc.js            derrière le banc : les décisions en saison, le ballottage, l'écran de saison
+js/banc.js            derrière le banc : les décisions en saison, le ballottage, le lancement de la saison (Cap 82 ou Rogue)
+js/cap82.js           Cap 82 : la saison qui défile, les séries ronde par ronde, puis le résultat ; aucune décision
 js/partie.js          l'écran « Nouvelle partie » (le brouillon)
 js/rogue-jeu.js       le Rogue à l'écran : jetons, boutique, packs, inventaire, départ, la run
 js/modes-table.js     le tournoi Sur table, ses règles, son bilan, le match d'exhibition au plateau
@@ -40,7 +43,7 @@ js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, pl
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard()
 js/ratings.js         les cotes cachées (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
-js/saison.js          l'écran de saison et des séries : le hub, la boîte de réception, les choix forcés
+js/saison.js          l'écran de saison et des séries du Rogue : le hub, la boîte de réception, les choix forcés
 js/gerant.js          « Préparer le match » et la fenêtre du système d'une ligne
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
 js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
@@ -69,7 +72,7 @@ js/visages.js         l'application Android : télécharge et recadre les visage
 js/recadrage.js       le recadrage d'un portrait (partagé par scripts/portraits.mjs et js/visages.js)
 js/actions.js         les photos d'action : actionSrc(id) et actionFx(id) pour une carte ; l'appareil Android les télécharge
 js/recadrage-action.js la photo de match entière et la place du joueur (fx), partagé par scripts/actions.mjs et js/actions.js
-js/identites.js       l'identité de départ
+js/identites.js       l'identité de départ (Sur table)
 js/traits.js          les traits, tirés des votes de data/trophees.js
 js/roles_ref.js       la référence des rôles
 js/franchises.js      les franchises et leurs relocalisations
@@ -171,11 +174,12 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 
 1. La page démarre, `#game` devient visible
 2. Auto-draft conscient du budget : à chaque tour il lit le plafond restant, calcule ce qu'il peut mettre sur ce choix sans passer sous le plancher pour les cases suivantes, et signe, parmi les cartes qui tiennent dans ce budget, celle dont la destination ne porte aucun avertissement et dont le chiffre clé est le plus grand (voir S64 : prendre la première rendait une équipe de .500 et faisait du passage des séries une loterie). Sinon il relance (passer, autre équipe, autre année) ; en dernier recours il clique `#freeCapBtn`, le bouton de la bande de secours qui retire le plus gros contrat
-3. `#mainBtn` devient actif
-4. Cliquer : l'écran de saison s'ouvre (`#hubModal`) — « Journée suivante » (`.hub-jour`), l'onglet des meneurs, « Regarder le match » (`.hub-regarder`, le direct dans `#liveModal` : pause, statistiques, `.live-fin`, `.live-suite` pour continuer), « Passer à la fin » (`.hub-fin`), « Voir le bilan » (`.hub-suite`) ; puis `.result .score` affiche une fiche et `.rrow` en compte 23. Les séries : « Match suivant », le tableau en cours (`.bk-serie`), un match en direct, la fin, puis l'onglet Séries du bilan
-5. « Rejouer la saison » (`#replayBtn`) rejoue le même alignement contre les mêmes clubs, puis l'historique (`.lb-replay`) relit un alignement et repart une saison — le même parcours d'écran de saison à chaque fois
-6. Le même parcours en tirage Loto (`#rrL` relance quand rien ne tient dans le budget)
-7. Zéro erreur console (les portraits refusés ne sont demandés qu'une fois : `PORTRAITS_ABSENTS`)
+3. `#mainBtn` devient actif (« Jouer la saison »)
+4. Cap 82 : l'écran qui défile (`#hubModal .c82`) part tout seul ; la pause l'arrête ; la Ligue se lit pendant la saison, l'effectif est figé, le marché fermé ; une saison rechargée rouvre au même match ; ×10 jusqu'au bout sans qu'aucune décision s'ouvre ; le 82-0 qui tombe s'arrête sur son moment ; les séries ronde par ronde ; puis le résultat (`.result .score`, le verdict, tes meneurs, Rejouer et Nouveau club, 23 `.rrow`). Une équipe hors des séries rejoue la saison (au plus six fois) jusqu'à les voir
+5. « Rejouer la saison » (`#replayBtn`) et l'historique (`.lb-replay`) repartent la même équipe, « Aller au résultat » d'un coup
+6. Le Rogue : une run repart avec l'équipe du repêchage (un montage d'essai dans sa sauvegarde) et porte l'écran de saison (`.hub-jour`, la boîte de réception, les mains, les paliers, le direct dans `#liveModal`, le bilan, l'album), puis les séries à décisions, le tableau (`.bk-serie`) et la Coupe à l'historique
+7. Le même repêchage en tirage Loto (`#rrL` relance quand rien ne tient dans le budget) et en Express
+8. Zéro erreur console (les portraits refusés ne sont demandés qu'une fois : `PORTRAITS_ABSENTS`)
 
 `node scripts/smoke_table.mjs http://localhost:8000` fait le même parcours en mode bonus : l'option « Sur table » dans les options, le même auto-draft, le tournoi (`#hubModal`), le plateau (`#tableModal`, 247 cases, deux filets d'une case) où il joue un match geste par geste — il touche une pièce, lit les cases allumées, choisit des modes, dégage, tire, saute des verdicts en touchant la glace, dépense des relances d'équipe, change de trio — puis le reste du tournoi et le bilan. Il échoue si moins de quinze gestes ont pu être joués : c'est ce qui attrape une interface qui se fige.
 
@@ -183,7 +187,7 @@ L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `
 
 `node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (douze minutes) se lancent à part.
 
-Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (avec l'adresse du jeu en argument, il simule aussi l'application Android ; réseau requis). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
+Depuis la 1.0 : `node scripts/check_cap82.mjs` (Cap 82, le jeu pur : 60 saisons par niveau de repêchage, séries comprises ; `SAISONS=200`), `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (avec l'adresse du jeu en argument, il simule aussi l'application Android ; réseau requis). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
 
 ## Ce qu'il ne faut pas faire
 

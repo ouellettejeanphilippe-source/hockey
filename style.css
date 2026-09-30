@@ -2063,6 +2063,19 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   font-weight: 800; text-transform: uppercase;
 }
 .hero-band.out { background: var(--live); }
+/* Cap 82 (Jalon K) : sous la fiche, la ligne du verdict des séries — la Coupe, ou la ronde où ça s'arrête. */
+.hero-verdict { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 6px 14px; border-radius: 999px; font-family: var(--display); font-size: 16px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; background: var(--panel); color: var(--sub); }
+.hero-verdict:empty { display: none; }
+.hero-verdict.coupe { background: var(--or-trophee); color: var(--sur-or); }
+.hero-verdict.elimine { background: var(--red-soft); color: var(--red); }
+/* Tes meneurs, en tête du bilan : le visage, le nom, le chiffre. */
+.bilan-meneurs { display: grid; gap: 6px; }
+.bm { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 6px 10px; border-radius: var(--r-s); background: var(--panel); }
+.bm-visage { position: relative; grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; background: var(--fond-creux); display: grid; place-items: center; }
+.bm-visage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.bm-nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.bm b { grid-row: span 2; font-family: var(--display); font-size: 20px; font-weight: 800; }
+.bm small { color: var(--muted); font-size: 12px; }
 .result .score {
   font-family: var(--display);
   font-weight: 800;
@@ -2451,6 +2464,103 @@ table.data .pts { font-weight: 900; color: var(--green); }
 }
 /* Le lieu du match sur l'affiche : à domicile, ou chez l'autre. */
 .hub-lieu { margin-left: 8px; font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sub); }
+
+/* ---------------------------------------------------------------
+   CAP 82, LE JEU PUR (1.0, Jalon K ; js/cap82.js). Le tableau
+   d'affichage d'un aréna : la fiche en gros chiffres, la piste des
+   82 matchs qui se colore, le 82-0 qui tient ou qui tombe, et trois
+   commandes — jouer, la vitesse, aller au résultat.
+   --------------------------------------------------------------- */
+#hubModal.cap82 .live-top { display: none; }
+.c82 {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 12px 12px; border: 1px solid var(--line); border-radius: var(--r-m);
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--glace-lune) 10%, transparent), transparent 70%),
+    linear-gradient(180deg, #0c0f14, #07080b);
+  box-shadow: inset 0 1px 0 var(--filet-lumiere);
+  overflow: hidden;
+}
+.c82-fiche { display: flex; align-items: flex-start; justify-content: center; gap: 4px; font-family: var(--display); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 0.95; font-size: clamp(58px, 19cqw, 104px); }
+.c82-n { display: inline-flex; flex-direction: column; align-items: center; }
+.c82-n small { margin-top: 4px; font-size: var(--etiquette-taille); font-weight: 800; letter-spacing: var(--etiquette-espace); color: var(--muted); }
+.c82-n.v { color: var(--text); }
+.c82-n.d, .c82-n.dp { color: var(--sub); }
+.c82-sep { align-self: flex-start; margin-top: 0.3em; color: var(--muted); font-size: 0.6em; }
+.c82-infos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; max-width: 520px; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); padding: 7px 0; }
+.etape-series .c82-infos, .etape-fin .c82-infos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.c82-infos span { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
+.c82-infos small { font-family: var(--display); font-size: var(--etiquette-taille); font-weight: 700; letter-spacing: var(--etiquette-espace); text-transform: uppercase; color: var(--muted); }
+.c82-infos b { font-family: var(--display); font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.c82-infos b i { font-style: normal; font-size: 13px; color: var(--muted); }
+.c82-reve { font-family: var(--display); font-size: 14.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.c82-reve.vivant { color: var(--gold); text-shadow: 0 0 14px color-mix(in srgb, var(--gold) 45%, transparent); }
+.en-jeu .c82-reve.vivant { animation: c82-lueur 1.6s ease-in-out infinite; }
+.c82-reve.mort { color: var(--muted); }
+@keyframes c82-lueur { 50% { text-shadow: 0 0 22px color-mix(in srgb, var(--gold) 75%, transparent); } }
+.c82-piste { display: grid; grid-template-columns: repeat(41, minmax(0, 1fr)); gap: 2px; width: 100%; max-width: 620px; }
+.c82-piste i { height: 10px; border-radius: 2px; background: rgba(255, 255, 255, 0.07); }
+.c82-piste i.v { background: var(--green); }
+.c82-piste i.d { background: var(--live); }
+.c82-piste i.dp { background: var(--orange); }
+.c82-piste i.ici { background: transparent; box-shadow: inset 0 0 0 1.5px var(--gold); }
+.en-jeu .c82-piste i.ici { animation: c82-ici 0.8s ease-in-out infinite; }
+@keyframes c82-ici { 50% { opacity: 0.35; } }
+.c82-dernier { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 26px; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: 0.03em; color: var(--sub); }
+.c82-dernier b { display: inline-grid; place-items: center; min-width: 30px; height: 22px; padding: 0 5px; border-radius: var(--r-xs); font-weight: 800; color: var(--sur-accent); background: var(--sub); }
+.c82-dernier.v b { background: var(--green); }
+.c82-dernier.d b { background: var(--live); color: #fff; }
+.c82-dernier.dp b { background: var(--orange); }
+.c82-dernier span { color: var(--text); }
+.c82-verdict { padding: 6px 12px; border-radius: 999px; font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; background: var(--panel); color: var(--text); display: inline-flex; align-items: center; gap: 6px; text-align: center; }
+.c82-verdict.dedans { background: var(--green-soft); color: var(--green); }
+.c82-verdict.dehors { background: var(--red-soft); color: var(--red); }
+.c82-verdict.coupe { background: var(--or-trophee); color: var(--sur-or); }
+/* Le moment qui arrête la lecture : le 82-0 qui tombe, une ronde qui se règle, la Coupe. */
+.c82-moment {
+  position: absolute; left: 10px; right: 10px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 12px; border-radius: var(--r-m);
+  background: var(--live); color: #fff; text-align: center; box-shadow: var(--ombre-flottante);
+  animation: c82-moment 2s ease forwards; pointer-events: none;
+}
+.c82-moment b { font-family: var(--display); font-size: 27px; font-weight: 800; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; }
+.c82-moment span { font-size: 14px; font-weight: 600; }
+.c82-moment.ronde, .c82-moment.coupe { background: var(--or-trophee); color: var(--sur-or); }
+@keyframes c82-moment { 0% { opacity: 0; transform: translateY(-50%) scale(0.9); } 10% { opacity: 1; transform: translateY(-50%) scale(1); } 85% { opacity: 1; } 100% { opacity: 0; } }
+.c82-serie { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; width: 100%; max-width: 520px; }
+.c82-eq { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; font-family: var(--display); font-size: 17px; font-weight: 800; letter-spacing: 0.06em; }
+.c82-serie-mi { display: flex; flex-direction: column; align-items: center; }
+.c82-serie-mi b { font-family: var(--display); font-size: 46px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.c82-serie-mi small { font-family: var(--display); font-size: var(--etiquette-taille); font-weight: 700; letter-spacing: var(--etiquette-espace); text-transform: uppercase; color: var(--muted); text-align: center; }
+.c82-pips { display: flex; gap: 4px; }
+.c82-pips i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); }
+.c82-pips.toi i.on { background: var(--green); }
+.c82-pips.eux i.on { background: var(--live); }
+.c82-commandes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%; }
+.c82-commandes .btn { flex: 1 1 130px; min-height: 44px; }
+.c82-vitesses { display: flex; flex: none; border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
+.c82-vit { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--sub); font-family: var(--display); font-size: 16px; font-weight: 800; cursor: pointer; }
+.c82-vit + .c82-vit { border-left: 1px solid var(--line); }
+.c82-vit.on { background: var(--ui-accent); color: var(--ui-on-accent); }
+.c82-meneurs { display: flex; flex-direction: column; gap: 4px; }
+.c82-men { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 10px; padding: 6px 10px; border-radius: var(--r-s); background: var(--panel); }
+.c82-men .nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c82-men b { font-family: var(--display); font-size: 18px; font-weight: 800; }
+.c82-men small { color: var(--muted); font-size: 12px; }
+.c82-ronde { display: flex; flex-direction: column; gap: 4px; }
+.c82-ronde-l { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 6px 10px; border-radius: var(--r-s); background: var(--panel); font-family: var(--display); font-weight: 700; letter-spacing: 0.04em; }
+.c82-ronde-l.toi { box-shadow: inset 0 0 0 1px var(--gold); }
+.c82-ronde-l b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.c82-rl-eq { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--sub); }
+.c82-rl-eq.d { justify-content: flex-end; }
+.c82-rl-eq.gagne { color: var(--text); }
+.hub-jeu.avenir { opacity: 0.6; cursor: default; }
+/* Au bureau, le tableau d'affichage a sa colonne : il respire, et la piste se lit de loin. */
+@media (min-width: 1000px) {
+  .c82 { gap: 12px; padding: 22px 18px 18px; }
+  .c82-piste i { height: 14px; }
+  .c82-dernier { font-size: 18px; }
+}
 /* LA BARRE DE L'ÉCRAN DE SAISON EST EN BAS, comme celle du jeu, et dans la
    même langue (ses boutons portent `.navtab`). L'écran est plein écran, donc
    la barre du jeu est derrière lui : il n'y a jamais qu'UNE barre d'onglets à

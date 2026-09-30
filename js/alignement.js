@@ -65,6 +65,13 @@ const SLOT_TAGS_MAX = 8;   // les icônes de traits devant le verdict, la rangé
    même plafond, même roulette.
    ===================================================================== */
 export const surTable = () => G.bonus === 'TABLE';
+/*
+ * CAP 82, LE JEU PUR (1.0, Jalon K). JP : *le mode CAP 82 devrait avoir le standard que tu fais juste
+ * voir un résultat avec team, sans les stratégies, packs de cartes, etc*. Les lignes se règlent seules
+ * (le moteur choisit le système qui leur va, `lignesCalculees`, js/sim.js) : on ne montre ni système,
+ * ni puce d'origine (ce sont les cartes du Rogue qui la paient).
+ */
+const jeuPur = () => G.bonus === 'SAISON';
 
 /* Les cinq nombres d'un joueur, mémorisés : le tri les demande n log n fois. */
 const STATS_TABLE = new WeakMap();
@@ -429,10 +436,11 @@ function lineEl(title, slots, group, unit, cls = '') {
   const id = (group === 'F' || group === 'D') && !surTable() ? identiteUnite(G.roster, group, unit) : null;
   const idHtml = id ? `<span class="line-id" title="${esc(id.roles.join(' · '))}">${esc(id.nom)}</span>` : '';
   // D'OÙ ILS VIENNENT (1.0) : la puce se voit même sans la carte, pour qu'on apprenne à bâtir pour elle ; la carte d'origine la paie.
-  const orig = (group === 'F' || group === 'D') && !surTable() ? puceOrigine(origineUnite(G.roster, group, unit), group) : '';
+  const reglable = (group === 'F' || group === 'D') && !surTable() && !jeuPur();
+  const orig = reglable ? puceOrigine(origineUnite(G.roster, group, unit), group) : '';
   wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${orig}${fermHtml}${chemHtml}</div>`;
-  // UN TOUCHER SUR L'EN-TÊTE OUVRE LE SYSTÈME DE L'UNITÉ (1.0, les lignes).
-  if ((group === 'F' || group === 'D') && !surTable()) {
+  // UN TOUCHER SUR L'EN-TÊTE OUVRE LE SYSTÈME DE L'UNITÉ (1.0, les lignes). Pas en Cap 82 : il n'y a rien à régler.
+  if (reglable) {
     const tete = wrap.querySelector('.line-head');
     tete.classList.add('line-head-regle');
     tete.title = `Régler le système ${group === 'D' ? 'de la paire' : 'du trio'}`;
@@ -449,8 +457,8 @@ function lineEl(title, slots, group, unit, cls = '') {
   slots.forEach(s => row.appendChild(slotEl(s)));
   wrap.appendChild(row);
   // LA STRATÉGIE SOUS SON TRIO (S78 ; en fenêtre depuis 1.0). Sur table, rien :
-  // le plateau ne lit ni tactique ni glace.
-  if ((group === 'F' || group === 'D') && !surTable()) wrap.appendChild(rangeeStrategie(unit, group));
+  // le plateau ne lit ni tactique ni glace ; en Cap 82 non plus, le moteur la choisit.
+  if (reglable) wrap.appendChild(rangeeStrategie(unit, group));
   return wrap;
 }
 
@@ -579,7 +587,7 @@ export function renderMain() {
   b.style.setProperty('--pct', `${Math.round(100 * (total - reste) / Math.max(1, total))}%`);
   b.textContent = G.done ? (G.bonus === 'TABLE' ? 'Tournoi joué' : 'Saison jouée')
     : over ? `Plafond dépassé de ${money(-capLeft())}`
-    : reste === 0 ? (G.bonus === 'TABLE' ? `Au tournoi sur table · ${MT.CLUBS_TOURNOI} clubs` : 'Lancer la saison · 82 matchs')
+    : reste === 0 ? (G.bonus === 'TABLE' ? `Au tournoi sur table · ${MT.CLUBS_TOURNOI} clubs` : jeuPur() ? 'Jouer la saison · 82 matchs' : 'Lancer la saison · 82 matchs')
     : `${total - reste} / ${total} · encore ${reste}`;
 }
 

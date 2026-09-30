@@ -297,11 +297,21 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
 const choisi = await page.$eval('#partieModal [data-opt="bonus"] button[data-val="TABLE"]', b => b.classList.contains('on'));
 if (!choisi) errors.push('« Sur table » choisi au menu n\'arrive pas réglé dans l\'écran « Nouvelle partie »');
 await page.click('#npGo');
-// L'identité de départ (S73) : trois cartes avant la première roulette ; on prend la première.
+/*
+ * L'IDENTITÉ DE DÉPART (S73 ; ici depuis 1.0, Jalon K : Cap 82 n'en a plus) :
+ * trois cartes DIFFÉRENTES avant la première roulette, toutes dans l'écran
+ * sans balayer (1.0, J2-3) ; on prend la première, et la roulette la porte.
+ */
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"] .tc', { timeout: 10000 });
+const identites = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
+if (identites.length !== 3 || new Set(identites).size !== 3) errors.push(`l'identité de départ offre ${identites.join(' · ')} au lieu de trois cartes différentes`);
+const identitesHorsEcran = await page.$$eval('#choixModal .tc', e => e.filter(t => { const r = t.getBoundingClientRect(); return r.left < -1 || r.right > innerWidth + 1; }).length);
+if (identitesHorsEcran) errors.push(`l'identité de départ laisse ${identitesHorsEcran} carte(s) hors de l'écran : il faut balayer pour les voir`);
 await page.click('#choixModal .tc');
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
-console.log(`   option « Sur table » choisie : ${choisi}`);
+await page.waitForTimeout(400);
+if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se lit pas dans la roulette');
+console.log(`   option « Sur table » choisie : ${choisi} · identité prise : ${identites[0]} (parmi ${identites.join(', ')})`);
 
 /* ---------- l'auto-draft, identique au test de fumée principal ---------- */
 const MIN_SAL = 0.95;
