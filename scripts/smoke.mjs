@@ -1774,6 +1774,8 @@ async function traverserSaison(etiquette, reprise = false) {
      * ET L'AFFICHE LE DIT : la tactique et la chimie de chaque ligne se lisent
      * sur la carte du prochain match.
      */
+    // Le retour du banc rouvre le matin (hier soir seul) : « Aujourd'hui › » mène à l'affiche.
+    await versLeSoir();
     const affiche = await page.$$eval('#hubModal .hub-lignes .gl-resume', e => e.length).catch(() => 0);
     if (affiche !== 4) errors.push(`l'affiche du match ne dit pas les quatre lignes : ${affiche}`);
     else console.log('   l\'affiche dit les quatre lignes et leur chimie');
