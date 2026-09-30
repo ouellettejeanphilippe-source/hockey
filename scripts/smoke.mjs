@@ -235,14 +235,18 @@ async function sortirDansAlignement() {
 /*
  * UNE NOUVELLE PARTIE SE LANCE DU MENU (S79 ; 1.0, R1). L'en-tête n'a plus de
  * bouton « Nouvelle » : le Menu, ouvert en pleine partie, est le menu pause —
- * son héros dit « Retour à la partie », et le carton d'un mode commence une
- * partie neuve et ouvre l'écran « Nouvelle partie », réglé sur ce mode.
+ * son héros dit « Retour à la partie », « Quitter vers le titre » ramène aux
+ * cartons des modes, et le carton d'un mode commence une partie neuve et ouvre
+ * l'écran « Nouvelle partie », réglé sur ce mode.
  */
 async function nouvelleSaison() {
   await _click('#menuBtn');
-  await _wait('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]', { timeout: 10000 });
+  await _wait('#menuDepart .menu-continuer', { timeout: 10000 });
   const heros = ((await page.textContent('#menuDepart .menu-continuer').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   if (!/^Retour à la partie/.test(heros)) errors.push(`le Menu ouvert en pleine partie ne dit pas « Retour à la partie » : « ${heros} »`);
+  // La pause n'a plus les cartons des modes (pause distincte du titre) : « Quitter vers le titre » y mène.
+  await _click('#menuDepart [data-menu="titre"]');
+  await _wait('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]', { timeout: 10000 });
   await _click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
   await _wait('#partieModal', { state: 'visible', timeout: 30000 });
 }
