@@ -183,6 +183,16 @@ a { color: var(--bleu); text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+/* ---- Au téléphone (1.0, R2), les jetons baissent À LA SOURCE : les tailles et les espaces d'un bureau à 1440 px sont
+   trop gros pour 390 px — tout paraissait zoomé et empilé. Rien sous 12 px, rien sous 44 px de cible. ---- */
+@media (max-width: 679.98px) {
+  :root {
+    --t-2: 13px; --t-3: 15px; --t-4: 17px; --t-5: 22px; --t-6: 30px; --t-7: 44px;
+    --esp-3: 10px; --esp-4: 12px; --esp-5: 16px; --esp-6: 20px;
+    --actionbar-h: 64px; --navbar-h: 56px;
+  }
+}
+
 /* =====================================================================
    1. LA COQUILLE — le tableau indicateur, le rail et la barre, l'écran,
       la barre d'action, le retour, le focus, le toast, le chargement
@@ -247,24 +257,28 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 .fill-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--or); opacity: 0.8; transition: left var(--t-compte) var(--e-sortie); pointer-events: none; }
 @media (max-width: 430px) { .capgauge-max { display: none; } }
 @media (max-width: 679.98px) {
-  .tete-ch { flex: 1 1 0; }
-  .tete-ch-v, .capgauge-amt .amt { font-size: var(--t-4); }
-  .capgauge.tete-ch { max-width: none; }
-  body:not(.au-repechage) .capgauge { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: var(--esp-2); }
-  body:not(.au-repechage) .capgauge-row { display: contents; }
-  body:not(.au-repechage) .capgauge-label { grid-column: 1 / -1; margin-bottom: 2px; }
-  body:not(.au-repechage) .capgauge-row.small > span:first-child { display: none; }
-  body:not(.au-repechage) #perSlotLbl { justify-self: end; }
-  body:not(.au-repechage) .capgauge .track { grid-column: 1 / -1; order: 1; }
+  /* Une rangée : l'écusson, le club et son état, puis les chiffres en cellules, le menu. Les étiquettes s'effacent
+     (une fiche « 4-0-0 », un rang « 3e » et un montant se reconnaissent seuls) ; la barre du plafond reste, en 3 px. */
+  .topbar { padding: var(--esp-1) var(--esp-3) 0; }
+  .topbar:has(.sousnav[hidden]) { padding-bottom: var(--esp-1); }
+  .topbar-inner { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "retour club chiffres menu"; gap: var(--esp-2); }
+  .tete-club { gap: var(--esp-2); }
+  .tete-ecu { width: 28px; height: 28px; }
+  .tete-nom { font-size: var(--t-3); }
+  .tete-chiffres { flex: none; }
+  .tete-ch { align-content: center; padding: 0 var(--esp-2); }
+  .tete-ch:last-child { padding-right: 0; }
+  .tete-ch-l, .capgauge-label, .capgauge-max, #perSlotLbl { display: none; }
+  .tete-ch-v, .capgauge-amt .amt { font-size: var(--t-3); }
+  .capgauge.tete-ch { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: var(--esp-2); max-width: none; }
+  .capgauge-row { display: contents; }
+  .capgauge-row.small > span:first-child { font-size: var(--t-1); }
+  .capgauge-row.small strong { font-size: var(--t-3); }
+  .capgauge .track { grid-column: 1 / -1; order: 1; height: 3px; margin-top: 2px; }
   body:not(.au-repechage):not(.mode-rogue) .capgauge-row.small { display: none; }
-  /* Au repêchage : le plafond, la barre, et le compte des signés en gros ; le budget moyen par case attend le bureau
-     (le tableau de bord du Marché dit déjà le budget du choix, le seul chiffre qui tranche). */
-  body.au-repechage .capgauge { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; column-gap: var(--esp-2); }
-  body.au-repechage .capgauge-row { display: contents; }
-  body.au-repechage .capgauge-row.small > span:first-child { justify-self: end; font-size: var(--t-2); }
-  body.au-repechage .capgauge-row.small strong { font-size: var(--t-4); }
-  body.au-repechage #perSlotLbl { display: none; }
-  body.au-repechage .capgauge .track { grid-column: 1 / -1; order: 1; }
+  #menuBtn { width: 40px; height: 40px; }
+  .sousnav { margin-top: var(--esp-1); }
+  .soustab { min-height: 36px; padding: 0 var(--esp-3); }
 }
 @media (min-width: 680px) {
   .topbar { padding: var(--esp-2) var(--esp-4) 0; }
@@ -1927,7 +1941,15 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 
 /* Au téléphone (1.0, R4) : l'onglet nomme déjà l'écran et l'en-tête dit le plafond ; le titre et la phrase d'aide s'effacent,
    le résumé tient sur une ligne de mots et de chiffres. */
+.seg-effectif { display: none; }
 @media (max-width: 999.98px) {
+  /* Un onglet à la fois — l'attaque, la défense, le filet et la réserve — pour que l'alignement tienne en un écran. */
+  .seg-effectif { display: flex; }
+  body[data-effectif="F"] #rosterBoard .line:not([data-groupe="F"]), body[data-effectif="D"] #rosterBoard .line:not([data-groupe="D"]), body[data-effectif="G"] #rosterBoard .line:not([data-groupe="G"]) { display: none; }
+  .line-head { min-height: 36px; }
+  .line-slots { gap: var(--esp-1); padding: var(--esp-1); }
+  .slot { min-height: 84px; }
+  .slot .slot-name { font-size: var(--t-3); }
   .pane-roster .pane-title, .roster-hint { display: none; }
   .team-summary { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); margin-bottom: var(--esp-2); }
   .sum-item { display: flex; align-items: baseline; gap: var(--esp-1); padding: 0; border-left: 0; }
@@ -2268,15 +2290,36 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
      la boîte de réception se range entre l'affiche et le volet. */
   body.hub-docke .hub-sheet .hub-actions:has(> .hub-barre) { display: contents; }
   body.hub-docke .hub-sheet .hub-barre { order: 10; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
-  body.hub-docke .hub-sheet .hub-barre .hub-jour, body.hub-docke .hub-sheet .hub-barre .hub-suite { min-height: 52px; }
-  body.hub-docke .hub-sheet .hub-barre .hub-actions-rang .btn { min-height: 40px; }
   body.hub-docke .hub-sheet .hub-boite { order: 2; margin: 0; padding: var(--esp-3) var(--esp-3) 0; }
+  /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire s'ouvrent en sous-page
+     depuis une rangée de tuiles à icône ; ce qu'elles portent ne s'empile plus dans l'affiche. */
+  .hub-match .hub-match-note:not(.hub-ereintant), .hub-match .hub-depistage, .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
+  body.hub-docke:not(.mode-table) .hub-sheet .live-top { padding: 2px var(--esp-3); }
+  body.hub-docke:not(.mode-table) .hub-sheet .hub-outil { min-height: 32px; padding: 0 var(--esp-2); }
+  .hub-tuiles-tel { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1px; border-top: 1px solid var(--filet-2); background: var(--filet-2); }
+  .hub-tt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 56px; padding: var(--esp-1); border: 0; background: var(--fond-1); color: var(--encre); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+  .hub-tt i { font-style: normal; font-size: var(--t-4); line-height: 1; }
+  .hub-tt b { position: absolute; margin: -22px 0 0 34px; min-width: 16px; padding: 2px 4px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
+  .hub-tt:active { background: var(--fond-2); }
+  /* La boîte pliée : sa bande de tête seule, tant que rien ne bloque et qu'on ne l'a pas dépliée. */
+  .hub-boite.pliee .hub-msgs { display: none; }
+  .hub-boite .hub-boite-tete { min-height: 44px; cursor: pointer; }
+  .hub-volet .hub-etat { padding: var(--esp-2) var(--esp-3); }
+  .hub-volet .hub-etat-l { font-size: var(--t-1); }
+  .hub-match-titre { padding: var(--esp-1) var(--esp-3); }
+  .hub-eq { padding: var(--esp-2) var(--esp-3); }
+  .hub-eq-forme { margin: var(--esp-1) calc(-1 * var(--esp-3)) calc(-1 * var(--esp-2)); }
+  .soir-etape { min-height: 36px; }
+  .soir-drame { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .hub-barre .hub-jour, .hub-barre .hub-suite { min-height: 48px; font-size: var(--t-3); }
+  .hub-barre .hub-actions-rang .btn { min-height: 36px; }
   body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: var(--esp-4); }
   /* Hors de « Match », le volet seul : l'affiche et les boutons appartiennent à l'onglet Journée. */
   body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-carte, body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-actions { display: none; }
   body.hub-docke .hub-sheet .hub-actions { overflow: visible; min-height: auto; }
 }
 @media (min-width: 1200px) {
+  .hub-tuiles-tel { display: none; }
   body.hub-docke .hub-sheet {
     display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto auto minmax(0, 1fr);
     grid-template-areas: "top top" "carte boite" "volet boite"; column-gap: var(--esp-4);

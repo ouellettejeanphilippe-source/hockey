@@ -394,6 +394,8 @@ function puceOrigine(o, group) {
 function lineEl(title, slots, group, unit, cls = '') {
   const wrap = document.createElement('div');
   wrap.className = 'line';
+  // L'onglet du téléphone (style.css, body[data-effectif]) : l'attaque, la défense, ou le filet et la réserve.
+  wrap.dataset.groupe = group === 'F' || group === 'D' ? group : 'G';
 
   let chemHtml = '<span class="line-chem">incomplet</span>';
   // Sur table, pas de chimie : le plateau joue chaque pièce sur ses nombres,

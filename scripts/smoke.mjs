@@ -105,6 +105,18 @@ async function eprouverCoquille() {
   if (!club.affiche) errors.push('au téléphone, l\'affiche du prochain match ne se voit pas sans défiler');
   if (!club.bouton) errors.push('au téléphone, « Journée suivante » ne se voit pas sans défiler');
   console.log(`   le Club au téléphone : hier ${club.hiers} fois, l'affiche ${club.affiche ? 'visible' : 'cachée'}, le bouton ${club.bouton ? 'visible' : 'caché'}`);
+  // Les sous-pages du téléphone : la tuile 🔎 ouvre le dépistage par-dessus le bureau (les chances calculées), et Échap le referme.
+  const tuile = await page.$('#hubModal .hub-tuiles-tel .hub-tt-dep');
+  if (!tuile || !(await tuile.isVisible())) errors.push('au téléphone, l\'affiche n\'offre pas la tuile du dépistage');
+  else {
+    await tuile.click();
+    const chances = await page.waitForSelector('#gameModal .dep2-chances', { state: 'visible', timeout: 10000 }).catch(() => null);
+    if (!chances) errors.push('la tuile du dépistage n\'ouvre pas la sous-page avec les chances du match');
+    else console.log('   la tuile 🔎 ouvre le dépistage en sous-page');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
+    if (await page.isVisible('#gameModal')) { await page.click('#closeGameBtn').catch(() => {}); await page.waitForTimeout(200); }
+  }
   const soulignes = await page.evaluate(() => [...document.querySelectorAll('a, button, .lien-joueur, .lien-equipe')]
     .filter(e => e.offsetParent && getComputedStyle(e).textDecorationLine.includes('underline')).map(e => e.textContent.trim().slice(0, 24)));
   if (soulignes.length) errors.push(`en pleine saison, des liens soulignés : ${soulignes.slice(0, 4).join(' · ')}`);

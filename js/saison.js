@@ -2118,6 +2118,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * l'affiche continue sans un geste de plus.
        */
       const resultatHtml = hier ? `<section class="soir-resultat" aria-label="Hier soir">${resultatHier(hier)}${drameHtml(hier.m)}</section>` : '';
+      /*
+       * LES TUILES DU TÉLÉPHONE (1.0, R2). JP : *des sous-pages avec icônes, des modals, que presque tout rentre dans
+       * un écran de cell*. Sous 1200 px, le dépistage s'ouvre en sous-page, la préparation en fenêtre, le sommaire
+       * d'hier en fenêtre ; l'affiche garde l'essentiel : les étapes, hier en une ligne, le prochain match, ce soir.
+       */
+      const nMsgs = messagesCourants().length;
+      const tuiles = `<div class="hub-tuiles-tel" role="group" aria-label="Le soir, en sous-pages">
+        <button type="button" class="hub-tt hub-tt-dep"><i>🔎</i>Dépistage</button>
+        ${onDecision ? '<button type="button" class="hub-tt hub-tt-prep"><i>🏒</i>Préparer</button>' : ''}
+        ${hierMatch && hierMatch.m.feuille ? `<button type="button" class="hub-tt" data-sommaire="saison|${hierMatch.j}|${hierMatch.k}"><i>📋</i>Sommaire</button>` : ''}
+        ${nMsgs ? `<button type="button" class="hub-tt hub-tt-boite"><i>📥</i>Boîte<b>${nMsgs}</b></button>` : ''}
+      </div>`;
       carte.innerHTML = `${miniBoss}<div class="hub-match">
         ${soirHtml(etape, faits)}${resultatHtml}
         <div class="hub-match-titre">Prochain match · journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
@@ -2126,9 +2138,27 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${totauxHtml}
         ${enJeuHtml}
         ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
+        ${tuiles}
         ${depistage}
         ${planSoir}
       </div>`;
+      // Le dépistage : en sous-page sous 1200 px, déplié dans l'affiche au bureau.
+      const ouvrirDepistage = () => {
+        boite.apercuVu = p.j;
+        if (ctx.sousPage && matchMedia('(max-width: 1199.98px)').matches) {
+          const corps = ctx.sousPage(`🔎 Le dépistage · ${ctx.esc(ctx.teamShort(adv))}`, `<div class="hub-dep-corps">${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>`);
+          brancherConseils(corps);
+          return;
+        }
+        const d = carte.querySelector('.hub-depistage');
+        if (d) { if (!d.open) d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+      };
+      const tDep = carte.querySelector('.hub-tt-dep');
+      if (tDep) tDep.onclick = ouvrirDepistage;
+      const tPrep = carte.querySelector('.hub-tt-prep');
+      if (tPrep) tPrep.onclick = () => { const pb = carte.querySelector('.hub-preparer'); if (pb) pb.click(); };
+      const tBoite = carte.querySelector('.hub-tt-boite');
+      if (tBoite) tBoite.onclick = () => { boite.deplie = true; rendreActions(messagesCourants(), p); const b = actions.querySelector('.hub-boite'); if (b) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
       // Le dépistage se calcule quand on l'ouvre, et reste ouvert d'un rendu à l'autre le même soir.
       const det = carte.querySelector('.hub-depistage');
       brancherConseils(det);
@@ -2144,9 +2174,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         b.onclick = () => {
           const e = b.dataset.etape;
           if (e === 'apercu') {
-            soirPasse = true; boite.apercuVu = p.j; dessiner();
-            const d = carte.querySelector('.hub-depistage');
-            if (d) { if (!d.open) d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+            const deja = soirPasse;
+            soirPasse = true;
+            if (!deja) { dessiner(); const t = carte.querySelector('.hub-tt-dep'); if (t) { t.click(); return; } }
+            ouvrirDepistage();
           } else if (e === 'prep') {
             soirPasse = true;
             const pb = carte.querySelector('.hub-preparer');
@@ -2440,8 +2471,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const nonLus = msgs.filter(m => !m.bloque && !boite.lus.has(m.id)).length;
     const compteur = [bloquants.length ? `<b class="a-traiter">${bloquants.length} à traiter</b>` : '', nonLus ? `<b class="non-lus">${nonLus} non lu${nonLus > 1 ? 's' : ''}</b>` : ''].filter(Boolean).join('') || '<span class="a-jour">À jour</span>';
     // Vide, elle ne prend pas de place (S79) : « À jour » était une rangée pour rien.
-    const boiteHtml = !msgs.length ? '' : `<section class="hub-boite" aria-label="Boîte de réception">
-      <div class="hub-boite-tete"><span class="hub-boite-titre">📥 Boîte de réception</span><span class="hub-boite-compte">${compteur}</span></div>
+    // Pliée au téléphone tant que rien ne bloque et qu'on ne l'a pas dépliée (style.css, .hub-boite.pliee).
+    const pliee = !bloquants.length && !boite.deplie;
+    const boiteHtml = !msgs.length ? '' : `<section class="hub-boite${pliee ? ' pliee' : ''}" aria-label="Boîte de réception">
+      <div class="hub-boite-tete" role="button" tabindex="0"><span class="hub-boite-titre">📥 Boîte de réception</span><span class="hub-boite-compte">${compteur}</span></div>
       ${msgs.length ? `<div class="hub-msgs">${msgs.map(m => {
         const o = m.id === ouvert, lu = boite.lus.has(m.id);
         return `<article class="hub-msg${o ? ' ouvert' : ''}${m.bloque ? ' bloque' : ''}${!m.bloque && !lu ? ' non-lu' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
@@ -2473,6 +2506,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     ].join('');
 
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
+    const teteBoite = actions.querySelector('.hub-boite-tete');
+    if (teteBoite) teteBoite.onclick = () => { boite.deplie = pliee; redessinerBoite(); };
     // Plier et déplier un message ; le lire, c'est l'ouvrir.
     actions.querySelectorAll('.hub-msg-tete').forEach(b => {
       b.onclick = () => {

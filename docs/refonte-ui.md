@@ -27,6 +27,8 @@ Et le contraire de ce qu'on a mesuré (docs/decisions.md, « La peau ») : 973 �
 9. **Rien de petit** : aucun texte sous 12 px, aucune cible sous 44 px, aucune icône sous 16 px. Une étiquette est en 12 px condensée en capitales, pas en 9 px.
 10. **Le bandeau plutôt que la boîte** : un en-tête d'écran, de panneau ou de rangée est une bande bord à bord avec un filet, pas une carte arrondie dans une carte arrondie. Deux niveaux d'emboîtement au plus.
 
+11. **Au téléphone, tout descend d'un cran à la source** : sous 680 px, `:root` réécrit les jetons (t-3 15, t-4 17, t-5 22, t-6 30 ; esp-3 10, esp-4 12 ; barres 64 et 56). Rien sous 12 px, rien sous 44 px de cible. Un écran du cœur de jeu tient en un écran de téléphone : ce qui déborde s'ouvre en sous-page (une tuile à icône, une feuille par-dessus), jamais en longue page.
+
 ## La coquille
 
 - **Le tableau indicateur** (`#topbar`) : une bande de 56 px (64 au bureau) sur `--fond-1`, filet du club de 3 px en tête ; à gauche l'écusson et le nom du club en `--t-4`, l'état en `--t-1` ; à droite trois cellules séparées par des filets — FICHE, RANG, PLAFOND — en `--t-5` condensé, l'étiquette en `--t-1` au-dessus. Le plafond garde sa barre (4 px, `--bon` → `--mauvais`).

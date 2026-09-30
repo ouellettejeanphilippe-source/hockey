@@ -82,6 +82,9 @@ const reserves = await page.$$eval('.slot .slot-role', e => e.map(x => x.textCon
 const verrou = await page.$$eval('.slot.verrou', e => e.length);
 console.log(`3. les réservistes de plus : ${reserves.join(' · ')} · ${verrou} case(s) cadenassée(s)`);
 if (!reserves.some(t => /Réserve \+1/.test(t)) || !verrou) erreurs.push('la case de réserve débloquée ou la suivante cadenassée ne se voit pas');
+// Au téléphone (1.0, R4), l'alignement se lit par onglet : la réserve est sous « Filet · réserve ».
+const ongletG = await page.$('.seg-effectif [data-val="G"]');
+if (ongletG && await ongletG.isVisible()) { await ongletG.click(); await page.waitForTimeout(250); }
 const relache = await page.$('.slot-relacher');
 await relache.scrollIntoViewIfNeeded();
 await page.screenshot({ path: `${DOSSIER}/rogue-reserves.png` });
