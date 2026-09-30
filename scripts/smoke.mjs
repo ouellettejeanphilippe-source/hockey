@@ -103,24 +103,15 @@ async function aller(cle, clic = s => page.click(s)) {
   await clic(`#navbar .navtab[data-section="${SECTION_DE[cle]}"]`);
   if (await page.$(`#sousNav:not([hidden]) .soustab[data-page="${cle}"]`)) await clic(`#sousNav .soustab[data-page="${cle}"]`);
 }
-/*
- * L'IDENTITÉ DE DÉPART (S73) : « Commencer » ouvre trois cartes en plein
- * écran avant la première roulette. Le parcours prend la première et exige
- * qu'il y en ait trois ; ce qu'il a vu se dit à la fin.
- */
-const identitesVues = [];
 const mainsVues = [];   // les cartes jouées aux gros matchs et en séries (S74)
 let prepsVues = 0;      // les préparations choisies au dépistage (S76)
-async function passerIdentite() {
-  const carte = await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"] .tc', { timeout: 10000 }).catch(() => null);
-  if (!carte) { errors.push('« Commencer » n\'offre pas l\'identité de départ'); return; }
-  const offre = await page.$$eval('#choixModal .tc', e => e.map(x => x.dataset.choix));
-  if (offre.length !== 3 || new Set(offre).size !== 3) errors.push(`l'identité de départ offre ${offre.join(' · ')} au lieu de trois cartes différentes`);
-  // TROIS CARTES, ON LES VOIT TOUTES (1.0, J2-3) : sur téléphone, les trois tiennent dans l'écran, sans balayer.
-  const horsEcran = await page.$$eval('#choixModal .tc', e => e.filter(t => { const r = t.getBoundingClientRect(); return r.left < -1 || r.right > innerWidth + 1; }).length);
-  if (horsEcran) errors.push(`l'identité de départ laisse ${horsEcran} carte(s) hors de l'écran : il faut balayer pour les voir`);
-  identitesVues.push(offre[0]);
-  await _click('#choixModal .tc');
+/*
+ * CAP 82 N'A PAS D'IDENTITÉ (1.0, Jalon K) : « Commencer » lance la roulette,
+ * rien ne s'ouvre avant. L'identité de départ vit sur table (scripts/smoke_table.mjs).
+ */
+async function sansIdentite() {
+  const carte = await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"]', { timeout: 1200 }).catch(() => null);
+  if (carte) { errors.push('« Commencer » offre encore l\'identité de départ en Cap 82'); await _click('#choixModal .tc'); }
 }
 /*
  * LE BALLOTTAGE (S66) n'est pas forcé : on y répond la première fois qu'une
@@ -756,8 +747,9 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
   else console.log(`   la barre de gestes : au-dessus de ${GESTES} px, la barre d'onglets à ${tel.navbar} px du bas et « Nouvelle partie » à ${tel.partie} px ; sans elle, rien ne bouge`);
 }
 /*
- * « COMMENT ON JOUE, EN CINQ CARTES » (S74) : cinq cartes à lire, par-dessus
- * « Nouvelle partie », et « Compris ! » y ramène sans rien changer.
+ * « COMMENT ON JOUE » (S74) : des cartes à lire, par-dessus « Nouvelle
+ * partie », et « Compris ! » y ramène sans rien changer. Quatre depuis que
+ * Cap 82 est le jeu pur (1.0, Jalon K) : repêcher, les lignes, la saison, la Coupe.
  */
 {
   await _click('#npAide');
@@ -767,8 +759,8 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
   await _click('#choixModal .choix-plus-tard');
   await page.waitForTimeout(200);
   const encore = await page.isVisible('#partieModal');
-  if (n !== 5 || lisibles !== 5 || !encore) errors.push(`« Comment on joue » : ${n} cartes, ${lisibles} à lire, « Nouvelle partie » ${encore ? 'encore ouverte' : 'refermée'}`);
-  else console.log('   « Comment on joue » : cinq cartes à lire, et « Nouvelle partie » reste ouverte dessous');
+  if (n !== 4 || lisibles !== 4 || !encore) errors.push(`« Comment on joue » : ${n} cartes, ${lisibles} à lire, « Nouvelle partie » ${encore ? 'encore ouverte' : 'refermée'}`);
+  else console.log('   « Comment on joue » : quatre cartes à lire, et « Nouvelle partie » reste ouverte dessous');
 }
 /*
  * DEUX LISTES QUI N'EXISTENT QUE QUAND ELLES SERVENT (1.0, J2-2) : la saison
@@ -796,7 +788,7 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
   console.log(`   « Nouvelle partie » : les listes suivent le choix, le résumé tient, « ${avant.note} »`);
 }
 await page.click('#npGo');
-await passerIdentite();
+await sansIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 15000 });
 console.log('   écran « Nouvelle partie » : ouvert à la première visite, refermé');
 /*
@@ -1462,7 +1454,8 @@ async function traverserSaison(etiquette, reprise = false) {
     // « 1,000 » : un gardien qui n'a rien accordé encore (un blanchissage en début de saison).
     const ficheCase = /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · ([,—]|1,000)|aucun match)/;
     if (metas.length !== 23 || !metas.every(m => ficheCase.test(m))) errors.push(`les cases du banc ne portent pas la fiche à ce jour (${metas.length} cases) : ${metas.filter(m => !ficheCase.test(m)).slice(0, 4).join(' | ')}`);
-    if ((await page.$$('.slot-remove')).length) errors.push('le banc laisse retirer un joueur en pleine saison');
+    // Au Rogue (S80), le ✕ d'un RÉSERVISTE le relâche, derrière le banc aussi (`.slot-relacher`) ; un habillé ne se retire jamais.
+    if ((await page.$$('.slot-remove:not(.slot-relacher)')).length) errors.push('le banc laisse retirer un joueur habillé en pleine saison');
     // Le 3e trio est la fermeture par défaut (FERMETURE_DEFAUT) : le 🔒 doit
     // déjà le dire, et on la DÉPLACE au 2e — c'est le déplacement qui prouve
     // que la décision voyage jusqu'à la sauvegarde.
@@ -2043,7 +2036,7 @@ async function traverserSaison(etiquette, reprise = false) {
        * TON HISTOIRE (S69) : à mi-saison, « Ma fiche » raconte la run en
        * actes — au moins les attentes du proprio, posées au premier jour.
        */
-      if (etiquette === 'saison') {
+      if (etiquette === 'rogue') {
         await repondreAuxChoix();
         await aller('calendrier');
         await page.waitForTimeout(250);
@@ -2417,12 +2410,166 @@ async function finirSeries() {
   errors.push('les séries ne vont pas au tableau en 300 gestes');
 }
 
+/*
+ * CAP 82, LE JEU PUR (1.0, Jalon K). JP : *le mode CAP 82 devrait avoir le
+ * standard que tu fais juste voir un résultat avec team, sans les stratégies,
+ * packs de cartes, etc*. « Jouer la saison » ouvre l'écran qui défile
+ * (js/cap82.js) : la fiche monte toute seule, la pause arrête le temps, aucune
+ * décision ne s'ouvre, la Ligue se lit à la journée révélée, une saison reprise
+ * rouvre au même match, le 82-0 tombe sur un moment, puis les séries ronde par
+ * ronde et le résultat.
+ *   profond : tout ça ; sinon ×10 jusqu'au bout (une saison rejouée pour se qualifier).
+ *   vite : « Aller au résultat » d'un coup.
+ * Rend { qualifie }.
+ */
+const lireCap82 = () => page.evaluate(() => {
+  const c = document.querySelector('#hubModal .c82');
+  const n = s => (document.querySelector(s)?.textContent || '').replace(/\s+/g, ' ').trim();
+  return {
+    etape: ((c && c.className.match(/etape-(\w+)/)) || [])[1] || '', joue: !!(c && c.classList.contains('en-jeu')),
+    match: parseInt(n('#hubModal .c82-infos b'), 10) || 0, fiche: n('#hubModal .c82-fiche'),
+    reve: !!document.querySelector('#hubModal .c82-moment.reve'), mort: !!document.querySelector('#hubModal .c82-reve.mort'),
+    ronde: !!document.querySelector('#hubModal .c82-moment.ronde, #hubModal .c82-moment.elimine, #hubModal .c82-moment.coupe'),
+    choix: !!document.querySelector('#choixModal:not([hidden]), #hubModal .hub-traiter'), etat: n('#teteEtat'),
+  };
+});
+async function jouerCap82(etiquette, { profond = false, vite = false } = {}) {
+  await _wait('#hubModal .c82', { timeout: 90000 });
+  if (vite) {
+    await _click('#hubModal .c82-fin');
+    await _wait('#resultHost .result .score', { timeout: 90000 });
+    await page.waitForTimeout(400);
+    return { qualifie: !!(await page.$('#playoffsSection .bk-serie')) };
+  }
+  let reveVu = false, choixVu = false;
+  const guetter = async ms => {
+    for (let t = 0; t < ms; t += 150) { const e = await lireCap82(); reveVu = reveVu || e.reve; choixVu = choixVu || e.choix; await page.waitForTimeout(150); }
+  };
+  if (profond) {
+    // 1. La saison part toute seule, et l'en-tête dit le match.
+    const e0 = await lireCap82();
+    await guetter(1800);
+    const e1 = await lireCap82();
+    if (!(e1.match > e0.match)) errors.push(`${etiquette} : la saison ne défile pas toute seule (match ${e0.match}, puis ${e1.match})`);
+    if (!/^Saison régulière · match \d+ \/ 82$/.test(e1.etat)) errors.push(`${etiquette} : l'en-tête ne dit pas le match en cours (« ${e1.etat} »)`);
+    // 2. La pause arrête le temps.
+    await _click('#hubModal .c82-jouer');
+    await page.waitForTimeout(500);
+    const p0 = await lireCap82();
+    await page.waitForTimeout(1000);
+    const p1 = await lireCap82();
+    if (p1.match !== p0.match || p1.joue) errors.push(`${etiquette} : la pause n'arrête pas la saison (match ${p0.match}, puis ${p1.match})`);
+    // 3. Pendant la saison : la Ligue à la journée révélée, l'effectif figé, le marché fermé ; rien ne déborde, aucune cote.
+    await aller('classement');
+    await page.waitForTimeout(300);
+    const clubs = await page.$$eval('#hubModal .hub-volet .hub-classement tbody tr', l => l.length);
+    if (clubs < 20) errors.push(`${etiquette} : le classement de la Ligue n'a que ${clubs} clubs pendant la saison`);
+    await aller('meneurs');
+    await page.waitForTimeout(300);
+    const meneurs = await page.$$eval('#hubModal .hub-volet tbody tr', l => l.length);
+    if (!meneurs) errors.push(`${etiquette} : aucun meneur dans la Ligue pendant la saison`);
+    await nomsCliquables(`${etiquette} · la Ligue`);
+    await aller('alignement');
+    await page.waitForTimeout(300);
+    const fige = ((await page.textContent('#pageVide').catch(() => '')) || '').replace(/\s+/g, ' ');
+    if (!/figé/.test(fige)) errors.push(`${etiquette} : l'effectif ne se dit pas figé pendant la saison (« ${fige.trim().slice(0, 80)} »)`);
+    await aller('marche');
+    await page.waitForTimeout(300);
+    const marche = ((await page.textContent('#pageMarche').catch(() => '')) || '').replace(/\s+/g, ' ');
+    if (!/fermé/.test(marche) || await page.$('#pageMarche [data-marche="boutique"], #pageMarche [data-marche="cartes"]')) errors.push(`${etiquette} : le marché de Cap 82 n'est pas fermé après le repêchage (« ${marche.trim().slice(0, 80)} »)`);
+    await aller('match');
+    await page.waitForTimeout(300);
+    await sansDebordement(`${etiquette} · l'écran qui défile`);
+    await sansCote(`${etiquette} · l'écran qui défile`);
+    await toutEstAtteignable(`${etiquette} · l'écran qui défile`);
+    await deuxCaptures('cap82-saison', '#hubModal .c82');
+    const secs = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.section).join(','));
+    if (secs !== SECTIONS.join(',')) errors.push(`${etiquette} : la barre ne porte pas les cinq sections pendant la saison (« ${secs} »)`);
+    // 4. UNE SAISON EN COURS SE REJOUE : rechargée en pause, elle rouvre au même match, la même fiche, et attend « Reprendre ».
+    const avant = await lireCap82();
+    await page.reload({ waitUntil: 'networkidle' });
+    await _wait('#hubModal .c82', { timeout: 90000 });
+    await page.waitForTimeout(800);
+    const apres = await lireCap82();
+    if (apres.match !== avant.match || apres.fiche !== avant.fiche) errors.push(`${etiquette} : la saison reprise ne rouvre pas au même match (« ${avant.fiche} » au match ${avant.match}, puis « ${apres.fiche} » au match ${apres.match})`);
+    if (apres.joue) errors.push(`${etiquette} : une saison reprise repart toute seule, sans « Reprendre »`);
+    console.log(`   ${etiquette} : la saison défile (match ${e1.match} après ${1.8} s), la pause tient, ${clubs} clubs au classement, reprise au match ${apres.match} (« ${apres.fiche} »)`);
+    await _click('#hubModal .c82-jouer');
+  }
+  // 5. ×10 jusqu'au bout de la saison régulière : aucune décision, et le 82-0 qui tombe s'arrête sur son moment.
+  await _click('#hubModal .c82-vit[data-x="10"]');
+  if (!profond && !(await lireCap82()).joue) await _click('#hubModal .c82-jouer');
+  for (let g = 0; g < 900; g++) {
+    const e = await lireCap82();
+    reveVu = reveVu || e.reve; choixVu = choixVu || e.choix;
+    if (e.etape === 'finSaison') break;
+    await page.waitForTimeout(120);
+  }
+  const ef = await lireCap82();
+  if (ef.etape !== 'finSaison') { errors.push(`${etiquette} : la saison régulière ne finit pas (${ef.fiche}, match ${ef.match})`); return { qualifie: false }; }
+  if (choixVu) errors.push(`${etiquette} : une décision s'est ouverte pendant la saison — Cap 82 n'en a aucune`);
+  const [, , d = '0', dp = '0'] = ef.fiche.match(/(\d+)\D+(\d+)\D+(\d+)/) || [];
+  const perdu = Number(d) + Number(dp) > 0;
+  if (perdu && !ef.mort) errors.push(`${etiquette} : la fiche ${ef.fiche} ne dit pas où le 82-0 s'est arrêté`);
+  if (profond && perdu && !reveVu) errors.push(`${etiquette} : la première défaite n'a pas arrêté la saison sur son moment`);
+  if (!/^Saison régulière · terminée$/.test(ef.etat)) errors.push(`${etiquette} : l'en-tête ne dit pas la saison terminée (« ${ef.etat} »)`);
+  // 6. Les séries, ronde par ronde, si on y est ; sinon le résultat.
+  const qualifie = !!(await page.$('#hubModal .c82-series'));
+  if (qualifie) {
+    await _click('#hubModal .c82-series');
+    let rondeVue = false;
+    const etats = new Set();
+    for (let g = 0; g < 900; g++) {
+      const e = await lireCap82();
+      rondeVue = rondeVue || e.ronde;
+      if (e.etat) etats.add(e.etat);
+      if (profond && g === 8) await deuxCaptures('cap82-series', '#hubModal .c82');
+      if (e.etape === 'fin') break;
+      await page.waitForTimeout(120);
+    }
+    const fin = await lireCap82();
+    if (fin.etape !== 'fin') errors.push(`${etiquette} : les séries ne finissent pas`);
+    if (![...etats].some(t => /^Séries · premier tour$|^Séries · quarts de finale$/.test(t))) errors.push(`${etiquette} : l'en-tête ne suit pas les rondes des séries (${[...etats].join(' · ')})`);
+    if (!rondeVue) errors.push(`${etiquette} : aucune ronde réglée ne s'est annoncée`);
+    const lignes = await page.$$eval('#hubModal .c82-ronde-l', l => l.length);
+    if (!lignes) errors.push(`${etiquette} : la ronde des séries ne se lit pas au Club`);
+  }
+  await _click('#hubModal .c82-resultat');
+  await _wait('#resultHost .result .score', { timeout: 90000 });
+  await page.waitForTimeout(500);
+  // 7. Le résultat : la fiche, le verdict des séries, tes meneurs, Rejouer et Nouveau club — ni deck, ni « Jouer les séries ».
+  const r = await page.evaluate(() => ({
+    verdict: (document.querySelector('#heroVerdict')?.textContent || '').trim(),
+    meneurs: document.querySelectorAll('#resultHost .bilan-meneurs .bm').length,
+    deck: /Ton deck/.test(document.querySelector('#resultHost')?.textContent || ''),
+    series: !!document.getElementById('playoffsBtn'),
+    boutons: [...document.querySelectorAll('#resultHost .result-actions .btn:not([hidden])')].map(x => x.textContent.trim()).join(' · '),
+    tableau: document.querySelectorAll('#playoffsSection .bk-serie').length,
+  }));
+  if (!r.verdict) errors.push(`${etiquette} : le résultat ne dit pas le verdict des séries`);
+  if (r.meneurs < 3) errors.push(`${etiquette} : le résultat ne montre que ${r.meneurs} meneur(s) du club`);
+  if (r.deck) errors.push(`${etiquette} : le résultat de Cap 82 montre un deck de cartes`);
+  if (r.series) errors.push(`${etiquette} : le résultat de Cap 82 offre encore « Jouer les séries »`);
+  if (!/Rejouer la saison/.test(r.boutons) || !/Nouveau club/.test(r.boutons)) errors.push(`${etiquette} : le résultat n'offre pas Rejouer et Nouveau club (${r.boutons})`);
+  if (qualifie && !r.tableau) errors.push(`${etiquette} : le tableau des séries ne se dessine pas au résultat`);
+  console.log(`   ${etiquette} : ${ef.fiche} · ${qualifie ? 'séries jouées ronde par ronde' : 'hors des séries'} · « ${r.verdict} » · ${r.meneurs} meneurs · ${r.boutons}`);
+  return { qualifie };
+}
+
+/* La saison du repêchage, prise telle quelle : la run du Rogue repartira avec (plus bas). */
+const rosterDeLaPartie = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)).roster; });
+let rosterRepeche = null;
+
 if (enabled) {
+  rosterRepeche = await rosterDeLaPartie();
+  const mot = (await page.textContent('#mainBtn')).trim();
+  if (!/^Jouer la saison/.test(mot)) errors.push(`le bouton du bas ne dit pas « Jouer la saison » : « ${mot} »`);
   await page.click('#mainBtn');
-  await traverserSaison('saison', true);
+  let { qualifie } = await jouerCap82('Cap 82', { profond: true });
   const score = await page.textContent('.result .score');
   const rows = await page.$$eval('.rrow', r => r.length);
   console.log(`4. fiche ${score.trim()}, ${rows} rangées`);
+  if (rows < 23) errors.push(`la feuille de match du résultat n'a que ${rows} rangées`);
   // LE CONSEIL DU BILAN CITE SES CHIFFRES (1.0, J2-18) : un nombre, jamais « regarde tes trois derniers trios ».
   {
     const conseil = ((await page.textContent('#resultHost .note').catch(() => '')) || '').trim();
@@ -2431,26 +2578,17 @@ if (enabled) {
     await deuxCaptures('bilan');
   }
   /*
-   * L'ALBUM (S74) : la saison jouée y entre — ses 23 joueurs au cartable,
-   * ses cartes de match (au moins celles du départ), sans déborder.
+   * LES SÉRIES DE CAP 82 SE JOUENT À COUP SÛR. Une équipe du repêchage
+   * automatique fait les séries neuf fois sur dix (scripts/check_cap82.mjs) ;
+   * la dixième, « Rejouer la saison » garde l'alignement et change les dés,
+   * au plus ESSAIS_CAP82 fois — et on échoue si les séries n'ont pas été vues.
    */
-  {
-    await aller('historique');
-    await page.waitForTimeout(300);
-    await page.click('.lb-vues [data-vue="album"]');
-    await page.waitForTimeout(400);
-    const a = await page.evaluate(() => ({
-      joueurs: document.querySelectorAll('.album-joueur').length,
-      cartes: document.querySelectorAll('.album-carte').length,
-      trous: document.querySelectorAll('.album-trou').length,
-    }));
-    if (a.joueurs < 20 || a.cartes < 1 || !a.trous) errors.push(`l'album ne dit pas la saison jouée : ${JSON.stringify(a)}`);
-    else console.log(`   l'album : ${a.joueurs} joueurs au cartable, ${a.cartes} cartes eues, ${a.trous} à trouver`);
-    await sansDebordement('l\'album');
-    await page.click('.lb-vues [data-vue="saisons"]');
-    await aller('match');
-    await page.waitForTimeout(300);
+  const ESSAIS_CAP82 = 6;
+  for (let k = 0; !qualifie && k < ESSAIS_CAP82; k++) {
+    await page.click('#replayBtn');
+    ({ qualifie } = await jouerCap82('Cap 82 rejouée pour les séries'));
   }
+  if (!qualifie) errors.push(`Cap 82 : l'équipe n'a pas atteint les séries en ${ESSAIS_CAP82 + 1} saisons, les séries ronde par ronde n'ont PAS été éprouvées`);
   // Le bilan porte les tableaux les plus larges du jeu (onze colonnes) : s'il
   // y a un débordement quelque part, il est ici.
   await sansDebordement('bilan de saison');
@@ -2709,15 +2847,95 @@ if (enabled) {
   await aller('match');
   await page.waitForTimeout(200);
   await page.screenshot({ path: 'scripts/smoke-result.png', fullPage: false });
+
+  // Rejouer la saison : même alignement, mêmes clubs, d'autres dés — « Aller au résultat » d'un coup.
+  await page.click('#replayBtn');
+  await jouerCap82('Cap 82 rejouée', { vite: true });
+  console.log(`   rejouée : fiche ${(await page.textContent('.result .score')).trim()}`);
+
+  // L'historique garde l'alignement : « Rejouer » relit les 23 joueurs et
+  // repart une saison.
+  await aller('historique');
+  await page.waitForSelector('#pageHistorique:not([hidden])', { timeout: 10000 });
+  const entrees = await page.$$('.lb-replay');
+  console.log(`   historique : ${entrees.length} alignements rejouables`);
+  if (entrees.length) {
+    await entrees[0].click();
+    await jouerCap82('Cap 82 reprise de l\'historique', { vite: true });
+    console.log(`   reprise de l'historique : fiche ${(await page.textContent('.result .score')).trim()}`);
+  }
+  // Cap 82 ne nourrit ni l'album ni le cartable : ses saisons n'ont pas de deck.
+  {
+    const dernier = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]')[0] || null; } catch { return null; } });
+    if (dernier && Array.isArray(dernier.deck) && dernier.deck.length) errors.push(`une saison de Cap 82 entre à l'historique avec un deck de ${dernier.deck.length} cartes`);
+  }
+
+  /*
+   * LE ROGUE PORTE L'ÉCRAN DE SAISON (1.0, Jalon K). La boîte de réception,
+   * les mains de match, les paliers, la boutique, le direct, les entractes et
+   * les séries à décisions ne vivent plus qu'au Rogue : le parcours les
+   * éprouve dans une run. Une run part de plombiers, et des plombiers ratent
+   * souvent les séries ; pour que TOUT le passage des séries s'exécute à coup
+   * sûr, la run repart avec l'équipe que le repêchage vient de bâtir — sa
+   * sauvegarde reçoit l'alignement et un plafond de run qui le tient. C'est un
+   * montage d'essai : le jeu le rejoue comme n'importe quelle run.
+   */
+  async function lancerRogueAvec(roster) {
+    await _click('#menuBtn');
+    await _wait('#menuDepart .menu-mode[data-genre="rogue"] [data-menu="nouvelle"]', { timeout: 10000 });
+    await _click('#menuDepart .menu-mode[data-genre="rogue"] [data-menu="nouvelle"]');
+    await _wait('#choixModal:not([hidden]) .choix-option', { timeout: 90000 });
+    await _click('#choixModal:not([hidden]) .choix-option');
+    const dp = await _wait('#departModal:not([hidden]) .dp-commencer', { timeout: 4000 }).catch(() => null);
+    if (dp) await _click('#departModal .dp-commencer');
+    await page.waitForFunction(() => document.querySelectorAll('.slot .slot-name').length >= 15, null, { timeout: 90000 });
+    await page.evaluate(r => {
+      const ix = JSON.parse(localStorage.getItem('cap82_parties'));
+      const cle = `cap82_partie_${ix.actif}`;
+      const sv = JSON.parse(localStorage.getItem(cle));
+      sv.roster = r;
+      sv.rogue = { ...(sv.rogue || {}), plafond: { cap: 99_500_000, lignes: [] } };
+      localStorage.setItem(cle, JSON.stringify(sv));
+    }, roster);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForFunction(() => { const b = document.getElementById('mainBtn'); return b && !b.disabled && document.body.classList.contains('mode-rogue'); }, null, { timeout: 90000 });
+  }
+  await lancerRogueAvec(rosterRepeche);
+  console.log('   le Rogue : une run repart avec l\'équipe du repêchage');
+  await page.click('#mainBtn');
+  await traverserSaison('rogue', true);
+  console.log(`   le Rogue au bilan : fiche ${(await page.textContent('.result .score')).trim()}`);
+  /*
+   * L'ALBUM (S74) : la saison jouée y entre — ses 23 joueurs au cartable,
+   * ses cartes de match (au moins celles du départ), sans déborder.
+   */
+  {
+    await aller('historique');
+    await page.waitForTimeout(300);
+    await page.click('.lb-vues [data-vue="album"]');
+    await page.waitForTimeout(400);
+    const a = await page.evaluate(() => ({
+      joueurs: document.querySelectorAll('.album-joueur').length,
+      cartes: document.querySelectorAll('.album-carte').length,
+      trous: document.querySelectorAll('.album-trou').length,
+    }));
+    if (a.joueurs < 20 || a.cartes < 1 || !a.trous) errors.push(`l'album ne dit pas la saison jouée : ${JSON.stringify(a)}`);
+    else console.log(`   l'album : ${a.joueurs} joueurs au cartable, ${a.cartes} cartes eues, ${a.trous} à trouver`);
+    await sansDebordement('l\'album');
+    await page.click('.lb-vues [data-vue="saisons"]');
+    await aller('match');
+    await page.waitForTimeout(300);
+  }
   /*
    * ON DOIT ATTEINDRE LES SÉRIES. `smoke.mjs` tire au hasard, et c'est un
    * choix assumé — mais TOUT ce passage (le tableau, la reprise, la Coupe dans
    * l'historique) ne s'exécute pas si l'équipe rate les séries, et un test qui
    * saute en silence est aussi faux qu'un sélecteur qui ne matche rien.
    *
-   * « Rejouer la saison » garde le même alignement et change les dés : on
-   * rejoue jusqu'à se qualifier, au plus ESSAIS fois, et on ÉCHOUE si on n'y
-   * arrive pas.
+   * Une run ne se rejoue pas (« Rejouer la saison » n'y existe pas) : on
+   * repart une run avec la même équipe, d'autres dés, au plus ESSAIS fois, et
+   * on ÉCHOUE si les séries ne sont pas atteintes (1.0, Jalon K ; avant, la
+   * saison rejouée faisait ce travail).
    *
    * ET CE GARDE-FOU A RELANCÉ LA MAUVAISE CHOSE PENDANT TROIS CHANTIERS (S64).
    * Le nombre d'essais est passé de 12 à 30 quand l'Action a rougi, sur le
@@ -2747,16 +2965,17 @@ if (enabled) {
    * chercher la valeur — le DOM ne la porte pas, et c'est voulu — c'est de ne
    * pas signer une carte que le jeu peint en rouge.
    */
-  const ESSAIS = 8;
+  const ESSAIS = 4;
   let po = await page.$('#playoffsBtn'), essais = 0;
   while (!po && essais < ESSAIS) {
     essais++;
-    await page.click('#replayBtn');
+    await lancerRogueAvec(rosterRepeche);
+    await page.click('#mainBtn');
     await finirVite();
     po = await page.$('#playoffsBtn');
   }
-  if (!po) errors.push(`l'équipe n'a pas atteint les séries en ${ESSAIS + 1} saisons : le passage des séries n'a PAS été éprouvé`);
-  else if (essais) console.log(`   séries atteintes après ${essais} saison(s) rejouée(s)`);
+  if (!po) errors.push(`le Rogue n'a pas atteint les séries en ${ESSAIS + 1} runs : le passage des séries n'a PAS été éprouvé`);
+  else if (essais) console.log(`   séries atteintes après ${essais} run(s) de plus`);
   if (po) {
     await po.click();
     // L'écran des séries : un match de plus dans la ronde, le tableau, puis
@@ -2939,23 +3158,6 @@ if (enabled) {
     await aller('match');
     await page.waitForTimeout(250);
   }
-
-  // Rejouer la saison : même alignement, mêmes clubs, d'autres dés.
-  await page.click('#replayBtn');
-  await traverserSaison('rejouée');
-  console.log(`   rejouée : fiche ${(await page.textContent('.result .score')).trim()}`);
-
-  // L'historique garde l'alignement : « Rejouer » relit les 23 joueurs et
-  // repart une saison.
-  await aller('historique');
-  await page.waitForSelector('#pageHistorique:not([hidden])', { timeout: 10000 });
-  const entrees = await page.$$('.lb-replay');
-  console.log(`   historique : ${entrees.length} alignements rejouables`);
-  if (entrees.length) {
-    await entrees[0].click();
-    await traverserSaison('historique');
-    console.log(`   reprise de l'historique : fiche ${(await page.textContent('.result .score')).trim()}`);
-  }
 }
 
 /* Le tirage LOTO : trois clubs par case, des relances. Il vit maintenant dans
@@ -2967,11 +3169,11 @@ await page.click('#partieModal .seg[data-opt="tirage"] button[data-val="LOTO"]')
 const armeLoto = await page.$eval('#partieModal .seg[data-opt="tirage"] button[data-val="LOTO"]', b => b.classList.contains('on'));
 if (!armeLoto) errors.push('le tirage « Loto » ne se marque pas dans l\'écran Nouvelle partie');
 await page.click('#npGo');
-await passerIdentite();
+await sansIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 await page.waitForSelector('#rrL', { timeout: 30000 });
 // L'identité choisie se lit dans la roulette, en une puce.
-if (!(await page.$('.spin-identite'))) errors.push('l\'identité choisie ne se lit pas dans la roulette du loto');
+if (await page.$('.spin-identite')) errors.push('la roulette du loto de Cap 82 affiche une identité : Cap 82 n\'en a pas');
 
 /*
  * LE ✕ N'EST PAS UNE RELANCE. Deux exploits d'une même formule, éprouvés ici
@@ -3127,7 +3329,7 @@ await page.waitForSelector('#partieModal .seg[data-opt="format"]', { state: 'vis
 await page.click('#partieModal .seg[data-opt="format"] button[data-val="EXPRESS"]');
 await page.click('#partieModal .seg[data-opt="tirage"] button[data-val="VESTIAIRE"]');
 await page.click('#npGo');
-await passerIdentite();
+await sansIdentite();
 await page.waitForSelector('#partieModal', { state: 'hidden', timeout: 30000 });
 await page.waitForTimeout(400);
 const expTotal = await lireTotal();
@@ -3160,7 +3362,6 @@ console.log(`   paquets ouverts : ${paquetsVus.length ? paquetsVus.join(' · ') 
 console.log(`   sommaires de journée lus : ${sommairesVus} · paliers joués en passant : ${paliersJoues.join(' · ') || 'aucun'}`);
 if (!sommairesVus) errors.push('aucun sommaire de journée après « Journée suivante », alors que ton club a joué');
 console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
-console.log(`   identités de départ prises : ${identitesVues.join(' · ') || 'aucune'}`);
 console.log(`   mains de match jouées : ${mainsVues.length} (${mainsVues.slice(0, 6).join(" · ") || "aucune"}) · ${prepsVues} préparation(s) au dépistage`);
 console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
 if (!choixVus.has('hub-proprio')) errors.push('le proprio n\'a jamais fixé d\'objectif');

@@ -294,9 +294,8 @@ export const POSTE_GROUPE = { F: 'Avant', D: 'Défenseur', G: 'Gardien' };
 const PLAFOND_BALLOTTAGE = 0.03;          // la part du plafond qu'un joueur réclamé peut coûter
 export const groupeDe = groupeDuBallottage;
 export const ballottageVu = new Map();
-/* En Rogue, une réclamation coûte des jetons (1.0) : un dépanneur, pas un cadeau. En saison, rien. */
+/* Une réclamation coûte des jetons (1.0) : un dépanneur, pas un cadeau. Le ballottage n'existe qu'au Rogue (Jalon K). */
 const COUT_BALLOTTAGE_ROGUE = 10;
-const coutBallottage = () => (G.bonus === 'ROGUE' ? COUT_BALLOTTAGE_ROGUE : 0);
 function candidatsBallottage(blesse, at) {
   const L = G.ligue;
   if (!L || !blesse || !L.cles) return null;
@@ -312,7 +311,7 @@ function candidatsBallottage(blesse, at) {
   // Le joueur et sa rareté voyagent avec l'offre (S76) : le ballottage se
   // présente en CARTES de joueur, portrait et métal compris, comme la recrue.
   return {
-    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, cout: coutBallottage(),
+    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, cout: COUT_BALLOTTAGE_ROGUE,
     candidats: out.map(p => ({ cle: getPlayerKey(p), p, nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, poste: POSTE_GROUPE[g], salaire: money(p.$), ligne: ligne(p), rarete: rareteJoueur(p) })),
   };
 }
@@ -754,13 +753,14 @@ function ouvrirEcranSaison(depuis = 0) {
         // S80 : une case de réserve libre (Rogue) s'offre d'abord — personne ne sort.
         quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), note: q => `libère ${money(capHitDuJour(q))}`, ...o }),
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
-        rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider),
+        // 1.0 (Jalon K) : cet écran n'est plus que celui du Rogue — Cap 82 défile dans js/cap82.js.
+        rogue: { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider),
           // S80 : la saison de la run et le mandat du proprio. 1.0 (R4) : le barème de la run, tel que
           // `jetonsRogue` le compte (`G.rogue.bareme`, fixé au départ de la saison), et le mandat d'après.
           mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot,
             suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
-            bareme: (G.rogue && G.rogue.bareme) || JETONS }) } : null,
-        // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
+            bareme: (G.rogue && G.rogue.bareme) || JETONS }) },
+        // LA BOUTIQUE ET L'INVENTAIRE (S79).
         boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
         inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider) => ouvrirInventaireJeu(j, decider) },
       },
@@ -768,7 +768,7 @@ function ouvrirEcranSaison(depuis = 0) {
       depuis,
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
       // la reprise a besoin de connaître.
-      onJour: j => { G.journee = j; saveGame(); if (G.bonus === 'ROGUE') renderCap(); majEntete(); },
+      onJour: j => { G.journee = j; saveGame(); renderCap(); majEntete(); },
       // LES CARTES DE SAISON : la graine décide de la main offerte à chaque
       // palier (sans toucher au hasard du moteur), et les paliers déjà pris
       // se lisent dans les décisions — il n'y a pas d'autre état.

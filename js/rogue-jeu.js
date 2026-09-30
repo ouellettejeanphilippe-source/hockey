@@ -109,15 +109,17 @@ export function jetonsRogue(j = G.journee || 0) {
   const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0) + ((d.ballottage || {}).cout || 0), 0);
   const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0), 0);
   const direction = modificateurs(decs).jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, j), 0);
-  const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
+  // Les jetons n'existent qu'au Rogue (1.0, Jalon K : Cap 82 n'a ni boutique ni packs).
+  const depart = (G.rogue && G.rogue.depart) || JETONS.depart;
   // S80 : le barème de la saison de la run (5 🪙 par victoire sans commanditaire) ; une vieille run garde celui de S79.
-  const bareme = G.bonus === 'ROGUE' && G.rogue && G.rogue.bareme ? G.rogue.bareme : JETONS;
+  const bareme = G.rogue && G.rogue.bareme ? G.rogue.bareme : JETONS;
   return jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart, bareme) + ventes + direction;
 }
 
 /*
- * LA BOUTIQUE (S79, js/magasin.js) : des rayons de packs à la HUT, dans les
- * deux modes. En Rogue, quelques packs se débloquent au vestiaire (le méta).
+ * LA BOUTIQUE (S79, js/magasin.js) : des rayons de packs à la HUT, au Rogue
+ * seulement depuis que Cap 82 est le jeu pur (1.0, Jalon K). Quelques packs se
+ * débloquent au vestiaire (le méta).
  */
 /* L'espace sous le plafond, pour la boutique : ce qu'un pack de joueurs peut tirer. */
 function plafondPourBoutique() {
@@ -133,9 +135,9 @@ function salaireMaxDePack() {
 }
 const VERROUS_ROGUE = { 'j:defensif': 'packDefenseurs', 'j:gardien': 'packGardiens', 'j:ere80': 'packAnnees80', 'j:etoiles': 'packVedettes', 'j:legendes': 'packVedettes' };
 function packsOuvertsBoutique() {
-  const meta = G.bonus === 'ROGUE' ? lireMeta() : null;
+  const meta = lireMeta();
   return Object.fromEntries(Object.keys(PACKS_TOUS).map(k => {
-    const d = meta && VERROUS_ROGUE[k];
+    const d = VERROUS_ROGUE[k];
     return [k, !d || aDebloque(meta, d) ? true : `Débloque « ${DEBLOCAGES[d].nom} » au vestiaire des déblocages`];
   }));
 }
@@ -143,11 +145,11 @@ export function ouvrirBoutique(j, decider) {
   const decs = decisionsDeLaPartie();
   const n = decs.filter(d => d.achat || d.rogue).length;
   ouvrirMagasin({
-    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(),
-    mods: modificateurs(decs, j + 1), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
+    jetons: jetonsRogue(j), ouverts: packsOuvertsBoutique(),
+    mods: modificateurs(decs, j + 1), sansHolo: packsSansHolo(decs), plafond: plafondPourBoutique(),
     duJour: packDuJour(new Date(), packsOuvertsBoutique()),
     // 1.0 (R5) : à la première run, avant la journée 20, quatre packs ; « Voir les N packs » montre tout.
-    debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < 20,
+    debutant: ((G.rogue && G.rogue.numero) || 1) <= 1 && j < 20,
     franchises: Object.entries(FRANCHISES).map(([cle, F]) => ({ cle, nom: F.nom })).sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
     saisons: state.index.seasons.slice().reverse(),
     acheter: (cle, { prix, params }) => {
@@ -195,7 +197,7 @@ export function miniAvecVariante(p, rar) {
 async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
   const decs = decisionsDeLaPartie();
   const mods = modificateurs(decs, j + 1);
-  const pitie = G.bonus === 'ROGUE' && packsSansHolo(decs) >= PITIE - 1;
+  const pitie = packsSansHolo(decs) >= PITIE - 1;
   const { cartes, reglage } = await tirerPackJoueurs(cle, n, params, mods, pitie);
   const avant = new Set(lireMeta().collection || []);
   const vendus = [];
@@ -297,7 +299,6 @@ function ouvrirPackCartes(cle, prix, j, n, decider) {
   const tirees = tirerCartesPack(P.cle, Lg.graine, n);
   const ids = tirees.filter(id => BANQUE[id].rarete !== 'maudite');
   const maudites = tirees.filter(id => BANQUE[id].rarete === 'maudite');
-  const rogue = G.bonus === 'ROGUE';
   const meta = lireMeta();
   const perso = new Set(meta.personnel || []);
   const vendus = [];
@@ -305,18 +306,16 @@ function ouvrirPackCartes(cle, prix, j, n, decider) {
   ids.forEach((id, t) => {
     const c = BANQUE[id];
     const dejaVu = c.cat === 'patron' && (perso.has(c.cle) || ids.slice(0, t).includes(id));
-    if (rogue && dejaVu) { vendus.push(t); vente += valeurDe(id); }
+    if (dejaVu) { vendus.push(t); vente += valeurDe(id); }
   });
   const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(vendus.length ? { vendus, vente } : {}), ...(maudites.length ? { maudites } : {}) };
   // 1.0 (J1-B) : l'achat est une décision AVANT que le butin n'entre au méta — recharger la page ne donne plus les cartes gratis.
   decider({ jour: j, palier: `k:${n}`, achat });
-  if (rogue) recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${Lg.graine}:k:${n}`);
+  recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${Lg.graine}:k:${n}`);
   ajouterCollection({ cartes: ids });
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Tout ranger',
-    recit: (rogue
-      ? `Tout va dans ton inventaire : le personnel et les consommables permanents y restent d'une run à l'autre, le reste vaut pour cette saison.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
-      : 'Tout va dans ton inventaire : joue chaque carte quand tu veux, du bureau (🎒).')
+    recit: `Tout va dans ton inventaire : le personnel et les consommables permanents y restent d'une run à l'autre, le reste vaut pour cette saison.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
     options: [...ids.map((id, t) => ({ ...optionDeBanque(id), cle: String(t), prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : '' })),
       ...maudites.map((id, t) => ({ ...optionDeBanque(id), cle: `m${t}`, prix: 'Malédiction : elle frappe tout de suite' }))],

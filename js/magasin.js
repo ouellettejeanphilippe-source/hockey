@@ -18,7 +18,8 @@ import { esc, money as M } from './util.js';
 const $ = id => document.getElementById(id);
 
 /*
- * ctx : { jetons, mode ('rogue' | 'saison'), ouverts (cle → true | 'raison du verrou'),
+ * La boutique du Rogue (depuis 1.0, Jalon K, Cap 82 n'en a pas).
+ * ctx : { jetons, ouverts (cle → true | 'raison du verrou'),
  *         mods (patrons : rabais, holo, carteExtra, sansBase), sansHolo (packs d'affilée),
  *         duJour { pack, rabais }, franchises [{ cle, nom }], saisons [labels],
  *         acheter(cle, { prix, params }), onFerme() }
@@ -73,8 +74,7 @@ export function ouvrirMagasin(ctx) {
     }).join('')
       : `<section class="pk-rayon pk-rayon-debut"><h3>🎒 Pour commencer</h3><div class="pk-rangee">${DEBUT.filter(k => PACKS_TOUS[k]).map(k => tuile(k)).join('')}</div>
         <button type="button" class="btn pk-tout">Voir les ${Object.keys(PACKS_TOUS).length} packs</button></section>`;
-    const garantie = ctx.mode === 'rogue'
-      ? `<p class="pk-garantie">🛟 La garantie : ${PITIE} packs de joueurs d'affilée sans holo ni or, et le suivant en a une. ${ctx.sansHolo ? `Tu en es à ${ctx.sansHolo} sans.` : ''}</p>` : '';
+    const garantie = `<p class="pk-garantie">🛟 La garantie : ${PITIE} packs de joueurs d'affilée sans holo ni or, et le suivant en a une. ${ctx.sansHolo ? `Tu en es à ${ctx.sansHolo} sans.` : ''}</p>`;
     // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
     const plafond = ctx.plafond
       ? `<p class="pk-plafond${ctx.plafond.espace < 0 ? ' over' : ''}">💵 ${ctx.plafond.espace >= 0 ? `${M(ctx.plafond.espace)} sous le plafond de ${M(ctx.plafond.cap)}` : `${M(-ctx.plafond.espace)} au-dessus du plafond de ${M(ctx.plafond.cap)}`}${ctx.plafond.tordu ? ' ✦' : ''} : un pack de joueurs tire des salaires jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))}. Les cartes 💵 font de la place.</p>` : '';
