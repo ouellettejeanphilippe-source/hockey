@@ -27,7 +27,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-1.0.0';  // 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
+const VERSION = 'cap82-1.0.0-rc2';  // 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
