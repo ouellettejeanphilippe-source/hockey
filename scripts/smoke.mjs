@@ -862,7 +862,22 @@ console.log('   écran « Nouvelle partie » : ouvert à la première visite, re
  * gabarit) qui est couvert, pas la malveillance.
  */
 const COTES = ['o', 'd', 'r', 'c', 'v', 'sp'];
+/*
+ * AU REPOS (1.0). La case du dernier joueur signé se pose en s'agrandissant
+ * (`cj-arrive`, scale 1,04 à mi-course) et l'animation ne part que quand le
+ * volet s'affiche : mesurée 400 ms après l'ouverture de l'onglet, en plein
+ * saut, sa boîte dépassait de 2 ou 3 px ce que `clientWidth` révèle — la CI
+ * lisait « très bon » coupé, à un joueur différent chaque fois. On attend la
+ * fin des animations qui finissent (jamais celles qui bouclent) avant de
+ * mesurer : le jeu se juge à l'arrêt.
+ */
+async function auRepos() {
+  await page.evaluate(() => Promise.all(document.getAnimations()
+    .filter(a => { try { return a.effect.getTiming().iterations !== Infinity; } catch { return false; } })
+    .map(a => a.finished.catch(() => {}))));
+}
 async function sansDebordement(ou) {
+  await auRepos();
   const trop = await page.evaluate(() => {
     const el = document.documentElement;
     return el.scrollWidth - el.clientWidth;
@@ -900,6 +915,7 @@ async function sansDebordement(ou) {
  * l'alignement.
  */
 async function toutEstAtteignable(ou) {
+  await auRepos();
   const mauvais = await page.evaluate(() => {
     const st = el => getComputedStyle(el);
     const rogne = el => { const s = st(el); return ['hidden','auto','scroll'].includes(s.overflowY) || ['hidden','auto','scroll'].includes(s.overflowX); };
