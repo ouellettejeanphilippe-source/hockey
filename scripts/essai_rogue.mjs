@@ -13,6 +13,12 @@ const BASE = process.argv[2] || 'http://localhost:8000';
 const DOSSIER = process.argv[3] || 'scripts';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+// Les liens du bureau (1.0, R3) vivent sur le sous-onglet Match du Club : on y revient avant d'en toucher un.
+const versBureau = async () => {
+  if (await page.$('#hubModal .hub-page')) { await page.click('#hubModal .hub-page-retour'); await page.waitForTimeout(200); }
+  const t = await page.$('#sousNav:not([hidden]) .soustab[data-page="match"]:not(.on)');
+  if (t) { await t.click(); await page.waitForTimeout(250); }
+};
 const erreurs = [];
 page.on('pageerror', e => erreurs.push(e.message));
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) erreurs.push(m.text()); });
@@ -194,7 +200,7 @@ const dechirer = async () => {
   await page.waitForTimeout(600);
 };
 const acheter = async (pack, capture) => {
-  await page.click('#hubModal .hub-boutique');
+  await versBureau(); await page.click('#hubModal .hub-boutique');
   await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
   // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; « Voir les N packs » montre le reste.
   if (!(await page.$(`#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`)) && await page.$('#hubModal .hub-page[data-genre="boutique"] .pk-tout')) { await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-tout'); await page.waitForTimeout(300); }
@@ -208,7 +214,7 @@ const acheter = async (pack, capture) => {
   await dechirer();
   return true;
 };
-await page.click('#hubModal .hub-boutique');
+await versBureau(); await page.click('#hubModal .hub-boutique');
 await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
 const nPacks = await page.$$eval('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
@@ -232,7 +238,7 @@ else {
   // Échap ferme la boutique (1.0, R5) ; on la rouvre pour continuer comme avant.
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   if (await page.$('#hubModal .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
-  await page.click('#hubModal .hub-boutique'); await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+  await versBureau(); await page.click('#hubModal .hub-boutique'); await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 }
 await page.click('#hubModal .hub-page-retour');
 /*
@@ -242,7 +248,7 @@ await page.click('#hubModal .hub-page-retour');
  * téléphone, la fiche défile.
  */
 const NOMS_NIVEAUX = ['Soutien', 'Régulier', 'Pilier', 'Étoile', 'Phénomène'];
-await page.click('#hubModal .hub-boutique');
+await versBureau(); await page.click('#hubModal .hub-boutique');
 await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-pack="j:hasard_bronze"]');
 await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-fiche');
@@ -354,7 +360,7 @@ for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
  * GARDENT jusqu'au moment voulu), les permanentes, le deck, le classeur, et
  * la masse salariale. On joue une carte : une décision datée du jour.
  */
-await page.click('#hubModal .hub-inventaire');
+await versBureau(); await page.click('#hubModal .hub-inventaire');
 await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-inventaire.png` });
 const poche = await page.$$eval('#hubModal .hub-page[data-genre="cartes"] .bq-carte', e => e.map(x => x.querySelector('.bq-nom').textContent.trim()));
@@ -381,7 +387,7 @@ let posee = null, nomModif = '';
   if (!nModifs) erreurs.push('aucune modif de joueur dans l\'inventaire (le pack Modifs en donne quatre)');
   let permis = 0, grises = 0;
   for (let k = 0; k < nModifs && !permis; k++) {
-    if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+    if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versBureau(); await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
     const jouer = (await page.$$('#hubModal .hub-page[data-genre="cartes"] .bq-joueur .inv-jouer:not([disabled])'))[k];
     if (!jouer) break;
     nomModif = await jouer.evaluate(b => (((b.closest('.bq-joueur') || b).querySelector('.bq-nom') || {}).textContent || '').trim());
@@ -416,7 +422,7 @@ let posee = null, nomModif = '';
     console.log(`7a. « ${nomModif} » posée au verso de ${nomJoueur} (${permis} joueurs permis, ${grises} grisés) : ${JSON.stringify(posee && { joue: posee.joue.id, mutation: posee.mutation })}`);
   }
 }
-if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versBureau(); await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
 /*
  * UNE CARTE SANS CIBLE VALABLE (« Blessé à long terme » sans blessé) rouvre
  * l'inventaire au lieu de se jouer : les plombiers sont tirés au hasard, donc
@@ -427,7 +433,7 @@ if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await page.cl
 const avantJouees = (await decisions()).filter(x => x.joue).length;
 let jouee = false, essais = 0;
 for (; essais < 5 && !jouee; essais++) {
-  if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versBureau(); await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
   const boutons = await page.$$('#hubModal .hub-page[data-genre="cartes"] .bq-carte:not(.bq-joueur) .inv-jouer:not([disabled])');
   if (!boutons[essais]) break;
   await boutons[essais].click();

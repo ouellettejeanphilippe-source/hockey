@@ -2182,18 +2182,29 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <button type="button" class="hub-lien" data-section="ligue" data-page="classement"><i>📊</i>Classement</button>
         <button type="button" class="hub-lien" data-section="ligue" data-page="meneurs"><i>🏆</i>Meneurs</button>
       </nav>`;
-      carte.innerHTML = `${miniBoss}<div class="hub-match">
-        ${soirHtml(etape, faits)}${resultatHtml}
-        <div class="hub-match-titre">Prochain match · journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
+      /*
+       * LA JOURNÉE EN DEUX (1.0, R3). JP : *séparer le résumé du dernier match et le prochain match, quitte à
+       * séparer les jours en deux comme EHM*. Le MATIN : hier soir seul — le résultat, le drame, le sommaire à un
+       * toucher — et « Le prochain match › ». Le SOIR : l'affiche du prochain match, ce soir, le dépistage, les
+       * lignes. Les liens du bureau sont là aux deux moments ; le dépistage et la préparation mènent au soir.
+       */
+      const matin = !!hier;
+      const affiche = `<div class="hub-match-titre">Prochain match · journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
         <div class="hub-match-note">${dernierMot}</div>
         ${totauxHtml}
         ${enJeuHtml}
-        ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
+        ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}`;
+      carte.innerHTML = `${matin ? '' : miniBoss}<div class="hub-match${matin ? ' matin' : ''}">
+        ${soirHtml(etape, faits)}
+        ${matin ? `${resultatHtml}<div class="hub-matin-suite"><button type="button" class="btn gold hub-vers-soir">Le prochain match · journée ${p.j + 1} ›</button></div>` : affiche}
         ${tuiles}
-        ${depistage}
-        ${planSoir}
+        ${matin ? '' : `${depistage}${planSoir}`}
       </div>`;
+      // Du matin au soir : le bouton, ou un lien qui parle du prochain match (le dépistage, la préparation).
+      const auSoir = () => { if (!(hierMatch && !soirPasse)) return false; soirPasse = true; dessiner(); return true; };
+      const versSoir = carte.querySelector('.hub-vers-soir');
+      if (versSoir) versSoir.onclick = auSoir;
       // Le dépistage : une page sous 1200 px, déplié dans l'affiche au bureau.
       const ouvrirDepistage = () => {
         boite.apercuVu = p.j;
@@ -2209,7 +2220,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         if (d) { if (!d.open) d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
       };
       const tDep = carte.querySelector('.hub-tt-dep');
-      if (tDep) tDep.onclick = ouvrirDepistage;
+      if (tDep) tDep.onclick = () => { if (auSoir()) { const t = carte.querySelector('.hub-tt-dep'); if (t) t.click(); return; } ouvrirDepistage(); };
       // Une tuile de la ligue passe par la coquille : la section, puis son onglet.
       carte.querySelectorAll('.hub-lien[data-section]').forEach(t => { t.onclick = () => {
         const nav = document.querySelector(`#navbar .navtab[data-section="${t.dataset.section}"]`);
@@ -2234,12 +2245,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         b.onclick = () => {
           const e = b.dataset.etape;
           if (e === 'apercu') {
-            const deja = soirPasse;
-            soirPasse = true;
-            if (!deja) { dessiner(); const t = carte.querySelector('.hub-tt-dep'); if (t) { t.click(); return; } }
-            ouvrirDepistage();
+            const t = carte.querySelector('.hub-tt-dep');
+            if (t) t.click(); else ouvrirDepistage();
           } else if (e === 'prep') {
-            soirPasse = true;
             const pb = carte.querySelector('.hub-preparer');
             if (pb) pb.click();
           } else if (e === 'match') {
@@ -2248,7 +2256,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         };
       });
       // « Préparer le match » : le bouton de l'affiche au bureau, la tuile au téléphone — le même geste.
-      carte.querySelectorAll('.hub-preparer').forEach(prep => { prep.onclick = () => { boite.prepVu = p.j; ouvrirLignes({
+      carte.querySelectorAll('.hub-preparer').forEach(prep => { prep.onclick = () => { if (auSoir()) { const b = carte.querySelector('.hub-preparer'); if (b) b.click(); return; } boite.prepVu = p.j; ouvrirLignes({
         titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
         // Une page du Club (1.0, R3), pas une fenêtre.
         dans: ui.ouvrirPage({ genre: 'preparer', ico: '🏒', titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.esc(ctx.teamShort(adv))}` }),

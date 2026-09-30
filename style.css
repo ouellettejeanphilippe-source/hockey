@@ -241,6 +241,9 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 #menuBtn { grid-area: menu; }
 /* La jauge du plafond : le montant en gros, la barre dessous. */
 .capgauge.tete-ch { flex: 1 1 auto; max-width: 340px; justify-items: stretch; text-align: left; }
+/* LA MASSE SALARIALE OÙ L'ON GÈRE LES JOUEURS (1.0, R3). JP : *en haut, j'ai pas besoin de la masse salariale sauf
+   quand je manage les joueurs*. Au Marché et à l'Effectif seulement ; ailleurs, l'en-tête garde la fiche et le rang. */
+body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #capGauge { display: none; }
 .capgauge-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); }
 .capgauge-row.small { margin-top: 2px; color: var(--encre-2); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
 .capgauge-row.small strong { color: var(--encre); font-variant-numeric: tabular-nums; font-weight: 800; }
@@ -2460,8 +2463,12 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .soir-etape.fait { color: var(--bon); }
 .soir-etape.on { color: var(--or); border-bottom-color: var(--or); }
 .soir-etape:hover:not(.on) { color: var(--encre); }
-/* Hier soir, en premier et en une ligne : la bande du résultat (toucher : le sommaire), le drame dessous, le prochain match suit. */
+/* LE MATIN (1.0, R3) : hier soir seul — la bande du résultat (toucher : le sommaire), le drame dessous — puis « Le prochain match › » ; le soir, l'affiche. */
 .soir-resultat { border-bottom: 1px solid var(--filet); }
+.hub-match.matin .hub-hier { padding: var(--esp-4) var(--esp-3); }
+.hub-match.matin .hub-hier-score { font-size: var(--t-6); }
+.hub-matin-suite { padding: var(--esp-3); }
+.hub-vers-soir { width: 100%; min-height: 48px; }
 .soir-resultat .hub-hier { border-width: 0 0 0 3px; border-radius: 0; }
 .soir-drame { padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 

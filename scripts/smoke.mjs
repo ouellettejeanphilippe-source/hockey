@@ -94,6 +94,13 @@ async function eprouverCoquille() {
    */
   await page.click('#navbar .navtab[data-section="club"]');
   await page.waitForTimeout(300);
+  // Le matin d'abord (1.0, R3) : hier soir seul, sans l'affiche ; « Le prochain match › » ouvre le soir.
+  if (await page.$('#hubModal .hub-hier')) {
+    if (await page.isVisible('#hubModal .hub-face')) errors.push('le matin, le bureau montre déjà l\'affiche du prochain match à côté d\'hier soir');
+    if (!(await versLeSoir())) errors.push('le matin, le bureau n\'offre pas « Le prochain match › »');
+    else if (await page.$('#hubModal .hub-hier')) errors.push('le soir, le bureau redit hier soir');
+    else console.log('   la journée en deux : le matin (hier soir), puis le soir (l\'affiche)');
+  }
   const club = await page.evaluate(() => {
     const vis = e => { if (!e) return false; const r = e.getBoundingClientRect(); return r.height > 0 && r.top >= 0 && r.bottom <= innerHeight; };
     const teteVisible = (e => e && e.getBoundingClientRect().height > 0)(document.querySelector('#hubModal .hub-head'));
@@ -289,6 +296,14 @@ async function versLaBoite() {
   if (tab) { await tab.click(); await page.waitForTimeout(200); }
 }
 async function ouvrirLaMain() { await versLaBoite(); await _click('#hubModal .hub-main-ouvrir'); }
+// LA JOURNÉE EN DEUX (1.0, R3) : le matin, hier soir seul ; « Le prochain match › » mène au soir et à l'affiche.
+async function versLeSoir() {
+  const b = await page.$('#hubModal .hub-vers-soir');
+  if (!b || !(await b.isVisible().catch(() => false))) return false;
+  await b.click();
+  await page.waitForTimeout(250);
+  return true;
+}
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet')) return;
@@ -1853,6 +1868,7 @@ async function traverserSaison(etiquette, reprise = false) {
       else {
         const jAvant = await jourDit();
         // LES TOTAUX DU SOIR (1.0, C5) : la ligne est sur l'affiche.
+        await versLeSoir();
         const totHub = ((await page.textContent('#hubModal .hub-totaux').catch(() => '')) || '').trim();
         if (!/^(Ce soir|Au prochain match) :/.test(totHub)) errors.push(`l'affiche ne dit pas les totaux du soir : « ${totHub} »`);
         await _click('#hubModal .hub-preparer');
@@ -1957,7 +1973,7 @@ async function traverserSaison(etiquette, reprise = false) {
       // Le sommaire de la journée (S78) couvre le hub : on le ferme d'abord. Un autre plein écran passe devant.
       if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) {
         sommairesVus++;
-        await _click('#choixModal:not([hidden]) .choix-plus-tard');
+        await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
         await page.waitForTimeout(250);
       }
       if (await page.$('#choixModal:not([hidden]) .choix-sheet')) return;
