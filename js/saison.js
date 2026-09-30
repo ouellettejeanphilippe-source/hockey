@@ -29,7 +29,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS, motsDeMutation,
-  contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
+  contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, ANNONCE_GROS,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
   activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux } from './sim.js';
@@ -467,21 +467,23 @@ function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, car
 
 /*
  * LA ROUTE DE LA SAISON, à la carte de Slay the Spire : ce qui s'en vient se
- * VOIT. Les moments sont à des journées fixes — dilemmes, cartes, proprio,
- * vestiaire — et une route qu'on voit venir se planifie ; une surprise qu'on
- * ne voit jamais venir ne se joue pas, elle se subit.
+ * VOIT, et ce n'est pas le même nœud. Au-dessus du filet, ce qu'on gagne
+ * (le proprio, une carte). Dessous, ce qui arrive (un événement, le
+ * vestiaire). Sur le filet, le combat — le match important. L'événement
+ * d'avant (le rat, la pieuvre) n'est pas le combat : il a son propre jour.
  */
-function routeHtml(jour, N) {
-  const pos = j => `${(100 * Math.min(j, N) / N).toFixed(1)}%`;
-  // Deux rangées : ce qu'on GAGNE au-dessus de la ligne (le proprio, les
-  // cartes), ce qui ARRIVE dessous (les dilemmes, le vestiaire). Sur 82
-  // journées dans 350 px, une rangée seule les empilait.
+function routeHtml(jour, N, plus = {}) {
+  const pos = j => `${(100 * Math.min(Math.max(j, 0), N) / N).toFixed(1)}%`;
+  // Deux rangées, et les combats sur la ligne. Sur 82 journées dans 350 px,
+  // une rangée seule les empilait.
   const marque = (j, ico, titre, rang) => `<span class="hub-route-m ${rang}${j < jour ? ' passe' : ''}" style="left:${pos(j)}" title="Journée ${j} · ${titre}">${ico}</span>`;
   const marques = [
     ...JOURS_OBJECTIFS.map(j => marque(j, '🏢', 'le proprio fixe un objectif', 'haut')),
     ...PALIERS_CARTES.map(j => marque(j, '🃏', 'une carte à prendre', 'haut')),
-    ...JOURS_MOMENTS.map(j => marque(j, '❓', 'un dilemme', 'bas')),
+    ...JOURS_MOMENTS.map(j => marque(j, '❓', 'un événement', 'bas')),
     ...JOURS_SITUATIONS.map(j => marque(j, '💬', 'le vestiaire vit quelque chose', 'bas')),
+    ...(plus.evenements || []).map(e => marque(e.j, '❓', e.titre, 'bas')),
+    ...(plus.combats || []).map(c => marque(c.j, '⚔️', c.titre, 'chemin')),
   ].join('');
   return `<div class="hub-route" aria-hidden="true"><span class="hub-route-fait" style="width:${pos(jour)}"></span>${marques}<span class="hub-route-ici" style="left:${pos(jour)}"></span></div>`;
 }
@@ -940,7 +942,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const { main, pioche } = mainDuMatch(graine, `j${mo.p.j}`, deck);
     const adv = mo.mb.adv;
     ouvrirMainDeMatch({
-      titre: 'Avant le match', sousTitre: `Match important · journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
+      titre: 'Avant le match', sousTitre: `Journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
       recit: 'Le dépistage dit ce qu\'ils vont probablement jouer : prépare-toi pour une piste, puis joue tes cartes — cinq cartes, trois d\'élan, pour ce match seulement.',
       depistage: mo.mb.depistage, planReel: mo.mb.plan, nomAdv: ctx.teamShort(adv),
       contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }), echelle: echelleTardive({ jour: mo.p.j }) }),
@@ -1752,7 +1754,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const m = (calendrier[mb.jour] || []).find(x => x.A === you || x.B === you);
       const Av = mb.avant && AVANT_GROS[mb.avant.cle];
       const Ao = Av && Av.options.find(o => o.cle === mb.avant.choix);
-      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Gros match contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · avant : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}${mb.cartes && mb.cartes.jouees.length ? ` · 🃏 ${mb.cartes.jouees.map(c => CARTES_MATCH[c] ? CARTES_MATCH[c].ico : '').join('')}` : ''}${mb.prepJuste === true ? ' · 🎯 préparation juste' : mb.prepJuste === false ? ' · 💥 préparation ratée' : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
+      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Combat contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · événement : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}${mb.cartes && mb.cartes.jouees.length ? ` · 🃏 ${mb.cartes.jouees.map(c => CARTES_MATCH[c] ? CARTES_MATCH[c].ico : '').join('')}` : ''}${mb.prepJuste === true ? ' · 🎯 préparation juste' : mb.prepJuste === false ? ' · 💥 préparation ratée' : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
     }
     // Les séquences marquantes : cinq victoires de suite ou plus, cinq défaites.
     let run = 0, sens = null, debut = 0;
@@ -1774,8 +1776,46 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * d'icônes au-dessus de l'affiche, sans légende, se lisaient mal. Elle vit
    * avec ton histoire, et elle dit ce que veut dire chaque marque.
    */
-  const routeFiche = () => `<div class="hub-titre">La route de la saison</div>${routeHtml(jour, N)}
-    <div class="hub-route-legende">🏢 le proprio fixe un objectif · 🃏 une carte à prendre · ❓ un dilemme · 💬 le vestiaire</div>`;
+  /*
+   * LA ROUTE : les événements et les combats ne sont pas les mêmes nœuds.
+   * Un combat annoncé ou déjà joué se pose sur le filet. L'événement d'avant
+   * (choisi, ou encore à choisir) se pose dessous, au jour de l'annonce —
+   * pas le soir du match.
+   */
+  const routePlus = () => {
+    const combats = new Map();
+    const evenements = [];
+    const pris = new Set();
+    const bas = new Set([...JOURS_MOMENTS, ...JOURS_SITUATIONS]);
+    const combat = (j, raison) => {
+      if (j == null || combats.has(j)) return;
+      combats.set(j, MINI_BOSS[raison] ? MINI_BOSS[raison].nom : 'match important');
+    };
+    const event = (jMatch, choisi) => {
+      const jEv = choisi ? jMatch - ANNONCE_GROS : Math.min(jMatch, Math.max(jour, jMatch - ANNONCE_GROS));
+      if (jEv < 0 || pris.has(jEv) || bas.has(jEv)) return;
+      pris.add(jEv);
+      evenements.push({ j: jEv, titre: 'un événement, avant le combat' });
+    };
+    for (const mb of you.minisBoss || []) {
+      combat(mb.jour, mb.raison);
+      if (mb.avant) event(mb.jour, true);
+    }
+    if (ligue && ligue.grosAnnonces) {
+      for (const a of Object.values(ligue.grosAnnonces)) {
+        if (!a || a.jour == null) continue;
+        combat(a.jour, a.raison);
+        if ((you.minisBoss || []).some(mb => mb.jour === a.jour)) continue;
+        event(a.jour, decs.some(d => d.avant && d.jour === a.jour));
+      }
+    }
+    return {
+      combats: [...combats].map(([j, nom]) => ({ j, titre: `combat · ${nom}` })),
+      evenements,
+    };
+  };
+  const routeFiche = () => `<div class="hub-titre">La route de la saison</div>${routeHtml(jour, N, routePlus())}
+    <div class="hub-route-legende">🏢 le proprio fixe un objectif · 🃏 une carte à prendre · ⚔️ un combat · ❓ un événement · 💬 le vestiaire</div>`;
   const voletFiche = () => {
     if (!miens.length) return `${routeFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
@@ -2122,8 +2162,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * dans le dépistage, qui s'ouvre au toucher.
        */
       const miniBoss = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros">
-        <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Match important · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
-        ${Ao ? `<div class="hub-gros-avant">${Av.ico} ${ctx.esc(Av.titre)} : <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
+        <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Combat · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
+        ${Ao ? `<div class="hub-gros-avant">${Av.ico} Événement : ${ctx.esc(Av.titre)} — <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
       </div>` : '';
       const grosDepistage = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros-dep">
         ${onDecision ? depistageHtml(pistesDuRapport(mb.depistage), { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`, energieAdverse({ jour: p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: p.j }) }) : ''}
@@ -2356,7 +2396,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const s = SEQUENCES[sq.cle];
       const EN_LETTRES = ['', '', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept', 'Huit', 'Neuf', 'Dix'];
       const titre = sq.n > s.seuil ? `${EN_LETTRES[sq.n] || sq.n} ${sq.cle === 'defaites' ? 'défaites' : 'victoires'} de suite` : s.titre;
-      return { de: DE.coach, ico: s.ico, titre, recit: s.recit,
+      return { de: DE.coach, ico: s.ico, titre, recit: s.recit, genre: 'evenement',
         options: s.options.map(o => ({ ...o, duree: dureeOption(o, 'sequence') })),
         onChoix: cle => decider({ palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: cle } }) };
     }
@@ -2370,7 +2410,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LES JOUEURS QU'UN GESTE TOUCHE (S72) : nommés avant le choix — celui des faits d'abord.
       const cibles = m.cible ? (f.joueur ? [f.joueur] : ciblesDe(you, m.cible, graine, dl.J)) : [];
       const recit = String(m.recit).replace(/\{n\}/g, f.n ?? '').replace(/\{m\}/g, f.m ?? '').replace(/\{vieux\}/g, f.vieux || 'Ton vieux défenseur');
-      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue,
+      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue,
         options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
           desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
         onChoix: cle => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } }) };
@@ -2379,12 +2419,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // L'AVANT-MATCH (S70) : daté du soir du match, pas d'aujourd'hui.
       const A = AVANT_GROS[av.cle], advG = av.mb.adv;
       const ciblesA = A.cible ? ciblesDe(you, A.cible, graine, av.p.j) : [];
-      // Il arrive à l'annonce, quelques jours avant (S80) : le récit dit quand est le match.
+      // Il arrive à l'annonce, quelques jours avant (S80). L'histoire est
+      // l'événement ; le combat est le bandeau, pas la première phrase.
       const dans = av.p.j - jour;
-      const quand = dans <= 0 ? 'Ce soir' : dans === 1 ? 'Demain' : `Dans ${dans} jours`;
-      return { de: DE.depisteur, ico: A.ico, titre: A.titre, irl: A.irl, joueurs: ciblesA, ouDe: ctx.ouJoue,
-        recit: `${quand}, le gros match contre ${ctx.teamLabel(advG)}. ${A.recit}`,
-        contexte: depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) }),
+      const quand = dans <= 0 ? 'ce soir' : dans === 1 ? 'demain' : `dans ${dans} jours`;
+      return { de: DE.coach, ico: A.ico, titre: A.titre, irl: A.irl, genre: 'evenement', joueurs: ciblesA, ouDe: ctx.ouJoue,
+        recit: A.recit,
+        contexte: `<p class="choix-avant">Avant le combat · ${quand} contre ${ctx.esc(ctx.teamShort(advG))}</p>${depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) })}`,
         options: A.options.map(o => ({ ...o, duree: 1 })),
         onChoix: cle => { const j = jour; quitter(); onDecision({ jour: av.p.j, avant: { cle: av.cle, choix: cle, joueurs: ciblesA.map(getPlayerKey) } }, j); } };
     }
@@ -2396,7 +2437,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onChoix: k => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: k }, j); },
         onFerme: () => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null }, j); } };
     }
-    if (mo) return { de: DE.depisteur, ico: '🃏', titre: 'Ta main pour le gros match', recit: 'Cinq cartes, trois d\'élan, pour ce match seulement — et le dépistage de leurs pistes.', ouvrir: () => ouvrirMainGros(mo) };
+    if (mo) return { de: DE.depisteur, ico: '⚔️', titre: `Combat contre ${ctx.teamShort(mo.mb.adv)}`, recit: 'Cinq cartes, trois d\'élan, pour ce match seulement — et le dépistage de leurs pistes.', ouvrir: () => ouvrirMainGros(mo) };
     return null;
   }
   const titreDuChoix = spec => String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : ''));
