@@ -39,7 +39,7 @@
  * un chiffre qui veut dire autre chose que ce que la colonne annonce doit le
  * dire, sinon il ment.
  */
-import { pct3 } from './util.js';
+import { pct3, pmMatch } from './util.js';
 
 
 /* Les colonnes, et leur ordre : le même vocabulaire que partout ailleurs
@@ -49,7 +49,7 @@ const COL_PAT = [
   { cle: 'g', t: 'B', titre: 'Buts', v: p => p.g || 0 },
   { cle: 'a', t: 'A', titre: 'Passes', v: p => p.a || 0 },
   { cle: 'pt', t: 'PTS', titre: 'Points', v: p => p.pt || 0, heros: true },
-  { cle: 'pm', t: '+/-', titre: 'Différentiel', v: p => p.pm || 0, fmt: x => (x > 0 ? `+${x}` : `${x}`) },
+  { cle: 'pm', t: '+/M', titre: 'Différentiel par match', v: p => ((p.gp || 0) ? (p.pm || 0) / p.gp : 0), fmt: x => pmMatch(x, 1) },
   { cle: 'sh', t: 'T', titre: 'Lancers', v: p => p.sh || 0 },
   { cle: 'pct', t: '%T', titre: 'Pourcentage de tir', v: p => (p.sh ? 100 * (p.g || 0) / p.sh : 0), fmt: x => (x ? x.toFixed(1) : '—') },
   { cle: 'pim', t: 'PUN', titre: 'Minutes de punition', v: p => p.pim || 0 },
@@ -232,7 +232,7 @@ let pool = null;            // le shard de l'année, par équipe
  * des totaux — sans ça on afficherait « 148 » sous une moyenne de 2,51.
  */
 const SIM_PAT = {
-  gp: S => S.GP, g: S => S.G, a: S => S.A, pt: S => S.PTS, pm: S => S.PM,
+  gp: S => S.GP, g: S => S.G, a: S => S.A, pt: S => S.PTS, pm: S => (S.GP ? S.PM / S.GP : 0),
   sh: S => S.SH, pct: S => (S.SH ? 100 * S.G / S.SH : 0), pim: S => S.PIM,
   toi: () => 0,   // le moteur ne modélise pas l'horloge : il n'a pas de temps de glace
 };
@@ -410,7 +410,7 @@ function voletMonClub() {
         }).join('')}
       </tr>`; }).join('') || `<tr><td colspan="${CO.length + 2}" class="eq-vide">Personne.</td></tr>`}</tbody>
     </table>
-    <p class="eq-note"><strong>En haut, ta saison. En dessous, la vraie.</strong> Les deux nombres sont sur 82 matchs quand le joueur les a joués — et une époque ne se compare pas à l\'autre sans précaution : un ailier de 1976 marquait dans une ligue à quatre buts par match et joue ici dans une ligue à trois. Ce qui se compare bien, c\'est son rang parmi les siens.</p>
+    <p class="eq-note"><strong>En haut, ta saison. En dessous, la vraie.</strong> Les buts et les points sont des totaux de saison. Une époque ne se compare pas à l\'autre sans précaution : un ailier de 1976 marquait dans une ligue à quatre buts par match et joue ici dans une ligue à trois. Le différentiel, lui, est par match (+0,9 plutôt que +70) : à côté des points, un total de saison avait l\'air d\'une copie.</p>
     </div>`;
 }
 

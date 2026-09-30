@@ -42,7 +42,7 @@ import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant, NOM_PERIODE } from './recit.js';
 import { animerComptes } from './mouvement.js';
-import { ord, ordF, cap, nom, pct3 } from './util.js';
+import { ord, ordF, cap, nom, pct3, pmMatch } from './util.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -240,7 +240,6 @@ function onglets(barre, volet, liste, rendre) {
    a déjà vu.
    ===================================================================== */
 
-const plusMoins = n => (n > 0 ? `+${n}` : `${n}`);
 const VIDE = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0 };
 
 /*
@@ -252,7 +251,7 @@ const COL_PAT = [
   { cle: 'b', t: 'B', v: c => c.g },
   { cle: 'a', t: 'A', v: c => c.a },
   { cle: 'pts', t: 'PTS', v: c => c.pts, heros: true },
-  { cle: 'pm', t: '+/-', v: c => c.pm, fmt: plusMoins },
+  { cle: 'pm', t: '+/M', v: c => (c.gp ? c.pm / c.gp : 0), fmt: x => pmMatch(x, 1) },
   { cle: 'sh', t: 'T', v: c => c.sh },
   { cle: 'pct', t: '%T', v: c => (c.sh ? 100 * c.g / c.sh : 0), fmt: x => x.toFixed(1) },
   { cle: 'pim', t: 'PUN', v: c => c.pim },

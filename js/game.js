@@ -28,7 +28,7 @@ import { state, loadIndex, cacheClear } from './data.js';
 import { plafondDe } from './banque.js';
 import { ecrirePartieActive, nouvellePartie, lirePartieActive, migrer, lireIndex, activer } from './sauvegardes.js';
 import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSur, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { estD as isD, esc, money, pct3, signe } from './util.js';
+import { estD as isD, esc, money, pct3, pmMatch } from './util.js';
 import { getSecondaryPosition, getEraFactor, getEraSalary, getLineZone, getArchetype } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
@@ -893,7 +893,8 @@ const svCourt = p => (p.sv == null ? '—' : pct3(Number(p.sv)));
  * un checker, un plombier ou un défenseur physique ses mises en échec par
  * match (comptées dès 2005-06 — avant, les punitions pour le physique, les
  * points pour les autres) ; un défenseur défensif ses tirs bloqués par match
- * (dès 2005-06, sinon son différentiel) ; les autres leurs points. La carte du
+ * (dès 2005-06, sinon son différentiel par match — un total de saison à côté
+ * de ses points a l'air d'une copie) ; les autres leurs points. La carte du
  * vestiaire, la carte mini, la case de l'alignement et la fiche lisent tous
  * ici — un seul chiffre par joueur, le même partout.
  */
@@ -909,7 +910,7 @@ export function chiffreCle(p) {
   }
   if (cle === 'defensif') {
     if (p.bl != null) return { v: parMatch(p.bl), u: 'TB/M', mot: 'ses tirs bloqués par match' };
-    return { v: signe(st.pm), u: '+/−', mot: 'son différentiel' };
+    return { v: pmMatch(st.pm, st.gp), u: '+/M', mot: 'son différentiel par match' };
   }
   return { v: st.pt, u: 'PTS', mot: 'ses points' };
 }

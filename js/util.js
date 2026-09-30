@@ -31,6 +31,21 @@ export const nom = p => (p && p.n) || '';
 export const virgule = x => String(x).replace('.', ',');
 export const signe = n => (n > 0 ? `+${n}` : `${n}`);
 
+/**
+ * Le +/- d'un joueur, PAR MATCH (« +0,9 »).
+ *
+ * Le total de saison d'un défenseur des années 1970 (+70, +87) a le même
+ * gabarit que ses points. Posé à côté, on dirait que la colonne a copié les
+ * points. Par match, +0,9 n'est plus le même chiffre — et c'est encore son
+ * vrai différentiel.
+ */
+export const pmMatch = (pm, gp) => {
+  if (!gp) return '—';
+  const v = Math.round((pm / gp) * 10) / 10;
+  if (!v) return '0,0';
+  return (v > 0 ? '+' : '') + v.toFixed(1).replace('.', ',');
+};
+
 /** Un nombre gardé entre deux bornes. */
 export const borne = (x, min, max) => Math.max(min, Math.min(max, x));
 
