@@ -672,7 +672,8 @@ async function versLeMatch() {
 }
 page.click = async (sel, opts) => {
   if (typeof sel === 'string' && /hub-(jour|prochaine|regarder|banc|fin|suite|ronde)\b/.test(sel)) {
-    await versLeMatch(); await repondreAuxChoix();
+    // Un plein écran d'abord (une main de match ouverte par-dessus la boîte, 1.0, R3), puis l'onglet Match.
+    await repondreAuxChoix(); await versLeMatch(); await repondreAuxChoix();
     /*
      * LA JOURNÉE PEUT S'ÊTRE BLOQUÉE ENTRE-TEMPS (S78) : un palier qui s'ouvre
      * au clic précédent, refermé « Plus tard » par \`repondreAuxChoix\`, reste à
