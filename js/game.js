@@ -20,7 +20,7 @@
  * lui-même le brouillard de guerre dans les options.
  */
 
-import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, getHiddenRatings, fits, profilPrincipal, MUTATIONS, roleSecond, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate } from './sim.js';
+import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, profilPrincipal, MUTATIONS, roleSecond, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate } from './sim.js';
 import { PLAFOND_ROGUE, lireMeta } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
 import { IDENTITES, scoreIdentite } from './identites.js';
@@ -390,7 +390,7 @@ function slotFitScore(p, s) {
 export function zoneEcart(p, s) {
   if (!p || !s || s.scratch || s.group === 'G' || p.p === 'G') return null;
   const ideal = unitesIdeales(p, getHiddenRatings(p).v);
-  if (s.unit > Math.max(...ideal)) return 'sous';
+  if (s.unit > Math.max(...ideal)) return joueEnBas(p, s.group, s.unit) ? null : 'sous';
   if (s.unit < Math.min(...ideal)) return 'dessus';
   return null;
 }
@@ -971,7 +971,9 @@ export function zoneTag(p, mini = false) {
     const ord = n => (n === 1 ? (isD(p) ? '1re' : '1er') : `${n}e`);
     court = mini ? `${isD(p) ? 'P' : 'T'}${lo}-${hi}` : `${ord(lo)}-${ord(hi)} ${isD(p) ? 'paire' : 'trio'}`;
   }
-  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}${grandie ? ', monté d\'un cran' : ''}. Rend à 100 % sur les ${unit} ${where}.">${esc(court)}</span>`;
+  const enBas = p.p !== 'G' && p._enBas;
+  const titreBas = enBas ? ` Le ${isD(p) ? '3e paire' : '4e trio'} ne le punit plus.` : '';
+  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}${grandie ? ', monté d\'un cran' : ''}.${titreBas} Rend à 100 % sur les ${unit} ${where}.">${esc(court)}</span>`;
 }
 
 

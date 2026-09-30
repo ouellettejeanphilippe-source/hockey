@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey, getPositionPenalty,
   appliquerMutation, unitesIdeales, getHiddenRatings, facteurGardienDe, MUTATIONS, mutationNuit, editionsDuJour, mainDuDeck,
+  malusZoneUnite, getUnitSynergy,
 } from '../js/sim.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, effetCarte, traitsDeCarte } from '../js/rarete.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -73,6 +74,34 @@ if (bas) appliquerMutation(toi, bas, 'cran', 5, 'choix');
 const zApres = bas ? unitesIdeales(bas, getHiddenRatings(bas).v) : [];
 exiger('« Monte d\'un cran » ajoute l\'unité au-dessus de sa zone', bas && zApres.length === zAvant.length + 1 && zApres.includes(Math.min(...zAvant) - 1),
   bas ? `${bas.n} : trios ${zAvant.map(u => u + 1).join(',')} → ${zApres.map(u => u + 1).sort().join(',')}` : 'aucun joueur sous le 1er trio');
+
+// 2b. Joue en bas : le 4e trio seulement.
+const star = avants.map(x => x.p).find(p => Math.max(...unitesIdeales(p, getHiddenRatings(p).v)) <= 1);
+if (star) {
+  const v = getHiddenRatings(star).v, ideal = unitesIdeales(star, v);
+  const sans4 = malusZoneUnite('F', 3, [{ v, ideal }]).pen;
+  const avec4 = malusZoneUnite('F', 3, [{ v, ideal, enBas: true }]).pen;
+  const avec3 = malusZoneUnite('F', 2, [{ v, ideal, enBas: true }]).pen;
+  exiger('« Joue en bas » efface le 4e trio et pas le 3e', sans4 > 0 && avec4 === 0 && avec3 > 0,
+    `${star.n} : 4e ${sans4.toFixed(1)} → ${avec4.toFixed(1)}, 3e ${avec3.toFixed(1)}`);
+  appliquerMutation(toi, star, 'enBas', 11, 'choix');
+  const iStar = SLOTS.find(s => toi.roster[s.i] === star).i;
+  const iBas = SLOTS.find(s => s.group === 'F' && s.unit === 3 && !s.scratch).i;
+  const garde = toi.roster[iBas];
+  toi.roster[iBas] = star; toi.roster[iStar] = garde;
+  const haut = getUnitSynergy(toi.roster, 'F', 3).bonusOff;
+  star._enBas = false;
+  const basOff = getUnitSynergy(toi.roster, 'F', 3).bonusOff;
+  star._enBas = true;
+  exiger('« Joue en bas » relève le 4e trio où il est assis', haut > basOff + 5, `${basOff.toFixed(1)} → ${haut.toFixed(1)}`);
+  toi.roster[iStar] = star; toi.roster[iBas] = garde;
+}
+exiger('« La chasse » pose son ombre, « le fantôme » son abri', (() => {
+  const p = avants[0].p;
+  appliquerMutation(toi, p, 'chasse', 12, 'choix');
+  appliquerMutation(toi, p, 'style_fantome', 12, 'choix');
+  return p._ombre === MUTATIONS.chasse.ombre && p._abri === MUTATIONS.style_fantome.abri;
+})(), '');
 
 // 3. Le physio.
 const blesse = avants[avants.length - 1].p;
@@ -126,12 +155,14 @@ const saison = decisions => {
 };
 const cibleCle = getPlayerKey(SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => ligue(78)[0].roster[s.i]).find(Boolean));
 const decisions = [{ jour: 20, equipe: 0, deck: 'atelier', mutation: { cle: 'partout', joueur: cibleCle } },
-  { jour: 30, equipe: 0, deck: 'atelier', mutation: { cle: 'cran', joueur: cibleCle } }];
+  { jour: 30, equipe: 0, deck: 'atelier', mutation: { cle: 'cran', joueur: cibleCle } },
+  { jour: 40, equipe: 0, deck: 'atelier', mutation: { cle: 'enBas', joueur: cibleCle } },
+  { jour: 50, equipe: 0, deck: 'atelier', mutation: { cle: 'chasse', joueur: cibleCle } }];
 const A = saison(decisions), B = saison(decisions);
 const cible = Object.values(A.moi.roster).find(p => p && getPlayerKey(p) === cibleCle);
-exiger('la saison avec l\'atelier se rejoue au but près', A.fiche === B.fiche && !!cible._partout && cible._cran === 1, `${A.fiche} puis ${B.fiche}`);
+exiger('la saison avec l\'atelier se rejoue au but près', A.fiche === B.fiche && !!cible._partout && cible._cran === 1 && !!cible._enBas && cible._ombre === MUTATIONS.chasse.ombre, `${A.fiche} puis ${B.fiche}`);
 // Les mêmes objets rejoués sans décision : les éditions de la saison d'avant disparaissent.
 simulateLeague([A.moi, ...ligue(78).slice(1)], 82, { graine: 'atelier', decisions: [] });
-exiger('et la remise à zéro efface les éditions', !cible._partout && !cible._cran, `${cible.n} : partout ${!!cible._partout}, cran ${cible._cran || 0}`);
+exiger('et la remise à zéro efface les éditions', !cible._partout && !cible._cran && !cible._enBas && !cible._ombre, `${cible.n} : partout ${!!cible._partout}, cran ${cible._cran || 0}, en bas ${!!cible._enBas}, ombre ${cible._ombre || 0}`);
 
 verdict();

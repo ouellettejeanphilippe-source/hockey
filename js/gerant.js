@@ -31,7 +31,7 @@ import {
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
-  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales,
+  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas,
 } from './sim.js';
 import { POIDS_TRIO } from './ratings.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
@@ -554,7 +554,7 @@ function placementDe(p, role, u) {
   // La zone GRANDIT avec « ⏫ Monte d'un cran » (l'atelier, S78) : `unitesIdeales`,
   // jamais la zone brute de `getLineZone`, qui ignorerait l'édition.
   const ideal = unitesIdeales(p, getHiddenRatings(p).v) || [];
-  if (ideal.length && unite > Math.max(...ideal)) bits.push(['▼', 'Trop bas : son talent est gaspillé ici, l\'unité porte un malus']);
+  if (ideal.length && unite > Math.max(...ideal) && !joueEnBas(p, g, unite)) bits.push(['▼', 'Trop bas : son talent est gaspillé ici, l\'unité porte un malus']);
   else if (ideal.length && unite < Math.min(...ideal)) bits.push(['▲', 'Un cran trop haut : léger malus']);
   const pen = slot ? getPositionPenalty(p, slot) : 0;
   if (pen > 0) {
