@@ -75,7 +75,7 @@ js/roles_ref.js       la référence des rôles
 js/franchises.js      les franchises et leurs relocalisations
 js/logos.js, js/logos_locaux.js   couleurs et écussons des 44 franchises
 js/menu.js            l'écran titre, et le même écran en menu pause en pleine partie
-js/sauvegardes.js     les parties sauvegardées
+js/sauvegardes.js     les parties sauvegardées, et leur export en fichier transférable, importé au menu — `check_sauvegardes`
 js/mouvement.js       les chiffres qui se comptent
 js/exhibition.js      l'exhibition
 js/table.js           Sur table : le moteur du plateau et reglesDuPlateau()
