@@ -151,6 +151,8 @@ function evenementsDuMatch(f, graine) {
   }
   // LES BLESSURES (S80) : datées sur la feuille, après la dernière action du blessé ce soir-là.
   for (const x of (f.blessures || [])) ev.push({ type: 'blessure', cote: x.cote, instant: x.instant, joueur: x.joueur, matchs: x.matchs });
+  // LE JEU PHYSIQUE (1.0) : les coups marquants, les bagarres, les mêlées, datés sur la feuille.
+  for (const x of (f.physique || [])) ev.push({ type: x.type, cote: x.cote, instant: x.instant, joueur: x.joueur, cible: x.cible, gagnant: x.gagnant, minutes: x.minutes });
   for (let per = 1; per <= 3; per++) ev.push({ type: 'periode', per, instant: per * 20 - 1e-6 });
   ev.push({ type: 'fin', instant: f.ot ? finOT + 1e-6 : 60 });
   ev.sort((x, y) => x.instant - y.instant);
@@ -338,7 +340,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   const compte = new Map([...avant].map(([p, c]) => [p, { ...c }]));
   const avancer = (p, cle) => { let c = compte.get(p); if (!c) { c = { g: 0, a: 0, pts: 0 }; compte.set(p, c); } c[cle]++; return c[cle]; };
   /* Les statistiques du match, tenues au fil des événements. */
-  const st = { tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] }, buts: [], arrets: { A: 0, B: 0 }, pun: { A: 0, B: 0 }, anOcc: { A: 0, B: 0 }, anButs: { A: 0, B: 0 } };
+  const st = { tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] }, buts: [], arrets: { A: 0, B: 0 }, pun: { A: 0, B: 0 }, anOcc: { A: 0, B: 0 }, anButs: { A: 0, B: 0 }, coups: { A: 0, B: 0 } };
   /* Les fenêtres d'avantage : [début, fin, côté qui en profite]. La fin est
      celle que le moteur a jouée (la mineure entière, ou le but en avantage
      qui l'a fermée) ; une feuille d'avant la retrouve par le but. */
@@ -388,6 +390,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         ${rangee('Tirs', tA, tB)}
         ${per.map(k => rangee(`Tirs, ${NOM_PERIODE[k]}`, st.tirs.A[k], st.tirs.B[k])).join('')}
         ${rangee('Punitions', st.pun.A, st.pun.B)}
+        ${f.coups ? rangee('Mises en échec', Math.round(f.coups.A * Math.min(1, t / 60)), Math.round(f.coups.B * Math.min(1, t / 60))) : ''}
         ${rangee('Avantage numérique', `${st.anButs.A} / ${st.anOcc.A}`, `${st.anButs.B} / ${st.anOcc.B}`)}
         ${rangee('Arrêts', gA_ ? `${ctx.esc(famille(gA_))} ${st.arrets.A} / ${st.arrets.A + gB}` : '—', gB_ ? `${ctx.esc(famille(gB_))} ${st.arrets.B} / ${st.arrets.B + gA}` : '—')}
       </tbody></table></div>
@@ -510,6 +513,35 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       ligne(`blessure ${e.cote === 'A' ? 'a' : 'b'}${nous ? ' nous' : ''}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(eq.tag, 13)}
         <span>${nous ? `<b class="live-bless-mot">😱 OH NON !</b> ${qui} se blesse et retraite au vestiaire.` : `<b class="live-bless-mot">🚑 BLESSURE</b> ${qui} (${ctx.esc(ctx.teamShort(eq))}) se blesse et quitte le match.`}</span>`);
       return nous ? 1200 : 500;
+    }
+    /*
+     * LE JEU PHYSIQUE (1.0). JP : *tu devrais pouvoir pilonner ou être pilonné ;
+     * je veux des batailles et du chamaillage aussi, tout ce qui arrive dans un
+     * vrai match et ajoute du drama*. Le coup marquant est raconté ; la bagarre
+     * s'arrête une seconde : c'est le moment du match.
+     */
+    if (e.type === 'coup') {
+      const eq = equipe(e.cote), autre_ = equipe(autre(e.cote));
+      st.coups[e.cote]++;
+      ligne(`coup ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(eq.tag, 13)}
+        <span><b class="live-coup-mot">💥 MISE EN ÉCHEC</b> ${com.coup({ j: `<b>${nomLie(e.joueur, e.cote)}</b>`, c: `<b>${nomLie(e.cible, autre(e.cote))}</b>`, eq: ctx.esc(ctx.teamShort(eq)), autre: ctx.esc(ctx.teamShort(autre_)) })}</span>`, couleurs(e.cote));
+      return 400;
+    }
+    if (e.type === 'bagarre') {
+      const a = e.joueur, b = e.cible, g = e.gagnant;
+      st.pun.A++; st.pun.B++;
+      const gagnant = g ? (g === 'A' ? a : b) : null, perdant = g ? (g === 'A' ? b : a) : null;
+      ligne(`bagarre${g ? ` ${g === 'A' ? 'a' : 'b'}` : ''}${g && equipe(g).isPlayer ? ' nous' : ''}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(A.tag, 13)}${ctx.logo(B.tag, 13)}
+        <span><b class="live-bag-mot">🥊 BAGARRE</b> ${com.bagarre({ j: `<b>${nomLie(a, 'A')}</b>`, c: `<b>${nomLie(b, 'B')}</b>`, g: gagnant ? `<b>${nomLie(gagnant, g)}</b>` : null, p: perdant ? nomLie(perdant, autre(g)) : null,
+          eq: g ? ctx.esc(ctx.teamShort(equipe(g))) : null, autre: g ? ctx.esc(ctx.teamShort(equipe(autre(g)))) : null })} <span class="live-micro">${e.minutes} min chacun.</span></span>`, g ? couleurs(g) : undefined);
+      son('periode');
+      return 1200;
+    }
+    if (e.type === 'melee') {
+      st.pun.A++; st.pun.B++;
+      ligne('melee', `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(A.tag, 13)}${ctx.logo(B.tag, 13)}
+        <span><b class="live-mel-mot">MÊLÉE</b> ${com.melee({ j: `<b>${nomLie(e.joueur, 'A')}</b>`, c: `<b>${nomLie(e.cible, 'B')}</b>` })}</span>`);
+      return 400;
     }
     if (e.type === 'finPunition') {
       const puni = equipe(e.cote);

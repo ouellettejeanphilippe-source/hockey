@@ -30,7 +30,8 @@ import {
   ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
   GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE,
   PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
-  EFFET_ROLE, COUP_JAMBES, COUP_ABSORBE,
+  EFFET_ROLE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
+  BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES,
 } from '../js/sim.js';
 import { TRAITS } from '../js/traits.js';
 import { BONUS } from '../js/rarete.js';
@@ -201,6 +202,10 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [`(jusqu'à ${nombre(1 + EFFET_ROLE.sniper)} fois plus souvent)`, 'le sniper'],
     [`(volume de sa paire +${nombre(EFFET_ROLE.offensif * 100)} %)`, 'le défenseur offensif'],
     [`Chaque coup reçu coûte ${nombre(COUP_JAMBES)} jambes à un joueur moyen : ${nombre(COUP_JAMBES * (1 - COUP_ABSORBE))} à un costaud 🪨, ${nombre(COUP_JAMBES * (1 + COUP_ABSORBE))} à un léger 🪶.`, 'les coups'],
+    // Le jeu physique en événements (1.0).
+    [`le frappé perd ${nombre(COUP_MARQUANT_JAMBES)} jambes sur-le-champ et se blesse ${nombre(BLESSURE_SONNE)} fois plus ce soir`, 'le coup marquant'],
+    [`${BAGARRE_MINUTES} minutes chacun, hors de leurs unités pendant ce temps ; le club du vainqueur gagne ${nombre(Math.round((ELAN_BAGARRE - 1) * 100))} % de finition pendant ${ELAN_DUREE} minutes, le perdant en perd ${nombre(Math.round((1 - ELAN_BAGARRE_PERDU) * 100))} %, et le battu se blesse ${nombre(BLESSURE_BAGARRE_PERDUE)} fois plus ce soir`, 'la bagarre'],
+    [`${MELEE_MINUTES} minutes qui s'annulent`, 'la mêlée'],
     [`à ${ENERGIE_REF}, il rend sa moyenne ; chaque point de moins lui coûte ${nombre(ENERGIE_EFFET)} %`, 'l\'effet des jambes'],
     [`Frais (${NIVEAUX_JAMBES[0].min} et plus), Correct (${NIVEAUX_JAMBES[1].min}), Lourd (${NIVEAUX_JAMBES[2].min}), Vidé`, 'les niveaux de fatigue'],
     [`sous ${ENERGIE_BLESSURE}, il se blesse plus`, 'le seuil de blessure'],

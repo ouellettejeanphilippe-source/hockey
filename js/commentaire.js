@@ -264,6 +264,38 @@ export const COULEUR_RETOUR = [
   'Les unités de désavantage de {eq} ont fait le travail.', '{autre} n\'a pas profité de l\'avantage.', 'Mission accomplie pour {eq}.',
 ];
 
+/* ---------- le jeu physique (1.0) : le coup marquant, la bagarre, la mêlée ---------- */
+export const PHRASE_COUP = [
+  '{j} écrase {c} contre la bande !', '{j} plaque {c} en pleine ligne bleue !', 'Quel coup d\'épaule de {j} sur {c} !',
+  '{c} passe une mauvaise minute : {j} l\'a cloué dans le coin.', '{j} attendait {c} à la ligne rouge. Il ne l\'a pas manqué.',
+  '{c} est relevé de la glace : {j} vient de le pilonner.', 'Bang ! {j} envoie {c} au tapis.', '{j} rentre dans {c} comme dans un mur.',
+];
+export const COULEUR_COUP = [
+  'La foule se lève.', 'Ça s\'entend jusqu\'aux bancs.', 'Le banc de {autre} n\'aime pas ça.', 'Il s\'en souviendra ce soir.',
+  'Un message envoyé.', 'Le match vient de changer de ton.', 'Ça va chauffer.', 'La glace vibre encore.',
+];
+export const PHRASE_BAGARRE = [
+  'Les gants tombent ! {j} et {c} en viennent aux coups !', '{j} et {c} jettent les gants !', 'Bagarre ! {j} contre {c} !',
+  '{j} s\'en prend à {c}, et ça dégénère !', 'Voilà {j} et {c} au centre de la glace, les gants par terre !',
+];
+export const ISSUE_BAGARRE = {
+  gagne: ['{g} prend le dessus et laisse {p} sur la glace.', '{g} l\'emporte haut la main.', '{p} est tombé : {g} a gagné le duel.',
+    'Quelques bons coups de {g}, et {p} demande grâce.', '{g} enchaîne trois droites, les juges de ligne interviennent.'],
+  nul: ['Les deux se tiennent, personne ne tombe.', 'Un combat égal, séparé par les juges de ligne.', 'Ni l\'un ni l\'autre ne cède.'],
+};
+export const COULEUR_BAGARRE = {
+  gagne: ['Le banc de {eq} tape sur la bande !', 'La foule est debout pour {g}.', 'Ça donne de l\'élan à {eq}.', 'Cinq minutes chacun, mais un seul vainqueur.'],
+  nul: ['Cinq minutes chacun.', 'Ils s\'en vont réfléchir cinq minutes.', 'Un duel pour l\'honneur.'],
+};
+export const PHRASE_MELEE = [
+  'Mêlée après le sifflet : {j} et {c} se poussent devant le filet.', '{j} et {c} se prennent le collet.', 'Ça chamaille dans le coin entre {j} et {c}.',
+  'Un attroupement devant le filet : {j} et {c} au milieu.', '{j} en a assez de {c}, et le lui fait savoir.',
+];
+export const COULEUR_MELEE = [
+  'Deux minutes chacun, rien de plus.', 'Les arbitres séparent tout le monde.', 'Ça se règle à deux minutes chacun.', 'Le ton monte.',
+  'Les juges de ligne ont du travail ce soir.',
+];
+
 /* ---------- les périodes, le début, la fin ---------- */
 export const FIN_PERIODE = [
   'Fin de la {per}.', 'La sirène retentit : fin de la {per}.', 'C\'est la fin de la {per}.', 'Voilà qui met fin à la {per}.',
@@ -405,6 +437,19 @@ export function commentateur(graine) {
     /* Un tir ordinaire. c : { t, g } */
     tir(c) {
       return majuscule(`${remplir(pigeColle('tir', ACTIONS_TIR, c), c)}, ${remplir(pige('itir', ISSUE_TIR), c)}.`);
+    },
+    /* Un coup marquant (1.0). c : { j, c (la cible), eq, autre }. */
+    coup(c) {
+      return joindre(majuscule(remplir(pige('coup', PHRASE_COUP), c)), oui(0.6) ? remplir(pige('ccoup', COULEUR_COUP), c) : '');
+    },
+    /* Une bagarre. c : { j, c, g (le gagnant), p (le perdant), eq (le club du gagnant), autre }. */
+    bagarre(c) {
+      const issue = c.g ? ISSUE_BAGARRE.gagne : ISSUE_BAGARRE.nul, couleur = c.g ? COULEUR_BAGARRE.gagne : COULEUR_BAGARRE.nul;
+      return joindre(majuscule(remplir(pige('bag', PHRASE_BAGARRE), c)), remplir(pige(c.g ? 'ibag' : 'ibagn', issue), c), oui(0.7) ? remplir(pige(c.g ? 'cbag' : 'cbagn', couleur), c) : '');
+    },
+    /* Une mêlée. c : { j, c }. */
+    melee(c) {
+      return joindre(majuscule(remplir(pige('mel', PHRASE_MELEE), c)), oui(0.6) ? remplir(pige('cmel', COULEUR_MELEE), c) : '');
     },
     /*
      * Un but. c : { but, m (le nom court, échappé), g, eq, autre, pour, contre,

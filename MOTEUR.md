@@ -377,12 +377,40 @@ Trois chantiers dans `js/sim.js`, sous `MAITRISE_LIGUE` et `ENERGIE_REF` :
   d'une unité (`ht` par match, estimées de `r` avant 2005-06, portées par
   l'agressivité) tombent sur les unités adverses qu'elle croise (les poids
   de l'appariement, 60 % sur les trios, 40 % sur les paires) ; chaque coup
-  reçu coûte `COUP_JAMBES` (1,5) à un joueur moyen, la moitié à un costaud,
+  reçu coûte `COUP_JAMBES` (1,2) à un joueur moyen, la moitié à un costaud,
   une fois et demie à un léger (`COUP_ABSORBE`). Après le match, comme
   l'usure. Mesuré (12 vraies équipes, 82 matchs) : 16 à 29 coups par match
   par club, les jambes du matin passent de 95,9 à 94,5 en moyenne, le plus
   frappé à 88-91 ; à 2 le 1er trio par défaut passait sous 90 au matin
-  (89,5), la borne de calibration — d'où 1,5.
+  (89,5), la borne de calibration — d'où 1,5, puis 1,2 quand les coups
+  marquants (ci-dessous) ont pris leur part.
+- **Le jeu physique en événements** (`tirerPhysique`, `journal.physique`,
+  1.0). JP : *tu devrais pouvoir pilonner ou être pilonné ; je veux des
+  batailles et du chamaillage aussi, tout ce qui arrive dans un vrai match
+  et ajoute du drama*. Trois événements, tirés par `hasard()` avant les
+  lancers, datés sur la feuille, racontés au direct (`js/direct.js`, les
+  banques `PHRASE_COUP`, `PHRASE_BAGARRE`, `PHRASE_MELEE` de
+  `js/commentaire.js`) et au sommaire (`js/bilan.js`) :
+  - le COUP MARQUANT — `COUP_MARQUANT_PART` (12 %) des coups attendus d'un
+    club, le frappeur pesé par ses mises en échec et son physique, la cible
+    tirée sur une unité adverse ; elle perd `COUP_MARQUANT_JAMBES` (2)
+    sur-le-champ et se blesse `BLESSURE_SONNE` (×1,5) ce soir ;
+  - la BAGARRE — `BAGARRE_PAR_PIM` (0,55) par punition de ligue de l'époque
+    (une par match en 1987, une sur trois en 2023), montée quand les deux
+    clubs ont un vrai bagarreur et quand les lignes jouent rentre-dedans ;
+    chaque club envoie son bagarreur (le score du rôle au cube), le duel se
+    joue au rôle, au physique, au gabarit et à un `gauss()` ; cinq minutes
+    chacun HORS DE LEURS UNITÉS (`auCachot` filtre la glace et le tireur
+    dans `jouerCote`), le vainqueur donne `ELAN_BAGARRE` (×1,06) à la
+    finition de son club pendant `ELAN_DUREE` (10 min), le perdant
+    `ELAN_BAGARRE_PERDU` (×0,94 : symétrique, la ligue ne bouge pas), le
+    battu se blesse `BLESSURE_BAGARRE_PERDUE` (×3) ce soir ;
+  - la MÊLÉE — `MELEE_BASE` (0,5) par match, deux minutes qui s'annulent à un
+    costaud de chaque bord ; du drama, des minutes de punition, rien de plus.
+  Mesuré (DET 2021-22 dans une ligue de 12 vraies équipes) : 4,0 coups
+  marquants, 0,37 bagarre, 0,30 mêlée par match, 33 mises en échec ; les
+  minutes vont à la feuille (`compterFeuilles`) et le direct compte les
+  mises en échec dans ses statistiques.
 - **Plus de zone morte** : `facteurEnergie` = 1 − 0,5 % × (94 − jambes), en
   continu, centré sur `ENERGIE_REF` (les jambes d'une ligne ordinaire au
   matin) ; un joueur frais gagne jusqu'à +3 %, un joueur usé perd tout de
