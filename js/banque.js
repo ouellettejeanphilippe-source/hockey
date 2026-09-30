@@ -33,6 +33,7 @@ import { CARTES, MUTATIONS, motsDEffet, motsDeMutation, EDITIONS_REGLEMENT } fro
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus } from './combat.js';
 import { money } from './util.js';
+import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier } from './coachs.js';
 
 export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Trois postes au plus, un par rôle.' },
@@ -115,6 +116,53 @@ export const PATRONS = {
     effet: { finition: 1.01 }, econ: { jetonsVictoire: 3, rabais: 0.9 } },
   dir_flexible: { role: 'direction', nom: 'Le DG du plafond flexible', ico: '🧮', rarete: 'rare', texte: 'Il connaît chaque clause de la convention collective.',
     econ: { plafond: 0.05 } },
+  /*
+   * v2 — LES ADJOINTS DES COACHS (js/coachs.js). Un patron par coach qui
+   * GRANDIT avec lui : `echelle.par` s'ajoute à son effet pour chaque carte de
+   * son coach déjà jouée cette saison (au plus `max`), lu au moment de
+   * l'engager — la décision porte le chiffre. Engagé tôt, il vaut peu ; engagé
+   * quand huit cartes du coach sont jouées, il vaut un légendaire. C'est le « scaling » d'un
+   * vrai roguelike, sur les canaux qui existent.
+   */
+  att_volume: { role: 'attaque', nom: 'Le maître du volume', ico: '📊', rarete: 'rare', coach: 'essaim', texte: 'Trente lancers par soir, sinon on recommence la pratique.',
+    effet: { volume: 1.01 }, echelle: { par: { volume: 0.004 }, max: 10 } },
+  att_mains: { role: 'attaque', nom: 'Le spécialiste des mains', ico: '🙌', rarete: 'rare', coach: 'rapaces', texte: 'Il fait des feintes avec une balle de tennis dans le corridor.',
+    effet: { finition: 1.01 }, echelle: { par: { finition: 0.004 }, max: 10 } },
+  def_verrou: { role: 'defense', nom: 'L\'architecte du verrou', ico: '⛓️', rarete: 'rare', coach: 'tortue', texte: 'Son tableau n\'a qu\'une flèche, et elle recule.',
+    effet: { defense: 0.99 }, echelle: { par: { defense: -0.003 }, max: 10 } },
+  phy_combat: { role: 'physique', nom: 'Le préparateur de combat', ico: '🥋', rarete: 'rare', coach: 'rhinos', texte: 'Il a déjà entraîné des lutteurs.',
+    effet: { robustesse: 0.2 }, echelle: { par: { robustesse: 0.08 }, max: 10 } },
+  soi_herboriste: { role: 'soins', nom: 'L\'herboriste du vestiaire', ico: '🌿', rarete: 'rare', coach: 'souffle', texte: 'Des tisanes qui sentent mauvais, et personne ne se blesse.',
+    effet: { blessure: 0.9, energie: 0.99 }, echelle: { par: { blessure: -0.03, energie: -0.004 }, max: 10 } },
+  chef_cure: { role: 'chef', nom: 'Le curé de la paroisse', ico: '⛪', rarete: 'rare', coach: 'choeur', texte: 'Il dit la messe le dimanche et le cahier de jeux le lundi.',
+    effet: { discipline: 0.96 }, echelle: { par: { discipline: -0.012 }, max: 10 } },
+  phy_quatre: { role: 'physique', nom: 'Le chronométreur des trios', ico: '🔢', rarete: 'rare', coach: 'profondeur', texte: 'Il connaît le nom de famille du treizième attaquant.',
+    effet: { F: [0.98, 1, 1.02, 1.05], energie: 0.98 }, echelle: { par: { energie: -0.005 }, max: 10 } },
+  att_scene: { role: 'attaque', nom: 'Le metteur en scène', ico: '🎭', rarete: 'rare', coach: 'etoiles', texte: 'Les vedettes jouent la dernière minute. Toujours.',
+    effet: { F: [1.05, 1.02, 0.98, 0.95], finition: 1.005 }, echelle: { par: { finition: 0.003 }, max: 10 } },
+  dir_tresorier: { role: 'direction', nom: 'Le trésorier', ico: '💳', rarete: 'peu', coach: 'banque', texte: 'Il sait où dort chaque dollar du club.',
+    econ: { rabais: 0.95, jetonsVictoire: 1 } },
+  // ---- v2 : sept de plus, pour que chaque poste ait de quoi choisir ----
+  gar_video: { role: 'gardiens', nom: 'Le monteur vidéo des gardiens', ico: '🎞️', rarete: 'commune', texte: 'Chaque but accordé, sous trois angles.',
+    effet: { defense: 0.99, energie: 0.99 } },
+  dep_itinerant: { role: 'depistage', nom: 'Le dépisteur itinérant', ico: '🗺️', rarete: 'commune', texte: 'Il dort dans son auto, entre deux arénas de bantam.',
+    econ: { holo: 1.15 } },
+  soi_nutrition: { role: 'soins', nom: 'La nutritionniste', ico: '🥦', rarete: 'commune', texte: 'Plus de poutine dans l\'autobus.',
+    effet: { energie: 0.97, blessure: 0.9 } },
+  chef_jardinier: { role: 'chef', nom: 'Le jardinier de la relève', ico: '🪴', rarete: 'peu', texte: 'Il fait jouer les jeunes, et les jeunes courent.',
+    effet: { volume: 1.015, energie: 0.98 } },
+  def_durs: { role: 'defense', nom: 'L\'adjoint des durs', ico: '⛏️', rarete: 'peu', texte: 'Il a encore ses propres dents. Presque toutes.',
+    effet: { robustesse: 0.4, discipline: 1.05 } },
+  dir_agent: { role: 'direction', nom: 'L\'avocat de la convention', ico: '📑', rarete: 'peu', texte: 'Il lit les petits caractères pour le plaisir.',
+    econ: { plafond: 0.025 } },
+  chef_renard: { role: 'chef', nom: 'Le vieux renard', ico: '🦊', rarete: 'peu', texte: 'Trente ans derrière un banc : il sent le match tourner.',
+    effet: { defense: 0.985, discipline: 0.95 } },
+  chef_ancienne: { role: 'chef', nom: 'L\'entraîneur à l\'ancienne', ico: '🐃', rarete: 'peu', texte: 'Des pratiques de deux heures, sans rondelle.',
+    effet: { robustesse: 0.5, finition: 0.99 } },
+  def_paires: { role: 'defense', nom: 'L\'adjoint de la troisième paire', ico: '🔃', rarete: 'commune', texte: 'Ses deux défenseurs du bas jouent vingt minutes, et ils aiment ça.',
+    effet: { D: [0.94, 1, 1.12], energie: 0.98 } },
+  att_premier: { role: 'attaque', nom: 'L\'adjoint du premier trio', ico: '📌', rarete: 'peu', texte: 'Il ne dessine des jeux que pour trois joueurs.',
+    effet: { F: [1.07, 1.02, 0.97, 0.94], finition: 1.01 } },
 };
 
 /* ---------- LA MASSE SALARIALE : le plafond se manipule (S79) ---------- */
@@ -137,6 +185,12 @@ export const CONTRATS = {
   entree: { nom: 'Le contrat d\'entrée', ico: '🐣', rarete: 'commune', vie: 'usage', cible: 'recrue', facteur: 0.6, texte: 'Une recrue sous contrat d\'entrée compte pour 40 % de moins.' },
   bonis: { nom: 'La clause de bonis', ico: '🎯', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.85, texte: 'Une part de son salaire devient des bonis de performance, hors du plafond.' },
   enterre: { nom: 'Le contrat enterré', ico: '🗃️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.8, texte: 'Une part de son salaire est réputée au club-école. Il compte pour moins, et il joue encore.' },
+  // v2 : cinq de plus.
+  aRabais: { nom: 'Le contrat à rabais', ico: '🏷️', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.9, texte: 'Il signe sous sa valeur pour courir après une bague.' },
+  clubEcole: { nom: 'Le passage au club-école', ico: '🚍', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.75, cout: 5, texte: 'Trois jours dans la ligue américaine, le temps que la paperasse passe. 5 jetons de frais.' },
+  anticipee: { nom: 'La prolongation anticipée', ico: '✍️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.85, texte: 'Signé un an d\'avance, à l\'ancien prix.' },
+  hausse: { nom: 'La hausse du plafond', ico: '🆙', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 3_000_000, texte: 'Les revenus de la ligue montent : le plafond aussi.' },
+  signature: { nom: 'Le bonus de signature', ico: '🖊️', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 1_500_000, texte: 'Payé d\'avance, cet été : il ne compte plus cette saison.' },
   taxe: { nom: 'La taxe de luxe', ico: '💸', rarete: 'maudite', vie: 'saison', cible: 'aucune', espace: -3_000_000, texte: 'La ligue sévit : ton plafond fond de 3\u00a0M$ cette saison.' },
 };
 /*
@@ -163,8 +217,11 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
       if (C && C.espace) { cap += C.espace; lignes.push({ nom: C.nom, montant: C.espace }); }
     }
   }
-  const pct = patronsActifs(decisions, jusqua).reduce((a, x) => a + ((x.econ && x.econ.plafond) || 0), 0);
-  if (pct) { const m = Math.round(base * pct); cap += m; lignes.push({ nom: 'Le DG du plafond flexible', montant: m }); }
+  // Le pourcentage du DG, et celui de la banque au palier III (v2) : chacun sa ligne, nommée.
+  for (const x of [...patronsActifs(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
+    const pct = (x.econ && x.econ.plafond) || 0;
+    if (pct) { const m = Math.round(base * pct); cap += m; lignes.push({ nom: x.nom, montant: m }); }
+  }
   return { cap, lignes, facteurs, ltir };
 }
 
@@ -203,6 +260,44 @@ export const EVENEMENTS = {
   siffletPoche: { nom: 'Le sifflet dans la poche', ico: '🦓', rarete: 'commune', duree: 6, regle: true, texte: 'Les arbitres laissent jouer. On en profite dans les coins.', effet: { defense: 0.97, discipline: 1.1 } },
   planDesert: { nom: 'Le plan du filet désert', ico: '🚪', rarete: 'peu', duree: 4, regle: true, texte: 'Le sixième attaquant sort trop tôt, plusieurs soirs de suite.', effet: { volume: 1.04, defense: 1.04 } },
   obstruction: { nom: 'L\'obstruction oubliée', ico: '🪝', rarete: 'peu', duree: 8, regle: true, texte: 'On joue le hockey d\'avant la règle : les bâtons retiennent, les corps bloquent.', effet: { defense: 0.97, volume: 0.97, discipline: 1.08 } },
+  /*
+   * v2 — LES ÉVÉNEMENTS DES COACHS : un par coach, qui grandit comme ses
+   * adjoints (`echelle`, par carte de son coach déjà jouée, au plus `max`).
+   * Au départ un petit échange ; sur un build bâti, une vraie semaine.
+   */
+  concours: { nom: 'Le concours de lancers', ico: '🎳', rarete: 'peu', coach: 'essaim', duree: 8, texte: 'Un chronomètre, un filet, et une caisse de rondelles.', effet: { volume: 1.02, energie: 1.04 }, echelle: { par: { volume: 0.005 }, max: 8 } },
+  regard: { nom: 'Le regard du tueur', ico: '🧿', rarete: 'peu', coach: 'rapaces', duree: 8, texte: 'Personne ne parle dans le vestiaire. Tout le monde vise.', effet: { finition: 1.02, discipline: 1.04 }, echelle: { par: { finition: 0.005 }, max: 8 } },
+  bunker: { nom: 'Le bunker', ico: '🛖', rarete: 'peu', coach: 'tortue', duree: 8, texte: 'Les rideaux tirés, et on ne sort plus de sa zone.', effet: { defense: 0.98, volume: 0.98 }, echelle: { par: { defense: -0.004 }, max: 8 } },
+  steak: { nom: 'Le steak d\'avant-match', ico: '🥩', rarete: 'peu', coach: 'rhinos', duree: 8, texte: 'Saignant, à trois heures pile.', effet: { robustesse: 0.3, discipline: 1.05 }, echelle: { par: { robustesse: 0.1 }, max: 8 } },
+  spa: { nom: 'La semaine au spa', ico: '🧖', rarete: 'peu', coach: 'souffle', duree: 8, texte: 'Des peignoirs, des concombres, et personne à l\'infirmerie.', effet: { blessure: 0.9, volume: 0.99 }, gestes: { energieTous: 8 }, echelle: { par: { blessure: -0.04 }, max: 8 } },
+  retraite: { nom: 'La retraite fermée', ico: '📿', rarete: 'peu', coach: 'choeur', duree: 8, texte: 'Trois jours au monastère, sans téléphone ni bière.', effet: { discipline: 0.92, finition: 0.99 }, echelle: { par: { discipline: -0.015 }, max: 8 } },
+  garage: { nom: 'La ligue de garage', ico: '🧃', rarete: 'peu', coach: 'profondeur', duree: 8, texte: 'Le quatrième trio a gagné le tournoi du dimanche.', effet: { F: [0.95, 1, 1.05, 1.12], energie: 0.97 }, echelle: { par: { energie: -0.006 }, max: 8 } },
+  une: { nom: 'La une des journaux', ico: '🗞️', rarete: 'peu', coach: 'etoiles', duree: 8, texte: 'Leurs visages sur chaque kiosque de la ville.', effet: { F: [1.12, 1.04, 0.96, 0.88], finition: 1.01 }, echelle: { par: { finition: 0.004 }, max: 8 } },
+  commanditaires: { nom: 'La soirée des commanditaires', ico: '🥂', rarete: 'peu', coach: 'banque', duree: 3, texte: 'Des petits fours et des chèques.', effet: { finition: 0.99 }, gain: 8, echelle: { gain: 3, max: 8 } },
+  // ---- v2 : dix-sept de plus, des échanges ----
+  pleinAir: { nom: 'Le match en plein air', ico: '❄️', rarete: 'commune', duree: 3, texte: 'Un stade de football, moins vingt, et la neige qui tombe.', effet: { volume: 1.03, finition: 0.98, energie: 1.05 } },
+  repechageSoir: { nom: 'Le soir du repêchage', ico: '🎓', rarete: 'commune', duree: 5, texte: 'Tout le monde regarde qui le club a choisi.', effet: { energie: 0.97, finition: 0.99 } },
+  balado: { nom: 'Le balado du capitaine', ico: '🎧', rarete: 'commune', duree: 8, texte: 'Une heure par semaine, et le vestiaire écoute.', effet: { discipline: 0.93, volume: 0.99 } },
+  bagages: { nom: 'Les bagages perdus', ico: '🧳', rarete: 'commune', duree: 4, texte: 'Des patins empruntés, et on joue fâché.', effet: { defense: 0.98, energie: 1.08 } },
+  centenaire: { nom: 'Le centenaire du club', ico: '🎂', rarete: 'peu', duree: 4, texte: 'Le vieux chandail, les anciens au centre de la glace.', effet: { finition: 1.04, discipline: 1.08 } },
+  autobus: { nom: 'Le fan-club en autobus', ico: '🚌', rarete: 'commune', duree: 6, texte: 'Quarante partisans dans les estrades de l\'adversaire.', effet: { volume: 1.03, discipline: 1.05 } },
+  invite: { nom: 'L\'entraîneur invité', ico: '🧑‍🏫', rarete: 'peu', duree: 10, texte: 'Un ancien de l\'équipe nationale, pour deux semaines.', effet: { defense: 0.98, volume: 0.98 } },
+  dossier: { nom: 'Le dossier des gardiens', ico: '🗂️', rarete: 'commune', duree: 8, texte: 'La mitaine de chaque gardien de la ligue, à la loupe.', effet: { finition: 1.03, volume: 0.97 } },
+  fondante: { nom: 'La glace fondante', ico: '☀️', rarete: 'commune', duree: 5, texte: 'Avril en mars : la rondelle roule sur la tranche.', effet: { volume: 0.97, defense: 0.98 } },
+  infernal: { nom: 'Le calendrier infernal', ico: '🥾', rarete: 'peu', duree: 7, texte: 'Cinq matchs en sept soirs.', effet: { volume: 1.03, energie: 1.1 } },
+  bebe: { nom: 'Le bébé du capitaine', ico: '🍼', rarete: 'commune', duree: 5, texte: 'Il ne dort plus, et il n\'a jamais aussi bien joué.', effet: { finition: 1.03, energie: 1.04 } },
+  lockout: { nom: 'La menace de lock-out', ico: '🪧', rarete: 'peu', duree: 8, texte: 'Les négociations traînent : on joue serré.', effet: { finition: 0.98, discipline: 0.92 } },
+  mascotte: { nom: 'La nouvelle mascotte', ico: '🦦', rarete: 'commune', duree: 6, texte: 'Une loutre géante qui lance des t-shirts.', effet: { volume: 1.025, defense: 1.01 } },
+  soiree: { nom: 'La soirée du hockey', ico: '📡', rarete: 'peu', duree: 3, texte: 'Le pays au complet devant sa télé.', effet: { finition: 1.05, defense: 1.03 } },
+  surfaceuse: { nom: 'La surfaceuse en panne', ico: '🚜', rarete: 'commune', duree: 3, texte: 'La glace est une route de gravier.', effet: { volume: 0.96, defense: 0.96 } },
+  golf: { nom: 'Le tournoi de golf de la fondation', ico: '⛳', rarete: 'commune', duree: 5, texte: 'Dix-huit trous pour une bonne cause.', effet: { energie: 0.94, finition: 0.99 } },
+  rivalite: { nom: 'La rivalité rallumée', ico: '🧨', rarete: 'peu', duree: 6, texte: 'Un double-échec de trop, en novembre.', effet: { robustesse: 0.6, discipline: 1.12 } },
+  lutte: { nom: 'La lutte à l\'entraînement', ico: '🤼', rarete: 'commune', duree: 6, texte: 'Un contre un dans le coin, jusqu\'à ce que quelqu\'un abandonne.', effet: { robustesse: 0.5, blessure: 1.1 } },
+  sousSol: { nom: 'Le gymnase du sous-sol', ico: '🏚️', rarete: 'commune', duree: 10, texte: 'Des poids rouillés et un vieux sac de sable.', effet: { robustesse: 0.4, volume: 0.99 } },
+  plombiers: { nom: 'La soirée des plombiers', ico: '🪛', rarete: 'commune', duree: 5, texte: 'Le quatrième trio a marqué deux fois hier : il joue plus.', effet: { F: [0.95, 1, 1.04, 1.15], energie: 0.97, finition: 0.99 } },
+  reservistes: { nom: 'Le match des réservistes', ico: '🎛️', rarete: 'peu', duree: 6, texte: 'Les réservistes jouent une partie entre eux, et reviennent affamés.', effet: { F: [0.96, 0.98, 1.05, 1.12], D: [0.95, 1, 1.08], blessure: 0.92, finition: 0.99 } },
+  etoiles: { nom: 'La semaine du match des étoiles', ico: '🤩', rarete: 'peu', duree: 5, texte: 'Tes vedettes reviennent de la fête avec un trophée et des cernes.', effet: { F: [1.1, 1.03, 0.97, 0.9], finition: 1.02, energie: 1.04 } },
+  code: { nom: 'Le code de conduite', ico: '📜', rarete: 'commune', duree: 10, texte: 'Affiché au-dessus de chaque casier.', effet: { discipline: 0.88, robustesse: -0.2 } },
 };
 
 /* ---------- LES CONSOMMABLES : une utilisation ---------- */
@@ -233,6 +328,24 @@ export const CONSOMMABLES = {
   bancCourt: { nom: 'Le banc court', ico: '🔥', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { F: [1.22, 1.02, 0.92, 0.78], blessure: 1.15, energie: 1.06 }, duree: 4, texte: 'Le premier trio ne sort plus. Le quatrième rouille.' },
   profondeur: { nom: 'La glace du bas', ico: '🔋', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { F: [0.88, 1.02, 1.08, 1.16], volume: 0.98, blessure: 0.9 }, duree: 5, texte: 'Le bas de l\'alignement joue. Les vedettes respirent.' },
   crochet: { nom: 'Le crochet de poche', ico: '🪝', rarete: 'commune', vie: 'usage', cible: 'aucune', regle: true, effet: { defense: 0.97, discipline: 1.08 }, duree: 3, texte: 'Trois soirs, on accroche. L\'arbitre finit par le voir.' },
+  // ---- v2 : treize de plus ----
+  vitamines: { nom: 'Les vitamines', ico: '💊', rarete: 'commune', vie: 'usage', cible: 'joueur', gestes: { energie: 15 }, effet: { blessure: 0.95 }, duree: 5, texte: 'Une poignée chaque matin, avec le jus d\'orange.' },
+  ruban: { nom: 'Le ruban magique', ico: '🎗️', rarete: 'commune', vie: 'usage', cible: 'blesse', gestes: { soin: 3 }, effet: { blessure: 1.1 }, duree: 3, texte: 'Trois rouleaux autour de la cheville, et il retourne au jeu.' },
+  aiguilles: { nom: 'L\'acupuncteur', ico: '🪡', rarete: 'peu', vie: 'usage', cible: 'blesse', gestes: { soin: 4 }, texte: 'Quarante aiguilles, et le dos se replace.' },
+  cafe: { nom: 'Le café de l\'aréna', ico: '☕', rarete: 'commune', vie: 'usage', cible: 'aucune', gestes: { energieTous: 6 }, texte: 'Filtre, noir, dans un verre en styromousse.' },
+  rondelles: { nom: 'Le seau de rondelles', ico: '🪣', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { finition: 1.04, energie: 1.05 }, duree: 3, texte: 'Une heure de tirs après la pratique, pour tout le monde.' },
+  proprioParle: { nom: 'Le discours du proprio', ico: '📯', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { finition: 1.03, volume: 1.02, discipline: 1.06 }, duree: 3, texte: 'Il descend au vestiaire en complet. Personne n\'ose respirer.' },
+  depanneur: { nom: 'La commandite du dépanneur', ico: '🏪', rarete: 'commune', vie: 'usage', cible: 'aucune', gain: 12, texte: 'Le logo sur la surfaceuse, et un chèque.' },
+  barSportif: { nom: 'Le pari au bar sportif', ico: '🍺', rarete: 'peu', vie: 'usage', cible: 'aucune', pari: { chance: 0.35, gain: 50 }, texte: 'Une chance sur trois de rafler 50 jetons.' },
+  visualisation: { nom: 'La visualisation', ico: '🔮', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { defense: 0.97, finition: 1.01 }, duree: 3, texte: 'Yeux fermés, il voit chaque arrêt avant de le faire.' },
+  cryo: { nom: 'La cryothérapie', ico: '🥶', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { energieTous: 15 }, effet: { finition: 0.98 }, duree: 3, texte: 'Trois minutes à moins cent dix. Les mains gèlent aussi.' },
+  vacances: { nom: 'Le partant en vacances', ico: '🏝️', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { gardienAux: 5 }, effet: { energie: 0.97 }, duree: 5, texte: 'Une semaine au soleil pour le partant ; l\'auxiliaire a sa chance.' },
+  pizza: { nom: 'Le souper des trios', ico: '🍕', rarete: 'commune', vie: 'usage', cible: 'tactique', maitrise: 0.15, texte: 'Chaque trio à sa table, et le cahier de jeux entre les pointes.' },
+  coudieres: { nom: 'Les coudières de bois', ico: '🪵', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { robustesse: 0.8, discipline: 1.08 }, duree: 4, texte: 'Des protège-coudes d\'une autre époque. L\'arbitre fronce les sourcils.' },
+  carteBlanche: { nom: 'La carte blanche au quatrième', ico: '📝', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { F: [0.92, 1, 1.05, 1.2], energie: 0.95, finition: 0.99 }, duree: 4, texte: 'Le quatrième trio commence les matchs, et il les finit.' },
+  premierTrio: { nom: 'Le premier trio ce soir', ico: '🔝', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { F: [1.25, 1.03, 0.9, 0.8], finition: 1.01, energie: 1.05 }, duree: 2, texte: 'Deux soirs, tes trois meilleurs sautent sur la glace un tour sur deux.' },
+  reglement: { nom: 'Le livre des règlements', ico: '📕', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { discipline: 0.8, volume: 0.99 }, duree: 5, texte: 'Chaque joueur le lit dans l\'autobus. Il ne tire plus de peur de cingler.' },
+  capitaineC: { nom: 'Le C cousu en réserve', ico: '🪢', rarete: 'rare', vie: 'permanent', cible: 'aucune', effet: { discipline: 0.9, defense: 0.98 }, duree: 10, texte: 'Un deuxième capitaine, prêt quand le premier se tait.' },
 };
 
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
@@ -289,9 +402,36 @@ export function casesLibres(variante, posees = []) {
 
 /* ---------- LE REGISTRE ---------- */
 const fait = (cat, cle, def) => ({ id: `${cat}:${cle}`, cat, cle, ...def });
+/*
+ * CE QU'UNE CARTE FAIT, pour lire son COACH (v2, js/coachs.js) : les champs
+ * de sa famille ramenés à la même forme. Une carte de match lit aussi ce que
+ * ses mécaniques promettent (un combo, une réponse à leur main, un pari
+ * gagné) ; une carte de synergie, ce qu'elle lit dans ta formation.
+ */
+const SYNERGIES = { systeme: 'rapaces', gachettes: 'rapaces', mur: 'tortue', jambes: 'essaim', coequipiers: 'etoiles', famille: 'tortue',
+  decennie: 'essaim', vieilleGarde: 'tortue', releve: 'essaim', ligneOrigine: 'etoiles', dynastieClub: 'etoiles' };
+function coachDeLaFamille(cat, cle) {
+  const lu = o => coachDesCanaux(o);
+  if (cat === 'patron') { const P = PATRONS[cle]; return P.coach || lu({ effet: P.effet, econ: P.econ }); }
+  if (cat === 'evenement') { const E = EVENEMENTS[cle]; return E.coach || lu({ effet: E.effet, gestes: E.gestes, gain: E.gain }); }
+  if (cat === 'joueur') return lu({ mutation: MUTATIONS[cle] });
+  if (cat === 'consommable') { const C = CONSOMMABLES[cle]; return C.coach || lu({ effet: C.effet, gestes: C.gestes, gain: C.gain, pari: C.pari }); }
+  if (cat === 'plafond') return 'banque';
+  if (cat === 'saison') return lu({ effet: CARTES[cle] });
+  if (cat === 'match') {
+    const C = CARTES_MATCH[cle];
+    if (C.synergie && SYNERGIES[C.synergie]) return SYNERGIES[C.synergie];
+    const e = { ...(C.effet || {}) };
+    for (const x of [C.parGenre && C.parGenre.effet, C.selonLeurMain && C.selonLeurMain.effet, C.apres40 && C.apres40.siMene, C.pari && C.pari.gagne, C.improvise, C.piege, C.siVide]) {
+      if (x) for (const [k, v] of Object.entries(x)) if (typeof v === 'number') e[k] = k === 'robustesse' ? (e[k] || 0) + v : (e[k] ?? 1) * v;
+    }
+    return lu({ effet: e, adv: C.adv, gestes: C.energieTous ? { energieTous: C.energieTous } : null });
+  }
+  return null;
+}
 function construire() {
   const B = {};
-  const mettre = c => { B[c.id] = c; };
+  const mettre = c => { B[c.id] = { ...c, coach: coachDeLaFamille(c.cat, c.cle) }; };
   for (const [cle, P] of Object.entries(PATRONS)) mettre(fait('patron', cle, { nom: P.nom, ico: P.ico, rarete: P.rarete, texte: P.texte, vie: 'permanent', role: P.role }));
   for (const [cle, E] of Object.entries(EVENEMENTS)) mettre(fait('evenement', cle, { nom: E.nom, ico: E.ico, rarete: E.rarete, texte: E.texte, vie: 'saison', duree: E.duree, ...(E.regle ? { regle: true } : {}) }));
   for (const cle of MODS_JOUEUR) {
@@ -428,6 +568,7 @@ export function reglesDe(id) {
     if (e.sansBase) out.push({ txt: 'Packs de joueurs : jamais une carte de base', bon: true });
     if (e.plafond) out.push({ txt: `Plafond salarial +${Math.round(e.plafond * 100)} %`, bon: true });
     if (P.synergie) out.push({ txt: `Avec ${ROLES[P.synergie.avec].nom.toLowerCase()} : ${motsDEffet(P.synergie.effet).map(x => x.txt).join(', ')}`, bon: true });
+    if (P.echelle) out.push(motDEchelle(P.echelle, c.coach));
     out.push({ txt: 'Toute la saison, séries comprises', bon: null, duree: true });
     return out;
   }
@@ -435,6 +576,8 @@ export function reglesDe(id) {
     const E = EVENEMENTS[c.cle];
     const out = motsDEffet(E.effet || {}, E.duree);
     if (E.gestes) out.unshift(...motsDesGestes(E.gestes));
+    if (E.gain) out.unshift({ txt: `+${E.gain} 🪙`, bon: true });
+    if (E.echelle) out.push(motDEchelle(E.echelle, c.coach));
     return out;
   }
   if (c.cat === 'joueur') return motsDeMutation(c.cle);
@@ -460,6 +603,12 @@ export function reglesDe(id) {
   }
   if (c.cat === 'saison') return motsDEffet(CARTES[c.cle]);
   return [];
+}
+/* « Tirs +0,4 % par carte 🐝 du Frelon jouée (au plus 10) » : ce qu'une carte de coach gagne en grandissant. */
+function motDEchelle(E, coach) {
+  const Ec = COACHS[coach] || { ico: '', nom: '' };
+  const pas = [...motsDEffet(E.par || {}).map(x => x.txt.replace(/(\d),0 %/, '$1 %')), ...(E.gain ? [`+${E.gain} 🪙`] : [])].join(', ');
+  return { txt: `${pas} par carte ${Ec.ico} ${Ec.de} jouée (au plus ${E.max})`, bon: true };
 }
 function motsDesGestes(g) {
   const out = [];
@@ -487,7 +636,8 @@ export function patronsActifs(decisions = [], jusqua = Infinity) {
 /* Ce que les patrons engagés changent à la boutique (la décision d'engagement porte \`econ\`). */
 export function modificateurs(decisions = [], jusqua = Infinity) {
   const m = { rabais: 1, holo: 1, carteExtra: 0, sansBase: false, jetonsVictoire: [] };
-  for (const p of patronsActifs(decisions, jusqua)) {
+  // v2 : un coach qui a la confiance du vestiaire change la boutique comme un patron (le Comptable).
+  for (const p of [...patronsActifs(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
     const e = p.econ || {};
     if (e.rabais) m.rabais *= e.rabais;
     if (e.holo) m.holo *= e.holo;
@@ -499,17 +649,34 @@ export function modificateurs(decisions = [], jusqua = Infinity) {
 }
 
 /*
+ * CE QU'UNE CARTE DE COACH VAUT AUJOURD'HUI (v2) : son effet, plus `echelle.par`
+ * pour chaque carte de son coach déjà jouée (`build`, au plus `max`) — et ses
+ * jetons (`gain`, plus `echelle.gain` par carte). Une carte sans échelle rend
+ * son effet tel quel. Les chiffres entrent dans la décision.
+ */
+function grandi(X, coach, build = {}) {
+  const effet = { ...(X.effet || {}) };
+  let gain = X.gain || 0;
+  const E = X.echelle;
+  const n = E ? Math.min(E.max || Infinity, (build && build[X.coach || coach]) || 0) : 0;
+  if (n) {
+    for (const [k, v] of Object.entries(E.par || {})) effet[k] = Math.round(((effet[k] ?? (k === 'robustesse' ? 0 : 1)) + v * n) * 10000) / 10000;
+    gain += (E.gain || 0) * n;
+  }
+  return { effet, gain, n };
+}
+/*
  * LA DÉCISION D'UNE CARTE JOUÉE : les champs que le moteur connaît, et ses
  * chiffres. \`cible\` : { joueur, tactique, carte }. \`patrons\` : ceux déjà
  * engagés (pour le remplacement et la synergie). \`sel\` : de quoi tirer un
  * pari (le billet de loterie), pur.
  */
-export function payloadDe(id, { joueur = null, tactique = null, carte = null, patrons = [], alea = null } = {}) {
+export function payloadDe(id, { joueur = null, tactique = null, carte = null, patrons = [], alea = null, build = {} } = {}) {
   const c = carteBanque(id);
   if (!c) return null;
   if (c.cat === 'patron') {
     const P = PATRONS[c.cle];
-    const effet = { ...(P.effet || {}) };
+    const effet = grandi(P, c.coach, build).effet;
     let synergie = false;
     if (P.synergie && patrons.some(x => x.role === P.synergie.avec)) {
       synergie = true;
@@ -520,7 +687,8 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
   }
   if (c.cat === 'evenement') {
     const E = EVENEMENTS[c.cle];
-    return { effet: { nom: E.nom, ico: E.ico, duree: E.duree, ...(E.effet || {}), ...(E.regle ? { regle: true } : {}) }, ...(E.gestes ? { gestes: { ...E.gestes } } : {}) };
+    const { effet, gain } = grandi(E, c.coach, build);
+    return { effet: { nom: E.nom, ico: E.ico, duree: E.duree, ...effet, ...(E.regle ? { regle: true } : {}) }, ...(E.gestes ? { gestes: { ...E.gestes } } : {}), ...(gain ? { gain } : {}) };
   }
   if (c.cat === 'joueur') return joueur ? { mutation: { cle: c.cle, joueur } } : null;
   if (c.cat === 'consommable') {
@@ -549,4 +717,66 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
   if (c.cat === 'match') return { recompense: c.cle };
   if (c.cat === 'saison') return { carte: c.cle };
   return null;
+}
+
+/* =====================================================================
+   LE BUILD (v2) — les coachs que tes cartes jouées font croire au vestiaire
+   ===================================================================== */
+/* Le coach d'une carte de la banque (une carte « + » du deck lit sa carte de base), ou null (neutre). */
+export const coachDeCarte = id => { const c = BANQUE[id] || BANQUE[String(id).replace(/\+$/, '')]; return c ? c.coach : null; };
+export const idsDuCoach = coach => Object.values(BANQUE).filter(c => c.coach === coach).map(c => c.id);
+/* La carte qu'une décision fait jouer : l'inventaire, le personnel, le deck (`joue.id`), ou la carte d'un gros match (`recompense`). */
+const carteJouee = d => (d.joue && d.joue.id ? d.joue.id : d.recompense ? `match:${String(d.recompense).replace(/\+$/, '')}` : null);
+/*
+ * LE COMPTE DE CHAQUE COACH à une journée (`jusqua` exclue), pur : le report
+ * d'une run (`coachsDeBase` : la saison d'avant, et le coach choisi au
+ * départ), plus chaque carte jouée de sa couleur. Rend { cle: n }.
+ */
+export function buildDe(decisions = [], jusqua = Infinity) {
+  const n = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
+  for (const d of decisions) {
+    if (!d || (d.jour || 0) >= jusqua) continue;
+    if (d.coachsDeBase) for (const [k, v] of Object.entries(d.coachsDeBase)) if (k in n) n[k] += v || 0;
+    const id = carteJouee(d);
+    const e = id && coachDeCarte(id);
+    if (e) n[e]++;
+  }
+  return n;
+}
+/* La confiance allumée de chaque coach à une journée : la plus haute que les décisions ont posée (`coach`). */
+export function coachsActifs(decisions = [], jusqua = Infinity) {
+  const par = new Map();
+  for (const d of decisions) {
+    if (!d || !d.coach || !d.coach.cle || (d.jour || 0) >= jusqua) continue;
+    const avant = par.get(d.coach.cle);
+    if (!avant || avant.palier < d.coach.palier) par.set(d.coach.cle, { ...d.coach, jour: d.jour || 0 });
+  }
+  return [...par.values()];
+}
+/*
+ * LA CONFIANCE QU'ALLUME UNE CARTE : la décision `d` fait-elle franchir un
+ * seuil au coach de sa carte ? Rend `{ coach }` à ajouter à la décision (les
+ * chiffres de la confiance atteinte), ou null. Pur : les décisions d'avant et
+ * celle-ci.
+ */
+export function palierAllume(decisions = [], d) {
+  const id = d && carteJouee(d);
+  const e = id && coachDeCarte(id);
+  if (!e) return null;
+  const avant = buildDe(decisions)[e];
+  const deja = Math.max(palierDe(avant), ...coachsActifs(decisions).filter(x => x.cle === e).map(x => x.palier));
+  const p = palierDe(avant + 1);
+  return p > deja ? { coach: effetDePalier(e, p) } : null;
+}
+/* Ce qu'une confiance fait, en mots — les canaux, les minutes, la boutique. */
+export function reglesDePalier(cle, palier) {
+  const P = effetDePalier(cle, palier);
+  if (!P) return [];
+  const { cle: _c, palier: _p, nom: _n, ico: _i, econ, ...canaux } = P;
+  void _c; void _p; void _n; void _i;
+  const out = [...motsDEffet(canaux)];
+  if (econ && econ.rabais) out.push({ txt: `Packs ${Math.round((econ.rabais - 1) * 100)} %`, bon: true });
+  if (econ && econ.jetonsVictoire) out.push({ txt: `+${econ.jetonsVictoire} 🪙 par victoire`, bon: true });
+  if (econ && econ.plafond) out.push({ txt: `Plafond salarial +${Math.round(econ.plafond * 100)} %`, bon: true });
+  return out;
 }

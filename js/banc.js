@@ -8,7 +8,8 @@ import { compterFeuilles, planDe, roulementDe, lignesDe, trioDeFermetureAuto, ge
 import { ajouterAuCartable } from './cartable.js';
 import { chargerTable } from './charge-table.js';
 import { CARTES_MATCH } from './combat.js';
-import { BANQUE } from './banque.js';
+import { BANQUE, palierAllume, coachsActifs } from './banque.js';
+import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs } from './ballottage.js';
 import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt } from './bilan.js';
@@ -191,7 +192,10 @@ async function deciderSaison(d, depuis) {
   // doivent pas bouger (S74).
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
-  const deckSeul = d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || (!!d.garde && !d.mutation);
+  // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
+  const allume = (d.joue || d.recompense !== undefined) && !d.coach ? palierAllume(G.ligue.decisions || [], d) : null;
+  if (allume) d = { ...d, ...allume };
+  const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || (!!d.garde && !d.mutation));
   decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
   await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
@@ -276,6 +280,11 @@ function confirmerDecision(d) {
   else if (d.deck === 'strategie' && d.maitrise && systemeDe(d.maitrise.tac)) mot = `📘 ${systemeDe(d.maitrise.tac).groupe === 'D' ? 'Tes défenseurs apprennent' : 'Tes avants apprennent'} : ${systemeDe(d.maitrise.tac).nom.toLowerCase()}.`;
   // La carte du proprio (objectif atteint) : la seule carte prise sans un mot (QA S74b).
   else if (d.carte && CARTES[d.carte]) mot = `${CARTES[d.carte].ico} ${CARTES[d.carte].nom} : pour le reste de la saison.`;
+  // v2 : la carte qui fait croire le vestiaire à un coach le dit, avec ce que sa confiance joue.
+  if (d.coach && COACHS[d.coach.cle]) {
+    const C = COACHS[d.coach.cle];
+    mot = `${mot ? `${mot} ` : ''}${C.ico} Le vestiaire croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.`;
+  }
   if (mot) toast(mot);
 }
 
@@ -572,7 +581,10 @@ export async function runSeason(opts = {}) {
       // UN DECK AIGUISÉ (Rogue, S77) : deux cartes de départ commencent en « + » — à la première saison d'une run.
       ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus && !(G.rogue.saison > 1) ? [{ jour: 0, deck: 'camp', aiguise: 'lancer', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'bloquer', rogue: { depart: true } }] : []),
       // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées et le deck continuent, en décisions du jour 0.
-      ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : [])];
+      ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
+      // LE COACH CHOISI AU DÉPART (v2, js/coachs.js) : trois cartes au compteur, sa confiance I allumée — à la première saison d'une run.
+      ...(G.bonus === 'ROGUE' && G.rogue && COACHS[G.rogue.coach] && !(G.rogue.saison > 1)
+        ? [{ jour: 0, coachsDeBase: { [G.rogue.coach]: SEUILS[0] }, coach: effetDePalier(G.rogue.coach, 1), rogue: { depart: true } }] : [])];
   // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
   poserCartes(decisions);
   /*
@@ -705,6 +717,8 @@ function ouvrirEcranSaison(depuis = 0) {
         // Chacune s'ouvre dans une page du Club (1.0, R3) : `page` = { dans, fermer }.
         boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
         inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page) },
+        // v2 : les coachs auxquels le vestiaire croit à la journée `j` (js/coachs.js), et celui de la run.
+        coachs: j => ({ actifs: coachsActifs(G.ligue ? G.ligue.decisions || [] : [], j + 1), tien: (G.bonus === 'ROGUE' && G.rogue && G.rogue.coach) || null }),
       },
       onTermine: () => terminerSaison(),
       depuis,

@@ -1226,7 +1226,8 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   void adv; void lineup;
   const actifs = effetsActifs(team);
   // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
-  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []),
+  // LES COACHS (v2, js/coachs.js) : la confiance du vestiaire, lue comme un patron.
+  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []), ...((team && team.coachs) || []),
     ROULEMENTS[roulementDe(team)], ...actifs];
   for (const c of sources) {
     if (!c) continue;
@@ -1252,7 +1253,8 @@ export function partsDuRoulement(base, group, team) {
   // Un moment peut aussi déplacer les minutes (doubler le trio en feu,
   // brasser les trios) : ses multiplicateurs s'ajoutent à ceux du roulement,
   // et la renormalisation tient toujours la somme.
-  for (const x of effetsActifs(team)) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
+  // v2 : un patron ou la confiance d'un coach (le Contremaître, le Showman) déplacent aussi les minutes, toute la saison.
+  for (const x of [...effetsActifs(team), ...((team && team.patrons) || []), ...((team && team.coachs) || [])]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
   // LES SECONDES DE PRÉSENCE DE CHAQUE LIGNE (S68), à la HockeyArena : 60 est
   // la glace que le moteur a mesurée ; 70 donne un sixième de glace de plus.
   const L = team && team.lignes;
@@ -2276,7 +2278,7 @@ function usureLigne(l, part, partMoy, groupe = 'F') {
 }
 /* Le multiplicateur d'usure des effets, des cartes de saison et des patrons. */
 function kUsure(team) {
-  const src = [...effetsActifs(team), ...((team && team.patrons) || []), ...((team && team.cartes) || []).map(c => CARTES[c])];
+  const src = [...effetsActifs(team), ...((team && team.patrons) || []), ...((team && team.coachs) || []), ...((team && team.cartes) || []).map(c => CARTES[c])];
   return src.reduce((a, x) => a * ((x && x.energie) || 1), 1);
 }
 /* L'usure de chaque ligne ce soir : { F: [4], D: [3] }. */
@@ -5390,6 +5392,8 @@ function appliquerDecision(team, d, graine = 0) {
     const { remplace: _r, ...pat } = d.patron;
     team.patrons.push(pat);
   }
+  // LA CONFIANCE D'UN COACH (v2, js/coachs.js) : la décision porte ses chiffres, et la nouvelle remplace l'ancienne du même coach.
+  if (d.coach && d.coach.cle) team.coachs = [...(team.coachs || []).filter(x => x.cle !== d.coach.cle), { ...d.coach }];
   /*
    * LES GESTES D'UNE CARTE (S79) : un soin (des matchs d'infirmerie en
    * moins), de l'énergie, le repos du gardien — sur les joueurs NOMMÉS par la
@@ -5604,7 +5608,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // Une ligue neuve part de zéro : les cartes, les situations, les cases
       // vides, les effets, les gestes réels, la chimie et l'énergie, les
       // changements de carte, les gros matchs.
-      t.cartes = []; t.patrons = [];
+      t.cartes = []; t.patrons = []; t.coachs = [];
       t.situations = [];
       t.trous = []; t.trouEnCours = false;
       t.effets = []; t.jourCourant = 0;
@@ -5951,7 +5955,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.cartes = []; t.patrons = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.cartes = []; t.patrons = []; t.coachs = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0]; t.entente = new Map();
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -6424,7 +6428,7 @@ export function motsDEffet(e, duree = null) {
  */
 export function totauxDuSoir(team, lineup = null, adv = null, aVenir = []) {
   if (!team) return null;
-  const champs = ['cartes', 'patrons', 'effets', 'effetsSerie', 'roulement', 'lignes'];
+  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'lignes'];
   const avant = champs.map(k => [k, k in team, team[k]]);
   // En séries, le match qui vient lit `effetsSerie` (S69), pas les effets datés de la saison.
   const serie = team.jourCourant === Infinity;
@@ -6450,6 +6454,7 @@ export function totauxDuSoir(team, lineup = null, adv = null, aVenir = []) {
         const { remplace: _r, ...pat } = d.patron; void _r;
         team.patrons = [...(team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role)), pat];
       }
+      if (d.coach && d.coach.cle) team.coachs = [...(team.coachs || []).filter(x => x.cle !== d.coach.cle), { ...d.coach }];
     }
     return totauxBruts(team, lineup, adv);
   } finally {

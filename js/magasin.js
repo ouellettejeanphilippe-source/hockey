@@ -20,7 +20,7 @@ const $ = id => document.getElementById(id);
 /*
  * ctx : { jetons, mode ('rogue' | 'saison'), ouverts (cle → true | 'raison du verrou'),
  *         mods (patrons : rabais, holo, carteExtra, sansBase), sansHolo (packs d'affilée),
- *         duJour { pack, rabais }, franchises [{ cle, nom }], saisons [labels],
+ *         duJour { pack, rabais }, franchises [{ cle, nom }], saisons [labels], coachs [{ cle, nom }], coachRun,
  *         acheter(cle, { prix, params }), onFerme() }
  */
 /* Un pourcentage à une décimale au plus, à la québécoise : « 4,4 % », « 36 % ». */
@@ -108,7 +108,9 @@ export function ouvrirMagasin(ctx) {
     const choix = P.choix === 'franchise'
       ? `<label class="pk-choix">La franchise <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.franchises.map(f => `<option value="${esc(f.cle)}">${esc(f.nom)}</option>`).join('')}</select></label>`
       : P.choix === 'saison'
-        ? `<label class="pk-choix">La saison <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.saisons.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select></label>` : '';
+        ? `<label class="pk-choix">La saison <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.saisons.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select></label>`
+        : P.choix === 'coach' && ctx.coachs
+          ? `<label class="pk-choix">Le coach <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.coachs.map(c => `<option value="${esc(c.cle)}"${c.cle === ctx.coachRun ? ' selected' : ''}>${esc(c.nom)}</option>`).join('')}</select></label>` : '';
     const peut = !verrou && ctx.jetons >= prix;
     const d = document.createElement('div');
     d.className = 'pk-fiche';

@@ -34,6 +34,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
   activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux } from './sim.js';
 import { seasonLancers } from './ratings.js';
+import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
@@ -2069,6 +2070,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <span class="hub-etat-k">💀 La run</span>
         <span class="hub-etat-v">Saison ${run.saison} · le proprio veut : <b>${ctx.esc(run.mot)}</b>${run.suivant ? ` <small class="hub-run-suite">· puis : ${ctx.esc(run.suivant)}</small>` : ''}</span>
         ${bareme ? `<small class="hub-run-bareme" title="Ce que chaque résultat rapporte, en jetons">🪙 ${ctx.esc(bareme)}</small>` : ''}
+      </div>`);
+    }
+    // LES COACHS (v2, js/coachs.js) : ceux auxquels le vestiaire croit, et leur confiance. Le détail est dans « Tes coachs » (Marché › Mes cartes).
+    const co = ctx.coachs ? ctx.coachs(jour) : null;
+    if (co && (co.actifs.length || co.tien)) {
+      const liste = [...co.actifs].sort((a, b) => (b.cle === co.tien) - (a.cle === co.tien) || b.palier - a.palier)
+        .map(x => `${COACHS[x.cle] ? COACHS[x.cle].ico : ''} ${ctx.esc(COACHS[x.cle] ? COACHS[x.cle].nom : x.cle)} <b>${ROMAINS[x.palier] || ''}</b>`);
+      lignes.push(`<div class="hub-etat-l hub-etat-coachs" title="Chaque carte jouée compte pour le coach de sa couleur ; à ${SEUILS.join(', ')} cartes, le vestiaire croit à lui">
+        <span class="hub-etat-k">📋 Tes coachs</span>
+        <span class="hub-etat-v">${liste.join(' · ') || 'personne encore'}</span>
       </div>`);
     }
     const oc = onDecision ? objectifEnCours() : null;

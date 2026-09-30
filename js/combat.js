@@ -270,6 +270,31 @@ export const CARTES_MATCH = {
   retardement: { nom: 'Retarder le jeu', ico: '🕐', cout: 1, rarete: 'peu', genre: 'defense',
     texte: 'La rondelle glacée, le dégagement dans la vitre, le gardien qui fige.', effet: { defense: 0.97, volume: 0.97 }, adv: { volume: 0.96 } },
 
+  /*
+   * v2 — HUIT DE PLUS, pour que chaque école (js/ecoles.js) ait ses cartes de
+   * match : le rouleau compresseur (les rhinocéros), les quatre trios (la
+   * profondeur), le héros du soir (les étoiles), la prière et la provocation
+   * (les enfants de chœur). Les mêmes champs que les autres, rien de neuf.
+   * `horsAdverse` : l'adversaire ne les pige pas — sa main est calibrée
+   * (check_gros, check_robot), et la v2 ne change pas la difficulté.
+   */
+  rouleau: { nom: 'Le rouleau compresseur', ico: '🦴', cout: 2, rarete: 'peu', genre: 'attaque', horsAdverse: true,
+    texte: 'Chaque présence finit dans la bande.', effet: { robustesse: 2, volume: 1.03, energie: 1.08 } },
+  vicieux: { nom: 'La mise en échec vicieuse', ico: '🦷', cout: 1, rarete: 'commune', genre: 'attaque', horsAdverse: true,
+    texte: 'Le coude un peu haut, l\'épaule un peu tard.', effet: { robustesse: 1.6, discipline: 1.15 } },
+  quatreTrios: { nom: 'Les quatre trios', ico: '🍀', cout: 1, rarete: 'peu', genre: 'tactique', horsAdverse: true,
+    texte: 'Tout le monde joue, et personne ne se fatigue.', effet: { F: [0.9, 1, 1.08, 1.2], energie: 0.9 } },
+  tableau: { nom: 'Le tableau des changements', ico: '🧮', cout: 0, rarete: 'commune', genre: 'tactique', horsAdverse: true,
+    texte: 'Des présences au chronomètre, affichées derrière le banc.', effet: { F: [0.96, 1, 1.02, 1.08], energie: 0.95 } },
+  heros: { nom: 'Le héros du soir', ico: '🦸', cout: 2, rarete: 'rare', genre: 'attaque', horsAdverse: true,
+    texte: 'Il veut la rondelle, et le banc la lui donne.', effet: { F: [1.4, 1, 0.85, 0.7], finition: 1.05, energie: 1.1 } },
+  priere: { nom: 'La prière', ico: '🙏', cout: 0, rarete: 'peu', genre: 'defense', horsAdverse: true,
+    texte: 'Mains jointes au banc : personne ne touchera à un bâton adverse.', effet: { discipline: 0.75, volume: 0.98 } },
+  provocationC: { nom: 'La provocation du capitaine', ico: '🗯️', cout: 1, rarete: 'peu', genre: 'tactique', horsAdverse: true,
+    texte: 'Un mot à l\'oreille de leur vedette, à chaque mise au jeu.', adv: { discipline: 1.2, finition: 0.98 } },
+  nuee: { nom: 'La nuée', ico: '🐜', cout: 1, rarete: 'commune', genre: 'attaque', horsAdverse: true,
+    texte: 'Cinq joueurs sur la rondelle, partout à la fois.', effet: { volume: 1.09, finition: 0.98 } },
+
   // ---- malédictions ----
   distraction: { nom: 'La distraction', ico: '📰', cout: 1, rarete: 'maudite', genre: 'malediction', maudite: true,
     texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 élan et ne fait rien.' },
@@ -436,6 +461,7 @@ const POOL_ADVERSE = Object.keys(CARTES_MATCH).filter(k => {
   if (C.revele || C.ecarte || C.planB || C.improvise || C.piege || C.rabais || C.epuise || C.siVide) return false;
   // Ni une carte d'origine (1.0) : une vraie équipe est d'un seul club et d'une saison, elle les aurait toutes au maximum.
   if (C.origine) return false;
+  if (C.horsAdverse) return false;
   return !C.maudite && !C.lire && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
     && (C.effet || C.adv || C.pari || C.synergie || C.energieTous || C.parGenre || C.selonLeurMain || C.apres40);
 });

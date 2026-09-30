@@ -53,6 +53,16 @@ const intro = (await page.textContent('#choixModal .choix-sheet')).replace(/\s+/
 if (!/proprio/.test(intro) || !/classeur/.test(intro)) erreurs.push('l\'écran de la run ne dit ni le mandat du proprio ni le classeur');
 await choix();
 /*
+ * TON COACH (v2, js/coachs.js) : trois coachs, un à prendre — sa confiance I
+ * est allumée dès le premier soir (une décision du jour 0).
+ */
+await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
+const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
+console.log(`0. ton coach : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 40)).join(' | ')}`);
+if (offerts.length !== 3 || !offerts.every(t => /Confiance I/.test(t))) erreurs.push(`le choix du coach offre ${offerts.length} coach(s), ou ne dit pas sa confiance I`);
+await choix();
+/*
  * LE DÉPART DU CLASSEUR (S80, js/depart.js) : sans déblocage, une carte du
  * cartable tirée au hasard. On la voit, on touche sa carte (sa fiche), on la
  * prend, on commence.
@@ -155,6 +165,14 @@ const versSaison = await page.$('#sousNav:not([hidden]) .soustab[data-page="sais
 if (versSaison) { await versSaison.click(); await page.waitForTimeout(300); }
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
 console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
+{
+  const coachs = ((await page.textContent('#hubModal .hub-etat-coachs').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const sv0 = await lireSauvegarde();
+  const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
+  console.log(`5c. tes coachs : ${coachs || '(absent)'} · décision du jour 0 : ${d0 ? `${d0.coach.nom} ${JSON.stringify(d0.coachsDeBase)}` : '(aucune)'}`);
+  if (!d0 || d0.coach.palier !== 1) erreurs.push('le coach de la run n\'allume pas sa confiance I au jour 0');
+  if (!/ I\b/.test(coachs)) erreurs.push('le bureau ne dit pas le coach de la run et sa confiance');
+}
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 // 1.0 (R4) : le barème des jetons est écrit au hub, et ses chiffres sont ceux de la run (jamais tapés).
 {

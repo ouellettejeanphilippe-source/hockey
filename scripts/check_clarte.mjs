@@ -39,6 +39,7 @@ import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
 import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse } from '../js/combat.js';
 import { JETONS, baremeRogue, PLAFOND_ROGUE, MANDATS } from '../js/rogue.js';
+import { COACHS, SEUILS } from '../js/coachs.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -70,9 +71,11 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
   const carrure = gerant.match(/^(?:export )?const carrureDe = [^\n]+/m);
   exiger('la carrure a ses deux icônes, 🪨 costaud et 🪶 léger', !!carrure && /🪨', mot: 'Costaud'/.test(carrure[0]) && /🪶', mot: 'Léger'/.test(carrure[0]), carrure ? '' : 'carrureDe introuvable');
   noter('🪨', 'carrure costaud', 'carrure'); noter('🪶', 'carrure léger', 'carrure');
+  // v2 : les coachs (js/coachs.js) — un totem chacun, qu'aucune autre étiquette ne porte.
+  for (const C of Object.values(COACHS)) noter(C.ico, `coach ${C.nom}`, 'coach');
   // « Two-way » en attaque et en défense : un seul sens.
   const doublons = [...sens].filter(([, m]) => m.size > 1).map(([ico, m]) => `${ico} = ${[...m.keys()].join(' / ')}`);
-  informer('icônes lues', `${sens.size} icônes dans 9 familles`);
+  informer('icônes lues', `${sens.size} icônes dans 10 familles`);
   exiger('une icône = un sens', doublons.length === 0, doublons.join(' · ') || 'aucun doublon');
   exiger('« Défensif » ne nomme qu\'un rôle', Object.values(BONUS).every(B => B.nom !== 'Défensif') && ARCHETYPES.WALL.label !== TRAITS.VEZINA.label,
     'le bonus de carte s\'appelle Étanche ; le gardien-mur ne s\'appelle plus « Gardien d\'élite » (le trophée Vézina)');
@@ -224,6 +227,9 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [`${JETONS.depart} jetons et un plafond de ${nombre(PLAFOND_ROGUE / 1e6)} M$`, 'le départ Rogue'],
     [`une victoire ${B.victoire} jetons (${B.victoire + 3}, puis ${B.victoire + 5} avec les commanditaires), une défaite en prolongation ${B.prolongation}, une défaite ${B.defaite}, un gros match gagné ${B.grosMatch}, un objectif du proprio ${B.objectif}, une ronde de séries gagnée ${B.serie}`, 'le barème des jetons'],
     [`une réclamation coûte ${coutBal} jetons`, 'la réclamation Rogue'],
+    // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
+    [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
+    [`À ${SEUILS.slice(0, -1).join(', ')} et ${SEUILS[SEUILS.length - 1]} cartes jouées d'un coach, le vestiaire croit à lui pour la saison`, 'les seuils de la confiance'],
   ];
   // Les commanditaires : +3 puis +2 (js/rogue.js, `baremeRogue`).
   const src = lire('js/rogue.js');
