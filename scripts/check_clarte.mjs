@@ -29,7 +29,7 @@ import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, CAP, REROLLS, MODES, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
   ENERGIE_SEUIL, ENERGIE_EFFET, ENERGIE_BLESSURE, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
   GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE,
-  PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE,
+  PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
 } from '../js/sim.js';
 import { TRAITS } from '../js/traits.js';
 import { BONUS } from '../js/rarete.js';
@@ -189,6 +189,9 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     // 1.0 (J2-11) : la consigne porte la répartition attaque / défense ; ses chiffres sont ceux que le moteur pose (`effetDeMoment`).
     [`basse (précision −${pctE('basse', 'finition')} %, usure des jambes −${pctE('basse', 'energie')} %)`, 'la consigne basse'],
     [`haute (précision +${pctE('haute', 'finition')} %, buts contre −${pctE('haute', 'defense')} %, blessures +${pctE('haute', 'blessure')} %, usure des jambes +${pctE('haute', 'energie')} %)`, 'la consigne haute'],
+    // La robustesse (1.0, le dur de quatrième trio) : un écart-type, un soir ordinaire et un soir éreintant, et la dissuasion.
+    [`ta finition monte de ${nombre(Math.round((Math.exp(K_ROB * ROB_ORDINAIRE) - 1) * 1000) / 10)} % et la sienne baisse d'autant ; un soir éreintant (un match sur quatre) de ${nombre(Math.round((Math.exp(K_ROB) - 1) * 1000) / 10)} %`, 'la robustesse'],
+    [`réduit les blessures de tes joueurs de ${nombre(Math.round((1 - Math.exp(-DISSUASION)) * 100))} %`, 'la dissuasion'],
     [`Sous ${ENERGIE_SEUIL}, chaque point de moins lui coûte ${nombre(ENERGIE_EFFET)} %`, 'l\'effet des jambes'],
     [`sous ${ENERGIE_BLESSURE}, il se blesse plus`, 'le seuil de blessure'],
     [`entre ${nombre(PART_AUX_MIN * 100)} et ${nombre(PART_AUX_MAX * 100)} %`, 'la part de l\'auxiliaire'],

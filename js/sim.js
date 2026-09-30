@@ -1305,7 +1305,8 @@ export const PROFILS = {
     sniper: { nom: 'Sniper', ico: '🎯', mot: 'ses buts par match, son % de tir, ses lancers' },
     passeur: { nom: 'Passeur', ico: '🅰️', mot: 'ses passes par match, ses points en avantage' },
     deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, son infériorité' },
-    power: { nom: 'Power forward', ico: '🦍', mot: 'ses buts, sa robustesse mesurée, son gabarit' },
+    // `court` : le nom qui tient dans une case de l'alignement (cent pixels) ; les autres tiennent déjà.
+    power: { nom: 'Power forward', court: 'Power', ico: '🦍', mot: 'ses buts, sa robustesse mesurée, son gabarit' },
     checker: { nom: 'Checker', ico: '🔧', mot: 'ses mises en échec (sa robustesse avant 2005), sa défensive, peu de points' },
     // 1.0 (C1) : « Plombier », pas « Énergie » — l'énergie était aussi la fatigue et la mana des cartes. La clé reste.
     energie: { nom: 'Plombier', ico: '🪠', mot: 'ses lancers et ses mises en échec en peu de minutes' },
@@ -1314,7 +1315,7 @@ export const PROFILS = {
   D: {
     defensif: { nom: 'Défensif', ico: '🛑', mot: 'sa défensive mesurée, ses tirs bloqués, peu de points' },
     offensif: { nom: 'Offensif', ico: '🚀', mot: 'ses points, ses buts, ses lancers' },
-    manieur: { nom: 'Manieur de rondelle', ico: '🏒', mot: 'ses passes, ses minutes, ses points en avantage' },
+    manieur: { nom: 'Manieur de rondelle', court: 'Manieur', ico: '🏒', mot: 'ses passes, ses minutes, ses points en avantage' },
     physique: { nom: 'Physique', ico: '💪', mot: 'sa robustesse mesurée, ses mises en échec, son gabarit' },
     deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, ses minutes' },
   },
@@ -3082,10 +3083,28 @@ const K_VOLUME_DEF = 0.012;
  * une robustesse d'alignement de 48,1 ± 2,4 (120 vraies équipes alignées) :
  * à K_ROB = 0,10, la vraie équipe la plus dure de son époque gagne deux ou
  * trois matchs de plus, pas dix.
+ *
+ * LE DUR DE QUATRIÈME TRIO COMPTE CHAQUE SOIR (1.0). JP : *on ne distingue pas
+ * bien les joueurs selon position ; un excellent bagarreur de quatrième trio
+ * devrait être impactant*. Mesuré avant : trois soirs sur quatre, la
+ * robustesse ne faisait RIEN (intensité 0), et un bagarreur n'était qu'un
+ * coût de punitions. Deux ajouts, par les canaux qui existent :
+ *
+ *   4. Les SOIRS ORDINAIRES, la robustesse pèse à ROB_ORDINAIRE de son poids
+ *      d'un soir éreintant : un club à un écart-type au-dessus de l'autre y
+ *      finit mieux de deux et demi pour cent, et laisse moins entrer d'autant.
+ *      Un soir éreintant vaut toujours 1, les séries davantage à chaque ronde.
+ *   5. LA DISSUASION : la robustesse d'alignement (celle des durs habillés,
+ *      pondérée par la glace de leur trio) protège les coéquipiers — chaque
+ *      écart-type réduit les blessures de l'équipe de 1 − e^(−DISSUASION),
+ *      dix-huit pour cent. C'est ce qu'un bagarreur fait de plus visible :
+ *      les vedettes jouent leurs 82 matchs.
  */
-const K_ROB = 0.07;
+export const K_ROB = 0.07;
 const ROB_SERIES = 0.15;
 const ROB_BLESSURE = 0.35;
+export const ROB_ORDINAIRE = 0.35;
+export const DISSUASION = 0.2;
 const MOY_ROB_EQUIPE = 48.1;
 const ECART_ROB_EQUIPE = 2.4;
 // Les colosses (js/traits.js) ajoutent leur poids, en écarts-types, dans leurs grosses saisons.
@@ -4049,10 +4068,10 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     instants = Array.from({ length: lancers }, () => instantForcesEgales(st?.fenetres, journal?.prolongation, st?.plage));
   }
 
-  // La robustesse : les soirs éreintants et tous les matchs de séries, où
-  // l'usure s'accumule de ronde en ronde (voir K_ROB).
-  const intensite = series ? 1 + ROB_SERIES * ronde : heavy ? 1 : 0;
-  const facteurRob = intensite ? Math.exp(K_ROB * intensite * (robZ(off) - robZ(def))) : 1;
+  // La robustesse : chaque soir (à ROB_ORDINAIRE), à plein les soirs éreintants,
+  // et davantage en séries, où l'usure s'accumule de ronde en ronde (voir K_ROB).
+  const intensite = series ? 1 + ROB_SERIES * ronde : heavy ? 1 : ROB_ORDINAIRE;
+  const facteurRob = Math.exp(K_ROB * intensite * (robZ(off) - robZ(def)));
   const fg = (gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20))
     * facteurTraitGardien(gardien, series) * situDe(gardien, 'gardien');
   // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
@@ -4557,10 +4576,12 @@ function instantDeBlessure(feuille, p, team) {
   if (dernier >= fin - 0.4) return Math.max(dernier, fin - 0.3);
   return dernier + (fin - 0.3 - dernier) * (0.1 + 0.8 * empreinte(`${getPlayerKey(p)}|${team.name}|${team.games}`));
 }
-function applyInjuries(team, lineup, heavy, feuille = null, cote = null) {
+function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil = null) {
   for (const [p, n] of team.injured) {
     if (n <= 1) team.injured.delete(p); else team.injured.set(p, n - 1);
   }
+  // LA DISSUASION (voir K_ROB) : les durs de l'alignement protègent les autres.
+  const dissuasion = profil ? Math.exp(-DISSUASION * robZ(profil)) : 1;
   for (const p of Object.values(lineup)) {
     if (!p || team.injured.has(p)) continue;
     // Le risque suit la carte, le plan et le roulement : « Roulement court » et
@@ -4568,7 +4589,7 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null) {
     // Et la situation du joueur : « Il joue amoché » finit par payer.
     // L'ÉNERGIE (S68) : sous 60, le risque monte — jusqu'au double à 30.
     const usee = 1 + Math.max(0, ENERGIE_BLESSURE - energieDe(p)) / 30;
-    if (hasard() < injuryChance(p, heavy) * effetsDeSaison(team).blessure * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
+    if (hasard() < injuryChance(p, heavy) * dissuasion * effetsDeSaison(team).blessure * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
       const n = injuryLength();
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
@@ -4746,7 +4767,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
     if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB, feuille: journal });
   }
-  applyInjuries(A, LA, heavy, journal, 'A'); applyInjuries(B, LB, heavy, journal, 'B');
+  applyInjuries(A, LA, heavy, journal, 'A', pA); applyInjuries(B, LB, heavy, journal, 'B', pB);
   if (track) { A.games++; B.games++; }
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
@@ -4919,7 +4940,7 @@ export function simulate(roster, { graine = null } = {}) {
 
     crediterMatch(lineup, gardien, ga, win, otl);
     updateTogether(team, lineup);
-    applyInjuries(team, lineup, heavy);
+    applyInjuries(team, lineup, heavy, null, null, profil);
     team.games++;
     GF += gf; GA += ga;
   }

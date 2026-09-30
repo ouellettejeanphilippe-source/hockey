@@ -17,7 +17,7 @@ Les items non faits d'avant 1.0, une ligne chacun. Ce qui est entré dans la 1.0
 - [ ] **S2** — Mode deux joueurs : repêchage en alternance, puis série 4 de 7. Après la 1.0.
 - [ ] **S3** — Recalibrer la simulation sur des alignements réalistes plutôt qu'uniformes. En partie couvert par `check_robot.mjs` (`LIVRAISON.md`, jalon 0).
 - [ ] **S5** — Étendre avant 1970 (TOI et +/- manquent avant les années 1960). Après la 1.0.
-- [ ] **S6** — Blessures selon la robustesse : les blessures existent ; leur lien à la fatigue est l'item C3 de `LIVRAISON.md`.
+- [x] **S6** — Blessures selon la robustesse : fait — un joueur robuste se blesse moins (`ROB_BLESSURE`), la robustesse d'alignement protège les coéquipiers (`DISSUASION`, 30 sept.), et le lien à la fatigue est l'item C3 de `LIVRAISON.md`.
 - [ ] **S8** — Vrais classements pour `check_ratings.mjs` (Hockey Databank). Après la 1.0.
 - [ ] check_cartes (New Jersey) et check_monotonie à la limite de leur borne : à relire après les réglages de la 1.0 (`LIVRAISON.md`, jalon 1, L et M).
 - [ ] Poser une amélioration derrière le banc et aux séries : ouvert si JP le demande.

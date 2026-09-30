@@ -342,6 +342,21 @@ de robustesse entre les deux clubs (`K_ROB`, js/sim.js) et l'intensité monte de
 `ROB_SERIES` par ronde. Un bâti robuste fait une saison moyenne et soulève la
 Coupe aussi souvent que l'empilement de valeur (`check_builds.mjs`).
 
+**Fait, 1.0 (le dur de quatrième trio) :** JP : *on ne distingue pas bien les
+joueurs selon position ; un excellent bagarreur de quatrième trio devrait être
+impactant*. Mesuré : trois soirs sur quatre, la robustesse ne pesait rien
+(intensité 0), et un bagarreur n'était qu'un coût de punitions. Deux canaux
+existants, deux constantes (`js/sim.js`, sous `K_ROB`) : les soirs ordinaires
+pèsent `ROB_ORDINAIRE` (0,35) de l'intensité d'un soir éreintant, donc un
+écart-type de robustesse vaut 2,5 % de finition chaque soir au lieu de rien ;
+et la DISSUASION — la robustesse d'alignement réduit les blessures de l'équipe
+de 1 − e^(−`DISSUASION`) = 18 % par écart-type. `check_builds.mjs` (2 essais,
+solo) : ROBUSTE 55,5 → 60,5 V, DÉF+ROB 60,5 → 65,5, VALEUR 67 inchangé, et le
+« pur r » (des bagarreurs à 99 pour 19 M$) reste à 20 V : pas d'exploit.
+`check_monotonie` : monotone, 25,6 / 51,4. À l'écran, le chiffre clé suit le
+rôle (`chiffreCle`, js/game.js) : un bagarreur lit ses punitions, un checker
+ses mises en échec par match, un défensif ses tirs bloqués.
+
 **À mesurer** : quelle amplitude de tirage ramène une équipe forte de 99 % à
 quelque chose comme 40 à 60 % de chances de Coupe. Mon test préliminaire dit que
 la variance seule ne suffit pas — la vraie cause est que l'alignement du joueur

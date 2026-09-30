@@ -527,7 +527,7 @@ a { color: var(--blue); text-decoration: none; }
   white-space: nowrap;
   text-transform: uppercase;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-family: var(--display); font-weight: 700; letter-spacing: 0.16em;
 }
 .capgauge-amt { white-space: nowrap; }
@@ -1258,7 +1258,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 }
 .pcard-big { flex: none; display: flex; align-items: baseline; gap: 3px; }
 .pcard-big b { font-family: var(--display); font-weight: 800; font-size: 25px; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.4px; }
-.pcard-big span { font-size: 9.5px; font-weight: 900; letter-spacing: 0.08em; color: var(--muted); }
+.pcard-big span { font-size: 10.5px; font-weight: 900; letter-spacing: 0.08em; color: var(--muted); }
 /* Les étiquettes tiennent sur UNE ligne, réduites à l'échelle au besoin (`ajusterCartes`) : la fiche les donne toutes. */
 .pcard-mid { display: flex; align-items: center; min-width: 0; overflow: hidden; }
 .pcard-mid .tags { flex-wrap: nowrap; flex: 1; min-width: 0; transform-origin: left center; }
@@ -1269,7 +1269,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   .pcard-fiche { padding: 6px 5px; }
   .pcard-price { font-size: 13px; }
   .pcard-big b { font-size: 18px; }
-  .pcard-big span { font-size: 8px; letter-spacing: 0.04em; }
+  .pcard-big span { font-size: 9.5px; letter-spacing: 0.04em; }
   .btn-sign { font-size: 12.5px; letter-spacing: 0.06em; padding: 5px 4px; }
 }
 
@@ -1309,7 +1309,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 /* Le chip de poste, sur l'aplat : un verre translucide, encre de l'équipe. */
 .sb-role {
   flex: none; padding: 1px 6px; border-radius: 4px;
-  font-size: 10px; font-weight: 900; letter-spacing: 0.06em;
+  font-size: 10.5px; font-weight: 900; letter-spacing: 0.06em;
   /* Un verre teinté de l'encre : lisible sur un aplat clair comme foncé. */
   background: color-mix(in srgb, var(--team-ink, #ffffff) 22%, transparent); color: inherit;
 }
@@ -1324,7 +1324,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   gap: 3px;
   padding: 2px 6px;
   border-radius: 5px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   border: 1px solid var(--line);
   /* S59 : la surface, pas le filet — et c'est ici qu'il faut la changer,
@@ -1416,7 +1416,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   border: 0; border-left: 1px solid var(--line-soft); border-radius: 0; background: transparent; padding: 2px 9px 4px;
 }
 .sum-item .k {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1550,7 +1550,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   color: var(--sub);
   letter-spacing: 0.05em;
 }
-.slot.empty .slot-sub { font-size: 10px; color: var(--muted); }
+.slot.empty .slot-sub { font-size: 11px; color: var(--muted); }
 .slot.empty.target {
   border-style: solid;
   border-color: var(--gold);
@@ -1565,7 +1565,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
 .slot.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .slot.oop { border-color: rgba(229, 112, 122, 0.5); }
 
-.slot-band { padding: 3px 7px 5px; font-size: 9.5px; gap: 5px;
+.slot-band { padding: 3px 7px 5px; font-size: 11px; gap: 5px;
   background: var(--slot-band, var(--neutre-eq)); color: var(--slot-ink, #ffffff);
   box-shadow: inset 0 -2px 0 var(--slot-stripe, var(--blue)); }
 /* Quand la case est trop étroite pour tout, c'est l'ÉCUSSON qui cède : le
@@ -1623,7 +1623,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   transform-origin: left center;
 }
 .slot-tags > * { flex: none; }
-.slot-tags .tag { font-size: 9.5px; padding: 1px 5px; }
+.slot-tags .tag { font-size: 10.5px; padding: 1px 5px; }
 .slot-icones { font-size: 11px; line-height: 16px; letter-spacing: -1px; white-space: nowrap; }
 /* Quatre émojis de polices différentes (🧱⚡🪄🧊) s'alignent sur leur ligne de base et la ligne grandit de 2 px au-delà
    de ses 16 : la rangée coupait le bas (S80, attrapé par `toutEstAtteignable` sur un repêchage au hasard). La boîte
@@ -1949,7 +1949,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   text-align: center;
 }
 .stat-cell .k {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 900;
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -1987,7 +1987,7 @@ a.spin-club:hover { background: color-mix(in srgb, var(--team-line) 12%, transpa
   background: rgba(0, 0, 0, 0.22);
 }
 .profil-cell .k {
-  font-size: 8.5px; font-weight: 900; color: var(--muted); letter-spacing: 0.01em;
+  font-size: 10px; font-weight: 900; color: var(--muted); letter-spacing: 0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .profil-cell .v { font-family: var(--display); font-size: 24.5px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -3004,7 +3004,7 @@ table.data .pts { font-weight: 900; color: var(--green); }
 .table-wrap.haute { max-height: 62vh; }
 table.data tr.gagne td.stat.v { color: var(--green); font-weight: 900; }
 table.data tr.perdu td.stat.d { color: var(--red); font-weight: 900; }
-table.data td small { font-size: 10px; color: var(--muted); }
+table.data td small { font-size: 11px; color: var(--muted); }
 
 /* ---- le calendrier : une journée, ses seize matchs ---- */
 .cal-barre { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
@@ -5112,6 +5112,11 @@ body.nav-clavier .btn:focus, body.nav-clavier .chip:focus, body.nav-clavier .nav
   body[data-page="alignement"] .roster {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    /* Sous une hauteur bornée (le volet défile), les rangées implicites
+       tombaient sous la hauteur des trios : la rangée « Système » du 1er trio
+       s'imprimait sur l'en-tête du 4e. Mesuré à 1280 : six rangées qui se
+       recouvraient, zéro avec max-content — la même règle que le vestiaire. */
+    grid-auto-rows: max-content;
     gap: var(--sp-4);
     align-items: start;
   }
@@ -6955,7 +6960,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
 .cj-mini-carte { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .cjm-ligne { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; padding: 0 2px; font: 800 12px/1 var(--display); font-variant-numeric: tabular-nums lining-nums; }
 .cjm-ligne b { font-size: 18px; color: var(--text); letter-spacing: -0.3px; }
-.cjm-ligne b small { font-size: 9px; margin-left: 2px; color: var(--muted); letter-spacing: 0.04em; }
+.cjm-ligne b small { font-size: 10px; margin-left: 2px; color: var(--muted); letter-spacing: 0.04em; }
 .cjm-ligne > span { color: var(--gold); white-space: nowrap; }
 
 /* ✦ UNE BRILLANTE QUI SORT : un éclat, la première fois seulement (`VARIANTES_VUES`). */
@@ -7097,7 +7102,7 @@ button.dep-piste:hover:not(:disabled) { border-color: rgba(255, 190, 60, 0.45); 
   flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 46px; height: 28px; padding: 0 6px; border-radius: 4px;
   background: var(--team-ink, #fff); color: var(--team-band, #243044); font-size: 14px; letter-spacing: 0;
 }
-.fc-verso .cjv-no small { font-size: 9px; letter-spacing: 0.02em; opacity: 0.7; }
+.fc-verso .cjv-no small { font-size: 10px; letter-spacing: 0.02em; opacity: 0.7; }
 .fc-verso .cjv-nom { flex: 1; min-width: 0; overflow-wrap: anywhere; font-kerning: normal; }
 .fc-verso .cjv-pos { flex: none; font-size: 12px; opacity: 0.85; }
 .fc-verso .cjv-logo { flex: none; display: grid; place-items: center; width: 22px; height: 22px; }
@@ -8594,18 +8599,29 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .slot.cj-case .slot-name {
   min-width: 0; text-overflow: ellipsis;
   grid-area: nom;
-  font-size: 15px; line-height: 1.02; white-space: normal; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  font-size: 17px; line-height: 1.02; white-space: normal; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
+/* JP (1.0) : *trop de trucs petits*. La case dit trois choses en gros — le nom,
+   le rôle et son mot, le chiffre clé — et le reste en petit, une fois. */
 .cell-l1 { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.cell-role { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 3px; min-width: 0; font-size: 12px; letter-spacing: 0; flex-wrap: wrap; overflow: visible; }
-.cell-role > span { font: 700 11px/1.1 var(--display); letter-spacing: .02em; color: var(--text); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+/* Le rôle sur une ligne : le nom se coupe (« Manieur de ro… ») plutôt que de se plier, le mot reste entier à droite. */
+.cell-role { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 3px; min-width: 0; font-size: 13px; letter-spacing: 0; flex-wrap: nowrap; overflow: hidden; }
+.cell-role > span { flex: 0 1 auto; min-width: 0; font: 700 12.5px/1.1 var(--display); letter-spacing: 0; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Le mot du rôle (élite, très bon, bon, correct, faible) : c'est lui qui distingue un bagarreur élite d'un figurant. */
+.cell-mot { flex: none; margin-left: auto; font: 700 11px/1.1 var(--display); font-style: normal; letter-spacing: 0; color: var(--sub); white-space: nowrap; }
+.cell-l3 { display: flex; justify-content: flex-end; min-width: 0; }
+/* La case grandit d'une rangée derrière le banc (les jambes) : sa hauteur suit, jamais son contenu ne se coupe. */
+.slot.cj-case { height: auto; min-height: 106px; }
+.cell-mot.elite { color: var(--gold); }
+.cell-mot.tres-bon { color: var(--green); }
+.cell-mot.faible { color: var(--muted); }
 .slot.cj-case .cell-l2 { margin-top: 0; align-items: center; flex-wrap: wrap; row-gap: 2px; overflow: visible; }
-.cell-zone { font: 800 11px/16px var(--display); padding: 0 2px; }
+.cell-zone { font: 800 12px/16px var(--display); padding: 0 2px; }
 .cell-zone.ok { color: var(--green); }
 .cell-zone.sous { color: var(--live); }
 .cell-zone.dessus { color: var(--gold); }
 .cell-trait { font-size: 12px; line-height: 16px; }
-.cell-prod { margin-left: auto; font: 700 11px/16px var(--display); color: var(--sub); font-variant-numeric: tabular-nums; }
+.cell-prod { margin-left: auto; font: 800 13.5px/16px var(--display); color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* Le niveau : une pastille à la place d'une cote (aucune cote n'entre dans le DOM). */
 .niv { flex: none; display: inline-block; padding: 1px 6px; border-radius: 999px; font: 800 10px/1.4 var(--display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
   color: #fff; background: #5b6675; }
@@ -8614,7 +8630,7 @@ img.visage { object-fit: cover !important; object-position: 50% 0 !important; tr
 .niv-pilier { background: #2c8a57; }
 .niv-etoile { background: #c9961a; color: #1a1406; }
 .niv-phenomene { background: #7a3fc4; }
-.cell-l1 .niv { margin-left: auto; }
+.cell-l2 .niv { padding: 1px 5px; }
 /* Les jambes : la fatigue d'un joueur, sur 100, en chiffre et en barre. */
 .jambes { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 10.5px; color: var(--sub); }
 .jambes-k { font: 800 9.5px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
