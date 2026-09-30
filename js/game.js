@@ -619,7 +619,8 @@ function resumePartie() {
       const pour = m.A === toi ? m.gfA : m.gfB, contre = m.A === toi ? m.gfB : m.gfA;
       if (pour > contre) W++; else if (m.ot) P++; else D++;
     }
-    etape = G.seriesVues ? `Les séries · saison ${W}-${D}-${P}` : j >= L.calendrier.length ? `Bilan · ${W}-${D}-${P}` : `Journée ${j} / ${L.calendrier.length} · ${W}-${D}-${P}`;
+    // Cap 82 marque ses séries finies (`fini`) : la partie est au bilan, plus aux séries.
+    etape = G.seriesVues && !G.seriesVues.fini ? `Les séries · saison ${W}-${D}-${P}` : j >= L.calendrier.length ? `Bilan · ${W}-${D}-${P}` : `Journée ${j} / ${L.calendrier.length} · ${W}-${D}-${P}`;
   }
   const qui = [MODES[G.mode] ? MODES[G.mode].nom : '', G.repechage === 'FRANCHISE' && FRANCHISES[G.franchise] ? FRANCHISES[G.franchise].nom : '', G.epoque || ''].filter(Boolean).join(' · ');
   // S80 : une run Rogue dit sa saison, au menu comme au hub.
@@ -758,7 +759,8 @@ async function restoreSave() {
         // dernières au lieu d'aller au bilan.
         await sousVoile(series ? 'On retrouve tes séries…' : 'On retrouve ta saison…', async () => {
           await runSeason({ adversaires: clubs, graine, depuis: series ? Infinity : journee, decisions, reprise: true });
-          if (series) reprendreSeries(series);
+          // Cap 82 reprend ses séries dans l'écran qui défile (js/cap82.js), à partir de `G.seriesVues`.
+          if (series && G.bonus !== 'SAISON') reprendreSeries(series);
         });
       } };
     }
@@ -1271,11 +1273,11 @@ function setupEvents() {
     ico: '❓', titre: 'Comment on joue', cartes: true, lecture: true, genre: 'aide', fermable: true, motFermer: 'Compris !',
     recit: 'Cap 82-0, c\'est bâtir une équipe de vrais joueurs et aller chercher la Coupe. Balaie les cartes.',
     options: [
+      // 1.0 (Jalon K) : Cap 82 est le jeu pur. Les cartes, les packs et les décisions en saison vivent au Rogue.
       { cle: 'a1', rarete: 'commune', ico: '🎰', nom: '1. Repêche', type: 'Le repêchage', texte: 'La roulette sort de vrais clubs de 55 saisons. Signe 23 joueurs sous le plafond : trouver les aubaines, c\'est le métier.' },
-      { cle: 'a2', rarete: 'peu', ico: '🧬', nom: '2. Ton identité', type: 'Avant le premier tour', texte: 'Une carte parmi trois colore ton repêchage : la roulette sort plus souvent tes francs-tireurs, tes costauds, tes aubaines…' },
-      { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'Derrière le banc', texte: 'Chaque ligne joue un système. Plus elle le joue, plus sa chimie monte — mais contre un gros adversaire, il faut parfois changer.' },
-      { cle: 'a4', rarete: 'rare', ico: '🃏', nom: '4. Tes cartes', type: 'Gros matchs et séries', texte: 'Cinq cartes, trois d\'élan. Tu vois la main de l\'adversaire : réponds-lui. Gagne, et ton deck grandit.' },
-      { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: '82 matchs, puis les séries, match par match, contre des boss. La Coupe est le vrai but ; le 82-0, le Graal. Tout ce que tu gagnes va dans ton album.' },
+      { cle: 'a2', rarete: 'peu', ico: '🏒', nom: '2. Tes lignes', type: 'L\'effectif', texte: 'Tes trios et tes paires se placent tout seuls ; déplace qui tu veux. Un joueur rend à plein dans sa zone.' },
+      { cle: 'a3', rarete: 'rare', ico: '📈', nom: '3. La saison', type: '82 matchs', texte: 'Ta fiche monte match après match. Le 82-0 tient jusqu\'à la première défaite.' },
+      { cle: 'a4', rarete: 'legendaire', ico: '🏆', nom: '4. La Coupe', type: 'Le but', texte: 'Les 16 premiers vont en séries, quatre rondes 4 de 7. La Coupe est le vrai but ; le 82-0, le Graal.' },
     ],
     onChoix: () => {},
   });
@@ -1300,7 +1302,7 @@ function setupEvents() {
         saveOpts(); saveGame(); syncOptionsUI(); render();
         toast(b.bonus === 'TABLE'
           ? 'Sur table : ton alignement ira jouer un tournoi de six clubs sur un plateau.'
-          : 'La saison : 82 matchs et les séries.');
+          : 'Cap 82 : 82 matchs et les séries, rien d\'autre.');
         return;
       }
       demarrageEnCours = true;
@@ -1310,8 +1312,9 @@ function setupEvents() {
         // a choisi, ou une partie en cours qu'on vient d'effacer. Au premier tour
         // d'une partie neuve, la roulette à l'écran suffit.
         const effacee = !G.done && signes().length > 0;
-        // L'identité se choisit AVANT la roulette, par-dessus cet écran.
-        const choix = await choisirIdentite();
+        // L'identité se choisit AVANT la roulette, par-dessus cet écran — sur table seulement :
+        // Cap 82 est le jeu pur (1.0, Jalon K), la roulette y sort ce qu'elle sort.
+        const choix = b.bonus === 'TABLE' ? await choisirIdentite() : null;
         await demarrerPartie({ ...b, identite: choix });
         closeModal('partieModal');
         if (auHasard.length || effacee) toast(`${auHasard.length ? `🎲 Le hasard a choisi ${auHasard.join(' et ')}. ` : ''}${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''}${b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? ` · ${FRANCHISES[b.franchise].nom}` : ''} : la roulette repart à zéro.`);
@@ -1756,6 +1759,8 @@ function etatDeLaPartie() {
   }
   if (G.bonus === 'TABLE') return hub ? 'Sur table · le tournoi' : 'Sur table · le tournoi est joué';
   if (G.banc) return `Derrière le banc · journée ${j} / ${N}`;
+  // Cap 82 (Jalon K) : l'écran qui défile dit lui-même où il en est (« Match 23 / 82 », « Séries · deuxième tour »).
+  if (hub && hub.etat) return hub.etat();
   if (hub && hub.onglets().some(o => o.cle === 'serie')) return 'Séries éliminatoires';
   if (hub && N && j < N) return `Saison régulière · journée ${j} / ${N}`;
   return hub ? 'Saison régulière · terminée' : 'La saison est jouée';
@@ -1798,6 +1803,18 @@ function remplirMarche() {
     const corps = `<span class="marche-ico" aria-hidden="true">${icone}</span><span class="marche-txt"><b>${esc(titre)}</b><small>${esc(mot)}</small></span>`;
     return id ? `<button type="button" class="marche-tuile" data-marche="${id}">${corps}</button>` : `<div class="marche-tuile off">${corps}</div>`;
   };
+  /*
+   * CAP 82 N'A PAS DE MARCHÉ APRÈS LE REPÊCHAGE (1.0, Jalon K) : ni boutique, ni cartes. La section
+   * reste à sa place (les cinq sections ne bougent jamais) et dit ce que le repêchage a coûté.
+   */
+  if (G.bonus === 'SAISON') {
+    host.innerHTML = `<div class="marche">
+      ${tuile(null, '🔒', 'Le marché est fermé', `Le repêchage est fini : ${signes().length} signés, ${money(capUsed())} sur ${money(MODE().cap)}.`)}
+      <button type="button" class="marche-tuile" data-marche="nouveau"><span class="marche-ico" aria-hidden="true">🎰</span><span class="marche-txt"><b>Nouveau club</b><small>Une autre roulette, une autre saison</small></span></button>
+    </div>`;
+    host.querySelector('[data-marche="nouveau"]').onclick = () => ouvrirNouvellePartie();
+    return;
+  }
   const enSaison = !!(hub && hub.boutique);
   const n = enSaison && G.ligue ? cartesAJouer(G.journee || 0) : 0;
   host.innerHTML = `<div class="marche">
@@ -1911,7 +1928,7 @@ function remplirVide(cle) {
         : 'Ta formation est complète. La saison t\'attend.';
       btns = manque > 0
         ? bouton('repechage', MODE().loto ? 'Au loto' : 'Au vestiaire', true)
-        : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : 'Lancer la saison', true);
+        : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : G.bonus === 'SAISON' ? 'Jouer la saison' : 'Lancer la saison', true);
     } else {
       msg = `La saison n'a pas commencé. ${QUOI[cle] || 'Tout ça'} s'affichera ici dès le premier match.`;
       btns = bouton('match', 'Au club');

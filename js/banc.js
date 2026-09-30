@@ -11,7 +11,8 @@ import { CARTES_MATCH } from './combat.js';
 import { BANQUE } from './banque.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs } from './ballottage.js';
 import { money, esc } from './util.js';
-import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt } from './bilan.js';
+import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, seriesCap82, conclureSeriesCap82, nomDeRonde } from './bilan.js';
+import { ouvrirCap82 } from './cap82.js';
 import { effetsHtml } from './gerant.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
@@ -526,7 +527,8 @@ export function reprendreSeries(vues) {
 export async function runSeason(opts = {}) {
   if (G.banc && !opts.adversaires) { await reprendreSaison(); return; }
   if (slotsLeft() > 0 || G.done || (capLeft() < 0 && !opts.adversaires)) return;
-  if (!opts.reprise) alignementAuCartable();
+  // Le cartable se nourrit du Rogue et de Sur table ; Cap 82 est le jeu pur (1.0, Jalon K) : rien à collectionner.
+  if (!opts.reprise && G.bonus !== 'SAISON') alignementAuCartable();
   // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
   // simulateLeague ici — le tournoi a son propre moteur, celui du plateau.
   if (G.bonus === 'TABLE' && !opts.adversaires) { await (await chargerTable()).lancerTournoi(); return; }
@@ -537,8 +539,8 @@ export async function runSeason(opts = {}) {
    * la saison d'avant et hériterait de ses séries.
    */
   if (!opts.reprise) { G.seriesVues = null; G.lbId = null; }
-  // Les décisions de SÉRIES suivent une reprise (S69), jamais une saison neuve.
-  const dsPrec = opts.reprise ? ((G.ligue && G.ligue.decisionsSeries) || G.dsReprise || []) : [];
+  // Les décisions de SÉRIES suivent une reprise (S69), jamais une saison neuve ; Cap 82 n'en a pas.
+  const dsPrec = opts.reprise && G.bonus !== 'SAISON' ? ((G.ligue && G.ligue.decisionsSeries) || G.dsReprise || []) : [];
   G.dsReprise = null;
   G.done = true;
   // LA SAISON SE JOUE DANS TES COULEURS : noir, blanc, orange. Le repêchage
@@ -566,13 +568,23 @@ export async function runSeason(opts = {}) {
   // LES DÉCISIONS EN SAISON (voir `simulateLeague`) : la décision 0 est
   // l'alignement du repêchage, les suivantes viennent du banc. Une reprise
   // rejoue exactement les mêmes.
-  const decisions = opts.decisions && opts.decisions.length
+  let decisions = opts.decisions && opts.decisions.length
     ? opts.decisions
-    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined },
+    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: (G.bonus !== 'SAISON' && G.lignes) || undefined },
       // UN DECK AIGUISÉ (Rogue, S77) : deux cartes de départ commencent en « + » — à la première saison d'une run.
       ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus && !(G.rogue.saison > 1) ? [{ jour: 0, deck: 'camp', aiguise: 'lancer', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'bloquer', rogue: { depart: true } }] : []),
       // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées et le deck continuent, en décisions du jour 0.
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : [])];
+  /*
+   * UNE VIEILLE PARTIE DE LA SAISON (1.0, Jalon K) : faite avec les cartes, les dilemmes, le banc. Cap 82
+   * n'a plus rien de ça — l'alignement du repêchage (sans système réglé), et la saison se rejoue sans le reste.
+   */
+  if (G.bonus === 'SAISON') {
+    const zero = decisions.find(d => d && d.jour === 0 && d.cases);
+    const purs = zero ? [{ jour: 0, cases: zero.cases, fermeture: 'auto' }] : [];
+    if (opts.reprise && decisions.some(d => d && d !== zero)) setTimeout(() => toast('Cette partie vient d\'une version avec les cartes : la saison est rejouée sans elles.'), 1200);
+    decisions = purs.length ? purs : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' }];
+  }
   // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
   poserCartes(decisions);
   /*
@@ -649,10 +661,57 @@ function terminerSaison() {
 }
 
 /*
+ * CAP 82, LE JEU PUR (1.0, Jalon K) : la saison défile, les séries ronde par
+ * ronde, puis le résultat (js/cap82.js). Aucune décision : l'écran joue la
+ * ligue en mémoire au rythme où il la montre. Des séries déjà toutes vues
+ * (`fini`) vont droit au résultat, comme une saison reprise après sa fin.
+ */
+function ouvrirEcranCap82(depuis = 0) {
+  const L = G.ligue, M = L.moteur;
+  const enSeries = nombreEnSeries(L.teams.length);
+  const classementFinal = () => {
+    jouerJusqua(M, Infinity);
+    L.teams = bilanLigue(M).standings;
+    return L.teams;
+  };
+  const terminer = S => {
+    terminerSaison();
+    if (S) conclureSeriesCap82(S);
+    G.seriesVues = { revele: S ? S.toutes.map(s => s.feuilles.length) : [], fini: true };
+    saveGame();
+  };
+  const vues = G.seriesVues;
+  if (vues && vues.fini) {
+    const standings = classementFinal();
+    const qualifie = standings.indexOf(L.you) + 1 <= enSeries;
+    terminer(qualifie ? seriesCap82(standings.slice(0, enSeries), vues.revele) : null);
+    return;
+  }
+  ouvrirCap82({
+    ligue: M, you: L.you, teams: L.teams, calendrier: L.calendrier, enSeries, epoque: G.epoque, depuis, vues,
+    ctx: {
+      esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, quiEst,
+      // Un nom se clique pendant que ça joue, sans dévoiler la suite (`porteeRevele`).
+      fiche: (p, t, html) => lienJoueur(p, t, porteeRevele('saison'), html),
+      // L'en-tête du club suit l'écran : la fiche, le rang, et où en est la partie (`hub.etat`).
+      entete: majEntete,
+    },
+    onJour: j => { G.journee = j; },
+    sauver: () => saveGame(),
+    classementFinal,
+    creerSeries: (qualifies, revele = null) => seriesCap82(qualifies, revele),
+    nomDeRonde,
+    onSeries: etat => { G.seriesVues = etat; },
+    onTermine: terminer,
+  });
+}
+
+/*
  * L'ÉCRAN DE SAISON, sur la ligue EN MÉMOIRE : ouvrir, rouvrir après une
  * décision, reprendre une partie — sans jamais rejouer ce qui est joué.
  */
 function ouvrirEcranSaison(depuis = 0) {
+  if (G.bonus === 'SAISON') { ouvrirEcranCap82(depuis); return; }
   const L = G.ligue, M = L.moteur;
   const { you, teams, calendrier, graine } = L;
   const decisions = L.decisions;

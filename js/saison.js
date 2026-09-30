@@ -103,7 +103,7 @@ const pct = (sv, sa) => pct3(sv / Math.max(1, sa));
 
 /* ---------- la coquille : en-tête, carte, actions, onglets, volet ---------- */
 
-function coquille(label) {
+export function coquille(label) {
   const modal = document.getElementById('hubModal');
   if (!modal) return null;
   const $ = s => modal.querySelector(s);
@@ -123,7 +123,7 @@ function coquille(label) {
  * volet au moment où on l'ouvre, et `rafraichir` le refait après chaque
  * journée ou chaque match.
  */
-function onglets(barre, volet, liste, rendre) {
+export function onglets(barre, volet, liste, rendre) {
   let courant = liste[0].cle;
   barre.innerHTML = liste.map(o => `<button type="button" role="tab" data-onglet="${o.cle}" class="navtab${o.cle === courant ? ' on' : ''}" aria-selected="${o.cle === courant}">
     <svg class="ico" aria-hidden="true"><use href="#${o.ico}"/></svg>
@@ -233,7 +233,7 @@ const triDe = (colonnes, cle) => ({ cle, asc: !!(colonnes.find(c => c.cle === cl
 const COLS_DE = { meneursPAT: COL_PAT, meneursGAR: COL_GAR, eqPat: COL_PAT, eqGar: COL_GAR };
 
 /** L'état d'un menu : la vue des meneurs, les tris, l'équipe ouverte, la limite. */
-const menuNeuf = () => ({
+export const menuNeuf = () => ({
   vue: 'PAT', limite: 60, equipe: null,
   tris: {
     meneursPAT: triDe(COL_PAT, 'pts'), meneursGAR: triDe(COL_GAR, 'v'),
@@ -324,7 +324,7 @@ const chips = (liste, actif, attr) => `<div class="hub-chips">${liste.map(o =>
  * n'importe quelle colonne. `etat` garde la vue, le tri et la limite
  * d'affichage entre deux rendus — le volet se refait à chaque journée.
  */
-function meneursHtml(ctx, compte, equipeDe, you, titre, menu, minGardien = 1) {
+export function meneursHtml(ctx, compte, equipeDe, you, titre, menu, minGardien = 1) {
   const entrees = [...compte.entries()];
   if (!entrees.length) return '<div class="live-vide">Aucun match joué encore.</div>';
   const ligne = ([p, c]) => {
@@ -347,7 +347,7 @@ function meneursHtml(ctx, compte, equipeDe, you, titre, menu, minGardien = 1) {
  * chacun a fait à ce jour. La case de chaque joueur reste affichée — c'est
  * une feuille d'équipe, pas un palmarès — et les colonnes se trient pareil.
  */
-function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blessesDe, anciens = () => [] }) {
+export function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blessesDe, anciens = () => [] }) {
   if (!teams.length) return '<div class="live-vide">Aucune équipe.</div>';
   const t = teams.find(x => x === menu.equipe) || (teams.includes(you) ? you : teams[0]);
   menu.equipe = t;
@@ -393,7 +393,7 @@ function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blesses
  * voir tout le monde. Un seul écouteur par écran, posé sur le volet — c'est
  * le contenu du volet qui est refait à chaque journée, pas le volet.
  */
-function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, carte = null) {
+export function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, carte = null) {
   const zones = [volet, carte].filter(Boolean);
   const agir = ev => {
     const el = ev.target.closest('[data-tri], [data-vue], [data-equipe], [data-plus]');
