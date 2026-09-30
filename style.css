@@ -1183,6 +1183,30 @@ a.spin-club:hover { background: var(--fond-2); }
   .btn-sign { padding: 0 var(--esp-1); font-size: var(--t-2); letter-spacing: 0.04em; }
 }
 
+/* ---- Au téléphone (1.0, R4), le vestiaire est une LISTE : une rangée par joueur — visage, nom, poste et club, prix
+        et chiffre clé, puis rôle et zone, où il ira, Signer. Le carton est dans la fiche, à un toucher. ---- */
+.pcard-rangee { display: none; }
+@media (max-width: 679.98px) {
+  .pane-pool .pool, .pane-pool.loto .pool { grid-template-columns: minmax(0, 1fr); gap: 1px; background: var(--filet-2); border-top: 1px solid var(--filet-2); }
+  .pcard { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "mug qui ligne" "mid mid sign" "dest dest sign"; align-items: center; gap: var(--esp-1) var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--fond-1); container: none; }
+  .pcard > .carton { display: none; }
+  .pcard-rangee, .pcard-fiche { display: contents; }
+  .pcard-mug { grid-area: mug; position: relative; width: 40px; height: 40px; border-radius: var(--r-1); overflow: hidden; background: var(--fond-3); }
+  .pcard-mug > * { position: absolute; inset: 0; display: grid; place-items: center; }
+  .pcard-mug img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+  .pcard-qui { grid-area: qui; display: grid; min-width: 0; }
+  .pcard-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pcard-qui small { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pcard-ligne { grid-area: ligne; justify-content: flex-end; gap: var(--esp-3); }
+  .pcard-big b { font-size: var(--t-4); }
+  .pcard-mid { grid-area: mid; }
+  .pcard-dest { grid-area: dest; }
+  .pcard-dest:empty { display: none; }
+  .pcard .btn-sign { grid-area: sign; width: auto; min-width: 88px; min-height: 36px; font-size: var(--t-2); }
+  .pcard.locked .pcard-mug { opacity: 0.45; }
+  .pcard.signed .pcard-mug { outline: 2px solid var(--bon); }
+}
+
 /* ---- La page Marché : des tuiles plates, une icône au trait, un mot, une phrase ---- */
 .marche { display: grid; gap: var(--esp-3); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .marche-tuile {
@@ -1939,24 +1963,6 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .sum-item .v:is(.bad, .dash-bad) { color: var(--mauvais); }
 .sum-item .v:is(.warn, .dash-warn) { color: var(--or); }
 
-/* Au téléphone (1.0, R4) : l'onglet nomme déjà l'écran et l'en-tête dit le plafond ; le titre et la phrase d'aide s'effacent,
-   le résumé tient sur une ligne de mots et de chiffres. */
-.seg-effectif { display: none; }
-@media (max-width: 999.98px) {
-  /* Un onglet à la fois — l'attaque, la défense, le filet et la réserve — pour que l'alignement tienne en un écran. */
-  .seg-effectif { display: flex; }
-  body[data-effectif="F"] #rosterBoard .line:not([data-groupe="F"]), body[data-effectif="D"] #rosterBoard .line:not([data-groupe="D"]), body[data-effectif="G"] #rosterBoard .line:not([data-groupe="G"]) { display: none; }
-  .line-head { min-height: 36px; }
-  .line-slots { gap: var(--esp-1); padding: var(--esp-1); }
-  .slot { min-height: 84px; }
-  .slot .slot-name { font-size: var(--t-3); }
-  .pane-roster .pane-title, .roster-hint { display: none; }
-  .team-summary { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); margin-bottom: var(--esp-2); }
-  .sum-item { display: flex; align-items: baseline; gap: var(--esp-1); padding: 0; border-left: 0; }
-  .sum-item .k { min-height: auto; }
-  .sum-item .v { margin-top: 0; font-size: var(--t-3); }
-}
-
 /* ---- Le tableau des lignes : une bande par trio, par paire, pour les gardiens et les réservistes ---- */
 .roster { display: flex; flex-direction: column; gap: var(--esp-3); }
 .line { background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-0); overflow: hidden; }
@@ -2265,6 +2271,40 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 }
 /* Le volet de l'alignement à côté du vestiaire est étroit : le chiffre du résumé reprend sa taille de téléphone. */
 @media (min-width: 1400px) { body[data-page="repechage"] .sum-item .v { font-size: var(--t-4); } }
+/* ---- Au téléphone (1.0, R4), APRÈS les cases (à égalité de spécificité, la dernière règle gagne) : l'onglet nomme déjà l'écran,
+   le titre et la phrase d'aide s'effacent, le résumé tient sur une ligne, un onglet à la fois, une RANGÉE par joueur. ---- */
+.seg-effectif { display: none; }
+@media (max-width: 999.98px) {
+  /* Un onglet à la fois — l'attaque, la défense, le filet et la réserve — pour que l'alignement tienne en un écran. */
+  .seg-effectif { display: flex; }
+  body[data-effectif="F"] #rosterBoard .line:not([data-groupe="F"]), body[data-effectif="D"] #rosterBoard .line:not([data-groupe="D"]), body[data-effectif="G"] #rosterBoard .line:not([data-groupe="G"]) { display: none; }
+  .line-head { min-height: 36px; }
+  /* Une RANGÉE par joueur : la case (le poste, le salaire) à gauche, le nom et le chiffre clé, puis le rôle, le niveau et la zone. */
+  .line-slots, .line-slots.pair { grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 0; background: var(--filet-2); }
+  .slot { flex-direction: row; align-items: stretch; min-height: 48px; border: 0; border-radius: 0; }
+  .slot-band { flex: none; width: 54px; flex-direction: column; justify-content: center; gap: 1px; padding: 2px; box-shadow: inset -2px 0 0 var(--slot-stripe, var(--club-2)); }
+  .slot:has(> .slot-remove) .slot-band { padding-right: 2px; }
+  .slot-band .sb-role { font-size: var(--t-1); }
+  .slot-salary { margin: 0; font-size: var(--t-1); opacity: 0.85; }
+  .slot-inner { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nom cle" "l1 l2"; align-items: center; column-gap: var(--esp-2); row-gap: 2px; padding: var(--esp-1) var(--esp-2); }
+  .slot .slot-name { grid-area: nom; font-size: var(--t-3); }
+  .cell-l3 { grid-area: cle; }
+  .cell-l1 { grid-area: l1; }
+  .slot-tags.cell-l2 { grid-area: l2; margin: 0; justify-content: flex-end; }
+  .slot-inner .jambes { grid-column: 1 / -1; }
+  .slot-inner > .slot-meta, .slot-inner > .slot-tags:not(.cell-l2) { grid-column: 1 / -1; }
+  .slot.empty { flex-direction: row; justify-content: flex-start; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border: 1px dashed var(--filet); background: var(--fond-1); }
+  .slot-remove { top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: var(--r-1); opacity: 1; }
+  .slot:has(> .slot-remove) .slot-inner { padding-right: 34px; }
+  .ln-strat { min-height: 36px; }
+  .pane-roster .pane-title, .roster-hint { display: none; }
+  .team-summary { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); margin-bottom: var(--esp-2); }
+  .sum-item { display: flex; align-items: baseline; gap: var(--esp-1); padding: 0; border-left: 0; }
+  .sum-item .k { min-height: auto; }
+  .sum-item .v { margin-top: 0; font-size: var(--t-3); }
+}
+
+
 /* == 6a. LE CLUB — le bureau (l'écran de saison), la boîte de réception, le dépistage, le portail, les tableaux du bureau == */
 /* Le bureau est le tableau de bord du gérant : l'affiche du match en bandeau bicolore, UN bouton
    (« Journée suivante »), la boîte de réception en panneau, le portail en tuiles, les tableaux en
@@ -2289,17 +2329,18 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
   /* La barre d'action (1.0, R2) : « Journée suivante » et ses seconds rôles collés au bas de la feuille, jamais par-dessus le volet ;
      la boîte de réception se range entre l'affiche et le volet. */
   body.hub-docke .hub-sheet .hub-actions:has(> .hub-barre) { display: contents; }
-  body.hub-docke .hub-sheet .hub-barre { order: 10; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
+  body.hub-docke .hub-sheet .hub-barre { order: 10; flex: 0 0 auto; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
   body.hub-docke .hub-sheet .hub-boite { order: 2; margin: 0; padding: var(--esp-3) var(--esp-3) 0; }
   /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire s'ouvrent en sous-page
      depuis une rangée de tuiles à icône ; ce qu'elles portent ne s'empile plus dans l'affiche. */
   .hub-match .hub-match-note:not(.hub-ereintant), .hub-match .hub-depistage, .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
   body.hub-docke:not(.mode-table) .hub-sheet .live-top { padding: 2px var(--esp-3); }
   body.hub-docke:not(.mode-table) .hub-sheet .hub-outil { min-height: 32px; padding: 0 var(--esp-2); }
-  .hub-tuiles-tel { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1px; border-top: 1px solid var(--filet-2); background: var(--filet-2); }
+  .hub-tuiles-tel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; border-top: 1px solid var(--filet-2); background: var(--filet-2); }
   .hub-tt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 56px; padding: var(--esp-1); border: 0; background: var(--fond-1); color: var(--encre); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
   .hub-tt i { font-style: normal; font-size: var(--t-4); line-height: 1; }
-  .hub-tt b { position: absolute; margin: -22px 0 0 34px; min-width: 16px; padding: 2px 4px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
+  .hub-tt { position: relative; }
+  .hub-tt b { position: absolute; top: 6px; right: calc(50% - 26px); min-width: 16px; padding: 2px 4px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
   .hub-tt:active { background: var(--fond-2); }
   /* La boîte pliée : sa bande de tête seule, tant que rien ne bloque et qu'on ne l'a pas dépliée. */
   .hub-boite.pliee .hub-msgs { display: none; }

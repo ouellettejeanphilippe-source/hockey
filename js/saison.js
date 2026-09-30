@@ -2124,11 +2124,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * d'hier en fenêtre ; l'affiche garde l'essentiel : les étapes, hier en une ligne, le prochain match, ce soir.
        */
       const nMsgs = messagesCourants().length;
-      const tuiles = `<div class="hub-tuiles-tel" role="group" aria-label="Le soir, en sous-pages">
+      // Huit portes au plus : le soir (dépistage, préparation, sommaire d'hier, la boîte), puis la ligue et le marché
+      // (classement, meneurs, tes cartes, la boutique — les deux derniers arrivent par `rendreActions`).
+      const tuiles = `<div class="hub-tuiles-tel" role="group" aria-label="Le bureau, en sous-pages">
         <button type="button" class="hub-tt hub-tt-dep"><i>🔎</i>Dépistage</button>
-        ${onDecision ? '<button type="button" class="hub-tt hub-tt-prep"><i>🏒</i>Préparer</button>' : ''}
+        ${onDecision ? '<button type="button" class="hub-tt hub-tt-prep hub-preparer"><i>🏒</i>Préparer</button>' : ''}
         ${hierMatch && hierMatch.m.feuille ? `<button type="button" class="hub-tt" data-sommaire="saison|${hierMatch.j}|${hierMatch.k}"><i>📋</i>Sommaire</button>` : ''}
-        ${nMsgs ? `<button type="button" class="hub-tt hub-tt-boite"><i>📥</i>Boîte<b>${nMsgs}</b></button>` : ''}
+        <button type="button" class="hub-tt hub-tt-boite"><i>📥</i>Boîte${nMsgs ? `<b>${nMsgs}</b>` : ''}</button>
+        <button type="button" class="hub-tt" data-section="ligue" data-page="classement"><i>📊</i>Classement</button>
+        <button type="button" class="hub-tt" data-section="ligue" data-page="meneurs"><i>🏆</i>Meneurs</button>
       </div>`;
       carte.innerHTML = `${miniBoss}<div class="hub-match">
         ${soirHtml(etape, faits)}${resultatHtml}
@@ -2157,8 +2161,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       };
       const tDep = carte.querySelector('.hub-tt-dep');
       if (tDep) tDep.onclick = ouvrirDepistage;
-      const tPrep = carte.querySelector('.hub-tt-prep');
-      if (tPrep) tPrep.onclick = () => { const pb = carte.querySelector('.hub-preparer'); if (pb) pb.click(); };
+      // Une tuile de la ligue passe par la coquille : la section, puis son onglet.
+      carte.querySelectorAll('.hub-tt[data-section]').forEach(t => { t.onclick = () => {
+        const nav = document.querySelector(`#navbar .navtab[data-section="${t.dataset.section}"]`);
+        if (nav) nav.click();
+        const sous = document.querySelector(`#sousNav .soustab[data-page="${t.dataset.page}"]`);
+        if (sous) sous.click();
+      }; });
       const tBoite = carte.querySelector('.hub-tt-boite');
       if (tBoite) tBoite.onclick = () => { boite.deplie = true; rendreActions(messagesCourants(), p); const b = actions.querySelector('.hub-boite'); if (b) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
       // Le dépistage se calcule quand on l'ouvre, et reste ouvert d'un rendu à l'autre le même soir.
@@ -2189,8 +2198,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           } else if (hierMatch) { soirPasse = false; dessiner(); }
         };
       });
-      const prep = carte.querySelector('.hub-preparer');
-      if (prep) prep.onclick = () => { boite.prepVu = p.j; ouvrirLignes({
+      // « Préparer le match » : le bouton de l'affiche au bureau, la tuile au téléphone — le même geste.
+      carte.querySelectorAll('.hub-preparer').forEach(prep => { prep.onclick = () => { boite.prepVu = p.j; ouvrirLignes({
         titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
         lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie, apprentissage: etat.apprentissage,
         // Un gros match (J1-N) : les indices « tu étouffes » lisent leurs lignes SOUS LE PLAN LE PLUS
@@ -2207,7 +2216,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         motAppliquer: 'Appliquer — la saison reprend ici',
         onBanc: onBanc ? () => { quitter(); onBanc(jour); } : null,
         onAppliquer: (lignes, match, filet) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match, ...(filet ? { filet } : {}) }, j); },
-      }); };
+      }); }; });
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les NHL Stars ne jouent plus d'ici la fin de la saison.</div></div>`;
     }
@@ -2502,10 +2511,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       </div></div>
       ${boiteHtml}`;
     // TES CARTES ET LA BOUTIQUE, DANS L'EN-TÊTE (S79) : toujours en vue, sans prendre une rangée de boutons.
-    if (ui.outils) ui.outils.innerHTML = [
-      onDecision && ctx.inventaire ? (n => `<button type="button" class="hub-outil hub-inventaire" title="Mes cartes : celles qui se gardent jusqu'au moment voulu, le personnel, le deck, le classeur" aria-label="Mes cartes${n ? ` : ${n} à jouer` : ''}">🎒<span class="hub-outil-mot">Cartes</span>${n ? `<b class="hub-inv-n">${n}</b>` : ''}</button>`)(ctx.inventaire.compte(jour)) : '',
-      onDecision && ctx.boutique ? (n => `<button type="button" class="hub-outil hub-boutique" title="La boutique : des packs de joueurs et de cartes" aria-label="La boutique : ${n} jetons">🛒<b>${n}</b>🪙</button>`)(ctx.boutique.jetons(jour)) : '',
+    // Au téléphone (1.0, R2), les deux outils sont deux tuiles du bureau ; au bureau, la bande de tête les garde.
+    const tuilesTel = carte.querySelector('.hub-tuiles-tel');
+    const auTel = !!tuilesTel && matchMedia('(max-width: 1199.98px)').matches;
+    const outilsHtml = [
+      onDecision && ctx.inventaire ? (n => auTel ? `<button type="button" class="hub-tt hub-tt-outil hub-inventaire"><i>🎒</i>Cartes${n ? `<b>${n}</b>` : ''}</button>`
+        : `<button type="button" class="hub-outil hub-inventaire" title="Mes cartes : celles qui se gardent jusqu'au moment voulu, le personnel, le deck, le classeur" aria-label="Mes cartes${n ? ` : ${n} à jouer` : ''}">🎒<span class="hub-outil-mot">Cartes</span>${n ? `<b class="hub-inv-n">${n}</b>` : ''}</button>`)(ctx.inventaire.compte(jour)) : '',
+      onDecision && ctx.boutique ? (n => auTel ? `<button type="button" class="hub-tt hub-tt-outil hub-boutique"><i>🛒</i>${n} 🪙</button>`
+        : `<button type="button" class="hub-outil hub-boutique" title="La boutique : des packs de joueurs et de cartes" aria-label="La boutique : ${n} jetons">🛒<b>${n}</b>🪙</button>`)(ctx.boutique.jetons(jour)) : '',
     ].join('');
+    if (ui.outils) ui.outils.innerHTML = auTel ? '' : outilsHtml;
+    if (auTel) { tuilesTel.querySelectorAll('.hub-tt-outil').forEach(t => t.remove()); tuilesTel.insertAdjacentHTML('beforeend', outilsHtml); }
+    const outilDe = cls => (auTel ? tuilesTel : ui.outils) && (auTel ? tuilesTel : ui.outils).querySelector(cls);
 
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
     const teteBoite = actions.querySelector('.hub-boite-tete');
@@ -2531,9 +2548,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const d = el.querySelector('[data-defaut]'); if (d) d.focus({ preventScroll: true }); }
     };
     // LA BOUTIQUE (Rogue, S77) : ses décisions passent par le même chemin que les autres choix.
-    const boutique = ui.outils && ui.outils.querySelector('.hub-boutique');
+    const boutique = outilDe('.hub-boutique');
     if (boutique) boutique.onclick = () => ctx.boutique.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
-    const sac = ui.outils && ui.outils.querySelector('.hub-inventaire');
+    const sac = outilDe('.hub-inventaire');
     if (sac) sac.onclick = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
