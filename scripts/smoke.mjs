@@ -94,10 +94,10 @@ async function eprouverCoquille() {
    */
   await page.click('#navbar .navtab[data-section="club"]');
   await page.waitForTimeout(300);
-  // Le matin d'abord (1.0, R3) : hier soir seul, sans l'affiche ; « Le prochain match › » ouvre le soir.
+  // Le matin d'abord (1.0, R3) : hier soir seul, sans l'affiche ; « Aujourd'hui › », dans la barre, ouvre le soir.
   if (await page.$('#hubModal .hub-hier')) {
     if (await page.isVisible('#hubModal .hub-face')) errors.push('le matin, le bureau montre déjà l\'affiche du prochain match à côté d\'hier soir');
-    if (!(await versLeSoir())) errors.push('le matin, le bureau n\'offre pas « Le prochain match › »');
+    if (!(await versLeSoir())) errors.push('le matin, le bureau n\'offre pas « Aujourd\'hui › »');
     else if (await page.$('#hubModal .hub-hier')) errors.push('le soir, le bureau redit hier soir');
     else console.log('   la journée en deux : le matin (hier soir), puis le soir (l\'affiche)');
   }
@@ -235,14 +235,18 @@ async function sortirDansAlignement() {
 /*
  * UNE NOUVELLE PARTIE SE LANCE DU MENU (S79 ; 1.0, R1). L'en-tête n'a plus de
  * bouton « Nouvelle » : le Menu, ouvert en pleine partie, est le menu pause —
- * son héros dit « Retour à la partie », et le carton d'un mode commence une
- * partie neuve et ouvre l'écran « Nouvelle partie », réglé sur ce mode.
+ * son héros dit « Retour à la partie », « Quitter vers le titre » ramène aux
+ * cartons des modes, et le carton d'un mode commence une partie neuve et ouvre
+ * l'écran « Nouvelle partie », réglé sur ce mode.
  */
 async function nouvelleSaison() {
   await _click('#menuBtn');
-  await _wait('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]', { timeout: 10000 });
+  await _wait('#menuDepart .menu-continuer', { timeout: 10000 });
   const heros = ((await page.textContent('#menuDepart .menu-continuer').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   if (!/^Retour à la partie/.test(heros)) errors.push(`le Menu ouvert en pleine partie ne dit pas « Retour à la partie » : « ${heros} »`);
+  // La pause n'a plus les cartons des modes (pause distincte du titre) : « Quitter vers le titre » y mène.
+  await _click('#menuDepart [data-menu="titre"]');
+  await _wait('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]', { timeout: 10000 });
   await _click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
   await _wait('#partieModal', { state: 'visible', timeout: 30000 });
 }
@@ -298,7 +302,7 @@ async function versLaBoite() {
   if (tab) { await tab.click(); await page.waitForTimeout(200); }
 }
 async function ouvrirLaMain() { await versLaBoite(); await _click('#hubModal .hub-main-ouvrir'); }
-// LA JOURNÉE EN DEUX (1.0, R3) : le matin, hier soir seul ; « Le prochain match › » mène au soir et à l'affiche.
+// LA JOURNÉE EN DEUX (1.0, R3) : le matin, hier soir seul ; « Aujourd'hui › » mène au soir et à l'affiche.
 async function versLeSoir() {
   const b = await page.$('#hubModal .hub-vers-soir');
   if (!b || !(await b.isVisible().catch(() => false))) return false;
@@ -1770,6 +1774,8 @@ async function traverserSaison(etiquette, reprise = false) {
      * ET L'AFFICHE LE DIT : la tactique et la chimie de chaque ligne se lisent
      * sur la carte du prochain match.
      */
+    // Le retour du banc rouvre le matin (hier soir seul) : « Aujourd'hui › » mène à l'affiche.
+    await versLeSoir();
     const affiche = await page.$$eval('#hubModal .hub-lignes .gl-resume', e => e.length).catch(() => 0);
     if (affiche !== 4) errors.push(`l'affiche du match ne dit pas les quatre lignes : ${affiche}`);
     else console.log('   l\'affiche dit les quatre lignes et leur chimie');
@@ -1885,6 +1891,8 @@ async function traverserSaison(etiquette, reprise = false) {
       const jauges = await page.$$eval('#hubModal .hub-jauge, #choixModal .hub-jd', e => e.length);
       if (route < 10) errors.push(`la route de la saison n'a que ${route} marques`);
       if (jauges) errors.push(`${jauges} jauges de faction encore à l'écran`);
+      // Le matin n'a que hier soir : « Préparer le match » est sur l'affiche du soir.
+      await versLeSoir();
       if (!(await page.$('#hubModal .hub-preparer'))) errors.push('l\'affiche n\'offre pas « Préparer le match »');
       else {
         const jAvant = await jourDit();
@@ -1892,7 +1900,8 @@ async function traverserSaison(etiquette, reprise = false) {
         await versLeSoir();
         const totHub = ((await page.textContent('#hubModal .hub-totaux').catch(() => '')) || '').trim();
         if (!/^(Ce soir|Au prochain match) :/.test(totHub)) errors.push(`l'affiche ne dit pas les totaux du soir : « ${totHub} »`);
-        await _click('#hubModal .hub-preparer');
+        // Au téléphone, le bouton de l'affiche est caché : l'étape « Préparation » fait le même geste.
+        await _click('#hubModal .soir-etape[data-etape="prep"]');
         await page.waitForSelector('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"]', { timeout: 5000 });
         const puces = await page.$$eval('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
         // TOUT ENSEMBLE (S72) : « Ce qui joue sur ta formation » est dans le même écran que les lignes.

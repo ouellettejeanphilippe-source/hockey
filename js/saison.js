@@ -1093,6 +1093,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * raccourci vers ce qui existait déjà en chaîne de fenêtres.
    */
   let soirPasse = false;
+  // Le matin à l'écran : le bouton de tête dit « Aujourd'hui » et mène au soir, sans avancer le temps.
+  let matinCourant = false;
   const ETAPES_SOIR = [['apercu', 'Aperçu'], ['prep', 'Préparation'], ['match', 'Match'], ['resultat', 'Résultat']];
   const soirHtml = (courant, faits) => `<nav class="soir" aria-label="Le soir de match">${ETAPES_SOIR.map(([cle, mot], i) => {
     const fait = faits.has(cle) && cle !== courant;
@@ -1230,6 +1232,41 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         : ligne('⚡', 'Vitesse · volume de tirs', avantSaison(A, lancersEquipe), avantSaison(B, lancersEquipe)),
     ];
   }
+  /* L'avantage sur une ligne des forces : un écart qui compte, un huitième de la ligue et trois rangs au moins. */
+  const avantageDe = x => {
+    const d = x.a && x.b ? x.b.rang - x.a.rang : 0;
+    const s = x.a ? Math.max(3, Math.round(x.a.sur / 8)) : Infinity;
+    return d >= s ? 'moi' : -d >= s ? 'lui' : '';
+  };
+  /*
+   * LES FORCES SUR L'AFFICHE. JP : *un quelconque preview des forces
+   * d'équipes, maths ou textuel comme avant match*. Les cinq lignes du
+   * dépistage en rangs, sans les 300 matchs du pronostic (lui reste au
+   * toucher), et une phrase qui dit qui a l'avantage où. Le gardien est le
+   * partant de l'alignement, pas encore la rotation du soir.
+   */
+  const FORCES_MOT = ['en attaque', 'en défense', 'devant le filet', 'en robustesse', 'en vitesse'];
+  function forcesHtml(adv) {
+    const axes = axesDuMatch(you, adv, { A: partantDe(you), B: partantDe(adv) });
+    const av = axes.map(avantageDe);
+    const rang = c => (c ? rangMot(c.rang) : '—');
+    const cell = (x, cote, i) => `<td class="${av[i] === cote ? `av ${cote}` : ''}">${rang(x[cote === 'moi' ? 'a' : 'b'])}</td>`;
+    const nomMoi = ctx.tagCourt(you), nomLui = ctx.tagCourt(adv);
+    const liste = cote => FORCES_MOT.filter((_, i) => av[i] === cote);
+    const et = l => (l.length > 1 ? `${l.slice(0, -1).join(', ')} et ${l[l.length - 1]}` : l[0]);
+    const pour = liste('moi'), contre = liste('lui');
+    const phrase = !pour.length && !contre.length ? 'Deux clubs de même force : aucun écart qui compte.'
+      : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
+    return `<div class="hub-forces">
+      <table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
+        <thead><tr><th></th>${axes.map(x => `<th scope="col" title="${ctx.esc(x.nom)}">${x.ico}</th>`).join('')}</tr></thead>
+        <tbody>
+          <tr><th scope="row">${ctx.esc(nomMoi)}</th>${axes.map((x, i) => cell(x, 'moi', i)).join('')}</tr>
+          <tr><th scope="row">${ctx.esc(nomLui)}</th>${axes.map((x, i) => cell(x, 'lui', i)).join('')}</tr>
+        </tbody></table>
+      <div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>
+    </div>`;
+  }
   /* Le meilleur buteur d'un club cette saison, lu sur les feuilles révélées. */
   const buteurDe = t => {
     let best = null;
@@ -1273,9 +1310,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const rangTxt = c => (c ? `${c.rang}<sup>${c.rang === 1 ? 'er' : 'e'}</sup>` : '—');
     const nomMoi = ctx.tagCourt(you), nomLui = ctx.tagCourt(adv);
     const rangee = x => {
-      const d = x.a && x.b ? x.b.rang - x.a.rang : 0;
-      const s = x.a ? Math.max(3, Math.round(x.a.sur / 8)) : Infinity;
-      const av = d >= s ? 'moi' : -d >= s ? 'lui' : '';
+      const av = avantageDe(x);
       const cell = (c, cote) => `<td class="dep3-${cote}${av === cote ? ' av' : ''}"><b>${rangTxt(c)}</b>${c && c.mot ? `<small>${ctx.esc(c.mot)}</small>` : ''}</td>`;
       return `<tr><th scope="row">${x.ico} ${ctx.esc(x.nom)}</th>${cell(x.a, 'moi')}<td class="dep3-av" title="${av === 'moi' ? `Avantage ${ctx.esc(nomMoi)}` : av === 'lui' ? `Avantage ${ctx.esc(nomLui)}` : 'Pas d\'écart qui compte'}">${av === 'moi' ? '◀' : av === 'lui' ? '▶' : '='}</td>${cell(x.b, 'lui')}</tr>`;
     };
@@ -2110,6 +2145,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Le flottant se rebranche plus bas s'il y a une journée à jouer ; la fin
     // de saison n'en a pas, et il restait par-dessus « Voir le bilan » (QA S74b).
     cacherBoutonFlottant();
+    matinCourant = false;
     const f = fiche.get(you);
     const rang = rangDe(you);
     const seq = sequence();
@@ -2235,21 +2271,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * lignes. Les liens du bureau sont là aux deux moments ; le dépistage et la préparation mènent au soir.
        */
       const matin = !!hier;
+      matinCourant = matin;
       const affiche = `<div class="hub-match-titre">Prochain match · journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
+        ${forcesHtml(adv)}
         <div class="hub-match-note">${dernierMot}</div>
         ${totauxHtml}
         ${enJeuHtml}
         ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}`;
       carte.innerHTML = `${matin ? '' : miniBoss}<div class="hub-match${matin ? ' matin' : ''}">
         ${soirHtml(etape, faits)}
-        ${matin ? `${resultatHtml}<div class="hub-matin-suite"><button type="button" class="btn gold hub-vers-soir">Le prochain match · journée ${p.j + 1} ›</button></div>` : affiche}
+        ${matin ? resultatHtml : affiche}
         ${matin ? '' : `${depistage}${planSoir}`}
       </div>`;
-      // Du matin au soir : le bouton, ou un lien qui parle du prochain match (le dépistage, la préparation).
+      // Du matin au soir : « Aujourd'hui » dans la barre, ou un lien qui parle du prochain match (le dépistage, la préparation).
       const auSoir = () => { if (!(hierMatch && !soirPasse)) return false; soirPasse = true; dessiner(); return true; };
-      const versSoir = carte.querySelector('.hub-vers-soir');
-      if (versSoir) versSoir.onclick = auSoir;
       // Le dépistage : une page sous 1200 px, déplié dans l'affiche au bureau.
       const ouvrirDepistage = () => {
         boite.apercuVu = p.j;
@@ -2594,10 +2630,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         </article>`;
       }).join('')}</div>` : ''}
     </section>`;
-    // UNE SEULE ACTION EN TÊTE : la journée suivante, ou ce qui la retient.
+    // UNE SEULE ACTION EN TÊTE : la journée suivante, ou ce qui la retient. Le matin,
+    // « Aujourd'hui » passe du résultat d'hier au match du jour, sans avancer le temps.
     const primaire = premier
       ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend tes réponses">⏳ À régler avant le match${bloquants.length > 1 ? ` (${bloquants.length})` : ''} : ${ctx.esc(premier.sujet)}</button>`
-      : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>';
+      : matinCourant
+        ? '<button class="btn go hub-jour hub-vers-soir" title="Du résultat d\'hier au match d\'aujourd\'hui">Aujourd\'hui ›</button>'
+        : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>';
     // « Le banc » a quitté la rangée : l'onglet Alignement de la barre fait la même chose (JP : jamais deux fois la même chose).
     // LA BARRE D'ACTION (1.0, R2) : le bouton et ses seconds rôles dans une barre, collée au bas du téléphone ; la boîte à part.
     actions.innerHTML = `<div class="hub-barre">${primaire}
@@ -2670,7 +2709,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (voirMain && pal !== undefined) voirMain.onclick = () => ouvrirMain(pal);
     boutonFlottant(actions, termine);
     const bj = actions.querySelector('.hub-jour'), bp = actions.querySelector('.hub-prochaine');
-    if (bj) bj.onclick = () => avancerPuisResumer(1);
+    if (bj) bj.onclick = matinCourant ? () => { soirPasse = true; dessiner(); } : () => avancerPuisResumer(1);
     if (bp) bp.onclick = () => { avancerJusquaDecision(); };
   }
 
