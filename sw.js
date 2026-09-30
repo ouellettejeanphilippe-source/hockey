@@ -59,6 +59,7 @@ const FICHIERS = [
   'fonts/BarlowCondensed-600-latin.woff2', 'fonts/BarlowCondensed-600-latin-ext.woff2',
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',
   'fonts/BarlowCondensed-800-latin.woff2', 'fonts/BarlowCondensed-800-latin-ext.woff2',
+  'fonts/NotoEmoji-sous-ensemble.woff2',
 ];
 
 self.addEventListener('install', ev => {
