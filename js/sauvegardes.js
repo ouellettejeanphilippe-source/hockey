@@ -153,5 +153,43 @@ export function copier(id) {
   return nid;
 }
 
+/*
+ * LE FICHIER TRANSFÉRABLE (1.0). Une partie vit dans le stockage du navigateur
+ * ou de l'appareil : rien ne la fait passer d'un téléphone à un ordinateur, et
+ * un navigateur qui vide ses données l'emporte. `exporter` la met dans un
+ * fichier JSON — son entrée d'index (genre, titre, résumé) et ce que
+ * `saveGame` a écrit, tel quel — et `importer` relit ce fichier en une partie
+ * NEUVE de l'index, épinglée comme une copie : l'original, s'il est encore
+ * ici, ne bouge pas. Le genre se relit dans la partie, jamais dans l'en-tête
+ * du fichier : c'est la partie qui fait foi.
+ */
+const FORMAT = 'cap82-partie';
+export function exporter(id) {
+  const p = lireIndex().parties.find(x => x.id === id);
+  const data = lirePartie(id);
+  if (!p || !data) return null;
+  const jour = new Date().toISOString().slice(0, 10);
+  const nom = `cap82-${p.genre}-${jour}.json`;
+  const texte = JSON.stringify({ format: FORMAT, version: 1, exporte: jour, genre: p.genre, titre: p.titre, resume: p.resume || null, partie: data });
+  return { nom, texte };
+}
+export function importer(texte) {
+  let f = null;
+  try { f = JSON.parse(texte); } catch { return null; }
+  if (!f || f.format !== FORMAT || !f.partie || typeof f.partie !== 'object') return null;
+  const data = f.partie;
+  // Ce que `restoreSave` (js/game.js) exige pour reprendre : un tirage, ou une run Rogue.
+  if (!Array.isArray(data.tirage) || (!data.tirage.length && data.bonus !== 'ROGUE')) return null;
+  const ix = lireIndex();
+  const id = idNeuf();
+  if (!ecrire(cle(id), data)) return null;
+  const g = genreDe(data);
+  const titre = typeof f.titre === 'string' && f.titre.trim() ? f.titre.trim().slice(0, 80) : GENRES[g].nom;
+  const resume = f.resume && typeof f.resume === 'object' ? f.resume : null;
+  ix.parties.push({ id, genre: g, titre, cree: Date.now(), maj: Date.now(), resume, copie: true, importee: true });
+  ecrireIndex(ix);
+  return id;
+}
+
 /* Toutes les parties d'un genre, la plus récente en tête. */
 export const partiesDuGenre = g => lireIndex().parties.filter(p => p.genre === g).sort((a, b) => b.maj - a.maj);

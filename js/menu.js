@@ -11,7 +11,9 @@
  *     ce mode, ou en commencer une ;
  *   - l'exhibition, un lien sous les cartons ;
  *   - MES PARTIES : toutes, rangées par mode — reprendre, sauvegarder une
- *     copie (un instantané qu'on peut rouvrir plus tard), supprimer ;
+ *     copie (un instantané qu'on peut rouvrir plus tard), exporter (un
+ *     fichier qu'on transfère sur un autre appareil), supprimer ; et
+ *     importer un tel fichier ;
  *   - les OPTIONS et les RÈGLES.
  *
  * En pleine partie, le bouton « Menu » de l'en-tête ouvre LE MÊME ÉCRAN par
@@ -26,8 +28,37 @@
  * L'EXHIBITION (S78, js/exhibition.js) n'est pas un genre de sauvegarde :
  * elle ne garde aucune partie, donc rien dans « Mes parties ».
  */
-import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer } from './sauvegardes.js';
+import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer, exporter, importer } from './sauvegardes.js';
 import { esc } from './util.js';
+import { surAppareil } from './visages.js';
+
+/*
+ * LE FICHIER SORT (1.0). Sur le web, un lien `download` suffit. Dans
+ * l'application Android, la WebView n'enregistre pas un tel lien : on passe
+ * par la feuille de partage de l'appareil quand elle prend un fichier, sinon
+ * le texte va dans le presse-papiers, à coller dans une note ou un message.
+ * Rend le mot à afficher.
+ */
+async function livrer(nom, texte) {
+  const fichier = new File([texte], nom, { type: 'application/json' });
+  if (surAppareil()) {
+    if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+      try { await navigator.share({ files: [fichier], title: nom }); return `${nom} partagé.`; } catch (e) { if (e && e.name === 'AbortError') return ''; }
+    }
+    try { await navigator.clipboard.writeText(texte); return 'Partie copiée : colle-la dans une note ou un message.'; } catch { return 'Impossible d\'exporter sur cet appareil.'; }
+  }
+  const url = URL.createObjectURL(fichier);
+  const a = document.createElement('a');
+  a.href = url; a.download = nom;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return `${nom} téléchargé.`;
+}
+/* Un fichier ou le presse-papiers entre : une partie de plus au menu, ou le mot qui dit pourquoi non. */
+function recevoir(texte) {
+  const id = importer(texte);
+  return id ? 'Partie importée.' : 'Ce fichier n\'est pas une partie de Cap 82-0.';
+}
 
 /* « il y a 5 min », « hier », sinon la date : une partie se reconnaît à quand on l'a jouée. */
 function quand(t) {
@@ -97,11 +128,12 @@ function dessiner(m) {
     const G = GENRES[p.genre] || GENRES.saison;
     const estActive = p.id === ix.actif;
     return `<div class="menu-partie${estActive ? ' active' : ''}">
-      <div class="mp-tete"><span class="mp-ico">${G.ico}</span><b class="mp-titre">${esc(p.titre)}</b>${estActive ? '<span class="mp-badge">En cours</span>' : ''}${p.copie ? '<span class="mp-badge copie">Copie</span>' : ''}</div>
+      <div class="mp-tete"><span class="mp-ico">${G.ico}</span><b class="mp-titre">${esc(p.titre)}</b>${estActive ? '<span class="mp-badge">En cours</span>' : ''}${p.importee ? '<span class="mp-badge copie">Importée</span>' : p.copie ? '<span class="mp-badge copie">Copie</span>' : ''}</div>
       <div class="mp-etape">${esc(ligneResume(p) || 'Partie neuve')} · ${esc(quand(p.maj))}</div>
       <div class="mp-actions">
         <button type="button" class="btn small go" data-menu="reprendre" data-id="${p.id}">${estActive && ctx.enJeu ? 'Y retourner' : 'Reprendre'}</button>
         <button type="button" class="btn small" data-menu="copier" data-id="${p.id}" title="Un instantané de cette partie, à reprendre plus tard">💾 Sauvegarder une copie</button>
+        <button type="button" class="btn small" data-menu="exporter" data-id="${p.id}" title="Un fichier à transférer sur un autre appareil">📤 Exporter</button>
         <button type="button" class="btn small danger" data-menu="supprimer" data-id="${p.id}"${estActive && ctx.enJeu ? ' disabled title="C\'est la partie en cours"' : ''}>🗑️</button>
       </div>
     </div>`;
@@ -129,6 +161,12 @@ function dessiner(m) {
       <section class="menu-modes" aria-label="Les modes de jeu">${ordreModes.map(carte).join('')}</section>
       ${exhibition}
       ${ix.parties.length ? `<details class="menu-parties"${ix.parties.length <= 3 ? ' open' : ''}><summary>📂 Mes parties · ${ix.parties.length}</summary>${groupes}</details>` : ''}
+      <div class="menu-transfert">
+        <button type="button" class="btn small" data-menu="importer" title="Une partie exportée d'un autre appareil">📁 Importer une partie</button>
+        ${surAppareil() ? '<button type="button" class="btn small" data-menu="coller" title="Une partie copiée dans le presse-papiers">📋 Coller une partie</button>' : ''}
+        <input type="file" class="menu-fichier" accept=".json,application/json" hidden>
+        <span class="menu-transfert-mot" role="status"></span>
+      </div>
       <nav class="menu-pied" aria-label="Réglages et règles">
         <button type="button" class="menu-entree" data-menu="options"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg>Options</button>
         <button type="button" class="menu-entree" data-menu="regles"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles</button>
@@ -149,6 +187,12 @@ function dessiner(m) {
       else if (quoi === 'options') ctx.options();
       else if (quoi === 'regles') ctx.regles();
       else if (quoi === 'copier') { copier(id); dessiner(m); ouvrirParties(m); }
+      else if (quoi === 'exporter') { const f = exporter(id); if (f) livrer(f.nom, f.texte).then(mot => dire(m, mot)); }
+      else if (quoi === 'importer') { const inp = m.querySelector('.menu-fichier'); if (inp) inp.click(); }
+      else if (quoi === 'coller') {
+        navigator.clipboard.readText().then(t => { const mot = recevoir(t); dessiner(m); ouvrirParties(m); dire(m, mot); })
+          .catch(() => dire(m, 'Le presse-papiers n\'est pas lisible.'));
+      }
       else if (quoi === 'supprimer') {
         // Deux touches, jamais une : une partie supprimée ne revient pas.
         if (b.dataset.confirme !== '1') { b.dataset.confirme = '1'; b.textContent = 'Supprimer ?'; setTimeout(() => { if (b.isConnected) { b.dataset.confirme = ''; b.textContent = '🗑️'; } }, 2500); return; }
@@ -156,5 +200,16 @@ function dessiner(m) {
       }
     };
   });
+  const fichier = m.querySelector('.menu-fichier');
+  if (fichier) {
+    fichier.onchange = () => {
+      const f = fichier.files && fichier.files[0];
+      if (!f) return;
+      f.text().then(t => { const mot = recevoir(t); dessiner(m); ouvrirParties(m); dire(m, mot); })
+        .catch(() => dire(m, 'Ce fichier ne se lit pas.'));
+    };
+  }
 }
 const ouvrirParties = m => { const d = m.querySelector('.menu-parties'); if (d) d.open = true; };
+/* Le mot du transfert, sous les boutons ; vide, rien ne se voit. */
+const dire = (m, mot) => { const s = m.querySelector('.menu-transfert-mot'); if (s) s.textContent = mot || ''; };
