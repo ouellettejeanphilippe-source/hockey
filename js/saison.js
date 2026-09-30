@@ -34,6 +34,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
   activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux } from './sim.js';
 import { seasonLancers } from './ratings.js';
+import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
@@ -1865,10 +1866,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     });
     return voletJournee();
   });
-  // MES CARTES, DE PARTOUT (S79) : le cartable du jeu (l'onglet Vestiaire) les ouvre avec la décision du hub.
-  if (onDecision && ctx.inventaire) tabs.hub.cartes = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
-  // LE MARCHÉ (1.0, R1) : la boutique du jour, de la section Marché de la coquille.
-  if (onDecision && ctx.boutique) tabs.hub.boutique = () => ctx.boutique.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
+  /*
+   * LE MARCHÉ (1.0, R1 ; v2) : la boutique du jour et tes cartes, de la section Marché de la coquille — leur
+   * seule porte depuis que la rangée de liens du bureau est partie. Chacune dans sa page du Club (1.0, R3) :
+   * `dans` dit où rendre, `fermer` comment revenir au bureau ; ses décisions passent par le même chemin.
+   */
+  const decideDuMarche = d => { const j = jour; quitter(); onDecision(d, j); };
+  if (onDecision && ctx.inventaire) tabs.hub.cartes = () => ctx.inventaire.ouvrir(jour, decideDuMarche,
+    { dans: ui.ouvrirPage({ genre: 'cartes', ico: '🎒', titre: 'Tes cartes', sousTitre: ctx.boutique ? `🪙 ${ctx.boutique.jetons(jour)} jetons` : '' }), fermer: () => ui.fermerPage(true) });
+  if (onDecision && ctx.boutique) tabs.hub.boutique = () => ctx.boutique.ouvrir(jour, decideDuMarche,
+    { dans: ui.ouvrirPage({ genre: 'boutique', ico: '🛒', titre: 'La boutique', sousTitre: `🪙 ${ctx.boutique.jetons(jour)} jetons` }), fermer: () => ui.fermerPage(true) });
   // LA DÉCISION DU JOUR, PRÊTÉE (S80) : une carte posée au verso d'une fiche ouverte n'importe où pendant la saison.
   if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
   /*
@@ -2065,6 +2072,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${bareme ? `<small class="hub-run-bareme" title="Ce que chaque résultat rapporte, en jetons">🪙 ${ctx.esc(bareme)}</small>` : ''}
       </div>`);
     }
+    // LES COACHS (v2, js/coachs.js) : ceux auxquels le vestiaire croit, et leur confiance. Le détail est dans « Tes coachs » (Marché › Mes cartes).
+    const co = ctx.coachs ? ctx.coachs(jour) : null;
+    if (co && (co.actifs.length || co.tien)) {
+      const liste = [...co.actifs].sort((a, b) => (b.cle === co.tien) - (a.cle === co.tien) || b.palier - a.palier)
+        .map(x => `${COACHS[x.cle] ? COACHS[x.cle].ico : ''} ${ctx.esc(COACHS[x.cle] ? COACHS[x.cle].nom : x.cle)} <b>${ROMAINS[x.palier] || ''}</b>`);
+      lignes.push(`<div class="hub-etat-l hub-etat-coachs" title="Chaque carte jouée compte pour le coach de sa couleur ; à ${SEUILS.join(', ')} cartes, le vestiaire croit à lui">
+        <span class="hub-etat-k">📋 Tes coachs</span>
+        <span class="hub-etat-v">${liste.join(' · ') || 'personne encore'}</span>
+      </div>`);
+    }
     const oc = onDecision ? objectifEnCours() : null;
     if (oc && OBJECTIFS[oc.d.objectif.cle]) {
       const O = OBJECTIFS[oc.d.objectif.cle];
@@ -2206,21 +2223,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        */
       const resultatHtml = hier ? `<section class="soir-resultat" aria-label="Hier soir">${resultatHier(hier)}${drameHtml(hier.m)}</section>` : '';
       /*
-       * LES LIENS DU BUREAU (1.0, R3). JP : *j'hais le nouveau club ; au lieu de modals, faire des pages pour
-       * chaque, et les icônes sont un lien*. Une rangée d'icônes, chacune un lien vers une PAGE du Club (le
-       * dépistage, la préparation, le sommaire d'hier, tes cartes, la boutique — les deux derniers arrivent par
-       * `rendreActions`), un sous-onglet (la boîte) ou une page de la Ligue (classement, meneurs). Plus de tuiles,
-       * plus de fenêtres : l'affiche garde l'essentiel — les étapes, hier en une ligne, le prochain match, ce soir.
+       * PLUS DE RANGÉE DE LIENS (v2). JP : *enlever les boutons qui se dédoublent dans l'accueil club*. Chaque
+       * lien de l'ancienne rangée (1.0, R3) avait déjà sa porte : le dépistage et la préparation sont les étapes
+       * 1 et 2 du soir, la boîte un sous-onglet du Club, le classement et les meneurs la Ligue, tes cartes et la
+       * boutique le Marché (son badge compte les cartes à jouer). L'affiche garde les étapes, hier, le prochain match.
        */
-      const nMsgs = messagesCourants().length;
-      const tuiles = `<nav class="hub-liens" aria-label="Le bureau, en pages">
-        <button type="button" class="hub-lien hub-tt-dep"><i>🔎</i>Dépistage</button>
-        ${onDecision ? '<button type="button" class="hub-lien hub-tt-prep hub-preparer"><i>🏒</i>Préparer</button>' : ''}
-        ${hierMatch && hierMatch.m.feuille ? `<button type="button" class="hub-lien" data-sommaire="saison|${hierMatch.j}|${hierMatch.k}"><i>📋</i>Sommaire</button>` : ''}
-        <button type="button" class="hub-lien hub-tt-boite"><i>📥</i>Boîte${nMsgs ? `<b>${nMsgs}</b>` : ''}</button>
-        <button type="button" class="hub-lien" data-section="ligue" data-page="classement"><i>📊</i>Classement</button>
-        <button type="button" class="hub-lien" data-section="ligue" data-page="meneurs"><i>🏆</i>Meneurs</button>
-      </nav>`;
       /*
        * LA JOURNÉE EN DEUX (1.0, R3). JP : *séparer le résumé du dernier match et le prochain match, quitte à
        * séparer les jours en deux comme EHM*. Le MATIN : hier soir seul — le résultat, le drame, le sommaire à un
@@ -2237,7 +2244,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       carte.innerHTML = `${matin ? '' : miniBoss}<div class="hub-match${matin ? ' matin' : ''}">
         ${soirHtml(etape, faits)}
         ${matin ? `${resultatHtml}<div class="hub-matin-suite"><button type="button" class="btn gold hub-vers-soir">Le prochain match · journée ${p.j + 1} ›</button></div>` : affiche}
-        ${tuiles}
         ${matin ? '' : `${depistage}${planSoir}`}
       </div>`;
       // Du matin au soir : le bouton, ou un lien qui parle du prochain match (le dépistage, la préparation).
@@ -2258,17 +2264,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const d = carte.querySelector('.hub-depistage');
         if (d) { if (!d.open) d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
       };
-      const tDep = carte.querySelector('.hub-tt-dep');
-      if (tDep) tDep.onclick = () => { if (auSoir()) { const t = carte.querySelector('.hub-tt-dep'); if (t) t.click(); return; } ouvrirDepistage(); };
-      // Une tuile de la ligue passe par la coquille : la section, puis son onglet.
-      carte.querySelectorAll('.hub-lien[data-section]').forEach(t => { t.onclick = () => {
-        const nav = document.querySelector(`#navbar .navtab[data-section="${t.dataset.section}"]`);
-        if (nav) nav.click();
-        const sous = document.querySelector(`#sousNav .soustab[data-page="${t.dataset.page}"]`);
-        if (sous) sous.click();
-      }; });
-      const tBoite = carte.querySelector('.hub-tt-boite');
-      if (tBoite) tBoite.onclick = () => { boite.deplie = true; rendreActions(messagesCourants(), p); tabs.montrer('boite'); };
       // Le dépistage se calcule quand on l'ouvre, et reste ouvert d'un rendu à l'autre le même soir.
       const det = carte.querySelector('.hub-depistage');
       brancherConseils(det);
@@ -2283,10 +2278,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       carte.querySelectorAll('.soir-etape').forEach(b => {
         b.onclick = () => {
           const e = b.dataset.etape;
-          if (e === 'apercu') {
-            const t = carte.querySelector('.hub-tt-dep');
-            if (t) t.click(); else ouvrirDepistage();
-          } else if (e === 'prep') {
+          // Du matin, l'étape passe d'abord au soir, puis rejoue son geste sur l'affiche redessinée.
+          if ((e === 'apercu' || e === 'prep') && auSoir()) { const t = carte.querySelector(`.soir-etape[data-etape="${e}"]`); if (t) t.click(); return; }
+          if (e === 'apercu') ouvrirDepistage();
+          else if (e === 'prep') {
             const pb = carte.querySelector('.hub-preparer');
             if (pb) pb.click();
           } else if (e === 'match') {
@@ -2611,15 +2606,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${premier ? '' : '<button class="btn hub-prochaine" title="Jouer les journées une à une, jusqu\'à la première qui demande une décision">Jusqu\'à la prochaine décision</button>'}
       </div></div>
       ${boiteHtml}`;
-    // TES CARTES ET LA BOUTIQUE (S79) : deux liens de la rangée du bureau (1.0, R3), chacun vers sa page.
-    const liens = carte.querySelector('.hub-liens');
-    const outilsHtml = [
-      onDecision && ctx.inventaire ? (n => `<button type="button" class="hub-lien hub-tt-outil hub-inventaire" title="Mes cartes : celles qui se gardent jusqu'au moment voulu, le personnel, le deck, le classeur"><i>🎒</i>Cartes${n ? `<b>${n}</b>` : ''}</button>`)(ctx.inventaire.compte(jour)) : '',
-      onDecision && ctx.boutique ? (n => `<button type="button" class="hub-lien hub-tt-outil hub-boutique" title="La boutique : des packs de joueurs et de cartes"><i>🛒</i>${n} 🪙</button>`)(ctx.boutique.jetons(jour)) : '',
-    ].join('');
-    if (liens) { liens.querySelectorAll('.hub-tt-outil').forEach(t => t.remove()); liens.insertAdjacentHTML('beforeend', outilsHtml); }
-    const outilDe = cls => liens && liens.querySelector(cls);
-
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
     const teteBoite = actions.querySelector('.hub-boite-tete');
     if (teteBoite) teteBoite.onclick = () => { boite.deplie = pliee; redessinerBoite(); };
@@ -2646,14 +2632,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const el = actions.querySelector(`.hub-msg[data-id="${CSS.escape(premier.id)}"]`);
       if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const d = el.querySelector('[data-defaut]'); if (d) d.focus({ preventScroll: true }); }
     };
-    // LA BOUTIQUE (Rogue, S77) : ses décisions passent par le même chemin que les autres choix.
-    // Chacune dans sa page du Club (1.0, R3) : `dans` dit où rendre, `fermer` comment revenir au bureau.
-    const boutique = outilDe('.hub-boutique');
-    if (boutique) boutique.onclick = () => ctx.boutique.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); },
-      { dans: ui.ouvrirPage({ genre: 'boutique', ico: '🛒', titre: 'La boutique', sousTitre: `🪙 ${ctx.boutique.jetons(jour)} jetons` }), fermer: () => ui.fermerPage(true) });
-    const sac = outilDe('.hub-inventaire');
-    if (sac) sac.onclick = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); },
-      { dans: ui.ouvrirPage({ genre: 'cartes', ico: '🎒', titre: 'Tes cartes', sousTitre: ctx.boutique ? `🪙 ${ctx.boutique.jetons(jour)} jetons` : '' }), fermer: () => ui.fermerPage(true) });
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     const mPack = msgs.find(m => m.genre === 'pack');

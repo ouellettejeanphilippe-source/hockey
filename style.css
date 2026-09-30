@@ -2453,18 +2453,6 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 }
 @media (min-width: 1600px) { body.hub-docke .hub-sheet { grid-template-columns: minmax(0, 1fr) 440px; } }
 
-/* ---- Les liens du bureau (1.0, R3) : une rangée d'icônes, chacune un lien vers une page du Club, un sous-onglet ou la Ligue ---- */
-.hub-liens { display: flex; flex-wrap: wrap; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet); }
-.hub-lien {
-  position: relative; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 36px; padding: 0 var(--esp-3) 0 var(--esp-2);
-  border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); color: var(--encre);
-  font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; transition: background var(--t-vite), border-color var(--t-vite);
-}
-.hub-lien i { font-style: normal; font-size: var(--t-3); line-height: 1; }
-.hub-lien b { min-width: 16px; padding: 2px 4px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
-.hub-lien:hover, .hub-lien:focus-visible { background: var(--fond-2); border-color: var(--encre-3); }
-.hub-lien:active { background: var(--fond-3); }
-
 /* ---- Une page du Club (1.0, R3) : « ‹ » pour revenir, un titre, le corps ; l'affiche, la boîte et le volet attendent derrière ---- */
 body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet, .hub-onglets) { display: none; }
 .hub-page { display: flex; flex-direction: column; min-width: 0; }
@@ -2688,6 +2676,7 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-etat-l { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); min-width: 0; font-size: var(--t-2); }
 .hub-etat-k { flex: none; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
 .hub-etat-run .hub-etat-k { color: var(--mauvais); }
+.hub-etat-coachs .hub-etat-k { color: var(--or); }
 .hub-etat-v { min-width: 0; }
 .hub-etat-v b { font: 800 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; }
 .hub-etat-infirmerie .hub-etat-v b { color: var(--mauvais); }
@@ -4205,6 +4194,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .bq-nom { flex: 1; min-width: 0; font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
 .bq-compte { flex: none; font: 800 var(--t-2)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
 .bq-sous { display: flex; justify-content: space-between; gap: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.bq-coach { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .bq-regle { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
 .bq-cache { font-size: var(--t-1); color: var(--encre-3); font-style: italic; }
 .bq-texte { font-size: var(--t-1); line-height: 1.35; color: var(--encre-2); }
@@ -4246,6 +4236,24 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .inv-progres { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-4); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
 .inv-prog { display: flex; align-items: baseline; gap: var(--esp-1); }
 .inv-prog b { color: var(--encre); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+/* Tes coachs (v2) : un coach par rangée, sa jauge aux seuils 3, 6, 9, ce que sa confiance joue et la suivante. */
+.inv-coachs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--esp-2); }
+.inv-coach { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
+.inv-coach.allume { border-color: var(--encre-3); }
+.inv-coach.tien { border-color: var(--or); }
+.inv-coach-tete { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; }
+.inv-coach-ico { font-size: var(--t-4); line-height: 1; }
+.inv-coach-rang { padding: 2px 6px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
+.inv-coach-tien { margin-left: auto; font-size: var(--t-1); letter-spacing: 0.08em; color: var(--or); }
+.inv-coach-mot { font-size: var(--t-1); color: var(--encre-2); }
+.inv-coach-jauge { position: relative; height: 6px; margin: var(--esp-1) 0; border-radius: var(--r-1); background: var(--fond-3); }
+.inv-coach-jauge i { display: block; height: 100%; border-radius: var(--r-1); background: var(--or); }
+.inv-coach-jauge em { position: absolute; top: -2px; width: 2px; height: 10px; margin-left: -1px; background: var(--encre-3); }
+.inv-coach-jauge em.fait { background: var(--encre); }
+.inv-coach-compte { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
+.inv-coach-regle { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); }
+.inv-coach-regle > span { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
+.inv-coach-regle.suite { opacity: 0.6; }
 /* La masse salariale : le montant, la barre, ce qui tord le plafond. */
 .inv-plafond { margin: var(--esp-3) var(--esp-4) 0; padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
 .inv-pl-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }

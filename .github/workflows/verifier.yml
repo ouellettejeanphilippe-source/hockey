@@ -40,6 +40,9 @@ name: Vérifier
 #                   une pièce par case, la rondelle toujours jouable, le
 #                   porteur jamais au sol, un match qui finit sur un gagnant —
 #                   et les règles écrites comparées aux gestes réellement joués
+#   check_coachs    les coachs (v2) : chaque carte a sa couleur, la confiance
+#                   s'allume à 3, 6 et 9 cartes, le moteur la joue, et la
+#                   saison se rejoue avec elle
 #   check_actions   les photos d'action (1.0) : la liste, le recadrage 5:7,
 #                   et une carte sans photo qui garde son portrait
 #   smoke           le parcours complet à 390 px dans Chromium : vestiaire,
@@ -120,6 +123,12 @@ jobs:
       # reconstruits depuis leurs constantes (1.0, jalon C). Une seconde.
       - name: La clarté
         run: node scripts/check_clarte.mjs
+
+      # Les coachs (v2) : la couleur de chaque carte, la confiance à 3, 6 et 9
+      # cartes, le scaling, le pack du coach, le moteur et la reprise. Sans
+      # l'équilibre en paires (dix minutes, à la main). Cinq secondes.
+      - name: Les coachs
+        run: LIGUES=0 node scripts/check_coachs.mjs
 
       # Zéro code inutile (1.0, jalon 3) : aucune déclaration morte, aucun
       # `export` ni import de trop, aucune classe CSS sans élément. Cinq secondes.

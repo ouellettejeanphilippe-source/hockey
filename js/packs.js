@@ -60,7 +60,8 @@
  * leur filtre et le Trio, sa vraie ligne : ni l'un ni l'autre ne tire de niveau.
  */
 import { hache } from './util.js';
-import { BANQUE, idsDe } from './banque.js';
+import { BANQUE, idsDe, idsDuCoach } from './banque.js';
+import { COACHS, ORDRE_COACHS } from './coachs.js';
 import { getPlayerKey, getPersonKey } from './sim.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { ageAtSeason } from './ratings.js';
@@ -124,6 +125,8 @@ export const PACKS_CARTES = {
   contrats: { nom: 'Pack Contrats', ico: '💵', n: 4, prix: 20, cats: ['plafond'], cotes: COTES_CARTES, maudite: 0.08, texte: 'Quatre cartes de masse salariale : de l\'espace, une retenue, un rachat… et parfois la taxe de luxe.' },
   match: { nom: 'Pack Cartes de match', ico: '🃏', n: 4, prix: 15, cats: ['match'], cotes: COTES_CARTES, texte: 'Quatre cartes pour ton deck de match.' },
   mixte: { nom: 'Pack Mixte', ico: '🎴', n: 5, prix: 25, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, texte: 'Cinq cartes de toutes les familles.' },
+  // v2 : le pack d'un coach (js/coachs.js) — quatre cartes de sa couleur, de toutes les familles. Le coach se choisit à l'achat.
+  coach: { nom: 'Pack du coach', ico: '📋', n: 4, prix: 22, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, choix: 'coach', texte: 'Quatre cartes de la couleur d\'un coach, de toutes les familles : de quoi bâtir sa confiance.' },
   lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, maudite: 0.1, texte: 'Douze cartes de toutes les familles — le prix de deux packs mixtes et demi. Une chance sur dix d\'y trouver la taxe de luxe.' },
 };
 
@@ -138,7 +141,7 @@ export const RAYONS = [
   { cle: 'cibles', nom: 'Équipe, année, trio', ico: '🏟️', packs: ['j:equipe', 'j:annee', 'j:trio', 'j:etoiles', 'j:legendes'] },
   { cle: 'epoques', nom: 'Les époques', ico: '📼', packs: ['j:ere70', 'j:ere80', 'j:ere90', 'j:ere00', 'j:ere10', 'j:ere20'] },
   { cle: 'skills', nom: 'Par talent', ico: '🎯', packs: ['j:sniper', 'j:passeur', 'j:defensif', 'j:dur', 'j:gardien', 'j:recrue', 'j:veteran'] },
-  { cle: 'cartes', nom: 'Les cartes', ico: '🃏', packs: ['c:patrons', 'c:evenements', 'c:modifs', 'c:consommables', 'c:contrats', 'c:match', 'c:mixte', 'c:lot'] },
+  { cle: 'cartes', nom: 'Les cartes', ico: '🃏', packs: ['c:coach', 'c:patrons', 'c:evenements', 'c:modifs', 'c:consommables', 'c:contrats', 'c:match', 'c:mixte', 'c:lot'] },
 ];
 
 /*
@@ -377,13 +380,16 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
  * carte à cette rareté, on descend d'un cran. Les malédictions ne sortent
  * jamais d'un pack.
  */
-export function tirerCartesPack(cleCourte, graine, n) {
+export function tirerCartesPack(cleCourte, graine, n, params = {}) {
   const P = PACKS_CARTES[cleCourte];
   if (!P) return [];
   const out = [];
+  // v2 : le pack d'un coach ne tire que sa couleur (le coach choisi, ou tiré de la graine), dans les familles qui en ont.
+  const coach = P.choix === 'coach' ? coachDuPack(graine, n, params) : null;
+  const cats = coach ? P.cats.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c)) : P.cats;
   for (let t = 0; t < P.n; t++) {
-    const cat = P.cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * P.cats.length)];
-    const pool = idsDe(cat).filter(id => BANQUE[id].rarete !== 'maudite');
+    const cat = cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * cats.length)];
+    const pool = idsDe(cat).filter(id => BANQUE[id].rarete !== 'maudite' && (!coach || BANQUE[id].coach === coach));
     let r = hache(graine, 'pack-cartes', cleCourte, n, t) * 100;
     let rar = 'commune';
     for (const k of ORDRE_VAR) { r -= P.cotes[k] || 0; if (r < 0) { rar = k; break; } }
@@ -403,6 +409,8 @@ export function tirerCartesPack(cleCourte, graine, n) {
   }
   return out;
 }
+/* Le coach d'un pack du coach : celui choisi à l'achat, sinon un tiré de la graine et du numéro d'achat. */
+export const coachDuPack = (graine, n, params = {}) => (COACHS[params.coach] ? params.coach : ORDRE_COACHS[Math.floor(hache(graine, 'pack-coach', n) * ORDRE_COACHS.length)]);
 /*
  * LA GARANTIE (Rogue) : combien de packs de joueurs d'affilée sans holo ni or
  * — lu dans les décisions d'achat (\`achat.meilleure\`). Au bout de PITIE − 1,

@@ -13,11 +13,15 @@ const BASE = process.argv[2] || 'http://localhost:8000';
 const DOSSIER = process.argv[3] || 'scripts';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-// Les liens du bureau (1.0, R3) vivent sur le sous-onglet Match du Club : on y revient avant d'en toucher un.
-const versBureau = async () => {
-  if (await page.$('#hubModal .hub-page')) { await page.click('#hubModal .hub-page-retour'); await page.waitForTimeout(200); }
-  const t = await page.$('#sousNav:not([hidden]) .soustab[data-page="match"]:not(.on)');
-  if (t) { await t.click(); await page.waitForTimeout(250); }
+/*
+ * v2 : la boutique et tes cartes n'ont plus qu'une porte, la section Marché (la rangée de liens du bureau doublait
+ * les étapes, la boîte, la Ligue et le Marché). Le bureau est prêt quand sa barre d'action est là.
+ */
+const BUREAU = '#hubModal :is(.hub-jour, .hub-traiter)';
+const versMarche = async quoi => {
+  await page.click('#navbar .navtab[data-section="marche"]');
+  await page.waitForSelector(`#pageMarcheCorps [data-marche="${quoi}"]`, { timeout: 10000 });
+  await page.click(`#pageMarcheCorps [data-marche="${quoi}"]`);
 };
 const erreurs = [];
 page.on('pageerror', e => erreurs.push(e.message));
@@ -47,6 +51,16 @@ await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout:
 await page.screenshot({ path: `${DOSSIER}/rogue-intro.png` });
 const intro = (await page.textContent('#choixModal .choix-sheet')).replace(/\s+/g, ' ');
 if (!/proprio/.test(intro) || !/classeur/.test(intro)) erreurs.push('l\'écran de la run ne dit ni le mandat du proprio ni le classeur');
+await choix();
+/*
+ * TON COACH (v2, js/coachs.js) : trois coachs, un à prendre — sa confiance I
+ * est allumée dès le premier soir (une décision du jour 0).
+ */
+await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
+const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
+console.log(`0. ton coach : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 40)).join(' | ')}`);
+if (offerts.length !== 3 || !offerts.every(t => /Confiance I/.test(t))) erreurs.push(`le choix du coach offre ${offerts.length} coach(s), ou ne dit pas sa confiance I`);
 await choix();
 /*
  * LE DÉPART DU CLASSEUR (S80, js/depart.js) : sans déblocage, une carte du
@@ -151,6 +165,14 @@ const versSaison = await page.$('#sousNav:not([hidden]) .soustab[data-page="sais
 if (versSaison) { await versSaison.click(); await page.waitForTimeout(300); }
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
 console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
+{
+  const coachs = ((await page.textContent('#hubModal .hub-etat-coachs').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const sv0 = await lireSauvegarde();
+  const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
+  console.log(`5c. tes coachs : ${coachs || '(absent)'} · décision du jour 0 : ${d0 ? `${d0.coach.nom} ${JSON.stringify(d0.coachsDeBase)}` : '(aucune)'}`);
+  if (!d0 || d0.coach.palier !== 1) erreurs.push('le coach de la run n\'allume pas sa confiance I au jour 0');
+  if (!/ I\b/.test(coachs)) erreurs.push('le bureau ne dit pas le coach de la run et sa confiance');
+}
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 // 1.0 (R4) : le barème des jetons est écrit au hub, et ses chiffres sont ceux de la run (jamais tapés).
 {
@@ -184,7 +206,9 @@ for (let i = 0; i < 3; i++) {
   await prochaineDecision();
 }
 await regler();
-const avant = (await page.textContent('#hubModal .hub-boutique')).trim();
+await page.click('#navbar .navtab[data-section="marche"]'); await page.waitForTimeout(200);
+const avant = (await page.textContent('#pageMarcheCorps [data-marche="boutique"]')).replace(/\s+/g, ' ').trim();
+await page.click('#navbar .navtab[data-section="club"]'); await page.waitForTimeout(200);
 const jauge = async () => (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge()}`);
 if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne montre pas le plafond');
@@ -200,7 +224,7 @@ const dechirer = async () => {
   await page.waitForTimeout(600);
 };
 const acheter = async (pack, capture) => {
-  await versBureau(); await page.click('#hubModal .hub-boutique');
+  await versMarche('boutique');
   await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
   // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; « Voir les N packs » montre le reste.
   if (!(await page.$(`#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`)) && await page.$('#hubModal .hub-page[data-genre="boutique"] .pk-tout')) { await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-tout'); await page.waitForTimeout(300); }
@@ -214,7 +238,7 @@ const acheter = async (pack, capture) => {
   await dechirer();
   return true;
 };
-await versBureau(); await page.click('#hubModal .hub-boutique');
+await versMarche('boutique');
 await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
 const nPacks = await page.$$eval('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
@@ -238,7 +262,7 @@ else {
   // Échap ferme la boutique (1.0, R5) ; on la rouvre pour continuer comme avant.
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   if (await page.$('#hubModal .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
-  await versBureau(); await page.click('#hubModal .hub-boutique'); await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+  await versMarche('boutique'); await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 }
 await page.click('#hubModal .hub-page-retour');
 /*
@@ -248,7 +272,7 @@ await page.click('#hubModal .hub-page-retour');
  * téléphone, la fiche défile.
  */
 const NOMS_NIVEAUX = ['Soutien', 'Régulier', 'Pilier', 'Étoile', 'Phénomène'];
-await versBureau(); await page.click('#hubModal .hub-boutique');
+await versMarche('boutique');
 await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-pack="j:hasard_bronze"]');
 await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-fiche');
@@ -321,7 +345,7 @@ if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignemen
 await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
 console.log(`   qui sort : ${rangees.length} rangées, ${refusees} case(s) grisée(s) · « ${barreSortie} »`);
 await page.click('#choixModal .aln-confirmer');
-await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
+await page.waitForSelector(BUREAU, { timeout: 120000 });
 await page.waitForTimeout(800);
 let d = await decisions();
 // 1.0 (J1-B) : l'achat est la décision `k:n` ; la signature, une seconde décision `k:n:signe` (sans l'achat).
@@ -352,7 +376,7 @@ for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
   await page.screenshot({ path: `${DOSSIER}/rogue-${pack.slice(2)}.png` });
   await page.click('#choixModal:not([hidden]) .choix-plus-tard');
-  await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
+  await page.waitForSelector(BUREAU, { timeout: 120000 });
   await regler();
 }
 /*
@@ -360,7 +384,7 @@ for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
  * GARDENT jusqu'au moment voulu), les permanentes, le deck, le classeur, et
  * la masse salariale. On joue une carte : une décision datée du jour.
  */
-await versBureau(); await page.click('#hubModal .hub-inventaire');
+await versMarche('cartes');
 await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-inventaire.png` });
 const poche = await page.$$eval('#hubModal .hub-page[data-genre="cartes"] .bq-carte', e => e.map(x => x.querySelector('.bq-nom').textContent.trim()));
@@ -387,7 +411,7 @@ let posee = null, nomModif = '';
   if (!nModifs) erreurs.push('aucune modif de joueur dans l\'inventaire (le pack Modifs en donne quatre)');
   let permis = 0, grises = 0;
   for (let k = 0; k < nModifs && !permis; k++) {
-    if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versBureau(); await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+    if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
     const jouer = (await page.$$('#hubModal .hub-page[data-genre="cartes"] .bq-joueur .inv-jouer:not([disabled])'))[k];
     if (!jouer) break;
     nomModif = await jouer.evaluate(b => (((b.closest('.bq-joueur') || b).querySelector('.bq-nom') || {}).textContent || '').trim());
@@ -413,7 +437,7 @@ let posee = null, nomModif = '';
     await page.screenshot({ path: `${DOSSIER}/rogue-verso-poser.png` });
     const nomJoueur = (await page.textContent('#hockeyCardModal .cjv-nom')).trim();
     await page.click('#hockeyCardModal .fc-poser');
-    await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
+    await page.waitForSelector(BUREAU, { timeout: 120000 });
     await page.waitForTimeout(800);
     await regler();
     d = await decisions();
@@ -422,7 +446,7 @@ let posee = null, nomModif = '';
     console.log(`7a. « ${nomModif} » posée au verso de ${nomJoueur} (${permis} joueurs permis, ${grises} grisés) : ${JSON.stringify(posee && { joue: posee.joue.id, mutation: posee.mutation })}`);
   }
 }
-if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versBureau(); await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
 /*
  * UNE CARTE SANS CIBLE VALABLE (« Blessé à long terme » sans blessé) rouvre
  * l'inventaire au lieu de se jouer : les plombiers sont tirés au hasard, donc
@@ -433,14 +457,14 @@ if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versBur
 const avantJouees = (await decisions()).filter(x => x.joue).length;
 let jouee = false, essais = 0;
 for (; essais < 5 && !jouee; essais++) {
-  if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versBureau(); await page.click('#hubModal .hub-inventaire'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  if (!(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
   const boutons = await page.$$('#hubModal .hub-page[data-genre="cartes"] .bq-carte:not(.bq-joueur) .inv-jouer:not([disabled])');
   if (!boutons[essais]) break;
   await boutons[essais].click();
   await page.waitForTimeout(600);
   await regler();
   if (await page.$('#hubModal .hub-page[data-genre="cartes"]')) continue;
-  await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
+  await page.waitForSelector(BUREAU, { timeout: 120000 });
   await regler();
   d = await decisions();
   jouee = d.filter(x => x.joue).length > avantJouees;
@@ -495,7 +519,7 @@ if (posee) {
     await page.waitForSelector('#hockeyCardModal .fc-poser', { timeout: 10000 });
     const avant = (await decisions()).filter(x => x.joue && x.mutation).length;
     await page.click('#hockeyCardModal .fc-poser');
-    await page.waitForSelector('#hubModal .hub-boutique', { timeout: 120000 });
+    await page.waitForSelector(BUREAU, { timeout: 120000 });
     await page.waitForTimeout(800);
     await regler();
     const apres = (await decisions()).filter(x => x.joue && x.mutation).length;
@@ -505,10 +529,10 @@ if (posee) {
     break;
   }
   if (!fait) console.log('12b. plus de modif à poser (ou personne à qui elles vont)');
-  if (!(await page.$('#hubModal .hub-boutique'))) { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); }
+  if (!(await page.$(BUREAU))) { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); }
 }
 await page.click('#navbar .navtab[data-section="club"]');
-await page.waitForSelector('#hubModal .hub-boutique', { timeout: 20000 });
+await page.waitForSelector(BUREAU, { timeout: 20000 });
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
 for (let i = 0; i < 200; i++) {
   await regler();

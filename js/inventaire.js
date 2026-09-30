@@ -20,7 +20,8 @@
  * Jouer une carte est une DÉCISION (js/banque.js \`payloadDe\`) : le contrôleur
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
-import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque } from './banque.js';
+import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, reglesDePalier, idsDuCoach } from './banque.js';
+import { COACHS, ORDRE_COACHS, SEUILS, ROMAINS, palierDe, avantProchain } from './coachs.js';
 import { tirerCartesPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch } from './gerant.js';
@@ -88,6 +89,7 @@ function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = n
   return `<div class="bq-carte bq-${c.cat} tc-${c.rarete}${possede ? '' : ' pas-a-moi'}" data-id="${esc(id)}">
     <div class="bq-tete"><span class="bq-ico" aria-hidden="true">${c.ico}</span><span class="bq-nom">${esc(c.nom)}</span>${compte > 1 ? `<span class="bq-compte">×${compte}</span>` : ''}</div>
     <div class="bq-sous"><span>${esc(CATEGORIES[c.cat].un)}</span>${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}<span>${esc(sous)}</span></div>
+    ${COACHS[c.coach] ? `<div class="bq-coach" title="${esc(COACHS[c.coach].mot)}">${COACHS[c.coach].ico} ${esc(COACHS[c.coach].nom)}</div>` : ''}
     ${possede ? `<div class="bq-regle">${puces(mots)}</div><div class="bq-texte">${esc(c.texte || '')}</div>` : '<div class="bq-regle bq-cache">Pas encore dans ta collection</div>'}
     <div class="bq-pied"><span class="bq-moment moment-${momentDe(id)}" title="${esc(MOMENTS[momentDe(id)].mot)}">${MOMENTS[momentDe(id)].ico} ${esc(MOMENTS[momentDe(id)].nom)}</span><span class="bq-vie vie-${v}" title="${esc(VIES[v] ? VIES[v].mot : '')}">${esc(VIES[v] ? VIES[v].nom : '')}</span><span class="bq-gemme" title="${esc(R.nom)}">${R.gemme}</span></div>
     ${actions ? `<div class="bq-actions">${actions}</div>` : ''}
@@ -100,6 +102,7 @@ let etat = { onglet: null, cat: 'tout', rar: 'tout' };
  * ctx : { titre, mode ('rogue' | 'saison'), enSaison, jetons, partie: [{ref, id, source}],
  *         meta: [{id, n}], personnel: [cles], patronsActifs: [{cle, role}], maxPatrons,
  *         deck: [cles], possedees: Set(ids), joueursCollection: n,
+ *         build: { coach: n } (v2), coachsActifs: [{cle, palier}], coachRun: le coach de la run,
  *         jouer(item), vendre(item), onFerme() }
  */
 export function ouvrirInventaire(ctx) {
@@ -110,6 +113,8 @@ export function ouvrirInventaire(ctx) {
     ...(ctx.enSaison ? [['partie', 'Cette saison', ctx.partie.length]] : []),
     ...(ctx.mode === 'rogue' ? [['permanent', 'Permanent', ctx.meta.reduce((a, x) => a + x.n, 0) + ctx.personnel.length]] : []),
     ...(ctx.enSaison ? [['deck', 'Le deck', ctx.deck.length]] : []),
+    // v2 : tes coachs — ce que tes cartes jouées font croire au vestiaire (js/coachs.js).
+    ...(ctx.build ? [['coachs', 'Tes coachs', (ctx.coachsActifs || []).length]] : []),
     ['classeur', 'Le classeur', `${ctx.possedees.size}/${Object.keys(BANQUE).length}`],
   ];
   if (!etat.onglet || !onglets.some(o => o[0] === etat.onglet)) etat.onglet = onglets[0][0];
@@ -151,6 +156,28 @@ export function ouvrirInventaire(ctx) {
       for (const k of ctx.deck) piles.set(k, (piles.get(k) || 0) + 1);
       corps = `<p class="inv-mot">Ton deck de match : tu en piges cinq avant chaque gros match et chaque match de séries.</p>
         <div class="inv-grille">${[...piles.entries()].map(([k, n]) => carteBanqueHtml(`match:${String(k).replace(/\+$/, '')}`, { compte: n })).join('')}</div>`;
+    } else if (etat.onglet === 'coachs') {
+      /*
+       * TES COACHS (v2) : chaque carte jouée compte pour le coach de sa couleur ;
+       * à 3, 6 et 9, le vestiaire croit à lui et sa philosophie joue toute la
+       * saison. Le coach choisi au départ vient en tête ; puis ceux qui ont le
+       * plus de cartes.
+       */
+      const allumes = new Map((ctx.coachsActifs || []).map(x => [x.cle, x.palier]));
+      const ordre = ORDRE_COACHS.slice().sort((a, b) => (b === ctx.coachRun) - (a === ctx.coachRun) || (ctx.build[b] || 0) - (ctx.build[a] || 0));
+      corps = `<p class="inv-mot">Chaque carte jouée compte pour le coach de sa couleur. À ${SEUILS.join(', ')} cartes, le vestiaire croit à lui (${ROMAINS.slice(1).join(', ')}) : sa philosophie joue pour le reste de la saison, séries comprises.${ctx.mode === 'rogue' ? ' Le compte suit ta run d\'une saison à l\'autre.' : ''}</p>
+        <div class="inv-coachs">${ordre.map(k => {
+          const C = COACHS[k], n = ctx.build[k] || 0, pal = Math.max(palierDe(n), allumes.get(k) || 0), manque = avantProchain(n);
+          const cible = SEUILS[Math.min(pal, SEUILS.length - 1)];
+          return `<div class="inv-coach${pal ? ' allume' : ''}${k === ctx.coachRun ? ' tien' : ''}" data-coach="${k}">
+            <div class="inv-coach-tete"><span class="inv-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="inv-coach-rang">${ROMAINS[pal]}</span>` : ''}${k === ctx.coachRun ? '<span class="inv-coach-tien">Ton coach</span>' : ''}</div>
+            <div class="inv-coach-mot">${esc(C.mot)}</div>
+            <div class="inv-coach-jauge" aria-label="${n} carte${n > 1 ? 's' : ''} sur ${cible}"><i style="width:${Math.min(100, Math.round((n / SEUILS[SEUILS.length - 1]) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / SEUILS[SEUILS.length - 1]) * 100)}%"${n >= x ? ' class="fait"' : ''}></em>`).join('')}</div>
+            <div class="inv-coach-compte">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · encore ${manque} pour ${ROMAINS[pal + 1]}` : ' · confiance au sommet'} · ${idsDuCoach(k).length} cartes de sa couleur</div>
+            ${pal ? `<div class="inv-coach-regle"><span>Joue :</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
+            ${manque ? `<div class="inv-coach-regle suite"><span>${ROMAINS[pal + 1]} :</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
+          </div>`;
+        }).join('')}</div>`;
     } else {
       const ids = Object.keys(BANQUE).filter(garde).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));
       const par = ORDRE_CATEGORIES.map(c => [c, idsDe(c).filter(id => ctx.possedees.has(id)).length, idsDe(c).length]);

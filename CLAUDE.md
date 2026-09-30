@@ -55,7 +55,8 @@ js/equipes.js         l'écran des équipes et leurs vraies statistiques
 js/combat.js          le deck de match : cartes, main, élan, main adverse
 js/cartes.js          le gabarit des cartes (recto, verso, finitions)
 js/rarete.js          les variantes de carte et leur bonus
-js/banque.js          la banque de cartes (patrons, événements, modifs, consommables, contrats)
+js/banque.js          la banque de cartes (patrons, événements, modifs, consommables, contrats), le build : la couleur et le compte de chaque coach
+js/coachs.js          les coachs (v2) : neuf philosophies, la couleur d'une carte lue sur ses canaux, la confiance à 3, 6 et 9 cartes
 js/packs.js           les packs de joueurs et de cartes, leurs taux
 js/niveaux.js         le niveau d'un joueur dans sa saison : Soutien → Phénomène
 js/inventaire.js      l'inventaire et la revente
@@ -123,6 +124,8 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - L'achat s'enregistre avant le butin ; la prime de série est versée — `check_rogue`.
 - Le ballottage offre un dépanneur (niveau Régulier au plus), pas une vedette — `check_ballottage`.
 - Une carte ne se prend qu'une fois, et un palier n'arrête l'avance qu'une fois.
+- Une carte trouve son coach sur ce qu'elle fait (ses canaux), jamais sur une étiquette collée ; la confiance d'un coach est une décision `coach` qui porte ses chiffres — `check_coachs`.
+- L'adversaire ne pige pas les cartes de match de la v2 (`horsAdverse`) : sa main est calibrée, la difficulté ne bouge pas — `check_gros`, `check_robot`.
 
 **Sur table**
 - Les règles du plateau sont ÉCRITES DANS LE CODE (`reglesDuPlateau()`) et affichées de là ; le moteur ne les viole jamais — `check_regles`.
@@ -158,6 +161,8 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **rôle** : ce que le joueur fait (sniper, passeur, checker…), une icône et un mot ; un système demande des rôles.
 - **zone** : où le joueur rend (T1-2, P1…) ; une case porte les zones qui y sont chez elles.
 - **carrure** : 🪨 costaud ou 🪶 léger ; elle décide de ce que rapporte l'agressivité.
+- **coach** : une des neuf philosophies de `js/coachs.js` (🐝 le Frelon, 🐢 la Tortue…) ; chaque carte a la couleur d'un coach. Pas « école », pas « build » à l'écran.
+- **confiance** : I, II, III — le vestiaire croit à un coach à 3, 6 et 9 cartes jouées de sa couleur ; sa philosophie joue alors la saison.
 - **élan** : la mana des cartes de match (trois par main, « 1 élan » sur une carte).
 - **plombier** : le rôle 🪠 d'un attaquant de quatrième trio qui lance et frappe en peu de minutes ; le système 🧰 Trio de plombiers.
 - **usure des jambes** : ce qu'un match coûte aux jambes (la puce « Usure des jambes +12 % »).
@@ -183,6 +188,8 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `check_feuilles.mjs` sur une ligue, plus `check_fiches.mjs`, `check_table.mjs`, `check_regles.mjs` et `smoke_table.mjs`. Les scripts de calibration (monotonie, plafond, tireurs) restent à lancer à la main.
 
 `node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (douze minutes) se lancent à part.
+
+Depuis la v2 : `node scripts/check_coachs.mjs` (dix minutes : la couleur des cartes, la confiance, et chaque coach mesuré en paires à six ligues ; `LIGUES=0` en CI).
 
 Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (avec l'adresse du jeu en argument, il simule aussi l'application Android ; réseau requis). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
 

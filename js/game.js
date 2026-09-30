@@ -1592,6 +1592,7 @@ const PAGES = () => SECTIONS.flatMap(s => PAGES_DE[s.cle]());
 /* La dernière page ouverte de chaque section : la Ligue rouvre sur le calendrier qu'on lisait. */
 const dernierePage = {};
 
+const cartesEnAttente = () => { const h = hubActif(); const n = h && h.cartes && G.ligue ? cartesAJouer(G.journee || 0) : 0; return n ? String(n) : ''; };
 function sectionsCourantes() {
   const draft = enRepechage();
   return SECTIONS.map(s => ({
@@ -1599,7 +1600,8 @@ function sectionsCourantes() {
     // ESTOMPÉE PENDANT LE REPÊCHAGE (1.0, J2-6e) : la Ligue n'a rien avant le
     // premier match et le dit d'un coup d'oeil. La toucher reste permis.
     mort: draft && s.cle === 'ligue' ? 'Dès le premier match' : '',
-    badge: !draft ? '' : s.cle === 'marche' && auVestiaire() ? String(compteSignables())
+    // v2 : en saison, le Marché compte les cartes qui attendent d'être jouées — sa seule porte depuis le bureau.
+    badge: !draft ? (s.cle === 'marche' ? cartesEnAttente() : '') : s.cle === 'marche' && auVestiaire() ? String(compteSignables())
       : s.cle === 'effectif' ? `${signes().length}/${totalCases()}` : '',
   }));
 }
