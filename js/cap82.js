@@ -299,7 +299,9 @@ export function ouvrirCap82({ ligue, you, teams, calendrier, enSeries, epoque = 
           <span><small>Séries</small><b>${seriesVD()}</b></span>
         </div>`;
     }
-    const annonce = momentAffiche ? `<div class="c82-moment ${momentAffiche.cle}" role="status"><b>${ctx.esc(momentAffiche.titre)}</b><span>${ctx.esc(momentAffiche.texte)}</span></div>` : '';
+    // Le tableau se redessine à chaque match : l'annonce reprend son animation où elle en était (1.0) — sinon, à ×10,
+    // chaque rendu relançait le fondu à zéro et elle restait presque transparente.
+    const annonce = momentAffiche ? `<div class="c82-moment ${momentAffiche.cle}" role="status" style="animation-delay:${-Math.max(0, Date.now() - momentDebut)}ms"><b>${ctx.esc(momentAffiche.titre)}</b><span>${ctx.esc(momentAffiche.texte)}</span></div>` : '';
     carte.innerHTML = `<div class="c82 etape-${etape}${enJeu ? ' en-jeu' : ''}">${corps}${annonce}</div>`;
   }
   const seriesVD = () => {
@@ -385,7 +387,19 @@ export function ouvrirCap82({ ligue, you, teams, calendrier, enSeries, epoque = 
         </div>`).join('')}</div>`;
     }
     const recents = miens.slice(-8).map((x, i, a) => ligneJeu(x, miens.length - a.length + i + 1)).reverse().join('');
-    return `${tesMeneurs()}<div class="hub-titre">Tes derniers matchs</div><div class="hub-jeux">${recents || '<div class="hub-note">Aucun match joué encore.</div>'}</div>`;
+    /*
+     * LA COURSE AUX SÉRIES (1.0). À 1440 px, le volet du club laissait sa moitié du bas vide : un jeu de sport
+     * de console y met la course — les huit premiers, la ligne des séries, et ton club s'il est plus bas.
+     * Rien à décider : ça se lit en passant, pendant que la saison défile.
+     */
+    const cl = classement(), moi = cl.indexOf(you);
+    const rangs = [...new Set([...cl.keys()].slice(0, Math.min(8, cl.length)).concat(moi >= 8 ? [moi] : []))];
+    const course = jour ? `<div class="hub-titre">La course aux séries</div><div class="c82-course">${rangs.map(i => {
+      const t = cl[i], g = fiche.get(t);
+      return `<div class="c82-cr${t === you ? ' toi' : ''}${i === enSeries - 1 ? ' cut' : ''}${i >= 8 ? ' loin' : ''}"><span class="n">${i + 1}</span>${ctx.logo(t.tag, 16)}<span class="eq">${ctx.esc(ctx.teamShort(t))}</span><span class="f">${g.W}-${g.L}-${g.OTL}</span><b>${g.PTS}</b></div>`;
+    }).join('')}</div>` : '';
+    return `<div class="c82-club"><div class="c82-club-col">${tesMeneurs()}${course}</div>
+      <div class="c82-club-col"><div class="hub-titre">Tes derniers matchs</div><div class="hub-jeux">${recents || '<div class="hub-note">Aucun match joué encore.</div>'}</div></div></div>`;
   };
   const voletClassement = () => {
     const rangee = (t, i) => {
@@ -430,11 +444,11 @@ export function ouvrirCap82({ ligue, you, teams, calendrier, enSeries, epoque = 
   const debrancherMenu = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), cle => tabs.montrer(cle));
 
   /* ---------- dessiner ---------- */
-  let momentAffiche = null, momentJusqua = 0, rendus = 0;
+  let momentAffiche = null, momentJusqua = 0, momentDebut = 0, rendus = 0;
   function dessiner() {
     if (termine) return;
     // Une annonce reste le temps de sa pause, puis s'efface au rendu suivant.
-    if (moment) { momentAffiche = moment; momentJusqua = Date.now() + (moment.cle === 'reve' ? PAUSE_REVE : PAUSE_RONDE); }
+    if (moment) { if (moment !== momentAffiche) momentDebut = Date.now(); momentAffiche = moment; momentJusqua = Date.now() + (moment.cle === 'reve' ? PAUSE_REVE : PAUSE_RONDE); }
     else if (momentAffiche && Date.now() > momentJusqua) momentAffiche = null;
     // L'en-tête du club dit déjà le club et où en est la partie : l'écran n'a pas de titre à lui.
     if (ctx.entete) ctx.entete();
