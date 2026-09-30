@@ -16,7 +16,7 @@ import { effetsHtml } from './gerant.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS } from './rogue.js';
-import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capHitDuJour, capLeft, estRenfort, headshotHtml, isPicked, majEntete, openModal, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
+import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capHitDuJour, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, poserCartes, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain } from './alignement.js';
 import { bloqueParLePlafond, cartesAJouer, finDeSaisonRogue, jetonsRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs } from './rogue-jeu.js';
@@ -664,11 +664,9 @@ function ouvrirEcranSaison(depuis = 0) {
       // LA LIGUE EN MÉMOIRE (S79) : l'écran joue chaque journée au moment de la révéler.
       ligue: M,
       ctx: {
-        esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
+        esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml, rarete: rareteJoueur,
         // Le bouton du son du plateau bascule la même préférence que les options.
         basculerSons: () => { setOption('sons', G.sons ? 'off' : 'on'); syncOptionsUI(); },
-        // UNE SOUS-PAGE (1.0, R2) : au téléphone, le dépistage s'ouvre par-dessus le bureau plutôt que de s'y empiler.
-        sousPage: (titre, html) => { $('gameModalTitle').innerHTML = titre; $('gameModalBody').innerHTML = html; openModal('gameModal'); return $('gameModalBody'); },
         /*
          * UN NOM SE CLIQUE PENDANT LA SAISON, SANS DÉVOILER LA FIN. Le mode
          * 'jour' fait lire les feuilles RÉVÉLÉES au moment du clic — les
@@ -704,8 +702,9 @@ function ouvrirEcranSaison(depuis = 0) {
             suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
             bareme: (G.rogue && G.rogue.bareme) || JETONS }) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
-        boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider) => ouvrirBoutique(j, decider), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
-        inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider) => ouvrirInventaireJeu(j, decider) },
+        // Chacune s'ouvre dans une page du Club (1.0, R3) : `page` = { dans, fermer }.
+        boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
+        inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page) },
       },
       onTermine: () => terminerSaison(),
       depuis,

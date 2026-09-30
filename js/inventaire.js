@@ -102,7 +102,8 @@ let etat = { onglet: null, cat: 'tout', rar: 'tout' };
  *         jouer(item), vendre(item), onFerme() }
  */
 export function ouvrirInventaire(ctx) {
-  const m = $('inventaireModal');
+  // Dans une page du Club (1.0, R3 : `ctx.dans`, `ctx.fermer`) ou dans sa fenêtre.
+  const m = ctx.dans || $('inventaireModal');
   if (!m) return;
   const onglets = [
     ...(ctx.enSaison ? [['partie', 'Cette saison', ctx.partie.length]] : []),
@@ -184,11 +185,10 @@ export function ouvrirInventaire(ctx) {
     m.querySelectorAll('.inv-jouer-meta').forEach(b => { b.onclick = () => { fermer(true); ctx.jouer({ src: 'meta', id: b.dataset.id }); }; });
   };
   const fermer = (silencieux = false) => {
-    m.hidden = true; m.innerHTML = '';
-    document.body.classList.remove('choix-ouvert');
+    if (ctx.dans) { if (ctx.fermer) ctx.fermer(); }
+    else { m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); }
     if (!silencieux && ctx.onFerme) ctx.onFerme();
   };
-  m.hidden = false;
-  document.body.classList.add('choix-ouvert');
+  if (!ctx.dans) { m.hidden = false; document.body.classList.add('choix-ouvert'); }
   dessiner();
 }

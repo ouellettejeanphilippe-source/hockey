@@ -139,10 +139,11 @@ function packsOuvertsBoutique() {
     return [k, !d || aDebloque(meta, d) ? true : `Débloque « ${DEBLOCAGES[d].nom} » au vestiaire des déblocages`];
   }));
 }
-export function ouvrirBoutique(j, decider) {
+export function ouvrirBoutique(j, decider, page = null) {
   const decs = decisionsDeLaPartie();
   const n = decs.filter(d => d.achat || d.rogue).length;
   ouvrirMagasin({
+    ...(page || {}),
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(),
     mods: modificateurs(decs, j + 1), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     duJour: packDuJour(new Date(), packsOuvertsBoutique()),
@@ -343,13 +344,14 @@ export function blessesAuJour(j) {
  * L'INVENTAIRE (S79, js/inventaire.js), du hub ou du menu. `decider` absent
  * (le menu, hors saison) : on regarde, on ne joue pas.
  */
-export function ouvrirInventaireJeu(j = null, decider = null) {
+export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
   const Lg = G.ligue, decs = decisionsDeLaPartie();
   const rogue = G.bonus === 'ROGUE';
   const meta = lireMeta();
   const enSaison = !!(Lg && decider && j !== null);
   const possedees = new Set((meta.cartes || []).map(k => (BANQUE[k] ? k : BANQUE[`match:${k}`] ? `match:${k}` : null)).filter(Boolean));
   ouvrirInventaire({
+    ...(page || {}),
     titre: 'Ton inventaire', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
     partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, jour: j, rogue }) : [],
     meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0) : [],

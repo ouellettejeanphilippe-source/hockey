@@ -105,17 +105,18 @@ async function eprouverCoquille() {
   if (!club.affiche) errors.push('au téléphone, l\'affiche du prochain match ne se voit pas sans défiler');
   if (!club.bouton) errors.push('au téléphone, « Journée suivante » ne se voit pas sans défiler');
   console.log(`   le Club au téléphone : hier ${club.hiers} fois, l'affiche ${club.affiche ? 'visible' : 'cachée'}, le bouton ${club.bouton ? 'visible' : 'caché'}`);
-  // Les sous-pages du téléphone : la tuile 🔎 ouvre le dépistage par-dessus le bureau (les chances calculées), et Échap le referme.
-  const tuile = await page.$('#hubModal .hub-tuiles-tel .hub-tt-dep');
-  if (!tuile || !(await tuile.isVisible())) errors.push('au téléphone, l\'affiche n\'offre pas la tuile du dépistage');
+  // Les pages du Club (1.0, R3) : le lien 🔎 ouvre le dépistage en page (les chances calculées), et Échap revient au bureau.
+  const lien = await page.$('#hubModal .hub-liens .hub-tt-dep');
+  if (!lien || !(await lien.isVisible())) errors.push('au téléphone, l\'affiche n\'offre pas le lien du dépistage');
   else {
-    await tuile.click();
-    const chances = await page.waitForSelector('#gameModal .dep2-chances', { state: 'visible', timeout: 10000 }).catch(() => null);
-    if (!chances) errors.push('la tuile du dépistage n\'ouvre pas la sous-page avec les chances du match');
-    else console.log('   la tuile 🔎 ouvre le dépistage en sous-page');
+    await lien.click();
+    const chances = await page.waitForSelector('#hubModal .hub-page[data-genre="depistage"] .dep2-chances', { state: 'visible', timeout: 10000 }).catch(() => null);
+    if (!chances) errors.push('le lien du dépistage n\'ouvre pas sa page avec les chances du match');
+    else if (await page.isVisible('#hubModal .hub-face')) errors.push('la page du dépistage laisse l\'affiche du match derrière elle');
+    else console.log('   le lien 🔎 ouvre le dépistage en page du Club');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(250);
-    if (await page.isVisible('#gameModal')) { await page.click('#closeGameBtn').catch(() => {}); await page.waitForTimeout(200); }
+    if (await page.$('#hubModal .hub-page')) errors.push('Échap ne referme pas la page du dépistage');
   }
   // LES SOUS-ONGLETS DU CLUB (1.0, R2) : Match, Boîte, Saison — la boîte de réception ne s'empile plus sous l'affiche.
   await page.click('#navbar .navtab[data-section="club"]');
@@ -371,9 +372,9 @@ async function repondreAuxChoix() {
   for (let i = 0; i < 12; i++) {
     if (await ouvrirPaquet()) continue;
     // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au bureau ».
-    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]')) {
+    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) {
       sommairesVus++;
-      await _click('#choixModal:not([hidden]) .choix-plus-tard, #choixModal:not([hidden]) .choix-fermer');
+      await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
       await page.waitForTimeout(250);
       continue;
     }
@@ -401,7 +402,7 @@ async function repondreAuxChoix() {
       // Un message qui bloque la journée (S78) : on le règle, puis on repasse.
       if (await page.$('#hubModal .hub-traiter')) {
         await debloquer();
-        if (await page.$('#choixModal:not([hidden]) .choix-option:not([disabled]), #choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]')) continue;
+        if (await page.$('#choixModal:not([hidden]) .choix-option:not([disabled]), #hubModal .hub-page[data-genre="sommaire"]')) continue;
       }
       return;
     }
@@ -467,7 +468,7 @@ async function repondreAuxChoix() {
         }
       }
       await _click('#choixModal .main-jouer');
-      await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine', { timeout: 120000 });
+      await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine', { timeout: 120000 });
       await page.waitForTimeout(350);
       const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
       if (!d.length) errors.push('la main jouée n\'entre pas dans la sauvegarde');
@@ -491,7 +492,7 @@ async function repondreAuxChoix() {
     if (sansPuce && genre !== 'hub-proprio') errors.push(`le choix « ${titre} » a ${sansPuce} option(s) sans effet chiffré`);
     choixVus.set(genre, [...(choixVus.get(genre) || []), titre]);
     await opt.click();
-    await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"], #hubModal .hub-suite', { timeout: 120000 });
+    await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite', { timeout: 120000 });
     await page.waitForTimeout(350);
   }
 }
@@ -535,12 +536,14 @@ async function butsDuSommaire(cle) {
     el.click();
     el.remove();
   }, cle);
-  await page.waitForFunction(() => document.getElementById('gameModal').style.display !== 'none', null, { timeout: 5000 }).catch(() => {});
-  const buts = await page.$$eval('#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
+  // Au bureau, une page du Club (1.0, R3) ; ailleurs (le bilan), la fenêtre.
+  await page.waitForFunction(() => document.getElementById('gameModal').style.display !== 'none' || document.querySelector('#hubModal .hub-page[data-genre="sommaire-match"]'), null, { timeout: 5000 }).catch(() => {});
+  const enPage = !!(await page.$('#hubModal .hub-page[data-genre="sommaire-match"]'));
+  const buts = await page.$$eval(enPage ? '#hubModal .hub-page[data-genre="sommaire-match"] .som-per' : '#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
     const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
     return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
   }), PERIODES);
-  await page.evaluate(() => document.getElementById('closeGameBtn').click());
+  if (enPage) await page.click('#hubModal .hub-page-retour'); else await page.evaluate(() => document.getElementById('closeGameBtn').click());
   await page.waitForTimeout(150);
   return buts;
 }
@@ -1479,7 +1482,7 @@ async function traverserSaison(etiquette, reprise = false) {
    */
   {
     await page.waitForTimeout(250);
-    const som = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]');
+    const som = await page.$('#hubModal .hub-page[data-genre="sommaire"]');
     const txt = som ? ((await som.textContent()) || '') : '';
     if (som && !/🚑|Gros match|à traiter/.test(txt)) errors.push(`le sommaire s'ouvre en plein écran pour un match ordinaire : « ${txt.replace(/\s+/g, ' ').slice(0, 80)} »`);
     else if (!som && !(await page.$('#hubModal .hub-hier'))) errors.push('après « Journée suivante », le résultat n\'est ni en plein écran ni au bureau');
@@ -1743,12 +1746,11 @@ async function traverserSaison(etiquette, reprise = false) {
      * décision comme une autre : elle entre dans la sauvegarde.
      */
     {
-      // Au téléphone (1.0, R2), le dépistage est une sous-page (#gameModal) ouverte par sa tuile ; au bureau, il se déplie dans l'affiche.
-      const tuileDep = await page.$('#hubModal .hub-tt-dep');
-      const enSousPage = !!(tuileDep && await tuileDep.isVisible());
-      const portee = enSousPage ? '#gameModal' : '#hubModal';
-      if (enSousPage) await tuileDep.click(); else await _click('#hubModal .hub-depistage > summary');
-      await page.waitForSelector(enSousPage ? '#gameModal .dep3-table' : '#hubModal .hub-depistage[open] .dep3-table', { timeout: 60000 });
+      // Sous 1200 px (1.0, R3), le dépistage est une page du Club ouverte par son lien ; au bureau, il se déplie dans l'affiche.
+      const enSousPage = page.viewportSize().width < 1200;
+      const portee = enSousPage ? '#hubModal .hub-page[data-genre="depistage"]' : '#hubModal';
+      if (enSousPage) await _click('#hubModal .hub-tt-dep'); else await _click('#hubModal .hub-depistage > summary');
+      await page.waitForSelector(enSousPage ? `${portee} .dep3-table` : '#hubModal .hub-depistage[open] .dep3-table', { timeout: 60000 });
       await page.waitForTimeout(300);
       const dep = await page.evaluate(sel => {
         const d = document.querySelector(sel);
@@ -1760,7 +1762,7 @@ async function traverserSaison(etiquette, reprise = false) {
           titres: [...d.querySelectorAll('.dep3-conseil-t')].map(x => x.textContent.trim()),
           texte: d.textContent,
         };
-      }, enSousPage ? '#gameModal .hub-dep-corps' : '#hubModal .hub-depistage');
+      }, enSousPage ? `${portee} .hub-dep-corps` : '#hubModal .hub-depistage');
       if (dep.rangees < 5) errors.push(`le tableau des forces n'a que ${dep.rangees} rangées`);
       if (dep.marques.some(m => !/^[◀▶=]$/.test(m))) errors.push(`l'avantage du tableau n'est pas marqué : ${dep.marques.join(' ')}`);
       if (!(await page.$(`${portee} .dep3-conseils`))) errors.push('le dépistage ne dit pas quoi faire ce soir');
@@ -1778,7 +1780,7 @@ async function traverserSaison(etiquette, reprise = false) {
         const d = apres[apres.length - 1];
         if (apres.length !== avant + 1 || !d || !(Array.isArray(d.lignes) || d.match || 'fermeture' in d)) errors.push(`« Appliquer » n'a pas laissé de décision : ${JSON.stringify(d)}`);
         else console.log(`   « Appliquer » : une décision au jour ${d.jour} (${Array.isArray(d.lignes) ? 'lignes' : d.match ? 'consigne' : 'fermeture'})`);
-      } else if (enSousPage) { await page.click('#closeGameBtn'); await page.waitForTimeout(200); }
+      } else if (enSousPage) { await page.click('#hubModal .hub-page-retour'); await page.waitForTimeout(200); }
     }
 
     /*
@@ -1854,36 +1856,36 @@ async function traverserSaison(etiquette, reprise = false) {
         const totHub = ((await page.textContent('#hubModal .hub-totaux').catch(() => '')) || '').trim();
         if (!/^(Ce soir|Au prochain match) :/.test(totHub)) errors.push(`l'affiche ne dit pas les totaux du soir : « ${totHub} »`);
         await _click('#hubModal .hub-preparer');
-        await page.waitForSelector('#lignesModal:not([hidden]) [data-importance="haute"]', { timeout: 5000 });
-        const puces = await page.$$eval('#lignesModal [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
+        await page.waitForSelector('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"]', { timeout: 5000 });
+        const puces = await page.$$eval('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
         // TOUT ENSEMBLE (S72) : « Ce qui joue sur ta formation » est dans le même écran que les lignes.
-        if (!(await page.$('#lignesModal .gl-effets'))) errors.push('« Préparer le match » ne montre pas ce qui joue sur ta formation');
+        if (!(await page.$('#hubModal .hub-page[data-genre="preparer"] .gl-effets'))) errors.push('« Préparer le match » ne montre pas ce qui joue sur ta formation');
         // En chiffres depuis S76 : « Précision +3 % », plus des flèches.
         if (!puces.some(t => /Précision [+−]\d+ %/.test(t))) errors.push(`l'importance haute ne dit pas son effet : ${puces.join(' · ')}`);
         // LES TOTAUX (C5) en tête, dits une fois, et recalculés quand la consigne change.
-        const lireTot = () => page.$eval('#lignesModal .gl-totaux-l', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
+        const lireTot = () => page.$eval('#hubModal .hub-page[data-genre="preparer"] .gl-totaux-l', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
         const totAvant = await lireTot();
-        const multiplient = await page.$$eval('#lignesModal .gl-totaux .gl-mot', e => e.filter(x => x.textContent.trim() === 'Les effets se multiplient entre eux.').length);
+        const multiplient = await page.$$eval('#hubModal .hub-page[data-genre="preparer"] .gl-totaux .gl-mot', e => e.filter(x => x.textContent.trim() === 'Les effets se multiplient entre eux.').length);
         if (!/^Ce soir :/.test(totAvant)) errors.push(`« Préparer le match » ne dit pas les totaux du soir : « ${totAvant} »`);
         if (multiplient !== 1) errors.push(`« Les effets se multiplient entre eux. » paraît ${multiplient} fois dans « Préparer le match »`);
         // L'ADVERSAIRE D'ABORD, UN SEUL RÉGLAGE (1.0, J2-11) : « En face » avant la consigne, et plus de curseur attaque / défense.
         const ordre = await page.evaluate(() => {
-          const a = document.querySelector('#lignesModal .gl-adv-tete'), c = document.querySelector('#lignesModal .gl-consigne');
-          return { adv: !!a, avant: !!(a && c && (a.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING)), curseur: !!document.querySelector('#lignesModal .gl-ad-range, #lignesModal .gl-ad') };
+          const a = document.querySelector('#hubModal .hub-page[data-genre="preparer"] .gl-adv-tete'), c = document.querySelector('#hubModal .hub-page[data-genre="preparer"] .gl-consigne');
+          return { adv: !!a, avant: !!(a && c && (a.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING)), curseur: !!document.querySelector('#hubModal .hub-page[data-genre="preparer"] .gl-ad-range, #hubModal .hub-page[data-genre="preparer"] .gl-ad') };
         });
         if (!ordre.adv || !ordre.avant) errors.push('« Préparer le match » ne montre pas l\'adversaire avant la consigne');
         if (ordre.curseur) errors.push('« Préparer le match » garde un curseur attaque / défense à côté de la consigne');
         await deuxCaptures('preparer');
         // DEVANT LE FILET CE SOIR (C4) : deux gardiens, la rotation choisie, l'autre se touche.
-        const filets = await page.$$eval('#lignesModal .gl-filet [data-filet]', e => e.map(b => ({ qui: b.dataset.filet, on: b.classList.contains('on'), jambes: !!b.querySelector('.jambes') })));
+        const filets = await page.$$eval('#hubModal .hub-page[data-genre="preparer"] .gl-filet [data-filet]', e => e.map(b => ({ qui: b.dataset.filet, on: b.classList.contains('on'), jambes: !!b.querySelector('.jambes') })));
         if (filets.length !== 2 || filets.filter(f => f.on).length !== 1 || !filets.every(f => f.jambes)) errors.push(`« Devant le filet ce soir » n'a pas ses deux gardiens : ${JSON.stringify(filets)}`);
         const autreFilet = (filets.find(f => !f.on) || {}).qui;
-        await _click('#lignesModal [data-importance="haute"]');
+        await _click('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"]');
         const totApres = await lireTot();
         if (totApres === totAvant) errors.push(`les totaux ne suivent pas la consigne : « ${totAvant} » avant et après « Haute »`);
-        if (autreFilet) await _click(`#lignesModal .gl-filet [data-filet="${autreFilet}"]`);
+        if (autreFilet) await _click(`#hubModal .hub-page[data-genre="preparer"] .gl-filet [data-filet="${autreFilet}"]`);
         console.log(`   totaux du soir : « ${totAvant} » → « ${totApres} » · devant le filet : ${autreFilet || '—'}`);
-        await _click('#lignesModal .gl-appliquer');
+        await _click('#hubModal .hub-page[data-genre="preparer"] .gl-appliquer');
         await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
         await repondreAuxChoix();
         await page.waitForTimeout(400);
@@ -1953,7 +1955,7 @@ async function traverserSaison(etiquette, reprise = false) {
     const guetterTrou = async () => {
       if (trouVu.fait) return;
       // Le sommaire de la journée (S78) couvre le hub : on le ferme d'abord. Un autre plein écran passe devant.
-      if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="sommaire"]')) {
+      if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) {
         sommairesVus++;
         await _click('#choixModal:not([hidden]) .choix-plus-tard');
         await page.waitForTimeout(250);
@@ -2132,10 +2134,10 @@ async function traverserSaison(etiquette, reprise = false) {
           // S80 : l'amélioration (ou l'édition) gardée au palier attend dans l'inventaire, prête à poser au verso.
           if (dDeck.length && dDeck[0].garde) {
             await _click('#hubModal .hub-inventaire');
-            await _wait('#inventaireModal:not([hidden]) .inv-onglet', { timeout: 10000 });
-            if (!(await page.$(`#inventaireModal .bq-carte[data-id="${dDeck[0].garde}"] .inv-jouer`))) errors.push(`la carte « ${dDeck[0].garde} » gardée au palier n'est pas dans l'inventaire`);
+            await _wait('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
+            if (!(await page.$(`#hubModal .hub-page[data-genre="cartes"] .bq-carte[data-id="${dDeck[0].garde}"] .inv-jouer`))) errors.push(`la carte « ${dDeck[0].garde} » gardée au palier n'est pas dans l'inventaire`);
             else console.log(`   « ${dDeck[0].garde} » attend dans l'inventaire`);
-            await _click('#inventaireModal .choix-fermer');
+            await _click('#hubModal .hub-page[data-genre="cartes"] .hub-page-retour');
             await page.waitForTimeout(300);
           }
         }
@@ -2879,9 +2881,9 @@ if (enabled) {
       if (!prep) errors.push('les séries n\'offrent pas « Préparer le match »');
       else {
         await prep.click();
-        await page.waitForSelector('#lignesModal:not([hidden]) .gl-appliquer', { timeout: 5000 });
-        await _click('#lignesModal [data-importance="haute"]').catch(() => {});
-        await _click('#lignesModal .gl-appliquer');
+        await page.waitForSelector('#hubModal .hub-page[data-genre="preparer"] .gl-appliquer', { timeout: 5000 });
+        await _click('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"]').catch(() => {});
+        await _click('#hubModal .hub-page[data-genre="preparer"] .gl-appliquer');
         await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
         await page.waitForTimeout(400);
         const ds = await dsDe();
