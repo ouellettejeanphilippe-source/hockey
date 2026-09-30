@@ -1274,9 +1274,10 @@ button.marche-tuile:active { transform: scale(0.98); }
   background: var(--c-fond, #1b2230); color: var(--c-encre, #ffffff);
   font-family: var(--display); line-height: 1; text-align: left;
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--encre) 28%, transparent),
-    0 1px 1px color-mix(in srgb, var(--noir) 55%, transparent),
-    0 6px 16px color-mix(in srgb, var(--noir) 42%, transparent);
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--encre) 24%, transparent),
+    0 1px 0 color-mix(in srgb, black 45%, transparent),
+    0 12px 16px -8px color-mix(in srgb, var(--noir) 70%, transparent);
   transition: --rx 0.65s var(--e-ressort), --ry 0.65s var(--e-ressort), --mx 0.5s ease, --my 0.5s ease, --lueur 0.45s ease, --leve 0.25s var(--e-ressort), transform 0.18s ease, box-shadow 0.2s ease;
 }
 .carton > * { position: absolute; }
@@ -1288,10 +1289,26 @@ button.marche-tuile:active { transform: scale(0.98); }
 }
 .carton-photo { z-index: 2; overflow: hidden; inset: 0; }
 .carton-photo > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Le visage n'est plus un rectangle collé : les coins fondent dans le carton. */
+.carton-photo > img.visage:not(.silhouette) {
+  filter: contrast(1.06) saturate(1.08);
+  -webkit-mask-image: radial-gradient(ellipse 86% 80% at 50% 40%, black 48%, transparent 100%);
+  mask-image: radial-gradient(ellipse 86% 80% at 50% 40%, black 48%, transparent 100%);
+}
+.carton-photo::after {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: linear-gradient(180deg, color-mix(in srgb, black 22%, transparent), transparent 16% 74%, color-mix(in srgb, black 30%, transparent));
+}
+/* Sans photo : un buste imprimé, pas l'avatar gris. */
+.carton-photo > img.silhouette {
+  object-fit: contain; object-position: 50% 100%;
+  width: 72%; height: 88%; left: 14%; right: auto; top: auto; bottom: 0;
+  filter: grayscale(1) contrast(2.1) brightness(0.08) drop-shadow(0 0 0.35cqw var(--band));
+}
 .carton-photo > .carton-action { object-fit: cover; object-position: 50% 30%; z-index: 1; }
 .carton-photo:has(> .carton-action) > :is(.visage, .headshot-fallback) { display: none; }
 .carton-photo > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: end center; font-size: 62cqw; line-height: 0.95; opacity: 0.28; }
-.carton-deco { inset: 0; z-index: 3; pointer-events: none; }
+.carton-deco { inset: 0; z-index: 3; pointer-events: none; box-shadow: inset 0 0.9cqw 0.5cqw -0.6cqw color-mix(in srgb, white 40%, transparent), inset 0 0 0 0.4cqw color-mix(in srgb, currentColor 26%, transparent); }
 .carton-deco::before, .carton-deco::after { content: ''; position: absolute; }
 .carton-nom { z-index: 4; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
 .carton-nom .fname {
@@ -1316,16 +1333,18 @@ button.marche-tuile:active { transform: scale(0.98); }
 @container (min-width: 140px) { .carton-imprime { display: flex; } }
 .carton-imprime b { font-weight: 800; letter-spacing: 0.06em; }
 
-/* LA COUCHE D'INTERFACE : le poste, le niveau, la gemme — à la même place dans toutes les séries. */
+/* LA COUCHE D'INTERFACE : le poste, le niveau, la gemme — à la même place dans toutes les séries.
+   Un onglet de carton dans le coin (l'encre du club, le filet du poste), pas une pastille noire. */
 .carton-pos {
-  z-index: 5; top: 3.6cqw; left: 3.6cqw; display: grid; place-items: center; min-width: 11.5cqw; height: 8.6cqw; padding: 0 2.2cqw;
-  border-radius: 100cqw; background: rgba(8, 10, 14, 0.84); color: #ffffff; box-shadow: inset 0 0 0 0.55cqw var(--pos-ligne, #7cc4ff);
-  font-size: 5.2cqw; font-weight: 800; letter-spacing: 0.03em; white-space: nowrap;
+  z-index: 5; top: 0; left: 0; display: grid; place-items: center; min-width: 13.5cqw; height: 12.4cqw; padding: 0 2.2cqw 0.7cqw;
+  border-radius: 0 0 1.6cqw 0; background: var(--ink); color: var(--band);
+  box-shadow: inset 0 0 0 0.42cqw var(--band), inset 0 -0.9cqw 0 var(--pos-ligne, #7cc4ff);
+  font-size: 6.8cqw; font-weight: 800; letter-spacing: 0.02em; white-space: nowrap;
 }
 .carton-pos.pos-d { --pos-ligne: #b69cff; }
 .carton-pos.pos-g { --pos-ligne: #f2c14e; }
 .carton .cj-ruban {
-  z-index: 5; top: 13.8cqw; left: 3.6cqw; padding: 1.3cqw 3.2cqw 1.3cqw 2.4cqw; white-space: nowrap;
+  z-index: 5; top: 14.2cqw; left: 0; padding: 1.2cqw 3.2cqw 1.2cqw 2.8cqw; white-space: nowrap;
   font-size: 3.9cqw; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
   clip-path: polygon(0 0, 100% 0, calc(100% - 1.8cqw) 50%, 100% 100%, 0 100%);
   background: var(--band); color: var(--ink);
@@ -1333,8 +1352,10 @@ button.marche-tuile:active { transform: scale(0.98); }
 .carton .cj-ruban.etoile { background: linear-gradient(115deg, #b98a24, #fff0b3 30%, #c9961f 55%, #ffe48a 80%); color: #2a1d04; }
 .carton .cj-ruban.etoile.phenomene { background: linear-gradient(115deg, #3a0c4d, #8c1f6e 45%, #b8235a 70%, #3a0c4d); color: #ffe39a; }
 .carton .cj-gemme {
-  z-index: 5; top: 3.6cqw; right: 3.6cqw; display: flex; align-items: center; height: 8.6cqw; padding: 0 2.2cqw;
-  border-radius: 100cqw; background: rgba(8, 10, 14, 0.84); font-size: 4.4cqw;
+  z-index: 5; top: 0; right: 0; display: flex; align-items: center; height: 12.4cqw; padding: 0 2.4cqw 0.55cqw;
+  border-radius: 0 0 0 1.6cqw; background: color-mix(in srgb, var(--fonce) 72%, black);
+  box-shadow: inset 0 0 0 0.4cqw color-mix(in srgb, var(--ink) 62%, transparent), inset 0 -0.7cqw 0 var(--stripe);
+  font-size: 5cqw;
 }
 .carton .cj-gemme .cj-trait { font-size: 5cqw; margin-left: 1cqw; }
 @container (max-width: 130px) { .carton .cj-gemme .cj-trait { display: none; } }
@@ -1345,7 +1366,7 @@ button.marche-tuile:active { transform: scale(0.98); }
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.12) 24%, transparent 56%);
   mix-blend-mode: soft-light; opacity: var(--lueur);
 }
-.carton.incline { transition-duration: 0.08s, 0.08s, 0.08s, 0.08s, 0.2s, 0.15s, 0s, 0.2s; --leve: -3px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--encre) 40%, transparent), 0 2px 2px color-mix(in srgb, var(--noir) 50%, transparent), 0 16px 28px color-mix(in srgb, var(--noir) 55%, transparent); }
+.carton.incline { transition-duration: 0.08s, 0.08s, 0.08s, 0.08s, 0.2s, 0.15s, 0s, 0.2s; --leve: -3px; box-shadow: inset 0 1px 0 color-mix(in srgb, white 24%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--encre) 40%, transparent), 0 2px 2px color-mix(in srgb, var(--noir) 50%, transparent), 0 18px 26px -8px color-mix(in srgb, var(--noir) 62%, transparent); }
 .carton.relache { transition-property: --rx, --ry, --mx, --my, --lueur, --leve, box-shadow; }
 .carton:is(.incline, .relache, .gyro) { transform: perspective(900px) translateY(var(--leve)) rotateX(var(--rx)) rotateY(var(--ry)); }
 @media (prefers-reduced-motion: reduce) { .carton { transition: none; } }
@@ -1359,7 +1380,7 @@ button.marche-tuile:active { transform: scale(0.98); }
   --c-fond: radial-gradient(125% 95% at 50% 40%, transparent 58%, rgba(120, 88, 38, 0.2)), radial-gradient(circle at 30% 40%, rgba(110, 80, 30, 0.11) 0 0.7px, transparent 1.1px) 0 0 / 4px 4px, linear-gradient(#f1e7cf, #e8dcbf);
   --c-encre: #2b2216;
 }
-.cs-vintage .carton-photo { inset: 5.5cqw 5.5cqw auto; height: 95cqw; border-radius: 7cqw; background: linear-gradient(#c7d2d8, #8fa1ab); box-shadow: 0 0 0 1.3cqw var(--band), 0 0 0 2.1cqw #efe5cc, 0 0 0 2.6cqw var(--stripe); }
+.cs-vintage .carton-photo { inset: 5.5cqw 5.5cqw auto; height: 95cqw; border-radius: 7cqw; background: radial-gradient(90% 55% at 50% 0%, color-mix(in srgb, white 65%, #c7d2d8), transparent 70%), linear-gradient(#c7d2d8, #8fa1ab); box-shadow: 0 0 0 1.3cqw var(--band), 0 0 0 2.1cqw #efe5cc, 0 0 0 2.6cqw var(--stripe); }
 .cs-vintage .carton-nom {
   --nom-l: 60cqw; left: 0; width: 80cqw; top: 94cqw; height: 26cqw; padding: 0 12cqw 0 6cqw;
   background: linear-gradient(transparent 86%, rgba(0, 0, 0, 0.22) 86%), var(--band); color: var(--ink);
@@ -1374,7 +1395,7 @@ button.marche-tuile:active { transform: scale(0.98); }
    l'écusson dans le blanc du coin.
    --------------------------------------------------------------- */
 .cs-retro { --c-fond: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.025) 0 0.6px, transparent 1px) 0 0 / 3px 3px, linear-gradient(170deg, #ffffff, #efede6); --c-encre: #1b1b1b; }
-.cs-retro .carton-photo { inset: 6cqw 6cqw auto; height: 92cqw; background: linear-gradient(#b5c0c7, #83939d); box-shadow: 0 0 0 0.5cqw #1b1b1b; }
+.cs-retro .carton-photo { inset: 6cqw 6cqw auto; height: 92cqw; background: radial-gradient(90% 50% at 50% 0%, color-mix(in srgb, white 70%, #b5c0c7), transparent 68%), linear-gradient(#b5c0c7, #83939d); box-shadow: 0 0 0 0.5cqw #1b1b1b; }
 .cs-retro .carton-nom {
   --nom-l: 70cqw; left: -8cqw; right: -8cqw; top: 93cqw; height: 20cqw; padding: 0 16cqw 0 15cqw; transform: rotate(-7deg);
   background: var(--band); color: var(--ink); box-shadow: 0 -0.9cqw 0 #ffffff, 0 -2.9cqw 0 var(--stripe), 0 0.9cqw 0 #ffffff, 0 2.2cqw 0 var(--stripe);
@@ -1391,7 +1412,12 @@ button.marche-tuile:active { transform: scale(0.98); }
    --------------------------------------------------------------- */
 .cs-tableau { --c-fond: radial-gradient(circle, rgba(255, 170, 60, 0.07) 30%, transparent 36%) 0 0 / 5px 5px, linear-gradient(#1a1b1f, #0b0b0d); --c-encre: #ffb13b; }
 .cs-tableau .carton-photo { inset: 8cqw 8cqw auto; height: 84cqw; border-radius: 2cqw; background: radial-gradient(90% 80% at 50% 25%, #2c3440, #0e1217); }
-.cs-tableau .carton-deco::before { inset: 4.6cqw 4.6cqw auto; height: 90.8cqw; border-radius: 3.4cqw; border: 1.5cqw dotted #ffb347; box-shadow: 0 0 2cqw rgba(255, 160, 50, 0.25); }
+.cs-tableau .carton-deco::before {
+  inset: 5cqw 5cqw auto; height: 90cqw; border-radius: 3.4cqw; padding: 2.5cqw; box-sizing: border-box;
+  background: radial-gradient(circle, #ffb347 0.72cqw, color-mix(in srgb, #ffb347 55%, white) 0.9cqw, transparent 1.2cqw) 0 0 / 6.4cqw 6.4cqw;
+  -webkit-mask: linear-gradient(black 0 0) content-box, linear-gradient(black 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(black 0 0) content-box, linear-gradient(black 0 0); mask-composite: exclude;
+}
 .cs-tableau .carton-nom {
   --nom-l: 60cqw; --nom-max: 11cqw; left: 5cqw; right: 5cqw; top: 100cqw; height: 25cqw; padding: 0 23cqw 0 4cqw;
   background: #050506; border-radius: 2cqw; box-shadow: inset 0 0 0 0.5cqw #2c2c31, inset 0 0 0 1.2cqw #050506, inset 0 0 0 1.5cqw #1d1d21;
@@ -1614,14 +1640,15 @@ button.marche-tuile:active { transform: scale(0.98); }
 .carton-relique {
   z-index: 4; right: 6cqw; top: 60cqw; width: 24cqw; height: 18cqw; border-radius: 1.6cqw;
   background:
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 0.35cqw, transparent 0.35cqw 0.8cqw),
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 0.35cqw, transparent 0.35cqw 0.8cqw),
-    linear-gradient(180deg, var(--band) 0 58%, var(--stripe) 58% 72%, var(--band) 72%);
-  box-shadow: 0 0 0 0.6cqw #f4f1ea, 0 0 0 0.9cqw rgba(0, 0, 0, 0.35), inset 0 0 0 0.9cqw rgba(0, 0, 0, 0.18);
+    repeating-linear-gradient(96deg, color-mix(in srgb, white 22%, transparent) 0 0.2cqw, transparent 0.2cqw 1.4cqw),
+    repeating-linear-gradient(0deg, color-mix(in srgb, black 14%, transparent) 0 0.16cqw, transparent 0.16cqw 0.85cqw),
+    linear-gradient(180deg, var(--band) 0 55%, var(--stripe) 55% 70%, var(--band) 70%);
+  box-shadow: 0 0 0 0.55cqw #f4f1ea, 0 0 0 0.85cqw color-mix(in srgb, black 42%, transparent), inset 0 0 0 0.55cqw color-mix(in srgb, black 24%, transparent);
 }
-.carton-relique::after { content: ''; position: absolute; inset: 1.2cqw; border: 0.3cqw dashed rgba(255, 255, 255, 0.55); border-radius: 0.8cqw; }
+.carton-relique::after { content: ''; position: absolute; inset: 0.8cqw; border: 0.28cqw solid color-mix(in srgb, white 72%, transparent); border-radius: 0.45cqw; box-shadow: inset 0 0 0 0.55cqw color-mix(in srgb, black 30%, transparent); }
 .carton-relique i { position: absolute; left: -2cqw; right: -2cqw; bottom: -4.6cqw; font: normal 800 2.7cqw/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase; text-align: center; color: #f4f1ea; text-shadow: 0 0.3cqw 0.6cqw rgba(0, 0, 0, 0.8); }
 @container (max-width: 130px) { .carton-relique { display: none; } }
+@container (max-width: 190px) { .carton-relique i { display: none; } }
 
 /* L'OR : le carton DÉCOUPÉ (deux encoches de rondelle au flanc), le nom doré à chaud, la signature, le tirage.
    Le nom doré prend son ombre par `filter` : un `text-shadow` se peindrait PAR-DESSUS l'or découpé dans les lettres, et le ternirait. */
@@ -1637,12 +1664,12 @@ button.marche-tuile:active { transform: scale(0.98); }
   font: 400 min(11cqw, calc(150cqw / var(--sig, 12))) / 1.1 "Segoe Script", "Brush Script MT", "Dancing Script", cursive; letter-spacing: -0.01em; white-space: nowrap;
   color: var(--sig-encre, #10141c); opacity: 0.88;
 }
-.carton-signature small { display: block; margin-top: 0.6cqw; font: 700 2.4cqw/1 var(--display); letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.8; }
+.carton-signature small { display: block; margin-top: 0.4cqw; font: 700 2.1cqw/1 var(--display); letter-spacing: 0.32em; text-transform: uppercase; opacity: 0.28; }
 :is(.cs-tableau, .cs-mosaique, .cs-filet, .cs-arena, .cs-ecusson) { --sig-encre: #ffffff; }
 .carton-tirage {
-  z-index: 5; right: 3.6cqw; top: 14cqw; display: grid; place-items: center; min-width: 17cqw; height: 17cqw; padding: 0 1.5cqw; border-radius: 50%;
+  z-index: 5; right: 0; top: 14.6cqw; display: grid; place-items: center; min-width: 16cqw; height: 16cqw; padding: 0 1.4cqw; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #3b3f46, #0d0f13 70%); color: #f3d27a; box-shadow: 0 0 0 0.7cqw #e7c25c, 0 0 0 1.1cqw rgba(0, 0, 0, 0.35);
-  font-size: 4cqw; font-weight: 800; letter-spacing: 0.02em; white-space: nowrap;
+  font-size: 3.8cqw; font-weight: 800; letter-spacing: 0.02em; white-space: nowrap;
 }
 
 
