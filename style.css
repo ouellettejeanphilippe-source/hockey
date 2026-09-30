@@ -3975,7 +3975,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .album-saison { font-size: var(--t-1); color: var(--encre-2); }
 .album-fois { position: absolute; top: var(--esp-1); right: var(--esp-2); font: 700 var(--t-1)/1 var(--display); color: var(--or); }
 
-/* ---- Le cartable (js/cartable.js, #pageCartable) : les comptes en tête, les vues en segment, le corps qui défile ---- */
+/* ---- Le cartable (js/cartable.js, #pageCartable) : une reliure, des feuilles de neuf pochettes ---- */
 .ct { display: flex; flex-direction: column; gap: var(--esp-3); height: 100%; min-height: 0; }
 .ct-tete { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); flex-wrap: wrap; }
 .ct-comptes { display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; }
@@ -3992,16 +3992,75 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .ct-vues { flex: none; display: flex; gap: 2px; padding: 2px; border-radius: var(--r-1); background: var(--fond-2); }
 .ct-vue { flex: 1; min-height: 40px; padding: 0 var(--esp-2); border: 0; border-radius: var(--r-1); background: none; color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background var(--t-vite), color var(--t-vite); }
 .ct-vue.on { background: var(--choisi); color: var(--sur-choisi); }
+.ct-nav { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }
+.ct-nav-btn { flex: none; width: 44px; height: 40px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 800 var(--t-4)/1 var(--display); }
+.ct-nav-btn:disabled { opacity: 0.35; }
+.ct-nav-mot { font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .ct-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-3); }
 .ct-corps > * { flex-shrink: 0; }
 .ct-mot { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .ct-vide, .ct-charge { margin: 0; font-size: var(--t-2); color: var(--encre-3); }
-.ct-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); }
-.ct-carte { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; padding: 0; border: 0; background: none; color: inherit; text-align: left; }
+/* La reliure : le vinyle autour des feuilles. Au bureau, deux feuilles ouvertes côte à côte. */
+.ct-reliure {
+  display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-2) 0;
+  border-radius: var(--r-2);
+  background:
+    radial-gradient(80% 50% at 0% 0%, color-mix(in srgb, var(--or) 16%, transparent), transparent 55%),
+    color-mix(in srgb, var(--noir) 62%, var(--fond-1));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--or) 32%, var(--filet));
+}
+.ct-feuille {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-2);
+  padding: var(--esp-2) var(--esp-2) var(--esp-2) var(--esp-5); border-radius: var(--r-2);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--encre) 7%, transparent), transparent 22%),
+    var(--fond-2);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--encre) 12%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--encre) 8%, transparent);
+}
+.ct-anneaux { position: absolute; left: var(--esp-1); top: var(--esp-5); bottom: var(--esp-5); display: flex; flex-direction: column; justify-content: space-evenly; width: 14px; pointer-events: none; }
+.ct-anneau {
+  width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--fond-3), var(--noir) 70%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--encre) 28%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--or) 70%, var(--encre-3)),
+    0 0 0 3px var(--fond-1);
+}
+.ct-feuille-corps { min-width: 0; display: flex; flex-direction: column; }
+.ct-poches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); }
+.ct-carte {
+  position: relative; display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; padding: var(--esp-1);
+  border: 0; border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 46%, var(--fond-1)); color: inherit; text-align: left; overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--encre) 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--encre) 10%, transparent);
+}
+.ct-carte:hover, .ct-carte:focus-visible {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--encre) 18%, transparent),
+    inset 0 0 0 1px var(--or);
+}
 .ct-carte .cj-mini-carte { width: 100%; }
-.ct-stats { display: flex; flex-direction: column; gap: 2px; font-size: var(--t-1); line-height: 1.3; font-variant-numeric: tabular-nums; }
-.ct-ligne { display: flex; flex-direction: column; min-width: 0; }
-.ct-ligne i { font: 700 var(--t-1)/1.2 var(--display); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.ct-trou {
+  position: relative; border-radius: var(--r-1); aspect-ratio: 5 / 7;
+  background: color-mix(in srgb, var(--noir) 55%, var(--fond-1));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--encre) 10%, transparent);
+}
+.ct-trou::before {
+  content: ""; position: absolute; inset: 14% 12%; border-radius: var(--r-1); pointer-events: none;
+  background: color-mix(in srgb, var(--encre) 4%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--encre) 8%, transparent);
+}
+.ct-folio { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--esp-2); margin: var(--esp-2) 0 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+.ct-folio b { color: var(--encre-2); font-weight: 800; }
+.ct-folio span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-folio span:last-child { margin-left: auto; }
+.ct-autres { align-self: center; min-height: 44px; padding: 0 var(--esp-4); border: 1px solid var(--filet); border-radius: var(--r-1); background: transparent; color: var(--encre); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.ct-autres:hover, .ct-autres:focus-visible { border-color: var(--or); color: var(--or); }
+.ct-stats { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--t-1); line-height: 1.3; font-variant-numeric: tabular-nums; }
+.ct-ligne { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-ligne i { margin-right: var(--esp-1); font: 700 var(--t-1)/1.2 var(--display); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .ct-sim { color: var(--encre); }
 .ct-vraie { color: var(--encre-2); }
 .ct-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2); font: 700 var(--t-1)/1.3 var(--display); }
@@ -4009,20 +4068,30 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .ct-gemme.v-peu { color: var(--bleu); }
 .ct-gemme.v-rare { color: var(--encre); }
 .ct-gemme.v-legendaire, .ct-double, .ct-num { color: var(--or); }
-/* Un ensemble (une saison, un club) : une bande dépliable, ses pages dedans. */
-.ct-set { border-top: 1px solid var(--filet); }
-.ct-set > summary { display: flex; align-items: center; gap: var(--esp-3); min-height: 48px; padding: var(--esp-2) 0; cursor: pointer; list-style: none; }
+/* Un ensemble (une saison, un club) : un onglet de reliure, ses feuilles dedans. */
+.ct-set { border-radius: var(--r-1); background: var(--fond-1); box-shadow: inset 0 0 0 1px var(--filet); }
+.ct-set > summary { display: flex; align-items: center; gap: var(--esp-3); min-height: 48px; padding: var(--esp-2) var(--esp-3); cursor: pointer; list-style: none; }
 .ct-set > summary::-webkit-details-marker { display: none; }
+.ct-set[open] > summary { box-shadow: inset 3px 0 0 var(--or); }
 .ct-set-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
 .ct-set-sous { flex: 1; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
 .ct-set-n { font: 800 var(--t-4)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
-.ct-set-corps { display: flex; flex-direction: column; gap: var(--esp-4); padding: 0 0 var(--esp-4); }
-.ct-page-tete { display: flex; align-items: center; gap: var(--esp-2); margin: 0 0 var(--esp-2); font-size: var(--t-2); }
+.ct-set-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: 0 var(--esp-2) var(--esp-3); }
+.ct-reliure > .ct-page-tete, .ct-reliure > .ct-vide { grid-column: 1 / -1; }
+.ct-page-tete { display: flex; align-items: center; gap: var(--esp-2); margin: 0; font-size: var(--t-2); }
 .ct-page-tete b { font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
 .ct-completion { font: 700 var(--t-2)/1 var(--display); color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .ct-completion.complet { color: var(--or); }
 .ct-barre { flex: 1; max-width: 160px; height: 4px; border-radius: var(--r-1); background: var(--fond-3); overflow: hidden; }
 .ct-barre i { display: block; height: 100%; background: var(--or); }
+@media (min-width: 900px) {
+  .ct-reliure { display: grid; grid-template-columns: 1fr 1fr; align-items: start; padding: var(--esp-3); }
+  /* Reliure ouverte : une seule colonne d'anneaux, dans la gouttière. */
+  .ct-feuille:nth-child(odd of .ct-feuille) { padding-left: var(--esp-2); padding-right: var(--esp-6); }
+  .ct-feuille:nth-child(odd of .ct-feuille) .ct-anneaux { left: auto; right: var(--esp-2); }
+  .ct-feuille:nth-child(even of .ct-feuille) { padding-left: var(--esp-2); }
+  .ct-feuille:nth-child(even of .ct-feuille) .ct-anneaux { display: none; }
+}
 
 /* ---- La boutique (js/magasin.js, #magasinModal) : des rayons de pochettes plates, le prix en or ---- */
 .pk-sheet { position: relative; }
@@ -4190,7 +4259,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .dp-pied .dp-commencer { width: 100%; min-height: 52px; background: var(--or); border-color: var(--or); color: var(--encre-sur-or); }
 .dp-pied .dp-commencer:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--encre)); }
 @media (min-width: 640px) {
-  .ct-grille, .dp-grille { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: var(--esp-3); }
+  .dp-grille { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: var(--esp-3); }
   .inv-grille { gap: var(--esp-3); }
 }
 @media (min-width: 1000px) { .dp-pied { padding-bottom: var(--esp-3); } }
