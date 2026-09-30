@@ -52,7 +52,7 @@ import { ajusterCartes, carteMiniHtml, clesDesMods, compteSignables, getShard, n
 import { ballottageVu, bancSerie, connaitreBallottages, deciderSerie, personneDeCle, renderBanc, reprendreSaison, reprendreSeries, runSeason, sousVoile } from './banc.js';
 import { compteEnGrille, compteRevele, lienEquipe, lienJoueur, ouvrirFiche, porteeRevele, showPlayerModal, statsSim } from './fiche.js';
 import { actionDuBouton, choisirIdentite, majPiedPartie, oublierBrouillon, ouvrirNouvellePartie, poserBrouillon, resoudreHasard, semerBrouillon, syncOptionsUI } from './partie.js';
-import { renderMain, renderRoster, renderTeamSummary, surTable } from './alignement.js';
+import { renderMain, renderRoster, renderTeamSummary } from './alignement.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 export const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -1370,6 +1370,8 @@ function setupEvents() {
     // Le Menu en pleine partie : « Retour à la partie ». Au lancement, il est
     // l'écran titre, et rien n'est sous lui.
     () => { if (!$('menuDepart')) return false; if (demarre) fermerMenu(); return true; },
+    // Une page du Club (le dépistage, la préparation, le sommaire, tes cartes, la boutique) : retour au bureau.
+    () => { const h = hubActif(); return !!(h && h.fermerPage && h.fermerPage()); },
     // Une case visée ou un joueur choisi dans l'alignement.
     () => {
       if (G.selectedSlot === null && G.target === null) return false;
@@ -2066,17 +2068,6 @@ export function render() {
   renderBanc();
   renderTeamSummary();
   renderMain();
-  const hint = $('rosterHint');
-  if (hint) {
-    hint.textContent = G.selectedSlot !== null
-      ? 'Touche une case pour le déplacer.'
-      : G.target !== null
-        ? 'Case ciblée : la prochaine signature ira là.'
-        // LA LÉGENDE DES VERDICTS (S78) : ce que disent les marques d'une case,
-        // une fois, au-dessus de l'alignement. Sur table, ni zone ni position.
-        : surTable() ? 'Touche un joueur, puis sa case.'
-          : 'Touche un joueur, puis sa case. ▼ ▲ hors de sa zone · −N hors position.';
-  }
 }
 /* =====================================================================
    Historique

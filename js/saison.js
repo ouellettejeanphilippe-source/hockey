@@ -101,6 +101,11 @@ const caseCourte = s => (s.group === 'F' && !s.scratch ? `${s.unit + 1}${s.unit 
   : s.group === 'D' && !s.scratch ? `${s.unit + 1}${s.unit ? 'e' : 're'} paire · ${s.role}` : s.role);
 const pct = (sv, sa) => pct3(sv / Math.max(1, sa));
 
+/* LA VIGNETTE D'UN JOUEUR (1.0, R3). JP : *voir plus les cartes dans le UI, où c'est pertinent*. Le visage sur le
+   fond de son club, le métal de sa variante en bordure — la même vignette que le bilan (`.cj-mini`, style.css). */
+const vignette = (ctx, p) => (ctx.mug
+  ? `<span class="cj-mini tc-${ctx.rarete ? ctx.rarete(p) : 'commune'}" style="--team-band:${ctx.band(p.t).bg}" aria-hidden="true">${ctx.mug(p)}</span>` : '');
+
 /* ---------- la coquille : en-tête, carte, actions, onglets, volet ---------- */
 
 function coquille(label) {
@@ -109,10 +114,46 @@ function coquille(label) {
   const $ = s => modal.querySelector(s);
   const sheet = $('.hub-sheet');
   if (sheet) sheet.setAttribute('aria-label', label);
-  // LES OUTILS DE L'EN-TÊTE (S79) : tes cartes et la boutique, toujours en vue. Chaque écran pose les siens.
-  const outils = $('.hub-outils');
-  if (outils) outils.innerHTML = '';
-  return { modal, head: $('.hub-head'), outils, carte: $('.hub-carte'), actions: $('.hub-actions'), barre: $('.hub-onglets'), volet: $('.hub-volet'), close: $('.hub-close') };
+  /*
+   * LES PAGES DU CLUB (1.0, R3). JP : *j'hais le nouveau club ; au lieu de modals, faire des pages pour chaque, et
+   * les icônes sont un lien*. Le dépistage, la préparation, le sommaire, tes cartes et la boutique ne s'ouvrent plus
+   * en fenêtre par-dessus le bureau : chacun est une PAGE de la feuille, avec « ‹ » pour revenir au bureau. La page
+   * vit à côté de l'affiche et du volet (`.hub-page`, montrée par `data-page` sur la feuille) : elle survit aux
+   * rendus de l'affiche, et se referme d'elle-même quand la saison repart (`quitter`) ou qu'une autre page s'ouvre.
+   * Un écran qui rend dans une fenêtre (js/gerant.js, js/magasin.js, js/inventaire.js) rend dans son corps :
+   * `dans` et `fermer` lui disent où, et comment se refermer.
+   */
+  let pageOuverte = null;
+  const fermerPage = (silencieux = false) => {
+    if (!pageOuverte) return false;
+    const { el, onFerme } = pageOuverte;
+    pageOuverte = null;
+    el.remove();
+    if (sheet) delete sheet.dataset.page;
+    if (!silencieux && onFerme) onFerme();
+    return true;
+  };
+  const ouvrirPage = ({ genre, ico = '', titre, sousTitre = '', html = '', pied = '', onFerme = null }) => {
+    fermerPage(true);
+    const el = document.createElement('section');
+    el.className = 'hub-page';
+    el.dataset.genre = genre;
+    el.setAttribute('aria-label', titre);
+    el.innerHTML = `<div class="hub-page-tete">
+        <button type="button" class="hub-page-retour" aria-label="Retour au bureau" title="Retour au bureau">‹</button>
+        ${ico ? `<span class="hub-page-ico" aria-hidden="true">${ico}</span>` : ''}
+        <div class="hub-page-titres"><h2 class="hub-page-titre">${titre}</h2>${sousTitre ? `<div class="hub-page-sous">${sousTitre}</div>` : ''}</div>
+      </div>
+      <div class="hub-page-corps">${html}</div>
+      ${pied ? `<div class="hub-page-pied">${pied}</div>` : ''}`;
+    sheet.appendChild(el);
+    sheet.dataset.page = genre;
+    sheet.scrollTop = 0;
+    pageOuverte = { el, onFerme };
+    el.querySelectorAll('.hub-page-retour, .hub-page-fermer').forEach(b => { b.onclick = () => fermerPage(); });
+    return el.querySelector('.hub-page-corps');
+  };
+  return { modal, head: $('.hub-head'), carte: $('.hub-carte'), actions: $('.hub-actions'), barre: $('.hub-onglets'), volet: $('.hub-volet'), close: $('.hub-close'), ouvrirPage, fermerPage };
 }
 
 /*
@@ -1394,7 +1435,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       }).join('')}</div>`);
       const pts = compterFeuilles(nouveaux.map(x => x.m.feuille));
       const tete = [...pts].filter(([p]) => Object.values(you.roster).includes(p) && p.p !== 'G').sort((a, b) => b[1].pts - a[1].pts || b[1].g - a[1].g).slice(0, 3);
-      if (tete.length) blocs.push(`<div class="som-l">⭐ ${tete.map(([p, c]) => `${ctx.esc(p.n)} ${c.g}-${c.a}-${c.pts}`).join(' · ')}</div>`);
+      if (tete.length) blocs.push(`<div class="som-l hub-vignettes">${tete.map(([p, c]) => `<span class="hub-vignette">${vignette(ctx, p)}<b>${ctx.esc(p.n)}</b><em>${c.g}-${c.a}-${c.pts}</em></span>`).join('')}</div>`);
       blocs.push(`<div class="som-l">${pour} buts pour, ${contre} contre</div>`);
     }
     blocs.push(`<div class="som-l som-rang">📊 ${rangMot(rang)} de la ligue${bouge ? ` <span class="${bouge > 0 ? 'bon' : 'prix'}">${bouge > 0 ? '▲' : '▼'} ${Math.abs(bouge)}</span>` : ' · sans bouger'} · ${f.W}-${f.L}-${f.OTL}, ${f.PTS} pts</div>`);
@@ -1404,14 +1445,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.gagne ? ELAN.duree : SONNE.duree} matchs</div>`);
     }
     retenir = true;
-    ouvrirChoix({
-      // UN SEUL BOUTON (JP : *jamais dédoubler information*) : retour au hub, ou à la boîte s'il y a du courrier à régler.
-      ico: un ? (gagne(un.m, you) ? '✅' : '❌') : '🗓️', titre, genre: 'sommaire', fermable: true,
-      motFermer: attend.length ? '📥 Voir ma boîte de réception' : 'Retour au bureau',
-      contexte: `<div class="som">${blocs.join('')}</div>${attend.length ? `<div class="som-attente">📥 ${attend.length} message${attend.length > 1 ? 's' : ''} à traiter t'attend${attend.length > 1 ? 'ent' : ''} au bureau : ${ctx.esc(attend[0].sujet)}</div>` : ''}`,
-      options: [],
-      onChoix: () => { retenir = false; dessiner(); },
-      onFerme: () => { retenir = false; dessiner(); },
+    // UNE PAGE DU CLUB (1.0, R3), plus un plein écran. UN SEUL BOUTON (JP : *jamais dédoubler information*) :
+    // retour au bureau, ou à la boîte s'il y a du courrier à régler.
+    ui.ouvrirPage({
+      genre: 'sommaire', ico: un ? (gagne(un.m, you) ? '✅' : '❌') : '🗓️', titre,
+      html: `<div class="som">${blocs.join('')}</div>${attend.length ? `<div class="som-attente">📥 ${attend.length} message${attend.length > 1 ? 's' : ''} à traiter t'attend${attend.length > 1 ? 'ent' : ''} au bureau : ${ctx.esc(attend[0].sujet)}</div>` : ''}`,
+      pied: `<button type="button" class="btn go hub-page-fermer">${attend.length ? '📥 Voir ma boîte de réception' : 'Retour au bureau'}</button>`,
+      onFerme: () => { retenir = false; dessiner(); if (attend.length) { boite.deplie = true; tabs.montrer('boite'); } },
     });
     return true;
   }
@@ -1641,7 +1681,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }).join('');
     const tete = Object.values(you.roster || {}).filter(p => p && p.p !== 'G').map(p => ({ p, s: compte.get(p) }))
       .filter(x => x.s && x.s.pts).sort((a, b) => b.s.pts - a.s.pts || b.s.g - a.s.g).slice(0, 3);
-    const meneurs = tete.map(({ p, s }) => `<div class="hp-l"><b>${ctx.esc(p.n)}</b><em>${s.g}-${s.a}-${s.pts}</em></div>`).join('')
+    // Les meneurs en vignettes (1.0, R3) : le visage sur le fond du club, comme sur sa carte.
+    const meneurs = tete.map(({ p, s }) => `<div class="hp-l">${vignette(ctx, p)}<b>${ctx.esc(p.n)}</b><em>${s.g}-${s.a}-${s.pts}</em></div>`).join('')
       || '<div class="hp-l"><b>Personne n\'a encore de point.</b></div>';
     const deck = deckAvant(jour);
     const maudites = deck.filter(c => CARTES_MATCH[c] && CARTES_MATCH[c].maudite).length;
@@ -1805,6 +1846,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
   volet.addEventListener('click', ouvrirTuile);
   const debrancherMenuSeul = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
+  // LES PAGES DU CLUB (1.0, R3) : le retour (js/pile.js) les ferme, le sommaire d'un match (js/bilan.js) s'y ouvre.
+  tabs.hub.ouvrirPage = ui.ouvrirPage;
+  tabs.hub.fermerPage = () => ui.fermerPage();
   const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
@@ -2024,7 +2068,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
 
     const p = prochain();
     if (jour >= N) {
-      if (ui.outils) ui.outils.innerHTML = '';
       carte.innerHTML = `<div class="live-bilan ${rang <= enSeries ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">Saison terminée · ${f.W}-${f.L}-${f.OTL} · ${rang}${rang === 1 ? 'er' : 'e'} de ${teams.length}${rang <= enSeries ? ' · en séries' : ' · éliminé'}</div></div>`;
       // Une main de palier encore ouverte (on a passé à la fin) : elle vaut encore
       // pour les séries — les cartes de saison y jouent — donc elle s'offre ici.
@@ -2124,50 +2167,62 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        */
       const resultatHtml = hier ? `<section class="soir-resultat" aria-label="Hier soir">${resultatHier(hier)}${drameHtml(hier.m)}</section>` : '';
       /*
-       * LES TUILES DU TÉLÉPHONE (1.0, R2). JP : *des sous-pages avec icônes, des modals, que presque tout rentre dans
-       * un écran de cell*. Sous 1200 px, le dépistage s'ouvre en sous-page, la préparation en fenêtre, le sommaire
-       * d'hier en fenêtre ; l'affiche garde l'essentiel : les étapes, hier en une ligne, le prochain match, ce soir.
+       * LES LIENS DU BUREAU (1.0, R3). JP : *j'hais le nouveau club ; au lieu de modals, faire des pages pour
+       * chaque, et les icônes sont un lien*. Une rangée d'icônes, chacune un lien vers une PAGE du Club (le
+       * dépistage, la préparation, le sommaire d'hier, tes cartes, la boutique — les deux derniers arrivent par
+       * `rendreActions`), un sous-onglet (la boîte) ou une page de la Ligue (classement, meneurs). Plus de tuiles,
+       * plus de fenêtres : l'affiche garde l'essentiel — les étapes, hier en une ligne, le prochain match, ce soir.
        */
       const nMsgs = messagesCourants().length;
-      // Huit portes au plus : le soir (dépistage, préparation, sommaire d'hier, la boîte), puis la ligue et le marché
-      // (classement, meneurs, tes cartes, la boutique — les deux derniers arrivent par `rendreActions`).
-      const tuiles = `<div class="hub-tuiles-tel" role="group" aria-label="Le bureau, en sous-pages">
-        <button type="button" class="hub-tt hub-tt-dep"><i>🔎</i>Dépistage</button>
-        ${onDecision ? '<button type="button" class="hub-tt hub-tt-prep hub-preparer"><i>🏒</i>Préparer</button>' : ''}
-        ${hierMatch && hierMatch.m.feuille ? `<button type="button" class="hub-tt" data-sommaire="saison|${hierMatch.j}|${hierMatch.k}"><i>📋</i>Sommaire</button>` : ''}
-        <button type="button" class="hub-tt hub-tt-boite"><i>📥</i>Boîte${nMsgs ? `<b>${nMsgs}</b>` : ''}</button>
-        <button type="button" class="hub-tt" data-section="ligue" data-page="classement"><i>📊</i>Classement</button>
-        <button type="button" class="hub-tt" data-section="ligue" data-page="meneurs"><i>🏆</i>Meneurs</button>
-      </div>`;
-      carte.innerHTML = `${miniBoss}<div class="hub-match">
-        ${soirHtml(etape, faits)}${resultatHtml}
-        <div class="hub-match-titre">Prochain match · journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
+      const tuiles = `<nav class="hub-liens" aria-label="Le bureau, en pages">
+        <button type="button" class="hub-lien hub-tt-dep"><i>🔎</i>Dépistage</button>
+        ${onDecision ? '<button type="button" class="hub-lien hub-tt-prep hub-preparer"><i>🏒</i>Préparer</button>' : ''}
+        ${hierMatch && hierMatch.m.feuille ? `<button type="button" class="hub-lien" data-sommaire="saison|${hierMatch.j}|${hierMatch.k}"><i>📋</i>Sommaire</button>` : ''}
+        <button type="button" class="hub-lien hub-tt-boite"><i>📥</i>Boîte${nMsgs ? `<b>${nMsgs}</b>` : ''}</button>
+        <button type="button" class="hub-lien" data-section="ligue" data-page="classement"><i>📊</i>Classement</button>
+        <button type="button" class="hub-lien" data-section="ligue" data-page="meneurs"><i>🏆</i>Meneurs</button>
+      </nav>`;
+      /*
+       * LA JOURNÉE EN DEUX (1.0, R3). JP : *séparer le résumé du dernier match et le prochain match, quitte à
+       * séparer les jours en deux comme EHM*. Le MATIN : hier soir seul — le résultat, le drame, le sommaire à un
+       * toucher — et « Le prochain match › ». Le SOIR : l'affiche du prochain match, ce soir, le dépistage, les
+       * lignes. Les liens du bureau sont là aux deux moments ; le dépistage et la préparation mènent au soir.
+       */
+      const matin = !!hier;
+      const affiche = `<div class="hub-match-titre">Prochain match · journée ${p.j + 1} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
         <div class="hub-match-note">${dernierMot}</div>
         ${totauxHtml}
         ${enJeuHtml}
-        ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}
+        ${soirEreintant(p.j) ? '<div class="hub-match-note hub-ereintant" title="Un match sur quatre est éreintant : la finition de chaque club suit l\'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Soir éreintant — la robustesse pèse ce soir</div>' : ''}`;
+      carte.innerHTML = `${matin ? '' : miniBoss}<div class="hub-match${matin ? ' matin' : ''}">
+        ${soirHtml(etape, faits)}
+        ${matin ? `${resultatHtml}<div class="hub-matin-suite"><button type="button" class="btn gold hub-vers-soir">Le prochain match · journée ${p.j + 1} ›</button></div>` : affiche}
         ${tuiles}
-        ${depistage}
-        ${planSoir}
+        ${matin ? '' : `${depistage}${planSoir}`}
       </div>`;
-      // Le dépistage : en sous-page sous 1200 px, déplié dans l'affiche au bureau.
+      // Du matin au soir : le bouton, ou un lien qui parle du prochain match (le dépistage, la préparation).
+      const auSoir = () => { if (!(hierMatch && !soirPasse)) return false; soirPasse = true; dessiner(); return true; };
+      const versSoir = carte.querySelector('.hub-vers-soir');
+      if (versSoir) versSoir.onclick = auSoir;
+      // Le dépistage : une page sous 1200 px, déplié dans l'affiche au bureau.
       const ouvrirDepistage = () => {
         boite.apercuVu = p.j;
-        if (ctx.sousPage && matchMedia('(max-width: 1199.98px)').matches) {
-          const corps = ctx.sousPage(`🔎 Le dépistage · ${ctx.esc(ctx.teamShort(adv))}`, `<div class="hub-dep-corps">${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>`);
+        if (matchMedia('(max-width: 1199.98px)').matches) {
+          const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`,
+            html: `<div class="hub-dep-corps">${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>` });
           brancherConseils(corps);
-          // Un conseil appliqué ferme la sous-page avant de rejouer la saison depuis ce soir.
-          corps.querySelectorAll('.dep3-appliquer').forEach(b => { const f = b.onclick; b.onclick = e => { const c = document.getElementById('closeGameBtn'); if (c) c.click(); if (f) f.call(b, e); }; });
+          // Un conseil appliqué ferme la page avant de rejouer la saison depuis ce soir.
+          corps.querySelectorAll('.dep3-appliquer').forEach(b => { const f = b.onclick; b.onclick = e => { ui.fermerPage(true); if (f) f.call(b, e); }; });
           return;
         }
         const d = carte.querySelector('.hub-depistage');
         if (d) { if (!d.open) d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
       };
       const tDep = carte.querySelector('.hub-tt-dep');
-      if (tDep) tDep.onclick = ouvrirDepistage;
+      if (tDep) tDep.onclick = () => { if (auSoir()) { const t = carte.querySelector('.hub-tt-dep'); if (t) t.click(); return; } ouvrirDepistage(); };
       // Une tuile de la ligue passe par la coquille : la section, puis son onglet.
-      carte.querySelectorAll('.hub-tt[data-section]').forEach(t => { t.onclick = () => {
+      carte.querySelectorAll('.hub-lien[data-section]').forEach(t => { t.onclick = () => {
         const nav = document.querySelector(`#navbar .navtab[data-section="${t.dataset.section}"]`);
         if (nav) nav.click();
         const sous = document.querySelector(`#sousNav .soustab[data-page="${t.dataset.page}"]`);
@@ -2190,12 +2245,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         b.onclick = () => {
           const e = b.dataset.etape;
           if (e === 'apercu') {
-            const deja = soirPasse;
-            soirPasse = true;
-            if (!deja) { dessiner(); const t = carte.querySelector('.hub-tt-dep'); if (t) { t.click(); return; } }
-            ouvrirDepistage();
+            const t = carte.querySelector('.hub-tt-dep');
+            if (t) t.click(); else ouvrirDepistage();
           } else if (e === 'prep') {
-            soirPasse = true;
             const pb = carte.querySelector('.hub-preparer');
             if (pb) pb.click();
           } else if (e === 'match') {
@@ -2204,8 +2256,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         };
       });
       // « Préparer le match » : le bouton de l'affiche au bureau, la tuile au téléphone — le même geste.
-      carte.querySelectorAll('.hub-preparer').forEach(prep => { prep.onclick = () => { boite.prepVu = p.j; ouvrirLignes({
+      carte.querySelectorAll('.hub-preparer').forEach(prep => { prep.onclick = () => { if (auSoir()) { const b = carte.querySelector('.hub-preparer'); if (b) b.click(); return; } boite.prepVu = p.j; ouvrirLignes({
         titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
+        // Une page du Club (1.0, R3), pas une fenêtre.
+        dans: ui.ouvrirPage({ genre: 'preparer', ico: '🏒', titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.esc(ctx.teamShort(adv))}` }),
+        fermer: () => ui.fermerPage(true),
         lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie, apprentissage: etat.apprentissage,
         // Un gros match (J1-N) : les indices « tu étouffes » lisent leurs lignes SOUS LE PLAN LE PLUS
         // PROBABLE du dépistage (le vrai reste caché), sur l'alignement qui jouera (blessés retirés).
@@ -2516,19 +2571,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${premier ? '' : '<button class="btn hub-prochaine" title="Jouer les journées une à une, jusqu\'à la première qui demande une décision">Jusqu\'à la prochaine décision</button>'}
       </div></div>
       ${boiteHtml}`;
-    // TES CARTES ET LA BOUTIQUE, DANS L'EN-TÊTE (S79) : toujours en vue, sans prendre une rangée de boutons.
-    // Au téléphone (1.0, R2), les deux outils sont deux tuiles du bureau ; au bureau, la bande de tête les garde.
-    const tuilesTel = carte.querySelector('.hub-tuiles-tel');
-    const auTel = !!tuilesTel && matchMedia('(max-width: 1199.98px)').matches;
+    // TES CARTES ET LA BOUTIQUE (S79) : deux liens de la rangée du bureau (1.0, R3), chacun vers sa page.
+    const liens = carte.querySelector('.hub-liens');
     const outilsHtml = [
-      onDecision && ctx.inventaire ? (n => auTel ? `<button type="button" class="hub-tt hub-tt-outil hub-inventaire"><i>🎒</i>Cartes${n ? `<b>${n}</b>` : ''}</button>`
-        : `<button type="button" class="hub-outil hub-inventaire" title="Mes cartes : celles qui se gardent jusqu'au moment voulu, le personnel, le deck, le classeur" aria-label="Mes cartes${n ? ` : ${n} à jouer` : ''}">🎒<span class="hub-outil-mot">Cartes</span>${n ? `<b class="hub-inv-n">${n}</b>` : ''}</button>`)(ctx.inventaire.compte(jour)) : '',
-      onDecision && ctx.boutique ? (n => auTel ? `<button type="button" class="hub-tt hub-tt-outil hub-boutique"><i>🛒</i>${n} 🪙</button>`
-        : `<button type="button" class="hub-outil hub-boutique" title="La boutique : des packs de joueurs et de cartes" aria-label="La boutique : ${n} jetons">🛒<b>${n}</b>🪙</button>`)(ctx.boutique.jetons(jour)) : '',
+      onDecision && ctx.inventaire ? (n => `<button type="button" class="hub-lien hub-tt-outil hub-inventaire" title="Mes cartes : celles qui se gardent jusqu'au moment voulu, le personnel, le deck, le classeur"><i>🎒</i>Cartes${n ? `<b>${n}</b>` : ''}</button>`)(ctx.inventaire.compte(jour)) : '',
+      onDecision && ctx.boutique ? (n => `<button type="button" class="hub-lien hub-tt-outil hub-boutique" title="La boutique : des packs de joueurs et de cartes"><i>🛒</i>${n} 🪙</button>`)(ctx.boutique.jetons(jour)) : '',
     ].join('');
-    if (ui.outils) ui.outils.innerHTML = auTel ? '' : outilsHtml;
-    if (auTel) { tuilesTel.querySelectorAll('.hub-tt-outil').forEach(t => t.remove()); tuilesTel.insertAdjacentHTML('beforeend', outilsHtml); }
-    const outilDe = cls => (auTel ? tuilesTel : ui.outils) && (auTel ? tuilesTel : ui.outils).querySelector(cls);
+    if (liens) { liens.querySelectorAll('.hub-tt-outil').forEach(t => t.remove()); liens.insertAdjacentHTML('beforeend', outilsHtml); }
+    const outilDe = cls => liens && liens.querySelector(cls);
 
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
     const teteBoite = actions.querySelector('.hub-boite-tete');
@@ -2557,10 +2607,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const d = el.querySelector('[data-defaut]'); if (d) d.focus({ preventScroll: true }); }
     };
     // LA BOUTIQUE (Rogue, S77) : ses décisions passent par le même chemin que les autres choix.
+    // Chacune dans sa page du Club (1.0, R3) : `dans` dit où rendre, `fermer` comment revenir au bureau.
     const boutique = outilDe('.hub-boutique');
-    if (boutique) boutique.onclick = () => ctx.boutique.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
+    if (boutique) boutique.onclick = () => ctx.boutique.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); },
+      { dans: ui.ouvrirPage({ genre: 'boutique', ico: '🛒', titre: 'La boutique', sousTitre: `🪙 ${ctx.boutique.jetons(jour)} jetons` }), fermer: () => ui.fermerPage(true) });
     const sac = outilDe('.hub-inventaire');
-    if (sac) sac.onclick = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); });
+    if (sac) sac.onclick = () => ctx.inventaire.ouvrir(jour, d => { const j = jour; quitter(); onDecision(d, j); },
+      { dans: ui.ouvrirPage({ genre: 'cartes', ico: '🎒', titre: 'Tes cartes', sousTitre: ctx.boutique ? `🪙 ${ctx.boutique.jetons(jour)} jetons` : '' }), fermer: () => ui.fermerPage(true) });
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     const mPack = msgs.find(m => m.genre === 'pack');
@@ -2679,6 +2732,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (termine) return;
     termine = true;
     cacherBoutonFlottant();
+    ui.fermerPage(true);
     debrancherMenu();
     retirerHub(tabs.hub);
     window.removeEventListener('keydown', clavier);
@@ -3001,6 +3055,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const prep = actions.querySelector('.hub-preparer');
     if (prep) prep.onclick = () => ouvrirLignes({
       titre: `Préparer le match ${k + 1}`, sousTitre: `${nomRondeCourt(ronde)} · contre ${ctx.teamShort(boss)}`,
+      dans: ui.ouvrirPage({ genre: 'preparer', ico: '🏒', titre: `Préparer le match ${k + 1}`, sousTitre: `${ctx.esc(nomRondeCourt(ronde))} · contre ${ctx.esc(ctx.teamShort(boss))}` }),
+      fermer: () => ui.fermerPage(true),
       lineup: you.roster, lignes: lignesDe(you, you.roster),
       chimie: (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).chimie || [0, 0, 0, 0],
       energie: { ...((you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).energie || {}),
@@ -3206,6 +3262,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     return voletTableau();
   });
   const debrancherMenu = brancherMenu(volet, menu, clubs, () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
+  tabs.hub.ouvrirPage = ui.ouvrirPage;
+  tabs.hub.fermerPage = () => ui.fermerPage();
   // L'onglet « Alignement » ouvre le banc pendant ta série (S69).
   if (onBanc) tabs.hub.banc = () => {
     const s = maSerie(ronde);
@@ -3316,6 +3374,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     if (termine) return;
     termine = true;
     cacherBoutonFlottant();
+    ui.fermerPage(true);
     noter();
     debrancherMenu();
     retirerHub(tabs.hub);

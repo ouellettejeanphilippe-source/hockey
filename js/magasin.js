@@ -41,7 +41,8 @@ function niveauxHtml(cle) {
       <p class="pk-num">Son rang dans sa vraie saison, parmi les réguliers de son poste : aux points par match, au % d'arrêts pour un gardien. Sans joueur de ce niveau ${manque}, la carte prend le niveau le plus proche.</p>`;
 }
 export function ouvrirMagasin(ctx) {
-  const m = $('magasinModal');
+  // Dans une page du Club (1.0, R3 : `ctx.dans`, `ctx.fermer`) ou dans sa fenêtre.
+  const m = ctx.dans || $('magasinModal');
   if (!m) return;
   const rabaisDe = cle => (ctx.mods.rabais || 1) * (ctx.duJour && ctx.duJour.pack === cle ? ctx.duJour.rabais : 1);
   const tuile = (cle, jour = false) => {
@@ -140,11 +141,10 @@ export function ouvrirMagasin(ctx) {
     };
   };
   const fermer = (silencieux = false) => {
-    m.hidden = true; m.innerHTML = '';
-    document.body.classList.remove('choix-ouvert');
+    if (ctx.dans) { if (ctx.fermer) ctx.fermer(); }
+    else { m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); }
     if (!silencieux && ctx.onFerme) ctx.onFerme();
   };
-  m.hidden = false;
-  document.body.classList.add('choix-ouvert');
+  if (!ctx.dans) { m.hidden = false; document.body.classList.add('choix-ouvert'); }
   dessiner();
 }

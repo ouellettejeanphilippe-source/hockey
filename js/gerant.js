@@ -580,7 +580,8 @@ export function effetsHtml(e) {
   return `<section class="gl-effets"><div class="gl-sec-titre">Ce qui joue sur ta formation</div>${lignes.length ? lignes.join('') : '<div class="gl-mot">Rien pour l\'instant : tes lignes jouent sur leur propre valeur.</div>'}</section>`;
 }
 export function ouvrirLignes(spec) {
-  const m = $('lignesModal');
+  // Dans une page du Club (1.0, R3 : `spec.dans`, `spec.fermer`) ou dans sa fenêtre.
+  const m = spec.dans || $('lignesModal');
   if (!m) return;
   /*
    * LA CHIMIE DE CE SOIR (S73) : entente × maîtrise × fit, pour la tactique
@@ -761,9 +762,11 @@ export function ouvrirLignes(spec) {
     const bb = m.querySelector('.gl-banc');
     if (bb) bb.onclick = () => { fermer(); spec.onBanc(); };
   }
-  const fermer = () => { m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); };
-  m.hidden = false;
-  document.body.classList.add('choix-ouvert');
+  const fermer = () => {
+    if (spec.dans) { if (spec.fermer) spec.fermer(); return; }
+    m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert');
+  };
+  if (!spec.dans) { m.hidden = false; document.body.classList.add('choix-ouvert'); }
   dessiner();
 }
 

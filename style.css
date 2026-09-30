@@ -241,6 +241,9 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 #menuBtn { grid-area: menu; }
 /* La jauge du plafond : le montant en gros, la barre dessous. */
 .capgauge.tete-ch { flex: 1 1 auto; max-width: 340px; justify-items: stretch; text-align: left; }
+/* LA MASSE SALARIALE OÙ L'ON GÈRE LES JOUEURS (1.0, R3). JP : *en haut, j'ai pas besoin de la masse salariale sauf
+   quand je manage les joueurs*. Au Marché et à l'Effectif seulement ; ailleurs, l'en-tête garde la fiche et le rang. */
+body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #capGauge { display: none; }
 .capgauge-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); }
 .capgauge-row.small { margin-top: 2px; color: var(--encre-2); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
 .capgauge-row.small strong { color: var(--encre); font-variant-numeric: tabular-nums; font-weight: 800; }
@@ -485,13 +488,13 @@ body[data-zone="ref"] .actionbar { display: none; }
 body:has(#game.bilan) .actionbar { display: none; }
 body:has(#game.bilan) { --actionbar-h: 0px; }
 .hub-flottant { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--bas-coquille, 70px) + var(--esp-3)); min-width: 230px; min-height: 52px; box-shadow: var(--ombre); }
-body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouvert .hub-flottant { display: none; }
+body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouvert .hub-flottant, body:has(.hub-sheet[data-page]) .hub-flottant { display: none; }
 @media (min-width: 1200px) { .hub-flottant { display: none; } }
 
-/* ---- Le toast : en haut au téléphone (sous le pouce, rien), en bas au bureau ---- */
+/* ---- Le toast : en bas, au-dessus de la barre d'action (rien d'écrit en haut de l'écran, 1.0, R3) ---- */
 .toast {
-  position: fixed; left: 50%; z-index: 80; transform: translate(-50%, -6px);
-  top: calc(var(--topbar-h) + var(--esp-2) + var(--safe-top));
+  position: fixed; left: 50%; z-index: 80; transform: translate(-50%, 6px);
+  bottom: calc(var(--navbar-h) + var(--actionbar-h) + var(--esp-3) + var(--safe-bas));
   max-width: min(88vw, 460px); padding: var(--esp-3) var(--esp-4); border-radius: var(--r-1);
   background: var(--fond-2); border: 1px solid var(--filet); border-left: 3px solid var(--club-vif); color: var(--encre);
   font: 700 var(--t-2)/1.3 var(--display); letter-spacing: 0.02em; text-align: center;
@@ -501,10 +504,9 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .toast.warn { border-left-color: var(--or); }
 .toast.bad { border-left-color: var(--mauvais); }
 @media (max-width: 1199.98px) {
-  .toast { left: var(--esp-3); right: var(--esp-3); max-width: none; transform: translateY(-6px); text-align: left; }
+  .toast { left: var(--esp-3); right: var(--esp-3); max-width: none; transform: translateY(6px); text-align: left; }
   .toast.on { transform: none; }
 }
-@media (min-width: 1200px) { .toast { top: auto; bottom: calc(var(--actionbar-h) + var(--esp-4) + var(--safe-bas)); } }
 
 /* ---- Le chargement et le voile ---- */
 .boot { display: flex; flex-direction: column; align-items: center; gap: var(--esp-4); padding: 80px var(--esp-5); color: var(--encre-2); text-align: center; font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
@@ -1671,6 +1673,12 @@ button.marche-tuile:active { transform: scale(0.98); }
 .cj-mini img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; transform: scale(1.1); transform-origin: 50% 0; }
 .cj-mini .headshot-fallback { font-size: var(--t-2); opacity: 0.45; }
 
+/* Une rangée de meneurs en vignettes (le portail du bureau, le sommaire d'une avance) : le visage, le nom, ses chiffres. */
+.hub-vignettes { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-3); }
+.hub-vignette { display: inline-flex; align-items: center; gap: var(--esp-2); min-width: 0; }
+.hub-vignette b { font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; }
+.hub-vignette em { font: 700 var(--t-1)/1.1 var(--display); font-style: normal; color: var(--encre-2); font-variant-numeric: tabular-nums; }
+
 /* ---- La vignette qui file au cartable (`voleAuCartable`, retirée sur animationend, 1 400 ms au plus) ---- */
 .cj-vole {
   position: fixed; z-index: 90; width: 46px; height: 62px; border-radius: var(--r-1); overflow: hidden; pointer-events: none;
@@ -1961,8 +1969,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
    n'y est une pastille : un effet est un mot coloré.
    ===================================================================== */
 
-/* ---- L'aide du volet, et le résumé d'équipe en cinq cellules de chiffres ---- */
-.roster-hint { font-size: var(--t-2); color: var(--encre-3); line-height: 1.4; }
+/* ---- Le résumé d'équipe en cinq cellules de chiffres (au bureau ; au téléphone, l'en-tête dit déjà la masse et le compte) ---- */
 .team-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: var(--esp-3); }
 .sum-item { min-width: 0; padding: 0 var(--esp-2); border-left: 1px solid var(--filet); cursor: help; }
 .sum-item:first-child { padding-left: 0; border-left: 0; }
@@ -2009,8 +2016,18 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .slot:hover { border-color: var(--encre-3); }
 .slot:active { transform: scale(0.98); }
 /* Sa hauteur suit son contenu (les jambes ajoutent une rangée derrière le banc) ; rien ne se coupe. */
-.slot-inner { flex: 1 0 auto; min-height: 0; display: flex; flex-direction: column; gap: 3px; padding: var(--esp-1) var(--esp-2) var(--esp-2); }
-.slot-inner > * { flex: none; }
+.slot-inner { flex: 1 0 auto; min-height: 0; display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-auto-rows: min-content; align-items: center; column-gap: var(--esp-2); row-gap: 3px; padding: var(--esp-1) var(--esp-2) var(--esp-2); }
+/* LE VISAGE DANS LA CASE (1.0, R3). JP : *intégrer les faces dans l'alignement*. Rond, sur le fond du club, l'anneau au métal de sa variante ;
+   il tient le nom et les deux premières lignes ; le chiffre clé et les jambes prennent toute la largeur dessous. */
+.slot-mug { position: relative; grid-row: 1 / span 3; width: 40px; height: 40px; overflow: hidden; border-radius: 50%; border: 2px solid var(--encre-3); background: color-mix(in srgb, var(--slot-band, var(--fond-3)) 70%, var(--noir)); }
+.slot-mug > * { position: absolute; inset: 0; display: grid; place-items: center; }
+.slot-mug img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; transform: scale(1.15); transform-origin: 50% 0; }
+.slot-mug .headshot-fallback { font-size: var(--t-3); opacity: 0.45; }
+.slot.tc-peu .slot-mug { border-color: var(--bleu); }
+.slot.tc-rare .slot-mug { border-color: var(--choisi); }
+.slot.tc-legendaire .slot-mug { border-color: var(--or); }
+.slot-inner > :not(.slot-mug) { grid-column: 2; }
+.slot-inner > .cell-l3, .slot-inner > .jambes, .slot-inner > .slot-meta, .slot-inner > .slot-tags:not(.cell-l2) { grid-column: 1 / -1; }
 /* Les états : vide en pointillés, visée qui pulse, tenue cernée, hors position, hors de sa zone, renfort, cadenassée. */
 .slot.empty { justify-content: center; align-items: center; gap: 2px; padding: var(--esp-2); text-align: center; border-style: dashed; background: transparent; }
 .slot-role { font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
@@ -2058,6 +2075,8 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* Le rôle, son icône et son mot sur une rangée qui plie : le mot passe à la ligne plutôt que de couper le rôle (« S… TRÈS BON ») ou d'être coupé lui-même (le smoke le mesure). */
 .cell-role { flex: 1 1 auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; min-width: 0; font-size: var(--t-3); line-height: 1; white-space: nowrap; overflow: hidden; }
 .cell-role > span { flex: 0 1 auto; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Son second rôle, s'il en a un (1.0, R3) : plus petit, après le premier. */
+.cell-role-2 { flex: 0 1 auto; min-width: 0; font: 600 var(--t-1)/1.1 var(--display); color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cell-mot { flex: none; margin-left: auto; font: 700 var(--t-1)/1.1 var(--display); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; }
 .cell-mot.elite { color: var(--or); }
 .cell-mot.tres-bon { color: var(--bon); }
@@ -2299,22 +2318,19 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
   .slot:has(> .slot-remove) .slot-band { padding-right: 2px; }
   .slot-band .sb-role { font-size: var(--t-1); }
   .slot-salary { margin: 0; font-size: var(--t-1); opacity: 0.85; }
-  .slot-inner { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "nom cle" "l1 l2"; align-items: center; column-gap: var(--esp-2); row-gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); }
+  .slot-inner { flex: 1 1 auto; grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "mug nom cle" "mug l1 l2"; row-gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); }
+  .slot-mug { grid-area: mug; }
   .slot .slot-name { grid-area: nom; font-size: var(--t-3); }
-  .cell-l3 { grid-area: cle; justify-self: end; text-align: right; }
+  .slot-inner > .cell-l3 { grid-area: cle; justify-self: end; text-align: right; }
   .cell-l1 { grid-area: l1; }
   .slot-tags.cell-l2 { grid-area: l2; justify-self: end; margin: 0; justify-content: flex-end; }
-  .slot-inner .jambes { grid-column: 1 / -1; }
-  .slot-inner > .slot-meta, .slot-inner > .slot-tags:not(.cell-l2) { grid-column: 1 / -1; }
+  .slot-inner > .jambes, .slot-inner > .slot-meta, .slot-inner > .slot-tags:not(.cell-l2) { grid-column: 2 / -1; }
   .slot.empty { flex-direction: row; justify-content: flex-start; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border: 1px dashed var(--filet); background: var(--fond-1); }
   .slot-remove { top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: var(--r-1); opacity: 1; }
   .slot:has(> .slot-remove) .slot-inner { padding-right: 34px; }
   .ln-strat { min-height: 36px; }
-  .pane-roster .pane-title, .roster-hint { display: none; }
-  .team-summary { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-4); margin: var(--esp-2) 0 var(--esp-3); }
-  .sum-item { display: flex; align-items: baseline; gap: var(--esp-1); padding: 0; border-left: 0; }
-  .sum-item .k { min-height: auto; }
-  .sum-item .v { margin-top: 0; font-size: var(--t-3); }
+  /* Rien d'écrit au-dessus des trios (1.0, R3) : ni titre, ni résumé — l'en-tête dit la masse et le compte, chaque trio dit s'il est à sa place. */
+  .pane-roster .pane-title, .team-summary { display: none; }
 }
 
 
@@ -2327,10 +2343,10 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* ---- La feuille : une colonne au téléphone (elle défile entière), une grille dès 1200 px ---- */
 body.hub-docke .hub-sheet { max-width: none; }
 /* Le tableau indicateur dit déjà la journée, la fiche et le rang (1.0, R2) : la bande de tête du bureau ne les redit pas.
-   Il ne reste que les outils (tes cartes, la boutique) et le ✕, à droite ; sans eux, pas de bande. Sur table, le tournoi la garde. */
+   Il ne reste que le ✕, à droite ; sans lui, pas de bande. Sur table, le tournoi la garde. */
 body.hub-docke:not(.mode-table) .hub-sheet .hub-head { display: none; }
 body.hub-docke:not(.mode-table) .hub-sheet .live-top { justify-content: flex-end; }
-body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):has(.hub-close[hidden]) { display: none; }
+body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { display: none; }
 .hub-carte { flex: none; padding: var(--esp-3) var(--esp-3) 0; container-type: inline-size; container-name: carte; }
 .hub-carte:empty { display: none; }
 .hub-volet { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
@@ -2344,17 +2360,10 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
   body.hub-docke .hub-sheet .hub-actions:has(> .hub-barre) { display: contents; }
   body.hub-docke .hub-sheet .hub-barre { order: 10; flex: 0 0 auto; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
   body.hub-docke .hub-sheet .hub-boite { order: 2; margin: 0; padding: var(--esp-3) var(--esp-3) 0; }
-  /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire s'ouvrent en sous-page
-     depuis une rangée de tuiles à icône ; ce qu'elles portent ne s'empile plus dans l'affiche. */
+  /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire sont des pages (les liens
+     du bureau y mènent) ; ce qu'elles portent ne s'empile plus dans l'affiche. */
   .hub-match .hub-match-note:not(.hub-ereintant), .hub-match .hub-depistage, .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
   body.hub-docke:not(.mode-table) .hub-sheet .live-top { padding: 2px var(--esp-3); }
-  body.hub-docke:not(.mode-table) .hub-sheet .hub-outil { min-height: 32px; padding: 0 var(--esp-2); }
-  .hub-tuiles-tel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; border-top: 1px solid var(--filet-2); background: var(--filet-2); }
-  .hub-tt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-height: 64px; padding: var(--esp-1); border: 0; background: var(--fond-1); color: var(--encre); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
-  .hub-tt i { font-style: normal; font-size: var(--t-4); line-height: 1; }
-  .hub-tt { position: relative; }
-  .hub-tt b { position: absolute; top: 6px; right: calc(50% - 26px); min-width: 16px; padding: 2px 4px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
-  .hub-tt:active { background: var(--fond-2); }
   /* La boîte pliée : sa bande de tête seule, tant que rien ne bloque et qu'on ne l'a pas dépliée. */
   .hub-boite.pliee .hub-msgs { display: none; }
   .hub-boite .hub-boite-tete { min-height: 44px; cursor: pointer; }
@@ -2377,7 +2386,6 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
   body.hub-docke .hub-sheet .hub-actions { overflow: visible; min-height: auto; }
 }
 @media (min-width: 1200px) {
-  .hub-tuiles-tel { display: none; }
   body.hub-docke .hub-sheet {
     display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto auto minmax(0, 1fr);
     grid-template-areas: "top top" "carte boite" "volet boite"; column-gap: var(--esp-4);
@@ -2391,10 +2399,47 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
   /* Sur « Boîte » au bureau, la boîte prend toute la largeur ; l'affiche et le volet attendent « Match ». */
   body.hub-docke .hub-sheet[data-vue="boite"] .hub-carte, body.hub-docke .hub-sheet[data-vue="boite"] .hub-volet { display: none; }
   body.hub-docke .hub-sheet[data-vue="boite"] .hub-actions { grid-column: 1 / -1; padding-left: var(--esp-4); }
+  body.hub-docke .hub-sheet .hub-page { grid-column: 1 / -1; grid-row: 2 / -1; min-height: 0; overflow-y: auto; padding: 0 var(--esp-4) var(--esp-4); }
 }
 @media (min-width: 1600px) { body.hub-docke .hub-sheet { grid-template-columns: minmax(0, 1fr) 440px; } }
 
-/* ---- La bande de tête : l'écusson, la saison, la journée en chiffre, ta fiche ; les outils à droite ---- */
+/* ---- Les liens du bureau (1.0, R3) : une rangée d'icônes, chacune un lien vers une page du Club, un sous-onglet ou la Ligue ---- */
+.hub-liens { display: flex; flex-wrap: wrap; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet); }
+.hub-lien {
+  position: relative; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 36px; padding: 0 var(--esp-3) 0 var(--esp-2);
+  border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); color: var(--encre);
+  font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; transition: background var(--t-vite), border-color var(--t-vite);
+}
+.hub-lien i { font-style: normal; font-size: var(--t-3); line-height: 1; }
+.hub-lien b { min-width: 16px; padding: 2px 4px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
+.hub-lien:hover, .hub-lien:focus-visible { background: var(--fond-2); border-color: var(--encre-3); }
+.hub-lien:active { background: var(--fond-3); }
+
+/* ---- Une page du Club (1.0, R3) : « ‹ » pour revenir, un titre, le corps ; l'affiche, la boîte et le volet attendent derrière ---- */
+body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet, .hub-onglets) { display: none; }
+.hub-page { display: flex; flex-direction: column; min-width: 0; }
+.hub-page-tete { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: var(--esp-2); min-height: 48px; padding: var(--esp-1) var(--esp-3); border-bottom: 1px solid var(--filet); background: var(--fond-1); }
+.hub-page-retour { flex: none; width: 40px; height: 40px; border: 0; border-radius: var(--r-1); background: transparent; color: var(--encre); font: 800 var(--t-6)/1 var(--display); }
+.hub-page-retour:hover, .hub-page-retour:focus-visible { background: var(--fond-2); }
+.hub-page-ico { flex: none; font-size: var(--t-4); line-height: 1; }
+.hub-page-titres { flex: 1 1 auto; min-width: 0; }
+.hub-page-titre { margin: 0; font: 800 var(--t-4)/1.05 var(--display); letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub-page-sous { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
+.hub-page-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
+.hub-page-corps > * { flex: none; }
+.hub-page-pied { position: sticky; bottom: 0; z-index: 3; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
+.hub-page-pied .btn { width: 100%; min-height: 48px; }
+/* Un écran qui rend une feuille de fenêtre dans la page (js/gerant.js, js/magasin.js, js/inventaire.js) : la feuille se déplie,
+   sa bande de tête se tait (la page a la sienne), son corps ne défile pas à part. */
+.hub-page .choix-sheet { height: auto; max-height: none; max-width: none; background: transparent; }
+.hub-page .choix-sheet > .choix-tete { display: none; }
+.hub-page .choix-sheet .choix-corps { flex: none; overflow: visible; padding: 0; }
+.hub-page .gl-pied { position: sticky; bottom: 0; z-index: 3; margin: 0 calc(-1 * var(--esp-3)); }
+@media (max-width: 1199.98px) {
+  .hub-page-corps { padding: var(--esp-3) var(--esp-3) var(--esp-4); }
+}
+
+/* ---- La bande de tête : l'écusson, la saison, la journée en chiffre, ta fiche ---- */
 .hub-head { align-items: center; gap: var(--esp-1) var(--esp-3); }
 .hub-head .live-ronde, .hub-head .live-serie { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .hub-head .live-match { font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
@@ -2403,18 +2448,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
 .hub-head .hub-titre { margin: 0; font-size: var(--t-4); color: var(--encre); }
 .hub-head .hub-titre::after { display: none; }
 .hub-sous { font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
-.hub-outils { display: flex; gap: var(--esp-2); flex: none; }
-.hub-outils:empty { display: none; }
-.hub-outil {
-  display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3);
-  border: 1px solid var(--filet); border-radius: var(--r-1); background: transparent; color: var(--encre);
-  font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; transition: background var(--t-vite);
-}
-.hub-outil:hover, .hub-outil:focus-visible { background: var(--fond-2); }
-.hub-outil b { font-variant-numeric: tabular-nums; }
-.hub-inv-n { margin-left: 2px; color: var(--or); font-weight: 800; }
 .hub-close { flex: none; }
-@media (max-width: 430px) { .hub-outil-mot { display: none; } }
 
 /* ---- Les notes de la carte ---- */
 .hub-note, .hub-carte-note { font-size: var(--t-2); color: var(--encre-2); line-height: 1.5; }
@@ -2429,8 +2463,12 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:not(:has(.hub-outils > *)):
 .soir-etape.fait { color: var(--bon); }
 .soir-etape.on { color: var(--or); border-bottom-color: var(--or); }
 .soir-etape:hover:not(.on) { color: var(--encre); }
-/* Hier soir, en premier et en une ligne : la bande du résultat (toucher : le sommaire), le drame dessous, le prochain match suit. */
+/* LE MATIN (1.0, R3) : hier soir seul — la bande du résultat (toucher : le sommaire), le drame dessous — puis « Le prochain match › » ; le soir, l'affiche. */
 .soir-resultat { border-bottom: 1px solid var(--filet); }
+.hub-match.matin .hub-hier { padding: var(--esp-4) var(--esp-3); }
+.hub-match.matin .hub-hier-score { font-size: var(--t-6); }
+.hub-matin-suite { padding: var(--esp-3); }
+.hub-vers-soir { width: 100%; min-height: 48px; }
 .soir-resultat .hub-hier { border-width: 0 0 0 3px; border-radius: 0; }
 .soir-drame { padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 
@@ -3165,8 +3203,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
   .choix-main.joueurs { grid-template-columns: repeat(auto-fit, minmax(150px, 190px)); gap: var(--esp-3); }
 }
 @media (min-width: 900px) { .choix-sheet[data-genre="entracte"] .choix-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.choix-sheet[data-genre="sommaire"] .choix-options { margin-top: var(--esp-3); }
-.choix-sheet[data-genre="sommaire"] .choix-option { text-align: center; align-items: center; }
 
 /* ---- Une option avec un visage (qui sort ?, un choix de joueur) ---- */
 .choix-option.avec-visage { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: var(--esp-3); align-items: center; }

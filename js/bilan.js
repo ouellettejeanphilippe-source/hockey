@@ -16,6 +16,7 @@ import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan } f
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries } from './saison.js';
+import { hubActif } from './coquille.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
 import { RARETES, sensRarete } from './cartes.js';
 import { animerComptes } from './mouvement.js';
@@ -1205,12 +1206,12 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   /* Le titre ne répète pas le pointage : les deux lignes juste dessous le
      donnent, avec les écusson et les tirs. Trois lignes de titre sur un
      téléphone repoussaient le sommaire sous le pli pour rien. */
-  $('gameModalTitle').innerHTML = `${esc(titre)} · ${esc(teamShort(A))} — ${esc(teamShort(B))}`
+  const enTete = `${esc(titre)} · ${esc(teamShort(A))} — ${esc(teamShort(B))}`
     + (f.ot ? ' <span class="som-ot">prolongation</span>' : '');
   // LES CARTONS D'ABORD, PAS UNE PHRASE. Le sommaire s'ouvrait sur un résumé
   // écrit ; les trois étoiles et le tableau du match disent la même chose en
   // chiffres, et ne se répètent pas d'un match à l'autre.
-  $('gameModalBody').innerHTML = `
+  const corps = `
     ${deck(cartesDeMatch({ f, A, B, ctx: { teamShort, fiche: (p, t, html) => lienJoueur(p, t, mode, html) } }), { cle: 'match' })}
     <div class="som-lignes">
       <div class="som-ligne"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
@@ -1222,6 +1223,14 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       ${gard(f.gardienA, f.arrets.A, tirsB, A)}
       ${gard(f.gardienB, f.arrets.B, tirsA, B)}
     </div>`;
+  // AU BUREAU, UNE PAGE DU CLUB (1.0, R3) ; ailleurs (le bilan, le calendrier de la Ligue), la fenêtre.
+  const hub = hubActif();
+  if (hub && hub.ouvrirPage && document.body.dataset.zone === 'hub') {
+    brancherEntractes(hub.ouvrirPage({ genre: 'sommaire-match', ico: '📋', titre: enTete, html: corps }));
+    return;
+  }
+  $('gameModalTitle').innerHTML = enTete;
+  $('gameModalBody').innerHTML = corps;
   openModal('gameModal');
   brancherEntractes($('gameModalBody'));
 }

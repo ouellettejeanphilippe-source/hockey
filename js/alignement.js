@@ -12,7 +12,7 @@ import { getArchetype } from './ratings.js';
 import { jambesHtml, niveauDe, strategieDeLigne, ouvrirStrategie } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
-import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
+import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { fermetureCourante } from './banc.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
@@ -195,15 +195,20 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   const a = pp || p.p !== 'G' ? null : getArchetype(p, getHiddenRatings(p));
   // Le rôle ET son mot (élite, très bon, bon…) : un bagarreur élite se lit comme tel, même à « Soutien ».
   const mot = pp ? niveauDe(pp.fit) : '';
+  // SON SECOND RÔLE AUSSI (1.0, R3). JP : *un joueur a plusieurs styles de jeu et plusieurs traits, ça se ressent pas
+  // dans les trios*. Un système lit tous ses rôles maîtrisés (`maitrise`, js/sim.js) : la case dit le second, s'il en a un.
+  const r2 = pp && roleSecond(p);
+  const second = r2 ? `<span class="cell-role-2" title="Second rôle : ${esc(r2.nom)}, ${niveauDe(r2.fit)} — lu dans ${esc(r2.mot)}">${r2.ico} ${esc(r2.court || r2.nom)}</span>` : '';
   const role = pp
-    ? `<span class="slot-roles cell-role" title="${esc(pp.nom)}, ${mot} — lu dans ${esc(pp.mot)}, comparé aux joueurs de sa saison">${pp.ico} <span>${esc(pp.court || pp.nom)}</span><i class="cell-mot ${mot === 'élite' ? 'elite' : mot === 'très bon' ? 'tres-bon' : mot}">${mot}</i></span>`
+    ? `<span class="slot-roles cell-role" title="${esc(pp.nom)}, ${mot} — lu dans ${esc(pp.mot)}, comparé aux joueurs de sa saison">${pp.ico} <span>${esc(pp.court || pp.nom)}</span>${second}<i class="cell-mot ${mot === 'élite' ? 'elite' : mot === 'très bon' ? 'tres-bon' : mot}">${mot}</i></span>`
     : a ? `<span class="slot-roles cell-role" title="${esc(a.desc)}">${a.icon} <span>${esc(a.label)}</span></span>` : '';
   const zone = zoneTag(p, true);
   const marque = ecart === 'sous' ? `<span class="cell-zone sous" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
     : ecart === 'dessus' ? `<span class="cell-zone dessus" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>`
     : '<span class="cell-zone ok" title="Dans sa zone : il rend à plein ici.">✓</span>';
-  const t = getTraits(p).map(x => TRAITS[x.cle]).filter(Boolean)[0];
-  const trophee = t ? `<span class="cell-trait" title="${esc(t.short || t.nom || '')}">${t.icon}</span>` : '';
+  // TOUS SES TRAITS (1.0, R3), pas le premier seul : chacun joue dans le moteur (js/traits.js), chacun se voit.
+  const traits = getTraits(p).map(x => TRAITS[x.cle]).filter(Boolean);
+  const trophee = traits.length ? `<span class="cell-trait" title="${esc(traits.map(t => t.short || t.nom || '').join(' · '))}">${traits.map(t => t.icon).join('')}</span>` : '';
   const jambes = G.banc ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100) : '';
   // Trois rangées : le rôle et son mot ; le niveau et la zone ; le chiffre clé (sa fiche à ce jour derrière le banc).
   return `<div class="cell-l1">${role}</div>
@@ -294,6 +299,7 @@ function slotEl(s) {
           : G.banc ? '' : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
+        <span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>
         <button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button>
         ${surTable() ? `<div class="slot-meta slot-faits">${ligneStats}</div>
         <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : celluleJoueur(p, s, { ecart, penTag, blesseTag, main })}
