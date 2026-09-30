@@ -6,7 +6,7 @@
  *
  * Vérifie :
  *   1. la banque : chaque coach a sa couleur dans au moins trois familles et
- *      assez de cartes pour bâtir (au moins 13), peu de cartes neutres, et le
+ *      assez de cartes pour bâtir (au moins 13), une carte neutre sur cinq environ, et le
  *      coach de quelques cartes témoins se lit comme on l'attend ;
  *   2. la confiance : la 3e, la 6e et la 9e carte d'un coach allument I, II,
  *      III, une seule fois ; le report d'une run et le coach du départ
@@ -27,8 +27,9 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
 import { BANQUE, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe } from '../js/banque.js';
-import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier } from '../js/coachs.js';
-import { tirerCartesPack, coachDuPack } from '../js/packs.js';
+import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, GAIN_SYSTEME } from '../js/coachs.js';
+import { tirerCartesPack, coachDuPack, niveauxDuPack } from '../js/packs.js';
+import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -68,7 +69,8 @@ informer('les cartes', `${tous.length} · ${ORDRE_COACHS.map(k => `${COACHS[k].i
 const minces = ORDRE_COACHS.filter(k => idsDuCoach(k).length < 13 || new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size < 3);
 exiger('chaque coach a au moins 13 cartes, dans au moins trois familles', !minces.length,
   ORDRE_COACHS.map(k => `${COACHS[k].nom} ${idsDuCoach(k).length}/${new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size}`).join(' · '));
-borne('les cartes neutres (piocher, lire leur plan)', neutres.length / tous.length, 0, 0.1);
+// v2 (JP : *faudrait quand même des cartes qui sont pas liées à un coach*) : une carte sur cinq environ reste neutre.
+borne('les cartes neutres (sans signal, à peine, ou à parts égales)', neutres.length / tous.length, 0.12, 0.3);
 exiger('le registre a grandi : plus de 280 cartes', tous.length >= 280, `${tous.length}`);
 const TEMOINS = { 'match:lancer': 'essaim', 'match:bloquer': 'tortue', 'match:sagesse': 'choeur', 'match:quatrieme': 'profondeur', 'match:capitaine': 'etoiles',
   'patron:soi_medecin': 'souffle', 'patron:phy_force': 'rhinos', 'patron:att_avantage': 'rapaces', 'plafond:ltir': 'banque', 'evenement:arbitres': 'choeur', 'saison:cadenas': 'tortue' };
@@ -95,6 +97,29 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const d4 = palierAllume([...base, ...deux.slice(0, 2)], deux[2]);
   exiger('le coach du départ compte trois cartes, et la 6e allume II', !palierAllume(base, deux[0]) && d4 && d4.coach.palier === 2, d4 ? `II au jour ${deux[2].jour}` : 'rien');
   exiger('une carte gagnée à un gros match compte pour son coach', buildDe([{ jour: 3, recompense: 'bloquer+' }]).tortue === 1, 'Bloquer des tirs+');
+}
+
+/* 2b. Les systèmes se tiennent : la confiance II fait apprendre son système. */
+{
+  const cartes = idsDuCoach('essaim').slice(0, 6);
+  const decs = [];
+  let ii = null;
+  cartes.forEach((id, i) => { const d = { jour: i, joue: { src: 'partie', id } }; const a = palierAllume(decs, d); if (a && a.coach.palier === 2) ii = a; decs.push({ ...d, ...(a || {}) }); });
+  exiger('la confiance II du Frelon fait apprendre son système à tes avants', !!ii && ii.maitrise && ii.maitrise.tac === COACHS.essaim.systeme && ii.maitrise.gain === GAIN_SYSTEME,
+    ii ? JSON.stringify(ii.maitrise) : 'pas de confiance II');
+}
+
+/* 2c. Le prestige du club : il ouvre les Étoiles et les Phénomènes, run après run. */
+{
+  const rangs = [{}, { ecussonsAVie: 200 }, { ecussonsAVie: 400 }, { ecussonsAVie: 400, jalons: { series: 1 } }, { ecussonsAVie: 5000, jalons: { series: 1, ronde: 1, finale: 1 } }].map(rangDePrestige);
+  exiger('le prestige demande des écussons à vie ET un exploit à chaque rang', rangs.join(',') === '0,1,1,2,4', rangs.join(', '));
+  const lire = (cle, r) => niveauxDuPack(cle, { prestige: PRESTIGES[r] });
+  const somme = t => Object.values(t).reduce((a, b) => a + b, 0);
+  const or = PRESTIGES.map((_, r) => lire('j:hasard_or', r));
+  exiger('au garage, aucun Phénomène ; les Étoiles montent avec chaque rang', or[0].phenomene === 0 && or.every((t, r) => !r || (t.etoile > or[r - 1].etoile && t.phenomene >= or[r - 1].phenomene)),
+    or.map(t => `${t.etoile.toFixed(1)}/${t.phenomene.toFixed(2)}`).join(' → ') + ' % (Étoile/Phénomène, pack Or)');
+  exiger('les taux font toujours 100 %, pack d\'étoiles compris', PRESTIGES.every((_, r) => Math.abs(somme(lire('j:hasard_bronze', r)) - 100) < 1e-9 && Math.abs(somme(lire('j:etoiles', r)) - 100) < 1e-9 && lire('j:etoiles', r).pilier === 0),
+    `Étoiles au garage : ${lire('j:etoiles', 0).etoile.toFixed(0)} % d'étoiles, ${lire('j:etoiles', 0).phenomene.toFixed(0)} % de Phénomènes`);
 }
 
 /* 3. Le scaling. */

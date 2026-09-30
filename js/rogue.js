@@ -143,7 +143,40 @@ export function departDuClasseur(m) {
  * deux vedettes, ou quatre bons joueurs.
  */
 const RESERVE_PLOMBIERS = 45_000_000;
-export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESPACE_DE_DEPART - RESERVE_PLOMBIERS;
+export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESPACE_DE_DEPART - RESERVE_PLOMBIERS + PRESTIGES[rangDePrestige(m)].classeur;
+/*
+ * LE PRESTIGE DU CLUB (v2). JP : *favoriser que l'on peut avoir de plus en plus
+ * de joueurs de qualité selon les runs, sans que ça soit gratuit en faisant une
+ * saison, genre une progression logique*. Un club de garage n'attire pas les
+ * vedettes : le prestige monte avec les écussons gagnés À VIE (jamais ceux
+ * qu'on dépense) ET un exploit à chaque rang — faire les séries, gagner une
+ * ronde, atteindre la finale (les jalons). Une bonne saison ne suffit pas :
+ * il faut des runs, et il faut aller loin.
+ *
+ * Ce qu'il ouvre : les Étoiles et les Phénomènes des packs de joueurs
+ * (`etoile`, `phenomene` multiplient leurs taux ; ce qu'on leur retire va aux
+ * piliers, js/packs.js `niveauxDuPack`), et le budget du classeur
+ * (`classeur`, en dollars de plus au départ d'une run). Le rang est FIXÉ au
+ * départ de la run (`G.rogue.prestige`) : un rang gagné en cours de route
+ * sert la run suivante, et une run reprise retrouve les mêmes packs.
+ */
+export const PRESTIGES = [
+  { nom: 'Club de garage', min: 0, etoile: 0.4, phenomene: 0, classeur: 0, texte: 'Les vedettes ne décrochent pas le téléphone.' },
+  { nom: 'Club de quartier', min: 120, etoile: 0.7, phenomene: 0.3, classeur: 3_000_000, texte: 'On commence à parler de toi au dépanneur.' },
+  { nom: 'Club respecté', min: 350, jalon: 'series', etoile: 1, phenomene: 0.7, classeur: 6_000_000, texte: 'Les agents rappellent.' },
+  { nom: 'Puissance de la ligue', min: 700, jalon: 'ronde', etoile: 1.15, phenomene: 1, classeur: 10_000_000, texte: 'Les joueurs autonomes regardent ton club en premier.' },
+  { nom: 'Dynastie', min: 1200, jalon: 'finale', etoile: 1.3, phenomene: 1.3, classeur: 15_000_000, texte: 'Tout le monde veut jouer pour toi.' },
+];
+/* Les écussons gagnés à vie : le compte, ou — pour un méta d'avant la v2 — ce qu'on a, plus ce qu'on a dépensé au vestiaire. */
+export const ecussonsAVie = m => (m.ecussonsAVie != null ? m.ecussonsAVie
+  : (m.ecussons || 0) + (m.deblocages || []).reduce((a, k) => a + ((DEBLOCAGES[k] && DEBLOCAGES[k].prix) || 0), 0));
+/* Le rang de prestige d'un méta : les rangs se gagnent dans l'ordre, chacun ses écussons à vie ET son jalon. */
+export function rangDePrestige(m) {
+  const e = ecussonsAVie(m);
+  let r = 0;
+  while (r + 1 < PRESTIGES.length && e >= PRESTIGES[r + 1].min && (!PRESTIGES[r + 1].jalon || (m.jalons || {})[PRESTIGES[r + 1].jalon])) r++;
+  return r;
+}
 /* Les cases de réserve de plus d'une run (js/sim.js `RESERVES_EN_PLUS`). */
 export const reservesDeLaRun = m => (aDebloque(m, 'banc2') ? 2 : aDebloque(m, 'banc1') ? 1 : 0);
 /*
@@ -243,6 +276,7 @@ export function payerEcussons(cleRun, etape, n, { equipe = null, bilan = null } 
   const k = `${cleRun}:${etape}`;
   if (m.recompenses[k]) return 0;
   m.recompenses[k] = true;
+  m.ecussonsAVie = ecussonsAVie(m) + Math.max(0, Math.round(n));
   m.ecussons = (m.ecussons || 0) + Math.max(0, Math.round(n));
   // S80 : une run dure plusieurs saisons — on compte les saisons ici, les runs à leur départ.
   if (etape === 'saison') m.saisons = (m.saisons || 0) + 1;
@@ -333,7 +367,7 @@ export function payerJalons(faits) {
     if (r.deblocage) {
       m.deblocages = [...(m.deblocages || []), r.deblocage];
       if (DEBLOCAGES[r.deblocage].personnel) m.personnel = [...new Set([...(m.personnel || []), DEBLOCAGES[r.deblocage].personnel])];
-    } else m.ecussons = (m.ecussons || 0) + r.ecussons;
+    } else { m.ecussonsAVie = ecussonsAVie(m) + r.ecussons; m.ecussons = (m.ecussons || 0) + r.ecussons; }
     payes.push({ ...J, mot: r.mot });
   }
   if (payes.length) ecrireMeta(m);

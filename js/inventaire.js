@@ -89,7 +89,7 @@ function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = n
   return `<div class="bq-carte bq-${c.cat} tc-${c.rarete}${possede ? '' : ' pas-a-moi'}" data-id="${esc(id)}">
     <div class="bq-tete"><span class="bq-ico" aria-hidden="true">${c.ico}</span><span class="bq-nom">${esc(c.nom)}</span>${compte > 1 ? `<span class="bq-compte">×${compte}</span>` : ''}</div>
     <div class="bq-sous"><span>${esc(CATEGORIES[c.cat].un)}</span>${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}<span>${esc(sous)}</span></div>
-    ${COACHS[c.coach] ? `<div class="bq-coach" title="${esc(COACHS[c.coach].mot)}">${COACHS[c.coach].ico} ${esc(COACHS[c.coach].nom)}</div>` : ''}
+    ${COACHS[c.coach] ? `<div class="bq-coach" title="${esc(COACHS[c.coach].mot)}">${COACHS[c.coach].ico} ${esc(COACHS[c.coach].nom)}</div>` : '<div class="bq-coach" title="Elle ne compte pour aucun coach">Neutre</div>'}
     ${possede ? `<div class="bq-regle">${puces(mots)}</div><div class="bq-texte">${esc(c.texte || '')}</div>` : '<div class="bq-regle bq-cache">Pas encore dans ta collection</div>'}
     <div class="bq-pied"><span class="bq-moment moment-${momentDe(id)}" title="${esc(MOMENTS[momentDe(id)].mot)}">${MOMENTS[momentDe(id)].ico} ${esc(MOMENTS[momentDe(id)].nom)}</span><span class="bq-vie vie-${v}" title="${esc(VIES[v] ? VIES[v].mot : '')}">${esc(VIES[v] ? VIES[v].nom : '')}</span><span class="bq-gemme" title="${esc(R.nom)}">${R.gemme}</span></div>
     ${actions ? `<div class="bq-actions">${actions}</div>` : ''}
@@ -171,7 +171,7 @@ export function ouvrirInventaire(ctx) {
           const cible = SEUILS[Math.min(pal, SEUILS.length - 1)];
           return `<div class="inv-coach${pal ? ' allume' : ''}${k === ctx.coachRun ? ' tien' : ''}" data-coach="${k}">
             <div class="inv-coach-tete"><span class="inv-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="inv-coach-rang">${ROMAINS[pal]}</span>` : ''}${k === ctx.coachRun ? '<span class="inv-coach-tien">Ton coach</span>' : ''}</div>
-            <div class="inv-coach-mot">${esc(C.mot)}</div>
+            <div class="inv-coach-mot">${esc(C.mot)}${k === ctx.coachRun ? ` Son dépisteur recrute ${esc(C.recrute)}.` : ''}</div>
             <div class="inv-coach-jauge" aria-label="${n} carte${n > 1 ? 's' : ''} sur ${cible}"><i style="width:${Math.min(100, Math.round((n / SEUILS[SEUILS.length - 1]) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / SEUILS[SEUILS.length - 1]) * 100)}%"${n >= x ? ' class="fait"' : ''}></em>`).join('')}</div>
             <div class="inv-coach-compte">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · encore ${manque} pour ${ROMAINS[pal + 1]}` : ' · confiance au sommet'} · ${idsDuCoach(k).length} cartes de sa couleur</div>
             ${pal ? `<div class="inv-coach-regle"><span>Joue :</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}

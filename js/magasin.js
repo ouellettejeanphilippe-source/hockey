@@ -14,6 +14,7 @@ import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cart
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
 import { esc, money as M } from './util.js';
+import { COACHS } from './coachs.js';
 
 const $ = id => document.getElementById(id);
 
@@ -30,15 +31,16 @@ const pct = x => `${(Math.round(x * 10) / 10).toString().replace('.', ',')} %`;
  * niveau veut dire dans sa vraie saison — un RANG, jamais une cote. Rien pour
  * un pack qui ne tire pas de niveau (un talent, un trio).
  */
-function niveauxHtml(cle) {
-  const nv = niveauxDuPack(cle);
+function niveauxHtml(cle, mods = {}) {
+  const nv = niveauxDuPack(cle, mods);
   if (!nv) return '';
   const lignes = NIVEAUX.map((N, k) => ({ N, k, v: nv[N.cle] })).filter(x => x.v > 0);
   // Pourquoi un niveau peut manquer : le plafond, partout ; et pour un pack d'équipe, un club qui n'a jamais eu de Phénomène.
   const manque = PACKS_TOUS[cle].famille === 'equipe' ? 'sous ton plafond, ou dans ce club' : 'sous ton plafond';
   return `<h4>Le joueur d'une carte</h4>
       <table class="pk-bareme pk-niveaux">${lignes.map(({ N, k, v }) => `<tr><th>${k >= ETOILE ? '★ ' : ''}${esc(N.nom)}</th><td class="pk-rang">${esc(N.rang)}</td><td>${pct(v)}</td></tr>`).join('')}</table>
-      <p class="pk-num">Son rang dans sa vraie saison, parmi les réguliers de son poste : aux points par match, au % d'arrêts pour un gardien. Sans joueur de ce niveau ${manque}, la carte prend le niveau le plus proche.</p>`;
+      <p class="pk-num">Son rang dans sa vraie saison, parmi les réguliers de son poste : aux points par match, au % d'arrêts pour un gardien. Sans joueur de ce niveau ${manque}, la carte prend le niveau le plus proche.</p>
+      ${mods.prestige ? `<p class="pk-num">📈 ${esc(mods.prestige.nom)} : ton prestige ouvre les Étoiles et les Phénomènes, run après run.${mods.coach && COACHS[mods.coach] ? ` ${COACHS[mods.coach].ico} Le dépisteur ${esc(COACHS[mods.coach].de)} recrute ${esc(COACHS[mods.coach].recrute)}.` : ''}</p>` : ''}`;
 }
 export function ouvrirMagasin(ctx) {
   // Dans une page du Club (1.0, R3 : `ctx.dans`, `ctx.fermer`) ou dans sa fenêtre.
@@ -120,7 +122,7 @@ export function ouvrirMagasin(ctx) {
       <h4>Les chances, par pack</h4>
       <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : x.niveau ? ' class="pk-niveau"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' && ctx.plafond ? `<p class="pk-num">💵 Salaires tirés : jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} (ton espace, plus le plus gros contrat qu'une sortie libérerait).</p>` : ''}
-      ${P.sorte === 'joueurs' ? niveauxHtml(cle) : ''}
+      ${P.sorte === 'joueurs' ? niveauxHtml(cle, ctx.mods) : ''}
       <h4>${P.sorte === 'joueurs' ? 'La finition d\'une carte' : 'Le barème d\'une carte'}</h4>
       <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${RARETES[k] ? RARETES[k].gemme : ''} ${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' ? `<p class="pk-num">Une or est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}. Le numéro est un honneur, pas un bonus.</p>` : ''}

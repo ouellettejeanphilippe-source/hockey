@@ -29,11 +29,11 @@
  * (légendaire) pour toute la saison ; trois postes au plus. Un événement ne
  * dure que quelques journées : il change la FORME d'un bout de saison.
  */
-import { CARTES, MUTATIONS, motsDEffet, motsDeMutation, EDITIONS_REGLEMENT } from './sim.js';
+import { CARTES, MUTATIONS, motsDEffet, motsDeMutation, EDITIONS_REGLEMENT, TACTIQUES } from './sim.js';
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus } from './combat.js';
 import { money } from './util.js';
-import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier } from './coachs.js';
+import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, GAIN_SYSTEME } from './coachs.js';
 
 export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Trois postes au plus, un par rôle.' },
@@ -161,6 +161,8 @@ export const PATRONS = {
     effet: { robustesse: 0.5, finition: 0.99 } },
   def_paires: { role: 'defense', nom: 'L\'adjoint de la troisième paire', ico: '🔃', rarete: 'commune', texte: 'Ses deux défenseurs du bas jouent vingt minutes, et ils aiment ça.',
     effet: { D: [0.94, 1, 1.12], energie: 0.98 } },
+  def_echecs: { role: 'defense', nom: 'L\'adjoint des mises en échec', ico: '💢', rarete: 'commune', texte: 'Il compte les mises en échec, pas les buts.',
+    effet: { robustesse: 0.35, volume: 0.995 } },
   att_premier: { role: 'attaque', nom: 'L\'adjoint du premier trio', ico: '📌', rarete: 'peu', texte: 'Il ne dessine des jeux que pour trois joueurs.',
     effet: { F: [1.07, 1.02, 0.97, 0.94], finition: 1.01 } },
 };
@@ -297,6 +299,7 @@ export const EVENEMENTS = {
   plombiers: { nom: 'La soirée des plombiers', ico: '🪛', rarete: 'commune', duree: 5, texte: 'Le quatrième trio a marqué deux fois hier : il joue plus.', effet: { F: [0.95, 1, 1.04, 1.15], energie: 0.97, finition: 0.99 } },
   reservistes: { nom: 'Le match des réservistes', ico: '🎛️', rarete: 'peu', duree: 6, texte: 'Les réservistes jouent une partie entre eux, et reviennent affamés.', effet: { F: [0.96, 0.98, 1.05, 1.12], D: [0.95, 1, 1.08], blessure: 0.92, finition: 0.99 } },
   etoiles: { nom: 'La semaine du match des étoiles', ico: '🤩', rarete: 'peu', duree: 5, texte: 'Tes vedettes reviennent de la fête avec un trophée et des cernes.', effet: { F: [1.1, 1.03, 0.97, 0.9], finition: 1.02, energie: 1.04 } },
+  policiers: { nom: 'Le retour des policiers', ico: '👮', rarete: 'peu', duree: 8, texte: 'Deux durs rappelés du club-école : plus personne ne touche aux vedettes.', effet: { robustesse: 0.7, discipline: 1.1 } },
   code: { nom: 'Le code de conduite', ico: '📜', rarete: 'commune', duree: 10, texte: 'Affiché au-dessus de chaque casier.', effet: { discipline: 0.88, robustesse: -0.2 } },
 };
 
@@ -341,6 +344,7 @@ export const CONSOMMABLES = {
   cryo: { nom: 'La cryothérapie', ico: '🥶', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { energieTous: 15 }, effet: { finition: 0.98 }, duree: 3, texte: 'Trois minutes à moins cent dix. Les mains gèlent aussi.' },
   vacances: { nom: 'Le partant en vacances', ico: '🏝️', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { gardienAux: 5 }, effet: { energie: 0.97 }, duree: 5, texte: 'Une semaine au soleil pour le partant ; l\'auxiliaire a sa chance.' },
   pizza: { nom: 'Le souper des trios', ico: '🍕', rarete: 'commune', vie: 'usage', cible: 'tactique', maitrise: 0.15, texte: 'Chaque trio à sa table, et le cahier de jeux entre les pointes.' },
+  epaulettes: { nom: 'Les épaulettes de football', ico: '🏈', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { robustesse: 1, energie: 1.05 }, duree: 4, texte: 'Trop grosses, trop lourdes, et plus personne n\'a peur de la bande.' },
   coudieres: { nom: 'Les coudières de bois', ico: '🪵', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { robustesse: 0.8, discipline: 1.08 }, duree: 4, texte: 'Des protège-coudes d\'une autre époque. L\'arbitre fronce les sourcils.' },
   carteBlanche: { nom: 'La carte blanche au quatrième', ico: '📝', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { F: [0.92, 1, 1.05, 1.2], energie: 0.95, finition: 0.99 }, duree: 4, texte: 'Le quatrième trio commence les matchs, et il les finit.' },
   premierTrio: { nom: 'Le premier trio ce soir', ico: '🔝', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { F: [1.25, 1.03, 0.9, 0.8], finition: 1.01, energie: 1.05 }, duree: 2, texte: 'Deux soirs, tes trois meilleurs sautent sur la glace un tour sur deux.' },
@@ -766,7 +770,10 @@ export function palierAllume(decisions = [], d) {
   const avant = buildDe(decisions)[e];
   const deja = Math.max(palierDe(avant), ...coachsActifs(decisions).filter(x => x.cle === e).map(x => x.palier));
   const p = palierDe(avant + 1);
-  return p > deja ? { coach: effetDePalier(e, p) } : null;
+  if (p <= deja) return null;
+  // La confiance II fait apprendre son système à tes avants (le stage de système, une décision `maitrise`).
+  const sys = p === 2 && COACHS[e].systeme;
+  return { coach: effetDePalier(e, p), ...(sys ? { maitrise: { tac: sys, gain: GAIN_SYSTEME } } : {}) };
 }
 /* Ce qu'une confiance fait, en mots — les canaux, les minutes, la boutique. */
 export function reglesDePalier(cle, palier) {
@@ -778,5 +785,7 @@ export function reglesDePalier(cle, palier) {
   if (econ && econ.rabais) out.push({ txt: `Packs ${Math.round((econ.rabais - 1) * 100)} %`, bon: true });
   if (econ && econ.jetonsVictoire) out.push({ txt: `+${econ.jetonsVictoire} 🪙 par victoire`, bon: true });
   if (econ && econ.plafond) out.push({ txt: `Plafond salarial +${Math.round(econ.plafond * 100)} %`, bon: true });
+  const sys = palier === 2 && COACHS[cle].systeme && TACTIQUES[COACHS[cle].systeme];
+  if (sys) out.push({ txt: `Tes avants apprennent ${sys.ico} ${sys.nom} (+${Math.round(GAIN_SYSTEME * 100)} % de maîtrise)`, bon: true });
   return out;
 }

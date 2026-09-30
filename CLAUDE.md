@@ -163,6 +163,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **carrure** : 🪨 costaud ou 🪶 léger ; elle décide de ce que rapporte l'agressivité.
 - **coach** : une des neuf philosophies de `js/coachs.js` (🐝 le Frelon, 🐢 la Tortue…) ; chaque carte a la couleur d'un coach. Pas « école », pas « build » à l'écran.
 - **confiance** : I, II, III — le vestiaire croit à un coach à 3, 6 et 9 cartes jouées de sa couleur ; sa philosophie joue alors la saison.
+- **prestige** : le rang du club d'une run à l'autre (`js/rogue.js`, du Club de garage à la Dynastie) — écussons gagnés à vie et un exploit par rang ; il ouvre les Étoiles et les Phénomènes des packs.
 - **élan** : la mana des cartes de match (trois par main, « 1 élan » sur une carte).
 - **plombier** : le rôle 🪠 d'un attaquant de quatrième trio qui lance et frappe en peu de minutes ; le système 🧰 Trio de plombiers.
 - **usure des jambes** : ce qu'un match coûte aux jambes (la puce « Usure des jambes +12 % »).
