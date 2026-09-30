@@ -23,9 +23,9 @@ const MAX_PARTIES = 24;
 
 /* Les trois familles de parties, telles que le menu les range. */
 export const GENRES = {
-  saison: { ico: '🏒', nom: 'La saison', mot: 'Le repêchage, 82 matchs, les séries' },
-  table: { ico: '🎲', nom: 'Sur table', mot: 'Le tournoi au plateau, pièce par pièce' },
-  rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Des plombiers, des packs, une run de plusieurs saisons' },
+  saison: { ico: '🏒', nom: 'La saison', mot: '82 matchs, puis les séries' },
+  table: { ico: '🎲', nom: 'Sur table', mot: 'Le plateau, pièce par pièce' },
+  rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Une run. Des packs. Le proprio.' },
 };
 /* Le genre d'une sauvegarde, lu dans ce qu'elle porte. */
 const genreDe = data => (data && data.bonus === 'TABLE' ? 'table' : data && data.bonus === 'ROGUE' ? 'rogue' : 'saison');
@@ -40,10 +40,6 @@ export function lireIndex() {
 }
 function ecrireIndex(ix) { ecrire(INDEX, ix); }
 
-/*
- * LA MIGRATION : une sauvegarde d'avant S77 devient la première partie de
- * l'index, active. Rien ne se perd au passage à la nouvelle version.
- */
 export function migrer() {
   const ix = lireIndex();
   if (ix.parties.length) return;
@@ -61,14 +57,8 @@ export function migrer() {
 export const partieActive = () => { const ix = lireIndex(); return ix.parties.find(p => p.id === ix.actif) || null; };
 const lirePartie = id => (id ? lire(cle(id)) : null);
 export const lirePartieActive = () => { const a = partieActive(); return a ? lirePartie(a.id) : null; };
-/* La plus récente d'un genre : ce que « Reprendre » ouvre sur la carte du mode. */
 export const derniereDuGenre = g => lireIndex().parties.filter(p => p.genre === g).sort((a, b) => b.maj - a.maj)[0] || null;
 
-/*
- * ÉCRIRE LA PARTIE ACTIVE. `saveGame` passe ici à chaque geste : la partie
- * active est réécrite, son résumé et sa date aussi. Sans partie active (le
- * tout premier geste d'un joueur neuf), on en crée une.
- */
 export function ecrirePartieActive(data, resume = null) {
   const ix = lireIndex();
   let a = ix.parties.find(p => p.id === ix.actif);
@@ -85,20 +75,11 @@ export function ecrirePartieActive(data, resume = null) {
   ecrireIndex(ix);
 }
 
-/*
- * UNE PARTIE NEUVE. Elle devient active ; l'ancienne reste dans la liste.
- * Une partie qui n'a encore RIEN (le repêchage à peine tiré, personne de
- * signé) est réutilisée plutôt que multipliée : relancer la roulette trois
- * fois ne doit pas laisser trois parties vides au menu.
- */
 export function nouvellePartie(genre, titre = null) {
   const ix = lireIndex();
   const a = ix.parties.find(p => p.id === ix.actif);
-  // Rien d'écrit encore (créée par le menu, pas encore jouée) ou rien à perdre : on la reprend.
   let rien = false; try { rien = !localStorage.getItem(cle(a ? a.id : '')); } catch { /* ignore */ }
   if (a && ((a.resume && a.resume.vierge) || rien)) {
-    // On reprend la PLACE, pas l'état (S79) : une partie neuve repart à neuf. Sans ça, la
-    // saison vide qu'on quittait prêtait son identité déjà réglée à la table qu'on commençait.
     try { localStorage.removeItem(cle(a.id)); } catch { /* ignore */ }
     a.genre = genre; a.titre = titre || GENRES[genre].nom; a.maj = Date.now(); a.resume = null;
     ecrireIndex(ix);
@@ -107,7 +88,6 @@ export function nouvellePartie(genre, titre = null) {
   const id = idNeuf();
   ix.parties.push({ id, genre, titre: titre || GENRES[genre].nom, cree: Date.now(), maj: Date.now(), resume: null });
   ix.actif = id;
-  // Au-delà du plafond, la plus vieille partie non épinglée s'en va.
   while (ix.parties.length > MAX_PARTIES) {
     const vieilles = ix.parties.filter(p => p.id !== id && !p.copie).sort((x, y) => x.maj - y.maj);
     const v = vieilles[0] || ix.parties.filter(p => p.id !== id).sort((x, y) => x.maj - y.maj)[0];
@@ -135,11 +115,6 @@ export function supprimer(id) {
   ecrireIndex(ix);
 }
 
-/*
- * SAUVEGARDER UNE COPIE : un instantané de la partie, qu'on peut reprendre
- * plus tard même si l'original a continué. La copie est « épinglée » : le
- * plafond ne la jette pas.
- */
 export function copier(id) {
   const ix = lireIndex();
   const src = ix.parties.find(p => p.id === id);
@@ -152,6 +127,8 @@ export function copier(id) {
   ecrireIndex(ix);
   return nid;
 }
+
+export const partiesDuGenre = g => lireIndex().parties.filter(p => p.genre === g).sort((a, b) => b.maj - a.maj);
 
 /*
  * LE FICHIER TRANSFÉRABLE (1.0). Une partie vit dans le stockage du navigateur
@@ -190,6 +167,3 @@ export function importer(texte) {
   ecrireIndex(ix);
   return id;
 }
-
-/* Toutes les parties d'un genre, la plus récente en tête. */
-export const partiesDuGenre = g => lireIndex().parties.filter(p => p.genre === g).sort((a, b) => b.maj - a.maj);
