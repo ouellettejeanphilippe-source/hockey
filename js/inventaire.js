@@ -21,7 +21,7 @@
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
 import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, reglesDePalier, idsDuCoach } from './banque.js';
-import { COACHS, ORDRE_COACHS, SEUILS, ROMAINS, palierDe, avantProchain } from './coachs.js';
+import { COACHS, ORDRE_COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH, JOUEURS_MAX } from './coachs.js';
 import { tirerCartesPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch } from './gerant.js';
@@ -165,7 +165,7 @@ export function ouvrirInventaire(ctx) {
        */
       const allumes = new Map((ctx.coachsActifs || []).map(x => [x.cle, x.palier]));
       const ordre = ORDRE_COACHS.slice().sort((a, b) => (b === ctx.coachRun) - (a === ctx.coachRun) || (ctx.build[b] || 0) - (ctx.build[a] || 0));
-      corps = `<p class="inv-mot">Chaque carte jouée compte pour le coach de sa couleur. À ${SEUILS.join(', ')} cartes, le vestiaire croit à lui (${ROMAINS.slice(1).join(', ')}) : sa philosophie joue pour le reste de la saison, séries comprises.${ctx.mode === 'rogue' ? ' Le compte suit ta run d\'une saison à l\'autre.' : ''}</p>
+      corps = `<p class="inv-mot">Chaque carte jouée compte pour le coach de sa couleur. À ${SEUILS.join(', ')} cartes, le vestiaire croit à lui (${ROMAINS.slice(1).join(', ')}) : sa philosophie joue pour le reste de la saison, séries comprises. Chaque joueur de sa couleur habillé la fait jouer ${Math.round(JOUEUR_COACH * 100)} % plus fort (jusqu'à ${JOUEURS_MAX}).${ctx.mode === 'rogue' ? ' Le compte suit ta run d\'une saison à l\'autre.' : ''}</p>
         <div class="inv-coachs">${ordre.map(k => {
           const C = COACHS[k], n = ctx.build[k] || 0, pal = Math.max(palierDe(n), allumes.get(k) || 0), manque = avantProchain(n);
           const cible = SEUILS[Math.min(pal, SEUILS.length - 1)];
@@ -174,6 +174,7 @@ export function ouvrirInventaire(ctx) {
             <div class="inv-coach-mot">${esc(C.mot)}${k === ctx.coachRun ? ` Son dépisteur recrute ${esc(C.recrute)}.` : ''}</div>
             <div class="inv-coach-jauge" aria-label="${n} carte${n > 1 ? 's' : ''} sur ${cible}"><i style="width:${Math.min(100, Math.round((n / SEUILS[SEUILS.length - 1]) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / SEUILS[SEUILS.length - 1]) * 100)}%"${n >= x ? ' class="fait"' : ''}></em>`).join('')}</div>
             <div class="inv-coach-compte">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · encore ${manque} pour ${ROMAINS[pal + 1]}` : ' · confiance au sommet'} · ${idsDuCoach(k).length} cartes de sa couleur</div>
+            ${k !== 'banque' ? `<div class="inv-coach-compte">${(ctx.joueurs || {})[k] || 0} joueur${((ctx.joueurs || {})[k] || 0) > 1 ? 's' : ''} de sa couleur habillé${((ctx.joueurs || {})[k] || 0) > 1 ? 's' : ''}${pal && (ctx.joueurs || {})[k] ? ` : sa confiance joue ×${String(Math.round((1 + JOUEUR_COACH * Math.min(JOUEURS_MAX, ctx.joueurs[k])) * 10) / 10).replace('.', ',')}` : ''}</div>` : ''}
             ${pal ? `<div class="inv-coach-regle"><span>Joue :</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
             ${manque ? `<div class="inv-coach-regle suite"><span>${ROMAINS[pal + 1]} :</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
           </div>`;

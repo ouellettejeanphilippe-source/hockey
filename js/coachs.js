@@ -52,6 +52,44 @@
 export const SEUILS = [3, 6, 9];
 export const ROMAINS = ['', 'I', 'II', 'III'];
 
+/*
+ * LA COULEUR D'UN JOUEUR (v2). JP : *je veux que les cartes de joueurs aient
+ * des synergies avec certaines cartes, même chose pour coach*. Un joueur est de
+ * la couleur du coach de son MEILLEUR RÔLE, s'il le maîtrise (« bon » et plus,
+ * `ROLE_BON`, les mots de la fiche) : lu dans ses vraies stats, jamais dans une
+ * cote. Un style posé qui déplace ses rôles déplace aussi sa couleur. Un
+ * gardien, ou un joueur sans rôle maîtrisé, n'en a pas. Le Comptable n'a pas
+ * de joueurs : il paie.
+ */
+export const ROLE_BON = 55;
+export const COACH_DU_ROLE = {
+  F: { sniper: 'rapaces', passeur: 'etoiles', deuxsens: 'tortue', power: 'essaim', checker: 'profondeur', energie: 'souffle', bagarreur: 'rhinos' },
+  D: { defensif: 'tortue', offensif: 'essaim', manieur: 'choeur', physique: 'rhinos', deuxsens: 'tortue' },
+};
+/* Le coach de ces rôles (`profilsDe`, js/sim.js) pour un avant ('F') ou un défenseur ('D'), ou null. */
+export function coachDesRoles(roles, groupe) {
+  if (!roles || !COACH_DU_ROLE[groupe]) return null;
+  const [role, score] = Object.entries(roles).filter(([k]) => COACH_DU_ROLE[groupe][k]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] || [];
+  return role && score >= ROLE_BON ? COACH_DU_ROLE[groupe][role] : null;
+}
+/*
+ * SES JOUEURS PORTENT UN COACH : la confiance d'un coach joue `JOUEUR_COACH`
+ * plus fort (l'écart de chaque canal à 1) par joueur de sa couleur HABILLÉ,
+ * jusqu'à `JOUEURS_MAX` — compté au soir du match (js/sim.js `coachsJoues`) :
+ * signer un sniper renforce l'Aigle dès le lendemain.
+ */
+export const JOUEUR_COACH = 0.1, JOUEURS_MAX = 5;
+/* L'effet d'une confiance, porté par `n` joueurs de sa couleur : chaque canal s'éloigne de 1 d'autant plus (les minutes et la boutique restent). */
+export function porteParSesJoueurs(c, n) {
+  const k = 1 + JOUEUR_COACH * Math.min(JOUEURS_MAX, n || 0);
+  if (k === 1) return c;
+  const out = { ...c };
+  for (const [cle, v] of Object.entries(c)) {
+    if (typeof v !== 'number' || cle === 'palier') continue;
+    out[cle] = cle === 'robustesse' ? v * k : 1 + (v - 1) * k;
+  }
+  return out;
+}
 /* La maîtrise que la confiance II d'un coach donne à son système (js/sim.js, `maitrise` d'une décision). */
 export const GAIN_SYSTEME = 0.25;
 /*

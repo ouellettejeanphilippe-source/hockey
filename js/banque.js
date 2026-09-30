@@ -349,6 +349,21 @@ export const CONSOMMABLES = {
   carteBlanche: { nom: 'La carte blanche au quatrième', ico: '📝', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { F: [0.92, 1, 1.05, 1.2], energie: 0.95, finition: 0.99 }, duree: 4, texte: 'Le quatrième trio commence les matchs, et il les finit.' },
   premierTrio: { nom: 'Le premier trio ce soir', ico: '🔝', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { F: [1.25, 1.03, 0.9, 0.8], finition: 1.01, energie: 1.05 }, duree: 2, texte: 'Deux soirs, tes trois meilleurs sautent sur la glace un tour sur deux.' },
   reglement: { nom: 'Le livre des règlements', ico: '📕', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { discipline: 0.8, volume: 0.99 }, duree: 5, texte: 'Chaque joueur le lit dans l\'autobus. Il ne tire plus de peur de cingler.' },
+  /*
+   * v2 — LES CARTES DE VESTIAIRE : une par coach (le Comptable n'a pas de
+   * joueurs), qui grandit avec les JOUEURS de sa couleur habillés quand on la
+   * joue (`parJoueur`, js/coachs.js `coachDesRoles`) : cinq snipers font de
+   * « La clé du coin supérieur » une vraie semaine. Des cartes de joueurs qui
+   * font vivre des cartes de banque.
+   */
+  tambourPointe: { nom: 'Le tambour de la pointe', ico: '🥁', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'essaim', effet: { volume: 1.01 }, duree: 5, parJoueur: { par: { volume: 0.008 }, max: 5 }, texte: 'Tes défenseurs offensifs et tes power forwards donnent le rythme.' },
+  cleCoin: { nom: 'La clé du coin supérieur', ico: '🗝️', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'rapaces', effet: { finition: 1.01 }, duree: 5, parJoueur: { par: { finition: 0.008 }, max: 5 }, texte: 'Tes snipers ont trouvé le trou au-dessus de l\'épaule du gardien.' },
+  murPierre: { nom: 'Le mur de pierre', ico: '🗿', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'tortue', effet: { defense: 0.99 }, duree: 5, parJoueur: { par: { defense: -0.006 }, max: 5 }, texte: 'Tes joueurs de devoir ne sortent plus de leur zone.' },
+  tambourGuerre: { nom: 'Le tambour de guerre', ico: '🪘', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'rhinos', effet: { robustesse: 0.1 }, duree: 5, parJoueur: { par: { robustesse: 0.15 }, max: 5 }, texte: 'Tes durs frappent le banc avec leurs bâtons avant la mise au jeu.' },
+  brise: { nom: 'La brise du quatrième', ico: '🎐', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'souffle', effet: { energie: 0.98, blessure: 0.97 }, duree: 5, parJoueur: { par: { energie: -0.015, blessure: -0.02 }, max: 5 }, texte: 'Tes plombiers patinent pour tout le monde.' },
+  partition: { nom: 'La partition des manieurs', ico: '🎼', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'choeur', effet: { discipline: 0.97 }, duree: 5, parJoueur: { par: { discipline: -0.03 }, max: 5 }, texte: 'Tes défenseurs manieurs gardent la rondelle, et personne ne s\'énerve.' },
+  epingles: { nom: 'Les épingles du tableau', ico: '🧷', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'profondeur', effet: { F: [0.97, 1, 1.03, 1.08], energie: 0.99 }, duree: 5, parJoueur: { par: { energie: -0.01 }, max: 5 }, texte: 'Tes checkers ont chacun leur épingle au tableau des présences.' },
+  disco: { nom: 'La boule disco', ico: '🪩', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'etoiles', effet: { F: [1.05, 1.02, 0.98, 0.95], finition: 1.005 }, duree: 5, parJoueur: { par: { finition: 0.006 }, max: 5 }, texte: 'Tes passeurs allument le vestiaire après chaque victoire.' },
   capitaineC: { nom: 'Le C cousu en réserve', ico: '🪢', rarete: 'rare', vie: 'permanent', cible: 'aucune', effet: { discipline: 0.9, defense: 0.98 }, duree: 10, texte: 'Un deuxième capitaine, prêt quand le premier se tait.' },
 };
 
@@ -594,6 +609,7 @@ export function reglesDe(id) {
     if (C.maitrise) out.push({ txt: `Maîtrise d'un système +${Math.round(C.maitrise * 100)} %`, bon: true }, { txt: '🔗 Carte de trio : forte au début de la saison, elle plafonne (une ligne apprend son système en jouant)', bon: null });
     if (C.cible === 'malediction') out.push({ txt: 'Retire 1 malédiction du deck', bon: true });
     if (C.cible === 'carteMatch') out.push({ txt: '1 carte du deck devient « + »', bon: true });
+    if (C.parJoueur) out.push(motDeJoueurs(C.parJoueur, c.coach));
     return out;
   }
   if (c.cat === 'plafond') {
@@ -608,11 +624,30 @@ export function reglesDe(id) {
   if (c.cat === 'saison') return motsDEffet(CARTES[c.cle]);
   return [];
 }
+/*
+ * UN PAS, EN MOTS : « Tirs +0,4 % », « Robustesse +0,15 ». Un pas s'AJOUTE à
+ * l'effet (js/banque.js `grandi`) : ce n'est pas un multiplicateur, et il est
+ * trop petit pour l'arrondi de `motsDEffet` — on garde son libellé (lu sur un
+ * effet témoin) et on écrit le nombre à la main.
+ */
+const decimale = x => String(Math.round(x * 100) / 100).replace('.', ',');
+function motsDuPas(par = {}) {
+  return Object.entries(par).map(([k, v]) => {
+    const libelle = ((motsDEffet({ [k]: k === 'robustesse' ? 1 : 1.1 })[0] || {}).txt || k).replace(/\s*[+−±].*$/, '');
+    return k === 'robustesse' ? `${libelle} ${v >= 0 ? '+' : '−'}${decimale(Math.abs(v))}` : `${libelle} ${v >= 0 ? '+' : '−'}${decimale(Math.abs(v) * 100)} %`;
+  });
+}
 /* « Tirs +0,4 % par carte 🐝 du Frelon jouée (au plus 10) » : ce qu'une carte de coach gagne en grandissant. */
 function motDEchelle(E, coach) {
   const Ec = COACHS[coach] || { ico: '', nom: '' };
-  const pas = [...motsDEffet(E.par || {}).map(x => x.txt.replace(/(\d),0 %/, '$1 %')), ...(E.gain ? [`+${E.gain} 🪙`] : [])].join(', ');
+  const pas = [...motsDuPas(E.par), ...(E.gain ? [`+${E.gain} 🪙`] : [])].join(', ');
   return { txt: `${pas} par carte ${Ec.ico} ${Ec.de} jouée (au plus ${E.max})`, bon: true };
+}
+/* « Précision +0,8 % par joueur de l'Aigle habillé (au plus 5) » : ce qu'une carte gagne de tes joueurs. */
+function motDeJoueurs(J, coach) {
+  const Ec = COACHS[coach] || { de: '' };
+  const pas = motsDuPas(J.par).join(', ');
+  return { txt: `${pas} par joueur ${Ec.de} habillé (au plus ${J.max})`, bon: true };
 }
 function motsDesGestes(g) {
   const out = [];
@@ -658,16 +693,18 @@ export function modificateurs(decisions = [], jusqua = Infinity) {
  * jetons (`gain`, plus `echelle.gain` par carte). Une carte sans échelle rend
  * son effet tel quel. Les chiffres entrent dans la décision.
  */
-function grandi(X, coach, build = {}) {
+function grandi(X, coach, build = {}, joueurs = {}) {
   const effet = { ...(X.effet || {}) };
   let gain = X.gain || 0;
+  const ajouter = (par, n) => { for (const [k, v] of Object.entries(par || {})) effet[k] = Math.round(((effet[k] ?? (k === 'robustesse' ? 0 : 1)) + v * n) * 10000) / 10000; };
   const E = X.echelle;
   const n = E ? Math.min(E.max || Infinity, (build && build[X.coach || coach]) || 0) : 0;
-  if (n) {
-    for (const [k, v] of Object.entries(E.par || {})) effet[k] = Math.round(((effet[k] ?? (k === 'robustesse' ? 0 : 1)) + v * n) * 10000) / 10000;
-    gain += (E.gain || 0) * n;
-  }
-  return { effet, gain, n };
+  if (n) { ajouter(E.par, n); gain += (E.gain || 0) * n; }
+  // v2 : ses JOUEURS — ceux de la couleur de la carte, habillés quand on la joue.
+  const J = X.parJoueur;
+  const nj = J ? Math.min(J.max || Infinity, (joueurs && joueurs[X.coach || coach]) || 0) : 0;
+  if (nj) ajouter(J.par, nj);
+  return { effet, gain, n, nj };
 }
 /*
  * LA DÉCISION D'UNE CARTE JOUÉE : les champs que le moteur connaît, et ses
@@ -675,12 +712,12 @@ function grandi(X, coach, build = {}) {
  * engagés (pour le remplacement et la synergie). \`sel\` : de quoi tirer un
  * pari (le billet de loterie), pur.
  */
-export function payloadDe(id, { joueur = null, tactique = null, carte = null, patrons = [], alea = null, build = {} } = {}) {
+export function payloadDe(id, { joueur = null, tactique = null, carte = null, patrons = [], alea = null, build = {}, joueurs = {} } = {}) {
   const c = carteBanque(id);
   if (!c) return null;
   if (c.cat === 'patron') {
     const P = PATRONS[c.cle];
-    const effet = grandi(P, c.coach, build).effet;
+    const effet = grandi(P, c.coach, build, joueurs).effet;
     let synergie = false;
     if (P.synergie && patrons.some(x => x.role === P.synergie.avec)) {
       synergie = true;
@@ -691,13 +728,13 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
   }
   if (c.cat === 'evenement') {
     const E = EVENEMENTS[c.cle];
-    const { effet, gain } = grandi(E, c.coach, build);
+    const { effet, gain } = grandi(E, c.coach, build, joueurs);
     return { effet: { nom: E.nom, ico: E.ico, duree: E.duree, ...effet, ...(E.regle ? { regle: true } : {}) }, ...(E.gestes ? { gestes: { ...E.gestes } } : {}), ...(gain ? { gain } : {}) };
   }
   if (c.cat === 'joueur') return joueur ? { mutation: { cle: c.cle, joueur } } : null;
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
-    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...C.effet, ...(C.regle ? { regle: true } : {}) } : null;
+    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...grandi(C, c.coach, build, joueurs).effet, ...(C.regle ? { regle: true } : {}) } : null;
     if (C.cible === 'blesse' || C.cible === 'joueur') {
       if (!joueur) return null;
       return { gestes: { ...C.gestes, joueurs: [joueur] }, ...(effet ? { effet } : {}) };

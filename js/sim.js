@@ -16,6 +16,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne } from './util.js';
+import { coachDesRoles, porteParSesJoueurs } from './coachs.js';
 
 export const CAP = 95_500_000;
 /*
@@ -1213,6 +1214,31 @@ export const ROULEMENTS = {
 export const planDe = t => PLANS[(t && t.plan) || 'equilibre'] ? ((t && t.plan) || 'equilibre') : 'equilibre';
 export const roulementDe = t => ROULEMENTS[(t && t.roulement) || 'quatre'] ? ((t && t.roulement) || 'quatre') : 'quatre';
 
+/*
+ * LES COACHS D'UNE ÉQUIPE, PORTÉS PAR SES JOUEURS (v2, js/coachs.js) : la
+ * couleur d'un joueur est le coach de son meilleur rôle maîtrisé
+ * (`coachDuJoueur`) ; chaque confiance joue plus fort par joueur de sa couleur
+ * habillé ce soir. Un seul endroit la calcule : les effets de la saison, les
+ * minutes et l'usure lisent tous `coachsJoues`.
+ */
+export const coachDuJoueur = p => (!p || p.p === 'G' ? null : coachDesRoles(profilsDe(p), estD(p) ? 'D' : 'F'));
+export function joueursDesCoachs(team) {
+  const n = {};
+  for (const s of SLOTS) {
+    if (s.scratch) continue;
+    const p = team && team.roster && team.roster[s.i];
+    const c = p && !(team.injured && team.injured.has(p)) ? coachDuJoueur(p) : null;
+    if (c) n[c] = (n[c] || 0) + 1;
+  }
+  return n;
+}
+function coachsJoues(team) {
+  const cs = (team && team.coachs) || [];
+  if (!cs.length) return cs;
+  const n = joueursDesCoachs(team);
+  return cs.map(c => porteParSesJoueurs(c, n[c.cle]));
+}
+
 /**
  * Ce que la SAISON d'une équipe multiplie : ses cartes, son plan de match et
  * son roulement, sur les mêmes canaux. Un seul endroit les additionne, donc
@@ -1227,7 +1253,7 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   const actifs = effetsActifs(team);
   // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
   // LES COACHS (v2, js/coachs.js) : la confiance du vestiaire, lue comme un patron.
-  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []), ...((team && team.coachs) || []),
+  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []), ...coachsJoues(team),
     ROULEMENTS[roulementDe(team)], ...actifs];
   for (const c of sources) {
     if (!c) continue;
@@ -1254,7 +1280,7 @@ export function partsDuRoulement(base, group, team) {
   // brasser les trios) : ses multiplicateurs s'ajoutent à ceux du roulement,
   // et la renormalisation tient toujours la somme.
   // v2 : un patron ou la confiance d'un coach (le Contremaître, le Showman) déplacent aussi les minutes, toute la saison.
-  for (const x of [...effetsActifs(team), ...((team && team.patrons) || []), ...((team && team.coachs) || [])]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
+  for (const x of [...effetsActifs(team), ...((team && team.patrons) || []), ...coachsJoues(team)]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
   // LES SECONDES DE PRÉSENCE DE CHAQUE LIGNE (S68), à la HockeyArena : 60 est
   // la glace que le moteur a mesurée ; 70 donne un sixième de glace de plus.
   const L = team && team.lignes;
@@ -2278,7 +2304,7 @@ function usureLigne(l, part, partMoy, groupe = 'F') {
 }
 /* Le multiplicateur d'usure des effets, des cartes de saison et des patrons. */
 function kUsure(team) {
-  const src = [...effetsActifs(team), ...((team && team.patrons) || []), ...((team && team.coachs) || []), ...((team && team.cartes) || []).map(c => CARTES[c])];
+  const src = [...effetsActifs(team), ...((team && team.patrons) || []), ...coachsJoues(team), ...((team && team.cartes) || []).map(c => CARTES[c])];
   return src.reduce((a, x) => a * ((x && x.energie) || 1), 1);
 }
 /* L'usure de chaque ligne ce soir : { F: [4], D: [3] }. */

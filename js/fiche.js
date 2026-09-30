@@ -16,7 +16,7 @@ import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
 import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
-import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag } from './game.js';
+import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
 /* =====================================================================
    Hexagone (seulement si le brouillard est levé)
@@ -408,7 +408,7 @@ export function showPlayerModal(p, opts = {}) {
     ? nb('PJ', st.gp) + nb('V', st.w, true) + nb('D', st.l) + nb('BL', st.so) + nb('%ARR', p.sv ?? '—') + nb('MBA', p.ga ?? '—')
     : nb('PJ', st.gp) + nb('B', st.g) + nb('A', st.a) + nb('PTS', st.pt, cle.u === 'PTS')
       + (cle.u === 'MÉ/M' || cle.u === 'TB/M' ? nb(cle.u, cle.v, true) : nb('+/M', pmStr, cle.u === '+/M')) + nb('PUN', p.pim ?? '—', cle.u === 'PUN');
-  const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p)}${realTag(p)}`;
+  const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p) + coachTag(p)}${realTag(p)}`;
   const milieuVerso = `${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
     ${saCarte}
