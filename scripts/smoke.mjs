@@ -44,6 +44,7 @@ let toastVu = false;           // le premier toast d'une signature, mesuré une 
  * jamais serait un choix qui ne s'affiche jamais.
  */
 const choixVus = new Map();
+const parisPris = [], parisDits = [];   // les paris pris, et ce que la boîte en a dit
 const _click = page.click.bind(page);
 const _wait = page.waitForSelector.bind(page);
 /*
@@ -526,9 +527,16 @@ async function repondreAuxChoix() {
     const sansPuce = await page.$$eval('#choixModal .choix-option', els => els.filter(e => !e.querySelector('.puce')).length);
     if (sansPuce && genre !== 'hub-proprio') errors.push(`le choix « ${titre} » a ${sansPuce} option(s) sans effet chiffré`);
     choixVus.set(genre, [...(choixVus.get(genre) || []), titre]);
+    // UN PARI SE TRANCHE AU CHOIX : la boîte dit tout de suite comment il a tourné (un avant-match, lui, le soir du match).
+    const pari = /Pari/.test(await opt.$eval('.choix-forme', e => e.textContent).catch(() => '')) && !(await page.$('#choixModal .choix-avant'));
     await opt.click();
     await ecranPret();
     await page.waitForTimeout(350);
+    if (pari) {
+      parisPris.push(titre);
+      const mot = await page.$eval('#hubModal .hub-msg[data-msg="pari"] .hub-msg-sujet', e => e.textContent.trim()).catch(() => '');
+      if (mot) parisDits.push(mot);
+    }
   }
 }
 /*
@@ -3311,6 +3319,8 @@ console.log(`   qui sort, dans l'alignement (S80) : ${alignementsVus.length ? `$
 console.log(`   paquets ouverts : ${paquetsVus.length ? paquetsVus.join(' · ') : 'aucun (pas de gros match gagné ni de série gagnée)'}`);
 // LE SOMMAIRE DE LA JOURNÉE (S78) : après une avance où ton club a joué, avant le retour au hub.
 console.log(`   sommaires de journée lus : ${sommairesVus} · paliers joués en passant : ${paliersJoues.join(' · ') || 'aucun'}`);
+if (parisPris.length && !parisDits.length) errors.push(`${parisPris.length} pari(s) pris (${parisPris.slice(0, 3).join(' · ')}), et la boîte n'a jamais dit comment il a tourné`);
+else if (parisPris.length) console.log(`   paris tranchés : ${parisPris.length} pris, la boîte en dit ${parisDits.length} — « ${parisDits[0]} »`);
 if (!sommairesVus) errors.push('aucun sommaire de journée après « Journée suivante », alors que ton club a joué');
 console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
 console.log(`   identités de départ prises : ${identitesVues.join(' · ') || 'aucune'}`);
