@@ -1532,8 +1532,20 @@ console.log(`3. #mainBtn actif : ${enabled}`);
    fin et au bilan. */
 async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
-  await page.click('#hubModal .hub-jour');
-  await page.waitForTimeout(150);
+  /*
+   * LE VRAI CALENDRIER (1.0, oct.) : ton club peut être en congé le jour 0 ;
+   * « Jusqu'au prochain match › » mène alors au matin de ton match, sans
+   * résultat. On touche le bouton de tête jusqu'à ce que ton match soit joué.
+   */
+  for (let i = 0; i < 4; i++) {
+    const mot = ((await page.textContent('#hubModal .hub-jour')) || '').trim();
+    await page.click('#hubModal .hub-jour');
+    await page.waitForTimeout(150);
+    if (!/prochain match/i.test(mot)) break;
+    await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-page[data-genre="sommaire"]', { timeout: 60000 });
+    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
+    if (!(await page.$('#hubModal .hub-jour'))) break;
+  }
   /*
    * UN MATCH ORDINAIRE SE LIT AU BUREAU (1.0, J2-8) : pas de plein écran,
    * le résultat en tête du volet. Le plein écran ne vient que pour une
