@@ -32,7 +32,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, ANNONCE_GROS,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
-  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux, motsDEffet } from './sim.js';
+  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux, motsDEffet, pariDeDecision } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
@@ -2590,16 +2590,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     /*
      * LE PARI TRANCHÉ. JP : *j'ai pris le 50/50 et j'ai aucune idée du
-     * résultat*. Le tirage se fait au choix (`appliquerGestes`, js/sim.js) ;
-     * le message le dit tant que son effet court, avec ce qu'il fait.
+     * résultat*. Le moteur l'applique quand la journée se joue, mais son
+     * tirage est pur (`pariDeDecision`, js/sim.js) : le message le dit dès
+     * le choix, avec ce qu'il fait, tant que son effet court.
      */
-    for (const e of effetsEnCours(you, jour).effets) {
-      const x = e.source === 'pari' && pariDe(e);
-      if (!x) continue;
-      const { debut: _d, fin: _f, source: _s, nom: _n, reste, regle: _r, ...canaux } = e;
+    for (const d of decs) {
+      const x = pariDeDecision(d, graine);
+      if (!x || jour >= x.fin) continue;
+      const { duree: _d, action: _a, ...canaux } = x.effet;
       out.push({ id: `pari:${x.jour}:${x.titre}`, genre: 'pari', de: DE.coach, sujet: `${x.titre} : ${x.gagne ? 'le pari a payé' : 'le pari a mal tourné'}`,
-        corps: `<div class="hub-msg-mot">🎲 ${ctx.esc(x.choix || '')} — ${x.gagne ? 'ça a payé' : 'ça a mal tourné'}.</div>
-          <div class="choix-puces">${puces(motsDEffet(canaux, reste))}</div>` });
+        corps: `<div class="hub-msg-mot">🎲 ${ctx.esc(x.choix)} — ${x.gagne ? 'ça a payé' : 'ça a mal tourné'}.</div>
+          <div class="choix-puces">${puces(motsDEffet(canaux, x.fin - Math.max(jour, x.jour)))}</div>` });
     }
     // LE RAPPORT DU DÉPISTEUR, tous les dix matchs, jusqu'au suivant.
     const nRap = Math.floor(miens.length / RAPPORT_CHAQUE) * RAPPORT_CHAQUE;

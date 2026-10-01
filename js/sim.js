@@ -5387,11 +5387,11 @@ function appliquerDecision(team, d, graine = 0) {
   if (d.moment) {
     const fam = d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle];
     const o = fam && fam.options.find(x => x.cle === d.moment.choix);
-    if (o) appliquerGestes(team, o, d.jour, d.moment.joueurs, graine, `${d.moment.cle}:${d.moment.choix}`, fam.titre);
+    if (o) appliquerGestes(team, o, d.jour, d.moment.joueurs, graine, cleDuPari(d), fam.titre);
   }
   if (d.avant && AVANT_GROS[d.avant.cle]) {
     const o = AVANT_GROS[d.avant.cle].options.find(x => x.cle === d.avant.choix);
-    if (o) appliquerGestes(team, o, d.jour, d.avant.joueurs, graine, `avant:${d.avant.cle}:${d.avant.choix}`, AVANT_GROS[d.avant.cle].titre);
+    if (o) appliquerGestes(team, o, d.jour, d.avant.joueurs, graine, cleDuPari(d), AVANT_GROS[d.avant.cle].titre);
   }
   // LE STAGE DE SYSTÈME (S73) : toute la formation apprend une tactique d'un coup.
   if (d.maitrise && systemeDe(d.maitrise.tac)) {
@@ -7391,10 +7391,28 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
   gestes(o.action, jour);
   if (o.ensuite) effet(o.ensuite, jour + (o.ensuite.apres || 0), 'ensuite');
   if (o.pari) {
-    const gagne = hacherMise(graine, 'pari', jour, cleTirage) < o.pari.chance;
+    const gagne = pariGagne(graine, jour, cleTirage, o.pari.chance);
     (team.paris = team.paris || []).push({ jour, titre, choix: o.nom, gagne });
     effet(gagne ? o.pari.gagne : o.pari.perd, jour, 'pari');
   }
+}
+
+/*
+ * LE PARI D'UNE DÉCISION, TRANCHÉ D'AVANCE. Le moteur l'applique le jour où
+ * la journée se joue ; le tirage ne dépend que de la graine, du jour et du
+ * choix — sans toucher au hasard de la saison — donc l'écran le dit dès le
+ * choix, et c'est exactement ce que le moteur fera.
+ */
+const pariGagne = (graine, jour, cle, chance) => hacherMise(graine, 'pari', jour, cle) < chance;
+const cleDuPari = d => (d.moment ? `${d.moment.cle}:${d.moment.choix}` : `avant:${d.avant.cle}:${d.avant.choix}`);
+export function pariDeDecision(d, graine) {
+  if (!d || !Number.isFinite(d.jour)) return null;
+  const fam = d.moment ? (d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle]) : d.avant ? AVANT_GROS[d.avant.cle] : null;
+  const o = fam && fam.options.find(x => x.cle === (d.moment ? d.moment.choix : d.avant.choix));
+  if (!o || !o.pari) return null;
+  const gagne = pariGagne(graine, d.jour, cleDuPari(d), o.pari.chance);
+  const effet = gagne ? o.pari.gagne : o.pari.perd;
+  return { jour: d.jour, titre: fam.titre, choix: o.nom, gagne, effet, fin: d.jour + (effet.duree || DUREE_MOMENT) };
 }
 
 /*

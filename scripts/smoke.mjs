@@ -527,8 +527,8 @@ async function repondreAuxChoix() {
     const sansPuce = await page.$$eval('#choixModal .choix-option', els => els.filter(e => !e.querySelector('.puce')).length);
     if (sansPuce && genre !== 'hub-proprio') errors.push(`le choix « ${titre} » a ${sansPuce} option(s) sans effet chiffré`);
     choixVus.set(genre, [...(choixVus.get(genre) || []), titre]);
-    // UN PARI SE TRANCHE AU CHOIX : la boîte dit tout de suite comment il a tourné (un avant-match, lui, le soir du match).
-    const pari = /Pari/.test(await opt.$eval('.choix-forme', e => e.textContent).catch(() => '')) && !(await page.$('#choixModal .choix-avant'));
+    // UN PARI SE TRANCHE AU CHOIX : la boîte dit tout de suite comment il a tourné.
+    const pari = /Pari/.test(await opt.$eval('.choix-forme', e => e.textContent).catch(() => ''));
     await opt.click();
     await ecranPret();
     await page.waitForTimeout(350);
