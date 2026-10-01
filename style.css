@@ -4596,38 +4596,28 @@ body.exh-ouverte { overflow: hidden; }
 .t-volet-tete span { font: 800 var(--t-1)/1.3 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--or); }
 .t-volet-fermer { border: 0; background: transparent; color: var(--encre-2); font-size: var(--t-4); line-height: 1; padding: 4px 6px; cursor: pointer; }
 
-/* ---- La carte de commandes, posée sur la case de la pièce choisie ; ancrerCarte (js/plateau.js) mesure le côté ---- */
-.t-cmd {
-  position: absolute; top: 0; left: 0; z-index: 12; width: max-content; min-width: 132px; max-width: 168px;
-  --cx: calc(var(--tc) * var(--tcell) + var(--tcell) * 1.1);
-  --cy: calc(var(--tr) * var(--tcell) - var(--tcell) * 0.6);
-  transform: translate(var(--cx), var(--cy));
-  background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-1); padding: 5px; display: flex; flex-direction: column; gap: 3px;
-}
-.t-cmd.bord-d { --cx: calc(var(--tc) * var(--tcell) - var(--tcell) * 0.1 - 100%); }
-.t-cmd.dessous { --cy: calc(var(--tr) * var(--tcell) + var(--tcell) * 1.1); }
-.t-cmd.dessus { --cy: calc(var(--tr) * var(--tcell) - var(--tcell) * 0.1 - 100%); }
-.t-cmd.centre { --cx: calc((var(--tc) + 0.5) * var(--tcell) - 50%); }
-.t-cmd-tete { display: flex; align-items: center; gap: 4px; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); padding: 1px 4px 3px; border-bottom: 1px solid var(--filet-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.t-cmd-tete b { color: var(--or); margin-right: 4px; }
-.t-cmd-fermer { margin-left: auto; background: none; border: 0; color: var(--encre-3); font-size: var(--t-2); line-height: 1; padding: 0 2px; cursor: pointer; }
+/* ---- Les gestes de la pièce choisie, sous la glace (1.0, oct.) : une rangée de tuiles emoji, jamais par-dessus le jeu ---- */
+.t-cmd-fermer { flex: 0 0 auto; background: none; border: 0; color: var(--encre-3); font-size: var(--t-3); line-height: 1; padding: 0 4px; cursor: pointer; }
 .t-cmd-fermer:hover { color: var(--encre); }
-.t-cmd-liste { display: flex; flex-direction: column; gap: 2px; }
-/* Une commande par ligne : le nom à gauche, la cote à droite ; la même liste à chaque pièce. */
-.t-cmd-liste .t-geste, .t-cmd-liste .t-mode { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; width: 100%; min-height: 0; padding: 3px 6px; font-size: var(--t-2); border-radius: var(--r-1); border-color: transparent; background: transparent; color: var(--encre); }
-.t-cmd-liste .t-geste b, .t-cmd-liste .t-mode b { margin-left: auto; font-size: var(--t-2); }
-.t-cmd-liste .t-geste i, .t-cmd-liste .t-mode i { font-size: var(--t-1); }
+/* Une rangée, toujours la même hauteur : la glace se mesure sur elle (.t-glace, --tcell). Elle se balaie s'il y a trop de tuiles. */
+.t-dock-ligne.t-cmd-liste { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(56px, 1fr); gap: 5px; overflow-x: auto; scrollbar-width: none; }
+.t-cmd-liste::-webkit-scrollbar { display: none; }
+/* Une tuile : l'icône, le nom, la cote. La raison d'un geste éteint se lit en la touchant, à la place du nom. */
+.t-cmd-liste .t-geste, .t-cmd-liste .t-mode { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0; height: 52px; padding: 3px 2px; font: 700 var(--t-1)/1.15 var(--display); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-cmd-liste .t-mode b, .t-cmd-liste .t-geste b { font-size: var(--t-2); line-height: 1.1; }
+.t-cmd-liste.t-dock-gestes :is(.t-mode, .t-geste) i { display: none; }
 .t-cmd-liste .t-mode.on { background: var(--choisi); color: var(--sur-choisi); }
-.t-cmd-liste .t-mode.on b, .t-cmd-liste .t-mode.on i { color: inherit; }
-.t-cmd-liste .t-tir { background: var(--or); color: var(--sur-or); }
-.t-cmd-liste .t-tir b, .t-cmd-liste .t-tir i { color: inherit; opacity: 0.85; }
-/* Éteint, mais là : c'est la raison qui compte. */
+.t-cmd-liste .t-mode.on b { color: inherit; }
+.t-cmd-liste .t-tir { background: var(--or); color: var(--sur-or); border-color: var(--or); }
+.t-cmd-liste .t-tir b { color: inherit; opacity: 0.85; }
+.t-ico { font-size: var(--t-4); line-height: 1; }
+.t-trios { gap: 4px; }
+/* Éteint, mais là : touché, il dit pourquoi. */
 .t-mode-non { opacity: 0.55; cursor: not-allowed; }
 .t-cmd-liste .t-mode-non { color: var(--encre-3); }
-.t-cmd-liste .t-mode-non i { color: var(--encre-3); text-align: right; }
 @media (hover: hover) {
-  .t-cmd-liste .t-geste:hover:not([disabled]), .t-cmd-liste .t-mode:hover:not([disabled]) { background: var(--fond-2); }
-  .t-cmd-liste .t-tir:hover:not([disabled]) { background: color-mix(in srgb, var(--or) 90%, var(--encre)); }
+  .t-cmd-liste .t-geste:hover, .t-cmd-liste .t-mode:hover:not(.t-mode-non) { background: var(--fond-2); }
+  .t-cmd-liste .t-tir:hover { background: color-mix(in srgb, var(--or) 90%, var(--encre)); }
 }
 
 /* ---- Le banc des trios et des paires ---- */
@@ -4697,9 +4687,6 @@ body.exh-ouverte { overflow: hidden; }
 .t-mode i { font-style: normal; font-size: var(--t-1); color: var(--encre-3); }
 .t-mode.on { background: var(--choisi); color: var(--sur-choisi); border-color: var(--choisi); }
 .t-mode.on b, .t-mode.on i { color: var(--sur-choisi); }
-/* Le « ? » d'un geste : discret, collé au bouton, il écrit la règle dans le fil. */
-.t-aide { width: 20px; height: 20px; padding: 0; border: 1px solid var(--filet); border-radius: 50%; background: transparent; font: 700 var(--t-1)/1 var(--display); line-height: 18px; cursor: pointer; align-self: center; margin: 7px 0 0; color: var(--encre-3); }
-.t-aide:hover, .t-aide:focus-visible { color: var(--or); border-color: var(--or); }
 .t-geste { display: inline-flex; align-items: baseline; gap: 5px; font: 700 var(--t-2)/1.3 var(--display); padding: 6px 11px; border: 1px solid var(--filet); background: var(--fond-2); color: var(--encre); border-radius: var(--r-1); cursor: pointer; }
 .t-geste b { font-size: var(--t-3); color: var(--or); }
 .t-geste i { font-style: normal; font-size: var(--t-1); color: var(--encre-3); }

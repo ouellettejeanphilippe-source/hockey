@@ -373,11 +373,11 @@ console.log(`  avantage en prolongation    ${avantagesEnProlongation.size} match
 if (icingsTotal) { console.log(`  ✗ ${icingsTotal} dégagement(s) refusé(s) sifflé(s) : le geste ne devrait pas exister de sa propre zone`); echecs++; }
 else console.log('  ✓ aucun dégagement refusé sifflé : le geste n\'existe pas de sa propre zone');
 console.log(`  activations par match        ${(presencesTotal / MATCHS).toFixed(1)} (une main à la fois, en alternance ; ${PERIODES} × ${POSSESSIONS_PAR_PERIODE} possessions, ${PRESENCES_PAR_PERIODE} tours au plus par période)`);
-console.log(`  gestes joués                 ${Object.entries(parType).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / gestesTotal).toFixed(0)} %`).join(' · ')}`);
+console.log(`  gestes joués                 ${Object.entries(parType).sort((a, b) => b[1] - a[1]).map(([k, v]) => (100 * v < gestesTotal ? `${k} ${(v / MATCHS).toFixed(1)} par match` : `${k} ${(100 * v / gestesTotal).toFixed(0)} %`)).join(' · ')}`);
 /* CHAQUE GESTE DOIT ÊTRE JOUÉ AU MOINS UNE FOIS : un geste que personne
    n'utilise jamais est une règle morte, et une règle morte est un mensonge
    dans la page des règles. */
-for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'reception']) {
+for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'reception', 'reprise', 'devie']) {
   if (!parType[g]) { console.log(`  ✗ le geste « ${g} » n'a jamais été joué en ${MATCHS} matchs`); echecs++; }
 }
 
@@ -394,7 +394,8 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'recepti
   const tableau = sections.find(x => x.rangees);
   const ecrits = new Set(tableau.rangees.map(r => r[0].toLowerCase()));
   // SIX GESTES (S41), et la bataille, qui n'a pas de type à elle : elle arrive pendant un patin, comme l'esquive.
-  const MOTS = { deplacer: 'patiner', passe: 'passer', tir: 'tirer', dejouer: 'feinter', echec: 'frapper', vol: 'harponner', bataille: 'bataille' };
+  const MOTS = { deplacer: 'patiner', passe: 'passer', tir: 'tirer', dejouer: 'feinter', echec: 'frapper', vol: 'harponner', bataille: 'bataille',
+    reprise: 'reprendre', devie: 'dévier' };   // 1.0 (oct.) : le retour et la déviation
   console.log('\nLES RÈGLES ÉCRITES');
   console.log(`  ${sections.length} sections, ${tableau.rangees.length} gestes décrits`);
   let manque = 0;
@@ -712,7 +713,7 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'recepti
       if (m.tour === cote && m.main === main && !g && !m.fini) finirMain(m);   // comme `iaPresence` : la main rend toujours
       if (!compter || !g) continue;
       const x = parMain.get(main) || { cote, gestes: 0 };
-      if (g.type !== 'reception') x.gestes++;
+      if (g.type !== 'reception' && g.type !== 'reprise') x.gestes++;   // les deux actions de plus
       if (cote === 'B' && g.jet && g.jet.relance) relancesDepensees++;
       parMain.set(main, x);
     }
@@ -727,7 +728,7 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'recepti
     if (r1.gfA !== r2.gfA || r1.gfB !== r2.gfB || r1.fil.length !== r2.fil.length) differents++;
   }
   const regles = [
-    ['la recrue joue un seul geste par main (le tir sur réception en plus)', !deuxGestes, `${deuxGestes} main(s) sur ${mainsRecrue} avec deux gestes`],
+    ['la recrue joue un seul geste par main (le tir sur réception et la reprise en plus)', !deuxGestes, `${deuxGestes} main(s) sur ${mainsRecrue} avec deux gestes`],
     ['la recrue ne dépense jamais sa relance d\'équipe', !relancesDepensees, `${relancesDepensees} relance(s)`],
     ['la même graine rejoue le même match Recrue', !differents, `${differents} match(s) sur ${N} différents`],
     ['le camp Pro joue encore des mains entières', mainsPro > 0 && gestesPro / mainsPro > 1.3, `${(gestesPro / Math.max(1, mainsPro)).toFixed(2)} geste(s) par main`],
