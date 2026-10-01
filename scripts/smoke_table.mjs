@@ -488,6 +488,7 @@ let dernierDuel = null, duelsSecs = 0;
    coéquipiers derrière ton filet. Mesuré à chaque tour du joueur scripté. */
 const barreSurGlace = { n: 0, pire: 0, ou: '' };
 let menuMenti = null;          // la carte de commandes a-t-elle nommé la mauvaise pièce ?
+let carteSurGlace = false, sansIcone = 0;   // 1.0 (oct.) : les gestes sous la glace, chacun avec son icône
 while (tours++ < 4000) {
   if (!(await page.$('#tableModal .t-glace'))) break;
   const etat = await page.evaluate(() => {
@@ -520,7 +521,8 @@ while (tours++ < 4000) {
    * jet ou une fois un mode pris, d'où `bloque`.
    */
   const nu = x => (x || '').replace(/[^A-Za-zÀ-ÿ]/g, '').toLowerCase();
-  const cmd = document.querySelector('#tableModal .t-cmd');
+  // 1.0 (oct.) : les gestes vivent SOUS la glace (la barre, `.t-dock`), la pièce choisie nommée à leur tête.
+  const cmd = document.querySelector('#tableModal .t-dock .t-cmd-liste');
   const jetonSel = document.querySelector('#tableModal .t-jeton.mienne.choisie');
   return ({
     suite: !!document.querySelector('#tableModal .t-suite'),
@@ -529,8 +531,8 @@ while (tours++ < 4000) {
     sel: !!document.querySelector('#tableModal .t-case.t-sel'),
     menu: jetonSel ? {
       bloque: !!document.querySelector('#tableModal .t-annuler') || !!document.querySelector('#tableModal .t-suite') || !!document.querySelector('#tableModal .t-relancer'),
-      ouverte: !!(cmd && !cmd.hidden),
-      dit: nu(cmd && cmd.querySelector('.t-cmd-tete') ? cmd.querySelector('.t-cmd-tete').textContent : ''),
+      ouverte: !!cmd,
+      dit: nu((document.querySelector('#tableModal .t-dock .t-dock-nom') || {}).textContent || ''),
       // Le rôle et le NOM ENTIER du jeton (S75) : dans une case étroite il n'en affiche que trois
       // lettres, mais c'est toujours la même pièce que la carte doit nommer.
       piece: nu(`${(jetonSel.querySelector('.t-role') || {}).textContent || ''}${(jetonSel.querySelector('.t-nom-long') || jetonSel).textContent}`),
@@ -544,13 +546,10 @@ while (tours++ < 4000) {
       const r = j.style.getPropertyValue('--tr'), c = j.style.getPropertyValue('--tc');
       return document.querySelector(`#tableModal .t-case.t-jouable[data-r="${r}"][data-c="${c}"]`) ? `${r},${c}` : null;
     })(),
-    // La carte de commandes, ouverte sur une AUTRE pièce, peut couvrir le porteur (S75c) : un pouce la ferme d'abord.
-    porteurCouvert: (() => {
-      const j = [...document.querySelectorAll('#tableModal .t-jeton.mienne')].find(e => e.querySelector('.t-rondelle'));
-      if (!j) return false;
-      const e = document.querySelector(`#tableModal .t-case[data-r="${j.style.getPropertyValue('--tr')}"][data-c="${j.style.getPropertyValue('--tc')}"]`);
-      return !!e && !touchable(e) && !!document.querySelector('#tableModal .t-cmd:not([hidden]) .t-cmd-fermer');
-    })(),
+    // RIEN PAR-DESSUS LA GLACE (1.0, oct.) : aucune carte de commandes posée sur le plateau.
+    carteSurGlace: !!document.querySelector('#tableModal .t-glace .t-cmd, #tableModal .t-glace .t-cmd-liste'),
+    // Chaque geste porte son icône.
+    sansIcone: [...document.querySelectorAll('#tableModal .t-dock .t-cmd-liste :is(.t-geste, .t-mode)')].filter(b => !b.querySelector('.t-ico')).length,
     jouablesCases: cases('#tableModal .t-case.t-jouable:not(.t-sel)'),
     // MON PORTEUR, s'il est jouable : c'est lui qui offre le mode « Passer » (S80 — le prendre au
     // hasard, c'était ne voir la passe que certains matchs, comme le duel avant S46).
@@ -600,6 +599,8 @@ while (tours++ < 4000) {
   if (etat.recouvre > 1) { barreSurGlace.n++; if (etat.recouvre > barreSurGlace.pire) { barreSurGlace.pire = etat.recouvre; barreSurGlace.ou = etat.etatBarre; } }
   etat.contacts = etat.contactsCases.length;
   etat.jouables = etat.jouablesCases.length;
+  if (etat.carteSurGlace && !carteSurGlace) carteSurGlace = true;
+  if (etat.sansIcone && !sansIcone) sansIcone = etat.sansIcone;
   // La carte de commandes doit nommer la pièce choisie, pas la précédente.
   if (!menuMenti && etat.menu && !etat.menu.bloque) {
     if (!etat.menu.ouverte) menuMenti = `aucun menu alors que « ${etat.menu.piece} » est choisie`;
@@ -718,7 +719,6 @@ while (tours++ < 4000) {
    */
   if (etat.porteurJouable && !etat.modeOn) {
     if (etat.porteurJouable !== dernierPorteur) { dernierPorteur = etat.porteurJouable; essaisPorteur = 0; }
-    if (etat.porteurCouvert) { await page.click('#tableModal .t-cmd-fermer'); await page.waitForTimeout(50); continue; }
     if (++essaisPorteur <= 3) { await page.click(caseDe(etat.porteurJouable)); pieces++; await page.waitForTimeout(50); continue; }
   }
   if (etat.offres && dé() < 0.62) {
@@ -745,9 +745,6 @@ while (tours++ < 4000) {
     gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
   if (etat.jouables) {
-    // Le menu d'une pièce dont tous les gestes sont fermés (« il en faut 7 ») reste ouvert par-dessus le
-    // plateau et intercepte le toucher : on le ferme d'abord par le retour du jeu (Échap, js/pile.js).
-    if (await page.$('#tableModal .t-cmd-fermer')) { await page.keyboard.press('Escape'); await page.waitForTimeout(80); }
     const piece = !modesVus.has('passe') && etat.porteurJouable ? etat.porteurJouable : etat.jouablesCases[0];
     await page.click(caseDe(piece)); pieces++; await page.waitForTimeout(50); continue;
   }
@@ -1015,6 +1012,9 @@ await page.screenshot({ path: 'scripts/smoke-table-bilan.png' });
 
 if (menuMenti) errors.push(`la carte de commandes est en retard d'un rendu : ${menuMenti}`);
 else console.log('   la carte de commandes nomme toujours la pièce choisie');
+if (carteSurGlace) errors.push('une carte de commandes s\'est posée sur la glace : les gestes vivent sous le jeu');
+if (sansIcone) errors.push(`${sansIcone} geste(s) sans icône dans la barre`);
+if (!carteSurGlace && !sansIcone) console.log('   les gestes sous la glace, chacun avec son icône');
 
 console.log(errors.length ? `\n6. ÉCHEC — ${errors.length} erreur(s) :\n  ${errors.join('\n  ')}` : '\n6. zéro erreur console ✓');
 await browser.close();
