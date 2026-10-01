@@ -32,6 +32,20 @@ const base = process.argv[2] || 'http://localhost:8000';
    l'Action, qui installe le sien. */
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+/*
+ * UN TIRAGE QUI SE REJOUE (1.0, oct.). Le parcours tire tout de `Math.random`
+ * (le repêchage, la graine de la saison) : un échec vu une fois ne se
+ * retrouvait plus. `SMOKE_GRAINE=n` sème le hasard de la page — le même
+ * parcours, au clic près, pour chercher ce qui casse.
+ */
+if (process.env.SMOKE_GRAINE) {
+  await page.addInitScript(g => {
+    let x = 2166136261;
+    for (const c of String(g)) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0;
+    Math.random = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }, process.env.SMOKE_GRAINE);
+  console.log(`   hasard de la page semé : ${process.env.SMOKE_GRAINE}`);
+}
 const errors = [];
 let barreAuRepechage = null;   // la barre au repêchage, pour la comparer au bilan (S67)
 let toastVu = false;           // le premier toast d'une signature, mesuré une fois (1.0, J2-17)
