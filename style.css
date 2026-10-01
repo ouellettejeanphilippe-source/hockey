@@ -2665,7 +2665,6 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); transition: border-color var(--t-vite); }
 .hub-hier.v { border-left-color: var(--bon); }
 .hub-hier.d { border-left-color: var(--mauvais); }
-.hub-hier.conge { color: var(--encre-2); }
 .hub-hier[data-sommaire] { cursor: pointer; }
 .hub-hier[data-sommaire]:hover, .hub-hier[data-sommaire]:focus-visible { border-color: var(--encre-3); }
 .hub-hier.neuf { animation: hier-neuf 400ms var(--e-ressort) both; }
