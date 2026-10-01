@@ -35,7 +35,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, CARTES, PALI
   activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux, motsDEffet, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
-import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
+import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
@@ -62,6 +62,23 @@ let suiteEntracte = null, suiteEntracteSerie = null;
  */
 const BOITES = new Map();
 /*
+ * LES DEUX ÉQUIPES À L'ENTRACTE, EN CHIFFRES (1.0, oct.). JP : *7 % de plus
+ * de tirs à l'entracte, c'est tough gager si ça aide si j'ai pas les stats
+ * des deux équipes en tout temps*. Ce soir (deux périodes), puis la saison
+ * par match, côte à côte : de vraies stats, jamais une cote. `lignes` :
+ * [titre, moi, lui] ; une ligne sans valeurs est un intertitre.
+ */
+function tableEntracte(ctx, nomMoi, nomLui, lignes) {
+  return `<table class="ent2-stats"><thead><tr><th></th><th>${ctx.esc(nomMoi)}</th><th>${ctx.esc(nomLui)}</th></tr></thead><tbody>${lignes.map(([k, a, b]) => (a === null && b === null
+    ? `<tr class="ent2-stats-sec"><th colspan="3">${ctx.esc(k)}</th></tr>` : `<tr><th>${ctx.esc(k)}</th><td>${a}</td><td>${b}</td></tr>`)).join('')}</tbody></table>`;
+}
+/* Ce soir, après deux périodes : buts, tirs, % de tir, punitions. */
+function ceSoirEntracte(f, cMoi, cLui, moi, lui, tirs) {
+  const pun = c => (f.punitions || []).filter(x => x.cote === c && x.instant < 40).length;
+  const pct = (b, t) => (t ? `${Math.round(100 * b / t)} %` : '—');
+  return [['Ce soir', null, null], ['Buts', moi, lui], ['Tirs', tirs(cMoi), tirs(cLui)], ['% de tir', pct(moi, tirs(cMoi)), pct(lui, tirs(cLui))], ['Punitions', pun(cMoi), pun(cLui)]];
+}
+/*
  * LA PAGE OÙ L'ON ÉTAIT (1.0, oct.). JP : *quand j'utilise une carte ou
  * qqchose de même, me ramener où j'étais, pas à l'accueil du club, ça gosse
  * revenir faire d'autres cartes*. Une décision prise depuis « Tes cartes » ou
@@ -76,6 +93,8 @@ function boiteDe(graine) {
 }
 /* Les pronostics déjà calculés (js/pronostic.js) : une même journée ne se rejoue pas deux fois. */
 const PRONOS = new Map();
+/* La prévision de la saison (js/pronostic.js), gardée pour la journée et les décisions du moment. */
+const PREVISIONS = new Map();
 /* « 2e 14:05 » : l'instant d'un but, pour le tableau de l'entracte. */
 // Un but à l'entracte : sa période et l'horloge du direct (le temps qu'il reste, `tempsRestant`).
 const instantMot = t => { const per = Math.min(3, Math.floor(t / 20) + 1); return `${per === 1 ? '1re' : `${per}e`} ${tempsRestant(t)}`; };
@@ -1949,6 +1968,34 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
   const routeFiche = () => `<div class="hub-titre">La route de la saison</div>${routeHtml(jour, N, routePlus(), jEv)}
     <div class="hub-route-legende">🏢 le proprio fixe un objectif · 🃏 une carte à prendre · ⚔️ un combat · ❓ un événement · 💬 le vestiaire</div>`;
+  /*
+   * LA PRÉVISION DU MOTEUR (1.0, oct.). JP : *pas un ov qui décide tout, mais
+   * un genre de prévision de ce que l'équipe doit faire donner, ou un joueur,
+   * en fonction des positions et cie*. Tes matchs restants, rejoués par le
+   * moteur avec ta formation de ce matin (js/pronostic.js, `prevision`) :
+   * des points, des buts, des points de joueurs — jamais une cote.
+   */
+  const PREVISION_SAISONS = 8;
+  const clePrevision = () => `${graine}|${jour}|${decs.length}`;
+  function previsionHtml() {
+    if (!onDecision || jour >= N) return '';
+    const pr = PREVISIONS.get(clePrevision());
+    const tete = '<div class="hub-titre">🔮 La prévision du moteur</div>';
+    if (pr === undefined) return `<div class="hub-prev">${tete}<div class="hub-note">Tes matchs restants, rejoués ${PREVISION_SAISONS} fois par le moteur avec ta formation de ce matin : tes points, tes buts, et ce que chaque joueur devrait donner.</div><button type="button" class="btn hub-prev-lancer">Lancer la prévision</button></div>`;
+    if (!pr) return '';
+    const f = fiche.get(you);
+    const rond = x => Math.round(x);
+    const lignes = SLOTS.filter(sl => !sl.scratch && you.roster[sl.i] && you.roster[sl.i].p !== 'G').map(sl => {
+      const p = you.roster[sl.i], c = compte.get(p) || {}, e = pr.joueurs.get(p) || { b: 0, a: 0 };
+      return { p, sl, ajd: c.pts || 0, fin: (c.pts || 0) + e.b + e.a, b: (c.g || 0) + e.b };
+    }).sort((a, b) => b.fin - a.fin).slice(0, 8);
+    return `<div class="hub-prev">${tete}
+      <div class="hub-prev-fin"><b>${rond(f.PTS + pr.pts)} points</b> en fin de saison <span>(de ${f.PTS + pr.bas} à ${f.PTS + pr.haut})</span></div>
+      <div class="hub-note">${pr.matchs} matchs restants · ${virgule(pr.gfm, 2)} buts pour et ${virgule(pr.gam, 2)} contre par match${gpDe(you) >= 3 ? ` (cette saison : ${virgule(f.GF / gpDe(you), 2)} et ${virgule(f.GA / gpDe(you), 2)})` : ''}.</div>
+      <table class="ent2-stats hub-prev-joueurs"><thead><tr><th></th><th>À ce jour</th><th>Projeté</th><th>Buts</th></tr></thead><tbody>${lignes.map(l => `<tr><th>${ctx.esc(l.p.n)} <small>${ctx.esc(ctx.slotShort ? ctx.slotShort(l.sl) : l.sl.role)}</small></th><td>${l.ajd} pts</td><td>${rond(l.fin)} pts</td><td>${rond(l.b)}</td></tr>`).join('')}</tbody></table>
+      <div class="hub-note">${pr.n} saisons rejouées, ta formation de ce matin. Une blessure, un échange, une carte la changent : relance-la après.</div>
+    </div>`;
+  }
   const voletFiche = () => {
     if (!miens.length) return `${routeFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
@@ -1988,7 +2035,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     { cle: 'saison', ico: 'i-saison', titre: 'Saison', page: 'saison' },
   ], cle => {
     if (cle === 'boite') return '';
-    if (cle === 'saison') return etatHtml() + voletFiche();
+    if (cle === 'saison') return etatHtml() + previsionHtml() + voletFiche();
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
     if (cle === 'equipes') return equipesHtml(ctx, {
@@ -2027,7 +2074,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // LES PAGES DU CLUB (1.0, R3) : le retour (js/pile.js) les ferme, le sommaire d'un match (js/bilan.js) s'y ouvre.
   tabs.hub.ouvrirPage = ui.ouvrirPage;
   tabs.hub.fermerPage = () => ui.fermerPage();
-  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); };
+  // La prévision se lance au toucher (une seconde de calcul) et reste jusqu'à la prochaine journée ou décision.
+  const lancerPrevision = e => {
+    const b = e.target.closest('.hub-prev-lancer');
+    if (!b) return;
+    b.disabled = true; b.textContent = 'Le moteur rejoue tes matchs…';
+    setTimeout(() => {
+      PREVISIONS.set(clePrevision(), prevision({ toi: you, calendrier, jourRevele: jour, n: PREVISION_SAISONS }));
+      tabs.rafraichir();
+    }, 30);
+  };
+  volet.addEventListener('click', lancerPrevision);
+  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -2107,7 +2165,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onChoix: k => {
           const x = recrues.find(y => y.cle === k);
           if (!x) return;
-          const decide = ({ i, sort }) => deciderDeck(p0, { deck: 'recrue', ballottage: { i, entre: x.cle, sort } });
+          const decide = ({ i, sort, cases }) => deciderDeck(p0, { deck: 'recrue', ballottage: { i, entre: x.cle, sort }, ...(cases ? { cases } : {}) });
           if (ctx.quiSort) ctx.quiSort(x.p, { roster: you.roster, genre: 'palier', onChoix: decide, onFerme: () => suiteDeLaMain(p0, 'recrue', recrues, roles) });
           else decide({ i: x.i, sort: x.sort });
         } });
@@ -2858,10 +2916,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       onChoix: cle => {
         const c = mB.bal.candidats.find(x => x.cle === cle);
         // Le rappelé entre en réserve (case `i`) puis échange avec le blessé : il joue sa case, le blessé descend.
-        const decide = ({ i, sort }) => {
+        // Placé par toi (`cases`, l'étape deux de l'échange) ; sinon il prend la case du blessé, qui descend en réserve.
+        const decide = ({ i, sort, cases: placees }) => {
           boite.traites.add(mB.id);
-          let cases;
-          if (mB.sl && SLOTS[i] && SLOTS[i].scratch && c && c.p && fits(c.p, mB.sl)) {
+          let cases = placees;
+          if (!cases && mB.sl && SLOTS[i] && SLOTS[i].scratch && c && c.p && fits(c.p, mB.sl)) {
             cases = photoAlignement(you.roster);
             cases[i] = getPlayerKey(alerte.player); cases[mB.sl.i] = cle;
           }
@@ -2920,6 +2979,28 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * pour la troisième. Choisir rejoue la saison depuis ce soir : les deux
    * premières périodes ne bougent pas, la troisième se joue sur des dés neufs.
    */
+  /*
+   * LES DEUX ÉQUIPES, EN CHIFFRES (1.0, oct.). JP : *7 % de plus de tirs à
+   * l'entracte, c'est tough gager si ça aide si j'ai pas les stats des deux
+   * équipes en tout temps*. Ce soir (deux périodes) et la saison par match,
+   * côte à côte : de vraies stats, celles des feuilles, jamais une cote.
+   */
+  function statsEntracte(f, cMoi, cLui, adv, moi, lui, tirs) {
+    const val = (t, k) => { const v = MESURES[k].val(t); return Number.isFinite(v) ? v : null; };
+    const bc = t => { const n = gpDe(t); return n >= 3 ? fiche.get(t).GA / n : null; };
+    const v = (x, d = 1) => (x == null ? '—' : virgule(x, d));
+    const lignes = [
+      ...ceSoirEntracte(f, cMoi, cLui, moi, lui, tirs),
+      ['La saison, par match', null, null],
+      ['Buts pour', v(val(you, 'attaque'), 2), v(val(adv, 'attaque'), 2)],
+      ['Buts contre', v(bc(you), 2), v(bc(adv), 2)],
+      ['Tirs pour', v(val(you, 'vitesse')), v(val(adv, 'vitesse'))],
+      ['Tirs contre', v(val(you, 'defense')), v(val(adv, 'defense'))],
+      ['% d\'arrêts', svMot(val(you, 'gardiens')), svMot(val(adv, 'gardiens'))],
+      ['Avantage numérique', val(you, 'an') == null ? '—' : pctMot(val(you, 'an')), val(adv, 'an') == null ? '—' : pctMot(val(adv, 'an'))],
+    ];
+    return tableEntracte(ctx, ctx.teamShort(you), ctx.teamShort(adv), lignes);
+  }
   function ouvrirEntracte(direct = false) {
     const p = prochain();
     if (!p || termine || !entracteAttendu(p.j)) return;
@@ -2942,6 +3023,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(adv))} ${ctx.logo(adv.tag, 22)}</span></div>
       <div class="ent2-note">Après deux périodes · tirs ${tirs(cMoi)}–${tirs(cLui)}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
+      ${statsEntracte(f, cMoi, cLui, adv, moi, lui, tirs)}
       <div class="ent2-incident">${INC.ico} ${ctx.esc(INC.titre)}.</div>
       ${planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv), prepJuste: mb.prepJuste ?? null })}
     </div>`;
@@ -3251,6 +3333,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const moi = moiA ? e.gfA : e.gfB, lui = moiA ? e.gfB : e.gfA;
     const etatM = moi > lui ? 'devant' : moi < lui ? 'derriere' : 'egal';
     const off = entractesOfferts(graine, `po${ronde}:${k}`, etatM);
+    // Les compteurs de saison ne bougent pas en séries (`cumulerSeries`) : la saison se lit sur l'équipe.
+    const parMatchSaison = (t, c) => { const n = (t.W || 0) + (t.L || 0) + (t.OTL || 0); return n ? ((t[c] || 0) / n).toFixed(2).replace('.', ',') : '—'; };
     const INC = INCIDENTS[off.incident];
     const tirs = c => ((f.tirs[c] || [])[1] || 0) + ((f.tirs[c] || [])[2] || 0);
     const buts = f.buts.filter(b => b.instant < 40)
@@ -3260,6 +3344,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(boss))} ${ctx.logo(boss.tag, 22)}</span></div>
       <div class="ent2-note">Match ${k + 1} · après deux périodes · tirs ${tirs(cMoi)}–${tirs(cLui)} · série ${s.A === you ? wA : wB}-${s.A === you ? wB : wA}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
+      ${tableEntracte(ctx, ctx.teamShort(you), ctx.teamShort(boss), [...ceSoirEntracte(f, cMoi, cLui, moi, lui, tirs),
+        ['La saison, par match', null, null], ['Buts pour', parMatchSaison(you, 'GF'), parMatchSaison(boss, 'GF')], ['Buts contre', parMatchSaison(you, 'GA'), parMatchSaison(boss, 'GA')]])}
       <div class="ent2-incident">${INC.ico} ${ctx.esc(INC.titre)}.</div>
       ${planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss), prepJuste: pl.prepJuste ?? null })}
     </div>`;

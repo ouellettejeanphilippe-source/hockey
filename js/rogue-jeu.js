@@ -25,7 +25,7 @@ import { deckDe, CARTES_MATCH } from './combat.js';
 import { ageAtSeason } from './ratings.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { nombreEnSeries } from './bilan.js';
-import { $, G, candidats, capHit, capHitDuJour, capLeft, capUsed, clearSave, contexteDuMenu, headshotHtml, isPicked, plafondEffectif, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
+import { $, G, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, headshotHtml, isPicked, plafondEffectif, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirVersoPourPoser, poserCartes, quiSortOuCaseLibre, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
@@ -305,10 +305,10 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
         if (!sortie) return;
         G.variantes.cartes[k] = x.rar;
         if (x.num) (G.variantes.numeros = G.variantes.numeros || {})[k] = x.num;
-        decider({ jour: j, palier, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) } });
+        decider({ jour: j, palier, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) }, ...(sortie.cases ? { cases: sortie.cases } : {}) });
       };
       // QUI SORT : la sortie doit faire entrer son salaire sous le plafond (effectif), ou au moins ne pas l'empirer.
-      quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), note: q => `libère ${money(capHitDuJour(q))}`, onChoix: signer, onFerme: offrir });
+      quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), onChoix: signer, onFerme: offrir });
     },
     // « Plus tard » : rien ne s'écrit, l'offre reste dans la boîte (`packOuvert`, js/saison.js).
     onFerme: () => {},

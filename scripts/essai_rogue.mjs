@@ -346,6 +346,12 @@ if (/où \?/.test(titre)) {
   libreOfferte = !!(await page.$('#choixModal:not([hidden]) .choix-option[data-choix="libre"]:not([disabled])'));
   await choix('.choix-option[data-choix="sort"]');
 }
+// D'ABORD LES CARTES (1.0, oct.) : qui sort, en liste, chacun comparé à l'arrivant ; l'alignement ensuite, pour le placer.
+await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 10000 });
+const sortants = await page.$$eval('#choixModal .choix-option', l => l.map(o => ({ permis: !o.disabled, puces: o.querySelectorAll('.puce').length })));
+if (sortants.length < 20 || sortants.some(o => o.puces < 2)) erreurs.push(`« qui sort ? » : ${sortants.length} joueurs, ${sortants.filter(o => o.puces < 2).length} sans fiche ni masse`);
+await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort-liste.png` });
+await page.$eval('#choixModal .choix-option:not([disabled])', b => b.click());
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
 await page.waitForTimeout(300);
 const rangees = await page.$$eval('#choixModal .aln-titre', e => e.map(x => (x.firstChild ? x.firstChild.textContent : x.textContent).trim()));
@@ -354,8 +360,8 @@ const refusees = await page.$$eval('#choixModal .aln-case[data-aln][disabled]', 
 await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
 await page.waitForTimeout(250);
 const barreSortie = (await page.textContent('#choixModal .aln-barre-mot')).replace(/\s+/g, ' ').trim();
-// L'ÉCHANGE À LA YAHOO FANTASY (1.0, oct.) : le sortant et l'arrivant côte à côte, puis la masse.
-if (!/^Sort.+Arrive.+Masse/.test(barreSortie)) erreurs.push(`la barre de « qui sort ? » ne dit pas ce qui va se passer : « ${barreSortie} »`);
+// OÙ IL JOUE (1.0, oct.) : sa case, hors position ou non, qui glisse ailleurs, et la masse.
+if (!/: .+masse/.test(barreSortie)) erreurs.push(`la barre de « qui sort ? » ne dit pas ce qui va se passer : « ${barreSortie} »`);
 if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) erreurs.push('toucher une case de « qui sort ? » a décidé sans « Confirmer »');
 await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
 console.log(`   qui sort : ${rangees.length} rangées, ${refusees} case(s) grisée(s) · « ${barreSortie} »`);

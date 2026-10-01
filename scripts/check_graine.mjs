@@ -19,6 +19,7 @@ import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, p
          creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame, feuilleVierge,
          generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS, ROULEMENTS, TACTIQUES, AGRESSIVITES, connaitre, getPlayerKey, poserAlignementDuJour } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
+import { prevision } from '../js/pronostic.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
@@ -248,11 +249,13 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
     jouerJournee(L);
     // Le pronostic, l'exhibition : du hasard pris hors de la ligue, entre deux journées.
     if (n % 7 === 0) { avecHasardIsole(`ailleurs-${n}`, () => playGame(x, y, n, false, false, feuilleVierge())); Math.random(); }
+    // LA PRÉVISION (1.0, oct.) : les matchs restants rejoués sur les VRAIS clubs de la ligue, au matin — rien ne doit bouger.
+    if (n === 30) prevision({ toi: L.teams[0], calendrier: L.calendrier, jourRevele: L.jour, n: 2 });
     n++;
   }
   const pas = bilanLigue(L);
   dire(texteDe(pas.calendrier) === texteBloc && joueursDe(pas.standings) === joueursBloc,
-    `jouées une à une (${n} journées), les journées donnent la saison d'un bloc, au but près`);
+    `jouées une à une (${n} journées), avec une prévision au jour 30, les journées donnent la saison d'un bloc, au but près`);
   // Avant d'être jouée, une journée n'a ni pointage ni feuille : rien n'existe d'avance.
   const L2 = creerLigue(equipesNeuves(), 82, { graine: 'jour-le-jour' });
   jouerJusqua(L2, 20);

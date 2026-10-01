@@ -206,6 +206,19 @@ async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
  */
 const alignementsVus = [];
 async function sortirDansAlignement() {
+  /*
+   * D'ABORD LES CARTES (1.0, oct.) : « qui sort ? » est une liste de ton
+   * effectif, chacun comparé à l'arrivant (sa fiche, son salaire, la masse) ;
+   * l'alignement vient ensuite, pour placer l'arrivant.
+   */
+  await _wait('#choixModal:not([hidden]) :is(.choix-option, .aln-case)', { timeout: 5000 });
+  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) {
+    const liste = await page.$$eval('#choixModal .choix-option', l => l.map(o => ({ permis: !o.disabled, puces: o.querySelectorAll('.puce').length })));
+    if (liste.length < 20) errors.push(`« qui sort ? » ne liste que ${liste.length} joueurs`);
+    if (liste.some(o => o.puces < 2)) errors.push('« qui sort ? » : un joueur sans sa fiche ou sa masse');
+    if (!liste.some(o => o.permis)) { errors.push('« qui sort ? » : personne ne peut sortir'); return false; }
+    await page.$eval('#choixModal .choix-option:not([disabled])', b => b.click());
+  }
   await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 5000 });
   await page.waitForTimeout(150);
   const lu = await page.evaluate(() => {
@@ -226,10 +239,9 @@ async function sortirDansAlignement() {
   await page.waitForTimeout(120);
   const pret = await page.$eval('#choixModal .aln-confirmer', b => !b.disabled);
   const barre = ((await page.textContent('#choixModal .aln-barre-mot')) || '').replace(/\s+/g, ' ').trim();
-  // L'échange à la Yahoo Fantasy (1.0, oct.) : le sortant et sa case (« 3e paire »), l'arrivant, puis la masse
-  // et où il jouerait — et toucher n'a rien décidé : la feuille est encore là.
+  // Où il joue (1.0, oct.) : « Roenick : 1er trio, hors position −3 · masse −1,98 M$ » — et toucher n'a rien décidé.
   const encore = !!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'));
-  if (!pret || !encore || !/^Sort.+(\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve).+Arrive.+Masse/.test(barre)) errors.push(`toucher une case de « qui sort ? » ne prépare pas la confirmation : « ${barre} »`);
+  if (!pret || !encore || !/: (\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve).+masse/.test(barre)) errors.push(`toucher une case de « qui sort ? » ne prépare pas la confirmation : « ${barre} »`);
   alignementsVus.push(barre);
   await _click('#choixModal .aln-confirmer');
   return true;
@@ -394,7 +406,8 @@ async function ouvrirPaquet() {
  * 0) ne compte pas : Playwright s'arrêtait sur lui et ne voyait pas la page.
  */
 const ecranPret = (timeout = 120000) => page.waitForFunction(() => {
-  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
+  // L'alignement aussi (1.0, oct.) : après « qui sort ? », l'arrivant se place dans ses cases.
+  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .aln-case, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
   return [...document.querySelectorAll(sel)].some(el => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return false;

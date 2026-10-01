@@ -749,7 +749,7 @@ function ouvrirEcranSaison(depuis = 0) {
         apercu: apercuJoueur,
         // S79 : toute signature de la saison (ballottage, recrue) respecte le plafond effectif, et dit ce que libère chaque sortie.
         // S80 : une case de réserve libre (Rogue) s'offre d'abord — personne ne sort.
-        quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), note: q => `libère ${money(capHitDuJour(q))}`, ...o }),
+        quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), ...o }),
         // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
         rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider),
           // S80 : la saison de la run et le mandat du proprio. 1.0 (R4) : le barème de la run, tel que
