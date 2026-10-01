@@ -4846,10 +4846,22 @@ function gardienDeRappel(team, modele) {
   return team.rappelG;
 }
 
+/*
+ * LES DEUX GARDIENS DU SOIR, le partant d'abord. JP : *un gardien suprême avec
+ * des boosts, et il est à chier*. Le partant blessé laissait sa case vide ;
+ * l'auxiliaire, resté dans la sienne, n'avait plus de partant à qui prendre
+ * sa part (`partAuxiliaire` rendait 0) et regardait le rappel du club-école
+ * jouer tous les soirs. L'auxiliaire monte au filet, et le rappel prend la
+ * part d'un auxiliaire, comme quand la case auxiliaire est vide.
+ */
+function gardiensDuSoir(lineup) {
+  const [starter, backup] = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]);
+  return starter ? [starter, backup] : [backup, null];
+}
+
 /* Qui la rotation du club enverrait ce soir, sans aucun choix imposé (pour l'écran). */
 function gardienDeRotation(lineup, gameIdx, team = null) {
-  const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]);
-  const [starter, backup] = gs;
+  const [starter, backup] = gardiensDuSoir(lineup);
   if (team && ((team.gardienAux || 0) > (team.jourCourant ?? -1))) return backup || starter || null;
   const part = backup ? partAuxiliaire(starter, backup) : (starter ? PART_SANS_AUX : 1);
   const useBackup = Math.floor((gameIdx + 1) * part) > Math.floor(gameIdx * part);
@@ -4859,16 +4871,14 @@ function gardienDeRotation(lineup, gameIdx, team = null) {
 /* Pour l'instantané du matin (ta formation) : qui est partant, qui est auxiliaire, et qui la rotation enverrait. */
 export function filetDuSoir(team) {
   const lu = activeLineup(team);
-  const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lu[s.i]);
-  const [starter, backup] = gs;
+  const [starter, backup] = gardiensDuSoir(lu);
   const rot = gardienDeRotation(lu, team.games || 0, team);
   return { partant: starter ? getPlayerKey(starter) : null, aux: backup ? getPlayerKey(backup) : null,
     rotation: rot && backup && rot === backup ? 'aux' : 'partant', impose: (team.gardienAux || 0) > (team.jourCourant ?? -1) };
 }
 
 function pickGoalie(lineup, gameIdx, team = null) {
-  const gs = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => lineup[s.i]);
-  const [starter, backup] = gs;
+  const [starter, backup] = gardiensDuSoir(lineup);
   // Sans auxiliaire — tu l'as signé, il est blessé — le club rappelle, et le
   // rappel prend la part d'un auxiliaire ordinaire : le partant retombe sous
   // les 70 départs, là où la vraie ligue le tient.
