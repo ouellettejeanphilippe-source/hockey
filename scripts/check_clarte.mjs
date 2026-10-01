@@ -215,7 +215,7 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [`entre ${nombre(PART_AUX_MIN * 100)} et ${nombre(PART_AUX_MAX * 100)} %`, 'la part de l\'auxiliaire'],
     [`en prend ${nombre(PART_SANS_AUX * 100)} %`, 'le gardien rappelé'],
     [`${['zéro', 'un', 'deux', 'trois', 'quatre'][GARDIEN_SUITE_LIBRE]} départs de suite ; au ${['', 'deuxième', 'troisième', 'quatrième', 'cinquième'][GARDIEN_SUITE_LIBRE]}, il en perd ${GARDIEN_JAMBES_PAS} par départ, jamais sous ${GARDIEN_JAMBES_MIN}, et chaque ${GARDIEN_JAMBES_PAS} points perdus lui coûtent ${nombre(GARDIEN_USURE * 100)} %`, 'la fatigue des gardiens'],
-    [`annoncé ${ANNONCE_GROS} journées d'avance`, 'l\'annonce du gros match'],
+    [ANNONCE_GROS === 1 ? 'annoncé la veille' : `annoncé ${ANNONCE_GROS} journées d'avance`, 'l\'annonce du gros match'],
     [`<strong>main de ${TAILLE_MAIN} cartes</strong> et tu as <strong>${ENERGIE_MAIN} d'élan</strong>`, 'la main'],
     [`à partir de la journée 55 et dès la troisième ronde des séries, il a ${energieAdverse({ jour: 55 })} d'élan`, 'l\'élan adverse'],
     [`précision +${pct(PREP_JUSTE.finition)} % et buts contre −${pct(PREP_JUSTE.defense)} %`, 'la préparation juste'],

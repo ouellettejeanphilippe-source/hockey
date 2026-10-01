@@ -2647,7 +2647,7 @@ export const MOMENTS = {
     recit: 'Une ancienne patineuse olympique offre ses services pour la saison. Elle ne prend qu\'un élève : {nom}.',
     options: [
       { cle: 'oui', nom: 'Oui, pour {nom}', mutation: 'patin', bon: 'Il arrivera avant la rondelle' },
-      { cle: 'non', nom: 'Non merci', bon: 'Rien ne change', rien: true },
+      { cle: 'non', nom: 'Non : l\'argent va à la physio', bon: 'Des jambes neuves pour tout le monde', energie: 0.92, duree: 6 },
     ],
   },
   cassettes: {
@@ -2663,7 +2663,7 @@ export const MOMENTS = {
     recit: '{nom} demande sa chance à la ligne bleue en avantage numérique. Il jure qu\'il a un canon.',
     options: [
       { cle: 'chance', nom: 'Lui donner la pointe', mutation: 'pointe', bon: 'Un défenseur qui décoche' },
-      { cle: 'attendre', nom: 'Qu\'il attende son tour', bon: 'Rien ne change', rien: true },
+      { cle: 'attendre', nom: 'Qu\'il attende son tour', bon: 'Il travaille sa défensive en attendant', defense: 0.97, duree: 6 },
     ],
   },
   ecole: {
@@ -5700,7 +5700,9 @@ function preludeDuJour(L) {
   /*
    * LE GROS MATCH S'ANNONCE D'AVANCE (S80). JP, sur « Le virus dans le
    * vestiaire » : *ces events gros matchs, ça devrait pas être le jour même,
-   * mais dans les jours avant*. Il se repère ANNONCE_GROS journées plus tôt,
+   * mais dans les jours avant*. Puis (1.0, oct.) : *les événements pré-match
+   * importants devraient avoir lieu le jour même, ou la veille* — deux
+   * journées d'avance, c'était trop loin. Il se repère la VEILLE (ANNONCE_GROS),
    * sur le classement et les rivalités de CE jour-là — rien n'est joué
    * d'avance, on lit ce qui est connu — et il ne bouge plus ensuite :
    * l'avant-match (le virus, la conférence de presse…) arrive à l'annonce,
@@ -7449,7 +7451,7 @@ export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
  * fois par journée à venir, écrite une fois pour toutes (`null` quand ce n'en
  * est pas un). L'espacement se compte d'annonce en annonce.
  */
-export const ANNONCE_GROS = 2;
+export const ANNONCE_GROS = 1;
 function annoncerGros(L, toi, j) {
   if (j in L.grosAnnonces || j < 10 || j >= L.calendrier.length) return;
   const m = (L.calendrier[j] || []).find(x => x.A === toi || x.B === toi);

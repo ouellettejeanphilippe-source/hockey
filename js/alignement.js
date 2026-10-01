@@ -350,7 +350,6 @@ function slotEl(s) {
         G.selectedSlot = null;
         G.target = null;
         saveGame();
-        toast(b ? 'Joueurs permutés.' : 'Joueur déplacé.');
       }
     } else if (p) {
       G.selectedSlot = s.i;

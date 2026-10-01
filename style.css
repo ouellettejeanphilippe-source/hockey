@@ -665,7 +665,8 @@ input[type="range"] { accent-color: var(--or); }
 .pm-pos { color: var(--bon); font-weight: 800; }
 .pm-neg { color: var(--mauvais); font-weight: 800; }
 /* Le niveau (Soutien → Phénomène) : la seule capsule pleine, parce qu'elle est un rang. */
-.niv { flex: none; display: inline-block; padding: 2px 6px; border-radius: var(--r-1); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; color: var(--encre); background: var(--fond-3); }
+/* Une case étroite (le trio au bureau) la rétrécit avec « … » plutôt que de la couper ; l'infobulle dit le niveau entier. */
+.niv { flex: 0 1 auto; display: inline-block; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px 6px; border-radius: var(--r-1); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; color: var(--encre); background: var(--fond-3); }
 .niv-partiel { background: transparent; color: var(--encre-2); box-shadow: inset 0 0 0 1px var(--filet); }
 .niv-regulier { background: #2f6fb8; }
 .niv-pilier { background: #2c8a57; }

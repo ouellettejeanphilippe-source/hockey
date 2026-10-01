@@ -896,7 +896,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * direct. « La fin » ne s'arrête pas : qui demande la fin demande la fin.
    */
   // Joué, il est dans `minisBoss` ; à venir, le moteur l'a ANNONCÉ au matin (`grosAnnonces`,
-  // S80 : deux journées d'avance, sur ce qui était connu ce jour-là), sans rien jouer.
+  // la veille — ANNONCE_GROS —, sur ce qui était connu ce jour-là), sans rien jouer.
   const grosDuJour = j => (you.minisBoss || []).find(x => x.jour === j)
     || (ligue && ligue.grosAnnonces && ligue.grosAnnonces[j]) || null;
   const entracteAttendu = j => !!(onDecision && grosDuJour(j) && !decs.some(d => d.jour === j && d.entracte));
