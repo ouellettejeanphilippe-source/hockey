@@ -7,10 +7,10 @@
 
 import { lireMeta, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, motsDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, motsDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, MAX_PATRONS, ROLES, payloadDe, CONSOMMABLES, CONTRATS, CASES_DE_BASE, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS } from './coachs.js';
-import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack } from './packs.js';
+import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
@@ -133,9 +133,13 @@ function salaireMaxDePack() {
   return capLeft() + Math.max(0, ...signes().map(q => (pl ? capHit(q, pl) : q.$ || 0)));
 }
 const VERROUS_ROGUE = { 'j:defensif': 'packDefenseurs', 'j:gardien': 'packGardiens', 'j:ere80': 'packAnnees80', 'j:etoiles': 'packVedettes', 'j:legendes': 'packVedettes' };
-function packsOuvertsBoutique() {
+/* Passé la date limite (ton DATE_LIMITE_MATCH-e match joué), les packs de joueurs se ferment. */
+const apresDateLimite = j => !!(G.ligue && G.ligue.you && matchsEntre(G.ligue.you, 0, j) >= DATE_LIMITE_MATCH);
+function packsOuvertsBoutique(j = 0) {
   const meta = G.bonus === 'ROGUE' ? lireMeta() : null;
+  const limite = apresDateLimite(j);
   return Object.fromEntries(Object.keys(PACKS_TOUS).map(k => {
+    if (limite && PACKS_TOUS[k].sorte === 'joueurs') return [k, `La date limite des échanges est passée (${DATE_LIMITE_MATCH}e match)`];
     const d = meta && VERROUS_ROGUE[k];
     return [k, !d || aDebloque(meta, d) ? true : `Débloque « ${DEBLOCAGES[d].nom} » au vestiaire des déblocages`];
   }));
@@ -145,9 +149,9 @@ export function ouvrirBoutique(j, decider, page = null) {
   const n = decs.filter(d => d.achat || d.rogue).length;
   ouvrirMagasin({
     ...(page || {}),
-    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(),
+    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(j),
     mods: modsDesPacks(decs, j), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
-    duJour: packDuJour(new Date(), packsOuvertsBoutique()),
+    duJour: packDuJour(new Date(), packsOuvertsBoutique(j)),
     // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
     // Le vrai calendrier (1.0, oct.) : le 20e match tombe vers le jour 45 (20 × 186 / 82).
     debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < Math.round(20 * JOURS_PAR_MATCH),

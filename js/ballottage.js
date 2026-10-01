@@ -24,6 +24,37 @@ export const groupeDe = p => (p.p === 'G' ? 'G' : isD(p) ? 'D' : 'F');
 export const productionDe = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
 
 const MEILLEURS_BALLOTTAGE = 15;
+/*
+ * UN VRAI RAPPEL (1.0, oct.). JP : *jamais piger remplaçant meilleur que
+ * l'original, proposer joueurs avec peu de matchs joués dans la saison et qui
+ * donc, sont viables principalement pour la durée de la blessure, comme un
+ * vrai call up*. Le candidat a joué de RAPPEL_MATCHS[0] à RAPPEL_MATCHS[1]
+ * matchs dans sa vraie saison — un gars du club-école monté quelques semaines —
+ * et il produit MOINS que le blessé, chacun rapporté aux réguliers de sa
+ * saison à son poste (un point par match en 1985 n'est pas un point par match
+ * en 2000).
+ */
+export const RAPPEL_MATCHS = [5, 30];
+const REGULIERS = new WeakMap();
+function moyenneDesReguliers(players, g) {
+  let m = REGULIERS.get(players);
+  if (!m) {
+    m = {};
+    for (const k of ['F', 'D', 'G']) {
+      const v = players.filter(x => (x.gp || 0) >= 40 && groupeDe(x) === k).map(productionDe);
+      m[k] = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
+    }
+    REGULIERS.set(players, m);
+  }
+  return m[g];
+}
+/* Sa production sur celle des réguliers de sa saison ; un gardien, en % d'arrêts brut (l'écart d'une époque à l'autre est petit). */
+const productionRelative = (p, shards) => {
+  if (p.p === 'G') return productionDe(p);
+  const e = shards.get(String(p.s));
+  const m = e ? moyenneDesReguliers(e.players, groupeDe(p)) : 0;
+  return m > 0 ? productionDe(p) / m : productionDe(p);
+};
 export const NIVEAU_MAX_BALLOTTAGE = 1;   // Régulier (js/niveaux.js) : jamais un Pilier, une Étoile ou un Phénomène
 
 /*
@@ -60,6 +91,7 @@ const tropFort = (p, players, niveauMax) => {
 export function candidatsBallottage({ shards, ligue, blesse, budget, at, graine = ligue && ligue.graine, niveauMax = NIVEAU_MAX_BALLOTTAGE, meilleurs = MEILLEURS_BALLOTTAGE }) {
   if (!ligue || !blesse || !Array.isArray(ligue.cles) || !shards) return [];
   const g = groupeDe(blesse);
+  const plafond = productionRelative(blesse, shards);
   const dansLaLigue = new Set();
   for (const t of ligue.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
   const clubs = new Set(ligue.cles);
@@ -70,17 +102,17 @@ export function candidatsBallottage({ shards, ligue, blesse, budget, at, graine 
     for (const [tag, joueurs] of Object.entries(e.byTeam || {})) {
       if (clubs.has(`${s}|${tag}`)) continue;
       for (const p of joueurs) {
-        if ((p.gp || 0) < 20 || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p))) continue;
+        if ((p.gp || 0) < RAPPEL_MATCHS[0] || (p.gp || 0) > RAPPEL_MATCHS[1] || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p))) continue;
         if (niveauMax != null && niveauMax < 4 && tropFort(p, e.players, niveauMax)) continue;
+        if (productionRelative(p, shards) >= plafond) continue;
         pool.push(p);
       }
     }
   }
   const h = str => { let x = ((Number(graine) >>> 0) ^ Math.imul(at + 1, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
   // Des offres qui valent la peine : les meilleurs producteurs qui passent le
-  // filtre, puis trois d'entre eux tirés de la graine. Un tirage parmi TOUS
-  // les pas chers offrait des joueurs à deux points en trente-sept matchs.
-  pool.sort((a, b) => productionDe(b) - productionDe(a));
+  // filtre (tous sous le blessé), puis trois d'entre eux tirés de la graine.
+  pool.sort((a, b) => productionRelative(b, shards) - productionRelative(a, shards));
   pool.length = Math.min(pool.length, meilleurs);
   pool.sort((a, b) => h(getPlayerKey(a)) - h(getPlayerKey(b)));
   const out = [], vus = new Set();

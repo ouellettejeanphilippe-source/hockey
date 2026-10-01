@@ -1628,7 +1628,8 @@ async function traverserSaison(etiquette, reprise = false) {
     // la case n'a plus qu'une ligne de méta, on ne la cherche plus par rang.
     const metas = await page.$$eval('.slot', els => els.filter(e => e.querySelector('.slot-name')).map(e => e.querySelector('.slot-faits')?.textContent.trim() || ''));
     // « 1,000 » : un gardien qui n'a rien accordé encore (un blanchissage en début de saison).
-    const ficheCase = /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · ([,—]|1,000)|aucun match)/;
+    // Un blessé dit qui joue sa case ce soir, et son remplaçant où il monte.
+    const ficheCase = /^(\d+-\d+-\d+ · [+-−]?\d+|\d+-\d+ · ([,—]|1,000)|aucun match|.+ le remplace|personne pour le remplacer|Ce soir : .+)/;
     if (metas.length !== 23 || !metas.every(m => ficheCase.test(m))) errors.push(`les cases du banc ne portent pas la fiche à ce jour (${metas.length} cases) : ${metas.filter(m => !ficheCase.test(m)).slice(0, 4).join(' | ')}`);
     if ((await page.$$('.slot-remove')).length) errors.push('le banc laisse retirer un joueur en pleine saison');
     // Le 3e trio est la fermeture par défaut (FERMETURE_DEFAUT) : le 🔒 doit

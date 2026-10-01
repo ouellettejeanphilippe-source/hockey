@@ -144,7 +144,12 @@ export function syncSortOptions() {
 }
 
 /** La fiche d'un joueur à ce jour, telle que le banc la lit : « 12-18-30 · +7 », « 14-6 · ,918 ». */
+const nomDeFamille = n => String(n || '').trim().split(' ').pop();
 function ficheDuJour(p) {
+  // Un blessé : qui joue sa case ce soir ; un réserviste qui monte : où (`G.banc.remplace`, js/banc.js).
+  if (G.banc && G.banc.remplace && G.banc.remplace.has(p)) { const q = G.banc.remplace.get(p); return q ? `${nomDeFamille(q.n)} le remplace` : 'personne pour le remplacer'; }
+  const pour = G.banc && G.banc.monte && G.banc.monte.get(p);
+  if (pour) { const sl = SLOTS.find(x => G.roster[x.i] === pour); return sl ? `Ce soir : ${slotShort(sl)}` : ''; }
   const c = G.banc && G.banc.compte.get(p);
   if (!c || !c.gp) return 'aucun match';
   // 1,000 : un blanchissage en début de saison s'écrivait « 1.000 » (le remplacement ne visait que « 0. »).

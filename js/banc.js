@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { compterFeuilles, planDe, roulementDe, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { compterFeuilles, planDe, roulementDe, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { chargerTable } from './charge-table.js';
 import { CARTES_MATCH } from './combat.js';
@@ -63,6 +63,20 @@ function ouvrirBanc(jour) {
     const reste = b.at + b.games - (joues + 1);
     if (b.at <= joues + 1 && reste > 0) blesses.set(b.player, reste);
   }
+  /*
+   * QUI JOUE À LA PLACE D'UN BLESSÉ, dit dans l'alignement même. JP : *quand
+   * un joueur est descendu ou remonté, genre blessure, le faire dans la page
+   * alignement*. `activeLineup` sur tes cases d'aujourd'hui : le blessé garde
+   * la sienne (il y revient), et sa case nomme celui qui la joue ce soir.
+   */
+  const remplace = new Map(), monte = new Map();
+  const ce_soir = activeLineup({ ...L.you, injured: blesses, jourCourant: jour });
+  for (const s of SLOTS) {
+    const p = G.roster[s.i], q = ce_soir[s.i];
+    if (s.scratch || !p || !blesses.has(p) || q === p) continue;
+    remplace.set(p, q || null);
+    if (q) monte.set(q, p);
+  }
   let prochain = null;
   for (let j = jour; j < L.calendrier.length && !prochain; j++) {
     const m = L.calendrier[j].find(x => x.A === L.you || x.B === L.you);
@@ -76,7 +90,7 @@ function ouvrirBanc(jour) {
    * écrivant sa décision, donc effacerait un choix en silence.
    */
   G.banc = {
-    jour, compte, blesses, prochain, fiche, N: L.calendrier.length,
+    jour, compte, blesses, remplace, monte, prochain, fiche, N: L.calendrier.length,
     fermeture: L.you.fermeture ?? derniere.fermeture ?? 'auto',
     plan: planDe(L.you), roulement: roulementDe(L.you),
     // Les lignes EN VIGUEUR et leur état au jour du banc (S68).

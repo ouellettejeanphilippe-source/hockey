@@ -68,7 +68,8 @@ permissions:
 jobs:
   verifier:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 25 ne suffisait plus (oct. 2026) : main et les PR étaient coupés en plein smoke_table, tout vert jusque-là.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 

@@ -83,6 +83,13 @@ export const TIERS = {
 export const NUMEROS = [['/99', 78], ['/25', 16], ['/10', 5], ['1 de 1', 1]];
 /* En mode Rogue : huit packs de joueurs sans holo ni or, et le neuvième en a une. */
 export const PITIE = 8;
+/*
+ * LA DATE LIMITE DES ÉCHANGES (1.0, oct.). JP : *rendre impossible de prendre
+ * des packs de joueurs après la date limite des échanges*. Comme la vraie
+ * ligue, fin février : après ton 62e match, plus aucun joueur n'entre par un
+ * pack. Le rappel d'un blessé (le ballottage), lui, reste ouvert.
+ */
+export const DATE_LIMITE_MATCH = 62;
 
 /*
  * LES PACKS DE JOUEURS. \`famille\` dit où l'on pige ; \`choix\` : le pack se
