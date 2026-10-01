@@ -2776,7 +2776,7 @@ export const SEQUENCES = {
       { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.95 },
       { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Si les jambes suivent, on redevient une équipe physique', prix: 'Sinon, des corps fatigués',
         pari: { chance: 0.5, gagne: { robustesse: 1.3, duree: 8 }, perd: { blessure: 1.35, duree: 8 } } },
-      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.96, discipline: 1.18, blessure: 1.15, trou: true },
+      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.9, discipline: 1.18, blessure: 1.15, trou: true },
     ],
   },
   victoires: {
@@ -7224,7 +7224,7 @@ export const ENTRACTES = {
   // Mené ou à égalité.
   patience: { ico: '🔦', nom: 'Attendre le bon tir', si: ['derriere', 'egal'], bon: 'Des tirs de qualité', prix: 'Moins de tirs', finition: 1.06, volume: 0.92 },
   pluie: { ico: '🪃', nom: 'Une pluie de rondelles', si: ['derriere', 'egal'], bon: 'Tout au filet', prix: 'Des tirs de nulle part', volume: 1.14, finition: 0.95, defense: 1.03 },
-  meute: { ico: '🐺', nom: 'Échec-avant à trois', si: ['derriere', 'egal'], bon: 'On vole des rondelles', prix: 'Des surnombres contre, des jambes en moins', volume: 1.1, defense: 1.07, energie: 1.08 },
+  meute: { ico: '🐺', nom: 'Échec-avant à trois', si: ['derriere', 'egal'], bon: 'On vole des rondelles', prix: 'Des surnombres contre, des jambes en moins', volume: 1.15, defense: 1.07, energie: 1.08 },
   discours: { ico: '🗣️', nom: 'Le coach élève la voix', si: ['derriere', 'egal', 'devant'], bon: 'Le vestiaire se réveille', prix: 'Des têtes chaudes', finition: 1.03, discipline: 1.1 },
   // À égalité.
   prolo: { ico: '⏳', nom: 'Jouer pour la prolongation', si: ['egal'], bon: 'Pas de risque', prix: 'Pas de but non plus', defense: 0.9, volume: 0.9 },

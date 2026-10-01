@@ -12,8 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPlayerKey, getPersonKey, connaitre, photoAlignement } from '../js/sim.js';
-import { candidatsBallottage, productionDe, NIVEAU_MAX_BALLOTTAGE, RAPPEL_MATCHS } from '../js/ballottage.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPlayerKey, getPersonKey, connaitre, photoAlignement, fits } from '../js/sim.js';
+import { candidatsBallottage, productionDe, NIVEAU_MAX_BALLOTTAGE, RAPPEL_MATCHS, quiGlisse } from '../js/ballottage.js';
 import { niveauDe, joueursParNiveau, groupeDuJoueur } from '../js/niveaux.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -126,5 +126,24 @@ exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiq
   // UN VRAI RAPPEL (1.0, oct.) : jamais meilleur que le blessé, et un gars qui a peu joué dans sa saison.
   exiger('jamais un réclamé meilleur que le blessé', meilleurs === 0, `${meilleurs} au-dessus`);
   exiger(`un réclamé a joué de ${RAPPEL_MATCHS[0]} à ${RAPPEL_MATCHS[1]} matchs dans sa saison`, horsRappel === 0, `${horsRappel} hors de la fourchette`);
+}
+/*
+ * KESSEL ARRIVE, OLEKSIAK SORT D'UNE RÉSERVE DE DÉFENSEUR (1.0, oct.). JP :
+ * *ça me permet pas de le mettre dans l'alignement*. L'attaquant qui cède sa
+ * case ne peut pas glisser à une réserve de défenseur : il va ailleurs
+ * (`quiGlisse`), et toute case d'attaquant reste offerte à l'arrivant.
+ */
+{
+  const t = ligue()[0];
+  const A = SLOTS.find(s => s.scratch && s.role === 'Réserve D');
+  const casesF = SLOTS.filter(s => !s.scratch && s.group === 'F' && t.roster[s.i]);
+  // Comme chez JP : une case de réserve d'attaquant libre (sinon l'arrivant n'aurait aucune case, et l'étape un le grise).
+  const roster = { ...t.roster };
+  delete roster[SLOTS.find(s => s.scratch && s.role === 'Réserve F').i];
+  const coups = casesF.map(B => quiGlisse(roster, A, B));
+  const offertes = coups.filter(Boolean).length;
+  const justes = coups.filter(Boolean).every(g => g.every(([x, sl]) => fits(x, sl)));
+  exiger('le sortant d\'une réserve de défenseur laisse toutes les cases d\'attaquant à l\'arrivant', offertes === casesF.length, `${offertes} / ${casesF.length} cases offertes`);
+  exiger('celui qui glisse joue toujours une case à sa position', justes, coups.filter(Boolean).flat().map(([x, sl]) => `${x.n} → ${sl.role}`).slice(0, 4).join(' · '));
 }
 verdict('Le ballottage et les dés neufs');

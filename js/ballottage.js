@@ -15,7 +15,7 @@
  * ligue, les shards chargés, le budget — et scripts/check_ballottage.mjs
  * mesure la même fonction en Node.
  */
-import { getPlayerKey, getPersonKey } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, fits } from './sim.js';
 import { niveauDe, joueursParNiveau, groupeDuJoueur, mesureDuNiveau } from './niveaux.js';
 import { estD as isD } from './util.js';
 
@@ -122,4 +122,25 @@ export function candidatsBallottage({ shards, ligue, blesse, budget, at, graine 
     if (out.length === 3) break;
   }
   return out;
+}
+
+/*
+ * OÙ VA CELUI QUI CÈDE SA CASE (1.0, oct.). JP : *ça me permet pas de le
+ * mettre dans l'alignement* — Oleksiak sortait d'une réserve de défenseur,
+ * et Kessel ne pouvait prendre aucune case d'attaquant : leur joueur devait
+ * glisser à la case libérée, qu'un attaquant ne joue pas. Il glisse donc là
+ * s'il le peut ; sinon dans une réserve libre ; sinon il prend la réserve
+ * d'un réserviste qui, lui, peut jouer la case libérée. `ouverte` : les
+ * réserves de la partie (js/game.js `caseOuverte`). Rend les déplacements
+ * `[[joueur, case], …]`, ou null.
+ */
+export function quiGlisse(roster, A, B, ouverte = () => true) {
+  const q = roster[B.i];
+  if (B.i === A.i || !q) return [];
+  if (fits(q, A)) return [[q, A]];
+  const reserve = R => R.scratch && R.i !== A.i && R.i !== B.i && ouverte(R) && fits(q, R);
+  const libre = SLOTS.find(R => reserve(R) && !roster[R.i]);
+  if (libre) return [[q, libre]];
+  const R = SLOTS.find(R => reserve(R) && roster[R.i] && fits(roster[R.i], A));
+  return R ? [[q, R], [roster[R.i], A]] : null;
 }

@@ -11,7 +11,7 @@
  *   2. une option qui ne fait QUE coûter (« Moindre mal », sans rien d'autre).
  * La forme est celle de l'écran (`formeDe`, js/gerant.js).
  */
-import { MOMENTS, SEQUENCES, AVANT_GROS, JOURS_MOMENTS } from '../js/sim.js';
+import { MOMENTS, SEQUENCES, AVANT_GROS, JOURS_MOMENTS, ENTRACTES, entractesDu } from '../js/sim.js';
 import { brancherMoments } from '../js/situations.js';
 import { formeDe } from '../js/gerant.js';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -43,8 +43,31 @@ for (const [cat, liste] of [['dilemme', MOMENTS], ['séquence', SEQUENCES], ['av
   }
 }
 
+/*
+ * 3. AUCUNE OPTION BATTUE SUR TOUT (1.0, oct.). JP, sur « Trois défaites de
+ * suite » : « Garder le cap » (buts contre −5 %, gratuit) contre « Briser le
+ * règlement » (buts contre −4 %, punitions et blessures en plus) — *le choix
+ * deux et quatre... lol*. Une option qui fait moins sur chaque canal, et
+ * pas plus ailleurs, n'est pas un choix. Les minutes (F, D), un pari, un
+ * geste ou un changement de carte ne se comparent pas : on les laisse.
+ */
+const PLUS = ['volume', 'finition', 'creation', 'lancers'], MOINS = ['defense', 'discipline', 'blessure', 'energie'];
+const comparable = o => !o.rien && !o.pari && !o.action && !o.ensuite && !o.enjeu && !o.mutation && !o.changeGardien && !o.F && !o.D && !o.incident;
+const vecteur = o => [...PLUS.map(k => o[k] ?? 1), ...MOINS.map(k => -(o[k] ?? 1)), o.robustesse ?? 0, o.trou ? -1 : 0];
+const domine = (y, x) => { const a = vecteur(y), b = vecteur(x); return a.every((v, i) => v >= b[i] - 1e-9) && a.some((v, i) => v > b[i] + 1e-9); };
+const battues = [];
+const groupes = [
+  ...[['dilemme', MOMENTS], ['séquence', SEQUENCES], ['avant-match', AVANT_GROS]].flatMap(([cat, liste]) => Object.values(liste).map(ev => [`${cat} « ${ev.titre} »`, ev.options || []])),
+  ...['derriere', 'egal', 'devant'].map(e => [`entracte (${e})`, [ENTRACTES.garder, ...entractesDu(e).map(c => ENTRACTES[c])]]),
+];
+for (const [nomG, os] of groupes) {
+  const c = os.filter(comparable);
+  for (const x of c) { const y = c.find(z => z !== x && domine(z, x)); if (y) battues.push(`${nomG} : « ${x.nom} » battue par « ${y.nom} »`); }
+}
+
 informer('événements lus', `${n}`);
 exiger('aucune option gratuite face à une option vide', !fautifs.some(f => /ne fait rien/.test(f)), fautifs.filter(f => /ne fait rien/.test(f)).join(' · '));
 exiger('aucune option gratuite face à une option qui ne fait que coûter', !fautifs.some(f => /que coûter/.test(f)), fautifs.filter(f => /que coûter/.test(f)).join(' · '));
+exiger('aucune option battue sur tous les canaux par une autre du même choix', !battues.length, battues.join(' · '));
 
 verdict();
