@@ -6,7 +6,7 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SLOTS, fits, penaliteAffichee, getPositionPenalty, CAP } from './sim.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SLOTS, fits, penaliteAffichee, getPositionPenalty, profilPrincipal, CAP } from './sim.js';
 import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ratings.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
@@ -22,7 +22,7 @@ import { scoreIdentite, IDENTITES } from './identites.js';
 import { codeDeFranchise, saisonsDeFranchise, FRANCHISES } from './franchises.js';
 import { $, DEFUNCT, G, MIN_SAL, MODE, SEUIL_IDENTITE, TEAMFULL, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, agesAvailable, applyTeamColors, candidats, capHitDuJour, capLeft, chiffreCle, capUsed, caseCourante, caseOuverte, closeModal, displayStats, enRepechage, epoqueDuTirage, formatName, franchiseDuTirage, headshotHtml, ico, identite, isPicked, majNavbar, maxForPick, montrerPage, nextNeed, openSlots, poserEchelle, positionClass, positionLabel, quiEst, render, rnd, roleTag, saisonDeFranchise, saveGame, saveOpts, scoreDeLaMain, scoreDuVestiaire, signes, slotsLeft, toast, totalCases, vestiaire, zoneEcart, zoneTag } from './game.js';
 import { ballottageVu, groupeDe } from './banc.js';
-import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
+import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { decisionsDeLaPartie, renderJetons } from './rogue-jeu.js';
 import { UNIT_NAMES_D, UNIT_NAMES_F, axesTableHtml, surTable, syncSortOptions, tableStats, tagsTableHtml } from './alignement.js';
 
@@ -341,6 +341,29 @@ export function rangeesAlignement(roster, etat) {
  * sortie libère. Toucher surligne ; « Confirmer » décide. Rend `{ i, sort }`
  * pour la décision de ballottage.
  */
+/*
+ * L'ÉCHANGE, À LA YAHOO FANTASY (1.0, oct.). JP : *séparer swap du joueur,
+ * avec infos style yahoo fantasy et positionnement dans lineup*. L'arrivant
+ * a sa fiche en tête (niveau, rôle, salaire, vraie saison) ; chaque case dit
+ * la fiche de son joueur À CE JOUR (la vraie saison avant le premier match) ;
+ * toucher un joueur les met côte à côte, avec la masse et la case où
+ * l'arrivant jouerait. Des stats et des rangs : jamais une cote.
+ */
+const virg = x => String(x).replace('.', ',');
+function ficheCourte(q) {
+  const c = G.ligue && (G.journee || 0) > 0 ? compteRevele('jour').get(q) : null;
+  if (c && c.gp) return q.p === 'G' ? `${c.gp} PJ · ${c.w || 0}-${c.l || 0} · ${c.sa ? pct3(c.sv / c.sa) : '—'}` : `${c.gp} PJ · ${c.g}-${c.a}-${c.pts} · ${c.pm > 0 ? '+' : ''}${c.pm}`;
+  const st = displayStats(q);
+  return q.p === 'G' ? `${st.gp} PJ · ${q.sv ?? '—'} %arr (vraie saison)` : `${st.gp} PJ · ${st.g}-${st.a}-${st.pt} (vraie saison)`;
+}
+function colonneEchange(q, mot, sl = null) {
+  const pp = q.p === 'G' ? null : profilPrincipal(q);
+  return `<div class="ech-col"><div class="ech-mot">${esc(mot)}</div><b>${esc(q.n)}</b>
+    <span>${esc(positionLabel(q))}${sl ? ` · ${esc(ligneDe(sl))}` : ''}</span>
+    <span>${pastilleNiveau(q)}${pp ? ` ${pp.ico} ${esc(pp.court || pp.nom)}` : ''}</span>
+    <span>${esc(money(capHitDuJour(q)))}</span>
+    <span>${esc(ficheCourte(q))}</span></div>`;
+}
 function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '', bloque = null, note = null }) {
   void genre;   // la feuille de l'alignement a son propre genre (`alignement`) ; le paramètre reste pour les appels
   const nomDe = n => String(n).split(' ').slice(-1)[0];
@@ -352,16 +375,21 @@ function choisirQuiSort(p, { roster, onChoix, onFerme, genre = '', bloque = null
     if (b) return { non: b };
     const pen = penaliteAffichee(p, sl).pen;
     if (pen) marques = true;
-    return { marque: pen ? `−${pen}` : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : '', note: note ? note(q) : '' };
+    return { marque: pen ? `−${pen}` : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : '', note: [ficheCourte(q), note ? note(q) : ''].filter(Boolean).join(' · ') };
   });
   ouvrirAlignement({
     ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
     recit: `${p.n} (${quiEst(p)}) prend la case de celui qui sort ; celui-là quitte l'équipe.${marques ? ` « −N » : ${nomDe(p.n)} y jouerait hors position.` : ''}`,
     aide: 'Touche celui qui lui laisse sa place.',
+    contexte: `<div class="ech-arrive">${colonneEchange(p, 'Arrive')}</div>`,
     rangees,
     barre: k => {
       const sl = SLOTS[Number(k)], q = sl && roster[sl.i];
-      return q ? `<b>${esc(q.n)}</b> (${esc(ligneDe(sl))}) sort, <b>${esc(p.n)}</b> prend sa place.` : '';
+      if (!q) return '';
+      const pen = penaliteAffichee(p, sl).pen;
+      const ecart = capHitDuJour(p) - capHitDuJour(q);
+      return `<span class="ech">${colonneEchange(q, 'Sort', sl)}${colonneEchange(p, 'Arrive', sl)}</span>
+        <span class="ech-bilan">Masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))} · ${esc(nomDe(p.n))} : ${esc(ligneDe(sl))}${pen ? `, hors position −${virg(pen)}` : ', à sa position'}</span>`;
     },
     onChoix: k => { const sl = SLOTS[Number(k)]; if (sl && roster[sl.i] && fits(p, sl) && !(bloque && bloque(roster[sl.i]))) onChoix({ i: sl.i, sort: getPlayerKey(roster[sl.i]) }); },
     onFerme,

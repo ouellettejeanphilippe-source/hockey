@@ -18,6 +18,20 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
  * les étapes, la boîte, la Ligue et le Marché). Le bureau est prêt quand sa barre d'action est là.
  */
 const BUREAU = '#hubModal :is(.hub-jour, .hub-traiter)';
+/*
+ * REVENIR OÙ L'ON ÉTAIT (1.0, oct.) : une décision prise de la boutique ou de
+ * « Tes cartes » rouvre cette page par-dessus le bureau. Pour retrouver le
+ * bureau, on la referme.
+ */
+const auBureau = async (timeout = 120000) => {
+  await page.waitForFunction(() => document.querySelector('#hubModal .hub-page[data-genre="boutique"], #hubModal .hub-page[data-genre="cartes"]')
+    || [...document.querySelectorAll('#hubModal .hub-jour, #hubModal .hub-traiter')].some(b => b.offsetParent), null, { timeout });
+  for (let i = 0; i < 3 && await page.$('#hubModal .hub-page[data-genre="boutique"], #hubModal .hub-page[data-genre="cartes"]'); i++) {
+    await page.click('#hubModal .hub-page-retour').catch(() => {});
+    await page.waitForTimeout(250);
+  }
+  await page.waitForSelector(BUREAU, { timeout });
+};
 const versMarche = async quoi => {
   await page.click('#navbar .navtab[data-section="marche"]');
   await page.waitForSelector(`#pageMarcheCorps [data-marche="${quoi}"]`, { timeout: 10000 });
@@ -340,12 +354,13 @@ const refusees = await page.$$eval('#choixModal .aln-case[data-aln][disabled]', 
 await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
 await page.waitForTimeout(250);
 const barreSortie = (await page.textContent('#choixModal .aln-barre-mot')).replace(/\s+/g, ' ').trim();
-if (!/\(.+\) sort, .+ prend sa place/.test(barreSortie)) erreurs.push(`la barre de « qui sort ? » ne dit pas ce qui va se passer : « ${barreSortie} »`);
+// L'ÉCHANGE À LA YAHOO FANTASY (1.0, oct.) : le sortant et l'arrivant côte à côte, puis la masse.
+if (!/^Sort.+Arrive.+Masse/.test(barreSortie)) erreurs.push(`la barre de « qui sort ? » ne dit pas ce qui va se passer : « ${barreSortie} »`);
 if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) erreurs.push('toucher une case de « qui sort ? » a décidé sans « Confirmer »');
 await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
 console.log(`   qui sort : ${rangees.length} rangées, ${refusees} case(s) grisée(s) · « ${barreSortie} »`);
 await page.click('#choixModal .aln-confirmer');
-await page.waitForSelector(BUREAU, { timeout: 120000 });
+await auBureau();
 await page.waitForTimeout(800);
 let d = await decisions();
 // 1.0 (J1-B) : l'achat est la décision `k:n` ; la signature, une seconde décision `k:n:signe` (sans l'achat).
@@ -376,7 +391,7 @@ for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
   await page.screenshot({ path: `${DOSSIER}/rogue-${pack.slice(2)}.png` });
   await page.click('#choixModal:not([hidden]) .choix-plus-tard');
-  await page.waitForSelector(BUREAU, { timeout: 120000 });
+  await auBureau();
   await regler();
 }
 /*
@@ -437,7 +452,7 @@ let posee = null, nomModif = '';
     await page.screenshot({ path: `${DOSSIER}/rogue-verso-poser.png` });
     const nomJoueur = (await page.textContent('#hockeyCardModal .cjv-nom')).trim();
     await page.click('#hockeyCardModal .fc-poser');
-    await page.waitForSelector(BUREAU, { timeout: 120000 });
+    await auBureau();
     await page.waitForTimeout(800);
     await regler();
     d = await decisions();
@@ -463,11 +478,11 @@ for (; essais < 5 && !jouee; essais++) {
   await boutons[essais].click();
   await page.waitForTimeout(600);
   await regler();
-  if (await page.$('#hubModal .hub-page[data-genre="cartes"]')) continue;
-  await page.waitForSelector(BUREAU, { timeout: 120000 });
-  await regler();
+  await page.waitForSelector(BUREAU, { timeout: 120000 }).catch(() => {});
   d = await decisions();
   jouee = d.filter(x => x.joue).length > avantJouees;
+  // REVENIR OÙ L'ON ÉTAIT (1.0, oct.) : une carte jouée rouvre « Tes cartes », pas le bureau.
+  if (jouee && !(await page.$('#hubModal .hub-page[data-genre="cartes"]'))) erreurs.push('une carte jouée ramène au bureau au lieu de « Tes cartes »');
 }
 if (await page.$('#hubModal .hub-page[data-genre="cartes"]')) await page.click('#hubModal .hub-page-retour');
 d = await decisions();
@@ -519,7 +534,7 @@ if (posee) {
     await page.waitForSelector('#hockeyCardModal .fc-poser', { timeout: 10000 });
     const avant = (await decisions()).filter(x => x.joue && x.mutation).length;
     await page.click('#hockeyCardModal .fc-poser');
-    await page.waitForSelector(BUREAU, { timeout: 120000 });
+    await auBureau();
     await page.waitForTimeout(800);
     await regler();
     const apres = (await decisions()).filter(x => x.joue && x.mutation).length;

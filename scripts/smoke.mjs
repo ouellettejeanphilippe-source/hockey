@@ -226,9 +226,10 @@ async function sortirDansAlignement() {
   await page.waitForTimeout(120);
   const pret = await page.$eval('#choixModal .aln-confirmer', b => !b.disabled);
   const barre = ((await page.textContent('#choixModal .aln-barre-mot')) || '').replace(/\s+/g, ' ').trim();
-  // « Hal Gill (3e paire) sort, Kevin Hatcher prend sa place. » — et toucher n'a rien décidé : la feuille est encore là.
+  // L'échange à la Yahoo Fantasy (1.0, oct.) : le sortant et sa case (« 3e paire »), l'arrivant, puis la masse
+  // et où il jouerait — et toucher n'a rien décidé : la feuille est encore là.
   const encore = !!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'));
-  if (!pret || !encore || !/\((\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve)\) sort, .+ prend sa place/.test(barre)) errors.push(`toucher une case de « qui sort ? » ne prépare pas la confirmation : « ${barre} »`);
+  if (!pret || !encore || !/^Sort.+(\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve).+Arrive.+Masse/.test(barre)) errors.push(`toucher une case de « qui sort ? » ne prépare pas la confirmation : « ${barre} »`);
   alignementsVus.push(barre);
   await _click('#choixModal .aln-confirmer');
   return true;

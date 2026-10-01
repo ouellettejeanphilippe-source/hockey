@@ -133,6 +133,18 @@ function salaireMaxDePack() {
   return capLeft() + Math.max(0, ...signes().map(q => (pl ? capHit(q, pl) : q.$ || 0)));
 }
 const VERROUS_ROGUE = { 'j:defensif': 'packDefenseurs', 'j:gardien': 'packGardiens', 'j:ere80': 'packAnnees80', 'j:etoiles': 'packVedettes', 'j:legendes': 'packVedettes' };
+/*
+ * ACHETER SANS OUVRIR (1.0, oct.). JP : *achat de pack sans ouvrir possible*.
+ * Un pack scellé est un achat (`achat.scelle`) qui paie et ne tire rien ; son
+ * ouverture est un achat à 0 🪙 qui le nomme (`achat.de`), et tout le reste
+ * (les doublons, la garantie, l'inventaire, la signature) suit le chemin de
+ * toujours. Un pack de joueurs scellé ne s'ouvre plus après la date limite :
+ * il passe à la saison suivante de la run (`report`).
+ */
+function packsScelles(decs) {
+  const ouverts = new Set(decs.filter(d => d && d.achat && d.achat.de).map(d => d.achat.de));
+  return decs.filter(d => d && d.achat && d.achat.scelle && PACKS_TOUS[d.achat.pack] && !ouverts.has(d.palier));
+}
 /* Passé la date limite (ton DATE_LIMITE_MATCH-e match joué), les packs de joueurs se ferment. */
 const apresDateLimite = j => !!(G.ligue && G.ligue.you && matchsEntre(G.ligue.you, 0, j) >= DATE_LIMITE_MATCH);
 function packsOuvertsBoutique(j = 0) {
@@ -159,9 +171,23 @@ export function ouvrirBoutique(j, decider, page = null) {
     saisons: state.index.seasons.slice().reverse(),
     // v2 : le pack du coach propose ton coach en premier.
     coachs: ORDRE_COACHS.map(k => ({ cle: k, nom: `${COACHS[k].ico} ${COACHS[k].nom}` })), coachRun: (G.rogue && G.rogue.coach) || null,
-    acheter: (cle, { prix, params }) => {
+    acheter: (cle, { prix, params, scelle = false }) => {
       const P = PACKS_TOUS[cle];
+      if (scelle) {
+        decider({ jour: j, palier: `k:${n}`, achat: { pack: cle, n, prix, sorte: P.sorte, params, scelle: true } });
+        toast(`${P.ico} ${P.nom} : scellé, il t'attend dans la boutique (« Tes packs »).`);
+        return;
+      }
       const suite = P.sorte === 'cartes' ? ouvrirPackCartes(cle, prix, j, n, decider, params) : ouvrirPackJoueurs(cle, prix, params, j, n, decider);
+      Promise.resolve(suite).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'));
+    },
+    // LES PACKS SCELLÉS : payés, à ouvrir quand on veut — le tirage se fait à l'ouverture, au numéro d'achat suivant.
+    scelles: packsScelles(decs).map(d => ({ palier: d.palier, cle: d.achat.pack, verrou: PACKS_TOUS[d.achat.pack].sorte === 'joueurs' && apresDateLimite(j) ? `La date limite est passée : il s'ouvre la saison prochaine` : '' })),
+    ouvrirScelle: palier => {
+      const d = packsScelles(decs).find(x => x.palier === palier);
+      if (!d || (PACKS_TOUS[d.achat.pack].sorte === 'joueurs' && apresDateLimite(j))) return;
+      const { pack, params } = d.achat;
+      const suite = PACKS_TOUS[pack].sorte === 'cartes' ? ouvrirPackCartes(pack, 0, j, n, decider, params || {}, palier) : ouvrirPackJoueurs(pack, 0, params || {}, j, n, decider, palier);
       Promise.resolve(suite).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'));
     },
   });
@@ -214,7 +240,7 @@ export function miniAvecVariante(p, rar) {
  * au classeur ; un joueur déjà au classeur est un doublon, revendu tout seul.
  * L'achat est une décision, qu'on signe ou non.
  */
-async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
+async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   const decs = decisionsDeLaPartie();
   const mods = modsDesPacks(decs, j);
   const pitie = G.bonus === 'ROGUE' && packsSansHolo(decs) >= PITIE - 1;
@@ -224,7 +250,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider) {
   let vente = 0;
   cartes.forEach((x, t) => { x.doublon = avant.has(getPlayerKey(x.p)); if (x.doublon) { vendus.push(t); vente += venteJoueur(x); } });
   const meilleure = ['legendaire', 'rare', 'peu', 'commune'].find(r => cartes.some(x => x.rar === r)) || 'commune';
-  const achat = { pack: cle, n, prix, sorte: 'joueurs', params: reglage, meilleure, vente, ...(vendus.length ? { vendus } : {}), ...(pitie ? { pitie: true } : {}) };
+  const achat = { pack: cle, n, prix, sorte: 'joueurs', params: reglage, meilleure, vente, ...(vendus.length ? { vendus } : {}), ...(pitie ? { pitie: true } : {}), ...(de ? { de } : {}) };
   /*
    * L'ACHAT D'ABORD (1.0, J1-B). Avant, le butin entrait au méta (collection,
    * cartable) AVANT que la décision n'enregistre l'achat : recharger la page
@@ -254,8 +280,8 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
   for (const x of cartes) ballottageVu.set(getPlayerKey(x.p), x.p);
   const titre = `${P.nom}${reglage.franchise ? ` · ${FRANCHISES[reglage.franchise].nom}` : reglage.saison ? ` · ${reglage.saison}` : reglage.club ? ` · ${reglage.club}` : ''}`;
   const offrir = () => ouvrirChoix({
-    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Ne signer personne',
-    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}. Tu en signes un, et tu choisis qui lui laisse sa place ; les autres vont à ton classeur.${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
+    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Plus tard',
+    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}. Tu en signes un, et tu choisis qui lui laisse sa place ; les autres vont à ton classeur. Plus tard : l'offre attend dans ta boîte jusqu'à la fin de la journée.${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
     options: cartes.map(x => {
       const g = groupeDe(x.p);
       const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', getPlayerKey(x.p), x.rar, x.num || 0));
@@ -284,7 +310,8 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
       // QUI SORT : la sortie doit faire entrer son salaire sous le plafond (effectif), ou au moins ne pas l'empirer.
       quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), note: q => `libère ${money(capHitDuJour(q))}`, onChoix: signer, onFerme: offrir });
     },
-    onFerme: () => decider({ jour: j, palier, signe: false }),
+    // « Plus tard » : rien ne s'écrit, l'offre reste dans la boîte (`packOuvert`, js/saison.js).
+    onFerme: () => {},
   });
   offrir();
 }
@@ -317,7 +344,7 @@ function optionDeBanque(id) {
  * UNE MALÉDICTION (la taxe de luxe, que certains packs cachent) ne se range
  * pas : elle frappe à l'ouverture (`achat.maudites`, lu par `plafondDe`).
  */
-function ouvrirPackCartes(cle, prix, j, n, decider, params = {}) {
+function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
   const P = PACKS_TOUS[cle], Lg = G.ligue;
   const tirees = tirerCartesPack(P.cle, Lg.graine, n, params);
   const ids = tirees.filter(id => BANQUE[id].rarete !== 'maudite');
@@ -332,7 +359,7 @@ function ouvrirPackCartes(cle, prix, j, n, decider, params = {}) {
     const dejaVu = c.cat === 'patron' && (perso.has(c.cle) || ids.slice(0, t).includes(id));
     if (rogue && dejaVu) { vendus.push(t); vente += valeurDe(id); }
   });
-  const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(P.choix === 'coach' ? { params: { coach: coachDuPack(Lg.graine, n, params) } } : {}), ...(vendus.length ? { vendus, vente } : {}), ...(maudites.length ? { maudites } : {}) };
+  const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(P.choix === 'coach' ? { params: { coach: coachDuPack(Lg.graine, n, params) } } : {}), ...(vendus.length ? { vendus, vente } : {}), ...(maudites.length ? { maudites } : {}), ...(de ? { de } : {}) };
   // 1.0 (J1-B) : l'achat est une décision AVANT que le butin n'entre au méta — recharger la page ne donne plus les cartes gratis.
   decider({ jour: j, palier: `k:${n}`, achat });
   if (rogue) recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${Lg.graine}:k:${n}`);
@@ -946,6 +973,8 @@ async function continuerRun() {
   const compte = buildDe(decsSaison);
   report.push({ jour: 0, coachsDeBase: Object.fromEntries(Object.entries(compte).filter(([, n]) => n > 0)), report: true });
   for (const c of coachsActifs(decsSaison)) { const { jour: _j, ...coach } = c; void _j; report.push({ jour: 0, coach, report: true }); }
+  // Les packs scellés pas ouverts passent à la saison suivante, déjà payés.
+  packsScelles(decsSaison).forEach((d, i) => report.push({ jour: 0, palier: `k:r${i}`, achat: { pack: d.achat.pack, n: -1 - i, prix: 0, sorte: d.achat.sorte, params: d.achat.params, scelle: true }, report: true }));
   const reste = Math.max(0, jetonsRogue(L.calendrier.length));
   G.lignes = Array.isArray(you.lignes) ? you.lignes.map(l => ({ ...l })) : G.lignes;
   G.rogue = {
