@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue,
-  totauxDuSoir, motsDesTotaux, profilMatch, activeLineup, effetDeMoment, effetsActifs, flechesDe, CARTES, ROULEMENTS, roulementDe } from '../js/sim.js';
+  totauxDuSoir, motsDesTotaux, profilMatch, activeLineup, effetDeMoment, effetsActifs, flechesDe, CARTES, ROULEMENTS, roulementDe, pariDeDecision } from '../js/sim.js';
 import { PATRONS, payloadDe } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -134,6 +134,25 @@ const decisions = [
     return teams.map(x => `${x.W}-${x.L}-${x.OTL}-${x.GF}-${x.GA}`).join('|');
   };
   exiger('lire les totaux chaque matin ne change pas une seule journée', joue(true) === joue(false));
+}
+
+/*
+ * LE PARI SE DIT DÈS LE CHOIX. L'écran tranche un pari avec `pariDeDecision`
+ * avant que sa journée se joue ; le moteur le tranche en la jouant. Les deux
+ * doivent tomber pareil, pari par pari.
+ */
+{
+  const teams = ligue(11);
+  const paris = [];
+  for (let j = 2; j < 60; j += 3) paris.push({ jour: j, equipe: 0, moment: { famille: 'moment', cle: 'rats', choix: 'mascotte', joueurs: [] } });
+  const L = creerLigue(teams, 82, { graine: 'paris', decisions: paris });
+  const dits = paris.map(d => pariDeDecision(d, L.graine));
+  jouerJusqua(L, 62);
+  const joues = teams[0].paris || [];
+  const accord = dits.filter((x, i) => joues[i] && joues[i].jour === x.jour && joues[i].gagne === x.gagne).length;
+  const gagnes = dits.filter(x => x.gagne).length;
+  exiger('le pari dit au choix est celui que le moteur joue', accord === paris.length && joues.length === paris.length,
+    `${accord}/${paris.length} d'accord · ${gagnes} payés, ${paris.length - gagnes} ratés`);
 }
 
 verdict();

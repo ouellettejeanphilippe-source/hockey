@@ -32,7 +32,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, CARTES, PALIERS_CARTE
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, ANNONCE_GROS,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
-  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux } from './sim.js';
+  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux, motsDEffet, pariDeDecision } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
@@ -1267,6 +1267,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>
     </div>`;
   }
+  /* Le pari d'où vient un effet (`team.paris`, noté au tirage) : son jour et son titre. */
+  const pariDe = e => (you.paris || []).find(x => x.jour === e.debut && x.titre === e.nom) || null;
   /* Le meilleur buteur d'un club cette saison, lu sur les feuilles révélées. */
   const buteurDe = t => {
     let best = null;
@@ -2236,7 +2238,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       </details>`;
       // CE QUI JOUE SUR TA FORMATION (S72), en une ligne ; le détail est dans « Préparer le match ».
       const ecJ = effetsEnCours(you, p.j);
-      const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => `${e.ico || '✨'} ${e.nom}`), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
+      const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => { const x = e.source === 'pari' && pariDe(e); return x ? `🎲 ${e.nom} : ${x.gagne ? 'pari payé' : 'pari raté'}` : `${e.ico || '✨'} ${e.nom}`; }), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
       const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans « Préparer le match »">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
       // LES TOTAUX DU SOIR (1.0, C5) : ce que le moteur appliquera, effets multipliés et bornés.
       const totJ = motsDesTotaux(totauxDuMatch(p.j));
@@ -2585,6 +2587,20 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         sujet: mv.length === 1 ? mv[0].txt : `${mv.length} changements dans ton alignement`,
         corps: `<div class="hub-mouvements">${mv.map(x => `<div class="hub-mv">🔁 <span class="hub-mv-j">J${x.j + 1}</span> ${ctx.esc(x.txt)}</div>`).join('')}
           <div class="hub-msg-note">Le moteur monte le premier réserviste qui peut jouer la case. ${onBanc ? 'Tu peux tout remanier derrière le banc (onglet Alignement).' : ''}</div></div>` });
+    }
+    /*
+     * LE PARI TRANCHÉ. JP : *j'ai pris le 50/50 et j'ai aucune idée du
+     * résultat*. Le moteur l'applique quand la journée se joue, mais son
+     * tirage est pur (`pariDeDecision`, js/sim.js) : le message le dit dès
+     * le choix, avec ce qu'il fait, tant que son effet court.
+     */
+    for (const d of decs) {
+      const x = pariDeDecision(d, graine);
+      if (!x || jour >= x.fin) continue;
+      const { duree: _d, action: _a, ...canaux } = x.effet;
+      out.push({ id: `pari:${x.jour}:${x.titre}`, genre: 'pari', de: DE.coach, sujet: `${x.titre} : ${x.gagne ? 'le pari a payé' : 'le pari a mal tourné'}`,
+        corps: `<div class="hub-msg-mot">🎲 ${ctx.esc(x.choix)} — ${x.gagne ? 'ça a payé' : 'ça a mal tourné'}.</div>
+          <div class="choix-puces">${puces(motsDEffet(canaux, x.fin - Math.max(jour, x.jour)))}</div>` });
     }
     // LE RAPPORT DU DÉPISTEUR, tous les dix matchs, jusqu'au suivant.
     const nRap = Math.floor(miens.length / RAPPORT_CHAQUE) * RAPPORT_CHAQUE;
