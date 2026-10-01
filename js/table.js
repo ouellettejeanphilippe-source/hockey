@@ -198,6 +198,20 @@ const DEMI_ENCLAVE = 3;                // sa largeur, de part et d'autre du file
  * volume et des retours, comme au hockey.
  */
 const PLACE_GARDIEN = { enclave: 1, rangee2: 2, pointe: 3, coin: 3, tour: 4 };
+/*
+ * LA DISTANCE COMPTE (1.0, oct.). JP : *tous les joueurs ont 25 % de chance
+ * de marquer, peu importe où ils sont, ça me gosse*. Mesuré : de la 3e à la
+ * 7e rangée, 25 à 33 % pour tout le monde — la pointe valait la même chose
+ * à trois cases qu'à sept, et le plancher des dés naturels (un 6 du tireur,
+ * un 1 du gardien : 9 chances sur 36) tenait de partout. Deux choses :
+ *   1. au-delà de la deuxième rangée, le gardien gagne +1 par tranche de
+ *      DEUX rangées (`placeDeLoin`) : +3 à 3-4 cases, +4 à 5-6, +5 à 7-8 ;
+ *   2. les dés naturels ne décident seuls que DE PRÈS (`PRES_NATUREL`, deux
+ *      rangées) : de plus loin, c'est le total qui tranche, et seul le 6 du
+ *      gardien arrête toujours (`duel.loin`).
+ */
+const PRES_NATUREL = 2;
+const placeDeLoin = d => 2 + Math.ceil((d - 2) / 2);
 
 /*
  * LA PORTÉE DU TIR : on ne tire que de la zone offensive.
@@ -692,7 +706,7 @@ export const AXE_MOT = {
  * porteur, qu'il agisse (esquive, passe, feinte, tir) ou qu'on la lui
  * dispute (frapper, harponner). Sans rondelle en jeu, elle reste à qui subit.
  */
-export const duel = (a, b, opp, mots, rondelle = false, brut = null) => ({ a, b, opp, mots, rondelle, brut });
+export const duel = (a, b, opp, mots, rondelle = false, brut = null, loin = false) => ({ a, b, opp, mots, rondelle, brut, loin });
 /** Le même duel avec un bonus d'habileté sur l'attaquant. */
 export const avec = (d, n) => (n ? { ...d, a: d.a + n } : d);
 /** L'écart entre ce qu'on ajoute au dé et la stat brute : ce que la situation a donné ou retiré. */
@@ -709,23 +723,31 @@ export const ecartDuel = d => (d.brut ? [d.a - d.brut[0], d.opp && d.brut[1] !==
  */
 const haut = d => d === 6, bas = d => d === 1;
 const naturel = (dA, dB) => (haut(dA) && !haut(dB) ? true : haut(dB) && !haut(dA) ? false : bas(dA) && !bas(dB) ? false : bas(dB) && !bas(dA) ? true : null);
-/** Le gagnant d'un duel : les naturels d'abord, sinon le plus haut total, l'égalité au défenseur. */
-const gagneLeDuel = (de, total, de2, total2, rondelle = false) => {
+/*
+ * Le gagnant d'un duel : les naturels d'abord, sinon le plus haut total, l'égalité au défenseur.
+ * `loin` (un tir de plus de PRES_NATUREL rangées) : le 6 du tireur et le 1 du gardien ne
+ * décident plus seuls ; seul le 6 du défenseur arrête toujours, et le reste se joue au total.
+ */
+const gagneLeDuel = (de, total, de2, total2, rondelle = false, loin = false) => {
+  if (loin) {
+    if (de2 !== null && haut(de2) && !haut(de)) return false;
+    return rondelle ? total >= total2 : total > total2;
+  }
   const n = de2 === null ? (haut(de) ? true : bas(de) ? false : null) : naturel(de, de2);
   return n !== null ? n : (rondelle ? total >= total2 : total > total2);
 };
 const d6 = m => Math.floor(m.de() * 6) + 1;
 
 /** Les chances de l'attaquant : les naturels, sinon dé + a > dé + b (ou > b sans adversaire). */
-function chances(a, b, opp = true, rondelle = false) {
+function chances(a, b, opp = true, rondelle = false, loin = false) {
   let n = 0, tot = 0;
   for (let dA = 1; dA <= 6; dA++) {
-    if (opp) for (let dB = 1; dB <= 6; dB++) { tot++; if (gagneLeDuel(dA, dA + a, dB, dB + b, rondelle)) n++; }
-    else { tot++; if (gagneLeDuel(dA, dA + a, null, b, rondelle)) n++; }
+    if (opp) for (let dB = 1; dB <= 6; dB++) { tot++; if (gagneLeDuel(dA, dA + a, dB, dB + b, rondelle, loin)) n++; }
+    else { tot++; if (gagneLeDuel(dA, dA + a, null, b, rondelle, loin)) n++; }
   }
   return n / tot;
 }
-export const chancesDe = d => chances(d.a, d.b, d.opp, d.rondelle);
+export const chancesDe = d => chances(d.a, d.b, d.opp, d.rondelle, d.loin);
 
 /* ======================================================================
    LE MATCH
@@ -1299,7 +1321,15 @@ const POOL = MESURE.POOL !== undefined ? Number(MESURE.POOL) : 0;
  * le tireur compte encore : c'est le réglage qui rend le gardien réel sans
  * rendre le tir aveugle.
  */
-const GARDIEN_PLUS = MESURE.GARDIEN !== undefined ? Number(MESURE.GARDIEN) : 1;
+/*
+ * LE TIR SELON LA DISTANCE (1.0, oct.) le ramène à −2 : la place grandit
+ * maintenant avec chaque rangée de recul (`placeDeLoin`) et le plancher des
+ * naturels ne sauve plus le tir de loin, donc le gardien de base cède trois
+ * crans. Mesuré à 120 matchs, avec le court patin avant le contact : à +1,
+ * 2,0 buts par équipe ; à −1, 2,9 ; à −2, 3,4 (la cible : 2,6 à 4,2).
+ * Un TI 6 contre un AR 4, au centre : 72 % collé, 58 % à trois rangées, 28 % à sept.
+ */
+const GARDIEN_PLUS = MESURE.GARDIEN !== undefined ? Number(MESURE.GARDIEN) : -2;
 const TIR_AU_TIREUR = MESURE.TIR_EGALITE === '1';    // l'égalité au tireur : écartée, voir modTir
 const VAL_RETOUR = MESURE.VAL_RETOUR !== undefined ? Number(MESURE.VAL_RETOUR) : 3;
 const PAS_MAX = 6;   // S38 : sur seize rangées, un ailier à PA 6 en fait six
@@ -1738,9 +1768,9 @@ function placeGardien(m, piece, ou = piece) {
   const d = profondeur(ou.r, but);
   const nature = natureCase(ou.r, ou.c, but);
   if (d === 0) return PLACE_GARDIEN.tour;                    // le tour du filet
-  if (nature === 'coin') return PLACE_GARDIEN.coin;
-  if (nature === 'enclave') return d <= 1 ? PLACE_GARDIEN.enclave : PLACE_GARDIEN.rangee2;
-  return PLACE_GARDIEN.pointe;
+  if (nature === 'coin') return Math.max(PLACE_GARDIEN.coin, placeDeLoin(d));
+  if (nature === 'enclave') return d <= 1 ? PLACE_GARDIEN.enclave : d <= 2 ? PLACE_GARDIEN.rangee2 : placeDeLoin(d);
+  return Math.max(PLACE_GARDIEN.pointe, placeDeLoin(d));
 }
 
 /**
@@ -1788,9 +1818,9 @@ export function modTir(m, piece, ou = piece) {
      * gardien. `PORTEE_TIR` ne borne plus rien ici (voir `peutTirerDe`).
      */
     const att = piece.st.TI + signature + malusSouffle(m, piece) - gene;
-    return duel(att, 2 + placeGardien(m, piece, ou) + Math.max(0, d - PORTEE_TIR), false, ['TI', null], true, [piece.st.TI, null]);
+    return duel(att, 2 + placeGardien(m, piece, ou) + Math.max(0, d - PORTEE_TIR), false, ['TI', null], true, [piece.st.TI, null], d > PRES_NATUREL);
   }
-  return duel(piece.st.TI + signature + malusSouffle(m, piece) - gene, g.st.AR + placeGardien(m, piece, ou) + GARDIEN_PLUS, true, ['TI', 'AR'], TIR_AU_TIREUR, [piece.st.TI, g.st.AR]);
+  return duel(piece.st.TI + signature + malusSouffle(m, piece) - gene, g.st.AR + placeGardien(m, piece, ou) + GARDIEN_PLUS, true, ['TI', 'AR'], TIR_AU_TIREUR, [piece.st.TI, g.st.AR], d > PRES_NATUREL);
 }
 
 /**
@@ -1804,7 +1834,7 @@ export function modEchec(m, piece, cible) {
   const porte = porteur(m) === cible;
   const bande = porte && surLaBande(cible.r, cible.c) ? 1 : 0;
   const pres = porte ? malusPression(pression(m, cible.eq, cible.r, cible.c).n) : 0;
-  return duel(piece.st.FO + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece), cible.st.FO - pres - bande, true, ['FO', 'FO'], false, [piece.st.FO, cible.st.FO]);
+  return duel(piece.st.FO + (bonFrappeur(piece.p) ? 1 : 0) + malusSouffle(m, piece) + enMouvement(m, piece), cible.st.FO - pres - bande, true, ['FO', 'FO'], false, [piece.st.FO, cible.st.FO]);
 }
 
 /**
@@ -1814,7 +1844,7 @@ export function modEchec(m, piece, cible) {
  */
 export function modVol(m, piece, cible) {
   const pres = malusPression(pression(m, cible.eq, cible.r, cible.c).n);
-  return duel(piece.st.DE + (bonVoleur(piece.p) ? 1 : 0) + malusSouffle(m, piece), cible.st.MA - pres, true, ['DE', 'MA'], false, [piece.st.DE, cible.st.MA]);
+  return duel(piece.st.DE + (bonVoleur(piece.p) ? 1 : 0) + malusSouffle(m, piece) + enMouvement(m, piece), cible.st.MA - pres, true, ['DE', 'MA'], false, [piece.st.DE, cible.st.MA]);
 }
 
 /**
@@ -1839,7 +1869,7 @@ function jeter(m, quoi, d) {
   const de = d6(m);
   const de2 = d.opp ? d6(m) : null;
   const total = de + d.a, total2 = d.opp ? de2 + d.b : d.b;
-  return { de, mod: d.a, total, de2, mod2: d.b, total2, opp: d.opp, mots: d.mots, rondelle: d.rondelle, seuil: total2, reussi: gagneLeDuel(de, total, de2, total2, d.rondelle), quoi };
+  return { de, mod: d.a, total, de2, mod2: d.b, total2, opp: d.opp, mots: d.mots, rondelle: d.rondelle, loin: !!d.loin, seuil: total2, reussi: gagneLeDuel(de, total, de2, total2, d.rondelle, d.loin), quoi };
 }
 
 export function relancer(m, jet, cote) {
@@ -1848,7 +1878,7 @@ export function relancer(m, jet, cote) {
   eq.relance = false;
   // On relance SON dé ; celui de l'adversaire reste sur la table.
   const de = d6(m);
-  return { ...jet, de, total: de + jet.mod, reussi: gagneLeDuel(de, de + jet.mod, jet.de2, jet.total2, jet.rondelle), relance: true };
+  return { ...jet, de, total: de + jet.mod, reussi: gagneLeDuel(de, de + jet.mod, jet.de2, jet.total2, jet.rondelle, jet.loin), relance: true };
 }
 
 /**
@@ -2116,14 +2146,26 @@ export const PAS_PAR_MAIN = POOL;
 export const pasRestants = m => Math.ceil(m.main.reserve / DEMI);
 export const enCourse = (m, piece) => m.main.mobiles.includes(piece);
 
-/** Les cibles d'une mise en échec : n'importe quel adversaire collé — pas avec la rondelle, pas vidé, pas en pleine course. */
+/*
+ * UN COURT PATIN, PUIS LE CONTACT (1.0, oct.). JP : *frapper ou harponner
+ * après déplacement ou en diagonale*. La diagonale comptait déjà (`dist` :
+ * les huit cases autour). Ce qui manquait : arriver et frapper. La règle de
+ * S36 tient pour un LONG patin — traverser la glace et frapper, le porteur ne
+ * voit rien venir. Mais une pièce qui a patiné `PATIN_CONTACT` cases ou moins
+ * et finit collée peut frapper ou harponner, à −1 (elle arrive en mouvement)
+ * et un souffle de plus.
+ */
+export const PATIN_CONTACT = 2, MOD_EN_COURSE = -1;
+const tropLoin = (m, piece) => enCourse(m, piece) && (piece.patine || 0) > PATIN_CONTACT;
+const enMouvement = (m, piece) => (enCourse(m, piece) ? MOD_EN_COURSE : 0);
+/** Les cibles d'une mise en échec : n'importe quel adversaire collé — pas avec la rondelle, pas vidé, pas après un long patin. */
 export const ciblesEchecDe = (m, piece) =>
-  (porteur(m) === piece || piece.gardien || essouffle(m, piece) || enCourse(m, piece) ? []
+  (porteur(m) === piece || piece.gardien || essouffle(m, piece) || tropLoin(m, piece) ? []
     : eqDe(m, adverse(piece.eq)).pieces.filter(x => !x.etourdi && dist(x, piece) === 1));
 /** Les cibles d'un harponnage : le porteur adverse collé, et lui seul. */
 export const ciblesVolDe = (m, piece) => {
   const p = porteur(m);
-  if (piece.gardien || essouffle(m, piece) || enCourse(m, piece)) return [];   // vidé : ni frapper ni harponner (1.0 · J4)
+  if (piece.gardien || essouffle(m, piece) || tropLoin(m, piece)) return [];   // vidé : ni frapper ni harponner (1.0 · J4)
   return p && p.eq !== piece.eq && !p.gardien && !p.etourdi && dist(p, piece) === 1 ? [p] : [];
 };
 /** Les cibles d'une feinte : un défenseur collé au porteur. */
@@ -2165,7 +2207,9 @@ export function deplacer(m, piece, vers) {
   }
   m.main.mobiles.push(piece);
   m.main.pas = dist(piece, vers);
+  piece.patine = (piece.patine || 0) + dist(piece, vers);
   m.reception = null;
+  m.retour = null;
   /*
    * LE DUEL SE LIT AVANT DE DÉPENSER LE SOUFFLE (1.0 · J4-P5). L'écran
    * calcule la cote avant le geste ; le moteur dépensait le souffle PUIS
@@ -2408,6 +2452,8 @@ export function appliquerTir(m, piece, jet) {
      */
     if (rebondir(m, advG.r, advG.c, { genre: 'retour', but: eq.but, strict: true })) {
       dire(m, `${nomDe(advG)} repousse le tir de ${nomDe(piece)} — retour devant le filet.`, 'retour');
+      // LA REPRISE (1.0, oct.) : un coéquipier collé au retour peut le reprendre tout de suite — une seule fois par tir.
+      if (!jet.reprise) { const l = libre(m); m.retour = { eq: piece.eq, tireur: piece, r: l.r, c: l.c }; }
       return false;
     }
     donner(m, advG, true, 'arret');
@@ -2476,6 +2522,7 @@ export function appliquerEchec(m, piece, cible, jet) {
   userHabilete(m, piece, 'ACTIF', 'EPAULE');
   const eq = eqDe(m, piece.eq);
   const avaitLaRondelle = porteur(m) === cible;
+  if (enCourse(m, piece)) depenser(m, piece);   // arrivé en patinant : un souffle de plus
   agir(m, piece);
   eq.echecs++;
   if (jet.reussi) {
@@ -2527,6 +2574,7 @@ export function appliquerVol(m, piece, cible, jet) {
   if (!jet || !enJeu(m, piece) || !enJeu(m, cible)) return false;
   userHabilete(m, piece, 'ACTIF');
   const eq = eqDe(m, piece.eq);
+  if (enCourse(m, piece)) depenser(m, piece);   // arrivé en patinant : un souffle de plus
   agir(m, piece);
   if (jet.reussi) {
     fiche(eq, piece.p).vols++;
@@ -2819,6 +2867,73 @@ export function tirerSurReception(m) {
   return jet;
 }
 
+/*
+ * LA REPRISE DU RETOUR ET LA DÉVIATION (1.0, oct.). JP : *faudrait un retour
+ * ou déflection équivalent au tir sur réception, qui est action
+ * supplémentaire*. Deux gestes de plus, sur la même mécanique que le une-deux :
+ *
+ *   LA REPRISE. Le gardien repousse et la rondelle tombe devant lui (le
+ *   retour) : un coéquipier COLLÉ à elle peut la reprendre tout de suite,
+ *   dans la même main, même si la main a déjà agi. Le tir part de la case du
+ *   retour, à `REPRISE_MOD` (la rondelle bondit). Une seule par tir : la
+ *   reprise d'une reprise n'existe pas. Patiner ou passer la referme.
+ *
+ *   LA DÉVIATION. Un tir de LOIN (plus de PRES_NATUREL rangées) peut être
+ *   dévié par un coéquipier posté dans l'enclave, sur la trajectoire (une
+ *   colonne de part et d'autre de la ligne tireur–filet). Le tir garde le
+ *   TI du tireur mais part de la case du dévieur, à `DEVIATION_MOD` ; le but
+ *   va au dévieur, la passe au tireur. C'est le même geste que le tir : il
+ *   prend l'action de la main.
+ */
+const REPRISE_MOD = -1, DEVIATION_MOD = -1;
+export const repreneursDe = m => {
+  const r = m.retour;
+  if (!r || m.fini || m.tour !== r.eq) return [];
+  const l = libre(m);
+  if (!l || l.r !== r.r || l.c !== r.c || !peutTirerDe(l.r, l.c, eqDe(m, r.eq).but)) return [];
+  return eqDe(m, r.eq).pieces.filter(x => !x.gardien && !x.etourdi && !essouffle(m, x) && dist(x, l) <= 1);
+};
+export const modReprise = (m, piece) => avec(modTir(m, piece, libre(m)), REPRISE_MOD);
+export function reprendreRetour(m, piece) {
+  if (!repreneursDe(m).includes(piece)) return null;
+  const l = libre(m), tireur = m.retour.tireur;
+  m.retour = null;
+  piece.derniere = tireur !== piece ? tireur : null;
+  const d = modReprise(m, piece);
+  eqDe(m, piece.eq).modsTir.push({ mod: d.a - d.b, d: profondeur(l.r, eqDe(m, piece.eq).but), place: placeGardien(m, piece, l), vide: filetVide(m, piece), reprise: true });
+  dire(m, `${nomDe(piece)} se jette sur le retour.`, 'reprise');
+  return { ...jeter(m, 'tir', d), reprise: true };
+}
+/* Sur la trajectoire : plus près du filet que le tireur, à une colonne au plus de la ligne tireur–filet. */
+function surLaTrajectoire(de, x, but) {
+  const d0 = profondeur(de.r, but), dx = profondeur(x.r, but);
+  if (dx >= d0 || dx < 1) return false;
+  return Math.abs(x.c - (de.c + (BUT_COL - de.c) * (d0 - dx) / d0)) <= 1;
+}
+export const devieursDe = (m, piece) => {
+  if (porteur(m) !== piece || !peutTirer(m, piece)) return [];
+  const but = eqDe(m, piece.eq).but;
+  if (profondeur(piece.r, but) <= PRES_NATUREL) return [];
+  return eqDe(m, piece.eq).pieces.filter(x => x !== piece && !x.gardien && !x.etourdi
+    && profondeur(x.r, but) <= PRES_NATUREL && natureCase(x.r, x.c, but) === 'enclave' && surLaTrajectoire(piece, x, but));
+};
+export const modDevie = (m, piece, x) => avec(modTir(m, piece, { r: x.r, c: x.c }), DEVIATION_MOD + (piece.hab === 'DECOCHE' && piece.habDispo ? 2 : 0));
+export function devier(m, piece, x) {
+  if (!devieursDe(m, piece).includes(x)) return null;
+  const d = modDevie(m, piece, x);
+  eqDe(m, piece.eq).modsTir.push({ mod: d.a - d.b, d: profondeur(piece.r, eqDe(m, piece.eq).but), place: placeGardien(m, piece, x), vide: filetVide(m, piece), devie: true });
+  return { ...jeter(m, 'tir', d), devie: x };
+}
+/* Le tir dévié : la rondelle passe par le dévieur, qui a le but ; le tireur a la passe. */
+export function appliquerDevie(m, piece, x, jet) {
+  if (!jet) return false;
+  userHabilete(m, piece, 'DECOCHE');
+  agir(m, piece);
+  x.derniere = piece;
+  dire(m, `${nomDe(x)} dévie le tir de ${nomDe(piece)}.`, 'devie');
+  return appliquerTir(m, x, jet);
+}
+
 /* ======================================================================
    LE TOUR
    ====================================================================== */
@@ -2877,6 +2992,7 @@ export const actives = m => eqDe(m, m.tour).pieces.filter(x => peutBouger(m, x) 
 /** Choisir une pièce : le une-deux ne survit qu'au receveur. */
 export function activer(m, piece) {
   if (!m.reception || m.reception.receveur !== piece) m.reception = null;
+  if (m.retour && !repreneursDe(m).includes(piece)) m.retour = null;
 }
 
 /**
@@ -2904,10 +3020,11 @@ const aLaMain = (m, cote) => m.mains[cote] < 1 && eqDe(m, cote).pieces.some(peut
 export function finirMain(m) {
   m.main = mainNeuve();
   m.reception = null;
+  m.retour = null;
   if (m.fini) return;
   m.mains[m.tour]++;
   m.dernier = m.tour;
-  for (const x of eqDe(m, m.tour).pieces) { x.agi = false; x.deplace = false; x.libre = false; x.echappee = false; }
+  for (const x of eqDe(m, m.tour).pieces) { x.agi = false; x.deplace = false; x.libre = false; x.echappee = false; x.patine = 0; }
   const autre = adverse(m.tour);
   if (aLaMain(m, autre)) { m.tour = autre; sortieDeZone(m); return; }
   finirPresence(m);
@@ -3308,7 +3425,13 @@ function optionTir(m, piece, eq) {
   const devant = eq.pieces.filter(x => x !== piece && !x.gardien && !x.etourdi &&
     profondeur(x.r, eq.but) <= 2).length;
   const c = chancesDe(avec(modTir(m, piece), bonusDe(piece, 'DECOCHE')));
-  return [{ type: 'tir', val: c * 11 + (1 - c) * devant * VAL_RETOUR + 0.3 }];
+  const out = [{ type: 'tir', val: c * 11 + (1 - c) * devant * VAL_RETOUR + 0.3 }];
+  // LA DÉVIATION (1.0, oct.) : de loin, un coéquipier dans l'enclave sur la trajectoire.
+  for (const x of devieursDe(m, piece)) {
+    const cd = chancesDe(modDevie(m, piece, x));
+    out.push({ type: 'devie', cible: x, val: cd * 11 + (1 - cd) * devant * VAL_RETOUR + 0.3 });
+  }
+  return out;
 }
 
 /** PASSER : au coéquipier qui gagne du terrain, ou qui tire mieux que toi d'où il est. */
@@ -3702,6 +3825,16 @@ export function iaGeste(m) {
       return { ...joue, jet };
     }
   }
+  // LA REPRISE DU RETOUR (1.0, oct.) : le meilleur tireur collé au retour, s'il a une vraie chance.
+  {
+    const r = repreneursDe(m).map(x => ({ x, c: chancesDe(modReprise(m, x)) })).sort((a, b) => b.c - a.c)[0];
+    if (r && r.c >= 0.2) {
+      const joue = { piece: r.x, type: 'reprise' };
+      const jet = jouerGeste(m, r.x, joue, r.x.eq, true);
+      if (!m.fini && m.tour === cote && (mainEpuisee(m) || recrueAFini(m, cote))) finirMain(m);
+      return { ...joue, jet };
+    }
+  }
   const fraiche = !m.main.bouge && !m.main.agi;
   // La recrue a déjà joué son geste, et elle n'a pas pris le une-deux : sa main passe (S75).
   if (!fraiche && recrueAFini(m, cote)) { finirMain(m); return null; }
@@ -3820,6 +3953,20 @@ function jouerGeste(m, piece, action, cote, ia = false) {
     if (!jet) return null;
     if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
     appliquerTir(m, piece, jet);
+    return jet;
+  }
+  if (action.type === 'reprise') {
+    let jet = reprendreRetour(m, piece);
+    if (!jet) return null;
+    if (ia && !jet.reussi) jet = { ...relanceIA(m, cote, jet), reprise: true };
+    appliquerTir(m, piece, jet);
+    return jet;
+  }
+  if (action.type === 'devie') {
+    let jet = devier(m, piece, action.cible);
+    if (!jet) return null;
+    if (ia && !jet.reussi) jet = relanceIA(m, cote, jet);
+    appliquerDevie(m, piece, action.cible, jet);
     return jet;
   }
   return null;
@@ -4113,6 +4260,7 @@ export function reglesDuPlateau() {
         'Un dé chacun, plus sa stat. Le plus haut total gagne. Égalité : à celui qui a la rondelle — sauf au tir, où elle va au gardien.',
         'Sans adversaire (une passe que rien ne couvre), il faut battre un nombre : le dé dit « il faut 4 ».',
         'Un 6 naturel gagne TOUJOURS, un 1 naturel perd TOUJOURS, même si les totaux disent le contraire. Le dé l\'écrit : « 1 naturel : raté ».',
+        `Sauf le tir de loin (plus de ${PRES_NATUREL} rangées du filet) : seuls les totaux comptent, et un 6 du gardien arrête tout.`,
         'Chaque geste montre ses chances AVANT que tu choisisses.',
         'La relance d\'équipe : une par période, après avoir vu le dé. Tu relances le tien, pas le sien.',
       ],
@@ -4132,10 +4280,12 @@ export function reglesDuPlateau() {
       rangees: [
         ['Patiner', 'MA c. DE', 'aussi loin que son PA le permet ; sans dé, sauf pour quitter ou rejoindre un adversaire collé avec la rondelle', 'la rondelle tombe, libre'],
         ['Passer', 'MA c. DE', 'à un coéquipier : plus c\'est loin et couvert, plus c\'est dur. Le receveur peut tirer tout de suite. Ou AU FOND, de la zone neutre : la rondelle file dans un coin, libre', 'un bâton sur la ligne l\'intercepte'],
-        ['Tirer', 'TI c. AR', `de la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Plus près et plus au centre, mieux c'est`, 'le gardien l\'arrête : il la garde, la relance ou la gèle — ou elle rebondit devant lui'],
+        ['Tirer', 'TI c. AR', `de la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Chaque rangée de recul, plus dur ; près et au centre, mieux c'est`, 'le gardien l\'arrête : il la garde, la relance ou la gèle — ou elle rebondit devant lui'],
+        ['Reprendre', 'TI c. AR', `un patineur collé au retour le tire tout de suite, à −${-REPRISE_MOD}, une action de plus — une fois par tir`, 'le gardien l\'arrête'],
+        ['Dévier', 'TI c. AR', `un tir de loin passe par un coéquipier dans l\'enclave, sur sa trajectoire : −${-DEVIATION_MOD}, mais de près ; le but est à lui`, 'le gardien l\'arrête'],
         ['Feinter', 'MA c. DE', 'le porteur déjoue un défenseur collé, qui reste hors jeu jusqu\'à la fin du tour', 'la rondelle tombe, libre'],
-        ['Frapper', 'FO c. FO', 'un adversaire collé tombe et recule (un tour au sol ; le porteur, deux, trois s\'il est petit) ; si c\'est le porteur, tu prends la rondelle', 'tu es hors position un tour'],
-        ['Harponner', 'DE c. MA', 'le porteur collé perd la rondelle, et tu repars avec', 'tu es hors position un tour'],
+        ['Frapper', 'FO c. FO', `un adversaire collé tombe et recule (un tour au sol ; le porteur, deux, trois s\'il est petit) ; si c\'est le porteur, tu prends la rondelle. Après ${PATIN_CONTACT} cases de patin au plus : −${-MOD_EN_COURSE} et un souffle de plus`, 'tu es hors position un tour'],
+        ['Harponner', 'DE c. MA', `le porteur collé perd la rondelle, et tu repars avec ; après un court patin, comme frapper`, 'tu es hors position un tour'],
         ['Bataille', 'FO c. FO', 'patiner sur une rondelle libre qu\'un adversaire touche aussi', 'elle ricoche à côté'],
       ],
     },
