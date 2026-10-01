@@ -32,7 +32,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, CARTES, PALI
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, ANNONCE_GROS,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
-  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux, motsDEffet, pariDeDecision, matchsEntre, jourEvenement } from './sim.js';
+  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux, motsDEffet, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
@@ -995,6 +995,57 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       .find(r => r && !you.injured.has(r) && (s.group === 'G' ? r.p === 'G' : s.group === 'D' ? r.p === 'D' : r.p === 'F'));
     return libre ? `${libre.n} monte` : 'aucun réserviste ne peut le remplacer';
   };
+  /*
+   * LE RETOUR D'UN BLESSÉ. JP : *quand un joueur est descendu dans
+   * l'alignement ou remonté, genre blessure, […] demander si revert lorsque le
+   * joueur revient. Sinon, c'est chiant*. Si tu as remanié derrière le banc
+   * pendant son absence, son retour propose l'alignement d'AVANT sa blessure :
+   * une décision de plus, ou rien. Sans remaniement, rien à demander — il
+   * reprend sa case de lui-même (`activeLineup`).
+   *
+   * L'alignement d'avant se pose sur ton effectif d'AUJOURD'HUI : un joueur
+   * parti depuis (le ballottage, un relâché) n'y revient pas, et celui qui est
+   * arrivé garde sa case, ou en prend une libre de son groupe.
+   */
+  const RETOUR_FENETRE = 3;          // matchs après son retour pendant lesquels on le demande
+  function retourOuvert() {
+    if (!onDecision) return null;
+    const joues = miens.length;
+    for (const b of [...(you.injuriesLog || [])].sort((x, y) => y.at - x.at)) {
+      const fin = b.at + b.games;      // le dernier match qu'il manque
+      if (fin > joues || joues - fin > RETOUR_FENETRE || !miens[b.at - 1]) continue;
+      const cle = getPlayerKey(b.player), id = `rv:${b.at}:${cle}`;
+      if (pris.has(id) || boiteDe(graine).traites.has(id)) continue;
+      if (!SLOTS.some(sl => you.roster[sl.i] === b.player)) continue;   // parti depuis
+      const jInj = miens[b.at - 1].j;
+      // Un remaniement (le banc, un réserviste monté, un rappel) depuis sa blessure.
+      if (!decs.some(d => d.cases && d.jour > jInj && d.jour <= jour)) continue;
+      const avant = decs.filter(d => d.cases && d.jour <= jInj).pop();
+      if (!avant) continue;
+      const cases = alignementRepose(avant.cases);
+      if (!cases) continue;
+      const maintenant = photoAlignement(you.roster);
+      const changes = SLOTS.filter(sl => !sl.scratch && cases[sl.i] !== maintenant[sl.i] && cases[sl.i]);
+      if (!changes.length) continue;
+      return { b, id, avant, cases, changes };
+    }
+    return null;
+  }
+  function alignementRepose(casesAvant) {
+    const ici = new Map(Object.values(you.roster).filter(Boolean).map(p => [getPlayerKey(p), p]));
+    const out = {};
+    for (const [i, k] of Object.entries(casesAvant)) if (ici.has(k)) out[i] = k;
+    const places = new Set(Object.values(out));
+    const maintenant = photoAlignement(you.roster);
+    for (const [i, k] of Object.entries(maintenant)) if (!places.has(k) && !(i in out)) { out[i] = k; places.add(k); }
+    for (const [k, p] of ici) {
+      if (places.has(k)) continue;
+      const sl = SLOTS.filter(x => !(x.i in out) && fits(p, x)).sort((a, b) => b.scratch - a.scratch)[0];
+      if (!sl) return null;
+      out[sl.i] = k; places.add(k);
+    }
+    return out;
+  }
   let alerte = null;                 // la blessure à annoncer, ou null
   const vues = new Set();            // les entrées du journal déjà annoncées
 
@@ -1033,13 +1084,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // règle du palier, étendue aux blessures, aux situations et aux cases
       // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
       if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length))
-        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte())) { arrete = true; break; }
+        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourOuvert())) { arrete = true; break; }
     }
     const pal = palierOuvert();
     if (pal !== undefined) paliersVus.add(pal);
     const neuves = blessuresNeuves();
-    alerte = neuves.length ? neuves[0] : null;
-    if (alerte) vues.add(alerte);
+    alerte = blessureOuverte() || (neuves.length ? neuves[0] : null);
+    for (const b of neuves) vues.add(b);
     const tn = trousNeufs();
     trou = tn.length ? tn[0] : null;
     if (trou) trousVus.add(trou);
@@ -1064,6 +1115,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const joues = miens.length;
     for (const b of you.injuriesLog || []) if (b.at < joues) vues.add(b);
     if (alerte && alerte.at < joues) { const n = blessuresNeuves(); alerte = n.length ? n[0] : null; if (alerte) vues.add(alerte); }
+    alerte = blessureOuverte() || alerte;
     // Même règle pour « Sa carte change » et « Dans le vestiaire » : l'accident
     // du jour 22 revenait après chaque choix jusqu'au jour 76 (QA S74b). Ce qui
     // est arrivé avant la dernière journée révélée a été vu ; la dernière, et
@@ -1076,6 +1128,29 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
   /* Ce qu'il lui reste à manquer, d'après les matchs joués à ce jour. */
   const restantDe = b => Math.max(1, Math.min(b.games, b.at + b.games - miens.length));
+  /*
+   * LE BLESSÉ SORT DE L'ALIGNEMENT (1.0, oct.). JP : *faut absolument retirer
+   * le blessé de l'alignement et me forcer à décider comment on le fill*. Une
+   * longue blessure d'un joueur HABILLÉ ne se règle plus en silence (le moteur
+   * montait le premier réserviste) : le message bloque tant que le blessé est
+   * dans une case habillée. Trois façons d'en sortir — monter un réserviste
+   * (les deux échangent leurs cases), rappeler un joueur au ballottage (il
+   * prend sa case, le blessé descend en réserve) ou remanier derrière le banc.
+   * Rien n'est retenu : la blessure est réglée quand l'alignement le dit.
+   */
+  function caseHabillee(p) { return SLOTS.find(sl => !sl.scratch && you.roster[sl.i] === p) || null; }
+  function blessureOuverte() {
+    if (!onDecision) return null;
+    const joues = miens.length;
+    return (you.injuriesLog || [])
+      .filter(b => b.at <= joues && b.at + b.games > joues && b.games >= BLESSURE_MOMENT && caseHabillee(b.player))
+      .sort((x, y) => y.games - x.games)[0] || null;
+  }
+  /* Les réservistes en santé qui peuvent jouer la case du blessé. */
+  const reservistesPour = sl => SLOTS.filter(x => x.scratch && you.roster[x.i] && !you.injured.has(you.roster[x.i]) && fits(you.roster[x.i], sl))
+    .map(x => ({ sl: x, p: you.roster[x.i] }));
+  /* L'alignement où le blessé et un autre échangent leurs cases. */
+  const echange = (a, b) => { const c = photoAlignement(you.roster), k = c[a]; c[a] = c[b]; c[b] = k; return c; };
 
   /* ---------- la boîte de réception, le dépistage, le sommaire (S78) ---------- */
 
@@ -2578,14 +2653,35 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const palierB = idB;
       const bal = onDecision && ctx.ballottage && !pris.has(palierB) ? ctx.ballottage(alerte.player, alerte.at) : null;
       const n = restantDe(alerte);
-      out.push({ id: idB, genre: 'blessure', bloque: !!onDecision && !boite.traites.has(idB), de: DE.medecin, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, palierB,
+      // Habillé : il faut décider (rien ne se garde). Réserviste : on le dit, et ça se range.
+      const sl = onDecision ? caseHabillee(alerte.player) : null;
+      const reserves = sl ? reservistesPour(sl) : [];
+      const forcer = !!sl && (reserves.length > 0 || !!(bal && bal.candidats.length) || !!onBanc);
+      const defaut = forcer ? (reserves.length ? 'reserve' : bal && bal.candidats.length ? 'rappel' : 'banc') : 'garder';
+      const d = k => (k === defaut ? ' data-defaut' : '');
+      out.push({ id: idB, genre: 'blessure', bloque: !!onDecision && (forcer || !boite.traites.has(idB)), de: DE.medecin, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, palierB, sl, reserves,
         corps: `<div class="hub-alerte" role="status">
           <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
-          <div class="hub-alerte-note">${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''}${caseDe(alerte.player) ? ` · ${ctx.esc(caseDe(alerte.player))}` : ''} · ${ctx.esc(remplacant(alerte.player))}</div>
+          <div class="hub-alerte-note">${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''}${caseDe(alerte.player) ? ` · ${ctx.esc(caseDe(alerte.player))}` : ''}${forcer ? ' · il sort de ton alignement : qui joue sa case ?' : ` · ${ctx.esc(remplacant(alerte.player))}`}</div>
           <div class="hub-alerte-choix">
-            ${bal && bal.candidats.length ? `<button type="button" class="btn hub-ballottage-ouvrir">📋 Au ballottage : ${bal.candidats.length} joueurs</button>` : ''}
-            ${onBanc ? '<button class="btn gold hub-alerte-banc">Derrière le banc</button>' : ''}
-            ${onDecision && !boite.traites.has(idB) ? '<button type="button" class="btn hub-alerte-garder" data-defaut>Garder mon alignement</button>' : ''}
+            ${reserves.length ? `<button type="button" class="btn${defaut === 'reserve' ? ' gold' : ''} hub-alerte-reserve"${d('reserve')}>🪑 Monter un réserviste</button>` : ''}
+            ${bal && bal.candidats.length ? `<button type="button" class="btn hub-ballottage-ouvrir"${d('rappel')}>📋 Rappel : ${bal.candidats.length} joueurs</button>` : ''}
+            ${onBanc ? `<button class="btn${forcer ? '' : ' gold'} hub-alerte-banc"${d('banc')}>Remanier derrière le banc</button>` : ''}
+            ${onDecision && !forcer && !boite.traites.has(idB) ? '<button type="button" class="btn hub-alerte-garder" data-defaut>Garder mon alignement</button>' : ''}
+          </div>
+        </div>` });
+    }
+    const rv = retourOuvert();
+    if (rv) {
+      const nomDe = k => { const p = Object.values(you.roster).find(x => x && getPlayerKey(x) === k); return p ? p.n : ''; };
+      out.push({ id: rv.id, genre: 'retour', bloque: true, de: DE.coach, sujet: `${rv.b.player.n} revient : l'alignement d'avant ?`, rv,
+        corps: `<div class="hub-alerte" role="status">
+          <div class="hub-alerte-tete">🩹 ${ctx.esc(rv.b.player.n)} revient au jeu</div>
+          <div class="hub-alerte-note">Tu as remanié pendant son absence. Avant sa blessure :</div>
+          <div class="hub-mouvements">${rv.changes.map(sl => `<div class="hub-mv">${ctx.esc(nomDe(rv.cases[sl.i]))} : ${ctx.esc(ctx.slotShort ? ctx.slotShort(sl) : sl.role)}</div>`).join('')}</div>
+          <div class="hub-alerte-choix">
+            <button type="button" class="btn gold hub-retour-remettre" data-defaut>Remettre comme avant</button>
+            <button type="button" class="btn hub-retour-garder">Garder l'alignement actuel</button>
           </div>
         </div>` });
     }
@@ -2734,19 +2830,49 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
     const ouvrirBallottage = () => ouvrirChoix({
       ico: '📋', titre: 'Au ballottage', cartes: true, genre: 'ballottage', fermable: true, motFermer: 'Garder mon alignement',
-      recit: `${alerte.player.n}${ctx.ouJoue && ctx.ouJoue(alerte.player) ? ` (${ctx.ouJoue(alerte.player)})` : ''} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois réguliers de la ligue, sous 3 % du plafond : un dépanneur, pas une vedette. Touche une carte pour sa fiche, « Signer » pour le réclamer${mB.bal.cout ? ` (${mB.bal.cout} 🪙)` : ''} — puis tu choisis qui lui laisse sa place. Le plafond compte toujours.`,
+      recit: `${alerte.player.n}${ctx.ouJoue && ctx.ouJoue(alerte.player) ? ` (${ctx.ouJoue(alerte.player)})` : ''} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois rappels du club-école : moins bons que lui, ils ont peu joué dans leur saison — de quoi tenir le temps de sa blessure. Touche une carte pour sa fiche, « Signer » pour le réclamer${mB.bal.cout ? ` (${mB.bal.cout} 🪙)` : ''} : il joue sa case, et tu choisis quel réserviste lui laisse sa place. Le plafond compte toujours.`,
       options: mB.bal.candidats.map(c => ({ cle: c.cle, rarete: c.rarete || 'commune', nom: c.nom, type: `${c.poste || c.pos} · ${c.club}`, coin: c.salaire,
         art: c.p ? joueurArt(c.p) : '', carteJoueur: c.p && ctx.carteMini ? ctx.carteMini(c.p) : '', texte: c.ligne, apercu: c.p && ctx.apercu ? () => ctx.apercu(c.p) : null })),
       onChoix: cle => {
         const c = mB.bal.candidats.find(x => x.cle === cle);
-        const decide = ({ i, sort }) => { boite.traites.add(mB.id); quitter(); onDecision({ jour, palier: mB.palierB, ballottage: { i, entre: cle, sort, ...(mB.bal.cout ? { cout: mB.bal.cout } : {}) } }, jour); };
+        // Le rappelé entre en réserve (case `i`) puis échange avec le blessé : il joue sa case, le blessé descend.
+        const decide = ({ i, sort }) => {
+          boite.traites.add(mB.id);
+          let cases;
+          if (mB.sl && SLOTS[i] && SLOTS[i].scratch && c && c.p && fits(c.p, mB.sl)) {
+            cases = photoAlignement(you.roster);
+            cases[i] = getPlayerKey(alerte.player); cases[mB.sl.i] = cle;
+          }
+          quitter();
+          onDecision({ jour, palier: mB.palierB, ballottage: { i, entre: cle, sort, ...(mB.bal.cout ? { cout: mB.bal.cout } : {}) }, ...(cases ? { cases } : {}) }, jour);
+        };
         if (c && c.p && ctx.quiSort) ctx.quiSort(c.p, { roster: you.roster, genre: 'ballottage', onChoix: decide, onFerme: ouvrirBallottage });
         else decide({ i: mB.bal.i, sort: mB.bal.sort });
       },
     });
     if (voirBal && mB && mB.bal) voirBal.onclick = ouvrirBallottage;
+    const monter = actions.querySelector('.hub-alerte-reserve');
+    if (monter && mB && mB.sl) monter.onclick = () => ouvrirChoix({
+      ico: '🪑', titre: 'Qui monte ?', compact: true, fermable: true, motFermer: 'Retour', genre: 'ballottage',
+      recit: `${alerte.player.n} descend en réserve pour ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Qui prend sa case (${ctx.slotShort ? ctx.slotShort(mB.sl) : mB.sl.role}) ?`,
+      options: mB.reserves.map(r => {
+        const pen = getPositionPenalty(r.p, mB.sl);
+        return { cle: String(r.sl.i), ico: '🪑', nom: r.p.n, sous: ctx.quiEst ? ctx.quiEst(r.p, { stats: false }) : r.p.p,
+          mots: [{ txt: pen > 0 ? `Hors position −${pen}` : 'À sa position', bon: pen > 0 ? false : true }] };
+      }),
+      onChoix: k => { const j = jour; quitter(); onDecision({ jour, palier: mB.palierB, cases: echange(mB.sl.i, Number(k)) }, j); },
+    });
     const garder = actions.querySelector('.hub-alerte-garder');
     if (garder && mB) garder.onclick = () => { boite.traites.add(mB.id); boite.ouvert = null; dessiner(); };
+    const mR = msgs.find(m => m.genre === 'retour');
+    const remettre = actions.querySelector('.hub-retour-remettre');
+    if (remettre && mR) remettre.onclick = () => {
+      const { avant, cases, id } = mR.rv, j = jour;
+      boite.traites.add(id); quitter();
+      onDecision({ jour, palier: id, cases, fermeture: avant.fermeture ?? 'auto', ...(avant.lignes ? { lignes: avant.lignes } : {}) }, j);
+    };
+    const garderR = actions.querySelector('.hub-retour-garder');
+    if (garderR && mR) garderR.onclick = () => { boite.traites.add(mR.id); boite.ouvert = null; dessiner(); };
     const alBanc = actions.querySelector('.hub-alerte-banc');
     if (alBanc) alBanc.onclick = () => { if (mB) boite.traites.add(mB.id); quitter(); onBanc(jour); };
     for (const sel of ['.hub-situ-banc', '.hub-rap-banc']) {

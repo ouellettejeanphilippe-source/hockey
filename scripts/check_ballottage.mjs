@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPlayerKey, getPersonKey, connaitre, photoAlignement } from '../js/sim.js';
-import { candidatsBallottage, productionDe, NIVEAU_MAX_BALLOTTAGE } from '../js/ballottage.js';
+import { candidatsBallottage, productionDe, NIVEAU_MAX_BALLOTTAGE, RAPPEL_MATCHS } from '../js/ballottage.js';
 import { niveauDe, joueursParNiveau, groupeDuJoueur } from '../js/niveaux.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -94,7 +94,10 @@ exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiq
   for (const f of SAISONS) { const sh = shard(f); const byTeam = {}; for (const p of sh.players) (byTeam[p.t] = byTeam[p.t] || []).push(p); shards.set(sh.season, { players: sh.players, byTeam }); }
   const L = { cles, teams, graine: 'ballottage' };
   const budget = 95_500_000 * 0.03;
-  let n = 0, vedettes = 0, gros = 0, vides = 0, instables = 0, offerts = [];
+  let n = 0, vedettes = 0, gros = 0, vides = 0, instables = 0, offerts = [], meilleurs = 0, horsRappel = 0;
+  // Rapportée aux réguliers de sa saison à son poste, comme js/ballottage.js la juge.
+  const reguliers = (sa, g) => { const e = shards.get(String(sa)); const v = e ? e.players.filter(x => (x.gp || 0) >= 40 && groupeDuJoueur(x) === g).map(productionDe) : []; return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; };
+  const relative = p => (p.p === 'G' ? productionDe(p) : productionDe(p) / (reguliers(p.s, groupeDuJoueur(p)) || 1));
   for (let i = 0; i < 20; i++) {
     const t = teams[i % teams.length];
     const blesse = Object.values(t.roster).filter(Boolean)[(i * 7) % 20];
@@ -104,6 +107,8 @@ exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiq
     if (a.map(getPlayerKey).join() !== b.map(getPlayerKey).join()) instables++;
     for (const p of a) {
       n++;
+      if (relative(p) >= relative(blesse)) meilleurs++;
+      if ((p.gp || 0) < RAPPEL_MATCHS[0] || (p.gp || 0) > RAPPEL_MATCHS[1]) horsRappel++;
       const e = shards.get(String(p.s));
       if (!e || niveauDe(p, e.players) > NIVEAU_MAX_BALLOTTAGE) vedettes++;
       // Pas un seuil absolu (un régulier de 1981-82 fait 1,0 point par match) : sous le PLUS FAIBLE Pilier de sa saison, à son poste.
@@ -111,12 +116,15 @@ exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiq
         const piliers = joueursParNiveau(e.players)[2].filter(x => groupeDuJoueur(x) === groupeDuJoueur(p)).map(productionDe);
         if (piliers.length && productionDe(p) >= Math.min(...piliers)) gros++;
       }
-      if (offerts.length < 3) offerts.push(`${p.n} ${p.s} (${productionDe(p).toFixed(2)}/m, ${p.$ / 1e6} M$)`);
+      if (offerts.length < 3) offerts.push(`${p.n} ${p.s} (${p.gp} m, ${productionDe(p).toFixed(2)}/m, ${p.$ / 1e6} M$)`);
     }
   }
   informer('des candidats vus', offerts.join(' · '));
   exiger('vingt blessures : jamais un Pilier, une Étoile ni un Phénomène au ballottage', n >= 30 && vedettes === 0, `${n} candidats, ${vedettes} au-dessus de Régulier, ${vides} blessures sans offre`);
   exiger('un patineur réclamé produit moins que le plus faible Pilier de sa saison, à son poste', gros === 0, `${gros} au-dessus`);
   exiger('la même blessure offre les mêmes trois noms', instables === 0, `${instables} offres qui changent`);
+  // UN VRAI RAPPEL (1.0, oct.) : jamais meilleur que le blessé, et un gars qui a peu joué dans sa saison.
+  exiger('jamais un réclamé meilleur que le blessé', meilleurs === 0, `${meilleurs} au-dessus`);
+  exiger(`un réclamé a joué de ${RAPPEL_MATCHS[0]} à ${RAPPEL_MATCHS[1]} matchs dans sa saison`, horsRappel === 0, `${horsRappel} hors de la fourchette`);
 }
 verdict('Le ballottage et les dés neufs');

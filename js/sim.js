@@ -7180,16 +7180,47 @@ function effetAvant(d) {
  * LE DEUXIÈME ENTRACTE. Deux options selon le pointage, une que la soirée
  * apporte (l'incident), et garder le cap. Les effets ne jouent que la
  * troisième période, donc ils sont francs.
+ *
+ * DIX PAR POINTAGE, DEUX PAR SOIR (1.0, oct.). JP : *les choix entre la deux
+ * et la trois, c'est toujours évident laquelle prendre, donc useless, varier
+ * plus, genre 10 selon chaque contexte*. Mené, à égalité ou devant, chaque
+ * pointage a sa réserve de dix gestes (`si`) ; le soir en tire deux, de la
+ * graine et du match. Chacun paie quelque part : en buts contre, en
+ * punitions, en blessures, ou en JAMBES pour les matchs qui suivent — le bon
+ * choix dépend du soir, de ton club et de ton calendrier, plus du pointage.
  */
 export const ENTRACTES = {
   garder: { ico: '🧊', nom: 'Garder le cap', bon: 'On ne change rien', prix: 'Rien de neuf non plus' },
-  attaque: { ico: '🎲', nom: 'Tout pour l\'attaque', si: 'derriere', bon: 'Tout le monde monte', prix: 'Ton gardien est seul', volume: 1.18, defense: 1.15 },
-  gardien: { ico: '🧤', nom: 'Envoyer l\'auxiliaire', si: 'derriere', bon: 'Ton auxiliaire prend le filet pour la troisième', prix: 'Le partant rentre au vestiaire', changeGardien: true, defense: 0.96 },
-  porte: { ico: '🧱', nom: 'Fermer la porte', si: 'devant', bon: 'Tout le monde en zone neutre', prix: "On n'attaque plus", defense: 0.85, volume: 0.85 },
-  tueur: { ico: '🎯', nom: 'Aller chercher le but qui tue', si: 'devant', bon: 'Enterrer le match', prix: 'Un contre peut tout relancer', volume: 1.08, finition: 1.03, defense: 1.06 },
-  prolo: { ico: '⏳', nom: 'Jouer pour la prolongation', si: 'egal', bon: 'Pas de risque', prix: 'Pas de but non plus', defense: 0.9, volume: 0.9 },
-  doubler: { ico: '🔥', nom: 'Doubler le 1er trio', si: 'egal', bon: 'Ton meilleur trio sur la glace', prix: 'Il va finir à plat', F: [1.4, 1, 0.85, 0.75], energie: 1.1 },
+  // Mené.
+  attaque: { ico: '🎲', nom: 'Tout pour l\'attaque', si: ['derriere'], bon: 'Tout le monde monte', prix: 'Ton gardien est seul', volume: 1.18, defense: 1.15 },
+  gardien: { ico: '🧤', nom: 'Envoyer l\'auxiliaire', si: ['derriere'], bon: 'Ton auxiliaire prend le filet pour la troisième', prix: 'Le partant rentre au vestiaire', changeGardien: true, defense: 0.96 },
+  pointe: { ico: '🪜', nom: 'Les défenseurs montent', si: ['derriere'], bon: 'Cinq joueurs en attaque', prix: 'Des échappées contre', volume: 1.12, defense: 1.1 },
+  vedettes: { ico: '✌️', nom: 'Deux trios, pas plus', si: ['derriere'], bon: 'Tes meilleurs sur la glace', prix: 'Ils finissent à plat, et demain aussi', F: [1.35, 1.25, 0.7, 0.5], finition: 1.02, energie: 1.12 },
+  rage: { ico: '😤', nom: 'Revenir à coups d\'épaule', si: ['derriere'], bon: 'Le jeu robuste tourne pour toi', prix: 'Des punitions', robustesse: 0.8, finition: 1.02, discipline: 1.25 },
+  jeunes: { ico: '🪁', nom: 'Laisser jouer le 4e trio', si: ['derriere'], bon: 'Tes vedettes gardent leurs jambes pour demain', prix: 'Tu laisses filer celui-ci', F: [0.8, 0.9, 1.1, 1.5], energie: 0.88, finition: 0.98 },
+  // Mené ou à égalité.
+  patience: { ico: '🔦', nom: 'Attendre le bon tir', si: ['derriere', 'egal'], bon: 'Des tirs de qualité', prix: 'Moins de tirs', finition: 1.06, volume: 0.92 },
+  pluie: { ico: '🪃', nom: 'Une pluie de rondelles', si: ['derriere', 'egal'], bon: 'Tout au filet', prix: 'Des tirs de nulle part', volume: 1.14, finition: 0.95, defense: 1.03 },
+  meute: { ico: '🐺', nom: 'Échec-avant à trois', si: ['derriere', 'egal'], bon: 'On vole des rondelles', prix: 'Des surnombres contre, des jambes en moins', volume: 1.1, defense: 1.07, energie: 1.08 },
+  discours: { ico: '🗣️', nom: 'Le coach élève la voix', si: ['derriere', 'egal', 'devant'], bon: 'Le vestiaire se réveille', prix: 'Des têtes chaudes', finition: 1.03, discipline: 1.1 },
+  // À égalité.
+  prolo: { ico: '⏳', nom: 'Jouer pour la prolongation', si: ['egal'], bon: 'Pas de risque', prix: 'Pas de but non plus', defense: 0.9, volume: 0.9 },
+  doubler: { ico: '🔥', nom: 'Doubler le 1er trio', si: ['egal'], bon: 'Ton meilleur trio sur la glace', prix: 'Il va finir à plat', F: [1.4, 1, 0.85, 0.75], energie: 1.1 },
+  premier: { ico: '🛸', nom: 'Le premier but gagne', si: ['egal'], bon: 'On attaque en vagues', prix: 'La porte s\'entrouvre', volume: 1.1, finition: 1.02, defense: 1.06 },
+  rouler: { ico: '♻️', nom: 'Rouler quatre trios', si: ['egal', 'devant'], bon: 'Des jambes fraîches à chaque présence', prix: 'Ton 4e trio joue les grosses minutes', F: [0.9, 0.95, 1.05, 1.15], energie: 0.9, finition: 0.98 },
+  // À égalité ou devant.
+  paire: { ico: '🦔', nom: 'La 1re paire tout le temps', si: ['egal', 'devant'], bon: 'Tes meilleurs défenseurs sur la glace', prix: 'Ils vont finir à plat', D: [1.4, 1, 0.6], defense: 0.94, energie: 1.1 },
+  bloquer: { ico: '🧯', nom: 'Bloquer tous les tirs', si: ['egal', 'devant'], bon: 'Rien ne se rend au filet', prix: 'Des rondelles dans les chevilles', defense: 0.9, blessure: 1.4 },
+  // Devant.
+  porte: { ico: '🧱', nom: 'Fermer la porte', si: ['devant'], bon: 'Tout le monde en zone neutre', prix: "On n'attaque plus", defense: 0.85, volume: 0.85 },
+  tueur: { ico: '🦬', nom: 'Aller chercher le but qui tue', si: ['devant'], bon: 'Enterrer le match', prix: 'Un contre peut tout relancer', volume: 1.08, finition: 1.03, defense: 1.06 },
+  repos: { ico: '🛋️', nom: 'Reposer les vedettes', si: ['devant'], bon: 'Leurs jambes pour demain', prix: 'Les plombiers protègent l\'avance', F: [0.7, 0.9, 1.15, 1.3], energie: 0.88, defense: 1.04 },
+  rondelle: { ico: '🪀', nom: 'Garder la rondelle', si: ['devant'], bon: 'Ils ne l\'ont pas, ils ne marquent pas', prix: 'Moins de tirs, des jambes en moins', volume: 0.95, defense: 0.93, energie: 1.05 },
+  payer: { ico: '🔨', nom: 'Faire payer chaque mise en échec', si: ['devant'], bon: 'Ils hésitent à venir', prix: 'Des punitions', robustesse: 0.8, defense: 0.97, discipline: 1.25 },
+  contre: { ico: '💨', nom: 'Contre-attaquer en vitesse', si: ['devant'], bon: 'Leurs défenseurs montés, des surnombres', prix: 'Ça ouvre des deux côtés', volume: 1.05, finition: 1.04, defense: 1.05 },
 };
+/* Les gestes d'entracte qu'un pointage peut tirer. */
+export const entractesDu = etat => Object.keys(ENTRACTES).filter(c => (ENTRACTES[c].si || []).includes(etat));
 export const INCIDENTS = {
   boite: { ico: '🤕', titre: 'Leur vedette boite en retournant au banc',
     option: { cle: 'cibler', ico: '🎯', nom: 'Aller jouer de son côté', bon: 'Il ne suit plus', prix: "L'arbitre voit tout", volume: 1.06, discipline: 1.25 } },
@@ -7218,8 +7249,9 @@ export function entractesOfferts(graine, cle, etat) {
   const inc = incidentDuMatch(graine, cle);
   return {
     incident: inc,
+    // Deux de la réserve du pointage, de la graine et du match (le même soir rejoué offre les mêmes).
     options: [
-      ...Object.keys(ENTRACTES).filter(c => ENTRACTES[c].si === etat).map(c => ({ cle: c, ...ENTRACTES[c] })),
+      ...entractesDu(etat).sort((a, b) => hacherMise(graine, 'entracte', cle, a) - hacherMise(graine, 'entracte', cle, b)).slice(0, 2).map(c => ({ cle: c, ...ENTRACTES[c] })),
       { ...INCIDENTS[inc].option, incident: inc },
       { cle: 'garder', ...ENTRACTES.garder },
     ],

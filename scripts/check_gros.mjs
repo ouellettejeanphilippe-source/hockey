@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde,
   PLANS_ADV, planEstContre, planDeSerie, entractesOfferts, effetEntracte, contreDe, TACTIQUES,
-  AVANT_GROS, avantDuGros, ENTRACTES,
+  AVANT_GROS, avantDuGros, ENTRACTES, entractesDu,
   lignesDeGros, lignesDe, planProbable, activeLineup,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -138,10 +138,26 @@ for (const [cle, P] of Object.entries(PLANS_ADV)) {
     exiger(`à l'entracte (${etat}), quatre options dont l'incident et garder le cap`, o.options.length === 4 && o.options.some(x => x.incident) && o.options.some(x => x.cle === 'garder'));
     exiger(`à l'entracte (${etat}), chaque option a un effet lisible`, o.options.every(x => x.cle === 'garder' || effetEntracte({ cle: x.cle, incident: x.incident })));
   }
+  /*
+   * DIX PAR POINTAGE, DEUX PAR SOIR (1.0, oct.). JP : *c'est toujours évident
+   * laquelle prendre*. Chaque pointage a dix gestes ; chacun a un prix (un
+   * canal qui empire : buts contre, moins de tirs ou de précision, des
+   * punitions, des blessures, des jambes) ; et vingt soirs n'offrent pas
+   * toujours la même paire.
+   */
+  const coute = o => (o.defense ?? 1) > 1 || (o.volume ?? 1) < 1 || (o.finition ?? 1) < 1 || (o.discipline ?? 1) > 1 || (o.blessure ?? 1) > 1 || (o.energie ?? 1) > 1 || o.changeGardien
+    || (Array.isArray(o.F) && o.F[0] < 1) || (Array.isArray(o.D) && o.D[0] < 1);
+  for (const etat of ['devant', 'derriere', 'egal']) {
+    const pool = entractesDu(etat);
+    exiger(`à l'entracte (${etat}), dix gestes en réserve`, pool.length === 10, `${pool.length}`);
+    const gratuits = pool.filter(c => !coute(ENTRACTES[c]));
+    exiger(`à l'entracte (${etat}), chaque geste a son prix`, gratuits.length === 0, gratuits.join(', ') || 'aucun gratuit');
+    const paires = new Set(Array.from({ length: 20 }, (_, k) => entractesOfferts('varie', k, etat).options.slice(0, 2).map(x => x.cle).sort().join('+')));
+    exiger(`à l'entracte (${etat}), vingt soirs offrent des paires variées`, paires.size >= 10, `${paires.size} paires différentes`);
+  }
   const vus = new Set(); let deja = [];
   for (let i = 0; i < Object.keys(AVANT_GROS).length; i++) { const c = avantDuGros('g', i, deja); vus.add(c); deja = [...deja, c]; }
   exiger('les avant-matchs ne se répètent pas dans une partie', vus.size === Object.keys(AVANT_GROS).length, `${vus.size}/${Object.keys(AVANT_GROS).length}`);
-  void ENTRACTES;
 }
 
 /* ---------- 5. les séries : l'adversaire s'adapte ---------- */
