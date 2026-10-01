@@ -103,14 +103,20 @@ function saison(teams, graine, decisions) {
   informer('écart de buts contre sur la saison (cheval − rotation)', `${(moy(gaCheval) - moy(gaRot)).toFixed(1)} buts`);
 }
 
-// 3. Le choix du soir : l'auxiliaire au jour 10, et il se rejoue.
+// 3. Le choix du soir : l'auxiliaire au 11e match, et il se rejoue.
 {
-  const jour = 10;
+  /*
+   * LE 11e MATCH DE L'ÉQUIPE 0, comme quand une journée était un match. Le
+   * vrai calendrier (1.0, oct.) l'a mis au jour 23 environ : le jour 10 n'est
+   * plus que son 4e ou 5e match, où la rotation envoie l'auxiliaire. La
+   * cédule ne dépend que de la graine : la première saison donne le jour.
+   */
+  let jour = null;
   const joue = decs => {
     const teams = ligue(9300);
     const L = saison(teams, 'filet-choix', decs);
     const t = teams[0], [partant, aux] = gardiensDe(t);
-    // Le match du jour 10 de l'équipe 0 : le calendrier de ce jour.
+    if (jour === null) jour = t._jours[10];
     const m = L.calendrier[jour].find(x => x.A === t || x.B === t);
     const g = m && m.feuille ? (m.A === t ? m.feuille.gardiens?.A : m.feuille.gardiens?.B) : null;
     const jn = t.journal.find(x => x.feuille === m.feuille);
@@ -119,7 +125,7 @@ function saison(teams, graine, decisions) {
   const sans = joue([]);
   const avec = joue([{ jour, equipe: 0, filet: 'aux' }]);
   const encore = joue([{ jour, equipe: 0, filet: 'aux' }]);
-  exiger('sans choix, le jour 10 : le partant (la rotation)', sans.gardien && getPlayerKey(sans.gardien) === getPlayerKey(sans.partant), sans.gardien ? sans.gardien.n : '—');
+  exiger('sans choix, au 11e match : le partant (la rotation)', sans.gardien && getPlayerKey(sans.gardien) === getPlayerKey(sans.partant), sans.gardien ? sans.gardien.n : '—');
   exiger('« l\'auxiliaire ce soir » : l\'auxiliaire est au filet', avec.gardien && getPlayerKey(avec.gardien) === getPlayerKey(avec.aux), avec.gardien ? avec.gardien.n : '—');
   exiger('le choix se rejoue au but près', avec.pts === encore.pts);
   exiger('l\'auxiliaire compte un départ de plus dans sa fiche', (avec.aux.simGP || 0) === (sans.aux.simGP || 0) + 1, `${sans.aux.simGP} → ${avec.aux.simGP}`);
