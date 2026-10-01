@@ -1797,8 +1797,10 @@ async function traverserSaison(etiquette, reprise = false) {
     const teteApresBanc = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
     if (teteApresBanc !== teteAvantBanc) errors.push(`le retour au match ne reprend pas au même endroit : « ${teteAvantBanc} » puis « ${teteApresBanc} »`);
     // Les décisions de BANC seulement (celles qui portent un alignement) : le
-    // proprio, le plan du soir et les dilemmes en ajoutent d'autres.
-    const decisions = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(d => d.cases);
+    // proprio, le plan du soir et les dilemmes en ajoutent d'autres. Une
+    // blessure réglée (un réserviste monté, un rappel) ou un retour remis porte
+    // aussi des cases, mais avec son palier (`b:`, `rv:`) : ce n'est pas le banc.
+    const decisions = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(d => d.cases && !d.palier);
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
     else if (!Array.isArray(decisions[1].lignes) || decisions[1].lignes[0].tac !== tacChoisie || decisions[1].lignes[0].tacD !== tacDChoisi || decisions[1].lignes[0].agr !== 2) errors.push(`la sauvegarde ne porte pas les lignes du banc : ${JSON.stringify(decisions[1].lignes && decisions[1].lignes[0])}`);
     else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture au 2e trio, 1re ligne en ${tacChoisie} (trio) et ${tacDChoisi} (paire), agressivité haute, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);
