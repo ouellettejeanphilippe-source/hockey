@@ -676,6 +676,16 @@ async function finirDirect(etiquette) {
   const opts = await page.$$eval('#choixModal .choix-option', e => e.length);
   const quand = await page.$$eval('#choixModal .choix-option', e => e.filter(x => /3e période/.test(x.textContent)).length);
   if (quand !== opts) errors.push(`${etiquette} : l'entracte a ${opts - quand} option(s) qui ne disent pas « 3e période »`);
+  // CE QUE LES CHOIX TOUCHENT (1.0, oct.) : une rangée par puce, ce soir et par match, des deux côtés, sans déborder.
+  const tableau = await page.$eval('#choixModal .ent2-stats', t => ({ rangs: [...t.querySelectorAll('tbody th')].map(x => x.textContent.trim()), cols: t.querySelectorAll('tbody tr:first-child td').length, deborde: t.scrollWidth - t.parentElement.clientWidth })).catch(() => null);
+  if (!tableau) errors.push(`${etiquette} : l'entracte n'a pas le tableau des deux équipes`);
+  else {
+    const voulus = ['Tirs', 'Précision', 'Buts contre', 'Punitions', 'Mises en échec'];
+    const manque = voulus.filter(k => !tableau.rangs.includes(k));
+    if (manque.length || tableau.cols !== 4) errors.push(`${etiquette} : le tableau de l'entracte n'a pas ${manque.join(', ') || 'ses quatre colonnes'} (${tableau.rangs.join(', ')} · ${tableau.cols} colonnes)`);
+    if (tableau.deborde > 1) errors.push(`${etiquette} : le tableau de l'entracte déborde de ${tableau.deborde} px`);
+    if (process.env.SMOKE_ENTRACTE && !entractesVus.length) await page.screenshot({ path: process.env.SMOKE_ENTRACTE });
+  }
   await _click('#choixModal .choix-option');
   await _wait('#liveModal .live-pause, #liveModal .live-suite', { timeout: 120000 });
   /*

@@ -887,7 +887,7 @@ export function ouvrirEcranSeries(depuis = null) {
   ouvrirSeries({
     series: S.toutes, moteur: S, nRondes: S.nRondes, rondes: RONDES, you: S.toi,
     // Les compteurs de saison ne bougent pas pendant les séries (`cumulerSeries`) : l'écran peut la montrer.
-    saison: { teams: (G.ligue ? G.ligue.teams : S.equipes), enSeries: 2 ** S.nRondes },
+    saison: { teams: (G.ligue ? G.ligue.teams : S.equipes), enSeries: 2 ** S.nRondes, calendrier: G.ligue ? G.ligue.calendrier : null },
     ctx: {
       esc, formatName, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
       // Les séries se révèlent match par match, comme la saison : un nom

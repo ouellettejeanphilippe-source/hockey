@@ -69,14 +69,51 @@ const BOITES = new Map();
  * [titre, moi, lui] ; une ligne sans valeurs est un intertitre.
  */
 function tableEntracte(ctx, nomMoi, nomLui, lignes) {
-  return `<table class="ent2-stats"><thead><tr><th></th><th>${ctx.esc(nomMoi)}</th><th>${ctx.esc(nomLui)}</th></tr></thead><tbody>${lignes.map(([k, a, b]) => (a === null && b === null
-    ? `<tr class="ent2-stats-sec"><th colspan="3">${ctx.esc(k)}</th></tr>` : `<tr><th>${ctx.esc(k)}</th><td>${a}</td><td>${b}</td></tr>`)).join('')}</tbody></table>`;
+  const t = x => ctx.esc(x);
+  return `<table class="ent2-stats"><thead><tr><th></th><th colspan="2">Ce soir</th><th colspan="2">Par match</th></tr>
+    <tr><th></th><th>${t(nomMoi)}</th><th>${t(nomLui)}</th><th>${t(nomMoi)}</th><th>${t(nomLui)}</th></tr></thead><tbody>${lignes.map(([k, ...v]) => `<tr><th>${t(k)}</th>${v.map((x, i) => `<td${i === 2 ? ' class="ent2-stats-saison"' : ''}>${x}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
-/* Ce soir, après deux périodes : buts, tirs, % de tir, punitions. */
-function ceSoirEntracte(f, cMoi, cLui, moi, lui, tirs) {
+/*
+ * CE QUE LES CHOIX TOUCHENT, AVEC LEURS MOTS (1.0, oct.). JP : *les stats pour
+ * décider à la mi-match, je parle de celles influencées par les choix, genre
+ * précision*. Une rangée par puce d'un geste d'entracte (`motsDEffet`) :
+ * Tirs, Précision, Buts contre, Punitions, et la robustesse en mises en échec.
+ * Ce soir (deux périodes) et la saison par match, des deux côtés.
+ * `saison(c)` : { n, GF, GA, SF, PKO, CO } du club, ou null.
+ */
+function lignesEntracte(f, cMoi, cLui, saison) {
+  const tirs = c => ((f.tirs[c] || [])[1] || 0) + ((f.tirs[c] || [])[2] || 0);
+  const buts = c => f.buts.filter(b => b.instant < 40 && b.cote === c).length;
   const pun = c => (f.punitions || []).filter(x => x.cote === c && x.instant < 40).length;
+  const coups = c => (f.coups ? Math.round((f.coups[c] || 0) * 40 / 60) : '—');
   const pct = (b, t) => (t ? `${Math.round(100 * b / t)} %` : '—');
-  return [['Ce soir', null, null], ['Buts', moi, lui], ['Tirs', tirs(cMoi), tirs(cLui)], ['% de tir', pct(moi, tirs(cMoi)), pct(lui, tirs(cLui))], ['Punitions', pun(cMoi), pun(cLui)]];
+  const parM = (c, k) => { const S = saison(c); return S && S.n ? (S[k] / S.n).toFixed(k === 'GF' || k === 'GA' ? 2 : 1).replace('.', ',') : '—'; };
+  const prec = c => { const S = saison(c); return S && S.SF ? pct(S.GF, S.SF) : '—'; };
+  const deux = (soir, ann) => [soir(cMoi), soir(cLui), ann(cMoi), ann(cLui)];
+  return [
+    ['Buts', ...deux(buts, c => parM(c, 'GF'))],
+    ['Tirs', ...deux(tirs, c => parM(c, 'SF'))],
+    ['Précision', ...deux(c => pct(buts(c), tirs(c)), prec)],
+    ['Buts contre', ...deux(c => buts(c === 'A' ? 'B' : 'A'), c => parM(c, 'GA'))],
+    ['Punitions', ...deux(pun, c => parM(c, 'PKO'))],
+    ['Mises en échec', ...deux(coups, c => parM(c, 'CO'))],
+  ];
+}
+/* La saison d'un club lue sur les feuilles jouées : ce que les séries n'ont plus en fiche. */
+function saisonDesFeuilles(calendrier) {
+  const out = new Map();
+  const de = t => { if (!out.has(t)) out.set(t, { n: 0, GF: 0, GA: 0, SF: 0, PKO: 0, CO: 0 }); return out.get(t); };
+  for (const m of (calendrier || []).flat()) {
+    if (!m || !m.joue || !m.feuille) continue;
+    const f = m.feuille;
+    for (const [t, c, gf, ga] of [[m.A, 'A', m.gfA, m.gfB], [m.B, 'B', m.gfB, m.gfA]]) {
+      const S = de(t);
+      S.n++; S.GF += gf; S.GA += ga; S.SF += tirsTotal(f, c);
+      S.PKO += (f.punitions || []).filter(x => x.cote === c).length;
+      S.CO += (f.coups && f.coups[c]) || 0;
+    }
+  }
+  return out;
 }
 /*
  * LA PAGE OÙ L'ON ÉTAIT (1.0, oct.). JP : *quand j'utilise une carte ou
@@ -603,7 +640,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   for (const t of teams) if (t.rappelG) equipeDe.set(t.rappelG, t);
   // Les tirs pour et contre, et les unités spéciales (S78) : ce que le dépisteur
   // compare, lu sur les feuilles révélées — jamais sur une cote.
-  const fiche = new Map(teams.map(t => [t, { W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0, SF: 0, SA: 0, PPG: 0, PPO: 0, PKGA: 0, PKO: 0 }]));
+  const fiche = new Map(teams.map(t => [t, { W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0, SF: 0, SA: 0, PPG: 0, PPO: 0, PKGA: 0, PKO: 0, CO: 0 }]));
   // Les résultats de chaque club dans l'ordre ('V', 'D', 'DP') : la séquence
   // et les dix derniers matchs, les deux colonnes qu'un journal donne toujours.
   const resultats = new Map(teams.map(t => [t, []]));
@@ -624,6 +661,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const anA = f.buts.filter(x => x.cote === 'A' && x.an).length, anB = f.buts.filter(x => x.cote === 'B' && x.an).length;
       a.PPO += punB; b.PPO += punA; a.PKO += punA; b.PKO += punB;
       a.PPG += anA; b.PPG += anB; a.PKGA += anB; b.PKGA += anA;
+      if (f.coups) { a.CO += f.coups.A || 0; b.CO += f.coups.B || 0; }
     }
     resultats.get(m.A).push(gagneA ? 'V' : m.ot ? 'DP' : 'D');
     resultats.get(m.B).push(gagneA ? (m.ot ? 'DP' : 'D') : 'V');
@@ -2988,21 +3026,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * équipes en tout temps*. Ce soir (deux périodes) et la saison par match,
    * côte à côte : de vraies stats, celles des feuilles, jamais une cote.
    */
-  function statsEntracte(f, cMoi, cLui, adv, moi, lui, tirs) {
-    const val = (t, k) => { const v = MESURES[k].val(t); return Number.isFinite(v) ? v : null; };
-    const bc = t => { const n = gpDe(t); return n >= 3 ? fiche.get(t).GA / n : null; };
-    const v = (x, d = 1) => (x == null ? '—' : virgule(x, d));
-    const lignes = [
-      ...ceSoirEntracte(f, cMoi, cLui, moi, lui, tirs),
-      ['La saison, par match', null, null],
-      ['Buts pour', v(val(you, 'attaque'), 2), v(val(adv, 'attaque'), 2)],
-      ['Buts contre', v(bc(you), 2), v(bc(adv), 2)],
-      ['Tirs pour', v(val(you, 'vitesse')), v(val(adv, 'vitesse'))],
-      ['Tirs contre', v(val(you, 'defense')), v(val(adv, 'defense'))],
-      ['% d\'arrêts', svMot(val(you, 'gardiens')), svMot(val(adv, 'gardiens'))],
-      ['Avantage numérique', val(you, 'an') == null ? '—' : pctMot(val(you, 'an')), val(adv, 'an') == null ? '—' : pctMot(val(adv, 'an'))],
-    ];
-    return tableEntracte(ctx, ctx.teamShort(you), ctx.teamShort(adv), lignes);
+  function statsEntracte(f, cMoi, cLui, adv) {
+    const saison = c => { const t = c === cMoi ? you : adv; return { n: gpDe(t), ...fiche.get(t) }; };
+    return tableEntracte(ctx, ctx.tagCourt(you), ctx.tagCourt(adv), lignesEntracte(f, cMoi, cLui, saison));
   }
   function ouvrirEntracte(direct = false) {
     const p = prochain();
@@ -3026,7 +3052,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(adv))} ${ctx.logo(adv.tag, 22)}</span></div>
       <div class="ent2-note">Après deux périodes · tirs ${tirs(cMoi)}–${tirs(cLui)}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
-      ${statsEntracte(f, cMoi, cLui, adv, moi, lui, tirs)}
+      ${statsEntracte(f, cMoi, cLui, adv)}
       <div class="ent2-incident">${INC.ico} ${ctx.esc(INC.titre)}.</div>
       ${planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv), prepJuste: mb.prepJuste ?? null })}
     </div>`;
@@ -3293,6 +3319,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
    * garde le plan qui a gagné et en change après une défaite — c'est ce que
    * le rapport d'éclaireur raconte, pour qu'on cherche le contre.
    */
+  // La saison de chaque club, lue sur ses feuilles : l'entracte la compare au match.
+  const saisonFeuilles = saisonDesFeuilles(saison && saison.calendrier);
   const planDuMatch = s => (s && s.plans && !complete(s) ? s.plans[revele.get(s)] || null : null);
   /*
    * CE QUE LE DERNIER MATCH DIT DU PROCHAIN (S76) — sans le dévoiler : le plan
@@ -3336,8 +3364,6 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const moi = moiA ? e.gfA : e.gfB, lui = moiA ? e.gfB : e.gfA;
     const etatM = moi > lui ? 'devant' : moi < lui ? 'derriere' : 'egal';
     const off = entractesOfferts(graine, `po${ronde}:${k}`, etatM);
-    // Les compteurs de saison ne bougent pas en séries (`cumulerSeries`) : la saison se lit sur l'équipe.
-    const parMatchSaison = (t, c) => { const n = (t.W || 0) + (t.L || 0) + (t.OTL || 0); return n ? ((t[c] || 0) / n).toFixed(2).replace('.', ',') : '—'; };
     const INC = INCIDENTS[off.incident];
     const tirs = c => ((f.tirs[c] || [])[1] || 0) + ((f.tirs[c] || [])[2] || 0);
     const buts = f.buts.filter(b => b.instant < 40)
@@ -3347,8 +3373,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(boss))} ${ctx.logo(boss.tag, 22)}</span></div>
       <div class="ent2-note">Match ${k + 1} · après deux périodes · tirs ${tirs(cMoi)}–${tirs(cLui)} · série ${s.A === you ? wA : wB}-${s.A === you ? wB : wA}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
-      ${tableEntracte(ctx, ctx.teamShort(you), ctx.teamShort(boss), [...ceSoirEntracte(f, cMoi, cLui, moi, lui, tirs),
-        ['La saison, par match', null, null], ['Buts pour', parMatchSaison(you, 'GF'), parMatchSaison(boss, 'GF')], ['Buts contre', parMatchSaison(you, 'GA'), parMatchSaison(boss, 'GA')]])}
+      ${tableEntracte(ctx, ctx.tagCourt(you), ctx.tagCourt(boss), lignesEntracte(f, cMoi, cLui, c => saisonFeuilles.get(c === cMoi ? you : boss) || null))}
       <div class="ent2-incident">${INC.ico} ${ctx.esc(INC.titre)}.</div>
       ${planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss), prepJuste: pl.prepJuste ?? null })}
     </div>`;
