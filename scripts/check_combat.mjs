@@ -273,7 +273,7 @@ console.log('\n  Le deck de match (S74)\n');
     const cout = m => m.reduce((a, c) => a + CARTES_MATCH[c].cout, 0);
     let c3 = 0, c4 = 0;
     for (let g = 0; g < 200; g++) { c3 += cout(mainAdverse(`e${g}`, 'j1', 3)); c4 += cout(mainAdverse(`e${g}`, 'j1', 4)); }
-    exiger('l\'adversaire joue plus fort en fin de course', energieAdverse({ jour: 10 }) === 3 && energieAdverse({ jour: 60 }) === 4
+    exiger('l\'adversaire joue plus fort en fin de course', energieAdverse({ jour: 10 }) === 3 && energieAdverse({ jour: 140 }) === 4
       && energieAdverse({ serie: true, ronde: 0 }) === 3 && energieAdverse({ serie: true, ronde: 2 }) === 4 && c4 > c3 * 1.25,
       `énergie dépensée : ${(c3 / 200).toFixed(2)} à trois, ${(c4 / 200).toFixed(2)} à quatre`);
   }

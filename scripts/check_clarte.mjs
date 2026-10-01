@@ -37,7 +37,7 @@ import { TRAITS } from '../js/traits.js';
 import { BONUS } from '../js/rarete.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
-import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse } from '../js/combat.js';
+import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse, MATCH_ADVERSE_FORT } from '../js/combat.js';
 import { JETONS, baremeRogue, PLAFOND_ROGUE, MANDATS } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 
@@ -195,7 +195,7 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [`basse (précision −${pctE('basse', 'finition')} %, usure des jambes −${pctE('basse', 'energie')} %)`, 'la consigne basse'],
     [`haute (précision +${pctE('haute', 'finition')} %, buts contre −${pctE('haute', 'defense')} %, blessures +${pctE('haute', 'blessure')} %, usure des jambes +${pctE('haute', 'energie')} %)`, 'la consigne haute'],
     // La robustesse (1.0, le dur de quatrième trio) : un écart-type, un soir ordinaire et un soir éreintant, et la dissuasion.
-    [`ta finition monte de ${nombre(Math.round((Math.exp(K_ROB * ROB_ORDINAIRE) - 1) * 1000) / 10)} % et la sienne baisse d'autant ; un soir éreintant (un match sur quatre) de ${nombre(Math.round((Math.exp(K_ROB) - 1) * 1000) / 10)} %`, 'la robustesse'],
+    [`ta finition monte de ${nombre(Math.round((Math.exp(K_ROB * ROB_ORDINAIRE) - 1) * 1000) / 10)} % et la sienne baisse d'autant ; un soir éreintant (un dos-à-dos) de ${nombre(Math.round((Math.exp(K_ROB) - 1) * 1000) / 10)} %`, 'la robustesse'],
     [`réduit les blessures de tes joueurs de ${nombre(Math.round((1 - Math.exp(-DISSUASION)) * 100))} %`, 'la dissuasion'],
     // La maîtrise des rôles (1.0) : chaque effet, depuis EFFET_ROLE ; les coups, depuis COUP_JAMBES et COUP_ABSORBE.
     [`(jusqu'à ${nombre(EFFET_ROLE.checker * 100)} %, ${nombre(EFFET_ROLE.deuxsens * 100)} % pour le two-way et le physique)`, 'les rôles qui étouffent'],
@@ -215,13 +215,13 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [`entre ${nombre(PART_AUX_MIN * 100)} et ${nombre(PART_AUX_MAX * 100)} %`, 'la part de l\'auxiliaire'],
     [`en prend ${nombre(PART_SANS_AUX * 100)} %`, 'le gardien rappelé'],
     [`${['zéro', 'un', 'deux', 'trois', 'quatre'][GARDIEN_SUITE_LIBRE]} départs de suite ; au ${['', 'deuxième', 'troisième', 'quatrième', 'cinquième'][GARDIEN_SUITE_LIBRE]}, il en perd ${GARDIEN_JAMBES_PAS} par départ, jamais sous ${GARDIEN_JAMBES_MIN}, et chaque ${GARDIEN_JAMBES_PAS} points perdus lui coûtent ${nombre(GARDIEN_USURE * 100)} %`, 'la fatigue des gardiens'],
-    [`annoncé ${ANNONCE_GROS} journées d'avance`, 'l\'annonce du gros match'],
+    [ANNONCE_GROS === 1 ? 'annoncé la veille' : `annoncé ${ANNONCE_GROS} journées d'avance`, 'l\'annonce du gros match'],
     [`<strong>main de ${TAILLE_MAIN} cartes</strong> et tu as <strong>${ENERGIE_MAIN} d'élan</strong>`, 'la main'],
-    [`à partir de la journée 55 et dès la troisième ronde des séries, il a ${energieAdverse({ jour: 55 })} d'élan`, 'l\'élan adverse'],
+    [`à partir du ${MATCH_ADVERSE_FORT}e match et dès la troisième ronde des séries, il a ${energieAdverse({ jour: 186 })} d'élan`, 'l\'élan adverse'],
     [`précision +${pct(PREP_JUSTE.finition)} % et buts contre −${pct(PREP_JUSTE.defense)} %`, 'la préparation juste'],
     [`précision −${pct(PREP_RATEE.finition)} % et buts contre +${pct(PREP_RATEE.defense)} %`, 'la préparation ratée'],
     [`commence avec ${DECK_DEPART.length} cartes`, 'le deck de départ'],
-    [`journées ${PALIERS_CARTES.slice(0, -1).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}`, 'les paliers'],
+    [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs`, 'l\'objectif raté'],
     [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],
     [`${JETONS.depart} jetons et un plafond de ${nombre(PLAFOND_ROGUE / 1e6)} M$`, 'le départ Rogue'],

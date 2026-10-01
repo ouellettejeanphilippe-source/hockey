@@ -1296,10 +1296,21 @@ async function drafter(etiquette) {
       });
       // Le plancher du jeu est 0,775 M$ par case (MIN_SAL de js/game.js) ; le 0,95 d'ici est la marge de l'auto-draft.
       if (etat.rem != null && etat.left != null && etat.rem + 0.01 < 0.775 * etat.left) errors.push(`une signature d'un seul clic a laissé ${etat.rem} M$ pour ${etat.left} cases, sous le plancher`);
-      // LE TOAST EN HAUT SUR TÉLÉPHONE (1.0, J2-17) : il se posait sur les boutons du pouce.
-      if (!toastVu) {
-        const t = await page.evaluate(() => { const e = document.querySelector('#toast.on'); if (!e) return null; const r = e.getBoundingClientRect(); return { haut: r.top, bas: r.bottom, h: innerHeight, w: innerWidth }; });
-        if (t) { toastVu = true; if (t.w < 1200 && t.bas > t.h / 2) errors.push(`le toast se pose dans la moitié basse du téléphone (${Math.round(t.haut)}–${Math.round(t.bas)} px sur ${t.h})`); }
+      /*
+       * LE TOAST NE DIT QUE CE QUI NE SE VOIT PAS (JP : *le toast gosse*). Une signature
+       * à sa place n'en lève aucun : la case qui s'allume le dit. Au bas de l'écran
+       * (1.0, R3), il ne couvre ni la barre d'action ni les onglets.
+       */
+      {
+        const t = await page.evaluate(() => {
+          const e = document.querySelector('#toast.on'); if (!e) return null;
+          const r = e.getBoundingClientRect();
+          const bas = [...document.querySelectorAll('#navbar, .actionbar')].map(x => x.getBoundingClientRect()).filter(x => x.height > 0);
+          return { mot: e.textContent.trim(), warn: e.classList.contains('warn') || e.classList.contains('bad'), couvre: bas.some(x => r.bottom > x.top + 1 && r.top < x.bottom) };
+        });
+        if (t && !t.warn) errors.push(`une signature lève un toast qui ne dit rien qu'on ne voie : « ${t.mot} »`);
+        if (t && t.couvre && !toastVu) errors.push(`le toast couvre la barre du bas : « ${t.mot} »`);
+        if (t) toastVu = true;
       }
     }
   }
@@ -1521,8 +1532,20 @@ console.log(`3. #mainBtn actif : ${enabled}`);
    fin et au bilan. */
 async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
-  await page.click('#hubModal .hub-jour');
-  await page.waitForTimeout(150);
+  /*
+   * LE VRAI CALENDRIER (1.0, oct.) : ton club peut être en congé le jour 0 ;
+   * « Jusqu'au prochain match › » mène alors au matin de ton match, sans
+   * résultat. On touche le bouton de tête jusqu'à ce que ton match soit joué.
+   */
+  for (let i = 0; i < 4; i++) {
+    const mot = ((await page.textContent('#hubModal .hub-jour')) || '').trim();
+    await page.click('#hubModal .hub-jour');
+    await page.waitForTimeout(150);
+    if (!/prochain match/i.test(mot)) break;
+    await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-page[data-genre="sommaire"]', { timeout: 60000 });
+    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
+    if (!(await page.$('#hubModal .hub-jour'))) break;
+  }
   /*
    * UN MATCH ORDINAIRE SE LIT AU BUREAU (1.0, J2-8) : pas de plein écran,
    * le résultat en tête du volet. Le plein écran ne vient que pour une
@@ -1655,9 +1678,9 @@ async function traverserSaison(etiquette, reprise = false) {
       else console.log(`   l'alignement : ${lu.roles} rôles en icônes · ${lu.ids.join(' · ')}`);
     }
     /*
-     * LA CASE SANS PHOTO, LE SYSTÈME EN FENÊTRE (1.0, les lignes). JP : *au
-     * lieu de dropdown, modal, et au lieu des photos, icônes et cote générale
-     * à sa position*. Aucune photo dans les cases ; chaque case porte un rôle
+     * LA CASE ET LE SYSTÈME EN FENÊTRE (1.0, les lignes). JP : *au lieu de
+     * dropdown, modal*. Les visages sont revenus dans les cases (1.0, R3 :
+     * JP les a fait remettre) ; chaque case porte un rôle
      * et une pastille de NIVEAU (jamais une cote : `sansCote` le vérifie) et,
      * derrière le banc, ses jambes. La rangée « Régler › » ouvre une fenêtre ;
      * rien ne s'applique avant « Appliquer », « Annuler » ne change rien.
@@ -1669,7 +1692,6 @@ async function traverserSaison(etiquette, reprise = false) {
           sansNiveau: cs.filter(c => !c.querySelector('.niv')).length, sansRole: cs.filter(c => !c.querySelector('.cell-role')).length,
           jambes: document.querySelectorAll('#rosterBoard .slot .jambes').length };
       });
-      if (cases.visages) errors.push(`l'alignement montre encore ${cases.visages} photo(s) dans ses cases`);
       if (cases.sansNiveau || cases.sansRole) errors.push(`des cases n'ont pas leur niveau ou leur rôle : ${cases.sansNiveau} sans niveau, ${cases.sansRole} sans rôle sur ${cases.n}`);
       if (cases.jambes < cases.n - 3) errors.push(`derrière le banc, les jambes ne se lisent que sur ${cases.jambes} cases sur ${cases.n}`);
       else console.log(`   la case sans photo : ${cases.n} cases, chacune un rôle et un niveau, ${cases.jambes} jambes lisibles`);
@@ -2306,12 +2328,13 @@ async function traverserSaison(etiquette, reprise = false) {
     });
     /*
      * S80 : une fenêtre qui tombe un soir de gros match attend le lendemain
-     * (64 → 65), et le gros match s'annonce deux journées d'avance — son
+     * (64 → 65), et le gros match s'annonce la veille — son
      * avant-match s'ouvre EN ROUTE. La boucle y répond (sinon elle piétine
-     * derrière le choix) et va jusqu'au jour 70.
+     * derrière le choix) et va jusqu'au jour 160 : au vrai calendrier (1.0,
+     * oct.), les fenêtres des 46e et 64e matchs tombent vers les jours 104 et 145.
      */
     let situ = await lireSitu();
-    for (let i = 0; i < 50 && !situ && (await jourVu()) <= 70; i++) {
+    for (let i = 0; i < 50 && !situ && (await jourVu()) <= 160; i++) {
       if (await page.$('#choixModal:not([hidden])')) { await repondreAuxChoix(); situ = await lireSitu(); if (situ) break; }
       if (await page.$('#hubModal .hub-prochaine')) await page.click('#hubModal .hub-prochaine');
       else if (await page.$('#hubModal .hub-traiter')) await page.click('#hubModal .hub-traiter');

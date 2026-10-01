@@ -287,10 +287,13 @@ await page.waitForSelector('#tableModal .t-glace', { timeout: 30000 });
 
 /* ---------- « Sur table » se choisit au CHOIX DU MODE (S79 ; 1.0, R1) ----------
    JP : *« Nouvelle » devrait ramener aux choix des modes*. Le Menu de l'en-tête
-   (le menu pause) montre les cartons des modes ; « Nouvelle partie » sur la
-   table ouvre l'écran « Nouvelle partie » déjà réglé sur la table. Rien ne
-   s'applique avant le clic sur le pied. */
+   est le menu pause ; « Quitter vers le titre » ramène aux cartons des modes
+   (pause distincte du titre), et « Nouvelle partie » sur la table ouvre
+   l'écran « Nouvelle partie » déjà réglé sur la table. Rien ne s'applique
+   avant le clic sur le pied. */
 await page.click('#menuBtn');
+await page.waitForSelector('#menuDepart [data-menu="titre"]', { timeout: 10000 });
+await page.click('#menuDepart [data-menu="titre"]');
 await page.waitForSelector('#menuDepart .menu-mode[data-genre="table"] [data-menu="nouvelle"]', { timeout: 10000 });
 await page.click('#menuDepart .menu-mode[data-genre="table"] [data-menu="nouvelle"]');
 await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 });

@@ -1231,9 +1231,9 @@ export async function signPlayer(p, el = null) {
 
   const pen = penaliteAffichee(p, slot).pen;
   const sous = zoneEcart(p, slot) === 'sous';
-  toast(`${p.n} → ${slotShort(slot)}`
-    + (pen > 0 ? ` (−${pen} hors position)` : '')
-    + (sous ? ' · ▼ sous sa zone' : ''), pen > 0 || sous ? 'warn' : '');
+  // LE TOAST NE DIT QUE CE QUI NE SE VOIT PAS (JP : *le toast gosse*) : la case qui s'allume dit déjà où il va ;
+  // reste l'avertissement, hors position ou sous sa zone.
+  if (pen > 0 || sous) toast(`${p.n} → ${slotShort(slot)}${pen > 0 ? ` (−${pen} hors position)` : ''}${sous ? ' · ▼ sous sa zone' : ''}`, 'warn');
   // Le toast à retardement « sous le plancher » est parti (J1-Q) : le bouton l'a dit AVANT, et a demandé confirmation.
 
   poserEchelle();

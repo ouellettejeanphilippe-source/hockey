@@ -538,7 +538,7 @@ export const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_S
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S82';  // S82 : la carte du New Jersey recentrée (0,945 · 0,935). S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
+const VERSION_MOTEUR = 'S84';  // S84 : le vrai calendrier (82 matchs en 186 jours, des congés, des dos-à-dos ; la récupération par jour, les durées en matchs, les événements la veille). S83 : le gros match s'annonce la veille (ANNONCE_GROS = 1). S82 : la carte du New Jersey recentrée (0,945 · 0,935). S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
 export function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
@@ -1104,7 +1104,7 @@ export function toast(msg, kind = '') {
   el.className = 'toast on' + (kind ? ' ' + kind : '');
   el.textContent = msg;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.className = 'toast'; }, 2600);
+  toastTimer = setTimeout(() => { el.className = 'toast'; }, 1800);
 }
 
 /* =====================================================================

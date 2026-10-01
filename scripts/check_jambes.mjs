@@ -26,7 +26,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, joueursDeLigne, activeLineup,
-  energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_C } from '../js/sim.js';
+  energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_C, ENERGIE_RECUP_JOUR, JOURS_PAR_MATCH } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 
@@ -65,12 +65,19 @@ const REGLAGES = {
   roule: { lignes: t => [60, 60, 60, 60].map(sec => ({ tac: undefined, agr: 1, sec })), roulement: 'profond' },
 };
 
-/* Une saison jouée au jour le jour : les jambes du matin du 1er trio, et du 4e. */
-function saison(teams, graine, decisions, suivis) {
+/*
+ * Une saison jouée au jour le jour : les jambes du 1er trio, et du 4e, au
+ * matin de chaque MATCH (le vrai calendrier a des jours de congé : un matin
+ * d'après-match n'est pas un soir de jeu). `importants` : les clubs dont un
+ * soir sur deux est important, posé sur leurs vrais jours de match.
+ */
+function saison(teams, graine, decisions, suivis, importants = []) {
   const L = creerLigue(teams, 82, { graine, decisions });
+  for (const i of importants) teams[i]._jours.forEach((j, k) => { if (k % 2) decisions.push({ jour: j, equipe: i, match: { importance: 'haute', ad: 0 } }); });
   const matins = new Map(suivis.map(i => [i, { l1: [], l4: [], f1: [] }]));
   while (!L.fini) {
     for (const i of suivis) {
+      if (!teams[i]._jours.includes(L.jour)) continue;
       const t = teams[i], lu = activeLineup(t), m = matins.get(i);
       const trio = u => Object.entries(joueursDeLigne(lu, u)).filter(([r, p]) => p && r !== 'DG' && r !== 'DD').map(([, p]) => p);
       m.l1.push(moy(trio(0).map(energieDe))); m.l4.push(moy(trio(3).map(energieDe))); m.f1.push(moy(trio(0).map(facteurEnergie)));
@@ -92,16 +99,15 @@ function paires(cle) {
       const decisions = [];
       for (const i of traites) {
         decisions.push({ jour: 0, equipe: i, lignes: R.lignes(teams[i]), ...(R.roulement ? { roulement: R.roulement } : {}) });
-        if (R.importance) for (let j = 1; j < 90; j += 2) decisions.push({ jour: j, equipe: i, match: { importance: 'haute', ad: 0 } });
       }
       const suivis = teams.map((t, i) => i);
-      const m = saison(teams, `jambes-${n}`, decisions, suivis);
+      const m = saison(teams, `jambes-${n}`, decisions, suivis, R.importance ? traites : []);
       bras.push(teams.map((t, i) => ({ W: t.W, GF: t.GF, GA: t.GA, traite: i % 2 === parite, m: m.get(i) })));
     }
     for (let i = 0; i < bras[0].length; i++) {
       const [a, b] = bras[0][i].traite ? [bras[0][i], bras[1][i]] : [bras[1][i], bras[0][i]];
       dv.push(a.W - b.W); dbp.push(a.GF - b.GF); dbc.push(a.GA - b.GA);
-      // Les matins après la première semaine (l'équilibre est atteint en cinq jours).
+      // Les matins de match après les sept premiers (l'équilibre est atteint en quelques matchs).
       l1.push(moy(a.m.l1.slice(7))); l1t.push(moy(b.m.l1.slice(7))); l4.push(moy(a.m.l4.slice(7))); f1.push(moy(a.m.f1.slice(7)));
     }
   }
@@ -128,10 +134,14 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
   console.log(`  à l'équilibre, 1er trio à 80 s rentre-dedans : ${jambesEquilibre(up.F[0]).toFixed(0)} (un soir important : ${jambesEquilibre(up.F[0] * 1.12).toFixed(0)})`);
   // 90 : la borne de calibration d'une ligne ordinaire (les jambes comptent en continu depuis 1.0, centrées sur ENERGIE_REF).
   exiger('à 60 s, un 1er trio dort au-dessus de 90', ms[0] > 90, ms[0].toFixed(1));
-  // 2. Le repos : un jour de congé rend la moitié du manque ; un geste de repos garde son surplus.
+  // 2. Le repos : d'un match à l'autre, l'écart moyen du calendrier rend la moitié du manque ; un geste de repos garde son surplus.
   const p = Object.values(joueursDeLigne(lu, 0)).find(Boolean);
   p.energie = 80; recupererEnergie(t);
-  exiger('un jour de congé rend la moitié du manque (80 → 90)', Math.abs(energieDe(p) - 90) < 1e-9, energieDe(p).toFixed(1));
+  exiger('un soir de série rend la moitié du manque (80 → 90)', Math.abs(energieDe(p) - 90) < 1e-9, energieDe(p).toFixed(1));
+  exiger('l\'écart moyen du calendrier rend la même moitié', Math.abs((1 - ENERGIE_RECUP_JOUR) ** JOURS_PAR_MATCH - 0.5) < 1e-9, `${(100 * ENERGIE_RECUP_JOUR).toFixed(1)} % par jour`);
+  p.energie = 80; recupererEnergie(t, ENERGIE_RECUP_JOUR);
+  const dosAdos = energieDe(p);
+  exiger('un dos-à-dos rend moins qu\'un soir moyen', dosAdos < 90, `80 → ${dosAdos.toFixed(1)}`);
   p.energie = 95; rendreJambes(p, 15);
   exiger('« jambes +15 » à 95 : 100, et 10 en réserve', energieDe(p) === 100 && p._reserve === 10, `${energieDe(p)} · réserve ${p._reserve}`);
   const avant = energieDe(p); depenserEnergie(t, lu);
@@ -153,7 +163,8 @@ try {
 } catch (e) { console.log('  (le fils sans jambes n\'a pas tourné : ' + e.message.split('\n')[0] + ')'); }
 
 console.log('');
-borne('jambes du matin, 1er trio par défaut', P.l1t, 90, 96);
+// 89 : le vrai calendrier (1.0, oct.) mêle des dos-à-dos et des congés ; sa moyenne des matins de match tombe à 89,7 contre 90,0 avant.
+borne('jambes du matin, 1er trio par défaut', P.l1t, 89, 96);
 borne('jambes du matin, 1er trio poussé', P.l1, 75, 86);
 borne('jambes du matin, 4e trio (poussé ou pas, il dort)', P.l4, 94, 100.01);
 exiger('pousser coûte des jambes au 1er trio', P.l1 < P.l1t - 5, `${P.l1.toFixed(1)} contre ${P.l1t.toFixed(1)}`);

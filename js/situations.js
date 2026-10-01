@@ -26,8 +26,8 @@ const MOMENTS_PLUS = {
     ico: '🎤', titre: 'L\'hymne n\'en finit plus', irl: null,
     recit: 'Le chanteur étire. Le vestiaire rit, ou grince, selon toi.',
     options: [
-      { cle: 'rire', nom: 'On en rit', bon: 'La pression tombe', finition: 1.04, duree: 3 },
-      { cle: 'serieux', nom: 'On reste de glace', bon: 'Rien ne change', rien: true },
+      { cle: 'rire', nom: 'On en rit', bon: 'La pression tombe', prix: 'On se relâche derrière', finition: 1.05, defense: 1.02, duree: 3 },
+      { cle: 'serieux', nom: 'On reste de glace', bon: 'Concentrés devant le filet', defense: 0.97, duree: 3 },
     ],
   },
   masque: {
@@ -51,8 +51,8 @@ const MOMENTS_PLUS = {
     ico: '🎒', titre: 'Une classe dans le vestiaire', irl: null,
     recit: 'Trente enfants, des crayons, et le capitaine qui ne sait plus où se mettre.',
     options: [
-      { cle: 'rester', nom: 'On reste avec eux', bon: 'Le vestiaire est léger', finition: 1.04, duree: 4 },
-      { cle: 'porte', nom: 'On ferme la porte', bon: 'La routine tient', rien: true },
+      { cle: 'rester', nom: 'On reste avec eux', bon: 'Le vestiaire est léger', prix: 'Une heure de plus debout', finition: 1.04, energie: 1.06, duree: 4 },
+      { cle: 'porte', nom: 'On ferme la porte', bon: 'La routine tient : on joue discipliné', discipline: 0.92, duree: 4 },
     ],
   },
   charter: {
