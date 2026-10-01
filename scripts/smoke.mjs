@@ -1937,6 +1937,8 @@ async function traverserSaison(etiquette, reprise = false) {
         await page.waitForTimeout(400);
         const jApres = await jourDit();
         const dMatch = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(d => d.match);
+        // La saison rejouée rouvre le matin : l'importance se lit sur l'affiche du soir.
+        await versLeSoir();
         const imp = ((await page.textContent('#hubModal .hub-lignes-imp').catch(() => '')) || '').trim();
         if (jApres !== jAvant) errors.push(`la consigne du match rembobine la saison : journée ${jAvant} puis ${jApres}`);
         if (!dMatch.length || dMatch[dMatch.length - 1].match.importance !== 'haute' || !Array.isArray(dMatch[dMatch.length - 1].lignes)) errors.push(`la sauvegarde ne porte pas la consigne du match : ${JSON.stringify(dMatch)}`);
