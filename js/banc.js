@@ -403,11 +403,18 @@ export function personneDeCle(cle) {
   const parts = String(cle).split('_');
   return parts.length === 3 ? `${parts[0]}_${parts[2]}` : `${parts[0]}_${parts.slice(2).join('_')}`;
 }
-/* À la reprise : les joueurs d'un ballottage (réclamés et libérés) et les réservistes relâchés (S80) se retrouvent dans leurs shards. */
+/*
+ * À la reprise : les joueurs d'un ballottage (réclamés et libérés), les réservistes relâchés (S80)
+ * et — 1.0, oct. — tout joueur qu'un alignement daté nomme sans qu'il soit encore au vestiaire
+ * se retrouvent dans leurs shards. Sans eux, la case du jour 0 restait vide à la reprise et le
+ * premier soir se jouait autrement (JP : *faut vraiment que le passé soit gelé*).
+ */
 export async function connaitreBallottages(decisions) {
+  const auVestiaire = new Set(Object.values(G.roster || {}).filter(Boolean).map(getPlayerKey));
   for (const d of decisions || []) {
-    if (!d.ballottage && !d.relache) continue;
-    for (const cle of [...(d.ballottage ? [d.ballottage.entre, d.ballottage.sort] : []), ...(d.relache || []).map(x => x && x.sort)]) {
+    if (!d.ballottage && !d.relache && !d.cases) continue;
+    const nommes = d.cases ? Object.values(d.cases).filter(cle => !auVestiaire.has(cle)) : [];
+    for (const cle of [...(d.ballottage ? [d.ballottage.entre, d.ballottage.sort] : []), ...(d.relache || []).map(x => x && x.sort), ...nommes]) {
       if (!cle) continue;
       const [s, t] = String(cle).split('_');
       let e = G.shards.get(s);

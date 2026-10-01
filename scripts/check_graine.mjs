@@ -327,5 +327,46 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
   dire(pR.simGP > 0 && Object.values(eqR[0].roster).includes(pR), `le rappelé joue (${pR.simGP} matchs)`);
 }
 
+/*
+ * (5) LA REPRISE RECRÉE TON CLUB AVEC L'ALIGNEMENT D'AUJOURD'HUI (1.0, oct.).
+ * JP : *faut vraiment que le passé soit gelé*. Après une décision au jour 10
+ * (le 1er trio descend au 4e, la 1re paire à la 3e), la sauvegarde rouvre la saison
+ * sur l'alignement du jour 15 ; la force des clubs et leur style se
+ * mesuraient sur lui, et un club voisin changeait de style : le passé se
+ * rejouait autrement. Les joueurs portaient aussi les jambes d'un aperçu du
+ * repêchage à la première création, pas à la reprise.
+ */
+{
+  const echangeAG = t => {
+    const cases = photoAlignement(t.roster);
+    for (const [g, a, b] of [['F', 0, 3], ['D', 0, 2]]) {
+      const u = n => SLOTS.filter(sl => sl.group === g && sl.unit === n && !sl.scratch).map(sl => sl.i);
+      u(a).forEach((i, k) => { const j = u(b)[k]; [cases[i], cases[j]] = [cases[j], cases[i]]; });
+    }
+    return { jour: 10, cases, sel: 'reprise' };
+  };
+  const eqA = equipesNeuves();
+  // Un aperçu du repêchage a fatigué et « appris » le vestiaire avant la saison.
+  for (const sl of SLOTS) { const p = eqA[0].roster[sl.i]; if (p) { p.energie = 40; p._maitrise = { [sl.i]: 3 }; } }
+  const decs = [{ jour: 0, cases: photoAlignement(eqA[0].roster) }];
+  const LA = creerLigue(eqA, 82, { graine: 'reprise', decisions: decs });
+  const forceA = JSON.stringify(LA.teams.map(t => [t.strength, t.style]));
+  jouerJusqua(LA, 10);
+  decs.push(echangeAG(eqA[0]));
+  poserAlignementDuJour(LA);
+  jouerJusqua(LA, 15);
+  // La reprise : des objets neufs, ton club recréé sur l'alignement d'aujourd'hui, les mêmes décisions.
+  const eqB = equipesNeuves();
+  const parCle = new Map(SLOTS.map(sl => eqB[0].roster[sl.i]).filter(Boolean).map(p => [getPlayerKey(p), p]));
+  for (const k of Object.keys(eqB[0].roster)) delete eqB[0].roster[k];
+  for (const [i, k] of Object.entries(decs[1].cases)) eqB[0].roster[i] = parCle.get(k);
+  const LB = creerLigue(eqB, 82, { graine: 'reprise', decisions: decs.map(d => ({ ...d })) });
+  dire(JSON.stringify(LB.teams.map(t => [t.strength, t.style])) === forceA,
+    'à la reprise, la force et le style des clubs se mesurent sur l\'alignement du jour 0, comme à la création');
+  jouerJusqua(LB, 15);
+  dire(texteDe(LB.calendrier.slice(0, 15)) === texteDe(LA.calendrier.slice(0, 15)),
+    'une reprise qui recrée ton club sur l\'alignement d\'aujourd\'hui rejoue le même passé, au but près (jambes d\'aperçu comprises)');
+}
+
 console.log(echecs ? `\n${echecs} échec(s)` : '\ntout se rejoue');
 process.exit(echecs ? 1 : 0);

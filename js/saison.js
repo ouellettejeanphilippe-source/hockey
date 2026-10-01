@@ -396,8 +396,9 @@ function meneursHtml(ctx, compte, equipeDe, you, titre, menu, minGardien = 1) {
   const entrees = [...compte.entries()];
   if (!entrees.length) return '<div class="live-vide">Aucun match joué encore.</div>';
   const ligne = ([p, c]) => {
-    const t = equipeDe.get(p) || null;
-    return { p, t, nom: nom(p), eq: ctx.tagCourt(t || { tag: '—' }), toi: t === you, c };
+    // Un joueur sans case qui a joué a joué pour toi : un rappelé renvoyé, un joueur cédé (comme les « anciens » de l'onglet Équipes).
+    const t = equipeDe.get(p) || you;
+    return { p, t, nom: nom(p), eq: ctx.tagCourt(t), toi: t === you, c };
   };
   const gardiens = menu.vue === 'GAR';
   const lignes = entrees.filter(([p, c]) => (gardiens ? p.p === 'G' && c.gp >= minGardien : p.p !== 'G' && c.gp > 0)).map(ligne);
@@ -1067,11 +1068,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const [i, k] of Object.entries(maintenant)) if (!places.has(k) && !(i in out)) { out[i] = k; places.add(k); }
     for (const [k, p] of ici) {
       if (places.has(k)) continue;
-      const sl = SLOTS.filter(x => !(x.i in out) && fits(p, x)).sort((a, b) => b.scratch - a.scratch)[0];
+      // Une case habillée d'abord : laisser un trou dans un trio pour remplir une réserve vidait la case 0 (smoke, graine 3).
+      const sl = SLOTS.filter(x => !(x.i in out) && fits(p, x)).sort((a, b) => (a.scratch - b.scratch) || ((a.extra || 0) - (b.extra || 0)))[0];
       if (!sl) return null;
       out[sl.i] = k; places.add(k);
     }
-    return out;
+    // Un alignement qui laisse une case habillée vide n'est pas un retour : on ne l'offre pas.
+    return SLOTS.some(x => !x.scratch && !x.extra && !(x.i in out) && maintenant[x.i]) ? null : out;
   }
   let alerte = null;                 // la blessure à annoncer, ou null
   const vues = new Set();            // les entrées du journal déjà annoncées

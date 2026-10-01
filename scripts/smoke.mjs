@@ -432,7 +432,7 @@ const ecranPret = (timeout = 120000) => page.waitForFunction(() => {
   // Figé : on dit ce qui est à l'écran, sinon l'échec en CI ne s'explique pas.
   const vu = await page.evaluate(() => [...document.querySelectorAll('dialog[open], .modal:not([hidden]), [id$="Modal"]:not([hidden])')]
     .map(m => `${m.id || m.className} « ${(m.querySelector('h1, h2, h3, .choix-titre, .hub-titre')?.textContent || '').trim().slice(0, 80)} » [${[...m.querySelectorAll('button')].filter(b => b.offsetParent).map(b => b.className + ':' + b.textContent.trim().slice(0, 30)).slice(0, 12).join(' | ')}]`).join(' ;; ')).catch(() => '?');
-  throw new Error(`écran figé — ${vu} — ${e.message}`);
+  throw new Error(`écran figé — ${vu} — erreurs : ${errors.slice(-5).join(" ;; ") || "aucune"} — ${e.message}`);
 });
 async function repondreAuxChoix() {
   await ouvrirPaquet();
