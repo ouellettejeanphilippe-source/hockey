@@ -17,7 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries,
          creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame, feuilleVierge,
-         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS, ROULEMENTS, TACTIQUES, AGRESSIVITES } from '../js/sim.js';
+         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS, ROULEMENTS, TACTIQUES, AGRESSIVITES, connaitre, getPlayerKey, poserAlignementDuJour } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -287,6 +287,41 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
   dire(texteDe(L3.calendrier) === texteDe(connue.calendrier) && avant40 === texteDe(L3.calendrier.slice(0, 40)),
     'une décision prise en route (au jour 40, sans rejouer l\'avant) donne la même saison que connue d\'avance');
   dire(texteDe(L3.calendrier) !== texteBloc, 'et elle change bien ce qui suit');
+}
+
+/*
+ * (4) LE RAPPEL D'UN BLESSÉ, PRIS EN ROUTE (1.0, oct.). Le rappelé entre en
+ * réserve (ballottage) et, dans la MÊME décision, échange sa case avec un
+ * habillé (`cases`). L'écran la pose tout de suite (`poserAlignementDuJour`),
+ * puis le matin la refait (`appliquerDecision`) : les deux passes doivent
+ * donner la saison qu'on aurait jouée en la connaissant d'avance.
+ */
+{
+  const rappele = eqs => {
+    const src = SLOTS.map(s => eqs[1].roster[s.i]).find(p => p && p.p !== 'G' && p.p !== 'D');
+    const p = { ...src, id: 990001, n: 'Rappel Essai' }; delete p._rk;
+    registerHiddenRatings(p); connaitre(p);
+    return p;
+  };
+  const decider = (equipes, p) => {
+    const t = equipes[0];
+    const res = SLOTS.find(sl => sl.scratch && sl.group !== 'D' && !(t.roster[sl.i] && t.roster[sl.i].p === 'G'));
+    const hab = SLOTS.find(sl => !sl.scratch && sl.group === 'F' && sl.unit === 0);
+    const cases = photoAlignement(t.roster);
+    cases[res.i] = getPlayerKey(t.roster[hab.i]); cases[hab.i] = getPlayerKey(p);
+    return { jour: 30, ballottage: { i: res.i, entre: getPlayerKey(p), sort: t.roster[res.i] ? getPlayerKey(t.roster[res.i]) : null }, cases, sel: 'rappel' };
+  };
+  const eqC = equipesNeuves(), pC = rappele(eqC);
+  const connue = simulateLeague(eqC, 82, { graine: 'rappel', decisions: [{ jour: 0, cases: photoAlignement(eqC[0].roster) }, decider(eqC, pC)] });
+  const eqR = equipesNeuves(), pR = rappele(eqR);
+  const decs = [{ jour: 0, cases: photoAlignement(eqR[0].roster) }];
+  const L4 = creerLigue(eqR, 82, { graine: 'rappel', decisions: decs });
+  jouerJusqua(L4, 30);
+  decs.push(decider(eqR, pR));
+  poserAlignementDuJour(L4);
+  jouerJusqua(L4, Infinity);
+  dire(texteDe(L4.calendrier) === texteDe(connue.calendrier), 'un rappel qui prend la case d\'un habillé, pris en route et posé tout de suite, donne la même saison que connue d\'avance');
+  dire(pR.simGP > 0 && Object.values(eqR[0].roster).includes(pR), `le rappelé joue (${pR.simGP} matchs)`);
 }
 
 console.log(echecs ? `\n${echecs} échec(s)` : '\ntout se rejoue');
