@@ -5019,13 +5019,15 @@ function noterTrous(team, lineup) {
   (team.trous = team.trous || []).push({ at, jusqua: at, cases: vides });
 }
 
-export function playGame(A, B, gameIdx, track = true, series = false, journal = null, ronde = 0) {
+/* `cedule` : un match de la SAISON au vrai calendrier (la ligue, le pronostic) — `gameIdx` est alors le jour, et le
+   soir éreintant un dos-à-dos. Ailleurs (le tournoi, l'exhibition), un match sur quatre, comme avant. */
+export function playGame(A, B, gameIdx, track = true, series = false, journal = null, ronde = 0, cedule = false) {
   MEMO_MATCH++;
   // Le soir d'une carte « Clutch » (S78) : les séries et tes gros matchs.
   poserSoirGrand(series || !!(A._gros || B._gros));
   // L'échelle de la fin de partie (S80) : en saison, la journée ; en séries, la ronde.
   ECHELLE_SOIR = !(A.courbe || B.courbe) ? 1 : series ? echelleTardive({ serie: true, ronde }) : echelleTardive({ jour: gameIdx });
-  const heavy = series ? soirEreintant(gameIdx) : soirEreintant(gameIdx, A, B);
+  const heavy = cedule && !series ? soirEreintant(gameIdx, A, B) : soirEreintant(gameIdx);
   // Entre deux matchs de séries, les jambes reviennent (S68) ; en saison, la
   // récupération se fait au début de chaque journée (`simulateLeague`).
   if (series) { recupererEnergie(A); recupererEnergie(B); }
@@ -5890,7 +5892,7 @@ export function jouerJournee(L) {
         poserGros(toi, advToi, gros);
         if (entracteDuJour) toi._entracte = { ...entracteDuJour.entracte, graine: `${graine}:${r}:entracte:${entracteDuJour.sel || ''}` };
       }
-      const res = playGame(m.A, m.B, r, true, false, feuille);
+      const res = playGame(m.A, m.B, r, true, false, feuille, 0, true);
       if (gros && gros.cartesJouees) feuille.cartes = gros.cartesJouees;
       Object.assign(m, { gfA: res.gfA, gfB: res.gfB, ot: res.ot, feuille, joue: true });
       if (avecToi) grosMatchApres(toi, m, r, gros);

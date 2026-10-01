@@ -127,7 +127,7 @@ export function pronostic({ A, B, calendrier, jourMatch, jourRevele, n = 300, gr
       for (let i = 0; i < n; i++) {
         remettre(cA); remettre(cB);
         const f = i === 0 ? feuilleVierge() : null;
-        const r = playGame(cA.copie, cB.copie, jourMatch, false, false, f);
+        const r = playGame(cA.copie, cB.copie, jourMatch, false, false, f, 0, true);
         if (f) gardiens = { A: f.gardienA || null, B: f.gardienB || null };
         if (r.gfA > r.gfB) vA++;
         if (r.ot) prol++;
@@ -378,7 +378,7 @@ export function chancesDesObjectifs({ you, calendrier, jourRevele, cles, chemins
           const f = feuilleVierge();
           const A = moiA ? copieToi.copie : adv.copie, B = moiA ? adv.copie : copieToi.copie;
           A.jourCourant = s.j; B.jourCourant = s.j;
-          const r = playGame(A, B, s.j, false, false, f);
+          const r = playGame(A, B, s.j, false, false, f, 0, true);
           const pour = moiA ? r.gfA : r.gfB, contre = moiA ? r.gfB : r.gfA;
           matchs.push({ v: pour > contre, pour, contre, buts: f.buts.filter(b => b.cote === (moiA ? 'A' : 'B')) });
           copieToi.copie.games++;

@@ -28,7 +28,7 @@ import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague,
   MOMENTS, SEQUENCES, STYLES, OBJECTIFS, JOURS_OBJECTIFS, MATCHS_OBJECTIF,
   objectifsOfferts, etatObjectif, momentDuJour, JOURS_MOMENTS, ciblesDe, SLOTS as CASES,
-  MUTATIONS, cibleMutation, getPlayerKey,
+  MUTATIONS, cibleMutation, getPlayerKey, jourEvenement,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -227,7 +227,8 @@ console.log('\n  OBJECTIFS (vraies équipes, sans rien décider)');
     const { calendrier } = simulateLeague(teams, 82, { graine: `obj-${L}` });
     for (const t of teams) for (const j0 of JOURS_OBJECTIFS) {
       const matchs = [];
-      for (let j = j0; j < calendrier.length && matchs.length < MATCHS_OBJECTIF; j++) {
+      // L'objectif se fixe au jour où il tombe (1.0, oct. : avant le j0-e match, au vrai calendrier).
+      for (let j = jourEvenement(t, j0); j < calendrier.length && matchs.length < MATCHS_OBJECTIF; j++) {
         const m = calendrier[j].find(x => x.A === t || x.B === t);
         if (!m) continue;
         const pour = m.A === t ? m.gfA : m.gfB, contre = m.A === t ? m.gfB : m.gfA;

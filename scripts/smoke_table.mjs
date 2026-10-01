@@ -745,6 +745,9 @@ while (tours++ < 4000) {
     gestes++; gesteAvant = true; await page.waitForTimeout(50); continue;
   }
   if (etat.jouables) {
+    // Le menu d'une pièce dont tous les gestes sont fermés (« il en faut 7 ») reste ouvert par-dessus le
+    // plateau et intercepte le toucher : on le ferme d'abord par le retour du jeu (Échap, js/pile.js).
+    if (await page.$('#tableModal .t-cmd-fermer')) { await page.keyboard.press('Escape'); await page.waitForTimeout(80); }
     const piece = !modesVus.has('passe') && etat.porteurJouable ? etat.porteurJouable : etat.jouablesCases[0];
     await page.click(caseDe(piece)); pieces++; await page.waitForTimeout(50); continue;
   }
