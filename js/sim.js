@@ -5713,9 +5713,24 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
   };
   poserJours(L);
   avecLigue(L, () => {
+    /*
+     * L'ALIGNEMENT DU JOUR 0 D'ABORD (1.0, oct.). Une reprise recrée ton club
+     * avec l'alignement d'AUJOURD'HUI (un blessé descendu, un réserviste
+     * monté) ; la force des clubs et leur style (mesuré par rapport à la
+     * moyenne de la ligue, la tienne comprise) se prenaient sur lui, et un
+     * club voisin changeait de style : tout le passé se rejouait autrement
+     * (JP : *faut vraiment que le passé soit gelé*). Le jour 0 l'aurait posé
+     * de toute façon ; on le pose avant de mesurer.
+     */
+    // Ceux d'aujourd'hui restent connus : la décision qui les a montés les nommera.
+    for (const t of teams) for (const s of SLOTS) if (t.roster[s.i]) connaitre(t.roster[s.i]);
+    for (const d of decisions) {
+      if (d.jour !== 0 || !d.cases || d.ballottage) continue;
+      const t = teams[d.equipe || 0];
+      if (t) appliquerAlignement(t, d);
+    }
     for (const t of teams) {
       for (const s of SLOTS) if (t.roster[s.i]) { initSimStats(t.roster[s.i]); connaitre(t.roster[s.i]); }
-      t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
       // La chance de saison est tirée ICI, sous la graine, et non à
       // `createTeam` : sinon deux saisons de même graine différaient déjà
       // avant le premier lancer (check_graine.mjs l'a attrapé).
@@ -5751,6 +5766,14 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       delete p._maitrise; delete p._adapt; delete p._situ;
       delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri;
     }
+    /*
+     * LA FORCE APRÈS LA REMISE À ZÉRO (1.0, oct.). Elle se mesurait au début
+     * de la boucle, sur des joueurs qui portaient encore les jambes et la
+     * maîtrise d'un aperçu du repêchage : la première saison n'avait pas la
+     * même force — ni le même style de club — que sa reprise, et le passé
+     * changeait au rafraîchissement (le smoke, graine 3).
+     */
+    for (const t of teams) t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
     // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
     poserStyles(teams);
     if (!L.calendrier.length) L.fini = true;

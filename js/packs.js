@@ -464,7 +464,7 @@ export const coachDuPack = (graine, n, params = {}) => (COACHS[params.coach] ? p
  */
 export function packsSansHolo(decisions = []) {
   let n = 0;
-  for (const d of [...decisions].filter(x => x && (x.achat || x.rogue) && (x.achat || x.rogue).sorte === 'joueurs').sort((a, b) => (a.achat || a.rogue).n - (b.achat || b.rogue).n)) {
+  for (const d of [...decisions].filter(x => x && (x.achat || x.rogue) && (x.achat || x.rogue).sorte === 'joueurs' && !(x.achat && x.achat.scelle)).sort((a, b) => (a.achat || a.rogue).n - (b.achat || b.rogue).n)) {
     const m = (d.achat || d.rogue).meilleure;
     n = m === 'rare' || m === 'legendaire' ? 0 : n + 1;
   }

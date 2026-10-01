@@ -22,7 +22,8 @@ const $ = id => document.getElementById(id);
  * ctx : { jetons, mode ('rogue' | 'saison'), ouverts (cle → true | 'raison du verrou'),
  *         mods (patrons : rabais, holo, carteExtra, sansBase), sansHolo (packs d'affilée),
  *         duJour { pack, rabais }, franchises [{ cle, nom }], saisons [labels], coachs [{ cle, nom }], coachRun,
- *         acheter(cle, { prix, params }), onFerme() }
+ *         scelles [{ palier, cle, verrou }], ouvrirScelle(palier),
+ *         acheter(cle, { prix, params, scelle }), onFerme() }
  */
 /* Un pourcentage à une décimale au plus, à la québécoise : « 4,4 % », « 36 % ». */
 const pct = x => `${(Math.round(x * 10) / 10).toString().replace('.', ',')} %`;
@@ -76,6 +77,15 @@ export function ouvrirMagasin(ctx) {
     }).join('')
       : `<section class="pk-rayon pk-rayon-debut"><h3>🎒 Pour commencer</h3><div class="pk-rangee">${DEBUT.filter(k => PACKS_TOUS[k]).map(k => tuile(k)).join('')}</div>
         <button type="button" class="btn pk-tout">Voir les ${Object.keys(PACKS_TOUS).length} packs</button></section>`;
+    // TES PACKS (1.0, oct.) : achetés sans les ouvrir, en tête, comme le « Mes packs » de FUT.
+    const scelles = (ctx.scelles || []).length ? `<section class="pk-rayon pk-rayon-scelles"><h3>📦 Tes packs</h3><div class="pk-rangee">${ctx.scelles.map(x => {
+      const P = PACKS_TOUS[x.cle];
+      return `<button type="button" class="pk-tuile pk-${P.sorte === 'cartes' ? 'cartes' : P.tier}${x.verrou ? ' verrou' : ''}" data-scelle="${esc(x.palier)}"${x.verrou ? ` title="${esc(x.verrou)}"` : ''}>
+        <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">Scellé</span></span>
+        <span class="pk-nom">${esc(P.nom)}</span>
+        <span class="pk-prix">${x.verrou ? `🔒 ${esc(x.verrou)}` : 'Ouvrir'}</span>
+      </button>`;
+    }).join('')}</div></section>` : '';
     const garantie = ctx.mode === 'rogue'
       ? `<p class="pk-garantie">🛟 La garantie : ${PITIE} packs de joueurs d'affilée sans holo ni or, et le suivant en a une. ${ctx.sansHolo ? `Tu en es à ${ctx.sansHolo} sans.` : ''}</p>` : '';
     // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
@@ -89,6 +99,7 @@ export function ouvrirMagasin(ctx) {
       </div>
       <div class="choix-corps pk-corps">
         <p class="pk-mot">Tes résultats rapportent des jetons. Un pack de joueurs : tu en signes un, les autres vont à ton classeur (un doublon se revend tout seul). Un pack de cartes : toutes vont dans ton inventaire.</p>
+        ${scelles}
         ${garantie}
         ${plafond}
         ${rayons}
@@ -96,6 +107,7 @@ export function ouvrirMagasin(ctx) {
     </div>`;
     m.querySelector('.choix-fermer').onclick = () => fermer();
     m.querySelectorAll('[data-pack]').forEach(b => { b.onclick = () => fiche(b.dataset.pack); });
+    m.querySelectorAll('[data-scelle]').forEach(b => { b.onclick = () => { if (b.classList.contains('verrou')) return; fermer(true); ctx.ouvrirScelle(b.dataset.scelle); }; });
     const voirTout = m.querySelector('.pk-tout');
     if (voirTout) voirTout.onclick = () => { tout = true; dessiner(); };
   };
@@ -130,19 +142,23 @@ export function ouvrirMagasin(ctx) {
       ${verrou ? `<p class="pk-verrou">🔒 ${esc(verrou)}</p>` : ''}
       <div class="pk-fiche-actions">
         <button type="button" class="btn pk-retour">Retour</button>
+        ${peut && ctx.ouvrirScelle ? '<button type="button" class="btn pk-sceller" title="Payé tout de suite ; il t\'attend dans « Tes packs », à ouvrir quand tu veux.">Garder scellé</button>' : ''}
         <button type="button" class="btn gold pk-acheter"${peut ? '' : ' disabled'}>${verrou ? 'Verrouillé' : ctx.jetons >= prix ? `Acheter · ${prix} 🪙` : `Il te manque ${prix - ctx.jetons} 🪙`}</button>
       </div>
     </div>`;
     m.querySelector('.choix-sheet').appendChild(d);
     d.querySelector('.pk-retour').onclick = () => d.remove();
     const achat = d.querySelector('.pk-acheter');
-    if (achat) achat.onclick = () => {
+    const payer = scelle => {
       if (!peut) return;
       const v = d.querySelector('#pkParam');
       const params = P.choix ? { [P.choix]: v && v.value ? v.value : null } : {};
       fermer(true);
-      ctx.acheter(cle, { prix, params });
+      ctx.acheter(cle, { prix, params, scelle });
     };
+    if (achat) achat.onclick = () => payer(false);
+    const sceller = d.querySelector('.pk-sceller');
+    if (sceller) sceller.onclick = () => payer(true);
   };
   const fermer = (silencieux = false) => {
     if (ctx.dans) { if (ctx.fermer) ctx.fermer(); }

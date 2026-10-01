@@ -301,7 +301,7 @@ function slotEl(s) {
         <span class="sb-logo">${getTeamLogoHtml(p.t, 12)}</span>
         ${estRenfort(p)
           ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
-          : G.banc ? '' : `<span class="slot-salary">${st.salaryMain}</span>`}
+          : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
         <span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>

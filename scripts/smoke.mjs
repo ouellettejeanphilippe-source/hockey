@@ -32,6 +32,20 @@ const base = process.argv[2] || 'http://localhost:8000';
    l'Action, qui installe le sien. */
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+/*
+ * UN TIRAGE QUI SE REJOUE (1.0, oct.). Le parcours tire tout de `Math.random`
+ * (le repêchage, la graine de la saison) : un échec vu une fois ne se
+ * retrouvait plus. `SMOKE_GRAINE=n` sème le hasard de la page — le même
+ * parcours, au clic près, pour chercher ce qui casse.
+ */
+if (process.env.SMOKE_GRAINE) {
+  await page.addInitScript(g => {
+    let x = 2166136261;
+    for (const c of String(g)) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0;
+    Math.random = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }, process.env.SMOKE_GRAINE);
+  console.log(`   hasard de la page semé : ${process.env.SMOKE_GRAINE}`);
+}
 const errors = [];
 let barreAuRepechage = null;   // la barre au repêchage, pour la comparer au bilan (S67)
 let toastVu = false;           // le premier toast d'une signature, mesuré une fois (1.0, J2-17)
@@ -206,6 +220,19 @@ async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
  */
 const alignementsVus = [];
 async function sortirDansAlignement() {
+  /*
+   * D'ABORD LES CARTES (1.0, oct.) : « qui sort ? » est une liste de ton
+   * effectif, chacun comparé à l'arrivant (sa fiche, son salaire, la masse) ;
+   * l'alignement vient ensuite, pour placer l'arrivant.
+   */
+  await _wait('#choixModal:not([hidden]) :is(.choix-option, .aln-case)', { timeout: 5000 });
+  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) {
+    const liste = await page.$$eval('#choixModal .choix-option', l => l.map(o => ({ permis: !o.disabled, puces: o.querySelectorAll('.puce').length })));
+    if (liste.length < 20) errors.push(`« qui sort ? » ne liste que ${liste.length} joueurs`);
+    if (liste.some(o => o.puces < 2)) errors.push('« qui sort ? » : un joueur sans sa fiche ou sa masse');
+    if (!liste.some(o => o.permis)) { errors.push('« qui sort ? » : personne ne peut sortir'); return false; }
+    await page.$eval('#choixModal .choix-option:not([disabled])', b => b.click());
+  }
   await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 5000 });
   await page.waitForTimeout(150);
   const lu = await page.evaluate(() => {
@@ -226,9 +253,9 @@ async function sortirDansAlignement() {
   await page.waitForTimeout(120);
   const pret = await page.$eval('#choixModal .aln-confirmer', b => !b.disabled);
   const barre = ((await page.textContent('#choixModal .aln-barre-mot')) || '').replace(/\s+/g, ' ').trim();
-  // « Hal Gill (3e paire) sort, Kevin Hatcher prend sa place. » — et toucher n'a rien décidé : la feuille est encore là.
+  // Où il joue (1.0, oct.) : « Roenick : 1er trio, hors position −3 · masse −1,98 M$ » — et toucher n'a rien décidé.
   const encore = !!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'));
-  if (!pret || !encore || !/\((\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve)\) sort, .+ prend sa place/.test(barre)) errors.push(`toucher une case de « qui sort ? » ne prépare pas la confirmation : « ${barre} »`);
+  if (!pret || !encore || !/: (\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve).+masse/.test(barre)) errors.push(`toucher une case de « qui sort ? » ne prépare pas la confirmation : « ${barre} »`);
   alignementsVus.push(barre);
   await _click('#choixModal .aln-confirmer');
   return true;
@@ -393,14 +420,20 @@ async function ouvrirPaquet() {
  * 0) ne compte pas : Playwright s'arrêtait sur lui et ne voyait pas la page.
  */
 const ecranPret = (timeout = 120000) => page.waitForFunction(() => {
-  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
+  // L'alignement aussi (1.0, oct.) : après « qui sort ? », l'arrivant se place dans ses cases.
+  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .aln-case, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
   return [...document.querySelectorAll(sel)].some(el => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return false;
     const s = getComputedStyle(el);
     return s.display !== 'none' && s.visibility !== 'hidden' && Number(s.opacity) > 0;
   });
-}, null, { timeout });
+}, null, { timeout }).catch(async e => {
+  // Figé : on dit ce qui est à l'écran, sinon l'échec en CI ne s'explique pas.
+  const vu = await page.evaluate(() => [...document.querySelectorAll('dialog[open], .modal:not([hidden]), [id$="Modal"]:not([hidden])')]
+    .map(m => `${m.id || m.className} « ${(m.querySelector('h1, h2, h3, .choix-titre, .hub-titre')?.textContent || '').trim().slice(0, 80)} » [${[...m.querySelectorAll('button')].filter(b => b.offsetParent).map(b => b.className + ':' + b.textContent.trim().slice(0, 30)).slice(0, 12).join(' | ')}]`).join(' ;; ')).catch(() => '?');
+  throw new Error(`écran figé — ${vu} — erreurs : ${errors.slice(-5).join(" ;; ") || "aucune"} — ${e.message}`);
+});
 async function repondreAuxChoix() {
   await ouvrirPaquet();
   await guetterBallottage();
@@ -1796,8 +1829,10 @@ async function traverserSaison(etiquette, reprise = false) {
     const teteApresBanc = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
     if (teteApresBanc !== teteAvantBanc) errors.push(`le retour au match ne reprend pas au même endroit : « ${teteAvantBanc} » puis « ${teteApresBanc} »`);
     // Les décisions de BANC seulement (celles qui portent un alignement) : le
-    // proprio, le plan du soir et les dilemmes en ajoutent d'autres.
-    const decisions = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(d => d.cases);
+    // proprio, le plan du soir et les dilemmes en ajoutent d'autres. Une
+    // blessure réglée (un réserviste monté, un rappel) ou un retour remis porte
+    // aussi des cases, mais avec son palier (`b:`, `rv:`) : ce n'est pas le banc.
+    const decisions = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(d => d.cases && !d.palier);
     if (decisions.length !== 2 || decisions[1].fermeture !== 1) errors.push(`la sauvegarde ne porte pas la décision du banc : ${JSON.stringify(decisions.map(d => [d.jour, d.fermeture]))}`);
     else if (!Array.isArray(decisions[1].lignes) || decisions[1].lignes[0].tac !== tacChoisie || decisions[1].lignes[0].tacD !== tacDChoisi || decisions[1].lignes[0].agr !== 2) errors.push(`la sauvegarde ne porte pas les lignes du banc : ${JSON.stringify(decisions[1].lignes && decisions[1].lignes[0])}`);
     else console.log(`   derrière le banc : ${nomsAvant[0]} ↔ ${nomsAvant[9]}, fermeture au 2e trio, 1re ligne en ${tacChoisie} (trio) et ${tacDChoisi} (paire), agressivité haute, retour à « ${teteApresBanc} » — décision sauvegardée au jour ${decisions[1].jour}`);

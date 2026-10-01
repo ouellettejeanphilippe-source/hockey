@@ -142,6 +142,60 @@ export function pronostic({ A, B, calendrier, jourMatch, jourRevele, n = 300, gr
 }
 
 /*
+ * LA PRÉVISION DU MOTEUR (1.0, oct.). JP : *je veux pas un ov qui décide
+ * tout, mais un genre de prévision de ce que l'équipe doit faire donner, ou
+ * un joueur, en fonction des positions et cie*. Pas une cote : tes matchs
+ * RESTANTS rejoués `n` fois par le vrai moteur, ta formation telle qu'elle
+ * est ce matin (tes cases, tes lignes, leurs jambes — remises au matin avant
+ * chaque match, sans quoi soixante matchs d'affilée les videraient), contre
+ * les vrais clubs de ton calendrier. On compte : tes points, tes buts pour et
+ * contre, et les buts et passes de chacun de tes joueurs. Le hasard est
+ * isolé et chaque joueur retrouve ses champs : rien de la saison ne bouge.
+ */
+export function prevision({ toi, calendrier, jourRevele, n = 8, graine = 'prevision' }) {
+  const restants = [];
+  for (let j = jourRevele; j < calendrier.length; j++) for (const m of calendrier[j]) if (m.A === toi || m.B === toi) restants.push({ j, m });
+  if (!restants.length) return null;
+  const tous = [toi, ...new Set(restants.map(r => (r.m.A === toi ? r.m.B : r.m.A)))];
+  const photos = photographier(tous.flatMap(joueursDe));
+  const copies = new Map();
+  const pts = [], gf = [], ga = [];
+  const parJoueur = new Map();   // joueur -> { b, a } sur les n saisons
+  try {
+    for (const t of tous) {
+      const joues = matchsAvant(calendrier, t, jourRevele);
+      copies.set(t, { ...copieDuJour(t, { jourMatch: jourRevele, jourRevele, joues, connus: joues }), joues, membres: joueursDe(t) });
+    }
+    avecHasardIsole(`${graine}|${toi.tag}|${jourRevele}`, () => {
+      for (let i = 0; i < n; i++) {
+        for (const c of copies.values()) c.copie.games = c.joues;
+        let P = 0, F = 0, C = 0;
+        for (const { j, m } of restants) {
+          const cA = copies.get(m.A), cB = copies.get(m.B), moiA = m.A === toi;
+          for (const c of [cA, cB]) { remettre(c); c.copie.jourCourant = j; for (const p of c.membres) c.poser(p); }
+          const f = feuilleVierge();
+          const r = playGame(cA.copie, cB.copie, j, false, false, f, 0, true);
+          cA.copie.games++; cB.copie.games++;
+          const pour = moiA ? r.gfA : r.gfB, contre = moiA ? r.gfB : r.gfA;
+          F += pour; C += contre; P += pour > contre ? 2 : r.ot ? 1 : 0;
+          const cote = moiA ? 'A' : 'B';
+          for (const b of f.buts) {
+            if (b.cote !== cote) continue;
+            if (b.marqueur) { const e = parJoueur.get(b.marqueur) || { b: 0, a: 0 }; e.b++; parJoueur.set(b.marqueur, e); }
+            for (const q of b.passeurs || []) { if (!q) continue; const e = parJoueur.get(q) || { b: 0, a: 0 }; e.a++; parJoueur.set(q, e); }
+          }
+        }
+        pts.push(P); gf.push(F); ga.push(C);
+      }
+    });
+  } finally { rendre(photos); }
+  pts.sort((x, y) => x - y);
+  const moy = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const joueurs = new Map([...parJoueur].map(([p, e]) => [p, { b: e.b / n, a: e.a / n }]));
+  return { n, matchs: restants.length, pts: moy(pts), bas: pts[Math.floor(n * 0.1)], haut: pts[Math.ceil(n * 0.9) - 1], gfm: moy(gf) / restants.length, gam: moy(ga) / restants.length, joueurs };
+}
+
+/*
  * LES CONSEILS D'AVANT-MATCH (S79). JP, sur le dépistage : *le bas aide fuck
  * all aucun processus décisionnel*. « S'il marque quatre buts, il gagne »
  * disait une évidence ; un conseil dit QUOI FAIRE, avec un levier du jeu :
