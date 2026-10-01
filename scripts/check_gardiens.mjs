@@ -103,32 +103,60 @@ function saison(teams, graine, decisions) {
   informer('écart de buts contre sur la saison (cheval − rotation)', `${(moy(gaCheval) - moy(gaRot)).toFixed(1)} buts`);
 }
 
-// 3. Le choix du soir : l'auxiliaire au 11e match, et il se rejoue.
+// 3. Le choix du soir : l'auxiliaire, un soir où le partant est au filet, et il se rejoue.
+// Le soir se cherche : depuis le vrai calendrier, le partant de l'équipe 0 est
+// blessé au jour 10 (S84), et un partant blessé laisse le filet à l'auxiliaire.
 {
-  /*
-   * LE 11e MATCH DE L'ÉQUIPE 0, comme quand une journée était un match. Le
-   * vrai calendrier (1.0, oct.) l'a mis au jour 23 environ : le jour 10 n'est
-   * plus que son 4e ou 5e match, où la rotation envoie l'auxiliaire. La
-   * cédule ne dépend que de la graine : la première saison donne le jour.
-   */
-  let jour = null;
-  const joue = decs => {
+  const joue = (decs, jourVoulu = null) => {
     const teams = ligue(9300);
     const L = saison(teams, 'filet-choix', decs);
     const t = teams[0], [partant, aux] = gardiensDe(t);
-    if (jour === null) jour = t._jours[10];
-    const m = L.calendrier[jour].find(x => x.A === t || x.B === t);
-    const g = m && m.feuille ? (m.A === t ? m.feuille.gardiens?.A : m.feuille.gardiens?.B) : null;
-    const jn = t.journal.find(x => x.feuille === m.feuille);
-    return { t, partant, aux, gardien: jn ? jn.gardien : g, pts: teams.map(x => `${x.W}-${x.L}-${x.OTL}-${x.GF}-${x.GA}`).join('|') };
+    const gardienDu = j => {
+      const m = L.calendrier[j].find(x => x.A === t || x.B === t);
+      const jn = m && t.journal.find(x => x.feuille === m.feuille);
+      return jn ? jn.gardien : null;
+    };
+    // Le premier soir, à partir du jour 10, où la rotation envoie le partant.
+    let jour = jourVoulu;
+    for (let j = 10; jour == null && j < L.calendrier.length; j++) if (gardienDu(j) === partant) jour = j;
+    return { t, partant, aux, jour, gardien: jour == null ? null : gardienDu(jour), pts: teams.map(x => `${x.W}-${x.L}-${x.OTL}-${x.GF}-${x.GA}`).join('|') };
   };
   const sans = joue([]);
-  const avec = joue([{ jour, equipe: 0, filet: 'aux' }]);
-  const encore = joue([{ jour, equipe: 0, filet: 'aux' }]);
-  exiger('sans choix, au 11e match : le partant (la rotation)', sans.gardien && getPlayerKey(sans.gardien) === getPlayerKey(sans.partant), sans.gardien ? sans.gardien.n : '—');
+  const jour = sans.jour;
+  const avec = joue([{ jour, equipe: 0, filet: 'aux' }], jour);
+  const encore = joue([{ jour, equipe: 0, filet: 'aux' }], jour);
+  exiger(`sans choix, le jour ${jour} : le partant (la rotation)`, sans.gardien && getPlayerKey(sans.gardien) === getPlayerKey(sans.partant), sans.gardien ? sans.gardien.n : '—');
   exiger('« l\'auxiliaire ce soir » : l\'auxiliaire est au filet', avec.gardien && getPlayerKey(avec.gardien) === getPlayerKey(avec.aux), avec.gardien ? avec.gardien.n : '—');
   exiger('le choix se rejoue au but près', avec.pts === encore.pts);
   exiger('l\'auxiliaire compte un départ de plus dans sa fiche', (avec.aux.simGP || 0) === (sans.aux.simGP || 0) + 1, `${sans.aux.simGP} → ${avec.aux.simGP}`);
+}
+
+/*
+ * 3 bis. LE PARTANT BLESSÉ (S85). JP : *un gardien suprême avec des boosts, et
+ * il est à chier*. Sa case vide laissait l'auxiliaire sur le banc et le rappel
+ * du club-école au filet tous les soirs. Sur toute une ligue : un soir où le
+ * partant manque et l'auxiliaire est là, c'est l'auxiliaire qui part — sauf la
+ * part d'un auxiliaire, que le rappel prend (PART_SANS_AUX).
+ */
+{
+  const teams = ligue(9300);
+  const L = creerLigue(teams, 82, { graine: 'filet-blesse' });
+  const soirs = { aux: 0, rappel: 0, autre: 0 };
+  while (!L.fini) {
+    const avant = teams.map(t => t.games);
+    // Qui manquait AU MATIN : le partant blessé, l'auxiliaire en santé.
+    const manque = teams.map(t => { const [s, b] = gardiensDe(t); return !!(s && b && t.injured.has(s) && !t.injured.has(b)); });
+    const auxDe = teams.map(t => gardiensDe(t)[1]);
+    jouerJournee(L);
+    teams.forEach((t, i) => {
+      if (t.games === avant[i] || !manque[i]) return;
+      const g = t.journal[t.journal.length - 1].gardien;
+      soirs[g === auxDe[i] ? 'aux' : g && g._rappel ? 'rappel' : 'autre']++;
+    });
+  }
+  const n = soirs.aux + soirs.rappel + soirs.autre;
+  console.log(`  partant blessé, auxiliaire en santé : ${n} soirs — l'auxiliaire ${soirs.aux}, le rappel ${soirs.rappel}, un autre ${soirs.autre}`);
+  exiger('partant blessé : l\'auxiliaire prend le filet', n >= 10 && soirs.aux / n >= 0.7, `${soirs.aux} sur ${n}`);
 }
 
 // 4. La rotation de l'IA : ses partants restent frais.

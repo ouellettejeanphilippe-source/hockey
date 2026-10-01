@@ -2005,6 +2005,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     ouvrirChoix({
       ico: '🎁', titre: `La main de la journée ${p0}`, cartes: true, genre: 'palier', fermable: true, motFermer: 'Plus tard',
       recit: 'Trois cartes, trois sortes. Touche celle que tu gardes pour le reste de la saison ; les deux autres retournent dans le jeu.',
+      contexte: dejaEnJeu(),
       options,
       onChoix: cle => suiteDeLaMain(p0, cle, recrues, roles),
     });
@@ -2047,6 +2048,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (sorte === 'profil') {
       ouvrirChoix({ ...suite, ico: '🔄', titre: 'Nouveau rôle',
         recit: 'Trois conversions possibles dans ton alignement. Le joueur change de rôle pour de bon : son fit dans chaque système suit.',
+        contexte: dejaEnJeu(roles.map(x => x.p)),
         options: roles.map(x => ({ cle: `${x.cle}|${getPlayerKey(x.p)}`, rarete: 'peu', ico: MUTATIONS[x.cle].ico, nom: MUTATIONS[x.cle].nom,
           // Où il joue (S80) : « Hal Gill · 3e paire ».
           type: ctx.ouJoue && ctx.ouJoue(x.p) ? `${x.p.n} · ${ctx.ouJoue(x.p)}` : x.p.n,
@@ -2389,6 +2391,23 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
 
   /*
+   * CE QUI EST DÉJÀ EN JEU, au moment de choisir. JP, sur sa capture d'un
+   * objectif atteint : *faudrait savoir ce qui est actif présentement quand
+   * choix pour équipe ou joueur*. Les cartes de la saison, les effets qui
+   * courent et, quand le choix vise des joueurs, ce que chacun porte déjà.
+   */
+  function dejaEnJeu(joueurs = []) {
+    const cartes = decs.filter(d => d.carte && CARTES[d.carte] && d.jour <= jour).map(d => `${CARTES[d.carte].ico} ${CARTES[d.carte].nom}`);
+    const effets = effetsEnCours(you, jour).effets.filter(e => e.nom && e.reste > 0)
+      .map(e => `${e.ico || '✨'} ${e.nom} · ${e.reste} match${e.reste > 1 ? 's' : ''}`);
+    const cles = new Set(joueurs.filter(Boolean).map(getPlayerKey));
+    const marques = (you.mutations || []).filter(m => m.jour <= jour && cles.has(m.joueur) && MUTATIONS[m.cle])
+      .map(m => `${MUTATIONS[m.cle].ico} ${m.p ? `${m.p.n} : ` : ''}${MUTATIONS[m.cle].nom}`);
+    const tout = [...cartes, ...effets, ...marques];
+    return `<div class="choix-encours"><b>Déjà en jeu</b> ${tout.length ? tout.map(x => ctx.esc(x)).join(' · ') : 'rien encore'}</div>`;
+  }
+
+  /*
    * LES CHOIX FORCÉS (S66), un à la fois et dans cet ordre : la récompense
    * d'une victoire, le verdict du proprio (il clôt ce qui était promis), le
    * nouvel objectif, la séquence, le dilemme, l'avant-match puis la main.
@@ -2412,6 +2431,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
           recit: `Le proprio est ravi (${o.ico} ${vo.e.val} ${o.unite}). Il t'offre de quoi renforcer le club : pige une carte. Elle vaut pour le reste de la saison.`,
+          contexte: dejaEnJeu(),
           options: mainDeCartes(graine, 2000 + vo.j0, dejaPrises).map(cle => ({ cle, ico: CARTES[cle].ico, nom: CARTES[cle].nom, bon: CARTES[cle].bon, prix: CARTES[cle].prix, effet: CARTES[cle] })),
           onChoix: cle => decider({ palier: `v:${vo.j0}`, carte: cle }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
@@ -2442,7 +2462,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const s = SEQUENCES[sq.cle];
       const EN_LETTRES = ['', '', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept', 'Huit', 'Neuf', 'Dix'];
       const titre = sq.n > s.seuil ? `${EN_LETTRES[sq.n] || sq.n} ${sq.cle === 'defaites' ? 'défaites' : 'victoires'} de suite` : s.titre;
-      return { de: DE.coach, ico: s.ico, titre, recit: s.recit, genre: 'evenement',
+      return { de: DE.coach, ico: s.ico, titre, recit: s.recit, genre: 'evenement', contexte: dejaEnJeu(),
         options: s.options.map(o => ({ ...o, duree: dureeOption(o, 'sequence') })),
         onChoix: cle => decider({ palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: cle } }) };
     }
@@ -2457,6 +2477,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const cibles = m.cible ? (f.joueur ? [f.joueur] : ciblesDe(you, m.cible, graine, dl.J)) : [];
       const recit = String(m.recit).replace(/\{n\}/g, f.n ?? '').replace(/\{m\}/g, f.m ?? '').replace(/\{vieux\}/g, f.vieux || 'Ton vieux défenseur');
       return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue,
+        contexte: dejaEnJeu(cibles.filter(x => x !== (cible || f.joueur))),
         options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
           desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
         onChoix: cle => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } }) };
@@ -2471,7 +2492,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const quand = dans <= 0 ? 'ce soir' : dans === 1 ? 'demain' : `dans ${dans} jours`;
       return { de: DE.coach, ico: A.ico, titre: A.titre, irl: A.irl, genre: 'evenement', regle: !!A.regle, joueurs: ciblesA, ouDe: ctx.ouJoue,
         recit: A.recit,
-        contexte: `<p class="choix-avant">Avant le combat · ${quand} contre ${ctx.esc(ctx.teamShort(advG))}</p>${depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) })}`,
+        contexte: `${dejaEnJeu(ciblesA)}<p class="choix-avant">Avant le combat · ${quand} contre ${ctx.esc(ctx.teamShort(advG))}</p>${depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) })}`,
         options: A.options.map(o => ({ ...o, duree: 1 })),
         onChoix: cle => { const j = jour; quitter(); onDecision({ jour: av.p.j, avant: { cle: av.cle, choix: cle, joueurs: ciblesA.map(getPlayerKey) } }, j); } };
     }
