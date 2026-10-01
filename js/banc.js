@@ -490,7 +490,7 @@ export function renderBanc() {
       <div class="banc-titre">Derrière le banc <span class="banc-jour">journée ${b.jour} sur ${b.N}</span></div>
       <div class="banc-fiche" title="Ta fiche à ce jour : victoires, défaites, défaites en prolongation">${b.fiche.W}-${b.fiche.L}-${b.fiche.OTL}</div>
     </div>
-    ${adv ? `<div class="banc-ligne">Prochain match · journée ${b.prochain.j + 1} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j) ? ' <span class="banc-ereintant" title="Un match sur quatre est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 soir éreintant</span>' : ''}</div>` : ''}
+    ${adv ? `<div class="banc-ligne">Prochain match · ${b.prochain.j === b.jour ? 'ce soir' : b.prochain.j === b.jour + 1 ? 'demain' : `dans ${b.prochain.j - b.jour} jours`} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j, L.you, adv) ? ' <span class="banc-ereintant" title="Un dos-à-dos est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 dos-à-dos</span>' : ''}</div>` : ''}
     <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
     <div class="banc-ligne banc-aide">Déplace ou permute : le fit suit les joueurs. 🔒 : ton <b>trio de fermeture</b>.</div>
     ${effets}

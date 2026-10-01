@@ -7,7 +7,7 @@
 
 import { lireMeta, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, motsDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, motsDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH } from './sim.js';
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, MAX_PATRONS, ROLES, payloadDe, CONSOMMABLES, CONTRATS, CASES_DE_BASE, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS } from './coachs.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack } from './packs.js';
@@ -148,8 +148,9 @@ export function ouvrirBoutique(j, decider, page = null) {
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(),
     mods: modsDesPacks(decs, j), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     duJour: packDuJour(new Date(), packsOuvertsBoutique()),
-    // 1.0 (R5) : à la première run, avant la journée 20, quatre packs ; « Voir les N packs » montre tout.
-    debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < 20,
+    // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
+    // Le vrai calendrier (1.0, oct.) : le 20e match tombe vers le jour 45 (20 × 186 / 82).
+    debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < Math.round(20 * JOURS_PAR_MATCH),
     franchises: Object.entries(FRANCHISES).map(([cle, F]) => ({ cle, nom: F.nom })).sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
     saisons: state.index.seasons.slice().reverse(),
     // v2 : le pack du coach propose ton coach en premier.

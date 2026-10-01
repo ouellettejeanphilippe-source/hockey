@@ -1725,3 +1725,19 @@ Sert la page — `python3 -m http.server 8000` — et ouvre `localhost:8000`. Le
 - **Coach → joueurs** : déjà là, le dépisteur du coach fait pencher les packs de joueurs vers sa couleur.
 - **À l'écran** : la couleur sur la fiche (au verso, avec la zone) et sur chaque carte d'un pack de joueurs ; « Tes coachs » dit combien de joueurs de sa couleur sont habillés et le multiplicateur.
 - **Corrigé en passant** : la règle d'une carte qui grandit disait « Tirs −100 % par carte » : le pas s'ajoute à l'effet, et `motsDEffet` le lisait comme un multiplicateur. `motsDuPas` l'écrit à la main (« Tirs +0,4 % par carte »), et `check_coachs` le vérifie pour toute la banque.
+
+## Le vrai calendrier (1er oct. 2026)
+
+JP : *espacer les matchs avec des jours entre, vrai calendrier, ce qui te permettrait de slotter les événements hors des jours de matchs*. Puis, sur le choix qu'on lui a soumis (réaliste ou cosmétique) : **réaliste**.
+
+**La cédule** (`ceduleDe`, js/sim.js) tire ses rondes comme avant — tout le monde apparié une fois, du générateur à part `graine:cedule` — puis étale chaque ronde sur sa fenêtre de deux ou trois jours, chaque match un jour tiré du même générateur. 82 matchs en 186 jours (`JOURS_PAR_MATCH` = 186 / 82, la LNH) ; mesuré sur une ligue de 32 : des écarts de 1 à 4 jours, 17 dos-à-dos par club (la LNH en a 12 à 15), aucun jour vide. `t._jours` garde les jours où chaque club joue. `check_calendrier`.
+
+**Les jambes récupèrent par jour** (`ENERGIE_RECUP_JOUR` = 1 − 0,5^(1/2,27), 26 % du manque par jour) : la moyenne des écarts rend la même moitié qu'avant, donc l'équilibre ne bouge pas en moyenne (1er trio par défaut, au matin d'un match : 89,7 contre 90,0), mais un dos-à-dos ne rend qu'un quart et trois jours de congé presque tout. Les séries gardent la moitié par soir (`ENERGIE_RECUP`). Les gardiens comptent toujours leurs départs de suite, inchangés. Écarté : récupérer par match joué (le congé ne reposerait personne, l'option « cosmétique »).
+
+**Le soir éreintant est un dos-à-dos** d'un des deux clubs (`dosADos`, `soirEreintant(jour, A, B)`) au lieu d'un match sur quatre au numéro de la journée : 31 % des matchs au lieu de 25 %. En séries, un match sur quatre, comme avant. L'affiche dit « Dos-à-dos » ou « Dos-à-dos pour eux ».
+
+**Une durée se dit en matchs, et elle en dure autant** : l'écran a toujours écrit « 6 matchs » ; le moteur comptait des journées. `apresMatchs(t, jour, n)` donne le lendemain du n-e match du club — la fin de chaque effet (dilemmes, séquences, cartes, paris, élan et sonné d'un gros match), des absents, de l'auxiliaire au filet, et le début d'un « plus tard ». L'écran compte ce qui reste avec `matchsEntre`. Sans cédule (les séries, un test), un jour vaut un match.
+
+**Les événements se datent en matchs et tombent les jours de congé** : `JOURS_MOMENTS`, `JOURS_SITUATIONS`, les accidents, `PALIERS_CARTES`, `JOURS_OBJECTIFS`, les actes du récit et la route gardent leurs nombres, devenus « avant ton k-e match » ; `jourEvenement(t, k)` les pose la VEILLE de ce match quand c'est un congé (310 sur 310 possibles mesurés), le jour même après un dos-à-dos. Les clés des décisions (« m:14 », « o:41 ») ne changent pas. L'espacement des gros matchs (4), le recul d'une séquence (10) et « pas de gros match avant le 10e » se comptent en matchs ; l'élan adverse monte au jour du 55e match (125) ; l'échelle de la fin de partie s'étire sur 186 jours. Le gros match s'annonce la veille (`ANNONCE_GROS = 1`, décidé le même jour : *les événements pré-match importants devraient avoir lieu le jour même, ou la veille*).
+
+**L'écran** : un jour de congé, le bouton de tête dit « Jusqu'au prochain match › » et avance jusqu'au matin du match, en s'arrêtant sur ce qui arrive en route ; l'affiche dit « Match 34 · dans 2 jours ». L'en-tête garde « Journée X / 186 ». `VERSION_MOTEUR` S84 : une saison sauvegardée se rejoue avec le nouveau calendrier.

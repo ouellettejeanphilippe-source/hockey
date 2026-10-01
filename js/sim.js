@@ -2275,8 +2275,20 @@ export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.9;
  * les jambes se LISENT en niveaux (`NIVEAUX_JAMBES`) : Frais, Correct, Lourd,
  * Vidé — le même mot dans la case, au banc et dans le direct.
  */
+/* Une saison de la LNH : 82 matchs en 186 jours, environ un match aux 2,3 jours (`ceduleDe`). */
+export const JOURS_PAR_MATCH = 186 / 82;
+/*
+ * LA RÉCUPÉRATION SE COMPTE PAR JOUR (1.0, oct., le vrai calendrier). D'un
+ * match à l'autre, il passe en moyenne `JOURS_PAR_MATCH` jours ; chaque jour
+ * rend `ENERGIE_RECUP_JOUR` du manque, réglé pour que cette moyenne rende la
+ * même moitié qu'avant (`ENERGIE_RECUP`, que les séries gardent : un match
+ * par soir de série). Donc l'équilibre ne bouge pas en moyenne, mais un
+ * dos-à-dos ne rend qu'un quart du manque, et trois jours de congé les
+ * six septièmes.
+ */
 export const ENERGIE_C = Number(ENV_MESURE.ENERGIE_C ?? 3.8), ENERGIE_RECUP = 0.5, ENERGIE_REF = 94,
   ENERGIE_EFFET = Number(ENV_MESURE.ENERGIE_EFFET ?? 0.5), ENERGIE_BLESSURE = 60, RESERVE_MAX = 30;
+export const ENERGIE_RECUP_JOUR = 1 - (1 - ENERGIE_RECUP) ** (1 / JOURS_PAR_MATCH);
 export const NIVEAUX_JAMBES = [
   { cle: 'frais', nom: 'Frais', min: 95 },
   { cle: 'correct', nom: 'Correct', min: 85 },
@@ -2334,10 +2346,10 @@ export function depenserEnergie(team, lineup) {
     }
   }
 }
-export function recupererEnergie(team) {
+export function recupererEnergie(team, part = ENERGIE_RECUP) {
   for (const s of SLOTS) {
     const p = team.roster[s.i];
-    if (p) p.energie = Math.min(100, energieDe(p) + ENERGIE_RECUP * (100 - energieDe(p)));
+    if (p) p.energie = Math.min(100, energieDe(p) + part * (100 - energieDe(p)));
   }
 }
 
@@ -2850,7 +2862,7 @@ export function etatObjectif(cle, matchs) {
  * LA DÉCISION D'UN MOMENT → l'effet posé sur l'équipe. Un seul endroit
  * traduit, pour que le moteur, l'écran et la mesure lisent la même chose.
  */
-export function effetDeMoment(d) {
+export function effetDeMoment(d, team = null) {
   // LA CONSIGNE DU MATCH (S68) : l'importance et la répartition attaque /
   // défense, pour UN match.
   if (d.match) {
@@ -2869,7 +2881,8 @@ export function effetDeMoment(d) {
   const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, ...canaux } = o;
   void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t;
   if (!Object.keys(canaux).length) return null;
-  return { debut: d.jour, fin: d.jour + duree, source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };
+  // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
+  return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };
 }
 
 /*
@@ -4972,8 +4985,14 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil 
  * exactement ce que l'ancien moteur sautait, et pourquoi une équipe de
  * niveau 80 gagnait la Coupe 99 % du temps (MOTEUR.md 5.5).
  */
-/** Un match sur quatre est éreintant : la robustesse y pèse (voir K_ROB). L'écran de saison le dit d'avance. */
-export const soirEreintant = gameIdx => gameIdx % 4 === 3;
+/*
+ * LE SOIR ÉREINTANT : la robustesse y pèse (voir K_ROB), et l'écran de saison
+ * le dit d'avance. C'était un match sur quatre, au numéro de la journée ;
+ * avec le vrai calendrier (1.0, oct.), c'est un DOS-À-DOS — un des deux clubs
+ * a joué la veille. Sans cédule (les séries), un match sur quatre, comme avant.
+ */
+export const dosADos = (t, jour) => !!(t && t._jours && t._jours.includes(jour) && t._jours.includes(jour - 1));
+export const soirEreintant = (jour, A = null, B = null) => (A && A._jours ? dosADos(A, jour) || dosADos(B, jour) : jour % 4 === 3);
 
 /*
  * Les cases qu'aucun réserviste n'a pu remplir, ce match-ci. On garde la
@@ -4996,7 +5015,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   poserSoirGrand(series || !!(A._gros || B._gros));
   // L'échelle de la fin de partie (S80) : en saison, la journée ; en séries, la ronde.
   ECHELLE_SOIR = !(A.courbe || B.courbe) ? 1 : series ? echelleTardive({ serie: true, ronde }) : echelleTardive({ jour: gameIdx });
-  const heavy = soirEreintant(gameIdx);
+  const heavy = series ? soirEreintant(gameIdx) : soirEreintant(gameIdx, A, B);
   // Entre deux matchs de séries, les jambes reviennent (S68) ; en saison, la
   // récupération se fait au début de chaque journée (`simulateLeague`).
   if (series) { recupererEnergie(A); recupererEnergie(B); }
@@ -5377,7 +5396,7 @@ function appliquerDecision(team, d, graine = 0) {
   // DEVANT LE FILET CE SOIR (1.0, C4) : 'partant', 'aux' ou 'auto' (la rotation).
   if (d.filet && Number.isFinite(d.jour)) team._filetForce = d.filet === 'auto' ? null : { jour: d.jour, qui: d.filet };
   // UN MOMENT (S66) : un effet temporaire, du jour de la décision à sa fin.
-  const eff = effetDeMoment(d);
+  const eff = effetDeMoment(d, team);
   if (eff) (team.effets = team.effets || []).push(eff);
   /*
    * CE QU'UNE CARTE FAIT EN PLUS D'UN EFFET (S72) : son pari, son
@@ -5435,11 +5454,11 @@ function appliquerDecision(team, d, graine = 0) {
     }
     if (g.energie) for (const p of nommes) rendreJambes(p, g.energie);
     if (g.energieTous) for (const s of SLOTS) { const p = team.roster[s.i]; if (p && p.p !== 'G') rendreJambes(p, g.energieTous); }
-    if (g.gardienAux) team.gardienAux = Math.max(team.gardienAux || 0, d.jour + g.gardienAux);
+    if (g.gardienAux) team.gardienAux = Math.max(team.gardienAux || 0, apresMatchs(team, d.jour, g.gardienAux));
   }
   if (d.effet) {
     const { duree, nom, ico, ...canaux } = d.effet;
-    (team.effets = team.effets || []).push({ debut: d.jour, fin: d.jour + (duree || DUREE_MOMENT), source: 'decision', nom, ico, ...canaux });
+    (team.effets = team.effets || []).push({ debut: d.jour, fin: apresMatchs(team, d.jour, duree || DUREE_MOMENT), source: 'decision', nom, ico, ...canaux });
   }
   appliquerAlignement(team, d);
 }
@@ -5604,7 +5623,64 @@ function ceduleDe(teams, games, graine) {
     cedule.push(jour);
     for (const [t, n] of restant) if (n <= 0) restant.delete(t);
   }
-  return cedule;
+  /*
+   * UN VRAI CALENDRIER (1.0, oct.). JP : *espacer les matchs avec des jours
+   * entre, vrai calendrier, ce qui te permettrait de slotter les événements
+   * hors des jours de matchs*. Chaque ronde (tout le monde apparié une fois)
+   * s'étale sur sa fenêtre de deux ou trois jours, et chaque match y tombe
+   * un jour tiré du même générateur : la ligue joue 82 matchs en
+   * `JOURS_PAR_MATCH` × 82 jours, comme la LNH (~186), avec des congés, des
+   * séquences de deux jours de repos et des dos-à-dos (un match à la fin
+   * d'une fenêtre, le suivant au début de l'autre).
+   */
+  const D = Math.round(cedule.length * JOURS_PAR_MATCH);
+  const jours = Array.from({ length: D }, () => []);
+  cedule.forEach((ronde, r) => {
+    const a = Math.floor(r * D / cedule.length), b = Math.max(a + 1, Math.floor((r + 1) * D / cedule.length));
+    for (const m of ronde) jours[a + Math.floor(rng() * (b - a))].push(m);
+  });
+  return jours;
+}
+
+/*
+ * LES JOURS OÙ UNE ÉQUIPE JOUE (1.0, oct.), dans l'ordre : `t._jours[k]` est
+ * le jour de son (k+1)-e match. Une DURÉE se dit en matchs (« 6 matchs ») et
+ * le moteur compte en jours : `apresMatchs` donne le jour où elle finit.
+ * Sans cédule (les séries, un test), un jour vaut un match.
+ */
+function poserJours(L) {
+  for (const t of L.teams) t._jours = [];
+  L.calendrier.forEach((jour, d) => { for (const m of jour) { m.A._jours.push(d); m.B._jours.push(d); } });
+}
+/* Le jour qui suit le n-e match de l'équipe à partir du jour `jour` (lui compris). */
+function apresMatchs(t, jour, n) {
+  const js = t && t._jours;
+  if (!js || !Number.isFinite(jour) || !(n > 0)) return jour + (n || 0);
+  let i = 0;
+  while (i < js.length && js[i] < jour) i++;
+  const k = i + n - 1;
+  return k < js.length ? js[k] + 1 : (js.length ? js[js.length - 1] : jour) + 1 + (k - js.length + 1);
+}
+/*
+ * LE JOUR D'UN ÉVÉNEMENT (1.0, oct.). Les dates des événements se disent en
+ * MATCHS du club (`JOURS_MOMENTS`, `JOURS_SITUATIONS`, les paliers… : « avant
+ * son k-e match », k matchs déjà joués). L'événement tombe la VEILLE de ce
+ * match quand c'est un congé — JP : *slotter les événements hors des jours de
+ * matchs* —, le jour même après un dos-à-dos. Sans cédule, le jour k.
+ */
+export function jourEvenement(t, k) {
+  const js = t && t._jours;
+  if (!js || !js.length) return k;
+  const i = Math.max(0, Math.min(k, js.length - 1)), j = js[i];
+  return j > 0 && !(i > 0 && js[i - 1] === j - 1) ? j - 1 : j;
+}
+/* Le numéro d'événement (dans `liste`) qui tombe ce jour-là chez ce club, ou undefined. */
+const evenementDuJour = (t, liste, jour) => liste.find(k => jourEvenement(t, k) === jour);
+/* Les matchs de l'équipe dans les jours [a, b). */
+export function matchsEntre(t, a, b) {
+  const js = t && t._jours;
+  if (!js) return Math.max(0, b - a);
+  return js.filter(j => j >= a && j < b).length;
 }
 
 export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false } = {}) {
@@ -5623,6 +5699,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
     // Le gros match du prochain soir, repéré d'avance sans rien jouer (voir `preludeDuJour`).
     grosAVenir: null, grosAnnonces: {},
   };
+  poserJours(L);
   avecLigue(L, () => {
     for (const t of teams) {
       for (const s of SLOTS) if (t.roster[s.i]) { initSimStats(t.roster[s.i]); connaitre(t.roster[s.i]); }
@@ -5679,7 +5756,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
  */
 function preludeDuJour(L) {
   const r = L.jour, teams = L.teams;
-  for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t); }
+  for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t, ENERGIE_RECUP_JOUR); }
   /*
    * L'INSTANTANÉ DU JOUR (S68) : la chimie de chaque ligne et l'énergie de
    * chaque joueur AU DÉBUT de la journée.
@@ -5729,12 +5806,15 @@ function preludeDuJour(L) {
     const t = teams[i];
     const tienne = t === toi;
     if (tienne && L.grosAVenir) {
-      if (L.vit(i) && JOURS_SITUATIONS.includes(r)) (t._enAttente = t._enAttente || []).push(['situation', r]);
-      if (L.vitAcc(i) && JOURS_ACCIDENTS.includes(r)) (t._enAttente = t._enAttente || []).push(['accident', r]);
+      const kS = evenementDuJour(t, JOURS_SITUATIONS, r), kA = evenementDuJour(t, JOURS_ACCIDENTS, r);
+      if (L.vit(i) && kS !== undefined) (t._enAttente = t._enAttente || []).push(['situation', kS]);
+      if (L.vitAcc(i) && kA !== undefined) (t._enAttente = t._enAttente || []).push(['accident', kA]);
       continue;
     }
-    if (L.vit(i)) poserSituations(t, L.graine, r, i);
-    if (L.vitAcc(i)) poserAccident(t, L.graine, r, i);
+    // Le tirage est le NUMÉRO de l'événement (son match), le jour est celui où il tombe chez ce club.
+    const kS = evenementDuJour(t, JOURS_SITUATIONS, r), kA = evenementDuJour(t, JOURS_ACCIDENTS, r);
+    if (L.vit(i) && kS !== undefined) poserSituations(t, L.graine, r, i, kS);
+    if (L.vitAcc(i) && kA !== undefined) poserAccident(t, L.graine, r, i, kA);
     if (tienne && t._enAttente && t._enAttente.length) {
       for (const [quoi, prevu] of t._enAttente.splice(0)) {
         if (quoi === 'situation') poserSituations(t, L.graine, r, i, prevu);
@@ -6096,7 +6176,7 @@ function mutDe(p, champ) {
  */
 const ECHELLE_DEBUT = 0.5, ECHELLE_FIN_DE_SAISON = 1.5;
 const ECHELLE_SERIES = [1.6, 1.75, 1.9, 2];
-export function echelleTardive({ jour = 0, serie = false, ronde = 0, matchs = 82 } = {}) {
+export function echelleTardive({ jour = 0, serie = false, ronde = 0, matchs = Math.round(82 * JOURS_PAR_MATCH) } = {}) {
   if (serie) return ECHELLE_SERIES[Math.max(0, Math.min(ECHELLE_SERIES.length - 1, ronde || 0))];
   return ECHELLE_DEBUT + (ECHELLE_FIN_DE_SAISON - ECHELLE_DEBUT) * Math.max(0, Math.min(1, (jour || 0) / Math.max(1, matchs - 1)));
 }
@@ -6466,11 +6546,11 @@ export function totauxDuSoir(team, lineup = null, adv = null, aVenir = []) {
       if (d.carte && CARTES[d.carte]) team.cartes = [...(team.cartes || []), d.carte];
       if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
       if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
-      const eff = serie ? (d.match ? effetDeMoment({ match: d.match, jour: 0 }) : null) : effetDeMoment(d);
+      const eff = serie ? (d.match ? effetDeMoment({ match: d.match, jour: 0 }) : null) : effetDeMoment(d, team);
       if (eff) ajouter(eff);
       if (d.effet && !serie) {
         const { duree, nom, ico, ...canaux } = d.effet;
-        ajouter({ debut: d.jour, fin: d.jour + (duree || DUREE_MOMENT), nom, ico, ...canaux });
+        ajouter({ debut: d.jour, fin: apresMatchs(team, d.jour, duree || DUREE_MOMENT), nom, ico, ...canaux });
       }
       if (serie && d.ajustement && AJUSTEMENTS[d.ajustement]) {
         const { ico, nom, bon, prix, si, gardienAux, pari, ...canaux } = AJUSTEMENTS[d.ajustement];
@@ -7378,20 +7458,20 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
   const joueurs = (cles || []).map(k => Object.values(team.roster || {}).find(p => p && getPlayerKey(p) === k)).filter(Boolean);
   const gestes = (a, j0) => {
     if (!a) return;
-    if (a.absents) for (const p of joueurs) team.absents.set(p, Math.max(team.absents.get(p) || 0, j0 + a.absents));
+    if (a.absents) for (const p of joueurs) team.absents.set(p, Math.max(team.absents.get(p) || 0, apresMatchs(team, j0, a.absents)));
     if (a.energie) for (const p of joueurs) rendreJambes(p, a.energie);
     if (a.energieTous) for (const s of SLOTS) { const p = team.roster[s.i]; if (p && p.p !== 'G') rendreJambes(p, a.energieTous); }
-    if (a.gardienAux) team.gardienAux = Math.max(team.gardienAux || 0, j0 + a.gardienAux);
+    if (a.gardienAux) team.gardienAux = Math.max(team.gardienAux || 0, apresMatchs(team, j0, a.gardienAux));
   };
   const effet = (e, j0, source) => {
     if (!e) return;
     const { duree, apres, action, ...canaux } = e;
     void apres;
     gestes(action, j0);
-    if (Object.keys(canaux).length) (team.effets = team.effets || []).push({ debut: j0, fin: j0 + (duree || DUREE_MOMENT), source, nom: titre, ...canaux, ...(o.trou ? { regle: true } : {}) });
+    if (Object.keys(canaux).length) (team.effets = team.effets || []).push({ debut: j0, fin: apresMatchs(team, j0, duree || DUREE_MOMENT), source, nom: titre, ...canaux, ...(o.trou ? { regle: true } : {}) });
   };
   gestes(o.action, jour);
-  if (o.ensuite) effet(o.ensuite, jour + (o.ensuite.apres || 0), 'ensuite');
+  if (o.ensuite) effet(o.ensuite, apresMatchs(team, jour, o.ensuite.apres || 0), 'ensuite');
   if (o.pari) {
     const gagne = pariGagne(graine, jour, cleTirage, o.pari.chance);
     (team.paris = team.paris || []).push({ jour, titre, choix: o.nom, gagne });
@@ -7407,14 +7487,14 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
  */
 const pariGagne = (graine, jour, cle, chance) => hacherMise(graine, 'pari', jour, cle) < chance;
 const cleDuPari = d => (d.moment ? `${d.moment.cle}:${d.moment.choix}` : `avant:${d.avant.cle}:${d.avant.choix}`);
-export function pariDeDecision(d, graine) {
+export function pariDeDecision(d, graine, team = null) {
   if (!d || !Number.isFinite(d.jour)) return null;
   const fam = d.moment ? (d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle]) : d.avant ? AVANT_GROS[d.avant.cle] : null;
   const o = fam && fam.options.find(x => x.cle === (d.moment ? d.moment.choix : d.avant.choix));
   if (!o || !o.pari) return null;
   const gagne = pariGagne(graine, d.jour, cleDuPari(d), o.pari.chance);
   const effet = gagne ? o.pari.gagne : o.pari.perd;
-  return { jour: d.jour, titre: fam.titre, choix: o.nom, gagne, effet, fin: d.jour + (effet.duree || DUREE_MOMENT) };
+  return { jour: d.jour, titre: fam.titre, choix: o.nom, gagne, effet, fin: apresMatchs(team, d.jour, effet.duree || DUREE_MOMENT) };
 }
 
 /*
@@ -7428,10 +7508,11 @@ export const EDITIONS_REGLEMENT = ['enBas', 'chasse', 'partout', 'cran', 'style_
 export function effetsEnCours(team, jour) {
   if (!team) return { effets: [], cartes: [], absents: [], trous: [] };
   const effets = (team.effets || []).filter(e => jour >= e.debut && jour < e.fin && e.source !== 'match');
-  const absents = [...(team.absents || new Map()).entries()].filter(([, j]) => j > jour).map(([p, j]) => ({ p, reste: j - jour }));
-  const aux = team.gardienAux && team.gardienAux > jour ? team.gardienAux - jour : 0;
+  // CE QUI RESTE SE COMPTE EN MATCHS (1.0, oct.) : les jours de congé ne comptent pas.
+  const absents = [...(team.absents || new Map()).entries()].filter(([, j]) => j > jour).map(([p, j]) => ({ p, reste: matchsEntre(team, jour, j) }));
+  const aux = team.gardienAux && team.gardienAux > jour ? matchsEntre(team, jour, team.gardienAux) : 0;
   const trous = (team.mutations || []).filter(x => x && EDITIONS_REGLEMENT.includes(x.cle) && x.jour <= jour);
-  return { effets: effets.map(e => ({ ...e, reste: e.fin - jour })), cartes: (team.cartes || []).slice(), absents, gardienAux: aux, trous };
+  return { effets: effets.map(e => ({ ...e, reste: matchsEntre(team, jour, e.fin) })), cartes: (team.cartes || []).slice(), absents, gardienAux: aux, trous };
 }
 
 export const MINI_BOSS = {
@@ -7453,7 +7534,8 @@ export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
  */
 export const ANNONCE_GROS = 1;
 function annoncerGros(L, toi, j) {
-  if (j in L.grosAnnonces || j < 10 || j >= L.calendrier.length) return;
+  // Pas avant ton 10e match (1.0, oct. : compté en matchs, le calendrier a des congés).
+  if (j in L.grosAnnonces || matchsEntre(toi, 0, j) < 10 || j >= L.calendrier.length) return;
   const m = (L.calendrier[j] || []).find(x => x.A === toi || x.B === toi);
   const adv = m ? (m.A === toi ? m.B : m.A) : null;
   const raison = adv ? grosMatchAvant(toi, adv, j, rangsDe(L.teams)) : null;
@@ -7464,7 +7546,7 @@ function annoncerGros(L, toi, j) {
 }
 function grosMatchAvant(toi, adv, r, rangs) {
   if (!rangs) return null;
-  if (toi._dernierAnnonce != null && r - toi._dernierAnnonce < ESPACEMENT_GROS) return null;
+  if (toi._dernierAnnonce != null && matchsEntre(toi, toi._dernierAnnonce, r) < ESPACEMENT_GROS) return null;
   toi.defaitesContre = toi.defaitesContre || new Map();
   if ((toi.defaitesContre.get(adv) || 0) >= 2) return 'nemesis';
   if (Math.abs(rangs.get(toi) - rangs.get(adv)) <= 2) return 'rival';
@@ -7483,7 +7565,7 @@ function grosMatchApres(toi, m, r, gros) {
   const A = gros.avant && AVANT_GROS[gros.avant.cle];
   const o = A && A.options.find(x => x.cle === gros.avant.choix);
   const duree = E.duree * (o && o.enjeu ? 2 : 1);
-  (toi.effets = toi.effets || []).push({ debut: r + 1, fin: r + 1 + duree, source: 'miniboss', nom: E.nom, ico: E.ico, finition: E.finition });
+  (toi.effets = toi.effets || []).push({ debut: r + 1, fin: apresMatchs(toi, r + 1, duree), source: 'miniboss', nom: E.nom, ico: E.ico, finition: E.finition });
   (toi.minisBoss = toi.minisBoss || []).push({ jour: r, adv, raison: gros.raison, gagne, plan: gros.plan, contre: gros.contre,
     depistage: gros.depistage || null, preparation: gros.preparation || [], prepJuste: gros.prepJuste ?? null,
     avant: gros.avant, entracte: gros.entracte || null, apres40: gros.apres40 || null, cartes: gros.cartesJouees || null });

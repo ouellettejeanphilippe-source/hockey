@@ -2318,10 +2318,11 @@ async function traverserSaison(etiquette, reprise = false) {
      * S80 : une fenêtre qui tombe un soir de gros match attend le lendemain
      * (64 → 65), et le gros match s'annonce la veille — son
      * avant-match s'ouvre EN ROUTE. La boucle y répond (sinon elle piétine
-     * derrière le choix) et va jusqu'au jour 70.
+     * derrière le choix) et va jusqu'au jour 160 : au vrai calendrier (1.0,
+     * oct.), les fenêtres des 46e et 64e matchs tombent vers les jours 104 et 145.
      */
     let situ = await lireSitu();
-    for (let i = 0; i < 50 && !situ && (await jourVu()) <= 70; i++) {
+    for (let i = 0; i < 50 && !situ && (await jourVu()) <= 160; i++) {
       if (await page.$('#choixModal:not([hidden])')) { await repondreAuxChoix(); situ = await lireSitu(); if (situ) break; }
       if (await page.$('#hubModal .hub-prochaine')) await page.click('#hubModal .hub-prochaine');
       else if (await page.$('#hubModal .hub-traiter')) await page.click('#hubModal .hub-traiter');
