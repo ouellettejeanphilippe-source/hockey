@@ -1141,9 +1141,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   function caseHabillee(p) { return SLOTS.find(sl => !sl.scratch && you.roster[sl.i] === p) || null; }
   function blessureOuverte() {
     if (!onDecision) return null;
+    // Le même critère que le message : un patineur habillé (un gardien se règle de lui-même).
     const joues = miens.length;
     return (you.injuriesLog || [])
-      .filter(b => b.at <= joues && b.at + b.games > joues && b.games >= BLESSURE_MOMENT && caseHabillee(b.player))
+      .filter(b => b.at <= joues && b.at + b.games > joues && b.games >= BLESSURE_MOMENT && b.player.p !== 'G' && caseHabillee(b.player))
       .sort((x, y) => y.games - x.games)[0] || null;
   }
   /* Les réservistes en santé qui peuvent jouer la case du blessé. */
@@ -2656,8 +2657,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // Habillé : il faut décider (rien ne se garde). Réserviste : on le dit, et ça se range.
       const sl = onDecision ? caseHabillee(alerte.player) : null;
       const reserves = sl ? reservistesPour(sl) : [];
-      const forcer = !!sl && (reserves.length > 0 || !!(bal && bal.candidats.length) || !!onBanc);
-      const defaut = forcer ? (reserves.length ? 'reserve' : bal && bal.candidats.length ? 'rappel' : 'banc') : 'garder';
+      // Seulement s'il y a de quoi combler : un réserviste ou un rappel. Un gardien n'est jamais forcé
+      // (l'auxiliaire prend le filet de lui-même, `gardiensDuSoir`) ; sans remède, l'ancien message.
+      const forcer = !!sl && sl.group !== 'G' && (reserves.length > 0 || !!(bal && bal.candidats.length));
+      const defaut = forcer ? (reserves.length ? 'reserve' : 'rappel') : 'garder';
       const d = k => (k === defaut ? ' data-defaut' : '');
       out.push({ id: idB, genre: 'blessure', bloque: !!onDecision && (forcer || !boite.traites.has(idB)), de: DE.medecin, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, palierB, sl, reserves,
         corps: `<div class="hub-alerte" role="status">
