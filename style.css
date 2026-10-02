@@ -92,6 +92,13 @@
   --esp-6: 32px;
   /* La seule ombre : ce qui flotte (une feuille, une fenêtre). */
   --ombre: 0 18px 48px rgba(0, 0, 0, 0.55);
+  /* LA PATINOIRE ÉCLAIRÉE (1.0, oct.). JP : *l'app a l'air plate, l'interface est « bland »*. Trois jetons, et c'est tout
+     le relief du jeu : l'ambiance (la couleur vive du club qui tombe d'en haut sur le noir, comme les projecteurs d'un
+     aréna), le panneau (un fond qui s'éclaire vers le haut, un filet de lumière en tête) et la lueur de l'action. */
+  --ambiance: radial-gradient(120% 70% at 50% -18%, color-mix(in srgb, var(--club-vif) 22%, transparent), transparent 62%), radial-gradient(60% 40% at 100% 105%, color-mix(in srgb, var(--club-vif) 8%, transparent), transparent 70%);
+  --panneau: linear-gradient(180deg, color-mix(in srgb, var(--fond-2) 92%, var(--club-vif)), var(--fond-1) 70%);
+  --relief: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 24px -14px rgba(0, 0, 0, 0.9);
+  --lueur-bon: 0 10px 28px -10px color-mix(in srgb, var(--bon) 70%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   /* Le mouvement. */
   --t-vite: 0.12s;
   --t-lent: 0.24s;
@@ -161,7 +168,7 @@
 html { -webkit-text-size-adjust: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; }
 body {
   margin: 0; min-height: 100vh; overflow-x: hidden;
-  background: var(--noir); color: var(--encre);
+  background: var(--ambiance) fixed, var(--noir); color: var(--encre);
   font-family: var(--corps); font-size: var(--t-3); line-height: 1.45;
   /* Un jeu ne se sélectionne pas comme un texte. */
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
@@ -214,7 +221,7 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
   margin-left: var(--rail-w);
   padding: var(--esp-2) var(--esp-3) 0;
   border-top: var(--safe-top) solid var(--noir);
-  background: var(--fond-1);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--club-vif) 24%, var(--fond-1)), var(--fond-1) 46%);
   border-bottom: 1px solid var(--filet);
   box-shadow: inset 0 3px 0 var(--club-vif);
 }
@@ -341,7 +348,7 @@ body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #
 }
 .navtab.mort:not(.on) { opacity: 0.45; }
 .navtab.on { color: var(--encre); }
-.navtab.on .ico { color: var(--or); transform: translateY(-1px); }
+.navtab.on .ico { color: var(--or); transform: translateY(-1px); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--or) 55%, transparent)); }
 .navtab.on::before { content: ""; position: absolute; top: 0; left: 24%; right: 24%; height: 3px; background: var(--or); }
 .navtab.on .navtab-badge { color: var(--encre-sur-or); background: var(--or); }
 .navtab:active .ico { transform: scale(0.9); }
@@ -358,7 +365,7 @@ body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #
   .rail-logo b { display: block; color: var(--or); font-size: var(--t-4); }
   .navtab { flex: 0 0 auto; min-height: 68px; border-radius: var(--r-1); gap: 6px; }
   .navtab:not(.on):hover { color: var(--encre); background: var(--fond-2); }
-  .navtab.on { background: var(--fond-2); }
+  .navtab.on { background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); }
   .navtab.on::before { top: 12px; bottom: 12px; left: 0; right: auto; width: 3px; height: auto; background: var(--club-vif); }
   .navtab.on .ico { transform: none; }
   .navtab-badge { top: 6px; left: calc(50% + 6px); }
@@ -545,10 +552,13 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn:active:not(:disabled) { transform: scale(0.975); }
 .btn:disabled { opacity: 0.45; }
 /* L'action principale : pleine, en or (ce qui se gagne) ; .go garde le vert du dépôt pour « lancer ». */
-.btn.go { flex: 1 1 auto; background: var(--bon); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, #000); }
+.btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: linear-gradient(180deg, color-mix(in srgb, var(--bon) 78%, #fff), var(--bon) 55%); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, #000); box-shadow: var(--lueur-bon); }
 .btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, #fff); }
+/* Un reflet passe sur l'action principale, toutes les cinq secondes : l'oeil sait où appuyer. */
+.btn.go:not(:disabled)::after { content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent); transform: skewX(-18deg); animation: go-reflet 5s var(--e-sortie) 1.2s infinite; pointer-events: none; }
+@keyframes go-reflet { 0%, 78% { left: -40%; } 100% { left: 130%; } }
 .btn.go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
-.btn.gold { background: var(--or); border-color: var(--or); color: var(--encre-sur-or); }
+.btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--or) 78%, #fff), var(--or) 55%); border-color: var(--or); color: var(--encre-sur-or); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
 .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, #fff); }
 .btn.blue { border-color: var(--bleu); color: var(--bleu); }
 .btn.danger { border-color: var(--mauvais); color: var(--mauvais); }
@@ -752,8 +762,8 @@ img.visage.brut { object-position: 50% 12%; }
   .modal-sheet { border-radius: var(--r-2); border-bottom: 1px solid var(--filet); max-height: 88vh; }
 }
 /* Une feuille plein écran (le direct, le bureau, le plateau) : sans voile, bord à bord. */
-.modal-backdrop.live { align-items: stretch; padding: 0; background: var(--noir); }
-.live-sheet { display: flex; flex-direction: column; width: 100%; max-width: 900px; margin: 0 auto; height: 100dvh; background: var(--noir); }
+.modal-backdrop.live { align-items: stretch; padding: 0; background: var(--ambiance), var(--noir); }
+.live-sheet { display: flex; flex-direction: column; width: 100%; max-width: 900px; margin: 0 auto; height: 100dvh; background: var(--ambiance), var(--noir); }
 .live-top { display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-3) var(--esp-4); border-bottom: 1px solid var(--filet); background: var(--fond-1); }
 .live-head { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--esp-3); flex-wrap: wrap; }
 .live-close { position: static; flex: none; }
@@ -2522,12 +2532,14 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .soir-drame { padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 
 /* ---- L'affiche du match : un bandeau bicolore, les deux clubs face à face, VS au centre ---- */
-.hub-match { display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); overflow: hidden; }
+.hub-match { display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
 .hub-match-titre { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-lieu { margin-left: auto; color: var(--or); }
 .hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; }
-.hub-eq { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); background: var(--eq-band); color: var(--eq-ink); }
-.hub-eq.b { align-items: flex-end; text-align: right; }
+/* Les bandes du chandail : deux rayures de la seconde couleur au bord du bandeau, côté glace. C'est elles qui donnent
+   l'orange aux NHL Stars, dont l'aplat est noir. */
+.hub-eq { --rayures: var(--eq-band) 0 calc(100% - 46px), var(--eq-stripe) calc(100% - 46px) calc(100% - 38px), var(--eq-band) calc(100% - 38px) calc(100% - 30px), var(--eq-stripe) calc(100% - 30px) calc(100% - 22px), var(--eq-band) calc(100% - 22px); display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); background: linear-gradient(100deg, var(--rayures)); color: var(--eq-ink); }
+.hub-eq.b { align-items: flex-end; text-align: right; background: linear-gradient(-80deg, var(--rayures)); }
 .hub-eq-band { display: flex; align-items: center; gap: var(--esp-2); max-width: 100%; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .hub-eq.b .hub-eq-band { flex-direction: row-reverse; }
 .hub-eq-nom { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2541,7 +2553,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .forme-p.v { color: var(--bon); }
 .forme-p.d { color: var(--mauvais); }
 .forme-p.dp { color: var(--attention); }
-.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); background: var(--noir); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--encre-3); }
+.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); background: var(--noir); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 0 12px color-mix(in srgb, var(--or) 50%, transparent); }
 .hub-forces { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); }
 .hub-forces table { width: 100%; border-collapse: collapse; table-layout: fixed; font: 700 var(--t-2)/1.3 var(--display); font-variant-numeric: tabular-nums; }
 .hub-forces caption { caption-side: top; padding-bottom: var(--esp-1); text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
@@ -2678,7 +2690,7 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-titre { display: flex; align-items: center; gap: var(--esp-2); margin-top: var(--esp-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-titre::after { content: ""; flex: 1; height: 1px; background: var(--filet); }
 .hub-titre:first-child { margin-top: 0; }
-.hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); transition: border-color var(--t-vite); }
+.hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); transition: border-color var(--t-vite); }
 .hub-hier.v { border-left-color: var(--bon); }
 .hub-hier.d { border-left-color: var(--mauvais); }
 .hub-hier[data-sommaire] { cursor: pointer; }
@@ -2722,9 +2734,10 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-portail { display: none; }
 @media (min-width: 1200px) {
   .hub-portail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-3); }
-  .hub-tuile { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--esp-3); cursor: pointer; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); transition: border-color var(--t-vite); }
-  .hub-tuile:hover, .hub-tuile:focus-visible { border-color: var(--encre-3); }
-  .hp-t { margin-bottom: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
+  .hub-tuile { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--esp-3); cursor: pointer; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); transition: border-color var(--t-vite), transform var(--t-vite) var(--e-sortie); }
+  .hub-tuile:hover, .hub-tuile:focus-visible { border-color: color-mix(in srgb, var(--club-vif) 60%, var(--filet)); transform: translateY(-2px); }
+  .hp-t { display: flex; align-items: center; gap: var(--esp-2); margin-bottom: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }
+  .hp-t::before { content: ""; flex: none; width: 3px; height: 12px; background: var(--club-vif); }
   .hp-l { display: flex; align-items: baseline; gap: var(--esp-2); min-width: 0; font: 700 var(--t-2)/1.5 var(--display); letter-spacing: 0.02em; }
   .hp-l b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hp-l em { flex: none; font-style: normal; color: var(--encre-2); font-variant-numeric: tabular-nums; }
