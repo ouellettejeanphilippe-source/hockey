@@ -505,7 +505,7 @@ function forcesHtml(you, calendrier) {
   const v = (x, d) => x.toFixed(d).replace('.', ',');
   const FORCES = [
     ['Attaque', x => x.GF / x.n, 1, x => `${v(x.GF / x.n, 2)} buts par match`],
-    ['Défense', x => x.SA / x.n, -1, x => `${v(x.SA / x.n, 1)} tirs accordés par match`],
+    ['Défense', x => x.GA / x.n, -1, x => `${v(x.GA / x.n, 2)} buts accordés par match`],
     ['Devant le filet', x => (x.SA ? 1 - x.GA / x.SA : 0), 1, x => `${pct3(x.SA ? 1 - x.GA / x.SA : 0)} d'arrêts`],
     ['Robustesse', x => x.CO / x.n, 1, x => `${v(x.CO / x.n, 1)} mises en échec par match`],
     ['Clutch', x => x.serresV / Math.max(1, x.serresV + x.serresD), 1, x => `${x.serresV}-${x.serresD} dans les matchs d'un but`],
