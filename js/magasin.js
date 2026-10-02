@@ -98,7 +98,7 @@ export function ouvrirMagasin(ctx) {
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       <div class="choix-corps pk-corps">
-        <p class="pk-mot">Tes résultats rapportent des jetons. Un pack de joueurs : tu en signes un, les autres vont à ton classeur (un doublon se revend tout seul). Un pack de cartes : toutes vont dans ton inventaire.</p>
+        <p class="pk-mot">Tes résultats rapportent des jetons. Un pack de joueurs : tu en signes un, les autres vont à ton classeur (un doublon se revend, sauf si tu le signes). Un pack de cartes : toutes vont dans ton inventaire.</p>
         ${scelles}
         ${garantie}
         ${plafond}
