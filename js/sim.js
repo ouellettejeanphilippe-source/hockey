@@ -4973,7 +4973,14 @@ function empreinte(s) {
   return h / 4294967296;
 }
 function instantDeBlessure(feuille, p, team) {
-  let dernier = 2;
+  /*
+   * UN GROS MATCH SE COUPE À L'ENTRACTE (1.0, oct.) : la blessure se tire au
+   * bout du match, donc sur la troisième période — rejouée par le choix de
+   * l'entracte. Datée avant 40:00, elle réécrivait les deux premières, déjà
+   * vues (le smoke, graine 5 : « Toffoli se blesse » apparu en 2e). Elle se
+   * date donc dans la troisième.
+   */
+  let dernier = feuille.entracte ? 40 : 2;
   for (const b of feuille.buts) if (b.marqueur === p || (b.passeurs || []).includes(p)) dernier = Math.max(dernier, b.instant);
   for (const l of feuille.lancers || []) if (l.tireur === p || l.gardien === p) dernier = Math.max(dernier, l.instant);
   for (const x of feuille.punitions || []) if (x.joueur === p) dernier = Math.max(dernier, x.fin ?? (x.instant + x.minutes));

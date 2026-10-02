@@ -1581,17 +1581,24 @@ console.log(`3. #mainBtn actif : ${enabled}`);
 async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
   /*
-   * LE VRAI CALENDRIER (1.0, oct.) : ton club peut être en congé le jour 0 ;
-   * « Jusqu'au prochain match › » mène alors au matin de ton match, sans
-   * résultat. On touche le bouton de tête jusqu'à ce que ton match soit joué.
+   * UN JOUR À LA FOIS (1.0, oct.). JP : *vraiment faire un jour par jour, pas
+   * de saut de jour*. Ton club peut être en congé le jour 0 : « Journée
+   * suivante » passe UNE journée, congé ou pas. On la touche jusqu'au matin
+   * d'un résultat de ton club (« Aujourd'hui › »), et chaque toucher doit
+   * avancer d'une journée exactement.
    */
-  for (let i = 0; i < 4; i++) {
+  const journeeAffichee = async () => Number(((await page.textContent('#hubModal .hub-head').catch(() => '')) || '').match(/Journée (\d+)/)?.[1] || 0);
+  for (let i = 0; i < 8; i++) {
     const mot = ((await page.textContent('#hubModal .hub-jour')) || '').trim();
+    if (i && /Aujourd/.test(mot)) break;
+    const j0 = await journeeAffichee();
     await page.click('#hubModal .hub-jour');
     await page.waitForTimeout(150);
-    if (!/prochain match/i.test(mot)) break;
     await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-page[data-genre="sommaire"]', { timeout: 60000 });
     if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
+    const j1 = await journeeAffichee();
+    if (/Journée suivante/.test(mot) && j0 && j1 && j1 !== j0 + 1) errors.push(`« Journée suivante » saute de la journée ${j0} à la ${j1}`);
+    if (!/Journée suivante/.test(mot)) break;
     if (!(await page.$('#hubModal .hub-jour'))) break;
   }
   /*
@@ -2479,7 +2486,14 @@ async function traverserSaison(etiquette, reprise = false) {
   console.log(`   ${etiquette} : ${jour} · meneurs : ${tableaux} tableaux, ${meneurs} rangées`);
   if (!meneurs) errors.push(`${etiquette} : aucun meneur dans l'onglet des meneurs`);
   await nomsCliquables(etiquette);
-  // Le match en direct, sur demande seulement.
+  // Le match en direct, sur demande seulement — le soir de ton match : un jour de congé n'en a pas.
+  await aller('match');
+  for (let i = 0; i < 10 && !(await page.$('#hubModal .hub-regarder')); i++) {
+    if (!(await page.$('#hubModal .hub-jour'))) break;
+    await page.click('#hubModal .hub-jour');
+    await page.waitForTimeout(200);
+    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
+  }
   await page.click('#hubModal .hub-regarder');
   await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
   await page.waitForTimeout(800);

@@ -1251,9 +1251,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // Le matin à l'écran : le bouton de tête dit « Aujourd'hui » et mène au soir, sans avancer le temps.
   let matinCourant = false;
   const ETAPES_SOIR = [['apercu', 'Aperçu'], ['prep', 'Préparation'], ['match', 'Match'], ['resultat', 'Résultat']];
-  const soirHtml = (courant, faits) => `<nav class="soir" aria-label="Le soir de match">${ETAPES_SOIR.map(([cle, mot], i) => {
+  // Un jour de congé, le match n'est pas ce soir : son étape attend son jour (JP : *pas de saut de jour*).
+  const soirHtml = (courant, faits, conge = false) => `<nav class="soir" aria-label="Le soir de match">${ETAPES_SOIR.map(([cle, mot], i) => {
     const fait = faits.has(cle) && cle !== courant;
-    return `<button type="button" class="soir-etape${cle === courant ? ' on' : fait ? ' fait' : ''}" data-etape="${cle}"${cle === courant ? ' aria-current="step"' : ''}><b>${fait ? '✓' : i + 1}</b><span>${mot}</span></button>`;
+    const attend = conge && cle === 'match';
+    return `<button type="button" class="soir-etape${cle === courant ? ' on' : fait ? ' fait' : ''}" data-etape="${cle}"${cle === courant ? ' aria-current="step"' : ''}${attend ? ' disabled title="Ton match n\'est pas ce soir"' : ''}><b>${fait ? '✓' : i + 1}</b><span>${mot}</span></button>`;
   }).join('')}</nav>`;
   /* Le drame d'hier soir, en une ligne : les bagarres, les coups marquants, les blessés (les événements physiques de la feuille). */
   const drameHtml = m => {
@@ -2481,7 +2483,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${enJeuHtml}
         ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux. Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} — la robustesse pèse ce soir</div>` : ''}`;
       carte.innerHTML = `${matin ? '' : miniBoss}<div class="hub-match${matin ? ' matin' : ''}">
-        ${soirHtml(etape, faits)}
+        ${soirHtml(etape, faits, p.j > jour)}
         ${matin ? resultatHtml : affiche}
         ${matin ? '' : `${depistage}${planSoir}`}
       </div>`;
@@ -2522,7 +2524,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
             const pb = carte.querySelector('.hub-preparer');
             if (pb) pb.click();
           } else if (e === 'match') {
-            if (!messagesCourants().some(m => m.bloque)) regarderProchain();
+            if (p.j === jour && !messagesCourants().some(m => m.bloque)) regarderProchain();
           } else if (hierMatch) { soirPasse = false; dessiner(); }
         };
       });
@@ -2902,15 +2904,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend tes réponses">⏳ À régler avant le match${bloquants.length > 1 ? ` (${bloquants.length})` : ''} : ${ctx.esc(premier.sujet)}</button>`
       : matinCourant
         ? '<button class="btn go hub-jour hub-vers-soir" title="Du résultat d\'hier au match d\'aujourd\'hui">Aujourd\'hui ›</button>'
-        // UN JOUR DE CONGÉ (1.0, oct.) : le bouton va jusqu'au matin de ton match, et s'arrête sur ce qui arrive en route.
-        : p && p.j > jour
-          ? '<button class="btn go hub-jour" title="Les jours de congé passent ; un événement en route arrête l\'avance">Jusqu\'au prochain match ›</button>'
-          : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>';
+        // UN JOUR À LA FOIS (1.0, oct.). JP : *vraiment faire un jour par jour, pas de saut de jour*. Un jour de
+        // congé se passe comme les autres : les résultats de la ligue, le classement du jour.
+        : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>';
     // « Le banc » a quitté la rangée : l'onglet Alignement de la barre fait la même chose (JP : jamais deux fois la même chose).
     // LA BARRE D'ACTION (1.0, R2) : le bouton et ses seconds rôles dans une barre, collée au bas du téléphone ; la boîte à part.
     actions.innerHTML = `<div class="hub-barre">${primaire}
       <div class="hub-actions-rang">
-      ${p && !premier ? '<button class="btn gold hub-regarder" title="Le prochain match de ta formation, lancer par lancer">Regarder</button>' : ''}
+      ${p && p.j === jour && !premier ? '<button class="btn gold hub-regarder" title="Ton match de ce soir, lancer par lancer">Regarder</button>' : ''}
       ${premier ? '' : '<button class="btn hub-prochaine" title="Jouer les journées une à une, jusqu\'à la première qui demande une décision">Jusqu\'à la prochaine décision</button>'}
       </div></div>
       ${boiteHtml}`;
@@ -3011,7 +3012,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (voirMain && pal !== undefined) voirMain.onclick = () => ouvrirMain(pal);
     boutonFlottant(actions, termine);
     const bj = actions.querySelector('.hub-jour'), bp = actions.querySelector('.hub-prochaine');
-    if (bj) bj.onclick = matinCourant ? () => { soirPasse = true; dessiner(); } : () => avancerPuisResumer(p && p.j > jour ? p.j - jour : 1);
+    if (bj) bj.onclick = matinCourant ? () => { soirPasse = true; dessiner(); } : () => avancerPuisResumer(1);
     if (bp) bp.onclick = () => { avancerJusquaDecision(); };
   }
 
