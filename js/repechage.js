@@ -107,7 +107,7 @@ const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
  * contrat d'entrée) et l'ÉTOILE — les meilleurs de leur saison, lus dans
  * leurs VRAIES fiches, jamais dans une cote. Depuis S80, l'étoile EST un
  * niveau (js/niveaux.js) : le 4 % du haut des réguliers de sa saison, à son
- * poste — aux points par match, au % d'arrêts pour un gardien —, et le
+ * poste — aux points par match, aux buts évités pour un gardien —, et le
  * PHÉNOMÈNE, le 1 % du haut, en est le sommet. Une seule définition pour le
  * ruban, le pack Étoiles et les taux des packs. Une saison en cours (moins de
  * matchs) abaisse le seuil de « régulier ».

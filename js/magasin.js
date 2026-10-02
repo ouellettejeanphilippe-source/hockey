@@ -40,7 +40,7 @@ function niveauxHtml(cle, mods = {}) {
   const manque = PACKS_TOUS[cle].famille === 'equipe' ? 'sous ton plafond, ou dans ce club' : 'sous ton plafond';
   return `<h4>Le joueur d'une carte</h4>
       <table class="pk-bareme pk-niveaux">${lignes.map(({ N, k, v }) => `<tr><th>${k >= ETOILE ? '★ ' : ''}${esc(N.nom)}</th><td class="pk-rang">${esc(N.rang)}</td><td>${pct(v)}</td></tr>`).join('')}</table>
-      <p class="pk-num">Son rang dans sa vraie saison, parmi les réguliers de son poste : aux points par match, au % d'arrêts pour un gardien. Sans joueur de ce niveau ${manque}, la carte prend le niveau le plus proche.</p>
+      <p class="pk-num">Son rang dans sa vraie saison, parmi les réguliers de son poste : aux points par match, aux buts évités pour un gardien. Sans joueur de ce niveau ${manque}, la carte prend le niveau le plus proche.</p>
       ${mods.prestige ? `<p class="pk-num">📈 ${esc(mods.prestige.nom)} : ton prestige ouvre les Étoiles et les Phénomènes, run après run.${mods.coach && COACHS[mods.coach] ? ` ${COACHS[mods.coach].ico} Le dépisteur ${esc(COACHS[mods.coach].de)} recrute ${esc(COACHS[mods.coach].recrute)}.` : ''}</p>` : ''}`;
 }
 export function ouvrirMagasin(ctx) {
