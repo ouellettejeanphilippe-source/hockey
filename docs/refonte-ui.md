@@ -16,7 +16,7 @@ Et le contraire de ce qu'on a mesuré (docs/decisions.md, « La peau ») : 973 �
 
 ## Les règles du système
 
-1. **Sept tailles**, pas une de plus : `--t-1` 12 (étiquettes), `--t-2` 14 (le corps compact), `--t-3` 16 (le corps), `--t-4` 20 (un sous-titre, un chiffre de liste), `--t-5` 28 (un titre de panneau, un chiffre clé), `--t-6` 40 (un pointage, un montant), `--t-7` 64 (le score d'un match, le titre d'écran). Toute taille intermédiaire est une faute que `check_css` refuse.
+1. **Sept tailles**, pas une de plus : `--t-1` 12 (étiquettes), `--t-2` 13 (le corps compact), `--t-3` 15 (le corps), `--t-4` 18 (un sous-titre, un chiffre de liste), `--t-5` 24 (un titre de panneau, un chiffre clé), `--t-6` 34 (un pointage, un montant), `--t-7` 54 (le score d'un match, le titre d'écran). (Un cran plus petit depuis oct. — JP : *texte plus petit*.) Toute taille intermédiaire est une faute que `check_css` refuse.
 2. **Trois rayons** : `--r-0` 0 (les bandes, les tableaux, les filets), `--r-1` 4 (boutons, cases, puces), `--r-2` 12 (panneaux, cartes, feuilles). Jamais 999.
 3. **Une vingtaine de couleurs**, toutes des jetons : le décor (`--noir`, `--fond-1`, `--fond-2`, `--fond-3`, `--filet`), l'encre (`--encre`, `--encre-2`, `--encre-3`), le sens (`--bon`, `--mauvais`, `--or`, `--attention`), le club (`--club`, `--club-2`, `--club-encre`, `--club-sourd`), l'état choisi (`--choisi`, `--sur-choisi`), la glace du plateau (inchangée). Une couleur écrite en hexadécimal hors de `:root` est une faute.
 4. **La couleur dit quelque chose** : vert = ce qui rapporte, rouge = ce qui coûte, or = ce qui se gagne, la couleur du club = ton identité. Un chiffre coloré remplace une pastille colorée : « +6 % » en vert, jamais « Tirs +6 % » dans une capsule.
@@ -28,7 +28,7 @@ Et le contraire de ce qu'on a mesuré (docs/decisions.md, « La peau ») : 973 �
 9. **Rien de petit** : aucun texte sous 12 px, aucune cible sous 44 px, aucune icône sous 16 px. Une étiquette est en 12 px condensée en capitales, pas en 9 px.
 10. **Le bandeau plutôt que la boîte** : un en-tête d'écran, de panneau ou de rangée est une bande bord à bord avec un filet, pas une carte arrondie dans une carte arrondie. Deux niveaux d'emboîtement au plus.
 
-11. **Au téléphone, tout descend d'un cran à la source** : sous 680 px, `:root` réécrit les jetons (t-3 15, t-4 17, t-5 22, t-6 30 ; esp-3 10, esp-4 12 ; barres 64 et 56). Rien sous 12 px, rien sous 44 px de cible. Un écran du cœur de jeu tient en un écran de téléphone : ce qui déborde s'ouvre en sous-page (une tuile à icône, une feuille par-dessus), jamais en longue page.
+11. **Au téléphone, tout descend d'un cran à la source** : sous 680 px, `:root` réécrit les jetons (t-2 12,5, t-3 14, t-4 16, t-5 20, t-6 26, t-7 38 ; esp-3 10, esp-4 12 ; barres 64 et 56). Rien sous 12 px, rien sous 44 px de cible. Un écran du cœur de jeu tient en un écran de téléphone : ce qui déborde s'ouvre en sous-page (une tuile à icône, une feuille par-dessus), jamais en longue page.
 
 ## La coquille
 

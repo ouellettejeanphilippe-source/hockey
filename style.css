@@ -75,13 +75,14 @@
   --club-sourd: color-mix(in srgb, var(--team-line) 14%, transparent);
 
   /* Les sept tailles. */
+  /* Un cran plus petit (1.0, oct.) — JP : *texte plus petit*. Le plancher reste 12 px (--t-1). */
   --t-1: 12px;
-  --t-2: 14px;
-  --t-3: 16px;
-  --t-4: 20px;
-  --t-5: 28px;
-  --t-6: 40px;
-  --t-7: 64px;
+  --t-2: 13px;
+  --t-3: 15px;
+  --t-4: 18px;
+  --t-5: 24px;
+  --t-6: 34px;
+  --t-7: 54px;
   /* Les trois rayons. */
   --r-0: 0;
   --r-1: 4px;
@@ -211,7 +212,7 @@ a { color: var(--bleu); text-decoration: none; }
    trop gros pour 390 px — tout paraissait zoomé et empilé. Rien sous 12 px, rien sous 44 px de cible. ---- */
 @media (max-width: 679.98px) {
   :root {
-    --t-2: 13px; --t-3: 15px; --t-4: 17px; --t-5: 22px; --t-6: 30px; --t-7: 44px;
+    --t-2: 12.5px; --t-3: 14px; --t-4: 16px; --t-5: 20px; --t-6: 26px; --t-7: 38px;
     --esp-3: 10px; --esp-4: 12px; --esp-5: 16px; --esp-6: 20px;
     --actionbar-h: 64px; --navbar-h: 56px;
     /* La photo de fond, centrée : le portrait 5:7 couvre presque toute la largeur d'un téléphone. */
