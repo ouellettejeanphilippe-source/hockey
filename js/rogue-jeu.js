@@ -26,7 +26,8 @@ import { ageAtSeason } from './ratings.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
 import { nombreEnSeries } from './bilan.js';
-import { $, G, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, headshotHtml, isPicked, plafondEffectif, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
+import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
+import { RAYONS_CLUB, choixDuClub, possede, manquePour, porter, ecussonDe, nomDuClub } from './club.js';
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirVersoPourPoser, poserCartes, quiSortOuCaseLibre, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
@@ -1170,6 +1171,39 @@ async function continuerRun(gardes = []) {
  * l'autre — et les JALONS (S80), l'autre façon de débloquer : chacun paie une
  * fois, un déblocage offert ou des écussons.
  */
+/*
+ * TON CLUB (1.0, oct.). JP : *que les couleurs, le nom de notre équipe puis des logos, ce soient des
+ * choses qu'on débloque au fur et à mesure*. L'écusson porté en grand, puis chaque nom, chaque couleur
+ * et chaque écusson, montré SUR ton écusson : ce que tu as se porte d'un toucher, le reste s'achète en
+ * écussons 🏅, et les plus beaux attendent un rang de prestige (js/club.js). Rien n'y change le jeu.
+ */
+function ouvrirClub(apres = null) {
+  const meta = lireMeta(), c = choixDuClub(meta);
+  ouvrirChoix({
+    ico: '🏅', titre: `Ton club · ${meta.ecussons || 0} écussons`, fermable: true, motFermer: 'Retour au vestiaire',
+    contexte: `<div class="club-porte"><span class="club-ecu" aria-hidden="true">${ecussonDe(c)}</span><b>${esc(nomDuClub())}</b></div>`,
+    compact: true,
+    options: RAYONS_CLUB.flatMap(R => Object.entries(R.liste).map(([k, o]) => {
+      const porte = c[R.cle] === k, a = possede(meta, R.cle, k);
+      return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), sous: R.titre,
+        nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🏅`}`,
+        desactive: porte ? 'Porté' : manquePour(meta, R.cle, k) };
+    })),
+    onChoix: cle => {
+      const [r, k] = cle.split(':');
+      const achat = !possede(lireMeta(), r, k);
+      if (porter(r, k)) {
+        poserLeClub();
+        if (!enRepechage()) applyTeamColors('YOU');
+        majEntete();
+        if (achat) toast(`🏅 ${nomDuClub()} : débloqué et porté.`);
+      }
+      ouvrirClub(apres);
+    },
+    onFerme: () => ouvrirVestiaire(apres),
+  });
+}
+
 export function ouvrirVestiaire(apres = null) {
   const meta = lireMeta();
   // v2 : LE PRESTIGE DU CLUB (js/rogue.js) — l'échelle entière, ce qui est atteint et ce qu'il faut pour la suite.
@@ -1194,13 +1228,15 @@ export function ouvrirVestiaire(apres = null) {
     ico: '🏅', titre: `Le vestiaire · ${meta.ecussons || 0} écussons`, fermable: true, motFermer: 'Fermer',
     recit: `Tes écussons se gagnent à chaque saison : un par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
     contexte: jalons,
-    options: Object.entries(DEBLOCAGES).map(([k, D]) => {
+    options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le nom, les couleurs et l\'écusson : ceux que tu portes, et ceux qui se débloquent.' },
+      ...Object.entries(DEBLOCAGES).map(([k, D]) => {
       const pris = aDebloque(meta, k);
       const manque = D.requis && !aDebloque(meta, D.requis) ? `Demande d'abord : ${DEBLOCAGES[D.requis].nom}` : null;
       return { cle: k, ico: D.ico, nom: `${D.nom}${pris ? ' ✓' : ` · ${D.prix} 🏅`}`, bon: D.texte,
         desactive: pris ? 'Débloqué' : manque || ((meta.ecussons || 0) < D.prix ? `Il te manque ${D.prix - (meta.ecussons || 0)} 🏅` : null) };
-    }),
+    })],
     onChoix: k => {
+      if (k === 'club') { ouvrirClub(apres); return; }
       if (peutAcheter(lireMeta(), k) && acheterDeblocage(k)) toast(`${DEBLOCAGES[k].ico} ${DEBLOCAGES[k].nom} : débloqué.`);
       ouvrirVestiaire(apres);
       if (apres) apres();

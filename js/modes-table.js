@@ -4,6 +4,7 @@
  */
 
 import { esc } from './util.js';
+import { nomDuClub } from './club.js';
 import { getTeamBand, couleurVive, getTeamLogoHtml } from './logos.js';
 import { reglesDuPlateau, equipeDeTable, gagnantDuMatch } from './table.js';
 import { CLUBS as CLUBS_TOURNOI, nouveauTournoi, ouvrirTournoi, relireTournoi, classement as classementTournoi } from './tournoi.js';
@@ -74,7 +75,7 @@ export async function lancerTournoi() {
   // LA SAISON DE CHAQUE CLUB EST GARDÉE : c'est la moitié de sa clé, et sans
   // elle la reprise n'a aucun moyen de rebâtir les cinq rivaux.
   const clubs = [
-    { nom: 'NHL Stars', tag: 'YOU', roster: G.roster },
+    { nom: nomDuClub(), tag: 'YOU', roster: G.roster },
     ...rivaux.slice(0, CLUBS_TOURNOI - 1).map(t => ({ nom: t.name, tag: t.tag, roster: t.roster, season: t.season })),
   ];
   afficherTournoi(nouveauTournoi(clubs, nouvelleGraine()));
@@ -104,7 +105,7 @@ export async function reprendreTournoi(etat) {
   const rivaux = await rebatirAdversaires(etat.clubs || []);
   if (rivaux.length !== CLUBS_TOURNOI - 1) return false;
   const clubs = [
-    { nom: 'NHL Stars', tag: 'YOU', roster: G.roster },
+    { nom: nomDuClub(), tag: 'YOU', roster: G.roster },
     ...rivaux.map(t => ({ nom: t.name, tag: t.tag, roster: t.roster, season: t.season })),
   ];
   const T = relireTournoi(etat, clubs);
@@ -212,7 +213,7 @@ export async function jouerExhibition({ memes = false } = {}) {
       try { clubs = await buildOpponents(n, { epoque, tous: false }); } catch { clubs = []; }
       if (clubs.length < n) { toast('Impossible de réunir deux clubs pour l\'exhibition.', 'bad'); return; }
       const club = t => ({ nom: t.name, tag: t.tag, roster: t.roster });
-      A = mienne ? { nom: 'NHL Stars', tag: 'YOU', roster: { ...G.roster } } : club(clubs[0]);
+      A = mienne ? { nom: nomDuClub(), tag: 'YOU', roster: { ...G.roster } } : club(clubs[0]);
       B = club(clubs[n - 1]);
     }
     exhibition = { epoque, A, B };

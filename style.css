@@ -2765,7 +2765,7 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-run-bareme { flex: 1 0 100%; font-variant-numeric: tabular-nums; }
 .hub-run-suite { color: var(--encre-2); }
 
-/* ---- Le passage de la journée (js/saison.js, passage) : un habillage de télé, deux secondes et demie, qui ne bloque rien ----
+/* ---- Le passage de la journée (js/saison.js, passage) : un habillage de télé, un peu plus de trois secondes, qui ne bloque rien ----
    Le numéro de la journée qui tourne, ton match en bandeau, le tampon, le but gagnant raconté, le rang ; en bas, le fil des
    autres résultats qui défile. pointer-events: none partout : le doigt passe à travers, la journée suivante le remplace. */
 .passage {
@@ -2773,7 +2773,7 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-4);
   padding: var(--esp-4); overflow: hidden; pointer-events: none;
   background: radial-gradient(70% 50% at 50% 45%, color-mix(in srgb, var(--noir) 82%, transparent), color-mix(in srgb, var(--noir) 35%, transparent) 75%, transparent);
-  animation: passage-vie 2.5s var(--e-sortie) forwards;
+  animation: passage-vie 3.2s var(--e-sortie) forwards;
 }
 @keyframes passage-vie { 0% { opacity: 0; } 8% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
 .passage-boite { display: flex; flex-direction: column; align-items: center; gap: var(--esp-2); width: min(100%, 520px); text-align: center; }
@@ -2803,6 +2803,10 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .passage-rang .bon { color: var(--bon); }
 .passage-rang .prix { color: var(--mauvais); }
 @keyframes passage-monte { from { opacity: 0; transform: translateY(10px); } }
+/* La une du jour : deux nouvelles au plus, chacune sur son filet du club. */
+.passage-une { display: flex; flex-direction: column; gap: var(--esp-1); width: 100%; margin: var(--esp-2) 0 0; padding: 0; list-style: none; }
+.passage-une li { padding: var(--esp-1) var(--esp-3); border-left: 3px solid var(--club-vif); background: color-mix(in srgb, var(--noir) 70%, transparent); font-size: var(--t-2); line-height: 1.35; text-align: left; color: var(--encre); animation: passage-monte 400ms var(--e-sortie) 1050ms backwards; }
+.passage-une li + li { animation-delay: 1200ms; }
 /* Le fil des autres résultats : un bandeau du bas qui défile, comme à la télé. */
 .passage-fil { position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden; padding: var(--esp-2) 0; background: color-mix(in srgb, var(--noir) 88%, transparent); border-top: 2px solid var(--club-vif); }
 .passage-defile { display: flex; gap: var(--esp-5); width: max-content; animation: passage-fil 9s linear; }
@@ -3437,6 +3441,9 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-option-visage { grid-row: 1 / span 4; position: relative; width: 44px; height: 44px; border-radius: var(--r-1); overflow: hidden; background: var(--fond-2); }
 .choix-option-visage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .choix-option-visage > .headshot-fallback { position: absolute; inset: 0; font-size: var(--t-4); opacity: 0.4; }
+/* Un écusson en visage (Ton club, js/rogue-jeu.js) : le dessin entier, sans fond. */
+.choix-option-visage > svg { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); }
+.choix-option-visage:has(> svg) { background: transparent; }
 
 /* ---- La carte de match (.tc) : un liseré de sa rareté, une bannière de son genre, la gemme du coût, le dessin au trait ---- */
 :is(.tc, .deck-mini, .main-adverse-carte).tc-commune { --tc-bord: var(--filet); }
@@ -3780,6 +3787,10 @@ button.dep-piste:hover:not(:disabled) { border-color: var(--encre-3); }
 }
 
 /* ---- Les déblocages (ouvrirVestiaire) : les jalons en grille, une section par mot ---- */
+/* Ton club : l'écusson porté en grand, son nom en dessous. */
+.club-porte { display: flex; flex-direction: column; align-items: center; gap: var(--esp-2); padding: var(--esp-3) 0; font: 800 var(--t-5)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.club-ecu { width: 112px; height: 112px; filter: drop-shadow(0 8px 24px color-mix(in srgb, var(--club-vif) 45%, transparent)); animation: score-pop 600ms var(--e-ressort) backwards; }
+.club-ecu > svg { width: 100%; height: 100%; }
 .vs-sec { margin: var(--esp-1) 0 0; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
 .vs-jalons { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--esp-2); }
 .vs-jalon { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--esp-2); align-items: center; padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); font-size: var(--t-2); }

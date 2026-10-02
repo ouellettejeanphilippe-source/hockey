@@ -34,6 +34,7 @@ import { getSecondaryPosition, getEraFactor, getEraSalary, getLineZone, getArche
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
 import { actionsDisponibles, demarrerActions, photoDeFond } from './actions.js';
+import { appliquerClub, nomDuClub } from './club.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { brancherBilan, teamLabel, teamShort, tagCourt } from './bilan.js';
 import { activerSons, jouerSon } from './sons.js';
@@ -795,6 +796,20 @@ async function restoreSave() {
  * Sans équipe (tirage LOTO : trois clubs, aucun ne domine), c'est ta propre
  * équipe qui donne le ton — tu es le directeur général, c'est ton bureau.
  */
+/*
+ * TON CLUB (1.0, oct.) : le nom, les couleurs et l'écusson choisis au vestiaire (js/club.js). Au
+ * démarrage et après chaque choix : le nom complet de `YOU`, l'en-tête, et les couleurs de l'interface.
+ */
+export function poserLeClub() {
+  appliquerClub();
+  TEAMFULL.YOU = nomDuClub();
+  const nom = document.querySelector('.tete-nom');
+  if (nom) nom.textContent = nomDuClub();
+  // L'écusson de l'en-tête se redessine au prochain `majEntete`.
+  const ecu = $('teteEcu');
+  if (ecu) ecu.innerHTML = '';
+}
+
 export function applyTeamColors(team) {
   const code = team && TEAM_COLORS[team] ? team : 'YOU';
   const c = TEAM_COLORS[code];
@@ -1142,6 +1157,7 @@ async function boot() {
   try {
     loadOpts();
     appliquerPalette();
+    poserLeClub();
     activerSons(G.sons);
     await Promise.all([loadIndex(), chargerPortraits(), actionsDisponibles()]);
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');

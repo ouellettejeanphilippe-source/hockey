@@ -15,6 +15,7 @@ import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, ti
 import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
+import { nomDuClub, courtDuClub } from './club.js';
 import { ouvrirSeries, saisonDesFeuilles } from './saison.js';
 import { hubActif } from './coquille.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
@@ -43,7 +44,7 @@ export function brancherBilan(c) {
  */
 export function teamShort(t) {
   if (!t) return '—';
-  if (t.isPlayer) return 'NHL Stars';
+  if (t.isPlayer) return nomDuClub();
   const full = TEAMFULL[t.tag] || t.tag;
   const nom = full.split(/ (?:de |des |du |d')/)[0];
   return t.season ? `${nom} ${t.season}` : nom;
@@ -190,7 +191,7 @@ function tropheesHtml(stats, teams) {
   const ligne = x => `<tr class="${x.t.isPlayer ? 'you' : ''}">
     <td class="left">${esc(x.role)}</td>
     <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 14)}${lienJoueur(x.p, x.t, 'saison', `<span>${esc(x.p.n)}</span>`)}</div></td>
-    <td class="sub-cell">${lienEquipe(x.t, 'saison', esc(x.t.isPlayer ? 'NHL' : `${x.t.tag} ${(x.t.season || '').slice(2)}`))}</td>
+    <td class="sub-cell">${lienEquipe(x.t, 'saison', esc(x.t.isPlayer ? courtDuClub() : `${x.t.tag} ${(x.t.season || '').slice(2)}`))}</td>
     <td class="stat heros">${x.p.p === 'G' ? (x.S.SA ? pct3(x.S.SV / x.S.SA) : '—') : `${x.S.PTS} pts`}</td>
   </tr>`;
   const miens = gagnants.filter(g => g.x.t.isPlayer).length + etoiles.filter(x => x.t.isPlayer).length;
@@ -255,7 +256,7 @@ function tablePalmares(d, stats, mode) {
     <tr class="${x.t.isPlayer ? 'you' : ''}">
       <td>${n + 1}</td>
       <td class="left"><div class="team-cell">${getTeamLogoHtml(x.t.tag, 14)}${lienJoueur(x.p, x.t, mode, `<span>${esc(x.p.n)}</span>`)}</div></td>
-      <td class="sub-cell">${lienEquipe(x.t, mode, esc(x.t.isPlayer ? 'NHL' : `${x.t.tag} ${(x.t.season || '').slice(2)}`))}</td>
+      <td class="sub-cell">${lienEquipe(x.t, mode, esc(x.t.isPlayer ? courtDuClub() : `${x.t.tag} ${(x.t.season || '').slice(2)}`))}</td>
       ${d.vals(x.S).map((v, c) => `<td class="stat${c === d.heros ? ' heros' : ''}">${v}</td>`).join('')}
     </tr>`).join('');
   return `<div class="table-wrap haute"><table class="data">
@@ -515,7 +516,7 @@ function forcesHtml(you, calendrier) {
     const pct = clubs.length > 1 ? 100 * (clubs.length - rang) / (clubs.length - 1) : 100;
     return `<div class="bar"><div class="bl">${esc(nomF)}</div><div class="bt"><div class="bf" style="width:${pct.toFixed(0)}%"></div></div><div class="bv">${rang === 1 ? '1er' : `${rang}e`}</div><div class="bm">${esc(mot(moi))}</div></div>`;
   }).join('');
-  return `<div class="result-section"><h3>Forces des NHL Stars</h3><div class="bars">${barres}</div></div>`;
+  return `<div class="result-section"><h3>Forces des ${esc(nomDuClub())}</h3><div class="bars">${barres}</div></div>`;
 }
 export function renderResult(r, you, teams, leaders, calendrier = []) {
   const nTeams = teams.length;
@@ -702,7 +703,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
         ${palmaresHtml(stats, 'saison')}
       </div>` : '',
     alignement: `<div class="result-section">
-        <h3>Feuille de match des NHL Stars</h3>
+        <h3>Feuille de match des ${esc(nomDuClub())}</h3>
         ${rows}
       </div>`,
     ligue: voletNiveau(teams, FICHES_REELLES),
@@ -983,7 +984,7 @@ function dessinerTableauDesSeries(host, n, champion) {
     <div class="champion">
       <h3>Champion de la Coupe Stanley</h3>
       <div class="champ-name">${getTeamLogoHtml(champion.tag, 30)} ${esc(teamLabel(champion))}</div>
-      <p>${champion.isPlayer ? `Les NHL Stars soulèvent la Coupe${G.ligue && G.ligue.epoque ? ` de ${esc(G.ligue.epoque)}` : ''}. 🏆` : `Les NHL Stars sont tombés en chemin${G.ligue && G.ligue.epoque ? ` en ${esc(G.ligue.epoque)}` : ''}. Rebâtis et réessaie.`}</p>
+      <p>${champion.isPlayer ? `Les ${esc(nomDuClub())} soulèvent la Coupe${G.ligue && G.ligue.epoque ? ` de ${esc(G.ligue.epoque)}` : ''}. 🏆` : `Les ${esc(nomDuClub())} sont tombés en chemin${G.ligue && G.ligue.epoque ? ` en ${esc(G.ligue.epoque)}` : ''}. Rebâtis et réessaie.`}</p>
     </div>`;
   for (let r = 0; r < n; r++) {
     const dedans = G.series.filter(s => s.ronde === r);
@@ -1024,7 +1025,7 @@ function dessinerTableauDesSeries(host, n, champion) {
 }
 
 /** Le tag et l'année courte : « MTL '76 », ce qui tient dans une carte. */
-export const tagCourt = t => t.isPlayer ? 'NHL' : `${t.tag}${t.season ? ` '${t.season.slice(2, 4)}` : ''}`;
+export const tagCourt = t => t.isPlayer ? courtDuClub() : `${t.tag}${t.season ? ` '${t.season.slice(2, 4)}` : ''}`;
 
 /**
  * Une carte de match, dans le langage des cartes de pointage : un bandeau

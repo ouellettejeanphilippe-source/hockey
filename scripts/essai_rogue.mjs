@@ -648,6 +648,21 @@ if (achat) {
   console.log(`17. débloqué : ${achat} · ${meta.ecussons} → ${m2.ecussons} écussons · ${(m2.deblocages || []).join(', ')}`);
   if (!(m2.deblocages || []).includes(achat)) erreurs.push(`le déblocage ${achat} n'a pas été acheté`);
 } else erreurs.push('aucun déblocage du classeur ni des cases à acheter');
+/*
+ * TON CLUB (1.0, oct.) : le nom, les couleurs et l'écusson se débloquent au vestiaire. On achète un nom
+ * (les Harfangs, 40 🏅) : le méta le garde, et l'en-tête le dit.
+ */
+await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="club"]', { timeout: 10000 });
+await page.click('#choixModal:not([hidden]) .choix-option[data-choix="club"]');
+await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
+const nClub = await page.$$eval("#choixModal .choix-option", e => e.length);
+await page.click('#choixModal:not([hidden]) .choix-option[data-choix="nom:harfangs"]');
+await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
+await page.screenshot({ path: `${DOSSIER}/rogue-club.png` });
+const m3 = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
+const tete = await page.textContent('.tete-nom');
+console.log(`18. ton club : ${nClub} noms, couleurs et écussons · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
+if ((m3.club || {}).nom !== 'harfangs' || tete !== 'Harfangs') erreurs.push(`le nom acheté n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);
