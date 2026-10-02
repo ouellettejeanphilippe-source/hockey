@@ -1755,3 +1755,19 @@ JP : *popup le menu sous le jeu en boutons emoji, pour pas être par-dessus le j
 **La calibration.** Le court patin fait monter les contacts (10,7 → 16,6 mises en échec, 2,0 → 4,9 harponnages par équipe) et baisser les tirs (10,3 → 6,8). Essayé et écarté, à 120 matchs : réserver le contact en course au porteur (2,0 buts), un seul pas (2,3), ne pas rendre le patin au voleur arrivé en patinant (1,8 : moins de contre-attaques, moins de buts), −2 au lieu de −1 (presque rien : 2,1). Retenu : la base du gardien (`GARDIEN_PLUS`) passe de +1 à −2 sans toucher au pas de la distance. `check_table` à 240 matchs : 3,44 buts par équipe (3,56 avant), la parité ordonnée (1er/10e 91 · même décile 51).
 
 **Les gestes sous la glace.** La carte de commandes posée à côté de la pièce couvrait le jeu et son ✕ glissait sous l'en-tête. Les gestes vivent maintenant dans la barre du bas : une ligne (la pièce, ✕, 🔄 pour changer de trio, la fiche, passer la main) puis UNE rangée de tuiles emoji (⛸️ patiner, ↗️ passer, 🏑 tirer, ↩️ reprise, ↪️ dévier, 💃 feinter, 🤜 frapper, 🪝 harponner), chacune avec sa cote. Une tuile éteinte se touche : sa raison prend la place du nom, sa règle va dans le fil (les « ? » sont partis). La glace est mesurée sur cette hauteur : le smoke exige que la barre ne la couvre jamais, qu'aucune carte ne se pose sur la glace et que chaque geste porte son icône.
+
+## Les dés du jour : l'avenir n'est plus écrit dans la graine (2 oct. 2026)
+
+**Le problème.** JP : *le principe de seed, ça suce*. La graine de la saison écrivait tout d'avance : les matchs, les situations et les accidents (hachés de la graine, du jour et du rang), les paris des dilemmes. Une saison reprise ou un club rebâti redonnaient le même avenir ; seul le sel d'une décision ouvrait une suite neuve.
+
+**La décision.** Chaque journée tire ses dés au vrai hasard, quand ils servent, et la sauvegarde les garde (`G.ligue.des`, `deDuJour` dans js/sim.js) :
+- le dé du **matin**, à l'arrivée de la journée : qui et quoi pour les situations et les accidents ;
+- le dé du **soir**, rendu aux matchs (JP : *ça devrait pas les tirer rendu au match ?*) ; un matin relu ne sait rien du soir ;
+- un soir de **séries**, son dé, par ronde et par match ;
+- un **pari** se tranche au sel de la décision, tiré au moment du choix.
+
+Le passé se rejoue au but près, avec les dés gardés ; l'avenir n'existe nulle part. Le « quand » d'un événement (sa journée) et le dépistage d'un gros match restent lus de la graine : on les annonce d'avance.
+
+**Ce qui ne change pas.** Sans `des` (les scripts de mesure et de calibration), la graine seule décide, comme avant : les mesures restent reproductibles. Une partie sauvegardée avant S90 n'a pas de dés : elle se rejoue sur des dés neufs, et le jeu le dit (VERSION_MOTEUR).
+
+**Prouvé par** `check_graine` (6) : 21 dés du matin et 20 du soir après 20 journées ; les dés gardés rejouent le passé ; au-delà, deux reprises divergent ; deux saisons neuves de la même graine aussi.

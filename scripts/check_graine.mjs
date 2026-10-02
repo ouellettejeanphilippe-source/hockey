@@ -368,5 +368,30 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
     'une reprise qui recrée ton club sur l\'alignement d\'aujourd\'hui rejoue le même passé, au but près (jambes d\'aperçu comprises)');
 }
 
+/*
+ * (6) LES DÉS DU JOUR (1.0, oct.). JP : *le principe de seed, ça suce*. La
+ * graine n'écrit plus l'avenir : chaque journée tire ses dés à son matin
+ * (`deDuJour`), et la sauvegarde les garde. Avec les dés gardés, le passé se
+ * rejoue au but près ; au-delà, deux reprises de la même graine divergent.
+ */
+{
+  const LA = creerLigue(equipesNeuves(), 82, { graine: 'des', des: { matins: [], soirs: [] } });
+  jouerJusqua(LA, 20);
+  dire(LA.des.matins.length === 21 && LA.des.soirs.length === 20 && [...LA.des.matins, ...LA.des.soirs].every(Boolean),
+    `après 20 journées, 21 dés du matin (le jour 20 est arrivé) et 20 du soir (il n'est pas joué) — ${LA.des.matins.length} et ${LA.des.soirs.length}`);
+  const gardes = { matins: LA.des.matins.slice(), soirs: LA.des.soirs.slice() };
+  const LB = creerLigue(equipesNeuves(), 82, { graine: 'des', des: gardes });
+  jouerJusqua(LB, 20);
+  dire(texteDe(LB.calendrier.slice(0, 20)) === texteDe(LA.calendrier.slice(0, 20)),
+    'avec les dés gardés, une reprise rejoue les 20 journées, au but près');
+  jouerJusqua(LA, 40); jouerJusqua(LB, 40);
+  dire(texteDe(LB.calendrier.slice(21, 40)) !== texteDe(LA.calendrier.slice(21, 40)),
+    'au-delà, la même graine ne redonne pas le même avenir : chaque reprise tire ses propres dés');
+  const LC = creerLigue(equipesNeuves(), 82, { graine: 'des', des: { matins: [], soirs: [] } });
+  jouerJusqua(LC, 5);
+  dire(texteDe(LC.calendrier.slice(0, 5)) !== texteDe(LA.calendrier.slice(0, 5)),
+    'deux saisons neuves de la même graine ne jouent pas les mêmes matchs');
+}
+
 console.log(echecs ? `\n${echecs} échec(s)` : '\ntout se rejoue');
 process.exit(echecs ? 1 : 0);
