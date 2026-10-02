@@ -778,6 +778,9 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-sheet[data-genre="entracte"] .choix-ico,
 .choix-sheet[data-genre="main"] .choix-badge,
 .choix-sheet[data-genre="entracte"] .choix-badge { color: var(--live); }
+/* Un gros match aux couleurs de l'adversaire (JP) : la tête de la feuille porte son bandeau. */
+.choix-sheet.aux-couleurs .choix-tete { background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 3px 0 var(--eq-stripe); }
+.choix-sheet.aux-couleurs :is(.choix-ico, .choix-badge, .choix-titre) { color: inherit; }
 .choix-irl { font: 700 var(--t-1)/1.2 var(--display); text-transform: uppercase; color: var(--encre-3); margin-top: 3px; letter-spacing: 0.1em; }
 .choix-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-4); padding: var(--esp-4); }
 .choix-recit { font-size: var(--t-3); line-height: 1.5; color: var(--encre-2); margin: 0; }
@@ -2563,6 +2566,8 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 
 /* ---- Le gros match, le mini-boss ---- */
 .hub-gros { margin: 0 0 var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--violet); border-radius: var(--r-2); background: color-mix(in srgb, var(--violet) 10%, var(--fond-1)); }
+.hub-gros.aux-couleurs { border-color: var(--eq-band); border-left-color: var(--eq-stripe); background: var(--eq-band); color: var(--eq-ink); }
+.hub-gros.aux-couleurs b { color: inherit; }
 .hub-gros-tete { font-size: var(--t-2); line-height: 1.4; }
 .hub-gros-avant { font-size: var(--t-2); line-height: 1.4; margin-top: var(--esp-1); }
 .hub-gros-note, .hub-gros-detail { font-size: var(--t-1); line-height: 1.4; margin-top: var(--esp-1); color: var(--encre-2); }

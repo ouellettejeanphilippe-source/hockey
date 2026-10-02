@@ -39,7 +39,7 @@ import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js
 import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
 import { jouerSon } from './sons.js';
 import { avecArticle } from './commentaire.js';
-import { esc, cap as majuscule, pct3 } from './util.js';
+import { esc, cap as majuscule, pct3, varsEquipe } from './util.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -233,6 +233,12 @@ const mouvementCalme = () => typeof matchMedia === 'function' && matchMedia('(pr
  * spec : { ico, titre, irl, recit, joueur, options: [{ cle, nom, bon, prix, effet, duree, jauges,
  *          mutation, desactive }], fermable, motFermer, onChoix(cle), onFerme() }
  */
+/*
+ * UN GROS MATCH AUX COULEURS DE L'ADVERSAIRE (1.0, oct.). JP : *matchs importants aux couleurs de
+ * l'adversaire*. `couleurs` (le bandeau du club, js/logos.js `getTeamBand`) habille la tête de la feuille :
+ * son fond, son encre, son liseré — l'avant-match, la main du soir, le deuxième entracte.
+ */
+const auxCouleurs = b => (b ? ` aux-couleurs" style="${varsEquipe(b)}` : '');
 export function ouvrirChoix(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
@@ -255,7 +261,7 @@ export function ouvrirChoix(spec) {
   const BADGE = { evenement: 'Événement', recompense: 'Butin', entracte: 'Combat' };
   const badgeTxt = spec.regle && spec.genre === 'evenement' ? 'Événement · Règlement' : (BADGE[spec.genre] || '');
   const badge = badgeTxt ? `<div class="choix-badge">${badgeTxt}</div>` : '';
-  m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+  m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}${auxCouleurs(spec.couleurs)}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '❓'}</span>
       <div class="choix-titres">${badge}<div class="choix-titre">${sub(spec.titre)}</div>${spec.irl ? `<div class="choix-irl">${esc(spec.irl)}</div>` : ''}</div>
@@ -1189,7 +1195,7 @@ export function ouvrirMainDeMatch(spec) {
     for (const c of jouees) if (CARTES_MATCH[c].pari) mots.push({ txt: `🎲 ${CARTES_MATCH[c].nom} : au match`, bon: null });
     const orbes = Array.from({ length: Math.max(ENERGIE_MAIN, energie) }, (_, i) => `<i class="main-orbe${i < energie ? ' plein' : ''}"></i>`).join('');
     const deck = (spec.deck || []).slice().sort((a, b) => CARTES_MATCH[a].cout - CARTES_MATCH[b].cout || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
-    m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+    m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
       <div class="choix-tete">
         <span class="choix-ico">⚔️</span>
         <div class="choix-titres"><div class="choix-badge">Combat</div><div class="choix-titre">${esc(spec.titre)}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>

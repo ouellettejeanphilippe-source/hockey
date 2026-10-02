@@ -1026,7 +1026,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }), echelle: echelleTardive({ jour: mo.p.j }) }),
       // S80 : l'échelle du soir — ce qui vise l'adversaire grandit avec la saison.
       echelle: echelleTardive({ jour: mo.p.j }),
-      equipe: you, main, pioche, deck,
+      equipe: you, main, pioche, deck, couleurs: ctx.band(adv.tag),
       onJouer: (jouees, enMain, _aj, prep) => { const j = jour; quitter(); onDecision({ jour: mo.p.j, main: { jouees, enMain }, prep }, j); },
     });
   }
@@ -2417,7 +2417,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * l'affiche ; ce qu'on en sait (leurs pistes, leur main, l'enjeu) vit
        * dans le dépistage, qui s'ouvre au toucher.
        */
-      const miniBoss = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros">
+      const miniBoss = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros aux-couleurs" style="${varsEquipe(ctx.band(mb.adv.tag))}">
         <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Combat · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
         ${Ao ? `<div class="hub-gros-avant">${Av.ico} Événement : ${ctx.esc(Av.titre)} — <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
       </div>` : '';
@@ -2678,7 +2678,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // l'événement ; le combat est le bandeau, pas la première phrase.
       const dans = av.p.j - jour;
       const quand = dans <= 0 ? 'ce soir' : dans === 1 ? 'demain' : `dans ${dans} jours`;
-      return { de: DE.coach, ico: A.ico, titre: A.titre, irl: A.irl, genre: 'evenement', regle: !!A.regle, joueurs: ciblesA, ouDe: ctx.ouJoue,
+      return { de: DE.coach, ico: A.ico, titre: A.titre, irl: A.irl, genre: 'evenement', regle: !!A.regle, joueurs: ciblesA, ouDe: ctx.ouJoue, couleurs: ctx.band(advG.tag),
         recit: A.recit,
         contexte: `${dejaEnJeu(ciblesA)}<p class="choix-avant">Avant le combat · ${quand} contre ${ctx.esc(ctx.teamShort(advG))}</p>${depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) })}`,
         options: A.options.map(o => ({ ...o, duree: 1 })),
@@ -3061,7 +3061,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv), prepJuste: mb.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
-      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte',
+      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(adv.tag),
       recit: etat === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etat === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),
@@ -3382,7 +3382,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       ${planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss), prepJuste: pl.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
-      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte',
+      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(boss.tag),
       recit: etatM === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etatM === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),
@@ -3487,7 +3487,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         contexte: mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }), echelle: echelleTardive({ serie: true, ronde }) }),
         echelle: echelleTardive({ serie: true, ronde }),
         ajustements: offres ? offres.map(c => ({ cle: c, ...AJUSTEMENTS[c] })) : null,
-        equipe: you, main, pioche, deck, onAdjoint: parLAdjoint,
+        equipe: you, main, pioche, deck, onAdjoint: parLAdjoint, couleurs: ctx.band(boss.tag),
         onJouer: (jouees, enMain, ajustement, prep) => quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees, enMain }, prep })),
       });
     }
