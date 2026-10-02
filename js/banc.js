@@ -600,6 +600,9 @@ export async function runSeason(opts = {}) {
   // Les décisions de SÉRIES suivent une reprise (S69), jamais une saison neuve.
   const dsPrec = opts.reprise ? ((G.ligue && G.ligue.decisionsSeries) || G.dsReprise || []) : [];
   G.dsReprise = null;
+  // LES DÉS DÉJÀ TIRÉS (1.0, oct., `deDuJour` dans js/sim.js) : une reprise les garde, une saison neuve en tire.
+  const desPrec = opts.reprise ? ((G.ligue && G.ligue.des) || G.desReprise || { matins: [], soirs: [], series: {} }) : { matins: [], soirs: [], series: {} };
+  G.desReprise = null;
   G.done = true;
   // LA SAISON SE JOUE DANS TES COULEURS : noir, blanc, orange. Le repêchage
   // portait celles du vestiaire sorti ; à partir d'ici, c'est ton club.
@@ -649,7 +652,7 @@ export async function runSeason(opts = {}) {
   let r = null, teams, leaders = [], calendrier = [], graine = null, moteur = null;
   if (opponents.length) {
     // S80 : une ligue Rogue porte la courbe de la fin de partie (js/sim.js `echelleTardive`).
-    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE' });
+    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE', des: desPrec });
     jouerJusqua(moteur, opts.depuis || 0);
     // Un joueur signé aujourd'hui est dans l'alignement dès maintenant, pas au matin (S79).
     poserAlignementDuJour(moteur);
@@ -670,6 +673,7 @@ export async function runSeason(opts = {}) {
     cles: opponents.map(t => `${t.season}|${t.tag}`),
     decisions,
     decisionsSeries: dsPrec,
+    des: desPrec,
     // Les trois réglages sont FIGÉS ici, avec la graine : l'écran « Nouvelle
     // partie » peut muter G pendant qu'un bilan est encore à l'écran, et
     // l'historique doit enregistrer la partie qui a été jouée, pas celle
