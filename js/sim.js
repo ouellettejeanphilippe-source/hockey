@@ -3317,20 +3317,20 @@ export function situationsDuJour(team, graine, jour, equipe = 0) {
  * joueurs portés et quatre pesés, et « une paire est neutre » ne voudrait
  * plus rien dire.
  */
+/* Ce qu'une situation multiplie chez son joueur, à l'échelle du porté ou du pesé : le moteur et le verso lisent ceci. */
+export function effetDeSituation(cle) {
+  const c = SITUATIONS[cle];
+  if (!c) return null;
+  const k = c.sens > 0 ? ECHELLE_PORTE : ECHELLE_PESE;
+  const ech = f => 1 + ((f ?? 1) - 1) * k;
+  return { lancers: ech(c.lancers), finition: ech(c.finition), creation: ech(c.creation), gardien: ech(c.gardien), blessure: ech(c.blessure) };
+}
 /* `tirage` : la journée PRÉVUE, qui donne le tirage — la situation reportée d'un gros match (S79) garde le sien. */
 function poserSituations(team, graine, jour, equipe, tirage = jour) {
   const paire = situationsDuJour(team, graine, tirage, equipe);
   if (!paire) return;
   for (const s of SLOTS) { const p = team.roster[s.i]; if (p) delete p._situ; }
-  for (const bout of [paire.porte, paire.pese]) {
-    const c = SITUATIONS[bout.cle];
-    const k = c.sens > 0 ? ECHELLE_PORTE : ECHELLE_PESE;
-    const ech = f => 1 + ((f ?? 1) - 1) * k;
-    bout.p._situ = {
-      lancers: ech(c.lancers), finition: ech(c.finition),
-      creation: ech(c.creation), gardien: ech(c.gardien), blessure: ech(c.blessure),
-    };
-  }
+  for (const bout of [paire.porte, paire.pese]) bout.p._situ = effetDeSituation(bout.cle);
   // Ce que l'écran lit. Le journal garde TOUTES les fenêtres, pas seulement
   // la courante : c'est l'histoire de la saison, et le bilan la relit.
   (team.situations = team.situations || []).push({

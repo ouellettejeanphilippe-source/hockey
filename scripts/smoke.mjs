@@ -440,8 +440,8 @@ async function repondreAuxChoix() {
   let rouvert = false;
   for (let i = 0; i < 12; i++) {
     if (await ouvrirPaquet()) continue;
-    // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au bureau ».
-    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) {
+    // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au bureau » — sauf sous un choix ouvert, qui passe d'abord.
+    if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#hubModal .hub-page[data-genre="sommaire"]')) {
       sommairesVus++;
       await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
       await page.waitForTimeout(250);
@@ -2408,6 +2408,14 @@ async function traverserSaison(etiquette, reprise = false) {
       if (!a.quoi.trim() || !b.quoi.trim() || !a.mot.trim() || !b.mot.trim()) errors.push('un bout de la paire ne dit ni ce que ça change ni pourquoi');
       if (situ.large) errors.push('le panneau des situations déborde en largeur');
       if (!errors.length || true) console.log(`   le vestiaire : ${a.nom.trim()} (porté) · ${b.nom.trim()} (pesé)`);
+      // AU VERSO (1.0, oct.) : la situation se lit sur la carte du joueur, avec son effet et « en cours ».
+      const verso = await page.evaluate(async () => {
+        const { sectionMods } = await import('/js/repechage.js');
+        const f = (window.cap82.G.ligue.you.situations || []).slice(-1)[0];
+        return f ? sectionMods(f.porte.p).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ') : '';
+      });
+      if (!/Le vestiaire · depuis J\d+ · en cours/.test(verso)) errors.push(`le verso du porté ne dit pas sa situation en cours : « ${verso.slice(0, 160)} »`);
+      else console.log(`   au verso du porté : ${verso.match(/[^·]*Le vestiaire · depuis J\d+ · en cours[^·]*/)[0].trim().slice(0, 120)}`);
     }
   }
 
