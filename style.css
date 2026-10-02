@@ -2766,6 +2766,26 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-run-bareme { flex: 1 0 100%; font-variant-numeric: tabular-nums; }
 .hub-run-suite { color: var(--encre-2); }
 
+/* ---- La saison en calendrier (js/saison.js, calendrierFiche) : des semaines de sept journées, une case par jour ---- */
+.calj-grille { display: flex; flex-direction: column; gap: 3px; }
+.calj-sem { display: grid; grid-template-columns: 24px repeat(7, minmax(0, 1fr)); gap: 3px; }
+.calj-s { align-self: center; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.04em; color: var(--encre-3); }
+.calj { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; min-height: 52px; padding: 3px 2px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--panneau); font: 700 var(--t-1)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); }
+.calj-n { position: absolute; top: 3px; left: 4px; font-size: var(--t-1); color: var(--encre-3); }
+.calj-r { color: var(--encre); white-space: nowrap; }
+.calj-ev { position: absolute; top: 2px; right: 3px; font-size: var(--t-1); line-height: 1; }
+.calj.conge { background: transparent; border-style: dashed; border-color: var(--filet-2); }
+.calj.v { background: color-mix(in srgb, var(--bon) 18%, var(--fond-1)); border-color: color-mix(in srgb, var(--bon) 55%, transparent); }
+.calj.v .calj-r { color: var(--bon); }
+.calj.d { background: color-mix(in srgb, var(--mauvais) 14%, var(--fond-1)); border-color: color-mix(in srgb, var(--mauvais) 45%, transparent); }
+.calj.d .calj-r { color: var(--mauvais); }
+.calj.dp { background: color-mix(in srgb, var(--attention) 14%, var(--fond-1)); border-color: color-mix(in srgb, var(--attention) 45%, transparent); }
+.calj.dp .calj-r { color: var(--attention); }
+.calj.ici { border: 2px solid var(--or); box-shadow: 0 0 14px -4px var(--or); }
+.calj[data-sommaire] { cursor: pointer; transition: transform var(--t-vite) var(--e-ressort); }
+.calj[data-sommaire]:hover { transform: translateY(-2px); }
+.calj .team-logo-img, .calj .team-logo-inline { flex: none; }
+
 /* ---- Le passage de la journée (js/saison.js, passage) : un habillage de télé, un peu plus de trois secondes, qui ne bloque rien ----
    Le numéro de la journée qui tourne, ton match en bandeau, le tampon, le but gagnant raconté, le rang ; en bas, le fil des
    autres résultats qui défile. pointer-events: none partout : le doigt passe à travers, la journée suivante le remplace. */

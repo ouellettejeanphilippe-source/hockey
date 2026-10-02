@@ -2146,6 +2146,41 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       evenements,
     };
   };
+  /*
+   * LA SAISON EN CALENDRIER (1.0, oct.). JP : *la carte de saison pourrait être un calendrier*. Sous la
+   * route, la saison entière en semaines de sept journées : chaque case dit le jour, l'adversaire (son
+   * écusson ; @ chez lui), le pointage une fois joué (vert, rouge, orange en prolongation), un congé en
+   * sourdine, ce que la route y pose (le proprio, une carte, un événement, un combat) et aujourd'hui.
+   * Une case jouée ouvre son sommaire, comme une rangée de « Tes matchs ».
+   */
+  const calendrierFiche = () => {
+    const marques = new Map();
+    const pose = (j, ico, titre) => { if (j == null || j < 0 || j >= N) return; if (!marques.has(j)) marques.set(j, []); marques.get(j).push([ico, titre]); };
+    JOURS_OBJECTIFS.forEach(k => pose(jEv(k), '🏢', 'le proprio fixe un objectif'));
+    PALIERS_CARTES.forEach(k => pose(jEv(k), '🃏', 'une carte à prendre'));
+    JOURS_MOMENTS.forEach(k => pose(jEv(k), '❓', 'un événement'));
+    JOURS_SITUATIONS.forEach(k => pose(jEv(k), '💬', 'le vestiaire vit quelque chose'));
+    const plus = routePlus();
+    plus.evenements.forEach(e => pose(e.j, '❓', e.titre));
+    plus.combats.forEach(c => pose(c.j, '⚔️', c.titre));
+    const cellule = j => {
+      const k = indexMien(j), m = k >= 0 ? calendrier[j][k] : null, joue = j < jour;
+      const ev = marques.get(j) || [];
+      const evHtml = ev.length ? `<span class="calj-ev">${ev[ev.length - 1][0]}</span>` : '';
+      const quoi = ev.map(e => e[1]).join(' · ');
+      const cls = ['calj'];
+      if (j === jour) cls.push('ici');
+      if (!m) { cls.push('conge'); return `<div class="${cls.join(' ')}" title="Journée ${j + 1} · congé${quoi ? ` · ${ctx.esc(quoi)}` : ''}"><span class="calj-n">${j + 1}</span>${evHtml}</div>`; }
+      const adv = m.A === you ? m.B : m.A, dom = m.A === you;
+      if (joue) cls.push(gagne(m, you) ? 'v' : m.ot ? 'dp' : 'd');
+      const pour = dom ? m.gfA : m.gfB, contre = dom ? m.gfB : m.gfA;
+      const somm = joue && m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0"` : '';
+      return `<div class="${cls.join(' ')}"${somm} title="Journée ${j + 1} · ${dom ? 'contre' : 'chez'} ${ctx.esc(ctx.teamLabel(adv))}${quoi ? ` · ${ctx.esc(quoi)}` : ''}"><span class="calj-n">${dom ? '' : '@'}${j + 1}</span>${ctx.logo(adv.tag, 18)}${joue ? `<span class="calj-r">${pour}–${contre}${m.ot ? ' P' : ''}</span>` : ''}${evHtml}</div>`;
+    };
+    let semaines = '';
+    for (let d = 0; d < N; d += 7) semaines += `<div class="calj-sem"><span class="calj-s">S${d / 7 + 1}</span>${Array.from({ length: 7 }, (_, i) => (d + i < N ? cellule(d + i) : '<span></span>')).join('')}</div>`;
+    return `<div class="hub-titre">Le calendrier · journée ${jour} sur ${N}</div><div class="calj-grille">${semaines}</div>`;
+  };
   const routeFiche = () => `<div class="hub-titre">La route de la saison</div>${routeHtml(jour, N, routePlus(), jEv)}
     <div class="hub-route-legende">🏢 le proprio fixe un objectif · 🃏 une carte à prendre · ⚔️ un combat · ❓ un événement · 💬 le vestiaire</div>`;
   /*
@@ -2177,7 +2212,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     </div>`;
   }
   const voletFiche = () => {
-    if (!miens.length) return `${routeFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
+    if (!miens.length) return `${routeFiche()}${calendrierFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
       const adv = m.A === you ? m.B : m.A;
       const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA;
@@ -2186,7 +2221,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `<div class="hub-jeu${v ? ' v' : ' d'}"${somm}><span class="hub-jeu-n">J${j + 1}</span><span class="hub-jeu-res">${v ? 'V' : m.ot ? 'DP' : 'D'}</span><span class="hub-jeu-score">${pour}–${contre}</span>${ctx.logo(adv.tag, 15)}<span class="hub-jeu-adv">${ctx.esc(ctx.teamLabel(adv))}</span>${m.ot ? '<em>P</em>' : ''}</div>`;
     }).join('');
     const f = fiche.get(you);
-    return `${routeFiche()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
+    return `${routeFiche()}${calendrierFiche()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
   };
 
   /*
