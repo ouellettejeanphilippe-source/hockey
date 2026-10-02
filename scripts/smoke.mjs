@@ -621,6 +621,10 @@ async function butsDuSommaire(cle) {
   const portee = enPage ? '#hubModal .hub-page[data-genre="sommaire-match"]' : '#gameModalBody';
   const ternes = await page.$$eval(`${portee} .som-but:not(.som-pun)`, l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band')).length);
   if (ternes) errors.push(`le sommaire du match : ${ternes} but(s) sans les couleurs du club qui marque`);
+  // CE QUI A DÉCIDÉ (1.0, oct.) : quelques lignes chiffrées, et le but gagnant.
+  const decide = await page.$$eval(`${portee} .som-decide li`, l => l.map(e => e.textContent.trim()));
+  if (!decide.some(t => /^Le but gagnant : /.test(t))) errors.push(`le sommaire ne dit pas ce qui a décidé : ${decide.join(' · ') || 'rien'}`);
+  else if (!decideVu) { decideVu = true; console.log(`   ce qui a décidé : ${decide.join(' · ')}`); }
   const buts = await page.$$eval(enPage ? '#hubModal .hub-page[data-genre="sommaire-match"] .som-per' : '#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
     const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
     return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
@@ -637,6 +641,7 @@ async function butsDuSommaire(cle) {
  * rebâtissent la ligue jusqu'à leur soir) : les mêmes buts, au caractère près.
  */
 const aRelire = [];
+let decideVu = false;
 async function toujoursLesMemes() {
   for (const r of aRelire.splice(0)) {
     const buts = await butsDuSommaire(r.cle);

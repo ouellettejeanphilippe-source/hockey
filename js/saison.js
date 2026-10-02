@@ -1405,6 +1405,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * partant de l'alignement, pas encore la rotation du soir.
    */
   const FORCES_MOT = ['en attaque', 'en défense', 'devant le filet', 'en robustesse', 'en vitesse'];
+  /*
+   * CE QUI DEVRAIT DÉCIDER (1.0, oct.). JP : *résumé textuel … avant match*. Les duels du soir en vraies
+   * stats, avec leur rang : ton attaque contre leur défense, la leur contre la tienne, les deux gardiens.
+   * Seulement quand les deux clubs ont trois matchs : avant, les forces sont « sur papier », en rangs.
+   */
+  function decideHtml(axes, nomMoi, nomLui) {
+    const [att, def, gar] = axes;
+    const dit = c => (c && c.mot && c.mot !== 'sur papier' ? `${c.mot}, ${rangMot(c.rang)}` : null);
+    const lignes = [
+      dit(att.a) && dit(def.b) ? `⚔️ ${nomMoi} en attaque (${dit(att.a)}) contre ${nomLui} en défense (${dit(def.b)})` : '',
+      dit(att.b) && dit(def.a) ? `⚔️ ${nomLui} en attaque (${dit(att.b)}) contre ${nomMoi} en défense (${dit(def.a)})` : '',
+      gar.a && gar.b ? `🥅 ${gar.a.mot} contre ${gar.b.mot}` : '',
+    ].filter(Boolean);
+    return lignes.length ? `<div class="hub-decide"><b>Ce qui devrait décider</b><ul>${lignes.map(x => `<li>${ctx.esc(x)}</li>`).join('')}</ul></div>` : '';
+  }
   function forcesHtml(adv) {
     const axes = axesDuMatch(you, adv, { A: partantDe(you), B: partantDe(adv) });
     const av = axes.map(avantageDe);
@@ -1424,6 +1439,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           <tr><th scope="row">${ctx.esc(nomLui)}</th>${axes.map((x, i) => cell(x, 'lui', i)).join('')}</tr>
         </tbody></table>
       <div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>
+      ${decideHtml(axes, nomMoi, nomLui)}
     </div>`;
   }
   /* Le pari d'où vient un effet (`team.paris`, noté au tirage) : son jour et son titre. */

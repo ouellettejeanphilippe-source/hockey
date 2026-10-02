@@ -24,6 +24,7 @@
 
 import { getTraits } from './traits.js';
 import { seasonLancers } from './ratings.js';
+import { pct3 } from './util.js';
 
 /** Hachage stable d'une chaîne, pour tirer une tournure sans hasard vivant. */
 function graine(str) {
@@ -202,4 +203,52 @@ export function conseilDuBilan(r, you, teams = [], calendrier = []) {
   if (rGA && rGA >= rGF) return `Ta défense a accordé ${r.GA} buts, ${rGA}e de la ligue sur ${n} : c'est là que ça se joue.`;
   if (rGF) return `Ton attaque a marqué ${r.GF} buts, ${rGF}e de la ligue sur ${n} : c'est là que ça se joue.`;
   return r.W >= 41 ? 'Saison au-dessus de la moyenne.' : 'Une saison sous la moyenne.';
+}
+
+/*
+ * CE QUI A DÉCIDÉ (1.0, oct.). JP : *résumé textuel post match … qui décrit ce qui est arrivé dans le
+ * match, les stats ou lancers de dés qui font la différence*. Toujours lu sur la feuille, jamais une
+ * cote : chaque lancer y porte sa chance d'entrer (`p`), donc leur somme est le nombre de buts ATTENDUS
+ * — l'écart avec les vrais buts, c'est le dé du soir. Puis les tirs, l'avantage numérique, le gardien,
+ * les actions spéciales des systèmes. Les trois faits les plus lourds, puis le but gagnant.
+ */
+export function ceQuiADecide(f, nomA, nomB) {
+  const nom = c => (c === 'A' ? nomA : nomB), autre = c => (c === 'A' ? 'B' : 'A');
+  const v = (x, d = 1) => x.toFixed(d).replace('.', ',');
+  const plur = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+  const buts = c => f.buts.filter(b => b.cote === c).length;
+  const tirs = c => (f.tirs[c] || []).reduce((a, b) => a + b, 0);
+  const lancers = f.lancers || [];
+  const faits = [];
+  // Le dé : les buts marqués contre les buts attendus (une feuille sans chances n'en dit rien).
+  if (lancers.length && lancers.filter(l => l.p != null).length >= 0.8 * lancers.length) {
+    for (const c of ['A', 'B']) {
+      const attendu = lancers.filter(l => l.cote === c && l.p != null).reduce((a, l) => a + l.p, 0), g = buts(c), d = g - attendu;
+      if (Math.abs(d) >= 1) faits.push({ poids: Math.abs(d), txt: `${nom(c)} : ${plur(g, 'but')} sur ${v(attendu)} attendus — ${d > 0 ? 'ses tirs sont entrés' : 'le gardien d\'en face a fermé la porte'}.` });
+    }
+  }
+  const dt = tirs('A') - tirs('B');
+  if (Math.abs(dt) >= 8) {
+    const c = dt > 0 ? 'A' : 'B';
+    faits.push({ poids: Math.abs(dt) / 8, txt: `${nom(c)} a dominé aux tirs, ${tirs(c)}–${tirs(autre(c))}${buts(c) < buts(autre(c)) ? ', sans en profiter' : ''}.` });
+  }
+  const an = c => f.buts.filter(b => b.cote === c && b.an).length, occ = c => (f.punitions || []).filter(x => x.cote === autre(c)).length;
+  if (an('A') !== an('B')) {
+    const c = an('A') > an('B') ? 'A' : 'B';
+    faits.push({ poids: 1.2 * Math.abs(an('A') - an('B')), txt: `L'avantage numérique : ${nom(c)} ${an(c)} en ${occ(c)}, ${nom(autre(c))} ${an(autre(c))} en ${occ(autre(c))}.` });
+  }
+  for (const c of ['A', 'B']) {
+    const g = f[c === 'A' ? 'gardienA' : 'gardienB'], recus = tirs(autre(c)), arrets = recus - buts(autre(c));
+    if (g && recus >= 25 && arrets / recus >= 0.94) faits.push({ poids: (arrets / recus - 0.9) * 25, txt: `${g.n} a arrêté ${arrets} des ${recus} tirs (${pct3(arrets / recus)}).` });
+  }
+  for (const c of ['A', 'B']) {
+    const n = lancers.filter(l => l.cote === c && l.special === 'reussie').length;
+    if (n >= 2) faits.push({ poids: 0.5 * n, txt: `${nom(c)} a réussi ${n} actions spéciales de ses systèmes.` });
+  }
+  const lignes = faits.sort((x, y) => y.poids - x.poids).slice(0, 3).map(x => x.txt);
+  // Le but gagnant : celui qui a mis le vainqueur devant pour de bon.
+  const vainqueur = buts('A') > buts('B') ? 'A' : 'B';
+  const gagnant = f.buts.slice().sort((x, y) => x.instant - y.instant).filter(b => b.cote === vainqueur)[buts(autre(vainqueur))];
+  if (gagnant && gagnant.marqueur) lignes.push(`Le but gagnant : ${gagnant.marqueur.n}, ${gagnant.instant >= 60 ? 'en prolongation' : `en ${NOM_PERIODE[Math.floor(gagnant.instant / 20) + 1]}`}.`);
+  return lignes;
 }

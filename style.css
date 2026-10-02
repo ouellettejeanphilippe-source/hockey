@@ -2550,6 +2550,8 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-forces td.av.moi { color: var(--bon); }
 .hub-forces td.av.lui { color: var(--mauvais); }
 .hub-forces-mot { margin-top: var(--esp-1); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+.hub-decide { margin-top: var(--esp-2); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.hub-decide ul { margin: var(--esp-1) 0 0; padding-left: var(--esp-4); }
 .hub-forces-mot b { color: var(--encre); }
 .hub-match-note { padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 /* « Soir éreintant » : le seul badge, en or, parce qu'il change les règles du soir. */
@@ -3131,6 +3133,8 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .sommaire { font-size: var(--t-2); }
 .som-ot { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--or); }
 .som-lignes { margin-bottom: var(--esp-4); border-top: 1px solid var(--filet); }
+.som-decide { margin-bottom: var(--esp-4); }
+.som-decide ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--esp-3); align-items: center; min-height: 48px; padding: var(--esp-1) 0; border-bottom: 1px solid var(--filet-2); }
 .som-ligne span:nth-child(2) { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .som-ligne span:nth-child(3) { min-width: 54px; text-align: right; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
