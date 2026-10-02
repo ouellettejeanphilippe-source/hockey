@@ -153,10 +153,11 @@ if (!isMainThread) {
     const meta = { ecussons: 0, deblocages: [], jalons: {} };
     const classeur = new Map();
     let derniere = [], saisons = 0, premiere = null;
+    const joues = new Map();
     const runs = [];
     for (let r = 0; r < t.runs; r++) {
       const niv = meta.deblocages.length;
-      const res = jouerRun(meta, { classeur: [...classeur.values()], derniere, graine: `campagne${t.c}-run${r}`, jalons: true });
+      const res = jouerRun(meta, { classeur: [...classeur.values()], derniere, graine: `campagne${t.c}-run${r}`, jalons: true, joues });
       for (const x of res.entrees) if (!classeur.has(getPlayerKey(x.p))) classeur.set(getPlayerKey(x.p), x);
       derniere = res.equipe;
       meta.ecussons += res.ecussons;

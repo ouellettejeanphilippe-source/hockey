@@ -3868,6 +3868,14 @@ a.bk-serie:hover, a.bk-serie:focus-visible { box-shadow: inset 0 0 0 1px var(--c
 .run-l { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); min-height: 40px; padding: var(--esp-2) var(--esp-3); background: var(--fond-2); }
 .run-k { font-size: var(--t-2); color: var(--encre-2); }
 .run-v { text-align: right; font: 800 var(--t-3)/1.2 var(--display); font-variant-numeric: tabular-nums; }
+/* La Coupe (1.0) : l'écran de la run gagnée — l'or du trophée sur le noir, le trophée qui se lève une fois. */
+.choix-sheet[data-genre="coupe"] { box-shadow: inset 0 3px 0 var(--or), 0 0 0 1px color-mix(in srgb, var(--or) 45%, transparent); }
+.choix-sheet[data-genre="coupe"] .choix-titre { color: var(--or); }
+.coupe-scene { display: grid; place-items: center; min-height: 128px; border-radius: var(--r-2); background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--or) 30%, transparent), transparent 70%); }
+.coupe-trophee { font-size: calc(var(--t-7) * 1.4); line-height: 1; animation: coupe-leve 1.4s ease-out both; }
+@keyframes coupe-leve { from { transform: translateY(24px) scale(0.8); opacity: 0; } 60% { transform: translateY(-8px) scale(1.06); opacity: 1; } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .coupe-trophee { animation: none; } }
+.coupe-vedettes .cj-mini-carte { outline: 2px solid var(--or); outline-offset: 2px; border-radius: var(--r-1); }
 
 /* ---- Le héros serré : sur les onglets du bilan autres que le Club, une ligne (rang, pointage, six chiffres) et « Jouer les séries » seul ---- */
 body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-hero { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-start; gap: var(--esp-2) var(--esp-4); padding-bottom: var(--esp-3); text-align: left; }

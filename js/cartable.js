@@ -77,6 +77,54 @@ export function migrerHistorique(cles = []) {
   ecrire(c);
   return ajouterAuCartable(cles.map(cle => ({ cle })), { doublons: false });
 }
+/*
+ * LES RUNS JOUÉES PAR CARTE (1.0) : `r` compte les runs Rogue où la carte a
+ * porté tes couleurs, `der` la dernière (une run ne compte qu'une fois, même
+ * sur trois saisons). Le départ tire d'abord les cartes les moins jouées
+ * (js/rogue.js `tirageDuDepart`).
+ */
+export function marquerJouees(cles = [], run = 0) {
+  const c = lireCartable();
+  for (const k of cles) {
+    const x = c.joueurs[k];
+    if (!x || x.der === run) continue;
+    x.r = (x.r || 0) + 1; x.der = run;
+  }
+  ecrire(c);
+}
+/* Les cartes différentes qui ont joué au moins une run. */
+export const cartesJouees = (c = lireCartable()) => Object.values(c.joueurs).filter(x => (x.r || 0) > 0).length;
+/*
+ * LA PRIME DE DÉCOUVERTE (1.0) : une carte qui finit une saison avec toi pour
+ * la première fois la paie, une fois pour toujours (`d`). Rend les cartes
+ * découvertes.
+ */
+export function decouvrir(cles = []) {
+  const c = lireCartable();
+  const neuves = cles.filter(k => c.joueurs[k] && !c.joueurs[k].d);
+  for (const k of neuves) c.joueurs[k].d = 1;
+  if (neuves.length) ecrire(c);
+  return neuves;
+}
+/*
+ * LES MODIFS SUR LA CARTE (1.0). JP : les cartes de modif *intégrées de façon
+ * plus harmonieuse dans la loop* — la réponse retenue : elles vont SUR la
+ * carte du joueur. Une amélioration, un style, un contrat ou une édition posés
+ * en Rogue restent sur sa carte (`mods`), d'une run à l'autre ; la carte les
+ * porte chaque fois qu'elle rejoue (js/rogue-jeu.js `reportDesCartes`).
+ */
+export function poserSurLesCartes(parCle = {}) {
+  const c = lireCartable();
+  let change = false;
+  for (const [k, mods] of Object.entries(parCle)) {
+    const x = c.joueurs[k];
+    if (!x) continue;
+    const tous = [...new Set([...(x.mods || []), ...mods])];
+    if (tous.length !== (x.mods || []).length) { x.mods = tous; change = true; }
+  }
+  if (change) ecrire(c);
+}
+export const modsDe = (cle, c = lireCartable()) => ((c.joueurs[cle] || {}).mods || []).slice();
 /* La meilleure variante obtenue d'une carte. */
 export const meilleureVariante = x => ['legendaire', 'rare', 'peu', 'commune'].find(r => x && x.v && x.v[r]) || 'commune';
 /* Les comptes du cartable : joueurs, copies, doublons, par variante, numérotées. */
