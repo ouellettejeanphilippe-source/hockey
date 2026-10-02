@@ -41,7 +41,8 @@ import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdvers
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
-import { tempsRestant, NOM_PERIODE } from './recit.js';
+import { tempsRestant, NOM_PERIODE, recitDeBut } from './recit.js';
+import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
 
@@ -1734,9 +1735,62 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     dernierAvance = { joues0: avant.joues };
     boite.ouvert = null;
     dessiner();
+    passage(avant);
     tabs.suivre('journee');
     if (entracteDemande) { retenir = false; ouvrirEntracte(); return; }
     if (!ouvrirSommaire(avant)) { retenir = false; dessiner(); }
+  }
+
+  /*
+   * LE PASSAGE DE LA JOURNÉE (1.0, oct.). JP : *la loop des jours, c'est chiant : ya pas de feel, c'est
+   * instantané, sans animation, sans logique, narration*. Chaque avance passe maintenant par un
+   * habillage de télé, deux secondes et demie, par-dessus le bureau : le numéro de la journée qui
+   * tourne, ton match en bandeau (le tampon, le but gagnant raconté par recit.js, le rang qui bouge),
+   * ou le congé et le plus gros pointage de la ligue, puis le fil des autres résultats. Il ne bloque
+   * rien (pointer-events: none) et une autre avance le remplace sur-le-champ : on peut enchaîner.
+   */
+  function passage(avant) {
+    document.querySelector('.passage')?.remove();
+    if (jour <= avant.jour) return;
+    const nouveaux = miens.slice(avant.joues), un = nouveaux.length === 1 ? nouveaux[0] : null;
+    const matchs = calendrier[jour - 1] || [];
+    const bande = t => { const b = ctx.band(t.tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
+    const tete = jour - avant.jour > 1
+      ? `<span class="passage-mot">Journées ${avant.jour + 1} à</span><b class="passage-n">${jour}</b>`
+      : `<span class="passage-mot">Journée</span><b class="passage-n">${jour}</b>`;
+    let corps = '', son = null;
+    if (un) {
+      const { m } = un, v = gagne(m, you);
+      const eq = (t, buts) => `<span class="passage-eq" style="${bande(t)}">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span><b>${buts}</b></span>`;
+      // Le but gagnant : celui qui a mis le vainqueur devant pour de bon (la règle de ceQuiADecide).
+      const f = m.feuille, c = m.gfA > m.gfB ? 'A' : 'B';
+      const but = f ? f.buts.slice().sort((x, y) => x.instant - y.instant).filter(b => b.cote === c)[c === 'A' ? m.gfB : m.gfA] : null;
+      const bouge = avant.rang - rangDe(you);
+      corps = `<div class="passage-match">${eq(m.A, m.gfA)}<i>${m.ot ? 'P' : '–'}</i>${eq(m.B, m.gfB)}</div>
+        <div class="passage-tampon ${v ? 'v' : 'd'}">${v ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}</div>
+        ${but && but.marqueur ? `<p class="passage-recit">${ctx.esc(recitDeBut({ ...but, gagnant: true }))}</p>` : ''}
+        <p class="passage-rang">${rangMot(rangDe(you))} de la ligue${bouge ? ` <span class="${bouge > 0 ? 'bon' : 'prix'}">${bouge > 0 ? '▲' : '▼'} ${Math.abs(bouge)}</span>` : ''}</p>`;
+      son = v ? 'recompense' : 'rate';
+    } else if (nouveaux.length) {
+      const W = nouveaux.filter(x => gagne(x.m, you)).length, OTL = nouveaux.filter(x => !gagne(x.m, you) && x.m.ot).length;
+      corps = `<div class="passage-tampon ${2 * W >= nouveaux.length ? 'v' : 'd'}">${nouveaux.length} matchs · ${W}-${nouveaux.length - W - OTL}-${OTL}</div>
+        <p class="passage-rang">${rangMot(rangDe(you))} de la ligue</p>`;
+    } else {
+      // Un congé : la ligue joue sans toi, et le plus gros pointage du soir fait la manchette.
+      const gros = matchs.slice().sort((x, y) => Math.abs(y.gfA - y.gfB) - Math.abs(x.gfA - x.gfB) || (y.gfA + y.gfB) - (x.gfA + x.gfB))[0];
+      corps = `<div class="passage-tampon conge">Congé</div>${gros ? `<p class="passage-recit">${ctx.esc(ctx.teamLabel(gros.gfA > gros.gfB ? gros.A : gros.B))} l'emporte ${Math.max(gros.gfA, gros.gfB)}–${Math.min(gros.gfA, gros.gfB)}${gros.ot ? ' en prolongation' : ''}.</p>` : ''}`;
+    }
+    // Le fil des autres résultats du soir, deux fois de suite pour qu'il défile sans couture.
+    const autres = matchs.filter(m => m.A !== you && m.B !== you)
+      .map(m => `<span class="passage-score">${ctx.logo(m.A.tag, 14)}${ctx.esc(ctx.tagCourt(m.A))} <b>${m.gfA}–${m.gfB}</b> ${ctx.esc(ctx.tagCourt(m.B))}${ctx.logo(m.B.tag, 14)}</span>`).join('');
+    const el = document.createElement('div');
+    el.className = 'passage';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = `<div class="passage-boite"><div class="passage-tete">${tete}</div>${corps}</div>${autres ? `<div class="passage-fil"><div class="passage-defile">${autres}${autres}</div></div>` : ''}`;
+    el.addEventListener('animationend', e => { if (e.target === el) el.remove(); });
+    setTimeout(() => el.remove(), 4000);
+    document.body.appendChild(el);
+    if (son) jouerSon(son, 0.15);
   }
 
   function avancerPuisResumer(n) {
@@ -1749,6 +1803,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     dessiner();
     // Le résultat d'hier est en tête de l'affiche : on la remonte, sinon on relit les boutons du bas.
     for (let el = carte; el && el !== document.body; el = el.parentElement) if (el.scrollTop > 0) el.scrollTop = 0;
+    passage(avant);
     tabs.suivre('journee');
     if (entracteDemande) { retenir = false; ouvrirEntracte(); return; }
     if (!ouvrirSommaire(avant)) { retenir = false; dessiner(); }

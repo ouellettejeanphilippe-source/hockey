@@ -36,6 +36,19 @@ let chargement = null;       // la promesse de actionsDisponibles()
 let surLeWeb = false;        // les fichiers img/actions/ répondent
 
 /*
+ * LA PHOTO DE FOND (1.0, oct.). JP : *mettre des images en action dans le background avec un noir
+ * opacité .7 pour s'assurer que ça reste lisible*. La photo du meilleur pointeur d'un groupe qui en a
+ * une, par `actionSrc` — la même que sur sa carte : img/actions sur le Web, le tiroir sur l'appareil.
+ * Jamais la LNH depuis le Web (le smoke le refuse). Rend son adresse, ou null.
+ */
+export function photoDeFond(joueurs) {
+  if (!liste) return null;
+  const pts = p => (p.pt ?? ((p.g || 0) + (p.a || 0))) || 0;
+  const p = joueurs.filter(x => x && liste.has(Number(x.id))).sort((a, b) => pts(b) - pts(a))[0];
+  return p ? actionSrc(p.id) : null;
+}
+
+/*
  * Au démarrage : la liste, et si les photos se montrent. Rend les joueurs
  * dont une carte peut montrer la photo (sur l'appareil : ceux à télécharger).
  */

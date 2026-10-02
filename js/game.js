@@ -33,7 +33,7 @@ import { estD as isD, esc, money, pct3, pmMatch } from './util.js';
 import { getSecondaryPosition, getEraFactor, getEraSalary, getLineZone, getArchetype } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
-import { actionsDisponibles, demarrerActions } from './actions.js';
+import { actionsDisponibles, demarrerActions, photoDeFond } from './actions.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { brancherBilan, teamLabel, teamShort, tagCourt } from './bilan.js';
 import { activerSons, jouerSon } from './sons.js';
@@ -828,6 +828,10 @@ export function applyTeamColors(team) {
   root.setProperty('--gold', vive);
   root.setProperty('--gold-soft', `color-mix(in srgb, ${vive} 15%, transparent)`);
   root.setProperty('--sur-or', encreSur(vive));
+  // LA PHOTO DE FOND (1.0, oct.) : ta vedette en saison, celle du vestiaire tiré au repêchage ; sous un voile noir (style.css, --scene).
+  const v = vestiaire();
+  const src = photoDeFond(code === 'YOU' ? signes() : v && v.team === team ? v.pool : []);
+  root.setProperty('--photo', src ? `url("${src}")` : 'none');
 }
 
 export function positionLabel(p) {
