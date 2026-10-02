@@ -57,8 +57,9 @@ function avecQuantite(m, canaux, base) {
   for (const [debut, canal, un, plusieurs] of QUANTITES) {
     if (!String(m.txt).startsWith(debut) || !canaux[canal] || !base[canal]) continue;
     const q = (canaux[canal] - 1) * base[canal] * (base.part || 1);
-    if (Math.abs(q) < 0.05) return m;
-    const n = Math.abs(q).toFixed(1).replace('.', ',');
+    if (Math.abs(q) < 0.005) return m;
+    // Un petit effet se dit au centième : « ≈ −0,02 but » est la vérité, pas un zéro.
+    const n = Math.abs(q).toFixed(Math.abs(q) < 0.1 ? 2 : 1).replace('.', ',');
     return { ...m, txt: `${m.txt} ≈ ${q > 0 ? '+' : '−'}${n} ${Math.abs(q) >= 2 ? plusieurs : un} ${base.par || 'par match'}` };
   }
   return m;
@@ -1235,6 +1236,7 @@ export function ouvrirMainDeMatch(spec) {
           ${jouees.length ? `<div class="main-jouees">${jouees.map(c => `<span class="main-jouee">${CARTES_MATCH[c].ico} ${esc(CARTES_MATCH[c].nom)}</span>`).join('')}</div>` : '<div class="main-vide">Aucune carte jouée. Touche une carte pour la jouer.</div>'}
           ${mots.length ? `<div class="choix-puces">${puces(mots)}</div>` : ''}
         </div>
+        ${spec.stats || ''}
         <div class="main-boutons">
           <button type="button" class="btn go main-jouer"${spec.ajustements && !aj ? ' disabled' : ''}>${esc(spec.ajustements && !aj ? 'Choisis ton ajustement' : jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer')}</button>
         </div>

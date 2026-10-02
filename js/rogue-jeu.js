@@ -417,7 +417,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
     ...(enSaison ? { build: buildDe(decs, j + 1), coachsActifs: coachsActifs(decs, j + 1), coachRun: (rogue && G.rogue && G.rogue.coach) || null, joueurs: joueursDesCoachs(Lg.you) } : {}),
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
-    jouer: item => jouerCarte(item, j, decider),
+    jouer: item => jouerCarte(item, j, decider, page),
     vendre: item => decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }),
   });
 }
@@ -448,14 +448,15 @@ export function cartesAJouer(j) {
  * datée d'aujourd'hui (`joue` dit d'où elle sort, pour la poche). Un
  * consommable permanent quitte le méta à ce moment-là.
  */
-function jouerCarte(item, j, decider) {
+function jouerCarte(item, j, decider, page = null) {
   const c = BANQUE[item.id];
   if (!c || !decider) return;
   const Lg = G.ligue, decs = decisionsDeLaPartie(), you = Lg.you;
   const joue = { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) };
   // v2 : une carte de coach grandit avec les cartes de son coach déjà jouées (js/banque.js `grandi`).
   const build = buildDe(decs, j + 1), joueurs = joueursDesCoachs(you);
-  const retour = () => ouvrirInventaireJeu(j, decider);
+  // « Retour » revient dans la page d'où l'on venait (« Tes cartes ») ; sans elle, l'inventaire flottait par-dessus le Marché.
+  const retour = () => ouvrirInventaireJeu(j, decider, page && page.dans && page.dans.isConnected ? page : null);
   const ecrire = payload => {
     if (!payload) return;
     if (item.src === 'meta') retirerDuMeta(item.id);

@@ -99,6 +99,25 @@ function lignesEntracte(f, cMoi, cLui, saison) {
     ['Mises en échec', ...deux(coups, c => parM(c, 'CO'))],
   ];
 }
+/*
+ * AVANT UN GROS MATCH, LES DEUX CLUBS EN CHIFFRES (1.0, oct.). JP : *matchs importants, montrer les stats,
+ * dont énergie moyenne, car sinon je choisis cartes et ajustements dans le vide*. Les canaux des cartes, par
+ * match sur la saison, et les jambes moyennes des habillés ce soir — de vraies stats, jamais une cote.
+ * `saison(t)` : { n, GF, GA, SF, PKO, CO } du club, ou null.
+ */
+function statsAvantGros(ctx, moi, lui, saison) {
+  const jambes = t => {
+    const js = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => t.roster[sl.i]).filter(Boolean);
+    return js.length ? Math.round(js.reduce((a, p) => a + (p.energie ?? 100), 0) / js.length) : '—';
+  };
+  const parM = (t, k, d) => { const S = saison(t); return S && S.n ? (S[k] / S.n).toFixed(d).replace('.', ',') : '—'; };
+  const prec = t => { const S = saison(t); return S && S.SF ? `${Math.round(100 * S.GF / S.SF)} %` : '—'; };
+  const lignes = [['Buts', parM(moi, 'GF', 2), parM(lui, 'GF', 2)], ['Buts contre', parM(moi, 'GA', 2), parM(lui, 'GA', 2)],
+    ['Tirs', parM(moi, 'SF', 1), parM(lui, 'SF', 1)], ['Précision', prec(moi), prec(lui)], ['Punitions', parM(moi, 'PKO', 1), parM(lui, 'PKO', 1)],
+    ['Mises en échec', parM(moi, 'CO', 1), parM(lui, 'CO', 1)], ['Jambes moyennes', jambes(moi), jambes(lui)]];
+  const t = x => ctx.esc(x);
+  return `<table class="ent2-stats"><thead><tr><th>Par match</th><th>${t(ctx.tagCourt(moi))}</th><th>${t(ctx.tagCourt(lui))}</th></tr></thead><tbody>${lignes.map(([k, a, b]) => `<tr><th>${t(k)}</th><td>${a}</td><td>${b}</td></tr>`).join('')}</tbody></table>`;
+}
 /* La saison d'un club lue sur les feuilles jouées : ce que les séries n'ont plus en fiche, et les forces du bilan. */
 export function saisonDesFeuilles(calendrier) {
   const out = new Map();
@@ -1023,6 +1042,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       titre: 'Avant le match', sousTitre: `Journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
       recit: 'Le dépistage dit ce qu\'ils vont probablement jouer : prépare-toi pour une piste, puis joue tes cartes — cinq cartes, trois d\'élan, pour ce match seulement.',
       depistage: mo.mb.depistage, planReel: mo.mb.plan, nomAdv: ctx.teamShort(adv),
+      stats: statsAvantGros(ctx, you, adv, t => ({ n: gpDe(t), ...fiche.get(t) })),
       contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }), echelle: echelleTardive({ jour: mo.p.j }) }),
       // S80 : l'échelle du soir — ce qui vise l'adversaire grandit avec la saison.
       echelle: echelleTardive({ jour: mo.p.j }),
@@ -3502,17 +3522,30 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees, enMain }, prep: piste ? [piste] : [], auto: true }));
       };
       if (serieDelegue()) { setTimeout(() => { if (!termine) parLAdjoint(); }, 0); return; }
-      ouvrirMainDeMatch({
+      /*
+       * L'ACCUEIL ENTRE LES MATCHS (1.0, oct.). JP : *en séries, montrer l'accueil entre les matchs*. La main
+       * ne s'ouvre plus d'elle-même par-dessus le bureau de la série : un bouton la propose, et « Match
+       * suivant » ou « Regarder » l'ouvrent d'abord tant qu'elle n'est pas jouée — comme en saison, où la
+       * main du gros match bloque la journée.
+       */
+      const ouvrirLaMain = () => ouvrirMainDeMatch({
         titre: `Avant le match ${k + 1}`,
         sousTitre: `${nomRondeCourt(ronde)} · match ${k + 1} · contre ${ctx.teamShort(boss)} · série ${moi}-${lui}`,
         recit: `${resultatPrecedent(s, k)}${k === 0 ? '' : etat === 'derriere' ? 'Ta formation tire de l\'arrière. ' : etat === 'devant' ? 'Ta formation mène la série. ' : 'La série est à égalité. '}${suiteDuPlan(s)} Prépare-toi pour une piste${dejaAjuste ? '' : ', choisis ton ajustement'}, puis joue tes cartes.`,
         depistage: pl ? pl.depistage : null, planReel: pl ? pl.plan : null, nomAdv: ctx.teamShort(boss),
+        stats: statsAvantGros(ctx, you, boss, t => saisonFeuilles.get(t) || null),
         contexte: mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }), echelle: echelleTardive({ serie: true, ronde }) }),
         echelle: echelleTardive({ serie: true, ronde }),
         ajustements: offres ? offres.map(c => ({ cle: c, ...AJUSTEMENTS[c] })) : null,
         equipe: you, main, pioche, deck, onAdjoint: parLAdjoint, couleurs: ctx.band(boss.tag),
         onJouer: (jouees, enMain, ajustement, prep) => quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees, enMain }, prep })),
       });
+      const barre = actions.querySelector('.hub-barre');
+      if (barre) barre.insertAdjacentHTML('afterbegin', `<button type="button" class="btn go hub-main-serie" data-defaut>🃏 Tes cartes · match ${k + 1}</button>`);
+      const bm = actions.querySelector('.hub-main-serie');
+      if (bm) bm.onclick = ouvrirLaMain;
+      // Le match ne se joue pas avant la main : ses boutons l'ouvrent d'abord.
+      for (const b of actions.querySelectorAll('.hub-jour, .hub-regarder')) b.onclick = ouvrirLaMain;
     }
   }
 

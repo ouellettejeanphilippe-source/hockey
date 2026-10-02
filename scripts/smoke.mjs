@@ -3056,10 +3056,16 @@ if (enabled) {
         const ds = await dsDe();
         if (!ds.some(d => Array.isArray(d.lignes) && d.match_no === 0)) errors.push(`la sauvegarde ne porte pas les lignes du round 1 : ${JSON.stringify(ds)}`);
       }
-      await page.click('#hubModal .hub-jour');
-      await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
-      await page.waitForTimeout(400);
-      await repondreAuxChoix();
+      // L'ACCUEIL ENTRE LES MATCHS (1.0, oct.) : la main attend « Tes cartes » (ou ouvre au « Match suivant ») ; on
+      // joue la main du match 1, le match 1, puis la main du match 2 — celle qui porte l'ajustement.
+      const vuAvant = () => (choixVus.get('hub-dilemme') || []).slice(vusAvant).some(t => /Avant le match \d/.test(t));
+      for (let i = 0; i < 5 && !vuAvant(); i++) {
+        if (await page.$('#hubModal .hub-main-serie')) await page.click('#hubModal .hub-main-serie');
+        else await page.click('#hubModal .hub-jour');
+        await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
+        await page.waitForTimeout(400);
+        await repondreAuxChoix();
+      }
       await page.waitForTimeout(400);
       const ds = await dsDe();
       const aj = ds.find(d => d.ajustement);
@@ -3120,6 +3126,22 @@ if (enabled) {
     const noeuds = await page.$$eval('#hubModal .bk-serie', l => l.length);
     await aller('match');
     await page.waitForTimeout(200);
+    /*
+     * L'ACCUEIL ENTRE LES MATCHS (1.0, oct.). JP : *en séries, montrer l'accueil entre les matchs*. La main
+     * ne couvre plus le bureau de la série : « Tes cartes » la propose, et on la joue avant de regarder.
+     */
+    const mainSerie = await page.$('#hubModal .hub-main-serie');
+    if (mainSerie) {
+      if (await page.$('#choixModal:not([hidden])')) errors.push('séries : la main du match s\'ouvre par-dessus l\'accueil au lieu d\'attendre « Tes cartes »');
+      else console.log(`   séries : l'accueil entre les matchs, « ${(await mainSerie.textContent()).trim()} »`);
+      await mainSerie.click();
+      await _wait('#choixModal:not([hidden]) .main-sheet', { timeout: 5000 });
+      const stats = await page.$$eval('#choixModal .ent2-stats tbody th', l => l.map(e => e.textContent.trim()));
+      if (!stats.includes('Jambes moyennes')) errors.push(`séries : la main du soir ne montre pas les stats des deux clubs (${stats.join(', ') || 'rien'})`);
+      await repondreAuxChoix();
+      await aller('match');
+      await page.waitForTimeout(200);
+    }
     const regarder = await page.$('#hubModal .hub-regarder');
     let xe = 'pas de match à regarder';
     if (regarder) {
