@@ -276,6 +276,9 @@ export function ouvrirChoix(spec) {
     || (spec.options[a].rang || 0) - (spec.options[b].rang || 0) || a - b);
   const rangDe = i => ordre.indexOf(i);
   const meilleure = spec.options.reduce((b, o) => ((RANG_RARETE[o.rarete] || 0) > (RANG_RARETE[b] || 0) ? o.rarete : b), 'commune');
+  // LE WALKOUT (1.0, oct.), comme FUT et HUT : la carte du pack — une holo, une or, un Phénomène — s'annonce avant de sortir.
+  const vedette = paquet && ordre.length ? spec.options[ordre[ordre.length - 1]] : null;
+  const walkout = vedette && vedette.walkout && ((RANG_RARETE[vedette.rarete] || 0) >= RANG_RARETE.rare || vedette.eclat) ? vedette.walkout : null;
   // Le genre dit CE QUE C'EST, à part du titre : un événement n'est pas le combat, le butin n'est pas l'événement.
   const BADGE = { evenement: 'Événement', recompense: 'Butin', entracte: 'Combat' };
   const badgeTxt = spec.regle && spec.genre === 'evenement' ? 'Événement · Règlement' : (BADGE[spec.genre] || '');
@@ -344,7 +347,7 @@ export function ouvrirChoix(spec) {
   });
   for (const x of m.querySelectorAll('.choix-fermer, .choix-plus-tard')) x.onclick = () => fermer();
   pointsDeBande(m);
-  if (paquet) brancherPaquet(m, spec.options.length, () => PAQUETS_OUVERTS.add(clePaquet));
+  if (paquet) brancherPaquet(m, spec.options.length, () => PAQUETS_OUVERTS.add(clePaquet), walkout);
   const premier = m.querySelector(paquet ? '.paquet' : '.choix-option:not([disabled])');
   if (premier) premier.focus({ preventScroll: true });
   return () => fermer(true);
@@ -463,8 +466,14 @@ export function ouvrirAlignement(spec) {
  * fini, un toucher n'importe où dans la feuille est intercepté (en capture)
  * — il ouvre, puis il montre tout — pour qu'un doigt pressé ne prenne pas une
  * carte encore face cachée. Le ✕ reste le ✕ : on peut passer sans ouvrir.
+ *
+ * LE WALKOUT (1.0, oct.). JP : *regarde comment d'autres jeux gèrent les cartes, les FUT et HUT*. Quand
+ * le pack cache une holo, une or ou un Phénomène, FUT fait attendre : le drapeau, le poste, le club, puis
+ * le joueur. Ici, la saison, le poste, l'écusson — trois temps de 650 ms entre le rabat et les cartes —
+ * et la carte sort la dernière, comme avant. Un toucher saute tout.
  */
-function brancherPaquet(m, n, ouvert) {
+const WALKOUT_PAS = 650;
+function brancherPaquet(m, n, ouvert, walkout = null) {
   const feuille = m.querySelector('.choix-sheet');
   if (!feuille) return;
   let etat = 'ferme', minuteur = 0, dechire = 0;
@@ -472,6 +481,8 @@ function brancherPaquet(m, n, ouvert) {
     if (etat === 'fini') return;
     etat = 'fini';
     clearTimeout(minuteur); clearTimeout(dechire);
+    const wo = feuille.querySelector('.walkout');
+    if (wo) wo.remove();
     feuille.classList.remove('paquet-ferme', 'paquet-dechire');
     feuille.classList.add('paquet-revele', 'paquet-fini');
     ouvert();
@@ -487,8 +498,20 @@ function brancherPaquet(m, n, ouvert) {
     // Le paquet a fini de tomber : on l'enlève et les cartes sortent. `paquet-dechire`
     // doit PARTIR ici : tant qu'il est posé, la bande reste invisible, et les cartes se
     // retournaient derrière elle — face cachée à l'écran quand le minuteur finissait.
-    dechire = setTimeout(() => { if (etat === 'ouvre') { feuille.classList.replace('paquet-dechire', 'paquet-revele'); jouerSon('recompense'); } }, DECHIRE);
-    minuteur = setTimeout(finir, DECHIRE + (n - 1) * REVELE_PAS + REVELE_CARTE + 200);
+    const reveler = () => { if (etat === 'ouvre') { feuille.querySelector('.walkout')?.remove(); feuille.classList.replace('paquet-dechire', 'paquet-revele'); jouerSon('recompense'); } };
+    const attente = walkout ? 3 * WALKOUT_PAS + 300 : 0;
+    dechire = setTimeout(() => {
+      if (!walkout) { reveler(); return; }
+      if (etat !== 'ouvre') return;
+      const wo = document.createElement('div');
+      wo.className = 'walkout';
+      wo.setAttribute('aria-hidden', 'true');
+      wo.innerHTML = `<span class="wo-pas">${walkout.saison}</span><span class="wo-pas">${walkout.pos}</span><span class="wo-pas wo-ecu">${walkout.logo}</span>`;
+      feuille.appendChild(wo);
+      [0, 1, 2].forEach(i => setTimeout(() => { if (etat === 'ouvre') { wo.dataset.pas = String(i + 1); jouerSon(i < 2 ? 'tap' : 'valide'); } }, i * WALKOUT_PAS));
+      dechire = setTimeout(reveler, attente);
+    }, DECHIRE);
+    minuteur = setTimeout(finir, DECHIRE + attente + (n - 1) * REVELE_PAS + REVELE_CARTE + 200);
   };
   feuille.addEventListener('click', ev => {
     if (etat === 'fini' || ev.target.closest('.choix-fermer')) return;

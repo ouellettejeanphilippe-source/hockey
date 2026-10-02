@@ -304,6 +304,8 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
         cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
         art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
         carteJoueur: miniAvecVariante(x.p, x.rar),
+        // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
+        walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
         // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
         texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
           // v2 : sa couleur — il porte la confiance de ce coach et fait grandir ses cartes de vestiaire.

@@ -3641,6 +3641,16 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 }
 @keyframes paquet-rabat { to { transform: translate(46px, -70px) rotate(28deg); opacity: 0; } }
 @keyframes paquet-eclat { 0% { transform: scale(1); opacity: 1; } 60% { transform: scale(1.7); opacity: 1; } 100% { transform: scale(2.1); opacity: 0; } }
+/* LE WALKOUT (js/gerant.js, brancherPaquet) : la saison, le poste, l'écusson de la carte du pack, un à la fois, sur des rayons d'or qui tournent. */
+.walkout { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; overflow: hidden; pointer-events: none; background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--or) 22%, var(--noir)), var(--noir) 72%); }
+.walkout::before { content: ""; position: absolute; inset: -50%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--or) 18%, transparent) 0 6deg, transparent 6deg 18deg); animation: wo-rayons 6s linear infinite; }
+.wo-pas { grid-area: 1 / 1; position: relative; opacity: 0; font: 800 var(--t-7)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--or); text-shadow: 0 0 28px color-mix(in srgb, var(--or) 70%, transparent); }
+.wo-ecu { display: grid; place-items: center; filter: drop-shadow(0 0 24px color-mix(in srgb, var(--or) 70%, transparent)); }
+.walkout[data-pas="1"] .wo-pas:nth-child(1), .walkout[data-pas="2"] .wo-pas:nth-child(2), .walkout[data-pas="3"] .wo-pas:nth-child(3) { animation: wo-entre 650ms var(--e-ressort) forwards; }
+@keyframes wo-entre { 0% { opacity: 0; transform: scale(2.4); } 35% { opacity: 1; transform: scale(0.94); } 55% { transform: scale(1.04); } 85% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1); } }
+.walkout[data-pas="3"] .wo-pas:nth-child(3) { animation-name: wo-reste; }
+@keyframes wo-reste { 0% { opacity: 0; transform: scale(2.4); } 35% { opacity: 1; transform: scale(0.94); } 60%, 100% { opacity: 1; transform: scale(1); } }
+@keyframes wo-rayons { to { transform: rotate(360deg); } }
 /* On révèle (900 ms par carte, 320 ms entre deux, dans l'ordre --tc-r) : chaque carte sort face cachée et se retourne ; la meilleure en dernier. */
 .paquet-revele .choix-main > .choix-option.tc { animation: tc-sort 0.9s var(--e-sortie) backwards; animation-delay: calc(var(--tc-r, 0) * 320ms); }
 .paquet-revele .choix-main > .choix-option.tc > .tc-dos { animation: tc-dos-part 0.9s linear both; animation-delay: calc(var(--tc-r, 0) * 320ms); }

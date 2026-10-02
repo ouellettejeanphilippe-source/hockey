@@ -232,9 +232,13 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
  * plafond), puis l'ouverture.
  */
 const decisions = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
+// LE WALKOUT (1.0, oct.) : un pack qui cache une holo, une or ou un Phénomène l'annonce en trois temps avant les cartes.
+let walkouts = 0;
 const dechirer = async () => {
   const paquet = await page.waitForSelector('#choixModal:not([hidden]) .paquet', { timeout: 60000 }).catch(() => null);
-  if (paquet) { await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(300); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); }
+  if (paquet) { await page.click('#choixModal .paquet', { force: true });
+    if (await page.waitForSelector('#choixModal .walkout[data-pas="3"]', { timeout: 2600 }).catch(() => null)) { if (!walkouts++) { await page.waitForTimeout(350); await page.screenshot({ path: `${DOSSIER}/rogue-walkout.png` }); } }
+    await page.waitForTimeout(300); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); }
   await page.waitForTimeout(600);
 };
 const acheter = async (pack, capture) => {
@@ -683,6 +687,7 @@ const m3 = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogu
 const tete = await page.textContent('.tete-nom');
 console.log(`18. ton club : ${nClub} noms, couleurs et écussons · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
 if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
+console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson)`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);
