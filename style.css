@@ -3754,6 +3754,13 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 /* ---- « Qui sort ? » (.choix-aln, ouvrirAlignement) : neuf rangées titrées, les cases en grille, la barre de décision en bas ---- */
 .choix-aln .choix-corps { gap: var(--esp-3); padding-top: var(--esp-3); }
 .aln { display: flex; flex-direction: column; gap: var(--esp-3); }
+/* Les sauts de ligne : une rangée de boutons collée en haut du corps de la fenêtre. */
+.aln-sauts { position: sticky; top: calc(-1 * var(--esp-4)); z-index: 2; display: flex; gap: var(--esp-1); margin: 0 calc(-1 * var(--esp-4)) var(--esp-2); padding: var(--esp-2) var(--esp-4); overflow-x: auto; scrollbar-width: none; background: var(--fond-1); border-bottom: 1px solid var(--filet); }
+.aln-sauts::-webkit-scrollbar { display: none; }
+.aln-saut { flex: 1 0 auto; min-width: 40px; min-height: 36px; padding: 0 var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; transition: transform var(--t-lent) var(--e-ressort), color var(--t-vite), border-color var(--t-vite); }
+.aln-saut:hover { color: var(--encre); border-color: var(--club-vif); }
+.aln-saut:active { transform: scale(0.92); }
+.aln-rangee { scroll-margin-top: 56px; }
 .aln-rangee { display: flex; flex-direction: column; gap: var(--esp-1); }
 .aln-titre { margin: 0 2px; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }
 .aln-titre small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: none; color: var(--encre-3); }

@@ -374,10 +374,17 @@ export function ouvrirChoix(spec) {
  * quand toute une rangée l'est pour la même raison, la raison se dit une fois,
  * dans son titre.
  *
- * spec : { ico, titre, recit, contexte, aide, motFermer, motConfirmer,
+ * spec : { ico, titre, contexte, aide, motFermer, motConfirmer,
  *          rangees: [{ titre, cases: [{ cle, vide, visage, nom, nomLong, pos, marque, marqueMot, note, non }] }],
  *          barre(cle) → html, onChoix(cle) | onApercu(cle), onFerme() }
  */
+/*
+ * LES SAUTS DE LIGNE (1.0, oct.). JP : *ajouter un bouton des lignes, et enlever la section de texte du haut*.
+ * Neuf rangées ne tiennent pas dans un téléphone : une rangée de boutons, collée en haut du corps, va à la
+ * ligne voulue — les mots de la zone (T1, P1…) ; le paragraphe d'explication est parti, la barre du bas dit
+ * déjà ce que fait un toucher.
+ */
+const SAUT = { '1er trio': 'T1', '2e trio': 'T2', '3e trio': 'T3', '4e trio': 'T4', '1re paire': 'P1', '2e paire': 'P2', '3e paire': 'P3', Gardiens: 'G', 'Réserve': 'Rés.' };
 export function ouvrirAlignement(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
@@ -390,7 +397,7 @@ export function ouvrirAlignement(spec) {
   const partout = communes.length >= 3 && communes.every(x => x === communes[0]) ? communes[0] : '';
   const rangee = r => {
     const commune = communeDe(r);
-    return `<section class="aln-rangee${commune ? ' grisee' : ''}" data-cases="${r.cases.length}">
+    return `<section class="aln-rangee${commune ? ' grisee' : ''}" data-cases="${r.cases.length}" data-rangee="${esc(r.titre)}">
       <h3 class="aln-titre">${esc(r.titre)}${commune && !partout ? ` <small>· ${esc(commune)}</small>` : ''}</h3>
       <div class="aln-cases">${r.cases.map(c => (c.vide
         ? `<div class="aln-case aln-vide" aria-label="Case vide"><span class="aln-nom">Case vide</span>${c.pos ? `<span class="aln-pos">${esc(c.pos)}</span>` : ''}</div>`
@@ -409,9 +416,9 @@ export function ouvrirAlignement(spec) {
       <button type="button" class="close-btn choix-fermer" aria-label="${esc(spec.motFermer || 'Retour')}" title="${esc(spec.motFermer || 'Retour')}">✕</button>
     </div>
     <div class="choix-corps">
-      ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
       ${spec.contexte || ''}
       ${partout ? `<p class="aln-grises">Grisées : ${esc(partout)}.</p>` : ''}
+      <nav class="aln-sauts" aria-label="Aller à une ligne">${spec.rangees.map(r => `<button type="button" class="aln-saut" data-saut="${esc(r.titre)}">${esc(SAUT[r.titre] || r.titre)}</button>`).join('')}</nav>
       <div class="aln">${spec.rangees.map(rangee).join('')}</div>
     </div>
     <div class="aln-barre">
@@ -448,6 +455,7 @@ export function ouvrirAlignement(spec) {
   });
   if (ok) ok.onclick = () => { if (!choisie) return; const k = choisie; fermer(true); spec.onChoix(k); };
   for (const x of m.querySelectorAll('.choix-fermer, .aln-retour')) x.onclick = () => fermer();
+  for (const x of m.querySelectorAll('.aln-saut')) x.onclick = () => m.querySelector(`.aln-rangee[data-rangee="${CSS.escape(x.dataset.saut)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   // La première case qu'on peut prendre se montre : une carte de gardien ouvre sur les gardiens, pas sur le 1er trio grisé.
   const premier = m.querySelector('.aln-case[data-aln]:not([disabled])');
   if (premier) {

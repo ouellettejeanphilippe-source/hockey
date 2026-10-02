@@ -226,18 +226,17 @@ async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
 const alignementsVus = [];
 async function sortirDansAlignement() {
   /*
-   * D'ABORD LES CARTES (1.0, oct.) : « qui sort ? » est une liste de ton
-   * effectif, chacun comparé à l'arrivant (sa fiche, son salaire, la masse) ;
-   * l'alignement vient ensuite, pour placer l'arrivant.
+   * DEUX ALIGNEMENTS (1.0, oct.). JP : *le « qui sort » devrait être un alignement avec des mini cartes,
+   * comme la fenêtre d'après*. « Qui sort ? » est l'alignement (chaque case dit la masse), puis « Où joue
+   * X ? » l'est aussi : les deux passent les mêmes exigences, l'une après l'autre.
    */
-  await _wait('#choixModal:not([hidden]) :is(.choix-option, .aln-case)', { timeout: 5000 });
-  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) {
-    const liste = await page.$$eval('#choixModal .choix-option', l => l.map(o => ({ permis: !o.disabled, puces: o.querySelectorAll('.puce').length })));
-    if (liste.length < 20) errors.push(`« qui sort ? » ne liste que ${liste.length} joueurs`);
-    if (liste.some(o => o.puces < 2)) errors.push('« qui sort ? » : un joueur sans sa fiche ou sa masse');
-    if (!liste.some(o => o.permis)) { errors.push('« qui sort ? » : personne ne peut sortir'); return false; }
-    await page.$eval('#choixModal .choix-option:not([disabled])', b => b.click());
+  for (let etape = 0; etape < 2; etape++) {
+    if (etape && !(await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 3000 }).catch(() => null))) break;
+    if (!(await alignementDuChoix())) return false;
   }
+  return true;
+}
+async function alignementDuChoix() {
   await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 5000 });
   await page.waitForTimeout(150);
   const lu = await page.evaluate(() => {
