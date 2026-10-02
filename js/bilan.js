@@ -15,7 +15,7 @@ import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, ti
 import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { ouvrirSeries } from './saison.js';
+import { ouvrirSeries, saisonDesFeuilles } from './saison.js';
 import { hubActif } from './coquille.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
 import { RARETES, sensRarete } from './cartes.js';
@@ -26,10 +26,10 @@ import { ficheDeClub, tauxDeClub } from './equipes.js';
 import { ord, ordF, pct3, pmMatch, varsEquipe } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
+let $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue } = c);
+  ({ $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue } = c);
 }
 
 /* =====================================================================
@@ -489,6 +489,34 @@ function voletNiveau(teams, reelles) {
     </div>`;
 }
 
+/*
+ * LES FORCES DU CLUB, EN VRAIES STATS (1.0, oct.). JP : *j'avais des super
+ * gardiens lol* — la barre « Gardien 53 » était une cote cachée (la règle :
+ * jamais dans le DOM), prise au jour 0 sur l'alignement du repêchage : un
+ * gardien arrivé en route, ou « la passoire » de Rask, n'y comptaient pas.
+ * Chaque force est maintenant une vraie stat de la saison entière, et la
+ * barre suit ton rang dans la ligue.
+ */
+function forcesHtml(you, calendrier) {
+  const S = saisonDesFeuilles(calendrier);
+  const moi = S.get(you);
+  if (!moi || !moi.n) return '';
+  const clubs = [...S.values()].filter(x => x.n);
+  const v = (x, d) => x.toFixed(d).replace('.', ',');
+  const FORCES = [
+    ['Attaque', x => x.GF / x.n, 1, x => `${v(x.GF / x.n, 2)} buts par match`],
+    ['Défense', x => x.SA / x.n, -1, x => `${v(x.SA / x.n, 1)} tirs accordés par match`],
+    ['Devant le filet', x => (x.SA ? 1 - x.GA / x.SA : 0), 1, x => `${pct3(x.SA ? 1 - x.GA / x.SA : 0)} d'arrêts`],
+    ['Robustesse', x => x.CO / x.n, 1, x => `${v(x.CO / x.n, 1)} mises en échec par match`],
+    ['Clutch', x => x.serresV / Math.max(1, x.serresV + x.serresD), 1, x => `${x.serresV}-${x.serresD} dans les matchs d'un but`],
+  ];
+  const barres = FORCES.map(([nomF, val, sens, mot]) => {
+    const rang = 1 + clubs.filter(x => sens * (val(x) - val(moi)) > 1e-9).length;
+    const pct = clubs.length > 1 ? 100 * (clubs.length - rang) / (clubs.length - 1) : 100;
+    return `<div class="bar"><div class="bl">${esc(nomF)}</div><div class="bt"><div class="bf" style="width:${pct.toFixed(0)}%"></div></div><div class="bv">${rang === 1 ? '1er' : `${rang}e`}</div><div class="bm">${esc(mot(moi))}</div></div>`;
+  }).join('');
+  return `<div class="result-section"><h3>Forces des NHL Stars</h3><div class="bars">${barres}</div></div>`;
+}
 export function renderResult(r, you, teams, leaders, calendrier = []) {
   const nTeams = teams.length;
   const rank = teams.findIndex(t => t.isPlayer) + 1;
@@ -646,16 +674,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       ${cartesPrises}
       ${tonDeck}
       ${vestiaire}
-      <div class="result-section">
-        <h3>Forces des NHL Stars</h3>
-        <div class="bars">
-          ${bar('Attaque', r.attaque)}
-          ${bar('Brigade déf.', r.brigade)}
-          ${bar('Gardien', r.gRating)}
-          ${bar('Robustesse', r.rob)}
-          ${bar('Clutch', r.clu)}
-        </div>
-      </div>
+      ${forcesHtml(you, calendrier)}
       <div class="result-section">
         <h3>Infirmerie</h3>
         ${injuries}

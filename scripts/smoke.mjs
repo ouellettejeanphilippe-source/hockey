@@ -2663,6 +2663,11 @@ if (enabled) {
     const conseil = ((await page.textContent('#resultHost .note').catch(() => '')) || '').trim();
     if (!/\d/.test(conseil) || /trois derniers trios|bât blesse/.test(conseil)) errors.push(`le conseil du bilan ne cite aucun chiffre : « ${conseil} »`);
     else console.log(`   le conseil du bilan : « ${conseil} »`);
+    // LES FORCES EN VRAIES STATS (1.0, oct.) : un rang et une stat de la saison par force, jamais une cote.
+    const forces = await page.$$eval('.result .bars .bar', l => l.map(b => [b.querySelector('.bl').textContent.trim(), b.querySelector('.bv').textContent.trim(), (b.querySelector('.bm') || {}).textContent || '']));
+    const malFaites = forces.filter(([, rang, mot]) => !/^\d+(er|e)$/.test(rang) || !/\d/.test(mot));
+    if (forces.length !== 5 || malFaites.length) errors.push(`les forces du bilan ne sont pas cinq rangs avec leur stat : ${forces.map(f => f.join(' ')).join(' · ')}`);
+    else console.log(`   les forces du bilan : ${forces.map(([n, r, m]) => `${n} ${r} (${m})`).join(' · ')}`);
     await deuxCaptures('bilan');
   }
   /*

@@ -99,16 +99,17 @@ function lignesEntracte(f, cMoi, cLui, saison) {
     ['Mises en échec', ...deux(coups, c => parM(c, 'CO'))],
   ];
 }
-/* La saison d'un club lue sur les feuilles jouées : ce que les séries n'ont plus en fiche. */
-function saisonDesFeuilles(calendrier) {
+/* La saison d'un club lue sur les feuilles jouées : ce que les séries n'ont plus en fiche, et les forces du bilan. */
+export function saisonDesFeuilles(calendrier) {
   const out = new Map();
-  const de = t => { if (!out.has(t)) out.set(t, { n: 0, GF: 0, GA: 0, SF: 0, PKO: 0, CO: 0 }); return out.get(t); };
+  const de = t => { if (!out.has(t)) out.set(t, { n: 0, GF: 0, GA: 0, SF: 0, SA: 0, PKO: 0, CO: 0, serresV: 0, serresD: 0 }); return out.get(t); };
   for (const m of (calendrier || []).flat()) {
     if (!m || !m.joue || !m.feuille) continue;
     const f = m.feuille;
     for (const [t, c, gf, ga] of [[m.A, 'A', m.gfA, m.gfB], [m.B, 'B', m.gfB, m.gfA]]) {
       const S = de(t);
-      S.n++; S.GF += gf; S.GA += ga; S.SF += tirsTotal(f, c);
+      S.n++; S.GF += gf; S.GA += ga; S.SF += tirsTotal(f, c); S.SA += tirsTotal(f, c === 'A' ? 'B' : 'A');
+      if (Math.abs(gf - ga) === 1) { if (gf > ga) S.serresV++; else S.serresD++; }
       S.PKO += (f.punitions || []).filter(x => x.cote === c).length;
       S.CO += (f.coups && f.coups[c]) || 0;
     }

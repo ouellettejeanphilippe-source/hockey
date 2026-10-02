@@ -1119,7 +1119,7 @@ async function boot() {
   document.body.dataset.effectif = 'F';
   // Le bilan (js/bilan.js) reçoit ici tout ce qu'il lui faut du contrôleur.
   brancherBilan({
-    $, G, TEAMFULL, bar, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele,
+    $, G, TEAMFULL, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele,
     capMax: () => MODE().cap,
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
     saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, deciderSerie, bancSerie, finDesSeriesRogue,
@@ -2208,13 +2208,6 @@ function showLeaderboard() {
 /* =====================================================================
    Simulation
    ===================================================================== */
-
-const bar = (label, val) => {
-  const pct = Math.max(0, Math.min(100, (val - 25) / 74 * 100));
-  return `<div class="bar"><div class="bl">${label}</div>
-    <div class="bt"><div class="bf" style="width:${pct}%"></div></div>
-    <div class="bv">${Math.round(val)}</div></div>`;
-};
 
 /**
  * Adversaires : de vraies équipes historiques prises dans les saisons déjà
