@@ -2703,9 +2703,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * ouvert, la blessure qui court, le choix qui attend). Seuls « lu »,
    * « archivé » et « réglé sans décision » se retiennent (`boite`).
    */
+  /* Tes vraies moyennes par match (trois matchs et plus) : ce qu'un pourcentage vaut en quantité (`base`, js/gerant.js). */
+  const baseDuClub = (part = 1, par = 'par match') => {
+    const n = gpDe(you), F = fiche.get(you);
+    return n >= 3 ? { volume: F.SF / n, finition: F.GF / n, defense: F.GA / n, discipline: F.PKO / n, part, par } : null;
+  };
   function messagesCourants() {
     const out = [];
-    const spec = onDecision ? choixForce() : null;
+    const spec0 = onDecision ? choixForce() : null;
+    const spec = spec0 && !spec0.ouvrir ? { ...spec0, base: baseDuClub() } : spec0;
     if (spec) {
       out.push({ id: `c:${spec.titre}`, genre: 'choix', bloque: true, de: spec.de, sujet: titreDuChoix(spec), spec,
         corps: `<div class="hub-msg-mot">${ctx.esc(String(spec.recit || '').replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : 'ton joueur').replace(/\{noms\}/g, (spec.joueurs || []).map(x => x.n).join(', ') || 'tes joueurs'))}</div>
@@ -3061,7 +3067,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv), prepJuste: mb.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
-      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(adv.tag),
+      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(adv.tag), base: baseDuClub(1 / 3, 'en 3e'),
       recit: etat === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etat === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),
@@ -3325,6 +3331,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
    */
   // La saison de chaque club, lue sur ses feuilles : l'entracte la compare au match.
   const saisonFeuilles = saisonDesFeuilles(saison && saison.calendrier);
+  const baseSerie = (part, par) => { const F = saisonFeuilles.get(you); return F && F.n ? { volume: F.SF / F.n, finition: F.GF / F.n, defense: F.GA / F.n, discipline: F.PKO / F.n, part, par } : null; };
   const planDuMatch = s => (s && s.plans && !complete(s) ? s.plans[revele.get(s)] || null : null);
   /*
    * CE QUE LE DERNIER MATCH DIT DU PROCHAIN (S76) — sans le dévoiler : le plan
@@ -3382,7 +3389,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       ${planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss), prepJuste: pl.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
-      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(boss.tag),
+      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(boss.tag), base: baseSerie(1 / 3, 'en 3e'),
       recit: etatM === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etatM === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),

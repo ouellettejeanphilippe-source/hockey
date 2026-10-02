@@ -45,6 +45,24 @@ const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
 
 /* Les puces d'un effet : vert s'il aide, rouge s'il coûte, gris s'il ne fait que déplacer. */
+/*
+ * LE POURCENTAGE EN QUANTITÉ (1.0, oct.). JP : *« Tirs +7 % », c'est tough gager... le chiffre en haut est
+ * en quantité moyenne*. Avec les vraies moyennes du club (`base` : tirs, buts, buts contre, punitions par
+ * match, et la part du match qui reste), une puce dit aussi ce que son pourcentage vaut : « Tirs +7 %
+ * ≈ +2,1 tirs par match ». La précision joue sur les buts ; la quantité est l'effet seul, toutes choses égales.
+ */
+const QUANTITES = [['Tirs ', 'volume', 'tir', 'tirs'], ['Précision ', 'finition', 'but', 'buts'], ['Buts contre ', 'defense', 'but contre', 'buts contre'], ['Punitions ', 'discipline', 'punition', 'punitions']];
+function avecQuantite(m, canaux, base) {
+  if (!base || !canaux) return m;
+  for (const [debut, canal, un, plusieurs] of QUANTITES) {
+    if (!String(m.txt).startsWith(debut) || !canaux[canal] || !base[canal]) continue;
+    const q = (canaux[canal] - 1) * base[canal] * (base.part || 1);
+    if (Math.abs(q) < 0.05) return m;
+    const n = Math.abs(q).toFixed(1).replace('.', ',');
+    return { ...m, txt: `${m.txt} ≈ ${q > 0 ? '+' : '−'}${n} ${Math.abs(q) >= 2 ? plusieurs : un} ${base.par || 'par match'}` };
+  }
+  return m;
+}
 export function puces(mots) {
   return (mots || []).map(m => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}">${esc(m.txt)}</span>`).join('');
 }
@@ -274,7 +292,7 @@ export function ouvrirChoix(spec) {
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
       <div class="choix-options${spec.cartes ? ` choix-main${paquet ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
-        const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+        const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null).map(m => avecQuantite(m, canaux, spec.base))), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
         // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner. La forme tient dans le type, le visage ne bouge pas.
         if (spec.cartes) return carteHtml({

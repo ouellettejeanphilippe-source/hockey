@@ -691,6 +691,10 @@ async function finirDirect(etiquette) {
     if (manque.length || tableau.cols !== 4) errors.push(`${etiquette} : le tableau de l'entracte n'a pas ${manque.join(', ') || 'ses quatre colonnes'} (${tableau.rangs.join(', ')} · ${tableau.cols} colonnes)`);
     if (tableau.deborde > 1) errors.push(`${etiquette} : le tableau de l'entracte déborde de ${tableau.deborde} px`);
   }
+  // LE POURCENTAGE EN QUANTITÉ (1.0, oct.) : une puce de tirs, de précision, de buts contre ou de punitions dit ce qu'elle vaut en 3e.
+  const chiffrees = await page.$$eval('#choixModal .choix-option .puce', l => l.map(e => e.textContent.trim()).filter(t => /^(Tirs|Précision|Buts contre|Punitions) [+−]/.test(t)));
+  if (chiffrees.length && !chiffrees.some(t => /≈ [+−][\d,]+ .+ en 3e$/.test(t))) errors.push(`${etiquette} : les puces de l'entracte ne disent pas leur quantité (${chiffrees.join(' · ')})`);
+  else if (chiffrees.length) console.log(`   ${etiquette}, l'entracte en quantités : ${chiffrees.filter(t => /≈/.test(t)).slice(0, 2).join(' · ')}`);
   await _click('#choixModal .choix-option');
   await _wait('#liveModal .live-pause, #liveModal .live-suite', { timeout: 120000 });
   /*
