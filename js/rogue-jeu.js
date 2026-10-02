@@ -27,7 +27,7 @@ import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
 import { nombreEnSeries } from './bilan.js';
 import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
-import { RAYONS_CLUB, choixDuClub, possede, manquePour, porter, ecussonDe, nomDuClub } from './club.js';
+import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirVersoPourPoser, poserCartes, quiSortOuCaseLibre, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
@@ -185,6 +185,15 @@ export function ouvrirBoutique(j, decider, page = null) {
       Promise.resolve(suite).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'));
     },
     // LES PACKS SCELLÉS : payés, à ouvrir quand on veut — le tirage se fait à l'ouverture, au numéro d'achat suivant.
+    /* TON CLUB (1.0, oct.) : les noms, les couleurs et les écussons, payés en jetons comme un pack — par une
+       décision d'achat (`sorte: 'club'`), que la partie rejoue et que `jetonsRogue` compte. Le méta le garde. */
+    club: offresDuClub(),
+    acheterClub: (cle, prix) => {
+      decider({ jour: j, palier: `k:${n}`, achat: { club: cle, n, prix, sorte: 'club' } });
+      prendre(cle);
+      clubChange();
+      toast(`🪙 ${nomDuClub()} : à toi, et porté.`);
+    },
     scelles: packsScelles(decs).map(d => ({ palier: d.palier, cle: d.achat.pack, verrou: PACKS_TOUS[d.achat.pack].sorte === 'joueurs' && apresDateLimite(j) ? `La date limite est passée : il s'ouvre la saison prochaine` : '' })),
     ouvrirScelle: palier => {
       const d = packsScelles(decs).find(x => x.palier === palier);
@@ -1174,30 +1183,32 @@ async function continuerRun(gardes = []) {
 /*
  * TON CLUB (1.0, oct.). JP : *que les couleurs, le nom de notre équipe puis des logos, ce soient des
  * choses qu'on débloque au fur et à mesure*. L'écusson porté en grand, puis chaque nom, chaque couleur
- * et chaque écusson, montré SUR ton écusson : ce que tu as se porte d'un toucher, le reste s'achète en
- * écussons 🏅, et les plus beaux attendent un rang de prestige (js/club.js). Rien n'y change le jeu.
+ * et chaque écusson, montré SUR ton écusson : ce que tu as se porte d'un toucher ; le reste s'achète en
+ * jetons 🪙 à la boutique, comme un pack (JP : *même monnaie que les autres packs*), et les plus beaux
+ * attendent un rang de prestige (js/club.js). Rien n'y change le jeu.
  */
+/* Le club a changé : son nom, l'en-tête, et les couleurs de l'interface si c'est ton équipe qu'on regarde. */
+function clubChange() {
+  poserLeClub();
+  if (!enRepechage()) applyTeamColors('YOU');
+  majEntete();
+}
 function ouvrirClub(apres = null) {
   const meta = lireMeta(), c = choixDuClub(meta);
   ouvrirChoix({
-    ico: '🏅', titre: `Ton club · ${meta.ecussons || 0} écussons`, fermable: true, motFermer: 'Retour au vestiaire',
+    ico: '🏅', titre: 'Ton club', fermable: true, motFermer: 'Retour au vestiaire',
     contexte: `<div class="club-porte"><span class="club-ecu" aria-hidden="true">${ecussonDe(c)}</span><b>${esc(nomDuClub())}</b></div>`,
     compact: true,
     options: RAYONS_CLUB.flatMap(R => Object.entries(R.liste).map(([k, o]) => {
       const porte = c[R.cle] === k, a = possede(meta, R.cle, k);
+      const garde = o.rang && rangDePrestige(meta) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '';
       return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), sous: R.titre,
-        nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🏅`}`,
-        desactive: porte ? 'Porté' : manquePour(meta, R.cle, k) };
+        nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🪙`}`,
+        desactive: porte ? 'Porté' : a ? null : garde || 'À la boutique, rayon « Ton club »' };
     })),
     onChoix: cle => {
       const [r, k] = cle.split(':');
-      const achat = !possede(lireMeta(), r, k);
-      if (porter(r, k)) {
-        poserLeClub();
-        if (!enRepechage()) applyTeamColors('YOU');
-        majEntete();
-        if (achat) toast(`🏅 ${nomDuClub()} : débloqué et porté.`);
-      }
+      if (porter(r, k)) clubChange();
       ouvrirClub(apres);
     },
     onFerme: () => ouvrirVestiaire(apres),

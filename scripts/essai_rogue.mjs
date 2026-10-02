@@ -281,6 +281,26 @@ else {
   if (await page.$('#hubModal .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
   await versMarche('boutique'); await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 }
+/*
+ * TON CLUB À LA BOUTIQUE (1.0, oct.). JP : *même monnaie que les autres packs*. Les Harfangs (15 🪙) s'achètent au rayon
+ * « Ton club » : la caisse baisse, le méta les garde, ils sont portés, et l'en-tête le dit.
+ */
+{
+  const tout = await page.$('#hubModal .hub-page[data-genre="boutique"] .pk-tout');
+  if (tout) { await tout.click(); await page.waitForTimeout(300); }
+  const avantJ = Number(((await page.textContent('#hubModal .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-club="nom:harfangs"]');
+  await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-fiche .club-porte');
+  await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-fiche .pk-acheter');
+  await page.waitForTimeout(1500);
+  await auBureau();
+  const mc = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}').club || {});
+  const tete = await page.textContent('.tete-nom');
+  await versMarche('boutique'); await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+  const apresJ = Number(((await page.textContent('#hubModal .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  console.log(`7c. ton club à la boutique : les Harfangs · ${avantJ} → ${apresJ} 🪙 · porté : ${mc.nom} · en-tête « ${tete} »`);
+  if (mc.nom !== 'harfangs' || tete !== 'Harfangs' || apresJ !== avantJ - 15) erreurs.push(`les Harfangs achetés à la boutique (${avantJ} → ${apresJ} 🪙, méta ${mc.nom}, en-tête « ${tete} »)`);
+}
 await page.click('#hubModal .hub-page-retour');
 /*
  * S80 : LE JOUEUR D'UNE CARTE. La fiche d'un pack par niveau dit ses chances
@@ -649,20 +669,20 @@ if (achat) {
   if (!(m2.deblocages || []).includes(achat)) erreurs.push(`le déblocage ${achat} n'a pas été acheté`);
 } else erreurs.push('aucun déblocage du classeur ni des cases à acheter');
 /*
- * TON CLUB (1.0, oct.) : le nom, les couleurs et l'écusson se débloquent au vestiaire. On achète un nom
- * (les Harfangs, 40 🏅) : le méta le garde, et l'en-tête le dit.
+ * TON CLUB (1.0, oct.) : au vestiaire, on porte ce qu'on a acheté à la boutique. On remet les NHL Stars :
+ * le méta le garde, et l'en-tête le dit.
  */
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="club"]', { timeout: 10000 });
 await page.click('#choixModal:not([hidden]) .choix-option[data-choix="club"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
 const nClub = await page.$$eval("#choixModal .choix-option", e => e.length);
-await page.click('#choixModal:not([hidden]) .choix-option[data-choix="nom:harfangs"]');
+await page.click('#choixModal:not([hidden]) .choix-option[data-choix="nom:stars"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-club.png` });
 const m3 = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
 const tete = await page.textContent('.tete-nom');
 console.log(`18. ton club : ${nClub} noms, couleurs et écussons · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
-if ((m3.club || {}).nom !== 'harfangs' || tete !== 'Harfangs') erreurs.push(`le nom acheté n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
+if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);

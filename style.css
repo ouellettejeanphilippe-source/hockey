@@ -4329,6 +4329,9 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .pk-rabais { color: var(--or); }
 .pk-rangee { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); }
 .pk-rayon-debut .pk-tout { width: 100%; margin-top: var(--esp-3); }
+/* Le rayon « Ton club » : l'écusson tient la place de la pochette. */
+.pk-club-ecu { display: block; width: 72%; aspect-ratio: 1; margin: var(--esp-1) auto var(--esp-2); filter: drop-shadow(0 6px 14px var(--noir)); }
+.pk-club-ecu > svg { width: 100%; height: 100%; }
 /* Ce qui est déjà à toi : à part, en bas, sous un filet d'or — le marché au-dessus, ton bien en dessous. */
 .pk-rayon-scelles { margin-top: var(--esp-3); padding: var(--esp-3); border: 1px solid color-mix(in srgb, var(--or) 45%, var(--filet)); border-top: 3px solid var(--or); border-radius: var(--r-2); background: radial-gradient(80% 60% at 50% 0, color-mix(in srgb, var(--or) 14%, transparent), transparent 70%), var(--panneau); box-shadow: var(--relief); scroll-margin-top: var(--esp-3); }
 .pk-rayon-scelles h3 { color: var(--or); }

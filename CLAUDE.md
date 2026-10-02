@@ -141,7 +141,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Une surface de base se change À LA SOURCE, jamais en fin de fichier.
 - Le noir est le décor ; la couleur vient des équipes, aux vraies couleurs, jamais délavées ; les écussons des disparues sont dessinés (`js/logos.js`), jamais empruntés.
 - Moins de mots, et surtout pas les évidents : une ligne à l'écran, le détail chiffré dans la page des règles, dont chaque chiffre vient d'une constante — `check_clarte`.
-- Ton équipe commence en NHL Stars (noir, blanc, orange, l'étoile) ; son nom, ses couleurs et son écusson se débloquent au vestiaire du Rogue (`js/club.js`), tous inventés et dessinés, jamais empruntés à un vrai club — `essai_rogue`.
+- Ton équipe commence en NHL Stars (noir, blanc, orange, l'étoile) ; son nom, ses couleurs et son écusson s'achètent en jetons à la boutique, comme les packs, et se portent au vestiaire (`js/club.js`), tous inventés et dessinés, jamais empruntés à un vrai club — `essai_rogue`.
 - On ne décerne que ce que les colonnes décident, jamais ce qu'un vote déciderait.
 
 **Le code et les tests**
