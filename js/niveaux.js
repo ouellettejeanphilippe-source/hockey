@@ -15,7 +15,7 @@
  * LE NIVEAU EST UN RANG. Parmi les RÉGULIERS de sa saison — ceux de l'étoile
  * de S78 : 40 matchs, ou la moitié d'une saison écourtée ; 30 pour un
  * gardien, ou 35 % de la saison —, à son POSTE (avants, défenseurs,
- * gardiens) : aux points par match pour un patineur, au % d'arrêts pour un
+ * gardiens) : aux points par match pour un patineur, aux buts évités pour un
  * gardien. Le rang se prend à son poste parce qu'un défenseur à 60 points
  * est une vedette sans jamais approcher le 4 % du haut de TOUS les pointeurs
  * (avant S80, 51 défenseurs étoiles en 55 saisons ; 388 maintenant).
@@ -55,8 +55,29 @@ export const PHENOMENE = 4;
 /* Le groupe du rang : avants, défenseurs, gardiens. */
 export const groupeDuJoueur = p => (p.p === 'G' ? 'G' : p.p === 'D' || p.p === 'LD' || p.p === 'RD' ? 'D' : 'F');
 const points = p => p.pt ?? ((p.g || 0) + (p.a || 0));
-/* Ce qui se range : les points par match d'un patineur, le % d'arrêts d'un gardien. */
-export const mesureDuNiveau = p => (p.p === 'G' ? (p.sv || 0) : points(p) / Math.max(1, p.gp || 0));
+/*
+ * LES BUTS ÉVITÉS D'UN GARDIEN (1.0, oct.). JP : *Soutien ?* — Rask (64 matchs, ,915) et
+ * Kiprusoff, partants, lisaient « Soutien » : au % d'arrêts seul, le travail ne comptait pas, et un
+ * auxiliaire de 30 matchs à ,920 passait devant un partant de 65 à ,915. La mesure est maintenant
+ * ce qu'il a évité à son club : ses tirs reçus × (son % d'arrêts − celui de la ligue, pondéré par
+ * les tirs). Un partant solide monte ; un auxiliaire chanceux descend. Sans tirs reçus (une vieille
+ * fiche), son % d'arrêts contre la ligue, sur des tirs estimés à trente par match.
+ */
+const SV_LIGUE = new WeakMap();
+function svLigue(joueurs) {
+  let v = SV_LIGUE.get(joueurs);
+  if (v === undefined) {
+    let tirs = 0, arrets = 0;
+    for (const x of joueurs) if (x.p === 'G' && x.sa && x.sv != null) { tirs += x.sa; arrets += x.sa * x.sv; }
+    v = tirs ? arrets / tirs : 0.9;
+    SV_LIGUE.set(joueurs, v);
+  }
+  return v;
+}
+/* Ce qui se range : les points par match d'un patineur, les buts évités d'un gardien (dans SA saison : `joueurs`). */
+export const mesureDuNiveau = (p, joueurs) => (p.p === 'G'
+  ? ((p.sa || 30 * (p.gp || 0)) * ((p.sv || 0) - svLigue(joueurs)))
+  : points(p) / Math.max(1, p.gp || 0));
 const personne = p => (p.id != null ? p.id : `${p.n}_${p.p}`);
 
 const SAISONS = new WeakMap();
@@ -73,12 +94,12 @@ function saisonDe(joueurs) {
   // Le seuil de chaque niveau, par groupe : la mesure du dernier joueur de sa part du haut.
   const seuils = {};
   for (const g of ['F', 'D', 'G']) {
-    const r = uniques.filter(p => groupeDuJoueur(p) === g && regulier(p)).map(mesureDuNiveau).sort((a, b) => b - a);
+    const r = uniques.filter(p => groupeDuJoueur(p) === g && regulier(p)).map(p => mesureDuNiveau(p, joueurs)).sort((a, b) => b - a);
     seuils[g] = NIVEAUX.map(N => (r.length ? r[Math.max(0, Math.ceil(r.length * N.haut) - 1)] : Infinity));
   }
   const niveau = p => {
     if (!regulier(p)) return -1;
-    const t = seuils[groupeDuJoueur(p)], m = mesureDuNiveau(p);
+    const t = seuils[groupeDuJoueur(p)], m = mesureDuNiveau(p, joueurs);
     for (let k = NIVEAUX.length - 1; k > 0; k--) if (m >= t[k]) return k;
     return 0;
   };

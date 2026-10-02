@@ -405,7 +405,7 @@ export function showPlayerModal(p, opts = {}) {
   const cle = chiffreCle(p);
   const nb = (k, v, hl = false) => `<div class="fc-stat${hl ? ' hl' : ''}"><span class="k">${k}</span><b>${v}</b></div>`;
   const statsCarte = p.p === 'G'
-    ? nb('PJ', st.gp) + nb('V', st.w, true) + nb('D', st.l) + nb('BL', st.so) + nb('%ARR', p.sv ?? '—') + nb('MBA', p.ga ?? '—')
+    ? nb('PJ', st.gp) + nb('V', st.w, true) + nb('D', st.l) + nb('BL', st.so) + nb('%ARR', p.sv != null ? pct3(Number(p.sv)) : '—') + nb('MBA', p.ga != null ? String(p.ga).replace('.', ',') : '—')
     : nb('PJ', st.gp) + nb('B', st.g) + nb('A', st.a) + nb('PTS', st.pt, cle.u === 'PTS')
       + (cle.u === 'MÉ/M' || cle.u === 'TB/M' ? nb(cle.u, cle.v, true) : nb('+/M', pmStr, cle.u === '+/M')) + nb('PUN', p.pim ?? '—', cle.u === 'PUN');
   const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p) + coachTag(p)}${realTag(p)}`;

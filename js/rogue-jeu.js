@@ -108,7 +108,8 @@ export function jetonsRogue(j = G.journee || 0) {
   const decs = decisionsDeLaPartie();
   // 1.0 (J1-D) : une réclamation au ballottage coûte des jetons en Rogue (`ballottage.cout`).
   const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0) + ((d.ballottage || {}).cout || 0), 0);
-  const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0), 0);
+  // Un doublon signé (1.0, oct.) n'est pas revendu : sa vente, comptée à l'ouverture, se retire (`annuleVente`).
+  const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0) - (d.annuleVente || 0), 0);
   const direction = modificateurs(decs).jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, j), 0);
   const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
   // S80 : le barème de la saison de la run (5 🪙 par victoire sans commanditaire) ; une vieille run garde celui de S79.
@@ -273,6 +274,8 @@ export async function rouvrirPackJoueurs(achat, j, decider) {
   cartes.forEach((x, t) => { x.doublon = (achat.vendus || []).includes(t); });
   offrirPackJoueurs({ cle: achat.pack, cartes, reglage, pitie: !!achat.pitie, vente: achat.vente || 0, n: achat.n, j, decider });
 }
+/* Le même homme est-il déjà dans ton équipe (n'importe quelle saison de lui) ? */
+const dejaChezToi = p => Object.values(G.roster || {}).some(q => q && getPersonKey(q) === getPersonKey(p));
 /* Le paquet se déchire (js/gerant.js) ; on en signe UN (« Signer », puis QUI SORT — `choisirQuiSort`), ou personne. */
 function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }) {
   const P = PACKS_TOUS[cle];
@@ -291,21 +294,23 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
         art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
         carteJoueur: miniAvecVariante(x.p, x.rar),
         // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
-        texte: [niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
+        texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
           // v2 : sa couleur — il porte la confiance de ce coach et fait grandir ses cartes de vestiaire.
           COACHS[coachDuJoueur(x.p)] ? `${COACHS[coachDuJoueur(x.p)].ico} Joueur ${COACHS[coachDuJoueur(x.p)].de}` : ''].filter(Boolean).join('\n'),
-        desactive: x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙` : '',
+        // UN DOUBLON SE SIGNE PAREIL (1.0, oct.). JP : *si je pige un doublon, je devrais pouvoir le signer pareil*.
+        // Pas signé, il est revendu comme avant ; signé, sa vente s'annule. Déjà dans ton équipe, non : un joueur, une case.
+        desactive: dejaChezToi(x.p) ? 'Déjà dans ton équipe' : '',
         apercu: () => apercuJoueur(x.p),
       };
     }),
     onChoix: k => {
       const x = cartes.find(y => getPlayerKey(y.p) === k);
-      if (!x || x.doublon) return;
+      if (!x || dejaChezToi(x.p)) return;
       const signer = sortie => {
         if (!sortie) return;
         G.variantes.cartes[k] = x.rar;
         if (x.num) (G.variantes.numeros = G.variantes.numeros || {})[k] = x.num;
-        decider({ jour: j, palier, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) }, ...(sortie.cases ? { cases: sortie.cases } : {}) });
+        decider({ jour: j, palier, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) }, ...(sortie.cases ? { cases: sortie.cases } : {}), ...(x.doublon ? { annuleVente: venteJoueur(x) } : {}) });
       };
       // QUI SORT : la sortie doit faire entrer son salaire sous le plafond (effectif), ou au moins ne pas l'empirer.
       quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), onChoix: signer, onFerme: offrir });
@@ -412,7 +417,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
     ...(enSaison ? { build: buildDe(decs, j + 1), coachsActifs: coachsActifs(decs, j + 1), coachRun: (rogue && G.rogue && G.rogue.coach) || null, joueurs: joueursDesCoachs(Lg.you) } : {}),
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
-    jouer: item => jouerCarte(item, j, decider),
+    jouer: item => jouerCarte(item, j, decider, page),
     vendre: item => decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }),
   });
 }
@@ -443,14 +448,15 @@ export function cartesAJouer(j) {
  * datée d'aujourd'hui (`joue` dit d'où elle sort, pour la poche). Un
  * consommable permanent quitte le méta à ce moment-là.
  */
-function jouerCarte(item, j, decider) {
+function jouerCarte(item, j, decider, page = null) {
   const c = BANQUE[item.id];
   if (!c || !decider) return;
   const Lg = G.ligue, decs = decisionsDeLaPartie(), you = Lg.you;
   const joue = { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) };
   // v2 : une carte de coach grandit avec les cartes de son coach déjà jouées (js/banque.js `grandi`).
   const build = buildDe(decs, j + 1), joueurs = joueursDesCoachs(you);
-  const retour = () => ouvrirInventaireJeu(j, decider);
+  // « Retour » revient dans la page d'où l'on venait (« Tes cartes ») ; sans elle, l'inventaire flottait par-dessus le Marché.
+  const retour = () => ouvrirInventaireJeu(j, decider, page && page.dans && page.dans.isConnected ? page : null);
   const ecrire = payload => {
     if (!payload) return;
     if (item.src === 'meta') retirerDuMeta(item.id);

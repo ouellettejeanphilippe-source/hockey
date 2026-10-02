@@ -26,7 +26,7 @@
 
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
-  profilsDe, profilPrincipal, roleSecond, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
+  profilsDe, stylesDe, profilPrincipal, roleSecond, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
@@ -39,12 +39,31 @@ import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js
 import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
 import { jouerSon } from './sons.js';
 import { avecArticle } from './commentaire.js';
-import { esc, cap as majuscule, pct3 } from './util.js';
+import { esc, cap as majuscule, pct3, varsEquipe } from './util.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
 
 /* Les puces d'un effet : vert s'il aide, rouge s'il coûte, gris s'il ne fait que déplacer. */
+/*
+ * LE POURCENTAGE EN QUANTITÉ (1.0, oct.). JP : *« Tirs +7 % », c'est tough gager... le chiffre en haut est
+ * en quantité moyenne*. Avec les vraies moyennes du club (`base` : tirs, buts, buts contre, punitions par
+ * match, et la part du match qui reste), une puce dit aussi ce que son pourcentage vaut : « Tirs +7 %
+ * ≈ +2,1 tirs par match ». La précision joue sur les buts ; la quantité est l'effet seul, toutes choses égales.
+ */
+const QUANTITES = [['Tirs ', 'volume', 'tir', 'tirs'], ['Précision ', 'finition', 'but', 'buts'], ['Buts contre ', 'defense', 'but contre', 'buts contre'], ['Punitions ', 'discipline', 'punition', 'punitions']];
+function avecQuantite(m, canaux, base) {
+  if (!base || !canaux) return m;
+  for (const [debut, canal, un, plusieurs] of QUANTITES) {
+    if (!String(m.txt).startsWith(debut) || !canaux[canal] || !base[canal]) continue;
+    const q = (canaux[canal] - 1) * base[canal] * (base.part || 1);
+    if (Math.abs(q) < 0.005) return m;
+    // Un petit effet se dit au centième : « ≈ −0,02 but » est la vérité, pas un zéro.
+    const n = Math.abs(q).toFixed(Math.abs(q) < 0.1 ? 2 : 1).replace('.', ',');
+    return { ...m, txt: `${m.txt} ≈ ${q > 0 ? '+' : '−'}${n} ${Math.abs(q) >= 2 ? plusieurs : un} ${base.par || 'par match'}` };
+  }
+  return m;
+}
 export function puces(mots) {
   return (mots || []).map(m => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}">${esc(m.txt)}</span>`).join('');
 }
@@ -233,6 +252,12 @@ const mouvementCalme = () => typeof matchMedia === 'function' && matchMedia('(pr
  * spec : { ico, titre, irl, recit, joueur, options: [{ cle, nom, bon, prix, effet, duree, jauges,
  *          mutation, desactive }], fermable, motFermer, onChoix(cle), onFerme() }
  */
+/*
+ * UN GROS MATCH AUX COULEURS DE L'ADVERSAIRE (1.0, oct.). JP : *matchs importants aux couleurs de
+ * l'adversaire*. `couleurs` (le bandeau du club, js/logos.js `getTeamBand`) habille la tête de la feuille :
+ * son fond, son encre, son liseré — l'avant-match, la main du soir, le deuxième entracte.
+ */
+const auxCouleurs = b => (b ? ` aux-couleurs" style="${varsEquipe(b)}` : '');
 export function ouvrirChoix(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
@@ -255,7 +280,7 @@ export function ouvrirChoix(spec) {
   const BADGE = { evenement: 'Événement', recompense: 'Butin', entracte: 'Combat' };
   const badgeTxt = spec.regle && spec.genre === 'evenement' ? 'Événement · Règlement' : (BADGE[spec.genre] || '');
   const badge = badgeTxt ? `<div class="choix-badge">${badgeTxt}</div>` : '';
-  m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+  m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}${auxCouleurs(spec.couleurs)}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '❓'}</span>
       <div class="choix-titres">${badge}<div class="choix-titre">${sub(spec.titre)}</div>${spec.irl ? `<div class="choix-irl">${esc(spec.irl)}</div>` : ''}</div>
@@ -268,7 +293,7 @@ export function ouvrirChoix(spec) {
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
       <div class="choix-options${spec.cartes ? ` choix-main${paquet ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
-        const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+        const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null).map(m => avecQuantite(m, canaux, spec.base))), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
         // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner. La forme tient dans le type, le visage ne bouge pas.
         if (spec.cartes) return carteHtml({
@@ -588,7 +613,7 @@ function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe 
   const inverse = roles && S.slots && roles.AG !== S.slots.AG;
   const demande = roles ? (D ? ['DG', 'DD'] : ['AG', 'C', 'AD']).filter(r => r in js && roles[r]).map(r => {
     const prof = roles[r], P = PROFILS[groupe][prof], p = js[r];
-    const fr = p ? ((profilsDe(p) || {})[prof] ?? 0) : null;
+    const fr = p ? ((stylesDe(p) || {})[prof] ?? 0) : null;   // l'assortiment se lit au style, à talent égal (`stylesDe`)
     const marque = fr == null ? '' : fr >= 60 ? '✓' : fr < 40 ? '✗' : '≈';
     return `<span class="ln-dem${fr == null ? '' : fr >= 60 ? ' fit-bon' : fr < 40 ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${niveauDe(fr)}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
   }).join('') : '';
@@ -691,7 +716,7 @@ export function ouvrirLignes(spec) {
     const g = role === 'DG' || role === 'DD' ? 'D' : 'F';
     const R = T && T.slots ? rolesDuSysteme(spec.lineup, g, u, g === 'D' ? brouillon[u].tacD : brouillon[u].tac) : null;
     const voulu = R ? R[role] : null;
-    const pr = p && profilsDe(p);
+    const pr = p && stylesDe(p);   // l'assortiment au système, à talent égal
     const pp = p && profilPrincipal(p);
     const e = p ? (spec.energie[getPlayerKey(p)] ?? 100) : 0;
     const fitRole = voulu && pr ? pr[voulu] : null;
@@ -1189,7 +1214,7 @@ export function ouvrirMainDeMatch(spec) {
     for (const c of jouees) if (CARTES_MATCH[c].pari) mots.push({ txt: `🎲 ${CARTES_MATCH[c].nom} : au match`, bon: null });
     const orbes = Array.from({ length: Math.max(ENERGIE_MAIN, energie) }, (_, i) => `<i class="main-orbe${i < energie ? ' plein' : ''}"></i>`).join('');
     const deck = (spec.deck || []).slice().sort((a, b) => CARTES_MATCH[a].cout - CARTES_MATCH[b].cout || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
-    m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+    m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
       <div class="choix-tete">
         <span class="choix-ico">⚔️</span>
         <div class="choix-titres"><div class="choix-badge">Combat</div><div class="choix-titre">${esc(spec.titre)}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>
@@ -1211,6 +1236,7 @@ export function ouvrirMainDeMatch(spec) {
           ${jouees.length ? `<div class="main-jouees">${jouees.map(c => `<span class="main-jouee">${CARTES_MATCH[c].ico} ${esc(CARTES_MATCH[c].nom)}</span>`).join('')}</div>` : '<div class="main-vide">Aucune carte jouée. Touche une carte pour la jouer.</div>'}
           ${mots.length ? `<div class="choix-puces">${puces(mots)}</div>` : ''}
         </div>
+        ${spec.stats || ''}
         <div class="main-boutons">
           <button type="button" class="btn go main-jouer"${spec.ajustements && !aj ? ' disabled' : ''}>${esc(spec.ajustements && !aj ? 'Choisis ton ajustement' : jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer')}</button>
         </div>

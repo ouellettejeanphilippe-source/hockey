@@ -89,7 +89,7 @@ const t0 = Date.now();
     const par = joueursParNiveau(e.players);
     par.forEach((a, k) => { parNiveau[k] += a.length; regs += a.length; });
     for (const g of ['F', 'D', 'G']) {
-      const m = par.map(a => a.filter(p => groupeDuJoueur(p) === g).map(mesureDuNiveau));
+      const m = par.map(a => a.filter(p => groupeDuJoueur(p) === g).map(p => mesureDuNiveau(p, e.players)));
       if (!m[PHENOMENE].length) sansPhenomene.push(`${s} ${g}`);
       for (let k = 1; k < m.length; k++) if (m[k].length && m[k - 1].length && Math.min(...m[k]) < Math.max(...m[k - 1])) chevauche++;
     }

@@ -107,7 +107,7 @@ const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
  * contrat d'entrée) et l'ÉTOILE — les meilleurs de leur saison, lus dans
  * leurs VRAIES fiches, jamais dans une cote. Depuis S80, l'étoile EST un
  * niveau (js/niveaux.js) : le 4 % du haut des réguliers de sa saison, à son
- * poste — aux points par match, au % d'arrêts pour un gardien —, et le
+ * poste — aux points par match, aux buts évités pour un gardien —, et le
  * PHÉNOMÈNE, le 1 % du haut, en est le sommet. Une seule définition pour le
  * ruban, le pack Étoiles et les taux des packs. Une saison en cours (moins de
  * matchs) abaisse le seuil de « régulier ».
@@ -634,14 +634,29 @@ export function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue
  */
 const CARTES_POSEES = new Set();
 export function poserCartes(decisions = []) {
+  /*
+   * TOUS CEUX QU'UNE DÉCISION NOMME (1.0, oct.), pas seulement l'alignement
+   * d'aujourd'hui : un joueur relâché au ballottage a joué le début de la
+   * saison avec sa carte. Une reprise la lui retirait, et les premiers soirs
+   * se rejouaient autrement (le smoke, graine a1). On le retrouve parmi les
+   * cartes déjà posées, ou parmi ceux qu'une sauvegarde a relus.
+   */
+  const avant = new Map([...CARTES_POSEES].map(p => [getPlayerKey(p), p]));
   for (const p of CARTES_POSEES) delete p._carte;
   CARTES_POSEES.clear();
   const miens = Object.values(G.roster || {}).filter(Boolean);
+  const nommes = new Set();
   for (const d of decisions) {
+    if (d && d.cases) for (const cle of Object.values(d.cases)) nommes.add(cle);
     const b = d && d.ballottage;
     if (!b || !b.entre) continue;
     if (b.rar) G.variantes.cartes[b.entre] = b.rar;
-    const p = ballottageVu.get(b.entre);
+    nommes.add(b.entre);
+  }
+  const auVestiaire = new Set(miens.map(getPlayerKey));
+  for (const cle of nommes) {
+    if (auVestiaire.has(cle)) continue;
+    const p = ballottageVu.get(cle) || avant.get(cle);
     if (p) miens.push(p);
   }
   for (const p of miens) { p._carte = carteJoueur(p); CARTES_POSEES.add(p); }

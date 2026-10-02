@@ -69,7 +69,7 @@ function seuilDe(players, niveauMax) {
   if (!s) {
     s = {};
     const au = joueursParNiveau(players)[niveauMax + 1] || [];
-    for (const g of ['F', 'D', 'G']) { const m = au.filter(x => groupeDuJoueur(x) === g).map(mesureDuNiveau); s[g] = m.length ? Math.min(...m) : Infinity; }
+    for (const g of ['F', 'D', 'G']) { const m = au.filter(x => groupeDuJoueur(x) === g).map(x => mesureDuNiveau(x, players)); s[g] = m.length ? Math.min(...m) : Infinity; }
     SEUILS.set(players, s);
   }
   return s;
@@ -77,7 +77,7 @@ function seuilDe(players, niveauMax) {
 const tropFort = (p, players, niveauMax) => {
   const k = niveauDe(p, players);
   if (k > niveauMax) return true;
-  return k < 0 && mesureDuNiveau(p) >= seuilDe(players, niveauMax)[groupeDuJoueur(p)];
+  return k < 0 && mesureDuNiveau(p, players) >= seuilDe(players, niveauMax)[groupeDuJoueur(p)];
 };
 
 /*

@@ -1443,6 +1443,43 @@ export function rolesBruts(p) {
   };
   return brut;
 }
+/* Le talent d'un joueur dans SA saison : l'écart réduit de ses points par match, à son poste (0 sans référence). */
+export function talentDe(p) {
+  if (!p || p.p === 'G') return 0;
+  const gp = Math.max(1, p.gp || 1);
+  return zSaison(p, estD(p) ? 'D' : 'F', 'ptpg', (p.pt ?? ((p.g || 0) + (p.a || 0))) / gp) ?? 0;
+}
+/*
+ * LE STYLE, À TALENT ÉGAL (1.0, oct.). JP : *pour les chimies de stratégie, je pense pas que ça doit
+ * être plus haut si plus de talent, ça devient un double bonus*. Mesuré : le score d'un rôle offensif
+ * suit les points par match (0,83 à 0,90 de corrélation) — un trio de vedettes avait le meilleur fit
+ * ET le plus haut plafond de chimie, en plus de ses cotes. Le FIT d'un système se lit maintenant au
+ * style : chaque rôle perd la part qui suit le talent (`PENTE_TALENT`, la pente de chaque rôle sur le
+ * talent chez les réguliers, scripts/fit_calibre.mjs). Le rôle à l'écran (élite, bon) reste ce qu'il
+ * vaut ; seul l'assortiment d'un système (le fit, donc la chimie) se lit à talent égal.
+ */
+const PENTE_TALENT = {
+  F: { sniper: 0.818, passeur: 0.859, deuxsens: 0.612, power: 0.229, checker: -0.156, energie: -0.089, bagarreur: -0.133 },
+  D: { defensif: -0.034, offensif: 0.919, manieur: 0.925, physique: -0.17, deuxsens: 0.693 },
+};
+const STYLES_CACHE = new WeakMap();
+function stylesBase(p) {
+  if (!p || p.p === 'G') return null;
+  if (STYLES_CACHE.has(p)) return STYLES_CACHE.get(p);
+  const g = estD(p) ? 'D' : 'F', brut = rolesBruts(p), dec = DECALAGE_ROLES[g], t = talentDe(p);
+  const out = {};
+  for (const [k, sc] of Object.entries(brut)) out[k] = Math.round(100 / (1 + Math.exp(-1.4 * borne(sc - PENTE_TALENT[g][k] * t + (dec[k] || 0), -3, 3))));
+  STYLES_CACHE.set(p, out);
+  return out;
+}
+/* Le style d'un joueur, ses changements de carte compris : ce qu'un système lit pour assortir. */
+export function stylesDe(p) {
+  const base = stylesBase(p);
+  if (!base || !p._mutProfils) return base;
+  const out = { ...base };
+  for (const [k, d] of Object.entries(p._mutProfils)) if (k in out) out[k] = Math.max(1, Math.min(99, out[k] + d));
+  return out;
+}
 /*
  * LE DÉCALAGE DE CHAQUE RÔLE (scripts/roles_calibre.mjs) : sans lui, les
  * rôles aux formules les plus larges prenaient tout (19 % de bagarreurs, 4 %
@@ -2024,7 +2061,7 @@ export function rolesDuSysteme(lineup, groupe, u, cle) {
 function fitRoles(lineup, u, slots) {
   const js = joueursDeLigne(lineup, u);
   let n = 0;
-  for (const [role, prof] of Object.entries(slots)) { const p = js[role]; if (p) n += ((profilsDe(p) || {})[prof] ?? 0); }
+  for (const [role, prof] of Object.entries(slots)) { const p = js[role]; if (p) n += ((stylesDe(p) || {})[prof] ?? 0); }
   return n;
 }
 export function fitUnite(lineup, groupe, u, cle) {
@@ -2038,7 +2075,7 @@ export function fitUnite(lineup, groupe, u, cle) {
     // UNE CASE VIDE N'A PAS DE FIT (1.0, J1-I) : une unité incomplète ne se
     // juge pas — elle comptait pour 0 et tout trio vide lisait « Mauvais fit ».
     if (p === null) return null;
-    const pr = profilsDe(p);
+    const pr = stylesDe(p);
     fits.push(pr && pr[prof] != null ? pr[prof] : 0);
   }
   return fits.length ? Math.round(fits.reduce((a, x) => a + x, 0) / fits.length) : 0;
@@ -4973,7 +5010,14 @@ function empreinte(s) {
   return h / 4294967296;
 }
 function instantDeBlessure(feuille, p, team) {
-  let dernier = 2;
+  /*
+   * UN GROS MATCH SE COUPE À L'ENTRACTE (1.0, oct.) : la blessure se tire au
+   * bout du match, donc sur la troisième période — rejouée par le choix de
+   * l'entracte. Datée avant 40:00, elle réécrivait les deux premières, déjà
+   * vues (le smoke, graine 5 : « Toffoli se blesse » apparu en 2e). Elle se
+   * date donc dans la troisième.
+   */
+  let dernier = feuille.entracte ? 40 : 2;
   for (const b of feuille.buts) if (b.marqueur === p || (b.passeurs || []).includes(p)) dernier = Math.max(dernier, b.instant);
   for (const l of feuille.lancers || []) if (l.tireur === p || l.gardien === p) dernier = Math.max(dernier, l.instant);
   for (const x of feuille.punitions || []) if (x.joueur === p) dernier = Math.max(dernier, x.fin ?? (x.instant + x.minutes));

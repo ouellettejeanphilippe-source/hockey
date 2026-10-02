@@ -778,6 +778,9 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-sheet[data-genre="entracte"] .choix-ico,
 .choix-sheet[data-genre="main"] .choix-badge,
 .choix-sheet[data-genre="entracte"] .choix-badge { color: var(--live); }
+/* Un gros match aux couleurs de l'adversaire (JP) : la tête de la feuille porte son bandeau. */
+.choix-sheet.aux-couleurs .choix-tete { background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 3px 0 var(--eq-stripe); }
+.choix-sheet.aux-couleurs :is(.choix-ico, .choix-badge, .choix-titre) { color: inherit; }
 .choix-irl { font: 700 var(--t-1)/1.2 var(--display); text-transform: uppercase; color: var(--encre-3); margin-top: 3px; letter-spacing: 0.1em; }
 .choix-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-4); padding: var(--esp-4); }
 .choix-recit { font-size: var(--t-3); line-height: 1.5; color: var(--encre-2); margin: 0; }
@@ -2547,6 +2550,8 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-forces td.av.moi { color: var(--bon); }
 .hub-forces td.av.lui { color: var(--mauvais); }
 .hub-forces-mot { margin-top: var(--esp-1); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+.hub-decide { margin-top: var(--esp-2); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.hub-decide ul { margin: var(--esp-1) 0 0; padding-left: var(--esp-4); }
 .hub-forces-mot b { color: var(--encre); }
 .hub-match-note { padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 /* « Soir éreintant » : le seul badge, en or, parce qu'il change les règles du soir. */
@@ -2563,6 +2568,8 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 
 /* ---- Le gros match, le mini-boss ---- */
 .hub-gros { margin: 0 0 var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--violet); border-radius: var(--r-2); background: color-mix(in srgb, var(--violet) 10%, var(--fond-1)); }
+.hub-gros.aux-couleurs { border-color: var(--eq-band); border-left-color: var(--eq-stripe); background: var(--eq-band); color: var(--eq-ink); }
+.hub-gros.aux-couleurs b { color: inherit; }
 .hub-gros-tete { font-size: var(--t-2); line-height: 1.4; }
 .hub-gros-avant { font-size: var(--t-2); line-height: 1.4; margin-top: var(--esp-1); }
 .hub-gros-note, .hub-gros-detail { font-size: var(--t-1); line-height: 1.4; margin-top: var(--esp-1); color: var(--encre-2); }
@@ -2924,7 +2931,7 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-prev-fin span { color: var(--encre-3); font-size: var(--t-2); }
 .hub-prev-joueurs th small { color: var(--encre-3); font-size: var(--t-1); }
 .ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
-.ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: 4px; }
+.ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: var(--r-1); }
 .ent2-incident { margin: var(--esp-2) 0; padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .live-ligne.ent2-marque { background: color-mix(in srgb, var(--violet) 14%, transparent); }
 
@@ -3126,6 +3133,8 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .sommaire { font-size: var(--t-2); }
 .som-ot { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--or); }
 .som-lignes { margin-bottom: var(--esp-4); border-top: 1px solid var(--filet); }
+.som-decide { margin-bottom: var(--esp-4); }
+.som-decide ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--esp-3); align-items: center; min-height: 48px; padding: var(--esp-1) 0; border-bottom: 1px solid var(--filet-2); }
 .som-ligne span:nth-child(2) { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .som-ligne span:nth-child(3) { min-width: 54px; text-align: right; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }

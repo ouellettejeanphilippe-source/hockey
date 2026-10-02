@@ -38,13 +38,18 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
  * retrouvait plus. `SMOKE_GRAINE=n` sème le hasard de la page — le même
  * parcours, au clic près, pour chercher ce qui casse.
  */
-if (process.env.SMOKE_GRAINE) {
+/*
+ * Sans `SMOKE_GRAINE`, une graine tirée au hasard, IMPRIMÉE en tête : un échec en CI se rejoue ensuite
+ * chez soi, au clic près (`SMOKE_GRAINE=… node scripts/smoke.mjs`).
+ */
+const GRAINE_SMOKE = process.env.SMOKE_GRAINE || Math.random().toString(36).slice(2, 8);
+{
   await page.addInitScript(g => {
     let x = 2166136261;
     for (const c of String(g)) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0;
     Math.random = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  }, process.env.SMOKE_GRAINE);
-  console.log(`   hasard de la page semé : ${process.env.SMOKE_GRAINE}`);
+  }, GRAINE_SMOKE);
+  console.log(`   hasard de la page semé : ${GRAINE_SMOKE} (SMOKE_GRAINE=${GRAINE_SMOKE} pour le rejouer)`);
 }
 const errors = [];
 let barreAuRepechage = null;   // la barre au repêchage, pour la comparer au bilan (S67)
@@ -621,6 +626,10 @@ async function butsDuSommaire(cle) {
   const portee = enPage ? '#hubModal .hub-page[data-genre="sommaire-match"]' : '#gameModalBody';
   const ternes = await page.$$eval(`${portee} .som-but:not(.som-pun)`, l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band')).length);
   if (ternes) errors.push(`le sommaire du match : ${ternes} but(s) sans les couleurs du club qui marque`);
+  // CE QUI A DÉCIDÉ (1.0, oct.) : quelques lignes chiffrées, et le but gagnant.
+  const decide = await page.$$eval(`${portee} .som-decide li`, l => l.map(e => e.textContent.trim()));
+  if (!decide.some(t => /^Le but gagnant : /.test(t))) errors.push(`le sommaire ne dit pas ce qui a décidé : ${decide.join(' · ') || 'rien'}`);
+  else if (!decideVu) { decideVu = true; console.log(`   ce qui a décidé : ${decide.join(' · ')}`); }
   const buts = await page.$$eval(enPage ? '#hubModal .hub-page[data-genre="sommaire-match"] .som-per' : '#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
     const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
     return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
@@ -637,6 +646,7 @@ async function butsDuSommaire(cle) {
  * rebâtissent la ligue jusqu'à leur soir) : les mêmes buts, au caractère près.
  */
 const aRelire = [];
+let decideVu = false;
 async function toujoursLesMemes() {
   for (const r of aRelire.splice(0)) {
     const buts = await butsDuSommaire(r.cle);
@@ -691,6 +701,10 @@ async function finirDirect(etiquette) {
     if (manque.length || tableau.cols !== 4) errors.push(`${etiquette} : le tableau de l'entracte n'a pas ${manque.join(', ') || 'ses quatre colonnes'} (${tableau.rangs.join(', ')} · ${tableau.cols} colonnes)`);
     if (tableau.deborde > 1) errors.push(`${etiquette} : le tableau de l'entracte déborde de ${tableau.deborde} px`);
   }
+  // LE POURCENTAGE EN QUANTITÉ (1.0, oct.) : une puce de tirs, de précision, de buts contre ou de punitions dit ce qu'elle vaut en 3e.
+  const chiffrees = await page.$$eval('#choixModal .choix-option .puce', l => l.map(e => e.textContent.trim()).filter(t => /^(Tirs|Précision|Buts contre|Punitions) [+−]/.test(t)));
+  if (chiffrees.length && !chiffrees.some(t => /≈ [+−][\d,]+ .+ en 3e$/.test(t))) errors.push(`${etiquette} : les puces de l'entracte ne disent pas leur quantité (${chiffrees.join(' · ')})`);
+  else if (chiffrees.length) console.log(`   ${etiquette}, l'entracte en quantités : ${chiffrees.filter(t => /≈/.test(t)).slice(0, 2).join(' · ')}`);
   await _click('#choixModal .choix-option');
   await _wait('#liveModal .live-pause, #liveModal .live-suite', { timeout: 120000 });
   /*
@@ -1581,17 +1595,25 @@ console.log(`3. #mainBtn actif : ${enabled}`);
 async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
   /*
-   * LE VRAI CALENDRIER (1.0, oct.) : ton club peut être en congé le jour 0 ;
-   * « Jusqu'au prochain match › » mène alors au matin de ton match, sans
-   * résultat. On touche le bouton de tête jusqu'à ce que ton match soit joué.
+   * UN JOUR À LA FOIS (1.0, oct.). JP : *vraiment faire un jour par jour, pas
+   * de saut de jour*. Ton club peut être en congé le jour 0 : « Journée
+   * suivante » passe UNE journée, congé ou pas. On la touche jusqu'au matin
+   * d'un résultat de ton club (« Aujourd'hui › »), et chaque toucher doit
+   * avancer d'une journée exactement.
    */
-  for (let i = 0; i < 4; i++) {
+  const journeeAffichee = async () => Number(((await page.textContent('#hubModal .hub-head').catch(() => '')) || '').match(/Journée (\d+)/)?.[1] || 0);
+  for (let i = 0; i < 8; i++) {
     const mot = ((await page.textContent('#hubModal .hub-jour')) || '').trim();
+    if (i && /Aujourd/.test(mot)) break;
+    const j0 = await journeeAffichee();
     await page.click('#hubModal .hub-jour');
     await page.waitForTimeout(150);
-    if (!/prochain match/i.test(mot)) break;
-    await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-page[data-genre="sommaire"]', { timeout: 60000 });
-    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
+    await ecranPret(60000);
+    // Une blessure ou un choix qui s'ouvre par-dessus le bureau : on y répond (le sommaire compris).
+    await repondreAuxChoix();
+    const j1 = await journeeAffichee();
+    if (/Journée suivante/.test(mot) && j0 && j1 && j1 !== j0 + 1) errors.push(`« Journée suivante » saute de la journée ${j0} à la ${j1}`);
+    if (!/Journée suivante/.test(mot)) break;
     if (!(await page.$('#hubModal .hub-jour'))) break;
   }
   /*
@@ -2479,7 +2501,14 @@ async function traverserSaison(etiquette, reprise = false) {
   console.log(`   ${etiquette} : ${jour} · meneurs : ${tableaux} tableaux, ${meneurs} rangées`);
   if (!meneurs) errors.push(`${etiquette} : aucun meneur dans l'onglet des meneurs`);
   await nomsCliquables(etiquette);
-  // Le match en direct, sur demande seulement.
+  // Le match en direct, sur demande seulement — le soir de ton match : un jour de congé n'en a pas.
+  await aller('match');
+  for (let i = 0; i < 10 && !(await page.$('#hubModal .hub-regarder')); i++) {
+    if (!(await page.$('#hubModal .hub-jour'))) break;
+    await page.click('#hubModal .hub-jour');
+    await page.waitForTimeout(200);
+    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
+  }
   await page.click('#hubModal .hub-regarder');
   await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
   await page.waitForTimeout(800);
@@ -3033,10 +3062,16 @@ if (enabled) {
         const ds = await dsDe();
         if (!ds.some(d => Array.isArray(d.lignes) && d.match_no === 0)) errors.push(`la sauvegarde ne porte pas les lignes du round 1 : ${JSON.stringify(ds)}`);
       }
-      await page.click('#hubModal .hub-jour');
-      await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
-      await page.waitForTimeout(400);
-      await repondreAuxChoix();
+      // L'ACCUEIL ENTRE LES MATCHS (1.0, oct.) : la main attend « Tes cartes » (ou ouvre au « Match suivant ») ; on
+      // joue la main du match 1, le match 1, puis la main du match 2 — celle qui porte l'ajustement.
+      const vuAvant = () => (choixVus.get('hub-dilemme') || []).slice(vusAvant).some(t => /Avant le match \d/.test(t));
+      for (let i = 0; i < 5 && !vuAvant(); i++) {
+        if (await page.$('#hubModal .hub-main-serie')) await page.click('#hubModal .hub-main-serie');
+        else await page.click('#hubModal .hub-jour');
+        await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
+        await page.waitForTimeout(400);
+        await repondreAuxChoix();
+      }
       await page.waitForTimeout(400);
       const ds = await dsDe();
       const aj = ds.find(d => d.ajustement);
@@ -3097,6 +3132,22 @@ if (enabled) {
     const noeuds = await page.$$eval('#hubModal .bk-serie', l => l.length);
     await aller('match');
     await page.waitForTimeout(200);
+    /*
+     * L'ACCUEIL ENTRE LES MATCHS (1.0, oct.). JP : *en séries, montrer l'accueil entre les matchs*. La main
+     * ne couvre plus le bureau de la série : « Tes cartes » la propose, et on la joue avant de regarder.
+     */
+    const mainSerie = await page.$('#hubModal .hub-main-serie');
+    if (mainSerie) {
+      if (await page.$('#choixModal:not([hidden])')) errors.push('séries : la main du match s\'ouvre par-dessus l\'accueil au lieu d\'attendre « Tes cartes »');
+      else console.log(`   séries : l'accueil entre les matchs, « ${(await mainSerie.textContent()).trim()} »`);
+      await mainSerie.click();
+      await _wait('#choixModal:not([hidden]) .main-sheet', { timeout: 5000 });
+      const stats = await page.$$eval('#choixModal .ent2-stats tbody th', l => l.map(e => e.textContent.trim()));
+      if (!stats.includes('Jambes moyennes')) errors.push(`séries : la main du soir ne montre pas les stats des deux clubs (${stats.join(', ') || 'rien'})`);
+      await repondreAuxChoix();
+      await aller('match');
+      await page.waitForTimeout(200);
+    }
     const regarder = await page.$('#hubModal .hub-regarder');
     let xe = 'pas de match à regarder';
     if (regarder) {

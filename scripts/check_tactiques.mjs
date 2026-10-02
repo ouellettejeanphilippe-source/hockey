@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitLigne, fitUnite, TACTIQUES, SYSTEMES_D, SLOTS, physiqueLigne,
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitLigne, fitUnite, TACTIQUES, SYSTEMES_D, SLOTS, physiqueLigne, stylesDe, talentDe,
   meilleureTactique, meilleurSystemeD, identiteUnite, fitDeLigne, chimieLigne } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
@@ -193,6 +193,24 @@ if (juger) {
     for (const k of asym) if (fitUnite(L, 'F', u, k) !== fitUnite(M, 'F', u, k)) faux.push(`trio ${u + 1} en ${k} : ${fitUnite(L, 'F', u, k)} puis ${fitUnite(M, 'F', u, k)}`);
   }
   exiger(`échanger les ailiers ne change pas le fit (${asym.length} systèmes aux ailes différentes, 4 trios)`, !faux.length, faux.slice(0, 3).join(' · '));
+}
+
+/*
+ * LE FIT À TALENT ÉGAL (1.0, oct.). JP : *ça devient un double bonus*. Le
+ * style qu'un système lit ne suit plus le talent : sur les réguliers de
+ * trente saisons, aucun rôle ne corrèle à plus de 0,1 avec les points par
+ * match (les rôles affichés, eux, y montaient à 0,9).
+ */
+{
+  const t = [], S = {};
+  for (const f of SAISONS.slice(10, 40)) for (const p of shard(f).players) {
+    if (p.p === 'G' || (p.gp || 0) < 40) continue;
+    const st = stylesDe(p); t.push(talentDe(p));
+    for (const k in st) (S[k] = S[k] || []).push([t.length - 1, st[k]]);
+  }
+  const corr = l => { const a = l.map(([i]) => t[i]), b = l.map(([, v]) => v), n = a.length, ma = a.reduce((x, y) => x + y) / n, mb = b.reduce((x, y) => x + y) / n; let c = 0, va = 0, vb = 0; for (let i = 0; i < n; i++) { c += (a[i] - ma) * (b[i] - mb); va += (a[i] - ma) ** 2; vb += (b[i] - mb) ** 2; } return c / Math.sqrt(va * vb); };
+  const pire = Object.entries(S).map(([k, l]) => [k, corr(l)]).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0];
+  exiger('le style d\'un rôle ne suit pas le talent (le fit à talent égal)', Math.abs(pire[1]) < 0.1, `le plus lié : ${pire[0]} ${pire[1].toFixed(2)}`);
 }
 
 verdict('Les lignes à la HockeyArena');

@@ -12,7 +12,7 @@
 
 import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
   ROULEMENTS, roulementDe } from './sim.js';
-import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan } from './recit.js';
+import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide } from './recit.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { ouvrirSeries, saisonDesFeuilles } from './saison.js';
@@ -505,7 +505,7 @@ function forcesHtml(you, calendrier) {
   const v = (x, d) => x.toFixed(d).replace('.', ',');
   const FORCES = [
     ['Attaque', x => x.GF / x.n, 1, x => `${v(x.GF / x.n, 2)} buts par match`],
-    ['Défense', x => x.SA / x.n, -1, x => `${v(x.SA / x.n, 1)} tirs accordés par match`],
+    ['Défense', x => x.GA / x.n, -1, x => `${v(x.GA / x.n, 2)} buts accordés par match`],
     ['Devant le filet', x => (x.SA ? 1 - x.GA / x.SA : 0), 1, x => `${pct3(x.SA ? 1 - x.GA / x.SA : 0)} d'arrêts`],
     ['Robustesse', x => x.CO / x.n, 1, x => `${v(x.CO / x.n, 1)} mises en échec par match`],
     ['Clutch', x => x.serresV / Math.max(1, x.serresV + x.serresD), 1, x => `${x.serresV}-${x.serresD} dans les matchs d'un but`],
@@ -1236,6 +1236,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       <div class="som-ligne"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
       <div class="som-ligne"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
     </div>
+    ${(d => (d.length ? `<div class="som-decide"><div class="som-per-head"><span>Ce qui a décidé</span></div><ul>${d.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''))(ceQuiADecide(f, teamShort(A), teamShort(B)))}
     ${parPeriode}
     <div class="som-per">
       <div class="som-per-head"><span>Gardiens</span><span class="som-tirs">${esc(pied)}</span></div>
