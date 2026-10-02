@@ -209,6 +209,13 @@ const SONS = {
   curseur(c, t) { note(c, t, { forme: 'triangle', freq: 1320, gain: 0.018, dec: 0.03 }); },
   valide(c, t) { note(c, t, { forme: 'triangle', freq: 880, vers: 1175, gain: 0.04, dec: 0.07 }); },
   arriere(c, t) { note(c, t, { forme: 'triangle', freq: 740, vers: 494, gain: 0.035, dec: 0.08 }); },
+  /* La Coupe (1.0) : la sirène, la foule, puis la fanfare qui monte deux fois. */
+  coupe(c, t) {
+    SONS.but(c, t);
+    [392, 523, 659, 784, 1047, 1319].forEach((f, i) => note(c, t + 0.9 + i * 0.11, { forme: 'triangle', freq: f, gain: 0.08, dec: 0.5 }));
+    [523, 659, 784].forEach(f => note(c, t + 1.7, { forme: 'triangle', freq: f, gain: 0.06, att: 0.02, dec: 1.4 }));
+    bruit(c, t + 1.7, { gain: 0.06, att: 0.1, dec: 1.2, type: 'highpass', freq: 5000 });
+  },
   /* La récompense : un arpège qui brille. */
   recompense(c, t) {
     [523, 659, 784, 1047].forEach((f, i) => note(c, t + i * 0.07, { forme: 'triangle', freq: f, gain: 0.07, dec: 0.35 }));

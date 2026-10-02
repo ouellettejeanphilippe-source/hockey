@@ -45,7 +45,7 @@ import { MT, chargerTable } from './charge-table.js';
 import { ouvrirChoix } from './gerant.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { brancherEntractes } from './entracte.js';
-import { migrerHistorique, rendreCartable, ajouterAuCartable } from './cartable.js';
+import { migrerHistorique, rendreCartable, ajouterAuCartable, marquerJouees } from './cartable.js';
 import { ouvrirEquipes } from './equipes.js';
 import { albumHtml } from './album.js';
 import { blessesAuJour, cartesAJouer, decisionsDeLaPartie, finDesSeriesRogue, jetonsRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire } from './rogue-jeu.js';
@@ -1226,8 +1226,9 @@ export function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
         const m = lireMeta();
         if (!(m.runs > 0)) return '';
         const d = m.derniereRun;
-        if (d && d.numero === m.runs) return `Run ${d.numero} · ${esc(motDeRun(d))} · 🏅 ${m.ecussons || 0}`;
-        return `Run ${m.runs} en cours · 🏅 ${m.ecussons || 0}`;
+        const vitrine = m.coupes ? ` · 🏆 ${m.coupes}` : '';
+        if (d && d.numero === m.runs) return `Run ${d.numero} · ${esc(motDeRun(d))} · 🏅 ${m.ecussons || 0}${vitrine}`;
+        return `Run ${m.runs} en cours · 🏅 ${m.ecussons || 0}${vitrine}`;
       },
       nouvelle: () => { nouvellePartie('rogue'); ailleurs('nouvelle-rogue'); },
       vestiaire: () => ouvrirVestiaire(() => { if (document.getElementById('menuDepart')) afficherMenu(contexteDuMenu({ vierge, enJeu })); }),
@@ -1944,7 +1945,11 @@ function remplirCartable() {
   });
 }
 /* L'alignement entre au cartable au départ d'une saison (une variante neuve compte, pas un doublon). */
-export const alignementAuCartable = () => ajouterAuCartable(signes().map(p => ({ cle: getPlayerKey(p), rar: varianteJoueur(p), num: (G.variantes.numeros || {})[getPlayerKey(p)] || null })), { doublons: false });
+export const alignementAuCartable = () => {
+  ajouterAuCartable(signes().map(p => ({ cle: getPlayerKey(p), rar: varianteJoueur(p), num: (G.variantes.numeros || {})[getPlayerKey(p)] || null })), { doublons: false });
+  // 1.0 : en Rogue, chaque carte de l'alignement compte une run jouée de plus (js/cartable.js `marquerJouees`).
+  if (G.bonus === 'ROGUE' && G.rogue) marquerJouees(signes().map(getPlayerKey), G.rogue.numero || 0);
+};
 
 /*
  * L'ÉTAT VIDE : un onglet qui n'a encore rien à montrer dit pourquoi, et
