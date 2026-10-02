@@ -31,9 +31,11 @@ import {
 } from '../../js/sim.js';
 import { carteDe, varianteTiree, COTES_VARIANTES } from '../../js/rarete.js';
 import { TIERS, PACKS_JOUEURS, SKILLS } from '../../js/packs.js';
+import { niveauDe } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
   DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, GARDES_DE_SAISON,
+  soutiensDuDepart, tirageDuDepart, rangDePrestige, PRIME_DECOUVERTE,
 } from '../../js/rogue.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -311,7 +313,7 @@ function jouerSaison(meta, etat, { graine, saison }) {
  * peuvent débloquer en cours de run. Rend la run saison par saison, les
  * écussons, ce qui entre au classeur, et l'équipe finale.
  */
-export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', jalons = false, maxSaisons = 8 } = {}) {
+export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', jalons = false, maxSaisons = 8, joues = new Map() } = {}) {
   const rnd = generateur('rogue80', graine);
   const exclus = new Set();
   // Les joueurs gardés de la dernière équipe (le robot garde les meilleurs).
@@ -320,8 +322,10 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   // Les cartes du classeur au départ.
   const tires = tirerClasseur(rnd, meta, classeur, exclus).map(x => ({ p: copie(x.p), rar: x.rar }));
   tires.forEach(x => exclus.add(getPersonKey(x.p)));
-  const pool = [...gardes, ...tires.map(x => x.p), ...plombiers(rnd, meta, exclus)];
-  const etat = { roster: ranger(pool, reservesDeLaRun(meta)), variantes: new Map(tires.map(x => [getPlayerKey(x.p), x.rar])), jetons: jetonsDeDepart(meta) };
+  const V = vestiaire(rnd, meta, [...gardes, ...tires.map(x => x.p)], classeur, { joues, graine: `${graine}:depart` });
+  const etat = { roster: V.roster, variantes: new Map(tires.map(x => [getPlayerKey(x.p), x.rar])), jetons: jetonsDeDepart(meta) };
+  for (const x of classeur) if (!etat.variantes.has(getPlayerKey(x.p))) etat.variantes.set(getPlayerKey(x.p), x.rar);
+  const jouees = new Set();
   const saisons = [];
   let ecussons = 0;
   const entrees = Object.values(etat.roster).map(p => ({ p, rar: etat.variantes.get(getPlayerKey(p)) || 'commune' }));
@@ -329,16 +333,25 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     const r = jouerSaison(meta, etat, { graine, saison: n });
     entrees.push(...r.entrees);
     let e = ecussonsDeLaSaison(r.pts) + ecussonsDesSeries(r.rondes, r.coupe);
+    // La prime de découverte : les cartes qui finissent leur première saison (`joues` ne les connaît pas encore).
+    const fin = Object.values(r.roster).filter(Boolean).map(getPlayerKey);
+    e += fin.filter(k => !joues.has(k) && !jouees.has(k)).length * PRIME_DECOUVERTE;
+    for (const k of [...Object.values(etat.roster).filter(Boolean).map(getPlayerKey), ...fin]) jouees.add(k);
     if (jalons) e += payerJalonsSim(meta, { ...r, saisonDeLaRun: n, cartes: classeur.length + entrees.length });
     ecussons += e;
     saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes });
     // LE MANDAT DU PROPRIO (js/rogue.js `MANDATS`) : manqué, la run est finie ; la Coupe la gagne.
     if (r.coupe || !mandatRempli(n, r)) break;
     // LA SAISON SUIVANTE : l'équipe se défait — les meilleurs restent, des plombiers neufs ; les jetons restent, la caisse revient.
-    const restent = gardesDeSaison(meta, Object.values(r.roster).filter(Boolean));
-    etat.roster = ranger([...restent, ...plombiers(rnd, meta, new Set(restent.map(getPersonKey)))], reservesDeLaRun(meta));
+    const equipe = Object.values(r.roster).filter(Boolean);
+    const restent = gardesDeSaison(meta, equipe);
+    const partants = new Set(equipe.map(getPlayerKey).filter(k => !restent.some(p => getPlayerKey(p) === k)));
+    // Le classeur a grossi pendant la saison : les cartes tirées des packs en sont.
+    const classeurSaison = [...classeur, ...r.entrees.map(x => ({ p: x.p, rar: x.rar }))];
+    etat.roster = vestiaire(rnd, meta, restent, classeurSaison, { saison: n + 1, exclus: partants, joues, graine: `${graine}:s${n + 1}` }).roster;
     etat.jetons = r.reste + jetonsDeDepart(meta);
   }
+  for (const k of jouees) joues.set(k, (joues.get(k) || 0) + 1);
   const fin = saisons[saisons.length - 1];
   return {
     saisons, nSaisons: saisons.length, coupe: !!fin.coupe, ecussons, depart: tires.length,
@@ -346,6 +359,28 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     entrees: entrees.map(x => ({ p: x.p, rar: x.rar })),
     equipe: Object.values(etat.roster).filter(Boolean),
   };
+}
+/*
+ * LE VESTIAIRE TIRÉ DU CLASSEUR (js/rogue.js `tirageDuDepart`, comme
+ * js/rogue-jeu.js `vestiaireDeDepart`) : les cartes Soutien et Régulier du
+ * classeur, les moins jouées d'abord (`joues` : clé → runs jouées) ; les
+ * trous, des plombiers de la ligue. Un classeur vide : les plombiers d'avant.
+ */
+function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new Set(), joues = new Map(), graine = '' } = {}) {
+  const nRes = reservesDeLaRun(meta);
+  const personnes = new Set(fixes.map(getPersonKey));
+  const dispo = classeur.filter(x => !exclus.has(getPlayerKey(x.p)) && !personnes.has(getPersonKey(x.p)) && (x.p.$ || 0) > 0);
+  if (!dispo.length) return { roster: ranger([...fixes, ...plombiers(rnd, meta, personnes)], nRes), tires: [] };
+  const decrire = p => ({ cle: getPlayerKey(p), p, groupe: groupe(p), niveau: niveauDe(p, shard(p.s).players), r: joues.get(getPlayerKey(p)) || 0 });
+  const cartes = dispo.map(x => decrire(x.p)).filter(x => x.niveau <= 1);
+  const budget = PLAFOND_ROGUE + plafondDuVestiaire(meta) - ESPACE_DE_DEPART;
+  const { tires, manque } = tirageDuDepart({ fixes: fixes.map(decrire), cartes, quota: soutiensDuDepart(rangDePrestige(meta), saison), budget: Math.max(masseDe(fixes), budget), graine, personne: x => getPersonKey(x.p) });
+  const pris = [...fixes, ...tires.map(x => copie(x.p))];
+  if (Object.values(manque).some(n => n > 0)) {
+    const ligue = plombiers(rnd, meta, new Set(pris.map(getPersonKey)));
+    for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupe(p) === g).slice(0, manque[g]));
+  }
+  return { roster: ranger(pris, nRes), tires };
 }
 /* Ceux qui restent d'une saison à l'autre : le robot garde les meilleurs qui tiennent ensemble dans le budget du classeur. */
 function gardesDeSaison(meta, equipe) {

@@ -188,6 +188,71 @@ export function tirageDuClasseur(cles, graine) {
   return cles.slice().sort().map(k => [hache(graine, 'classeur', k), k]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
 }
 
+/*
+ * LE VESTIAIRE TIRÉ DU CLASSEUR (1.0). JP : *le jeu doit me forcer à utiliser
+ * un max de variété de cartes de joueurs, de tous les niveaux. Ils doivent
+ * donc tous venir de mes cartes à partir de la deuxième run, tout en gardant
+ * le concept que l'équipe doit commencer la saison faible […] je dois
+ * commencer avec des joueurs de soutien et en progressant, en avoir moins.*
+ *
+ * Dès que ton cartable a des cartes, tes plombiers sont TES cartes Soutien
+ * (niveau Soutien, ou sans niveau : moins d'une demi-saison). Le quota de
+ * Soutien baisse avec le prestige du club (trois de moins par rang) et avec
+ * la saison de la run (trois de moins par saison) ; les autres cases vont à
+ * tes cartes Régulier. Les cartes choisies (gardés, classeur) comptent dans
+ * le quota selon leur niveau. Ce que le classeur n'a pas, des plombiers de la
+ * ligue le comblent.
+ *
+ * LE GOÛT D'ESSAYER : le tirage prend d'abord les cartes qui ont joué le
+ * moins de runs (`r`, js/cartable.js), au hasard entre elles — une carte
+ * neuve passe avant une habituée — et une carte qui finit sa première saison
+ * avec toi paie sa PRIME DE DÉCOUVERTE.
+ */
+export const COMPOSITION_DEPART = { F: 14, D: 7, G: 2 };
+export const SOUTIENS_DEPART = 23, SOUTIENS_MOINS_RANG = 3, SOUTIENS_MOINS_SAISON = 3, SOUTIENS_MIN = 5;
+export const soutiensDuDepart = (rang, saison = 1) => Math.max(SOUTIENS_MIN, SOUTIENS_DEPART - SOUTIENS_MOINS_RANG * (rang || 0) - SOUTIENS_MOINS_SAISON * ((saison || 1) - 1));
+/* Soutien : le niveau 0, ou pas de niveau (−1, un joueur de moins d'une demi-saison). */
+export const estSoutien = niveau => niveau <= 0;
+/*
+ * LE TIRAGE (pur). `fixes` : les cartes déjà prises ({ p, niveau, groupe }) ;
+ * `cartes` : les candidates ({ cle, p, niveau, groupe, r }) ; `quota` : les
+ * Soutien voulus ; `budget` : la masse que l'équipe ne dépasse pas. Rend les
+ * cartes tirées et ce qui manque par groupe (pour les plombiers de la ligue).
+ */
+export function tirageDuDepart({ fixes = [], cartes = [], quota, budget = Infinity, graine = '', personne = c => c.cle }) {
+  const besoin = { ...COMPOSITION_DEPART };
+  let soutiens = 0, autres = 0;
+  const pris = new Set();
+  for (const f of fixes) {
+    besoin[f.groupe] = Math.max(0, (besoin[f.groupe] || 0) - 1);
+    if (estSoutien(f.niveau)) soutiens++; else autres++;
+    pris.add(personne(f));
+  }
+  const total = Object.values(COMPOSITION_DEPART).reduce((a, n) => a + n, 0);
+  let auDessus = Math.max(0, total - Math.max(quota, soutiens) - autres);
+  const ordre = cartes.slice().sort((a, b) => (a.r || 0) - (b.r || 0) || hache(graine, 'depart', a.cle) - hache(graine, 'depart', b.cle));
+  const tires = [];
+  const prendre = c => { tires.push(c); pris.add(personne(c)); besoin[c.groupe]--; };
+  // Les cases au-dessus du quota : tes cartes Régulier, les moins jouées d'abord.
+  for (const c of ordre) {
+    if (auDessus <= 0) break;
+    if (c.niveau !== 1 || !(besoin[c.groupe] > 0) || pris.has(personne(c))) continue;
+    prendre(c); auDessus--;
+  }
+  // Le reste : tes cartes Soutien.
+  for (const c of ordre) if (estSoutien(c.niveau) && besoin[c.groupe] > 0 && !pris.has(personne(c))) prendre(c);
+  // Le plafond : la plus chère des Régulier tirées laisse sa place à une Soutien de son groupe (ou à un plombier).
+  const masse = () => [...fixes, ...tires].reduce((a, c) => a + ((c.p && c.p.$) || 0), 0);
+  for (let garde = 0; masse() > budget && garde < 30; garde++) {
+    const cher = tires.filter(c => !estSoutien(c.niveau)).sort((a, b) => (b.p.$ || 0) - (a.p.$ || 0))[0];
+    if (!cher) break;
+    tires.splice(tires.indexOf(cher), 1); pris.delete(personne(cher)); besoin[cher.groupe]++;
+    const rempl = ordre.find(c => estSoutien(c.niveau) && c.groupe === cher.groupe && !pris.has(personne(c)) && (c.p.$ || 0) < (cher.p.$ || 0));
+    if (rempl) prendre(rempl);
+  }
+  return { tires, manque: Object.fromEntries(Object.entries(besoin).map(([g, n]) => [g, Math.max(0, n)])) };
+}
+
 /* ---------- le méta ---------- */
 /*
  * S79 : l'INVENTAIRE PERMANENT — `personnel` (les patrons qu'on possède, qu'on
@@ -290,6 +355,8 @@ export function payerEcussons(cleRun, etape, n, { equipe = null, bilan = null } 
   return Math.round(n);
 }
 export const ecussonsDeLaSaison = pts => Math.floor((pts || 0) / 2);
+/* La prime de découverte : un écusson par carte qui finit sa première saison avec toi (js/cartable.js `decouvrir`). */
+export const PRIME_DECOUVERTE = 1;
 export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 10 + (coupe ? 20 : 0);
 
 /* ---------- la run sur plusieurs saisons (S80) ---------- */
@@ -351,6 +418,9 @@ export const JALONS = [
   { cle: 'finale', ico: '🏟️', nom: 'La finale', texte: 'Atteins la finale de la Coupe.', si: f => !!f.finale, recompense: { deblocage: 'plafond1', ecussons: 60 } },
   { cle: 'coupe', ico: '🏆', nom: 'La Coupe', texte: 'Gagne la Coupe Stanley.', si: f => !!f.coupe, recompense: { deblocage: 'classeurChoix', ecussons: 120 } },
   { cle: 'cartable', ico: '📒', nom: 'Cent cartes', texte: 'Aie 100 cartes de joueur dans ton cartable.', si: f => (f.cartes || 0) >= 100, recompense: { ecussons: 20 } },
+  // 1.0 : le goût d'essayer — des cartes différentes, et tous les niveaux dans la même équipe.
+  { cle: 'essais', ico: '🧪', nom: 'Cinquante essais', texte: 'Fais jouer 50 cartes différentes en Rogue.', si: f => (f.joues || 0) >= 50, recompense: { ecussons: 40 } },
+  { cle: 'tousNiveaux', ico: '🌈', nom: 'Tous les niveaux', texte: 'Finis une saison avec un joueur de chaque niveau, de Soutien à Phénomène.', si: f => (f.niveaux || 0) >= 5, recompense: { ecussons: 50 } },
 ];
 /* Les jalons que ces faits atteignent et qui n'ont pas encore payé. */
 export const jalonsAtteints = (m, faits) => JALONS.filter(J => !(m.jalons || {})[J.cle] && J.si(faits || {}));
