@@ -226,18 +226,17 @@ async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
 const alignementsVus = [];
 async function sortirDansAlignement() {
   /*
-   * D'ABORD LES CARTES (1.0, oct.) : « qui sort ? » est une liste de ton
-   * effectif, chacun comparé à l'arrivant (sa fiche, son salaire, la masse) ;
-   * l'alignement vient ensuite, pour placer l'arrivant.
+   * DEUX ALIGNEMENTS (1.0, oct.). JP : *le « qui sort » devrait être un alignement avec des mini cartes,
+   * comme la fenêtre d'après*. « Qui sort ? » est l'alignement (chaque case dit la masse), puis « Où joue
+   * X ? » l'est aussi : les deux passent les mêmes exigences, l'une après l'autre.
    */
-  await _wait('#choixModal:not([hidden]) :is(.choix-option, .aln-case)', { timeout: 5000 });
-  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) {
-    const liste = await page.$$eval('#choixModal .choix-option', l => l.map(o => ({ permis: !o.disabled, puces: o.querySelectorAll('.puce').length })));
-    if (liste.length < 20) errors.push(`« qui sort ? » ne liste que ${liste.length} joueurs`);
-    if (liste.some(o => o.puces < 2)) errors.push('« qui sort ? » : un joueur sans sa fiche ou sa masse');
-    if (!liste.some(o => o.permis)) { errors.push('« qui sort ? » : personne ne peut sortir'); return false; }
-    await page.$eval('#choixModal .choix-option:not([disabled])', b => b.click());
+  for (let etape = 0; etape < 2; etape++) {
+    if (etape && !(await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 3000 }).catch(() => null))) break;
+    if (!(await alignementDuChoix())) return false;
   }
+  return true;
+}
+async function alignementDuChoix() {
   await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 5000 });
   await page.waitForTimeout(150);
   const lu = await page.evaluate(() => {
@@ -2292,6 +2291,10 @@ async function traverserSaison(etiquette, reprise = false) {
             else console.log(`   « ${dDeck[0].garde} » attend dans l'inventaire`);
             await _click('#hubModal .hub-page[data-genre="cartes"] .hub-page-retour');
             await page.waitForTimeout(300);
+            // Fermée, la page des cartes ramène au Marché (1.0, oct.) ; le parcours retourne au Club.
+            if ((await page.evaluate(() => document.body.dataset.section)) !== 'marche') errors.push('« Tes cartes » fermée ne ramène pas au Marché');
+            await _click('#navbar .navtab[data-section="club"]');
+            await page.waitForTimeout(300);
           }
         }
       }
@@ -2708,9 +2711,28 @@ if (enabled) {
     // LES FORCES EN VRAIES STATS (1.0, oct.) : un rang et une stat de la saison par force, jamais une cote.
     const forces = await page.$$eval('.result .bars .bar', l => l.map(b => [b.querySelector('.bl').textContent.trim(), b.querySelector('.bv').textContent.trim(), (b.querySelector('.bm') || {}).textContent || '']));
     const malFaites = forces.filter(([, rang, mot]) => !/^\d+(er|e)$/.test(rang) || !/\d/.test(mot));
-    if (forces.length !== 5 || malFaites.length) errors.push(`les forces du bilan ne sont pas cinq rangs avec leur stat : ${forces.map(f => f.join(' ')).join(' · ')}`);
+    if (forces.length !== 7 || malFaites.length) errors.push(`les forces du bilan ne sont pas sept rangs avec leur stat : ${forces.map(f => f.join(' ')).join(' · ')}`);
     else console.log(`   les forces du bilan : ${forces.map(([n, r, m]) => `${n} ${r} (${m})`).join(' · ')}`);
     await deuxCaptures('bilan');
+    /*
+     * LE BILAN SE LIT PAR CHAPITRES (1.0, oct.) : la barre collée y saute, et « Tes chiffres » et « Le rythme »
+     * se relisent aux feuilles — une fiche à domicile et sur la route qui fait la fiche entière, une courbe de 82 points.
+     */
+    const ch = await page.$$eval('#resultHost .bl-sauts .aln-saut', l => l.map(b => b.dataset.blSaut));
+    const tuiles = await page.$$eval('#resultHost .bl-tuile', l => l.map(t => [t.querySelector('.k').textContent.trim(), t.querySelector('b').textContent.trim()]));
+    const fdu = k => ((tuiles.find(t => t[0] === k) || [])[1] || '0-0-0').split('-').map(Number);
+    const [d, r] = [fdu('À domicile'), fdu('Sur la route')];
+    const tot = score.trim().split('-').map(Number);
+    if (!['resume', 'chiffres', 'rythme'].every(k => ch.includes(k))) errors.push(`le bilan n'a pas ses chapitres : ${ch.join(', ')}`);
+    else if (d.some((x, i) => x + r[i] !== tot[i])) errors.push(`domicile ${d.join('-')} et route ${r.join('-')} ne font pas la fiche ${score.trim()}`);
+    else {
+      await page.click('#resultHost .bl-sauts [data-bl-saut="rythme"]');
+      await page.waitForTimeout(500);
+      const vu = await page.$eval('#resultHost [data-bl="rythme"]', e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight / 2; });
+      if (!vu) errors.push('le chapitre « Rythme » ne vient pas en haut quand on le touche');
+      console.log(`   le bilan par chapitres : ${ch.join(' · ')} · domicile ${d.join('-')}, route ${r.join('-')} · ${tuiles.length} chiffres`);
+      await deuxCaptures('bilan-rythme', '#resultHost [data-bl="rythme"]');
+    }
   }
   /*
    * L'ALBUM (S74) : la saison jouée y entre — ses 23 joueurs au cartable,

@@ -122,7 +122,7 @@ function statsAvantGros(ctx, moi, lui, saison) {
 /* La saison d'un club lue sur les feuilles jouées : ce que les séries n'ont plus en fiche, et les forces du bilan. */
 export function saisonDesFeuilles(calendrier) {
   const out = new Map();
-  const de = t => { if (!out.has(t)) out.set(t, { n: 0, GF: 0, GA: 0, SF: 0, SA: 0, PKO: 0, CO: 0, serresV: 0, serresD: 0 }); return out.get(t); };
+  const de = t => { if (!out.has(t)) out.set(t, { n: 0, GF: 0, GA: 0, SF: 0, SA: 0, PKO: 0, CO: 0, serresV: 0, serresD: 0, ANB: 0, ANO: 0, INB: 0 }); return out.get(t); };
   for (const m of (calendrier || []).flat()) {
     if (!m || !m.joue || !m.feuille) continue;
     const f = m.feuille;
@@ -132,6 +132,10 @@ export function saisonDesFeuilles(calendrier) {
       if (Math.abs(gf - ga) === 1) { if (gf > ga) S.serresV++; else S.serresD++; }
       S.PKO += (f.punitions || []).filter(x => x.cote === c).length;
       S.CO += (f.coups && f.coups[c]) || 0;
+      // Les unités spéciales : tes buts en avantage, tes avantages (les punitions de l'autre), ses buts en avantage.
+      S.ANB += f.buts.filter(b => b.cote === c && b.an).length;
+      S.ANO += (f.punitions || []).filter(x => x.cote !== c).length;
+      S.INB += f.buts.filter(b => b.cote !== c && b.an).length;
     }
   }
   return out;
@@ -216,6 +220,8 @@ function coquille(label) {
     pageOuverte = null;
     el.remove();
     if (sheet) delete sheet.dataset.page;
+    // La coquille (js/game.js) sait quelle page du Club s'ouvre ou se ferme : la boutique est au Marché.
+    document.dispatchEvent(new CustomEvent('cap82:page', { detail: { genre: null, de: el.dataset.genre, silencieux } }));
     if (!silencieux && onFerme) onFerme();
     return true;
   };
@@ -236,6 +242,7 @@ function coquille(label) {
     sheet.dataset.page = genre;
     sheet.scrollTop = 0;
     pageOuverte = { el, onFerme };
+    document.dispatchEvent(new CustomEvent('cap82:page', { detail: { genre } }));
     el.querySelectorAll('.hub-page-retour, .hub-page-fermer').forEach(b => { b.onclick = () => fermerPage(); });
     return el.querySelector('.hub-page-corps');
   };
@@ -2288,7 +2295,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const debrancherMenuSeul = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
   // LES PAGES DU CLUB (1.0, R3) : le retour (js/pile.js) les ferme, le sommaire d'un match (js/bilan.js) s'y ouvre.
   tabs.hub.ouvrirPage = ui.ouvrirPage;
-  tabs.hub.fermerPage = () => ui.fermerPage();
+  tabs.hub.fermerPage = (silencieux = false) => ui.fermerPage(silencieux);
   // La prévision se lance au toucher (une seconde de calcul) et reste jusqu'à la prochaine journée ou décision.
   const lancerPrevision = e => {
     const b = e.target.closest('.hub-prev-lancer');
@@ -3830,7 +3837,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
   });
   const debrancherMenu = brancherMenu(volet, menu, clubs, () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
   tabs.hub.ouvrirPage = ui.ouvrirPage;
-  tabs.hub.fermerPage = () => ui.fermerPage();
+  tabs.hub.fermerPage = (silencieux = false) => ui.fermerPage(silencieux);
   // L'onglet « Alignement » ouvre le banc pendant ta série (S69).
   if (onBanc) tabs.hub.banc = () => {
     const s = maSerie(ronde);

@@ -8,7 +8,7 @@
 import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, motsDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
-import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, MAX_PATRONS, ROLES, payloadDe, CONSOMMABLES, CONTRATS, CASES_DE_BASE, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
+import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, MAX_PATRONS, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS } from './coachs.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -570,7 +570,6 @@ function poserUneModif(item, j, decider, retour) {
   // Poser ferme l'alignement en silence (`fermer`) : la décision part, et l'inventaire ne se rouvre pas.
   const fermer = ouvrirAlignement({
     ico: M.ico, titre: `${M.nom} : sur qui ?`, motFermer: 'Retour',
-    recit: `${M.quoi} Touche un joueur : sa carte se retourne, et tu la poses sur une case libre de son verso (${CASES_DE_BASE} par carte, une de plus pour une holo ou une or). ${G.bonus === 'ROGUE' ? 'Elle reste sur sa carte, d\'une run à l\'autre.' : 'Elle y reste pour la saison.'}`,
     contexte: `<div class="choix-puces">${puces(motsDeMutation(c.cle))}</div>`,
     aide: 'Touche un joueur pour voir son verso.',
     rangees,
@@ -1195,26 +1194,34 @@ function clubChange() {
   if (!enRepechage()) applyTeamColors('YOU');
   majEntete();
 }
-function ouvrirClub(apres = null) {
+function ouvrirClub(apres = null, onglet = 'nom') {
   const meta = lireMeta(), c = choixDuClub(meta);
+  // Trois onglets (huit noms, cinquante couleurs, trente écussons) : ce qui est à toi d'abord.
+  const R = RAYONS_CLUB.find(x => x.cle === onglet) || RAYONS_CLUB[0];
+  const onglets = `<div class="stat-tabs" role="tablist">${RAYONS_CLUB.map(x => {
+    const a = Object.keys(x.liste).filter(k => possede(meta, x.cle, k)).length;
+    return `<button type="button" role="tab" class="stat-tab${x === R ? ' on' : ''}" aria-selected="${x === R}" data-onglet="${x.cle}">${esc(x.titre)} · ${a}/${Object.keys(x.liste).length}</button>`;
+  }).join('')}</div>`;
+  const options = Object.entries(R.liste).map(([k, o]) => {
+    const porte = c[R.cle] === k, a = possede(meta, R.cle, k);
+    const garde = o.rang && rangDePrestige(meta) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '';
+    return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), sous: R.titre, a,
+      nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🪙`}`,
+      desactive: porte ? 'Porté' : a ? null : garde || 'À la boutique, rayon « Ton club »' };
+  }).sort((x, y) => y.a - x.a);
   ouvrirChoix({
     ico: '🏅', titre: 'Ton club', fermable: true, motFermer: 'Retour au vestiaire',
-    contexte: `<div class="club-porte"><span class="club-ecu" aria-hidden="true">${ecussonDe(c)}</span><b>${esc(nomDuClub())}</b></div>`,
+    contexte: `<div class="club-porte"><span class="club-ecu" aria-hidden="true">${ecussonDe(c)}</span><b>${esc(nomDuClub())}</b></div>${onglets}`,
     compact: true,
-    options: RAYONS_CLUB.flatMap(R => Object.entries(R.liste).map(([k, o]) => {
-      const porte = c[R.cle] === k, a = possede(meta, R.cle, k);
-      const garde = o.rang && rangDePrestige(meta) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '';
-      return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), sous: R.titre,
-        nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🪙`}`,
-        desactive: porte ? 'Porté' : a ? null : garde || 'À la boutique, rayon « Ton club »' };
-    })),
+    options: options.map(({ a: _a, ...o }) => o),
     onChoix: cle => {
       const [r, k] = cle.split(':');
       if (porter(r, k)) clubChange();
-      ouvrirClub(apres);
+      ouvrirClub(apres, r);
     },
     onFerme: () => ouvrirVestiaire(apres),
   });
+  document.querySelectorAll('#choixModal [data-onglet]').forEach(b => { b.onclick = () => ouvrirClub(apres, b.dataset.onglet); });
 }
 
 export function ouvrirVestiaire(apres = null) {

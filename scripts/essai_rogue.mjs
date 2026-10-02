@@ -30,6 +30,8 @@ const auBureau = async (timeout = 120000) => {
     await page.click('#hubModal .hub-page-retour').catch(() => {});
     await page.waitForTimeout(250);
   }
+  // La boutique fermée ramène au Marché (1.0, oct.) : le bureau est au Club.
+  if (await page.evaluate(() => document.body.dataset.section !== 'club')) { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); await page.waitForTimeout(250); }
   await page.waitForSelector(BUREAU, { timeout });
 };
 const versMarche = async quoi => {
@@ -293,6 +295,16 @@ else {
   const tout = await page.$('#hubModal .hub-page[data-genre="boutique"] .pk-tout');
   if (tout) { await tout.click(); await page.waitForTimeout(300); }
   const avantJ = Number(((await page.textContent('#hubModal .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  // Le nuancier : l'onglet des couleurs en montre une par tuile, l'aplat et la seconde.
+  await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-rayon-club [data-onglet="palette"]');
+  await page.waitForTimeout(300);
+  const nuances = await page.$$eval('#hubModal .hub-page[data-genre="boutique"] .pk-rayon-club .pk-nuance', e => e.length);
+  await page.$eval('#hubModal .hub-page[data-genre="boutique"] .pk-rayon-club', e => e.scrollIntoView({ block: 'start' }));
+  await page.screenshot({ path: `${DOSSIER}/rogue-boutique-couleurs.png` });
+  if (nuances !== 50) erreurs.push(`le nuancier de la boutique montre ${nuances} couleurs, il en faut 50`);
+  console.log(`7c. le nuancier : ${nuances} couleurs à débloquer`);
+  await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-rayon-club [data-onglet="nom"]');
+  await page.waitForTimeout(300);
   await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-club="nom:harfangs"]');
   await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-fiche .club-porte');
   await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-fiche .pk-acheter');
@@ -367,33 +379,30 @@ await page.click('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled=
  * case la surligne et la barre dit ce qui va se passer (la ligne de celui
  * qui sort) ; rien ne part avant « Confirmer ».
  */
-await page.waitForSelector('#choixModal:not([hidden]) :is(.choix-option, .aln-case)', { timeout: 10000 });
-const titre = (await page.textContent('#choixModal .choix-titre')).trim();
-let libreOfferte = false;
-if (/où \?/.test(titre)) {
-  await page.screenshot({ path: `${DOSSIER}/rogue-case-libre.png` });
-  libreOfferte = !!(await page.$('#choixModal:not([hidden]) .choix-option[data-choix="libre"]:not([disabled])'));
-  await choix('.choix-option[data-choix="sort"]');
-}
-// D'ABORD LES CARTES (1.0, oct.) : qui sort, en liste, chacun comparé à l'arrivant ; l'alignement ensuite, pour le placer.
-await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 10000 });
-const sortants = await page.$$eval('#choixModal .choix-option', l => l.map(o => ({ permis: !o.disabled, puces: o.querySelectorAll('.puce').length })));
-if (sortants.length < 20 || sortants.some(o => o.puces < 2)) erreurs.push(`« qui sort ? » : ${sortants.length} joueurs, ${sortants.filter(o => o.puces < 2).length} sans fiche ni masse`);
-await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort-liste.png` });
-await page.$eval('#choixModal .choix-option:not([disabled])', b => b.click());
+// QUI SORT, DANS L'ALIGNEMENT (1.0, oct.) : la case de réserve libre y est une case (« personne ne sort »), puis « Où joue X ? ».
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
 await page.waitForTimeout(300);
+const titre = (await page.textContent('#choixModal .choix-titre')).trim();
+const libreOfferte = await page.$$eval('#choixModal .aln-case[data-aln]:not([disabled]) .aln-nom', e => e.some(x => x.textContent.trim() === 'Case libre'));
 const rangees = await page.$$eval('#choixModal .aln-titre', e => e.map(x => (x.firstChild ? x.firstChild.textContent : x.textContent).trim()));
 if (rangees.join('|') !== '1er trio|2e trio|3e trio|4e trio|1re paire|2e paire|3e paire|Gardiens|Réserve') erreurs.push(`« qui sort ? » : rangées ${rangees.join(' · ')}`);
 const refusees = await page.$$eval('#choixModal .aln-case[data-aln][disabled]', e => e.length);
-await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
+// Un joueur qui sort (pas la case libre) : c'est le chemin qui retire quelqu'un.
+await page.$$eval('#choixModal .aln-case[data-aln]:not([disabled])', e => { const b = e.find(x => x.querySelector('.aln-nom').textContent.trim() !== 'Case libre'); if (b) b.click(); });
 await page.waitForTimeout(250);
 const barreSortie = (await page.textContent('#choixModal .aln-barre-mot')).replace(/\s+/g, ' ').trim();
-// OÙ IL JOUE (1.0, oct.) : sa case, hors position ou non, qui glisse ailleurs, et la masse.
-if (!/: .+masse/.test(barreSortie)) erreurs.push(`la barre de « qui sort ? » ne dit pas ce qui va se passer : « ${barreSortie} »`);
-if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) erreurs.push('toucher une case de « qui sort ? » a décidé sans « Confirmer »');
+if (!/sort : .+masse/.test(barreSortie)) erreurs.push(`la barre de « qui sort ? » ne dit pas ce qui va se passer : « ${barreSortie} »`);
+if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) erreurs.push('toucher une case de « qui sort ? » a décidé sans « Continuer »');
 await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
-console.log(`   qui sort : ${rangees.length} rangées, ${refusees} case(s) grisée(s) · « ${barreSortie} »`);
+await page.click('#choixModal .aln-confirmer');
+// Où joue l'arrivant : sa case, et ce qui glisse.
+await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
+await page.waitForTimeout(300);
+await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
+await page.waitForTimeout(250);
+const barrePlace = (await page.textContent('#choixModal .aln-barre-mot')).replace(/\s+/g, ' ').trim();
+if (!/: .+masse/.test(barrePlace)) erreurs.push(`la barre de « où joue ? » ne dit pas ce qui va se passer : « ${barrePlace} »`);
+console.log(`   qui sort : ${rangees.length} rangées, ${refusees} case(s) grisée(s) · « ${barreSortie} » · puis « ${barrePlace} »`);
 await page.click('#choixModal .aln-confirmer');
 await auBureau();
 await page.waitForTimeout(800);
@@ -680,12 +689,21 @@ await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="
 await page.click('#choixModal:not([hidden]) .choix-option[data-choix="club"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
 const nClub = await page.$$eval("#choixModal .choix-option", e => e.length);
+// Trois onglets (1.0, oct.) : huit noms, cinquante et une couleurs, trente et un écussons — les gratuits compris.
+const parOnglet = {};
+for (const o of ['palette', 'ecusson', 'nom']) {
+  await page.click(`#choixModal:not([hidden]) [data-onglet="${o}"]`);
+  await page.waitForTimeout(400);
+  parOnglet[o] = await page.$$eval('#choixModal .choix-option', e => e.length);
+}
+if (parOnglet.nom !== 8 || parOnglet.palette !== 51 || parOnglet.ecusson !== 31) erreurs.push(`les onglets du club : ${JSON.stringify(parOnglet)}, il faut 8, 51 et 31`);
 await page.click('#choixModal:not([hidden]) .choix-option[data-choix="nom:stars"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
+await page.waitForTimeout(700);
 await page.screenshot({ path: `${DOSSIER}/rogue-club.png` });
 const m3 = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
 const tete = await page.textContent('.tete-nom');
-console.log(`18. ton club : ${nClub} noms, couleurs et écussons · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
+console.log(`18. ton club : ${nClub} noms · onglets ${JSON.stringify(parOnglet)} · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
 if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson)`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');

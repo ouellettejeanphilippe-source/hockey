@@ -351,9 +351,12 @@ export function ouvrirVersoPourPoser(p, item, { decider = null, jour = null, auD
  * `{ non }` (grisée, et pourquoi), `{ marque, marqueMot }` (le « −N »),
  * `{ note }` (ce qu'elle libère, ce que la carte lui ferait).
  */
-export function rangeesAlignement(roster, etat) {
+export function rangeesAlignement(roster, etat, libre = null) {
   const rangee = (titre, slots) => ({ titre, cases: slots.map(sl => {
     const q = roster && roster[sl.i];
+    // Une case vide qu'on peut prendre (`libre`, la réserve libre du Rogue) se touche comme un joueur.
+    const offerte = !q && libre ? libre(sl) : null;
+    if (offerte) return { cle: String(sl.i), visage: '', nom: 'Case libre', nomLong: 'Case libre', pos: sl.scratch ? 'Réserve' : sl.role, ...offerte };
     if (!q) return { cle: String(sl.i), vide: true, pos: sl.scratch ? '' : sl.role };
     return { cle: String(sl.i), visage: headshotHtml(q), nom: nomCourt(q.n), nomLong: q.n, pos: positionLabel(q), ...(etat(sl, q) || {}) };
   }) });
@@ -407,27 +410,39 @@ function colonneEchange(q, mot, sl = null) {
  * joueur glisse alors dans la case libérée (s'il peut la jouer). Rend
  * `{ i, sort }` — et `cases` quand il ne prend pas la case du sortant.
  */
+/*
+ * QUI SORT, DANS L'ALIGNEMENT (1.0, oct.). JP : *le « qui sort » devrait être un alignement avec des mini
+ * cartes, comme la fenêtre d'après : ça aiderait à se retrouver*. C'était une liste de vingt-trois rangées
+ * de texte ; c'est maintenant l'alignement lui-même, comme « Où joue X ? » : chaque case dit ce que sa sortie
+ * change à la masse, une case grisée dit pourquoi, et toucher un joueur le met côte à côte avec l'arrivant
+ * (sa fiche à ce jour, la masse) avant « Continuer ». La case de réserve libre du Rogue y est une case
+ * comme les autres (« personne ne sort ») : l'écran « X arrive : où ? » d'avant n'a plus de raison d'être.
+ */
 function choisirQuiSort(p, o) {
   const { roster, onFerme, bloque = null } = o;
   const nomDe = n => String(n).split(' ').slice(-1)[0];
+  const signe = x => `${x > 0 ? '+' : x < 0 ? '−' : ''}${money(Math.abs(x))}`;
   // Une case pour lui, la case du sortant `A` libérée : la sienne, une vide, ou celle d'un joueur qui peut jouer `A`.
   const placable = (A, B) => fits(p, B) && !!quiGlisse(roster, A, B, caseOuverte);
   const placesDe = A => SLOTS.filter(B => caseOuverte(B) && placable(A, B));
-  const options = SLOTS.filter(A => roster[A.i]).map(A => {
-    const q = roster[A.i];
-    const non = (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`);
-    const ecart = capHitDuJour(p) - capHitDuJour(q);
-    const pp = q.p === 'G' ? null : profilPrincipal(q);
-    return { cle: String(A.i), nom: q.n, sous: `${ligneDe(A)} · ${positionLabel(q)}${pp ? ` · ${pp.ico} ${pp.court || pp.nom}` : ''}`,
-      mots: [...(niveauJoueur(q) >= 0 ? [{ txt: `${niveauJoueur(q) >= ETOILE ? '★ ' : ''}${NIVEAUX[niveauJoueur(q)].nom}` }] : []), { txt: ficheCourte(q) }, { txt: `${money(capHitDuJour(q))} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${money(Math.abs(ecart))}`, bon: ecart <= 0 }],
-      desactive: non };
-  });
-  ouvrirChoix({
-    ico: '🔁', titre: `${p.n} arrive : qui sort ?`, compact: true, fermable: true, motFermer: 'Retour', genre: o.genre || '',
-    recit: 'Compare-le à chacun de tes joueurs ; celui qui sort quitte l\'équipe (sa carte va à ton cartable). Ensuite, tu le places dans l\'alignement.',
+  const libre = G.bonus === 'ROGUE' ? SLOTS.find(sl => sl.scratch && caseOuverte(sl) && !roster[sl.i] && fits(p, sl)) : null;
+  const rangees = rangeesAlignement(roster, (A, q) => ({
+    non: (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`),
+    note: `masse ${signe(capHitDuJour(p) - capHitDuJour(q))}`,
+  }), libre ? sl => (sl.i === libre.i ? { non: bloque ? bloque(null) : '', note: 'personne ne sort' } : null) : null);
+  ouvrirAlignement({
+    ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour', motConfirmer: 'Continuer',
+    aide: 'Touche un joueur.',
     contexte: `<div class="ech-arrive">${colonneEchange(p, 'Arrive')}</div>`,
-    options,
-    onChoix: k => { const A = SLOTS[Number(k)]; if (A && roster[A.i]) placerArrivant(p, o, A, () => choisirQuiSort(p, o)); },
+    rangees,
+    barre: k => {
+      const A = SLOTS[Number(k)];
+      if (!A) return '';
+      const q = roster[A.i];
+      if (!q) return `<span class="ech-bilan"><b>Case libre</b> : réserve · personne ne sort · masse ${esc(signe(capHitDuJour(p)))}</span>`;
+      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> sort : ${esc(ligneDe(A))} · ${esc(ficheCourte(q))} · masse ${esc(signe(capHitDuJour(p) - capHitDuJour(q)))}</span>`;
+    },
+    onChoix: k => { const A = SLOTS[Number(k)]; if (A && (roster[A.i] || (libre && A.i === libre.i))) placerArrivant(p, o, A, () => choisirQuiSort(p, o)); },
     onFerme,
   });
 }
@@ -448,7 +463,6 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
   });
   ouvrirAlignement({
     ico: '📍', titre: `Où joue ${p.n} ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
-    recit: `${q0 ? `${q0.n} sort. ` : ''}Touche la case de ${nomDe(p.n)} : celle ${q0 ? `de ${nomDe(q0.n)}` : 'qui est libre'}, ou une autre — la case dit où glisse son joueur.${marques ? ` « −N » : ${nomDe(p.n)} y jouerait hors position.` : ''}`,
     aide: 'Touche sa case.',
     contexte: q0 ? `<span class="ech">${colonneEchange(q0, 'Sort', A)}${colonneEchange(p, 'Arrive')}</span>` : '',
     rangees,
@@ -480,31 +494,12 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
   });
 }
 /*
- * UNE CASE DE RÉSERVE LIBRE (S80, le Rogue). JP : *possible de discard les
- * cartes de remplaçants ou débloquer des slots de remplacement*. Quand un
- * réserviste a été relâché, ou qu'une case de plus est débloquée, le joueur
- * qui arrive peut y entrer sans que personne sorte — c'est une action à
- * part, AVANT « qui sort ? » (`choisirQuiSort` reste tel quel) : on choisit
- * la case libre, ou on choisit qui sort. Sans case libre, rien ne change.
+ * UNE CASE DE RÉSERVE LIBRE (S80, le Rogue). JP : *possible de discard les cartes de remplaçants ou
+ * débloquer des slots de remplacement*. Quand un réserviste a été relâché, ou qu'une case de plus est
+ * débloquée, le joueur qui arrive peut y entrer sans que personne sorte. Depuis oct., c'est une case de
+ * l'alignement de « qui sort ? » (`choisirQuiSort`), plus un écran à part.
  */
-export function quiSortOuCaseLibre(p, o) {
-  const libre = G.bonus === 'ROGUE' ? SLOTS.find(sl => sl.scratch && caseOuverte(sl) && !(o.roster || {})[sl.i] && fits(p, sl)) : null;
-  if (!libre) { choisirQuiSort(p, o); return; }
-  const bloque = o.bloque ? o.bloque(null) : '';
-  ouvrirChoix({
-    ico: '🪑', titre: `${p.n} arrive : où ?`, compact: true, fermable: true, motFermer: 'Retour', genre: o.genre || '',
-    recit: `Une case de réserve est libre : ${p.n} peut y entrer sans que personne sorte. Ou tu choisis qui lui laisse sa place — sa carte ira à ton cartable.`,
-    options: [
-      { cle: 'libre', ico: '🪑', nom: 'Dans la case de réserve libre', sous: `Personne ne sort · ${money(p.$ || 0)} de plus sur la masse`, desactive: bloque },
-      { cle: 'sort', ico: '🔁', nom: 'Choisir qui sort', sous: 'Il prend la place d\'un joueur de ton alignement' },
-    ],
-    onChoix: k => {
-      if (k === 'libre') { if (!bloque) placerArrivant(p, o, libre, () => quiSortOuCaseLibre(p, o)); return; }
-      choisirQuiSort(p, { ...o, onFerme: () => quiSortOuCaseLibre(p, o) });
-    },
-    onFerme: o.onFerme,
-  });
-}
+export const quiSortOuCaseLibre = (p, o) => choisirQuiSort(p, o);
 /*
  * LA CARTE QUI SORT VA AU CARTABLE (S80). JP : *envoyer cartes au cartable
  * quand discard*. Un joueur qui laisse sa place (une signature, un
