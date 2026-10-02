@@ -38,7 +38,7 @@ import { BONUS } from '../js/rarete.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
 import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse, MATCH_ADVERSE_FORT } from '../js/combat.js';
-import { JETONS, baremeRogue, PLAFOND_ROGUE, MANDATS } from '../js/rogue.js';
+import { JETONS, baremeRogue, PLAFOND_ROGUE, MANDATS, GARDES_DE_SAISON } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
@@ -231,6 +231,7 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [`${JETONS.depart} jetons et un plafond de ${nombre(PLAFOND_ROGUE / 1e6)} M$`, 'le départ Rogue'],
     [`une victoire ${B.victoire} jetons (${B.victoire + 3}, puis ${B.victoire + 5} avec les commanditaires), une défaite en prolongation ${B.prolongation}, une défaite ${B.defaite}, un gros match gagné ${B.grosMatch}, un objectif du proprio ${B.objectif}, une ronde de séries gagnée ${B.serie}`, 'le barème des jetons'],
     [`une réclamation coûte ${coutBal} jetons`, 'la réclamation Rogue'],
+    [`tu gardes jusqu'à ${GARDES_DE_SAISON} joueurs`, 'les gardés entre deux saisons'],
     // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
     [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
     [`À ${SEUILS.slice(0, -1).join(', ')} et ${SEUILS[SEUILS.length - 1]} cartes jouées d'un coach, le vestiaire croit à lui pour la saison`, 'les seuils de la confiance'],

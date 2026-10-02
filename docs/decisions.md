@@ -1755,3 +1755,15 @@ JP : *popup le menu sous le jeu en boutons emoji, pour pas être par-dessus le j
 **La calibration.** Le court patin fait monter les contacts (10,7 → 16,6 mises en échec, 2,0 → 4,9 harponnages par équipe) et baisser les tirs (10,3 → 6,8). Essayé et écarté, à 120 matchs : réserver le contact en course au porteur (2,0 buts), un seul pas (2,3), ne pas rendre le patin au voleur arrivé en patinant (1,8 : moins de contre-attaques, moins de buts), −2 au lieu de −1 (presque rien : 2,1). Retenu : la base du gardien (`GARDIEN_PLUS`) passe de +1 à −2 sans toucher au pas de la distance. `check_table` à 240 matchs : 3,44 buts par équipe (3,56 avant), la parité ordonnée (1er/10e 91 · même décile 51).
 
 **Les gestes sous la glace.** La carte de commandes posée à côté de la pièce couvrait le jeu et son ✕ glissait sous l'en-tête. Les gestes vivent maintenant dans la barre du bas : une ligne (la pièce, ✕, 🔄 pour changer de trio, la fiche, passer la main) puis UNE rangée de tuiles emoji (⛸️ patiner, ↗️ passer, 🏑 tirer, ↩️ reprise, ↪️ dévier, 💃 feinter, 🤜 frapper, 🪝 harponner), chacune avec sa cote. Une tuile éteinte se touche : sa raison prend la place du nom, sa règle va dans le fil (les « ? » sont partis). La glace est mesurée sur cette hauteur : le smoke exige que la barre ne la couvre jamais, qu'aucune carte ne se pose sur la glace et que chaque geste porte son icône.
+
+## L'équipe se défait entre deux saisons d'une run (2 oct. 2026)
+
+JP : *pour une saison 2 d'une run, pas repartir avec la même équipe, mais pouvoir garder un ou des joueurs de l'ancienne équipe*.
+
+**Ce qui change.** Depuis S80, la saison suivante d'une run repartait de l'alignement de la fin. Maintenant, au « ▶ Saison N de la run », l'écran « Ceux qui restent » s'ouvre sur ton équipe : tu en gardes jusqu'à `GARDES_DE_SAISON` (5, js/rogue.js), leurs salaires ensemble dans le budget du classeur (`budgetDuClasseur`). Les autres partent ; des plombiers neufs (`plombiers`) prennent les cases, les gardés passent devant (`placerDevant`). L'écran est celui du départ du classeur (js/depart.js), qui prend maintenant ses mots en paramètre (`textes`) : une seule mécanique pour « prendre N cartes sous un budget ».
+
+**Ce qui continue.** Les modifs jouées (améliorations, styles, atelier, lustre) suivent les gardés seulement ; le deck, les coachs, les jetons qui restent et les packs scellés continuent comme avant. Les trios se refont (`G.lignes` à zéro).
+
+**Le plafond.** S80 faisait repartir les saisons suivantes de leur masse, jamais plus haut, pour qu'une équipe qui continue ne gagne pas 12 M$ d'espace à chaque saison. L'équipe se défaisant, chaque saison repart comme la première (`plafondDeDepart` n'a plus d'option `suite`) : les gardés tiennent dans le budget du classeur, le plafond ne grimpe pas.
+
+**Mesuré** (`check_rogue`, mode rapide, le robot garde ses cinq meilleurs) : tout débloqué, la Coupe par run passe de 70 % à 50 % ; la première Coupe d'une campagne, des runs 5 et 5 aux runs 5 et 10. La courbe monte toujours avec les déblocages, la Coupe sans déblocage reste rare. Le nombre de gardés est une constante : c'est le levier si la run devient trop dure.

@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie } from './rogue.js';
+import { lireMeta, GARDES_DE_SAISON, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, motsDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, MAX_PATRONS, ROLES, payloadDe, CONSOMMABLES, CONTRATS, CASES_DE_BASE, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
@@ -775,19 +775,19 @@ async function demarrerRogue(gardes = [], tires = [], coach = null) {
 }
 /*
  * LE PLAFOND D'UNE SAISON DE LA RUN : 82 M$, plus ce que le vestiaire a
- * débloqué. La première saison garde au moins 12 M$ d'espace au-dessus de la
+ * débloqué. Chaque saison garde au moins 12 M$ d'espace au-dessus de la
  * masse de départ (trois vedettes gardées de la dernière run ne doivent pas
- * bloquer la saison). Les saisons SUIVANTES (S80) repartent de leur masse,
- * jamais plus haut : sinon chaque saison gagnerait 12 M$ d'espace et le
- * plafond ne voudrait plus rien dire au bout de trois saisons.
+ * bloquer la saison). Depuis que l'équipe se défait entre deux saisons (1.0),
+ * la saison suivante repart comme la première : ses gardés tiennent dans le
+ * budget du classeur, le plafond ne grimpe donc pas de saison en saison.
  */
-function plafondDeDepart(meta, { suite = false } = {}) {
+function plafondDeDepart(meta) {
   const lignes = [];
   let cap = PLAFOND_ROGUE;
   const v = plafondDuVestiaire(meta);
   if (v) { cap += v; lignes.push({ nom: 'Le vestiaire', montant: v }); }
   const masse = signes().reduce((a, p) => a + (p.$ || 0), 0);
-  const min = suite ? masse : Math.ceil((masse + ESPACE_DE_DEPART) / 100_000) * 100_000;
+  const min = Math.ceil((masse + ESPACE_DE_DEPART) / 100_000) * 100_000;
   if (cap < min) { lignes.push({ nom: 'Ta masse de départ', montant: min - cap }); cap = min; }
   return { cap, lignes };
 }
@@ -879,7 +879,7 @@ export function majRunRogue() {
   const s = (G.rogue && G.rogue.series) || null;
   const mots = {
     attente: `Le proprio veut : ${M.mot}. ${faitsDeLaSaison().series ? 'Tes séries le diront.' : ''}`,
-    continue: `Mandat rempli : ${M.mot}. La run continue avec ton équipe, ton deck et tes modifs jouées. La saison ${n + 1}, le proprio voudra : ${suivant.mot}.`,
+    continue: `Mandat rempli : ${M.mot}. La run continue ; la saison ${n + 1}, le proprio voudra : ${suivant.mot}.`,
     finie: `Mandat manqué — il fallait ${M.mot}. La run est finie après ${n} saison${n > 1 ? 's' : ''}. Tes écussons, tes jalons et ton cartable restent.`,
     gagnee: `La Coupe Stanley, à la saison ${n} de la run : la run est gagnée ! Tes écussons, tes jalons et ton cartable restent.`,
   };
@@ -887,7 +887,7 @@ export function majRunRogue() {
   bloc.innerHTML = `<div class="rg-run-tete"><span>${sort === 'gagnee' ? '🏆' : sort === 'finie' ? '🚪' : '💀'} Run ${(G.rogue && G.rogue.numero) || ''} · saison ${n}</span>
       <small>${s ? `${s.rondes} ronde${s.rondes > 1 ? 's' : ''} gagnée${s.rondes > 1 ? 's' : ''}` : ''}</small></div>
     <p class="rg-run-mot">${esc(mots[sort])}</p>
-    ${sort === 'continue' ? '<p class="rg-run-suite">Ce qui te suit : ton alignement et tes réservistes, ton deck de match, les améliorations, styles et éditions joués sur tes joueurs, tes jetons qui restent (plus ta caisse), ton personnel et tes cartes permanentes. Ce qui expire : les cartes « cette saison » et les consommables de ta poche.</p>' : ''}
+    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : des plombiers neufs, et tu gardes jusqu'à ${GARDES_DE_SAISON} joueurs, avec leurs améliorations, styles et éditions. Ce qui te suit aussi : ton deck de match, tes jetons qui restent (plus ta caisse), ton personnel et tes cartes permanentes. Ce qui expire : les cartes « cette saison » et les consommables de ta poche.</p>` : ''}
     <div class="rg-run-boutons">
       ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
       ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
@@ -896,7 +896,11 @@ export function majRunRogue() {
   // 1.0 (R7) : la run finie ou gagnée s'ouvre UNE fois en plein écran, avant qu'on reparte.
   if ((sort === 'finie' || sort === 'gagnee') && G.rogue && !G.rogue.taRunVue) montrerTaRun(sort, n, s);
   const b1 = bloc.querySelector('.rg-suivante');
-  if (b1) b1.onclick = () => sousVoile('La saison suivante se prépare…', continuerRun);
+  if (b1) b1.onclick = async () => {
+    if (sortDeLaRun() !== 'continue') return;
+    const gardes = await choisirGardesDeSaison(n + 1);
+    await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes));
+  };
   const b2 = bloc.querySelector('.rg-nouvelle');
   if (b2) b2.onclick = () => contexteDuMenu().rogue.nouvelle();
   bloc.querySelector('.rg-vestiaire').onclick = () => ouvrirVestiaire(() => majRunRogue());
@@ -946,22 +950,48 @@ function montrerTaRun(sort, n, s) {
  * LA SAISON SUIVANTE DE LA RUN (S80). JP : *nouvelle saison veut dire
  * continuer avec base des cartes ramassé qui sont pas des consommables*.
  * Ce qui continue, et comment :
- *   - l'ALIGNEMENT : `G.roster` est celui du moteur, signatures comprises ;
- *   - les MODIFS JOUÉES qui durent (améliorations, styles, l'atelier) : des
- *     décisions du jour 0 de la saison neuve (`report`), rejouées comme les
- *     autres ; le lustre passe par la variante de la carte ;
+ *   - l'ÉQUIPE SE DÉFAIT (1.0) : JP, *pas repartir avec la même équipe, mais
+ *     pouvoir garder un ou des joueurs de l'ancienne équipe*. Des plombiers
+ *     neufs, et les GARDÉS (`choisirGardesDeSaison`) passent devant ;
+ *   - les MODIFS JOUÉES qui durent (améliorations, styles, l'atelier) sur les
+ *     gardés : des décisions du jour 0 de la saison neuve (`report`), rejouées
+ *     comme les autres ; le lustre passe par la variante de la carte ;
  *   - le DECK de match : la saison neuve part du deck de la fin (`deckDeBase`) ;
  *   - les JETONS qui restent, plus la caisse du vestiaire ;
- *   - le PLAFOND repart de la masse, jamais plus haut (`plafondDeDepart`).
+ *   - le PLAFOND est celui d'un départ de run (`plafondDeDepart`).
  * Le personnel et les cartes permanentes vivent déjà dans le méta. Les
  * cartes « cette saison » et les consommables de la poche expirent : la poche
  * se déduit des décisions de la saison, et la saison neuve n'en a pas.
  */
 const SOURCES_DE_RUN = new Set(['amelioration', 'style', 'atelier']);
-async function continuerRun() {
+/*
+ * CEUX QUI RESTENT : l'écran du départ du classeur (js/depart.js), ouvert sur
+ * ton équipe de la saison finie — jusqu'à GARDES_DE_SAISON joueurs, leurs
+ * salaires ensemble dans le budget du classeur.
+ */
+function choisirGardesDeSaison(saison) {
+  const meta = lireMeta();
+  const candidats = signes().filter(Boolean).map(p => ({ cle: getPlayerKey(p), p }));
+  const n = GARDES_DE_SAISON;
+  return new Promise(resolve => ouvrirDepartClasseur({
+    mode: 'choix', n, budget: budgetDuClasseur(meta), run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats,
+    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p), mini: p => carteMiniHtml(p),
+    textes: {
+      ico: '🤝', titre: 'Ceux qui restent', irl: `Saison ${saison} de la run · jusqu'à ${n} joueurs`,
+      recit: `Ton équipe se défait : des plombiers neufs arrivent. Garde jusqu'à ${n} joueurs ; ils restent avec leurs modifs. Les autres partent.`,
+      budget: '🤝 Budget des gardés', plein: `Tu gardes déjà ${n} joueurs`,
+      partir: k => (k ? `Saison ${saison} · ${k} joueur${k > 1 ? 's' : ''} gardé${k > 1 ? 's' : ''}` : `Saison ${saison} sans personne`),
+    },
+    onFini: pris => resolve(candidats.filter(x => pris.includes(x.cle)).map(x => x.p)),
+  }));
+}
+async function continuerRun(gardes = []) {
   if (G.bonus !== 'ROGUE' || !G.ligue || sortDeLaRun() !== 'continue') return;
   const L = G.ligue, you = L.you, meta = lireMeta();
-  const garder = new Set(Object.values(G.roster).filter(Boolean).map(getPlayerKey));
+  // L'équipe neuve : des plombiers, les gardés devant ; ses trios se refont, et aucun renfort ne la suit.
+  const roster = await plombiers(meta, gardes);
+  const places = new Set(Object.values(roster).filter(Boolean).map(getPlayerKey));
+  const garder = new Set(gardes.map(getPlayerKey).filter(k => places.has(k)));
   const report = [];
   for (const m of you.mutations || []) {
     const M = MUTATIONS[m.cle];
@@ -982,20 +1012,21 @@ async function continuerRun() {
   // Les packs scellés pas ouverts passent à la saison suivante, déjà payés.
   packsScelles(decsSaison).forEach((d, i) => report.push({ jour: 0, palier: `k:r${i}`, achat: { pack: d.achat.pack, n: -1 - i, prix: 0, sorte: d.achat.sorte, params: d.achat.params, scelle: true }, report: true }));
   const reste = Math.max(0, jetonsRogue(L.calendrier.length));
-  G.lignes = Array.isArray(you.lignes) ? you.lignes.map(l => ({ ...l })) : G.lignes;
+  G.lignes = null; G.renfort = null; G.selectedSlot = null;
+  G.roster = roster; poserCartes();
   G.rogue = {
     ...G.rogue, saison: numeroDeSaison() + 1, series: null, report,
     depart: jetonsDeDepart(meta) + reste, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta), plafond: null,
   };
   // La saison neuve : ni ligue, ni séries, ni entrée d'historique — `runSeason` les refera.
   G.ligue = null; G.done = false; G.journee = 0; G.seriesVues = null; G.lbId = null; G.series = null; G.seriesMoteur = null; G.banc = null;
-  G.rogue.plafond = plafondDeDepart(meta, { suite: true });
+  G.rogue.plafond = plafondDeDepart(meta);
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
   $('game').classList.remove('bilan');
   saveGame(); render();
   setView('roster');
-  toast(`Saison ${G.rogue.saison} de la run : ton équipe continue, avec 🪙 ${G.rogue.depart} jetons. Le proprio veut : ${mandatDe(G.rogue.saison).mot}.`);
+  toast(`Saison ${G.rogue.saison} de la run : des plombiers neufs${gardes.length ? `, avec ${gardes.map(p => p.n).join(', ')}` : ''}, et 🪙 ${G.rogue.depart} jetons. Le proprio veut : ${mandatDe(G.rogue.saison).mot}.`);
 }
 /*
  * LE VESTIAIRE DES DÉBLOCAGES : ce que les écussons achètent, d'une run à

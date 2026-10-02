@@ -21,9 +21,14 @@
  * PUR (le contrôleur le sème du méta, js/rogue.js `tirageDuClasseur`) : un
  * rechargement redonne les mêmes cartes, il ne retire pas.
  *
+ * LE MÊME ÉCRAN, ENTRE DEUX SAISONS DE LA RUN (1.0) : ceux de ton équipe
+ * qui restent, au choix (js/rogue-jeu.js `continuerRun`). `textes` remplace
+ * les mots du classeur.
+ *
  * ctx : { mode ('hasard' | 'tri' | 'choix'), n, budget, run (son numéro),
  *         candidats [{ cle, p, rar }], esc, mini(p, rar), qui(p), money(x),
- *         groupe(p) ('F' | 'D' | 'G'), apercu(p), onFini(cles) }
+ *         groupe(p) ('F' | 'D' | 'G'), apercu(p), onFini(cles),
+ *         textes? { ico, titre, irl, recit, budget, plein, partir(n) } }
  */
 const $ = id => document.getElementById(id);
 const PAGE = 24;
@@ -34,11 +39,20 @@ const MOTS = {
 };
 const NOM_MODE = { hasard: 'au hasard', tri: 'le tri', choix: 'le classeur ouvert' };
 const GROUPES = [['tout', 'Toutes'], ['F', 'Avants'], ['D', 'Défenseurs'], ['G', 'Gardiens']];
+const TEXTES_CLASSEUR = ctx => ({
+  ico: '📒', titre: 'Le départ du classeur',
+  irl: `Run ${ctx.run} · ${ctx.n} carte${ctx.n > 1 ? 's' : ''} · ${NOM_MODE[ctx.mode]}`,
+  recit: `${MOTS[ctx.mode](ctx.n)} ${ctx.n === 1 && ctx.mode === 'hasard' ? 'Prise, elle rejoint tes plombiers ; laissée, elle reste au cartable.' : 'Celles que tu prends rejoignent tes plombiers ; les autres restent au cartable.'}`,
+  budget: '📒 Budget du classeur',
+  plein: `Tu as déjà ${ctx.n === 1 ? 'ta carte' : `tes ${ctx.n} cartes`}`,
+  partir: n => (n ? `Commencer la run · ${n} carte${n > 1 ? 's' : ''} du classeur` : 'Commencer la run sans carte du classeur'),
+});
 
 export function ouvrirDepartClasseur(ctx) {
   const m = $('departModal');
   if (!m) { ctx.onFini([]); return; }
   const esc = ctx.esc;
+  const T = { ...TEXTES_CLASSEUR(ctx), ...(ctx.textes || {}) };
   const pris = new Set();
   const etat = { groupe: 'tout', cherche: '', montres: PAGE };
   const cout = () => ctx.candidats.filter(x => pris.has(x.cle)).reduce((a, x) => a + (x.p.$ || 0), 0);
@@ -46,7 +60,7 @@ export function ouvrirDepartClasseur(ctx) {
   const liste = ctx.mode === 'choix' ? ctx.candidats.slice().sort((a, b) => (b.p.$ || 0) - (a.p.$ || 0) || a.p.n.localeCompare(b.p.n, 'fr')) : ctx.candidats;
   const pourquoiPas = x => {
     if (pris.has(x.cle)) return '';
-    if (pris.size >= ctx.n) return `Tu as déjà ${ctx.n === 1 ? 'ta carte' : `tes ${ctx.n} cartes`}`;
+    if (pris.size >= ctx.n) return T.plein;
     const manque = cout() + (x.p.$ || 0) - ctx.budget;
     return manque > 0 ? `Budget : il manque ${ctx.money(manque)}` : '';
   };
@@ -68,26 +82,26 @@ export function ouvrirDepartClasseur(ctx) {
     // Prendre une carte au bas du classeur ne ramène pas en haut : le défilement se garde d'un rendu à l'autre.
     const defile = m.querySelector('.dp-corps');
     const y = defile ? defile.scrollTop : 0;
-    m.innerHTML = `<div class="choix-sheet dp-sheet" role="dialog" aria-modal="true" aria-label="Le départ du classeur">
+    m.innerHTML = `<div class="choix-sheet dp-sheet" role="dialog" aria-modal="true" aria-label="${esc(T.titre)}">
       <div class="choix-tete">
-        <span class="choix-ico">📒</span>
-        <div class="choix-titres"><div class="choix-titre">Le départ du classeur</div>
-          <div class="choix-irl">Run ${ctx.run} · ${ctx.n} carte${ctx.n > 1 ? 's' : ''} · ${NOM_MODE[ctx.mode]}</div></div>
+        <span class="choix-ico">${T.ico}</span>
+        <div class="choix-titres"><div class="choix-titre">${esc(T.titre)}</div>
+          <div class="choix-irl">${esc(T.irl)}</div></div>
       </div>
       <div class="choix-corps dp-corps">
-        <p class="choix-recit">${esc(MOTS[ctx.mode](ctx.n))} ${ctx.n === 1 && ctx.mode === 'hasard' ? 'Prise, elle rejoint tes plombiers ; laissée, elle reste au cartable.' : 'Celles que tu prends rejoignent tes plombiers ; les autres restent au cartable.'}</p>
+        <p class="choix-recit">${esc(T.recit)}</p>
         <div class="inv-plafond dp-budget${depense > ctx.budget ? ' over' : ''}">
-          <div class="inv-pl-tete"><span>📒 Budget du classeur</span><b>${ctx.money(depense)} / ${ctx.money(ctx.budget)}</b></div>
+          <div class="inv-pl-tete"><span>${esc(T.budget)}</span><b>${ctx.money(depense)} / ${ctx.money(ctx.budget)}</b></div>
           <div class="inv-pl-barre" aria-hidden="true"><i style="width:${Math.min(100, Math.round((depense / Math.max(1, ctx.budget)) * 100))}%"></i></div>
           <span class="inv-pl-rien">Ensemble, leurs salaires tiennent sous le plafond de la run, avec la place pour tes plombiers.</span>
         </div>
         ${ctx.mode === 'choix' ? `<div class="inv-filtres" role="group" aria-label="Position">${GROUPES.map(([g, nom]) => `<button type="button" class="inv-filtre${etat.groupe === g ? ' on' : ''}" data-groupe="${g}">${esc(nom)} <span>${g === 'tout' ? liste.length : liste.filter(x => ctx.groupe(x.p) === g).length}</span></button>`).join('')}</div>
-          <input type="search" class="dp-cherche" placeholder="Chercher un nom" value="${esc(etat.cherche)}" aria-label="Chercher un joueur du classeur">` : ''}
+          <input type="search" class="dp-cherche" placeholder="Chercher un nom" value="${esc(etat.cherche)}" aria-label="Chercher un joueur">` : ''}
         <div class="dp-grille">${cartes || '<p class="inv-vide">Aucune carte ici.</p>'}</div>
         ${ctx.mode === 'choix' && filtres.length > visibles.length ? `<button type="button" class="btn dp-plus">Voir ${Math.min(PAGE, filtres.length - visibles.length)} cartes de plus · ${filtres.length - visibles.length} en tout</button>` : ''}
       </div>
       <div class="dp-pied">
-        <button type="button" class="btn go dp-commencer">${pris.size ? `Commencer la run · ${pris.size} carte${pris.size > 1 ? 's' : ''} du classeur` : 'Commencer la run sans carte du classeur'}</button>
+        <button type="button" class="btn go dp-commencer">${esc(T.partir(pris.size))}</button>
       </div>
     </div>`;
     const corps = m.querySelector('.dp-corps');

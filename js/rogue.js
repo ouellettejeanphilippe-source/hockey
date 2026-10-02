@@ -294,11 +294,18 @@ export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 10 + (coupe 
 
 /* ---------- la run sur plusieurs saisons (S80) ---------- */
 /*
+ * L'ÉQUIPE SE DÉFAIT ENTRE DEUX SAISONS (1.0). JP : *pour une saison 2 d'une
+ * run, pas repartir avec la même équipe, mais pouvoir garder un ou des
+ * joueurs de l'ancienne équipe*. Des plombiers neufs, et tu gardes jusqu'à
+ * GARDES_DE_SAISON joueurs de la saison finie, avec les modifs jouées sur
+ * eux ; leurs salaires ensemble tiennent dans le budget du classeur.
+ */
+export const GARDES_DE_SAISON = 5;
+/*
  * UNE RUN DURE PLUSIEURS SAISONS. JP : *en roguelike, nouvelle saison veut
  * dire continuer avec base des cartes ramassé qui sont pas des consommables,
- * débloquées, etc*. La saison suivante repart de ton équipe, de ton deck, de
- * tes modifs jouées et de tes jetons ; les cartes « cette saison » et les
- * consommables expirent.
+ * débloquées, etc*. La saison suivante repart de ton deck et de tes jetons ;
+ * les cartes « cette saison » et les consommables expirent.
  *
  * LE MANDAT DU PROPRIO. Une run qui continue tant qu'on fait les séries ne
  * finit presque jamais : une équipe qui passe la première saison se bâtit
