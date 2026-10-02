@@ -2007,12 +2007,32 @@ export function joueursDeLigne(lineup, u) {
  * joueurs dans le rôle que le système demande. Le trio u lit un système
  * d'avants, la paire u un système de défenseurs.
  */
+/*
+ * LES AILES S'ASSORTISSENT (1.0, oct.). JP : *les stratégies donnent pas la
+ * chance de swap AD et AG côté rôles, ce qui est cave*. Un système demande
+ * un rôle à chaque aile ; ses ailiers le jouent dans le sens où ils rendent
+ * le mieux — le sniper prend l'aile du sniper, qu'elle soit gauche ou droite.
+ * Les mêmes règles pour tous les clubs ; rien ne bouge dans l'alignement.
+ */
+export function rolesDuSysteme(lineup, groupe, u, cle) {
+  const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
+  if (!S || !S.slots) return null;
+  if (groupe === 'D' || !S.slots.AG || !S.slots.AD || S.slots.AG === S.slots.AD || !lineup) return S.slots;
+  const miroir = { ...S.slots, AG: S.slots.AD, AD: S.slots.AG };
+  return fitRoles(lineup, u, miroir) > fitRoles(lineup, u, S.slots) ? miroir : S.slots;
+}
+function fitRoles(lineup, u, slots) {
+  const js = joueursDeLigne(lineup, u);
+  let n = 0;
+  for (const [role, prof] of Object.entries(slots)) { const p = js[role]; if (p) n += ((profilsDe(p) || {})[prof] ?? 0); }
+  return n;
+}
 export function fitUnite(lineup, groupe, u, cle) {
   const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
   if (!S || !S.slots || !lineup) return 0;
   const js = joueursDeLigne(lineup, u);
   const fits = [];
-  for (const [role, prof] of Object.entries(S.slots)) {
+  for (const [role, prof] of Object.entries(rolesDuSysteme(lineup, groupe, u, cle))) {
     const p = js[role];
     if (p === undefined) continue;          // la 4e ligne n'a pas de paire
     // UNE CASE VIDE N'A PAS DE FIT (1.0, J1-I) : une unité incomplète ne se

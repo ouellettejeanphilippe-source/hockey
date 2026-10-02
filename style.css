@@ -4178,6 +4178,8 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .pk-manque { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.03em; color: var(--mauvais); }
 /* La fiche d'un pack : par-dessus la boutique (z 5), au bas au téléphone, au centre dès qu'il y a la place. */
 .pk-fiche { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--noir) 72%, transparent); }
+/* Dans une page du Club (le Marché en saison), la feuille grandit avec les rayons et défile : la fiche se pose sur l'ÉCRAN, dans la zone de la page (#hubModal), pas au bas des rayons (JP : *apparaît dans le bas de la page, invisible*). */
+.hub-page .pk-fiche { position: fixed; inset: var(--topbar-h) 0 var(--bas-coquille) var(--rail-w); }
 .pk-fiche-carte { --pk-a: var(--or); width: 100%; max-width: 520px; max-height: 92%; overflow-y: auto; padding: var(--esp-4); border-radius: var(--r-2) var(--r-2) 0 0; background: var(--fond-1); border-top: 3px solid var(--pk-a); box-shadow: var(--ombre); }
 .pk-fiche-tete { display: flex; align-items: center; gap: var(--esp-3); }
 .pk-fiche-tete .pk-ico { font-size: var(--t-5); line-height: 1; color: var(--pk-a); }

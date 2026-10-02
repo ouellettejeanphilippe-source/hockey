@@ -175,4 +175,24 @@ if (juger) {
   exiger('un alignement complet garde son fit et son nom', Number.isFinite(fitUnite(L, 'F', 0, 'echec')) && !!identiteUnite(L, 'F', 0));
 }
 
+/*
+ * LES AILES S'ASSORTISSENT (1.0, oct.). JP : *les stratégies donnent pas la
+ * chance de swap AD et AG côté rôles*. Échanger l'ailier gauche et l'ailier
+ * droit ne change pas le fit d'un système : ses rôles d'aile se jouent dans
+ * le meilleur sens (`rolesDuSysteme`).
+ */
+{
+  const t = ligue(9500)[0];
+  const L = activeLineup(t);
+  const asym = Object.keys(TACTIQUES).filter(k => TACTIQUES[k].slots && TACTIQUES[k].slots.AG !== TACTIQUES[k].slots.AD);
+  const faux = [];
+  for (let u = 0; u < 4; u++) {
+    const ag = SLOTS.find(s => s.group === 'F' && s.unit === u && s.role === 'AG' && !s.scratch).i;
+    const ad = SLOTS.find(s => s.group === 'F' && s.unit === u && s.role === 'AD' && !s.scratch).i;
+    const M = { ...L, [ag]: L[ad], [ad]: L[ag] };
+    for (const k of asym) if (fitUnite(L, 'F', u, k) !== fitUnite(M, 'F', u, k)) faux.push(`trio ${u + 1} en ${k} : ${fitUnite(L, 'F', u, k)} puis ${fitUnite(M, 'F', u, k)}`);
+  }
+  exiger(`échanger les ailiers ne change pas le fit (${asym.length} systèmes aux ailes différentes, 4 trios)`, !faux.length, faux.slice(0, 3).join(' · '));
+}
+
 verdict('Les lignes à la HockeyArena');

@@ -26,7 +26,7 @@
 
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
-  profilsDe, profilPrincipal, roleSecond, fitUnite, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
+  profilsDe, profilPrincipal, roleSecond, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
@@ -583,13 +583,16 @@ function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe 
   const choisie = `<div class="ln-choisie"><span class="gl-mot">${esc(S.mot)}${etouffe}${parQui}</span>${effets.length ? `<span class="choix-puces">${puces(effets)}<span class="puce neutre" title="Le gain d'un système suit le fit de ses joueurs : rien au mauvais fit, tout sur mesure. Son prix se paie toujours.">gain à ${Math.round(100 * echelleFit(fit))} %</span></span>` : ''}</div>`;
   // Ce qu'il demande, poste par poste : le rôle, et si le joueur de la case l'a.
   const js = joueursDeLigne(lineup, u);
-  const demande = S.slots ? (D ? ['DG', 'DD'] : ['AG', 'C', 'AD']).filter(r => r in js && S.slots[r]).map(r => {
-    const prof = S.slots[r], P = PROFILS[groupe][prof], p = js[r];
+  // Les rôles tels qu'il les joue : ses ailes dans le sens où elles rendent le mieux (`rolesDuSysteme`).
+  const roles = rolesDuSysteme(lineup, groupe, u, cle);
+  const inverse = roles && S.slots && roles.AG !== S.slots.AG;
+  const demande = roles ? (D ? ['DG', 'DD'] : ['AG', 'C', 'AD']).filter(r => r in js && roles[r]).map(r => {
+    const prof = roles[r], P = PROFILS[groupe][prof], p = js[r];
     const fr = p ? ((profilsDe(p) || {})[prof] ?? 0) : null;
     const marque = fr == null ? '' : fr >= 60 ? '✓' : fr < 40 ? '✗' : '≈';
     return `<span class="ln-dem${fr == null ? '' : fr >= 60 ? ' fit-bon' : fr < 40 ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${niveauDe(fr)}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
   }).join('') : '';
-  return `${enFace}<div class="gl-tacs ln-tacs">${boutons}</div>${conseil}${choisie}${demande ? `<div class="ln-demande"><span class="gl-k">Il demande</span>${demande}</div>` : ''}`;
+  return `${enFace}<div class="gl-tacs ln-tacs">${boutons}</div>${conseil}${choisie}${demande ? `<div class="ln-demande"><span class="gl-k">Il demande${inverse ? ' · ailes inversées' : ''}</span>${demande}</div>` : ''}`;
 }
 /**
  * spec : {
@@ -685,10 +688,11 @@ export function ouvrirLignes(spec) {
     if (!(role in js)) return '';
     const p = js[role];
     const T = role === 'DG' || role === 'DD' ? SYSTEMES_D[brouillon[u].tacD] : TACTIQUES[brouillon[u].tac];
-    const voulu = T && T.slots ? T.slots[role] : null;
+    const g = role === 'DG' || role === 'DD' ? 'D' : 'F';
+    const R = T && T.slots ? rolesDuSysteme(spec.lineup, g, u, g === 'D' ? brouillon[u].tacD : brouillon[u].tac) : null;
+    const voulu = R ? R[role] : null;
     const pr = p && profilsDe(p);
     const pp = p && profilPrincipal(p);
-    const g = role === 'DG' || role === 'DD' ? 'D' : 'F';
     const e = p ? (spec.energie[getPlayerKey(p)] ?? 100) : 0;
     const fitRole = voulu && pr ? pr[voulu] : null;
     const c = p ? carrureDe(p) : null;
