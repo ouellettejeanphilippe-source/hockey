@@ -26,7 +26,7 @@
 
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
-  profilsDe, profilPrincipal, roleSecond, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
+  profilsDe, stylesDe, profilPrincipal, roleSecond, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
@@ -612,7 +612,7 @@ function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe 
   const inverse = roles && S.slots && roles.AG !== S.slots.AG;
   const demande = roles ? (D ? ['DG', 'DD'] : ['AG', 'C', 'AD']).filter(r => r in js && roles[r]).map(r => {
     const prof = roles[r], P = PROFILS[groupe][prof], p = js[r];
-    const fr = p ? ((profilsDe(p) || {})[prof] ?? 0) : null;
+    const fr = p ? ((stylesDe(p) || {})[prof] ?? 0) : null;   // l'assortiment se lit au style, à talent égal (`stylesDe`)
     const marque = fr == null ? '' : fr >= 60 ? '✓' : fr < 40 ? '✗' : '≈';
     return `<span class="ln-dem${fr == null ? '' : fr >= 60 ? ' fit-bon' : fr < 40 ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${niveauDe(fr)}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
   }).join('') : '';
@@ -715,7 +715,7 @@ export function ouvrirLignes(spec) {
     const g = role === 'DG' || role === 'DD' ? 'D' : 'F';
     const R = T && T.slots ? rolesDuSysteme(spec.lineup, g, u, g === 'D' ? brouillon[u].tacD : brouillon[u].tac) : null;
     const voulu = R ? R[role] : null;
-    const pr = p && profilsDe(p);
+    const pr = p && stylesDe(p);   // l'assortiment au système, à talent égal
     const pp = p && profilPrincipal(p);
     const e = p ? (spec.energie[getPlayerKey(p)] ?? 100) : 0;
     const fitRole = voulu && pr ? pr[voulu] : null;
