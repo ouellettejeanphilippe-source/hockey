@@ -38,13 +38,18 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
  * retrouvait plus. `SMOKE_GRAINE=n` sème le hasard de la page — le même
  * parcours, au clic près, pour chercher ce qui casse.
  */
-if (process.env.SMOKE_GRAINE) {
+/*
+ * Sans `SMOKE_GRAINE`, une graine tirée au hasard, IMPRIMÉE en tête : un échec en CI se rejoue ensuite
+ * chez soi, au clic près (`SMOKE_GRAINE=… node scripts/smoke.mjs`).
+ */
+const GRAINE_SMOKE = process.env.SMOKE_GRAINE || Math.random().toString(36).slice(2, 8);
+{
   await page.addInitScript(g => {
     let x = 2166136261;
     for (const c of String(g)) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0;
     Math.random = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  }, process.env.SMOKE_GRAINE);
-  console.log(`   hasard de la page semé : ${process.env.SMOKE_GRAINE}`);
+  }, GRAINE_SMOKE);
+  console.log(`   hasard de la page semé : ${GRAINE_SMOKE} (SMOKE_GRAINE=${GRAINE_SMOKE} pour le rejouer)`);
 }
 const errors = [];
 let barreAuRepechage = null;   // la barre au repêchage, pour la comparer au bilan (S67)
@@ -1603,8 +1608,9 @@ async function traverserSaison(etiquette, reprise = false) {
     const j0 = await journeeAffichee();
     await page.click('#hubModal .hub-jour');
     await page.waitForTimeout(150);
-    await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-page[data-genre="sommaire"]', { timeout: 60000 });
-    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
+    await ecranPret(60000);
+    // Une blessure ou un choix qui s'ouvre par-dessus le bureau : on y répond (le sommaire compris).
+    await repondreAuxChoix();
     const j1 = await journeeAffichee();
     if (/Journée suivante/.test(mot) && j0 && j1 && j1 !== j0 + 1) errors.push(`« Journée suivante » saute de la journée ${j0} à la ${j1}`);
     if (!/Journée suivante/.test(mot)) break;
