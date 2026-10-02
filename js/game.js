@@ -1223,8 +1223,9 @@ export function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
         const m = lireMeta();
         if (!(m.runs > 0)) return '';
         const d = m.derniereRun;
-        if (d && d.numero === m.runs) return `Run ${d.numero} · ${esc(motDeRun(d))} · 🏅 ${m.ecussons || 0}`;
-        return `Run ${m.runs} en cours · 🏅 ${m.ecussons || 0}`;
+        const vitrine = m.coupes ? ` · 🏆 ${m.coupes}` : '';
+        if (d && d.numero === m.runs) return `Run ${d.numero} · ${esc(motDeRun(d))} · 🏅 ${m.ecussons || 0}${vitrine}`;
+        return `Run ${m.runs} en cours · 🏅 ${m.ecussons || 0}${vitrine}`;
       },
       nouvelle: () => { nouvellePartie('rogue'); ailleurs('nouvelle-rogue'); },
       vestiaire: () => ouvrirVestiaire(() => { if (document.getElementById('menuDepart')) afficherMenu(contexteDuMenu({ vierge, enJeu })); }),

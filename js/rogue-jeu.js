@@ -24,6 +24,7 @@ import { getTeamLogoHtml } from './logos.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
 import { ageAtSeason } from './ratings.js';
 import { ouvrirDepartClasseur } from './depart.js';
+import { jouerSon } from './sons.js';
 import { nombreEnSeries } from './bilan.js';
 import { $, G, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, headshotHtml, isPicked, plafondEffectif, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirVersoPourPoser, poserCartes, quiSortOuCaseLibre, rangeesAlignement, rareteJoueur } from './repechage.js';
@@ -691,7 +692,7 @@ export async function ouvrirRogue() {
   const go = await new Promise(resolve => ouvrirChoix({
     ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant',
     // 1.0 (R5) : deux phrases ; le reste se lit dans « Règles », section « Le mode Rogue ».
-    recit: `Une équipe de plombiers, 🪙 ${jetonsDeDepart(meta)} jetons, plusieurs saisons. Chaque saison, le proprio en veut plus ; la Coupe finit la run.`,
+    recit: `Une équipe de plombiers, 🪙 ${jetonsDeDepart(meta)} jetons, plusieurs saisons. Chaque saison, le proprio en veut plus. Le but : la Coupe Stanley, la victoire de la run.`,
     options: [{ cle: 'go', ico: '▶', nom: `Commencer la run ${(meta.runs || 0) + 1}`,
       bon: [nCartable ? `ton vestiaire tiré de ton classeur : ${soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[0].nom}, ${SOUTIENS_DEPART - soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[1].nom}, les cartes les moins jouées d'abord` : '',
         nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
@@ -952,7 +953,7 @@ export function majRunRogue() {
   const n = numeroDeSaison(), M = mandatDe(n), suivant = mandatDe(n + 1);
   const s = (G.rogue && G.rogue.series) || null;
   const mots = {
-    attente: `Le proprio veut : ${M.mot}. ${faitsDeLaSaison().series ? 'Tes séries le diront.' : ''}`,
+    attente: `Le proprio veut : ${M.mot}. ${faitsDeLaSaison().series ? 'Tes séries le diront.' : ''} Le but de la run : la Coupe.`,
     continue: `Mandat rempli : ${M.mot}. La run continue ; la saison ${n + 1}, le proprio voudra : ${suivant.mot}.`,
     finie: `Mandat manqué — il fallait ${M.mot}. La run est finie après ${n} saison${n > 1 ? 's' : ''}. Tes écussons, tes jalons et ton cartable restent.`,
     gagnee: `La Coupe Stanley, à la saison ${n} de la run : la run est gagnée ! Tes écussons, tes jalons et ton cartable restent.`,
@@ -1002,9 +1003,14 @@ function montrerTaRun(sort, n, s) {
   const entrees = G.rogue.cartableDepart != null ? Math.max(0, nCartable - G.rogue.cartableDepart) : null;
   G.rogue.taRunVue = true;
   meta.derniereRun = d;
+  // LA VITRINE (1.0) : chaque Coupe y entre, avec ses vedettes — les meilleurs pointeurs de leur vraie saison.
+  const pts = p => (p.p === 'G' ? (p.w || 0) : (p.pt ?? ((p.g || 0) + (p.a || 0))) || 0);
+  const vedettes = sort === 'gagnee' ? signes().filter(Boolean).sort((a, b) => pts(b) - pts(a)).slice(0, 3) : [];
+  if (sort === 'gagnee') meta.vitrine = [...(meta.vitrine || []), { run: d.numero, saison: n, coach: G.rogue.coach || null, vedettes: vedettes.map(p => p.n) }];
   ecrireMeta(meta);
   saveGame();
   const ligne = (k, v) => `<div class="run-l"><span class="run-k">${esc(k)}</span><b class="run-v">${v}</b></div>`;
+  if (sort === 'gagnee') { montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable); return; }
   ouvrirChoix({
     ico: sort === 'gagnee' ? '🏆' : '🚪', titre: 'Ta run', genre: 'run', fermable: true, motFermer: 'Compris',
     irl: `Run ${d.numero} · ${n} saison${n > 1 ? 's' : ''}`,
@@ -1021,15 +1027,43 @@ function montrerTaRun(sort, n, s) {
   });
 }
 /*
+ * LA COUPE (1.0). JP : *gagner la coupe devrait être genre la victoire finale
+ * d'une run* — elle l'était dans les règles, pas à l'écran. Un écran à elle :
+ * le trophée, la run gagnée, tes trois vedettes en cartes, la place de cette
+ * Coupe dans ta vitrine, la sirène et la fanfare.
+ */
+function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
+  const rang = (meta.vitrine || []).length;
+  const C = COACHS[G.rogue.coach];
+  jouerSon('coupe');
+  ouvrirChoix({
+    ico: '🏆', titre: 'La Coupe Stanley', genre: 'coupe', fermable: true, motFermer: 'Soulever la Coupe',
+    irl: `Run ${d.numero} gagnée · saison ${n}`,
+    recit: `Ta run est gagnée. ${rang === 1 ? 'Ta première Coupe entre dans ta vitrine.' : `Ta ${rang}e Coupe entre dans ta vitrine.`}`,
+    contexte: `<div class="coupe-scene" aria-hidden="true"><span class="coupe-trophee">🏆</span></div>
+      ${vedettes.length ? `<div class="dp-grille coupe-vedettes">${vedettes.map(p => `<div class="dp-carte">${carteMiniHtml(p)}<span class="dp-qui">${esc(quiEst(p))}</span></div>`).join('')}</div>` : ''}
+      <div class="run-bilan">
+      ${ligne('Saisons jouées', n)}
+      ${C ? ligne('Ton coach', `${C.ico} ${esc(C.nom)}`) : ''}
+      ${ligne('Écussons gagnés par la run', `🏅 +${d.ecussons}`)}
+      ${ligne('Jalons débloqués', d.jalons.length ? esc(d.jalons.join(' · ')) : 'aucun')}
+      ${entrees != null ? ligne('Cartes entrées au cartable', `📒 +${entrees}`) : ''}
+      ${ligne('Ta vitrine', `🏆 ${rang} Coupe${rang > 1 ? 's' : ''}`)}
+      ${ligne('Ton vestiaire', `🏅 ${meta.ecussons || 0} écussons · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''}`)}
+    </div>`,
+    options: [], onChoix: () => {},
+  });
+}
+/*
  * LA SAISON SUIVANTE DE LA RUN (S80). JP : *nouvelle saison veut dire
  * continuer avec base des cartes ramassé qui sont pas des consommables*.
  * Ce qui continue, et comment :
  *   - l'ÉQUIPE SE DÉFAIT (1.0) : JP, *pas repartir avec la même équipe, mais
- *     pouvoir garder un ou des joueurs de l'ancienne équipe*. Des plombiers
- *     neufs, et les GARDÉS (`choisirGardesDeSaison`) passent devant ;
- *   - les MODIFS JOUÉES qui durent (améliorations, styles, l'atelier) sur les
- *     gardés : des décisions du jour 0 de la saison neuve (`report`), rejouées
- *     comme les autres ; le lustre passe par la variante de la carte ;
+ *     pouvoir garder un ou des joueurs de l'ancienne équipe*. Les GARDÉS
+ *     (`choisirGardesDeSaison`) passent devant ; le reste se tire du classeur
+ *     (`vestiaireDeDepart`), avec moins de Soutien qu'à la saison d'avant ;
+ *   - les MODIFS posées vivent sur leur carte (`modsAuCartable`) : chaque carte
+ *     de l'équipe neuve rejoue les siennes au jour 0 (`reportDesCartes`) ;
  *   - le DECK de match : la saison neuve part du deck de la fin (`deckDeBase`) ;
  *   - les JETONS qui restent, plus la caisse du vestiaire ;
  *   - le PLAFOND est celui d'un départ de run (`plafondDeDepart`).
@@ -1147,7 +1181,10 @@ export function ouvrirVestiaire(apres = null) {
       const quoi = `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${fait ? '✓' : k}</span><b>${esc(P.nom)}</b><span>${fait ? esc(quoi) : `${P.min} 🏅 à vie${P.jalon ? ` et « ${esc(jalonDe(P.jalon))} »` : ''} → ${esc(quoi)}`}</span></div>`;
     }).join('')}</div>`;
-  const jalons = `${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
+  // 1.0 : LA VITRINE — tes Coupes, la run, la saison, le coach et les vedettes.
+  const vitrine = (meta.vitrine || []).length ? `<p class="vs-sec">🏆 Ta vitrine · ${meta.vitrine.length} Coupe${meta.vitrine.length > 1 ? 's' : ''}</p>
+    <div class="vs-jalons">${meta.vitrine.slice().reverse().map(V => `<div class="vs-jalon fait"><span class="vs-ico" aria-hidden="true">🏆</span><b>Run ${V.run} · saison ${V.saison}${COACHS[V.coach] ? ` · ${COACHS[V.coach].ico} ${esc(COACHS[V.coach].nom)}` : ''}</b><span>${esc((V.vedettes || []).join(' · '))}</span></div>`).join('')}</div>` : '';
+  const jalons = `${vitrine}${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
     <div class="vs-jalons">${JALONS.map(J => {
       const fait = !!(meta.jalons || {})[J.cle];
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${J.ico}</span><b>${esc(J.nom)}</b><span>${fait ? '✓ Atteint' : `${esc(J.texte)} → ${esc(recompenseDe(meta, J).mot)}`}</span></div>`;

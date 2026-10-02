@@ -2342,7 +2342,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         .filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ');
       lignes.push(`<div class="hub-etat-l hub-etat-run" title="Manque le mandat et la run est finie ; gagne la Coupe et elle est gagnée">
         <span class="hub-etat-k">💀 La run</span>
-        <span class="hub-etat-v">Saison ${run.saison} · le proprio veut : <b>${ctx.esc(run.mot)}</b>${run.suivant ? ` <small class="hub-run-suite">· puis : ${ctx.esc(run.suivant)}</small>` : ''}</span>
+        <span class="hub-etat-v">Saison ${run.saison} · le proprio veut : <b>${ctx.esc(run.mot)}</b>${run.suivant ? ` <small class="hub-run-suite">· puis : ${ctx.esc(run.suivant)}</small>` : ''} <small class="hub-run-suite">· 🏆 le but : la Coupe</small></span>
         ${bareme ? `<small class="hub-run-bareme" title="Ce que chaque résultat rapporte, en jetons">🪙 ${ctx.esc(bareme)}</small>` : ''}
       </div>`);
     }
