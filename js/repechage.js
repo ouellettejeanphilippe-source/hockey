@@ -6,7 +6,7 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SLOTS, fits, penaliteAffichee, getPositionPenalty, profilPrincipal, CAP } from './sim.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, profilPrincipal, CAP } from './sim.js';
 import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ratings.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
@@ -22,6 +22,7 @@ import { scoreIdentite, IDENTITES } from './identites.js';
 import { codeDeFranchise, saisonsDeFranchise, FRANCHISES } from './franchises.js';
 import { $, DEFUNCT, G, MIN_SAL, MODE, SEUIL_IDENTITE, TEAMFULL, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, agesAvailable, applyTeamColors, candidats, capHitDuJour, capLeft, chiffreCle, capUsed, caseCourante, caseOuverte, closeModal, displayStats, enRepechage, epoqueDuTirage, formatName, franchiseDuTirage, headshotHtml, ico, identite, isPicked, majNavbar, maxForPick, montrerPage, nextNeed, openSlots, poserEchelle, positionClass, positionLabel, quiEst, render, rnd, roleTag, saisonDeFranchise, saveGame, saveOpts, scoreDeLaMain, scoreDuVestiaire, signes, slotsLeft, toast, totalCases, vestiaire, zoneEcart, zoneTag } from './game.js';
 import { ballottageVu, groupeDe } from './banc.js';
+import { quiGlisse } from './ballottage.js';
 import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { decisionsDeLaPartie, renderJetons } from './rogue-jeu.js';
 import { UNIT_NAMES_D, UNIT_NAMES_F, axesTableHtml, surTable, syncSortOptions, tableStats, tagsTableHtml } from './alignement.js';
@@ -214,6 +215,7 @@ export function sectionMods(p, attente = null) {
   const k = getPlayerKey(p);
   const posees = poseesSur(decisionsDeLaPartie(), k);
   const arrives = mods.filter(m => !sePose(m.cle));
+  const situ = situationsDe(p);
   // Un malus que le physio a effacé depuis se lit barré.
   const physio = Math.max(-1, ...posees.filter(x => x.cle === 'physio').map(x => x.jour), ...mods.filter(m => m.cle === 'physio').map(m => m.jour));
   const efface = (cle, jour) => jour < physio && mutationNuit(cle);
@@ -237,8 +239,40 @@ export function sectionMods(p, attente = null) {
   const plein = attente && posees.length >= n ? '<p class="fc-mods-vide">Ses cases sont pleines : cette carte ne peut pas aller sur lui.</p>' : '';
   return `<div class="fc-sec" title="Deux cases d'amélioration ; une de plus pour une carte holo ou or. Chaque carte posée prend une case pour la saison.">Ses améliorations · ${posees.length}/${n}</div>
     <div class="fc-mods fc-cases">${cases.join('')}</div>${plein}
-    ${arrives.length ? `<div class="fc-sec">Ce qui lui est arrivé</div>
-    <div class="fc-mods">${arrives.map(m => modHtml(m.cle, m.jour, { efface: efface(m.cle, m.jour) })).join('')}</div>` : ''}`;
+    ${arrives.length || situ.length ? `<div class="fc-sec">Ce qui lui est arrivé</div>
+    <div class="fc-mods">${arrives.map(m => modHtml(m.cle, m.jour, { efface: efface(m.cle, m.jour) })).join('')}${situ.join('')}</div>` : ''}`;
+}
+/*
+ * LE VESTIAIRE AU VERSO (1.0, oct.). JP : *est-ce que le verso d'une carte
+ * prend en compte les changements au joueur, genre quand ses stats sont
+ * changées par event ?* Les cartes et les accidents y étaient ; pas les
+ * situations du vestiaire (« la passoire », « le déclic ») — elles jouent
+ * pourtant sur lui jusqu'à la suivante. Chacune dit son jour, son effet en
+ * chiffres (`effetDeSituation`, ce que le moteur pose), et si elle joue encore.
+ */
+const MOTS_SITU = [['lancers', 'Tirs', 1], ['finition', 'Précision', 1], ['creation', 'Création', 1], ['gardien', 'Buts accordés', -1], ['blessure', 'Blessures', -1]];
+function situationsDe(p) {
+  const t = G.ligue && G.ligue.you;
+  if (!p || !t || !Array.isArray(t.situations)) return [];
+  const k = getPlayerKey(p);
+  const jusqua = porteeRevele('saison') === 'jour' ? (G.journee || 0) : Infinity;
+  // Celle de ce soir compte : le bureau l'annonce déjà, et le moteur la pose au matin.
+  const vues = t.situations.filter(f => f.jour <= jusqua);
+  return vues.map((f, i) => {
+    const bout = [f.porte, f.pese].find(b => b && b.p && getPlayerKey(b.p) === k);
+    const S = bout && SITUATIONS[bout.cle];
+    if (!S) return '';
+    const e = effetDeSituation(bout.cle);
+    const effets = MOTS_SITU.filter(([c]) => Math.abs(e[c] - 1) > 0.004)
+      .map(([c, mot, sens]) => `<span class="${sens * (e[c] - 1) > 0 ? 'bon' : 'prix'}">${esc(`${mot} ${flechesDe(e[c])}`)}</span>`).join('');
+    const fin = vues[i + 1] ? vues[i + 1].jour : null;
+    const quand = fin == null ? `depuis J${f.jour + 1} · en cours` : `J${f.jour + 1} à J${fin}`;
+    return `<div class="fc-mod" title="${esc(S.quoi)}">
+      <span class="fc-mod-ico" aria-hidden="true">${S.ico}</span>
+      <span class="fc-mod-txt"><span class="fc-mod-tete"><b>${esc(S.nom)}</b><small>Le vestiaire · ${quand}</small></span>
+      ${effets ? `<span class="fc-mod-effets">${effets}</span>` : ''}</span>
+    </div>`;
+  }).filter(Boolean);
 }
 /*
  * POSER EN SAISON (S80) : depuis l'écran de saison, qui prête sa décision du
@@ -377,7 +411,7 @@ function choisirQuiSort(p, o) {
   const { roster, onFerme, bloque = null } = o;
   const nomDe = n => String(n).split(' ').slice(-1)[0];
   // Une case pour lui, la case du sortant `A` libérée : la sienne, une vide, ou celle d'un joueur qui peut jouer `A`.
-  const placable = (A, B) => fits(p, B) && (B.i === A.i || !roster[B.i] || fits(roster[B.i], A));
+  const placable = (A, B) => fits(p, B) && !!quiGlisse(roster, A, B, caseOuverte);
   const placesDe = A => SLOTS.filter(B => caseOuverte(B) && placable(A, B));
   const options = SLOTS.filter(A => roster[A.i]).map(A => {
     const q = roster[A.i];
@@ -400,19 +434,21 @@ function choisirQuiSort(p, o) {
 /* L'étape deux : la case de l'arrivant, `A` étant celle que le sortant (ou une case libre) laisse. */
 function placerArrivant(p, { roster, onChoix }, A, retour) {
   const nomDe = n => String(n).split(' ').slice(-1)[0];
+  const glisseMot = g => g.map(([x, sl]) => `${nomDe(x.n)} → ${ligneDe(sl)}`).join(' · ');
   const q0 = roster[A.i] || null;
   let marques = false;
   const rangees = rangeesAlignement(roster, (sl, q) => {
     if (!fits(p, sl)) return { non: 'pas sa position' };
-    if (sl.i !== A.i && q && !fits(q, A)) return { non: `${nomDe(q.n)} ne peut pas jouer ${ligneDe(A)}` };
+    const g = quiGlisse(roster, A, sl, caseOuverte);
+    if (!g) return { non: `${nomDe(q.n)} n'a nulle part où aller` };
     const pen = penaliteAffichee(p, sl).pen;
     if (pen) marques = true;
     return { marque: pen ? `−${pen}` : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : '',
-      note: sl.i === A.i ? (q0 ? `${nomDe(q0.n)} sort` : 'case libre') : `${nomDe(q.n)} → ${ligneDe(A)}` };
+      note: sl.i === A.i ? (q0 ? `${nomDe(q0.n)} sort` : 'case libre') : glisseMot(g) || 'case libre' };
   });
   ouvrirAlignement({
     ico: '📍', titre: `Où joue ${p.n} ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
-    recit: `${q0 ? `${q0.n} sort. ` : ''}Touche la case de ${nomDe(p.n)} : celle ${q0 ? `de ${nomDe(q0.n)}` : 'qui est libre'}, ou une autre — son joueur glisse alors à ${ligneDe(A)}.${marques ? ` « −N » : ${nomDe(p.n)} y jouerait hors position.` : ''}`,
+    recit: `${q0 ? `${q0.n} sort. ` : ''}Touche la case de ${nomDe(p.n)} : celle ${q0 ? `de ${nomDe(q0.n)}` : 'qui est libre'}, ou une autre — la case dit où glisse son joueur.${marques ? ` « −N » : ${nomDe(p.n)} y jouerait hors position.` : ''}`,
     aide: 'Touche sa case.',
     contexte: q0 ? `<span class="ech">${colonneEchange(q0, 'Sort', A)}${colonneEchange(p, 'Arrive')}</span>` : '',
     rangees,
@@ -421,18 +457,20 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
       if (!B) return '';
       const pen = penaliteAffichee(p, B).pen, q = roster[B.i];
       const ecart = capHitDuJour(p) - (q0 ? capHitDuJour(q0) : 0);
-      return `<span class="ech-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(B))}${pen ? `, hors position −${virg(pen)}` : ', à sa position'}${B.i !== A.i && q ? ` · <b>${esc(nomDe(q.n))}</b> → ${esc(ligneDe(A))}` : ''} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))}</span>`;
+      const g = quiGlisse(roster, A, B, caseOuverte) || [];
+      return `<span class="ech-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(B))}${pen ? `, hors position −${virg(pen)}` : ', à sa position'}${g.length ? ` · ${esc(glisseMot(g))}` : ''} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))}</span>`;
     },
     onChoix: k => {
       const B = SLOTS[Number(k)];
-      if (!B || !fits(p, B)) return;
+      const g = B && fits(p, B) ? quiGlisse(roster, A, B, caseOuverte) : null;
+      if (!g) return;
       const sortie = { i: A.i, sort: q0 ? getPlayerKey(q0) : null };
       if (B.i !== A.i) {
-        // Le ballottage le pose à `A` ; la photo le déplace à `B`, et l'occupant de `B` à `A`.
+        // Le ballottage le pose à `A` ; la photo le déplace à `B`, et ceux qui glissent (`quiGlisse`) à leurs cases.
         const cases = {};
         for (const [i, x] of Object.entries(roster)) if (x) cases[i] = getPlayerKey(x);
         delete cases[A.i];
-        if (roster[B.i]) cases[A.i] = getPlayerKey(roster[B.i]);
+        for (const [x, sl] of g) cases[sl.i] = getPlayerKey(x);
         cases[B.i] = getPlayerKey(p);
         sortie.cases = cases;
       }

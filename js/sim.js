@@ -2007,12 +2007,32 @@ export function joueursDeLigne(lineup, u) {
  * joueurs dans le rôle que le système demande. Le trio u lit un système
  * d'avants, la paire u un système de défenseurs.
  */
+/*
+ * LES AILES S'ASSORTISSENT (1.0, oct.). JP : *les stratégies donnent pas la
+ * chance de swap AD et AG côté rôles, ce qui est cave*. Un système demande
+ * un rôle à chaque aile ; ses ailiers le jouent dans le sens où ils rendent
+ * le mieux — le sniper prend l'aile du sniper, qu'elle soit gauche ou droite.
+ * Les mêmes règles pour tous les clubs ; rien ne bouge dans l'alignement.
+ */
+export function rolesDuSysteme(lineup, groupe, u, cle) {
+  const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
+  if (!S || !S.slots) return null;
+  if (groupe === 'D' || !S.slots.AG || !S.slots.AD || S.slots.AG === S.slots.AD || !lineup) return S.slots;
+  const miroir = { ...S.slots, AG: S.slots.AD, AD: S.slots.AG };
+  return fitRoles(lineup, u, miroir) > fitRoles(lineup, u, S.slots) ? miroir : S.slots;
+}
+function fitRoles(lineup, u, slots) {
+  const js = joueursDeLigne(lineup, u);
+  let n = 0;
+  for (const [role, prof] of Object.entries(slots)) { const p = js[role]; if (p) n += ((profilsDe(p) || {})[prof] ?? 0); }
+  return n;
+}
 export function fitUnite(lineup, groupe, u, cle) {
   const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
   if (!S || !S.slots || !lineup) return 0;
   const js = joueursDeLigne(lineup, u);
   const fits = [];
-  for (const [role, prof] of Object.entries(S.slots)) {
+  for (const [role, prof] of Object.entries(rolesDuSysteme(lineup, groupe, u, cle))) {
     const p = js[role];
     if (p === undefined) continue;          // la 4e ligne n'a pas de paire
     // UNE CASE VIDE N'A PAS DE FIT (1.0, J1-I) : une unité incomplète ne se
@@ -2776,7 +2796,7 @@ export const SEQUENCES = {
       { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.95 },
       { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Si les jambes suivent, on redevient une équipe physique', prix: 'Sinon, des corps fatigués',
         pari: { chance: 0.5, gagne: { robustesse: 1.3, duree: 8 }, perd: { blessure: 1.35, duree: 8 } } },
-      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.96, discipline: 1.18, blessure: 1.15, trou: true },
+      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.9, discipline: 1.18, blessure: 1.15, trou: true },
     ],
   },
   victoires: {
@@ -3297,20 +3317,20 @@ export function situationsDuJour(team, graine, jour, equipe = 0) {
  * joueurs portés et quatre pesés, et « une paire est neutre » ne voudrait
  * plus rien dire.
  */
+/* Ce qu'une situation multiplie chez son joueur, à l'échelle du porté ou du pesé : le moteur et le verso lisent ceci. */
+export function effetDeSituation(cle) {
+  const c = SITUATIONS[cle];
+  if (!c) return null;
+  const k = c.sens > 0 ? ECHELLE_PORTE : ECHELLE_PESE;
+  const ech = f => 1 + ((f ?? 1) - 1) * k;
+  return { lancers: ech(c.lancers), finition: ech(c.finition), creation: ech(c.creation), gardien: ech(c.gardien), blessure: ech(c.blessure) };
+}
 /* `tirage` : la journée PRÉVUE, qui donne le tirage — la situation reportée d'un gros match (S79) garde le sien. */
 function poserSituations(team, graine, jour, equipe, tirage = jour) {
   const paire = situationsDuJour(team, graine, tirage, equipe);
   if (!paire) return;
   for (const s of SLOTS) { const p = team.roster[s.i]; if (p) delete p._situ; }
-  for (const bout of [paire.porte, paire.pese]) {
-    const c = SITUATIONS[bout.cle];
-    const k = c.sens > 0 ? ECHELLE_PORTE : ECHELLE_PESE;
-    const ech = f => 1 + ((f ?? 1) - 1) * k;
-    bout.p._situ = {
-      lancers: ech(c.lancers), finition: ech(c.finition),
-      creation: ech(c.creation), gardien: ech(c.gardien), blessure: ech(c.blessure),
-    };
-  }
+  for (const bout of [paire.porte, paire.pese]) bout.p._situ = effetDeSituation(bout.cle);
   // Ce que l'écran lit. Le journal garde TOUTES les fenêtres, pas seulement
   // la courante : c'est l'histoire de la saison, et le bilan la relit.
   (team.situations = team.situations || []).push({
@@ -7224,7 +7244,7 @@ export const ENTRACTES = {
   // Mené ou à égalité.
   patience: { ico: '🔦', nom: 'Attendre le bon tir', si: ['derriere', 'egal'], bon: 'Des tirs de qualité', prix: 'Moins de tirs', finition: 1.06, volume: 0.92 },
   pluie: { ico: '🪃', nom: 'Une pluie de rondelles', si: ['derriere', 'egal'], bon: 'Tout au filet', prix: 'Des tirs de nulle part', volume: 1.14, finition: 0.95, defense: 1.03 },
-  meute: { ico: '🐺', nom: 'Échec-avant à trois', si: ['derriere', 'egal'], bon: 'On vole des rondelles', prix: 'Des surnombres contre, des jambes en moins', volume: 1.1, defense: 1.07, energie: 1.08 },
+  meute: { ico: '🐺', nom: 'Échec-avant à trois', si: ['derriere', 'egal'], bon: 'On vole des rondelles', prix: 'Des surnombres contre, des jambes en moins', volume: 1.15, defense: 1.07, energie: 1.08 },
   discours: { ico: '🗣️', nom: 'Le coach élève la voix', si: ['derriere', 'egal', 'devant'], bon: 'Le vestiaire se réveille', prix: 'Des têtes chaudes', finition: 1.03, discipline: 1.1 },
   // À égalité.
   prolo: { ico: '⏳', nom: 'Jouer pour la prolongation', si: ['egal'], bon: 'Pas de risque', prix: 'Pas de but non plus', defense: 0.9, volume: 0.9 },

@@ -2913,18 +2913,18 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .ent2-sep { font-size: var(--t-5); color: var(--encre-3); }
 .ent2-note { margin: var(--esp-2) 0; text-align: center; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
 .ent2-stats { width: 100%; border-collapse: collapse; margin-top: var(--esp-2); font-size: var(--t-2); }
-.ent2-stats th, .ent2-stats td { padding: 3px var(--esp-2); text-align: right; font-variant-numeric: tabular-nums; }
+.ent2-stats th, .ent2-stats td { padding: 3px var(--esp-1); text-align: right; font-variant-numeric: tabular-nums; }
 .ent2-stats tbody th { text-align: left; font-weight: 400; color: var(--encre-2); }
 .ent2-stats thead th { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-.ent2-stats .ent2-stats-sec th { text-align: left; padding-top: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); border-bottom: 1px solid var(--filet-2); }
+.ent2-stats thead tr:first-child th { text-align: center; border-bottom: 1px solid var(--filet-2); }
+.ent2-stats .ent2-stats-saison, .ent2-stats td:last-child { color: var(--encre-3); }
+.ent2-stats .ent2-stats-saison { border-left: 1px solid var(--filet-2); }
 .hub-prev { margin-bottom: var(--esp-4); }
 .hub-prev-fin { font-size: var(--t-3); margin: var(--esp-1) 0; }
 .hub-prev-fin span { color: var(--encre-3); font-size: var(--t-2); }
 .hub-prev-joueurs th small { color: var(--encre-3); font-size: var(--t-1); }
 .ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
-.ent2-but { font: 700 var(--t-1)/1.3 var(--display); color: var(--encre-2); }
-.ent2-but.moi { color: var(--bon); }
-.ent2-but.lui { color: var(--mauvais); }
+.ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: 4px; }
 .ent2-incident { margin: var(--esp-2) 0; padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .live-ligne.ent2-marque { background: color-mix(in srgb, var(--violet) 14%, transparent); }
 
@@ -3053,7 +3053,10 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-but-per { padding: var(--esp-2) var(--esp-3) 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .live-but-ligne { display: flex; align-items: baseline; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); border-bottom: 1px solid var(--filet-2); }
 .live-but-ligne:last-child { border-bottom: 0; }
-.live-but-ligne.toi b { color: var(--or); }
+/* UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP) : le fond, l'encre et le liseré de son bandeau (js/logos.js). */
+.but-eq { background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 4px 0 0 var(--eq-stripe); }
+.but-eq :is(b, small, .lien-joueur, .live-tps, .live-but-mot, .live-xe, .live-micro, .live-score, .som-tps, .som-xe, .som-aides, .som-recit, .exh-t, .exh-pt) { color: inherit; }
+.but-eq :is(small, .live-tps, .live-xe, .live-micro, .som-tps, .som-xe, .som-recit, .exh-t) { opacity: 0.8; }
 .live-but-ligne .team-logo-img, .live-but-ligne .team-logo-inline { flex: none; align-self: center; }
 .live-xe { color: var(--encre-2); font-size: var(--t-1); }
 .live-score { margin-left: var(--esp-1); font: 800 var(--t-2)/1 var(--display); font-variant-numeric: tabular-nums; }
@@ -3090,9 +3093,8 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-ligne.danger .live-jeu-mot { color: var(--attention); }
 .live-ligne.defense .live-jeu-mot { color: var(--bleu); }
 /* Un but : une rangée plus haute sur --fond-2, la plaque du club qui marque au flanc, « BUT » en or. */
-.live-ligne.but { padding: var(--esp-3); font-size: var(--t-3); background: var(--fond-2); box-shadow: inset 4px 0 0 var(--eq-stripe, var(--or)); }
-.live-ligne.but.gagnant { box-shadow: inset 4px 0 0 var(--or), inset 0 0 0 1px var(--or); }
-.live-ligne.but .live-tps { color: var(--encre-2); }
+.live-ligne.but { padding: var(--esp-3); font-size: var(--t-3); }
+.live-ligne.but.gagnant { box-shadow: inset 4px 0 0 var(--eq-stripe), inset 0 0 0 2px var(--or); }
 .live-but-mot { font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.08em; margin-right: var(--esp-1); color: var(--or); }
 .live-micro { color: var(--encre-2); }
 /* Une punition, une blessure : le rouge de ce qui coûte ; chez toi, plus appuyé. */
@@ -3133,6 +3135,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-tirs { color: var(--encre-3); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
 /* Un but : l'heure, l'écusson, le marqueur ; ses aides et le récit dessous, en retrait. */
 .som-but { display: grid; grid-template-columns: 44px 20px minmax(0, 1fr); gap: 2px var(--esp-2); align-items: baseline; min-height: 44px; padding: var(--esp-2) 0; border-bottom: 1px solid var(--filet-2); }
+.som-but.but-eq { padding-inline: var(--esp-2); }
 .som-tps { font: 700 var(--t-1)/1.5 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-3); }
 .som-eq { line-height: 1; align-self: center; }
 .som-qui { min-width: 0; }
@@ -3686,11 +3689,12 @@ button.dep-piste:hover:not(:disabled) { border-color: var(--encre-3); }
 
 /* ---- Les forces du club : une étiquette, une barre, un chiffre ---- */
 .bars { display: grid; gap: var(--esp-2); }
-.bar { display: flex; align-items: center; gap: var(--esp-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.bar .bl { flex: none; width: 96px; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.bar .bl { flex: none; width: 120px; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar .bt { flex: 1; height: 6px; border-radius: var(--r-1); background: var(--noir); overflow: hidden; }
 .bar .bf { height: 100%; background: var(--club-vif); }
-.bar .bv { flex: none; width: 28px; text-align: right; font: 800 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; }
+.bar .bm { flex-basis: 100%; font: 400 var(--t-1)/1.3 var(--corps); letter-spacing: 0; text-transform: none; color: var(--encre-3); }
+.bar .bv { flex: none; width: 36px; text-align: right; font: 800 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; }
 
 /* ---- La feuille de match des NHL Stars : la vignette, le nom, la ligne de chiffres ---- */
 .rrow { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--esp-3); row-gap: 2px; align-items: center; min-height: 44px; padding: var(--esp-2) 0; border-bottom: 1px solid var(--filet-2); font-size: var(--t-2); }
@@ -4174,6 +4178,8 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .pk-manque { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.03em; color: var(--mauvais); }
 /* La fiche d'un pack : par-dessus la boutique (z 5), au bas au téléphone, au centre dès qu'il y a la place. */
 .pk-fiche { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--noir) 72%, transparent); }
+/* Dans une page du Club (le Marché en saison), la feuille grandit avec les rayons et défile : la fiche se pose sur l'ÉCRAN, dans la zone de la page (#hubModal), pas au bas des rayons (JP : *apparaît dans le bas de la page, invisible*). */
+.hub-page .pk-fiche { position: fixed; inset: var(--topbar-h) 0 var(--bas-coquille) var(--rail-w); }
 .pk-fiche-carte { --pk-a: var(--or); width: 100%; max-width: 520px; max-height: 92%; overflow-y: auto; padding: var(--esp-4); border-radius: var(--r-2) var(--r-2) 0 0; background: var(--fond-1); border-top: 3px solid var(--pk-a); box-shadow: var(--ombre); }
 .pk-fiche-tete { display: flex; align-items: center; gap: var(--esp-3); }
 .pk-fiche-tete .pk-ico { font-size: var(--t-5); line-height: 1; color: var(--pk-a); }
@@ -4383,6 +4389,7 @@ body.exh-ouverte { overflow: hidden; }
 .exh-per { margin: var(--esp-3) 0 var(--esp-1); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .exh-buts, .exh-gardiens, .exh-etoiles, .exh-matchs { list-style: none; margin: 0; padding: 0; }
 .exh-buts li { display: flex; align-items: center; gap: var(--esp-2); padding: var(--esp-2) 0; border-bottom: 1px solid var(--filet-2); font-size: var(--t-2); }
+.exh-buts li.but-eq { padding-inline: var(--esp-2); }
 .exh-t { flex: none; width: 40px; font-size: var(--t-1); color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .exh-but { flex: 1; min-width: 0; }
 .exh-but small { color: var(--encre-2); }

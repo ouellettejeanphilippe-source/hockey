@@ -701,8 +701,6 @@ function terminerSaison() {
   L.teams = b.standings;
   const r = {
     W: you.W, L: you.L, OTL: you.OTL, GF: you.GF, GA: you.GA, points: you.PTS,
-    attaque: you.strength.att, brigade: you.strength.def,
-    rob: you.strength.rob, clu: you.strength.clu, gRating: you.strength.g,
   };
   G.journee = M.calendrier.length;
   finDeSaisonRogue();

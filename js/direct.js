@@ -28,7 +28,7 @@ import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { CARTES_MATCH } from './combat.js';
 import { jouerSon } from './sons.js';
-import { ord, ordF, cap, nom } from './util.js';
+import { ord, ordF, cap, nom, varsEquipe } from './util.js';
 
 /*
  * L'HORLOGE DESCEND. Un tableau indicateur de hockey compte à rebours,
@@ -293,7 +293,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   const nomLie = (p, cote) => (ctx.fiche && p ? ctx.fiche(p, equipe(cote), ctx.esc(nom(p))) : ctx.esc(nom(p)));
   const autre = cote => (cote === 'A' ? 'B' : 'A');
   /* Les couleurs de l'équipe qui tire, posées sur la ligne du fil. */
-  const couleurs = cote => { const b = ctx.band(equipe(cote).tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
+  const couleurs = cote => varsEquipe(ctx.band(equipe(cote).tag));
 
   /*
    * Le tableau indicateur : deux équipes, le pointage, l'horloge. Depuis S77
@@ -394,7 +394,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         ${rangee('Avantage numérique', `${st.anButs.A} / ${st.anOcc.A}`, `${st.anButs.B} / ${st.anOcc.B}`)}
         ${rangee('Arrêts', gA_ ? `${ctx.esc(famille(gA_))} ${st.arrets.A} / ${st.arrets.A + gB}` : '—', gB_ ? `${ctx.esc(famille(gB_))} ${st.arrets.B} / ${st.arrets.B + gA}` : '—')}
       </tbody></table></div>
-      ${st.buts.length ? `<div class="live-tableau"><div class="live-tableau-titre">Les buts</div>${st.buts.map((x, i) => `${i && periodeDe(st.buts[i - 1].instant) === periodeDe(x.instant) ? '' : `<div class="live-but-per">${NOM_PERIODE[periodeDe(x.instant)]}</div>`}<div class="live-but-ligne"><span class="live-tps">${tempsDeJeu(x.instant)}</span>${ctx.logo(equipe(x.cote).tag, 13)}<span><b>${nomLie(x.marqueur, x.cote)}</b> (${ord(x.nG)} but)${x.aides.length ? `, ${x.aides.map(a => `${nomLie(a.p, x.cote)} (${ordF(a.n)} passe)`).join(', ')}` : ''}${x.an ? ' · AN' : x.dn ? ' · DN' : ''} <span class="live-score">${x.score}</span></span></div>`).join('')}</div>` : ''}`;
+      ${st.buts.length ? `<div class="live-tableau"><div class="live-tableau-titre">Les buts</div>${st.buts.map((x, i) => `${i && periodeDe(st.buts[i - 1].instant) === periodeDe(x.instant) ? '' : `<div class="live-but-per">${NOM_PERIODE[periodeDe(x.instant)]}</div>`}<div class="live-but-ligne but-eq" style="${couleurs(x.cote)}"><span class="live-tps">${tempsDeJeu(x.instant)}</span>${ctx.logo(equipe(x.cote).tag, 13)}<span><b>${nomLie(x.marqueur, x.cote)}</b> (${ord(x.nG)} but)${x.aides.length ? `, ${x.aides.map(a => `${nomLie(a.p, x.cote)} (${ordF(a.n)} passe)`).join(', ')}` : ''}${x.an ? ' · AN' : x.dn ? ' · DN' : ''} <span class="live-score">${x.score}</span></span></div>`).join('')}</div>` : ''}`;
   };
 
   const horloge = () => {
@@ -477,7 +477,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         pour: e.cote === 'A' ? gA : gB, contre: e.cote === 'A' ? gB : gA, nMatch: butsCeSoir.get(b.marqueur),
         r: tempsRestant(b.instant), tard: b.instant >= 56 && b.instant < 60, ot: b.instant >= 60,
       });
-      ligne(`but ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
+      ligne(`but but-eq ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
         <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} <span class="live-score">${gA}-${gB}</span> <span class="live-micro">${micro}</span></span>`, couleurs(e.cote));
       majBoard();
       son('but');

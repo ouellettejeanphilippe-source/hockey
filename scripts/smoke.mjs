@@ -440,8 +440,8 @@ async function repondreAuxChoix() {
   let rouvert = false;
   for (let i = 0; i < 12; i++) {
     if (await ouvrirPaquet()) continue;
-    // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au bureau ».
-    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) {
+    // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au bureau » — sauf sous un choix ouvert, qui passe d'abord.
+    if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#hubModal .hub-page[data-genre="sommaire"]')) {
       sommairesVus++;
       await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
       await page.waitForTimeout(250);
@@ -602,6 +602,9 @@ const butsDuDirect = () => page.$$eval('#liveModal .live-feed .live-ligne', els 
 });
 async function lireLeDirect(entracte) {
   butsVusEnDirect = { buts: await butsDuDirect(), entracte };
+  // UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP).
+  const ternes = await page.$$eval('#liveModal :is(.live-ligne.but, .live-but-ligne)', l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band') && !e.closest('[style*="--eq-band"]')).length);
+  if (ternes) errors.push(`le direct : ${ternes} but(s) sans les couleurs du club qui marque`);
 }
 /* Le « Sommaire du match » d'une clé `saison|j|k` ou `series|i|k` : ses buts, période, heure et marqueur. */
 async function butsDuSommaire(cle) {
@@ -615,6 +618,9 @@ async function butsDuSommaire(cle) {
   // Au bureau, une page du Club (1.0, R3) ; ailleurs (le bilan), la fenêtre.
   await page.waitForFunction(() => document.getElementById('gameModal').style.display !== 'none' || document.querySelector('#hubModal .hub-page[data-genre="sommaire-match"]'), null, { timeout: 5000 }).catch(() => {});
   const enPage = !!(await page.$('#hubModal .hub-page[data-genre="sommaire-match"]'));
+  const portee = enPage ? '#hubModal .hub-page[data-genre="sommaire-match"]' : '#gameModalBody';
+  const ternes = await page.$$eval(`${portee} .som-but:not(.som-pun)`, l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band')).length);
+  if (ternes) errors.push(`le sommaire du match : ${ternes} but(s) sans les couleurs du club qui marque`);
   const buts = await page.$$eval(enPage ? '#hubModal .hub-page[data-genre="sommaire-match"] .som-per' : '#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
     const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
     return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
@@ -676,6 +682,15 @@ async function finirDirect(etiquette) {
   const opts = await page.$$eval('#choixModal .choix-option', e => e.length);
   const quand = await page.$$eval('#choixModal .choix-option', e => e.filter(x => /3e période/.test(x.textContent)).length);
   if (quand !== opts) errors.push(`${etiquette} : l'entracte a ${opts - quand} option(s) qui ne disent pas « 3e période »`);
+  // CE QUE LES CHOIX TOUCHENT (1.0, oct.) : une rangée par puce, ce soir et par match, des deux côtés, sans déborder.
+  const tableau = await page.$eval('#choixModal .ent2-stats', t => ({ rangs: [...t.querySelectorAll('tbody th')].map(x => x.textContent.trim()), cols: t.querySelectorAll('tbody tr:first-child td').length, deborde: t.scrollWidth - t.parentElement.clientWidth })).catch(() => null);
+  if (!tableau) errors.push(`${etiquette} : l'entracte n'a pas le tableau des deux équipes`);
+  else {
+    const voulus = ['Tirs', 'Précision', 'Buts contre', 'Punitions', 'Mises en échec'];
+    const manque = voulus.filter(k => !tableau.rangs.includes(k));
+    if (manque.length || tableau.cols !== 4) errors.push(`${etiquette} : le tableau de l'entracte n'a pas ${manque.join(', ') || 'ses quatre colonnes'} (${tableau.rangs.join(', ')} · ${tableau.cols} colonnes)`);
+    if (tableau.deborde > 1) errors.push(`${etiquette} : le tableau de l'entracte déborde de ${tableau.deborde} px`);
+  }
   await _click('#choixModal .choix-option');
   await _wait('#liveModal .live-pause, #liveModal .live-suite', { timeout: 120000 });
   /*
@@ -2393,6 +2408,14 @@ async function traverserSaison(etiquette, reprise = false) {
       if (!a.quoi.trim() || !b.quoi.trim() || !a.mot.trim() || !b.mot.trim()) errors.push('un bout de la paire ne dit ni ce que ça change ni pourquoi');
       if (situ.large) errors.push('le panneau des situations déborde en largeur');
       if (!errors.length || true) console.log(`   le vestiaire : ${a.nom.trim()} (porté) · ${b.nom.trim()} (pesé)`);
+      // AU VERSO (1.0, oct.) : la situation se lit sur la carte du joueur, avec son effet et « en cours ».
+      const verso = await page.evaluate(async () => {
+        const { sectionMods } = await import('/js/repechage.js');
+        const f = (window.cap82.G.ligue.you.situations || []).slice(-1)[0];
+        return f ? sectionMods(f.porte.p).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ') : '';
+      });
+      if (!/Le vestiaire · depuis J\d+ · en cours/.test(verso)) errors.push(`le verso du porté ne dit pas sa situation en cours : « ${verso.slice(0, 160)} »`);
+      else console.log(`   au verso du porté : ${verso.match(/[^·]*Le vestiaire · depuis J\d+ · en cours[^·]*/)[0].trim().slice(0, 120)}`);
     }
   }
 
@@ -2648,6 +2671,11 @@ if (enabled) {
     const conseil = ((await page.textContent('#resultHost .note').catch(() => '')) || '').trim();
     if (!/\d/.test(conseil) || /trois derniers trios|bât blesse/.test(conseil)) errors.push(`le conseil du bilan ne cite aucun chiffre : « ${conseil} »`);
     else console.log(`   le conseil du bilan : « ${conseil} »`);
+    // LES FORCES EN VRAIES STATS (1.0, oct.) : un rang et une stat de la saison par force, jamais une cote.
+    const forces = await page.$$eval('.result .bars .bar', l => l.map(b => [b.querySelector('.bl').textContent.trim(), b.querySelector('.bv').textContent.trim(), (b.querySelector('.bm') || {}).textContent || '']));
+    const malFaites = forces.filter(([, rang, mot]) => !/^\d+(er|e)$/.test(rang) || !/\d/.test(mot));
+    if (forces.length !== 5 || malFaites.length) errors.push(`les forces du bilan ne sont pas cinq rangs avec leur stat : ${forces.map(f => f.join(' ')).join(' · ')}`);
+    else console.log(`   les forces du bilan : ${forces.map(([n, r, m]) => `${n} ${r} (${m})`).join(' · ')}`);
     await deuxCaptures('bilan');
   }
   /*

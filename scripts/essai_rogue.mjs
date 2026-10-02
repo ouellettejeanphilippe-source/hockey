@@ -244,6 +244,9 @@ const acheter = async (pack, capture) => {
   if (!(await page.$(`#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`)) && await page.$('#hubModal .hub-page[data-genre="boutique"] .pk-tout')) { await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-tout'); await page.waitForTimeout(300); }
   await page.click(`#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`);
   await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-fiche');
+  // LA FICHE SE POSE SUR L'ÉCRAN (1.0, oct.) : JP la trouvait au bas des rayons, hors écran.
+  const vue = await page.$eval('#hubModal .hub-page[data-genre="boutique"] .pk-fiche-carte', c => { const r = c.getBoundingClientRect(); return { haut: Math.round(r.top), bas: Math.round(r.bottom), h: innerHeight }; });
+  if (vue.haut < 0 || vue.bas > vue.h + 1) erreurs.push(`la fiche du pack ${pack} sort de l'écran (de ${vue.haut} à ${vue.bas} px sur ${vue.h})`);
   if (capture) await page.screenshot({ path: `${DOSSIER}/${capture}.png` });
   const ok = await page.$('#hubModal .hub-page[data-genre="boutique"] .pk-acheter:not([disabled])');
   // Pas assez de jetons : la fiche du pack se referme d'abord (« Retour »), puis la boutique — la fiche couvre le ✕.
@@ -300,6 +303,8 @@ const fiche3 = await page.evaluate(() => {
   return lu;
 });
 await page.locator('#hubModal .hub-page[data-genre="boutique"] .pk-fiche-carte').screenshot({ path: `${DOSSIER}/rogue-fiche-bronze-entiere.png` });
+// La fiche est fixée à l'écran : dépliée pour la capture, elle se replie avant qu'on touche « Retour ».
+await page.$eval('#hubModal .hub-page[data-genre="boutique"] .pk-fiche-carte', c => { c.style.maxHeight = ''; });
 console.log(`3b. la fiche du Pack Bronze : ${fiche3.chances.join(' · ')} · ${fiche3.niveaux.join(' · ')}`);
 if (!fiche3.titres.includes('Le joueur d\'une carte') || fiche3.niveaux.length !== 5 || !fiche3.chances.some(x => /Phénomène/.test(x))) erreurs.push(`la fiche du pack ne dit pas le joueur d'une carte : ${JSON.stringify(fiche3)}`);
 await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-retour');
@@ -557,19 +562,19 @@ await page.waitForSelector(BUREAU, { timeout: 20000 });
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
 for (let i = 0; i < 200; i++) {
   await regler();
-  const s2 = await page.$('#hubModal .hub-suite');
-  if (s2 && await s2.isVisible()) break;
+  // Deux « Voir le bilan » peuvent exister (le bureau et sa page) : c'est le visible qui compte.
+  if (await page.locator('#hubModal .hub-suite:visible').count()) break;
   if (await page.$('.result .score') && await page.isVisible('.result .score')) break;
   if (await prochaineDecision()) continue;
   const j = await page.$('#hubModal .hub-jour');
   if (j && await j.isVisible()) { await j.click(); await page.waitForTimeout(400); }
 }
-await page.waitForSelector('#hubModal .hub-suite, .result .score', { timeout: 120000 });
+await page.locator('#hubModal .hub-suite:visible, .result .score:visible').first().waitFor({ timeout: 120000 });
 // Ce qui reste à régler avant le bilan (un palier, un sommaire).
 await regler();
 // Prendre le dernier palier peut mener tout droit au bilan : on ne touche « Voir le bilan » que s'il est là.
-const suite = await page.$('#hubModal .hub-suite');
-if (suite && await suite.isVisible()) await suite.click();
+const suite = page.locator('#hubModal .hub-suite:visible').first();
+if (await suite.count()) await suite.click();
 await page.waitForSelector('.result .score', { timeout: 60000 });
 await page.waitForTimeout(2500);
 /*
