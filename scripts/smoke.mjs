@@ -2503,11 +2503,15 @@ async function traverserSaison(etiquette, reprise = false) {
   await nomsCliquables(etiquette);
   // Le match en direct, sur demande seulement — le soir de ton match : un jour de congé n'en a pas.
   await aller('match');
+  // Une journée à la fois, en répondant à ce qui s'ouvre (un choix, un message de la boîte) comme dans la boucle des journées.
   for (let i = 0; i < 10 && !(await page.$('#hubModal .hub-regarder')); i++) {
-    if (!(await page.$('#hubModal .hub-jour'))) break;
+    await repondreAuxChoix();
+    if (await page.$('#hubModal .hub-regarder')) break;
+    if (!(await page.$('#hubModal .hub-jour'))) continue;
     await page.click('#hubModal .hub-jour');
-    await page.waitForTimeout(200);
-    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
+    await page.waitForTimeout(150);
+    await ecranPret(60000);
+    await repondreAuxChoix();
   }
   await page.click('#hubModal .hub-regarder');
   await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
