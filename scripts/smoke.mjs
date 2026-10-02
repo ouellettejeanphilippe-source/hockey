@@ -602,6 +602,9 @@ const butsDuDirect = () => page.$$eval('#liveModal .live-feed .live-ligne', els 
 });
 async function lireLeDirect(entracte) {
   butsVusEnDirect = { buts: await butsDuDirect(), entracte };
+  // UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP).
+  const ternes = await page.$$eval('#liveModal :is(.live-ligne.but, .live-but-ligne)', l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band') && !e.closest('[style*="--eq-band"]')).length);
+  if (ternes) errors.push(`le direct : ${ternes} but(s) sans les couleurs du club qui marque`);
 }
 /* Le « Sommaire du match » d'une clé `saison|j|k` ou `series|i|k` : ses buts, période, heure et marqueur. */
 async function butsDuSommaire(cle) {
@@ -615,6 +618,9 @@ async function butsDuSommaire(cle) {
   // Au bureau, une page du Club (1.0, R3) ; ailleurs (le bilan), la fenêtre.
   await page.waitForFunction(() => document.getElementById('gameModal').style.display !== 'none' || document.querySelector('#hubModal .hub-page[data-genre="sommaire-match"]'), null, { timeout: 5000 }).catch(() => {});
   const enPage = !!(await page.$('#hubModal .hub-page[data-genre="sommaire-match"]'));
+  const portee = enPage ? '#hubModal .hub-page[data-genre="sommaire-match"]' : '#gameModalBody';
+  const ternes = await page.$$eval(`${portee} .som-but:not(.som-pun)`, l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band')).length);
+  if (ternes) errors.push(`le sommaire du match : ${ternes} but(s) sans les couleurs du club qui marque`);
   const buts = await page.$$eval(enPage ? '#hubModal .hub-page[data-genre="sommaire-match"] .som-per' : '#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
     const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
     return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
@@ -684,7 +690,6 @@ async function finirDirect(etiquette) {
     const manque = voulus.filter(k => !tableau.rangs.includes(k));
     if (manque.length || tableau.cols !== 4) errors.push(`${etiquette} : le tableau de l'entracte n'a pas ${manque.join(', ') || 'ses quatre colonnes'} (${tableau.rangs.join(', ')} · ${tableau.cols} colonnes)`);
     if (tableau.deborde > 1) errors.push(`${etiquette} : le tableau de l'entracte déborde de ${tableau.deborde} px`);
-    if (process.env.SMOKE_ENTRACTE && !entractesVus.length) await page.screenshot({ path: process.env.SMOKE_ENTRACTE });
   }
   await _click('#choixModal .choix-option');
   await _wait('#liveModal .live-pause, #liveModal .live-suite', { timeout: 120000 });

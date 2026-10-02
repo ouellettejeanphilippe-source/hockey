@@ -43,7 +43,7 @@ import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant, NOM_PERIODE } from './recit.js';
 import { animerComptes } from './mouvement.js';
-import { ord, ordF, cap, nom, pct3, pmMatch } from './util.js';
+import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -1743,7 +1743,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const tete = p !== per ? `<div class="live-but-per">${NOM_PERIODE[p]}</div>` : '';
       per = p;
       const aides = b.passeurs.map(p => `${ctx.esc(nom(p))} (${ordF(rang(p, 'a'))} passe)`).join(', ');
-      return `${tete}<div class="live-but-ligne${t === you ? ' toi' : ''}"><span class="live-tps">${tempsRestant(b.instant)}</span>${ctx.logo(t.tag, 13)}<span><b>${ctx.esc(nom(b.marqueur))}</b> <span class="live-xe">(${ord(rang(b.marqueur, 'g'))} but)</span>${aides ? `, ${aides}` : ''}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}${b.gagnant && m.ot ? ' · en prolongation' : ''}</span></div>`;
+      return `${tete}<div class="live-but-ligne but-eq" style="${varsEquipe(ctx.band(t.tag))}"><span class="live-tps">${tempsRestant(b.instant)}</span>${ctx.logo(t.tag, 13)}<span><b>${ctx.esc(nom(b.marqueur))}</b> <span class="live-xe">(${ord(rang(b.marqueur, 'g'))} but)</span>${aides ? `, ${aides}` : ''}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}${b.gagnant && m.ot ? ' · en prolongation' : ''}</span></div>`;
     }).join('') : '';
     const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
     return `<div class="live-board hub-board"${somm}>${cote(m.A, m.gfA, 'a', gagneA)}
@@ -3047,7 +3047,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const adv = mb.adv;
     const tirs = c => ((f.tirs[c] || [])[1] || 0) + ((f.tirs[c] || [])[2] || 0);
     const buts = f.buts.filter(b => b.instant < 40)
-      .map(b => `<span class="ent2-but ${b.cote === cMoi ? 'moi' : 'lui'}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
+      .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : adv).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
     const contexte = `<div class="ent2">
       <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(adv))} ${ctx.logo(adv.tag, 22)}</span></div>
       <div class="ent2-note">Après deux périodes · tirs ${tirs(cMoi)}–${tirs(cLui)}</div>
@@ -3367,7 +3367,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const INC = INCIDENTS[off.incident];
     const tirs = c => ((f.tirs[c] || [])[1] || 0) + ((f.tirs[c] || [])[2] || 0);
     const buts = f.buts.filter(b => b.instant < 40)
-      .map(b => `<span class="ent2-but ${b.cote === cMoi ? 'moi' : 'lui'}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
+      .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : boss).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
     const { wA, wB } = gains(s);
     const contexte = `<div class="ent2">
       <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(boss))} ${ctx.logo(boss.tag, 22)}</span></div>

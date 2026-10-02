@@ -2924,9 +2924,7 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-prev-fin span { color: var(--encre-3); font-size: var(--t-2); }
 .hub-prev-joueurs th small { color: var(--encre-3); font-size: var(--t-1); }
 .ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
-.ent2-but { font: 700 var(--t-1)/1.3 var(--display); color: var(--encre-2); }
-.ent2-but.moi { color: var(--bon); }
-.ent2-but.lui { color: var(--mauvais); }
+.ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: 4px; }
 .ent2-incident { margin: var(--esp-2) 0; padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .live-ligne.ent2-marque { background: color-mix(in srgb, var(--violet) 14%, transparent); }
 
@@ -3055,7 +3053,10 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-but-per { padding: var(--esp-2) var(--esp-3) 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .live-but-ligne { display: flex; align-items: baseline; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); border-bottom: 1px solid var(--filet-2); }
 .live-but-ligne:last-child { border-bottom: 0; }
-.live-but-ligne.toi b { color: var(--or); }
+/* UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP) : le fond, l'encre et le liseré de son bandeau (js/logos.js). */
+.but-eq { background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 4px 0 0 var(--eq-stripe); }
+.but-eq :is(b, small, .lien-joueur, .live-tps, .live-but-mot, .live-xe, .live-micro, .live-score, .som-tps, .som-xe, .som-aides, .som-recit, .exh-t, .exh-pt) { color: inherit; }
+.but-eq :is(small, .live-tps, .live-xe, .live-micro, .som-tps, .som-xe, .som-recit, .exh-t) { opacity: 0.8; }
 .live-but-ligne .team-logo-img, .live-but-ligne .team-logo-inline { flex: none; align-self: center; }
 .live-xe { color: var(--encre-2); font-size: var(--t-1); }
 .live-score { margin-left: var(--esp-1); font: 800 var(--t-2)/1 var(--display); font-variant-numeric: tabular-nums; }
@@ -3092,9 +3093,8 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-ligne.danger .live-jeu-mot { color: var(--attention); }
 .live-ligne.defense .live-jeu-mot { color: var(--bleu); }
 /* Un but : une rangée plus haute sur --fond-2, la plaque du club qui marque au flanc, « BUT » en or. */
-.live-ligne.but { padding: var(--esp-3); font-size: var(--t-3); background: var(--fond-2); box-shadow: inset 4px 0 0 var(--eq-stripe, var(--or)); }
-.live-ligne.but.gagnant { box-shadow: inset 4px 0 0 var(--or), inset 0 0 0 1px var(--or); }
-.live-ligne.but .live-tps { color: var(--encre-2); }
+.live-ligne.but { padding: var(--esp-3); font-size: var(--t-3); }
+.live-ligne.but.gagnant { box-shadow: inset 4px 0 0 var(--eq-stripe), inset 0 0 0 2px var(--or); }
 .live-but-mot { font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.08em; margin-right: var(--esp-1); color: var(--or); }
 .live-micro { color: var(--encre-2); }
 /* Une punition, une blessure : le rouge de ce qui coûte ; chez toi, plus appuyé. */
@@ -3135,6 +3135,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-tirs { color: var(--encre-3); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
 /* Un but : l'heure, l'écusson, le marqueur ; ses aides et le récit dessous, en retrait. */
 .som-but { display: grid; grid-template-columns: 44px 20px minmax(0, 1fr); gap: 2px var(--esp-2); align-items: baseline; min-height: 44px; padding: var(--esp-2) 0; border-bottom: 1px solid var(--filet-2); }
+.som-but.but-eq { padding-inline: var(--esp-2); }
 .som-tps { font: 700 var(--t-1)/1.5 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-3); }
 .som-eq { line-height: 1; align-self: center; }
 .som-qui { min-width: 0; }
@@ -4385,6 +4386,7 @@ body.exh-ouverte { overflow: hidden; }
 .exh-per { margin: var(--esp-3) 0 var(--esp-1); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .exh-buts, .exh-gardiens, .exh-etoiles, .exh-matchs { list-style: none; margin: 0; padding: 0; }
 .exh-buts li { display: flex; align-items: center; gap: var(--esp-2); padding: var(--esp-2) 0; border-bottom: 1px solid var(--filet-2); font-size: var(--t-2); }
+.exh-buts li.but-eq { padding-inline: var(--esp-2); }
 .exh-t { flex: none; width: 40px; font-size: var(--t-1); color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .exh-but { flex: 1; min-width: 0; }
 .exh-but small { color: var(--encre-2); }

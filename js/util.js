@@ -29,6 +29,8 @@ export const nom = p => (p && p.n) || '';
 
 /** La virgule décimale ; le signe devant un nombre positif. */
 export const virgule = x => String(x).replace('.', ',');
+/* Les vraies couleurs d'un club (js/logos.js `getTeamBand`) en variables CSS : un but les porte partout (`.but-eq`). */
+export const varsEquipe = b => `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`;
 export const signe = n => (n > 0 ? `+${n}` : `${n}`);
 
 /**

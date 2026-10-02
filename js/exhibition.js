@@ -19,7 +19,7 @@
 import { autoRoster, jouerExhibition, copieDeJoueur, nouvelleGraine, periodeDe, tirsTotal } from './sim.js';
 import { diffuserMatch } from './direct.js';
 import { nomCourt, NOM_PERIODE } from './recit.js';
-import { estD, pct3 as pct } from './util.js';
+import { estD, pct3 as pct, varsEquipe } from './util.js';
 
 const CLE = 'cap82_exhibition';
 /* Les visiteurs à gauche, les locaux à droite, comme sur un tableau. Les locaux sont A : ils reçoivent. */
@@ -262,7 +262,7 @@ function buts(f, A, B) {
     const t = g.cote === 'A' ? A : B;
     const passes = (g.passeurs || []).map(p => esc(nomCourt(p.n))).join(', ');
     const genre = g.an ? ' <span class="exh-an">AN</span>' : g.dn ? ' <span class="exh-an">DN</span>' : '';
-    return { per: periodeDe(g.instant), html: `<li><span class="exh-t">${temps(g.instant)}</span>${ctx.logo(t.tag, 18)}
+    return { per: periodeDe(g.instant), html: `<li class="but-eq" style="${varsEquipe(ctx.band(t.tag))}"><span class="exh-t">${temps(g.instant)}</span>${ctx.logo(t.tag, 18)}
       <span class="exh-but"><b>${esc(nomCourt(g.marqueur.n))}</b>${passes ? ` <small>(${passes})</small>` : ' <small>(sans aide)</small>'}${genre}</span>
       <span class="exh-pt">${b}-${a}</span></li>` };
   });

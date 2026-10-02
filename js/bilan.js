@@ -23,7 +23,7 @@ import { animerComptes } from './mouvement.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
-import { ord, ordF, pct3, pmMatch } from './util.js';
+import { ord, ordF, pct3, pmMatch, varsEquipe } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
 let $, G, TEAMFULL, bar, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
@@ -1186,7 +1186,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
         ? `<span class="som-aides">${b.passeurs.map((p, k) => `${lienJoueur(p, t, mode, esc(p.n))} <span class="som-xe">(${ordF(r.a[k] || 0)})</span>`).join(', ')}</span>`
         : '<span class="som-aides sans">sans aide</span>';
       const situation = b.an ? '<span class="som-sit an">AN</span>' : b.dn ? '<span class="som-sit dn">DN</span>' : '';
-      return `<div class="som-but">
+      return `<div class="som-but but-eq" style="${varsEquipe(getTeamBand(t.tag))}">
         <span class="som-tps">${tempsRestant(b.instant)}</span>
         <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
         <span class="som-qui">${situation}${lien(b.marqueur)} <span class="som-xe">(${ord(r.g)})</span> ${aides}</span>
