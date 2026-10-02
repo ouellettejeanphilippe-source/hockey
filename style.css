@@ -98,6 +98,7 @@
   --ambiance: radial-gradient(120% 70% at 50% -18%, color-mix(in srgb, var(--club-vif) 22%, transparent), transparent 62%), radial-gradient(60% 40% at 100% 105%, color-mix(in srgb, var(--club-vif) 8%, transparent), transparent 70%);
   --panneau: linear-gradient(180deg, color-mix(in srgb, var(--fond-2) 92%, var(--club-vif)), var(--fond-1) 70%);
   --relief: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 24px -14px rgba(0, 0, 0, 0.9);
+  --lueur-club: 0 0 0 1px color-mix(in srgb, var(--club-vif) 55%, transparent), 0 6px 18px -8px color-mix(in srgb, var(--club-vif) 70%, transparent);
   --lueur-bon: 0 10px 28px -10px color-mix(in srgb, var(--bon) 70%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   /* Le mouvement. */
   --t-vite: 0.12s;
@@ -308,8 +309,9 @@ body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #
   font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
   transition: background var(--t-vite), transform var(--t-vite);
 }
-.retour-btn .ico { width: 20px; height: 20px; }
+.retour-btn .ico { width: 20px; height: 20px; transition: transform var(--t-lent) var(--e-ressort); }
 .retour-btn:hover { background: var(--fond-2); }
+.retour-btn:hover .ico { transform: translateX(-3px); }
 .retour-btn:active { transform: scale(0.96); }
 
 /* ---- Les onglets internes d'une section : une rangée de mots, l'ouvert souligné d'or ---- */
@@ -319,10 +321,11 @@ body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #
   flex: none; min-height: 40px; padding: 0 var(--esp-4);
   border: 0; border-bottom: 2px solid transparent; background: none; color: var(--encre-3);
   font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
-  transition: color var(--t-vite), border-color var(--t-vite);
+  transition: color var(--t-vite), border-color var(--t-vite), transform var(--t-lent) var(--e-ressort);
 }
 .soustab:hover { color: var(--encre); }
-.soustab.on { color: var(--encre); border-bottom-color: var(--or); }
+.soustab:active { transform: scale(0.94); }
+.soustab.on { color: var(--encre); border-bottom-color: var(--or); text-shadow: 0 0 14px color-mix(in srgb, var(--or) 45%, transparent); animation: filet-or var(--t-lent) var(--e-sortie); }
 
 /* ---- Les cinq portes : la barre au bas du téléphone, le rail à gauche dès 1000 px ---- */
 .navbar {
@@ -348,10 +351,13 @@ body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #
 }
 .navtab.mort:not(.on) { opacity: 0.45; }
 .navtab.on { color: var(--encre); }
-.navtab.on .ico { color: var(--or); transform: translateY(-1px); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--or) 55%, transparent)); }
-.navtab.on::before { content: ""; position: absolute; top: 0; left: 24%; right: 24%; height: 3px; background: var(--or); }
+.navtab.on .ico { color: var(--or); transform: translateY(-1px); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--or) 55%, transparent)); animation: porte-saut 420ms var(--e-ressort); }
+.navtab.on::before { content: ""; position: absolute; top: 0; left: 24%; right: 24%; height: 3px; background: var(--or); animation: porte-filet var(--t-lent) var(--e-sortie); }
 .navtab.on .navtab-badge { color: var(--encre-sur-or); background: var(--or); }
-.navtab:active .ico { transform: scale(0.9); }
+.navtab:active .ico { transform: scale(0.8); }
+.navtab:not(.on):hover .ico { transform: translateY(-2px); }
+@keyframes porte-saut { 0% { transform: scale(0.7); } 60% { transform: scale(1.18) translateY(-3px); } }
+@keyframes porte-filet { from { opacity: 0; transform: scale(0.2); } }
 @media (min-width: 600px) and (max-width: 1199.98px) { .navtab { flex: 1 1 0; min-width: 0; } }
 @media (min-width: 1000px) {
   :root { --rail-w: 96px; --bas-coquille: 0px; }
@@ -474,6 +480,7 @@ body.hub-cache #hubModal { display: none !important; }
 /* L'entrée d'un écran, d'un volet : un fondu et une montée. */
 .ecran-entre { animation: ecran-entre 200ms var(--e-sortie) both; }
 @keyframes ecran-entre { from { opacity: 0; transform: translateY(8px); } }
+@keyframes panneau-monte { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
 .volet-entre { animation: ecran-entre 160ms var(--e-sortie) both; }
 .page:not([hidden]) > .page-corps, #game.bilan .result, .modal-sheet { animation: ecran-entre var(--t-lent) var(--e-sortie); }
 
@@ -545,42 +552,52 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
   border: 1px solid var(--filet); border-radius: var(--r-1);
   background: transparent; color: var(--encre);
   font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
-  transition: transform var(--t-vite), background var(--t-vite), border-color var(--t-vite), color var(--t-vite);
+  transition: transform var(--t-lent) var(--e-ressort), background var(--t-vite), border-color var(--t-vite), color var(--t-vite), box-shadow var(--t-lent) var(--e-sortie), filter var(--t-vite);
 }
-.btn .ico { width: 18px; height: 18px; }
-.btn:hover:not(:disabled) { background: var(--fond-2); border-color: var(--encre-3); }
-.btn:active:not(:disabled) { transform: scale(0.975); }
+.btn .ico { width: 18px; height: 18px; transition: transform var(--t-lent) var(--e-ressort); }
+/* LE BOUTON SOUS LE POUCE (1.0, oct.). JP : *les boutons aussi, tout est dull, ya pas de juice, d'animation*. Au survol, il
+   monte et s'allume du club ; sous le doigt, il s'écrase vite et rebondit au retour (le ressort est dans la transition). */
+.btn:hover:not(:disabled) { background: var(--fond-2); border-color: color-mix(in srgb, var(--club-vif) 70%, var(--encre-3)); transform: translateY(-2px); box-shadow: var(--lueur-club); }
+.btn:hover:not(:disabled) .ico { transform: scale(1.15); }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.95); filter: brightness(1.25); transition-duration: 60ms; }
 .btn:disabled { opacity: 0.45; }
 /* L'action principale : pleine, en or (ce qui se gagne) ; .go garde le vert du dépôt pour « lancer ». */
 .btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: linear-gradient(180deg, color-mix(in srgb, var(--bon) 78%, #fff), var(--bon) 55%); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, #000); box-shadow: var(--lueur-bon); }
-.btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, #fff); }
+.btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, #fff); border-color: var(--bon); box-shadow: 0 14px 34px -10px color-mix(in srgb, var(--bon) 85%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+/* Seule l'action de l'écran respire (la barre d'action, « Journée suivante ») : l'écran titre en a trois, côte à côte. */
+:is(.actionbar, .hub-actions) .btn.go:not(:disabled) { animation: go-respire 2.6s ease-in-out infinite; }
+@keyframes go-respire { 50% { box-shadow: 0 10px 36px -6px color-mix(in srgb, var(--bon) 80%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35); } }
+.btn.go:active:not(:disabled), .btn.gold:active:not(:disabled) { transform: translateY(2px) scale(0.96); box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35); animation: none; }
 /* Un reflet passe sur l'action principale, toutes les cinq secondes : l'oeil sait où appuyer. */
 .btn.go:not(:disabled)::after { content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent); transform: skewX(-18deg); animation: go-reflet 5s var(--e-sortie) 1.2s infinite; pointer-events: none; }
 @keyframes go-reflet { 0%, 78% { left: -40%; } 100% { left: 130%; } }
 .btn.go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
 .btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--or) 78%, #fff), var(--or) 55%); border-color: var(--or); color: var(--encre-sur-or); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
-.btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, #fff); }
+.btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, #fff); border-color: var(--or); box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--or) 85%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
 .btn.blue { border-color: var(--bleu); color: var(--bleu); }
 .btn.danger { border-color: var(--mauvais); color: var(--mauvais); }
-.btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 12%, transparent); }
+.btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 12%, transparent); border-color: var(--mauvais); box-shadow: 0 6px 18px -8px var(--mauvais); }
 .btn.small { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-2); }
 /* Un bouton-icône : rond, sans fond, le mot à côté dès qu'il y a la place. */
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-2);
   min-width: 44px; min-height: 44px; padding: 0 var(--esp-2); border-radius: var(--r-1);
   border: 1px solid transparent; background: transparent; color: var(--encre-2);
-  transition: color var(--t-vite), background var(--t-vite), transform var(--t-vite);
+  transition: color var(--t-vite), background var(--t-vite), transform var(--t-lent) var(--e-ressort);
 }
-.icon-btn .ico { width: 22px; height: 22px; }
+.icon-btn .ico { width: 22px; height: 22px; transition: transform var(--t-lent) var(--e-ressort); }
 .icon-btn:hover { color: var(--encre); background: var(--fond-2); }
-.icon-btn:active { transform: scale(0.94); }
+.icon-btn:hover .ico { transform: scale(1.15) rotate(-6deg); }
+.icon-btn:active { transform: scale(0.88); transition-duration: 60ms; }
 .icon-lbl { display: none; font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
 .close-btn {
   flex: none; width: 40px; height: 40px; display: grid; place-items: center; z-index: 3;
   border-radius: var(--r-1); border: 1px solid var(--filet); background: transparent; color: var(--encre-2);
   font: 700 var(--t-3)/1 var(--display);
+  transition: transform var(--t-lent) var(--e-ressort), color var(--t-vite), background var(--t-vite);
 }
-.close-btn:hover { color: var(--encre); background: var(--fond-2); }
+.close-btn:hover { color: var(--encre); background: var(--fond-2); transform: rotate(90deg); }
+.close-btn:active { transform: rotate(90deg) scale(0.85); }
 
 /* ---- Le segment : une rangée de choix, l'ouvert en blanc cassé ---- */
 .seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-1); background: var(--fond-2); }
@@ -588,10 +605,12 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
   flex: 1; min-height: 40px; padding: 0 var(--esp-2); border: 0; border-radius: var(--r-1);
   background: none; color: var(--encre-2);
   font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
-  transition: background var(--t-vite), color var(--t-vite);
+  transition: background var(--t-vite), color var(--t-vite), transform var(--t-lent) var(--e-ressort);
 }
-.seg button:hover { color: var(--encre); }
-.seg button.on { background: var(--choisi); color: var(--sur-choisi); }
+.seg button:hover { color: var(--encre); background: var(--fond-3); }
+.seg button:active { transform: scale(0.93); }
+.seg button.on { background: var(--choisi); color: var(--sur-choisi); box-shadow: 0 4px 14px -6px var(--choisi); animation: choisi-pop var(--t-lent) var(--e-ressort); }
+@keyframes choisi-pop { from { transform: scale(0.9); } }
 .seg-view { flex: none; }
 .seg-view button { display: inline-flex; align-items: center; gap: var(--esp-1); flex: none; min-height: 36px; padding: 0 var(--esp-3); }
 .seg-view .ico { width: 16px; height: 16px; }
@@ -606,10 +625,13 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
   flex: none; display: inline-flex; align-items: center; gap: var(--esp-1);
   min-height: 40px; padding: 0 var(--esp-3); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--encre-2);
   font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.04em; white-space: nowrap;
-  transition: color var(--t-vite), border-color var(--t-vite);
+  transition: color var(--t-vite), border-color var(--t-vite), transform var(--t-lent) var(--e-ressort);
 }
-.chip:hover { color: var(--encre); }
-.chip.on { color: var(--encre); border-bottom-color: var(--or); }
+.chip:hover { color: var(--encre); transform: translateY(-1px); }
+.chip:active { transform: scale(0.94); }
+.chip.on { color: var(--encre); border-bottom-color: var(--or); animation: filet-or var(--t-lent) var(--e-sortie); }
+/* Le filet d'or de l'onglet ouvert se déploie depuis le centre (un onglet, une pastille, une étape du soir). */
+@keyframes filet-or { from { border-bottom-color: transparent; transform: translateY(2px); } }
 .chip-need { font: 800 var(--t-1)/1 var(--display); color: inherit; font-variant-numeric: tabular-nums; opacity: 0.8; }
 .chip .chip-need.full { color: var(--bon); opacity: 1; }
 .chip.on .chip-need { color: var(--or); }
@@ -2532,7 +2554,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .soir-drame { padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 
 /* ---- L'affiche du match : un bandeau bicolore, les deux clubs face à face, VS au centre ---- */
-.hub-match { display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
+.hub-match { animation: panneau-monte 420ms var(--e-sortie) backwards; display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
 .hub-match-titre { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-lieu { margin-left: auto; color: var(--or); }
 .hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; }
@@ -2738,6 +2760,11 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
   .hub-tuile:hover, .hub-tuile:focus-visible { border-color: color-mix(in srgb, var(--club-vif) 60%, var(--filet)); transform: translateY(-2px); }
   .hp-t { display: flex; align-items: center; gap: var(--esp-2); margin-bottom: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }
   .hp-t::before { content: ""; flex: none; width: 3px; height: 12px; background: var(--club-vif); }
+  .hub-tuile { animation: panneau-monte 380ms var(--e-sortie) backwards; }
+  .hub-tuile:nth-child(2) { animation-delay: 60ms; }
+  .hub-tuile:nth-child(3) { animation-delay: 120ms; }
+  .hub-tuile:nth-child(4) { animation-delay: 180ms; }
+  .hub-tuile:active { transform: scale(0.98); }
   .hp-l { display: flex; align-items: baseline; gap: var(--esp-2); min-width: 0; font: 700 var(--t-2)/1.5 var(--display); letter-spacing: 0.02em; }
   .hp-l b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hp-l em { flex: none; font-style: normal; color: var(--encre-2); font-variant-numeric: tabular-nums; }

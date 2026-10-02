@@ -54,6 +54,8 @@ Et le contraire de ce qu'on a mesuré (docs/decisions.md, « La peau ») : 973 �
 
 Un écran entre par un fondu de 160 ms et une montée de 8 px ; un onglet glisse de 120 ms ; une carte choisie monte de 4 px ; un chiffre qui change compte (`js/mouvement.js`). `prefers-reduced-motion` éteint tout.
 
+**Le bouton sous le pouce (oct.).** JP : *les boutons aussi, tout est dull, ya pas de juice, d'animation*. Tout ce qui se touche répond : au survol, un bouton monte de 2 px et s'allume du club (`--lueur-club`), son icône grossit ; sous le doigt il s'écrase en 60 ms et rebondit au retour (`--e-ressort`). L'action principale respire (sa lueur bat toutes les 2,6 s) et un reflet la traverse. Le segment choisi éclot, le filet d'or d'un onglet se pose, l'icône de la porte ouverte saute, le ✕ tourne d'un quart, la flèche du retour recule. Les panneaux du bureau montent en cascade (60 ms d'écart). `prefers-reduced-motion` éteint tout, comme avant.
+
 ## La feuille de style, réécrite
 
 `style.css` est réécrite depuis zéro dans cet ordre, une section par écran, chacune commençant par un commentaire qui la nomme :
