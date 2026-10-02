@@ -78,7 +78,7 @@ export function coachDesRoles(roles, groupe) {
  * jusqu'à `JOUEURS_MAX` — compté au soir du match (js/sim.js `coachsJoues`) :
  * signer un sniper renforce l'Aigle dès le lendemain.
  */
-export const JOUEUR_COACH = 0.1, JOUEURS_MAX = 5;
+export const JOUEUR_COACH = 0.15, JOUEURS_MAX = 5;
 /* L'effet d'une confiance, porté par `n` joueurs de sa couleur : chaque canal s'éloigne de 1 d'autant plus (les minutes et la boutique restent). */
 export function porteParSesJoueurs(c, n) {
   const k = 1 + JOUEUR_COACH * Math.min(JOUEURS_MAX, n || 0);
@@ -91,7 +91,7 @@ export function porteParSesJoueurs(c, n) {
   return out;
 }
 /* La maîtrise que la confiance II d'un coach donne à son système (js/sim.js, `maitrise` d'une décision). */
-export const GAIN_SYSTEME = 0.25;
+export const GAIN_SYSTEME = 0.35;
 /*
  * Un coach : son visage (`ico`, un totem : une icône, un coach), son surnom,
  * `de` pour les phrases (« une carte du Frelon »), sa philosophie en une
@@ -104,25 +104,25 @@ export const GAIN_SYSTEME = 0.25;
  */
 export const COACHS = {
   essaim: { ico: '🐝', nom: 'Le Frelon', de: 'du Frelon', mot: 'Tirer de partout, tout le temps.', systeme: 'bleue', recrute: 'des patineurs qui lancent',
-    paliers: [{ volume: 1.02 }, { volume: 1.04 }, { volume: 1.07 }] },
+    paliers: [{ volume: 1.05 }, { volume: 1.10 }, { volume: 1.17 }] },
   rapaces: { ico: '🦅', nom: 'L\'Aigle', de: 'de l\'Aigle', mot: 'Chaque lancer doit rentrer.', systeme: 'derriere', recrute: 'des francs-tireurs',
-    paliers: [{ finition: 1.02 }, { finition: 1.04 }, { finition: 1.07 }] },
+    paliers: [{ finition: 1.05 }, { finition: 1.10 }, { finition: 1.17 }] },
   tortue: { ico: '🐢', nom: 'La Tortue', de: 'de la Tortue', mot: 'Fermer la porte, gagner 2-1.', systeme: 'defensive', recrute: 'des joueurs de devoir',
-    paliers: [{ defense: 0.98 }, { defense: 0.965 }, { defense: 0.95 }] },
+    paliers: [{ defense: 0.96 }, { defense: 0.93 }, { defense: 0.88 }] },
   rhinos: { ico: '🦏', nom: 'Le Rhino', de: 'du Rhino', mot: 'Cogner et tenir, jusqu\'en avril.', systeme: 'echec', recrute: 'des gros gabarits',
-    paliers: [{ robustesse: 0.2 }, { robustesse: 0.5 }, { robustesse: 0.85, blessure: 0.9 }] },
+    paliers: [{ robustesse: 0.5 }, { robustesse: 1.0 }, { robustesse: 1.80, blessure: 0.87 }] },
   souffle: { ico: '🫁', nom: 'Le Doc', de: 'du Doc', mot: 'Des jambes fraîches et personne à l\'infirmerie.', recrute: 'des jeunes de 23 ans et moins',
-    paliers: [{ energie: 0.94, blessure: 0.8 }, { energie: 0.9, blessure: 0.7 }, { energie: 0.86, blessure: 0.55, volume: 1.01 }] },
+    paliers: [{ energie: 0.90, blessure: 0.70 }, { energie: 0.85, blessure: 0.57 }, { energie: 0.80, blessure: 0.44, volume: 1.02 }] },
   choeur: { ico: '😇', nom: 'L\'Abbé', de: 'de l\'Abbé', mot: 'Jamais au cachot ; eux, souvent.', systeme: 'courtes', recrute: 'des joueurs qui restent hors du cachot',
-    paliers: [{ discipline: 0.9 }, { discipline: 0.84 }, { discipline: 0.76, finition: 1.01 }] },
+    paliers: [{ discipline: 0.84 }, { discipline: 0.72 }, { discipline: 0.60, finition: 1.03 }] },
   profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.', systeme: 'energie', recrute: 'des aubaines pour leur salaire',
-    paliers: [{ F: [0.98, 1, 1.02, 1.05], energie: 0.95, blessure: 0.9 }, { F: [0.96, 1, 1.04, 1.1], energie: 0.9, blessure: 0.8, robustesse: 0.3 },
-      { F: [0.94, 1, 1.06, 1.16], energie: 0.85, blessure: 0.7, robustesse: 0.5, volume: 1.03 }] },
+    paliers: [{ F: [0.95, 1, 1.06, 1.14], energie: 0.92, blessure: 0.88 }, { F: [0.89, 1, 1.12, 1.30], energie: 0.86, blessure: 0.76, robustesse: 0.5 },
+      { F: [0.83, 1, 1.18, 1.50], energie: 0.80, blessure: 0.64, robustesse: 0.9, volume: 1.05 }] },
   etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.', systeme: 'contre', recrute: 'des créatifs',
-    paliers: [{ F: [1.05, 1.02, 0.98, 0.95], finition: 1.01 }, { F: [1.1, 1.04, 0.96, 0.9], finition: 1.02 },
-      { F: [1.16, 1.06, 0.94, 0.84], finition: 1.04 }] },
+    paliers: [{ F: [1.12, 1.04, 0.94, 0.88], finition: 1.03 }, { F: [1.24, 1.08, 0.88, 0.76], finition: 1.06 },
+      { F: [1.40, 1.14, 0.80, 0.62], finition: 1.10 }] },
   banque: { ico: '🏦', nom: 'Le Comptable', de: 'du Comptable', mot: 'Chaque jeton, chaque dollar du plafond.', recrute: 'des aubaines pour leur salaire',
-    paliers: [{ econ: { rabais: 0.95 } }, { econ: { rabais: 0.9, jetonsVictoire: 1 } }, { econ: { rabais: 0.85, jetonsVictoire: 2, plafond: 0.03 } }] },
+    paliers: [{ econ: { rabais: 0.92 } }, { econ: { rabais: 0.86, jetonsVictoire: 2 } }, { econ: { rabais: 0.80, jetonsVictoire: 3, plafond: 0.05 } }] },
 };
 export const ORDRE_COACHS = Object.keys(COACHS);
 

@@ -15,7 +15,7 @@ import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie } from './inventaire.js';
-import { ajouterAuCartable, lireCartable, meilleureVariante, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe } from './cartable.js';
+import { ajouterAuCartable, lireCartable, meilleureVariante, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, puces, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
@@ -868,6 +868,69 @@ function plafondDeDepart(meta) {
  * de la première saison se lit ici (les séries), les autres aux séries.
  */
 export const numeroDeSaison = () => (G.rogue && G.rogue.saison) || 1;
+/*
+ * MOMENTS LÉGENDAIRES (v2) : quatre exploits qui se gravent sur la carte d'un
+ * joueur à la fin de la saison. Ils lisent les feuilles du calendrier régulier
+ * et ne dépendent que de ce que le moteur a déjà calculé.
+ *   mur        — gardien arrête 42+ tirs et gagne
+ *   jeuBlanc   — gardien donne zéro but et gagne
+ *   chapeau    — avant marque 3+ buts dans un match
+ *   grandMatch — joueur cumule 4+ points (buts + passes) dans une victoire
+ */
+function detecterLegendaires() {
+  const L = G.ligue;
+  if (!L || !L.you || !L.calendrier) return [];
+  const you = L.you;
+  const maPlayers = new Set(Object.values(you.roster).filter(Boolean).map(getPlayerKey));
+  const moments = [];
+  const aDeja = (type, cle) => moments.some(x => x.type === type && x.cle === cle);
+  for (const jour of L.calendrier) {
+    for (const m of jour) {
+      const cote = m.A === you ? 'A' : m.B === you ? 'B' : null;
+      if (!cote) continue;
+      const f = m.feuille;
+      if (!f || !f.buts) continue;
+      const advCote = cote === 'A' ? 'B' : 'A';
+      const gagne = f.vainqueur === cote;
+      const g = cote === 'A' ? f.gardienA : f.gardienB;
+      if (g && gagne && maPlayers.has(getPlayerKey(g))) {
+        const tirsContre = (f.tirs[advCote] || []).reduce((a, b) => a + b, 0);
+        const butsContre = f.buts.filter(b => b.cote === advCote).length;
+        const cle = getPlayerKey(g);
+        if (tirsContre >= 42 && !aDeja('mur', cle)) moments.push({ type: 'mur', cle, extra: tirsContre, nom: g.n });
+        if (butsContre === 0 && !aDeja('jeuBlanc', cle)) moments.push({ type: 'jeuBlanc', cle, nom: g.n });
+      }
+      const butsParJ = new Map();
+      const ptsParJ = new Map();
+      for (const b of f.buts) {
+        if (b.cote !== cote) continue;
+        if (b.marqueur && maPlayers.has(getPlayerKey(b.marqueur))) {
+          const k = getPlayerKey(b.marqueur), rec = butsParJ.get(k) || { n: 0, nom: b.marqueur.n };
+          rec.n++; butsParJ.set(k, rec);
+          const pt = ptsParJ.get(k) || { n: 0, nom: b.marqueur.n };
+          pt.n++; ptsParJ.set(k, pt);
+        }
+        for (const pass of (b.passeurs || [])) {
+          if (!pass || !maPlayers.has(getPlayerKey(pass))) continue;
+          const k = getPlayerKey(pass), pt = ptsParJ.get(k) || { n: 0, nom: pass.n };
+          pt.n++; ptsParJ.set(k, pt);
+        }
+      }
+      for (const [cle, { n, nom }] of butsParJ) if (n >= 3 && !aDeja('chapeau', cle)) moments.push({ type: 'chapeau', cle, extra: n, nom });
+      if (gagne) for (const [cle, { n, nom }] of ptsParJ) if (n >= 4 && !aDeja('grandMatch', cle)) moments.push({ type: 'grandMatch', cle, extra: n, nom });
+    }
+  }
+  return moments;
+}
+function afficherLegendaires(moments) {
+  const RECITS = {
+    mur: m => `🧱 ${m.nom} — ${m.extra} arrêts, victoire arrachée. Le Mur.`,
+    jeuBlanc: m => `🔒 ${m.nom} — jeu blanc. La porte était fermée.`,
+    chapeau: m => `🎩 ${m.nom} — ${m.extra} buts dans un match. Le Chapeau.`,
+    grandMatch: m => `⭐ ${m.nom} — ${m.extra} points dans un match. Grand soir.`,
+  };
+  moments.forEach((m, i) => { const r = RECITS[m.type]?.(m); if (r) setTimeout(() => toast(r), 4200 + i * 1500); });
+}
 /* Les niveaux différents de ton équipe (Soutien à Phénomène), lus dans les saisons déjà chargées. */
 function niveauxDeLEquipe() {
   const vus = new Set();
@@ -912,6 +975,8 @@ export function finDeSaisonRogue() {
   const d = neuves.length ? payerEcussons(G.ligue.graine, 'decouverte', neuves.length * PRIME_DECOUVERTE) : 0;
   if (d) setTimeout(() => toast(`🧪 +${d} écussons de découverte : ${neuves.length} carte${neuves.length > 1 ? 's' : ''} jouée${neuves.length > 1 ? 's' : ''} pour la première fois.`), 2400);
   compterEcussonsRun(d);
+  const moments = detecterLegendaires();
+  if (moments.length) { ajouterLegendesAuCartable(moments, (G.rogue && G.rogue.saison) || 1); afficherLegendaires(moments); }
   direJalons(payerJalons({ ...f, joues: cartesJouees() }));
   majRunRogue();
 }
@@ -984,8 +1049,7 @@ export function majRunRogue() {
   const b1 = bloc.querySelector('.rg-suivante');
   if (b1) b1.onclick = async () => {
     if (sortDeLaRun() !== 'continue') return;
-    const gardes = await choisirGardesDeSaison(n + 1);
-    await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes));
+    await choisirNouvelleEquipe(n + 1);
   };
   const b2 = bloc.querySelector('.rg-nouvelle');
   if (b2) b2.onclick = () => contexteDuMenu().rogue.nouvelle();
@@ -1133,16 +1197,134 @@ function choisirGardesDeSaison(saison) {
     onFini: pris => resolve(candidats.filter(x => pris.includes(x.cle)).map(x => x.p)),
   }));
 }
-async function continuerRun(gardes = []) {
+/*
+ * LE CLASSEUR EN SAISON SUIVANTE (v2) : même principe que `choisirDuClasseur`
+ * au départ d'une run, mais les gardes sont déjà comptés et leur masse réduit
+ * le budget disponible. La graine porte le numéro de saison pour ne pas
+ * présenter les mêmes cartes que la run précédente.
+ */
+async function choisirDuClasseurSaison(gardes = [], saison = 2) {
+  const meta = lireMeta();
+  const D = departDuClasseur(meta);
+  const c = lireCartable();
+  const masseFixes = gardes.reduce((a, p) => a + (p.$ || 0), 0);
+  const budget = budgetDuClasseur(meta) - masseFixes;
+  const exclus = new Set(gardes.map(getPersonKey));
+  const cles = Object.keys(c.joueurs);
+  if (!D.n || !cles.length || budget <= 0) return [];
+  const graine = `${graineDuClasseur()}:s${saison}`;
+  const cands = await sousVoile('On ouvre ton classeur…', async () => {
+    const out = [], personnes = new Set(exclus);
+    for (const cle of tirageDuClasseur(cles, graine)) {
+      if (D.mode !== 'choix' && out.length >= D.vues) break;
+      const p = await joueurDeCle(cle);
+      if (!p || !(p.$ > 0) || p.$ > budget || personnes.has(getPersonKey(p))) continue;
+      personnes.add(getPersonKey(p));
+      const x = c.joueurs[cle];
+      out.push({ cle, p, rar: meilleureVariante(x), num: (x.num || [])[0] || null });
+    }
+    return out;
+  });
+  if (!cands.length) return [];
+  return new Promise(resolve => ouvrirDepartClasseur({
+    mode: D.mode, n: D.n, budget, run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats: cands,
+    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
+    mini: (p, rar) => miniAvecVariante(p, rar),
+    textes: {
+      ico: '📖', titre: 'Ton classeur', irl: `Saison ${saison} de la run · jusqu'à ${D.n} carte${D.n > 1 ? 's' : ''}`,
+      recit: `Tes cartes d'une run à l'autre. Choisis jusqu'à ${D.n}.`,
+      budget: '📖 Budget du classeur', plein: `Tu as pris tes ${D.n} cartes`,
+      partir: k => (k ? `${k} carte${k > 1 ? 's' : ''} du classeur` : 'Sans le classeur'),
+    },
+    onFini: pris => resolve(cands.filter(x => pris.includes(x.cle)).map(x => x.p)),
+  }));
+}
+/*
+ * CANDIDATS POUR LE REPÊCHAGE (v2) : des vrais joueurs tirés de saisons
+ * aléatoires, dans la tranche 35-70 % de production — des Réguliers, pas des
+ * plombiers, pas des vedettes. Filtre les doublons de personnes et le budget.
+ */
+async function candidatsDraftSaison(besoins, exclusPersonnes, budgetRestant) {
+  const saisons = state.index.seasons.slice(), choisies = [];
+  while (choisies.length < 8 && saisons.length) choisies.push(saisons.splice(Math.floor(Math.random() * saisons.length), 1)[0]);
+  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
+  const cands = { F: [], D: [], G: [] };
+  for (const s of choisies) {
+    const e = await getShard(s);
+    for (const g of ['F', 'D', 'G']) {
+      if (!besoins[g]) continue;
+      const reg = e.players.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 25) && !exclusPersonnes.has(getPersonKey(p)) && (p.$ || 0) > 0 && (p.$ || 0) <= budgetRestant).sort((a, b) => prod(a) - prod(b));
+      const tranche = reg.slice(Math.floor(reg.length * 0.35), Math.max(1, Math.floor(reg.length * 0.70)));
+      const cible = besoins[g] * 3;
+      while (cands[g].length < cible && tranche.length) {
+        const idx = Math.floor(Math.random() * tranche.length);
+        const p = tranche.splice(idx, 1)[0];
+        if (!exclusPersonnes.has(getPersonKey(p))) { exclusPersonnes.add(getPersonKey(p)); cands[g].push({ cle: getPlayerKey(p), p }); }
+      }
+    }
+  }
+  return [...cands.F, ...cands.D, ...cands.G];
+}
+/*
+ * LE REPÊCHAGE INTERACTIF (v2) : présente des candidats des saisons aléatoires
+ * pour remplir les trous que gardes + classeur laissent. Le joueur choisit ;
+ * les places non comblées reçoivent des plombiers comme avant.
+ */
+async function drafterJoueurs(meta, dejaSigmes, saison) {
+  const personnes = new Set(dejaSigmes.map(getPersonKey));
+  const besoins = { F: COMPOSITION_DEPART.F, D: COMPOSITION_DEPART.D, G: COMPOSITION_DEPART.G };
+  for (const p of dejaSigmes) { const g = groupeDe(p); if (g in besoins) besoins[g] = Math.max(0, besoins[g] - 1); }
+  const nTotal = Object.values(besoins).reduce((a, n) => a + n, 0);
+  if (!nTotal) return [];
+  const masseFixe = dejaSigmes.reduce((a, p) => a + (p.$ || 0), 0);
+  const budgetRestant = PLAFOND_ROGUE + plafondDuVestiaire(meta) - ESPACE_DE_DEPART - masseFixe;
+  if (budgetRestant <= 0) return [];
+  const cands = await sousVoile('On prépare le repêchage…', () => candidatsDraftSaison(besoins, personnes, budgetRestant));
+  if (!cands.length) return [];
+  return new Promise(resolve => ouvrirDepartClasseur({
+    mode: 'choix', n: nTotal, budget: budgetRestant, run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats: cands,
+    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
+    mini: (p, rar) => miniAvecVariante(p, rar || 'commune'),
+    textes: {
+      ico: '🏒', titre: 'Le repêchage', irl: `Saison ${saison} de la run · ${nTotal} poste${nTotal > 1 ? 's' : ''} à combler`,
+      recit: `Choisis tes nouvelles recrues. Les cases vides recevront des plombiers de la ligue.`,
+      budget: '💰 Budget restant', plein: `L'alignement est complet`,
+      partir: k => (k ? `${k} recrue${k > 1 ? 's' : ''} choisie${k > 1 ? 's' : ''}` : 'Passer le repêchage'),
+    },
+    onFini: pris => resolve(cands.filter(x => pris.includes(x.cle)).map(x => x.p)),
+  }));
+}
+/*
+ * LE NOUVEAU DÉPART D'UNE SAISON (v2) : trois phases — garder des joueurs,
+ * piger dans son classeur, puis repêcher les recrues manquantes.
+ */
+async function choisirNouvelleEquipe(saison) {
+  const gardes = await choisirGardesDeSaison(saison);
+  const classeurtires = await choisirDuClasseurSaison(gardes, saison);
+  const meta = lireMeta();
+  const dejaLa = [...gardes, ...classeurtires];
+  const draftes = await drafterJoueurs(meta, dejaLa, saison);
+  const pris = [...dejaLa, ...draftes];
+  const roster = placerDevant(autoRoster(pris), gardes);
+  await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes, classeurtires, draftes, roster));
+}
+async function continuerRun(gardes = [], classeurtires = [], draftes = [], rosterExterne = null) {
   if (G.bonus !== 'ROGUE' || !G.ligue || sortDeLaRun() !== 'continue') return;
   const L = G.ligue, meta = lireMeta();
-  // L'équipe neuve : tes cartes (le quota de Soutien baisse de saison en saison), les gardés devant ;
-  // ceux qui partent ne reviennent pas cette run. Ses trios se refont, et aucun renfort ne la suit.
   const saison = numeroDeSaison() + 1;
   const partants = new Set(signes().filter(Boolean).map(getPlayerKey).filter(k => !gardes.some(p => getPlayerKey(p) === k)));
-  const V = await vestiaireDeDepart(meta, gardes, { saison, rang: G.rogue.prestige || 0, exclus: partants, graine: `${graineDuClasseur()}:s${saison}` });
+  let V;
+  if (rosterExterne) {
+    // Flux v2 : roster déjà bâti par gardes + classeur + repêchage.
+    const c = lireCartable();
+    const tiresDesc = classeurtires.map(p => ({ cle: getPlayerKey(p), p, niveau: niveauDe(p, []) }));
+    V = { roster: rosterExterne, quota: null, tires: tiresDesc, nFixes: gardes.length };
+    for (const p of classeurtires) { const k = getPlayerKey(p); G.variantes.cartes[k] = meilleureVariante(c.joueurs[k]); }
+  } else {
+    V = await vestiaireDeDepart(meta, gardes, { saison, rang: G.rogue.prestige || 0, exclus: partants, graine: `${graineDuClasseur()}:s${saison}` });
+    for (const x of V.tires) G.variantes.cartes[x.cle] = meilleureVariante(lireCartable().joueurs[x.cle]);
+  }
   const roster = V.roster;
-  for (const x of V.tires) G.variantes.cartes[x.cle] = meilleureVariante(lireCartable().joueurs[x.cle]);
   // Les modifs de la saison sont déjà sur leurs cartes (`modsAuCartable`, à la fin de la saison) : chaque carte de l'équipe neuve rejoue les siennes.
   modsAuCartable();
   const report = reportDesCartes(roster);
@@ -1174,7 +1356,10 @@ async function continuerRun(gardes = []) {
   $('game').classList.remove('bilan');
   saveGame(); render();
   setView('roster');
-  toast(`Saison ${G.rogue.saison} de la run : ${motDuVestiaire(V).toLowerCase()}${gardes.length ? `, avec ${gardes.map(p => p.n).join(', ')}` : ''}, et 🪙 ${G.rogue.depart} jetons. Le proprio veut : ${mandatDe(G.rogue.saison).mot}.`);
+  const motEquipe = rosterExterne
+    ? `${gardes.length ? `${gardes.map(p => p.n).join(', ')} gardés` : 'Nouvelle équipe'}${classeurtires.length ? `, ${classeurtires.length} carte${classeurtires.length > 1 ? 's' : ''} du classeur` : ''}${draftes.length ? `, ${draftes.length} recrue${draftes.length > 1 ? 's' : ''} repêchées` : ''}`
+    : `${motDuVestiaire(V).toLowerCase()}${gardes.length ? `, avec ${gardes.map(p => p.n).join(', ')}` : ''}`;
+  toast(`Saison ${G.rogue.saison} de la run : ${motEquipe}, et 🪙 ${G.rogue.depart} jetons. Le proprio veut : ${mandatDe(G.rogue.saison).mot}.`);
 }
 /*
  * LE VESTIAIRE DES DÉBLOCAGES : ce que les écussons achètent, d'une run à
