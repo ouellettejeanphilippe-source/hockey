@@ -1726,6 +1726,9 @@ function marquerPage(cle) {
   const sec = sectionDe(cle);
   dernierePage[sec] = cle;
   const zone = zoneDe(cle);
+  // Le Club montre le bureau : une page du Marché (la boutique, tes cartes) restée dans la feuille se ferme, sans bruit.
+  const feuille = document.querySelector('#hubModal .hub-sheet');
+  if (sec === 'club' && feuille && PAGES_DU_MARCHE.has(feuille.dataset.page) && hubActif() && hubActif().fermerPage) hubActif().fermerPage(true);
   document.body.dataset.page = cle;
   document.body.dataset.section = sec;
   document.body.dataset.zone = zone;
@@ -1868,6 +1871,19 @@ export function majEntete() {
  * maintenant leur section, la même dans tous les modes. Le Rogue y ajoute le
  * vestiaire des déblocages.
  */
+/*
+ * LA BOUTIQUE EST AU MARCHÉ (1.0, oct.). JP : *wtf la boutique en accueil ; si j'achète un pack, retourne
+ * juste pas à l'accueil*. La boutique et « Tes cartes » sont des pages de l'écran de saison (un achat est
+ * une décision du jour, js/saison.js) : la barre allumait donc le Club, et la page qu'on fermait rendait
+ * le bureau. Ouvertes, elles allument le Marché ; fermées d'un geste, elles ramènent au Marché. Rouverte
+ * après un achat (la saison se rejoue), la boutique rallume le Marché du même signal.
+ */
+const PAGES_DU_MARCHE = new Set(['boutique', 'cartes']);
+document.addEventListener('cap82:page', ev => {
+  const { genre, de, silencieux } = ev.detail || {};
+  if (PAGES_DU_MARCHE.has(genre)) { document.body.dataset.section = 'marche'; majNavbar('marche'); }
+  else if (!genre && PAGES_DU_MARCHE.has(de) && !silencieux) montrerPage('marche');
+});
 function remplirMarche() {
   const host = $('pageMarcheCorps');
   if (!host) return;

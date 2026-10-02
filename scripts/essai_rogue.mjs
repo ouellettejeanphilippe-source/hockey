@@ -30,6 +30,8 @@ const auBureau = async (timeout = 120000) => {
     await page.click('#hubModal .hub-page-retour').catch(() => {});
     await page.waitForTimeout(250);
   }
+  // La boutique fermée ramène au Marché (1.0, oct.) : le bureau est au Club.
+  if (await page.evaluate(() => document.body.dataset.section !== 'club')) { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); await page.waitForTimeout(250); }
   await page.waitForSelector(BUREAU, { timeout });
 };
 const versMarche = async quoi => {

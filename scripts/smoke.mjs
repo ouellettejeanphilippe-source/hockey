@@ -2291,6 +2291,10 @@ async function traverserSaison(etiquette, reprise = false) {
             else console.log(`   « ${dDeck[0].garde} » attend dans l'inventaire`);
             await _click('#hubModal .hub-page[data-genre="cartes"] .hub-page-retour');
             await page.waitForTimeout(300);
+            // Fermée, la page des cartes ramène au Marché (1.0, oct.) ; le parcours retourne au Club.
+            if ((await page.evaluate(() => document.body.dataset.section)) !== 'marche') errors.push('« Tes cartes » fermée ne ramène pas au Marché');
+            await _click('#navbar .navtab[data-section="club"]');
+            await page.waitForTimeout(300);
           }
         }
       }

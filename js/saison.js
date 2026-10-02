@@ -216,6 +216,8 @@ function coquille(label) {
     pageOuverte = null;
     el.remove();
     if (sheet) delete sheet.dataset.page;
+    // La coquille (js/game.js) sait quelle page du Club s'ouvre ou se ferme : la boutique est au Marché.
+    document.dispatchEvent(new CustomEvent('cap82:page', { detail: { genre: null, de: el.dataset.genre, silencieux } }));
     if (!silencieux && onFerme) onFerme();
     return true;
   };
@@ -236,6 +238,7 @@ function coquille(label) {
     sheet.dataset.page = genre;
     sheet.scrollTop = 0;
     pageOuverte = { el, onFerme };
+    document.dispatchEvent(new CustomEvent('cap82:page', { detail: { genre } }));
     el.querySelectorAll('.hub-page-retour, .hub-page-fermer').forEach(b => { b.onclick = () => fermerPage(); });
     return el.querySelector('.hub-page-corps');
   };
@@ -2288,7 +2291,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const debrancherMenuSeul = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
   // LES PAGES DU CLUB (1.0, R3) : le retour (js/pile.js) les ferme, le sommaire d'un match (js/bilan.js) s'y ouvre.
   tabs.hub.ouvrirPage = ui.ouvrirPage;
-  tabs.hub.fermerPage = () => ui.fermerPage();
+  tabs.hub.fermerPage = (silencieux = false) => ui.fermerPage(silencieux);
   // La prévision se lance au toucher (une seconde de calcul) et reste jusqu'à la prochaine journée ou décision.
   const lancerPrevision = e => {
     const b = e.target.closest('.hub-prev-lancer');
@@ -3830,7 +3833,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
   });
   const debrancherMenu = brancherMenu(volet, menu, clubs, () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
   tabs.hub.ouvrirPage = ui.ouvrirPage;
-  tabs.hub.fermerPage = () => ui.fermerPage();
+  tabs.hub.fermerPage = (silencieux = false) => ui.fermerPage(silencieux);
   // L'onglet « Alignement » ouvre le banc pendant ta série (S69).
   if (onBanc) tabs.hub.banc = () => {
     const s = maSerie(ronde);
