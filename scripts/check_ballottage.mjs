@@ -50,7 +50,15 @@ const jouer = avecBallottage => {
   const d0 = { jour: 0, equipe: 0, cases: photoAlignement(toi.roster) };
   const sort = toi.roster[iR];
   const decisions = [d0];
-  if (avecBallottage) decisions.push({ jour: 30, equipe: 0, ballottage: { i: iR, entre: getPlayerKey(autre), sort: sort && getPlayerKey(sort) } });
+  // Comme l'écran d'échange (`placerArrivant`) : il entre en réserve, puis la photo le monte au 1er trio, et l'ailier du 1er trio descend en réserve.
+  // Resté en réserve, il ne jouait que si une blessure le montait : un test au hasard du tirage (S87 l'a fait tomber).
+  const iH = SLOTS.find(s => !s.scratch && s.group === 'F' && s.unit === 0 && fits(autre, s)).i;
+  if (avecBallottage) {
+    const cases = photoAlignement(toi.roster);
+    cases[iR] = getPlayerKey(toi.roster[iH]);
+    cases[iH] = getPlayerKey(autre);
+    decisions.push({ jour: 30, equipe: 0, ballottage: { i: iR, entre: getPlayerKey(autre), sort: sort && getPlayerKey(sort) }, cases });
+  }
   const L = simulateLeague(teams, 82, { graine: 'ballottage', decisions });
   const empreinte = j => L.calendrier.slice(0, j).map(jr => jr.map(m => `${m.gfA}-${m.gfB}`).join(',')).join('|');
   return { L, toi, sort, avant: empreinte(30), tout: empreinte(Infinity) };
@@ -60,7 +68,7 @@ const sans = jouer(false), avec = jouer(true), encore = jouer(true);
 exiger('la même réclamation rejoue la même saison', avec.tout === encore.tout, 'au but près');
 exiger('les 30 journées d\'avant sont celles de la saison sans réclamation', avec.avant === sans.avant, 'identiques');
 exiger('la réclamation change la suite', avec.tout !== sans.tout, 'la saison diverge');
-exiger('le joueur réclamé est dans l\'alignement', avec.toi.roster[iR] === autre, autre.n);
+exiger('le joueur réclamé est dans l\'alignement', Object.values(avec.toi.roster).includes(autre), autre.n);
 exiger('le joueur réclamé a joué', (autre.simGP || 0) > 0, `${autre.simGP || 0} matchs`);
 exiger('le libéré n\'est plus dans l\'alignement', !Object.values(avec.toi.roster).includes(avec.sort), avec.sort ? avec.sort.n : 'case vide');
 /*
