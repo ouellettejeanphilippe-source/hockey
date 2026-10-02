@@ -2132,7 +2132,8 @@ async function traverserSaison(etiquette, reprise = false) {
       const quel = await page.$eval('#hubModal .hub-trou-prendre', e => e.dataset.trou);
       await versLaBoite();
       await _click('#hubModal .hub-trou-prendre');
-      await page.waitForSelector('#hubModal .hub-jour', { timeout: 120000 });
+      // Un autre message peut encore bloquer la journée (la main d'un gros match le même jour) : « À régler » plutôt que « Journée suivante ».
+      await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter', { timeout: 120000 });
       await page.waitForTimeout(400);
       const apres = await jourDit();
       if (apres !== avant) trouVu.erreurs.push(`encaisser la carte d'une case vide rembobine la saison : journée ${avant} puis ${apres}`);
