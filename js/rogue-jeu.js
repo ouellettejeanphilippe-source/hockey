@@ -1194,26 +1194,34 @@ function clubChange() {
   if (!enRepechage()) applyTeamColors('YOU');
   majEntete();
 }
-function ouvrirClub(apres = null) {
+function ouvrirClub(apres = null, onglet = 'nom') {
   const meta = lireMeta(), c = choixDuClub(meta);
+  // Trois onglets (huit noms, cinquante couleurs, trente écussons) : ce qui est à toi d'abord.
+  const R = RAYONS_CLUB.find(x => x.cle === onglet) || RAYONS_CLUB[0];
+  const onglets = `<div class="stat-tabs" role="tablist">${RAYONS_CLUB.map(x => {
+    const a = Object.keys(x.liste).filter(k => possede(meta, x.cle, k)).length;
+    return `<button type="button" role="tab" class="stat-tab${x === R ? ' on' : ''}" aria-selected="${x === R}" data-onglet="${x.cle}">${esc(x.titre)} · ${a}/${Object.keys(x.liste).length}</button>`;
+  }).join('')}</div>`;
+  const options = Object.entries(R.liste).map(([k, o]) => {
+    const porte = c[R.cle] === k, a = possede(meta, R.cle, k);
+    const garde = o.rang && rangDePrestige(meta) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '';
+    return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), sous: R.titre, a,
+      nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🪙`}`,
+      desactive: porte ? 'Porté' : a ? null : garde || 'À la boutique, rayon « Ton club »' };
+  }).sort((x, y) => y.a - x.a);
   ouvrirChoix({
     ico: '🏅', titre: 'Ton club', fermable: true, motFermer: 'Retour au vestiaire',
-    contexte: `<div class="club-porte"><span class="club-ecu" aria-hidden="true">${ecussonDe(c)}</span><b>${esc(nomDuClub())}</b></div>`,
+    contexte: `<div class="club-porte"><span class="club-ecu" aria-hidden="true">${ecussonDe(c)}</span><b>${esc(nomDuClub())}</b></div>${onglets}`,
     compact: true,
-    options: RAYONS_CLUB.flatMap(R => Object.entries(R.liste).map(([k, o]) => {
-      const porte = c[R.cle] === k, a = possede(meta, R.cle, k);
-      const garde = o.rang && rangDePrestige(meta) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '';
-      return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), sous: R.titre,
-        nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🪙`}`,
-        desactive: porte ? 'Porté' : a ? null : garde || 'À la boutique, rayon « Ton club »' };
-    })),
+    options: options.map(({ a: _a, ...o }) => o),
     onChoix: cle => {
       const [r, k] = cle.split(':');
       if (porter(r, k)) clubChange();
-      ouvrirClub(apres);
+      ouvrirClub(apres, r);
     },
     onFerme: () => ouvrirVestiaire(apres),
   });
+  document.querySelectorAll('#choixModal [data-onglet]').forEach(b => { b.onclick = () => ouvrirClub(apres, b.dataset.onglet); });
 }
 
 export function ouvrirVestiaire(apres = null) {

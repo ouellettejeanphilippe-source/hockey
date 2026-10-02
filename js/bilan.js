@@ -303,6 +303,7 @@ function calendrierHtml(calendrier, jour) {
  * tant que son volet est vide, et c'est le DOM qui le dit (`ongletsCourants`,
  * js/game.js) — un drapeau de plus serait une deuxième vérité.
  */
+const BILAN_SAUTS = [['resume', 'Résumé'], ['chiffres', 'Chiffres'], ['rythme', 'Rythme'], ['forces', 'Forces'], ['cartes', 'Cartes'], ['vestiaire', 'Vestiaire']];
 const ONGLETS_BILAN = [
   { cle: 'bilan', ico: 'i-target', titre: 'Bilan' },
   { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
@@ -508,6 +509,8 @@ function forcesHtml(you, calendrier) {
     ['Attaque', x => x.GF / x.n, 1, x => `${v(x.GF / x.n, 2)} buts par match`],
     ['Défense', x => x.GA / x.n, -1, x => `${v(x.GA / x.n, 2)} buts accordés par match`],
     ['Devant le filet', x => (x.SA ? 1 - x.GA / x.SA : 0), 1, x => `${pct3(x.SA ? 1 - x.GA / x.SA : 0)} d'arrêts`],
+    ['Avantage numérique', x => (x.ANO ? x.ANB / x.ANO : 0), 1, x => `${x.ANB} buts en ${x.ANO} avantages (${pctEntier(x.ANB, x.ANO)})`],
+    ['Infériorité numérique', x => (x.PKO ? 1 - x.INB / x.PKO : 0), 1, x => `${x.PKO - x.INB} punitions tuées sur ${x.PKO} (${pctEntier(x.PKO - x.INB, x.PKO)})`],
     ['Robustesse', x => x.CO / x.n, 1, x => `${v(x.CO / x.n, 1)} mises en échec par match`],
     ['Clutch', x => x.serresV / Math.max(1, x.serresV + x.serresD), 1, x => `${x.serresV}-${x.serresD} dans les matchs d'un but`],
   ];
@@ -517,6 +520,112 @@ function forcesHtml(you, calendrier) {
     return `<div class="bar"><div class="bl">${esc(nomF)}</div><div class="bt"><div class="bf" style="width:${pct.toFixed(0)}%"></div></div><div class="bv">${rang === 1 ? '1er' : `${rang}e`}</div><div class="bm">${esc(mot(moi))}</div></div>`;
   }).join('');
   return `<div class="result-section"><h3>Forces des ${esc(nomDuClub())}</h3><div class="bars">${barres}</div></div>`;
+}
+const pctEntier = (a, b) => (b ? `${Math.round((100 * a) / b)} %` : '—');
+const fiche3 = f => `${f.W}-${f.L}-${f.OTL}`;
+/*
+ * TA SAISON EN CHIFFRES (1.0, oct.). JP : *refaire le rapport de saison pour meilleure navigation et
+ * plus d'information*. Tout se relit aux feuilles de tes matchs — ce que le moteur a écrit, but par but —
+ * jamais à une cote : chez toi et sur la route, les matchs serrés, la prolongation, après deux périodes,
+ * le premier but, les buts par période, les tirs ; puis le rythme : la courbe, les tranches de dix, les
+ * séquences, la plus belle victoire et la pire défaite.
+ */
+function tesMatchs(you, calendrier) {
+  const out = [];
+  calendrier.forEach((jour, j) => (jour || []).forEach((m, k) => {
+    if (!m || !m.joue || (m.A !== you && m.B !== you)) return;
+    const c = m.A === you ? 'A' : 'B', o = c === 'A' ? 'B' : 'A';
+    const pour = c === 'A' ? m.gfA : m.gfB, contre = c === 'A' ? m.gfB : m.gfA;
+    out.push({ m, j, k, c, o, dom: c === 'A', adv: c === 'A' ? m.B : m.A, pour, contre, issue: pour > contre ? 'W' : m.ot ? 'OTL' : 'L', f: m.feuille || null });
+  }));
+  return out;
+}
+const vide = () => ({ W: 0, L: 0, OTL: 0 });
+function chiffresHtml(you, calendrier) {
+  const M = tesMatchs(you, calendrier);
+  if (!M.length) return '';
+  const dom = vide(), route = vide(), serres = vide(), prol = vide(), mene2 = vide(), egal2 = vide(), traine2 = vide(), premier = vide(), second = vide();
+  const parPer = { pour: [0, 0, 0, 0, 0], contre: [0, 0, 0, 0, 0] };
+  let SF = 0, SA = 0, nf = 0, dn = 0;
+  for (const x of M) {
+    (x.dom ? dom : route)[x.issue]++;
+    if (Math.abs(x.pour - x.contre) === 1) serres[x.issue]++;
+    if (x.m.ot) prol[x.issue]++;
+    if (!x.f) continue;
+    nf++;
+    SF += tirsTotal(x.f, x.c); SA += tirsTotal(x.f, x.o);
+    dn += x.f.buts.filter(b => b.cote === x.c && b.dn).length;
+    for (const b of x.f.buts) parPer[b.cote === x.c ? 'pour' : 'contre'][Math.min(4, periodeDe(b.instant))]++;
+    const a40 = x.f.buts.filter(b => periodeDe(b.instant) <= 2);
+    const d40 = a40.filter(b => b.cote === x.c).length - a40.filter(b => b.cote !== x.c).length;
+    (d40 > 0 ? mene2 : d40 < 0 ? traine2 : egal2)[x.issue]++;
+    const p1 = x.f.buts.slice().sort((a, b) => a.instant - b.instant)[0];
+    if (p1) (p1.cote === x.c ? premier : second)[x.issue]++;
+  }
+  const tuile = (k, v, sous = '') => `<div class="bl-tuile"><span class="k">${esc(k)}</span><b>${v}</b>${sous ? `<small>${sous}</small>` : ''}</div>`;
+  const v2 = x => x.toFixed(1).replace('.', ',');
+  const fiches = [
+    tuile('À domicile', fiche3(dom)), tuile('Sur la route', fiche3(route)),
+    tuile("Matchs d'un but", fiche3(serres)), tuile('Prolongation', `${prol.W}-${prol.OTL + prol.L}`),
+    ...(nf ? [
+      tuile('Premier but à toi', fiche3(premier)), tuile("Premier but à l'autre", fiche3(second)),
+      tuile('En avance après 2', fiche3(mene2)), tuile('Égalité après 2', fiche3(egal2)),
+      tuile('En retard après 2', fiche3(traine2), traine2.W ? `${traine2.W} remontée${traine2.W > 1 ? 's' : ''}` : ''),
+      tuile('Tirs par match', `${v2(SF / nf)} – ${v2(SA / nf)}`, `pour – contre`),
+      tuile('Efficacité', pctEntier(M.reduce((a, x) => a + (x.f ? x.pour : 0), 0), SF), 'des tirs au fond'),
+      tuile('En infériorité', `${dn} but${dn > 1 ? 's' : ''}`, 'marqués en désavantage'),
+    ] : []),
+  ].join('');
+  const PER = ['1re', '2e', '3e', 'Prol.'];
+  const maxP = Math.max(1, ...parPer.pour.slice(1), ...parPer.contre.slice(1));
+  const periodes = nf ? `<div class="bl-per">${PER.map((nom, i) => {
+    const a = parPer.pour[i + 1], b = parPer.contre[i + 1];
+    if (i === 3 && !a && !b) return '';
+    return `<div class="bl-per-r"><span class="k">${nom}</span><span class="bl-per-b pour" style="width:${(100 * a / maxP).toFixed(0)}%"></span><b>${a}</b><span class="bl-per-b contre" style="width:${(100 * b / maxP).toFixed(0)}%"></span><b>${b}</b></div>`;
+  }).join('')}<div class="bl-per-leg"><span class="pour"></span>pour <span class="contre"></span>contre</div></div>` : '';
+  return `<div class="result-section" data-bl="chiffres"><h3>Tes chiffres</h3><div class="bl-tuiles">${fiches}</div></div>
+    ${periodes ? `<div class="result-section"><h3>Les buts par période</h3>${periodes}</div>` : ''}`;
+}
+function rythmeHtml(you, calendrier) {
+  const M = tesMatchs(you, calendrier);
+  if (M.length < 2) return '';
+  // La courbe : tes points moins un par match joué — au-dessus de zéro, tu joues mieux que .500.
+  let cumul = 0;
+  const pts = M.map((x, i) => { cumul += x.issue === 'W' ? 2 : x.issue === 'OTL' ? 1 : 0; return cumul - (i + 1); });
+  const hi = Math.max(2, ...pts), lo = Math.min(-2, ...pts), W = 320, H = 96;
+  const X = i => (i * W) / (M.length - 1), Y = v => (H * (hi - v)) / (hi - lo);
+  const ligne = pts.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const courbe = `<svg class="bl-courbe" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <line x1="0" x2="${W}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" class="zero"/>
+    <polygon points="0,${Y(0).toFixed(1)} ${ligne} ${W},${Y(0).toFixed(1)}" class="aire"/>
+    <polyline points="${ligne}" class="trait"/></svg>
+    <div class="bl-courbe-leg"><span>Match 1</span><span>${pts[pts.length - 1] >= 0 ? '+' : ''}${pts[pts.length - 1]} au-dessus de .500</span><span>Match ${M.length}</span></div>`;
+  // Par tranches de dix matchs.
+  const tranches = [];
+  for (let i = 0; i < M.length; i += 10) {
+    const T = M.slice(i, i + 10), f = vide();
+    T.forEach(x => f[x.issue]++);
+    tranches.push({ de: i + 1, a: i + T.length, f, p: 2 * f.W + f.OTL, max: 2 * T.length });
+  }
+  const tr = `<div class="bl-tranches">${tranches.map(t => `<div class="bl-tr" title="Matchs ${t.de} à ${t.a}"><span class="bl-tr-b" style="height:${(100 * t.p / t.max).toFixed(0)}%"></span><b>${fiche3(t.f)}</b><small>${t.de}–${t.a}</small></div>`).join('')}</div>`;
+  // Les séquences.
+  const plusLongue = test => { let best = 0, n = 0; for (const x of M) { n = test(x) ? n + 1 : 0; best = Math.max(best, n); } return best; };
+  const sV = plusLongue(x => x.issue === 'W'), sP = plusLongue(x => x.issue !== 'L'), sD = plusLongue(x => x.issue !== 'W');
+  const dix = vide(); M.slice(-10).forEach(x => dix[x.issue]++);
+  const lien = x => `<span class="ouvrable" data-sommaire="saison|${x.j}|${x.k}" role="button" tabindex="0">${x.pour}–${x.contre}${x.m.ot ? ' P' : ''} ${x.dom ? 'contre' : 'chez'} ${getTeamLogoHtml(x.adv.tag, 14)} ${esc(teamShort(x.adv))}</span>`;
+  const ecart = x => x.pour - x.contre;
+  const belle = M.filter(x => x.issue === 'W').sort((a, b) => ecart(b) - ecart(a) || b.pour - a.pour)[0];
+  const pire = M.filter(x => x.issue !== 'W').sort((a, b) => ecart(a) - ecart(b) || b.contre - a.contre)[0];
+  const faits = [
+    ['🔥 Plus longue séquence de victoires', `${sV} match${sV > 1 ? 's' : ''}`],
+    ['✅ Plus longue séquence avec un point', `${sP} match${sP > 1 ? 's' : ''}`],
+    ['🧊 Plus longue séquence sans victoire', `${sD} match${sD > 1 ? 's' : ''}`],
+    ['🔟 Les dix derniers', fiche3(dix)],
+    ...(belle ? [['🏒 La plus belle victoire', lien(belle)]] : []),
+    ...(pire ? [['💥 La pire défaite', lien(pire)]] : []),
+  ];
+  return `<div class="result-section" data-bl="rythme"><h3>Le rythme de la saison</h3>${courbe}${tr}
+    <ul class="bl-faits">${faits.map(([k, v]) => `<li><span>${k}</span><b>${v}</b></li>`).join('')}</ul></div>`;
 }
 export function renderResult(r, you, teams, leaders, calendrier = []) {
   const nTeams = teams.length;
@@ -666,20 +775,18 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   // game*. Le pointage et les trois boutons restent en tête ; tout le reste
   // vit dans un volet à la fois. Les volets sont tous dans le DOM (les
   // palmarès restent construits onglet par onglet), seul l'affichage change.
+  // Le volet Bilan se lit par chapitres, et une barre collée en haut y saute (comme les rangées de l'alignement).
+  const sections = {
+    resume: `<div data-bl="resume"><div class="note">${note}</div>${cartons ? `<div class="result-section"><h3>Le rapport de saison</h3>${cartons}</div>` : ''}</div>`,
+    chiffres: chiffresHtml(you, calendrier),
+    rythme: rythmeHtml(you, calendrier),
+    forces: forcesHtml(you, calendrier).replace('<div class="result-section">', '<div class="result-section" data-bl="forces">'),
+    cartes: cartesPrises || tonDeck ? `<div data-bl="cartes">${cartesPrises}${tonDeck}</div>` : '',
+    vestiaire: `<div data-bl="vestiaire">${vestiaire}<div class="result-section"><h3>Infirmerie</h3>${injuries}</div></div>`,
+  };
   const volets = {
-    bilan: `<div class="note">${note}</div>
-      ${cartons ? `<div class="result-section">
-        <h3>Le rapport de saison</h3>
-        ${cartons}
-      </div>` : ''}
-      ${cartesPrises}
-      ${tonDeck}
-      ${vestiaire}
-      ${forcesHtml(you, calendrier)}
-      <div class="result-section">
-        <h3>Infirmerie</h3>
-        ${injuries}
-      </div>`,
+    bilan: `<nav class="aln-sauts bl-sauts" aria-label="Le bilan">${BILAN_SAUTS.filter(([k]) => sections[k]).map(([k, mot]) => `<button type="button" class="aln-saut" data-bl-saut="${k}">${mot}</button>`).join('')}</nav>
+      ${BILAN_SAUTS.filter(([k]) => sections[k]).map(([k]) => sections[k]).join('')}`,
     classement: `<div class="result-section">
         <h3>Classement général · ${nTeams} équipes, ${(nTeams * 82 / 2).toLocaleString('fr-CA')} matchs</h3>
         <div class="table-wrap"><table class="data">
@@ -749,6 +856,10 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     </div>`;
 
   brancherEntractes($('resultHost'));
+  $('resultHost').querySelectorAll('[data-bl-saut]').forEach(b => { b.onclick = () => {
+    const cible = $('resultHost').querySelector(`[data-bl="${b.dataset.blSaut}"]`);
+    if (cible) cible.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }; });
   // LA FICHE SE COMPTE (S77) : la saison se révèle en 400 ms, du zéro à la
   // fiche finale, le rang du dernier au sien. Le texte du DOM est déjà le
   // vrai (js/mouvement.js) — seul ce qu'on voit roule.

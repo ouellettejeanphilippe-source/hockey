@@ -122,7 +122,7 @@ function statsAvantGros(ctx, moi, lui, saison) {
 /* La saison d'un club lue sur les feuilles jouées : ce que les séries n'ont plus en fiche, et les forces du bilan. */
 export function saisonDesFeuilles(calendrier) {
   const out = new Map();
-  const de = t => { if (!out.has(t)) out.set(t, { n: 0, GF: 0, GA: 0, SF: 0, SA: 0, PKO: 0, CO: 0, serresV: 0, serresD: 0 }); return out.get(t); };
+  const de = t => { if (!out.has(t)) out.set(t, { n: 0, GF: 0, GA: 0, SF: 0, SA: 0, PKO: 0, CO: 0, serresV: 0, serresD: 0, ANB: 0, ANO: 0, INB: 0 }); return out.get(t); };
   for (const m of (calendrier || []).flat()) {
     if (!m || !m.joue || !m.feuille) continue;
     const f = m.feuille;
@@ -132,6 +132,10 @@ export function saisonDesFeuilles(calendrier) {
       if (Math.abs(gf - ga) === 1) { if (gf > ga) S.serresV++; else S.serresD++; }
       S.PKO += (f.punitions || []).filter(x => x.cote === c).length;
       S.CO += (f.coups && f.coups[c]) || 0;
+      // Les unités spéciales : tes buts en avantage, tes avantages (les punitions de l'autre), ses buts en avantage.
+      S.ANB += f.buts.filter(b => b.cote === c && b.an).length;
+      S.ANO += (f.punitions || []).filter(x => x.cote !== c).length;
+      S.INB += f.buts.filter(b => b.cote !== c && b.an).length;
     }
   }
   return out;

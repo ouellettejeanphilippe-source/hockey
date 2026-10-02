@@ -2711,9 +2711,28 @@ if (enabled) {
     // LES FORCES EN VRAIES STATS (1.0, oct.) : un rang et une stat de la saison par force, jamais une cote.
     const forces = await page.$$eval('.result .bars .bar', l => l.map(b => [b.querySelector('.bl').textContent.trim(), b.querySelector('.bv').textContent.trim(), (b.querySelector('.bm') || {}).textContent || '']));
     const malFaites = forces.filter(([, rang, mot]) => !/^\d+(er|e)$/.test(rang) || !/\d/.test(mot));
-    if (forces.length !== 5 || malFaites.length) errors.push(`les forces du bilan ne sont pas cinq rangs avec leur stat : ${forces.map(f => f.join(' ')).join(' · ')}`);
+    if (forces.length !== 7 || malFaites.length) errors.push(`les forces du bilan ne sont pas sept rangs avec leur stat : ${forces.map(f => f.join(' ')).join(' · ')}`);
     else console.log(`   les forces du bilan : ${forces.map(([n, r, m]) => `${n} ${r} (${m})`).join(' · ')}`);
     await deuxCaptures('bilan');
+    /*
+     * LE BILAN SE LIT PAR CHAPITRES (1.0, oct.) : la barre collée y saute, et « Tes chiffres » et « Le rythme »
+     * se relisent aux feuilles — une fiche à domicile et sur la route qui fait la fiche entière, une courbe de 82 points.
+     */
+    const ch = await page.$$eval('#resultHost .bl-sauts .aln-saut', l => l.map(b => b.dataset.blSaut));
+    const tuiles = await page.$$eval('#resultHost .bl-tuile', l => l.map(t => [t.querySelector('.k').textContent.trim(), t.querySelector('b').textContent.trim()]));
+    const fdu = k => ((tuiles.find(t => t[0] === k) || [])[1] || '0-0-0').split('-').map(Number);
+    const [d, r] = [fdu('À domicile'), fdu('Sur la route')];
+    const tot = score.trim().split('-').map(Number);
+    if (!['resume', 'chiffres', 'rythme'].every(k => ch.includes(k))) errors.push(`le bilan n'a pas ses chapitres : ${ch.join(', ')}`);
+    else if (d.some((x, i) => x + r[i] !== tot[i])) errors.push(`domicile ${d.join('-')} et route ${r.join('-')} ne font pas la fiche ${score.trim()}`);
+    else {
+      await page.click('#resultHost .bl-sauts [data-bl-saut="rythme"]');
+      await page.waitForTimeout(500);
+      const vu = await page.$eval('#resultHost [data-bl="rythme"]', e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight / 2; });
+      if (!vu) errors.push('le chapitre « Rythme » ne vient pas en haut quand on le touche');
+      console.log(`   le bilan par chapitres : ${ch.join(' · ')} · domicile ${d.join('-')}, route ${r.join('-')} · ${tuiles.length} chiffres`);
+      await deuxCaptures('bilan-rythme', '#resultHost [data-bl="rythme"]');
+    }
   }
   /*
    * L'ALBUM (S74) : la saison jouée y entre — ses 23 joueurs au cartable,

@@ -295,6 +295,16 @@ else {
   const tout = await page.$('#hubModal .hub-page[data-genre="boutique"] .pk-tout');
   if (tout) { await tout.click(); await page.waitForTimeout(300); }
   const avantJ = Number(((await page.textContent('#hubModal .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  // Le nuancier : l'onglet des couleurs en montre une par tuile, l'aplat et la seconde.
+  await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-rayon-club [data-onglet="palette"]');
+  await page.waitForTimeout(300);
+  const nuances = await page.$$eval('#hubModal .hub-page[data-genre="boutique"] .pk-rayon-club .pk-nuance', e => e.length);
+  await page.$eval('#hubModal .hub-page[data-genre="boutique"] .pk-rayon-club', e => e.scrollIntoView({ block: 'start' }));
+  await page.screenshot({ path: `${DOSSIER}/rogue-boutique-couleurs.png` });
+  if (nuances !== 50) erreurs.push(`le nuancier de la boutique montre ${nuances} couleurs, il en faut 50`);
+  console.log(`7c. le nuancier : ${nuances} couleurs à débloquer`);
+  await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-rayon-club [data-onglet="nom"]');
+  await page.waitForTimeout(300);
   await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-club="nom:harfangs"]');
   await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-fiche .club-porte');
   await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-fiche .pk-acheter');
@@ -679,12 +689,21 @@ await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="
 await page.click('#choixModal:not([hidden]) .choix-option[data-choix="club"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
 const nClub = await page.$$eval("#choixModal .choix-option", e => e.length);
+// Trois onglets (1.0, oct.) : huit noms, cinquante et une couleurs, trente et un écussons — les gratuits compris.
+const parOnglet = {};
+for (const o of ['palette', 'ecusson', 'nom']) {
+  await page.click(`#choixModal:not([hidden]) [data-onglet="${o}"]`);
+  await page.waitForTimeout(400);
+  parOnglet[o] = await page.$$eval('#choixModal .choix-option', e => e.length);
+}
+if (parOnglet.nom !== 8 || parOnglet.palette !== 51 || parOnglet.ecusson !== 31) erreurs.push(`les onglets du club : ${JSON.stringify(parOnglet)}, il faut 8, 51 et 31`);
 await page.click('#choixModal:not([hidden]) .choix-option[data-choix="nom:stars"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
+await page.waitForTimeout(700);
 await page.screenshot({ path: `${DOSSIER}/rogue-club.png` });
 const m3 = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
 const tete = await page.textContent('.tete-nom');
-console.log(`18. ton club : ${nClub} noms, couleurs et écussons · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
+console.log(`18. ton club : ${nClub} noms · onglets ${JSON.stringify(parOnglet)} · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
 if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson)`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');

@@ -15,6 +15,7 @@ import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
 import { esc, money as M } from './util.js';
 import { COACHS } from './coachs.js';
+import { RAYONS_CLUB } from './club.js';
 
 const $ = id => document.getElementById(id);
 
@@ -70,6 +71,7 @@ export function ouvrirMagasin(ctx) {
   // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; le reste attend « Voir les N packs ».
   const DEBUT = ['j:hasard_bronze', 'j:hasard_argent', 'c:match', 'c:consommables'];
   let tout = !ctx.debutant;
+  let ongletClub = 'nom';
   const dessiner = () => {
     const rayons = tout ? RAYONS.map(R => {
       if (R.cle === 'jour') return ctx.duJour ? `<section class="pk-rayon pk-rayon-jour"><h3>${R.ico} ${esc(R.nom)} <span class="pk-rabais">−${Math.round((1 - ctx.duJour.rabais) * 100)} % aujourd'hui</span></h3><div class="pk-rangee">${tuile(ctx.duJour.pack, true)}</div></section>` : '';
@@ -88,16 +90,23 @@ export function ouvrirMagasin(ctx) {
         <span class="pk-prix">${x.verrou ? `🔒 ${esc(x.verrou)}` : 'Ouvrir'}</span>
       </button>`;
     }).join('')}</div></section>` : '';
-    /* TON CLUB (1.0, oct.) : les noms, les couleurs et les écussons, en jetons comme les packs. Chacun se montre SUR ton écusson. */
-    const club = (ctx.club || []).length ? `<section class="pk-rayon pk-rayon-club"><h3>🏅 Ton club · ${ctx.club.length} à débloquer</h3><div class="pk-rangee">${ctx.club.map(o => {
+    /*
+     * TON CLUB (1.0, oct.) : les noms, les couleurs et les écussons, en jetons comme les packs. Trois onglets
+     * (huit noms, cinquante couleurs, trente écussons) : un nom et un écusson se montrent SUR ton écusson,
+     * une couleur en nuancier, l'aplat et la seconde.
+     */
+    const offres = (ctx.club || []).filter(o => o.sorte === ongletClub);
+    const club = (ctx.club || []).length ? `<section class="pk-rayon pk-rayon-club"><h3>🏅 Ton club · ${ctx.club.length} à débloquer</h3>
+      <div class="stat-tabs" role="tablist">${RAYONS_CLUB.map(R => `<button type="button" role="tab" class="stat-tab${R.cle === ongletClub ? ' on' : ''}" aria-selected="${R.cle === ongletClub}" data-onglet="${R.cle}">${esc(R.titre)} · ${(ctx.club || []).filter(o => o.sorte === R.cle).length}</button>`).join('')}</div>
+      <div class="pk-rangee${ongletClub === 'palette' ? ' pk-nuancier' : ''}">${offres.map(o => {
       const manque = !o.verrou && ctx.jetons < o.prix ? o.prix - ctx.jetons : 0;
-      return `<button type="button" class="pk-tuile pk-club${o.verrou ? ' verrou' : ''}${manque ? ' pk-cher' : ''}" data-club="${esc(o.cle)}"${o.verrou ? ` title="${esc(o.verrou)}"` : ''}>
-        <span class="pk-club-ecu" aria-hidden="true">${o.apercu}</span>
+      const visuel = o.nuance ? `<span class="pk-nuance" aria-hidden="true" style="--n1:${o.nuance[0]};--n2:${o.nuance[1]}"></span>` : `<span class="pk-club-ecu" aria-hidden="true">${o.apercu}</span>`;
+      return `<button type="button" class="pk-tuile pk-club${o.verrou ? ' verrou' : ''}${manque ? ' pk-cher' : ''}" data-club="${esc(o.cle)}"${o.verrou ? ` title="${esc(o.verrou)}"` : manque ? ` title="Il te manque ${manque} 🪙"` : ''}>
+        ${visuel}
         <span class="pk-nom">${esc(o.nom)}</span>
-        <span class="pk-n">${esc(o.rayon)}</span>
-        <span class="pk-prix">${o.verrou ? `🔒 ${esc(o.verrou)}` : `${o.prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
+        <span class="pk-prix">${o.verrou ? '🔒' : `${o.prix} 🪙`}</span>
       </button>`;
-    }).join('')}</div></section>` : '';
+    }).join('') || '<p class="pk-mot">Tout est à toi.</p>'}</div></section>` : '';
     const garantie = ctx.mode === 'rogue'
       ? `<p class="pk-garantie">🛟 La garantie : ${PITIE} packs de joueurs d'affilée sans holo ni or, et le suivant en a une. ${ctx.sansHolo ? `Tu en es à ${ctx.sansHolo} sans.` : ''}</p>` : '';
     // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
@@ -123,6 +132,11 @@ export function ouvrirMagasin(ctx) {
     m.querySelectorAll('[data-pack]').forEach(b => { b.onclick = () => fiche(b.dataset.pack); });
     m.querySelectorAll('[data-scelle]').forEach(b => { b.onclick = () => { if (b.classList.contains('verrou')) return; fermer(true); ctx.ouvrirScelle(b.dataset.scelle); }; });
     m.querySelectorAll('[data-club]').forEach(b => { b.onclick = () => ficheClub(ctx.club.find(o => o.cle === b.dataset.club)); });
+    m.querySelectorAll('[data-onglet]').forEach(b => { b.onclick = () => {
+      const corps = m.querySelector('.pk-corps'), haut = corps ? corps.scrollTop : 0;
+      ongletClub = b.dataset.onglet; dessiner();
+      const c2 = m.querySelector('.pk-corps'); if (c2) c2.scrollTop = haut;
+    }; });
     const aller = m.querySelector('.pk-aller');
     if (aller) aller.onclick = () => m.querySelector('.pk-rayon-scelles').scrollIntoView({ behavior: 'smooth', block: 'start' });
     const voirTout = m.querySelector('.pk-tout');
