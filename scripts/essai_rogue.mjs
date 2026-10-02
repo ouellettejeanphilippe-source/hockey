@@ -232,9 +232,13 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
  * plafond), puis l'ouverture.
  */
 const decisions = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
+// LE WALKOUT (1.0, oct.) : un pack qui cache une holo, une or ou un Phénomène l'annonce en trois temps avant les cartes.
+let walkouts = 0;
 const dechirer = async () => {
   const paquet = await page.waitForSelector('#choixModal:not([hidden]) .paquet', { timeout: 60000 }).catch(() => null);
-  if (paquet) { await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(300); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); }
+  if (paquet) { await page.click('#choixModal .paquet', { force: true });
+    if (await page.waitForSelector('#choixModal .walkout[data-pas="3"]', { timeout: 2600 }).catch(() => null)) { if (!walkouts++) { await page.waitForTimeout(350); await page.screenshot({ path: `${DOSSIER}/rogue-walkout.png` }); } }
+    await page.waitForTimeout(300); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); }
   await page.waitForTimeout(600);
 };
 const acheter = async (pack, capture) => {
@@ -280,6 +284,26 @@ else {
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   if (await page.$('#hubModal .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
   await versMarche('boutique'); await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+}
+/*
+ * TON CLUB À LA BOUTIQUE (1.0, oct.). JP : *même monnaie que les autres packs*. Les Harfangs (15 🪙) s'achètent au rayon
+ * « Ton club » : la caisse baisse, le méta les garde, ils sont portés, et l'en-tête le dit.
+ */
+{
+  const tout = await page.$('#hubModal .hub-page[data-genre="boutique"] .pk-tout');
+  if (tout) { await tout.click(); await page.waitForTimeout(300); }
+  const avantJ = Number(((await page.textContent('#hubModal .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-tuile[data-club="nom:harfangs"]');
+  await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-fiche .club-porte');
+  await page.click('#hubModal .hub-page[data-genre="boutique"] .pk-fiche .pk-acheter');
+  await page.waitForTimeout(1500);
+  await auBureau();
+  const mc = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}').club || {});
+  const tete = await page.textContent('.tete-nom');
+  await versMarche('boutique'); await page.waitForSelector('#hubModal .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+  const apresJ = Number(((await page.textContent('#hubModal .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  console.log(`7c. ton club à la boutique : les Harfangs · ${avantJ} → ${apresJ} 🪙 · porté : ${mc.nom} · en-tête « ${tete} »`);
+  if (mc.nom !== 'harfangs' || tete !== 'Harfangs' || apresJ !== avantJ - 15) erreurs.push(`les Harfangs achetés à la boutique (${avantJ} → ${apresJ} 🪙, méta ${mc.nom}, en-tête « ${tete} »)`);
 }
 await page.click('#hubModal .hub-page-retour');
 /*
@@ -648,6 +672,22 @@ if (achat) {
   console.log(`17. débloqué : ${achat} · ${meta.ecussons} → ${m2.ecussons} écussons · ${(m2.deblocages || []).join(', ')}`);
   if (!(m2.deblocages || []).includes(achat)) erreurs.push(`le déblocage ${achat} n'a pas été acheté`);
 } else erreurs.push('aucun déblocage du classeur ni des cases à acheter');
+/*
+ * TON CLUB (1.0, oct.) : au vestiaire, on porte ce qu'on a acheté à la boutique. On remet les NHL Stars :
+ * le méta le garde, et l'en-tête le dit.
+ */
+await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="club"]', { timeout: 10000 });
+await page.click('#choixModal:not([hidden]) .choix-option[data-choix="club"]');
+await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
+const nClub = await page.$$eval("#choixModal .choix-option", e => e.length);
+await page.click('#choixModal:not([hidden]) .choix-option[data-choix="nom:stars"]');
+await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
+await page.screenshot({ path: `${DOSSIER}/rogue-club.png` });
+const m3 = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
+const tete = await page.textContent('.tete-nom');
+console.log(`18. ton club : ${nClub} noms, couleurs et écussons · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
+if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
+console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson)`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);

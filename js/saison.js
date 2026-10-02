@@ -41,7 +41,8 @@ import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdvers
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
-import { tempsRestant, NOM_PERIODE } from './recit.js';
+import { tempsRestant, NOM_PERIODE, recitDeBut } from './recit.js';
+import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
 
@@ -1734,9 +1735,105 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     dernierAvance = { joues0: avant.joues };
     boite.ouvert = null;
     dessiner();
+    passage(avant);
     tabs.suivre('journee');
     if (entracteDemande) { retenir = false; ouvrirEntracte(); return; }
     if (!ouvrirSommaire(avant)) { retenir = false; dessiner(); }
+  }
+
+  /*
+   * LE PASSAGE DE LA JOURNÉE (1.0, oct.). JP : *la loop des jours, c'est chiant : ya pas de feel, c'est
+   * instantané, sans animation, sans logique, narration*. Chaque avance passe maintenant par un
+   * habillage de télé, un peu plus de trois secondes, par-dessus le bureau : le numéro de la journée qui
+   * tourne, ton match en bandeau (le tampon, le but gagnant raconté par recit.js, le rang qui bouge),
+   * ou le congé et le plus gros pointage de la ligue, puis le fil des autres résultats. Il ne bloque
+   * rien (pointer-events: none) et une autre avance le remplace sur-le-champ : on peut enchaîner.
+   */
+  /*
+   * LA UNE DU JOUR (1.0, oct.). JP : *pense à comment d'autres jeux gèrent ça*. Football Manager avance
+   * un jour à la fois, comme nous (JP : *vraiment un jour par jour*), et chaque jour a ses nouvelles :
+   * c'est ce qui donne une logique au calendrier. Ici, deux nouvelles au plus, tirées des vraies stats
+   * de la journée : un cap franchi ce soir par un des tiens, le club juste devant ou derrière toi s'il a
+   * joué, la séquence de ton prochain adversaire, la tienne. Jamais une cote.
+   */
+  function uneDuJour() {
+    const j = jour - 1, matchs = calendrier[j] || [], lignes = [];
+    const k = indexMien(j);
+    if (k >= 0 && calendrier[j][k].feuille) {
+      const miensCeSoir = new Set(Object.values(you.roster));
+      for (const [pl, c] of compterFeuilles([calendrier[j][k].feuille])) {
+        const tot = compte.get(pl);
+        if (!miensCeSoir.has(pl) || !tot) continue;
+        const franchi = (cle, pas) => c[cle] && Math.floor(tot[cle] / pas) > Math.floor((tot[cle] - c[cle]) / pas) ? Math.floor(tot[cle] / pas) * pas : 0;
+        const buts = franchi('g', 10), pts = franchi('pts', 25);
+        if (buts) lignes.push(`${pl.n} atteint ${buts} buts cette saison.`);
+        else if (pts) lignes.push(`${pl.n} atteint ${pts} points cette saison.`);
+      }
+    }
+    const cl = classement(), r = cl.indexOf(you);
+    for (const t of [cl[r - 1], cl[r + 1]]) {
+      const m = t && matchs.find(x => x.A === t || x.B === t);
+      if (!m) continue;
+      const pour = m.A === t ? m.gfA : m.gfB, contre = m.A === t ? m.gfB : m.gfA, adv = m.A === t ? m.B : m.A;
+      const ecart = fiche.get(you).PTS - fiche.get(t).PTS;
+      const ou = ecart === 0 ? 'à égalité avec toi' : `${Math.abs(ecart)} point${Math.abs(ecart) > 1 ? 's' : ''} ${ecart > 0 ? 'derrière' : 'devant'} toi`;
+      lignes.push(`${ctx.teamShort(t)} (${rangMot(cl.indexOf(t) + 1)}) ${pour > contre ? 'bat' : 'perd contre'} ${ctx.teamShort(adv)} ${pour}–${contre}${m.ot ? ' en prolongation' : ''} : ${ou}.`);
+      break;
+    }
+    const p = prochain();
+    if (p) {
+      const adv = p.m.A === you ? p.m.B : p.m.A, s = sequenceDe(adv), n = Number(s.slice(1));
+      if (n >= 3) lignes.push(`Ton prochain adversaire, ${ctx.teamShort(adv)}, ${s[0] === 'V' ? 'a gagné' : 'a perdu'} ses ${n} derniers matchs.`);
+    }
+    const s = sequenceDe(you), n = Number(s.slice(1));
+    if (n >= 3) lignes.push(`${n} ${s[0] === 'V' ? 'victoires' : 'défaites'} de suite pour ${you.name}.`);
+    return lignes.slice(0, 2);
+  }
+
+  function passage(avant) {
+    document.querySelector('.passage')?.remove();
+    if (jour <= avant.jour) return;
+    const nouveaux = miens.slice(avant.joues), un = nouveaux.length === 1 ? nouveaux[0] : null;
+    const matchs = calendrier[jour - 1] || [];
+    const bande = t => { const b = ctx.band(t.tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
+    const tete = jour - avant.jour > 1
+      ? `<span class="passage-mot">Journées ${avant.jour + 1} à</span><b class="passage-n">${jour}</b>`
+      : `<span class="passage-mot">Journée</span><b class="passage-n">${jour}</b>`;
+    let corps = '', son = null;
+    if (un) {
+      const { m } = un, v = gagne(m, you);
+      const eq = (t, buts) => `<span class="passage-eq" style="${bande(t)}">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span><b>${buts}</b></span>`;
+      // Le but gagnant : celui qui a mis le vainqueur devant pour de bon (la règle de ceQuiADecide).
+      const f = m.feuille, c = m.gfA > m.gfB ? 'A' : 'B';
+      const but = f ? f.buts.slice().sort((x, y) => x.instant - y.instant).filter(b => b.cote === c)[c === 'A' ? m.gfB : m.gfA] : null;
+      const bouge = avant.rang - rangDe(you);
+      corps = `<div class="passage-match">${eq(m.A, m.gfA)}<i>${m.ot ? 'P' : '–'}</i>${eq(m.B, m.gfB)}</div>
+        <div class="passage-tampon ${v ? 'v' : 'd'}">${v ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}</div>
+        ${but && but.marqueur ? `<p class="passage-recit">${ctx.esc(recitDeBut({ ...but, gagnant: true }))}</p>` : ''}
+        <p class="passage-rang">${rangMot(rangDe(you))} de la ligue${bouge ? ` <span class="${bouge > 0 ? 'bon' : 'prix'}">${bouge > 0 ? '▲' : '▼'} ${Math.abs(bouge)}</span>` : ''}</p>`;
+      son = v ? 'recompense' : 'rate';
+    } else if (nouveaux.length) {
+      const W = nouveaux.filter(x => gagne(x.m, you)).length, OTL = nouveaux.filter(x => !gagne(x.m, you) && x.m.ot).length;
+      corps = `<div class="passage-tampon ${2 * W >= nouveaux.length ? 'v' : 'd'}">${nouveaux.length} matchs · ${W}-${nouveaux.length - W - OTL}-${OTL}</div>
+        <p class="passage-rang">${rangMot(rangDe(you))} de la ligue</p>`;
+    } else {
+      // Un congé : la ligue joue sans toi, et le plus gros pointage du soir fait la manchette.
+      const gros = matchs.slice().sort((x, y) => Math.abs(y.gfA - y.gfB) - Math.abs(x.gfA - x.gfB) || (y.gfA + y.gfB) - (x.gfA + x.gfB))[0];
+      corps = `<div class="passage-tampon conge">Congé</div>${gros ? `<p class="passage-recit">${ctx.esc(ctx.teamLabel(gros.gfA > gros.gfB ? gros.A : gros.B))} l'emporte ${Math.max(gros.gfA, gros.gfB)}–${Math.min(gros.gfA, gros.gfB)}${gros.ot ? ' en prolongation' : ''}.</p>` : ''}`;
+    }
+    const une = uneDuJour();
+    if (une.length) corps += `<ul class="passage-une">${une.map(x => `<li>${ctx.esc(x)}</li>`).join('')}</ul>`;
+    // Le fil des autres résultats du soir, deux fois de suite pour qu'il défile sans couture.
+    const autres = matchs.filter(m => m.A !== you && m.B !== you)
+      .map(m => `<span class="passage-score">${ctx.logo(m.A.tag, 14)}${ctx.esc(ctx.tagCourt(m.A))} <b>${m.gfA}–${m.gfB}</b> ${ctx.esc(ctx.tagCourt(m.B))}${ctx.logo(m.B.tag, 14)}</span>`).join('');
+    const el = document.createElement('div');
+    el.className = 'passage';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = `<div class="passage-boite"><div class="passage-tete">${tete}</div>${corps}</div>${autres ? `<div class="passage-fil"><div class="passage-defile">${autres}${autres}</div></div>` : ''}`;
+    el.addEventListener('animationend', e => { if (e.target === el) el.remove(); });
+    setTimeout(() => el.remove(), 4500);
+    document.body.appendChild(el);
+    if (son) jouerSon(son, 0.15);
   }
 
   function avancerPuisResumer(n) {
@@ -1749,6 +1846,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     dessiner();
     // Le résultat d'hier est en tête de l'affiche : on la remonte, sinon on relit les boutons du bas.
     for (let el = carte; el && el !== document.body; el = el.parentElement) if (el.scrollTop > 0) el.scrollTop = 0;
+    passage(avant);
     tabs.suivre('journee');
     if (entracteDemande) { retenir = false; ouvrirEntracte(); return; }
     if (!ouvrirSommaire(avant)) { retenir = false; dessiner(); }
@@ -1906,7 +2004,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (!jour || jour >= N) return '';
     const cl = classement(), r = cl.indexOf(you);
     const de = Math.max(0, Math.min(r - 2, cl.length - 5));
-    const rangs = cl.slice(de, de + 5).map((t, i) => `<div class="hp-l${t === you ? ' toi' : ''}"><span class="hp-n">${de + i + 1}</span>${ctx.logo(t.tag, 14)}<b>${ctx.esc(t === you ? 'NHL Stars' : ctx.tagCourt(t))}</b><em>${fiche.get(t).PTS} pts</em></div>`).join('');
+    const rangs = cl.slice(de, de + 5).map((t, i) => `<div class="hp-l${t === you ? ' toi' : ''}"><span class="hp-n">${de + i + 1}</span>${ctx.logo(t.tag, 14)}<b>${ctx.esc(t === you ? you.name : ctx.tagCourt(t))}</b><em>${fiche.get(t).PTS} pts</em></div>`).join('');
     const avenir = [];
     for (let d = jour; d < N && avenir.length < 5; d++) { const k = indexMien(d); if (k >= 0) avenir.push({ d, m: calendrier[d][k] }); }
     const prochains = avenir.map(({ d, m }) => {
@@ -2048,6 +2146,41 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       evenements,
     };
   };
+  /*
+   * LA SAISON EN CALENDRIER (1.0, oct.). JP : *la carte de saison pourrait être un calendrier*. Sous la
+   * route, la saison entière en semaines de sept journées : chaque case dit le jour, l'adversaire (son
+   * écusson ; @ chez lui), le pointage une fois joué (vert, rouge, orange en prolongation), un congé en
+   * sourdine, ce que la route y pose (le proprio, une carte, un événement, un combat) et aujourd'hui.
+   * Une case jouée ouvre son sommaire, comme une rangée de « Tes matchs ».
+   */
+  const calendrierFiche = () => {
+    const marques = new Map();
+    const pose = (j, ico, titre) => { if (j == null || j < 0 || j >= N) return; if (!marques.has(j)) marques.set(j, []); marques.get(j).push([ico, titre]); };
+    JOURS_OBJECTIFS.forEach(k => pose(jEv(k), '🏢', 'le proprio fixe un objectif'));
+    PALIERS_CARTES.forEach(k => pose(jEv(k), '🃏', 'une carte à prendre'));
+    JOURS_MOMENTS.forEach(k => pose(jEv(k), '❓', 'un événement'));
+    JOURS_SITUATIONS.forEach(k => pose(jEv(k), '💬', 'le vestiaire vit quelque chose'));
+    const plus = routePlus();
+    plus.evenements.forEach(e => pose(e.j, '❓', e.titre));
+    plus.combats.forEach(c => pose(c.j, '⚔️', c.titre));
+    const cellule = j => {
+      const k = indexMien(j), m = k >= 0 ? calendrier[j][k] : null, joue = j < jour;
+      const ev = marques.get(j) || [];
+      const evHtml = ev.length ? `<span class="calj-ev">${ev[ev.length - 1][0]}</span>` : '';
+      const quoi = ev.map(e => e[1]).join(' · ');
+      const cls = ['calj'];
+      if (j === jour) cls.push('ici');
+      if (!m) { cls.push('conge'); return `<div class="${cls.join(' ')}" title="Journée ${j + 1} · congé${quoi ? ` · ${ctx.esc(quoi)}` : ''}"><span class="calj-n">${j + 1}</span>${evHtml}</div>`; }
+      const adv = m.A === you ? m.B : m.A, dom = m.A === you;
+      if (joue) cls.push(gagne(m, you) ? 'v' : m.ot ? 'dp' : 'd');
+      const pour = dom ? m.gfA : m.gfB, contre = dom ? m.gfB : m.gfA;
+      const somm = joue && m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0"` : '';
+      return `<div class="${cls.join(' ')}"${somm} title="Journée ${j + 1} · ${dom ? 'contre' : 'chez'} ${ctx.esc(ctx.teamLabel(adv))}${quoi ? ` · ${ctx.esc(quoi)}` : ''}"><span class="calj-n">${dom ? '' : '@'}${j + 1}</span>${ctx.logo(adv.tag, 18)}${joue ? `<span class="calj-r">${pour}–${contre}${m.ot ? ' P' : ''}</span>` : ''}${evHtml}</div>`;
+    };
+    let semaines = '';
+    for (let d = 0; d < N; d += 7) semaines += `<div class="calj-sem"><span class="calj-s">S${d / 7 + 1}</span>${Array.from({ length: 7 }, (_, i) => (d + i < N ? cellule(d + i) : '<span></span>')).join('')}</div>`;
+    return `<div class="hub-titre">Le calendrier · journée ${jour} sur ${N}</div><div class="calj-grille">${semaines}</div>`;
+  };
   const routeFiche = () => `<div class="hub-titre">La route de la saison</div>${routeHtml(jour, N, routePlus(), jEv)}
     <div class="hub-route-legende">🏢 le proprio fixe un objectif · 🃏 une carte à prendre · ⚔️ un combat · ❓ un événement · 💬 le vestiaire</div>`;
   /*
@@ -2079,7 +2212,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     </div>`;
   }
   const voletFiche = () => {
-    if (!miens.length) return `${routeFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
+    if (!miens.length) return `${routeFiche()}${calendrierFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
       const adv = m.A === you ? m.B : m.A;
       const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA;
@@ -2088,7 +2221,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `<div class="hub-jeu${v ? ' v' : ' d'}"${somm}><span class="hub-jeu-n">J${j + 1}</span><span class="hub-jeu-res">${v ? 'V' : m.ot ? 'DP' : 'D'}</span><span class="hub-jeu-score">${pour}–${contre}</span>${ctx.logo(adv.tag, 15)}<span class="hub-jeu-adv">${ctx.esc(ctx.teamLabel(adv))}</span>${m.ot ? '<em>P</em>' : ''}</div>`;
     }).join('');
     const f = fiche.get(you);
-    return `${routeFiche()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
+    return `${routeFiche()}${calendrierFiche()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
   };
 
   /*
@@ -2589,7 +2722,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onAppliquer: (lignes, match, filet) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match, ...(filet ? { filet } : {}) }, j); },
       }); }; });
     } else {
-      carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les NHL Stars ne jouent plus d'ici la fin de la saison.</div></div>`;
+      carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les ${ctx.esc(you.name)} ne jouent plus d'ici la fin de la saison.</div></div>`;
     }
     /*
      * LA BOÎTE DE RÉCEPTION (S78). JP, sur sa capture du hub : *t'as plusieurs

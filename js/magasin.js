@@ -77,13 +77,25 @@ export function ouvrirMagasin(ctx) {
     }).join('')
       : `<section class="pk-rayon pk-rayon-debut"><h3>🎒 Pour commencer</h3><div class="pk-rangee">${DEBUT.filter(k => PACKS_TOUS[k]).map(k => tuile(k)).join('')}</div>
         <button type="button" class="btn pk-tout">Voir les ${Object.keys(PACKS_TOUS).length} packs</button></section>`;
-    // TES PACKS (1.0, oct.) : achetés sans les ouvrir, en tête, comme le « Mes packs » de FUT.
-    const scelles = (ctx.scelles || []).length ? `<section class="pk-rayon pk-rayon-scelles"><h3>📦 Tes packs</h3><div class="pk-rangee">${ctx.scelles.map(x => {
+    /* TES PACKS (1.0, oct.) : achetés sans les ouvrir. JP : *séparer le marché des cartes déjà achetées, en bas*.
+       Le haut de la boutique est le marché ; ce qui est déjà à toi vit à part, en bas, et une ligne en tête y mène. */
+    const nScelles = (ctx.scelles || []).length;
+    const scelles = nScelles ? `<section class="pk-rayon pk-rayon-scelles"><h3>📦 Déjà à toi · ${nScelles} à ouvrir</h3><div class="pk-rangee">${ctx.scelles.map(x => {
       const P = PACKS_TOUS[x.cle];
       return `<button type="button" class="pk-tuile pk-${P.sorte === 'cartes' ? 'cartes' : P.tier}${x.verrou ? ' verrou' : ''}" data-scelle="${esc(x.palier)}"${x.verrou ? ` title="${esc(x.verrou)}"` : ''}>
         <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">Scellé</span></span>
         <span class="pk-nom">${esc(P.nom)}</span>
         <span class="pk-prix">${x.verrou ? `🔒 ${esc(x.verrou)}` : 'Ouvrir'}</span>
+      </button>`;
+    }).join('')}</div></section>` : '';
+    /* TON CLUB (1.0, oct.) : les noms, les couleurs et les écussons, en jetons comme les packs. Chacun se montre SUR ton écusson. */
+    const club = (ctx.club || []).length ? `<section class="pk-rayon pk-rayon-club"><h3>🏅 Ton club · ${ctx.club.length} à débloquer</h3><div class="pk-rangee">${ctx.club.map(o => {
+      const manque = !o.verrou && ctx.jetons < o.prix ? o.prix - ctx.jetons : 0;
+      return `<button type="button" class="pk-tuile pk-club${o.verrou ? ' verrou' : ''}${manque ? ' pk-cher' : ''}" data-club="${esc(o.cle)}"${o.verrou ? ` title="${esc(o.verrou)}"` : ''}>
+        <span class="pk-club-ecu" aria-hidden="true">${o.apercu}</span>
+        <span class="pk-nom">${esc(o.nom)}</span>
+        <span class="pk-n">${esc(o.rayon)}</span>
+        <span class="pk-prix">${o.verrou ? `🔒 ${esc(o.verrou)}` : `${o.prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
       </button>`;
     }).join('')}</div></section>` : '';
     const garantie = ctx.mode === 'rogue'
@@ -99,15 +111,20 @@ export function ouvrirMagasin(ctx) {
       </div>
       <div class="choix-corps pk-corps">
         <p class="pk-mot">Tes résultats rapportent des jetons. Un pack de joueurs : tu en signes un, les autres vont à ton classeur (un doublon se revend, sauf si tu le signes). Un pack de cartes : toutes vont dans ton inventaire.</p>
-        ${scelles}
+        ${nScelles ? `<button type="button" class="btn small pk-aller">📦 ${nScelles} pack${nScelles > 1 ? 's' : ''} à ouvrir, en bas ↓</button>` : ''}
         ${garantie}
         ${plafond}
         ${rayons}
+        ${tout ? club : ''}
+        ${scelles}
       </div>
     </div>`;
     m.querySelector('.choix-fermer').onclick = () => fermer();
     m.querySelectorAll('[data-pack]').forEach(b => { b.onclick = () => fiche(b.dataset.pack); });
     m.querySelectorAll('[data-scelle]').forEach(b => { b.onclick = () => { if (b.classList.contains('verrou')) return; fermer(true); ctx.ouvrirScelle(b.dataset.scelle); }; });
+    m.querySelectorAll('[data-club]').forEach(b => { b.onclick = () => ficheClub(ctx.club.find(o => o.cle === b.dataset.club)); });
+    const aller = m.querySelector('.pk-aller');
+    if (aller) aller.onclick = () => m.querySelector('.pk-rayon-scelles').scrollIntoView({ behavior: 'smooth', block: 'start' });
     const voirTout = m.querySelector('.pk-tout');
     if (voirTout) voirTout.onclick = () => { tout = true; dessiner(); };
   };
@@ -159,6 +176,25 @@ export function ouvrirMagasin(ctx) {
     if (achat) achat.onclick = () => payer(false);
     const sceller = d.querySelector('.pk-sceller');
     if (sceller) sceller.onclick = () => payer(true);
+  };
+  /* La fiche d'un objet du club : l'aperçu en grand, et « Acheter » si on peut. */
+  const ficheClub = o => {
+    if (!o) return;
+    const peut = !o.verrou && ctx.jetons >= o.prix;
+    const d = document.createElement('div');
+    d.className = 'pk-fiche';
+    d.innerHTML = `<div class="pk-fiche-carte pk-club">
+      <div class="club-porte"><span class="club-ecu" aria-hidden="true">${o.apercu}</span><b>${esc(o.nom)}</b></div>
+      <p class="pk-fiche-texte">${esc(o.rayon)} de ton club : à toi pour toutes tes parties, porté tout de suite, et changé quand tu veux au vestiaire. Ça ne change rien au jeu.</p>
+      ${o.verrou ? `<p class="pk-verrou">🔒 ${esc(o.verrou)}</p>` : ''}
+      <div class="pk-fiche-actions">
+        <button type="button" class="btn pk-retour">Retour</button>
+        <button type="button" class="btn gold pk-acheter"${peut ? '' : ' disabled'}>${o.verrou ? 'Verrouillé' : peut ? `Acheter · ${o.prix} 🪙` : `Il te manque ${o.prix - ctx.jetons} 🪙`}</button>
+      </div>
+    </div>`;
+    m.querySelector('.choix-sheet').appendChild(d);
+    d.querySelector('.pk-retour').onclick = () => d.remove();
+    d.querySelector('.pk-acheter').onclick = () => { if (!peut) return; fermer(true); ctx.acheterClub(o.cle, o.prix); };
   };
   const fermer = (silencieux = false) => {
     if (ctx.dans) { if (ctx.fermer) ctx.fermer(); }

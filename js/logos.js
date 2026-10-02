@@ -98,6 +98,9 @@ const INLINE_LOGOS = {
   </svg>`,
 };
 
+/* L'écusson de TON club (js/club.js) : celui des NHL Stars au départ, celui qu'on a choisi ensuite. */
+export function poserEcussonDuClub(svg) { INLINE_LOGOS.YOU = svg; }
+
 export const TEAM_COLORS = {
   // Les NHL Stars, ton équipe : noir, blanc, orange, comme les vieux chandails du match des étoiles.
   YOU: { primary: '#0b0b0b', secondary: '#f47a20', text: '#ffffff', accent: '#f47a20' },

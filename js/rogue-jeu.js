@@ -26,7 +26,8 @@ import { ageAtSeason } from './ratings.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
 import { nombreEnSeries } from './bilan.js';
-import { $, G, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, headshotHtml, isPicked, plafondEffectif, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
+import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
+import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirVersoPourPoser, poserCartes, quiSortOuCaseLibre, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
@@ -184,6 +185,15 @@ export function ouvrirBoutique(j, decider, page = null) {
       Promise.resolve(suite).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'));
     },
     // LES PACKS SCELLÉS : payés, à ouvrir quand on veut — le tirage se fait à l'ouverture, au numéro d'achat suivant.
+    /* TON CLUB (1.0, oct.) : les noms, les couleurs et les écussons, payés en jetons comme un pack — par une
+       décision d'achat (`sorte: 'club'`), que la partie rejoue et que `jetonsRogue` compte. Le méta le garde. */
+    club: offresDuClub(),
+    acheterClub: (cle, prix) => {
+      decider({ jour: j, palier: `k:${n}`, achat: { club: cle, n, prix, sorte: 'club' } });
+      prendre(cle);
+      clubChange();
+      toast(`🪙 ${nomDuClub()} : à toi, et porté.`);
+    },
     scelles: packsScelles(decs).map(d => ({ palier: d.palier, cle: d.achat.pack, verrou: PACKS_TOUS[d.achat.pack].sorte === 'joueurs' && apresDateLimite(j) ? `La date limite est passée : il s'ouvre la saison prochaine` : '' })),
     ouvrirScelle: palier => {
       const d = packsScelles(decs).find(x => x.palier === palier);
@@ -294,6 +304,8 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
         cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
         art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
         carteJoueur: miniAvecVariante(x.p, x.rar),
+        // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
+        walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
         // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
         texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
           // v2 : sa couleur — il porte la confiance de ce coach et fait grandir ses cartes de vestiaire.
@@ -1170,6 +1182,41 @@ async function continuerRun(gardes = []) {
  * l'autre — et les JALONS (S80), l'autre façon de débloquer : chacun paie une
  * fois, un déblocage offert ou des écussons.
  */
+/*
+ * TON CLUB (1.0, oct.). JP : *que les couleurs, le nom de notre équipe puis des logos, ce soient des
+ * choses qu'on débloque au fur et à mesure*. L'écusson porté en grand, puis chaque nom, chaque couleur
+ * et chaque écusson, montré SUR ton écusson : ce que tu as se porte d'un toucher ; le reste s'achète en
+ * jetons 🪙 à la boutique, comme un pack (JP : *même monnaie que les autres packs*), et les plus beaux
+ * attendent un rang de prestige (js/club.js). Rien n'y change le jeu.
+ */
+/* Le club a changé : son nom, l'en-tête, et les couleurs de l'interface si c'est ton équipe qu'on regarde. */
+function clubChange() {
+  poserLeClub();
+  if (!enRepechage()) applyTeamColors('YOU');
+  majEntete();
+}
+function ouvrirClub(apres = null) {
+  const meta = lireMeta(), c = choixDuClub(meta);
+  ouvrirChoix({
+    ico: '🏅', titre: 'Ton club', fermable: true, motFermer: 'Retour au vestiaire',
+    contexte: `<div class="club-porte"><span class="club-ecu" aria-hidden="true">${ecussonDe(c)}</span><b>${esc(nomDuClub())}</b></div>`,
+    compact: true,
+    options: RAYONS_CLUB.flatMap(R => Object.entries(R.liste).map(([k, o]) => {
+      const porte = c[R.cle] === k, a = possede(meta, R.cle, k);
+      const garde = o.rang && rangDePrestige(meta) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '';
+      return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), sous: R.titre,
+        nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🪙`}`,
+        desactive: porte ? 'Porté' : a ? null : garde || 'À la boutique, rayon « Ton club »' };
+    })),
+    onChoix: cle => {
+      const [r, k] = cle.split(':');
+      if (porter(r, k)) clubChange();
+      ouvrirClub(apres);
+    },
+    onFerme: () => ouvrirVestiaire(apres),
+  });
+}
+
 export function ouvrirVestiaire(apres = null) {
   const meta = lireMeta();
   // v2 : LE PRESTIGE DU CLUB (js/rogue.js) — l'échelle entière, ce qui est atteint et ce qu'il faut pour la suite.
@@ -1194,13 +1241,15 @@ export function ouvrirVestiaire(apres = null) {
     ico: '🏅', titre: `Le vestiaire · ${meta.ecussons || 0} écussons`, fermable: true, motFermer: 'Fermer',
     recit: `Tes écussons se gagnent à chaque saison : un par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
     contexte: jalons,
-    options: Object.entries(DEBLOCAGES).map(([k, D]) => {
+    options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le nom, les couleurs et l\'écusson : ceux que tu portes, et ceux qui se débloquent.' },
+      ...Object.entries(DEBLOCAGES).map(([k, D]) => {
       const pris = aDebloque(meta, k);
       const manque = D.requis && !aDebloque(meta, D.requis) ? `Demande d'abord : ${DEBLOCAGES[D.requis].nom}` : null;
       return { cle: k, ico: D.ico, nom: `${D.nom}${pris ? ' ✓' : ` · ${D.prix} 🏅`}`, bon: D.texte,
         desactive: pris ? 'Débloqué' : manque || ((meta.ecussons || 0) < D.prix ? `Il te manque ${D.prix - (meta.ecussons || 0)} 🏅` : null) };
-    }),
+    })],
     onChoix: k => {
+      if (k === 'club') { ouvrirClub(apres); return; }
       if (peutAcheter(lireMeta(), k) && acheterDeblocage(k)) toast(`${DEBLOCAGES[k].ico} ${DEBLOCAGES[k].nom} : débloqué.`);
       ouvrirVestiaire(apres);
       if (apres) apres();

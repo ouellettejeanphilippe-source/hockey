@@ -6,6 +6,7 @@
 
 import { compterFeuilles, planDe, roulementDe, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, profilPrincipal, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
+import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { CARTES_MATCH } from './combat.js';
 import { BANQUE, palierAllume, coachsActifs } from './banque.js';
@@ -625,7 +626,7 @@ export async function runSeason(opts = {}) {
   // d'équipes (une en congé chaque journée, 82 matchs pour tout le monde —
   // voir `simulateLeague`), donc plus personne n'est retranché.
 
-  const you = createTeam('NHL Stars', 'YOU', G.roster, { isPlayer: true });
+  const you = createTeam(nomDuClub(), 'YOU', G.roster, { isPlayer: true });
   // LES DÉCISIONS EN SAISON (voir `simulateLeague`) : la décision 0 est
   // l'alignement du repêchage, les suivantes viennent du banc. Une reprise
   // rejoue exactement les mêmes.
