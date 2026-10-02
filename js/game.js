@@ -847,6 +847,7 @@ export function applyTeamColors(team) {
   const v = vestiaire();
   const src = photoDeFond(code === 'YOU' ? signes() : v && v.team === team ? v.pool : []);
   root.setProperty('--photo', src ? `url("${src}")` : 'none');
+  root.setProperty('--voile-photo', src ? 'var(--voile-noir)' : 'none');
 }
 
 export function positionLabel(p) {
