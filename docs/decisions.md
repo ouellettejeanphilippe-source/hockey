@@ -1756,6 +1756,21 @@ JP : *popup le menu sous le jeu en boutons emoji, pour pas être par-dessus le j
 
 **Les gestes sous la glace.** La carte de commandes posée à côté de la pièce couvrait le jeu et son ✕ glissait sous l'en-tête. Les gestes vivent maintenant dans la barre du bas : une ligne (la pièce, ✕, 🔄 pour changer de trio, la fiche, passer la main) puis UNE rangée de tuiles emoji (⛸️ patiner, ↗️ passer, 🏑 tirer, ↩️ reprise, ↪️ dévier, 💃 feinter, 🤜 frapper, 🪝 harponner), chacune avec sa cote. Une tuile éteinte se touche : sa raison prend la place du nom, sa règle va dans le fil (les « ? » sont partis). La glace est mesurée sur cette hauteur : le smoke exige que la barre ne la couvre jamais, qu'aucune carte ne se pose sur la glace et que chaque geste porte son icône.
 
+## Les dés du jour : l'avenir n'est plus écrit dans la graine (2 oct. 2026)
+
+**Le problème.** JP : *le principe de seed, ça suce*. La graine de la saison écrivait tout d'avance : les matchs, les situations et les accidents (hachés de la graine, du jour et du rang), les paris des dilemmes. Une saison reprise ou un club rebâti redonnaient le même avenir ; seul le sel d'une décision ouvrait une suite neuve.
+
+**La décision.** Chaque journée tire ses dés au vrai hasard, quand ils servent, et la sauvegarde les garde (`G.ligue.des`, `deDuJour` dans js/sim.js) :
+- le dé du **matin**, à l'arrivée de la journée : qui et quoi pour les situations et les accidents ;
+- le dé du **soir**, rendu aux matchs (JP : *ça devrait pas les tirer rendu au match ?*) ; un matin relu ne sait rien du soir ;
+- un soir de **séries**, son dé, par ronde et par match ;
+- un **pari** se tranche au sel de la décision, tiré au moment du choix.
+
+Le passé se rejoue au but près, avec les dés gardés ; l'avenir n'existe nulle part. Le « quand » d'un événement (sa journée) et le dépistage d'un gros match restent lus de la graine : on les annonce d'avance.
+
+**Ce qui ne change pas.** Sans `des` (les scripts de mesure et de calibration), la graine seule décide, comme avant : les mesures restent reproductibles. Une partie sauvegardée avant S90 n'a pas de dés : elle se rejoue sur des dés neufs, et le jeu le dit (VERSION_MOTEUR).
+
+**Prouvé par** `check_graine` (6) : 21 dés du matin et 20 du soir après 20 journées ; les dés gardés rejouent le passé ; au-delà, deux reprises divergent ; deux saisons neuves de la même graine aussi.
 ## L'équipe se défait entre deux saisons d'une run (2 oct. 2026)
 
 JP : *pour une saison 2 d'une run, pas repartir avec la même équipe, mais pouvoir garder un ou des joueurs de l'ancienne équipe*.

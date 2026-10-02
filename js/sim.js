@@ -631,8 +631,10 @@ const effStat = (player, slot, key) => {
    `Math.random` directement : c'est ce qui rend une saison REJOUABLE. Une
    graine (`grainerHasard`) remplace le générateur par un sfc32 déterministe,
    donc la même graine, les mêmes équipes et le même ordre d'appels redonnent
-   les 1312 mêmes matchs — le défi du jour, « rejouer la saison » et un test
-   reproductible en dépendent. `simulateLeague` tire une graine s'il n'en
+   les 1312 mêmes matchs — une reprise et un test reproductible en dépendent.
+   Une ligue du jeu y ajoute les dés de chaque journée (`deDuJour`) : tirés à
+   son matin, gardés par la sauvegarde, ils rejouent le passé sans écrire
+   l'avenir. `simulateLeague` tire une graine s'il n'en
    reçoit pas et la rend, pour qu'aucune saison ne soit perdue.
    ====================================================================== */
 
@@ -5759,12 +5761,14 @@ export function matchsEntre(t, a, b) {
   return js.filter(j => j >= a && j < b).length;
 }
 
-export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false } = {}) {
+export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null } = {}) {
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   if (graine === null || graine === undefined) graine = nouvelleGraine();
   const L = {
     teams, games, graine, decisions,
+    // LES DÉS DE CHAQUE JOURNÉE (1.0, oct.), { matins, soirs }, voir `deDuJour`. Absents (un script de mesure), la graine décide de tout.
+    des,
     vit: typeof situations === 'function' ? situations : () => !!situations,
     // Les accidents de carte suivent les situations, sauf demande contraire (une mesure des seules situations).
     vitAcc: typeof accidents === 'function' ? accidents : () => !!accidents,
@@ -5853,8 +5857,27 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
  * veille. Il se prépare dès la fin de la veille : c'est l'état « à ce jour »
  * que le banc et le hub lisent, sans jouer un seul match du lendemain.
  */
+/*
+ * LES DÉS DU JOUR (1.0, oct.). JP : *le principe de seed, ça suce* — la graine
+ * écrivait toute la saison d'avance : un club rebâti, une saison rejouée
+ * redonnaient le même avenir. Une journée tire maintenant SES dés au vrai
+ * hasard, chacun quand il sert, et la sauvegarde les garde (`L.des`) : le
+ * passé se rejoue à l'identique, l'avenir n'est écrit nulle part.
+ *   - le dé du MATIN, à son arrivée : qui et quoi pour les situations et les accidents ;
+ *   - le dé du SOIR, rendu aux matchs (JP : *ça devrait pas les tirer rendu
+ *     au match ?*) — un matin relu ne sait rien du soir.
+ * Sans `L.des` (un script), la graine seule, comme avant.
+ */
+function deDuJour(L, quand, r) {
+  if (!L.des) return null;
+  const d = L.des[quand];
+  return d[r] || (d[r] = nouvelleGraine());
+}
+const graineDuMatin = (L, r) => (L.des ? `${L.graine}:${deDuJour(L, 'matins', r)}` : L.graine);
+
 function preludeDuJour(L) {
   const r = L.jour, teams = L.teams;
+  deDuJour(L, 'matins', r);   // le dé du matin, à son arrivée : la sauvegarde du matin le garde
   for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t, ENERGIE_RECUP_JOUR); }
   /*
    * L'INSTANTANÉ DU JOUR (S68) : la chimie de chaque ligne et l'énergie de
@@ -5912,12 +5935,12 @@ function preludeDuJour(L) {
     }
     // Le tirage est le NUMÉRO de l'événement (son match), le jour est celui où il tombe chez ce club.
     const kS = evenementDuJour(t, JOURS_SITUATIONS, r), kA = evenementDuJour(t, JOURS_ACCIDENTS, r);
-    if (L.vit(i) && kS !== undefined) poserSituations(t, L.graine, r, i, kS);
-    if (L.vitAcc(i) && kA !== undefined) poserAccident(t, L.graine, r, i, kA);
+    if (L.vit(i) && kS !== undefined) poserSituations(t, graineDuMatin(L, r), r, i, kS);
+    if (L.vitAcc(i) && kA !== undefined) poserAccident(t, graineDuMatin(L, r), r, i, kA);
     if (tienne && t._enAttente && t._enAttente.length) {
       for (const [quoi, prevu] of t._enAttente.splice(0)) {
-        if (quoi === 'situation') poserSituations(t, L.graine, r, i, prevu);
-        else poserAccident(t, L.graine, r, i, prevu);
+        if (quoi === 'situation') poserSituations(t, graineDuMatin(L, r), r, i, prevu);
+        else poserAccident(t, graineDuMatin(L, r), r, i, prevu);
       }
     }
   }
@@ -5954,7 +5977,9 @@ export function jouerJournee(L) {
      * saison se joue sur une suite neuve. Un rechargement redonne les mêmes
      * matchs — le sel est dans la sauvegarde avec la décision.
      */
-    if (sel) grainerHasard(`${graine}:${r}:${sel}`);
+    // Et le dé du soir (`deDuJour`), tiré maintenant, rendu aux matchs.
+    const de = deDuJour(L, 'soirs', r);
+    if (sel || de) grainerHasard(`${graine}:${r}:${de ? `${de}:` : ''}${sel || ''}`);
     // LES MINI-BOSS DU JOUR (S69) : ceux que le matin d'il y a ANNONCE_GROS
     // journées a annoncés (S80). Seule ta formation (l'équipe 0 quand elle est
     // le joueur) en a.
@@ -6782,9 +6807,11 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
  * même suite que la saison, comme avant. Sans ligue (un script), un
  * générateur à part.
  */
-export function creerSeries(qualifies, { ligue = null, graine = 0, decisions = [], equipes = qualifies } = {}) {
+export function creerSeries(qualifies, { ligue = null, graine = 0, decisions = [], equipes = qualifies, des = null } = {}) {
   const S = {
     graine, decisions, ligue, equipes,
+    // Les dés de chaque soir de séries, par « ronde:match » (voir `deDuJour`).
+    des,
     rng: ligue ? null : generateur(`${graine}:series`),
     nRondes: Math.max(1, Math.round(Math.log2(qualifies.length))),
     ronde: 0, k: 0, courante: [], toutes: [], fini: false, champion: null,
@@ -6859,6 +6886,8 @@ export function jouerMatchSeries(S) {
     const photo = photoStats(S.equipes);
     // Les décisions de séries de ta formation pour ce match (trios, lignes,
     // consigne, ajustement entre deux rounds) : avant le match, dés neufs.
+    // LES DÉS DU SOIR (1.0, oct.) : tirés quand il se joue, gardés pour la reprise (voir `deDuJour`).
+    if (S.des) grainerHasard(`${S.graine}:po:${r}:${k}:${S.des[`${r}:${k}`] || (S.des[`${r}:${k}`] = nouvelleGraine())}`);
     if (S.toi) {
       S.toi.effetsSerie = [];
       // Devant le filet (C4) : le choix vaut pour UN match ; le suivant repart de la rotation.
@@ -6940,7 +6969,7 @@ export function appliquerDecisionSerie(team, d, graine) {
     team.effetsSerie.push({ source: 'ajustement', nom, ico, ...canaux });
     if (gardienAux) team._gardienAuxMatch = true;
     if (pari) {
-      const gagne = hacherMise(graine, 'pari-serie', d.ronde, d.match_no) < pari.chance;
+      const gagne = hacherMise(graine, 'pari-serie', d.ronde, d.match_no, d.sel || '') < pari.chance;
       team.effetsSerie.push({ source: 'pari', nom, ico, ...(gagne ? pari.gagne : pari.perd) });
       (team.paris = team.paris || []).push({ ronde: d.ronde, match_no: d.match_no, titre: nom, gagne });
     }
@@ -7617,7 +7646,8 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
  * choix, et c'est exactement ce que le moteur fera.
  */
 const pariGagne = (graine, jour, cle, chance) => hacherMise(graine, 'pari', jour, cle) < chance;
-const cleDuPari = d => (d.moment ? `${d.moment.cle}:${d.moment.choix}` : `avant:${d.avant.cle}:${d.avant.choix}`);
+// Le sel de la décision (1.0, oct.) : tiré au moment du choix, le pari n'est pas écrit dans la graine d'avance.
+const cleDuPari = d => `${d.moment ? `${d.moment.cle}:${d.moment.choix}` : `avant:${d.avant.cle}:${d.avant.choix}`}${d.sel ? `:${d.sel}` : ''}`;
 export function pariDeDecision(d, graine, team = null) {
   if (!d || !Number.isFinite(d.jour)) return null;
   const fam = d.moment ? (d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle]) : d.avant ? AVANT_GROS[d.avant.cle] : null;

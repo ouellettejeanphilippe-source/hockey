@@ -538,7 +538,7 @@ export const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_S
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S89';  // S89 : le fit d'un système se lit au style, à talent égal (PENTE_TALENT). S88 : un gros match date ses blessures dans la troisième période (le choix de l'entracte ne réécrit plus les deux premières). S87 : les ailes d'un système s'assortissent (AG et AD dans le sens où les ailiers rendent le mieux). S86 : la force et le style des clubs se mesurent après la remise à zéro des joueurs (la reprise rendait un autre passé). S85 : le partant blessé, l'auxiliaire prend le filet (le rappel ne joue plus tous les soirs). S84 : le vrai calendrier (82 matchs en 186 jours, des congés, des dos-à-dos ; la récupération par jour, les durées en matchs, les événements la veille). S83 : le gros match s'annonce la veille (ANNONCE_GROS = 1). S82 : la carte du New Jersey recentrée (0,945 · 0,935). S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
+const VERSION_MOTEUR = 'S90';  // S90 : chaque journée tire ses dés à son matin, et la sauvegarde les garde (`deDuJour`) ; un pari se tranche au sel du choix. S89 : le fit d'un système se lit au style, à talent égal (PENTE_TALENT). S88 : un gros match date ses blessures dans la troisième période (le choix de l'entracte ne réécrit plus les deux premières). S87 : les ailes d'un système s'assortissent (AG et AD dans le sens où les ailiers rendent le mieux). S86 : la force et le style des clubs se mesurent après la remise à zéro des joueurs (la reprise rendait un autre passé). S85 : le partant blessé, l'auxiliaire prend le filet (le rappel ne joue plus tous les soirs). S84 : le vrai calendrier (82 matchs en 186 jours, des congés, des dos-à-dos ; la récupération par jour, les durées en matchs, les événements la veille). S83 : le gros match s'annonce la veille (ANNONCE_GROS = 1). S82 : la carte du New Jersey recentrée (0,945 · 0,935). S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
 export function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
@@ -557,6 +557,8 @@ export function saveGame() {
         // entrée d'historique neuve au lieu de celle qu'on joue.
         series: G.seriesVues || null,
         decisionsSeries: G.ligue.decisionsSeries || [],
+        // Les dés déjà tirés, journée par journée et soir de séries par soir (`deDuJour`, js/sim.js).
+        des: G.ligue.des || null,
         lbId: G.lbId || null,
       } : null,
       /*
@@ -740,10 +742,11 @@ async function restoreSave() {
       return { reprise: async () => { await (await chargerTable()).reprendreTournoi(etat); } };
     }
     if (data.partie && data.partie.graine) {
-      const { graine, adversaires = [], journee = 0, decisions = [], series = null, lbId = null, decisionsSeries = [] } = data.partie;
+      const { graine, adversaires = [], journee = 0, decisions = [], series = null, lbId = null, decisionsSeries = [], des = null } = data.partie;
       if (data.moteur !== VERSION_MOTEUR) setTimeout(() => toast('Le jeu a changé depuis ta dernière visite : ta saison en cours se rejoue avec les nouvelles règles, et des matchs déjà vus peuvent finir autrement.'), 1500);
       G.lbId = lbId;
       G.dsReprise = decisionsSeries;
+      G.desReprise = des;
       G.seriesVues = series;
       return { reprise: async () => {
         // Les joueurs du ballottage d'abord : l'exclusion des adversaires et
