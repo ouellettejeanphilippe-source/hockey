@@ -33,6 +33,7 @@
  * récompenses offertes aussi. Une partie reprise retrouve les mêmes mains.
  */
 import { hache } from './util.js';
+import { CARTES_MATCH_VIE } from './cartes-vie.js';
 
 export const ENERGIE_MAIN = 3;
 export const TAILLE_MAIN = 5;
@@ -295,6 +296,7 @@ export const CARTES_MATCH = {
   nuee: { nom: 'La nuée', ico: '🐜', cout: 1, rarete: 'commune', genre: 'attaque', horsAdverse: true,
     texte: 'Cinq joueurs sur la rondelle, partout à la fois.', effet: { volume: 1.09, finition: 0.98 } },
 
+  ...CARTES_MATCH_VIE,
   // ---- malédictions ----
   distraction: { nom: 'La distraction', ico: '📰', cout: 1, rarete: 'maudite', genre: 'malediction', maudite: true,
     texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 élan et ne fait rien.' },

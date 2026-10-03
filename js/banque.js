@@ -34,6 +34,7 @@ import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus } from './combat.js';
 import { money } from './util.js';
 import { EVENEMENTS_VIE } from './evenements-vie.js';
+import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
 import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, GAIN_SYSTEME } from './coachs.js';
 
 export const CATEGORIES = {
@@ -194,6 +195,7 @@ export const CONTRATS = {
   anticipee: { nom: 'La prolongation anticipée', ico: '✍️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.85, texte: 'Signé un an d\'avance, à l\'ancien prix.' },
   hausse: { nom: 'La hausse du plafond', ico: '🆙', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 3_000_000, texte: 'Les revenus de la ligue montent : le plafond aussi.' },
   signature: { nom: 'Le bonus de signature', ico: '🖊️', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 1_500_000, texte: 'Payé d\'avance, cet été : il ne compte plus cette saison.' },
+  ...CONTRATS_VIE,
   taxe: { nom: 'La taxe de luxe', ico: '💸', rarete: 'maudite', vie: 'saison', cible: 'aucune', espace: -3_000_000, texte: 'La ligue sévit : ton plafond fond de 3\u00a0M$ cette saison.' },
 };
 /*
@@ -366,6 +368,7 @@ export const CONSOMMABLES = {
   partition: { nom: 'La partition des manieurs', ico: '🎼', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'choeur', effet: { discipline: 0.97 }, duree: 5, parJoueur: { par: { discipline: -0.03 }, max: 5 }, texte: 'Tes défenseurs manieurs gardent la rondelle, et personne ne s\'énerve.' },
   epingles: { nom: 'Les épingles du tableau', ico: '🧷', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'profondeur', effet: { F: [0.97, 1, 1.03, 1.08], energie: 0.99 }, duree: 5, parJoueur: { par: { energie: -0.01 }, max: 5 }, texte: 'Tes checkers ont chacun leur épingle au tableau des présences.' },
   disco: { nom: 'La boule disco', ico: '🪩', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'etoiles', effet: { F: [1.05, 1.02, 0.98, 0.95], finition: 1.005 }, duree: 5, parJoueur: { par: { finition: 0.006 }, max: 5 }, texte: 'Tes passeurs allument le vestiaire après chaque victoire.' },
+  ...CONSOMMABLES_VIE,
   capitaineC: { nom: 'Le C cousu en réserve', ico: '🪢', rarete: 'rare', vie: 'permanent', cible: 'aucune', effet: { discipline: 0.9, defense: 0.98 }, duree: 10, texte: 'Un deuxième capitaine, prêt quand le premier se tait.' },
 };
 
@@ -378,6 +381,7 @@ const RARETE_MOD = {
   style_architecte: 'rare', style_sentinelle: 'rare', style_canonnier: 'rare', style_buteur: 'legendaire', style_pieuvre: 'rare',
   masque_neuf: 'commune', baton_neuf: 'commune', contrat_annee: 'peu', contrat_prolonge: 'commune', contrat_bonus: 'rare', contrat_leader: 'rare',
   style_courbe: 'peu', style_accrocheur: 'peu', style_fantome: 'rare',
+  ...RARETE_MODIFS_VIE,
 };
 const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source));
 

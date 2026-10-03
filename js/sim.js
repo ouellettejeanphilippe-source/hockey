@@ -17,6 +17,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne } from './util.js';
 import { coachDesRoles, porteParSesJoueurs } from './coachs.js';
+import { MODIFS_VIE } from './cartes-vie.js';
 
 export const CAP = 95_500_000;
 /*
@@ -6533,6 +6534,7 @@ export const MUTATIONS = {
   style_accrocheur: { nom: 'Style : l\'accrocheur', ico: '🪝', cible: 'libre', source: 'style', quoi: 'Il retient le bâton dans les coins, comme avant la règle. Moins de jeux, moins de lancers.', profils: { checker: 10, defensif: 8 }, defense: 0.97, lancers: 0.97 },
   style_fantome: { nom: 'Style : le fantôme', ico: '👻', cible: 'libre', source: 'style', abri: 0.5, creation: 0.96,
     quoi: 'Leur paire ne le trouve pas : la moitié de leur étouffement ne compte pas sur ses lancers. Il joue seul, alors il crée moins.' },
+  ...MODIFS_VIE,
 };
 const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
 /* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */
