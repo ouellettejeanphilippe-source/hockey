@@ -7,7 +7,7 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, money, pct3 } from './util.js';
-import { badgesDe, PALIERS, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
+import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
 import { getArchetype } from './ratings.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
@@ -199,11 +199,10 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   const [pp, r2] = badgesDe(p);
   const a = pp || p.p !== 'G' ? null : getArchetype(p, getHiddenRatings(p));
   // Le badge ET son palier (refonte 1) : un bagarreur Platine se lit comme tel, même à « Soutien ».
-  const mot = pp ? PALIERS[pp.palier].ico : '';
   // SON SECOND BADGE AUSSI (1.0, R3) : il rend la moitié du sien, la case le dit.
   const second = r2 ? `<span class="cell-role-2 badge pal-${r2.palier}" title="${esc(titreDuBadge(r2))}">${r2.ico} ${esc(r2.court || r2.nom)}</span>` : '';
   const role = pp
-    ? `<span class="slot-roles cell-role" title="${esc(titreDuBadge(pp))}"><span class="cell-badge"><i class="badge pal-${pp.palier}">${pp.ico}</i> <span>${esc(pp.court || pp.nom)}</span><i class="cell-mot pal-${pp.palier}">${mot}</i></span>${second}</span>`
+    ? `<span class="slot-roles cell-role" title="${esc(titreDuBadge(pp))}"><span class="cell-badge"><i class="badge pal-${pp.palier}">${pp.ico}</i> <span>${esc(pp.court || pp.nom)}</span></span>${second}</span>`
     : a ? `<span class="slot-roles cell-role" title="${esc(a.desc)}">${a.icon} <span>${esc(a.label)}</span></span>` : '';
   const zone = zoneTag(p, true);
   const marque = ecart === 'sous' ? `<span class="cell-zone sous" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`

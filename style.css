@@ -2294,17 +2294,18 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .cell-role > span { flex: 0 1 auto; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Son second rôle, s'il en a un (1.0, R3) : plus petit, après le premier. */
 .cell-role-2 { flex: 0 1 auto; min-width: 0; font: 600 var(--t-1)/1.1 var(--display); color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Le palier suit le nom de son badge (« Sniper OR »), avant le second badge : collé à droite, il semblait qualifier le second.
-   Le badge, son nom et son palier ne se séparent pas au retour à la ligne. */
-.cell-badge { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; min-width: 0; }
-.cell-mot { flex: none; font: 700 var(--t-1)/1.1 var(--display); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; }
-/* LE PALIER D'UN BADGE (refonte 1) : sa couleur, `--pal`, que le mot prend et que l'icône souligne. */
+/* Le palier suit le nom de son badge (« Sniper »), avant le second badge.
+   Le badge et son nom ne se séparent pas au retour à la ligne. */
+.cell-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 4px; min-width: 0; }
+/* LE PALIER D'UN BADGE (refonte 1) : barre colorée sous l'icône via currentColor du pal-*. */
+.cell-badge > i.badge { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; border-bottom: none; }
+.cell-badge > i.badge::after { content: ""; width: 10px; height: 3px; border-radius: 2px; background: currentColor; }
 .pal-1 { --pal: var(--bronze); }
 .pal-2 { --pal: var(--argent); }
 .pal-3 { --pal: var(--or); }
 .pal-4 { --pal: var(--platine); }
 i.badge { font-style: normal; border-bottom: 2px solid var(--pal); }
-.cell-mot[class*="pal-"], .puce.badge, b.badge { color: var(--pal); }
+.puce.badge, b.badge { color: var(--pal); }
 /* Rangée 2 : le niveau, la zone (✓ ▼ ▲), le blessé, la pénalité, le trophée. Elle se plie plutôt que de couper. */
 .slot-tags { margin-top: auto; display: flex; flex-wrap: nowrap; gap: 3px; min-width: 0; overflow: hidden; transform-origin: left center; }
 .slot-tags > * { flex: none; }
