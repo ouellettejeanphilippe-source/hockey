@@ -2299,7 +2299,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .cell-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 4px; min-width: 0; }
 /* LE PALIER D'UN BADGE (refonte 1) : barre colorée sous l'icône via currentColor du pal-*. */
 .cell-badge > i.badge { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; border-bottom: none; }
-.cell-badge > i.badge::after { content: ""; width: 10px; height: 3px; border-radius: 2px; background: currentColor; }
+.cell-badge > i.badge::after { content: ""; width: 10px; height: 3px; background: currentColor; }
 .pal-1 { --pal: var(--bronze); }
 .pal-2 { --pal: var(--argent); }
 .pal-3 { --pal: var(--or); }
