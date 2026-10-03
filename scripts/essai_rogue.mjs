@@ -72,7 +72,7 @@ const versMarche = async quoi => {
   await page.click(`#pageMarcheCorps [data-marche="${quoi}"]`);
 };
 const erreurs = [];
-page.on('pageerror', e => { erreurs.push(e.message); console.log('PAGEERR', e.message); });
+page.on('pageerror', e => { erreurs.push(e.message); console.log('PAGEERR', e.stack); });
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) erreurs.push(m.text()); });
 const choix = async (sel = '.choix-option:not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 60000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
 /*

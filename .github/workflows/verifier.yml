@@ -8,6 +8,9 @@ name: Vérifier
 #                   glissé dans js/sim.js la fait échouer)
 #   check_ballottage la seule décision qui fait ENTRER un joueur neuf se
 #                   rejoue aussi, et les journées d'avant ne bougent pas (S66)
+#   check_blessures une blessure se règle (ça ne bloque plus une fois la case comblée,
+#                   même après rechargement) et son retour ne bouge que deux joueurs
+#                   (lancé par `tout.mjs`)
 #   check_gros      les gros matchs (S70) : une ligue sans joueur n'en a pas,
 #                   les plans sont neutres pas contrés et payants contrés, et
 #                   l'entracte ne touche pas aux deux premières périodes
@@ -143,7 +146,7 @@ jobs:
 
       # Les vérifications rapides (moins de quinze secondes chacune) qui ne
       # tournaient nulle part : le deck, l'identité, l'atelier, le dépistage,
-      # les totaux du soir. `scripts/tout.mjs` les enchaîne et sort en échec si
+      # les totaux du soir, les blessures. `scripts/tout.mjs` les enchaîne et sort en échec si
       # une seule échoue. Une demi-minute.
       - name: Les vérifications rapides
         run: node scripts/tout.mjs
