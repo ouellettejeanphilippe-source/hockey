@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { compterFeuilles, planDe, roulementDe, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, profilPrincipal, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { compterFeuilles, planDe, roulementDe, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, badgesDe, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -498,9 +498,9 @@ function effectifHtml(b) {
   const pct = (a, n) => (n ? pct3(a / n) : '—');
   const rangee = (s, p) => {
     const c = b.compte.get(p) || {};
-    const pp = p.p === 'G' ? null : profilPrincipal(p);
+    const pp = p.p === 'G' ? null : badgesDe(p)[0];
     const bl = b.blesses.has(p) ? ` <span class="banc-reste">🩹 ${b.blesses.get(p)}</span>` : '';
-    const tete = `<td class="ef-case">${esc(slotShort(s))}</td><td class="ef-nom"><b>${esc(p.n)}</b>${bl}<span>${esc(positionLabel(p))} · ${pp ? `${pp.ico} ${esc(pp.court || pp.nom)}` : esc(p.t)}</span></td><td>${pastilleNiveau(p)}</td><td class="ef-n">${money(capHitDuJour(p))}</td>`;
+    const tete = `<td class="ef-case">${esc(slotShort(s))}</td><td class="ef-nom"><b>${esc(p.n)}</b>${bl}<span>${esc(positionLabel(p))} · ${pp ? `<i class="badge pal-${pp.palier}">${pp.ico}</i> ${esc(pp.court || pp.nom)}` : esc(p.t)}</span></td><td>${pastilleNiveau(p)}</td><td class="ef-n">${money(capHitDuJour(p))}</td>`;
     if (p.p === 'G') return `<tr>${tete}<td class="ef-n">${c.gp || 0}</td><td class="ef-n" colspan="2">${c.w || 0}-${c.l || 0}</td><td class="ef-n" colspan="2">${pct(c.sv || 0, c.sa || 0)}</td><td class="ef-n" colspan="2">${c.gp ? ((c.ga || 0) / c.gp).toFixed(2).replace('.', ',') : '—'}</td></tr>`;
     return `<tr>${tete}<td class="ef-n">${c.gp || 0}</td><td class="ef-n">${c.g || 0}</td><td class="ef-n">${c.a || 0}</td><td class="ef-n">${c.pts || 0}</td><td class="ef-n">${(c.pm || 0) > 0 ? '+' : ''}${c.pm || 0}</td><td class="ef-n">${c.sh || 0}</td><td class="ef-n">${c.pim || 0}</td></tr>`;
   };

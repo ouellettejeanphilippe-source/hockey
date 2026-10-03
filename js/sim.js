@@ -1503,13 +1503,6 @@ function profilsBase(p) {
   PROFILS_CACHE.set(p, out);
   return out;
 }
-/* Le rôle second d'un joueur : le suivant, s'il vaut 60 et plus (l'écran le montre à côté du premier). */
-export function roleSecond(p) {
-  const pr = profilsDe(p);
-  if (!pr) return null;
-  const [, second] = Object.entries(pr).sort((a, b) => b[1] - a[1]);
-  return second && second[1] >= 60 ? { cle: second[0], fit: second[1], ...(PROFILS[estD(p) ? 'D' : 'F'][second[0]]) } : null;
-}
 /*
  * QUI EST UNE UNITÉ (S79). JP : *ce qu'on voit sur la page d'alignement …
  * ça doit aider à savoir d'un coup d'oeil ce que les joueurs peuvent faire
@@ -1585,7 +1578,7 @@ export function originesDe(team) {
   };
 }
 /* Le meilleur profil d'un joueur : ce que la carte affiche. */
-export function profilPrincipal(p) {
+function profilPrincipal(p) {
   const pr = profilsDe(p);
   if (!pr) return null;
   const [cle, fit] = Object.entries(pr).sort((a, b) => b[1] - a[1])[0];
@@ -1812,25 +1805,37 @@ export function bilanAgressivite(agr, ph) {
 }
 
 /*
- * LA MAÎTRISE DES RÔLES (1.0). JP : *chaque type de joueur devrait avoir un
- * impact quand maîtrisé et changer comment les matchs se jouent ; les bons
- * joueurs de soutien doivent se démarquer des moins bons*. Un rôle est un
- * score de 0 à 100 lu dans ses vraies stats (`rolesBruts`) ; sa MAÎTRISE va
- * de 0 à « bon » (55) à 1 à « élite » (85), les mots de la fiche. Chaque rôle
- * a UN canal, celui que ses stats ne portent pas déjà (les buts d'un sniper
- * sont déjà dans sa finition) : une interaction avec l'adversaire, la glace ou
- * les coéquipiers. CENTRÉ sur la maîtrise moyenne de la ligue (`MAITRISE_LIGUE`,
- * mesurée sur 29 000 réguliers) : la ligue ne bouge pas, un checker élite
- * étouffe, un checker faible laisse passer.
+ * LES BADGES À PALIERS (refonte 1, oct. 2026). JP : *simplifier traits,
+ * positions et rôles, genre sniper bronze argent or platine, intégrer traits
+ * et rôles*. Un joueur porte UN badge (son rôle premier) et au plus un second
+ * (le suivant, s'il vaut 60 et plus), chacun à un PALIER : Bronze, Argent, Or,
+ * Platine — le rang de son score parmi les rôles premiers des réguliers de son
+ * groupe, toutes saisons (`SEUILS_PALIER`, scripts/badges_calibre.mjs : le
+ * top 40 % Argent, le top 15 % Or, le top 3 à 5 % Platine). Le score est lu
+ * dans SA saison (`rolesBruts`), et un trait le monte déjà (🎯 Tir pousse le
+ * Sniper) : le trait devient la raison du palier (« Sniper Or · Tir »).
+ *
+ * Ce que fait un badge, sur la glace : SON PALIER donne l'effet, PAR JOUEUR,
+ * pendant ses présences — un trio de trois checkers Platine étouffe trois fois
+ * plus qu'un seul (avant : la moyenne du trio, une maîtrise continue). Le
+ * badge en second compte la moitié. Chaque rôle a UN canal, celui que ses
+ * stats ne portent pas déjà (les buts d'un sniper sont dans sa finition : les
+ * lui compter deux fois gonflerait la ligue) :
  *
  *   checker, two-way (F) · défensif, physique (D) : ÉTOUFFENT — la qualité des
  *     lancers adverses pendant leurs présences (le canal de la défense) ;
  *   bagarreur : INTIMIDE — la finition du trio adverse pendant ses présences ;
- *   power forward : DEVANT LE FILET — la finition de ses coéquipiers ;
+ *   power forward : DEVANT LE FILET — la finition de ses coéquipiers de trio ;
  *   plombier : DES JAMBES — son match lui coûte moins ;
  *   sniper : EN AVANTAGE NUMÉRIQUE, c'est lui qui tire ;
  *   défenseur offensif : DE LA POINTE — le volume de sa paire ;
- *   passeur, manieur : la CRÉATION, déjà lue dans ses passes (`passesRel`).
+ *   passeur, manieur : LA CHIMIE — leur ligne joue son système plus haut
+ *     (`BADGE_CHIMIE`, un canal du jeu que ses passes ne portent pas : la
+ *     création, elle, est déjà lue dans ses passes, `passesRel`).
+ *
+ * CENTRÉ sur le badge moyen de la ligue (`BADGE_LIGUE`, mesuré sur 29 000
+ * réguliers) : toute la ligue porte des badges, et ses buts ne bougent pas ;
+ * un joueur sans le badge vaut un peu moins que la moyenne, un Platine bien plus.
  *
  * Et les MISES EN ÉCHEC COÛTENT DES JAMBES (JP : *perte d'énergie des joueurs
  * frappés*) : les coups d'une unité (ses `ht` par match, estimés de sa
@@ -1841,20 +1846,59 @@ export function bilanAgressivite(agr, ph) {
  * l'usure : les coups d'aujourd'hui pèsent demain, et de match en match en
  * séries. Déterministe : la même graine rejoue la même saison.
  */
-const MAITRISE_DE = 55, MAITRISE_A = 85;
-const MAITRISE_LIGUE = {
-  F: { sniper: 0.244, passeur: 0.222, deuxsens: 0.24, power: 0.274, checker: 0.159, energie: 0.126, bagarreur: 0.148 },
-  D: { defensif: 0.133, offensif: 0.275, manieur: 0.287, physique: 0.144, deuxsens: 0.321 },
+export const PALIERS = [null,
+  { cle: 'bronze', nom: 'Bronze' }, { cle: 'argent', nom: 'Argent' }, { cle: 'or', nom: 'Or' }, { cle: 'platine', nom: 'Platine' }];
+export const SEUILS_PALIER = { F: [78, 92, 98], D: [76, 89, 98] };
+const BADGE_SECOND_MIN = 60;
+const BADGE_LIGUE = {
+  F: { sniper: 0.102, passeur: 0.101, deuxsens: 0.079, power: 0.075, checker: 0.05, energie: 0.042, bagarreur: 0.066 },
+  D: { defensif: 0.081, offensif: 0.131, manieur: 0.13, physique: 0.08, deuxsens: 0.089 },
 };
-export const EFFET_ROLE = { checker: 0.06, deuxsens: 0.03, defensif: 0.06, physique: 0.03, bagarreur: 0.05, power: 0.05, energie: 0.15, sniper: 1.0, offensif: 0.05 };
+/* L'effet d'un badge PLATINE, par joueur ; Or les trois quarts, Argent la moitié, Bronze le quart. */
+export const EFFET_ROLE = { checker: 0.08, deuxsens: 0.04, defensif: 0.08, physique: 0.04, bagarreur: 0.06, power: 0.08, energie: 0.4, sniper: 1.0, offensif: 0.16 };
+/* Passeur et manieur Platine : leur ligne joue son système comme si son fit valait BADGE_CHIMIE de plus (la chimie). */
+export const BADGE_CHIMIE = 12;
 export const COUP_JAMBES = Number(ENV_MESURE.COUP_JAMBES ?? 1.2), COUP_ABSORBE = 0.5, COUP_MOYEN = 1.2;
-/* La maîtrise d'un joueur dans un rôle, centrée sur la ligue (0 = la moyenne). */
-export function maitrise(p, role) {
+export const palierDe = (g, x) => { const S = SEUILS_PALIER[g]; return x >= S[2] ? 4 : x >= S[1] ? 3 : x >= S[0] ? 2 : 1; };
+/*
+ * LES BADGES d'un joueur : son rôle premier, et le second s'il vaut
+ * BADGE_SECOND_MIN — chacun `{ cle, palier, second, nom, ico, mot, … }`. Les
+ * mutations de carte (`_mutProfils`) déplacent le score, donc le palier.
+ */
+export function badgesDe(p) {
+  const pr = profilsDe(p);
+  if (!pr) return [];
+  const g = estD(p) ? 'D' : 'F';
+  const traits = getTraits(p).map(t => t.cle);
+  const raison = k => traits.find(t => (TRAITS_DU_BADGE[g][k] || []).includes(t)) || null;
+  const [a, b] = Object.entries(pr).sort((x, y) => y[1] - x[1]);
+  const out = [{ cle: a[0], palier: palierDe(g, a[1]), second: false, trait: raison(a[0]), ...PROFILS[g][a[0]] }];
+  if (b && b[1] >= BADGE_SECOND_MIN) out.push({ cle: b[0], palier: palierDe(g, b[1]), second: true, trait: raison(b[0]), ...PROFILS[g][b[0]] });
+  return out;
+}
+/* Les traits qui MONTENT un badge (ceux que `rolesBruts` ajoute au score) : la raison de son palier, « Sniper Or · Tir ». */
+const TRAITS_DU_BADGE = {
+  F: { sniper: ['TIR'], passeur: ['CREATEUR', 'MENEUR'], deuxsens: ['SELKE', 'BIDIR'], power: ['COLOSSE'], checker: ['SELKE'], energie: ['VITESSE'] },
+  D: { defensif: ['NORRIS'], offensif: ['TIR'], manieur: ['CREATEUR', 'VITESSE'], physique: ['COLOSSE'], deuxsens: ['NORRIS', 'BIDIR'] },
+};
+/* La valeur d'un joueur dans un badge : palier / 4 en premier, la moitié en second, 0 sans. */
+function valeurBadge(p, role) {
   const pr = profilsDe(p);
   if (!pr || pr[role] == null) return 0;
-  return borne((pr[role] - MAITRISE_DE) / (MAITRISE_A - MAITRISE_DE), 0, 1) - MAITRISE_LIGUE[estD(p) ? 'D' : 'F'][role];
+  const tri = Object.entries(pr).sort((x, y) => y[1] - x[1]);
+  const g = estD(p) ? 'D' : 'F';
+  if (tri[0][0] === role) return palierDe(g, tri[0][1]) / 4;
+  if (tri[1] && tri[1][0] === role && tri[1][1] >= BADGE_SECOND_MIN) return palierDe(g, tri[1][1]) / 8;
+  return 0;
 }
-const maitriseUnite = (joueurs, role) => (joueurs.length ? joueurs.reduce((a, p) => a + maitrise(p, role), 0) / joueurs.length : 0);
+/* Un badge, centré sur la ligue (0 = le badge moyen) : ce que le moteur lit. */
+export function maitrise(p, role) {
+  if (!p || p.p === 'G') return 0;
+  const g = estD(p) ? 'D' : 'F';
+  return valeurBadge(p, role) - (BADGE_LIGUE[g][role] || 0);
+}
+/* Les badges d'une unité s'ADDITIONNENT : chaque joueur rend le sien pendant ses présences. */
+const maitriseUnite = (joueurs, role) => joueurs.reduce((a, p) => a + maitrise(p, role), 0);
 /* Les mises en échec d'un joueur par match : comptées dès 2005-06, estimées de sa robustesse avant. */
 function coupsDe(p) {
   if (!p || p.p === 'G') return 0;
@@ -2249,7 +2293,11 @@ export function chimieLigne(app, lineup, u, l) {
   const fit = fitDeLigne(lineup, u, l);
   if (fit == null) return 0;                // ligne incomplète : pas de chimie à lire
   const m = maitriseLigne(app, lineup, u, l);
-  return chimieMax(fit + MAITRISE_FIT * m) * (ententeLigne(app, lineup, u) + m) / 2;
+  return chimieMax(fit + MAITRISE_FIT * m + chimieDesBadges(lineup, u)) * (ententeLigne(app, lineup, u) + m) / 2;
+}
+/* Les passeurs et les manieurs d'une ligne (refonte 1) : elle joue son système plus haut — BADGE_CHIMIE de fit par Platine, centré sur la ligue. */
+function chimieDesBadges(lineup, u) {
+  return BADGE_CHIMIE * joueursLigne(lineup, u).reduce((a, p) => a + maitrise(p, 'passeur') + maitrise(p, 'manieur'), 0);
 }
 /* Après un match : chaque paire de coéquipiers et chaque joueur apprennent ce qu'ils ont joué ce soir-là. */
 function majChimie(team, lineup) {
@@ -2294,7 +2342,9 @@ function majChimie(team, lineup) {
  */
 // SPEC_BASE recalé en S73 (0,45 → 0,22) : la chimie apprise se concentre sur les
 // meilleures lignes, qui lancent le plus ; la part des actions spéciales revient à ~12 %.
-export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.9;
+// SPEC_NORME recalé en refonte 1 (0,90 → 0,88) : les passeurs et les manieurs montent la chimie (BADGE_CHIMIE),
+// et une chimie ne descend pas sous zéro — la ligue gagnait 1,2 % de buts ; 12 ligues semées : 2,958 avant, 2,956 après.
+export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.88;
 
 /* ---------- l'énergie : les JAMBES (1.0, C3) ---------- */
 /*
@@ -4018,7 +4068,7 @@ export function profilMatch(team, lineup, adv = null) {
     x.chimie = chimieSoir[u];
     x.poids *= c('volume');
     x.qualite *= c('finition');
-    // LA MAÎTRISE DES RÔLES (voir MAITRISE_LIGUE) : ce que l'unité étouffe et intimide pendant ses présences, ce qu'elle tire de la pointe.
+    // LES BADGES (voir PALIERS) : ce que l'unité étouffe et intimide pendant ses présences, ce qu'elle tire de la pointe — chaque joueur le sien.
     if (g === 'F') {
       x.etouffe = 1 - EFFET_ROLE.checker * maitriseUnite(x.joueurs, 'checker') - EFFET_ROLE.deuxsens * maitriseUnite(x.joueurs, 'deuxsens');
       x.intimide = 1 - EFFET_ROLE.bagarreur * maitriseUnite(x.joueurs, 'bagarreur');
@@ -5231,7 +5281,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     // ont joué, et l'usure de ceux qui étaient sur la glace.
     majChimie(A, LA); majChimie(B, LB);
     depenserEnergie(A, LA); depenserEnergie(B, LB);
-    // LES MISES EN ÉCHEC COÛTENT DES JAMBES (voir MAITRISE_LIGUE) : les coups de chaque club tombent sur l'autre.
+    // LES MISES EN ÉCHEC COÛTENT DES JAMBES (voir PALIERS) : les coups de chaque club tombent sur l'autre.
     encaisserCoups(pA, pB); encaisserCoups(pB, pA);
     noterDepart(A, partantA); noterDepart(B, partantB);
     // Le journal de la saison : ce qu'il faut pour raconter une séquence,
@@ -7556,11 +7606,13 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
       return n ? { finition: 1 + Math.min(0.06, 0.02 * n) } : null;
     }
     if (k === 'mur') {
-      const n = dresses.filter(x => x.sl.group === 'D' && principal(x.p) === 'pur').length;
+      // Réparé en refonte 1 : il lisait « pur », un rôle disparu en S79, et ne se déclenchait jamais.
+      const n = dresses.filter(x => x.sl.group === 'D' && principal(x.p) === 'defensif').length;
       return n ? { defense: 1 - Math.min(0.06, 0.02 * n) } : null;
     }
     if (k === 'jambes') {
-      const n = dresses.filter(x => x.sl.group === 'F' && x.sl.unit <= 1 && principal(x.p) === 'rapide').length;
+      // Réparé en refonte 1 : il lisait « rapide », un rôle disparu en S79 ; ce sont les plombiers qui partent en contre.
+      const n = dresses.filter(x => x.sl.group === 'F' && principal(x.p) === 'energie').length;
       return n ? { volume: 1 + Math.min(0.08, 0.02 * n) } : null;
     }
     // LES ORIGINES (1.0) : même club, même franchise, même décennie, même âge. Les chiffres sont ceux de la `regle` (js/combat.js).

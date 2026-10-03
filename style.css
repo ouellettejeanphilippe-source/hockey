@@ -49,6 +49,10 @@
   --bon: #46c98b;
   --mauvais: #e5707a;
   --or: #d7b171;
+  /* Les paliers d'un badge (refonte 1) : le métal, sans emoji (🥉🥈🥇💎 nomment les packs). L'or est celui du sens. */
+  --bronze: #c98b5a;
+  --argent: #c4cbd4;
+  --platine: #9fe3ea;
   --attention: #dd9155;
   --bleu: #8ab4f0;
   --violet: #b49ae0;
@@ -2096,7 +2100,7 @@ button.marche-tuile:active { transform: scale(0.98); }
 .ses-role { display: flex; align-items: baseline; gap: var(--esp-2); min-height: 36px; padding: var(--esp-1) 0; border-bottom: 1px solid var(--filet-2); font-size: var(--t-2); color: var(--encre-2); }
 .ses-role b { margin-left: auto; flex: none; font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
 .ses-role.premier { color: var(--encre); }
-.ses-role.premier b { color: var(--bon); }
+.ses-role.premier b { color: var(--pal, var(--bon)); }
 .ses-role.faible { color: var(--encre-3); }
 details.fiche-plus { margin-top: var(--esp-3); border-top: 1px solid var(--filet); }
 details.fiche-plus > summary { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; cursor: pointer; list-style: none; color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -2264,11 +2268,13 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* Son second rôle, s'il en a un (1.0, R3) : plus petit, après le premier. */
 .cell-role-2 { flex: 0 1 auto; min-width: 0; font: 600 var(--t-1)/1.1 var(--display); color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cell-mot { flex: none; margin-left: auto; font: 700 var(--t-1)/1.1 var(--display); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; }
-.cell-mot.elite { color: var(--or); }
-.cell-mot.tres-bon { color: var(--bon); }
-.cell-mot.bon { color: var(--encre); }
-.cell-mot.correct { color: var(--encre-2); }
-.cell-mot.faible { color: var(--encre-3); }
+/* LE PALIER D'UN BADGE (refonte 1) : sa couleur, `--pal`, que le mot prend et que l'icône souligne. */
+.pal-1 { --pal: var(--bronze); }
+.pal-2 { --pal: var(--argent); }
+.pal-3 { --pal: var(--or); }
+.pal-4 { --pal: var(--platine); }
+i.badge { font-style: normal; border-bottom: 2px solid var(--pal); }
+.cell-mot[class*="pal-"], .puce.badge, b.badge { color: var(--pal); }
 /* Rangée 2 : le niveau, la zone (✓ ▼ ▲), le blessé, la pénalité, le trophée. Elle se plie plutôt que de couper. */
 .slot-tags { margin-top: auto; display: flex; flex-wrap: nowrap; gap: 3px; min-width: 0; overflow: hidden; transform-origin: left center; }
 .slot-tags > * { flex: none; }

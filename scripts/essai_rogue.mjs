@@ -196,7 +196,20 @@ async function regler() {
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     const t = await page.$('#hubModal .hub-traiter');
     // Le message plié, ou rangé sous le sous-onglet Boîte du téléphone (1.0, R2) : « À régler » l'ouvre et y mène.
-    if (t) { const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]'); await (d && await d.isVisible() ? d : t).click(); await page.waitForTimeout(400); continue; }
+    if (t) {
+      const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]');
+      const cible = d && await d.isVisible() ? d : await t.isVisible() ? t : null;
+      // Un message à régler que rien de visible ne règle : le dire, avec ce qu'on voit, plutôt qu'attendre 30 s un clic
+      // impossible (une run sur deux, une fois, oct. : « element is not visible » sur « À régler »).
+      if (!cible) {
+        const vus = await page.evaluate(() => [...document.querySelectorAll('#choixModal:not([hidden]) button, #hubModal button')]
+          .filter(b => b.offsetParent).map(b => `${[...b.classList].pop()} « ${b.textContent.trim().slice(0, 30)} »`).slice(0, 12).join(' · '));
+        const png = `${DOSSIER}/rogue-coince.png`;
+        await page.screenshot({ path: png }).catch(() => {});
+        throw new Error(`« À régler » existe mais n'est pas visible, et le message ouvert n'a pas de réponse visible. Boutons visibles : ${vus || 'aucun'} (capture : ${png})`);
+      }
+      await cible.click(); await page.waitForTimeout(400); continue;
+    }
     return;
   }
 }

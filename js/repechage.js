@@ -6,7 +6,7 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, profilPrincipal, CAP } from './sim.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, CAP } from './sim.js';
 import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ratings.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
@@ -394,10 +394,10 @@ function ficheCourte(q) {
   return q.p === 'G' ? `${st.gp} PJ · ${q.sv ?? '—'} %arr (vraie saison)` : `${st.gp} PJ · ${st.g}-${st.a}-${st.pt} (vraie saison)`;
 }
 function colonneEchange(q, mot, sl = null) {
-  const pp = q.p === 'G' ? null : profilPrincipal(q);
+  const pp = q.p === 'G' ? null : badgesDe(q)[0];
   return `<div class="ech-col"><div class="ech-mot">${esc(mot)}</div><b>${esc(q.n)}</b>
     <span>${esc(positionLabel(q))}${sl ? ` · ${esc(ligneDe(sl))}` : ''}</span>
-    <span>${pastilleNiveau(q)}${pp ? ` ${pp.ico} ${esc(pp.court || pp.nom)}` : ''}</span>
+    <span>${pastilleNiveau(q)}${pp ? ` <i class="badge pal-${pp.palier}">${pp.ico}</i> ${esc(pp.court || pp.nom)}` : ''}</span>
     <span>${esc(money(capHitDuJour(q)))}</span>
     <span>${esc(ficheCourte(q))}</span></div>`;
 }

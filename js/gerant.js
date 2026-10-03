@@ -26,7 +26,7 @@
 
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
-  profilsDe, stylesDe, profilPrincipal, roleSecond, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
+  profilsDe, stylesDe, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
@@ -38,6 +38,7 @@ import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
 import { jouerSon } from './sons.js';
+import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, pct3, varsEquipe } from './util.js';
 
@@ -132,15 +133,23 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJ
  * garde ses deux ou trois vrais rôles, avec un mot pour le niveau, et sa
  * carrure quand elle compte (le jeu physique en dépend).
  */
-export const niveauDe = x => (x >= 85 ? 'élite' : x >= 70 ? 'très bon' : x >= 55 ? 'bon' : x >= 40 ? 'correct' : 'faible');
+/* Le mot de l'ASSORTIMENT d'un joueur à ce qu'un système demande (`stylesDe`) — pas un badge. */
+const motDuFit = x => (x >= 85 ? 'élite' : x >= 70 ? 'très bon' : x >= 55 ? 'bon' : x >= 40 ? 'correct' : 'faible');
 export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
+/*
+ * UN BADGE, EN MOTS (refonte 1) : son icône, son nom, son palier — « 🎯 Sniper
+ * Or » — et le trait qui le monte s'il en a un (« · Tir »). Le palier se lit
+ * aussi à la couleur (`pal-1` à `pal-4`) : 🥉🥈🥇💎 nomment déjà les packs.
+ */
+export const motDuBadge = b => `${b.nom} ${PALIERS[b.palier].nom}`;
+export const raisonDuBadge = b => (b.trait && TRAITS[b.trait] ? TRAITS[b.trait].short : '');
+export const titreDuBadge = b => `${b.second ? 'Son second badge (la moitié de son effet)' : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, comparé aux joueurs de son poste, toutes saisons${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}`;
 function rolesDe(p) {
-  const pp = profilPrincipal(p);
-  if (!pp) return '';
-  const r2 = roleSecond(p);
+  const bs = badgesDe(p);
+  if (!bs.length) return '';
   const c = carrureDe(p);
-  const puce = (r, premier) => `<span class="puce ${premier ? 'bon' : 'neutre'}" title="${premier ? 'Son rôle' : 'Son second rôle'} — lu dans ${esc(r.mot)}, comparés aux joueurs de sa saison">${r.ico} ${esc(r.nom)} · ${niveauDe(r.fit)}</span>`;
-  return `<div class="gj-roles">${puce(pp, true)}${r2 ? puce(r2, false) : ''}${c ? `<span class="puce neutre" title="Son physique : le jeu robuste lui ${c.ico === '🪨' ? 'réussit' : 'coûte des punitions'}">${c.ico} ${c.mot}</span>` : ''}</div>`;
+  const puce = b => `<span class="puce badge pal-${b.palier}" title="${esc(titreDuBadge(b))}">${b.ico} ${esc(motDuBadge(b))}${b.trait ? ` · ${esc(raisonDuBadge(b))}` : ''}</span>`;
+  return `<div class="gj-roles">${bs.map(puce).join('')}${c ? `<span class="puce neutre" title="Son physique : le jeu robuste lui ${c.ico === '🪨' ? 'réussit' : 'coûte des punitions'}">${c.ico} ${c.mot}</span>` : ''}</div>`;
 }
 /* L'ancien nom : la fiche l'appelle encore. */
 export const barresProfils = rolesDe;
@@ -156,9 +165,12 @@ export function sesRolesHtml(p) {
   if (!pr) return '';
   const g = p.p === 'D' || p.p === 'LD' || p.p === 'RD' ? 'D' : 'F';
   const liste = Object.entries(pr).filter(([k]) => PROFILS[g][k]).sort((a, b) => b[1] - a[1]);
-  return `<div class="ses-roles">${liste.map(([k, x], i) => {
-    const R = PROFILS[g][k];
-    return `<span class="ses-role${i === 0 ? ' premier' : x < 40 ? ' faible' : ''}" title="${esc(R.nom)} — lu dans ${esc(R.mot)}">${R.ico} ${esc(R.nom)} <b>${niveauDe(x)}</b></span>`;
+  // Ses badges d'abord, à leur palier ; les autres rôles disent ce qu'un système qui les demande en tirerait.
+  const badges = new Map(badgesDe(p).map(b => [b.cle, b]));
+  return `<div class="ses-roles">${liste.map(([k, x]) => {
+    const R = PROFILS[g][k], b = badges.get(k);
+    if (b) return `<span class="ses-role premier pal-${b.palier}" title="${esc(titreDuBadge(b))}">${R.ico} ${esc(R.nom)} <b>${PALIERS[b.palier].nom}</b></span>`;
+    return `<span class="ses-role${x < 40 ? ' faible' : ''}" title="${esc(R.nom)} — lu dans ${esc(R.mot)}">${R.ico} ${esc(R.nom)} <b>${motDuFit(x)}</b></span>`;
   }).join('')}</div>`;
 }
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
@@ -744,7 +756,7 @@ function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe 
     const prof = roles[r], P = PROFILS[groupe][prof], p = js[r];
     const fr = p ? ((stylesDe(p) || {})[prof] ?? 0) : null;   // l'assortiment se lit au style, à talent égal (`stylesDe`)
     const marque = fr == null ? '' : fr >= 60 ? '✓' : fr < 40 ? '✗' : '≈';
-    return `<span class="ln-dem${fr == null ? '' : fr >= 60 ? ' fit-bon' : fr < 40 ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${niveauDe(fr)}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
+    return `<span class="ln-dem${fr == null ? '' : fr >= 60 ? ' fit-bon' : fr < 40 ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${motDuFit(fr)}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
   }).join('') : '';
   return `${enFace}<div class="gl-tacs ln-tacs">${boutons}</div>${conseil}${choisie}${demande ? `<div class="ln-demande"><span class="gl-k">Il demande${inverse ? ' · ailes inversées' : ''}</span>${demande}</div>` : ''}`;
 }
@@ -858,7 +870,7 @@ export function ouvrirLignes(spec) {
     const R = T && T.slots ? rolesDuSysteme(spec.lineup, g, u, g === 'D' ? brouillon[u].tacD : brouillon[u].tac) : null;
     const voulu = R ? R[role] : null;
     const pr = p && stylesDe(p);   // l'assortiment au système, à talent égal
-    const pp = p && profilPrincipal(p);
+    const pp = p && badgesDe(p)[0];
     const e = p ? (spec.energie[getPlayerKey(p)] ?? 100) : 0;
     const fitRole = voulu && pr ? pr[voulu] : null;
     const c = p ? carrureDe(p) : null;
@@ -869,9 +881,9 @@ export function ouvrirLignes(spec) {
     return `<div class="gl-j${fitRole != null ? (fitRole >= 60 ? ' fit-bon' : fitRole < 40 ? ' fit-mauvais' : '') : ''}">
       <span class="gl-j-role">${role}</span>
       <span class="gl-j-nom">${p ? esc(p.n) : '<i>vide</i>'}${place ? place.html : ''}</span>
-      <span class="gl-j-prof" title="${pp ? `Son rôle : ${esc(pp.nom)} (${niveauDe(pp.fit)})${c ? ` · ${c.mot}` : ''}` : ''}">${pp ? `${pp.ico} <small>${esc(pp.nom)}</small>` : ''}</span>
+      <span class="gl-j-prof" title="${pp ? `${esc(titreDuBadge(pp))}${c ? ` · ${c.mot}` : ''}` : ''}">${pp ? `<i class="badge pal-${pp.palier}">${pp.ico}</i> <small>${esc(pp.nom)}</small>` : ''}</span>
       <span class="gl-j-niv">${p ? pastilleNiveau(p) : ''}</span>
-      ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y est ${niveauDe(fitRole ?? 0)}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
+      ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y est ${motDuFit(fitRole ?? 0)}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
       ${p ? jambesHtml(e) : '<span class="jambes"></span>'}
       ${usureHtml(p)}
       ${(p && p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="gl-j-mut" title="${esc(MUTATIONS[k].nom)}">${MUTATIONS[k].ico}</span>` : '').join('')}

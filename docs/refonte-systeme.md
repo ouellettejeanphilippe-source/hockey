@@ -69,8 +69,8 @@ Chaque joueur porte **un badge principal et, au plus, un badge secondaire**, cha
 
 - Le palier vient de **sa vraie saison**, comme le niveau aujourd'hui : son rang à son poste dans sa saison, sur les stats qui font ce rôle. En gros, Platine ≈ le top 3 % de la saison à son poste, Or ≈ le top 15 %, Argent ≈ le top 40 %, Bronze ≈ le reste. Le Rocket Richard de 2009 est Sniper Platine ; un joueur de 4e trio à 80 mises en échec est Checker Argent.
 - **Les traits s'y fondent.** Tir → monte le badge Sniper d'un palier ; Selke → Checker ou Deux sens ; Norris → Défensif ; Colosse → Physique/Bagarreur ; Vitesse et Créateur → Passeur ; Meneur → un badge « Capitaine » (voir § 5). Le trait ne disparaît pas de la carte : il devient la raison du palier (« Sniper Or · Tir »).
-- **Positions simplifiées** : Avant, Défenseur, Gardien. Plus de pénalité de côté ni de centre à l'aile (les mises au jeu ne jouent déjà pas dans le moteur). *À trancher avec toi* : garder le centre pour l'avenir, ou non.
-- **La zone** (T1-2…) reste, mais se lit dans le niveau. *À trancher* : la garder telle quelle, ou la retirer (c'est la mécanique la moins lisible qui reste).
+- **Positions** : *tranché (§ 10)* — on garde le centre, et ses pénalités de côté.
+- **La zone** (T1-2…) : *tranché (§ 10)* — elle reste, à côté du badge.
 
 ### Ce que fait un badge, sur la glace
 Plus de centrage sur la moyenne : **le palier lui-même donne l'effet**, par joueur, pendant ses présences. L'ordre de grandeur visé (à calibrer) :
@@ -203,10 +203,18 @@ C'est ce dernier chiffre qui fait le **tronc commun** : aucune voie n'est la bon
 
 ---
 
-## 10. Les questions pour toi
+## 10. Les réponses de JP (3 oct.)
 
-1. **Positions** : on enlève centre/aile (Avant, Défenseur, Gardien seulement) ? Ou on garde le centre ?
-2. **La zone** (T1-2…) : on la garde, ou le palier du badge suffit ?
-3. **Neuf coachs** : on les garde tous ? Le Comptable n'a ni badge ni système. Il pourrait devenir un adjoint (une carte Staff) plutôt qu'une voie.
-4. **Le budget** : +6 à +8 victoires pour une voie construite au complet, c'est le bon ordre de grandeur ? Plus, et le Rogue devient facile ; moins, et ça ne se sent pas.
-5. **Les sauvegardes** : finir les parties en cours sur l'ancien moteur, ça te va ?
+1. **Positions** : on **garde le centre** (Centre, Ailier, Défenseur, Gardien).
+2. **La zone** : on **la garde** à côté du badge. Le badge dit quoi, la zone dit où.
+3. **Neuf coachs** : le Comptable **devient un adjoint** (une carte Staff : rabais, jetons), à combiner avec n'importe quel coach. Huit voies de jeu.
+4. **Le budget** : **+6 à +8 victoires** pour une voie construite au complet.
+5. **Les sauvegardes** : pas de réponse. Le dépôt a déjà sa règle (`VERSION_MOTEUR`, js/game.js) : une saison en cours se rejoue avec les nouvelles règles, et un toast le dit. On garde cette règle plutôt que deux moteurs.
+
+Et JP ajoute : *t'aurais coach, pis adjoint, qui ont des bonus, pis plus t'avances, plus c'est complexe, mais fort si bien fait*. Le coach est le choix de départ ; ses **adjoints** (Staff) ajoutent chacun un bonus, et ils s'empilent. Plus la run avance (le prestige, les saisons), plus le club ouvre de **places d'adjoint** et de liens entre eux — plus de choses à assortir, donc plus complexe, mais une équipe bien assortie (coach, adjoints, badges, système) monte jusqu'au budget du § 8. C'est l'étape 3.
+
+Puis : *au début, t'as genre 3 coachs seulement, et 2 adjoints possibles, pis ça augmente selon les runs*. Une run neuve offre **trois coachs** au choix et **deux places d'adjoint** ; les autres coachs et les places de plus s'ouvrent d'une run à l'autre (le prestige, `js/rogue.js`), comme les Étoiles et les Phénomènes des packs aujourd'hui.
+
+## 11. Fait
+
+- **Étape 1, les badges à paliers** (oct.) : voir docs/decisions.md, « Les badges à paliers ».

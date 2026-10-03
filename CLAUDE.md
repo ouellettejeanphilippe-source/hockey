@@ -157,9 +157,10 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 
 - **jambes** : la fatigue d'un joueur, sur 100 (jamais « % », jamais « énergie »).
-- **Sur la glace** : dans la fiche, en mots, ce que le moteur fera du joueur — l'effet de son rôle maîtrisé, ce qu'un coup lui coûte (js/fiche.js). Pas une cote, pas une statistique de plus ; le profil en crans a été essayé et retiré.
-- **niveau** : ce que le joueur valait dans sa saison, à son poste — Soutien, Régulier, Pilier, ★ Étoile, ★ Phénomène (`js/niveaux.js`). Le rôle a ses propres mots (élite, très bon, bon…), qui ne s'appellent pas « niveau ».
+- **Sur la glace** : dans la fiche, en mots, ce que le moteur fera du joueur — l'effet de chacun de ses badges à son palier, ce qu'un coup lui coûte (js/fiche.js). Pas une cote, pas une statistique de plus ; le profil en crans a été essayé et retiré.
+- **niveau** : ce que le joueur valait dans sa saison, à son poste — Soutien, Régulier, Pilier, ★ Étoile, ★ Phénomène (`js/niveaux.js`). Le badge a ses propres mots (Bronze, Argent, Or, Platine), qui ne s'appellent pas « niveau ».
 - **rôle** : ce que le joueur fait (sniper, passeur, checker…), une icône et un mot ; un système demande des rôles.
+- **badge** : son rôle à un palier — Bronze, Argent, Or, Platine (`badgesDe`, js/sim.js) ; un premier et, au plus, un second qui rend la moitié. Le palier se dit en mot et se voit en couleur (`pal-1` à `pal-4`), jamais en médaille : 🥉🥈🥇💎 nomment les packs. « Palier » reste un mot du code ; à l'écran on dit « Sniper Or ».
 - **zone** : où le joueur rend (T1-2, P1…) ; une case porte les zones qui y sont chez elles.
 - **carrure** : 🪨 costaud ou 🪶 léger ; elle décide de ce que rapporte l'agressivité.
 - **coach** : une des neuf philosophies de `js/coachs.js` (🐝 le Frelon, 🐢 la Tortue…) ; chaque carte a la couleur d'un coach. Pas « école », pas « build » à l'écran.

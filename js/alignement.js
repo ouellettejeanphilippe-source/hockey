@@ -7,9 +7,9 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, money, pct3 } from './util.js';
-import { profilPrincipal, roleSecond, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
+import { badgesDe, PALIERS, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
 import { getArchetype } from './ratings.js';
-import { jambesHtml, niveauDe, strategieDeLigne, ouvrirStrategie } from './gerant.js';
+import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
@@ -173,8 +173,8 @@ function slotTags(p, zoneEcartTag, penTag) {
    * peuvent faire pour matcher comme des vraies lignes*. Le rôle premier et,
    * s'il en a un, le second : lus dans ses vraies stats, jamais une cote.
    */
-  const pp = profilPrincipal(p), r2 = pp && roleSecond(p);
-  const roles = pp ? `<span class="slot-roles" title="${esc(pp.nom)}${r2 ? ` · second rôle : ${esc(r2.nom)}` : ''}">${pp.ico}${r2 ? r2.ico : ''}</span>` : '';
+  const [pp, r2] = badgesDe(p);
+  const roles = pp ? `<span class="slot-roles" title="${esc(motDuBadge(pp))}${r2 ? ` · second badge : ${esc(motDuBadge(r2))}` : ''}"><i class="badge pal-${pp.palier}">${pp.ico}</i>${r2 ? `<i class="badge pal-${r2.palier}">${r2.ico}</i>` : ''}</span>` : '';
   // Les icônes, serrées, sans cadre : la case est étroite. Le survol donne le mot.
   const icones = getTraits(p).map(t => TRAITS[t.cle]);
   const compact = icones.length
@@ -196,16 +196,14 @@ function slotTags(p, zoneEcartTag, penTag) {
  * au repêchage, sa fiche à ce jour derrière le banc ; le visage et tout le reste sont dans la fiche, à un toucher.
  */
 function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
-  const pp = profilPrincipal(p);
+  const [pp, r2] = badgesDe(p);
   const a = pp || p.p !== 'G' ? null : getArchetype(p, getHiddenRatings(p));
-  // Le rôle ET son mot (élite, très bon, bon…) : un bagarreur élite se lit comme tel, même à « Soutien ».
-  const mot = pp ? niveauDe(pp.fit) : '';
-  // SON SECOND RÔLE AUSSI (1.0, R3). JP : *un joueur a plusieurs styles de jeu et plusieurs traits, ça se ressent pas
-  // dans les trios*. Un système lit tous ses rôles maîtrisés (`maitrise`, js/sim.js) : la case dit le second, s'il en a un.
-  const r2 = pp && roleSecond(p);
-  const second = r2 ? `<span class="cell-role-2" title="Second rôle : ${esc(r2.nom)}, ${niveauDe(r2.fit)} — lu dans ${esc(r2.mot)}">${r2.ico} ${esc(r2.court || r2.nom)}</span>` : '';
+  // Le badge ET son palier (refonte 1) : un bagarreur Platine se lit comme tel, même à « Soutien ».
+  const mot = pp ? PALIERS[pp.palier].nom : '';
+  // SON SECOND BADGE AUSSI (1.0, R3) : il rend la moitié du sien, la case le dit.
+  const second = r2 ? `<span class="cell-role-2 badge pal-${r2.palier}" title="${esc(titreDuBadge(r2))}">${r2.ico} ${esc(r2.court || r2.nom)}</span>` : '';
   const role = pp
-    ? `<span class="slot-roles cell-role" title="${esc(pp.nom)}, ${mot} — lu dans ${esc(pp.mot)}, comparé aux joueurs de sa saison">${pp.ico} <span>${esc(pp.court || pp.nom)}</span>${second}<i class="cell-mot ${mot === 'élite' ? 'elite' : mot === 'très bon' ? 'tres-bon' : mot}">${mot}</i></span>`
+    ? `<span class="slot-roles cell-role" title="${esc(titreDuBadge(pp))}"><i class="badge pal-${pp.palier}">${pp.ico}</i> <span>${esc(pp.court || pp.nom)}</span>${second}<i class="cell-mot pal-${pp.palier}">${mot}</i></span>`
     : a ? `<span class="slot-roles cell-role" title="${esc(a.desc)}">${a.icon} <span>${esc(a.label)}</span></span>` : '';
   const zone = zoneTag(p, true);
   const marque = ecart === 'sous' ? `<span class="cell-zone sous" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
