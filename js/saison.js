@@ -46,6 +46,7 @@ import { tempsRestant, NOM_PERIODE, recitDeBut } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
+import { panelDe } from './panel-tv.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -1838,11 +1839,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const gros = matchs.slice().sort((x, y) => Math.abs(y.gfA - y.gfB) - Math.abs(x.gfA - x.gfB) || (y.gfA + y.gfB) - (x.gfA + x.gfB))[0];
       corps = `<div class="passage-tampon conge">Congé</div>${gros ? `<p class="passage-recit">${ctx.esc(ctx.teamLabel(gros.gfA > gros.gfB ? gros.A : gros.B))} l'emporte ${Math.max(gros.gfA, gros.gfB)}–${Math.min(gros.gfA, gros.gfB)}${gros.ot ? ' en prolongation' : ''}.</p>` : ''}`;
     }
+    const seq = sequenceDe(you);
+    const panel = panelDe({ eq: ctx.teamShort(you), jour, nbJours: calendrier.length, sequence: seq === '—' ? undefined : seq, rang: rangDe(you), nbEquipes: teams.length }, `${graine}|${jour}`);
     const une = uneDuJour();
+    if (panel.repliques[0]) une.push(`${panel.repliques[0].nom}, ${panel.repliques[0].titre} : ${panel.repliques[0].t}`);
     if (une.length) corps += `<ul class="passage-une">${une.map(x => `<li>${ctx.esc(x)}</li>`).join('')}</ul>`;
     // Le fil des autres résultats du soir, deux fois de suite pour qu'il défile sans couture.
     const autres = matchs.filter(m => m.A !== you && m.B !== you)
-      .map(m => `<span class="passage-score">${ctx.logo(m.A.tag, 14)}${ctx.esc(ctx.tagCourt(m.A))} <b>${m.gfA}–${m.gfB}</b> ${ctx.esc(ctx.tagCourt(m.B))}${ctx.logo(m.B.tag, 14)}</span>`).join('');
+      .map(m => `<span class="passage-score">${ctx.logo(m.A.tag, 14)}${ctx.esc(ctx.tagCourt(m.A))} <b>${m.gfA}–${m.gfB}</b> ${ctx.esc(ctx.tagCourt(m.B))}${ctx.logo(m.B.tag, 14)}</span>`).join('') + panel.manchettes.map(x => `<span class="passage-score">${ctx.esc(x)}</span>`).join('');
     const el = document.createElement('div');
     el.className = 'passage';
     el.setAttribute('aria-hidden', 'true');

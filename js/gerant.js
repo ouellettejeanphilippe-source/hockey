@@ -796,7 +796,7 @@ function placementDe(p, role, u) {
  * dilemmes, séquences, élan, paris, investissements, cartes — et les absents
  * se lisent ici, à côté des lignes, avec le nombre de matchs qui restent.
  */
-export function effetsHtml(e) {
+function effetsHtml(e) {
   if (!e) return '';
   const ligne = (nom, mots, duree) => `<div class="gl-effet"><span class="gl-effet-nom">${nom}</span><span class="choix-puces">${puces(mots)}${duree}</span></div>`;
   const regle = [];

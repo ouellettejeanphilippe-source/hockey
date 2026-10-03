@@ -70,7 +70,7 @@ function graine(str) {
 }
 
 /* ---------- OUVERTURE : l'accroche de l'animateur ---------- */
-export const OUVERTURE = [
+const OUVERTURE = [
   // Toujours vraies.
   ["Bonsoir. Voici ce qu'il faut retenir de la soirée de {eq}.", ""],
   ["Mesdames et messieurs, bonsoir. Le dossier {eq} contre {autre} est sur la table.", ""],
@@ -224,7 +224,7 @@ export const OUVERTURE = [
 ];
 
 /* ---------- CONSTAT : le fait du match ---------- */
-export const CONSTAT = [
+const CONSTAT = [
   // Le pointage.
   ["{eq} l'emporte {s} contre {autre}.", "V !barrage"],
   ["{eq} a battu {autre} par la marque de {s}.", "V !barrage"],
@@ -385,7 +385,7 @@ export const CONSTAT = [
 ];
 
 /* ---------- ANALYSE : ce que le plateau en conclut ---------- */
-export const ANALYSE = [
+const ANALYSE = [
   ["Un résultat de {s} ne se discute pas ; il se commente, ce que nous allons faire.", "!barrage"],
   ["Le plateau n'a pas de théorie du complot à offrir : le pointage est de {s}, et il est exact.", "!barrage"],
   // Gardiens.
@@ -577,7 +577,7 @@ export const ANALYSE = [
 ];
 
 /* ---------- CHUTE : la dernière phrase ---------- */
-export const CHUTE = [
+const CHUTE = [
   // Toujours vraies.
   ["Ce fut le résumé. Il n'engage que ceux qui l'ont écouté.", ""],
   ["Voilà pour le résumé. Le hockey, lui, reprendra comme prévu.", ""],
@@ -747,7 +747,7 @@ const periodeDe = instant => (instant >= 60 ? 4 : Math.min(3, Math.floor(instant
  * dit ou le tait, et une étiquette que le contexte ne soutient pas reste fausse.
  * Retourne null si le match n'a pas de vainqueur lisible.
  */
-export function situationDe(f, ctx = {}) {
+function situationDe(f, ctx = {}) {
   const nous = ctx.cote === 'B' ? 'B' : 'A';
   const eux = nous === 'A' ? 'B' : 'A';
   const buts = (f.buts || []).slice().sort((x, y) => x.instant - y.instant);
@@ -863,7 +863,7 @@ export function situationDe(f, ctx = {}) {
 /* ---------- l'assemblage ---------- */
 
 /** Une pièce, rendue pour cette situation ; null si une étiquette est fausse ou un gabarit sans valeur. */
-export function pieceTexte(piece, sit) {
+function pieceTexte(piece, sit) {
   const [texte, etiquettes] = piece;
   const liste = etiquettes ? etiquettes.split(' ') : [];
   for (const t of liste) {

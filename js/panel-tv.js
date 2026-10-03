@@ -53,7 +53,7 @@ const pige = (liste, g) => liste[Math.floor(g * liste.length) % liste.length];
 
 /* ---------- les huit personnages ---------- */
 
-export const PANEL = [
+const PANEL = [
   { id: 'anim', nom: 'Yvan Lépine-Tessier', titre: 'Animateur', voix: 'posé, formel, remercie tout le monde, annonce la suite comme une loi' },
   { id: 'def', nom: 'Gaétan Brisebois', titre: 'Analyste, ancien défenseur', voix: 'laconique, concret, parle de portes à fermer et de rondelles à sortir' },
   { id: 'chron', nom: 'Lucien Maltais-Dupré', titre: 'Chroniqueur', voix: 'pessimiste, voit la fin dans tout, rappelle qu\'il l\'avait écrit' },
@@ -289,7 +289,7 @@ const R = {
 };
 
 /** Les répliques à plat : { p, si, t }. */
-export const REPLIQUES = Object.entries(R).flatMap(([p, tags]) => Object.entries(tags)
+const REPLIQUES = Object.entries(R).flatMap(([p, tags]) => Object.entries(tags)
   .flatMap(([si, ts]) => [].concat(ts).map(t => ({ p, si, t }))));
 
 /* ---------- les manchettes du bandeau défilant : { si, t }, une ligne ---------- */
@@ -364,7 +364,7 @@ const M = {
 };
 
 /** Les manchettes à plat : { si, t }, une ligne chacune. */
-export const MANCHETTES = Object.entries(M).flatMap(([si, ts]) => ts.map(t => ({ si, t })));
+const MANCHETTES = Object.entries(M).flatMap(([si, ts]) => ts.map(t => ({ si, t })));
 
 /* ---------- les bulletins de série : { si, t } ---------- */
 
@@ -432,7 +432,7 @@ const B = {
 };
 
 /** Les bulletins à plat : { si, t }. */
-export const BULLETINS = Object.entries(B).flatMap(([si, ts]) => ts.map(t => ({ si, t })));
+const BULLETINS = Object.entries(B).flatMap(([si, ts]) => ts.map(t => ({ si, t })));
 
 /* ---------- le tirage ---------- */
 
