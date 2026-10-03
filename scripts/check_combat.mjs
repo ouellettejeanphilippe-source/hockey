@@ -138,6 +138,11 @@ console.log('\n  Le deck de match (S74)\n');
   const synergies = Object.keys(CARTES_MATCH).filter(k => CARTES_MATCH[k].synergie);
   informer('les synergies de cette formation', synergies.map(k => `${CARTES_MATCH[k].ico} ${k} ${effetsDesCartes(t, { jouees: [k] }, 'x').effets.length ? 'active' : 'rien ici'}`).join(' · '));
   // Une synergie peut ne rien donner à une formation qui n'a pas le profil : c'est le jeu, pas une carte muette.
+  // Mais sur toute une ligue, chacune doit trouver son club (refonte 1 : « Le mur bleu » et « Les jambes » lisaient
+  // des rôles disparus en S79 et ne se déclenchaient jamais).
+  const clubs = ligue(7400);
+  const jamais = synergies.filter(k => !clubs.some(c => effetsDesCartes(c, { jouees: [k] }, 'x').effets.length));
+  exiger('chaque synergie se déclenche pour au moins un club de la ligue', jamais.length === 0, jamais.join(' · ') || `${synergies.length} synergies, ${clubs.length} clubs`);
   const vraiesMuettes = muettes.filter(k => !CARTES_MATCH[k].synergie);
   exiger('chaque carte jouable fait quelque chose que le moteur lit', vraiesMuettes.length === 0, vraiesMuettes.join(' · ') || `${Object.keys(CARTES_MATCH).length} cartes`);
   const doute = effetsDesCartes(t, { jouees: [], enMain: ['doute'] }, 'x');

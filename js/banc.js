@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { compterFeuilles, planDe, roulementDe, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, profilPrincipal, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { compterFeuilles, planDe, roulementDe, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, badgesDe, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -19,7 +19,7 @@ import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS } from './rogue.js';
 import { $, G, MODE, positionLabel, alignementAuCartable, applyTeamColors, buildOpponents, capHitDuJour, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
-import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, pastilleNiveau, poserCartes, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
+import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, pastilleNiveau, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain } from './alignement.js';
 import { bloqueParLePlafond, cartesAJouer, finDeSaisonRogue, jetonsRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
@@ -211,7 +211,8 @@ async function deciderSaison(d, depuis) {
   const allume = (d.joue || d.recompense !== undefined) && !d.coach ? palierAllume(G.ligue.decisions || [], d) : null;
   if (allume) d = { ...d, ...allume };
   const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || (!!d.garde && !d.mutation));
-  decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
+  // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
+  decisions.push(deckSeul ? { ...d } : { ...d, sel: d.sel || nouvelleGraine() });
   await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
   if (d.ballottage || d.plafond || d.patron || d.achat) renderCap();
@@ -234,8 +235,9 @@ async function continuerSaison(decisions, depuis, mot) {
   const jourMin = touchees.length ? Math.min(...touchees.map(d => d.jour)) : Infinity;
   if (M && jourMin >= M.jour) {
     L.decisions = M.decisions = decisions;
-    // Le joueur signé (un pack, le ballottage) entre dans l'alignement tout de suite (S79).
+    // Le joueur signé (un pack, le ballottage) entre dans l'alignement tout de suite (S79), avec sa carte.
     poserAlignementDuJour(M);
+    poserCartesArrivees(decisions);
     G.done = true;
     ouvrirEcranSaison(depuis);
     saveGame();
@@ -496,9 +498,9 @@ function effectifHtml(b) {
   const pct = (a, n) => (n ? pct3(a / n) : '—');
   const rangee = (s, p) => {
     const c = b.compte.get(p) || {};
-    const pp = p.p === 'G' ? null : profilPrincipal(p);
+    const pp = p.p === 'G' ? null : badgesDe(p)[0];
     const bl = b.blesses.has(p) ? ` <span class="banc-reste">🩹 ${b.blesses.get(p)}</span>` : '';
-    const tete = `<td class="ef-case">${esc(slotShort(s))}</td><td class="ef-nom"><b>${esc(p.n)}</b>${bl}<span>${esc(positionLabel(p))} · ${pp ? `${pp.ico} ${esc(pp.court || pp.nom)}` : esc(p.t)}</span></td><td>${pastilleNiveau(p)}</td><td class="ef-n">${money(capHitDuJour(p))}</td>`;
+    const tete = `<td class="ef-case">${esc(slotShort(s))}</td><td class="ef-nom"><b>${esc(p.n)}</b>${bl}<span>${esc(positionLabel(p))} · ${pp ? `<i class="badge pal-${pp.palier}">${pp.ico}</i> ${esc(pp.court || pp.nom)}` : esc(p.t)}</span></td><td>${pastilleNiveau(p)}</td><td class="ef-n">${money(capHitDuJour(p))}</td>`;
     if (p.p === 'G') return `<tr>${tete}<td class="ef-n">${c.gp || 0}</td><td class="ef-n" colspan="2">${c.w || 0}-${c.l || 0}</td><td class="ef-n" colspan="2">${pct(c.sv || 0, c.sa || 0)}</td><td class="ef-n" colspan="2">${c.gp ? ((c.ga || 0) / c.gp).toFixed(2).replace('.', ',') : '—'}</td></tr>`;
     return `<tr>${tete}<td class="ef-n">${c.gp || 0}</td><td class="ef-n">${c.g || 0}</td><td class="ef-n">${c.a || 0}</td><td class="ef-n">${c.pts || 0}</td><td class="ef-n">${(c.pm || 0) > 0 ? '+' : ''}${c.pm || 0}</td><td class="ef-n">${c.sh || 0}</td><td class="ef-n">${c.pim || 0}</td></tr>`;
   };

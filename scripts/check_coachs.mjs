@@ -162,9 +162,9 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
 {
   const d = [{ jour: 2, coach: effetDePalier('banque', 3) }];
   const m = modificateurs(d, 10);
-  exiger('le Comptable III : packs −15 %, +2 🪙 par victoire', Math.abs(m.rabais - 0.85) < 1e-9 && m.jetonsVictoire.some(x => x.n === 2 && x.depuis === 2), `rabais ×${m.rabais} · ${JSON.stringify(m.jetonsVictoire)}`);
+  exiger('le Comptable III : packs −20 %, +3 🪙 par victoire', Math.abs(m.rabais - 0.80) < 1e-9 && m.jetonsVictoire.some(x => x.n === 3 && x.depuis === 2), `rabais ×${m.rabais} · ${JSON.stringify(m.jetonsVictoire)}`);
   const pl = plafondDe(d, 10, { base: 82_000_000 });
-  exiger('le Comptable III : plafond +3 %', pl.cap === 82_000_000 + Math.round(82_000_000 * 0.03), `${(pl.cap / 1e6).toFixed(2)} M$`);
+  exiger('le Comptable III : plafond +5 %', pl.cap === 82_000_000 + Math.round(82_000_000 * 0.05), `${(pl.cap / 1e6).toFixed(2)} M$`);
   let hors = 0, impurs = 0;
   for (let n = 0; n < 300; n++) for (const k of ORDRE_COACHS) {
     const a = tirerCartesPack('coach', `g${n}`, n, { coach: k });

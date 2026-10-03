@@ -6,7 +6,7 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, profilPrincipal, CAP } from './sim.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, CAP } from './sim.js';
 import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ratings.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
@@ -394,10 +394,10 @@ function ficheCourte(q) {
   return q.p === 'G' ? `${st.gp} PJ · ${q.sv ?? '—'} %arr (vraie saison)` : `${st.gp} PJ · ${st.g}-${st.a}-${st.pt} (vraie saison)`;
 }
 function colonneEchange(q, mot, sl = null) {
-  const pp = q.p === 'G' ? null : profilPrincipal(q);
+  const pp = q.p === 'G' ? null : badgesDe(q)[0];
   return `<div class="ech-col"><div class="ech-mot">${esc(mot)}</div><b>${esc(q.n)}</b>
     <span>${esc(positionLabel(q))}${sl ? ` · ${esc(ligneDe(sl))}` : ''}</span>
-    <span>${pastilleNiveau(q)}${pp ? ` ${pp.ico} ${esc(pp.court || pp.nom)}` : ''}</span>
+    <span>${pastilleNiveau(q)}${pp ? ` <i class="badge pal-${pp.palier}">${pp.ico}</i> ${esc(pp.court || pp.nom)}` : ''}</span>
     <span>${esc(money(capHitDuJour(q)))}</span>
     <span>${esc(ficheCourte(q))}</span></div>`;
 }
@@ -639,6 +639,10 @@ export function poserCartes(decisions = []) {
   const avant = new Map([...CARTES_POSEES].map(p => [getPlayerKey(p), p]));
   for (const p of CARTES_POSEES) delete p._carte;
   CARTES_POSEES.clear();
+  for (const p of nommesPar(decisions, avant)) { p._carte = carteJoueur(p); CARTES_POSEES.add(p); }
+}
+/* Ton alignement, et tous ceux qu'une décision nomme (un ballottage porte la variante du réclamé). */
+function nommesPar(decisions, avant = new Map()) {
   const miens = Object.values(G.roster || {}).filter(Boolean);
   const nommes = new Set();
   for (const d of decisions) {
@@ -654,7 +658,22 @@ export function poserCartes(decisions = []) {
     const p = ballottageVu.get(cle) || avant.get(cle);
     if (p) miens.push(p);
   }
-  for (const p of miens) { p._carte = carteJoueur(p); CARTES_POSEES.add(p); }
+  return miens;
+}
+/*
+ * LA CARTE D'UN NOUVEAU VENU, DÈS SON ARRIVÉE (1.0, oct.). Une décision prise sans rejouer la saison (un
+ * pack signé, un réclamé : `continuerSaison`, js/banc.js) fait entrer un joueur que `poserCartes` n'a pas
+ * vu : il jouait sans sa variante jusqu'à la prochaine reprise, qui la lui donnait depuis son arrivée — et
+ * le passé changeait (le smoke, graine dw42pq : un défenseur rare, défense +5 %). On la pose maintenant,
+ * à lui seul : reposer toutes les cartes effacerait un lustre que le moteur a déjà posé en saison.
+ */
+export function poserCartesArrivees(decisions = []) {
+  const posees = new Set([...CARTES_POSEES].map(getPlayerKey));
+  for (const p of nommesPar(decisions)) {
+    if (posees.has(getPlayerKey(p))) continue;
+    p._carte = carteJoueur(p);
+    CARTES_POSEES.add(p);
+  }
 }
 /*
  * LES BRILLANTES DÉJÀ VUES (S78) : l'éclat d'une variante brillante (« ✦ »)

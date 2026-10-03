@@ -111,8 +111,13 @@ const base = bases[0];
     ] });
     return u;
   });
-  const apres = moy(avecAjustement.map(u => moy(u[0].jourLignes[J0 + 3].chimie)));
-  const temoin = moy(bases.map(b => moy(b[0].jourLignes[J0 + 3].chimie)));
+  // LA MÊME FORMATION, LES MÊMES LIGNES (refonte 1) : on lit la chimie que la MÉMOIRE de chaque saison (l'entente, la
+  // maîtrise) donne à l'alignement de départ. Lire `jourLignes[…].chimie` mesurait surtout les blessures : sur la graine
+  // « chimie », une ligne cassée dans la saison ajustée (51,8 contre 36,3) faisait à elle seule l'écart moyen, alors
+  // qu'à alignement égal l'ajustement coûte 0,2 point.
+  const memoire = u => moy([0, 1, 2, 3].map(k => chimieLigne(apprentissagePhoto(u[0].jourLignes[J0 + 3].apprentissage), L, k, saison[k])));
+  const apres = moy(avecAjustement.map(memoire));
+  const temoin = moy(bases.map(memoire));
   exiger('s\'adapter un soir ne défait pas la chimie de la saison', Math.abs(apres - temoin) < 3,
     `${temoin.toFixed(1)} % sans l'ajustement, ${apres.toFixed(1)} % avec, moyenne de ${GRAINES.length} saisons (l'ancienne règle l'aurait coupée de moitié)`);
   // Pas complet : ce soir-là, le système peu joué a moins de chimie que le système maîtrisé.

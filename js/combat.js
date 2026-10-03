@@ -130,9 +130,9 @@ export const CARTES_MATCH = {
   gachettes: { nom: 'Les gâchettes', ico: '🎯', cout: 1, rarete: 'peu', genre: 'synergie',
     texte: 'Ils ne passent pas : ils lancent.', regle: 'Précision +2 % par sniper dans tes deux premiers trios (jusqu\'à +6 %).', synergie: 'gachettes' },
   murBleu: { nom: 'Le mur bleu', ico: '🧱', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Trois défenseurs qui ne montent jamais.', regle: 'Buts contre −2 % par défenseur pur habillé (jusqu\'à −6 %).', synergie: 'mur' },
+    texte: 'Trois défenseurs qui ne montent jamais.', regle: 'Buts contre −2 % par défenseur 🛑 Défensif habillé (jusqu\'à −6 %).', synergie: 'mur' },
   jambes: { nom: 'Les jambes', ico: '⚡', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Ça part en contre-attaque avant la ligne rouge.', regle: 'Tirs +2 % par patineur rapide dans ton top 6 (jusqu\'à +8 %).', synergie: 'jambes' },
+    texte: 'Ça part en contre-attaque avant la ligne rouge.', regle: 'Tirs +2 % par plombier 🪠 habillé (jusqu\'à +8 %).', synergie: 'jambes' },
   // LES CARTES D'ORIGINE (1.0) : JP, *des cartes qui activent bonus s'il même équipe*. Elles lisent d'où viennent tes joueurs
   // (js/sim.js `originesDe`) ; l'alignement montre la puce d'une unité qui les déclenche. `origine` : l'adversaire ne les joue
   // pas — une vraie équipe est tout entière d'un club et d'une saison, elle les aurait toutes au maximum.

@@ -27,6 +27,7 @@
  */
 
 import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIFS, MATCHS_OBJECTIF,
+  poserAVenir, recupererEnergie, energieDe, ENERGIE_RECUP_JOUR,
   TACTIQUES, SYSTEMES_D, AGRESSIVITES, contreDe, contreDeD, fitUnite, meilleureTactique, meilleurSystemeD, meilleureAgressivite,
   bilanAgressivite, physiqueLigne, effetsDeSysteme, effetDeMoment, identiteUnite, joueursDeLigne, profilsDe,
   SEC_MIN, SPEC_BASE, SPEC_MULT } from './sim.js';
@@ -193,6 +194,65 @@ export function prevision({ toi, calendrier, jourRevele, n = 8, graine = 'previs
   const moy = a => a.reduce((x, y) => x + y, 0) / a.length;
   const joueurs = new Map([...parJoueur].map(([p, e]) => [p, { b: e.b / n, a: e.a / n }]));
   return { n, matchs: restants.length, pts: moy(pts), bas: pts[Math.floor(n * 0.1)], haut: pts[Math.ceil(n * 0.9) - 1], gfm: moy(gf) / restants.length, gam: moy(ga) / restants.length, joueurs };
+}
+
+/*
+ * CE QUE REND UN MÉNAGEMENT (1.0, le suivi des jambes). JP : *tracking de l'énergie et optimisation de
+ * l'énergie*. Comme la prévision : le vrai moteur rejoue tes matchs d'ici au prochain d'après (`horizon`,
+ * son matin), ta formation au matin d'aujourd'hui, `n` fois — une fois telle quelle, puis une fois par
+ * proposition. Une proposition est une DÉCISION EXISTANTE (un joueur en réserve par les cases, un
+ * roulement, une consigne, des lignes), posée au jour dit comme le moteur la posera ; les décisions déjà
+ * prises pour ces journées (`aVenir`) le sont aussi. Chaque journée rend sa part du manque
+ * (`recupererEnergie`, comme `preludeDuJour`), chaque soir use (`playGame`, coups compris). Le même
+ * essai rejoue les mêmes dés avec ou sans la proposition : l'écart est la proposition, pas le hasard.
+ * Rend, par essai, les jambes moyennes de chaque patineur au matin de `horizon` (clé → 0-100).
+ */
+export function jambesAVenir({ toi, calendrier, jourRevele, aVenir = [], propositions = [], n = 6, graine = 'jambes' }) {
+  const mesJours = [];
+  for (let j = jourRevele; j < calendrier.length && mesJours.length < 2; j++) if (calendrier[j].some(m => m.A === toi || m.B === toi)) mesJours.push(j);
+  if (!mesJours.length) return null;
+  const horizon = mesJours[1] ?? mesJours[0] + 1;
+  const matchs = [];
+  for (let j = jourRevele; j < horizon; j++) for (const m of calendrier[j] || []) if (m.A === toi || m.B === toi) matchs.push({ j, m });
+  const tous = [toi, ...new Set(matchs.map(({ m }) => (m.A === toi ? m.B : m.A)))];
+  const membres = new Map(tous.map(t => [t, joueursDe(t)]));
+  const patineurs = membres.get(toi).filter(p => p.p !== 'G');
+  const photos = photographier([...membres.values()].flat());
+  const essai = (decs, i) => {
+    rendre(photos);
+    const copies = new Map(tous.map(t => {
+      const joues = matchsAvant(calendrier, t, jourRevele);
+      const c = copieDuJour(t, { jourMatch: jourRevele, jourRevele, joues, connus: joues });
+      for (const p of membres.get(t)) c.poser(p);
+      // Le match se joue avec ses comptes (`track`) : c'est là que les présences usent. Ce qu'il en écrit
+      // au club se fait sur la copie ; ce qu'il écrit aux joueurs, `rendre` le reprend.
+      c.copie.together = new Map(t.together || []); c.copie.togetherSig = new Map(t.togetherSig || []);
+      return [t, c.copie];
+    }));
+    const moi = copies.get(toi);
+    avecHasardIsole(`${graine}|${toi.tag}|${jourRevele}|${i}`, () => {
+      for (let j = jourRevele; j <= horizon; j++) {
+        for (const c of copies.values()) { c.jourCourant = j; if (j > jourRevele) recupererEnergie(c, ENERGIE_RECUP_JOUR); }
+        if (j === horizon) break;
+        poserAVenir(moi, decs.filter(d => d.jour === j), { cases: true });
+        for (const { m } of matchs.filter(x => x.j === j)) {
+          playGame(copies.get(m.A), copies.get(m.B), j, true, false, null, 0, true);
+        }
+      }
+    });
+    return new Map(patineurs.map(p => [getPlayerKey(p), energieDe(p)]));
+  };
+  const mesurer = decs => {
+    const somme = new Map();
+    for (let i = 0; i < n; i++) for (const [k, e] of essai(decs, i)) somme.set(k, (somme.get(k) || 0) + e / n);
+    return somme;
+  };
+  try {
+    const base = mesurer(aVenir);
+    // Une proposition remplace la décision du même genre déjà prise ce jour-là (comme `deciderSaison`).
+    const avec = d => [...aVenir.filter(x => !(x.jour === d.jour && ((d.match && x.match) || (d.lignes && x.lignes) || (d.cases && x.cases) || ('roulement' in d && 'roulement' in x)))), d];
+    return { horizon, prochain: mesJours[0], base, propositions: propositions.map(d => mesurer(avec(d))) };
+  } finally { rendre(photos); }
 }
 
 /*

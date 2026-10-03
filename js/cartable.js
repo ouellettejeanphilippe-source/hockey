@@ -125,6 +125,29 @@ export function poserSurLesCartes(parCle = {}) {
   if (change) ecrire(c);
 }
 export const modsDe = (cle, c = lireCartable()) => ((c.joueurs[cle] || {}).mods || []).slice();
+/*
+ * MOMENTS LÉGENDAIRES SUR LA CARTE (v2) : un exploit de saison — jeu blanc,
+ * chapeau, grand match, mur — se grave sur la carte du joueur (`legendes`),
+ * une fois par type et par saison de run. La carte le porte d'une run à
+ * l'autre ; l'écran en tient compte à l'affichage.
+ */
+export function ajouterLegendesAuCartable(moments = [], saison = 0) {
+  if (!moments.length) return;
+  const c = lireCartable();
+  let change = false;
+  for (const m of moments) {
+    if (!m.cle || !m.type) continue;
+    const x = c.joueurs[m.cle];
+    if (!x) continue;
+    const legendes = x.legendes || [];
+    if (!legendes.find(l => l.type === m.type && l.saison === saison)) {
+      legendes.push({ type: m.type, saison });
+      x.legendes = legendes;
+      change = true;
+    }
+  }
+  if (change) ecrire(c);
+}
 /* La meilleure variante obtenue d'une carte. */
 export const meilleureVariante = x => ['legendaire', 'rare', 'peu', 'commune'].find(r => x && x.v && x.v[r]) || 'commune';
 /* Les comptes du cartable : joueurs, copies, doublons, par variante, numérotées. */

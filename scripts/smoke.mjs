@@ -63,7 +63,7 @@ let toastVu = false;           // le premier toast d'une signature, mesuré une 
  * jamais serait un choix qui ne s'affiche jamais.
  */
 const choixVus = new Map();
-const parisPris = [], parisDits = [];   // les paris pris, et ce que la boîte en a dit
+const parisPris = [], parisDits = [], desLances = [];   // les paris pris, ce que la boîte en a dit, les dés lancés
 const _click = page.click.bind(page);
 const _wait = page.waitForSelector.bind(page);
 /*
@@ -74,7 +74,7 @@ const _wait = page.waitForSelector.bind(page);
  * (qui règle d'abord les choix forcés, plus bas) ou `_click`.
  */
 const SECTION_DE = {
-  match: 'club', boite: 'club', saison: 'club', alignement: 'effectif', repechage: 'marche', marche: 'marche',
+  match: 'club', boite: 'club', saison: 'club', alignement: 'effectif', jambes: 'club', repechage: 'marche', marche: 'marche',
   classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'collection', cartable: 'collection',
 };
 const SECTIONS = ['club', 'effectif', 'marche', 'ligue', 'collection'];
@@ -147,11 +147,11 @@ async function eprouverCoquille() {
     await page.waitForTimeout(250);
     if (await page.$('#hubModal .hub-page')) errors.push('Échap ne referme pas la page du dépistage');
   }
-  // LES SOUS-ONGLETS DU CLUB (1.0, R2) : Match, Boîte, Saison — la boîte de réception ne s'empile plus sous l'affiche.
+  // LES SOUS-ONGLETS DU CLUB (1.0, R2) : Match, Boîte, Saison, Jambes — la boîte de réception ne s'empile plus sous l'affiche.
   await page.click('#navbar .navtab[data-section="club"]');
   await page.waitForTimeout(200);
   const sousClub = await page.$$eval('#sousNav:not([hidden]) .soustab', e => e.map(x => x.dataset.page).join(','));
-  if (sousClub !== 'match,boite,saison') errors.push(`en saison, le Club n'a pas ses trois sous-onglets : « ${sousClub} »`);
+  if (sousClub !== 'match,boite,saison,jambes') errors.push(`en saison, le Club n'a pas ses quatre sous-onglets : « ${sousClub} »`);
   else {
     await page.click('#sousNav .soustab[data-page="saison"]');
     await page.waitForTimeout(300);
@@ -567,12 +567,44 @@ async function repondreAuxChoix() {
     // UN PARI SE TRANCHE AU CHOIX : la boîte dit tout de suite comment il a tourné.
     const pari = /Pari/.test(await opt.$eval('.choix-forme', e => e.textContent).catch(() => ''));
     await opt.click();
+    /*
+     * LE LANCER DE DÉ (1.0, oct.). Une réponse risquée ouvre le dé : ce qu'il faut (« sur 4, 5 ou 6 »),
+     * Entrée lance, le dé tombe. Ce qui se vérifie ne dépend pas de la face tirée : la face dit le
+     * verdict, et la boîte, qui lit le moteur (`pariDeDecision` sur la décision sauvée), dit le même.
+     */
+    let de = null;
+    if (pari) {
+      try { await _wait('#choixModal:not([hidden]) .de-scene .de-lancer', { timeout: 5000 }); } catch { errors.push(`« ${titre} » : la réponse risquée n'ouvre pas le dé`); }
+      if (await page.$('#choixModal:not([hidden]) .de-lancer')) {
+        const besoin = ((await page.textContent('#choixModal .de-besoin')) || '').trim();
+        const k = (besoin.match(/\d/g) || []).length;
+        if (!/sur (un \d|(\d, )*\d ou \d)$/.test(besoin) || /%/.test(besoin)) errors.push(`le dé de « ${titre} » ne dit pas ses faces : « ${besoin} »`);
+        await page.focus('#choixModal .de-lancer');
+        await page.keyboard.press('Enter');
+        try { await _wait('#choixModal .de.pose', { timeout: 6000 }); } catch { errors.push(`le dé de « ${titre} » ne tombe pas`); }
+        de = await page.evaluate(() => {
+          const d = document.querySelector('#choixModal .de.pose');
+          return d ? { face: Number(d.dataset.face), gagne: d.classList.contains('gagne'), verdict: (document.querySelector('#choixModal .de-verdict') || {}).textContent || '' } : null;
+        });
+        if (de && de.gagne !== (de.face > 6 - k)) errors.push(`le dé de « ${titre} » montre ${de.face} pour ${besoin}, et dit ${de.gagne ? 'ça passe' : 'raté'}`);
+        if (de && !(de.face >= 1 && de.face <= 6)) errors.push(`le dé de « ${titre} » montre une face impossible : ${de.face}`);
+        if (de) desLances.push(`${titre} : ${de.face} ${de.gagne ? '✓' : '✗'}`);
+        await _click('#choixModal .de-suite');
+      }
+    }
     await ecranPret();
     await page.waitForTimeout(350);
     if (pari) {
       parisPris.push(titre);
       const mot = await page.$eval('#hubModal .hub-msg[data-msg="pari"] .hub-msg-sujet', e => e.textContent.trim()).catch(() => '');
       if (mot) parisDits.push(mot);
+      // Le message de CE pari (la boîte en garde plusieurs tant que leurs effets courent).
+      const sien = de ? await page.$$eval('#hubModal .hub-msg[data-msg="pari"] .hub-msg-sujet', (els, [t, seq]) => { const l = els.map(e => e.textContent.trim()); return l.find(x => x.startsWith(`${t} :`)) || (seq ? l.find(x => /de suite :/.test(x)) : '') || ''; }, [titre, genre === 'hub-sequence']).catch(() => '') : '';
+      if (de && !sien) errors.push(`le dé de « ${titre} » est tombé, et la boîte ne dit pas comment ce pari a tourné`);
+      else if (de && /a payé/.test(sien) !== de.gagne) errors.push(`le dé de « ${titre} » dit ${de.gagne ? 'ça passe' : 'raté'}, la boîte (le moteur) dit « ${sien} »`);
+      // La boîte se vide : l'événement réglé n'attend plus.
+      const reste = await page.$$eval('#hubModal .hub-choix-rouvrir', (els, t) => els.some(e => e.textContent.includes(t)), titre).catch(() => false);
+      if (de && reste) errors.push(`« ${titre} » réglé au dé attend encore dans la boîte`);
     }
   }
 }
@@ -1591,6 +1623,55 @@ console.log(`3. #mainBtn actif : ${enabled}`);
 /* L'écran de saison : on avance d'une journée, on lit les meneurs, on regarde
    un match en direct (pause, statistiques, reprise, fin), puis on passe à la
    fin et au bilan. */
+/*
+ * LES JAMBES (1.0, le suivi des jambes), une fois, en pleine saison. Club › Jambes : ta formation, les
+ * plus usés d'abord, chacun avec sa courbe ; puis les ménagements, chacun avec ce qu'il rend en jambes,
+ * mesuré par le moteur. Le plus usé mis en réserve a plus de jambes le lendemain matin — sans dépendre
+ * du tirage : un joueur qui ne joue pas rattrape chaque jour une part de ce qui lui manque.
+ */
+let jambesVues = false;
+async function eprouverJambes() {
+  jambesVues = true;
+  await aller('jambes');
+  try { await _wait('#hubModal .jb-liste .jb-j', { timeout: 10000 }); } catch { errors.push('Club › Jambes : aucune liste'); await aller('match'); return; }
+  const liste = await page.$$eval('#hubModal .jb-j', rs => rs.map(r => Number(r.querySelector('.jambes b')?.textContent)));
+  if (liste.some((x, i) => i && x < liste[i - 1])) errors.push(`Jambes : la liste ne part pas des plus usés (${liste.slice(0, 6).join(', ')}…)`);
+  if (!(await page.$('#hubModal .jb-j .courbe-jambes svg path.courbe-trait'))) errors.push('Jambes : aucune courbe');
+  await _wait('#hubModal .jb-appliquer', { timeout: 30000 }).catch(() => {});
+  const props = await page.$$eval('#hubModal .jb-prop', ps => ps.map(p => ({ i: p.querySelector('[data-menager]')?.dataset.menager, t: (p.querySelector('.jb-prop-t b')?.textContent || '').trim(), puce: p.querySelector('.puce')?.textContent || '' })));
+  if (!props.length) errors.push('Jambes : aucune façon de les ménager');
+  const muettes = props.filter(p => !/\d jambes/.test(p.puce));
+  if (muettes.length) errors.push(`Jambes : ${muettes.length} proposition(s) sans ce qu'elle rend (« ${muettes[0].t} »)`);
+  const repos = props.find(p => / en réserve$/.test(p.t));
+  if (!repos) { errors.push('Jambes : aucune proposition de mettre le plus usé en réserve'); await aller('match'); return; }
+  const nom = repos.t.replace(/ en réserve$/, '');
+  const jambesDe = () => page.$$eval('#hubModal .jb-j', (rs, n) => { const r = rs.find(x => (x.querySelector('.jb-nom')?.textContent || '').includes(n)); return r ? Number(r.querySelector('.jambes b').textContent) : null; }, nom);
+  const avant = await jambesDe();
+  await _click(`#hubModal [data-menager="${repos.i}"]`);
+  await page.waitForTimeout(300);
+  await ecranPret(60000);
+  await repondreAuxChoix();
+  // Le lendemain : une journée, une seule.
+  await aller('match');
+  await debloquer();
+  for (let k = 0; k < 3; k++) {
+    const b = await page.$('#hubModal .hub-jour');
+    if (!b) break;
+    const mot = ((await b.textContent()) || '').trim();
+    await page.click('#hubModal .hub-jour');
+    await page.waitForTimeout(150);
+    await ecranPret(60000);
+    await repondreAuxChoix();
+    if (/Journée suivante/.test(mot)) break;
+  }
+  await aller('jambes');
+  await _wait('#hubModal .jb-liste .jb-j', { timeout: 10000 }).catch(() => {});
+  const apres = await jambesDe();
+  if (avant == null || apres == null) errors.push(`Jambes : ${nom} introuvable dans la liste (${avant} → ${apres})`);
+  else if (!(apres > avant || (avant >= 98 && apres >= avant))) errors.push(`Jambes : ${nom} mis en réserve n'a pas plus de jambes le lendemain (${avant} → ${apres})`);
+  else console.log(`   les jambes : ${liste.length} joueurs, ${props.length} ménagements mesurés · ${nom} en réserve : ${avant} → ${apres} le lendemain`);
+  await aller('match');
+}
 async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
   /*
@@ -1628,6 +1709,7 @@ async function traverserSaison(etiquette, reprise = false) {
     else if (!som && !(await page.$('#hubModal .hub-hier'))) errors.push('après « Journée suivante », le résultat n\'est ni en plein écran ni au bureau');
     else if (!som) console.log('   un match ordinaire : pas de plein écran, le résultat monte au bureau');
   }
+  if (!jambesVues) await eprouverJambes();
   const jour = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
   if (!coquilleVue) { await repondreAuxChoix(); await eprouverCoquille(); }
 
@@ -2089,7 +2171,11 @@ async function traverserSaison(etiquette, reprise = false) {
           if (sc) sc.scrollTop = sc.scrollHeight;
           await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
           const r = toi.getBoundingClientRect(), rf = f.getBoundingClientRect();
-          if (r.bottom > rf.top && r.top < rf.bottom) cache = `${Math.round(r.bottom - rf.top)} px`;
+          if (r.bottom > rf.top && r.top < rf.bottom) {
+            // De quoi comprendre un échec : qui défile, ce qui est réservé sous le volet, où sont le bouton et la rangée.
+            const v = document.querySelector('#hubModal .hub-volet'), rs = sc ? sc.getBoundingClientRect() : null;
+            cache = `${Math.round(r.bottom - rf.top)} px (défile : ${sc ? `${sc.id || sc.className} ${sc.scrollTop}/${sc.scrollHeight - sc.clientHeight}, bas ${Math.round(rs.bottom)}` : 'rien'} ; volet : ${v ? getComputedStyle(v).paddingBottom : '—'} ; bouton ${Math.round(rf.top)}-${Math.round(rf.bottom)} ; rangée ${Math.round(r.top)}-${Math.round(r.bottom)})`;
+          }
           if (sc) sc.scrollTop = 0;
         }
         return { n: noms.length, coupes, cache, w: innerWidth };
@@ -2259,7 +2345,7 @@ async function traverserSaison(etiquette, reprise = false) {
         else {
           await _click(`#choixModal .tc[data-choix="${deck}"]`);
           // L'amélioration (S80) va droit à l'inventaire : pas de deuxième choix, le hub revient.
-          await _wait('#choixModal:not([hidden]) :is(.choix-option, .aln-case), #hubModal .hub-jour', { timeout: 120000 });
+          await _wait('#choixModal:not([hidden]) :is(.choix-option, .aln-case), #hubModal .hub-jour, #hubModal .hub-traiter', { timeout: 120000 });
           await page.waitForTimeout(300);
           const ouvert = !!(await page.$('#choixModal:not([hidden]) .choix-sheet'));
           const suite = ouvert ? ((await page.textContent('#choixModal .choix-titre')) || '').trim() : 'gardée dans l\'inventaire';
@@ -2727,9 +2813,19 @@ if (enabled) {
     else if (d.some((x, i) => x + r[i] !== tot[i])) errors.push(`domicile ${d.join('-')} et route ${r.join('-')} ne font pas la fiche ${score.trim()}`);
     else {
       await page.click('#resultHost .bl-sauts [data-bl-saut="rythme"]');
-      await page.waitForTimeout(500);
-      const vu = await page.$eval('#resultHost [data-bl="rythme"]', e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight / 2; });
-      if (!vu) errors.push('le chapitre « Rythme » ne vient pas en haut quand on le touche');
+      // Le saut défile en douceur : sa durée suit la distance et la machine (500 ms ne suffisaient pas en CI, graine pgui2c).
+      // On attend que le chapitre arrive, jusqu'à 3 s, plutôt qu'un délai fixe.
+      const vu = await page.waitForFunction(() => { const e = document.querySelector('#resultHost [data-bl="rythme"]'); if (!e) return false; const r = e.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight / 2; },
+        null, { timeout: 3000 }).then(() => true).catch(() => false);
+      if (!vu) {
+        // De quoi comprendre : où le chapitre s'arrête, et ce qui défile (au bout ou non).
+        const ou = await page.evaluate(() => {
+          const e = document.querySelector('#resultHost [data-bl="rythme"]'), r = e && e.getBoundingClientRect();
+          let sc = e && e.parentElement; while (sc && !(['auto', 'scroll'].includes(getComputedStyle(sc).overflowY) && sc.scrollHeight > sc.clientHeight + 1)) sc = sc.parentElement;
+          return `chapitre ${r ? Math.round(r.top) : '—'} sur ${innerHeight} ; défile : ${sc ? `${sc.id || sc.className} ${Math.round(sc.scrollTop)}/${sc.scrollHeight - sc.clientHeight}` : 'la page ' + Math.round(scrollY)}`;
+        });
+        errors.push(`le chapitre « Rythme » ne vient pas en haut quand on le touche (${ou})`);
+      }
       console.log(`   le bilan par chapitres : ${ch.join(' · ')} · domicile ${d.join('-')}, route ${r.join('-')} · ${tuiles.length} chiffres`);
       await deuxCaptures('bilan-rythme', '#resultHost [data-bl="rythme"]');
     }
@@ -3486,6 +3582,8 @@ console.log(`   paquets ouverts : ${paquetsVus.length ? paquetsVus.join(' · ') 
 console.log(`   sommaires de journée lus : ${sommairesVus} · paliers joués en passant : ${paliersJoues.join(' · ') || 'aucun'}`);
 if (parisPris.length && !parisDits.length) errors.push(`${parisPris.length} pari(s) pris (${parisPris.slice(0, 3).join(' · ')}), et la boîte n'a jamais dit comment il a tourné`);
 else if (parisPris.length) console.log(`   paris tranchés : ${parisPris.length} pris, la boîte en dit ${parisDits.length} — « ${parisDits[0]} »`);
+if (parisPris.length && !desLances.length) errors.push(`${parisPris.length} pari(s) pris, et aucun dé lancé`);
+else if (desLances.length) console.log(`   dés lancés : ${desLances.length} — ${desLances.slice(0, 4).join(' · ')}`);
 if (!sommairesVus) errors.push('aucun sommaire de journée après « Journée suivante », alors que ton club a joué');
 console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
 console.log(`   identités de départ prises : ${identitesVues.join(' · ') || 'aucune'}`);

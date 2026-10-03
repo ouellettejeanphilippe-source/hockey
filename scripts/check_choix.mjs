@@ -11,7 +11,7 @@
  *   2. une option qui ne fait QUE coûter (« Moindre mal », sans rien d'autre).
  * La forme est celle de l'écran (`formeDe`, js/gerant.js).
  */
-import { MOMENTS, SEQUENCES, AVANT_GROS, JOURS_MOMENTS, ENTRACTES, entractesDu } from '../js/sim.js';
+import { MOMENTS, SEQUENCES, AVANT_GROS, JOURS_MOMENTS, ENTRACTES, entractesDu, pariDeDecision, facesDuPari } from '../js/sim.js';
 import { brancherMoments } from '../js/situations.js';
 import { formeDe } from '../js/gerant.js';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -69,5 +69,35 @@ informer('événements lus', `${n}`);
 exiger('aucune option gratuite face à une option vide', !fautifs.some(f => /ne fait rien/.test(f)), fautifs.filter(f => /ne fait rien/.test(f)).join(' · '));
 exiger('aucune option gratuite face à une option qui ne fait que coûter', !fautifs.some(f => /que coûter/.test(f)), fautifs.filter(f => /que coûter/.test(f)).join(' · '));
 exiger('aucune option battue sur tous les canaux par une autre du même choix', !battues.length, battues.join(' · '));
+
+/*
+ * 4. UN PARI SE JOUE AU DÉ (1.0, oct.). JP : *faire modal avec lancé de dé et réponse*. Chaque pari d'un
+ * événement a une chance en sixièmes (« sur 4, 5 ou 6 », jamais une cote) ; le dé que l'écran montre est
+ * celui que le moteur tranche (`pariDeDecision`) : une face de 1 à 6, gagnante si elle est parmi les plus
+ * hautes, la même pour le même sel (la décision se rejoue), et sur mille sels la part gagnante tombe
+ * sur ses faces.
+ */
+const paris = [['moment', MOMENTS], ['sequence', SEQUENCES], ['avant', AVANT_GROS]].flatMap(([fam, liste]) =>
+  Object.entries(liste).flatMap(([cle, ev]) => (ev.options || []).filter(o => o.pari).map(o => ({ fam, cle, o, titre: ev.titre }))));
+const pasEnSixiemes = paris.filter(x => Math.abs(x.o.pari.chance * 6 - Math.round(x.o.pari.chance * 6)) > 1e-9 || facesDuPari(x.o.pari.chance) !== Math.round(x.o.pari.chance * 6));
+const decisionDe = (x, sel) => (x.fam === 'avant' ? { jour: 30, avant: { cle: x.cle, choix: x.o.cle, joueurs: [] }, sel }
+  : { jour: 30, moment: { famille: x.fam === 'sequence' ? 'sequence' : 'moment', cle: x.cle, choix: x.o.cle, joueurs: [] }, sel });
+const fautesDe = [];
+let ecartMax = 0;
+for (const x of paris) {
+  let gagnes = 0;
+  for (let i = 0; i < 1000; i++) {
+    const a = pariDeDecision(decisionDe(x, `s${i}`), 'graine-de'), b = pariDeDecision(decisionDe(x, `s${i}`), 'graine-de');
+    if (!a) { fautesDe.push(`${x.titre} : aucun dé`); break; }
+    if (!(a.face >= 1 && a.face <= 6) || a.gagne !== (a.face > 6 - a.faces) || a.faces !== facesDuPari(x.o.pari.chance)) { fautesDe.push(`${x.titre} : la face ${a.face} ne dit pas le verdict`); break; }
+    if (a.face !== b.face || a.gagne !== b.gagne) { fautesDe.push(`${x.titre} : le même sel ne redonne pas le même dé`); break; }
+    if (a.gagne) gagnes++;
+  }
+  ecartMax = Math.max(ecartMax, Math.abs(gagnes / 1000 - facesDuPari(x.o.pari.chance) / 6));
+}
+informer('paris d’événement', `${paris.length}, sur ${[...new Set(paris.map(x => facesDuPari(x.o.pari.chance)))].sort().join(', ')} face(s)`);
+exiger('chaque pari a sa chance en sixièmes (des faces de dé)', !pasEnSixiemes.length, pasEnSixiemes.map(x => `${x.titre} : ${x.o.pari.chance}`).join(' · '));
+exiger('le dé montre le verdict du moteur, et le même sel le redonne', !fautesDe.length, fautesDe.join(' · '));
+exiger('sur mille sels, la part gagnante tombe sur ses faces', ecartMax < 0.05, `écart max ${ecartMax.toFixed(3)}`);
 
 verdict();

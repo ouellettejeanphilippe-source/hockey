@@ -20,7 +20,7 @@
  * lui-même le brouillard de guerre dans les options.
  */
 
-import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, profilPrincipal, MUTATIONS, roleSecond, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur } from './sim.js';
+import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, PALIERS, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur } from './sim.js';
 import { COACHS, JOUEUR_COACH } from './coachs.js';
 import { PLAFOND_ROGUE, lireMeta } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
@@ -43,7 +43,7 @@ import { brancherManette } from './manette.js';
 import { brancherInclinaison } from './cartes.js';
 import { afficherMenu, fermerMenu } from './menu.js';
 import { MT, chargerTable } from './charge-table.js';
-import { ouvrirChoix } from './gerant.js';
+import { ouvrirChoix, titreDuBadge, motDuBadge } from './gerant.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { brancherEntractes } from './entracte.js';
 import { migrerHistorique, rendreCartable, ajouterAuCartable, marquerJouees } from './cartable.js';
@@ -539,7 +539,7 @@ export const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_S
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S90';  // S90 : chaque journée tire ses dés à son matin, et la sauvegarde les garde (`deDuJour`) ; un pari se tranche au sel du choix. S89 : le fit d'un système se lit au style, à talent égal (PENTE_TALENT). S88 : un gros match date ses blessures dans la troisième période (le choix de l'entracte ne réécrit plus les deux premières). S87 : les ailes d'un système s'assortissent (AG et AD dans le sens où les ailiers rendent le mieux). S86 : la force et le style des clubs se mesurent après la remise à zéro des joueurs (la reprise rendait un autre passé). S85 : le partant blessé, l'auxiliaire prend le filet (le rappel ne joue plus tous les soirs). S84 : le vrai calendrier (82 matchs en 186 jours, des congés, des dos-à-dos ; la récupération par jour, les durées en matchs, les événements la veille). S83 : le gros match s'annonce la veille (ANNONCE_GROS = 1). S82 : la carte du New Jersey recentrée (0,945 · 0,935). S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
+const VERSION_MOTEUR = 'S91';  // S91 : les badges à paliers — chaque joueur rend son badge par joueur (Bronze à Platine), le passeur et le manieur montent la chimie. S90 : chaque journée tire ses dés à son matin, et la sauvegarde les garde (`deDuJour`) ; un pari se tranche au sel du choix. S89 : le fit d'un système se lit au style, à talent égal (PENTE_TALENT). S88 : un gros match date ses blessures dans la troisième période (le choix de l'entracte ne réécrit plus les deux premières). S87 : les ailes d'un système s'assortissent (AG et AD dans le sens où les ailiers rendent le mieux). S86 : la force et le style des clubs se mesurent après la remise à zéro des joueurs (la reprise rendait un autre passé). S85 : le partant blessé, l'auxiliaire prend le filet (le rappel ne joue plus tous les soirs). S84 : le vrai calendrier (82 matchs en 186 jours, des congés, des dos-à-dos ; la récupération par jour, les durées en matchs, les événements la veille). S83 : le gros match s'annonce la veille (ANNONCE_GROS = 1). S82 : la carte du New Jersey recentrée (0,945 · 0,935). S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
 export function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
@@ -878,11 +878,11 @@ export function positionLabel(p) {
  */
 export function quiEst(p, { role = true, stats = true } = {}) {
   if (!p) return '';
-  const pp = role ? profilPrincipal(p) : null;
+  const pp = role ? badgesDe(p)[0] : null;
   const st = stats ? displayStats(p) : null;
   const saison = !st ? '' : p.p === 'G' ? `${st.w} V${p.sv != null ? ` · ${p.sv} %ARR` : ''}` : `${st.g} B · ${st.pt} PTS`;
   const traits = getTraits(p).map(t => TRAITS[t.cle] && TRAITS[t.cle].icon).filter(Boolean).join('');
-  return [positionLabel(p), pp ? `${pp.ico} ${pp.nom}` : '', saison, traits].filter(Boolean).join(' · ');
+  return [positionLabel(p), pp ? `${pp.ico} ${motDuBadge(pp)}` : '', saison, traits].filter(Boolean).join(' · ');
 }
 
 export function positionClass(p) {
@@ -926,7 +926,7 @@ const parMatch = x => (Math.round(x * 10) / 10).toFixed(1).replace('.', ',');
 export function chiffreCle(p) {
   if (p.p === 'G') return { v: svCourt(p), u: '%ARR', mot: 'son % d\'arrêts' };
   const st = displayStats(p);
-  const cle = (profilPrincipal(p) || {}).cle;
+  const cle = (badgesDe(p)[0] || {}).cle;
   if (cle === 'bagarreur') return { v: p.pim ?? 0, u: 'PUN', mot: 'ses minutes de punition' };
   if (cle === 'checker' || cle === 'energie' || cle === 'physique') {
     if (p.ht != null) return { v: parMatch(p.ht), u: 'MÉ/M', mot: 'ses mises en échec par match' };
@@ -1015,9 +1015,8 @@ export function zoneTag(p, mini = false) {
  */
 export function roleTag(p) {
   const marques = clesDesMods(p).map(k => MUTATIONS[k] ? `<span class="tag tag-mut" title="${esc(MUTATIONS[k].nom)} — ${esc(MUTATIONS[k].quoi)}">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
-  const pp = profilPrincipal(p);
-  const r2 = pp && roleSecond(p);
-  if (pp) return `<span class="tag tag-role" title="${esc(pp.nom)} — lu dans ${esc(pp.mot)}${r2 ? ` · second rôle : ${esc(r2.nom)}` : ''}">${pp.ico} ${esc(pp.nom)}${r2 ? ` <small>· ${r2.ico}</small>` : ''}</span>${marques}`;
+  const [pp, r2] = badgesDe(p);
+  if (pp) return `<span class="tag tag-role" title="${esc(titreDuBadge(pp))}${r2 ? ` · second badge : ${esc(motDuBadge(r2))}` : ''}"><i class="badge pal-${pp.palier}">${pp.ico}</i> ${esc(pp.nom)} <b class="badge pal-${pp.palier}">${PALIERS[pp.palier].nom}</b>${r2 ? ` <small>· <i class="badge pal-${r2.palier}">${r2.ico}</i></small>` : ''}</span>${marques}`;
   // 1.0 (C2) : l'archétype ne se lit que pour un gardien ; un patineur sans rôle lu (trop peu joué) n'en porte pas.
   if (p.p !== 'G') return marques;
   const a = getArchetype(p, getHiddenRatings(p));
@@ -1583,7 +1582,9 @@ const PAGES_DE = {
   // LE CLUB EN SOUS-ONGLETS (1.0, R2). JP : *ajouter des sous-onglets dans les pages comme l'accueil, avec les infos,
   // au lieu de tout avoir*. En saison : le match, la boîte de réception, la saison (le proprio, l'infirmerie, ta route,
   // ton histoire, tes matchs). « Ma fiche » vivait sous Ligue › Calendrier ; elle est la page Saison du Club.
-  club: () => ['match', ...['boite', 'saison'].filter(p => voletPour(p))],
+  // LES JAMBES (1.0) : en saison, la courbe de chacun et de quoi les ménager (js/saison.js, `voletJambes`). Au Club,
+  // parce que l'Effectif ouvre « derrière le banc » et ferme l'écran de saison.
+  club: () => ['match', ...['boite', 'saison', 'jambes'].filter(p => voletPour(p))],
   effectif: () => ['alignement'],
   marche: () => [auVestiaire() ? 'repechage' : 'marche'],
   // En saison, le calendrier n'a pas de volet (« Ma fiche » est la page Saison du Club) : l'onglet attend le bilan.
@@ -1592,7 +1593,7 @@ const PAGES_DE = {
 };
 /* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
 const PAGE = {
-  match: ['i-club', 'Match'], boite: ['i-boite', 'Boîte'], saison: ['i-saison', 'Saison'], alignement: ['i-list', 'Effectif'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Marché'],
+  match: ['i-club', 'Match'], boite: ['i-boite', 'Boîte'], saison: ['i-saison', 'Saison'], alignement: ['i-list', 'Effectif'], jambes: ['i-jambes', 'Jambes'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Marché'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Saisons'], cartable: ['i-cartes', 'Cartable'],
 };
@@ -1602,7 +1603,7 @@ const VOLETS_DU_BILAN = {
   match: ['series', 'bilan'], classement: ['classement', 'ligue'], calendrier: ['calendrier'],
   meneurs: ['stats'], alignement: ['alignement'],
 };
-const PAGES_DE_SAISON = ['match', 'boite', 'saison', 'classement', 'calendrier', 'meneurs', 'equipes'];
+const PAGES_DE_SAISON = ['match', 'boite', 'saison', 'jambes', 'classement', 'calendrier', 'meneurs', 'equipes'];
 /* Les pages de lecture, pareilles à tout moment de la partie. */
 const PAGES_REF = ['equipes', 'historique'];
 

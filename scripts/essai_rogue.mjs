@@ -144,6 +144,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * règle tout comme un joueur pressé : le sommaire se ferme, un choix prend
  * sa première option, un message bloquant sa réponse par défaut.
  */
+const des = [], evenementsDe = [];   // les dés lancés pendant la run, et les événements qui les ont demandés
 async function regler() {
   for (let i = 0; i < 30; i++) {
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau ».
@@ -165,10 +166,50 @@ async function regler() {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-confirmer')) {
       await page.click('#choixModal .aln-case[data-aln]:not([disabled])'); await page.click('#choixModal .aln-confirmer'); await page.waitForTimeout(600); continue;
     }
+    /*
+     * LE LANCER DE DÉ (1.0, oct.) : une réponse risquée ouvre le dé. Entrée lance ; le dé tombe sur la face
+     * que le moteur a tranchée, et la face dit le verdict (« sur 4, 5 ou 6 »), quelle qu'elle soit.
+     */
+    if (await page.$('#choixModal:not([hidden]) .de-lancer:not([disabled]):not(.de-suite)')) {
+      const besoin = ((await page.textContent('#choixModal .de-besoin')) || '').trim(), k = (besoin.match(/\d/g) || []).length;
+      await page.focus('#choixModal .de-lancer'); await page.keyboard.press('Enter');
+      const pose = await page.waitForSelector('#choixModal .de.pose', { timeout: 6000 }).catch(() => null);
+      const de = pose ? await pose.evaluate(d => ({ face: Number(d.dataset.face), gagne: d.classList.contains('gagne') })) : null;
+      if (!de) erreurs.push(`le dé ne tombe pas (${besoin})`);
+      else if (de.gagne !== (de.face > 6 - k)) erreurs.push(`le dé montre ${de.face} pour « ${besoin} » et dit ${de.gagne ? 'ça passe' : 'raté'}`);
+      else des.push(`${de.face} ${de.gagne ? '✓' : '✗'}`);
+      await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(600);
+      // La boîte se vide : l'événement réglé au dé n'attend plus.
+      const t0 = evenementsDe[evenementsDe.length - 1];
+      if (t0 && await page.$$eval('#hubModal .hub-choix-rouvrir', (els, x) => els.some(e => e.textContent.includes(x)), t0).catch(() => false)) erreurs.push(`« ${t0} » réglé au dé attend encore dans la boîte`);
+      continue;
+    }
+    // Un événement qui offre une réponse risquée : on la prend, pour lancer le dé (et vérifier que la boîte se vide).
+    const risquee = await page.$$eval('#choixModal:not([hidden]) .choix-sheet[data-genre="evenement"] button.choix-option:not([disabled])',
+      bs => bs.map(b => b.dataset.choix).filter((c, i) => /Pari/.test((bs[i].querySelector('.choix-forme') || {}).textContent || ''))[0] || null).catch(() => null);
+    if (risquee) {
+      const titreDe = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
+      await page.click(`#choixModal:not([hidden]) button.choix-option[data-choix="${risquee}"]`); await page.waitForTimeout(300);
+      evenementsDe.push(titreDe);
+      continue;
+    }
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     const t = await page.$('#hubModal .hub-traiter');
     // Le message plié, ou rangé sous le sous-onglet Boîte du téléphone (1.0, R2) : « À régler » l'ouvre et y mène.
-    if (t) { const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]'); await (d && await d.isVisible() ? d : t).click(); await page.waitForTimeout(400); continue; }
+    if (t) {
+      const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]');
+      const cible = d && await d.isVisible() ? d : await t.isVisible() ? t : null;
+      // Un message à régler que rien de visible ne règle : le dire, avec ce qu'on voit, plutôt qu'attendre 30 s un clic
+      // impossible (une run sur deux, une fois, oct. : « element is not visible » sur « À régler »).
+      if (!cible) {
+        const vus = await page.evaluate(() => [...document.querySelectorAll('#choixModal:not([hidden]) button, #hubModal button')]
+          .filter(b => b.offsetParent).map(b => `${[...b.classList].pop()} « ${b.textContent.trim().slice(0, 30)} »`).slice(0, 12).join(' · '));
+        const png = `${DOSSIER}/rogue-coince.png`;
+        await page.screenshot({ path: png }).catch(() => {});
+        throw new Error(`« À régler » existe mais n'est pas visible, et le message ouvert n'a pas de réponse visible. Boutons visibles : ${vus || 'aucun'} (capture : ${png})`);
+      }
+      await cible.click(); await page.waitForTimeout(400); continue;
+    }
     return;
   }
 }
@@ -706,6 +747,7 @@ const tete = await page.textContent('.tete-nom');
 console.log(`18. ton club : ${nClub} noms · onglets ${JSON.stringify(parOnglet)} · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
 if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson)`);
+console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);

@@ -26,7 +26,7 @@
 
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
-  profilsDe, stylesDe, profilPrincipal, roleSecond, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
+  profilsDe, stylesDe, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
@@ -36,8 +36,9 @@ import {
 import { POIDS_TRIO } from './ratings.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
-import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
+import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
 import { jouerSon } from './sons.js';
+import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, pct3, varsEquipe } from './util.js';
 
@@ -74,6 +75,8 @@ export function puces(mots) {
  * plus tard, un geste réel qui il touche et ce qui lui arrive.
  */
 const plur = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+/* Les faces gagnantes d'un dé, les plus hautes : « sur 4, 5 ou 6 ». Jamais une cote. */
+const facesMot = k => { const f = Array.from({ length: k }, (_, i) => 7 - k + i); return `sur ${f.length > 1 ? `${f.slice(0, -1).join(', ')} ou ${f[f.length - 1]}` : `un ${f[0]}`}`; };
 function motsDAction(a, noms = '') {
   if (!a) return [];
   const qui = noms || 'le joueur visé';
@@ -91,9 +94,8 @@ function motsDeCarte(o, noms = '') {
   if (o.gardienAux === true) out.push({ txt: '🧤 L\'auxiliaire au filet ce match-là', bon: null });
   if (o.enjeu) out.push({ txt: '⚖️ Après le match, l\'élan ou le contrecoup dure deux fois plus', bon: null });
   if (o.pari) {
-    const p = Math.round(o.pari.chance * 100);
     const issue = e => { const { duree, action, ...c } = e || {}; const m = [...motsDEffet(c, duree), ...motsDAction(action, noms)]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
-    out.push({ txt: `🎲 ${p} % : ${issue(o.pari.gagne)}`, bon: true });
+    out.push({ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${issue(o.pari.gagne)}`, bon: true });
     out.push({ txt: `🎲 sinon : ${issue(o.pari.perd)}`, bon: false });
   }
   if (o.ensuite) {
@@ -131,15 +133,23 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJ
  * garde ses deux ou trois vrais rôles, avec un mot pour le niveau, et sa
  * carrure quand elle compte (le jeu physique en dépend).
  */
-export const niveauDe = x => (x >= 85 ? 'élite' : x >= 70 ? 'très bon' : x >= 55 ? 'bon' : x >= 40 ? 'correct' : 'faible');
+/* Le mot de l'ASSORTIMENT d'un joueur à ce qu'un système demande (`stylesDe`) — pas un badge. */
+const motDuFit = x => (x >= 85 ? 'élite' : x >= 70 ? 'très bon' : x >= 55 ? 'bon' : x >= 40 ? 'correct' : 'faible');
 export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
+/*
+ * UN BADGE, EN MOTS (refonte 1) : son icône, son nom, son palier — « 🎯 Sniper
+ * Or » — et le trait qui le monte s'il en a un (« · Tir »). Le palier se lit
+ * aussi à la couleur (`pal-1` à `pal-4`) : 🥉🥈🥇💎 nomment déjà les packs.
+ */
+export const motDuBadge = b => `${b.nom} ${PALIERS[b.palier].nom}`;
+export const raisonDuBadge = b => (b.trait && TRAITS[b.trait] ? TRAITS[b.trait].short : '');
+export const titreDuBadge = b => `${b.second ? 'Son second badge (la moitié de son effet)' : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, comparé aux joueurs de son poste, toutes saisons${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}`;
 function rolesDe(p) {
-  const pp = profilPrincipal(p);
-  if (!pp) return '';
-  const r2 = roleSecond(p);
+  const bs = badgesDe(p);
+  if (!bs.length) return '';
   const c = carrureDe(p);
-  const puce = (r, premier) => `<span class="puce ${premier ? 'bon' : 'neutre'}" title="${premier ? 'Son rôle' : 'Son second rôle'} — lu dans ${esc(r.mot)}, comparés aux joueurs de sa saison">${r.ico} ${esc(r.nom)} · ${niveauDe(r.fit)}</span>`;
-  return `<div class="gj-roles">${puce(pp, true)}${r2 ? puce(r2, false) : ''}${c ? `<span class="puce neutre" title="Son physique : le jeu robuste lui ${c.ico === '🪨' ? 'réussit' : 'coûte des punitions'}">${c.ico} ${c.mot}</span>` : ''}</div>`;
+  const puce = b => `<span class="puce badge pal-${b.palier}" title="${esc(titreDuBadge(b))}">${b.ico} ${esc(motDuBadge(b))}${b.trait ? ` · ${esc(raisonDuBadge(b))}` : ''}</span>`;
+  return `<div class="gj-roles">${bs.map(puce).join('')}${c ? `<span class="puce neutre" title="Son physique : le jeu robuste lui ${c.ico === '🪨' ? 'réussit' : 'coûte des punitions'}">${c.ico} ${c.mot}</span>` : ''}</div>`;
 }
 /* L'ancien nom : la fiche l'appelle encore. */
 export const barresProfils = rolesDe;
@@ -155,9 +165,12 @@ export function sesRolesHtml(p) {
   if (!pr) return '';
   const g = p.p === 'D' || p.p === 'LD' || p.p === 'RD' ? 'D' : 'F';
   const liste = Object.entries(pr).filter(([k]) => PROFILS[g][k]).sort((a, b) => b[1] - a[1]);
-  return `<div class="ses-roles">${liste.map(([k, x], i) => {
-    const R = PROFILS[g][k];
-    return `<span class="ses-role${i === 0 ? ' premier' : x < 40 ? ' faible' : ''}" title="${esc(R.nom)} — lu dans ${esc(R.mot)}">${R.ico} ${esc(R.nom)} <b>${niveauDe(x)}</b></span>`;
+  // Ses badges d'abord, à leur palier ; les autres rôles disent ce qu'un système qui les demande en tirerait.
+  const badges = new Map(badgesDe(p).map(b => [b.cle, b]));
+  return `<div class="ses-roles">${liste.map(([k, x]) => {
+    const R = PROFILS[g][k], b = badges.get(k);
+    if (b) return `<span class="ses-role premier pal-${b.palier}" title="${esc(titreDuBadge(b))}">${R.ico} ${esc(R.nom)} <b>${PALIERS[b.palier].nom}</b></span>`;
+    return `<span class="ses-role${x < 40 ? ' faible' : ''}" title="${esc(R.nom)} — lu dans ${esc(R.mot)}">${R.ico} ${esc(R.nom)} <b>${motDuFit(x)}</b></span>`;
   }).join('')}</div>`;
 }
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
@@ -336,7 +349,14 @@ export function ouvrirChoix(spec) {
   };
   fermerChoixCourant = fermer;
   // UNE VUE À LIRE (S74, « Mon deck ») : les cartes ne se prennent pas.
-  m.querySelectorAll('[data-choix]').forEach(b => { if (spec.lecture) { b.classList.add('lecture'); return; } b.onclick = () => { fermer(true); spec.onChoix(b.dataset.choix); }; });
+  m.querySelectorAll('[data-choix]').forEach(b => {
+    if (spec.lecture) { b.classList.add('lecture'); return; }
+    const o = spec.options.find(x => String(x.cle) === b.dataset.choix);
+    b.onclick = () => {
+      if (o && o.pari && typeof spec.lancer === 'function') { sceneDuDe(m, spec, o, sub, fermer); return; }
+      fermer(true); spec.onChoix(b.dataset.choix);
+    };
+  });
   // LA CARTE D'UN JOUEUR OFFERT se touche pour voir sa fiche (`apercu` de l'option), sans le choisir (S78).
   const apercus = new Map(spec.options.filter(o => typeof o.apercu === 'function').map(o => [String(o.cle), o.apercu]));
   m.querySelectorAll('[data-apercu] .tcj-carte').forEach(el => {
@@ -351,6 +371,72 @@ export function ouvrirChoix(spec) {
   const premier = m.querySelector(paquet ? '.paquet' : '.choix-option:not([disabled])');
   if (premier) premier.focus({ preventScroll: true });
   return () => fermer(true);
+}
+
+/*
+ * LE LANCER DE DÉ (1.0, oct.). JP : *courbe de bâton, faire modal avec lancé de dé et réponse, pas juste
+ * dans boîte*. Une réponse risquée (un `pari`) ne se ferme pas d'un toucher : la fenêtre montre le dé et
+ * ce qu'il faut (« sur 4, 5 ou 6 »), et « Lancer le dé » (Entrée) prend la décision. C'est à ce moment-là
+ * que `spec.lancer(cle)` tire le sel de la décision et rend ce que le moteur en fera (`deDuPari`, js/sim.js) :
+ * la face, et si ça passe. Le dé roule sur une suite de faces fixe — aucun hasard d'écran — et s'arrête
+ * sur cette face-là. Une fois lancé, la décision est prise : « Continuer », le ✕ ou Échap la
+ * remettent au moteur, jamais une autre réponse.
+ */
+const DE_PAS = [55, 55, 60, 70, 85, 105, 130, 165, 210];   // ms entre deux faces : le dé ralentit
+const PIPS = { 1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] };
+const deHtml = face => `<span class="de" data-face="${face}" aria-hidden="true">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => `<i${PIPS[face].includes(i) ? ' class="on"' : ''}></i>`).join('')}</span>`;
+function sceneDuDe(m, spec, o, sub, fermer) {
+  const faces = facesDuPari(o.pari.chance);
+  const corps = m.querySelector('.choix-corps');
+  if (!corps) return;
+  corps.innerHTML = `<div class="de-scene">
+    <div class="de-choix">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</div>
+    <div class="de-besoin">🎲 Ça passe ${facesMot(faces)}</div>
+    <div class="de-table">${deHtml(6)}</div>
+    <div class="de-verdict" role="status" aria-live="polite"></div>
+    <span class="choix-puces de-issue"></span>
+    <div class="de-boutons">
+      <button type="button" class="btn de-autre">Autre réponse</button>
+      <button type="button" class="btn go de-lancer">Lancer le dé</button>
+    </div>
+  </div>`;
+  const table = corps.querySelector('.de-table'), verdict = corps.querySelector('.de-verdict');
+  let v = null, fini = false;
+  const valider = () => { if (fini || !v) return; fini = true; fermer(true); v.valider(); };
+  const poser = face => { table.innerHTML = deHtml(face); };
+  const montrer = () => {
+    const de = table.querySelector('.de');
+    de.classList.add('pose', v.gagne ? 'gagne' : 'perd');
+    const { duree, action, ...canaux } = v.effet || {};
+    const mots = [...motsDEffet(canaux, Object.keys(canaux).length ? duree : null), ...motsDAction(action)];
+    verdict.innerHTML = `<b>${v.face}</b> — ${v.gagne ? 'ça passe !' : 'raté.'}`;
+    verdict.classList.add(v.gagne ? 'gagne' : 'perd');
+    corps.querySelector('.de-issue').innerHTML = puces(mots.length ? mots : [{ txt: 'Rien ne change', bon: null }]);
+    jouerSon(v.gagne ? 'recompense' : 'rate');
+    const b = corps.querySelector('.de-lancer');
+    b.textContent = 'Continuer'; b.disabled = false; b.classList.add('de-suite');
+    b.onclick = valider;
+    b.focus({ preventScroll: true });
+  };
+  corps.querySelector('.de-autre').onclick = () => ouvrirChoix(spec);
+  const lancer = corps.querySelector('.de-lancer');
+  lancer.onclick = () => {
+    v = spec.lancer(o.cle);
+    if (!v) { fermer(true); spec.onChoix(o.cle); return; }
+    lancer.disabled = true;
+    corps.querySelector('.de-autre').remove();
+    // Lancé, la décision est prise : le ✕ et Échap la remettent au moteur.
+    const croix = m.querySelector('.choix-fermer');
+    if (croix) croix.onclick = valider;
+    if (mouvementCalme()) { poser(v.face); montrer(); return; }
+    jouerSon('de');
+    // La suite de faces part de la face tirée et y revient : elle ne dépend que du résultat.
+    const suite = DE_PAS.map((_, i) => ((v.face + DE_PAS.length - 1 - i) % 6) + 1);
+    let t = 0;
+    suite.forEach((f, i) => { t += DE_PAS[i]; setTimeout(() => { if (!fini && m.contains(table)) { poser(f); table.firstChild.classList.add('roule'); } }, t); });
+    setTimeout(() => { if (!fini && m.contains(table)) { poser(v.face); montrer(); } }, t + 260);
+  };
+  lancer.focus({ preventScroll: true });
 }
 
 /*
@@ -572,6 +658,30 @@ export function jambesHtml(e) {
   return `<span class="jambes jambes-${N.cle}" title="Ses jambes ce matin, sur 100 : ${N.nom.toLowerCase()}. Chaque point sous ${ENERGIE_REF} lui coûte ${String(ENERGIE_EFFET).replace('.', ',')} % de lancers, de finition et de création, chaque point au-dessus lui en rend autant (ce matin : ${effet > 0 ? '+' : ''}${String(effet).replace('.', ',')} %) ; sous ${ENERGIE_BLESSURE}, il se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${N.cle}"></span></i><em class="jambes-mot">${N.nom}</em></span>`;
 }
 
+/*
+ * LA COURBE DES JAMBES (1.0, le suivi des jambes) : ses jambes au matin de chaque journée, lues dans
+ * l'instantané du moteur (`team.jourLignes[j].energie`) jusqu'à la journée `jusqua`. Une journée où il
+ * n'était pas du club coupe la courbe. Le trait pointillé est la ligne ordinaire (ENERGIE_REF).
+ */
+export function courbeJambes(team, p, jusqua = Infinity) {
+  const cle = getPlayerKey(p), J = (team && team.jourLignes) || [];
+  const v = [];
+  for (let j = 0; j < Math.min(J.length, jusqua + 1); j++) { const e = J[j] && J[j].energie ? J[j].energie[cle] : undefined; v.push(Number.isFinite(e) ? e : null); }
+  return v;
+}
+const COURBE_BAS = 50;   // le bas du dessin : sous 50, la courbe touche le fond
+export function courbeJambesHtml(v, { large = false } = {}) {
+  const pts = v.map((e, j) => (e == null ? null : [j, e]));
+  const vus = pts.filter(Boolean);
+  if (vus.length < 2) return '';
+  const n = Math.max(1, v.length - 1);
+  const y = e => ((100 - Math.max(COURBE_BAS, Math.min(100, e))) / (100 - COURBE_BAS) * 30).toFixed(1);
+  let d = '', ouvert = false;
+  for (const q of pts) { if (!q) { ouvert = false; continue; } d += `${ouvert ? 'L' : 'M'}${(q[0] / n * 100).toFixed(1)} ${y(q[1])}`; ouvert = true; }
+  const fin = vus[vus.length - 1][1], bas = Math.min(...vus.map(q => q[1]));
+  return `<span class="courbe-jambes${large ? ' large' : ''} jambes-${niveauJambes(fin).cle}" title="Ses jambes au matin de chaque journée : ${fin} ce matin, ${bas} au plus bas. Le pointillé : la ligne ordinaire, ${ENERGIE_REF}."><svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path class="courbe-ref" d="M0 ${y(ENERGIE_REF)}H100"/><path class="courbe-trait" d="${d}"/></svg></span>`;
+}
+
 /* ======================================================================
    MES LIGNES, EN PLEIN ÉCRAN
    ====================================================================== */
@@ -646,7 +756,7 @@ function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe 
     const prof = roles[r], P = PROFILS[groupe][prof], p = js[r];
     const fr = p ? ((stylesDe(p) || {})[prof] ?? 0) : null;   // l'assortiment se lit au style, à talent égal (`stylesDe`)
     const marque = fr == null ? '' : fr >= 60 ? '✓' : fr < 40 ? '✗' : '≈';
-    return `<span class="ln-dem${fr == null ? '' : fr >= 60 ? ' fit-bon' : fr < 40 ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${niveauDe(fr)}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
+    return `<span class="ln-dem${fr == null ? '' : fr >= 60 ? ' fit-bon' : fr < 40 ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${motDuFit(fr)}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
   }).join('') : '';
   return `${enFace}<div class="gl-tacs ln-tacs">${boutons}</div>${conseil}${choisie}${demande ? `<div class="ln-demande"><span class="gl-k">Il demande${inverse ? ' · ailes inversées' : ''}</span>${demande}</div>` : ''}`;
 }
@@ -654,7 +764,8 @@ function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe 
  * spec : {
  *   titre, lineup (case → joueur), lignes [{ tac, tacD, agr, sec }] × 4, chimie [4], energie { clé: 0-100 },
  *   adv: { nom, lignes [{ tac }] } | null, match: { importance, ad } | null,
- *   onAppliquer(lignes, match), onBanc() | null, sousTitre
+ *   onAppliquer(lignes, match), onBanc() | null, sousTitre,
+ *   usure(match, lignes) → { clé: jambes perdues ce soir } | absent
  * }
  */
 /*
@@ -739,6 +850,17 @@ export function ouvrirLignes(spec) {
   let filet = F0 ? (F0.choix && F0.choix !== 'auto' ? F0.choix : F0.rotation) : null;
   const filetSortie = () => (!F0 ? undefined : filet === F0.rotation ? (F0.choix && F0.choix !== 'auto' ? 'auto' : undefined) : filet);
 
+  /*
+   * L'USURE DES JAMBES CE SOIR (1.0, le suivi des jambes) : ce que ses présences lui coûteront, refait à
+   * chaque toucher — les secondes, l'agressivité, le système et la consigne la changent (`spec.usure`,
+   * `usureDuSoir` dans js/sim.js). Les coups reçus s'y ajoutent en jouant.
+   */
+  let usureSoir = null;
+  const usureHtml = p => {
+    const c = p && usureSoir ? usureSoir[getPlayerKey(p)] : null;
+    return c == null ? '<span class="gl-j-usure"></span>'
+      : `<span class="gl-j-usure" title="L'usure des jambes de ses présences ce soir : ses minutes, l'agressivité, le système et la consigne la décident. Les coups reçus s'y ajoutent.">−${Math.round(c)}</span>`;
+  };
   const joueurLigne = (u, role) => {
     const js = joueursDeLigne(spec.lineup, u);
     if (!(role in js)) return '';
@@ -748,7 +870,7 @@ export function ouvrirLignes(spec) {
     const R = T && T.slots ? rolesDuSysteme(spec.lineup, g, u, g === 'D' ? brouillon[u].tacD : brouillon[u].tac) : null;
     const voulu = R ? R[role] : null;
     const pr = p && stylesDe(p);   // l'assortiment au système, à talent égal
-    const pp = p && profilPrincipal(p);
+    const pp = p && badgesDe(p)[0];
     const e = p ? (spec.energie[getPlayerKey(p)] ?? 100) : 0;
     const fitRole = voulu && pr ? pr[voulu] : null;
     const c = p ? carrureDe(p) : null;
@@ -759,16 +881,18 @@ export function ouvrirLignes(spec) {
     return `<div class="gl-j${fitRole != null ? (fitRole >= 60 ? ' fit-bon' : fitRole < 40 ? ' fit-mauvais' : '') : ''}">
       <span class="gl-j-role">${role}</span>
       <span class="gl-j-nom">${p ? esc(p.n) : '<i>vide</i>'}${place ? place.html : ''}</span>
-      <span class="gl-j-prof" title="${pp ? `Son rôle : ${esc(pp.nom)} (${niveauDe(pp.fit)})${c ? ` · ${c.mot}` : ''}` : ''}">${pp ? `${pp.ico} <small>${esc(pp.nom)}</small>` : ''}</span>
+      <span class="gl-j-prof" title="${pp ? `${esc(titreDuBadge(pp))}${c ? ` · ${c.mot}` : ''}` : ''}">${pp ? `<i class="badge pal-${pp.palier}">${pp.ico}</i> <small>${esc(pp.nom)}</small>` : ''}</span>
       <span class="gl-j-niv">${p ? pastilleNiveau(p) : ''}</span>
-      ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y est ${niveauDe(fitRole ?? 0)}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
+      ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y est ${motDuFit(fitRole ?? 0)}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
       ${p ? jambesHtml(e) : '<span class="jambes"></span>'}
+      ${usureHtml(p)}
       ${(p && p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="gl-j-mut" title="${esc(MUTATIONS[k].nom)}">${MUTATIONS[k].ico}</span>` : '').join('')}
     </div>`;
   };
 
   function dessiner() {
     const mins = minutes(brouillon);
+    usureSoir = spec.usure ? spec.usure(match, brouillon) : null;
     const tete = `<div class="choix-tete">
       <span class="choix-ico">🏒</span>
       <div class="choix-titres"><div class="choix-titre">${esc(spec.titre || 'Mes lignes')}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>
