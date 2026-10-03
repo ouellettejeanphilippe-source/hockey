@@ -53,7 +53,7 @@
   --bronze: #c98b5a;
   --argent: #c4cbd4;
   --platine: #9fe3ea;
-  /* La hauteur du bouton flottant du bureau (« Journée suivante ▶ »), réservée sous le volet. */
+  /* La hauteur du bouton flottant du bureau (« Journée suivante ▶ »), réservée sous le volet ; js/saison.js la remesure quand il paraît. */
   --flottant-h: 52px;
   --attention: #dd9155;
   --bleu: #8ab4f0;
@@ -532,9 +532,13 @@ body[data-zone="ref"] .actionbar { display: none; }
 }
 body:has(#game.bilan) .actionbar { display: none; }
 body:has(#game.bilan) { --actionbar-h: 0px; }
-/* Sa hauteur, `--flottant-h`, le volet du bureau la réserve sous sa dernière rangée (sinon le dernier du classement passe dessous). */
-.hub-flottant { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--bas-coquille, 70px) + var(--esp-3)); min-width: 230px; min-height: var(--flottant-h); box-shadow: var(--ombre); }
+/* Sa hauteur, `--flottant-h`, le volet du bureau la réserve sous sa dernière rangée (sinon le dernier du classement passe dessous).
+   `.btn.go.hub-flottant` : `.btn.go` (deux classes) pose `position: relative` plus bas ; à une classe, le bouton ne flottait pas
+   et se posait en haut de l'écran, sur les premières rangées (CI, graine h13l7m : « bouton 35-79, rangée 64-108 »). */
+.btn.go.hub-flottant { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--bas-coquille, 70px) + var(--esp-3)); min-width: 230px; min-height: var(--flottant-h); box-shadow: var(--ombre); }
 body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouvert .hub-flottant, body:has(.hub-sheet[data-page]) .hub-flottant { display: none; }
+/* Pressé, il garde son centrage (le `transform` de `.btn.go:active` le perdait). */
+.btn.go.hub-flottant:active:not(:disabled) { transform: translateX(-50%) translateY(2px) scale(0.96); }
 @media (min-width: 1200px) { .hub-flottant { display: none; } }
 
 /* ---- Le toast : en bas, au-dessus de la barre d'action (rien d'écrit en haut de l'écran, 1.0, R3) ---- */

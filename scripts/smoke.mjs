@@ -2171,7 +2171,11 @@ async function traverserSaison(etiquette, reprise = false) {
           if (sc) sc.scrollTop = sc.scrollHeight;
           await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
           const r = toi.getBoundingClientRect(), rf = f.getBoundingClientRect();
-          if (r.bottom > rf.top && r.top < rf.bottom) cache = `${Math.round(r.bottom - rf.top)} px`;
+          if (r.bottom > rf.top && r.top < rf.bottom) {
+            // De quoi comprendre un échec : qui défile, ce qui est réservé sous le volet, où sont le bouton et la rangée.
+            const v = document.querySelector('#hubModal .hub-volet'), rs = sc ? sc.getBoundingClientRect() : null;
+            cache = `${Math.round(r.bottom - rf.top)} px (défile : ${sc ? `${sc.id || sc.className} ${sc.scrollTop}/${sc.scrollHeight - sc.clientHeight}, bas ${Math.round(rs.bottom)}` : 'rien'} ; volet : ${v ? getComputedStyle(v).paddingBottom : '—'} ; bouton ${Math.round(rf.top)}-${Math.round(rf.bottom)} ; rangée ${Math.round(r.top)}-${Math.round(r.bottom)})`;
+          }
           if (sc) sc.scrollTop = 0;
         }
         return { n: noms.length, coupes, cache, w: innerWidth };

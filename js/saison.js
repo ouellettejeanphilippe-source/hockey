@@ -621,7 +621,9 @@ function boutonFlottant(actions, termine) {
   // Un bouton sorti du DOM (l'écran s'est redessiné sans lui) garde son onclick :
   // le cliquer rejouerait un vieux geste — « Ronde 5 · 0 série » (QA S74b).
   f.onclick = () => { f.hidden = true; if (cible.isConnected) cible.click(); };
-  f._io = new IntersectionObserver(([e]) => { f.hidden = e.isIntersecting || window.innerWidth >= 1200; }, { threshold: 0.6 });
+  // Sa VRAIE hauteur (« ⏳ À régler avant le match : … » passe sur deux lignes) : le volet la réserve sous sa dernière rangée.
+  const mesurer = () => { if (!f.hidden) document.documentElement.style.setProperty('--flottant-h', `${Math.ceil(f.getBoundingClientRect().height)}px`); };
+  f._io = new IntersectionObserver(([e]) => { f.hidden = e.isIntersecting || window.innerWidth >= 1200; mesurer(); }, { threshold: 0.6 });
   f._io.observe(cible);
 }
 function cacherBoutonFlottant() {
