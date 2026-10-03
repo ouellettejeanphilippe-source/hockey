@@ -2391,9 +2391,9 @@ export function usuresDe(team, lineup) {
 }
 /* Les jambes qu'une ligne aurait au matin, à l'équilibre, jouée ainsi tous les soirs. */
 export const jambesEquilibre = us => Math.max(0, Math.min(100, 100 - ENERGIE_C * us * us));
-/* L'usure des présences d'un soir, joueur par joueur (avant la réserve) : la seule formule, que `depenserEnergie` applique. */
+/* L'usure des présences d'un soir, présence par présence (avant la réserve) : la seule formule, que `depenserEnergie` applique. */
 function coutsDuSoir(team, lineup) {
-  const us = usuresDe(team, lineup), out = new Map();
+  const us = usuresDe(team, lineup), out = [];
   for (let u = 0; u < 4; u++) {
     for (const [role, p] of Object.entries(joueursDeLigne(lineup, u))) {
       if (!p) continue;
@@ -2401,7 +2401,7 @@ function coutsDuSoir(team, lineup) {
       let cout = ENERGIE_C * Math.pow(d ? us.D[pairDeLigne(u)] : us.F[u], 2);
       // Le plombier maîtrisé (EFFET_ROLE.energie) : son match lui coûte moins.
       if (!d) cout *= 1 - EFFET_ROLE.energie * maitrise(p, 'energie');
-      out.set(p, cout);
+      out.push([p, cout]);
     }
   }
   return out;
@@ -6722,8 +6722,12 @@ function avecAVenir(team, aVenir, fn, { cases = false } = {}) {
  */
 export function usureDuSoir(team, aVenir = []) {
   return avecAVenir(team, aVenir, () => {
-    const out = {};
-    for (const [p, c] of coutsDuSoir(team, activeLineup(team))) out[getPlayerKey(p)] = Math.max(0, c - (p._reserve || 0));
+    const out = {}, reserve = new Map();
+    for (const [p, c] of coutsDuSoir(team, activeLineup(team))) {
+      const r = Math.min(reserve.has(p) ? reserve.get(p) : (p._reserve || 0), c);
+      reserve.set(p, (reserve.has(p) ? reserve.get(p) : (p._reserve || 0)) - r);
+      out[getPlayerKey(p)] = (out[getPlayerKey(p)] || 0) + c - r;
+    }
     return out;
   }, { cases: true });
 }
