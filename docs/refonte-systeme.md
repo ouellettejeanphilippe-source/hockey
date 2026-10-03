@@ -215,6 +215,13 @@ Et JP ajoute : *t'aurais coach, pis adjoint, qui ont des bonus, pis plus t'avanc
 
 Puis : *au début, t'as genre 3 coachs seulement, et 2 adjoints possibles, pis ça augmente selon les runs*. Une run neuve offre **trois coachs** au choix et **deux places d'adjoint** ; les autres coachs et les places de plus s'ouvrent d'une run à l'autre (le prestige, `js/rogue.js`), comme les Étoiles et les Phénomènes des packs aujourd'hui.
 
+Et ses réponses sur le coach et les adjoints (étape 3) :
+
+- **Rogue seulement.** La partie classique reste le jeu de base, sans coach ni adjoint.
+- **Les adjoints sont des passifs, neutres, utiles à tous** (soins, gardiens, argent, glace…), pas la voie d'un coach. Une run commence avec **deux adjoints imposés** ; les autres se débloquent.
+- **Le prestige débloque** : chaque rang du club (Club de garage → Dynastie) ouvre un coach de plus (trois au départ) ou une place d'adjoint de plus (deux au départ).
+- Ce qui fait la voie d'un coach reste donc ses badges, ses systèmes, ses cartes et sa confiance ; l'adjoint est le tronc commun qu'on assortit par-dessus. C'est aussi là que le Comptable (§ 10.3) trouve sa place : un adjoint parmi les autres.
+
 ## 11. Fait
 
 - **Étape 1, les badges à paliers** (oct.) : voir docs/decisions.md, « Les badges à paliers ».

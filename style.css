@@ -53,6 +53,8 @@
   --bronze: #c98b5a;
   --argent: #c4cbd4;
   --platine: #9fe3ea;
+  /* La hauteur du bouton flottant du bureau (« Journée suivante ▶ »), réservée sous le volet. */
+  --flottant-h: 52px;
   --attention: #dd9155;
   --bleu: #8ab4f0;
   --violet: #b49ae0;
@@ -530,7 +532,8 @@ body[data-zone="ref"] .actionbar { display: none; }
 }
 body:has(#game.bilan) .actionbar { display: none; }
 body:has(#game.bilan) { --actionbar-h: 0px; }
-.hub-flottant { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--bas-coquille, 70px) + var(--esp-3)); min-width: 230px; min-height: 52px; box-shadow: var(--ombre); }
+/* Sa hauteur, `--flottant-h`, le volet du bureau la réserve sous sa dernière rangée (sinon le dernier du classement passe dessous). */
+.hub-flottant { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--bas-coquille, 70px) + var(--esp-3)); min-width: 230px; min-height: var(--flottant-h); box-shadow: var(--ombre); }
 body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouvert .hub-flottant, body:has(.hub-sheet[data-page]) .hub-flottant { display: none; }
 @media (min-width: 1200px) { .hub-flottant { display: none; } }
 
@@ -2579,7 +2582,8 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   .soir-drame { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-bottom: 0; margin-bottom: var(--esp-2); }
   .hub-barre .hub-jour, .hub-barre .hub-suite { min-height: 48px; font-size: var(--t-3); }
   .hub-barre .hub-actions-rang .btn { min-height: 36px; }
-  body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: var(--esp-4); }
+  /* Sous le volet, la place du bouton flottant (`.hub-flottant`) : défilé au bout, le dernier rang se lit. */
+  body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: calc(var(--flottant-h) + 2 * var(--esp-3)); }
   /* Hors de « Match », le volet seul : l'affiche et les boutons appartiennent à l'onglet Journée. */
   body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-carte, body.hub-docke .hub-sheet:not([data-vue="match"]):not([data-vue="boite"]) .hub-actions { display: none; }
   /* Les sous-onglets du Club (1.0, R2) : sur « Match », la boîte ne s'empile pas (sa tuile y mène) ; sur « Boîte », elle seule, dépliée, avec la barre. */
