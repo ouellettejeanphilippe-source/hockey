@@ -26,7 +26,9 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, joueursDeLigne, activeLineup,
-  energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_C, ENERGIE_RECUP_JOUR, JOURS_PAR_MATCH } from '../js/sim.js';
+  energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_C, ENERGIE_RECUP_JOUR, JOURS_PAR_MATCH,
+  SLOTS, getPlayerKey, fits, photoAlignement, usureDuSoir } from '../js/sim.js';
+import { jambesAVenir } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 
@@ -54,6 +56,7 @@ function ligue(seed, n = 32) {
   }
   return out;
 }
+const estD = q => ['D', 'LD', 'RD'].includes(q.p);
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 const signe = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 
@@ -147,6 +150,68 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
   const avant = energieDe(p); depenserEnergie(t, lu);
   exiger('le prochain match brûle la réserve d\'abord', energieDe(p) > avant - ENERGIE_C * us.F[0] ** 2, `${energieDe(p).toFixed(1)} (sans réserve : ${(avant - ENERGIE_C * us.F[0] ** 2).toFixed(1)})`);
   delete p._reserve; p.energie = 100;
+}
+
+/*
+ * 4. LE SUIVI ET LE MÉNAGEMENT (1.0, le suivi des jambes). Deux ligues jumelles (la même graine) jouées
+ * jusqu'au matin d'un match de ton club. Ce qui doit tenir, sans dépendre d'un tirage :
+ *   - la courbe lit le moteur : l'instantané du matin est l'énergie de chaque joueur ;
+ *   - l'usure prévue (« Préparer le match », `usureDuSoir`) est celle que `depenserEnergie` retire ;
+ *   - la mesure (`jambesAVenir`) ne touche à rien : la ligue où on l'a lancée joue la suite au but près ;
+ *   - le repos rend des jambes : mis en réserve le soir d'un match, le plus usé a plus de jambes le
+ *     lendemain que son jumeau qui a joué, et la mesure l'avait dit.
+ */
+{
+  const club = () => {
+    const teams = ligue(99);
+    teams[0].isPlayer = true;
+    // Deux réservistes (le repêchage en met ; les vrais vestiaires du script, non), pris d'un autre vestiaire.
+    const sk = Object.values(ligue(4242, 1)[0].roster).filter(q => q && q.p !== 'G');
+    teams[0].roster[SLOTS.find(s => s.scratch && s.group === 'F').i] = sk.find(q => !estD(q));
+    teams[0].roster[SLOTS.find(s => s.scratch && s.group === 'D').i] = sk.find(estD);
+    return teams;
+  };
+  const [A, B] = [club(), club()];
+  const LA = creerLigue(A, 82, { graine: 'suivi' }), LB = creerLigue(B, 82, { graine: 'suivi' });
+  const toiA = A[0], toiB = B[0];
+  const joueCe = (L, t, j) => L.calendrier[j].some(m => m.A === t || m.B === t);
+  // Le matin d'un match de ton club, après douze journées (les jambes ont bougé).
+  while (LA.jour < 12 || !joueCe(LA, toiA, LA.jour)) { jouerJournee(LA); jouerJournee(LB); }
+  const r = LA.jour, snap = toiA.jourLignes[r].energie;
+  const ecartSnap = Math.max(...SLOTS.filter(s => toiA.roster[s.i] && toiA.roster[s.i].p !== 'G').map(s => Math.abs(snap[getPlayerKey(toiA.roster[s.i])] - energieDe(toiA.roster[s.i]))));
+  exiger('la courbe lit le moteur : l\'instantané du matin est l\'énergie de chacun', ecartSnap <= 0.5, `écart max ${ecartSnap.toFixed(2)}`);
+
+  // L'usure prévue, contre ce que `depenserEnergie` retire vraiment (les coups à part).
+  const prevue = usureDuSoir(toiA);
+  const lu = activeLineup(toiA);
+  const avant = new Map(Object.values(lu).filter(Boolean).map(p => [p, { e: p.energie, r: p._reserve }]));
+  depenserEnergie(toiA, lu);
+  const ecartUsure = Math.max(...[...avant].map(([p, v]) => Math.abs((v.e ?? 100) - energieDe(p) - (prevue[getPlayerKey(p)] ?? 0))));
+  for (const [p, v] of avant) { p.energie = v.e; if (v.r === undefined) delete p._reserve; else p._reserve = v.r; }
+  exiger('l\'usure prévue ce soir est celle que le match retire', ecartUsure < 1e-9, `écart max ${ecartUsure.toExponential(1)}`);
+
+  // Le plus usé de tes habillés, qu'un réserviste peut remplacer.
+  const habilles = SLOTS.filter(s => !s.scratch && toiA.roster[s.i] && toiA.roster[s.i].p !== 'G').sort((a, b) => energieDe(toiA.roster[a.i]) - energieDe(toiA.roster[b.i]));
+  const s0 = habilles.find(s => SLOTS.some(x => x.scratch && toiA.roster[x.i] && fits(toiA.roster[x.i], s) && fits(toiA.roster[s.i], x)));
+  const sub = SLOTS.find(x => x.scratch && toiA.roster[x.i] && fits(toiA.roster[x.i], s0) && fits(toiA.roster[s0.i], x));
+  const cle = getPlayerKey(toiA.roster[s0.i]);
+  const cases = photoAlignement(toiA.roster);
+  [cases[s0.i], cases[sub.i]] = [cases[sub.i], cases[s0.i]];
+  const m = jambesAVenir({ toi: toiA, calendrier: LA.calendrier, jourRevele: r, propositions: [{ jour: r, cases }] });
+  const rend = m.propositions[0].get(cle) - m.base.get(cle);
+  exiger('la mesure dit qu\'un soir de repos rend des jambes', rend > 0, `${toiA.roster[s0.i].n} : ${signe(rend)} jambes au matin de la journée ${m.horizon + 1}`);
+
+  // B se repose, A joue ; la mesure a tourné dans A seulement.
+  LB.decisions.push({ jour: r, cases });
+  jouerJournee(LA); jouerJournee(LB);
+  const pA = toiA.jourLignes[r + 1].energie[cle], pB = toiB.jourLignes[r + 1].energie[cle];
+  exiger('un repos remonte les jambes le lendemain', pB > pA && pB >= snap[cle], `${snap[cle]} ce matin → ${pB} reposé, ${pA} s'il joue`);
+  // La ligue A (mesure lancée, aucune décision) contre une troisième jumelle jamais mesurée.
+  const C = club(), LC = creerLigue(C, 82, { graine: 'suivi' });
+  while (LC.jour < r + 1) jouerJournee(LC);
+  for (let k = 0; k < 10; k++) { jouerJournee(LA); jouerJournee(LC); }
+  const sig = L => L.teams.map(t => `${t.W}-${t.L}-${t.OTL}-${t.GF}-${t.GA}`).join('|');
+  exiger('la mesure ne touche à rien : la saison mesurée joue la suite au but près', sig(LA) === sig(LC), `${LA.jour} journées`);
 }
 
 const P = paires('pousse'), Rr = paires('roule');

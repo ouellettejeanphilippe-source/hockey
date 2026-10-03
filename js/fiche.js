@@ -10,7 +10,7 @@ import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
 import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, profilPrincipal, maitrise, EFFET_ROLE, COUP_JAMBES, COUP_ABSORBE } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { sesRolesHtml, barresProfils, niveauDe as motDeMaitrise, carrureDe } from './gerant.js';
+import { sesRolesHtml, barresProfils, niveauDe as motDeMaitrise, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
 import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
@@ -257,7 +257,9 @@ export function ouvrirFiche(p, t, mode = 'saison', extra = {}) {
   if (mode !== 'jour' && mode !== 'jourSeries') { showPlayerModal(p, { sim: mode, team: t, ...extra }); return; }
   showPlayerModal(p, {
     sim: compteEnGrille(compteRevele(mode).get(p)) || {}, team: t,
-    titreSim: mode === 'jourSeries' ? 'Ses séries, à ce jour' : 'Sa saison, à ce jour', ...extra,
+    titreSim: mode === 'jourSeries' ? 'Ses séries, à ce jour' : 'Sa saison, à ce jour',
+    // La courbe des jambes s'arrête au matin de la journée révélée : rien d'un soir pas encore vu.
+    jambesJusqua: mode === 'jour' ? (G.journee || 0) : Infinity, ...extra,
   });
 }
 
@@ -354,10 +356,13 @@ export function showPlayerModal(p, opts = {}) {
   const glace = surLaGlaceHtml(p);
   const profil = glace ? `<div class="section-label">Sur la glace</div>${glace}` : '';
   const sesRoles = p.p === 'G' || surTable() ? '' : `<div class="section-label">Ses rôles</div>${sesRolesHtml(p)}`;
+  // SES JAMBES, JOURNÉE PAR JOURNÉE (1.0, le suivi des jambes) : l'instantané du moteur de son club.
+  const courbe = apres && opts.team ? courbeJambesHtml(courbeJambes(opts.team, p, opts.jambesJusqua ?? Infinity), { large: true }) : '';
   const corps = apercu ? profil + sesRoles + plusDeDetails : apres
     ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
+       ${courbe ? `<div class="section-label">Ses jambes, journée par journée</div>${courbe}` : ''}
        ${profil}${sesRoles}
        ${plusDeDetails}`
     : surTable()

@@ -746,6 +746,16 @@ input[type="range"] { accent-color: var(--or); }
 .jambes-correct .jambes-mot { color: var(--bleu); }
 .jambes-lourd .jambes-mot { color: var(--or); }
 .jambes-vide .jambes-mot { color: var(--live); }
+/* La courbe des jambes : au matin de chaque journée, la couleur de son niveau de ce matin. */
+.courbe-jambes { display: block; width: 64px; height: 18px; flex: none; }
+.courbe-jambes.large { width: 100%; height: 48px; margin: var(--esp-1) 0 var(--esp-2); }
+.courbe-jambes svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.courbe-jambes path { fill: none; vector-effect: non-scaling-stroke; }
+.courbe-ref { stroke: var(--filet); stroke-width: 1; stroke-dasharray: 3 3; }
+.courbe-trait { stroke: var(--bon); stroke-width: 1.5; stroke-linejoin: round; }
+.courbe-jambes.jambes-correct .courbe-trait { stroke: var(--bleu); }
+.courbe-jambes.jambes-lourd .courbe-trait { stroke: var(--or); }
+.courbe-jambes.jambes-vide .courbe-trait { stroke: var(--live); }
 /* Une étiquette de section, un mot qui coiffe un bloc. */
 .section-label { display: flex; align-items: center; gap: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); margin: var(--esp-4) 0 var(--esp-2); }
 .section-label::before { content: ""; flex: none; width: 3px; height: 12px; background: var(--club-vif); box-shadow: 0 0 8px var(--club-vif); }
@@ -2370,7 +2380,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* La ligne ouverte : ses joueurs en rangées, puis son état, ses systèmes, son agressivité, sa glace. */
 .gl-ligne { display: flex; flex-direction: column; gap: var(--esp-2); }
 .gl-joueurs { display: flex; flex-direction: column; gap: 1px; border: 1px solid var(--filet); background: var(--filet); }
-.gl-j { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto auto; grid-template-areas: "role nom nom niv" "role prof voulu jambes"; align-items: center; gap: var(--esp-1) var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-2); background: var(--fond-1); font-size: var(--t-2); }
+.gl-j { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto auto; grid-template-areas: "role nom usure niv" "role prof voulu jambes"; align-items: center; gap: var(--esp-1) var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-2); background: var(--fond-1); font-size: var(--t-2); }
 .gl-j-role { grid-area: role; font: 800 var(--t-1)/1 var(--display); color: var(--encre-3); }
 .gl-j-nom { grid-area: nom; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gl-j-nom i { color: var(--encre-3); }
@@ -2378,6 +2388,8 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .gl-j-prof { grid-area: prof; }
 .gl-j-voulu { grid-area: voulu; }
 .gl-j .jambes { grid-area: jambes; min-width: 96px; }
+/* L'usure des jambes de ce soir, à côté des jambes du matin. */
+.gl-j-usure { grid-area: usure; justify-self: end; font: 800 var(--t-1)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
 .gl-j-prof, .gl-j-voulu { font: 700 var(--t-1)/1 var(--display); white-space: nowrap; }
 .gl-j-prof small { font: 700 var(--t-1)/1 var(--display); color: var(--encre-2); }
 .gl-j-place { margin-left: 3px; font-size: var(--t-1); color: var(--attention); cursor: help; }
@@ -2444,8 +2456,8 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 @media (min-width: 640px) {
   .sum-item .v { font-size: var(--t-5); }
   .gl-onglets { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .gl-j { grid-template-columns: 30px minmax(0, 1fr) auto auto 56px 110px auto; grid-template-areas: none; }
-  .gl-j > *, .gl-j .jambes { grid-area: auto; }
+  .gl-j { grid-template-columns: 30px minmax(0, 1fr) auto auto 56px 110px 30px auto; grid-template-areas: none; }
+  .gl-j > *, .gl-j .jambes, .gl-j .gl-j-usure { grid-area: auto; }
   .gl-j-mut { display: inline; }
 }
 /* Une case large (une seule colonne de trios, sans le rail) montre le prénom et l'écusson. */
@@ -3108,6 +3120,19 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-prev-fin { font-size: var(--t-3); margin: var(--esp-1) 0; }
 .hub-prev-fin span { color: var(--encre-3); font-size: var(--t-2); }
 .hub-prev-joueurs th small { color: var(--encre-3); font-size: var(--t-1); }
+/* LES JAMBES (le volet de saison) : les plus usés d'abord, puis de quoi les ménager. */
+.jb-liste { display: grid; gap: 2px; margin: var(--esp-2) 0 var(--esp-4); }
+.jb-j { display: grid; grid-template-columns: minmax(0, 1fr) 64px 120px; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-2); background: var(--fond-1); font-size: var(--t-2); }
+.jb-nom { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jb-nom small { color: var(--encre-3); font-size: var(--t-1); }
+.jb-j .jambes-k { display: none; }
+.jb-props { display: grid; gap: var(--esp-2); margin: var(--esp-2) 0; }
+.jb-prop { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-1) var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--fond-1); border-left: 3px solid var(--filet-2); }
+.jb-prop.rend { border-left-color: var(--bon); }
+.jb-prop-t { min-width: 0; display: grid; gap: 2px; }
+.jb-prop-t small { color: var(--encre-2); font-size: var(--t-1); }
+.jb-prop .choix-puces { grid-column: 1; }
+.jb-prop .btn { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; }
 .ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
 .ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: var(--r-1); }
 .ent2-incident { margin: var(--esp-2) 0; padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }

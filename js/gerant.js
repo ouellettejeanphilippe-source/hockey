@@ -572,6 +572,30 @@ export function jambesHtml(e) {
   return `<span class="jambes jambes-${N.cle}" title="Ses jambes ce matin, sur 100 : ${N.nom.toLowerCase()}. Chaque point sous ${ENERGIE_REF} lui coûte ${String(ENERGIE_EFFET).replace('.', ',')} % de lancers, de finition et de création, chaque point au-dessus lui en rend autant (ce matin : ${effet > 0 ? '+' : ''}${String(effet).replace('.', ',')} %) ; sous ${ENERGIE_BLESSURE}, il se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${N.cle}"></span></i><em class="jambes-mot">${N.nom}</em></span>`;
 }
 
+/*
+ * LA COURBE DES JAMBES (1.0, le suivi des jambes) : ses jambes au matin de chaque journée, lues dans
+ * l'instantané du moteur (`team.jourLignes[j].energie`) jusqu'à la journée `jusqua`. Une journée où il
+ * n'était pas du club coupe la courbe. Le trait pointillé est la ligne ordinaire (ENERGIE_REF).
+ */
+export function courbeJambes(team, p, jusqua = Infinity) {
+  const cle = getPlayerKey(p), J = (team && team.jourLignes) || [];
+  const v = [];
+  for (let j = 0; j < Math.min(J.length, jusqua + 1); j++) { const e = J[j] && J[j].energie ? J[j].energie[cle] : undefined; v.push(Number.isFinite(e) ? e : null); }
+  return v;
+}
+const COURBE_BAS = 50;   // le bas du dessin : sous 50, la courbe touche le fond
+export function courbeJambesHtml(v, { large = false } = {}) {
+  const pts = v.map((e, j) => (e == null ? null : [j, e]));
+  const vus = pts.filter(Boolean);
+  if (vus.length < 2) return '';
+  const n = Math.max(1, v.length - 1);
+  const y = e => ((100 - Math.max(COURBE_BAS, Math.min(100, e))) / (100 - COURBE_BAS) * 30).toFixed(1);
+  let d = '', ouvert = false;
+  for (const q of pts) { if (!q) { ouvert = false; continue; } d += `${ouvert ? 'L' : 'M'}${(q[0] / n * 100).toFixed(1)} ${y(q[1])}`; ouvert = true; }
+  const fin = vus[vus.length - 1][1], bas = Math.min(...vus.map(q => q[1]));
+  return `<span class="courbe-jambes${large ? ' large' : ''} jambes-${niveauJambes(fin).cle}" title="Ses jambes au matin de chaque journée : ${fin} ce matin, ${bas} au plus bas. Le pointillé : la ligne ordinaire, ${ENERGIE_REF}."><svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path class="courbe-ref" d="M0 ${y(ENERGIE_REF)}H100"/><path class="courbe-trait" d="${d}"/></svg></span>`;
+}
+
 /* ======================================================================
    MES LIGNES, EN PLEIN ÉCRAN
    ====================================================================== */
@@ -654,7 +678,8 @@ function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe 
  * spec : {
  *   titre, lineup (case → joueur), lignes [{ tac, tacD, agr, sec }] × 4, chimie [4], energie { clé: 0-100 },
  *   adv: { nom, lignes [{ tac }] } | null, match: { importance, ad } | null,
- *   onAppliquer(lignes, match), onBanc() | null, sousTitre
+ *   onAppliquer(lignes, match), onBanc() | null, sousTitre,
+ *   usure(match, lignes) → { clé: jambes perdues ce soir } | absent
  * }
  */
 /*
@@ -739,6 +764,17 @@ export function ouvrirLignes(spec) {
   let filet = F0 ? (F0.choix && F0.choix !== 'auto' ? F0.choix : F0.rotation) : null;
   const filetSortie = () => (!F0 ? undefined : filet === F0.rotation ? (F0.choix && F0.choix !== 'auto' ? 'auto' : undefined) : filet);
 
+  /*
+   * L'USURE DES JAMBES CE SOIR (1.0, le suivi des jambes) : ce que ses présences lui coûteront, refait à
+   * chaque toucher — les secondes, l'agressivité, le système et la consigne la changent (`spec.usure`,
+   * `usureDuSoir` dans js/sim.js). Les coups reçus s'y ajoutent en jouant.
+   */
+  let usureSoir = null;
+  const usureHtml = p => {
+    const c = p && usureSoir ? usureSoir[getPlayerKey(p)] : null;
+    return c == null ? '<span class="gl-j-usure"></span>'
+      : `<span class="gl-j-usure" title="L'usure des jambes de ses présences ce soir : ses minutes, l'agressivité, le système et la consigne la décident. Les coups reçus s'y ajoutent.">−${Math.round(c)}</span>`;
+  };
   const joueurLigne = (u, role) => {
     const js = joueursDeLigne(spec.lineup, u);
     if (!(role in js)) return '';
@@ -763,12 +799,14 @@ export function ouvrirLignes(spec) {
       <span class="gl-j-niv">${p ? pastilleNiveau(p) : ''}</span>
       ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y est ${niveauDe(fitRole ?? 0)}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
       ${p ? jambesHtml(e) : '<span class="jambes"></span>'}
+      ${usureHtml(p)}
       ${(p && p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="gl-j-mut" title="${esc(MUTATIONS[k].nom)}">${MUTATIONS[k].ico}</span>` : '').join('')}
     </div>`;
   };
 
   function dessiner() {
     const mins = minutes(brouillon);
+    usureSoir = spec.usure ? spec.usure(match, brouillon) : null;
     const tete = `<div class="choix-tete">
       <span class="choix-ico">🏒</span>
       <div class="choix-titres"><div class="choix-titre">${esc(spec.titre || 'Mes lignes')}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>

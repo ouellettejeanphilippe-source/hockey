@@ -74,7 +74,7 @@ const _wait = page.waitForSelector.bind(page);
  * (qui règle d'abord les choix forcés, plus bas) ou `_click`.
  */
 const SECTION_DE = {
-  match: 'club', boite: 'club', saison: 'club', alignement: 'effectif', repechage: 'marche', marche: 'marche',
+  match: 'club', boite: 'club', saison: 'club', alignement: 'effectif', jambes: 'effectif', repechage: 'marche', marche: 'marche',
   classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'collection', cartable: 'collection',
 };
 const SECTIONS = ['club', 'effectif', 'marche', 'ligue', 'collection'];
@@ -1591,6 +1591,55 @@ console.log(`3. #mainBtn actif : ${enabled}`);
 /* L'écran de saison : on avance d'une journée, on lit les meneurs, on regarde
    un match en direct (pause, statistiques, reprise, fin), puis on passe à la
    fin et au bilan. */
+/*
+ * LES JAMBES (1.0, le suivi des jambes), une fois, en pleine saison. Effectif › Jambes : ta formation, les
+ * plus usés d'abord, chacun avec sa courbe ; puis les ménagements, chacun avec ce qu'il rend en jambes,
+ * mesuré par le moteur. Le plus usé mis en réserve a plus de jambes le lendemain matin — sans dépendre
+ * du tirage : un joueur qui ne joue pas rattrape chaque jour une part de ce qui lui manque.
+ */
+let jambesVues = false;
+async function eprouverJambes() {
+  jambesVues = true;
+  await aller('jambes');
+  try { await _wait('#hubModal .jb-liste .jb-j', { timeout: 10000 }); } catch { errors.push('Effectif › Jambes : aucune liste'); await aller('match'); return; }
+  const liste = await page.$$eval('#hubModal .jb-j', rs => rs.map(r => Number(r.querySelector('.jambes b')?.textContent)));
+  if (liste.some((x, i) => i && x < liste[i - 1])) errors.push(`Jambes : la liste ne part pas des plus usés (${liste.slice(0, 6).join(', ')}…)`);
+  if (!(await page.$('#hubModal .jb-j .courbe-jambes svg path.courbe-trait'))) errors.push('Jambes : aucune courbe');
+  await _wait('#hubModal .jb-appliquer', { timeout: 30000 }).catch(() => {});
+  const props = await page.$$eval('#hubModal .jb-prop', ps => ps.map(p => ({ i: p.querySelector('[data-menager]')?.dataset.menager, t: (p.querySelector('.jb-prop-t b')?.textContent || '').trim(), puce: p.querySelector('.puce')?.textContent || '' })));
+  if (!props.length) errors.push('Jambes : aucune façon de les ménager');
+  const muettes = props.filter(p => !/\d jambes/.test(p.puce));
+  if (muettes.length) errors.push(`Jambes : ${muettes.length} proposition(s) sans ce qu'elle rend (« ${muettes[0].t} »)`);
+  const repos = props.find(p => / en réserve$/.test(p.t));
+  if (!repos) { errors.push('Jambes : aucune proposition de mettre le plus usé en réserve'); await aller('match'); return; }
+  const nom = repos.t.replace(/ en réserve$/, '');
+  const jambesDe = () => page.$$eval('#hubModal .jb-j', (rs, n) => { const r = rs.find(x => (x.querySelector('.jb-nom')?.textContent || '').includes(n)); return r ? Number(r.querySelector('.jambes b').textContent) : null; }, nom);
+  const avant = await jambesDe();
+  await _click(`#hubModal [data-menager="${repos.i}"]`);
+  await page.waitForTimeout(300);
+  await ecranPret(60000);
+  await repondreAuxChoix();
+  // Le lendemain : une journée, une seule.
+  await aller('match');
+  await debloquer();
+  for (let k = 0; k < 3; k++) {
+    const b = await page.$('#hubModal .hub-jour');
+    if (!b) break;
+    const mot = ((await b.textContent()) || '').trim();
+    await page.click('#hubModal .hub-jour');
+    await page.waitForTimeout(150);
+    await ecranPret(60000);
+    await repondreAuxChoix();
+    if (/Journée suivante/.test(mot)) break;
+  }
+  await aller('jambes');
+  await _wait('#hubModal .jb-liste .jb-j', { timeout: 10000 }).catch(() => {});
+  const apres = await jambesDe();
+  if (avant == null || apres == null) errors.push(`Jambes : ${nom} introuvable dans la liste (${avant} → ${apres})`);
+  else if (!(apres > avant || (avant >= 98 && apres >= avant))) errors.push(`Jambes : ${nom} mis en réserve n'a pas plus de jambes le lendemain (${avant} → ${apres})`);
+  else console.log(`   les jambes : ${liste.length} joueurs, ${props.length} ménagements mesurés · ${nom} en réserve : ${avant} → ${apres} le lendemain`);
+  await aller('match');
+}
 async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
   /*
@@ -1628,6 +1677,7 @@ async function traverserSaison(etiquette, reprise = false) {
     else if (!som && !(await page.$('#hubModal .hub-hier'))) errors.push('après « Journée suivante », le résultat n\'est ni en plein écran ni au bureau');
     else if (!som) console.log('   un match ordinaire : pas de plein écran, le résultat monte au bureau');
   }
+  if (!jambesVues) await eprouverJambes();
   const jour = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
   if (!coquilleVue) { await repondreAuxChoix(); await eprouverCoquille(); }
 

@@ -2391,8 +2391,9 @@ export function usuresDe(team, lineup) {
 }
 /* Les jambes qu'une ligne aurait au matin, à l'équilibre, jouée ainsi tous les soirs. */
 export const jambesEquilibre = us => Math.max(0, Math.min(100, 100 - ENERGIE_C * us * us));
-export function depenserEnergie(team, lineup) {
-  const us = usuresDe(team, lineup);
+/* L'usure des présences d'un soir, joueur par joueur (avant la réserve) : la seule formule, que `depenserEnergie` applique. */
+function coutsDuSoir(team, lineup) {
+  const us = usuresDe(team, lineup), out = new Map();
   for (let u = 0; u < 4; u++) {
     for (const [role, p] of Object.entries(joueursDeLigne(lineup, u))) {
       if (!p) continue;
@@ -2400,9 +2401,16 @@ export function depenserEnergie(team, lineup) {
       let cout = ENERGIE_C * Math.pow(d ? us.D[pairDeLigne(u)] : us.F[u], 2);
       // Le plombier maîtrisé (EFFET_ROLE.energie) : son match lui coûte moins.
       if (!d) cout *= 1 - EFFET_ROLE.energie * maitrise(p, 'energie');
-      if (p._reserve) { const r = Math.min(p._reserve, cout); p._reserve -= r; cout -= r; }
-      p.energie = Math.max(0, energieDe(p) - cout);
+      out.set(p, cout);
     }
+  }
+  return out;
+}
+export function depenserEnergie(team, lineup) {
+  for (const [p, c] of coutsDuSoir(team, lineup)) {
+    let cout = c;
+    if (p._reserve) { const r = Math.min(p._reserve, cout); p._reserve -= r; cout -= r; }
+    p.energie = Math.max(0, energieDe(p) - cout);
   }
 }
 export function recupererEnergie(team, part = ENERGIE_RECUP) {
@@ -6660,38 +6668,64 @@ export function motsDEffet(e, duree = null) {
  */
 export function totauxDuSoir(team, lineup = null, adv = null, aVenir = []) {
   if (!team) return null;
-  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'lignes'];
-  const avant = champs.map(k => [k, k in team, team[k]]);
+  return avecAVenir(team, aVenir, () => totauxBruts(team, lineup, adv));
+}
+/*
+ * CE QU'UNE DÉCISION À VENIR A DE PUR, POSÉ SUR L'ÉQUIPE : ses cartes, patrons, coachs, effets, roulement,
+ * lignes — et, avec `cases`, l'alignement (sur une copie des cases : `appliquerAlignement` les refait en
+ * place). Chaque champ est REMPLACÉ, jamais modifié : la valeur d'avant reste intacte, ce qui permet de
+ * la remettre (`avecAVenir`) ou de poser sur la copie d'un club (js/pronostic.js, `jambesAVenir`).
+ */
+export function poserAVenir(team, aVenir, { cases = false } = {}) {
   // En séries, le match qui vient lit `effetsSerie` (S69), pas les effets datés de la saison.
   const serie = team.jourCourant === Infinity;
   const ajouter = x => { if (serie) team.effetsSerie = [...(team.effetsSerie || []), x]; else team.effets = [...(team.effets || []), x]; };
-  try {
-    for (const d of aVenir || []) {
-      if (d.carte && CARTES[d.carte]) team.cartes = [...(team.cartes || []), d.carte];
-      if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
-      if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
-      const eff = serie ? (d.match ? effetDeMoment({ match: d.match, jour: 0 }) : null) : effetDeMoment(d, team);
-      if (eff) ajouter(eff);
-      if (d.effet && !serie) {
-        const { duree, nom, ico, ...canaux } = d.effet;
-        ajouter({ debut: d.jour, fin: apresMatchs(team, d.jour, duree || DUREE_MOMENT), nom, ico, ...canaux });
-      }
-      if (serie && d.ajustement && AJUSTEMENTS[d.ajustement]) {
-        const { ico, nom, bon, prix, si, gardienAux, pari, ...canaux } = AJUSTEMENTS[d.ajustement];
-        void bon; void prix; void si; void gardienAux; void pari;
-        ajouter({ source: 'ajustement', nom, ico, ...canaux });
-      }
-      if (d.patron && d.patron.cle) {
-        const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
-        const { remplace: _r, ...pat } = d.patron; void _r;
-        team.patrons = [...(team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role)), pat];
-      }
-      if (d.coach && d.coach.cle) team.coachs = [...(team.coachs || []).filter(x => x.cle !== d.coach.cle), { ...d.coach }];
+  for (const d of aVenir || []) {
+    if (d.carte && CARTES[d.carte]) team.cartes = [...(team.cartes || []), d.carte];
+    if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
+    if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
+    const eff = serie ? (d.match ? effetDeMoment({ match: d.match, jour: 0 }) : null) : effetDeMoment(d, team);
+    if (eff) ajouter(eff);
+    if (d.effet && !serie) {
+      const { duree, nom, ico, ...canaux } = d.effet;
+      ajouter({ debut: d.jour, fin: apresMatchs(team, d.jour, duree || DUREE_MOMENT), nom, ico, ...canaux });
     }
-    return totauxBruts(team, lineup, adv);
+    if (serie && d.ajustement && AJUSTEMENTS[d.ajustement]) {
+      const { ico, nom, bon, prix, si, gardienAux, pari, ...canaux } = AJUSTEMENTS[d.ajustement];
+      void bon; void prix; void si; void gardienAux; void pari;
+      ajouter({ source: 'ajustement', nom, ico, ...canaux });
+    }
+    if (d.patron && d.patron.cle) {
+      const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
+      const { remplace: _r, ...pat } = d.patron; void _r;
+      team.patrons = [...(team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role)), pat];
+    }
+    if (d.coach && d.coach.cle) team.coachs = [...(team.coachs || []).filter(x => x.cle !== d.coach.cle), { ...d.coach }];
+    if (cases && d.cases) { team.roster = { ...team.roster }; appliquerAlignement(team, { cases: d.cases }); }
+  }
+}
+function avecAVenir(team, aVenir, fn, { cases = false } = {}) {
+  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'lignes', ...(cases ? ['roster'] : [])];
+  const avant = champs.map(k => [k, k in team, team[k]]);
+  try {
+    poserAVenir(team, aVenir, { cases });
+    return fn();
   } finally {
     for (const [k, avait, v] of avant) { if (avait) team[k] = v; else delete team[k]; }
   }
+}
+/*
+ * L'USURE DES JAMBES CE SOIR (1.0, le suivi des jambes) : ce que les présences du match coûteront à
+ * chacun (`coutsDuSoir`, la formule de `depenserEnergie`), la réserve déduite, avec les décisions du
+ * soir pas encore jouées — les lignes et la consigne qu'on règle dans « Préparer le match ». Les coups
+ * reçus s'y ajoutent en jouant ; ils ne se prévoient pas.
+ */
+export function usureDuSoir(team, aVenir = []) {
+  return avecAVenir(team, aVenir, () => {
+    const out = {};
+    for (const [p, c] of coutsDuSoir(team, activeLineup(team))) out[getPlayerKey(p)] = Math.max(0, c - (p._reserve || 0));
+    return out;
+  }, { cases: true });
 }
 function totauxBruts(team, lineup, adv) {
   const lu = lineup || activeLineup(team);

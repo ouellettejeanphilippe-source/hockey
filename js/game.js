@@ -1584,7 +1584,8 @@ const PAGES_DE = {
   // au lieu de tout avoir*. En saison : le match, la boîte de réception, la saison (le proprio, l'infirmerie, ta route,
   // ton histoire, tes matchs). « Ma fiche » vivait sous Ligue › Calendrier ; elle est la page Saison du Club.
   club: () => ['match', ...['boite', 'saison'].filter(p => voletPour(p))],
-  effectif: () => ['alignement'],
+  // LES JAMBES (1.0) : en saison, la courbe de chacun et de quoi les ménager (js/saison.js, `voletJambes`).
+  effectif: () => ['alignement', ...(voletPour('jambes') ? ['jambes'] : [])],
   marche: () => [auVestiaire() ? 'repechage' : 'marche'],
   // En saison, le calendrier n'a pas de volet (« Ma fiche » est la page Saison du Club) : l'onglet attend le bilan.
   ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), 'meneurs', 'equipes'],
@@ -1592,7 +1593,7 @@ const PAGES_DE = {
 };
 /* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
 const PAGE = {
-  match: ['i-club', 'Match'], boite: ['i-boite', 'Boîte'], saison: ['i-saison', 'Saison'], alignement: ['i-list', 'Effectif'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Marché'],
+  match: ['i-club', 'Match'], boite: ['i-boite', 'Boîte'], saison: ['i-saison', 'Saison'], alignement: ['i-list', 'Effectif'], jambes: ['i-jambes', 'Jambes'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Marché'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Saisons'], cartable: ['i-cartes', 'Cartable'],
 };
@@ -1602,7 +1603,7 @@ const VOLETS_DU_BILAN = {
   match: ['series', 'bilan'], classement: ['classement', 'ligue'], calendrier: ['calendrier'],
   meneurs: ['stats'], alignement: ['alignement'],
 };
-const PAGES_DE_SAISON = ['match', 'boite', 'saison', 'classement', 'calendrier', 'meneurs', 'equipes'];
+const PAGES_DE_SAISON = ['match', 'boite', 'saison', 'jambes', 'classement', 'calendrier', 'meneurs', 'equipes'];
 /* Les pages de lecture, pareilles à tout moment de la partie. */
 const PAGES_REF = ['equipes', 'historique'];
 

@@ -32,12 +32,13 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, CARTES, PALI
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, ANNONCE_GROS,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
-  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, motsDesTotaux, motsDEffet, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty } from './sim.js';
+  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, usureDuSoir, motsDesTotaux, motsDEffet, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
+  ROULEMENTS, roulementDe, AGRESSIVITES, AD_DE_CONSIGNE, SEC_MIN, SEC_DEFAUT } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
-import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
+import { pronostic, prevision, jambesAVenir, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
-import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
+import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, jambesHtml, courbeJambes, courbeJambesHtml, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
@@ -157,6 +158,8 @@ function boiteDe(graine) {
 const PRONOS = new Map();
 /* La prévision de la saison (js/pronostic.js), gardée pour la journée et les décisions du moment. */
 const PREVISIONS = new Map();
+/* Ce que rend chaque ménagement des jambes (js/pronostic.js, `jambesAVenir`), pour la journée et les décisions du moment. */
+const MENAGEMENTS = new Map();
 /* « 2e 14:05 » : l'instant d'un but, pour le tableau de l'entracte. */
 // Un but à l'entracte : sa période et l'horloge du direct (le temps qu'il reste, `tempsRestant`).
 const instantMot = t => { const per = Math.min(3, Math.floor(t / 20) + 1); return `${per === 1 ? '1re' : `${per}e`} ${tempsRestant(t)}`; };
@@ -878,13 +881,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * d'ici là (le moteur ne les applique qu'en jouant la journée). `brouillon`
    * remplace la consigne et les lignes de ce soir-là (« Préparer le match »).
    */
-  const totauxDuMatch = (j, brouillon = null) => {
+  // Les décisions d'ici au soir `j` pas encore jouées, le brouillon de « Préparer le match » à la place des siennes.
+  const auSoirDu = (j, brouillon, fn) => {
     const aVenir = decs.filter(d => d.jour >= jour && d.jour <= j && !d.entracte && !(brouillon && d.jour === j && (d.match || d.lignes)));
     if (brouillon) aVenir.push({ jour: j, ...brouillon });
     const jc = you.jourCourant;
     you.jourCourant = j;
-    try { return totauxDuSoir(you, null, null, aVenir); } finally { you.jourCourant = jc; }
+    try { return fn(aVenir); } finally { you.jourCourant = jc; }
   };
+  const totauxDuMatch = (j, brouillon = null) => auSoirDu(j, brouillon, aVenir => totauxDuSoir(you, null, null, aVenir));
   const pris = new Set(decs.filter(d => typeof d.palier === 'string').map(d => d.palier));
   const momentsAvant = J => decs.filter(d => d.moment && d.moment.famille === 'moment'
     && typeof d.palier === 'string' && Number(d.palier.slice(2)) < J).map(d => d.moment.cle);
@@ -2218,6 +2223,81 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <div class="hub-note">${pr.n} saisons rejouées, ta formation de ce matin. Une blessure, un échange, une carte la changent : relance-la après.</div>
     </div>`;
   }
+  /*
+   * LES JAMBES (1.0, le suivi des jambes). JP : *tracking de l'énergie et optimisation de l'énergie*.
+   * Ta formation, les plus usés d'abord : ses jambes ce matin et leur courbe depuis la première journée
+   * (l'instantané du moteur, `jourLignes`). Puis de quoi les ménager, rien que des décisions qui existent :
+   * un joueur en réserve (les cases), la consigne Basse, un roulement, une ligne moins poussée. Chacune
+   * dit ce qu'elle rend en jambes au matin du match d'après, mesuré par le moteur (`jambesAVenir`,
+   * js/pronostic.js) : tes matchs d'ici là rejoués avec et sans elle, sur les mêmes dés.
+   */
+  const MESURES_JAMBES = 6;
+  let menagements = [];
+  const nomCase = s => ctx.esc(ctx.slotShort ? ctx.slotShort(s) : s.role);
+  const lien = p => (ctx.fiche ? ctx.fiche(p, you, ctx.esc(p.n)) : ctx.esc(p.n));
+  // Les lignes et la consigne déjà choisies pour un soir : une proposition les garde (`deciderSaison` remplace la décision du même soir).
+  const prisPour = (j, k) => { const d = decs.filter(x => x.jour === j && x[k]).pop(); return d ? d[k] : null; };
+  function propositionsJambes(rangs) {
+    const p0 = prochain();
+    if (!onDecision || !p0) return [];
+    const soir = p0.j, out = [];
+    const habilles = rangs.filter(r => !r.s.scratch && r.p.p !== 'G' && !(you.injured && you.injured.has(r.p)));
+    const libres = SLOTS.filter(s => s.scratch && you.roster[s.i] && !(you.injured && you.injured.has(you.roster[s.i])));
+    // Le plus usé, en réserve : un réserviste en santé qui peut jouer sa case la prend.
+    for (const r of habilles.slice(0, 2)) {
+      const sub = libres.find(s => fits(you.roster[s.i], r.s) && fits(r.p, s));
+      if (!sub) continue;
+      const cases = photoAlignement(you.roster);
+      [cases[r.s.i], cases[sub.i]] = [cases[sub.i], cases[r.s.i]];
+      out.push({ titre: `${ctx.esc(r.p.n)} en réserve`, mot: `${ctx.esc(you.roster[sub.i].n)} prend sa case ; il y reste tant que tu ne le remets pas.`, qui: [getPlayerKey(r.p)], a: 'à lui', d: { jour, cases } });
+    }
+    const lignesSoir = prisPour(soir, 'lignes'), matchSoir = prisPour(soir, 'match');
+    if (!matchSoir || matchSoir.importance !== 'basse') {
+      const I = IMPORTANCES.basse;
+      out.push({ titre: `${I.ico} Consigne ${I.nom} au prochain match`, mot: `${cap(I.mot)} : un peu moins de finition.`, qui: habilles.map(r => getPlayerKey(r.p)), a: 'en moyenne',
+        d: { jour: soir, match: { importance: 'basse', ad: AD_DE_CONSIGNE.basse }, ...(lignesSoir ? { lignes: lignesSoir } : {}) } });
+    }
+    const premiere = SLOTS.filter(s => !s.scratch && s.unit === 0 && (s.group === 'F' || s.group === 'D') && you.roster[s.i]).map(s => getPlayerKey(you.roster[s.i]));
+    for (const [k, R] of Object.entries(ROULEMENTS)) if (k !== roulementDe(you)) out.push({ titre: `${R.ico} ${ctx.esc(R.nom)}`, mot: `Le roulement, dès aujourd'hui : ${ctx.esc(R.prix.toLowerCase())}.`, qui: premiere, a: 'à ta 1re ligne', d: { jour, roulement: k } });
+    // La ligne la plus usée, moins poussée : quinze secondes de moins par présence, l'agressivité basse.
+    const base = (lignesSoir || lignesDe(you, you.roster)).map(l => ({ ...l }));
+    const usee = [0, 1, 2, 3].map(u => ({ u, e: habilles.filter(r => r.s.group === 'F' && r.s.unit === u).reduce((a, r, _, t) => a + r.e / t.length, 0) })).filter(x => x.e > 0).sort((a, b) => a.e - b.e)[0];
+    if (usee && (base[usee.u].sec > SEC_MIN || base[usee.u].agr !== 0)) {
+      const u = usee.u, l = { ...base[u], sec: Math.max(SEC_MIN, (base[u].sec || SEC_DEFAUT) - 15), agr: 0 };
+      const lignes = base.map((x, i) => (i === u ? l : x));
+      const A = AGRESSIVITES[0];
+      out.push({ titre: `${ord(u + 1)} trio : ${l.sec} s, agressivité ${A.ico} ${ctx.esc(A.nom)}`, mot: 'Au prochain match, et ensuite : moins de glace, moins de jeu physique.',
+        qui: habilles.filter(r => r.s.group === 'F' && r.s.unit === u).map(r => getPlayerKey(r.p)), a: 'au trio', d: { jour: soir, lignes, ...(matchSoir ? { match: matchSoir } : {}) } });
+    }
+    return out;
+  }
+  function voletJambes() {
+    const snap = (you.jourLignes || [])[jour];
+    if (!snap) return '<div class="hub-note">Les jambes se lisent dès la première journée.</div>';
+    const rangs = SLOTS.filter(s => you.roster[s.i]).map(s => ({ s, p: you.roster[s.i], e: snap.energie[getPlayerKey(you.roster[s.i])] ?? 100 })).sort((a, b) => a.e - b.e);
+    const liste = rangs.map(({ s, p, e }) => `<div class="jb-j"><span class="jb-nom">${lien(p)} <small>${nomCase(s)}</small></span>${courbeJambesHtml(courbeJambes(you, p, jour))}${jambesHtml(e)}</div>`).join('');
+    const tete = `<div class="hub-titre">Les jambes · au matin de la journée ${jour + 1}</div><div class="jb-liste">${liste}</div>`;
+    menagements = propositionsJambes(rangs);
+    if (!menagements.length) return tete;
+    const cle = `${graine}|${jour}|${decs.length}`;
+    if (!MENAGEMENTS.has(cle)) {
+      setTimeout(() => {
+        if (MENAGEMENTS.has(cle)) return;
+        MENAGEMENTS.set(cle, jambesAVenir({ toi: you, calendrier, jourRevele: jour, aVenir: decs.filter(d => d.jour >= jour && !d.entracte), propositions: menagements.map(m => m.d), n: MESURES_JAMBES }));
+        if (tabs.courant() === 'jambes') tabs.rafraichir();
+      }, 30);
+      return `${tete}<div class="hub-titre">Les ménager</div><div class="hub-note jb-calc">Le moteur rejoue tes prochains matchs…</div>`;
+    }
+    const m = MENAGEMENTS.get(cle);
+    if (!m) return tete;
+    const gain = (i, qui) => qui.reduce((a, k) => a + ((m.propositions[i].get(k) ?? 0) - (m.base.get(k) ?? 0)), 0) / (qui.length || 1);
+    const props = menagements.map((x, i) => {
+      const g = gain(i, x.qui), r = Math.round(g * 10) / 10;
+      const puce = `<span class="puce ${r >= 0.5 ? 'bon' : r <= -0.5 ? 'prix' : 'neutre'}">${r > 0 ? '+' : r < 0 ? '−' : '±'}${virgule(Math.abs(r))} jambes ${x.a}</span>`;
+      return `<div class="jb-prop${r >= 0.5 ? ' rend' : ''}"><div class="jb-prop-t"><b>${x.titre}</b><small>${x.mot}</small></div><span class="choix-puces">${puce}</span><button type="button" class="btn jb-appliquer" data-menager="${i}">Appliquer</button></div>`;
+    }).join('');
+    return `${tete}<div class="hub-titre">Les ménager</div><div class="hub-note">Au matin de la journée ${m.horizon + 1}, avec et sans le choix : tes matchs d'ici là rejoués ${MESURES_JAMBES} fois par le moteur.</div><div class="jb-props">${props}</div>`;
+  }
   const voletFiche = () => {
     if (!miens.length) return `${routeFiche()}${calendrierFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
@@ -2255,8 +2335,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // la saison — le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
     { cle: 'boite', ico: 'i-boite', titre: 'Boîte', page: 'boite' },
     { cle: 'saison', ico: 'i-saison', titre: 'Saison', page: 'saison' },
+    // LES JAMBES (1.0) : sous l'Effectif de la coquille, à côté de l'alignement.
+    { cle: 'jambes', ico: 'i-jambes', titre: 'Jambes', page: 'jambes' },
   ], cle => {
     if (cle === 'boite') return '';
+    if (cle === 'jambes') return voletJambes();
     if (cle === 'saison') return etatHtml() + previsionHtml() + voletFiche();
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
@@ -2307,7 +2390,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }, 30);
   };
   volet.addEventListener('click', lancerPrevision);
-  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); };
+  // Un ménagement des jambes est une décision comme une autre : elle passe par le même chemin.
+  const menager = e => {
+    const b = e.target.closest('[data-menager]');
+    const x = b && menagements[Number(b.dataset.menager)];
+    if (!x) return;
+    const j = jour; quitter(); onDecision(x.d, j);
+  };
+  volet.addEventListener('click', menager);
+  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); volet.removeEventListener('click', menager); };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -2722,6 +2813,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
         grosMatch: !!mb,
         totaux: (match, lignes) => motsDesTotaux(totauxDuMatch(p.j, { match, lignes })),
+        usure: (match, lignes) => auSoirDu(p.j, { match, lignes }, aVenir => usureDuSoir(you, aVenir)),
         // DEVANT LE FILET CE SOIR (1.0, C4) : la rotation du matin, et ton choix s'il y en a un.
         filet: etat.filet ? { ...etat.filet, choix: (decs.find(d => d.jour === p.j && d.filet) || {}).filet || 'auto' } : null,
         motAppliquer: 'Appliquer — la saison reprend ici',
