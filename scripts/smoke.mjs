@@ -598,7 +598,10 @@ async function repondreAuxChoix() {
       parisPris.push(titre);
       const mot = await page.$eval('#hubModal .hub-msg[data-msg="pari"] .hub-msg-sujet', e => e.textContent.trim()).catch(() => '');
       if (mot) parisDits.push(mot);
-      if (de && mot && /a payé/.test(mot) !== de.gagne) errors.push(`le dé de « ${titre} » dit ${de.gagne ? 'ça passe' : 'raté'}, la boîte (le moteur) dit « ${mot} »`);
+      // Le message de CE pari (la boîte en garde plusieurs tant que leurs effets courent).
+      const sien = de ? await page.$$eval('#hubModal .hub-msg[data-msg="pari"] .hub-msg-sujet', (els, [t, seq]) => { const l = els.map(e => e.textContent.trim()); return l.find(x => x.startsWith(`${t} :`)) || (seq ? l.find(x => /de suite :/.test(x)) : '') || ''; }, [titre, genre === 'hub-sequence']).catch(() => '') : '';
+      if (de && !sien) errors.push(`le dé de « ${titre} » est tombé, et la boîte ne dit pas comment ce pari a tourné`);
+      else if (de && /a payé/.test(sien) !== de.gagne) errors.push(`le dé de « ${titre} » dit ${de.gagne ? 'ça passe' : 'raté'}, la boîte (le moteur) dit « ${sien} »`);
       // La boîte se vide : l'événement réglé n'attend plus.
       const reste = await page.$$eval('#hubModal .hub-choix-rouvrir', (els, t) => els.some(e => e.textContent.includes(t)), titre).catch(() => false);
       if (de && reste) errors.push(`« ${titre} » réglé au dé attend encore dans la boîte`);

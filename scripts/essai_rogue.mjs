@@ -144,7 +144,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * règle tout comme un joueur pressé : le sommaire se ferme, un choix prend
  * sa première option, un message bloquant sa réponse par défaut.
  */
-const des = [];   // les dés lancés pendant la run
+const des = [], evenementsDe = [];   // les dés lancés pendant la run, et les événements qui les ont demandés
 async function regler() {
   for (let i = 0; i < 30; i++) {
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau ».
@@ -178,7 +178,20 @@ async function regler() {
       if (!de) erreurs.push(`le dé ne tombe pas (${besoin})`);
       else if (de.gagne !== (de.face > 6 - k)) erreurs.push(`le dé montre ${de.face} pour « ${besoin} » et dit ${de.gagne ? 'ça passe' : 'raté'}`);
       else des.push(`${de.face} ${de.gagne ? '✓' : '✗'}`);
-      await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(600); continue;
+      await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(600);
+      // La boîte se vide : l'événement réglé au dé n'attend plus.
+      const t0 = evenementsDe[evenementsDe.length - 1];
+      if (t0 && await page.$$eval('#hubModal .hub-choix-rouvrir', (els, x) => els.some(e => e.textContent.includes(x)), t0).catch(() => false)) erreurs.push(`« ${t0} » réglé au dé attend encore dans la boîte`);
+      continue;
+    }
+    // Un événement qui offre une réponse risquée : on la prend, pour lancer le dé (et vérifier que la boîte se vide).
+    const risquee = await page.$$eval('#choixModal:not([hidden]) .choix-sheet[data-genre="evenement"] button.choix-option:not([disabled])',
+      bs => bs.map(b => b.dataset.choix).filter((c, i) => /Pari/.test((bs[i].querySelector('.choix-forme') || {}).textContent || ''))[0] || null).catch(() => null);
+    if (risquee) {
+      const titreDe = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
+      await page.click(`#choixModal:not([hidden]) button.choix-option[data-choix="${risquee}"]`); await page.waitForTimeout(300);
+      evenementsDe.push(titreDe);
+      continue;
     }
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     const t = await page.$('#hubModal .hub-traiter');
