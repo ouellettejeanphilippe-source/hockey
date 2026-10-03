@@ -2299,13 +2299,18 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .cell-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 4px; min-width: 0; }
 /* LE PALIER D'UN BADGE (refonte 1) : barre colorée sous l'icône via currentColor du pal-*. */
 .cell-badge > i.badge { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; border-bottom: none; }
-.cell-badge > i.badge::after { content: ""; width: 10px; height: 3px; background: currentColor; }
+.cell-badge > i.badge::after { content: ""; width: 10px; height: 3px; background: var(--pal); }
 .pal-1 { --pal: var(--bronze); }
 .pal-2 { --pal: var(--argent); }
 .pal-3 { --pal: var(--or); }
 .pal-4 { --pal: var(--platine); }
 i.badge { font-style: normal; border-bottom: 2px solid var(--pal); }
 .puce.badge, b.badge { color: var(--pal); }
+/* Le verso est clair : l'argent et les autres paliers se foncent vers l'encre de la carte pour rester lisibles. */
+.fc-verso .pal-1 { --pal: color-mix(in srgb, var(--bronze) 50%, var(--v-encre)); }
+.fc-verso .pal-2 { --pal: color-mix(in srgb, var(--argent) 40%, var(--v-encre)); }
+.fc-verso .pal-3 { --pal: color-mix(in srgb, var(--or) 55%, var(--v-encre)); }
+.fc-verso .pal-4 { --pal: color-mix(in srgb, var(--platine) 40%, var(--v-encre)); }
 /* Rangée 2 : le niveau, la zone (✓ ▼ ▲), le blessé, la pénalité, le trophée. Elle se plie plutôt que de couper. */
 .slot-tags { margin-top: auto; display: flex; flex-wrap: nowrap; gap: 3px; min-width: 0; overflow: hidden; transform-origin: left center; }
 .slot-tags > * { flex: none; }
