@@ -422,7 +422,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
   ouvrirInventaire({
     ...(page || {}),
     titre: 'Ton inventaire', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
-    partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, jour: j, rogue }) : [],
+    partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue }) : [],
     meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0) : [],
     personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
     patronsActifs: enSaison ? patronsActifs(decs, j + 1) : [], maxPatrons: MAX_PATRONS,
@@ -452,7 +452,7 @@ export function cartesAJouer(j) {
   if (!Lg) return 0;
   const rogue = G.bonus === 'ROGUE';
   const meta = rogue ? lireMeta() : null;
-  return pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: Lg.graine, jour: j, rogue }).length
+  return pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue }).length
     + (meta ? Object.values(meta.inventaire || {}).reduce((a, n) => a + n, 0) : 0);
 }
 /*

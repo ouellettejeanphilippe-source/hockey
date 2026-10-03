@@ -7516,7 +7516,7 @@ function poserGros(toi, adv, gros) {
   toi._advGros = adv;
   // LEUR MAIN SE TIRE D'ABORD (S76) : tes cartes peuvent la lire (« La riposte »).
   if (OPTIONS_COMBAT.adverses && gros.cleMain != null) {
-    gros.cartesAdv = mainAdverse(gros.graineMain, gros.cleMain, energieAdverse({ jour: gros.jour || 0, serie: !!gros.serie, ronde: gros.ronde || 0 }));
+    gros.cartesAdv = mainAdverse(gros.graineMain, gros.cleMain, energieAdverse({ nMatch: matchsEntre(toi, 0, (gros.jour || 0) + 1), serie: !!gros.serie, ronde: gros.ronde || 0 }));
   }
   const fxToi = gros.cartes && Array.isArray(gros.cartes.jouees) ? poserCartes(toi, adv, gros) : null;
   poserPreparation(toi, adv, gros, fxToi);

@@ -1058,7 +1058,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       recit: 'Le dépistage dit ce qu\'ils vont probablement jouer : prépare-toi pour une piste, puis joue tes cartes — cinq cartes, trois d\'élan, pour ce match seulement.',
       depistage: mo.mb.depistage, planReel: mo.mb.plan, nomAdv: ctx.teamShort(adv),
       stats: statsAvantGros(ctx, you, adv, t => ({ n: gpDe(t), ...fiche.get(t) })),
-      contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ jour: mo.p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: mo.p.j }), echelle: echelleTardive({ jour: mo.p.j }) }),
+      contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ nMatch: matchsEntre(you, 0, mo.p.j + 1) })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ nMatch: matchsEntre(you, 0, mo.p.j + 1) }), echelle: echelleTardive({ jour: mo.p.j }) }),
       // S80 : l'échelle du soir — ce qui vise l'adversaire grandit avec la saison.
       echelle: echelleTardive({ jour: mo.p.j }),
       equipe: you, main, pioche, deck, couleurs: ctx.band(adv.tag),
@@ -2691,7 +2691,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${Ao ? `<div class="hub-gros-avant">${Av.ico} Événement : ${ctx.esc(Av.titre)} — <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
       </div>` : '';
       const grosDepistage = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros-dep">
-        ${onDecision ? depistageHtml(pistesDuRapport(mb.depistage), { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`, energieAdverse({ jour: p.j })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ jour: p.j }) }) : ''}
+        ${onDecision ? depistageHtml(pistesDuRapport(mb.depistage), { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`, energieAdverse({ nMatch: matchsEntre(you, 0, p.j + 1) })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ nMatch: matchsEntre(you, 0, p.j + 1) }) }) : ''}
         <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, précision ${flechesDe(ELAN.finition)} · ${ELAN.duree} matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, précision ${flechesDe(SONNE.finition)} · ${SONNE.duree} matchs`, bon: false }])}</div>
         ${onDecision ? '<div class="hub-gros-note">🎬 Au deuxième entracte, un choix t\'attend.</div>' : ''}
       </div>` : '';

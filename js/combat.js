@@ -483,15 +483,13 @@ export function mainAdverse(graine, cle, energie = ENERGIE_MAIN) {
  * L'ÉNERGIE DE L'ADVERSAIRE MONTE AVEC LA COURSE (S74b). Ton deck grandit —
  * récompenses, cartes « + » — et une main adverse fixe rendait la fin de
  * saison et les séries plus faciles à mesure qu'on y avance. Comme les boss
- * d'un deckbuilder : quatre d'énergie à partir du 55e match, et dès la
- * troisième ronde des séries. L'écran l'annonce avec la main. Le vrai
- * calendrier (1.0, oct.) étale 82 matchs sur 186 jours : le 55e tombe vers
- * le jour 125 (55 × 186 / 82), et c'est le jour que l'écran passe.
+ * d'un deckbuilder : quatre d'élan à partir du 55e match, et dès la troisième
+ * ronde des séries. L'écran l'annonce avec la main.
  */
 export const MATCH_ADVERSE_FORT = 55;
-const JOUR_ADVERSE_FORT = Math.round(MATCH_ADVERSE_FORT * 186 / 82), RONDE_ADVERSE_FORTE = 2;
-export function energieAdverse({ jour = 0, serie = false, ronde = 0 } = {}) {
-  return (serie ? ronde >= RONDE_ADVERSE_FORTE : jour >= JOUR_ADVERSE_FORT) ? ENERGIE_MAIN + 1 : ENERGIE_MAIN;
+const RONDE_ADVERSE_FORTE = 2;
+export function energieAdverse({ nMatch = 0, serie = false, ronde = 0 } = {}) {
+  return (serie ? ronde >= RONDE_ADVERSE_FORTE : nMatch >= MATCH_ADVERSE_FORT) ? ENERGIE_MAIN + 1 : ENERGIE_MAIN;
 }
 /* Un interrupteur de MESURE : `check_combat.mjs` compare avec et sans la main adverse. */
 export const OPTIONS_COMBAT = { adverses: true };
