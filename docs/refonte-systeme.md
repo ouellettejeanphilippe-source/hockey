@@ -222,6 +222,13 @@ Et ses réponses sur le coach et les adjoints (étape 3) :
 - **Le prestige débloque** : chaque rang du club (Club de garage → Dynastie) ouvre un coach de plus (trois au départ) ou une place d'adjoint de plus (deux au départ).
 - Ce qui fait la voie d'un coach reste donc ses badges, ses systèmes, ses cartes et sa confiance ; l'adjoint est le tronc commun qu'on assortit par-dessus. C'est aussi là que le Comptable (§ 10.3) trouve sa place : un adjoint parmi les autres.
 
+Puis, devant la carte des rouages (https://claude.ai/artifact/Sw7WR6CVmMMorDC9t8Jx1J) :
+
+- **Les gardiens ont un badge à palier** aussi, lu dans leurs vraies stats, avec une couleur que le coach compte.
+- **Monter un palier, trois façons** : une carte d'entraînement (une modif qui monte un badge d'un palier, la planète de Balatro), la variante de la carte (Holo ou Or : un palier de plus, au lieu d'un bonus au hasard), et un mentor de trio (ses compagnons de ligne montent d'un palier tant qu'il joue avec eux). Pas de montée « en jouant ».
+- **Un seul coach par run**, toujours : la complexité vient des adjoints et des badges.
+- **La difficulté se choisit au départ de la run** : un mandat du proprio plus dur contre plus d'écussons, comme la Chaleur de Hades.
+
 ## 11. Fait
 
 - **Étape 1, les badges à paliers** (oct.) : voir docs/decisions.md, « Les badges à paliers ».
